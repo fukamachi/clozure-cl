@@ -602,7 +602,8 @@
 
 
 (defun expt (b e)
-  (cond ((integerp e)
+  (cond ((zerop e) (1+ (* b e)))
+	((integerp e)
          (if (minusp e) (/ 1 (%integer-power b (- e))) (%integer-power b e)))
         ((zerop b)
          (if (plusp (realpart e)) b (report-bad-arg e '(number (0) *))))
