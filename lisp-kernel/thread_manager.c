@@ -231,15 +231,15 @@ linux_exception_init(TCR *tcr)
 
 
 TCR *
-get_interrupt_tcr()
+get_interrupt_tcr(Boolean create)
 {
 #ifndef LINUX
-  return get_tcr(true);
+  return get_tcr(create);
 #else
   void* callers_r2 = current_r2;
 
   if (callers_r2 == NULL) {	/* pre-glibc-2.3.2 Linux */
-    return get_tcr(true);
+    return get_tcr(create);
   } else {
     TCR  *head = (TCR *)lisp_global(INITIAL_TCR), *current = head;
 
@@ -265,7 +265,7 @@ get_interrupt_tcr()
     /* r2 is non-null and not any tcr.  Assume that r2 is pthread
        struct pointer and that it's therefore safe to call get_tcr().
     */
-    return get_tcr(true);
+    return get_tcr(create);
   }
 #endif
 }
@@ -274,7 +274,7 @@ get_interrupt_tcr()
 void
 suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context)
 {
-  TCR *tcr = get_interrupt_tcr(true);
+  TCR *tcr = get_interrupt_tcr(false);
 
   if (signo == thread_suspend_signal) {
     sigset_t wait_for;
