@@ -42,7 +42,9 @@
 
 (eval-when (:compile-toplevel :execute)
   #+apple-objc
-  (use-interface-dir :cocoa)
+  (progn
+    (use-interface-dir :cocoa)
+    (use-interface-dir :carbon))        ; need :carbon for things in this file
   #+gnu-objc
   (use-interface-dir :gnustep))
 
@@ -226,6 +228,24 @@
 (progn
 (defloadvar *cocoa-event-process* *initial-process*)
 
+
+(defun create-void-nsthread ()
+  ;; Create an NSThread which does nothing but exit.
+  ;; This'll help to convince the AppKit that we're
+  ;; multitheaded.  (A lot of other things, including
+  ;; the ObjC runtime, seem to have already noticed.)
+  (with-cstrs ((class-name "NSThread")
+               (message-selector-name "detachNewThreadSelector:toTarget:withObject:")
+               (exit-selector-name "exit"))
+    (let* ((nsthread-class (#_objc_lookUpClass class-name))
+           (message-selector (#_sel_getUid message-selector-name))
+           (exit-selector (#_sel_getUid exit-selector-name)))
+      (#_objc_msgSend nsthread-class message-selector
+                      :address exit-selector
+                      :address nsthread-class
+                      :address (%null-ptr))
+      nil)))
+
 (defun run-in-cocoa-process-and-wait  (f)
   (let* ((process *cocoa-event-process*)
 	 (success (cons nil nil))
@@ -245,19 +265,9 @@
        ;; We need to load and "initialize" the CoreFoundation library
        ;; in the thread that's going to process events.  Looking up a
        ;; symbol in the library should cause it to be initialized
-       (open-shared-library "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
        (open-shared-library "/System/Library/Frameworks/Cocoa.framework/Cocoa")
-       (let* ((current (#_CFRunLoopGetCurrent))
-              (main (external-call "_CFRunLoopGetMain" :address)))
-         ;; Sadly, it seems that OSX versions > 10.2 only want the
-         ;; main CFRunLoop to be owned by the initial thread.  I
-         ;; suppose that we could try to run the event process on that
-         ;; thread, but that'd require some reorganization.
-         (or
-          (eql current main)
-          (progn (external-call "__CFRunLoopSetCurrent"
-                                :address main)
-                 t))))))
+       (#_GetCurrentEventQueue)
+       (create-void-nsthread))))
 
 
 (let* ((cfstring-sections (cons 0 nil)))
@@ -1517,19 +1527,21 @@ argument lisp string."
   (objc-method-definition-form t selector-arg class-arg body env))
 
 (defun class-get-instance-method (class sel)
-  #+apple-objc (progn
-		 (unless (logtest #$CLS_INITIALIZED (pref (pref class :objc_class.isa)  :objc_class.info))
-		   ;; Do this for effect; ignore the :<IMP> it returns.
-		   ;; (It should cause the CLS_NEED_BIND flag to turn itself
-		   ;; off after the class has been initialized; we need
-		   ;; the class and all superclasses to have been initialized,
-		   ;; so that we can find category methods via
-		   ;; #_class_getInstanceMethod.
-		   (external-call "_class_lookupMethod"
-				  :id class
-				  :<SEL> sel
-				  :address))
-		 (#_class_getInstanceMethod class sel))
+  #+apple-objc (let* ((p (#_class_getInstanceMethod class sel)))
+                 (if (%null-ptr-p p)
+                   (unless (logtest #$CLS_INITIALIZED (pref (pref class :objc_class.isa)  :objc_class.info))
+                     ;; Do this for effect; ignore the :<IMP> it returns.
+                     ;; (It should cause the CLS_NEED_BIND flag to turn itself
+                     ;; off after the class has been initialized; we need
+                     ;; the class and all superclasses to have been initialized,
+                     ;; so that we can find category methods via
+                     ;; #_class_getInstanceMethod.
+                     (external-call "_class_lookupMethod"
+                                    :id class
+                                    :<SEL> sel
+                                    :address)
+                     (%setf-macptr p (#_class_getInstanceMethod class sel))))
+                 p)
   #+gnu-objc (#_class_get_instance_method class sel))
 
 (defun class-get-class-method (class sel)
