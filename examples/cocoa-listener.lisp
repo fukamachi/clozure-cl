@@ -47,7 +47,7 @@
 	   (send doc
 		 :perform-selector-on-main-thread (@selector "close")
 		 :with-object (%null-ptr)
-		 :wait-until-done nil))))
+		 :wait-until-done t))))
    #'(lambda ()
        (setq *listener-autorelease-pool* (create-autorelease-pool))
        (listener-function))))
