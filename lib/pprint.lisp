@@ -2139,7 +2139,6 @@
       ; IFFY because things can end up in the same place on the stack
       ; appearing EQ giving bogus circularity detection
       ; But now we have fixed things so we don't circle check rest args (ha!)
-      (declare (dynamic-extent args))
       (do-sub-format-0 s ,control-string args))))
 
 ; the following 3 are extracted from the #-ccl-2 below
