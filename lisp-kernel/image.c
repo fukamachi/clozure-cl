@@ -510,7 +510,7 @@ unsigned
 compress_area_data(area *a)
 {
   BytePtr start = a->low;
-  compressed_output_ptr = start;
+  compressed_output_ptr = (unsigned char *)start;
   output_compressed_range((LispObj *)start, (LispObj *)a->active);
   return (compressed_output_ptr - (unsigned char *)start);
 }
@@ -748,7 +748,7 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
 	lisp_global(HEAP_END) = ptr_to_lispobj(a->high);
 #if COMPRESSED_IMAGE_SUPPORT
 	if (sect->memory_size != sect->disk_size) {
-	  relocate_compressed_heap(a->low+(sect->memory_size-sect->disk_size),
+	  relocate_compressed_heap((unsigned char *)(a->low+(sect->memory_size-sect->disk_size)),
 				   (LispObj*)a->low,
 				   (LispObj*)a->active,
 				   bias);
