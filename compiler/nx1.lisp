@@ -989,7 +989,7 @@
 
 (defnx1 nx1-progv progv (symbols values &body body)
   (make-acode (%nx1-operator progv) 
-              (nx1-form `(check-symbol-list ,symbols))
+              (nx1-form `(svar-check-symbol-list ,symbols))
               (nx1-form values) 
               (nx1-catch-body body)))
 
