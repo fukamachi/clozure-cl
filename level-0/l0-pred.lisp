@@ -184,6 +184,12 @@
 
 (setf (type-predicate 'gvector) 'gvectorp)
 
+(defun ivectorp (x)
+  (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask))
+     ppc32::fulltag-immheader))
+
+(setf (type-predicate 'ivector) 'ivectorp)
+
 (defun miscobjp (x)
   (= (the fixnum (lisptag x)) ppc32::tag-misc))
 
@@ -487,8 +493,7 @@
     (or (listp x)
         (report-bad-arg x 'sequence))))
 
-;; I'm really skeptical about anything that calls UVECTORP
-;; (in that I'm afraid that it thinks that it knows what's
-;; a "uvector" and what isn't.
 (defun uvectorp (x)
   (= (the fixnum (lisptag x)) ppc32::tag-misc))
+
+(setf (type-predicate 'uvector) 'uvectorp)
