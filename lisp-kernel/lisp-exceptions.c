@@ -2758,6 +2758,7 @@ mach_resume_tcr(TCR *tcr)
   xp = tcr->suspend_context;
   tcr->suspend_context = NULL;
   restore_mach_thread_state(mach_thread, xp);
+  thread_resume(mach_thread);
   lock_release(mach_exception_lock_set,0);
 }
 
