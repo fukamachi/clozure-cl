@@ -713,70 +713,16 @@
       (setf (hi::command-interpreter-info-frame info) w))))
 
 
-(defun get-cocoa-window-flag (w flagname)
-  (case flagname
-    (:accepts-mouse-moved-events
-     (send w 'accepts-mouse-moved-events))
-    (:cursor-rects-enabled
-     (send w 'are-cursor-rects-enabled))
-    (:auto-display
-     (send w 'is-autodisplay))))
 
 
 
-(defun (setf get-cocoa-window-flag) (value w flagname)
-  (case flagname
-    (:accepts-mouse-moved-events
-     (send w :set-accepts-mouse-moved-events value))
-    (:auto-display
-     (send w :set-autodisplay value))))
 
-
-
-(defun activate-window (w)
-  ;; Make w the "key" and frontmost window.  Make it visible, if need be.
-  (send w :make-key-and-order-front nil))
-
-(defun new-hemlock-document-window (&key
-                                    (x 200.0)
-                                    (y 200.0)
-                                    (height 200.0)
-                                    (width 500.0)
-                                    (closable t)
-                                    (iconifyable t)
-                                    (metal t)
-                                    (expandable t)
-                                    (backing :buffered)
-                                    (defer nil)
-                                    (accepts-mouse-moved-events nil)
-                                    (auto-display t)
-                                    (activate t))
-  (rlet ((frame :<NSR>ect :origin.x (float x) :origin.y (float y) :size.width (float width) :size.height (float height)))
-    (let* ((stylemask
-            (logior #$NSTitledWindowMask
-                    (if closable #$NSClosableWindowMask 0)
-                    (if iconifyable #$NSMiniaturizableWindowMask 0)
-                    (if expandable #$NSResizableWindowMask 0)
-		    (if metal #$NSTexturedBackgroundWindowMask 0)))
-           (backing-type
-            (ecase backing
-              ((t :retained) #$NSBackingStoreRetained)
-              ((nil :nonretained) #$NSBackingStoreNonretained)
-              (:buffered #$NSBackingStoreBuffered)))
-           (w (make-instance
-	       'hemlock-frame
-	       :with-content-rect frame
-	       :style-mask stylemask
-	       :backing backing-type
-	       :defer defer)))
-      (setf (get-cocoa-window-flag w :accepts-mouse-moved-events)
-            accepts-mouse-moved-events
-            (get-cocoa-window-flag w :auto-display)
-            auto-display)
+(defun new-hemlock-document-window ()
+  (let* ((w (new-cocoa-window :class (find-class 'hemlock-frame)
+                              :activate nil)))
       (setf (slot-value w 'echo-area-view)
             (make-echo-area-for-window w))
-      (when activate (activate-window w))
-      (values w (add-pane-to-window w :reserve-below 20.0)))))
+      (values w (add-pane-to-window w :reserve-below 20.0))))
 
 
 
@@ -798,7 +744,7 @@
 (defun textpane-for-textstorage (ts ncols nrows container-tracks-text-view-width)
   (let* ((pane (nth-value
                 1
-                (new-hemlock-document-window :activate nil)))
+                (new-hemlock-document-window)))
          (tv (make-scrolling-textview-for-pane pane ts container-tracks-text-view-width)))
     (multiple-value-bind (height width)
         (size-of-char-in-font (default-font))
