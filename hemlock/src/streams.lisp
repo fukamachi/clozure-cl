@@ -35,6 +35,13 @@
 (defmethod stream-write-char ((stream hemlock-output-stream) char)
   (funcall (old-lisp-stream-out stream) stream char))
 
+(defmethod stream-write-string ((stream hemlock-output-stream) string
+                                &optional
+                                (start 0)
+                                (end (length string)))
+  (funcall (old-lisp-stream-sout stream) stream string start end))
+                                
+
 (defmethod print-object ((object hemlock-output-stream) stream)
   (write-string "#<Hemlock output stream>" stream))
 
