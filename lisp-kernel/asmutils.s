@@ -35,7 +35,7 @@ _endfn
 /* Flush R4 cache lines, starting at address in R3.  Each line is
    assumed to be R5 bytes wide. */
 _exportfn(C(flush_cache_lines))
-	__(cmpwi cr0,r4,0)
+	__(cmpri(cr0,r4,0))
 	__(mtctr r4)
         __(mr r6,r3)
 	__(beqlr)
@@ -77,7 +77,7 @@ _exportfn(C(noop))
 _endfn
 
 _exportfn(C(set_fpscr))
-	__(stwu sp,-32(sp))
+	__(stru(sp,-32(sp)))
 	__(stw r3,12(sp))
 	__(lfd f0,8(sp))
 	__(mtfsf 0xff,f0)
