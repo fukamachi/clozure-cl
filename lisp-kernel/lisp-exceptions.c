@@ -144,7 +144,7 @@ ProtectMemory(LogicalAddress addr, int nbytes)
   
   if (status) {
     status = errno;
-    Bug(NULL, "couldn't protectd %d bytes at %x, errno = %d", nbytes, addr, status);
+    Bug(NULL, "couldn't protect %d bytes at %x, errno = %d", nbytes, addr, status);
   }
   return status;
 }
@@ -1753,7 +1753,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
       if (message == NULL) {
 	message = "Lisp Breakpoint";
       }
-      lisp_Debugger(xp, message);
+      lisp_Debugger(xp, debug_entry_dbg,message);
       return noErr;
     }
     /*
@@ -2187,12 +2187,7 @@ exit_signal_handler(TCR *tcr, int old_valence)
   tcr->pending_exception_context = NULL;
 }
 
-/*
-  When this is called from the Linux kernel, all signals (including the
-  one used to suspend Linux threads) will be masked.  Linux needs to
-  make it appear to any thread that tries to GC that this thread was
-  already suspended when executing Lisp code.
-*/
+
 void
 signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *context, TCR *tcr)
 {
@@ -2220,7 +2215,9 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
   
   wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info))) {
-    Bug(context, "Unhandled exception %d at 0x%08x, context->regs at #x%08x", signum, xpPC(context), (int)xpGPRvector(context));
+    char msg[512];
+    snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%08x, context->regs at #x%08x", signum, xpPC(context), (int)xpGPRvector(context));
+    lisp_Debugger(context, signum, msg);
   }
   unlock_exception_lock_in_handler(tcr);
 
@@ -2453,25 +2450,17 @@ void
 Bug(ExceptionInformation *xp, const char *format, ...)
 {
   va_list args;
+  char s[512];
  
   if (threads_initialized) {
     suspend_other_threads();
   }
 
   va_start(args, format);
-  vfprintf(stderr, format, args);
+  vsnprintf(s, sizeof(s),format, args);
+  va_end(args);
+  lisp_Debugger(NULL, debug_entry_bug, s);
 
-  fflush(stderr);
-  switch( error_action() ) {
-  case kExit:
-    terminate_lisp();
-    break;
-  case kDebugger:
-    lisp_Debugger(xp, "Bug() called");
-    break;
-  default:
-    break;
-  }
   if (threads_initialized) {
     resume_other_threads();
   }

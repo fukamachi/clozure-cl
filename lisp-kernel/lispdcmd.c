@@ -37,7 +37,7 @@ Dprintf(const char *format, ...)
   int res;
 
   va_start(args, format);
-  res = vsprintf(buf, format, args);
+  res = vsnprintf(buf, sizeof(buf), format, args);
   if (res >= 0) {
     display_buffer(buf);
   }

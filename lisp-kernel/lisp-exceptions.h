@@ -41,6 +41,9 @@ extern protected_area_ptr AllProtectedAreas;
 protected_area_ptr find_protected_area(BytePtr);
 
 OSStatus
+lisp_Debugger(ExceptionInformationPowerPC *, int, char *, ...);
+
+OSStatus
 handle_protection_violation(ExceptionInformationPowerPC *, siginfo_t *);
 
 protected_area_ptr 
@@ -390,3 +393,7 @@ register void *current_r2 __asm__("r2");
 #endif
 
 #endif
+
+#define debug_entry_exception 0
+#define debug_entry_bug -1
+#define debug_entry_dbg -2
