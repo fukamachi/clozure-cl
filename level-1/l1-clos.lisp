@@ -18,7 +18,7 @@
 
 ;;; At this point in the load sequence, the handful of extant basic classes
 ;;; exist only in skeletal form (without direct or effective slot-definitions.)
-
+(in-package "CCL")
 
 (defun extract-slotds-with-allocation (allocation slotds)
   (collect ((right-ones))
@@ -57,7 +57,10 @@
 (defun %shared-initialize (instance slot-names initargs)
   (unless (or (listp slot-names) (eq slot-names t))
     (report-bad-arg slot-names '(or list (eql t))))
-  (unless (plistp initargs) (report-bad-arg initargs '(satisfies plistp)))
+  ;; Check that initargs contains valid key/value pairs,
+  ;; signal a PROGRAM-ERROR otherwise.  (Yes, this is
+  ;; an obscure way to do so.)
+  (destructuring-bind (&key &allow-other-keys) initargs)
   (let* ((wrapper (instance.class-wrapper instance))
          (class (%wrapper-class wrapper)))
     (when (eql 0 (%wrapper-hash-index wrapper)) ; obsolete
@@ -653,6 +656,27 @@
 (defun ensure-class (name &rest keys &key &allow-other-keys)
   (apply #'ensure-class-using-class (find-class name nil) name keys))
 
+(defparameter *defclass-redefines-improperly-named-classes-pedantically* 
+   t
+  "ANSI CL expects DEFCLASS to redefine an existing class only when
+the existing class is properly named, the MOP function ENSURE-CLASS
+redefines existing classes regardless of their CLASS-NAME.  This variable
+governs whether DEFCLASS makes that distinction or not.")
+
+(defun ensure-class-for-defclass (name &rest keys &key &allow-other-keys)
+  (record-source-file name 'class)
+  ;; Maybe record source-file information for accessors as well
+  ;; We should probably record them as "accessors of the class", since
+  ;; there won't be any other explicit defining form associated with
+  ;; them.
+  (let* ((existing-class (find-class name nil)))
+    (when (and *defclass-redefines-improperly-named-classes-pedantically* 
+               existing-class 
+              (not (eq (class-name existing-class) name)))
+      ;; Class isn't properly named; act like it didn't exist
+      (setq existing-class nil))
+    (apply #'ensure-class-using-class existing-class name keys)))
+
 
 (defun slot-plist-from-%slotd (%slotd allocation)
   (destructuring-bind (name initform initargs . type) %slotd
@@ -847,7 +871,7 @@
  :direct-superclasses '(specializer)
  :direct-slots
  `((:name prototype :initform nil :initfunction ,#'false)
-   (:name name :initargs (:name) :initform nil :initfunction ,#'false :readers (class-name) :writers ((setf class-name)))
+   (:name name :initargs (:name) :initform nil :initfunction ,#'false :readers (class-name))
    (:name precedence-list :initargs (:precedence-list) :initform nil  :initfunction ,#'false)
    (:name own-wrapper :initargs (:own-wrapper) :initform nil  :initfunction ,#'false :readers (class-own-wrapper))
    (:name direct-superclasses :initargs (:direct-superclasses) :initform nil  :initfunction ,#'false :readers (class-direct-superclasses))
@@ -1454,3 +1478,7 @@
   (declare (ignore env))
   `(ensure-slot-id ,(slot-id.name s)))
 
+
+(defmethod (setf class-name) (new (class class))
+  (reinitialize-instance class :name new)
+  new)
