@@ -315,7 +315,7 @@
 				 (slot-value a 'command-line-arguments)))))
 
   
-;;; Process the "help" option, report parsing errors.
+;;; Process the "help" and "version" options, report parsing errors.
 (defmethod process-application-arguments ((a application) error-flag opts args)
   (declare (ignore args))
   (if (null error-flag)
@@ -434,29 +434,27 @@ Default version returns OpenMCL version info."
 
 (defmethod toplevel-function ((a lisp-development-system) init-file)
   (call-next-method)
-  (let* ((lockptr (recursive-lock-ptr *terminal-input-lock*)))
+  (let* ((sr (input-stream-shared-resource *terminal-input*)))
     (make-mcl-listener-process
      "listener"
      *terminal-input*
      *terminal-output*
-     #'(lambda () (%unlock-recursive-lock lockptr))
+     #'(lambda () (when sr (setf (shared-resource-primary-owner sr)
+				 *initial-process*)))
      #'(lambda ()
-	 (%lock-recursive-lock lockptr)
 	 (setq *interactive-abort-process*
 	       *current-process*)
 	 (startup-ccl (and *load-lisp-init-file* init-file))
 	 (listener-function)
 	 nil)
-     nil)
-    (%unlock-recursive-lock lockptr))
+     nil))
   (%set-toplevel #'(lambda ()
 		     (loop
 			 (%nanosleep *periodic-task-seconds* *periodic-task-nanoseconds*)
 			 (housekeeping))))
   (toplevel))
 
-(defmethod application-file-creator ((app lisp-development-system))
-  *ccl-file-creator*)
+
 
 (defmethod application-init-file ((app lisp-development-system))
   "home:openmcl-init")
