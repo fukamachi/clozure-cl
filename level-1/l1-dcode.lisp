@@ -383,6 +383,31 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                          (%ilsl $lfbits-nonnullenv-bit 1)))
 )
 
+#+ppc-target
+(defppclapfunction funcallable-trampoline ()
+  (svref nfn gf.dcode nfn)
+  (lwz temp0 ppc32::misc-data-offset nfn)
+  (mtctr temp0)
+  (bctr))
+
+(defvar *fi-trampoline-code* (uvref #'funcallable-trampoline 0))
+
+#+ppc-target
+(defppclapfunction unset-fin-trampoline ()
+  (mflr loc-pc)
+  (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
+  (vpop arg_z)                          ; whoops, didn't really want to
+  (bla .SPsavecontextvsp)
+  (lwz arg_x '"Funcallable instance ~S was called with args ~s, but has no FUNCALLABLE-INSTANCE-FUNCTION" fn)
+  (mr arg_y fn)
+  (set-nargs 3)
+  (lwz fname 'error fn)
+  (bla .SPrestorecontext)
+  (mtlr loc-pc)
+  (ba .SPjmpsym))
+
+(defvar *unset-fin-code* (uvref #'unset-fin-trampoline 0))
+
 
 #+ppc-target
 (defparameter *gf-proto*
@@ -490,13 +515,26 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 (defun %set-combined-method-dcode (cm val)
   (setf (combined-method.dcode cm) val))
 
-(defun generic-function-p (thing)
+(defun funcallable-instance-p (thing)
   (when (typep thing 'function)
     (let ((bits (lfun-bits-known-function thing)))
       (declare (fixnum bits))
       (eq (ash 1 $lfbits-gfn-bit)
 	  (logand bits (logior (ash 1 $lfbits-gfn-bit)
 			       (ash 1 $lfbits-method-bit)))))))
+
+(defun generic-function-p (thing)
+  (and (typep thing 'function)
+       (let ((bits (lfun-bits-known-function thing)))
+	 (declare (fixnum bits))
+	 (eq (ash 1 $lfbits-gfn-bit)
+	     (logand bits (logior (ash 1 $lfbits-gfn-bit)
+				  (ash 1 $lfbits-method-bit)))))
+       (or (eq (%class.own-wrapper *generic-function-class*)
+	       (gf.instance.class-wrapper thing))
+	   (memq  *generic-function-class*
+		  (%inited-class-cpl (class-of thing))))))
+
 
 (defun standard-generic-function-p (thing)
   (and (typep thing 'function)
@@ -523,6 +561,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 (setf (type-predicate 'generic-function) 'generic-function-p)
 
 (setf (type-predicate 'standard-generic-function) 'standard-generic-function-p)
+(setf (type-predicate 'funcallable-standard-object) 'funcallable-instance-p)
 (setf (type-predicate 'combined-method) 'combined-method-p)
 
 
