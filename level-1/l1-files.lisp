@@ -1238,8 +1238,9 @@
 
 
 (defun pathname-device (thing &key case)
-  (declare (ignore case thing))
-  :unspecific)
+  (declare (ignore case))
+  (and (pathname thing)			;type-checking
+       :unspecific))
 
 
 ;A directory is either NIL or a (possibly wildcarded) string ending in "/" or ";"
