@@ -623,4 +623,25 @@
 
 (defconstant reservation-discharge #x1004)
 
+
+
+(defmacro with-stack-short-floats (specs &body body)
+  (ccl::collect ((binds)
+		 (inits)
+		 (names))
+		(dolist (spec specs)
+		  (let ((name (first spec)))
+		    (binds `(,name (ccl::%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float)))
+		    (names name)
+		    (let ((init (second spec)))
+		      (when init
+			(inits `(ccl::%short-float ,init ,name))))))
+		`(let* ,(binds)
+		  (declare (dynamic-extent ,@(names))
+			   (short-float ,@(names)))
+		  ,@(inits)
+		  ,@body)))
+
+
+
 (provide "PPC32-ARCH")
