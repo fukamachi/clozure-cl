@@ -97,8 +97,9 @@
 )
 
 (defun whitespacep (char)
-  (when (fixnump char) (setq char (%code-char char)))
-  (%str-member char #.wsp&cr))
+  (eql $cht_wsp (%character-attribute char (rdtab.ttab *readtable*))))
+	   
+	 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;			Readtables					;;
