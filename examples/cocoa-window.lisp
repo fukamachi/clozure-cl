@@ -63,6 +63,17 @@
 
 (defconstant process-interrupt-event-subtype 17)
 
+
+
+
+(defclass lisp-application (ns:ns-application)
+    ((termp :foreign-type :<BOOL>))
+  (:metaclass ns:+ns-object))
+
+
+(define-objc-method ((:void :post-event-at-start e) ns:ns-application)
+  (send self :post-event e :at-start t))
+
 ;;; Interrupt the AppKit event process, by enqueing an event (if the
 ;;; application event loop seems to be running.)  It's possible that
 ;;; the event loop will stop after the calling thread checks; in that
@@ -87,14 +98,11 @@
 			      #'(lambda () (apply function args)))
 		      :data2 0)))
 	(send e 'retain)
-	(send *NSApp* :post-event e :at-start t)))))
-
-
-(defclass lisp-application (ns:ns-application)
-    ((termp :foreign-type :<BOOL>))
-  (:metaclass ns:+ns-object))
-
-
+	(send *NSApp*
+	      :perform-selector-on-main-thread (@selector
+						"postEventAtStart:")
+	      :with-object e
+	      :wait-until-done t)))))
 
 #+apple-objc
 (define-objc-method ("_shouldTerminate" lisp-application)
