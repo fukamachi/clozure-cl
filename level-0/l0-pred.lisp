@@ -317,7 +317,7 @@
     internal-structure                  ; 16
     value-cell                          ; 17
     xfunction                           ; 18
-    bogus                               ; 19
+    svar                                ; 19
     array-header                        ; 20
     vector-header                       ; 21
     simple-vector                       ; 22
