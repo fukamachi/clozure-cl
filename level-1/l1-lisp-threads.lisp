@@ -612,7 +612,6 @@
 (defun fake-stack-frame-p (x)
   (istruct-typep x 'fake-stack-frame))
 
-(set-type-predicate 'fake-stack-frame 'fake-stack-frame-p)
 
 (defmacro do-db-links ((db-link &optional var value) &body body)
   (let ((thunk (gensym))
