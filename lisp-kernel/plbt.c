@@ -33,14 +33,14 @@ typedef struct dl_info {
 } Dl_info;
 
 int
-dladdr(void *p, Dl_info *info)
+darwin_dladdr(void *p, Dl_info *info)
 {
   unsigned long i;
   unsigned long j;
-  unsigned long count = _dyld_image_count();
+  uint32_t count = _dyld_image_count();
   struct mach_header *mh = 0;
   struct load_command *lc = 0;
-  unsigned long addr = NULL;
+  unsigned long addr = 0;
   unsigned long table_off = (unsigned long)0;
   int found = 0;
 
@@ -56,7 +56,7 @@ dladdr(void *p, Dl_info *info)
    */
   for (i = 0; i < count; i++) {
     addr = (unsigned long)p - _dyld_get_image_vmaddr_slide(i);
-    mh = _dyld_get_image_header(i);
+    mh = (struct mach_header *)_dyld_get_image_header(i);
     if (mh) {
       lc = (struct load_command *)((char *)mh + sizeof(struct mach_header));
       for (j = 0; j < mh->ncmds; j++, lc = (struct load_command *)((char *)lc + lc->cmdsize)) {
@@ -127,6 +127,7 @@ dladdr(void *p, Dl_info *info)
   return 1;
 }
 
+#define dladdr darwin_dladdr
 #endif
 
 
