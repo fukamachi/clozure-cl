@@ -24,33 +24,43 @@
 
 (defloadvar *cocoa-listener-count* 0)
 
+(defclass cocoa-listener-process (process)
+    ((input-stream :reader cocoa-listener-process-input-stream)))
 
-(defun new-listener-process (procname input-fd output-fd)
-  (make-mcl-listener-process
-   procname
-   (make-fd-stream
-		   input-fd
-		   :elements-per-buffer (#_fpathconf
-					 input-fd
-					 #$_PC_MAX_INPUT))
-   (make-fd-stream output-fd :direction :output
-				   :elements-per-buffer
-				   (#_fpathconf
-				    output-fd
-				    #$_PC_MAX_INPUT))
-   #'(lambda ()
-       (let* ((buf (find *current-process* hi:*buffer-list*
-			 :key #'hi::buffer-process))
-	      (doc (if buf (hi::buffer-document buf))))
-	 (when doc
-	   (setf (hi::buffer-process buf) nil)
-	   (send doc
-		 :perform-selector-on-main-thread (@selector "close")
-		 :with-object (%null-ptr)
-		 :wait-until-done nil))))
-   #'(lambda ()
-       (setq *listener-autorelease-pool* (create-autorelease-pool))
-       (listener-function))))
+(defun new-cocoa-listener-process (procname input-fd output-fd)
+  (let* ((input-stream (make-selection-input-stream
+                        input-fd
+                        :peer-fd output-fd
+                        :elements-per-buffer (#_fpathconf
+                                              input-fd
+                                              #$_PC_MAX_INPUT)))
+         (proc
+          (make-mcl-listener-process 
+           procname
+           input-stream
+           (make-fd-stream output-fd :direction :output
+                           :elements-per-buffer
+                           (#_fpathconf
+                            output-fd
+                            #$_PC_MAX_INPUT))
+           #'(lambda ()`
+               (let* ((buf (find *current-process* hi:*buffer-list*
+                                 :key #'hi::buffer-process))
+                      (doc (if buf (hi::buffer-document buf))))
+                 (when doc
+                   (setf (hi::buffer-process buf) nil)
+                   (send doc
+                         :perform-selector-on-main-thread (@selector "close")
+                         :with-object (%null-ptr)
+                         :wait-until-done nil))))
+           :initial-function
+           #'(lambda ()
+               (setq *listener-autorelease-pool* (create-autorelease-pool))
+               (listener-function))
+           :class 'cocoa-listener-process)))
+    (setf (slot-value proc 'input-stream) input-stream)
+    proc))
+         
 
 (defloadvar *NSFileHandleNotificationDataItem*
     (%get-ptr (foreign-symbol-address "_NSFileHandleNotificationDataItem")))
@@ -60,7 +70,7 @@
 
 
 
-(defclass lisp-listener-window-controller (lisp-editor-window-controller)
+(defclass hemlock-listener-window-controller (hemlock-editor-window-controller)
     ((filehandle :foreign-type :id)	;Filehandle for I/O
      (clientfd :foreign-type :int)	;Client (listener)'s side of pty
      )
@@ -68,7 +78,7 @@
   )
 
 (define-objc-method ((:id :init-with-window w)
-		     lisp-listener-window-controller)
+		     hemlock-listener-window-controller)
   (let* ((self (send-super :init-with-window w)))
     (unless (%null-ptr-p self)
       (multiple-value-bind (server client) (ignore-errors (open-pty-pair))
@@ -88,32 +98,40 @@
     self))
 
 (define-objc-method ((:void :got-data notification)
-		     lisp-listener-window-controller)
+		     hemlock-listener-window-controller)
   (with-slots (filehandle) self
     (let* ((data (send (send notification 'user-info)
 		       :object-for-key *NSFileHandleNotificationDataItem*))
 	   (document (send self 'document))
+           (textstorage (slot-value document 'textstorage))
 	   (data-length (send data 'length))
 	   (buffer (hemlock-document-buffer document))
 	   (string (make-string data-length))
 	   (fh filehandle))
-      (declare (dynamic-extent string))
       (%copy-ptr-to-ivector (send data 'bytes) 0 string 0 data-length)
-      (let* ((input-mark (hi::variable-value 'hemlock::buffer-input-mark :buffer buffer)))
-        (hi:with-mark ((mark input-mark :left-inserting))
-          (hi::insert-string mark string)
-          (hi::move-mark input-mark mark)))
+      (enqueue-buffer-operation
+       buffer
+       #'(lambda ()
+           (let* ((input-mark (hi::variable-value 'hemlock::buffer-input-mark :buffer buffer)))
+             (hi:with-mark ((mark input-mark :left-inserting))
+               (hi::insert-string mark string)
+               (hi::move-mark input-mark mark)))
+           (send textstorage
+                 :perform-selector-on-main-thread
+                 (@selector "ensureSelectionVisible")
+                 :with-object (%null-ptr)
+                 :wait-until-done t)))
       (send fh 'read-in-background-and-notify))))
 	     
 #|    
-;;; The Lisp-Listener-Window-Controller is the textview's "delegate": it
+;;; The Hemlock-Listener-Window-Controller is the textview's "delegate": it
 ;;; gets consulted before certain actions are performed, and can
 ;;; perform actions on behalf of the textview.
 
 (define-objc-method ((:<BOOL> :text-view tv
 			      :should-change-text-in-range (:<NSR>ange range)
 			      :replacement-string replacement-string)
-		     lisp-listener-window-controller)
+		     hemlock-listener-window-controller)
   (declare (ignorable replacement-string))
   (if (< (pref range :<NSR>ange.location) (slot-value self 'outpos))
     (progn
@@ -125,17 +143,17 @@
 |#
 
 
-(define-objc-method ((:void dealloc) lisp-listener-window-controller)
+(define-objc-method ((:void dealloc) hemlock-listener-window-controller)
   (send (send (@class ns-notification-center) 'default-center)
 	:remove-observer self)
   (send-super 'dealloc))
 
 
 
-;;; The LispListenerDocument class.
+;;; The HemlockListenerDocument class.
 
 
-(defclass lisp-listener-document (lisp-editor-document)
+(defclass hemlock-listener-document (hemlock-editor-document)
     ()
   (:metaclass ns:+ns-object))
 
@@ -152,7 +170,7 @@
     (send filehandle 'synchronize-file)))
 
 
-(define-objc-class-method ((:id top-listener) lisp-listener-document)
+(define-objc-class-method ((:id top-listener) hemlock-listener-document)
   (let* ((all-documents (send *NSApp* 'ordered-Documents)))
     (dotimes (i (send all-documents 'count) (%null-ptr))
       (let* ((doc (send all-documents :object-at-index i)))
@@ -160,7 +178,7 @@
 	  (return doc))))))
 
 (defun symbol-value-in-top-listener-process (symbol)
-  (let* ((listenerdoc (send (@class lisp-listener-document) 'top-listener))
+  (let* ((listenerdoc (send (@class hemlock-listener-document) 'top-listener))
 	 (buffer (unless (%null-ptr-p listenerdoc)
 		   (hemlock-document-buffer listenerdoc)))
 	 (process (if buffer (hi::buffer-process buffer))))
@@ -170,12 +188,12 @@
   
 
 
-(define-objc-method ((:<BOOL> is-document-edited) lisp-listener-document)
+(define-objc-method ((:<BOOL> is-document-edited) hemlock-listener-document)
   nil)
 
 
 (define-objc-method ((:id init)
-		     lisp-listener-document)
+		     hemlock-listener-document)
   (let* ((doc (send-super 'init)))
     (unless (%null-ptr-p doc)
       (let* ((listener-name (if (eql 1 (incf *cocoa-listener-count*))
@@ -190,10 +208,10 @@
         (hi::sub-set-buffer-modeline-fields buffer hemlock::*listener-modeline-fields*)))
     doc))
 
-(define-objc-method ((:void make-window-controllers) lisp-listener-document)
+(define-objc-method ((:void make-window-controllers) hemlock-listener-document)
   (let* ((textstorage (slot-value self 'textstorage))
 	 (controller (make-objc-instance
-		      'lisp-listener-window-controller
+		      'hemlock-listener-window-controller
 		      :with-window (%hemlock-frame-for-textstorage
                                     textstorage
 				    *listener-columns*
@@ -204,7 +222,7 @@
     (send controller 'release)
     (setf (hi::buffer-process (hemlock-document-buffer self))
 	  (let* ((tty (slot-value controller 'clientfd)))
-	    (new-listener-process listener-name tty tty)))
+	    (new-cocoa-listener-process listener-name tty tty)))
     controller))
 
 ;;; This is almost completely wrong: we need to ensure that the form
@@ -213,7 +231,7 @@
 (defun send-to-top-listener (sender-info nsstring &optional (append-newline t))
   (declare (ignorable sender-info))
   (let* ((listener
-	  (info-from-document (send (@class lisp-listener-document)
+	  (info-from-document (send (@class hemlock-listener-document)
 				    'top-listener))))
     (when listener
       (let* ((controller (cocoa-editor-info-controller listener)))
@@ -224,6 +242,14 @@
 	  ))))))
 |#
 
+(defun shortest-package-name (package)
+  (let* ((name (package-name package))
+         (len (length name)))
+    (dolist (nick (package-nicknames package) name)
+      (let* ((nicklen (length nick)))
+        (if (< nicklen len)
+          (setq name nick len nicklen))))))
+
 (defun cocoa-ide-note-package (package)
   (process-interrupt *cocoa-event-process*
                        #'(lambda (proc name)
@@ -231,12 +257,21 @@
                              (when (eq proc (hi::buffer-process buf))
                                (setf (hi::variable-value 'hemlock::current-package :buffer buf) name))))
                        *current-process*
-                       (package-name package)))
+                       (shortest-package-name package)))
 
-(defmethod ui-object-do-operation ((o cocoa-ide-ui-object)
+(defmethod hi::send-string-to-listener-process ((process cocoa-listener-process)
+                                                string &key path package)
+  (let* ((selection (make-input-selection :package package
+                                          :source-file path
+                                          :string-stream
+                                          (make-string-input-stream string))))
+    (enqueue-input-selection (cocoa-listener-process-input-stream process) selection)))
+  
+
+(defmethod ui-object-do-operation ((o ns:ns-application)
                                    operation &rest args)
   (case operation
-    (:note-package (cocoa-ide-note-package (car args)))))
+    (:note-current-package (cocoa-ide-note-package (car args)))))
 
        
   
