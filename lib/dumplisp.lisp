@@ -37,7 +37,6 @@
   (setq *%periodic-tasks%* nil)
   (setq *event-dispatch-task* nil)
   (setq *interactive-abort-process* nil)
-  (setq *module-file-alist* nil)        ; nuke paths to lisp 
   )
 
 
