@@ -50,6 +50,7 @@
 
 (defparameter *ppc-compiler-modules*
       '(ppc32-arch
+        ppc64-arch
 	ppc-arch
         ppcenv
         ppc-asm
