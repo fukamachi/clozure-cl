@@ -217,7 +217,8 @@
         ',access-fn
         ',(%car rest)
         ,@(%cdr rest)))
-    (destructuring-bind (lambda-list (store-var &rest mv-store-vars) &body body) rest
+    (destructuring-bind (lambda-list (store-var &rest mv-store-vars) &body body)
+        rest
       (unless (verify-lambda-list lambda-list)
         (signal-program-error $XBadLambdaList lambda-list))
       (let* ((store-vars (cons store-var mv-store-vars)))
@@ -225,13 +226,13 @@
                              (rename-lambda-vars lambda-list)
           (multiple-value-bind (body decls doc)
                                (parse-body body env t)
+            (setq body `((block ,access-fn ,@body)))
             (let* ((args (gensym))
                    (dummies (gensym))
                    (newval-vars (gensym))
                    (new-access-form (gensym))
                    (access-form (gensym))
                    (environment (gensym)))
-              
               `(eval-when (:compile-toplevel :load-toplevel :execute)
                  (store-setf-method 
                   ',access-fn
@@ -251,11 +252,11 @@
                                ,dummies
                                (cdr ,access-form)
                                ,newval-vars
-                               `((lambda ,,lambda-list
-                                   (block ,',access-fn ,,@body))
+                               `((lambda ,,lambda-list ,,@body)
                                  ,@,dummies)
                                ,new-access-form))))))
-                 ,@(if doc (list doc))))))))))
+                 ,@(if doc (list doc))
+                 ',access-fn))))))))
   
 (defmacro define-modify-macro (name lambda-list function &optional doc-string)
   "Creates a new read-modify-write macro like PUSH or INCF."
