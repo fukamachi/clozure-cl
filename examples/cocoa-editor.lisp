@@ -130,6 +130,7 @@
 ;;; absolute position will never change).  Code which modifies the
 ;;; buffer generally has to call this, since any cached information
 ;;; might be invalidated by the modification.
+
 (defun reset-buffer-cache (d &optional (buffer (buffer-cache-buffer d)
 						buffer-p))
   (when buffer-p (setf (buffer-cache-buffer d) buffer))
@@ -207,7 +208,6 @@
 (define-objc-method ((:unsigned length)
 		     hemlock-buffer-string)
   (let* ((cache (hemlock-buffer-string-cache self)))
-    (force-output)
     (or (buffer-cache-buflen cache)
         (setf (buffer-cache-buflen cache)
               (hemlock-buffer-length (buffer-cache-buffer cache))))))
@@ -238,9 +238,9 @@
 	((:macos :cp/m)
 	 (let* ((cp/m-p (eq external-format :cp/m)))
 	   (when cp/m-p
-	 ;; This may seem like lot of fuss about an ancient OS and its
-	 ;; odd line-termination conventions.  Of course, I'm actually
-	 ;; referring to CP/M-86.
+	     ;; This may seem like lot of fuss about an ancient OS and its
+	     ;; odd line-termination conventions.  Of course, I'm actually
+	     ;; referring to CP/M-86.
 	     (do* ((line (hi::mark-line (hi::buffer-start-mark buffer))
 			 next)
 		   (next (hi::line-next line) (hi::line-next line)))
@@ -432,7 +432,14 @@
 		  (setf (hi::current-window) pane)))
 	      #+debug 
 	      (format t "~& key-event = ~s" key-event)
-	      (hi::interpret-key-event key-event info))))))))
+	      (let* ((w (send self 'window))
+		     (hi::*echo-area-buffer* (hemlock-frame-echo-area-buffer w))
+		     (hi::*echo-area-stream*
+		      (hemlock-frame-echo-area-stream w))
+		     (hi::*echo-area-window* hi::*current-window*)
+		     (hi::*echo-area-region*
+		      (hi::buffer-region hi::*echo-area-buffer*)))
+		(hi::interpret-key-event key-event info)))))))))
 
 ;;; Update the underlying buffer's point.  Should really set the
 ;;; active region (in Hemlock terms) as well.
@@ -682,15 +689,62 @@
     ()
   (:metaclass ns:+ns-object))
 
+;;; The "document" for an echo-area isn't a real NSDocument.
+(defclass echo-area-document (ns:ns-object)
+    ((textstorage :foreign-type :id))
+  (:metaclass ns:+ns-object))
 
+(define-objc-method ((:void :update-change-count (:<NSD>ocument<C>hange<T>ype change)) echo-area-document)
+  (declare (ignore change)))
+
+
+
+(defloadvar *hemlock-frame-count* 0)
+
+(defun make-echo-area (hemlock-frame x y width height)
+  (slet ((frame (ns-make-rect x y width height))
+	 (containersize (ns-make-size 1.0f7 height)))
+    (let* ((buffer (hi:make-buffer (format nil "Echo Area ~d"
+					   (prog1
+					       *hemlock-frame-count*
+					     (incf *hemlock-frame-count*)))
+				   :modes '("Echo Area")))
+	   (stream (hi::make-hemlock-output-stream
+		    (hi::region-end (hi::buffer-region buffer)) :full))
+	   (textstorage (make-textstorage-for-hemlock-buffer buffer))
+	   (doc (make-objc-instance 'echo-area-document))
+	   (layout (make-objc-instance 'ns-layout-manager))
+	   (container (send (make-objc-instance 'ns-text-container
+						:with-container-size
+						containersize)
+			    'autorelease)))
+      (send textstorage :add-layout-manager layout)
+      (send layout :add-text-container container)
+      (send layout 'release)
+      (let* ((echo (make-objc-instance 'echo-area-view
+				       :with-frame frame
+				       :text-container container)))
+	(send echo :set-min-size (ns-make-size 0.0f0 height))
+	(send echo :set-max-size (ns-make-size 1.0f7 1.0f7))
+	(send echo :set-rich-text nil)
+	(send echo :set-horizontally-resizable nil)
+	(send echo :set-vertically-resizable nil)
+	(send echo :set-autoresizing-mask #$NSViewWidthSizable)
+	(send container :set-width-tracks-text-view nil)
+	(send container :set-height-tracks-text-view nil)
+	(setf (hemlock-frame-echo-area-buffer hemlock-frame) buffer
+	      (hemlock-frame-echo-area-stream hemlock-frame) stream
+	      (slot-value doc 'textstorage) textstorage
+	      (hi::buffer-document buffer) doc)
+	
+	echo))))
+		    
 (defun make-echo-area-for-window (w)
   (let* ((content-view (send w 'content-view)))
     (slet ((bounds (send content-view 'bounds)))
-      (slet ((frame (ns-make-rect 5.0 5.0 (- (pref bounds :<NSR>ect.size.width) 24.0) 15.0)))
-        (let* ((echo-area (make-objc-instance 'echo-area-view :with-frame frame)))
-          (send echo-area :set-autoresizing-mask #$NSViewWidthSizable)
-          (send content-view :add-subview echo-area)
-          echo-area)))))
+      (let* ((echo-area (make-echo-area w 5.0f0 5.0f0 (- (pref bounds :<NSR>ect.size.width) 24.0f0) 15.0f0)))
+	(send content-view :add-subview echo-area)
+	echo-area))))
                
         
 (defmethod hemlock-frame-command-info ((w ns:ns-window))
@@ -700,7 +754,9 @@
 (defclass hemlock-frame (ns:ns-window)
     ((echo-area-view :foreign-type :id)
      (command-info :initform (hi::make-command-interpreter-info)
-		   :accessor hemlock-frame-command-info))
+		   :accessor hemlock-frame-command-info)
+     (echo-area-buffer :initform nil :accessor hemlock-frame-echo-area-buffer)
+     (echo-area-stream :initform nil :accessor hemlock-frame-echo-area-stream))
   (:metaclass ns:+ns-object))
 
 
@@ -934,16 +990,10 @@
 	:update-change-count (if flag #$NSChangeDone #$NSChangeCleared)))
 
 
-(defun hi::document-panes (document)
-  (let* ((ts (slot-value document 'textstorage))
-	 (panes ()))
-    (for-each-textview-using-storage
-     ts
-     #'(lambda (tv)
-	 (let* ((pane (text-view-pane tv)))
-	   (unless (%null-ptr-p pane)
-	     (push pane panes)))))
-    panes))
+(defmethod hi::document-panes ((document t))
+  )
+
+
 
     
 
@@ -1056,6 +1106,17 @@
     (unless (%null-ptr-p string)
       (let* ((cache (hemlock-buffer-string-cache string)))
 	(when cache (buffer-cache-buffer cache))))))
+
+(defmethod hi::document-panes ((document lisp-editor-document))
+  (let* ((ts (slot-value document 'textstorage))
+	 (panes ()))
+    (for-each-textview-using-storage
+     ts
+     #'(lambda (tv)
+	 (let* ((pane (text-view-pane tv)))
+	   (unless (%null-ptr-p pane)
+	     (push pane panes)))))
+    panes))
 
 (define-objc-method ((:id :data-representation-of-type type)
 		      lisp-editor-document)
