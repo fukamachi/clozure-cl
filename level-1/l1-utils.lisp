@@ -278,15 +278,7 @@
 
 (setf (type-predicate 'macptr) 'macptrp)
 
-(defun null-or-handlep (arg)
-  (and (macptrp arg)
-       (or (%null-ptr-p arg)
-           (handlep arg))))
 
-(defun require-null-or-handlep (arg)
-  (if (null-or-handlep arg)
-    arg
-    (require-type arg '(satisfies null-or-handlep))))
 
 
 
@@ -308,8 +300,8 @@
 
 (defun %check-extra-arguments (ptr)
   (when (destructure-state.current ptr)
-    (error "Extra arguments in ~s don't match lambda list ~s."
-	       (destructure-state.whole ptr) (destructure-state.lambda ptr))))
+    (signal-program-error "Extra arguments in ~s don't match lambda list ~s."
+			  (destructure-state.whole ptr) (destructure-state.lambda ptr))))
 
 (defun %keyword-present-p (keys keyword)
   (let* ((not-there (cons nil nil)))
@@ -323,13 +315,16 @@
       (if (oddp len)
 	(signal-simple-program-error "Odd length keyword list: ~s" actual))))
   (setq allow-others (or allow-others (getf actual :allow-other-keys)))
-  (unless allow-others
-    (do* ((a actual (cddr a))
-	  (k (car a) (car a)))
-	 ((null a))
-      (unless (or (eq k :allow-other-keys)
-		  (member k keys))
-	(signal-simple-program-error "Unknown keyword argument ~s in ~s.  ~&Valid keyword arguments are ~s." k actual keys)))))
+  (do* ((a actual (cddr a))
+	(k (car a) (car a)))
+       ((null a))
+    (unless (typep k 'symbol)
+      (signal-simple-program-error
+       "Invalid keyword argument ~s in ~s.  ~&Valid keyword arguments are ~s." k actual keys))
+    (unless (or allow-others
+		(eq k :allow-other-keys)
+		(member k keys))
+      (signal-simple-program-error "Unknown keyword argument ~s in ~s.  ~&Valid keyword arguments are ~s." k actual keys))))
 
 (%fhave 'set-macro-function #'%macro-have)   ; redefined in sysutils.
 
@@ -448,8 +443,7 @@
     (dolist (pair list)
       (if pair
 	(if (eql item (car pair))
-	  (return pair))
-	(report-bad-arg pair 'cons)))
+	  (return pair))))
     (assq item list)))
 
 ; (assoc-test item list test-fn) 
@@ -460,8 +454,7 @@
   (dolist (pair list)
     (if pair
       (if (funcall test-fn item (car pair))
-	(return pair))
-      (report-bad-arg pair 'cons))))
+	(return pair)))))
 
 
 
@@ -473,8 +466,7 @@
   (dolist (pair list)
     (if pair
       (if (not (funcall test-not-fn item (car pair)))
-	(return pair))
-      (report-bad-arg pair 'cons))))
+	(return pair)))))
 
 (defun assoc (item list &key test test-not key)
   (multiple-value-bind (test test-not key) (%key-conflict test test-not key)
@@ -490,13 +482,11 @@
         (dolist (pair list)
           (if pair
             (if (funcall test item (funcall key (car pair)))
-              (return pair))
-	    (report-bad-arg pair 'cons)))
+              (return pair))))
         (dolist (pair list)
           (if pair
             (unless (funcall test-not item (funcall key (car pair)))
-              (return pair))
-	    (report-bad-arg pair 'cons)))))))
+              (return pair))))))))
 
 
 ;;;; Member.
@@ -848,9 +838,9 @@ vector
 
 (defun eval-constant (form)
   (if (quoted-form-p form) (%cadr form)
-      (if (constant-symbol-p form) (symbol-value form)
-          (if (self-evaluating-p form) form
-              (report-bad-arg form '(satsifies constantp))))))
+    (if (constant-symbol-p form) (symbol-value form)
+      (if (self-evaluating-p form) form
+	(report-bad-arg form '(satisfies constantp))))))
 
 ; SETQ'd above before we could DEFVAR.
 (defvar *fred-special-indent-alist*)
