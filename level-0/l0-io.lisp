@@ -91,9 +91,4 @@
    (%kernel-import ppc32::kernel-import-free)
    :address ptr :void))
 
-(defun %new-ptr (size &optional clear-p)
-  (let* ((p (malloc size)))
-    (if (and clear-p (not (%null-ptr-p p)))
-      (#_bzero p size))
-    p))
 
