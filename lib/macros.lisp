@@ -2418,6 +2418,9 @@
 
 (defun defcallback-body (stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta)
   (let* ((result (gensym))
+         (offset (case return-type
+                   ((:single-float :double-float) 8)
+                   (t 0)))
          (condition-name (if (atom error-return) 'error (car error-return)))
          (error-return-function (if (atom error-return) error-return (cadr error-return)))
          (body
@@ -2426,6 +2429,10 @@
 	    ,@decls
 	    (let ((,result (progn ,@body)))
 	      (declare (ignorable ,result))
+              ,@ (progn
+                   (when (eq return-type :single-float)
+                     (setq result `(float ,result 0.0d0)))
+                   nil)
 	      , (when return-type
 		  `(setf (,
 			  (case return-type
@@ -2433,8 +2440,8 @@
 			    (:signed-doubleword '%%get-signed-longlong)
 			    (:unsigned-doubleword '%%get-unsigned-longlong)
 			    (:double-float '%get-double-float)
-			    (:single-float '%get-single-float)
-			    (t '%get-long)) ,stack-ptr) ,result))))))
+			    (:single-float '%get-double-float)
+			    (t '%get-long)) ,stack-ptr ,offset) ,result))))))
     (if error-return
       (let* ((cond (gensym)))
         `(handler-case ,body
