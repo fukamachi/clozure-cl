@@ -191,7 +191,7 @@
 (defun %stack-area-usable-size (area)
   (ash (- (%fixnum-ref area ppc32::area.high)
 	  (%fixnum-ref area ppc32::area.softlimit))
-       2))
+       target::fixnum-shift))
 
 (defun %cons-lisp-thread (name &optional tcr)
   (%gvector ppc32::subtag-lisp-thread
@@ -261,7 +261,7 @@
     (format stream "~a" (lisp-thread.name thread))
     (let* ((tcr (lisp-thread.tcr thread)))
       (if (and tcr (not (eql 0 tcr)))
-	(format stream " [tcr @ #x~x]" (ash tcr ppc32::fixnumshift))))))
+	(format stream " [tcr @ #x~x]" (ash tcr target::fixnumshift))))))
 
 
 (defvar *lisp-thread-population*
@@ -319,15 +319,13 @@
                  (get-field-offset :xframe-list.this))))
 
 (defun new-tcr (cs-size vs-size ts-size)
-  (ash
-   (%ptr-to-int
-    (ff-call
-     (%kernel-import ppc32::kernel-import-newthread)
+  (macptr->fixnum
+   (ff-call
+    (%kernel-import ppc32::kernel-import-newthread)
      :unsigned-fullword cs-size
      :unsigned-fullword vs-size
      :unsigned-fullword ts-size
-     :address))
-   -2))
+     :address)))
 
 (defun new-thread (name cstack-size vstack-size tstack-size)
   (new-lisp-thread-from-tcr (new-tcr cstack-size vstack-size tstack-size) name))
