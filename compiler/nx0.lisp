@@ -990,7 +990,7 @@ function to the indicated name is true.")
   (when afunc
     (setq
      tags (if toplevel *nx-tags* (afunc-tags afunc))
-     taginfo (assq tagname tags)
+     taginfo (assoc tagname tags)
      parent (afunc-parent afunc))
     (if taginfo
       (values taginfo nil)
