@@ -73,7 +73,12 @@
           (if foundp
 	    (progn
 	      (unless (funcall (standard-effective-slot-definition.type-predicate slotd) new-value)
-		(report-bad-arg new-value (%slot-definition-type slotd)))
+		(error 'bad-slot-type-from-initarg
+		       :slot-definition slotd
+		       :instance instance
+		       :datum new-value
+		       :expected-type  (%slot-definition-type slotd)
+		       :initarg-name (car foundp)))
 	      (if (consp loc)
 		(rplacd loc new-value)
 		(setf (standard-instance-instance-location-access instance loc)
@@ -91,7 +96,11 @@
                     (if initfunction
                       (let* ((newval (funcall initfunction)))
 			(unless (funcall (standard-effective-slot-definition.type-predicate slotd) newval)
-			  (report-bad-arg newval (%slot-definition-type slotd)))
+			  (error 'bad-slot-type-from-initform
+				 :slot-definition slotd
+				 :expected-type (%slot-definition-type slotd)
+				 :datum newval
+				 :instance instance))
                         (if (consp loc)
                           (rplacd loc newval)
                           (setf (standard-instance-instance-location-access

@@ -2230,7 +2230,10 @@
 	 (type-predicate (standard-effective-slot-definition.type-predicate slotd)))
     (unless (or (eq new (%slot-unbound-marker))
 		(funcall type-predicate new))
-      (setq new (require-type new type)))
+      (error 'bad-slot-type
+	     :instance (slot-vector.instance slot-vector)
+	     :datum new :expected-type type
+	     :slot-definition slotd))
     (typecase loc
       (fixnum
        (setf (%svref slot-vector loc) new))
