@@ -44,6 +44,14 @@
 	  (send (@class ns-bundle)
 		:load-nib-named mainnibname
 		:owner app)
+          ;; Create an NSThread which does nothing but exit.
+          ;; This'll help to convince the AppKit that we're
+          ;; multitheaded.  (A lot of other things, including
+          ;; the ObjC runtime, seem to have already noticed.)
+          (send (@class "NSThread")
+                :detach-new-thread-selector (@selector "exit")
+                :to-target (@class "NSThread")
+                :with-object (%null-ptr))
 	  app))))
 
 
