@@ -36,7 +36,7 @@
 				      "LISP-THREAD."
 				      (string name)
 				      "-CELL")
-				     "ARCH")))))
+				     "TARGET")))))
     (progn
       (thread-accessor tcr)
       (thread-accessor name)
