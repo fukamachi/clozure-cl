@@ -567,8 +567,9 @@
           (declare (fixnum len ndots nondots))
           (if (not nondots)
             (if (= len 1)
-              (or dot-ok (%err-disp $XDOTERR))
-              (%err-disp $XBADSYM))
+              (or dot-ok
+                  (signal-reader-error stream "Dot context error."))
+              (signal-reader-error stream "Illegal symbol syntax."))
             ; Something other than a buffer full of dots.  Thank god.
             (let* ((num (if (null escapes) (%token-to-number tb (%validate-radix *read-base*)))))
               (if num
@@ -681,7 +682,7 @@
                           (progn (rplacd tail lastform) 
                                  (not (nth-value 1 (%read-list-expression stream nil termch)))))))
             (return)
-            (%err-disp $XDOTERR))
+            (signal-reader-error stream "Dot context error."))
            (rplacd tail (setq tail (cons form nil))))))
     (cdr head)))
 
@@ -818,7 +819,8 @@ c)" t)
     (let* ((exp (%read-list-expression stream nil)))
       (unless *read-suppress*
         (eval exp)))
-    (error '"#. reader macro invoked when ~S is false ." '*read-eval*)))
+    (signal-reader-error stream "#. reader macro invoked when ~S is false ."
+                         '*read-eval*)))
 
 (set-dispatch-macro-character 
  #\# 
