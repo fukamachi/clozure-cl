@@ -21,9 +21,6 @@
   (disable-tty-local-modes pty (logior #$ECHO #$ECHOCTL #$ISIG))
   pty)
 
-(declaim (special *open-editor-documents*)
-	 (type list *open-editor-documents*))
-
 
 (defloadvar *cocoa-listener-count* 0)
 
