@@ -5,6 +5,56 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "BRIDGE"))
 
+
+#+apple-objc
+(progn
+  (let* ((class-count 0))
+    (declare (fixnum class-count))
+    (defun reset-objc-class-count () (setq class-count 0))
+    (defun map-objc-classes ()
+      (let* ((n (#_objc_getClassList (%null-ptr) 0)))
+	(declare (fixnum n))
+	(if (> n class-count)
+	  (%stack-block ((buffer (the fixnum (ash n ppc32::word-shift))))
+	    (#_objc_getClassList buffer n)
+	  (do* ((i class-count (1+ i)))
+	       ((= i n (setq class-count i)))
+	    (declare (fixnum i))
+	    (install-foreign-objc-class
+	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift))))))))))
+  (def-ccl-pointers revive-objc-classes ()
+    (reset-objc-class-count)
+    (map-objc-classes)))
+
+#+gnu-objc
+(defun iterate-over-class-methods (class method-function)
+  (do* ((mlist (pref class :objc_class.methods)
+	       (pref mlist :objc_method_list.method_next)))
+       ((%null-ptr-p mlist))
+    (do* ((n (pref mlist :objc_method_list.method_count))
+	  (i 0 (1+ i))
+	  (method (pref mlist :objc_method_list.method_list)
+		  (%incf-ptr method (record-length :objc_method))))
+	 ((= i n))
+      (declare (fixnum i n))
+      (funcall method-function method class))))
+
+#+gnu-objc
+(progn
+  (let* ((objc-class-count 0))
+    (defun reset-objc-class-count () (setq objc-class-count 0))
+    (defun note-all-library-methods (method-function)
+      (do* ((i objc-class-count (1+ i))
+	    (class (id->objc-class i) (id->objc-class i)))
+	   ((eq class 0))
+	(iterate-over-class-methods class method-function)
+	(iterate-over-class-methods (id->objc-metaclass i) method-function))))
+  (def-ccl-pointers revive-objc-classes ()
+    (reset-objc-class-count)))
+
+(defun retain-obcj-object (x)
+  (objc-message-send x "retain"))
+
 #+apple-objc
 (progn
 ;;; NSException-handling stuff.
@@ -75,25 +125,29 @@
              (format s "Objective-C runtime exception: ~&~a"
                      (nsobject-description (ns-exception c))))))
 
-(def-objc-class ns-lisp-exception ns-exception
-  (lispid :unsigned))
+
+
+(defclass ns-lisp-exception (ns::ns-exception)
+    ((lispid :foreign-type :unsigned))
+  (:metaclass ns::+ns-object))
 
 (define-objc-method ((:id :init-with-lisp-id (:unsigned lisp-id))
 		     ns-lisp-exception)
   (setq self (send-super :init-with-name #@"lisp exception"
                          :reason #@"lisp exception"
                          :user-info (%null-ptr)))
-  (setq lispid lisp-id)
+  (setf (slot-value self 'lispid) lisp-id)
   self)
 
 (define-objc-method ((:unsigned lisp-id) ns-lisp-exception)
-  lispid)
+  (slot-value self 'lispid))
 
 (defun ns-exception->lisp-condition (nsexception)
   (if (send (send nsexception 'class)
             :is-subclass-of-class (@class ns-lisp-exception))
     (id-map-free-object *condition-id-map* (send nsexception 'lisp-id))
     (make-condition 'ns-exception :ns-exception nsexception)))
+
 
 (defmethod ns-exception ((c condition))
   "Map a lisp condition object to an NSException.  Note that instances
@@ -105,7 +159,14 @@ instance variable."
 
   #|(dbg (format nil "~a" c))|#
   (make-objc-instance 'ns-lisp-exception
-                      :with-lisp-id (assign-id-map-id *condition-id-map* c)))
+		      :with-lisp-id (assign-id-map-id *condition-id-map* c)))
+  
+
+
+(defun ns-exception->lisp-condition (nsexception)
+  (if (typep nsexception 'ns-lisp-exception)
+    (id-map-free-object *condition-id-map* (slot-value nsexception 'lispid))
+    (make-condition 'ns-exception :ns-exception nsexception)))
 
 #+apple-objc
 (progn
@@ -123,6 +184,8 @@ instance variable."
   nil)
 
 )
+
+
 
 (defun open-main-bundle ()
   (send (@class ns-bundle) 'main-bundle))
