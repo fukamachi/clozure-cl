@@ -131,7 +131,7 @@
                               
 (define-ppc64-vinsn misc-ref-single-float  (((dest :single-float))
 					    ((v :lisp)
-					     (scaled-idx :u32))
+					     (scaled-idx :u64))
 					    ())
   (lfsx dest v scaled-idx))
 
@@ -1064,9 +1064,27 @@
 
 (define-ppc64-vinsn trap-unless-uvector (()
 					 ((object :lisp))
-					((tag :u8)))
+                                         ((tag :u8)))
   (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
   (tdnei tag ppc64::fulltag-misc))
+
+(define-ppc64-vinsn trap-unless-single-float (()
+                                              ((object :lisp))
+                                              ((tag :u8)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (tdnei tag ppc64::subtag-single-float))
+
+(define-ppc64-vinsn trap-unless-double-float (()
+                                              ((object :lisp))
+                                              ((tag :u8)
+                                               (crf :crf)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf tag ppc64::fulltag-misc)
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (bne crf :do-trap)
+  (lbz tag ppc64::misc-subtag-offset object)
+  :do-trap
+  (tdnei tag ppc64::subtag-double-float))
 
 (define-ppc64-vinsn trap-unless-fulltag= (()
 					  ((object :lisp)
@@ -1100,22 +1118,7 @@
 					(const :s16const)))
   (subi dest src const))
 
-#+not-yet
-(define-ppc64-vinsn trap-unless-numeric-type (()
-					      ((object :lisp)
-					       (maxtype :u16const))
-					      ((crf0 (:crf 0))
-					       (tag :u8)
-					       (crfX :crf)))
-  (clrlwi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
-  (cmpwi tag ppc64::tag-misc)
-  (beq+ crf0 :fixnum)
-  (bne crfX :scale-tag)
-  (lbz tag ppc64::misc-subtag-offset object)
-  :scale-tag
-  (subi tag tag ppc64::min-numeric-subtag)
-  (twlgti tag (:apply - maxtype ppc64::min-numeric-subtag))
-  :fixnum)
+
 
 
 ;; Bit-extraction & boolean operations
@@ -1150,21 +1153,15 @@
           (- ppc64::least-significant-bit ppc64::fixnumshift)))
 
 
-;; Sometimes we try to extract a single bit from some source register
-;; into a destination bit (typically 31, sometimes fixnum bit 0 = 29).
-;; If we copy bit 0 (whoops, I mean "bit 31") to bit 4 (aka 27) in a
-;; given register, we get a value that's either 17 (the arithmetic difference
-;; between T and NIL) or 0.
-
-(define-ppc64-vinsn bit31->truth (((dest :lisp)
-				   (bits :u32))
-				  ((bits :u32))
-				  ())
-  (rlwimi bits bits (- ppc64::least-significant-bit 27) 27 27) ; bits = 0000...X000X
+(define-ppc64-vinsn lowbit->truth (((dest :lisp)
+                                    (bits :u64))
+                                   ((bits :u64))
+                                   ())
+  (mulli bits bits ppc64::t-offset)
   (addi dest bits ppc64::nil-value))
 
-(define-ppc64-vinsn invert-bit31 (((bits :u32))
-				  ((bits :u32))
+(define-ppc64-vinsn invert-lowbit (((bits :u64))
+                                   ((bits :u64))
 				  ())
   (xori bits bits 1))
 
@@ -1441,11 +1438,11 @@
 
 ;; Extract a constant bit (0-31) from src; make it be bit 31 of dest.
 ;; Bitnum is treated mod 32.
-(define-ppc64-vinsn extract-constant-ppc-bit (((dest :u32))
+(define-ppc64-vinsn extract-constant-ppc-bit (((dest :u64))
 					      ((src :imm)
 					       (bitnum :u16const))
 					      ())
-  (rlwinm dest src (:apply + 1 bitnum) 31 31))
+  (rldicl dest src (:apply + 1 bitnum) 63))
 
 
 (define-ppc64-vinsn set-constant-ppc-bit-to-variable-value (((dest :u32))
