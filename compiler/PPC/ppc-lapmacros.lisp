@@ -405,6 +405,7 @@
      (rlwinm ,dest ,low (- ppc32::nbits-in-word ppc32::fixnumshift) 16 31)
      (rlwimi ,dest ,high (- 16 ppc32::fixnumshift) 0 15)))
 
+#+ppc32-target
 (defppclapmacro macptr-ptr (dest macptr)
   `(lwz ,dest ppc32::macptr.address ,macptr))
 
@@ -664,6 +665,22 @@
   (blr))
 |#
 
+;;; see "Optimizing PowerPC Code" p. 156
+;;; Note that the constant #x4330000080000000 is now in fp-s32conv
+
+(defppclapmacro int-to-freg (int freg imm)
+  `(let ((temp 8)
+	 (temp.h 8)
+	 (temp.l 12))
+    (stwu tsp -16 tsp)
+    (stw tsp 4 tsp)
+    (stfd ppc::fp-s32conv temp tsp)
+    (unbox-fixnum ,imm ,int)
+    (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
+    (stw ,imm temp.l tsp)
+    (lfd ,freg temp tsp)
+    (lwz tsp 0 tsp)
+    (fsub ,freg ,freg ppc::fp-s32conv)))
 
 
 
