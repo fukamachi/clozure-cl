@@ -2235,7 +2235,7 @@ typedef struct {
 void
 fatal_mach_error(char *format, ...);
 
-#define MACH_CHECK_ERROR(context,x) if (x != KERN_SUCCESS) {fatal_mach_error("Mach error while %s : ~d", context, x);}
+#define MACH_CHECK_ERROR(context,x) if (x != KERN_SUCCESS) {fatal_mach_error("Mach error while %s : %d", context, x);}
 
 
 void
@@ -2316,18 +2316,22 @@ create_thread_context_frame(mach_port_t thread,
 
 #ifdef PPC64
   thread_state_count = PPC_THREAD_STATE64_COUNT;
-  thread_get_state(thread,
-                   PPC_THREAD_STATE64,
-                   (thread_state_t)&ts,
-                   &thread_state_count);
+  result = thread_get_state(thread,
+                            PPC_THREAD_STATE64,
+                            (thread_state_t)&ts,
+                            &thread_state_count);
 #else
   thread_state_count = MACHINE_THREAD_STATE_COUNT;
-  thread_get_state(thread, 
-		   MACHINE_THREAD_STATE,	/* GPRs, some SPRs  */
-		   (thread_state_t)&ts,
-		   &thread_state_count);
+  result = thread_get_state(thread, 
+                            MACHINE_THREAD_STATE,	/* GPRs, some SPRs  */
+                            (thread_state_t)&ts,
+                            &thread_state_count);
 #endif
-
+  
+  if (result != KERN_SUCCESS) {
+    get_tcr(true);
+    Bug(NULL, "Exception thread can't obtain thread state, Mach result = %d", result);
+  }
   stackp = ts.r1;
   backlink = stackp;
   stackp = TRUNC_DOWN(stackp, C_REDZONE_LEN, C_STK_ALIGN);
@@ -2390,7 +2394,11 @@ setup_signal_frame(mach_port_t thread,
                    int code,
 		   TCR *tcr)
 {
+#ifdef PPC64
+  ppc_thread_state64_t ts;
+#else
   ppc_thread_state_t ts;
+#endif
   ppc_exception_state_t xs;
   mach_msg_type_number_t thread_state_count;
   ExceptionInformation *lss;
@@ -2415,19 +2423,26 @@ setup_signal_frame(mach_port_t thread,
      args) when the thread's resumed.
   */
 
-  ts.srr0 = (int) handler_address;
+  ts.srr0 = (natural) handler_address;
   ts.srr1 = (int) xpMSR(lss) & ~MSR_FE0_FE1_MASK;
   ts.r1 = stackp;
   ts.r3 = signum;
-  ts.r4 = (int)lss;
-  ts.r5 = (int)tcr;
-  ts.lr = (int)pseudo_sigreturn;
+  ts.r4 = (natural)lss;
+  ts.r5 = (natural)tcr;
+  ts.lr = (natural)pseudo_sigreturn;
 
 
+#ifdef PPC64
+  thread_set_state(thread,
+                   PPC_THREAD_STATE64,
+                   (thread_state_t)&ts,
+                   PPC_THREAD_STATE64_COUNT);
+#else
   thread_set_state(thread, 
 		   MACHINE_THREAD_STATE,
 		   (thread_state_t)&ts,
 		   MACHINE_THREAD_STATE_COUNT);
+#endif
   lock_release(mach_exception_lock_set, 0);
   return 0;
 }
@@ -2762,6 +2777,7 @@ darwin_exception_cleanup(TCR *tcr)
     tcr->native_thread_info = NULL;
     free(fxs);
   }
+  mach_port_deallocate(mach_task_self(),(mach_port_t)tcr);
   mach_port_destroy(mach_task_self(),(mach_port_t)tcr);
 }
 
@@ -2776,21 +2792,23 @@ Boolean
 mach_suspend_tcr(TCR *tcr)
 {
   mach_port_t mach_thread = (mach_port_t) tcr->native_thread_id;
-  kern_return_t status = thread_suspend(mach_thread);
+  kern_return_t status;
   ExceptionInformation *lss;
+  Boolean result = false;
   
-  if (status != KERN_SUCCESS) {
-    return false;
-  }
   lock_acquire(mach_exception_lock_set, 0);
-  thread_abort_safely(mach_thread);
-  lss = create_thread_context_frame(mach_thread, NULL);
-  lss->uc_onstack = 0;
-  lss->uc_sigmask = (sigset_t) 0;
-  tcr->suspend_context = lss;
-  tcr->suspend_total++;
+  status = thread_suspend(mach_thread);
+  if (status == KERN_SUCCESS) {
+    thread_abort_safely(mach_thread);
+    lss = create_thread_context_frame(mach_thread, NULL);
+    lss->uc_onstack = 0;
+    lss->uc_sigmask = (sigset_t) 0;
+    tcr->suspend_context = lss;
+    tcr->suspend_total++;
+    result = true;
+  }
   lock_release(mach_exception_lock_set, 0);
-  return true;
+  return result;
 }
 
 void
