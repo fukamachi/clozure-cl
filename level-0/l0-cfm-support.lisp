@@ -429,13 +429,14 @@
 (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
 
 (defun shlib-containing-address (address &optional name)
-   (rletZ ((info :<D>l_info))
-     (let* ((status (ff-call *dladdr-entry*
-			     :address address
-			     :address info :signed-fullword)))
-       (declare (integer status))
-       (unless (zerop status)
-	 (shared-library-at (pref info :<D>l_info.dli_fbase))))))
+  (declare (ignore name))
+  (rletZ ((info :<D>l_info))
+    (let* ((status (ff-call *dladdr-entry*
+                            :address address
+                            :address info :signed-fullword)))
+      (declare (integer status))
+      (unless (zerop status)
+        (shared-library-at (pref info :<D>l_info.dli_fbase))))))
 
 
 (defun shlib-containing-entry (entry &optional name)
