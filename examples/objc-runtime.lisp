@@ -1045,30 +1045,25 @@ argument lisp string."
 
 
 
-;;; If P is an ObjC class (or metaclass), return the class & metaclass,
-;;; else return (VALUES NIL NIL).
+;;; Return the "canonical" version of P iff it's a known ObjC class
 (defun objc-class-p (p)
   (if (typep p 'macptr)
-    (let* ((id (or (objc-class-id p) (objc-metaclass-id p))))
-      (if id
-	(values (id->objc-class id) (id->objc-metaclass id))
-	(values nil nil)))))
+    (let* ((id (objc-class-id p)))
+      (if id (id->objc-class id)))))
+
+;;; Return the canonical version of P iff it's a known ObjC metaclass
+(defun objc-metaclass-p (p)
+  (if (typep p 'macptr)
+    (let* ((id (objc-metaclass-id p)))
+      (if id (id->objc-metaclass id)))))
 
 ;;; If P is an ObjC instance, return a pointer to its class.
 ;;; This assumes that all instances are allocated via something that's
 ;;; ultimately malloc-based.
 (defun objc-instance-p (p)
-  (and (typep p 'macptr)
-       #+apple-objc
-       (not (%null-ptr-p (#_malloc_zone_from_ptr p)))
-       ;; #_malloc_zone_from_pointer seems pretty robust.
-       ;; If it returned a non-null "zone", it's probably safe
-       ;; to indirect through P.
-       (with-macptrs ((parent (pref p
-				    #+apple-objc :objc_object.isa
-				    #+gnu-objc :objc_object.class_pointer)))
-	 (or (objc-class-p parent)
-	     (values (objc-instance-p parent))))))
+  (when (typep p 'macptr)
+    (let* ((idx (%objc-instance-class-index p)))
+      (if idx (id->objc-class  idx)))))
 
 
 #+apple-objc
@@ -1095,19 +1090,22 @@ argument lisp string."
     (objc-class-id-parent))
   )
 
-;;; If an instance, return (values :INSTANCE <class>).
-;;; If a class, return (values :CLASS <metaclass>).
-;;; If a metaclass, return (values :METACLASS <class>).
+;;; If an instance, return (values :INSTANCE <class>)
+;;; If a class, return (values :CLASS <class>).
+;;; If a metaclass, return (values :METACLASS <metaclass>).
 ;;; Else return (values NIL NIL).
 (defun objc-object-p (p)
-  (multiple-value-bind (class metaclass) (objc-class-p p)
-    (if (eql p class)
-      (values :class metaclass)
-      (if (eql p metaclass)
-	(values :metaclass class)
-	(if (setq class (objc-instance-p p))
-	  (values :instance class)
-	  (values nil nil))))))
+  (let* ((instance-p (objc-instance-p p)))
+    (if instance-p
+      (values :instance instance-p)
+      (let* ((class-p (objc-class-p p)))
+	(if class-p
+	  (values :class class-p)
+	  (let* ((metaclass-p (objc-metaclass-p p)))
+	    (if metaclass-p
+	      (values :metaclass metaclass-p)
+	      (values nil nil))))))))
+
        
 
 ;;; Stub until BRIDGE is loaded
@@ -1417,7 +1415,6 @@ argument lisp string."
 	  (external-call "__objc_getFreedObjectClass" :address))
     (free obj)))
 
-#+threads-problem
 (def-ccl-pointers install-deallocate-hook ()
   (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))
 )
