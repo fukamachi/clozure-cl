@@ -1479,9 +1479,7 @@
 (defvar *standard-method-class* (make-standard-class 'standard-method *method-class*))
 (defvar *accessor-method-class* (make-standard-class 'standard-accessor-method *standard-method-class*))
 (defvar *standard-reader-method-class* (make-standard-class 'standard-reader-method *accessor-method-class*))
-(defvar *primary-reader-method-class* (make-standard-class 'primary-reader-method *standard-reader-method-class*))
 (defvar *standard-writer-method-class* (make-standard-class 'standard-writer-method *accessor-method-class*))
-(defvar *primary-writer-method-class* (make-standard-class 'primary-writer-method *standard-writer-method-class*))
 (defvar *method-function-class* (make-standard-class 'method-function *function-class*))
 (defvar *interpreted-method-function-class* 
   (make-standard-class 'interpreted-method-function *method-function-class* *interpreted-function-class*))
@@ -1977,43 +1975,6 @@
            'set-slot-id-value
            nil
            (dpb 2 $lfbits-numreq (ash 1 $lfbits-method-bit))))
-
-(defmethod create-reader-method-function ((class std-class)
-					  (reader-method-class primary-reader-method)
-					  (dslotd standard-direct-slot-definition))
-  (let* ((offset
-	  (primary-class-slot-offset class (%slot-definition-name dslotd)))
-	 (f (nfunction primary-reader-method (lambda (i)
-		(when (eql (%wrapper-hash-index (instance.class-wrapper i)) 0)
-		  (update-obsolete-instance i))
-		(standard-instance-instance-location-access i offset)))))
-    (inner-lfun-bits f
-		     (logior (ash 1 $lfbits-method-bit)
-			     (the fixnum (inner-lfun-bits f))))
-    f))
-
-(defmethod create-writer-method-function ((class std-class)
-					  (writer-method-class primary-writer-method)
-					  (dslotd standard-direct-slot-definition))
-  (let* ((offset (primary-class-slot-offset class
-					    (%slot-definition-name dslotd)))
-	 (f
-	  (nfunction primary-writer-method
-		     (lambda (new i)
-		       (when (eql
-			      (%wrapper-hash-index
-			       (instance.class-wrapper i))
-			      0)
-			 (update-obsolete-instance i))
-		       (setf
-			(standard-instance-instance-location-access i offset)
-			new)))))
-    (inner-lfun-bits f
-		     (logior (ash 1 $lfbits-method-bit)
-			     (the fixnum (inner-lfun-bits f))))
-    f))
-		     
-
 
 
 

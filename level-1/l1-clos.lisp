@@ -736,17 +736,13 @@
 				(dslotd standard-direct-slot-definition)
 				&rest initargs)
   (declare (ignore initargs))
-  (if (primary-class-slot-offset class (%slot-definition-name dslotd))
-    *primary-reader-method-class*
-    *standard-reader-method-class*))
+  *standard-reader-method-class*)
 
 (defmethod reader-method-class ((class funcallable-standard-class)
 				(dslotd standard-direct-slot-definition)
 				&rest initargs)
   (declare (ignore  initargs))
-  (if (primary-class-slot-offset class (%slot-definition-name dslotd))
-    *primary-reader-method-class*
-    *standard-reader-method-class*))
+  *standard-reader-method-class*)
 
 (defmethod add-reader-method ((class std-class) gf dslotd)
   (let* ((initargs
@@ -773,17 +769,13 @@
 				(dslotd standard-direct-slot-definition)
 				&rest initargs)
   (declare (ignore initargs))
-  (if (primary-class-slot-offset class (%slot-definition-name dslotd))
-    *primary-writer-method-class*
-    *standard-writer-method-class*))
+  *standard-writer-method-class*)
 
 (defmethod writer-method-class ((class funcallable-standard-class)
 				(dslotd standard-direct-slot-definition)
 				&rest initargs)
   (declare (ignore initargs))
-  (if (primary-class-slot-offset class (%slot-definition-name dslotd))
-    *primary-writer-method-class*
-    *standard-writer-method-class*))
+  *standard-writer-method-class*)
 
 
 (defmethod add-writer-method ((class std-class) gf dslotd)
