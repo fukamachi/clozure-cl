@@ -269,43 +269,11 @@
 
 
 (defvar *lisp-thread-population*
-  (%cons-population (list *initial-lisp-thread*) $population_weak-list t))
+  (%cons-population (list *initial-lisp-thread*) $population_weak-list nil))
 
 
 
-; Don't free stack oreas that contain part of the db_link chain.
-(defun delete-unused-stack-areas ()
-  #+later
-  (without-interrupts
-   (do-unexhausted-stack-groups (sg)
-     (macrolet ((do-area (sg.area &optional check-db-link)
-                  `(let* ((current-p (eq sg *current-stack-group*))
-                          area younger ,@(and check-db-link '(a)))
-                     ; It's important that if sg is the current stack group,
-                     ; then this code does no vsp or tsp pushes until the free-stack-area call.
-                     (when current-p
-                       (%normalize-areas))
-                     (setq area (,sg.area sg)
-                           younger (%fixnum-ref area ppc32::area.younger))
-                     (unless (eql younger 0)
-                       (unless ,(when check-db-link
-                                  `(progn
-                                     (setq a younger)
-                                     (loop
-                                       (when (if current-p
-                                               (%db-link-chain-in-current-sg-area a)
-                                               (%db-link-chain-in-area-p a sg))
-                                         (return t))
-                                       (setq a (%fixnum-ref a ppc32::area.younger))
-                                       (when (eql a 0)
-                                         (return nil)))))
-                         (%fixnum-set area ppc32::area.younger 0)
-                         (%fixnum-set younger ppc32::area.older 0)
-                         (free-stack-area younger))))))
-       (do-area sg.ts-area)
-       (do-area sg.vs-area t)
-       (%free-younger-cs-areas (sg.cs-area sg))
-       ))))
+
 
 (defparameter *default-control-stack-size* (ash 1 20))
 (defparameter *default-value-stack-size* (ash 1 20))
