@@ -153,6 +153,8 @@
   $vsh              ; the SH field in a vector instruction
   $all/transient    ; the all/transient bit in a vector data stream instruction
   $strm             ; the strm field in a vector data stream instruction
+  $vsimm            ; a 5-bit signed immediate that goes in the vA field
+  $vuimm            ; a 5-bit unsigned immediate that goes in the vA field
   )
 
 (defconstant $me6 $mb6)
@@ -181,6 +183,8 @@
 (defopmask $uuo-code-mask 7 4)
 (defopmask $uuo-interr-mask 10 16)
 (defopmask $uuo-small-interr-mask 5 21)
+(defopmask $vsimm-mask 5 16)
+(defopmask $vuimm-mask 5 16)
 
 )
 
@@ -267,6 +271,8 @@
    (ppc-op $vsh 4 6 nil nil)
    (ppc-op $all/transient 1 25 nil nil)
    (ppc-op $strm 2 21 nil nil)
+   (ppc-op $vsimm 5 16 nil nil $ppc-operand-signed)
+   (ppc-op $vuimm 5 16 nil nil)
    ))
 
 
@@ -641,8 +647,8 @@
    #.(ppc-opcode vavgub (vx 4 1026) $vx-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vavguh (vx 4 1090) $vx-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vavguw (vx 4 1154) $vx-mask ($ppc) $vd $va $vb )
-   #.(ppc-opcode vcfsx (vx 4 842) $vx-mask ($ppc) $vd $vb $ui )
-   #.(ppc-opcode vcfux (vx 4 778) $vx-mask ($ppc) $vd $vb $ui )
+   #.(ppc-opcode vcfsx (vx 4 842) $vx-mask ($ppc) $vd $vb $vuimm )
+   #.(ppc-opcode vcfux (vx 4 778) $vx-mask ($ppc) $vd $vb $vuimm )
    #.(ppc-opcode vcmpbfp (vxr 4 966 0) $vxr-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vcmpbfp. (vxr 4 966 1) $vxr-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vcmpeqfp (vxr 4 198 0) $vxr-mask ($ppc) $vd $va $vb )
@@ -669,8 +675,8 @@
    #.(ppc-opcode vcmpgtuh. (vxr 4 582 1) $vxr-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vcmpgtuw (vxr 4 646 0) $vxr-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vcmpgtuw. (vxr 4 646 1) $vxr-mask  ($ppc) $vd $va $vb )
-   #.(ppc-opcode vctsxs (vx 4 970) $vx-mask ($ppc) $vd $vb $ui )
-   #.(ppc-opcode vctuxs (vx 4 906) $vx-mask ($ppc) $vd $vb $ui )
+   #.(ppc-opcode vctsxs (vx 4 970) $vx-mask ($ppc) $vd $vb $vuimm )
+   #.(ppc-opcode vctuxs (vx 4 906) $vx-mask ($ppc) $vd $vb $vuimm )
    #.(ppc-opcode vexptefp (vx 4 394) $vx-mask ($ppc) $vd $vb )
    #.(ppc-opcode vlogefp (vx 4 458) $vx-mask ($ppc) $vd $vb )
    #.(ppc-opcode vmaddfp (vxa 4 46) $vxa-mask ($ppc) $vd $va $vb $vc )
@@ -740,12 +746,12 @@
    #.(ppc-opcode vslh (vx 4 324) $vx-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vslo (vx 4 1036) $vx-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vslw (vx 4 388) $vx-mask ($ppc) $vd $va $vb )
-   #.(ppc-opcode vspltb (vx 4 524) $vx-mask ($ppc) $vd $vb $ui )
-   #.(ppc-opcode vsplth (vx 4 588) $vx-mask ($ppc) $vd $vb $ui )
-   #.(ppc-opcode vspltisb (vx 4 780) $vx-mask ($ppc) $vd $si )
-   #.(ppc-opcode vspltish (vx 4 844) $vx-mask ($ppc) $vd $si )
-   #.(ppc-opcode vspltisw (vx 4 908) $vx-mask ($ppc) $vd $si )
-   #.(ppc-opcode vspltw (vx 4 652) $vx-mask ($ppc) $vd $vb $ui )
+   #.(ppc-opcode vspltb (vx 4 524) $vx-mask ($ppc) $vd $vb $vuimm )
+   #.(ppc-opcode vsplth (vx 4 588) $vx-mask ($ppc) $vd $vb $vuimm )
+   #.(ppc-opcode vspltisb (vx 4 780) $vx-mask ($ppc) $vd $vsimm )
+   #.(ppc-opcode vspltish (vx 4 844) $vx-mask ($ppc) $vd $vsimm )
+   #.(ppc-opcode vspltisw (vx 4 908) $vx-mask ($ppc) $vd $vsimm )
+   #.(ppc-opcode vspltw (vx 4 652) $vx-mask ($ppc) $vd $vb $vuimm )
    #.(ppc-opcode vsr (vx 4 708) $vx-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vsrab (vx 4 772) $vx-mask ($ppc) $vd $va $vb )
    #.(ppc-opcode vsrah (vx 4 836) $vx-mask ($ppc) $vd $va $vb )
