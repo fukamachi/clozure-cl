@@ -1049,7 +1049,7 @@ client methods" classname))
 		  (declare (ignorable ,_cmd))
 		  ,@decls
 		  (rlet ((,super :objc_super
-			   :receiver self
+			   :receiver ,self
 			   :class
 			   ,@(if class-p
 				 `((pref
