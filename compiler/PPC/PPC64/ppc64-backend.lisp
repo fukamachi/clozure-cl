@@ -44,17 +44,20 @@
 		:name :linuxppc64
 		:target-arch-name :ppc64
 		:target-foreign-type-data nil
-		:target-lisp-node-size 8)
+		:target-lisp-node-size 8
+                :target-nil-value ppc64::nil-value
+                :target-fixnum-shift ppc64::fixnum-shift
+                :target-most-positive-fixnum (1- (ash 1 (1- (- 64 ppc64::fixnumshift))))
+                :target-nbits-in-word 64
+                :target-ntagbits 4
+                :target-nlisptagbits 3
+                )
+  
   )
 
 
-;;; Panther (OSX 10.3) supports a hybrid execution mode, where
-;;; 64-bit instructions can be used in a 32-bit address space
-;;; (shared with foreign code that uses 32-bit calling conventions.)
-;;; This would share a lot of code with a "real" 64-bit backend,
-;;; but there are (naturally) lots of different FFI issues.
 #+darwinppc-target
-(defvar *panther-g5-hybrid-backend*
+(defvar *darwinppc64-backend*
   (make-backend :lookup-opcode #'lookup-ppc-opcode
 		:lookup-macro #'ppc::ppc-macro-function
 		:lap-opcodes ppc::*ppc-opcodes*
@@ -63,22 +66,27 @@
 		:p2-template-hash-name '*ppc64-vinsn-templates*
 		:p2-compile 'ppc2-compile
 		:target-specific-features
-		'(:powerpc :ppc-target :darwin-target :darwinppc-target :ppc64-target :panther-g5-hybrid)
-		:target-fasl-pathname (make-pathname :type "dfslg5")
+		'(:powerpc :ppc-target :darwin-target :darwinppc-target :ppc64-target)
+		:target-fasl-pathname (make-pathname :type "dfsl64")
 		:target-architecture (logior 2 64)
 		:target-os :darwinppc
-		:name :panther-g5-hybrid
+		:name :darwinppc64
 		:target-arch-name :ppc64
 		:target-foreign-type-data nil
-		:target-lisp-node-size 8)
-  )
+		:target-lisp-node-size 8
+                :target-nil-value ppc64::nil-value
+                :target-fixnum-shift ppc64::fixnum-shift
+                :target-most-positive-fixnum (1- (ash 1 (1- (- 64 ppc64::fixnumshift))))
+                :target-nbits-in-word 64
+                :target-ntagbits 4
+                :target-nlisptagbits 3))
 
 #+linuxppc-target
 (pushnew *linuxppc64-backend* *known-ppc64-backends* :key #'backend-name)
 
 
 #+darwinppc-target
-(pushnew *panther-g5-hybrid-backend* *known-ppc64-backends* :key #'backend-name)
+(pushnew *darwinppc64-backend* *known-ppc64-backends* :key #'backend-name)
 
 (defvar *ppc64-backend* (car *known-ppc64-backends*))
 

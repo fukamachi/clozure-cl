@@ -49,8 +49,16 @@
 		:name :linuxppc32
 		:target-arch-name :ppc32
 		:target-foreign-type-data nil
-		:target-lisp-node-size 4)
-  )
+		:target-lisp-node-size 4
+                :target-nil-value ppc32::nil-value
+                :target-fixnum-shift ppc32::fixnumshift
+                :target-most-positive-fixnum (1- (ash 1 (1- (- 32 ppc32::fixnumshift))))
+                :target-word-shift 2
+                :target-misc-data-offset ppc32::misc-data-offset
+                :target-misc-dfloat-offset ppc32::misc-dfloat-offset
+                :target-nbits-in-word 32
+                :target-ntagbits 3
+                :target-nlisptagbits 2))
 
 
 #+darwinppc-target
@@ -70,8 +78,16 @@
 		:name :darwinppc32
 		:target-arch-name :ppc32
 		:target-foreign-type-data nil
-		:target-lisp-node-size 4)
-  )
+		:target-lisp-node-size 4
+                :target-nil-value ppc32::nil-value
+                :target-fixnum-shift ppc32::fixnumshift
+                :target-most-positive-fixnum (1- (ash 1 (1- (- 32 ppc32::fixnumshift))))
+                :target-word-shift 2
+                :target-misc-data-offset ppc32::misc-data-offset
+                :target-misc-dfloat-offset ppc32::misc-dfloat-offset
+                :target-nbits-in-word 32
+                :target-ntagbits 3
+                :target-nlisptagbits 2))
 
 #+linuxppc-target
 (pushnew *linuxppc32-backend* *known-ppc32-backends* :key #'backend-name)
