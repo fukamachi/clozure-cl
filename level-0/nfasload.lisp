@@ -204,10 +204,12 @@
 
 
 (defun pkg-arg (thing &optional deleted-ok)
-  (let* ((xthing (if (or (symbolp thing)
-                         (typep thing 'character))
-                   (string thing)
-                   thing)))
+  (let* ((xthing (cond ((or (symbolp thing) (typep thing 'character))
+                        (string thing))
+                       ((typep thing 'string)
+                        (ensure-simple-string thing))
+                       (t
+                        thing))))
     (let* ((typecode (typecode xthing)))
         (declare (fixnum typecode))
         (cond ((= typecode ppc32::subtag-package)

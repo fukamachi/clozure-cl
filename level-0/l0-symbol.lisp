@@ -164,7 +164,7 @@
 
 (defun make-symbol (name)
   (%gvector ppc32::subtag-symbol
-                (require-type name 'simple-string) ; pname
+                (ensure-simple-string name) ; pname
                 (%unbound-marker)       ; value cell
                 %unbound-function%      ; function cell
                 nil                     ; package&plist

@@ -125,7 +125,7 @@
 
 (defun find-all-symbols (name)
   (let* ((syms ())
-         (pname (string name))
+         (pname (ensure-simple-string (string name)))
          (len (length pname)))
     (with-package-list-read-lock
         (dolist (p %all-packages% syms)
@@ -196,7 +196,7 @@
 
 (defun new-package-name (name &optional package)
   (do* ((prompt "Enter package name to use instead of ~S ."))
-       ((let* ((found (find-package (setq name (string name)))))
+       ((let* ((found (find-package (setq name (ensure-simple-string (string name))))))
           (or (not found)
               (eq package found)))
         name)
