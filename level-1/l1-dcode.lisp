@@ -72,11 +72,13 @@
     (if (eq gf-ll :unspecified)
       (and method
            (let* ((method-lambda-list (%method-lambda-list method))
-                  (method-has-&key (member '&key method-lambda-list)))
+                  (method-has-&key (member '&key method-lambda-list))
+                  (method-has-&allow-other-keys
+                   (member '&allow-other-keys method-lambda-list)))
              (if method-has-&key
-               ;; Treat gf lambda-list as (... &key &allow-other-keys)
                (nconc (ldiff method-lambda-list (cdr method-has-&key))
-                      '(&allow-other-keys))
+                      (if method-has-&allow-other-keys
+                        '(&allow-other-keys)))
                method-lambda-list)))
       gf-ll)))
              
@@ -124,7 +126,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         (lfun-bits gf (logior (ash 1 $lfbits-gfn-bit)
                               (logand $lfbits-args-mask newbits)))))
     (when new-method
-          (check-defmethod-congruency gf new-method))))
+      (check-defmethod-congruency gf new-method))))
         
 (defun %gf-name (gf &optional (new-name nil new-name-p))
   (let* ((old-name (%standard-generic-function-instance-location-access
