@@ -87,4 +87,6 @@
              SINGLE-FLOAT-EPSILON SINGLE-FLOAT-NEGATIVE-EPSILON))
   (%symbol-bits x (%ilogior2 (%symbol-bits x) (ash 1 $sym_bit_special))))
 
+(defparameter *loading-file-source-file* nil)
+
 ; end
