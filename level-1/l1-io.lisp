@@ -604,7 +604,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (stream-write-char stream #\>)
     (let ((flags (%get-fpscr-control)))
       (unwind-protect
-	   (progn (%set-fpscr-control (logand (lognot (ash 1 (- 31 ppc32::fpscr-ve-bit))) flags))
+	   (progn (%set-fpscr-control (logand (lognot (ash 1 (- 31 ppc::fpscr-ve-bit))) flags))
 		  (print-a-float float stream nil t)
 		  (stream-write-char stream #\>))
 	(%set-fpscr-status 0) ; why do we need this? status bits get set in any case? 
