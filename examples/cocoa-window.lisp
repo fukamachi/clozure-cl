@@ -89,18 +89,22 @@
 	(send e 'retain)
 	(send *NSApp* :post-event e :at-start t)))))
 
-(def-objc-class lisp-application ns-application
-  (termp :<BOOL>)
-  )
+
+(defclass lisp-application (ns:ns-application)
+    ((termp :foreign-type :<BOOL>))
+  (:metaclass ns:+ns-object))
+
 
 
 #+apple-objc
 (define-objc-method ("_shouldTerminate" lisp-application)
   (:<BOOL>)
-  (setq termp (objc-message-send-super (super) "_shouldTerminate" :<BOOL>)))
+  (with-slots (termp) self
+      (setq termp (objc-message-send-super (super) "_shouldTerminate" :<BOOL>))))
 
 (define-objc-method ((:<BOOL> termp) lisp-application)
-  termp)
+  (with-slots (termp) self
+      termp))
 
 (defloadvar *default-ns-application-proxy-class-name*
     "LispApplicationDelegate")

@@ -28,8 +28,9 @@
 
 ;;; The application delegate gets notified of state changes in the
 ;;; application object.
-(def-objc-class lisp-application-delegate ns-object)
-
+(defclass lisp-application-delegate (ns:ns-object)
+    ()
+  (:metaclass ns:+ns-object))
 
 
 ;;; The application's been initialized and is about to enter its
@@ -101,7 +102,6 @@
   (when (zerop *cocoa-listener-count*)
     (send self :new-listener app)
     t))
-
 
 
 (start-cocoa-application)

@@ -213,24 +213,30 @@ appropriate windows.  -hel
 
 ;; Q: Is this subclass of NSBrowser enabling the doubleAction? I added it expecting to have to
 ;; specialize mouseDown (or whatever) to track double-clicking, but it just started working.
-(def-objc-class inspector-ns-browser ns-browser ()) ; just to specialize mousing, not add slots
+(defclass inspector-ns-browser (ns:ns-browser) ; just to specialize mousing, not add slots
+    ()
+  (:metaclass ns:+ns-object))
 
-(def-objc-class inspector-window-controller ns-window-controller
-  ((inspector-browser "inspectorBrowser") :id)) ; i'm adding :id to make it clear why all the parens
-(def-objc-class inspector-browser-delegate ns-object
-  ((inspector-table-view "inspectorTableView"))
-  ((inspector-window "inspectorWindow") :id))
+(defclass inspector-window-controller (ns:ns-window-controller)
+    ((inspector-browser :foreign-type :id :reader inspector-browser))
+  (:metaclass ns:+ns-object))
+
+(defclass inspector-browser-delegate (ns:ns-object)
+    ((inspector-table-view :foreign-type :id :reader inspector-table-view)
+     (inspector-window :foreign-type :id :reader inspector-window))
+  (:metaclass ns:+ns-object))
+
 ; why is the order of these two slots important?
 ; I get a segfault selecting the browser when they're in window/browser order after doing modifications in the table.
-(def-objc-class inspector-table-view-data-source ns-object
-  ((inspector-browser "inspectorBrowser") :id)
-  ((inspector-window "inspectorWindow") :id))
-(def-objc-class inspector-table-view-delegate ns-object
-  ((inspector-window "inspectorWindow") :id))
+(defclass inspector-table-view-data-source (ns:ns-object)
+    ((inspector-browser :foreign-type :id :reader inspector-browser)
+     (inspector-window :foreign-type :id :reader inspector-browser))
+  (:metaclass ns:+ns-object))
 
-;; will this work? hope so, it's how objc would do it...
-(define-objc-method ((:id inspector-browser) inspector-window-controller)
-  inspector-browser)
+(defclass inspector-table-view-delegate (ns:ns-object)
+    ((inspector-window :foreign-type :id :reader inspector-window))
+  (:metaclass ns:+ns-object))  
+
 
 ;; is there some reason this is called before the cell is actually selected? In any case, 
 ;; when a non-leaf cell is selected, this function is called first for the new column,
@@ -241,7 +247,7 @@ appropriate windows.  -hel
 			   :number-of-rows-in-column (:int column))
 			   inspector-browser-delegate)
   (or (handler-case-for-cocoa 1
-       (let* ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*))
+       (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
 	      (selected-column (send browser 'selected-column)) ; probably always (1- column), when a column is selected
 	      (cinspector-column (1- selected-column)) ; 2nd column of nsbrowser <-> 1st column of cinspector
 	      (row (send browser :selected-row-in-column selected-column)))
@@ -282,7 +288,7 @@ appropriate windows.  -hel
 		     inspector-browser-delegate)
   (declare (ignorable browser column))
   (handler-case-for-cocoa 2
-   (let ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*))
+   (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
 	 (cinspector-column (1- column))) ; 2nd column of nsbrowser <-> 1st column of cinspector
      #+ignore
      (format t "asking for value for column ~a, row ~a~%" column row)
@@ -314,21 +320,21 @@ appropriate windows.  -hel
 (define-objc-method ((:void :browser-action sender)
 		     inspector-browser-delegate) ; don't know why I'd want to, but could use a separate IBTarget class
   #+ignore (format t "browserAction~%")
-  (handler-case-for-cocoa 5
-    (let* ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*))
-	   (column (send sender 'selected-column)))
-      (when (<= 0 column)
-	(setf (focal-point cinspector) column)
-	(send inspector-table-view 'reload-data)
-	#+ignore
-	(format t "      responding to selection in column ~d~%" column)))))
+    (handler-case-for-cocoa 5
+      (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
+	     (column (send sender 'selected-column)))
+	(when (<= 0 column)
+	  (setf (focal-point cinspector) column)
+	  (send (inspector-table-view self) 'reload-data)
+	  #+ignore
+	  (format t "      responding to selection in column ~d~%" column)))))
 
 ;; open a new inspector on the selected object
 (define-objc-method ((:void :browser-double-action sender)
 		     inspector-browser-delegate)
   #+ignore (format t "browserDoubleAction~%")
   (handler-case-for-cocoa 6
-    (let* ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*))
+    (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
 	   (column (send sender 'selected-column)))
       (when (<= 0 column)
         ; this seems to work, but I'm not really paying attention to thread stuff...
@@ -338,7 +344,7 @@ appropriate windows.  -hel
 		     inspector-table-view-data-source)
   (declare (ignore table-view))
   (or (handler-case-for-cocoa 3
-       (let ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*)))
+       (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
 	 (if cinspector
 	     (let ((inspector (inspector cinspector)))
 	       (inspector::inspector-line-count inspector))
@@ -353,7 +359,7 @@ appropriate windows.  -hel
 			  :row (:int row))
 		     inspector-table-view-data-source)
   (declare (ignore table-view))
-  (let ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*)))
+  (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
     (cond ((not cinspector)
 	   #@"")
 	  ((send (send table-column 'identifier) :is-equal #@"property")
@@ -369,7 +375,7 @@ appropriate windows.  -hel
 		     inspector-table-view-data-source)
   (declare (ignore table-column))
   (handler-case-for-cocoa 4
-   (let ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*)))
+   (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
      ;; without any formatters, object appears to be an NSCFString
      ;; also note we should probably save the original value (including unboundness etc)
      ;; first so that we can return to it in the event of any error
@@ -383,7 +389,7 @@ appropriate windows.  -hel
        ;; changing the focused object may effect the browser's path, reload its column and keep the cinspector consistent
        ;; Here we have to make sure that the column we're reloading and the column after both have values to display,
        ;; for when reloadColumn: invokes browser:willDisplayCell:atRow:column:
-       (send inspector-browser :reload-column (focal-point cinspector))
+       (send (inspector-browser self) :reload-column (focal-point cinspector))
        ;; [inspector-browser "scrollColumnToVisible:" :int (focal-point cinspector)] ; maybe need this, too
        ))))
 
@@ -395,7 +401,7 @@ appropriate windows.  -hel
 			      :row (:int row))
 		     inspector-table-view-delegate)
   (declare (ignore table-view))
-  (let ((cinspector (gethash inspector-window *cocoa-inspector-nswindows-table*)))
+  (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
     (and cinspector
 	  (send (send table-column 'identifier) :is-equal #@"value")
 	  (/= row 0) ; in practice the reference to the object isn't editable, and the GUI semantics aren't clear anyway,
@@ -433,7 +439,7 @@ appropriate windows.  -hel
 	(setf (gethash window *cocoa-inspector-nswindows-table*) cinspector)
 	(push-object object cinspector)
 	;; is this working? it isn't breaking, but double-clicking is being handled as two single actions
-	(let* ((browser (send windowcontroller 'inspector-browser)))
+	(let* ((browser (inspector-browser windowcontroller)))
 	  (send browser
 		:set-double-action (@SELECTOR "browserDoubleAction:"))
 	  (send browser :set-ignores-multi-click t))

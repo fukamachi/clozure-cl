@@ -30,8 +30,9 @@
 (defun hemlock-buffer-length (buffer)
   (hemlock::count-characters (hemlock::buffer-region buffer)))
 
-(def-objc-class hemlock-buffer-string ns-string
-  (id :unsigned))
+(defclass hemlock-buffer-string (ns:ns-string)
+    ((id :foreign-type :unsigned))
+  (:metaclass ns:+ns-object))
 
 (defun update-line-cache-for-index (d index)
   (let* ((line (or
@@ -82,13 +83,14 @@
 
 (define-objc-method ((:unichar :character-at-index (unsigned index))
 		     hemlock-buffer-string)
-  '(#_NSLog #@"Character at index %d" :unsigned index )
-  (char-code (hemlock-char-at-index (id-map-object *buffer-id-map* id) index)))
+  ;(#_NSLog #@"Character at index %d" :unsigned index )
+  (char-code (hemlock-char-at-index
+	      (id-map-object *buffer-id-map* (slot-value self 'id)) index)))
 
 
 (define-objc-method ((:unsigned length)
 		     hemlock-buffer-string)
-  (let* ((display-object (id-map-object *buffer-id-map* id)))
+  (let* ((display-object (id-map-object *buffer-id-map* (slot-value self 'id))))
       (or (hemlock-display-buflen display-object)
 	  (setf (hemlock-display-buflen display-object)
 		(hemlock-buffer-length (hemlock-display-buffer display-object))))))
@@ -96,45 +98,46 @@
 
 (define-objc-method ((:unsigned lisp-id)
 		     hemlock-buffer-string)
-  id)
+  (slot-value self 'id))
 
 (define-objc-method ((:id description)
 		     hemlock-buffer-string)
   (send (@class ns-string) :string-with-format #@"%s : stringid %d/len %d"
 	(:address (#_object_getClassName self)
-		  :unsigned id
+		  :unsigned (slot-value self 'id)
 		  :unsigned (send self 'length))))
 
 (define-objc-method ((:id :init-with-buffer-id (:unsigned n))
 		     hemlock-buffer-string)
   (send-super 'init)
-  (setq id n)
+  (setf (slot-value self 'id) n)
   self)
 
 
 
 		     
-(def-objc-class lisp-text-storage ns-text-storage
-  string
-  defaultattrs)
+(defclass lisp-text-storage (ns:ns-text-storage)
+    ((string :foreign-type :id)
+     (defaultattrs :foreign-type :id))
+  (:metaclass ns:+ns-object))
 
 
 (define-objc-method ((:id string) lisp-text-storage)
-  string)
+  (slot-value self 'string))
 
 (define-objc-method ((:id :attributes-at-index (:unsigned index)
 			  :effective-range ((* :<NSR>ange) rangeptr))
 		     lisp-text-storage)
   '(#_NSLog #@"Attributes at index %d, rangeptr = %x"
 	   :unsigned index :address rangeptr)
-  (let* ((hemlock-display (id-map-object *buffer-id-map* (send string 'lisp-id)))
+  (let* ((hemlock-display (id-map-object *buffer-id-map* (send (slot-value self 'string) 'lisp-id)))
 	 (len (hemlock-display-buflen hemlock-display)))
     (if (>= index len)
       (error "This should be an NSRangeError"))
     (unless (%null-ptr-p rangeptr)
       (setf (pref rangeptr :<NSR>ange.location) 0
 	    (pref rangeptr :<NSR>ange.length) len))
-    defaultattrs))
+    (slot-value self 'defaultattrs)))
 
 (define-objc-method ((:void :replace-characters-in-range (:<NSR>ange r)
 			    :with-string string)
@@ -163,10 +166,11 @@
 (define-objc-method ((:id :init-with-buffer-id (:unsigned buffer-id-number))
 		     lisp-text-storage)
   (send-super 'init)
-  (setq string (make-objc-instance
-		'hemlock-buffer-string 
-		:with-buffer-id buffer-id-number))
-  (setq defaultattrs (create-text-attributes))
+  (with-slots (string defaultattrs) self
+    (setq string (make-objc-instance
+		  'hemlock-buffer-string 
+		  :with-buffer-id buffer-id-number))
+    (setq defaultattrs (create-text-attributes)))
   self)
 
 
@@ -175,10 +179,12 @@
 		     lisp-text-storage)
   (send (@class ns-string) :string-with-format #@"%s : string %@"
 	(:address (#_object_getClassName self)
-	 :id string)))
+	 :id (slot-value self 'string))))
 
 
-(def-objc-class lisp-text-view ns-text-view)
+(defclass lisp-text-view (ns:ns-text-view)
+    ()
+  (:metaclass ns:+ns-object))
 
 (define-objc-method ((:void :key-down event)
 		     lisp-text-view)

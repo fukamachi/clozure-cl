@@ -136,24 +136,25 @@
     dict))
 				    
   
-(def-objc-class lisp-editor-window-controller ns-window-controller
-  textview				;The (primary) textview
-  packagename				;Textfield for package name display
-  echoarea				;Textfield for message display.
-  ((history-count "histcount") :int)	;current history count (for prev/next)
-  ((prev-history-count "prevhist") :int) ;value of history-count before last cmd
-  )
+(defclass lisp-editor-window-controller (ns:ns-window-controller)
+    ((textview :foreign-type :id)	;The (primary) textview
+     (packagename :foreign-type :id)	;Textfield for package name display
+     (echoarea :foreign-type :id)	;Textfield for message display.
+     (history-count :foreign-type :int)	;current history count (for prev/next)
+     (prev-history-count :foreign-type :int) ;value of history-count before last cmd
+     )
+  (:metaclass ns:+ns-object))
 
 (define-objc-method ((:void :display-echo-area contents) lisp-editor-window-controller)
-  (send echoarea :set-string-value contents))
+  (send (slot-value self 'echoarea) :set-string-value contents))
 
 (define-objc-method ((:void clear-echo-area)
 		     lisp-editor-window-controller)
-  (send echoarea :set-string-value #@""))
+  (send (slot-value self 'echoarea) :set-string-value #@""))
 
 (define-objc-method ((:void :display-package-name name)
 		     lisp-editor-window-controller)
-  (send packagename :set-string-value name))
+  (send (slot-value self 'packagename) :set-string-value name))
 
 (defun shortest-package-name (package)
   (let* ((shortest (package-name package))
@@ -398,9 +399,9 @@
 (define-objc-method ((:<BOOL> :text-view tv
 			      :do-command-by-selector (:<SEL> selector))
 		     lisp-editor-window-controller)
-  ;(#_NSLog #@"selector = %s, self = %@" :<SEL> selector :id self)
-  (setq prev-history-count history-count
-	history-count 0)
+  (with-slots (history-count prev-history-count) self
+    (setq prev-history-count history-count
+	  history-count 0))
   (if (not (send self :responds-to-selector selector))
     #$NO
     (progn
@@ -411,11 +412,12 @@
 ;;; The LispEditorDocument class.
 
 
-(def-objc-class lisp-editor-document ns-document
-  ((textview "textView") :id)
-  filedata
-  packagename
-  echoarea)
+(defclass lisp-editor-document (ns:ns-document)
+  ((text-view :foreign-type :id)
+   (filedata :foreign-type :id)
+   (packagename :foreign-type :id)
+   (echoarea :foreign-type :id))
+  (:metaclass ns:+ns-object))
 
 (define-objc-method ((:id window-nib-name) lisp-editor-document)
   #@"lispeditor")
@@ -432,8 +434,7 @@
 (define-objc-method ((:id :data-representation-of-type ((* :char) type))
 		      lisp-editor-document)
   (declare (ignorable type))
-  ;(#_NSLog #@"dataRepresentationOfType: %s" :address type)
-  (send (send textview 'string)
+  (send (send (slot-value self 'text-view) 'string)
 	:data-using-encoding #$NSASCIIStringEncoding
 	:allow-lossy-conversion t))
 
@@ -442,51 +443,50 @@
 			      :of-type type)
 		     lisp-editor-document)
   (declare (ignorable type))
-  ;(#_NSLog #@"loadDataRepresentation:ofType (listener) type = %@" :address type)
-  (setq filedata data)
+  (setf (slot-value self 'filedata) data)
   (not (%null-ptr-p data)))
 
 (define-objc-method ((:void :window-controller-did-load-nib acontroller)
 		     lisp-editor-document)
-  ;(#_NSLog #@"windowControllerDidLoadNib (editor document)")
   (send-super :window-controller-did-load-nib  acontroller)
   ;; Apple/NeXT thinks that adding extra whitespace around cut & pasted
   ;; text is "smart".  Really, really smart insertion and deletion
   ;; would alphabetize the selection for you (byChars: or byWords:);
   ;; sadly, if you want that behavior you'll have to do it yourself.
   ;; Likewise with the extra spaces.
-  (send textview :set-alignment  #$NSNaturalTextAlignment)
-  (send textview :set-smart-insert-delete-enabled nil)
-  (send textview :set-rich-text nil)
-  (send textview :set-uses-font-panel t)
-  (send textview :set-uses-ruler nil)
-  (with-lock-grabbed (*open-editor-documents-lock*)
-    (push (make-cocoa-editor-info
-	   :document (%setf-macptr (%null-ptr) self)
-	   :controller (%setf-macptr (%null-ptr) acontroller)
-	   :listener nil)
-	  *open-editor-documents*))
-  (set-objc-instance-variable acontroller "textview" textview)
-  (set-objc-instance-variable acontroller "echoarea" echoarea)
-  (set-objc-instance-variable acontroller "packagename" packagename)
-  (send textview :set-delegate acontroller)
-  (let* ((font (default-font)))
-    (multiple-value-bind (height width)
-      (size-of-char-in-font font)
-      (size-textview-containers textview height width 24 80))
-    (send textview
-	  :set-typing-attributes
-	  (create-text-attributes
-	   :font font
-	   :color (send (@class ns-color) 'black-color)))
-    (unless (%null-ptr-p filedata)
-      (send textview
-	    :replace-characters-in-range (ns-make-range 0 0)
-	    :with-string (make-objc-instance
-			  'ns-string
-			  :with-data filedata
-			  :encoding #$NSASCIIStringEncoding))
-      (send acontroller :reparse-modeline textview))))
+  (with-slots (text-view echoarea packagename filedata) self
+    (send text-view :set-alignment  #$NSNaturalTextAlignment)
+    (send text-view :set-smart-insert-delete-enabled nil)
+    (send text-view :set-rich-text nil)
+    (send text-view :set-uses-font-panel t)
+    (send text-view :set-uses-ruler nil)
+    (with-lock-grabbed (*open-editor-documents-lock*)
+      (push (make-cocoa-editor-info
+	     :document (%setf-macptr (%null-ptr) self)
+	     :controller (%setf-macptr (%null-ptr) acontroller)
+	     :listener nil)
+	    *open-editor-documents*))
+    (setf (slot-value acontroller 'textview) text-view
+	  (slot-value acontroller 'echoarea) echoarea
+	  (slot-value acontroller 'packagename) packagename)
+    (send text-view :set-delegate acontroller)
+    (let* ((font (default-font)))
+      (multiple-value-bind (height width)
+	  (size-of-char-in-font font)
+	(size-textview-containers text-view height width 24 80))
+      (send text-view
+	    :set-typing-attributes
+	    (create-text-attributes
+	     :font font
+	     :color (send (@class ns-color) 'black-color)))
+      (unless (%null-ptr-p filedata)
+	(send text-view
+	      :replace-characters-in-range (ns-make-range 0 0)
+	      :with-string (make-objc-instance
+			    'ns-string
+			    :with-data filedata
+			    :encoding #$NSASCIIStringEncoding))
+	(send acontroller :reparse-modeline text-view)))))
 
 (define-objc-method ((:void close) lisp-editor-document)
   (send-super 'close)
@@ -709,4 +709,4 @@
       (if (eql (current-char-in-range linerange textbuf) #\()
 	(return (pref linerange :<NSR>ange.location))))))
 
-
+(provide "COCOA-EDITOR")
