@@ -252,7 +252,7 @@
         (if (< nicklen len)
           (setq name nick len nicklen))))))
 
-(defun cocoa-ide-note-package (package)
+(defmethod ui-object-note-package ((app ns:ns-application) package)
   (with-autorelease-pool
       (process-interrupt *cocoa-event-process*
 			 #'(lambda (proc name)
@@ -269,12 +269,39 @@
                                           :string-stream
                                           (make-string-input-stream string))))
     (enqueue-input-selection (cocoa-listener-process-input-stream process) selection)))
+
+
+(defun hemlock::evaluate-input-selection (selection)
+  (application-ui-operation *application* :eval-selection selection))
+			    
+(defmethod ui-object-choose-listener-for-selection ((app ns:ns-application)
+						    selection)
+  (declare (ignore selection))
+  (let* ((top-listener-document (send (find-class 'hemlock-listener-document)
+				      'top-listener)))
+    (if top-listener-document
+      (let* ((buffer (hemlock-document-buffer top-listener-document)))
+	(if buffer
+	  (let* ((proc (hi::buffer-process buffer)))
+	    (if (typep proc 'cocoa-listener-process)
+	      proc)))))))
+
+(defmethod ui-object-eval-selection ((app ns:ns-application)
+				     selection)
+  (let* ((target-listener (ui-object-choose-listener-for-selection
+			   app selection)))
+    (if (typep target-listener 'cocoa-listener-process)
+      (enqueue-input-selection (cocoa-listener-process-input-stream
+				target-listener)
+			       selection))))
   
 
 (defmethod ui-object-do-operation ((o ns:ns-application)
                                    operation &rest args)
   (case operation
-    (:note-current-package (cocoa-ide-note-package (car args)))))
+    (:note-current-package (ui-object-note-package o (car args)))
+    (:eval-selection (ui-object-eval-selection o (car args)))))
+
 
        
   
