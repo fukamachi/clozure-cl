@@ -603,7 +603,7 @@
     (lap-label :label)
     (lap-instruction
      (let* ((opcode (lap-instruction-opcode instr))
-            (opcode-p (typep opcode 'ppc::opcode))
+            (opcode-p (typep opcode 'arch::opcode))
             (name (if opcode-p (arch::opcode-name opcode) opcode))
             (pc (lap-instruction-address instr))
             (operands (lap-instruction-parsed-operands instr)))
