@@ -65,6 +65,9 @@ resize_dynamic_heap(BytePtr, unsigned);
 OSStatus
 PMCL_exception_handler(int, ExceptionInformationPowerPC *, TCR *, siginfo_t *);
 
+TCR*
+get_tcr(Boolean);
+
 ErrAction
 error_action( void );
 
@@ -201,13 +204,13 @@ is_conditional_trap(opcode);
 #define TRAP_LOOKUP_TRIES 5   /* # instrs to scan before trap instr */
 
 void
-callback_for_trap (LispObj, ExceptionInformationPowerPC *, unsigned, unsigned, unsigned, unsigned);
+callback_for_trap (LispObj, ExceptionInformationPowerPC *, pc, natural, natural, natural);
 
-unsigned
-register_codevector_contains_pc (unsigned, unsigned);
+natural
+register_codevector_contains_pc (natural, pc);
 
 void
-callback_to_lisp (LispObj, ExceptionInformationPowerPC *, unsigned, unsigned, unsigned, unsigned, unsigned);
+callback_to_lisp (LispObj, ExceptionInformationPowerPC *, natural, natural, natural, natural, natural);
 
 OSStatus
 handle_trap(ExceptionInformationPowerPC *, opcode, pc);
@@ -249,7 +252,7 @@ OSStatus
 sub_fixnums(ExceptionInformationPowerPC *, unsigned, unsigned, unsigned);
 
 OSStatus
-handle_error(ExceptionInformationPowerPC *, unsigned, unsigned, unsigned, unsigned);
+handle_error(ExceptionInformationPowerPC *, unsigned, unsigned, unsigned, pc);
 
 void
 adjust_exception_pc(ExceptionInformationPowerPC *, int);

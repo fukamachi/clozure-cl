@@ -532,7 +532,7 @@ relocate_area_contents(area *a, LispObj bias)
     w0 = *start;
     fulltag = fulltag_of(w0);
     if (immheader_tag_p(fulltag)) {
-      start = (LispObj *)skip_over_ivector((unsigned)start, w0);
+      start = (LispObj *)skip_over_ivector((natural)start, w0);
     } else {
       if ((w0 >= low) && (w0 < high) &&
 	  ((1<<fulltag) & RELOCATABLE_FULLTAG_MASK)) {
@@ -788,7 +788,7 @@ prepare_to_write_dynamic_space()
       if (subtag == subtag_macptr) {
 	*start = make_header(subtag_dead_macptr,header_element_count(x1));
       }
-      start = (LispObj *)skip_over_ivector((unsigned)start, x1);
+      start = (LispObj *)skip_over_ivector((natural)start, x1);
     } else if (nodeheader_tag_p(tag)) {
       element_count = header_element_count(x1) | 1;
       start += (element_count+1);

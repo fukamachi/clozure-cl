@@ -282,7 +282,7 @@ check_range(LispObj *start, LispObj *end)
     node = *current++;
     tag = fulltag_of(node);
     if (immheader_tag_p(tag)) {
-      current = (LispObj *)skip_over_ivector((unsigned)prev, node);
+      current = (LispObj *)skip_over_ivector((natural)prev, node);
     } else if (nodeheader_tag_p(tag)) {
       elements = header_element_count(node) | 1;
       while (elements--) {
@@ -319,7 +319,7 @@ check_all_areas()
         LispObj* low = (LispObj *)a->active;
         LispObj* high = (LispObj *)a->high;
         
-        if (((int)low) & 4) {
+        if (((natural)low) & 4) {
           check_node(*low++);
         }
         check_range(low, high);
@@ -1365,7 +1365,7 @@ mark_simple_area_range(LispObj *start, LispObj *end)
         ((hash_table_vector_header *) start)->cache_key = undefined;
         ((hash_table_vector_header *) start)->cache_value = lisp_nil;
         start[1] = GCweakvll;
-        GCweakvll = (LispObj) (((unsigned) start) + fulltag_misc);
+        GCweakvll = (LispObj) (((natural) start) + fulltag_misc);
       } else {
 
         if (subtag == subtag_pool) {
@@ -1379,7 +1379,7 @@ mark_simple_area_range(LispObj *start, LispObj *end)
           else
             element_count -= 1; 
           start[1] = GCweakvll;
-          GCweakvll = (LispObj) (((unsigned) start) + fulltag_misc);    
+          GCweakvll = (LispObj) (((natural) start) + fulltag_misc);    
         }
 
         base = start + element_count + 1;
@@ -1431,7 +1431,7 @@ mark_vstack_area(area *a)
     *start = (LispObj *) a->active,
     *end = (LispObj *) a->high;
 
-  if ((((unsigned)end) - ((unsigned)start)) & 4) {
+  if ((((natural)end) - ((natural)start)) & sizeof(natural)) {
     /* Odd number of words.  Mark the first (can't be a header) */
     mark_root(*start);
     ++start;
@@ -1469,7 +1469,7 @@ mark_cstack_area(area *a)
       mark_pc_root(((lisp_frame *)current)->savelr);
     } else {
       /* Clear low 2 bits of "next", just in case */
-      next = (BytePtr) (((unsigned)next) & ~3);
+      next = (BytePtr) (((natural)next) & ~3);
     }
   }
 }
@@ -2180,7 +2180,7 @@ forward_range(LispObj *range_start, LispObj *range_end)
     node = *p;
     tag_n = fulltag_of(node);
     if (immheader_tag_p(tag_n)) {
-      p = (LispObj *) skip_over_ivector((unsigned) p, node);
+      p = (LispObj *) skip_over_ivector((natural) p, node);
     } else if (nodeheader_tag_p(tag_n)) {
       nwords = header_element_count(node);
       nwords += (1- (nwords&1));
@@ -2336,7 +2336,7 @@ forward_vstack_area(area *a)
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
-  if (((unsigned)p) & 4) {
+  if (((natural)p) & sizeof(natural)) {
     update_noderef(p);
     p++;
   }
@@ -2362,7 +2362,7 @@ forward_cstack_area(area *a)
       update_locref(&((lisp_frame *) current)->savelr);
     } else {
       /* Clear low 2 bits of "next", just in case */
-      next = (BytePtr) (((unsigned)next) & ~3);
+      next = (BytePtr) (((natural)next) & ~3);
     }
   }
 }
@@ -2370,7 +2370,7 @@ forward_cstack_area(area *a)
 void
 forward_xp(ExceptionInformation *xp)
 {
-  unsigned long *regs = (unsigned long *) xpGPRvector(xp);
+  natural *regs = (natural *) xpGPRvector(xp);
   int r;
 
   /* registers >= fn should be tagged and forwarded as roots.
@@ -3166,7 +3166,7 @@ purify_range(LispObj *start, LispObj *end, BytePtr low, BytePtr high, area *to, 
     } else {
       tag = fulltag_of(header);
       if (immheader_tag_p(tag)) {
-        start = (LispObj *)skip_over_ivector((unsigned)start, header);
+        start = (LispObj *)skip_over_ivector((natural)start, header);
       } else {
         if (!nodeheader_tag_p(tag)) {
           copy_ivector_reference(start, low, high, to, what);
@@ -3209,7 +3209,7 @@ purify_vstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
-  if (((unsigned)p) & 4) {
+  if (((natural)p) & sizeof(natural)) {
     copy_ivector_reference(p, low, high, to, what);
     p++;
   }
@@ -3232,8 +3232,8 @@ purify_cstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
 	 (fulltag_of(((lisp_frame *)current)->savefn) == fulltag_misc))) {
       purify_locref(&((lisp_frame *) current)->savelr, low, high, to, what);
     } else {
-      /* Clear low 2 bits of "next", just in case */
-      next = (BytePtr) (((unsigned)next) & ~3);
+      /* Clear low bits of "next", just in case */
+      next = (BytePtr) (((natural)next) & ~(sizeof(natural)-1));
     }
   }
 }
@@ -3467,8 +3467,8 @@ impurify_cstack_area(area *a, LispObj low, LispObj high, int delta)
 	 (fulltag_of(((lisp_frame *)current)->savefn) == fulltag_misc))) {
       impurify_locref(&((lisp_frame *) current)->savelr, low, high, delta);
     } else {
-      /* Clear low 2 bits of "next", just in case */
-      next = (BytePtr) (((unsigned)next) & ~3);
+      /* Clear low bits of "next", just in case */
+      next = (BytePtr) (((natural)next) & ~(sizeof(natural)-1));
     }
   }
 }
@@ -3476,7 +3476,7 @@ impurify_cstack_area(area *a, LispObj low, LispObj high, int delta)
 void
 impurify_xp(ExceptionInformation *xp, LispObj low, LispObj high, int delta)
 {
-  unsigned long *regs = (unsigned long *) xpGPRvector(xp);
+  natural *regs = (natural *) xpGPRvector(xp);
   int r;
 
   /* registers >= fn should be treated as roots.
@@ -3506,7 +3506,7 @@ impurify_range(LispObj *start, LispObj *end, LispObj low, LispObj high, int delt
     header = *start;
     tag = fulltag_of(header);
     if (immheader_tag_p(tag)) {
-      start = (LispObj *)skip_over_ivector((unsigned)start, header);
+      start = (LispObj *)skip_over_ivector((natural)start, header);
     } else {
       if (!nodeheader_tag_p(tag)) {
         impurify_noderef(start, low, high, delta);
@@ -3573,7 +3573,7 @@ impurify_vstack_area(area *a, LispObj low, LispObj high, int delta)
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
-  if (((unsigned)p) & 4) {
+  if (((natural)p) & sizeof(natural)) {
     impurify_noderef(p, low, high, delta);
     p++;
   }

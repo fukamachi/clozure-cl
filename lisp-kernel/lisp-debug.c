@@ -610,7 +610,7 @@ debug_identify_function(ExceptionInformationPowerPC *xp)
   if (xp) {
     if (active_tcr_p((TCR *)(ptr_from_lispobj(xpGPR(xp, rcontext))))) {
       LispObj f = xpGPR(xp, fn), codev;
-      unsigned where = (unsigned) xpPC(xp);
+      pc where = xpPC(xp);
       
       if (!(codev = register_codevector_contains_pc(f, where))) {
         f = xpGPR(xp, nfn);
@@ -620,7 +620,7 @@ debug_identify_function(ExceptionInformationPowerPC *xp)
         fprintf(stderr, " While executing: %s\n", print_lisp_object(f));
       }
     } else {
-      fprintf(stderr, " In foreign code at address 0x%08x\n", xpPC(xp));
+      fprintf(stderr, " In foreign code at address 0x%08lx\n", xpPC(xp));
     }
   }
 }
