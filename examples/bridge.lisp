@@ -24,26 +24,10 @@
 
 (in-package "CCL")
 
-#+darwinppc-target
-(require "APPLE-OBJC")
-#+linuxppc-target
-(require "GNU-OBJC")
+(require "OBJC-RUNTIME")
 (require "NAME-TRANSLATION")
 
 
-;;; Define the #@"XXX" dispatch macro for constant NSStrings from APPLE-OBJ.LISP
-;;; in the current readtable 
-
-(set-dispatch-macro-character
- #\#
- #\@
- (nfunction
-  |objc-#@-reader|
-  (lambda (stream subchar numarg)
-    (declare (ignore subchar numarg))
-    (let* ((string (read stream)))
-      (check-type string string)
-      `(@ ,string)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -189,7 +173,7 @@
 ;;; Get the instance method structure corresponding to SEL for CLASS 
 
 (defun get-method (class sel)
-  (let ((m (#_class_getInstanceMethod class sel)))
+  (let ((m (class-get-instance-method class sel)))
     (if (%null-ptr-p m)
       (error "Instances of ObjC class ~S cannot respond to the message ~S" 
              (objc-class-name class)
@@ -200,7 +184,7 @@
 ;;; Get the class method structure corresponding to SEL for CLASS
 
 (defun get-class-method (class sel)
-  (let ((m (#_class_getClassMethod class sel)))
+  (let ((m (class-get-class-method class sel)))
     (if (%null-ptr-p m)
       (error "ObjC class ~S cannot respond to the message ~S" 
              (objc-class-name class)
@@ -384,7 +368,7 @@
   (cons
    (objc-foreign-arg-type (method-typestring m))
    (%stack-block ((type 4) (offset 4))
-     (loop for i from 2 below (#_method_getNumberOfArguments m)
+     (loop for i from 2 below (method-get-number-of-arguments m)
            do (#_method_getArgumentInfo m i type offset)
            collect 
            (objc-foreign-arg-type (%get-cstring (%get-ptr type)))))))
