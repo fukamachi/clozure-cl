@@ -184,14 +184,6 @@
 
 (defvar *eval-macro-displacement* nil)
 
-(defvar *cursorhook* nil)
-;(defvar *scrap-ok* t)
-(defvar *scrap-count* -1)
-(defvar *current-view* nil)
-(defvar *current-font-view* nil)
-
-(defglobal *selected-window* nil)
-(defglobal *modal-dialog-on-top* nil)
 
 (defvar *lisp-system-pointer-functions* nil)
 (defvar *lisp-user-pointer-functions* nil)
