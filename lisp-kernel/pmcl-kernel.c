@@ -61,6 +61,7 @@
 #include "Threads.h"
 
 LispObj lisp_nil = (LispObj) 0;
+bitvector global_mark_ref_bits = NULL;
 
 
 /* These are all "persistent" : they're initialized when
@@ -303,26 +304,44 @@ initial_stack_size = DEFAULT_INITIAL_STACK_SIZE;
 void 
 uncommit_pages(void *start, unsigned len)
 {
-  madvise(start, len, MADV_DONTNEED);
-  if (mmap(start, 
-           len, 
-           PROT_NONE, 
-           MAP_PRIVATE | MAP_FIXED | MAP_ANON,
-           -1,
-           0) != start) {
-    Fatal("mmap error", "");
+  if (len) {
+    madvise(start, len, MADV_DONTNEED);
+    if (mmap(start, 
+	     len, 
+	     PROT_NONE, 
+	     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
+	     -1,
+	     0) != start) {
+      int err = errno;
+      Fatal("mmap error", "");
+      fprintf(stderr, "errno = %d", err);
+    }
   }
 }
 
 void
 commit_pages(void *start, unsigned len)
 {
-  if (mmap(start, 
-           len, 
-           PROT_READ | PROT_WRITE | PROT_EXEC,
-           MAP_PRIVATE | MAP_FIXED | MAP_ANON,
-           -1,
-           0) != start) {
+  if (len != 0) {
+    int i, err;
+    void *addr;
+    for (i = 0; i < 3; i++) {
+      addr = mmap(start, 
+		  len, 
+		  PROT_READ | PROT_WRITE,
+		  MAP_PRIVATE | MAP_FIXED | MAP_ANON,
+		  -1,
+		  0);
+      if (addr  == start) {
+	return;
+      }
+      err = errno;
+      Bug(NULL, "mmap failure returned 0x%08x, attempt %d: %s\n",
+	  addr,
+	  i,
+	  strerror(errno));
+      sleep(5);
+    }
     Fatal("mmap error", "");
   }
 }
@@ -359,7 +378,7 @@ extend_readonly_area(unsigned more)
     new_end = (BytePtr)(align_to_power_of_2(a->active+more,12));
     if (mmap(new_start,
              new_end-new_start,
-             PROT_READ | PROT_WRITE | PROT_EXEC,
+             PROT_READ | PROT_WRITE,
              MAP_PRIVATE | MAP_ANON | MAP_FIXED,
              -1,
              0) != new_start) {
@@ -424,7 +443,6 @@ create_reserved_area(unsigned totalsize)
     want = (BytePtr)IMAGE_BASE_ADDRESS,
     try2;
   area *reserved;
-  bitvector markbits;
   Boolean fixed_map_ok = false;
 
   /*
@@ -501,7 +519,7 @@ create_reserved_area(unsigned totalsize)
   end = lastbyte;
   end = (BytePtr) ((unsigned)((((unsigned)end) - ((totalsize+63)>>6)) & ~4095));
 
-  markbits = (bitvector)end;
+  global_mark_ref_bits = (bitvector)end;
   end = (BytePtr) ((unsigned)((((unsigned)end) - ((totalsize+63) >> 6)) & ~4095));
   global_reloctab = (LispObj *) end;
   /* We need 2 bytes for every page for the egc pagemap */
@@ -511,7 +529,7 @@ create_reserved_area(unsigned totalsize)
   /* The root of all evil is initially linked to itself. */
   reserved->pred = reserved->succ = reserved;
   all_areas = reserved;
-  reserved->markbits = markbits;
+  reserved->markbits = global_mark_ref_bits;
   return reserved;
 }
 
@@ -575,19 +593,36 @@ file_map_reserved_pages(unsigned len, int prot, int fd, unsigned offset)
   return (void *) (((unsigned)start) + offset_in_page);
 }
 
+BytePtr pagemap_limit = NULL, 
+  reloctab_limit = NULL, markbits_limit = NULL;
 void
 ensure_gc_structures_writable()
 {
-  area *a = active_dynamic_area;
   unsigned 
-    ndwords = a->ndwords,
-    npages = (((unsigned)a->active-(unsigned)lisp_global(HEAP_START)) + 4095) >> 12,
-    markbits_size = 12+((a->ndwords+7)>>3),
-    reloctab_size = (sizeof(LispObj)*(((ndwords+31)>>5)+1));
+    ndwords = area_dword(lisp_global(HEAP_END),lisp_global(HEAP_START)),
+    npages = (lisp_global(HEAP_END)-lisp_global(HEAP_START)) >> 12,
+    markbits_size = 12+((ndwords+7)>>3),
+    reloctab_size = (sizeof(LispObj)*(((ndwords+31)>>5)+1)),
+    pagemap_size = align_to_power_of_2(npages*sizeof(pageentry),12);
+  BytePtr 
+    new_reloctab_limit = ((BytePtr)global_reloctab)+reloctab_size,
+    new_markbits_limit = ((BytePtr)global_mark_ref_bits)+markbits_size,
+    new_pagemap_limit = ((BytePtr)pagemap)+ pagemap_size;
 
-  UnProtectMemory(global_reloctab, reloctab_size);
-  UnProtectMemory(a->markbits, markbits_size);
-  UnProtectMemory(pagemap,align_to_power_of_2(npages*sizeof(pageentry),12));
+  if (new_reloctab_limit > reloctab_limit) {
+    UnProtectMemory(global_reloctab, reloctab_size);
+    reloctab_limit = new_reloctab_limit;
+  }
+  
+  if (new_markbits_limit > markbits_limit) {
+    UnProtectMemory(global_mark_ref_bits, markbits_size);
+    markbits_limit = new_markbits_limit;
+  }
+  
+  if (new_pagemap_limit > pagemap_limit) {
+    UnProtectMemory(pagemap,align_to_power_of_2(npages*sizeof(pageentry),12));
+    pagemap_limit = new_pagemap_limit;
+  }
 
 }
 
@@ -1051,25 +1086,6 @@ terminate_lisp()
   exit(-1);
 }
 
-void
-create_spjump_page()
-{
-  unsigned *jptr = (unsigned *)0x4000, i, target=0x100000;
-
-  if (mmap((void *)jptr,
-           0x1000,
-           PROT_READ | PROT_WRITE | PROT_EXEC,
-           MAP_PRIVATE | MAP_ANON | MAP_FIXED,
-           -1,
-           0) != (void *)jptr) {
-    exit(-1);
-  }
-  
-  for (i = 0; i < 256; i++, target+=0x100) {
-    *jptr++ = target|BA_VAL;
-  }
-  xMakeDataExecutable((void *)0x4000,0x1000);
-}
 
   
 main(int argc, char *argv[], char *envp[], void *aux)
@@ -1157,9 +1173,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
     }
   }
 
-#if 0
-  create_spjump_page();
-#endif
   prepare_for_the_worst();
 
   real_subprims_base = (LispObj)(1<<20);
