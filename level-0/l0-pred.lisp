@@ -380,42 +380,44 @@
           (if (base-char-p thing)
             'base-char
             'immediate)
-          (let* ((tag-type (logand typecode ppc32::full-tag-mask))
-                 (tag-val (ash typecode (- ppc32::ntagbits))))
-            (declare (fixnum tag-type tag-val))
-            ;; When we get to the point that we can differentiate between
-            ;; different types of functions, do so.
-            (if (/= tag-type ppc32::fulltag-nodeheader)
-              (%svref *immheader-types* tag-val)
-              (let ((type (%svref *nodeheader-types* tag-val)))
-                (if (eq type 'function)
-                  (let ((bits (lfun-bits thing)))
-                    (declare (fixnum bits))
-                    (if (logbitp $lfbits-trampoline-bit bits)
-		      (if (logbitp $lfbits-evaluated-bit bits)
-			'interpreted-lexical-closure
-			(let ((inner-fn (closure-function thing)))
-			  (if (neq inner-fn thing)
-			    (let ((inner-bits (lfun-bits inner-fn)))
-			      (if (logbitp $lfbits-method-bit inner-bits)
-				'compiled-lexical-closure
-				(if (logbitp $lfbits-gfn-bit inner-bits)
-				  'standard-generic-function ; not precisely - see class-of
-				  (if (logbitp  $lfbits-cm-bit inner-bits)
-				    'combined-method
-				    'compiled-lexical-closure))))
-			    'compiled-lexical-closure)))
-                      (if (logbitp $lfbits-evaluated-bit bits)
-                        (if (logbitp $lfbits-method-bit bits)
-                          'interpreted-method-function
-                          'interpreted-function)
-                        (if (logbitp  $lfbits-method-bit bits)
-                          'method-function          
-                          'compiled-function))))
-                  (if (eq type 'lock)
-                    (or (uvref thing ppc32::lock.kind-cell)
-                        type)
-                    type))))))))))
+	  (if (= typecode ppc32::subtag-macptr)
+	    (if (classp thing)
+	      (class-name thing)
+	      'macptr)
+	    (let* ((tag-type (logand typecode ppc32::full-tag-mask))
+		   (tag-val (ash typecode (- ppc32::ntagbits))))
+	      (declare (fixnum tag-type tag-val))
+	      (if (/= tag-type ppc32::fulltag-nodeheader)
+		(%svref *immheader-types* tag-val)
+		(let ((type (%svref *nodeheader-types* tag-val)))
+		  (if (eq type 'function)
+		    (let ((bits (lfun-bits thing)))
+		      (declare (fixnum bits))
+		      (if (logbitp $lfbits-trampoline-bit bits)
+			(if (logbitp $lfbits-evaluated-bit bits)
+			  'interpreted-lexical-closure
+			  (let ((inner-fn (closure-function thing)))
+			    (if (neq inner-fn thing)
+			      (let ((inner-bits (lfun-bits inner-fn)))
+				(if (logbitp $lfbits-method-bit inner-bits)
+				  'compiled-lexical-closure
+				  (if (logbitp $lfbits-gfn-bit inner-bits)
+				    'standard-generic-function ; not precisely - see class-of
+				    (if (logbitp  $lfbits-cm-bit inner-bits)
+				      'combined-method
+				      'compiled-lexical-closure))))
+			      'compiled-lexical-closure)))
+			(if (logbitp $lfbits-evaluated-bit bits)
+			  (if (logbitp $lfbits-method-bit bits)
+			    'interpreted-method-function
+			    'interpreted-function)
+			  (if (logbitp  $lfbits-method-bit bits)
+			    'method-function          
+			    'compiled-function))))
+		    (if (eq type 'lock)
+		      (or (uvref thing ppc32::lock.kind-cell)
+			  type)
+		      type)))))))))))
 
 
 ; real machine specific huh
