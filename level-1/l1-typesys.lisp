@@ -1363,6 +1363,39 @@
   (defconstant type-cache-size (ash 1 12))
   (defconstant type-cache-mask (1- type-cache-size)))
 
+;;; We can get in trouble if we try to cache certain kinds of ctypes,
+;;; notably MEMBER types which refer to objects which might
+;;; be stack-allocated or might be EQUAL without being EQL.
+(defun cacheable-ctype-p (ctype)
+  (case (%svref ctype 0)
+    (member-ctype
+     (dolist (m (member-ctype-members ctype) t)
+       (when (or (typep m 'cons)
+		 (typep m 'array))
+	 nil)))
+    (union-ctype
+     (every #'cacheable-ctype-p (union-ctype-types ctype)))
+    (intersection-ctype
+     (every #'cacheable-ctype-p (intersection-ctype-types ctype)))
+    (array-ctype
+     (cacheable-ctype-p (array-ctype-element-type ctype)))
+    ((values-ctype function-ctype)
+     (and (every #'cacheable-ctype-p (values-ctype-required ctype))
+	  (every #'cacheable-ctype-p (values-ctype-optional ctype))
+	  (let* ((rest (values-ctype-rest ctype)))
+	    (or (null rest) (cacheable-ctype-p rest)))
+	  (every #'(lambda (info)
+		     (cacheable-ctype-p (key-info-type info)))
+		 (values-ctype-keywords ctype))
+	  (or (not (eq (%svref ctype 0) 'function-ctype))
+	      (let* ((result (function-ctype-returns ctype)))
+		(or (null result)
+		    (cacheable-ctype-p result))))))
+    (t t)))
+		
+      
+    
+
 (defun hash-type-specifier (spec)
   (logand (sxhash spec) type-cache-mask))
 
@@ -1399,8 +1432,11 @@
                     (svref type-cache-ctypes idx))
                   (let* ((ctype (values-specifier-type-internal spec)))
                     (if ctype
-                      (setf (svref type-cache-specs idx) (copy-tree spec)       ; in case it was stack-consed
-                            (svref type-cache-ctypes idx) ctype)
+		      (progn
+			(when (cacheable-ctype-p ctype)
+			  (setf (svref type-cache-specs idx) (copy-tree spec)       ; in case it was stack-consed
+				(svref type-cache-ctypes idx) ctype))
+			ctype)
                       (make-unknown-ctype :specifier spec)))))
               (values-specifier-type-internal spec)))
           (setq locked nil)))))
