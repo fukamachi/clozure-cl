@@ -23,7 +23,6 @@
 
 ;;;
 
-
 (defclass stream ()
   ((direction :initarg :direction :initform nil :reader stream-direction)
    (closed :initform nil)))
@@ -38,6 +37,16 @@
   (declare (ignore direction)))
 
 ;;; Some generic stream functions:
+(defmethod stream-length ((x t) &optional new)
+  (declare (ignore new))
+  (report-bad-arg x 'stream))
+
+(defmethod stream-position ((x t) &optional new)
+  (declare (ignore new))
+  (report-bad-arg x 'stream))
+
+(defmethod stream-element-type ((x t))
+  (report-bad-arg x 'stream))
 
 ;;; For input streams:
 
@@ -242,6 +251,8 @@
 
 (defmethod stream-finish-output ((stream output-stream)) nil)
 
+
+
 (defmethod stream-clear-output ((stream output-stream)) nil)
 
 (defmethod close ((stream stream) &key abort)
@@ -272,6 +283,8 @@
 
 (defmethod interactive-stream-p ((stream stream)) nil)
 
+(defmethod stream-clear-input ((x t))
+  (report-bad-arg x 'stream))
 (defmethod stream-clear-input ((stream input-stream)) nil)
 
 (defmethod stream-listen ((stream input-stream))
@@ -1170,7 +1183,7 @@
   (stream-position (symbol-value (synonym-stream-symbol s)) new))
 
 (defun make-synonym-stream (symbol)
-  (make-instance 'synonym-stream :symbol symbol))
+  (make-instance 'synonym-stream :symbol (require-type symbol 'symbol)))
 
 
 ;;; Two-way streams.
@@ -1233,6 +1246,10 @@
       `(and ,in-type ,out-type))))
 
 (defun make-two-way-stream (in out)
+  (unless (input-stream-p in)
+    (require-type in 'input-stream))
+  (unless (output-stream-p out)
+    (require-type out 'output-stream))
   (make-instance 'two-way-stream :input-stream in :output-stream out))
 
 ;;; This is intended for use with things like *TERMINAL-IO*, where the
@@ -1384,13 +1401,45 @@
 	     (broadcast-method stream-set-column (s new))
 	     (broadcast-method stream-advance-to-column (s new))
 	     (broadcast-method stream-start-line-p (s))
-	     (broadcast-method stream-fresh-line (s))
 	     (broadcast-method stream-terpri (s))
 	     (broadcast-method stream-force-output (s))
 	     (broadcast-method stream-finish-output (s))
 	     (broadcast-method stream-stream-write-list (s l c))
 	     (broadcast-method stream-write-vector (s v start end)))
 
+(defun last-broadcast-stream (s)
+  (car (last (broadcast-stream-streams s))))
+
+(defmethod stream-fresh-line ((s broadcast-stream))
+  (let* ((did-output-newline nil))
+    (dolist (sub (broadcast-stream-streams s) did-output-newline)
+      (setq did-output-newline (stream-fresh-line sub)))))
+
+(defmethod stream-element-type ((s broadcast-stream))
+  (let* ((last (last-broadcast-stream s)))
+    (if last
+      (stream-element-type last)
+      t)))
+
+(defmethod stream-length ((s broadcast-stream) &optional new)
+  (unless new
+    (let* ((last (last-broadcast-stream s)))
+      (if last
+	(stream-length last)
+	0))))
+
+(defmethod stream-position ((s broadcast-stream) &optional new)
+  (unless new
+    (let* ((last (last-broadcast-stream s)))
+      (if last
+	(stream-position last)
+	0))))
+
+(defmethod file-stream-external-format ((s broadcast-stream))
+  (let* ((last (last-broadcast-stream s)))
+    (if last
+      (file-stream-external-format last)
+      :default)))
 
 (defun make-broadcast-stream (&rest streams)
   (dolist (s streams (make-instance 'broadcast-stream :streams streams))
@@ -2188,7 +2237,8 @@
     (let* ((fd (ioblock-device ioblock))
 	   (io-buffer (ioblock-outbuf ioblock))
 	   (buf (%null-ptr))
-	   (octets (ioblock-elements-to-octets ioblock count)))
+	   (octets-to-write (ioblock-elements-to-octets ioblock count))
+	   (octets octets-to-write))
       (declare (fixnum octets))
       (declare (dynamic-extent buf))
       (%setf-macptr buf (io-buffer-bufptr io-buffer))
@@ -2199,7 +2249,7 @@
 	    (when finish-p
 	      (case (%unix-fd-kind fd)
 		(:file (fd-fsync fd))))
-	    count)
+	    octets-to-write)
 	(let* ((written (with-eagain fd :output
 			  (fd-write fd buf octets))))
 	  (declare (fixnum written))
@@ -2242,11 +2292,13 @@
 (defun open (filename &key (direction :input)
                       (element-type 'base-char)
                       (if-exists :error)
-                      (if-does-not-exist (if (or (eq direction :input)
-                                                 ;(eq if-exists :overwrite)
-                                                 (eq if-exists :append))
-                                           :error
-                                           :create))
+                      (if-does-not-exist (cond ((eq direction :probe)
+                                                nil)
+                                               ((or (eq direction :input)
+                                                    (eq if-exists :overwrite)
+                                                    (eq if-exists :append))
+                                                :error)
+                                               (t :create)))
                       (external-format :default)
 		      (class *default-file-stream-class*)
                       (elements-per-buffer *elements-per-buffer*))
@@ -2280,7 +2332,10 @@
   (%probe-file-x (native-translated-namestring path)))
 
 (defun file-length (stream)
-  (stream-length stream))
+  (etypecase stream
+    ;; Don't use an OR type here
+    (file-stream (stream-length stream))
+    (broadcast-stream (stream-length stream))))
   
 (defun file-position (stream &optional position)
   (when position
