@@ -322,7 +322,7 @@ between the region's start and end, and if there are no ill-formed expressions i
 	 (ring (value interactive-history))
 	 (length (ring-length ring))
 	 (p (or p 1)))
-    (when (or (mark< point mark) (zerop length)) (editor-error))
+    (when (or (mark< point mark) (zerop length)) (editor-error "Can't get command history"))
     (cond
      ((eq (last-command-type) :interactive-history)
       (let ((base (mod (+ (value interactive-pointer) p) length)))

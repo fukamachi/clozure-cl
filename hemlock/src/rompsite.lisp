@@ -257,7 +257,7 @@
 (defconstant font-map-size 16
   "The number of possible fonts in a font-map.")
 #-clx
-(defconstant font-map-size 16)
+(defconstant font-map-size 32)
 
 ;;; SETUP-FONT-FAMILY sets *default-font-family*, opening the three font names
 ;;; passed in.  The font family structure is filled in from the first argument.

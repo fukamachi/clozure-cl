@@ -6,6 +6,9 @@
   (require "COCOA-EDITOR")
   (require "PTY"))
 
+(def-cocoa-default *listener-rows* :int 16)
+(def-cocoa-default *listener-columns* :int 80)
+
 ;;; Setup the server end of a pty pair.
 (defun setup-server-pty (pty)
   pty)
@@ -224,10 +227,14 @@
     doc))
 
 (define-objc-method ((:void make-window-controllers) lisp-listener-document)
-  (let* ((controller (make-objc-instance
+  (let* ((textstorage (slot-value self 'textstorage))
+	 (controller (make-objc-instance
 		      'lisp-listener-window-controller
 		      :with-window (%hemlock-frame-for-textstorage
-                                    (slot-value self 'textstorage) nil nil)))
+                                    textstorage
+				    *listener-columns*
+				    *listener-rows*
+				    t)))
 	 (listener-name (hi::buffer-name (hemlock-document-buffer self))))
     (send self :add-window-controller controller)
     (send controller 'release)

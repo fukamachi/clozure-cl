@@ -90,6 +90,8 @@
 
 ;;;; Referencing and setting font ids.
 
+#+clx
+(progn
 (defun window-font (window font)
   "Returns a font id for window and font."
   (svref (font-family-map (bitmap-hunk-font-family (window-hunk window))) font))
@@ -116,3 +118,4 @@
     (when (eq (bitmap-hunk-font-family (window-hunk w)) *default-font-family*)
       (setf (bitmap-hunk-trashed (window-hunk w)) :font-change)))
   (setf (svref (font-family-map *default-font-family*) font) font-object))
+)

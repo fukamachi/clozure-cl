@@ -10,6 +10,42 @@
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir :cocoa))
 
+(def-cocoa-default *editor-rows* :int 24)
+(def-cocoa-default *editor-columns* :int 80)
+
+;;; At runtime, this'll be a vector of character attribute dictionaries.
+(defloadvar *styles* ())
+
+(defun make-editor-style-map ()
+  (let* ((font-name *default-font-name*)
+	 (font-size *default-font-size*)
+	 (fonts (vector (default-font :name font-name :size font-size
+				      :attributes ())
+			(default-font :name font-name :size font-size
+				      :attributes '(:bold))
+			(default-font  :name font-name :size font-size
+				      :attributes '(:italic))
+			(default-font :name font-name :size font-size
+				      :attributes '(:bold :italic))))
+	 (color-class (find-class 'ns:ns-color))
+	 (colors (vector (send color-class 'black-color)
+			 (send color-class 'white-color)
+			 (send color-class 'dark-gray-color)
+			 (send color-class 'light-gray-color)
+			 (send color-class 'red-color)
+			 (send color-class 'blue-color)
+			 (send color-class 'green-color)
+			 (send color-class 'yellow-color)))
+	 (styles (make-array (the fixnum (* (length fonts) (length colors)))))
+	 (s 0))
+    (declare (dynamic-extent fonts colors))
+    (dotimes (c (length colors))
+      (dotimes (f (length fonts))
+	(setf (svref styles s) (create-text-attributes :font (svref fonts f)
+						       :color (svref colors c)))
+	(incf s)))
+    (setq *styles* styles)))
+
 (defun make-hemlock-buffer (&rest args)
   (let* ((buf (apply #'hi::make-buffer args)))
     (or buf
@@ -86,6 +122,7 @@
   workline				; cache for character-at-index
   workline-offset			; cached offset of workline
   workline-length			; length of cached workline
+  workline-start-font-index		; current font index at start of worklin
   )
 
 ;;; Initialize (or reinitialize) a buffer cache, so that it points
@@ -101,7 +138,8 @@
     (setf (buffer-cache-buflen d) (hemlock-buffer-length buffer)
 	  (buffer-cache-workline-offset d) 0
 	  (buffer-cache-workline d) workline
-	  (buffer-cache-workline-length d) (hemlock::line-length workline))
+	  (buffer-cache-workline-length d) (hemlock::line-length workline)
+	  (buffer-cache-workline-start-font-index d) 0)
     d))
 
 
@@ -243,8 +281,7 @@
 
 ;;; Lisp-text-storage objects
 (defclass lisp-text-storage (ns:ns-text-storage)
-    ((string :foreign-type :id)
-     (defaultattrs :foreign-type :id))
+    ((string :foreign-type :id))
   (:metaclass ns:+ns-object))
 
 ;;; Access the string.  It'd be nice if this was a generic function;
@@ -254,8 +291,7 @@
 
 (define-objc-method ((:id :init-with-string s) lisp-text-storage)
   (let* ((newself (send-super 'init)))
-    (setf (slot-value newself 'string) s
-	  (slot-value newself 'defaultattrs) (create-text-attributes))
+    (setf (slot-value newself 'string) s)
     newself))
 
 ;;; This is the only thing that's actually called to create a
@@ -282,7 +318,7 @@
     (unless (%null-ptr-p rangeptr)
       (setf (pref rangeptr :<NSR>ange.location) 0
 	    (pref rangeptr :<NSR>ange.length) len))
-    (slot-value self 'defaultattrs)))
+    (svref *styles* 0)))
 
 ;;; The range's origin should probably be the buffer's point; if
 ;;; the range has non-zero length, we probably need to think about
@@ -574,7 +610,7 @@
       pane))
 
 
-(defun make-scrolling-text-view-for-textstorage (textstorage x y width height)
+(defun make-scrolling-text-view-for-textstorage (textstorage x y width height tracks-width)
   (slet ((contentrect (ns-make-rect x y width height)))
     (let* ((scrollview (send (make-objc-instance
 			      'modeline-scroll-view
@@ -616,12 +652,12 @@
 	      (send tv :set-horizontally-resizable t)
 	      (send tv :set-vertically-resizable t) 
 	      (send tv :set-autoresizing-mask #$NSViewWidthSizable)
-	      (send container :set-width-tracks-text-view nil)
+	      (send container :set-width-tracks-text-view tracks-width)
 	      (send container :set-height-tracks-text-view nil)
 	      (send scrollview :set-document-view tv)	      
 	      (values tv scrollview))))))))
 
-(defun make-scrolling-textview-for-pane (pane textstorage)
+(defun make-scrolling-textview-for-pane (pane textstorage track-widht)
   (slet ((contentrect (send (send pane 'content-view) 'frame)))
     (multiple-value-bind (tv scrollview)
 	(make-scrolling-text-view-for-textstorage
@@ -629,7 +665,8 @@
 	 (pref contentrect :<NSR>ect.origin.x)
 	 (pref contentrect :<NSR>ect.origin.y)
 	 (pref contentrect :<NSR>ect.size.width)
-	 (pref contentrect :<NSR>ect.size.height))
+	 (pref contentrect :<NSR>ect.size.height)
+	 track-widht)
       (send pane :set-content-view scrollview)
       (setf (slot-value pane 'scroll-view) scrollview
             (slot-value pane 'text-view) tv
@@ -740,14 +777,14 @@
 	  
 					
 				      
-(defun textpane-for-textstorage (ts)
+(defun textpane-for-textstorage (ts ncols nrows container-tracks-text-view-width)
   (let* ((pane (nth-value
                 1
                 (new-hemlock-document-window :activate nil)))
-         (tv (make-scrolling-textview-for-pane pane ts)))
+         (tv (make-scrolling-textview-for-pane pane ts container-tracks-text-view-width)))
     (multiple-value-bind (height width)
         (size-of-char-in-font (default-font))
-      (size-textview-containers tv height width 24 80))
+      (size-textview-containers tv height width nrows ncols))
     pane))
 
 
@@ -834,17 +871,15 @@
 
 
 ;;; This function must run in the main event thread.
-(defun %hemlock-frame-for-textstorage (ts title activate)
-  (let* ((pane (textpane-for-textstorage ts))
-         (w (send pane 'window)))
-    (when title (send w :set-title (%make-nsstring title)))
-    (when activate (activate-window w))
-    w))
+(defun %hemlock-frame-for-textstorage (ts ncols nrows container-tracks-text-view-width)
+  (let* ((pane (textpane-for-textstorage ts ncols nrows container-tracks-text-view-width)))
+    (send pane 'window)))
 
-(defun hemlock-frame-for-textstorage (ts title activate)
+
+(defun hemlock-frame-for-textstorage (ts ncols nrows container-tracks-text-view-width)
   (process-interrupt *cocoa-event-process*
                      #'%hemlock-frame-for-textstorage
-                     ts title activate))
+                     ts  ncols nrows container-tracks-text-view-width))
 
 
 (defun for-each-textview-using-storage (textstorage f)
@@ -904,7 +939,7 @@
           (unless (eq (hi::mark-%kind mark) :right-inserting)
             (decf pos n))
           #+debug
-	  (format t "~&pos = ~d, n = ~d" pos n)
+	  (format t "~&insert: pos = ~d, n = ~d" pos n)
           (let* ((display (hemlock-buffer-string-cache (send textstorage 'string))))
             (reset-buffer-cache display) 
             (update-line-cache-for-index display pos))
@@ -923,7 +958,7 @@
           (format t "~& pos = ~d, n = ~d" pos n)
           (force-output)
 	  (send textstorage
-                :edited #$NSTextStorageEditedAttributes
+                :edited #$NSTextStorageEditedCharacters
                 :range (ns-make-range pos n)
                 :change-in-length (- n))
           (let* ((cache (hemlock-buffer-string-cache (send textstorage 'string))))
@@ -1083,8 +1118,11 @@
 (define-objc-method ((:void make-window-controllers) lisp-editor-document)
   (let* ((controller (make-objc-instance
 		      'lisp-editor-window-controller
-		      :with-window (%hemlock-frame-for-textstorage
-                                    (slot-value self 'textstorage) nil nil))))
+		      :with-window (%hemlock-frame-for-textstorage 
+                                    (slot-value self 'textstorage)
+				    *editor-columns*
+				    *editor-rows*
+				    nil))))
     (send self :add-window-controller controller)
     (send controller 'release)))	 
 

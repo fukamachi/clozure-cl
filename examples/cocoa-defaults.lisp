@@ -1,5 +1,3 @@
-;;;-*- Mode: LISP; Package: CCL -*-
-
 ;;;-*-Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 2004 Clozure Associates
@@ -19,7 +17,8 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
-  (use-interface-dir :cocoa))
+  (use-interface-dir :cocoa)
+  (use-interface-dir :carbon))
 
 (require "OBJC-SUPPORT")
 
@@ -59,7 +58,7 @@
   (proclaim `(special name))
   (record-source-file name 'variable)
   (setf (documentation name 'variable) doc)
-  (set name (set-cocoa-default name (ns-constant-string (string-downcase name)) type value doc))
+  (set name (set-cocoa-default name (ns-constant-string (string name)) type value doc))
   name)
   
   
@@ -75,28 +74,23 @@
     (dolist (d (cocoa-defaults))
       (let* ((name (cocoa-default-symbol d))
              (key (objc-constant-string-nsstringptr (cocoa-default-string d))))
-        (case (cocoa-default-type d)
-          (:int
-           (set name (send domain :integer-for-key key)))
-          (:float
-           (set name (send domain :float-for-key key)))
-          (:string
-           (let* ((nsstring (send domain :string-for-key key)))
-             (unless (%null-ptr-p nsstring)
-               (set name (lisp-string-from-nsstring nsstring))))))))))
+	(if (%null-ptr-p (send domain :object-for-key key))
+	  (send domain
+		:set-object (%make-nsstring (format nil "~a" (cocoa-default-value d)))
+		:for-key key)
+	  (case (cocoa-default-type d)
+	    (:int
+	     (set name (send domain :integer-for-key key)))
+	    (:float
+	     (set name (send domain :float-for-key key)))
+	    (:string
+	     (let* ((nsstring (send domain :string-for-key key)))
+	       (unless (%null-ptr-p nsstring)
+		 (set name (lisp-string-from-nsstring nsstring)))))))))
+    (send domain 'synchronize)
+    (send domain 'dictionary-representation)))
 
-(defun register-cocoa-defaults ()
-  (let* ((domain (send (@class "NSUserDefaults") 'standard-user-defaults))
-         (defaults (cocoa-defaults))
-         (dict (make-objc-instance 'ns:ns-mutable-dictionary
-                                   :with-capacity (length defaults))))
-    (dolist (d defaults)
-      (let* ((key (objc-constant-string-nsstringptr (cocoa-default-string d)))
-             (value (%make-nsstring (format nil "~a" (cocoa-default-value d)))))
-        (send dict :set-value value :for-key key)))
-    (break "dict = ~s" dict)
-    (send domain :register-defaults dict)
-    (send domain 'synchronize)))
+
   
                                    
     
