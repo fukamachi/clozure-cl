@@ -1513,7 +1513,19 @@ vector
 				  &optional
 				  (arg2 (prog1 arg1 (setq arg1 0))))
   (%%set-unsigned-longlong ptr arg1 arg2))
-				  
+
+(defun %composite-pointer-ref (size pointer offset)
+  (declare (ignorable size))
+  (%inc-ptr pointer offset))
+
+(defun %set-composite-pointer-ref (size pointer offset new)
+  (#_bcopy new
+	   (%inc-ptr pointer offset)
+	   size))
+
+
+(defsetf %composite-pointer-ref %set-composite-pointer-ref)
+
 
 ;end of L1-utils.lisp
 
