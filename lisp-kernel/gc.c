@@ -1737,7 +1737,14 @@ mark_xp(ExceptionInformation *xp)
   mark_pc_root((LispObj)xpCTR(xp));
 
 }
+void
+mark_tcr_tlb(TCR *tcr)
+{
+  unsigned n = tcr->tlb_limit;
+  LispObj *start = tcr->tlb_pointer, *end = (LispObj *) ((BytePtr)start+n);
 
+  mark_simple_area_range(start, end);
+}
 
 /*
   Mark things that're only reachable through some (suspended) TCR.
@@ -2245,6 +2252,18 @@ forward_xp(ExceptionInformation *xp)
 }
 
 void
+forward_tcr_tlb(TCR *tcr)
+{
+  unsigned n = tcr->tlb_limit;
+  LispObj *start = tcr->tlb_pointer, *end = (LispObj *) ((BytePtr)start+n);
+
+  while (start < end) {
+    update_noderef(start);
+    start++;
+  }
+}
+
+void
 forward_tcr_xframes(TCR *tcr)
 {
   xframe_list *xframes;
@@ -2568,6 +2587,7 @@ gc(TCR *tcr)
   other_tcr = tcr;
   do {
     mark_tcr_xframes(other_tcr);
+    mark_tcr_tlb(other_tcr);
     other_tcr = other_tcr->next;
   } while (other_tcr != tcr);
 
@@ -2646,6 +2666,7 @@ gc(TCR *tcr)
   other_tcr = tcr;
   do {
     forward_tcr_xframes(other_tcr);
+    forward_tcr_tlb(other_tcr);
     other_tcr = other_tcr->next;
   } while (other_tcr != tcr);
 
@@ -3063,6 +3084,15 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
 }
 
 void
+purify_tcr_tlb(TCR *tcr, BytePtr low, BytePtr high, area *to, int what)
+{
+  unsigned n = tcr->tlb_limit;
+  LispObj *start = tcr->tlb_pointer, *end = (LispObj *) ((BytePtr)start+n);
+
+  purify_range(start, end, low, high, to, what);
+}
+
+void
 purify_tcr_xframes(TCR *tcr, BytePtr low, BytePtr high, area *to, int what)
 {
   xframe_list *xframes;
@@ -3200,6 +3230,7 @@ purify(TCR *tcr)
     other_tcr = tcr;
     do {
       purify_tcr_xframes(other_tcr, a->low, a->active, new_pure_area, COPY_CODE);
+      purify_tcr_tlb(other_tcr, a->low, a->active, new_pure_area, COPY_CODE);
       other_tcr = other_tcr->next;
     } while (other_tcr != tcr);
 
@@ -3318,6 +3349,18 @@ impurify_range(LispObj *start, LispObj *end, LispObj low, LispObj high, int delt
   }
 }
 
+
+
+
+void
+impurify_tcr_tlb(TCR *tcr,  LispObj low, LispObj high, int delta)
+{
+  unsigned n = tcr->tlb_limit;
+  LispObj *start = tcr->tlb_pointer, *end = (LispObj *) ((BytePtr)start+n);
+  
+  impurify_range(start, end, low, high, delta);
+}
+
 void
 impurify_tcr_xframes(TCR *tcr, LispObj low, LispObj high, int delta)
 {
@@ -3427,6 +3470,7 @@ impurify(TCR *tcr)
       other_tcr = tcr;
       do {
         impurify_tcr_xframes(other_tcr, (LispObj)ro_base, (LispObj)ro_limit, delta);
+        impurify_tcr_tlb(other_tcr, (LispObj)ro_base, (LispObj)ro_limit, delta);
         other_tcr = other_tcr->next;
       } while (other_tcr != tcr);
       lisp_global(IN_GC) = 0;
