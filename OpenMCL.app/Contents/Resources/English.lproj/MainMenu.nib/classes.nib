@@ -13,6 +13,12 @@
             CLASS = FirstResponder; 
             LANGUAGE = ObjC; 
             SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {showPreferences = id; }; 
+            CLASS = NSApplication; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSResponder; 
         }
     ); 
     IBVersion = 1; 
