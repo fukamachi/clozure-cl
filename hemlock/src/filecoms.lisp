@@ -391,7 +391,8 @@
 
 ;;;; Find file.
 
-(defcommand "Find File" (p &optional pathname)
+
+(defcommand "Old Find File" (p &optional pathname)
   "Visit a file in its own buffer.
    If the file is already in some buffer, select that buffer,
    otherwise make a new buffer with the same name as the file and
@@ -408,6 +409,19 @@
 	 (buffer (find-file-buffer pn)))
     (change-to-buffer buffer)
     buffer))
+
+(defcommand "Find File" (p &optional pathname)
+  "Visit a file in its own buffer.
+   If the file is already in some buffer, select that buffer,
+   otherwise make a new buffer with the same name as the file and
+   read the file into it."
+  "Make a buffer containing the file Pathname current, creating a buffer
+   if necessary.  The buffer is returned."
+  (if pathname
+    (old-find-file-command p pathname)
+    (hi::open-document)))
+  
+
 
 (defun find-file-buffer (pathname)
   "Return a buffer assoicated with the file Pathname, reading the file into a
@@ -608,19 +622,15 @@
 	  (setf (buffer-name buffer) name)))))
   (invoke-hook write-file-hook buffer))
  
-(defcommand "Write File" (p &optional pathname (buffer (current-buffer)))
+(defcommand "Write File" (p &optional (buffer (current-buffer)))
   "Writes the contents of Buffer, which defaults to the current buffer to
   the file named by Pathname.  The prefix argument is ignored."
   "Prompts for a file to write the contents of the current Buffer to.
   The prefix argument is ignored."
   (declare (ignore p))
-  (write-buffer-file
-   buffer
-   (or pathname
-       (prompt-for-file :prompt "Write File: "
-			:must-exist nil
-			:help "Name of file to write to"
-			:default (buffer-default-pathname buffer)))))
+  (let* ((document (hi::buffer-document buffer)))
+    (when document
+      (hi::save-hemlock-document-as document))))
 
 (defcommand "Save File" (p &optional (buffer (current-buffer)))
   "Writes the contents of the current buffer to the associated file.  If there
