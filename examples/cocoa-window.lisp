@@ -138,7 +138,7 @@
     (send-super :send-event e)))
 
 ;;; This is a reverse-engineered version of most of -[NSApplication terminate],
-;;; split off this way because we don't necessarily wamt to just do
+;;; split off this way because we don't necessarily want to just do
 ;;  (#_exit 0) when we've shut down the Cocoa UI.
 #+apple-objc
 (define-objc-method ((:void shutdown)
@@ -261,6 +261,7 @@
                (or *NSApp* (setq *NSApp* (init-cocoa-application)))
                (send *NSApp* :set-application-icon-image
                      (send (@class ns-image) :image-Named #@"NSApplicationIcon"))
+               (setf (application-ui-object *application*) *NSApp*)
 
                (when application-proxy-class-name
                  (let* ((classptr (%objc-class-classptr
@@ -351,22 +352,22 @@
                                     (stroke-width nil))
   (let* ((dict (make-objc-instance
 		'ns-mutable-dictionary
-		:with-capacity (if color 3 2))))
+		:with-capacity 5)))
     (send dict 'retain)
     (send dict
 	  :set-object (create-paragraph-style font line-break-mode)
-	  :for-key #@"NSParagraphStyle")
-    (send dict :set-object font :for-key #@"NSFont")
+	  :for-key #?NSParagraphStyleAttributeName)
+    (send dict :set-object font :for-key #?NSFontAttributeName)
     (when color
-      (send dict :set-object color :for-key #@"NSColor"))
+      (send dict :set-object color :for-key #?NSForegroundColorAttributeName))
     (when stroke-width
       (send dict :set-object (make-objc-instance 'ns:ns-number
                                                 :with-float (float stroke-width))
-            :for-key #@"NSStrokeWidth"))
+            :for-key #?NSStrokeWidthAttributeName))
     (when obliqueness
       (send dict :set-object (make-objc-instance 'ns:ns-number
                                                 :with-float (float obliqueness))
-            :for-key #@"NSObliqueness"))
+            :for-key #?NSObliquenessAttributeName))
     dict))
 
 
