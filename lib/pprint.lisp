@@ -1796,7 +1796,8 @@
            (declare (string s))
 	   (cond ((and (or is-key (eq p *package*)
 			   (and ;*package* ;can be NIL on symbolics
-				(eq object (find-symbol s))))
+                            (multiple-value-bind (symbol type) (find-symbol s)
+                              (and type (eq object symbol)))))
                        (eq (readtable-case *readtable*) :upcase)
                        (neq *print-case* :studly)
 		       (no-escapes-needed s))
