@@ -283,6 +283,7 @@ terminate the list"
   (dotimes (i (the fixnum (length vector)))
     (when (eq elt (%svref vector i)) (return i))))
 
+(defun logical-pathname-p (thing) (istruct-typep thing 'logical-pathname))
 
 (progn
 ; It's back ...
@@ -443,13 +444,13 @@ terminate the list"
 
 (defun coerce-to-uvector (object subtype simple-p)  ; simple-p ?  
   (let ((type-code (typecode object)))
-    (cond ((eq type-code ppc32::tag-list)
+    (cond ((eq type-code target::tag-list)
            (%list-to-uvector subtype object))
-          ((>= type-code ppc32::min-cl-ivector-subtag)  ; 175
+          ((>= type-code target::min-cl-ivector-subtag)  ; 175
            (if (or (null subtype)(= subtype type-code))
              (return-from coerce-to-uvector object)))
-          ((>= type-code ppc32::min-vector-subtag)     ; 170
-           (if (= type-code ppc32::subtag-simple-vector)
+          ((>= type-code target::min-vector-subtag)     ; 170
+           (if (= type-code target::subtag-simple-vector)
              (if (or (null subtype)
                      (= type-code subtype))
                (return-from coerce-to-uvector object))
@@ -458,7 +459,7 @@ terminate the list"
                           (= subtype (typecode (array-data-and-offset object)))))
                (return-from coerce-to-uvector object))))
           (t (error "Can't coerce ~s to Uvector" object))) ; or just let length error
-    (if (null subtype)(setq subtype ppc32::subtag-simple-vector))
+    (if (null subtype)(setq subtype target::subtag-simple-vector))
     (let* ((size (length object))
            (val (%alloc-misc size subtype)))
       (declare (fixnum size))
@@ -478,7 +479,7 @@ terminate the list"
 ; 3 callers
 (defun %list-to-uvector (subtype list)   ; subtype may be nil (meaning simple-vector
   (let* ((n (length list))
-         (new (%alloc-misc n (or subtype ppc32::subtag-simple-vector))))  ; yech
+         (new (%alloc-misc n (or subtype target::subtag-simple-vector))))  ; yech
     (dotimes (i n)
       (declare (fixnum i))
       (uvset new i (%car list))
@@ -535,9 +536,9 @@ terminate the list"
 ; %make-displaced-array assumes the following
 
 (eval-when (:compile-toplevel)
-  (assert (eql ppc32::arrayH.flags-cell ppc32::vectorH.flags-cell))
-  (assert (eql ppc32::arrayH.displacement-cell ppc32::vectorH.displacement-cell))
-  (assert (eql ppc32::arrayH.data-vector-cell ppc32::vectorH.data-vector-cell)))
+  (assert (eql target::arrayH.flags-cell target::vectorH.flags-cell))
+  (assert (eql target::arrayH.displacement-cell target::vectorH.displacement-cell))
+  (assert (eql target::arrayH.data-vector-cell target::vectorH.data-vector-cell)))
 
 
 (defun %make-displaced-array (dimensions displaced-to
@@ -584,41 +585,59 @@ terminate the list"
       ; adjustable or its target is a header, then we need to set the
       ; $arh_disp_bit. If displaced-to is not adjustable, then our
       ; target can be its target instead of itself.
-      (when (or (eql vect-subtype ppc32::subtag-arrayH)
-                (eql vect-subtype ppc32::subtag-vectorH))
-        (let ((dflags (%svref displaced-to ppc32::arrayH.flags-cell)))
+      (when (or (eql vect-subtype target::subtag-arrayH)
+                (eql vect-subtype target::subtag-vectorH))
+        (let ((dflags (%svref displaced-to target::arrayH.flags-cell)))
           (declare (fixnum dflags))
           (when (or (logbitp $arh_adjp_bit dflags)
 		    t
                     (progn
 		      #+nope
-                      (setq target (%svref displaced-to ppc32::arrayH.data-vector-cell)
-                            real-offset (+ offset (%svref displaced-to ppc32::arrayH.displacement-cell)))
+                      (setq target (%svref displaced-to target::arrayH.data-vector-cell)
+                            real-offset (+ offset (%svref displaced-to target::arrayH.displacement-cell)))
                       (logbitp $arh_disp_bit dflags)
 		      #-nope t))
             (setq flags (bitset $arh_disp_bit flags))))
         (setq vect-subtype (%array-header-subtype displaced-to)))
       ; assumes flags is low byte
-      (setq flags (dpb vect-subtype ppc32::arrayH.flags-cell-subtag-byte flags))
+      (setq flags (dpb vect-subtype target::arrayH.flags-cell-subtag-byte flags))
       (if (eq rank 1)
-        (%gvector ppc32::subtag-vectorH 
+        (%gvector target::subtag-vectorH 
                       (if (fixnump fill) fill new-size)
                       new-size
                       target
                       real-offset
                       flags)
-        (let ((val (%alloc-misc (+ ppc32::arrayh.dim0-cell rank) ppc32::subtag-arrayH)))
-          (setf (%svref val ppc32::arrayH.rank-cell) rank)
-          (setf (%svref val ppc32::arrayH.physsize-cell) new-size)
-          (setf (%svref val ppc32::arrayH.data-vector-cell) target)
-          (setf (%svref val ppc32::arrayH.displacement-cell) real-offset)
-          (setf (%svref val ppc32::arrayH.flags-cell) flags)
+        (let ((val (%alloc-misc (+ target::arrayh.dim0-cell rank) target::subtag-arrayH)))
+          (setf (%svref val target::arrayH.rank-cell) rank)
+          (setf (%svref val target::arrayH.physsize-cell) new-size)
+          (setf (%svref val target::arrayH.data-vector-cell) target)
+          (setf (%svref val target::arrayH.displacement-cell) real-offset)
+          (setf (%svref val target::arrayH.flags-cell) flags)
           (do* ((dims dimensions (cdr dims))
                 (i 0 (1+ i)))              
                ((null dims))
             (declare (fixnum i)(list dims))
-            (setf (%svref val (%i+ ppc32::arrayH.dim0-cell i)) (car dims)))
+            (setf (%svref val (%i+ target::arrayH.dim0-cell i)) (car dims)))
           val)))))
+
+(defun make-array (dims &key (element-type t element-type-p)
+                        displaced-to
+                        displaced-index-offset
+                        adjustable
+                        fill-pointer
+                        (initial-element nil initial-element-p)
+                        (initial-contents nil initial-contents-p))
+  (when (and initial-element-p initial-contents-p)
+        (error "Cannot specify both ~S and ~S" :initial-element-p :initial-contents-p))
+  (make-array-1 dims element-type element-type-p
+                displaced-to
+                displaced-index-offset
+                adjustable
+                fill-pointer
+                initial-element initial-element-p
+                initial-contents initial-contents-p
+                nil))
 
 
 
@@ -861,9 +880,9 @@ terminate the list"
          (g0-count 0))
     (when (egc-enabled-p)
       (let* ((a (%active-dynamic-area)))
-        (setq g0-count (%fixnum-ref a ppc32::area.gc-count) a (%fixnum-ref a ppc32::area.older))
-        (setq g1-count (%fixnum-ref a ppc32::area.gc-count) a (%fixnum-ref a ppc32::area.older))
-        (setq g2-count (%fixnum-ref a ppc32::area.gc-count))))
+        (setq g0-count (%fixnum-ref a target::area.gc-count) a (%fixnum-ref a target::area.older))
+        (setq g1-count (%fixnum-ref a target::area.gc-count) a (%fixnum-ref a target::area.older))
+        (setq g2-count (%fixnum-ref a target::area.gc-count))))
     (values total full g2-count g1-count g0-count)))
 
       
@@ -892,16 +911,16 @@ terminate the list"
 
 ; this IS effectively a passive way of inquiring about enabled status.
 (defun egc-enabled-p ()
-  (not (eql 0 (%fixnum-ref (%active-dynamic-area) ppc32::area.older))))
+  (not (eql 0 (%fixnum-ref (%active-dynamic-area) target::area.older))))
 
 (defun egc-configuration ()
   (let* ((ta (%get-kernel-global 'tenured-area))
-         (g2 (%fixnum-ref ta ppc32::area.younger))
-         (g1 (%fixnum-ref g2 ppc32::area.younger))
-         (g0 (%fixnum-ref g1 ppc32::area.younger)))
-    (values (ash (the fixnum (%fixnum-ref g0 ppc32::area.threshold)) -8)
-            (ash (the fixnum (%fixnum-ref g1 ppc32::area.threshold)) -8)
-            (ash (the fixnum (%fixnum-ref g2 ppc32::area.threshold)) -8))))
+         (g2 (%fixnum-ref ta target::area.younger))
+         (g1 (%fixnum-ref g2 target::area.younger))
+         (g0 (%fixnum-ref g1 target::area.younger)))
+    (values (ash (the fixnum (%fixnum-ref g0 target::area.threshold)) -8)
+            (ash (the fixnum (%fixnum-ref g1 target::area.threshold)) -8)
+            (ash (the fixnum (%fixnum-ref g2 target::area.threshold)) -8))))
 
 
 (defun configure-egc (e0size e1size e2size)
@@ -916,7 +935,7 @@ terminate the list"
 (defun macptr-flags (macptr)
   (if (eql (uvsize (setq macptr (require-type macptr 'macptr))) 1)
     0
-    (uvref macptr PPC32::XMACPTR.FLAGS-CELL)))
+    (uvref macptr TARGET::XMACPTR.FLAGS-CELL)))
 
 
 ; This doesn't really make the macptr be gcable (now has to be
@@ -924,7 +943,7 @@ terminate the list"
 ; other flag bits.
 (defun set-macptr-flags (macptr value) 
   (unless (eql (uvsize (setq macptr (require-type macptr 'macptr))) 1)
-    (setf (%svref macptr PPC32::XMACPTR.FLAGS-CELL) value)
+    (setf (%svref macptr TARGET::XMACPTR.FLAGS-CELL) value)
     value))
 
 (defun %new-gcable-ptr (size &optional clear-p)
@@ -948,6 +967,8 @@ terminate the list"
     (declare (fixnum code))
     (or (and (>= code (char-code #\A)) (<= code (char-code #\Z)))
         (and (>= code (char-code #\a)) (<= code (char-code #\z))))))
+
+
 
 
 ; def-accessors type-tracking stuff.  Used by inspector

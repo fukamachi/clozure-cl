@@ -29,8 +29,8 @@
 (declaim (inline instance-slots))
 (defun instance-slots (instance)
   (let* ((typecode (typecode instance)))
-    (cond ((eql typecode ppc32::subtag-instance) (instance.slots instance))
-	  ((eql typecode ppc32::subtag-macptr) (foreign-slots-vector instance))
+    (cond ((eql typecode target::subtag-instance) (instance.slots instance))
+	  ((eql typecode target::subtag-macptr) (foreign-slots-vector instance))
 	  ((typep instance 'standard-generic-function) (gf.slots instance))
 	  (t  (error "Don't know how to find slots of ~s" instance)))))
 
@@ -528,7 +528,7 @@
 
 (eval-when (:compile-toplevel :execute)
   (defmacro make-structure-vector (size)
-    `(%alloc-misc ,size ppc32::subtag-struct nil))
+    `(%alloc-misc ,size target::subtag-struct nil))
 
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; defmethod support ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1406,7 +1406,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 (defun standard-instance-p (i)
-  (eq (typecode i) ppc32::subtag-instance))
+  (eq (typecode i) target::subtag-instance))
 
 
 
@@ -2267,8 +2267,8 @@ to replace that class with ~s" name old-class new-class)
   (%std-slot-vector-value (instance-slots instance) slotd))
 
 (defun %maybe-std-slot-value-using-class (class instance slotd)
-  (if (and (eql (typecode class) ppc32::subtag-instance)
-	   (eql (typecode slotd) ppc32::subtag-instance)
+  (if (and (eql (typecode class) target::subtag-instance)
+	   (eql (typecode slotd) target::subtag-instance)
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
@@ -2307,8 +2307,8 @@ to replace that class with ~s" name old-class new-class)
 
 
 (defun %maybe-std-setf-slot-value-using-class (class instance slotd new)
-  (if (and (eql (typecode class) ppc32::subtag-instance)
-	   (eql (typecode slotd) ppc32::subtag-instance)
+  (if (and (eql (typecode class) target::subtag-instance)
+	   (eql (typecode slotd) target::subtag-instance)
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
