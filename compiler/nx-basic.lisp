@@ -206,7 +206,12 @@
                      (if (and (consp (var-ea v))
                               (eq :symbol-macro (car (var-ea v))))
                        (setq vartype :symbol-macro)
-                       (unless vartype (setq vartype :lexical)))
+                       (unless vartype (setq vartype
+					     (let* ((bits (var-bits v)))
+					       (if (and (typep bits 'integer)
+							(logbitp $vbitspecial bits))
+						 :special
+						 :lexical)))))
                      (return)))
 		 (when vartype (return))))))
       (setq env (if (eq envtype 'lexical-environment) (lexenv.parent-env env))))
