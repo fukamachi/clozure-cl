@@ -343,8 +343,8 @@
     ; dont error if result is floatable when either top or bottom is not.
     ; maybe do usual first, catching error
     (if (not (or (bignump num)(bignump den)))
-      (with-stack-short-floats ((fnum num)
-				(fden den))       
+      (ppc32::with-stack-short-floats ((fnum num)
+				       (fden den))       
         (%short-float/-2! fnum fden result))
       (let* ((numlen (integer-length num))
              (denlen (integer-length den))
@@ -354,8 +354,8 @@
                  (<= denlen IEEE-single-float-bias)
                  #|(not (minusp exp))|# 
                  (<= (abs exp) IEEE-single-float-mantissa-width))
-          (with-stack-short-floats ((fnum num)
-				    (fden den))
+          (ppc32::with-stack-short-floats ((fnum num)
+					   (fden den))
             (%short-float/-2! fnum fden result))
           (if (> exp IEEE-single-float-mantissa-width)
             (progn  (%short-float (round num den) result))               
@@ -385,7 +385,7 @@
                 (float-rat-neg-exp num den (if minusp -1 1) result t)))))))))
 
 
-
+#+ppc32-target
 (defun %short-float (number &optional result)
   (number-case number
     (short-float
@@ -398,6 +398,15 @@
      (%bignum-sfloat number (or result (%make-sfloat))))
     (ratio
      (%short-float-ratio number result))))
+
+#+ppc64-target
+(defun %short-float (number)
+  (number-case number
+    (short-float number)
+    (double-float (%double-float->short-float number))
+    (fixnum (%fixnum-sfloat number))
+    (bignum (%bignum-sfloat number))
+    (ratio (%short-float-ratio number))))
 
 
 (defun float-rat-neg-exp (integer divisor sign &optional result short)
@@ -507,7 +516,7 @@
                (* (cos r) (sinh i))))
     (if (typep x 'double-float)
       (%double-float-sin! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
         (%single-float-sin! sx (%make-sfloat))))))
 
 (defun cos (x)
@@ -518,7 +527,7 @@
                (* (sin r) (sinh i))))
     (if (typep x 'double-float)
       (%double-float-cos! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
         (%single-float-cos! sx (%make-sfloat))))))
 
 (defun tan (x)
@@ -526,7 +535,7 @@
     (/ (sin x) (cos x))
     (if (typep x 'double-float)
       (%double-float-tan! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
         (%single-float-tan! sx (%make-sfloat))))))
 
 
@@ -539,7 +548,7 @@
       (with-stack-double-floats ((dy y)
                                  (dx x))
         (%df-atan2 dy dx))
-      (with-stack-short-floats ((sy y)
+      (ppc32::with-stack-short-floats ((sy y)
                                 (sx x))
         (%sf-atan2 sy sx)))
     (if (typep y 'complex)
@@ -548,7 +557,7 @@
                 #c(0 2)))
       (if (typep y 'double-float)
         (%double-float-atan! y (%make-dfloat))
-        (with-stack-short-floats ((sy y))
+        (ppc32::with-stack-short-floats ((sy y))
           (%single-float-atan! sy (%make-sfloat)))))))
 
 
@@ -584,7 +593,7 @@
          (complex (%double-float-log! (%%double-float-abs dx dx) (%make-dfloat)) pi)
          (%double-float-log! dx (%make-dfloat)))))
     (t
-     (with-stack-short-floats ((sx x))
+     (ppc32::with-stack-short-floats ((sx x))
        (if (minusp x)
          (complex (%single-float-log! (%%short-float-abs sx sx) (%make-sfloat))
                   #.(coerce pi 'short-float))
@@ -596,7 +605,7 @@
   (typecase x
     (complex (* (exp (realpart x)) (cis (imagpart x))))
     (double-float (%double-float-exp! x (%make-dfloat)))
-    (t (with-stack-short-floats ((sx x))
+    (t (ppc32::with-stack-short-floats ((sx x))
          (%single-float-exp! sx (%make-sfloat))))))
 
 
@@ -613,7 +622,7 @@
            (with-stack-double-floats ((b1 b)
                                       (e1 e))
              (%double-float-expt! b1 e1 (%make-dfloat)))
-           (with-stack-short-floats ((b1 b)
+           (ppc32::with-stack-short-floats ((b1 b)
                                      (e1 e))
              (%single-float-expt! b1 e1 (%make-sfloat)))))
         (t (exp (* e (log b))))))
@@ -634,7 +643,7 @@
                      (eql (setq d (denominator x))
                           (* (setq b (isqrt d)) b)))))
          (/ a b))          
-        (t (with-stack-short-floats ((f1))
+        (t (ppc32::with-stack-short-floats ((f1))
              (fsqrt (%short-float x f1))))))
 
 
@@ -676,7 +685,7 @@
                (<= x 1.0d0))
         (%double-float-acos! x (%make-sfloat))
         (- double-float-half-pi (asin x))))
-    (with-stack-short-floats ((sx x))
+    (ppc32::with-stack-short-floats ((sx x))
       (locally
           (declare (type short-float sx))
         (if (and (<= -1.0s0 sx)

@@ -423,7 +423,7 @@
   (declare (short-float sfloat))
   (if (and (eq int 0)(= sfloat 0.0s0))
     0
-    (with-stack-short-floats ((tem int))
+    (ppc32::with-stack-short-floats ((tem int))
       (if (= tem sfloat)
         0
         (if (< tem sfloat) -1 1)))))
@@ -987,7 +987,7 @@
              (values res 
                      (%double-float--2 fnum (%double-float*-2! (%double-float res f2) ,divisor f2))))))
        (truncate-rat-sfloat (number divisor)
-         `(with-stack-short-floats ((fnum ,number)
+         `(ppc32::with-stack-short-floats ((fnum ,number)
                                     (f2))
            (let ((res (%unary-truncate (%short-float/-2! fnum ,divisor f2))))
              (values res 
@@ -1027,14 +1027,14 @@
                        (values res (- number res)))
                      (number-case divisor
                        (short-float
-                        (with-stack-short-floats ((f2))
+                        (ppc32::with-stack-short-floats ((f2))
                           (let ((res (%unary-truncate (%short-float/-2! number divisor f2))))
                             (values res 
                                     (%short-float--2
                                      number 
                                      (%short-float*-2! (%short-float res f2) divisor f2))))))
                        ((fixnum bignum ratio)
-                        (with-stack-short-floats ((fdiv divisor)
+                        (ppc32::with-stack-short-floats ((fdiv divisor)
                                                   (f2))
                           (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
                             (values res 
@@ -1084,7 +1084,7 @@
                                       (f2))
          (%unary-truncate (%double-float/-2! fnum ,divisor f2))))
      (truncate-rat-sfloat (number divisor)
-       `(with-stack-short-floats ((fnum ,number)
+       `(ppc32::with-stack-short-floats ((fnum ,number)
                                       (f2))
          (%unary-truncate (%short-float/-2! fnum ,divisor f2)))))
     (number-case number
@@ -1138,12 +1138,12 @@
                       RES)
                     (number-case divisor
                       ((fixnum bignum ratio)
-                       (with-stack-short-floats ((fdiv divisor)
+                       (ppc32::with-stack-short-floats ((fdiv divisor)
                                                  (f2))
                          (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
                            RES)))
                       (short-float
-                       (with-stack-short-floats ((ddiv divisor)
+                       (ppc32::with-stack-short-floats ((ddiv divisor)
                                                       (f2))
                          (%unary-truncate (%short-float/-2! number ddiv f2))))
                       (double-float

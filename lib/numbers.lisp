@@ -590,7 +590,7 @@
     (/ (- (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
       (%double-float-sinh! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-sinh! sx (%make-sfloat))))))
 
 
@@ -599,7 +599,7 @@
     (/ (+ (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
       (%double-float-cosh! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-cosh! sx (%make-sfloat))))))
 
 (defun tanh (x)
@@ -607,7 +607,7 @@
     (/ (sinh x) (cosh x))
     (if (typep x 'double-float)
       (%double-float-tanh! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-tanh! sx (%make-sfloat))))))
 
 (defun asinh (x)
@@ -615,14 +615,14 @@
     (log (+ x (sqrt (+ 1 (* x x)))))
     (if (typep x 'double-float)
       (%double-float-asinh! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-asinh! sx (%make-sfloat))))))
 
 (defun acosh (x)
   (if (and (realp x) (<= 1.0 x))
     (if (typep x 'double-float)
       (%double-float-acosh! x (%make-dfloat))
-      (with-stack-short-floats ((sx x))
+      (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-acosh! sx (%make-sfloat))))
     (* 2 (log (+ (sqrt (/ (1+ x) 2)) (sqrt (/ (1- x) 2)))))))
 
