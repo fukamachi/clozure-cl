@@ -369,6 +369,9 @@
             (and (eq class-of-class *funcallable-standard-class-class*)
                  (eq class-of-super *standard-class-class*))))))
 
+(defmethod validate-superclass ((class foreign-class) (super standard-class))
+  t)
+
 (defmethod validate-superclass ((class std-class) (super forward-referenced-class))
   t)
 
