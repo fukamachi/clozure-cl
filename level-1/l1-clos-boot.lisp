@@ -1413,9 +1413,7 @@ to replace that class with ~s" name old-class new-class)
 (defun standard-object-p (thing)
  ; returns thing's class-wrapper or nil if it isn't a standard-object
   (if (standard-instance-p thing)
-    (let* ((wrapper (instance.class-wrapper thing)))
-      (if (uvectorp wrapper)  ;; ???? - probably ok
-        wrapper))
+    (instance.class-wrapper thing)
     (if (typep thing 'macptr)
       (foreign-instance-class-wrapper thing))))
 
@@ -3176,10 +3174,16 @@ to replace that class with ~s" name old-class new-class)
 (setf (fdefinition '%do-remove-direct-method) #'remove-direct-method)
 
 (defmethod instance-class-wrapper ((instance standard-object))
-  (instance.class-wrapper instance))
+  (if (%standard-instance-p instance)
+    (instance.class-wrapper instance)
+    (if (typep instance 'macptr)
+      (foreign-instance-class-wrapper instance))))
 
 (defmethod instance-class-wrapper ((instance standard-generic-function))
   (gf.instance.class-wrapper  instance))
+
+
+				   
 
 (defun generic-function-wrapper (gf)
   (unless (inherits-from-standard-generic-function-p (class-of gf))
