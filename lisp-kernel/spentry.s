@@ -3410,21 +3410,22 @@ _spentry(builtin_ash)
 0:		
 	__(unbox_fixnum(imm1,arg_y))
 	__(unbox_fixnum(imm0,arg_z))
-	__(bgt cr1,1f)
+	__(bgt cr1,2f)
 	/* (ash n -count) => fixnum */
-	__(li arg_z,-1<<fixnumshift)
-	__(blelr cr2)
-	__(neg imm0,imm0)
-	__(sraw imm1,imm1,imm0)
-	__(box_fixnum(arg_z,imm1))
+	__(neg imm2,imm0)
+	__(bgt cr2,1f)
+	__(li imm2,31)
+1:	
+	__(sraw imm0,imm1,imm2)
+	__(box_fixnum(arg_z,imm0))
 	__(blr)
 	/* Integer-length of arg_y/imm1 to imm2 */
-1:		
+2:		
 	__(cntlzw. imm2,imm1)
-	__(bne 2f)		/* cr0[eq] set if negative */
+	__(bne 3f)		/* cr0[eq] set if negative */
 	__(not imm2,imm1)
 	__(cntlzw imm2,imm2)
-2:
+3:
 	__(subfic imm2,imm2,32)
 	__(add imm2,imm2,imm0)	 /* imm2 <- integer-length(imm1) + count */
 	__(cmpri(cr1,imm2,31-fixnumshift))
@@ -3432,7 +3433,7 @@ _spentry(builtin_ash)
 	__(slw imm2,imm1,imm0)
 	__(bgt cr1,6f)
 	__(box_fixnum(arg_z,imm2))
-	__(blr)
+	__(blr)	
 6:
 	__(bgt cr2,9f)
 	__(bne cr2,7f)
