@@ -263,11 +263,8 @@
             (locally (declare (fixnum mask))
               (if (not where) 
                 (setf (srv.unresolved srv-out) (%ilogior (srv.unresolved srv-out) mask))
-                (let* ((parent-vsp (frame-vsp parent))
-                       (grand-parent-vsp (frame-vsp grand-parent))
-                       (parent-area (%active-area (%fixnum-ref tcr ppc32::tcr.vs-area)  parent-vsp)))
-                  (unless (%ptr-in-area-p  grand-parent-vsp parent-area)
-                    (setq grand-parent-vsp (%fixnum-ref parent-area ppc32::area.high)))
+                (let* ((grand-parent-vsp (frame-vsp grand-parent)))
+
                   (let ((vsp (- grand-parent-vsp where 1))
                         (j *saved-register-count*))
                     (declare (fixnum j))
