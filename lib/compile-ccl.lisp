@@ -86,14 +86,12 @@
 				       (backend-target-arch-name
 					*host-backend*)))
   (case target
-    (:ppc *ppc-xdev-modules*)
-    (:sparc ())))
+    (:ppc32 *ppc-xdev-modules*)))
 
 (defun target-xload-modules (&optional (target
 					(backend-target-arch-name *host-backend*)))
   (case target
-    (:ppc *ppc-xload-modules*)
-    (:sparc *sparc-xload-modules*)))
+    (:ppc32 *ppc-xload-modules*)))
 
 
 
@@ -115,15 +113,13 @@
 				       *host-backend*)))
   (append *env-modules*
 	  (case target
-	    (:ppc '( ppc-lapmacros))
-	    (:sparc '(solaris-records sparc-lapmacros)))))
+	    (:ppc32 '( ppc-lapmacros)))))
 
 (defun target-compiler-modules (&optional (target
 					   (backend-target-arch-name
 					    *host-backend*)))
   (case target
-    (:ppc *ppc-compiler-modules*)
-    (:sparc *sparc-compiler-modules*)))
+    (:ppc32 *ppc-compiler-modules*)))
 
 (defparameter *other-lib-modules*
       '(streams pathnames backtrace
@@ -136,15 +132,13 @@
 					     *host-backend*)))
   (append *other-lib-modules*
 	  (case target
-	    (:ppc '(ppc-disassemble))
-	    (:sparc '(sparc-disassemble)))))
+	    (:ppc32 '(ppc-disassemble)))))
 
 (defun target-compiler-modules (&optional
 				(target
 				 (backend-target-arch-name *target-backend*)))
   (case target
-    (:ppc *ppc-compiler-modules*)
-    (:sparc *sparc-compiler-modules*)))
+    (:ppc32 *ppc-compiler-modules*)))
 	  
 
 (defun target-lib-modules (&optional (target
@@ -349,8 +343,8 @@
   ;(compile-modules *ppc-xdev-modules* force)
   ; These won't compile correctly unless they're loaded 
   (update-modules *ppc-xload-modules* force)
-  (compile-modules (target-level-1-modules :ppc) force)
-  (compile-modules (target-lib-modules :ppc)  force)
+  (compile-modules (target-level-1-modules :ppc32) force)
+  (compile-modules (target-lib-modules :ppc32)  force)
   (compile-modules *aux-modules* force)
   (compile-modules *code-modules* force)
   )
