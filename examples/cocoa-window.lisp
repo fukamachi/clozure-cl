@@ -407,7 +407,7 @@
                          (metal t)
                          (expandable t)
                          (backing :buffered)
-                         (defer nil)
+                         (defer t)
                          (accepts-mouse-moved-events nil)
                          (auto-display t)
                          (activate t))
