@@ -24,10 +24,7 @@
     (if (eq item (car tail))
       (return tail))))
 
-(defun assq (item list)
-  (dolist (pair list)
-    (when (and pair (eq item (car pair)))
-      (return pair))))
+
 
 
 (defun append-2 (y z)
