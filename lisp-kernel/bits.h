@@ -88,25 +88,23 @@ void ior_bits(bitvector,bitvector,unsigned);
 { BITPvar = bits_word_ptr(BITVvar,BITNUMvar); BITIDXvar = bits_bit_index(BITNUMvar); \
     BITWvar = (*BITPvar << BITIDXvar) >> BITIDXvar; }
 
-/* The MetroWerks compiler open codes this, but doing two machine
-   instructions out-of-line won't kill us. */
-
-#ifdef __MWERKS__
-#define count_leading_zeros(x) __cntlzw(x)
-#else
 #ifdef __GNUC__
 static __inline__ int
-count_leading_zeros(unsigned w)
+count_leading_zeros(unsigned long w)
 {
   unsigned lz;
+#ifdef PPC64
+  __asm__  ("cntlzd %0,%1" : "=r" (lz) : "r" (w));
+#else
   __asm__  ("cntlzw %0,%1" : "=r" (lz) : "r" (w));
+#endif
   return lz;
 }
 #else
 unsigned
-count_leading_zeros(unsigned);
+count_leading_zeros(unsigned long);
 #endif
-#endif
+
 
 
 
