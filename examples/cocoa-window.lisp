@@ -17,11 +17,12 @@
 
 (in-package "CCL")			; for now.
 
-(eval-when (:compile-toplevel :execute)
-  (use-interface-dir :cocoa))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "OBJC-SUPPORT"))
+
+(eval-when (:compile-toplevel :execute)
+  (use-interface-dir #+apple-objc  :cocoa #+gnu-objc :gnustep))
+
 
 (defun init-cocoa-application ()
   (with-autorelease-pool
@@ -46,7 +47,7 @@
 
 
 
-
+#+apple-objc
 (defun trace-dps-events (flag)
   (external-call "__DPSSetEventsTraced"
 		 :unsigned-byte (if flag #$YES #$NO)
@@ -93,7 +94,7 @@
   )
 
 
-
+#+apple-objc
 (define-objc-method ("_shouldTerminate" lisp-application)
   (:<BOOL>)
   (setq termp (objc-message-send-super (super) "_shouldTerminate" :<BOOL>)))
@@ -104,6 +105,7 @@
 (defloadvar *default-ns-application-proxy-class-name*
     "LispApplicationDelegate")
 
+#+apple-objc
 (defun enable-foreground ()
   (%stack-block ((psn 8))
     (external-call "_GetCurrentProcess" :address psn)
@@ -124,6 +126,7 @@
 ;;; This is a reverse-engineered version of most of -[NSApplication terminate],
 ;;; split off this way because we don't necessarily wamt to just do
 ;;  (#_exit 0) when we've shut down the Cocoa UI.
+#+apple-objc
 (define-objc-method ((:void shutdown)
 		     lisp-application)
   (unless (eql (pref self :<NSA>pplication._app<F>lags._app<D>ying) #$YES)
@@ -173,6 +176,7 @@
 	(#_NSLog #@"Error in event loop: %@" :address nsstr)))))
 
 
+#+apple-objc
 (defmethod process-verify-quit ((process appkit-process))
   (let* ((app *NSApp*))
     (or
@@ -190,6 +194,7 @@
 	:wait-until-done t)
        (send app 'termp)))))
 
+#+apple-objc
 (defmethod process-exit-application ((process appkit-process) thunk)
   (when (eq process *initial-process*)
     (prepare-to-quit)
@@ -210,8 +215,10 @@
     ;; pool to be established when it's called, but one of the things
     ;; that it does is to release all autorelease pools.  So, we create
     ;; one, but don't worry about freeing it ...
-    (create-autorelease-pool)
-    (objc-message-send app "_deallocHardCore:" :<BOOL> #$YES :void)))
+    #+apple-objc
+    (progn
+      (create-autorelease-pool)
+      (objc-message-send app "_deallocHardCore:" :<BOOL> #$YES :void))))
 
 
 (change-class *cocoa-event-process* 'appkit-process)

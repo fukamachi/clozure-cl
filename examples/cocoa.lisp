@@ -5,8 +5,10 @@
 ;;; other bundle path, you may need to change the call to FAKE-CFBUNDLE-PATH
 ;;; below.
 
+#+darwinppc-target
+(progn
 (require "FAKE-CFBUNDLE-PATH")
-(fake-cfbundle-path "ccl:OpenMCL.app;Contents;MacOS;dppccl")
+(fake-cfbundle-path "ccl:OpenMCL.app;Contents;MacOS;dppccl"))
 
 
 
