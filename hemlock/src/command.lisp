@@ -23,7 +23,7 @@
       "This variable holds this buffer's mark ring."
       :buffer buff
       :value ring)
-    (ring-push (copy-mark (buffer-point buff) :right-inserting) ring)))
+    (setf (hi::buffer-%mark buff) (copy-mark (buffer-point buff) :right-inserting))))
 
 (add-hook make-buffer-hook #'hcmd-new-buffer-hook-fun)
 (dolist (buff *buffer-list*) (hcmd-new-buffer-hook-fun buff))
