@@ -26,7 +26,7 @@
 
 ;;; This isn't the RT.
 (eval-when (:compile-toplevel :execute)
-  (:use-interface-dir :cocoa))
+  (use-interface-dir :cocoa))
 
 (hemlock-ext:define-keysym #$NSF1FunctionKey "F1")
 (hemlock-ext:define-keysym #$NSF2FunctionKey "F2")
