@@ -144,8 +144,45 @@ typedef u_int32_t opcode, *pc;
    context appears to be unmodified (the 64-bit context isn't set up
    correctly by the kernel: only the first N bytes are copied out of
    the kernel, where N = size of 32-bit context.
+
+   If the kernel pushed both a 32-bit and 64-bit context, the C
+   runtime "signal trampoline" code tries to determine if the 32-bit
+   GPRs and user-visible SPRs in the 32-bit context contain the same
+   values as their 64-bit counterparts on exit; if so, it tries to
+   call sigreturn with an extra argument that indicates that the
+   thread's state should be restored from the 64-bit context.
+   (Apparently that's more efficient; it'd be surprising if it'd be
+   more efficent when the cost of comparing values in the two contexts
+   is factored in ...).  On some OS releases, the 64-bit context can't
+   be reliably restored (FPRs get trashed.)
+
+   One way to work around this is to use a deprecated, 32-bit-context-only
+   version of the sigreturn syscall.  There seems to be reason to be
+   reason to believe that the old sigreturn syscall will disappear
+   on OS releases >10.3.
+
+   Another way to work around this is to make a "harmless" change to
+   an SPR or GPR value in the 32-bit context.  There are lots of
+   "reserved" bits in the XER that make good candidates: 1's written
+   to reserved XER bits can't be reliably read anyway, so this may
+   or may not actually change the value in the XER in a way that
+   can be reliably detected.
+
+   Note that both the old, deprecated version of sigreturn and the
+   new version take a first argument of type "struct ucontext *",
+   not "struct sigcontext *" as the man page and header files claim.
+   The new version takes a second argument, which is a small integer
+   which defines what "flavor" of context should be restored from.
+   The meaningful values that can be used here aren't defined in
+   a header file; the kernel (and the libc _sigtramp() function)
+   have (hopefully) matching, redundant hardwired definitions in
+   the source.
 */
-#define DarwinSigReturn(x) syscall(103,x)
+#if 1
+#define DarwinSigReturn(x) (UC_MCONTEXT(x)->ss.xer)^=0x80
+#else
+#define DarwinSigReturn(x)  syscall(103,x)
+#endif
 #endif
 
 OSStatus
