@@ -1365,6 +1365,16 @@
     (let ((var (gensym)))
       `(let ((,var ,p)) (%setf-macptr (the macptr ,var) (%inc-ptr ,var ,by))))))
 
+(defmacro with-string-from-cstring ((s ptr) &body body)
+  (let* ((len (gensym))
+	 (p (gensym)))
+    `(let* ((,p ,ptr)
+	    (,len (%cstrlen ,p))
+	    (,s (make-string ,len)))
+      (declare (fixnum ,len))
+      (%copy-ptr-to-ivector ,p 0 ,s 0 ,len)
+      (locally
+	  ,@body))))
 
 
 (defmacro with-cstr ((sym str &optional start end) &rest body &environment env)
