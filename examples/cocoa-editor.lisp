@@ -678,12 +678,28 @@
       tv)))
 
 
+(defclass echo-area-view (ns:ns-text-view)
+    ()
+  (:metaclass ns:+ns-object))
+
+
+(defun make-echo-area-for-window (w)
+  (let* ((content-view (send w 'content-view)))
+    (slet ((bounds (send content-view 'bounds)))
+      (slet ((frame (ns-make-rect 5.0 5.0 (- (pref bounds :<NSR>ect.size.width) 24.0) 15.0)))
+        (let* ((echo-area (make-objc-instance 'echo-area-view :with-frame frame)))
+          (send echo-area :set-autoresizing-mask #$NSViewWidthSizable)
+          (send content-view :add-subview echo-area)
+          echo-area)))))
+               
+        
 (defmethod hemlock-frame-command-info ((w ns:ns-window))
   nil)
 
 
 (defclass hemlock-frame (ns:ns-window)
-    ((command-info :initform (hi::make-command-interpreter-info)
+    ((echo-area-view :foreign-type :id)
+     (command-info :initform (hi::make-command-interpreter-info)
 		   :accessor hemlock-frame-command-info))
   (:metaclass ns:+ns-object))
 
@@ -757,6 +773,8 @@
             accepts-mouse-moved-events
             (get-cocoa-window-flag w :auto-display)
             auto-display)
+      (setf (slot-value w 'echo-area-view)
+            (make-echo-area-for-window w))
       (when activate (activate-window w))
       (values w (add-pane-to-window w :reserve-below 20.0)))))
 
@@ -1177,5 +1195,18 @@
       (close-hemlock-textstorage textstorage)))
     (send-super 'close))
 
+
+(defun initialize-user-interface ()
+  (update-cocoa-defaults)
+  (make-editor-style-map))
+
+(defun hi::scroll-window (textpane n)
+  (let* ((textview (text-pane-text-view textpane)))
+    (unless (%null-ptr-p textview)
+      (if (> n 0)
+        (send textview :page-down nil)
+        (send textview :page-up nil)))))
+
+      
 
 (provide "COCOA-EDITOR")
