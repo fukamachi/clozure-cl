@@ -1087,6 +1087,29 @@
   (clrlwi tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
   (twnei tag ppc32::tag-list))
 
+(define-ppc32-vinsn trap-unless-single-float (()
+                                              ((object :lisp))
+                                              ((tag :u8)
+                                               (crf :crf)))
+  (clrlwi tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf tag ppc32::tag-misc)
+  (bne crf :do-trap)
+  (lbz tag ppc32::misc-subtag-offset object)
+  :do-trap
+  (twnei tag ppc32::subtag-single-float))
+
+(define-ppc32-vinsn trap-unless-double-float (()
+                                              ((object :lisp))
+                                              ((tag :u8)
+                                               (crf :crf)))
+  (clrlwi tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf tag ppc32::tag-misc)
+  (bne crf :do-trap)
+  (lbz tag ppc32::misc-subtag-offset object)
+  :do-trap
+  (twnei tag ppc32::subtag-double-float))
+
+
 (define-ppc32-vinsn trap-unless-uvector (()
 					 ((object :lisp))
 					((tag :u8)))
@@ -1181,16 +1204,16 @@
 ;; given register, we get a value that's either 17 (the arithmetic difference
 ;; between T and NIL) or 0.
 
-(define-ppc32-vinsn bit31->truth (((dest :lisp)
-                                 (bits :u32))
-                                ((bits :u32))
-                                ())
+(define-ppc32-vinsn lowbit->truth (((dest :lisp)
+                                    (bits :u32))
+                                   ((bits :u32))
+                                   ())
   (rlwimi bits bits (- ppc32::least-significant-bit 27) 27 27)    ; bits = 0000...X000X
   (addi dest bits ppc32::nil-value))
 
-(define-ppc32-vinsn invert-bit31 (((bits :u32))
-                                ((bits :u32))
-                                ())
+(define-ppc32-vinsn invert-lowbit (((bits :u32))
+                                   ((bits :u32))
+                                   ())
   (xori bits bits 1))
 
                            
