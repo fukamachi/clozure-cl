@@ -81,24 +81,14 @@
 	   (setf (mark-kind ,var) :right-inserting))))))
 
 (defun hemlock-output-unbuffered-out (stream character)
-  (let* ((b (current-buffer))
-	 (stream-mark (hemlock-output-stream-mark stream))
-	 (new-buf (line-buffer (mark-line stream-mark))))
-    (unwind-protect
-	 (with-left-inserting-mark (mark stream-mark)
-	   (setf (current-buffer) new-buf)
-	   (insert-character mark character))
-      (setf (current-buffer) b))))
+  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
+    (insert-character mark character)
+    ))
 
 (defun hemlock-output-unbuffered-sout (stream string start end)
-  (let* ((b (current-buffer))
-	 (stream-mark (hemlock-output-stream-mark stream))
-	 (new-buf (line-buffer (mark-line stream-mark))))
-    (unwind-protect
-	 (with-left-inserting-mark (mark stream-mark)
-	   (setf (current-buffer) new-buf)
-	   (insert-string mark string start end))
-      (setf (current-buffer) b))))
+  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
+    (insert-string mark string start end)
+    ))
     
 
 (defun hemlock-output-buffered-out (stream character)
