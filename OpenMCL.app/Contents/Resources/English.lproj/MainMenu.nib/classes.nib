@@ -1,7 +1,15 @@
 {
     IBClasses = (
         {
-            ACTIONS = {newListener = id; }; 
+            ACTIONS = {
+                backtrace = id; 
+                continue = id; 
+                exitBreak = id; 
+                inspect = id; 
+                interrupt = id; 
+                newListener = id; 
+                restarts = id; 
+            }; 
             CLASS = FirstResponder; 
             LANGUAGE = ObjC; 
             SUPERCLASS = NSObject; 
