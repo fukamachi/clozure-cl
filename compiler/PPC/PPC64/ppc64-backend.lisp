@@ -43,7 +43,8 @@
 		:target-os :linuxppc
 		:name :linuxppc64
 		:target-arch-name :ppc64
-		:target-foreign-type-data nil)
+		:target-foreign-type-data nil
+		:target-lisp-node-size 8)
   )
 
 
@@ -68,7 +69,8 @@
 		:target-os :darwinppc
 		:name :panther-g5-hybrid
 		:target-arch-name :ppc64
-		:target-foreign-type-data nil)
+		:target-foreign-type-data nil
+		:target-lisp-node-size 8)
   )
 
 #+linuxppc-target
@@ -76,7 +78,7 @@
 
 
 #+darwinppc-target
-(pushnew *panther-hybrid-backend* *known-ppc64-backends* :key #'backend-name)
+(pushnew *panther-g5-hybrid-backend* *known-ppc64-backends* :key #'backend-name)
 
 (defvar *ppc64-backend* (car *known-ppc64-backends*))
 
@@ -92,10 +94,9 @@
 
 (fixup-ppc64-backend)
 
-#+ppc-target
+#+ppc64-target
 (setq *host-backend* *ppc64-backend* *target-backend* *ppc64-backend*)
 
 (pushnew *ppc64-backend* *known-backends* :key #'backend-name)
 
-(require "PPC64-VINSNS")
 (provide "PPC64-BACKEND")
