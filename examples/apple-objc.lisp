@@ -951,7 +951,7 @@ client methods" classname))
 	 (setq resulttype (pop selector-form))
 	 (unless (consp selector-form)
 	   (bad-selector "selector-form not a cons"))
-	 (arch::collect ((components)
+	 (ccl::collect ((components)
 			 (specs))
 	   ;; At this point, selector-form should be either a list of
 	   ;; a single symbol (a lispified version of the selector name
@@ -1166,7 +1166,7 @@ client methods" classname))
                (with-c-frame ,cframe
                  (%associate-jmp-buf-with-catch-frame
                   ,nshandler
-                  (%fixnum-ref (%current-tcr) arch::tcr.catch-top)
+                  (%fixnum-ref (%current-tcr) ppc32::tcr.catch-top)
                   ,cframe)
                  (progn
                    ,@body))))
