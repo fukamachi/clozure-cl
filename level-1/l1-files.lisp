@@ -1190,12 +1190,9 @@ you will be asked to choose a file."
 No file could be found for that module."
                            str *loading-file-source-file*)
                    (unless (member str *modules* :test #'string-equal)
-                     (catch-cancel
-                       (setq pathname (choose-file-dialog
-                                       :file-types '(#+sparc-target "sfsl"
-                                                     #+ppc-target "pfsl"
-                                                     #-(or ppc-target sparc-target) "fasl"
-                                                        "text")))))
+		     (with-terminal-input
+			 (format t "~&pathname: ")
+		       (setq pathname (read)))                     )
                    pathname)))
     (let ((*loading-modules* (cons str *loading-modules*)))
       (if (consp pathname)
