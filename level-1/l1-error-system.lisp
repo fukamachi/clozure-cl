@@ -517,7 +517,10 @@
              (throw tag (values nil T)))
             ((fixnump fn)               ; restart case
              (throw tag (cons fn values)))
-            (t (apply fn values))))))   ; restart bind
+            ((functionp fn)		; restart bind
+	     (apply fn values))		
+	    (t				; with-simple-restart
+	     (throw tag (values nil t)))))))   
 
 
 (defun maybe-invoke-restart (restart value condition)
