@@ -182,48 +182,7 @@
 	(multiple-value-setq (dy xpos)
 	  (truncate (+ xpos (- bound start)) width))
 	(setq ypos (+ ypos dy)  start bound))))))
-
-;;; mark-to-cursorpos  --  Public
-;;;
-;;;    Return as multiple values the x and y position within window of
-;;; mark.  NIL is returned if the mark is not displayed in the window given
-;;;
-;;;
-(defun mark-to-cursorpos (mark window)
-  "Return the (x, y) position of mark within window, or NIL if not displayed."
-  (maybe-update-window-image window)
-  (let* ((line (mark-line mark))
-	 (number (line-number line))
-	 (charpos (mark-charpos mark))
-	 (dis-lines (cdr (window-first-line window)))
-	 (width (window-width window))
-	 (start (window-display-start window))
-	 (offset (mark-charpos start))
-	 (start-number (line-number (mark-line start)))
-	 (end (window-display-end window))
-	 (end-number (line-number (mark-line end)))
-	 (ypos 0)
-	 dis-line)
-    (declare (fixnum width charpos ypos number end-number))
-    (cond
-     ((or (< number start-number)
-	  (and (= number start-number) (< charpos offset))
-	  (> number end-number)
-	  (and (= number end-number) (> charpos (mark-charpos end)))) nil)
-     (t
-      (find-line line offset charpos ypos dis-lines dis-line)
-      (cond
-       ((eq line *open-line*)
-	(let ((len (- *line-cache-length* (- *right-open-pos* *left-open-pos*))))
-	  (declare (fixnum len))
-	  (find-charpos line offset charpos len ypos dis-line width
-			cached-real-line-length *open-chars*)))
-       (t
-	(let* ((chars (line-chars line))
-	       (len (strlen chars)))
-	  (declare (fixnum len) (simple-string chars))
-	  (find-charpos line offset charpos len ypos dis-line width
-			real-line-length chars))))))))
+
 
 ;;; Dis-Line-Offset-Guess  --  Internal
 ;;;
