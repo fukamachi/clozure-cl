@@ -1988,6 +1988,23 @@
         (%ilogand mask (%iasr position integer))
         (logand mask (ash integer (- position)))))))    
 
+(defun %bignum-bignum-gcd (n1 n2)
+  (labels ((integer-gcd-sub (n1 n2)
+             (if (eql n2 0)
+               n1
+               (if (and (typep n1 'fixnum) (typep n2 'fixnum))
+                 (%fixnum-gcd n1 n2)
+                 (integer-gcd-sub n2
+                                  (if (> n2 n1)
+                                    (rem n2 n1)
+                                    (rem n1 n2)))))))
+    (if (< n1 0) (setq n1 (bignum-abs n1)))
+    (if (< n2 0) (setq n2 (bignum-abs n2)))
+    (if (> n1 n2)
+      (integer-gcd-sub n1 n2)
+      (integer-gcd-sub n2 n1))))
+
+#+fix-later
 (defun %bignum-bignum-gcd (u0 v0)
   (let* ((u-len (%bignum-length u0))
 	 (u-plusp (bignum-plusp u0))
