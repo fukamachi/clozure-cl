@@ -95,7 +95,7 @@
                      (go NEXT))
                     ((or (eq char #\V) (eq char #\v))
                      (push (pop-format-arg) params))
-                    ((or (eq char #\-) (digit-char-p char))
+                    ((or (eq char #\-) (eq char #\+) (digit-char-p char))
                      (let ((start (%i- i 1)) n)
                        (loop
                          (when (= i length) (go EOF-ERROR))
