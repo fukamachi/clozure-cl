@@ -22,9 +22,10 @@
 (defun %reset-outermost-binding (symbol value)
   (let* ((svar (find-svar symbol)))
     (when svar
-      (do-db-links (db var)
-        (when (eq var svar)
-          (setf (%fixnum-ref db 8) value)))))
+      (let* ((idx (%svref svar arch::svar.idx-cell)))
+        (do-db-links (db var)
+          (when (eq var idx)
+            (setf (%fixnum-ref db 8) value))))))
   (setf (uvref symbol arch::symbol.vcell-cell) value))
 
 (defun freeze-current-definitions ()
