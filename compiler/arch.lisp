@@ -569,6 +569,8 @@
   gc-context
   suspend-total
   suspend-total-on-exception-entry
+  tlb-limit
+  tlb-pointer
 )
 
 (defconstant tcr-flag-bit-foreign 0)
