@@ -410,6 +410,8 @@ typedef struct doh_block {
 
 #define nil_value 0x00002015
 
+#define TCR_BIAS (0)
+
 typedef struct tcr {
   struct tcr *next;
   struct tcr *prev;
