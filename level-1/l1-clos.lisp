@@ -604,19 +604,25 @@
 			direct-slots))
           (%class-direct-slots class)))
   (if direct-default-initargs-p
-      (setf (%class-direct-default-initargs class)  direct-default-initargs)
-      (setq direct-default-initargs (%class-direct-default-initargs class)))
-  (let* ((class-slot-cells ()))
+    (setf (%class-direct-default-initargs class)  direct-default-initargs)
+    (setq direct-default-initargs (%class-direct-default-initargs class)))
+  (let* ((new-class-slot-cells ())
+         (old-class-slot-cells (%class-get class :class-slots)))
     (dolist (slot direct-slots)
       (when (eq (%slot-definition-allocation slot) :class)
-	(let* ((initfunction (%slot-definition-initfunction slot)))
-	  (push (cons (%slot-definition-name slot)
-		      (if initfunction
-			(funcall initfunction)
-			(%slot-unbound-marker)))
-		class-slot-cells))))
-    (when class-slot-cells
-      (setf (%class-get class :class-slots) class-slot-cells)))
+        (let* ((slot-name (%slot-definition-name slot))
+               (pair (assq slot-name old-class-slot-cells)))
+          ;;; If the slot existed as a class slot in the old
+          ;;; class, retain the definition (even if it's unbound.)
+          (unless pair
+            (let* ((initfunction (%slot-definition-initfunction slot)))
+              (setq pair (cons slot-name
+                               (if initfunction
+                                 (funcall initfunction)
+                                 (%slot-unbound-marker))))))
+          (push pair new-class-slot-cells))))
+    (when new-class-slot-cells
+      (setf (%class-get class :class-slots) new-class-slot-cells)))
   (when doc-p
     (set-documentation class 'type documentation))
   (when primary-p-p
