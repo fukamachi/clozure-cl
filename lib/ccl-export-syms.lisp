@@ -284,7 +284,7 @@
      %get-full-long
      %get-string
      %get-cstring
-     %str-from-ptr-in-script
+     %str-from-ptr
      %get-ostype
      %put-byte
      %put-word
