@@ -1,26 +1,22 @@
-;;;-*- Mode: Lisp; Package: CCL -*-
+;;; -*- Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
-;;;   This file is part of Opensourced MCL.
+;;;   This file is part of OpenMCL.  
 ;;;
-;;;   Opensourced MCL is free software; you can redistribute it and/or
-;;;   modify it under the terms of the GNU Lesser General Public
-;;;   License as published by the Free Software Foundation; either
-;;;   version 2.1 of the License, or (at your option) any later version.
+;;;   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+;;;   License , known as the LLGPL and distributed with OpenMCL as the
+;;;   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+;;;   which is distributed with OpenMCL as the file "LGPL".  Where these
+;;;   conflict, the preamble takes precedence.  
 ;;;
-;;;   Opensourced MCL is distributed in the hope that it will be useful,
-;;;   but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;;   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;;   Lesser General Public License for more details.
+;;;   OpenMCL is referenced in the preamble as the "LIBRARY."
 ;;;
-;;;   You should have received a copy of the GNU Lesser General Public
-;;;   License along with this library; if not, write to the Free Software
-;;;   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-;;;
+;;;   The LLGPL is also available online at
+;;;   http://opensource.franz.com/preamble.html
 
 ;; l1-lisp-threads.lisp
 
-(cl:in-package "CCL")
+(in-package "CCL")
 
 (defvar *bind-io-control-vars-per-process* nil
   "If true, bind I/O control variables per process")
@@ -735,36 +731,30 @@
 (defun index->address (p)
   (when (fake-stack-frame-p p)
     (setq p (%fake-stack-frame.sp p)))
-  (ldb (byte 32 0)  (ash p ppc32::fixnumshift)))
+  (ldb (byte #+ppc32-target 32 #+ppc64-target 64 0)  (ash p target::fixnumshift)))
 
 ; This returns the current head of the db-link chain.
 (defun db-link (&optional (tcr (%current-tcr)))
   (%fixnum-ref tcr ppc32::tcr.db-link))
 
-(defun previous-db-link (db-link start &optional (tcr (%current-tcr)))
+(defun previous-db-link (db-link start )
   (declare (fixnum db-link start))
-  (if (eq tcr (%current-tcr))
-    (let ((prev nil))
-      (loop
-        (when (or (eql db-link start) (eql 0 start))
-          (return prev))
-        (setq prev start
-              start (%fixnum-ref start 0))))
-    (let ((prev (%fixnum-ref db-link)))
-      (unless (eql prev 0) prev))))
+  (let ((prev nil))
+    (loop
+      (when (or (eql db-link start) (eql 0 start))
+        (return prev))
+      (setq prev start
+            start (%fixnum-ref start 0)))))
 
 (defun count-db-links-in-frame (vsp parent-vsp &optional (tcr (%current-tcr)))
   (declare (fixnum vsp parent-vsp))
   (let ((db (db-link tcr))
         (count 0)
         (first nil)
-        (last nil)
-        (current? (eq tcr (%current-tcr))))
+        (last nil))
     (declare (fixnum db count))
     (loop
       (cond ((eql db 0)
-             (unless current?
-               (rotatef first last))
              (return (values count (or first 0) (or last 0))))
             ((and (>= db vsp) (< db parent-vsp))
              (unless first (setq first db))
@@ -818,11 +808,29 @@
         (and (< active object)
              (< object high))))))
 
+(defparameter *aux-tsp-ranges* ())
+(defparameter *aux-vsp-ranges* ())
+(defun object-in-range-p (object range)
+  (declare (fixnum object))
+  (when range
+    (destructuring-bind (active . high) range
+      (declare (fixnum active high))
+      (and (< active object)
+           (< object high)))))
+
+(defun object-in-some-range (object ranges)
+  (dolist (r ranges)
+    (when (object-in-range-p object r)
+      (return t))))
+
+
 (defun on-any-tsp-stack (object)
-  (or (%on-tsp-stack (%current-tcr) object)))
+  (or (%on-tsp-stack (%current-tcr) object)
+      (object-in-some-range object *aux-tsp-ranges*)))
 
 (defun on-any-vstack (idx)
-  (or (%ptr-to-vstack-p (%current-tcr) idx)))
+  (or (%ptr-to-vstack-p (%current-tcr) idx)
+      (object-in-some-range idx *aux-vsp-ranges*)))
 
 ; This MUST return either T or NIL.
 (defun temporary-cons-p (x)
@@ -957,16 +965,13 @@
           (if (eql (the fixnum (- arg-vsp 2)) last-db)
             (setq db-link-p t
                   arg-vsp last-db
-                  last-db (previous-db-link last-db first-db tcr)
+                  last-db (previous-db-link last-db first-db)
                   phys-cell (+ phys-cell 2))
             (setq db-link-p nil))
           (unless (in-stack-consed-value-cell-p arg-vsp vsp parent-vsp)
             (when (< (decf cnt) 0)
               (return
                (if db-link-p
-                 ;; Really ought to find the next binding if not the
-                 ;; current tcr, but noone has complained about this
-                 ;; bug before, so why fix it?
                  (values (+ 2 arg-vsp)
                          :saved-special
 			 (let* ((svar (index-svar (%fixnum-ref (1+ arg-vsp)))))
