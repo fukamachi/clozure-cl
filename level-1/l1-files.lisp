@@ -979,7 +979,8 @@
 ; load, require, provide
 
 (defun find-load-file (file-name)
-  (let ((full-name (full-pathname file-name :no-error nil)))
+  (let ((full-name (full-pathname file-name :no-error nil))
+        (kind nil))
     (when full-name
       (let ((file-type (pathname-type full-name)))
         (if (and file-type (neq file-type :unspecific))
@@ -996,8 +997,12 @@
                      (values true-source source source)))
                   (true-fasl
                    (values true-fasl fasl fasl))
-                  ((setq full-name (probe-file full-name))
-                   (values full-name file-name file-name)))))))))
+                  ((and (multiple-value-setq (full-name kind)
+                          (let* ((realpath (%realpath (native-translated-namestring full-name))))
+                            (if realpath
+                              (%probe-file-x realpath ))))
+                        (eq kind :file))
+                   (values full-name file-name file-name))))))))))
 
 
 
