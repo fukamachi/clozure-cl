@@ -845,7 +845,7 @@
   (check-nargs 3)
   (macptr-ptr imm1 ptr) ; address in macptr
   (addi imm0 imm1 9)     ; 2 for delta + 7 for alignment
-  (rlwinm imm0 imm0 0 0 28)   ; Clear low three bits to align
+  (clrrwi imm0 imm0 3)   ; Clear low three bits to align
   (subf imm1 imm1 imm0)  ; imm1 = delta
   (sth imm1 -2 imm0)     ; save delta halfword
   (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
