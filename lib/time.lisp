@@ -170,8 +170,14 @@
 	 (ticks (ceiling (* seconds tps))))
     (%nanosleep (floor ticks tps) (* npt (mod ticks tps)))))
 
-
-
-
-
-
+(defun get-internal-run-time ()
+  (rlet ((usage :rusage)
+	 (total :timeval))
+    (%%rusage usage)
+    (timeval->milliseconds (%add-timevals total 
+					  (pref usage :rusage.ru_utime) 
+					  (pref usage :rusage.ru_stime)))))
+(defun get-internal-real-time ()
+  (rlet ((tv :timeval))
+    (#_gettimeofday tv (%null-ptr))
+    (timeval->milliseconds tv)))
