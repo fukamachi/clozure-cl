@@ -129,6 +129,9 @@ int rwlock_wlock(rwlock *, TCR *, struct timespec *);
 int rwlock_try_wlock(rwlock *, TCR *);
 int rwlock_unlock(rwlock *, TCR *);
 
+Boolean
+extend_tcr_tlb(TCR *, ExceptionInformation *, unsigned, unsigned);
+
 /* Maybe later
 Boolean
 rwlock_try_rlock(rwlock *);

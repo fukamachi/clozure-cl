@@ -1756,6 +1756,18 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
       lisp_Debugger(xp, message);
       return noErr;
     }
+    /*
+      twlle ra,rb is used to detect tlb overflow, where RA = current
+      limit and RB = index to use.
+    */
+    if ((X_opcode_p(the_trap, 31, minor_opcode_TW)) && 
+        (TO_field(the_trap) == (TO_LO|TO_EQ))) {
+      if (extend_tcr_tlb(tcr, xp, RA_field(the_trap), RB_field(the_trap))) {
+        return noErr;
+      }
+      return -1;
+    }
+
     if ((fulltag_of(cmain) == fulltag_misc) &&
         (header_subtag(header_of(cmain)) == subtag_macptr)) {
       /* cmain is a macptr, we can call back to lisp */
