@@ -33,10 +33,10 @@
   (extract-slotds-with-allocation :class (%class.direct-slots class)))
 
 (defun extract-instance-effective-slotds (class)
-  (extract-slotds-with-allocation :instance (%class.slots class)))
+  (extract-slotds-with-allocation :instance (%class-slots class)))
 
 (defun extract-class-effective-slotds (class)
-  (extract-slotds-with-allocation :class (%class.slots class)))
+  (extract-slotds-with-allocation :class (%class-slots class)))
 
 (defun extract-instance-and-class-slotds (slotds)
   (collect ((instance-slots)
@@ -260,11 +260,7 @@
 	(dolist (i (%class-direct-default-initargs c))
 	  (pushnew i initargs :test #'eq :key #'car))))))
 
-(defun constantly (x)
-  #'(lambda (&rest ignore)
-      (declare (dynamic-extent ignore)
-               (ignore ignore))
-      x))
+
 
 
 (defvar *update-slots-preserve-existing-wrapper* nil)
@@ -294,9 +290,7 @@
                    ;;; Is this right ?
                    #|(%class.own-wrapper class)|#
                    (%cons-wrapper class)))))
-      ;;; This is a crock: structure-classes should have slots ...
-      (unless (<= (the fixnum (uvsize (instance.slots class))) %class.slots)
-	(setf (%class.slots class) eslotds))
+      (setf (%class.slots class) eslotds)
       (setf (%wrapper-instance-slots new-wrapper) new-ordering
 	    (%wrapper-class-slots new-wrapper) (%class-get class :class-slots)
             (%class.own-wrapper class) new-wrapper)
@@ -868,13 +862,6 @@
  :direct-slots `((:name direct-slots :initform nil :initfunction ,#'false
 		  :initargs (:direct-slots) :readers (class-direct-slots))
                  (:name slots :initform nil :initfunction ,#'false
-		  ;; Defining CLASS-SLOTS naively as a reader method
-		  ;; can cause infinite recursion.
-		  ;; (It'll be especially naive if there's a non-reader
-		  ;; method defined on CLASS-SLOTS.)
-		  ;; The fact that the slot is a primary slot
-		  ;; saves the day (keeping us from trying to call
-		  ;; CLASS-SLOTS inside SLOT-VALUE-USING-CLASS
 		   :readers (class-slots))
 		 (:name kernel-p :initform nil :initfunction ,#'false)
                  (:name direct-default-initargs :initargs (:direct-default-initargs) :initform nil  :initfunction ,#'false :readers (class-direct-default-initargs))
