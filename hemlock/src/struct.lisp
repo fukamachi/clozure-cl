@@ -102,6 +102,12 @@
   (delete-hook nil)	      ; List of functions to call upon deletion.
   (external-format :unix)     ; Line-termination, for the time being
   process		      ; Maybe a listener
+  (line-cache-length 200)     ; initial/current length of open-chars
+  (open-line nil)             ; the current open line
+  (open-chars (make-string 200)) ; gap
+  (left-open-pos 0)
+  (right-open-pos 0)
+  
   )
 
 (setf (documentation 'buffer-modes 'function)
@@ -193,123 +199,95 @@
 
 
 
+;#+clx
+(progn
 ;;;; Windows, dis-lines, and font-changes.
 
 ;;; The window object:
 ;;;
-(defstruct (window (:constructor internal-make-window)
-		   (:predicate windowp)
-		   (:copier nil)
-		   (:print-function %print-hwindow))
-  "This structure implements a Hemlock window."
-  tick				; The last time this window was updated.
-  %buffer			; buffer displayed in this window.
-  height			; Height of window in lines.
-  width				; Width of the window in characters.
-  old-start			; The charpos of the first char displayed.
-  first-line			; The head of the list of dis-lines.
-  last-line			; The last dis-line displayed.
-  first-changed			; The first changed dis-line on last update.
-  last-changed			; The last changed dis-line.
-  spare-lines			; The head of the list of unused dis-lines
-  (old-lines 0)			; Slot used by display to keep state info
-  hunk				; The device hunk that displays this window.
-  display-start			; first character position displayed
-  display-end			; last character displayed
-  point				; Where the cursor is in this window.  
-  modeline-dis-line		; Dis-line for modeline display.
-  modeline-buffer		; Complete string of all modeline data.
-  modeline-buffer-len		; Valid chars in modeline-buffer.
-  display-recentering)		; Tells whether redisplay recenters window
-				;    regardless of whether it is current.
+  (defstruct (window (:constructor internal-make-window)
+                     (:predicate windowp)
+                     (:copier nil)
+                     (:print-function %print-hwindow))
+    "This structure implements a Hemlock window."
+    tick				; The last time this window was updated.
+    %buffer			; buffer displayed in this window.
+    height			; Height of window in lines.
+    width				; Width of the window in characters.
+    old-start			; The charpos of the first char displayed.
+    first-line			; The head of the list of dis-lines.
+    last-line			; The last dis-line displayed.
+    first-changed			; The first changed dis-line on last update.
+    last-changed			; The last changed dis-line.
+    spare-lines			; The head of the list of unused dis-lines
+    (old-lines 0)			; Slot used by display to keep state info
+    hunk				; The device hunk that displays this window.
+    display-start			; first character position displayed
+    display-end			; last character displayed
+    point				; Where the cursor is in this window.  
+    modeline-dis-line		; Dis-line for modeline display.
+    modeline-buffer		; Complete string of all modeline data.
+    modeline-buffer-len		; Valid chars in modeline-buffer.
+    display-recentering)		; Tells whether redisplay recenters window
+                                        ;    regardless of whether it is current.
 
-(setf (documentation 'windowp 'function)
-  "Returns true if its argument is a Hemlock window object, Nil otherwise.")
-(setf (documentation 'window-height 'function)
-  "Return the height of a Hemlock window in character positions.")
-(setf (documentation 'window-width 'function)
-  "Return the width of a Hemlock window in character positions.")
-(setf (documentation 'window-display-start 'function)
-  "Return the mark which points before the first character displayed in
+  (setf (documentation 'windowp 'function)
+        "Returns true if its argument is a Hemlock window object, Nil otherwise.")
+  (setf (documentation 'window-height 'function)
+        "Return the height of a Hemlock window in character positions.")
+  (setf (documentation 'window-width 'function)
+        "Return the width of a Hemlock window in character positions.")
+  (setf (documentation 'window-display-start 'function)
+        "Return the mark which points before the first character displayed in
    the supplied window.")
-(setf (documentation 'window-display-end 'function)
-  "Return the mark which points after the last character displayed in
+  (setf (documentation 'window-display-end 'function)
+        "Return the mark which points after the last character displayed in
    the supplied window.")
-(setf (documentation 'window-point 'function)
- "Return the mark that points to where the cursor is displayed in this
+  (setf (documentation 'window-point 'function)
+        "Return the mark that points to where the cursor is displayed in this
   window.  When the window is made current, the Buffer-Point of this window's
   buffer is moved to this position.  While the window is current, redisplay
   makes this mark point to the same position as the Buffer-Point of its
   buffer.")
-(setf (documentation 'window-display-recentering 'function)
- "This determines whether redisplay recenters window regardless of whether it
+  (setf (documentation 'window-display-recentering 'function)
+        "This determines whether redisplay recenters window regardless of whether it
   is current.  This is SETF'able.")
 
-;; Now this is bogus: Both dis-line and window-dis-line use
-;; "DIS-LINE-" as conc-name. ACL complains about e.g. DIS-LINE-CHARS
-;; being redefined and rightly so. My guess is this is some hangover
-;; from elder versions of this fine software.
+  (defstruct (window-dis-line (:copier nil)
+                              (:constructor make-window-dis-line (chars))
+                              (:conc-name dis-line-))
+    chars			      ; The line-image to be displayed.
+    (length 0 :type fixnum)     ; Length of line-image.
+    font-changes                ; Font-Change structures for changes in this line.
+    old-chars		      ; Line-Chars of line displayed.
+    line			      ; Line displayed.
+    (flags 0 :type fixnum)      ; Bit flags indicate line status.
+    (delta 0 :type fixnum)      ; # lines moved from previous position.
+    (position 0 :type fixnum)   ; Line # to be displayed on.
+    (end 0 :type fixnum))	      ; Index after last logical character displayed.
 
-;; Since there also is no constructor for dis-line they can't be
-;; possibly created. I'll just do away with dis-line and just offer
-;; window-dis-line.
-
-;; --GB 2002-11-07
-
-#||
-(defstruct (dis-line (:copier nil)
-		     (:constructor nil))
-  chars			      ; The line-image to be displayed.
-  (length 0 :type fixnum)     ; Length of line-image.
-  font-changes)		      ; Font-Change structures for changes in this line.
-
-(defstruct (window-dis-line (:copier nil)
-			    (:include dis-line)
-			    (:constructor make-window-dis-line (chars))
-			    (:conc-name dis-line-))
-  old-chars		      ; Line-Chars of line displayed.
-  line			      ; Line displayed.
-  (flags 0 :type fixnum)      ; Bit flags indicate line status.
-  (delta 0 :type fixnum)      ; # lines moved from previous position.
-  (position 0 :type fixnum)   ; Line # to be displayed on.
-  (end 0 :type fixnum))	      ; Index after last logical character displayed.
-
-||#
-
-(defstruct (window-dis-line (:copier nil)
-			    (:constructor make-window-dis-line (chars))
-			    (:conc-name dis-line-))
-  chars			      ; The line-image to be displayed.
-  (length 0 :type fixnum)     ; Length of line-image.
-  font-changes                ; Font-Change structures for changes in this line.
-  old-chars		      ; Line-Chars of line displayed.
-  line			      ; Line displayed.
-  (flags 0 :type fixnum)      ; Bit flags indicate line status.
-  (delta 0 :type fixnum)      ; # lines moved from previous position.
-  (position 0 :type fixnum)   ; Line # to be displayed on.
-  (end 0 :type fixnum))	      ; Index after last logical character displayed.
-
-(defstruct (font-change (:copier nil)
-			(:constructor make-font-change (next)))
-  x			      ; X position that change takes effect.
-  font			      ; Index into font-map of font to use.
-  next			      ; The next Font-Change on this dis-line.
-  mark)			      ; Font-Mark responsible for this change.
+  (defstruct (font-change (:copier nil)
+                          (:constructor make-font-change (next)))
+    x			      ; X position that change takes effect.
+    font			      ; Index into font-map of font to use.
+    next			      ; The next Font-Change on this dis-line.
+    mark)			      ; Font-Mark responsible for this change.
 
 
 
 ;;;; Font family.
 
-(defstruct font-family
-  map			; Font-map for hunk.
-  height		; Height of char box includung VSP.
-  width			; Width of font.
-  baseline		; Pixels from top of char box added to Y.
-  cursor-width		; Pixel width of cursor.
-  cursor-height		; Pixel height of cursor.
-  cursor-x-offset	; Added to pos of UL corner of char box to get
-  cursor-y-offset)	; UL corner of cursor blotch.
+  (defstruct font-family
+    map			; Font-map for hunk.
+    height		; Height of char box includung VSP.
+    width			; Width of font.
+    baseline		; Pixels from top of char box added to Y.
+    cursor-width		; Pixel width of cursor.
+    cursor-height		; Pixel height of cursor.
+    cursor-x-offset	; Added to pos of UL corner of char box to get
+    cursor-y-offset)	; UL corner of cursor blotch.
 
+  )
 
 
 ;;;; Attribute descriptors.
