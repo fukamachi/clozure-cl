@@ -304,11 +304,13 @@
 ;;;; Listener and Editor Modes.
 (bind-key "Confirm Listener Input" #k"return" :mode "Listener")
 (bind-key "Previous Interactive Input" #k"meta-p" :mode "Listener")
+(bind-key "Previous Interactive Input" #k"meta-g" :mode "Listener")
 (bind-key "Search Previous Interactive Input" #k"meta-P" :mode "Listener")
 (bind-key "Next Interactive Input" #k"meta-n" :mode "Listener")
 (bind-key "Kill Interactive Input" #k"meta-i" :mode "Listener")
 (bind-key "Abort Eval Input" #k"control-meta-i" :mode "Listener")
 (bind-key "Interactive Beginning of Line" #k"control-a" :mode "Listener")
+(bind-key "EOF Or Delete Forward" #k"control-d" :mode "Listener")
 (bind-key "Reenter Interactive Input" #k"control-return" :mode "Listener")
 
 (bind-key "Editor Evaluate Expression" #k"control-meta-escape")
@@ -370,7 +372,7 @@
 (bind-key "Forward Up List" #k"control-meta-)")
 (bind-key "Down List" #k"control-meta-d")
 (bind-key "Extract List" #k"control-meta-x")
-(bind-key "Lisp Insert )" #k")" :mode "Lisp")
+;;(bind-key "Lisp Insert )" #k")" :mode "Lisp")
 (bind-key "Delete Previous Character Expanding Tabs" #k"backspace" :mode "Lisp")
 (bind-key "Delete Previous Character Expanding Tabs" #k"delete" :mode "Lisp")
 
