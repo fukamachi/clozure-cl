@@ -32,8 +32,6 @@
   :value t)
 
 
-(defvar *active-region-p* nil)
-(defvar *active-region-buffer* nil)
 (defvar *ephemerally-active-command-types* (list :ephemerally-active)
   "This is a list of command types that permit the current region to be active
    for the immediately following command.")
