@@ -770,7 +770,7 @@ governs whether DEFCLASS makes that distinction or not.")
   (declare (ignore  initargs))
   *standard-reader-method-class*)
 
-(defmethod add-reader-method ((class std-class) gf dslotd)
+(defmethod add-reader-method ((class slots-class) gf dslotd)
   (let* ((initargs
 	  `(:qualifiers nil
 	    :specializers ,(list class)
@@ -804,7 +804,7 @@ governs whether DEFCLASS makes that distinction or not.")
   *standard-writer-method-class*)
 
 
-(defmethod add-writer-method ((class std-class) gf dslotd)
+(defmethod add-writer-method ((class slots-class) gf dslotd)
   (let* ((initargs
 	  `(:qualifiers nil
 	    :specializers ,(list *t-class* class)
@@ -869,7 +869,7 @@ governs whether DEFCLASS makes that distinction or not.")
  `((:name prototype :initform nil :initfunction ,#'false)
    (:name name :initargs (:name) :initform nil :initfunction ,#'false :readers (class-name))
    (:name precedence-list :initargs (:precedence-list) :initform nil  :initfunction ,#'false)
-   (:name own-wrapper :initargs (:own-wrapper) :initform nil  :initfunction ,#'false :readers (class-own-wrapper))
+   (:name own-wrapper :initargs (:own-wrapper) :initform nil  :initfunction ,#'false :readers (class-own-wrapper) :writers ((setf class-own-wrapper)))
    (:name direct-superclasses :initargs (:direct-superclasses) :initform nil  :initfunction ,#'false :readers (class-direct-superclasses))
    (:name direct-subclasses :initargs (:direct-subclasses) :initform nil  :initfunction ,#'false :readers (class-direct-subclasses))
    (:name dependents :initform nil :initfunction ,#'false)
@@ -892,7 +892,8 @@ governs whether DEFCLASS makes that distinction or not.")
  'slots-class
  :direct-superclasses '(class)
  :direct-slots `((:name direct-slots :initform nil :initfunction ,#'false
-		  :initargs (:direct-slots) :readers (class-direct-slots))
+		  :initargs (:direct-slots) :readers (class-direct-slots)
+		  :writers ((setf class-direct-slots)))
                  (:name slots :initform nil :initfunction ,#'false
 		   :readers (class-slots))
 		 (:name kernel-p :initform nil :initfunction ,#'false)
@@ -1163,19 +1164,19 @@ governs whether DEFCLASS makes that distinction or not.")
 	    new))
       (fdefinition '%class-direct-slots) #'class-direct-slots
       (fdefinition '(setf %class-direct-slots))
-		   #'(lambda (new class)
-		       (if (typep class 'slots-class)
-			 (setf (slot-value class 'direct-slots) new)
-			 new))
+		   #'(setf class-direct-slots)
       (fdefinition '%class-slots) #'class-slots
       (fdefinition '%class-direct-superclasses) #'class-direct-superclasses
       (fdefinition '(setf %class-direct-superclasses))
       #'(lambda (new class)
 	  (setf (slot-value class 'direct-superclasses) new))
       (fdefinition '%class-direct-subclasses) #'class-direct-subclasses
+      (fdefinition '%class-own-wrapper) #'class-own-wrapper
+      (fdefinition '(setf %class-own-wrapper)) #'(setf class-own-wrapper)
 )
 
-  
+
+
 (setf (fdefinition '%slot-definition-name) #'slot-definition-name
       (fdefinition '%slot-definition-type) #'slot-definition-type
       (fdefinition '%slot-definition-initargs) #'slot-definition-initargs
