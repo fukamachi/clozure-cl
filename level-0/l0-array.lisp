@@ -1,0 +1,554 @@
+;;; -*- Mode: Lisp; Package: CCL -*-
+;;;
+;;;   Copyright (C) 1994-2001 Digitool, Inc
+;;;   This file is part of OpenMCL.  
+;;;
+;;;   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+;;;   License , known as the LLGPL and distributed with OpenMCL as the
+;;;   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+;;;   which is distributed with OpenMCL as the file "LGPL".  Where these
+;;;   conflict, the preamble takes precedence.  
+;;;
+;;;   OpenMCL is referenced in the preamble as the "LIBRARY."
+;;;
+;;;   The LLGPL is also available online at
+;;;   http://opensource.franz.com/preamble.html
+
+#+allow-in-package
+(in-package "CCL")
+
+(defun %vect-subtype (v)
+  (typecode v))
+
+; compiler-transforms
+(defun make-string (size &key (initial-element () initial-element-p) (element-type 'character element-type-p))
+  (when (and initial-element-p (not (typep initial-element 'character)))
+    (report-bad-arg initial-element 'character))
+  (when (and element-type-p
+             (not (or (member element-type '(character base-char standard-char))
+                      (subtypep element-type 'character))))
+    (error ":element-type ~S is not a subtype of CHARACTER" element-type))
+  (if initial-element-p
+      (make-string size :element-type 'base-char :initial-element initial-element)
+      (make-string size :element-type 'base-char)))
+
+
+; Return T if array or vector header, NIL if (simple-array * (*)), else
+; error.
+
+(defun %array-is-header (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (or (= typecode arch::subtag-arrayH)
+          (= typecode arch::subtag-vectorH)))))
+
+(defun %set-fill-pointer (vectorh new)
+  (setf (%svref vectorh arch::vectorh.logsize-cell) new))
+
+(defun %array-header-subtype (header)
+  (the fixnum 
+    (ldb arch::arrayH.flags-cell-subtag-byte (the fixnum (%svref header arch::arrayH.flags-cell)))))
+
+(defun array-element-subtype (array)
+  (if (%array-is-header array)
+    (%array-header-subtype array)
+    (typecode array)))
+  
+
+(defconstant *immheader-array-types*
+  '#(short-float
+    (unsigned-byte 32)
+    (signed-byte 32)
+    (unsigned-byte 8)
+    (signed-byte 8)
+    base-char
+    character
+    (unsigned-byte 16)
+    (signed-byte 16)
+    double-float
+    bit))
+
+(defun array-element-type (array)
+  (let* ((subtag (if (%array-is-header array)
+                   (%array-header-subtype array)
+                   (typecode array))))
+    (declare (fixnum subtag))
+    (if (= subtag arch::subtag-simple-vector)
+      t                                 ; only node CL array type
+      (svref *immheader-array-types*
+             (ash (the fixnum (- subtag arch::min-cl-ivector-subtag)) -3)))))
+
+
+
+(defun adjustable-array-p (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (if (or (= typecode arch::subtag-arrayH)
+              (= typecode arch::subtag-vectorH))
+        (logbitp $arh_adjp_bit (the fixnum (%svref array arch::arrayH.flags-cell)))))))
+
+(defun array-displacement (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (if (<= typecode arch::subtag-vectorH)
+	  (values (%svref array arch::arrayH.data-vector-cell)
+		  (%svref array arch::arrayH.displacement-cell))
+	  (values nil 0)))))
+
+(defun array-data-and-offset (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (if (<= typecode arch::subtag-vectorH)
+        (%array-header-data-and-offset array)
+        (values array 0)))))
+
+(defun array-data-offset-subtype (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (if (<= typecode arch::subtag-vectorH)
+        (do* ((header array data)
+              (offset (%svref header arch::arrayH.displacement-cell)
+                      (+ offset 
+                         (the fixnum 
+                              (%svref header arch::arrayH.displacement-cell))))
+              (data (%svref header arch::arrayH.data-vector-cell)
+                    (%svref header arch::arrayH.data-vector-cell)))
+             ((> (the fixnum (typecode data)) arch::subtag-vectorH)
+              (values data offset (typecode data)))
+          (declare (fixnum offset)))
+        (values array 0 typecode)))))
+  
+
+(defun array-has-fill-pointer-p (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (>= typecode arch::min-array-subtag)
+      (and (= typecode arch::subtag-vectorH)
+             (logbitp $arh_fill_bit (the fixnum (%svref array arch::vectorH.flags-cell))))
+      (report-bad-arg array 'array))))
+
+
+(defun fill-pointer (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (and (= typecode arch::subtag-vectorH)
+             (logbitp $arh_fill_bit (the fixnum (%svref array arch::vectorH.flags-cell))))
+      (%svref array arch::vectorH.logsize-cell)
+      (%err-disp $XNOFILLPTR array))))
+
+(defun set-fill-pointer (array value)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (and (= typecode arch::subtag-vectorH)
+             (logbitp $arh_fill_bit (the fixnum (%svref array arch::vectorH.flags-cell))))
+      (let* ((vlen (%svref array arch::vectorH.physsize-cell)))
+        (declare (fixnum vlen))
+        (if (eq value t)
+          (setq value vlen)
+          (unless (and (fixnump value)
+                     (>= (the fixnum value) 0)
+                     (<= (the fixnum value) vlen))
+            (%err-disp $XARROOB value array)))
+        (setf (%svref array arch::vectorH.logsize-cell) value))
+      (%err-disp $XNOFILLPTR array))))
+
+(eval-when (:compile-toplevel)
+  (assert (eql arch::vectorH.physsize-cell arch::arrayH.physsize-cell)))
+
+(defun array-total-size (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (if (or (= typecode arch::subtag-arrayH)
+              (= typecode arch::subtag-vectorH))
+        (%svref array arch::vectorH.physsize-cell)
+        (uvsize array)))))
+
+(defun array-dimension (array axis-number)
+  (unless (typep axis-number 'fixnum) (report-bad-arg axis-number 'fixnum))
+  (locally
+    (declare (fixnum axis-number))
+    (let* ((typecode (typecode array)))
+      (declare (fixnum typecode))
+      (if (< typecode arch::min-array-subtag)
+        (report-bad-arg array 'array)
+        (if (= typecode arch::subtag-arrayH)
+          (let* ((rank (%svref array arch::arrayH.rank-cell)))
+            (declare (fixnum rank))
+            (unless (and (>= axis-number 0)
+                         (< axis-number rank))
+              (%err-disp $XNDIMS array axis-number))
+            (%svref array (the fixnum (+ arch::arrayH.dim0-cell axis-number))))
+          (if (neq axis-number 0)
+            (%err-disp $XNDIMS array axis-number)
+            (if (= typecode arch::subtag-vectorH)
+              (%svref array arch::vectorH.physsize-cell)
+              (uvsize array))))))))
+
+(defun array-dimensions (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (if (= typecode arch::subtag-arrayH)
+        (let* ((rank (%svref array arch::arrayH.rank-cell))
+               (dims ()))
+          (declare (fixnum rank))        
+          (do* ((i (1- rank) (1- i)))
+               ((< i 0) dims)
+            (declare (fixnum i))
+            (push (%svref array (the fixnum (+ arch::arrayH.dim0-cell i))) dims)))
+        (list (if (= typecode arch::subtag-vectorH)
+                (%svref array arch::vectorH.physsize-cell)
+                (uvsize array)))))))
+
+
+(defun array-rank (array)
+  (let* ((typecode (typecode array)))
+    (declare (fixnum typecode))
+    (if (< typecode arch::min-array-subtag)
+      (report-bad-arg array 'array)
+      (if (= typecode arch::subtag-arrayH)
+        (%svref array arch::arrayH.rank-cell)
+        1))))
+
+(defun vector-push (elt vector)
+  (let* ((fill (fill-pointer vector))
+         (len (%svref vector arch::vectorH.physsize-cell)))
+    (declare (fixnum fill len))
+    (when (< fill len)
+      (multiple-value-bind (data offset) (%array-header-data-and-offset vector)
+        (declare (fixnum offset))
+        (setf (%svref vector arch::vectorH.logsize-cell) (the fixnum (1+ fill))
+              (uvref data (the fixnum (+ fill offset))) elt)
+        fill))))
+
+(defun vector-push-extend (elt vector &optional (extension nil extp))
+  (when extp
+    (unless (and (typep extension 'fixnum)
+                 (> (the fixnum extension) 0))
+      (setq extension (require-type extension 'unsigned-byte))))
+  (let* ((fill (fill-pointer vector))
+         (len (%svref vector arch::vectorH.physsize-cell)))
+    (declare (fixnum fill len))
+    (multiple-value-bind (data offset) (%array-header-data-and-offset vector)
+      (declare (fixnum offset))
+      (if (= fill len)
+        (progn
+          (unless (logbitp $arh_adjp_bit (the fixnum (%svref vector arch::arrayH.flags-cell)))
+            (%err-disp $XMALADJUST vector))
+          (let* ((new-size (+ len (the fixnum (or extension
+                                                  (the fixnum (1+ (ash (the fixnum len) -1)))))))
+                 (new-vector (%extend-vector offset data new-size)))
+            (setf (%svref vector arch::vectorH.data-vector-cell) new-vector
+                  (%svref vector arch::vectorH.displacement-cell) 0
+                  (%svref vector arch::vectorH.physsize-cell) new-size
+                  (uvref new-vector fill) elt)))
+        (setf (uvref data (the fixnum (+ offset fill))) elt))
+      (setf (%svref vector arch::vectorH.logsize-cell) (the fixnum (1+ fill))))
+    fill))
+
+; Could avoid potential memoization somehow
+(defun vector (&lexpr vals)
+  (let* ((n (%lexpr-count vals))
+         (v (%alloc-misc n arch::subtag-simple-vector)))
+    (declare (fixnum n))
+    (dotimes (i n v) (setf (%svref v i) (%lexpr-ref vals n i)))))
+
+(defun %gvector (subtag &lexpr vals)
+  (let* ((n (%lexpr-count vals))
+         (v (%alloc-misc n subtag)))
+    (declare (fixnum n))
+    (dotimes (i n v) (setf (%svref v i) (%lexpr-ref vals n i)))))
+
+(defun %aref1 (v i)
+  (let* ((typecode (typecode v)))
+    (declare (fixnum typecode))
+    (if (> typecode arch::subtag-vectorH)
+      (%typed-miscref typecode v i)
+      (if (= typecode arch::subtag-vectorH)
+        (multiple-value-bind (data offset)
+                             (%array-header-data-and-offset v)
+          (uvref data (+ offset i)))
+        (if (= typecode arch::subtag-arrayH)
+          (%err-disp $XNDIMS v 1)
+          (report-bad-arg v 'array))))))
+
+(defun %aset1 (v i new)
+  (let* ((typecode (typecode v)))
+    (declare (fixnum typecode))
+    (if (> typecode arch::subtag-vectorH)
+      (%typed-miscset typecode v i new)
+      (if (= typecode arch::subtag-vectorH)
+        (multiple-value-bind (data offset)
+                             (%array-header-data-and-offset v)
+          (setf (uvref data (+ offset i)) new))
+        (if (= typecode arch::subtag-arrayH)
+          (%err-disp $XNDIMS v 1)
+          (report-bad-arg v 'array))))))
+
+; Validate the N indices in the lexpr L against the
+; array-dimensions of L.  If anything's out-of-bounds,
+; error out (unless NO-ERROR is true, in which case
+; return NIL.)
+; If everything's OK, return the "row-major-index" of the array.
+; We know that A's an array-header of rank N.
+
+(defun %array-index (a l n &optional no-error)
+  (declare (fixnum n))
+  (let* ((count (%lexpr-count l)))
+    (declare (fixnum count))
+    (do* ((axis (1- n) (1- axis))
+          (chunk-size 1)
+          (result 0))
+         ((< axis 0) result)
+      (declare (fixnum result axis chunk-size))
+      (let* ((index (%lexpr-ref l count axis))
+             (dim (%svref a (the fixnum (+ arch::arrayH.dim0-cell axis)))))
+        (declare (fixnum dim))
+        (unless (and (typep index 'fixnum)
+                     (>= (the fixnum index) 0)
+                     (< (the fixnum index) dim))
+          (if no-error
+            (return-from %array-index nil)
+            (%err-disp $XARROOB index a)))
+        (incf result (the fixnum (* chunk-size (the fixnum index))))
+        (setq chunk-size (* chunk-size dim))))))
+
+(defun aref (a &lexpr subs)
+  (let* ((n (%lexpr-count subs)))
+    (declare (fixnum n))
+    (if (= n 1)
+      (%aref1 a (%lexpr-ref subs n 0))
+      (if (= n 2)
+        (%aref2 a (%lexpr-ref subs n 0) (%lexpr-ref subs n 1))
+        (let* ((typecode (typecode a)))
+          (declare (fixnum typecode))
+          (if (>= typecode arch::min-vector-subtag)
+            (%err-disp $XNDIMS a n)
+            (if (< typecode arch::min-array-subtag)
+              (report-bad-arg a 'array)
+              ;  This typecode is Just Right ...
+              (progn
+                (unless (= (the fixnum (%svref a arch::arrayH.rank-cell)) n)
+                  (%err-disp $XNDIMS a n))
+                (let* ((rmi (%array-index a subs n)))
+                  (declare (fixnum rmi))
+                  (multiple-value-bind (data offset) (%array-header-data-and-offset a)
+                    (declare (fixnum offset))
+                    (uvref data (the fixnum (+ offset rmi)))))))))))))
+
+(defun %2d-array-index (a x y)
+  (let* ((dim0 (%svref a arch::arrayH.dim0-cell))
+         (dim1 (%svref a (1+ arch::arrayH.dim0-cell))))
+      (declare (fixnum dim0 dim1))
+      (unless (and (typep x 'fixnum)
+                   (>= (the fixnum x) 0)
+                   (< (the fixnum x) dim0))
+        (%err-disp $XARROOB x a))
+      (unless (and (typep y 'fixnum)
+                   (>= (the fixnum y) 0)
+                   (< (the fixnum y) dim1))
+        (%err-disp $XARROOB y a))
+       (the fixnum (+ (the fixnum y) (the fixnum (* dim1 (the fixnum x)))))))
+
+(defun %aref2 (a x y)
+  (let* ((a-type (typecode a)))
+    (declare (fixnum a-type))
+    (unless (>= a-type arch::subtag-arrayH)
+      (report-bad-arg a 'array))
+    (unless (and (= a-type arch::subtag-arrayH)
+                 (= (the fixnum (%svref a arch::arrayH.rank-cell)) 2))
+      (%err-disp $XNDIMS a 2))
+    (let* ((rmi (%2d-array-index a x y)))
+      (declare (fixnum rmi))
+      (multiple-value-bind (data offset) (%array-header-data-and-offset a)
+        (declare (fixnum offset))
+        (uvref data (the fixnum (+ rmi offset)))))))
+
+(defun aset (a &lexpr subs&val)
+  (let* ((count (%lexpr-count subs&val))
+         (nsubs (1- count)))
+    (declare (fixnum nsubs count))
+    (if (eql count 0)
+      (%err-disp $xneinps)
+      (let* ((val (%lexpr-ref subs&val count nsubs)))
+        (if (= nsubs 1)
+          (%aset1 a (%lexpr-ref subs&val count 0) val)
+          (if (= nsubs 2)
+            (%aset2 a (%lexpr-ref subs&val count 0) (%lexpr-ref subs&val count 1) val)
+            (let* ((typecode (typecode a)))
+              (declare (fixnum typecode))
+              (if (>= typecode arch::min-vector-subtag)
+                (%err-disp $XNDIMS a nsubs)
+                (if (< typecode arch::min-array-subtag)
+                  (report-bad-arg a 'array)
+                  ;  This typecode is Just Right ...
+                  (progn
+                    (unless (= (the fixnum (%svref a arch::arrayH.rank-cell)) nsubs)
+                      (%err-disp $XNDIMS a nsubs))
+                    (let* ((rmi (%array-index a subs&val nsubs)))
+                      (declare (fixnum rmi))
+                      (multiple-value-bind (data offset) (%array-header-data-and-offset a)
+                        (setf (uvref data (the fixnum (+ offset rmi))) val)))))))))))))
+
+(defun %aset2 (a x y new)
+  (let* ((a-type (typecode a)))
+    (declare (fixnum a-type))
+    (unless (>= a-type arch::subtag-arrayH)
+      (report-bad-arg a 'array))
+    (unless (and (= a-type arch::subtag-arrayH)
+                 (= (the fixnum (%svref a arch::arrayH.rank-cell)) 2))
+      (%err-disp $XNDIMS a 2))
+    (let* ((rmi (%2d-array-index a x y)))
+      (declare (fixnum rmi))
+      (multiple-value-bind (data offset) (%array-header-data-and-offset a)
+        (declare (fixnum offset))
+        (setf (uvref data (the fixnum (+ rmi offset))) new)))))
+
+(defun schar (s i)
+  (let* ((typecode (typecode s)))
+    (declare (fixnum typecode))
+    (if (= typecode arch::subtag-simple-base-string)
+      (%typed-miscref arch::subtag-simple-base-string s i)
+      (if (= typecode arch::subtag-simple-general-string)
+        (%typed-miscref arch::subtag-simple-general-string s i)
+        (report-bad-arg s 'simple-string)))))
+
+
+
+
+(defun %scharcode (s i)
+  (let* ((typecode (typecode s)))
+    (declare (fixnum typecode))
+    (if (= typecode arch::subtag-simple-base-string)
+      (locally
+        (declare (optimize (speed 3) (safety 0)))
+        (%typed-miscref arch::subtag-u8-vector s i))
+      (if (= typecode arch::subtag-simple-general-string)
+        (locally
+          (declare (optimize (speed 3) (safety 0)))
+          (%typed-miscref arch::subtag-u16-vector s i))
+        (report-bad-arg s 'simple-string)))))
+
+
+(defun set-schar (s i v)
+  (let* ((typecode (typecode s)))
+    (declare (fixnum typecode))
+    (if (= typecode arch::subtag-simple-base-string)
+      (setf (%typed-miscref arch::subtag-simple-base-string s i) v)
+      (if (= typecode arch::subtag-simple-general-string)
+        (setf (%typed-miscref arch::subtag-simple-general-string s i) v)
+        (report-bad-arg s 'simple-string)))))
+
+
+ 
+(defun %set-scharcode (s i v)
+  (let* ((typecode (typecode s)))
+    (declare (fixnum typecode))
+    (if (= typecode arch::subtag-simple-base-string)
+      (locally
+        (declare (optimize (speed 3) (safety 0)))
+        (setf (%typed-miscref arch::subtag-u8-vector s i) v))
+      (if (= typecode arch::subtag-simple-general-string)
+        (locally
+          (declare (optimize (speed 3) (safety 0)))
+          (setf (%typed-miscref arch::subtag-u16-vector s i) v))
+        (report-bad-arg s 'simple-string)))))
+  
+
+; Strings are simple-strings, start & end values are sane.
+(defun %simple-string= (str1 str2 start1 start2 end1 end2)
+  (declare (fixnum start1 start2 end1 end2))
+  (when (= (the fixnum (- end1 start1))
+           (the fixnum (- end2 start2)))
+    ; 2^2 different loops.
+    (locally (declare (type simple-base-string str1 str2))
+            (do* ((i1 start1 (1+ i1))
+                  (i2 start2 (1+ i2)))
+                 ((= i1 end1) t)
+              (declare (fixnum i1 i2))
+              (unless (eq (schar str1 i1) (schar str2 i2))
+                (return))))))
+
+(defun copy-uvector (src)
+  (%extend-vector 0 src (uvsize src)))
+
+(defun subtag-bytes (subtag element-count)
+  (declare (fixnum subtag element-count))
+  (unless (= #.arch::fulltag-immheader (logand subtag #.arch::fulltagmask))
+    (error "Not an ivector subtag: ~s" subtag))
+  (let* ((element-bit-shift
+          (if (<= subtag arch::max-32-bit-ivector-subtag)
+            5
+            (if (<= subtag arch::max-8-bit-ivector-subtag)
+              3
+              (if (<= subtag arch::max-16-bit-ivector-subtag)
+                4
+                (if (= subtag arch::subtag-double-float-vector)
+                  6
+                  0)))))
+         (total-bits (ash element-count element-bit-shift)))
+    (ash (+ 7 total-bits) -3)))
+
+(defun element-type-subtype (type)
+  "Convert element type specifier to internal array subtype code"
+  (ctype-subtype (specifier-type type)))
+
+(defun ctype-subtype (ctype)
+  (typecase ctype
+    (class-ctype
+     (if (or (eq (class-ctype-class ctype) *character-class*)
+             (eq (class-ctype-class ctype) *standard-char-class*))
+       arch::subtag-simple-base-string
+       arch::subtag-simple-vector))
+    (numeric-ctype
+     (case (numeric-ctype-class ctype)
+       (integer
+        (let* ((low (numeric-ctype-low ctype))
+               (high (numeric-ctype-high ctype)))
+          (cond ((or (null low) (null high)) arch::subtag-simple-vector)
+                ((and (= low 0) (= high 1) arch::subtag-bit-vector))
+                ((and (>= low 0) (<= high 255)) arch::subtag-u8-vector)
+                ((and (>= low 0) (<= high 65535)) arch::subtag-u16-vector)
+                ((and (>= low 0) (<= high #xffffffff) arch::subtag-u32-vector))
+                ((and (>= low -128) (<= high 127)) arch::subtag-s8-vector)
+                ((and (>= low -32768) (<= high 32767) arch::subtag-s16-vector))
+                ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
+                 arch::subtag-s32-vector)
+                (t arch::subtag-simple-vector))))
+       (float
+        (case (numeric-ctype-format ctype)
+          (double-float arch::subtag-double-float-vector)
+          (short-float arch::subtag-single-float-vector)
+          (t arch::subtag-simple-vector)))
+       (t arch::subtag-simple-vector)))
+    (t arch::subtag-simple-vector)))
+
+(defun %set-simple-array-p (array)
+  (setf (%svref array  arch::arrayh.flags-cell)
+        (bitset  $arh_simple_bit (%svref array arch::arrayh.flags-cell))))
+
+(defun  %array-header-simple-p (array)
+  (logbitp $arh_simple_bit (%svref array arch::arrayh.flags-cell)))
+
+(defun %misc-ref (v i)
+  (%misc-ref v i))
+
+(defun %misc-set (v i new)
+  (%misc-set v i new))
+
+
+
+; end of l0-array.lisp

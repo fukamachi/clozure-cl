@@ -1,0 +1,11 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {newListener = id; }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }
+    ); 
+    IBVersion = 1; 
+}

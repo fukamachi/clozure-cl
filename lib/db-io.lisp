@@ -1,0 +1,1325 @@
+;;;-*-Mode: LISP; Package: CCL -*-
+;;;
+;;;   Copyright (C) 2001 Clozure Associates
+;;;   This file is part of OpenMCL.  
+;;;
+;;;   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+;;;   License , known as the LLGPL and distributed with OpenMCL as the
+;;;   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+;;;   which is distributed with OpenMCL as the file "LGPL".  Where these
+;;;   conflict, the preamble takes precedence.  
+;;;
+;;;   OpenMCL is referenced in the preamble as the "LIBRARY."
+;;;
+;;;   The LLGPL is also available online at
+;;;   http://opensource.franz.com/preamble.html
+
+;;; The "CDB" files used here are similar (but not identical) to those
+;;; used in the Unix CDB package <http://cr.yp.to/cdb.html>.  The primary
+;;; known & intentional differences are:
+;;;
+;;; a) key values, record positions, and other 32-bit metadata in the
+;;;    files are stored in native (vice little-endian) order.
+;;; b) hash values are always non-negative fixnums.
+;;;
+;;; I haven't thought of a compelling reason to attempt full compatibility.
+;;;
+;;; The basic idea is that the database files are created in a batch
+;;; process and are henceforth read-only (e.g., lookup is optimized by
+;;; making insertion & deletion impractical or impossible.)  That's
+;;; just about exactly what we want here.
+;;;
+;;; Those of you keeping score may notice that this is the third or forth
+;;; database format that OpenMCL has used for its interface database.
+;;; As always, this will hopefully be the last format change; the fact
+;;; that this code is self-contained (doesn't depend on any Unix database
+;;; library) should make it easier to port to other platforms.
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (def-foreign-type nil
+      (struct :cdb-datum
+	      (data (* t))
+	      (size :unsigned-long))))
+
+(defun cdb-hash (buf len)
+    (declare (fixnum len))
+    (let* ((h 5381))
+      (declare (fixnum h))
+      (dotimes (i len (logand h most-positive-fixnum))
+	(incf h (the fixnum (ash h 5)))
+	(setq h (logxor (the (unsigned-byte 8) (%get-unsigned-byte buf i)) h)))))
+
+(defconstant cdbm-hplist 1000)
+
+(defmacro hp-h (v n)
+  `(aref ,v (* ,n 2)))
+
+(defmacro hp-p (v n)
+  `(aref ,v (1+ (* ,n 2))))
+
+(defstruct cdbm-hplist
+  (hp (make-array (* 2 cdbm-hplist)
+		  :element-type '(unsigned-byte 32)
+		  :initial-element 0))
+  (next nil)
+  (num 0))
+
+
+
+
+
+#+openmcl
+(progn
+  ;;; Given a (possibly logical) PATHNAME, return a corresponding namestring
+  ;;; suitable for passing to an OS file-open call.
+  (defun cdb-native-namestring (pathname)
+    (native-translated-namestring pathname))
+  
+  ;;; Open the file specified by PATHNAME for output and return a
+  ;;; small integer "file id" (fid).
+  (defun fid-open-output (pathname)
+    (let* ((id (fd-open (cdb-native-namestring pathname)
+			(logior #$O_WRONLY #$O_CREAT #$O_TRUNC))))
+      (if (< id 0)
+	(%errno-disp id pathname)
+	id)))
+
+  ;;; Open the file specified by PATHNAME for input and return a
+  ;;; file id.
+  (defun fid-open-input (pathname)
+    (let* ((id (fd-open (cdb-native-namestring pathname) #$O_RDONLY)))
+      (if (< id 0)
+	(%errno-disp id pathname)
+	id)))
+  
+  ;;; Read N octets from FID into BUF.  Return #of octets read or error.
+  (defun fid-read (fid buf n)
+    (let* ((count (fd-read fid buf n)))
+      (if (< count 0)
+	(%errno-disp count "reading from file")
+	count)))
+
+  ;;; Write N octets to FID from BUF.  Return #of octets written or error.
+  (defun fid-write (fid buf n)
+    (let* ((count (fd-write fid buf n)))
+      (if (< count 0)
+	(%errno-disp count "writing to file")
+	count)))
+
+  ;;; Return the absolute (octet) position of FID.
+  (defun fid-pos (fid)
+    (fd-tell fid))
+
+  ;;; Seek to specified position (relative to file start.)
+  (defun fid-seek (fid pos)
+    (fd-lseek fid pos #$SEEK_SET))
+
+  ;;; Guess what this does ?
+  (defun fid-close (fid)
+    (fd-close fid))
+
+  ;;; Allocate a block of size N bytes (via malloc, #_NewPtr, etc.)
+  (defun cdb-alloc (n)
+    (malloc n))
+
+  ;;; Free a block allocated by cdb-alloc.
+  (defun cdb-free (block)
+    (free block))
+  )
+
+;;; I suppose that if we wanted to store these things in little-endian
+;;; order this'd be the place to swap bytes ...
+(defun fid-write-u32 (fid val)
+  (rlet ((valptr :unsigned-long))
+    (setf (pref valptr :unsigned-long) val)
+    (fid-write fid valptr 4)
+    val))
+
+(defun fid-read-u32 (fid)
+  (rlet ((valptr :unsigned-long))
+    (fid-read fid valptr 4)
+    (pref valptr :unsigned-long)))
+
+;;; Write N elements of a vector of type (UNSIGNED-BYTE 32) to file-id FID,
+;;; starting at element START.  The vector should be a simple (non-displaced)
+;;; array.
+(defun fid-write-u32-vector (fid v n start)
+  (let* ((remaining-octets (* n 4))
+	 (start-octet (* start 4))
+	 (bufsize 2048))
+    (%stack-block ((buf bufsize))
+      (do* ()
+	   ((zerop remaining-octets))
+	(let* ((chunksize (min remaining-octets bufsize)))
+	  (%copy-ivector-to-ptr v start-octet buf 0 chunksize)
+	  (fid-write fid buf chunksize)
+	  (incf start-octet chunksize)
+	  (decf remaining-octets chunksize))))))
+
+(defstruct cdbx
+  fid					;a small integer denoting a file
+  pathname)				;that file's pathname
+
+;;; A CDBM is used to create a database.
+(defstruct (cdbm (:include cdbx))
+  (final (make-array (* 256 2)
+		     :element-type '(unsigned-byte 32)
+		     :initial-element 0))
+  (count (make-array 256 :element-type '(unsigned-byte 32) :initial-element 0))
+  (start (make-array 256 :element-type '(unsigned-byte 32) :initial-element 0))
+  (head nil)
+  (split nil)
+  (hash nil)
+  (numentries 0)
+  )
+
+(defun cdbm-open (pathname)
+  (let* ((fid (fid-open-output pathname))
+	 (cdbm (make-cdbm :fid fid :pathname pathname))
+	 (final (cdbm-final cdbm)))
+    ;;; Write the (empty) final table to the start of the file.
+    (fid-write-u32-vector fid final (length final) 0)
+    cdbm))
+
+;;; Note a newly-added <key,value> pair's file position and hash code.
+(defun %cdbm-add-hash-pos (cdbm hash pos)
+  (let* ((head (cdbm-head cdbm)))
+    (when (or (null head)
+	      (>= (cdbm-hplist-num head) cdbm-hplist))
+      (setq head (make-cdbm-hplist))
+      (setf (cdbm-hplist-next head) (cdbm-head cdbm)
+	    (cdbm-head cdbm) head))
+    (let* ((num (cdbm-hplist-num head))
+	   (hp (cdbm-hplist-hp head)))
+      (setf (hp-h hp num) hash
+	    (hp-p hp num) pos))
+    (incf (cdbm-hplist-num head))
+    (incf (cdbm-numentries cdbm))))
+
+(defun cdbm-put (cdbm key data)
+  (let* ((fid (cdbm-fid cdbm))
+	 (pos (fid-pos fid))
+	 (keylen (pref key :cdb-datum.size))
+	 (keyptr (pref key :cdb-datum.data))
+	 (datalen (pref data :cdb-datum.size))
+	 (hash (cdb-hash keyptr keylen)))
+    (fid-write-u32 fid keylen)
+    (fid-write-u32 fid datalen)
+    (fid-write fid keyptr keylen)
+    (fid-write fid (pref data :cdb-datum.data) datalen)
+    (%cdbm-add-hash-pos cdbm hash pos)))
+
+(defun %cdbm-split (cdbm)
+  (let* ((count (cdbm-count cdbm))
+	 (start (cdbm-start cdbm))
+	 (numentries (cdbm-numentries cdbm)))
+    (dotimes (i 256) (setf (aref count i) 0))
+    (do* ((x (cdbm-head cdbm) (cdbm-hplist-next x)))
+	 ((null x))
+      (do* ((i (cdbm-hplist-num x))
+	    (hp (cdbm-hplist-hp x)))
+	   ((zerop i))
+	(decf i)
+	(incf (aref count (logand 255 (hp-h hp i))))))
+    (let* ((memsize 1))
+      (dotimes (i 256)
+	(let* ((u (* 2 (aref count i))))
+	  (if (> u memsize)
+	    (setq memsize u))))
+      (incf memsize numentries)
+      (let* ((split (make-array (the fixnum (* 2 memsize))
+				:element-type '(unsigned-byte 32))))
+	(setf (cdbm-split cdbm) split)
+	(setf (cdbm-hash cdbm)
+	      (make-array (- (* 2 memsize)
+			     (* 2 numentries))
+			  :element-type '(unsigned-byte 32)
+			  :displaced-to split
+			  :displaced-index-offset (* 2 numentries)))
+	(let* ((u 0))
+	  (dotimes (i 256)
+	    (incf u (aref count i))
+	    (setf (aref start i) u)))
+
+	(do* ((x (cdbm-head cdbm) (cdbm-hplist-next x)))
+	     ((null x))
+	  (do* ((i (cdbm-hplist-num x))
+		(hp (cdbm-hplist-hp x)))
+	       ((zerop i))
+	    (decf i)
+	    (let* ((idx (decf (aref start (logand 255 (hp-h hp i))))))
+	      (setf (hp-h split idx) (hp-h hp i)
+		    (hp-p split idx) (hp-p hp i)))))))))
+
+(defun %cdbm-throw (cdbm pos b)
+  (let* ((count (aref (cdbm-count cdbm) b))
+	 (len (* 2 count))
+	 (hash (cdbm-hash cdbm))
+	 (split (cdbm-split cdbm)))
+    (let* ((final (cdbm-final cdbm)))
+      (setf (aref final (* 2 b)) pos
+	    (aref final (1+ (* 2 b))) len))
+    (unless (zerop len)
+      (dotimes (j len)
+	(setf (hp-h hash j) 0
+	      (hp-p hash j) 0))
+      (let* ((hpi (aref (cdbm-start cdbm) b)))
+	(dotimes (j count)
+	  (let* ((where (mod (ash (hp-h split hpi) -8) len)))
+	    (do* ()
+		 ((zerop (hp-p hash where)))
+	      (incf where)
+	      (if (= where len)
+		(setq where 0)))
+	    (setf (hp-p hash where) (hp-p split hpi)
+		  (hp-h hash where) (hp-h split hpi)
+		  hpi (1+ hpi))))))
+    len))
+
+;;; Write data structures to the file, then close the file.
+(defun cdbm-close (cdbm)
+  (when (cdbm-fid cdbm)
+    (%cdbm-split cdbm)
+    (let* ((hash (cdbm-hash cdbm))
+	   (fid (cdbm-fid cdbm))
+	   (pos (fid-pos fid)))
+      (dotimes (i 256)
+	(let* ((len (%cdbm-throw cdbm pos i)))
+	  (dotimes (u len)
+	    (fid-write-u32 fid (hp-h hash u))
+	    (fid-write-u32 fid (hp-p hash u))
+	    (incf pos 8))))
+      (fid-seek fid 0)
+      (let* ((final (cdbm-final cdbm)))
+	(fid-write-u32-vector fid final (length final) 0))
+      (fid-close fid)
+      (setf (cdbm-fid cdbm) nil))))
+
+;;; A CDB is used to access a database.
+(defstruct (cdb (:include cdbx))
+  (lock (make-lock)))
+
+      
+;;; Do the bytes on disk match KEY ?
+(defun %cdb-match (fid key keylen)
+  (%stack-block ((buf keylen))
+    (fid-read fid buf keylen)
+    (dotimes (i keylen t)
+      (unless (= (the fixnum (%get-unsigned-byte key i))
+		 (the fixnum (%get-unsigned-byte buf i)))
+	(return)))))
+
+;;; Seek to file position of data associated with key.  Return length
+;;; of data (or NIL if no matching key.)
+(defun %cdb-seek (fid key keylen)
+  (let* ((hash (cdb-hash key keylen)))
+    (fid-seek fid (* 8 (logand hash 255)))
+    (let* ((pos (fid-read-u32 fid))
+	   (lenhash (fid-read-u32 fid)))
+      (unless (zerop lenhash)
+	(let* ((h2 (mod (ash hash -8) lenhash)))
+	  (dotimes (i lenhash)
+	    (fid-seek fid (+ pos (* 8 h2)))
+	    (let* ((hashed-key (fid-read-u32 fid))
+		   (poskd (fid-read-u32 fid)))
+	      (when (zerop poskd)
+		(return-from %cdb-seek nil))
+	      (when (= hashed-key hash)
+		(fid-seek fid poskd)
+		(let* ((hashed-key-len (fid-read-u32 fid))
+		       (data-len (fid-read-u32 fid)))
+		  (when (= hashed-key-len keylen)
+		    (if (%cdb-match fid key keylen)
+		      (return-from %cdb-seek data-len)))))
+	      (if (= (incf h2) lenhash)
+		(setq h2 0)))))))))
+
+;;; This should only be called with the cdb-lock of the containing cdb
+;;; held.
+(defun %cdb-get (fid key value)
+  (setf (pref value :cdb-datum.size) 0
+	(pref value :cdb-datum.data) (%null-ptr))
+  (let* ((datalen (%cdb-seek fid
+			     (pref key :cdb-datum.data)
+			     (pref key :cdb-datum.size))))
+    (when datalen
+      (let* ((buf (cdb-alloc datalen)))
+	(fid-read fid buf datalen)
+	(setf (pref value :cdb-datum.size) datalen
+	      (pref value :cdb-datum.data) buf)))
+    value))
+
+(defun cdb-get (cdb key value)
+  (with-lock-grabbed ((cdb-lock cdb))
+    (%cdb-get (cdb-fid cdb) key value)))
+
+(defun cdb-open (pathname)
+  (if (probe-file pathname)
+    (make-cdb :fid (fid-open-input (cdb-native-namestring pathname))
+              :pathname (namestring pathname))
+    (warn "Interface file ~s does not exist." pathname)))
+
+(defun cdb-close (cdb)
+  (let* ((fid (cdb-fid cdb)))
+    (setf (cdb-fid cdb) nil)
+    (when fid
+      (fid-close fid))
+    t))
+
+(defmethod print-object ((cdb cdbx) stream)
+  (print-unreadable-object (cdb stream :type t :identity t)
+    (let* ((fid (cdb-fid cdb)))
+      (format stream "~s [~a]" (cdb-pathname cdb) (or fid "closed")))))
+
+
+
+
+(defstruct ffi-type
+  (ordinal nil)
+  (defined nil)
+  (string)
+  (name)                                ; a keyword, uppercased or NIL
+)
+
+(defmethod print-object ((x ffi-type) out)
+  (print-unreadable-object (x out :type t :identity t)
+    (format out "~a" (ffi-type-string x))))
+
+(defvar *ffi-prefix* "")
+
+(defstruct (ffi-mem-block (:include ffi-type))
+  fields
+  (anon-global-id )
+  (alt-alignment-bits nil))
+
+(defstruct (ffi-union (:include ffi-mem-block)
+                      (:constructor
+                       make-ffi-union (&key
+                                       string name
+                                       &aux
+                                       (anon-global-id
+                                        (unless name
+                                          (concatenate 'string
+                                                       *ffi-prefix*
+                                                       "-" string)))))))
+
+
+(defstruct (ffi-struct (:include ffi-mem-block)
+                       (:constructor
+                       make-ffi-struct (&key
+                                       string name
+                                       &aux
+                                       (anon-global-id
+                                        (unless name
+                                          (concatenate 'string
+                                                       *ffi-prefix*
+                                                       "-" string)))))))
+
+(defstruct (ffi-typedef (:include ffi-type))
+  (type))
+
+(defun ffi-struct-reference (s)
+  (or (ffi-struct-name s) (ffi-struct-anon-global-id s)))
+
+(defun ffi-union-reference (u)
+  (or (ffi-union-name u) (ffi-union-anon-global-id u)))
+
+(defstruct (ffi-function (:include ffi-type))
+  arglist
+  return-value)
+    
+(def-foreign-type nil
+  (:struct dbm-constant
+   (:class (:unsigned 32))
+   (:value
+    (:union nil
+      (:s32 (:signed 32))
+      (:u32 (:unsigned 32))
+      (:single-float :float)
+      (:double-float :double)))))
+
+(defconstant db-string-constant 0)
+(defconstant db-read-string-constant 1)
+(defconstant db-s32-constant 2)
+(defconstant db-u32-constant 3)
+(defconstant db-float-constant 4)
+(defconstant db-double-constant 5)
+(defconstant db-char-constant 6)
+
+(defparameter *arg-spec-encoding*
+  '((#\Space . :void)
+    (#\a . :address)
+    (#\F . :signed-fullword)
+    (#\f . :unsigned-fullword)
+    (#\H . :signed-halfword)
+    (#\h . :unsigned-halfword)
+    (#\B . :signed-byte)
+    (#\b . :unsigned-byte)
+    (#\s . :single-float)
+    (#\d . :double-float)
+    (#\L . :signed-doubleword)
+    (#\l . :unsigned-doubleword)
+    (#\r . :record)))
+
+(defun encode-arguments (args result string)
+  (let* ((i 1))
+    (flet ((encoded-arg (thing)
+             (if thing
+               (or (car (rassoc thing *arg-spec-encoding*))
+                   (return-from encode-arguments nil))
+               #\Space)))
+      (setf (schar string 0) (encoded-arg result))
+      (dolist (arg args t)
+        (setf (schar string i) (encoded-arg arg)
+              i (1+ i))))))
+
+(defun decode-arguments (string)
+  (let* ((result (cdr (assoc (schar string 0) *arg-spec-encoding*)))
+         (args ()))
+    (do* ((i 1 (1+ i)))
+         ((= i (length string)) (values (nreverse args) result))
+      (declare (fixnum i))
+      (let* ((ch (schar string i))
+	     (val (if (or (eql ch #\r) (eql ch #\R) (eql ch #\t))
+		    (let* ((namelen (char-code (schar string (incf i))))
+			   (name (make-string namelen)))
+		      (dotimes (k namelen)
+			(setf (schar name k)
+			      (schar string (incf i))))
+		      (if (eql ch #\R)
+			 name
+			 (escape-foreign-name name)))
+		    (cdr (assoc ch *arg-spec-encoding*)))))
+      (push val args)))))
+
+;;; encoded external function looks like:
+;;; byte min-args
+;;; byte name-length
+;;; name-length bytes of name
+;;; result+arg specs
+
+(defun extract-db-function (datum)
+  (let* ((val nil)
+         (dsize (pref datum :cdb-datum.size)))
+    (with-macptrs ((dptr))
+      (%setf-macptr dptr (pref datum :cdb-datum.data))
+      (unless (%null-ptr-p dptr)
+	(let* ((min-args (%get-byte dptr))
+	       (name-len (%get-byte dptr 1))
+	       (external-name (%str-from-ptr (%inc-ptr dptr 2) name-len))
+	       (encoding-len (- dsize (+ 2 name-len)))
+	       (encoding (make-string encoding-len)))
+	  (declare (dynamic-extent encoding))
+	  (%copy-ptr-to-ivector dptr (+ 2 name-len) encoding 0 encoding-len)
+	  (cdb-free (pref datum :cdb-datum.data))
+	  (multiple-value-bind (args result)
+	      (decode-arguments encoding)
+	    (setq val (make-external-function-definition
+		       :entry-name external-name
+		       :arg-specs args
+		       :result-spec result
+		       :min-args min-args))))))
+    val))
+
+(defun db-lookup-function (cdb name)
+  (when cdb
+    (rletZ ((value :cdb-datum)
+            (key :cdb-datum))
+      (with-cstrs ((keyname (string name)))
+        (setf (pref key :cdb-datum.data) keyname
+              (pref key :cdb-datum.size) (length (string name))
+              (pref value :cdb-datum.data) (%null-ptr)
+              (pref value :cdb-datum.size) 0)
+        (cdb-get cdb key value)
+        (extract-db-function value)))))
+
+
+(defun save-db-function (cdbm fname def)
+  (let* ((external-name (efd-entry-name def))
+         (args (efd-arg-specs def))
+         (result (efd-result-spec def))
+         (min-args (efd-min-args def))
+         (namelen (length external-name))
+         (enclen (1+ (length args)))
+         (buflen (+ 2 namelen enclen))
+         (encoding (make-string enclen)))
+    (declare (dynamic-extent encoding))
+    (when (encode-arguments args result encoding)
+      (%stack-block ((buf buflen))
+        (setf (%get-byte buf) min-args
+              (%get-byte buf 1) namelen)
+        (%copy-ivector-to-ptr external-name 0 buf 2 namelen)
+        (%copy-ivector-to-ptr encoding 0 buf (+ 2 namelen) enclen)
+        (rletZ ((contents :cdb-datum)
+		(key :cdb-datum))
+          (setf (pref contents :cdb-datum.data) buf
+                (pref contents :cdb-datum.size) buflen)
+          (with-cstrs ((keyname (string fname)))
+            (setf (pref key :cdb-datum.data) keyname
+                  (pref key :cdb-datum.size) (length (string fname)))
+	    (cdbm-put cdbm key contents)))))))
+
+        
+(defun extract-db-constant-value (datum)
+  (let* ((val nil)
+         (dsize (pref datum :cdb-datum.size)))
+    (with-macptrs ((dptr))
+      (%setf-macptr dptr (pref datum :cdb-datum.data))
+      (unless (%null-ptr-p dptr)
+	(let* ((class (pref dptr :dbm-constant.class)))
+	  (setq val
+		(ecase class
+                  ((#.db-string-constant #.db-read-string-constant)
+                   (let* ((str (%str-from-ptr (%inc-ptr dptr 4) (- dsize 4))))
+                     (if (eql class db-read-string-constant)
+                       (read-from-string str)
+                       str)))
+                  (#.db-s32-constant (pref dptr :dbm-constant.value.s32))
+                  (#.db-u32-constant (pref dptr :dbm-constant.value.u32))
+                  (#.db-float-constant (pref dptr :dbm-constant.value.single-float))
+                  (#.db-double-constant (pref dptr :dbm-constant.value.double-float))
+                  (#.db-char-constant (code-char (pref dptr :dbm-constant.value.u32)))))
+	  (cdb-free (pref datum :cdb-datum.data)))))
+    val))
+
+
+
+(defun db-lookup-constant (cdb name)
+  (when cdb
+    (rletZ ((value :cdb-datum)
+            (key :cdb-datum))
+      (with-cstrs ((keyname (string name)))
+        (setf (pref key :cdb-datum.data) keyname
+              (pref key :cdb-datum.size) (length (string name))
+              (pref value :cdb-datum.data) (%null-ptr)
+              (pref value :cdb-datum.size) 0)
+        (cdb-get cdb key value)
+        (extract-db-constant-value value)))))
+    
+
+
+(defun db-define-string-constant (cdbm name val &optional (class db-string-constant))
+  (let* ((dsize (+ 4 (length val))))
+    (%stack-block ((valbuf dsize))
+      (%copy-ivector-to-ptr val 0 valbuf 4 (length val))
+      (setf (%get-long valbuf) class)
+      (rletZ ((content :cdb-datum)
+	      (key :cdb-datum))
+        (setf (pref content :cdb-datum.size) dsize
+              (pref content :cdb-datum.data) valbuf)
+        (with-cstrs ((keyname (string name)))
+          (setf (pref key :cdb-datum.size) (length (string name))
+                (pref key :cdb-datum.data) keyname)
+	  (cdbm-put cdbm key content))))))
+      
+(defun db-define-constant (cdbm name val)
+  (typecase val
+    (string (db-define-string-constant cdbm name val))
+    ((or (unsigned-byte 32)
+         (signed-byte 32)
+         short-float
+         double-float
+         character)
+     (rletZ ((constant :dbm-constant)
+	     (content :cdb-datum)
+	     (key :cdb-datum))
+       (etypecase val
+         ((signed-byte 32)
+          (setf (pref constant :dbm-constant.value.s32) val)
+          (setf (pref constant :dbm-constant.class) db-s32-constant))
+         ((unsigned-byte 32)
+          (setf (pref constant :dbm-constant.value.u32) val)
+          (setf (pref constant :dbm-constant.class) db-u32-constant))
+         (short-float
+          (setf (pref constant :dbm-constant.value.single-float) val)
+          (setf (pref constant :dbm-constant.class) db-float-constant))
+         (double-float
+          (setf (pref constant :dbm-constant.value.double-float) val)
+          (setf (pref constant :dbm-constant.class) db-double-constant))
+         (character
+          (setf (pref constant :dbm-constant.value.u32) (char-code val))
+          (setf (pref constant :dbm-constant.class) db-char-constant)))
+       (setf (pref content :cdb-datum.data) constant
+             (pref content :cdb-datum.size) (record-length :dbm-constant))
+       (with-cstrs ((keyname (string name)))
+         (setf (pref key :cdb-datum.data) keyname
+               (pref key :cdb-datum.size) (length (string name)))
+	 (cdbm-put cdbm key content))))
+    (t (db-define-string-constant cdbm name (format nil "~a" val) db-read-string-constant))))
+
+(defmacro with-new-db-file ((var pathname) &body body)
+  (let* ((db (gensym)))
+    `(let* (,db)
+      (unwind-protect
+           (let* ((,var (setq ,db (cdbm-open ,pathname))))
+             ,@body)
+        (when ,db (cdbm-close ,db))))))
+
+
+
+(defun interface-db-pathname (name d &optional (ftd *target-ftd*))
+  (merge-pathnames name
+		   (merge-pathnames (interface-dir-subdir d)
+				    (ftd-interface-db-directory ftd))))
+
+(def-ccl-pointers reset-db-files ()
+  (do-interface-dirs (d)
+    (setf (interface-dir-constants-interface-db-file d) nil
+	  (interface-dir-functions-interface-db-file d) nil
+	  (interface-dir-records-interface-db-file d) nil
+	  (interface-dir-types-interface-db-file d) nil)))
+
+(defun db-constants (dir)
+  (or (interface-dir-constants-interface-db-file dir)
+      (setf (interface-dir-constants-interface-db-file dir)
+	    (cdb-open (interface-db-pathname "constants.cdb" dir)))))
+
+(defun db-types (dir)
+  (or (interface-dir-types-interface-db-file dir)
+      (setf (interface-dir-types-interface-db-file dir)
+	    (cdb-open (interface-db-pathname "types.cdb" dir)))))
+
+(defun db-records (dir)
+  (or (interface-dir-records-interface-db-file dir)
+      (setf (interface-dir-records-interface-db-file dir)
+	    (cdb-open (interface-db-pathname "records.cdb" dir)))))
+
+(defun db-functions (dir)
+  (or (interface-dir-functions-interface-db-file dir)
+      (setf (interface-dir-functions-interface-db-file dir)
+	    (cdb-open (interface-db-pathname "functions.cdb" dir)))))
+
+(defun load-os-constant (sym &optional reader-stream)
+  (declare (ignore reader-stream))
+  (let* ((val (or (do-interface-dirs (d)
+		    (let* ((v (db-lookup-constant (db-constants d) sym)))
+		      (when v (return v))))
+                  (error "Constant not found: ~s" sym))))
+    (let* ((*record-source-file* nil))
+      (%defconstant sym val)
+      val)))
+
+
+(defun load-external-function (sym reader-stream)
+  (declare (ignore reader-stream))
+  (let* ((def (or (do-interface-dirs (d)
+		    (let* ((f (db-lookup-function (db-functions d) sym)))
+		      (when f (return f))))
+                  (error "Foreign function not found: ~s" sym))))
+    (setf (gethash sym (ftd-external-function-definitions
+			*target-ftd*)) def)
+    (setf (macro-function sym) #'%external-call-expander)
+    sym))
+
+(defun %read-symbol-preserving-case (stream package)
+  (let* ((case (readtable-case *readtable*))
+	 (error nil)
+	 (sym nil))
+    (let* ((*package* package))
+      (unwind-protect
+	   (progn
+	     (setf (readtable-case *readtable*) :preserve)
+	     (multiple-value-setq (sym error)
+	       (handler-case (read stream nil nil)
+		 (error (condition) (values nil condition)))))
+	(setf (readtable-case *readtable*) case)))
+    (if error
+      (error error)
+      sym)))
+
+(set-dispatch-macro-character 
+ #\# #\$
+ (qlfun |#$-reader| (stream char arg)
+   (declare (ignore char))
+   (let* ((package (find-package (ftd-interface-package-name *target-ftd*)))
+          (sym
+	   (%read-symbol-preserving-case
+	    stream
+            package)))
+     (unless *read-suppress*
+       (etypecase sym
+         (symbol
+          (when (eq (symbol-package sym) package)
+            (unless arg (setq arg 0))
+            (ecase arg
+              (0
+               (unless (boundp sym)
+                 (load-os-constant sym stream)))
+              (1 (makunbound sym) (load-os-constant sym stream))))
+          sym)
+         (string
+          (let* ((val 0)
+                 (len (length sym)))
+            (dotimes (i 4 val)
+              (let* ((ch (if (< i len) (char sym i) #\space)))
+                (setq val (logior (ash val 8) (char-code ch))))))))))))
+
+(set-dispatch-macro-character #\# #\_
+  (qlfun |#_-reader| (stream char arg)
+    (declare (ignore char))
+    (unless arg (setq arg 0))
+    (let* ((sym (%read-symbol-preserving-case
+		 stream
+		 (find-package (ftd-interface-package-name *target-ftd*)))))
+      (unless *read-suppress*
+        (unless (and sym (symbolp sym)) (report-bad-arg sym 'symbol))
+        (let* ((def (if (eql arg 0)
+                      (gethash sym (ftd-external-function-definitions
+                                    *target-ftd*)))))
+          (if (and def (eq (macro-function sym) #'%external-call-expander))
+            sym
+            (load-external-function sym stream)))))))
+
+
+
+(eval-when (:compile-toplevel :execute)
+  (defconstant encoded-type-void 0)
+  (defconstant encoded-type-signed-32 1)
+  (defconstant encoded-type-unsigned-32 2)
+  (defconstant encoded-type-signed-8 3)
+  (defconstant encoded-type-unsigned-8 4)
+  (defconstant encoded-type-signed-16 5)
+  (defconstant encoded-type-unsigned-16 6)
+  (defconstant encoded-type-signed-n 7) ;N
+  (defconstant encoded-type-unsigned-n 8) ;N
+  (defconstant encoded-type-single-float 9)
+  (defconstant encoded-type-double-float 10)
+  (defconstant encoded-type-pointer 11) ; <type>
+  (defconstant encoded-type-array 12) ; <size> <type>
+  (defconstant encoded-type-named-struct-ref 13); <tag>
+  (defconstant encoded-type-named-union-ref 14) ;<tag>
+  (defconstant encoded-type-named-type-ref 15) ; <name>
+  (defconstant encoded-type-anon-struct-ref 16) ; <tag>
+  (defconstant encoded-type-anon-union-ref 17) ; <tag>
+  )
+
+(defconstant encoded-type-type-byte (byte 5 0))
+(defconstant encoded-type-align-byte (byte 3 5)
+  "alignment in octets, if other than \"natural\" alignment,")
+
+;;; Constants & function names get saved verbatim.
+;;; Record, type, and field names get escaped.
+
+(defun encode-name (name &optional verbatim)
+  (if (null name)
+    '(0)
+    (let* ((string
+	    (if (and (typep name 'keyword)
+		     (not verbatim))
+	      (unescape-foreign-name name)
+	      (string name)))
+           (length (length string)))
+      (cons length (map 'list #'char-code string)))))
+
+(defun encode-ffi-field (field)
+  `(,@(encode-name (car field)) ,@(encode-ffi-type (cadr field))))
+
+(defun encode-ffi-field-list (fields)
+  (let* ((len (length fields)))
+    (labels ((encode-fields (fields)
+               (if fields
+                 `(,@(encode-ffi-field (car fields)) ,@(encode-fields (cdr fields))))))
+      `(,len ,@(encode-fields fields)))))
+
+(defun encode-ffi-union (u)
+  (let* ((name (ffi-union-name u))
+	 (alt-align-in-bytes-mask (ash (or (ffi-union-alt-alignment-bits u)
+				      0)
+				  (- 5 3))))
+    (if name
+      `(,(logior encoded-type-named-union-ref alt-align-in-bytes-mask)
+        ,@(encode-name name)
+        ,@(encode-ffi-field-list (ffi-union-fields u)))
+      `(,(logior encoded-type-anon-union-ref alt-align-in-bytes-mask)
+        ,@(encode-ffi-field-list (ffi-union-fields u))))))
+
+(defun encode-ffi-struct (s)
+  (let* ((name (ffi-struct-name s))
+	 (alt-align-in-bytes-mask (ash (or (ffi-struct-alt-alignment-bits s)
+					   0)
+				       (- 5 3))))
+    (if name
+      `(,(logior encoded-type-named-struct-ref alt-align-in-bytes-mask)
+        ,@(encode-name (ffi-struct-name s))
+        ,@(encode-ffi-field-list (ffi-struct-fields s)))
+      `(,(logior encoded-type-anon-struct-ref alt-align-in-bytes-mask)
+        ,@(encode-ffi-field-list (ffi-struct-fields s))))))
+
+(defun encode-u32 (val)
+  `(,(ldb (byte 8 24) val)
+    ,(ldb (byte 8 16) val)
+    ,(ldb (byte 8 8) val)
+    ,(ldb (byte 8 0) val)))
+
+
+(defun encode-ffi-type (spec)
+  (case (car spec)
+    (:primitive
+     (let ((primtype (cadr spec)))
+       (if (atom primtype)
+         (case primtype
+           (:float `(,encoded-type-single-float))
+           (:double `(,encoded-type-double-float))
+           (:void `(,encoded-type-void))
+           (:signed `(,encoded-type-signed-32))
+           (:unsigned `(,encoded-type-unsigned-32))
+           ((:long-double :complex-int
+                        :complex-float :complex-double :complex-long-double)
+            (encode-ffi-type `(:struct ,primtype))))
+         (ecase (car primtype)
+           (* `(,encoded-type-pointer ,@(encode-ffi-type
+                                           (if (eq (cadr primtype) t)
+                                             `(:primitive :void)
+                                             (cadr primtype)))))
+           (:signed
+            (case (cadr primtype)
+              (32 `(,encoded-type-signed-32))
+              (16 `(,encoded-type-signed-16))
+              (8 `(,encoded-type-signed-8))
+              (t `(,encoded-type-signed-n ,(cadr primtype)))))
+           (:unsigned
+            (case (cadr primtype)
+              (32 `(,encoded-type-unsigned-32))
+              (16 `(,encoded-type-unsigned-16))
+              (8 `(,encoded-type-unsigned-8))
+              (t `(,encoded-type-unsigned-n ,(cadr primtype)))))))))
+     (:struct
+      (let* ((s (cadr spec))
+             (name (ffi-struct-name s))
+	     (alt-align-bytes-mask (ash (or (ffi-struct-alt-alignment-bits s)
+					    0)
+					(- 5 3))))
+      `(,(if name
+             (logior encoded-type-named-struct-ref alt-align-bytes-mask)
+             (logior encoded-type-anon-struct-ref alt-align-bytes-mask))
+        ,@(encode-name (ffi-struct-reference s)))))
+     (:union
+      (let* ((u (cadr spec))
+             (name (ffi-union-name u))
+	     (alt-align-bytes-mask (ash (or (ffi-union-alt-alignment-bits u)
+					    0)
+					(- 5 3)))	     )
+      `(,(if name
+             (logior encoded-type-named-union-ref alt-align-bytes-mask)
+             (logior encoded-type-anon-union-ref alt-align-bytes-mask))
+        ,@(encode-name (ffi-union-reference u)))))
+     (:typedef
+      `(,encoded-type-named-type-ref ,@(encode-name (ffi-typedef-name (cadr spec)))))
+     (:pointer
+      `(,encoded-type-pointer ,@(encode-ffi-type
+                                   (if (eq (cadr spec) t)
+                                     '(:primitive :void)
+                                     (cadr spec)))))
+     (:array
+      `(,encoded-type-array ,@(encode-u32 (cadr spec)) ,@(encode-ffi-type (caddr spec))))
+     (t
+      (break "Type spec = ~s" spec))))
+
+(defun encode-ffi-arg-type (spec &optional return-value-p)
+  (case (car spec)
+    (:primitive
+     (let ((primtype (cadr spec)))
+       (if (atom primtype)
+         (case primtype
+           (:float `(#\s))
+           (:double `(#\d))
+           (:void `(#\Space))
+           (:signed `(#\F))
+           (:unsigned `(f))
+           ((:long-double :complex-int
+			  :complex-float :complex-double :complex-long-double)            
+            #|(encode-ffi-arg-type `(:struct ,primtype))|#
+            `(#\?)))
+         (ecase (car primtype)
+           (* `(#\a))
+           (:signed
+            (let* ((nbits (cadr primtype)))
+              (if (<= nbits 8)
+                '(#\B)
+                (if (<= nbits 16)
+                  '(#\H)
+                  (if (<= nbits 32)
+                    '(#\F)
+		    (if (<= nbits 64)
+		      `(#\L)
+		      '(#\?)))))))
+           (:unsigned
+            (let* ((nbits (cadr primtype)))
+              (if (<= nbits 8)
+                '(#\b)
+                (if (<= nbits 16)
+                  '(#\h)
+                  (if (<= nbits 32)
+                    '(#\f)
+		    (if (<= nbits 64)
+		      `(#\l)
+		      '(#\?)))))))))))
+    ((:struct :union) #+linuxppc-target `(#\a)
+     #+darwinppc-target (if return-value-p `(#\a)
+			  `(#\r ,@(encode-name (ffi-struct-reference (cadr spec))))))
+    (:typedef
+     (let* ((typedef (cadr spec))
+	    (type (ffi-typedef-type typedef)))
+       (if (or return-value-p
+	       (not (member (car type) '(:struct :union)))
+	       #+linuxppc-target t)
+	 (encode-ffi-arg-type type)
+	 `(#\t ,@(encode-name (ffi-typedef-name typedef))))))
+    (:pointer
+      `(#\a))
+    (:array
+      `(#\?))))
+
+(defun encode-ffi-arg-list (args)
+  (if args
+    `(,@(encode-ffi-arg-type (car args)) ,@(encode-ffi-arg-list (cdr args)))))
+
+(defvar *prepend-underscores-to-ffi-function-names* nil)
+
+(defun encode-ffi-function (f)
+  (let* ((args (ffi-function-arglist f))
+	 (string (ffi-function-string f))
+	 (name (if *prepend-underscores-to-ffi-function-names*
+		 (concatenate 'string "_" string)
+		 string))
+         (min-args (length args))
+         (result (ffi-function-return-value f)))
+    `(,min-args
+      ,@(encode-name name t)		; verbatim
+      ,@(encode-ffi-arg-type result t)
+      ,@(encode-ffi-arg-list args))))
+    
+(defun save-byte-list (ptr l)
+  (do* ((l l (cdr l))
+        (i 0 (1+ i)))
+       ((null l))
+    (let* ((b (car l)))
+      (if (typep b 'character)
+        (setq b (char-code b)))
+      (setf (%get-unsigned-byte ptr i) b))))
+
+(defun db-write-byte-list (cdbm keyname bytes &optional verbatim)
+  (let* ((len (length bytes)))
+    (%stack-block ((p len))
+      (save-byte-list p bytes)
+      (rletZ ((contents :cdb-datum)
+	      (key :cdb-datum))
+        (let* ((foreign-name
+		(if verbatim
+		  keyname
+		  (unescape-foreign-name keyname))))
+	  (with-cstrs ((keystring foreign-name))
+	    (setf (pref contents :cdb-datum.data) p
+		  (pref contents :cdb-datum.size) len
+		  (pref key :cdb-datum.data) keystring
+		  (pref key :cdb-datum.size) (length foreign-name))
+	    (cdbm-put cdbm key contents)))))))
+
+(defun save-ffi-function (cdbm fun)
+  (let* ((encoding (encode-ffi-function fun)))
+    (db-write-byte-list cdbm
+			(ffi-function-string fun)
+			encoding
+			t)))
+
+(defun save-ffi-typedef (cdbm def)
+  (db-write-byte-list cdbm
+                       (ffi-typedef-string def)
+                       (encode-ffi-type (ffi-typedef-type def))
+		       t))
+
+(defun save-ffi-struct (cdbm s)
+  (db-write-byte-list cdbm (ffi-struct-reference s) (encode-ffi-struct s)))
+
+(defun save-ffi-union (cdbm u)
+  (db-write-byte-list cdbm (ffi-union-reference u) (encode-ffi-union u)))
+
+
+;;; An "uppercase-sequence" is a maximal substring of a string that
+;;; starts with an uppercase character and doesn't contain any
+;;; lowercase characters.
+(defun count-uppercase-sequences (string)
+  (let* ((state :lower)
+	 (nupper 0))
+    (declare (fixnum nupper))
+    (dotimes (i (length string) nupper)
+      (let* ((ch (char string i)))
+	(case state
+	  (:lower 
+	   (when (upper-case-p ch)
+	     (incf nupper)
+	     (setq state :upper)))
+	  (:upper
+	   (when (lower-case-p ch)
+	     (setq state :lower))))))))
+
+(defun escape-foreign-name (in &optional
+			       (count (count-uppercase-sequences in)))
+  (intern
+   (if (zerop count)
+     (string-upcase in)
+     (let* ((len (length in))
+	    (j 0)
+	    (out (make-string (+ len (* 2 count))))
+	    (state :lower))
+       (flet ((outch (ch)
+		(setf (schar out j) ch)
+		(incf j)
+		ch))
+	 (dotimes (i len (progn (if (eq state :upper) (outch #\>)) out))
+	   (let* ((ch (char in i)))
+	     (cond ((and (upper-case-p ch) (eq state :lower))
+		    (outch #\<)
+		    (setq state :upper))
+		   ((and (lower-case-p ch) (eq state :upper))
+		    (outch #\>)
+		    (setq state :lower)))
+	     (outch (char-upcase ch)))))))
+   *keyword-package*))
+
+(defun unescape-foreign-name (key)
+  (let* ((string (string key))
+	 (nbrackets (count #\< string)))
+    (declare (fixnum nbrackets))
+    (if (zerop nbrackets)
+      (string-downcase string)
+      (let* ((len (length string))
+	     (out (make-string (- len (* 2 nbrackets))))
+	     (j 0)
+	     (state :lower))
+	(dotimes (i len out)
+	  (let* ((ch (schar string i)))
+	    (if (or (and (eq ch #\<)
+			 (eq state :upper))
+		    (and (eq ch #\>)
+			 (eq state :lower)))
+	      (error "Mismatched brackets in ~s." key))
+	    (case ch
+	      (#\< (setq state :upper))
+	      (#\> (setq state :lower))
+	      (t (setf (schar out j) (if (eq state :upper)
+				       (char-upcase ch)
+				       (char-downcase ch))
+		       j (1+ j))))))))))
+
+	
+	
+(defun %decode-name (buf p &optional verbatim)
+  (declare (type macptr buf) (fixnum p))
+  (let* ((n (%get-unsigned-byte buf p)))
+    (declare (fixnum n))
+    (if (zerop n)
+      (values nil 1)
+      (let* ((pname (make-string n)))
+        (%copy-ptr-to-ivector buf (1+ p) pname 0 n)
+        (values (if verbatim pname (escape-foreign-name pname))
+                (+ p (1+ n)))))))
+
+(defun %decode-u32 (buf p)
+  (declare (fixnum p) (type macptr buf))
+  (values (dpb
+           (%get-unsigned-byte buf p)
+           (byte 8 24)
+           (dpb
+            (%get-unsigned-byte buf (+ p 1))
+            (byte 8 16)
+            (dpb
+             (%get-unsigned-byte buf (+ p 2))
+             (byte 8 8)
+             (%get-unsigned-byte buf (+ p 3)))))
+          (+ p 4)))
+  
+;; Should return a FOREIGN-TYPE structure.
+(defun %decode-type (buf p)
+  (declare (type macptr buf) (fixnum p))
+  (let* ((q (1+ p)))
+    (ecase (ldb encoded-type-type-byte (%get-unsigned-byte buf p))
+      (#.encoded-type-void (values (parse-foreign-type :void) q))
+      (#.encoded-type-signed-32 (values (svref *signed-integer-types* 32) q))
+      (#.encoded-type-unsigned-32 (values (svref *unsigned-integer-types* 32) q))
+      (#.encoded-type-signed-8 (values (svref *signed-integer-types* 8) q))
+      (#.encoded-type-unsigned-8 (values (svref *unsigned-integer-types* 8) q))
+      (#.encoded-type-signed-16 (values (svref *signed-integer-types* 16) q))
+      (#.encoded-type-unsigned-16 (values (svref *unsigned-integer-types* 16) q))
+      (#.encoded-type-signed-n (values (make-foreign-integer-type
+                                          :signed t
+                                          :bits (%get-unsigned-byte buf q))
+                                         (1+ q)))
+      (#.encoded-type-unsigned-n (values (make-foreign-integer-type
+                                            :signed nil
+                                            :bits (%get-unsigned-byte buf q))
+                                           (1+ q)))
+      (#.encoded-type-single-float (values (parse-foreign-type :float) q))
+      (#.encoded-type-double-float (values (parse-foreign-type :double) q))
+      (#.encoded-type-pointer (multiple-value-bind (target qq)
+                                    (if (eql (%get-unsigned-byte buf q)
+                                             encoded-type-void)
+                                      (values nil (1+ q))
+                                      (%decode-type buf q))
+                                  (values (make-foreign-pointer-type :to target)
+                                          qq)))
+      (#.encoded-type-array
+       (multiple-value-bind (size qq) (%decode-u32 buf q)
+         (multiple-value-bind (target qqq) (%decode-type buf qq)
+           (let* ((type-alignment (foreign-type-alignment target))
+                  (type-bits (foreign-type-bits target)))
+             (values (make-foreign-array-type
+                      :element-type target
+                      :dimensions (list size)
+                      :alignment type-alignment
+                      :bits (if type-bits
+                              (* (align-offset type-bits type-alignment) size)))
+                     qqq)))))
+      (#.encoded-type-named-type-ref
+       (multiple-value-bind (name qq) (%decode-name buf q)
+         (values (%parse-foreign-type name) qq)))
+      (#.encoded-type-named-struct-ref
+       (multiple-value-bind (name qq) (%decode-name buf q)
+         (values (or (info-foreign-type-struct name)
+                     (setf (info-foreign-type-struct name)
+                           (make-foreign-record-type :kind :struct
+                                                     :name name)))
+                 qq)))
+      (#.encoded-type-named-union-ref
+       (multiple-value-bind (name qq) (%decode-name buf q)
+         (values (or (info-foreign-type-union name)
+                     (setf (info-foreign-type-union name)
+                           (make-foreign-record-type :kind :union
+                                                     :name name)))
+                 qq)))
+      ((#.encoded-type-anon-struct-ref #.encoded-type-anon-union-ref)
+       (multiple-value-bind (tag qq) (%decode-name buf q t)
+         (values (load-record tag) qq))))))
+
+(defun extract-db-type (datum)
+  (let* ((data (pref datum :cdb-datum.data)))
+    (unless (%null-ptr-p data)
+      (prog1
+	  (%decode-type data 0)
+	(cdb-free data)))))
+
+(defun %load-foreign-type (cdb name)
+  (when cdb
+    (with-cstrs ((string (string name)))
+      (rletZ ((contents :cdb-datum)
+              (key :cdb-datum))
+        (setf (pref key :cdb-datum.size) (length (string name))
+            (pref key :cdb-datum.data) string
+            (pref contents :cdb-datum.data) (%null-ptr)
+            (pref contents :cdb-datum.size) 0)
+      (cdb-get cdb key contents)
+      (let* ((type (extract-db-type contents)))
+	(if type
+	  (%def-foreign-type (escape-foreign-name name) type)))))))
+
+(defun load-foreign-type (name)
+  (let* ((name (unescape-foreign-name name)))
+    (do-interface-dirs (d)
+      (let* ((type (%load-foreign-type (db-types d) name)))
+	(when type (return type))))))
+
+(defun %decode-field (buf p)
+  (declare (type macptr buf) (fixnum p))
+  (multiple-value-bind (name q) (%decode-name buf p)
+    (multiple-value-bind (type r) (%decode-type buf q)
+      (values (make-foreign-record-field :type type :name name) r))))
+
+(defun %decode-field-list (buf p)
+  (declare (type macptr buf) (fixnum p))
+  (let* ((n (%get-unsigned-byte buf p))
+         (fields nil))
+    (incf p)
+    (dotimes (i n (values (nreverse fields) p))
+      (multiple-value-bind (field q) (%decode-field buf p)
+        (push field fields)
+        (setq p q)))))
+
+(defun %determine-record-attributes (rtype parsed-fields &optional alt-align)
+  (let* ((total-bits 0)
+         (overall-alignment 1)
+         (kind (foreign-record-type-kind rtype)))
+    (dolist (field parsed-fields)
+      (let* ((field-type (foreign-record-field-type field))
+             (bits (ensure-foreign-type-bits field-type))
+             (natural-alignment (foreign-type-alignment field-type))
+	     (alignment (if alt-align
+			  (min natural-alignment alt-align)
+			  natural-alignment)))
+        (unless bits
+          (error "Unknown size: ~S"
+                 (unparse-foreign-type field-type)))
+        (unless alignment
+          (error "Unknown alignment: ~S"
+                 (unparse-foreign-type field-type)))
+        (setq overall-alignment (max overall-alignment alignment))
+
+        (ecase kind
+          (:struct (let* ((offset (align-offset total-bits alignment)))
+                     (setf (foreign-record-field-offset field) offset)
+                     (setq total-bits (+ offset bits))))
+          (:union (setq total-bits (max total-bits bits))))))
+    (setf (foreign-record-type-fields rtype) parsed-fields
+          (foreign-record-type-alignment rtype) (or
+						 alt-align
+						 overall-alignment)
+          (foreign-record-type-bits rtype) (align-offset
+					    total-bits
+					    (or alt-align overall-alignment))
+	  (foreign-record-type-alt-align rtype) alt-align)
+    rtype))
+
+(defun %decode-record-type (buf p)
+  (declare (type macptr buf) (fixnum p))
+  (let* ((rbyte (%get-unsigned-byte buf p))
+	 (rcode (ldb encoded-type-type-byte rbyte))
+	 (ralign-in-bytes (ldb encoded-type-align-byte rbyte))
+	 (alt-align (unless (zerop ralign-in-bytes)
+		      (the fixnum (ash ralign-in-bytes 3)))))
+    (declare (fixnum rbyte rcode ralign-in-bytes))
+    (multiple-value-bind (name q)
+        (case rcode
+          ((#.encoded-type-anon-struct-ref #.encoded-type-anon-union-ref)
+           (values nil (1+ p)))
+          (t
+           (%decode-name buf (1+ p))))
+      (%determine-record-attributes
+       (if name
+         (if (eql rcode encoded-type-named-struct-ref)
+           (or (info-foreign-type-struct name)
+               (setf (info-foreign-type-struct name)
+                     (make-foreign-record-type :kind :struct :name name)))
+           (or (info-foreign-type-union name)
+               (setf (info-foreign-type-union name)
+                     (make-foreign-record-type :kind :union :name name))))
+         (make-foreign-record-type
+          :kind (if (eql rcode encoded-type-anon-struct-ref)
+                  :struct
+                  :union)
+          :name name))
+       (%decode-field-list buf q)
+       alt-align))))
+
+(defun extract-db-record (datum)
+  (let* ((data (pref datum :cdb-datum.data)))
+    (unless (%null-ptr-p data)
+      (prog1
+	  (%decode-record-type data 0)
+	(cdb-free data)))))
+
+(defun %load-foreign-record (cdb name)
+  (when cdb
+    (with-cstrs ((string (string name)))
+      (rlet ((contents :cdb-datum)
+             (key :cdb-datum))
+        (setf (pref key :cdb-datum.size) (length (string name))
+              (pref key :cdb-datum.data) string
+              (pref contents :cdb-datum.data) (%null-ptr)
+              (pref contents :cdb-datum.size) 0)
+        (cdb-get cdb key contents)
+        (extract-db-record contents)))))
+
+(defun load-record (name)
+  (let* ((name (unescape-foreign-name name)))
+    (do-interface-dirs (d)
+      (let* ((r (%load-foreign-record (db-records d) name)))
+	(when r (return r))))))

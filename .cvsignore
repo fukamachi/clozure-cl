@@ -1,0 +1,9 @@
+*CCL*
+*ccl*
+*boot
+*.pfsl
+*.sfsl
+*.dfsl
+.gdb*
+*.image
+README*
