@@ -88,6 +88,9 @@ ifdef([PPC64],[
         define([trllt],[
         tdllt $@
         ])
+	define([trlle],[
+	tdlle $@
+	])
         define([treqi],[
         tdeqi $@
         ])
@@ -204,13 +207,25 @@ define([extract_lowbyte],[
 define([extract_header],[
 	ldr($1,misc_header_offset($2))])
 
+
+ifdef([PPC64],[
+define([extract_typecode],[
+	new_macro_labels()
+	extract_fulltag($1,$2)
+	cmpdi cr0,$1,fulltag_misc
+	extract_lisptag($1,$1)
+	bne cr0,macro_label(not_misc)
+	extract_subtag($1,$2)
+macro_label(not_misc):
+])],[	
 define([extract_typecode],[
 	new_macro_labels()
 	extract_lisptag($1,$2)
 	cmpwi cr0,$1,tag_misc
 	bne cr0,macro_label(not_misc)
 	extract_subtag($1,$2)
-macro_label(not_misc):])
+macro_label(not_misc):
+])])
 
 define([box_fixnum],[
 	slwi $1,$2,fixnumshift])
@@ -402,6 +417,21 @@ define([trap_unless_lisptag_equal],[
 	trnei($3,$2)
 ])
 
+ifdef([PPC64],[
+define([trap_unless_list],[
+	new_macro_labels()
+	cmpdi ifelse($3,$3,cr0),$1,nil_value
+	extract_fulltag($2,$1)
+	beq ifelse($3,$3,cr0),macro_label(is_list)
+	twnei $2,fulltag_cons
+macro_label(is_list):	
+
+])],[	
+define([trap_unless_list],[
+	trap_unless_lisptag_equal($1,tag_list,$2)
+])
+])
+
 define([trap_unless_fulltag_equal],[
 	extract_fulltag($3,$1)
 	trnei($3,$2)
@@ -441,8 +471,8 @@ define([call_fname],[
 
 define([do_funcall],[
 	new_macro_labels()
-	extract_lisptag(imm0,temp0)
-	cmpri(imm0,tag_misc)
+	extract_fulltag(imm0,temp0)
+	cmpri(imm0,fulltag_misc)
 	mr nfn,temp0
 	bne- macro_label(bad)
 	extract_subtag(imm0,temp0)
