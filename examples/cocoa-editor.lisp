@@ -10,15 +10,15 @@
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir :cocoa))
 
-(def-cocoa-default *editor-rows* :int 24)
-(def-cocoa-default *editor-columns* :int 80)
+(def-cocoa-default *editor-rows* :int 24 "Initial height of editor windows, in characters")
+(def-cocoa-default *editor-columns* :int 80 "Initial width of editor windows, in characters")
 
 ;;; Background color components: red, blue, green, alpha.
 ;;; All should be single-floats between 0.0f0 and 1.0f0, inclusive.
-(def-cocoa-default *editor-background-red-component* :float 1.0f0)
-(def-cocoa-default *editor-background-blue-component* :float 1.0f0)
-(def-cocoa-default *editor-background-green-component* :float 1.0f0)
-(def-cocoa-default *editor-background-alpha-component* :float 1.0f0)
+(def-cocoa-default *editor-background-red-component* :float 1.0f0 "Red component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
+(def-cocoa-default *editor-background-green-component* :float 1.0f0 "Green component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
+(def-cocoa-default *editor-background-blue-component* :float 1.0f0 "Blue component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
+(def-cocoa-default *editor-background-alpha-component* :float 1.0f0 "Alpha component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
 
 ;;; At runtime, this'll be a vector of character attribute dictionaries.
 (defloadvar *styles* ())
@@ -606,8 +606,9 @@
 
 (defloadvar *modeline-text-attributes* nil)
 
-(def-cocoa-default *modeline-font-name* :string "Courier New Bold Italic")
-(def-cocoa-default  *modeline-font-size* :float 10.0)
+(def-cocoa-default *modeline-font-name* :string "Courier New Bold Italic"
+                   "Name of font to use in modelines")
+(def-cocoa-default  *modeline-font-size* :float 10.0 "Size of font to use in modelines" (single-float 4.0 14.0))
 
 
 ;;; Find the underlying buffer.
@@ -830,6 +831,8 @@
 
 (defmethod hi::activate-hemlock-view ((view echo-area-view))
   (let* ((hemlock-frame (send view 'window)))
+    #+debug 0
+    (#_NSLog #@"Activating echo area")
     (send hemlock-frame :make-first-responder view)))
 
 (defmethod text-view-buffer ((self echo-area-view))
@@ -851,49 +854,70 @@
 (defloadvar *hemlock-frame-count* 0)
 
 (defun make-echo-area (hemlock-frame x y width height gap-context color)
-  (slet ((frame (ns-make-rect x y width height))
-	 (containersize (ns-make-size 1.0f7 height)))
-    (let* ((buffer (hi:make-buffer (format nil "Echo Area ~d"
-					   (prog1
-					       *hemlock-frame-count*
-					     (incf *hemlock-frame-count*)))
-				   :modes '("Echo Area")))
-	   (textstorage
-	    (progn
-	      (setf (hi::buffer-gap-context buffer) gap-context)
-	      (make-textstorage-for-hemlock-buffer buffer)))
-	   (doc (make-objc-instance 'echo-area-document))
-	   (layout (make-objc-instance 'ns-layout-manager))
-	   (container (send (make-objc-instance 'ns-text-container
-						:with-container-size
-						containersize)
-			    'autorelease)))
-      (send textstorage :add-layout-manager layout)
-      (send layout :add-text-container container)
-      (send layout 'release)
-      (let* ((echo (make-objc-instance 'echo-area-view
-				       :with-frame frame
-				       :text-container container)))
-	(send echo :set-min-size (ns-make-size 0.0f0 height))
-	(send echo :set-max-size (ns-make-size 1.0f7 1.0f7))
-	(send echo :set-rich-text nil)
-	(send echo :set-horizontally-resizable nil)
-	(send echo :set-vertically-resizable nil)
-	(send echo :set-autoresizing-mask #$NSViewWidthSizable)
-        (send echo :set-background-color color)
-	(send container :set-width-tracks-text-view nil)
-	(send container :set-height-tracks-text-view nil)
-	(setf (hemlock-frame-echo-area-buffer hemlock-frame) buffer
-	      (slot-value doc 'textstorage) textstorage
-	      (hi::buffer-document buffer) doc)
-	
-	echo))))
+  (slet ((frame (ns-make-rect x y width height)))
+    (let* ((box (make-objc-instance "NSView"
+                                    :with-frame frame)))
+      (send box :set-autoresizing-mask #$NSViewWidthSizable)
+      (slet* ((box-frame (send box 'bounds))
+              (containersize (ns-make-size 1.0f7 (pref box-frame :<NSR>ect.size.height))))
+        (let* ((clipview (make-objc-instance "NSClipView"
+                                             :with-frame box-frame)))
+          (send clipview :set-autoresizing-mask (logior #$NSViewWidthSizable
+                                                        #$NSViewHeightSizable))
+          (send clipview :set-background-color color)
+          (send box :add-subview clipview)
+          (send box :set-autoresizes-subviews t)
+          (send clipview 'release)
+          (let* ((buffer (hi:make-buffer (format nil "Echo Area ~d"
+                                                 (prog1
+                                                     *hemlock-frame-count*
+                                                   (incf *hemlock-frame-count*)))
+                                         :modes '("Echo Area")))
+                 (textstorage
+                  (progn
+                    (setf (hi::buffer-gap-context buffer) gap-context)
+                    (make-textstorage-for-hemlock-buffer buffer)))
+                 (doc (make-objc-instance 'echo-area-document))
+                 (layout (make-objc-instance 'ns-layout-manager))
+                 (container (send (make-objc-instance 'ns-text-container
+                                                      :with-container-size
+                                                      containersize)
+                                  'autorelease)))
+            (send textstorage :add-layout-manager layout)
+            (send layout :add-text-container container)
+            (send layout 'release)
+            (let* ((echo (make-objc-instance 'echo-area-view
+                                             :with-frame box-frame
+                                             :text-container container)))
+              (send echo :set-min-size (pref box-frame :<NSR>ect.size))
+              (send echo :set-max-size (ns-make-size 1.0f7 (pref box-frame :<NSR>ect.size)))
+              (send echo :set-rich-text nil)
+              (send echo :set-horizontally-resizable t)
+              (send echo :set-vertically-resizable nil)
+              (send echo :set-autoresizing-mask #$NSViewNotSizable)
+              (send echo :set-background-color color)
+              (send container :set-width-tracks-text-view nil)
+              (send container :set-height-tracks-text-view nil)
+              (setf (hemlock-frame-echo-area-buffer hemlock-frame) buffer
+                    (slot-value doc 'textstorage) textstorage
+                    (hi::buffer-document buffer) doc)
+              (send clipview :set-document-view echo)
+              (send clipview :set-autoresizes-subviews nil)
+              (send echo 'size-to-fit)
+              (values echo box))))))))
 		    
 (defun make-echo-area-for-window (w gap-context-for-echo-area-buffer color)
   (let* ((content-view (send w 'content-view)))
     (slet ((bounds (send content-view 'bounds)))
-      (let* ((echo-area (make-echo-area w 7.0f0 5.0f0 (- (pref bounds :<NSR>ect.size.width) 29.0f0) 15.0f0 gap-context-for-echo-area-buffer color)))
-	(send content-view :add-subview echo-area)
+      (multiple-value-bind (echo-area box)
+          (make-echo-area w
+                          0.0f0
+                          0.0f0
+                          (- (pref bounds :<NSR>ect.size.width) 24.0f0)
+                          20.0f0
+                          gap-context-for-echo-area-buffer
+                          color)
+	(send content-view :add-subview box)
 	echo-area))))
                
 (defclass hemlock-frame (ns:ns-window)
@@ -1460,6 +1484,7 @@
 
 
 (defun initialize-user-interface ()
+  (send (find-class 'preferences-panel) 'shared-panel)
   (update-cocoa-defaults)
   (make-editor-style-map))
 
