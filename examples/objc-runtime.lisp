@@ -65,6 +65,8 @@
   (unless (logtest #$_CLS_RESOLV (pref classptr :objc_class.info))
     (external-call "__objc_resolve_class_links" :void)))
 
+
+
 (let* ((objc-class-map (make-splay-tree #'%ptr-eql
 					#'(lambda (x y)
 					    (< (the (unsigned-byte 32)
@@ -232,6 +234,7 @@
        ;; We need to load and "initialize" the CoreFoundation library
        ;; in the thread that's going to process events.  Looking up a
        ;; symbol in the library should cause it to be initialized
+       (open-shared-library "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
        (open-shared-library "/System/Library/Frameworks/Cocoa.framework/Cocoa")
        (let* ((current (#_CFRunLoopGetCurrent))
               (main (external-call "_CFRunLoopGetMain" :address)))
@@ -1134,6 +1137,35 @@ client methods" classname))
 				    #+gnu-objc :objc_object.class_pointer)))
 	 (or (objc-class-p parent)
 	     (values (objc-instance-p parent))))))
+
+
+#+apple-objc
+(defun zone-pointer-size (p)
+  (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
+    (unless (%null-ptr-p zone)
+      (let* ((size (ff-call (pref zone :malloc_zone_t.size)
+			    :address zone
+			    :address p
+			    :int)))
+	(declare (fixnum size))
+	(unless (zerop size)
+	  size)))))
+  
+(defun %objc-instance-class-index (p)
+  #+apple-objc
+  (let* ((instance-apparent-size (zone-pointer-size p)))
+    (when (and instance-apparent-size (not (eql instance-apparent-size 0)))
+      (locally (declare (fixnum instance-apparent-size))
+	  (with-macptrs ((parent (pref p :objc_object.isa)))
+	    (let* ((idx (objc-class-id parent)))
+	      (when idx
+		(let* ((parent-size (if idx (pref parent :objc_class.instance_size))))
+		  (if (eql (- (ash (ash (the fixnum (+ parent-size 17)) -4) 4) 2)
+			   instance-apparent-size)
+		    idx)))))))))
+  #+gnu-objc
+  (with-macptrs ((parent (pref p objc_object.class_pointer)))
+    (objc-class-id-parent)))
 
 ;;; If an instance, return (values :INSTANCE <class>).
 ;;; If a class, return (values :CLASS <metaclass>).
