@@ -79,8 +79,8 @@
   (bge @sym)
   (lwzx temp0 imm4 imm3)
   (cmpwi temp0 ppc32::subtag-no-thread-local-binding)
-  (beq @sym)
   (slwi imm3 imm3 ppc32::fixnumshift)
+  (beq @sym)
   (vpush imm4)
   (vpush imm3)
   (set-nargs 2)
@@ -88,7 +88,7 @@
   (ba .SPvalues)
   @sym
   (lwz arg_z ppc32::svar.symbol svar)
-  (li arg_y 'ppc32::symbol.vcell)
+  (li arg_y '#.ppc32::symbol.vcell)
   (vpush arg_z)
   (vpush arg_y)
   (set-nargs 2)
