@@ -713,7 +713,8 @@
                                     (cons-pathname  '(:absolute "openmcl" "modules") nil nil "home")
                                     (cons-pathname '(:absolute "lib") nil nil "ccl")
 				    (cons-pathname '(:absolute "library") nil nil "ccl")
-				    (cons-pathname '(:absolute "examples") nil nil "ccl"))
+				    (cons-pathname '(:absolute "examples") nil nil "ccl")
+				    (cons-pathname '(:absolute "tools") nil nil "ccl"))
   "Holds a list of pathnames to search for the file that has same name
    as a module somebody is looking for.")
 
