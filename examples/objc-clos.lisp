@@ -15,12 +15,15 @@
 ;;;   http://opensource.franz.com/preamble.html
 ;;;
 ;;; TO DO
-;;;  - Write SHARED-INITIALIZE and FINALIZE-INHERITANCE for ObjC classes
+;;;  - Issues with OFFSET/LOCATION in foreign direct and effective slot definitions
+;;;  - MAP-OBJC-CLASS needs to INITIALIZE-INSTANCE and FINALIZE-INHERITANCE
+;;;    for predefined classes
 ;;;  - OBJC-FOREIGN-ARG-TYPE in BRIDGE.LISP needs to handle BITFIELDs, 
 ;;;    ARRAYs and UNIONs
 ;;;  - Need to fully handle init keywords and ObjC init messages
 ;;;  - Need to add getter and setter functions for more foriegn slot types
 ;;;  - Canonicalization and retention for ObjC objects
+;;;  - Support redef of CLOS parts, but not changes in ObjC parts
 ;;;  - Provide Lisp structs for NS-POINT, NS-RECT, etc.?
 
 ;;; Package and module stuff
@@ -58,7 +61,7 @@
   (unless (eql c (%null-ptr))
     (init-objc-class-slot-definitions (pref c :objc_class.super_class))
     (setf (slot-value c 'direct-slots) (%compute-foreign-direct-slots c))
-    (setf (slot-value c 'slots) (compute-slots c))
+    (update-slots c (compute-slots c))
     (values)))
 
 
@@ -83,13 +86,8 @@
       (%set-macptr-type p (dpb objc-flag-class objc-type-flags idx))
       (if (setq idx (objc-metaclass-id p))
 	(%set-macptr-type p (dpb objc-flag-metaclass objc-type-flags idx))
-	(when #+apple-objc (not (%null-ptr-p (#_malloc_zone_from_ptr p)))
-	      #+gnu-objc t
-	      (with-macptrs ((parent (pref p
-					   #+apple-objc :objc_object.isa
-					   #+gnu-objc :objc_object.class_pointer)))
-		(if (setq idx (objc-class-id parent))
-		  (%set-macptr-type p idx))))))))
+	(if (setq idx (%objc-instance-class-index p))
+	  (%set-macptr-type p idx))))))
 
 (defun %objc-domain-class-of (p)
   (let* ((type (%macptr-type p))
@@ -291,24 +289,26 @@
 ;;; Metaclasses for foreign slots
 
 (defclass foreign-direct-slot-definition (direct-slot-definition)
-  ((offset :initarg :offset :reader foreign-slot-definition-offset)))
+  ((foreign :initarg :foreign))
+  (:default-initargs :type :id))
 
 (defclass foreign-effective-slot-definition (effective-slot-definition)
   ((getter :type function :accessor foreign-slot-definition-getter)
    (setter :type function :accessor foreign-slot-definition-setter)))
 
 
-;;; Use the foreign slot metaclasses if the slot :ALLOCATION is :FOREIGN
+;;; Use the foreign slot metaclasses if the slot has a :FOREIGN attribute
+;;  of T
 
 (defmethod direct-slot-definition-class ((class objc:objc-class-object)
 					 &rest initargs)
-  (if (eq  (getf initargs :allocation) :foreign)
+  (if (getf initargs :foreign)
       (find-class 'foreign-direct-slot-definition)
     (find-class 'standard-direct-slot-definition)))
 
 (defmethod effective-slot-definition-class ((class objc:objc-class-object)
 					    &rest initargs)
-  (if (eq (getf initargs :allocation) :foreign)
+  (if (getf initargs :foreign)
       (find-class 'foreign-effective-slot-definition)
     (find-class 'standard-effective-slot-definition)))
 
@@ -329,25 +329,62 @@
 	      for sym = (compute-lisp-name name ns-package)
 	      when (eql (schar name 0) #\_)
 	        do (unexport sym ns-package)
+	      do (format t "~S: ~S~%" name (pref ivar :objc_ivar.ivar_offset))
 	      collect 
 	      (make-direct-slot-definition
 	       c
 	       (list
 		:name sym
-		:allocation :foreign
+		:allocation :instance
+		:foreign t
 		:class (find-class 'foreign-effective-slot-definition)
 		:type (objc-foreign-arg-type 
 		       (%get-cstring (pref ivar :objc_ivar.ivar_type)))
-		:offset (pref ivar :objc_ivar.ivar_offset))))))))
-	  
+;		:offset (pref ivar :objc_ivar.ivar_offset)
+)))))))
+	
+
+(defun %objc-ivar-offset-in-class (name c)
+  ;; If C is a non-null ObjC class that contains an instance variable
+  ;; named NAME, return that instance variable's offset,  else return
+  ;; NIL.
+  (when (objc-class-p c)
+    (with-macptrs ((ivars (pref c :objc_class.ivars)))
+      (unless (%null-ptr-p ivars)
+	(loop with n = (pref ivars :objc_ivar_list.ivar_count)
+	      for i from 1 to n
+	      for ivar = (pref ivars :objc_ivar_list.ivar_list) 
+	          then (%inc-ptr ivar (record-length :objc_ivar))
+	      when (string= name (%get-cstring (pref ivar :objc_ivar.ivar_name)))
+	        do (return-from %objc-ivar-offset-in-class (pref ivar :objc_ivar.ivar_offset)))))))
+
+(defun %objc-ivar-offset (name c)
+  (labels ((locate-objc-slot (name class)
+	     (unless (%null-ptr-p class)
+		 (or (%objc-ivar-offset-in-class name class)
+		     (with-macptrs ((super (pref class :objc_class.super_class)))
+		       (unless (or (%null-ptr-p super) (eql super class))
+			 (locate-objc-slot name super)))))))
+    (when (objc-class-p c)
+      (or (locate-objc-slot name c)
+	  (error "No ObjC instance variable named ~S in ~S" name c)))))
+  
 
 ;;; Return the getter and setter functions for a foreign slot
+;;; NOTE: Should be changed to use FOREIGN-TYPE-TO-REPRESENTATION-TYPE
+
+(defclass unhandled-foreign-slot ()
+    ((ftype :initarg :ftype :accessor unhandled-foreign-slot-ftype)))
+
+(defmethod print-object ((ufs unhandled-foreign-slot) stream)
+  (print-unreadable-object (ufs stream :type t :identity t)
+    (format stream "for foreign type ~s" (unhandled-foreign-slot-ftype ufs))))
 
 (defun compute-foreign-slot-accessors (eslotd)
   (let ((ftype (%slot-definition-type eslotd)))
     (flet ((unhandled-foreign-slot-type (ptr &optional offset)
 	     (declare (ignore ptr offset))
-             (error "Unhandled foreign slot type: ~S" ftype)))
+             (make-instance 'unhandled-foreign-slot :ftype ftype)))
       (case ftype
 	(:unsigned-byte (values #'%get-unsigned-byte #'%set-byte))
 	(:signed-byte (values #'%get-signed-byte #'%set-byte))
@@ -355,8 +392,10 @@
 	(:signed-word (values #'%get-signed-word #'%set-word))
 	(:unsigned-fullword (values #'%get-unsigned-long #'%set-long))
 	(:signed-fullword (values #'%get-signed-long #'%set-long))
-	(:unsigned-longlong (values #'%%get-unsigned-longlong #'%%set-unsigned-longlong))
-	(:signed-longlong (values #'%%get-signed-longlong #'%%set-signed-longlong))
+	(:unsigned-longlong 
+	 (values #'%%get-unsigned-longlong #'%%set-unsigned-longlong))
+	(:signed-longlong 
+	 (values #'%%get-signed-longlong #'%%set-signed-longlong))
 	(:single-float (values #'%get-single-float #'%set-single-float))
 	(:double-float (values #'%get-double-float #'%set-double-float))
 	((:id :address) (values #'%get-ptr #'%set-ptr))
@@ -364,7 +403,8 @@
 	 (cond 
 	  ((and (consp ftype) (eq (first ftype) :*))
 	   (values #'%get-ptr #'%set-ptr))
-	  (t (values #'unhandled-foreign-slot-type #'unhandled-foreign-slot-type)))))))) 
+	  (t (values #'unhandled-foreign-slot-type 
+		     #'unhandled-foreign-slot-type))))))))
 
 
 ;;; Augment SLOT-CLASS's COMPUTE-EFFECTIVE-SLOT-DEFINITION with an :AROUND
@@ -373,12 +413,21 @@
 (defmethod compute-effective-slot-definition :around ((class objc:objc-class-object)
 						      name
 						      direct-slots)
-  (declare (ignore name))
-  (let ((first (first direct-slots))
-	(eslotd (call-next-method)))
-    (when (typep eslotd 'foreign-effective-slot-definition)
-      (setf (slot-value eslotd 'location)
-	    (foreign-slot-definition-offset first))
+  (let* ((first (first direct-slots))
+	 (eslotd (call-next-method)))
+    (when (typep first 'foreign-direct-slot-definition)
+      (setq eslotd
+	    (make-effective-slot-definition
+	     class
+	     :name name
+	     :allocation (%slot-definition-allocation eslotd)
+	     :foreign t
+	     :documentation (%slot-definition-documentation eslotd)
+	     :class (%slot-definition-class first)
+	     :initargs (%slot-definition-initargs eslotd)
+	     :initfunction (%slot-definition-initfunction eslotd)
+	     :initform (%slot-definition-initform eslotd)
+	     :type (%slot-definition-type eslotd)))
       (multiple-value-bind (getter setter) (compute-foreign-slot-accessors eslotd)
 	(setf (foreign-slot-definition-getter eslotd) getter)
 	(setf (foreign-slot-definition-setter eslotd) setter)))
@@ -387,28 +436,32 @@
 
 ;;; Determine the location of each slot
 
-(defun collect-slots-with-alloc (alloc slotds)
-  (loop for slotd in slotds
-	when (eq (%slot-definition-allocation slotd) alloc)
-	 collect slotd))
-
 (defmethod compute-slots :around ((class objc:objc-class-object))
-  (let* ((cpl (%class-precedence-list class))
-	 (slots (call-next-method))
-	 (instance-slots (collect-slots-with-alloc :instance slots))
-	 (class-slots (collect-slots-with-alloc :class slots))
-	 (foreign-slots (collect-slots-with-alloc :foreign slots)))
-    (setq instance-slots
-	  (sort-effective-instance-slotds instance-slots class cpl))
-    (loop for islot in instance-slots
-	  for loc = 1 then (1+ loc)
-	  do (setf (%slot-definition-location islot) loc))
-    (dolist (cslot class-slots)
-      (setf (%slot-definition-location cslot)
-	    (assoc (%slot-definition-name cslot)
-		   (%class-get (%slot-definition-class cslot) :class-slots)
-		   :test #'eq)))
-     (append instance-slots class-slots foreign-slots)))
+  (flet ((foreign-slot-p (s) (typep s 'foreign-effective-slot-definition)))
+    (let* ((cpl (%class-precedence-list class))
+	   (slots (call-next-method))
+	   (instance-slots 
+	    (remove-if #'foreign-slot-p 
+		       (remove :class slots :key #'%slot-definition-allocation)))
+	   (class-slots (remove :instance slots :key #'%slot-definition-allocation))
+	   (foreign-slots (remove-if-not #'foreign-slot-p slots)))
+      (setq instance-slots
+	    (sort-effective-instance-slotds instance-slots class cpl))
+      (format t "Instance slots: ~S~%Class Slots: ~S~%Foreign Slots: ~S~%"
+	      instance-slots class-slots foreign-slots)
+      (loop for islot in instance-slots
+	    for loc = 1 then (1+ loc)
+	    do (setf (%slot-definition-location islot) loc))
+      (dolist (cslot class-slots)
+	(setf (%slot-definition-location cslot)
+	      (assoc (%slot-definition-name cslot)
+		     (%class-get (%slot-definition-class cslot) :class-slots)
+		     :test #'eq)))
+      (dolist (fslot foreign-slots)
+	(setf (%slot-definition-location fslot)
+	      (%objc-ivar-offset 
+	       (compute-objc-variable-name (%slot-definition-name fslot)) class)))
+      (append instance-slots class-slots foreign-slots))))
 
 
 ;;; Accessing foreign slots
@@ -447,8 +500,8 @@
 ;;;;            Instance Allocation and Initialization Protocols            ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmethod make-instance ((class objc:objc-class) &rest initargs)
-  (let ((instance (allocate-instance class)))
+(defmethod make-instance ((class objc:objc-class-object) &rest initargs)
+  (let ((instance (apply #'allocate-instance class initargs)))
     (apply #'initialize-instance instance initargs)
     instance))
 
@@ -457,7 +510,8 @@
     (finalize-inheritance class))
   (let* ((instance (%send class 'alloc)) ; For now; Use SEND macro eventually
 	 (len (length (%wrapper-instance-slots (class-own-wrapper class))))
-	 (slot-vector (allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker))))
+	 (slot-vector 
+	  (allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker))))
     (setf (slot-vector.instance slot-vector) instance)
     (setf (gethash instance *objc-object-slot-vectors*) slot-vector) 
     instance))
@@ -468,27 +522,30 @@
 (defmethod reinitialize-instance ((instance objc:objc-object) &rest initargs)
   (apply #'shared-initialize instance nil initargs))
 
-(defmethod shared-initialize ((instance objc:objc-object) slot-names &rest initargs)
+(defmethod shared-initialize ((instance objc:objc-object) slot-names 
+			      &rest initargs)
   (let ((class (class-of instance)))
     ;; Call appropriate ObjC init method
     (multiple-value-bind (ks vs) (keys-and-vals initargs)
       (apply #'%send instance (lisp-to-objc-init ks) vs))
     ;; Initialize CLOS slots
     (dolist (slotd (class-slots class))
-      (when (neq (slot-definition-allocation slotd) :foreign)  ; For now
+      (when (not (typep slotd 'foreign-direct-slot-definition)) ; For now
 	(let ((sname (slot-definition-name slotd))
 	      (slot-type (slot-definition-type slotd))
 	      (typepred (slot-value slotd 'type-predicate))
 	      (initfunction (slot-definition-initfunction slotd)))
 	  (multiple-value-bind (ignore newval foundp)
-			       (get-properties initargs (slot-definition-initargs slotd))
+			       (get-properties initargs
+					       (slot-definition-initargs slotd))
 	    (declare (ignore ignore))
 	    (if foundp
 		(if (funcall typepred newval)
 		    (setf (slot-value instance sname) newval)
 		  (report-bad-arg newval slot-type))
 	      (let ((curval (slot-value instance sname)))
-		(when (and (or (eq slot-names t) (member sname slot-names :test #'eq))
+		(when (and (or (eq slot-names t) 
+			       (member sname slot-names :test #'eq))
 			   (eq curval (%slot-unbound-marker))
 			   initfunction)
 		  (let ((newval (funcall initfunction)))
@@ -500,3 +557,63 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;              Class Definition and Finalization Protocols               ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#|
+(defclass demo-view (ns:ns-view) 
+  ((x :foreign t)
+   y
+   (r :foreign t :type :<NSR>ect))
+  (:metaclass ns:+ns-object))
+|#
+
+;;; Create the ObjC class/metaclass pair and dress it up in its minimal CLOS garb
+;;; This currently requires that exactly one of DIRECT-SUPERCLASSES be a
+;;; already existing subclass of OBJC:OBJC-CLASS
+
+(defun compute-objc-variable-name (sym)
+  (let* ((pname (string sym))
+	 (first-alpha (position-if #'alpha-char-p pname)))
+    (string-downcase
+     (apply #'string-cat 
+	    (mapcar #'string-capitalize (split-if-char #\- pname :elide)))
+     :end (if first-alpha (1+ first-alpha) 1))))
+
+(defmethod allocate-instance ((metaclass objc:objc-metaclass) 
+			      &key name direct-superclasses direct-slots
+			      &allow-other-keys)
+  (let ((class-name (compute-objc-classname name))
+	(superclass-name 
+	 (loop for s in direct-superclasses
+	       when (typep s 'objc:objc-class)
+	         collect s into objc-supers
+	       finally 
+	       (if (= (length objc-supers) 1)
+		   (return (compute-objc-classname (class-name (first objc-supers))))
+		 (error "Exactly one OBJC:OBJC-CLASS must appear in ~S, found ~S" 
+			direct-superclasses
+			(length objc-supers)))))
+	(ivars 
+	 (loop for splist in direct-slots
+	       when (getf splist :foreign)
+	         collect (list (compute-objc-variable-name (getf splist :name)) 
+			       (or (getf splist :type) :id)))))
+    (%define-objc-class (note-objc-class class-name superclass-name ivars))))
+
+(defmethod shared-initialize ((class objc:objc-class) slot-names &rest initargs)
+  ;; *** validate superclasses
+  ;; *** create direct slot definition objects
+  ;; *** dependency maintenance
+  ;; *** maybe finalize inheritance
+  class)
+
+(defmethod validate-superclass ((c1 objc:objc-class) (c2 objc:objc-class))
+  t)
+
+(defmethod finalize-inheritance ((class objc:objc-class))
+  ;; *** compute class precedence list
+  ;; *** create effective slot definition objects
+  )
+
+(defmethod make-instances-obsolete ((class objc:objc-class))
+  ;; What should we do here?
+  class)
+
