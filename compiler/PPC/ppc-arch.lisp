@@ -33,15 +33,15 @@
 (eval-when (:compile-toplevel :execute)
   (defmacro defregs (&body regs)
     `(progn
-       (ppc32::defenum () ,@regs)
+       (ccl::defenum () ,@regs)
        (defparameter *gpr-register-names* ,(coerce (mapcar #'string regs) 'vector))))
   (defmacro deffpregs (&body regs)
     `(progn
-       (ppc32::defenum () ,@regs)
+       (ccl::defenum () ,@regs)
        (defparameter *fpr-register-names* ,(coerce (mapcar #'string regs) 'vector))))
   (defmacro defvregs (&body regs)
     `(progn
-      (ppc32::defenum () ,@regs)
+      (ccl::defenum () ,@regs)
       (defparameter *vector-register-names* ,(coerce (mapcar #'string regs) 'vector))
       )))
 
@@ -235,7 +235,7 @@
 
 
 
-(ppc32::defenum (:prefix "PPC-" :suffix "-BIT")
+(ccl::defenum (:prefix "PPC-" :suffix "-BIT")
   lt
   gt
   eq
@@ -243,7 +243,7 @@
 )
 
 
-(ppc32::defenum (:prefix "FPSCR-" :suffix "-BIT")
+(ccl::defenum (:prefix "FPSCR-" :suffix "-BIT")
   fx
   fex
   vx

@@ -22,15 +22,15 @@
 
 (defmacro define-storage-layout (name origin &rest cells)
   `(progn
-     (defenum (:start ,origin :step 4)
-       ,@(mapcar #'(lambda (cell) (form-symbol name "." cell)) cells))
-     (defconstant ,(form-symbol name ".SIZE") ,(* (length cells) 4))))
+     (ccl::defenum (:start ,origin :step 4)
+       ,@(mapcar #'(lambda (cell) (ccl::form-symbol name "." cell)) cells))
+     (defconstant ,(ccl::form-symbol name ".SIZE") ,(* (length cells) 4))))
  
 (defmacro define-lisp-object (name tagname &rest cells)
   `(define-storage-layout ,name ,(- (symbol-value tagname)) ,@cells))
 
 (defmacro define-subtag (name tag subtag)
-  `(defconstant ,(form-symbol "SUBTAG-" name) (logior ,tag (ash ,subtag ntagbits))))
+  `(defconstant ,(ccl::form-symbol "SUBTAG-" name) (logior ,tag (ash ,subtag ntagbits))))
 
 
 (defmacro define-imm-subtag (name subtag)
@@ -42,9 +42,9 @@
 (defmacro define-fixedsized-object (name  &rest non-header-cells)
   `(progn
      (define-lisp-object ,name fulltag-misc header ,@non-header-cells)
-     (defenum ()
-       ,@(mapcar #'(lambda (cell) (form-symbol name "." cell "-CELL")) non-header-cells))
-     (defconstant ,(form-symbol name ".ELEMENT-COUNT") ,(length non-header-cells))))
+     (ccl::defenum ()
+       ,@(mapcar #'(lambda (cell) (ccl::form-symbol name "." cell "-CELL")) non-header-cells))
+     (defconstant ,(ccl::form-symbol name ".ELEMENT-COUNT") ,(length non-header-cells))))
 
 
 
@@ -80,7 +80,7 @@
 ;; There are 4 primary TAG values.  Any object which lisp can "see" can be classified 
 ;; by its TAG.  (Some headers have FULLTAGS that are congruent modulo 4 with the
 ;; TAGS of other objects, but lisp can't "see" headers.)
-(defenum ()
+(ccl::defenum ()
   tag-fixnum                            ; All fixnums, whether odd or even
   tag-list                              ; Conses and NIL
   tag-misc                              ; Heap-consed objects other than lists: vectors, symbols, functions, floats ...
@@ -93,7 +93,7 @@
 ;; that share the same TAG.
 ;; Things that walk memory (and the stack) have to be careful to look at the FULLTAG of each
 ;; object that they see.
-(defenum ()
+(ccl::defenum ()
   fulltag-even-fixnum                   ; I suppose EVENP/ODDP might care; nothing else does.
   fulltag-cons                          ; a real (non-null) cons.  Shares TAG with fulltag-nil.
   fulltag-nodeheader                    ; Header of heap-allocated object that contains lisp-object pointers
@@ -433,7 +433,7 @@
 
 
 
-(defenum (:prefix "AREA-")
+(ccl::defenum (:prefix "AREA-")
   void                                  ; list header
   cstack                                ; a control stack
   vstack                                ; a value stack
@@ -555,7 +555,7 @@
 ; The kernel imports things that are defined in various other libraries for us.
 ; The objects in question are generally fixnum-tagged; the entries in the
 ; "kernel-imports" vector are 4 bytes apart.
-(defenum (:prefix "KERNEL-IMPORT-" :start 0 :step 4)
+(ccl::defenum (:prefix "KERNEL-IMPORT-" :start 0 :step 4)
   fd-setsize-bytes
   do-fd-set
   do-fd-clr
@@ -643,7 +643,7 @@
 
 ;; These are now supposed to match (mod 64) the %type-error-typespecs%
 ;; array that %err-disp looks at.
-(defenum (:start  error-type-error :prefix "ERROR-OBJECT-NOT-")
+(ccl::defenum (:start  error-type-error :prefix "ERROR-OBJECT-NOT-")
   array
   bignum
   fixnum
@@ -726,7 +726,7 @@
 (defun builtin-function-name-offset (name)
   (and name (position name ccl::%builtin-functions% :test #'eq)))
 
-(defenum ()
+(ccl::defenum ()
   storage-class-lisp                    ; General lisp objects
   storage-class-imm                     ; Fixnums, chars, NIL: not relocatable
   storage-class-wordptr                 ; "Raw" (fixnum-tagged) pointers to stack,etc

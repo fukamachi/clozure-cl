@@ -22,7 +22,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
-(ppc32::defenum ()
+(ccl::defenum ()
   $ppc-operand-signed                    ; This operand takes signed values.
   $ppc-operand-signopt                   ; This operand takes signed or positive values.
   $ppc-operand-cr                        ; This operand uses symbolic names for CR fields
@@ -40,7 +40,7 @@
   $ppc-operand-vr			; Operand is an Altivec vector register
   )
 
-(ppc32::defenum ()
+(ccl::defenum ()
   $ppc                                  ; Opcode is defined for the PowerPC architecture.
   $b32                                  ; Opcode is only defined on 32 bit architectures.
   $b64                                  ; Opcode is only defined on 64 bit architectures.
@@ -50,7 +50,7 @@
 (defmacro major-opcode (i) `(ldb (byte 6 26) ,i))
 
 ;; Operand class indices.
-(ppc32::defenum ()
+(ccl::defenum ()
   $unused
   $ba                                   ; the BA field in an XL form instruction.
   $bat                                  ; The BA field in an XL form instruction when it 
