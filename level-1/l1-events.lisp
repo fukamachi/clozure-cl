@@ -111,12 +111,21 @@
 (defun cmain ()
   (thread-handle-interrupts))
 
+(defun select-interactive-abort-process ()
+  (or *interactive-abort-process*
+      (let* ((sr (input-stream-shared-resource *terminal-input*)))
+	(if sr
+	  (or (shared-resource-current-owner sr)
+	      (shared-resource-primary-owner sr))))))
+	     
 (defun housekeeping ()
   (progn
     (handle-gc-hooks)
     (unless *inhibit-abort*
-      (when (and (break-event-pending-p) *interactive-abort-process*)
-        (force-break-in-listener *interactive-abort-process*)))
+      (when (break-event-pending-p)
+	(let* ((proc (select-interactive-abort-process)))
+	  (if proc
+	    (force-break-in-listener proc)))))
     (flet ((maybe-run-periodic-task (task)
              (let ((now (get-tick-count))
                    (state (ptask.state task)))
