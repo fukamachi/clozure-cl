@@ -109,7 +109,7 @@
     (let* ((data (send (send notification 'user-info)
 		       :object-for-key #?NSFileHandleNotificationDataItem))
 	   (document (send self 'document))
-	   (data-length (send data 'length))
+	   (data-length (send (the ns:ns-data data) 'length))
 	   (buffer (hemlock-document-buffer document))
 	   (string (make-string data-length))
 	   (fh filehandle))

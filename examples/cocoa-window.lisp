@@ -130,8 +130,8 @@
 ;;; type is #$NSApplicationDefined.
 (define-objc-method ((:void :send-event e)
 		     lisp-application)
-  (if (and (eql (send e 'type) #$NSApplicationDefined)
-	   (eql (send e 'subtype) process-interrupt-event-subtype))
+  (if (and (eql (send (the ns:ns-event e) 'type) #$NSApplicationDefined)
+	   (eql (send (the ns:ns-event e) 'subtype) process-interrupt-event-subtype))
     ;;; The thunk to funcall is identified by the value
     ;;; of the event's data1 attribute.
     (funcall (appkit-interrupt-function (send e 'data1)))
