@@ -857,6 +857,7 @@ c)" t)
              (if (or (= attr $CHT_ILL)
                      (logbitp $cht_macbit attr)
                      (multiple-value-bind (escapes explicit-package nondots) (%collect-xtoken tb stream firstch)
+                       (declare (ignore nondots))
                        (%casify-token tb (unless (atom escapes) escapes))
                        (or explicit-package
                            (not nondots)
