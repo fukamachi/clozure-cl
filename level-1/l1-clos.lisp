@@ -305,61 +305,62 @@
 
   
 (defun setup-slot-lookup (wrapper eslotds)
-  (let* ((nslots (length eslotds))
-         (total-slot-ids (current-slot-index))
-         (small (< nslots 255))
-         (map
-          (if small
-            (make-array total-slot-ids :element-type '(unsigned-byte 8))
-            (make-array total-slot-ids :element-type '(unsigned-byte 32))))
-         (table (make-array (the fixnum (1+ nslots))))
-         (i 0))
-    (declare (fixnum nslots total-slot-ids i) (simple-vector table))
-    (setf (svref table 0) nil)
-    (dolist (slotd eslotds)
-      (incf i)
-      (setf (svref table i) slotd)
-      (setf (aref map
-                  (slot-id.index
-                   (standard-effective-slot-definition.slot-id slotd)))
-            i))
-    (let* ((lookup-f (gvector :function
-                              (%svref (if small
-                                        #'%small-map-slot-id-lookup
-                                        #'%large-map-slot-id-lookup) 0)
-                              map
-                              table
-                              (dpb 1 $lfbits-numreq
-                                   (ash -1 $lfbits-noname-bit))))
-           (class (%wrapper-class wrapper))
-           (get-f (gvector :function
-                           (%svref (if small
-                                     #'%small-slot-id-value
-                                     #'%large-slot-id-value) 0)
-                           map
-                           table
-                           class
-                           #'%maybe-std-slot-value-using-class
-                           #'%slot-id-ref-missing
-                           (dpb 2 $lfbits-numreq
-                                (ash -1 $lfbits-noname-bit))))
-           (set-f (gvector :function
-                           (%svref (if small
-                                     #'%small-set-slot-id-value
-                                     #'%large-set-slot-id-value) 0)
-                           map
-                           table
-                           class
-                           #'%maybe-std-setf-slot-value-using-class
-                           #'%slot-id-set-missing
-                           (dpb 3 $lfbits-numreq
-                                (ash -1 $lfbits-noname-bit)))))
-      (setf (%wrapper-slot-id->slotd wrapper) lookup-f
-            (%wrapper-slot-id-value wrapper) get-f
-            (%wrapper-set-slot-id-value wrapper) set-f
-            (%wrapper-slot-id-map wrapper) map
-            (%wrapper-slot-definition-table wrapper) table)
-      wrapper)))
+  (when eslotds
+    (let* ((nslots (length eslotds))
+	   (total-slot-ids (current-slot-index))
+	   (small (< nslots 255))
+	   (map
+	    (if small
+	      (make-array total-slot-ids :element-type '(unsigned-byte 8))
+	      (make-array total-slot-ids :element-type '(unsigned-byte 32))))
+	   (table (make-array (the fixnum (1+ nslots))))
+	   (i 0))
+      (declare (fixnum nslots total-slot-ids i) (simple-vector table))
+      (setf (svref table 0) nil)
+      (dolist (slotd eslotds)
+	(incf i)
+	(setf (svref table i) slotd)
+	(setf (aref map
+		    (slot-id.index
+		     (standard-effective-slot-definition.slot-id slotd)))
+	      i))
+      (let* ((lookup-f (gvector :function
+				(%svref (if small
+					  #'%small-map-slot-id-lookup
+					  #'%large-map-slot-id-lookup) 0)
+				map
+				table
+				(dpb 1 $lfbits-numreq
+				     (ash -1 $lfbits-noname-bit))))
+	     (class (%wrapper-class wrapper))
+	     (get-f (gvector :function
+			     (%svref (if small
+				       #'%small-slot-id-value
+				       #'%large-slot-id-value) 0)
+			     map
+			     table
+			     class
+			     #'%maybe-std-slot-value-using-class
+			     #'%slot-id-ref-missing
+			     (dpb 2 $lfbits-numreq
+				  (ash -1 $lfbits-noname-bit))))
+	     (set-f (gvector :function
+			     (%svref (if small
+				       #'%small-set-slot-id-value
+				       #'%large-set-slot-id-value) 0)
+			     map
+			     table
+			     class
+			     #'%maybe-std-setf-slot-value-using-class
+			     #'%slot-id-set-missing
+			     (dpb 3 $lfbits-numreq
+				  (ash -1 $lfbits-noname-bit)))))
+	(setf (%wrapper-slot-id->slotd wrapper) lookup-f
+	      (%wrapper-slot-id-value wrapper) get-f
+	      (%wrapper-set-slot-id-value wrapper) set-f
+	      (%wrapper-slot-id-map wrapper) map
+	      (%wrapper-slot-definition-table wrapper) table))))
+  wrapper)
 
                        
     
