@@ -278,7 +278,7 @@
         (maphash delete-match %structure-refs%)))))
 
 (defun copy-structure (source)
-  (copy-uvector (require-type source 'structure)))
+  (copy-uvector (require-type source 'structure-object)))
 
 (provide 'defstruct)
 
