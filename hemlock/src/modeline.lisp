@@ -132,9 +132,11 @@ other than :DEFAULT"
 	       (declare (ignore window))
                (let* ((m ()))
                  (dolist (mode (buffer-mode-objects buffer))
-                   (unless (hi::mode-object-hidden mode)
+                   (unless (or (hi::mode-object-major-p mode)
+                               (hi::mode-object-hidden mode))
                      (push (mode-object-name mode) m)))
-	       (format nil "~A  " (nreverse m)))))
+	       (format nil "~A  " (cons (hi::buffer-major-mode buffer)
+                                        (nreverse m))))))
 
 (make-modeline-field
  :name :modifiedp
