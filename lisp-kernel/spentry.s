@@ -3291,8 +3291,8 @@ _spentry(builtin_length)
 	__(blr)
 3:	__(bne cr2,8f)
 	__(li temp2,-1<<fixnum_shift)
-	__(mr temp0,arg_z)	; fast pointer
-	__(mr temp1,arg_z)	; slow pointer
+	__(mr temp0,arg_z)	/* fast pointer */
+	__(mr temp1,arg_z)	/* slow pointer */
 4:	__(extract_lisptag(imm0,temp0))
 	__(cmpri(cr7,temp0,nil_value))
 	__(cmpri(cr1,imm0,tag_list))
