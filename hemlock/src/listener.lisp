@@ -24,6 +24,11 @@
 	  ,@body)))))
 
 
+(defun pakage-name-change-hook (name kind where new-value)
+  (declare (ignore name new-value))
+  (if (eq kind :buffer)
+    (hi::queue-buffer-change where)))
+
 (define-file-option "Package" (buffer value)
   (defhvar "Current Package"
     "The package used for evaluation of Lisp in this buffer."
@@ -42,7 +47,7 @@
        (t
 	(message
 	 "Ignoring \"package\" file option -- cannot convert to a string."))))
-))
+    :hooks (list 'package-name-change-hook)))
 
 
 ;;;; Listener Mode Interaction.
@@ -185,18 +190,19 @@ between the region's start and end, and if there are no ill-formed expressions i
       (when (balanced-expressions-in-region input-region)
         (let* ((string (region-to-string input-region)))
           (move-mark (value buffer-input-mark) (current-point))
-          (listener-document-send-string (hi::buffer-document (current-buffer)) string))))))
+          (hi::send-string-to-listener-process (hi::buffer-process (current-buffer))
+                                           string))))))
 
-(defvar *control-d-string* (make-string 1 :initial-element (code-char (logand (char-code #\d) #x1f))))
+(defvar *pop-string* ":POP" "what you have to type to exit a break loop")
 
-(defcommand "EOF or Delete Forward" (p)
-  "Send an EOF if input-mark is at buffer's end, else delete forward character."
-  "Send an EOF if input-mark is at buffer's end, else delete forward character."
+(defcommand "POP or Delete Forward" (p)
+  "Send :POP if input-mark is at buffer's end, else delete forward character."
+  "Send :POP if input-mark is at buffer's end, else delete forward character."
   (let* ((input-mark (value buffer-input-mark))
          (point (current-point)))
     (if (and (null (next-character point))
              (null (next-character input-mark)))
-      (listener-document-send-string (hi::buffer-document (current-buffer)) *control-d-string*)
+      (listener-document-send-string (hi::buffer-document (current-buffer)) *pop-string*)
       (delete-next-character-command p))))
 
              
