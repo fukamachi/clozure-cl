@@ -1266,7 +1266,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;
   nrs_TOPLFUNC.vcell = lisp_nil;
   enable_fp_exceptions();
-#if 0
+#if 1
   egc_control(true, NULL);
 #endif
   start_lisp(tcr, 0);
