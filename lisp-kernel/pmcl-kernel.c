@@ -1255,7 +1255,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
   start_vbl();
 
   lisp_global(ALTIVEC_PRESENT) = altivec_present << fixnumshift;
-
+#if STATIC
+  lisp_global(STATICALLY_LINKED) = 1 << fixnumshift;
+#endif
   tcr->prev = tcr->next = tcr;
   lisp_global(TCR_LOCK) = (LispObj)new_recursive_lock();
   lisp_global(INTERRUPT_SIGNAL) = (LispObj) box_fixnum(SIGNAL_FOR_PROCESS_INTERRUPT);
