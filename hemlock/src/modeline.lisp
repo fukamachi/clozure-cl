@@ -224,7 +224,7 @@ other than :DEFAULT"
                            (ccl::process-serial-number proc)
                            (ccl::process-whostate proc))))))
 
-(defvar *default-modeline-fields*
+(defparameter *default-modeline-fields*
   (list (modeline-field :modifiedp) ;(modeline-field :hemlock-literal)
 	(modeline-field :external-format)
 	(modeline-field :package)
