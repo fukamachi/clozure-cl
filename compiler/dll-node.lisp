@@ -220,4 +220,4 @@
       (unless (eq first header)
 	(remove-dll-node first)))))
 
-(ccl::provide "DLL-NODE")
+(provide "DLL-NODE")
