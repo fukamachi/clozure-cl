@@ -28,6 +28,30 @@
 
 ;;;; Creating, Deleting, and Moving.
 
+(defun new-font-region (buffer start-mark end-mark  font)
+  (let* ((start-line (mark-line start-mark))
+         (end-line (mark-line end-mark))
+         (font-start (internal-make-font-mark start-line
+                                              (mark-charpos start-mark)
+                                              :right-inserting
+                                              font))
+         (font-end (internal-make-font-mark end-line
+                                              (mark-charpos end-mark)
+                                              :right-inserting
+                                              font))
+         (region (internal-make-font-region font-start font-end)))
+    (setf (font-mark-region font-start) region
+          (font-mark-region font-end) region)
+    (push font-start (line-marks start-line))
+    (push font-end (line-marks end-line))
+    (add-buffer-font-region buffer region)
+    (buffer-note-font-change buffer region)
+    region))
+
+
+
+
+
 (defun font-mark (line charpos font &optional (kind :right-inserting))
   "Returns a font on line at charpos with font.  Font marks must be permanent
    marks."
@@ -38,6 +62,7 @@
   (let ((new (internal-make-font-mark line charpos kind font)))
     (new-font-mark new line)
     (push new (line-marks line))
+    (incf (line-font-mark-count line))
     new))
 
 (defun delete-font-mark (font-mark)
@@ -46,6 +71,7 @@
   (let ((line (mark-line font-mark)))
     (when line
       (setf (line-marks line) (delq font-mark (line-marks line)))
+      (decf (line-font-mark-count line))
       (nuke-font-mark font-mark line)
       (setf (mark-line font-mark) nil))))
 
@@ -69,22 +95,8 @@
   (new-font-mark mark line))
 
 (defun new-font-mark (mark line)
-  (declare (ignore mark))
-  (let ((buffer (line-%buffer line))
-	(number (line-number line)))
-    (when (bufferp buffer)
-      (dolist (w (buffer-windows buffer))
-	(setf (window-tick w) (1- (buffer-modified-tick buffer)))
-	(let ((first (cdr (window-first-line w))))
-	  (unless (or (> (line-number (dis-line-line (car first))) number)
-		      (> number
-			 (line-number
-			  (dis-line-line (car (window-last-line w))))))
-	    (do ((dl first (cdr dl)))
-		((or (null dl)
-		     (eq (dis-line-line (car dl)) line))
-		 (when dl
-		   (setf (dis-line-old-chars (car dl)) :font-change))))))))))
+  (declare (ignore mark line))
+)
 
 
 
