@@ -19,7 +19,8 @@
 
 (eval-when (:compile-toplevel :execute)
   (require "NXENV")
-  (require "PPCENV"))
+  (require "PPCENV")
+  (require "PPC32-ARCH"))
 
 (defvar *ppc32-vinsn-templates* (make-hash-table :test #'eq))
 
@@ -47,7 +48,8 @@
 		:target-os :linuxppc
 		:name :linuxppc32
 		:target-arch-name :ppc32
-		:target-foreign-type-data nil)
+		:target-foreign-type-data nil
+		:target-lisp-node-size 4)
   )
 
 
@@ -67,7 +69,8 @@
 		:target-os :darwinppc
 		:name :darwinppc32
 		:target-arch-name :ppc32
-		:target-foreign-type-data nil)
+		:target-foreign-type-data nil
+		:target-lisp-node-size 4)
   )
 
 #+linuxppc-target
@@ -91,7 +94,7 @@
 
 (fixup-ppc32-backend)
 
-#+ppc-target
+#+ppc32-target
 (setq *host-backend* *ppc32-backend* *target-backend* *ppc32-backend*)
 
 (pushnew *ppc32-backend* *known-backends* :key #'backend-name)
