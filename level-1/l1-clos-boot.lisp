@@ -25,28 +25,72 @@
 ;;; Early accessors.  These functions eventually all get replaced with
 ;;; generic functions with "real", official names.
 
+
+(declaim (inline instance-slots))
+(defun instance-slots (instance)
+  (let* ((typecode (typecode instance)))
+    (cond ((eql typecode ppc32::subtag-instance) (instance.slots instance))
+	  ((eql typecode ppc32::subtag-macptr) (foreign-slots-vector instance))
+	  ((typep instance 'standard-generic-function) (gf.slots instance))
+	  (t  (error "Don't know how to find slots of ~s" instance)))))
+
 (defun %class-name (class)
   (%class.name class))
 
+(defun %class-own-wrapper (class)
+  (%class.own-wrapper class))
 
+(defun (setf %class-own-wrapper) (new class)
+  (setf (%class.own-wrapper class) new))
+
+(defun %class-alist (class)
+  (if (typep class 'slots-class)
+    (%class.alist class)))
+
+(defun (setf %class-alist) (new class)
+  (if (typep class 'slots-class)
+    (setf (%class.alist class) new)
+    new))
 
 (defun %class-slots (class)
   (if (typep class 'slots-class)
     (%class.slots class)))
 
+(defun (setf %class-slots) (new class)
+  (if (typep class 'slots-class)
+    (setf (%class.slots class) new)
+    new))
+
 (defun %class-direct-slots (class)
   (if (typep class 'slots-class)
     (%class.direct-slots class)))
 
+(defun (setf %class-direct-slots) (new class)
+  (if (typep class 'slots-class)
+    (setf (%class.direct-slots class) new))
+  new)
+  
 (defun %class-direct-superclasses (class)
   (%class.local-supers class))
+
+(defun (setf %class-direct-superclasses) (new class)
+  (setf (%class.local-supers class) new))
 
 (defun %class-direct-subclasses (class)
   (%class.subclasses class))
 
+(defun (setf %class-direct-subclasses) (new class)
+  (setf (%class.subclasses class) new))
+
 (defun %class-direct-default-initargs (class)
   (if (typep class 'std-class)
     (%class.local-default-initargs class)))
+
+(defun (setf %class-direct-default-initargs) (new class)
+  (if (typep class 'std-class)
+    (setf (%class.local-default-initargs class) new)
+    new))
+  
 
 (defun %class-default-initargs (class)
   (if (typep class 'std-class)
@@ -196,7 +240,7 @@
 				    lambda-list
                                     &allow-other-keys)
   (let* ((method
-	  (%instance-vector (%class.own-wrapper class)
+	  (%instance-vector (%class-own-wrapper class)
 			    qualifiers
 			    specializers
 			    function
@@ -1593,7 +1637,10 @@ to replace that class with ~s" name old-class new-class)
 (make-built-in-class 'real (find-class 'number))
 (defvar *float-class* (make-built-in-class 'float (find-class 'real)))
 (defvar *double-float-class* (make-built-in-class 'double-float (find-class 'float)))
-(defvar *short-float-class*  (make-built-in-class 'short-float (find-class 'float)))
+(defvar *single-float-class*  (make-built-in-class 'single-float (find-class 'float)))
+(setf (find-class 'short-float) *single-float-class*)
+(setf (find-class 'long-float) *double-float-class*)
+
 (make-built-in-class 'rational (find-class 'real))
 (make-built-in-class 'ratio (find-class 'rational))
 (make-built-in-class 'integer (find-class 'rational))
@@ -1604,16 +1651,13 @@ to replace that class with ~s" name old-class new-class)
 (make-built-in-class 'unsigned-byte (find-class 'integer))
 (make-built-In-class 'signed-byte (find-class 'integer))
 
-(setf (find-class 'short-float) #+no-sf *double-float-class*
-      				#-no-sf *short-float-class*)
-(setf (find-class 'single-float) *short-float-class*)
-(setf (find-class 'long-float) *double-float-class*)
 
 (make-built-in-class 'logical-pathname (find-class 'pathname))
 
-(setf (find-class 'base-char) *character-class*)
-(defvar *base-char-class* *character-class*)
+(defvar *base-char-class* (setf (find-class 'base-char) *character-class*))
 (defvar *standard-char-class* (make-built-in-class 'standard-char *base-char-class*))
+
+#+who-needs-extended-char
 (make-built-in-class 'extended-char *character-class*)
 
 (defvar *keyword-class* (make-built-in-class 'keyword *symbol-class*))
@@ -1975,27 +2019,26 @@ to replace that class with ~s" name old-class new-class)
        (not (null (memq c2 (%inited-class-cpl c1 t))))))
 
 (defun %class-get (class indicator &optional default)
-  (if (typep class 'std-class)
-    (let ((cell (assq indicator (%class.alist class))))
-      (if cell (cdr cell) default))
-    default))
+  (let ((cell (assq indicator (%class-alist class))))
+    (if cell (cdr cell) default)))
+
 (defun %class-put (class indicator value)
-  (let ((cell (assq indicator (%class.alist class))))
+  (let ((cell (assq indicator (%class-alist class))))
     (if cell
       (setf (cdr cell) value)
-      (push (cons indicator value) (%class.alist class))))
+      (push (cons indicator value) (%class-alist class))))
   value)
   
 (defsetf %class-get %class-put)
 (defun %class-remprop (class indicator)
-  (let* ((handle (cons nil (%class.alist class)))
+  (let* ((handle (cons nil (%class-alist class)))
          (last handle))
     (declare (dynamic-extent handle))
     (while (cdr last)
       (if (eq indicator (caar (%cdr last)))
         (progn
           (setf (%cdr last) (%cddr last))
-          (setf (%class.alist class) (%cdr handle)))
+          (setf (%class-alist class) (%cdr handle)))
         (setf last (%cdr last))))))    
 
 
@@ -2165,12 +2208,6 @@ to replace that class with ~s" name old-class new-class)
     (make-instance-vector wrapper len)))
 
 
-(declaim (inline instance-slots))
-(defun instance-slots (instance)
-  (let* ((typecode (typecode instance)))
-    (cond ((eql typecode ppc32::subtag-instance) (instance.slots instance))
-	  ((eql typecode ppc32::subtag-macptr) (foreign-slots-vector instance))
-	  (t (error "Don't know how to find slots of ~s" instance)))))
 
 
 (defmethod copy-instance ((instance standard-object))
@@ -2378,12 +2415,12 @@ to replace that class with ~s" name old-class new-class)
 
 (defun slot-id-value (instance slot-id)
   (let* ((wrapper (or (standard-object-p instance)
-                    (%class.own-wrapper (class-of instance)))))
+                    (%class-own-wrapper (class-of instance)))))
     (funcall (%wrapper-slot-id-value wrapper) instance slot-id)))
 
 (defun set-slot-id-value (instance slot-id value)
   (let* ((wrapper (or (standard-object-p instance)
-                    (%class.own-wrapper (class-of instance)))))
+                    (%class-own-wrapper (class-of instance)))))
     (funcall (%wrapper-set-slot-id-value wrapper) instance slot-id value)))
 
 ; returns nil if (apply gf args) wil cause an error because of the
@@ -2427,16 +2464,16 @@ to replace that class with ~s" name old-class new-class)
   (make-instances-obsolete (find-class class)))
 
 (defmethod make-instances-obsolete ((class standard-class))
-  (let ((wrapper (%class.own-wrapper class)))
+  (let ((wrapper (%class-own-wrapper class)))
     (when wrapper
-      (setf (%class.own-wrapper class) nil)
+      (setf (%class-own-wrapper class) nil)
       (make-wrapper-obsolete wrapper)))
   class)
 
 (defmethod make-instances-obsolete ((class funcallable-standard-class))
   (let ((wrapper (%class.own-wrapper class)))
     (when wrapper
-      (setf (%class.own-wrapper class) nil)
+      (setf (%class-own-wrapper class) nil)
       (make-wrapper-obsolete wrapper)))
   class)
 
@@ -2686,6 +2723,7 @@ to replace that class with ~s" name old-class new-class)
   (let ((initargs (class-slot-initargs class))
         (cpl (%inited-class-cpl class)))
     (dolist (f functions)         ; for all the functions passed
+      #+no
       (if (logbitp $lfbits-aok-bit (lfun-bits f))
 	(return-from compute-initargs-vector t))
       (dolist (method (%gf-methods f))   ; for each applicable method
