@@ -44,7 +44,6 @@ VPATH = ..
 RM = /bin/rm
 LD = ld
 LDFLAGS = -arch ppc -dynamic  -o $@ -e start -seg1addr 0x00003000 -sectalign __TEXT __text 0x1000 -pagezero_size 0x3000
-# -stack_addr 0xC0000000 -stack_size 0x00100000
 AS = as
 M4 = gm4
 M4FLAGS = -DDARWIN
@@ -71,7 +70,7 @@ SPINC =	lisp.s m4macros.m4 constants.s macros.s errors.s uuo.s
 
 CHEADERS = area.h bits.h constants.h lisp-errors.h gc.h lisp.h \
 	lisp-exceptions.h lisp_globals.h macros.h memprotect.h image.h \
-	Threads.h
+	Threads.h lisptypes.h
 
 # Subprims linked into the kernel ?
 # Yes:
@@ -83,23 +82,25 @@ all:	../../dppccl
 # No:
 
 # KSPOBJ=
-# all:	../../ppccl ../../subprims.so
 
-OSLIBS = -lcrt1.o -lcc_dynamic -lSystem
+OSEARLYLIBS = -lcrt1.o
+OSLATELIBS = -lSystem
 
+# If the linker can find an absolute path to -lSystemStubs, use
+# -lSystemStubs; otherwise, just use libgcc.a
+SYSTEMSTUBSPATH = $(shell $(CC) --print-file-name=libSystemStubs.a)
+SYSTEMSTUBSABSOLUTE = $(shell expr $(SYSTEMSTUBSPATH) : "^/*")
+ifeq ($(SYSTEMSTUBSABSOLUTE),1)
+OSMIDDLELIBS = -lSystemStubs
+else
+OSMIDDLELIBS = -lgcc
+endif
+
+OSLIBS = $(OSEARLYLIBS) $(OSMIDDLELIBS) $(OSLATELIBS)
 
 ../../dppccl:	 $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
 	$(LD)  $(LDFLAGS) $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)   $(OSLIBS)
 
-# Can leave this unset when compiling on/for Jaguar
-SAMPLER_ARCH_DEFINES=-DUSE_MACH
-
-../../darwin_sampler.so: sampler.c
-	$(CC) -bundle  $< $(CDEFINES) $(SAMPLER_ARCH_DEFINES) $(CDEBUG) $(COPT) -o $@
-
-# This will fail to compile on pre-Jaguar systems
-../../jaguar_sampler.so: sampler.c
-	$(CC) -bundle  $< $(CDEFINES)  $(CDEBUG) $(COPT) -o $@
 
 $(SPOBJ): $(SPINC)
 $(ASMOBJ): $(SPINC)
@@ -107,9 +108,6 @@ $(COBJ): $(CHEADERS)
 $(DEBUGOBJ): $(CHEADERS) lispdcmd.h
 
 
-MAGIC_PADDING_VALUE=4544
-pad.o:	../pad.s
-	$(M4) -DMAGIC_PADDING_VALUE=$(MAGIC_PADDING_VALUE) $< | as -o $@
 
 thread_manager.o: thread_manager.c 
 
