@@ -107,7 +107,7 @@ other than :DEFAULT"
 	       (let* ((external-format (buffer-external-format buffer)))
 		 (case external-format
 		   ((:unix nil))
-		   (:mac "[CR] ")
+		   (:macos "[CR] ")
 		   (:cp/m "[CRLF] ")))))
 
 
