@@ -362,7 +362,7 @@
 
 ; random associated stuff except for the print-object method which is still in
 ; "lib;numbers.lisp"
-(defun random-state (seed-1 seed-2)
+(defun initialize-random-state (seed-1 seed-2)
   (unless (and (fixnump seed-1) (%i<= 0 seed-1) (%i< seed-1 #x10000))
     (report-bad-arg seed-1 '(unsigned-byte 16)))
   (unless (and (fixnump seed-2) (%i<= 0 seed-2) (%i< seed-2 #x10000))
@@ -373,7 +373,7 @@
              (%ilsl shift seed-1)
              (%ilsl shift seed-2))))
 
-(defparameter *random-state* (random-state #xFBF1 9))
+(defparameter *random-state* (initialize-random-state #xFBF1 9))
 
 (defun make-random-state (&optional state &aux (seed-1 0) (seed-2 0))
   (if (eq state t)
