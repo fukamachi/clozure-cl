@@ -334,7 +334,7 @@
   (:report (lambda (c s)
 	     (format s "Not an integer string: ~s" (slot-value c 'string)))))
 
-(define-condition reader-error (parse-error) ())
+(define-condition reader-error (parse-error stream-error) ())
 (define-condition end-of-file (stream-error) ()
   (:report (lambda (c s)
              (format s "Unexpected end of file on ~s" (stream-error-stream c)))))
