@@ -1165,49 +1165,50 @@
 	  (when (equal type (pathname-type (backend-target-fasl-pathname b)))
 	    (return t))))))
 
-(defun provide (module &aux (str (string module)))
-  (when (null module) (report-bad-arg module '(not (member nil))))
-  (setq *modules* (adjoin str *modules* :test #'string-equal))
-  (let* ((cell (assoc str *module-file-alist* :test #'string-equal))
-         (path *loading-file-source-file*))
-    (if cell
-      (setf (cdr cell) path)
-      (push (cons str path) *module-file-alist*)))
-  str)
+(defun provide (module)
+  (pushnew (string module) *modules* :test #'string=)
+  module)
 
 (defparameter *loading-modules* () "Internal. Prevents circularity")
+(defparameter *module-provider-functions* '(module-provide-search-path))
 
-(defun require (module &optional pathname &aux (str (string module)))
-  (when (null module) (report-bad-arg module '(not null)))
-  (when (and (not (member str *modules* :test #'string-equal))
-             (not (member str *loading-modules* :test #'string-equal))
-             (or pathname
-                 (setq pathname (find-module-pathnames str))
-                 (progn
-                   (cerror "If ~S still hasn't been provided,
-you will be asked to choose a file."
-                           "The module ~S was required while loading ~S.
-No file could be found for that module."
-                           str *loading-file-source-file*)
-                   (unless (member str *modules* :test #'string-equal)
-		     (with-terminal-input
-			 (format t "~&pathname: ")
-		       (setq pathname (read)))                     )
-                   pathname)))
-    (let ((*loading-modules* (cons str *loading-modules*)))
-      (if (consp pathname)
-        (dolist (path pathname) (load path))
-        (load pathname)))
-    (setq *modules* (adjoin str *modules* :test #'string-equal)))
-  str)
+(defun module-provide-search-path (module)
+  ;; (format *debug-io* "trying module-provide-search-path~%")
+   (let* ((module-name (string module))
+          (pathname (find-module-pathnames module-name)))
+     (when pathname
+       (if (consp pathname)
+           (dolist (path pathname) (load path))
+         (load pathname))
+       (provide module))))
+
+(defun require (module &optional pathname)
+  (let* ((str (string module))
+	 (original-modules (copy-list *modules*)))
+    (unless (or (member str *modules* :test #'string=)
+		(member str *loading-modules* :test #'string=))
+      ;; The check of (and binding of) *LOADING-MODULES* is a
+      ;; traditional defense against circularity.  (Another
+      ;; defense is not having circularity, of course.)  The
+      ;; effect is that if something's in the process of being
+      ;; REQUIREd and it's REQUIREd again (transitively),
+      ;; the inner REQUIRE is a no-op.
+      (let ((*loading-modules* (cons str *loading-modules*)))
+	(if pathname
+	  (dolist (path (if (atom pathname) (list pathname) pathname))
+	    (load path))
+	  (unless (some (lambda (p) (funcall p module))
+			*module-provider-functions*)
+	    (error "Don't know how to load ~A" module)))))
+    (values module
+	    (set-difference *modules* original-modules))))
 
 (defun find-module-pathnames (module)
   "Returns the file or list of files making up the module"
-  (or (cdr (assoc module *module-file-alist* :test #'string-equal))
-      (let ((mod-path (make-pathname :name (string-downcase module) :defaults nil)) path)
+  (let ((mod-path (make-pathname :name (string-downcase module) :defaults nil)) path)
         (dolist (path-cand *module-search-path* nil)
           (when (setq path (find-load-file (merge-pathnames mod-path path-cand)))
-            (return path))))))
+            (return path)))))
 
 (defun wild-pathname-p (pathname &optional field-key)
   (flet ((wild-p (name) (or (eq name :wild)
