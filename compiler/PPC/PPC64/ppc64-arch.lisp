@@ -376,6 +376,8 @@
   flags
 )
 
+(defconstant t-offset (- symbol.size))
+
 
 
 
@@ -469,7 +471,9 @@
   protsize                              ; number of bytes to protect
   why)
 
-(define-storage-layout tcr 0
+(defconstant tcr-bias #x7000)
+
+(define-storage-layout tcr (- tcr-bias)
   prev					; in doubly-linked list 
   next					; in doubly-linked list
   single-float-convert			; per-thread scratch space.
@@ -510,9 +514,10 @@
   suspend-total-on-exception-entry
   tlb-limit
   tlb-pointer
+  shutdown-count
 )
 
-(defconstant lisp-fpscr-high (+ lisp-fpscr-high 4))
+(defconstant tcr.lisp-fpscr-low (+ tcr.lisp-fpscr-high 4))
 
 (define-storage-layout lockptr 0
   avail
@@ -533,7 +538,7 @@
   savevsp
 )
 
-(ppc32::define-storage-layout c-frame 0
+(ppc64::define-storage-layout c-frame 0
   backlink
   crsave
   savelr
