@@ -22,9 +22,8 @@
 	    (declare (fixnum i))
 	    (install-foreign-objc-class
 	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift))))))))))
-  (def-ccl-pointers revive-objc-classes ()
-    (reset-objc-class-count)
-    (map-objc-classes)))
+  (reset-objc-class-count)
+  (map-objc-classes))
 
 #+gnu-objc
 (defun iterate-over-class-methods (class method-function)
