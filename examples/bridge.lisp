@@ -350,7 +350,7 @@
   (note-all-library-methods
    #'(lambda (m c)
        (declare (ignore c))
-       (ignore-errors
+       (#+gnu-objc progn #+apple-objc ignore-errors
 	 ;; Some libraries seem to have methods with bogus-looking
 	 ;; type signatures
 	 (update-type-signatures-for-method m)))))
@@ -367,11 +367,9 @@
 (defun compute-method-type-signature (m)
   (cons
    (objc-foreign-arg-type (method-typestring m))
-   (%stack-block ((type 4) (offset 4))
-     (loop for i from 2 below (method-get-number-of-arguments m)
-           do (#_method_getArgumentInfo m i type offset)
-           collect 
-           (objc-foreign-arg-type (%get-cstring (%get-ptr type)))))))
+   (loop for i from 2 below (method-get-number-of-arguments m)
+	 collect 
+	 (objc-foreign-arg-type (objc-get-method-argument-info m i)))))
 
 
 ;;; Return the foreign type corresponding to the structure encoded in 
@@ -474,20 +472,28 @@
 ;;; for %FF-CALL 
 
 (defun convert-to-argspecs (argtypes result-ftype args evalargs)
-  (flet ((foo (tftype) 
-           (if (and (consp tftype) (eq (first tftype) :record))
-             (/ (second tftype) 32)
-             tftype)))
+  (flet ((foo (ftype &optional for-result)
+	   	   (let* ((translated
+		   (if for-result
+		     (translate-foreign-result-type ftype)
+		     (translate-foreign-arg-type ftype))))
+	     (if (and (consp translated) (eq (first translated) :record))
+	       #+apple-objc
+	       (/ (second translated) 32)
+	       #+gnu-objc `(:* ,ftype)
+	       translated))))
     (nconc
      (loop
        for a in args
        for ftype in argtypes
        do (ensure-foreign-type-bits (parse-foreign-type ftype))
-       append (list (foo (translate-foreign-arg-type ftype))
+       append (list (foo ftype) 
                     (if evalargs
-                      (coerce-to-foreign-type a ftype)
-                      `(coerce-to-foreign-type ,a ,ftype))))
-     (list (foo (translate-foreign-result-type result-ftype))))))
+                      (coerce-to-foreign-type a
+					      #+apple-objc ftype
+					      #+gnu-objc (foo ftype))
+                      `(coerce-to-foreign-type ,a #+apple-objc ,ftype #+gnu-objc ,(foo ftype)))))
+     (list (foo result-ftype t)))))
  
 
 ;;; Initialize the type signature table
@@ -575,10 +581,10 @@
 ;;; Check that the correct number of ARGs have been supplied to a method 
 
 (defun check-method-arg-count (m args)
-  (unless (= (length args) (- (#_method_getNumberOfArguments m) 2))
+  (unless (= (length args) (- (method-get-number-of-arguments m) 2))
     (error "Incorrect number of arguments (~S) to ObjC message ~S" 
            (length args) 
-           (%get-cstring (#_sel_getName (pref m :objc_method.method_name))))))
+           (%get-cstring (lisp-string-from-sel (pref m :objc_method.method_name))))))
 
 
 ;;; The SEND and SEND/STRET macros
@@ -714,16 +720,12 @@
               (if (null super)
                 ;; Regular stret send
                 `(progn
-                   (external-call
-                    "_objc_msgSend_stret"
-                    :address ,s :id ,o :<SEL> ,sel
+                   (objc-message-send-stret ,s ,o ,(cadr sel)
                     ,@(append (butlast argspecs) (list :void)))
                    ,s)
                 ;; Super stret send
                 `(progn
-                   (external-call
-                    "_objc_msgSendSuper_stret"
-                    :address ,s :address ,super :<SEL> ,sel
+                   (objc-message-send-super-stret ,s ,super ,(cadr sel)
                     ,@(append (butlast argspecs) (list :void)))
                    ,s)))
             (if (null s)
@@ -733,16 +735,14 @@
                 (if (and (eq rspec :signed-byte)
                          (not (returns-boolean-exception-p msg)))
                   `(coerce-from-bool
-                    (external-call "_objc_msgSend" :id ,o :<SEL> ,sel ,@argspecs))
-                  `(external-call "_objc_msgSend" :id ,o :<SEL> ,sel ,@argspecs))
+                    (objc-message-send ,o ,(cadr sel) ,@argspecs))
+                  `(objc-message-send ,o ,(cadr sel) ,@argspecs))
                 ;; Super send
                 (if (and (eq rspec :signed-byte)
                          (not (returns-boolean-exception-p msg)))
                   `(coerce-from-bool
-                    (external-call "_objc_msgSendSuper" 
-                                   :address ,super :<SEL> ,sel ,@argspecs))
-                  `(external-call "_objc_msgSendSuper" 
-                                  :address ,super :<SEL> ,sel ,@argspecs)))
+                    (objc-message-send-super ,super ,(cadr sel) ,@argspecs))
+                  `(objc-message-send-super ,super ,(cadr sel) ,@argspecs)))
               ;; STRET not required but provided
               (error "The message ~S must be sent using SEND" msg)))))))
 
