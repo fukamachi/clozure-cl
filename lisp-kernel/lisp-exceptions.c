@@ -2632,7 +2632,8 @@ tcr_establish_exception_port(TCR *tcr, mach_port_t thread)
 {
   kern_return_t kret;
   MACH_foreign_exception_state *fxs = (MACH_foreign_exception_state *)tcr->native_thread_info;
-  int i, n = NUM_LISP_EXCEPTIONS_HANDLED;
+  int i;
+  unsigned n = NUM_LISP_EXCEPTIONS_HANDLED;
   mach_port_t lisp_port = (mach_port_t)tcr, foreign_port;
   exception_mask_t mask = 0;
 
