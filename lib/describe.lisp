@@ -1545,7 +1545,7 @@
                       :initform (and *backtrace-hide-internal-functions-p*
                                      *backtrace-internal-functions*))
    (break-condition :accessor break-condition
-                    :initform ccl::*break-condition*)))
+                    :initarg :break-condition)))
   
 
 ; This is set up to access the result of
@@ -1745,7 +1745,8 @@
            (make-instance 'error-frame
              :stack-start start
              :stack-end end
-             :tcr tcr)
+             :tcr tcr
+             :break-condition (ccl::bt.break-condition info))
            :tsp-range (make-tsp-stack-range tcr info)
            :vsp-range (make-vsp-stack-range tcr info)
            initargs)))
