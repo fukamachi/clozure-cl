@@ -498,11 +498,12 @@ typedef struct tcr {
   int suspend_total_on_exception_entry;
   unsigned tlb_limit;
   LispObj *tlb_pointer;
+  unsigned shutdown_count;
 } TCR;
 
 #define TCR_FLAG_BIT_FOREIGN fixnumshift
 #define TCR_FLAG_BIT_AWAITING_PRESET (fixnumshift+1)
-#define TCR_FLAG_BIT_SHUTDOWN_REQUEST (fixnumshift+2)
+#define TCR_FLAG_BIT_ALT_SUSPEND (fixnumshift+2)
 
 #define TCR_STATE_FOREIGN (1)
 #define TCR_STATE_LISP    (0)

@@ -698,6 +698,7 @@ tstack_alloc_limit = 0xffff
          _node(suspend_total_on_exception_entry)
          _node(tlb_limit)
          _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer */
+	 _node(shutdown_count)
 	_ends
 
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
