@@ -1226,7 +1226,7 @@ _spentry(callbackX)
 	__(ref_global(r12,lisp_exit_hook))
 	__(mtctr r12)
 	__(bctrl)
-9:	
+9:
 	__(ldr(sp,0(sp)))
 	__(ldr(r3,c_frame.param0(sp)))
 	__(ldr(r4,c_frame.param1(sp)))
@@ -3150,6 +3150,7 @@ _spentry(darwin_syscall)
 	__(mtlr loc_pc)
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(discard_lisp_frame)
+        __(mtxer rzero)
 	__(check_pending_interrupt([cr1]))
 	__(blr)
         
@@ -3664,6 +3665,7 @@ _local_label(FF_call_return_common):
 	__(lfd f0,tcr.lisp_fpscr(rcontext))
 	__(mtfsf 0xff,f0)
 	__(check_pending_interrupt([cr1]))
+        __(mtxer rzero)
 	__(blr)
         
 /* 
@@ -3891,9 +3893,10 @@ _spentry(syscall)
 	__(mtlr loc_pc)
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(discard_lisp_frame())
-	__(check_pending_interrupt([cr1]))
-	__(bnslr)
+	__(bns 1f)
 	__(neg r3,r3)
+1:      
+	__(check_pending_interrupt([cr1]))                
 	__(mtxer rzero)
 	__(blr)
         
