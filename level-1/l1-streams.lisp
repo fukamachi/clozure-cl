@@ -269,7 +269,8 @@
 (defmethod stream-listen ((stream input-stream))
   (not (eofp stream)))
 
-(defmethod stream-filename ((stream stream)) nil)
+(defmethod stream-filename ((stream stream))
+  (report-bad-arg stream 'file-stream))
 
 
 
