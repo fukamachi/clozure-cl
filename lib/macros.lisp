@@ -1758,7 +1758,7 @@
       (dolist (m methods)
         (push `(:method-class ,method-class) (cddr m))))
     (when declarations
-      (setq options `((:declarations ,declarations ,@options))))
+      (setq options `((:declarations ,declarations) ,@options)))
     (values method-combination generic-function-class options methods)))
 
                  
