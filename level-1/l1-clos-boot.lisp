@@ -1527,38 +1527,7 @@
   (mr arg_z temp0)  ; return frob from table
   (blr))
 
-#+sparc-target
-(defsparclapfunction class-of ((x %arg_z))
-  (check-nargs 1)
-  (extract-fulltag x %imm0)  ; low8bits-of from here to done
-  (cmp %imm0 arch::fulltag-misc)
-  (bne.a @done)
-   (and x (1- (ash 1 8)) %imm0)
-  (extract-subtag x %imm0)
-  @done  
-  (box-fixnum %imm0 %imm0)
-  (inc arch::misc-data-offset %imm0)
-  (ld (%nfn '*class-table*) %temp1)
-  (ld (%temp1 arch::symbol.vcell) %temp1)
-  (ld (%temp1 %imm0) %temp0) ; get entry from table
-  (cmp %temp0 %rnil)
-  (be @bad)
-  (extract-typecode %temp0 %imm1)
-  ; functionp?
-  (cmp %imm1 arch::subtag-function)
-  (bne @ret)  ; not function - return entry
-    (nop)
-  ; else jump to the fn
-  (mov %temp0 %nfn)
-  (ld (%temp0 arch::misc-data-offset) %temp0) ; get the ffing codevector
-  (jmp %temp0 arch::misc-data-offset)
-    (set-nargs 1) ; maybe not needed
-  @bad
-  (jump-subprim .spjmpsym)
-   (ld (%nfn 'no-class-error) %fname)
-  @ret
-  (retl)
-  (mov %temp0 %arg_z))
+
 
 (let ((*dont-find-class-optimize* t))
 
@@ -1651,6 +1620,7 @@
 (defvar *cons-class* (make-built-in-class 'cons (find-class 'list)))
 (defvar *null-class* (make-built-in-class 'null *symbol-class* (find-class 'list)))
 
+(make-built-in-class 'svar)
 (defvar *vector-class* (make-built-in-class 'vector *array-class* (find-class 'sequence)))
 (make-built-in-class 'simple-array *array-class*)
 (make-built-in-class 'simple-1d-array *vector-class* (find-class 'simple-array))
@@ -1772,6 +1742,7 @@
       (map-subtag arch::subtag-creole-object creole-object)
       (map-subtag arch::subtag-xcode-vector xcode-vector)
       (map-subtag arch::subtag-xfunction xfunction)
+      (map-subtag arch::subtag-svar svar)
       (map-subtag arch::subtag-single-float-vector simple-short-float-vector)
       (map-subtag arch::subtag-u32-vector simple-unsigned-long-vector)
       (map-subtag arch::subtag-s32-vector simple-long-vector)
