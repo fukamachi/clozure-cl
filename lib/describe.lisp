@@ -2035,10 +2035,10 @@
      (ccl:with-terminal-input
 	 (ccl::with-toplevel-commands :tty-inspect
 	   (ccl::read-loop
-	    :prompt-function #'(lambda ()
+	    :prompt-function #'(lambda (stream)
 				 (if (eql level 0)
-				   (format t "~&Inspect> ")
-				   (format t "~&Inspect ~d> " level))))))
+				   (format stream "~&Inspect> ")
+				   (format stream "~&Inspect ~d> " level))))))
      (exit-inspector () (terpri *debug-io*)))))
 
 (defmethod inspector-ui-inspect-nth ((ui inspector-tty-ui) n)
