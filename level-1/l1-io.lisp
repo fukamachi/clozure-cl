@@ -571,7 +571,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 
 ;;>> Doesn't do *print-level* truncation
 (defmethod print-object ((c complex) stream)
-  (pp-start-block stream "#c(")
+  (pp-start-block stream "#C(")
   (print-object (realpart c) stream)
   (pp-space stream)
   (print-object (imagpart c) stream)
