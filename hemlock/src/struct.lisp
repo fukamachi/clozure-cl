@@ -87,6 +87,8 @@
   mode-objects		      ; list of buffer's mode objects
   bindings		      ; buffer's command table
   point			      ; current position in buffer
+  %mark                       ; a saved buffer position
+  region-active               ; modified-tick when region last activated
   (%writable t)		      ; t => can alter buffer's region
   (modified-tick -2)	      ; The last time the buffer was modified.
   (unmodified-tick -1)	      ; The last time the buffer was unmodified
@@ -102,7 +104,7 @@
   (delete-hook nil)	      ; List of functions to call upon deletion.
   (external-format :unix)     ; Line-termination, for the time being
   process		      ; Maybe a listener
-  (gap-context )			; The value of *buffer-gap-context*
+  (gap-context )	      ; The value of *buffer-gap-context*
                               ; in the thread that can modify the buffer.
   )
 
@@ -664,9 +666,6 @@
   (line-cache-length 200)
   (open-line nil)
   (open-chars (make-string 200))
-  (active-region-p nil)
-  (active-region-buffer nil)
-  (paren-match-mark (internal-make-mark nil 0 :temporay))
 )
 
 (define-symbol-macro *line-cache-length* (buffer-gap-context-line-cache-length *buffer-gap-context*))
@@ -674,5 +673,4 @@
 (define-symbol-macro *open-chars* (buffer-gap-context-open-chars *buffer-gap-context*))
 (define-symbol-macro *left-open-pos* (buffer-gap-context-left-open-pos *buffer-gap-context*))
 (define-symbol-macro *right-open-pos* (buffer-gap-context-right-open-pos *buffer-gap-context*))
-(define-symbol-macro hemlock::*active-region-p* (buffer-gap-context-active-region-p *buffer-gap-context*))
-(define-symbol-macro hemlock::*active-region-buffer* (buffer-gap-context-active-region-buffer *buffer-gap-context*))
+
