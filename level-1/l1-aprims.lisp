@@ -136,21 +136,35 @@
           ((atom x) (unless (null x)
                       (%rplacd splice x)) result)))))
 
+(defun alt-list-length (l)
+  "Detect (and complain about) cirucular lists; allow any atom to
+terminate the list"
+  (do* ((n 0 (1+ n))
+        (fast l)
+        (slow l))
+       ((atom fast) n)
+    (declare (fixnum n))
+    (setq fast (cdr fast))
+    (if (logbitp 0 n)
+      (if (eq (setq slow (cdr slow)) fast)
+	(%err-disp $XIMPROPERLIST l)))))
 
-; take two args this week
 
 (defun last (list &optional (n 1))
-  (unless (and (typep n 'fixnum)
-               (>= (the fixnum n) 0))
-    (report-bad-arg n '(and fixnum unsigned-byte)))
-  (locally (declare (fixnum n))
-    (do* ((checked-list list (cdr checked-list))
-          (returned-list list)
-          (index 0 (1+ index)))
-         ((atom checked-list) returned-list)
-      (declare (type index index))
-      (if (>= index n)
-	  (pop returned-list)))))
+  (if (and (typep n 'fixnum)
+	   (>= (the fixnum n) 0))
+    (locally (declare (fixnum n))
+      (do* ((checked-list list (cdr checked-list))
+	    (returned-list list)
+	    (index 0 (1+ index)))
+	   ((atom checked-list) returned-list)
+	(declare (type index index))
+	(if (>= index n)
+	  (pop returned-list))))
+    (if (and (typep n 'bignum)
+	     (> n 0))
+      (require-type list 'list)
+      (report-bad-arg  n 'unsigned-byte))))
 
 
 
@@ -756,8 +770,7 @@
   (do ((plist place (cddr plist)))
       ((null plist) (values nil nil nil))
     (cond ((atom (cdr plist))
-	   (error "~S is a malformed proprty list."
-		  place))
+	   (report-bad-arg place '(satisfies plistp)))
 	  ((memq (car plist) indicator-list) ;memq defined in kernel
 	   (return (values (car plist) (cadr plist) plist))))))
 
