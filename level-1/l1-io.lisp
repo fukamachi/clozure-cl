@@ -1445,7 +1445,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 (defun function-is-current-definition? (function)
   (let ((name (function-name function)))
     (and name
-         (symbolp name)
+         (valid-function-name-p name)
          (eq function (fboundp name)))))
 
 ;; outputs to stream or returns a string.  Barf!
