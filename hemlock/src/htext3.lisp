@@ -18,12 +18,28 @@
 
 (in-package :hemlock-internals)
 
+;;; Return (and deactivate) the current region.
+(defun %buffer-current-region (b)
+  (when (and (typep b 'buffer)
+             (variable-value 'hemlock::active-regions-enabled)
+             (eql (buffer-signature b)
+                  (buffer-region-active b)))
+    (let* ((mark (buffer-%mark b))
+           (point (buffer-point b)))
+      (setf (buffer-region-active b) nil)
+      (if (mark< mark point)
+        (region mark point)
+        (region point mark)))))
+             
 
 (defun insert-character (mark character)
   "Inserts the Character at the specified Mark."
   (declare (type base-char character))
   (let* ((line (mark-line mark))
-	 (buffer (line-%buffer line)))
+	 (buffer (line-%buffer line))
+         (region (%buffer-current-region buffer)))
+    (when region
+      (delete-region region))
     (modifying-buffer buffer
 		      (modifying-line line mark)
 		      (cond ((char= character #\newline)
@@ -65,8 +81,11 @@
   know what you're doing!"
   (let* ((line (mark-line mark))
 	 (buffer (line-%buffer line))
-	 (string (coerce string 'simple-string)))
+	 (string (coerce string 'simple-string))
+         (region (%buffer-current-region buffer)))
     (declare (simple-string string))
+    (when region
+      (delete-region region))
     (unless (zerop (- end start))
       (if (%sp-find-character string start end #\newline)
 	(with-mark ((mark mark :left-inserting))
