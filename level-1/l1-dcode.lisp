@@ -938,7 +938,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 (defun odd-keys-error (varg l) 
   (let ((gf (combined-method-gf (%svref varg 2))))
-    (error "Odd number of keyword args to ~s~%keyargs: ~s" gf l)))
+    (signal-program-error "Odd number of keyword args to ~s~%keyargs: ~s" gf l)))
 
 
 (defun bad-key-error (key varg l)
@@ -947,7 +947,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
          (*print-array* t)
          (*print-readably* t)
          (readable-keys (format nil "~s" keys)))
-    (error "Bad keyword ~s to ~s.~%keyargs: ~s~%allowable keys are ~a." key gf l readable-keys)))
+    (signal-program-error "Bad keyword ~s to ~s.~%keyargs: ~s~%allowable keys are ~a." key gf l readable-keys)))
 
 ; vector arg is (vector key-index keyvect combined-method) ; the next combined method
 (defun %%check-keywords (vector-arg args)
