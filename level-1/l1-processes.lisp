@@ -117,7 +117,9 @@
 		       :accessor process-initial-bindings)
      (serial-number :initform (%new-psn) :accessor process-serial-number)
      (creation-time :initform (get-tick-count) :reader process-creation-time)
-     (total-run-time :initform nil :accessor %process-total-run-time))
+     (total-run-time :initform nil :accessor %process-total-run-time)
+     (ui-object :initform (application-ui-object *application*)
+                :accessor process-ui-object))
   
   (:primary-p t))
 
@@ -141,10 +143,11 @@
                           (vstack-size *default-value-stack-size*)
                           (tstack-size *default-temp-stack-size*)
                           (initial-bindings ())
-			  (use-standard-initial-bindings t))
+			  (use-standard-initial-bindings t)
+                          (class (find-class 'process)))
   (declare (ignore flavor))
   (let* ((p (make-instance
-	     'process
+	     class
 	     :name name
 	     :thread (or thread
 			 (new-thread name stack-size  vstack-size  tstack-size))
