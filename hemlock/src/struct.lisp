@@ -47,7 +47,8 @@
 		      (:copier nil)
 		      (:constructor internal-make-font-mark
 				    (line charpos %kind font)))
-  font)
+  font
+  region)
 
 (defmacro fast-font-mark-p (s)
   `(typep ,s 'font-mark))
@@ -72,6 +73,9 @@
 (setf (documentation 'region-start 'function)
   "Returns the mark that is the start of a Hemlock region.")
 
+(defstruct (font-region (:include region)
+                        (:constructor internal-make-font-region (start end)))
+  node)
 
 ;;; The buffer object:
 ;;;
@@ -106,7 +110,15 @@
   process		      ; Maybe a listener
   (gap-context )	      ; The value of *buffer-gap-context*
                               ; in the thread that can modify the buffer.
+  protected-region            ; (optional) write-protected region
+  (font-regions (ccl::init-dll-header (ccl::make-dll-header)))
+                                        ; a doubly-linked list of font regions.
+  active-font-region                    ; currently active font region
   )
+
+(defstruct (font-region-node (:include ccl::dll-node)
+                             (:constructor make-font-region-node (region)))
+  region)
 
 (setf (documentation 'buffer-modes 'function)
   "Return the list of the names of the modes active in a given buffer.")
