@@ -697,15 +697,13 @@ instance_size of its ObjC superclass."))
   (let ((instance (apply #'allocate-instance class initargs)))
     (apply #'initialize-instance instance initargs)))
 
+
 (defun remove-slot-initargs (class initargs)
   (let* ((slot-initargs (class-slot-initargs class))) ; cache this, maybe
-    (collect ((non-slot-initargs))
-      (do* ((key (pop initargs) (pop initargs))
-	    (val (pop initargs) (pop initargs)))
-	   ((null initargs) (non-slot-initargs))
-	(unless (member key slot-initargs :test #'eq)
-	  (non-slot-initargs key)
-	  (non-slot-initargs val))))))
+    (loop for l = initargs then (cddr l)
+	  when (null l) do (return-from remove-slot-initargs new-initargs)
+	  unless (member (first l)  slot-initargs :test #'eq)
+	    append (list (first l) (second l))  into new-initargs)))
 
 (defmethod allocate-instance ((class objc:objc-class) &rest initargs &key &allow-other-keys)
   (unless (class-finalized-p class)
