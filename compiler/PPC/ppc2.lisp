@@ -403,10 +403,10 @@
            (*ppc2-valret-labels* nil)
            (*ppc2-nilret-labels* nil)
            (*ppc2-undo-count* 0)
-           (*backend-labels* (ppc2-make-stack 64 ppc32::subtag-simple-vector))
-           (*ppc2-undo-stack* (ppc2-make-stack 64  ppc32::subtag-simple-vector))
+           (*backend-labels* (ppc2-make-stack 64 target::subtag-simple-vector))
+           (*ppc2-undo-stack* (ppc2-make-stack 64  target::subtag-simple-vector))
            (*ppc2-undo-because* (ppc2-make-stack 64))
-           (*backend-immediates* (ppc2-make-stack 64  ppc32::subtag-simple-vector))
+           (*backend-immediates* (ppc2-make-stack 64  target::subtag-simple-vector))
            (*ppc2-entry-label* nil)
            (*ppc2-tail-label* nil)
            (*ppc2-inhibit-register-allocation* nil)
@@ -491,8 +491,8 @@
          (numimms (length imms))
          (function (%alloc-misc (+ numimms 2)
                                 (if cross-compiling
-                                  ppc32::subtag-xfunction
-                                  ppc32::subtag-function))))
+                                  target::subtag-xfunction
+                                  target::subtag-function))))
     (dotimes (i numimms)
       (setf (uvref function (1+ i)) (aref imms i)))
     (setf (uvref function (+ numimms 1)) bits)
@@ -500,8 +500,8 @@
 	   (traceback-size (traceback-fullwords traceback-string))
            (code-vector (%alloc-misc (+ traceback-size (ash maxpc -2))
                                      (if cross-compiling
-                                       ppc32::subtag-xcode-vector
-                                       ppc32::subtag-code-vector)))
+                                       target::subtag-xcode-vector
+                                       target::subtag-code-vector)))
            (i 0))
       (ppc-lap-resolve-labels)
       (do-dll-nodes (insn *lap-instructions*)
@@ -514,7 +514,7 @@
       function)))
       
     
-(defun ppc2-make-stack (size &optional (subtype ppc32::subtag-s16-vector))
+(defun ppc2-make-stack (size &optional (subtype target::subtag-s16-vector))
   (make-uarray-1 subtype size t 0 nil nil nil nil t nil))
 
 (defun ppc2-fixup-fwd-refs (afunc)
@@ -1138,10 +1138,11 @@
     (when (%ilogbitp $vbitreg bits)
       (%ilogand bits $vrefmask))))
 
-; Can't cross-compile this.  Too bad.
+#+ppc32-host
 (defun ppc2-single-float-bits (the-sf)
   (uvref the-sf ppc32::single-float.value-cell))
 
+#+ppc32-host
 (defun ppc2-double-float-bits (the-df)
   (values (uvref the-df ppc32::double-float.value-cell)
           (uvref the-df ppc32::double-float.val-low-cell)))
