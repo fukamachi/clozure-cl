@@ -6,13 +6,13 @@
   (require "COCOA-EDITOR")
   (require "PTY"))
 
-(def-cocoa-default *listener-rows* :int 16)
-(def-cocoa-default *listener-columns* :int 80)
+(def-cocoa-default *listener-rows* :int 16 "Initial height of listener windows, in characters")
+(def-cocoa-default *listener-columns* :int 80 "Initial height of listener windows, in characters")
 
-(def-cocoa-default *listener-background-red-component* :float 0.90f0)
-(def-cocoa-default *listener-background-green-component* :float 0.90f0)
-(def-cocoa-default *listener-background-blue-component* :float 0.90f0)
-(def-cocoa-default *listener-background-alpha-component* :float 1.0f0)
+(def-cocoa-default *listener-background-red-component* :float 0.90f0 "Red component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
+(def-cocoa-default *listener-background-green-component* :float 0.90f0 "Green component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
+(def-cocoa-default *listener-background-blue-component* :float 0.90f0 "Blue component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
+(def-cocoa-default *listener-background-alpha-component* :float 1.0f0 "Red component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
 
 ;;; Setup the server end of a pty pair.
 (defun setup-server-pty (pty)
