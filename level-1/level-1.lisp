@@ -65,13 +65,13 @@
   (bin-load "hash")
   (l1-load "l1-clos")
   (bin-load "defstruct")
+  (bin-load "dll-node")
   (l1-load "l1-streams")
   #+ppc-target
   (l1-load "linux-files")
   #+sparc-target
   (l1-load "solaris-files")
   (bin-load "chars")
-  (bin-load "dll-node")
   (l1-load "l1-files")
   (provide "SEQUENCES")
   (provide "DEFSTRUCT")
