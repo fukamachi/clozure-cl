@@ -18,6 +18,7 @@
 #include "lisp-exceptions.h"
 #include "lisp_globals.h"
 #include "area.h"
+#include "Threads.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -629,6 +630,10 @@ lisp_Debugger(ExceptionInformationPowerPC *xp, int why, char *message, ...)
 {
   va_list args;
 
+  if (threads_initialized) {
+    suspend_other_threads();
+  }
+
   va_start(args,message);
   debug_command_return state = debug_continue;
   vfprintf(stderr, message, args);
@@ -650,10 +655,14 @@ lisp_Debugger(ExceptionInformationPowerPC *xp, int why, char *message, ...)
   }
   switch (state) {
   case debug_exit_success:
-    resume_other_threads();
+    if (threads_initialized) {
+      resume_other_threads();
+    }
     return 0;
   case debug_exit_fail:
-    resume_other_threads();
+    if (threads_initialized) {
+      resume_other_threads();
+    }
     return -1;
   case debug_kill:
     terminate_lisp();
