@@ -1147,7 +1147,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (unless
       (cond (string?
              nil)
-            (bit-vector?
+            ((and print-array bit-vector?)
              (when (or print-array
                        (and simple?
                             (%i<= length
