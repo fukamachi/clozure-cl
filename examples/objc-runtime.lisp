@@ -581,7 +581,7 @@ argument lisp string."
 (def-ccl-pointers objc-strings ()
   (maphash #'(lambda (string cached)
 	       (setf (objc-constant-string-nsstringptr cached)
-		     (%make-nsstring string)))
+		     (%make-constant-nsstring string)))
 	   *objc-constant-strings*))
 
 (defmethod make-load-form ((s objc-constant-string) &optional env)
