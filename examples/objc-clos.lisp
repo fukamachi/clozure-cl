@@ -15,10 +15,16 @@
 ;;;   http://opensource.franz.com/preamble.html
 ;;;
 ;;; TO DO
+;;;  - Both method creation and invocation should be faster and cons less
+;;;  - Resolve messages with repeated keywords
+;;;    (rename them to :range1:range2 or don't use &key in GFs and methods)
+;;;  - How to integrate SEND-SUPER with CALL-NEXT-METHOD?
+;;;  - Variable arity ObjC methods
+;;;  - Pass-by-ref structures need to keep track of IN, OUT, IN/OUT info
+;;;  - Need to canonicalize and retain every returned :ID
+;;;  - Support :BEFORE, :AFTER and :AROUND for ObjC methods
+;;;  - User-defined ObjC methods via DEFMETHOD (or DEFINE-OBJ-METHOD)
 ;;;  - Need to fully handle init keywords and ObjC init messages
-;;;  - Canonicalization and retention for ObjC objects
-;;;  - Support redef of CLOS parts, but not changes in ObjC parts
-;;;  - Provide Lisp structs for NS-POINT, NS-RECT, etc.?
 
 ;;; Package and module stuff
 
@@ -43,6 +49,39 @@
 (package-force-export "NS")
 
 (defparameter *objc-import-private-ivars* t "When true, the CLASS-DIRECT-SLOTS of imported ObjC classes will contain slot definitions for instance variables whose name starts with an underscore.  Note that this may exacerbate compatibility problems.")
+
+
+;;; ObjC messages that cannot currently be translated into CLOS methods
+
+(defparameter *troublesome-messages*
+  '(
+    ;; Multicolon messages that don't respect the name translation rules
+    "performv::" "translateTo::" "indexOf:::" "scaleTo::" "forward::" 
+    "exchange::"
+    ;; Messages involving the nonexistent NSButtonState
+    "focusRingImageForState:" "useDisabledEffectForState:"
+    "isBorderedForState:" "imageForState:" "useHighlightEffectForState:"
+    "isOpaqueForState:" "bezelStyleForState:"
+    ;; Messages containing repeated keywords
+    "orderString:range:string:range:flags:"
+    "parseSuiteOfPairsKey:separator:value:separator:allowOmitLastSeparator:" 
+    "perform:with:with:" 
+    "perform:withObject:withObject:" 
+    "performSelector:withObject:withObject:" 
+    ;; Variable arity messages
+    "appendFormat:" "arrayWithObjects:" "encodeValuesOfObjCTypes:"
+    "decodeValuesOfObjCTypes:" "dictinaryWithObjectsAndKeys:"
+    "handleFailureInFunction:object:file:lineNumber:description:"
+    "handleFailureInMethod:object:file:lineNumber:description:"
+    "initWithFormat:" "initWithObjects:" "initWithObjectsAndKeys:"
+    "initWithFormat:locale:" "localizedStringWithFormat:" "raise:format:"
+    "setWithObjects:" "stringByAppendingFormat:" "stringWithFormat:"
+    ;; Seems to involve a (:STRUCT :?) argument
+    "percentEscapeDecodeBuffer:range:stripWhitespace:"))
+
+(defun troublesome-message-p (msg)
+  (if (member msg *troublesome-messages* :test #'string=) t nil))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                                 Testing                                ;;;;
@@ -896,7 +935,7 @@ instance_size of its ObjC superclass."))
 		 (string-cat prefix (first mcomps))
 	       (first mcomps))
 	     (find-package "NS"))
-	    (if (zerop ncolons) '(self) '(self arg &key))
+	    (if (zerop ncolons) '(%self) '(%self %arg &key))
 	    (mapcar #'compute-lisp-name (rest mcomps)))))
 
 
@@ -913,7 +952,7 @@ instance_size of its ObjC superclass."))
 	       (when (equal (method-qualifiers m) keys)
 		 (return-from %%objc-dcode (apply (method-function m) largs))))
 	     (apply #'no-applicable-method (%gf-dispatch-table-gf dt) largs))))
-    ;; If only on arg is present, args is apparently not encoded
+    ;; If only one arg is present, ARGS is apparently not encoded
     (if (numberp args)
 	(with-list-from-lexpr (l args) (invoke-method l))
       (invoke-method (list args)))))
@@ -922,45 +961,104 @@ instance_size of its ObjC superclass."))
 ;;; Ensure that the generic function corresponding to MSG exists
 
 (defun ensure-objc-generic-function (msg)
-  (multiple-value-bind (gf-name lambda-list) (gfify msg)	    
-    (let ((gf (ensure-generic-function
-	       gf-name
-	       :lambda-list lambda-list
-	       :generic-function-class (find-class 'objc-generic-function)
-	       :method-class (find-class 'objc-method))))
-      (setf (%gf-dcode gf) #'%%objc-dcode)
-      gf)))
+  (cond 
+   ((null (message-descriptors msg))
+    (error "Unknown ObjC message: ~S" msg))
+   ((troublesome-message-p msg) nil)
+   (t
+    (multiple-value-bind (gf-name lambda-list) (gfify msg)	    
+      (let ((gf (ensure-generic-function
+		 gf-name
+		 :lambda-list lambda-list
+		 :generic-function-class (find-class 'objc-generic-function)
+		 :method-class (find-class 'objc-method))))
+	(setf (%gf-dcode gf) #'%%objc-dcode)
+	gf)))))
+
+
+;;; Create the method function corresponding to the given ObjC MSG
+
+(defun make-objc-method-function (msg lambda-list keys)
+  (let ((msgdescs (message-descriptors msg)))
+    (compile 
+     nil
+     (if (= (length msgdescs) 1)
+	 ;; The type signature is unique
+	 `(lambda ,lambda-list
+	    ,(build-message-send 
+	      msg (msg-desc-type-signature (first msgdescs)) keys))
+       ;; The type signature is ambiguous
+       `(lambda ,lambda-list
+	  (cond
+	   ,@(loop for md in msgdescs
+		  collect
+		  `((or 
+		     ,@(loop for c in (msg-desc-classes md)
+			     collect
+			     `(typep %self ',(class-name c))))
+		    (locally
+		      (declare (,(class-name (first (msg-desc-classes md)))
+				%self))
+		      ,(build-message-send 
+			msg (msg-desc-type-signature md) keys))))))))))
+
+
+;;; Build the message-sending code for the given message with the given
+;;; type signature and keys
+
+(defun build-message-send (msg tsig keys)
+  (let* ((rvars nil)
+	 (args (if (zerop (count #\: msg))
+		   nil
+		 (loop 
+		  for a in (cons '%arg keys)
+		  for ftype in (rest tsig)
+		  for r/s-assoc = (coerceable-foreign-record-p ftype)
+		  for sname = (gensym)
+		  if r/s-assoc
+		    do (push (list sname (fudge-objc-type ftype)) rvars)
+		    and collect
+		    (generate-structure-to-foreign-record-copier-form 
+		     (record-structure-association-structure-name r/s-assoc)
+		     (record-structure-association-record-name r/s-assoc)
+		     :struct-name a :record-name sname)
+		  else collect a))))
+       (if (requires-stret-p (first tsig))
+	   ;; STRET message send
+	   (let ((r (gensym)))
+	     `(rlet ((,r ,(fudge-objc-type (first tsig))) ,@rvars)
+	        (send/stret ,r %self ,msg ,@args)
+		,(create-structure-from-record-form r (cadar tsig))))
+	 ;; Normal message send
+	 `(rlet ,rvars
+	    (send %self ,msg ,@args)))))
 
 
 ;;; Ensure that the method corresponding to CLASS's method for MSG exists
 
-(defun ensure-objc-method (msg &optional 
-			       (class (find-class 'objc:objc-object)))
-  (flet ((keywordify (sym)
-           (intern (string sym) (find-package 'keyword))))
-    (multiple-value-bind (gf-name lambda-list keys) (gfify msg)
-      (let* ((ncolons (count #\: msg))
-	     (class-name (class-name class))
-	     (gf (ensure-objc-generic-function msg))
-	     (lambda-list (append lambda-list keys))
-	     (m
-	      (ensure-method
-	       gf-name
-	       (if (zerop ncolons) (list class-name) (list class-name t))
-	       :function
-	       (compile nil
-			`(lambda ,lambda-list
-			   ,(case ncolons
-				  (0 `(send self ,msg))
-				  (1 `(send self ,msg arg))
-				  (t `(send self ,msg arg ,@keys)))))
-	       :qualifiers (mapcar #'keywordify keys)
-	       :lambda-list lambda-list)))
-	(setf (%gf-dcode gf) #'%%objc-dcode)
-	m))))
+(defun ensure-objc-method (msg)
+  (cond 
+   ((null (message-descriptors msg))
+    (error "Unknown ObjC message: ~S" msg))
+   ((troublesome-message-p msg) nil)
+   (t
+    (flet ((keywordify (sym)
+	     (intern (string sym) (find-package 'keyword))))
+      (multiple-value-bind (gf-name lambda-list keys) (gfify msg)
+	(let* ((gf (ensure-objc-generic-function msg))
+	       (lambda-list (append lambda-list keys))
+	       (m
+		(ensure-method
+		 gf-name
+		 nil
+		 :function (make-objc-method-function msg lambda-list keys)
+		 :qualifiers (mapcar #'keywordify keys)
+		 :lambda-list lambda-list)))
+	  (setf (%gf-dcode gf) #'%%objc-dcode)
+	  m))))))
 
 
-;;; Someday, this might even work...
+;;; Generate ObjC methods for all messages in *TYPE-SIGNATURE-TABLE*
 
 (defun define-all-objc-methods ()
   (declare (special *type-signature-table*))
@@ -969,3 +1067,184 @@ instance_size of its ObjC superclass."))
 	       (ensure-objc-method msg))
 	   *type-signature-table*))
 
+
+;;; Lisp structures analogous to common Cocoa records
+
+(defstruct (ns-range (:constructor make-ns-range (location length)))
+  location
+  length)
+
+(defun ns-make-range (loc len)
+  (make-ns-range loc len))
+
+(defstruct (ns-point (:constructor make-ns-point (x y)))
+  x
+  y)
+
+(defun ns-make-point (x y)
+  (make-ns-point (coerce x 'single-float) (coerce y 'single-float)))
+
+(defstruct (ns-size (:constructor make-ns-size (width height)))
+  width
+  height)
+
+(defun ns-make-size (w h)
+  (make-ns-size 
+   (coerce w 'single-float) 
+   (coerce h 'single-float)))
+
+;;; Note that this is linear: four fields, rather than an ns-point
+;;; and an ns-size.
+(defstruct (ns-rect
+	     (:constructor make-ns-rect
+			   (origin.x origin.y size.width size.height)))
+  origin.x
+  origin.y
+  size.width
+  size.height)
+
+(defun ns-make-rect (ox oy sw sh)
+  (make-ns-rect
+   (coerce ox 'single-float)
+   (coerce oy 'single-float)
+   (coerce sw 'single-float)
+   (coerce sh 'single-float)))
+
+(defstruct (ns-decimal
+	    (:constructor make-ns-decimal
+			  (_exponent _length _is-negative _is-compact _reserved _mantissa)))
+  _exponent
+  _length
+  _is-negative
+  _is-compact
+  _reserved
+  _mantissa)
+
+;;; Also linear
+(defstruct (cg-rect
+	    (:constructor make-cg-rect
+			  (origin.x origin.y size.width size.height)))
+  origin.x
+  origin.y
+  size.width
+  size.height)
+
+(defstruct (ns-affine-transform-struct
+	    (:constructor make-ns-affine-transform-struct
+			  (m11 m12 m21 m22 tx ty)))
+  m11 m12 m21 m22 tx ty)
+
+
+(defun generate-foreign-record-to-structure-copier-form (record-type-name structure-class-name &key (struct-name (gensym)) (record-name (gensym)))
+  (let* ((slot-names (mapcar #'slot-definition-name (class-slots (find-class structure-class-name))))
+	 (record-type (%foreign-type-or-record record-type-name))
+	 (accessor-names (foreign-record-accessor-names record-type)))
+    (unless (eq (length slot-names) (length accessor-names))
+      (error "Slot names ~s don't match record accessors ~s"
+	     slot-names accessor-names))
+    (let* ((body (mapcar #'(lambda (slot-name accessor)
+			     `(setf (slot-value ,struct-name ',slot-name)
+			       ,(%foreign-access-form record-name
+						      record-type
+						      0
+						      accessor)))
+			 slot-names accessor-names)))
+      `(progn ,@body ,struct-name))))
+
+(defun generate-structure-to-foreign-record-copier-form
+    (structure-class-name record-type-name
+			  &key
+			  (struct-name (gensym))
+			  (record-name (gensym)))
+  (let* ((slot-names (mapcar #'slot-definition-name (class-slots (find-class structure-class-name))))
+	 (record-type (%foreign-type-or-record record-type-name))
+	 (accessor-names (foreign-record-accessor-names record-type)))
+    (unless (eq (length slot-names) (length accessor-names))
+      (error "Slot names ~s don't match record accessors ~s"
+	     slot-names accessor-names))
+    (let* ((body (mapcar #'(lambda (slot-name accessor)
+			     `(setf ,(%foreign-access-form record-name
+							   record-type
+							   0
+							   accessor)
+			       (slot-value ,struct-name ',slot-name)))
+			 slot-names accessor-names)))
+      `(progn ,@body ,record-name))))
+
+(defun generate-foreign-record-to-structure-creator-form
+    (record-type-name constructor-name &key (record-name (gensym)))
+  (let* ((record-type (%foreign-type-or-record record-type-name))
+	 (accessor-names (foreign-record-accessor-names record-type))
+	 (args (mapcar #'(lambda (accessor)
+			   (%foreign-access-form record-name
+						 record-type
+						 0
+						 accessor))
+		       accessor-names)))
+    `(,constructor-name ,@args)))
+
+	   
+(defstruct record-structure-association
+  record-name
+  structure-name
+  structure-constructor-name)
+
+(defparameter *record-structure-associations* ())
+
+(defun record-structure-association-from-record-name (r)
+  (find r *record-structure-associations* :key #'record-structure-association-record-name))
+
+(defun need-record-structure-association-from-record-name (r)
+  (or (record-structure-association-from-record-name r)
+      (error "No lisp structure associated with foreign record named ~s" r)))
+  
+(defun record-structure-association-from-structure-name (r)
+  (find r *record-structure-associations* :key #'record-structure-association-structure-name))
+
+(defun associate-record-with-structure (record-name structure-name constructor-name)
+  (let* ((already-r (record-structure-association-from-record-name record-name))
+	 (already-s (record-structure-association-from-structure-name structure-name))
+	 (already (or already-r already-s))
+	 (different (not (eq already-r already-s))))
+    (if already
+      (if different
+	(if already-r
+	  (error "~&Record named ~s is already associated with structure named ~s"
+		 (record-structure-association-record-name already-r)
+		 (record-structure-association-structure-name already-r))
+	  (if already-s
+	    (error "~&Structure named ~s is already associated with record named ~s"
+		   (record-structure-association-structure-name already-s)
+		   (record-structure-association-record-name already-s))))
+	(setf (record-structure-association-structure-constructor-name already)
+	      constructor-name))
+      (push (make-record-structure-association
+	     :record-name record-name
+	     :structure-name structure-name
+	     :structure-constructor-name constructor-name)
+	    *record-structure-associations*))
+    t))
+
+(defun create-structure-from-record-form (var record-type)
+  (let* ((a (need-record-structure-association-from-record-name
+	     record-type))
+	 (constructor
+	  (record-structure-association-structure-constructor-name a)))
+    (generate-foreign-record-to-structure-creator-form
+     record-type constructor :record-name var)))
+
+(defun coerceable-foreign-record-p (ftype)
+  (and (consp ftype) 
+       (eq (first ftype) :struct) 
+       (find (second ftype) *record-structure-associations*
+	     :key #'record-structure-association-record-name)))
+    
+(associate-record-with-structure :_<NSR>ect 'ns-rect 'make-ns-rect)
+(associate-record-with-structure :_<NSP>oint 'ns-point 'make-ns-point)
+(associate-record-with-structure :_<NSS>ize 'ns-size 'make-ns-size)
+(associate-record-with-structure :_<NSR>ange 'ns-range 'make-ns-range)
+(associate-record-with-structure :<NSD>ecimal 'ns-decimal 'make-ns-decimal)
+(associate-record-with-structure :<CGR>ect 'cg-rect 'make-cg-rect)
+(associate-record-with-structure :_<NSA>ffine<T>ransform<S>truct 
+				 'ns-affine-transform-struct 
+				 'make-ns-affine-transform-struct)
