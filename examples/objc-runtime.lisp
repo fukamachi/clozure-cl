@@ -1519,7 +1519,7 @@ argument lisp string."
 		   ;; the class and all superclasses to have been initialized,
 		   ;; so that we can find category methods via
 		   ;; #_class_getInstanceMethod.
-		   (external-call "__class_lookupMethodAndLoadCache"
+		   (external-call "_class_lookupMethod"
 				  :id class
 				  :<SEL> sel
 				  :address))
