@@ -425,7 +425,7 @@
 (defmethod finalize-inheritance ((class forward-referenced-class))
   (error "Class ~s can't be finalized." class))
 
-(defmethod class-primary-p ((class std-class))
+(defmethod class-primary-p ((class slots-class))
   (%class-primary-p class))
 
 (defmethod (setf class-primary-p) (new (class std-class))
@@ -463,6 +463,9 @@
                      ((= i n))
                   (unless (eq (%slot-definition-name (car sup-slotds))
                               (%slot-definition-name (car primary-slotds)))
+                    (format t "~&name of sup-slotds = ~s, name of prim = ~s"
+                            (%slot-definition-name (car sup-slotds))
+                            (%slot-definition-name (car primary-slotds)))
                     (error "While initializing ~s:~%~
                             attempt to mix incompatible primary classes:~%~
                             ~s and ~s"
