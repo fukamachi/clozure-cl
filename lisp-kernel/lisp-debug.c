@@ -55,6 +55,8 @@ typedef struct {
   int c;
 } debug_command_entry;
 
+
+extern
 debug_command_entry debug_command_entries[];
 
 
@@ -497,6 +499,7 @@ debug_thread_reset(ExceptionInformationPowerPC *xp, int arg)
   return debug_exit_success;
 }
 
+
 debug_command_entry debug_command_entries[] = 
 {
   {debug_set_gpr,
@@ -629,13 +632,13 @@ OSStatus
 lisp_Debugger(ExceptionInformationPowerPC *xp, int why, char *message, ...)
 {
   va_list args;
+  debug_command_return state = debug_continue;
 
   if (threads_initialized) {
     suspend_other_threads();
   }
 
   va_start(args,message);
-  debug_command_return state = debug_continue;
   vfprintf(stderr, message, args);
   fprintf(stderr, "\n");
   va_end(args);
