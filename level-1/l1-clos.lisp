@@ -1330,7 +1330,8 @@ governs whether DEFCLASS makes that distinction or not.")
     (unless (eq gf-class (class-of gf))
       (cerror (format nil "Change the class of ~s to ~s." gf gf-class)
 	      "The class of the existing generic function ~s is not ~s"
-	      gf gf-class))
+	      gf gf-class)
+      (change-class gf gf-class))
     (apply #'reinitialize-instance gf initargs)))
 
 
