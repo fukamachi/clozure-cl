@@ -222,6 +222,11 @@
       (id->objc-metaclass id)
       (error "Class ~S isn't recognized." m))))
 
+(defun canonicalize-registered-class-or-metaclass (x)
+  (if (%objc-metaclass-p x)
+    (canonicalize-registered-metaclass x)
+    (canonicalize-registered-class x)))
+
 
 ;;; Open shared libs.
 #+darwinppc-target
@@ -229,6 +234,14 @@
 (defloadvar *cocoa-event-process* *initial-process*)
 
 
+(defun current-ns-thread ()
+  (with-cstrs ((class-name "NSThread")
+               (message-selector-name "currentThread"))
+    (let* ((nsthread-class (#_objc_lookUpClass class-name))
+           (message-selector (#_sel_getUid message-selector-name)))
+      (#_objc_msgSend nsthread-class message-selector)
+      nil)))
+  
 (defun create-void-nsthread ()
   ;; Create an NSThread which does nothing but exit.
   ;; This'll help to convince the AppKit that we're
@@ -267,6 +280,7 @@
        ;; symbol in the library should cause it to be initialized
        (open-shared-library "/System/Library/Frameworks/Cocoa.framework/Cocoa")
        (#_GetCurrentEventQueue)
+       (current-ns-thread)
        (create-void-nsthread))))
 
 
@@ -443,7 +457,8 @@
 	    (multiple-value-bind (ivars instance-size)
 		(%make-objc-ivars c)
 	      (%add-objc-class c ivars instance-size)
-	      (splay-tree-put class-map c i))))))))
+	      (splay-tree-put class-map c i)
+              (format t "~& addded ~s" (class-name c)))))))))
 
 (pushnew #'revive-objc-classes *lisp-system-pointer-functions*
 	 :test #'eq
