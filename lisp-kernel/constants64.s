@@ -604,12 +604,14 @@ fpscr_XE = 28
 */		
 tstack_alloc_limit = 0xffff
 
+TCR_BIAS = 0x7000        
 /*
   Thread context record.
 */
-	_struct(tcr,0)
+	_struct(tcr,-TCR_BIAS)
 	 _node(prev)		/* in doubly-linked list */
 	 _node(next)		/* in doubly-linked list */
+         _node(single_float_convert) /* xxxf0 */
 	 _node(lisp_fpscr)	/* lisp thread's fpscr (in low word) */
 	 _node(lisp_fpscr_low)
 	 _node(db_link)		/* special binding chain head */
