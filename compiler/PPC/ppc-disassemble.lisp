@@ -147,7 +147,7 @@
             (let* ((extract-fn (arch::operand-extract-function operand)))
               (push (if extract-fn
                       (funcall extract-fn i)
-                      (arch::extract-default operand i))
+                      (ppc::extract-default operand i))
                     vals))))
         (let* ((insn (%make-lap-instruction opcode)))
           (setf (lap-instruction-parsed-operands insn)
