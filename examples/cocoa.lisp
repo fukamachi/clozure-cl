@@ -17,15 +17,10 @@
 (require "OBJC-SUPPORT")
 (require "COCOA-WINDOW")
 (require "COCOA-LISTENER")
-
+(require "COCOA-BACKTRACE")
 
   
 
-
-;;; Maintain a list of all open documents.
-(defparameter *open-editor-documents* ())
-
-(defparameter *open-editor-documents-lock* (make-lock))
 
 
 ;;; The application delegate gets notified of state changes in the
@@ -59,6 +54,17 @@
   (when (zerop *cocoa-listener-count*)
     (send self :new-listener app)
     t))
+
+
+(defmethod ui-object-do-operation ((o ns:ns-application)
+                                   operation &rest args)
+  (case operation
+    (:note-current-package (ui-object-note-package o (car args)))
+    (:eval-selection (ui-object-eval-selection o (car args)))
+    (:enter-backtrace-context
+     (ui-object-enter-backtrace-context o (car args)))
+    (:exit-backtrace-context
+     (ui-object-exit-backtrace-context o (car args)))))
 
 
 (start-cocoa-application)
