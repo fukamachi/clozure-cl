@@ -15,7 +15,7 @@
             SUPERCLASS = NSObject; 
         }, 
         {
-            ACTIONS = {showPreferences = id; }; 
+            ACTIONS = {showPreferences = id; toggleTypeout = id; }; 
             CLASS = NSApplication; 
             LANGUAGE = ObjC; 
             SUPERCLASS = NSResponder; 
