@@ -333,49 +333,15 @@
 
  
 
-(defun require-global-symbol (s)
+(defun require-global-symbol (s &optional env)
   (let* ((s (require-type s 'symbol))
 	 (bits (%symbol-bits s)))
-    (unless (logbitp $sym_vbit_global bits)
+    (unless (or (logbitp $sym_vbit_global bits)
+		(let* ((defenv (if env (definition-environment env))))
+		  (if defenv
+		    (eq :global (%cdr (assq s (defenv.specials defenv)))))))
       (error "~s not defined with ~s" s 'defglobal))
     s))
-
-; This does something like special binding, but the "bindings" established
-; aren't undone by context switch.
-(defmacro let-globally ((&rest vars) &body body &environment env)
-  (multiple-value-bind (body decls) (parse-body body env)
-    (let* ((initforms nil)
-           (psetform nil)
-           (specvars nil)
-           (restoreform nil))
-      (flet ((pair-name-value (p)
-               (if (atom p)
-                 (values (require-global-symbol p) nil)
-                 (if (and (consp (%cdr p)) (null (%cddr p)))
-                   (values (require-global-symbol (%car p)) (%cadr p))
-                   (error "Invalid variable initialization form : ~s")))))
-        (declare (inline pair-name-value))
-        (dolist (v vars)
-          (let* ((oldval (gensym))
-                 (newval (gensym)))
-            (multiple-value-bind (var valueform) (pair-name-value v)
-              (push var specvars)
-              (push var restoreform)
-              (push oldval restoreform)
-              (push `(,oldval (uvref ',var #.ppc32::symbol.vcell-cell)) initforms)
-              (push `(,newval ,valueform) initforms)
-              (push var psetform)
-              (push newval psetform))))
-        `(let ,(nreverse initforms)
-           ,@decls
-           (locally (declare (special ,@(nreverse specvars)))
-             (unwind-protect
-               (progn (psetq ,@(nreverse psetform)) ,@body)
-               (psetq ,@(nreverse restoreform)))))))))
-
-
-
-
 
 
 (defmethod print-object ((s lock) stream)
