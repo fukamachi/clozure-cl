@@ -16,7 +16,6 @@
 
 #include "lisp-exceptions.h"
 #include "lisp_globals.h"
-#include "lisp-debug.h"
 #include "area.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -643,7 +642,7 @@ lisp_Debugger(ExceptionInformationPowerPC *xp, int why, char *message, ...)
   }
   fprintf(stderr, "? for help\n");
   while (state == debug_continue) {
-    fprintf(stderr, "[%d] OpenMCL kernel debugger> ", main_thread_pid);
+    fprintf(stderr, "[%d] OpenMCL kernel debugger: ", main_thread_pid);
     state = apply_debug_command(xp, readc(), why);
   }
   switch (state) {
