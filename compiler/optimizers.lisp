@@ -627,7 +627,7 @@
 				   `((,dims-var ,dims)))))
 
     `(let ,let-list
-       (%make-displaced-array ,dims-var ,@call-list))))
+       (%make-displaced-array ,dims-var ,@call-list) t)))
 
 (defun comp-make-uarray (dims keys subtype)
   (let* ((call-list (make-list 6))
