@@ -446,7 +446,6 @@
           (unwind-protect
                (progn
                  (unless (eq *current-buffer* *echo-area-buffer*)
-                   (when (buffer-modified *echo-area-buffer*) (clear-echo-area))
                    (unless (or (zerop (length cmd))
                                (not (value hemlock::key-echo-delay)))
                      (editor-sleep (value hemlock::key-echo-delay))
@@ -463,6 +462,7 @@
                      (etypecase res
                        (command 
                         (let ((punt t))
+                          (clear-echo-area)
                           (catch 'command-loop-catcher
                             (dolist (c t-bindings)
                               (funcall *invoke-hook* c *prefix-argument*))
