@@ -20,7 +20,7 @@
 /*  Register usage: */
 #define rzero 0
 #define sp 1
-#define rcontext 2
+#define old_rcontext 2
 #define imm0 3
 #define imm1 4
 #define imm2 5
@@ -31,7 +31,7 @@
 #define allocbase 10
 #define nargs 11
 #define tsp 12
-#define new_rcontext 13
+#define rcontext 13
 #define loc_pc 14		/*  code vector locative */
 #define vsp 15		
 #define fn 16

@@ -73,7 +73,6 @@ ifdef([DARWIN],[
 _exportfn(C(start_lisp))
 	__(mflr r0)
 	__(mr r5,r2)
-	__(mr rcontext,r3)
 ifdef([DARWIN],[
 	__(str(r0,c_frame.savelr(sp)))
 	__(stru(sp,-(stack_align(c_frame.minsiz+(32*4)))(sp)))
@@ -85,6 +84,8 @@ ifdef([DARWIN],[
 	__(stmw r13,eabi_c_frame.minsiz(sp)) /* don't worry about the stmw. */
 	__(stfd fp_s32conv,eabi_c_frame.minsiz+(22*4)(sp))
 ])
+	__(mr rcontext,r3)
+        __(mr old_rcontext,rcontext)        
 	__(lwi(r30,0x43300000))
 	__(lwi(r31,0x80000000))
 ifdef([DARWIN],[
@@ -156,7 +157,6 @@ ifdef([DARWIN],[
 ])
 	__(mtlr r0)
 	__(ldr(sp,0(sp)))
-	__(ldr(r2,tcr.native_thread_info(rcontext)))
 	__(blr)
 
 _exportfn(_SPsp_end)
