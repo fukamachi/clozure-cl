@@ -550,7 +550,7 @@
 
 ; Linked list of fake stack frames.
 ; %frame-backlink looks here
-(defvar *fake-stack-frames* nil)
+(def-standard-initial-binding *fake-stack-frames* nil)
 
 
   
