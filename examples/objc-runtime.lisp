@@ -67,6 +67,9 @@
 
 
 
+;			 (let* ((metaclass-name (intern (concatenate 'string "+" (string class-name)) (symbol-package class-name)))
+
+
 (let* ((objc-class-map (make-splay-tree #'%ptr-eql
 					#'(lambda (x y)
 					    (< (the (unsigned-byte 32)
@@ -84,8 +87,8 @@
        (class-table-size 1024)
        (c (make-array 1024))
        (m (make-array 1024))
-       (cw (make-array 1024))
-       (mw (make-array 1024))
+       (cw (make-array 1024 :initial-element nil))
+       (mw (make-array 1024 :initial-element nil))
        (csv (make-array 1024))
        (msv (make-array 1024)))
 
@@ -143,54 +146,25 @@
               (splay-tree-count objc-class-map) 0
               (splay-tree-count objc-metaclass-map) 0
               next-objc-class-id 0)))
-    (defun map-objc-class (class &optional (name nil name-p))
-      "ensure that the class (and metaclass) are mapped to a small integer"
+
+    (defun register-objc-class (class)
+      "ensure that the class (and metaclass) are mapped to a small integer,
+and that each have slots-vectors associated with them."
       (with-lock-grabbed (objc-class-lock)
-	(labels ((ensure-mapped-class (class &optional
-					     (class-name
-					      (objc-to-lisp-classname
-					       (%get-cstring
-						(pref class :objc_class.name))
-					       "NS")
-					      class-name-p))
-		   (ensure-objc-classptr-resolved class)
-		   (with-macptrs ((super (pref class :objc_class.super_class)))
-		     (unless (%null-ptr-p super)
-		       (ensure-mapped-class super)))
-		   (or (splay-tree-get objc-class-map class)
-		       (let* ((id (assign-next-class-id))
-			      (class (%inc-ptr class 0))
-			      (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
-			 (splay-tree-put objc-class-map class id)
-			 (splay-tree-put objc-metaclass-map meta id)
-			 (setf (svref c id) class
-			       (svref m id) meta)
-			 (let* ((metaclass-name (intern (concatenate 'string "+" (string class-name)) (symbol-package class-name)))
-				(class-wrapper (%cons-wrapper class))
-				(meta-wrapper (%cons-wrapper meta))
-				(class-slot-vector
-				 (initialize-objc-class-slots class
-							      class-name
-							      class-wrapper
-							      (not class-name-p)))
-				(meta-slot-vector
-				 (initialize-objc-metaclass-slots
-				  meta
-				  metaclass-name
-				  meta-wrapper
-				  (not class-name-p)
-				  class)))
-			 (setf (svref cw id) class-wrapper
-			       (svref mw id) meta-wrapper
-			       (svref csv id) class-slot-vector
-			       (svref msv id) meta-slot-vector
-			       (find-class class-name) class
-			       (find-class metaclass-name) meta)
-			 )
-			 id))))
-	  (if name-p
-	    (ensure-mapped-class class name)
-	    (ensure-mapped-class class)))))
+	(ensure-objc-classptr-resolved class)
+	(or (splay-tree-get objc-class-map class)
+	    (let* ((id (assign-next-class-id))
+		   (class (%inc-ptr class 0))
+		   (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
+	      (splay-tree-put objc-class-map class id)
+	      (splay-tree-put objc-metaclass-map meta id)
+	      (setf (svref c id) class
+		    (svref m id) meta
+		    (svref csv id)
+		    (make-objc-class-slots-vector class)
+		    (svref msv id)
+		    (make-objc-metaclass-slots-vector meta))
+	      id))))
     (defun objc-class-id (class)
       (with-lock-grabbed (objc-class-lock)
         (splay-tree-get objc-class-map class)))
@@ -207,8 +181,20 @@
   (map-splay-tree (objc-class-map) #'(lambda (id)
 				       (funcall f (id->objc-class id)))))
 
+(defun canonicalize-registered-class (c)
+  (let* ((id (objc-class-id c)))
+    (if id
+      (id->objc-class id)
+      (error "Class ~S isn't recognized." c))))
 
+(defun canonicalize-registered-metaclass (m)
+  (let* ((id (objc-metaclass-id m)))
+    (if id
+      (id->objc-metaclass id)
+      (error "Class ~S isn't recognized." m))))
+  
 
+;;; Open shared libs.
 #+darwinppc-target
 (progn
 (defloadvar *cocoa-event-process* *initial-process*)
@@ -224,8 +210,6 @@
 				     (signal-semaphore done))))
     (wait-on-semaphore done)
     (car success)))
-
-
 
 
 (def-ccl-pointers cocoa-framework ()
@@ -250,14 +234,10 @@
 
 (pushnew 'remap-all-library-classes *lisp-system-pointer-functions*)
 
-
-
-)					;#+darwinppc-target
+)
 
 #+gnu-objc
 (progn
-
-
 (defparameter *gnustep-system-root* "/usr/GNUstep/" "The root of all evil.")
 (defparameter *gnustep-libraries-pathname*
   (merge-pathnames "System/Library/Libraries/" *gnustep-system-root*))
@@ -304,6 +284,58 @@
 )
 
 
+(defun install-foreign-objc-class (class)
+  (let* ((id (objc-class-id class)))
+    (unless id
+      (setq id (register-objc-class class)
+	    class (id->objc-class id))
+      ;; If not mapped, map the superclass (if there is one.)
+      (let* ((super (pref class :objc_class.super_class)))
+	(unless (%null-ptr-p super)
+	  (install-foreign-objc-class super))
+	(let* ((class-name 
+		(objc-to-lisp-classname (%get-cstring
+					 (pref class :objc_class.name))
+					"NS"))
+	       (meta (id->objc-metaclass id))
+	       (meta-name (intern (concatenate 'string
+					       "+"
+					       (string class-name))
+				  "NS"))
+	       (meta-super (pref meta :objc_class.super_class)))
+	  ;; It's important (here and when initializing the class
+	  ;; below) to use the "canonical" (registered) version
+	  ;; of the class, since some things in CLOS assume
+	  ;; EQness.  We probably don't want to violate that
+	  ;; assumption; it'll be easier to revive a saved image
+	  ;; if we don't have a lot of EQL-but-not-EQ class pointers
+	  ;; to deal with.
+	  (initialize-instance meta
+			       :name meta-name
+			       :direct-superclasses
+			       (list
+				(if (or (%null-ptr-p meta-super)
+					(not (%objc-metaclass-p meta-super)))
+				  (find-class 'objc:objc-class)
+				  (canonicalize-registered-metaclass meta-super)))
+			       :peer class
+			       :foreign t)
+	  (setf (find-class meta-name) meta)
+;	  (setf (id->objc-metaclass-wrapper id) (%class-own-wrapper meta))
+	  (setf (slot-value class 'direct-slots)
+		(%compute-foreign-direct-slots class))
+	  (initialize-instance class
+			       :name class-name
+			       :direct-superclasses
+			       (list
+				(if (%null-ptr-p super)
+				  (find-class 'objc:objc-object)
+				  (canonicalize-registered-class super)))
+			       :peer meta
+			       :foreign t)
+;	  (setf (id->objc-class-wrapper id) (%class-own-wrapper class))
+	  (setf (find-class class-name) class))))))
+				
 
 ;;; An instance of NSConstantString (which is a subclass of NSString)
 ;;; consists of a pointer to the NSConstantString class (which the
@@ -323,7 +355,6 @@
   #+gnu-objc
   (with-cstrs ((name "NSConstantString"))
       (#_objc_lookup_class name)))
-
 
 ;;; Execute the body with the variable NSSTR bound to a
 ;;; stack-allocated NSConstantString instance (made from
@@ -413,8 +444,8 @@ argument lisp string."
 ;;; lookup once per session (in general.)
 (defun lookup-objc-class (name &optional error-p)
   (with-cstrs ((cstr (objc-class-name-string name)))
-    (let* ((p (#+apple-objc #_objc_lookUpClass #+gnu-objc
-	       #_objc_lookup_class
+    (let* ((p (#+apple-objc #_objc_lookUpClass
+               #+gnu-objc #_objc_lookup_class
 	       cstr)))
       (if (%null-ptr-p p)
 	(if error-p
@@ -671,22 +702,7 @@ argument lisp string."
 (defvar *objc-sel-type* (parse-foreign-type :<SEL>))
 (defvar *objc-char-type* (parse-foreign-type :char))
 
-(defun accessor-for-type-char (c)
-  (case c
-    ((#\@ @\: #\^ #\#) '%get-ptr)
-    (#\c '%get-signed-byte)
-    (#\C '%get-unsigned-byte)
-    (#\s '%get-signed-word)
-    (#\S '%get-unsigned-word)
-    ((#\i #\l) '%get-signed-long)
-    ((#\I #\L) '%get-unsigned-long)
-    (#\q '%%get-signed-longlong)
-    (#\Q '%%get-unsigned-longlong)
-    (#\f '%get-single-float)
-    (#\d '%get-double-float)
-    ((#\{ #\( #\[) '%inc-ptr)))
-
-(defun encode-objc-arg-type (type)
+(defun encode-objc-type (type &optional for-ivar)
   (if (or (eq type *objc-id-type*)
 	  (foreign-type-= type *objc-id-type*))
     "@"
@@ -701,21 +717,23 @@ argument lisp string."
 	     (if (or (eq target *objc-char-type*)
 		     (foreign-type-= target *objc-char-type*))
 	       "*"
-	       (format nil "^~a" (encode-objc-arg-type target)))))
+	       (format nil "^~a" (encode-objc-type target)))))
 	  (foreign-double-float-type "d")
 	  (foreign-single-float-type "f")
 	  (foreign-integer-type
 	   (let* ((signed (foreign-integer-type-signed type))
 		  (bits (foreign-integer-type-bits type)))
-	     (cond ((= bits 8)
-		    (if signed "c" "C"))
-		   ((= bits 16)
-		    (if signed "s" "S"))
-		   ((= bits 32)
-		    ;; Should be some way of noting "longness".
-		    (if signed "i" "I"))
-		   ((= bits 64)
-		    (if signed "q" "Q")))))
+	     (if (eq (foreign-integer-type-alignment type) 1)
+	       (format nil "b~d" bits)
+	       (cond ((= bits 8)
+		      (if signed "c" "C"))
+		     ((= bits 16)
+		      (if signed "s" "S"))
+		     ((= bits 32)
+		      ;; Should be some way of noting "longness".
+		      (if signed "i" "I"))
+		     ((= bits 64)
+		      (if signed "q" "Q"))))))
 	  (foreign-record-type
 	   (ensure-foreign-type-bits type)
 	   (let* ((name (unescape-foreign-name
@@ -723,21 +741,25 @@ argument lisp string."
 		  (kind (foreign-record-type-kind type))
 		  (fields (foreign-record-type-fields type)))
 	     (with-output-to-string (s)
-	       (format s "~c~a=" (if (eq kind :struct) #\{ #\() name)
-	       (dolist (f fields (format s "~a" (if (eq kind :struct) #\} #\))))
-		 (format s "~a" (encode-objc-arg-type
-				 (foreign-record-field-type f)))))))
+				    (format s "~c~a=" (if (eq kind :struct) #\{ #\() name)
+				    (dolist (f fields (format s "~a" (if (eq kind :struct) #\} #\))))
+				      (when for-ivar
+					(format s "\"~a\""
+						(unescape-foreign-name
+						 (or (foreign-record-field-name f) "")))
+					(format s "~a" (encode-objc-type
+							(foreign-record-field-type f))))))))
 	  (foreign-array-type
 	   (ensure-foreign-type-bits type)
 	   (let* ((dims (foreign-array-type-dimensions type))
 		  (element-type (foreign-array-type-element-type type)))
 	     (if dims (format nil "[~d~a]"
 			      (car dims)
-			      (encode-objc-arg-type element-type))
+			      (encode-objc-type element-type))
 	       (if (or (eq element-type *objc-char-type*)
 		       (foreign-type-= element-type *objc-char-type*))
 		 "*"
-		 (format nil "^~a" (encode-objc-arg-type element-type))))))
+		 (format nil "^~a" (encode-objc-type element-type))))))
 	  (t (break "type = ~s" type)))))))
 		 
 (defun encode-objc-method-arglist (arglist result-spec)
@@ -783,14 +805,14 @@ argument lisp string."
 			       offset (current-gpr-arg-offset))
 			 (incf gprs-used (ceiling bits 32))))
 		      (t (break "argspec = ~s, arg = ~s" argspec arg)))
-		    (push (list (encode-objc-arg-type arg) offset size) result))))))))
+		    (push (list (encode-objc-type arg) offset size) result))))))))
     (declare (fixnum gprs-used fprs-used))
     (let* ((max-parm-end
 	    (- (apply #'max (mapcar #'(lambda (i) (+ (cadr i) (caddr i)))
 				    arg-info))
 	       objc-forwarding-stack-offset)))
       (format nil "~a~d~:{~a~d~}"
-	      (encode-objc-arg-type
+	      (encode-objc-type
 	       (parse-foreign-type result-spec))
 	      max-parm-end
 	      arg-info))))
@@ -867,171 +889,14 @@ argument lisp string."
 		 :dtable (%null-ptr)
 		 :protocols (%null-ptr)))
 
-(defstruct objc-class-info
-  classname
-  superclassname
-  ivars
-  objc-class)
+(defun superclass-instance-size (class)
+  (with-macptrs ((super (pref class :objc_class.super_class)))
+    (if (%null-ptr-p super)
+      0
+      (pref super :objc_class.instance_size))))
 
-(defvar *lisp-objc-classes* (make-hash-table :test #'equal))
-
-(defstruct ivar-info
-  classname
-  name					;symbol
-  string
-  type-encoding
-  foreign-type
-  accessor
-  %offset)
-
-(defun lookup-ivar-info (ivar-name classname)
-  (let* ((class-info (or (gethash classname *lisp-objc-classes*)
-			 (error "Unknown objc class : ~s" classname))))
-    (or (find ivar-name (objc-class-info-ivars class-info) :key #'ivar-info-name)
-	(error "Unknown instance variable ~s in class ~s" ivar-name classname))))
-
-(defun %class-find-ivar-offset (class ivar-string)
-  #+apple-objc
-  (with-cstrs ((s ivar-string))
-    (with-macptrs ((ivar))
-      (%setf-macptr ivar (#_class_getInstanceVariable class s))
-      (unless (%null-ptr-p ivar)
-	(pref ivar :objc_ivar.ivar_offset))))
-  #+gnu-objc
-  (with-cstrs ((s ivar-string))
-    (do* ((class class (pref class :objc_class.super_class)))
-         ((%null-ptr-p class))
-      (let* ((offset (with-macptrs ((ivars (pref class :objc_class.ivars)))
-                       (unless (%null-ptr-p ivars)
-                         (do* ((i 0 (1+ i))
-                               (n (pref ivars :objc_ivar_list.ivar_count))
-                               (ivar (pref ivars :objc_ivar_list.ivar_list)
-                                     (%inc-ptr ivar (record-length :objc_ivar))))
-                              ((= i n))
-                           (with-macptrs ((name (pref ivar :objc_ivar.ivar_name)))
-                             (unless (%null-ptr-p name)
-                               (if (eql 0 (#_strcmp name s))
-                                 (return (pref ivar :objc_ivar.ivar_offset))))))))))
-        (when offset (return offset))))))
-
-(defun find-class-ivar-offset (classname ivar-string)
-  (or 
-   (%class-find-ivar-offset (lookup-objc-class classname t) ivar-string)
-   (error "Unknown instance variable ~s in class ~s" ivar-string classname)))
-
-
-(defun ivar-offset (info)
-  (or (ivar-info-%offset info)
-      (setf (ivar-info-%offset info)
-	    (find-class-ivar-offset (ivar-info-classname info)
-				    (ivar-info-string info)))))
-
-(defmethod make-load-form ((ivar ivar-info) &optional env)
-  (declare (ignore env))
-  `(lookup-ivar-info ',(ivar-info-name ivar) ',(ivar-info-classname ivar)))
-
-
-(defun %encode-objc-ivar-type (spec)
-  (let* ((type (parse-foreign-type spec))
-	 (encoding (encode-objc-arg-type type)))
-    (values encoding type (accessor-for-type-char (schar encoding 0)))))
-
-
-(defun spec-to-name-string-type (spec)
-  (if (atom spec)
-    (values spec (string-downcase spec) :id)
-    (if (atom (car spec))
-      (values (car spec) (string-downcase (car spec)) (or (cadr spec) :id))
-      (values (caar spec) (cadar spec) (or (cadr spec) :id)))))
-
-(defun %make-objc-ivars (info-list start-offset)
-  (declare (list info-list) (fixnum start-offset))
-  (if (null info-list)
-    (values (%null-ptr) start-offset)
-    (let* ((n (length info-list))
-	   (offset start-offset)
-	   (ivars (malloc (+ 4 (* n (%foreign-type-or-record-size
-				     :objc_ivar :bytes))))))
-      (setf (pref ivars :objc_ivar_list.ivar_count) n)
-      (do* ((l info-list (cdr l))
-	    (info (car l) (car l))
-	    (ivar (pref ivars :objc_ivar_list.ivar_list)
-		  (%inc-ptr ivar (%foreign-type-or-record-size
-				 :objc_ivar :bytes))))
-	   ((null l) (values ivars (align-offset offset 4)))
-	(let* ((string (ivar-info-string info))
-	       (type (ivar-info-foreign-type info))
-	       (alignment-bits (or (progn (ensure-foreign-type-bits type)
-					  (foreign-type-alignment type))
-				   8))
-	       (alignment-bytes (ceiling alignment-bits 8))
-	       (encoding (ivar-info-type-encoding info)))
-	  (setq offset (align-offset offset alignment-bytes))
-	  (setf (pref ivar :objc_ivar.ivar_name) (make-cstring string)
-		(pref ivar :objc_ivar.ivar_type) (make-cstring encoding)
-		(pref ivar :objc_ivar.ivar_offset) offset
-		offset (+ offset (ceiling (foreign-type-bits type) 8))))))))
-
-(defun ivar-info-from-spec (classname spec)
-  (multiple-value-bind (name string typespec)
-      (spec-to-name-string-type spec)
-    (multiple-value-bind (type-encoding ftype accessor)
-	(%encode-objc-ivar-type typespec)
-      (declare (ignore ignore))
-      (make-ivar-info :classname classname
-		      :name name
-		      :string string
-		      :type-encoding type-encoding
-		      :accessor accessor
-		      :foreign-type ftype
-		      :%offset nil))))
-
-;;; If class info exists, re-use it (and whine if it doesn't match what
-;;; would be freshly generated.)  We can't really redefine objc classes
-;;; at runtime.
-(defun note-objc-class (classname superclassname specs)
-  (let* ((ivars (mapcar #'(lambda (spec) (ivar-info-from-spec classname spec)) specs))
-	 (class-info (gethash classname *lisp-objc-classes*)))
-    (if (not class-info)
-      (setf (gethash classname *lisp-objc-classes*)
-	    (make-objc-class-info :classname classname
-				  :superclassname superclassname
-				  :ivars ivars
-				  :objc-class (load-objc-class-descriptor classname)))
-      (let* ((changed nil)
-	     (existing-ivars (objc-class-info-ivars class-info)))
-	(unless (equal superclassname (objc-class-info-superclassname class-info))
-	  (setf (objc-class-info-superclassname class-info) superclassname
-		changed t))
-	(unless (do* ((ivars ivars (cdr ivars))
-		      (existing existing-ivars (cdr existing))
-		      (new (car ivars) (car ivars))
-		      (old (car existing) (car existing)))
-		     ((null ivars) (null existing))
-		  (unless (and (eq (ivar-info-name old) (ivar-info-name new))
-			       (equal
-				(ivar-info-type-encoding old)
-				(ivar-info-type-encoding new))
-			       (eq (ivar-info-accessor old)
-				   (ivar-info-accessor new)))
-		    (setf (ivar-info-name old) (ivar-info-name new)
-			  (ivar-info-type-encoding old) (ivar-info-type-encoding new)
-			  (ivar-info-accessor old) (ivar-info-accessor new))
-		    (return nil))))
-	(when changed
-	  (warn "Definition of class ~s has changed.  Recompile subclasses and~
-client methods" classname))
-	class-info))))
 	
-(defun %make-objc-class (name superclass-name instance-vars)
-  (let* ((nameptr (make-cstring name))
-	 (superptr (%objc-class-classptr
-		    (load-objc-class-descriptor superclass-name)))
-	 (metaclass (%make-basic-meta-class nameptr superptr (@class "NSObject"))))
-    (multiple-value-bind (ivars instance-size)
-	(%make-objc-ivars instance-vars (pref superptr :objc_class.instance_size))
 
-      (%make-class-object metaclass superptr nameptr ivars instance-size))))
 
 #+gnu-objc
 (progn
@@ -1052,7 +917,48 @@ client methods" classname))
 	   #+apple-objc #$CLS_META
 	   #+gnu-objc #$_CLS_META))
 	   
-(defun %add-objc-class (class)
+
+
+
+
+;;; Create (malloc) class and metaclass objects with the specified
+;;; name (string) and superclass name.  Initialize the metaclass
+;;; instance, but don't install the class in the ObjC runtime system
+;;; (yet): we don't know anything about its ivars and don't know
+;;; how big instances will be yet.
+;;; If an ObjC class with this name already exists, we're very
+;;; confused; check for that case and error out if it occurs.
+(defun %allocate-objc-class (name superptr)
+  (let* ((class-name (compute-objc-classname name)))
+    (if (lookup-objc-class class-name nil)
+      (error "An Objective C class with name ~s already exists." class-name))
+    (let* ((nameptr (make-cstring class-name))
+	   (id (register-objc-class
+		(%make-class-object
+		 (%make-basic-meta-class nameptr superptr (@class "NSObject"))
+		 superptr
+		 nameptr
+		 (%null-ptr)
+		 0)))
+	   (meta (id->objc-metaclass id))
+	   (class (id->objc-class id))
+	   (meta-name (intern (format nil "+~a" class-name)
+			      (symbol-package name)))
+	   (meta-super (canonicalize-registered-metaclass
+			(pref meta :objc_class.super_class))))
+      (initialize-instance meta
+			 :name meta-name
+			 :direct-superclasses (list meta-super))
+    (setf ;(id->objc-metaclass-wrapper id) (%class-own-wrapper meta)
+	  (find-class meta-name) meta)
+    class)))
+
+;;; Set up the class's ivar_list and instance_size fields, then
+;;; add the class to the ObjC runtime.
+(defun %add-objc-class (class ivars instance-size)
+  (setf
+   (pref class :objc_class.ivars) ivars
+   (pref class :objc_class.instance_size) instance-size)
   #+apple-objc
   (#_objc_addClass class)
   #+gnu-objc
@@ -1078,39 +984,7 @@ client methods" classname))
 	  (%get-ptr (pref symtab :objc_symtab.defs)) class
 	  (pref class :objc_class.info) (logior #$_CLS_RESOLV (pref class :objc_class.info)))
     (#___objc_exec_class m)))
-  
-(defun %define-objc-class (info)
-  (let* ((descriptor (objc-class-info-objc-class info)))
-    (or (%objc-class-classptr descriptor nil)
-	(let* ((class (%make-objc-class (objc-class-info-classname info)
-					(objc-class-info-superclassname info)
-					(objc-class-info-ivars info))))
-	  (%add-objc-class class)
-	  (map-objc-class class (objc-to-lisp-classname (objc-class-info-classname info)))
-	  (%objc-class-classptr descriptor)))))
 
-(defun ensure-lisp-objc-class-defined (classname
-				       &optional (info
-						  (gethash classname
-							   *lisp-objc-classes*)))
-  (when info
-    (ensure-lisp-objc-class-defined (objc-class-info-superclassname info))
-    (%define-objc-class info)))
-
-(def-ccl-pointers define-lisp-objc-classes ()
-  (maphash #'(lambda (classname info)
-	       (ensure-lisp-objc-class-defined classname info))
-	   *lisp-objc-classes*))
-
-  
-(defmacro def-objc-class (class-name superclass-name &rest instance-vars)
-  (let* ((class-name (objc-class-name-string class-name))
-	 (superclass-name (objc-class-name-string superclass-name)))
-    `(progn
-      (eval-when (:compile-toplevel)
-	(note-objc-class ,class-name ,superclass-name ',instance-vars))
-      (eval-when (:load-toplevel :execute)
-	(%define-objc-class (note-objc-class ,class-name ,superclass-name ',instance-vars))))))
 
 
 ;;; If P is an ObjC class (or metaclass), return the class & metaclass,
@@ -1165,7 +1039,7 @@ client methods" classname))
 		    idx)))))))))
   #+gnu-objc
   (with-macptrs ((parent (pref p objc_object.class_pointer)))
-    (objc-class-id-parent)))
+    (objc-class-id-parent))
 
 ;;; If an instance, return (values :INSTANCE <class>).
 ;;; If a class, return (values :CLASS <metaclass>).
@@ -1295,29 +1169,9 @@ client methods" classname))
 	  :class-p class-p)))
   impname)
     
-(defmacro ivar-ref (classname instance ivar-name)
-  (let* ((info (lookup-ivar-info ivar-name classname)))
-    `(,(ivar-info-accessor info) ,instance (ivar-offset ,info))))
 
-(defun objc-class-info-all-ivars (class-info)
-  (append (let* ((super-info 
-		  (gethash (objc-class-info-superclassname class-info)
-			   *lisp-objc-classes*)))
-	    (if super-info
-	      (objc-class-info-all-ivars super-info)))
-	  (objc-class-info-ivars class-info)))
 
-(defmacro with-ivar-symbol-macros (classname instance &body body)
-  (let* ((class-info (or (gethash classname *lisp-objc-classes*)
-			 (error "Unknown objective-C class name ~s" classname)))
-	 (ivars (objc-class-info-all-ivars class-info)))
-    `(symbol-macrolet (,@(mapcar #'(lambda (ivar)
-				     `(,(ivar-info-name ivar)
-				       (,(ivar-info-accessor ivar)
-					,instance
-					(ivar-offset (load-time-value ,ivar)))))
-				 ivars))
-      ,@body)))
+
 
 ;;; If any of the argspecs denote a value of type :<BOOL>, push an
 ;;; appropriate SETQ on the front of the body.  (Order doesn't matter.)
@@ -1446,9 +1300,7 @@ client methods" classname))
 	       (super (gensym "SUPER")) 
 	       (params `(:id ,self :<sel> ,_cmd ,@argspecs)))
 	  `(progn
-	    (with-ivar-symbol-macros
-		,class-name ,self
-		(defcallback ,impname
+	    (defcallback ,impname
 		    (:without-interrupts nil
 					 #+(and openmcl-native-threads apple-objc) :error-return
 					 #+(and openmcl-native-threads apple-objc)  (condition objc-callback-error-return) ,@params ,resulttype)
@@ -1473,7 +1325,7 @@ client methods" classname))
 			     (%send-super/stret (s msg &rest args)
 			       (make-general-send nil msg args s ,super ,class-name))
 			     (super () ,super))
-			,@body)))))
+			,@body))))
 	    (%define-lisp-objc-method
 	     ',impname
 	     ,class-name
@@ -1502,57 +1354,19 @@ client methods" classname))
   #+apple-objc (#_method_getNumberOfArguments m)
   #+gnu-objc (#_method_get_number_of_arguments m))
 
+#+apple-objc
+(progn
+(defcallback deallocate-nsobject (:address obj :void)
+  (unless (%null-ptr-p obj)
+    (remhash obj *objc-object-slot-vectors*)
+    (setf (pref obj :objc_object.isa)
+	  (external-call "__objc_getFreedObjectClass" :address))
+    (free obj)))
 
+(def-ccl-pointers install-deallocate-hook ()
+  (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))
+)
 
-
-;;; Getting & setting instance variables.
-
-;;; This works best if the value is a pointer of some sort.  If it's
-;;; hard to arrange that, lookup the instance variable's offset (see
-;;; below) and use (SETF (CCL:%GET-??? ...) ...) directly.
-(defun set-objc-instance-variable (instance name value)
-  (let* ((ivar-name (if (typep name 'string)
-		      name
-		      (unescape-foreign-name name))))
-    #+apple-objc
-    (with-cstrs ((cname ivar-name))
-      (if (%null-ptr-p (#_object_setInstanceVariable instance cname value))
-	(error "Unknown instance varaiable ~s in ~s" name (objc-class-name instance)))
-      value)
-        #+gnu-objc
-    (let* ((offset (%class-find-ivar-offset (pref instance :objc_object.class_pointer) ivar-name)))
-      (if offset
-	(setf (%get-ptr instance offset) value)
-	(error "Unknown instance varaiable ~s in ~s" name (objc-class-name instance))))))
-
-;;; This returns a pointer (conses).  If you want to avoid either of
-;;; those behaviors, lookup the instance variable's offset and use
-;;; CCL::%GET-xxx directly.
-(defun get-objc-instance-variable (instance name)
-  (let* ((ivar-name (if (typep name 'string)
-		      name
-		      (unescape-foreign-name name))))
-    #+apple-objc
-    (with-cstrs ((cname ivar-name)) 
-      (rlet ((valptr (* t)))
-	(if (%null-ptr-p (#_object_getInstanceVariable instance cname valptr))
-	  (error "Unknown instance varaiable ~s in ~s" name (objc-class-name instance))
-	  (%get-ptr valptr))))
-    #+gnu-objc
-    (let* ((offset (%class-find-ivar-offset (pref instance :objc_object.class_pointer) ivar-name)))
-      (if offset
-	(%get-ptr instance offset)
-	(error "Unknown instance varaiable ~s in ~s" name (objc-class-name instance))))))
-    
-;;; One might like something a little higher-level than what this offers,
-;;; and one might like to do the lookup at macroexpand-time.  The latter
-;;; can only happen if the class is defined at macroexpand-time, which
-;;; isn't generally guaranteed.  If we're going to have to lookup the
-;;; ivar's offset at runtime, we might as well keep things simple.
-(defun %ivar-offset (class varname)
-  (or
-   (%class-find-ivar-offset class (unescape-foreign-name varname))
-   (error "Unknown instance variable: ~s" varname)))
 
 ;;; Return a typestring and offset as multiple values.
 
@@ -1631,49 +1445,4 @@ client methods" classname))
       (external-call "__NSRemoveHandler2" :address nshandler :void)
       (error (ns-exception->lisp-condition (%inc-ptr exception 0))))))
 
-#+apple-objc
-(progn
-  (let* ((class-count 0))
-    (declare (fixnum class-count))
-    (defun reset-objc-class-count () (setq class-count 0))
-    (defun map-objc-classes ()
-      (let* ((n (#_objc_getClassList (%null-ptr) 0)))
-	(declare (fixnum n))
-	(if (> n class-count)
-	  (%stack-block ((buffer (the fixnum (ash n ppc32::word-shift))))
-	    (#_objc_getClassList buffer n)
-	  (do* ((i class-count (1+ i)))
-	       ((= i n (setq class-count i)))
-	    (declare (fixnum i))
-	    (map-objc-class
-	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift))))))))))
-  (def-ccl-pointers revive-objc-classes ()
-    (reset-objc-class-count)
-    (map-objc-classes)))
-
-#+gnu-objc
-(defun iterate-over-class-methods (class method-function)
-  (do* ((mlist (pref class :objc_class.methods)
-	       (pref mlist :objc_method_list.method_next)))
-       ((%null-ptr-p mlist))
-    (do* ((n (pref mlist :objc_method_list.method_count))
-	  (i 0 (1+ i))
-	  (method (pref mlist :objc_method_list.method_list)
-		  (%incf-ptr method (record-length :objc_method))))
-	 ((= i n))
-      (declare (fixnum i n))
-      (funcall method-function method class))))
-
-#+gnu-objc
-(progn
-  (let* ((objc-class-count 0))
-    (defun reset-objc-class-count () (setq objc-class-count 0))
-    (defun note-all-library-methods (method-function)
-      (do* ((i objc-class-count (1+ i))
-	    (class (id->objc-class i) (id->objc-class i)))
-	   ((eq class 0))
-	(iterate-over-class-methods class method-function)
-	(iterate-over-class-methods (id->objc-metaclass i) method-function))))
-  (def-ccl-pointers revive-objc-classes ()
-    (reset-objc-class-count)))
 
