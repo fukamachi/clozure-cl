@@ -23,6 +23,8 @@
   (require "LISPEQU"))
 
 (defconstant $struct-r/o 24)             ; Read-only bit in refinfo fixnum
+(defconstant $struct-inherited 25)		; Struct slot is  inherited.
+
 
 (defconstant $defstruct-nth 0)   ; Anything that won't conflict with array types...
 

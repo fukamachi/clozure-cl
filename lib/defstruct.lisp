@@ -48,6 +48,10 @@
   (ssd-update-refinfo (ssd refinfo)
                       (%ilogior2 #x1000000 refinfo)))
 
+(defun ssd-set-inherited (ssd)
+  (ssd-update-refinfo (ssd refinfo)
+		       (bitset $struct-inherited refinfo)))
+
 (defun copy-ssd (ssd)
   (let* ((cdr (cdr ssd))
          (cddr (cdr cdr)))

@@ -150,7 +150,11 @@
                     (defstruct-reftype (sd-type sub-sd)))
           (error "Incompatible structure type ~S for ~S"
                  (sd-type sub-sd) (cons :include include)))
-        (dolist (ssd (sd-slots sub-sd)) (push (copy-ssd ssd) slot-list))
+        (dolist (ssd (sd-slots sub-sd)) (push
+					 (let* ((new-ssd (copy-ssd ssd)))
+					   (ssd-set-inherited new-ssd)
+					   new-ssd)
+					   slot-list))
         (while slots
           (if (atom (car slots))
             (setq name (%car slots) args ())
