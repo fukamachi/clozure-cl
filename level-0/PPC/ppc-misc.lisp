@@ -81,6 +81,7 @@
     (bne cr0 @loop)
     (mr arg_z dest)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)
     (blr)))
 
 ; %copy-ivector-to-ptr - from hello.lisp:

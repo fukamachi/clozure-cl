@@ -263,6 +263,7 @@
   (stw imm0 ppc32::double-float.value temp0)
   (stw imm1 ppc32::double-float.val-low temp0)
   (la vsp 8 vsp)
+  (mr new-vsp vsp)
   (blr))
 
 (defppclapfunction %make-short-float-from-fixnums ((float 0) (sig arg_x) (exp arg_y) (sign arg_z))

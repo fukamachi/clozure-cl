@@ -2248,7 +2248,9 @@
 (define-ppc32-vinsn adjust-stack-register (()
                                          ((reg t)
                                           (amount :s16const)))
-  (la reg amount reg))
+  (la reg amount reg)
+  ((:pred = reg ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)))
 
 (define-ppc32-vinsn adjust-vsp (()
                               ((amount :s16const)))
