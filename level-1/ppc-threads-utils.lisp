@@ -159,15 +159,22 @@
   (let* ((bsp (%saved-bindings-address))
 	 (initial-bindings (%fixnum-ref bsp )))
     (declare (fixnum bsp))
-    (flet ((save-binding (value symbol prev)
-	     (setf (%fixnum-ref bsp -4) value
-		   (%fixnum-ref bsp -8) symbol
-		   (%fixnum-ref bsp -12) prev
-		   bsp (- bsp 3))))
-      (save-binding nil '*current-lisp-thread* 0)
-      (save-binding nil '*current-process* bsp)
+    ;; Um, this is a little more complicated now that we use
+    ;; thread-local shallow binding
+    (flet ((save-binding (new-value svar prev)
+             (let* ((idx (%svref svar target::svar.idx-cell))
+                    (byte-idx (ash idx target::fixnum-shift))
+                    (binding-vector (%fixnum-ref (%current-tcr) target::tcr.tlb-pointer))
+                    (old-value (%fixnum-ref  binding-vector byte-idx)))
+	     (setf (%fixnum-ref binding-vector byte-idx) new-value
+                   (%fixnum-ref bsp (ash -1 target::word-shift)) old-value
+		   (%fixnum-ref bsp (ash -2 target::word-shift)) idx
+		   (%fixnum-ref bsp (ash -3 target::word-shift)) prev
+		   bsp (- bsp 3)))))
+      (save-binding nil (ensure-svar '*current-lisp-thread*) 0)
+      (save-binding nil (ensure-svar '*current-process*) bsp)
       (dolist (pair initial-bindings)
-	(save-binding (funcall (cdr pair)) (car pair) bsp))
+	(save-binding (funcall (cdr pair)) (ensure-svar (car pair)) bsp))
       (setf (%fixnum-ref (%current-tcr) ppc32::tcr.db-link) bsp)
       ;; Ensure that pending unwind-protects (for WITHOUT-INTERRUPTS
       ;; on the callback) don't try to unwind the binding stack beyond
@@ -175,7 +182,7 @@
       (let* ((top-catch (%fixnum-ref (%current-tcr) ppc32::tcr.catch-top)))
         (unless (eql 0 top-catch)
           (setf (%fixnum-ref top-catch ppc32::catch-frame.db-link) bsp)))))
-  (let* ((thread (new-lisp-thread-from-tcr (%current-tcr) nil)))
+  (let* ((thread (new-lisp-thread-from-tcr (%current-tcr) "foreign")))
     (setq *current-lisp-thread* thread
 	  *current-process*
 	  (make-process "foreign" :thread thread))
