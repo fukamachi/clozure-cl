@@ -143,6 +143,8 @@
 
 
 (defloadvar *heap-ivectors* ())
+(defvar *heap-ivector-lock* (make-lock))
+
 
 (defun %make-heap-ivector (subtype size-in-bytes &optional size-in-elts)
   (if (not (fixnump size-in-elts))
@@ -151,50 +153,35 @@
     (let ((vect (fudge-heap-pointer ptr subtype size-in-elts))
           (p (%null-ptr)))
       (%vect-data-to-macptr vect p)
-      (push vect *heap-ivectors*)
+      (with-lock-grabbed (*heap-ivector-lock*)
+        (push vect *heap-ivectors*))
       (values vect p))))
 
+(defun %heap-ivector-p (v)
+  (with-lock-grabbed (*heap-ivector-lock*)
+    (not (null (member v *heap-ivectors* :test #'eq)))))
 
 
-  ; tag it, return it
-
-(defun %dispose-heap-ivector (v)
-  (if  (uvectorp v) ;(%heap-ivector-p v)
+(defun dispose-heap-ivector (v)
+  (if (%heap-ivector-p v)
     (with-macptrs (p)
-      (setq *heap-ivectors* (delq v *heap-ivectors*))
+      (with-lock-grabbed (*heap-ivector-lock*)
+        (setq *heap-ivectors* (delq v *heap-ivectors*)))
       (%%make-disposable p v)
       (free p))))
 
-(defun make-heap-buffer (element-type element-count)
-  (let* ((subtype ppc32::subtag-simple-base-string)
-         (size-in-octets element-count))
-    (unless (subtypep element-type 'character)
-      (case element-type
-        (unsigned-byte (setq element-type '(unsigned-byte 8)))
-        (signed-byte (setq element-type '(signed-byte 8))))
-      (let* ((signed (list 'signed-byte 0))
-             (unsigned (list 'unsigned-byte 0)))
-        (declare (dynamic-extent signed unsigned))
-        (do* ((i 8 (+ i 8))
-              (octets 1 (1+ octets))
-              (match nil))             
-             ((> i 32) (report-bad-arg element-type '(or character
-                                                      (unsigned-byte 32)
-                                                      (signed-byte 32))))
-          (setf (cadr signed) i)
-          (setf (cadr unsigned) i)
-          (if (subtypep element-type signed)
-            (setq match (copy-list signed))
-            (if (subtypep element-type unsigned)
-              (setq match (copy-list unsigned))))
-          (when match
-            (setq size-in-octets (* octets element-count)
-                  subtype (element-type-subtype match)
-                  element-type match)
-            (return)))))
-    (multiple-value-bind (buf p)
-        (%make-heap-ivector subtype element-count size-in-octets)
-      (values buf p size-in-octets subtype))))
+(defun %dispose-heap-ivector (v)
+  (dispose-heap-ivector v))
+
+(defun make-heap-ivector (element-count element-type)
+  (let* ((subtag (ccl::element-type-subtype element-type)))
+    (unless (= (logand subtag target::fulltagmask)
+               target::fulltag-immheader)
+      (error "~s is not an ivector subtype." element-type))
+    (let* ((size-in-octets (ccl::subtag-bytes subtag element-count)))
+      (multiple-value-bind (pointer vector)
+          (ccl::%make-heap-ivector subtag size-in-octets element-count)
+        (values pointer vector size-in-octets)))))
 
 
 
@@ -871,7 +858,7 @@
     (when insize
       (unless (ioblock-inbuf ioblock)
         (multiple-value-bind (buffer ptr in-size-in-octets)
-            (make-heap-buffer element-type insize)
+            (make-heap-ivector insize element-type)
           (setf (ioblock-inbuf ioblock)
                 (make-io-buffer :buffer buffer
                                 :bufptr ptr
@@ -891,7 +878,7 @@
       (when outsize
         (unless (ioblock-outbuf ioblock)
           (multiple-value-bind (buffer ptr out-size-in-octets)
-              (make-heap-buffer element-type outsize)
+              (make-heap-ivector outsize element-type)
             (setf (ioblock-outbuf ioblock)
                   (make-io-buffer :buffer buffer
                                   :bufptr ptr
