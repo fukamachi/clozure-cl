@@ -2571,21 +2571,21 @@
 
                              
 ;; Boundp, fboundp stuff.
-(define-ppc-vinsn (ref-symbol-value :call :subprim-call)
+(define-ppc-vinsn (svar-ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
-  (bla .SPspecrefcheck))
+  (bla .SPsvar-specrefcheck))
 
-(define-ppc-vinsn (%ref-symbol-value :call :subprim-call)
+(define-ppc-vinsn (%svar-ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
-  (bla .SPspecref))
+  (bla .SPsvar-specref))
 
-(define-ppc-vinsn (setq-special :call :subprim-call)
+(define-ppc-vinsn (svar-setq-special :call :subprim-call)
     (()
      ((sym :lisp)
       (val :lisp)))
-  (bla .SPspecset))
+  (bla .SPsvar-specset))
 
 
 (define-ppc-vinsn symbol-function (((val :lisp))
@@ -2701,14 +2701,14 @@
                                     ())
   (mr dest ppc::rcontext))
 
-(define-ppc-vinsn (dpayback :call :subprim-call) (()
+(define-ppc-vinsn (svar-dpayback :call :subprim-call) (()
                                                   ((n :s16const))
                                                   ((temp (:u32 #.ppc::imm0))))
   ((:pred > n 1)
    (li temp n)
-   (bla .SPunbind-n))
+   (bla .SPsvar-unbind-n))
   ((:pred = n 1)
-   (bla .SPunbind)))
+   (bla .SPsvar-unbind)))
 
 (define-ppc-vinsn zero-double-float-register 
     (((dest :double-float))
@@ -3228,13 +3228,13 @@
 
 (define-ppc-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init)
 
-(define-ppc-subprim-call-vinsn (bind-nil)  .SPbind-nil)
+(define-ppc-subprim-call-vinsn (svar-bind-nil)  .SPsvar-bind-nil)
 
-(define-ppc-subprim-call-vinsn (bind-self)  .SPbind-self)
+(define-ppc-subprim-call-vinsn (svar-bind-self)  .SPsvar-bind-self)
 
-(define-ppc-subprim-call-vinsn (bind-self-boundp-check)  .SPbind-self-boundp-check)
+(define-ppc-subprim-call-vinsn (svar-bind-self-boundp-check)  .SPsvar-bind-self-boundp-check)
 
-(define-ppc-subprim-call-vinsn (bind)  .SPbind)
+(define-ppc-subprim-call-vinsn (svar-bind)  .SPsvar-bind)
 
 (define-ppc-subprim-jump-vinsn (nvalret :jumpLR) .SPnvalret)
 
@@ -3296,7 +3296,7 @@
 
 (define-ppc-subprim-call-vinsn (mkcatch1v) .SPmkcatch1v)
 
-(define-ppc-subprim-call-vinsn (setqsym) .SPsetqsym)
+(define-ppc-subprim-call-vinsn (setqsym) .SPsvar-setqsym)
 
 (define-ppc-subprim-call-vinsn (ksignalerr) .SPksignalerr)
 
@@ -3306,9 +3306,9 @@
 
 (define-ppc-subprim-call-vinsn (mkunwind) .SPmkunwind)
 
-(define-ppc-subprim-call-vinsn (progvsave) .SPprogvsave)
+(define-ppc-subprim-call-vinsn (progvsave) .SPsvar-progvsave)
 
-(define-ppc-subprim-jump-vinsn (progvrestore) .SPprogvrestore)
+(define-ppc-subprim-jump-vinsn (progvrestore) .SPsvar-progvrestore)
 
 (define-ppc-subprim-call-vinsn (syscall) .SPsyscall)
 
