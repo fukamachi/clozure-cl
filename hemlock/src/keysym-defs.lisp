@@ -19,105 +19,79 @@
 (in-package :hemlock-internals)
 
 
-;;; The IBM RT keyboard has X11 keysyms defined for the following modifier
-;;; keys, but we leave them mapped to nil indicating that they are non-events
-;;; to be ignored:
-;;;    ctrl		65507
-;;;    meta (left)	65513
-;;;    meta (right)	65514
-;;;    shift (left)	65505
-;;;    shift (right)	65506
-;;;    lock		65509
-;;;
 
 
 ;;; Function keys for the RT.
 ;;;
-(hemlock-ext:define-keysym 65470 "F1")
-(hemlock-ext:define-keysym 65471 "F2")
-(hemlock-ext:define-keysym 65472 "F3")
-(hemlock-ext:define-keysym 65473 "F4")
-(hemlock-ext:define-keysym 65474 "F5")
-(hemlock-ext:define-keysym 65475 "F6")
-(hemlock-ext:define-keysym 65476 "F7")
-(hemlock-ext:define-keysym 65477 "F8")
-(hemlock-ext:define-keysym 65478 "F9")
-(hemlock-ext:define-keysym 65479 "F10")
-(hemlock-ext:define-keysym 65480 "F11" "L1")
-(hemlock-ext:define-keysym 65481 "F12" "L2")
 
-;;; Function keys for the Sun (and other keyboards) -- L1-L10 and R1-R15.
-;;;
-(hemlock-ext:define-keysym 65482 "F13" "L3")
-(hemlock-ext:define-keysym 65483 "F14" "L4")
-(hemlock-ext:define-keysym 65484 "F15" "L5")
-(hemlock-ext:define-keysym 65485 "F16" "L6")
-(hemlock-ext:define-keysym 65486 "F17" "L7")
-(hemlock-ext:define-keysym 65487 "F18" "L8")
-(hemlock-ext:define-keysym 65488 "F19" "L9")
-(hemlock-ext:define-keysym 65489 "F20" "L10")
-(hemlock-ext:define-keysym 65490 "F21" "R1")
-(hemlock-ext:define-keysym 65491 "F22" "R2")
-(hemlock-ext:define-keysym 65492 "F23" "R3")
-(hemlock-ext:define-keysym 65493 "F24" "R4")
-(hemlock-ext:define-keysym 65494 "F25" "R5")
-(hemlock-ext:define-keysym 65495 "F26" "R6")
-(hemlock-ext:define-keysym 65496 "F27" "R7")
-(hemlock-ext:define-keysym 65497 "F28" "R8")
-(hemlock-ext:define-keysym 65498 "F29" "R9")
-(hemlock-ext:define-keysym 65499 "F30" "R10")
-(hemlock-ext:define-keysym 65500 "F31" "R11")
-(hemlock-ext:define-keysym 65501 "F32" "R12")
-(hemlock-ext:define-keysym 65502 "F33" "R13")
-(hemlock-ext:define-keysym 65503 "F34" "R14")
-(hemlock-ext:define-keysym 65504 "F35" "R15")
+;;; This isn't the RT.
+(eval-when (:compile-toplevel :execute)
+  (:use-interface-dir :cocoa))
+
+(hemlock-ext:define-keysym #$NSF1FunctionKey "F1")
+(hemlock-ext:define-keysym #$NSF2FunctionKey "F2")
+(hemlock-ext:define-keysym #$NSF3FunctionKey "F3")
+(hemlock-ext:define-keysym #$NSF4FunctionKey "F4")
+(hemlock-ext:define-keysym #$NSF5FunctionKey "F5")
+(hemlock-ext:define-keysym #$NSF6FunctionKey "F6")
+(hemlock-ext:define-keysym #$NSF7FunctionKey "F7")
+(hemlock-ext:define-keysym #$NSF8FunctionKey "F8")
+(hemlock-ext:define-keysym #$NSF9FunctionKey "F9")
+(hemlock-ext:define-keysym #$NSF10FunctionKey "F10")
+(hemlock-ext:define-keysym #$NSF11FunctionKey "F11")
+(hemlock-ext:define-keysym #$NSF12FunctionKey "F12")
+(hemlock-ext:define-keysym #$NSF13FunctionKey "F13")
+(hemlock-ext:define-keysym #$NSF14FunctionKey "F14")
+(hemlock-ext:define-keysym #$NSF15FunctionKey "F15")
+(hemlock-ext:define-keysym #$NSF16FunctionKey "F16")
+(hemlock-ext:define-keysym #$NSF17FunctionKey "F17")
+(hemlock-ext:define-keysym #$NSF18FunctionKey "F18")
+(hemlock-ext:define-keysym #$NSF19FunctionKey "F19")
+(hemlock-ext:define-keysym #$NSF20FunctionKey "F20")
+(hemlock-ext:define-keysym #$NSF21FunctionKey "F21")
+(hemlock-ext:define-keysym #$NSF22FunctionKey "F22")
+(hemlock-ext:define-keysym #$NSF23FunctionKey "F23")
+(hemlock-ext:define-keysym #$NSF24FunctionKey "F24")
+(hemlock-ext:define-keysym #$NSF25FunctionKey "F25")
+(hemlock-ext:define-keysym #$NSF26FunctionKey "F26")
+(hemlock-ext:define-keysym #$NSF27FunctionKey "F27")
+(hemlock-ext:define-keysym #$NSF28FunctionKey "F28")
+(hemlock-ext:define-keysym #$NSF29FunctionKey "F29")
+(hemlock-ext:define-keysym #$NSF30FunctionKey "F30")
+(hemlock-ext:define-keysym #$NSF31FunctionKey "F31")
+(hemlock-ext:define-keysym #$NSF32FunctionKey "F32")
+(hemlock-ext:define-keysym #$NSF33FunctionKey "F33")
+(hemlock-ext:define-keysym #$NSF34FunctionKey "F34")
+(hemlock-ext:define-keysym #$NSF35FunctionKey "F35")
+
 
 ;;; Upper right key bank.
 ;;;
-(hemlock-ext:define-keysym 65377 "Printscreen")
+(hemlock-ext:define-keysym #$NSPrintScreenFunctionKey "Printscreen")
 ;; Couldn't type scroll lock.
-(hemlock-ext:define-keysym 65299 "Pause")
+(hemlock-ext:define-keysym #$NSPauseFunctionKey "Pause")
 
 ;;; Middle right key bank.
 ;;;
-(hemlock-ext:define-keysym 65379 "Insert")
-(hemlock-ext:define-keysym 65535 "Delete" "Rubout" (string (code-char 127)))
-(hemlock-ext:define-keysym 65360 "Home")
-(hemlock-ext:define-keysym 65365 "Pageup")
-(hemlock-ext:define-keysym 65367 "End")
-(hemlock-ext:define-keysym 65366 "Pagedown")
+(hemlock-ext:define-keysym #$NSInsertFunctionKey "Insert")
+(hemlock-ext:define-keysym #$NSDeleteFunctionKey "Delete" "Rubout" (string (code-char 127)))
+(hemlock-ext:define-keysym #$NSHomeFunctionKey "Home")
+(hemlock-ext:define-keysym #$NSPageUpFunctionKey "Pageup")
+(hemlock-ext:define-keysym #$NSEndFunctionKey "End")
+(hemlock-ext:define-keysym #$NSPageDownFunctionKey "Pagedown")
 
 ;;; Arrows.
 ;;;
-(hemlock-ext:define-keysym 65361 "Leftarrow")
-(hemlock-ext:define-keysym 65362 "Uparrow")
-(hemlock-ext:define-keysym 65364 "Downarrow")
-(hemlock-ext:define-keysym 65363 "Rightarrow")
+(hemlock-ext:define-keysym #$NSLeftArrowFunctionKey "Leftarrow")
+(hemlock-ext:define-keysym #$NSUpArrowFunctionKey "Uparrow")
+(hemlock-ext:define-keysym #$NSDownArrowFunctionKey "Downarrow")
+(hemlock-ext:define-keysym #$NSRightArrowFunctionKey "Rightarrow")
 
-;;; Number pad.
-;;;
-(hemlock-ext:define-keysym 65407 "Numlock")
-(hemlock-ext:define-keysym 65421 "Numpad\-Return" "Numpad\-Enter")	;num-pad-enter
-(hemlock-ext:define-keysym 65455 "Numpad/") 				;num-pad-/
-(hemlock-ext:define-keysym 65450 "Numpad*")				;num-pad-*
-(hemlock-ext:define-keysym 65453 "Numpad-")				;num-pad--
-(hemlock-ext:define-keysym 65451 "Numpad+")				;num-pad-+
-(hemlock-ext:define-keysym 65456 "Numpad0")				;num-pad-0
-(hemlock-ext:define-keysym 65457 "Numpad1")				;num-pad-1
-(hemlock-ext:define-keysym 65458 "Numpad2")				;num-pad-2
-(hemlock-ext:define-keysym 65459 "Numpad3")				;num-pad-3
-(hemlock-ext:define-keysym 65460 "Numpad4")				;num-pad-4
-(hemlock-ext:define-keysym 65461 "Numpad5")				;num-pad-5
-(hemlock-ext:define-keysym 65462 "Numpad6")				;num-pad-6
-(hemlock-ext:define-keysym 65463 "Numpad7")				;num-pad-7
-(hemlock-ext:define-keysym 65464 "Numpad8")				;num-pad-8
-(hemlock-ext:define-keysym 65465 "Numpad9")				;num-pad-9
-(hemlock-ext:define-keysym 65454 "Numpad.")				;num-pad-.
 
 ;;; "Named" keys.
 ;;;
-(hemlock-ext:define-keysym 65289 "Tab")
-(hemlock-ext:define-keysym 65307 "Escape" "Altmode" "Alt")		;escape
+(hemlock-ext:define-keysym 9 "Tab")
+(hemlock-ext:define-keysym 27 "Escape" "Altmode" "Alt")		;escape
 (hemlock-ext:define-keysym 65288 "Backspace")				;backspace
 (hemlock-ext:define-keysym 65293 "Return" "Enter")			;enter
 (hemlock-ext:define-keysym 65512 "Linefeed" "Action" "Newline")		;action
@@ -190,14 +164,13 @@
 (hemlock-ext::define-mouse-keysym 3 25605 "Rightdown" "Super" :button-press)
 (hemlock-ext::define-mouse-keysym 3 25606 "Rightup" "Super" :button-release)
 
-;;; Sun keyboard.
 ;;;
-(hemlock-ext:define-keysym 65387 "break")			;alternate (Sun).
+
 ;(hemlock-ext:define-keysym 65290 "linefeed")
 
 
 
-;;;; SETFs of KEY-EVANT-CHAR and CHAR-KEY-EVENT.
+;;;; SETFs of KEY-EVENT-CHAR and CHAR-KEY-EVENT.
 
 ;;; Converting ASCII control characters to Common Lisp control characters:
 ;;; ASCII control character codes are separated from the codes of the
