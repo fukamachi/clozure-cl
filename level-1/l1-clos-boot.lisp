@@ -820,11 +820,7 @@
       (let ((specs (%method-specializers m1)))
         (dolist (msp (%method-specializers m2) t)
           (let ((spec (%pop specs)))
-            (unless (if (typep msp 'eql-specializer)
-                      (and (typep spec 'eql-specializer)
-                           (eql (eql-specializer-object msp) 
-				(eql-specializer-object spec)))
-                      (eq msp spec))
+            (unless (eq msp spec)
               (return nil))))))))
 
 (defvar *maintain-class-direct-methods* nil)
@@ -906,8 +902,8 @@
               (size (%gf-dispatch-table-size dt))
               (index 0))
          (clear-accessor-method-offsets (%gf-dispatch-table-gf dt) method)
-         (if (listp class)                   ; eql specializer
-           (setq class (class-of (second class))))
+         (if (typep class 'eql-specializer)                   ; eql specializer
+           (setq class (class-of (eql-specializer-object class))))
          (while (%i< index size)
            (let* ((wrapper (%gf-dispatch-table-ref dt index))
                   hash-index-0?
@@ -1247,15 +1243,15 @@
 
 (defun compute-cpl (class)
   (flet ((%real-class-cpl (class)
-           (or (%class.cpl class)
+           (or (%class-cpl class)
                (compute-cpl class))))
     (let* ((predecessors (list (list class))) candidates cpl)
-      (dolist (sup (%class.local-supers class))
+      (dolist (sup (%class-direct-superclasses class))
         (when (symbolp sup) (report-bad-arg sup 'class))
         (dolist (sup (%real-class-cpl sup))
           (unless (assq sup predecessors) (push (list sup) predecessors))))
       (labels ((compute-predecessors (class table)
-                 (dolist (sup (%class.local-supers class) table)
+                 (dolist (sup (%class-direct-superclasses class) table)
                    (compute-predecessors sup table)
                    ;(push class (cdr (assq sup table)))
                    (let ((a (assq sup table))) (%rplacd a (cons class (%cdr a))))
@@ -1269,7 +1265,7 @@
             (dolist (p predecessors) (%rplacd p (nremove (%car c) (%cdr p))))
             (setq candidates (nremove c candidates))
             (setq cpl (%rplacd c cpl))
-            (dolist (sup (%class.local-supers (%car c)))
+            (dolist (sup (%class-direct-superclasses (%car c)))
               (when (setq c (assq sup predecessors)) (push c candidates)))
             (return))))
       (setq cpl (nreverse cpl))
@@ -1325,7 +1321,7 @@
           ((null supers))
         (setq sup (%car supers))
         (if (symbolp sup) (setf (%car supers) (setq sup (find-class (%car supers)))))
-        (unless (or (eq sup *t-class*) (std-class-p sup))
+        #+nil (unless (or (eq sup *t-class*) (std-class-p sup))
           (error "~a is not of type ~a" sup 'std-class))))
     (setf (%class.local-supers class) supers)
     (let ((cpl (compute-cpl class))
@@ -1363,7 +1359,9 @@
   (if (standard-instance-p thing)
     (let* ((wrapper (instance.class-wrapper thing)))
       (if (uvectorp wrapper)  ;; ???? - probably ok
-        wrapper))))
+        wrapper))
+    (if (typep thing 'macptr)
+      (foreign-instance-class-wrapper thing))))
 
 
 (defun std-class-p (class)
@@ -1439,9 +1437,7 @@
 (defvar *forward-referenced-class-class*
   (make-standard-class 'forward-referenced-class *class-class*))
 
-;; Has to be a standard class because code currently depends on T being the
-;; only non-standard class in the CPL of a standard class.
-(defvar *function-class* (make-standard-class 'function *t-class*))
+(defvar *function-class* (make-built-in-class 'function))
 
 ;Right now, all functions are compiled.
 
@@ -1530,7 +1526,14 @@
 
 (defvar *slot-vector-class* (make-built-in-class 'slot-vector (find-class 'gvector)))
 
-(make-built-in-class 'macptr)
+(defvar *macptr-class* (make-built-in-class 'macptr))
+(defvar *foreign-standard-object-class*
+  (make-standard-class 'foreign-standard-object
+		       *standard-object-class* *macptr-class*))
+
+(defvar *foreign-class-class*
+  (make-standard-class 'foreign-class *foreign-standard-object-class* *slots-class*))
+
 (make-built-in-class 'population)
 (make-built-in-class 'pool)
 (make-built-in-class 'package)
@@ -1701,6 +1704,125 @@
           (find-class 'bit-vector)))
 
 
+(def-accessors (foreign-object-domain) %svref
+  nil					; foreign-object-domain
+  foreign-object-domain-index		; 1..n
+  foreign-object-domain-name		;
+  foreign-object-domain-recognize	; function: is object one of ours ?
+  foreign-object-domain-class-of	; function: returns class of object
+  foreign-object-domain-classp		; function: true if object is a class
+  foreign-object-domain-instance-class-wrapper ; function: returns wrapper of object's class
+  foreign-object-domain-class-own-wrapper ; function: returns class own wrapper if class
+  foreign-object-domain-slots-vector	; returns slots vector of object or nil
+  )
+
+(defun make-foreign-object-domain (&key index name recognize class-of classp
+					instance-class-wrapper
+					class-own-wrapper
+					slots-vector)
+  (%istruct 'foreign-object-domain index name recognize class-of classp
+	    instance-class-wrapper class-own-wrapper slots-vector))
+
+(let* ((n-foreign-object-domains 0)
+       (foreign-object-domains (make-array 10))
+       (foreign-object-domain-lock (make-lock)))
+  (defun register-foreign-object-domain (name
+					 &key
+					 recognize
+					 class-of
+					 classp
+					 instance-class-wrapper
+					 class-own-wrapper
+					 slots-vector)
+    (with-lock-grabbed (foreign-object-domain-lock)
+      (dotimes (i n-foreign-object-domains)
+	(let* ((already (svref foreign-object-domains i)))
+	  (when (eq name (foreign-object-domain-name already))
+	    (setf (foreign-object-domain-recognize already) recognize
+		  (foreign-object-domain-class-of already) class-of
+		  (foreign-object-domain-classp already) classp
+		  (foreign-object-domain-instance-class-wrapper already)
+		  instance-class-wrapper
+		  (foreign-object-domain-class-own-wrapper already)
+		  class-own-wrapper
+		  (foreign-object-domain-slots-vector already) slots-vector)
+	    (return-from register-foreign-object-domain i))))
+      (let* ((i n-foreign-object-domains)
+	     (new (make-foreign-object-domain :index i
+					      :name name
+					      :recognize recognize
+					      :class-of class-of
+					      :classp classp
+					      :instance-class-wrapper
+					      instance-class-wrapper
+					      :class-own-wrapper
+					      class-own-wrapper
+					      :slots-vector
+					      slots-vector)))
+	(incf n-foreign-object-domains)
+	(if (= i (length foreign-object-domains))
+	  (setq foreign-object-domains (%extend-vector i foreign-object-domains (* i 2))))
+	(setf (svref foreign-object-domains i) new)
+	i)))
+  (defun foreign-class-of (p)
+    (funcall (foreign-object-domain-class-of (svref foreign-object-domains (%macptr-domain p))) p))
+  (defun foreign-classp (p)
+    (funcall (foreign-object-domain-classp (svref foreign-object-domains (%macptr-domain p))) p))
+  (defun foreign-instance-class-wrapper (p)
+    (funcall (foreign-object-domain-instance-class-wrapper (svref foreign-object-domains (%macptr-domain p))) p))
+  (defun foreign-class-own-wrapper (p)
+    (funcall (foreign-object-domain-class-own-wrapper (svref foreign-object-domains (%macptr-domain p))) p))
+  (defun foreign-slots-vector (p)
+    (funcall (foreign-object-domain-slots-vector (svref foreign-object-domains (%macptr-domain p))) p))
+  (defun classify-foreign-pointer (p)
+    (do* ((i (1- n-foreign-object-domains) (1- i)))
+	 ((zerop i) (error "this can't happen"))
+      (when (funcall (foreign-object-domain-recognize (svref foreign-object-domains i)) p)
+	(%set-macptr-domain p i)
+	(return p)))))
+
+(defun constantly (x)
+  #'(lambda (&rest ignore)
+      (declare (dynamic-extent ignore)
+               (ignore ignore))
+      x))
+
+(register-foreign-object-domain :unclassified
+				:recognize #'(lambda (p)
+					       (declare (ignore p))
+					       (error "Shouldn't happen"))
+				:class-of #'(lambda (p)
+					      (foreign-class-of
+					       (classify-foreign-pointer p)))
+				:classp #'(lambda (p)
+					    (foreign-classp
+					     (classify-foreign-pointer p)))
+				:instance-class-wrapper
+				#'(lambda (p)
+				    (foreign-instance-class-wrapper
+				     (classify-foreign-pointer p)))
+				:class-own-wrapper
+				#'(lambda (p)
+				    (foreign-class-own-wrapper 
+				     (classify-foreign-pointer p)))
+				:slots-vector
+				#'(lambda (p)
+				    (foreign-slots-vector
+				     (classify-foreign-pointer p))))
+
+;;; "Raw" macptrs, that aren't recognized as "standard foreign objects"
+;;; in some other domain, should always be recognized as such (and this
+;;; pretty much has to be domain #1.)
+
+(register-foreign-object-domain :raw
+				:recognize #'true
+				:class-of (constantly *macptr-class*)
+				:classp #'false
+				:instance-class-wrapper
+				(constantly (%class.own-wrapper *macptr-class*))
+				:class-own-wrapper #'false
+				:slots-vector #'false)
+
 
 (defparameter *class-table*
   (let* ((v (make-array 256 :initial-element nil)))
@@ -1721,7 +1843,6 @@
       (map-subtag ppc32::subtag-bignum bignum)
       (map-subtag ppc32::subtag-double-float double-float)
       (map-subtag ppc32::subtag-single-float short-float)
-      (map-subtag ppc32::subtag-macptr macptr)
       (map-subtag ppc32::subtag-dead-macptr ivector)
       (map-subtag ppc32::subtag-code-vector code-vector)
       (map-subtag ppc32::subtag-creole-object creole-object)
@@ -1753,6 +1874,7 @@
       (map-subtag ppc32::subtag-slot-vector slot-vector))
     (setf (%svref v ppc32::subtag-arrayH) *array-class*)
     ; These need to be special-cased:
+    (setf (%svref v ppc32::subtag-macptr) #'foreign-class-of)
     (setf (%svref v ppc32::subtag-character)
           #'(lambda (c) (let* ((code (%char-code c)))
                             (if (or (eq c #\NewLine)
@@ -1834,10 +1956,12 @@
 
 ; Can't use typep at bootstrapping time.
 (defun classp (x)
-  (let ((wrapper (standard-object-p x)))
-    (and wrapper
-         (let ((super (%wrapper-class wrapper)))
-           (memq *class-class* (%inited-class-cpl super t))))))
+  (or (and (typep x 'macptr) (foreign-classp x))		; often faster
+      (let ((wrapper (standard-object-p x)))
+	(or
+	 (and wrapper
+	      (let ((super (%wrapper-class wrapper)))
+		(memq *class-class* (%inited-class-cpl super t))))))))
 
 (set-type-predicate 'class 'classp)
 
@@ -1949,11 +2073,7 @@
 		     (err)))
 	    (unless (setq s (pop ss))
 	      (err))
-	    (unless (if (typep s 'eql-specializer)
-		      (and (typep spec 'eql-specializer) 
-			   (eql (eql-specializer-object s) 
-				(eql-specializer-object spec)))
-		      (eq s spec))
+	    (unless (eq s spec)
 	      (return))))))))
 
 (defmethod create-reader-method-function ((class std-class)
@@ -2072,24 +2192,28 @@
 (defun find-slotd (name slots)
   (find name slots :key #'%slot-definition-name))
 
-(defun %std-slot-value-using-class (instance slotd)
+(declaim (inline %std-slot-vector-value))
+
+(defun %std-slot-vector-value (slot-vector slotd)
   (let* ((loc (standard-effective-slot-definition.location slotd)))
-    (typecase loc
-      (fixnum
-       (standard-instance-instance-location-access instance loc))
-      (cons
-       (let* ((val (%cdr loc)))
-	 (if (eq val (%slot-unbound-marker))
-	   (slot-unbound (class-of instance) instance (standard-effective-slot-definition.name slotd))
+    (symbol-macrolet ((instance (slot-vector.instance slot-vector)))
+      (typecase loc
+	(fixnum
+	 (%slot-ref slot-vector loc))
+	(cons
+	 (let* ((val (%cdr loc)))
+	   (if (eq val (%slot-unbound-marker))
+	     (slot-unbound (class-of instance) instance (standard-effective-slot-definition.name slotd))
 	   val)))
       (t
        (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-	      slotd loc (slot-definition-allocation slotd))))))
+ 	      slotd loc (slot-definition-allocation slotd)))))))
+
 
 (defmethod slot-value-using-class ((class standard-class)
 				   instance
 				   (slotd standard-effective-slot-definition))
-  (%std-slot-value-using-class instance slotd))
+  (%std-slot-vector-value (instance.slots instance) slotd))
 
 (defun %maybe-std-slot-value-using-class (class instance slotd)
   (if (and (eql (typecode class) ppc32::subtag-instance)
@@ -2097,12 +2221,13 @@
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
-    (%std-slot-value-using-class instance slotd)
+    (%std-slot-vector-value (instance.slots instance) slotd)
     (slot-value-using-class class instance slotd)))
 
-  
 
-(defun %std-setf-slot-value-using-class (instance slotd new)
+(declaim (inline  %set-std-slot-vector-value))
+
+(defun %set-std-slot-vector-value (slot-vector slotd  new)
   (let* ((loc (standard-effective-slot-definition.location slotd))
 	 (type (standard-effective-slot-definition.type slotd))
 	 (type-predicate (standard-effective-slot-definition.type-predicate slotd)))
@@ -2111,20 +2236,20 @@
       (setq new (require-type new type)))
     (typecase loc
       (fixnum
-       (setf 
-	(standard-instance-instance-location-access instance loc) new))
+       (setf (%svref slot-vector loc) new))
       (cons
        (setf (%cdr loc) new))
       (t
        (error "Slot definition ~s has invalid location ~s (allocation ~s)."
 	      slotd loc (slot-definition-allocation slotd))))))
   
+  
 (defmethod (setf slot-value-using-class)
     (new
      (class standard-class)
      instance
      (slotd standard-effective-slot-definition))
-  (%std-setf-slot-value-using-class instance slotd new))
+  (%set-std-slot-vector-value (instance.slots instance) slotd new))
 
 
 (defun %maybe-std-setf-slot-value-using-class (class instance slotd new)
@@ -2133,46 +2258,20 @@
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
-    (%std-setf-slot-value-using-class instance slotd new)
+    (%set-std-slot-vector-value (instance.slots instance) slotd new)
     (setf (slot-value-using-class class instance slotd) new)))
 
 (defmethod slot-value-using-class ((class funcallable-standard-class)
 				   instance
 				   (slotd standard-effective-slot-definition))
-  (let* ((loc (standard-effective-slot-definition.location slotd)))
-      (typecase loc
-	(fixnum
-	 (standard-generic-function-instance-location-access instance loc))
-	(cons
-	 (let* ((val (%cdr loc)))
-	   (if (eq val (%slot-unbound-marker))
-	     (slot-unbound class instance (standard-effective-slot-definition.name slotd))
-	     val)))
-	(t
-	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd))))))
+  (%std-slot-vector-value (gf.slots instance) slotd))
 
 (defmethod (setf slot-value-using-class)
     (new
      (class funcallable-standard-class)
      instance
      (slotd standard-effective-slot-definition))
-  (let* ((loc (standard-effective-slot-definition.location slotd))
-	   (type (standard-effective-slot-definition.type slotd)))
-      (if (and type (not (eq type t)))
-	(unless (or (eq new (%slot-unbound-marker)) (typep new type))
-	  (setq new (require-type new type))))
-      (typecase loc
-	(fixnum
-	 (setf 
-	  (standard-generic-function-instance-location-access instance loc) new))
-	(cons
-	 (setf (%cdr loc) new))
-	(t
-	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd))))))
-
-
+  (%set-std-slot-vector-value (gf.slots instance) slotd new))
 
 (defun slot-value (instance slot-name)
   (let* ((class (class-of instance))
@@ -2216,43 +2315,26 @@
 	(slot-makunbound-using-class class instance slotd)
 	(slot-missing class instance name 'slot-makunbound))))
 
-
+(defun %std-slot-vector-boundp (slot-vector slotd)
+  (let* ((loc (standard-effective-slot-definition.location slotd)))
+    (typecase loc
+      (fixnum
+       (not (eq (%svref slot-vector loc) (%slot-unbound-marker))))
+      (cons
+       (not (eq (%cdr loc) (%slot-unbound-marker))))
+      (t
+       (error "Slot definition ~s has invalid location ~s (allocation ~s)."
+		slotd loc (slot-definition-allocation slotd))))))
 
 (defmethod slot-boundp-using-class ((class standard-class)
 				    instance
 				    (slotd standard-effective-slot-definition))
-  (if (eql 0 (%wrapper-instance-slots (instance.class-wrapper instance)))
-    (progn
-      (update-obsolete-instance instance)
-      (slot-boundp instance (standard-effective-slot-definition.name slotd)))
-    (let* ((loc (standard-effective-slot-definition.location slotd)))
-      (typecase loc
-	(fixnum
-	 (not (eq (%standard-instance-instance-location-access instance loc)
-		  (%slot-unbound-marker))))
-	(cons
-	 (not (eq (%cdr loc) (%slot-unbound-marker))))
-	(t
-	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd)))))))
+  (%std-slot-vector-boundp (instance.slots instance) slotd))
 
 (defmethod slot-boundp-using-class ((class funcallable-standard-class)
 				    instance
 				    (slotd standard-effective-slot-definition))
-  (if (eql 0 (%wrapper-instance-slots (gf.instance.class-wrapper instance)))
-    (progn
-      (update-obsolete-instance instance)
-      (slot-boundp instance (standard-effective-slot-definition.name slotd)))
-    (let* ((loc (standard-effective-slot-definition.location slotd)))
-      (typecase loc
-	(fixnum
-	 (not (eq (%standard-generic-function-instance-location-access instance loc)
-		  (%slot-unbound-marker))))
-	(cons
-	 (not (eq (%cdr loc) (%slot-unbound-marker))))
-	(t
-	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd)))))))
+  (%std-slot-vector-boundp (gf.slots instance) slotd))
 
 
 
@@ -2275,14 +2357,12 @@
 
 
 (defun slot-id-value (instance slot-id)
-  (let* ((wrapper (if (eq (typecode instance) ppc32::subtag-instance)
-                    (instance.class-wrapper instance)
+  (let* ((wrapper (or (standard-object-p instance)
                     (%class.own-wrapper (class-of instance)))))
     (funcall (%wrapper-slot-id-value wrapper) instance slot-id)))
 
 (defun set-slot-id-value (instance slot-id value)
-  (let* ((wrapper (if (eq (typecode instance) ppc32::subtag-instance)
-                    (instance.class-wrapper instance)
+  (let* ((wrapper (or (standard-object-p instance)
                     (%class.own-wrapper (class-of instance)))))
     (funcall (%wrapper-set-slot-id-value wrapper) instance slot-id value)))
 
@@ -2473,7 +2553,7 @@
              ;; Lots to do.  Hold onto your hat.
              (let* ((old-size (uvsize old-instance-slots))
 		    (new-size (uvsize new-instance-slots)))
-	       (declare (fixmum old-size new-size))
+	       (declare (fixnum old-size new-size))
                (dotimes (i old-size)
 	         (declare (fixnum i))
                  (let* ((slot-name (%svref old-instance-slots i))
@@ -2904,12 +2984,10 @@
     (%inited-class-cpl class)
     (class-precedence-list class)))
 
-(defmethod class-precedence-list ((class standard-class))
+(defmethod class-precedence-list ((class class))
   (%inited-class-cpl class))
 
-(defmethod class-precedence-list ((class class))
-  (or (%class.cpl class)
-      (error "~s has no class-precedence-list." class)))
+
 
 
 
@@ -3067,8 +3145,8 @@
                     (push (%car slot) res)))
                 (nreverse res))
               (mapcar '%slot-definition-name
-                      (extract-instance-effective-slotds 
-                       (%class-slots (class-of object)))))))
+                      (extract-instance-effective-slotds
+                       (class-of object))))))
     (values
      (let* ((form (gethash class-name *make-load-form-saving-slots-hash*)))
        (or (and (consp form)
