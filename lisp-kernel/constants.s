@@ -33,7 +33,7 @@ define([tsp],[r12])      /* temp-consing stack. */
 define([vsp],[r13])
 define([loc_pc],[r14]) 	 /* code vector locative */
 define([fn],[r15])
-define([temp4],[r16])
+define([new_fn],[r16])
 define([temp3],[r17])
 define([temp2],[r18])
 define([temp1],[r19])

@@ -704,47 +704,6 @@ TCR_BIAS = 0
 
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
 TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)
-/* Register usage: */
-
-
-define([rzero],[r0])	
-define([sp],[r1])
-define([rcontext],[r2])
-define([imm0],[r3])
-define([imm1],[r4])
-define([imm2],[r5])
-define([imm3],[r6])
-define([imm4],[r7])
-define([imm5],[r8])
-define([allocptr],[r9])
-define([allocbase],[r10])
-define([nargs],[r11])
-define([tsp],[r12])      /* temp-consing stack. */
-define([vsp],[r13])
-define([loc_pc],[r14]) 	 /* code vector locative */
-define([fn],[r15])
-define([temp4],[r16])
-define([temp3],[r17])
-define([temp2],[r18])
-define([temp1],[r19])
-define([temp0],[r20])
-define([arg_x],[r21])
-define([arg_y],[r22])
-define([arg_z],[r23])
-define([save7],[r24])
-define([save6],[r25])
-define([save5],[r26])
-define([save4],[r27])
-define([save3],[r28])
-define([save2],[r29])
-define([save1],[r30])
-define([save0],[r31])
-
-define([fname],[temp3])
-define([nfn],[temp2])
-define([next_method_context],[temp1])
-define([first_nvr],[save7])
-define([nargregs],[3])
 	
 r0 = 0
 r1 = 1

@@ -34,7 +34,7 @@
 #define vsp 13
 #define loc_pc 14		/*  code vector locative */
 #define fn 15		
-#define temp4 16
+#define new_fn 16
 #define temp3 17
 #define temp2 18
 #define temp1 19

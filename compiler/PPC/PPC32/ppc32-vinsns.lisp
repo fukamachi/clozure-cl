@@ -2756,6 +2756,7 @@
   (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
   (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
+  (mr ppc::new-fn ppc::fn)
   ;; Do a stack-probe ...
   (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
   (twllt ppc::sp imm))
@@ -2776,6 +2777,7 @@
   (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
   (stw imm ppc32::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
+  (mr ppc::new-fn ppc::fn)
   ;; Do a stack-probe ...
   (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
   (twllt ppc::sp imm))
@@ -2795,6 +2797,7 @@
   (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
   (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
+  (mr ppc::new-fn ppc::fn)  
   ;; Do a stack-probe ...
   (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
   (twllt ppc::sp imm))
@@ -2872,6 +2875,7 @@
   (lwz ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
   (lwz ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
   (lwz ppc::fn ppc32::lisp-frame.savefn ppc::sp)
+  (mr ppc::new-fn ppc::fn)  
   (mtlr ppc::loc-pc)
   (la ppc::sp ppc32::lisp-frame.size ppc::sp))
 

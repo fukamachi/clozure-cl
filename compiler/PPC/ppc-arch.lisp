@@ -36,9 +36,9 @@
       )))
 
 (defregs
-    rzero				; Always contains 0; not as handy as it sounds.
-    sp					; The control stack.  Aligned on 16-byte boundary.
-  rcontext				; thread context
+  rzero				; Always contains 0; not as handy as it sounds.
+  sp					; The control stack.  Aligned on 16-byte boundary.
+  rcontext
   imm0                                  ; Unboxed, volatile registers.
   imm1 
   imm2 
@@ -51,10 +51,10 @@
   tsp                                   ; Temp-stack pointer.
   vsp                                   ; Value stack pointer; grows towards 0.
   loc-pc                                ; for return PC only.
-  fn					; Current function (constants vector).
-  temp4                                 ; Boxed, volatile registers.  Some
+  fn
+  new-fn                                ; Current function (constants vector).
+  temp3                                 ; Boxed, volatile registers.  Some
 					; may be defined on function entry.
-  temp3
   temp2 
   temp1 
   temp0 

@@ -319,7 +319,7 @@ debug_lisp_registers(ExceptionInformationPowerPC *xp, int arg)
     show_lisp_register(xp, "temp1/next_method_context", temp1);
     show_lisp_register(xp, "temp2/nfn", temp2);
     show_lisp_register(xp, "temp3/fname", temp3);
-    show_lisp_register(xp, "temp4", temp4);
+    show_lisp_register(xp, "new_fn", new_fn);
     show_lisp_register(xp, "save0", save0);
     show_lisp_register(xp, "save1", save1);
     show_lisp_register(xp, "save2", save2);
