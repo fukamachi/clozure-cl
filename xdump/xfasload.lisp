@@ -159,7 +159,7 @@
 (defparameter %builtin-functions%
   #(+-2 --2 *-2 /-2 =-2 /=-2 >-2 >=-2 <-2 <=-2 eql length sequence-type
         assq memq logbitp logior-2 logand-2 ash 
-        %negate logxor-2 %aref1 %aset1
+        %negate logxor-2 %aref1 %aset1 list-length
         ; add more
         )
   "Symbols naming fixed-arg, single-valued functions")
