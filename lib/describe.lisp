@@ -1162,13 +1162,13 @@
 
 (defmethod compute-line-count ((f closure-inspector))
   (let* ((o (inspector-object f))
-	(nclosed (nth-value 8 (function-args (ccl::closure-function o)))))
-      (setf (closure-n-closed f) nclosed)
-      (+ (call-next-method)
-         1                              ; the function we close over
-         1                              ; "Closed over values"
-         nclosed
-         (if (disasm-p f) 1 0)))))      ; "Disassembly"
+	 (nclosed (nth-value 8 (function-args (ccl::closure-function o)))))
+    (setf (closure-n-closed f) nclosed)
+    (+ (call-next-method)
+       1                              ; the function we close over
+       1                              ; "Closed over values"
+       nclosed
+       (if (disasm-p f) 1 0))))      ; "Disassembly"
 
 (defmethod line-n ((f closure-inspector) n)
   (let ((o (inspector-object f))
