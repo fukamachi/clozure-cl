@@ -770,9 +770,9 @@
 ;;;
 
 (defun %ptr-in-area-p (ptr area)
-  (declare (fixnum ptr area))
+  (declare (fixnum ptr area))           ; lie, maybe
   (and (<= (the fixnum (%fixnum-ref area ppc32::area.low)) ptr)
-       (>= (the fixnum (%fixnum-ref area ppc32::area.high)) ptr)))
+       (> (the fixnum (%fixnum-ref area ppc32::area.high)) ptr)))
 
 (defun %active-area (area active)
   (or (do ((a area (%fixnum-ref a ppc32::area.older)))
@@ -785,30 +785,10 @@
           (return a)))))
 
 (defun %ptr-to-vstack-p (tcr idx)
-  (declare (fixnum idx))
-  (let* ((vs-area (%active-area (%fixnum-ref tcr ppc32::tcr.vs-area) idx)))
-    (when vs-area
-      (let ((active (if (and (eq tcr (%current-tcr))
-                             (%ptr-in-area-p (%current-vsp) vs-area))
-                      (%current-vsp)
-                      (%fixnum-ref vs-area ppc32::area.active)))
-            (high (%fixnum-ref vs-area ppc32::area.high)))
-        (declare (fixnum active high))
-        (and (< active idx)
-             (< idx high))))))
+  (%ptr-in-area-p idx (%fixnum-ref tcr ppc32::tcr.vs-area)))
 
 (defun %on-tsp-stack (tcr object)
-  (declare (fixnum object))             ; lie
-  (let* ((ts-area (%active-area (%fixnum-ref tcr ppc32::tcr.ts-area) object)))
-    (when ts-area
-      (let ((active (if (and (eq tcr (%current-tcr))
-                             (%ptr-in-area-p (%current-tsp) ts-area))
-                      (%current-tsp)
-                      (%fixnum-ref ts-area ppc32::area.active)))
-            (high (%fixnum-ref ts-area ppc32::area.high)))
-        (declare (fixnum active high))
-        (and (< active object)
-             (< object high))))))
+  (%ptr-in-area-p object (%fixnum-ref tcr ppc32::tcr.ts-area)))
 
 (defparameter *aux-tsp-ranges* ())
 (defparameter *aux-vsp-ranges* ())
@@ -924,7 +904,7 @@
           (setq frame grand-parent))
         (setq parent (parent-frame frame tcr)))
       (let ((parent-vsp (if parent (%frame-savevsp parent) vsp))
-            (vsp-area (%active-area (%fixnum-ref tcr ppc32::tcr.vs-area) vsp)))
+            (vsp-area (%fixnum-ref tcr ppc32::tcr.vs-area)))
         (if (eql 0 parent-vsp)
           (values vsp vsp)              ; p is the kernel frame pushed by an unwind-protect cleanup form
           (progn
