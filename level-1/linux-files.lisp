@@ -877,3 +877,99 @@
   (case (%unix-fd-kind fd)
     (:tty t)
     (t nil)))
+
+
+(defstruct (shared-resource (:constructor make-shared-resource (name)))
+  (name)
+  (lock (make-lock))
+  (primary-owner *current-process*)
+  (primary-owner-notify (make-semaphore))
+  (current-owner nil)
+  (requestors (make-dll-header)))
+
+(defstruct (shared-resource-request
+	     (:constructor make-shared-resource-request (process))
+	     (:include dll-node))
+  process
+  (signal (make-semaphore)))
+	     
+
+;; Returns NIL if already owned by calling thread, T otherwise
+(defun %acquire-shared-resource (resource  &optional verbose)
+  (let* ((current *current-process*))
+    (with-lock-grabbed ((shared-resource-lock resource))
+      (let* ((secondary (shared-resource-current-owner resource)))
+	(if (or (eq current secondary)
+		(and (null secondary)
+		     (eq current (shared-resource-primary-owner resource))))
+	  (return-from %acquire-shared-resource nil))))
+    (let* ((request (make-shared-resource-request *current-process*)))
+      (when verbose
+	(format t "~%~%;;;~%;;; ~a requires access to ~a~%;;;~%~%"
+		*current-process* (shared-resource-name resource)))
+      (with-lock-grabbed ((shared-resource-lock resource))
+	(append-dll-node request (shared-resource-requestors resource)))
+      (wait-on-semaphore (shared-resource-request-signal request))
+      #+debug
+      (assert (eq current (shared-resource-current-owner request)))
+      (when verbose
+	(format t "~%~%;;;~%;;; ~a is now owned by ~a~%;;;~%~%"
+		(shared-resource-name resource) current))
+      t)))
+
+;;; If we're the primary owner and there is no secondary owner, do nothing.
+;;; If we're the secondary owner, cease being the secondary owner.
+(defun %release-shared-resource (r)
+  (let* ((not-any-owner ()))
+    (with-lock-grabbed ((shared-resource-lock r))
+      (let* ((current *current-process*)
+	     (primary (shared-resource-primary-owner r))
+	     (secondary (shared-resource-current-owner r)))
+	(unless (setq not-any-owner
+		      (or (eq current secondary)
+			  (and (null secondary)
+			       (eq current primary))))
+	  (when secondary
+	    (setf (shared-resource-current-owner r) nil)
+	    (signal-semaphore (shared-resource-primary-owner-notify r))))))
+    (when not-any-owner
+      (signal-program-error "Process ~a does not own ~a" *current-process*
+			    (shared-resource-name r)))))
+
+;;; The current thread should be the primary owner; there should be
+;;; no secondary owner.  Wakeup the specified (or first) requesting
+;;; process, then block on our semaphore 
+(defun %yield-shared-resource (r &optional to)
+  (let* ((request nil))
+    (with-lock-grabbed ((shared-resource-lock r))
+      (let* ((current *current-process*)
+	     (primary (shared-resource-primary-owner r)))
+	(when (and (eq current primary)
+		   (null (shared-resource-current-owner r)))
+	  (setq request
+		(let* ((header (shared-resource-requestors r)))
+		  (if to 
+		    (do-dll-nodes (node header)
+		      (when (eq to (shared-resource-request-process node))
+			(return node)))
+		    (let* ((first (dll-header-first header)))
+		      (unless (eq first header)
+			first)))))
+	  (when request
+	    (remove-dll-node request)
+	    (signal-semaphore (shared-resource-request-signal request))))))
+    (when request
+      (wait-on-semaphore (shared-resource-primary-owner-notify r))
+      (format t "~&;;;~%;;;control of ~a restored to ~a~%;;;~&"
+	      (shared-resource-name r)
+	      *current-process*))))
+
+
+      
+
+(defun %shared-resource-requestor-p (r proc)
+  (with-lock-grabbed ((shared-resource-lock r))
+    (do-dll-nodes (node (shared-resource-requestors r))
+      (when (eq proc (shared-resource-request-process node))
+	(return t)))))
+
