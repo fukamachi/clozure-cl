@@ -128,18 +128,77 @@
 
 ;;; Subseq:
 
-(defun vector-subseq* (sequence start end)
-  (declare (vector sequence))
-  (declare (fixnum end start))
+;;; SRC is a (SIMPLE-ARRAY * (*)), TYPECODE is its ... typecode,
+;;; START and END are fixnums and sanity-checked.
+(defun simple-1d-array-subseq (src typecode start end)
+  (declare (fixnum start end typecode))
   (let* ((n (- end start))
-         (copy (make-sequence-like sequence n)))
+	 (dest (%alloc-misc n typecode)))
     (declare (fixnum n))
-    (multiple-value-bind (v offset subtype) (array-data-offset-subtype sequence)
-      (let* ((old-index (%i+ offset start)))
-        (declare (fixnum old-index new-index))
-        (dotimes (i n copy)
-          (%typed-miscset subtype copy i (%typed-miscref subtype v old-index))
-          (incf old-index))))))
+    (if (= typecode target::subtag-simple-vector)
+      (%copy-gvector-to-gvector src start dest 0 n)
+      (ecase typecode
+	((#.target::subtag-simple-base-string
+	  #.target::subtag-s8-vector
+	  #.target::subtag-u8-vector)
+	 (%copy-ivector-to-ivector src start dest 0 n))
+	((#.target::subtag-s16-vector
+	  #.target::subtag-u16-vector)
+	 (%copy-ivector-to-ivector src
+				   (the fixnum (+ start start))
+				   dest
+				   0
+				   (the fixnum (+ n n))))
+	((#.target::subtag-s32-vector
+	  #.target::subtag-u32-vector
+	  #.target::subtag-single-float-vector)
+	 (%copy-ivector-to-ivector src
+				   (the fixnum (ash start 2))
+				   dest
+				   0
+				   (the fixnum (ash n 2))))
+	;; DOUBLE-FLOAT vectors have extra alignment padding on ppc32.
+	#+ppc32-target
+	(#.ppc32::subtag-double-float-vector
+	 (%copy-ivector-to-ivector src
+				   (the fixnum (+ (the fixnum (ash start 3))
+						  (- ppc32::misc-dfloat-offset
+						     ppc32::misc-data-offset)))
+				   dest
+				   (- ppc32::misc-dfloat-offset
+						     ppc32::misc-data-offset)
+				   (the fixnum (ash n 3))))
+	#+ppc64-target
+	((#.ppc64::subtag-double-float-vector
+	  #+ppc64::subtag-s64-vector
+	  #+ppc64::subtag-u64-vector)
+	 (%copy-ivector-to-ivector src
+				   (the fixnum ash start 3)
+				   dest
+				   0
+				   (the fixnum (ash n 3))))
+	(#.target::subtag-bit-vector
+	 ;; We can probably do a byte at a time if (not (logtest start 7))
+	 (if (not (logtest start 7))
+	   (%copy-ivector-to-ivector src
+				     (the fixnum (ash (the fixnum (+ start 7))
+						      -3))
+				     dest
+				     0
+				     (the fixnum (ash (the fixnum (+ n 7))
+						      -3)))
+	   ;; Harder to optimize this case.
+	   (locally  (declare (simple-bit-vector src dest)
+			      (optimize (speed 3) (safety 0)))
+	     (do* ((i start (1+ i))
+		   (j 0 (1+ j)))
+		  ((= i end) dest)
+	       (declare (fixnum i j))
+	       (setf (sbit dest j) (sbit src i))))))))))
+		   
+				     
+	
+
 
 (defun nthcdr-error (index list &aux (copy list))
  "If index > length, error"
@@ -171,10 +230,22 @@
 
 (defun subseq (sequence start &optional end)
   (setq end (check-sequence-bounds sequence start end))
-  (seq-dispatch 
-   sequence
-   (list-subseq* sequence start end)
-   (vector-subseq* sequence start end)))
+  (locally 
+      (declare (fixnum start end))
+      (seq-dispatch 
+       sequence
+       (list-subseq* sequence start end)
+       (let* ((typecode (typecode sequence)))
+	 (declare (fixnum typecode))
+	 (when (= typecode target::subtag-arrayH)
+	   (multiple-value-bind (data offset)
+	       (array-data-and-offset sequence)
+	     (declare (fixnum offset))
+	     (incf start offset)
+	     (incf end offset)
+	     (setq sequence data typecode (typecode data))))
+	 (simple-1d-array-subseq sequence typecode start end)))))
+	 
 
 ;;; Copy-seq:
 
