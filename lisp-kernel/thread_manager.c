@@ -319,7 +319,7 @@ new_semaphore(int count)
   return s;
 #endif
 #ifdef DARWIN
-  semaphore_t s;
+  semaphore_t s = (semaphore_t)0;
   semaphore_create(mach_task_self(),&s, SYNC_POLICY_FIFO, count);
   return (void *)s;
 #endif
