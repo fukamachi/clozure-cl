@@ -447,9 +447,10 @@ Default version returns OpenMCL version info."
 	 nil)
      nil))
   (%set-toplevel #'(lambda ()
-		     (loop
+                     (with-standard-abort-handling nil 
+                       (loop
 			 (%nanosleep *periodic-task-seconds* *periodic-task-nanoseconds*)
-			 (housekeeping))))
+			 (housekeeping)))))
   (toplevel))
 
 
