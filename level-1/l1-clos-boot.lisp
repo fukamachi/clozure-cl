@@ -2430,15 +2430,20 @@ to replace that class with ~s" name old-class new-class)
   (let ((wrapper (%class.own-wrapper class)))
     (when wrapper
       (setf (%class.own-wrapper class) nil)
-      (make-wrapper-obsolete wrapper))))
+      (make-wrapper-obsolete wrapper)))
+  class)
 
 (defmethod make-instances-obsolete ((class funcallable-standard-class))
   (let ((wrapper (%class.own-wrapper class)))
     (when wrapper
       (setf (%class.own-wrapper class) nil)
-      (make-wrapper-obsolete wrapper))))
+      (make-wrapper-obsolete wrapper)))
+  class)
 
-(defmethod make-instances-obsolete ((class structure-class)))
+(defmethod make-instances-obsolete ((class structure-class))
+  ;; could maybe warn that instances are obsolete, but there's not
+  ;; much that we can do about that.
+  class)
 
 
 
