@@ -1805,10 +1805,10 @@
                (return-from SIMPLE))
              ;; Cons-o-rama no more !
              (let* ((s (make-string-output-stream)))
-               (when print-sign-p (write-char print-sign-p s))
                (when  (neq padchar #\space)
                  (dotimes (i (- mincol (+ lg commas) 1))
                    (write-char padchar s)))
+               (when print-sign-p (write-char print-sign-p s))
                (%pr-integer  number radix s)                           
                (dotimes (i (the fixnum commas)) (write-char commachar s))
                (let ((text (get-output-stream-string s)))
