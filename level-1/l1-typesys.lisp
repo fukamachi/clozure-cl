@@ -1372,7 +1372,7 @@
      (dolist (m (member-ctype-members ctype) t)
        (when (or (typep m 'cons)
 		 (typep m 'array))
-	 nil)))
+	 (return nil))))
     (union-ctype
      (every #'cacheable-ctype-p (union-ctype-types ctype)))
     (intersection-ctype
@@ -1391,6 +1391,12 @@
 	      (let* ((result (function-ctype-returns ctype)))
 		(or (null result)
 		    (cacheable-ctype-p result))))))
+    (negation-ctype
+     (cacheable-ctype-p (negation-ctype-type ctype)))
+    (cons-ctype
+     (and (cacheable-ctype-p (cons-ctype-car-ctype ctype))
+	  (cacheable-ctype-p (cons-ctype-cdr-ctype ctype))))
+    ;;; Anything else ?  Simple things (numbers, classes) can't lose.
     (t t)))
 		
       
