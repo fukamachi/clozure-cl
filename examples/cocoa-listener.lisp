@@ -47,7 +47,7 @@
 	   (send doc
 		 :perform-selector-on-main-thread (@selector "close")
 		 :with-object (%null-ptr)
-		 :wait-until-done t))))
+		 :wait-until-done nil))))
    #'(lambda ()
        (setq *listener-autorelease-pool* (create-autorelease-pool))
        (listener-function))))
@@ -123,39 +123,6 @@
       (send tv :set-typing-attributes (slot-value self 'userta))
       t)))
 |#
-
-
-
-
-
-
-
-
-
-(define-objc-method ((:id :delete-forward tv)  lisp-listener-window-controller)
-  (with-slots (outpos filehandle) self
-    (slet ((selection (send tv 'selected-range)))
-      (let* ((textbuf (send tv 'text-storage))
-	     (length (send textbuf 'length)))
-	(if (and (eql length (pref selection :<NSR>ange.location))
-		 (or (eql outpos length)
-		     (and (> length 1)
-			  (= (send textbuf :character-at-index  (1- length))
-			     (char-code #\NewLine)))))
-	  (%stack-block ((buf 1))
-	    (setf (%get-byte buf 0) (logand (char-code #\d) #x1f))
-	    (send filehandle
-		  :write-data (send (@class ns-data)
-				    :data-with-bytes buf
-				    :length 1))
-	    (send filehandle 'synchronize-file)
-					;(#_NSLog #@"wrote ctrl-d packet")
-	    )
-	  (send tv :delete-forward self))
-	self))))
-
-
-
 
 
 (define-objc-method ((:void dealloc) lisp-listener-window-controller)
