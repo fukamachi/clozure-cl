@@ -81,10 +81,12 @@
 
 (defvar *nx1-compiler-special-forms* nil "Real special forms")
 
-(defvar *nx-never-tail-call* '(error cerror break warn type-error file-error
-                               #-bccl %get-frame-pointer
-                               #-bccl break-loop)
- "List of functions which never return multiple values and
+(defparameter *nx-never-tail-call*
+  '(error cerror break warn type-error file-error
+    signal-program-error signal-simple-program-error
+    #-bccl %get-frame-pointer
+    #-bccl break-loop)
+  "List of functions which never return multiple values and
    should never be tail-called.")
 
 #-bccl (defvar *cross-compiling* nil "bootstrapping")
@@ -1655,7 +1657,7 @@ Or something. Right? ~s ~s" var varbits))
       (make-acode (%nx1-operator self-call) (nx1-arglist args args-in-regs) spread-p)
       (multiple-value-bind (lambda-form containing-env token) (nx-inline-expansion sym *nx-lexical-environment* global-only)
         (or (nx1-expand-inline-call lambda-form containing-env token args spread-p)
-            (multiple-value-bind (info afunc) (if (and sym (symbolp sym) (not global-only)) (nx-lexical-finfo sym))
+            (multiple-value-bind (info afunc) (if (and  (symbolp sym) (not global-only)) (nx-lexical-finfo sym))
               (when (eq 'macro (car info))
                 (nx-error "Can't call macro function ~s" sym))
 	      (nx-record-xref-info :direct-calls sym)
