@@ -15,13 +15,13 @@
 ;;;   http://opensource.franz.com/preamble.html
 ;;;
 ;;; TO DO
-;;;  - Need to add getter and setter functions for more foriegn slot types
+;;;  - Write SHARED-INITIALIZE and FINALIZE-INHERITANCE for ObjC classes
 ;;;  - OBJC-FOREIGN-ARG-TYPE in BRIDGE.LISP needs to handle BITFIELDs, 
 ;;;    ARRAYs and UNIONs
-;;;  - Need to get enough of the instance initialization and XXX
-;;;    protocols working so that foreign slot objects actually show up
-;;;    where they're supposed to
-;;;  - Implement slot access for OBJC-CLASS lisp slots
+;;;  - Need to fully handle init keywords and ObjC init messages
+;;;  - Need to add getter and setter functions for more foriegn slot types
+;;;  - Canonicalization and retention for ObjC objects
+;;;  - Provide Lisp structs for NS-POINT, NS-RECT, etc.?
 
 ;;; Package and module stuff
 
@@ -39,7 +39,6 @@
 
 ;;; All class names and instance variable names are interned in the NS package
 ;;; Force all symbols interned in the NS package to be external
-;;; symbols.
 
 (defpackage "NS"
   (:use))
@@ -76,6 +75,8 @@
 (defvar *objc-class-class*)
 (defvar *objc-metaclass-class*)
 
+(defvar *objc-object-slot-vectors* (make-hash-table :test #'eql))
+
 (defun recognize-objc-object (p)
   (let* ((idx (objc-class-id p)))
     (if idx
@@ -99,7 +100,6 @@
       (#.objc-flag-instance (id->objc-class index))
       (#.objc-flag-class (id->objc-metaclass index))
       (#.objc-flag-metaclass *objc-metaclass-class*))))
-
   
 (defun %objc-domain-classp (p)
   (let* ((type (%macptr-type p))
@@ -133,7 +133,7 @@
 	 (index (ldb objc-type-index type)))
     (declare (fixnum type flags index))
     (ecase flags
-      (#.objc-flag-instance nil)	;maybe soon
+      (#.objc-flag-instance (gethash p *objc-object-slot-vectors*))
       (#.objc-flag-class (id->objc-class-slots-vector index))
       (#.objc-flag-metaclass (id->objc-metaclass-slots-vector index)))))
 	  
@@ -149,7 +149,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;                  OBJC Objects, Classes and Metaclasses                 ;;;;
+;;;;                  ObjC Objects, Classes and Metaclasses                 ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defclass objc:objc-object (foreign-standard-object)
@@ -265,7 +265,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;                        OBJC-CLASS Slot Protocol                        ;;;;
+;;;;                              Slot Protocol                             ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; Accessing Lisp slots
@@ -345,29 +345,26 @@
 
 (defun compute-foreign-slot-accessors (eslotd)
   (let ((ftype (%slot-definition-type eslotd)))
-    (case ftype
-      (:unsigned-byte (values #'%get-unsigned-byte #'%set-byte))
-      (:signed-byte (values #'%get-signed-byte #'%set-byte))
-      (:unsigned-word (values #'%get-unsigned-word #'%set-word))
-      (:signed-word (values #'%get-signed-word #'%set-word))
-      (:unsigned-fullword (values #'%get-unsigned-long #'%set-long))
-      (:signed-fullword (values #'%get-signed-long #'%set-long))
-      (:unsigned-longlong (values #'%%get-unsigned-longlong #'%%set-unsigned-longlong))
-      (:signed-longlong (values #'%%get-signed-longlong #'%%set-signed-longlong))
-      (:single-float (values #'%get-single-float #'%set-single-float))
-      (:double-float (values #'%get-double-float #'%set-double-float))
-      ((:id :address) (values #'%get-ptr #'%set-ptr))
-      (t 
-       (cond 
-	((and (consp ftype) (eq (first ftype) :*))
-	 (values #'%get-ptr #'%set-ptr))
-	(t (values 
-	    #'(lambda (ptr &optional offset)
-		(declare (ignore ptr offset))
-		(error "Unhandled foreign slot type: ~S" ftype))
-	    #'(lambda (ptr &optional offset)
-		(declare (ignore ptr offset))
-		(error "Unhandled foreign slot type: ~S" ftype)))))))))
+    (flet ((unhandled-foreign-slot-type (ptr &optional offset)
+	     (declare (ignore ptr offset))
+             (error "Unhandled foreign slot type: ~S" ftype)))
+      (case ftype
+	(:unsigned-byte (values #'%get-unsigned-byte #'%set-byte))
+	(:signed-byte (values #'%get-signed-byte #'%set-byte))
+	(:unsigned-word (values #'%get-unsigned-word #'%set-word))
+	(:signed-word (values #'%get-signed-word #'%set-word))
+	(:unsigned-fullword (values #'%get-unsigned-long #'%set-long))
+	(:signed-fullword (values #'%get-signed-long #'%set-long))
+	(:unsigned-longlong (values #'%%get-unsigned-longlong #'%%set-unsigned-longlong))
+	(:signed-longlong (values #'%%get-signed-longlong #'%%set-signed-longlong))
+	(:single-float (values #'%get-single-float #'%set-single-float))
+	(:double-float (values #'%get-double-float #'%set-double-float))
+	((:id :address) (values #'%get-ptr #'%set-ptr))
+	(t 
+	 (cond 
+	  ((and (consp ftype) (eq (first ftype) :*))
+	   (values #'%get-ptr #'%set-ptr))
+	  (t (values #'unhandled-foreign-slot-type #'unhandled-foreign-slot-type)))))))) 
 
 
 ;;; Augment SLOT-CLASS's COMPUTE-EFFECTIVE-SLOT-DEFINITION with an :AROUND
@@ -423,6 +420,12 @@
   ;; foreign slots are always bound
   t)
 
+(defmethod slot-makunbound-using-class ((class objc:objc-class-object)
+					instance
+					(slotd foreign-effective-slot-definition))
+  (declare (ignore instance))
+  (error "Foreign slots cannot be unbound: ~S" (slot-definition-name slotd)))
+
 (defmethod slot-value-using-class ((class objc:objc-class-object)
 				   instance
 				   (slotd foreign-effective-slot-definition))
@@ -439,3 +442,61 @@
 	   (slot-definition-location slotd)
 	   value))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;            Instance Allocation and Initialization Protocols            ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmethod make-instance ((class objc:objc-class) &rest initargs)
+  (let ((instance (allocate-instance class)))
+    (apply #'initialize-instance instance initargs)
+    instance))
+
+(defmethod allocate-instance ((class objc:objc-class) &key &allow-other-keys)
+  (unless (class-finalized-p class)
+    (finalize-inheritance class))
+  (let* ((instance (%send class 'alloc)) ; For now; Use SEND macro eventually
+	 (len (length (%wrapper-instance-slots (class-own-wrapper class))))
+	 (slot-vector (allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker))))
+    (setf (slot-vector.instance slot-vector) instance)
+    (setf (gethash instance *objc-object-slot-vectors*) slot-vector) 
+    instance))
+
+(defmethod initialize-instance ((instance objc:objc-object) &rest initargs)
+  (apply #'shared-initialize instance t initargs))
+
+(defmethod reinitialize-instance ((instance objc:objc-object) &rest initargs)
+  (apply #'shared-initialize instance nil initargs))
+
+(defmethod shared-initialize ((instance objc:objc-object) slot-names &rest initargs)
+  (let ((class (class-of instance)))
+    ;; Call appropriate ObjC init method
+    (multiple-value-bind (ks vs) (keys-and-vals initargs)
+      (apply #'%send instance (lisp-to-objc-init ks) vs))
+    ;; Initialize CLOS slots
+    (dolist (slotd (class-slots class))
+      (when (neq (slot-definition-allocation slotd) :foreign)  ; For now
+	(let ((sname (slot-definition-name slotd))
+	      (slot-type (slot-definition-type slotd))
+	      (typepred (slot-value slotd 'type-predicate))
+	      (initfunction (slot-definition-initfunction slotd)))
+	  (multiple-value-bind (ignore newval foundp)
+			       (get-properties initargs (slot-definition-initargs slotd))
+	    (declare (ignore ignore))
+	    (if foundp
+		(if (funcall typepred newval)
+		    (setf (slot-value instance sname) newval)
+		  (report-bad-arg newval slot-type))
+	      (let ((curval (slot-value instance sname)))
+		(when (and (or (eq slot-names t) (member sname slot-names :test #'eq))
+			   (eq curval (%slot-unbound-marker))
+			   initfunction)
+		  (let ((newval (funcall initfunction)))
+		    (unless (funcall typepred newval)
+		      (report-bad-arg newval slot-type))))))))))
+    instance))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;              Class Definition and Finalization Protocols               ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
