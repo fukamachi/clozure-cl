@@ -154,6 +154,8 @@
     (get-def-info-and-go-to-it fun-name)))
 
 (defun get-def-info-and-go-to-it (fun-name)
+  (format t "~& fun-name = ~s" fun-name)
+  #+no
   (let ((in-editor-p (value editor-definition-info))
 	(info (value current-eval-server)))
     (if (or in-editor-p
