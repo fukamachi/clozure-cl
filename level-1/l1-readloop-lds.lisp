@@ -18,6 +18,8 @@
 
 (in-package "CCL")
 
+
+
 (defun toplevel-loop ()
   (loop
     (if (eq (catch :toplevel 
@@ -149,37 +151,38 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 ;This is the part common to toplevel loop and inner break loops.
 (defun read-loop (&key (break-level *break-level*)
-		       (prompt-function #'(lambda () (print-listener-prompt t)))
+		       (prompt-function #'(lambda (stream) (print-listener-prompt stream t)))
 		       (input-stream *terminal-io*)
 		       (output-stream *terminal-io*))
   (let* ((*break-level* break-level)
          (*last-break-level* break-level)
          *loading-file-source-file*
          *in-read-loop*
-         (*listener-p* t)
          *** ** * +++ ++ + /// // / -
-         form)
+         (eof-value (cons nil nil)))
+    (declare (dynamic-extent eof-value))
     (loop
       (restart-case
         (catch :abort ;last resort...
           (loop
             (catch-cancel
               (loop                
-                (setq *loading-file-source-file* nil
-                      *in-read-loop* nil
+                (setq *in-read-loop* nil
                       *break-level* break-level)
-                (setq form (toplevel-read :input-stream input-stream
-					  :output-stream output-stream
-					  :prompt-function prompt-function))
-                (if (eq form *eof-value*)
-		  (if (eof-transient-p (stream-device input-stream :input))
-		    (progn
-		      (stream-clear-input *terminal-io*)
-		      (abort-break))
-		    (quit))
-		  (or (check-toplevel-command form)
-		      (toplevel-print
-		       (toplevel-eval form))))))
+                (multiple-value-bind (form path print-result)
+                    (toplevel-read :input-stream input-stream
+                                   :output-stream output-stream
+                                   :prompt-function prompt-function
+                                   :eof-value eof-value)
+                  (if (eq form eof-value)
+                    (if (eof-transient-p (stream-device input-stream :input))
+                      (progn
+                        (stream-clear-input *terminal-io*)
+                        (abort-break))
+                      (quit))
+                    (or (check-toplevel-command form)
+                        (let* ((values (toplevel-eval form path)))
+                        (if print-result (toplevel-print values))))))))
             (format *terminal-io* "~&Cancelled")))
         (abort () :report (lambda (stream)
                             (if (eq break-level 0)
@@ -197,30 +200,16 @@ whose name or ID matches <p>, or to any process if <p> is null"
       (clear-input *terminal-io*)
       (format *terminal-io* "~%"))))
 
+
+
 ;Read a form from *terminal-io*.
 (defun toplevel-read (&key (input-stream *standard-input*)
 			   (output-stream *standard-output*)
-			   (prompt-function #'print-listener-prompt))
-  (let* ((listener input-stream))
-    (force-output output-stream)
-    (funcall prompt-function)
-    (loop
-        (let* ((*in-read-loop* nil)  ;So can abort out of buggy reader macros...
-               (form))
-          (catch '%re-read            
-            (if (eq (setq form (read listener nil *eof-value*)) *eof-value*)
-              (return form)
-	      (progn
-		(let ((ch)) ;Trim whitespace
-		  (while (and (listen listener)
-			      (setq ch (read-char listener nil nil))
-			      (whitespacep cH))
-		    (setq ch nil))
-		  (when ch (unread-char ch listener)))
-		(when *listener-indent* 
-		  (write-char #\space listener)
-		  (write-char #\space listener))
-		(return (process-single-selection form)))))))))
+			   (prompt-function #'print-listener-prompt)
+                           (eof-value *eof-value*))
+  (force-output output-stream)
+  (funcall prompt-function output-stream)
+  (read-toplevel-form input-stream eof-value))
 
 (defvar *always-eval-user-defvars* nil)
 
@@ -230,32 +219,31 @@ whose name or ID matches <p>, or to any process if <p> is null"
     `(defparameter ,@(cdr form))
     form))
 
-(defun toplevel-eval (form &optional env)
+(defun toplevel-eval (form &optional *loading-file-source-file*)
   (setq +++ ++ ++ + + - - form)
   (let* ((package *package*)
-         (values (multiple-value-list (cheap-eval-in-environment form env))))
+         (values (multiple-value-list (cheap-eval-in-environment form nil))))
     (unless (eq package *package*)
-      (application-ui-operation *application* :note-package *package*))
+      (application-ui-operation *application* :note-current-package *package*))
     values))
 
 (defun toplevel-print (values)
-  (declare (resident))
   (setq /// // // / / values)
   (setq *** ** ** * * (if (neq (%car values) (%unbound-marker-8)) (%car values)))
   (when values
     (fresh-line)
     (dolist (val values) (write val) (terpri))))
 
-(defun print-listener-prompt (&optional (force t))
+(defun print-listener-prompt (stream &optional (force t))
   (when (or force (neq *break-level* *last-break-level*))
     (let* ((*listener-indent* nil))
-      (fresh-line *terminal-io*)            
+      (fresh-line stream)            
       (if (%izerop *break-level*)
-        (%write-string "?" *terminal-io*)
-        (format *terminal-io* "~s >" *break-level*)))        
-    (write-string " " *terminal-io*)        
+        (%write-string "?" stream)
+        (format stream "~s >" *break-level*)))        
+    (write-string " " stream)        
     (setq *last-break-level* *break-level*))
-      (force-output *terminal-io*))
+      (force-output stream))
 
 
 ;;; Fairly crude default error-handlingbehavior, and a fairly crude mechanism
