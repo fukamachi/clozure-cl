@@ -400,7 +400,6 @@
   (make-acode (%nx1-default-operator)))
 
 (defnx1 nx1-throw (throw) (tag valuesform)
-  (setq *nx-nlexit-count* (%i+ *nx-nlexit-count* 1))
   (make-acode (%nx1-operator throw) (nx1-form tag) (nx1-form valuesform)))
 
 
@@ -849,39 +848,7 @@
     (if (null false)
       (return-from nx1-if (nx1-form `(progn ,test nil)))
       (psetq test `(not ,test) true false false true)))
-  (let ((testform nil)
-        (trueform nil)
-        (falseform nil)
-        (called-in-test nil)
-        (called-in-true)
-        (called-in-false)
-        (exited nil))
-    (let* ((*nx-event-checking-call-count* *nx-event-checking-call-count*)
-           (*nx-nlexit-count* *nx-nlexit-count*)
-           (calls *nx-event-checking-call-count*)
-           (exits *nx-nlexit-count*))
-      (setq testform (nx1-form test))
-      (if (neq calls (setq calls *nx-event-checking-call-count*))
-        (setq called-in-test calls)
-        (if (neq exits (setq exits *nx-nlexit-count*))
-          (setq exited exits)))
-      (setq trueform (nx1-form true))
-      (unless (or called-in-test exited)
-        (if (neq calls (setq calls *nx-event-checking-call-count*))
-          (setq called-in-true calls)
-          (if (neq exits (setq exits *nx-nlexit-count*))
-            (setq exited exits))))
-      (setq falseform (nx1-form false))
-      (unless (or called-in-test exited)
-        (if (neq calls (setq calls *nx-event-checking-call-count*))
-          (setq called-in-false calls)
-          (if (neq exits (setq exits *nx-nlexit-count*))
-            (setq exited exits)))))
-    (if exited 
-      (setq *nx-nlexit-count* exited)
-      (if (setq called-in-test (or called-in-test (and called-in-true called-in-false)))
-        (setq *nx-event-checking-call-count* called-in-test)))  
-    (make-acode (%nx1-operator if) testform trueform falseform)))
+  (make-acode (%nx1-operator if)  (nx1-form test) (nx1-form true) (nx1-form false)))
 
 (defnx1 nx1-%debug-trap dbg (&optional arg)
   (make-acode (%nx1-operator %debug-trap) (nx1-form arg)))
@@ -1144,28 +1111,20 @@
           (nx-error "Illegal form in TAGBODY: ~S." form))))
     (dolist (tag (setq newtags (nreverse newtags)))
       (push tag *nx-tags*))
-    (let* ((body nil) 
-           (nlexit-count *nx-nlexit-count*)
-           (call-count *nx-event-checking-call-count*))
+    (let* ((body nil))
       (dolist (form args (setq body (nreverse body)))
         (push 
          (if (atom form)
            (let ((info (nx-tag-info form)))
              (%rplaca (%cdr (%cdr (%cdr (%cdr info)))) t)
              (cons (%nx1-operator tag-label) info))
-           (progn
-             (setq form (nx1-form form))
-             ; These are supposed to just be hints - pass 2 can (theoretically)
-             ; walk the acode itself ...
-             (if (neq call-count (setq call-count *nx-event-checking-call-count*))
-               (setq form (make-acode (%nx1-operator embedded-call) form)))
-             (if (neq nlexit-count (setq nlexit-count *nx-nlexit-count*))
-               (setq form (make-acode (%nx1-operator embedded-nlexit) form)))
-             form))
+           (nx1-form form))
          body))
       (if (eq 0 (%car counter))
         (make-acode (%nx1-operator local-tagbody) newtags body)
         (progn
+          (nx-set-var-bits catchvar (logior (nx-var-bits catchvar)
+                                            (%ilsl $vbitdynamicextent 1)))
           (nx-inhibit-register-allocation)   ; There are alternatives ...
           (dolist (tag (reverse newtags))
             (when (%cadr tag)
@@ -1175,7 +1134,7 @@
           (make-acode
            (%nx1-operator let*)
            (list catchvar indexvar)
-           (list *nx-nil* *nx-nil*)
+           (list (make-acode (%nx1-operator cons) *nx-nil* *nx-nil*) *nx-nil*)
            (make-acode
             (%nx1-operator local-tagbody)
             (list looplabel)
@@ -1188,7 +1147,7 @@
                indexvar
                (make-acode 
                 (%nx1-operator catch)
-                (nx1-form `(setq ,(var-name catchvar) (%newgotag)))  ;(make-acode (%nx1-operator newgotag))
+                (nx1-form (var-name catchvar)) 
                 (make-acode
                  (%nx1-operator local-tagbody)
                  newtags
@@ -1207,11 +1166,10 @@
     (if (not closed)
       (let ((defnbackref (cdr (cdr (cdr (cdr info))))))
         (if (car defnbackref) 
-          (rplaca (cdr defnbackref) t)
-          (setq *nx-nlexit-count* (%i+ *nx-nlexit-count* 1)))
+          (rplaca (cdr defnbackref) t))
         (make-acode (%nx1-operator local-go) info))
       (progn
-        (setq *nx-nlexit-count* (%i+ *nx-nlexit-count* 1))
+
         (make-acode
          (%nx1-operator throw) (nx1-symbol (var-name (cadddr info))) (nx1-form closed))))))
 
@@ -1297,6 +1255,7 @@
            body)
           body)
         (progn
+          (nx-set-var-bits tagvar (%ilogior (%ilsl $vbitdynamicextent 1) tagbits))
           (nx-inhibit-register-allocation)   ; Could also set $vbitnoreg in all setqed vars, or keep track better
           (make-acode
            (%nx1-operator local-block)
@@ -1304,10 +1263,10 @@
            (make-acode
             (%nx1-operator let)
             (list tagvar)
-            (list (make-acode (%nx1-operator newblocktag)))
+            (list (make-acode (%nx1-operator cons) (nx1-form nil) (nx1-form nil)))
             (make-acode
              (%nx1-operator catch)
-             (list (%nx1-operator lexical-reference) tagvar)
+             (make-acode (%nx1-operator lexical-reference) tagvar)
              body)
             0)))))))
 
@@ -1316,7 +1275,6 @@
                        (nx-block-info (setq blockname (nx-need-sym blockname)))
     (unless info (nx-error "Can't RETURN-FROM block : ~S." blockname))
     (unless closed (nx-adjust-ref-count (cdr info)))
-    (setq *nx-nlexit-count* (%i+ *nx-nlexit-count* 1))
     (make-acode 
      (if closed
        (%nx1-operator throw)
