@@ -2321,15 +2321,16 @@
             ,(if string string (list 'quote typespec))))
      nil))
 
-(defmacro with-hash-table-iterator ((mname hash-table) &body body)
+(defmacro with-hash-table-iterator ((mname hash-table) &body body &environment env)
   (let ((state (gensym)))
-    `(let ((,state (vector nil nil ,hash-table nil nil)))
-       (declare (dynamic-extent ,state))
-       (unwind-protect
-         (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
-           (start-hash-table-iterator ,state)
-           ,@body)
-         (finish-hash-table-iterator ,state)))))
+    (multiple-value-bind (body decls) (parse-body body env)
+      `(let ((,state (vector nil nil ,hash-table nil nil)))
+	(declare (dynamic-extent ,state))
+	(unwind-protect
+	     (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
+	       (start-hash-table-iterator ,state)
+	       (locally ,@decls ,@body))
+	  (finish-hash-table-iterator ,state))))))
 
 (eval-when (compile load eval)
 (defmacro pprint-logical-block ((stream-symbol list
