@@ -227,10 +227,10 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define RB_field(instr)  (((instr) >> 11) & 0x1f)
 #define D_field(instr)   ((instr) & 0xffff)
 
-#define RT(val) ((val & 0xf) << 21)
+#define RT(val) ((val & 0x1f) << 21)
 #define RS(val) (RT(val))
-#define RA(val) ((val & 0xf) << 16)
-#define RB(val) ((val & 0xf) << 11)
+#define RA(val) ((val & 0x1f) << 16)
+#define RB(val) ((val & 0x1f) << 11)
 #define D(val) (val & 0xffff)
 
 #define RS_MASK RS(-1)
