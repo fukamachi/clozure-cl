@@ -2124,9 +2124,9 @@ to replace that class with ~s" name old-class new-class)
 	    (unless (eq s spec)
 	      (return))))))))
 
-(defmethod create-reader-method-function ((class std-class)
+(defmethod create-reader-method-function ((class slots-class)
 					  (reader-method-class standard-reader-method)
-					  (dslotd standard-direct-slot-definition))
+					  (dslotd direct-slot-definition))
   (gvector :function
            (uvref *reader-method-function-proto* 0)
            (ensure-slot-id (%slot-definition-name dslotd))
@@ -2134,9 +2134,9 @@ to replace that class with ~s" name old-class new-class)
            nil				;method-function name
            (dpb 1 $lfbits-numreq (ash 1 $lfbits-method-bit))))
 
-(defmethod create-writer-method-function ((class std-class)
+(defmethod create-writer-method-function ((class slots-class)
 					  (writer-method-class standard-writer-method)
-					  (dslotd standard-direct-slot-definition))
+					  (dslotd direct-slot-definition))
   (gvector :function
            (uvref *writer-method-function-proto* 0)
            (ensure-slot-id (%slot-definition-name dslotd))
@@ -2758,10 +2758,10 @@ to replace that class with ~s" name old-class new-class)
 
 ; This is part of the MOP
 ;;; Maybe it was, at one point in the distant past ...
-(defmethod class-slot-initargs ((class std-class))
+(defmethod class-slot-initargs ((class slots-class))
   (apply #'append (mapcar #'(lambda (s)
-                              (standard-slot-definition.initargs s))
-                          (%class.slots class))))
+                              (%slot-definition-initargs s))
+                          (%class-slots class))))
 
     
   
