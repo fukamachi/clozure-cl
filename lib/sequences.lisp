@@ -1036,18 +1036,18 @@
           (%typed-miscset subtype new-vect i (%typed-miscref subtype vector (%i+ offset i)))
           ))
       (setq fill start)
-      (setq pos (%i+ start offset))
+      (setq pos start)
       (loop
         (if (eq fill fill-end) (return))
         (if (neq 1 (aref bv pos))
           (progn
-            (%typed-miscset subtype new-vect fill (%typed-miscref subtype vector pos))
+            (%typed-miscset subtype new-vect fill (%typed-miscref subtype vector (%i+ offset pos)))
             (setq fill (%i+ fill 1))))
         (setq pos (%i+ pos 1)))
       (setq pos end)
       (loop
         (when (eq fill size) (return))
-          (%typed-miscset subtype new-vect fill (%typed-miscref subtype vector pos))
+          (%typed-miscset subtype new-vect fill (%typed-miscref subtype vector (%i+ offset pos)))
           (setq fill (%i+ fill 1)
                 pos (%i+ pos 1)))
       new-vect)))
