@@ -61,9 +61,9 @@
 (defun if-exists (if-exists filename &optional (prompt "Create ..."))
   (case if-exists
     (:error (signal-file-error (- #$EEXIST) filename))
-    ((:dialog :new-version :rename) (overwrite-dialog filename prompt))
+    ((:dialog) (overwrite-dialog filename prompt))
     ((nil) nil)
-    ((:ignored :overwrite :append :supersede :rename-and-delete) filename)
+    ((:ignored :overwrite :append :supersede :rename-and-delete :new-version :rename) filename)
     (t (report-bad-arg if-exists '(member :error :dialog nil :ignored :overwrite :append :supersede :rename-and-delete)))))
 
 (defun if-does-not-exist (if-does-not-exist filename)
@@ -129,6 +129,9 @@
       (signal-file-error $err-no-file path)))
 
 (defun probe-file (path)
+  (when (wild-pathname-p path)
+    (error 'file-error :error-type "Inappropriate use of wild pathname ~s"
+	   :pathname path))
   (let* ((native (native-translated-namestring path))
          (realpath (%realpath native))
          (kind (if realpath (%unix-file-kind realpath))))
@@ -1209,3 +1212,23 @@ No file could be found for that module."
           (when (setq path (find-load-file (merge-pathnames mod-path path-cand)))
             (return path))))))
 
+(defun wild-pathname-p (pathname &optional field-key)
+  (flet ((wild-p (name) (or (eq name :wild)
+                            (eq name :wild-inferiors)
+                            (and (stringp name) (%path-mem "*" name)))))
+    (case field-key
+      ((nil)
+       (or (some #'wild-p (pathname-directory pathname))
+           (wild-p (pathname-name pathname))
+           (wild-p (pathname-type pathname))
+           (wild-p (pathname-version pathname))))
+      (:host nil)
+      (:device nil)
+      (:directory (some #'wild-p (pathname-directory pathname)))
+      (:name (wild-p (pathname-name pathname)))
+      (:type (wild-p (pathname-type pathname)))
+      (:version (wild-p (pathname-version pathname)))
+      (t (wild-pathname-p pathname
+                          (require-type field-key 
+                                        '(member nil :host :device 
+                                          :directory :name :type :version)))))))
