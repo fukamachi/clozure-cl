@@ -289,12 +289,14 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define major_opcode_LWZ 32
 #define major_opcode_LBZ 34
 #define major_opcode_STW 36
+#define major_opcode_STWU 37
 #define major_opcode_FPU_SINGLE 59
 #define major_opcode_FPU_DOUBLE 63
 
 #define minor_opcode_TW 4
 #define minor_opcode_SUBF 40
 #define minor_opcode_STWX 151
+#define minor_opcode_STWUX 183
 
 
 #define D_instruction(major,rt,ra,imm) (OP(major)|((rt)<<21)|((ra)<<16)|((imm)&D_MASK))
@@ -328,6 +330,9 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define STORE_CAR_ALLOCPTR_INSTRUCTION 0x90090003
 #define STORE_CDR_ALLOCPTR_INSTRUCTION 0x9009ffff
 #define STORE_CXR_ALLOCPTR_MASK D_RA_IMM_MASK
+
+/* stwu sp,-16(sp) */
+#define CREATE_LISP_FRAME_INSTRUCTION 0x9421FFF0
 
 void Bug(ExceptionInformationPowerPC *, const char *format_string, ...);
 int gc_from_xp(ExceptionInformationPowerPC *);
