@@ -457,8 +457,7 @@
 	    (multiple-value-bind (ivars instance-size)
 		(%make-objc-ivars c)
 	      (%add-objc-class c ivars instance-size)
-	      (splay-tree-put class-map c i)
-              (format t "~& addded ~s" (class-name c)))))))))
+	      (splay-tree-put class-map c i))))))))
 
 (pushnew #'revive-objc-classes *lisp-system-pointer-functions*
 	 :test #'eq
