@@ -36,7 +36,13 @@
 (defun make-short-float-from-fixnums (significand biased-exp sign &optional result)
   (%make-short-float-from-fixnums (or result (%make-sfloat)) significand biased-exp sign))
 
-  
+
+(defun %double-float-sign (n)
+  (< (the double-float n) 0.0d0))
+
+(defun %short-float-sign (n)
+  (< (the single-float n) 0.0f0))
+
 
 (defun float-sign (n1 &optional n2) ; second arg silly
   "Return a floating-point number that has the same sign as
