@@ -966,14 +966,18 @@ _spentry(keyword_bind)
    situation was unexpected. */
 	__(mr imm4,valptr)
 5:
+        __(cmpwi cr0,keyword_flags,16<<fixnumshift) /* seen :a-o-k yet ? */
 	__(lwzu arg_z,-4(valptr))
 	__(lwzu arg_y,-4(valptr))
 	__(cmpri(cr1,arg_y,nil_value))
 	__(li arg_x,nrs.kallowotherkeys)
-	__(cmpr(cr0,arg_x,arg_z))
+        /* cr6_eq <- (eq current-keyword :allow-other-keys) */
+	__(cmpr(cr6,arg_x,arg_z))
 	__(cmpr(cr7,valptr,limit))
+	__(bne cr6,6f)
+        __(bge cr0,6f) /* Already seen :allow-other-keys */
+        __(ori keyword_flags,keyword_flags,16<<fixnumshift)
 	__(beq cr1,6f)
-	__(bne cr0,6f)
 	__(ori keyword_flags,keyword_flags,fixnum_one)
 6:
 	__(cmpri(cr1,imm3,0))
@@ -998,7 +1002,9 @@ _spentry(keyword_bind)
 	__(b 9f)
 8:
 	__(bne cr1,7b)
-	/* Unknown keyword. */
+	/* Unknown keyword. If it was :allow-other-keys, cr6_eq will still
+           be set. */
+        __(beq cr6,9f)
 	__(ori keyword_flags,keyword_flags,2<<fixnumshift)
 9:
 	__(bne cr7,5b)
@@ -3371,10 +3377,8 @@ _spentry(builtin_assq)
 1:	__(trap_unless_lisptag_equal(arg_z,tag_list,imm0))
 	__(_car(arg_x,arg_z))
 	__(_cdr(arg_z,arg_z))
-	__(cmpri(cr2,arg_x,nil_value))
 	__(cmpri(cr1,arg_z,nil_value))
-	__(beq cr2,2f)
-	__(trap_unless_lisptag_equal(arg_x,tag_list,imm0))
+	__(trap_unless_fulltag_equal(arg_x,fulltag_cons,imm0))
 	__(_car(temp0,arg_x))
 	__(cmpr(temp0,arg_y))
 	__(bne 2f)
