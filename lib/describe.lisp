@@ -897,9 +897,11 @@
                   "Fixnum:      "
                   "Bignum:      ")
                 type "~s"))
-      (1  (values (float num)
-                  "Scientific:  " type
-                  (if (< num 0) "~8,2e" "~7,2e")))
+      (1  (let ((num (ignore-errors (float num))))
+            (values num "Scientific:  " type
+                    (cond ((null num) "FLOATING-POINT-OVERFLOW")
+                          ((< num 0) "~8,2e")
+                          (t "~7,2e")))))
       (2  (values (if (zerop num) "illegal" (log num 2)) 
                   "Log base 2:  " type "~d"))
       (3  (values norm
