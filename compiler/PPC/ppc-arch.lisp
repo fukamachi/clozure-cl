@@ -1,4 +1,4 @@
-;;;-*- Mode: Lisp; Package: (PPC :use CL ARCH) -*-
+;;;-*- Mode: Lisp; Package: (PPC32 :use CL) -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -20,9 +20,8 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "ARCH"))
 
-(defpackage "PPC" (:use "CL" "ARCH"))
 
-(in-package "PPC")
+(in-package "PPC32")
 
 
 
@@ -34,15 +33,15 @@
 (eval-when (:compile-toplevel :execute)
   (defmacro defregs (&body regs)
     `(progn
-       (arch::defenum () ,@regs)
+       (ppc32::defenum () ,@regs)
        (defparameter *gpr-register-names* ,(coerce (mapcar #'string regs) 'vector))))
   (defmacro deffpregs (&body regs)
     `(progn
-       (arch::defenum () ,@regs)
+       (ppc32::defenum () ,@regs)
        (defparameter *fpr-register-names* ,(coerce (mapcar #'string regs) 'vector))))
   (defmacro defvregs (&body regs)
     `(progn
-      (arch::defenum () ,@regs)
+      (ppc32::defenum () ,@regs)
       (defparameter *vector-register-names* ,(coerce (mapcar #'string regs) 'vector))
       )))
 
@@ -175,11 +174,11 @@
 
 
 
-(defconstant max-64-bit-constant-index (ash (+ #x7fff arch::misc-dfloat-offset) -3))
-(defconstant max-32-bit-constant-index (ash (+ #x7fff arch::misc-data-offset) -2))
-(defconstant max-16-bit-constant-index (ash (+ #x7fff arch::misc-data-offset) -1))
-(defconstant max-8-bit-constant-index (+ #x7fff arch::misc-data-offset))
-(defconstant max-1-bit-constant-index (ash (+ #x7fff arch::misc-data-offset) 5))
+(defconstant max-64-bit-constant-index (ash (+ #x7fff ppc32::misc-dfloat-offset) -3))
+(defconstant max-32-bit-constant-index (ash (+ #x7fff ppc32::misc-data-offset) -2))
+(defconstant max-16-bit-constant-index (ash (+ #x7fff ppc32::misc-data-offset) -1))
+(defconstant max-8-bit-constant-index (+ #x7fff ppc32::misc-data-offset))
+(defconstant max-1-bit-constant-index (ash (+ #x7fff ppc32::misc-data-offset) 5))
 
 
 ; The objects themselves look something like this:
@@ -189,14 +188,14 @@
 ;; foreign frames can be the same size as a lisp frame.)
 
 
-(arch::define-storage-layout lisp-frame 0
+(ppc32::define-storage-layout lisp-frame 0
   backlink
   savefn
   savelr
   savevsp
 )
 
-(arch::define-storage-layout c-frame 0
+(ppc32::define-storage-layout c-frame 0
   backlink
   crsave
   savelr
@@ -216,7 +215,7 @@
 (defconstant c-frame.minsize c-frame.size)
 
 ;; .SPeabi-ff-call "shrinks" this frame after loading the GPRs.
-(arch::define-storage-layout eabi-c-frame 0
+(ppc32::define-storage-layout eabi-c-frame 0
   backlink
   savelr
   param0
@@ -236,7 +235,7 @@
 
 
 
-(arch::defenum (:prefix "PPC-" :suffix "-BIT")
+(ppc32::defenum (:prefix "PPC-" :suffix "-BIT")
   lt
   gt
   eq
@@ -244,7 +243,7 @@
 )
 
 
-(arch::defenum (:prefix "FPSCR-" :suffix "-BIT")
+(ppc32::defenum (:prefix "FPSCR-" :suffix "-BIT")
   fx
   fex
   vx

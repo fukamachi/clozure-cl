@@ -1,4 +1,4 @@
-;;;-*- Mode: Lisp; Package: (ARCH :use CL) -*-
+;;;-*- Mode: Lisp; Package: (PPC32 :use CL) -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -13,10 +13,11 @@
 ;;;
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
-(defpackage "ARCH"
+(defpackage "PPC32"
+  (:nicknames "ARCH32" "ARCH" "PPC")
   (:use "CL"))
 
-(in-package "ARCH")
+(in-package "PPC32")
 
 ; Some of these macros were stolen from CMUCL.  Sort of ...
 
