@@ -30,11 +30,13 @@
     (report-bad-arg bit-array '(array bit)))
   (apply #'aset bit-array stuff))
 
-(defun sbit (v &optional sub0 &rest others)
+(defun sbit (v &optional (sub0 nil sub0-p) &rest others)
   (declare (dynamic-extent others))
-  (if (or (null sub0) others)
-    (apply #'bit v sub0 others)
-     ( sbit (require-type v 'simple-bit-vector) sub0)))
+  (if sub0-p
+    (if others
+      (apply #'bit v sub0 others)
+      ( sbit (require-type v 'simple-bit-vector) sub0))
+    (bit v)))
 
 (defun %sbitset (v sub0 &optional (newval nil newval-p) &rest newval-was-really-sub1)
   (declare (dynamic-extent newval-was-really-sub1))
@@ -45,7 +47,7 @@
         (unless (typep v 'simple-bit-vector)
           (report-bad-arg v 'simple-bit-vector))
         (uvset v sub0 newval)))
-    (%bitset v)))
+    (%bitset v sub0)))
 
 (defun bit-and (bit-array1 bit-array2 &optional result-bit-array)
   "Performs a bit-wise logical AND on the elements of Bit-Array1 and Bit-Array2
