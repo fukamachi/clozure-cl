@@ -171,6 +171,7 @@
 (defconstant $arh_disp_bit 5)		;displaced to another array header -p
 (defconstant $arh_simple_bit 4)		;not adjustable, no fill-pointer and
 					; not user-visibly displaced -p
+(defconstant $arh_exp_disp_bit 3)	;explicitly-displaced -p
 
 (def-accessors (lexical-environment) %svref
   ()					; 'lexical-environment
