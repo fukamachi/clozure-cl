@@ -899,6 +899,27 @@ default_image_name(char *orig)
 
 
 char *program_name = NULL;
+char *real_executable_name = NULL;
+
+char *
+determine_executable_name(char *argv0)
+{
+#ifdef DARWIN
+  size_t len = 1024;
+  char exepath[1024], *p = NULL;
+
+  if (_NSGetExecutablePath(exepath, &len) == 0) {
+    p = malloc(len+1);
+    bcopy(exepath, p, len);
+    p[len]=0;
+    return p;
+  } 
+  return argv0;
+#endif
+#ifdef LINUX
+#error use readlink() on /proc/self/exe
+#endif
+}
 
 void
 usage_exit(char *herald, int exit_status, char* other_args)
@@ -1125,8 +1146,11 @@ main(int argc, char *argv[], char *envp[], void *aux)
   area *a;
   BytePtr stack_base, current_sp = current_stack_pointer();
   TCR *tcr;
+  int i;
 
   check_os_version(argv[0]);
+  real_executable_name = determine_executable_name(argv[0]);
+
 
 #ifdef LINUX
   {
@@ -1190,10 +1214,10 @@ main(int argc, char *argv[], char *envp[], void *aux)
   }
   initial_stack_size = ensure_stack_limit(initial_stack_size);
   if (image_name == NULL) {
-    if (check_for_embedded_image(argv[0])) {
-      image_name = argv[0];
+    if (check_for_embedded_image(real_executable_name)) {
+      image_name = real_executable_name;
     } else {
-      image_name = default_image_name(argv[0]);
+      image_name = default_image_name(real_executable_name);
     }
   }
 
