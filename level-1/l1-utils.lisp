@@ -450,7 +450,7 @@
 	(if (eql item (car pair))
 	  (return pair)
 	  (report-bad-arg pair 'cons))))
-    (assq pair list)))
+    (assq item list)))
 
 ; (assoc-test item list test-fn) 
 ;   <=> 
