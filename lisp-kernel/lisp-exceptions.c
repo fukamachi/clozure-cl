@@ -1335,10 +1335,6 @@ PMCL_exception_handler(int xnum,
   opcode instruction;
 
 
-#ifdef LINUX
-  oldMQ = xpGPR(xp,PT_MQ);
-  xpGPR(xp,PT_MQ) = 0;
-#endif
   program_counter = xpPC(xp);
   instruction = *program_counter;
 
@@ -1382,9 +1378,6 @@ PMCL_exception_handler(int xnum,
     status = 0;
   }
 
-#ifdef LINUX
-  xpGPR(xp,PT_MQ) = oldMQ;
-#endif
   return status;
 }
 
