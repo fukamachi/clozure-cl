@@ -431,6 +431,7 @@
 (def-foreign-type nil
   (:struct dbm-constant
    (:class (:unsigned 32))
+   (:pad (:unsigned 32))
    (:value
     (:union nil
       (:s32 (:signed 32))
@@ -1239,6 +1240,8 @@
 (defun %determine-record-attributes (rtype parsed-fields &optional alt-align)
   (let* ((total-bits 0)
          (overall-alignment 1)
+	 #+poweropen-target
+	 (first-field-p t)
          (kind (foreign-record-type-kind rtype)))
     (dolist (field parsed-fields)
       (let* ((field-type (foreign-record-field-type field))
@@ -1246,6 +1249,13 @@
              (natural-alignment (foreign-type-alignment field-type))
 	     (alignment (if alt-align
 			  (min natural-alignment alt-align)
+			  #+poweropen-target
+			  (if first-field-p
+			    (progn
+			      (setq first-field-p nil)
+			      natural-alignment)
+			    (min 32 natural-alignment))
+			  #-poweropen-target
 			  natural-alignment)))
         (unless bits
           (error "Unknown size: ~S"
