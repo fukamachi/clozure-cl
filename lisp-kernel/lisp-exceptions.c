@@ -598,6 +598,25 @@ signal_stack_soft_overflow(ExceptionInformation *xp, unsigned reg)
   handle_error(xp, error_stack_overflow, reg, 0, (unsigned) xpPC(xp));
 }
 
+/*
+  Lower (move toward 0) the "end" of the soft protected area associated
+  with a by a page, if we can.
+*/
+
+void
+adjust_soft_protection_limit(area *a)
+{
+  char *proposed_new_soft_limit = a->softlimit - 4096;
+  protected_area_ptr p = a->softprot;
+  
+  if (proposed_new_soft_limit >= (p->start+16384)) {
+    p->end = proposed_new_soft_limit;
+    p->protsize = p->end-p->start;
+    a->softlimit = proposed_new_soft_limit;
+  }
+  protect_area(p);
+}
+
 void
 restore_soft_stack_limit(unsigned stkreg)
 {
@@ -607,12 +626,18 @@ restore_soft_stack_limit(unsigned stkreg)
   switch (stkreg) {
   case sp:
     a = tcr->cs_area;
+    if ((a->softlimit - 4096) > (a->hardlimit + 16384)) {
+      a->softlimit -= 4096;
+    }
     tcr->cs_limit = (LispObj)ptr_to_lispobj(a->softlimit);
     break;
   case vsp:
     a = tcr->vs_area;
-    protect_area(a->softprot);
+    adjust_soft_protection_limit(a);
     break;
+  case tsp:
+    a = tcr->ts_area;
+    adjust_soft_protection_limit(a);
   }
 }
 
