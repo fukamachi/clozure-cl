@@ -1704,17 +1704,7 @@
           (find-class 'bit-vector)))
 
 
-(def-accessors (foreign-object-domain) %svref
-  nil					; foreign-object-domain
-  foreign-object-domain-index		; 1..n
-  foreign-object-domain-name		;
-  foreign-object-domain-recognize	; function: is object one of ours ?
-  foreign-object-domain-class-of	; function: returns class of object
-  foreign-object-domain-classp		; function: true if object is a class
-  foreign-object-domain-instance-class-wrapper ; function: returns wrapper of object's class
-  foreign-object-domain-class-own-wrapper ; function: returns class own wrapper if class
-  foreign-object-domain-slots-vector	; returns slots vector of object or nil
-  )
+
 
 (defun make-foreign-object-domain (&key index name recognize class-of classp
 					instance-class-wrapper
@@ -2158,6 +2148,13 @@
     (make-instance-vector wrapper len)))
 
 
+(declaim (inline instance-slots))
+(defun instance-slots (instance)
+  (let* ((typecode (typecode instance)))
+    (cond ((eql typecode ppc32::subtag-instance) (instance.slots instance))
+	  ((eql typecode ppc32::subtag-macptr) (foreign-slots-vector instance))
+	  (t (error "Don't know how to find slots of ~s" instance)))))
+
 
 (defmethod copy-instance ((instance standard-object))
   (let* ((new-slots (copy-uvector (instance.slots instance)))
@@ -2213,7 +2210,7 @@
 (defmethod slot-value-using-class ((class standard-class)
 				   instance
 				   (slotd standard-effective-slot-definition))
-  (%std-slot-vector-value (instance.slots instance) slotd))
+  (%std-slot-vector-value (instance-slots instance) slotd))
 
 (defun %maybe-std-slot-value-using-class (class instance slotd)
   (if (and (eql (typecode class) ppc32::subtag-instance)
@@ -2221,7 +2218,7 @@
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
-    (%std-slot-vector-value (instance.slots instance) slotd)
+    (%std-slot-vector-value (instance-slots instance) slotd)
     (slot-value-using-class class instance slotd)))
 
 
@@ -2249,7 +2246,7 @@
      (class standard-class)
      instance
      (slotd standard-effective-slot-definition))
-  (%set-std-slot-vector-value (instance.slots instance) slotd new))
+  (%set-std-slot-vector-value (instance-slots instance) slotd new))
 
 
 (defun %maybe-std-setf-slot-value-using-class (class instance slotd new)
@@ -2258,7 +2255,7 @@
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
-    (%set-std-slot-vector-value (instance.slots instance) slotd new)
+    (%set-std-slot-vector-value (instance-slots instance) slotd new)
     (setf (slot-value-using-class class instance slotd) new)))
 
 (defmethod slot-value-using-class ((class funcallable-standard-class)
@@ -2329,7 +2326,7 @@
 (defmethod slot-boundp-using-class ((class standard-class)
 				    instance
 				    (slotd standard-effective-slot-definition))
-  (%std-slot-vector-boundp (instance.slots instance) slotd))
+  (%std-slot-vector-boundp (instance-slots instance) slotd))
 
 (defmethod slot-boundp-using-class ((class funcallable-standard-class)
 				    instance
@@ -2650,9 +2647,9 @@
   (let ((index (cadr (assq (car functions) *initialization-invalidation-alist*))))
     (unless index
       (error "Unknown initialization function: ~s." (car functions)))
-    (let ((initvect (%svref (instance.slots class) index)))
+    (let ((initvect (%svref (instance-slots class) index)))
       (unless initvect
-        (setf (%svref (instance.slots class) index) 
+        (setf (%svref (instance-slots class) index) 
               (setq initvect (compute-initargs-vector instance class functions))))
       initvect)))
 
