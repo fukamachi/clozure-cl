@@ -617,6 +617,7 @@
     (:instance #.arch::subtag-instance )
     (:lock #.arch::subtag-lock )
     (:slot-vector #.arch::subtag-slot-vector)
+    (:svar #.arch::subtag-svar)
     (:base-string #.arch::subtag-simple-base-string )
     (:bit-vector #.arch::subtag-bit-vector )
     (:signed-8-bit-vector #.arch::subtag-s8-vector )
