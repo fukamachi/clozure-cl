@@ -126,6 +126,8 @@
 (define-condition improper-list (type-error)
   ((expected-type :initform '(satisfies proper-list-p) :reader type-error-expected-type)))
 
+(define-condition cant-construct-arglist (improper-list)
+  ())
 
 
 
@@ -244,6 +246,10 @@
   (:report (lambda (c s)
              (format s "Can't throw to tag ~s" (slot-value c 'tag)))))
 
+(define-condition inactive-restart (control-error)
+  ((restart-name :initarg :restart-name))
+  (:report (lambda (c s)
+	     (format s "Restart ~s is not active" (slot-value c 'restart-name)))))
 
 (define-condition lock-protocol-error (control-error)
   ((lock :initarg :lock)))
@@ -478,7 +484,7 @@
     (dolist (restart cluster)
       (when (or (eq restart name) (eq (%restart-name restart) name))
         (return-from %active-restart (values restart cluster)))))
-  (error "Restart ~S is not active." name))
+  (error 'inactive-restart :restart-name name))
 
 (defun invoke-restart (restart &rest values)
   (multiple-value-bind (restart tag) (%active-restart restart)
@@ -890,6 +896,7 @@
         (cons $xnotfun 'call-special-operator-or-macro)
         (cons $xaccessnth 'sequence-index-type-error)
 	(cons $ximproperlist 'improper-list)
+	(cons $xnospread 'cant-construct-arglist)
         ))
 
 ; do we like this?
