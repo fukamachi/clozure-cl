@@ -2294,6 +2294,12 @@
 	 (slots  (class-slots class)))
     (find-slotd name slots)))
 
+;;; Stupid, temporary definitions that miss the point completely:
+(defun slot-id-value (instance slot-id)
+  (slot-value instance (slot-id.name slot-id)))
+
+(defun set-slot-id-value (instance slot-id value)
+  (set-slot-value instance (slot-id.name slot-id) value))
 
 ; returns nil if (apply gf args) wil cause an error because of the
 ; non-existance of a method (or if GF is not a generic function or the name

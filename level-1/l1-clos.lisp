@@ -1384,9 +1384,3 @@
   (declare (ignore env))
   `(ensure-slot-id ,(slot-id.name s)))
 
-;;; Stupid, temporary definitions that miss the point completely:
-(defun slot-id-value (instance slot-id)
-  (slot-value instance (slot-id.name slot-id)))
-
-(defun set-slot-id-value (instance slot-id value)
-  (set-slot-value instance (slot-id.name slot-id) value))
