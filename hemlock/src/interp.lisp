@@ -462,7 +462,8 @@
                      (etypecase res
                        (command 
                         (let ((punt t))
-                          (clear-echo-area)
+                          (unless (eq *current-buffer* *echo-area-buffer*)
+                            (clear-echo-area))
                           (catch 'command-loop-catcher
                             (dolist (c t-bindings)
                               (funcall *invoke-hook* c *prefix-argument*))
