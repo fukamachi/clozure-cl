@@ -205,10 +205,7 @@
         (if (functionp fun) fun)))))
 
 (defun %symbol-binding-address (sym)
-  (let* ((base (%%symbol-binding-address sym)))
-    (if (zerop base)
-      (values sym arch::symbol.vcell)
-      (values base 8))))
+  (%svar-binding-address (ensure-svar sym)))
 
 (let* ((svar-lock (make-lock))
        (svar-hash (make-hash-table :test #'eq :weak t))
@@ -250,8 +247,3 @@
     svar-index)
   (defun svar-hash ()
     svar-hash))
-
-  
-      
-  
-   
