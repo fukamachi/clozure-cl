@@ -1741,9 +1741,17 @@ void
 mark_tcr_tlb(TCR *tcr)
 {
   unsigned n = tcr->tlb_limit;
-  LispObj *start = tcr->tlb_pointer, *end = (LispObj *) ((BytePtr)start+n);
+  LispObj 
+    *start,
+    *end = (LispObj *) ((BytePtr)start+n),
+    node;
 
-  mark_simple_area_range(start, end);
+  for (start =  = tcr->tlb_pointer; start < end; start++) {
+    node = *start;
+    if (node != no_thread_local_binding_marker) {
+      mark_root(node);
+    }
+  }
 }
 
 /*
@@ -2255,10 +2263,16 @@ void
 forward_tcr_tlb(TCR *tcr)
 {
   unsigned n = tcr->tlb_limit;
-  LispObj *start = tcr->tlb_pointer, *end = (LispObj *) ((BytePtr)start+n);
+  LispObj 
+    *start = tcr->tlb_pointer, 
+    *end = (LispObj *) ((BytePtr)start+n),
+    node;
 
   while (start < end) {
-    update_noderef(start);
+    node = *start;
+    if (node != no_thread_local_binding_marker) {
+      update_noderef(start);
+    }
     start++;
   }
 }
