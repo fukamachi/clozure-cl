@@ -109,13 +109,13 @@
                (if return-it
                  (%substr temstring i (- 32 ppc32::fixnumshift))
                  (write-string temstring stream :start i :end (- 32 ppc32::fixnumshift))))))          
-          (t (let* ((size-vect #(32 32 16 16 16 16 11 11 11
-                                 11 11 11 11 11  8  8  8  8
-                                  8  8  8  8  8  8  8  8  8
-                                  8  8  8  7  7  7  7  7  7))
+          (t (let* ((size-vect #(nil nil 32 21 16 14 13 12 11
+                                 11   10 10  9  9  9  9  8  8
+                                 8     8  8  8  8  8  7  7  7
+                                 7     7  7  7  7  7  7  7  7 7))
                     ; overestimate # digits by a little for weird radix
                     (bigwords (uvsize int))
-                    (strlen (1+ (* bigwords (svref size-vect (1- radix)))))
+                    (strlen (1+ (* bigwords (svref size-vect radix))))
                     (temstring (make-string strlen :element-type 'base-char))
                     (i (1- strlen))
                     (neg (< int 0))
@@ -157,31 +157,26 @@
 
 (defun print-bignum-2 (big radix string digit-string)
   (declare (optimize (speed 3) (safety 0))
-           (simple-base-string string digit-string)) 
+           (simple-base-string string digit-string))
   (let* ((divisor (aref *base-power* radix))
          (power (aref *fixnum-power--1* radix))
          (index (1- (length string)))
-         (new 0)
          (rem 0))
     (declare (fixnum index divisor power))
-    ;(print index)
+    ;;(print index)
     (loop
-      (multiple-value-setq (new rem) (truncate big divisor))
-      (when (< rem 0)
-        (Bug (format nil "big = ~s, rem = ~d, new = ~s, divisor = ~d"
-                     (%address-of big) rem (%address-of new) divisor)))
-      (setq big new)
-      
+      (multiple-value-setq (big rem) (truncate big divisor))
       (let* ((int rem)
              (rem 0)
              (final-index (- index power 1)))
         (loop
           (multiple-value-setq (int rem) (%fixnum-truncate int radix))
           (setf (schar string index)(schar digit-string rem))
-          (when (eq 0 int)
+          (when (eql 0 int)
             (return index))
           (setq index (1- index)))
-        (if (zerop big) (return index)        
+        (if (zerop big)
+          (return index)
             (dotimes (i (- index final-index) index)
               (declare (fixnum i))
               (setq index (1- index))
