@@ -2193,7 +2193,10 @@ typedef struct {
 #include <mach/machine/thread_state.h>
 #include <mach/machine/thread_status.h>
 
-#define MACH_CHECK_ERROR(context,x) if (x != KERN_SUCCESS) {Bug(NULL, "Mach error while %s : ~d", context, x);}
+void
+fatal_mach_error(format, ...);
+
+#define MACH_CHECK_ERROR(context,x) if (x != KERN_SUCCESS) {fatal_mach_error("Mach error while %s : ~d", context, x);}
 
 
 void
@@ -2737,5 +2740,18 @@ mach_resume_tcr(TCR *tcr)
   lock_release(mach_exception_lock_set,0);
 }
 
+void
+fatal_mach_error(char *format, ...)
+{
+  va_list args;
+  char s[512];
+ 
+
+  va_start(args, format);
+  vsnprintf(s, sizeof(s),format, args);
+  va_end(args);
+
+  Fatal("Mach error", s);
+}
 
 #endif
