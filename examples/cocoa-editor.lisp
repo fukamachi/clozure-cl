@@ -318,6 +318,55 @@
 (define-objc-method ((:<BOOL> editing-in-progress) hemlock-text-storage)
   (not (eql (slot-value self 'edit-count) 0)))
 
+(defun textstorage-note-insertion-at-position (self pos n)
+  (send self
+        :edited #$NSTextStorageEditedAttributes
+        :range (ns-make-range pos 0)
+        :change-in-length n)
+  (send self
+        :edited #$NSTextStorageEditedCharacters
+        :range (ns-make-range pos n)
+        :change-in-length 0))
+
+(define-objc-method ((:void :note-insertion params) hemlock-text-storage)
+  (let* ((pos (send (send params :object-at-index 0) 'int-value))
+         (n (send (send params :object-at-index 1) 'int-value)))
+    (textstorage-note-insertion-at-position self pos n)))
+
+(define-objc-method ((:void :note-deletion params) hemlock-text-storage)
+  (let* ((pos (send (send params :object-at-index 0) 'int-value))
+         (n (send (send params :object-at-index 1) 'int-value)))
+    (send self
+          :edited #$NSTextStorageEditedCharacters
+          :range (ns-make-range pos n)
+          :change-in-length (- n))))
+
+(define-objc-method ((:void :note-modification params) hemlock-text-storage)
+  (let* ((pos (send (send params :object-at-index 0) 'int-value))
+         (n (send (send params :object-at-index 1) 'int-value)))
+    (#_NSLog #@"Note modification: pos = %d, n = %d" :int pos :int n)
+    (send self
+          :edited (logior #$NSTextStorageEditedCharacters
+                          #$NSTextStorageEditedAttributes)
+          :range (ns-make-range pos n)
+          :change-in-length 0)))
+
+(define-objc-method ((:void begin-editing) hemlock-text-storage)
+  #+debug
+  (#_NSLog #@"begin-editing")
+  (incf (slot-value self 'edit-count))
+  (send-super 'begin-editing))
+
+(define-objc-method ((:void end-editing) hemlock-text-storage)
+  #+debug
+  (#_NSLog #@"end-editing")
+  (send-super 'end-editing)
+  (decf (slot-value self 'edit-count)))
+
+;;; Return true iff we're inside a "beginEditing/endEditing" pair
+(define-objc-method ((:<BOOL> editing-in-progress) hemlock-text-storage)
+  (not (eql (slot-value self 'edit-count) 0)))
+
   
 
 ;;; Access the string.  It'd be nice if this was a generic function;
@@ -364,6 +413,7 @@
 (define-objc-method ((:void :replace-characters-in-range (:<NSR>ange r)
 			    :with-string string)
 		     hemlock-text-storage)
+  (declare (ignorable r string))
   #+debug
   (#_NSLog #@"replace-characters-in-range (%d %d) with-string %@"
 	   :unsigned (pref r :<NSR>ange.location)
@@ -375,6 +425,7 @@
 (define-objc-method ((:void :set-attributes attributes
 			    :range (:<NSR>ange r))
 		     hemlock-text-storage)
+  (declare (ignorable attributes r))
   #+debug
   (#_NSLog #@"set-attributes %@ range (%d %d)"
 	   :id attributes
@@ -886,11 +937,11 @@
 	   (loop
 	    (catch 'editor-top-level-catcher
 	      (handler-bind ((error #'(lambda (condition)
-					(lisp-error-error-handler condition
+					(hi::lisp-error-error-handler condition
 								  :internal))))
-		(invoke-hook hemlock::abort-hook)
-		(%command-loop))))
-	   (invoke-hook hemlock::exit-hook))))
+		(hi::invoke-hook hemlock::abort-hook)
+		(hi::%command-loop))))
+	   (hi::invoke-hook hemlock::exit-hook))))
 
 
 (define-objc-method ((:void close) hemlock-frame)
@@ -1061,6 +1112,8 @@
         :wait-until-done t))
 
 (defun hi::document-set-point-position (document)
+  #+debug
+  (#_NSLog #@"Document set point position called")
   (let* ((textstorage (slot-value document 'textstorage)))
     (send textstorage
           :perform-selector-on-main-thread
@@ -1068,6 +1121,30 @@
           :with-object (%null-ptr)
           :wait-until-done t)))
 
+
+
+(defun perform-edit-change-notification (textstorage selector pos n)
+  (let* ((number-for-pos
+          (send (send (@class "NSNumber") 'alloc)
+                :init-with-int pos))
+         (number-for-n 
+          (send (send (@class "NSNumber") 'alloc)
+                :init-with-int n)))
+    (%stack-block ((paramptrs (ash 2 target::word-shift)))
+      (setf (%get-ptr paramptrs 0) number-for-pos
+            (%get-ptr paramptrs (ash 1 target::word-shift))
+            number-for-n)
+      (let* ((params (send (send (@class "NSArray") "alloc")
+                    :init-with-objects paramptrs
+                    :count 2)))
+        (send textstorage
+                    :perform-selector-on-main-thread
+                    selector
+                    :with-object params
+                    :wait-until-done t)
+              (send params 'release)
+              (send number-for-pos 'release)
+              (send number-for-n 'release)))))
 
 (defun textstorage-note-insertion-at-position (textstorage pos n)
   #+debug
@@ -1082,25 +1159,7 @@
 	:change-in-length 0))
 
 
-(defun hi::buffer-note-modification (buffer mark n)
-  (when (hi::bufferp buffer)
-    (let* ((document (hi::buffer-document buffer))
-	   (textstorage (if document (slot-value document 'textstorage))))
-      (when textstorage
-        (let* ((pos  (mark-absolute-position mark)))
-          '(let* ((display (hemlock-buffer-string-cache (send textstorage 'string))))
-            (reset-buffer-cache display) 
-            (update-line-cache-for-index display pos))
-	  #+debug
-	  (#_NSLog #@"Modification at %d, len %d" :int pos :int n)
-	  (send textstorage
-		:edited (logior
-			 #$NSTextStorageEditedCharacters
-			 #$NSTextStorageEditedAttributes)
-		:range (ns-make-range pos n)
-		:change-in-length 0))
-	(sleep .1))
-      )))
+
 
 	  
 (defun hi::buffer-note-insertion (buffer mark n)
@@ -1116,8 +1175,23 @@
           (let* ((display (hemlock-buffer-string-cache (send textstorage 'string))))
             (reset-buffer-cache display) 
             (update-line-cache-for-index display pos))
-	  (textstorage-note-insertion-at-position textstorage pos n))))))
+          (perform-edit-change-notification textstorage
+                                            (@selector "noteInsertion:")
+                                            pos
+                                            n))))))
 
+(defun hi::buffer-note-modification (buffer mark n)
+  (when (hi::bufferp buffer)
+    (let* ((document (hi::buffer-document buffer))
+	   (textstorage (if document (slot-value document 'textstorage))))
+      (when textstorage
+        (#_NSLog #@"enqueue modify: pos = %d, n = %d"
+                 :int (mark-absolute-position mark)
+                 :int n)
+        (perform-edit-change-notification textstorage
+                                          (@selector "noteModification:")
+                                          (mark-absolute-position mark)
+                                          n)))))
   
 
 (defun hi::buffer-note-deletion (buffer mark n)
@@ -1125,20 +1199,10 @@
     (let* ((document (hi::buffer-document buffer))
 	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
-        (let* ((pos (mark-absolute-position mark)))
-          (setq n (abs n))
-          #+debug
-          (format t "~& pos = ~d, n = ~d" pos n)
-	  #+debug
-          (force-output)
-	  (send textstorage
-                :edited #$NSTextStorageEditedCharacters
-                :range (ns-make-range pos n)
-                :change-in-length (- n))
-          (let* ((cache (hemlock-buffer-string-cache (send textstorage 'string))))
-            (reset-buffer-cache cache) 
-            (update-line-cache-for-index cache pos)))))))
-
+        (perform-edit-change-notification textstorage
+                                          (@selector "noteDeletion:")
+                                          (mark-absolute-position mark)
+                                          (abs n))))))
 (defun hi::set-document-modified (document flag)
   (send document
 	:update-change-count (if flag #$NSChangeDone #$NSChangeCleared)))
