@@ -99,6 +99,9 @@ of the NS-EXCEPTION condition class implement this by accessing an
 instance variable."
   ;;; Create an NSLispException with a lispid that encapsulates
   ;;; this condition.
+  ;;;
+
+  #|(dbg (format nil "~a" c))|#
   (make-objc-instance 'ns-lisp-exception
                       :with-lisp-id (assign-id-map-id *condition-id-map* c)))
 
