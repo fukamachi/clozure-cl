@@ -969,6 +969,8 @@
   (let ((total-bits 0)
 	(overall-alignment 1)
 	(parsed-fields nil)
+	#+poweropen-target
+	(first-field-p t)
 	(alt-alignment (foreign-record-type-alt-align result)))
     (dolist (field fields)
       (destructuring-bind (var type &optional bits) field
@@ -978,6 +980,13 @@
 	       (natural-alignment (foreign-type-alignment field-type))
 	       (alignment (if alt-alignment
 			    (min natural-alignment alt-alignment)
+			    #+poweropen-target
+			    (if first-field-p
+			      (progn
+				(setq first-field-p nil)
+				natural-alignment)
+			      (min 32 natural-alignment))
+			    #-poweropen-target
 			    natural-alignment))
 	       (parsed-field
 		(make-foreign-record-field :type field-type
@@ -1262,14 +1271,17 @@
 				      (foreign-type-alignment element-type))
 			(reduce #'* dims))))))))
 
+(defun %find-foreign-record (name)
+  (or (info-foreign-type-struct name)
+      (info-foreign-type-union name)
+      (load-record name)))
+
+
 (defun %foreign-type-or-record (type)
   (if (consp type)
     (parse-foreign-type type)
-    (or (info-foreign-type-struct type)
-        (info-foreign-type-union type)
-        (load-record type)
+    (or (%find-foreign-record type)
         (parse-foreign-type type))))
-
 
 (defun %foreign-type-or-record-size (type &optional (units :bits))
   (let* ((info (%foreign-type-or-record type))
@@ -1574,4 +1586,14 @@
 	  (let* ((bits (ensure-foreign-type-bits ftype)))
 	    (ceiling bits 32))))
        (error "can't determine representation keyword for ~s" f)))))
+
+(defun foreign-record-accessor-names (record-type &optional prefix)
+  (collect ((accessors))
+    (dolist (field (foreign-record-type-fields record-type) (accessors))
+      (let* ((field-name (append prefix (list (foreign-record-field-name field))))
+	     (field-type (foreign-record-field-type field)))
+	(if (typep field-type 'foreign-record-type)
+	  (dolist (s (foreign-record-accessor-names field-type field-name))
+	    (accessors s))
+	  (accessors field-name))))))
   
