@@ -421,6 +421,10 @@
 (defmethod finalize-inheritance ((class std-class))
   (update-class class t))
 
+
+(defmethod finalize-inheritance ((class forward-referenced-class))
+  (error "Class ~s can't be finalized." class))
+
 (defmethod class-primary-p ((class std-class))
   (%class-primary-p class))
 
@@ -481,10 +485,8 @@
         (declare (dynamic-extent #'slotd-position))
         (sort-list slotds '< #'slotd-position)))))
 
-(defun class-has-a-forward-referenced-superclass-p (class)
-  (or (forward-referenced-class-p class)
-      (some #'class-has-a-forward-referenced-superclass-p
-	    (%class-direct-superclasses class))))
+
+
 
 (defun update-cpl (class cpl)
   (if (class-finalized-p class)
@@ -494,6 +496,31 @@
     (setf (%class.cpl class) cpl)))
 
 
+(defun class-has-a-forward-referenced-superclass-p (class)
+  (or (if (forward-referenced-class-p class) class)
+      (dolist (s (%class-direct-superclasses class))
+	(let* ((fwdref (class-has-a-forward-referenced-superclass-p s)))
+	  (when fwdref (return fwdref))))))
+
+
+(defmethod compute-class-precedence-list ((class class))
+  (let* ((fwdref (class-has-a-forward-referenced-superclass-p class)))
+    (when fwdref
+      (error "~&Class ~s can't be finalized because at least one of its superclasses (~s) is a FORWARD-REFERENCED-CLASS." class fwdref)))
+  (compute-cpl class))
+
+;;; Classes that can't be instantiated via MAKE-INSTANCE have no
+;;; initargs caches.
+(defmethod %flush-initargs-caches ((class class))
+  )
+
+;;; Classes that have initargs caches should flush them when the
+;;; class is finalized.
+(defmethod %flush-initargs-caches ((class std-class))
+  (setf (%class.make-instance-initargs class) nil
+	(%class.reinit-initargs class) nil
+	(%class.redefined-initargs class) nil
+	(%class.changed-initargs class) nil))
 
 (defun update-class (class finalizep)
   ;;
@@ -511,10 +538,11 @@
   (when (or finalizep
 	    (class-finalized-p class)
 	    (not (class-has-a-forward-referenced-superclass-p class)))
-    (update-cpl class (compute-cpl  class))
+    (update-cpl class (compute-class-precedence-list  class))
     ;;; This -should- be made to work for structure classes
     (update-slots class (compute-slots class))
     (setf (%class-default-initargs class) (compute-default-initargs class))
+    (%flush-initargs-caches class)
     )
   (unless finalizep
     (dolist (sub (%class-direct-subclasses class))
@@ -1419,8 +1447,6 @@ governs whether DEFCLASS makes that distinction or not.")
   (map-dependents class #'(lambda (d)
 			    (apply #'update-dependent class d initargs))))
 
-(defmethod finalize-inheritance ((fwc forward-referenced-class))
-  (error "~s can't be finalized." fwc))
 
 (defun %allocate-gf-instance (class)
   (unless (class-finalized-p class)
