@@ -236,8 +236,16 @@
 (defun stream-write-entire-string (stream string)
   (stream-write-string stream string))
 
+
+(defmethod stream-read-char ((x t))
+  (report-bad-arg x 'stream))
+
 (defmethod stream-read-char ((stream stream))
   (error "~s is not capable of input" stream))
+
+(defmethod stream-unread-char ((x t) char)
+  (declare (ignore char))
+  (report-bad-arg x 'stream))
 
 (defmethod stream-unread-char ((stream stream) char)
   (declare (ignore char))
@@ -1037,6 +1045,13 @@
                                             fundamental-binary-stream)
     ())
 
+
+(defmethod stream-read-byte ((s t))
+  (report-bad-arg s '(and input-stream fundamental-binary-stream)))
+
+(defmethod stream-write-byte ((s t) b)
+  (declare (ignore b))
+  (report-bad-arg s '(and output-stream fundamental-binary-stream)))
 
 (defmethod stream-length ((s stream) &optional new)
   (declare (ignore new)))
@@ -2259,6 +2274,10 @@
 	  (unless (zerop octets)
 	    (%incf-ptr buf written)))))))
 
+(defmethod stream-read-line ((s buffered-stream-mixin))
+   (with-stream-ioblock-input (ioblock s :speedy t)
+     (%ioblock-read-line ioblock)))
+
 (defmethod stream-clear-input ((s fd-input-stream))
   (call-next-method)
   (with-stream-ioblock-input (ioblock s :speedy t)
@@ -2335,7 +2354,12 @@
   (etypecase stream
     ;; Don't use an OR type here
     (file-stream (stream-length stream))
-    (broadcast-stream (stream-length stream))))
+    (synonym-stream (file-length
+		     (symbol-value (synonym-stream-symbol stream))))
+    (broadcast-stream (let* ((last (last-broadcast-stream stream)))
+			(if last
+			  (file-length last)
+			  0)))))
   
 (defun file-position (stream &optional position)
   (when position
