@@ -1742,15 +1742,16 @@ mark_tcr_tlb(TCR *tcr)
 {
   unsigned n = tcr->tlb_limit;
   LispObj 
-    *start,
+    *start = tcr->tlb_pointer,
     *end = (LispObj *) ((BytePtr)start+n),
     node;
 
-  for (start = tcr->tlb_pointer; start < end; start++) {
+  while (start < end) {
     node = *start;
     if (node != no_thread_local_binding_marker) {
       mark_root(node);
     }
+    start++;
   }
 }
 
