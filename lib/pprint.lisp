@@ -1785,28 +1785,30 @@
 	     (write-char++ #\- xp)
 	     (setq object (- object)))
 	   (print-fixnum xp object) T))
-	((symbolp object) ; (write-a-symbol object (xp-stream xp))))) ; makes small difference
-	 (let ((s (symbol-name object))
-	       (p (symbol-package object))
-	       (is-key (keywordp object))
-	       (mode (case *print-case*
-		       (:downcase :down)
-		       (:capitalize :cap1)
-		       (T nil)))) ;note no-escapes-needed requires all caps
-           (declare (string s))
-	   (cond ((and (or is-key (eq p *package*)
-			   (and ;*package* ;can be NIL on symbolics
-                            (multiple-value-bind (symbol type) (find-symbol s)
-                              (and type (eq object symbol)))))
-                       (eq (readtable-case *readtable*) :upcase)
-                       (neq *print-case* :studly)
-		       (no-escapes-needed s))
-		  (when (and is-key *print-escape*)
-		    (write-char++ #\: xp))
-		  (if mode (push-char-mode xp mode))
-		  (write-string++ s xp 0 (length s))
-		  (if mode (pop-char-mode xp)) T))))))
-
+	((symbolp object)
+         (if (> *print-base* 10) ; may need to escape potential numbers
+           (write-a-symbol object (xp-stream xp))
+           (let ((s (symbol-name object))
+                 (p (symbol-package object))
+                 (is-key (keywordp object))
+                 (mode (case *print-case*
+                         (:downcase :down)
+                         (:capitalize :cap1)
+                         (T nil)))) ; note no-escapes-needed requires all caps
+             (declare (string s))
+             (cond ((and (or is-key (eq p *package*)
+                             (and  ;*package* ;can be NIL on symbolics
+                              (multiple-value-bind (symbol type) (find-symbol s)
+                                (and type (eq object symbol)))))
+                         (eq (readtable-case *readtable*) :upcase)
+                         (neq *print-case* :studly)
+                         (no-escapes-needed s))
+                    (when (and is-key *print-escape*)
+                      (write-char++ #\: xp))
+                    (if mode (push-char-mode xp mode))
+                    (write-string++ s xp 0 (length s))
+                    (if mode (pop-char-mode xp)) T)))))))
+         
 (defun print-fixnum (xp fixnum)
   (multiple-value-bind (digits d)
       (truncate fixnum 10)
