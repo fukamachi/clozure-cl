@@ -1546,8 +1546,6 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
   unsigned  callback_ptr, i;
   area *a;
   TCR *tcr = (TCR *)(xpGPR(xp, rcontext));
-  char raw_vectors[34*16];
-  vector_buf vectors = (vector_buf) ((((int) raw_vectors) + 0xf) & ~0xf);
 
   /* Put the active stack pointer where .SPcallback expects it */
   a = tcr->cs_area;
@@ -1560,13 +1558,6 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
   tcr->save_tsp = (LispObj*) (xpGPR(xp, tsp));
 
 
-#ifdef LINUX
-  if (altivec_available) {
-    put_altivec_registers(vectors);
-    xpGPR(xp,PT_MQ) = (LispObj) vectors;
-
-  }
-#endif
 
   /* Call back.
      Lisp will handle trampolining through some code that
@@ -1577,9 +1568,6 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
   ((void (*)())callback_ptr) (xp, arg1, arg2, arg3, arg4, arg5);
   LOCK(lisp_global(EXCEPTION_LOCK), tcr);
 
-  if (altivec_available) {
-    get_altivec_registers(vectors);
-  }
 
 
   /* Copy GC registers back into exception frame */
