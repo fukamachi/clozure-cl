@@ -38,23 +38,27 @@
 
 (declaim (inline activate-region deactivate-region region-active-p))
 
+(defun %buffer-activate-region (buffer)
+  (setf (hi::buffer-region-active buffer) (buffer-signature buffer)))
+
 (defun activate-region ()
   "Make the current region active."
-  (let ((buffer (current-buffer)))
-    (setf *active-region-p* (buffer-signature buffer))
-    (setf *active-region-buffer* buffer)))
+  (%buffer-activate-region (current-buffer)))
+
+(defun %buffer-deactivate-region (buffer)
+  (setf (hi::buffer-region-active buffer) nil))
 
 (defun deactivate-region ()
-  "Make the current region not active."
-  (setf *active-region-p* nil)
-  (setf *active-region-buffer* nil))
+  "Make the current region not active, in the current buffer."
+  (%buffer-deactivate-region (current-buffer)))
+
+(defun %buffer-region-active-p (b)
+  (eql (buffer-signature b)
+       (hi::buffer-region-active b)))
 
 (defun region-active-p ()
   "Returns t or nil, depending on whether the current region is active."
-  (or (and *active-region-buffer*
-	   (eql *active-region-p* (buffer-signature *active-region-buffer*)))
-      (member (last-command-type) *ephemerally-active-command-types*
-	      :test #'equal)))
+  (%buffer-region-active-p (current-buffer)))
 
 (defun check-region-active ()
   "Signals an error when active regions are enabled and the current region
@@ -81,21 +85,6 @@
   (activate-region))
 
 
-;;; The following are hook functions for keeping things righteous.
-;;; 
-
-(defun set-buffer-deactivate-region (buffer)
-  (declare (ignore buffer))
-  (deactivate-region))
-;;;
-(add-hook set-buffer-hook 'set-buffer-deactivate-region)
-
-(defun set-window-deactivate-region (window)
-  (unless (or (eq window *echo-area-window*)
-	      (eq (current-window) *echo-area-window*))
-    (deactivate-region)))
-;;;
-(add-hook set-window-hook 'set-window-deactivate-region)
 
 (defun control-g-deactivate-region ()
   (deactivate-region))
@@ -111,35 +100,46 @@
 
 (defun current-mark ()
   "Returns the top of the current buffer's mark stack."
-  (ring-ref (value buffer-mark-ring) 0))
+  (buffer-mark (current-buffer)))
 
 (defun buffer-mark (buffer)
   "Returns the top of buffer's mark stack."
-  (ring-ref (variable-value 'buffer-mark-ring :buffer buffer) 0))
+  (hi::buffer-%mark buffer))
 
 (defun pop-buffer-mark ()
   "Pops the current buffer's mark stack, returning the mark.  If the stack
    becomes empty, a mark is push on the stack pointing to the buffer's start.
    This always makes the current region not active."
   (let* ((ring (value buffer-mark-ring))
-	 (mark (ring-pop ring)))
+         (buffer (current-buffer))
+	 (mark (buffer-mark buffer)))
     (deactivate-region)
-    (if (zerop (ring-length ring))
-	(ring-push (copy-mark
-		    (buffer-start-mark (current-buffer)) :right-inserting)
-		   ring))
+    (setf (hi::buffer-%mark buffer)
+          (if (zerop (ring-length ring))
+            (copy-mark
+             (buffer-start-mark (current-buffer)) :right-inserting)
+            (ring-pop ring)))
     mark))
+
+
+(defun %buffer-push-buffer-mark (b mark activate-region)
+  (cond ((eq (line-buffer (mark-line mark)) b)
+         (setf (mark-kind mark) :right-inserting)
+         (let* ((old-mark (hi::buffer-%mark b)))
+           (when old-mark
+             (ring-push old-mark (variable-value 'buffer-mark-ring :buffer b))))
+         (setf (hi::buffer-%mark b) mark))
+        (t (error "Mark not in the current buffer.")))
+  (when activate-region (%buffer-activate-region b))
+  mark)
+        
 
 (defun push-buffer-mark (mark &optional (activate-region nil))
   "Pushes mark into buffer's mark ring, ensuring that the mark is in the right
    buffer and :right-inserting.  Optionally, the current region is made active.
    This never deactivates the current region.  Mark is returned."
-  (cond ((eq (line-buffer (mark-line mark)) (current-buffer))
-	 (setf (mark-kind mark) :right-inserting)
-	 (ring-push mark (value buffer-mark-ring)))
-	(t (error "Mark not in the current buffer.")))
-  (when activate-region (activate-region))
-  mark)
+  (%buffer-push-buffer-mark (current-buffer) mark activate-region))
+
 
 (defcommand "Set/Pop Mark" (p)
   "Set or Pop the mark ring.
