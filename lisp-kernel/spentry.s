@@ -3797,7 +3797,7 @@ _spentry(eabi_callback)
 
 	__(ldr(r3,varargs_eabi_c_frame.gp_save+(0*4)(sp)))
 	__(ldr(r4,varargs_eabi_c_frame.gp_save+(1*4)(sp)))
-	__(lfd f1,varargs_eabi_c_frame.gp_save+(2*8)(sp))
+	__(lfd f1,varargs_eabi_c_frame.gp_save+(2*4)(sp))
 	__(ldr(r5,varargs_eabi_c_frame.savelr(sp)))
 	__(str(r5,varargs_eabi_c_frame.old_savelr(sp)))
 	__(mtlr r5)
