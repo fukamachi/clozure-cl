@@ -1612,13 +1612,13 @@ xFindSymbol(void* handle, char *name)
   }
   return dlsym(handle, name);
 #else
-  void *address = 0;
+  natural address = 0;
 
   if (handle == NULL) {
     if (NSIsSymbolNameDefined(name)) { /* Keep dyld_lookup from crashing */
-      _dyld_lookup_and_bind(name, &address, (void*) NULL);
+      _dyld_lookup_and_bind(name, (void *) &address, (void*) NULL);
     }
-    return address;
+    return (void *)address;
   }
   Bug(NULL, "How did this happen ?");
 #endif
