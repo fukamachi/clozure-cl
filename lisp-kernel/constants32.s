@@ -300,7 +300,6 @@ max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
 	_ends
 
 
-ifdef([PPC64],[],[
 	_struct(eabi_c_frame,0)
 	 _word(backlink) 
 	 _word(savelr)
@@ -326,13 +325,12 @@ ifdef([PPC64],[],[
 	 _word(reg_save_area)
 	 _field(padding,4)
 	 _struct_label(regsave)
-	 _field(gp_save,8*4)
+	 _field(gp_save,8*node_size)
 	 _field(fp_save,8*8)
 	 _word(old_backlink)
 	 _word(old_savelr)
 	 _struct_label(incoming_stack_args)
 	_ends
-])
         	
 	_struct(lisp_frame,0)
 	 _node(backlink) 
