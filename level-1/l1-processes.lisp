@@ -514,3 +514,4 @@
       (return p))))
 
 
+(def-standard-initial-binding *backtrace-contexts* nil)
