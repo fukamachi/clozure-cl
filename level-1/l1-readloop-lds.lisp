@@ -388,7 +388,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
 (declaim (notinline select-backtrace))
 
 (defmacro new-backtrace-info (dialog youngest oldest tcr)
-  `(vector ,dialog ,youngest ,oldest ,tcr nil))
+  `(vector ,dialog ,youngest ,oldest ,tcr nil (%catch-top ,tcr)))
 
 (defun select-backtrace ()
   (declare (notinline select-backtrace))
@@ -409,17 +409,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
   "Never returns"
   (when (and (%i< (interrupt-level) 0) (not *break-loop-when-uninterruptable*))
     (abort))
-  (let* ((context (new-backtrace-info nil
-                                      frame-pointer
-                                      (if *backtrace-contexts*
-                                        (or (child-frame
-                                             (bt.youngest (car *backtrace-contexts*))
-                                             (%current-tcr))
-                                            (last-frame-ptr))
-                                        (last-frame-ptr))
-                                      (%current-tcr)))
-         (*backtrace-contexts* (cons context *backtrace-contexts*))
-         (%handlers% (last %handlers%))		; firewall
+  (let* ((%handlers% (last %handlers%))		; firewall
          (*break-frame* frame-pointer)
          (*break-condition* condition)
          (*compiling-file* nil)
@@ -434,6 +424,16 @@ whose name or ID matches <p>, or to any process if <p> is null"
          (*read-suppress* nil)
          (*print-readably* nil))
     (unwind-protect
+         (let* ((context (new-backtrace-info nil
+                                      frame-pointer
+                                      (if *backtrace-contexts*
+                                        (or (child-frame
+                                             (bt.youngest (car *backtrace-contexts*))
+                                             (%current-tcr))
+                                            (last-frame-ptr))
+                                        (last-frame-ptr))
+                                      (%current-tcr)))
+                (*backtrace-contexts* (cons context *backtrace-contexts*)))
 	 (with-toplevel-commands :break
            (if *continuablep*
              (let* ((*print-circle* *error-print-circle*)
@@ -454,7 +454,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
                                             :enter-backtrace-context context)
                   (read-loop :break-level (1+ *break-level*)))
              (application-ui-operation *application* :exit-backtrace-context
-                                       context)))
+                                       context))))
       (setf (interrupt-level) level))))
 
 
