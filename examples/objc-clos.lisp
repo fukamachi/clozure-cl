@@ -46,6 +46,8 @@
 
 (package-force-export "NS")
 
+(defparameter *objc-import-private-ivars* t "When true, the CLASS-DIRECT-SLOTS of imported ObjC classes will contain slot definitions for instance variables whose name starts with an underscore.  Note that this may exacerbate compatibility problems.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                                 Testing                                ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -79,6 +81,24 @@
 (defvar *objc-metaclass-class*)
 
 (defvar *objc-object-slot-vectors* (make-hash-table :test #'eql))
+(defvar *objc-canonical-instances* (make-hash-table :test #'eql :weak :value))
+
+(defun raw-macptr-for-instance (instance)
+  (let* ((p (%null-ptr)))
+    (%set-macptr-domain p 1)		; not an ObjC object, but EQL to one
+    (%setf-macptr p instance)
+    p))
+
+(defun register-canonical-objc-instance (instance raw-ptr)
+  ;(terminate-when-unreachable instance)
+  ;(retain-objc-instance instance)
+  (setf (gethash raw-ptr *objc-canonical-instances*) instance))
+
+(defun canonicalize-objc-instance (instance)
+  (or (gethash instance *objc-canonical-instances*)
+      (register-canonical-objc-instance
+       (setq instance (%inc-ptr instance 0))
+       (raw-macptr-for-instance instance))))
 
 (defun recognize-objc-object (p)
   (let* ((idx (objc-class-id p)))
@@ -96,7 +116,7 @@
     (declare (fixnum type flags index))
     (ecase flags
       (#.objc-flag-instance (id->objc-class index))
-      (#.objc-flag-class (id->objc-metaclass index))
+      (#.objc-flag-class (objc-class-id->objc-metaclass index))
       (#.objc-flag-metaclass *objc-metaclass-class*))))
   
 (defun %objc-domain-classp (p)
@@ -112,7 +132,7 @@
     (declare (fixnum type flags index))
     (ecase flags
       (#.objc-flag-instance (id->objc-class-wrapper index))
-      (#.objc-flag-class (id->objc-metaclass-wrapper index))
+      (#.objc-flag-class (id->objc-metaclass-wrapper (objc-class-id->objc-metaclass-id index)))
       (#.objc-flag-metaclass (%class.own-wrapper *objc-metaclass-class*)))))
 
 (defun %objc-domain-class-own-wrapper (p)
@@ -196,7 +216,11 @@
 
 (defmethod print-object ((o objc:objc-object) stream)
   (print-unreadable-object (o stream :type t)
-    (format stream "~a (#x~x)" (nsobject-description o) (%ptr-to-int o))))
+    (format stream
+	    (if (typep o 'ns::ns-string)
+	      "~s (#x~x)"
+	      "~a (#x~x)")
+	    (nsobject-description o) (%ptr-to-int o))))
 
 
 (defun make-objc-class-object-slots-vector (class meta)
@@ -300,29 +324,36 @@ instance_size of its ObjC superclass."))
   (when (objc-object-p c)
     (with-macptrs ((ivars (pref c :objc_class.ivars)))
       (unless (%null-ptr-p ivars)
-	(loop with ns-package = (find-package "NS")
-	      with n = (pref ivars :objc_ivar_list.ivar_count)
-	      with state = (make-ivar-parse-state c)
-	      for i from 1 to n
-	      for ivar = (pref ivars :objc_ivar_list.ivar_list) 
-	          then (%inc-ptr ivar (record-length :objc_ivar))
-	      for name = (%get-cstring (pref ivar :objc_ivar.ivar_name))
-	      for sym = (compute-lisp-name name ns-package)
-	      when (eql (schar name 0) #\_)
-	        do (unexport sym ns-package)
-	      ;do (format t "~S: ~S~%" name (pref ivar :objc_ivar.ivar_offset))
-	      collect 
-	      (make-direct-slot-definition-from-ivar
-	       state
-	       (pref ivar :objc_ivar.ivar_offset)
-	       (with-string-from-cstring
-			  (s (pref ivar :objc_ivar.ivar_type))
-			(objc-foreign-type-for-ivar s))
-	       c
-	       (list
-		:name sym
-		:allocation :instance
-		:class c )))))))
+	(let* ((ns-package (find-package "NS"))
+	       (n (pref ivars :objc_ivar_list.ivar_count))
+	       (state (make-ivar-parse-state c)))
+	  (collect ((dslotds))
+	    (do* ((i 0 (1+ i))
+		  (ivar (pref ivars :objc_ivar_list.ivar_list)
+			(%inc-ptr ivar (record-length :objc_ivar))))
+		 ((= i n) (dslotds))
+	      (declare (fixnum i))
+	      (with-macptrs ((nameptr (pref ivar :objc_ivar.ivar_name)))
+		(let* ((is-private (eql (%get-unsigned-byte nameptr 0)
+				    (char-code #\_))))
+		  (when (or (not is-private)
+			    *objc-import-private-ivars*)
+		    (let* ((name (%get-cstring nameptr))
+			   (sym (compute-lisp-name name ns-package)))
+		      (when is-private
+			(unexport sym ns-package))
+		      (dslotds
+		       (make-direct-slot-definition-from-ivar
+			state
+			(pref ivar :objc_ivar.ivar_offset)
+			(with-string-from-cstring
+			    (s (pref ivar :objc_ivar.ivar_type))
+			  (objc-foreign-type-for-ivar s))
+			c
+			(list
+			 :name sym
+			 :allocation :instance
+			 :class c ))))))))))))))
 
 (defun make-direct-slot-definition-from-ivar (state
 					      ivar-offset
@@ -492,7 +523,34 @@ instance_size of its ObjC superclass."))
       (foreign-single-float-type
        (values #'%get-single-float #'%set-single-float))
       (foreign-pointer-type
-       (values #'%get-ptr #'%set-ptr))
+       ;; If we're pointing to a structure whose first field is
+       ;; a pointer to a structure named :OBJC_CLASS, we're of
+       ;; type :ID and can (fairly) safely use %GET-PTR.
+       ;; Otherwise, reference the field as a raw  macptr.
+       (let* ((to (foreign-pointer-type-to ftype)))
+	 (if
+	   (and (typep to 'foreign-record-type)
+		(eq :struct (foreign-record-type-kind to))
+		(progn
+		  (ensure-foreign-type-bits to)
+		  (let* ((first-field (car (foreign-record-type-fields to)))
+			 (first-field-type
+			  (if first-field
+			    (foreign-record-field-type first-field))))
+		    (and (typep first-field-type 'foreign-pointer-type)
+			 (let* ((first-to (foreign-pointer-type-to
+					   first-field-type)))
+			   (and (typep first-to 'foreign-record-type)
+				(eq :struct
+				    (foreign-record-type-kind first-to))
+				(eq :objc_class
+				    (foreign-record-type-name first-to))))))))
+	   (values #'%get-ptr #'%set-ptr)
+	   (values #'(lambda (ptr offset)
+		       (let* ((p (%null-ptr)))
+			 (%set-macptr-domain p 1)
+			 (%setf-macptr p (%get-ptr ptr offset))))
+		   #'%set-ptr))))
       (foreign-mem-block-type
        (let* ((nbytes (%foreign-type-or-record-size ftype :bytes)))
 	 (values #'%inc-ptr #'(lambda (pointer offset new)
@@ -660,14 +718,12 @@ instance_size of its ObjC superclass."))
 		   (%send class 'alloc) (lisp-to-objc-init ks) vs))))
     (unless (%null-ptr-p instance)
       (let* ((len (length (%wrapper-instance-slots (class-own-wrapper class))))
+	     (raw-ptr (raw-macptr-for-instance instance)) 
 	     (slot-vector
 	      (unless (zerop len)
 		(allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker)))))
-	(setf (slot-vector.instance slot-vector) instance)
-	(setf (gethash instance *objc-object-slot-vectors*) slot-vector)
-	(terminate-when-unreachable instance)
-	(retain-obcj-object instance)
-	instance))))
+	(setf (slot-vector.instance slot-vector) raw-ptr)
+	(register-canonical-objc-instance instance raw-ptr)))))
 
 (defmethod terminate ((instance objc:objc-object))
   (objc-message-send instance "release"))

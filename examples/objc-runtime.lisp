@@ -67,8 +67,6 @@
 
 
 
-;			 (let* ((metaclass-name (intern (concatenate 'string "+" (string class-name)) (symbol-package class-name)))
-
 
 (let* ((objc-class-map (make-splay-tree #'%ptr-eql
 					#'(lambda (x y)
@@ -84,95 +82,118 @@
 						     (%ptr-to-int Y))))))
        (objc-class-lock (make-lock))
        (next-objc-class-id 0)
+       (next-objc-metaclass-id 0)
        (class-table-size 1024)
        (c (make-array 1024))
        (m (make-array 1024))
        (cw (make-array 1024 :initial-element nil))
        (mw (make-array 1024 :initial-element nil))
        (csv (make-array 1024))
-       (msv (make-array 1024)))
+       (msv (make-array 1024))
+       (class-id->metaclass-id (make-array 1024 :initial-element nil)))
 
-  (flet ((assign-next-class-id ()
-           (let* ((id next-objc-class-id))
-             (if (= (incf next-objc-class-id) class-table-size)
-               (let* ((old-size class-table-size)
-                      (new-size (* 2 class-table-size)))
-                 (declare (fixnum old-size new-size))
-                 (macrolet ((extend (v)
+  (flet ((grow-vectors ()
+	   (let* ((old-size class-table-size)
+		  (new-size (* 2 old-size)))
+	     (declare (fixnum old-size new-size))
+	     (macrolet ((extend (v)
                               `(setq ,v (%extend-vector old-size ,v new-size))))
                    (extend c)
                    (extend m)
                    (extend cw)
                    (extend mw)
+		   (fill cw nil :start old-size :end new-size)
+		   (fill mw nil :start old-size :end new-size)
                    (extend csv)
-                   (extend msv))
-                 (setq class-table-size new-size)))
-             id)))
-    (defun id->objc-class (i)
-      (svref c i))
-    (defun (setf id->objc-class) (new i)
-      (setf (svref c i) new))
-    (defun id->objc-metaclass (i)
-      (svref m i))
-    (defun (setf id->objc-metaclass) (new i)
-      (setf (svref m i) new))
-    (defun id->objc-class-wrapper (i)
-      (svref cw i))
-    (defun (setf id->objc-class-wrapper) (new i)
-      (setf (svref cw i) new))
-    (defun id->objc-metaclass-wrapper (i)
-      (svref mw i))
-    (defun (setf id->objc-metaclass-wrapper) (new i)
-      (setf (svref mw i) new))
-    (defun id->objc-class-slots-vector (i)
-      (svref csv i))
-    (defun (setf id->objc-class-slots-vector) (new i)
-      (setf (svref csv i) new))
-    (defun id->objc-metaclass-slots-vector (i)
-      (svref msv i))
-    (defun (setf id->objc-metaclass-slots-vector) (new i)
-      (setf (svref msv i) new))
-    
-    (defun %clear-objc-class-maps ()
-      (with-lock-grabbed (objc-class-lock)
-        (fill c 0)
-        (fill m 0)
-        (fill cw 0)
-        (fill mw 0)
-        (fill csv 0)
-        (fill msv 0)
-        (setf (splay-tree-root objc-class-map) nil
-              (splay-tree-root objc-metaclass-map) nil
-              (splay-tree-count objc-class-map) 0
-              (splay-tree-count objc-metaclass-map) 0
-              next-objc-class-id 0)))
-
-    (defun register-objc-class (class)
-      "ensure that the class (and metaclass) are mapped to a small integer,
-and that each have slots-vectors associated with them."
-      (with-lock-grabbed (objc-class-lock)
-	(ensure-objc-classptr-resolved class)
-	(or (splay-tree-get objc-class-map class)
-	    (let* ((id (assign-next-class-id))
-		   (class (%inc-ptr class 0))
-		   (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
-	      (splay-tree-put objc-class-map class id)
-	      (splay-tree-put objc-metaclass-map meta id)
-	      (setf (svref c id) class
-		    (svref m id) meta
-		    (svref csv id)
-		    (make-objc-class-slots-vector class)
-		    (svref msv id)
-		    (make-objc-metaclass-slots-vector meta))
-	      id))))
-    (defun objc-class-id (class)
-      (with-lock-grabbed (objc-class-lock)
-        (splay-tree-get objc-class-map class)))
-    (defun objc-metaclass-id (meta)
-      (with-lock-grabbed (objc-class-lock)
-        (splay-tree-get objc-metaclass-map meta)))
-    (defun objc-class-map () objc-class-map)
-    (defun objc-metaclass-map () objc-metaclass-map)))
+                   (extend msv)
+		   (extend class-id->metaclass-id)
+		   (fill class-id->metaclass-id nil :start old-size :end new-size))
+	     (setq class-table-size new-size))))
+    (flet ((assign-next-class-id ()
+	     (let* ((id next-objc-class-id))
+	       (if (= (incf next-objc-class-id) class-table-size)
+		 (grow-vectors))
+	       id))
+	   (assign-next-metaclass-id ()
+	     (let* ((id next-objc-metaclass-id))
+	       (if (= (incf next-objc-metaclass-id) class-table-size)
+		 (grow-vectors))
+	       id)))
+      (defun id->objc-class (i)
+	(svref c i))
+      (defun (setf id->objc-class) (new i)
+	(setf (svref c i) new))
+      (defun id->objc-metaclass (i)
+	(svref m i))
+      (defun (setf id->objc-metaclass) (new i)
+	(setf (svref m i) new))
+      (defun id->objc-class-wrapper (i)
+	(svref cw i))
+      (defun (setf id->objc-class-wrapper) (new i)
+	(setf (svref cw i) new))
+      (defun id->objc-metaclass-wrapper (i)
+	(svref mw i))
+      (defun (setf id->objc-metaclass-wrapper) (new i)
+	(setf (svref mw i) new))
+      (defun id->objc-class-slots-vector (i)
+	(svref csv i))
+      (defun (setf id->objc-class-slots-vector) (new i)
+	(setf (svref csv i) new))
+      (defun id->objc-metaclass-slots-vector (i)
+	(svref msv i))
+      (defun (setf id->objc-metaclass-slots-vector) (new i)
+	(setf (svref msv i) new))
+      (defun %clear-objc-class-maps ()
+	(with-lock-grabbed (objc-class-lock)
+	  (fill c 0)
+	  (fill m 0)
+	  (fill cw nil)
+	  (fill mw nil)
+	  (fill csv 0)
+	  (fill msv 0)
+	  (fill class-id->metaclass-id nil)
+	  (setf (splay-tree-root objc-class-map) nil
+		(splay-tree-root objc-metaclass-map) nil
+		(splay-tree-count objc-class-map) 0
+		(splay-tree-count objc-metaclass-map) 0
+		next-objc-class-id 0
+		next-objc-metaclass-id 0)))
+      (flet ((install-objc-metaclass (meta)
+	       (or (splay-tree-get objc-metaclass-map meta)
+		   (let* ((id (assign-next-metaclass-id))
+			  (meta (%inc-ptr meta 0)))
+		     (splay-tree-put objc-metaclass-map meta id)
+		     (setf (svref m id) meta
+			   (svref msv id)
+			   (make-objc-metaclass-slots-vector meta))
+		     id))))
+	(defun register-objc-class (class)
+	  "ensure that the class is mapped to a small integer and associate a slots-vector with it."
+	  (with-lock-grabbed (objc-class-lock)
+	    (ensure-objc-classptr-resolved class)
+	    (or (splay-tree-get objc-class-map class)
+		(let* ((id (assign-next-class-id))
+		       (class (%inc-ptr class 0))
+		       (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
+		  (splay-tree-put objc-class-map class id)
+		  (setf (svref c id) class
+			(svref csv id)
+			(make-objc-class-slots-vector class)
+			(svref class-id->metaclass-id id)
+			(install-objc-metaclass meta))
+		  id)))))
+      (defun objc-class-id (class)
+	(with-lock-grabbed (objc-class-lock)
+	  (splay-tree-get objc-class-map class)))
+      (defun objc-metaclass-id (meta)
+	(with-lock-grabbed (objc-class-lock)
+	  (splay-tree-get objc-metaclass-map meta)))
+      (defun objc-class-id->objc-metaclass-id (class-id)
+	(svref class-id->metaclass-id class-id))
+      (defun objc-class-id->objc-metaclass (class-id)
+	(svref m (svref class-id->metaclass-id class-id)))
+      (defun objc-class-map () objc-class-map)
+      (defun objc-metaclass-map () objc-metaclass-map))))
 
 (pushnew #'%clear-objc-class-maps *save-exit-functions* :test #'eq
          :key #'function-name)
@@ -233,6 +254,33 @@ and that each have slots-vectors associated with them."
                  t))))))
 
 (pushnew 'remap-all-library-classes *lisp-system-pointer-functions*)
+
+(let* ((cfstring-sections (cons 0 nil)))
+  (defun reset-cfstring-sections ()
+    (rplaca cfstring-sections 0)
+    (rplacd cfstring-sections nil))
+  (defun find-cfstring-sections ()
+    (let* ((image-count (#_ _dyld_image_count)))
+      (when (> image-count (car cfstring-sections))
+	(process-section-in-all-libraries
+	 #$SEG_DATA
+	 "__cfstring"
+	 #'(lambda (sectaddr size)
+	     (let* ((addr (%ptr-to-int sectaddr))
+		    (limit (+ addr size))
+		    (already (member addr (cdr cfstring-sections) :key #'car)))
+	       (if already
+		 (rplacd already limit)
+		 (push (cons addr limit) (cdr cfstring-sections))))))
+	(setf (car cfstring-sections) image-count))))
+  (defun pointer-in-cfstring-section-p (ptr)
+    (let* ((addr (%ptr-to-int ptr)))
+      (dolist (s (cdr cfstring-sections))
+	(when (and (>= addr (car s))
+		   (< addr (cdr s)))
+	  (return t))))))
+	       
+					  
 
 )
 
@@ -297,31 +345,39 @@ and that each have slots-vectors associated with them."
 		(objc-to-lisp-classname (%get-cstring
 					 (pref class :objc_class.name))
 					"NS"))
-	       (meta (id->objc-metaclass id))
-	       (meta-name (intern (concatenate 'string
-					       "+"
-					       (string class-name))
-				  "NS"))
-	       (meta-super (pref meta :objc_class.super_class)))
-	  ;; It's important (here and when initializing the class
-	  ;; below) to use the "canonical" (registered) version
-	  ;; of the class, since some things in CLOS assume
-	  ;; EQness.  We probably don't want to violate that
-	  ;; assumption; it'll be easier to revive a saved image
-	  ;; if we don't have a lot of EQL-but-not-EQ class pointers
-	  ;; to deal with.
-	  (initialize-instance meta
-			       :name meta-name
-			       :direct-superclasses
-			       (list
-				(if (or (%null-ptr-p meta-super)
-					(not (%objc-metaclass-p meta-super)))
-				  (find-class 'objc:objc-class)
-				  (canonicalize-registered-metaclass meta-super)))
-			       :peer class
-			       :foreign t)
-	  (setf (find-class meta-name) meta)
-;	  (setf (id->objc-metaclass-wrapper id) (%class-own-wrapper meta))
+	       (meta-id (objc-class-id->objc-metaclass-id id)) 
+	       (meta (id->objc-metaclass meta-id)))
+	  ;; Metaclass may already be initialized.  It'll have a class
+	  ;; wrapper if so.
+	  (unless (id->objc-metaclass-wrapper meta-id)
+	    (let* ((meta-name (intern
+			       (concatenate 'string
+					    "+"
+					    (string
+					     (objc-to-lisp-classname
+					      (%get-cstring
+					       (pref meta :objc_class.name))
+					      "NS")))
+				      "NS"))
+		   (meta-super (pref meta :objc_class.super_class)))
+	      ;; It's important (here and when initializing the class
+	      ;; below) to use the "canonical" (registered) version
+	      ;; of the class, since some things in CLOS assume
+	      ;; EQness.  We probably don't want to violate that
+	      ;; assumption; it'll be easier to revive a saved image
+	      ;; if we don't have a lot of EQL-but-not-EQ class pointers
+	      ;; to deal with.
+	      (initialize-instance meta
+				   :name meta-name
+				   :direct-superclasses
+				   (list
+				    (if (or (%null-ptr-p meta-super)
+					    (not (%objc-metaclass-p meta-super)))
+				      (find-class 'objc:objc-class)
+				      (canonicalize-registered-metaclass meta-super)))
+				   :peer class
+				   :foreign t)
+	      (setf (find-class meta-name) meta)))
 	  (setf (slot-value class 'direct-slots)
 		(%compute-foreign-direct-slots class))
 	  (initialize-instance class
@@ -333,7 +389,6 @@ and that each have slots-vectors associated with them."
 				  (canonicalize-registered-class super)))
 			       :peer meta
 			       :foreign t)
-;	  (setf (id->objc-class-wrapper id) (%class-own-wrapper class))
 	  (setf (find-class class-name) class))))))
 				
 
@@ -917,6 +972,10 @@ argument lisp string."
 	   #+apple-objc #$CLS_META
 	   #+gnu-objc #$_CLS_META))
 	   
+(defun %objc-class-posing-p (class)
+  (logtest (pref class :objc_class.info)
+	   #+apple-objc #$CLS_POSING
+	   #+gnu-objc #$_CLS_POSING))
 
 
 
@@ -940,7 +999,7 @@ argument lisp string."
 		 nameptr
 		 (%null-ptr)
 		 0)))
-	   (meta (id->objc-metaclass id))
+	   (meta (objc-class-id->objc-metaclass id))
 	   (class (id->objc-class id))
 	   (meta-name (intern (format nil "+~a" class-name)
 			      (symbol-package name)))
@@ -949,8 +1008,7 @@ argument lisp string."
       (initialize-instance meta
 			 :name meta-name
 			 :direct-superclasses (list meta-super))
-    (setf ;(id->objc-metaclass-wrapper id) (%class-own-wrapper meta)
-	  (find-class meta-name) meta)
+      (setf (find-class meta-name) meta)
     class)))
 
 ;;; Set up the class's ivar_list and instance_size fields, then
@@ -1027,19 +1085,15 @@ argument lisp string."
   
 (defun %objc-instance-class-index (p)
   #+apple-objc
-  (let* ((instance-apparent-size (zone-pointer-size p)))
-    (when (and instance-apparent-size (not (eql instance-apparent-size 0)))
-      (locally (declare (fixnum instance-apparent-size))
-	  (with-macptrs ((parent (pref p :objc_object.isa)))
-	    (let* ((idx (objc-class-id parent)))
-	      (when idx
-		(let* ((parent-size (if idx (pref parent :objc_class.instance_size))))
-		  (if (eql (- (ash (ash (the fixnum (+ parent-size 17)) -4) 4) 2)
-			   instance-apparent-size)
-		    idx)))))))))
+  (if (or (pointer-in-cfstring-section-p p)
+	  (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
+	    (not (%null-ptr-p zone))))
+    (with-macptrs ((parent (pref p :objc_object.isa)))
+      (objc-class-id parent)))
   #+gnu-objc
   (with-macptrs ((parent (pref p objc_object.class_pointer)))
     (objc-class-id-parent))
+  )
 
 ;;; If an instance, return (values :INSTANCE <class>).
 ;;; If a class, return (values :CLASS <metaclass>).
@@ -1363,6 +1417,7 @@ argument lisp string."
 	  (external-call "__objc_getFreedObjectClass" :address))
     (free obj)))
 
+#+threads-problem
 (def-ccl-pointers install-deallocate-hook ()
   (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))
 )
@@ -1391,6 +1446,9 @@ argument lisp string."
 (defloadvar *nsstring-newline* #@"
 ")
 
+
+(defun retain-objc-instance (instance)
+  (objc-message-send instance "retain"))
 
 ;;; Execute BODY with an autorelease pool
 
