@@ -80,5 +80,7 @@ Boolean free_segments_zero_filled_by_OS;
 #define GC_TRAP_FUNCTION_GET_LISP_HEAP_THRESHOLD 16
 #define GC_TRAP_FUNCTION_SET_LISP_HEAP_THRESHOLD 17
 #define GC_TRAP_FUNCTION_USE_LISP_HEAP_THRESHOLD 18
+#define GC_TRAP_FUNCTION_EGC_CONTROL 32
+#define GC_TRAP_FUNCTION_CONFIGURE_EGC 64
 
 #endif                          /* __GC_H__ */

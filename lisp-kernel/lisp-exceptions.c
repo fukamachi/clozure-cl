@@ -482,6 +482,18 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
 
 
   switch (selector) {
+  case GC_TRAP_FUNCTION_EGC_CONTROL:
+    egc_control(arg != 0, a->active);
+    xpGPR(xp,arg_z) = lisp_nil + (egc_was_enabled ? t_offset : 0);
+    break;
+
+  case GC_TRAP_FUNCTION_CONFIGURE_EGC:
+    a->threshold = unbox_fixnum(xpGPR(xp, arg_x));
+    g1_area->threshold = unbox_fixnum(xpGPR(xp, arg_y));
+    g2_area->threshold = unbox_fixnum(xpGPR(xp, arg_z));
+    xpGPR(xp,arg_z) = lisp_nil+t_offset;
+    break;
+
   case GC_TRAP_FUNCTION_SET_LISP_HEAP_THRESHOLD:
     if (((int) arg) > 0) {
       lisp_heap_gc_threshold = 
