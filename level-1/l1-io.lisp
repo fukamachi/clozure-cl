@@ -34,10 +34,7 @@
     (stream-listen stream)))
 
 (defun fresh-line (&optional (stream *standard-output*))
-  (let* ((stream (real-print-stream stream)))
-    (unless (eql 0 (column stream))
-      (terpri stream)
-      t)))
+  (stream-fresh-line (real-print-stream stream)))
 
 
 (defun clear-input (&optional stream)
