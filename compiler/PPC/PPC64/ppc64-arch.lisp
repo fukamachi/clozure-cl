@@ -651,7 +651,7 @@
   (let* ((pos (position name ppc::*ppc-nilreg-relative-symbols* :test #'eq)))
     (if pos (* (1+ pos) symbol.size))))
 
-(defconstant nil-value (+ #x2000 symbol.size fulltag-vector))
+(defconstant nil-value (+ #x2000 symbol.size fulltag-uvector))
 
 
 (defconstant reservation-discharge #x1008)
