@@ -33,7 +33,7 @@ define _TCR
 end
 
 define tcr
- _TCR ($r2-0x7000)
+ _TCR $r13
 end
 
 define regs
