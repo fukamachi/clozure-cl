@@ -19,7 +19,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "VINSN")
-  (require "PPC-BACKEND"))
+  (require "PPC64-BACKEND"))
 
 (eval-when (:compile-toplevel :execute)
   (require "PPCENV"))
@@ -3334,6 +3334,6 @@
 
 ;;; In case ppc64::*ppc-opcodes* was changed since this file was compiled.
 (queue-fixup
- (fixup-vinsn-templates *ppc-vinsn-templates* ppc::*ppc-opcode-numbers*))
+ (fixup-vinsn-templates *ppc64-vinsn-templates* ppc::*ppc-opcode-numbers*))
 
-(ccl::provide "PPC-VINSNS")
+(provide "PPC64-VINSNS")
