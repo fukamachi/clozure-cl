@@ -278,10 +278,16 @@ unsigned unsigned_max(unsigned x, unsigned y)
   }
 }
 
+#ifdef DARWIN
+#define MAXIMUM_MAPPABLE_MEMORY ((1U<<31)-2*heap_segment_size)
+#endif
 
+#ifdef LINUX
+#define MAXIMUM_MAPPABLE_MEMORY (1U<<30)
+#endif
 
 natural
-reserved_area_size = ((1U<<31)-2*heap_segment_size);
+reserved_area_size = MAXIMUM_MAPPABLE_MEMORY;
 
 area *nilreg_area=NULL, *tenured_area=NULL, *g2_area=NULL, *g1_area=NULL;
 area *all_areas=NULL;
@@ -1022,7 +1028,7 @@ process_options(int argc, char *argv[])
 					       reserved_area_size);
 	}
 
-	if (reserved_size <= ((1U<<31)-(2*heap_segment_size))) {
+	if (reserved_size <= MAXIMUM_MAPPABLE_MEMORY) {
 	  reserved_area_size = reserved_size;
 	}
 
