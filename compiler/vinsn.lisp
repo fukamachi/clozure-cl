@@ -572,7 +572,7 @@
     (if value
       (ecase class
         (:crf (make-wired-lreg (use-crf-temp value) :class hard-reg-class-crf))
-        ((:u8 :s8 :u16 :s16 :u32 :s32) 
+        ((:u8 :s8 :u16 :s16 :u32 :s32 :u64 :s64) 
          (make-wired-lreg (use-imm-temp value)
 			  :class hard-reg-class-gpr
 			  :mode (gpr-mode-name-value class)))
@@ -586,7 +586,7 @@
           (if (= *available-backend-imm-temps* 0) (select-node-temp) (select-imm-temp))
               :class hard-reg-class-gpr
               :mode hard-reg-class-gpr-mode-node)) 
-        ((:u8 :s8 :u16 :s16 :u32 :s32) 
+        ((:u8 :s8 :u16 :s16 :u32 :s32 :u64 :s64) 
          (make-unwired-lreg (select-imm-temp)
 			    :class hard-reg-class-gpr
 			    :mode (gpr-mode-name-value class)))
