@@ -39,7 +39,9 @@
 
 (defun %set-buffer-modified (buffer sense)
   "If true make the buffer modified, if NIL unmodified."
-  (unless (bufferp buffer) (error "~S is not a buffer." buffer))  
+  (unless (bufferp buffer) (error "~S is not a buffer." buffer))
+  (unless (eq (buffer-modified buffer) (not (null sense)))
+    (queue-buffer-change buffer))
   (invoke-hook hemlock::buffer-modified-hook buffer sense)
   (if sense
       (setf (buffer-modified-tick buffer) (tick))
