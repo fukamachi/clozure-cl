@@ -225,6 +225,9 @@
 
 ;;;; Stuff to support keyboard macros.
 
+#+later
+(progn
+  
 (defstruct (kbdmac-stream
 	    (:include editor-input
 		      (get #'kbdmac-get)
@@ -259,3 +262,4 @@
   (setf (kbdmac-stream-index stream) 0)
   (setf (kbdmac-stream-buffer stream) input)
   stream)
+)

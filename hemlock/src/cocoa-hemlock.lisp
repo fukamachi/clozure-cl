@@ -32,3 +32,10 @@
 	     (window-point new-window))
   (setq *current-window* new-window))
 
+;;; This is a public variable.
+;;;
+(defvar *last-key-event-typed* ()
+  "This variable contains the last key-event typed by the user and read as
+   input.")
+
+(defvar *input-transcript* ())

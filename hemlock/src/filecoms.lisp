@@ -230,7 +230,7 @@
 	    (when hook
 	      (funcall (cdr hook) buffer type)
 	      (setq mode (buffer-major-mode buffer)))))
-	(with-mark ((mark (buffer-start-mark buffer)))
+	(with-mark ((mark (buffer-start-mark buffer) :left-inserting))
 	  (if (string-equal mode "Lisp")
 	    (let* ((package-name
 		    (if (hemlock-bound-p 'current-package :buffer buffer)

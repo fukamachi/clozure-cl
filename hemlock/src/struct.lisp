@@ -101,6 +101,7 @@
   %modeline-fields	      ; List of modeline-field-info's.
   (delete-hook nil)	      ; List of functions to call upon deletion.
   (external-format :unix)     ; Line-termination, for the time being
+  process		      ; Maybe a listener
   )
 
 (setf (documentation 'buffer-modes 'function)

@@ -62,8 +62,8 @@
 (bind-key "Scroll Next Window Down" #k"control-meta-v")
 (bind-key "Scroll Next Window Up" #k"control-meta-V")
 
-(bind-key "Process File Options" #k"control-meta-m")
-(bind-key "Ensure File Options Line" #k"control-meta-M")
+(bind-key "Process File Options" #k"control-x m" :global)
+(bind-key "Ensure File Options Line" #k"control-meta-M" :global)
 (bind-key "Help" #k"home")
 (bind-key "Help" #k"control-_")
 (bind-key "Describe Key" #k"meta-?")
@@ -87,9 +87,9 @@
 (bind-key "Write File" #k"control-x control-w")
 (bind-key "Find File" #k"control-x control-f")
 (bind-key "Backup File" #k"control-x meta-b")
-(bind-key "Save All Files" #k"control-x control-m")
-(bind-key "Save All Files" #k"control-x return")
-(bind-key "Save All Files and Exit" #k"control-x meta-z")
+;(bind-key "Save All Files" #k"control-x control-m")
+;(bind-key "Save All Files" #k"control-x return")
+;(bind-key "Save All Files and Exit" #k"control-x meta-z")
 
 (bind-key "List Buffers" #k"control-x control-b")
 (bind-key "Buffer Not Modified" #k"meta-~")

@@ -187,7 +187,7 @@
         (when (< (buffer-modified-tick ,b)
                  (buffer-unmodified-tick ,b))
           (invoke-hook hemlock::buffer-modified-hook ,b t))
-        (setf (buffer-modified-tick ,b) (tick)))
+        (setf (buffer-modified ,b) t))
       (unwind-protect
            (progn
              (if ,bp (buffer-document-begin-editing ,b))

@@ -68,11 +68,8 @@
 	 (string (coerce string 'simple-string)))
     (declare (simple-string string))
     (unless (zerop (- end start))
-      (modifying-buffer
-       buffer
-       (modifying-line line mark)
-       (if (%sp-find-character string start end #\newline)
-	 (with-mark ((mark mark :left-inserting))
+      (if (%sp-find-character string start end #\newline)
+	(with-mark ((mark mark :left-inserting))
 	   (do ((left-index start (1+ right-index))
 		(right-index
 		 (%sp-find-character string start end #\newline)
@@ -82,6 +79,9 @@
 		  (insert-string mark string left-index end)))
 	     (insert-string mark string left-index right-index)
 	     (insert-character mark #\newline)))
+	(modifying-buffer
+	 buffer
+	 (modifying-line line mark)
 	 (let ((length (- end start)))
 	   (if (<= *right-open-pos* (+ *left-open-pos* end))
 	     (grow-open-chars (* (+ *line-cache-length* end) 2)))
@@ -96,8 +96,8 @@
 	     (t
 	      (let ((new (+ *left-open-pos* length)))
 		(%sp-byte-blt string start *open-chars* *left-open-pos* new)
-		(setq *left-open-pos* new))))))
-       (buffer-note-insertion buffer mark (- end start))))))
+		(setq *left-open-pos* new)))))
+	 (buffer-note-insertion buffer mark (- end start)))))))
 
 
 (defconstant line-number-interval-guess 8

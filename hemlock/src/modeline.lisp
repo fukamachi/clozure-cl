@@ -217,3 +217,15 @@ other than :DEFAULT"
 	(modeline-field :buffer-pathname))
   "This is the default value for \"Default Modeline Fields\".")
 
+(defun %init-redisplay ()
+  (add-hook hemlock::buffer-major-mode-hook 'queue-buffer-change)
+  (add-hook hemlock::buffer-minor-mode-hook 'queue-buffer-change)
+  (add-hook hemlock::buffer-name-hook 'queue-buffer-change)
+  (add-hook hemlock::buffer-pathname-hook 'queue-buffer-change)
+  (add-hook hemlock::buffer-modified-hook 'queue-buffer-change)
+  (add-hook hemlock::window-buffer-hook 'queue-window-change))
+
+(defun queue-buffer-change (buffer &optional something-else another-else)
+  (declare (ignore something-else another-else))
+  (dolist (w (buffer-windows buffer))
+    (invalidate-modeline w)))
