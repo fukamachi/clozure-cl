@@ -638,18 +638,24 @@
 
 
 
-(defmacro defppclapfunction (&environment env name arglist &body body)
+(defmacro defppclapfunction (&environment env name arglist &body body
+                             &aux doc)
+  (if (not (endp body))
+      (and (stringp (car body))
+           (cdr body)
+           (setq doc (car body))
+           (setq body (cdr body))))
   `(progn
      (eval-when (:compile-toplevel)
        (note-function-info ',name t ,env))
      #-ppc-target
      (progn
        (eval-when (:load-toplevel)
-         (%defun (nfunction ,name (lambda (&lap 0) (ppc-lap-function ,name ,arglist ,@body)))))    
+         (%defun (nfunction ,name (lambda (&lap 0) (ppc-lap-function ,name ,arglist ,@body))) ,doc))
        (eval-when (:execute)
          (%define-ppc-lap-function ',name '((let ,arglist ,@body)))))
      #+ppc-target	; just shorthand for defun
-     (%defun (nfunction ,name (lambda (&lap 0) (ppc-lap-function ,name ,arglist ,@body))))))
+     (%defun (nfunction ,name (lambda (&lap 0) (ppc-lap-function ,name ,arglist ,@body))) ,doc)))
  
 
 
