@@ -213,20 +213,32 @@
       #'(lambda (form) (and (characterp form) (standard-char-p form))))
 
 (defun type-of (form)
-  (cond ((null form) 'null)
-        ((arrayp form) (describe-array form))
-        (t (let* ((class (class-of form))
-		  (metaclass (class-of class)))
-	     (if (eq metaclass *istruct-class*)
-	       (uvref form 0)
-	       (if (or (typep metaclass 'standard-class)
-		       (typep metaclass 'structure-class))
-		 (let* ((class-name (class-name class)))
-		   (if (eq class (find-class class-name nil))
-		     class-name
-		     class))
-		 (%type-of form)))))))
-
+  (case form
+    ((t) 'boolean)
+    ((0 1) 'bit)
+    (t
+     (typecase form
+       (standard-char 'standard-char)
+       (keyword 'keyword)
+       ;; Partition integers so that the negative cases
+       ;; are SIGNED-BYTE and the positive are UNSIGNED-BYTE
+       (fixnum
+	(if (< (the fixnum form) 0)
+	  'fixnum
+	  '(integer 0 #.most-positive-fixnum)))
+       (bignum
+	(if (< form 0)
+	  'bignum
+	  '(integer  #.(1+ most-positive-fixnum))))
+       ((or array complex) (type-specifier (ctype-of form)))
+       (t
+	(if (eql (typecode form) ppc32::subtag-istruct)
+	  (%svref form 0)
+	  (let* ((class (class-of form))
+		 (class-name (class-name class)))
+	    (if (eq class (find-class class-name nil))
+	      class-name
+	      class))))))))
 
 ;;; Create the list-style description of an array.
 
@@ -711,6 +723,7 @@
     
 
 (setq *type-system-initialized* t)
-    
+
+
 
 
