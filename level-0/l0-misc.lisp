@@ -141,8 +141,10 @@
 (defun %stack-space-by-lisp-thread ()
   (let* ((res nil))
     (without-interrupts
-     (do-unexhausted-lisp-threads (thread)
-       (push (cons thread (multiple-value-list (%thread-stack-space thread))) res)))
+     (dolist (p (all-processes))
+       (let* ((thread (process-thread p)))
+         (when thread
+           (push (cons thread (multiple-value-list (%thread-stack-space thread))) res)))))
     res))
 
 
