@@ -43,6 +43,7 @@
 (define-special-objc-word "BMP")
 (define-special-objc-word "CF")
 (define-special-objc-word "CMYK")
+(define-special-objc-word "MIME")
 (define-special-objc-word "DR")
 (define-special-objc-word "EPS")
 (define-special-objc-word "FTP")
@@ -51,10 +52,13 @@
 (define-special-objc-word "OpenGL")
 (define-special-objc-word "HTML")
 (define-special-objc-word "HTTP")
+(define-special-objc-word "HTTPS")
 (define-special-objc-word "ID")
 (define-special-objc-word "NS")
+(define-special-objc-word "MIME")
 (define-special-objc-word "PDF")
 (define-special-objc-word "PNG")
+(define-special-objc-word "QD")
 (define-special-objc-word "RGB")
 (define-special-objc-word "RTFD")
 (define-special-objc-word "RTF")
@@ -165,33 +169,6 @@
                collect (if e (first e) (string-capitalize str)))))
 
 
-#|
-;;; Convert an ObjC message to a corresponding Lisp generic function name
-;;; Example: "nextEventMatchingMask:untilDate:inMode:dequeue:" ==>
-;;;          next-event-matching-mask$until-date$in-mode$dequeue$
-
-(defun compute-objc-to-lisp-method (str)
-  (symbol-concatenate 
-   (mapcar #'string  
-           (mapcar #'compute-lisp-name 
-                   (split-if-char #\$ 
-                                  (substitute #\$ #\: str)
-                                  :after)))))
-
-
-;;; Convert a Lisp generic function name to an ObjC message
-;;; Example: next-event-matching-mask$until-date$in-mode$dequeue$ ==>
-;;;          "nextEventMatchingMask:untilDate:inMode:dequeue:"
-
-(defun compute-lisp-to-objc-method (sym)
-  (apply #'cstring-cat
-         (mapcar #'(lambda (s)
-                     (nstring-downcase (compute-objc-class-name s) 
-                                       :start 0 :end 1))
-                 (split-if-char #\: (substitute #\: #\$ (string sym)) :after))))
-|# 
-
-
 ;;; Convert an ObjC method selector to a set of Lisp keywords
 ;;; Example: "nextEventMatchingMask:untilDate:inMode:dequeue:" ==>
 ;;;          (:next-event-matching-mask :until-date :in-mode :dequeue)
@@ -300,59 +277,6 @@
     (setf (gethash str *lisp-classname-table*) sym)
     (setf (gethash sym *objc-classname-table*) str)))
 
-
-#|
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;              Generic Function / Message Name Translation               ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Hash tables for caching method name translations
-
-(defvar *lisp-method-table* (make-hash-table :test 'equal))
-(defvar *objc-method-table* (make-hash-table :test 'equal))
-
-
-;;; Define a hard-wired method translation (if the automatic
-;;; translation doesn't apply) 
-
-(defmacro define-method-translation (method-name gf-name)
-  (let ((method-name-temp (gensym))
-        (gf-name-temp (gensym))
-        (old-method-name-temp (gensym))
-        (old-gf-name-temp (gensym)))
-    `(let* ((,method-name-temp ',method-name)
-            (,gf-name-temp ',gf-name)
-            (,old-method-name-temp
-             (gethash ,method-name-temp *lisp-method-table*))
-            (,old-gf-name-temp
-             (gethash ,gf-name-temp *objc-method-table*)))
-       (remhash ,old-method-name-temp *lisp-method-table*)
-       (remhash ,old-gf-name-temp *objc-method-table*)
-       (setf (gethash ,gf-name-temp *objc-method-table*) ,method-name-temp)
-       (setf (gethash ,method-name-temp *lisp-method-table*) ,gf-name-temp)
-       (values))))
-
-
-;;; Translate an ObjC method into a Lisp generic function name 
-
-(defun objc-to-lisp-gf-name (method-name)
-  (let ((gf-name 
-         (or (gethash method-name *lisp-method-table*)
-             (compute-objc-to-lisp-method method-name))))
-    (setf (gethash gf-name *objc-method-table*) method-name)
-    (setf (gethash method-name *lisp-method-table*) gf-name)))
-
-
-;;; Translate a Lisp generic function name into an ObjC method 
-
-(defun lisp-to-objc-message (gf-name)
-  (let ((method-name 
-         (or (gethash gf-name *objc-method-table*)
-             (compute-lisp-to-objc-method gf-name))))
-    (setf (gethash method-name *lisp-method-table*) gf-name)
-    (setf (gethash gf-name *objc-method-table*) method-name)))
-
-|# 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                      Message Keyword Translation                       ;;;;
