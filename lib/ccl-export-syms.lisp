@@ -189,6 +189,11 @@
      standard-direct-slot-definition
      standard-effective-slot-definition
 
+     standard-slot-definition
+     slot-definition
+     effective-slot-definition
+     direct-slot-definition
+     
      clear-specializer-direct-methods-caches
      *check-call-next-method-with-args*
      clear-gf-cache
@@ -200,7 +205,6 @@
      class-own-wrapper
      specializer-direct-methods
      specializer-direct-generic-functions
-     *super-optimize-primary-slot-access*
      copy-instance
 
      ;; Not MOP
@@ -319,6 +323,7 @@
      rref
      with-cstrs
      with-string-vector
+     with-pointer-to-ivector
 
      define-entry-point
      define-callback
@@ -657,8 +662,12 @@
    "CLASS-OWN-WRAPPER"
    "SPECIALIZER-DIRECT-METHODS"
    "SPECIALIZER-DIRECT-GENERIC-FUNCTIONS"
-   "*SUPER-OPTIMIZE-PRIMARY-SLOT-ACCESS*"
-   "COPY-INSTANCE")
+   "COPY-INSTANCE"
+   "STANDARD-SLOT-DEFINITION"
+   "SLOT-DEFINITION"
+   "EFFECTIVE-SLOT-DEFINITION"
+   "DIRECT-SLOT-DEFINITION"
+   )
   (:export
    "ACCESSOR-METHOD-SLOT-DEFINITION"
    "ADD-DEPENDENT"
@@ -706,6 +715,7 @@
    "METHOD-FUNCTION"
    "METHOD-GENERIC-FUNCTION"
    "METHOD-LAMBDA-LIST"
+   "METHOD-NAME"
    "METHOD-SPECIALIZERS"
    "METHOD-QUALIFIERS"
    "SLOT-DEFINITION-ALLOCATION"
@@ -758,8 +768,12 @@
    "CLASS-OWN-WRAPPER"
    "SPECIALIZER-DIRECT-METHODS"
    "SPECIALIZER-DIRECT-GENERIC-FUNCTIONS"
-   "*SUPER-OPTIMIZE-PRIMARY-SLOT-ACCESS*"
-   "COPY-INSTANCE"))
+   "COPY-INSTANCE"
+   "STANDARD-SLOT-DEFINITION"
+   "SLOT-DEFINITION"
+   "EFFECTIVE-SLOT-DEFINITION"
+   "DIRECT-SLOT-DEFINITION"
+   ))
 
 (unless (eq %lisp-system-fixups% T)
   (while %lisp-system-fixups%
