@@ -309,8 +309,8 @@
 	       (setf (interrupt-level) interrupt-level))))
           (t (format *error-output* "Break while interrupt-level less than zero; ignored.")))))
 
-(defun invoke-debugger (&optional string &rest args &aux (fp (%get-frame-ptr)))
-  (let ((c (condition-arg (or string "") args 'simple-condition)))
+(defun invoke-debugger (condition &aux (fp (%get-frame-ptr)))
+  (let ((c (require-type condition 'condition)))
     (when *debugger-hook*
       (let ((hook *debugger-hook*)
             (*debugger-hook* nil))
