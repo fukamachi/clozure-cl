@@ -931,24 +931,30 @@ c)" t)
                           (setq ch nil)
                           (decf level))))))))
 
-(defun %unreadable (description)
-  (%err-disp $xunread description))
+(defun %unreadable (stream description)
+  (signal-reader-error stream "~S encountered." stream description))
 
 (set-dispatch-macro-character
  #\#
  #\<
- #'(lambda (&rest ignore) (declare (ignore ignore)) (%unreadable "#<")))
+ #'(lambda (stream &rest ignore)
+     (declare (ignore ignore))
+     (%unreadable stream "#<")))
 
 (dolist (ch '(#\null #\tab #\linefeed #\page #\return #\space #\312))
   (set-dispatch-macro-character
    #\#
    ch
-   #'(lambda (&rest ignore) (declare (ignore ignore)) (%unreadable "#<whitespace>"))))
+   #'(lambda (stream &rest ignore)
+       (declare (ignore ignore))
+       (%unreadable stream "#<whitespace>"))))
 
 (set-dispatch-macro-character
  #\#
  #\)
- #'(lambda (&rest ignore) (declare (ignore ignore)) (%unreadable "#)")))
+ #'(lambda (stream &rest ignore)
+     (declare (ignore ignore))
+     (%unreadable stream "#)")))
 
 (set-dispatch-macro-character
  #\#
