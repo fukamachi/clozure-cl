@@ -76,11 +76,10 @@
     (extended-string . extended-string-p)
     (base-char . base-char-p)
     (extended-char . extended-char-p)
-    (structure . structurep)
     (structure-object . structurep)
     (symbol . symbolp)
     (t . true)
-    (unsigned-byte . unsigned-byte-p) ;unsigned-byte-p is not cl.
+    (unsigned-byte . unsigned-byte-p)
     (vector . vectorp)
     ))
 
