@@ -146,9 +146,8 @@
 (defvar *heap-ivector-lock* (make-lock))
 
 
-(defun %make-heap-ivector (subtype size-in-bytes &optional size-in-elts)
-  (if (not (fixnump size-in-elts))
-    (error "Need size in elts = fixnum")) ; not really optional, is smaller than fixnum
+
+(defun %make-heap-ivector (subtype size-in-bytes size-in-elts)
   (with-macptrs ((ptr (malloc (+ size-in-bytes (+ 4 2 7))))) ; 4 for header, 2 for delta, 7 for round up
     (let ((vect (fudge-heap-pointer ptr subtype size-in-elts))
           (p (%null-ptr)))
