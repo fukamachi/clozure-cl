@@ -966,92 +966,101 @@
   (when (not (called-for-mv-p))
     (return-from truncate (truncate-no-rem number divisor)))
   (macrolet 
-    ((truncate-rat-dfloat (number divisor)
-       `(with-stack-double-floats ((fnum ,number)
-                                      (f2))
-         (let ((res (%unary-truncate (%double-float/-2! fnum ,divisor f2))))
-           (values res 
-                   (%double-float--2 fnum (%double-float*-2! (%double-float res f2) ,divisor f2))))))
-     (truncate-rat-sfloat (number divisor)
-       `(with-stack-short-floats ((fnum ,number)
-                                      (f2))
-         (let ((res (%unary-truncate (%short-float/-2! fnum ,divisor f2))))
-           (values res 
-                   (%short-float--2 fnum (%short-float*-2! (%short-float res f2) ,divisor f2)))))))            
-  (number-case number
-    (fixnum (number-case divisor
-              (fixnum (if (eq divisor 1) (values number 0) (%fixnum-truncate number divisor)))
-              (bignum (values 0 number))
-              (double-float (truncate-rat-dfloat number divisor))
-              (short-float (truncate-rat-sfloat number divisor))
-              (ratio (let ((q (truncate (* number (%denominator divisor))  ; this was wrong
-                               (%numerator divisor))))
-                       (values q (- number (* q divisor)))))))
-    (bignum (number-case divisor
-             (fixnum (if (eq divisor 1) (values number 0)
-                         (if (eq divisor most-negative-fixnum)  ;; << aargh
-                           (with-small-bignum-buffers ((bd divisor))
-                             (bignum-truncate number bd))
-                           (bignum-truncate-by-fixnum number divisor))))
-              (bignum (bignum-truncate number divisor))
-              (double-float  (truncate-rat-dfloat number divisor))
-              (short-float (truncate-rat-sfloat number divisor))
-              (ratio (let ((q (truncate (* number (%denominator divisor))  ; so was this
-                               (%numerator divisor))))
-                       (values q (- number (* q divisor)))))))
-    (short-float (if (eql divisor 1)
-                   (let* ((res (%unary-truncate number)))
-                     (values res (- number res)))
-                   (number-case divisor
-                     (short-float
-                      (with-stack-short-floats ((f2))
-                         (let ((res (%unary-truncate (%short-float/-2! number divisor f2))))
-                           (values res 
-                                   (%short-float--2
-                                    number 
-                                    (%short-float*-2! (%short-float res f2) divisor f2))))))
-                     ((fixnum bignum ratio)
-                      (with-stack-short-floats ((fdiv divisor)
-                                                      (f2))
-                         (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
-                           (values res 
-                                   (%short-float--2 
-                                    number 
-                                    (%short-float*-2! (%short-float res f2) fdiv f2))))))
-                     (double-float
-                      (with-stack-double-floats ((fnum number)
+      ((truncate-rat-dfloat (number divisor)
+         `(with-stack-double-floats ((fnum ,number)
+                                     (f2))
+           (let ((res (%unary-truncate (%double-float/-2! fnum ,divisor f2))))
+             (values res 
+                     (%double-float--2 fnum (%double-float*-2! (%double-float res f2) ,divisor f2))))))
+       (truncate-rat-sfloat (number divisor)
+         `(with-stack-short-floats ((fnum ,number)
+                                    (f2))
+           (let ((res (%unary-truncate (%short-float/-2! fnum ,divisor f2))))
+             (values res 
+                     (%short-float--2 fnum (%short-float*-2! (%short-float res f2) ,divisor f2)))))))            
+    (number-case number
+      (fixnum
+       (if (eql number most-negative-fixnum)
+         (if (zerop divisor)
+           (error 'division-by-zero :operation 'truncate :operands (list number divisor))
+           (with-small-bignum-buffers ((bn number))
+             (multiple-value-bind (quo rem) (truncate bn divisor)
+               (if (eq quo bn)
+                 (values number rem)
+                 (values quo rem)))))
+         (number-case divisor
+           (fixnum (if (eq divisor 1) (values number 0) (%fixnum-truncate number divisor)))
+           (bignum (values 0 number))
+           (double-float (truncate-rat-dfloat number divisor))
+           (short-float (truncate-rat-sfloat number divisor))
+           (ratio (let ((q (truncate (* number (%denominator divisor)) ; this was wrong
+                                     (%numerator divisor))))
+                    (values q (- number (* q divisor))))))))
+      (bignum (number-case divisor
+                (fixnum (if (eq divisor 1) (values number 0)
+                          (if (eq divisor most-negative-fixnum);; << aargh
+                            (with-small-bignum-buffers ((bd divisor))
+                              (bignum-truncate number bd))
+                            (bignum-truncate-by-fixnum number divisor))))
+                (bignum (bignum-truncate number divisor))
+                (double-float  (truncate-rat-dfloat number divisor))
+                (short-float (truncate-rat-sfloat number divisor))
+                (ratio (let ((q (truncate (* number (%denominator divisor)) ; so was this
+                                          (%numerator divisor))))
+                         (values q (- number (* q divisor)))))))
+      (short-float (if (eql divisor 1)
+                     (let* ((res (%unary-truncate number)))
+                       (values res (- number res)))
+                     (number-case divisor
+                       (short-float
+                        (with-stack-short-floats ((f2))
+                          (let ((res (%unary-truncate (%short-float/-2! number divisor f2))))
+                            (values res 
+                                    (%short-float--2
+                                     number 
+                                     (%short-float*-2! (%short-float res f2) divisor f2))))))
+                       ((fixnum bignum ratio)
+                        (with-stack-short-floats ((fdiv divisor)
+                                                  (f2))
+                          (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
+                            (values res 
+                                    (%short-float--2 
+                                     number 
+                                     (%short-float*-2! (%short-float res f2) fdiv f2))))))
+                       (double-float
+                        (with-stack-double-floats ((fnum number)
+                                                   (f2))
+                          (let* ((res (%unary-truncate (%double-float/-2! fnum divisor f2))))
+                            (values res
+                                    (%double-float--2
+                                     fnum
+                                     (%double-float*-2! (%double-float res f2) divisor f2)))))))))
+      (double-float (if (eql divisor 1)
+                      (let ((res (%unary-truncate number)))
+                        (values res (- number res)))
+                      (number-case divisor
+                        ((fixnum bignum ratio short-float)
+                         (with-stack-double-floats ((fdiv divisor)
                                                     (f2))
-                        (let* ((res (%unary-truncate (%double-float/-2! fnum divisor f2))))
-                          (values res
-                                  (%double-float--2
-                                   fnum
-                                   (%double-float*-2! (%double-float res f2) divisor f2)))))))))
-    (double-float (if (eql divisor 1)
-                    (let ((res (%unary-truncate number)))
-                         (values res (- number res)))
-                    (number-case divisor
-                      ((fixnum bignum ratio short-float)
-                       (with-stack-double-floats ((fdiv divisor)
-                                                      (f2))
-                         (let ((res (%unary-truncate (%double-float/-2! number fdiv f2))))
-                           (values res 
-                                   (%double-float--2 
-                                    number 
-                                    (%double-float*-2! (%double-float res f2) fdiv f2))))))                        
-                      (double-float
-                       (with-stack-double-floats ((f2))
-                         (let ((res (%unary-truncate (%double-float/-2! number divisor f2))))
-                           (values res 
-                                   (%double-float--2
-                                    number 
-                                    (%double-float*-2! (%double-float res f2) divisor f2)))))))))
-    (ratio (number-case divisor
-                  (double-float (truncate-rat-dfloat number divisor))
-                  (short-float (truncate-rat-sfloat number divisor))
-                  (rational
-                   (let ((q (truncate (%numerator number)
-                                      (* (%denominator number) divisor))))
-                     (values q (- number (* q divisor))))))))))
+                           (let ((res (%unary-truncate (%double-float/-2! number fdiv f2))))
+                             (values res 
+                                     (%double-float--2 
+                                      number 
+                                      (%double-float*-2! (%double-float res f2) fdiv f2))))))                        
+                        (double-float
+                         (with-stack-double-floats ((f2))
+                           (let ((res (%unary-truncate (%double-float/-2! number divisor f2))))
+                             (values res 
+                                     (%double-float--2
+                                      number 
+                                      (%double-float*-2! (%double-float res f2) divisor f2)))))))))
+      (ratio (number-case divisor
+               (double-float (truncate-rat-dfloat number divisor))
+               (short-float (truncate-rat-sfloat number divisor))
+               (rational
+                (let ((q (truncate (%numerator number)
+                                   (* (%denominator number) divisor))))
+                  (values q (- number (* q divisor))))))))))
 
 (defun truncate-no-rem (number  divisor)
   "Returns number (or number/divisor) as an integer, rounded toward 0."
@@ -1064,50 +1073,59 @@
        `(with-stack-short-floats ((fnum ,number)
                                       (f2))
          (%unary-truncate (%short-float/-2! fnum ,divisor f2)))))
-  (number-case number
-    (fixnum (number-case divisor
-              (fixnum (if (eq divisor 1) number (values (%fixnum-truncate number divisor))))
-              (bignum 0)
-              (double-float (truncate-rat-dfloat number divisor))
-              (short-float (truncate-rat-sfloat number divisor))
-              (ratio (let ((q (truncate (* number (%denominator divisor))
-                                        (%numerator divisor))))
-                       q))))
-    (bignum (number-case divisor
-              (fixnum (if (eq divisor 1) number
-                          (if (eq divisor most-negative-fixnum)
-                            (with-small-bignum-buffers ((bd divisor))
-                              (bignum-truncate number bd :no-rem))
-                            (bignum-truncate-by-fixnum number divisor))))
-              (bignum (bignum-truncate number divisor :no-rem))
-              (double-float  (truncate-rat-dfloat number divisor))
-              (short-float (truncate-rat-sfloat number divisor))
-              (ratio (let ((q (truncate (* number (%denominator divisor))
-                                        (%numerator divisor))))
-                       Q))))
-    (double-float (if (eql divisor 1)
-                    (let ((res (%unary-truncate number)))
-                      RES)
-                    (number-case divisor
-                      ((fixnum bignum ratio)
-                       (with-stack-double-floats ((fdiv divisor)
-                                                      (f2))
-                         (let ((res (%unary-truncate (%double-float/-2! number fdiv f2))))
-                           RES)))
-                      (short-float
-                       (with-stack-double-floats ((ddiv divisor)
-                                                      (f2))
-                         (%unary-truncate (%double-float/-2! number ddiv f2))))
-                      (double-float
-                       (with-stack-double-floats ((f2))
-                         (%unary-truncate (%double-float/-2! number divisor f2)))))))
-    (short-float (if (eql divisor 1)
+    (number-case number
+    (fixnum
+     (if (eql number most-negative-fixnum)
+       (if (zerop divisor)
+         (error 'division-by-zero :operation 'truncate :operands (list number divisor))
+         (with-small-bignum-buffers ((bn number))
+           (let* ((result (truncate-no-rem bn divisor)))
+             (if (eq result bn)
+               number
+               result))))
+       (number-case divisor
+         (fixnum (if (eq divisor 1) number (values (%fixnum-truncate number divisor))))
+         (bignum 0)
+         (double-float (truncate-rat-dfloat number divisor))
+         (short-float (truncate-rat-sfloat number divisor))
+         (ratio (let ((q (truncate (* number (%denominator divisor))
+                                   (%numerator divisor))))
+                  q)))))
+     (bignum (number-case divisor
+               (fixnum (if (eq divisor 1) number
+                         (if (eq divisor most-negative-fixnum)
+                           (with-small-bignum-buffers ((bd divisor))
+                             (bignum-truncate number bd :no-rem))
+                           (bignum-truncate-by-fixnum number divisor))))
+               (bignum (bignum-truncate number divisor :no-rem))
+               (double-float  (truncate-rat-dfloat number divisor))
+               (short-float (truncate-rat-sfloat number divisor))
+               (ratio (let ((q (truncate (* number (%denominator divisor))
+                                         (%numerator divisor))))
+                        Q))))
+     (double-float (if (eql divisor 1)
+                     (let ((res (%unary-truncate number)))
+                       RES)
+                     (number-case divisor
+                       ((fixnum bignum ratio)
+                        (with-stack-double-floats ((fdiv divisor)
+                                                   (f2))
+                          (let ((res (%unary-truncate (%double-float/-2! number fdiv f2))))
+                            RES)))
+                       (short-float
+                        (with-stack-double-floats ((ddiv divisor)
+                                                   (f2))
+                          (%unary-truncate (%double-float/-2! number ddiv f2))))
+                       (double-float
+                        (with-stack-double-floats ((f2))
+                          (%unary-truncate (%double-float/-2! number divisor f2)))))))
+     (short-float (if (eql divisor 1)
                     (let ((res (%unary-truncate number)))
                       RES)
                     (number-case divisor
                       ((fixnum bignum ratio)
                        (with-stack-short-floats ((fdiv divisor)
-                                                      (f2))
+                                                 (f2))
                          (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
                            RES)))
                       (short-float
