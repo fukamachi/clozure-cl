@@ -62,12 +62,14 @@
   "Read a character from the terminal and insert it.
   With prefix argument, insert the character that many times."
   "Reads a key-event from *editor-input* and inserts it at the point."
-  (let ((char (hemlock-ext:key-event-char (get-key-event *editor-input* t)))
-	(point (current-point)))
-    (unless char (editor-error "Can't insert that character."))
-    (if (and p (> p 1))
-	(insert-string point (make-string p :initial-element char))
-	(insert-character point char))))
+  (setf (hi::command-interpreter-info-function hi::*current-command-info*)
+	#'(lambda (key-event)
+	    (let* ((char (hemlock-ext:key-event-char key-event))
+		   (point (current-point)))
+	      (unless char (editor-error "Can't insert that character."))
+	      (if (and p (> p 1))
+		(insert-string point (make-string p :initial-element char))
+		(insert-character point char))))))
 
 (defcommand "Forward Character" (p)
   "Move the point forward one character.
