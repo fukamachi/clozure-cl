@@ -12,7 +12,8 @@
 (defstruct (buffer-operation (:include ccl::dll-node))
   (thunk nil))
 
-(defstruct (event-queue-node (:include ccl::dll-node))
+(defstruct (event-queue-node (:include ccl::dll-node)
+                             (:constructor make-event-queue-node (event)))
   event)
 
 (defun event-queue-insert (q node)
@@ -20,7 +21,7 @@
   (ccl::signal-semaphore (frame-event-queue-signal q)))
 
 (defun enqueue-key-event (q event)
-  (event-queue-insert q (make-event-queue-node :event event)))
+  (event-queue-insert q (make-event-queue-node event)))
 
 (defun dequeue-key-event (q)
   (unless (listen-editor-input q)
@@ -33,7 +34,7 @@
 
 (defun unget-key-event (event q)
   (ccl::with-locked-dll-header (q)
-    (ccl::insert-dll-node-after (make-event-queue-node event) q))
+    (ccl::insert-dll-node-after (make-event-queue-node  event) q))
   (ccl::signal-semaphore (frame-event-queue-signal q)))
 
 (defun timed-wait-for-key-event (q seconds)
