@@ -472,8 +472,12 @@
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      (#+linuxppc-target %get-unsigned-long #-linuxppc-target %get-ptr
-                         tcrp ppc32::tcr.osid))))
+      #+linuxppc-target
+      (let* ((pthread (%get-unsigned-long tcrp ppc32::tcr.osid)))
+	(unless (zerop pthread) pthread))
+      #-linuxppc-target
+      (let* ((pthread (%get-ptr tcrp ppc32::tcr.osid)))
+	(unless (%null-ptr-p pthread) pthread)))))
                          
 ;;; This returns something lower-level than the pthread, if that
 ;;; concept makes sense.  On current versions of Linux, it returns
