@@ -1,7 +1,7 @@
 This directory contains various third-party opensourced
 system-building tools.
 
-The code here is current as of February 7, 2004; you may want
+The code here is current as of February 1, 2005; you may want
 to check the originating project's homepages to see if more recent
 versions are available.
 

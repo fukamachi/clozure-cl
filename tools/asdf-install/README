@@ -1,21 +1,27 @@
-Downloads and installs an ASDF system or anything else that looks
-convincingly like one, including updating the ASDF:*CENTRAL-REGISTRY*
-symlinks for all the toplevel .asd files it contains.  Please read
-this file before use: in particular: this is an automatic tool that
-downloads and compiles stuff it finds on the 'net.  Please look at the
-SECURITY section and be sure you understand the implications
+Downloads and installs an ASDF or a MK:DEFSYSTEM system or anything
+else that looks convincingly like one. It updates the
+ASDF:*CENTRAL-REGISTRY* symlinks for all the toplevel .asd files it
+contains, and it also MK:ADD-REGISTRY-LOCATION for the appropriate
+directories for MK:DEFSYSTEM.
+
+Please read this file before use: in particular: this is an automatic
+tool that downloads and compiles stuff it finds on the 'net.  Please
+look at the SECURITY section and be sure you understand the
+implications
 
 
 = USAGE
 
-This can be used either from within an SBCL instance:
+This can be used either from within a CL implementation:
 
-* (require 'asdf-install)
-* (asdf-install:install 'xlunit) ; for example
+cl-prompt> (load "/path/to/load-asdf-install.lisp")
+cl-prompt> (asdf-install:install 'xlunit) ; for example
 
-or standalone from the shell:
+With SBCL you can also use the standalone command `sbcl-asdf-install'
+from the shell:
 
 $ sbcl-asdf-install xlunit
+
 
 Each argument may be -
 
@@ -30,11 +36,12 @@ Each argument may be -
 
 = SECURITY CONCERNS: READ THIS CAREFULLY
 
-When you invoke asdf-install, you are asking SBCL to download,
-compile, and install software from some random site on the web.  Given
-that it's indirected through a page on CLiki, any malicious third party
-doesn't even need to hack the distribution server to replace the
-package with something else: he can just edit the link.  
+When you invoke asdf-install, you are asking your CL implementation to
+download, compile, and install software from some random site on the
+web.  Given that it's indirected through a page on CLiki, any
+malicious third party doesn't even need to hack the distribution
+server to replace the package with something else: he can just edit
+the link.
 
 For this reason, we encourage package providers to crypto-sign their
 packages (see details at the URL in the PACKAGE CREATION section) and
@@ -59,9 +66,14 @@ Presently these are
 *CCLAN-MIRROR*        
    preferred/nearest CCLAN node.  See the list at 
    http://ww.telent.net/cclan-choose-mirror
+*ASDF-INSTALL-DIRS*
+   Set from ASDF_INSTALL_DIR environment variable.  If you are running
+   SBCL, then *ASDF-INSTALL-DIRS* may be set form the environment variable
+   SBCL_HOME, which should already be correct for whatever SBCL is
+   running, if it's been installed correctly.  This is done for
+   backward compatibility with SBCL installations.
 *SBCL-HOME*
-   Set from $SBCL_HOME environment variable.  This should already be 
-   correct for whatever SBCL is running, if it's been installed correctly
+   This is actually a symbol macro for *ASDF-INSTALL-DIRS*
 *VERIFY-GPG-SIGNATURES*
    Verify GPG signatures for the downloaded packages?
    NIL - no, T - yes, :UNKNOWN-LOCATIONS - only for URLs which aren't in CCLAN

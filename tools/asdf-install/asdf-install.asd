@@ -31,10 +31,11 @@
   :components ((:file "defpackage")
                #+:sbcl
 	       (:exe-file "loader" :depends-on ("installer"))
+               (:file "split-sequence")
                (:file "port" :depends-on ("defpackage"))
                #+:digitool
                (:file "digitool" :depends-on ("port"))
-	       (:file "installer" :depends-on ("port" #+:digitool "digitool"))))
+	       (:file "installer" :depends-on ("port" "split-sequence" #+:digitool "digitool"))))
 	       
 (defmethod perform :after ((o load-op) (c (eql (find-system :asdf-install))))
   (provide 'asdf-install))

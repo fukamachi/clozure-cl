@@ -42,6 +42,7 @@ Lisp implementation.
     <li><a href="#install-asdf-install">Installing ASDF-INSTALL</a>
     <li><a href="#load-asdf-install">Loading ASDF-INSTALL automatically</a>
   </ol>
+  <li><a href="#defsystem">Optional: Using MK:DEFSYSTEM instead of (or in addition to) ASDF</a>
   <li><a href="#library">How to install a library</a>
   <ol>
     <li><a href="#name">Installing a library by name</a>
@@ -54,14 +55,15 @@ Lisp implementation.
   <li><a href="#dependencies">How ASDF-INSTALL resolves dependencies</a>
   <li><a href="#customize">Customizing ASDF-INSTALL</a>
   <ol>
+    <li><a href="#*gnu-tar-program*">Special variable <code>*GNU-TAR-PROGRAM*</code></a>
     <li><a href="#*proxy*">Special variable <code>*PROXY*</code></a>
     <li><a href="#*cclan-mirror*">Special variable <code>*CCLAN-MIRROR*</code></a>
     <li><a href="#*verify-gpg-signatures*">Special variable <code>*VERIFY-GPG-SIGNATURES*</code></a>
     <li><a href="#*safe-url-prefixes*">Special variable <code>*SAFE-URL-PREFIXES*</code></a>
     <li><a href="#*locations*">Special variable <code>*LOCATIONS*</code></a>
     <li><a href="#*preferred-location*">Special variable <code>*PREFERRED-LOCATION*</code></a>
-    <li><a href="#asdf-install-dir">Environment variable <code>ASDF-INSTALL-DIR</code></a>
-    <li><a href="#private-asdf-install-dir">Environment variable <code>PRIVATE-ASDF-INSTALL-DIR</code></a>
+    <li><a href="#asdf-install-dir">Environment variable <code>ASDF_INSTALL_DIR</code></a>
+    <li><a href="#private-asdf-install-dir">Environment variable <code>PRIVATE_ASDF_INSTALL_DIR</code></a>
   </ol>
   <li><a href="#trusted-uids">The list of trusted code suppliers</a>
   <li><a href="#uninstall">How to uninstall a library</a>
@@ -98,12 +100,15 @@ be compiled and loaded in a certain order. This is similar to the Unix
 <code>make</code> program. ASDF works with the majority of CL
 implementations in use today.
 <p>
-(A similar system which precedes ASDF is <a
+A similar system which precedes ASDF is <a
 href="http://www.cliki.net/mk-defsystem">MK:DEFSYSTEM</a>. You don't
 need it for ASDF-INSTALL but it won't hurt to have it available for
 libraries which aren't aware of ASDF. However, this document makes no
 effort to explain how MK:DEFSYSTEM is used. See Henrik Motakef's
-article &quot;<a href="http://www.henrik-motakef.de/defsystem.html">Fight The System</a>.&quot;)
+article &quot;<a href="http://www.henrik-motakef.de/defsystem.html">Fight The System</a>.&quot;
+<p>
+<font color=green><em>Update:</em></font> Marco Antoniotti has patched
+ASDF-INSTALL to make it work with MK:DEFSYSTEM as well. See the <a href="#defsystem">section about MK:DEFSYSTEM</a> below.
 
 <br>&nbsp;<br><h3><a class=none name="asdf-install">What is ASDF-INSTALL?</a></h3>
 
@@ -136,7 +141,7 @@ available on more platforms.
 The original ASDF-INSTALL is distributed with SBCL. The
 &quot;portable&quot; version, while still being tested, is currently
 available from <a
-href="http://weitz.de/files/asdf-install.tgz">http://weitz.de/files/asdf-install.tgz</a>. It
+href="http://weitz.de/files/asdf-install.tar.gz">http://weitz.de/files/asdf-install.tar.gz</a>. It
 will probably be moved to another place like <a
 href="http://www.cliki.net/cclan">CCLAN</a> once it's deemed stable enough.
 
@@ -155,6 +160,12 @@ you want to be reasonable sure that you're not installing arbitrary
 malicious code.)
 
 <p>
+<font><em>Update:</em></font> Beginning with version 0.14.1
+ASDF-INSTALL is already included with the OpenMCL distribution so
+OpenMCL basically behaves like SBCL in the following sections. See the
+OpenMCL docs for details.
+
+<p>
 <font><em>Note:</em></font> For MCL you must start
 your Lisp from a terminal.
 
@@ -169,6 +180,7 @@ use</a> the Cygwin version (which can also be installed from the setup
 application). The good news is that if you use Cygwin you can pretty
 much pretend you're on Unix and <b>skip</b> all the <font
 color=green><em>Windows notes</em></font> below.
+<p>(Update: Alex Mizrahi posted <a href='http://www.google.com/groups?selm=2gacj0Fi7moU1%40uni-berlin.de&output=gplain'>some notes</a> about using the native Win32 version of CLISP to <a href='news://comp.lang.lisp'>comp.lang.lisp</a>. I asked him to send patches but he hasn't sent them yet.)
 
 <p>
 Whenever I use <code>~/</code> (the Unix shell notation for the user's
@@ -180,7 +192,7 @@ be, on Windows this is not the case. Read the docs of your Lisp.
 
 <h4><a class=none name="install-asdf">Installing ASDF</a></h4>
 
-(<a href="#load-asdf">Skip</a> this section if you use SBCL.) <a
+(<a href="#load-asdf">Skip</a> this section if you use SBCL or AllegroCL 7.0 or higher.) <a
 href="http://weitz.de/files/asdf.lisp">Download</a> ASDF and put the
 file <code>asdf.lisp</code> in a place where you want it to
 stay. Change into this directory and, from your Lisp, issue the
@@ -253,7 +265,7 @@ Minus</a> thus makes sure that ASDF isn't loaded a second time if it's
 already there. (So you can safely save and use an image with ASDF
 pre-loaded without changing your image file.)
 <p>
-If you're using SBCL <em>don't</em> add the line from above but use
+If you're using SBCL or AllegroCL 7.0 or higher <em>don't</em> add the line from above but use
 
 <pre>
 (require :asdf)
@@ -272,7 +284,7 @@ directories to it. Open your initialization file once again and add
 the following line <em>after</em> the line which loads ASDF:
 
 <pre>
-(pushnew "/path/to/your/registry/" asdf:*central-registry*)
+(pushnew "/path/to/your/registry/" asdf:*central-registry* :test #'equal)
 </pre>
 
 You can use a directory of your choice but you should make sure it
@@ -323,7 +335,7 @@ initialization file.
 <h4><a class=none name="install-asdf-install">Installing ASDF-INSTALL</a></h4>
 
 (<a href="#load-asdf-install">Skip</a> this section if you use SBCL.)
-<a href="http://weitz.de/files/asdf-install.tgz">Download</a>
+<a href="http://weitz.de/files/asdf-install.tar.gz">Download</a>
 ASDF-INSTALL and unpack the gzipped tar archive into a directory of
 your choice. Now create a symlink from the <code>.asd</code> file to your <a href="#registry">registry</a>:
 
@@ -348,7 +360,7 @@ compile and load ASDF-INSTALL you have to put this line into your
 initialization file:
 
 <pre>
-(pushnew "/path/where/you/unpacked/asdf-install/" asdf:*central-registry*)
+(pushnew "/path/where/you/unpacked/asdf-install/" asdf:*central-registry* :test #'equal)
 </pre>
 
 and then either restart your Lisp or evaluate this expression in your
@@ -398,9 +410,48 @@ because this will not necessarily find the newest one if you've
 installed several versions of the same library. Make sure to <a
 href="#uninstall">uninstall</a> older versions.
 
+<br>&nbsp;<br><h3><a class=none name="defsystem">Optional: Using MK:DEFSYSTEM instead of (or in addition to) ASDF</a></h3>
+
+<a href="http://www.cliki.net/mk-defsystem">MK:DEFSYSTEM</a> was
+written by Mark Kantrovitz in the early days of Common Lisp. It
+precedes ASDF and also works with almost all CL implementations you'll
+come across. Thanks to the efforts of Marco Antoniotti, ASDF-INSTALL
+can now also be used with MK:DEFSYSTEM which means that even if the
+library you want to use doesn't have an ASDF system definition you
+might be able to install it via ASDF-INSTALL.
+<p>
+The recommended setup is to use <em>both</em> ASDF <em>and</em>
+MK:DEFSYSTEM because this will significantly increase the number of
+libraries you can install with ASDF-INSTALL.
+<p>
+To set up your Lisp environment for this you have to do the following (after reading the sections above):
+<ul>
+  <li>Get MK:DEFSYSTEM (version&nbsp;3.4i or higher) from <a href="http://clocc.sourceforge.net/">CLOCC</a>. (You can grab a nightly snapshot or browse the CVS. You only need the file <code>defsystem.lisp</code> from within the <code>src/defsystem-3.x</code> directory.)
+  <li>To install MK:DEFSYSTEM evaluate the form
+<pre>
+(load (compile-file "/path/to/defsystem.lisp"))
+</pre>
+  <li>To load MK:DEFSYSTEM automatically each time you start your Lisp put the forms
+<pre>
+#-:mk-defsystem (load "/path/to/defsystem")
+(mk:add-registry-location "/path/to/your/registry/")
+</pre>
+      into your initialization file.
+  <li>Finally, replace the line
+<pre>
+#-:asdf-install (asdf:operate 'asdf:load-op :asdf-install)
+</pre>
+from <a href="#load-asdf-install">above</a> with the line
+<pre>
+#-:asdf-install (load "/path/to/asdf-install/load-asdf-install")
+</pre>
+This last step will ensure that ASDF-INSTALL will always be loaded on startup even if you only use MK:DEFSYSTEM and don't have ASDF available.
+</ul>
+The following sections should work for you no matter whether you use ASDF, MK:DEFSYSTEM, or both.
+
 <br>&nbsp;<br><h3><a class=none name="library">How to install a library</a></h3>
 
-Here and in the following sections we assume that you have setup your
+Here and in the following sections we assume that you have set up your
 environment as described in <a
 href="#pre"><em>Prerequisites</em></a>.
 
@@ -469,7 +520,7 @@ If this is the case you can download and install the library directly by
 providing the download URL of the package like so:
 
 <pre>
-(asdf-install:install &quot;http://weitz.de/files/cl-ppcre.tgz&quot;)
+(asdf-install:install &quot;http://weitz.de/files/cl-ppcre.tar.gz&quot;)
 </pre>
 
 Now proceed with <a href="#where"><em>Where to store the library</em></a> below.
@@ -737,6 +788,10 @@ href="http://www.lispworks.com/reference/HyperSpec/Body/26_glo_e.htm#exported">e
 from the <code>ASDF-INSTALL</code> <a
 href="http://www.lispworks.com/reference/HyperSpec/Body/11_.htm">package</a>.
 
+<h4><a class=none name="*gnu-tar-program*">Special variable <code>*GNU-TAR-PROGRAM*</code></a></h4>
+
+The path to the GNU <code>tar</code> program as a string - the default is <code>&quot;tar&quot;</code>. Changing this variable has no effect if Cygwin is used.
+
 <h4><a class=none name="*proxy*">Special variable <code>*PROXY*</code></a></h4>
 
 This variable is <code>NIL</code> by default but will be set to the
@@ -833,7 +888,7 @@ href="#*locations*"><code>*LOCATIONS*</code></a>. Note that
 <em>Note:</em> This customization option is currently not supported in
 the SBCL version of ASDF-INSTALL.
 
-<h4><a class=none name="asdf-install-dir">Environment variable <code>ASDF-INSTALL-DIR</code></a></h4>
+<h4><a class=none name="asdf-install-dir">Environment variable <code>ASDF_INSTALL_DIR</code></a></h4>
 
 The value of this <em>environment variable</em> determines the first element of the initial value of
 <a href="#*locations*"><code>*LOCATIONS*</code></a>, i.e. if it, say,
@@ -853,7 +908,7 @@ If this variable is not set, the directory
 <em>Note:</em> On SBCL the value of <code>SBCL_HOME</code> is used
 instead.
 
-<h4><a class=none name="private-asdf-install-dir">Environment variable <code>PRIVATE-ASDF-INSTALL-DIR</code></a></h4>
+<h4><a class=none name="private-asdf-install-dir">Environment variable <code>PRIVATE_ASDF_INSTALL_DIR</code></a></h4>
 
 The value of this <em>environment variable</em> determines the second element of the initial value of
 <a href="#*locations*"><code>*LOCATIONS*</code></a>, i.e. if it, say,
@@ -896,17 +951,19 @@ Here's a documented example for how the file
 (pushnew '(#p&quot;/usr/local/lisp/unstable/site/&quot;
            #p&quot;/usr/local/lisp/unstable/systems/&quot;
            &quot;Install as unstable&quot;)
-         asdf-install:<a href="#*locations*">*locations*</a>)
+         asdf-install:<a href="#*locations*">*locations*</a>
+         :test #'equal)
 
 <font color=orange>;; make sure this is also known by ASDF</font>
 (pushnew &quot;/usr/local/lisp/unstable/systems/&quot;
-         asdf:<a href="#*central-registry*">*central-registry*</a>)
+         asdf:<a href="#*central-registry*">*central-registry*</a>
+         :test #'equal)
 </pre>
 
 <br>&nbsp;<br><h3><a class=none name="trusted-uids">The list of trusted code suppliers</a></h3>
 
 ASDF-INSTALL maintains a list of library authors you trust. This list
-is stored in a file <code>trusted-uids.lisp</code> and usually resides in the directory <code>~/.asdf-install-dir/</code> but this can be customized by changing the environment variable <a href="#private-asdf-install-dir"><code>PRIVATE-ASDF-INSTALL-DIR</code></a>. You are not supposed to edit this file manually - new entries are added automatically whenever you choose the <a href="#restart">corresponding restart</a> during the security check.
+is stored in a file <code>trusted-uids.lisp</code> and usually resides in the directory <code>~/.asdf-install-dir/</code> but this can be customized by changing the environment variable <a href="#private-asdf-install-dir"><code>PRIVATE_ASDF_INSTALL_DIR</code></a>. You are not supposed to edit this file manually - new entries are added automatically whenever you choose the <a href="#restart">corresponding restart</a> during the security check.
 
 <br>&nbsp;<br><h3><a class=none name="uninstall">How to uninstall a library</a></h3>
 
@@ -930,11 +987,20 @@ what it is about to remove before you confirm.
 <br>&nbsp;<br><h3><a class=none name="changelog">Changelog</a></h3>
 
 <table border=0>
-<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-01-28</td><td>Improved MCL support</td></tr>
-<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-01-21</td><td>Support for MCL</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-12-29</td><td>Added COPYRIGHT file to distribution.</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-09-13</td><td>Added information about AllegroCL 7.0 and OpenMCL 0.14.1.</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-09-08</td><td>Fixed typo in <code>GET-ENV-VAR</code> and added special variable <code>*GNU-TAR-PROGRAM*</code> (both thanks to Raymond Toy)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-05-20</td><td>Changed hyphens to underlines in names of environment variables (thanks to Robert P. Goldman)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-05-19</td><td>Mentioned Alex Mizrahi's notes, added version number for MK:DEFSYSTEM in docs and SPLIT-SEQUENCE dependency in ASDF system definition (thanks to Robert P. Goldman and Robert Lehr)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-04-28</td><td>Fixed <code>asdf-install.asd</code> so that it still works and you're not forced to use <code>load-asdf-install.lisp</code></td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-04-25</td><td>MK:DEFSYSTEM clarification</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-04-24</td><td>Patches by Marco Antoniotti for MK:DEFSYSTEM compatibility</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-03-27</td><td>Bugfixes by Kiyoshi Mizumaru</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-01-28</td><td>Improved MCL support (James Anderson)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-01-21</td><td>Support for MCL by James Anderson</td></tr>
 <tr><td colspan=2 valign=top style='white-space:nowrap'>2004-01-16</td><td>Minor edits, Cygwin CLISP support, download location for <code>asdf.fas</code></td></tr>
 <tr><td colspan=2 valign=top style='white-space:nowrap'>2004-01-15</td><td>Preliminary Windows support, described how to uninstall a library, added <code>*PREFERRED-LOCATION*</code>, removed <code>ln</code> bug in CLISP code</td></tr>
-<tr><td valign=top style='white-space:nowrap'>2004-01-13</td><td>&nbsp;</td><td>Mentioned OpenMCL support, added some SBCL exceptions, added clarification about Windows, minor edits, changes by Dan Barlow</td></tr>
+<tr><td valign=top style='white-space:nowrap'>2004-01-13</td><td>&nbsp;</td><td>Mentioned OpenMCL support (Marco Baringer), added some SBCL exceptions, added clarification about Windows, minor edits, changes by Dan Barlow</td></tr>
 <tr><td colspan=2 valign=top style='white-space:nowrap'>2004-01-12</td><td>Initial version</td></tr>
 </table>
 

@@ -14,7 +14,7 @@
 
 (defun get-env-var (name)
   #+:sbcl (sb-ext:posix-getenv name)
-  #+:cmu (cdr (assoc (intern (substitute #\- #\_ name)
+  #+:cmu (cdr (assoc (intern (substitute #\_ #\- name)
                             :keyword)
                     ext:*environment-list*))
   #+:allegro (sys:getenv name)
@@ -38,7 +38,8 @@
   (let ((truename (probe-file pathname)))
     (unless truename
       (setf truename
-              (translate-logical-pathname (merge-pathnames pathname *default-pathname-defaults*))))
+              (translate-logical-pathname
+               (merge-pathnames pathname *default-pathname-defaults*))))
     (let ((directory (pathname-directory truename)))
       (flet ((string-or-nil (value) (when (stringp value) value))
              (absolute-p (directory) (eq (first directory) :absolute))
@@ -47,7 +48,8 @@
         (format nil "~:[~;/~]~{~a/~}~@[~a~]~@[.~a~]"
                 (absolute-p directory)
                 (if (root-volume-p directory) (cddr directory) (cdr directory))
-                (string-or-nil (pathname-name truename)) (string-or-nil (pathname-type truename)))))))
+                (string-or-nil (pathname-name truename))
+                (string-or-nil (pathname-type truename)))))))
 
 #+:digitool
 (progn
@@ -73,8 +75,9 @@
   (let ((buf (make-array *stream-buffer-size*
 			 :element-type (stream-element-type from))))
     (loop
-     (let ((pos #-:clisp (read-sequence buf from)
-                #+:clisp (ext:read-byte-sequence buf from :no-hang nil)))
+     (let ((pos #-(or :clisp :cmu) (read-sequence buf from)
+                #+:clisp (ext:read-byte-sequence buf from :no-hang nil)
+                #+:cmu (sys:read-n-bytes from buf 0 *stream-buffer-size* nil)))
        (when (zerop pos) (return))
        (write-sequence buf to :end pos)))))
 
@@ -101,8 +104,8 @@
                           :protocol :tcp)))
     (sb-bsd-sockets:socket-connect
      s (car (sb-bsd-sockets:host-ent-addresses
-             (sb-bsd-sockets:get-host-by-name (url-host (or *proxy* url)))))
-     (url-port (or *proxy* url)))
+             (sb-bsd-sockets:get-host-by-name (url-host url))))
+     (url-port url))
     (sb-bsd-sockets:socket-make-stream s :input t :output t :buffering :full))
   #+:cmu
   (sys:make-fd-stream (ext:connect-to-inet-socket (url-host url) (url-port url))
