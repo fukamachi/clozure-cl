@@ -1000,25 +1000,46 @@
             (when (< (decf cnt) 0)
               (return
                (if db-link-p
-                 ; Really ought to find the next binding if not the current tcr, but
-                 ; noone has complained about this bug before, so why fix it?
+                 ;; Really ought to find the next binding if not the
+                 ;; current tcr, but noone has complained about this
+                 ;; bug before, so why fix it?
                  (values (+ 2 arg-vsp)
                          :saved-special
-                         (%fixnum-ref (1+ arg-vsp)))
+			 (let* ((svar (index-svar (%fixnum-ref (1+ arg-vsp)))))
+			   (if svar
+			     (%svref svar arch::svar.symbol-cell)
+			     nil)))
                  (multiple-value-bind (type name) (find-local-name phys-cell lfun pc)
                    (values arg-vsp type name))))))
           (incf phys-cell)
           (when (< (decf arg-vsp) vsp)
             (error "n out of range")))))))
 
+(defppclapfunction %no-thread-local-binding-marker ()
+  (li arg_z arch::subtag-no-thread-local-binding)
+  (blr))
+
 (defun nth-value-in-frame (sp n tcr &optional lfun pc child-frame vsp parent-vsp)
   (multiple-value-bind (loc type name)
                        (nth-value-in-frame-loc sp n tcr lfun pc child-frame vsp parent-vsp)
-    (values (%fixnum-ref loc) type name)))
+    (let* ((val (%fixnum-ref loc)))
+      (when (and (eq type :saved-special)
+		 (eq val (%no-thread-local-binding-marker))
+		 name)
+	(setq val (%sym-global-value name)))
+      (values val  type name))))
 
 (defun set-nth-value-in-frame (sp n tcr new-value &optional child-frame vsp parent-vsp)
-  (let ((loc (nth-value-in-frame-loc sp n tcr nil nil child-frame vsp parent-vsp)))
-    (setf (%fixnum-ref loc) new-value)))
+  (multiple-value-bind (loc type name)
+      (nth-value-in-frame-loc sp n tcr nil nil child-frame vsp parent-vsp)
+    (let* ((old-value (%fixnum-ref loc)))
+      (if (and (eq type :saved-special)
+	       (eq old-value (%no-thread-local-binding-marker))
+	       name)
+	;; Setting the (shallow-bound) value of the outermost
+	;; thread-local binding of NAME.  Hmm.
+	(%set-sym-global-value name new-value)
+	(setf (%fixnum-ref loc) new-value)))))
 
 (defun nth-raw-frame (n start-frame tcr)
   (declare (fixnum n))
