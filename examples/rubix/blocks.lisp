@@ -1,5 +1,9 @@
 (in-package :cl-user)
 
+(defparameter *cube* nil)
+
+(defparameter *camera-pos* #(10.0 5.0 12.0))
+
 (defparameter *selection-buffer-size* 256)
 
 ;; some things have no scale or rotation, such as point light sources
@@ -80,11 +84,6 @@
   (with-transformation (obj)
     (render-children obj)))
 
-(defmacro with-gl ((value) &body body)
-  `(progn (#_glBegin ,value)
-          ,@body
-          (#_glEnd)))
-
 (defclass block (transformed-object)
   (;; need to generate matrices of this form so that copy-ivector-etc will work
    (vertices :initform (coerce
@@ -108,6 +107,22 @@
              :initarg :vertices :accessor vertices
              ;; :allocation :class
              )))
+
+;; I expect that especially with the FFI overhead, one call to render
+;; a static object's prefabbed display list will beat out a lot of
+;; calls to render the various portions... this will be an interesting
+;; conversionn and test going from code to DL, and good prep for
+;; moving from DL-creating code to DL file readers
+#+ignore
+(defmethod render-children ((obj block))
+  (let ((curve-radius 0.1)) ; 90-degree curve in 3 sections for edges and for corners
+    ;; strip for faces 0134 and their edges
+    ;; strip for face 2 and edges to 0 and 3
+    ;; strip for face 5 and edges to 0 and 3
+    ;; edges 15, 54, 42, and 21
+    ;; corner
+    ))
+
 (defmethod render-children ((obj block))
   (flet ((norm (axis) (#_glNormal3f (aref axis 0) (aref axis 1) (aref axis 2)))
          (material (color)
@@ -134,7 +149,7 @@
              (ccl::%copy-ivector-to-ptr (aref (vertices obj) d) 0 ffv 0 (* 4 3))
              (#_glVertex3fv ffv))
            t))
-    (with-gl (#$GL_QUADS)
+    (opengl:with-gl (#$GL_QUADS)
       (norm *x-axis*)     (material *hel-orange*) (quad 1 2 6 5)
       (norm *y-axis*)     (material *hel-yellow*) (quad 2 3 7 6)
       (norm *z-axis*)     (material *hel-green*)  (quad 0 3 2 1)
@@ -177,9 +192,9 @@
              ))
   (:default-initargs
       :blocks (let ((list nil))
-                (loop for z from -1.0 to 1.0 do
+                (loop for x from -1.0 to 1.0 do
                      (loop for y from -1.0 to 1.0 do
-                          (loop for x from -1.0 to 1.0 do
+                          (loop for z from -1.0 to 1.0 do
                                (push (make-instance 'block
                                        :location (coerce (list (/ x 3.0)
                                                                (/ y 3.0)
@@ -190,20 +205,35 @@
                                      list))))
                 (coerce list 'vector))))
 
-(let ((initial-blocks-in-faces #2a((0 1 2 5 8 7 6 3 4)
-                                   (0 9 18 19 20 11 2 1 10)
-                                   (0 3 6 15 24 21 18 9 12)
-                                   (26 23 20 19 18 21 24 25 22)
-                                   (26 25 24 15 6 7 8 17 16)
-                                   (26 17 8 5 2 11 20 23 14))))
-  (defmethod shared-initialize :after ((obj rubix-cube) slot-names &key)
-    (declare (ignore slot-names))
-    (setf (faces obj) (make-array (list 6 9)))
-    (dotimes (face 6)
-      (dotimes (blok 9)
-        (setf (aref (faces obj) face blok)
-              (aref (blocks obj) (aref initial-blocks-in-faces face blok))))))
-  )
+(defparameter *child-positions* (let ((list nil))
+				  (loop for x from -1.0 to 1.0 do
+					(loop for y from -1.0 to 1.0 do
+					      (loop for z from -1.0 to 1.0 do
+						    (push (coerce (list (/ x 3.0)
+									(/ y 3.0)
+									(/ z 3.0)) 'vector)
+							  list))))
+				  (coerce list 'vector)))
+
+;; blocks in faces start at a corner, go clockwise around the face,
+;; and finish in the center; blocks in the cube are numbered to
+;; correspond to *child-positions*; faces that share blocks are
+;; associated in faces-neighbors -- all 3 of these variables depend on
+;; each other
+(defparameter *initial-blocks-in-faces* #2a((0 1 2 5 8 7 6 3 4)
+					    (0 9 18 19 20 11 2 1 10)
+					    (0 3 6 15 24 21 18 9 12)
+					    (26 23 20 19 18 21 24 25 22)
+					    (26 25 24 15 6 7 8 17 16)
+					    (26 17 8 5 2 11 20 23 14)))
+
+(defmethod shared-initialize :after ((obj rubix-cube) slot-names &key)
+  (declare (ignore slot-names))
+  (setf (faces obj) (make-array (list 6 9)))
+  (dotimes (face 6)
+    (dotimes (blok 9)
+      (setf (aref (faces obj) face blok)
+	    (aref (blocks obj) (aref *initial-blocks-in-faces* face blok))))))
 
 (let ((faces-neighbors #2a((1 5 4 2)
                            (2 3 5 0)
@@ -243,7 +273,15 @@
           (aref faces face 1) (aref faces face 7)
           (aref faces face 7) (aref faces face 5)
           (aref faces face 5) (aref faces face 3)
-          (aref faces face 3) temp)))
+          (aref faces face 3) temp)
+    ;; update positions and orientation of blocks in this face
+    (dotimes (i 9)
+      (move-absolute (aref faces face i)
+		     (elt *child-positions* (aref *initial-blocks-in-faces* face i)))
+      (rotate-relative (aref faces face i)
+		       (axis-angle->quat (aref (faces-axes cube) face)
+					 90.0)))
+    ))
 
 (defmethod turnfacecounterclockwise ((cube rubix-cube) face &aux temp)
   (with-slots (faces) cube
@@ -269,12 +307,104 @@
           (aref faces face 1) (aref faces face 3)
           (aref faces face 3) (aref faces face 5)
           (aref faces face 5) (aref faces face 7)
-          (aref faces face 7) temp)))
+          (aref faces face 7) temp)
+    ;; update positions and orientation of blocks in this face
+    (dotimes (i 9)
+      (move-absolute (aref faces face i)
+		     (elt *child-positions* (aref *initial-blocks-in-faces* face i)))
+      (rotate-relative (aref faces face i)
+		       (axis-angle->quat (aref (faces-axes cube) face)
+					 -90.0)))
+    ))
 
 (defmethod render-children ((obj rubix-cube))
-  (if (not (face-turning-p obj))
-    (dotimes (blok 27)
-      (when (oddp blok)
-	(render (aref (blocks obj) blok))))
-    nil
-    ))
+  (flet ((in-face-p (face blok)
+	   (dotimes (i 9)
+	     (when (eq (aref (blocks obj) blok)
+		       (aref (faces obj) face i))
+	       (return t)))))
+    (cond ((not (face-turning-p obj))
+	   (dotimes (blok 27)
+	     (render (aref (blocks obj) blok))))
+	  (t
+	   (dotimes (blok 27)
+	     (unless (in-face-p (turning-face obj) blok)
+	       (render (aref (blocks obj) blok))))
+	   (opengl:with-rotation ((face-theta obj)
+				  (aref (faces-axes obj) (turning-face obj)))
+	     (dotimes (blok 9)
+	       (render (aref (faces obj) (turning-face obj) blok))))))))
+
+
+(defmethod render-for-selection ((objc rubix-cube) picked-point)
+  (let ((gl-uint-size (ccl::foreign-size :<GL>uint :bytes)) ; 4, as it turns out...
+	(selection-buffer-size 256))
+    (ccl::%stack-block ((selection-buffer (* gl-uint-size selection-buffer-size)))
+      (#_glSelectBuffer selection-buffer-size selection-buffer)
+      (let (;; FYI - this loses a lot of structure and becomes a lot
+	    ;; longer in C++ for lack of macros
+	    (hits (opengl:with-render-mode (#$GL_SELECT)
+		    (#_glInitNames)
+		    (#_glPushName 0)
+		    (opengl:with-culling (#$GL_FRONT)
+		      ;; set up the modified camera looking around the mouse's region
+		      (opengl:with-matrix-mode (#$GL_PROJECTION)
+		        (opengl:with-matrix (t)
+		          (#_glFrustum -0.01d0 0.01d0 -0.01d0 0.01d0 10.0d0 20.0d0)
+			  (opengl:with-matrix-mode (#$GL_MODELVIEW)
+			    (opengl:with-matrix (t)
+			      (mylookat *camera-pos* picked-point *y-axis*)
+			      ;; NOW render the cube like we were doing before
+			      (opengl:with-matrix-mode (#$GL_MODELVIEW)
+				(with-transformation (*cube*)
+				  (render-children-for-selection objc)))))))
+		      (#_glFlush)))))
+	(when (and (numberp hits)
+		   (< 0 hits))
+	  ;; the first hit name is at selectBuf[3], though i don't recall why
+	  (ccl::%get-unsigned-long selection-buffer (* 3 4)))))))
+
+(defmethod render-children-for-selection ((objc rubix-cube))
+  (flet ((norm (axis) (#_glNormal3f (aref axis 0) (aref axis 1) (aref axis 2)))
+         (material (color)
+           (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 double-floats
+             (ccl::%copy-ivector-to-ptr color
+               0 ; offset to first element (alignment padding)
+               foreign-float-vector ; destination
+               0 ; byte offset in destination
+               (* 4 4)) ; number of bytes to copy
+             (#_glMaterialfv #$GL_FRONT_AND_BACK
+                             #$GL_AMBIENT_AND_DIFFUSE
+                             foreign-float-vector)))
+         (quad (a b c d)
+           (ccl::%stack-block ((ffv (* 4 3)))
+             (ccl::%copy-ivector-to-ptr (aref (vertices objc) a) 0 ffv 0 (* 4 3))
+             (#_glVertex3fv ffv))
+           (ccl::%stack-block ((ffv (* 4 3)))
+             (ccl::%copy-ivector-to-ptr (aref (vertices objc) b) 0 ffv 0 (* 4 3))
+             (#_glVertex3fv ffv))
+           (ccl::%stack-block ((ffv (* 4 3)))
+             (ccl::%copy-ivector-to-ptr (aref (vertices objc) c) 0 ffv 0 (* 4 3))
+             (#_glVertex3fv ffv))
+           (ccl::%stack-block ((ffv (* 4 3)))
+             (ccl::%copy-ivector-to-ptr (aref (vertices objc) d) 0 ffv 0 (* 4 3))
+             (#_glVertex3fv ffv))
+           t))
+    (#_glLoadName 0)
+    (opengl:with-gl (#$GL_QUADS)
+      (norm *x-axis*)     (material *hel-orange*) (quad 1 2 6 5))
+    (#_glLoadName 1)
+    (opengl:with-gl (#$GL_QUADS)
+      (norm *y-axis*)     (material *hel-yellow*) (quad 2 3 7 6))
+    (#_glLoadName 2)
+    (opengl:with-gl (#$GL_QUADS)
+      (norm *z-axis*)     (material *hel-green*)  (quad 0 3 2 1))
+    (#_glLoadName 3)
+    (opengl:with-gl (#$GL_QUADS)
+      (norm *neg-x-axis*) (material *hel-red*)    (quad 0 4 7 3))
+    (#_glLoadName 4)
+    (opengl:with-gl (#$GL_QUADS)
+      (norm *neg-y-axis*) (material *hel-white*)  (quad 0 1 5 4))
+    (#_glLoadName 5)
+    (opengl:with-gl (#$GL_QUADS)
+      (norm *neg-z-axis*) (material *hel-blue*)   (quad 4 5 6 7))))

@@ -1,16 +1,5 @@
 (in-package :cl-user)
 
-(defparameter theta 0.0)
-(defparameter thetainc 1.0)
-(defparameter thetainctemp 0.0)
-(defparameter face -1)
-(defparameter nextface -1)
-(defparameter clockwise t)
-(defparameter nextclockwise t)
-
-(defparameter cube nil)
-
-(defparameter camera-pos #(10.0 5.0 12.0))
 
 (defparameter light0 nil)
 (defparameter light0-pos (make-array 3 :initial-contents '(5.0 3.0 0.0) ;; default to distant light source
@@ -30,14 +19,16 @@
 
 (ccl::define-objc-method ((:void prepare-opengl) rubix-opengl-view)
   (declare (special *the-origin* *y-axis*))
-  (opengl:with-matrix-mode #$GL_PROJECTION ;; default is GL_MODELVIEW
+  (declare (ignore a-rect))
+  (opengl:with-matrix-mode (#$GL_PROJECTION) ;; default is GL_MODELVIEW
     (#_glLoadIdentity)
-    (#_glFrustum -1.0d0 1.0d0 -1.0d0 1.0d0 10.0d0 20.0d0))
+    (#_glFrustum -0.6d0 0.6d0 -0.6d0 0.6d0 10.0d0 20.0d0))
   (#_glLoadIdentity)
-  (mylookat camera-pos *the-origin* *y-axis*)
+  (mylookat *camera-pos* *the-origin* *y-axis*)
 
   (#_glShadeModel #$GL_SMOOTH)
   (#_glClearColor 0.05 0.05 0.05 0.0)
+  ;; these next three are all needed to enable the z-buffer
   (#_glClearDepth 1.0d0)
   (#_glEnable #$GL_DEPTH_TEST)
   (#_glDepthFunc #$GL_LEQUAL)
@@ -77,16 +68,16 @@
 (ccl::define-objc-method ((:<BOOL> accepts-first-responder) rubix-opengl-view)
   #$YES)
 
-;; for starters, just get the lights to turn on and off when a key is
-;; pressed or the mouse is clicked
+;; want to be able to click and start dragging (without moving the window)
+(ccl::define-objc-method ((:<BOOL> accepts-first-mouse) rubix-opengl-view)
+  #$YES)
+
 (ccl::define-objc-method ((:void :mouse-down the-event) rubix-opengl-view)
   ;; this makes dragging spin the cube
   (let ((dragging-p t))
     (rlet ((last-loc :<NSP>oint))
       (ccl::send/stret last-loc the-event 'location-in-window)
       (loop while dragging-p do
-            #+drag-debug
-	    (#_NSLog #@"Dragging")
 	    (let ((the-event (ccl::send (ccl::send self 'window)
 					:next-event-matching-mask
 					(logior #$NSLeftMouseUpMask
@@ -94,17 +85,11 @@
 	      (rlet ((mouse-loc :<NSP>oint))
 		(ccl::send/stret mouse-loc the-event 'location-in-window)
 		(cond ((eq #$NSLeftMouseDragged (ccl::send the-event 'type))
-                       #+drag-debug
-		       (#_NSLog #@"Really Dragging")
 		       (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
 					(pref last-loc :<NSP>oint.x)))
-			     (deltay (- (pref mouse-loc :<NSP>oint.y)
-					(pref last-loc :<NSP>oint.y)))
-			     (vert-rot-axis (cross *y-axis* camera-pos)))
-			 ;; possible improvement -- cross camera-pos with
-			 ;; cartesian distance to get axis of rotation,
-			 ;; and apply that -- spin will be in direction of
-			 ;; mouse
+			     (deltay (- (pref last-loc :<NSP>oint.y)
+					(pref mouse-loc :<NSP>oint.y)))
+			     (vert-rot-axis (cross *y-axis* *camera-pos*)))
 			 (setf (pref last-loc :<NSP>oint.x) (pref mouse-loc :<NSP>oint.x)
 			       (pref last-loc :<NSP>oint.y) (pref mouse-loc :<NSP>oint.y))
 			 (rotate-relative cube
@@ -112,9 +97,62 @@
 						    (axis-angle->quat *y-axis* deltax))))
 		       (ccl::send self :set-needs-display #$YES))
 		      (t
-                       #+drag-debug
-		       (#_NSLog #@"Done Dragging")
 		       (setf dragging-p nil))))))
+      (ccl::send self :set-needs-display #$YES))))
+
+(defparameter *rubix-face-snap* 8.0) ; degrees
+(ccl::define-objc-method ((:void :right-mouse-down the-event) rubix-opengl-view)
+  ;; this makes dragging left/right turn a face counterclockwise/clockwise
+  ;; ... clicked-on face determines face turned
+  ;; ... with an n-degree "snap"
+  ;; ... with the snap updating the data structure
+  ;; ... releasing the mouse clears rotation angle (face will snap to last position)
+  (rlet ((first-loc :<NSP>oint)
+	 (pick-loc :<NSP>oint))
+    (ccl::send/stret first-loc the-event 'location-in-window)
+    (ccl::send/stret pick-loc self :convert-point first-loc :from-view nil)
+    (let ((dragging-p t)
+	  (reference-snap 0))
+      (setf (turning-face cube) (render-for-selection
+				 cube
+				 (opengl:unproject (pref pick-loc :<NSP>oint.x)
+						   (pref pick-loc :<NSP>oint.y)))
+	    (face-turning-p cube) (when (numberp (turning-face cube)) t)
+	    (face-theta cube) 0.0)
+      (loop while (and dragging-p (face-turning-p cube)) do
+	    (let ((the-event (ccl::send (ccl::send self 'window)
+					:next-event-matching-mask
+					(logior #$NSRightMouseUpMask
+						#$NSRightMouseDraggedMask))))
+	      (rlet ((mouse-loc :<NSP>oint))
+		(ccl::send/stret mouse-loc the-event 'location-in-window)
+		(cond ((eq #$NSRightMouseDragged (ccl::send the-event 'type))
+		       (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
+					(pref first-loc :<NSP>oint.x))))
+			 (multiple-value-bind (snap-to snap-dist) (round deltax 90.0)
+			   (cond ((>= *rubix-face-snap* (abs snap-dist)) ; snap
+				  ;; update cube structure
+				  (let ((rotations (- snap-to reference-snap)))
+				    (cond ((zerop rotations) nil)
+					  ((< 0 rotations)
+					   (dotimes (i rotations)
+					     (turnfaceclockwise cube (turning-face cube)))
+					   (setf reference-snap snap-to))
+					  ((> 0 rotations)
+					   (dotimes (i (abs rotations))
+					     (turnfacecounterclockwise cube (turning-face cube)))
+					   (setf reference-snap snap-to))))
+				  ;; determine where face will be drawn
+				  (setf (face-theta cube) 0.0))
+				 (t ; no snap
+				  (setf (face-theta cube) (- deltax (* 90.0 reference-snap))))
+				 )))
+		       (ccl::send self :set-needs-display #$YES))
+		      (t
+		       (setf (face-turning-p cube) nil
+			     (turning-face cube) nil
+			     (face-theta cube) nil
+			     dragging-p nil))))))
       (ccl::send self :set-needs-display #$YES))))
 
 (defclass rubix-window (ns:ns-window)
@@ -126,8 +164,8 @@
 (defun run-rubix-demo ()
   (let* ((w (ccl::new-cocoa-window :class (find-class 'rubix-window)
 				   :title "Rubix Cube"
-				   :height 500
-				   :width 500
+				   :height 250
+				   :width 250
 				   :expandable nil))
 	 (w-content-view (ccl::send w 'content-view)))
     ;; Q: why slet here?
