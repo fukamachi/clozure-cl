@@ -18,6 +18,17 @@
 
 (in-package :hemlock-internals)
 
+(defun maybe-update-selection (mark)
+  (let* ((line (mark-line mark))
+	 (buffer (if line (line-%buffer line)))
+	 (textstorage (if buffer (buffer-text-storage buffer))))
+    (if (and buffer
+	     (eq mark (buffer-point buffer))
+	     textstorage)
+      (textstorage-set-point-position textstorage))
+    mark))
+    
+	 
 
 (defun region-to-string (region)
   "Returns a string containing the characters in the given Region."
@@ -242,10 +253,11 @@
 
 (defun move-mark (mark new-position)
   "Changes the Mark to point to the same position as New-Position."
-  (let ((line (mark-line new-position)))
+  (let* ((line (mark-line new-position)))
     (change-line mark line))
   (setf (mark-charpos mark) (mark-charpos new-position))
-  mark)
+  (maybe-update-selection mark))
+
 
 (defun mark-before (mark)
   "Changes the Mark to point one character before where it currently points.
@@ -280,37 +292,39 @@
   "Changes the Mark to point N characters after (or -N before if N is negative)
   where it currently points.  If there aren't N characters before (or after)
   the mark, Nil is returned."
-  (let ((charpos (mark-charpos mark)))
-    (if (< n 0)
-	(let ((n (- n)))
-	  (if (< charpos n)
-	      (do ((line (line-previous (mark-line mark)) (line-previous line))
-		   (n (- n charpos 1)))
-		  ((null line) nil)
-		(let ((length (line-length* line)))
-		  (cond ((<= n length)
-			 (always-change-line mark line)
-			 (setf (mark-charpos mark) (- length n))
-			 (return mark))
-			(t
-			 (setq n (- n (1+ length)))))))
-	      (progn (setf (mark-charpos mark) (- charpos n))
-		     mark)))
-	(let* ((line (mark-line mark))
-	       (length (line-length* line)))
-	  (if (> (+ charpos n) length)
-	      (do ((line (line-next line) (line-next line))
-		   (n (- n (1+ (- length charpos)))))
-		  ((null line) nil)
-		(let ((length (line-length* line)))
-		  (cond ((<= n length)
-			 (always-change-line mark line)
-			 (setf (mark-charpos mark) n)
-			 (return mark))
-			(t
-			 (setq n (- n (1+ length)))))))
-	      (progn (setf (mark-charpos mark) (+ charpos n))
-		     mark))))))
+  (let* ((charpos (mark-charpos mark))
+	 (result-mark
+	  (if (< n 0)
+	    (let ((n (- n)))
+	      (if (< charpos n)
+		(do ((line (line-previous (mark-line mark)) (line-previous line))
+		     (n (- n charpos 1)))
+		    ((null line) nil)
+		  (let ((length (line-length* line)))
+		    (cond ((<= n length)
+			   (always-change-line mark line)
+			   (setf (mark-charpos mark) (- length n))
+			   (return mark))
+			  (t
+			   (setq n (- n (1+ length)))))))
+		(progn (setf (mark-charpos mark) (- charpos n))
+		       mark)))
+	    (let* ((line (mark-line mark))
+		   (length (line-length* line)))
+	      (if (> (+ charpos n) length)
+		(do ((line (line-next line) (line-next line))
+		     (n (- n (1+ (- length charpos)))))
+		    ((null line) nil)
+		  (let ((length (line-length* line)))
+		    (cond ((<= n length)
+			   (always-change-line mark line)
+			   (setf (mark-charpos mark) n)
+			   (return mark))
+			  (t
+			   (setq n (- n (1+ length)))))))
+		(progn (setf (mark-charpos mark) (+ charpos n))
+		       mark))))))
+    (if result-mark (maybe-update-selection result-mark))))
 
 (defun line-offset (mark n &optional charpos)
   "Changes to Mark to point N lines after (-N before if N is negative) where

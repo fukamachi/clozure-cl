@@ -123,7 +123,7 @@
 	   (let* ((chars (line-chars line))
 		  (len (length chars)))
 	     (declare (simple-string chars))
-	     (when (> *line-cache-length* len)
+	     (when (> len *line-cache-length*)
 	       (setf *line-cache-length* (* len 2))
 	       (setf *open-chars* (make-string *line-cache-length*)))
 	     (setf *open-line* line)
