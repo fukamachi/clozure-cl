@@ -105,7 +105,7 @@
 ;;; Initialize a jmp_buf so that when it's #_longjmp-ed to, it'll
 ;;; wind up calling THROW-TO-CATCH-FRAME with the specified catch
 ;;; frame as its second argument.  The C frame used here is just
-;;; an empty C stack frame from which the callback will be called.
+;; an empty C stack frame from which the callback will be called.
 
 (defun %associate-jmp-buf-with-catch-frame (jmp-buf catch-frame c-frame)
   (%set-object jmp-buf JMP-sp c-frame)
@@ -128,24 +128,19 @@
 
 
 (defclass ns-lisp-exception (ns::ns-exception)
-    ((lispid :foreign-type :unsigned))
+    ((condition :initarg :condition :reader ns-lisp-exception-condition))
   (:metaclass ns::+ns-object))
 
-(define-objc-method ((:id :init-with-lisp-id (:unsigned lisp-id))
+(define-objc-method ((:id init)
 		     ns-lisp-exception)
-  (setq self (send-super :init-with-name #@"lisp exception"
-                         :reason #@"lisp exception"
-                         :user-info (%null-ptr)))
-  (setf (slot-value self 'lispid) lisp-id)
-  self)
-
-(define-objc-method ((:unsigned lisp-id) ns-lisp-exception)
-  (slot-value self 'lispid))
+  (send self
+	:init-with-name #@"lisp exception"
+	:reason #@"lisp exception"
+	:user-info (%null-ptr)))
 
 (defun ns-exception->lisp-condition (nsexception)
-  (if (send (send nsexception 'class)
-            :is-subclass-of-class (@class ns-lisp-exception))
-    (id-map-free-object *condition-id-map* (send nsexception 'lisp-id))
+  (if (typep nsexception 'ns-lisp-exception)
+    (ns-lisp-exception-condition nsexception)
     (make-condition 'ns-exception :ns-exception nsexception)))
 
 
@@ -157,16 +152,12 @@ instance variable."
   ;;; this condition.
   ;;;
 
-  #|(dbg (format nil "~a" c))|#
-  (make-objc-instance 'ns-lisp-exception
-		      :with-lisp-id (assign-id-map-id *condition-id-map* c)))
+  (dbg (format nil "~a" c))
+  (make-instance 'ns-lisp-exception :condition c))
   
 
 
-(defun ns-exception->lisp-condition (nsexception)
-  (if (typep nsexception 'ns-lisp-exception)
-    (id-map-free-object *condition-id-map* (slot-value nsexception 'lispid))
-    (make-condition 'ns-exception :ns-exception nsexception)))
+
 
 #+apple-objc
 (progn
