@@ -77,7 +77,7 @@
                                                      :name (car errargs)))
                  (call-special-operator-or-macro
                   (make-condition condition-name
-                                  :function-name (car errargs)
+                                  :name (car errargs)
                                   :function-arguments (cadr errargs)))
                  (sequence-index-type-error
                   (make-sequence-index-type-error (car errargs) (cadr errargs)))

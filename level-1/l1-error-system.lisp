@@ -175,9 +175,11 @@
   ((context :initarg :context :reader simple-program-error-context :initform nil)))
 
 (defun signal-program-error (string &rest args)
-  (error (make-condition 'simple-program-error
-                         :format-control (if (fixnump string) (%rsc-string string) string)
-                         :format-arguments args)))
+  (let* ((e #'error))
+    (funcall e
+	     (make-condition 'simple-program-error
+			     :format-control (if (fixnump string) (%rsc-string string) string)
+			     :format-arguments args))))
 
 (define-condition simple-destructuring-error (simple-program-error))
 
@@ -326,7 +328,12 @@
 
 (define-condition stream-error (error)
   ((stream :initarg :stream :reader stream-error-stream)))
-(define-condition parse-error (stream-error) ())
+(define-condition parse-error (error) ())
+(define-condition parse-integer-not-integer-string (parse-error)
+  ((string :initarg :string))
+  (:report (lambda (c s)
+	     (format s "Not an integer string: ~s" (slot-value c 'string)))))
+
 (define-condition reader-error (parse-error) ())
 (define-condition end-of-file (stream-error) ()
   (:report (lambda (c s)
@@ -382,15 +389,14 @@
 (define-condition undefined-function (cell-error)
   ((error-type :initform "Undefined function")))
 (define-condition undefined-function-call (control-error undefined-function)
-  ((function-name :initarg :function-name :reader undefined-function-call-name)
-   (function-arguments :initarg :function-arguments :reader undefined-function-call-arguments))
+  ((function-arguments :initarg :function-arguments :reader undefined-function-call-arguments))
   (:report (lambda (c s) (format s "Undefined function ~S called with arguments ~:S ."
-                                 (undefined-function-call-name c)
+                                 (cell-error-name c)
                                  (undefined-function-call-arguments c)))))
 
 (define-condition call-special-operator-or-macro (undefined-function-call)
   ()
-  (:report (lambda (c s) (format s "Special operator or global macro-function ~s can't be FUNCALLed or APPLYed" (undefined-function-call-name c)))))
+  (:report (lambda (c s) (format s "Special operator or global macro-function ~s can't be FUNCALLed or APPLYed" (cell-error-name c)))))
 
   
 (define-condition unbound-slot (cell-error)
@@ -822,7 +828,7 @@
   (unless *level-1-loaded*
     (dbg function-name))   ; user should never see this
   (let ((condition (make-condition 'undefined-function-call
-                                   :function-name function-name
+                                   :name function-name
                                    :function-arguments args)))
     (restart-case (%error condition nil frame-ptr)
       (continue ()
