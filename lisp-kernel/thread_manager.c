@@ -414,7 +414,7 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
 {
   extern area
     *allocate_vstack_holding_area_lock(unsigned),
-    *allocate_tstack_holding_tcr(unsigned);
+    *allocate_tstack_holding_area_lock(unsigned);
   area *a;
   TCR *tcr = calloc(1, sizeof(TCR));
   int i;
