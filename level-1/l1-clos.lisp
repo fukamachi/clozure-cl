@@ -279,29 +279,36 @@
 (defvar *update-slots-preserve-existing-wrapper* nil)
 
 (defun update-slots (class eslotds)
-  (let* ((instance-slots (extract-slotds-with-allocation :instance eslotds))
-         (new-ordering
-          (let* ((v (make-array (the fixnum (length instance-slots))))
-                 (i 0))
-            (declare (simple-vector v) (fixnum i))
-            (dolist (e instance-slots v)
-              (setf (svref v i)
-                    (%slot-definition-name e))
-              (incf i))))
-         (old-wrapper (%class-own-wrapper class))
-         (new-wrapper
-          (cond ((null old-wrapper)
-                 (%cons-wrapper class))
-                ((and old-wrapper *update-slots-preserve-existing-wrapper*)
-                 old-wrapper)
-                (t
-                 (make-instances-obsolete class)
-                 (%cons-wrapper class)))))
-    (setf (%class-slots class) eslotds)
-    (setf (%wrapper-instance-slots new-wrapper) new-ordering
-          (%wrapper-class-slots new-wrapper) (%class-get class :class-slots)
-          (%class-own-wrapper class) new-wrapper)
-    (setup-slot-lookup new-wrapper eslotds)))
+  (multiple-value-bind (instance-slots class-slots)
+      (extract-instance-and-class-slotds eslotds)
+    (let* ((new-ordering
+            (let* ((v (make-array (the fixnum (length instance-slots))))
+		   (i 0))
+	      (declare (simple-vector v) (fixnum i))
+              (dolist (e instance-slots v)
+                (setf (svref v i)
+                      (%slot-definition-name e))
+		(incf i))))
+           (old-wrapper (%class-own-wrapper class))
+           (old-ordering (if old-wrapper (%wrapper-instance-slots old-wrapper)))
+           (new-wrapper
+            (cond ((null old-wrapper)
+                   (%cons-wrapper class))
+                  ((and old-wrapper *update-slots-preserve-existing-wrapper*)
+                   old-wrapper)
+                  ((and (equalp old-ordering new-ordering)
+                        (null class-slots))
+                   old-wrapper)
+                  (t
+                   (make-instances-obsolete class)
+                   ;;; Is this right ?
+                   #|(%class.own-wrapper class)|#
+                   (%cons-wrapper class)))))
+      (setf (%class-slots class) eslotds)
+      (setf (%wrapper-instance-slots new-wrapper) new-ordering
+	    (%wrapper-class-slots new-wrapper) (%class-get class :class-slots)
+            (%class-own-wrapper class) new-wrapper)
+      (setup-slot-lookup new-wrapper eslotds))))
 
 
   
@@ -1237,6 +1244,10 @@ governs whether DEFCLASS makes that distinction or not.")
 (defun %make-effective-slotd (slotd-class &rest initargs)
   (declare (dynamic-extent initargs))
   (apply #'make-instance slotd-class initargs))
+
+;;; Likewise, for methods
+(defun %make-method-instance (class &rest initargs)
+  (apply #'make-instance class initargs))
 
 (defmethod initialize-instance :after ((slotd effective-slot-definition) &key name)
   (setf (standard-effective-slot-definition.slot-id slotd)
