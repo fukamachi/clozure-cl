@@ -1988,23 +1988,6 @@
         (%ilogand mask (%iasr position integer))
         (logand mask (ash integer (- position)))))))    
 
-(defun %bignum-bignum-gcd (n1 n2)
-  (labels ((integer-gcd-sub (n1 n2)
-             (if (eql n2 0)
-               n1
-               (if (and (typep n1 'fixnum) (typep n2 'fixnum))
-                 (%fixnum-gcd n1 n2)
-                 (integer-gcd-sub n2
-                                  (if (> n2 n1)
-                                    (rem n2 n1)
-                                    (rem n1 n2))))))
-           (gcd-larger-smaller (n1 n2)
-             (if (> n1 n2)
-               (integer-gcd-sub n1 n2)
-               (integer-gcd-sub n2 n1))))
-    (with-negated-bignum-buffers n1 n2 gcd-larger-smaller)))
-
-#+fix-later
 (defun %bignum-bignum-gcd (u0 v0)
   (let* ((u-len (%bignum-length u0))
 	 (u-plusp (bignum-plusp u0))
@@ -2032,34 +2015,40 @@
 	     (v-trailing-0-bits (%bignum-count-trailing-zero-bits v))
 	     (v-trailing-0-digits (ash v-trailing-0-bits -5)))
 	(declare (fixnum u-trailing-0-bits v-trailing-0-bits))
-	(bignum-shift-right-loop-1
-	 (logand u-trailing-0-bits 31)
-	 u2
-	 u
-	 (the fixnum (1- (the fixnum (- u-len u-trailing-0-digits ))))
-	 u-trailing-0-digits)
-	(rotatef u u2)
-	(%mostly-normalize-bignum-macro u)
-	(setq u-len (%bignum-length u))
-	(bignum-shift-right-loop-1
-	 (logand v-trailing-0-bits 31)
-	 v2
-	 v
-	 (the fixnum (1- (the fixnum (- v-len v-trailing-0-digits))))
-	 v-trailing-0-digits)
-	(rotatef v v2)
-	(%mostly-normalize-bignum-macro v)
-	(setq v-len (%bignum-length v))
+	(unless (zerop u-trailing-0-digits)
+	  (bignum-shift-right-loop-1
+	   (logand u-trailing-0-bits 31)
+	   u2
+	   u
+	   (the fixnum (1- (the fixnum (- u-len u-trailing-0-digits ))))
+	   u-trailing-0-digits)
+	  (rotatef u u2)
+	  (%mostly-normalize-bignum-macro u)
+	  (setq u-len (%bignum-length u)))
+	(unless (zerop v-trailing-0-bits)
+	  (bignum-shift-right-loop-1
+	   (logand v-trailing-0-bits 31)
+	   v2
+	   v
+	   (the fixnum (1- (the fixnum (- v-len v-trailing-0-digits))))
+	   v-trailing-0-digits)
+	  (rotatef v v2)
+	  (%mostly-normalize-bignum-macro v)
+	  (setq v-len (%bignum-length v)))
 	(let* ((shift (min u-trailing-0-bits
 			   v-trailing-0-bits)))
 	  (loop
 	      (let* ((fix-u (and (= u-len 1)
-				 (< (the fixnum (%bignum-ref-hi u 0))
-				    (ash 1 14))
+				 (let* ((hi-u (%bignum-ref-hi u 0)))
+				   (declare (fixnum hi-u))
+				   (= hi-u (the fixnum
+					     (logand hi-u (ash most-positive-fixnum -16)))))
 				 (uvref u 0)))
 		     (fix-v (and (= v-len 1)
-				 (< (the fixnum (%bignum-ref-hi v 0))
-				    (ash 1 14))
+				 (let* ((hi-v (%bignum-ref-hi v 0)))
+				   (declare (fixnum hi-v))
+				   (= hi-v (the fixnum
+					     (logand hi-v (ash most-positive-fixnum -16)))))
 				 (uvref v 0))))
 		(if fix-v
 		  (if fix-u
