@@ -39,7 +39,7 @@
               (%get-unsigned-long p 4) (ppc-lap-word (bctr)))
         ;;; Force this code out of the data cache and into memory, so
         ;;; that it'll get loaded into the icache.
-        (ff-call (%kernel-import #.arch::kernel-import-makedataexecutable) 
+        (ff-call (%kernel-import #.target::kernel-import-makedataexecutable) 
                  :address p 
                  :unsigned-fullword 8
                  :void)
@@ -50,7 +50,7 @@
 (defcallback throw-to-catch-frame (:signed-fullword value
                                    :address frame
                                    :void)
-  (throw (%get-object frame arch::catch-frame.catch-tag) value))
+  (throw (%get-object frame target::catch-frame.catch-tag) value))
 
 ;;; Initialize a jmp_buf so that when it's #_longjmp-ed to, it'll
 ;;; wind up calling THROW-TO-CATCH-FRAME with the specified catch
