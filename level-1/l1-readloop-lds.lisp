@@ -355,9 +355,15 @@
       (fresh-line *error-output*)
       nil)))
 
-(defun warn (format-string &rest args)
+(defun warn (condition-or-format-string &rest args)
+  (when (typep condition-or-format-string 'condition)
+    (unless (typep condition-or-format-string 'warning)
+      (report-bad-arg condition-or-format-string 'warning))
+    (when args
+      (error 'type-error :datum args :expected-type 'null
+	     :format-control "Extra arguments in ~s.")))
   (let ((fp (%get-frame-ptr))
-        (c (require-type (condition-arg format-string args 'simple-warning) 'warning)))
+        (c (require-type (condition-arg condition-or-format-string args 'simple-warning) 'warning)))
     (when *break-on-warnings*
       (cbreak-loop "Warning" "Signal the warning." c fp))
     (restart-case (signal c)
