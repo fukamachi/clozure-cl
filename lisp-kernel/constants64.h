@@ -223,11 +223,11 @@ typedef struct eabi_c_frame {
 
 typedef struct c_frame {
   struct c_frame *backlink;
-  unsigned crsave;
-  unsigned savelr;
-  unsigned unused[2];
-  unsigned savetoc;		/* Used with CFM */
-  unsigned params[8];		/* Space for callee to save r3-r10 */
+  natural crsave;
+  natural savelr;
+  natural unused[2];
+  natural savetoc;		/* Used with CFM */
+  natural params[8];		/* Space for callee to save r3-r10 */
 } c_frame;
 
 typedef struct lisp_frame {
