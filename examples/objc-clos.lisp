@@ -13,6 +13,17 @@
 ;;;
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
+;;;
+;;; TO DO
+;;;  - Need to add getter and setter functions for more foriegn slot types
+;;;  - OBJC-FOREIGN-ARG-TYPE in BRIDGE.LISP needs to handle BITFIELDs, 
+;;;    ARRAYs and UNIONs
+;;;  - Need to get enough of the instance initialization and XXX
+;;;    protocols working so that foreign slot objects actually show up
+;;;    where they're supposed to
+;;;  - Implement slot access for OBJC-CLASS lisp slots
+
+;;; Package and module stuff
 
 (in-package "CCL")
 
@@ -22,13 +33,39 @@
   #+gnu-objc
   (use-interface-dir :gnustep))
 
+;;; We need OBJC-FOREIGN-ARG-TYPE from the bridge to process ivar types
+
+(require "BRIDGE")
+
+;;; All class names and instance variable names are interned in the NS package
+;;; Force all symbols interned in the NS package to be external
+;;; symbols.
+
 (defpackage "NS"
   (:use))
 
-
-;;; Force all symbols interned in the NS package to be external
-;;; symbols.
 (package-force-export "NS")
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                 Testing                                ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Until foreign slot definition objects automatically show up where they're
+;;; supposed to, this function manually sets them up for a given ObjC class 
+;;; (and its superclasses)
+
+(defun init-objc-class-slot-definitions (c)
+  (unless (eql c (%null-ptr))
+    (init-objc-class-slot-definitions (pref c :objc_class.super_class))
+    (setf (slot-value c 'direct-slots) (%compute-foreign-direct-slots c))
+    (setf (slot-value c 'slots) (compute-slots c))
+    (values)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                     OBJC Foreign Object Domain                         ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defconstant objc-type-flags (byte 3 20))
 (defconstant objc-type-index (byte 20 0))
@@ -104,11 +141,16 @@
 				:recognize #'recognize-objc-object
 				:class-of #'%objc-domain-class-of
 				:classp #'%objc-domain-classp
-				:instance-class-wrapper #'%objc-domain-instance-class-wrapper
-				:class-own-wrapper #'%objc-domain-class-own-wrapper
+				:instance-class-wrapper
+				#'%objc-domain-instance-class-wrapper
+				:class-own-wrapper
+				#'%objc-domain-class-own-wrapper
 				:slots-vector #'%objc-domain-slots-vector)
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                  OBJC Objects, Classes and Metaclasses                 ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defclass objc:objc-object (foreign-standard-object)
     ())
@@ -139,37 +181,28 @@
 
 (defmethod print-object ((c objc:objc-class) stream)
   (print-unreadable-object (c stream)
-    (format stream "~s ~:[~;[MetaClass] ~]~s (#x~x)" 'objc:objc-class (objc-metaclass-p c) (class-name c) (%ptr-to-int c))))
+    (format stream "~s ~:[~;[MetaClass] ~]~s (#x~x)" 
+	    'objc:objc-class 
+	    (objc-metaclass-p c) 
+	    (class-name c) 
+	    (%ptr-to-int c))))
 
 (defmethod print-object ((c objc:objc-metaclass) stream)
   (print-unreadable-object (c stream)
-    (format stream "~s ~s (#x~x)" 'objc:objc-metaclass (class-name c) (%ptr-to-int c))))
+    (format stream "~s ~s (#x~x)" 
+	    'objc:objc-metaclass 
+	    (class-name c) 
+	    (%ptr-to-int c))))
 
 (defmethod print-object ((o objc:objc-object) stream)
   (print-unreadable-object (o stream :type t)
     (format stream "~a (#x~x)" (nsobject-description o) (%ptr-to-int o))))
 
-(defmethod slot-value-using-class ((class objc:objc-class-object)
-				   instance
-				   (slotd standard-effective-slot-definition))
-  (%std-slot-vector-value (%objc-domain-slots-vector instance) slotd))
-
-(defmethod slot-boundp-using-class ((class objc:objc-class-object)
-				    instance
-				    (slotd standard-effective-slot-definition))
-  (%std-slot-vector-boundp (%objc-domain-slots-vector instance) slotd))
-
-(defmethod (setf slot-value-using-class)
-    (new
-     (class objc:objc-class-object)
-     instance
-     (slotd standard-effective-slot-definition))
-  (%set-std-slot-vector-value (%objc-domain-slots-vector instance) slotd new))
 
 
 (defun initialize-objc-class-slots (class class-name wrapper &optional foreign)
 ;  (format t "~&initialize-objc-class-slots ~s (#x~x)" class-name (%ptr-to-int class))  
- ; (force-output)
+; (force-output)
   (let* ((super (pref class :objc_class.super_class))
 	 (super-id (unless (%null-ptr-p super) (objc-class-id super)))
 	 (super-slots (if super-id
@@ -197,8 +230,9 @@
 	     nil
 	     )))
 
-(defun initialize-objc-metaclass-slots (class class-name wrapper &optional foreign peer)
-;  (format t "~&initialize-objc-metaclass-slots ~s (#x~x)" class-name (%ptr-to-int class))
+(defun initialize-objc-metaclass-slots (class class-name wrapper 
+					&optional foreign peer)
+;  (format t "~&initialize-objc-metaclass-slots ~s" class-name)
 ;  (force-output)
   (let* ((super (pref class :objc_class.super_class))
 	 (super-id (unless (%null-ptr-p super) (objc-metaclass-id super)))
@@ -228,4 +262,180 @@
 	     foreign
 	     peer
 	     )))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                        OBJC-CLASS Slot Protocol                        ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Accessing Lisp slots
+
+(defmethod slot-boundp-using-class ((class objc:objc-class-object)
+				    instance
+				    (slotd standard-effective-slot-definition))
+  (%std-slot-vector-boundp (%objc-domain-slots-vector instance) slotd))
+
+(defmethod slot-value-using-class ((class objc:objc-class-object)
+				   instance
+				   (slotd standard-effective-slot-definition))
+  (%std-slot-vector-value (%objc-domain-slots-vector instance) slotd))
+
+(defmethod (setf slot-value-using-class)
+    (new
+     (class objc:objc-class-object)
+     instance
+     (slotd standard-effective-slot-definition))
+  (%set-std-slot-vector-value (%objc-domain-slots-vector instance) slotd new))
+
+
+;;; Metaclasses for foreign slots
+
+(defclass foreign-direct-slot-definition (direct-slot-definition)
+  ((offset :initarg :offset :reader foreign-slot-definition-offset)))
+
+(defclass foreign-effective-slot-definition (effective-slot-definition)
+  ((getter :type function :accessor foreign-slot-definition-getter)
+   (setter :type function :accessor foreign-slot-definition-setter)))
+
+
+;;; Use the foreign slot metaclasses if the slot :ALLOCATION is :FOREIGN
+
+(defmethod direct-slot-definition-class ((class objc:objc-class-object)
+					 &rest initargs)
+  (if (eq  (getf initargs :allocation) :foreign)
+      (find-class 'foreign-direct-slot-definition)
+    (find-class 'standard-direct-slot-definition)))
+
+(defmethod effective-slot-definition-class ((class objc:objc-class-object)
+					    &rest initargs)
+  (if (eq (getf initargs :allocation) :foreign)
+      (find-class 'foreign-effective-slot-definition)
+    (find-class 'standard-effective-slot-definition)))
+
+
+;;; Create FOREIGN-DIRECT-SLOT-DEFINITIONs for each foreign instance variable
+;;; in the OBJC-CLASS C
+
+(defun %compute-foreign-direct-slots (c)
+  (when (objc-object-p c)
+    (with-macptrs ((ivars (pref c :objc_class.ivars)))
+      (unless (%null-ptr-p ivars)
+	(loop with ns-package = (find-package "NS")
+	      with n = (pref ivars :objc_ivar_list.ivar_count)
+	      for i from 1 to n
+	      for ivar = (pref ivars :objc_ivar_list.ivar_list) 
+	          then (%inc-ptr ivar (record-length :objc_ivar))
+	      for name = (%get-cstring (pref ivar :objc_ivar.ivar_name))
+	      for sym = (compute-lisp-name name ns-package)
+	      when (eql (schar name 0) #\_)
+	        do (unexport sym ns-package)
+	      collect 
+	      (make-direct-slot-definition
+	       c
+	       (list
+		:name sym
+		:allocation :foreign
+		:class (find-class 'foreign-effective-slot-definition)
+		:type (objc-foreign-arg-type 
+		       (%get-cstring (pref ivar :objc_ivar.ivar_type)))
+		:offset (pref ivar :objc_ivar.ivar_offset))))))))
+	  
+
+;;; Return the getter and setter functions for a foreign slot
+
+(defun compute-foreign-slot-accessors (eslotd)
+  (let ((ftype (%slot-definition-type eslotd)))
+    (case ftype
+      (:unsigned-byte (values #'%get-unsigned-byte #'%set-byte))
+      (:signed-byte (values #'%get-signed-byte #'%set-byte))
+      (:unsigned-word (values #'%get-unsigned-word #'%set-word))
+      (:signed-word (values #'%get-signed-word #'%set-word))
+      (:unsigned-fullword (values #'%get-unsigned-long #'%set-long))
+      (:signed-fullword (values #'%get-signed-long #'%set-long))
+      (:unsigned-longlong (values #'%%get-unsigned-longlong #'%%set-unsigned-longlong))
+      (:signed-longlong (values #'%%get-signed-longlong #'%%set-signed-longlong))
+      (:single-float (values #'%get-single-float #'%set-single-float))
+      (:double-float (values #'%get-double-float #'%set-double-float))
+      ((:id :address) (values #'%get-ptr #'%set-ptr))
+      (t 
+       (cond 
+	((and (consp ftype) (eq (first ftype) :*))
+	 (values #'%get-ptr #'%set-ptr))
+	(t (values 
+	    #'(lambda (ptr &optional offset)
+		(declare (ignore ptr offset))
+		(error "Unhandled foreign slot type: ~S" ftype))
+	    #'(lambda (ptr &optional offset)
+		(declare (ignore ptr offset))
+		(error "Unhandled foreign slot type: ~S" ftype)))))))))
+
+
+;;; Augment SLOT-CLASS's COMPUTE-EFFECTIVE-SLOT-DEFINITION with an :AROUND
+;;; method for OBJC-CLASSes that sets up foreign slot info
+
+(defmethod compute-effective-slot-definition :around ((class objc:objc-class-object)
+						      name
+						      direct-slots)
+  (declare (ignore name))
+  (let ((first (first direct-slots))
+	(eslotd (call-next-method)))
+    (when (typep eslotd 'foreign-effective-slot-definition)
+      (setf (slot-value eslotd 'location)
+	    (foreign-slot-definition-offset first))
+      (multiple-value-bind (getter setter) (compute-foreign-slot-accessors eslotd)
+	(setf (foreign-slot-definition-getter eslotd) getter)
+	(setf (foreign-slot-definition-setter eslotd) setter)))
+    eslotd))
+
+
+;;; Determine the location of each slot
+
+(defun collect-slots-with-alloc (alloc slotds)
+  (loop for slotd in slotds
+	when (eq (%slot-definition-allocation slotd) alloc)
+	 collect slotd))
+
+(defmethod compute-slots :around ((class objc:objc-class-object))
+  (let* ((cpl (%class-precedence-list class))
+	 (slots (call-next-method))
+	 (instance-slots (collect-slots-with-alloc :instance slots))
+	 (class-slots (collect-slots-with-alloc :class slots))
+	 (foreign-slots (collect-slots-with-alloc :foreign slots)))
+    (setq instance-slots
+	  (sort-effective-instance-slotds instance-slots class cpl))
+    (loop for islot in instance-slots
+	  for loc = 1 then (1+ loc)
+	  do (setf (%slot-definition-location islot) loc))
+    (dolist (cslot class-slots)
+      (setf (%slot-definition-location cslot)
+	    (assoc (%slot-definition-name cslot)
+		   (%class-get (%slot-definition-class cslot) :class-slots)
+		   :test #'eq)))
+     (append instance-slots class-slots foreign-slots)))
+
+
+;;; Accessing foreign slots
+
+(defmethod slot-boundp-using-class ((class objc:objc-class-object)
+				    instance
+				    (slotd foreign-effective-slot-definition))
+  (declare (ignore class instance slotd))
+  ;; foreign slots are always bound
+  t)
+
+(defmethod slot-value-using-class ((class objc:objc-class-object)
+				   instance
+				   (slotd foreign-effective-slot-definition))
+  (funcall (foreign-slot-definition-getter slotd)
+	   instance
+	   (slot-definition-location slotd)))
+
+(defmethod (setf slot-value-using-class) (value
+					  (class objc:objc-class-object)
+					  instance
+					  (slotd foreign-effective-slot-definition))
+  (funcall (foreign-slot-definition-setter slotd)
+	   instance
+	   (slot-definition-location slotd)
+	   value))
 
