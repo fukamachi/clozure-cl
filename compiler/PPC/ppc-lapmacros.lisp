@@ -125,8 +125,7 @@
     (stw fn ppc32::lisp-frame.savefn sp)
     (stw loc-pc ppc32::lisp-frame.savelr sp)
     (stw ,vsp ppc32::lisp-frame.savevsp sp)
-    (mr fn nfn)
-    (mr old-fn fn)))
+    (mr fn nfn)))
 
 ;;; There are a few cases to deal with when restoring: whether or not
 ;;; to restore the vsp, whether we need to saved LR back in the LR or
@@ -141,7 +140,6 @@
     (lwz ,vsp ppc32::lisp-frame.savevsp sp)
     (mtlr loc-pc)
     (lwz fn ppc32::lisp-frame.savefn sp)
-    (mr old-fn fn)
     (la sp ppc32::lisp-frame.size sp)))
 
 (defppclapmacro restore-pc ()
