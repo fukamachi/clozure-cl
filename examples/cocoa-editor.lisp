@@ -1168,6 +1168,7 @@
      (echo-area-stream :initform nil :accessor hemlock-frame-echo-area-stream))
   (:metaclass ns:+ns-object))
 
+
 (defun double-%-in (string)
   ;; Replace any % characters in string with %%, to keep them from
   ;; being treated as printf directives.
@@ -1274,6 +1275,12 @@
 
 
 (define-objc-method ((:void close) hemlock-frame)
+  (let* ((content-view (send self 'content-view))
+         (subviews (send content-view 'subviews)))
+    (do* ((i (1- (send subviews 'count)) (1- i)))
+         ((< i 0))
+      (send (send subviews :object-at-index i)
+            'remove-from-superview-without-needing-display)))
   (let* ((proc (slot-value self 'command-thread)))
     (when proc
       (setf (slot-value self 'command-thread) nil)
