@@ -622,26 +622,20 @@
 	     (t ,x-temp)))))
 
 (defmacro coerce-to-foreign-type (x ftype)
-  (cond ((and (constantp x) (constantp ftype)) 
-         (case ftype
-           (:id (cond ((null x) `(%null-ptr))
-		      ((stringp x) `(%make-nsstring ,x))
-		      (t (coerce-to-address x))))
-           (:char (coerce-to-bool x))
-	   (:single-float (coerce x 'single-float))
-           (t x)))
-        ((constantp ftype) 
-         (case ftype
-           (:id `(coerce-to-address ,x))
-           (:char `(coerce-to-bool ,x))
-	   (:single-float `(coerce ,x 'single-float))
-           (t x)))
-        (t `(case ,(if (atom ftype) ftype)
-              (:id (coerce-to-address ,x))
-              (:char (coerce-to-bool ,x))
-	      (:single-float (coerce ,x 'single-float))
-              (t ,x)))))
-
+   (cond ((and (constantp x) (constantp ftype))
+          (case ftype
+            (:id (if (null x) `(%null-ptr) (coerce-to-address x)))
+            (:char (coerce-to-bool (eval x)))
+            (t x)))
+         ((constantp ftype)
+          (case ftype
+            (:id `(coerce-to-address ,x))
+            (:char `(coerce-to-bool ,x))
+            (t x)))
+         (t `(case ,(if (atom ftype) ftype)
+               (:id (coerce-to-address ,x))
+               (:char (coerce-to-bool ,x))
+               (t ,x)))))
 
 ;;; Convert a foreign object X to T or NIL 
 
