@@ -81,7 +81,7 @@
 (defun dereference-base-string (s)
   (multiple-value-bind (vector offset) (array-data-and-offset s)
     (unless (typep vector 'simple-base-string) (report-bad-arg s 'base-string))
-    (values vector offset (the fixnum (+ (the fixnum offset) (the fixnum (length s)))))))
+    (values vector offset (length s))))
 
 (defun make-gcable-macptr (flags)
   (let ((v (%alloc-misc ppc32::xmacptr.element-count ppc32::subtag-macptr)))
