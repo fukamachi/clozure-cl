@@ -28,6 +28,7 @@
   type                                  ; a keyword
   value                                 ; the "standard" initial value
   doc                                   ; a doc string
+  constraint                            ; an optional type constraint.
   )
 
 (let* ((cocoa-defaults ()))
@@ -41,7 +42,7 @@
           (delete name cocoa-defaults :key #'cocoa-default-symbol)))
   (defun %clear-cocoa-defaults () (setq cocoa-defaults nil)))
 
-(defun set-cocoa-default (name string type value doc)
+(defun set-cocoa-default (name string type value doc &optional constraint)
   (check-type name symbol)
   (check-type string objc-constant-string)
   (check-type type keyword)
@@ -51,29 +52,41 @@
                                           :string string
                                           :type type
                                           :value value
-                                          :doc doc))
+                                          :doc doc
+                                          :constraint constraint))
   value)
 
-(defun %define-cocoa-default (name type value doc)
+(defun %define-cocoa-default (name type value doc &optional constraint)
   (proclaim `(special name))
+  ;; Make the variable "GLOBAL": its value can be changed, but it can't
+  ;; have a per-thread binding.
+  (%symbol-bits name (logior (ash 1 $sym_vbit_global)
+                             (the fixnum (%symbol-bits name))))
   (record-source-file name 'variable)
   (setf (documentation name 'variable) doc)
-  (set name (set-cocoa-default name (ns-constant-string (string name)) type value doc))
+  (set name (set-cocoa-default name (ns-constant-string (string name)) type value doc constraint))
   name)
   
   
 
-(defmacro def-cocoa-default (name type value &optional doc)
+(defmacro def-cocoa-default (name type value  doc &optional constraint &environment env)
   `(progn
+     (eval-when (:compile-toplevel)
+       (note-variable-info ',name :global ,env))
     (declaim (special ,name))
-    (%define-cocoa-default ',name  ',type ',value ',doc)))
+    (%define-cocoa-default ',name  ',type ',value ',doc ,@(when constraint `((specifier-type ',constraint))))))
 
     
 (defun update-cocoa-defaults ()
-  (let* ((domain (send (@class "NSUserDefaults") 'standard-user-defaults))
-         (need-synch nil))
-    (dolist (d (cocoa-defaults))
-      (let* ((name (cocoa-default-symbol d))
+  (update-cocoa-defaults-vector
+   (send (@class "NSUserDefaults") 'standard-user-defaults)
+   (apply #'vector (reverse (cocoa-defaults)))))
+
+(defun update-cocoa-defaults-vector (domain defaults-vector)
+  (let* ((need-synch nil))
+    (dotimes (i (length defaults-vector))
+      (let* ((d (svref defaults-vector i))
+             (name (cocoa-default-symbol d))
              (key (objc-constant-string-nsstringptr (cocoa-default-string d))))
 	(if (%null-ptr-p (send domain :object-for-key key))
           (progn
@@ -91,10 +104,3 @@
 	       (unless (%null-ptr-p nsstring)
 		 (set name (lisp-string-from-nsstring nsstring)))))))))
     (when need-synch (send domain 'synchronize))))
-
-
-  
-                                   
-    
-
-                       
