@@ -411,23 +411,7 @@
 
 
 
-(defun make-array (dims &key (element-type t element-type-p)
-                        displaced-to
-                        displaced-index-offset
-                        adjustable
-                        fill-pointer
-                        (initial-element nil initial-element-p)
-                        (initial-contents nil initial-contents-p))
-  (when (and initial-element-p initial-contents-p)
-        (error "Cannot specify both ~S and ~S" :initial-element-p :initial-contents-p))
-  (make-array-1 dims element-type element-type-p
-                displaced-to
-                displaced-index-offset
-                adjustable
-                fill-pointer
-                initial-element initial-element-p
-                initial-contents initial-contents-p
-                nil))
+
 
 
 
