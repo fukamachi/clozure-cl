@@ -1235,15 +1235,15 @@
    (nx1-ff-call-internal
     address-expression arg-specs-and-result-spec
     (ecase (backend-name *target-backend*)
-      (:linuxppc (%nx1-operator eabi-ff-call))
-      (:darwinppc (%nx1-operator poweropen-ff-call)))))
+      (:linuxppc32 (%nx1-operator eabi-ff-call))
+      (:darwinppc32 (%nx1-operator poweropen-ff-call)))))
 
 (defnx1 nx1-syscall ((%syscall)) (idx &rest arg-specs-and-result-spec)
    (nx1-ff-call-internal	
     idx arg-specs-and-result-spec
     (ecase (backend-name *target-backend*)
-      (:linuxppc (%nx1-operator linux-syscall))
-      (:darwinppc (%nx1-operator darwin-syscall)))))
+      (:linuxppc32 (%nx1-operator linux-syscall))
+      (:darwinppc32 (%nx1-operator darwin-syscall)))))
 
 (defun nx1-ff-call-internal (address-expression arg-specs-and-result-spec operator )
   (let* ((specs ())
