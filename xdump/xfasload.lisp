@@ -171,7 +171,7 @@
 		      (*post-gc-hook*) (%handlers%) 
 		     (%finalization-alist%) (%closure-code%)))
 	   s))
-   ppc32::*ppc-nilreg-relative-symbols*))
+   ppc::*ppc-nilreg-relative-symbols*))
 
 ;;; This should probably be a function of the target backend.
 (defparameter *xload-image-base-address*
