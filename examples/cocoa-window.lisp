@@ -19,8 +19,16 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "OBJC-SUPPORT")
+  ;;
+  ;;  this stuff should all be integrated with a preferences file in ~/Library/OpenMCL/
+  ;; (Um, it -is- integrated with the preferences file.)
+  ;;
   (require "COCOA-DEFAULTS")
-  (require "COCOA-PREFS"))
+  (def-cocoa-default *default-font-name* :string "Courier" "Name of font to use in editor windows")
+  (def-cocoa-default *default-font-size* :float 12.0f0 "Size of font to use in editor windows, as a positive SINGLE-FLOAT")
+  (def-cocoa-default *tab-width* :int 8 "Width of editor tab stops, in characters" (integer 1 32))
+  (require "COCOA-PREFS")
+  (require "COCOA-TYPEOUT"))
 
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir #+apple-objc  :cocoa #+gnu-objc :gnustep))
@@ -186,6 +194,10 @@
   (declare (ignore sender))
   (send (send (find-class 'preferences-panel) 'shared-panel) 'show))
 
+(define-objc-method ((:void :toggle-typeout sender) lisp-application)
+  (declare (ignore sender))
+  (let ((panel (send (find-class 'typeout-panel) 'shared-panel)))
+    (send panel 'show)))
 
 (defun nslog-condition (c)
   (let* ((rep (format nil "~a" c)))
@@ -274,9 +286,6 @@
 						  #'cocoa-startup)
 						 (toplevel)))))
 
-(def-cocoa-default *default-font-name* :string "Courier" "Name of font to use in editor windows")
-(def-cocoa-default *default-font-size* :float 12.0f0 "Size of font to use in editor windows, as a positive SINGLE-FLOAT")
-
 (defparameter *font-attribute-names*
   '((:bold . #.#$NSBoldFontMask)
     (:italic . #.#$NSItalicFontMask)
@@ -318,8 +327,6 @@
 		      (setq font newfont)
 		      (push attr-name implemented-attributes))))))
 	    (values font implemented-attributes))))))
-
-(def-cocoa-default *tab-width* :int 8 "Width of editor tab stops, in characters" (integer 1 32))
 
 ;;; Create a paragraph style, mostly so that we can set tabs reasonably.
 (defun create-paragraph-style (font line-break-mode)
