@@ -656,19 +656,7 @@
 
 ;;;; Showing a mark.
 
-(defun show-mark (mark window time)
-  "Highlights the position of Mark within Window for Time seconds,
-   possibly by moving the cursor there.  If Mark is not displayed within
-   Window return NIL.  The wait may be aborted if there is pending input."
-  (let* ((result t))
-    (catch 'redisplay-catcher
-      (redisplay-window window)
-      (setf result
-	    (multiple-value-bind (x y) (mark-to-cursorpos mark window)
-	      (funcall (device-show-mark
-			(device-hunk-device (window-hunk window)))
-		       window x y time))))
-    result))
+
 
 
 
