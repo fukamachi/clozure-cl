@@ -762,7 +762,7 @@ c)" t)
 
 (set-macro-character #\" #'read-string)
 
-(defparameter *ignore-extra-close-parenthesis* t)
+(defparameter *ignore-extra-close-parenthesis* nil)
 
 (set-macro-character 
  #\)
