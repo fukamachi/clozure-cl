@@ -154,11 +154,11 @@
 ; This -really- gets initialized later in the file
 (defvar %initial-readtable%
   (let* ((ttab (make-array 256 :element-type '(signed-byte 8)))
-         (wspc '(#\Null #\Tab #\Linefeed #\Page #\Return #\Space #\312)) ;$CA=non-break space
          (macs `((#\# . (,#'read-dispatch))))
          (case :upcase))
     (dotimes (i 256) (declare (fixnum i))(uvset ttab i $cht_cnst))
-    (dolist (ch wspc) (uvset ttab (%char-code ch) $cht_wsp))
+    (dotimes (ch (1+ (char-code #\Space)))
+      (uvset ttab ch $cht_wsp))
     (uvset ttab (char-code #\\) $cht_sesc)
     (uvset ttab (char-code #\|) $cht_mesc)
     (uvset ttab (char-code #\#) $cht_ntmac)
