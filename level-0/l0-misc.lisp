@@ -480,6 +480,25 @@
     (if (zerop binding-address)
       (%atomic-incf-node by s ppc32::symbol.vcell-cell)
       (%atomic-incf-node by binding-address 8))))
-      
 
+;;; Yield the CPU, via a platform-specific syscall.
+(defun yield ()
+  (%syscall target::yield-syscall :signed-fullword))
 
+(defun write-lock-rwlock (lock)
+    (let* ((context (%current-tcr)))
+      (if (eq (%svref lock target::lock.writer-cell) context)
+        (progn
+          (decf (%svref lock target::lock._value-cell))
+          lock)
+        (loop
+          (when (%store-node-conditional target::lock._value lock 0 -1)
+            (setf (%svref lock target::lock.writer-cell) context)
+            (return lock))
+          (%nanosleep 0 *ns-per-tick*)))))
+
+(defun read-lock-rwlock (lock)
+  (loop
+    (when (%try-read-lock-rwlock lock)
+      (return lock))
+    (%nanosleep 0 *ns-per-tick*)))
