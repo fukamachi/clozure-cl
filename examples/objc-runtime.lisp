@@ -277,23 +277,30 @@
   (defun find-cfstring-sections ()
     (let* ((image-count (#_ _dyld_image_count)))
       (when (> image-count (car cfstring-sections))
+        (flet ((func (sectaddr size)
+                 (let* ((addr (%ptr-to-int sectaddr))
+                        (limit (+ addr size))
+                        (already (member addr (cdr cfstring-sections) :key #'car)))
+                   (if already
+                     (rplacd already limit)
+                     (push (cons addr limit) (cdr cfstring-sections))))))
 	(process-section-in-all-libraries
 	 #$SEG_DATA
-	 "__cfstring"
-	 #'(lambda (sectaddr size)
-	     (let* ((addr (%ptr-to-int sectaddr))
-		    (limit (+ addr size))
-		    (already (member addr (cdr cfstring-sections) :key #'car)))
-	       (if already
-		 (rplacd already limit)
-		 (push (cons addr limit) (cdr cfstring-sections))))))
-	(setf (car cfstring-sections) image-count))))
+	 "__const"
+         #'func)
+        (process-section-in-all-libraries
+         #$SEG_DATA
+         "__cfstr"
+         #'func)))
+	(setf (car cfstring-sections) image-count)))
   (defun pointer-in-cfstring-section-p (ptr)
     (let* ((addr (%ptr-to-int ptr)))
       (dolist (s (cdr cfstring-sections))
 	(when (and (>= addr (car s))
 		   (< addr (cdr s)))
-	  (return t))))))
+	  (return t)))))
+  (defun cfstring-sections ()
+    (cdr cfstring-sections)))
 	       
 					  
 
@@ -347,10 +354,14 @@
 )
 
 (defun get-appkit-version ()
-  (%get-double-float (foreign-symbol-address #+apple-objc "_NSAppKitVersionNumber" #+gnu-objc "NSAppKitVersionNumber")))
+  #+apple-objc
+  #?NSAppKitVersionNumber
+  #+gnu-objc
+  (get-foundation-version))
 
 (defun get-foundation-version ()
-  (%get-double-float (foreign-symbol-address #+apple-objc "_NSFoundationVersionNumber" #+gnu-objc "NSFoundationVersionNumber")))
+  #?NSFoundationVersionNumber
+  #+gnu-objc (%get-cstring (foreign-symbol-address "gnustep_base_version")))
 
 (defparameter *appkit-library-version-number* (get-appkit-version))
 (defparameter *foundation-library-version-number* (get-foundation-version))
@@ -1563,7 +1574,7 @@ argument lisp string."
 #+apple-objc
 (progn
 (defloadvar *original-deallocate-hook*
-    (%get-ptr (foreign-symbol-address "__dealloc")))
+        #?_dealloc)
 
 (defcallback deallocate-nsobject (:address obj :int)
   (unless (%null-ptr-p obj)
@@ -1571,7 +1582,7 @@ argument lisp string."
   (ff-call *original-deallocate-hook* :address obj :int))
 
 (defun install-lisp-deallocate-hook ()
-  (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))
+  (setf #?_dealloc deallocate-nsobject))
 
 #+later
 (def-ccl-pointers install-deallocate-hook ()
@@ -1579,7 +1590,7 @@ argument lisp string."
 
 (defun uninstall-lisp-deallocate-hook ()
   (clrhash *objc-object-slot-vectors*)
-  (setf (%get-ptr (foreign-symbol-address "__dealloc")) *original-deallocate-hook*))
+  (setf #?_dealloc *original-deallocate-hook*))
 
 (pushnew #'uninstall-lisp-deallocate-hook *save-exit-functions* :test #'eq
          :key #'function-name)
