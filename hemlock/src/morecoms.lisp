@@ -151,8 +151,7 @@
       (cond ((and (not errorp) (kill-characters point (- del)))
 	     (with-mark ((mark point :left-inserting))
 	       (dotimes (i fill)
-		 (insert-character mark #\space)))
-             (hi::maybe-update-selection point))
+		 (insert-character mark #\space))))
 	    (t
 	     (editor-error "There were not ~D characters before point." n))))))
 
