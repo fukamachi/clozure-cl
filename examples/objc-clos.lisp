@@ -313,15 +313,23 @@ be word-aligned")
 of field, relative to start of class's own slots")
 
 (defclass foreign-direct-slot-definition (direct-slot-definition)
-  ((foreign-type :initarg :foreign-type :initform :id :accessor foreign-slot-definition-foreign-type)
+  ((foreign-type  :initform :id :accessor foreign-slot-definition-foreign-type)
    (offset :initarg :offset
 	   :initform nil
 	   :accessor foreign-direct-slot-definition-offset
 	   :documentation "A byte- (or, if certain high bits are set, bit-)
 offset, relative to the start of the instance's slots.  The corresponding
 effective slot definition's offset is a product of this value and the
-instance_size of its ObjC superclass."))
-  (:default-initargs :foreign-type :id))
+instance_size of its ObjC superclass.")))
+
+(defmethod shared-initialize :after ((slotd foreign-direct-slot-definition)
+                                     slot-names
+                                     &key (foreign-type '(:id)))
+  (declare (ignore slot-names))
+  (if (and (consp foreign-type)
+           (null (cdr foreign-type)))
+    (setf (foreign-slot-definition-foreign-type slotd) (car foreign-type))
+    (error "~S must be a 1-element list" foreign-type)))
 
 (defclass foreign-effective-slot-definition (effective-slot-definition)
   ((foreign-type :initarg :foreign-type :initform :id :accessor foreign-slot-definition-foreign-type)
@@ -416,7 +424,7 @@ instance_size of its ObjC superclass."))
     (let* ((slot 
 	    (make-direct-slot-definition
 	     class
-	     `(:foreign-type ,slot-type :offset ,offset ,@initargs))))
+	     `(:foreign-type ,(list slot-type) :offset ,offset ,@initargs))))
       slot)))
 	   
 
