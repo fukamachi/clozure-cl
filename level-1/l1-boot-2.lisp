@@ -23,24 +23,22 @@
 	     (let* ((namestring
 		     (concatenate 'simple-base-string
 				  #+linuxppc-target "./l1-pfsls/"
-				  #+sparc-target "./l1-sfsls/"
 				  #+darwinppc-target "./l1-dfsls/"
 				  (string name)
 				  #+linuxppc-target ".pfsl"
-				  #+sparc-target ".sfsl"
 				  #+darwinppc-target ".dfsl")))
-	       `(%fasload ,namestring)))
+	       `(let* ((*loading-file-source-file* *loading-file-source-file*))
+                 (%fasload ,namestring))))
 	   (bin-load (name)
 	     (let* ((namestring
 		     (concatenate 'simple-base-string
 				  #+linuxppc-target "./binppc/"
-				  #+sparc-target "./binsparc/"
 				  #+darwinppc-target "./bindarwin/"
 				  (string name)
 				  #+linuxppc-target ".pfsl"
-				  #+sparc-target ".sfsl"
 				  #+darwinppc-target ".dfsl")))
-	       `(%fasload ,namestring))))
+               `(let* ((*loading-file-source-file* *loading-file-source-file*))
+                 (%fasload ,namestring)))))
 
 
 (catch :toplevel
@@ -48,14 +46,12 @@
     (l1-load "sysutils")
     #+ppc-target
     (l1-load "ppc-error-signal")
-    #+sparc-target
-    (l1-load "sparc-error-signal")
     (l1-load "l1-error-signal")
     (l1-load "l1-sockets")
     (setq *LEVEL-1-LOADED* t))
 
 (defun altivec-available-p ()
-  (not (eql (%get-kernel-global 'ppc32::qd-globals) 0)))
+  (not (eql (%get-kernel-global 'ppc::altivec-present) 0)))
 
 (defloadvar *altivec-available* (altivec-available-p))
 
@@ -65,7 +61,7 @@
 (defglobal *auto-flush-streams-lock* (make-lock))
 
 
-(defloadvar *batch-flag* (not (eql (%get-kernel-global 'ppc32::batch-flag) 0)))
+(defloadvar *batch-flag* (not (eql (%get-kernel-global 'ppc::batch-flag) 0)))
 (defvar *terminal-input* ())
 (defvar *terminal-output* ())
 (defvar *stdin* ())
@@ -145,14 +141,10 @@
       
       #+ppc-target
       (bin-load-provide "PPC32-ARCH" "ppc32-arch")
-      #+sparc-target
-      (bin-load-provide "SPARC-ARCH" "sparc-arch")
       (bin-load-provide "VREG" "vreg")
       
       #+ppc-target
       (bin-load-provide "PPC-ASM" "ppc-asm")
-      #+sparc-target
-      (bin-load-provide "SPARC-ASM" "sparc-asm")
       
       (bin-load-provide "VINSN" "vinsn")
       (bin-load-provide "REG" "reg")
@@ -160,22 +152,16 @@
       
       #+ppc-target
       (bin-load-provide "PPC-LAP" "ppc-lap")
-      #+sparc-target
-      (bin-load-provide "SPARC-LAP" "sparc-lap")
       
       (bin-load-provide "BACKEND" "backend")
      
       #+ppc-target
       (provide "PPC2")                  ; Lie, load the module manually
-      #+sparc-target
-      (provide "SPARC2")
       
       (l1-load-provide "NX" "nx")
       
       #+ppc-target
       (bin-load "ppc2")
-      #+sparc-target
-      (bin-load "sparc2")
       
       (bin-load-provide "LEVEL-2" "level-2")
       (bin-load-provide "MACROS" "macros")
@@ -198,17 +184,9 @@
       (progn
 	(bin-load-provide "PPC-DISASSEMBLE" "ppc-disassemble")
 	(bin-load-provide "PPC-LAPMACROS" "ppc-lapmacros"))
-      #+sparc-target
-      (progn
-	(bin-load-provide "SPARC-DISASSEMBLE" "sparc-disassemble")
-	(bin-load-provide "SPARC-LAPMACROS" "sparc-lapmacros"))
 
       (bin-load-provide "FOREIGN-TYPES" "foreign-types")
       (bin-load-provide "DB-IO" "db-io")
-      #+sparc-target
-      (progn
-	(%fasload "./library/solaris-records.sfsl")
-	(provide "SOLARIS-RECORDS"))
       
       (bin-load-provide "CASE-ERROR" "case-error")
       (bin-load-provide "ENCAPSULATE" "encapsulate")
