@@ -31,10 +31,9 @@
 
 (defmacro define-storage-layout (name origin &rest cells)
   `(progn
-     (ccl::defenum (:start ,origin :step (ash 1 ppc32::word-shift))
+     (ccl::defenum (:start ,origin :step 4)
        ,@(mapcar #'(lambda (cell) (ccl::form-symbol name "." cell)) cells))
-     (defconstant ,(ccl::form-symbol name ".SIZE") ,(* (length cells)
-						       (ash 1 ppc32::word-shift)))))
+     (defconstant ,(ccl::form-symbol name ".SIZE") ,(* (length cells) 4))))
  
 (defmacro define-lisp-object (name tagname &rest cells)
   `(define-storage-layout ,name ,(- (symbol-value tagname)) ,@cells))
