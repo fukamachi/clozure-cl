@@ -2529,14 +2529,16 @@
 	   (ftype (%foreign-type-or-record record-name)))
       (if (typep ftype 'foreign-record-type)
         (setq result (nconc result (%foreign-record-field-forms name ftype record-name inits)))
-        (when inits
-	  (if (and ftype (null (cdr inits)))
+	(progn
+	  ;(setq result (nconc result `((%assert-macptr-ftype ,name ,ftype))))
+	  (when inits
+	    (if (and ftype (null (cdr inits)))
               (setq result
                     (nconc result
                            `((setf ,(%foreign-access-form name ftype 0 nil)
 			      ,(car inits)))))
               (error "Unexpected or malformed initialization forms: ~s in field type: ~s"
-                     inits record-name)))))))
+                     inits record-name))))))))
 
 (defun %foreign-record-field-forms (ptr record-type record-name inits)
   (unless (evenp (length inits))
@@ -2544,7 +2546,10 @@
                      inits record-name))
   (let* ((result ()))
     (do* ()
-	 ((null inits) (nreverse result))
+	 ((null inits)
+	  `((progn
+	      ;(%assert-macptr-ftype ,ptr ,record-type)
+	      ,@(nreverse result))))
       (let* ((accessor (decompose-record-accessor (pop inits)))
 	     (valform (pop inits)))
 	(push `(setf ,(%foreign-access-form ptr record-type 0  accessor) ,valform)
