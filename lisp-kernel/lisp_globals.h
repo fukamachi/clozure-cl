@@ -44,7 +44,7 @@ extern LispObj lisp_nil;
 #define GCABLE_POINTERS (-22)   /* linked-list of weak macptrs. */
 #define HEAP_START (-23)        /* start of lisp heap */
 #define HEAP_END (-24)          /* end of lisp heap */
-#define BAD_CURRENT_CS (-25)        /* area describing control-stack */
+#define STATICALLY_LINKED (-25)        /* non-zero if -static */
 #define BAD_CURRENT_VS (-26)        /* area describing value-stack */
 #define BAD_CURRENT_TS (-27)        /* area describing temp-stack */
 #define BAD_CS_OVERFLOW_LIMIT (-28) /* value for control-stack overflow check */

@@ -384,7 +384,7 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	 _node(BAD_cs_overflow_limit) 	/* limit for control-stack overflow check */
 	 _node(BAD_current_ts) 		/* current temp-stack area */
 	 _node(BAD_current_vs) 		/* current value-stack area */
-	 _node(BAD_current_cs) 		/* current control-stack area */
+	 _node(statically_linked)	/* non-zero if -static */
 	 _node(heap_end)                /* end of lisp heap */
 	 _node(heap_start)              /* start of lisp heap */
 	 _node(gcable_pointers)         /* linked-list of weak macptrs. */
