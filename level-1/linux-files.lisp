@@ -272,10 +272,6 @@
 (defun timeval->milliseconds (tv)
     (+ (* 1000 (pref tv :timeval.tv_sec)) (round (pref tv :timeval.tv_usec) 1000)))
 
-(defun get-internal-real-time ()
-  (rlet ((tv :timeval))
-    (#_gettimeofday tv (%null-ptr))
-    (timeval->milliseconds tv)))
 
 (defun %add-timevals (result a b)
   (let* ((seconds (+ (pref a :timeval.tv_sec) (pref b :timeval.tv_sec)))
@@ -300,13 +296,7 @@
     
 
 
-(defun get-internal-run-time ()
-  (rlet ((usage :rusage)
-	 (total :timeval))
-    (%%rusage usage)
-    (timeval->milliseconds (%add-timevals total 
-					  (pref usage :rusage.ru_utime) 
-					  (pref usage :rusage.ru_stime)))))
+
 
 
 
