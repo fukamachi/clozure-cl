@@ -126,7 +126,7 @@ sprint_specializers_list(LispObj o, int depth)
     if (o != lisp_nil) {
       the_car = car(o);
       if (fulltag_of(the_car) == fulltag_misc) {
-        sprint_lisp_object(deref(the_car, 2), depth);
+        sprint_lisp_object(deref(deref(the_car,3), 4), depth);
       } else {
         sprint_lisp_object(the_car, depth);
       }
@@ -198,9 +198,10 @@ sprint_function(LispObj o, int depth)
   } else {
     if (lfbits & lfbits_method_mask) {
       LispObj 
-        method_name = deref(name, 6),
-        method_qualifiers = deref(name, 2),
-        method_specializers = deref(name, 3);
+	slot_vector = deref(name,3),
+        method_name = deref(slot_vector, 6),
+        method_qualifiers = deref(slot_vector, 2),
+        method_specializers = deref(slot_vector, 3);
       add_c_string("Method-Function ");
       sprint_lisp_object(method_name, depth);
       add_char(' ');
@@ -297,11 +298,17 @@ sprint_ivector(LispObj o)
     break;
     
   case subtag_double_float:
-    /* Probably won't work: emulated code is using SANE. */
     break;
+
+  case subtag_macptr:
+    add_c_string("#<MACPTR ");
+    sprint_unsigned_hex(deref(o,1));
+    add_c_string(">");
+    break;
+
+  default:
+    sprint_random_vector(o, subtag, elements);
   }
-  
-  sprint_random_vector(o, subtag, elements);
 }
 
 void
