@@ -35,6 +35,11 @@
 		     backtrace-window-controller)
   #@"backtrace")
 
+(define-objc-method ((:void close)
+                     backtrace-window-controller)
+  (setf (slot-value self 'context) nil)
+  (send-super 'close))
+
 (defmethod our-frame-label-p ((self backtrace-window-controller) thing)
   (and (typep thing 'frame-label)
        (eql self (frame-label-controller thing))))
@@ -174,273 +179,42 @@
 
         
 
+(defun backtrace-controller-for-context (context)
+  (or (bt.dialog context)
+      (setf (bt.dialog context)
+            (make-instance 'backtrace-window-controller
+                           :with-window-nib-name #@"backtrace"
+                           :context context))))
 
-
-
-(defun backtrace-window-for-context (context)
-  (let* ((cont (make-instance 'backtrace-window-controller
-			      :with-window-nib-name #@"backtrace"
-			      :context context)))
-    (send cont :show-window nil)
-    cont))
-
-
-
-
+#+debug
 (define-objc-method ((:void will-load)
 		     backtrace-window-controller)
   (#_NSLog #@"will load %@" :address (send self 'window-nib-name)))
 
-#+notyet
-(progn
+(defmethod ui-object-enter-backtrace-context ((app ns:ns-application)
+                                              context)
+  (let* ((proc *current-process*))
+    (when (typep proc 'cocoa-listener-process)
+      (push context (cocoa-listener-process-backtrace-contexts proc)))))
+
+(defmethod ui-object-exit-backtrace-context ((app ns:ns-application)
+                                              context)
+  (let* ((proc *current-process*))
+    (when (typep proc 'cocoa-listener-process)
+      (when (eq context (car (cocoa-listener-process-backtrace-contexts proc)))
+        (setf (cocoa-listener-process-backtrace-contexts proc)
+              (cdr (cocoa-listener-process-backtrace-contexts proc)))
+        (let* ((window (bt.dialog context)))
+          (when window
+            (send window
+                  :perform-selector-on-main-thread
+                  (@selector "close")
+                  :with-object (%null-ptr)
+                  :wait-until-done t)))))))
+
+  
 
 
-;;;;;;;
-;;
-;; Interface to the break-loop
-;;
-(defun select-backtrace (&aux (info (car ccl::*backtrace-dialogs*)))
-    (unless info (error "No context for backtrace"))
-    (if (ccl::bt.dialog info)
-      (window-select (ccl::bt.dialog info))
-      (make-instance 'backtrace-window :info info
-                     :window-title (format nil "Backtrace for ~A"
-                                           (process-name
-                                            (ccl::stack-group-process
-                                             (ccl::bt.sg info)))))))
 
 
-;; Interface to apply-in-nth-frame
-(defmethod ccl::nth-frame ((w backtrace-window) target n)
-  (let ((error-frame (inspector-object (view-named 'stack-pane w))))
-    (unless (eql target (stack-start error-frame))
-      (error "Inconsistent args to nth-frame"))
-    (error-frame-n error-frame n)))
 
-;;;;;;;
-;;
-;; Interface to LOCAL
-;;
-(defun ccl::names-in-frame (&optional (window (front-window :class 'backtrace-window)))
-  (when window
-    (let* ((view (inspector-view (view-named 'stack-frame-pane window)))
-           (inspector (inspector view))
-           (lines (inspector-line-count inspector))
-           res)
-      (dotimes (i lines)
-        (multiple-value-bind (val label) (cached-line-n view i)
-          (declare (ignore val))
-          (push (cddr label) res)))
-      (nreverse res))))
-
-(defun ccl::nth-frame-info (n &optional (window (front-window :class 'backtrace-window)))
-  (when window
-    (let* ((view (inspector-view (view-named 'stack-frame-pane window))))
-      (values (cached-line-n view n)))))
-
-(defun ccl::set-nth-frame-value (n new-value)
-  (let ((window (front-window :class 'backtrace-window)))
-    (let* ((view (inspector-view (view-named 'stack-frame-pane window)))
-           (inspector (inspector view)))
-      (setf (line-n inspector n) new-value)
-      (resample view)))
-  new-value)
-
-(defun ccl::frame-lfun (&optional (window (front-window :class 'backtrace-window)))
-  (when window
-    (let* ((inspector (inspector (view-named 'stack-frame-pane window)))
-           (info (frame-info inspector)))
-      (when info
-        (values (cadr info) (caddr info))))))
-
-; Old inspector function that some folks were used to
-(defun ccl::top-inspect-form ()
-  (let ((w (front-window :class 'inspector-window)))
-    (and w (inspector-object w))))
-
-;;;;;;;
-;;
-;; return-from and restart frame
-;;
-
-                           
-(defun backtrace-return-from-frame (w)
-  (setq w (require-type w 'backtrace-window))
-  (let* ((i (inspector (view-named 'stack-frame-pane w)))
-         (info (frame-info i))
-         (sg (stack-group (inspector-object i)))
-         (frame (car info))
-         (srv (ccl::frame-restartable-p frame sg)))
-    (if (not srv)
-      (ed-beep)                   ; Paranoia is a wonderful thing
-      (multiple-value-bind (value ok-button-p) (edit-value nil nil)
-        (when ok-button-p
-          (ccl::apply-in-frame-internal 
-           sg
-           frame
-           #'values
-           (if (and (consp value) (eq (car value) 'values)) (cdr value) (list value))
-           srv))))))
-
-(defun add-child-window (w child)
-  (view-put w :child-windows (push child (view-get w :child-windows))))
-
-(defun backtrace-restart-frame (w)
-  (setq w (require-type w 'backtrace-window))
-  (let* ((inspector (inspector (view-named 'stack-frame-pane w)))
-         (info (frame-info inspector))
-         (error-frame (inspector-object inspector))
-         (sg (stack-group error-frame)))
-    (destructuring-bind (frame lfun pc child &rest rest) info
-      (declare (ignore rest))
-      (multiple-value-bind (args types names count nclosed)
-                           (ccl::frame-supplied-args frame lfun pc child sg)
-        (let* ((frame (car info))
-               (srv (ccl::frame-restartable-p frame sg)))
-          (if (not (and (or (eq count t) (>= count nclosed)) frame srv))
-            (ed-beep)
-            (let* ((name (function-name lfun))
-                   (f (ignore-errors (fboundp name))))
-              (cond ((null f))
-                    ((eq (ccl::closure-function f) lfun)
-                     (setq lfun name
-                           args (nthcdr nclosed args)
-                           types (nthcdr nclosed types)
-                           names (nthcdr nclosed names)
-                           nclosed 0))
-                    (f (setq lfun name)))
-              (let ((i (make-instance 'function-args-inspector
-                         :stack-frame-inspector inspector
-                         :restart-srv srv
-                         :frame-to-restart frame
-                         :object (cons lfun args)
-                         :types types :names names :nclosed nclosed)))
-                (add-child-window w
-                                  (make-instance 'inspector-window
-                                    :inspector i :view-position '(:top 50)))))))))))
-
-(defclass function-args-inspector (inspector)
-  ((types :initarg :types :accessor types)
-   (names :initarg :names :accessor names)
-   (nclosed :initarg :nclosed :accessor nclosed)
-   (stack-frame-inspector :initarg :stack-frame-inspector :reader stack-frame-inspector)
-   (frame-to-restart :initarg :frame-to-restart :reader frame-to-restart)
-   (restart-srv :initarg :restart-srv :reader restart-srv)))
-
-(defmethod inspector-window-title ((i function-args-inspector))
-  (format nil "Restart frame at #x~x" (ccl::index->address (frame-to-restart i))))
-
-(defmethod compute-line-count ((i function-args-inspector))
-  (+ 3 (length (inspector-object i))))
-
-(defmethod line-n ((i function-args-inspector) n)
-  (let ((f&args (inspector-object i)))
-    (case n
-      (0 f&args)
-      (1 (values nil "Choose \"Restart\" from \"Commands\" menu when ready"
-                 :comment))
-      (2 (values (car f&args) "Function" :colon))
-      (3 (values (ignore-errors (arglist (car f&args))) "Arglist: " :static))
-      (t (decf n 4)
-         (let ((args (nthcdr n (cdr f&args)))
-               (type (nth n (types i)))
-               (name (nth n (names i))))
-           (unless args (line-n-out-of-range i (+ n 4)))
-           (values (car args) (list n type name)))))))
-
-(defmethod (setf line-n) (value (i function-args-inspector) n)
-  (flet ((install-new-function (i function)
-           (let ((arglist (arglist function))
-                 (types nil)
-                 (names nil)
-                 (type "required"))
-             (dolist (name arglist)
-               (cond ((eq name '&optional) (setq type "optional"))
-                     ((memq name lambda-list-keywords) (return))
-                     (t (push type types)
-                        (push name names))))
-             (setf (types i) types
-                   (names i) names)
-             (unless (eql 0 (nclosed i))
-               (let ((f&args (inspector-object i)))
-                 (setf (cdr f&args) (nthcdr (nclosed i) (cdr f&args))))
-               (setf (nclosed i) 0)))))
-    (case n
-      (0 (if (ignore-errors
-              (and (listp value) (length value) (or (functionp (car value)) 
-                                                    (fboundp (car value)))))
-           (progn
-             (setf (inspector-object i) value)
-             (install-new-function i (car value))
-             (resample-it))
-           (ed-beep)))
-      ((1 3) (setf-line-n-out-of-range i n))
-      (2 (if (ignore-errors (or (functionp value) (fboundp value)))
-           (progn
-             (setf (car (inspector-object i)) value)
-             (install-new-function i value)
-             (resample-it))
-           (ed-beep)))
-      (t (decf n 4)
-         (let ((args (nthcdr n (cdr (inspector-object i)))))
-           (unless args (setf-line-n-out-of-range i (+ n 4)))
-           (setf (car args) value)
-           (resample-it))))))
-
-(defmethod prin1-label ((i function-args-inspector) stream value &optional label type)
-  (declare (ignore value type))
-  (if (consp label)
-    (format stream "~d: " (car label))
-    (call-next-method)))
-
-(defmethod prin1-value ((i function-args-inspector) stream value &optional label type)
-  (declare (ignore type))
-  (if (consp label)
-    (destructuring-bind (n type name) label
-      (declare (ignore n))
-      (when name
-        (princ name stream)
-        (tyo #\space stream))
-      (when type
-        (format stream "(~a) " type))))
-  (prin1 value stream))
-
-
-(defmethod inspector-commands ((i function-args-inspector))
-  (let ((res 
-         `(("Restart "
-            ,#'(lambda ()
-                 (window-close (view-window (inspector-view i)))
-                 (let* ((stack-frame-inspector (stack-frame-inspector i)))
-                   (if (wptr (inspector-view stack-frame-inspector))
-                     (let* ((frame (frame-to-restart i))
-                            (srv (restart-srv i))
-                            (f&args (inspector-object i))
-                            (sg (stack-group (inspector-object stack-frame-inspector))))
-                       (ccl::apply-in-frame-internal
-                        sg
-                        frame
-                        (car f&args)  ; fn
-                        (cdr f&args)  ; args
-                        srv)))))))))      ; saved registers
-    (let* ((view (inspector-view i))
-           (selection (selection view)))
-      (let ((f&args (inspector-object i)))
-        (push `("Insert arg after selection"
-                ,(and selection (>= (decf selection 3) 0)
-                      #'(lambda ()
-                          (push nil (cdr (nthcdr selection f&args)))
-                          (resample-it))))
-              res)
-        (push `("Delete (and Copy) selected arg"
-                ,(and selection (> selection 0)
-                      #'(lambda ()
-                          (copy view)
-                          (pop (nthcdr selection f&args))
-                          (if (>= selection (length f&args))
-                            (set-selection (inspector-view i) nil))
-                          (resample-it))))
-              res)))
-    (nreverse res)))
-        
-)
