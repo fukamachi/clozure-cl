@@ -57,7 +57,7 @@
   (dirlist (make-dll-header))
   (attributes #+darwinppc-target '(:signed-char :struct-by-value :prepend-underscores)
 	      #+linuxppc-target ())
-  (ordinal->type (make-array 100 :fill-pointer 0)))
+  (ordinal->type (make-array 100 :fill-pointer 1)))
 
 (defvar *host-ftd* (make-ftd))
 (defvar *target-ftd* *host-ftd*)
@@ -285,10 +285,21 @@
 		 (prin1 (unparse-foreign-type s) out)))))
   (class 'root :type symbol)
   (bits nil :type (or null unsigned-byte))
-  (alignment (guess-alignment bits) :type (or null unsigned-byte)))
+  (alignment (guess-alignment bits) :type (or null unsigned-byte))
+  (assigned-ordinal nil))
+
+(defun foreign-type-ordinal (ftype)
+  (or (foreign-type-assigned-ordinal ftype)
+      (setf (foreign-type-assigned-ordinal ftype)
+	    (vector-push-extend ftype (ftd-ordinal->type *target-ftd*)))))
+
+(defun ordinal-to-foreign-type (ordinal &optional (ftd *target-ftd*))
+  (elt (ftd-ordinal->type ftd) ordinal))
+
 
 (defmethod make-load-form ((s foreign-type) &optional env)
   (make-load-form-saving-slots s :environment env))
+
 
 
 
@@ -615,6 +626,8 @@
     (svref *signed-integer-types* bits)
     (make-foreign-integer-type :bits bits)))
 
+
+
 (def-foreign-type-translator integer (&optional (bits 32))
   (if (<= bits 32)
     (svref *signed-integer-types* bits)
@@ -626,7 +639,7 @@
     (make-foreign-integer-type :bits bits :signed nil)))
 
 (def-foreign-type-method (integer :unparse) (type)
-  (list (if (foreign-integer-type-signed type) 'signed 'unsigned)
+  (list (if (foreign-integer-type-signed type) :signed :unsigned)
 	(foreign-integer-type-bits type)))
 
 (def-foreign-type-method (integer :type=) (type1 type2)
@@ -841,11 +854,12 @@
 
 ;;;; The MEM-BLOCK type.
 
+
 (def-foreign-type-class (mem-block :include foreign-value))
 
 (def-foreign-type-method (mem-block :extract-gen) (type sap offset)
-  (declare (ignore type))
-  `(%inc-ptr ,sap (/ ,offset 8)))
+  (let* ((nbytes (%foreign-type-or-record-size type :bytes)))
+    `(%composite-pointer-ref ,nbytes ,sap (/ ,offset 8))))
 
 (def-foreign-type-method (mem-block :deposit-gen) (type sap offset value)
   (let ((bits (foreign-mem-block-type-bits type)))
@@ -1279,10 +1293,12 @@
 
 
 (defun %foreign-type-or-record (type)
-  (if (consp type)
-    (parse-foreign-type type)
-    (or (%find-foreign-record type)
-        (parse-foreign-type type))))
+  (if (typep type 'foreign-type)
+    type
+    (if (consp type)
+      (parse-foreign-type type)
+      (or (%find-foreign-record type)
+	  (parse-foreign-type type)))))
 
 (defun %foreign-type-or-record-size (type &optional (units :bits))
   (let* ((info (%foreign-type-or-record type))
@@ -1597,4 +1613,16 @@
 	  (dolist (s (foreign-record-accessor-names field-type field-name))
 	    (accessors s))
 	  (accessors field-name))))))
+
+(defun %assert-macptr-ftype (macptr ftype)
+  (if (eq (class-of macptr) *macptr-class*)
+    (%set-macptr-type macptr (foreign-type-ordinal ftype)))
+  macptr)
+
+(defun %macptr-ftype (macptr)
+  (if (eq (class-of macptr) *macptr-class*)
+    (ordinal-to-foreign-type (%macptr-type macptr))))
+
+
+  
   
