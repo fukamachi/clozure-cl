@@ -18,6 +18,7 @@
 
 (defvar *objc-module-verbose* nil)
 
+#+darwinppc-target
 (defun process-section-in-all-libraries (segname sectionname function)
   "For every loaded shared library, find the section named SECTIONNAME
 in the segment named SEGNAME.  If this section exists, call FUNCTION with
@@ -45,7 +46,8 @@ a pointer to the section data and the section's size in bytes as arguments."
               ;; section matching those we're looking for.
               (unless (%null-ptr-p sectdata)
                 (funcall function sectdata (pref size :unsigned))))))))))
-  
+
+#+darwinppc-target
 (defun process-objc-modules (f)
   (process-section-in-all-libraries #$SEG_OBJC #$SECT_OBJC_MODULES f))
 

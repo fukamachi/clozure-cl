@@ -24,7 +24,10 @@
 
 (in-package "CCL")
 
+#+darwinppc-target
 (require "APPLE-OBJC")
+#+linuxppc-target
+(require "GNU-OBJC")
 (require "NAME-TRANSLATION")
 
 
