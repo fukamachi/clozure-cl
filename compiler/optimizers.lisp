@@ -171,8 +171,7 @@
         (return-from eql-iff-eq-p
                      (nx-form-typep thing
                                      '(or fixnum
-                                       character symbol ;redundant but subtypep
-                                       ; doesn't know that...
+                                       character symbol 
                                        (and (not number) (not macptr))) env))))
   (or (fixnump thing) (and (not (numberp thing)) (not (macptrp thing)))))
 
