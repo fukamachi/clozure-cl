@@ -567,13 +567,12 @@
 
 
 (defun %last-fn-on-stack (&optional (number 0) (s (%get-frame-ptr)))
-  (let* ((fn nil)
-         (tcr (%current-tcr)))
+  (let* ((fn nil))
     (let ((p s))
       (tagbody
         (dotimes (i number)
           (declare (fixnum i))
-          (unless (setq p (parent-frame p tcr))
+          (unless (setq p (parent-frame p nil))
             (go done)))
         (if  p
           (setq fn (cfp-lfun p)))
