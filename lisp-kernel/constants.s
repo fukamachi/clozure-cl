@@ -141,10 +141,11 @@ define([define_node_subtag],[
 	define_subtag(go_tag,fulltag_imm,12)
 	define_subtag(block_tag,fulltag_imm,24)
 	define_subtag(vsp_protect,fulltag_imm,7)
+        define_subtag(no_thread_local_binding,fulltag_imm,30)
 unbound_marker = subtag_unbound
 undefined = unbound_marker
 illegal_marker = subtag_illegal
-	
+no_thread_local_binding_marker = subtag_no_thread_local_binding
 /*Numeric subtags. */
 
 	define_imm_subtag(bignum,0)
@@ -218,11 +219,13 @@ max_non_array_imm_subtag = (19<<ntagbits)|fulltag_immheader
 	define_node_subtag(pool,10)
 	define_node_subtag(weak,11)
 	define_node_subtag(package,12)
-	define_node_subtag(mark,13)
+	define_node_subtag(slot_vector,13)
 	define_node_subtag(instance,14)
 	define_node_subtag(struct,15)
 	define_node_subtag(istruct,16)
 	define_node_subtag(value_cell,17)
+        define_node_subtag(xfunction,18)
+        define_node_subtag(svar,19)
 max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
 	
 /* The objects themselves look something like this: */
@@ -272,7 +275,12 @@ max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
 	 _node(displacement)
 	 _node(flags)
 	_endstructf	
-
+	
+        _structf(svar)          /* shallow-bound special-variable info */
+         _node(symbol)
+         _node(idx)
+        _endstructf
+        
 	_struct(c_frame,0)	/* PowerOpen ABI C stack frame */
 	 _node(backlink)
 	 _node(crsave)
@@ -290,6 +298,7 @@ max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
          _node(param7)
 	 _struct_label(minsiz)
 	_ends
+
 
 ifdef([PPC64],[],[
 	_struct(eabi_c_frame,0)
@@ -683,10 +692,12 @@ tstack_alloc_limit = 0xffff
 	 _node(pending_exception_context)
 	 _node(suspend)		/* semaphore for suspension notify */
 	 _node(resume)		/* sempahore for resumption notify */
-	 _node(flags)
+	 _node(flags)      
 	 _node(gc_context)
          _node(suspend_total)
          _node(suspend_total_on_exception_entry)
+         _node(tlb_limit)
+         _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer */
 	_ends
 
 TCR_FLAG_BIT_FOREIGN = fixnum_shift

@@ -375,7 +375,10 @@ define([trap_unless_fulltag_equal],[
 	extract_fulltag($3,$1)
 	twnei $3,$2])
 	
-	
+define([trap_unless_typecode_equal],[
+        extract_typecode($3,$1)
+        twnei $3,$2])
+        
 /* "jump" to the code-vector of the function in nfn. */
 define([jump_nfn],[
 	lwz temp0,_function.codevector(nfn)

@@ -412,6 +412,7 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
   extern area* allocate_vstack(unsigned), *allocate_tstack(unsigned);
   area *a;
   TCR *tcr = calloc(1, sizeof(TCR));
+  int i;
 
   lisp_global(TCR_COUNT) += (1<<fixnumshift);
   tcr->suspend = new_semaphore(0);
@@ -428,6 +429,11 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
   tcr->interrupt_level = (-1<<fixnum_shift);
   tcr->lisp_fpscr.words.l = 0xd0;
   tcr->save_allocbase = tcr->save_allocptr = (void *) VOID_ALLOCPTR;
+  tcr->tlb_limit = 4096;
+  tcr->tlb_pointer = (LispObj *)malloc(tcr->tlb_limit);
+  for (i = 0; i < (4096/sizeof(LispObj)); i++) {
+    tcr->tlb_pointer[i] = (LispObj) no_thread_local_binding_marker;
+  }
 
   return tcr;
 }

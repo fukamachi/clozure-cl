@@ -166,6 +166,18 @@ _endfn
         _spjump(getu32)
         _spjump(fix_overflow)
         _spjump(mvpasssym)
-
+        _spjump(svar_specref)
+        _spjump(svar_specrefcheck)
+        _spjump(svar_bind)
+        _spjump(svar_bind_self)
+        _spjump(svar_bind_nil)
+        _spjump(svar_bind_self_boundp_check)
+        _spjump(svar_unbind)
+        _spjump(svar_unbind_n)
+        _spjump(svar_unbind_to)
+        _spjump(svar_specset)
+        _spjump(svar_setqsym)
+        _spjump(svar_progvsave)
+        _spjump(svar_progvrestore)
         _endfile
         

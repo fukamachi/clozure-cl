@@ -4028,8 +4028,7 @@ _spentry(specrefcheck)
 	__(cmpri(cr1,imm2,0))
 	__(bne 1f)
 	__(ldr(arg_z,binding.val(imm1)))
-	__(treqi(arg_z,unbound_marker))
-	__(blr)
+        __(b 9f)
 1:	__(bne cr1,0b)
 8:	__(ldr(arg_z,symbol.vcell(arg_y)))
 9:	__(treqi(arg_z,unbound_marker))
@@ -4162,8 +4161,341 @@ _spentry(mvpasssym)
 	__(li fn,0)
 	__(mtlr loc_pc)
 	__(jump_fname())
-        
 
+define([USE_DEEP_BINDING])
+        
+/* on entry:  temp0 = svar.  On exit, arg_z = value (possibly unbound_marker),
+        arg_y = symbol, imm3 = svar.index */
+_spentry(svar_specref)
+        ifdef([USE_DEEP_BINDING],[
+        __(trap_unless_typecode_equal(temp0,subtag_svar,imm5))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(b _SPspecref)
+        ],[
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(cmpr(imm3,imm0))
+        __(bge 1f)
+        __(ldrx(arg_z,imm2,imm3))
+        __(cmpri(arg_z,no_thread_local_binding_marker))
+        __(bnelr)
+1:     	__(ldr(arg_z,symbol.vcell(arg_y)))
+        __(blr)
+        ])
+
+_spentry(svar_specrefcheck)
+        ifdef([USE_DEEP_BINDING],[
+        __(trap_unless_typecode_equal(temp0,subtag_svar,imm5))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(b _SPspecrefcheck)
+        ],[
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(cmpr(imm3,imm0))
+        __(bge 1f)
+        __(ldrx(arg_z,imm2,imm3))
+        __(cmpri(arg_z,no_thread_local_binding_marker))
+        __(bne 2f)
+1:     	__(ldr(arg_z,symbol.vcell(arg_y)))
+2:      __(treqi(arg_z,unbound_marker))
+        __(blr)
+        ])
+
+/* This never affects the symbol's vcell */
+_spentry(svar_bind)
+        ifdef([USE_DEEP_BINDING],[
+        __(trap_unless_typecode_equal(temp0,subtag_svar,imm5))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(b _SPbind)
+        ],[
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(treqi(imm3,0))              /* no real tlb index */
+        __(trllt(imm3,imm0))           /* tlb too small */
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(vpush(temp1))
+        __(vpush(temp0))
+        __(vpush(imm1))
+        __(strx(arg_z,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+        ])
+
+_spentry(svar_bind_self)
+        ifdef([USE_DEEP_BINDING],[
+        __(ldr(arg_z,svar.symbol(temp0)))
+        __(b _SPbind_self)
+        ],[
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(treqi(imm3,0))              /* no real tlb index */
+        __(trllt(imm3,imm0))           /* tlb too small */
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(cmpri(temp1,no_thread_local_binding_marker))
+        __(mr arg_z,temp1)
+        __(bne 1f)
+        __(ldr(arg_z,symbol.vcell(arg_y)))
+1:              
+        __(vpush(temp1))
+        __(vpush(temp0))
+        __(vpush(imm1))
+        __(strx(arg_z,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+        ])
+
+_spentry(svar_bind_nil)
+        ifdef([USE_DEEP_BINDING],[
+        __(trap_unless_typecode_equal(temp0,subtag_svar,imm5))
+        __(ldr(arg_z,svar.symbol(temp0)))
+        __(b _SPbind_nil)
+        ],[
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_z,svar.symbol(temp0)))
+        __(treqi(imm3,0))              /* no real tlb index */
+        __(trllt(imm3,imm0))           /* tlb too small */
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(li imm0,nil_value)
+        __(vpush(temp1))
+        __(vpush(temp0))
+        __(vpush(imm1))
+        __(strx(imm0,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+        ])
+                	
+_spentry(svar_bind_self_boundp_check)
+        ifdef([USE_DEEP_BINDING],[
+        __(trap_unless_typecode_equal(temp0,subtag_svar,imm5))
+        __(ldr(arg_z,svar.symbol(temp0)))
+        __(b _SPbind_self_boundp_check)
+        ],[
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(treqi(imm3,0))              /* no real tlb index */
+        __(trllt(imm3,imm0))           /* tlb too small */
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(cmpri(temp1,no_thread_local_binding_marker))
+        __(mr arg_z,temp1)
+        __(bne 1f)
+        __(ldr(arg_z,symbol.vcell(arg_y)))
+1:      __(treqi(arg_z,unbound_marker))       
+        __(vpush(temp1))
+        __(vpush(temp0))
+        __(vpush(imm1))
+        __(strx(arg_z,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+	])
+_spentry(svar_unbind)
+        ifdef([USE_DEEP_BINDING],[
+        __(b _SPunbind)
+        ],[
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
+        __(ldr(temp0,binding.sym(imm1)))
+        __(ldr(temp1,binding.val(imm1)))
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm1,binding.link(imm1)))
+        __(strx(temp1,imm2,imm3))
+        __(str(imm1,tcr.db_link(rcontext)))
+        __(blr)
+        ])
+
+_spentry(svar_unbind_n)
+        ifdef([USE_DEEP_BINDING],[
+        __(b _SPunbind_n)
+        ],[
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
+1:      __(subi imm0,imm0,1)
+        __(ldr(temp0,binding.sym(imm1)))
+        __(ldr(temp1,binding.val(imm1)))
+        __(cmpri(imm0,1))
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm1,binding.link(imm1)))
+        __(strx(temp1,imm2,imm3))
+        __(bne 1b)
+        __(str(imm1,tcr.db_link(rcontext)))
+        __(blr)
+        ])
+
+ /*
+   Clobbers imm1,imm2,imm5,arg_x, arg_y
+*/
+_spentry(svar_unbind_to)
+        ifdef([USE_DEEP_BINDING],[
+        __(b _SPunbind_to)
+        ],[
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+1:      __(ldr(arg_x,binding.sym(imm1)))
+        __(ldr(arg_y,binding.val(imm1)))
+        __(ldr(imm1,binding.link(imm1)))
+        __(ldr(imm5,svar.idx(arg_x)))
+        __(cmpr(imm0,imm1))
+        __(strx(arg_y,imm2,imm5))
+        __(bne 1b)
+        __(str(imm1,tcr.db_link(rcontext)))
+        __(blr)
+        ])
+/* temp0 = svar for special symbol, arg_z = new value. */        
+_spentry(svar_specset)
+        ifdef([USE_DEEP_BINDING],[
+        __(trap_unless_typecode_equal(temp0,subtag_svar,imm5))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(b _SPspecset)
+        ],[
+        __(ldr(imm3,svar.idx(temp0)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(cmpr(imm3,imm0))
+        __(bge 1f)
+        __(ldrx(temp1,imm2,imm3))
+        __(cmpri(temp1,no_thread_local_binding_marker))
+        __(beq 1f)
+        __(strx(arg_z,imm2,imm3))
+        __(blr)
+1:     	__(str(arg_z,symbol.vcell(arg_y)))
+        __(blr)
+        ])
+
+
+_spentry(svar_setqsym)
+        ifdef([USE_DEEP_BINDING],[
+        __(trap_unless_typecode_equal(temp0,subtag_svar,imm5))
+        __(ldr(arg_y,svar.symbol(temp0)))
+        __(b _SPsetqsym)
+        ],[
+        __(ldr(arg_y,svar.symbol(temp0)))
+	__(ldr(imm0,symbol.flags(arg_y)))
+	__(andi. imm0,imm0,sym_vbit_const_mask)
+	__(beq _SPsvar_specset)
+	__(mr arg_z,arg_y)
+	__(lwi(arg_y,XCONST))
+	__(set_nargs(2))
+	__(b _SPksignalerr)
+        ])
+
+_spentry(svar_progvsave)
+        ifdef([USE_DEEP_BINDING],[
+        /* we should probably copy the list of svars in
+           arg_y to a list of symbols, but it's easier
+           just to bash the list in place, and this is
+           just a short-term kludge anyway.
+        */
+        __(mr temp0,arg_y)
+        __(b 1f)
+0:      __(_car(temp1,temp0))
+        __(ldr(temp1,svar.symbol(temp1)))
+        __(rplaca(temp0,temp1))
+        __(_cdr(temp0,temp0))
+1:      __(cmpri(temp0,nil_value))
+        __(bne 0b)
+        __(b _SPprogvsave)
+        ],[
+	/* Error if arg_z isn't a proper list.  That's unlikely,
+	   but it's better to check now than to crash later.
+	*/
+	__(cmpri(arg_z,nil_value))
+	__(mr temp4,arg_z)	/* fast */
+	__(mr temp1,arg_z)	/* slow */
+	__(beq 9f)		/* Null list is proper */
+0:	
+	__(trap_unless_lisptag_equal(temp4,tag_list,imm0))
+	__(_cdr(temp2,temp4))	/* (null (cdr fast)) ? */
+	__(cmpri(temp2,nil_value))
+	__(trap_unless_lisptag_equal(temp2,tag_list,imm0))
+	__(_cdr(temp4,temp2))
+	__(beq 9f)
+	__(_cdr(temp1,temp1))
+	__(cmpr(temp4,temp1))
+	__(bne 0b)
+	__(lwi(arg_y,XIMPROPERLIST))
+	__(set_nargs(2))
+	__(b _SPksignalerr)
+9:	/* Whew */	
+	
+        /* Next, determine the length of arg_y.  We */
+        /* know that it's a proper list. */
+	__(li imm0,-4)
+	__(mr temp4,arg_y)
+1:
+	__(cmpri(cr0,temp4,nil_value))
+	__(la imm0,4(imm0))
+	__(_cdr(temp4,temp4))
+	__(bne 1b)
+	/* imm0 is now (boxed) triplet count. */
+	/* Determine word count, add 1 (to align), and make room. */
+	/* if count is 0, make an empty tsp frame and exit */
+	__(cmpri(cr0,imm0,0))
+	__(add imm1,imm0,imm0)
+	__(add imm1,imm1,imm0)
+        __(dnode_align(imm1,imm1,node_size))
+	__(bne+ cr0,2f)
+	 __(TSP_Alloc_Fixed_Boxed(8))
+	 __(blr)
+2:
+	__(la imm1,tsp_frame.fixed_overhead(imm1))	/* tsp header */
+	__(TSP_Alloc_Var_Boxed_nz(imm1,imm2))
+	__(str(imm0,tsp_frame.data_offset(tsp)))
+	__(ldr(imm2,tsp_frame.backlink(tsp)))
+	__(mr temp4,arg_y)
+	__(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm4,tcr.tlb_pointer(rcontext)))
+        __(ldr(imm3,tcr.tlb_limit(rcontext)))
+3:
+	__(_car(temp0,temp4))
+        __(ldr(imm0,svar.idx(temp0)))
+        __(ldr(temp1,svar.symbol(temp0)))
+	__(_cdr(temp4,temp4))
+	__(_car(temp2,arg_z))
+        __(ldrx(temp3,imm4,imm0))
+        __(trllt(imm3,imm0))
+	__(_cdr(arg_z,arg_z))
+        __(cmpri(cr1,temp3,no_thread_local_binding_marker))
+	__(cmpri(cr0,temp4,nil_value))
+        __(bne cr1,4f)
+        __(ldr(temp3,symbol.vcell(temp1)))
+4:              
+	__(push(temp2,imm2))
+	__(push(temp0,imm2))
+	__(push(imm1,imm2))
+	__(mr imm1,imm2)
+	__(bne cr0,3b)
+	__(str(imm1,tcr.db_link(rcontext)))
+	__(blr)
+        ])
+                
+_spentry(svar_progvrestore)
+        ifdef([USE_DEEP_BINDING],[
+        __(b _SPprogvrestore)
+        ],[
+	__(ldr(imm0,tsp_frame.backlink(tsp)))	/* ignore .SPnthrowXXX values frame */
+	__(ldr(imm0,tsp_frame.data_offset(imm0)))
+	__(cmpri(cr0,imm0,0))
+	__(unbox_fixnum(imm0,imm0))
+	__(bne+ cr0,_SPsvar_unbind_n)
+	__(blr)
+        ])
+                        
 /*  EOF, basically */
         .globl _SPsp_end
         b _SPsp_end

@@ -335,6 +335,7 @@ typedef struct catch_frame {
 #define unbound SUBTAG(fulltag_imm, 6)
 #define undefined unbound
 #define subtag_character SUBTAG(fulltag_imm, 9)
+#define no_thread_local_binding_marker SUBTAG(fulltag_imm,30)
 
 /* 
   All exception frames in a thread are linked together 
@@ -495,6 +496,8 @@ typedef struct tcr {
   ExceptionInformation *gc_context;
   int suspend_total;
   int suspend_total_on_exception_entry;
+  unsigned tlb_limit;
+  LispObj *tlb_pointer;
 } TCR;
 
 #define TCR_FLAG_BIT_FOREIGN fixnumshift
