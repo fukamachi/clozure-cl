@@ -71,9 +71,13 @@
                             (%slot-definition-initargs slotd))
           (declare (ignore ignore))
           (if foundp
-            (if (consp loc)
-              (rplacd loc new-value)
-              (setf (standard-instance-instance-location-access instance loc) new-value))
+	    (progn
+	      (unless (funcall (standard-effective-slot-definition.type-predicate slotd) new-value)
+		(report-bad-arg new-value (%slot-definition-type slotd)))
+	      (if (consp loc)
+		(rplacd loc new-value)
+		(setf (standard-instance-instance-location-access instance loc)
+		      new-value)))
             (if (or (eq slot-names t)
                     (member (%slot-definition-name slotd)
                             slot-names
@@ -86,6 +90,8 @@
                   (let* ((initfunction (%slot-definition-initfunction slotd)))
                     (if initfunction
                       (let* ((newval (funcall initfunction)))
+			(unless (funcall (standard-effective-slot-definition.type-predicate slotd) new-value)
+			  (report-bad-arg new-value (%slot-definition-type slotd)))
                         (if (consp loc)
                           (rplacd loc newval)
                           (setf (standard-instance-instance-location-access
@@ -127,7 +133,7 @@
 	  (%instance-vector
 	   (%class.own-wrapper *standard-effective-slot-definition-class*)
 	   name type initfunction initform initargs allocation
-	   documentation class nil (ensure-slot-id name))))
+	   documentation class nil (ensure-slot-id name) #'true)))
 
 (defmethod class-slots ((class class)))
 (defmethod class-direct-slots ((class class)))
@@ -181,7 +187,8 @@
      :class (%slot-definition-class first)
      :initargs initargs
      :initfunction (if initer (%slot-definition-initfunction initer))
-     :initform (if initer (%slot-definition-initform initer)))))
+     :initform (if initer (%slot-definition-initform initer))
+     :type (or (%slot-definition-type first) t))))
 
 (defmethod compute-slots ((class slots-class))
   (let* ((slot-name-alist ()))
@@ -325,7 +332,6 @@
                               (dpb 1 $lfbits-numreq
                                    (ash -1 $lfbits-noname-bit))))
            (class (%wrapper-class wrapper))
-           (get-cell (list #'slot-value-using-class))
            (get-f (gvector :function
                            (%svref (if small
                                      #'%small-slot-id-value
@@ -333,11 +339,10 @@
                            map
                            table
                            class
-                           get-cell
-                           '%slot-id-ref-missing
+                           #'%maybe-std-slot-value-using-class
+                           #'%slot-id-ref-missing
                            (dpb 2 $lfbits-numreq
                                 (ash -1 $lfbits-noname-bit))))
-           (set-cell (list #'(setf slot-value-using-class)))
            (set-f (gvector :function
                            (%svref (if small
                                      #'%small-set-slot-id-value
@@ -345,13 +350,11 @@
                            map
                            table
                            class
-                           set-cell
-                           '%slot-id-set-missing
-                           (dpb 2 $lfbits-numreq
+                           #'%maybe-std-setf-slot-value-using-class
+                           #'%slot-id-set-missing
+                           (dpb 3 $lfbits-numreq
                                 (ash -1 $lfbits-noname-bit)))))
       (setf (%wrapper-slot-id->slotd wrapper) lookup-f
-            (%wrapper-class-svuc-effective-method-function wrapper) get-cell
-            (%wrapper-class-ssvuc-effective-method-function wrapper) set-cell
             (%wrapper-slot-id-value wrapper) get-f
             (%wrapper-set-slot-id-value wrapper) set-f
             (%wrapper-slot-id-map wrapper) map
@@ -986,7 +989,11 @@
  :direct-slots `((:name location :initform nil :initfunction ,#'false
 		  :readers (slot-definition-location))
 		 (:name slot-id :initform nil :initfunction ,#'false
-                  :readers (slot-definition-slot-id)))
+                  :readers (slot-definition-slot-id))
+		 (:name type-predicate :initform #'true
+		  :initfunction ,#'(lambda () #'true)
+		  :readers (slot-definition-predicate))
+		 )
  
  :primary-p t)
 
@@ -994,6 +1001,10 @@
  'standard-slot-definition
  :direct-superclasses '(slot-definition)
 )
+
+
+
+
 
 
 

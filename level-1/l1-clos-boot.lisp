@@ -986,9 +986,7 @@
 
 
 (defparameter dcode-proto-alist
-  (list (cons #'%%reader-dcode-no-lexpr  *gf-proto-one-arg*)
-        (cons #'%%writer-dcode-no-lexpr *gf-proto-two-arg*)
-        (cons #'%%one-arg-dcode *gf-proto-one-arg*)
+  (list (cons #'%%one-arg-dcode *gf-proto-one-arg*)
         (cons #'%%1st-two-arg-dcode *gf-proto-two-arg*)))
     
 (defun compute-dcode (gf &optional dt)
@@ -1004,24 +1002,10 @@
                           (logbitp $lfbits-keys-bit bits)
                           (logbitp $lfbits-aok-bit bits)))
          multi-method-index 
-	 min-index
-         (only-readers t)
-         (only-writers t)
-         (can-optimize (if *compile-definitions* t nil))
-         )
+	 min-index)
     (when methods
       (unless 0-args?
         (dolist (m methods)
-          (when can-optimize
-            (let ((method-class (class-of m)))
-              (unless (or (if (eq method-class *standard-reader-method-class*)
-                            (progn (setq only-writers nil)
-                                   t)
-                            (setq only-readers nil))
-                          (if (eq method-class *standard-writer-method-class*)
-                            t
-                            (setq only-writers nil)))
-                (setq can-optimize nil))))
           (multiple-value-bind (mm-index index) (multi-method-index m)
             (when mm-index
               (if (or (null multi-method-index) (< mm-index multi-method-index))
@@ -1031,10 +1015,7 @@
                 (setq min-index index))))))
       (let ((dcode (if 0-args?
                      #'%%0-arg-dcode
-                     (or (and can-optimize 
-                              (cond (only-readers #'%%reader-dcode-no-lexpr)
-                                    (only-writers #'%%writer-dcode-no-lexpr)))
-                         (if multi-method-index
+                     (or (if multi-method-index
                            #'%%nth-arg-dcode)
                          (if (null other-args?)
                            (if (eql nreq 1)
@@ -1530,6 +1511,8 @@
                                                      effective-slot-definition-class)
 ))
 
+(defvar *standard-effective-slot-definition-class-wrapper*
+  (%class.own-wrapper *standard-effective-slot-definition-class*))
 
 
 
@@ -1981,8 +1964,8 @@
 					  (dslotd standard-direct-slot-definition))
   (gvector :function
            (uvref *reader-method-function-proto* 0)
-           (%slot-definition-name dslotd)
-           'slot-value
+           (ensure-slot-id (%slot-definition-name dslotd))
+           'slot-id-value
            nil				;method-function name
            (dpb 1 $lfbits-numreq (ash 1 $lfbits-method-bit))))
 
@@ -1991,8 +1974,8 @@
 					  (dslotd standard-direct-slot-definition))
   (gvector :function
            (uvref *writer-method-function-proto* 0)
-           (%slot-definition-name dslotd)
-           'set-slot-value
+           (ensure-slot-id (%slot-definition-name dslotd))
+           'set-slot-id-value
            nil
            (dpb 2 $lfbits-numreq (ash 1 $lfbits-method-bit))))
 
@@ -2129,60 +2112,74 @@
 (defun find-slotd (name slots)
   (find name slots :key #'%slot-definition-name))
 
+(defun %std-slot-value-using-class (instance slotd)
+  (let* ((loc (standard-effective-slot-definition.location slotd)))
+    (typecase loc
+      (fixnum
+       (standard-instance-instance-location-access instance loc))
+      (cons
+       (let* ((val (%cdr loc)))
+	 (if (eq val (%slot-unbound-marker))
+	   (slot-unbound (class-of instance) instance (standard-effective-slot-definition.name slotd))
+	   val)))
+      (t
+       (error "Slot definition ~s has invalid location ~s (allocation ~s)."
+	      slotd loc (slot-definition-allocation slotd))))))
+
 (defmethod slot-value-using-class ((class standard-class)
 				   instance
 				   (slotd standard-effective-slot-definition))
-  (if (eql 0 (%wrapper-instance-slots (instance.class-wrapper instance)))
-    (progn
-      (update-obsolete-instance instance)
-      (slot-value instance (standard-effective-slot-definition.name slotd)))
-    (let* ((loc (standard-effective-slot-definition.location slotd)))
-      (typecase loc
-	(fixnum
-	 (standard-instance-instance-location-access instance loc))
-	(cons
-	 (let* ((val (%cdr loc)))
-	   (if (eq val (%slot-unbound-marker))
-	     (slot-unbound class instance (standard-effective-slot-definition.name slotd))
-	     val)))
-	(t
-	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd)))))))
+  (%std-slot-value-using-class instance slotd))
 
+(defun %maybe-std-slot-value-using-class (class instance slotd)
+  (if (and (eql (typecode class) ppc32::subtag-instance)
+	   (eql (typecode slotd) ppc32::subtag-instance)
+	   (eq *standard-effective-slot-definition-class-wrapper*
+	       (instance.class-wrapper slotd))
+	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
+    (%std-slot-value-using-class instance slotd)
+    (slot-value-using-class class instance slotd)))
 
+  
+
+(defun %std-setf-slot-value-using-class (instance slotd new)
+  (let* ((loc (standard-effective-slot-definition.location slotd))
+	 (type (standard-effective-slot-definition.type slotd))
+	 (type-predicate (standard-effective-slot-definition.type-predicate slotd)))
+    (unless (or (eq new (%slot-unbound-marker))
+		(funcall type-predicate new))
+      (setq new (require-type new type)))
+    (typecase loc
+      (fixnum
+       (setf 
+	(standard-instance-instance-location-access instance loc) new))
+      (cons
+       (setf (%cdr loc) new))
+      (t
+       (error "Slot definition ~s has invalid location ~s (allocation ~s)."
+	      slotd loc (slot-definition-allocation slotd))))))
+  
 (defmethod (setf slot-value-using-class)
     (new
      (class standard-class)
      instance
      (slotd standard-effective-slot-definition))
-  (if (eql 0 (%wrapper-instance-slots (instance.class-wrapper instance)))
-    (progn
-      (update-obsolete-instance instance)
-      (setf (slot-value instance (standard-effective-slot-definition.name slotd)) new))
-    (let* ((loc (standard-effective-slot-definition.location slotd))
-	   (type (standard-effective-slot-definition.type slotd)))
-      (if (and type (not (eq type t)))
-	(unless (or (eq new (%slot-unbound-marker))
-		    (typep new type))
-	  (setq new (require-type new type))))
-      (typecase loc
-	(fixnum
-	 (setf 
-	  (standard-instance-instance-location-access instance loc) new))
-	(cons
-	 (setf (%cdr loc) new))
-	(t
-	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd)))))))
+  (%std-setf-slot-value-using-class instance slotd new))
+
+
+(defun %maybe-std-setf-slot-value-using-class (class instance slotd new)
+  (if (and (eql (typecode class) ppc32::subtag-instance)
+	   (eql (typecode slotd) ppc32::subtag-instance)
+	   (eq *standard-effective-slot-definition-class-wrapper*
+	       (instance.class-wrapper slotd))
+	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
+    (%std-setf-slot-value-using-class instance slotd new)
+    (setf (slot-value-using-class class instance slotd) new)))
 
 (defmethod slot-value-using-class ((class funcallable-standard-class)
 				   instance
 				   (slotd standard-effective-slot-definition))
-  (if (eql 0 (%wrapper-instance-slots (gf.instance.class-wrapper instance)))
-    (progn
-      (update-obsolete-instance instance)
-      (slot-value instance (standard-effective-slot-definition.name slotd)))
-    (let* ((loc (standard-effective-slot-definition.location slotd)))
+  (let* ((loc (standard-effective-slot-definition.location slotd)))
       (typecase loc
 	(fixnum
 	 (standard-generic-function-instance-location-access instance loc))
@@ -2193,18 +2190,14 @@
 	     val)))
 	(t
 	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd)))))))
+		slotd loc (slot-definition-allocation slotd))))))
 
 (defmethod (setf slot-value-using-class)
     (new
      (class funcallable-standard-class)
      instance
      (slotd standard-effective-slot-definition))
-  (if (eql 0 (%wrapper-instance-slots (gf.instance.class-wrapper instance)))
-    (progn
-      (update-obsolete-instance instance)
-      (setf (slot-value instance (standard-effective-slot-definition.name slotd)) new))
-    (let* ((loc (standard-effective-slot-definition.location slotd))
+  (let* ((loc (standard-effective-slot-definition.location slotd))
 	   (type (standard-effective-slot-definition.type slotd)))
       (if (and type (not (eq type t)))
 	(unless (or (eq new (%slot-unbound-marker)) (typep new type))
@@ -2217,7 +2210,7 @@
 	 (setf (%cdr loc) new))
 	(t
 	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
-		slotd loc (slot-definition-allocation slotd)))))))
+		slotd loc (slot-definition-allocation slotd))))))
 
 
 
@@ -2410,7 +2403,9 @@
        (setf (%wrapper-hash-index wrapper) 0
              (%wrapper-instance-slots wrapper) 0
              (%wrapper-forwarding-info wrapper) forwarding-info
-             #| (%wrapper-slot-mapping-tables wrapper) 0 |#
+	     (%wrapper-slot-id->slotd wrapper) #'%slot-id-lookup-obsolete
+	     (%wrapper-slot-id-value wrapper) #'%slot-id-ref-obsolete
+	     (%wrapper-set-slot-id-value wrapper) #'%slot-id-set-obsolete
              ))))
   wrapper)
 
