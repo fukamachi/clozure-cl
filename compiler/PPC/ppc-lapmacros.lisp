@@ -181,18 +181,18 @@
      (if (,crf :eq)
        (extract-subtag ,dest ,node))))
 
-(defppclapmacro trap-unless-lisptag= (node tag &optional (immreg ppc32::imm0))
+(defppclapmacro trap-unless-lisptag= (node tag &optional (immreg ppc::imm0))
   `(progn
      (extract-lisptag ,immreg ,node)
      (twnei ,immreg ,tag)))
 
-(defppclapmacro trap-unless-fulltag= (node tag &optional (immreg ppc32::imm0))
+(defppclapmacro trap-unless-fulltag= (node tag &optional (immreg ppc::imm0))
   `(progn
      (extract-fulltag ,immreg ,node)
      (twnei ,immreg ,tag)))
 
 
-(defppclapmacro trap-unless-typecode= (node tag &optional (immreg ppc32::imm0) (crf :cr0))
+(defppclapmacro trap-unless-typecode= (node tag &optional (immreg ppc::imm0) (crf :cr0))
   `(progn
      (extract-typecode ,immreg ,node ,crf)
      (twnei ,immreg ,tag)))
@@ -285,7 +285,7 @@
          (cmpwi ,crf ,dest (ash ppc32::subtag-character 8))
          (srwi ,dest ,src ppc32::charcode-shift)
          (beq+ ,crf ,label)
-         (uuo_interr ppc32::error-object-not-base-char ,src)
+         (uuo_interr arch::error-object-not-base-char ,src)
          ,label))))
 
 ; If crf is specified, type checks src
@@ -298,7 +298,7 @@
          (cmpwi ,crf ,dest ppc32::subtag-character)
          (srwi ,dest ,src ppc32::charcode-shift)
          (beq+ ,crf ,label)
-         (uuo_interr ppc32::error-object-not-character ,src)
+         (uuo_interr arch::error-object-not-character ,src)
          ,label))))
 
 (defppclapmacro box-character (dest src)
@@ -382,7 +382,7 @@
   `(stfd ,src ppc32::double-float.value ,node))
 
 (defppclapmacro clear-fpu-exceptions ()
-  `(mtfsf #xfc #.ppc32::fp-zero))
+  `(mtfsf #xfc #.ppc::fp-zero))
 
 (defppclapmacro get-boxed-sign (dest src crf)
   `(progn
@@ -598,7 +598,7 @@
 ;;;   tail-call, establish a catch or unwind-protect frame, etc.
 ;;;   It -can- contain lisp or foreign function calls.
 
-(defppclapmacro %with-altivec-registers ((&key (immreg 'ppc32::imm0)) reglist &body body)
+(defppclapmacro %with-altivec-registers ((&key (immreg 'ppc::imm0)) reglist &body body)
   (let* ((mask (%vr-register-mask reglist))
          (nvrs (%extract-non-volatile-vector-registers reglist))
          (num-nvrs (length nvrs)))

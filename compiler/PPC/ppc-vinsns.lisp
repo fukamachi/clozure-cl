@@ -637,7 +637,7 @@
   (li mask #x80)
   (srw mask mask bit-shift)
   (ble+ crf :got-it)
-  (uuo_interr ppc32::error-object-not-bit src)
+  (uuo_interr arch::error-object-not-bit src)
   :got-it
   (srwi bit-shift bit-index (+ 3 ppc32::fixnumshift))
   (lbzx bit-shift src bit-shift)
@@ -713,7 +713,7 @@
   :again
   (clrlwi. tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
   (beq+ crf0 :got-it)
-  (uuo_intcerr ppc32::error-object-not-fixnum object)
+  (uuo_intcerr arch::error-object-not-fixnum object)
   (b :again)
   :got-it)
 
@@ -730,7 +730,7 @@
   (cmpwi crf0 tag ppc32::subtag-bignum)
   (beq+ crf0 :got-it)
   :no-got
-  (uuo_intcerr ppc32::error-object-not-integer object)
+  (uuo_intcerr arch::error-object-not-integer object)
   (b :again)
   :got-it)
 
@@ -746,7 +746,7 @@
   (cmpwi crf tag ppc32::subtag-simple-vector)
   (beq+ crf :got-it)
   :no-got
-  (uuo_intcerr ppc32::error-object-not-simple-vector object)
+  (uuo_intcerr arch::error-object-not-simple-vector object)
   (b :again)
   :got-it)
 
@@ -765,7 +765,7 @@
   (beq+ crf :got-it)
   (beq+ crf2 :got-it)
   :no-got
-  (uuo_intcerr ppc32::error-object-not-simple-string object)
+  (uuo_intcerr arch::error-object-not-simple-string object)
   (b :again)
   :got-it)
 
@@ -783,7 +783,7 @@
   (cmplwi crf0 tag ppc32::max-real-subtag)
   (ble+ crf0 :got-it)
   :no-got
-  (uuo_intcerr ppc32::error-object-not-real object)
+  (uuo_intcerr arch::error-object-not-real object)
   (b :again)
   :got-it)
 
@@ -800,7 +800,7 @@
   (cmplwi crf0 tag ppc32::max-numeric-subtag)
   (ble+ crf0 :got-it)
   :no-got
-  (uuo_intcerr ppc32::error-object-not-number object)
+  (uuo_intcerr arch::error-object-not-number object)
   (b :again)
   :got-it)
 
@@ -813,7 +813,7 @@
   (clrlwi tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
   (cmpwi crf tag ppc32::tag-list)
   (beq+ crf :got-it)
-  (uuo_intcerr ppc32::error-object-not-list object)
+  (uuo_intcerr arch::error-object-not-list object)
   (b :again)
   :got-it)
 
@@ -831,7 +831,7 @@
   (cmpwi crf tag ppc32::subtag-symbol)
   (beq+ crf :got-it)
   :no-got
-  (uuo_intcerr ppc32::error-object-not-symbol object)
+  (uuo_intcerr arch::error-object-not-symbol object)
   (b :again)
   :got-it)
 
@@ -843,7 +843,7 @@
   (clrlwi tag object (- ppc32::nbits-in-word ppc32::num-subtag-bits))
   (cmpwi crf tag ppc32::subtag-character)
   (beq+ crf :got-it)
-  (uuo_intcerr ppc32::error-object-not-character object)
+  (uuo_intcerr arch::error-object-not-character object)
   (b :again)
   :got-it)
 
@@ -856,7 +856,7 @@
   ; The bottom ppc32::fixnumshift bits and the top (- 32 (+ ppc32::fixnumshift 8)) must all be zero.
   (rlwinm. tag object 0 (- ppc32::nbits-in-word ppc32::fixnumshift) (- ppc32::least-significant-bit (+ ppc32::fixnumshift 8)))
   (beq+ crf0 :got-it)
-  (uuo_intcerr ppc32::error-object-not-unsigned-byte-8 object)
+  (uuo_intcerr arch::error-object-not-unsigned-byte-8 object)
   (b :again)
   :got-it)
 
@@ -896,7 +896,7 @@
   (cmpwi crf0 dest 0)
   (bgt+ crf0 :got-it)
   :bad
-  (uuo_interr ppc32::error-object-not-unsigned-byte-32 src)
+  (uuo_interr arch::error-object-not-unsigned-byte-32 src)
   :two
   (lwz dest (+ ppc32::misc-data-offset 4) src)
   (cmpwi crf0 dest 0)
@@ -924,7 +924,7 @@
   (lwz dest ppc32::misc-data-offset src)
   (beq+ crfx :got-it)
   :bad
-  (uuo_interr ppc32::error-object-not-signed-byte-32 src)
+  (uuo_interr arch::error-object-not-signed-byte-32 src)
   :got-it)
 
 ; For the sake of argument, "dest" is u32.
@@ -951,7 +951,7 @@
   (bne crfy :bad)
   (beq+ crfx :got-it)
   :bad
-  (uuo_interr ppc32::error-object-not-signed-byte-32 src)
+  (uuo_interr arch::error-object-not-signed-byte-32 src)
   :got-it)
 
 (define-ppc-vinsn unbox-u16 (((dest :u16))
@@ -961,7 +961,7 @@
   (rlwinm. dest src 0 (- ppc32::nbits-in-word ppc32::fixnumshift) (- ppc32::least-significant-bit (+ ppc32::fixnumshift 16)))
   (rlwinm dest src (- 32 ppc32::fixnumshift) 16 31)
   (beq+ crf0 :got-it)
-  (uuo_interr ppc32::error-object-not-unsigned-byte-16 src)
+  (uuo_interr arch::error-object-not-unsigned-byte-16 src)
   :got-it)
 
 (define-ppc-vinsn unbox-s16 (((dest :s16))
@@ -976,7 +976,7 @@
   (srawi dest src ppc32::fixnumshift)
   (beq+ crf :got-it)
   :bad
-  (uuo_interr ppc32::error-object-not-signed-byte-16 src)
+  (uuo_interr arch::error-object-not-signed-byte-16 src)
   :got-it)
 
   
@@ -988,7 +988,7 @@
   (rlwinm. dest src 0 (- ppc32::nbits-in-word ppc32::fixnumshift) (- ppc32::least-significant-bit (+ ppc32::fixnumshift 8)))
   (rlwinm dest src (- 32 ppc32::fixnumshift) 24 31)
   (beq+ crf0 :got-it)
-  (uuo_interr ppc32::error-object-not-unsigned-byte-8 src)
+  (uuo_interr arch::error-object-not-unsigned-byte-8 src)
   :got-it)
 
 (define-ppc-vinsn unbox-s8 (((dest :s8))
@@ -1003,7 +1003,7 @@
   (srawi dest src ppc32::fixnumshift)
   (beq+ crf :got-it)
   :bad
-  (uuo_interr ppc32::error-object-not-signed-byte-16 src)
+  (uuo_interr arch::error-object-not-signed-byte-16 src)
   :got-it)
 
 (define-ppc-vinsn unbox-base-char (((dest :u32))
@@ -1013,7 +1013,7 @@
   (cmpwi crf dest (ash ppc32::subtag-character 8))
   (srwi dest src ppc32::charcode-shift)
   (beq+ crf :got-it)
-  (uuo_interr ppc32::error-object-not-base-char src)
+  (uuo_interr arch::error-object-not-base-char src)
   :got-it)
 
 (define-ppc-vinsn unbox-character (((dest :u32))
@@ -1023,7 +1023,7 @@
   (cmpwi crf dest ppc32::subtag-character)
   (srwi dest src ppc32::charcode-shift)
   (beq+ crf :got-it)
-  (uuo_interr ppc32::error-object-not-character src)
+  (uuo_interr arch::error-object-not-character src)
   :got-it)
 
 (define-ppc-vinsn unbox-bit (((dest :u32))
@@ -1032,7 +1032,7 @@
   (cmplwi crf src (ash 1 ppc32::fixnumshift))
   (srawi dest src ppc32::fixnumshift)
   (ble+ crf :got-it)
-  (uuo_interr ppc32::error-object-not-bit src)
+  (uuo_interr arch::error-object-not-bit src)
   :got-it)
 
 (define-ppc-vinsn unbox-bit-bit0 (((dest :u32))
@@ -1041,21 +1041,21 @@
   (cmplwi crf src (ash 1 ppc32::fixnumshift))
   (rlwinm dest src (- 32 (1+ ppc32::fixnumshift)) 0 0)
   (ble+ crf :got-it)
-  (uuo_interr ppc32::error-object-not-bit src)
+  (uuo_interr arch::error-object-not-bit src)
   :got-it)
 
 (define-ppc-vinsn fixnum->fpr (((dest :double-float))
                                ((src :lisp))
                                ((imm :s32)))
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stfd ppc32::fp-s32conv 8 ppc32::tsp)
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stfd ppc::fp-s32conv 8 ppc::tsp)
   (srawi imm src ppc32::fixnumshift)
   (xoris imm imm #x8000)
-  (stw imm 12 ppc32::tsp)
-  (lfd dest 8 ppc32::tsp)
-  (lwz ppc32::tsp 0 ppc32::tsp)
-  (fsub dest dest ppc32::fp-s32conv))
+  (stw imm 12 ppc::tsp)
+  (lfd dest 8 ppc::tsp)
+  (lwz ppc::tsp 0 ppc::tsp)
+  (fsub dest dest ppc::fp-s32conv))
 
 
 (define-ppc-vinsn shift-right-variable-word (((dest :u32))
@@ -1341,7 +1341,7 @@
                                ((x :u32)
                                 (y :u32)))
   (subfc bits x y)
-  (addze bits ppc32::rzero))
+  (addze bits ppc::rzero))
 
 (define-ppc-vinsn gt->bit31 (((bits :u32))
                              ((x (t (:ne bits)))
@@ -1373,7 +1373,7 @@
                                ((x :u32)
                                 (y :u32)))
   (subfc bits y x)
-  (addze bits ppc32::rzero))
+  (addze bits ppc::rzero))
 
 
 ; there are big-time latencies associated with MFCR on more heavily
@@ -1556,35 +1556,35 @@
 
 (define-ppc-vinsn load-adl (()
                             ((n :u32const)))
-  (lis ppc32::nargs (:apply ldb (byte 16 16) n))
-  (ori ppc32::nargs ppc32::nargs (:apply ldb (byte 16 0) n)))
+  (lis ppc::nargs (:apply ldb (byte 16 16) n))
+  (ori ppc::nargs ppc::nargs (:apply ldb (byte 16 0) n)))
                             
 (define-ppc-vinsn set-nargs (()
                              ((n :s16const)))
-  (li ppc32::nargs (:apply ash n ppc32::word-shift)))
+  (li ppc::nargs (:apply ash n ppc32::word-shift)))
 
 (define-ppc-vinsn scale-nargs (()
                                ((nfixed :s16const)))
   ((:pred > nfixed 0)
-   (la ppc32::nargs (:apply - (:apply ash nfixed ppc32::word-shift)) ppc32::nargs)))
+   (la ppc::nargs (:apply - (:apply ash nfixed ppc32::word-shift)) ppc::nargs)))
                            
 
 
 (define-ppc-vinsn (vpush-register :push :node :vsp)
     (()
      ((reg :lisp)))
-  (stwu reg -4 ppc32::vsp))
+  (stwu reg -4 ppc::vsp))
 
 (define-ppc-vinsn (vpush-register-arg :push :node :vsp :outgoing-argument)
     (()
      ((reg :lisp)))
-  (stwu reg -4 ppc32::vsp))
+  (stwu reg -4 ppc::vsp))
 
 (define-ppc-vinsn (vpop-register :pop :node :vsp)
     (((dest :lisp))
      ())
-  (lwz dest 0 ppc32::vsp)
-  (la ppc32::vsp 4 ppc32::vsp))
+  (lwz dest 0 ppc::vsp)
+  (la ppc::vsp 4 ppc::vsp))
 
 
 (define-ppc-vinsn copy-node-gpr (((dest :lisp))
@@ -1623,35 +1623,35 @@
                               ((closed (:lisp :ne dest)))
                               ((header :u32)))
   (li header ppc32::value-cell-header)
-  (la ppc32::allocptr (- ppc32::fulltag-misc ppc32::value-cell.size) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw header ppc32::misc-header-offset ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (la ppc::allocptr (- ppc32::fulltag-misc ppc32::value-cell.size) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stw closed ppc32::value-cell.value dest))
 
 (define-ppc-vinsn make-tsp-vcell (((dest :lisp))
                                   ((closed :lisp))
                                   ((header :u32)))
   (li header ppc32::value-cell-header)
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stfd ppc32::fp-zero 8 ppc32::tsp)
-  (stw ppc32::rzero 4 ppc32::tsp)
-  (stw header (+ 8 ppc32::fulltag-misc ppc32::value-cell.header) ppc32::tsp)
-  (stw closed (+ 8 ppc32::fulltag-misc ppc32::value-cell.value) ppc32::tsp)
-  (la dest (+ 8 ppc32::fulltag-misc) ppc32::tsp))
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stfd ppc::fp-zero 8 ppc::tsp)
+  (stw ppc::rzero 4 ppc::tsp)
+  (stw header (+ 8 ppc32::fulltag-misc ppc32::value-cell.header) ppc::tsp)
+  (stw closed (+ 8 ppc32::fulltag-misc ppc32::value-cell.value) ppc::tsp)
+  (la dest (+ 8 ppc32::fulltag-misc) ppc::tsp))
 
 (define-ppc-vinsn make-tsp-cons (((dest :lisp))
                                  ((car :lisp) (cdr :lisp))
                                  ())
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stfd ppc32::fp-zero 8 ppc32::tsp)
-  (stw ppc32::rzero 4 ppc32::tsp)
-  (stw car (+ 8 ppc32::fulltag-cons ppc32::cons.car) ppc32::tsp)
-  (stw cdr (+ 8 ppc32::fulltag-cons ppc32::cons.cdr) ppc32::tsp)
-  (la dest (+ 8 ppc32::fulltag-cons) ppc32::tsp))
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stfd ppc::fp-zero 8 ppc::tsp)
+  (stw ppc::rzero 4 ppc::tsp)
+  (stw car (+ 8 ppc32::fulltag-cons ppc32::cons.car) ppc::tsp)
+  (stw cdr (+ 8 ppc32::fulltag-cons ppc32::cons.cdr) ppc::tsp)
+  (la dest (+ 8 ppc32::fulltag-cons) ppc::tsp))
 
 
 (define-ppc-vinsn %closure-code% (((dest :lisp))
@@ -1693,8 +1693,8 @@
 
 (define-ppc-vinsn event-poll (()
                               ())
-  (lwz ppc32::nargs ppc32::tcr.interrupt-level ppc32::rcontext)
-  (twgti ppc32::nargs 0))
+  (lwz ppc::nargs ppc32::tcr.interrupt-level ppc::rcontext)
+  (twgti ppc::nargs 0))
 
                          
 ; Unconditional (pc-relative) branch
@@ -1729,7 +1729,7 @@
 (define-ppc-vinsn check-trap-error (()
                                     ())
   (beq+ 0 :no-error)
-  (uuo_interr ppc32::error-reg-regnum ppc32::arg_z)
+  (uuo_interr arch::error-reg-regnum ppc::arg_z)
   :no-error)
 
 
@@ -1756,7 +1756,7 @@
     (:or (:pred = (:apply ash intval -15) #x1ffff)
          (:pred = (:apply ash intval -15) #x0)))
    ((:pred = (:apply ash intval -15) 1)
-    (ori dest ppc32::rzero (:apply logand intval #xffff)))
+    (ori dest ppc::rzero (:apply logand intval #xffff)))
    ((:not (:pred = (:apply ash intval -15) 1))
     (lis dest (:apply ash intval -16))
     ((:not (:pred = 0 (:apply logand intval #xffff)))
@@ -1773,7 +1773,7 @@
     (:or (:pred = (:apply ash intval -15) -1)
          (:pred = (:apply ash intval -15) #x0)))
    ((:pred = (:apply ash intval -15) 1)
-    (ori dest ppc32::rzero (:apply logand intval #xffff)))
+    (ori dest ppc::rzero (:apply logand intval #xffff)))
    ((:not (:pred = (:apply ash intval -15) 1))
     (lis dest (:apply ash intval -16))
     ((:not (:pred = 0 (:apply logand intval #xffff)))
@@ -1781,7 +1781,7 @@
 
 (define-ppc-vinsn discard-temp-frame (()
                                       ())
-  (lwz ppc32::tsp 0 ppc32::tsp))
+  (lwz ppc::tsp 0 ppc::tsp))
 
 
 ;;; Somewhere, deep inside the "OS_X_PPC_RuntimeConventions.pdf"
@@ -1796,16 +1796,16 @@
   ;; Always reserve space for at least 8 args and space for a lisp
   ;; frame (for the kernel) underneath it.
   ;; Do a stack-probe ...  Or maybe not
-  ;;(lwz ppc32::nargs (ppc32::kernel-global cs-overflow-limit) ppc32::rnil)
-  ;;(twllt ppc32::sp ppc32::nargs)
+  ;;(lwz ppc::nargs (ppc32::kernel-global cs-overflow-limit) ppc32::rnil)
+  ;;(twllt ppc::sp ppc::nargs)
   ;; Zero the c-frame's savelr field, not that the GC cares ..
   ((:pred <= n-c-args 10)
-   (stwu ppc32::sp (- (+ 8 ppc32::c-frame.size ppc32::lisp-frame.size)) ppc32::sp))
+   (stwu ppc::sp (- (+ 8 ppc32::c-frame.size ppc32::lisp-frame.size)) ppc::sp))
   ((:pred > n-c-args 10)
    ;; A normal C frame has room for 10 args (when padded out to
    ;; 16-byte alignment. Add enough double words to accomodate the
    ;; remaining args, in multiples of 4.
-   (stwu ppc32::sp (:apply - (:apply +
+   (stwu ppc::sp (:apply - (:apply +
                                    8
                                    (+ ppc32::c-frame.size ppc32::lisp-frame.size)
                                    (:apply ash
@@ -1816,8 +1816,8 @@
                                                     3
                                                     (:apply - n-c-args 10)))
                                            2)))
-         ppc32::sp))
-  (stw ppc32::rzero ppc32::c-frame.savelr ppc32::sp))
+         ppc::sp))
+  (stw ppc::rzero ppc32::c-frame.savelr ppc::sp))
 
 (define-ppc-vinsn alloc-eabi-c-frame (()
                                       ((n-c-args :u16const)))
@@ -1826,10 +1826,10 @@
                                         ; savelr field, so that the kernel doesn't mistake this for a lisp
                                         ; frame.
   ((:pred <= n-c-args 8)
-   (stwu ppc32::sp (- (+ ppc32::eabi-c-frame.size ppc32::lisp-frame.size)) ppc32::sp))
+   (stwu ppc::sp (- (+ ppc32::eabi-c-frame.size ppc32::lisp-frame.size)) ppc::sp))
   ((:pred > n-c-args 8)
                                         ; A normal C frame has room for 8 args. Add enough double words to accomodate the remaining args
-   (stwu ppc32::sp (:apply - (:apply + 
+   (stwu ppc::sp (:apply - (:apply + 
                                    (+ ppc32::eabi-c-frame.size ppc32::lisp-frame.size)
                                    (:apply ash
                                            (:apply logand
@@ -1838,15 +1838,15 @@
                                                     1+
                                                     (:apply - n-c-args 8)))
                                            2)))
-         ppc32::sp))
-  (stw ppc32::sp ppc32::eabi-c-frame.savelr ppc32::sp))
+         ppc::sp))
+  (stw ppc::sp ppc32::eabi-c-frame.savelr ppc::sp))
 
 ; We should rarely have to do this.  It's easier to just generate code
 ; to do the memory reference than it would be to keep track of the size
 ; of each frame.
 (define-ppc-vinsn discard-c-frame (()
                                    ())
-  (lwz ppc32::sp 0 ppc32::sp))
+  (lwz ppc::sp 0 ppc::sp))
 
 
 
@@ -1854,48 +1854,48 @@
 (define-ppc-vinsn set-c-arg (()
                              ((argval :u32)
                               (argnum :u16const)))
-  (stw argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (stw argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn set-single-c-arg (()
                                     ((argval :single-float)
                                      (argnum :u16const)))
-  (stfs argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (stfs argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn set-double-c-arg (()
                                     ((argval :double-float)
                                      (argnum :u16const)))
-  (stfd argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (stfd argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn reload-single-c-arg (((argval :single-float))
                                        ((argnum :u16const)))
-  (lfs argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (lfs argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn reload-double-c-arg (((argval :double-float))
                                        ((argnum :u16const)))
-  (lfd argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (lfd argval (:apply + ppc32::c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn set-eabi-c-arg (()
                                   ((argval :u32)
                                    (argnum :u16const)))
-  (stw argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (stw argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn set-single-eabi-c-arg (()
                                          ((argval :single-float)
                                           (argnum :u16const)))
-  (stfs argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (stfs argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn set-double-eabi-c-arg (()
                                          ((argval :double-float)
                                           (argnum :u16const)))
-  (stfd argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (stfd argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn reload-single-eabi-c-arg (((argval :single-float))
                                             ((argnum :u16const)))
-  (lfs argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (lfs argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn reload-double-eabi-c-arg (((argval :double-float))
                                             ((argnum :u16const)))
-  (lfd argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc32::sp))
+  (lfd argval (:apply + ppc32::eabi-c-frame.param0 (:apply ash argnum ppc32::word-shift)) ppc::sp))
 
 (define-ppc-vinsn (load-nil :constant-ref) (((dest t))
                                             ())
@@ -1907,28 +1907,28 @@
 
 (define-ppc-vinsn set-eq-bit (((dest :crf))
                               ())
-  (cror (:apply + ppc32::ppc-eq-bit dest)
-        (:apply + ppc32::ppc-eq-bit dest)
-        (:apply + ppc32::ppc-eq-bit dest)))
+  (creqv (:apply + ppc::ppc-eq-bit dest)
+	 (:apply + ppc::ppc-eq-bit dest)
+	 (:apply + ppc::ppc-eq-bit dest)))
 
 (define-ppc-vinsn (ref-constant :constant-ref) (((dest :lisp))
                                                 ((src :s16const)))
-  (lwz dest (:apply + ppc32::misc-data-offset (:apply ash (:apply 1+ src) 2)) ppc32::fn))
+  (lwz dest (:apply + ppc32::misc-data-offset (:apply ash (:apply 1+ src) 2)) ppc::fn))
 
 (define-ppc-vinsn ref-indexed-constant (((dest :lisp))
                                         ((idxreg :s32)))
-  (lwzx dest ppc32::fn idxreg))
+  (lwzx dest ppc::fn idxreg))
 
 
 (define-ppc-vinsn cons (((dest :lisp))
                         ((newcar :lisp)
                          (newcdr :lisp)))
-  (la ppc32::allocptr (- ppc32::fulltag-cons ppc32::cons.size) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw newcdr ppc32::cons.cdr ppc32::allocptr)
-  (stw newcar ppc32::cons.car ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits))
+  (la ppc::allocptr (- ppc32::fulltag-cons ppc32::cons.size) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw newcdr ppc32::cons.cdr ppc::allocptr)
+  (stw newcar ppc32::cons.car ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits))
 
 
 
@@ -1939,21 +1939,21 @@
                                 ((immtemp0 :u32)
                                  (nodetemp :lisp)
                                  (crf :crf)))
-  (la ppc32::allocptr (:apply - ppc32::fulltag-misc
+  (la ppc::allocptr (:apply - ppc32::fulltag-misc
                             (:apply logand (lognot 7)
                                     (:apply + (+ 7 4) nbytes)))
-      ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw Rheader ppc32::misc-header-offset ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+      ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw Rheader ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   ((:not (:pred = nbytes 0))
    (li immtemp0 (:apply + ppc32::misc-data-offset nbytes))
    :loop
    (subi immtemp0 immtemp0 4)
    (cmpwi crf immtemp0 ppc32::misc-data-offset)
-   (lwz nodetemp 0 ppc32::vsp)
-   (la ppc32::vsp 4 ppc32::vsp)
+   (lwz nodetemp 0 ppc::vsp)
+   (la ppc::vsp 4 ppc::vsp)
    (stwx nodetemp dest immtemp0)
    (bne crf :loop)))
 
@@ -1961,19 +1961,19 @@
 (define-ppc-vinsn %alloc-misc-fixed (((dest :lisp))
                                      ((Rheader :u32)
                                       (nbytes :u32const)))
-  (la ppc32::allocptr (:apply - ppc32::fulltag-misc
+  (la ppc::allocptr (:apply - ppc32::fulltag-misc
                             (:apply logand (lognot 7)
                                     (:apply + (+ 7 4) nbytes)))
-      ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw Rheader ppc32::misc-header-offset ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits))
+      ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw Rheader ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits))
 
 (define-ppc-vinsn vstack-discard (()
                                   ((nwords :u32const)))
   ((:not (:pred = nwords 0))
-   (la ppc32::vsp (:apply ash nwords ppc32::word-shift) ppc32::vsp)))
+   (la ppc::vsp (:apply ash nwords ppc32::word-shift) ppc::vsp)))
 
 
 (define-ppc-vinsn lcell-load (((dest :lisp))
@@ -1981,12 +1981,12 @@
                                (top :lcell)))
   (lwz dest (:apply - 
                     (:apply - (:apply calc-lcell-depth top) 4)
-                    (:apply calc-lcell-offset cell)) ppc32::vsp))
+                    (:apply calc-lcell-offset cell)) ppc::vsp))
 
 (define-ppc-vinsn vframe-load (((dest :lisp))
                                ((frame-offset :u16const)
                                 (cur-vsp :u16const)))
-  (lwz dest (:apply - (:apply - cur-vsp 4) frame-offset) ppc32::vsp))
+  (lwz dest (:apply - (:apply - cur-vsp 4) frame-offset) ppc::vsp))
 
 (define-ppc-vinsn lcell-store (()
                                ((src :lisp)
@@ -1994,23 +1994,23 @@
                                 (top :lcell)))
   (stw src (:apply - 
                    (:apply - (:apply calc-lcell-depth top) 4)
-                   (:apply calc-lcell-offset cell)) ppc32::vsp))
+                   (:apply calc-lcell-offset cell)) ppc::vsp))
 
 (define-ppc-vinsn vframe-store (()
                                 ((src :lisp)
                                  (frame-offset :u16const)
                                  (cur-vsp :u16const)))
-  (stw src (:apply - (:apply - cur-vsp 4) frame-offset) ppc32::vsp))
+  (stw src (:apply - (:apply - cur-vsp 4) frame-offset) ppc::vsp))
 
 (define-ppc-vinsn load-vframe-address (((dest :imm))
                                        ((offset :s16const)))
-  (la dest offset ppc32::vsp))
+  (la dest offset ppc::vsp))
 
 (define-ppc-vinsn copy-lexpr-argument (()
                                        ()
                                        ((temp :lisp)))
-  (lwzx temp ppc32::vsp ppc32::nargs)
-  (stwu temp -4 ppc32::vsp))
+  (lwzx temp ppc::vsp ppc::nargs)
+  (stwu temp -4 ppc::vsp))
 
 ; Boxing/unboxing of integers.
 
@@ -2055,13 +2055,13 @@
   (addo temp src src)
   (addo. result temp temp)
   (bns+ :done)
-  (mtxer ppc32::rzero)
+  (mtxer ppc::rzero)
   (li temp ppc32::one-digit-bignum-header)
-  (la ppc32::allocptr (- ppc32::fulltag-misc 8) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw temp ppc32::misc-header-offset ppc32::allocptr)
-  (mr result ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (la ppc::allocptr (- ppc32::fulltag-misc 8) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw temp ppc32::misc-header-offset ppc::allocptr)
+  (mr result ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stw src ppc32::misc-data-offset result)
   :done)
 
@@ -2082,11 +2082,11 @@
   (li temp ppc32::two-digit-bignum-header)
   (li size (- 16 ppc32::fulltag-misc))
   :common
-  (sub ppc32::allocptr ppc32::allocptr size)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw temp ppc32::misc-header-offset ppc32::allocptr)
-  (mr result ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (sub ppc::allocptr ppc::allocptr size)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw temp ppc32::misc-header-offset ppc::allocptr)
+  (mr result ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stw src ppc32::misc-data-offset result)
   :done)
 
@@ -2115,12 +2115,12 @@
 (define-ppc-vinsn double->heap (((result :lisp)) ; tagged as a double-float
                                 ((fpreg :double-float)) 
                                 ((header-temp :u32)))
-  (li header-temp (ppc32::make-vheader ppc32::double-float.element-count ppc32::subtag-double-float))
-  (la ppc32::allocptr (- ppc32::fulltag-misc ppc32::double-float.size) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw header-temp ppc32::misc-header-offset ppc32::allocptr)
-  (mr result ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (li header-temp (arch::make-vheader ppc32::double-float.element-count ppc32::subtag-double-float))
+  (la ppc::allocptr (- ppc32::fulltag-misc ppc32::double-float.size) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header-temp ppc32::misc-header-offset ppc::allocptr)
+  (mr result ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stfd fpreg ppc32::double-float.value result)  )
 
 
@@ -2130,12 +2130,12 @@
 (define-ppc-vinsn single->heap (((result :lisp)) ; tagged as a single-float
                                 ((fpreg :single-float))
                                 ((header-temp :u32)))
-  (li header-temp (ppc32::make-vheader ppc32::single-float.element-count ppc32::subtag-single-float))
-  (la ppc32::allocptr (- ppc32::fulltag-misc ppc32::single-float.size) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw header-temp ppc32::misc-header-offset ppc32::allocptr)
-  (mr result ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (li header-temp (arch::make-vheader ppc32::single-float.element-count ppc32::subtag-single-float))
+  (la ppc::allocptr (- ppc32::fulltag-misc ppc32::single-float.size) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header-temp ppc32::misc-header-offset ppc::allocptr)
+  (mr result ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stfs fpreg ppc32::single-float.value result))
 
 
@@ -2237,11 +2237,11 @@
                                 ((address :address))
                                 ((header :u32)))
   (li header (logior (ash ppc32::macptr.element-count ppc32::num-subtag-bits) ppc32::subtag-macptr))
-  (la ppc32::allocptr (- ppc32::fulltag-misc ppc32::macptr.size) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw header ppc32::misc-header-offset ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (la ppc::allocptr (- ppc32::fulltag-misc ppc32::macptr.size) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   ;; It's not necessary to zero out the domain/type fields, since newly
   ;; heap-allocated memory's guaranteed to be 0-filled.
   (stw address ppc32::macptr.address dest))
@@ -2250,14 +2250,14 @@
                                  ((address :address))
                                  ((header :u32)))
   (li header ppc32::macptr-header)
-  (stwu ppc32::tsp (- (+ 8 ppc32::macptr.size)) ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stw header (+ 8 ppc32::fulltag-misc ppc32::macptr.header) ppc32::tsp)
-  (stw address (+ 8 ppc32::fulltag-misc ppc32::macptr.address) ppc32::tsp)
+  (stwu ppc::tsp (- (+ 8 ppc32::macptr.size)) ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stw header (+ 8 ppc32::fulltag-misc ppc32::macptr.header) ppc::tsp)
+  (stw address (+ 8 ppc32::fulltag-misc ppc32::macptr.address) ppc::tsp)
   ;; It -is- necessary to zero out the domain/type fields here, since
   ;; stack-allocated memory isn't guaranteed to be 0-filled.
-  (stfd ppc32::fp-zero (+ 8 ppc32::fulltag-misc ppc32::macptr.domain) ppc32::tsp)
-  (la dest (+ 8 ppc32::fulltag-misc) ppc32::tsp))
+  (stfd ppc::fp-zero (+ 8 ppc32::fulltag-misc ppc32::macptr.domain) ppc::tsp)
+  (la dest (+ 8 ppc32::fulltag-misc) ppc::tsp))
 
   
 (define-ppc-vinsn adjust-stack-register (()
@@ -2267,7 +2267,7 @@
 
 (define-ppc-vinsn adjust-vsp (()
                               ((amount :s16const)))
-  (la ppc32::vsp amount ppc32::vsp))
+  (la ppc::vsp amount ppc::vsp))
 
 ;; Arithmetic on fixnums & unboxed numbers
 
@@ -2289,22 +2289,22 @@
                                                   (header :u32)))
   (nego. dest src)
   (bns+ :done)
-  (mtxer ppc32::rzero)
+  (mtxer ppc::rzero)
   (srawi unboxed dest ppc32::fixnumshift)
   (xoris unboxed unboxed (logand #xffff (ash #xffff (- 32 16 ppc32::fixnumshift))))
   (li header ppc32::one-digit-bignum-header)
-  (la ppc32::allocptr (- ppc32::fulltag-misc 8) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw header ppc32::misc-header-offset ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (la ppc::allocptr (- ppc32::fulltag-misc 8) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stw unboxed ppc32::misc-data-offset dest)
   :done)
 
 (define-ppc-vinsn negate-fixnum-overflow-ool (()
                                               ((src :imm))
                                               )
-  (nego. ppc32::arg_z src)
+  (nego. ppc::arg_z src)
   (bsola- .SPfix-overflow)
   :done)
   
@@ -2476,7 +2476,7 @@
                                            ((x :imm)
                                             (y :imm))
                                            ((cr0 (:crf 0))))
-  (addo. ppc32::arg_z x y)
+  (addo. ppc::arg_z x y)
   (bsola- .SPfix-overflow))
 
 (define-ppc-vinsn fixnum-add-overflow-inline (((dest :lisp))
@@ -2487,15 +2487,15 @@
                                                (header :u32)))
   (addo. dest x y)
   (bns+ cr0 :done)
-  (mtxer ppc32::rzero)
+  (mtxer ppc::rzero)
   (srawi unboxed dest ppc32::fixnumshift)
   (li header ppc32::one-digit-bignum-header)
   (xoris unboxed unboxed (logand #xffff (ash #xffff (- 32 16 ppc32::fixnumshift))))
-  (la ppc32::allocptr (- ppc32::fulltag-misc 8) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw header ppc32::misc-header-offset ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (la ppc::allocptr (- ppc32::fulltag-misc 8) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stw unboxed ppc32::misc-data-offset dest)
   :done)
   
@@ -2519,7 +2519,7 @@
 (define-ppc-vinsn fixnum-sub-overflow-ool (()
                                            ((x :imm)
                                             (y :imm)))
-  (subo. ppc32::arg_z x y)
+  (subo. ppc::arg_z x y)
   (bsola- .SPfix-overflow))
 
 (define-ppc-vinsn fixnum-sub-overflow-inline (((dest :lisp))
@@ -2530,15 +2530,15 @@
                                                (header :u32)))
   (subo. dest x y)
   (bns+ cr0 :done)
-  (mtxer ppc32::rzero)
+  (mtxer ppc::rzero)
   (srawi unboxed dest ppc32::fixnumshift)
   (li header ppc32::one-digit-bignum-header)
   (xoris unboxed unboxed (logand #xffff (ash #xffff (- 32 16 ppc32::fixnumshift))))
-  (la ppc32::allocptr (- ppc32::fulltag-misc 8) ppc32::allocptr)
-  (twllt ppc32::allocptr ppc32::allocbase)
-  (stw header ppc32::misc-header-offset ppc32::allocptr)
-  (mr dest ppc32::allocptr)
-  (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  (la ppc::allocptr (- ppc32::fulltag-misc 8) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stw unboxed ppc32::misc-data-offset dest)
   :done)
 
@@ -2605,80 +2605,80 @@
   (cmpwi crf tag ppc32::subtag-function)
   (beq+ crf :good)
   :bad 
-  (uuo_interr ppc32::error-udf sym)
+  (uuo_interr arch::error-udf sym)
   :good)
 
 (define-ppc-vinsn (temp-push-unboxed-word :push :word :tsp)
     (()
      ((w :u32)))
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stw w 8 ppc32::tsp))
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stw w 8 ppc::tsp))
 
 (define-ppc-vinsn (temp-pop-unboxed-word :pop :word :tsp)
     (((w :u32))
      ())
-  (lwz w 8 ppc32::tsp)
-  (lwz ppc32::tsp 0 ppc32::tsp))
+  (lwz w 8 ppc::tsp)
+  (lwz ppc::tsp 0 ppc::tsp))
 
 (define-ppc-vinsn (temp-push-double-float :push :doubleword :tsp)
     (((d :double-float))
      ())
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stfd d 8 ppc32::tsp))
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stfd d 8 ppc::tsp))
 
 (define-ppc-vinsn (temp-pop-double-float :pop :doubleword :tsp)
     (()
      ((d :double-float)))
-  (lfd d 8 ppc32::tsp)
-  (lwz ppc32::tsp 0 ppc32::tsp))
+  (lfd d 8 ppc::tsp)
+  (lwz ppc::tsp 0 ppc::tsp))
 
 (define-ppc-vinsn (temp-push-single-float :push :word :tsp)
     (((s :single-float))
      ())
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stfs s 8 ppc32::tsp))
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stfs s 8 ppc::tsp))
 
 (define-ppc-vinsn (temp-pop-single-float :pop :word :tsp)
     (()
      ((s :single-float)))
-  (lfs s 8 ppc32::tsp)
-  (lwz ppc32::tsp 0 ppc32::tsp))
+  (lfs s 8 ppc::tsp)
+  (lwz ppc::tsp 0 ppc::tsp))
 
 
 (define-ppc-vinsn (save-nvrs-individually :push :node :vsp :multiple)
     (()
      ((first :u8const)))
-  (stwu ppc32::save0 -4 ppc32::vsp)
-  ((:pred <= first ppc32::save1)
-   (stwu ppc32::save1 -4 ppc32::vsp)
-   ((:pred <= first ppc32::save2)
-    (stwu ppc32::save2 -4 ppc32::vsp)
-    ((:pred <= first ppc32::save3)
-     (stwu ppc32::save3 -4 ppc32::vsp)
-    ((:pred <= first ppc32::save4)
-     (stwu ppc32::save4 -4 ppc32::vsp)
-    ((:pred <= first ppc32::save5)
-     (stwu ppc32::save5 -4 ppc32::vsp)
-    ((:pred <= first ppc32::save6)
-     (stwu ppc32::save6 -4 ppc32::vsp)
-     ((:pred = first ppc32::save7)
-      (stwu ppc32::save7 -4 ppc32::vsp)))))))))
+  (stwu ppc::save0 -4 ppc::vsp)
+  ((:pred <= first ppc::save1)
+   (stwu ppc::save1 -4 ppc::vsp)
+   ((:pred <= first ppc::save2)
+    (stwu ppc::save2 -4 ppc::vsp)
+    ((:pred <= first ppc::save3)
+     (stwu ppc::save3 -4 ppc::vsp)
+    ((:pred <= first ppc::save4)
+     (stwu ppc::save4 -4 ppc::vsp)
+    ((:pred <= first ppc::save5)
+     (stwu ppc::save5 -4 ppc::vsp)
+    ((:pred <= first ppc::save6)
+     (stwu ppc::save6 -4 ppc::vsp)
+     ((:pred = first ppc::save7)
+      (stwu ppc::save7 -4 ppc::vsp)))))))))
 
 (define-ppc-vinsn (save-nvrs :push :node :vsp :multiple)
               (()
                ((first :u8const)))
-  ((:pred <= first ppc32::save3)
-   (subi ppc32::vsp ppc32::vsp (:apply * 4 (:apply - 32 first)))
-   (stmw first 0 ppc32::vsp))
-  ((:pred >= first ppc32::save2)
-   (stwu ppc32::save0 -4 ppc32::vsp)
-   ((:pred <= first ppc32::save1)
-    (stwu ppc32::save1 -4 ppc32::vsp)
-    ((:pred = first ppc32::save2)
-     (stwu ppc32::save2 -4 ppc32::vsp)))))
+  ((:pred <= first ppc::save3)
+   (subi ppc::vsp ppc::vsp (:apply * 4 (:apply - 32 first)))
+   (stmw first 0 ppc::vsp))
+  ((:pred >= first ppc::save2)
+   (stwu ppc::save0 -4 ppc::vsp)
+   ((:pred <= first ppc::save1)
+    (stwu ppc::save1 -4 ppc::vsp)
+    ((:pred = first ppc::save2)
+     (stwu ppc::save2 -4 ppc::vsp)))))
 
 
 (define-ppc-vinsn (restore-nvrs :pop :node :vsp :multiple)
@@ -2686,29 +2686,29 @@
      ((firstreg :u8const)
       (basereg :imm)
       (offset :s16const)))
-  ((:pred <= firstreg ppc32::save3)
+  ((:pred <= firstreg ppc::save3)
    (lmw firstreg offset basereg))
-  ((:pred = firstreg ppc32::save2)
-   (lwz ppc32::save2 offset basereg)
-   (lwz ppc32::save1 (:apply + offset 4) basereg)
-   (lwz ppc32::save0 (:apply + offset 8) basereg))
-  ((:pred = firstreg ppc32::save1)
-   (lwz ppc32::save1 offset basereg)
-   (lwz ppc32::save0 (:apply + offset 4) basereg))
-  ((:pred = firstreg ppc32::save0)
-   (lwz ppc32::save0 offset basereg)))
+  ((:pred = firstreg ppc::save2)
+   (lwz ppc::save2 offset basereg)
+   (lwz ppc::save1 (:apply + offset 4) basereg)
+   (lwz ppc::save0 (:apply + offset 8) basereg))
+  ((:pred = firstreg ppc::save1)
+   (lwz ppc::save1 offset basereg)
+   (lwz ppc::save0 (:apply + offset 4) basereg))
+  ((:pred = firstreg ppc::save0)
+   (lwz ppc::save0 offset basereg)))
 
 (define-ppc-vinsn %current-frame-ptr (((dest :imm))
                                     ())
-  (mr dest ppc32::sp))
+  (mr dest ppc::sp))
 
 (define-ppc-vinsn %current-tcr (((dest :imm))
                                     ())
-  (mr dest ppc32::rcontext))
+  (mr dest ppc::rcontext))
 
 (define-ppc-vinsn (svar-dpayback :call :subprim-call) (()
                                                   ((n :s16const))
-                                                  ((temp (:u32 #.ppc32::imm0))))
+                                                  ((temp (:u32 #.ppc::imm0))))
   ((:pred > n 1)
    (li temp n)
    (bla .SPsvar-unbind-n))
@@ -2718,32 +2718,32 @@
 (define-ppc-vinsn zero-double-float-register 
     (((dest :double-float))
      ())
-  (fmr dest ppc32::fp-zero))
+  (fmr dest ppc::fp-zero))
 
 (define-ppc-vinsn zero-single-float-register 
     (((dest :single-float))
      ())
-  (fmr dest ppc32::fp-zero))
+  (fmr dest ppc::fp-zero))
 
 (define-ppc-vinsn load-double-float-constant
     (((dest :double-float))
      ((high t)
       (low t)))
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stw high 8 ppc32::tsp)
-  (stw low  12 ppc32::tsp)
-  (lfd dest 8 ppc32::tsp)
-  (lwz ppc32::tsp 0 ppc32::tsp))
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stw high 8 ppc::tsp)
+  (stw low  12 ppc::tsp)
+  (lfd dest 8 ppc::tsp)
+  (lwz ppc::tsp 0 ppc::tsp))
 
 (define-ppc-vinsn load-single-float-constant
     (((dest :single-float))
      ((src t)))
-  (stwu ppc32::tsp -16 ppc32::tsp)
-  (stw ppc32::tsp 4 ppc32::tsp)
-  (stw src 12 ppc32::tsp)
-  (lfs dest 12 ppc32::tsp)
-  (lwz ppc32::tsp 0 ppc32::tsp))
+  (stwu ppc::tsp -16 ppc::tsp)
+  (stw ppc::tsp 4 ppc::tsp)
+  (stw src 12 ppc::tsp)
+  (lfs dest 12 ppc::tsp)
+  (lwz ppc::tsp 0 ppc::tsp))
 
 (define-ppc-vinsn load-indexed-node (((node :lisp))
                                      ((base :lisp)
@@ -2752,58 +2752,58 @@
 
 (define-ppc-vinsn recover-saved-vsp (((dest :imm))
                                      ())
-  (lwz dest ppc32::lisp-frame.savevsp ppc32::sp))
+  (lwz dest ppc32::lisp-frame.savevsp ppc::sp))
 
 
 (define-ppc-vinsn check-exact-nargs (()
                                      ((n :u16const)))
-  (twnei ppc32::nargs (:apply ash n 2)))
+  (twnei ppc::nargs (:apply ash n 2)))
 
 (define-ppc-vinsn check-min-nargs (()
                                    ((min :u16const)))
-  (twllti ppc32::nargs (:apply ash min 2)))
+  (twllti ppc::nargs (:apply ash min 2)))
 
 (define-ppc-vinsn check-max-nargs (()
                                    ((max :u16const)))
-  (twlgti ppc32::nargs (:apply ash max 2)))
+  (twlgti ppc::nargs (:apply ash max 2)))
 
 ; Save context and establish FN.  The current VSP is the the
 ; same as the caller's, e.g., no arguments were vpushed.
 (define-ppc-vinsn save-lisp-context-vsp (()
                                          ()
                                          ((imm :u32)))
-  (stwu ppc32::sp (- ppc32::lisp-frame.size) ppc32::sp)
-  (stw ppc32::fn ppc32::lisp-frame.savefn ppc32::sp)
-  (stw ppc32::loc-pc ppc32::lisp-frame.savelr ppc32::sp)
-  (stw ppc32::vsp ppc32::lisp-frame.savevsp ppc32::sp)
-  (mr ppc32::fn ppc32::nfn)
+  (stwu ppc::sp (- ppc32::lisp-frame.size) ppc::sp)
+  (stw ppc::fn ppc32::lisp-frame.savefn ppc::sp)
+  (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
+  (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
+  (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
-  (twllt ppc32::sp imm))
+  (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
+  (twllt ppc::sp imm))
 
 ; Do the same thing via a subprim call.
 (define-ppc-vinsn (save-lisp-context-vsp-ool :call :subprim-call)
     (()
      ()
-     ((imm (:u32 #.ppc32::imm0))))
+     ((imm (:u32 #.ppc::imm0))))
   (bla .SPsavecontextvsp))
 
 (define-ppc-vinsn save-lisp-context-offset (()
                                             ((nbytes-vpushed :u16const))
                                             ((imm :u32)))
-  (la imm nbytes-vpushed ppc32::vsp)
-  (stwu ppc32::sp (- ppc32::lisp-frame.size) ppc32::sp)
-  (stw ppc32::fn ppc32::lisp-frame.savefn ppc32::sp)
-  (stw ppc32::loc-pc ppc32::lisp-frame.savelr ppc32::sp)
-  (stw imm ppc32::lisp-frame.savevsp ppc32::sp)
-  (mr ppc32::fn ppc32::nfn)
+  (la imm nbytes-vpushed ppc::vsp)
+  (stwu ppc::sp (- ppc32::lisp-frame.size) ppc::sp)
+  (stw ppc::fn ppc32::lisp-frame.savefn ppc::sp)
+  (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
+  (stw imm ppc32::lisp-frame.savevsp ppc::sp)
+  (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
-  (twllt ppc32::sp imm))
+  (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
+  (twllt ppc::sp imm))
 
 (define-ppc-vinsn save-lisp-context-offset-ool (()
                                                 ((nbytes-vpushed :u16const))
-                                                ((imm (:u32 #.ppc32::imm0))))
+                                                ((imm (:u32 #.ppc::imm0))))
   (li imm nbytes-vpushed)
   (bla .SPsavecontext0))
 
@@ -2811,23 +2811,23 @@
 (define-ppc-vinsn save-lisp-context-lexpr (()
                                            ()
                                            ((imm :u32)))
-  (stwu ppc32::sp (- ppc32::lisp-frame.size) ppc32::sp)
-  (stw ppc32::rzero ppc32::lisp-frame.savefn ppc32::sp)
-  (stw ppc32::loc-pc ppc32::lisp-frame.savelr ppc32::sp)
-  (stw ppc32::vsp ppc32::lisp-frame.savevsp ppc32::sp)
-  (mr ppc32::fn ppc32::nfn)
+  (stwu ppc::sp (- ppc32::lisp-frame.size) ppc::sp)
+  (stw ppc::rzero ppc32::lisp-frame.savefn ppc::sp)
+  (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
+  (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
+  (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
-  (twllt ppc32::sp imm))
+  (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
+  (twllt ppc::sp imm))
   
 (define-ppc-vinsn save-cleanup-context (()
                                         ())
   ;; SP was this deep just a second ago, so no need to do a stack-probe.
-  (mflr ppc32::loc-pc)
-  (stwu ppc32::sp (- ppc32::lisp-frame.size) ppc32::sp)
-  (stw ppc32::rzero ppc32::lisp-frame.savefn ppc32::sp)
-  (stw ppc32::loc-pc ppc32::lisp-frame.savelr ppc32::sp)
-  (stw ppc32::vsp ppc32::lisp-frame.savevsp ppc32::sp))
+  (mflr ppc::loc-pc)
+  (stwu ppc::sp (- ppc32::lisp-frame.size) ppc::sp)
+  (stw ppc::rzero ppc32::lisp-frame.savefn ppc::sp)
+  (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
+  (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp))
 
 ;; Vpush the argument registers.  We got at least "min-fixed" args;
 ;; that knowledge may help us generate better code.
@@ -2836,48 +2836,48 @@
      ((min-fixed :u16const))
      ((crfx :crf)
       (crfy :crf)
-      (entry-vsp (:u32 #.ppc32::imm0))
+      (entry-vsp (:u32 #.ppc::imm0))
       (arg-temp :u32)))
   ((:pred >= min-fixed $numppcargregs)
-   (stwu ppc32::arg_x -4 ppc32::vsp)
-   (stwu ppc32::arg_y -4 ppc32::vsp)
-   (stwu ppc32::arg_z -4 ppc32::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp)
+   (stwu ppc::arg_y -4 ppc::vsp)
+   (stwu ppc::arg_z -4 ppc::vsp))
   ((:pred = min-fixed 2)                ; at least 2 args
-   (cmplwi crfx ppc32::nargs (ash 2 ppc32::word-shift))
+   (cmplwi crfx ppc::nargs (ash 2 ppc32::word-shift))
    (beq crfx :yz2)                      ; skip arg_x if exactly 2
-   (stwu ppc32::arg_x -4 ppc32::vsp)
+   (stwu ppc::arg_x -4 ppc::vsp)
    :yz2
-   (stwu ppc32::arg_y -4 ppc32::vsp)
-   (stwu ppc32::arg_z -4 ppc32::vsp))
+   (stwu ppc::arg_y -4 ppc::vsp)
+   (stwu ppc::arg_z -4 ppc::vsp))
   ((:pred = min-fixed 1)                ; at least one arg
-   (cmplwi crfx ppc32::nargs (ash 2 ppc32::word-shift))
+   (cmplwi crfx ppc::nargs (ash 2 ppc32::word-shift))
    (blt crfx :z1)                       ; branch if exactly one
    (beq crfx :yz1)                      ; branch if exactly two
-   (stwu ppc32::arg_x -4 ppc32::vsp)
+   (stwu ppc::arg_x -4 ppc::vsp)
    :yz1
-   (stwu ppc32::arg_y -4 ppc32::vsp)
+   (stwu ppc::arg_y -4 ppc::vsp)
    :z1
-   (stwu ppc32::arg_z -4 ppc32::vsp))
+   (stwu ppc::arg_z -4 ppc::vsp))
   ((:pred = min-fixed 0)
-   (cmplwi crfx ppc32::nargs (ash 2 ppc32::word-shift))
-   (cmplwi crfy ppc32::nargs 0)
+   (cmplwi crfx ppc::nargs (ash 2 ppc32::word-shift))
+   (cmplwi crfy ppc::nargs 0)
    (beq crfx :yz0)                      ; exactly two
    (beq crfy :none)                     ; exactly zero
    (blt crfx :z0)                       ; one
                                         ; Three or more ...
-   (stwu ppc32::arg_x -4 ppc32::vsp)
+   (stwu ppc::arg_x -4 ppc::vsp)
    :yz0
-   (stwu ppc32::arg_y -4 ppc32::vsp)
+   (stwu ppc::arg_y -4 ppc::vsp)
    :z0
-   (stwu ppc32::arg_z -4 ppc32::vsp)
+   (stwu ppc::arg_z -4 ppc::vsp)
    :none
    )
   ((:pred = min-fixed 0)
-   (stwu ppc32::nargs -4 ppc32::vsp))
+   (stwu ppc::nargs -4 ppc::vsp))
   ((:not (:pred = min-fixed 0))
-   (subi arg-temp ppc32::nargs (:apply ash min-fixed ppc32::word-shift))
-   (stwu arg-temp -4 ppc32::vsp))
-  (add entry-vsp ppc32::vsp ppc32::nargs)
+   (subi arg-temp ppc::nargs (:apply ash min-fixed ppc32::word-shift))
+   (stwu arg-temp -4 ppc::vsp))
+  (add entry-vsp ppc::vsp ppc::nargs)
   (la entry-vsp 4 entry-vsp)
   (bla .SPlexpr-entry))
 
@@ -2890,17 +2890,17 @@
 (define-ppc-vinsn (restore-full-lisp-context :lispcontext :pop :csp :lrRestore)
     (()
      ())
-  (lwz ppc32::loc-pc ppc32::lisp-frame.savelr ppc32::sp)
-  (lwz ppc32::vsp ppc32::lisp-frame.savevsp ppc32::sp)
-  (lwz ppc32::fn ppc32::lisp-frame.savefn ppc32::sp)
-  (mtlr ppc32::loc-pc)
-  (la ppc32::sp ppc32::lisp-frame.size ppc32::sp))
+  (lwz ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
+  (lwz ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
+  (lwz ppc::fn ppc32::lisp-frame.savefn ppc::sp)
+  (mtlr ppc::loc-pc)
+  (la ppc::sp ppc32::lisp-frame.size ppc::sp))
 
 (define-ppc-vinsn (restore-full-lisp-context-ool :lispcontext :pop :csp :lrRestore)
     (()
      ())
   (bla .SPrestorecontext)
-  (mtlr ppc32::loc-pc))
+  (mtlr ppc::loc-pc))
 
 (define-ppc-vinsn (popj :lispcontext :pop :csp :lrRestore :jumpLR)
     (() 
@@ -2911,126 +2911,126 @@
 ; (and a little simpler than) returning from a function.
 (define-ppc-vinsn restore-cleanup-context (()
                                            ())
-  (lwz ppc32::loc-pc ppc32::lisp-frame.savelr ppc32::sp)
-  (mtlr ppc32::loc-pc)
-  (la ppc32::sp ppc32::lisp-frame.size ppc32::sp))
+  (lwz ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
+  (mtlr ppc::loc-pc)
+  (la ppc::sp ppc32::lisp-frame.size ppc::sp))
 
 
 
 (define-ppc-vinsn default-1-arg (()
                                  ((min :u16const))
                                  ((crf :crf)))
-  (cmplwi crf ppc32::nargs (:apply ash min 2))
+  (cmplwi crf ppc::nargs (:apply ash min 2))
   (bne crf :done)
   ((:pred >= min 3)
-   (stwu ppc32::arg_x -4 ppc32::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp))
   ((:pred >= min 2)
-   (mr ppc32::arg_x ppc32::arg_y))
+   (mr ppc::arg_x ppc::arg_y))
   ((:pred >= min 1)
-   (mr ppc32::arg_y ppc32::arg_z))
-  (li ppc32::arg_z ppc32::nil-value)
+   (mr ppc::arg_y ppc::arg_z))
+  (li ppc::arg_z ppc32::nil-value)
   :done)
 
 (define-ppc-vinsn default-2-args (()
                                   ((min :u16const))
                                   ((crf :crf)))
-  (cmplwi crf ppc32::nargs (:apply ash (:apply 1+ min) 2))
+  (cmplwi crf ppc::nargs (:apply ash (:apply 1+ min) 2))
   (bgt crf :done)
   (beq crf :one)
                                         ; We got "min" args; arg_y & arg_z default to nil
   ((:pred >= min 3)
-   (stwu ppc32::arg_x -4 ppc32::vsp))   
+   (stwu ppc::arg_x -4 ppc::vsp))   
   ((:pred >= min 2)
-   (stwu ppc32::arg_y -4 ppc32::vsp))
+   (stwu ppc::arg_y -4 ppc::vsp))
   ((:pred >= min 1)
-   (mr ppc32::arg_x ppc32::arg_z))
-  (li ppc32::arg_y ppc32::nil-value)
+   (mr ppc::arg_x ppc::arg_z))
+  (li ppc::arg_y ppc32::nil-value)
   (b :last)
   :one
                                         ; We got min+1 args: arg_y was supplied, arg_z defaults to nil.
   ((:pred >= min 2)
-   (stwu ppc32::arg_x -4 ppc32::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp))
   ((:pred >= min 1)
-   (mr ppc32::arg_x ppc32::arg_y))
-  (mr ppc32::arg_y ppc32::arg_z)
+   (mr ppc::arg_x ppc::arg_y))
+  (mr ppc::arg_y ppc::arg_z)
   :last
-  (li ppc32::arg_z ppc32::nil-value)
+  (li ppc::arg_z ppc32::nil-value)
   :done)
 
 (define-ppc-vinsn default-3-args (()
                                   ((min :u16const))
                                   ((crfx :crf)
                                    (crfy :crf)))
-  (cmplwi crfx ppc32::nargs (:apply ash (:apply + 2 min) 2))
-  (cmplwi crfy ppc32::nargs (:apply ash min 2))
+  (cmplwi crfx ppc::nargs (:apply ash (:apply + 2 min) 2))
+  (cmplwi crfy ppc::nargs (:apply ash min 2))
   (bgt crfx :done)
   (beq crfx :two)
   (beq crfy :none)
                                         ; The first (of three) &optional args was supplied.
   ((:pred >= min 2)
-   (stwu ppc32::arg_x -4 ppc32::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp))
   ((:pred >= min 1)
-   (stwu ppc32::arg_y -4 ppc32::vsp))
-  (mr ppc32::arg_x ppc32::arg_z)
+   (stwu ppc::arg_y -4 ppc::vsp))
+  (mr ppc::arg_x ppc::arg_z)
   (b :last-2)
   :two
                                         ; The first two (of three) &optional args were supplied.
   ((:pred >= min 1)
-   (stwu ppc32::arg_x -4 ppc32::vsp))
-  (mr ppc32::arg_x ppc32::arg_y)
-  (mr ppc32::arg_y ppc32::arg_z)
+   (stwu ppc::arg_x -4 ppc::vsp))
+  (mr ppc::arg_x ppc::arg_y)
+  (mr ppc::arg_y ppc::arg_z)
   (b :last-1)
                                         ; None of the three &optional args was provided.
   :none
   ((:pred >= min 3)
-   (stwu ppc32::arg_x -4 ppc32::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp))
   ((:pred >= min 2)
-   (stwu ppc32::arg_y -4 ppc32::vsp))
+   (stwu ppc::arg_y -4 ppc::vsp))
   ((:pred >= min 1)
-   (stwu ppc32::arg_z -4 ppc32::vsp))
-  (li ppc32::arg_x ppc32::nil-value)
+   (stwu ppc::arg_z -4 ppc::vsp))
+  (li ppc::arg_x ppc32::nil-value)
   :last-2
-  (li ppc32::arg_y ppc32::nil-value)
+  (li ppc::arg_y ppc32::nil-value)
   :last-1
-  (li ppc32::arg_z ppc32::nil-value)
+  (li ppc::arg_z ppc32::nil-value)
   :done)
 
 (define-ppc-vinsn save-lr (()
                            ())
-  (mflr ppc32::loc-pc))
+  (mflr ppc::loc-pc))
 
 ;; "n" is the sum of the number of required args + 
 ;; the number of &optionals.  
 (define-ppc-vinsn (default-optionals :call :subprim-call) (()
                                                            ((n :u16const)))
-  (li ppc32::imm0 (:apply ash n 2))
+  (li ppc::imm0 (:apply ash n 2))
   (bla .SPdefault-optional-args))
 
 ; fname contains a known symbol
-(define-ppc-vinsn (call-known-symbol :call) (((result (:lisp ppc32::arg_z)))
+(define-ppc-vinsn (call-known-symbol :call) (((result (:lisp ppc::arg_z)))
                                              ())
-  (lwz ppc32::nfn ppc32::symbol.fcell ppc32::fname)
-  (lwz ppc32::temp0 ppc32::misc-data-offset ppc32::nfn)
-  (mtctr ppc32::temp0)
+  (lwz ppc::nfn ppc32::symbol.fcell ppc::fname)
+  (lwz ppc::temp0 ppc32::misc-data-offset ppc::nfn)
+  (mtctr ppc::temp0)
   (bctrl))
 
 (define-ppc-vinsn (jump-known-symbol :jumplr) (()
                                                ())
-  (lwz ppc32::nfn ppc32::symbol.fcell ppc32::fname)
-  (lwz ppc32::temp0 ppc32::misc-data-offset ppc32::nfn)
-  (mtctr ppc32::temp0)
+  (lwz ppc::nfn ppc32::symbol.fcell ppc::fname)
+  (lwz ppc::temp0 ppc32::misc-data-offset ppc::nfn)
+  (mtctr ppc::temp0)
   (bctr))
 
 (define-ppc-vinsn (call-known-function :call) (()
                                                ())
-  (lwz ppc32::temp0 ppc32::misc-data-offset ppc32::nfn)
-  (mtctr ppc32::temp0)
+  (lwz ppc::temp0 ppc32::misc-data-offset ppc::nfn)
+  (mtctr ppc::temp0)
   (bctrl))
 
 (define-ppc-vinsn (jump-known-function :jumplr) (()
                                                  ())
-  (lwz ppc32::temp0 ppc32::misc-data-offset ppc32::nfn)
-  (mtctr ppc32::temp0)
+  (lwz ppc::temp0 ppc32::misc-data-offset ppc::nfn)
+  (mtctr ppc::temp0)
   (bctr))
 
 (define-ppc-vinsn %schar (((char :imm))
@@ -3155,8 +3155,8 @@
                                       ()
                                       ((temp :imm)))
   (li temp -4)
-  (lwz dest ppc32::tcr.interrupt-level ppc32::rcontext)
-  (stw temp ppc32::tcr.interrupt-level ppc32::rcontext))
+  (lwz dest ppc32::tcr.interrupt-level ppc::rcontext)
+  (stw temp ppc32::tcr.interrupt-level ppc::rcontext))
 
 ;;; Subprim calls.  Done this way for the benefit of VINSN-OPTIMIZE.
 (defmacro define-ppc-subprim-call-vinsn ((name &rest other-attrs) spno)
@@ -3335,12 +3335,12 @@
 
 (define-ppc-vinsn (darwin-syscall :call :subprim-call) (()
                                                         ())
-  (stw ppc32::rzero ppc32::c-frame.crsave ppc32::sp)
+  (stw ppc::rzero ppc32::c-frame.crsave ppc::sp)
   (bla .SPdarwin-syscall))
 
 (define-ppc-vinsn (darwin-syscall-s64 :call :subprim-call) (()
                                                             ())
-  (stw ppc32::sp ppc32::c-frame.crsave ppc32::sp)
+  (stw ppc::sp ppc32::c-frame.crsave ppc::sp)
   (bla .SPdarwin-syscall))
 
 (define-ppc-subprim-call-vinsn (eabi-ff-call) .SPeabi-ff-call)
@@ -3353,6 +3353,6 @@
 
 ;;; In case ppc32::*ppc-opcodes* was changed since this file was compiled.
 (queue-fixup
- (fixup-vinsn-templates *ppc-vinsn-templates* ppc32::*ppc-opcode-numbers*))
+ (fixup-vinsn-templates *ppc-vinsn-templates* ppc::*ppc-opcode-numbers*))
 
 (ccl::provide "PPC-VINSNS")
