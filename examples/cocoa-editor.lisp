@@ -1652,9 +1652,9 @@
         :alpha *editor-background-alpha-component*))
 
 
-(define-objc-method ((:id :init-with-text-storage ts)
+(define-objc-method ((:id :set-text-storage ts)
                      hemlock-editor-document)
-  (let* ((doc (send-super 'init))
+  (let* ((doc (%inc-ptr self 0))
          (string (send ts 'string))
          (cache (hemlock-buffer-string-cache string))
          (buffer (buffer-cache-buffer cache)))
@@ -1669,13 +1669,13 @@
   
 (define-objc-method ((:id init) hemlock-editor-document)
   (let* ((doc (send-super 'init)))
-    (when doc
+    (unless  (%null-ptr-p doc)
       (send doc
-        :init-with-text-storage (make-textstorage-for-hemlock-buffer
-                                 (make-hemlock-buffer
-                                  (lisp-string-from-nsstring
-                                   (send doc 'display-name))
-                                  :modes '("Lisp" "Editor")))))
+        :set-text-storage (make-textstorage-for-hemlock-buffer
+                           (make-hemlock-buffer
+                            (lisp-string-from-nsstring
+                             (send doc 'display-name))
+                            :modes '("Lisp" "Editor")))))
     doc))
                      
 
