@@ -744,12 +744,11 @@ c)" t)
 (set-macro-character 
  #\)
  #'(lambda (stream ch)
-     (if *ignore-extra-close-parenthesis*
-       (let* ((pos (if (typep stream 'file-stream)
+     (let* ((pos (if (typep stream 'file-stream)
                      (file-position stream))))
-         (warn "Ignoring extra \"~c\" ~@[near position ~d.~] on ~s ." ch pos stream))
-       (%err-disp $XUMRPR)))          ; is this a READER-ERROR ? 
-)
+       (if *ignore-extra-close-parenthesis*
+           (warn "Ignoring extra \"~c\" ~@[near position ~d~] on ~s ." ch pos stream)
+           (signal-reader-error stream "Unmatched ')' ~@[near position ~d~]." pos)))))
 
 
 
