@@ -1553,6 +1553,7 @@ argument lisp string."
 (defun install-lisp-deallocate-hook ()
   (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))
 
+#+later
 (def-ccl-pointers install-deallocate-hook ()
   (install-lisp-deallocate-hook))
 
