@@ -750,7 +750,10 @@
         (if methods
           (remove-method gf (car methods))
           (return))))
-    (%set-defgeneric-keys gf nil))
+    (%set-defgeneric-keys gf nil)
+    (inner-lfun-bits gf (%ilogior (%ilsl $lfbits-gfn-bit 1)
+                                  (%ilogand $lfbits-args-mask
+                                            (lfun-bits (%method-function method))))))
   gf)
 
 
@@ -2043,7 +2046,7 @@ to replace that class with ~s" name old-class new-class)
 (pushnew :primary-classes *features*)
 
 (defun %class-primary-p (class)
-  (if (typep class 'std-class)
+  (if (typep class 'slots-class)
     (%class-get class :primary-p)
     t))
 
