@@ -36,6 +36,8 @@
 )
 
 (set-periodic-task-interval .33)
+(setq cmain xcmain)
+(setq %err-disp %xerr-disp)
 
 
 
