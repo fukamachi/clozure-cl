@@ -93,8 +93,8 @@
    :prepend-subprims-hook 'false
    :subdir "ccl:level-0;PPC;"
    :compiler-target-name
-   #+linuxppc-target :linuxppc
-   #+darwinppc-target :darwinppc
+   #+linuxppc-target :linuxppc32
+   #+darwinppc-target :darwinppc32
 ))
 
 (add-xload-backend *ppc-xload-backend*)

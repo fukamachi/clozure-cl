@@ -18,7 +18,7 @@
 
 (eval-when (:compile-toplevel :execute)
 (require "FASLENV" "ccl:xdump;faslenv")
-(require "ARCH" "ccl:compiler;ppc;ppc-arch")
+
 
 
 (defmacro defxloadfaslop (n arglist &body body)
