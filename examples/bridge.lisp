@@ -415,10 +415,13 @@
 		     `(,record-class ,record-name)
 		     `(,record-class ,record-name ,@(fields)))
 		   (1+ (string-input-stream-index string-stream))))
-	      (let* ((field-name-string (read string-stream)))
+	      (let* ((field-name-string
+		      (if (eql (peek-char nil string-stream) #\")
+			(read string-stream))))
 		(if (eql (peek-char nil string-stream) #\")
 		  (setq field-name-string (read string-stream)))
-		(unless (typep field-name-string 'string)
+		(unless (or (null field-name-string)
+			    (typep field-name-string 'string))
 		  (error "Bad field name in ~s: expected a quoted string, got ~s"
 			 typestring field-name-string))
 		(multiple-value-bind (typespec endpos)
@@ -426,7 +429,7 @@
 		     typestring
 		     (string-input-stream-index string-stream)
 		     nil)
-		  (fields `(,(escape-foreign-name field-name-string)
+		  (fields `(,(if field-name-string (escape-foreign-name field-name-string))
 			    ,typespec))
 		  (setf (string-input-stream-index string-stream) endpos))))))))))
 		
