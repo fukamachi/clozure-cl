@@ -19,7 +19,8 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "OBJC-SUPPORT")
-  (require "COCOA-DEFAULTS"))
+  (require "COCOA-DEFAULTS")
+  (require "COCOA-PREFS"))
 
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir #+apple-objc  :cocoa #+gnu-objc :gnustep))
@@ -44,14 +45,6 @@
 	  (send (@class ns-bundle)
 		:load-nib-named mainnibname
 		:owner app)
-          ;; Create an NSThread which does nothing but exit.
-          ;; This'll help to convince the AppKit that we're
-          ;; multitheaded.  (A lot of other things, including
-          ;; the ObjC runtime, seem to have already noticed.)
-          (send (@class "NSThread")
-                :detach-new-thread-selector (@selector "exit")
-                :to-target (@class "NSThread")
-                :with-object (%null-ptr))
 	  app))))
 
 
@@ -189,6 +182,10 @@
   (declare (ignore sender))
   (quit))
 
+(define-objc-method ((:void :show-preferences sender) lisp-application)
+  (declare (ignore sender))
+  (send (send (find-class 'preferences-panel) 'shared-panel) 'show))
+
 
 (defun nslog-condition (c)
   (let* ((rep (format nil "~a" c)))
@@ -277,8 +274,8 @@
 						  #'cocoa-startup)
 						 (toplevel)))))
 
-(def-cocoa-default *default-font-name* :string "Courier")
-(def-cocoa-default *default-font-size* :float 12.0e0)
+(def-cocoa-default *default-font-name* :string "Courier" "Name of font to use in editor windows")
+(def-cocoa-default *default-font-size* :float 12.0f0 "Size of font to use in editor windows, as a positive SINGLE-FLOAT")
 
 (defparameter *font-attribute-names*
   '((:bold . #.#$NSBoldFontMask)
@@ -322,7 +319,7 @@
 		      (push attr-name implemented-attributes))))))
 	    (values font implemented-attributes))))))
 
-(def-cocoa-default *tab-width* :int 8)
+(def-cocoa-default *tab-width* :int 8 "Width of editor tab stops, in characters" (integer 1 32))
 
 ;;; Create a paragraph style, mostly so that we can set tabs reasonably.
 (defun create-paragraph-style (font line-break-mode)
@@ -429,3 +426,7 @@
       (when activate (activate-window w))
       (when title (send w :set-title (%make-nsstring title)))
       w)))
+
+
+
+
