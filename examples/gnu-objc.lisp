@@ -25,19 +25,32 @@
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir :gnustep))
 
-(defparameter *gnustep-system-root* "/usr/lib/GNUstep")
+(defparameter *gnustep-system-root* "/usr/GNUstep/")
+
+(defparameter *pending-loaded-classes* ())
+
+(defcallback register-class-callback (:address class :address category :void)
+  (let* ((class (%inc-ptr class 0))    ; make a heap-allocated copy
+         (cell (or (assoc class *pending-loaded-classes*)
+                   (let* ((c (list class)))
+                     (push c *pending-loaded-classes*)
+                     c))))
+;    (format t "~&~s: " (%get-cstring (pref class :objc_class.name)))
+    (unless (%null-ptr-p category)
+      (push (%inc-ptr category 0) (cdr cell))
+      ;(format t "~&    ~s" (%get-cstring (pref category :objc_category.category_name)))
+      )))
+
+    
 
 (def-ccl-pointers gnustep-framework ()
   (or (getenv "GNUSTEP_SYSTEM_ROOT")
-      (with-cstrs ((root (format nil "GNUSTEP_SYSTEM_ROOT=~a"
-				 *gnustep-system-root*)))
-	(#_putenv root)))
+      (setenv "GNUSTEP_SYSTEM_ROOT" *gnustep-system-root*))
   (open-shared-library "libobjc.so.1")
-  (open-shared-library "libcallback.so")
-  (open-shared-library "libavcall.so")
-  (open-shared-library "libxml2.so")
-  (open-shared-library "/usr/lib/GNUstep/System/Libraries/powerpc/linux-gnu/gnu-gnu-gnu/libgnustep-base.so")
-  (open-shared-library "/usr/lib/GNUstep/System/Libraries/powerpc/linux-gnu/gnu-gnu-gnu/libgnustep-gui.so")
+  (setf (%get-ptr (foreign-symbol-address "_objc_load_callback"))
+        register-class-callback)
+  (open-shared-library "/usr/GNUstep/System/Library/Libraries/libgnustep-base.so")
+  (open-shared-library "/usr/GNUstep/System/Library/Libraries/libgnustep-gui.so")
   )
 
 (defvar *objc-readtable* (copy-readtable nil))
