@@ -955,12 +955,6 @@
   %wrapper-class                        ; the class itself
   %wrapper-instance-slots               ; vector of instance slot names
   %wrapper-class-slots                  ; alist of (name . value-cell) pairs
-#| Not implemented yet
-  %wrapper-tables-index                 ; index into tables below
-  %wrapper-slot-mapping-tables          ; tables for mapping instance-slot offsets
-  %wrapper-superclass-table             ; map superclass'es tables-index to superclssa
-  %wrapper-superclass-index-table       ;  and to it's index in my cpl
-|#
 )
 
 ;; Use the wrapper-class-slots for info on obsolete & forwarded instances
