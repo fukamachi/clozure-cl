@@ -30,11 +30,11 @@
 
 
 (defun %class-slots (class)
-  (if (typep class 'std-class)
+  (if (typep class 'slots-class)
     (%class.slots class)))
 
 (defun %class-direct-slots (class)
-  (if (typep class 'std-class)
+  (if (typep class 'slots-class)
     (%class.direct-slots class)))
 
 (defun %class-direct-superclasses (class)
@@ -1356,6 +1356,14 @@
 
 (set-type-predicate 'std-class 'std-class-p)
 
+(defun slots-class-p (class)
+  (let ((wrapper (standard-object-p class)))
+    (and wrapper
+         (or (eq wrapper *slots-class-wrapper*)
+             (memq *slots-class* (%inited-class-cpl (%wrapper-class wrapper) t))))))  
+
+(set-type-predicate 'slots-class 'slots-class-p)
+
 (defun specializer-p (thing)
   (memq *specializer-class* (%inited-class-cpl (class-of thing))))
 
@@ -1383,10 +1391,14 @@
 ; The *xxx-class-class* instances get slots near the end of this file.
 (defvar *class-class* (make-standard-class 'class *specializer-class*))
 
+(defvar *slots-class* (make-standard-class 'slots-class *class-class*))
+(defvar *slots-class-wrapper* (%class.own-wrapper *slots-class*))
+
 ; an implementation class that exists so that
 ; standard-class & funcallable-standard-class can have a common ancestor not
 ; shared by anybody but their subclasses.
-(defvar *std-class-class* (make-standard-class 'std-class *class-class*))
+
+(defvar *std-class-class* (make-standard-class 'std-class *slots-class*))
 
 ;The class of all objects whose metaclass is standard-class. Yow.
 (defvar *standard-class-class* (make-standard-class 'standard-class *std-class-class*))
@@ -1399,7 +1411,7 @@
 (setf *built-in-class-wrapper* (%class.own-wrapper *built-in-class-class*)
       (instance.class-wrapper *t-class*) *built-in-class-wrapper*)
 
-(defvar *structure-class-class* (make-standard-class 'structure-class *class-class*))
+(defvar *structure-class-class* (make-standard-class 'structure-class *slots-class*))
 (defvar *structure-class-wrapper* (%class.own-wrapper *structure-class-class*))
 (defvar *structure-object-class* 
   (make-class 'structure-object *structure-class-wrapper* (list *t-class*)))

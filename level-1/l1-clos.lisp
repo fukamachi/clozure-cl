@@ -780,19 +780,15 @@
  'forward-referenced-class
  :direct-superclasses '(class))
 
-(%ensure-class-preserving-wrapper
- 'structure-class
- :direct-superclasses '(class))
+
 
 (%ensure-class-preserving-wrapper
  'built-in-class
  :direct-superclasses '(class))
 
 
-; This class exists only so that standard-class & funcallable-standard-class
-; can inherit its slots.
 (%ensure-class-preserving-wrapper
- 'std-class
+ 'slots-class
  :direct-superclasses '(class)
  :direct-slots `((:name direct-slots :initform nil :initfunction ,#'false
 		  :initargs (:direct-slots) :readers (class-direct-slots))
@@ -804,8 +800,15 @@
 		  ;; The fact that the slot is a primary slot
 		  ;; saves the day (keeping us from trying to call
 		  ;; CLASS-SLOTS inside SLOT-VALUE-USING-CLASS
-		   :readers (class-slots))
-		 (:name kernel-p :initform nil :initfunction ,#'false)
+		   :readers (class-slots)))
+ :primary-p t)
+
+; This class exists only so that standard-class & funcallable-standard-class
+; can inherit its slots.
+(%ensure-class-preserving-wrapper
+ 'std-class
+ :direct-superclasses '(slots-class)
+ :direct-slots `((:name kernel-p :initform nil :initfunction ,#'false)
                  (:name direct-default-initargs :initargs (:direct-default-initargs) :initform nil  :initfunction ,#'false :readers (class-direct-default-initargs))
                  (:name default-initargs :initform nil  :initfunction ,#'false :readers (class-default-initargs))
                  (:name alist :initform nil  :initfunction ,#'false)
@@ -864,6 +867,9 @@
 
  :metaclass 'funcallable-standard-class)
 
+(%ensure-class-preserving-wrapper
+ 'structure-class
+ :direct-superclasses '(slots-class))
 
 (%ensure-class-preserving-wrapper
  'slot-definition
