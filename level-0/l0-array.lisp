@@ -96,7 +96,9 @@
     (declare (fixnum typecode))
     (if (< typecode ppc32::min-array-subtag)
       (report-bad-arg array 'array)
-      (if (<= typecode ppc32::subtag-vectorH)
+      (if (and (<= typecode ppc32::subtag-vectorH)
+	       (logbitp $arh_exp_disp_bit
+			(the fixnum (%svref array ppc32::arrayH.flags-cell))))
 	  (values (%svref array ppc32::arrayH.data-vector-cell)
 		  (%svref array ppc32::arrayH.displacement-cell))
 	  (values nil 0)))))
