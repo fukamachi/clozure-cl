@@ -43,7 +43,7 @@
     "charmacs"
     "key-event" 
     "keysym-defs"
-	       
+    "cocoa-hemlock"
     "rompsite"
 	       
     "input"
