@@ -168,8 +168,8 @@
 
 
 (defun initialize-objc-class-slots (class class-name wrapper &optional foreign)
-;  (format t "~&initialize-objc-class-slots ~s" class-name)
-;  (force-output)
+;  (format t "~&initialize-objc-class-slots ~s (#x~x)" class-name (%ptr-to-int class))  
+ ; (force-output)
   (let* ((super (pref class :objc_class.super_class))
 	 (super-id (unless (%null-ptr-p super) (objc-class-id super)))
 	 (super-slots (if super-id
@@ -198,7 +198,7 @@
 	     )))
 
 (defun initialize-objc-metaclass-slots (class class-name wrapper &optional foreign peer)
-;  (format t "~&initialize-objc-metaclass-slots ~s" class-name)
+;  (format t "~&initialize-objc-metaclass-slots ~s (#x~x)" class-name (%ptr-to-int class))
 ;  (force-output)
   (let* ((super (pref class :objc_class.super_class))
 	 (super-id (unless (%null-ptr-p super) (objc-metaclass-id super)))
