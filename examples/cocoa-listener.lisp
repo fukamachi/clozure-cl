@@ -74,12 +74,6 @@
     proc))
          
 
-(defloadvar *NSFileHandleNotificationDataItem*
-    (%get-ptr (foreign-symbol-address "_NSFileHandleNotificationDataItem")))
-
-(defloadvar *NSFileHandleReadCompletionNotification*
-    (%get-ptr (foreign-symbol-address "_NSFileHandleReadCompletionNotification")))
-
 
 
 (defclass hemlock-listener-window-controller (hemlock-editor-window-controller)
@@ -104,7 +98,7 @@
 	    (send (send (@class ns-notification-center) 'default-center)
 		  :add-observer self
 		  :selector (@selector "gotData:")
-		  :name *NSFileHandleReadCompletionNotification*
+		  :name #?NSFileHandleReadCompletionNotification
 		  :object fh)
 	    (send fh 'read-in-background-and-notify)))))
     self))
@@ -113,7 +107,7 @@
 		     hemlock-listener-window-controller)
   (with-slots (filehandle) self
     (let* ((data (send (send notification 'user-info)
-		       :object-for-key *NSFileHandleNotificationDataItem*))
+		       :object-for-key #?NSFileHandleNotificationDataItem))
 	   (document (send self 'document))
 	   (data-length (send data 'length))
 	   (buffer (hemlock-document-buffer document))
