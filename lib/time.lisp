@@ -164,7 +164,7 @@
 
 
 (defun sleep (seconds)
-  (when (minusp seconds) (report-bad-arg seconds '(number 0 *)))
+  (when (minusp seconds) (report-bad-arg seconds '(real 0 *)))
   (let* ((tps *ticks-per-second*)
 	 (npt *ns-per-tick*)
 	 (ticks (ceiling (* seconds tps))))
