@@ -644,6 +644,7 @@
 
 (defun editor-sleep (time)
   "Sleep for approximately Time seconds."
+  #+maybe-someday
   (unless (or (zerop time) (listen-editor-input *editor-input*))
     (internal-redisplay)
     (sleep-for-time time)
