@@ -31,16 +31,17 @@
     :unix
     :openmcl-native-threads
     :openmcl-partial-mop
+    :mcl-common-mop-subset
+    :openmcl-mop-2
     #+eabi-target :eabi-target
     #+interfaces-2 :interfaces-2
     #+ppc-target :powerpc
     #+ppc-target :ppc-target
     #+ppc-target :ppc-clos              ; used in encapsulate
+    #+ppc32-target :ppc32-target
+    #+ppc32-target :ppc32-host
     #+linux-target :linux-host
     #+linux-target :linux-target
-    #+sparc-target :sparc
-    #+sparc-target :sparc-target
-    #+sparc-target :solaris
     #+linuxppc-target :linuxppc-target
     #+darwinppc-target :darwinppc-target
     #+darwinppc-target :darwinppc-host
