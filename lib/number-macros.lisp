@@ -72,27 +72,7 @@
 (setf (macro-function 'with-ppc-stack-double-floats) (macro-function 'with-stack-double-floats))
 
 
-#| ; its in ppc-float - so there
-; see "Optimizing PowerPC Code" p. 156
-(defppclapmacro int-to-freg (int freg temp-freg immx immy)
-  `(let ((temp -8)
-         (temp.h -8)
-         (temp.l -4)
-         (zero -16)
-         (zero.h -16)
-         (zero.l -12))
-     (lwi ,immx #x43300000)  ; 1075 = 1022+53 
-     (lwi ,immy #x80000000)
-     (stw ,immx temp.h sp) 
-     (stw ,immx zero.h sp)
-     (stw ,immy zero.l sp)     
-     (unbox-fixnum ,immx ,int)
-     (xor ,immx ,immx ,immy)          ; invert sign of int
-     (stw ,immx temp.l sp)
-     (lfd ,freg temp sp)
-     (lfd ,temp-freg zero sp)
-     (fsub ,freg ,freg ,temp-freg)))
-|#
+
 
  ;;; WITH-BIGNUM-BUFFERS  --  Internal.
   ;;;
