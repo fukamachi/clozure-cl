@@ -254,6 +254,7 @@ GB
   `(push #'(lambda () ,@forms)
 	 *after-editor-initializations-funs*))
 
+#+clx
 (defun cl-user::hemlock (&optional x
                          &key (init t)
                               (display (hemlock-ext:getenv "DISPLAY")))

@@ -223,6 +223,7 @@
 ;;;    This function should be called whenever the editor is entered in a new
 ;;; lisp.  It sets up process specific data structures.
 ;;;
+#+clx
 (defun init-raw-io (display)
   #-clx (declare (ignore display))
   (setf *editor-windowed-input* nil)
@@ -488,11 +489,7 @@
      (let ((device (device-hunk-device (window-hunk (current-window)))))
        (funcall (device-exit device) device))))
 
-(defun standard-device-init ()
-  (setup-input))
 
-(defun standard-device-exit ()
-  (reset-input))
 
 (declaim (special *echo-area-window*))
 
@@ -685,17 +682,7 @@
 		       window x y time))))
     result))
 
-(defun tty-show-mark (window x y time)
-  (cond ((listen-editor-input *editor-input*))
-	(x (internal-redisplay)
-	   (let* ((hunk (window-hunk window))
-		  (device (device-hunk-device hunk)))
-	     (funcall (device-put-cursor device) hunk x y)
-	     (when (device-force-output device)
-	       (funcall (device-force-output device)))
-	     (sleep-for-time time))
-	   t)
-	(t nil)))
+
 
 #+clx
 (defun bitmap-show-mark (window x y time)
