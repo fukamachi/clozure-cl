@@ -970,7 +970,8 @@ Will differ from *compiling-file* during an INCLUDE")
   (unless (short-fixnum-p fixnum) (fasl-scan-ref fixnum)))
 
 (defparameter *istruct-make-load-form-types*
-  '(lexical-environment shared-library-descriptor shared-library-entry-point external-entry-point
+  '(lexical-environment shared-library-descriptor shared-library-entry-point
+    external-entry-point foreign-variable
     ctype unknown-ctype class-ctype foreign-ctype union-ctype member-ctype 
     array-ctype numeric-ctype hairy-ctype named-ctype constant-ctype args-ctype
     hash-table))
