@@ -89,7 +89,6 @@ readc()
 void
 show_lisp_register(ExceptionInformationPowerPC *xp, char *label, int r)
 {
-  extern char *print_lisp_object(LispObj);
 
   LispObj val = xpGPR(xp, r);
 
