@@ -2108,7 +2108,7 @@
     (setq s (if (xp-structure-p s)(xp-stream s)
               (if (output-stream-p s)
                 s
-                (require-type s '(satisfies (output-stream-p))))))
+                (require-type s '(satisfies output-stream-p)))))
                 
     (let ((*format-control-string* control-string)
           (*format-top-level* t))      
