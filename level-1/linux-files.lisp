@@ -37,7 +37,7 @@
 (defun %wait-on-semaphore-ptr (s seconds nanoseconds)
    (zerop
     (the fixnum (ff-call
-		 (%kernel-import arch::kernel-import-wait-on-semaphore)
+		 (%kernel-import ppc32::kernel-import-wait-on-semaphore)
 		 :address s
 		 :unsigned seconds
 		 :unsigned nanoseconds
@@ -55,7 +55,7 @@
 
 (defun %signal-semaphore-ptr (p)
   (ff-call
-   (%kernel-import arch::kernel-import-signal-semaphore)
+   (%kernel-import ppc32::kernel-import-signal-semaphore)
    :address p
    :signed-fullword))
 

@@ -250,9 +250,9 @@
   (defmacro need-use-eql-macro (key)
     `(let* ((typecode (typecode ,key)))
        (declare (fixnum typecode))
-       (or (= typecode arch::subtag-macptr)
-           (and (>= typecode arch::min-numeric-subtag)
-                (<= typecode arch::max-numeric-subtag)))))
+       (or (= typecode ppc32::subtag-macptr)
+           (and (>= typecode ppc32::min-numeric-subtag)
+                (<= typecode ppc32::max-numeric-subtag)))))
   (require "NUMBER-MACROS")
 )
 
@@ -1225,7 +1225,7 @@ vector
     (setq macptr (require-type macptr 'macptr)))
   (unless (typep res 'double-float)
     (setq res (require-type res 'double-float)))
-  (%copy-ptr-to-ivector macptr offset res (* 4 arch::double-float.value-cell) 8)
+  (%copy-ptr-to-ivector macptr offset res (* 4 ppc32::double-float.value-cell) 8)
   res)
 
 
@@ -1238,7 +1238,7 @@ vector
     (setq macptr (require-type macptr 'macptr)))
   (unless (typep value 'double-float)
     (setq value (require-type value 'double-float)))
-  (%copy-ivector-to-ptr value (* 4 arch::double-float.value-cell) macptr offset 8)
+  (%copy-ivector-to-ptr value (* 4 ppc32::double-float.value-cell) macptr offset 8)
   value)
 
 
@@ -1288,19 +1288,19 @@ vector
 #+ppc-target
 (defppclapfunction %single-float-ptr->double-float-ptr ((single arg_y) (double arg_z))
   (check-nargs 2)
-  (lwz imm0 arch::macptr.address single)
+  (lwz imm0 ppc32::macptr.address single)
   (lfs fp0 0 imm0)
-  (lwz imm0 arch::macptr.address double)
+  (lwz imm0 ppc32::macptr.address double)
   (stfd fp0 0 imm0)
   (blr))
 
 #+sparc-target
 (defsparclapfunction %single-float-ptr->double-float-ptr ((single %arg_y) (double %arg_z))
   (check-nargs 2)
-  (ld (single arch::macptr.address) %imm0)
+  (ld (single ppc32::macptr.address) %imm0)
   (ldf (%imm0) %f2)
   (fstod %f2 %f4)
-  (ld (double arch::macptr.address) %imm0)
+  (ld (double ppc32::macptr.address) %imm0)
   (retl)
     (stdf %f4 (%imm0)))
 
@@ -1310,20 +1310,20 @@ vector
 #+ppc-target
 (defppclapfunction %double-float-ptr->single-float-ptr ((double arg_y) (single arg_z))
   (check-nargs 2)
-  (lwz imm0 arch::macptr.address double)
+  (lwz imm0 ppc32::macptr.address double)
   (lfd fp0 0 imm0)
-  (lwz imm0 arch::macptr.address single)
+  (lwz imm0 ppc32::macptr.address single)
   (stfs fp0 0 imm0)
   (blr))
 
 #+sparc-target
 (defsparclapfunction %double-float-ptr->single-float-ptr ((double %arg_y) (single %arg_z))
   (check-nargs 2)
-  (ld (double arch::macptr.address) %imm0)
+  (ld (double ppc32::macptr.address) %imm0)
   (lddf (%imm0) %f4)
   (fdtos %f4 %f2)
   (fcmpd %f2 %fp-zero)			; for exception
-  (ld (double arch::macptr.address) %imm0)
+  (ld (double ppc32::macptr.address) %imm0)
   (retl)
    (stf %f2 (%imm0)))
 
@@ -1332,20 +1332,12 @@ vector
 #+ppc-target
 (defppclapfunction %set-ieee-single-float-from-double ((src arg_y) (macptr arg_z))
   (check-nargs 2)
-  (lwz imm0 arch::macptr.address macptr)
+  (lwz imm0 ppc32::macptr.address macptr)
   (get-double-float fp1 src)
   (stfs fp1 0 imm0)
   (blr))
 
-#+sparc-target
-(defsparclapfunction %set-ieee-single-float-from-double ((src %arg_y) (macptr %arg_z))
-  (check-nargs 2)
-  (ld (macptr arch::macptr.address) %imm0)
-  (get-double-float src %f4)
-  (fdtos %f4 %f2)
-  (fcmps %f2 %fp-zero)
-  (retl)
-    (stf %f2 (%imm0)))
+
 
 
 

@@ -2230,7 +2230,7 @@
                               ,(defcallback-body stack-ptr lets dynamic-extent-names
                                                  decls body return-type error-return
                                                  #+poweropen-target
-                                                 (- ppc::c-frame.savelr ppc::c-frame.param0)
+                                                 (- ppc32::c-frame.savelr ppc32::c-frame.param0)
                                                  #-poweropen-target 0)))))
              ,doc
              ,woi
@@ -2459,8 +2459,8 @@
   `(%scan-for-instr ,mask ,opcode ,fn ,pc-index ,tries))
 
 (defmacro codevec-header-p (word)
-  `(eql arch::subtag-code-vector
-    (logand ,word arch::subtag-mask)))
+  `(eql ppc32::subtag-code-vector
+    (logand ,word ppc32::subtag-mask)))
 
 (defmacro match-instr (instr mask bits-to-match)
   `(eql (logand ,instr ,mask) ,bits-to-match))

@@ -1,4 +1,4 @@
-;;;-*- Mode: Lisp; Package: (PPC :use CL) -*-
+;;;-*- Mode: Lisp; Package: (PPC32 :use CL) -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -18,11 +18,11 @@
 (cl:eval-when (:compile-toplevel :execute)
   (ccl::require "PPC-ARCH"))
 
-(in-package "PPC")
+(in-package "PPC32")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
-(arch::defenum ()
+(ppc32::defenum ()
   $ppc-operand-signed                    ; This operand takes signed values.
   $ppc-operand-signopt                   ; This operand takes signed or positive values.
   $ppc-operand-cr                        ; This operand uses symbolic names for CR fields
@@ -40,7 +40,7 @@
   $ppc-operand-vr			; Operand is an Altivec vector register
   )
 
-(arch::defenum ()
+(ppc32::defenum ()
   $ppc                                  ; Opcode is defined for the PowerPC architecture.
   $b32                                  ; Opcode is only defined on 32 bit architectures.
   $b64                                  ; Opcode is only defined on 64 bit architectures.
@@ -50,7 +50,7 @@
 (defmacro major-opcode (i) `(ldb (byte 6 26) ,i))
 
 ;; Operand class indices.
-(arch::defenum ()
+(ppc32::defenum ()
   $unused
   $ba                                   ; the BA field in an XL form instruction.
   $bat                                  ; The BA field in an XL form instruction when it 
@@ -193,7 +193,7 @@
 
 (eval-when (:compile-toplevel :execute)
   (defmacro ppc-op (index width offset &optional insert-function extract-function &rest flags)
-    `(arch::make-operand :index ,index
+    `(ppc32::make-operand :index ,index
       :width ,width 
       :offset ,offset 
       :insert-function ',insert-function
@@ -206,9 +206,9 @@
   (vector
    (ppc-op $unused 0 0)
    (ppc-op $ba 5 16 nil nil $ppc-operand-cr)
-   (ppc-op $bat 5 16 insert-bat extract-bat arch::operand-fake)
+   (ppc-op $bat 5 16 insert-bat extract-bat ppc32::operand-fake)
    (ppc-op $bb 5 11 nil nil $ppc-operand-cr)
-   (ppc-op $bba 5 11 insert-bba extract-bba arch::operand-fake)
+   (ppc-op $bba 5 11 insert-bba extract-bba ppc32::operand-fake)
    (ppc-op $bd 16 0 insert-bd extract-bd $ppc-operand-relative $ppc-operand-signed)
    (ppc-op $bda 16 0 insert-bd extract-bd $ppc-operand-absolute $ppc-operand-signed)
    (ppc-op $bdm 16 0 insert-bdm extract-bdm $ppc-operand-relative $ppc-operand-signed)
@@ -216,13 +216,13 @@
    (ppc-op $bdp 16 0 insert-bdp extract-bdp $ppc-operand-relative $ppc-operand-signed)
    (ppc-op $bdpa 16 0 insert-bdp extract-bdp $ppc-operand-absolute $ppc-operand-signed)
    (ppc-op $bf 3 23 insert-bf extract-bf $ppc-operand-cr)
-   (ppc-op $obf 3 23 insert-bf extract-bf $ppc-operand-cr arch::operand-optional)
+   (ppc-op $obf 3 23 insert-bf extract-bf $ppc-operand-cr ppc32::operand-optional)
    (ppc-op $bfa 3 18 insert-cr extract-cr $ppc-operand-cr)
    (ppc-op $bi 5 16 nil nil $ppc-operand-cr)
    (ppc-op $bo 5 21 insert-bo extract-bo)
    (ppc-op $boe 5 21 insert-boe extract-boe)
    (ppc-op $bt 5 21 nil nil $ppc-operand-cr)
-   (ppc-op $cr 5 16 insert-cr extract-cr $ppc-operand-cr arch::operand-optional)
+   (ppc-op $cr 5 16 insert-cr extract-cr $ppc-operand-cr ppc32::operand-optional)
    (ppc-op $d 16 0 nil nil $ppc-operand-parens $ppc-operand-signed)
    (ppc-op $ds 16 0 insert-ds extract-ds $ppc-operand-parens $ppc-operand-signed)
    (ppc-op $flm 8 17)
@@ -232,12 +232,12 @@
    (ppc-op $frs 5 21 nil nil $ppc-operand-fpr $ppc-operand-source)
    (ppc-op $frt 5 21 nil nil $ppc-operand-fpr $ppc-operand-dest)
    (ppc-op $fxm 8 12)
-   (ppc-op $l 1 21 nil nil arch::operand-optional)
+   (ppc-op $l 1 21 nil nil ppc32::operand-optional)
    (ppc-op $li 26 0 insert-li extract-li $ppc-operand-relative $ppc-operand-signed)
    (ppc-op $lia 26 0 insert-li extract-li $ppc-operand-absolute $ppc-operand-signed)
    (ppc-op $mb 5 6)
    (ppc-op $me 5 1 )
-   (ppc-op $mbe 5 6 nil nil arch::operand-optional $ppc-operand-next)
+   (ppc-op $mbe 5 6 nil nil ppc32::operand-optional $ppc-operand-next)
    (ppc-op $mbe-aux 32 0 insert-mbe extract-mbe)
    (ppc-op $mb6 6 5 insert-mb6 extract-mb6)
    (ppc-op $nb 6 11 insert-nb extract-nb)
@@ -248,7 +248,7 @@
    (ppc-op $ras 5 16 insert-ras nil $ppc-operand-gpr $ppc-operand-source)
    (ppc-op $rTa 5 16 nil nil $ppc-operand-gpr $ppc-operand-dest)
    (ppc-op $rb 5 11 nil nil $ppc-operand-gpr $ppc-operand-source)
-   (ppc-op $rbs 5 11 insert-rbs extract-rbs arch::operand-fake)
+   (ppc-op $rbs 5 11 insert-rbs extract-rbs ppc32::operand-fake)
    (ppc-op $rs 5 21 nil nil $ppc-operand-gpr $ppc-operand-source)
    (ppc-op $rt 5 21 nil nil $ppc-operand-gpr $ppc-operand-dest)
    (ppc-op $sh 5 11)
@@ -278,7 +278,7 @@
 
 (eval-when (:load-toplevel :execute)
   (dotimes (i (length *ppc-operands*))
-    (unless (= i (arch::operand-index (svref *ppc-operands* i)))
+    (unless (= i (ppc32::operand-index (svref *ppc-operands* i)))
       (break "Operand table out-of-synch at ~d : ~s. " i (svref *ppc-operands* i)))))
 
 )
@@ -385,7 +385,7 @@
 ;; decodes and emulates. The major opcode and low three bits are clear;
 ;; bit 3 is set.
 
-(defmacro uuo (xop) `(op 0 (dpb ,xop (byte 7 4) (logior (ash 1 3) arch::fulltag-imm))))
+(defmacro uuo (xop) `(op 0 (dpb ,xop (byte 7 4) (logior (ash 1 3) ppc32::fulltag-imm))))
 (defconstant $uuo-mask (logior $op-mask (uuo -1)))
 (defconstant $uuorb-mask (logior $uuo-mask $rb-mask))
 
@@ -555,21 +555,21 @@
     (declare (fixnum max))
     (dolist (i opnums max)
       (unless 
-        (logbitp arch::operand-fake (arch::operand-flags (svref *ppc-operands* i)))
+        (logbitp ppc32::operand-fake (ppc32::operand-flags (svref *ppc-operands* i)))
         (incf max)))))
 
 (defun min-operand-count (opnums)
   (let* ((min 0))
     (declare (fixnum min))
     (dolist (i opnums min)
-      (let* ((flags (arch::operand-flags (svref *ppc-operands* i))))
+      (let* ((flags (ppc32::operand-flags (svref *ppc-operands* i))))
         (declare (fixnum flags))
-        (unless (or (logbitp arch::operand-fake flags)
-                    (logbitp arch::operand-optional flags))
+        (unless (or (logbitp ppc32::operand-fake flags)
+                    (logbitp ppc32::operand-optional flags))
           (incf min))))))
 
 (defmacro ppc-opcode (name opcode mask (&rest flags) &rest operands)
-  `(arch::make-opcode
+  `(ppc32::make-opcode
     :name (string ',name)
     :opcode ,opcode
     :majorop (major-opcode ,opcode)
@@ -1973,17 +1973,17 @@
           (svref *ppc-opcode-counts* i) 0))
   (dotimes (i (length *ppc-opcodes*))
     (let* ((code (svref *ppc-opcodes* i))
-    (opcode (arch::opcode-opcode code))
-    (mask (arch::opcode-mask code)))
-      (setf (gethash (string (arch::opcode-name code))  *ppc-opcode-numbers*) i)
-      (setf (arch::opcode-op-high code) (ldb (byte 16 16) opcode)
-     (arch::opcode-op-low code) (ldb (byte 16 0) opcode)
-     (arch::opcode-mask-high code) (ldb (byte 16 16) mask)
-     (arch::opcode-mask-low code) (ldb (byte 16 0) mask))
-      (setf (arch::opcode-vinsn-operands code) (arch::opcode-operands code)
-     (arch::opcode-min-vinsn-args code) (arch::opcode-min-args code)
-     (arch::opcode-max-vinsn-args code) (arch::opcode-max-args code))
-      (let* ((op (arch::opcode-majorop code)))
+    (opcode (ppc32::opcode-opcode code))
+    (mask (ppc32::opcode-mask code)))
+      (setf (gethash (string (ppc32::opcode-name code))  *ppc-opcode-numbers*) i)
+      (setf (ppc32::opcode-op-high code) (ldb (byte 16 16) opcode)
+     (ppc32::opcode-op-low code) (ldb (byte 16 0) opcode)
+     (ppc32::opcode-mask-high code) (ldb (byte 16 16) mask)
+     (ppc32::opcode-mask-low code) (ldb (byte 16 0) mask))
+      (setf (ppc32::opcode-vinsn-operands code) (ppc32::opcode-operands code)
+     (ppc32::opcode-min-vinsn-args code) (ppc32::opcode-min-args code)
+     (ppc32::opcode-max-vinsn-args code) (ppc32::opcode-max-args code))
+      (let* ((op (ppc32::opcode-majorop code)))
           (if (= -1 (svref *ppc-opcode-indices* op))
             (setf (svref *ppc-opcode-indices* op) i
                   (svref *ppc-opcode-counts* op) 1)
@@ -2398,8 +2398,8 @@
   (logior (ldb (byte 5 16) instr) (logand #x3e0 (ash instr -6))))
 
 (defun insert-default (operand high low val)
-  (let* ((width (arch::operand-width operand))
-         (offset (arch::operand-offset operand))
+  (let* ((width (ppc32::operand-width operand))
+         (offset (ppc32::operand-offset operand))
          (msbit (1- (+ width offset))))
     (declare (fixnum width offset msbit))
     (if (>= offset 16)
@@ -2415,9 +2415,9 @@
 
 
 (defun extract-default (operand instr)
-  (let* ((width (arch::operand-width operand))
-           (op (ldb (byte width (arch::operand-offset operand)) instr)))
-    (if (and (logbitp $ppc-operand-signed (arch::operand-flags operand))
+  (let* ((width (ppc32::operand-width operand))
+           (op (ldb (byte width (ppc32::operand-offset operand)) instr)))
+    (if (and (logbitp $ppc-operand-signed (ppc32::operand-flags operand))
                 (logbitp (1- width) op))
          (- op (ash 1 width))
        op)))
@@ -2434,10 +2434,10 @@
       (dotimes (j (svref *ppc-opcode-counts* op))
         (declare (type (unsigned-byte 10) j))
         (let* ((code (svref *ppc-opcodes* (+ k j))))
-          (if (= (logand (arch::opcode-mask code) i)
-                 (arch::opcode-opcode code))
-            (if (dolist (op (arch::opcode-operands code) t)
-                  (let* ((xfun (arch::operand-extract-function op)))
+          (if (= (logand (ppc32::opcode-mask code) i)
+                 (ppc32::opcode-opcode code))
+            (if (dolist (op (ppc32::opcode-operands code) t)
+                  (let* ((xfun (ppc32::operand-extract-function op)))
                     (unless (or (null xfun)
                                 (funcall xfun i))
                       (return nil))))
@@ -2448,9 +2448,9 @@
     (if (null opcode)
       `(".long" ,i)
       (let* ((vals ()))
-        (dolist (operand (arch::opcode-operands opcode))
-          (unless (logbitp arch::operand-fake (arch::operand-flags operand))
-            (let* ((extract-fn (arch::operand-extract-function operand)))
+        (dolist (operand (ppc32::opcode-operands opcode))
+          (unless (logbitp ppc32::operand-fake (ppc32::operand-flags operand))
+            (let* ((extract-fn (ppc32::operand-extract-function operand)))
               (push (if extract-fn
                       (funcall extract-fn i)
                       (extract-default operand i))

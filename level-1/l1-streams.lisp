@@ -129,16 +129,16 @@
 #+ppc-target
 (defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
   ; put address of vect data in macptr
-  (addi arg_y arg_y arch::misc-data-offset)
-  (stw arg_y arch::macptr.address arg_z)
+  (addi arg_y arg_y ppc32::misc-data-offset)
+  (stw arg_y ppc32::macptr.address arg_z)
   (blr))
 
 #+sparc-target
 (defsparclapfunction %vect-data-to-macptr ((vect %arg_y) (ptr %arg_z))
   ; put address of vect data in macptr
-  (inc arch::misc-data-offset vect)
+  (inc ppc32::misc-data-offset vect)
   (retl)
-   (st vect (ptr arch::macptr.address)))
+   (st vect (ptr ppc32::macptr.address)))
 
 (defloadvar *heap-ivectors* ())
 
@@ -161,9 +161,9 @@
   (subf imm1 imm1 imm0)  ; imm1 = delta
   (sth imm1 -2 imm0)     ; save delta halfword
   (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
-  (rlwimi imm1 len (- arch::num-subtag-bits arch::fixnum-shift) 0 (- 31 arch::num-subtag-bits))
+  (rlwimi imm1 len (- ppc32::num-subtag-bits ppc32::fixnum-shift) 0 (- 31 ppc32::num-subtag-bits))
   (stw imm1 0 imm0)       ; store subtype & length
-  (addi arg_z imm0 arch::fulltag-misc) ; tag it, return it
+  (addi arg_z imm0 ppc32::fulltag-misc) ; tag it, return it
   (blr))
 
 #+sparc-target
@@ -175,11 +175,11 @@
   (sub %imm0 %imm1 %imm1)  ; imm1 = delta
   (sth %imm1 (%imm0 -2))     ; save delta halfword
   (unbox-fixnum subtype %imm2)  ; subtype at low end of imm2
-  (sll len  (- arch::num-subtag-bits arch::fixnum-shift) %imm1)
+  (sll len  (- ppc32::num-subtag-bits ppc32::fixnum-shift) %imm1)
   (or %imm2 %imm1 %imm1)
   (st %imm1 (%imm0))      ; store header
   (retl)
-    (add %imm0 arch::fulltag-misc %arg_z))  ; tag it, return it
+    (add %imm0 ppc32::fulltag-misc %arg_z))  ; tag it, return it
 
 (defun %dispose-heap-ivector (v)
   (if  (uvectorp v) ;(%heap-ivector-p v)
@@ -189,7 +189,7 @@
       (free p))))
 
 (defun make-heap-buffer (element-type element-count)
-  (let* ((subtype arch::subtag-simple-base-string)
+  (let* ((subtype ppc32::subtag-simple-base-string)
          (size-in-octets element-count))
     (unless (subtypep element-type 'character)
       (case element-type
@@ -222,20 +222,20 @@
 #+ppc-target          
 (defppclapfunction %%make-disposable ((ptr arg_y) (vector arg_z))
   (check-nargs 2)
-  (subi imm0 vector arch::fulltag-misc) ; imm0 is addr = vect less tag
+  (subi imm0 vector ppc32::fulltag-misc) ; imm0 is addr = vect less tag
   (lhz imm1 -2 imm0)   ; get delta
   (sub imm0 imm0 imm1)  ; vector addr (less tag)  - delta is orig addr
-  (stw imm0 arch::macptr.address ptr) 
+  (stw imm0 ppc32::macptr.address ptr) 
   (blr))
 
 #+sparc-target
 (defsparclapfunction %%make-disposable ((ptr %arg_y) (vector %arg_z))
   (check-nargs 2)
-  (sub vector arch::fulltag-misc %imm0)
+  (sub vector ppc32::fulltag-misc %imm0)
   (lduh (%imm0 -2) %imm1)
   (sub %imm0 %imm1 %imm0)
   (retl)
-   (st %imm0 (ptr arch::macptr.address)))
+   (st %imm0 (ptr ppc32::macptr.address)))
 
 
 
@@ -627,14 +627,14 @@
     (setf (ioblock-charpos ioblock) 0)
     (incf (ioblock-charpos ioblock)))
   (unless (eq (typecode (io-buffer-buffer (ioblock-outbuf ioblock)))
-	      arch::subtag-simple-base-string)
+	      ppc32::subtag-simple-base-string)
     (setq char (char-code char)))
   (%ioblock-write-element ioblock char))
 
 (defun %ioblock-write-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
   (when (eq (typecode (io-buffer-buffer (ioblock-outbuf ioblock)))
-	    arch::subtag-simple-base-string)
+	    ppc32::subtag-simple-base-string)
     (setq byte (code-char byte)))
   (%ioblock-write-element ioblock byte))
 
@@ -650,7 +650,7 @@
 	 (eof nil)
 	 (inbuf (ioblock-inbuf ioblock))
 	 (buf (io-buffer-buffer inbuf))
-	 (newline (if (eq (typecode buf) arch::subtag-simple-base-string)
+	 (newline (if (eq (typecode buf) ppc32::subtag-simple-base-string)
 		    #\newline
 		    (char-code #\newline))))
     (let* ((ch (ioblock-untyi-char ioblock)))
@@ -1978,7 +1978,7 @@
       (%ioblock-binary-read-vector ioblock vector start end))))
 
 (defloadvar *fd-set-size*
-    (ff-call (%kernel-import arch::kernel-import-fd-setsize-bytes)
+    (ff-call (%kernel-import ppc32::kernel-import-fd-setsize-bytes)
              :unsigned-fullword))
 
 (defun unread-data-available-p (fd)
@@ -2001,24 +2001,24 @@
 	    (decf avail count)))))))
 
 (defun fd-zero (fdset)
-  (ff-call (%kernel-import arch::kernel-import-do-fd-zero)
+  (ff-call (%kernel-import ppc32::kernel-import-do-fd-zero)
            :address fdset
            :void))
 
 (defun fd-set (fd fdset)
-  (ff-call (%kernel-import arch::kernel-import-do-fd-set)
+  (ff-call (%kernel-import ppc32::kernel-import-do-fd-set)
            :unsigned-fullword fd
            :address fdset
            :void))
 
 (defun fd-clr (fd fdset)
-  (ff-call (%kernel-import arch::kernel-import-do-fd-clr)
+  (ff-call (%kernel-import ppc32::kernel-import-do-fd-clr)
            :unsigned-fullword fd
            :address fdset
            :void))
 
 (defun fd-is-set (fd fdset)
-  (not (= 0 (the fixnum (ff-call (%kernel-import arch::kernel-import-do-fd-is-set)
+  (not (= 0 (the fixnum (ff-call (%kernel-import ppc32::kernel-import-do-fd-is-set)
                                  :unsigned-fullword fd
                                  :address fdset
                                  :unsigned-fullword)))))

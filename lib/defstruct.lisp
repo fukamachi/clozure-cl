@@ -189,18 +189,18 @@
                       (%svref '#(first second third fourth fifth
                                        sixth seventh eighth ninth tenth) offset)))
              `(defun ,name (x) (declare (optimize (safety 3))) (nth ,offset x))))
-          ((eq ref  arch::subtag-struct )
+          ((eq ref  ppc32::subtag-struct )
            (if (and (%i< offset 10) *defstruct-share-accessor-functions*)
              `(fset ',name , (%svref *struct-ref-vector* offset))
              `(defun ,name (x) (declare (optimize (safety 3))) (struct-ref x ,offset))))
-          ((eq ref arch::subtag-simple-vector )
+          ((eq ref ppc32::subtag-simple-vector )
            (if (and (%i< offset 10) *defstruct-share-accessor-functions*)
              `(fset ',name ,(%svref *svref-vector* offset))
              `(defun ,name (x) (declare (optimize (safety 3))) (svref x ,offset))))
           (t `(defun ,name (x) (uvref x ,offset)))))
 
 (defun defstruct-reftype (type)
-  (cond ((null type) arch::subtag-struct)
+  (cond ((null type) ppc32::subtag-struct)
         ((eq type 'list) $defstruct-nth)
         (t (element-type-subtype (cadr type)))))
 
@@ -231,9 +231,9 @@
              (accessor
               (cond ((eq ref $defstruct-nth)
                      `(nth ,offset ,@args))
-                    ((eq ref arch::subtag-struct)
+                    ((eq ref ppc32::subtag-struct)
                      `(struct-ref ,@args ,offset))
-                    ((eq ref arch::subtag-simple-vector)
+                    ((eq ref ppc32::subtag-simple-vector)
                      `(svref ,@args ,offset))
                     (t `(uvref ,@args ,offset)))))
         (if (eq type 't)

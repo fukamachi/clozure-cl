@@ -259,7 +259,7 @@
 
 (defmacro invoke-foreign-type-method (method type &rest args)
   (let ((slot (method-slot method)))
-    (arch::once-only ((type type))
+    (ppc32::once-only ((type type))
       `(funcall (do ((class (require-foreign-type-class (foreign-type-class ,type))
 			    (foreign-type-class-include class)))
 		    ((null class)
@@ -1379,7 +1379,7 @@
   (let* ((monitor (eq (car args) :monitor-exception-ports)))
     (when monitor
       (setq args (cdr args)))
-    (arch::collect ((representation nil))
+    (ppc32::collect ((representation nil))
       (when monitor
 	(representation :monitor-exception-ports))
       (do* ((a args (cddr a)))

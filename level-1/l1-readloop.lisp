@@ -240,7 +240,7 @@
 (defun %usage-exit (banner exit-status other-args)
   (with-cstrs ((banner banner)
 	       (other-args other-args))
-    (ff-call (%kernel-import arch::kernel-import-usage-exit)
+    (ff-call (%kernel-import ppc32::kernel-import-usage-exit)
 	     :address banner
 	     :signed-fullword exit-status
 	     :address other-args

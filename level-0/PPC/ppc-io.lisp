@@ -25,7 +25,7 @@
 ; not very smart yet
 
 (defppclapfunction %get-errno ()
-  (lwz imm1 arch::tcr.errno-loc rcontext)
+  (lwz imm1 ppc32::tcr.errno-loc rcontext)
   (lwz imm0 0 imm1)
   (stw rzero 0 imm1)
   (neg imm0 imm0)

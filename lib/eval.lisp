@@ -75,7 +75,7 @@
   (defmacro with-stack-vector ((array n) &body body)
     (let ((nsym (gensym)))
       `(let* ((,nsym ,n)
-              (,array (%alloc-misc ,nsym arch::subtag-simple-vector nil)))
+              (,array (%alloc-misc ,nsym ppc32::subtag-simple-vector nil)))
          (declare (dynamic-extent ,array))
          ,@body)))
   
@@ -592,7 +592,7 @@
   (when (> (length values) 200)
     (cerror "Live dangerously." "Interpreted closure with ~s values may crash."
             (length values)))
-  (let ((newdef (%alloc-misc (+ 4 (length values)) arch::subtag-function)))
+  (let ((newdef (%alloc-misc (+ 4 (length values)) ppc32::subtag-function)))
     (setf (uvref newdef 0) *trampoline-code-vect*)
     (setf (uvref newdef 1) def)
     (do* ((i 2 (1+ i))
@@ -856,9 +856,9 @@
   (let* ((env #(1))  ; 1st literal - watch out - dont call something lots of times or it becomes first lit
          (maxvp (evalenv-maxvp env))
          (arraysize (+ 1 maxvp))
-         (runtime-env (%alloc-misc evalenv-runtime-size arch::subtag-simple-vector nil))
+         (runtime-env (%alloc-misc evalenv-runtime-size ppc32::subtag-simple-vector nil))
          ; its twice as big cause vals come first, then names (whats the 1?)
-         (values (%alloc-misc (* 2 arraysize) arch::subtag-simple-vector nil))
+         (values (%alloc-misc (* 2 arraysize) ppc32::subtag-simple-vector nil))
          (nargs (list-length (evalenv-names env)))
          vp)
     (declare (dynamic-extent runtime-env))
@@ -901,9 +901,9 @@
          (maxvp (evalenv-maxvp env))
          (fudge (if (or (evalenv-next-method env)(evalenv-next-method-with-args env)) 1 0))
          (arraysize (+ 1 1 maxvp))  ; 1 extra?
-         (runtime-env (%alloc-misc evalenv-runtime-size arch::subtag-simple-vector nil))
+         (runtime-env (%alloc-misc evalenv-runtime-size ppc32::subtag-simple-vector nil))
          ; its twice as big cause vals come first, then names (whats the 1?)
-         (values (%alloc-misc (* 2 arraysize) arch::subtag-simple-vector nil))
+         (values (%alloc-misc (* 2 arraysize) ppc32::subtag-simple-vector nil))
          (nargs (list-length (evalenv-names env)))
          vp)
     (declare (dynamic-extent runtime-env))
@@ -3042,37 +3042,22 @@
 (defppclapfunction %bind-special ((sym 0) (newval arg_x) (vector arg_y) (index arg_z))
   ; index is a byte index
   (lwz temp0 sym vsp)  ; get sym
-  (lwz temp1 arch::symbol.vcell temp0) ; get old value
+  (lwz temp1 ppc32::symbol.vcell temp0) ; get old value
   (unbox-fixnum imm0 index)
-  (addi imm0 imm0 arch::misc-data-offset)
+  (addi imm0 imm0 ppc32::misc-data-offset)
   (add imm0 imm0 vector)
   (push temp1 imm0)  ; old value
   (push temp0 imm0)  ; symbol
-  (lwz imm1 arch::tcr.db-link rcontext)
+  (lwz imm1 ppc32::tcr.db-link rcontext)
   (push imm1 imm0)   ; dblink
-  (stw imm0 arch::tcr.db-link rcontext)
-  (svset newval arch::symbol.vcell-cell temp0) ; store new val
+  (stw imm0 ppc32::tcr.db-link rcontext)
+  (svset newval ppc32::symbol.vcell-cell temp0) ; store new val
   (mr arg_z newval)
   (la vsp 4 vsp)
   (blr))
 
-#+sparc-target
-(defsparclapfunction %bind-special ((sym 0) (newval %arg_x) (vector %arg_y) (index %arg_z))
-  ; index is a byte index
-  (ld (%vsp sym) %temp0)  ; get sym
-  (ld (%temp0 arch::symbol.vcell) %temp1) ; get old value
-  (unbox-fixnum index %imm0)
-  (inc arch::misc-data-offset %imm0)
-  (inc vector %imm0)
-  (push %temp1 %imm0)  ; old value
-  (push %temp0 %imm0)  ; symbol 
-  (ref-global %imm1 arch::db-link)
-  (push %imm1 %imm0)   ; dblink
-  (set-global %imm0 arch::db-link)
-  (svset newval arch::symbol.vcell-cell %temp0) ; store new val
-  (mov newval %arg_z)
-  (retl)
-  (inc 4 %vsp))
+
+
 
 
 

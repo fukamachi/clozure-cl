@@ -290,7 +290,7 @@
 (defmethod print-object ((rs random-state) stream)
   ;;Besides #.grossness, this is buggy because cl:random-state
   ;;is not allowed to have a function definition...
-  (let ((shift (%i- 16 arch::fixnum-shift)))
+  (let ((shift (%i- 16 ppc32::fixnum-shift)))
     (format stream "#.(~S ~S ~S)"   ;>> #.GAG!!!
             'random-state
             (%ilsr shift (%svref rs 1))

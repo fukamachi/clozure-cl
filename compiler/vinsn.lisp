@@ -313,7 +313,7 @@
          (nhybrids 0)
          (local-labels ())
          (referenced-labels ())
-	 (source-indicator (arch::form-symbol backend-name "-VINSN"))
+	 (source-indicator (ppc32::form-symbol backend-name "-VINSN"))
          (opcode-alist ()))
     (flet ((valid-spec-name (x)
 	     (or (and (consp x) 
@@ -436,9 +436,9 @@
                                                       (error "~& Invalid ~A opcode: ~s" backend-name name)))
                                             (opvals (mapcar #'simplify-operand opvals)))
                                        (setf (assq opnum opcode-alist) name)
-                                       (let* ((operands (arch::opcode-vinsn-operands opcode))
-                                              (nmin (arch::opcode-min-vinsn-args opcode))
-                                              (nmax (arch::opcode-max-vinsn-args opcode))
+                                       (let* ((operands (ppc32::opcode-vinsn-operands opcode))
+                                              (nmin (ppc32::opcode-min-vinsn-args opcode))
+                                              (nmax (ppc32::opcode-max-vinsn-args opcode))
                                               (nhave (length opvals)))
                                          (declare (fixnum nreq nhave))
                                          (if (= nhave nmax)
@@ -449,9 +449,9 @@
                                              (if (= nhave nmin)
                                                (let* ((newops ()))
                                                  (dolist (op operands `(,opnum ,@(nreverse newops)))
-                                                   (let* ((flags (arch::operand-flags op)))
-                                                     (unless (logbitp arch::operand-fake flags)
-                                                       (push (if (logbitp arch::operand-optional flags)
+                                                   (let* ((flags (ppc32::operand-flags op)))
+                                                     (unless (logbitp ppc32::operand-fake flags)
+                                                       (push (if (logbitp ppc32::operand-optional flags)
                                                                0
                                                                (pop opvals))
                                                              newops)))))
@@ -814,7 +814,7 @@
   ; Delete unreferenced labels that the compiler might
   ; have emitted.  Subsequent operations may cause
   ; other labels to become unreferenced.
-  (let* ((labels (arch::collect ((labs)) 
+  (let* ((labels (ppc32::collect ((labs)) 
                    (do-dll-nodes (v header)
                      (when (vinsn-label-p v) (labs v)))
                    (labs))))

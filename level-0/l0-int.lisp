@@ -88,8 +88,8 @@
   (let ((digit-string "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))    
     (cond ((fixnump int)  ; ugh                      
            ; 29 bits max magnitude (base 2) + 1 for sign
-           (let ((temstring (make-string (- 32 arch::fixnumshift) :element-type 'base-char))
-                 (i (- 32 arch::fixnumshift 1))
+           (let ((temstring (make-string (- 32 ppc32::fixnumshift) :element-type 'base-char))
+                 (i (- 32 ppc32::fixnumshift 1))
                  (neg (< int 0))
                  (rem 0))
              (declare (fixnum i rem))
@@ -107,8 +107,8 @@
                (when neg 
                  (setf (%schar temstring (setq i (1- i))) #\-))
                (if return-it
-                 (%substr temstring i (- 32 arch::fixnumshift))
-                 (write-string temstring stream :start i :end (- 32 arch::fixnumshift))))))          
+                 (%substr temstring i (- 32 ppc32::fixnumshift))
+                 (write-string temstring stream :start i :end (- 32 ppc32::fixnumshift))))))          
           (t (let* ((size-vect #(32 32 16 16 16 16 11 11 11
                                  11 11 11 11 11  8  8  8  8
                                   8  8  8  8  8  8  8  8  8

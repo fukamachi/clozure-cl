@@ -626,8 +626,8 @@
     (setq buf arr offset (+ offset start)))
   ;; TODO: maybe should allow any raw vector
   (let ((subtype (typecode buf)))
-    (unless (and (<= arch::min-8-bit-ivector-subtag subtype)
-		 (<= subtype arch::max-8-bit-ivector-subtag))
+    (unless (and (<= ppc32::min-8-bit-ivector-subtag subtype)
+		 (<= subtype ppc32::max-8-bit-ivector-subtag))
       (report-bad-arg buf `(or (array character)
 			       (array (unsigned-byte 8))
 			       (array (signed-byte 8))))))

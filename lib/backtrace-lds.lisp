@@ -152,7 +152,7 @@
         (last-catch nil))
     (loop
       (unless catch (return last-catch))
-      (let ((csp (uvref catch arch::catch-frame.csp-cell)))
+      (let ((csp (uvref catch ppc32::catch-frame.csp-cell)))
         (when (%stack< sp csp tcr) (return last-catch))
         (setq last-catch catch
               catch (next-catch catch))))))
@@ -265,9 +265,9 @@
                 (setf (srv.unresolved srv-out) (%ilogior (srv.unresolved srv-out) mask))
                 (let* ((parent-vsp (frame-vsp parent))
                        (grand-parent-vsp (frame-vsp grand-parent))
-                       (parent-area (%active-area (%fixnum-ref tcr arch::tcr.vs-area)  parent-vsp)))
+                       (parent-area (%active-area (%fixnum-ref tcr ppc32::tcr.vs-area)  parent-vsp)))
                   (unless (%ptr-in-area-p  grand-parent-vsp parent-area)
-                    (setq grand-parent-vsp (%fixnum-ref parent-area arch::area.high)))
+                    (setq grand-parent-vsp (%fixnum-ref parent-area ppc32::area.high)))
                   (let ((vsp (- grand-parent-vsp where 1))
                         (j *saved-register-count*))
                     (declare (fixnum j))
@@ -336,14 +336,14 @@
 (defun get-register-value (address last-catch index)
   (if address
     (%fixnum-ref address)
-    (uvref last-catch (+ index arch::catch-frame.save-save7-cell))))
+    (uvref last-catch (+ index ppc32::catch-frame.save-save7-cell))))
 
 ; Inverse of get-register-value
 
 (defun set-register-value (value address last-catch index)
   (if address
     (%fixnum-set address value)
-    (setf (uvref last-catch (+ index arch::catch-frame.save-save7-cell)) value)))
+    (setf (uvref last-catch (+ index ppc32::catch-frame.save-save7-cell)) value)))
 
 (defun return-from-nth-frame (n &rest values)
   (apply-in-nth-frame n #'values values))
@@ -393,7 +393,7 @@
          (parent (parent-frame frame tcr))
          (vsp (frame-vsp parent))
          (catch-top (%catch-top tcr))
-         (db-link (%svref catch arch::catch-frame.db-link-cell))
+         (db-link (%svref catch ppc32::catch-frame.db-link-cell))
          (catch-count 0))
     (declare (fixnum parent vsp db-link catch-count))
     ; Figure out how many catch frames to throw through
@@ -447,7 +447,7 @@
 
   ; Pop dynamic bindings until we get to db-link
   (lwz imm0 12 vsp)                     ; db-link
-  (lwz imm1 arch::tcr.db-link rcontext)
+  (lwz imm1 ppc32::tcr.db-link rcontext)
   (cmp cr0 imm0 imm1)
   (beq cr0 @restore-regs)               ; .SPsvar-unbind-to expects there to be something to do
   (bla .SPsvar-unbind-to)
@@ -457,42 +457,42 @@
   (lwz srv 20 vsp)
 @get0
   (svref imm0 1 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @get1)
   (lwz save0 0 imm0)
 @get1
   (svref imm0 2 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @get2)
   (lwz save1 0 imm0)
 @get2
   (svref imm0 3 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @get3)
   (lwz save2 0 imm0)
 @get3
   (svref imm0 4 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @get4)
   (lwz save3 0 imm0)
 @get4
   (svref imm0 5 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @get5)
   (lwz save4 0 imm0)
 @get5
   (svref imm0 6 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @get6)
   (lwz save5 0 imm0)
 @get6
   (svref imm0 7 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @get7)
   (lwz save6 0 imm0)
 @get7
   (svref imm0 8 srv)
-  (cmpwi cr0 imm0 ppc::nil-value)
+  (cmpwi cr0 imm0 ppc32::nil-value)
   (beq @got)
   (lwz save7 0 imm0)
 @got
@@ -501,19 +501,19 @@
   (vpop temp0)                          ; function
   (vpop parent)                         ; parent
   (extract-lisptag imm0 parent)
-  (cmpi cr0 imm0 arch::tag-fixnum)
+  (cmpi cr0 imm0 ppc32::tag-fixnum)
   (if (:cr0 :ne)
     ; Parent is a fake-stack-frame. Make it real
     (progn
       (svref sp %fake-stack-frame.sp parent)
-      (stwu sp (- ppc::lisp-frame.size) sp)
+      (stwu sp (- ppc32::lisp-frame.size) sp)
       (svref fn %fake-stack-frame.fn parent)
-      (stw fn ppc::lisp-frame.savefn sp)
+      (stw fn ppc32::lisp-frame.savefn sp)
       (svref temp1 %fake-stack-frame.vsp parent)
-      (stw temp1 ppc::lisp-frame.savevsp sp)
+      (stw temp1 ppc32::lisp-frame.savevsp sp)
       (svref temp1 %fake-stack-frame.lr parent)
       (extract-lisptag imm0 temp1)
-      (cmpi cr0 imm0 arch::tag-fixnum)
+      (cmpi cr0 imm0 ppc32::tag-fixnum)
       (if (:cr0 :ne)
         ; must be a macptr encoding the actual link register
         (macptr-ptr loc-pc temp1)
@@ -522,7 +522,7 @@
           (svref temp2 0 fn)        ; function vector
           (unbox-fixnum temp1 temp1)
           (add loc-pc temp2 temp1)))
-      (stw loc-pc ppc::lisp-frame.savelr sp))
+      (stw loc-pc ppc32::lisp-frame.savelr sp))
     ; Parent is a real stack frame
     (mr sp parent))
   (set-nargs 0)
@@ -707,8 +707,8 @@
     (lap-label :label)
     (lap-instruction
      (let* ((opcode (lap-instruction-opcode instr))
-            (opcode-p (typep opcode 'arch::opcode))
-            (name (if opcode-p (arch::opcode-name opcode) opcode))
+            (opcode-p (typep opcode 'ppc32::opcode))
+            (name (if opcode-p (ppc32::opcode-name opcode) opcode))
             (pc (lap-instruction-address instr))
             (operands (lap-instruction-parsed-operands instr)))
        (cond ((equalp name "bla")
@@ -723,14 +723,14 @@
                   ((.SPnthrowvalues .SPnthrow1value)
                    (let* ((prev-instr (require-type (lap-instruction-pred instr)
                                                     'lap-instruction))
-                          (prev-name (arch::opcode-name (lap-instruction-opcode prev-instr)))
+                          (prev-name (ppc32::opcode-name (lap-instruction-opcode prev-instr)))
                           (prev-operands (lap-instruction-parsed-operands prev-instr)))
                      ; Maybe we should recognize the other possible outputs of ppc2-lwi, but I
                      ; can't imagine we'll ever see them
                      (unless (and (equalp prev-name "li")
                                   (equalp (car prev-operands) "imm0"))
                        (error "Can't determine throw count for ~s" instr))
-                     (values :throw nil (+ pc 4) (ash (cadr prev-operands) (- arch::fixnum-shift)))))
+                     (values :throw nil (+ pc 4) (ash (cadr prev-operands) (- ppc32::fixnum-shift)))))
                   ((.SPprogvsave
                     .SPstack-rest-arg .SPreq-stack-rest-arg .SPstack-cons-rest-arg
                     .SPmakestackblock .SPmakestackblock0 .SPmakestacklist .SPstkgvector
@@ -755,7 +755,7 @@
              ; It would probably be faster to determine the branch address by adding the PC and the offset.
              ((equalp name "b")
               (values :branch (branch-label-address instr (car (last operands))) nil))
-             ((and opcode-p (eql (arch::opcode-majorop opcode) 16))
+             ((and opcode-p (eql (ppc32::opcode-majorop opcode) 16))
               (values :branch (branch-label-address instr (car (last operands))) (+ pc 4)))
              (t :regular))))))
 

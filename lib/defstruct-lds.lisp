@@ -281,8 +281,8 @@
   `(defun ,constructor (&key ,@(nreverse args))
      ,(case (setq name (defstruct-reftype (sd-type sd)))
           (#.$defstruct-nth `(list ,@values))
-          (#.arch::subtag-simple-vector `(vector ,@values))
-          (#.arch::subtag-struct `(%gvector arch::subtag-struct ,@values))
+          (#.ppc32::subtag-simple-vector `(vector ,@values))
+          (#.ppc32::subtag-struct `(%gvector ppc32::subtag-struct ,@values))
           (t `(uvector ,name ,@values)))))
 
 (defun defstruct-boa-constructors (sd boas &aux (list ()))
@@ -326,8 +326,8 @@
   `(defun ,(car boa) ,(nreverse args)
      ,(case (setq slot (defstruct-reftype (sd-type sd)))
           (#.$defstruct-nth `(list ,@values))
-          (#.arch::subtag-simple-vector `(vector ,@values))
-          (#.arch::subtag-struct `(%gvector arch::subtag-struct ,@values))
+          (#.ppc32::subtag-simple-vector `(vector ,@values))
+          (#.ppc32::subtag-struct `(%gvector ppc32::subtag-struct ,@values))
           (t `(uvector ,slot ,@values)))))
 
 (defun defstruct-copier (sd copier env)

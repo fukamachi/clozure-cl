@@ -83,12 +83,12 @@
 ;; Not really I/O, but ...
 (defun malloc (size)
   (ff-call 
-   (%kernel-import arch::kernel-import-malloc)
+   (%kernel-import ppc32::kernel-import-malloc)
    :unsigned-fullword size :address))
 
 (defun free (ptr)
   (ff-call 
-   (%kernel-import arch::kernel-import-free)
+   (%kernel-import ppc32::kernel-import-free)
    :address ptr :void))
 
 (defun %new-ptr (size &optional clear-p)

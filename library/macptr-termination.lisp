@@ -230,8 +230,8 @@ nil;  otherwise return true.
 
 (defppclapfunction %macptr->dead-macptr ((macptr arg_z))
   (check-nargs 1)
-  (li imm0 ppc::subtag-dead-macptr)
-  (stb imm0 ppc::misc-subtag-offset macptr)
+  (li imm0 ppc32::subtag-dead-macptr)
+  (stb imm0 ppc32::misc-subtag-offset macptr)
   (blr))
 
 ; Call this before save-application.

@@ -176,7 +176,7 @@
 
 
 (defun process-tcr (p)
-  (%svref (process-thread p) arch::lisp-thread.tcr-cell))
+  (%svref (process-thread p) ppc32::lisp-thread.tcr-cell))
 
 
 
@@ -362,7 +362,7 @@
               (push var specvars)
               (push var restoreform)
               (push oldval restoreform)
-              (push `(,oldval (uvref ',var #.arch::symbol.vcell-cell)) initforms)
+              (push `(,oldval (uvref ',var #.ppc32::symbol.vcell-cell)) initforms)
               (push `(,newval ,valueform) initforms)
               (push var psetform)
               (push newval psetform))))
@@ -380,8 +380,8 @@
 
 (defmethod print-object ((s lock) stream)
   (print-unreadable-object (s stream :type t :identity t)
-    (let* ((val (uvref s arch::lock._value-cell))
-	   (name (uvref s arch::lock.name-cell)))
+    (let* ((val (uvref s ppc32::lock._value-cell))
+	   (name (uvref s ppc32::lock.name-cell)))
       (when name
 	(format t "~s " name))
       (if (typep val 'macptr)
@@ -389,17 +389,17 @@
                 (%ptr-to-int val))))))
 
 (defun lockp (l)
-  (eq arch::subtag-lock (typecode l)))
+  (eq ppc32::subtag-lock (typecode l)))
 
 (set-type-predicate 'lock 'lockp)
 
 (defun recursive-lock-p (l)
-  (and (eq arch::subtag-lock (typecode l))
-       (eq 'recursive-lock (%svref l arch::lock.kind-cell))))
+  (and (eq ppc32::subtag-lock (typecode l))
+       (eq 'recursive-lock (%svref l ppc32::lock.kind-cell))))
 
 (defun read-write-lock-p (l)
-  (and (eq arch::subtag-lock (typecode l))
-       (eq 'read-write-lock (%svref l arch::lock.kind-cell))))
+  (and (eq ppc32::subtag-lock (typecode l))
+       (eq 'read-write-lock (%svref l ppc32::lock.kind-cell))))
 
 (setf (type-predicate 'recursive-lock) 'recursive-lock-p
       (type-predicate 'read-write-lock) 'read-write-lock-p)

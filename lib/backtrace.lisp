@@ -201,7 +201,7 @@
 
 
 (defun closed-over-value-p (value)
-  (eql arch::subtag-value-cell (typecode value)))
+  (eql ppc32::subtag-value-cell (typecode value)))
 
 
 
@@ -293,7 +293,7 @@
     (vector-length len cv len)
     (li idx 0)
     (cmpw cr0 idx len)
-    (li offset arch::misc-data-offset)
+    (li offset ppc32::misc-data-offset)
     (li nexti 0)
     (b @test)
     @loop

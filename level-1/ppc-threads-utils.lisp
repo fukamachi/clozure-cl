@@ -27,14 +27,14 @@
 (defppclapfunction %get-kernel-global-from-offset ((offset arg_z))
   (check-nargs 1)
   (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc::nil-value)
+  (addi imm0 imm0 ppc32::nil-value)
   (lwz arg_z 0 imm0)
   (blr))
 
 (defppclapfunction %set-kernel-global-from-offset ((offset arg_y) (new-value arg_z))
   (check-nargs 2)
   (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc::nil-value)
+  (addi imm0 imm0 ppc32::nil-value)
   (stw new-value 0 imm0)
   (blr))
 
@@ -42,9 +42,9 @@
 						       (ptr arg_z))
   (check-nargs 2)
   (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc::nil-value)
+  (addi imm0 imm0 ppc32::nil-value)
   (lwz imm0 0 imm0)
-  (stw imm0 arch::macptr.address ptr)
+  (stw imm0 ppc32::macptr.address ptr)
   (blr))
 
 
@@ -92,22 +92,22 @@
   @3-args
   (unbox-fixnum imm0 offset)
   (extract-typecode imm1 new-value)
-  (cmpwi cr0 imm1 arch::tag-fixnum)
-  (cmpwi cr1 imm1 arch::subtag-bignum)
-  (srwi imm2 new-value arch::fixnumshift)
+  (cmpwi cr0 imm1 ppc32::tag-fixnum)
+  (cmpwi cr1 imm1 ppc32::subtag-bignum)
+  (srwi imm2 new-value ppc32::fixnumshift)
   (beq cr0 @store)
   (beq cr1 @bignum)
   @notu32
-  (uuo_interr arch::error-object-not-unsigned-byte-32 new-value)
+  (uuo_interr ppc32::error-object-not-unsigned-byte-32 new-value)
   @bignum
   (getvheader imm0 new-value)
-  (cmpwi cr1 imm0 arch::one-digit-bignum-header)
-  (cmpwi cr2 imm0 arch::two-digit-bignum-header)
-  (lwz imm2 arch::misc-data-offset new-value)
+  (cmpwi cr1 imm0 ppc32::one-digit-bignum-header)
+  (cmpwi cr2 imm0 ppc32::two-digit-bignum-header)
+  (lwz imm2 ppc32::misc-data-offset new-value)
   (cmpwi cr0 imm2 0)
   (beq cr1 @one)
   (bne cr2 @notu32)
-  (lwz imm1 (+ 4 arch::misc-data-offset) new-value)
+  (lwz imm1 (+ 4 ppc32::misc-data-offset) new-value)
   (cmpwi cr1 imm1 0)
   (bgt cr0 @notu32)
   (beq cr1 @store)
@@ -212,7 +212,7 @@
 
 (defppclapfunction %%frame-backlink ((p arg_z))
   (check-nargs 1)
-  (lwz arg_z ppc::lisp-frame.backlink arg_z)
+  (lwz arg_z ppc32::lisp-frame.backlink arg_z)
   (rlwinm imm0 arg_z 30 0 0)            ; Bit 1 -> sign bit
   (srawi imm0 imm0 31)                  ; copy sign bit to rest of word
   (andc arg_z arg_z imm0)               ; arg_z = 0 if bit 1 was set
@@ -223,18 +223,18 @@
 
 (defppclapfunction %%frame-savefn ((p arg_z))
   (check-nargs 1)
-  (lwz arg_z ppc::lisp-frame.savefn arg_z)
+  (lwz arg_z ppc32::lisp-frame.savefn arg_z)
   (blr))
 
 (defppclapfunction %cfp-lfun ((p arg_z))
-  (lwz arg_y ppc::lisp-frame.savefn p)
+  (lwz arg_y ppc32::lisp-frame.savefn p)
   (extract-typecode imm0 arg_y)
-  (cmpwi imm0 arch::subtag-function)
-  (lwz loc-pc ppc::lisp-frame.savelr p)
+  (cmpwi imm0 ppc32::subtag-function)
+  (lwz loc-pc ppc32::lisp-frame.savelr p)
   (bne @no)
-  (lwz arg_x arch::misc-data-offset arg_y)
+  (lwz arg_x ppc32::misc-data-offset arg_y)
   (sub imm1 loc-pc arg_x)
-  (la imm1 (- arch::misc-data-offset) imm1)
+  (la imm1 (- ppc32::misc-data-offset) imm1)
   (getvheader imm0 arg_x)
   (header-length imm0 imm0)
   (cmplw imm1 imm0)
@@ -255,7 +255,7 @@
 
 (defppclapfunction %%frame-savevsp ((p arg_z))
   (check-nargs 1)
-  (lwz imm0 ppc::lisp-frame.savevsp arg_z)
+  (lwz imm0 ppc32::lisp-frame.savevsp arg_z)
   (rlwinm imm0 imm0 0 0 30)             ; clear lsb
   (mr arg_z imm0)
   (blr))
@@ -263,12 +263,12 @@
 
 
 (eval-when (:compile-toplevel :execute)
-  (assert (eql arch::t-offset #x11)))
+  (assert (eql ppc32::t-offset #x11)))
 
 (defppclapfunction %uvector-data-fixnum ((uv arg_z))
   (check-nargs 1)
-  (trap-unless-fulltag= arg_z arch::fulltag-misc)
-  (la arg_z arch::misc-data-offset arg_z)
+  (trap-unless-fulltag= arg_z ppc32::fulltag-misc)
+  (la arg_z ppc32::misc-data-offset arg_z)
   (blr))
 
 
@@ -283,11 +283,11 @@
             (if (bottom-of-stack-p next-frame tcr)
               (values nil t)
               (and
-               (eql (ash ppc::lisp-frame.size (- arch::fixnum-shift))
+               (eql (ash ppc32::lisp-frame.size (- ppc32::fixnum-shift))
                     (the fixnum (- next-frame p)))
                ;; EABI C functions keep their saved LRs where we save FN or 0
                ;; The saved LR of such a function would be fixnum-tagged and never 0.
-               (let* ((fn (%fixnum-ref p ppc::lisp-frame.savefn)))
+               (let* ((fn (%fixnum-ref p ppc32::lisp-frame.savefn)))
                  (or (eql fn 0) (typep fn 'function))))))))))
 
 (defppclapfunction %catch-top ((tcr arg_z))
@@ -296,17 +296,17 @@
   (bne cr0 @not-current)
 
   ; tcr = current-tcr
-  (lwz arg_z arch::tcr.catch-top rcontext)
+  (lwz arg_z ppc32::tcr.catch-top rcontext)
   (cmpwi cr0 arg_z 0)
   (bne @ret)
-  (li arg_z ppc::nil-value)
+  (li arg_z ppc32::nil-value)
  @ret
   (blr)
 
 @not-current
-  (lwz imm0 arch::tcr.ts-area tcr)
-  (lwz imm0 arch::area.active imm0)
-  (la arg_z (+ 8 arch::fulltag-misc) imm0)
+  (lwz imm0 ppc32::tcr.ts-area tcr)
+  (lwz imm0 ppc32::area.active imm0)
+  (la arg_z (+ 8 ppc32::fulltag-misc) imm0)
   (blr))
 
 
@@ -378,14 +378,14 @@
 	(t (%foreign-thread-terminate) 0)))
 
 (defppclapfunction %save-standard-binding-list ((bindings arg_z))
-  (lwz imm0 arch::tcr.vs-area rcontext)
-  (lwz imm1 arch::area.high imm0)
+  (lwz imm0 ppc32::tcr.vs-area rcontext)
+  (lwz imm1 ppc32::area.high imm0)
   (push bindings imm1)
   (blr))
 
 (defppclapfunction %saved-bindings-address ()
-  (lwz imm0 arch::tcr.vs-area rcontext)
-  (lwz imm1 arch::area.high imm0)
+  (lwz imm0 ppc32::tcr.vs-area rcontext)
+  (lwz imm1 ppc32::area.high imm0)
   (la arg_z -4 imm1)
   (blr))
 
@@ -409,13 +409,13 @@
       (save-binding nil '*current-process* bsp)
       (dolist (pair initial-bindings)
 	(save-binding (funcall (cdr pair)) (car pair) bsp))
-      (setf (%fixnum-ref (%current-tcr) arch::tcr.db-link) bsp)
+      (setf (%fixnum-ref (%current-tcr) ppc32::tcr.db-link) bsp)
       ;; Ensure that pending unwind-protects (for WITHOUT-INTERRUPTS
       ;; on the callback) don't try to unwind the binding stack beyond
       ;; where it was just set.
-      (let* ((top-catch (%fixnum-ref (%current-tcr) arch::tcr.catch-top)))
+      (let* ((top-catch (%fixnum-ref (%current-tcr) ppc32::tcr.catch-top)))
         (unless (eql 0 top-catch)
-          (setf (%fixnum-ref top-catch arch::catch-frame.db-link) bsp)))))
+          (setf (%fixnum-ref top-catch ppc32::catch-frame.db-link) bsp)))))
   (let* ((thread (new-lisp-thread-from-tcr (%current-tcr) nil)))
     (setq *current-lisp-thread* thread
 	  *current-process*

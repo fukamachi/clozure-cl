@@ -467,9 +467,9 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                     (%write-string "Slot-Unbound" stream))
                    (t
                     (cond
-                     ((eq arch::subtag-block-tag low-bits)
+                     ((eq ppc32::subtag-block-tag low-bits)
                       (%write-string "BLOCK-TAG " stream))
-                     ((eq  arch::subtag-go-tag low-bits)
+                     ((eq  ppc32::subtag-go-tag low-bits)
                       (%write-string "GO TAG " stream))
                      (t
                       (%write-string "Unprintable " stream)
@@ -601,7 +601,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (stream-write-char stream #\>)
     (let ((flags (%get-fpscr-control)))
       (unwind-protect
-	   (progn (%set-fpscr-control (logand (lognot (ash 1 (- 31 ppc::fpscr-ve-bit))) flags))
+	   (progn (%set-fpscr-control (logand (lognot (ash 1 (- 31 ppc32::fpscr-ve-bit))) flags))
 		  (print-a-float float stream nil t)
 		  (stream-write-char stream #\>))
 	(%set-fpscr-status 0) ; why do we need this? status bits get set in any case? 
@@ -666,7 +666,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 
 (defmethod print-object ((value-cell value-cell) stream)
   (print-unreadable-object (value-cell stream :type t :identity t)
-    (prin1 (uvref value-cell arch::value-cell.value-cell) stream)))
+    (prin1 (uvref value-cell ppc32::value-cell.value-cell) stream)))
 
 ;(defun symbol-begins-with-vowel-p (sym)
 ;  (and (symbolp sym)
@@ -1530,8 +1530,8 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 (defmethod print-object ((svar svar) stream)
   (print-unreadable-object (svar stream :identity t :type t)
     (format stream "~s ~s"
-            (%svref svar arch::svar.symbol-cell)
-            (%svref svar arch::svar.idx-cell))))
+            (%svref svar ppc32::svar.symbol-cell)
+            (%svref svar ppc32::svar.idx-cell))))
             
 
 ;;; ======================================================================

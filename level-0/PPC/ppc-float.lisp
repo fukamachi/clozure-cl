@@ -30,13 +30,13 @@
            (temp.l 12))
       (stwu tsp -16 tsp)
       (stw tsp 4 tsp)
-      (stfd ppc::fp-s32conv temp tsp)
+      (stfd ppc32::fp-s32conv temp tsp)
       (unbox-fixnum ,imm ,int)
       (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
       (stw ,imm temp.l tsp)
       (lfd ,freg temp tsp)
       (lwz tsp 0 tsp)
-      (fsub ,freg ,freg ppc::fp-s32conv)))
+      (fsub ,freg ,freg ppc32::fp-s32conv)))
  
 
   (defppclapmacro 48x32-divide (x-hi16 x-lo y freg temp-freg freg2 immx)
@@ -83,14 +83,14 @@
         (y imm3)
         (quo imm0)) 
     (vpop xptr)
-    (la imm4 arch::misc-data-offset XIDX)
+    (la imm4 ppc32::misc-data-offset XIDX)
     (lwzx a xptr imm4)
-    (la imm4 arch::misc-data-offset YIDX)
+    (la imm4 ppc32::misc-data-offset YIDX)
     (lwzx y yptr imm4)
     (cmpw a y)
     (bne @more)
     (li imm4 #xffff)
-    (rlwinm imm4 imm4 arch::fixnumshift (- 16 arch::fixnumshift) (- 31 arch::fixnum-shift))
+    (rlwinm imm4 imm4 ppc32::fixnumshift (- 16 ppc32::fixnumshift) (- 31 ppc32::fixnum-shift))
     (vpush imm4)
     (vpush imm4)
     (la temp0 8 vsp)
@@ -98,7 +98,7 @@
     (ba .spvalues)
     @MORE
     ;  a has 16 bits from ahi, bhi gets alo blo gets bhi
-    (la imm4 (- arch::misc-data-offset 4) xidx)
+    (la imm4 (- ppc32::misc-data-offset 4) xidx)
     (lwzx b xptr imm4)
     (rlwinm b b 16 16 31)  ; bhi to blo 
     (rlwimi b a 16 0 15)   ; alo to bhi
@@ -116,7 +116,7 @@
     ; AND AGAIN
     (rlwinm a b -16 16 31) ; a gets b hi
     (rlwinm b b 16 0 15)   ; b lo to b hi
-    (la imm4 (- arch::misc-data-offset 4) xidx) 
+    (la imm4 (- ppc32::misc-data-offset 4) xidx) 
     (lwzx imm4 imm4 xptr)
     (rlwimi b imm4 0 16 31)
     (48x32-divide a b y fp0 fp1 fp2 imm4)
@@ -145,7 +145,7 @@
         (quo imm0)
         (qidx temp0)
         (qlen temp1))
-    (lwz imm4 (- arch::fulltag-misc) q)
+    (lwz imm4 (- ppc32::fulltag-misc) q)
     (header-length qlen imm4)
     (subi qidx qlen 4)
     (mr b rzero)
@@ -153,7 +153,7 @@
     @loop
     (rlwinm a b -16 16 31)
     (rlwinm b b 16 0 15)
-    (la imm4 arch::misc-data-offset q)
+    (la imm4 ppc32::misc-data-offset q)
     (lwzx imm4 qidx imm4) ; q contents
     (rlwimi b imm4 16 16 31) ; hi 16 to lo b
     ;(dbg)         
@@ -172,7 +172,7 @@
     ;(dbg)
     (rlwinm a b -16 16 31)
     (rlwinm b b 16 0 15)
-    (la imm4 arch::misc-data-offset q)
+    (la imm4 ppc32::misc-data-offset q)
     (lwzx imm4 qidx imm4)
     (rlwimi b imm4 0 16 31)
     (48x32-divide a b y fp0 fp1 fp2 imm4)
@@ -203,7 +203,7 @@
         (qlen temp1)
         (q temp2))
     (vpop q)
-    (lwz imm4 (- arch::fulltag-misc) q)
+    (lwz imm4 (- ppc32::fulltag-misc) q)
     (header-length qlen imm4)
     (subi qidx qlen 4)
     (mr b rzero)
@@ -211,7 +211,7 @@
     @loop
     (rlwinm a b -16 16 31)
     (rlwinm b b 16 0 15)
-    (la imm4 arch::misc-data-offset q)
+    (la imm4 ppc32::misc-data-offset q)
     (lwzx imm4 qidx imm4) ; q contents
     (rlwimi b imm4 16 16 31) ; hi 16 to lo b        
     (48x32-divide a b y fp0 fp1 fp2 imm4)
@@ -229,7 +229,7 @@
     ;(dbg)
     (rlwinm a b -16 16 31)
     (rlwinm b b 16 0 15)
-    (la imm4 arch::misc-data-offset q)
+    (la imm4 ppc32::misc-data-offset q)
     (lwzx imm4 qidx imm4)
     (rlwimi b imm4 0 16 31)
     (48x32-divide a b y fp0 fp1 fp2 imm4)
@@ -243,7 +243,7 @@
     (lwz imm4 (+ 16 4) tsp) ; quo lo
     (lwz tsp 0 tsp)
     (rlwimi quo imm4 0 16 31)    
-    (la imm4 arch::misc-data-offset dest)
+    (la imm4 ppc32::misc-data-offset dest)
     (stwx quo qidx imm4)
     (subic. qidx qidx 4)
     (bge @loop)
@@ -268,15 +268,15 @@
 
 (defppclapfunction %make-float-from-fixnums ((float 4)(hi 0) (lo arg_x) (exp arg_y) (sign arg_z))
   (rlwinm imm0 sign 0 0 0)  ; just leave sign bit 
-  (rlwimi imm0 exp (- 20 arch::fixnumshift)  1 11) ;  exp left 20 right 2 keep 11 bits
+  (rlwimi imm0 exp (- 20 ppc32::fixnumshift)  1 11) ;  exp left 20 right 2 keep 11 bits
   (lwz imm1 hi vsp)
-  (srawi imm1 imm1 arch::fixnumshift)   ; fold into below? nah keep for later
+  (srawi imm1 imm1 ppc32::fixnumshift)   ; fold into below? nah keep for later
   (rlwimi imm0 imm1 (- 32 4) 12 31)   ; right 4 - keep  20 - stuff into hi result
   (rlwinm imm1 imm1 28 0 3)  ; hi goes left 28 - keep 4 hi bits
-  (rlwimi imm1 lo (- 32 arch::fixnumshift) 4 31) ; stuff in 28 bits of lo
+  (rlwimi imm1 lo (- 32 ppc32::fixnumshift) 4 31) ; stuff in 28 bits of lo
   (lwz temp0 float vsp)         ; the float
-  (stw imm0 arch::double-float.value temp0)
-  (stw imm1 arch::double-float.val-low temp0)
+  (stw imm0 ppc32::double-float.value temp0)
+  (stw imm1 ppc32::double-float.val-low temp0)
   (la vsp 8 vsp)
   (blr))
 
@@ -285,20 +285,20 @@
   (rlwimi imm0 exp (- 29 8) 1 8)
   (inslwi imm0 sign 1 0)
   (vpop arg_z)
-  (stw imm0 arch::single-float.value arg_z)
+  (stw imm0 ppc32::single-float.value arg_z)
   (blr))
 
 
 
 ; t/nil - could as well be 1/0
 (defppclapfunction %double-float-sign ((n arg_z))
-  (lwz imm1 arch::double-float.value n)
+  (lwz imm1 ppc32::double-float.value n)
   (rlwinm. imm1 imm1 0 0 0)  ; or or.
   (setpred arg_z :cr0 :lt) 
   (blr))
 
 (defppclapfunction %short-float-sign ((n arg_z))
-  (lwz imm1 arch::single-float.value n)
+  (lwz imm1 ppc32::single-float.value n)
   (rlwinm. imm1 imm1 0 0 0)  ; or or.
   (setpred arg_z :cr0 :lt) 
   (blr))
@@ -309,15 +309,15 @@
 ; this does not (obviously) set anything in fpscr, wheras doing fcmpo with 0.0 will
 ; set fex & invalid-operation if n is a NAN
 (defppclapfunction %double-float-zerop ((n arg_z))
-  (lwz imm1 arch::double-float.value n)
+  (lwz imm1 ppc32::double-float.value n)
   (clrlwi imm1 imm1 1)  ; nuke sign
-  (lwz imm0 arch::double-float.val-low n)
+  (lwz imm0 ppc32::double-float.val-low n)
   (or imm1 imm1 imm0 )
   (eq0->boolean arg_z imm1 imm0)
   (blr))
 
 (defppclapfunction %short-float-zerop ((n arg_z))
-  (lwz imm1 arch::single-float.value n)
+  (lwz imm1 ppc32::single-float.value n)
   (clrlwi imm1 imm1 1)
   (eq0->boolean arg_z imm1 imm0)
   (blr))
@@ -342,27 +342,27 @@
 
 ; rets hi (25 bits) lo (28 bits) exp sign
 (defppclapfunction %integer-decode-double-float ((n arg_z))
-  (lwz imm0  arch::double-float.value n)
-  (rlwinm imm1 imm0 (+ 1 arch::fixnumshift) (- 32 arch::fixnumshift 1) ; sign boxed
-          				   (- 32 arch::fixnumshift 1))
+  (lwz imm0  ppc32::double-float.value n)
+  (rlwinm imm1 imm0 (+ 1 ppc32::fixnumshift) (- 32 ppc32::fixnumshift 1) ; sign boxed
+          				   (- 32 ppc32::fixnumshift 1))
   (add imm1 imm1 imm1)  ; imm1 = (fixnum 2) (neg) or 0 (pos)
   (subfic temp0 imm1 '1)  ; sign boxed
   (rlwinm. imm2 imm0 (- 32 20)  21  31)   ; right 20, keep 11 bits exp - test for 0
   ;(subi imm2 imm2 (+ 53 1022))            ; unbias and scale
-  (slwi imm2 imm2 arch::fixnumshift)      ; box
+  (slwi imm2 imm2 ppc32::fixnumshift)      ; box
   (mr temp1 imm2)                        ; boxed unbiased exponent
   (rlwinm imm0 imm0 12  0 19)            ; 20 bits of hi float left 12
   (beq @denorm)                          ; cr set way back
   (addi imm0 imm0 1)                     ;  add implied 1
   @denorm
-  (rlwinm imm0 imm0 (+ (- 32 12) 4 arch::fixnumshift) 0 31)
-  (lwz imm1 arch::double-float.val-low n) ; 
-  (rlwimi imm0 imm1 (+ 4 arch::fixnumshift)
-                    (1+ (- 31 4 arch::fixnumshift))
-                    (- 31 arch::fixnumshift))  ; high 4 bits in fixnum pos
-  (rlwinm imm1 imm1 (- 4 arch::fixnumshift) 
-                    (- 4 arch::fixnumshift)
-                    (- 31 arch::fixnum-shift)) ; 28 bits  thats 2 2 29
+  (rlwinm imm0 imm0 (+ (- 32 12) 4 ppc32::fixnumshift) 0 31)
+  (lwz imm1 ppc32::double-float.val-low n) ; 
+  (rlwimi imm0 imm1 (+ 4 ppc32::fixnumshift)
+                    (1+ (- 31 4 ppc32::fixnumshift))
+                    (- 31 ppc32::fixnumshift))  ; high 4 bits in fixnum pos
+  (rlwinm imm1 imm1 (- 4 ppc32::fixnumshift) 
+                    (- 4 ppc32::fixnumshift)
+                    (- 31 ppc32::fixnum-shift)) ; 28 bits  thats 2 2 29
   (vpush imm0)   ; hi 25 bits of mantissa (includes implied 1)
   (vpush imm1)   ; lo 28 bits of mantissa
   (vpush temp1)  ; exp
@@ -375,11 +375,11 @@
 ; hi is 25 bits lo is 28 bits
 ; big is 32 lo, 21 hi right justified
 (defppclapfunction make-big-53 ((hi arg_x)(lo arg_y)(big arg_z))
-  (rlwinm imm0 lo (- 32 arch::fixnumshift) 4 31)
-  (rlwimi imm0 hi (- 32 4 arch::fixnumshift) 0 3)
-  (stw imm0 (+ arch::misc-data-offset 0) big)   ; low goes in 1st wd
-  (rlwinm imm0 hi (- 32 (+ arch::fixnumshift 4)) 11 31)  ; high in second
-  (stw imm0 (+ arch::misc-data-offset 4) big)
+  (rlwinm imm0 lo (- 32 ppc32::fixnumshift) 4 31)
+  (rlwimi imm0 hi (- 32 4 ppc32::fixnumshift) 0 3)
+  (stw imm0 (+ ppc32::misc-data-offset 0) big)   ; low goes in 1st wd
+  (rlwinm imm0 hi (- 32 (+ ppc32::fixnumshift 4)) 11 31)  ; high in second
+  (stw imm0 (+ ppc32::misc-data-offset 4) big)
   (blr))
 
 
@@ -387,21 +387,21 @@
 
 
 (defppclapfunction dfloat-significand-zeros ((dfloat arg_z))
-  (lwz imm1 arch::double-float.value dfloat)
+  (lwz imm1 ppc32::double-float.value dfloat)
   (rlwinm. imm1 imm1 12 0 19)
   (cntlzw imm1 imm1)
   (beq @golo)
   (box-fixnum arg_z imm1)
   (blr)
   @golo
-  (lwz imm1 arch::double-float.val-low dfloat)
+  (lwz imm1 ppc32::double-float.val-low dfloat)
   (cntlzw imm1 imm1)
   (addi imm1 imm1 20)
   (box-fixnum arg_z imm1)
   (blr))
 
 (defppclapfunction sfloat-significand-zeros ((sfloat arg_z))
-  (lwz imm1 arch::single-float.value sfloat)
+  (lwz imm1 ppc32::single-float.value sfloat)
   (rlwinm imm1 imm1 9 0 22)
   (cntlzw imm1 imm1)
   (box-fixnum arg_z imm1)
@@ -416,8 +416,8 @@
         (sc.h 16)
         (sc.l 20))
     (clear-fpu-exceptions)
-    (lwz imm0 arch::double-float.value float)
-    (lwz imm1 arch::double-float.val-low float)
+    (lwz imm0 ppc32::double-float.value float)
+    (lwz imm1 ppc32::double-float.val-low float)
     (stwu tsp -16 tsp)
     (stw tsp 4 tsp)
     (stw imm0 fl.h tsp)
@@ -431,13 +431,13 @@
     (lfd fp1 sc.h tsp)
     (lwz tsp 0 tsp)
     (fmul fp2 fp0 fp1)
-    (stfd fp2 arch::double-float.value result)
+    (stfd fp2 ppc32::double-float.value result)
     (blr)))
 
 (defppclapfunction %%scale-sfloat ((float arg_x)(int arg_y)(result arg_z))
   (let ((sc.h 12))
     (clear-fpu-exceptions)
-    (lfs fp0 arch::single-float.value float)
+    (lfs fp0 ppc32::single-float.value float)
     (unbox-fixnum imm0 int)
     (slwi imm0 imm0 IEEE-single-float-mantissa-width)
     (stwu tsp -16 tsp)
@@ -446,7 +446,7 @@
     (lfs fp1 sc.h tsp)
     (lwz tsp 0 tsp)
     (fmuls fp2 fp0 fp1)
-    (stfs fp2 arch::single-float.value result)
+    (stfs fp2 ppc32::single-float.value result)
     (blr)))
                    
 
@@ -454,37 +454,37 @@
 
 
 (defppclapfunction %copy-double-float ((f1 arg_y) (f2 arg_z))
-  (lfd fp0 arch::double-float.value f1)
-  (stfd fp0 arch::double-float.value f2)
+  (lfd fp0 ppc32::double-float.value f1)
+  (stfd fp0 ppc32::double-float.value f2)
   (blr))
                    
 
 (defppclapfunction %copy-short-float ((f1 arg_y) (f2 arg_z))
-  (lfs fp0 arch::single-float.value f1)
-  (stfs fp0 arch::single-float.value f2)
+  (lfs fp0 ppc32::single-float.value f1)
+  (stfs fp0 ppc32::single-float.value f2)
   (blr))
 
 (defppclapfunction %double-float-exp ((n arg_z))
-  (lwz imm1 arch::double-float.value n)
-  (rlwinm arg_z imm1 (- 32 (- 20 arch::fixnumshift)) 19  29) ; right 20 left 2 = right 18 = left 14
+  (lwz imm1 ppc32::double-float.value n)
+  (rlwinm arg_z imm1 (- 32 (- 20 ppc32::fixnumshift)) 19  29) ; right 20 left 2 = right 18 = left 14
   (blr))
 
 (defppclapfunction set-%double-float-exp ((float arg_y) (exp arg_z))
-  (lwz imm1 arch::double-float.value float)
-  (rlwimi imm1 exp (- 20 arch::fixnumshift) 1 11)
-  (stw imm1 arch::double-float.value float) ; hdr - tag = 8 - 2
+  (lwz imm1 ppc32::double-float.value float)
+  (rlwimi imm1 exp (- 20 ppc32::fixnumshift) 1 11)
+  (stw imm1 ppc32::double-float.value float) ; hdr - tag = 8 - 2
   (blr))
 
 
 (defppclapfunction %short-float-exp ((n arg_z))
-  (lwz imm1 arch::single-float.value n)
-  (rlwinm arg_z imm1 (- 32 (- 23 arch::fixnumshift)) 22 29)
+  (lwz imm1 ppc32::single-float.value n)
+  (rlwinm arg_z imm1 (- 32 (- 23 ppc32::fixnumshift)) 22 29)
   (blr))
 
 (defppclapfunction set-%short-float-exp ((float arg_y) (exp arg_z))
-  (lwz imm1 arch::single-float.value float)
-  (rlwimi imm1 exp (- 23 arch::fixnumshift) 1 8)
-  (stw imm1 arch::single-float.value float)
+  (lwz imm1 ppc32::single-float.value float)
+  (rlwimi imm1 exp (- 23 ppc32::fixnumshift) 1 8)
+  (stw imm1 ppc32::single-float.value float)
   (blr))
 
   
@@ -505,12 +505,12 @@
 
 (defppclapfunction %int-to-sfloat ((int arg_y) (sfloat arg_z))
   (int-to-freg int fp0 imm0)
-  (stfs fp0 arch::single-float.value sfloat)
+  (stfs fp0 ppc32::single-float.value sfloat)
   (blr))
 
 (defppclapfunction %int-to-dfloat ((int arg_y) (dfloat arg_z))
   (int-to-freg int fp0 imm0)
-  (stfd fp0 arch::double-float.value dfloat)
+  (stfd fp0 ppc32::double-float.value dfloat)
   (blr))
 
 
@@ -536,12 +536,12 @@
   (lwz imm0 12 tsp)
   (lwz tsp 0 tsp)
   (clrrwi imm0 imm0 8)
-  (srwi arg_z imm0 (- 8 arch::fixnumshift))
+  (srwi arg_z imm0 (- 8 ppc32::fixnumshift))
   (blr))
 
 ; Set the high 24 bits of the FPSCR; leave the low 8 unchanged
 (defppclapfunction %set-fpscr-status ((new arg_z))
-  (slwi imm0 new (- 8 arch::fixnumshift))
+  (slwi imm0 new (- 8 ppc32::fixnumshift))
   (stwu tsp -16 tsp)
   (stw tsp 4 tsp)
   (stw imm0 12 tsp)
@@ -562,24 +562,24 @@
   (blr))
 
 (defppclapfunction %ffi-exception-status ()
-  (lwz imm0  arch::tcr.ffi-exception rcontext)
+  (lwz imm0  ppc32::tcr.ffi-exception rcontext)
   (mtcrf #xfc imm0)
   (mcrfs :cr6 :cr6)
   (mcrfs :cr7 :cr7)
-  (crand ppc::fpscr-fex-bit ppc::fpscr-oe-bit ppc::fpscr-ox-bit)
-  (bt ppc::fpscr-fex-bit @set)
-  (crand ppc::fpscr-fex-bit ppc::fpscr-ve-bit ppc::fpscr-vx-bit)
-  (bt ppc::fpscr-fex-bit @set)
-  (crand ppc::fpscr-fex-bit ppc::fpscr-ue-bit ppc::fpscr-ux-bit)
-  (bt ppc::fpscr-fex-bit @set)
-  (crand ppc::fpscr-fex-bit ppc::fpscr-ze-bit ppc::fpscr-zx-bit)
-  (bt ppc::fpscr-fex-bit @set)
-  (crand ppc::fpscr-fex-bit ppc::fpscr-xe-bit ppc::fpscr-xx-bit)
-  (bf ppc::fpscr-fex-bit @ret)
+  (crand ppc32::fpscr-fex-bit ppc32::fpscr-oe-bit ppc32::fpscr-ox-bit)
+  (bt ppc32::fpscr-fex-bit @set)
+  (crand ppc32::fpscr-fex-bit ppc32::fpscr-ve-bit ppc32::fpscr-vx-bit)
+  (bt ppc32::fpscr-fex-bit @set)
+  (crand ppc32::fpscr-fex-bit ppc32::fpscr-ue-bit ppc32::fpscr-ux-bit)
+  (bt ppc32::fpscr-fex-bit @set)
+  (crand ppc32::fpscr-fex-bit ppc32::fpscr-ze-bit ppc32::fpscr-zx-bit)
+  (bt ppc32::fpscr-fex-bit @set)
+  (crand ppc32::fpscr-fex-bit ppc32::fpscr-xe-bit ppc32::fpscr-xx-bit)
+  (bf ppc32::fpscr-fex-bit @ret)
   @set
   (oris imm0 imm0 #xc000)
   @ret
-  (srwi arg_z imm0 (- 8 arch::fixnumshift))
+  (srwi arg_z imm0 (- 8 ppc32::fixnumshift))
   (blr))
   
 
@@ -587,7 +587,7 @@
 ; exception bits in the fpscr
 (defun %df-check-exception-2 (operation op0 op1 fp-status)
   (declare (type (unsigned-byte 24) fp-status))
-  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -598,7 +598,7 @@
 
 (defun %sf-check-exception-2 (operation op0 op1 fp-status)
   (declare (type (unsigned-byte 24) fp-status))
-  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -609,7 +609,7 @@
 
 (defun %df-check-exception-1 (operation op0 fp-status)
   (declare (fixnum fp-status))
-  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -619,7 +619,7 @@
 
 (defun %sf-check-exception-1 (operation op0 fp-status)
   (declare (type (unsigned-byte 24) fp-status))
-  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
 					; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -631,20 +631,20 @@
 (defun fp-condition-from-fpscr (status-bits control-bits)
   (declare (fixnum status-bits control-bits))
   (cond 
-   ((and (logbitp (- 23 ppc::fpscr-vx-bit) status-bits)
-         (logbitp (- 31 ppc::fpscr-ve-bit) control-bits))
+   ((and (logbitp (- 23 ppc32::fpscr-vx-bit) status-bits)
+         (logbitp (- 31 ppc32::fpscr-ve-bit) control-bits))
     'floating-point-invalid-operation)
-   ((and (logbitp (- 23 ppc::fpscr-ox-bit) status-bits)
-         (logbitp (- 31 ppc::fpscr-oe-bit) control-bits))
+   ((and (logbitp (- 23 ppc32::fpscr-ox-bit) status-bits)
+         (logbitp (- 31 ppc32::fpscr-oe-bit) control-bits))
     'floating-point-overflow)
-   ((and (logbitp (- 23 ppc::fpscr-ux-bit) status-bits)
-         (logbitp (- 31 ppc::fpscr-ue-bit) control-bits))
+   ((and (logbitp (- 23 ppc32::fpscr-ux-bit) status-bits)
+         (logbitp (- 31 ppc32::fpscr-ue-bit) control-bits))
     'floating-point-underflow)
-   ((and (logbitp (- 23 ppc::fpscr-zx-bit) status-bits)
-         (logbitp (- 31 ppc::fpscr-ze-bit) control-bits))
+   ((and (logbitp (- 23 ppc32::fpscr-zx-bit) status-bits)
+         (logbitp (- 31 ppc32::fpscr-ze-bit) control-bits))
     'division-by-zero)
-   ((and (logbitp (- 23 ppc::fpscr-xx-bit) status-bits)
-         (logbitp (- 31 ppc::fpscr-xe-bit) control-bits))
+   ((and (logbitp (- 23 ppc32::fpscr-xx-bit) status-bits)
+         (logbitp (- 31 ppc32::fpscr-xe-bit) control-bits))
     'floating-point-inexact)))
 
 ; This assumes that the FEX and one of {VX OX UX ZX XX} is set.
@@ -667,7 +667,7 @@
 
 ; Don't we already have about 20 versions of this ?
 (defppclapfunction %double-float-from-macptr! ((ptr arg_x) (byte-offset arg_y) (dest arg_z))
-  (lwz imm0 arch::macptr.address ptr)
+  (lwz imm0 ppc32::macptr.address ptr)
   (unbox-fixnum imm1 byte-offset)
   (lfdx fp1 imm0 imm1)
   (put-double-float fp1 dest)

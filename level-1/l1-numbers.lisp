@@ -343,7 +343,7 @@
     (let ((size (byte-size bytespec))
           (position (byte-position bytespec)))
       (if (and (bignump integer)
-               (<= size  (- 31 arch::fixnumshift))
+               (<= size  (- 31 ppc32::fixnumshift))
                (fixnump position))
         (%ldb-fixnum-from-bignum integer size position)
         (ash (logand bytespec integer) (- position))))))
@@ -367,7 +367,7 @@
     (report-bad-arg seed-1 '(unsigned-byte 16)))
   (unless (and (fixnump seed-2) (%i<= 0 seed-2) (%i< seed-2 #x10000))
     (report-bad-arg seed-2 '(unsigned-byte 16)))
-  (let ((shift (%i- 16 arch::fixnum-shift)))
+  (let ((shift (%i- 16 ppc32::fixnum-shift)))
     (gvector :istruct
              'random-state
              (%ilsl shift seed-1)

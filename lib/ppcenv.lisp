@@ -20,26 +20,26 @@
 
 
 (defconstant ppc-nonvolatile-registers-mask
-  (logior (ash 1 ppc::save0)
-          (ash 1 ppc::save1)
-          (ash 1 ppc::save2)
-          (ash 1 ppc::save3)
-          (ash 1 ppc::save4)
-          (ash 1 ppc::save5)
-          (ash 1 ppc::save6)
-          (ash 1 ppc::save7)))
+  (logior (ash 1 ppc32::save0)
+          (ash 1 ppc32::save1)
+          (ash 1 ppc32::save2)
+          (ash 1 ppc32::save3)
+          (ash 1 ppc32::save4)
+          (ash 1 ppc32::save5)
+          (ash 1 ppc32::save6)
+          (ash 1 ppc32::save7)))
 
 (defconstant ppc-arg-registers-mask
-  (logior (ash 1 ppc::arg_z)
-          (ash 1 ppc::arg_y)
-          (ash 1 ppc::arg_x)))
+  (logior (ash 1 ppc32::arg_z)
+          (ash 1 ppc32::arg_y)
+          (ash 1 ppc32::arg_x)))
 
 (defconstant ppc-temp-registers-mask
-  (logior (ash 1 ppc::temp0)
-          (ash 1 ppc::temp1)
-          (ash 1 ppc::temp2)
-          (ash 1 ppc::temp3)
-	  (ash 1 ppc::temp4)))
+  (logior (ash 1 ppc32::temp0)
+          (ash 1 ppc32::temp1)
+          (ash 1 ppc32::temp2)
+          (ash 1 ppc32::temp3)
+	  (ash 1 ppc32::temp4)))
 
 
 (defconstant ppc-tagged-registers-mask
@@ -51,37 +51,37 @@
   `(logior ,@(mapcar #'(lambda (w) `(ash 1 ,w)) weights)))
 
 (defconstant ppc-temp-node-regs 
-  (make-mask ppc::temp0
-             ppc::temp1
-             ppc::temp2
-             ppc::temp3
-	     ppc::temp4
-             ppc::arg_x
-             ppc::arg_y
-             ppc::arg_z))
+  (make-mask ppc32::temp0
+             ppc32::temp1
+             ppc32::temp2
+             ppc32::temp3
+	     ppc32::temp4
+             ppc32::arg_x
+             ppc32::arg_y
+             ppc32::arg_z))
 
 (defconstant ppc-nonvolatile-node-regs
-  (make-mask ppc::save0
-             ppc::save1
-             ppc::save2
-             ppc::save3
-             ppc::save4
-             ppc::save5
-             ppc::save6
-             ppc::save7))
+  (make-mask ppc32::save0
+             ppc32::save1
+             ppc32::save2
+             ppc32::save3
+             ppc32::save4
+             ppc32::save5
+             ppc32::save6
+             ppc32::save7))
 
 
 (defconstant ppc-node-regs (logior ppc-temp-node-regs ppc-nonvolatile-node-regs))
 
 (defconstant ppc-imm-regs (make-mask
-                            ppc::imm0
-                            ppc::imm1
-                            ppc::imm2
-                            ppc::imm3
-                            ppc::imm4
-                            ppc::imm5))
+                            ppc32::imm0
+                            ppc32::imm1
+                            ppc32::imm2
+                            ppc32::imm3
+                            ppc32::imm4
+                            ppc32::imm5))
 
-(defconstant ppc-temp-fp-regs (1- (ash 1 ppc::fp14)))
+(defconstant ppc-temp-fp-regs (1- (ash 1 ppc32::fp14)))
                                
 (defconstant ppc-cr-fields
   (make-mask 0 (ash 4 -2) (ash 8 -2) (ash 12 -2) (ash 16 -2) (ash 20 -2) (ash 24 -2) (ash 28 -2)))

@@ -99,18 +99,18 @@
 #+ppc-target
 (progn
   (defppclapfunction %compose-unsigned-fullword ((high arg_y) (low arg_z))
-    (rlwinm imm0 low (- 32 arch::fixnumshift) 16 31)
-    (rlwimi imm0 high (- 16 arch::fixnumshift) 0 15)
+    (rlwinm imm0 low (- 32 ppc32::fixnumshift) 16 31)
+    (rlwimi imm0 high (- 16 ppc32::fixnumshift) 0 15)
     ; Now have an unsigned fullword in imm0.  Box it.
-    (clrrwi. imm1 imm0 (- arch::least-significant-bit arch::nfixnumtagbits))
+    (clrrwi. imm1 imm0 (- ppc32::least-significant-bit ppc32::nfixnumtagbits))
     (box-fixnum arg_z imm0)             ; assume no high bits set.
     (beqlr+)
     (ba .SPmakeu32))
 
   
   (defppclapfunction %compose-signed-fixnum ((high arg_y) (low arg_z))
-    (rlwinm imm0 low (- 32 arch::fixnumshift) 16 31)
-    (rlwimi imm0 high (- 16 arch::fixnumshift) 0 15)
+    (rlwinm imm0 low (- 32 ppc32::fixnumshift) 16 31)
+    (rlwimi imm0 high (- 16 ppc32::fixnumshift) 0 15)
     ; Now have an unsigned fullword in imm0.  Box it.
     (box-fixnum arg_z imm0)
     (blr))
@@ -122,7 +122,7 @@
     (set #xffff %imm1)
     (unbox-fixnum %low %imm0)
     (and %imm1 %imm0 %imm0)
-    (sll %high (- 16 arch::fixnumshift) %imm1)
+    (sll %high (- 16 ppc32::fixnumshift) %imm1)
     (or %imm1 %imm0 %imm0)
     (box-unsigned-byte-32 %imm0 %imm1 %arg_z)
     (retl)
@@ -132,7 +132,7 @@
     (set #xffff %imm1)
     (unbox-fixnum %low %imm0)
     (and %imm1 %imm0 %imm0)
-    (sll %high (- 16 arch::fixnumshift) %imm1)
+    (sll %high (- 16 ppc32::fixnumshift) %imm1)
     (or %imm1 %imm0 %imm0)
     (retl)
      (box-fixnum %imm0 %arg_z))
@@ -255,12 +255,12 @@
                    thing)))
     (let* ((typecode (typecode xthing)))
         (declare (fixnum typecode))
-        (cond ((= typecode arch::subtag-package)
+        (cond ((= typecode ppc32::subtag-package)
                (if (or deleted-ok (pkg.names xthing))
                  xthing
                  (error "~S is a deleted package ." thing)))
-              ((or (= typecode arch::subtag-simple-base-string)
-                   (= typecode arch::subtag-simple-general-string))
+              ((or (= typecode ppc32::subtag-simple-base-string)
+                   (= typecode ppc32::subtag-simple-general-string))
                (or (%find-pkg xthing)
                    (%kernel-restart $xnopkg xthing)))
               (t (report-bad-arg thing 'simple-string))))))
@@ -340,11 +340,11 @@
   ;; A double-float is a 3-element "misc" object.
   ;; Element 0 is always 0 and exists solely to keep elements 1 and 2
   ;; aligned on a 64-bit boundary.
-  (let* ((df (%alloc-misc arch::double-float.element-count
-                          arch::subtag-double-float)))
-    (setf (%misc-ref df arch::double-float.value-cell)
+  (let* ((df (%alloc-misc ppc32::double-float.element-count
+                          ppc32::subtag-double-float)))
+    (setf (%misc-ref df ppc32::double-float.value-cell)
           (%fasl-read-long s))
-    (setf (%misc-ref df arch::double-float.val-low-cell)
+    (setf (%misc-ref df ppc32::double-float.val-low-cell)
           (%fasl-read-long s))
     (%epushval s df)))
 
@@ -423,7 +423,7 @@
     (declare (fixnum subtag element-count size-in-bytes))
     (%epushval s vector)
     (%fasl-read-n-bytes s vector 0 size-in-bytes)
-    (when (= subtag arch::subtag-code-vector)
+    (when (= subtag ppc32::subtag-code-vector)
       (%make-code-executable vector))
     vector))
 
@@ -432,8 +432,8 @@
   (let* ((subtype (%fasl-read-byte s))
          (n (%fasl-read-size s)))
     (declare (fixnum n subtype))
-    (if (and (= subtype arch::subtag-svar)
-             (= n arch::svar.element-count))
+    (if (and (= subtype ppc32::subtag-svar)
+             (= n ppc32::svar.element-count))
       (let* ((epush (faslstate.faslepush s))
              (ecount (faslstate.faslecnt s)))
         (when epush
@@ -779,7 +779,7 @@
         (tag imm3))
     (extract-subtag tag str)
     (cmpwi cr0 len 0)
-    (li offset arch::misc-data-offset)
+    (li offset ppc32::misc-data-offset)
     (li accum 0)
     (beqlr- cr0)    
     @loop8
@@ -791,7 +791,7 @@
     (xor accum accum nextw)
     (bne cr1 @loop8)
     (slwi accum accum 5)
-    (srwi arg_z accum (- 5 arch::fixnumshift))
+    (srwi arg_z accum (- 5 ppc32::fixnumshift))
     (blr)))
 
 #+sparc-target
@@ -802,7 +802,7 @@
 	(%tag %imm3)
         (%accum1 %imm4))
     (tst %len)
-    (mov arch::misc-data-offset %offset)
+    (mov ppc32::misc-data-offset %offset)
     (be @done)
      (mov 0 %accum)
     @loop8
@@ -817,7 +817,7 @@
     (sll %accum 5 %accum)
     @done
     (retl)
-     (srl %accum (- 5 arch::fixnumshift) %arg_z)))
+     (srl %accum (- 5 ppc32::fixnumshift) %arg_z)))
 
         
 (defun hash-pname (str len)
@@ -930,9 +930,9 @@
         (funcall f))
      ;; Can't bind any specials until this happens
      (%map-areas #'(lambda (o)
-                     (when (eql (typecode o) arch::subtag-svar)
+                     (when (eql (typecode o) ppc32::subtag-svar)
                        (cold-load-svar o)))
-                 arch::area-dynamic
-                 arch::area-dynamic)
+                 ppc32::area-dynamic
+                 ppc32::area-dynamic)
       (%fasload *xload-startup-file*)))
 

@@ -25,12 +25,12 @@
 
 ; Assumptions made by %init-misc
 (eval-when (:compile-toplevel :execute)
-  (assert (and (< arch::max-32-bit-ivector-subtag
-                  arch::max-8-bit-ivector-subtag
-                  arch::max-16-bit-ivector-subtag)
-               (eql arch::max-32-bit-ivector-subtag arch::subtag-s32-vector)
-               (eql arch::max-16-bit-ivector-subtag arch::subtag-s16-vector)
-               (eql arch::max-8-bit-ivector-subtag arch::subtag-simple-base-string))))
+  (assert (and (< ppc32::max-32-bit-ivector-subtag
+                  ppc32::max-8-bit-ivector-subtag
+                  ppc32::max-16-bit-ivector-subtag)
+               (eql ppc32::max-32-bit-ivector-subtag ppc32::subtag-s32-vector)
+               (eql ppc32::max-16-bit-ivector-subtag ppc32::subtag-s16-vector)
+               (eql ppc32::max-8-bit-ivector-subtag ppc32::subtag-simple-base-string))))
 
 (defppclapfunction %init-misc ((val arg_y)
                                (miscobj arg_z))
@@ -38,10 +38,10 @@
   (header-size imm3 imm0)
   (cmpwi cr3 imm3 0)
   (extract-fulltag imm1 imm0)
-  (cmpwi cr0 imm1 arch::fulltag-nodeheader)
+  (cmpwi cr0 imm1 ppc32::fulltag-nodeheader)
   (extract-lowbyte imm2 imm0)
   (beqlr cr3)                           ; Silly 0-length case
-  (li imm4 arch::misc-data-offset)
+  (li imm4 ppc32::misc-data-offset)
   (bne cr0 @imm)
   ; Node vector.  Don't need to memoize, since initial value is
   ; older than vector.
@@ -53,12 +53,12 @@
   (bne cr0 @node-loop)
   (blr)
   @imm
-  (cmpwi cr0 imm2 arch::subtag-double-float-vector)
-  (cmpwi cr1 imm2 arch::max-32-bit-ivector-subtag)
-  (cmpwi cr2 imm2 arch::max-8-bit-ivector-subtag)
-  (cmpwi cr3 imm2 arch::max-16-bit-ivector-subtag)
+  (cmpwi cr0 imm2 ppc32::subtag-double-float-vector)
+  (cmpwi cr1 imm2 ppc32::max-32-bit-ivector-subtag)
+  (cmpwi cr2 imm2 ppc32::max-8-bit-ivector-subtag)
+  (cmpwi cr3 imm2 ppc32::max-16-bit-ivector-subtag)
   (extract-typecode imm0 val :CR6)		; don't clobber CR0
-  (cmpwi cr7 imm0 arch::tag-fixnum)
+  (cmpwi cr7 imm0 ppc32::tag-fixnum)
   (beq cr0 @dfloat)
   (ble cr1 @32)
   (ble cr2 @8)
@@ -76,10 +76,10 @@
   (set-nargs 3)
   (call-symbol %err-disp)
   @dfloat
-  (cmpwi cr0 imm0 arch::subtag-double-float)
-  (li imm4 arch::misc-dfloat-offset)
+  (cmpwi cr0 imm0 ppc32::subtag-double-float)
+  (li imm4 ppc32::misc-dfloat-offset)
   (bne- cr0 @bad)
-  (lfd fp0 arch::double-float.value val)
+  (lfd fp0 ppc32::double-float.value val)
   @dfloat-loop
   (cmpwi cr0 imm3 1)
   (subi imm3 imm3 1)
@@ -88,22 +88,22 @@
   (bne cr0 @dfloat-loop)
   (blr)
   @32
-  (cmpwi cr0 imm2 arch::subtag-single-float-vector)
-  (cmpwi cr2 imm0 arch::subtag-bignum)
-  (beq cr1 @s32)                     ; arch::max-32-bit-ivector-subtag
+  (cmpwi cr0 imm2 ppc32::subtag-single-float-vector)
+  (cmpwi cr2 imm0 ppc32::subtag-bignum)
+  (beq cr1 @s32)                     ; ppc32::max-32-bit-ivector-subtag
   (bne cr0 @u32)
   ;@sfloat
-  (cmpwi cr0 imm0 arch::subtag-single-float)
+  (cmpwi cr0 imm0 ppc32::subtag-single-float)
   (bne- cr0 @bad)
-  (lwz imm0 arch::single-float.value val)
+  (lwz imm0 ppc32::single-float.value val)
   (b @set-32)
   @s32
   (unbox-fixnum imm0 val)
   (beq+ cr7 @set-32)
   (bne- cr2 @bad)
   (getvheader imm0 val)
-  (cmpwi cr0 imm0 (logior (ash 1 arch::num-subtag-bits) arch::subtag-bignum))
-  (lwz imm0 arch::misc-data-offset val)
+  (cmpwi cr0 imm0 (logior (ash 1 ppc32::num-subtag-bits) ppc32::subtag-bignum))
+  (lwz imm0 ppc32::misc-data-offset val)
   (beq+ cr0 @set-32)
   (b @bad)
   @u32
@@ -114,31 +114,31 @@
   ; a one-digit bignum is ok if that digit is positive.
   ; a two-digit bignum is ok if the sign-digit is 0.
   (getvheader imm0 val)
-  (cmpwi cr2 imm0 (logior (ash 2 arch::num-subtag-bits) arch::subtag-bignum))
-  (lwz imm0 arch::misc-data-offset val)
+  (cmpwi cr2 imm0 (logior (ash 2 ppc32::num-subtag-bits) ppc32::subtag-bignum))
+  (lwz imm0 ppc32::misc-data-offset val)
   (cmpwi cr3 imm0 0)
   (bgt- cr2 @bad)                       ; more than two digits.
   (beq cr2 @two-digits)
   (bgt+ cr3 @set-32)
   (b @bad)
   @two-digits
-  (lwz imm1 (+ 4 arch::misc-data-offset) val)
+  (lwz imm1 (+ 4 ppc32::misc-data-offset) val)
   (cmpwi cr0 imm1 0)
   (bne- cr0 @bad)
   (b @set-32)
   @16
-  (cmpwi cr0 imm2 arch::subtag-u16-vector)
+  (cmpwi cr0 imm2 ppc32::subtag-u16-vector)
   (la imm3 1 imm3)
   (srwi imm3 imm3 1)
-  (beq cr3 @s16)                        ; arch::max-16-bit-ivector-subtag
+  (beq cr3 @s16)                        ; ppc32::max-16-bit-ivector-subtag
   (bne cr0 @char16)
   (extract-unsigned-byte-bits. imm0 val 16)
   (unbox-fixnum imm0 val)
   (beq+ cr0 @set-16)
   (b @bad)
   @s16
-  (slwi imm0 val (- 32 (+ 16 arch::fixnumshift)))
-  (srawi imm0 imm0 (- 32 (+ 16 arch::fixnumshift)))
+  (slwi imm0 val (- 32 (+ 16 ppc32::fixnumshift)))
+  (srawi imm0 imm0 (- 32 (+ 16 ppc32::fixnumshift)))
   (cmpw cr0 imm0 val)
   (unbox-fixnum imm0 val)
   (bne- cr7 @bad)
@@ -146,23 +146,23 @@
   (b @bad)
   @char16
   (clrlwi imm0 val 24)
-  (cmpwi cr0 imm0 arch::subtag-character)
-  (srwi imm0 val arch::charcode-shift)
+  (cmpwi cr0 imm0 ppc32::subtag-character)
+  (srwi imm0 val ppc32::charcode-shift)
   (beq+ cr0 @set-16)
   (b @bad)
   @8
-  (cmpwi cr0 imm0 arch::subtag-s8-vector)
+  (cmpwi cr0 imm0 ppc32::subtag-s8-vector)
   (la imm3 3 imm3)
   (srwi imm3 imm3 2)
-  (beq cr2 @char8)                      ; arch::max-8-bit-ivector-subtag
+  (beq cr2 @char8)                      ; ppc32::max-8-bit-ivector-subtag
   (beq cr0 @s8)
   (extract-unsigned-byte-bits. imm0 val 8)
   (unbox-fixnum imm0 val)
   (beq+ cr0 @set-8)
   (b @bad)
   @s8
-  (slwi imm0 val (- 32 (+ 8 arch::fixnumshift)))
-  (srawi imm0 imm0 (- 32 (+ 8 arch::fixnumshift)))
+  (slwi imm0 val (- 32 (+ 8 ppc32::fixnumshift)))
+  (srawi imm0 imm0 (- 32 (+ 8 ppc32::fixnumshift)))
   (cmpw cr0 imm0 val)
   (unbox-fixnum imm0 val)
   (bne- cr7 @bad)
@@ -205,12 +205,12 @@
     (mr arg_y newsize)
     (mr arg_z oldsubtag)
     (bla .SPmisc-alloc)
-    (extrwi imm0 oldsubtag arch::ntagbits (- 32 (+  arch::fixnumshift arch::ntagbits)))
+    (extrwi imm0 oldsubtag ppc32::ntagbits (- 32 (+  ppc32::fixnumshift ppc32::ntagbits)))
     (cmpwi cr0 oldsize 0)
-    (cmpwi cr1 imm0 arch::fulltag-nodeheader)
-    (cmpwi cr2 oldsubtag '#.arch::max-32-bit-ivector-subtag)
-    (la imm1 arch::misc-data-offset start-offset)
-    (li imm3 arch::misc-data-offset)
+    (cmpwi cr1 imm0 ppc32::fulltag-nodeheader)
+    (cmpwi cr2 oldsubtag '#.ppc32::max-32-bit-ivector-subtag)
+    (la imm1 ppc32::misc-data-offset start-offset)
+    (li imm3 ppc32::misc-data-offset)
     (beq cr0 @done)
     (bne cr1 @imm)
     ; copy nodes.  New vector is "new", so no memoization required.
@@ -233,22 +233,22 @@
     @imm
     (unbox-fixnum imm2 oldsize)
     (unbox-fixnum imm3 start-offset)
-    (li imm1 arch::misc-data-offset)
-    (la imm4 arch::misc-data-offset start-offset)
-    (cmpwi cr1 oldsubtag '#.arch::max-8-bit-ivector-subtag)
-    (cmpwi cr0 oldsubtag '#.arch::max-16-bit-ivector-subtag)
+    (li imm1 ppc32::misc-data-offset)
+    (la imm4 ppc32::misc-data-offset start-offset)
+    (cmpwi cr1 oldsubtag '#.ppc32::max-8-bit-ivector-subtag)
+    (cmpwi cr0 oldsubtag '#.ppc32::max-16-bit-ivector-subtag)
     (ble cr2 @fullword-loop)
-    (cmpwi cr2 oldsubtag '#.arch::subtag-bit-vector)
+    (cmpwi cr2 oldsubtag '#.ppc32::subtag-bit-vector)
     (ble cr1 @8-bit)
     (ble cr0 @16-bit)
     (beq cr2 @1-bit)
     ; 64-bit (double-float) vectors.  There's a different
     ; initial offset, but we're always word-aligned, so that
     ; part's easy.
-    (li imm1 arch::misc-dfloat-offset)   ; scaled destination pointer
+    (li imm1 ppc32::misc-dfloat-offset)   ; scaled destination pointer
     (slwi imm2 imm2 1)                  ; twice as many fullwords
     (slwi imm3 imm3 3)                  ; convert dword count to byte offset
-    (la imm4 arch::misc-dfloat-offset imm3)      ; scaled source pointer
+    (la imm4 ppc32::misc-dfloat-offset imm3)      ; scaled source pointer
     (b @fullword-loop)
     ; The bitvector case is hard if START-OFFSET isn't on an 8-bit boundary,
     ;  and can be turned into the 8-bit case otherwise.
@@ -276,7 +276,7 @@
     (bne- cr0 @hard-16-bit)
     (addi imm2 imm2 1)
     (srwi imm2 imm2 1)                  ; halfword count to fullword count
-    (li imm1 arch::misc-data-offset)   
+    (li imm1 ppc32::misc-data-offset)   
     @fullword-loop
     (cmpwi cr0 imm2 1)
     (lwzx imm0 oldv imm4)
@@ -327,10 +327,10 @@
     (li offset 0)
     (mr temp a)
     @loop
-    (lwz a arch::arrayH.data-vector temp)
-    (lbz imm0 arch::misc-subtag-offset a)
-    (cmpwi cr0 imm0 arch::subtag-vectorH)
-    (lwz disp arch::arrayH.displacement temp)
+    (lwz a ppc32::arrayH.data-vector temp)
+    (lbz imm0 ppc32::misc-subtag-offset a)
+    (cmpwi cr0 imm0 ppc32::subtag-vectorH)
+    (lwz disp ppc32::arrayH.displacement temp)
     (mr temp a)
     (add offset offset disp)
     (ble cr0 @loop)

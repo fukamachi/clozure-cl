@@ -68,86 +68,86 @@
 ; Some of these things are probably open-coded.
 ; The functions have to exist SOMEWHERE ...
 (defun fixnump (x)
-  (= (the fixnum (lisptag x)) arch::tag-fixnum))
+  (= (the fixnum (lisptag x)) ppc32::tag-fixnum))
 
 (defun bignump (x)
-  (= (the fixnum (typecode x)) arch::subtag-bignum))
+  (= (the fixnum (typecode x)) ppc32::subtag-bignum))
 
 (defun integerp (x)
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (or (= typecode arch::tag-fixnum)
-        (= typecode arch::subtag-bignum))))
+    (or (= typecode ppc32::tag-fixnum)
+        (= typecode ppc32::subtag-bignum))))
 
 (defun ratiop (x)
-  (= (the fixnum (typecode x)) arch::subtag-ratio))
+  (= (the fixnum (typecode x)) ppc32::subtag-ratio))
 
 
 (defun rationalp (x)
   (or (fixnump x)
       (let* ((typecode (typecode x)))
         (declare (fixnum typecode))
-        (and (>= typecode arch::min-numeric-subtag)
-             (<= typecode arch::max-rational-subtag)))))
+        (and (>= typecode ppc32::min-numeric-subtag)
+             (<= typecode ppc32::max-rational-subtag)))))
 
 
 
 (defun short-float-p (x)
-  (= (the fixnum (typecode x)) arch::subtag-single-float))
+  (= (the fixnum (typecode x)) ppc32::subtag-single-float))
 
 
 (defun double-float-p (x)
-  (= (the fixnum (typecode x)) arch::subtag-double-float))
+  (= (the fixnum (typecode x)) ppc32::subtag-double-float))
 
 (defun floatp (x)
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (and (>= typecode arch::min-float-subtag)
-         (<= typecode arch::max-float-subtag))))
+    (and (>= typecode ppc32::min-float-subtag)
+         (<= typecode ppc32::max-float-subtag))))
 
 (defun realp (x)
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (or (= typecode arch::tag-fixnum)
-        (and (>= typecode arch::min-numeric-subtag)
-             (<= typecode arch::max-real-subtag)))))
+    (or (= typecode ppc32::tag-fixnum)
+        (and (>= typecode ppc32::min-numeric-subtag)
+             (<= typecode ppc32::max-real-subtag)))))
 
 (defun complexp (x)
-  (= (the fixnum (typecode x)) arch::subtag-complex))
+  (= (the fixnum (typecode x)) ppc32::subtag-complex))
 
 (defun numberp (x)
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (or (= typecode arch::tag-fixnum)
-        (and (>= typecode arch::min-numeric-subtag)
-             (<= typecode arch::max-numeric-subtag)))))
+    (or (= typecode ppc32::tag-fixnum)
+        (and (>= typecode ppc32::min-numeric-subtag)
+             (<= typecode ppc32::max-numeric-subtag)))))
 
 (defun arrayp (x)
-  (>= (the fixnum (typecode x)) arch::min-array-subtag))
+  (>= (the fixnum (typecode x)) ppc32::min-array-subtag))
 
 (defun vectorp (x)
-  (>= (the fixnum (typecode x)) arch::min-vector-subtag))
+  (>= (the fixnum (typecode x)) ppc32::min-vector-subtag))
 
 
 (defun stringp (x)
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (if (= typecode arch::subtag-vectorH)
-      (setq typecode (ldb arch::arrayH.flags-cell-subtag-byte (the fixnum (%svref x arch::arrayH.flags-cell)))))
-    (= typecode arch::subtag-simple-base-string)))
+    (if (= typecode ppc32::subtag-vectorH)
+      (setq typecode (ldb ppc32::arrayH.flags-cell-subtag-byte (the fixnum (%svref x ppc32::arrayH.flags-cell)))))
+    (= typecode ppc32::subtag-simple-base-string)))
 
 
 (defun simple-base-string-p (x)
-  (= (the fixnum (typecode x)) arch::subtag-simple-base-string))
+  (= (the fixnum (typecode x)) ppc32::subtag-simple-base-string))
 
 (defun simple-string-p (x)
-  (= (the fixnum (typecode x)) arch::subtag-simple-base-string))
+  (= (the fixnum (typecode x)) ppc32::subtag-simple-base-string))
 
 (defun complex-array-p (x)
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (if (or (= typecode arch::subtag-arrayH)
-            (= typecode arch::subtag-vectorH))
+    (if (or (= typecode ppc32::subtag-arrayH)
+            (= typecode ppc32::subtag-vectorH))
       (not (%array-header-simple-p x)))))
 
 (setf (type-predicate 'complex-array) 'complex-array-p)
@@ -159,53 +159,53 @@
    and may not be adjustable."
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
-    (if (or (= typecode arch::subtag-arrayH)
-            (= typecode arch::subtag-vectorH))
+    (if (or (= typecode ppc32::subtag-arrayH)
+            (= typecode ppc32::subtag-vectorH))
       (%array-header-simple-p thing)
-      (> typecode arch::subtag-vectorH))))
+      (> typecode ppc32::subtag-vectorH))))
 
 (defun macptrp (x)
-  (= (the fixnum (typecode x)) arch::subtag-macptr))
+  (= (the fixnum (typecode x)) ppc32::subtag-macptr))
 
 
 ; Note that this is true of symbols and functions and many other
 ; things that it wasn't true of on the 68K.
 (defun gvectorp (x)
-  (= (the fixnum (logand (the fixnum (typecode x)) arch::fulltagmask)) arch::fulltag-nodeheader))
+  (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask)) ppc32::fulltag-nodeheader))
 
 (setf (type-predicate 'gvector) 'gvectorp)
 
 (defun miscobjp (x)
-  (= (the fixnum (lisptag x)) arch::tag-misc))
+  (= (the fixnum (lisptag x)) ppc32::tag-misc))
 
 (defun simple-vector-p (x)
-  (= (the fixnum (typecode x)) arch::subtag-simple-vector))
+  (= (the fixnum (typecode x)) ppc32::subtag-simple-vector))
 
 (defun base-string-p (thing)
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
-    (or (= typecode arch::subtag-simple-base-string)
-        (and (= typecode arch::subtag-vectorh)
+    (or (= typecode ppc32::subtag-simple-base-string)
+        (and (= typecode ppc32::subtag-vectorh)
              (= (the fixnum 
-                  (ldb arch::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing arch::arrayH.flags-cell))))
-                arch::subtag-simple-base-string)))))
+                  (ldb ppc32::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing ppc32::arrayH.flags-cell))))
+                ppc32::subtag-simple-base-string)))))
 
 (defun simple-bit-vector-p (form)
-  (= (the fixnum (typecode form)) arch::subtag-bit-vector))
+  (= (the fixnum (typecode form)) ppc32::subtag-bit-vector))
 
 (defun bit-vector-p (thing)
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
-    (or (= typecode arch::subtag-bit-vector)
-        (and (= typecode arch::subtag-vectorh)
+    (or (= typecode ppc32::subtag-bit-vector)
+        (and (= typecode ppc32::subtag-vectorh)
              (= (the fixnum 
-                  (ldb arch::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing arch::arrayH.flags-cell))))
-                arch::subtag-bit-vector)))))
+                  (ldb ppc32::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing ppc32::arrayH.flags-cell))))
+                ppc32::subtag-bit-vector)))))
 
 (defun displaced-array-p (array)
   (if (%array-is-header array)
-    (values (%svref array arch::arrayH.data-vector-cell)
-            (%svref array arch::arrayH.displacement-cell))
+    (values (%svref array ppc32::arrayH.data-vector-cell)
+            (%svref array ppc32::arrayH.displacement-cell))
     (values nil 0)))
 
 (setf (type-predicate 'displaced-array) 'displaced-array-p)
@@ -221,57 +221,57 @@
 
 (defun hairy-equal (x y)
   (declare (optimize (speed 3)))
-  ; X and Y are not EQL, and are both of tag arch::fulltag-misc.
+  ; X and Y are not EQL, and are both of tag ppc32::fulltag-misc.
   (let* ((x-type (typecode x))
 	 (y-type (typecode y)))
     (declare (fixnum x-type y-type))
-    (if (and (>= x-type arch::subtag-vectorH)
-	     (>= y-type arch::subtag-vectorH))
-	(let* ((x-simple (if (= x-type arch::subtag-vectorH)
-			     (ldb arch::arrayH.flags-cell-subtag-byte 
-				  (the fixnum (%svref x arch::arrayH.flags-cell)))
+    (if (and (>= x-type ppc32::subtag-vectorH)
+	     (>= y-type ppc32::subtag-vectorH))
+	(let* ((x-simple (if (= x-type ppc32::subtag-vectorH)
+			     (ldb ppc32::arrayH.flags-cell-subtag-byte 
+				  (the fixnum (%svref x ppc32::arrayH.flags-cell)))
 			     x-type))
-	       (y-simple (if (= y-type arch::subtag-vectorH)
-			     (ldb arch::arrayH.flags-cell-subtag-byte 
-				  (the fixnum (%svref y arch::arrayH.flags-cell)))
+	       (y-simple (if (= y-type ppc32::subtag-vectorH)
+			     (ldb ppc32::arrayH.flags-cell-subtag-byte 
+				  (the fixnum (%svref y ppc32::arrayH.flags-cell)))
 			     y-type)))
 	  (declare (fixnum x-simple y-simple))
-	  (if (= x-simple arch::subtag-simple-base-string)
-	      (if (= y-simple arch::subtag-simple-base-string)
+	  (if (= x-simple ppc32::subtag-simple-base-string)
+	      (if (= y-simple ppc32::subtag-simple-base-string)
 		  (locally
                       (declare (optimize (speed 3) (safety 0)))
-		    (let* ((x-len (if (= x-type arch::subtag-vectorH) 
-                                      (%svref x arch::vectorH.logsize-cell)
+		    (let* ((x-len (if (= x-type ppc32::subtag-vectorH) 
+                                      (%svref x ppc32::vectorH.logsize-cell)
                                       (uvsize x)))
 			   (x-pos 0)
-			   (y-len (if (= y-type arch::subtag-vectorH) 
-                                      (%svref y arch::vectorH.logsize-cell)
+			   (y-len (if (= y-type ppc32::subtag-vectorH) 
+                                      (%svref y ppc32::vectorH.logsize-cell)
                                       (uvsize y)))
 			   (y-pos 0))
 		      (declare (fixnum x-len x-pos y-len y-pos))
-		      (when (= x-type arch::subtag-vectorH)
+		      (when (= x-type ppc32::subtag-vectorH)
 			(multiple-value-setq (x x-pos) (array-data-and-offset x)))
-		      (when (= y-type arch::subtag-vectorH)
+		      (when (= y-type ppc32::subtag-vectorH)
 			(multiple-value-setq (y y-pos) (array-data-and-offset y)))
 		      (%simple-string= x y x-pos y-pos (the fixnum (+ x-pos x-len)) (the fixnum (+ y-pos y-len))))))
 	      ;;Bit-vector case or fail.
-	      (and (= x-simple arch::subtag-bit-vector)
-		   (= y-simple arch::subtag-bit-vector)
+	      (and (= x-simple ppc32::subtag-bit-vector)
+		   (= y-simple ppc32::subtag-bit-vector)
 		   (locally
 		       (declare (optimize (speed 3) (safety 0)))
-		     (let* ((x-len (if (= x-type arch::subtag-vectorH) 
-				       (%svref x arch::vectorH.logsize-cell)
+		     (let* ((x-len (if (= x-type ppc32::subtag-vectorH) 
+				       (%svref x ppc32::vectorH.logsize-cell)
 				       (uvsize x)))
 			    (x-pos 0)
-			    (y-len (if (= y-type arch::subtag-vectorH) 
-				       (%svref y arch::vectorH.logsize-cell)
+			    (y-len (if (= y-type ppc32::subtag-vectorH) 
+				       (%svref y ppc32::vectorH.logsize-cell)
 				       (uvsize y)))
 			    (y-pos 0))
 		       (declare (fixnum x-len x-pos y-len y-pos))
 		       (when (= x-len y-len)
-			 (when (= x-type arch::subtag-vectorH)
+			 (when (= x-type ppc32::subtag-vectorH)
 			   (multiple-value-setq (x x-pos) (array-data-and-offset x)))
-			 (when (= y-type arch::subtag-vectorH)
+			 (when (= y-type ppc32::subtag-vectorH)
 			   (multiple-value-setq (y y-pos) (array-data-and-offset y)))
 			 (do* ((i 0 (1+ i)))
 			      ((= i x-len) t)
@@ -281,7 +281,7 @@
 			   (incf x-pos)
 			   (incf y-pos))))))))
 	(if (= x-type y-type)
-	    (if (= x-type arch::subtag-istruct)
+	    (if (= x-type ppc32::subtag-istruct)
 		(and (let* ((structname (%svref x 0)))
 		       (and (eq structname (%svref y 0))
 			    (or (eq structname 'pathname)
@@ -375,20 +375,20 @@
 (defun %type-of (thing)
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
-    (if (= typecode arch::tag-fixnum)
+    (if (= typecode ppc32::tag-fixnum)
       'fixnum
-      (if (= typecode arch::tag-list)
+      (if (= typecode ppc32::tag-list)
         (if thing 'cons 'null)
-        (if (= typecode arch::tag-imm)
+        (if (= typecode ppc32::tag-imm)
           (if (base-char-p thing)
             'base-char
             'immediate)
-          (let* ((tag-type (logand typecode arch::full-tag-mask))
-                 (tag-val (ash typecode (- arch::ntagbits))))
+          (let* ((tag-type (logand typecode ppc32::full-tag-mask))
+                 (tag-val (ash typecode (- ppc32::ntagbits))))
             (declare (fixnum tag-type tag-val))
             ;; When we get to the point that we can differentiate between
             ;; different types of functions, do so.
-            (if (/= tag-type arch::fulltag-nodeheader)
+            (if (/= tag-type ppc32::fulltag-nodeheader)
               (%svref *immheader-types* tag-val)
               (let ((type (%svref *nodeheader-types* tag-val)))
                 (if (eq type 'function)
@@ -416,7 +416,7 @@
                           'method-function          
                           'compiled-function))))
                   (if (eq type 'lock)
-                    (or (uvref thing arch::lock.kind-cell)
+                    (or (uvref thing ppc32::lock.kind-cell)
                         type)
                     type))))))))))
 
@@ -435,32 +435,32 @@
 
 (defun structurep (form)
   "True if the given object is a named structure, Nil otherwise."
-  (= (the fixnum (typecode form)) arch::subtag-struct))
+  (= (the fixnum (typecode form)) ppc32::subtag-struct))
 
 (defun istructp (form)
-  (= (the fixnum (typecode form)) arch::subtag-istruct))
+  (= (the fixnum (typecode form)) ppc32::subtag-istruct))
 
 (defun structure-typep (thing type)
-  (if (= (the fixnum (typecode thing)) arch::subtag-struct)
+  (if (= (the fixnum (typecode thing)) ppc32::subtag-struct)
     (if (memq type (%svref thing 0))
       t)))
 
 
 (defun istruct-typep (thing type)
-  (if (= (the fixnum (typecode thing)) arch::subtag-istruct)
+  (if (= (the fixnum (typecode thing)) ppc32::subtag-istruct)
     (eq (%svref thing 0) type)))
 
 (defun symbolp (thing)
   (if thing
-    (= (the fixnum (typecode thing)) arch::subtag-symbol)
+    (= (the fixnum (typecode thing)) ppc32::subtag-symbol)
     t))
 
 (defun packagep (thing)
-  (= (the fixnum (typecode thing)) arch::subtag-package))
+  (= (the fixnum (typecode thing)) ppc32::subtag-package))
 
 ; 1 if by land, 2 if by sea.
 (defun sequence-type (x)
-  (unless (>= (the fixnum (typecode x)) arch::min-vector-subtag)
+  (unless (>= (the fixnum (typecode x)) ppc32::min-vector-subtag)
     (or (listp x)
         (report-bad-arg x 'sequence))))
 
@@ -468,4 +468,4 @@
 ;; (in that I'm afraid that it thinks that it knows what's
 ;; a "uvector" and what isn't.
 (defun uvectorp (x)
-  (= (the fixnum (lisptag x)) arch::tag-misc))
+  (= (the fixnum (lisptag x)) ppc32::tag-misc))

@@ -69,16 +69,16 @@ as well; but the compiler's pretty quick.
 
 (defppclapfunction %metering-info ((ptr arg_z))
   (ref-global imm0 metering-info)
-  (stw imm0 arch::macptr.address ptr)
+  (stw imm0 ppc32::macptr.address ptr)
   (blr))
 
 (defun %enable-metering (nbuckets interval)
   (progn (setq *all-metered-functions* (make-array nbuckets))
-         (zerop (the fixnum (ff-call (%kernel-import arch::kernel-import-metering-control)
+         (zerop (the fixnum (ff-call (%kernel-import ppc32::kernel-import-metering-control)
                                          :signed-fullword interval
                                          :signed-fullword)))))
 (defun %disable-metering ()
-  (zerop (the fixnum (ff-call (%kernel-import arch::kernel-import-metering-control)
+  (zerop (the fixnum (ff-call (%kernel-import ppc32::kernel-import-metering-control)
                                     :signed-fullword 0
                                     :signed-fullword))))
 

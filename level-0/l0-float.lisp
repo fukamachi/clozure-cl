@@ -117,10 +117,10 @@
     (setq exp (- exp (if (< hi #x1000000) 
                        (+ IEEE-double-float-mantissa-width IEEE-double-float-bias)
                        (+ IEEE-double-float-mantissa-width (1+ IEEE-double-float-bias)))))
-    (if (< hi (ash 1 (1- arch::fixnumshift))) ; aka 2
+    (if (< hi (ash 1 (1- ppc32::fixnumshift))) ; aka 2
       (values (logior (ash hi 28) lo) exp sign)
       ; might fit in 1 word?
-      (let ((big (%alloc-misc 2 arch::subtag-bignum)))
+      (let ((big (%alloc-misc 2 ppc32::subtag-bignum)))
         (make-big-53 hi lo big)
         (if (< hi #x1000000) (%normalize-bignum big))
         (values big exp sign)))))
@@ -249,7 +249,7 @@
   (cond ((double-float-p f) (%copy-double-float f (%make-dfloat)))
         ((macptrp f)
          (let ((float (%make-dfloat)))
-           (%copy-ptr-to-ivector f 0 float (* 4 arch::double-float.value-cell) 8)
+           (%copy-ptr-to-ivector f 0 float (* 4 ppc32::double-float.value-cell) 8)
            float))
         (t (error "Ilegal arg ~s to %copy-float" f))))
 

@@ -51,7 +51,7 @@
   ;;;
   (defmacro bignum-replace (dest src &key (start1 '0) end1 (start2 '0) end2
                                  from-end)
-    (arch::once-only ((n-dest dest)
+    (ppc32::once-only ((n-dest dest)
                      (n-src src))
       (if (and (eq start1 0)(eq start2 0)(null end1)(null end2)(null from-end))
         ; this is all true for some uses today <<
@@ -84,24 +84,24 @@
   (defconstant all-ones-half-digit #xFFFF)  
   
  (defmacro %logand (h1 l1 h2 l2)
-    (arch::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2)) ; export this plz
+    (ppc32::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2)) ; export this plz
       `(values (%ilogand ,h1v ,h2v)(%ilogand ,l1v ,l2v))))
   
   (defmacro %logior (h1 l1 h2 l2)
-    (arch::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
+    (ppc32::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
       `(values (%ilogior ,h1v ,h2v)(%ilogior ,l1v ,l2v))))
   
   (defmacro %logxor (h1 l1 h2 l2)
-    (arch::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
+    (ppc32::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
       `(values (%ilogxor ,h1v ,h2v)(%ilogxor ,l1v ,l2v))))
   
   
   (defmacro %lognot (h l)
-    (arch::once-only ((h1v h)(l1v l))
+    (ppc32::once-only ((h1v h)(l1v l))
       `(values (%ilognot ,h1v)(%ilognot ,l1v))))
 
   (defmacro %allocate-bignum (ndigits)
-    `(%alloc-misc ,ndigits arch::subtag-bignum))
+    `(%alloc-misc ,ndigits ppc32::subtag-bignum))
 
   (defmacro %normalize-bignum-macro (big)
     `(%normalize-bignum-2 t ,big))
@@ -127,7 +127,7 @@
 
 
 ;(defun %allocate-bignum (ndigits)
-;  (%alloc-misc ndigits arch::subtag-bignum))
+;  (%alloc-misc ndigits ppc32::subtag-bignum))
 
 ;;; Extract the length of the bignum.
 ;;; 
@@ -1606,7 +1606,7 @@
       ; might as well make a fixnum if possible
       (if no-rem
         q
-        (if (> (%digits-sign-bits r-h r-l)  arch::fixnumshift)
+        (if (> (%digits-sign-bits r-h r-l)  ppc32::fixnumshift)
           (values q (%ilogior (%ilsl 16 r-h) r-l))
           (let ((rem (%allocate-bignum 1)))
             (%bignum-set rem 0 r-h r-l)
@@ -1623,7 +1623,7 @@
       (digit-bind (y-h y-l) (%bignum-ref y 0)
         (multiple-value-setq (r-h r-l)(%floor-loop-no-quo x y-h y-l))
         ; might as well make a fixnum if possible
-        (if (> (%digits-sign-bits r-h r-l)  arch::fixnumshift)
+        (if (> (%digits-sign-bits r-h r-l)  ppc32::fixnumshift)
           (%ilogior (%ilsl 16 r-h) r-l)
           (let ((rem (%allocate-bignum 1)))
             (%bignum-set rem 0 r-h r-l)
@@ -1979,11 +1979,11 @@
 
 (defun load-byte (size position integer)
   (if (and (bignump integer)
-           (<= size (- 31 arch::fixnumshift)) #|#.(integer-length most-positive-fixnum))|#
+           (<= size (- 31 ppc32::fixnumshift)) #|#.(integer-length most-positive-fixnum))|#
            (fixnump position))
     (%ldb-fixnum-from-bignum integer size position)
     (let ((mask (byte-mask size)))
-      (if (and (fixnump mask) (fixnump integer)(fixnump position)) ;(<= position (- 31 arch::fixnumshift)))
+      (if (and (fixnump mask) (fixnump integer)(fixnump position)) ;(<= position (- 31 ppc32::fixnumshift)))
         ; %iasr was busted when count > 31 - maybe just shouldn't use it
         (%ilogand mask (%iasr position integer))
         (logand mask (ash integer (- position)))))))    

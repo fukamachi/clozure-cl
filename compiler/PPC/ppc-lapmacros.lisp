@@ -64,7 +64,7 @@
 ;; traps use unsigned comparisons.)
 (defppclapmacro event-poll ()
   '(progn
-     (lwz nargs arch::tcr.interrupt-level rcontext)
+     (lwz nargs ppc32::tcr.interrupt-level rcontext)
      (twgti nargs 0)))
 
 ;; The general idea is that storing zero N bytes beyond the end of
@@ -118,10 +118,10 @@
   `(progn
     ,@(if save-pc 
 	  '((save-pc)))
-    (stwu sp (- ppc::lisp-frame.size) sp)
-    (stw fn ppc::lisp-frame.savefn sp)
-    (stw loc-pc ppc::lisp-frame.savelr sp)
-    (stw ,vsp ppc::lisp-frame.savevsp sp)
+    (stwu sp (- ppc32::lisp-frame.size) sp)
+    (stw fn ppc32::lisp-frame.savefn sp)
+    (stw loc-pc ppc32::lisp-frame.savelr sp)
+    (stw ,vsp ppc32::lisp-frame.savevsp sp)
     (mr fn nfn)))
 
 ;;; There are a few cases to deal with when restoring: whether or not
@@ -133,11 +133,11 @@
 ;;; function's constants.
 (defppclapmacro restore-full-lisp-context (&optional (vsp 'vsp))
   `(progn
-     (lwz loc-pc ppc::lisp-frame.savelr sp)
-     (lwz ,vsp ppc::lisp-frame.savevsp sp)
+     (lwz loc-pc ppc32::lisp-frame.savelr sp)
+     (lwz ,vsp ppc32::lisp-frame.savevsp sp)
      (mtlr loc-pc)
-     (lwz fn ppc::lisp-frame.savefn sp)
-     (la sp ppc::lisp-frame.size sp)))
+     (lwz fn ppc32::lisp-frame.savefn sp)
+     (la sp ppc32::lisp-frame.size sp)))
 
 (defppclapmacro restore-pc ()
   `(mtlr loc-pc))
@@ -160,39 +160,39 @@
   `(pop ,dest vsp))
 
 (defppclapmacro %cdr (dest node)
-  `(lwz ,dest arch::cons.cdr ,node))
+  `(lwz ,dest ppc32::cons.cdr ,node))
 
 (defppclapmacro %car (dest node)
-  `(lwz ,dest arch::cons.car ,node))
+  `(lwz ,dest ppc32::cons.car ,node))
 
 (defppclapmacro extract-lisptag (dest node)
-  `(clrlwi ,dest ,node (- 32 arch::nlisptagbits)))
+  `(clrlwi ,dest ,node (- 32 ppc32::nlisptagbits)))
 
 (defppclapmacro extract-fulltag (dest node)
-  `(clrlwi ,dest ,node (- 32 arch::ntagbits)))
+  `(clrlwi ,dest ,node (- 32 ppc32::ntagbits)))
 
 (defppclapmacro extract-subtag (dest node)
-  `(lbz ,dest arch::misc-subtag-offset ,node))
+  `(lbz ,dest ppc32::misc-subtag-offset ,node))
 
 (defppclapmacro extract-typecode (dest node &optional (crf :cr0))
   `(progn
      (extract-lisptag ,dest ,node)
-     (cmpwi ,crf ,dest arch::tag-misc)
+     (cmpwi ,crf ,dest ppc32::tag-misc)
      (if (,crf :eq)
        (extract-subtag ,dest ,node))))
 
-(defppclapmacro trap-unless-lisptag= (node tag &optional (immreg ppc::imm0))
+(defppclapmacro trap-unless-lisptag= (node tag &optional (immreg ppc32::imm0))
   `(progn
      (extract-lisptag ,immreg ,node)
      (twnei ,immreg ,tag)))
 
-(defppclapmacro trap-unless-fulltag= (node tag &optional (immreg ppc::imm0))
+(defppclapmacro trap-unless-fulltag= (node tag &optional (immreg ppc32::imm0))
   `(progn
      (extract-fulltag ,immreg ,node)
      (twnei ,immreg ,tag)))
 
 
-(defppclapmacro trap-unless-typecode= (node tag &optional (immreg ppc::imm0) (crf :cr0))
+(defppclapmacro trap-unless-typecode= (node tag &optional (immreg ppc32::imm0) (crf :cr0))
   `(progn
      (extract-typecode ,immreg ,node ,crf)
      (twnei ,immreg ,tag)))
@@ -205,8 +205,8 @@
 (defppclapmacro call-symbol (function-name)
   `(progn
      (load-constant fname ,function-name)
-     (lwz nfn arch::symbol.fcell fname)
-     (lwz loc-pc arch::misc-data-offset nfn)
+     (lwz nfn ppc32::symbol.fcell fname)
+     (lwz loc-pc ppc32::misc-data-offset nfn)
      (mtctr loc-pc)
      (bctrl)))
 
@@ -216,26 +216,26 @@
      (bla .SPjmpsym)))
 
 (defppclapmacro getvheader (dest src)
-  `(lwz ,dest arch::misc-header-offset ,src))
+  `(lwz ,dest ppc32::misc-header-offset ,src))
 
 ;; "Size" is unboxed element-count.
 (defppclapmacro header-size (dest vheader)
-  `(srwi ,dest ,vheader arch::num-subtag-bits))
+  `(srwi ,dest ,vheader ppc32::num-subtag-bits))
 
 ;; "Length" is fixnum element-count.
 (defppclapmacro header-length (dest vheader)
   `(rlwinm ,dest 
            ,vheader 
-           (- arch::nbits-in-word (- arch::num-subtag-bits arch::nfixnumtagbits))
-           (- arch::num-subtag-bits arch::nfixnumtagbits)
-           (- arch::least-significant-bit arch::nfixnumtagbits)))
+           (- ppc32::nbits-in-word (- ppc32::num-subtag-bits ppc32::nfixnumtagbits))
+           (- ppc32::num-subtag-bits ppc32::nfixnumtagbits)
+           (- ppc32::least-significant-bit ppc32::nfixnumtagbits)))
 
 (defppclapmacro header-subtag[fixnum] (dest vheader)
   `(rlwinm ,dest
            ,vheader
-           arch::fixnumshift
-           (- arch::nbits-in-word (+ arch::num-subtag-bits arch::nfixnumtagbits))
-           (- arch::least-significant-bit arch::nfixnumtagbits)))
+           ppc32::fixnumshift
+           (- ppc32::nbits-in-word (+ ppc32::num-subtag-bits ppc32::nfixnumtagbits))
+           (- ppc32::least-significant-bit ppc32::nfixnumtagbits)))
 
 
 (defppclapmacro vector-size (dest v vheader)
@@ -255,81 +255,81 @@
 
 (defppclapmacro vref32 (dest miscobj index scaled-idx)
   `(progn
-     (la ,scaled-idx arch::misc-data-offset ,index)
+     (la ,scaled-idx ppc32::misc-data-offset ,index)
      (lwzx ,dest ,miscobj ,scaled-idx)))
 
 ;; The simple (no-memoization) case.
 (defppclapmacro vset32 (src miscobj index scaled-idx)
   `(progn
-     (la ,scaled-idx arch::misc-data-offset ,index)
+     (la ,scaled-idx ppc32::misc-data-offset ,index)
      (stwx ,src ,miscobj ,scaled-idx)))
 
 (defppclapmacro extract-lowbyte (dest src)
   `(clrlwi ,dest ,src (- 32 8)))
 
 (defppclapmacro unbox-fixnum (dest src)
-  `(srawi ,dest ,src arch::fixnumshift))
+  `(srawi ,dest ,src ppc32::fixnumshift))
 
 (defppclapmacro box-fixnum (dest src)
-  `(slwi ,dest ,src arch::fixnumshift))
+  `(slwi ,dest ,src ppc32::fixnumshift))
 
 
 
 ; If crf is specified, type checks src
 (defppclapmacro unbox-base-char (dest src &optional crf)
   (if (null crf)
-    `(srwi ,dest ,src arch::charcode-shift)
+    `(srwi ,dest ,src ppc32::charcode-shift)
     (let ((label (gensym)))
       `(progn
          (rlwinm ,dest ,src 8 16 31)
-         (cmpwi ,crf ,dest (ash arch::subtag-character 8))
-         (srwi ,dest ,src arch::charcode-shift)
+         (cmpwi ,crf ,dest (ash ppc32::subtag-character 8))
+         (srwi ,dest ,src ppc32::charcode-shift)
          (beq+ ,crf ,label)
-         (uuo_interr arch::error-object-not-base-char ,src)
+         (uuo_interr ppc32::error-object-not-base-char ,src)
          ,label))))
 
 ; If crf is specified, type checks src
 (defppclapmacro unbox-character (dest src &optional crf)
   (if (null crf)
-    `(srwi ,dest ,src arch::charcode-shift)
+    `(srwi ,dest ,src ppc32::charcode-shift)
     (let ((label (gensym)))
       `(progn
          (clrlwi ,dest ,src 24)
-         (cmpwi ,crf ,dest arch::subtag-character)
-         (srwi ,dest ,src arch::charcode-shift)
+         (cmpwi ,crf ,dest ppc32::subtag-character)
+         (srwi ,dest ,src ppc32::charcode-shift)
          (beq+ ,crf ,label)
-         (uuo_interr arch::error-object-not-character ,src)
+         (uuo_interr ppc32::error-object-not-character ,src)
          ,label))))
 
 (defppclapmacro box-character (dest src)
   `(progn
-     (li ,dest arch::subtag-character)
+     (li ,dest ppc32::subtag-character)
      (rlwimi ,dest ,src 16 0 15)))
 
 (defppclapmacro ref-global (reg sym)
-  (let* ((offset (arch::%kernel-global sym)))
-    `(lwz ,reg (+ ,offset ppc::nil-value) 0)))
+  (let* ((offset (ppc32::%kernel-global sym)))
+    `(lwz ,reg (+ ,offset ppc32::nil-value) 0)))
 
 (defppclapmacro set-global (reg sym)
-  (let* ((offset (arch::%kernel-global sym)))
-    `(stw ,reg (+ ,offset ppc::nil-value) 0)))
+  (let* ((offset (ppc32::%kernel-global sym)))
+    `(stw ,reg (+ ,offset ppc32::nil-value) 0)))
 
 ; Set "dest" to those bits in "src" that are other than those
 ; that would be set if "src" is a fixnum and of type (unsigned-byte "width").
 ; If no bits are set in "dest", then "src" is indeed of type (unsigned-byte "width").
 (defppclapmacro extract-unsigned-byte-bits (dest src width)
-  `(rlwinm ,dest ,src 0 (- 32 arch::fixnumshift) (- 31 (+ ,width arch::fixnumshift))))
+  `(rlwinm ,dest ,src 0 (- 32 ppc32::fixnumshift) (- 31 (+ ,width ppc32::fixnumshift))))
 
 ; As above, but set (:CR0 :EQ) according to the result.
 (defppclapmacro extract-unsigned-byte-bits. (dest src width)
-  `(rlwinm. ,dest ,src 0 (- 32 arch::fixnumshift) (- 31 (+ ,width arch::fixnumshift))))
+  `(rlwinm. ,dest ,src 0 (- 32 ppc32::fixnumshift) (- 31 (+ ,width ppc32::fixnumshift))))
 
 
 ;;; from/blame slh:
 
 ; setpred depends on this
 (eval-when (:compile-toplevel :execute :load-toplevel)
-  (assert (= arch::t-offset #x11)))
+  (assert (= ppc32::t-offset #x11)))
 
 (defppclapmacro setpred (dest crf cc-bit &optional (temp 'imm0))
   (let ((shift (+ (* (position crf '(:cr0 :cr1 :cr2 :cr3 :cr4 :cr5 :cr6 :cr7)) 4)
@@ -339,19 +339,19 @@
        (mfcr ,temp)
        (rlwinm ,temp ,temp ,shift 31 31)    ; get  1 bit
        (rlwimi ,temp ,temp      4 27 27)    ; get 16 bit
-       (addi ,dest ,temp ppc::nil-value))))
+       (addi ,dest ,temp ppc32::nil-value))))
 
 ; You generally don't want to have to say "mfcr": it crosses functional
 ; units and forces synchronization (all preceding insns must complete,
 ; no subsequent insns may start.)
-; There are often algebraic ways of computing arch::t-offset:
+; There are often algebraic ways of computing ppc32::t-offset:
 
 (defppclapmacro eq0->boolean (dest src temp)
   `(progn
      (cntlzw ,temp ,src)                ; 32 leading zeros if (= rx ry)
      (srwi ,temp ,temp 5)               ; temp = (rx == ry), C-wise
-     (rlwimi ,temp ,temp 4 27 27)       ; temp = arch::t-offset or 0
-     (addi ,dest ,temp ppc::nil-value))) ; dest = (eq rx ry), lisp-wise
+     (rlwimi ,temp ,temp 4 27 27)       ; temp = ppc32::t-offset or 0
+     (addi ,dest ,temp ppc32::nil-value))) ; dest = (eq rx ry), lisp-wise
 
 (defppclapmacro eq->boolean (dest rx ry temp)
   `(progn
@@ -362,7 +362,7 @@
 (defppclapmacro bit0->boolean (dest src temp)
   `(progn
     (rlwimi ,temp ,src 4 27 27)
-    (addi ,dest ,temp ppc::nil-value)))
+    (addi ,dest ,temp ppc32::nil-value)))
 
 (defppclapmacro repeat (n inst)
   (let* ((insts ()))
@@ -370,19 +370,19 @@
       (push inst insts))))
 
 (defppclapmacro get-single-float (dest node)
-  `(lfs ,dest arch::single-float.value ,node))
+  `(lfs ,dest ppc32::single-float.value ,node))
 
 (defppclapmacro get-double-float (dest node)
-  `(lfd ,dest arch::double-float.value ,node))
+  `(lfd ,dest ppc32::double-float.value ,node))
 
 (defppclapmacro put-single-float (src node)
-  `(stfs ,src arch::single-float.value ,node))
+  `(stfs ,src ppc32::single-float.value ,node))
 
 (defppclapmacro put-double-float (src node)
-  `(stfd ,src arch::double-float.value ,node))
+  `(stfd ,src ppc32::double-float.value ,node))
 
 (defppclapmacro clear-fpu-exceptions ()
-  `(mtfsf #xfc #.ppc::fp-zero))
+  `(mtfsf #xfc #.ppc32::fp-zero))
 
 (defppclapmacro get-boxed-sign (dest src crf)
   `(progn
@@ -393,28 +393,28 @@
 
 ; from ppc-bignum.lisp
 (defppclapmacro digit-h (dest src)
-  `(rlwinm ,dest ,src (+ 16 arch::fixnumshift) (- 16 arch::fixnumshift) (- 31 arch::fixnumshift)))
+  `(rlwinm ,dest ,src (+ 16 ppc32::fixnumshift) (- 16 ppc32::fixnumshift) (- 31 ppc32::fixnumshift)))
 
 ; from ppc-bignum.lisp
 (defppclapmacro digit-l (dest src)
-  `(clrlslwi ,dest ,src 16 arch::fixnumshift))
+  `(clrlslwi ,dest ,src 16 ppc32::fixnumshift))
   
 ; from ppc-bignum.lisp
 (defppclapmacro compose-digit (dest high low)
   `(progn
-     (rlwinm ,dest ,low (- arch::nbits-in-word arch::fixnumshift) 16 31)
-     (rlwimi ,dest ,high (- 16 arch::fixnumshift) 0 15)))
+     (rlwinm ,dest ,low (- ppc32::nbits-in-word ppc32::fixnumshift) 16 31)
+     (rlwimi ,dest ,high (- 16 ppc32::fixnumshift) 0 15)))
 
 (defppclapmacro macptr-ptr (dest macptr)
-  `(lwz ,dest arch::macptr.address ,macptr))
+  `(lwz ,dest ppc32::macptr.address ,macptr))
 
 (defppclapmacro svref (dest index vector)
-  `(lwz ,dest (+ (* 4 ,index) arch::misc-data-offset) ,vector))
+  `(lwz ,dest (+ (* 4 ,index) ppc32::misc-data-offset) ,vector))
 
 ; This evals its args in the wrong order.
 ; Can't imagine any code will care.
 (defppclapmacro svset (new-value index vector)
-  `(stw ,new-value (+ (* 4 ,index) arch::misc-data-offset) ,vector))
+  `(stw ,new-value (+ (* 4 ,index) ppc32::misc-data-offset) ,vector))
 
 (defppclapmacro vpush-argregs ()
   (let* ((none (gensym))
@@ -438,8 +438,8 @@
 ; doesn't work if fp-reg contains a NaN.
 
 (defppclapmacro zero-fp-reg (fp-reg)
-  (let* ((offset (arch::kernel-global short-float-zero)))
-    `(lfs ,fp-reg (+ ,offset ppc::nil-value) 0)))
+  (let* ((offset (ppc32::kernel-global short-float-zero)))
+    `(lfs ,fp-reg (+ ,offset ppc32::nil-value) 0)))
 
 
 
@@ -514,11 +514,11 @@
 	(stwu tsp -16 tsp)
 	(stw tsp 4 tsp))
       `(progn
-	(la ,tempreg ,(- (ash (1+ n) 4)) ppc::tsp)
+	(la ,tempreg ,(- (ash (1+ n) 4)) ppc32::tsp)
 	(clrrwi ,tempreg ,tempreg 4)	; align to 16-byte boundary
-	(sub ,tempreg ,tempreg ppc::tsp) ; calculate (aligned) frame size.
-	(stwux ppc::tsp ppc::tsp ,tempreg)
-	(stw ppc::tsp 4 ppc::tsp)))	; non-zero: non-lisp
+	(sub ,tempreg ,tempreg ppc32::tsp) ; calculate (aligned) frame size.
+	(stwux ppc32::tsp ppc32::tsp ,tempreg)
+	(stw ppc32::tsp 4 ppc32::tsp)))	; non-zero: non-lisp
     `(progn)))
 
 ;;; Save the current value of the VRSAVE spr in the newly-created
@@ -550,8 +550,8 @@
           (regs nvrs (cdr regs)))
          ((null regs) `(progn ,@(nreverse insts)))
       (declare (fixnum offset))
-      (push `(la ,tempreg ,offset ppc::tsp) insts)
-      (push `(stvx ,(car regs) ppc::rzero ,tempreg) insts))))
+      (push `(la ,tempreg ,offset ppc32::tsp) insts)
+      (push `(stvx ,(car regs) ppc32::rzero ,tempreg) insts))))
 
 
 ;;; Pretty much the same idea, only we restore VRSAVE first and
@@ -563,13 +563,13 @@
          ((null regs) `(progn
 			,@ (when *altivec-lapmacros-maintain-vrsave-p*
 			     `((progn
-				 (lwz ,tempreg 8 ppc::tsp)
+				 (lwz ,tempreg 8 ppc32::tsp)
 				 (mtspr 256 ,tempreg))))
 			,@(nreverse loads)
-			(lwz ppc::tsp 0 ppc::tsp)))
+			(lwz ppc32::tsp 0 ppc32::tsp)))
       (declare (fixnum offset))
-      (push `(la ,tempreg ,offset ppc::tsp) loads)
-      (push `(lvx ,(car regs) ppc::rzero ,tempreg) loads))))
+      (push `(la ,tempreg ,offset ppc32::tsp) loads)
+      (push `(lvx ,(car regs) ppc32::rzero ,tempreg) loads))))
 
 
 (defun %extract-non-volatile-vector-registers (vector-reg-list)
@@ -598,7 +598,7 @@
 ;;;   tail-call, establish a catch or unwind-protect frame, etc.
 ;;;   It -can- contain lisp or foreign function calls.
 
-(defppclapmacro %with-altivec-registers ((&key (immreg 'ppc::imm0)) reglist &body body)
+(defppclapmacro %with-altivec-registers ((&key (immreg 'ppc32::imm0)) reglist &body body)
   (let* ((mask (%vr-register-mask reglist))
          (nvrs (%extract-non-volatile-vector-registers reglist))
          (num-nvrs (length nvrs)))
@@ -654,7 +654,7 @@
 (defppclapfunction load-array ((n arg_z))
   (check-nargs 1)
   (with-altivec-registers (vr1 vr2 vr3 vr27) ; Clobbers imm0
-    (li imm0 arch::misc-data-offset)
+    (li imm0 ppc32::misc-data-offset)
     (lvx vr1 arg_z imm0)		; load MSQ
     (lvsl vr27 arg_z imm0)		; set the permute vector
     (addi imm0 imm0 16)			; address of LSQ

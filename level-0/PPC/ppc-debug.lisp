@@ -30,7 +30,7 @@
   (vpush save0)
   (vpush save1)
   (vpush save2)
-  (trap-unless-typecode= str arch::subtag-simple-base-string)
+  (trap-unless-typecode= str ppc32::subtag-simple-base-string)
   (let ((size imm0)
         (header imm1)
         (length save1)
@@ -46,11 +46,11 @@
     (neg imm2 imm2)
     (stwux tsp tsp imm2)
     (stw tsp 4 tsp)                     ; not-lisp
-    (li imm2 (logior (ash 1 arch::num-subtag-bits) arch::subtag-macptr))
+    (li imm2 (logior (ash 1 ppc32::num-subtag-bits) ppc32::subtag-macptr))
     (la imm3 16 tsp)
     (stw imm2 8 tsp)
     (stw imm3 12 tsp)
-    (la ptr (+ 8 arch::fulltag-misc) tsp)
+    (la ptr (+ 8 ppc32::fulltag-misc) tsp)
     (vpush string)                      ; source ivector
     (vpush rzero)                       ; source-byte-offset
     (mr arg_x ptr)                      ; dest macptr

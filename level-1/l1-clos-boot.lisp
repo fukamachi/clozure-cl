@@ -443,7 +443,7 @@
 
 (eval-when (:compile-toplevel :execute)
   (defmacro make-structure-vector (size)
-    `(%alloc-misc ,size arch::subtag-struct nil))
+    `(%alloc-misc ,size ppc32::subtag-struct nil))
 
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; defmethod support ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1332,7 +1332,7 @@
 
 
 (defun standard-instance-p (i)
-  (eq (typecode i) arch::subtag-instance))
+  (eq (typecode i) ppc32::subtag-instance))
 
 
 (setf (type-predicate 'standard-instance) 'standard-instance-p)
@@ -1498,37 +1498,37 @@
 
 #+sparc-target
 (defsparclapfunction %class-of-instance ((i %arg_z))
-  (ld (i (+ (* instance.class-wrapper 4) arch::misc-data-offset)) %arg_z)
+  (ld (i (+ (* instance.class-wrapper 4) ppc32::misc-data-offset)) %arg_z)
   (retl)
-    (ld (%arg_z (+ (* %wrapper-class 4) arch::misc-data-offset)) %arg_z))
+    (ld (%arg_z (+ (* %wrapper-class 4) ppc32::misc-data-offset)) %arg_z))
 
 
 #+ppc-target
 (defppclapfunction class-of ((x arg_z))
   (check-nargs 1)
   (extract-fulltag imm0 x)  ; low8bits-of from here to done
-  (cmpwi cr0 imm0 arch::fulltag-misc)
+  (cmpwi cr0 imm0 ppc32::fulltag-misc)
   (beq cr0 @misc)
-  (clrlslwi imm0 x 24 arch::fixnumshift)   ; clear left 24 bits, box assume = make byte index 
+  (clrlslwi imm0 x 24 ppc32::fixnumshift)   ; clear left 24 bits, box assume = make byte index 
   (b @done)
   @misc
   (extract-subtag imm0 x)
   (box-fixnum imm0 imm0)  
   @done
-  (addi imm0 imm0 arch::misc-data-offset)
+  (addi imm0 imm0 ppc32::misc-data-offset)
   (lwz temp1 '*class-table* nfn)
-  (lwz temp1 arch::symbol.vcell temp1)
+  (lwz temp1 ppc32::symbol.vcell temp1)
   (lwzx temp0 temp1 imm0) ; get entry from table
-  (cmpwi cr0 temp0 ppc::nil-value)
+  (cmpwi cr0 temp0 ppc32::nil-value)
   (beq @bad)
   ; functionp?
   (extract-typecode imm1 temp0)
-  (cmpwi imm1 arch::subtag-function)
+  (cmpwi imm1 ppc32::subtag-function)
   (bne @ret)  ; not function - return entry
   ; else jump to the fn
-  ;(lwz temp0 arch::function.codevector temp0) ; like jump_nfn asm macro
+  ;(lwz temp0 ppc32::function.codevector temp0) ; like jump_nfn asm macro
   (mr nfn temp0)
-  (lwz temp0 arch::misc-data-offset temp0) ; get the ffing codevector
+  (lwz temp0 ppc32::misc-data-offset temp0) ; get the ffing codevector
   (SET-NARGS 1) ; maybe not needed
   (mtctr temp0)
   (bctr)
@@ -1732,72 +1732,72 @@
 (defparameter *class-table*
   (let* ((v (make-array 256 :initial-element nil)))
     ; Make one loop through the vector, initializing fixnum & list cells
-    ; Set all things of arch::fulltag-imm to *immediate-class*, then special-case
+    ; Set all things of ppc32::fulltag-imm to *immediate-class*, then special-case
     ; characters later.
     (do* ((slice 0 (+ 8 slice)))
          ((= slice 256))
       (declare (type (unsigned-byte 8) slice))
-      (setf (%svref v (+ slice arch::fulltag-even-fixnum)) *fixnum-class*
-            (%svref v (+ slice arch::fulltag-odd-fixnum))  *fixnum-class*
-            (%svref v (+ slice arch::fulltag-cons)) *cons-class*
-            (%svref v (+ slice arch::fulltag-nil)) *null-class*
-            (%svref v (+ slice arch::fulltag-imm)) *immediate-class*))
+      (setf (%svref v (+ slice ppc32::fulltag-even-fixnum)) *fixnum-class*
+            (%svref v (+ slice ppc32::fulltag-odd-fixnum))  *fixnum-class*
+            (%svref v (+ slice ppc32::fulltag-cons)) *cons-class*
+            (%svref v (+ slice ppc32::fulltag-nil)) *null-class*
+            (%svref v (+ slice ppc32::fulltag-imm)) *immediate-class*))
     (macrolet ((map-subtag (subtag class-name)
                `(setf (%svref v ,subtag) (find-class ',class-name))))
       ; immheader types map to built-in classes.
-      (map-subtag arch::subtag-bignum bignum)
-      (map-subtag arch::subtag-double-float double-float)
-      (map-subtag arch::subtag-single-float short-float)
-      (map-subtag arch::subtag-macptr macptr)
-      (map-subtag arch::subtag-dead-macptr ivector)
-      (map-subtag arch::subtag-code-vector code-vector)
-      (map-subtag arch::subtag-creole-object creole-object)
-      (map-subtag arch::subtag-xcode-vector xcode-vector)
-      (map-subtag arch::subtag-xfunction xfunction)
-      (map-subtag arch::subtag-svar svar)
-      (map-subtag arch::subtag-single-float-vector simple-short-float-vector)
-      (map-subtag arch::subtag-u32-vector simple-unsigned-long-vector)
-      (map-subtag arch::subtag-s32-vector simple-long-vector)
-      (map-subtag arch::subtag-u8-vector simple-unsigned-byte-vector)
-      (map-subtag arch::subtag-s8-vector simple-byte-vector)
-      (map-subtag arch::subtag-simple-base-string simple-base-string)
-      (map-subtag arch::subtag-u16-vector simple-unsigned-word-vector)
-      (map-subtag arch::subtag-s16-vector simple-word-vector)
-      (map-subtag arch::subtag-double-float-vector simple-double-float-vector)
-      (map-subtag arch::subtag-bit-vector simple-bit-vector)
+      (map-subtag ppc32::subtag-bignum bignum)
+      (map-subtag ppc32::subtag-double-float double-float)
+      (map-subtag ppc32::subtag-single-float short-float)
+      (map-subtag ppc32::subtag-macptr macptr)
+      (map-subtag ppc32::subtag-dead-macptr ivector)
+      (map-subtag ppc32::subtag-code-vector code-vector)
+      (map-subtag ppc32::subtag-creole-object creole-object)
+      (map-subtag ppc32::subtag-xcode-vector xcode-vector)
+      (map-subtag ppc32::subtag-xfunction xfunction)
+      (map-subtag ppc32::subtag-svar svar)
+      (map-subtag ppc32::subtag-single-float-vector simple-short-float-vector)
+      (map-subtag ppc32::subtag-u32-vector simple-unsigned-long-vector)
+      (map-subtag ppc32::subtag-s32-vector simple-long-vector)
+      (map-subtag ppc32::subtag-u8-vector simple-unsigned-byte-vector)
+      (map-subtag ppc32::subtag-s8-vector simple-byte-vector)
+      (map-subtag ppc32::subtag-simple-base-string simple-base-string)
+      (map-subtag ppc32::subtag-u16-vector simple-unsigned-word-vector)
+      (map-subtag ppc32::subtag-s16-vector simple-word-vector)
+      (map-subtag ppc32::subtag-double-float-vector simple-double-float-vector)
+      (map-subtag ppc32::subtag-bit-vector simple-bit-vector)
       ; Some nodeheader types map to built-in-classes; others
       ; require further dispatching.
-      (map-subtag arch::subtag-ratio ratio)
-      (map-subtag arch::subtag-complex complex)
-      (map-subtag arch::subtag-catch-frame catch-frame)
-      (map-subtag arch::subtag-lisp-thread lisp-thread)
-      (map-subtag arch::subtag-hash-vector hash-table-vector)
-      (map-subtag arch::subtag-value-cell value-cell)
-      (map-subtag arch::subtag-pool pool)
-      (map-subtag arch::subtag-weak population)
-      (map-subtag arch::subtag-package package)
-      (map-subtag arch::subtag-simple-vector simple-vector)
-      (map-subtag arch::subtag-slot-vector slot-vector))
-    (setf (%svref v arch::subtag-arrayH) *array-class*)
+      (map-subtag ppc32::subtag-ratio ratio)
+      (map-subtag ppc32::subtag-complex complex)
+      (map-subtag ppc32::subtag-catch-frame catch-frame)
+      (map-subtag ppc32::subtag-lisp-thread lisp-thread)
+      (map-subtag ppc32::subtag-hash-vector hash-table-vector)
+      (map-subtag ppc32::subtag-value-cell value-cell)
+      (map-subtag ppc32::subtag-pool pool)
+      (map-subtag ppc32::subtag-weak population)
+      (map-subtag ppc32::subtag-package package)
+      (map-subtag ppc32::subtag-simple-vector simple-vector)
+      (map-subtag ppc32::subtag-slot-vector slot-vector))
+    (setf (%svref v ppc32::subtag-arrayH) *array-class*)
     ; These need to be special-cased:
-    (setf (%svref v arch::subtag-character)
+    (setf (%svref v ppc32::subtag-character)
           #'(lambda (c) (let* ((code (%char-code c)))
                             (if (or (eq c #\NewLine)
                                     (and (>= code (char-code #\space))
                                          (< code (char-code #\rubout))))
                               *standard-char-class*
 			      *base-char-class*))))
-    (setf (%svref v arch::subtag-struct)
+    (setf (%svref v ppc32::subtag-struct)
           #'(lambda (s) (%structure-class-of s)))       ; need DEFSTRUCT
-    (setf (%svref v arch::subtag-istruct)
+    (setf (%svref v ppc32::subtag-istruct)
           #'(lambda (i) (or (find-class (%svref i 0) nil) *istruct-class*)))
-    (setf (%svref v arch::subtag-instance)
+    (setf (%svref v ppc32::subtag-instance)
           #'%class-of-instance) ; #'(lambda (i) (%wrapper-class (instance.class-wrapper i))))
-    (setf (%svref v arch::subtag-symbol)
+    (setf (%svref v ppc32::subtag-symbol)
           #'(lambda (s) (if (eq (symbol-package s) *keyword-package*)
                           *keyword-class*
                           *symbol-class*)))
-    (setf (%svref v arch::subtag-function)
+    (setf (%svref v ppc32::subtag-function)
           #'(lambda (thing)
               (let ((bits (lfun-bits thing)))
                 (declare (fixnum bits))
@@ -1827,18 +1827,18 @@
                         (if (logbitp $lfbits-cm-bit bits)
                           *combined-method-class*
                           *compiled-function-class*))))))))
-    (setf (%svref v arch::subtag-vectorH)
+    (setf (%svref v ppc32::subtag-vectorH)
           #'(lambda (v)
               (let* ((subtype (%array-header-subtype v)))
                 (declare (fixnum subtype))
-                (if (eql subtype arch::subtag-simple-vector)
+                (if (eql subtype ppc32::subtag-simple-vector)
                   *general-vector-class*
                   (%svref *ivector-vector-classes*
-                          (ash (the fixnum (- subtype arch::min-cl-ivector-subtag))
-                               (- arch::ntagbits)))))))
-    (setf (%svref v arch::subtag-lock)
+                          (ash (the fixnum (- subtype ppc32::min-cl-ivector-subtag))
+                               (- ppc32::ntagbits)))))))
+    (setf (%svref v ppc32::subtag-lock)
           #'(lambda (thing)
-              (case (%svref thing arch::lock.kind-cell)
+              (case (%svref thing ppc32::lock.kind-cell)
                 (recursive-lock *recursive-lock-class*)
                 (read-write-lock *read-write-lock-class*)
                 (t *lock-class*))))

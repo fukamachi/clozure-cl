@@ -15,7 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 (defconstant array-total-size-limit 
-  #.(expt 2 (- arch::nbits-in-word arch::num-subtag-bits)))
+  #.(expt 2 (- ppc32::nbits-in-word ppc32::num-subtag-bits)))
 
 
 ;Features for #+/- conditionalization:

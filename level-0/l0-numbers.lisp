@@ -19,7 +19,7 @@
 
 (eval-when (:compile-toplevel :execute)
   (require "ARCH")
-  (defconstant arch::nfulltagbits arch::ntagbits)
+  (defconstant ppc32::nfulltagbits ppc32::ntagbits)
   (require "LISPEQU")
   (require "NUMBER-MACROS")
   (require "NUMBER-CASE-MACRO")
@@ -225,14 +225,14 @@
 
 (defun oddp (n)
   (case (typecode n)
-    (#.arch::tag-fixnum (logbitp 0 (the fixnum n)))
-    (#.arch::subtag-bignum (%bignum-oddp n))
+    (#.ppc32::tag-fixnum (logbitp 0 (the fixnum n)))
+    (#.ppc32::subtag-bignum (%bignum-oddp n))
     (t (report-bad-arg n 'integer))))
 
 (defun evenp (n)
   (case (typecode n)
-    (#.arch::tag-fixnum (not (logbitp 0 (the fixnum n))))
-    (#.arch::subtag-bignum (not (%bignum-oddp n)))
+    (#.ppc32::tag-fixnum (not (logbitp 0 (the fixnum n))))
+    (#.ppc32::subtag-bignum (not (%bignum-oddp n)))
     (t (report-bad-arg n 'integer))))
 
 ;; expansion slightly changed
@@ -937,15 +937,15 @@
     (ratio (truncate-no-rem (%numerator number) (%denominator number)))
     (double-float
      (if (and (< (the double-float number) 
-                 (float (1- (ash 1 (- (1- arch::nbits-in-word) arch::fixnumshift))) 0.0d0))
-              (< (float (ash -1 (- (1- arch::nbits-in-word) arch::fixnumshift)) 0.0d0)
+                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 0.0d0))
+              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 0.0d0)
 	         (the double-float number)))
        (%truncate-double-float->fixnum number)
        (%truncate-double-float number)))
     (short-float
      (if (and (< (the short-float number) 
-                 (float (1- (ash 1 (- (1- arch::nbits-in-word) arch::fixnumshift))) 0.0s0))
-              (< (float (ash -1 (- (1- arch::nbits-in-word) arch::fixnumshift)) 0.0s0)
+                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 0.0s0))
+              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 0.0s0)
 	         (the short-float number)))
        (%truncate-short-float->fixnum number)
        (%truncate-short-float number)))))
@@ -1145,8 +1145,8 @@
              (values q (- number q))))
     (double-float
      (if (and (< (the double-float number) 
-                 (float (1- (ash 1 (- (1- arch::nbits-in-word) arch::fixnumshift))) 1.0d0))
-              (< (float (ash -1 (- (1- arch::nbits-in-word) arch::fixnumshift)) 1.0d0)
+                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 1.0d0))
+              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 1.0d0)
                  (the double-float number)))
        (let ((round (%unary-round-to-fixnum number)))
          (values round (- number round)))
@@ -1160,8 +1160,8 @@
              (values (1- trunc) (+ 1.0d0 rem)))))))
     (short-float
      (if (and (< (the short-float number) 
-                 (float (1- (ash 1 (- (1- arch::nbits-in-word) arch::fixnumshift))) 1.0s0))
-              (< (float (ash -1 (- (1- arch::nbits-in-word) arch::fixnumshift)) 1.0s0)
+                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 1.0s0))
+              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 1.0s0)
                  (the double-float number)))
        (let ((round (%unary-round-to-fixnum number)))
          (values round (- number round)))
@@ -1528,7 +1528,7 @@
                    (declare (fixnum length count))
                    (cond ((and (plusp count)
                                (> (+ length count)
-                                  (- 31 arch::fixnumshift)))                          
+                                  (- 31 ppc32::fixnumshift)))                          
                           (with-small-bignum-buffers ((bi integer))
                             (bignum-ashift-left bi count)))
                          ((and (minusp count) (< count -31))
@@ -1579,8 +1579,8 @@
 	 (high (ldb (byte 16 16) ticks)) 
 	 (low (ldb (byte 16 0) ticks)))
     (declare (fixnum high low))
-    (values (the fixnum (ash high (- 16 arch::fixnum-shift)))
-            (the fixnum (ash low (- 16 arch::fixnum-shift))))))
+    (values (the fixnum (ash high (- 16 ppc32::fixnum-shift)))
+            (the fixnum (ash low (- 16 ppc32::fixnum-shift))))))
 
 
 
@@ -1608,7 +1608,7 @@
   (let* ((bits (+ (integer-length number) 8))
          (words (ash (the fixnum (+ bits 15)) -4))
          (long-words (ash (+ words 1) -1))
-         (dividend (%alloc-misc long-words arch::subtag-bignum 0))
+         (dividend (%alloc-misc long-words ppc32::subtag-bignum 0))
          (16-bit-dividend dividend)
          (index 1))
     (declare (fixnum long-words words words-2 index)

@@ -44,22 +44,22 @@
 
 
 (defppclapfunction %dfloat-hash ((key arg_z))
-  (lwz imm0 arch::double-float.value key)
-  (lwz imm1 arch::double-float.val-low key)
+  (lwz imm0 ppc32::double-float.value key)
+  (lwz imm1 ppc32::double-float.val-low key)
   (add imm0 imm0 imm1)
   (box-fixnum arg_z imm0)
   (blr))
 
 (defppclapfunction %sfloat-hash ((key arg_z))
-  (lwz imm0 arch::single-float.value key)
+  (lwz imm0 ppc32::single-float.value key)
   (box-fixnum arg_z imm0)
   (blr))
 
 (defppclapfunction %macptr-hash ((key arg_z))
-  (lwz imm0 arch::macptr.address key)
+  (lwz imm0 ppc32::macptr.address key)
   (slwi imm1 imm0 24)
   (add imm0 imm0 imm1)
-  (clrrwi arg_z imm0 arch::fixnumshift)
+  (clrrwi arg_z imm0 ppc32::fixnumshift)
   (blr))
 
 (defppclapfunction %bignum-hash ((key arg_z))
@@ -68,7 +68,7 @@
         (ndigits imm1)
         (immhash imm0))
     (li immhash 0)
-    (li offset arch::misc-data-offset)
+    (li offset ppc32::misc-data-offset)
     (getvheader header key)
     (header-size ndigits header)
     (let ((next header))
@@ -80,19 +80,19 @@
       (rotlwi immhash immhash 13)
       (add immhash immhash next)
       (bne cr0 @loop))
-    (clrrwi arg_z immhash arch::fixnumshift)
+    (clrrwi arg_z immhash ppc32::fixnumshift)
     (blr)))
 
       
 
 
 (defppclapfunction %get-fwdnum ()
-  (ref-global arg_z arch::fwdnum)
+  (ref-global arg_z ppc32::fwdnum)
   (blr))
 
 
 (defppclapfunction %get-gc-count ()
-  (ref-global arg_z arch::gc-count)
+  (ref-global arg_z ppc32::gc-count)
   (blr))
 
 
@@ -100,7 +100,7 @@
 ; ensure that the vector header gets memoized as well
 #+ppc-target
 (defppclapfunction %set-hash-table-vector-key ((vector arg_x) (index arg_y) (value arg_z))
-  (la imm0 arch::misc-data-offset index)
+  (la imm0 ppc32::misc-data-offset index)
   (stwx value vector imm0)
   (blr))
 

@@ -23,10 +23,10 @@
 ;;;;;;;;;
 ;; support fns and vars for number-case
 
-(defvar *type-to-typecode* `((fixnum . ,arch::tag-fixnum)(bignum . ,arch::subtag-bignum)
-                           (double-float . ,arch::subtag-double-float) 
-                           (short-float . ,arch::subtag-single-float)
-                           (ratio . ,arch::subtag-ratio)(complex . ,arch::subtag-complex)))
+(defvar *type-to-typecode* `((fixnum . ,ppc32::tag-fixnum)(bignum . ,ppc32::subtag-bignum)
+                           (double-float . ,ppc32::subtag-double-float) 
+                           (short-float . ,ppc32::subtag-single-float)
+                           (ratio . ,ppc32::subtag-ratio)(complex . ,ppc32::subtag-complex)))
 
 (defun type-name-to-code (name)
   (let ((res (cdr (assq name *type-to-typecode*))))
@@ -59,8 +59,8 @@
 ;; Simpler number dispatch. Syntax is just like case.
 ;;
 ;; (number-case x                 =>         (case (typecode x)
-;;     (fixnum (print 4))		        (arch::tag-fixnum (print 4)) ; actually tag value
-;;     ((bignum ratio)(print 5)))		((arch::tag-bignum arch::tag-ratio)(print 5))
+;;     (fixnum (print 4))		        (ppc32::tag-fixnum (print 4)) ; actually tag value
+;;     ((bignum ratio)(print 5)))		((ppc32::tag-bignum ppc32::tag-ratio)(print 5))
 ;;	                      			(t (require-type x 'rational)))) 
 ;;						  
 
@@ -114,4 +114,4 @@
                         ; this causes compiler to put event-check at top - phooey
                         (go ,tag)))))))))))
 
-(ccl::provide "NUMBER-CASE-MACRO")
+(provide "NUMBER-CASE-MACRO")

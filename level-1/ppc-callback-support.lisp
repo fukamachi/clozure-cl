@@ -31,22 +31,22 @@
 #+ppc-target
 (defppclapfunction %get-object ((macptr arg_y) (offset arg_z))
   (check-nargs 2)
-  (trap-unless-typecode= arg_y arch::subtag-macptr)
+  (trap-unless-typecode= arg_y ppc32::subtag-macptr)
   (macptr-ptr imm0 arg_y)
-  (trap-unless-lisptag= arg_z arch::tag-fixnum imm1)
+  (trap-unless-lisptag= arg_z ppc32::tag-fixnum imm1)
   (unbox-fixnum imm1 arg_z)
   (lwzx arg_z imm0 imm1)
   (blr))
 
 ;; It would be awfully nice if (setf (%get-long macptr offset)
-;;                                   (ash (the fixnum value) ppc::fixnumshift))
+;;                                   (ash (the fixnum value) ppc32::fixnumshift))
 ;; would do this inline.
 #+ppc-target
 (defppclapfunction %set-object ((macptr arg_x) (offset arg_y) (value arg_z))
   (check-nargs 3)
-  (trap-unless-typecode= arg_x arch::subtag-macptr)
+  (trap-unless-typecode= arg_x ppc32::subtag-macptr)
   (macptr-ptr imm0 arg_x)
-  (trap-unless-lisptag= arg_y arch::tag-fixnum imm1)
+  (trap-unless-lisptag= arg_y ppc32::tag-fixnum imm1)
   (unbox-fixnum imm1 arg_y)
   (stwx arg_z imm0 imm1)
   (blr))
@@ -74,7 +74,7 @@
             (%get-long p 12) (logior index (ppc-lap-word (li 11 ??)))   ; unboxed index
 	    (%get-word p 14) index
             (%get-long p 16) (ppc-lap-word (bctr)))
-      (ff-call (%kernel-import #.arch::kernel-import-makedataexecutable) 
+      (ff-call (%kernel-import #.ppc32::kernel-import-makedataexecutable) 
                :address p 
                :unsigned-fullword 20
                :void)

@@ -26,10 +26,10 @@
   )
 
 (defmacro %make-sfloat ()
-  `(%alloc-misc arch::single-float.element-count arch::subtag-single-float))
+  `(%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float))
 
 (defmacro %make-dfloat ()
-  `(%alloc-misc arch::double-float.element-count arch::subtag-double-float))
+  `(%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float))
 
 (defmacro require-null-or-double-float-sym (sym)
   (setq sym (require-type sym 'symbol))
@@ -40,25 +40,25 @@
 
 
 (defmacro %numerator (x)
-  `(%svref ,x arch::ratio.numer-cell))
+  `(%svref ,x ppc32::ratio.numer-cell))
 
 (defmacro %denominator (x)
-  `(%svref ,x arch::ratio.denom-cell))
+  `(%svref ,x ppc32::ratio.denom-cell))
 
 (defmacro %realpart (x)
-  `(%svref ,x arch::complex.realpart-cell))
+  `(%svref ,x ppc32::complex.realpart-cell))
 
 (defmacro %imagpart (x)
-  `(%svref ,x arch::complex.imagpart-cell))
+  `(%svref ,x ppc32::complex.imagpart-cell))
 
 
 (defmacro with-stack-double-floats (specs &body body)
-    (arch::collect ((binds)
+    (ppc32::collect ((binds)
                    (inits)
                    (names))
       (dolist (spec specs)
         (let ((name (first spec)))
-          (binds `(,name (%alloc-misc arch::double-float.element-count arch::subtag-double-float)))
+          (binds `(,name (%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float)))
           (names name)
           (let ((init (second spec)))
             (when init
@@ -72,12 +72,12 @@
 (setf (macro-function 'with-ppc-stack-double-floats) (macro-function 'with-stack-double-floats))
 
 (defmacro with-stack-short-floats (specs &body body)
-    (arch::collect ((binds)
+    (ppc32::collect ((binds)
                    (inits)
                    (names))
       (dolist (spec specs)
         (let ((name (first spec)))
-          (binds `(,name (%alloc-misc arch::single-float.element-count arch::subtag-single-float)))
+          (binds `(,name (%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float)))
           (names name)
           (let ((init (second spec)))
             (when init
@@ -119,13 +119,13 @@
   ;;;
 (defmacro with-bignum-buffers (specs &body body)  ; <<
   "WITH-BIGNUM-BUFFERS ({(var size [init])}*) Form*"
-  (arch::collect ((binds)
+  (ppc32::collect ((binds)
                  (inits)
                  (names))
     (dolist (spec specs)
       (let ((name (first spec))
             (size (second spec)))
-        (binds `(,name (%alloc-misc ,size arch::subtag-bignum)))
+        (binds `(,name (%alloc-misc ,size ppc32::subtag-bignum)))
         (names name)          
         (let ((init (third spec)))
           (when init
@@ -169,12 +169,12 @@
   `(%fixnum-to-bignum-set ,big ,fix))
 
 (defmacro with-small-bignum-buffers (specs &body body)
-  (arch::collect ((binds)
+  (ppc32::collect ((binds)
 		  (inits)
 		  (names))
 		 (dolist (spec specs)
 		   (let ((name (first spec)))
-		     (binds `(,name (%alloc-misc 1 arch::subtag-bignum)))
+		     (binds `(,name (%alloc-misc 1 ppc32::subtag-bignum)))
 		     (names name)
 		     (let ((init (second spec)))
 		       (when init

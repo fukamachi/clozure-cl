@@ -69,18 +69,18 @@
   (let* ((tag (gensym)))
     `(let* ((,tag (lisptag ,thing)))
       (declare (fixnum ,tag))
-      (or (= ,tag arch::tag-fixnum)
-       (= ,tag arch::tag-imm)))))
+      (or (= ,tag ppc32::tag-fixnum)
+       (= ,tag ppc32::tag-imm)))))
 
 (defmacro hashed-by-identity (thing)
   (let* ((typecode (gensym)))
     `(let* ((,typecode (typecode ,thing)))
       (declare (fixnum ,typecode))
       (or
-       (= ,typecode arch::tag-fixnum)
-       (= ,typecode arch::tag-imm)
-       (= ,typecode arch::subtag-symbol)
-       (= ,typecode arch::subtag-instance)))))
+       (= ,typecode ppc32::tag-fixnum)
+       (= ,typecode ppc32::tag-imm)
+       (= ,typecode ppc32::subtag-symbol)
+       (= ,typecode ppc32::subtag-instance)))))
           
 	 
   

@@ -450,7 +450,7 @@
 
 
 (defun ctype-p (x)
-  (and (eql (typecode x) arch::subtag-istruct)
+  (and (eql (typecode x) ppc32::subtag-istruct)
        (memq (%svref x 0) 
              '#.(cons 'ctype 
                       (cons 'unknown-ctype                             

@@ -1613,7 +1613,7 @@ Or something. Right? ~s ~s" var varbits))
 ;  we can save some space by going through subprims to call
 ; "builtin" functions for us.
 (defun nx1-builtin-function-offset (name)
-   (arch::builtin-function-name-offset name))
+   (ppc32::builtin-function-name-offset name))
 
 (defun nx1-call-form (global-name afunc arglist spread-p)
   (if afunc

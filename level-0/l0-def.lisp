@@ -138,13 +138,13 @@
 
 (defun %fhave (name def)
   (let* ((fname (validate-function-name name)))
-    (setf (%svref (%symbol->symptr fname) arch::symbol.fcell-cell) def)))
+    (setf (%svref (%symbol->symptr fname) ppc32::symbol.fcell-cell) def)))
 
 ; FBOUNDP is true of any symbol whose function-cell contains something other
 ; than %unbound-function%; we expect FBOUNDP to return that something.
 (defun fboundp (name)
   (let* ((fname (validate-function-name name))
-         (def (%svref (%symbol->symptr fname) arch::symbol.fcell-cell)))
+         (def (%svref (%symbol->symptr fname) ppc32::symbol.fcell-cell)))
     (unless (eq def %unbound-function%)
       def)))
 
@@ -153,8 +153,8 @@
 
 (defun %unfhave (sym)
   (let* ((symptr (%symbol->symptr sym))
-         (old (%svref symptr arch::symbol.fcell-cell)))
-    (setf (%svref symptr arch::symbol.fcell-cell) %unbound-function%)
+         (old (%svref symptr ppc32::symbol.fcell-cell)))
+    (setf (%svref symptr ppc32::symbol.fcell-cell) %unbound-function%)
     (not (eq old %unbound-function%))))
 
 ; It's guaranteed that lfun-bits is a fixnum.  Might be a 30-bit fixnum ...

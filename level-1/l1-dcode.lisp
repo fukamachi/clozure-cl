@@ -245,25 +245,25 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 (defmacro %standard-instance-p (i)
-  `(eq (typecode ,i) arch::subtag-instance))
+  `(eq (typecode ,i) ppc32::subtag-instance))
 
 #+ppc-target
 (defppclapfunction %apply-lexpr-with-method-context ((magic arg_x)
                                                    (function arg_y)
                                                    (args arg_z))
   ; Somebody's called (or tail-called) us.
-  ; Put magic arg in ppc::next-method-context (= ppc::temp1).
-  ; Put function in ppc::nfn (= ppc::temp2).
+  ; Put magic arg in ppc32::next-method-context (= ppc32::temp1).
+  ; Put function in ppc32::nfn (= ppc32::temp2).
   ; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;   but preserves ppc::nfn/ppc::next-method-context.
-  ; Jump to the function in ppc::nfn.
-  (mr ppc::next-method-context magic)
-  (mr ppc::nfn function)
+  ;   but preserves ppc32::nfn/ppc32::next-method-context.
+  ; Jump to the function in ppc32::nfn.
+  (mr ppc32::next-method-context magic)
+  (mr ppc32::nfn function)
   (set-nargs 0)
   (mflr loc-pc)
   (bla .SPspread-lexpr-z)
   (mtlr loc-pc)
-  (lwz temp0 arch::misc-data-offset nfn)
+  (lwz temp0 ppc32::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
 
@@ -275,18 +275,18 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                                (function arg_y)
                                                (args arg_z))
   ;; Somebody's called (or tail-called) us.
-  ;; Put magic arg in ppc::next-method-context (= ppc::temp1).
-  ;; Put function in ppc::nfn (= ppc::temp2).
+  ;; Put magic arg in ppc32::next-method-context (= ppc32::temp1).
+  ;; Put function in ppc32::nfn (= ppc32::temp2).
   ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;;   but preserves ppc::nfn/ppc::next-method-context.
-  ;; Jump to the function in ppc::nfn.
-  (mr ppc::next-method-context magic)
-  (mr ppc::nfn function)
+  ;;   but preserves ppc32::nfn/ppc32::next-method-context.
+  ;; Jump to the function in ppc32::nfn.
+  (mr ppc32::next-method-context magic)
+  (mr ppc32::nfn function)
   (set-nargs 0)
   (mflr loc-pc)
   (bla .SPspreadargZ)
   (mtlr loc-pc)
-  (lwz temp0 arch::misc-data-offset nfn)
+  (lwz temp0 ppc32::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
 
@@ -433,7 +433,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (svref arg_y gf.dispatch-table nfn) ; dispatch table
       (set-nargs 2)
       (svref nfn gf.dcode nfn)		; dcode function
-      (lwz temp0 arch::misc-data-offset nfn)
+      (lwz temp0 ppc32::misc-data-offset nfn)
       (mtctr temp0)
       (bctr)))))
 
@@ -471,7 +471,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (svref arg_y gf.dispatch-table nfn) ; mention dt first
   (set-nargs 2)
   (svref nfn gf.dcode nfn)
-  (lwz temp0 arch::misc-data-offset nfn)
+  (lwz temp0 ppc32::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
 
@@ -483,7 +483,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (svref arg_x gf.dispatch-table nfn) ; mention dt first
   (set-nargs 3)
   (svref nfn gf.dcode nfn)
-  (lwz temp0 arch::misc-data-offset nfn)
+  (lwz temp0 ppc32::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
   
@@ -511,7 +511,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (svref arg_y combined-method.thing nfn) ; thing
       (set-nargs 2)
       (svref nfn combined-method.dcode nfn) ; dcode function
-      (lwz temp0 arch::misc-data-offset nfn)
+      (lwz temp0 ppc32::misc-data-offset nfn)
       (mtctr temp0)
       (bctr)))))
 
@@ -879,16 +879,16 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (cmpwi cr0 nargs 0)
   (cmpwi cr1 nargs '2)
   (mr nfn arg_y)
-  (lwz temp0 arch::misc-data-offset nfn)
+  (lwz temp0 ppc32::misc-data-offset nfn)
   (mtctr temp0)
   (if (:cr2 :eq)
-    (la sp ppc::lisp-frame.size sp))
-  (lwz loc-pc ppc::lisp-frame.savelr sp)
-  (lwz fn ppc::lisp-frame.savefn sp)
-  (lwz imm0 ppc::lisp-frame.savevsp sp)
+    (la sp ppc32::lisp-frame.size sp))
+  (lwz loc-pc ppc32::lisp-frame.savelr sp)
+  (lwz fn ppc32::lisp-frame.savefn sp)
+  (lwz imm0 ppc32::lisp-frame.savevsp sp)
   (sub vsp imm0 nargs)
   (mtlr loc-pc)
-  (la sp ppc::lisp-frame.size sp)
+  (la sp ppc32::lisp-frame.size sp)
   (beqctr)
   (vpop arg_z)
   (bltctr cr1)

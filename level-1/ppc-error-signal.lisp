@@ -25,7 +25,7 @@
   (:address xp :unsigned-fullword fn-reg :unsigned-fullword pc-or-index :signed-fullword errnum :unsigned-fullword rb :signed-fullword continuable)
   (let ((fn (unless (eql fn-reg 0) (xp-gpr-lisp xp fn-reg)))
         (err-fn (if (eql continuable 0) '%err-disp-internal '%kernel-restart-internal)))
-    (if (eql errnum arch::error-stack-overflow)
+    (if (eql errnum ppc32::error-stack-overflow)
       (handle-stack-overflow xp fn rb)
       (with-xp-stack-frames (xp fn frame-ptr)   ; execute body with dummy stack frame(s)
         (with-error-reentry-detection
@@ -33,39 +33,39 @@
                  (res
                   (cond ((< errnum 0)
                          (%err-disp-internal errnum nil frame-ptr))
-                        ((logtest errnum arch::error-type-error)
+                        ((logtest errnum ppc32::error-type-error)
                          (funcall err-fn 
                                   #.(car (rassoc 'type-error *kernel-simple-error-classes*))
                                   (list rb-value (logand errnum 63))
                                   frame-ptr))
-                        ((eql errnum arch::error-udf)
+                        ((eql errnum ppc32::error-udf)
                          (funcall err-fn $xfunbnd (list rb-value) frame-ptr))
-                        ((eql errnum arch::error-throw-tag-missing)
+                        ((eql errnum ppc32::error-throw-tag-missing)
                          (%error (make-condition 'cant-throw-error
                                                  :tag rb-value)
                                  nil frame-ptr))
-                        ((eql errnum arch::error-cant-call)
+                        ((eql errnum ppc32::error-cant-call)
                          (%error (make-condition 'type-error
                                                  :datum  rb-value
                                                  :expected-type '(or symbol function)
                                                  :format-control
                                                  "~S is not of type ~S, and can't be FUNCALLed or APPLYed")
                                  nil frame-ptr))
-                        ((eql errnum arch::error-udf-call)
+                        ((eql errnum ppc32::error-udf-call)
                          (return-from %err-disp
                            (handle-udf-call xp frame-ptr)))
-                        ((eql errnum arch::error-alloc-failed)
+                        ((eql errnum ppc32::error-alloc-failed)
                          (%error (make-condition 
                                   'simple-storage-condition
                                   :format-control (%rsc-string $xmemfull))
                                  nil frame-ptr))
-                        ((eql errnum arch::error-memory-full)
+                        ((eql errnum ppc32::error-memory-full)
                          (%error (make-condition 
                                   'simple-storage-condition
                                   :format-control (%rsc-string $xnomem))
                                  nil frame-ptr))
-                        ((or (eql errnum arch::error-fpu-exception-double) 
-                             (eql errnum arch::error-fpu-exception-single))
+                        ((or (eql errnum ppc32::error-fpu-exception-double) 
+                             (eql errnum ppc32::error-fpu-exception-single))
                          (let* ((code-vector (and fn  (uvref fn 0)))
                                 (instr (if code-vector 
                                          (uvref code-vector pc-or-index)
@@ -78,7 +78,7 @@
                              (if (= minor 12)   ; FRSP
                                (%err-disp-internal $xcoerce (list (xp-double-float xp frc) 'short-float) frame-ptr)
                                (flet ((coerce-to-op-type (double-arg)
-                                        (if (eql errnum arch::error-fpu-exception-double)
+                                        (if (eql errnum ppc32::error-fpu-exception-double)
                                           double-arg
                                           (handler-case (coerce double-arg 'short-float)
                                             (error (c) (declare (ignore c)) double-arg)))))
@@ -94,9 +94,9 @@
                                                                               (xp-double-float xp frb)))))
                                            nil
                                            frame-ptr)))))))
-                        ((eql errnum arch::error-excised-function-call)
-                         (%error "~s: code has been excised." (list (xp-gpr-lisp xp ppc::nfn)) frame-ptr))
-                        ((eql errnum arch::error-too-many-values)
+                        ((eql errnum ppc32::error-excised-function-call)
+                         (%error "~s: code has been excised." (list (xp-gpr-lisp xp ppc32::nfn)) frame-ptr))
+                        ((eql errnum ppc32::error-too-many-values)
                          (%err-disp-internal $xtoomanyvalues (list rb-value) frame-ptr))
                         (t (%error "Unknown error #~d with arg: ~d" (list errnum rb-value) frame-ptr)))))
             (setf (xp-gpr-lisp xp rb) res)        ; munge register for continuation
@@ -109,15 +109,15 @@
          (values (multiple-value-list
                   (%kernel-restart-internal
                    $xudfcall
-                   (list (xp-gpr-lisp xp ppc::fname) args)
+                   (list (xp-gpr-lisp xp ppc32::fname) args)
                    frame-ptr)))
          (stack-argcnt (max 0 (- (length args) 3)))
-         (vsp (%i+ (xp-gpr-lisp xp ppc::vsp) stack-argcnt))
+         (vsp (%i+ (xp-gpr-lisp xp ppc32::vsp) stack-argcnt))
          (f #'(lambda (values) (apply #'values values))))
-    (setf (xp-gpr-lisp xp ppc::vsp) vsp
-          (xp-gpr-lisp xp ppc::nargs) 1
-          (xp-gpr-lisp xp ppc::arg_z) values
-          (xp-gpr-lisp xp ppc::nfn) f)
+    (setf (xp-gpr-lisp xp ppc32::vsp) vsp
+          (xp-gpr-lisp xp ppc32::nargs) 1
+          (xp-gpr-lisp xp ppc32::arg_z) values
+          (xp-gpr-lisp xp ppc32::nfn) f)
     ;; handle_uuo() (in the lisp kernel) will not bump the PC here.
     (setf (xp-gpr-lisp xp #+linuxppc-target #$PT_NIP #+darwinppc-target -2)
 	  (uvref f 0))))
@@ -127,7 +127,7 @@
 
 (defppclapfunction %misc-address-fixnum ((misc-object arg_z))
   (check-nargs 1)
-  (la arg_z arch::misc-data-offset misc-object)
+  (la arg_z ppc32::misc-data-offset misc-object)
   (blr))
 
 ; rb is the register number of the stack that overflowed.
@@ -140,15 +140,15 @@
 	   'stack-overflow-condition 
 	   :format-control "Stack overflow on ~a stack."
 	   :format-arguments (list
-			      (if (eql rb ppc::sp)
+			      (if (eql rb ppc32::sp)
 				"control"
-				(if (eql rb ppc::vsp)
+				(if (eql rb ppc32::vsp)
 				  "value"
-				  (if (eql rb ppc::tsp)
+				  (if (eql rb ppc32::tsp)
 				    "temp"
 				    "unknown")))))
 	  nil frame-ptr))
-    (ff-call (%kernel-import arch::kernel-import-restore-soft-stack-limit)
+    (ff-call (%kernel-import ppc32::kernel-import-restore-soft-stack-limit)
 	     :unsigned-fullword rb
 	     :void)))
 

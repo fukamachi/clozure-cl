@@ -34,7 +34,7 @@
 
 
 (defun host-platform ()
-  (let* ((pf (%get-kernel-global 'arch::host-platform)))
+  (let* ((pf (%get-kernel-global 'ppc32::host-platform)))
     (case pf
       (0 :macos)
       (1 :linux)
@@ -102,13 +102,13 @@
 (defloadvar *heap-image-name*
     (let* ((p (%null-ptr)))
       (declare (dynamic-extent p))
-      (%get-cstring (%get-kernel-global-ptr 'arch::image-name p))))
+      (%get-cstring (%get-kernel-global-ptr 'ppc32::image-name p))))
 
 (defloadvar *command-line-argument-list*
   (let* ((argv (%null-ptr))
 	 (res ()))
     (declare (dynamic-extent argv))
-    (%get-kernel-global-ptr 'arch::argv argv)
+    (%get-kernel-global-ptr 'ppc32::argv argv)
     (do* ((i 0 (+ i 4))
 	  (arg (%get-ptr argv i) (%get-ptr argv i)))
 	 ((%null-ptr-p arg) (nreverse res))

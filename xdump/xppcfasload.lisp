@@ -26,14 +26,14 @@
 
 ; This is used to pass the value of lisp_nil into the
 ; kernel.  The data section will look like:
-;  dc.l (arch::make-vheader (+ 1024 3) arch::subtag-u32-vector)
+;  dc.l (ppc32::make-vheader (+ 1024 3) ppc32::subtag-u32-vector)
 ;  dc.l import_ref_to "set_nil_and_start"
 ;  dc.l code_address, lisp_nil
 ;  ds.l 1024  ; lisp_globals
 ;   ds.b fulltag_nil
 ; lisp_nil:      ; our TOC anchor
 ; ...
-; which explains what (- (+ arch::fulltag-nil 4096 12)) is all about.
+; which explains what (- (+ ppc32::fulltag-nil 4096 12)) is all about.
 (defparameter *ppc-application-entry-function-code*
   (uvref (%define-ppc-lap-function nil '((bctr)))
          0))
@@ -66,14 +66,14 @@
 
 ; For now, do this with a UUO so that the kernel can catch it.
 (defparameter *ppc-udf-code*
-  (uvref (%define-ppc-lap-function nil '((uuo_interr #.arch::error-udf-call 0))) 0))
+  (uvref (%define-ppc-lap-function nil '((uuo_interr #.ppc32::error-udf-call 0))) 0))
 
 
 
 
 
 (defparameter *ppc-excised-code*
-  (uvref (%define-ppc-lap-function nil '((uuo_interr #.arch::error-excised-function-call 0))) 0))
+  (uvref (%define-ppc-lap-function nil '((uuo_interr #.ppc32::error-excised-function-call 0))) 0))
 
 (defparameter *ppc-xload-backend*
   (make-backend-xload-info

@@ -21,7 +21,7 @@
 
 
 (defun extract-slotds-with-allocation (allocation slotds)
-  (arch::collect ((right-ones))
+  (ppc32::collect ((right-ones))
     (dolist (s slotds (right-ones))
       (if (eq (%slot-definition-allocation s) allocation)
         (right-ones s)))))
@@ -39,7 +39,7 @@
   (extract-slotds-with-allocation :class (%class.slots class)))
 
 (defun extract-instance-and-class-slotds (slotds)
-  (arch::collect ((instance-slots)
+  (ppc32::collect ((instance-slots)
                   (shared-slots))
     (dolist (s slotds (values (instance-slots) (shared-slots)))
       (if (eq (%slot-definition-allocation s) :class)
@@ -199,7 +199,7 @@
 		     (dolist (dslot (%class-direct-slots c))
 		       (note-direct-slot dslot)))))))
       (rwalk (class-precedence-list class)))
-    (arch::collect ((effective-slotds))
+    (ppc32::collect ((effective-slotds))
       (dolist (pair (nreverse slot-name-alist) (effective-slotds))
         (effective-slotds (compute-effective-slot-definition class (car pair) (cdr pair)))))))
 
@@ -1052,7 +1052,7 @@
   (let* ((instance nil)
 	 (class nil)
 	 (slot nil))
-    (if (and (eq (typecode slotv) arch::subtag-slot-vector)
+    (if (and (eq (typecode slotv) ppc32::subtag-slot-vector)
 	     (setq instance (slot-vector.instance slotv))
 	     (setq slot
 		   (find idx (class-slots (setq class (class-of instance)))
@@ -1236,7 +1236,7 @@
 (defun decode-method-lambda-list (method-lambda-list)
   (flet ((bad ()
 	   (error "Invalid lambda-list syntax in ~s" method-lambda-list)))
-    (arch::collect ((specnames)
+    (ppc32::collect ((specnames)
                     (required))
        (do* ((tail method-lambda-list (cdr tail))
 	     (head (car tail) (car tail)))

@@ -19,25 +19,15 @@
 
 #+ppc-target
 (defppclapfunction break-event-pending-p ()
-  (ref-global arg_z arch::intflag)
-  (set-global rzero arch::intflag)
+  (ref-global arg_z ppc32::intflag)
+  (set-global rzero ppc32::intflag)
   (cmpwi arg_z 0)
-  (li arg_z ppc::nil-value)
+  (li arg_z ppc32::nil-value)
   (beqlr)
-  (li arg_z (+ arch::t-offset ppc::nil-value))
+  (li arg_z (+ ppc32::t-offset ppc32::nil-value))
   (blr))
 
-#+sparc-target
-(defsparclapfunction break-event-pending-p ()
-  (ref-global %arg_z arch::intflag)
-  (set-global %rzero arch::intflag)
-  (tst %arg_z)
-  (mov %rnil %arg_z)
-  (bne.a @1)
-   (inc arch::t-offset %arg_z)
-  @1
-  (retl)
-   (nop))
+
 
 
 ; If any bits in the *periodic-task-mask* are set in the ptaskstate.flags word of

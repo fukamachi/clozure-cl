@@ -55,7 +55,7 @@
     (setq *LEVEL-1-LOADED* t))
 
 (defun altivec-available-p ()
-  (not (eql (%get-kernel-global 'arch::qd-globals) 0)))
+  (not (eql (%get-kernel-global 'ppc32::qd-globals) 0)))
 
 (defloadvar *altivec-available* (altivec-available-p))
 
@@ -65,7 +65,7 @@
 (defglobal *auto-flush-streams-lock* (make-lock))
 
 
-(defloadvar *batch-flag* (not (eql (%get-kernel-global 'arch::batch-flag) 0)))
+(defloadvar *batch-flag* (not (eql (%get-kernel-global 'ppc32::batch-flag) 0)))
 (defvar *terminal-input* ())
 (defvar *terminal-output* ())
 (defvar *stdin* ())

@@ -940,22 +940,22 @@ Will differ from *compiling-file* during an INCLUDE")
   (let ((type-code (typecode exp)))
     (declare (fixnum type-code))
     (case type-code
-      (#.arch::tag-fixnum
+      (#.ppc32::tag-fixnum
        (fasl-scan-fixnum exp))
-      (#.arch::tag-list (fasl-scan-list exp))
-      (#.arch::tag-imm)
+      (#.ppc32::tag-list (fasl-scan-list exp))
+      (#.ppc32::tag-imm)
       (t
-       (if (= (the fixnum (logand type-code arch::full-tag-mask)) arch::fulltag-immheader)            
+       (if (= (the fixnum (logand type-code ppc32::full-tag-mask)) ppc32::fulltag-immheader)            
            (case type-code
-             ((#.arch::subtag-macptr #.arch::subtag-dead-macptr) (fasl-unknown exp))
+             ((#.ppc32::subtag-macptr #.ppc32::subtag-dead-macptr) (fasl-unknown exp))
              (t (fasl-scan-ref exp)))
            (case type-code
-             ((#.arch::subtag-pool #.arch::subtag-weak #.arch::subtag-lock) (fasl-unknown exp))
-             (#.arch::subtag-symbol (fasl-scan-ppc-symbol exp))
-             ((#.arch::subtag-instance #.arch::subtag-struct)
+             ((#.ppc32::subtag-pool #.ppc32::subtag-weak #.ppc32::subtag-lock) (fasl-unknown exp))
+             (#.ppc32::subtag-symbol (fasl-scan-ppc-symbol exp))
+             ((#.ppc32::subtag-instance #.ppc32::subtag-struct)
               (fasl-scan-user-form exp))
-             (#.arch::subtag-package (fasl-scan-ref exp))
-             (#.arch::subtag-istruct
+             (#.ppc32::subtag-package (fasl-scan-ref exp))
+             (#.ppc32::subtag-istruct
               (if (memq (uvref exp 0) *istruct-make-load-form-types*)
                 (progn
                   (if (hash-table-p exp)
@@ -991,7 +991,7 @@ Will differ from *compiling-file* during an INCLUDE")
        (eq (%car form) 'funcall)
        (listp (%cdr form))
        (or (functionp (%cadr form))
-           (eql (typecode (%cadr form)) arch::subtag-xfunction))
+           (eql (typecode (%cadr form)) ppc32::subtag-xfunction))
        (null (%cddr form))))
 
 (defun fasl-scan-list (list)
@@ -1172,45 +1172,45 @@ Will differ from *compiling-file* during an INCLUDE")
   (let* ((typecode (typecode exp)))
     (declare (fixnum typecode))
     (case typecode
-      (#.arch::tag-fixnum (fasl-dump-fixnum exp))
-      (#.arch::tag-list (fasl-dump-list exp))
-      (#.arch::tag-imm (if (characterp exp) (fasl-dump-char exp) (fasl-dump-t_imm exp)))
+      (#.ppc32::tag-fixnum (fasl-dump-fixnum exp))
+      (#.ppc32::tag-list (fasl-dump-list exp))
+      (#.ppc32::tag-imm (if (characterp exp) (fasl-dump-char exp) (fasl-dump-t_imm exp)))
       (t
-       (if (= (the fixnum (logand typecode arch::fulltagmask)) arch::fulltag-immheader)
+       (if (= (the fixnum (logand typecode ppc32::fulltagmask)) ppc32::fulltag-immheader)
          ; Double-floats and simple-base-strings get special treatment.  For everything else,
          ; dump a $fasl-imm opcode, the subtag (typecode), and the raw data.  (For
          ; double-float vectors, skip the first 4 bytes of raw data.)
          ; ppc Code vectors have to be dumped in "normalized" form.
-         (if (= typecode arch::subtag-double-float)
+         (if (= typecode ppc32::subtag-double-float)
            (fasl-dump-dfloat exp)
            (let* ((n (uvsize exp))
-		  (out-typecode (if (= typecode arch::subtag-xcode-vector) arch::subtag-code-vector typecode))
+		  (out-typecode (if (= typecode ppc32::subtag-xcode-vector) ppc32::subtag-code-vector typecode))
                   (nb (subtag-bytes typecode n)))
              (declare (fixnum n nb))
 	     (if (and (not (eq *fasl-backend* *host-backend*))
-		      (= typecode arch::subtag-code-vector))
+		      (= typecode ppc32::subtag-code-vector))
 		 (break "Dumping a native code-vector! ~s" exp))
-             (if (= typecode arch::subtag-simple-base-string)
+             (if (= typecode ppc32::subtag-simple-base-string)
                (fasl-out-opcode $fasl-str exp)
                (progn
                  (fasl-out-opcode $fasl-ivec exp)
                  (fasl-out-byte out-typecode)))
              (fasl-out-size n)
-             (if (= typecode arch::subtag-double-float-vector)
+             (if (= typecode ppc32::subtag-double-float-vector)
                ; Account for alignment word
                (fasl-out-ivect exp 4 (the fixnum (- nb 4)))
-               (if (= out-typecode arch::subtag-code-vector)
+               (if (= out-typecode ppc32::subtag-code-vector)
                  (fasl-out-codevector exp nb)
                  (fasl-out-ivect exp 0 nb)))))
-         (if (= typecode arch::subtag-package)
+         (if (= typecode ppc32::subtag-package)
            (fasl-dump-package exp)
-           (if (= typecode arch::subtag-symbol)
+           (if (= typecode ppc32::subtag-symbol)
              (fasl-dump-symbol exp)
              (let* ((n (uvsize exp))
-		    (out-typecode (if (= typecode arch::subtag-xfunction) arch::subtag-function typecode)))
+		    (out-typecode (if (= typecode ppc32::subtag-xfunction) ppc32::subtag-function typecode)))
                (declare (fixnum n))
 	     (if (and (not (eq *fasl-backend* *host-backend*))
-		      (= typecode arch::subtag-function))
+		      (= typecode ppc32::subtag-function))
 		 (break "Dumping a native function! ~s" exp))
 	       
                (fasl-out-opcode $fasl-gvec exp)
@@ -1356,7 +1356,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fasl-out-xstring (str) 
   ; really the same as fasl-out-string wherein byte-size = length
   ; could save 40 bytes or so by exploiting that
-  (fasl-out-size (subtag-bytes arch::subtag-simple-general-string (length str)))
+  (fasl-out-size (subtag-bytes ppc32::subtag-simple-general-string (length str)))
   (fasl-out-ivect str))
 
 

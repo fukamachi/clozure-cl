@@ -33,8 +33,8 @@
       (:mb . ,(byte 5 6))
       (:me . ,(byte 5 1))
       (:x-minor . ,(byte 10 1))
-      (:fulltag . ,(byte arch::ntagbits 0))
-      (:lisptag . ,(byte arch::nlisptagbits 0))))
+      (:fulltag . ,(byte ppc32::ntagbits 0))
+      (:lisptag . ,(byte ppc32::nlisptagbits 0))))
   
   (defun ppc-instruction-field (field-name)
     (or (cdr (assoc field-name *ppc-instruction-fields*))
@@ -65,7 +65,7 @@
     `(ldb (byte 5 21) ,instr))
   
   (defmacro lisp-reg-p (reg)
-    `(>= ,reg ppc::fn))
+    `(>= ,reg ppc32::fn))
   
   (defmacro ppc-lap-word (instruction-form)
     (uvref (uvref (compile nil
@@ -113,17 +113,17 @@
     (values (%get-ptr registers offset))))
 
 (defun xp-argument-list (xp)
-  (let ((nargs (xp-gpr-lisp xp ppc::nargs))     ; tagged as a fixnum (how convenient)
-        (arg-x (xp-gpr-lisp xp ppc::arg_x))
-        (arg-y (xp-gpr-lisp xp ppc::arg_y))
-        (arg-z (xp-gpr-lisp xp ppc::arg_z)))
+  (let ((nargs (xp-gpr-lisp xp ppc32::nargs))     ; tagged as a fixnum (how convenient)
+        (arg-x (xp-gpr-lisp xp ppc32::arg_x))
+        (arg-y (xp-gpr-lisp xp ppc32::arg_y))
+        (arg-z (xp-gpr-lisp xp ppc32::arg_z)))
     (cond ((eql nargs 0) nil)
           ((eql nargs 1) (list arg-z))
           ((eql nargs 2) (list arg-y arg-z))
           (t (let ((args (list arg-x arg-y arg-z)))
                (if (eql nargs 3)
                  args
-                 (let ((vsp (xp-gpr-macptr xp ppc::vsp)))
+                 (let ((vsp (xp-gpr-macptr xp ppc32::vsp)))
                    (dotimes (i (- nargs 3))
                      (push (%get-object vsp (* i 4)) args))
                    args)))))))
@@ -180,7 +180,7 @@
   (macptr-ptr imm0 pcptr)
   (lwz loc-pc 0 imm0)
   (sub imm0 loc-pc code-vector)
-  (subi imm0 imm0 arch::misc-data-offset)
+  (subi imm0 imm0 ppc32::misc-data-offset)
   (getvheader imm1 code-vector)
   (header-size imm1 imm1)
   (slwi imm1 imm1 2)
@@ -232,33 +232,33 @@
 (defun funcall-with-xp-stack-frames (xp trap-function thunk)
   (cond ((null trap-function)
          ; Maybe inside a subprim from a lisp function
-         (let* ((fn (xp-gpr-lisp xp ppc::fn))
+         (let* ((fn (xp-gpr-lisp xp ppc32::fn))
                 (lr (return-address-offset
                      xp fn lr-offset-in-register-context)))
            (if (fixnump lr)
-             (let* ((sp (xp-gpr-lisp xp ppc::sp))
-                    (vsp (xp-gpr-lisp xp ppc::vsp))
+             (let* ((sp (xp-gpr-lisp xp ppc32::sp))
+                    (vsp (xp-gpr-lisp xp ppc32::vsp))
                     (frame (%cons-fake-stack-frame sp sp fn lr vsp *fake-stack-frames*))
                     (*fake-stack-frames* frame))
                (declare (dynamic-extent frame))
                (funcall thunk frame))
-             (funcall thunk (xp-gpr-lisp xp ppc::sp)))))
-        ((eq trap-function (xp-gpr-lisp xp ppc::fn))
-         (let* ((sp (xp-gpr-lisp xp ppc::sp))
+             (funcall thunk (xp-gpr-lisp xp ppc32::sp)))))
+        ((eq trap-function (xp-gpr-lisp xp ppc32::fn))
+         (let* ((sp (xp-gpr-lisp xp ppc32::sp))
                 (fn trap-function)
                 (lr (return-address-offset
                      xp fn pc-offset-in-register-context))
-                (vsp (xp-gpr-lisp xp ppc::vsp))
+                (vsp (xp-gpr-lisp xp ppc32::vsp))
                 (frame (%cons-fake-stack-frame sp sp fn lr vsp *fake-stack-frames*))
                 (*fake-stack-frames* frame))
            (declare (dynamic-extent frame))
            (funcall thunk frame)))
-        ((eq trap-function (xp-gpr-lisp xp ppc::nfn))
-         (let* ((sp (xp-gpr-lisp xp ppc::sp))
-                (fn (xp-gpr-lisp xp ppc::fn))
+        ((eq trap-function (xp-gpr-lisp xp ppc32::nfn))
+         (let* ((sp (xp-gpr-lisp xp ppc32::sp))
+                (fn (xp-gpr-lisp xp ppc32::fn))
                 (lr (return-address-offset
                      xp fn lr-offset-in-register-context))
-                (vsp (xp-gpr-lisp xp ppc::vsp))
+                (vsp (xp-gpr-lisp xp ppc32::vsp))
                 (lr-frame (%cons-fake-stack-frame sp sp fn lr vsp))
                 (pc-fn trap-function)
                 (pc-lr (return-address-offset
@@ -267,7 +267,7 @@
                 (*fake-stack-frames* pc-frame))
            (declare (dynamic-extent lr-frame pc-frame))
            (funcall thunk pc-frame)))
-        (t (funcall thunk (xp-gpr-lisp xp ppc::sp)))))
+        (t (funcall thunk (xp-gpr-lisp xp ppc32::sp)))))
 
 
 
@@ -319,11 +319,11 @@
              ;; tweqi RA nil-value - resolve-eep
 	      ((and (match-instr the-trap
 				 (ppc-instruction-mask  :opcode :to :d)
-				 (ppc-lap-word (tweqi ?? ppc::nil-value)))
+				 (ppc-lap-word (tweqi ?? ppc32::nil-value)))
 		    (setq instr (scan-for-instr
 				 (ppc-instruction-mask :opcode :d)
 				 (ppc-lap-word (lwz ??
-						    (+ 4 arch::misc-data-offset)
+						    (+ 4 ppc32::misc-data-offset)
 						    ??))
                                                fn pc-index)))
 	       (let* ((eep (xp-gpr-lisp xp (RA-field instr))))
@@ -335,11 +335,11 @@
 	      ((match-instr the-trap
                            (ppc-instruction-mask :opcode :rt :ra)
                            (ppc-lap-word (twnei nargs ??)))
-              (%error (if (< (xp-GPR-signed-long xp ppc::nargs) (D-field the-trap))
+              (%error (if (< (xp-GPR-signed-long xp ppc32::nargs) (D-field the-trap))
                         'too-few-arguments
                         'too-many-arguments )
-                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
-					(- arch::fixnumshift))
+                      (list :nargs (ash (xp-GPR-signed-long xp ppc32::nargs)
+					(- ppc32::fixnumshift))
 			    :fn  fn)
                       frame-ptr))
              
@@ -347,20 +347,20 @@
              ;; type check; look for "lbz rt-imm,-3(ra-node)"
              ((and (or (match-instr the-trap
                                     (ppc-instruction-mask :opcode :rt :fulltag)
-                                    (ppc-lap-word (twnei ?? arch::fulltag-nodeheader)))
+                                    (ppc-lap-word (twnei ?? ppc32::fulltag-nodeheader)))
                        (match-instr the-trap
                                     (ppc-instruction-mask :opcode :rt :fulltag)
-                                    (ppc-lap-word (twnei ?? arch::fulltag-immheader))))
+                                    (ppc-lap-word (twnei ?? ppc32::fulltag-immheader))))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :d)
-                                               (ppc-lap-word (lbz ?? arch::misc-subtag-offset ??))
+                                               (ppc-lap-word (lbz ?? ppc32::misc-subtag-offset ??))
                                                fn pc-index))
                    (lisp-reg-p (setq ra (RA-field instr))))
               (let* ((typecode (D-field the-trap))
-                     (type-tag (logand typecode arch::fulltagmask))
-                     (type-name (svref (if (eql type-tag arch::fulltag-nodeheader)
+                     (type-tag (logand typecode ppc32::fulltagmask))
+                     (type-name (svref (if (eql type-tag ppc32::fulltag-nodeheader)
                                          *nodeheader-types*
                                          *immheader-types*)
-                                       (ldb (byte (- arch::num-subtag-bits arch::ntagbits) arch::ntagbits) typecode))))
+                                       (ldb (byte (- ppc32::num-subtag-bits ppc32::ntagbits) ppc32::ntagbits) typecode))))
                 (%error (make-condition 'type-error
                                         :format-control (%rsc-string $XWRONGTYPE)
                                         :datum (xp-GPR-lisp xp ra)
@@ -372,7 +372,7 @@
              ;; type check; look for "clrlwi rs-node,ra-imm,24" = "rlwinm rs,ra,0,24,31"
              ((and (match-instr the-trap
                                 (ppc-instruction-mask :opcode :rt :d)
-                                (ppc-lap-word (twnei ?? arch::subtag-character)))
+                                (ppc-lap-word (twnei ?? ppc32::subtag-character)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :rb :mb :me)
                                                (ppc-lap-word (rlwinm ?? ?? 0 24 31))
                                                fn pc-index))
@@ -391,16 +391,16 @@
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :rb (:mb 28) :me)
                                                (ppc-lap-word (rlwinm ?? ?? 0 28 31))                                               
                                                fn pc-index))
-                   (or (eql (- 32 arch::ntagbits) (setq temp (ldb #.(ppc-instruction-field :mb) instr)))
-                       (eql (- 32 arch::nlisptagbits) temp))
+                   (or (eql (- 32 ppc32::ntagbits) (setq temp (ldb #.(ppc-instruction-field :mb) instr)))
+                       (eql (- 32 ppc32::nlisptagbits) temp))
                    (lisp-reg-p (setq rs (RS-field instr))))
-              (let* ((tag (logand the-trap arch::tagmask))
+              (let* ((tag (logand the-trap ppc32::tagmask))
                      (type-name 
                       (case tag
-                        (#.arch::tag-fixnum 'fixnum)
-                        (#.arch::tag-list (if (eql temp (- 32 arch::ntagbits)) 'cons 'list))
-                        (#.arch::tag-misc 'uvector)
-                        (#.arch::tag-imm 'immediate))))                                      
+                        (#.ppc32::tag-fixnum 'fixnum)
+                        (#.ppc32::tag-list (if (eql temp (- 32 ppc32::ntagbits)) 'cons 'list))
+                        (#.ppc32::tag-misc 'uvector)
+                        (#.ppc32::tag-imm 'immediate))))                                      
                 (%error (make-condition 'type-error
                                         :datum (xp-GPR-lisp xp rs)
                                         :expected-type type-name)
@@ -411,7 +411,7 @@
              ;; type check; look for "clrlwi rs-node,ra-imm,24" = "rlwinm rs,ra,0,24,31"
              ((and (match-instr the-trap
                                 (ppc-instruction-mask :opcode :rt :d)
-                                (ppc-lap-word (twnei ?? arch::subtag-character)))
+                                (ppc-lap-word (twnei ?? ppc32::subtag-character)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :rb :mb :me)
                                                (ppc-lap-word (rlwinm ?? ?? 0 24 31))
                                                fn pc-index))
@@ -427,14 +427,14 @@
              ;; nargs check, optional or rest involved
              ((and (match-instr the-trap
                                 (ppc-instruction-mask :opcode (:to #x1c) :ra)
-                                (ppc-lap-word (twi ?? ppc::nargs ??)))
+                                (ppc-lap-word (twi ?? ppc32::nargs ??)))
                    (or (eql #b01 (setq temp (ldb #.(ppc-instruction-field :to) the-trap)))
 	               (eql #b10 temp)))
               (%error (if (eql temp #b10)
                         'too-few-arguments
                         'too-many-arguments)
-                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
-					(- arch::fixnumshift))
+                      (list :nargs (ash (xp-GPR-signed-long xp ppc32::nargs)
+					(- ppc32::fixnumshift))
 			    :fn  fn)
                       frame-ptr))
              
@@ -442,9 +442,9 @@
              ;; symeval boundp check; look for "lwz RA,symbol.vcell(nodereg)"
              ((and (match-instr the-trap
                                 (ppc-instruction-mask :opcode :rt :d)                                
-                                (ppc-lap-word (tweqi ?? arch::unbound-marker)))
+                                (ppc-lap-word (tweqi ?? ppc32::unbound-marker)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :d)
-                                               (ppc-lap-word (lwz ?? arch::symbol.vcell ??))                                               
+                                               (ppc-lap-word (lwz ?? ppc32::symbol.vcell ??))                                               
                                                fn pc-index))
                    (lisp-reg-p (setq ra (RA-field instr))))
               (setf (xp-GPR-lisp xp (RA-field the-trap))
@@ -454,7 +454,7 @@
 	     ;; rx = slots-vector, ry = scaled index in slots vector.
 	     ((and (match-instr the-trap
 				(ppc-instruction-mask :opcode :rt :d)
-				(ppc-lap-word (tweqi ?? arch::slot-unbound-marker)))
+				(ppc-lap-word (tweqi ?? ppc32::slot-unbound-marker)))
 		   (setq instr (scan-for-instr (ppc-instruction-mask
 						:opcode :rt  :x-minor)
 					       (dpb
@@ -470,8 +470,8 @@
               (setf (xp-gpr-lisp xp (ra-field the-trap))
                     (%slot-unbound-trap (xp-gpr-lisp xp (RA-field instr))
                                         (ash (- (xp-gpr-signed-long xp (RB-field instr))
-                                                arch::misc-data-offset)
-                                             (- arch::word-shift))
+                                                ppc32::misc-data-offset)
+                                             (- ppc32::word-shift))
                                         frame-ptr)))
              ;; twlge RA,RB
              ;; vector bounds check; look for "lwz immreg, misc_header_offset(nodereg)"
@@ -479,7 +479,7 @@
                                 (ppc-instruction-mask :opcode :to :x-minor)                                
                                 (ppc-lap-word (twlge 0 0)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode #|:d|#)
-                                               (ppc-lap-word (lwz ?? ?? #|arch::misc-header-offset|# ??))
+                                               (ppc-lap-word (lwz ?? ?? #|ppc32::misc-header-offset|# ??))
                                                fn pc-index))
                    (lisp-reg-p (setq ra (RA-field instr))))
               (%error (%rsc-string $xarroob)
@@ -491,32 +491,32 @@
 				(ppc-instruction-mask :opcode :to)
 				(ppc-lap-word (twi 27 ?? ??)))
 		   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :d)
-                                               (ppc-lap-word (lwz ?? arch::arrayH.rank ??))
+                                               (ppc-lap-word (lwz ?? ppc32::arrayH.rank ??))
                                                fn pc-index))
 		   (lisp-reg-p (setq ra (RA-field instr))))
 	      (%error (%rsc-string $xndims)
 		      (list (xp-gpr-lisp xp ra)
-			    (ash (ldb (byte 16 0) the-trap) (- arch::fixnumshift)))
+			    (ash (ldb (byte 16 0) the-trap) (- ppc32::fixnumshift)))
 		      frame-ptr))
 	     ;; tw 27 ra rb - array flags check
 	     ((and (match-instr the-trap
 				(ppc-instruction-mask :opcode :to :x-minor)
 				(ppc-lap-word (tw 27 ?? ??)))
 		   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :d)
-                                               (ppc-lap-word (lwz ?? arch::arrayH.flags ??))
+                                               (ppc-lap-word (lwz ?? ppc32::arrayH.flags ??))
                                                fn pc-index))
 		   (lisp-reg-p (setq ra (RA-field instr)))
 		   (let* ((expected (xp-gpr-lisp xp (RB-field the-trap)))
 			  (expected-subtype (ldb
-					     arch::arrayH.flags-cell-subtag-byte
+					     ppc32::arrayH.flags-cell-subtag-byte
 					     expected))
 			  (expect-simple (=
-					  (ldb arch::arrayH.flags-cell-bits-byte
+					  (ldb ppc32::arrayH.flags-cell-bits-byte
 					       expected)
 					  (ash 1 $arh_simple_bit)))
 			  (type-name
 			   (case expected-subtype
-			     (#.arch::subtag-double-float-vector 'double-float))))
+			     (#.ppc32::subtag-double-float-vector 'double-float))))
 
 		     (and type-name expect-simple
 			  (setq condition
@@ -528,7 +528,7 @@
 			       
              ;; Unknown trap
              (t (%error "Unknown trap: #x~x~%xp: ~s, fn: ~s, pc: #x~x"
-                        (list the-trap xp fn (ash pc-index arch::fixnumshift))
+                        (list the-trap xp fn (ash pc-index ppc32::fixnumshift))
                         frame-ptr)))))))))
 
 #+ppc-target
@@ -558,7 +558,7 @@
   (stw sp 4 sp)
   (macptr-ptr imm2 buf)
   (mr imm1 imm2)
-  (la imm3 ppc::eabi-c-frame.param0 sp)
+  (la imm3 ppc32::eabi-c-frame.param0 sp)
   (li imm0 0)
   (lwz temp1 single-offset vsp)
   (lwz temp2 double-offset vsp)
@@ -577,7 +577,7 @@
   (add temp2 temp2 imm1)
   (lwz temp0 fploads vsp)
   @load-fp1
-  (lbz imm0 (+ arch::misc-data-offset 0) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 0) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp1-double)
@@ -588,7 +588,7 @@
   (lfd fp1 0 temp2)
   (la temp2 8 temp2)
   @load-fp2
-  (lbz imm0 (+ arch::misc-data-offset 1) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 1) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp2-double)
@@ -599,7 +599,7 @@
   (lfd fp2 0 temp2)
   (la temp2 8 temp2)
   @load-fp3
-  (lbz imm0 (+ arch::misc-data-offset 2) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 2) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp3-double)
@@ -610,7 +610,7 @@
   (lfd fp3 0 temp2)
   (la temp2 8 temp2)
   @load-fp4
-  (lbz imm0 (+ arch::misc-data-offset 3) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 3) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp4-double)
@@ -621,7 +621,7 @@
   (lfd fp4 0 temp2)
   (la temp2 8 temp2)
   @load-fp5
-  (lbz imm0 (+ arch::misc-data-offset 4) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 4) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp5-double)
@@ -632,7 +632,7 @@
   (lfd fp5 0 temp2)
   (la temp2 8 temp2)
   @load-fp6
-  (lbz imm0 (+ arch::misc-data-offset 5) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 5) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp6-double)
@@ -643,7 +643,7 @@
   (lfd fp6 0 temp2)
   (la temp2 8 temp2)
   @load-fp7
-  (lbz imm0 (+ arch::misc-data-offset 6) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 6) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp7-double)
@@ -654,7 +654,7 @@
   (lfd fp7 0 temp2)
   (la temp2 8 temp2)
   @load-fp8
-  (lbz imm0 (+ arch::misc-data-offset 0) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 0) temp0)
   (cmpwi imm0 1)
   (blt @loaded)
   (bne @load-fp8-double)
@@ -672,7 +672,7 @@
   (stfs fp1 8 imm2)
   (stfd fp1 16 imm2)
   (restore-full-lisp-context)
-  (li arg_z ppc::nil-value)
+  (li arg_z ppc32::nil-value)
   (blr))
   
 
@@ -913,11 +913,11 @@
 		 (setf (%get-long buf offset) val)))))
 	  (let* ((frame-size (if (<= total-words 8)
 			       (ash
-				   (+ ppc::c-frame.size ppc::lisp-frame.size)
+				   (+ ppc32::c-frame.size ppc32::lisp-frame.size)
 				   -2)
 			       (+
 				   (ash
-				    (+ ppc::c-frame.size ppc::lisp-frame.size)
+				    (+ ppc32::c-frame.size ppc32::lisp-frame.size)
 				    -2)
 				   (logand (lognot 1)
 						(1+ (- total-words 8)))))))
@@ -956,12 +956,12 @@
   (save-lisp-context imm0)
   (lwz imm0 frame-size vsp)
   (stwux sp sp imm0)
-  (stw sp ppc::c-frame.savelr sp)
+  (stw sp ppc32::c-frame.savelr sp)
   (lwz imm2 monitor-exception-ports vsp)
   (cmpwi cr1 imm2 nil)
   (macptr-ptr imm2 buf)
   (mr imm1 imm2)
-  (la imm3 ppc::c-frame.param0 sp)
+  (la imm3 ppc32::c-frame.param0 sp)
   (li temp1 0)
   @copy
   (addi temp1 temp1 '1)
@@ -974,9 +974,9 @@
   (lwz temp0 reload-sizes vsp)
   (lwz temp1 reload-offsets vsp)
   @load-fp1
-  (lbz imm0 (+ arch::misc-data-offset 0) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 0) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 0) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 0) temp1)
   (blt @loaded)
   (bne @load-fp1-double)
   (lfsx fp1 imm1 imm2)
@@ -985,9 +985,9 @@
   (lfdx fp1 imm1 imm2)
 
   @load-fp2
-  (lbz imm0 (+ arch::misc-data-offset 1) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 1) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 2) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 2) temp1)
   (blt @loaded)
   (bne @load-fp2-double)
   (lfsx fp2 imm1 imm2)
@@ -996,9 +996,9 @@
   (lfdx fp2 imm1 imm2)
 
   @load-fp3
-  (lbz imm0 (+ arch::misc-data-offset 2) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 2) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 4) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 4) temp1)
   (blt @loaded)
   (bne @load-fp3-double)
   (lfsx fp3 imm1 imm2)
@@ -1007,9 +1007,9 @@
   (lfdx fp3 imm1 imm2)
 
   @load-fp4
-  (lbz imm0 (+ arch::misc-data-offset 3) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 3) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 6) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 6) temp1)
   (blt @loaded)
   (bne @load-fp4-double)
   (lfsx fp4 imm1 imm2)
@@ -1018,9 +1018,9 @@
   (lfdx fp4 imm1 imm2)
 
   @load-fp5
-  (lbz imm0 (+ arch::misc-data-offset 4) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 4) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 8) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 8) temp1)
   (blt @loaded)
   (bne @load-fp5-double)
   (lfsx fp5 imm1 imm2)
@@ -1029,9 +1029,9 @@
   (lfdx fp5 imm1 imm2)
 
    @load-fp6
-  (lbz imm0 (+ arch::misc-data-offset 5) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 5) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 10) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 10) temp1)
   (blt @loaded)
   (bne @load-fp1-double)
   (lfsx fp6 imm1 imm2)
@@ -1040,9 +1040,9 @@
   (lfdx fp6 imm1 imm2)
 
    @load-fp7
-  (lbz imm0 (+ arch::misc-data-offset 6) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 6) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 12) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 12) temp1)
   (blt @loaded)
   (bne @load-fp1-double)
   (lfsx fp7 imm1 imm2)
@@ -1051,9 +1051,9 @@
   (lfdx fp7 imm1 imm2)
 
   @load-fp8
-  (lbz imm0 (+ arch::misc-data-offset 7) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 7) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 14) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 14) temp1)
   (blt @loaded)
   (bne @load-fp8-double)
   (lfsx fp8 imm1 imm2)
@@ -1062,9 +1062,9 @@
   (lfdx fp8 imm1 imm2)
 
   @load-fp9
-  (lbz imm0 (+ arch::misc-data-offset 8) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 8) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 16) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 16) temp1)
   (blt @loaded)
   (bne @load-fp9-double)
   (lfsx fp9 imm1 imm2)
@@ -1073,9 +1073,9 @@
   (lfdx fp9 imm1 imm2)
 
   @load-fp10
-  (lbz imm0 (+ arch::misc-data-offset 9) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 9) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 18) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 18) temp1)
   (blt @loaded)
   (bne @load-fp10-double)
   (lfsx fp10 imm1 imm2)
@@ -1084,9 +1084,9 @@
   (lfdx fp10 imm1 imm2)
 
   @load-fp11
-  (lbz imm0 (+ arch::misc-data-offset 10) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 10) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 20) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 20) temp1)
   (blt @loaded)
   (bne @load-fp11-double)
   (lfsx fp11 imm1 imm2)
@@ -1095,9 +1095,9 @@
   (lfdx fp11 imm1 imm2)
 
   @load-fp12
-  (lbz imm0 (+ arch::misc-data-offset 11) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 11) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 22) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 22) temp1)
   (blt @loaded)
   (bne @load-fp12-double)
   (lfsx fp12 imm1 imm2)
@@ -1106,9 +1106,9 @@
   (lfdx fp12 imm1 imm2)
 
   @load-fp13
-  (lbz imm0 (+ arch::misc-data-offset 12) temp0)
+  (lbz imm0 (+ ppc32::misc-data-offset 12) temp0)
   (cmpwi imm0 1)
-  (lhz imm2 (+ arch::misc-data-offset 24) temp1)
+  (lhz imm2 (+ ppc32::misc-data-offset 24) temp1)
   (blt @loaded)
   (bne @load-fp13-double)
   (lfsx fp13 imm1 imm2)
@@ -1130,7 +1130,7 @@
   (stfs fp1 8 imm2)
   (stfd fp1 16 imm2)
   (restore-full-lisp-context)
-  (li arg_z ppc::nil-value)
+  (li arg_z ppc32::nil-value)
   (blr))
 
   

@@ -24,17 +24,17 @@
     `(lwz ,dest ,arg vsp))
 
   (defppclapmacro bignum-ref (dest src index)
-    `(lwz ,dest (+ arch::misc-data-offset (ash ,index 2)) ,src))
+    `(lwz ,dest (+ ppc32::misc-data-offset (ash ,index 2)) ,src))
 
   (defppclapmacro get-hv (h v pt)
     (let ((lbl-got (gensym)))
       `(progn
          ;(eq-if-fixnum 0 ,h ,pt)
-         (clrlwi. ,h ,pt (- arch::nbits-in-word arch::nlisptagbits))
+         (clrlwi. ,h ,pt (- ppc32::nbits-in-word ppc32::nlisptagbits))
          (unbox-fixnum ,h ,pt)
          (beq+ cr0 ,lbl-got)
-         ; Should probably branch around a uuo_interr arch::error-object-not-signed-byte-32
-         (trap-unless-typecode= ,pt arch::subtag-bignum ,h)
+         ; Should probably branch around a uuo_interr ppc32::error-object-not-signed-byte-32
+         (trap-unless-typecode= ,pt ppc32::subtag-bignum ,h)
          (bignum-ref ,h ,pt 0)
          ,lbl-got                       ; now "h" has (signed-byte 32): vvvvhhhh
          (srawi ,v ,h 16)
@@ -64,11 +64,11 @@
         (node-temp temp1))
     (cmpwi cr0 nbytes 0)
     (get-arg src-node-reg src)
-    (lwz src-reg arch::macptr.address src-node-reg)
+    (lwz src-reg ppc32::macptr.address src-node-reg)
     (get-arg src-byteptr src-byte-offset)
     (unbox-fixnum src-byteptr src-byteptr)
     (unbox-fixnum dest-byteptr dest-byte-offset)
-    (la dest-byteptr arch::misc-data-offset dest-byteptr)
+    (la dest-byteptr ppc32::misc-data-offset dest-byteptr)
     (b @test)
     @loop
     (subi nbytes nbytes '1)
@@ -93,9 +93,9 @@
   (cmpwi cr0 nbytes 0)
   (lwz imm0 src-byte-offset vsp)
   (unbox-fixnum imm0 imm0)
-  (la imm0 arch::misc-data-offset imm0)
+  (la imm0 ppc32::misc-data-offset imm0)
   (unbox-fixnum imm2 dest-byte-offset)
-  (lwz imm1 arch::macptr.address dest)
+  (lwz imm1 ppc32::macptr.address dest)
   (b @test)
   @loop
   (subi nbytes nbytes '1)
@@ -118,17 +118,17 @@
   (lwz temp0 src vsp)
   (cmpwi cr0 nbytes 0)
   (cmpw cr2 temp0 dest)   ; source and dest same?
-  (rlwinm imm3 nbytes 0 (- 30 arch::fixnum-shift) 31)  
+  (rlwinm imm3 nbytes 0 (- 30 ppc32::fixnum-shift) 31)  
   (lwz imm0 src-byte-offset vsp)
-  (rlwinm imm1 imm0 0 (- 30 arch::fixnum-shift) 31)
+  (rlwinm imm1 imm0 0 (- 30 ppc32::fixnum-shift) 31)
   (or imm3 imm3 imm1)
   (unbox-fixnum imm0 imm0)
-  (la imm0 arch::misc-data-offset imm0)
+  (la imm0 ppc32::misc-data-offset imm0)
   (unbox-fixnum imm2 dest-byte-offset)
   (rlwimi imm1 imm2 0 30 31)
   (or imm3 imm3 imm1)
   (cmpwi cr1 imm3 0)  ; is everybody multiple of 4?
-  (la imm2 arch::misc-data-offset imm2)
+  (la imm2 ppc32::misc-data-offset imm2)
   (beq cr2 @SisD)   ; source and dest same
   @fwd
   (beq :cr1 @wtest)
@@ -193,7 +193,7 @@
   (vpush save7)
   (cmpw cr0 nargs rzero)
   (if (:cr0 :eq)
-    (li arg_z ppc::nil-value))
+    (li arg_z ppc32::nil-value))
   (mr save7 arg)
   (set-nargs 0)
   (call-symbol Debugger)               ; can't (easily) call "traps" inline
@@ -213,11 +213,11 @@
 
 
 (defppclapfunction %heap-bytes-allocated ()
-  (lwz imm2 arch::tcr.last-allocptr rcontext)
+  (lwz imm2 ppc32::tcr.last-allocptr rcontext)
   (cmpwi cr1 imm2 0)
   (cmpwi allocptr -8)			;void_allocptr
-  (lwz imm0 arch::tcr.total-bytes-allocated-high rcontext)
-  (lwz imm1 arch::tcr.total-bytes-allocated-low rcontext)
+  (lwz imm0 ppc32::tcr.total-bytes-allocated-high rcontext)
+  (lwz imm1 ppc32::tcr.total-bytes-allocated-low rcontext)
   (sub imm2 imm2 allocptr)
   (beq cr1 @go)
   (beq @go)
@@ -249,20 +249,20 @@
 #+ppc-target
 (defppclapfunction %setf-macptr-to-object ((macptr arg_y) (object arg_z))
   (check-nargs 2)
-  (trap-unless-typecode= arg_y arch::subtag-macptr)
-  (stw arg_z arch::macptr.address arg_y)
+  (trap-unless-typecode= arg_y ppc32::subtag-macptr)
+  (stw arg_z ppc32::macptr.address arg_y)
   (blr))
 
 (defppclapfunction %fixnum-from-macptr ((macptr arg_z))
   (check-nargs 1)
-  (trap-unless-typecode= arg_z arch::subtag-macptr)
-  (lwz imm0 arch::macptr.address arg_z)
-  (trap-unless-lisptag= imm0 arch::tag-fixnum imm1)
+  (trap-unless-typecode= arg_z ppc32::subtag-macptr)
+  (lwz imm0 ppc32::macptr.address arg_z)
+  (trap-unless-lisptag= imm0 ppc32::tag-fixnum imm1)
   (mr arg_z imm0)
   (blr))
 
 (defppclapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr arch::subtag-macptr)
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
   (macptr-ptr imm1 ptr)
   (unbox-fixnum imm2 offset)
   (add imm2 imm2 imm1)
@@ -271,7 +271,7 @@
   (ba .SPmakeu64))
 
 (defppclapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr arch::subtag-macptr)
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
   (macptr-ptr imm1 ptr)
   (unbox-fixnum imm2 offset)
   (add imm2 imm2 imm1)
@@ -283,7 +283,7 @@
 					      (offset arg_y)
 					      (val arg_z))
   (save-lisp-context)
-  (trap-unless-typecode= ptr arch::subtag-macptr)
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
   (bla .SPgetu64)
   (macptr-ptr imm2 ptr)
   (unbox-fixnum imm3 offset)
@@ -296,7 +296,7 @@
 					    (offset arg_y)
 					    (val arg_z))
   (save-lisp-context)
-  (trap-unless-typecode= ptr arch::subtag-macptr)
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
   (bla .SPgets64)
   (macptr-ptr imm2 ptr)
   (unbox-fixnum imm3 offset)
@@ -306,33 +306,33 @@
   (ba .SPpopj))
 
 (defppclapfunction interrupt-level ()
-  (lwz arg_z arch::tcr.interrupt-level rcontext)
+  (lwz arg_z ppc32::tcr.interrupt-level rcontext)
   (blr))
 
 
 (defppclapfunction disable-lisp-interrupts ()
   (li imm0 '-1)
-  (lwz arg_z arch::tcr.interrupt-level rcontext)
-  (stw imm0 arch::tcr.interrupt-level rcontext)
+  (lwz arg_z ppc32::tcr.interrupt-level rcontext)
+  (stw imm0 ppc32::tcr.interrupt-level rcontext)
   (blr))
 
 (defppclapfunction set-interrupt-level ((new arg_z))
-  (trap-unless-lisptag= new arch::tag-fixnum imm0)
-  (stw new arch::tcr.interrupt-level rcontext)
+  (trap-unless-lisptag= new ppc32::tag-fixnum imm0)
+  (stw new ppc32::tcr.interrupt-level rcontext)
   (blr))
 
 ;;; If we're restoring the interrupt level to 0 and an interrupt
 ;;; was pending, restore the level to 1 and zero the pending status.
 (defppclapfunction restore-interrupt-level ((old arg_z))
   (cmpwi :cr1 old 0)
-  (lwz imm0 arch::tcr.interrupt-pending rcontext)
+  (lwz imm0 ppc32::tcr.interrupt-pending rcontext)
   (cmpwi :cr0 imm0 0)
   (bne :cr1 @store)
   (beq :cr0 @store)
-  (stw rzero arch::tcr.interrupt-pending rcontext)
+  (stw rzero ppc32::tcr.interrupt-pending rcontext)
   (li old '1)
   @store
-  (stw old arch::tcr.interrupt-level rcontext)
+  (stw old ppc32::tcr.interrupt-level rcontext)
   (blr))
 
 (defppclapfunction %interrupt-poll ()
@@ -349,10 +349,10 @@
   (check-nargs 1)
   (cmpw tcr rcontext)
   (mr imm0 vsp)
-  (lwz temp0 arch::tcr.vs-area tcr)
-  (lwz imm1 arch::area.high temp0)
+  (lwz temp0 ppc32::tcr.vs-area tcr)
+  (lwz imm1 ppc32::area.high temp0)
   (beq @room)
-  (lwz imm0 arch::area.active temp0)
+  (lwz imm0 ppc32::area.active temp0)
   @room
   (cmpw imm1 imm0)
   (li arg_z nil)
@@ -364,16 +364,16 @@
   (check-nargs 2)
   (cmpw tcr rcontext)
   (mr imm0 vsp)
-  (lwz temp0 arch::tcr.vs-area tcr)
-  (lwz imm1 arch::area.high temp0)
+  (lwz temp0 ppc32::tcr.vs-area tcr)
+  (lwz imm1 ppc32::area.high temp0)
   (beq @check-room)
-  (lwz imm0 arch::area.active temp0)
+  (lwz imm0 ppc32::area.active temp0)
   @check-room
   (cmpw imm1 imm0)
   (stwu rzero -4 imm1)
   (bne @have-room)
-  (stw imm1 arch::area.active temp0)
-  (stw imm1 arch::tcr.save-vsp tcr)
+  (stw imm1 ppc32::area.active temp0)
+  (stw imm1 ppc32::tcr.save-vsp tcr)
   @have-room
   (stw fun 0 imm1)
   (blr))
@@ -382,7 +382,7 @@
 ;;; On both platforms, this bashes r3 (only) and we have to bash r0
 ;;; to select the syscall.
 (defppclapfunction yield ()
-  (li 0 ppc::yield-syscall)
+  (li 0 ppc32::yield-syscall)
   (sc)
   ;;; There might be some funky return conventions; set r0 back to 0
   ;;; early and often.
@@ -403,19 +403,19 @@
     (stwcx. new object imm0)
     (bne @again)
     (isync)
-    (la arg_z (+ arch::t-offset ppc::nil-value) 0)
+    (la arg_z (+ ppc32::t-offset ppc32::nil-value) 0)
     (blr)
     @lose
-    (li imm0 arch::reservation-discharge)
+    (li imm0 ppc32::reservation-discharge)
     (stwcx. rzero rzero imm0)
     (li arg_z nil)
     (blr)))
 
-(defppclapfunction set-%gcable-macptrs% ((ptr ppc::arg_z))
-  (li imm0 (+ ppc::nil-value (arch::kernel-global gcable-pointers)))
+(defppclapfunction set-%gcable-macptrs% ((ptr ppc32::arg_z))
+  (li imm0 (+ ppc32::nil-value (ppc32::kernel-global gcable-pointers)))
   @again
   (lwarx arg_y rzero imm0)
-  (stw arg_y arch::xmacptr.link ptr)
+  (stw arg_y ppc32::xmacptr.link ptr)
   (stwcx. ptr rzero imm0)
   (bne @again)
   (isync)
@@ -423,7 +423,7 @@
 
 ;;; Atomically increment the gc-inhibit-count kernel-global
 (defppclapfunction %lock-gc-lock ()
-  (li imm0 (+ ppc::nil-value (arch::kernel-global gc-inhibit-count)))
+  (li imm0 (+ ppc32::nil-value (ppc32::kernel-global gc-inhibit-count)))
   @again
   (lwarx arg_z rzero imm0)
   (addi arg_z arg_z '1)
@@ -433,7 +433,7 @@
   (blr))
 
 (defppclapfunction %unlock-gc-lock ()
-  (li imm0 (+ ppc::nil-value (arch::kernel-global gc-inhibit-count)))
+  (li imm0 (+ ppc32::nil-value (ppc32::kernel-global gc-inhibit-count)))
   @again
   (lwarx arg_z rzero imm0)
   (subi arg_z arg_z '1)
@@ -446,16 +446,16 @@
   (check-nargs 1)
   (b @try)
   @loop
-  (li imm0 arch::reservation-discharge)
+  (li imm0 ppc32::reservation-discharge)
   (stwcx. rzero rzero imm0)
   (event-poll)
-  (li 0 ppc::yield-syscall)
+  (li 0 ppc32::yield-syscall)
   (sc)
   (li 0 0)
   (li 0 0)
   (li 0 0)  
   @try
-  (li imm1 arch::lock._value)
+  (li imm1 ppc32::lock._value)
   (lwarx imm0 lock imm1)
   (cmpwi imm0 0)
   (blt @loop)				; locked for writing
@@ -471,24 +471,24 @@
 (defppclapfunction write-lock-rwlock ((lock arg_z))
   (check-nargs 1)
   ;; If it's already locked by us, just decrement the count.
-  (lwz imm0 arch::lock.writer lock)
+  (lwz imm0 ppc32::lock.writer lock)
   (cmpw imm0 rcontext)
   (bne @try)
-  (lwz imm0 arch::lock._value lock)
+  (lwz imm0 ppc32::lock._value lock)
   (subi imm0 imm0 '1)
-  (stw imm0 arch::lock._value lock)
+  (stw imm0 ppc32::lock._value lock)
   (blr)
   @loop
-  (li imm0 arch::reservation-discharge)
+  (li imm0 ppc32::reservation-discharge)
   (stwcx. rzero rzero imm0)
   (event-poll)
-  (li 0 ppc::yield-syscall)
+  (li 0 ppc32::yield-syscall)
   (sc)
   (li 0 0)
   (li 0 0)
   (li 0 0)
   @try
-  (li imm1 arch::lock._value)
+  (li imm1 ppc32::lock._value)
   (lwarx imm0 lock imm1)
   (cmpwi imm0 0)
   (bne @loop)				; locked by other thread
@@ -496,15 +496,15 @@
   (stwcx. imm0 lock imm1)
   (bne @try)
   (isync)
-  (stw rcontext arch::lock.writer lock)
+  (stw rcontext ppc32::lock.writer lock)
   (blr))
 
 
 
 (defppclapfunction unlock-rwlock ((lock arg_z))
-  (lwz imm2 arch::lock._value lock)
+  (lwz imm2 ppc32::lock._value lock)
   (cmpwi imm2 0)
-  (li imm1 arch::lock._value)
+  (li imm1 ppc32::lock._value)
   (ble @unlock-write)
   @unlock-read
   (lwarx imm0 lock imm1)
@@ -516,16 +516,16 @@
   @unlock-write
   ;;; If we aren't the writer, return NIL.
   ;;; If we are and the value's about to go to 0, clear the writer field.
-  (lwz imm0 arch::lock.writer lock)
+  (lwz imm0 ppc32::lock.writer lock)
   (cmpw imm0 rcontext)
   (lwzx imm0 lock imm1)
   (cmpwi cr1 imm0 '-1)
   (addi imm0 imm0 '1)
   (bne @fail)
   (bne cr1 @noclear)
-  (stw rzero arch::lock.writer lock)
+  (stw rzero ppc32::lock.writer lock)
   @noclear
-  (stw imm0 arch::lock._value lock)
+  (stw imm0 ppc32::lock._value lock)
   (blr)
   @fail
   (li arg_z nil)
@@ -589,7 +589,7 @@
   (box-fixnum arg_z imm0)
   (blr)
   @done
-  (li imm1 arch::reservation-discharge)
+  (li imm1 ppc32::reservation-discharge)
   (box-fixnum arg_z imm0)
   (stwcx. rzero rzero imm1)
   (blr))
@@ -622,7 +622,7 @@
   (box-fixnum arg_z imm3)
   (blr)
   @done
-  (li imm0 arch::reservation-discharge)
+  (li imm0 ppc32::reservation-discharge)
   (box-fixnum arg_z imm3)
   (stwcx. rzero 0 imm0)
   (blr))

@@ -65,18 +65,18 @@
 
 (defppclapfunction %short-float-plusp ((number arg_z))
   (get-single-float fp0 number)
-  (fcmpo :cr1 fp0 ppc::fp-zero)
+  (fcmpo :cr1 fp0 ppc32::fp-zero)
   (setpred arg_z :cr1 :gt)
   (blr))
 
 (defppclapfunction %double-float-plusp ((number arg_z))
   (get-double-float fp0 number)
-  (fcmpo :cr1 fp0 ppc::fp-zero)
+  (fcmpo :cr1 fp0 ppc32::fp-zero)
   (setpred arg_z :cr1 :gt)
   (blr))
 
 (defppclapfunction %sfloat-hwords ((sfloat arg_z))
-  (lwz imm0 arch::single-float.value sfloat)
+  (lwz imm0 ppc32::single-float.value sfloat)
   (digit-h temp0 imm0)
   (digit-l temp1 imm0)
   (vpush temp0)
@@ -87,8 +87,8 @@
 
 ; used by fasl-dump-dfloat
 (defppclapfunction %dfloat-hwords ((dfloat arg_z))
-  (lwz imm0 arch::double-float.value dfloat)
-  (lwz imm1 arch::double-float.val-low dfloat)
+  (lwz imm0 ppc32::double-float.value dfloat)
+  (lwz imm1 ppc32::double-float.val-low dfloat)
   (digit-h temp0 imm0)
   (digit-l temp1 imm0)
   (digit-h temp2 imm1)
@@ -217,13 +217,13 @@
     (unbox-fixnum imm2 boxed-quotient)  ; bashing unboxed divisor
     (cmpw cr0 imm2 unboxed-quotient)
     (beq+ @ok)
-    (li imm4 arch::one-digit-bignum-header)
-    (la allocptr (- arch::fulltag-misc 8) allocptr)
+    (li imm4 ppc32::one-digit-bignum-header)
+    (la allocptr (- ppc32::fulltag-misc 8) allocptr)
     (twllt allocptr allocptr)
-    (stw imm4 arch::misc-header-offset allocptr)
+    (stw imm4 ppc32::misc-header-offset allocptr)
     (mr boxed-quotient allocptr)
-    (clrrwi allocptr allocptr arch::ntagbits)
-    (stw unboxed-quotient arch::misc-data-offset boxed-quotient)
+    (clrrwi allocptr allocptr ppc32::ntagbits)
+    (stw unboxed-quotient ppc32::misc-data-offset boxed-quotient)
     @ok
     (subf imm0 unboxed-product unboxed-dividend)
     (vpush boxed-quotient)
@@ -236,7 +236,7 @@
 
 (defppclapfunction called-for-mv-p ()
   (ref-global imm0 ret1valaddr)
-  (lwz imm1 ppc::lisp-frame.savelr sp)
+  (lwz imm1 ppc32::lisp-frame.savelr sp)
   (eq->boolean arg_z imm0 imm1 imm0)
   (blr))
   
@@ -293,9 +293,9 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
         (seed1 imm1)
         (temp imm2))
     (check-nargs 1)             ; check
-    (lhz seed1 (+ arch::misc-data-offset 4) state)
+    (lhz seed1 (+ ppc32::misc-data-offset 4) state)
     (lwi temp #.(* 2 48271))      ; 48271 * 2
-    (lhz seed0 (+ arch::misc-data-offset 8) state)
+    (lhz seed0 (+ ppc32::misc-data-offset 8) state)
     (rlwimi seed0 seed1 16 0 15)  ; combine into 32 bits, x
     (mullw  seed1 temp seed0)     ; seed1 = (x * 48271), lo, * 2
     (rlwinm temp temp 1 0 30)     ; 48271 * 2 * 2
@@ -304,12 +304,12 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
     (rlwinm seed0 seed0 31 1 31)
     (addze. seed0 seed0)
     (insrwi seed1 seed0 16 16)
-    (sth seed1 (+ arch::misc-data-offset 8) state)
+    (sth seed1 (+ ppc32::misc-data-offset 8) state)
     (rotlwi seed0 seed0 16)
     (bne @storehigh)
     (addi seed0 seed0 1)
     @storehigh
-    (sth seed0 (+ arch::misc-data-offset 4) state)
+    (sth seed0 (+ ppc32::misc-data-offset 4) state)
     (clrlwi temp seed1 16)
     (box-fixnum arg_z temp)
     (blr)))
@@ -334,8 +334,8 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
     (cmpw cr2 ut0 vt0)
     (srw u u ut0)
     (srw v v vt0)
-    (addi ut0 ut0 arch::fixnum-shift)
-    (addi vt0 vt0 arch::fixnum-shift)
+    (addi ut0 ut0 ppc32::fixnum-shift)
+    (addi vt0 vt0 ppc32::fixnum-shift)
     @loop
     (cmpw cr0 u v)
     (slw arg_z u ut0)

@@ -25,8 +25,8 @@
   (cmpw cr0 x y)
   (extract-lisptag imm0 x)
   (extract-lisptag imm1 y)
-  (cmpwi cr1 imm0 arch::tag-misc)
-  (cmpwi cr2 imm1 arch::tag-misc)
+  (cmpwi cr1 imm0 ppc32::tag-misc)
+  (cmpwi cr2 imm1 ppc32::tag-misc)
   (beq cr0 @win)
   (bne cr1 @lose)
   (bne cr2 @lose)
@@ -36,44 +36,44 @@
   (getvheader imm1 y)
   (cmpw cr0 imm0 imm1)
   (extract-lowbyte imm1 imm1)
-  (cmpwi cr1 imm1 arch::subtag-macptr)
-  (cmpwi cr2 imm1 arch::max-numeric-subtag)
+  (cmpwi cr1 imm1 ppc32::subtag-macptr)
+  (cmpwi cr2 imm1 ppc32::max-numeric-subtag)
   (beq cr1 @macptr)
   (bne cr0 @lose)
   (bgt cr2 @lose)
-  (cmpwi cr0 imm1 arch::subtag-ratio)
-  (cmpwi cr1 imm1 arch::subtag-complex)
+  (cmpwi cr0 imm1 ppc32::subtag-ratio)
+  (cmpwi cr1 imm1 ppc32::subtag-complex)
   (beq cr0 @node)
   (beq cr1 @node)
   ; A single-float looks a lot like a macptr to me.
   ; A double-float is simple, a bignum involves a loop.
-  (cmpwi cr0 imm1 arch::subtag-bignum)
-  (cmpwi cr1 imm1 arch::subtag-double-float)
+  (cmpwi cr0 imm1 ppc32::subtag-bignum)
+  (cmpwi cr1 imm1 ppc32::subtag-double-float)
   (beq cr0 @bignum)
   (bne cr1 @one-unboxed-word)                     ; single-float case
   ; This is the double-float case.
-  (lwz imm0 arch::double-float.value x)
-  (lwz imm1 arch::double-float.value y)
+  (lwz imm0 ppc32::double-float.value x)
+  (lwz imm1 ppc32::double-float.value y)
   (cmpw cr0 imm0 imm1)
-  (lwz imm0 arch::double-float.val-low x)
-  (lwz imm1 arch::double-float.val-low y)
+  (lwz imm0 ppc32::double-float.val-low x)
+  (lwz imm1 ppc32::double-float.val-low y)
   (cmpw cr1 imm0 imm1)
   (bne cr0 @lose)
   (bne cr1 @lose)
   @win
-  (li arg_z (+ arch::t-offset ppc::nil-value))
+  (li arg_z (+ ppc32::t-offset ppc32::nil-value))
   (blr)
   @macptr
   (extract-lowbyte imm0 imm0)
   (cmpw cr0 imm1 imm0)
   (bne- cr0 @lose)
   @one-unboxed-word
-  (lwz imm0 arch::misc-data-offset x)
-  (lwz imm1 arch::misc-data-offset y)
+  (lwz imm0 ppc32::misc-data-offset x)
+  (lwz imm1 ppc32::misc-data-offset y)
   (cmpw cr0 imm0 imm1)
   (beq cr0 @win)
   @lose
-  (li arg_z ppc::nil-value)
+  (li arg_z ppc32::nil-value)
   (blr)
   @bignum
   ; Way back when, we got x's header into imm0.  We know
@@ -82,7 +82,7 @@
   ; as a 0-element bignum, so the loop must always execute
   ; at least once.
   (header-size imm0 imm0)
-  (li imm1 arch::misc-data-offset)
+  (li imm1 ppc32::misc-data-offset)
   @bignum-next
   (cmpwi cr1 imm0 1)                    ; last time through ?
   (lwzx imm2 x imm1)
@@ -92,7 +92,7 @@
   (la imm1 4 imm1)
   (bne cr0 @lose)
   (bne cr1 @bignum-next)
-  (li arg_z (+ arch::t-offset ppc::nil-value))
+  (li arg_z (+ ppc32::t-offset ppc32::nil-value))
   (blr)
   @node
   ; Have either a ratio or a complex.  In either case, corresponding
@@ -101,16 +101,16 @@
   (vpush x)
   (vpush y)
   (save-lisp-context)
-  (lwz x arch::misc-data-offset x)
-  (lwz y arch::misc-data-offset y)
+  (lwz x ppc32::misc-data-offset x)
+  (lwz y ppc32::misc-data-offset y)
   (bl @tail)
-  (cmpwi cr0 arg_z ppc::nil-value)
+  (cmpwi cr0 arg_z ppc32::nil-value)
   (restore-full-lisp-context)
   (vpop y)
   (vpop x)
   (beq cr0 @lose)
-  (lwz x (+ 4 arch::misc-data-offset) x)
-  (lwz y (+ 4 arch::misc-data-offset) y)
+  (lwz x (+ 4 ppc32::misc-data-offset) x)
+  (lwz y (+ 4 ppc32::misc-data-offset) y)
   (b @tail))
   
 
@@ -122,25 +122,25 @@
   (extract-fulltag imm0 x)
   (extract-fulltag imm1 y)
   (cmpw cr1 imm0 imm1)
-  (cmpwi cr2 imm0 arch::fulltag-cons)
-  (cmpwi cr3 imm0 arch::fulltag-misc)
+  (cmpwi cr2 imm0 ppc32::fulltag-cons)
+  (cmpwi cr3 imm0 ppc32::fulltag-misc)
   (beq cr0 @win)
   (bne cr1 @lose)
   (beq cr2 @cons)
   (bne cr3 @lose)
   (extract-typecode imm0 x)
   (extract-typecode imm1 y)
-  (cmpwi cr0 imm0 arch::subtag-macptr)
-  (cmpwi cr2 imm0 arch::subtag-istruct)
-  (cmpwi cr1 imm0 arch::subtag-vectorH)
+  (cmpwi cr0 imm0 ppc32::subtag-macptr)
+  (cmpwi cr2 imm0 ppc32::subtag-istruct)
+  (cmpwi cr1 imm0 ppc32::subtag-vectorH)
   (cmpw cr3 imm0 imm1)
   (ble cr0 @eql)
-  (cmplwi cr0 imm1 arch::subtag-vectorH)
+  (cmplwi cr0 imm1 ppc32::subtag-vectorH)
   (beq cr2 @same)
   (blt cr1 @lose)
   (bge cr0 @go)
   @lose
-  (li arg_z ppc::nil-value)
+  (li arg_z ppc32::nil-value)
   (blr)
   @same
   (bne cr3 @lose)
@@ -157,12 +157,12 @@
   (vpush y)
   (mflr loc-pc)
   (save-lisp-context)
-  (lwz imm0 arch::tcr.cs-limit rcontext) ; stack probe
-  (twllt arch::sp imm0)
+  (lwz imm0 ppc32::tcr.cs-limit rcontext) ; stack probe
+  (twllt ppc32::sp imm0)
   (%car x x)
   (%car y y)
   (bl @top)
-  (cmpwi :cr0 arg_z ppc::nil-value)  
+  (cmpwi :cr0 arg_z ppc32::nil-value)  
   (mr nfn fn)
   (restore-full-lisp-context)           ; gets old fn to fn  
   (vpop y)
@@ -172,7 +172,7 @@
   (%cdr y y)
   (b @top)
   @win
-  (li arg_z (+ arch::t-offset ppc::nil-value))
+  (li arg_z (+ ppc32::t-offset ppc32::nil-value))
   (blr))
 
 

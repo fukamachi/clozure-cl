@@ -310,10 +310,10 @@
 ;; that attribute exists), rehashing won't ever be necessary.
 (defun %%eqhash (key)
   (let* ((typecode (typecode key)))
-    (if (eq typecode arch::subtag-instance)
+    (if (eq typecode ppc32::subtag-instance)
       (values (mixup-hash-code (instance.hash key)) nil)
-      (if (eq typecode arch::subtag-symbol)
-	(let* ((name (if key (%svref key arch::symbol.pname-cell) "NIL")))
+      (if (eq typecode ppc32::subtag-symbol)
+	(let* ((name (if key (%svref key ppc32::symbol.pname-cell) "NIL")))
 	  (values (mixup-hash-code (string-hash name 0 (length name))) nil))
 	(let ((hash (mixup-hash-code (strip-tag-to-fixnum key))))
 	  (if (immediate-p-macro key)
@@ -1654,8 +1654,8 @@
 (defun immediate-p (thing)
   (let* ((tag (lisptag thing)))
     (declare (fixnum tag))
-    (or (= tag arch::tag-fixnum)
-        (= tag arch::tag-imm))))
+    (or (= tag ppc32::tag-fixnum)
+        (= tag ppc32::tag-imm))))
 
 ; Is KEY something which can be EQL to something it's not EQ to ?
 ; (e.g., is it a number or macptr ?)
@@ -1663,9 +1663,9 @@
 (defun need-use-eql (key)
   (let* ((typecode (typecode key)))
     (declare (fixnum typecode))
-    (or (= typecode arch::subtag-macptr)
-        (and (>= typecode arch::min-numeric-subtag)
-             (<= typecode arch::max-numeric-subtag)))))
+    (or (= typecode ppc32::subtag-macptr)
+        (and (>= typecode ppc32::min-numeric-subtag)
+             (<= typecode ppc32::max-numeric-subtag)))))
 
 (defun get-fwdnum (&optional hash)
   (let* ((res (%get-fwdnum)))
@@ -1682,7 +1682,7 @@
 
 (defun %cons-nhash-vector (size &optional (flags 0))
   (declare (fixnum size))
-  (let* ((vector (%alloc-misc (+ (+ size size) $nhash.vector_overhead) arch::subtag-hash-vector (%unbound-marker-8))))
+  (let* ((vector (%alloc-misc (+ (+ size size) $nhash.vector_overhead) ppc32::subtag-hash-vector (%unbound-marker-8))))
     (setf (nhash.vector.link vector) 0
           (nhash.vector.flags vector) flags
           (nhash.vector.free-alist vector) nil

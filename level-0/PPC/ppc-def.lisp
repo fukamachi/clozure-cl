@@ -27,15 +27,15 @@
     ;; This is going to have to pass a lisp object to a foreign function.
     ;; If we ever have a preemptive scheduler, we'd better hope that
     ;; WITHOUT-INTERRUPTS refuses to run lisp code from a callback.
-    (stwu sp (- (+ #+linuxppc-target ppc::eabi-c-frame.minsize
-		   #+darwinppc-target ppc::c-frame.minsize ppc::lisp-frame.size)) sp)	; make an FFI frame.
-    (la imm0 arch::misc-data-offset codev)
-    (stw imm0 #+linuxppc-target ppc::eabi-c-frame.param0 #+darwinppc-target ppc::c-frame.param0  sp)
-    (stw len #+linuxppc-target ppc::eabi-c-frame.param1 #+darwinppc-target ppc::c-frame.param1 sp)
+    (stwu sp (- (+ #+linuxppc-target ppc32::eabi-c-frame.minsize
+		   #+darwinppc-target ppc32::c-frame.minsize ppc32::lisp-frame.size)) sp)	; make an FFI frame.
+    (la imm0 ppc32::misc-data-offset codev)
+    (stw imm0 #+linuxppc-target ppc32::eabi-c-frame.param0 #+darwinppc-target ppc32::c-frame.param0  sp)
+    (stw len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target ppc32::c-frame.param1 sp)
     (ref-global imm3 kernel-imports)
-    (lwz arg_z arch::kernel-import-MakeDataExecutable imm3)
+    (lwz arg_z ppc32::kernel-import-MakeDataExecutable imm3)
     (bla #+linuxppc-target .SPeabi-ff-call #+darwinppc-target .SPffcall)
-    (li arg_z ppc::nil-value)
+    (li arg_z ppc32::nil-value)
     (restore-full-lisp-context)
     (blr)))
 

@@ -602,12 +602,12 @@
                             initial-contents-p))) 
              (if 
                (or (null initial-element-p) 
-                   (cond ((eql element-type arch::subtag-double-float-vector) 
+                   (cond ((eql element-type ppc32::subtag-double-float-vector) 
                           (eql initial-element 0.0d0)) 
-                         ((eql element-type arch::subtag-single-float-vector) 
+                         ((eql element-type ppc32::subtag-single-float-vector) 
                           (eql initial-element 0.0s0)) 
-                         ((or (eql element-type arch::subtag-simple-base-string) 
-                              (eql element-type arch::subtag-simple-general-string)) 
+                         ((or (eql element-type ppc32::subtag-simple-base-string) 
+                              (eql element-type ppc32::subtag-simple-general-string)) 
                           (eql initial-element #\Null))
                          (t (eql initial-element 0))))
                `(%alloc-misc ,dims ,element-type) 
@@ -1536,51 +1536,51 @@
 
 
 (define-compiler-macro arrayp (arg)
-  `(>= (the fixnum (typecode ,arg)) #.arch::subtag-arrayH))
+  `(>= (the fixnum (typecode ,arg)) #.ppc32::subtag-arrayH))
 
 (define-compiler-macro vectorp (arg)
-  `(>= (the fixnum (typecode ,arg)) #.arch::subtag-vectorH))
+  `(>= (the fixnum (typecode ,arg)) #.ppc32::subtag-vectorH))
 
 
 (define-compiler-macro fixnump (arg)
-  `(eql (lisptag ,arg) #.arch::tag-fixnum))
+  `(eql (lisptag ,arg) #.ppc32::tag-fixnum))
 
 (define-compiler-macro float (&whole w number &optional other)
   (declare (ignore number other))
   w)
 
 (define-compiler-macro double-float-p (n)
-  `(eql (typecode ,n) #.arch::subtag-double-float))
+  `(eql (typecode ,n) #.ppc32::subtag-double-float))
 
 
 (define-compiler-macro short-float-p (n)
-  `(eql (typecode ,n) #.arch::subtag-single-float))
+  `(eql (typecode ,n) #.ppc32::subtag-single-float))
 
 
 (define-compiler-macro floatp (n)
   (let* ((typecode (make-symbol "TYPECODE")))
     `(let* ((,typecode (typecode ,n)))
        (declare (fixnum ,typecode))
-       (or (= ,typecode #.arch::subtag-double-float)
-           (= ,typecode #.arch::subtag-single-float)))))
+       (or (= ,typecode #.ppc32::subtag-double-float)
+           (= ,typecode #.ppc32::subtag-single-float)))))
 
 (define-compiler-macro functionp (n)
-  `(eql (typecode ,n) #.arch::subtag-function))
+  `(eql (typecode ,n) #.ppc32::subtag-function))
 
 (define-compiler-macro listp (n)
-  `(eql (lisptag ,n) #.arch::tag-list))
+  `(eql (lisptag ,n) #.ppc32::tag-list))
 
 (define-compiler-macro consp (n)
-  `(eql (fulltag ,n) #.arch::fulltag-cons))
+  `(eql (fulltag ,n) #.ppc32::fulltag-cons))
 
 (define-compiler-macro bignump (n)
-  `(eql (typecode ,n) #.arch::subtag-bignum))
+  `(eql (typecode ,n) #.ppc32::subtag-bignum))
 
 (define-compiler-macro ratiop (n)
-  `(eql (typecode ,n) #.arch::subtag-ratio))
+  `(eql (typecode ,n) #.ppc32::subtag-ratio))
 
 (define-compiler-macro complexp (n)
-  `(eql (typecode ,n) #.arch::subtag-complex))
+  `(eql (typecode ,n) #.ppc32::subtag-complex))
 
 
 (define-compiler-macro aref (&whole call a &rest subscripts &environment env)
@@ -1615,25 +1615,25 @@
                (quoted-form-p element-type))
         (let* ((element-type (cadr element-type)))
           (if (subtypep element-type 'base-char)
-            `(%alloc-misc ,size #.arch::subtag-simple-base-string ,@(if initial-element-p `(,initial-element)))
+            `(%alloc-misc ,size #.ppc32::subtag-simple-base-string ,@(if initial-element-p `(,initial-element)))
             call))
         (if (not element-type-p)
-          `(%alloc-misc ,size #.arch::subtag-simple-base-string ,@(if initial-element-p `(,initial-element)))
+          `(%alloc-misc ,size #.ppc32::subtag-simple-base-string ,@(if initial-element-p `(,initial-element)))
           call)))
     call))
 
 (define-compiler-macro sbit (&environment env &whole call v &optional sub0 &rest others)
   (if (and sub0 (null others))
-    `(%typed-miscref #.arch::subtag-bit-vector ,v ,sub0)
+    `(%typed-miscref #.ppc32::subtag-bit-vector ,v ,sub0)
     call))
 
 (define-compiler-macro %sbitset (&environment env &whole call v sub0 &optional (newval nil newval-p) &rest newval-was-really-sub1)
   (if (and newval-p (not newval-was-really-sub1) )
-    `(%typed-miscset #.arch::subtag-bit-vector ,v ,sub0 ,newval)
+    `(%typed-miscset #.ppc32::subtag-bit-vector ,v ,sub0 ,newval)
     call))
 
 (define-compiler-macro simple-base-string-p (thing)
-  `(= (the fixnum (typecode ,thing)) #.arch::subtag-simple-base-string))
+  `(= (the fixnum (typecode ,thing)) #.ppc32::subtag-simple-base-string))
 
 (define-compiler-macro simple-string-p (thing)
   `(simple-base-string-p ,thing))
@@ -1643,11 +1643,10 @@
 
 
 (define-compiler-macro lockp (lock)
-  `(eq arch::subtag-lock (typecode ,lock)))
+  `(eq ppc32::subtag-lock (typecode ,lock)))
 
 
 
-(provide "OPTIMIZERS")
 
 (provide "OPTIMIZERS")
 

@@ -31,9 +31,9 @@
 
 (defun (setf ppc-lap-macro-function) (def name)
   (let* ((s (string name)))
-    (when (gethash s ppc::*ppc-opcode-numbers*)
+    (when (gethash s ppc32::*ppc-opcode-numbers*)
       (error "~s already defines a PowerPC instruction . " name))
-    (when (ppc::ppc-macro-function s)
+    (when (ppc32::ppc-macro-function s)
 
       (error "~s already defines a PowerPC macro instruction . " name))
     (setf (gethash s *ppc-lap-macros*) def)))
@@ -49,7 +49,7 @@
 (defvar *ppc-lap-regsave-reg* ())
 (defvar *ppc-lap-regsave-addr* ())
 (defvar *ppc-lap-regsave-label* ())
-(defparameter *ppc-lwz-instruction* (svref ppc::*ppc-opcodes* (gethash "LWZ" ppc::*ppc-opcode-numbers*)))
+(defparameter *ppc-lwz-instruction* (svref ppc32::*ppc-opcodes* (gethash "LWZ" ppc32::*ppc-opcode-numbers*)))
 
 
 
@@ -101,10 +101,10 @@
 ;;; A conditional branch is "conditional" if bit 2 of the BO field is set.
 (defun ppc-lap-conditional-branch-p (insn)
   (let* ((opcode (lap-instruction-opcode insn)))
-    (if (= (the fixnum (arch::opcode-majorop opcode)) 16)    ; it's a BC instruction ...
-      (unless (logbitp 1 (the fixnum (arch::opcode-op-low opcode)))          ; not absolute
-        (let* ((bo-field (if (= #xf (ldb (byte 4 6) (the fixnum (arch::opcode-mask-high opcode))))
-                           (ldb (byte 5 5) (the fixnum (arch::opcode-op-high opcode)))
+    (if (= (the fixnum (ppc32::opcode-majorop opcode)) 16)    ; it's a BC instruction ...
+      (unless (logbitp 1 (the fixnum (ppc32::opcode-op-low opcode)))          ; not absolute
+        (let* ((bo-field (if (= #xf (ldb (byte 4 6) (the fixnum (ppc32::opcode-mask-high opcode))))
+                           (ldb (byte 5 5) (the fixnum (ppc32::opcode-op-high opcode)))
                            (svref (lap-instruction-parsed-operands insn) 0))))
           (declare (fixnum bo-field))
           (if (logbitp 2 bo-field)
@@ -129,28 +129,28 @@
         ; get explicit values for the BO and BI fields of the instruction.
         (let* ((original-opcode (lap-instruction-opcode insn))
                (vals (lap-instruction-parsed-operands insn))
-               (high (arch::opcode-op-high original-opcode))
-               (low (arch::opcode-op-low original-opcode))
+               (high (ppc32::opcode-op-high original-opcode))
+               (low (ppc32::opcode-op-low original-opcode))
                (link-p (logbitp 0 low))
                (new-label (make-lap-label (gensym)))
                (idx -1))
           (declare (fixnum high low))
           ; Assemble all operands but the last
-          (do* ((ops (arch::opcode-operands original-opcode) next)
+          (do* ((ops (ppc32::opcode-operands original-opcode) next)
                 (next (cdr ops) (cdr next)))
                ((null next))
             (declare (list ops next))
             (let* ((operand (car ops))
-                   (val (if (logbitp arch::operand-fake (arch::operand-flags operand))
+                   (val (if (logbitp ppc32::operand-fake (ppc32::operand-flags operand))
                     0
                     (svref vals (incf idx))))
-                   (insert-function (arch::operand-insert-function operand)))
+                   (insert-function (ppc32::operand-insert-function operand)))
               (setq high (if insert-function
                            (funcall insert-function high low val)
-                           (ppc::insert-default operand high low val)))))
+                           (ppc32::insert-default operand high low val)))))
           ; "high" now contains the major opcode, BO, and BI fields of the original branch instruction.
           ; Generate a (BC (invert BO) BI new-label) instruction, and insert it before the original instruction.
-          (let* ((bc-opcode (svref ppc::*ppc-opcodes* (gethash "BC" ppc::*ppc-opcode-numbers*)))
+          (let* ((bc-opcode (svref ppc32::*ppc-opcodes* (gethash "BC" ppc32::*ppc-opcode-numbers*)))
                  (bo (logxor #b1000 (the fixnum (ldb (byte 5 5) high))))
                  (bi (ldb (byte 5 0) high))
                  (new-instruction (make-lap-instruction bc-opcode))
@@ -164,7 +164,7 @@
             (insert-dll-node-after new-label insn))
           ; Now, change INSN's opcode to B or BL, and make sure that it
           ; references nothing but the old label.
-          (let* ((long-branch (svref ppc::*ppc-opcodes* (gethash (if link-p "BL" "B") ppc::*ppc-opcode-numbers*)))
+          (let* ((long-branch (svref ppc32::*ppc-opcodes* (gethash (if link-p "BL" "B") ppc32::*ppc-opcode-numbers*)))
                  (opvect (alloc-lap-operand-vector)))
             (setf (svref opvect 0) label
                   (lap-instruction-opcode insn) long-branch
@@ -262,20 +262,20 @@
 (defun ppc-lap-generate-instruction (code-vector index insn)
   (let* ((op (lap-instruction-opcode insn))
          (vals (lap-instruction-parsed-operands insn))
-         (high (arch::opcode-op-high op))
-         (low (arch::opcode-op-low op))
+         (high (ppc32::opcode-op-high op))
+         (low (ppc32::opcode-op-low op))
          (idx -1))
-    (dolist (operand (arch::opcode-operands op))
-      (let* ((val (if (logbitp arch::operand-fake (arch::operand-flags operand))
+    (dolist (operand (ppc32::opcode-operands op))
+      (let* ((val (if (logbitp ppc32::operand-fake (ppc32::operand-flags operand))
                     0
                     (svref vals (incf idx))))
-             (insert-function (arch::operand-insert-function operand)))
+             (insert-function (ppc32::operand-insert-function operand)))
         (multiple-value-setq (high low)
           (if insert-function
             (funcall insert-function high low val)
-            (ppc::insert-default operand high low val)))
+            (ppc32::insert-default operand high low val)))
         (if (null high)
-          (error "Invalid operand for ~s instruction: ~d" (arch::opcode-name op) val))))
+          (error "Invalid operand for ~s instruction: ~d" (ppc32::opcode-name op) val))))
     (setf (lap-instruction-parsed-operands insn) nil)
     (free-lap-operand-vector vals)
     (locally (declare (type (simple-array (unsigned-byte 16) (*)) code-vector)
@@ -337,14 +337,14 @@
 				    (setq traceback (symbol-name name)))))
 	 (code-vector (%alloc-misc (+ (ash maxpc -2) traceback-size)
 				   (if cross-compiling
-				     arch::subtag-xcode-vector
-				     arch::subtag-code-vector)))
+				     ppc32::subtag-xcode-vector
+				     ppc32::subtag-code-vector)))
          (constants-size (+ 3 (length *ppc-lap-constants*)))
          (constants-vector (%alloc-misc
                             constants-size
 			    (if cross-compiling
-			      arch::subtag-xfunction
-			      arch::subtag-function)))
+			      ppc32::subtag-xfunction
+			      ppc32::subtag-function)))
          (i 0))
     (declare (fixnum i constants-size))
     (ppc-lap-resolve-labels)            ; all operands fully evaluated now.
@@ -357,7 +357,7 @@
       (let* ((imm (car immpair))
              (k (cdr immpair)))
         (declare (fixnum k))
-        (setf (uvref constants-vector (ash (- k arch::misc-data-offset) -2))
+        (setf (uvref constants-vector (ash (- k ppc32::misc-data-offset) -2))
               imm)))
     (setf (uvref constants-vector (1- constants-size)) bits       ; lfun-bits
           (uvref constants-vector (- constants-size 2)) name
@@ -372,7 +372,7 @@
        (warn "Duplicate :regsave form not handled (yet ?) : ~s" form)
        (destructuring-bind (reg addr) (cdr form)
          (let* ((regno (ppc-register-name-or-expression reg)))
-           (if (not (<= ppc::save7 regno ppc::save0))
+           (if (not (<= ppc32::save7 regno ppc32::save0))
              (warn "Not a save register: ~s.  ~s ignored." reg form)
              (let* ((addrexp (ppc-register-name-or-expression addr)))   ; parses 'fixnum
                (if (not (and (typep addrexp 'fixnum)
@@ -382,7 +382,7 @@
                  (setq *ppc-lap-regsave-label* (emit-lap-label (gensym))
                        *ppc-lap-regsave-reg* regno
                        *ppc-lap-regsave-addr* (- (+ addrexp)
-                                                 (* 4 (1+ (- ppc::save0 regno))))))))))))))
+                                                 (* 4 (1+ (- ppc32::save0 regno))))))))))))))
 
        
 (defun ppc-lap-form (form)
@@ -403,7 +403,7 @@
                 (t
                  ; instruction macros expand into instruction forms
                  ; (with some operands reordered/defaulted.)
-                 (let* ((expander (ppc::ppc-macro-function name)))
+                 (let* ((expander (ppc32::ppc-macro-function name)))
                    (if expander
                      (ppc-lap-form (funcall expander form nil))
                      (ppc-lap-instruction name (cdr form)))))))))))))
@@ -433,7 +433,7 @@
 
 (defun ppc-lap-constant-offset (x)
   (or (cdr (assoc x *ppc-lap-constants* :test #'equal))
-      (let* ((n (+ arch::misc-data-offset (ash (1+ (length *ppc-lap-constants*)) 2))))
+      (let* ((n (+ ppc32::misc-data-offset (ash (1+ (length *ppc-lap-constants*)) 2))))
         (push (cons x n) *ppc-lap-constants*)
         n)))
 
@@ -442,7 +442,7 @@
   (if (typep x 'fixnum)
     x
     (if (null x)
-      ppc::nil-value
+      ppc32::nil-value
       (let* ((val (handler-case (eval x)          ; Look! Expression evaluation!
 		    (error (condition) (error "~&Evaluation of ~S signalled assembly-time error ~& ~A ."
 					      x condition)))))
@@ -452,8 +452,8 @@
 	val))))
 
 (defparameter *ppc-lap-register-aliases*
-  `((nfn . ,ppc::nfn)
-    (fname . ,ppc::fname)))
+  `((nfn . ,ppc32::nfn)
+    (fname . ,ppc32::fname)))
 
 (defparameter *ppc-lap-fp-register-aliases*
   ())
@@ -464,7 +464,7 @@
 (defun ppc-gpr-name-p (x)
   (and (or (symbolp x) (stringp x))
            (or
-            (position (string x) ppc::*gpr-register-names* :test #'string-equal)
+            (position (string x) ppc32::*gpr-register-names* :test #'string-equal)
             (cdr (assoc x *ppc-lap-register-aliases* :test #'string-equal)))))
 
 (defun ppc-register-name-or-expression (x)
@@ -473,17 +473,17 @@
 	(if (and (consp x) (eq (car x) 'quote))
 	  (let* ((quoted-form (cadr x)))
 	    (if (null quoted-form)
-	      ppc::nil-value
+	      ppc32::nil-value
 	      (if (typep quoted-form 'fixnum)
-		(ash quoted-form arch::fixnumshift)
+		(ash quoted-form ppc32::fixnumshift)
 		(ppc-lap-constant-offset quoted-form))))
 	  (ppc-lap-evaluated-expression x)))
-    ppc::nil-value))
+    ppc32::nil-value))
 
 (defun ppc-fpr-name-p (x)
   (and (or (symbolp x) (stringp x))
                    (or
-                    (position (string x) ppc::*fpr-register-names* :test #'string-equal)
+                    (position (string x) ppc32::*fpr-register-names* :test #'string-equal)
                     (cdr (assoc x *ppc-lap-fp-register-aliases* :test #'string-equal)))))
 
 (defun ppc-fp-register-name-or-expression (x)
@@ -493,7 +493,7 @@
 (defun ppc-vr-name-p (x)
   (and (or (symbolp x) (stringp x))
 	     (or
-	      (position (string x) ppc::*vector-register-names* :test #'string-equal)
+	      (position (string x) ppc32::*vector-register-names* :test #'string-equal)
 	      (cdr (assoc x *ppc-lap-vector-register-aliases* :test #'string-equal)))))
 
 (defun ppc-vector-register-name-or-expression (x)
@@ -501,7 +501,7 @@
       (ppc-lap-evaluated-expression x)))
 
 (defun ppc-vr (r)
-  (svref ppc::*vector-register-names* r))
+  (svref ppc32::*vector-register-names* r))
 
 
 (defparameter *ppc-cr-field-names* #(:crf0 :crf1 :crf2 :crf3 :crf4 :crf5 :crf6 :crf7))
@@ -550,10 +550,10 @@
       (ppc-lap-evaluated-expression x))))
   
 (defun ppc-lap-instruction (name opvals)
-  (let* ((opnum (gethash (string name) ppc::*ppc-opcode-numbers*))
+  (let* ((opnum (gethash (string name) ppc32::*ppc-opcode-numbers*))
          (opcode (and opnum 
-                          (< -1 opnum (length ppc::*ppc-opcodes*))
-                          (svref ppc::*ppc-opcodes* opnum))))
+                          (< -1 opnum (length ppc32::*ppc-opcodes*))
+                          (svref ppc32::*ppc-opcodes* opnum))))
     (unless opcode
           (error "Unknown PPC opcode: ~a" name))
     ;; Unless either
@@ -564,9 +564,9 @@
     ;;  we've got a wrong-number-of-args error.
     ;;  In case (b), there's at most one optional argument per instruction;
     ;;   provide 0 for the missing value.
-    (let* ((operands (arch::opcode-operands opcode))
-           (nmin (arch::opcode-min-args opcode))
-           (nmax (arch::opcode-max-args opcode))
+    (let* ((operands (ppc32::opcode-operands opcode))
+           (nmin (ppc32::opcode-min-args opcode))
+           (nmax (ppc32::opcode-max-args opcode))
            (nhave (length opvals)))
       (declare (fixnum nmin nmax nhave))
       (if (= nhave nmax)
@@ -577,33 +577,33 @@
           (if (= nhave nmin)
             (let* ((newops ()))
               (dolist (op operands (ppc-emit-lap-instruction opcode (nreverse newops)))
-                (let* ((flags (arch::operand-flags op)))
-                  (unless (logbitp arch::operand-fake flags)
-                    (push (if (logbitp arch::operand-optional flags)
+                (let* ((flags (ppc32::operand-flags op)))
+                  (unless (logbitp ppc32::operand-fake flags)
+                    (push (if (logbitp ppc32::operand-optional flags)
                             0
                             (pop opvals))
                           newops)))))
             (error "Too few operands in ~s : (~a requires at least ~d)"
                    opvals name nmin)))))))
 
-; This is pretty rudimentary: if the operand has the "ppc::$ppc-operand-relative" bit
+; This is pretty rudimentary: if the operand has the "ppc32::$ppc-operand-relative" bit
 ; set, we demand a label name and note the fact that we reference the label in question.
 ; Otherwise, we use the "register-name-or-expression" thing.
 ; Like most PPC assemblers, this lets you treat everything as an expression, even if
 ; you've got the order of some arguments wrong ...
 
 (defun ppc-parse-lap-operand (opvalx operand insn)
-  (let* ((flags (arch::operand-flags operand)))
+  (let* ((flags (ppc32::operand-flags operand)))
     (declare (fixnum flags))
-    (if (logbitp ppc::$ppc-operand-relative flags)
+    (if (logbitp ppc32::$ppc-operand-relative flags)
       (lap-note-label-reference opvalx insn)
-      (if (logbitp ppc::$ppc-operand-cr flags)
+      (if (logbitp ppc32::$ppc-operand-cr flags)
         (ppc-lap-cr-field-expression opvalx)
-        (if (logbitp ppc::$ppc-operand-absolute flags)
+        (if (logbitp ppc32::$ppc-operand-absolute flags)
           (ppc-subprimitive-address opvalx)
-          (if (logbitp ppc::$ppc-operand-fpr flags)
+          (if (logbitp ppc32::$ppc-operand-fpr flags)
             (ppc-fp-register-name-or-expression opvalx)
-	    (if (logbitp ppc::$ppc-operand-vr flags) ; SVS
+	    (if (logbitp ppc32::$ppc-operand-vr flags) ; SVS
 	      (ppc-vector-register-name-or-expression opvalx)
 	      (ppc-register-name-or-expression opvalx))))))))
 
@@ -622,14 +622,14 @@
 ; two-pass scheme seems overly general, but if/when we ever do instruction scheduling
 ; it'll probably make it simpler.
 (defun ppc-emit-lap-instruction (opcode opvals)
-  (let* ((operands (arch::opcode-operands opcode))
+  (let* ((operands (ppc32::opcode-operands opcode))
          (parsed-values (alloc-lap-operand-vector))
          (insn (make-lap-instruction opcode))
          (idx -1))
     (declare (fixnum idx))
     (dolist (op operands)
-      (let* ((flags (arch::operand-flags op))
-             (val (if (logbitp arch::operand-fake flags)
+      (let* ((flags (ppc32::operand-flags op))
+             (val (if (logbitp ppc32::operand-fake flags)
                     0
                     (ppc-parse-lap-operand (pop opvals) op insn))))
         (declare (fixnum flags))
