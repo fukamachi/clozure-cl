@@ -61,12 +61,18 @@
 	      (lisp-implementation-version)))
     (toplevel-loop)))
 
-  
-(defun make-mcl-listener-process (procname input-stream output-stream cleanup-function &optional (initial-function #'listener-function) (close-streams t))
-  (let ((p (make-process procname )))
+
+(defun make-mcl-listener-process (procname
+                                  input-stream
+                                  output-stream
+                                  cleanup-function
+                                  &key
+                                  (initial-function #'listener-function)
+                                  (close-streams t)
+                                  (class 'process))
+  (let ((p (make-process procname :class class)))
     (process-preset p #'(lambda ()
-                          (let ((*listener-p* t)
-				(*terminal-io*
+                          (let ((*terminal-io*
 				 (make-echoing-two-way-stream
 				  input-stream output-stream)))
 			    (unwind-protect
@@ -84,7 +90,7 @@
 					     *current-process*)))
                                    (application-ui-operation
                                     *application*
-                                    :note-note-current-package *package*)
+                                    :note-current-package *package*)
 				   (funcall initial-function))
 			      (with-lock-grabbed
 				  (*auto-flush-streams-lock*)
