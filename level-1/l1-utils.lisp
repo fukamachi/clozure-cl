@@ -444,15 +444,13 @@
 ; (asseql item list) <=> (assoc item list :test #'eql :key #'identity)
 
 (defun asseql (item list)
-  (when (not (listp list))(setq list (%kernel-restart $xwrongtype list 'list)))
-  (locally (declare (list list))
-    (if (need-use-eql-macro item)
-      (dolist (pair list)
-        (if (and pair (eql item (%car pair)))
-          (return pair)))
-      (dolist (pair list)        
-        (when (and pair (eq item (%car pair)))
-          (return pair))))))
+  (if (need-use-eql-macro item)
+    (dolist (pair list)
+      (if pair
+	(if (eql item (car pair))
+	  (return pair)
+	  (report-bad-arg pair 'cons))))
+    (assq pair list)))
 
 ; (assoc-test item list test-fn) 
 ;   <=> 
@@ -460,8 +458,10 @@
 ; test-fn may not be FUNCTIONP, so we coerce it here.
 (defun assoc-test (item list test-fn)
   (dolist (pair list)
-    (if (and pair (funcall test-fn item (car pair)))
-      (return pair))))
+    (if pair
+      (if (funcall test-fn item (car pair))
+	(return pair))
+      (report-bad-arg pair 'cons))))
 
 
 
@@ -471,8 +471,10 @@
 ; test-not-fn may not be FUNCTIONP, so we coerce it here.
 (defun assoc-test-not (item list test-not-fn)
   (dolist (pair list)
-    (if (and pair (not (funcall test-not-fn item (car pair))))
-      (return pair))))
+    (if pair
+      (if (not (funcall test-not-fn item (car pair)))
+	(return pair))
+      (report-bad-arg pair 'cons))))
 
 (defun assoc (item list &key test test-not key)
   (multiple-value-bind (test test-not key) (%key-conflict test test-not key)
@@ -486,13 +488,15 @@
             (assoc-test-not item list test-not))))
       (if test
         (dolist (pair list)
-          (when pair
+          (if pair
             (if (funcall test item (funcall key (car pair)))
-              (return pair))))
+              (return pair))
+	    (report-bad-arg pair 'cons)))
         (dolist (pair list)
-          (when pair
+          (if pair
             (unless (funcall test-not item (funcall key (car pair)))
-              (return pair))))))))
+              (return pair))
+	    (report-bad-arg pair 'cons)))))))
 
 
 ;;;; Member.
@@ -501,15 +505,12 @@
 
 ;nil or error - supposed to error if not proper list?
 (defun memeql (item list)
-  (when (not (listp list))(setq list (%kernel-restart $xwrongtype list 'list)))
   (if (need-use-eql-macro item)
-    (do* ((l list (cdr l)))
-         ((null l))
+    (do* ((l list (%cdr l)))
+         ((endp l))
       (when (eql (%car l) item) (return l)))
-    (do* ((tail list (cdr tail)))
-         ((null tail))
-      (if (eq item (%car tail))
-        (return tail)))))
+    (memq item list))
+)
 
 ; (member-test item list test-fn) 
 ;   <=> 
@@ -535,8 +536,8 @@
 ;     (member item list :test-not test-not-fn :key #'identity)
 (defun member-test-not (item list test-not-fn)
   (do* ((l list (cdr l)))
-       ((null l))
-    (unless (funcall test-not-fn item (car l)) (return l))))
+       ((endp l))
+    (unless (funcall test-not-fn item (%car l)) (return l))))
 
 (defun member (item list &key test test-not key)
   (multiple-value-bind (test test-not key) (%key-conflict test test-not key)
@@ -550,7 +551,7 @@
             (member-test-not item list test-not))))
       (if test
         (do* ((l list (cdr l)))
-             ((null l))
+             ((endp l))
           (if (funcall test item (funcall key (car l)))
               (return l)))
         (do* ((l list (cdr l)))
