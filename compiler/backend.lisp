@@ -36,7 +36,8 @@
   (target-os ())
   (target-arch-name nil :type symbol)
   (target-foreign-type-data nil :type (or null foreign-type-data))
-  (lap-macros nil))
+  (lap-macros nil)
+  (target-lisp-node-size 0 :type fixnum))
 
 (defmethod print-object ((b backend) s)
   (print-unreadable-object (b s :type t :identity t)
@@ -61,7 +62,9 @@
     (:s16 . 4)
     (:u8 . 5)
     (:s8 . 6)
-    (:address . 7)))
+    (:address . 7)
+    (:u64 . 8)
+    (:s64 . 9)))
 
 (defun gpr-mode-name-value (name)
   (or (cdr (assq name *mode-name-value-alist*))
