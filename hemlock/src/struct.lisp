@@ -90,7 +90,10 @@
   (%writable t)		      ; t => can alter buffer's region
   (modified-tick -2)	      ; The last time the buffer was modified.
   (unmodified-tick -1)	      ; The last time the buffer was unmodified
+  #+clx
   windows		      ; List of all windows into this buffer.
+  #-clx
+  text-storage		      ; text storage object associated with this buffer
   var-values		      ; the buffer's local variables
   variables		      ; string-table of local variables
   write-date		      ; File-Write-Date for pathname.
