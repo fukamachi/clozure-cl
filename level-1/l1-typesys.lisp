@@ -3612,7 +3612,7 @@
 
 (deftype signed-byte (&optional s)
   (cond ((eq s '*) 'integer)
-	  ((and (integerp s) (> s 1))
+	  ((and (integerp s) (> s 0))
 	   (let ((bound (ash 1 (1- s))))
 	     `(integer ,(- bound) ,(1- bound))))
 	  (t
