@@ -253,7 +253,8 @@
   (declare (ignore abort))
   (when (socket-device socket)
     (fd-close (socket-device socket))
-    (setf (socket-device socket) nil)))
+    (setf (socket-device socket) nil)
+    t))
 
 ;; A passive tcp socket just generates connection streams
 (defclass listener-socket (tcp-socket unconnected-socket) ())

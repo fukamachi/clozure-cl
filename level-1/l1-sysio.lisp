@@ -469,7 +469,8 @@
 	    (rename-file original-name filename :if-exists :overwrite))
 	  (delete-file original-name)))
       (setq *open-file-streams* (nremove s *open-file-streams*))
-      (call-next-method))))
+      (call-next-method)
+      t)))
 
 (defmethod select-stream-class ((class file-stream) in-p out-p char-p)
   (if char-p
@@ -619,7 +620,10 @@
 ;;; "we don't support EXTENDED-CHARs".
 (defun file-string-length (stream object)
   (unless (and (typep stream 'file-stream)
-	       (eq 'character (stream-element-type stream)))
+	       (let* ((eltype (stream-element-type stream)))
+		 (or (eq 'character eltype)
+		     (eq 'base-char eltype)
+		     (subtypep eltype 'character))))
     (error "~S is not a file stream capable of character output" stream))
   (etypecase object
     (character 1)

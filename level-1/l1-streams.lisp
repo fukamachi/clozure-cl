@@ -242,13 +242,11 @@
 
 (defmethod close ((stream stream) &key abort)
   (declare (ignore abort))
-  nil)
+  (with-slots ((closed closed)) stream
+      (unless closed
+	(setf closed nil))))
 
-(defmethod close :after ((stream stream) &key abort)
-  (declare (ignore abort))
-  (unless (slot-value stream 'closed)
-    (set-slot-value stream 'closed :closed)
-    t))
+
 
 (defmethod open-stream-p ((x t))
   (report-bad-arg x 'stream))
@@ -1672,18 +1670,16 @@
            buffered-binary-output-stream-mixin)
   ())
 
-
 (defmethod close :after ((stream buffered-stream-mixin) &key abort)
   (declare (ignore abort))
   (let* ((ioblock (stream-ioblock stream nil)))
     (when ioblock
       (%ioblock-close ioblock))))
 
-
 (defmethod close :before ((stream buffered-output-stream-mixin) &key abort)
-  (declare (ignore abort))
-  (when (open-stream-p stream)
-    (stream-force-output stream)))
+  (unless abort
+    (when (open-stream-p stream)
+      (stream-force-output stream))))
 
 (defmethod interactive-stream-p ((stream buffered-stream-mixin))
   (let* ((ioblock (stream-ioblock stream nil)))
