@@ -2299,8 +2299,56 @@
 	'fd-binary-input-stream)
       'fd-character-output-stream)))
 
+(defstruct (input-selection (:include dll-node))
+  (package nil :type (or null string package))
+  (source-file nil :type (or null string pathname))
+  (string-stream nil :type (or null string-input-stream)))
 
-    
+(defstruct (input-selection-queue (:include locked-dll-header)))
+
+(defclass selection-input-stream (fd-character-input-stream)
+    ((selections :initform (init-dll-header (make-input-selection-queue))
+                 :reader selection-input-stream-selections)
+     (current-selection :initform nil
+                        :accessor selection-input-stream-current-selection)
+     (peer-fd  :reader selection-input-stream-peer-fd)))
+
+(defmethod select-stream-class ((class (eql 'selection-input-stream))
+                                in-p out-p char-p)
+  (if (and in-p char-p (not out-p))
+    'selection-input-stream
+    (error "Can't create that type of stream.")))
+
+(defun make-selection-input-stream (fd &key peer-fd (elements-per-buffer *elements-per-buffer*))
+  (let* ((s (make-fd-stream fd
+                            :elements-per-buffer elements-per-buffer
+                            :class 'selection-input-stream)))
+    (setf (slot-value s 'peer-fd) peer-fd)
+    s))
+
+(defmethod stream-clear-input ((s selection-input-stream))
+  (call-next-method)
+  (let* ((q (selection-input-stream-selections s)))
+    (with-locked-dll-header (q)
+      (do* ((first (dll-header-first q) (dll-header-first q)))
+           ((eq first q))
+        (remove-dll-node first))))
+  (setf (selection-input-stream-current-selection s) nil))
+
+(defmethod enqueue-input-selection ((stream selection-input-stream)
+                                    (selection input-selection))
+  (let* ((q (selection-input-stream-selections stream)))
+    (with-locked-dll-header (q)
+      (append-dll-node selection q)
+      (%stack-block ((buf 1))
+        (setf (%get-unsigned-byte buf)
+              (logand (char-code #\d) #x1f))
+        (fd-write (slot-value stream 'peer-fd)
+                  buf
+                  1)))))
+              
+
+
 (defresource *string-output-stream-pool*
   :constructor (make-string-output-stream)
   :initializer 'stream-clear-output)
@@ -2419,5 +2467,69 @@
 (proclaim '(stream 
           *query-io* *debug-io* *error-output* *standard-input* 
           *standard-output* *trace-output*))
+
+;;; Interaction with the REPL.  READ-TOPLEVEL-FORM should return 3
+;;; values: a form, a (possibly null) pathname, and a boolean that
+;;; indicates whether or not the result(s) of evaluating the form
+;;; should be printed.  (The last value has to do with how selections
+;;; that contain multiple forms are handled; see *VERBOSE-EVAL-SELECTION*
+;;; and the SELECTION-INPUT-STREAM method below.)
+(defmethod read-toplevel-form ((stream input-stream)
+                               eof-value)
+  (loop
+    (let* ((*in-read-loop* nil) 
+           (form (read stream nil eof-value)))
+      (if (eq form eof-value)
+        (return (values form nil t))
+        (progn
+           (let ((ch))                 ;Trim whitespace
+            (while (and (listen stream)
+                        (setq ch (read-char stream nil nil))
+                        (whitespacep cH))
+              (setq ch nil))
+            (when ch (unread-char ch stream)))
+          (when *listener-indent* 
+            (write-char #\space stream)
+            (write-char #\space stream))
+          (return (values (process-single-selection form) nil t)))))))
+
+(defparameter *verbose-eval-selection* nil
+  "When true, the results of evaluating all forms in an input selection
+are printed.  When false, only the results of evaluating the last form
+are printed.")
+
+(defmethod read-toplevel-form ((stream selection-input-stream)
+                               eof-value)
+  ;; If we don't have a selection, try to get one.  Read from the
+  ;; underlying input stream; if that yields an EOF, that -usually-
+  ;; means that a selection's been posted.
+  (do* ((selection (selection-input-stream-current-selection stream)))
+       ()
+    (when (null selection)
+      (let* ((form (call-next-method)))
+        (if (eq form eof-value)
+          (setq selection
+                (setf (selection-input-stream-current-selection stream)
+                      (locked-dll-header-dequeue
+                       (selection-input-stream-selections stream))))
+          (return (values form nil t)))))
+    (if (null selection)
+      (return (values eof-value nil t))
+      (let* ((*package* *package*)
+             (string-stream (input-selection-string-stream selection))
+             (selection-package (input-selection-package selection))
+             (pkg (if selection-package (pkg-arg selection-package))))
+        (when pkg (setq *package* pkg))
+        (let* ((form (read-toplevel-form string-stream eof-value))
+               (last-form-in-selection (eofp string-stream)))
+          (when last-form-in-selection
+            (setf (selection-input-stream-current-selection stream) nil))
+          (return (values form
+                          (input-selection-source-file selection)
+                          (or last-form-in-selection *verbose-eval-selection*))))))))
+
+                             
+        
+
 
 ; end of L1-streams.lisp
