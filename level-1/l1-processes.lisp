@@ -298,8 +298,8 @@
 		      (apply (car initial-form) (cdr (the list initial-form)))
 		      (setq exited t)
 		      nil)
-                    (abort-break ())
-		    (abort () (setq exited t)))
+                    (abort-break () :report "Reset this process")
+		    (abort () :report "Kill this process" (setq exited t)))
 		 (process-reset (condition)
 		   (process-reset-kill condition)))))
     ;; We either exited from the initial form normally, were told to
