@@ -516,6 +516,9 @@
      stream-write-list
      stream-read-vector
      stream-write-vector
+
+     make-heap-ivector
+     dispose-heap-ivector
      ;;
      external
      external-call
