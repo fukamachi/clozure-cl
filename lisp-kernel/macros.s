@@ -128,6 +128,9 @@ ifdef([PPC64],[
         define([trllt],[
         twllt $@
         ])
+        define([trlle],[
+        twlle $@
+        ])       
         define([treqi],[
         tweqi $@
         ])
