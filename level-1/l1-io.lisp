@@ -1487,13 +1487,20 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 
 
 (defun write-a-macptr (macptr stream)
-  (let ((null (%null-ptr-p macptr)))
+  (let* ((null (%null-ptr-p macptr))
+	 (ftype (%macptr-ftype macptr))
+	 (ftype-info (if ftype (unparse-foreign-type ftype))))
     (print-unreadable-object (macptr stream)
       (if null
-	(%write-string "A Null Mac Pointer" stream)
+	(progn
+	  (%write-string "A Null Mac Pointer" stream)
+	  (when ftype-info
+	    (format stream " to foreign type ~s" ftype-info)))
 	(progn
 	  (pp-start-block stream "A Mac Pointer")
 	  (%write-macptr-termination-info macptr stream)
+	  (when ftype-info
+	    (format stream " to foreign type ~s at" ftype-info))
 	  (stream-write-char stream #\ )
 	  (write-an-integer (%ptr-to-int macptr) stream 16. t))))))
 
