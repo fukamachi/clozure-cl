@@ -56,7 +56,8 @@
   (syscalls (make-hash-table :test #'eq))
   (dirlist (make-dll-header))
   (attributes #+darwinppc-target '(:signed-char :struct-by-value :prepend-underscores)
-	      #+linuxppc-target ()))
+	      #+linuxppc-target ())
+  (ordinal->type (make-array 100 :fill-pointer 0)))
 
 (defvar *host-ftd* (make-ftd))
 (defvar *target-ftd* *host-ftd*)
