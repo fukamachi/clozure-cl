@@ -24,6 +24,8 @@
 			<string>Lisp source file</string>
 			<key>NSDocumentClass</key>
 			<string>LispEditorDocument</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>openmcl-icon.icns</string>
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
@@ -32,6 +34,8 @@
 			<string>Editor</string>
 			<key>NSDocumentClass</key>
 			<string>LispListenerDocument</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>openmcl-icon.icns</string>
 		</dict>
 	</array>
 	<key>CFBundleHelpBookFolder</key>
