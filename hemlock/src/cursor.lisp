@@ -320,29 +320,7 @@
 ;;; Probably if there is any screen overlap then we figure it out
 ;;; exactly.
 ;;;
-(defun scroll-window (window n)
-  "Scroll Window down N lines, up if negative."
-  (let ((start (window-display-start window))
-	(point (window-point window))
-	(width (window-width window))
-	(height (window-height window)))
-    (cond ((dis-line-offset-guess start n width))
-	  ((minusp n)
-	   (buffer-start start))
-	  (t
-	   (buffer-end start)
-	   (let ((fraction (- (truncate height 3) height)))
-	     (dis-line-offset-guess start fraction width))))
-    (update-window-image window)
-    (let ((iscurrent (eq window *current-window*))
-	  (bpoint (buffer-point (window-buffer window))))
-      (when iscurrent (move-mark point bpoint))
-      (unless (%displayed-p point window)
-	(move-mark point start)
-	(dis-line-offset-guess point (truncate (window-height window) 2)
-			       width)
-      (when iscurrent (move-mark bpoint point)))))
-  t)
+
 
 ;;; Mark-Column  --  Public
 ;;;
