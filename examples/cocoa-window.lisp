@@ -18,7 +18,8 @@
 (in-package "CCL")			; for now.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "OBJC-SUPPORT"))
+  (require "OBJC-SUPPORT")
+  (require "COCOA-DEFAULTS"))
 
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir #+apple-objc  :cocoa #+gnu-objc :gnustep))
@@ -267,8 +268,8 @@
 						  #'cocoa-startup)
 						 (toplevel)))))
 
-(defparameter *default-font-name* "Courier")
-(defparameter *default-font-size* 12.0e0)
+(def-cocoa-default *default-font-name* :string "Courier")
+(def-cocoa-default *default-font-size* :float 12.0e0)
 
 (defparameter *font-attribute-names*
   '((:bold . #.#$NSBoldFontMask)
@@ -312,7 +313,7 @@
 		      (push attr-name implemented-attributes))))))
 	    (values font implemented-attributes))))))
 
-(defparameter *tab-width* 8)
+(def-cocoa-default *tab-width* :int 8)
 
 ;;; Create a paragraph style, mostly so that we can set tabs reasonably.
 (defun create-paragraph-style (font line-break-mode)
