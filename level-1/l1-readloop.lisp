@@ -244,9 +244,17 @@
 (defclass application ()
     ((command-line-arguments
       :initform
-      (list *standard-help-argument* *standard-version-argument*))))
+      (list *standard-help-argument* *standard-version-argument*))
+     (ui-object :initform nil :initarg :ui-object :accessor application-ui-object)))
        
-			     
+(defclass ui-object ()
+    ())
+
+;;; It's intended that this be specialized ...
+(defmethod ui-object-do-operation ((u ui-object) operation &rest args)
+  (declare (ignore operation args)))
+
+
 (defun %usage-exit (banner exit-status other-args)
   (with-cstrs ((banner banner)
 	       (other-args other-args))
@@ -350,6 +358,14 @@ Default version returns OpenMCL version info."
 	  (unless (zerop *openmcl-revision*)
 	    *openmcl-revision*)
 	  *openmcl-suffix*))
+
+(defmethod application-ui-operation ((a application) operation &rest args)
+  (let* ((ui-object (application-ui-object a)))
+    (when ui-object
+      (apply #'ui-object-do-operation ui-object operation args))))
+
+
+
 
 
 (defun find-restart-in-process (name p)
