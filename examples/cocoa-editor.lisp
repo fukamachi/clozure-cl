@@ -409,14 +409,7 @@
 				     (cdr map))))))
 	(hemlock-ext::make-key-event c bits)))))
 
-;;; Process a key-down NSEvent in a lisp text view by translating it
-;;; into a Hemlock key event and passing it into the Hemlock command
-;;; interpreter.  The underlying buffer becomes Hemlock's current buffer
-;;; and the containing pane becomes Hemlock's current window when the
-;;; command is processed.  Use the frame's command state object.
-
-(define-objc-method ((:void :key-down event)
-		     hemlock-text-view)
+(defun pass-key-down-event-to-hemlock (self event)
   #+debug
   (#_NSLog #@"Key down event = %@" :address event)
   (let* ((buffer (text-view-buffer self)))
@@ -436,10 +429,20 @@
 		     (hi::*echo-area-buffer* (hemlock-frame-echo-area-buffer w))
 		     (hi::*echo-area-stream*
 		      (hemlock-frame-echo-area-stream w))
-		     (hi::*echo-area-window* hi::*current-window*)
+		     (hi::*echo-area-window* (slot-value w 'echo-area-view ))
 		     (hi::*echo-area-region*
 		      (hi::buffer-region hi::*echo-area-buffer*)))
 		(hi::interpret-key-event key-event info)))))))))
+  
+;;; Process a key-down NSEvent in a lisp text view by translating it
+;;; into a Hemlock key event and passing it into the Hemlock command
+;;; interpreter.  The underlying buffer becomes Hemlock's current buffer
+;;; and the containing pane becomes Hemlock's current window when the
+;;; command is processed.  Use the frame's command state object.
+
+(define-objc-method ((:void :key-down event)
+		     hemlock-text-view)
+  (pass-key-down-event-to-hemlock self event))
 
 ;;; Update the underlying buffer's point.  Should really set the
 ;;; active region (in Hemlock terms) as well.
@@ -685,9 +688,19 @@
       tv)))
 
 
+(defmethod hi::activate-hemlock-view ((view text-pane))
+  (let* ((hemlock-frame (send view 'window))
+	 (text-view (text-pane-text-view view)))
+    (send hemlock-frame :make-first-responder text-view)))
+
+
 (defclass echo-area-view (ns:ns-text-view)
     ()
   (:metaclass ns:+ns-object))
+
+(defmethod hi::activate-hemlock-view ((view echo-area-view))
+  (let* ((hemlock-frame (send view 'window)))
+    (send hemlock-frame :make-first-responder view)))
 
 ;;; The "document" for an echo-area isn't a real NSDocument.
 (defclass echo-area-document (ns:ns-object)
@@ -697,6 +710,9 @@
 (define-objc-method ((:void :update-change-count (:<NSD>ocument<C>hange<T>ype change)) echo-area-document)
   (declare (ignore change)))
 
+(define-objc-method ((:void :key-down event)
+		     echo-area-view)
+  (pass-key-down-event-to-hemlock self event))
 
 
 (defloadvar *hemlock-frame-count* 0)
@@ -1214,6 +1230,10 @@
         (send textview :page-down nil)
         (send textview :page-up nil)))))
 
-      
+(defun hi::get-key-event (text-view ignore)
+  (declare (ignore ignore))
+  (let* ((event (send (send text-view 'window)
+		      :next-event-matching-mask #$NSKeyDownMask)))
+    (nsevent-to-key-event event)))
 
 (provide "COCOA-EDITOR")
