@@ -1112,7 +1112,7 @@
   (let* ((n (%get-unsigned-byte buf p)))
     (declare (fixnum n))
     (if (zerop n)
-      (values nil 1)
+      (values nil (1+ p))
       (let* ((pname (make-string n)))
         (%copy-ptr-to-ivector buf (1+ p) pname 0 n)
         (values (if verbatim pname (escape-foreign-name pname))
