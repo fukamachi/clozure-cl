@@ -444,9 +444,9 @@
   named-ctype-name
 )
 
-;;; The Hairy-ctype represents anything too wierd to be described reasonably or
-;;; to be useful, such as AND, NOT and SATISFIES and unknown types.  We just
-;;; remember the original type spec.
+;;; The Hairy-ctype represents anything too wierd to be described
+;;; reasonably or to be useful, such as SATISFIES.  We just remember
+;;; the original type spec.
 ;;;
 
 (def-accessors (hairy-ctype) %svref
@@ -541,6 +541,27 @@
   ;; The types in the union.
   union-ctype-types
 )
+
+; INTERSECTION-ctype is a direct subclass of CTYPE.
+(def-accessors (intersection-ctype) %svref
+  nil                                   ; 'intersection-ctype
+  nil                                   ; ctype-class-info           
+  nil                                   ; ctype-enumerable
+  ;;
+  ;; The types in the intersection
+  intersection-ctype-types
+)
+
+(def-accessors (negation-ctype) %svref
+  nil                                   ; 'negation-ctype
+  nil                                   ; ctype-class-info           
+  nil                                   ; ctype-enumerable
+  ;; The type of what we're not:
+  negation-ctype-type
+  )
+  
+
+
 
 ; It'd be nice to integrate "foreign" types into the type system
 (def-accessors (foreign-ctype) %svref
