@@ -391,7 +391,8 @@
                (loop
                  (when (apply function args)
                    (return))
-                 (yield)))
+		   ;; Sleep for a tick
+		   (%nanosleep 0 *ns-per-tick*)))
           (setf (%process-whostate p) old-whostate)))))
 
 
