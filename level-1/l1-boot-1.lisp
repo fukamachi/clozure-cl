@@ -34,7 +34,7 @@
 
 
 (defun host-platform ()
-  (let* ((pf (%get-kernel-global 'ppc32::host-platform)))
+  (let* ((pf (%get-kernel-global 'ppc::host-platform)))
     (case pf
       (0 :macos)
       (1 :linux)

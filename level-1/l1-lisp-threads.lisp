@@ -404,7 +404,7 @@
 	   (when pthread
 	     (push (cons function args)
 		   (lisp-thread.interrupt-functions thread))
-	     (#_pthread_kill pthread (%get-kernel-global 'ppc32::interrupt-signal))))))
+	     (#_pthread_kill pthread (%get-kernel-global 'ppc::interrupt-signal))))))
       (:reset
        ;; Preset the thread with a function that'll return to the :reset
        ;; state

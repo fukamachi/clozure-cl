@@ -26,13 +26,13 @@
 (defloadvar *heap-image-name*
     (let* ((p (%null-ptr)))
       (declare (dynamic-extent p))
-      (%get-cstring (%get-kernel-global-ptr 'ppc32::image-name p))))
+      (%get-cstring (%get-kernel-global-ptr 'ppc::image-name p))))
 
 (defloadvar *command-line-argument-list*
   (let* ((argv (%null-ptr))
 	 (res ()))
     (declare (dynamic-extent argv))
-    (%get-kernel-global-ptr 'ppc32::argv argv)
+    (%get-kernel-global-ptr 'ppc::argv argv)
     (do* ((i 0 (+ i 4))
 	  (arg (%get-ptr argv i) (%get-ptr argv i)))
 	 ((%null-ptr-p arg) (nreverse res))

@@ -84,7 +84,7 @@
 
 (defun %reservedbytes ()
   (with-macptrs (p)
-    (%setf-macptr-to-object p (%get-kernel-global 'ppc32::all-areas))
+    (%setf-macptr-to-object p (%get-kernel-global 'ppc::all-areas))
     (- (%get-unsigned-long p ppc32::area.high)
        (%get-unsigned-long p ppc32::area.low))))
 
