@@ -53,6 +53,7 @@
      *trace-print-level*
      *trace-print-length*
      *trace-bar-frequency*
+     *ignore-extra-close-parenthesis*
      advise
      unadvise
      advisedp
