@@ -24,6 +24,7 @@ define([_spentry],[ifdef([__func_name],[_endfn],[])
         .align 5
 	_exportfn(_SP$1)
 	.line  __line__
+        check_vsp
 ])
 
              
