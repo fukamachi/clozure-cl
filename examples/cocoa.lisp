@@ -36,55 +36,10 @@
   (:metaclass ns:+ns-object))
 
 
-;;; The application's been initialized and is about to enter its
-;;; run loop.  Try to load some application-specific key bindings
-;;; from the application's bundle and from the user's Library
-;;; directory.
-;;; This basically works by repeatedly merging a new dictionary
-;;; into an old one (where the new dictionary's bindings replace
-;;; any conflicting bindings in the old dictionary.)  The order
-;;; in which this happens is:
-;;; 1) Standard global bindings:
-;;;   /System/Library/Frameworks/AppKit.framework/Resources/StandardKeyBindings.dict
-;;; 2) User global bindings:
-;;;   ~/Library/KeyBindings/DefaultKeyBinding.dict
-;;; 3) Standard application bindings:
-;;;   $OpenMCL.app/Contents/Resources/OpenMCLKeyBindings.dict
-;;; 4) User application bindings:
-;;;   ~/Library/KeyBindings/OpenMCLKeyBindings.dict
-;;;
-;;; This means that OpenMCL's "standard" bindings may override the user's
-;;; global bindings.  The user does get the last laugh, but it may be
-;;; worth inverting steps 2 and 3.
-;;;
-;;; The NSKeyBindingManager class doesn't seem to be documented, so I
-;;; suppose that this could all break at some point.  Project Builder
-;;; seems to use a similar mechanism to establish its application-specific
-;;; key bindings, so I don't think that this is likely to break soon.
 (define-objc-method ((:void :application-will-finish-launching (:id notification))
 		     lisp-application-delegate)
   (declare (ignore notification))
-  (let* ((standard-dict-path (send (send (@class ns-bundle) 'main-bundle)
-				   :path-for-resource #@"OpenMCLKeyBindings"
-				   :of-type #@"dict"))
-	 (standard-dict (send (@class ns-dictionary)
-			      :dictionary-with-contents-of-file
-			      standard-dict-path))
-	 (user-dict-path (send
-			  #@"~/Library/KeyBindings/OpenMCLKeyBindings.dict"
-			  'string-by-expanding-tilde-in-path))
-	 (user-dict (send (@class ns-dictionary)
-			  :dictionary-with-contents-of-file user-dict-path))
-	 (manager (send (@class ns-key-binding-manager) 'shared-key-binding-manager))
-	 (installed-dict (send manager 'dictionary)))
-    (unless (%null-ptr-p standard-dict)
-      (send installed-dict :add-entries-from-dictionary standard-dict))
-    (unless (%null-ptr-p user-dict)
-      (send installed-dict :add-entries-from-dictionary user-dict))
-    ;; Not sure if this step is necessary (installed-dict is already
-    ;; the shared manager's dictionary), but setDictionary: might
-    ;; have some additional side-effects.
-    (send manager :set-Dictionary  installed-dict)))
+  (initialize-user-interface))
 
 (define-objc-method ((:void :new-listener sender) lisp-application-delegate)
   (declare (ignore sender))
