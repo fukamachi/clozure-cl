@@ -1339,3 +1339,39 @@
 	  (%gf-dispatch-table-gf dt) fn)
     (push fn (population.data %all-gfs%))
     fn))
+
+(defmethod slot-value-using-class ((class structure-class)
+				   instance
+				   (slotd structure-effective-slot-definition))
+  (let* ((loc (standard-effective-slot-definition.location slotd)))
+      (typecase loc
+	(fixnum
+	 (struct-ref  instance loc))
+	(t
+	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
+		slotd loc (slot-definition-allocation slotd))))))
+
+;;; Some STRUCTURE-CLASS leftovers.
+(defmethod (setf slot-value-using-class)
+    (new
+     (class structure-class)
+     instance
+     (slotd structure-effective-slot-definition))
+  (let* ((loc (standard-effective-slot-definition.location slotd))
+	 (type (standard-effective-slot-definition.type slotd)))
+    (if (and type (not (eq type t)))
+      (unless (or (eq new (%slot-unbound-marker))
+		  (typep new type))
+	(setq new (require-type new type))))
+    (typecase loc
+      (fixnum
+       (setf (struct-ref instance loc) new))
+      (t
+       (error "Slot definition ~s has invalid location ~s (allocation ~s)."
+	      slotd loc (slot-definition-allocation slotd))))))
+
+(defmethod slot-boundp-using-class ((class structure-class)
+				    instance
+				    (slotd structure-effective-slot-definition))
+  (declare (ignore instance))
+  t)

@@ -2154,6 +2154,7 @@
 	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
 		slotd loc (slot-definition-allocation slotd)))))))
 
+
 (defmethod (setf slot-value-using-class)
     (new
      (class standard-class)
@@ -2223,15 +2224,14 @@
 	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
 		slotd loc (slot-definition-allocation slotd)))))))
 
+
+
 (defun slot-value (instance slot-name)
-  (if (structurep instance)
-    ;; fix this: structure classes should have class-slots
-    (structure-slot-value instance slot-name)
-    (let* ((class (class-of instance))
+  (let* ((class (class-of instance))
 	   (slotd (find-slotd slot-name (%class-slots class))))
       (if slotd
 	(slot-value-using-class class instance slotd)
-	(slot-missing class instance slot-name 'slot-value)))))
+	(slot-missing class instance slot-name 'slot-value))))
     
 
 
@@ -2239,41 +2239,9 @@
   (declare (ignore class))
   (error 'unbound-slot :name slot-name :instance instance))
 
-(defun structure-slot-index (object slot-name)
-  (let (sd)
-    (unless (and (structurep object)
-                 (setq sd (gethash (car (%svref object 0)) %defstructs%)))
-      (%badarg object '(or standard-instance standard-generic-function
-                        structure-instance)))
-    (do ((i 0 (1+ i))
-         (slots (sd-slots sd) (%cdr slots)))
-        ((null slots) nil)
-      (declare (fixnum i))
-      (when (eq slot-name (caar slots))
-        (return i)))))
-
-(defun structure-slot-value (object slot-name)
-  (let ((pos (structure-slot-index object slot-name)))
-    (if pos
-      (uvref object pos)
-      (slot-missing (class-of object) object slot-name 'slot-value))))
-
-(defun set-structure-slot-value (object slot-name value)
-  (let ((pos (structure-slot-index object slot-name)))
-    (if pos
-      (setf (uvref object pos) value)
-      (slot-missing (class-of object) object slot-name '(setf slot-value)
-		    value))))
 
 
-
-(defun structure-slot-makunbound (object slot-name)
-  (let ((pos (structure-slot-index object slot-name)))
-    (if pos
-      object
-      (slot-missing (class-of object) object slot-name 'slot-manunbound))))
-
-(defmethod slot-makunbound-using-class ((class std-class)
+(defmethod slot-makunbound-using-class ((class slots-class)
 					instance
 					(slotd standard-effective-slot-definition))
   (setf (slot-value-using-class class instance slotd) (%slot-unbound-marker))
@@ -2285,31 +2253,22 @@
 
 
 (defun set-slot-value (instance name value)
-  (locally (declare (optimize (speed 3)(safety 0)))
-    (if (structurep instance)
-      (set-structure-slot-value instance name value)
-      (let* ((class (class-of instance))
+  (let* ((class (class-of instance))
 	     (slotd (find-slotd  name (%class-slots class))))
 	(if slotd
 	  (setf (slot-value-using-class class instance slotd) value)
-	  (slot-missing class instance name '(setf slot-value) value))))))
+	  (slot-missing class instance name '(setf slot-value) value))))
 
 (defsetf slot-value set-slot-value)
 
 (defun slot-makunbound (instance name)
-  (if (structurep instance)
-    (structure-slot-makunbound instance name)
     (let* ((class (class-of instance))
 	   (slotd (find-slotd name (%class-slots class))))
       (if slotd
 	(slot-makunbound-using-class class instance slotd)
-	(slot-missing class instance name 'slot-makunbound)))))
+	(slot-missing class instance name 'slot-makunbound))))
 
-(defun structure-slot-boundp (object slot-name)
-  (let ((pos (structure-slot-index object slot-name)))
-    (if pos
-      t
-      (slot-missing (class-of object) object slot-name 'slot-boundp))))
+
 
 (defmethod slot-boundp-using-class ((class standard-class)
 				    instance
@@ -2347,14 +2306,14 @@
 	 (error "Slot definition ~s has invalid location ~s (allocation ~s)."
 		slotd loc (slot-definition-allocation slotd)))))))
 
+
+
 (defun slot-boundp (instance name)
-  (if (structurep instance)
-    (structure-slot-boundp instance name)
-    (let* ((class (class-of instance))
-	   (slotd (find-slotd name (%class-slots class))))
-      (if slotd
-	(slot-boundp-using-class class instance slotd)
-	(slot-missing class instance name 'slot-boundp)))))
+  (let* ((class (class-of instance))
+	 (slotd (find-slotd name (%class-slots class))))
+    (if slotd
+      (slot-boundp-using-class class instance slotd)
+      (slot-missing class instance name 'slot-boundp))))
 
 (defun slot-value-if-bound (instance name &optional default)
   (if (slot-boundp instance name)
@@ -2362,14 +2321,9 @@
     default))
 
 (defun slot-exists-p (instance name)
-  (if (structurep instance)
-    (if (structure-slot-index instance name)
-      t)
-    (let* ((class (class-of instance))
-	   (slots (if (typep class 'std-class)
-		    (class-slots class)
-		    (ignore-errors (class-slots class)))))
-      (find-slotd name slots))))
+  (let* ((class (class-of instance))
+	 (slots  (class-slots class)))
+    (find-slotd name slots)))
 
 
 ; returns nil if (apply gf args) wil cause an error because of the
