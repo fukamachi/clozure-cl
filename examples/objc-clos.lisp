@@ -215,12 +215,14 @@
 	    (%ptr-to-int c))))
 
 (defmethod print-object ((o objc:objc-object) stream)
-  (print-unreadable-object (o stream :type t)
-    (format stream
-	    (if (typep o 'ns::ns-string)
-	      "~s (#x~x)"
-	      "~a (#x~x)")
-	    (nsobject-description o) (%ptr-to-int o))))
+  (if (objc-object-p o)
+      (print-unreadable-object (o stream :type t)
+        (format stream
+		(if (typep o 'ns::ns-string)
+		    "~s (#x~x)"
+		  "~a (#x~x)")
+		(nsobject-description o) (%ptr-to-int o)))
+    (format stream "#<Bogus ObjC Object #x~X>" (%ptr-to-int o))))
 
 
 (defun make-objc-class-object-slots-vector (class meta)
