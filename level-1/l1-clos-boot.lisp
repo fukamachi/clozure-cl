@@ -2189,7 +2189,7 @@ to replace that class with ~s" name old-class new-class)
     (dolist (key.form (%class-default-initargs class))
       (unless (pl-search initargs (%car key.form))
         (setq defaults
-              (list* (funcall (cadr key.form))
+              (list* (funcall (caddr key.form))
                      (%car key.form)
                      defaults))))
     (when defaults
