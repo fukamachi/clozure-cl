@@ -151,6 +151,9 @@ define([_endfn],[
 LocalLabelPrefix[]__func_name[999]:
 	.stabs "",36,0,0,LocalLabelPrefix[]__func_name[999]-__func_name
 	.line __line__
+	ifelse(eval(SYSstabs),eval(ELFstabs),[
+        .size __func_name,LocalLabelPrefix[]__func_name[999]-__func_name
+])
 ])
 
 
