@@ -1278,8 +1278,8 @@ governs whether DEFCLASS makes that distinction or not.")
 		  (find-class gf-class t env)))
 	  (unless (or (eq gf-class *standard-generic-function-class*)
 		      (subtypep gf-class *generic-function-class*))
-	    (error "Class ~S is not a subclass of ~S")
-	    gf-class *generic-function-class*)))
+	    (error "Class ~S is not a subclass of ~S"
+                   gf-class *generic-function-class*))))
       (unless (eq mcomb missing)
 	(unless (typep mcomb 'method-combination)
 	  (setf (getf keys :method-combination)
@@ -1465,13 +1465,9 @@ governs whether DEFCLASS makes that distinction or not.")
                       dt
                       #'%%0-arg-dcode
 		      0
-		      ;; Set the AOK (&allow-other-keys) bit without
-		      ;; setting the KEYS bit, to indicate that we
-		      ;; don't know anything about this gf's
-		      ;; lambda-list.
 		      (logior (ash 1 $lfbits-gfn-bit)
-			      (ash 1 $lfbits-aok-bit)))))
-    (setf (gf.hash fn) (strip-tag-to-fixnum fn)
+                              (ash 1 $lfbits-aok-bit)))))
+         (setf (gf.hash fn) (strip-tag-to-fixnum fn)
 	  (slot-vector.instance slots) fn
 	  (%gf-dispatch-table-gf dt) fn)
     (push fn (population.data %all-gfs%))
