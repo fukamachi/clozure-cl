@@ -1746,7 +1746,7 @@ mark_tcr_tlb(TCR *tcr)
     *end = (LispObj *) ((BytePtr)start+n),
     node;
 
-  for (start =  = tcr->tlb_pointer; start < end; start++) {
+  for (start = tcr->tlb_pointer; start < end; start++) {
     node = *start;
     if (node != no_thread_local_binding_marker) {
       mark_root(node);
