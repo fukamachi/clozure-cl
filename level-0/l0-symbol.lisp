@@ -178,10 +178,16 @@
     bits))
 
 (defun %sym-value (name)
-  (%%sym-value (%symbol->symptr name)))
+  (%svar-sym-value (%ensure-svar (%symbol->symptr name))))
 
 (defun %set-sym-value (name val)
-  (%%set-sym-value (%symbol->symptr name) val))
+  (%svar-set-sym-value (%ensure-svar (%symbol->symptr name)) val))
+
+(defun %sym-global-value (name)
+  (%svref (%symbol->symptr name) arch::symbol.vcell-cell))
+
+(defun %set-sym-global-value (name val)
+  (setf (%svref (%symbol->symptr name) arch::symbol.vcell-cell) val))
 
 (defun %symbol-package-plist (sym)
   (%svref (%symbol->symptr sym) arch::symbol.package-plist-cell))
