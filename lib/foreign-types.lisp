@@ -825,16 +825,16 @@
 (def-foreign-type-class (pointer :include (foreign-value (bits
 						      #-alpha 32
 						      #+alpha 64)))
-  (to nil :type (or foreign-type null)))
+  (to *void-foreign-type* :type foreign-type))
 
 (def-foreign-type-translator * (to)
-  (make-foreign-pointer-type :to (if (eq to t) nil (parse-foreign-type to))))
+  (make-foreign-pointer-type :to (if (eq to t) *void-foreign-type* (parse-foreign-type to))))
 
 (def-foreign-type-method (pointer :unparse) (type)
   (let ((to (foreign-pointer-type-to type)))
     `(:* ,(if to
 	     (%unparse-foreign-type to)
-	     t))))
+	     :void))))
 
 (def-foreign-type-method (pointer :type=) (type1 type2)
   (let ((to1 (foreign-pointer-type-to type1))
