@@ -221,7 +221,9 @@
 ;;; This doesn't use the caching mechanism, so it's always linear in the
 ;;; number of preceding lines.
 (defun mark-absolute-position (mark)
-  (let* ((pos (hi::mark-charpos mark)))
+  (let* ((pos (hi::mark-charpos mark))
+         (hi::*buffer-gap-context* (hi::buffer-gap-context (hi::line-%buffer
+                                                            (hi::mark-line mark)))))
     (do* ((line (hi::line-previous (hi::mark-line mark))
 		(hi::line-previous line)))
 	 ((null line) pos)
@@ -317,6 +319,48 @@
 (define-objc-method ((:<BOOL> editing-in-progress) hemlock-text-storage)
   (not (eql (slot-value self 'edit-count) 0)))
 
+
+(define-objc-method (((:struct :<NSR>ange r) :double-click-at-index (:unsigned index))
+                     hemlock-text-storage)
+  (block HANDLED
+    (let* ((cache (hemlock-buffer-string-cache (send self 'string)))
+           (buffer (if cache (buffer-cache-buffer cache))))
+      (when (and buffer (string= (hi::buffer-major-mode buffer) "Lisp"))
+        (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
+          (hi::with-mark ((m1 (hi::buffer-point buffer)))
+            (move-hemlock-mark-to-absolute-position m1 cache index)
+            (hemlock::pre-command-parse-check m1)
+            (when (hemlock::valid-spot m1 nil)
+              (cond ((eql (hi::next-character m1) #\()
+                     (hi::with-mark ((m2 m1))
+                       (when (hemlock::list-offset m2 1)
+                         (setf (pref r :<NSR>ange.location) index
+                               (pref r :<NSR>ange.length)
+                               (- (mark-absolute-position m2) index))
+                         (return-from HANDLED nil))))
+                    ((eql (hi::previous-character m1) #\))
+                     (hi::with-mark ((m2 m1))
+                       (when (hemlock::list-offset m2 -1)
+                         (#_NSLog #@"Length = %d"
+                                  :unsigned
+                                  (- (1- index) (mark-absolute-position m2)))
+                         (setf (pref r :<NSR>ange.location)
+                               (mark-absolute-position m2)
+                               (pref r :<NSR>ange.length)
+                               (- (1- index) (mark-absolute-position m2)))
+                         (return-from HANDLED nil)))))))))
+      ;; No early exit, so call next-method
+      (objc-message-send-super-stret r (super) "doubleClickAtIndex:"
+                                     :unsigned index
+                                     :void))))
+            
+
+      
+
+
+    
+    
+
 (defun textstorage-note-insertion-at-position (self pos n)
   (send self
         :edited #$NSTextStorageEditedAttributes
@@ -340,8 +384,8 @@
           :range (ns-make-range pos n)
           :change-in-length (- n))
     (let* ((display (hemlock-buffer-string-cache (send self 'string))))
-            (reset-buffer-cache display) 
-            (update-line-cache-for-index display pos))))
+      (reset-buffer-cache display) 
+      (update-line-cache-for-index display pos))))
 
 (define-objc-method ((:void :note-modification params) hemlock-text-storage)
   (let* ((pos (send (send params :object-at-index 0) 'int-value))
@@ -408,18 +452,24 @@
 	    (pref rangeptr :<NSR>ange.length) len))
     (svref *styles* 0)))
 
-;;; The range's origin should probably be the buffer's point; if
-;;; the range has non-zero length, we probably need to think about
-;;; things harder.
 (define-objc-method ((:void :replace-characters-in-range (:<NSR>ange r)
 			    :with-string string)
 		     hemlock-text-storage)
-  (declare (ignorable r string))
-  #+debug
-  (#_NSLog #@"replace-characters-in-range (%d %d) with-string %@"
-	   :unsigned (pref r :<NSR>ange.location)
-	   :unsigned (pref r :<NSR>ange.length)
-	   :id string))
+    (let* ((cache (hemlock-buffer-string-cache (send self 'string)))
+           (buffer (if cache (buffer-cache-buffer cache)))
+           (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+           (location (pref r :<NSR>ange.location))
+           (length (pref r :<NSR>ange.length))
+           (mark (hi::buffer-%mark buffer))
+           (point (hi::buffer-point buffer)))
+      (cond ((> length 0)
+             (move-hemlock-mark-to-absolute-position mark cache location)
+             (move-hemlock-mark-to-absolute-position point cache (+ location length))
+             (hemlock::%buffer-activate-region buffer))
+            (t
+             (move-hemlock-mark-to-absolute-position point cache location)))
+      (hi::insert-string point (lisp-string-from-nsstring string))))
+
 
 ;;; I'm not sure if we want the text system to be able to change
 ;;; attributes in the buffer.
@@ -541,24 +591,18 @@
   (let* ((buffer (text-view-buffer self)))
     (when buffer
       (let* ((q (hemlock-frame-event-queue (send self 'window))))
-        (hi::enqueue-key-event q (nsevent-to-key-event event)))))
-  ;; Probably not the right place for this, but needs to happen
-  ;; -somewhere-, and needs to happen in the event thread.
-  
-  )
+        (hi::enqueue-key-event q (nsevent-to-key-event event))))))
 
 (defun enqueue-buffer-operation (buffer thunk)
   (dolist (w (hi::buffer-windows buffer))
     (let* ((q (hemlock-frame-event-queue (send w 'window)))
            (op (hi::make-buffer-operation :thunk thunk)))
-      (hi::enqueue-key-event q op))))
+      (hi::event-queue-insert q op))))
 
   
 ;;; Process a key-down NSEvent in a Hemlock text view by translating it
 ;;; into a Hemlock key event and passing it into the Hemlock command
-;;; interpreter.  The underlying buffer becomes Hemlock's current buffer
-;;; and the containing pane becomes Hemlock's current window when the
-;;; command is processed.  Use the frame's command state object.
+;;; interpreter. 
 
 (define-objc-method ((:void :key-down event)
 		     hemlock-text-view)
@@ -570,15 +614,67 @@
 			    :affinity (:<NSS>election<A>ffinity affinity)
 			    :still-selecting (:<BOOL> still-selecting))
 		     hemlock-text-view)
+    #+debug
+  (#_NSLog #@"Set selected range called: location = %d, length = %d, affinity = %d, still-selecting = %d"
+           :int (pref r :<NSR>ange.location)
+           :int (pref r :<NSR>ange.length)
+           :<NSS>election<A>ffinity affinity
+           :<BOOL> (if still-selecting #$YES #$NO))
   (unless (send (send self 'text-storage) 'editing-in-progress)
     (let* ((d (hemlock-buffer-string-cache (send self 'string)))
-	 (point (hemlock::buffer-point (buffer-cache-buffer d)))
-	 (location (pref r :<NSR>ange.location))
-	 (len (pref r :<NSR>ange.length)))
-    (when (eql len 0)
-      #+debug
-      (#_NSLog #@"Moving point to absolute position %d" :int location)
-      (move-hemlock-mark-to-absolute-position point d location))))
+           (buffer (buffer-cache-buffer d))
+           (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+           (point (hi::buffer-point buffer))
+           (location (pref r :<NSR>ange.location))
+           (len (pref r :<NSR>ange.length)))
+      (cond ((eql len 0)
+             #+debug
+             (#_NSLog #@"Moving point to absolute position %d" :int location)
+             (setf (hi::buffer-region-active buffer) nil)
+             (move-hemlock-mark-to-absolute-position point d location))
+            (t
+             ;; We don't get much information about which end of the
+             ;; selection the mark's at and which end point is at, so
+             ;; we have to sort of guess.  In every case I've ever seen,
+             ;; selection via the mouse generates a sequence of calls to
+             ;; this method whose parameters look like:
+             ;; a: range: {n0,0} still-selecting: false  [ rarely repeats ]
+             ;; b: range: {n0,0) still-selecting: true   [ rarely repeats ]
+             ;; c: range: {n1,m} still-selecting: true   [ often repeats ]
+             ;; d: range: {n1,m} still-selecting: false  [ rarely repeats ]
+             ;;
+             ;; (Sadly, "affinity" doesn't tell us anything interesting.
+             ;; We've handled a and b in the clause above; after handling
+             ;; b, point references buffer position n0 and the
+             ;; region is inactive.
+             ;; Let's ignore c, and wait until the selection's stabilized.
+             ;; Make a new mark, a copy of point (position n0).
+             ;; At step d (here), we should have either
+             ;; d1) n1=n0.  Mark stays at n0, point moves to n0+m.
+             ;; d2) n1+m=n0.  Mark stays at n0, point moves to n0-m.
+             ;; If neither d1 nor d2 apply, arbitrarily assume forward
+             ;; selection: mark at n1, point at n1+m.
+             ;; In all cases, activate Hemlock selection.
+             (unless still-selecting
+                (let* ((pointpos (mark-absolute-position point))
+                       (selection-end (+ location len))
+                       (mark (hi::copy-mark point :right-inserting)))
+                   (cond ((eql pointpos location)
+                          (move-hemlock-mark-to-absolute-position point
+                                                                  d
+                                                                  selection-end))
+                         ((eql pointpos selection-end)
+                          (move-hemlock-mark-to-absolute-position point
+                                                                  d
+                                                                  location))
+                         (t
+                          (move-hemlock-mark-to-absolute-position mark
+                                                                  d
+                                                                  location)
+                          (move-hemlock-mark-to-absolute-position point
+                                                                  d
+                                                                  selection-end)))
+                   (hemlock::%buffer-push-buffer-mark buffer mark t)))))))
   (send-super :set-selected-range r
 	      :affinity affinity
 	      :still-selecting still-selecting))
@@ -1502,8 +1598,17 @@
          (buffer (buffer-cache-buffer (hemlock-buffer-string-cache string)))
          (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
          (point (hi::buffer-point buffer))
-         (pos (mark-absolute-position point))
+         (pointpos (mark-absolute-position point))
+         (location pointpos)
          (len 0))
+    (when (hemlock::%buffer-region-active-p buffer)
+      (let* ((mark (hi::buffer-%mark buffer)))
+        (when mark
+          (let* ((markpos (mark-absolute-position mark)))
+            (if (< markpos pointpos)
+              (setq location markpos len (- pointpos markpos))
+              (if (< pointpos markpos)
+                (setq location pointpos len (- markpos pointpos))))))))
     #+debug
     (#_NSLog #@"update Hemlock selection: charpos = %d, abspos = %d"
              :int (hi::mark-charpos point) :int pos)
@@ -1511,7 +1616,7 @@
      self
      #'(lambda (tv)
          (send tv
-               :update-selection pos
+               :update-selection location
                :length len
                :affinity #$NSSelectionAffinityUpstream)))))
 
