@@ -1196,9 +1196,10 @@ termination-function object
 (defun terminate-when-unreachable (object &optional (function 'terminate))
   (let ((new-cell (list (cons object function)))
         (population *termination-population*))
-    (with-lock-grabbed (*termination-population-lock*)
-     (setf (cdr new-cell) (population-data population)
-           (population-data population) new-cell))
+    (without-interrupts
+     (with-lock-grabbed (*termination-population-lock*)
+       (setf (cdr new-cell) (population-data population)
+	     (population-data population) new-cell)))
     function))
 
 (defmethod terminate ((object t))
@@ -1208,11 +1209,12 @@ termination-function object
   (let ((cell nil)
         (population *termination-population*))
     (loop
+    (without-interrupts
       (with-lock-grabbed (*termination-population-lock*)
        (let ((list (population-termination-list population)))
          (unless list (return))
          (setf cell (car list)
-               (population-termination-list population) (cdr list))))
+               (population-termination-list population) (cdr list)))))
       (funcall (cdr cell) (car cell)))))
 
 (defun cancel-terminate-when-unreachable (object &optional (function nil function-p))
@@ -1223,16 +1225,18 @@ termination-function object
                       (eq function (cdr cell)))
                   (setq found-it? t))))
       (declare (dynamic-extent #'test))
-      (with-lock-grabbed (*termination-population-lock*)
-       (setf (population-data *termination-population*)
-             (delete object (population-data *termination-population*)
-                     :test #'test
-                     :count 1)))
+      (without-interrupts
+       (with-lock-grabbed (*termination-population-lock*)
+	 (setf (population-data *termination-population*)
+	       (delete object (population-data *termination-population*)
+		       :test #'test
+		       :count 1))))
       found-it?)))
 
 (defun termination-function (object)
-  (with-lock-grabbed (*termination-population-lock*)
-    (cdr (assq object (population-data *termination-population*)))))
+  (without-interrupts
+   (with-lock-grabbed (*termination-population-lock*)
+     (cdr (assq object (population-data *termination-population*))))))
 
 (defun do-automatic-termination ()
   (when *enable-automatic-termination*
