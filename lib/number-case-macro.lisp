@@ -17,7 +17,6 @@
 
 (in-package :ccl)
 
-;(push (cons 'number-case 1) *fred-special-indent-alist*) do later
 
 
 ;;;;;;;;;
@@ -26,6 +25,7 @@
 (defvar *type-to-typecode* `((fixnum . ,ppc32::tag-fixnum)(bignum . ,ppc32::subtag-bignum)
                            (double-float . ,ppc32::subtag-double-float) 
                            (short-float . ,ppc32::subtag-single-float)
+			   (single-float . ,ppc32::subtag-single-float)
                            (ratio . ,ppc32::subtag-ratio)(complex . ,ppc32::subtag-complex)))
 
 (defun type-name-to-code (name)
