@@ -434,7 +434,7 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
   for (i = 0; i < (8192/sizeof(LispObj)); i++) {
     tcr->tlb_pointer[i] = (LispObj) no_thread_local_binding_marker;
   }
-
+  tcr->shutdown_count = PTHREAD_DESTRUCTOR_ITERATIONS;
   return tcr;
 }
 
@@ -455,9 +455,10 @@ shutdown_thread_tcr(void *arg)
     tsd_set(lisp_global(TCR_KEY),current_tls);
   }
   
-  if (tcr->flags & (1<<TCR_FLAG_BIT_SHUTDOWN_REQUEST)) {
-    tcr->flags &= ~(1<<TCR_FLAG_BIT_SHUTDOWN_REQUEST);
-
+  if (--(tcr->shutdown_count) == 0) {
+#ifdef DEBUG_THREAD_CLEANUP
+    fprintf(stderr, "\nprocessing final shutdown request for pthread 0x%x tcr 0x%x", pthread_self(), tcr);
+#endif
 #ifdef DARWIN
     darwin_exception_cleanup(tcr);
 #endif
@@ -483,8 +484,11 @@ shutdown_thread_tcr(void *arg)
     destroy_semaphore(&tcr->activate);
     tcr->osid = 0;
   } else {
-    tcr->flags |= (1<<TCR_FLAG_BIT_SHUTDOWN_REQUEST);
     tsd_set(lisp_global(TCR_KEY), tcr);
+#ifdef DEBUG_THREAD_CLEANUP
+    fprintf(stderr, "\nprocessing early shutdown request for pthread 0x%x tcr 0x%x, tsd = 0x%x",
+	    pthread_self(), tcr, tsd_get(lisp_global(TCR_KEY)));
+#endif
   }
 }
 
@@ -724,7 +728,9 @@ get_tcr(Boolean create)
     current = new_tcr(initial_stack_size, MIN_TSTACK_SIZE);
     current->flags |= (1<<TCR_FLAG_BIT_FOREIGN);
     register_thread_tcr(current);
-
+#ifdef DEBUG_TCR_CREATION
+    fprintf(stderr, "\ncreating TCR for pthread 0x%x", pthread_self());
+#endif
     current->vs_area->active -= 4;
     *(--current->save_vsp) = lisp_nil;
     nbindwords = ((int (*)())callback_ptr)(-1);
@@ -745,10 +751,27 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-    pthread_kill((pthread_t)tcr->osid, thread_suspend_signal);
-    SEM_WAIT(tcr->suspend);
+    if (pthread_kill((pthread_t)tcr->osid, thread_suspend_signal) == 0) {
+      SEM_WAIT(tcr->suspend);
+    } else {
+      /* A problem using pthread_kill.  On Darwin, this can happen
+	 if the thread has had its signal mask surgically removed
+	 by pthread_exit.  If the native (Mach) thread can be suspended,
+	 do that and return true; otherwise, flag the tcr as belonging
+	 to a dead thread by setting tcr->osid to 0.
+      */
+#ifdef DARWIN
+      if (mach_suspend_tcr(tcr)) {
+	tcr->flags |= TCR_FLAG_BIT_ALT_SUSPEND;
+	return true;
+      }
+#endif
+      tcr->osid = 0;
+      return false;
+    }
+    return true;
   }
-  return suspend_count == 1;
+  return false;
 }
 
 Boolean
@@ -769,9 +792,17 @@ resume_tcr(TCR *tcr)
 {
   int suspend_count = atomic_decf(&(tcr->suspend_count));
   if (suspend_count == 0) {
+#ifdef DARWIN
+    if (tcr->flags & TCR_FLAG_BIT_ALT_SUSPEND) {
+      tcr->flags &= ~TCR_FLAG_BIT_ALT_SUSPEND;
+      mach_resume_tcr(tcr);
+      return true;
+    }
+#endif
     pthread_kill((pthread_t)tcr->osid, thread_resume_signal);
+    return true;
   }
-  return (suspend_count == 0);
+  return false;
 }
 
 Boolean
@@ -798,8 +829,11 @@ suspend_other_threads()
 
   LOCK(lisp_global(TCR_LOCK), current);
   for (other = current->next; other != current; other = other->next) {
-    if (other->osid != 0) {
+    if ((other->osid != 0)) {
       suspend_tcr(other);
+      if (other->osid == 0) {
+	dead_tcr_count++;
+      }
     } else {
       dead_tcr_count++;
     }
@@ -808,7 +842,7 @@ suspend_other_threads()
   if (dead_tcr_count) {
     for (other = current->next; other != current; other = next) {
       next = other->next;
-      if (other->osid == 0) {
+      if ((other->osid == 0))  {
 	dequeue_tcr(other);
 	free(other);
       }
