@@ -190,7 +190,6 @@
       :newest))
 
 
-(defun logical-pathname-p (thing) (istruct-typep thing 'logical-pathname))
 
 (defun pathname-host (thing)  ; redefined later in this file
   (declare (ignore thing))
