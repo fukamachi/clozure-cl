@@ -349,7 +349,7 @@ new_semaphore(int count)
 #ifdef DARWIN
   semaphore_t s = (semaphore_t)0;
   semaphore_create(mach_task_self(),&s, SYNC_POLICY_FIFO, count);
-  return (void *)s;
+  return (void *)(natural)s;
 #endif
 }
 
@@ -362,7 +362,7 @@ new_recursive_lock()
   void *signal = new_semaphore(0);
 
   if (p) {
-    m = (RECURSIVE_LOCK) ((((unsigned)p)+cache_block_size-1) & (~(cache_block_size-1)));
+    m = (RECURSIVE_LOCK) ((((natural)p)+cache_block_size-1) & (~(cache_block_size-1)));
     m->malloced_ptr = p;
   }
 
@@ -387,7 +387,7 @@ destroy_semaphore(void **s)
     sem_destroy((sem_t *)*s);
 #endif
 #ifdef DARWIN
-    semaphore_destroy(mach_task_self(),((semaphore_t) *s));
+    semaphore_destroy(mach_task_self(),((semaphore_t)(natural) *s));
 #endif
     *s=NULL;
   }
@@ -524,7 +524,7 @@ shutdown_thread_tcr(void *arg)
 void *
 current_native_thread_id()
 {
-  return ((void *)
+  return ((void *) (natural)
 #ifdef LINUX
           getpid()
 #endif

@@ -134,7 +134,7 @@ darwin_dladdr(void *p, Dl_info *info)
 Boolean
 emulated_frame_p(lisp_frame *frame)
 {
-  return ((((int) (frame->backlink)) & 1) != 0);
+  return ((((long) (frame->backlink)) & 1) != 0);
 }
 
 
@@ -187,7 +187,7 @@ print_foreign_frame(void *frame)
 #ifndef STATIC
   if (dladdr((void *)pc, &foreign_info)) {
     Dprintf("(#x%08x) #x%08X : %s + %d", frame, pc, foreign_info.dli_sname,
-	    pc-((int)foreign_info.dli_saddr));
+	    pc-((long)foreign_info.dli_saddr));
   } else {
 #endif
     Dprintf("(#x%08X) #x%08X : foreign code (%s)", frame, pc, "unknown");
@@ -292,7 +292,7 @@ foreign_name_and_offset(void *frame, unsigned *delta)
 #ifndef STATIC
   if (dladdr(pc, &info)) {
     if (delta) {
-      *delta = (unsigned)pc - (unsigned)info.dli_saddr;
+      *delta = (unsigned long )pc - (unsigned long)info.dli_saddr;
     }
     return info.dli_sname;
   }

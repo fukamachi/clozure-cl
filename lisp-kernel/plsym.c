@@ -60,7 +60,7 @@ find_symbol_in_range(LispObj *start, LispObj *end, char *name)
     if (nodeheader_tag_p(header)) {
       start += (~1 & (2 + header_element_count(header)));
     } else if (immheader_tag_p(header)) {
-      start = (LispObj *) skip_over_ivector((unsigned)start, header);
+      start = (LispObj *) skip_over_ivector((natural)start, header);
     } else {
       start += 2;
     }
