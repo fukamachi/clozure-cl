@@ -70,10 +70,19 @@
 
 (defvar *input-transcript* ())
 
+(defparameter editor-abort-key-events (list #k"Control-g" #k"Control-G"))
+
+(defmacro abort-key-event-p (key-event)
+  `(member ,key-event editor-abort-key-events))
+
+
 (defun get-key-event (q &optional ignore-pending-aborts)
-  (declare (ignore ignore-pending-aborts))
   (do* ((e (dequeue-key-event q) (dequeue-key-event q)))
-       ((typep e 'hemlock-ext:key-event)        
+       ((typep e 'hemlock-ext:key-event)
+        (unless ignore-pending-aborts
+          (when (abort-key-event-p e)
+            (beep)
+            (throw 'editor-top-level-catcher nil)))
         (setq *last-key-event-typed* e))
     (if (typep e 'buffer-operation)
       (funcall (buffer-operation-thunk e)))))
