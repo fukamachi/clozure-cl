@@ -27,7 +27,9 @@
   ((direction :initarg :direction :initform nil :reader stream-direction)
    (closed :initform nil)))
 
-(defclass input-stream (stream) ())
+(defclass input-stream (stream)
+  ((shared-resource :initform nil :accessor input-stream-shared-resource)))
+
 (defclass output-stream (stream) ())
 
 ;;; The "direction" argument only helps us dispatch on two-way streams:
@@ -2377,60 +2379,30 @@
 
 
 (defun %request-terminal-input ()
-  (if (and (typep *terminal-io* 'two-way-stream)
-	   (eq *terminal-input* (two-way-stream-input-stream *terminal-io*)))
-    (let* ((lock *terminal-input-lock*)
-	   (current *current-process*))
-      (unless (%try-recursive-lock (recursive-lock-ptr lock))
-	(%note-terminal-input-request  current)
-	t))))
+  (let* ((shared-resource
+	  (if (typep *terminal-io* 'two-way-stream)
+	    (input-stream-shared-resource
+	     (two-way-stream-input-stream *terminal-io*)))))
+    (if shared-resource (%acquire-shared-resource shared-resource t))))
 
-(defglobal *terminal-input-requests* ())
 
-(defvar *request-terminal-input-via-break* nil)
 
-(defun %note-terminal-input-request (requestor)
-  (push requestor *terminal-input-requests*)
-  (let* ((name (process-name requestor))
-	 (psn (process-serial-number requestor)))
-    (format *terminal-output*
-	    "~&;;~&;; Process ~a(~d) needs access to terminal input.~&;;~%"
-	    name psn)
-    (force-output *terminal-output*)
-    (let* ((lock *terminal-input-lock*))
-      (process-wait
-       "terminal-input wait" #'(lambda ()
-				 (%try-recursive-lock
-				  (recursive-lock-ptr lock))))
-      (setq *terminal-input-requests*
-	    (delete requestor *terminal-input-requests*))
-      (format *terminal-output*
-	      "~&;;~&;; process ~a(~d) now controls terminal input~&;;~%"
-	      name
-	      psn))))
 
-(defun %%release-terminal-io ()
-  (let* ((lockptr (recursive-lock-ptr *terminal-input-lock*)))
-    (loop
-	(unless (zerop (the fixnum (%unlock-recursive-lock lockptr)))
-	  (return)))))
-
-(defun %%yield-terminal-to (&optional requestor)
-  (declare (ignore requestor))
-  (let* ((lockptr (recursive-lock-ptr *terminal-input-lock*))
-	 (self *current-process*))
-    (%%release-terminal-io)
-    (sleep 1)
-    (process-wait "terminal input return"
-		  #'%try-recursive-lock lockptr)
-    (clear-input *terminal-input*)
-    (format *terminal-output*
-	    "~&;;~&;; control of terminal input restored to process ~a(~d)~&;;~%"
-	    (process-name self) (process-serial-number self))))
+(defun %%yield-terminal-to (&optional process)
+  (let* ((shared-resource
+	  (if (typep *terminal-io* 'two-way-stream)
+	    (input-stream-shared-resource
+	     (two-way-stream-input-stream *terminal-io*)))))
+    (when shared-resource (%yield-shared-resource shared-resource process))))
 
 (defun %restore-terminal-input (&optional took-it)
-  (when took-it
-    (%unlock-recursive-lock (recursive-lock-ptr *terminal-input-lock*))))
+  (let* ((shared-resource
+	  (if took-it
+	    (if (typep *terminal-io* 'two-way-stream)
+	      (input-stream-shared-resource
+	       (two-way-stream-input-stream *terminal-io*))))))
+    (when shared-resource
+      (%release-shared-resource shared-resource))))
 
 ;;; Initialize the global streams
 ; These are defparameters because they replace the ones that were in l1-init
