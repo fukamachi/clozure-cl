@@ -478,7 +478,19 @@ between the region's start and end, and if there are no ill-formed expressions i
   "Evaluates lisp forms between the point and the mark in the editor Lisp."
   "Evaluates lisp forms between the point and the mark in the editor Lisp."
   (declare (ignore p))
-  (eval-region (current-region)))
+  (if (region-active-p)
+    (eval-region (current-region))
+    (let* ((point (current-point)))
+      (pre-command-parse-check point)
+      (when (valid-spot point nil)      ; not in the middle of a comment
+        (cond ((eql (next-character point) #\()
+               (with-mark ((m point))
+                 (if (list-offset m 1)
+                   (eval-region (region point m)))))
+              ((eql (previous-character point) #\))
+               (with-mark ((m point))
+                 (if (list-offset m -1)
+                   (eval-region (region m point))))))))))
            
 (defcommand "Editor Re-evaluate Defvar" (p)
   "Evaluate the current or next top-level form if it is a DEFVAR.  Treat the
