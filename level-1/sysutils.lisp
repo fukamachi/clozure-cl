@@ -215,16 +215,17 @@
 (defun type-of (form)
   (cond ((null form) 'null)
         ((arrayp form) (describe-array form))
-        (t (let ((class (class-of form)))
-             (if (eq class *istruct-class*)
-               (uvref form 0)
-               (let ((name (class-name class)))
-                 (if name
-                   (if (eq name 'complex)
-                     (cond ((floatp (realpart form)) '(complex float))
-                           (t '(complex rational)))
-                     name)
-                   (%type-of form))))))))
+        (t (let* ((class (class-of form))
+		  (metaclass (class-of class)))
+	     (if (eq metaclass *istruct-class*)
+	       (uvref form 0)
+	       (if (or (typep metaclass 'standard-class)
+		       (typep metaclass 'structure-class))
+		 (let* ((class-name (class-name class)))
+		   (if (eq class (find-class class-name nil))
+		     class-name
+		     class))
+		 (%type-of form)))))))
 
 
 ;;; Create the list-style description of an array.
