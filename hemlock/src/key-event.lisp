@@ -273,9 +273,10 @@
 
 ;;;; Stuff for parsing #k syntax.
 
+
+
 (defstruct (key-event (:print-function %print-key-event)
-		      (:constructor %make-key-event (keysym bits))
-                      (:include ccl::dll-node))
+		      (:constructor %make-key-event (keysym bits)))
   (bits nil :type fixnum)
   (keysym nil :type fixnum))
 
