@@ -319,48 +319,6 @@
 (define-objc-method ((:<BOOL> editing-in-progress) hemlock-text-storage)
   (not (eql (slot-value self 'edit-count) 0)))
 
-
-(define-objc-method (((:struct :<NSR>ange r) :double-click-at-index (:unsigned index))
-                     hemlock-text-storage)
-  (block HANDLED
-    (let* ((cache (hemlock-buffer-string-cache (send self 'string)))
-           (buffer (if cache (buffer-cache-buffer cache))))
-      (when (and buffer (string= (hi::buffer-major-mode buffer) "Lisp"))
-        (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
-          (hi::with-mark ((m1 (hi::buffer-point buffer)))
-            (move-hemlock-mark-to-absolute-position m1 cache index)
-            (hemlock::pre-command-parse-check m1)
-            (when (hemlock::valid-spot m1 nil)
-              (cond ((eql (hi::next-character m1) #\()
-                     (hi::with-mark ((m2 m1))
-                       (when (hemlock::list-offset m2 1)
-                         (setf (pref r :<NSR>ange.location) index
-                               (pref r :<NSR>ange.length)
-                               (- (mark-absolute-position m2) index))
-                         (return-from HANDLED nil))))
-                    ((eql (hi::previous-character m1) #\))
-                     (hi::with-mark ((m2 m1))
-                       (when (hemlock::list-offset m2 -1)
-                         (#_NSLog #@"Length = %d"
-                                  :unsigned
-                                  (- (1- index) (mark-absolute-position m2)))
-                         (setf (pref r :<NSR>ange.location)
-                               (mark-absolute-position m2)
-                               (pref r :<NSR>ange.length)
-                               (- (1- index) (mark-absolute-position m2)))
-                         (return-from HANDLED nil)))))))))
-      ;; No early exit, so call next-method
-      (objc-message-send-super-stret r (super) "doubleClickAtIndex:"
-                                     :unsigned index
-                                     :void))))
-            
-
-      
-
-
-    
-    
-
 (defun textstorage-note-insertion-at-position (self pos n)
   (send self
         :edited #$NSTextStorageEditedAttributes
@@ -537,26 +495,103 @@
 
 ;;; An abstract superclass of the main and echo-area text views.
 (defclass hemlock-textstorage-text-view (ns::ns-text-view)
-    ((save-blink-color :foreign-type :id))
+    ((blink-location :foreign-type :unsigned :accessor text-view-blink-location)
+     (blink-color-attribute :foreign-type :id :accessor text-view-blink-color)
+     (blink-enabled :foreign-type :<BOOL> :accessor text-view-blink-enabled) )
   (:metaclass ns:+ns-object))
 
+
+
+;;; Note changes to the textview's background color; record them
+;;; as the value of the "temporary" foreground color (for blinking).
+(define-objc-method ((:void :set-background-color color)
+                     hemlock-textstorage-text-view)
+  (let* ((dict (text-view-blink-color self)))
+    (when (%null-ptr-p dict)
+      (setq dict (setf (text-view-blink-color self)
+                       (make-objc-instance 'ns:ns-mutable-dictionary
+                                           :with-capacity 1))))
+    (send dict :set-value color :for-key #@"NSColor")
+    (send-super :set-background-color color)))
+
+;;; Maybe cause 1 character in the textview to blink (by setting/clearing a
+;;; temporary attribute) in synch with the insertion point.
+
+(define-objc-method ((:void :draw-insertion-point-in-rect (:<NSR>ect r)
+                            :color color
+                            :turned-on (:<BOOL> flag))
+                     hemlock-textstorage-text-view)
+  (unless (eql #$NO (text-view-blink-enabled self))
+    (let* ((layout (send self 'layout-manager))
+           (blink-color (text-view-blink-color self)))
+      ;; We toggle the blinked character "off" by setting its
+      ;; foreground color to the textview's background color.
+      ;; The blinked character should be "on" whenever the insertion
+      ;; point is drawn as "off"
+      (slet ((blink-range (ns-make-range (text-view-blink-location self) 1)))
+        #+debug (#_NSLog #@"Flag = %d" :<BOOL> (if flag #$YES #$NO))
+        (if flag
+          (send layout
+                :add-temporary-attributes blink-color
+                :for-character-range blink-range)
+          (send layout
+                :remove-temporary-attribute #@"NSColor"
+                :for-character-range blink-range)))))
+  (send-super :draw-insertion-point-in-rect r
+              :color color
+              :turned-on flag))
+                
+(defmethod disable-blink ((self hemlock-textstorage-text-view))
+  (when (eql (text-view-blink-enabled self) #$YES)
+    (setf (text-view-blink-enabled self) #$NO)
+    (send (send self 'layout-manager)
+          :remove-temporary-attribute #@"NSColor"
+          :for-character-range (ns-make-range (text-view-blink-location self)
+                                              1))))
+
+(defmethod update-blink ((self hemlock-textstorage-text-view))
+  (disable-blink self)
+  (let* ((d (hemlock-buffer-string-cache (send self 'string)))
+         (buffer (buffer-cache-buffer d)))
+    (when (and buffer (string= (hi::buffer-major-mode buffer) "Lisp"))
+      (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+             (point (hi::buffer-point buffer)))
+        #+debug (#_NSLog #@"Syntax check for blinking")
+        (hemlock::pre-command-parse-check point)
+        (when (hemlock::valid-spot point nil)
+          (cond ((eql (hi::next-character point) #\()
+                 (hi::with-mark ((temp point))
+                   (when (hemlock::list-offset temp 1)
+                     #+debug (#_NSLog #@"enable blink, forward")
+                     (setf (text-view-blink-location self)
+                           (mark-absolute-position temp)
+                           (text-view-blink-enabled self) #$YES))))
+                ((eql (hi::previous-character point) #\))
+                 (hi::with-mark ((temp point))
+                   (when (hemlock::list-offset temp -1)
+                     #+debug (#_NSLog #@"enable blink, backward")
+                     (setf (text-view-blink-location self)
+                           (mark-absolute-position temp)
+                           (text-view-blink-enabled self) #$YES))))))))))
+
 ;;; Set and display the selection at pos, whose length is len and whose
-;;; affinity is affinity.  This should never be called from some Cocoa
+;;; affinity is affinity.  This should never be called from any Cocoa
 ;;; event handler; it should not call anything that'll try to set the
 ;;; underlying buffer's point and/or mark.
 (define-objc-method ((:void :update-selection (:int pos)
                             :length (:int len)
                             :affinity (:<NSS>election<A>ffinity affinity))
                      hemlock-textstorage-text-view)
+  (when (eql len 0)
+    (update-blink self))
   (slet ((range (ns-make-range pos len)))
     (send-super :set-selected-range range
                 :affinity affinity
                 :still-selecting nil)
     (send self :scroll-range-to-visible range)))
   
-;;; A specialized NSTextView.  Some of the instance variables are intended
-;;; to support paren highlighting by blinking, but that doesn't work yet.
-;;; The NSTextView is part of the "pane" object that displays buffers.
+;;; A specialized NSTextView. The NSTextView is part of the "pane"
+;;; object that displays buffers.
 (defclass hemlock-text-view (hemlock-textstorage-text-view)
     ((pane :foreign-type :id :accessor text-view-pane))
   (:metaclass ns:+ns-object))
@@ -564,6 +599,50 @@
 ;;; Access the underlying buffer in one swell foop.
 (defmethod text-view-buffer ((self hemlock-text-view))
   (buffer-cache-buffer (hemlock-buffer-string-cache (send (send self 'text-storage) 'string))))
+
+(define-objc-method (((:struct :<NSR>ange r)
+                      :selection-range-for-proposed-range (:<NSR>ange proposed)
+                      :granularity (:<NSS>election<G>ranularity g))
+                     hemlock-textstorage-text-view)
+  #+debug
+  (#_NSLog #@"Granularity = %d" :int g)
+  (block HANDLED
+    (let* ((index (pref proposed :<NSR>ange.location))
+           (length (pref proposed :<NSR>ange.length)))
+      (when (and (eql 0 length)              ; not extending existing selection
+                 (not (eql g #$NSSelectByCharacter)))
+        (let* ((textstorage (send self 'text-storage))
+               (cache (hemlock-buffer-string-cache (send textstorage 'string)))
+               (buffer (if cache (buffer-cache-buffer cache))))
+          (when (and buffer (string= (hi::buffer-major-mode buffer) "Lisp"))
+            (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
+              (hi::with-mark ((m1 (hi::buffer-point buffer)))
+                (move-hemlock-mark-to-absolute-position m1 cache index)
+                (hemlock::pre-command-parse-check m1)
+                (when (hemlock::valid-spot m1 nil)
+                  (cond ((eql (hi::next-character m1) #\()
+                         (hi::with-mark ((m2 m1))
+                           (when (hemlock::list-offset m2 1)
+                             (setf (pref r :<NSR>ange.location) index
+                                   (pref r :<NSR>ange.length)
+                                   (- (mark-absolute-position m2) index))
+                             (return-from HANDLED nil))))
+                        ((eql (hi::previous-character m1) #\))
+                         (hi::with-mark ((m2 m1))
+                           (when (hemlock::list-offset m2 -1)
+                             (setf (pref r :<NSR>ange.location)
+                                   (mark-absolute-position m2)
+                                   (pref r :<NSR>ange.length)
+                                   (- index (mark-absolute-position m2)))
+                             (return-from HANDLED nil))))))))))))
+    (objc-message-send-super-stret r (super) "selectionRangeForProposedRange:granularity:"
+                                   :<NSR>ange proposed
+                                   :<NSS>election<G>ranularity g)
+    #+debug
+    (#_NSLog #@"range = %@, proposed = %@, granularity = %d"
+             :address (#_NSStringFromRange r)
+             :address (#_NSStringFromRange proposed)
+             :<NSS>election<G>ranularity g)))
 
 ;;; Translate a keyDown NSEvent to a Hemlock key-event.
 (defun nsevent-to-key-event (nsevent)
@@ -608,8 +687,9 @@
 		     hemlock-text-view)
   (pass-key-down-event-to-hemlock self event))
 
-;;; Update the underlying buffer's point.  Should really set the
-;;; active region (in Hemlock terms) as well.
+;;; Update the underlying buffer's point (and "active region", if appropriate.
+;;; This is called in response to a mouse click or other event; it shouldn't
+;;; be called from the Hemlock side of things.
 (define-objc-method ((:void :set-selected-range (:<NSR>ange r)
 			    :affinity (:<NSS>election<A>ffinity affinity)
 			    :still-selecting (:<BOOL> still-selecting))
@@ -631,7 +711,8 @@
              #+debug
              (#_NSLog #@"Moving point to absolute position %d" :int location)
              (setf (hi::buffer-region-active buffer) nil)
-             (move-hemlock-mark-to-absolute-position point d location))
+             (move-hemlock-mark-to-absolute-position point d location)
+             (update-blink self))
             (t
              ;; We don't get much information about which end of the
              ;; selection the mark's at and which end point is at, so
@@ -927,7 +1008,7 @@
 
 (defmethod hi::activate-hemlock-view ((view echo-area-view))
   (let* ((hemlock-frame (send view 'window)))
-    #+debug 0
+    #+debug
     (#_NSLog #@"Activating echo area")
     (send hemlock-frame :make-first-responder view)))
 
@@ -1162,11 +1243,11 @@
 (defun textpane-for-textstorage (ts ncols nrows container-tracks-text-view-width color)
   (let* ((pane (nth-value
                 1
-                (new-hemlock-document-window)))
-         (tv (make-scrolling-textview-for-pane pane ts container-tracks-text-view-width color)))
+                (new-hemlock-document-window))))
+    (make-scrolling-textview-for-pane pane ts container-tracks-text-view-width color)
     (multiple-value-bind (height width)
         (size-of-char-in-font (default-font))
-      (size-textview-containers tv height width nrows ncols))
+      (size-text-pane pane height width nrows ncols))
     pane))
 
 
@@ -1414,24 +1495,23 @@
     (values (send sf 'default-line-height-for-font)
 	    (send sf :width-of-string #@" "))))
          
-    
-(defun get-size-for-textview (font nrows ncols)
-  (multiple-value-bind (h w) (size-of-char-in-font font)
-    (values (fceiling (* nrows h))
-	    (fceiling (* ncols w)))))
 
 
-(defun size-textview-containers (tv char-height char-width nrows ncols)
-  (let* ((height (fceiling (* nrows char-height)))
+(defun size-text-pane (pane char-height char-width nrows ncols)
+  (let* ((tv (text-pane-text-view pane))
+         (height (fceiling (* nrows char-height)))
 	 (width (fceiling (* ncols char-width)))
-	 (scrollview (send (send tv 'superview) 'superview))
+	 (scrollview (text-pane-scroll-view pane))
 	 (window (send scrollview 'window)))
     (rlet ((tv-size :<NSS>ize :height height
 		    :width (+ width (* 2 (send (send tv 'text-container)
-		      'line-fragment-padding)))))
+                                               'line-fragment-padding)))))
       (when (send scrollview 'has-vertical-scroller)
 	(send scrollview :set-vertical-line-scroll char-height)
 	(send scrollview :set-vertical-page-scroll char-height))
+      (when (send scrollview 'has-horizontal-scroller)
+	(send scrollview :set-horizontal-line-scroll char-width)
+	(send scrollview :set-horizontal-page-scroll char-width))
       (slet ((sv-size
 	      (send (@class ns-scroll-view)
 		    :frame-size-for-content-size tv-size
@@ -1440,9 +1520,13 @@
 		    :has-vertical-scroller
 		    (send scrollview 'has-vertical-scroller)
 		    :border-type (send scrollview 'border-type))))
-	(slet ((sv-frame (send scrollview 'frame)))
+	(slet ((pane-frame (send pane 'frame))
+               (margins (send pane 'content-view-margins)))
 	  (incf (pref sv-size :<NSS>ize.height)
-		(pref sv-frame :<NSR>ect.origin.y))
+		(+ (pref pane-frame :<NSR>ect.origin.y)
+                   (* 2 (pref margins :<NSS>ize.height))))
+          (incf (pref sv-size :<NSS>ize.width)
+                (pref margins :<NSS>ize.width))
 	  (send window :set-content-size sv-size)
 	  (send window :set-resize-increments
 		(ns-make-size char-width char-height)))))))
@@ -1587,9 +1671,13 @@
 (defun hi::scroll-window (textpane n)
   (let* ((textview (text-pane-text-view textpane)))
     (unless (%null-ptr-p textview)
-      (if (> n 0)
-        (send textview :page-down nil)
-        (send textview :page-up nil)))))
+      (let* ((selector (if (>= n 0 )
+                         (@selector "pageDown:")
+                         (@selector "pageUp:"))))
+        (send textview
+              :perform-selector-on-main-thread selector
+              :with-object (%null-ptr)
+              :wait-until-done t)))))
 
 ;;; This needs to run on the main thread.
 (define-objc-method ((void update-hemlock-selection)
