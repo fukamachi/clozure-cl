@@ -38,29 +38,40 @@ typedef enum {
 } area_code;
 
 typedef struct area {
-  NATURAL_POINTER_FIELD(struct area,pred);  /* linked list predecessor */
-  NATURAL_POINTER_FIELD(struct area,succ);  /* linked list successor */
-  NATURAL_POINTER_FIELD(char,low);        /* arithmetic lower limit on addresses (inclusive) */
-  NATURAL_POINTER_FIELD(char,high);        /* arithmetic upper limit on addresses (exclusive) */
-  NATURAL_POINTER_FIELD(char,active);       /* low bound (stack) or high bound (heap) */
-  NATURAL_POINTER_FIELD(char,softlimit);		/* only makes sense for dynamic heaps & stacks */
-  NATURAL_POINTER_FIELD(char,hardlimit);		/* only makes sense for dynamic heaps & stacks */
+  struct area* pred;            /* linked list predecessor */
+  struct area* succ;            /* linked list successor */
+  char* low;                    /* arithmetic lower limit on addresses
+                                   (inclusive) */
+  char* high;                   /* arithmetic upper limit on addresses
+                                   (exclusive) */
+  char* active;                 /* low bound (stack) or high bound
+                                   (heap) */
+  char* softlimit;		/* only makes sense for dynamic heaps
+                                   & stacks */
+  char* hardlimit;		/* only makes sense for dynamic heaps
+                                   & stacks */
   natural code;
-  NATURAL_POINTER_FIELD(natural, markbits);           /* markbits for active area */
-  natural ndnodes;		/* "active" size of dynamic area or stack */
-  NATURAL_POINTER_FIELD(struct area,older);		/* if ephemeral, the next older ephemeral area
+  natural*  markbits;           /* markbits for active area */
+  natural ndnodes;		/* "active" size of dynamic area or
+                                   stack */
+  struct area* older;		/* if ephemeral, the next older ephemeral area
 				 or the dynamic area */
-  NATURAL_POINTER_FIELD(struct area,younger); /* if ephemeral, the next "younger" ephemeral area
-                                  if there is one.  If dynamic, the oldest ephemeral
-				 area. */
-  NATURAL_POINTER_FIELD(char, h);			/* The pointer allocated to contain this area, or NULL
-				 if the operating system allocated it for us. */
-  NATURAL_POINTER_FIELD(protected_area,softprot);  /* "soft" protected_area */
-  NATURAL_POINTER_FIELD(protected_area,hardprot);  /* "hard" protected_area */
-  natural owner;               /* position in external_containers linked list */
-  NATURAL_POINTER_FIELD(natural, refbits); /* intergenerational references.
-                                               May or may not be the same as markbits */
-  natural threshold; /* egc threshold (boxed "fullword count") or 0 */
+  struct area* younger;         /* if ephemeral, the next "younger"
+                                  ephemeral area if there is one.  If
+                                  dynamic, the oldest ephemeral
+                                  area. */
+  char*  h;			/* The pointer allocated to contain
+				 this area, or NULL if the operating
+				 system allocated it for us. */
+  protected_area* softprot;     /* "soft" protected_area */
+  protected_area* hardprot;     /* "hard" protected_area */
+  natural owner;               /* position in external_containers
+                                  linked list */
+  natural*  refbits;            /* intergenerational references.  May
+                                               or may not be the same
+                                               as markbits */
+  natural threshold;            /* egc threshold (boxed "fullword
+                                   count") or 0 */
   LispObj gccount;              /* boxed generation GC count. */
 } area;
 
