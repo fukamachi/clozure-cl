@@ -22,11 +22,7 @@
 typedef u_int64_t LispObj;
 typedef u_int64_t natural;
 typedef int64_t signed_natural;
-#ifdef FOREIGN_POINTER_32BIT
-typedef u_int32_t unsigned_of_pointer_size;
-#else
 typedef u_int64_t unsigned_of_pointer_size;
-#endif
 #else
 typedef u_int32_t LispObj;
 typedef u_int32_t natural;
