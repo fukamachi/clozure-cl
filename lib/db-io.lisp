@@ -743,7 +743,9 @@
             (unless arg (setq arg 0))
             (ecase arg
               (0
-               (unless (boundp sym)
+               (unless (and (constant-symbol-p sym)
+                            (not (eq (%sym-global-value sym)
+                                     (%unbound-marker-8))))
                  (load-os-constant sym stream)))
               (1 (makunbound sym) (load-os-constant sym stream))))
           sym)
