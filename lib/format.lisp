@@ -1800,11 +1800,8 @@
                (declare (type integer n))
                (setq lg (%i+ lg 1))) ; lg is 1- significant digits             
              (setq commas (if print-commas-p
-                            (if  (and (neq padchar #\space)(< lg mincol))
-                              (floor (if print-sign-p (1- mincol) mincol)
-                                     (1+ commainterval))
-                              (floor lg commainterval))
-                            0))
+                              (floor lg commainterval)
+                              0))
              (when print-sign-p
                (setq lg (1+ lg)))
              (when (and (eq commas 0)
