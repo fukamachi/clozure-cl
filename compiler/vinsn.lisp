@@ -90,7 +90,9 @@
       (progn
         (setf (vinsn-template vinsn) template
               (vinsn-variable-parts vinsn) nil
-              (vinsn-annotation vinsn) nil)
+              (vinsn-annotation vinsn) nil
+	      (vinsn-gprs-set vinsn) 0
+	      (vinsn-fprs-set vinsn) 0)
         vinsn)
       (%make-vinsn template))))
 
