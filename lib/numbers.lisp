@@ -334,9 +334,16 @@
             (setq n0 (gcd-2 n0 (%lexpr-ref numbers count i)))))))))
 
 (defun lcm-2 (n0 n1)
-  (let* ((small (if (< n0 n1) n0 n1))
-         (large (if (eq small n0) n1 n0)))
-    (* (truncate large (gcd n0 n1)) small)))
+  (or (typep n0 'integer) (report-bad-arg n0 'integer))
+  (or (typep n1 'integer) (report-bad-arg n1 'integer))
+  (locally (declare (integer n0 n1))
+    (if (zerop n0)
+      0
+      (if (zerop n1)
+	0
+	(let* ((small (if (< n0 n1) n0 n1))
+	       (large (if (eq small n0) n1 n0)))
+	  (* (truncate large (gcd n0 n1)) small))))))
 
 (defun lcm (&lexpr numbers)
   (let* ((count (%lexpr-count numbers)))
@@ -346,10 +353,12 @@
       (let* ((n0 (%lexpr-ref numbers count 0)))
         (if (= count 1)
           (%integer-abs n0)
-          (do* ((i 1 (1+ i)))
-               ((= i count) n0)
-            (declare (fixnum i))
-            (setq n0 (lcm-2 n0 (%lexpr-ref numbers count i)))))))))
+	  (if (= count 2)
+	    (lcm-2 n0 (%lexpr-ref numbers count 1))
+	    (do* ((i 1 (1+ i)))
+		 ((= i count) n0)
+	      (declare (fixnum i))
+	      (setq n0 (lcm-2 n0 (%lexpr-ref numbers count i))))))))))
 
 
 #|
