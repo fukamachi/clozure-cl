@@ -1,4 +1,4 @@
-;;;-*- Mode: LISP; Package: CCL -*-
+;;-*- Mode: LISP; Package: CCL -*-
 
 (in-package "CCL")
 
@@ -8,6 +8,11 @@
 
 (def-cocoa-default *listener-rows* :int 16)
 (def-cocoa-default *listener-columns* :int 80)
+
+(def-cocoa-default *listener-background-red-component* :int 0.75f0)
+(def-cocoa-default *listener-background-green-component* :int 0.75f0)
+(def-cocoa-default *listener-background-blue-component* :int 0.75f0)
+(def-cocoa-default *listener-background-alpha-component* :int 1.0f0)
 
 ;;; Setup the server end of a pty pair.
 (defun setup-server-pty (pty)
@@ -25,7 +30,10 @@
 (defloadvar *cocoa-listener-count* 0)
 
 (defclass cocoa-listener-process (process)
-    ((input-stream :reader cocoa-listener-process-input-stream)))
+    ((input-stream :reader cocoa-listener-process-input-stream)
+     (backtrace-contexts :initform nil
+                         :accessor cocoa-listener-process-backtrace-contexts)))
+  
 
 (defun new-cocoa-listener-process (procname input-fd output-fd peer-fd)
   (let* ((input-stream (make-selection-input-stream
@@ -123,24 +131,6 @@
                  :wait-until-done t)))
       (send fh 'read-in-background-and-notify))))
 	     
-#|    
-;;; The Hemlock-Listener-Window-Controller is the textview's "delegate": it
-;;; gets consulted before certain actions are performed, and can
-;;; perform actions on behalf of the textview.
-
-(define-objc-method ((:<BOOL> :text-view tv
-			      :should-change-text-in-range (:<NSR>ange range)
-			      :replacement-string replacement-string)
-		     hemlock-listener-window-controller)
-  (declare (ignorable replacement-string))
-  (if (< (pref range :<NSR>ange.location) (slot-value self 'outpos))
-    (progn
-      (#_NSBeep)			;Overkill, maybe.
-      nil)
-    (progn
-      (send tv :set-typing-attributes (slot-value self 'userta))
-      t)))
-|#
 
 
 (define-objc-method ((:void dealloc) hemlock-listener-window-controller)
@@ -156,6 +146,14 @@
 (defclass hemlock-listener-document (hemlock-editor-document)
     ()
   (:metaclass ns:+ns-object))
+
+(defmethod textview-background-color ((doc hemlock-listener-document))
+  (send (find-class 'ns:ns-color)
+        :color-with-calibrated-red *listener-background-red-component*
+        :green *listener-background-green-component*
+        :blue *listener-background-blue-component*
+        :alpha *listener-background-alpha-component*))
+
 
 (defun hemlock::listener-document-send-string (document string)
   (let* ((controller (send (send document 'window-controllers)
@@ -216,7 +214,8 @@
                                     textstorage
 				    *listener-columns*
 				    *listener-rows*
-				    t)))
+				    t
+                                    (textview-background-color self))))
 	 (listener-name (hi::buffer-name (hemlock-document-buffer self))))
     (send self :add-window-controller controller)
     (send controller 'release)
@@ -227,22 +226,53 @@
 	    (new-cocoa-listener-process listener-name tty tty peer-tty)))
     controller))
 
-;;; This is almost completely wrong: we need to ensure that the form
-;;; is read in the correct package, etc.
-#|
-(defun send-to-top-listener (sender-info nsstring &optional (append-newline t))
-  (declare (ignorable sender-info))
-  (let* ((listener
-	  (info-from-document (send (@class hemlock-listener-document)
-				    'top-listener))))
-    (when listener
-      (let* ((controller (cocoa-editor-info-controller listener)))
-	(send controller :send-string nsstring)
-	(when append-newline
-	  (send controller :send-string #@"
-"
-	  ))))))
-|#
+;;; Action methods
+(define-objc-method ((:void :interrupt sender) hemlock-listener-document)
+  (declare (ignore sender))
+  (let* ((buffer (hemlock-document-buffer self))
+         (process (if buffer (hi::buffer-process buffer))))
+    (when (typep process 'cocoa-listener-process)
+      (ccl::force-break-in-listener process))))
+
+(defmethod listener-backtrace-context ((proc cocoa-listener-process))
+  (car (cocoa-listener-process-backtrace-contexts proc)))
+
+(define-objc-method ((:void :backtrace sender) hemlock-listener-document)
+  (declare (ignore sender))
+  (let* ((buffer (hemlock-document-buffer self))
+         (process (if buffer (hi::buffer-process buffer))))
+    (when (typep process 'cocoa-listener-process)
+      (let* ((context (listener-backtrace-context process)))
+        (when context
+          (send (backtrace-controller-for-context context)
+                :show-window (%null-ptr)))))))
+
+;;; Menu item action validation.  It'd be nice if we could distribute this a
+;;; bit better, so that this method didn't have to change whenever a new
+;;; action was implemented in this class.  For now, we have to do so.
+
+(defmethod document-validate-menu-item ((doc hemlock-listener-document) item)
+  ;; Return two values: the first is true if the second is definitive.
+  ;; So far, all actions demand that there be an underlying process, so
+  ;; check for that first.
+  (let* ((buffer (hemlock-document-buffer doc))
+         (process (if buffer (hi::buffer-process buffer))))
+    (if (typep process 'cocoa-listener-process)
+      (let* ((action (send item 'action)))
+        (cond
+          ((eql action (@selector "interrupt:")) (values t t))
+          ((eql action (@selector "backtrace:"))
+           (values t
+                   (not (null (listener-backtrace-context process)))))))
+      (values nil nil))))
+
+(define-objc-method ((:<BOOL> :validate-menu-item item)
+                     hemlock-listener-document)
+  (multiple-value-bind (have-opinion opinion)
+      (document-validate-menu-item self item)
+    (if have-opinion
+      opinion
+      (send-super :validate-menu-item item))))
 
 (defun shortest-package-name (package)
   (let* ((name (package-name package))
@@ -296,11 +326,7 @@
 			       selection))))
   
 
-(defmethod ui-object-do-operation ((o ns:ns-application)
-                                   operation &rest args)
-  (case operation
-    (:note-current-package (ui-object-note-package o (car args)))
-    (:eval-selection (ui-object-eval-selection o (car args)))))
+
 
 
        
