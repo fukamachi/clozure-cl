@@ -155,7 +155,7 @@
 	 initargs))
 
 
-(defmethod compute-effective-slot-definition ((class std-class)
+(defmethod compute-effective-slot-definition ((class slots-class)
                                               name
                                               direct-slots)
   
@@ -183,7 +183,7 @@
      :initfunction (if initer (%slot-definition-initfunction initer))
      :initform (if initer (%slot-definition-initform initer)))))
 
-(defmethod compute-slots ((class std-class))
+(defmethod compute-slots ((class slots-class))
   (let* ((slot-name-alist ()))
     (labels ((note-direct-slot (dslot)
                (let* ((sname (%slot-definition-name dslot))
@@ -222,18 +222,28 @@
 		     :test #'eq)))
       (append instance-slots class-slots))))
 
+(defmethod compute-slots :around ((class structure-class))
+  (let* ((slots (call-next-method))	 )
+      (do* ((loc 1 (1+ loc))
+            (islotds slots (cdr islotds)))
+           ((null islotds) slots)
+        (declare (fixnum loc))
+        (setf (%slot-definition-location (car islotds)) loc))))
+
 ;;; Should eventually do something here.
-(defmethod compute-slots ((s structure-class)))
+(defmethod compute-slots ((s structure-class))
+  (call-next-method))
+
 (defmethod direct-slot-definition-class ((class structure-class) &rest initargs)
   (declare (ignore initargs))
   (find-class 'structure-direct-slot-definition))
 
 (defmethod effective-slot-definition-class ((class structure-class) &rest  initargs)
   (declare (ignore initargs))
-  (find-class 'structure-direct-slot-definition))
+  (find-class 'structure-effective-slot-definition))
 
 
-(defmethod compute-default-initargs ((class std-class))
+(defmethod compute-default-initargs ((class slots-class))
   (let* ((initargs ()))
     (dolist (c (%class-precedence-list class) (nreverse initargs))
       (if (typep c 'forward-referenced-class)
@@ -331,6 +341,19 @@
 (defmethod finalize-inheritance ((class std-class))
   (update-class class t))
 
+(defmethod class-primary-p ((class std-class))
+  (%class-primary-p class))
+
+(defmethod (setf class-primary-p) (new (class std-class))
+  (setf (%class-primary-p class) new))
+
+(defmethod class-primary-p ((class class))
+  t)
+
+(defmethod (setf class-primary-p) (new (class class))
+  new)
+
+
 (defun forward-referenced-class-p (class)
   (typep class 'forward-referenced-class))
 
@@ -342,7 +365,7 @@
     (declare (fixnum primary-slotds-length))
     (dolist (sup (cdr cpl))
       (unless (eq sup *t-class*)      
-        (when (%class-primary-p sup)
+        (when (class-primary-p sup)
           (let ((sup-slotds (extract-instance-effective-slotds sup)))
             (if (null primary-slotds-class)
               (setf primary-slotds-class sup
@@ -440,7 +463,7 @@
   (remove-direct-subclasses class (%class-direct-superclasses class) direct-superclasses))
    
 (defmethod shared-initialize :after
-  ((class std-class)
+  ((class slots-class)
    slot-names &key
    (direct-superclasses nil direct-superclasses-p)
    (direct-slots nil direct-slots-p)
@@ -483,7 +506,7 @@
   (when doc-p
     (set-documentation class 'type documentation))
   (when primary-p-p
-    (setf (%class-primary-p class) primary-p))
+    (setf (class-primary-p class) primary-p))
 
   (add-direct-subclasses class direct-superclasses)
   (update-class class nil)
@@ -789,7 +812,11 @@
 		  ;; The fact that the slot is a primary slot
 		  ;; saves the day (keeping us from trying to call
 		  ;; CLASS-SLOTS inside SLOT-VALUE-USING-CLASS
-		   :readers (class-slots)))
+		   :readers (class-slots))
+		 (:name kernel-p :initform nil :initfunction ,#'false)
+                 (:name direct-default-initargs :initargs (:direct-default-initargs) :initform nil  :initfunction ,#'false :readers (class-direct-default-initargs))
+                 (:name default-initargs :initform nil  :initfunction ,#'false :readers (class-default-initargs))
+                 (:name alist :initform nil  :initfunction ,#'false))
  :primary-p t)
 
 ; This class exists only so that standard-class & funcallable-standard-class
@@ -797,10 +824,7 @@
 (%ensure-class-preserving-wrapper
  'std-class
  :direct-superclasses '(slots-class)
- :direct-slots `((:name kernel-p :initform nil :initfunction ,#'false)
-                 (:name direct-default-initargs :initargs (:direct-default-initargs) :initform nil  :initfunction ,#'false :readers (class-direct-default-initargs))
-                 (:name default-initargs :initform nil  :initfunction ,#'false :readers (class-default-initargs))
-                 (:name alist :initform nil  :initfunction ,#'false)
+ :direct-slots `(
                  (:name make-instance-initargs :initform nil  :initfunction ,#'false)
                  (:name reinit-initargs :initform nil  :initfunction ,#'false)
                  (:name redefined-initargs :initform nil :initfunction ,#'false)
@@ -997,7 +1021,7 @@
     (ensure-class (sd-name sd)
 		  :metaclass 'structure-class
 		  :direct-superclasses (list (or (cadr (sd-superclasses sd)) 'structure-object))
-		  :direct-slots #+not-yet dslots #-not-yet nil
+		  :direct-slots  dslots 
 		  )))
 
 
