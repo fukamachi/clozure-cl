@@ -228,7 +228,7 @@
   (when line
     (change-line mark line))
   (setf (mark-charpos mark) 0)
-  mark)
+  (maybe-update-selection mark))
 
 (defun line-end (mark &optional line)
   "Changes the Mark to point to the end of the line and returns it.
@@ -237,7 +237,7 @@
       (change-line mark line)
       (setq line (mark-line mark)))
   (setf (mark-charpos mark) (line-length* line))
-  mark)
+  (maybe-update-selection mark))
 
 (defun buffer-start (mark &optional (buffer (line-buffer (mark-line mark))))
   "Change Mark to point to the beginning of Buffer, which defaults to
@@ -268,10 +268,10 @@
 	     (when prev
 	       (always-change-line mark prev)
 	       (setf (mark-charpos mark) (line-length* prev))
-	       mark)))
+	       (maybe-update-selection mark))))
 	  (t
 	   (setf (mark-charpos mark) (1- charpos))
-	   mark))))
+	   (maybe-update-selection mark)))))
 
 (defun mark-after (mark)
   "Changes the Mark to point one character after where it currently points.
@@ -283,10 +283,10 @@
 	     (when next
 	       (always-change-line mark next)
 	       (setf (mark-charpos mark) 0)
-	       mark)))
+	       (maybe-update-selection mark))))
 	  (t
 	   (setf (mark-charpos mark) (1+ charpos))
-	   mark))))
+	   (maybe-update-selection mark)))))
 
 (defun character-offset (mark n)
   "Changes the Mark to point N characters after (or -N before if N is negative)
@@ -330,27 +330,29 @@
   "Changes to Mark to point N lines after (-N before if N is negative) where
   it currently points.  If there aren't N lines after (or before) the Mark,
   Nil is returned."
-  (if (< n 0)
-      (do ((line (mark-line mark) (line-previous line))
-	   (n n (1+ n)))
-	  ((null line) nil)
-	(when (= n 0)
-	  (always-change-line mark line)
-	  (setf (mark-charpos mark)
-		(if charpos
-		    (min (line-length line) charpos)
-		    (min (line-length line) (mark-charpos mark))))
-	  (return mark)))
-      (do ((line (mark-line mark) (line-next line))
-	   (n n (1- n)))
-	  ((null line) nil)
-	(when (= n 0)
-	  (change-line mark line)
-	  (setf (mark-charpos mark)
-		(if charpos
-		    (min (line-length line) charpos)
-		    (min (line-length line) (mark-charpos mark))))
-	  (return mark)))))
+  (let* ((result
+          (if (< n 0)
+            (do ((line (mark-line mark) (line-previous line))
+                 (n n (1+ n)))
+                ((null line) nil)
+              (when (= n 0)
+                (always-change-line mark line)
+                (setf (mark-charpos mark)
+                      (if charpos
+                        (min (line-length line) charpos)
+                        (min (line-length line) (mark-charpos mark))))
+                (return mark)))
+            (do ((line (mark-line mark) (line-next line))
+                 (n n (1- n)))
+                ((null line) nil)
+              (when (= n 0)
+                (change-line mark line)
+                (setf (mark-charpos mark)
+                      (if charpos
+                        (min (line-length line) charpos)
+                        (min (line-length line) (mark-charpos mark))))
+                (return mark))))))
+    (when result (maybe-update-selection result))))
 
 ;;; region-bounds  --  Public
 ;;;

@@ -320,6 +320,8 @@
 
 
 ;;;; Typescript.
+#+typescript
+(progn
 (bind-key "Confirm Typescript Input" #k"return" :mode "Typescript")
 (bind-key "Interactive Beginning of Line" #k"control-a" :mode "Typescript")
 (bind-key "Kill Interactive Input" #k"meta-i" :mode "Typescript")
@@ -338,7 +340,7 @@
 
 (bind-key "Next Compiler Error" #k"hyper-n")
 (bind-key "Previous Compiler Error" #k"hyper-p")
-
+)
 
 ;;;; Lisp (some).
 
@@ -441,12 +443,15 @@
 (bind-key "Put Register" #k"control-x x")
 (bind-key "Get Register" #k"control-x g")
 
+#+pascal-mode
+(progn
 (bind-key "Delete Previous Character Expanding Tabs" #k"backspace"
           :mode "Pascal")
 (bind-key "Delete Previous Character Expanding Tabs" #k"delete" :mode "Pascal")
 (bind-key "Scribe Insert Bracket" #k")" :mode "Pascal")
 (bind-key "Scribe Insert Bracket" #k"]" :mode "Pascal")
 (bind-key "Scribe Insert Bracket" #k"}" :mode "Pascal")
+)
 
 
 ;;;; Auto Fill Mode.
@@ -472,7 +477,8 @@
 
 
 ;;;; Spell bindings.
-
+#+spell-mode
+(progn
 (bind-key "Check Word Spelling" #k"meta-$")
 (bind-key "Add Word to Spelling Dictionary" #k"control-x $")
 
@@ -487,7 +493,7 @@
 (bind-key "Auto Check Word Spelling" #k"linefeed" :mode "Spell")
 (bind-key "Correct Last Misspelled Word" #k"meta-:")
 (bind-key "Undo Last Spelling Correction" #k"control-x a")
-
+)
 
 ;;;; Overwrite Mode.
 
@@ -536,6 +542,8 @@
 
 ;;;; Scribe Mode.
 
+#+scribe-mode
+(progn
 (dolist (key (list #k"]" #k")" #k"}" #k"\>"))
   (bind-key "Scribe Insert Bracket" key :mode "Scribe"))
 
@@ -543,16 +551,21 @@
 (bind-key "Select Scribe Warnings" #k"control-meta-C" :mode "Scribe")
 
 (bind-key "Insert Scribe Directive" #k"hyper-i" :mode "Scribe")
+)
 
 
 ;;;; X commands:
 
+#+clx
+(progn
 (bind-key "Insert Cut Buffer" #k"insert")
 (bind-key "Region to Cut Buffer" #k"meta-insert")
+)
 
 
 ;;;; Mailer commands.
-
+#+mail-mode
+(progn
 ;;; Clear everything user might hit to avoid getting the internal error
 ;;; message about modifying read-only buffers.
 ;;;
@@ -639,11 +652,13 @@
 (bind-key "Delete Draft and Buffer" #k"hyper-q" :mode "Draft")
 (bind-key "List Mail Buffers" #k"hyper-l" :mode "Draft")
 (bind-key "Draft Help" #k"hyper-?" :mode "Draft")
-
+);#+mail-mode
 
 
 ;;;; Netnews.
 
+#+netnews-mode
+(progn
 ;;; Clear everything user might hit to avoid getting the internal error
 ;;; message about modifying read-only buffers.
 ;;;
@@ -730,10 +745,12 @@
 (bind-key "Netnews Browse Read Group" #k"space" :mode "News-Browse")
 (bind-key "Next Line" #k"n" :mode "News-Browse")
 (bind-key "Previous Line" #k"p" :mode "News-Browse")
-
+)
 
 ;;;; Process (Shell).
 
+#+shell-mode
+(progn
 (bind-key "Shell" #k"control-meta-s")
 (bind-key "Confirm Process Input" #k"return" :mode "Process")
 (bind-key "Shell Complete Filename" #k"M-escape" :mode "Process")
@@ -748,7 +765,7 @@
 (bind-key "Kill Interactive Input" #k"meta-i" :mode "Process")
 (bind-key "Next Interactive Input" #k"meta-n" :mode "Process")
 (bind-key "Reenter Interactive Input" #k"control-return" :mode "Process")
-
+)
 
 ;;;; Bufed.
 
@@ -770,7 +787,8 @@
 
 
 ;;;; Dired.
-
+#+dired-mode
+(progn
 (bind-key "Dired" #k"control-x control-meta-d")
 
 (bind-key "Dired Delete File and Down Line" #k"d" :mode "Dired")
@@ -797,9 +815,11 @@
 
 (bind-key "Next Line" #k"n" :mode "Dired")
 (bind-key "Previous Line" #k"p" :mode "Dired")
-
+)
 
 ;;;; View Mode.
+#+view-mode
+(progn
 (bind-key "View Scroll Down" #k"space" :mode "View")
 (bind-key "Scroll Window Up" #k"b" :mode "View")
 (bind-key "Scroll Window Up" #k"backspace" :mode "View")
@@ -810,7 +830,7 @@
 (bind-key "View Help" #k"?" :mode "View")
 (bind-key "Beginning of Buffer" #k"\<" :mode "View")
 (bind-key "End of Buffer" #k"\>" :mode "View")
-
+)
 
 ;;;; Lisp Library.
 

@@ -1,3 +1,5 @@
+;;;-*- Mode: LISP; Package: CCL -*-
+
 (in-package "CCL")
 
 (require "COCOA")
@@ -83,13 +85,19 @@
 
 (define-objc-method ((:unichar :character-at-index (unsigned index))
 		     hemlock-buffer-string)
-  ;(#_NSLog #@"Character at index %d" :unsigned index )
+  #+debug
+  (#_NSLog #@"Character at index %d = %c" :unsigned index
+           :unsigned (char-code (hemlock-char-at-index (hemlock-buffer-string-display self) index)))
   (char-code (hemlock-char-at-index (hemlock-buffer-string-display self) index)))
 
 
 (define-objc-method ((:unsigned length)
 		     hemlock-buffer-string)
   (let* ((display-object (hemlock-buffer-string-display self)))
+    #+debug
+    (#_NSLog #@"Length: cached = %d, actual = %d"
+             :unsigned (or (hemlock-display-buflen display-object) -1)
+             :unsigned (hemlock-buffer-length (hemlock-display-buffer display-object)))
       (or (hemlock-display-buflen display-object)
 	  (setf (hemlock-display-buflen display-object)
 		(hemlock-buffer-length (hemlock-display-buffer display-object))))))
@@ -122,12 +130,11 @@
 (define-objc-method ((:id :attributes-at-index (:unsigned index)
 			  :effective-range ((* :<NSR>ange) rangeptr))
 		     lisp-text-storage)
-  '(#_NSLog #@"Attributes at index %d, rangeptr = %x"
+  #+debug
+  (#_NSLog #@"Attributes at index %d, rangeptr = %x"
 	   :unsigned index :address rangeptr)
   (let* ((hemlock-display (hemlock-buffer-string-display (slot-value self 'string)))
 	 (len (hemlock-display-buflen hemlock-display)))
-    (if (>= index len)
-      (error "This should be an NSRangeError"))
     (unless (%null-ptr-p rangeptr)
       (setf (pref rangeptr :<NSR>ange.location) 0
 	    (pref rangeptr :<NSR>ange.length) len))
@@ -168,7 +175,8 @@
     ((timer :foreign-type :id :accessor blink-timer)
      (blink-pos :foreign-type :int :accessor blink-pos)
      (blink-phase :foreign-type :<BOOL> :accessor blink-phase)
-     (blink-char :foreign-type :int :accessor blink-char))
+     (blink-char :foreign-type :int :accessor blink-char)
+     (pane :foreign-type :id :accessor text-view-pane))
   (:metaclass ns:+ns-object))
 
 (defmethod text-view-buffer ((self lisp-text-view))
@@ -190,9 +198,12 @@
 	      (send unmodchars :character-at-index 0))))
     (when c
       (let* ((bits 0)
-	     (modifiers (send nsevent 'modifier-flags)))
+	     (modifiers (send nsevent 'modifier-flags))
+             (useful-modifiers (logandc2 modifiers
+                                         (logior #$NSShiftKeyMask
+                                                 #$NSAlphaShiftKeyMask))))
 	(dolist (map hemlock-ext::*modifier-translations*)
-	  (when (logtest modifiers (car map))
+	  (when (logtest useful-modifiers (car map))
 	    (setq bits (logior bits (hemlock-ext::key-event-modifier-mask
 				     (cdr map))))))
 	(hemlock-ext::make-key-event c bits)))))
@@ -201,7 +212,6 @@
 (define-objc-method ((:void :key-down event)
 		     lisp-text-view)
   (#_NSLog #@"Key down event = %@" :address event)
-  (format t "~& keycode = ~s~&" (send event 'key-code))
   (let* ((buffer (text-view-buffer self)))
     (when buffer
       (let* ((info (hemlock-frame-command-info (send self 'window))))
@@ -238,15 +248,127 @@
 			      (make-hemlock-display)
 			      buffer)))))
 
-(defun make-scrolling-text-view-for-buffer (buffer x y width height hscroll-p)
+(defclass modeline-view (ns:ns-view)
+    ((pane :foreign-type :id :accessor modeline-view-pane))
+  (:metaclass ns:+ns-object))
+
+
+(defloadvar *modeline-text-attributes*
+    (create-text-attributes :color (send (@class "NSColor") 'black-color)
+                            :font (default-font
+                                      :name "Courier New Bold Italic"
+                                      :size 12.0)))
+
+(defun buffer-for-modeline-view (mv)
+  (let* ((pane (modeline-view-pane mv)))
+    (unless (%null-ptr-p pane)
+      (let* ((tv (text-pane-text-view pane)))
+        (unless (%null-ptr-p tv)
+          (let* ((textstorage (send tv 'text-storage)))
+            (unless (%null-ptr-p textstorage)
+              (let* ((display (hemlock-buffer-string-display
+                               (send textstorage 'string))))
+                (when display
+                  (hemlock-display-buffer display))))))))))
+
+(defun draw-modeline-string (modeline-view)
+  (let* ((pane (modeline-view-pane modeline-view))
+         (buffer (buffer-for-modeline-view modeline-view)))
+    (when buffer
+      (let* ((string
+              (apply #'concatenate 'string
+                     (mapcar
+                      #'(lambda (field)
+                          (funcall (hi::modeline-field-function field)
+                                   buffer pane))
+                      (hi::buffer-modeline-fields buffer))))
+             (len (length string)))
+        (with-cstrs ((cstr string))
+          (with-nsstr (nsstr cstr len)
+            (send nsstr
+                  :draw-at-point (ns-make-point 0.0f0 0.0f0)
+                  :with-attributes *modeline-text-attributes*)))))))
+  
+
+(define-objc-method ((:void :draw-rect (:<NSR>ect rect)) 
+                     modeline-view)
+  (declare (ignore rect))
+  (slet ((frame (send self 'bounds)))
+     (#_NSDrawWhiteBezel frame frame)
+     (draw-modeline-string self)))
+
+  
+
+(defclass modeline-scroll-view (ns:ns-scroll-view)
+    ((modeline :foreign-type :id :accessor scroll-view-modeline)
+     (pane :foreign-type :id :accessor scroll-view-pane))
+  (:metaclass ns:+ns-object))
+
+(define-objc-method ((:id :init-with-frame (:<NSR>ect frame))
+                     modeline-scroll-view)
+    (let* ((v (send-super :init-with-frame frame)))
+      (when v
+        (let* ((modeline (make-objc-instance 'modeline-view)))
+          (send v :add-subview modeline)
+          (setf (scroll-view-modeline v) modeline)))
+      v))
+
+(define-objc-method ((:void tile) modeline-scroll-view)
+  (send-super 'tile)
+  (let* ((modeline (scroll-view-modeline self)))
+    (when (and (send self 'has-horizontal-scroller)
+               (not (%null-ptr-p modeline)))
+      (let* ((hscroll (send self 'horizontal-scroller)))
+        (slet ((scrollbar-frame (send hscroll 'frame))
+               (modeline-frame (send hscroll 'frame))) ; sic
+           (let* ((modeline-width (* (pref modeline-frame
+                                           :<NSR>ect.size.width)
+                                     0.75e0)))
+             (declare (single-float modeline-width))
+             (setf (pref modeline-frame :<NSR>ect.size.width)
+                   modeline-width
+                   (the single-float
+                     (pref scrollbar-frame :<NSR>ect.size.width))
+                   (- (the single-float
+                        (pref scrollbar-frame :<NSR>ect.size.width))
+                      modeline-width)
+                   (the single-float
+                     (pref scrollbar-frame :<NSR>ect.origin.x))
+                   (+ (the single-float
+                        (pref scrollbar-frame :<NSR>ect.origin.x))
+                      modeline-width))
+             (send hscroll :set-frame scrollbar-frame)
+             (send modeline :set-frame modeline-frame)))))))
+
+(defclass text-pane (ns:ns-box)
+    ((text-view :foreign-type :id :accessor text-pane-text-view)
+     (mode-line :foreign-type :id :accessor text-pane-mode-line)
+     (scroll-view :foreign-type :id :accessor text-pane-scroll-view))
+  (:metaclass ns:+ns-object))
+
+(define-objc-method ((:id :init-with-frame (:<NSR>ect frame))
+                     text-pane)
+    (let* ((pane (send-super :init-with-frame frame)))
+      (unless (%null-ptr-p pane)
+        (send pane :set-autoresizing-mask (logior
+                                           #$NSViewWidthSizable
+                                           #$NSViewHeightSizable))
+        (send pane :set-box-type #$NSBoxSecondary)
+        (send pane :set-border-type #$NSLineBorder)
+        (send pane :set-title-position #$NSNoTitle))
+      pane))
+        
+
+    
+(defun make-scrolling-text-view-for-buffer (buffer x y width height)
   (slet ((contentrect (ns-make-rect x y width height)))
     (let* ((textstorage (make-textstorage-for-hemlock-buffer buffer))
 	   (scrollview (send (make-objc-instance
-			      'ns-scroll-view
+			      'modeline-scroll-view
 			      :with-frame contentrect) 'autorelease)))
       (send scrollview :set-border-type #$NSBezelBorder)
       (send scrollview :set-has-vertical-scroller t)
-      (send scrollview :set-has-horizontal-scroller hscroll-p)
+      (send scrollview :set-has-horizontal-scroller t)
       (send scrollview :set-rulers-visible nil)
       (send scrollview :set-autoresizing-mask (logior
 					       #$NSViewWidthSizable
@@ -278,30 +400,35 @@
 				      (pref contentsize :<NSS>ize.height)))
 	      (send tv :set-max-size (ns-make-size 1.0f7 1.0f7))
 	      (send tv :set-rich-text nil)
-	      (send tv :set-horizontally-resizable hscroll-p)
+	      (send tv :set-horizontally-resizable t)
 	      (send tv :set-vertically-resizable t) 
 	      (send tv :set-autoresizing-mask #$NSViewWidthSizable)
-	      (send container :set-width-tracks-text-view (not hscroll-p))
+	      (send container :set-width-tracks-text-view nil)
 	      (send container :set-height-tracks-text-view nil)
 	      (send scrollview :set-document-view tv)	      
 	      (values tv scrollview))))))))
 
 
-(defun make-scrolling-textview-for-view (superview buffer hscroll-p)
-  (slet ((contentrect (send (send superview 'content-view) 'frame)))
+(defun make-scrolling-textview-for-pane (pane buffer)
+  (slet ((contentrect (send (send pane 'content-view) 'frame)))
     (multiple-value-bind (tv scrollview)
 	(make-scrolling-text-view-for-buffer
 	 buffer
 	 (pref contentrect :<NSR>ect.origin.x)
 	 (pref contentrect :<NSR>ect.origin.y)
 	 (pref contentrect :<NSR>ect.size.width)
-	 (pref contentrect :<NSR>ect.size.height)
-	 hscroll-p)
-      (send superview :set-content-view scrollview)
+	 (pref contentrect :<NSR>ect.size.height))
+      (send pane :set-content-view scrollview)
+      (setf (slot-value pane 'scroll-view) scrollview
+            (slot-value pane 'text-view) tv
+            (slot-value tv 'pane) pane
+            (slot-value scrollview 'pane) pane)
+      (let* ((modeline  (scroll-view-modeline scrollview)))
+        (setf (slot-value pane 'mode-line) modeline
+              (slot-value modeline 'pane) pane))
       tv)))
 
-(defun make-scrolling-textview-for-window (&key window buffer hscroll-p)
-  (make-scrolling-textview-for-view (send window 'content-view) buffer hscroll-p))
+
 
 (defmethod hemlock-frame-command-info ((w ns:ns-window))
   nil)
@@ -377,37 +504,29 @@
             (get-cocoa-window-flag w :auto-display)
             auto-display)
       (when activate (activate-window w))
-      (values w (add-box-to-window w :reserve-below 20.0)))))
+      (values w (add-pane-to-window w :reserve-below 20.0)))))
 
-(defun add-box-to-window (w &key (reserve-above 0.0f0) (reserve-below 0.0f0))
+(defun add-pane-to-window (w &key (reserve-above 0.0f0) (reserve-below 0.0f0))
   (let* ((window-content-view (send w 'content-view)))
     (slet ((window-frame (send window-content-view 'frame)))
-      (slet ((box-rect (ns-make-rect 0.0f0
+      (slet ((pane-rect (ns-make-rect 0.0f0
 				      reserve-below
 				      (pref window-frame :<NSR>ect.size.width)
 				      (- (pref window-frame :<NSR>ect.size.height) (+ reserve-above reserve-below)))))
-	(let* ((box (make-objc-instance 'ns-box :with-frame box-rect)))
-	  (send box :set-autoresizing-mask (logior
-					    #$NSViewWidthSizable
-					    #$NSViewHeightSizable))
-	  (send box :set-box-type #$NSBoxSecondary)
-	  (send box :set-border-type #$NSLineBorder)
-	  (send box :set-title-position #$NSBelowBottom)
-	  (send window-content-view :add-subview box)
-	  box)))))
+	(let* ((pane (make-objc-instance 'text-pane :with-frame pane-rect)))
+	  (send window-content-view :add-subview pane)
+	  pane)))))
 	  
 					
 				      
-(defun textview-for-hemlock-buffer (b &key (horizontal-scroll-p t))
+(defun textview-for-hemlock-buffer (b)
   (process-interrupt
    *cocoa-event-process*
    #'(lambda ()
       (let* ((name (hi::buffer-name b)))
-	(multiple-value-bind (window box)
+	(multiple-value-bind (window pane)
 	    (new-hemlock-document-window name :activate nil)
-	  (let* ((tv (make-scrolling-textview-for-view box
-						       b
-						       horizontal-scroll-p)))
+	  (let* ((tv (make-scrolling-textview-for-pane pane b)))
 	    (multiple-value-bind (height width)
 		(size-of-char-in-font (default-font))
 	      (size-textview-containers tv height width 24 80))
@@ -482,9 +601,13 @@
 		     (tv (send container 'text-view)))
 		(funcall f tv)))))))))
   
+(defun hi::textstorage-begin-editing (textstorage)
+  (send textstorage 'begin-editing))
+
+(defun hi::textstorage-end-editing (textstorage)
+  (send textstorage 'end-editing))
 
 (defun hi::textstorage-set-point-position (textstorage)
-  (format t "~& setting point ...")
   (let* ((string (send textstorage 'string))
 	 (buffer (hemlock-display-buffer (hemlock-buffer-string-display string)))
 	 (point (hi::buffer-point buffer))
@@ -492,7 +615,46 @@
     (for-each-textview-using-storage
      textstorage
      #'(lambda (tv)
-	 (send tv :set-selected-range (ns-make-range pos 0))))))
+         (slet ((selection (ns-make-range pos 0)))
+          (send tv :set-selected-range selection)
+          (send tv :scroll-range-to-visible selection))))))
 
 	      
-	 
+(defun hi::buffer-note-insertion (buffer mark n)
+  (when (hi::bufferp buffer)
+    (let* ((textstorage (hi::buffer-text-storage buffer)))
+      (when textstorage
+        (let* ((pos (mark-absolute-position mark)))
+          (unless (eq (hi::mark-%kind mark) :right-inserting)
+            (decf pos n))
+          (let* ((display (hemlock-buffer-string-display (send textstorage 'string))))
+            (reset-display-cache display) 
+            (update-line-cache-for-index display pos))
+          
+          (send textstorage
+                :edited #$NSTextStorageEditedAttributes
+                :range (ns-make-range pos 0)
+                :change-in-length n)
+          (send textstorage
+                :edited #$NSTextStorageEditedCharacters
+                :range (ns-make-range pos n)
+                :change-in-length 0))))))
+
+
+(defun hi::buffer-note-deletion (buffer mark n)
+  (when (hi::bufferp buffer)
+    (let* ((textstorage (hi::buffer-text-storage buffer)))
+      (when textstorage
+        (let* ((pos (mark-absolute-position mark)))
+          (setq n (abs n))
+          (let* ((display (hemlock-buffer-string-display (send textstorage 'string))))
+            (reset-display-cache display) 
+            (update-line-cache-for-index display pos))
+
+          (send textstorage
+                :edited #$NSTextStorageEditedAttributes
+                :range (ns-make-range pos n)
+                :change-in-length (- n)))))))
+
+            
+    

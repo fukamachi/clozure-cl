@@ -429,39 +429,45 @@
   (let* ((*last-key-event-typed* key-event)
 	 (cmd (command-interpreter-info-current-command info))
 	 (trans (command-interpreter-info-current-translation info)))
-    (vector-push-extend key-event cmd)
-    (setf (fill-pointer trans) 0)
-    (multiple-value-bind (trans-result prefix-p)
-			     (translate-key cmd trans)
-      (format t "~& trans-result = ~s, prefix-p = ~s" trans-result prefix-p)
-	  (multiple-value-bind (res t-bindings)
-			       (get-current-binding trans-result)
-	    (etypecase res
-	      (command 
-	       (let ((punt t))
-		 (format t "~& key-event = ~s, res = ~s, t-bindings = ~s, prefix = ~s"
-			 key-event
-			 res t-bindings
-			 (command-interpreter-info-prefix-argument info))
-		 (catch 'command-loop-catcher
-		   (dolist (c t-bindings)
-		     (funcall *invoke-hook* c (command-interpreter-info-prefix-argument info)))
-		   (funcall *invoke-hook* res (command-interpreter-info-prefix-argument info))
-		   (setf punt nil))
-		 (when punt (invoke-hook hemlock::command-abort-hook)))
-	       (if (command-interpreter-info-command-type-set info)
-		 (setf (command-interpreter-info-command-type-set info) nil)
-		 (setf (command-interpreter-info-last-command-type info) nil))
-	       (if (command-interpreter-info-prefix-argument-supplied info)
-		   (setf (command-interpreter-info-prefix-argument-supplied info) nil)
-		   (setf (command-interpreter-info-prefix-argument info) nil))
-	       (setf (fill-pointer cmd) 0))
-	      (null
-	       (unless prefix-p
-		 (beep)
-		 (setf (command-interpreter-info-prefix-argument info) nil)
-		 (setf (fill-pointer cmd) 0)))
-	      (hash-table))))))    
+    (handler-bind
+	;; Bind this outside the invocation loop to save consing.
+	((error #'(lambda (condx)
+			   (beep)
+                           (format t "~&~a" condx)
+                           (throw 'command-loop-catcher nil))))
+      (vector-push-extend key-event cmd)
+      (setf (fill-pointer trans) 0)
+      (multiple-value-bind (trans-result prefix-p)
+          (translate-key cmd trans)
+        (format t "~& trans-result = ~s, prefix-p = ~s" trans-result prefix-p)
+        (multiple-value-bind (res t-bindings)
+            (get-current-binding trans-result)
+          (etypecase res
+            (command 
+             (let ((punt t))
+               (format t "~& key-event = ~s, res = ~s, t-bindings = ~s, prefix = ~s"
+                       key-event
+                       res t-bindings
+                       (command-interpreter-info-prefix-argument info))
+               (catch 'command-loop-catcher
+                 (dolist (c t-bindings)
+                   (funcall *invoke-hook* c (command-interpreter-info-prefix-argument info)))
+                 (funcall *invoke-hook* res (command-interpreter-info-prefix-argument info))
+                 (setf punt nil))
+               (when punt (invoke-hook hemlock::command-abort-hook)))
+             (if (command-interpreter-info-command-type-set info)
+               (setf (command-interpreter-info-command-type-set info) nil)
+               (setf (command-interpreter-info-last-command-type info) nil))
+             (if (command-interpreter-info-prefix-argument-supplied info)
+               (setf (command-interpreter-info-prefix-argument-supplied info) nil)
+               (setf (command-interpreter-info-prefix-argument info) nil))
+             (setf (fill-pointer cmd) 0))
+            (null
+             (unless prefix-p
+               (beep)
+               (setf (command-interpreter-info-prefix-argument info) nil)
+               (setf (fill-pointer cmd) 0)))
+            (hash-table)))))))
     
 ;;; %COMMAND-LOOP  --  Internal
 ;;;

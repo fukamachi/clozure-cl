@@ -56,7 +56,8 @@
 	      (t
 	       (setf (char (the simple-string *open-chars*) *left-open-pos*)
 		     character)
-	       (incf *left-open-pos*))))))))
+	       (incf *left-open-pos*)))))
+      (buffer-note-insertion buffer mark 1))))
 
 
 (defun insert-string (mark string &optional (start 0) (end (length string)))
@@ -94,7 +95,8 @@
 	       (t
 		(let ((new (+ *left-open-pos* length)))
 		  (%sp-byte-blt string start *open-chars* *left-open-pos* new)
-		  (setq *left-open-pos* new))))))))))
+		  (setq *left-open-pos* new))))))
+        (buffer-note-insertion buffer mark (- end start))))))
 
 
 (defconstant line-number-interval-guess 8
@@ -107,7 +109,8 @@
 	 (first-line (mark-line start))
 	 (last-line (mark-line end))
 	 (first-charpos (mark-charpos start))
-	 (last-charpos (mark-charpos end)))
+	 (last-charpos (mark-charpos end))
+         (nins (count-characters region)))
     (cond
      ((eq first-line last-line)
       ;; simple case -- just BLT the characters in with insert-string
@@ -162,7 +165,8 @@
 		  ;;fix up the marks
 		  (maybe-move-some-marks (this-charpos line new-line) charpos
 		    (+ last-charpos (- this-charpos charpos)))))
-	    (setf (line-next previous) new-line  previous new-line))))))))
+	    (setf (line-next previous) new-line  previous new-line))
+          (buffer-note-insertion buffer  mark nins)))))))
 
 (defun ninsert-region (mark region)
   "Inserts the given Region at the Mark, possibly destroying the Region.
@@ -172,7 +176,8 @@
 	 (first-line (mark-line start))
 	 (last-line (mark-line end))
 	 (first-charpos (mark-charpos start))
-	 (last-charpos (mark-charpos end)))
+	 (last-charpos (mark-charpos end))
+         (nins (count-characters region)))
     (cond
      ((eq first-line last-line)
       ;; Simple case -- just BLT the characters in with insert-string.
@@ -230,4 +235,5 @@
 	  
 	  ;; Fix up the marks in the line inserted into.
 	  (maybe-move-some-marks (this-charpos line last-line) charpos
-	    (+ last-charpos (- this-charpos charpos)))))))))
+	    (+ last-charpos (- this-charpos charpos)))
+          (buffer-note-insertion buffer mark nins)))))))

@@ -158,6 +158,17 @@
   "Increments the ``now'' tick."
   `(incf now-tick))
 
+(defun buffer-textstorage-begin-editing (buffer)
+  (when (bufferp buffer)
+    (let* ((textstorage (buffer-text-storage buffer)))
+      (when textstorage (textstorage-begin-editing textstorage)))))
+
+(defun buffer-textstorage-end-editing (buffer)
+  (when (bufferp buffer)
+    (let* ((textstorage (buffer-text-storage buffer)))
+      (when textstorage (textstorage-end-editing textstorage)))))
+
+
 
 ;;; Yeah, the following is kind of obscure, but at least it doesn't
 ;;; call Bufferp twice.  The without-interrupts is just to prevent
@@ -166,15 +177,22 @@
 ;;;
 (defmacro modifying-buffer (buffer &body forms)
   "Does groovy stuff for modifying buffers."
-  `(progn
-     (when (bufferp ,buffer)
-       (unless (buffer-writable ,buffer)
-	 (error "Buffer ~S is read only." (buffer-name ,buffer)))
-       (when (< (buffer-modified-tick ,buffer)
-		(buffer-unmodified-tick ,buffer))
-	 (invoke-hook hemlock::buffer-modified-hook ,buffer t))
-       (setf (buffer-modified-tick ,buffer) (tick)))
-     (hemlock-ext:without-interrupts ,@forms)))
+  (let* ((b (gensym))
+         (bp (gensym)))
+    `(let* ((,b ,buffer)
+            (,bp (bufferp ,b)))
+      (when ,bp
+        (unless (buffer-writable ,b)
+          (error "Buffer ~S is read only." (buffer-name ,b)))
+        (when (< (buffer-modified-tick ,b)
+                 (buffer-unmodified-tick ,b))
+          (invoke-hook hemlock::buffer-modified-hook ,b t))
+        (setf (buffer-modified-tick ,b) (tick)))
+      (unwind-protect
+           (progn
+             (if ,bp (buffer-textstorage-begin-editing ,b))
+             (hemlock-ext:without-interrupts ,@forms))
+        (if ,bp (buffer-textstorage-end-editing ,b))))))
 
 (defmacro always-change-line (mark new-line)
   (let ((scan (gensym))

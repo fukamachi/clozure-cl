@@ -74,7 +74,7 @@
 ;;; Middle right key bank.
 ;;;
 (hemlock-ext:define-keysym #$NSInsertFunctionKey "Insert")
-(hemlock-ext:define-keysym #$NSDeleteFunctionKey "Delete" "Rubout" (string (code-char 127)))
+(hemlock-ext:define-keysym #$NSDeleteFunctionKey "Del" "Rubout" (string (code-char 127)))
 (hemlock-ext:define-keysym #$NSHomeFunctionKey "Home")
 (hemlock-ext:define-keysym #$NSPageUpFunctionKey "Pageup")
 (hemlock-ext:define-keysym #$NSEndFunctionKey "End")
@@ -92,9 +92,9 @@
 ;;;
 (hemlock-ext:define-keysym 9 "Tab")
 (hemlock-ext:define-keysym 27 "Escape" "Altmode" "Alt")		;escape
-(hemlock-ext:define-keysym 65288 "Backspace")				;backspace
-(hemlock-ext:define-keysym 65293 "Return" "Enter")			;enter
-(hemlock-ext:define-keysym 65512 "Linefeed" "Action" "Newline")		;action
+(hemlock-ext:define-keysym 127 "Delete" "Backspace")				;backspace
+(hemlock-ext:define-keysym 13 "Return" "Newline")
+(hemlock-ext:define-keysym 3 "Enter" "LineFeed")
 (hemlock-ext:define-keysym 32 "Space" " ")
 
 ;;; Letters.
