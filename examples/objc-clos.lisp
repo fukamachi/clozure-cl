@@ -144,6 +144,11 @@
 	(if (setq idx (%objc-instance-class-index p))
 	  (%set-macptr-type p idx))))))
 
+(defun release-canonical-nsobject (object)
+  object)
+
+  
+
 (defun %objc-domain-class-of (p)
   (let* ((type (%macptr-type p))
 	 (flags (ldb objc-type-flags type))
@@ -191,7 +196,8 @@
       (#.objc-flag-class (id->objc-class-slots-vector index))
       (#.objc-flag-metaclass (id->objc-metaclass-slots-vector index)))))
 	  
-(register-foreign-object-domain :objc
+(defloadvar *objc-object-domain*
+    (register-foreign-object-domain :objc
 				:recognize #'recognize-objc-object
 				:class-of #'%objc-domain-class-of
 				:classp #'%objc-domain-classp
@@ -199,7 +205,29 @@
 				#'%objc-domain-instance-class-wrapper
 				:class-own-wrapper
 				#'%objc-domain-class-own-wrapper
-				:slots-vector #'%objc-domain-slots-vector)
+				:slots-vector #'%objc-domain-slots-vector))
+
+;;; P is known to be a (possibly null!) instance of some ObjC class.
+(defun %set-objc-instance-type (p)
+  (unless (%null-ptr-p p)
+    (let* ((parent (pref p :objc_object.isa))
+           (id (objc-class-id parent)))
+      (when id
+        (%set-macptr-domain p *objc-object-domain*)
+        (%set-macptr-type p id)))))
+
+;;; P is known to be of type :ID.  It may be null.
+(defun %set-objc-id-type (p)
+  (let* ((idx (objc-class-id p)))
+    (if idx
+      (progn
+        (%set-macptr-domain p *objc-object-domain*)
+        (%set-macptr-type p (dpb objc-flag-class objc-type-flags idx)))
+      (if (setq idx (objc-metaclass-id p))
+        (progn
+          (%set-macptr-domain p *objc-object-domain*)  
+          (%set-macptr-type p (dpb objc-flag-metaclass objc-type-flags idx)))
+        (%set-objc-instance-type p)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
