@@ -17,7 +17,7 @@
 (defparameter *openmcl-major-version* 0)
 (defparameter *openmcl-minor-version* 14)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "031101")
+(defparameter *openmcl-suffix* "031105")
 
 (defparameter *openmcl-version* (format nil "(Alpha: ~~A) ~d.~d~@[.~d~]~@[-~a~]"
 					*openmcl-major-version*
