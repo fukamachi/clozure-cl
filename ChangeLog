@@ -1,3 +1,13 @@
+2005-03-04 22:55  bryan
+
+	* level-1/l1-io.lisp: %print-unreadable-object should always return
+	  nil.
+
+	  when type is t, %print-unreadable-object should always print a
+	  space after the type not just when it's followed by more stuff.
+	  (seems less aesthetically pleasing, but that's what the spec
+	  says).
+
 2005-03-04 13:46  bryan
 
 	* level-1/l1-streams.lisp: ioblock-element-shift should never be
