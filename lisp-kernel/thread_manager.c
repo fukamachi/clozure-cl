@@ -114,7 +114,7 @@ void
 destroy_recursive_lock(RECURSIVE_LOCK m)
 {
   destroy_semaphore((void **)&m->signal);
-  free(m->malloced_ptr);
+  postGCfree((void *)(m->malloced_ptr));
 }
 
 /*
@@ -861,6 +861,27 @@ lisp_resume_tcr(TCR *tcr)
 lock_set_t mach_exception_lock_set;
 #endif
 
+TCR *freed_tcrs = NULL;
+
+void
+enqueue_freed_tcr (TCR *tcr)
+{
+  tcr->next = freed_tcrs;
+  freed_tcrs = tcr;
+}
+
+void
+free_freed_tcrs ()
+{
+  TCR *current, *next;
+
+  for (current = freed_tcrs; current; current = next) {
+    next = current->next;
+    free(current);
+  }
+  freed_tcrs = NULL;
+}
+
 void
 suspend_other_threads()
 {
@@ -885,7 +906,7 @@ suspend_other_threads()
       next = other->next;
       if ((other->osid == 0))  {
 	dequeue_tcr(other);
-	free(other);
+	enqueue_freed_tcr(other);
       }
     }
   }
@@ -898,6 +919,7 @@ resume_other_threads()
   for (other = current->next; other != current; other = other->next) {
     resume_tcr(other);
   }
+  free_freed_tcrs();
   UNLOCK(lisp_global(AREA_LOCK), current);
   UNLOCK(lisp_global(TCR_LOCK), current);
 }
