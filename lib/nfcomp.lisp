@@ -1196,7 +1196,7 @@ Will differ from *compiling-file* during an INCLUDE")
              (fasl-out-size n)
              (if (= typecode ppc32::subtag-double-float-vector)
                ; Account for alignment word
-               (fasl-out-ivect exp 4 (the fixnum (- nb 4)))
+               (fasl-out-ivect exp 4 nb)
                (if (= out-typecode ppc32::subtag-code-vector)
                  (fasl-out-codevector exp nb)
                  (fasl-out-ivect exp 0 nb)))))
