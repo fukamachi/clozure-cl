@@ -1923,7 +1923,7 @@ Or something. Right? ~s ~s" var varbits))
     (if val
       (setq val (%cdr val))
       (if (constant-symbol-p sym)
-        (setq constant-value-p t val (symbol-value sym))))
+        (setq constant-value-p t val (%sym-global-value sym))))
     (if (and (neq val (%unbound-marker-8))
              constant-value-p 
              (nx-substititute-constant-value sym val env))
