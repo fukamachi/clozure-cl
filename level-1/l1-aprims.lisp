@@ -871,16 +871,28 @@
       
 #+ppc-target
 (defppclapfunction gc ()
+  (check-nargs 0)
   (li imm0 0)
   (twlgei allocptr 0)
   (li arg_z ppc::nil-value)
   (blr))
 
-#+sparc-target
-(defsparclapfunction gc ()
-  (uuo_xalloc %rzero %rzero %rzero)
-  (retl)
-    (mov %rnil %arg_z))
+#+ppc-target
+(defppclapfunction egc ((arg arg_z))
+  (check-nargs 1)
+  (subi imm1 arg nil)
+  (li imm0 32)
+  (twlgei allocptr 0)
+  (blr))
+
+(defppclapfunction %configure-egc ((e0size arg_x)
+				   (e1size arg_y)
+				   (e2size arg_z))
+  (check-nargs 3)
+  (li imm0 64)
+  (twlgei allocptr 0)
+  (blr))
+  
 
 #+ppc-target
 (defppclapfunction purify ()
@@ -935,11 +947,7 @@
 (defun gc-retaining-pages ()
   (logbitp $gc-retain-pages-bit *gc-event-status-bits*))  
 
-(defun egc (arg)
-  (not (eql 0 (the fixnum (ff-call 
-                           (%kernel-import arch::kernel-import-egc-control) 
-                           :unsigned-halfword (if arg 1 0)
-                           :unsigned-halfword)))))
+
 
 (defun egc-active-p ()
   (and (egc-enabled-p)
@@ -964,13 +972,7 @@
     (setq e2size (logand (lognot #xffff) (+ #xffff (ash (require-type e2size '(unsigned-byte 18)) 10)))
           e1size (logand (lognot #xffff) (+ #xffff (ash (require-type e1size '(unsigned-byte 18)) 10)))
           e0size (logand (lognot #xffff) (+ #xffff (ash (require-type e0size '(integer 1 #.(ash 1 18))) 10))))
-    (let* ((g0 (%active-dynamic-area))
-           (g1 (%fixnum-ref g0 arch::area.older))
-           (g2 (%fixnum-ref g1 arch::area.older)))
-      (%fixnum-set g0 arch::area.threshold (ash e0size (- arch::fixnumshift)))
-      (%fixnum-set g1 arch::area.threshold (ash e1size (- arch::fixnumshift)))
-      (%fixnum-set g2 arch::area.threshold (ash e2size (- arch::fixnumshift)))
-      t)))
+    (%configure-egc e0size e1size e2size)))
 
 
 
