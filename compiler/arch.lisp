@@ -127,6 +127,8 @@
   storage-class-crf                     ; condition register field
   storage-class-crbit                   ; condition register bit: 0-31
   storage-class-crfbit                  ; bit within condition register field : 0-3
+  storage-class-u64			; (unsigned-byte 64)
+  storage-class-s64			; (signed-byte 64)
 )
 
 ;; For assembly/disassembly, at least on RISC platforms.
