@@ -159,7 +159,9 @@
   character-attributes   ; Mode local character attributes
   variables              ; String-table of mode variables
   var-values             ; Alist for saving mode variables
-  documentation)         ; Introductory comments for mode describing commands.
+  documentation          ; Introductory comments for mode describing commands.
+  hidden                 ; Not listed in modeline fields
+)
 
 (defun %print-hemlock-mode (object stream depth)
   (declare (ignore depth))

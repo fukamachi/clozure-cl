@@ -157,4 +157,5 @@
   (fasl-concatenate "ccl:library;hemlock"
                     (mapcar #'hemlock-binary-pathname *hemlock-files*)
                     :if-exists :supersede)
+  (provide "HEMLOCK")
   )

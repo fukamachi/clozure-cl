@@ -352,3 +352,4 @@
     (when color
       (send dict :set-object color :for-key #@"NSColor"))
     dict))
+

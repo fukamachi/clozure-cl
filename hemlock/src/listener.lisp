@@ -41,7 +41,8 @@
 	(string thing))
        (t
 	(message
-	 "Ignoring \"package\" file option -- cannot convert to a string."))))))
+	 "Ignoring \"package\" file option -- cannot convert to a string."))))
+))
 
 
 ;;;; Listener Mode Interaction.
@@ -81,6 +82,11 @@
 
 (defmode "Listener" :major-p nil :setup-function #'setup-listener-mode)
 
+(defparameter *listener-modeline-fields*
+  (list	(modeline-field :package)
+	(modeline-field :modes)
+	(modeline-field :process-info)))
+  
 (defun listener-mode-lisp-mode-hook (buffer on)
   "Turn on Lisp mode when we go into Listener Mode."
   (when on
@@ -139,35 +145,61 @@
   :value "Prompt again at the end of the buffer? "
   :mode "Listener")
 
+(defun balanced-expressions-in-region (region)
+  "Return true if there's at least one syntactically well-formed S-expression
+between the region's start and end, and if there are no ill-formed expressions in that region."
+  ;; It helps to know that END-MARK immediately follows a #\newline.
+  (let* ((start-mark (region-start region))
+         (end-mark (region-end region))
+         (end-line (mark-line end-mark))
+         (end-charpos (mark-charpos end-mark)))
+    (with-mark ((m start-mark))
+      (pre-command-parse-check m)
+      (when (form-offset m 1)
+        (let* ((skip-whitespace t))
+          (loop
+            (let* ((current-line (mark-line m))
+                   (current-charpos (mark-charpos m)))
+              (when (and (eq current-line end-line)
+                         (eql current-charpos end-charpos))
+                (return t))
+              (if skip-whitespace
+                (progn
+                  (scan-char m :whitespace nil)
+                  (setq skip-whitespace nil))
+                (progn
+                  (pre-command-parse-check m)
+                  (unless (form-offset m 1)
+                    (return nil))
+                  (setq skip-whitespace t))))))))))
+               
+            
+  
 (defcommand "Confirm Listener Input" (p)
   "Evaluate Listener Mode input between point and last prompt."
   "Evaluate Listener Mode input between point and last prompt."
   (declare (ignore p))
   (let ((input-region (get-interactive-input)))
     (when input-region
-      (let* ((output (value eval-output-stream))
-	     (*standard-output* output)
-	     (*error-output* output)
-	     (*trace-output* output))
-	(fresh-line)
-	(in-lisp
-	 ;; Copy the region to keep the output and input streams from interacting
-	 ;; since input-region is made of permanent marks into the buffer.
-	 (with-input-from-region (stream (copy-region input-region))
-	   (loop
-	     (let ((form (read stream nil lispbuf-eof)))
-	       (when (eq form lispbuf-eof)
-		 ;; Move the buffer's input mark to the end of the buffer.
-		 (move-mark (region-start input-region)
-			    (region-end input-region))
-		 (return))
-	       (setq +++ ++ ++ + + - - form)
-	       (let ((this-eval (multiple-value-list (eval form))))
-		 (fresh-line)
-		 (dolist (x this-eval) (prin1 x) (terpri))
-		 (show-prompt)
-		 (setq /// // // / / this-eval)
-		 (setq *** ** ** * * (car this-eval)))))))))))
+      (insert-character (current-point) #\NewLine)
+      (when (balanced-expressions-in-region input-region)
+        (let* ((string (region-to-string input-region)))
+          (move-mark (value buffer-input-mark) (current-point))
+          (listener-document-send-string (hi::buffer-document (current-buffer)) string))))))
+
+(defvar *control-d-string* (make-string 1 :initial-element (code-char (logand (char-code #\d) #x1f))))
+
+(defcommand "EOF or Delete Forward" (p)
+  "Send an EOF if input-mark is at buffer's end, else delete forward character."
+  "Send an EOF if input-mark is at buffer's end, else delete forward character."
+  (let* ((input-mark (value buffer-input-mark))
+         (point (current-point)))
+    (if (and (null (next-character point))
+             (null (next-character input-mark)))
+      (listener-document-send-string (hi::buffer-document (current-buffer)) *control-d-string*)
+      (delete-next-character-command p))))
+
+             
 
 (defcommand "Abort Listener Input" (p)
   "Move to the end of the buffer and prompt."
@@ -359,7 +391,7 @@
 
 ;;; Other stuff.
 
-(defmode "Editor")
+(defmode "Editor" :hidden t)
 
 (defcommand "Editor Mode" (p)
   "Turn on \"Editor\" mode in the current buffer.  If it is already on, turn it

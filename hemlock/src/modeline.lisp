@@ -130,7 +130,11 @@ other than :DEFAULT"
  :function #'(lambda (buffer window)
 	       "Returns buffer's modes followed by one space."
 	       (declare (ignore window))
-	       (format nil "~A  " (buffer-modes buffer))))
+               (let* ((m ()))
+                 (dolist (mode (buffer-mode-objects buffer))
+                   (unless (hi::mode-object-hidden mode)
+                     (push (mode-object-name mode) m)))
+	       (format nil "~A  " (nreverse m)))))
 
 (make-modeline-field
  :name :modifiedp
@@ -207,6 +211,16 @@ other than :DEFAULT"
  :name :buffer-pathname
  :function 'buffer-pathname-ml-field-fun)
 
+(make-modeline-field
+ :name :process-info
+ :function #'(lambda (buffer window)
+               (declare (ignore window))
+               (let* ((proc (buffer-process buffer)))
+                 (when proc
+                   (format nil "~a(~d) [~a]"
+                           (ccl::process-name proc)
+                           (ccl::process-serial-number proc)
+                           (ccl::process-whostate proc))))))
 
 (defvar *default-modeline-fields*
   (list (modeline-field :modifiedp) ;(modeline-field :hemlock-literal)
@@ -217,12 +231,13 @@ other than :DEFAULT"
 	(modeline-field :buffer-pathname))
   "This is the default value for \"Default Modeline Fields\".")
 
-(defun %init-redisplay ()
+(defun %init-mode-redisplay ()
   (add-hook hemlock::buffer-major-mode-hook 'queue-buffer-change)
   (add-hook hemlock::buffer-minor-mode-hook 'queue-buffer-change)
   (add-hook hemlock::buffer-name-hook 'queue-buffer-change)
   (add-hook hemlock::buffer-pathname-hook 'queue-buffer-change)
   (add-hook hemlock::buffer-modified-hook 'queue-buffer-change)
+  (add-hook hemlock::
   (add-hook hemlock::window-buffer-hook 'queue-window-change))
 
 (defun queue-buffer-change (buffer &optional something-else another-else)

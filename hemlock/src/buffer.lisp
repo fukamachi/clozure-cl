@@ -451,7 +451,7 @@
 
 (defun defmode (name &key (setup-function #'identity) 
 		     (cleanup-function #'identity) major-p transparent-p
-		     precedence documentation)
+		     precedence documentation hidden)
   "Define a new mode, specifying whether it is a major mode, and what the
    setup and cleanup functions are.  Precedence, which defaults to 0.0, and is
    any integer or float, determines the order of the minor modes in a buffer.
@@ -482,7 +482,8 @@
       (setq mode (make-mode-object
 		  :variables (make-string-table)
 		  :bindings (make-hash-table)
-		  :hook-name (getstring hook-str *global-variable-names*)))
+		  :hook-name (getstring hook-str *global-variable-names*)
+                  :hidden hidden))
       (setf (getstring name *mode-names*) mode)))
 
     (if precedence

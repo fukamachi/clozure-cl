@@ -99,7 +99,10 @@
 	   (fh filehandle))
       (declare (dynamic-extent string))
       (%copy-ptr-to-ivector (send data 'bytes) 0 string 0 data-length)
-      (hi::insert-string (hi::buffer-point buffer) string)
+      (let* ((input-mark (hi::variable-value 'hemlock::buffer-input-mark :buffer buffer)))
+        (hi:with-mark ((mark input-mark :left-inserting))
+          (hi::insert-string mark string)
+          (hi::move-mark input-mark mark)))
       (send fh 'read-in-background-and-notify))))
 	     
 #|    
@@ -121,16 +124,10 @@
       t)))
 |#
 
-;;; Action methods implemented by the controller (in its role as the
-;;; textview's delegate).
 
 
-(define-objc-method ((:void :send-string string)
-		     lisp-listener-window-controller)
-  (send (slot-value self 'filehandle)
-	:write-data (send string
-			  :data-using-encoding #$NSASCIIStringEncoding
-			  :allow-lossy-conversion t)))
+
+
 
 
 
@@ -175,6 +172,18 @@
     ()
   (:metaclass ns:+ns-object))
 
+(defun hemlock::listener-document-send-string (document string)
+  (let* ((controller (send (send document 'window-controllers)
+                          :object-at-index 0))
+         (filehandle (slot-value controller 'filehandle))
+         (len (length string))
+         (data (send (make-objc-instance 'ns-mutable-data
+                                         :with-length len) 'autorelease))
+         (bytes (send data 'mutable-bytes)))
+    (%copy-ivector-to-ptr string 0 bytes 0 len)
+    (send filehandle :write-data data)
+    (send filehandle 'synchronize-file)))
+
 
 (define-objc-class-method ((:id top-listener) lisp-listener-document)
   (let* ((all-documents (send *NSApp* 'ordered-Documents)))
@@ -210,7 +219,8 @@
 	(send doc :set-file-name  (%make-nsstring listener-name))
 	(setf (hi::buffer-pathname buffer) nil
 	      (hi::buffer-minor-mode buffer "Listener") t
-	      (hi::buffer-name buffer) listener-name)))
+	      (hi::buffer-name buffer) listener-name)
+        (hi::sub-set-buffer-modeline-fields buffer hemlock::*listener-modeline-fields*)))
     doc))
 
 (define-objc-method ((:void make-window-controllers) lisp-listener-document)
@@ -243,5 +253,19 @@
 	  ))))))
 |#
 
+(defun cocoa-ide-note-package (package)
+  (process-interrupt *cocoa-event-process*
+                       #'(lambda (proc name)
+                           (dolist (buf hi::*buffer-list*)
+                             (when (eq proc (hi::buffer-process buf))
+                               (setf (hi::variable-value 'hemlock::current-package :buffer buf) name))))
+                       *current-process*
+                       (package-name package)))
 
+(defmethod ui-object-do-operation ((o cocoa-ide-ui-object)
+                                   operation &rest args)
+  (case operation
+    (:note-package (cocoa-ide-note-package (car args)))))
 
+       
+  

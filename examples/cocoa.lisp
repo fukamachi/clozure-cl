@@ -10,7 +10,10 @@
 (require "FAKE-CFBUNDLE-PATH")
 (fake-cfbundle-path "ccl:OpenMCL.app;Contents;MacOS;dppccl"))
 
+(defclass cocoa-ide-ui-object (ui-object)
+    ())
 
+(setf (application-ui-object *application*) (make-instance 'cocoa-ide-ui-object))
 
 (require "OBJC-SUPPORT")
 (require "COCOA-WINDOW")

@@ -169,9 +169,10 @@
 (define-objc-method ((:unsigned length)
 		     hemlock-buffer-string)
   (let* ((cache (hemlock-buffer-string-cache self)))
-      (or (buffer-cache-buflen cache)
-	  (setf (buffer-cache-buflen cache)
-		(hemlock-buffer-length (buffer-cache-buffer cache))))))
+    (force-output)
+    (or (buffer-cache-buflen cache)
+        (setf (buffer-cache-buflen cache)
+              (hemlock-buffer-length (buffer-cache-buffer cache))))))
 
 
 ;;; Return the character at the specified index (as a :unichar.)
@@ -484,7 +485,7 @@
 
 ;;; Hook things up so that the modeline is updated whenever certain buffer
 ;;; attributes change.
-(hi::%init-redisplay)
+(hi::%init-mode-redisplay)
 
 
 ;;; Modeline-scroll-view
@@ -862,7 +863,12 @@
   (send (slot-value document 'textstorage) 'begin-editing))
 
 (defun hi::document-end-editing (document)
-  (send (slot-value document 'textstorage) 'end-editing))
+  (let* ((textstorage (slot-value document 'textstorage)))
+    (send textstorage 'end-editing)
+    (for-each-textview-using-storage
+     textstorage
+     #'(lambda (tv)
+         (send tv :scroll-range-to-visible (send tv 'selected-range))))))
 
 (defun hi::document-set-point-position (document)
   (let* ((textstorage (slot-value document 'textstorage))
@@ -874,8 +880,7 @@
      textstorage
      #'(lambda (tv)
          (slet ((selection (ns-make-range pos 0)))
-          (send tv :set-selected-range selection)
-          (send tv :scroll-range-to-visible selection))))))
+          (send tv :set-selected-range selection))))))
 
 
 (defun textstorage-note-insertion-at-position (textstorage pos n)
@@ -896,7 +901,7 @@
         (let* ((pos (mark-absolute-position mark)))
           (unless (eq (hi::mark-%kind mark) :right-inserting)
             (decf pos n))
-          #+debug 0
+          #+debug
 	  (format t "~&pos = ~d, n = ~d" pos n)
           (let* ((display (hemlock-buffer-string-cache (send textstorage 'string))))
             (reset-buffer-cache display) 
@@ -912,14 +917,16 @@
       (when textstorage
         (let* ((pos (mark-absolute-position mark)))
           (setq n (abs n))
+          #+debug
+          (format t "~& pos = ~d, n = ~d" pos n)
+          (force-output)
+	  (send textstorage
+                :edited #$NSTextStorageEditedCharacters
+                :range (ns-make-range pos n)
+                :change-in-length (- n))
           (let* ((cache (hemlock-buffer-string-cache (send textstorage 'string))))
             (reset-buffer-cache cache) 
-            (update-line-cache-for-index cache pos))
-
-	  (send textstorage
-                :edited #$NSTextStorageEditedAttributes
-                :range (ns-make-range pos n)
-                :change-in-length (- n)))))))
+            (update-line-cache-for-index cache pos)))))))
 
 (defun hi::set-document-modified (document flag)
   (send document
