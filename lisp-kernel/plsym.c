@@ -19,7 +19,7 @@
 void
 describe_symbol(LispObj sym)
 {
-  lispsymbol *rawsym = (lispsymbol *)(untag(sym));
+  lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
   LispObj function = rawsym->fcell;
 
   Dprintf("Symbol %s at #x%08X", print_lisp_object(sym), sym);
@@ -47,19 +47,19 @@ find_symbol_in_range(LispObj *start, LispObj *end, char *name)
     header = *start;
     if (header_subtag(header) == subtag_symbol) {
       LispObj 
-        pname = deref(start, 1),
+        pname = deref(ptr_to_lispobj(start), 1),
         pname_header = header_of(pname);
       if ((header_subtag(pname_header) == subtag_simple_base_string) &&
           (header_element_count(pname_header) == n)) {
-        p = (char *) (pname + misc_data_offset);
+        p = (char *) ptr_from_lispobj(pname + misc_data_offset);
         if (strncmp(p, s, n) == 0) {
-          return ((LispObj)start)+fulltag_misc;
+          return (ptr_to_lispobj(start))+fulltag_misc;
         }
       }
     }
-    if (fulltag_of(header) == fulltag_nodeheader) {
+    if (nodeheader_tag_p(header)) {
       start += (~1 & (2 + header_element_count(header)));
-    } else if (fulltag_of(header) == fulltag_immheader) {
+    } else if (immheader_tag_p(header)) {
       start = (LispObj *) skip_over_ivector((unsigned)start, header);
     } else {
       start += 2;
@@ -71,7 +71,7 @@ find_symbol_in_range(LispObj *start, LispObj *end, char *name)
 LispObj 
 find_symbol(char *name)
 {
-  area *a =  ((area *) lisp_global(ALL_AREAS))->succ;
+  area *a =  ((area *) (ptr_from_lispobj(lisp_global(ALL_AREAS))))->succ;
   area_code code;
   LispObj sym;
 

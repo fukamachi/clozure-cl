@@ -14,6 +14,7 @@
    http://opensource.franz.com/preamble.html
 */
 
+#include "lisp.h"
 #include "lisp-exceptions.h"
 #include "lisp_globals.h"
 #include "area.h"
@@ -227,8 +228,8 @@ describe_trap(ExceptionInformationPowerPC *xp)
 	   "clrlwi rX,rY,29/30".  In that case, scan backwards for an RLWINM instruction
 	   that set rX and report that rY isn't of the indicated type. */
 	err_arg2 = D_field(the_trap);
-	if (((err_arg2 & fulltagmask) == fulltag_nodeheader) ||
-	    ((err_arg2 & fulltagmask) == fulltag_immheader)) {
+	if (nodeheader_tag_p(err_arg2) ||
+	    immheader_tag_p(err_arg2)) {
 	  instr = scan_for_instr(LBZ_instruction(RA_field(the_trap),
 						 unmasked_register,
 						 misc_subtag_offset),
@@ -301,7 +302,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
 debug_command_return
 debug_lisp_registers(ExceptionInformationPowerPC *xp, int arg)
 {
-  TCR *xpcontext = (TCR *) xpGPR(xp, rcontext);
+  TCR *xpcontext = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
 
   fprintf(stderr, "rcontext = 0x%08X ", xpcontext);
   if (!active_tcr_p(xpcontext)) {
@@ -604,7 +605,7 @@ apply_debug_command(ExceptionInformationPowerPC *xp, int c, int why)
 debug_identify_function(ExceptionInformationPowerPC *xp) 
 {
   if (xp) {
-    if (active_tcr_p((TCR *)xpGPR(xp, rcontext))) {
+    if (active_tcr_p((TCR *)(ptr_from_lispobj(xpGPR(xp, rcontext))))) {
       LispObj f = xpGPR(xp, fn), codev;
       unsigned where = (unsigned) xpPC(xp);
       

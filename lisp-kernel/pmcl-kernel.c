@@ -34,6 +34,8 @@
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/utsname.h>
+
 #ifdef LINUX
 #include <mcheck.h>
 #include <dirent.h>
@@ -278,8 +280,8 @@ unsigned unsigned_max(unsigned x, unsigned y)
 
 
 
-int
-reserved_area_size = (1<<30);
+natural
+reserved_area_size = ((1U<<31)-2*heap_segment_size);
 
 area *nilreg_area=NULL, *tenured_area=NULL, *g2_area=NULL, *g1_area=NULL;
 area *all_areas=NULL;
@@ -922,8 +924,8 @@ char *image_name = NULL;
 int batch_flag = 0;
 
 
-unsigned
-parse_numeric_option(char *arg, char *argname, unsigned default_val)
+natural
+parse_numeric_option(char *arg, char *argname, natural default_val)
 {
   char *tail;
   unsigned val = 0;
@@ -1000,7 +1002,7 @@ process_options(int argc, char *argv[])
 	}
       } else if ((flag = (strncmp(arg, "-R", 2) == 0)) ||
 		 (strcmp(arg, "--heap-reserve") == 0)) {
-	unsigned reserved_size;
+	natural reserved_size;
 
 	if (flag && arg[2]) {
 	  val = arg+2;
@@ -1020,7 +1022,7 @@ process_options(int argc, char *argv[])
 					       reserved_area_size);
 	}
 
-	if (reserved_size <= (1<< 30)) {
+	if (reserved_size <= ((1U<<31)-(2*heap_segment_size))) {
 	  reserved_area_size = reserved_size;
 	}
 
@@ -1087,7 +1089,24 @@ terminate_lisp()
   exit(-1);
 }
 
+#ifdef DARWIN
+#define min_os_version "6.0"
+#endif
+#ifdef LINUX
+#define min_os_version "2.4"
+#endif
 
+void
+check_os_version(char *progname)
+{
+  struct utsname uts;
+
+  uname(&uts);
+  if (strcmp(uts.release, min_os_version) < 0) {
+    fprintf(stderr, "\n%s requires %s version %s or later; the current version is %s.\n", progname, uts.sysname, min_os_version, uts.release);
+    exit(1);
+  }
+}
   
 main(int argc, char *argv[], char *envp[], void *aux)
 {
@@ -1100,6 +1119,8 @@ main(int argc, char *argv[], char *envp[], void *aux)
   area *a;
   BytePtr stack_base, current_sp = current_stack_pointer();
   TCR *tcr;
+
+  check_os_version(argv[0]);
 
 #ifdef LINUX
   {

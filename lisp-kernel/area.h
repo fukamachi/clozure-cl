@@ -120,7 +120,7 @@ typedef struct area_list {
 #define IMAGE_BASE_ADDRESS 0x31000000
 #endif
 #ifdef DARWIN
-#define IMAGE_BASE_ADDRESS 0x01000000
+#define IMAGE_BASE_ADDRESS 0x02000000
 #endif
 
 #define PURESPACE_RESERVE 0x04000000 /* 64MB */

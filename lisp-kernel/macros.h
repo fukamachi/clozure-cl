@@ -39,8 +39,8 @@
 #define unbox_fixnum(x) ((int)(((int)(x))>>fixnum_shift))
 #define box_fixnum(x) ((x)<<fixnum_shift)
 
-#define car(x) (((cons *)(untag(x)))->car)
-#define cdr(x) (((cons *)(untag(x)))->cdr)
+#define car(x) (((cons *)ptr_from_lispobj(untag(x)))->car)
+#define cdr(x) (((cons *)ptr_from_lispobj(untag(x)))->cdr)
 
 /* "sym" is an untagged pointer to a symbol */
 #define BOUNDP(sym)  ((((lispsymbol *)(sym))->vcell) != undefined)

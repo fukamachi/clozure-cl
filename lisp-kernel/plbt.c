@@ -150,7 +150,7 @@ print_lisp_frame(lisp_frame *frame)
   if ((fun == 0) || (fun == fulltag_misc)) {
     spname = "unknown ?";
 #ifndef STATIC
-    if (dladdr((void *)pc, &info)) {
+    if (dladdr((void *)ptr_from_lispobj(pc), &info)) {
       spname = (char *)(info.dli_sname);
     }
 #endif
@@ -237,7 +237,7 @@ void
 walk_other_areas()
 {
   TCR *tcr = (TCR *)get_tcr(true);
-  area *a = ((area *) lisp_global(ALL_AREAS))->succ, *walked = tcr->cs_area;
+  area *a = ((area *)ptr_from_lispobj(lisp_global(ALL_AREAS)))->succ, *walked = tcr->cs_area;
   area_code code;
 
   while ((code = a->code) != AREA_VOID) {
@@ -261,11 +261,11 @@ plbt_sp(LispObj currentSP)
   } else {
     TCR *tcr = (TCR *)get_tcr(true);
     cs_area = tcr->cs_area;
-    if ((((LispObj) (cs_area->low)) > currentSP) ||
-        (((LispObj) (cs_area->high)) < currentSP)) {
+    if ((((LispObj) ptr_to_lispobj(cs_area->low)) > currentSP) ||
+        (((LispObj) ptr_to_lispobj(cs_area->high)) < currentSP)) {
       Dprintf("\nStack pointer [#x%08X] in unknown area.", currentSP);
     } else {
-      walk_stack_frames((lisp_frame *) currentSP, (lisp_frame *) (cs_area->high));
+      walk_stack_frames((lisp_frame *) ptr_from_lispobj(currentSP), (lisp_frame *) (cs_area->high));
       walk_other_areas();
     }
   }

@@ -14,9 +14,9 @@
    http://opensource.franz.com/preamble.html
 */
 
+#include "lisp.h"
 #include "lisp-exceptions.h"
 #include "lisp_globals.h"
-#include "area.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -232,7 +232,7 @@ finish_allocating_cons(ExceptionInformation *xp)
   pc program_counter = xpPC(xp);
   opcode instr;
   LispObj cur_allocptr = xpGPR(xp, allocptr);
-  cons *c = (cons *)untag(cur_allocptr);
+  cons *c = (cons *)ptr_from_lispobj(untag(cur_allocptr));
   int target_reg;
 
   while (1) {
@@ -520,7 +520,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
     break;
 
   default:
-    update_bytes_allocated(tcr, (void *) xpGPR(xp, allocptr));
+    update_bytes_allocated(tcr, (void *) ptr_from_lispobj(xpGPR(xp, allocptr)));
     if (egc_was_enabled) {
       egc_control(false, (BytePtr) a->active);
     }
@@ -538,7 +538,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
       if (selector & GC_TRAP_FUNCTION_SAVE_APPLICATION) {
         OSErr err;
         extern OSErr save_application(unsigned, Boolean);
-        TCR *tcr = (TCR *)xpGPR(xp, rcontext);
+        TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
         area *vsarea = tcr->vs_area;
 	
         nrs_TOPLFUNC.vcell = *((LispObj *)(vsarea->high)-1);
@@ -607,7 +607,7 @@ restore_soft_stack_limit(unsigned stkreg)
   switch (stkreg) {
   case sp:
     a = tcr->cs_area;
-    tcr->cs_limit = (LispObj)a->softlimit;
+    tcr->cs_limit = (LispObj)ptr_to_lispobj(a->softlimit);
     break;
   case vsp:
     a = tcr->vs_area;
@@ -621,14 +621,14 @@ restore_soft_stack_limit(unsigned stkreg)
 void
 reset_lisp_process(ExceptionInformation *xp)
 {
-  TCR *tcr = (TCR *)(xpGPR(xp,rcontext));
-  catch_frame *last_catch = (catch_frame *) (untag(tcr->catch_top));
+  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp,rcontext));
+  catch_frame *last_catch = (catch_frame *) ptr_from_lispobj(untag(tcr->catch_top));
 
-  tcr->save_allocptr = (void *) xpGPR(xp, allocptr);
-  tcr->save_allocbase = (void *) xpGPR(xp, allocbase);
+  tcr->save_allocptr = (void *) ptr_from_lispobj(xpGPR(xp, allocptr));
+  tcr->save_allocbase = (void *) ptr_from_lispobj(xpGPR(xp, allocbase));
 
-  tcr->save_vsp = (LispObj *) (((lisp_frame *)last_catch->csp)->savevsp);
-  tcr->save_tsp = (LispObj *) ((LispObj) last_catch) - 8; /* account for TSP header */
+  tcr->save_vsp = (LispObj *) ptr_from_lispobj(((lisp_frame *)ptr_from_lispobj(last_catch->csp))->savevsp);
+  tcr->save_tsp = (LispObj *) ptr_from_lispobj((LispObj) ptr_to_lispobj(last_catch)) - (2*node_size); /* account for TSP header */
 
   start_lisp(tcr, 1);
 }
@@ -714,12 +714,12 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
       pc_luser_xp(xp, tcr);
       freeptr = xpGPR(xp, allocptr);
       if (fulltag_of(freeptr) == 0){
-	cur_allocptr = (void *) freeptr;
+	cur_allocptr = (void *) ptr_from_lispobj(freeptr);
       }
     }
-    update_area_active((area **)&tcr->cs_area, (BytePtr) xpGPR(xp, sp));
-    update_area_active((area **)&tcr->vs_area, (BytePtr) xpGPR(xp, vsp));
-    update_area_active((area **)&tcr->ts_area, (BytePtr) xpGPR(xp, tsp));
+    update_area_active((area **)&tcr->cs_area, (BytePtr) ptr_from_lispobj(xpGPR(xp, sp)));
+    update_area_active((area **)&tcr->vs_area, (BytePtr) ptr_from_lispobj(xpGPR(xp, vsp)));
+    update_area_active((area **)&tcr->ts_area, (BytePtr) ptr_from_lispobj(xpGPR(xp, tsp)));
   } else {
     /* In ff-call.  No need to update cs_area */
     cur_allocptr = (void *) (tcr->save_allocptr);
@@ -743,7 +743,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
 int
 gc_like_from_xp(ExceptionInformation *xp, int(*fun)(TCR *))
 {
-  TCR *tcr = (TCR *)xpGPR(xp, rcontext), *other_tcr;
+  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext)), *other_tcr;
   ExceptionInformation* other_xp;
   int result;
 
@@ -840,8 +840,8 @@ protect_oldspace(BytePtr end)
 {
   protected_area_ptr p = oldspace_protected_area;
   BytePtr 
-    start = (BytePtr) lisp_global(HEAP_START),
-    endpage = (BytePtr)(align_to_power_of_2((LispObj)end,12));
+    start = (BytePtr) ptr_from_lispobj(lisp_global(HEAP_START)),
+    endpage = (BytePtr)ptr_from_lispobj(align_to_power_of_2(ptr_to_lispobj(end),12));
   int i, npages = (endpage-start)>>12;
   pageentry *pe = pagemap;
   
@@ -939,7 +939,7 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
   BytePtr addr;
   protected_area_ptr area;
   protection_handler *handler;
-  TCR *tcr = (TCR *) xpGPR(xp, rcontext);
+  TCR *tcr = (TCR *) ptr_from_lispobj(xpGPR(xp, rcontext));
 
   if (! is_write_fault(xp, info)) {
     return -1;
@@ -1129,43 +1129,7 @@ db_link_chain_in_area_p (area *a)
 }
 #endif
 
-typedef struct preserved_registers {
-  LispObj the_pc;
-  LispObj the_lr;
-  LispObj sp_r1;
-  LispObj rcontext_r2;
-  LispObj tsp_r12;
-  LispObj vsp_r13;
-  LispObj save7_r24;
-  LispObj save6_r25;
-  LispObj save5_r26;
-  LispObj save4_r27;
-  LispObj save3_r28;
-  LispObj save2_r29;
-  LispObj save1_r30;
-  LispObj save0_r31;
-} preserved_registers;
 
-/* This is for debugging so that you can easily see in the Power Mac
-   Debugger a window containing the preserved state */
-void
-sample_preserved_registers (ExceptionInformation *xp, preserved_registers *pr)
-{
-  pr->the_pc = (LispObj) xpPC(xp);
-  pr->the_lr = (LispObj) xpLR(xp);
-  pr->sp_r1 = xpGPR(xp, sp);
-  pr->rcontext_r2 = xpGPR(xp, rcontext);
-  pr->tsp_r12 = xpGPR(xp, tsp);
-  pr->vsp_r13 = xpGPR(xp, vsp);
-  pr->save7_r24 = xpGPR(xp, save7);
-  pr->save6_r25 = xpGPR(xp, save6);
-  pr->save5_r26 = xpGPR(xp, save5);
-  pr->save4_r27 = xpGPR(xp, save4);
-  pr->save3_r28 = xpGPR(xp, save3);
-  pr->save2_r29 = xpGPR(xp, save2);
-  pr->save1_r30 = xpGPR(xp, save1);
-  pr->save0_r31 = xpGPR(xp, save0);
-}
 
 
 /* Note: CURRENT_VS (CURRENT_TS) is always either the area containing
@@ -1174,7 +1138,7 @@ sample_preserved_registers (ExceptionInformation *xp, preserved_registers *pr)
 OSStatus
 do_vsp_overflow (ExceptionInformation *xp, BytePtr addr)
 {
-  TCR* tcr = (TCR *) xpGPR(xp, rcontext);
+  TCR* tcr = (TCR *) ptr_from_lispobj(xpGPR(xp, rcontext));
   area *a = tcr->vs_area;
   protected_area_ptr vsp_soft = a->softprot;
   unprotect_area(vsp_soft);
@@ -1186,7 +1150,7 @@ do_vsp_overflow (ExceptionInformation *xp, BytePtr addr)
 OSStatus
 do_tsp_overflow (ExceptionInformation *xp, BytePtr addr)
 {
-  TCR* tcr = (TCR *) xpGPR(xp, rcontext);
+  TCR* tcr = (TCR *) ptr_from_lispobj(xpGPR(xp, rcontext));
   area *a = tcr->ts_area;
   protected_area_ptr tsp_soft = a->softprot;
   unprotect_area(tsp_soft);
@@ -1259,7 +1223,7 @@ do_spurious_wp_fault(ExceptionInformation *xp, protected_area_ptr area, BytePtr 
 Boolean
 is_ephemeral_node_store(ExceptionInformation *xp, BytePtr ea)
 {
-  if ((((LispObj)ea) & 3) == 0) {
+  if (((ptr_to_lispobj(ea)) & 3) == 0) {
     opcode instr = *xpPC(xp);
     
     if (X_opcode_p(instr,major_opcode_X31,minor_opcode_STWX) ||
@@ -1271,8 +1235,8 @@ is_ephemeral_node_store(ExceptionInformation *xp, BytePtr ea)
       
       if (rs >= fn) {
         if ((tag == fulltag_misc) || (tag == fulltag_cons)) {
-          if (((BytePtr)rsval > tenured_area->high) &&
-              ((BytePtr)rsval < active_dynamic_area->high)) {
+          if (((BytePtr)ptr_from_lispobj(rsval) > tenured_area->high) &&
+              ((BytePtr)ptr_from_lispobj(rsval) < active_dynamic_area->high)) {
             *(LispObj *)ea = rsval;
             return true;
           }
@@ -1545,17 +1509,18 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
   sigset_t mask;
   unsigned  callback_ptr, i;
   area *a;
-  TCR *tcr = (TCR *)(xpGPR(xp, rcontext));
+
+  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
 
   /* Put the active stack pointer where .SPcallback expects it */
   a = tcr->cs_area;
-  a->active = (BytePtr) xpGPR(xp, sp);
+  a->active = (BytePtr) ptr_from_lispobj(xpGPR(xp, sp));
 
   /* Copy globals from the exception frame to tcr */
-  tcr->save_allocptr = (void *)xpGPR(xp, allocptr);
-  tcr->save_allocbase = (void *)xpGPR(xp, allocbase);
-  tcr->save_vsp = (LispObj*) (xpGPR(xp, vsp));
-  tcr->save_tsp = (LispObj*) (xpGPR(xp, tsp));
+  tcr->save_allocptr = (void *)ptr_from_lispobj(xpGPR(xp, allocptr));
+  tcr->save_allocbase = (void *)ptr_from_lispobj(xpGPR(xp, allocbase));
+  tcr->save_vsp = (LispObj*) ptr_from_lispobj(xpGPR(xp, vsp));
+  tcr->save_tsp = (LispObj*) ptr_from_lispobj(xpGPR(xp, tsp));
 
 
 
@@ -1563,7 +1528,7 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
      Lisp will handle trampolining through some code that
      will push lr/fn & pc/nfn stack frames for backtrace.
   */
-  callback_ptr = ((macptr *)(untag(callback_macptr)))->address;
+  callback_ptr = ((macptr *)ptr_from_lispobj(untag(callback_macptr)))->address;
   UNLOCK(lisp_global(EXCEPTION_LOCK), tcr);
   ((void (*)())callback_ptr) (xp, arg1, arg2, arg3, arg4, arg5);
   LOCK(lisp_global(EXCEPTION_LOCK), tcr);
@@ -1571,8 +1536,8 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
 
 
   /* Copy GC registers back into exception frame */
-  xpGPR(xp, allocbase) = (LispObj) tcr->save_allocbase;
-  xpGPR(xp, allocptr) = (LispObj) tcr->save_allocptr;
+  xpGPR(xp, allocbase) = (LispObj) ptr_to_lispobj(tcr->save_allocbase);
+  xpGPR(xp, allocptr) = (LispObj) ptr_to_lispobj(tcr->save_allocptr);
 }
 
 area *
@@ -1603,7 +1568,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
   LispObj   cmain = nrs_CMAIN.vcell;
   Boolean   event_poll_p = false;
   int old_interrupt_level = 0;
-  TCR *tcr = (TCR *)xpGPR(xp, rcontext);
+  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
 
   /* If we got here, "the_trap" is either a TWI or a TW instruction.
      It's a TWI instruction iff its major opcode is major_opcode_TWI. */
@@ -1660,10 +1625,10 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
 	  if (vs_soft->nprot == 0) {
 	    protect_area(vs_soft);
 	  }
-          tcr->cs_limit = (LispObj) (CS_area->softlimit);
+          tcr->cs_limit = ptr_to_lispobj(CS_area->softlimit);
         }
       } else {
-	tcr->cs_limit = (LispObj) (CS_area->hardlimit);	  
+	tcr->cs_limit = ptr_to_lispobj(CS_area->hardlimit);	  
 	signal_stack_soft_overflow(xp, sp);
       }
     }
@@ -1672,7 +1637,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
     return noErr;
   } else {
     if (the_trap == LISP_BREAK_INSTRUCTION) {
-      char *message =  (char *) xpGPR(xp,3);
+      char *message =  (char *) ptr_from_lispobj(xpGPR(xp,3));
       set_xpPC(xp, xpLR(xp));
       if (message == NULL) {
 	message = "Lisp Breakpoint";
@@ -1841,7 +1806,7 @@ void
 raise_pending_interrupt(TCR *tcr)
 {
   if (tcr->interrupt_level > 0) {
-    pthread_kill((pthread_t)(tcr->osid), SIGNAL_FOR_PROCESS_INTERRUPT);
+    pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), SIGNAL_FOR_PROCESS_INTERRUPT);
   }
 }
 
@@ -1922,7 +1887,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
 {
   pc program_counter = xpPC(xp);
   opcode instr = *program_counter;
-  lisp_frame *frame = (lisp_frame *)xpGPR(xp,sp);
+  lisp_frame *frame = (lisp_frame *)ptr_from_lispobj(xpGPR(xp,sp));
   LispObj cur_allocptr = xpGPR(xp, allocptr);
   int allocptr_tag = fulltag_of(cur_allocptr);
   
@@ -1930,7 +1895,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
   if (instr == 0x918c0004) {	/* stw tsp,tsp_frame.type(tsp) */
     LispObj tsp_val = xpGPR(xp,tsp);
     
-    ((LispObj *)tsp_val)[1] = tsp_val;
+    ((LispObj *)ptr_from_lispobj(tsp_val))[1] = tsp_val;
     adjust_exception_pc(xp, 4);
     return;
   }
@@ -1982,7 +1947,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
          arrange to execute it again after the interrupt.
       */
       if (tcr) {
-        update_bytes_allocated(tcr, (void *) (cur_allocptr + disp));
+        update_bytes_allocated(tcr, (void *) ptr_from_lispobj(cur_allocptr + disp));
         xpGPR(xp, allocbase) = VOID_ALLOCPTR;
         xpGPR(xp, allocptr) = VOID_ALLOCPTR - disp;
       } else {
@@ -2007,7 +1972,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
   if ((major_opcode_p(instr, 47)) && /* 47 = stmw */
       (RA_field(instr) == vsp)) {
     int r;
-    LispObj *vspptr = (LispObj *)xpGPR(xp,vsp);
+    LispObj *vspptr = ptr_from_lispobj(xpGPR(xp,vsp));
     
     for (r = RS_field(instr); r <= 31; r++) {
       *vspptr++ = xpGPR(xp,r);
@@ -2017,7 +1982,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
 }
 
 void
-interrupt_handler (int signum, siginfo_t *info, struct ucontext *context)
+interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
   TCR *tcr = get_interrupt_tcr(false);
   if (tcr) {
@@ -2228,14 +2193,18 @@ typedef struct {
 #include <mach/machine/thread_state.h>
 #include <mach/machine/thread_status.h>
 
-#define MACH_CHECK_ERROR(x) if (x != KERN_SUCCESS) {abort();}
+#define MACH_CHECK_ERROR(context,x) if (x != KERN_SUCCESS) {Bug(NULL, "Mach error while %s : ~d", context, x);}
 
 
 void
-restore_mach_thread_state(mach_port_t thread, struct ucontext *lss)
+restore_mach_thread_state(mach_port_t thread, ExceptionInformation *lss)
 {
   int i, j;
-  struct mcontext *mc = lss->uc_mcontext;;
+#ifdef PPC64
+  struct mcontext64 *mc = UC_MCONTEXT(lss);
+#else
+  struct mcontext * mc = UC_MCONTEXT(lss);
+#endif
 
   /* Set the thread's FP state from the lss */
   thread_set_state(thread,
@@ -2244,10 +2213,17 @@ restore_mach_thread_state(mach_port_t thread, struct ucontext *lss)
 		   PPC_FLOAT_STATE_COUNT);
 
   /* The thread'll be as good as new ... */
+#ifdef PPC64
+  thread_set_state(thread,
+                   PPC_THREAD_STATE64,
+                   (thread_state_t)&(mc->ss),
+                   PPC_THREAD_STATE64_COUNT);
+#else
   thread_set_state(thread, 
 		   MACHINE_THREAD_STATE,
 		   (thread_state_t)&(mc->ss),
 		   MACHINE_THREAD_STATE_COUNT);
+#endif
 }  
 
 /* This code runs in the exception handling thread, in response
@@ -2276,32 +2252,52 @@ do_pseudo_sigreturn(mach_port_t thread, TCR *tcr)
 
 }  
 
-struct ucontext *
+ExceptionInformation *
 create_thread_context_frame(mach_port_t thread, 
 			    unsigned *new_stack_top)
 {
-  unsigned stackp, backlink;
+#ifdef PPC64
+  ppc_thread_state64_t ts;
+#else
   ppc_thread_state_t ts;
+#endif
   mach_msg_type_number_t thread_state_count;
   kern_return_t result;
   int i,j;
-  struct ucontext *lss;
+  ExceptionInformation *lss;
+#ifdef PPC64
+  struct mcontext64 *mc;
+#else
   struct mcontext *mc;
+#endif
+  natural stackp, backlink;
 
+#ifdef PPC64
+  thread_state_count = PPC_THREAD_STATE64_COUNT;
+  thread_get_state(thread,
+                   PPC_THREAD_STATE64,
+                   (thread_state_t)&ts,
+                   &thread_state_count);
+#else
   thread_state_count = MACHINE_THREAD_STATE_COUNT;
   thread_get_state(thread, 
 		   MACHINE_THREAD_STATE,	/* GPRs, some SPRs  */
 		   (thread_state_t)&ts,
 		   &thread_state_count);
+#endif
 
   stackp = ts.r1;
   backlink = stackp;
   stackp = TRUNC_DOWN(stackp, C_REDZONE_LEN, C_STK_ALIGN);
   stackp -= sizeof(*lss);
-  lss = (struct ucontext *) stackp;
+  lss = (ExceptionInformation *) ptr_from_lispobj(stackp);
 
   stackp = TRUNC_DOWN(stackp, sizeof(*mc), C_STK_ALIGN);
-  mc = (struct mcontext *) stackp;
+#ifdef PPC64
+  mc = (struct mcontext64 *) ptr_from_lispobj(stackp);
+#else
+  mc = (struct mcontext *) ptr_from_lispobj(stackp);
+#endif
   bcopy(&ts,&(mc->ss),sizeof(ts));
 
   thread_state_count = PPC_FLOAT_STATE_COUNT;
@@ -2318,10 +2314,10 @@ create_thread_context_frame(mach_port_t thread,
 		   &thread_state_count);
 
 
-  lss->uc_mcontext = mc;
+  UC_MCONTEXT(lss) = mc;
   stackp = TRUNC_DOWN(stackp, C_PARAMSAVE_LEN, C_STK_ALIGN);
   stackp -= C_LINKAGE_LEN;
-  *(unsigned *)stackp = backlink;
+  *(natural *)ptr_from_lispobj(stackp) = backlink;
   if (new_stack_top) {
     *new_stack_top = stackp;
   }
@@ -2355,7 +2351,7 @@ setup_signal_frame(mach_port_t thread,
   ppc_thread_state_t ts;
   ppc_exception_state_t xs;
   mach_msg_type_number_t thread_state_count;
-  struct ucontext *lss;
+  ExceptionInformation *lss;
   int i, j;
   kern_return_t result;
   unsigned stackp;
@@ -2396,7 +2392,7 @@ setup_signal_frame(mach_port_t thread,
 
 
 void
-pseudo_signal_handler(int signum, struct ucontext *context, TCR *tcr)
+pseudo_signal_handler(int signum, ExceptionInformation *context, TCR *tcr)
 {
   signal_handler(signum, NULL, context, tcr);
 } 
@@ -2533,7 +2529,7 @@ mach_exception_port_set()
     kret = mach_port_allocate(mach_task_self(),
 			      MACH_PORT_RIGHT_PORT_SET,
 			      &__exception_port_set);
-    MACH_CHECK_ERROR(kret);
+    MACH_CHECK_ERROR("allocating thread exception_ports",kret);
     create_system_thread(0,
                          NULL,
                          exception_handler_proc, 
@@ -2638,20 +2634,21 @@ setup_mach_exception_handling(TCR *tcr)
 {
   mach_port_t 
     thread_exception_port = (mach_port_t)tcr,
-    target_thread = pthread_mach_thread_np((pthread_t)tcr->osid),
+    target_thread = pthread_mach_thread_np((pthread_t)ptr_from_lispobj(tcr->osid)),
     task_self = mach_task_self();
   kern_return_t kret;
 
   kret = mach_port_allocate_name(task_self,
 				 MACH_PORT_RIGHT_RECEIVE,
 				 thread_exception_port);
-  MACH_CHECK_ERROR(kret);
+
+  MACH_CHECK_ERROR("naming exception_port",kret);
 
   kret = mach_port_insert_right(task_self,
 				thread_exception_port,
 				thread_exception_port,
 				MACH_MSG_TYPE_MAKE_SEND);
-  MACH_CHECK_ERROR(kret);
+  MACH_CHECK_ERROR("adding send right to exception_port",kret);
 
   kret = tcr_establish_exception_port(tcr, (mach_port_t) tcr->native_thread_id);
   if (kret == KERN_SUCCESS) {
@@ -2706,7 +2703,7 @@ mach_suspend_tcr(TCR *tcr)
 {
   mach_port_t mach_thread = (mach_port_t) tcr->native_thread_id;
   kern_return_t status = thread_suspend(mach_thread);
-  struct ucontext *lss;
+  ExceptionInformation *lss;
   
   if (status != KERN_SUCCESS) {
     return false;

@@ -24,9 +24,55 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
+
+
+#ifdef PPC64
+#define RELOCATABLE_FULLTAG_MASK \
+  ((1<<fulltag_cons)|(1<<fulltag_misc))
+#undef COMPRESSED_IMAGE_SUPPORT
+#define COMPRESSED_IMAGE_SUPPORT 0
+#else
 #define RELOCATABLE_FULLTAG_MASK \
   ((1<<fulltag_cons)|(1<<fulltag_nil)|(1<<fulltag_misc))
+#undef COMPRESSED_IMAGE_SUPPORT
+#define COMPRESSED_IMAGE_SUPPORT 1
+#endif
 
+/* 
+  Phase out compression support; don't support compressed images on PPC64.
+*/
+
+#if COMPRESSED_IMAGE_SUPPORT
+
+unsigned char *compressed_output_ptr;
+
+void
+out_byte(unsigned char c)
+{
+  *compressed_output_ptr++=c;
+}
+
+void
+out_n_bytes(unsigned char *from, unsigned n)
+{
+  while (n--) {
+    out_byte(*from++);
+  }
+}
+
+
+/* nodes & headers are written tag-byte first. */
+void
+output_reversed_object(LispObj node)
+{
+  compressed_node n;
+
+  n.u.node = node;
+  out_byte(n.u.bytes[3]);
+  out_byte(n.u.bytes[2]);
+  out_byte(n.u.bytes[1]);
+  out_byte(n.u.bytes[0]);
+}
 
 unsigned char *
 relocate_compressed_node(unsigned char *bufP, LispObj *dest, LispObj bias)
@@ -270,67 +316,6 @@ relocate_compressed_heap(unsigned char *bufP,
 }
 
 void
-relocate_area_contents(area *a, LispObj bias)
-{
-  LispObj 
-    *start = (LispObj *)(a->low), 
-    *end = (LispObj *)(a->active),
-    low = (LispObj)image_base - bias,
-    high = (LispObj) (active_dynamic_area->active) - bias,
-    w0;
-  int fulltag;
-
-  while (start < end) {
-    w0 = *start;
-    fulltag = fulltag_of(w0);
-    if (fulltag == fulltag_immheader) {
-      start = (LispObj *)skip_over_ivector((unsigned)start, w0);
-    } else {
-      if ((w0 >= low) && (w0 < high) &&
-	  ((1<<fulltag) & RELOCATABLE_FULLTAG_MASK)) {
-	*start = (w0+bias);
-      }
-      w0 = *++start;
-      fulltag = fulltag_of(w0);
-      if ((w0 >= low) && (w0 < high) &&
-	  ((1<<fulltag) & RELOCATABLE_FULLTAG_MASK)) {
-	*start = (w0+bias);
-      }
-      ++start;
-    }
-  }
-}
-      
-unsigned char *compressed_output_ptr;
-
-void
-out_byte(unsigned char c)
-{
-  *compressed_output_ptr++=c;
-}
-
-void
-out_n_bytes(unsigned char *from, unsigned n)
-{
-  while (n--) {
-    out_byte(*from++);
-  }
-}
-
-/* nodes & headers are written tag-byte first. */
-void
-output_reversed_object(LispObj node)
-{
-  compressed_node n;
-
-  n.u.node = node;
-  out_byte(n.u.bytes[3]);
-  out_byte(n.u.bytes[2]);
-  out_byte(n.u.bytes[1]);
-  out_byte(n.u.bytes[0]);
-}
-
-void
 output_compressed_node(LispObj *where, LispObj low, LispObj high)
 {
   LispObj node = *where;
@@ -530,6 +515,43 @@ compress_area_data(area *a)
   return (compressed_output_ptr - (unsigned char *)start);
 }
 
+#endif
+
+void
+relocate_area_contents(area *a, LispObj bias)
+{
+  LispObj 
+    *start = (LispObj *)(a->low), 
+    *end = (LispObj *)(a->active),
+    low = (LispObj)image_base - bias,
+    high = ptr_to_lispobj(active_dynamic_area->active) - bias,
+    w0;
+  int fulltag;
+
+  while (start < end) {
+    w0 = *start;
+    fulltag = fulltag_of(w0);
+    if (immheader_tag_p(fulltag)) {
+      start = (LispObj *)skip_over_ivector((unsigned)start, w0);
+    } else {
+      if ((w0 >= low) && (w0 < high) &&
+	  ((1<<fulltag) & RELOCATABLE_FULLTAG_MASK)) {
+	*start = (w0+bias);
+      }
+      w0 = *++start;
+      fulltag = fulltag_of(w0);
+      if ((w0 >= low) && (w0 < high) &&
+	  ((1<<fulltag) & RELOCATABLE_FULLTAG_MASK)) {
+	*start = (w0+bias);
+      }
+      ++start;
+    }
+  }
+}
+      
+
+
+
 off_t
 seek_to_next_page(int fd)
 {
@@ -703,7 +725,11 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
       switch(sect->code) {
       case AREA_STATIC:
 	nilreg_area = a;
+#ifdef PPC64
+        image_nil = ptr_to_lispobj(a->low + sizeof(lispsymbol) + fulltag_misc);
+#else
 	image_nil = (LispObj)(a->low + 8 + 8 + (1024*4) + fulltag_nil);
+#endif
 	set_nil(image_nil);
 	if (bias) {
 	  relocate_area_contents(a, bias);
@@ -718,8 +744,9 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
       a = sect->area;
       switch(sect->code) {
       case AREA_DYNAMIC:
-	lisp_global(HEAP_START) = (LispObj) a->low;
-	lisp_global(HEAP_END) = (LispObj) a->high;
+	lisp_global(HEAP_START) = ptr_to_lispobj(a->low);
+	lisp_global(HEAP_END) = ptr_to_lispobj(a->high);
+#if COMPRESSED_IMAGE_SUPPORT
 	if (sect->memory_size != sect->disk_size) {
 	  relocate_compressed_heap(a->low+(sect->memory_size-sect->disk_size),
 				   (LispObj*)a->low,
@@ -728,6 +755,11 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
 	} else if (bias) {
 	  relocate_area_contents(a, bias);
 	}
+#else
+        if (bias) {
+          relocate_area_contents(a, bias);
+        }
+#endif
 	resize_dynamic_heap(a->active, lisp_heap_gc_threshold);
         zero_last_page(a->active);
 	xMakeDataExecutable(a->low, a->active - a->low);
@@ -751,21 +783,16 @@ prepare_to_write_dynamic_space()
   while (start < end) {
     x1 = *start;
     tag = fulltag_of(x1);
-    switch (tag) {
-    case fulltag_immheader:
+    if (immheader_tag_p(tag)) {
       subtag = header_subtag(x1);
       if (subtag == subtag_macptr) {
 	*start = make_header(subtag_dead_macptr,header_element_count(x1));
       }
       start = (LispObj *)skip_over_ivector((unsigned)start, x1);
-      break;
-      
-    case fulltag_nodeheader:
+    } else if (nodeheader_tag_p(tag)) {
       element_count = header_element_count(x1) | 1;
       start += (element_count+1);
-      break;
-      
-    default:
+    } else {
       start += 2;
     }
   }
@@ -818,11 +845,16 @@ save_application(unsigned fd, Boolean compress)
     sections[i].code = a->code;
     sections[i].area = NULL;
     sections[i].memory_size  = a->active - a->low;
+
+#if COMPRESSED_IMAGE_SUPPORT
     if ((a->code == AREA_DYNAMIC) && compress) {
       sections[i].disk_size = compress_area_data(a);
     } else {
+#endif
       sections[i].disk_size = sections[i].memory_size;
+#if COMPRESSED_IMAGE_SUPPORT
     }
+#endif
   }
   fh.sig0 = IMAGE_SIG0;
   fh.sig1 = IMAGE_SIG1;

@@ -841,13 +841,13 @@ mark_root(LispObj n)
       if (subtag == subtag_hash_vector) {
         ((hash_table_vector_header *) base)->cache_key = undefined;
         ((hash_table_vector_header *) base)->cache_value = lisp_nil;
-        deref(base,1) = GCweakvll;
+        deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = n;
         return;
       }
 
       if (subtag == subtag_pool) {
-        deref(base, 1) = lisp_nil;
+        deref(ptr_to_lispobj(base), 1) = lisp_nil;
       }
       
       if (subtag == subtag_weak) {
@@ -864,7 +864,7 @@ mark_root(LispObj n)
         rmark(*--base);
       }
       if (subtag == subtag_weak) {
-        deref(base,1) = GCweakvll;
+        deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = n;
       }
     }
@@ -946,6 +946,15 @@ mark_pc_root(LispObj pc)
 }
 
 
+#ifdef PPC64
+#define RMARK_PREV_ROOT fulltag_imm_3
+#define RMARK_PREV_CAR fulltag_misc
+#else
+#define RMARK_PREV_ROOT fulltag_imm
+#define RMARK_PREV_CAR fulltag_nil
+#endif
+
+
 /*
   This wants to be in assembler even more than "mark_root" does.
   For now, it does link-inversion: hard as that is to express in C,
@@ -1001,13 +1010,13 @@ rmark(LispObj n)
     case fulltag_even_fixnum:
       goto ClimbVector;
 
-    case fulltag_imm:
+    case RMARK_PREV_ROOT:
       return;
 
     case fulltag_cons:
       goto ClimbCdr;
 
-    case fulltag_nil:
+    case RMARK_PREV_CAR:
       goto ClimbCar;
 
       /* default: abort() */
@@ -1107,7 +1116,7 @@ rmark(LispObj n)
         /* Splice onto weakvll, then climb */
         ((hash_table_vector_header *) base)->cache_key = undefined;
         ((hash_table_vector_header *) base)->cache_value = lisp_nil;
-        deref(base,1) = GCweakvll;
+        deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = this;
         goto Climb;
       }
@@ -1482,14 +1491,14 @@ reapweakv(LispObj weakv)
           terminatablep = ((weak_type >> population_termination_bit) != 0);
   Boolean done = false;
   cons *rawcons;
-  unsigned dnode, car_dnode;
+  natural dnode, car_dnode;
   bitvector markbits = GCmarkbits;
 
   if (terminatablep) {
     termination_list = deref(weakv,1+3);
   }
 
-  if (tag_of(cell) != tag_list) {
+  if (fulltag_of(cell) != fulltag_cons) {
     mark_root(cell);
   } else if (alistp) {
     /* weak alist */
@@ -1538,7 +1547,7 @@ reapweakv(LispObj weakv)
         LispObj thecar;
         unsigned cartag;
 
-        rawcons = (cons *) untag(cell);
+        rawcons = (cons *) ptr_from_lispobj(untag(cell));
         thecar = rawcons->car;
         cartag = fulltag_of(thecar);
 
@@ -1631,7 +1640,7 @@ mark_weak_hash_vector(hash_table_vector_header *hashp, unsigned elements)
   /* Mark everything in the header */
   
   for (i = 2; i<= skip; i++) {
-    mark_root(deref(hashp,i));
+    mark_root(deref(ptr_to_lispobj(hashp),i));
   }
 
   elements -= skip;
@@ -1751,7 +1760,7 @@ markhtabvs()
       } else if (subtag == subtag_hash_vector) {
         int elements = header_element_count(header), i;
 
-        hashp = (hash_table_vector_header *) untag(this);
+        hashp = (hash_table_vector_header *) ptr_from_lispobj(untag(this));
         if (hashp->flags & nhash_weak_mask) {
           deref(this,1) = pending;
           pending = this;
@@ -1833,9 +1842,9 @@ mark_xp(ExceptionInformation *xp)
 
 
   mark_pc_root((regs[loc_pc]));
-  mark_pc_root((LispObj)xpPC(xp));
-  mark_pc_root((LispObj)xpLR(xp));
-  mark_pc_root((LispObj)xpCTR(xp));
+  mark_pc_root(ptr_to_lispobj(xpPC(xp)));
+  mark_pc_root(ptr_to_lispobj(xpLR(xp)));
+  mark_pc_root(ptr_to_lispobj(xpCTR(xp)));
 
 }
 void
@@ -1904,7 +1913,7 @@ reap_gcable_ptrs()
       if (ptr) {
         switch (flag) {
         case xmacptr_flag_recursive_lock:
-	  destroy_recursive_lock((RECURSIVE_LOCK)ptr);
+	  destroy_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(ptr));
           break;
 
         case xmacptr_flag_ptr:
@@ -2290,7 +2299,7 @@ forward_tstack_area(area *a)
   for (current = start;
        end != limit;
        current = next) {
-    next = (LispObj *) *current;
+    next = ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
     if (current[1] == 0) {
       forward_range(current+2, end);
@@ -2400,7 +2409,7 @@ forward_tcr_xframes(TCR *tcr)
 LispObj
 compact_dynamic_heap()
 {
-  LispObj *src = (LispObj*) GCfirstunmarked, *dest = src, node, new;
+  LispObj *src = ptr_from_lispobj(GCfirstunmarked), *dest = src, node, new;
   unsigned elements, dnode = gc_area_dnode(GCfirstunmarked), node_dnodes = 0, imm_dnodes = 0;
   unsigned bitidx, *bitsp, bits, nextbit, diff;
   int tag;
@@ -2433,9 +2442,9 @@ compact_dynamic_heap()
         }
 
         if (GCDebug) {
-          if (dest != (LispObj*)locative_forwarding_address((LispObj)src)) {
+          if (dest != ptr_from_lispobj(locative_forwarding_address(ptr_to_lispobj(src)))) {
             Bug(NULL, "Out of synch in heap compaction.  Forwarding from 0x%08x to 0x%08x,\n expected to go to 0x%08x\n", 
-                src, dest, locative_forwarding_address((LispObj)src));
+                src, dest, locative_forwarding_address(ptr_to_lispobj(src)));
           }
         }
 
@@ -2545,7 +2554,7 @@ compact_dynamic_heap()
     }
 
     {
-      natural nbytes = (natural)dest - (natural)GCfirstunmarked;
+      natural nbytes = (natural)ptr_to_lispobj(dest) - (natural)GCfirstunmarked;
       if ((nbytes != 0) && GCrelocated_code_vector) {
         xMakeDataExecutable((LogicalAddress)ptr_from_lispobj(GCfirstunmarked), nbytes);
       }
@@ -2740,12 +2749,12 @@ gc(TCR *tcr)
       n = header_element_count(header_of(itabvec));
     LispObj
       sym,
-      *raw = 1+((LispObj *)(untag(itabvec)));
+      *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
 
     for (i = 0; i < n; i++) {
       sym = *raw++;
       if (fulltag_of(sym) == fulltag_misc) {
-        lispsymbol *rawsym = (lispsymbol *)(untag(sym));
+        lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
         unsigned dnode = gc_area_dnode(sym);
           
         if ((dnode < GCndnodes_in_area) &&
@@ -2775,12 +2784,12 @@ gc(TCR *tcr)
       n = header_element_count(header_of(itabvec));
     LispObj
       sym,
-      *raw = 1+((LispObj *)(untag(itabvec)));
+      *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
 
     for (i = 0; i < n; i++, raw++) {
       sym = *raw;
       if (fulltag_of(sym) == fulltag_misc) {
-        lispsymbol *rawsym = (lispsymbol *)(untag(sym));
+        lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
         unsigned dnode = gc_area_dnode(sym);
 
         if ((dnode < GCndnodes_in_area) &&
@@ -2796,7 +2805,7 @@ gc(TCR *tcr)
   GCrelocptr = global_reloctab;
   GCfirstunmarked = calculate_relocation();
 
-  forward_range((LispObj *) GCarealow, (LispObj *) GCfirstunmarked);
+  forward_range((LispObj *) ptr_from_lispobj(GCarealow), (LispObj *) ptr_from_lispobj(GCfirstunmarked));
 
   other_tcr = tcr;
   do {
@@ -2848,7 +2857,7 @@ gc(TCR *tcr)
   }
 
   
-  a->active = (BytePtr) compact_dynamic_heap();
+  a->active = (BytePtr) ptr_from_lispobj(compact_dynamic_heap());
   
   /* Need to do this before protection kicks back in */
   zero_last_page(a->active);
@@ -2909,7 +2918,7 @@ gc(TCR *tcr)
     if ((fulltag_of(val) == fulltag_misc) &&
         (header_subtag(header_of(val)) == subtag_macptr)) {
       timersub(&stop, &start, &stop);
-      timeinfo = (struct timeval *) ((macptr *) (untag(val)))->address;
+      timeinfo = (struct timeval *) ptr_from_lispobj(((macptr *) ptr_from_lispobj(untag(val)))->address);
       timeradd(timeinfo,  &stop, timeinfo);
       timeradd(timeinfo+timeidx,  &stop, timeinfo+timeidx);
     }
@@ -2918,7 +2927,7 @@ gc(TCR *tcr)
     if ((fulltag_of(val) == fulltag_misc) &&
         (header_subtag(header_of(val)) == subtag_macptr)) {
       long long justfreed = oldfree - a->active;
-      *( (long long *) ((macptr *) ptr_from_lispobj(untag(val)))->address) += justfreed;
+      *( (long long *) ptr_from_lispobj(((macptr *) ptr_from_lispobj(untag(val)))->address)) += justfreed;
     }
   }
 }

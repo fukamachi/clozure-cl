@@ -53,12 +53,12 @@ typedef semaphore_t SEMAPHORE;
 
 typedef struct
 {
-  int avail;
-  TCR *owner;
-  int count;
-  void *signal;
-  int waiting;
-  void *malloced_ptr;
+  signed_natural avail;
+  NATURAL_POINTER_FIELD(TCR,owner);
+  signed_natural  count;
+  NATURAL_POINTER_FIELD(void,signal);
+  signed_natural waiting;
+  NATURAL_POINTER_FIELD(void,malloced_ptr);
 } _recursive_lock, *RECURSIVE_LOCK;
 
 
@@ -68,8 +68,8 @@ RECURSIVE_LOCK new_recursive_lock();
 void destroy_recursive_lock(RECURSIVE_LOCK);
 int recursive_lock_trylock(RECURSIVE_LOCK, TCR *, int *);
 
-#define LOCK(m, t) lock_recursive_lock((RECURSIVE_LOCK)m, (TCR *)t, NULL)
-#define UNLOCK(m, t) unlock_recursive_lock((RECURSIVE_LOCK)m, (TCR *)t)
+#define LOCK(m, t) lock_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(m), (TCR *)t, NULL)
+#define UNLOCK(m, t) unlock_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(m), (TCR *)t)
 
 /* Hmm.  This doesn't look like the MacOS Thread Manager ... */
 LispObj current_thread_osid();

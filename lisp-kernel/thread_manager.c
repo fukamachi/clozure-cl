@@ -23,39 +23,39 @@ typedef struct {
 } thread_activation;
 
 
-extern void*
-store_conditional(void**, void*, void*);
+extern natural
+store_conditional(natural*, natural, natural);
 
-extern int
-atomic_swap(int*, int);
+extern signed_natural
+atomic_swap(signed_natural*, signed_natural);
 
-int
-atomic_incf_by(int *ptr, int by)
+signed_natural
+atomic_incf_by(signed_natural *ptr, signed_natural by)
 {
-  int old, new;
+  signed_natural old, new;
   do {
     old = *ptr;
     new = old+by;
-  } while (store_conditional((void **)ptr, (void *) old, (void *) new) !=
-           (void *) old);
+  } while (store_conditional((natural *)ptr, (natural) old, (natural) new) !=
+           (natural) old);
   return new;
 }
 
-int
-atomic_incf(int *ptr)
+signed_natural
+atomic_incf(signed_natural *ptr)
 {
   return atomic_incf_by(ptr, 1);
 }
 
-int
-atomic_decf(int *ptr)
+signed_natural
+atomic_decf(signed_natural *ptr)
 {
-  int old, new;
+  signed_natural old, new;
   do {
     old = *ptr;
     new = old == 0 ? old : old-1;
-  } while (store_conditional((void **)ptr, (void *) old, (void *) new) !=
-           (void *) old);
+  } while (store_conditional((natural *)ptr, (natural) old, (natural) new) !=
+           (natural) old);
   return old-1;
 }
 
@@ -135,7 +135,7 @@ recursive_lock_trylock(RECURSIVE_LOCK m, TCR *tcr, int *was_free)
       return 0;
     }
   }
-  if (store_conditional((void **)&(m->avail), (void *)0, (void *)1) == (void *)0) {
+  if (store_conditional((natural*)&(m->avail), 0, 1) == 0) {
     m->owner = tcr;
     m->count = 1;
     if (was_free) {
@@ -180,7 +180,7 @@ signal_semaphore(SEMAPHORE s)
 LispObj
 current_thread_osid()
 {
-  return (LispObj)pthread_self();
+  return (LispObj)ptr_to_lispobj(pthread_self());
 }
 
 #ifdef SIGRTMIN
@@ -244,7 +244,7 @@ get_interrupt_tcr()
   
   
 void
-suspend_resume_handler(int signo, siginfo_t *info, struct ucontext *context)
+suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context)
 {
   TCR *tcr = get_interrupt_tcr(true);
 
@@ -296,7 +296,7 @@ thread_signal_setup()
 void
 os_get_stack_bounds(LispObj q,void **base, unsigned *size)
 {
-  pthread_t p = (pthread_t)q;
+  pthread_t p = (pthread_t)ptr_from_lispobj(q);
 #ifdef DARWIN
   *base = pthread_get_stackaddr_np(p);
   *size = pthread_get_stacksize_np(p);
@@ -396,7 +396,7 @@ enqueue_tcr(TCR *new)
   TCR *head, *tail;
   
   LOCK(lisp_global(TCR_LOCK),new);
-  head = (TCR *)lisp_global(INITIAL_TCR);
+  head = (TCR *)ptr_from_lispobj(lisp_global(INITIAL_TCR));
   tail = head->prev;
   tail->next = new;
   head->prev = new;
@@ -454,10 +454,10 @@ shutdown_thread_tcr(void *arg)
   if (--(tcr->shutdown_count) == 0) {
     if (tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN)) {
       LispObj callback_macptr = nrs_FOREIGN_THREAD_CONTROL.vcell,
-	callback_ptr = ((macptr *)(untag(callback_macptr)))->address;
+	callback_ptr = ((macptr *)ptr_from_lispobj(untag(callback_macptr)))->address;
     
       tsd_set(lisp_global(TCR_KEY), tcr);
-      ((void (*)())callback_ptr)(1);
+      ((void (*)())ptr_from_lispobj(callback_ptr))(1);
     }
 #ifdef DARWIN
     darwin_exception_cleanup(tcr);
@@ -514,7 +514,7 @@ thread_init_tcr(TCR *tcr, void *stack_base, unsigned stack_size)
   UNLOCK(lisp_global(AREA_LOCK),tcr);
   tcr->cs_area = a;
   if (!(tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN))) {
-    tcr->cs_limit = (LispObj)a->softlimit;
+    tcr->cs_limit = (LispObj)ptr_to_lispobj(a->softlimit);
   }
 #ifdef LINUX
   tcr->native_thread_info = current_r2;
@@ -590,7 +590,7 @@ Boolean threads_initialized = false;
 void
 init_threads(void * stack_base, TCR *tcr)
 {
-  lisp_global(INITIAL_TCR) = (LispObj)tcr;
+  lisp_global(INITIAL_TCR) = (LispObj)ptr_to_lispobj(tcr);
   pthread_key_create((pthread_key_t *)&(lisp_global(TCR_KEY)), shutdown_thread_tcr);
   thread_signal_setup();
   threads_initialized = true;
@@ -647,7 +647,7 @@ xNewThread(unsigned control_stack_size,
 Boolean
 active_tcr_p(TCR *q)
 {
-  TCR *head = (TCR *)lisp_global(INITIAL_TCR), *p = head;
+  TCR *head = (TCR *)ptr_from_lispobj(lisp_global(INITIAL_TCR)), *p = head;
   
   do {
     if (p == q) {
@@ -662,9 +662,9 @@ active_tcr_p(TCR *q)
 OSErr
 xDisposeThread(TCR *tcr)
 {
-  if (tcr != (TCR *)lisp_global(INITIAL_TCR)) {
+  if (tcr != (TCR *)ptr_from_lispobj(lisp_global(INITIAL_TCR))) {
     if (active_tcr_p(tcr) && (tcr != get_tcr(false))) {
-      pthread_cancel((pthread_t)tcr->osid);
+      pthread_cancel((pthread_t)ptr_from_lispobj(tcr->osid));
       return 0;
     }
   }
@@ -717,7 +717,7 @@ create_system_thread(size_t stack_size,
      I think that's just about enough ... create the thread.
   */
   pthread_create(&returned_thread, &attr, start_routine, param);
-  return (LispObj) returned_thread;
+  return (LispObj) ptr_to_lispobj(returned_thread);
 }
 
 TCR *
@@ -727,7 +727,7 @@ get_tcr(Boolean create)
 
   if ((current == NULL) && create) {
     LispObj callback_macptr = nrs_FOREIGN_THREAD_CONTROL.vcell,
-      callback_ptr = ((macptr *)(untag(callback_macptr)))->address;
+      callback_ptr = ((macptr *)ptr_from_lispobj(untag(callback_macptr)))->address;
     int i, nbindwords = 0;
     extern unsigned initial_stack_size;
     
@@ -740,12 +740,12 @@ get_tcr(Boolean create)
 #endif
     current->vs_area->active -= 4;
     *(--current->save_vsp) = lisp_nil;
-    nbindwords = ((int (*)())callback_ptr)(-1);
+    nbindwords = ((int (*)())ptr_from_lispobj(callback_ptr))(-1);
     for (i = 0; i < nbindwords; i++) {
       *(--current->save_vsp) = 0;
       current->vs_area->active -= 4;
     }
-    ((void (*)())callback_ptr)(0);
+    ((void (*)())ptr_from_lispobj(callback_ptr))(0);
 
   }
   
@@ -758,7 +758,7 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-    if (pthread_kill((pthread_t)tcr->osid, thread_suspend_signal) == 0) {
+    if (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_suspend_signal) == 0) {
       SEM_WAIT(tcr->suspend);
     } else {
       /* A problem using pthread_kill.  On Darwin, this can happen
@@ -806,7 +806,7 @@ resume_tcr(TCR *tcr)
       return true;
     }
 #endif
-    pthread_kill((pthread_t)tcr->osid, thread_resume_signal);
+    pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_resume_signal);
     return true;
   }
   return false;

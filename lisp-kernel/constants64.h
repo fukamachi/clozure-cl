@@ -146,6 +146,7 @@
 #define subtag_unbound SUBTAG(fulltag_imm_3,0)
 #define unbound_marker subtag_unbound
 #define undefined unbound_marker
+#define unbound unbound_marker
 #define subtag_slot_unbound SUBTAG(fulltag_imm_3,1)
 #define slot_unbound_marker subtag_slot_unbound
 #define subtag_illegal SUBTAG(fulltag_imm_3,2)
@@ -282,7 +283,7 @@ typedef struct xframe_list {
   struct xframe_list *prev;
 } xframe_list;
 
-#define fixnum_bitmask(n)  (1<<((n)+fixnumshift))
+#define fixnum_bitmask(n)  (1LL<<((n)+fixnumshift))
 
 /* 
   The GC (at least) needs to know about hash-table-vectors and their flag bits.
@@ -422,7 +423,8 @@ typedef struct tcr {
   NATURAL_POINTER_FIELD(ExceptionInformation,pending_exception_context);
   NATURAL_POINTER_FIELD(void,suspend);		/* suspension semaphore */
   NATURAL_POINTER_FIELD(void,resume);			/* resumption semaphore */
-  signed_natural flags;
+  u_int32_t flags_pad;
+  int32_t flags;
   NATURAL_POINTER_FIELD(ExceptionInformation,gc_context);
   signed_natural suspend_total;
   signed_natural suspend_total_on_exception_entry;
@@ -431,6 +433,7 @@ typedef struct tcr {
   natural shutdown_count;
 } TCR;
 
+#define t_offset -(sizeof(lispsymbol))
 
 
 #endif

@@ -34,7 +34,24 @@ typedef int32_t signed_natural;
 typedef u_int32_t unsigned_of_pointer_size;
 #endif
 
+#ifdef PPC64
+#ifdef DARWIN
+typedef struct ucontext64 ExceptionInformation, ExceptionInformationPowerPC;
+#else
 typedef struct ucontext ExceptionInformation, ExceptionInformationPowerPC;
+#endif
+#else
+typedef struct ucontext ExceptionInformation, ExceptionInformationPowerPC;
+#endif
+
+#ifdef DARWIN
+#ifdef PPC64
+#define UC_MCONTEXT(UC) UC->uc_mcontext64
+#else
+#define UC_MCONTEXT(UC) UC->uc_mcontext
+#endif
+#endif
+
 
 typedef int OSStatus, OSErr;
 #define noErr ((OSErr) 0)

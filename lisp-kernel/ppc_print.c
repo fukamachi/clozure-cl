@@ -54,7 +54,7 @@ add_string(char *s, int len)
 void
 add_lisp_base_string(LispObj str)
 {
-  add_string((char *) (str + misc_data_offset), header_element_count(header_of(str)));
+  add_string((char *) (ptr_from_lispobj(str) + misc_data_offset), header_element_count(header_of(str)));
 }
 
 void
@@ -94,8 +94,8 @@ sprint_list(LispObj o, int depth)
   add_char('(');
   while(1) {
     if (o != lisp_nil) {
-      sprint_lisp_object(car(o), depth);
-      the_cdr = cdr(o);
+      sprint_lisp_object(ptr_to_lispobj(car(o)), depth);
+      the_cdr = ptr_to_lispobj(cdr(o));
       if (the_cdr != lisp_nil) {
         add_char(' ');
         if (fulltag_of(the_cdr) == fulltag_cons) {
@@ -162,14 +162,14 @@ sprint_random_vector(LispObj o, unsigned subtag, unsigned elements)
 void
 sprint_symbol(LispObj o)
 {
-  lispsymbol *rawsym = (lispsymbol *) (untag(o));
+  lispsymbol *rawsym = (lispsymbol *) ptr_from_lispobj(untag(o));
   LispObj 
     pname = rawsym->pname,
     package = rawsym->package_plist,
     pname_header = header_of(pname);
     
   if (fulltag_of(package) == fulltag_cons) {
-    package = ((cons *)(untag(package)))->car;
+    package = car(package);
   }
 
   if (package == nrs_KEYWORD_PACKAGE.vcell) {
@@ -316,7 +316,7 @@ sprint_vector(LispObj o, int depth)
 {
   LispObj header = header_of(o);
   
-  if (fulltag_of(header) == fulltag_immheader) {
+  if (immheader_tag_p(header)) {
     sprint_ivector(o);
   } else {
     sprint_gvector(o, depth);
@@ -335,15 +335,32 @@ sprint_lisp_object(LispObj o, int depth)
       sprint_signed_decimal(unbox_fixnum(o));
       break;
     
-      
+#ifdef PPC64
+    case fulltag_immheader_0:
+    case fulltag_immheader_1:
+    case fulltag_immheader_2:
+    case fulltag_immheader_3:
+    case fulltag_nodeheader_0:
+    case fulltag_nodeheader_1:
+    case fulltag_nodeheader_2:
+    case fulltag_nodeheader_3:
+#else
     case fulltag_immheader:
     case fulltag_nodeheader:
+#endif      
       add_c_string("#<header ? ");
       sprint_unsigned_hex(o);
       add_c_string(">");
       break;
-      
+
+#ifdef PPC64
+    case fulltag_imm_0:
+    case fulltag_imm_1:
+    case fulltag_imm_2:
+    case fulltag_imm_3:
+#else
     case fulltag_imm:
+#endif
       if (o == unbound) {
         add_c_string("#<Unbound>");
       } else {
@@ -364,7 +381,9 @@ sprint_lisp_object(LispObj o, int depth)
       }
       break;
    
+#ifndef PPC64
     case fulltag_nil:
+#endif
     case fulltag_cons:
       sprint_list(o, depth);
       break;
