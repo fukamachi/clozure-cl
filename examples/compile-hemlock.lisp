@@ -121,7 +121,6 @@
     "overwrite"
     "abbrev"
     "icom"
-    #+clx
     "kbdmac"
     "defsyn"
     #+why
