@@ -16,6 +16,12 @@
 
 ;; L1-io.lisp
 
+(defun %new-ptr (size &optional clear-p)
+  (let* ((p (malloc size)))
+    (if (and clear-p (not (%null-ptr-p p)))
+      (#_bzero p size))
+    p))
+
 
 ;;;; ======================================================================
 ;;;; Standard CL IO frobs
