@@ -8,6 +8,7 @@
   (require "HEMLOCK"))
 
 (eval-when (:compile-toplevel :execute)
+  (pushnew :all-in-cocoa-thread *features*)
   (use-interface-dir :cocoa))
 
 (def-cocoa-default *editor-rows* :int 24 "Initial height of editor windows, in characters")
@@ -155,8 +156,25 @@
     d))
 
 
+(defun adjust-buffer-cache-for-insertion (display pos n)
+  (if (buffer-cache-workline display)
+    (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context (buffer-cache-buffer display))))
+      (if (> (buffer-cache-workline-offset display) pos)
+        (incf (buffer-cache-workline-offset display) n)
+        (when (>= (+ (buffer-cache-workline-offset display)
+                    (buffer-cache-workline-length display))
+                 pos)
+          (setf (buffer-cache-workline-length display)
+                (hi::line-length (buffer-cache-workline display)))))
+      (incf (buffer-cache-buflen display) n))
+    (reset-buffer-cache display)))
+
+          
+           
+
 ;;; Update the cache so that it's describing the current absolute
 ;;; position.
+
 (defun update-line-cache-for-index (cache index)
   (let* ((buffer (buffer-cache-buffer cache))
 	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
@@ -177,7 +195,7 @@
 		    (buffer-cache-workline-offset cache) pos
 		    (buffer-cache-workline-length cache) len))
 	    (return (values line idx))))
-	(setq moved t)
+      (setq moved t)
       (if (< index pos)
 	(setq line (hi::line-previous line)
 	      len (hi::line-length line)
@@ -240,12 +258,79 @@
 		(hemlock-buffer-length buffer))))))
 
 
+
 ;;; Return the character at the specified index (as a :unichar.)
+
 (define-objc-method ((:unichar :character-at-index (unsigned index))
 		     hemlock-buffer-string)
+  #+debug
+  (#_NSLog #@"Character at index: %d" :unsigned index)
   (char-code (hemlock-char-at-index (hemlock-buffer-string-cache self) index)))
 
 
+(define-objc-method ((:void :get-characters (:address buffer) :range (:<NSR>ange r))
+                     hemlock-buffer-string)
+  (let* ((cache (hemlock-buffer-string-cache self))
+         (index (pref r :<NSR>ange.location))
+         (length (pref r :<NSR>ange.length))
+         (hi::*buffer-gap-context*
+	  (hi::buffer-gap-context (buffer-cache-buffer cache))))
+    #+debug
+    (#_NSLog #@"get characters: %d/%d"
+             :unsigned index
+             :unsigned length)
+    (multiple-value-bind (line idx) (update-line-cache-for-index cache index)
+      (let* ((len (hemlock::line-length line)))
+        (do* ((i 0 (1+ i))
+              (p 0 (+ p 2)))
+             ((= i length))
+          (cond ((< idx len)
+                 (setf (%get-unsigned-word buffer p)
+                       (char-code (hemlock::line-character line idx)))
+                 (incf idx))
+                (t
+                 (setf (%get-unsigned-word buffer p)
+                       (char-code #\Newline)
+                       line (hi::line-next line)
+                       len (hi::line-length line)
+                  idx 0))))))))
+
+(define-objc-method ((:void :get-line-start ((:* :unsigned) startptr)
+                            :end ((:* :unsigned) endptr)
+                            :contents-end ((:* :unsigned) contents-endptr)
+                            :for-range (:<NSR>ange r))
+                     hemlock-buffer-string)
+  (let* ((cache (hemlock-buffer-string-cache self))
+         (index (pref r :<NSR>ange.location))
+         (length (pref r :<NSR>ange.length))
+         (hi::*buffer-gap-context*
+	  (hi::buffer-gap-context (buffer-cache-buffer cache))))
+    #+debug 0
+    (#_NSLog #@"get line start: %d/%d"
+             :unsigned index
+             :unsigned length)
+    (update-line-cache-for-index cache index)
+    (unless (%null-ptr-p startptr)
+      ;; Index of the first character in the line which contains
+      ;; the start of the range.
+      (setf (pref startptr :unsigned)
+            (buffer-cache-workline-offset cache)))
+    (unless (%null-ptr-p endptr)
+      ;; Index of the newline which terminates the line which
+      ;; contains the start of the range.
+      (setf (pref endptr :unsigned)
+            (+ (buffer-cache-workline-offset cache)
+               (buffer-cache-workline-length cache))))
+    (unless (%null-ptr-p contents-endptr)
+      ;; Index of the newline which terminates the line which
+      ;; contains the start of the range.
+      (unless (zerop length)
+        (update-line-cache-for-index cache (+ index length)))
+      (setf (pref contents-endptr :unsigned)
+            (1+ (+ (buffer-cache-workline-offset cache)
+                   (buffer-cache-workline-length cache)))))))
+
+                     
 ;;; Return an NSData object representing the bytes in the string.  If
 ;;; the underlying buffer uses #\linefeed as a line terminator, we can
 ;;; let the superclass method do the work; otherwise, we have to
@@ -258,7 +343,7 @@
 	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
 	 (external-format (if buffer (hi::buffer-external-format buffer )))
 	 (raw-length (if buffer (hemlock-buffer-length buffer) 0)))
-    
+    (hi::%set-buffer-modified buffer nil)
     (if (eql 0 raw-length)
       (make-objc-instance 'ns:ns-mutable-data :with-length 0)
       (case external-format
@@ -313,6 +398,15 @@
     ((string :foreign-type :id)
      (edit-count :foreign-type :int))
   (:metaclass ns:+ns-object))
+
+(define-objc-method ((:unsigned :line-break-before-index (:unsigned index)
+                                :within-range (:<NSR>ange r))
+                     hemlock-text-storage)
+  (#_NSLog #@"Line break before index: %d within range: %@"
+           :unsigned index
+           :id (#_NSStringFromRange r))
+  (send-super :line-break-before-index index :within-range r))
+
 
 
 ;;; Return true iff we're inside a "beginEditing/endEditing" pair
@@ -409,6 +503,8 @@
 (define-objc-method ((:id :attributes-at-index (:unsigned index)
 			  :effective-range ((* :<NSR>ange) rangeptr))
 		     hemlock-text-storage)
+  #+debug
+  (#_NSLog #@"Attributes at index: %d" :unsigned index)
   (let* ((buffer-cache (hemlock-buffer-string-cache (slot-value self 'string)))
 	 (buffer (buffer-cache-buffer buffer-cache))
          (hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
@@ -469,11 +565,11 @@
 (defun for-each-textview-using-storage (textstorage f)
   (let* ((layouts (send textstorage 'layout-managers)))
     (unless (%null-ptr-p layouts)
-      (dotimes (i (send layouts 'count))
+      (dotimes (i (send (the ns:ns-array layouts) 'count))
 	(let* ((layout (send layouts :object-at-index i))
 	       (containers (send layout 'text-containers)))
 	  (unless (%null-ptr-p containers)
-	    (dotimes (j (send containers 'count))
+	    (dotimes (j (send (the ns:ns-array containers) 'count))
 	      (let* ((container (send containers :object-at-index j))
 		     (tv (send container 'text-view)))
 		(funcall f tv)))))))))
@@ -526,7 +622,17 @@
   (:metaclass ns:+ns-object))
 
 
+(def-cocoa-default *layout-text-in-background* :int 1 "When non-zero, do text layout when idle.")
 
+(define-objc-method ((:void :layout-manager layout
+                            :did-complete-layout-for-text-container cont
+                            :at-end (:<BOOL> flag))
+                     hemlock-textstorage-text-view)
+  (declare (ignore cont))
+  (when (zerop *layout-text-in-background*)
+    (send layout :set-delegate (%null-ptr))
+    (send layout :set-background-layout-enabled nil)))
+    
 ;;; Note changes to the textview's background color; record them
 ;;; as the value of the "temporary" foreground color (for blinking).
 (define-objc-method ((:void :set-background-color color)
@@ -541,50 +647,43 @@
                             :color color
                             :turned-on (:<BOOL> flag))
                      hemlock-textstorage-text-view)
-  (unless (eql #$NO (text-view-blink-enabled self))
-    (let* ((layout (send self 'layout-manager))
-           (container (send self 'text-container))
-           (blink-color (text-view-blink-color self)))
-      ;; We toggle the blinked character "off" by setting its
-      ;; foreground color to the textview's background color.
-      ;; The blinked character should be "on" whenever the insertion
-      ;; point is drawn as "off"
-      (slet ((glyph-range
-              (send layout
-                    :glyph-range-for-character-range
-                    (ns-make-range (text-view-blink-location self) 1)
-                    :actual-character-range (%null-ptr))))
-        #+debug (#_NSLog #@"Flag = %d, location = %d" :<BOOL> (if flag #$YES #$NO) :int (text-view-blink-location self))
-        (if flag
+  (unless (send (send self 'text-storage) 'editing-in-progress)
+    (unless (eql #$NO (text-view-blink-enabled self))
+      (let* ((layout (send self 'layout-manager))
+             (container (send self 'text-container))
+             (blink-color (text-view-blink-color self)))
+        ;; We toggle the blinked character "off" by setting its
+        ;; foreground color to the textview's background color.
+        ;; The blinked character should be "on" whenever the insertion
+        ;; point is drawn as "off"
+        (slet ((glyph-range
+                (send layout
+                      :glyph-range-for-character-range
+                      (ns-make-range (text-view-blink-location self) 1)
+                      :actual-character-range (%null-ptr))))
+          #+debug (#_NSLog #@"Flag = %d, location = %d" :<BOOL> (if flag #$YES #$NO) :int (text-view-blink-location self))
           (slet ((rect (send layout
                              :bounding-rect-for-glyph-range glyph-range
                              :in-text-container container)))
-            (send blink-color 'set)
+            (send (the ns:ns-color blink-color) 'set)
             (#_NSRectFill rect))
-          (send layout
-                :draw-glyphs-for-glyph-range glyph-range
-                :at-point  (send self 'text-container-origin)))
-        )))
-  (send-super :draw-insertion-point-in-rect r
-              :color color
-              :turned-on flag))
+          (if flag
+            (send layout
+                  :draw-glyphs-for-glyph-range glyph-range
+                  :at-point  (send self 'text-container-origin)))
+          )))
+    (send-super :draw-insertion-point-in-rect r
+                :color color
+                :turned-on flag)))
                 
 (defmethod disable-blink ((self hemlock-textstorage-text-view))
   (when (eql (text-view-blink-enabled self) #$YES)
     (setf (text-view-blink-enabled self) #$NO)
-    (unwind-protect
-         (progn
-           (send self 'lock-focus)
-           (let* ((layout (send self 'layout-manager)))
-             (slet ((glyph-range (send layout
-                                       :glyph-range-for-character-range
-                                       (ns-make-range (text-view-blink-location self)
-                                                      1)
-                                       :actual-character-range (%null-ptr))))
-                   (send layout
-                         :draw-glyphs-for-glyph-range glyph-range
-                         :at-point  (send self 'text-container-origin)))))
-      (send self 'unlock-focus))))
+    ;; Force the blinked character to be redrawn.  Let the text
+    ;; system do the drawing.
+    (let* ((layout (send self 'layout-manager)))
+      (send layout :invalidate-display-for-character-range
+            (ns-make-range (text-view-blink-location self) 1)))))
 
 (defmethod update-blink ((self hemlock-textstorage-text-view))
   (disable-blink self)
@@ -688,7 +787,7 @@
   (let* ((unmodchars (send nsevent 'characters-ignoring-modifiers))
 	 (n (if (%null-ptr-p unmodchars)
 	      0
-	      (send unmodchars 'length)))
+	      (send (the ns:ns-string unmodchars) 'length)))
 	 (c (if (eql n 1)
 	      (send unmodchars :character-at-index 0))))
     (when c
@@ -1022,6 +1121,7 @@
 						 :with-frame tv-frame
 						 :text-container container)
 			     'autorelease)))
+              (send layout :set-delegate tv)
 	      (send tv :set-min-size (ns-make-size
 				      0.0f0
 				      (pref contentsize :<NSS>ize.height)))
@@ -1081,6 +1181,12 @@
 (defclass echo-area-document (ns:ns-object)
     ((textstorage :foreign-type :id))
   (:metaclass ns:+ns-object))
+
+(define-objc-method ((:void close) echo-area-document)
+  (let* ((ts (slot-value self 'textstorage)))
+    (unless (%null-ptr-p ts)
+      (setf (slot-value self 'textstorage) (%null-ptr))
+      (close-hemlock-textstorage ts))))
 
 (define-objc-method ((:void :update-change-count (:<NSD>ocument<C>hange<T>ype change)) echo-area-document)
   (declare (ignore change)))
@@ -1285,6 +1391,12 @@
     (when proc
       (setf (slot-value self 'command-thread) nil)
       (process-kill proc)))
+  (let* ((buf (hemlock-frame-echo-area-buffer self))
+         (echo-doc (if buf (hi::buffer-document buf))))
+    (when echo-doc
+      (setf (hemlock-frame-echo-area-buffer self) nil)
+      (send echo-doc 'close)))
+  (release-canonical-nsobject self)
   (send-super 'close))
   
 (defun new-hemlock-document-window ()
@@ -1305,8 +1417,6 @@
 	  (send window-content-view :add-subview pane)
 	  pane)))))
 
-
-	  
 					
 				      
 (defun textpane-for-textstorage (ts ncols nrows container-tracks-text-view-width color)
@@ -1328,7 +1438,7 @@
 
 (defun %nsstring-to-mark (nsstring mark)
   "returns external-format of string"
-  (let* ((string-len (send nsstring 'length))
+  (let* ((string-len (send (the ns:ns-string nsstring) 'length))
          (line-start 0)
          (first-line-terminator ())
          (first-line (hi::mark-line mark))
@@ -1433,8 +1543,8 @@
   (let* ((pane (textpane-for-textstorage ts ncols nrows container-tracks-text-view-width color))
          (frame (send pane 'window))
          (buffer (text-view-buffer (text-pane-text-view pane))))
-      (setf (slot-value frame 'echo-area-view)
-            (make-echo-area-for-window frame (hi::buffer-gap-context buffer) color))
+    (setf (slot-value frame 'echo-area-view)
+          (make-echo-area-for-window frame (hi::buffer-gap-context buffer) color))
     (setf (slot-value frame 'command-thread)
           (process-run-function (format nil "Hemlock window thread")
                                 #'(lambda ()
@@ -1463,6 +1573,9 @@
   (release-lock (hi::buffer-gap-context-lock (hi::buffer-gap-context b)))) 
   
 (defun hi::document-begin-editing (document)
+  #-all-in-cocoa-thread
+  (send (slot-value document 'textstorage) 'begin-editing)
+  #+all-in-cocoa-thread
   (send (slot-value document 'textstorage)
         :perform-selector-on-main-thread
         (@selector "beginEditing")
@@ -1472,6 +1585,9 @@
 
 
 (defun hi::document-end-editing (document)
+  #-all-in-cocoa-thread
+  (send (slot-value document 'textstorage) 'end-editing)
+  #+all-in-cocoa-thread
   (send (slot-value document 'textstorage)
         :perform-selector-on-main-thread
         (@selector "endEditing")
@@ -1502,9 +1618,10 @@
       (setf (%get-ptr paramptrs 0) number-for-pos
             (%get-ptr paramptrs (ash 1 target::word-shift))
             number-for-n)
-      (let* ((params (make-objc-instance 'ns:ns-array
-                                         :with-objects paramptrs
-                                         :count 2)))
+      (let* ((params
+              (send (send (@class "NSArray") 'alloc)
+                    :init-with-objects paramptrs
+                    :count 2)))
         (send textstorage
                     :perform-selector-on-main-thread
                     selector
@@ -1551,8 +1668,12 @@
           #+debug
 	  (format t "~&insert: pos = ~d, n = ~d" pos n)
           (let* ((display (hemlock-buffer-string-cache (send textstorage 'string))))
-            (reset-buffer-cache display) 
+            ;(reset-buffer-cache display)
+            (adjust-buffer-cache-for-insertion display pos n)
             (update-line-cache-for-index display pos))
+          #-all-in-cocoa-thread
+          (textstorage-note-insertion-at-position textstorage pos n)
+          #+all-in-cocoa-thread
           (perform-edit-change-notification textstorage
                                             (@selector "noteInsertion:")
                                             pos
@@ -1567,6 +1688,13 @@
         (#_NSLog #@"enqueue modify: pos = %d, n = %d"
                  :int (mark-absolute-position mark)
                  :int n)
+        #-all-in-cocoa-thread
+        (send textstorage
+          :edited (logior #$NSTextStorageEditedCharacters
+                          #$NSTextStorageEditedAttributes)
+          :range (ns-make-range (mark-absolute-position mark) n)
+          :change-in-length 0)
+        #+all-in-cocoa-thread
         (perform-edit-change-notification textstorage
                                           (@selector "noteModification:")
                                           (mark-absolute-position mark)
@@ -1578,10 +1706,21 @@
     (let* ((document (hi::buffer-document buffer))
 	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
+        #-all-in-cocoa-thread
+        (let* ((pos (mark-absolute-position mark)))
+          (send textstorage
+          :edited #$NSTextStorageEditedCharacters
+          :range (ns-make-range pos n)
+          :change-in-length (- n))
+          (let* ((display (hemlock-buffer-string-cache (send textstorage 'string))))
+            (reset-buffer-cache display) 
+            (update-line-cache-for-index display pos)))
+        #+all-in-cocoa-thread
         (perform-edit-change-notification textstorage
                                           (@selector "noteDeletion:")
                                           (mark-absolute-position mark)
                                           (abs n))))))
+
 (defun hi::set-document-modified (document flag)
   (send document
 	:update-change-count (if flag #$NSChangeDone #$NSChangeCleared)))
@@ -1641,8 +1780,14 @@
     ()
   (:metaclass ns:+ns-object))
 
-    
 
+
+(define-objc-method ((:void :_window-will-close notification)
+                     hemlock-editor-window-controller)
+  #+debug
+  (let* ((w (send notification 'object)))
+    (#_NSLog #@"Window controller: window will close: %@" :id w))
+  (send-super :_window-will-close notification))
 
 ;;; The HemlockEditorDocument class.
 
@@ -1793,14 +1938,18 @@
 
 
 (define-objc-method ((:void close) hemlock-editor-document)
+  #+debug
+  (#_NSLog #@"Document close: %@" :id self)
   (let* ((textstorage (slot-value self 'textstorage)))
-    (setf (slot-value self 'textstorage) (%null-ptr))
     (unless (%null-ptr-p textstorage)
+      (setf (slot-value self 'textstorage) (%null-ptr))
       (for-each-textview-using-storage
        textstorage
-       #'(lambda (tv) (send tv :set-string #@"")))
+       #'(lambda (tv)
+           (let* ((layout (send tv 'layout-manager)))
+             (send layout :set-background-layout-enabled nil))))
       (close-hemlock-textstorage textstorage)))
-    (send-super 'close))
+  (send-super 'close))
 
 
 (defun initialize-user-interface ()
