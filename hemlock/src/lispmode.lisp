@@ -1731,7 +1731,8 @@
     (defhvar "Current Package"
       "The package used for evaluation of Lisp in this buffer."
       :buffer buffer
-      :value "CL-USER")))
+      :value "CL-USER"
+      :hooks (list 'package-name-change-hook))))
 
 
 

@@ -43,7 +43,8 @@
 	(string thing))
        (t
 	(message
-	 "Ignoring \"package\" file option -- cannot convert to a string."))))))
+	 "Ignoring \"package\" file option -- cannot convert to a string."))))
+    :hooks (list 'package-name-change-hook)))
 
 
 ;;;; Eval Mode Interaction.
