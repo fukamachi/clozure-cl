@@ -1834,7 +1834,8 @@ _spentry(makestackblock)
 	__(la imm1,tsp_frame.data_offset+macptr.size(tsp))
 	__(str(imm0,tsp_frame.data_offset(tsp)))
 	__(la arg_z,tsp_frame.data_offset+fulltag_misc(tsp))
-	__(str(imm1,macptr.address(arg_z))) 
+	__(str(imm1,macptr.address(arg_z)))
+	__(stfd fp_zero,macptr.domain(arg_z))
 	__(blr)
 
 /* Too big. Heap cons a gcable macptr */
@@ -1857,6 +1858,7 @@ _spentry(makestackblock0)
 	__(str(imm0,tsp_frame.data_offset(tsp)))
 	__(la arg_z,tsp_frame.data_offset+fulltag_misc(tsp))
 	__(str(imm1,macptr.address(arg_z))) /* makestackblock0 expects the address to be in imm1 */
+	__(stfd fp_zero,macptr.domain(arg_z))
 	__(blr)
 
 /* Too big. Heap cons a gcable macptr */
