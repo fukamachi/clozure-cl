@@ -301,15 +301,15 @@
 
 
 
-;;;; Eval and Editor Modes.
-(bind-key "Confirm Eval Input" #k"return" :mode "Eval")
-(bind-key "Previous Interactive Input" #k"meta-p" :mode "Eval")
-(bind-key "Search Previous Interactive Input" #k"meta-P" :mode "Eval")
-(bind-key "Next Interactive Input" #k"meta-n" :mode "Eval")
-(bind-key "Kill Interactive Input" #k"meta-i" :mode "Eval")
-(bind-key "Abort Eval Input" #k"control-meta-i" :mode "Eval")
-(bind-key "Interactive Beginning of Line" #k"control-a" :mode "Eval")
-(bind-key "Reenter Interactive Input" #k"control-return" :mode "Eval")
+;;;; Listener and Editor Modes.
+(bind-key "Confirm Listener Input" #k"return" :mode "Listener")
+(bind-key "Previous Interactive Input" #k"meta-p" :mode "Listener")
+(bind-key "Search Previous Interactive Input" #k"meta-P" :mode "Listener")
+(bind-key "Next Interactive Input" #k"meta-n" :mode "Listener")
+(bind-key "Kill Interactive Input" #k"meta-i" :mode "Listener")
+(bind-key "Abort Eval Input" #k"control-meta-i" :mode "Listener")
+(bind-key "Interactive Beginning of Line" #k"control-a" :mode "Listener")
+(bind-key "Reenter Interactive Input" #k"control-return" :mode "Listener")
 
 (bind-key "Editor Evaluate Expression" #k"control-meta-escape")
 (bind-key "Editor Evaluate Expression" #k"meta-escape"  :mode "Editor")
