@@ -1997,12 +1997,12 @@
                  (integer-gcd-sub n2
                                   (if (> n2 n1)
                                     (rem n2 n1)
-                                    (rem n1 n2)))))))
-    (if (< n1 0) (setq n1 (bignum-abs n1)))
-    (if (< n2 0) (setq n2 (bignum-abs n2)))
-    (if (> n1 n2)
-      (integer-gcd-sub n1 n2)
-      (integer-gcd-sub n2 n1))))
+                                    (rem n1 n2))))))
+           (gcd-larger-smaller (n1 n2)
+             (if (> n1 n2)
+               (integer-gcd-sub n1 n2)
+               (integer-gcd-sub n2 n1))))
+    (with-negated-bignum-buffers n1 n2 gcd-larger-smaller)))
 
 #+fix-later
 (defun %bignum-bignum-gcd (u0 v0)
