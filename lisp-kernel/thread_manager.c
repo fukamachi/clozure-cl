@@ -486,6 +486,7 @@ shutdown_thread_tcr(void *arg)
     
       tsd_set(lisp_global(TCR_KEY), tcr);
       ((void (*)())ptr_from_lispobj(callback_ptr))(1);
+      tsd_set(lisp_global(TCR_KEY), NULL);
     }
 #ifdef DARWIN
     darwin_exception_cleanup(tcr);
