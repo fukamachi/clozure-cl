@@ -20,7 +20,7 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
-  (require "PPC-ARCH" )
+  (require "PPC32-ARCH" )
   (require "PPC-LAPMACROS")
   (require "LISPEQU")
   )

@@ -16,7 +16,7 @@
 
 
 (eval-when (:compile-toplevel :execute)
-  (require "PPC-ARCH")
+  (require "PPC32-ARCH")
   (require "PPC-LAPMACROS"))
 
 (defppclapfunction eql ((x arg_y) (y arg_z))

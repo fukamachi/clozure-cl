@@ -93,7 +93,9 @@
   (dolist (b *known-ppc-backends*)
     (setf (backend-lap-opcodes b) ppc32::*ppc-opcodes*
 	  (backend-p2-dispatch b) *ppc2-specials*
-	  (backend-p2-vinsn-templates b)  *ppc-vinsn-templates*)))
+	  (backend-p2-vinsn-templates b)  *ppc-vinsn-templates*)
+    (or (backend-lap-macros b) (setf (backend-lap-macros b)
+                                     (make-hash-table :test #'equalp)))))
 
 
 

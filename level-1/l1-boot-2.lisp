@@ -146,7 +146,7 @@
       (bin-load-provide "DLL-NODE" "dll-node")
       
       #+ppc-target
-      (bin-load-provide "PPC-ARCH" "ppc-arch")
+      (bin-load-provide "PPC32-ARCH" "ppc32-arch")
       #+sparc-target
       (bin-load-provide "SPARC-ARCH" "sparc-arch")
       (bin-load-provide "VREG" "vreg")

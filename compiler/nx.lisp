@@ -43,7 +43,7 @@
 (eval-when (:load-toplevel :execute :compile-toplevel)
   (require "DLL-NODE")
   #+ppc-target
-  (require "PPC-ARCH")
+  (require "PPC32-ARCH")
   (require "VREG")
   #+ppc-target
   (require "PPC-ASM")

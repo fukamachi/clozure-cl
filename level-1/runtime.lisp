@@ -84,7 +84,7 @@
       (load-provide "NUMBERS" "./binppc/numbers.pfsl")
       (load-provide "HASH" "./binppc/hash.pfsl")
 ;;;   (load-provide "DLL-NODE" "./binppc/dll-node.pfsl")
-;;;   (load-provide "PPC-ARCH" "./binppc/ppc-arch.pfsl")
+;;;   (load-provide "PPC32-ARCH" "./binppc/ppc32-arch.pfsl")
 ;;;   (load-provide "VREG" "./binppc/vreg.pfsl")
 ;;;   (load-provide "PPC-ASM" "./binppc/ppc-asm.pfsl")
 ;;;   (load-provide "VINSN" "./binppc/vinsn.pfsl")

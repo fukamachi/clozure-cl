@@ -49,7 +49,7 @@
 
 
 (defparameter *ppc-compiler-modules*
-      '(ppc-arch
+      '(ppc32-arch
         ppcenv
         ppc-asm
         ppc-vinsns

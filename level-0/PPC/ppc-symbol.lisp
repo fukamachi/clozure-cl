@@ -16,8 +16,8 @@
 
 
 (eval-when (:compile-toplevel :execute)
-  (require "PPC-ARCH" "ccl:compiler;ppc;ppc-arch")
-  (require "PPC-LAPMACROS" "ccl:compiler;ppc;ppc-lapmacros"))
+  (require "PPC32-ARCH")
+  (require "PPC-LAPMACROS"))
 
 ; This assumes that macros & special-operators
 ; have something that's not FUNCTIONP in their

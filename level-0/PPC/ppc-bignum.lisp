@@ -18,7 +18,7 @@
 ;(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
-  (require "PPC-ARCH")
+  (require "PPC32-ARCH")
   (require "PPC-LAPMACROS")
 
   ;; Set RES to 1 if (u< x y), to 0 otherwise.

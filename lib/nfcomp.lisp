@@ -37,7 +37,7 @@
 
 (require "FASLENV" "ccl:xdump;faslenv")
 
-(require "PPC-ARCH")
+(require "PPC32-ARCH")
 ) ;eval-when (:compile-toplevel :execute)
 
 ;File compiler options.  Not all of these need to be exported/documented, but
@@ -1347,7 +1347,7 @@ Will differ from *compiling-file* during an INCLUDE")
 
 
 (defun fasl-unknown (exp)
-  (error "Can't dump ~S - unknown type" exp))
+  (error "Can't dump ~S - unknown type" exp)) 
 
 (defun fasl-out-string (str)
   (fasl-out-size (length str))

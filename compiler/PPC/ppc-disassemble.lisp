@@ -15,7 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "PPC-ARCH")
+  (require "PPC32-ARCH")
   (require "DLL-NODE")
   (require "PPC-ASM")
   (require "PPC-LAP"))

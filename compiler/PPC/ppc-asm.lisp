@@ -16,7 +16,7 @@
 
 
 (cl:eval-when (:compile-toplevel :execute)
-  (ccl::require "PPC-ARCH"))
+  (require "PPC32-ARCH"))
 
 (in-package "PPC32")
 

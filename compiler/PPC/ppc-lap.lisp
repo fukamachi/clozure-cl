@@ -18,7 +18,7 @@
 (in-package :ccl)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "PPC-ARCH")
+  (require "PPC32-ARCH")
   (require "RISC-LAP")
   (require "DLL-NODE")
   (require "PPC-ASM")

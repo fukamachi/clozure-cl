@@ -283,4 +283,4 @@
   #+linuxppc-target #$__NR_sched_yield)
 )
 
-(ccl::provide "PPC-ARCH")
+(provide "PPC32-ARCH")

@@ -35,7 +35,8 @@
   (target-architecture 0 :type fixnum)
   (target-os ())
   (target-arch-name nil :type symbol)
-  (target-foreign-type-data nil :type (or null foreign-type-data)))
+  (target-foreign-type-data nil :type (or null foreign-type-data))
+  (lap-macros nil))
 
 (defmethod print-object ((b backend) s)
   (print-unreadable-object (b s :type t :identity t)

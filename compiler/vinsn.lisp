@@ -886,4 +886,4 @@
     v))
     
 		      
-(ccl::provide "VINSN")
+(provide "VINSN")
