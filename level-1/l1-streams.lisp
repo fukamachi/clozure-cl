@@ -1303,9 +1303,31 @@
   (call-next-method s c)
   (setf (slot-value s 'did-untyi) c))
 
+(defmethod stream-read-char-no-hang ((s echo-stream))
+  (let* ((char (stream-read-char-no-hang (echo-stream-input-stream s))))
+    (unless (eq char :eof)
+      (if (slot-value s 'did-untyi)
+        (setf (slot-value s 'did-untyi) nil)
+        (stream-write-char (echo-stream-output-stream s) char)))
+    char))
+
 (defmethod stream-clear-input ((s echo-stream))
   (call-next-method)
   (setf (slot-value s 'did-untyi) nil))
+
+(defmethod stream-read-byte ((s echo-stream))
+  (let* ((byte (stream-read-byte (echo-stream-input-stream s))))
+    (unless (eq byte :eof)
+      (stream-write-byte (echo-stream-output-stream s) byte))
+    byte))
+
+(defmethod stream-read-line ((s echo-stream))
+  (generic-read-line s))
+
+(defmethod stream-read-vector ((s echo-stream) vector start end)
+  (if (subtypep (stream-element-type s) 'character)
+      (generic-character-read-vector s vector start end)
+    (generic-binary-read-vector s vector start end)))
 
 (defun make-echo-stream (input-stream output-stream)
   (make-instance 'echo-stream
@@ -1341,6 +1363,14 @@
       (unless (eq ch :eof)
 	(return ch)))))
 
+(defmethod stream-read-char-no-hang ((s concatenated-stream))
+  (do* ((c (concatenated-stream-current-input-stream s)
+	   (concatenated-stream-next-input-stream s)))
+       ((null c) :eof)
+    (let* ((ch (stream-read-char-no-hang c)))
+      (unless (eq ch :eof)
+	(return ch)))))
+
 (defmethod stream-read-byte ((s concatenated-stream))
   (do* ((c (concatenated-stream-current-input-stream s)
 	   (concatenated-stream-next-input-stream s)))
@@ -1348,6 +1378,25 @@
     (let* ((b (stream-read-byte c)))
       (unless (eq b :eof)
 	(return b)))))
+
+(defmethod stream-peek-char ((s concatenated-stream))
+  (do* ((c (concatenated-stream-current-input-stream s)
+       (concatenated-stream-next-input-stream s)))
+       ((null c) :eof)
+    (let* ((ch (stream-peek-char c)))
+      (unless (eq ch :eof)
+        (return ch)))))
+
+(defmethod stream-read-line ((s concatenated-stream))
+  (generic-read-line s))
+
+(defmethod stream-read-list ((s concatenated-stream) list count)
+  (generic-character-read-list s list count))
+
+(defmethod stream-read-vector ((s concatenated-stream) vector start end)
+  (if (subtypep (stream-element-type s) 'character)
+      (generic-character-read-vector s vector start end)
+    (generic-binary-read-vector s vector start end)))
 
 (defmethod stream-unread-char ((s concatenated-stream) char)
   (let* ((c (concatenated-stream-current-input-stream s)))
