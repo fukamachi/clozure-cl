@@ -350,7 +350,7 @@
   (note-all-library-methods
    #'(lambda (m c)
        (declare (ignore c))
-       (#+gnu-objc progn #+apple-objc ignore-errors
+       (#+gnu-objc progn #+apple-objc progn
 	 ;; Some libraries seem to have methods with bogus-looking
 	 ;; type signatures
 	 (update-type-signatures-for-method m)))))
@@ -385,11 +385,57 @@
       (when (null =pos)
         (error "Improperly formatted structure typestring: ~S" typestring))
       (escape-foreign-name 
-       (subseq typestring (if (eql (schar typestring 1) #\_) 2 1) =pos)))))
+       (subseq typestring 1 =pos)))))
+
+(defun parse-foreign-struct-or-union-spec (typestring startpos record-class)
+  (flet ((extract-record-name (startpos delimpos)
+	   (unless (and (= delimpos (1+ startpos))
+			(eq (schar typestring startpos) #\?))
+	     (escape-foreign-name (subseq typestring startpos delimpos)))))
+    (let ((=pos (position #\= typestring :start startpos))
+	  (end-char (if (eq record-class :struct) #\} #\))))
+      (if (null =pos)
+	;; It's optional: everything between the delimiters is the record
+	;; name, and no fields are specified.
+	(let* ((end-pos (position end-char typestring :start startpos)))
+	  (if (null end-pos)
+	    (error "Improperly formatted structure/union typestring: ~S"
+		   typestring)
+	    (values `(,record-class ,(extract-record-name startpos end-pos))
+		    (1+ end-pos))))
+	(let* ((record-name (extract-record-name startpos =pos))
+	       (string-stream-start (1+ =pos))
+	       (string-stream
+		(make-string-input-stream typestring string-stream-start)))
+	  (collect ((fields))
+	    (do* ()
+		 ((eql (peek-char nil string-stream) end-char)
+		  (values
+		   (if (and record-name (load-record record-name))
+		     `(,record-class ,record-name)
+		     `(,record-class ,record-name ,@(fields)))
+		   (1+ (string-input-stream-index string-stream))))
+	      (let* ((field-name-string (read string-stream)))
+		(if (eql (peek-char nil string-stream) #\")
+		  (setq field-name-string (read string-stream)))
+		(unless (typep field-name-string 'string)
+		  (error "Bad field name in ~s: expected a quoted string, got ~s"
+			 typestring field-name-string))
+		(multiple-value-bind (typespec endpos)
+		    (objc-foreign-type-for-ivar
+		     typestring
+		     (string-input-stream-index string-stream)
+		     nil)
+		  (fields `(,(escape-foreign-name field-name-string)
+			    ,typespec))
+		  (setf (string-input-stream-index string-stream) endpos))))))))))
+		
 
 
-;;; Return the foreign type spec corresponding to the ObjC type string STR 
-        
+;;; Return the foreign type spec corresponding to the ObjC type string STR.
+;;; Things are encoded differently for instance variables than for method
+;;; arguments.
+
 (defun objc-foreign-arg-type (str)
     (case (schar str 0)
       (#\c :char)
@@ -412,11 +458,75 @@
       (#\^ :address)
       (#\b (error "ObjC BITFIELD not yet supported"))
       (#\[ (error "OjbC ARRAY not yet supported"))
-      (#\{ (extract-foreign-struct-name str))
+      (#\{ `(:struct ,(extract-foreign-struct-name str)))
       (#\( (error "ObjC UNION type not yet supported"))
       (#\? t)
       ((#\r #\R #\o #\O #\n #\N #\V) (objc-foreign-arg-type (subseq str 1)))
       (t (error "Unrecognized ObjC type string: ~S" str))))
+
+;;; Parse the ivar's type string and return a FOREIGN-TYPE object.
+(defun objc-foreign-type-for-ivar
+    (str &optional (startpos 0) (allow-id-name t))
+  (let* ((endpos (1+ startpos))
+	 (startchar (schar str startpos))
+	 (spec 
+	  (case startchar
+	    (#\c :char)
+	    (#\C :unsigned-byte)
+	    (#\s :signed-halfword)
+	    (#\S :unsigned-halfword)
+	    (#\i :signed-fullword)
+	    (#\I :unsigned-fullword)
+	    (#\l :signed-fullword)
+	    (#\L :unsigned-fullword)
+	    (#\q :signed-doubleword)
+	    (#\Q :unsigned-doubleword)
+	    (#\f :single-float)
+	    (#\d :double-float)
+	    (#\v :void)
+	    (#\@ (when allow-id-name
+		   (let* ((nextpos (1+ startpos)))
+		   (if (and (< nextpos (length str))
+			    (eq (schar str nextpos) #\"))
+		     (let* ((end (position #\" str :start (1+ nextpos))))
+		       (unless end
+			 (error "Missing double-quote in ~s" str))
+		       (setq endpos (1+ end))))))
+		 :id)
+	    (#\: :<sel>)
+	    (#\# '(:* (:struct :objc_class)))
+	    (#\* '(:* :char))
+	    (#\^ (multiple-value-bind (type end)
+		     (objc-foreign-type-for-ivar str (1+ startpos) t)
+		   (setq endpos end)
+		   `(:* ,type)))
+	    (#\b (multiple-value-bind (n end)
+		     (parse-integer str :start (1+ startpos) :junk-allowed t )
+		   (setq endpos end)
+		   `(:bitfield ,n)))
+	    (#\[ (multiple-value-bind (size size-end)
+		     (parse-integer str :start (1+ startpos) :junk-allowed t)
+		   (multiple-value-bind (element-type end)
+		       (objc-foreign-type-for-ivar str size-end t)
+		     (unless (eq (schar str end) #\])
+		       (error "No closing ] in array typespec: ~s" str))
+		     (setq endpos (1+ end))
+		     `(:array ,element-type ,size))))
+	    ((#\{ #\()
+	     (multiple-value-bind (type end)
+		 (parse-foreign-struct-or-union-spec
+		  str (1+ startpos) (if (eq startchar #\{)
+				      :struct
+				      :union))
+	       (setq endpos end)
+	       type))
+	    (#\? t)
+	    ((#\r #\R #\o #\O #\n #\N #\V)
+	     (return-from objc-foreign-type-for-ivar
+	       (objc-foreign-type-for-ivar str (1+ startpos) allow-id-name)))
+	    (t (error "Unrecognized ObjC type string: ~S/~d" str startpos)))))
+    (values spec endpos)))
+	 
 
 
 ;;; TRANSLATE-FOREIGN-ARG-TYPE doesn't accept :VOID
