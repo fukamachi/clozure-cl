@@ -557,7 +557,9 @@
 ;;;; Default methods.
 
 (def-foreign-type-method (root :unparse) (type)
-  `(!!unknown-foreign-type!! ,(type-of type)))
+  (if (eq type *void-foreign-type*)
+    :void
+    `(!!unknown-foreign-type!! ,(type-of type))))
 
 (def-foreign-type-method (root :type=) (type1 type2)
   (declare (ignore type1 type2))
@@ -828,7 +830,7 @@
 
 (def-foreign-type-method (pointer :unparse) (type)
   (let ((to (foreign-pointer-type-to type)))
-    `(* ,(if to
+    `(:* ,(if to
 	     (%unparse-foreign-type to)
 	     t))))
 
@@ -1041,8 +1043,8 @@
 
 (def-foreign-type-method (record :unparse) (type)
   `(,(case (foreign-record-type-kind type)
-       (:struct 'struct)
-       (:union 'union)
+       (:struct :struct)
+       (:union :union)
        (t '???))
     ,(foreign-record-type-name type)
     ,@(unless (member type *record-types-already-unparsed* :test #'eq)
@@ -1407,6 +1409,7 @@
   (make-foreign-type :class 'root :bits 0 :alignment 0))
 
 (def-foreign-type void (root))
+(defvar *void-foreign-type* (parse-foreign-type :void)
 (def-foreign-type address (* :void))
 
 (defmacro external (name)
