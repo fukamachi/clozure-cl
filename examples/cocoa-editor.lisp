@@ -534,8 +534,8 @@
   (setf (text-view-blink-color self) color)
   (send-super :set-background-color color))
 
-;;; Maybe cause 1 character in the textview to blink (by setting/clearing a
-;;; temporary attribute) in synch with the insertion point.
+;;; Maybe cause 1 character in the textview to blink (by drawing an empty
+;;; character rectangle) in synch with the insertion point.
 
 (define-objc-method ((:void :draw-insertion-point-in-rect (:<NSR>ect r)
                             :color color
@@ -554,7 +554,7 @@
                     :glyph-range-for-character-range
                     (ns-make-range (text-view-blink-location self) 1)
                     :actual-character-range (%null-ptr))))
-        #+debug (#_NSLog #@"Flag = %d" :<BOOL> (if flag #$YES #$NO))
+        #+debug (#_NSLog #@"Flag = %d, location = %d" :<BOOL> (if flag #$YES #$NO) :int (text-view-blink-location self))
         (if flag
           (slet ((rect (send layout
                              :bounding-rect-for-glyph-range glyph-range
@@ -572,15 +572,19 @@
 (defmethod disable-blink ((self hemlock-textstorage-text-view))
   (when (eql (text-view-blink-enabled self) #$YES)
     (setf (text-view-blink-enabled self) #$NO)
-    (let* ((layout (send self 'layout-manager)))
-      (slet ((glyph-range (send layout
-                                :glyph-range-for-character-range
-                                (ns-make-range (text-view-blink-location self)
-                                              1)
-                                :actual-character-range (%null-ptr))))
-          (send layout
-                :draw-glyphs-for-glyph-range glyph-range
-                :at-point  (send self 'text-container-origin))))))
+    (unwind-protect
+         (progn
+           (send self 'lock-focus)
+           (let* ((layout (send self 'layout-manager)))
+             (slet ((glyph-range (send layout
+                                       :glyph-range-for-character-range
+                                       (ns-make-range (text-view-blink-location self)
+                                                      1)
+                                       :actual-character-range (%null-ptr))))
+                   (send layout
+                         :draw-glyphs-for-glyph-range glyph-range
+                         :at-point  (send self 'text-container-origin)))))
+      (send self 'unlock-focus))))
 
 (defmethod update-blink ((self hemlock-textstorage-text-view))
   (disable-blink self)
@@ -597,7 +601,7 @@
                    (when (hemlock::list-offset temp 1)
                      #+debug (#_NSLog #@"enable blink, forward")
                      (setf (text-view-blink-location self)
-                           (mark-absolute-position temp)
+                           (1- (mark-absolute-position temp))
                            (text-view-blink-enabled self) #$YES))))
                 ((eql (hi::previous-character point) #\))
                  (hi::with-mark ((temp point))
@@ -1811,8 +1815,25 @@
         :center-selection-in-visible-area (%null-ptr)))
 
 
+(defun hi::open-document ()
+  (send (send (find-class 'ns:ns-document-controller)
+              'shared-document-controller)
+        :perform-selector-on-main-thread (@selector "openDocument:")
+        :with-object (%null-ptr)
+        :wait-until-done t))
+  
 (defmethod hi::save-hemlock-document ((self hemlock-editor-document))
-  (send self :save-document (%null-ptr)))
+  (send self
+        :perform-selector-on-main-thread (@selector "saveDocument:")
+        :with-object (%null-ptr)
+        :wait-until-done t))
+
+
+(defmethod hi::save-hemlock-document ((self hemlock-editor-document))
+  (send self
+        :perform-selector-on-main-thread (@selector "saveDocumentAs:")
+        :with-object (%null-ptr)
+        :wait-until-done t))
 
 ;;; This needs to run on the main thread.
 (define-objc-method ((void update-hemlock-selection)
