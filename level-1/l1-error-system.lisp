@@ -90,6 +90,45 @@
                      (type-error-datum c) 
                      (type-error-expected-type c)))))
 
+(define-condition bad-slot-type (type-error)
+  ((slot-definition :initform nil :initarg :slot-definition)
+   (instance :initform nil :initarg :instance))
+  (:report (lambda (c s)
+	     (format s "The value ~s can not be used to set the value of the slot ~s in ~s, because it is not of type ~s. "
+		     (type-error-datum c)
+		     (slot-definition-name (slot-value c 'slot-definition))
+		     (slot-value c 'instance)
+		     (type-error-expected-type c)))))
+
+(define-condition bad-slot-type-from-initform (bad-slot-type)
+  ()
+  (:report (lambda (c s)
+	     (let* ((slotd (slot-value c 'slot-definition)))
+	       (format s "The value ~s, derived from the initform ~s, can not be used to set the value of the slot ~s in ~s, because it is not of type ~s. "
+		     (type-error-datum c)
+		     (slot-definition-initform slotd)
+		     (slot-definition-name slotd)
+		     (slot-value c 'instance)
+		     (type-error-expected-type c))))))
+
+(define-condition bad-slot-type-from-initarg (bad-slot-type)
+  ((initarg-name :initarg :initarg-name))
+  (:report (lambda (c s)
+	     (let* ((slotd (slot-value c 'slot-definition)))
+	       (format s "The value ~s, derived from the initarg ~s, can not be used to set the value of the slot ~s in ~s, because it is not of type ~s. "
+		     (type-error-datum c)
+		     (slot-value c 'initarg-name)
+		     (slot-definition-name slotd)
+		     (slot-value c 'instance)
+		     (type-error-expected-type c))))))
+  
+
+(define-condition improper-list (type-error)
+  ((expected-type :initform '(satisfies proper-list-p) :reader type-error-expected-type)))
+
+
+
+
 (let* ((magic-token '("Unbound")))
   (defmethod type-error-datum ((c type-error))
     (let* ((datum-slot (slot-value c 'datum)))
@@ -844,6 +883,7 @@
 	(cons $xbadkeys 'simple-program-error)
         (cons $xnotfun 'call-special-operator-or-macro)
         (cons $xaccessnth 'sequence-index-type-error)
+	(cons $ximproperlist 'improper-list)
         ))
 
 ; do we like this?
