@@ -2079,18 +2079,11 @@ Bug(ExceptionInformation *xp, const char *format, ...)
   va_list args;
   char s[512];
  
-  if (threads_initialized) {
-    suspend_other_threads();
-  }
-
   va_start(args, format);
   vsnprintf(s, sizeof(s),format, args);
   va_end(args);
   lisp_Debugger(NULL, debug_entry_bug, s);
 
-  if (threads_initialized) {
-    resume_other_threads();
-  }
 }
 
 void
