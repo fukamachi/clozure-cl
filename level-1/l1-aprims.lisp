@@ -542,8 +542,8 @@ terminate the list"
 
 
 (defun %make-displaced-array (dimensions displaced-to
-                                         &optional fill adjustable offset temp-p)
-  (declare (ignore temp-p))
+                                         &optional fill adjustable
+					 offset explicitp)
   (if offset 
     (unless (and (fixnump offset) (>= (the fixnum offset) 0))
       (setq offset (require-type offset '(and fixnum (integer 0 *)))))
@@ -563,6 +563,8 @@ terminate the list"
            (real-offset offset)
            (flags 0))
       (declare (fixnum disp-size rank flags vect-subtype real-offset))
+      (when explicitp
+	(setq flags (bitset $arh_exp_disp_bit flags)))
       (if (not (fixnump new-size))(error "Bad array dimensions ~s." dimensions)) 
       (locally (declare (fixnum new-size))
         ; (when (> (+ offset new-size) disp-size) ...), but don't cons bignums

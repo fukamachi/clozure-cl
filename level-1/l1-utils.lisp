@@ -1419,7 +1419,7 @@ vector
         (error "The ~S array ~S is not of ~S ~S"
                :displaced-to displaced-to :element-type element-type))
       (%make-displaced-array dims displaced-to
-                             fill-pointer adjustable displaced-index-offset))
+                             fill-pointer adjustable displaced-index-offset t))
      (t
       (when displaced-index-offset
         (error "Cannot specify ~S for non-displaced-array" :displaced-index-offset))
