@@ -127,7 +127,7 @@
 	  (%instance-vector
 	   (%class.own-wrapper *standard-effective-slot-definition-class*)
 	   name type initfunction initform initargs allocation
-	   documentation class nil)))
+	   documentation class nil nil nil nil)))
 
 (defmethod class-slots ((class class)))
 (defmethod class-direct-slots ((class class)))
@@ -224,6 +224,13 @@
 
 ;;; Should eventually do something here.
 (defmethod compute-slots ((s structure-class)))
+(defmethod direct-slot-definition-class ((class structure-class) &rest initargs)
+  (declare (ignore initargs))
+  (find-class 'structure-direct-slot-definition))
+
+(defmethod effective-slot-definition-class ((class structure-class) &rest  initargs)
+  (declare (ignore initargs))
+  (find-class 'structure-direct-slot-definition))
 
 
 (defmethod compute-default-initargs ((class std-class))
@@ -557,25 +564,7 @@
         ,@(when initfunction `(:initfunction ,initfunction :initform ',initform))
         :type ,(or type t)))))
 
-(defun %defclass (class-name superclasses instance-slotds class-slotds doc
-                  default-initargs metaclass
-                  &key primary-p)
-  (let* ((ensure-class-args
-          (list  class-name
-                :direct-superclasses (if superclasses (copy-list superclasses)
-                                       (list 'standard-object))
-                :direct-slots
-                (append (mapcar #'(lambda (s) (slot-plist-from-%slotd s :instance)) instance-slotds)
-                        (mapcar #'(lambda (s) (slot-plist-from-%slotd s :class)) class-slotds)))))
-    (when doc
-      (setq ensure-class-args (nconc ensure-class-args `(:documentation ,doc))))
-    (when default-initargs
-      (setq ensure-class-args (nconc ensure-class-args `(:direct-default-initargs ,default-initargs))))
-    (when metaclass
-      (setq ensure-class-args (nconc ensure-class-args `(:metaclass ,metaclass))))
-    (when primary-p
-      (setq ensure-class-args (nconc ensure-class-args `(:primary-p ,primary-p))))
-    (apply #'ensure-class ensure-class-args)))
+
 
 
 (defmethod method-slot-name ((m standard-accessor-method))
@@ -916,6 +905,8 @@
  :direct-superclasses '(slot-definition)
 )
 
+
+
 (%ensure-class-preserving-wrapper
  'standard-direct-slot-definition
  :direct-superclasses '(standard-slot-definition direct-slot-definition)
@@ -955,6 +946,14 @@
 (defclass compile-time-class (class) ())
 
 
+(defclass structure-slot-definition (slot-definition) ())
+(defclass structure-effective-slot-definition (structure-slot-definition
+					       effective-slot-definition)
+    ())
+
+(defclass structure-direct-slot-definition (structure-slot-definition
+					    direct-slot-definition)
+    ())
 
 (defmethod shared-initialize :after ((class structure-class)
                                      slot-names
@@ -986,7 +985,20 @@
                                      
 ; Called from DEFSTRUCT expansion.
 (defun %define-structure-class (sd)
-  (ensure-class (sd-name sd) :metaclass 'structure-class :direct-superclasses (list (or (cadr (sd-superclasses sd)) 'structure-object))))
+  (let* ((dslots ()))
+    (dolist (ssd (cdr (sd-slots sd)) (setq dslots (nreverse dslots)))
+      (let* ((type (ssd-type ssd))
+	     (refinfo (ssd-refinfo ssd)))
+	(unless (logbitp $struct-inherited refinfo)
+	  (let* ((name (ssd-name ssd))
+		 (initform (cadr ssd))
+		 (initfunction (constantly initform)))
+	    (push `(:name ,name :type ,type :initform ,initform :initfunction ,initfunction) dslots)))))
+    (ensure-class (sd-name sd)
+		  :metaclass 'structure-class
+		  :direct-superclasses (list (or (cadr (sd-superclasses sd)) 'structure-object))
+		  :direct-slots #+not-yet dslots #-not-yet nil
+		  )))
 
 
 
