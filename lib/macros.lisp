@@ -2901,3 +2901,34 @@
              (unwind-protect
                (progn (psetq ,@(nreverse psetform)) ,@body)
                (psetq ,@(nreverse restoreform)))))))))
+;;; From CLX.
+
+;;; The good news is that this uses an interlocked load/store sequence
+;;; and is fairly efficient.
+;;; The bad news is that it only handles a few types of "place" forms.
+;;; The good news is that CLX only uses a few types of "place" forms.
+
+(defmacro conditional-store (place old-value new-value &environment env)
+  (setq place (macroexpand place env))
+  (if (atom place)
+    ;; CLX uses special variables' value cells as place forms.
+    (if (and (symbolp place)
+             (eq :special (ccl::variable-information place env)))
+      (let* ((base (gensym))
+             (offset (gensym)))
+        `(multiple-value-bind (,base ,offset)
+          (ccl::%symbol-binding-address ',place)
+          (ccl::%store-node-conditional ,offset ,base ,old-value ,new-value)))
+      (error "~s is not a special variable ." place))
+    (let* ((sym (car place))
+           (struct-transform (or (ccl::environment-structref-info sym env)
+                                 (gethash sym ccl::%structure-refs%))))
+      (if struct-transform
+        (setq place (ccl::defstruct-ref-transform struct-transform (cdr place))
+              sym (car place)))
+      (if (member  sym '(svref ccl::%svref ccl::struct-ref))
+        (let* ((v (gensym)))
+          `(let* ((,v ,(cadr place)))
+            (ccl::store-gvector-conditional ,(caddr place)
+             ,v ,old-value ,new-value)))
+        (error "Don't know how to do conditional store to ~s" place)))))
