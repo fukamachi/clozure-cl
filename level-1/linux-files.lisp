@@ -627,8 +627,6 @@
         (signal-semaphore (external-process-completed p))
         (return))
       (if in-fd
-        (progn
-          (format t "~& waiting for input")
         (when (fd-input-available-p in-fd *ticks-per-second*)
           (%stack-block ((buf 1024))
             (let* ((n (fd-read in-fd buf 1024)))
@@ -642,7 +640,7 @@
                 (let* ((string (make-string 1024)))
                   (declare (dynamic-extent string))
                   (%copy-ptr-to-ivector buf 0 string 0 n)
-                  (write-sequence string out-stream :end n))))))))
+                  (write-sequence string out-stream :end n)))))))
       (let* ((statusflags (check-pid (external-process-pid p)
                                      (logior
                                       (if in-fd #$WNOHANG 0)
