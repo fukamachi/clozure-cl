@@ -231,10 +231,17 @@
    :option-char #\h
    :long-name "help"))
 
+(defvar *standard-version-argument*
+  (make-command-line-argument
+   :keyword :version
+   :help-string "print (LISP-APPLICATION-VERSION) and exit"
+   :option-char #\V
+   :long-name "version"))
+
 (defclass application ()
     ((command-line-arguments
       :initform
-      (list *standard-help-argument*))))
+      (list *standard-help-argument* *standard-version-argument*))))
        
 			     
 (defun %usage-exit (banner exit-status other-args)
@@ -306,7 +313,12 @@
   (declare (ignore args))
   (if (null error-flag)
     (if (assoc :help opts)
-      (%usage-exit "" 0 (summarize-option-syntax a)))
+      (%usage-exit "" 0 (summarize-option-syntax a))
+      (if (assoc :version opts)
+	(progn
+	  (format t "~&~a~&" (application-version-string a))
+	  (force-output t)
+	  (#_exit 0))))
     (%usage-exit
      (format nil
 	     (case error-flag
@@ -326,6 +338,15 @@
       (parse-application-arguments a)
     (process-application-arguments a error-flag options args)))
 
+(defmethod application-version-string ((a application))
+  "Return a string which (arbitrarily) represents the application version.
+Default version returns OpenMCL version info."
+  (format nil "~&~d.~d~@[.~d~]~@[-~a~]~&"
+	  *openmcl-major-version*
+	  *openmcl-minor-version*
+	  (unless (zerop *openmcl-revision*)
+	    *openmcl-revision*)
+	  *openmcl-suffix*))
 
 
 (defun find-restart-in-process (name p)
@@ -355,32 +376,33 @@
   ((command-line-arguments
     :initform
     (list *standard-help-argument*
-		       (make-command-line-argument
-			:option-char #\n
-			:long-name "no-init"
-			:keyword :noinit
-			:help-string "suppress loading of init file")
-		       (make-command-line-argument
-			:option-char #\e
-			:long-name "eval"
-			:keyword :eval
-			:help-string "evaluate <form> (may need to quote <form> in shell)"
-			:may-take-operand t
-			:allow-multiple t)
-		       (make-command-line-argument
-			:option-char #\l
-			:long-name "load"
-			:keyword :load
-			:help-string "load <file>"
-			:may-take-operand t
-			:allow-multiple t)
-		       (make-command-line-argument
-			:option-char #\T
-			:long-name "set-lisp-heap-gc-threshold"
-			:help-string "set lisp-heap-gc-threshold to <n>"
-			:keyword :gc-threshold
-			:may-take-operand t
-			:allow-multiple nil)))))
+	  *standard-version-argument*
+	  (make-command-line-argument
+	   :option-char #\n
+	   :long-name "no-init"
+	   :keyword :noinit
+	   :help-string "suppress loading of init file")
+	  (make-command-line-argument
+	   :option-char #\e
+	   :long-name "eval"
+	   :keyword :eval
+	   :help-string "evaluate <form> (may need to quote <form> in shell)"
+	   :may-take-operand t
+	   :allow-multiple t)
+	  (make-command-line-argument
+	   :option-char #\l
+	   :long-name "load"
+	   :keyword :load
+	   :help-string "load <file>"
+	   :may-take-operand t
+	   :allow-multiple t)
+	  (make-command-line-argument
+	   :option-char #\T
+	   :long-name "set-lisp-heap-gc-threshold"
+	   :help-string "set lisp-heap-gc-threshold to <n>"
+	   :keyword :gc-threshold
+	   :may-take-operand t
+	   :allow-multiple nil)))))
 
 (defparameter *application*
   (make-instance 'lisp-development-system))
