@@ -1099,4 +1099,17 @@ output to *verbose-out*.  Returns the shell's exit code."
   
   (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*))
 
+#+openmcl
+(when (boundp 'ccl::*module-provider-functions*)  ;; openmcl 0.14.1 and newer
+  (defun module-provide-asdf (module)
+    (handler-bind ((style-warning #'muffle-warning))
+                  (let* ((*verbose-out* (make-broadcast-stream))
+                         (system (asdf:find-system module nil)))
+                    (when system
+                      (asdf:operate 'asdf:load-op module)
+                      t))))
+
+  (pushnew 'module-provide-asdf ccl::*module-provider-functions*))
+
+
 (provide 'asdf)
