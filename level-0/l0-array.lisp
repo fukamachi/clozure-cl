@@ -531,8 +531,8 @@
                 (t ppc32::subtag-simple-vector))))
        (float
         (case (numeric-ctype-format ctype)
-          (double-float ppc32::subtag-double-float-vector)
-          (short-float ppc32::subtag-single-float-vector)
+          ((double-float long-float) ppc32::subtag-double-float-vector)
+          ((single-float short-float) ppc32::subtag-single-float-vector)
           (t ppc32::subtag-simple-vector)))
        (t ppc32::subtag-simple-vector)))
     (t ppc32::subtag-simple-vector)))
