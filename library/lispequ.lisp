@@ -232,7 +232,8 @@
   bt.youngest
   bt.oldest
   bt.tcr
-  bt.restarts)
+  bt.restarts
+  bt.top-catch)
 
 (defconstant bt.sg bt.tcr)
 (setf (macro-function 'bt.sg) (macro-function 'bt.tcr))
