@@ -1304,7 +1304,7 @@ do_tenured_space_write(ExceptionInformation *xp, protected_area_ptr area, BytePt
 OSStatus
 handle_sigfpe(ExceptionInformation *xp, TCR *tcr)
 {
-  (void) zero_fpscr();
+  (void) zero_fpscr(tcr);
   enable_fp_exceptions();
 
 

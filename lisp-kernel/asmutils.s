@@ -92,7 +92,10 @@ _endfn
    zero the fpscr in its exception context.
 */
 _exportfn(C(zero_fpscr))
+	__(mr r4,r2)
+	__(mr r2,r3)
 	__(uuo_zero_fpscr())
+	__(mr r2,r4)
 	__(blr)
 _endfn
 	
