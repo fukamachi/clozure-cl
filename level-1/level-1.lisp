@@ -78,11 +78,9 @@
   (provide "CHARS")
   (provide "LISTS")
   (provide "DLL-NODE")
-  #+ppc-target
   (l1-load "ppc-threads-utils")
-  #+sparc-target
-  (l1-load "sparc-stack-groups")
   (l1-load "l1-lisp-threads")
+  (l1-load "l1-application")
   (l1-load "l1-processes")
   (l1-load "l1-io")
   (l1-load "l1-reader")
@@ -92,10 +90,7 @@
   (l1-load "l1-error-system")
 
   (l1-load "l1-events")
-  #+ppc-target
   (l1-load "ppc-trap-support")
-  #+sparc-target
-  (l1-load "sparc-trap-support")
   (l1-load "l1-format")
   (l1-load "l1-sysio")
   (l1-load "l1-pathnames")
