@@ -879,99 +879,88 @@ instance_size of its ObjC superclass."))
 (defclass objc-method (standard-method) ())
 
 
-;;; Return the generic function name and lambda list corresponding to
-;;; a given ObjC MSG
-;;; NOTE: Gary wants to handle "init..." messages specially
+;;; Return the generic function name, lambda list and keywords corresponding 
+;;; to a given ObjC MSG
 
 (defun gfify (msg)
-  (let ((mcomps (split-if-char #\: msg :elide)))
-    (values
-     (compute-lisp-name (first mcomps) (find-package "NS"))
-     (case (count #\: msg)
-       (0 '(self))
-       (1 '(self arg))
-       (t `(self arg &key ,@(mapcar #'compute-lisp-name (rest mcomps))))))))
+  (let* ((mcomps (split-if-char #\: msg :elide))
+	 (ncolons (count #\: msg))
+	 (prefix (if (zerop ncolons) "@" "")))
+    (values (compute-lisp-name 
+	     (if (zerop ncolons)
+		 (string-cat prefix (first mcomps))
+	       (first mcomps))
+	     (find-package "NS"))
+	    (if (zerop ncolons) '(self) '(self arg &key))
+	    (mapcar #'compute-lisp-name (rest mcomps)))))
+
+
+;;; Special dcode for ObjC generic functions
+;;; Currently, the list of keywords is used as the qualifier for an ObjC method
+;;; This dcode just scans the list of methods looking for one whose qualifer
+;;; matches the keywords in this call
+
+(defun %%objc-dcode (dt args)
+  (flet ((invoke-method (largs)
+	   (multiple-value-bind (keys vals) (keys-and-vals (cddr largs))
+	     (declare (ignore vals))
+	     (dolist (m (%gf-dispatch-table-methods dt))
+	       (when (equal (method-qualifiers m) keys)
+		 (return-from %%objc-dcode (apply (method-function m) largs))))
+	     (apply #'no-applicable-method (%gf-dispatch-table-gf dt) largs))))
+    ;; If only on arg is present, args is apparently not encoded
+    (if (numberp args)
+	(with-list-from-lexpr (l args) (invoke-method l))
+      (invoke-method (list args)))))
 
 
 ;;; Ensure that the generic function corresponding to MSG exists
 
 (defun ensure-objc-generic-function (msg)
   (multiple-value-bind (gf-name lambda-list) (gfify msg)	    
-    (when (and (fboundp gf-name) (generic-function-p (symbol-function gf-name)))
-      (setq lambda-list 
-	    (generalize-lambda-list
-	     (generic-function-lambda-list (symbol-function gf-name))
-	     lambda-list)))
-    (ensure-generic-function
-     gf-name
-     :lambda-list lambda-list
-     :generic-function-class (find-class 'objc-generic-function)
-     :method-class (find-class 'objc-method))))
-
-
-;;; Generalize a lambda list of an existing objc generic function to be
-;;; consistent with a new lambda list
-
-(defun generalize-lambda-list (oldll newll)
-  (if (equal oldll newll) 
-      oldll
-    (let (req opt keys)
-      (multiple-value-bind (reqold optold keysold) 
-			   (parse-objc-gf-lambda-list oldll)
-        (multiple-value-bind (reqnew ignore keysnew) (parse-objc-gf-lambda-list newll)
-	  (declare (ignore ignore))
-	  (setq opt optold)
-	  (if (/= (length reqold) (length reqnew))
-	      (setq req '(self) opt '(arg))
-	    (setq req reqold))
-	  (setq keys (union keysold keysnew))
-	  `(,@req ,@(when opt (cons '&optional opt)) ,@(when keys (cons '&key keys))))))))
-
-(defun parse-objc-gf-lambda-list (ll)
-  (let ((optpos (position '&optional ll :test #'eq))
-	(keypos (position '&key ll :test #'eq)))
-    (values
-     (subseq ll 0 (or optpos keypos))
-     (if optpos (subseq ll (1+ optpos) keypos))
-     (if keypos (subseq ll (1+ keypos))))))
+    (let ((gf (ensure-generic-function
+	       gf-name
+	       :lambda-list lambda-list
+	       :generic-function-class (find-class 'objc-generic-function)
+	       :method-class (find-class 'objc-method))))
+      (setf (%gf-dcode gf) #'%%objc-dcode)
+      gf)))
 
 
 ;;; Ensure that the method corresponding to CLASS's method for MSG exists
 
-(defun ensure-objc-method (msg class)
-  (multiple-value-bind (gf-name lambda-list) (gfify msg)
-    (let* ((keypos (position '&key lambda-list :test #'eq))
-	   (required-args (subseq lambda-list 0 keypos))
-	   (keyword-args 
-	    (if keypos (subseq lambda-list (1+ keypos)) nil)))
-      (ensure-objc-generic-function msg)
-      (ensure-method 
-       gf-name 
-       (cons (class-name class)
-	     (make-list (1- (length required-args)) :initial-element t))
-       :function
-       (compile nil
-	 `(lambda ,lambda-list 
-	    ,(case (length lambda-list)
-	       (1 `(send self ,msg))
-	       (2 `(send self ,msg arg))
-	       (t `(send self ,msg arg ,@(append keyword-args '(&allow-other-keys)))))))
-       :qualifiers nil
-       :lambda-list lambda-list))))
+(defun ensure-objc-method (msg &optional 
+			       (class (find-class 'objc:objc-object)))
+  (flet ((keywordify (sym)
+           (intern (string sym) (find-package 'keyword))))
+    (multiple-value-bind (gf-name lambda-list keys) (gfify msg)
+      (let* ((ncolons (count #\: msg))
+	     (class-name (class-name class))
+	     (gf (ensure-objc-generic-function msg))
+	     (lambda-list (append lambda-list keys))
+	     (m
+	      (ensure-method
+	       gf-name
+	       (if (zerop ncolons) (list class-name) (list class-name t))
+	       :function
+	       (compile nil
+			`(lambda ,lambda-list
+			   ,(case ncolons
+				  (0 `(send self ,msg))
+				  (1 `(send self ,msg arg))
+				  (t `(send self ,msg arg ,@keys)))))
+	       :qualifiers (mapcar #'keywordify keys)
+	       :lambda-list lambda-list)))
+	(setf (%gf-dcode gf) #'%%objc-dcode)
+	m))))
 
 
 ;;; Someday, this might even work...
 
-(defun define-all-objc-gfs ()
+(defun define-all-objc-methods ()
   (declare (special *type-signature-table*))
   (maphash #'(lambda (msg ignore) 
 	       (declare (ignore ignore))
-	       (ensure-objc-generic-function msg))
+	       (ensure-objc-method msg))
 	   *type-signature-table*))
 
-
-;;; ISSUES
-;;;  - Generic function conflicts
-;;;  - Currently invokes compiler
-;;;  - How to handle messages requiring STRETs?
-;;;  - How to handle variable arity messages?
