@@ -197,7 +197,6 @@
   (refresh-external-entrypoints)
   (dolist (f (reverse *lisp-system-pointer-functions*))
     (funcall f))
-  (setq *foreground* t)                 ; Necessary if you save a world under MultiFinder and run it in UniFinder.
   (let ((restore-lisp-fns *restore-lisp-functions*)
         (user-pointer-fns *lisp-user-pointer-functions*)
         (lisp-startup-fns *lisp-startup-functions*))
