@@ -1581,7 +1581,7 @@
                            (loop (when (null tail) (return nil))
 			       (setq key (pop tail)
 				     val (pop tail))
-			     (push ``(,',key ,,(make-initfunction val) ,',val) canonical))
+			     (push ``(,',key ,',val  ,,(make-initfunction val)) canonical))
                            `(':direct-default-initargs (list ,@(nreverse canonical))))))
                    (:metaclass
                     (unless (and (cadr option)
@@ -2596,16 +2596,9 @@
 	   (progn ,@body)
 	(%restore-terminal-input ,got-it)))))
 
-(defmacro do-unexhausted-lisp-threads ((thread) &body body)
-  `(dolist (,thread (population-data *lisp-thread-population*))
-    (unless (thread-exhausted-p ,thread)
-      ,@body)))
 
-(defmacro do-inactive-lisp-threads ((thread) &body body)
-  (let* ((current (gensym)))
-    `(let* ((,current *current-lisp-thread*))
-      (do-unexhausted-lisp-threads (,thread)
-	(unless (eq ,thread ,current) ,@body)))))
+
+
 
 (defmacro %with-recursive-lock-ptr ((lockptr) &body body)
   `(unwind-protect
