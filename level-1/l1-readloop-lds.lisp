@@ -230,11 +230,13 @@ whose name or ID matches <p>, or to any process if <p> is null"
     `(defparameter ,@(cdr form))
     form))
 
-(defun toplevel-eval (form &optional env &aux values)
-   (declare (resident))
+(defun toplevel-eval (form &optional env)
   (setq +++ ++ ++ + + - - form)
-  (setq values (multiple-value-list (cheap-eval-in-environment form env)))
-  values)
+  (let* ((package *package*)
+         (values (multiple-value-list (cheap-eval-in-environment form env))))
+    (unless (eq package *package*)
+      (application-ui-operation *application* :note-package *package*))
+    values))
 
 (defun toplevel-print (values)
   (declare (resident))
