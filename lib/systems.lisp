@@ -83,7 +83,7 @@
  (l1-lisp-threads  "ccl:l1f;l1-lisp-threads"  ("ccl:l1;l1-lisp-threads.lisp"))
  (l1-sockets       "ccl:l1f;l1-sockets"       ("ccl:l1;l1-sockets.lisp"))
  (ppc-threads-utils "ccl:l1f;ppc-threads-utils" ("ccl:l1;ppc-threads-utils.lisp"))
- (sparc-stack-groups "ccl:l1f;sparc-stack-groups" ("ccl:l1;sparc-stack-groups.lisp"))
+ (l1-application   "ccl:l1f;l1-application"   ("ccl:l1;l1-application.lisp"))
  (l1-processes     "ccl:l1f;l1-processes"     ("ccl:l1;l1-processes.lisp"))
  #+interfaces-2
  (l1-traps         "ccl:l1f;l1-traps"         ("ccl:l1;l1-traps.lisp"))

@@ -36,7 +36,7 @@
     l1-format l1-readloop l1-reader
     l1-sysio l1-pathnames l1-events
     l1-boot-lds  l1-readloop-lds 
-    l1-lisp-threads  l1-processes
+    l1-lisp-threads  l1-application l1-processes
     l1-typesys sysutils l1-error-system
     l1-error-signal version l1-callbacks
     l1-sockets
