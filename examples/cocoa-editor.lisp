@@ -4,7 +4,8 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "COCOA-WINDOW"))
+  (require "COCOA-WINDOW")
+  (require "HEMLOCK-TEXTSTORAGE"))
 
 (declaim
   (special *open-editor-documents* *open-editor-documents-lock*)
