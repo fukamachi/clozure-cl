@@ -162,11 +162,11 @@
   (la imm1 ppc32::misc-data-offset imm1)
   (beq @missing)
   @have-scaled-table-index
-  (lwz temp1 'class nfn)
-  (lwzx arg_y temp0 imm1)
-  (lwz nfn '%maybe-std-setf-slot-value-using-class nfn)
+  (ldr temp1 'class nfn)
+  (ldrx arg_y temp0 imm1)
+  (ldr nfn '%maybe-std-setf-slot-value-using-class nfn)
   (set-nargs 4)
-  (lwz temp0 ppc32::misc-data-offset nfn)
+  (svref temp0 0 nfn)
   (vpush temp1)
   (mtctr temp0)
   (bctr)
@@ -176,3 +176,45 @@
   (lwz temp0 ppc32::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
+
+(defparameter *gf-proto*
+  (nfunction
+   gag
+   (lambda (&lap &lexpr args)
+     (ppc-lap-function 
+      gag 
+      ()
+      (mflr loc-pc)
+      (vpush-argregs)
+      (vpush nargs)
+      (add imm0 vsp nargs)
+      (la imm0 4 imm0)                  ; caller's vsp
+      (bla .SPlexpr-entry)
+      (mtlr loc-pc)                     ; return to kernel
+      (mr arg_z vsp)                    ; lexpr
+      (svref arg_y gf.dispatch-table nfn) ; dispatch table
+      (set-nargs 2)
+      (svref nfn gf.dcode nfn)		; dcode function
+      (lwz temp0 ppc32::misc-data-offset nfn)
+      (mtctr temp0)
+      (bctr)))))
+
+(defppclapfunction funcallable-trampoline ()
+  (svref nfn gf.dcode nfn)
+  (svref temp0 0 nfn)
+  (mtctr temp0)
+  (bctr))
+
+
+(defppclapfunction unset-fin-trampoline ()
+  (mflr loc-pc)
+  (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
+  (vpop arg_z)                          ; whoops, didn't really want to
+  (bla .SPsavecontextvsp)
+  (lwz arg_x '"Funcallable instance ~S was called with args ~s, but has no FUNCALLABLE-INSTANCE-FUNCTION" fn)
+  (mr arg_y fn)
+  (set-nargs 3)
+  (ldr fname 'error fn)
+  (bla .SPrestorecontext)
+  (mtlr loc-pc)
+  (ba .SPjmpsym))
