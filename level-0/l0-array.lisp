@@ -144,7 +144,7 @@
     (if (and (= typecode ppc32::subtag-vectorH)
              (logbitp $arh_fill_bit (the fixnum (%svref array ppc32::vectorH.flags-cell))))
       (%svref array ppc32::vectorH.logsize-cell)
-      (%err-disp $XNOFILLPTR array))))
+      (report-bad-arg array '(satisfies array-has-fill-pointer-p)))))
 
 (defun set-fill-pointer (array value)
   (let* ((typecode (typecode array)))
