@@ -1264,7 +1264,7 @@
 
 (defun %foreign-type-or-record (type)
   (if (consp type)
-    (%parse-foreign-type type)
+    (parse-foreign-type type)
     (or (info-foreign-type-struct type)
         (info-foreign-type-union type)
         (load-record type)
