@@ -617,28 +617,6 @@
 
 
 
-(defun watch-fd-output (in-fd out-stream token)
-  (incf (car token))
-  (let* ((handler ()))
-    (setq handler
-	  #'(lambda ()
-	      (when (fd-input-available-p in-fd 0)
-		(%stack-block ((buf 1024))
-		  (let* ((n (fd-read in-fd buf 1024)))
-		    (declare (fixnum n))
-		    (if (<= n 0)
-		      (progn
-			(remove-watched-fd-handler handler)
-			(without-interrupts
-			 (decf (car token))
-			 (fd-close in-fd)))
-		      (let* ((string (make-string 1024)))
-			(declare (dynamic-extent string))
-			(%copy-ptr-to-ivector buf 0 string 0 n)
-			(write-sequence string out-stream :end n))))))))
-    (add-watched-fd-handler handler))
-  nil)
-
 (defun monitor-external-process (p)
   (let* ((in-fd (external-process-watched-fd p))
          (out-stream (external-process-watched-stream p))
@@ -655,7 +633,6 @@
           (%stack-block ((buf 1024))
             (let* ((n (fd-read in-fd buf 1024)))
               (declare (fixnum n))
-              (format t "~& n bytes available")
               (if (<= n 0)
                 (progn
                   (without-interrupts
