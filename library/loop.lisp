@@ -152,7 +152,7 @@
 (defun loop-gentemp (&optional (pref 'loopvar-))
   (if *loop-gentemp*
       (gentemp (string pref))
-      (gensym)))
+      (gensym (string pref))))
 
 
 
@@ -1926,7 +1926,7 @@ collected result will be returned as the value of the LOOP."
 		((eq prep :upfrom) (setq dir ':up)))
 	  (multiple-value-setq (form start-constantp start-value)
 	    (loop-constant-fold-if-possible form indexv-type))
-	  (loop-make-iteration-variable indexv form indexv-type))
+	  (setq indexv (loop-make-iteration-variable indexv form indexv-type)))
 	 ((:upto :to :downto :above :below)
 	  (cond ((loop-tequal prep :upto) (setq inclusive-iteration (setq dir ':up)))
 		((loop-tequal prep :to) (setq inclusive-iteration t))
