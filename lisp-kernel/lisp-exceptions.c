@@ -1785,164 +1785,6 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
       adjust_exception_pc(xp, 4);
       return(noErr);
     }
-
-    if ((the_trap & OP_MASK) == OP(major_opcode_TWI)) {
-      /* TWI.  If the RA field is "nargs", that means that the
-         instruction is either a number-of-args check or an
-         event-poll.  Otherwise, the trap is some sort of
-         typecheck. */
-
-      if (RA_field(the_trap) == nargs) {
-        fn_reg = nfn;
-        switch (TO_field(the_trap)) {
-        case TO_NE:
-          error_msg = ( (xpGPR(xp, nargs) < D_field(the_trap))
-                       ? "Too few arguments (no opt/rest)"
-                       : "Too many arguments (no opt/rest)" );
-          break;
-       
-        case TO_GT:
-          error_msg = "Event poll !";
-          break;
-
-        case TO_HI:
-          error_msg = "Too many arguments (with opt)";
-          break;
-	
-        case TO_LT:
-          error_msg = "Too few arguments (with opt/rest/key)";
-          break;
-	
-        default:                /* some weird trap, not ours. */
-          fn_reg = 0;
-          break;
-        }
-      } else {
-        /* A type or boundp trap of some sort. */
-        switch (TO_field(the_trap)) {
-        case TO_EQ:
-          /* Boundp traps are of the form:
-             tweqi rX,unbound
-             where some preceding instruction is of the form:
-             lwz rX,symbol.value(rY).
-             The error message should try to say that rY is unbound. */
-
-          if (D_field(the_trap) == unbound) {
-            instr = scan_for_instr(LWZ_instruction(RA_field(the_trap),
-                                                   unmasked_register,
-                                                   offsetof(lispsymbol,vcell)-fulltag_misc),
-                                   D_RT_IMM_MASK,
-                                   where);
-            if (instr) {
-              ra = RA_field(instr);
-              if (lisp_reg_p(ra)) {
-                error_msg = "Unbound variable: %s";
-                (void)symbol_name( xpGPR(xp, ra), name, kNameBufLen );
-                err_arg1 = (unsigned)name;
-                fn_reg = fn;
-              }
-            }
-          }
-          break;
-
-        case TO_NE:
-          /* A type check.  If the type (the immediate field of the trap instruction)
-             is a header type, an "lbz rX,misc_header_offset(rY)" should precede it,
-             in which case we say that "rY is not of header type <type>."  If the
-             type is not a header type, then rX should have been set by a preceding
-             "clrlwi rX,rY,29/30".  In that case, scan backwards for an RLWINM instruction
-             that set rX and report that rY isn't of the indicated type. */
-          err_arg2 = D_field(the_trap);
-          if (((err_arg2 & fulltagmask) == fulltag_nodeheader) ||
-              ((err_arg2 & fulltagmask) == fulltag_immheader)) {
-            instr = scan_for_instr(LBZ_instruction(RA_field(the_trap),
-                                                   unmasked_register,
-                                                   misc_subtag_offset),
-                                   D_RT_IMM_MASK,
-                                   where);
-            if (instr) {
-              ra = RA_field(instr);
-              if (lisp_reg_p(ra)) {
-                error_msg = "value %08X is not of the expected header type %02X";
-                err_arg1 = xpGPR(xp, ra);
-                fn_reg = fn;
-              }
-            }
-          } else {		
-            /* Not a header type, look for rlwinm whose RA field matches the_trap's */
-            instr = scan_for_instr((OP(major_opcode_RLWINM) | (the_trap & RA_MASK)),
-                                   (OP_MASK | RA_MASK),
-                                   where);
-            if (instr) {
-              rs = RS_field(instr);
-              if (lisp_reg_p(rs)) {
-                error_msg = "value %08X is not of the expected type %02X";
-                err_arg1 = xpGPR(xp, rs);
-                fn_reg = fn;
-              }
-            }
-          }
-          break;
-        }
-      }
-    } else {
-      /* a "TW <to>,ra,rb" instruction."
-         twltu sp,rN is stack-overflow on SP.
-         twgeu rX,rY is subscript out-of-bounds, which was preceded
-         by an "lwz rM,misc_header_offset(rN)" instruction.
-         rM may or may not be the same as rY, but no other header
-         would have been loaded before the trap. */
-      switch (TO_field(the_trap)) {
-      case TO_LO:
-        if (RA_field(the_trap) == sp) {
-          fn_reg = fn;
-          error_msg = "Stack overflow! Run away! Run away!";
-        }
-        break;
-
-      case (TO_HI|TO_EQ):
-        instr = scan_for_instr(OP(major_opcode_LWZ) | (D_MASK & misc_header_offset),
-                               (OP_MASK | D_MASK),
-                               where);
-        if (instr) {
-          ra = RA_field(instr);
-          if (lisp_reg_p(ra)) {
-            error_msg = "Bad index %d for vector %08X length %d";
-            err_arg1 = unbox_fixnum(xpGPR(xp, RA_field(the_trap)));
-            err_arg2 = xpGPR(xp, ra);
-            err_arg3 = unbox_fixnum(xpGPR(xp, RB_field(the_trap)));
-            fn_reg = fn;
-          }
-        }
-        break;
-      }
-    }
-  
-
-    if (!error_msg) {
-      return -1;
-    }
-
-    fprintf( stderr, "\nError: ");
-    fprintf( stderr, error_msg, err_arg1, err_arg2, err_arg3 );
-    fprintf( stderr, "\n");
-    if (fn_reg && exception_fn_name( xp, fn_reg, name, kNameBufLen )) {
-      fprintf( stderr, "While executing: %s.\n", name );
-    }
-    fflush( stderr );
-    switch( error_action() ) {
-    case kDebugger:
-      return(-1);
-      break;
-    case kContinue:
-      adjust_exception_pc(xp, 4);
-      return(noErr);
-      break;
-    case kExit:
-    default:
-      terminate_lisp();
-      break;
-    }
     return -1;
   }
 }
@@ -1966,47 +1808,6 @@ scan_for_instr( unsigned target, unsigned mask, pc where )
   return 0;
 }
 
-/* Copy function name to name & terminate, return # chars */
-size_t
-exception_fn_name( ExceptionInformation *xp, int fn_reg, char *name, size_t name_len )
-{
-  unsigned the_fn = xpGPR(xp, fn_reg);
-
-  if ((fulltag_of(the_fn) != fulltag_misc) ||
-      (header_subtag(header_of(the_fn)) != subtag_function)) {
-    non_fatal_error( "exception_fn_name: bogus fn" );
-    name[0] = 0;
-    return 0;
-  }
-
-  if (named_function_p(the_fn)) {
-    unsigned the_sym = named_function_name(the_fn);
-    /* trust it - if ((fulltag_of(the_sym) == fulltag_misc) &&
-       (header_subtag(header_of(the_sym)) == subtag_symbol)) */
-
-    return symbol_name( the_sym, name, name_len );
-
-  } else {			/* unnamed function */
-    strcpy( name, "<Anonymous Function>" );
-    return strlen(name);
-  }
-}
-
-/* Make name a c-string of symbol's pname, return length */
-size_t
-symbol_name( unsigned the_sym, char *name, size_t name_len )
-{
-  unsigned the_pname = ((lispsymbol *)(untag(the_sym)))->pname;
-  /* trust it - if (the_pname) */
-
-  size_t length = header_element_count(header_of(the_pname));
-  if (length >= name_len) length = name_len - 1;
-  memcpy( (void *)name,
-	 (const void *)(the_pname + misc_data_offset),
-	 length );
-  name[length] = 0;
-  return length;
-}
 
 void non_fatal_error( char *msg )
 {
@@ -2060,65 +1861,9 @@ handle_error(ExceptionInformation *xp, unsigned errnum, unsigned rb, unsigned co
     return(0);
     }
 
-  switch (errnum) {
-  case error_udf_call:
-    rb = xpGPR(xp, fname);
-    if ((fulltag_of(rb) == fulltag_misc) &&
-	(header_subtag(header_of(rb)) == subtag_symbol)) {
-      pname = ((lispsymbol *)(untag(rb)))->pname;
-    } else {
-      pname = (LispObj)NULL;
-    }
-      
-    fprintf(stderr, "\nERROR: undefined function call: ");
-    if (pname) {
-      fwrite((const void *)(pname+misc_data_offset),
-	     1,
-	     header_element_count(header_of(pname)),
-	     stderr);
-    } else {
-      fprintf(stderr, "[can't determine symbol name.]");
-    }
-    putc('\n',stderr);
-    fflush(stderr);
-    switch( error_action() ) {
-    case kExit:
-      terminate_lisp();
-      break;
-    case kDebugger:
-    default:
-      return(-1);
-      break;
-    }
-    break;
-  default:
-    break;
-  }
   return(-1);
 }
 	       
-ErrAction
-error_action( void )
-{
-  /* getchar reads from line start, so end message with \n */
-  fprintf( stderr, "\nContinue/Debugger/eXit <enter>?\n" );
-  fflush( stderr );
-
-  do {
-    int c = toupper( getchar() );
-    switch( c ) {
-    case 'X':
-      return( kExit );
-      break;
-    case 'D':
-      return( kDebugger );
-      break;
-    case 'C':
-      return( kContinue );
-      break;
-    }
-  } while( true );
-}
 
 /* 
    Current thread has all signals masked.  Before unmasking them,
@@ -2429,14 +2174,7 @@ unprotect_all_areas()
   }
 }
 
-Boolean
-exception_filter_installed_p()
-{
-  return true;
-#if 0
-  return installed_exception_filter == PMCL_exception_filter;
-#endif
-}
+
 
 
 void
