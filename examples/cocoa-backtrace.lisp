@@ -39,6 +39,34 @@
   (and (typep thing 'frame-label)
        (eql self (frame-label-controller thing))))
 
+(define-objc-method ((:void window-did-load)
+                     backtrace-window-controller)
+  (let* ((outline (slot-value self 'outline-view))
+         (font (default-font :name "Monaco" :size 12)))
+    (unless (%null-ptr-p outline)
+      (let* ((columns (send outline 'table-columns)))
+        (dotimes (i (send columns 'count))
+          (let* ((column (send columns :object-at-index i))
+                 (data-cell (send column 'data-cell)))
+            (send data-cell :set-font font)
+            (when (eql i 0)
+              (let* ((header-cell (send column 'header-cell))
+                     (inspector (backtrace-controller-inspector self))
+                     (break-condition
+                      (inspector::break-condition
+                                 (inspector::inspector-object inspector)))
+                     (break-condition-string
+                      (let* ((*print-level* 5)
+                             (*print-length* 5)
+                             (*print-circle* t))
+                        (format nil "~a: ~a"
+                                (class-name (class-of break-condition))
+                                break-condition))))
+                      
+                (send header-cell :set-font (default-font :attributes '(:bold)))
+                (send header-cell :set-string-value
+                      (%make-nsstring break-condition-string))))))))))
+              
 (define-objc-method ((:<BOOL> :outline-view view
                               :is-item-expandable item)
                      backtrace-window-controller)
@@ -70,43 +98,45 @@
                           :of-item item)
                      backtrace-window-controller)
     (declare (ignore view))
-    (let* ((inspector (backtrace-controller-inspector self)))
-      (cond ((%null-ptr-p item)
-             (let* ((label
-                     (make-instance 'frame-label
-                                    :string
-                                    (let* ((value 
-                                            (inspector::line-n inspector index)))
-                                      (if value
-                                        (%lfun-name-string value)
-                                        ":kernel")))))
-               (setf (slot-value label 'controller) self
-                     (slot-value label 'frame-number) index)
-               label))
-            ((our-frame-label-p self item)
-             (let* ((frame-inspector
-                     (or (frame-label-frame-inspector item)
-                         (setf (frame-label-frame-inspector item)
-                               (make-instance
-                                'inspector::stack-frame-inspector
-                                :frame-number (frame-label-number item)
-                                :object (inspector::inspector-object inspector)
-				:update-line-count t)))))
-               (make-objc-instance 'frame-item
-                                   :frame-label item
-                                   :index index
-                                   :string
-                                   (with-output-to-string (s)
-                                     (multiple-value-bind (value label)
-                                         (inspector::line-n
-                                          frame-inspector
-                                          index)
-                                     (inspector::prin1-value
-                                      frame-inspector
-                                      s
-                                      value
-                                      label))))))
-            (t (break) (%make-nsstring "Huh?")))))
+  (let* ((inspector (backtrace-controller-inspector self)))
+    (cond ((%null-ptr-p item)
+           (let* ((label
+                   (make-instance 'frame-label
+                                  :string
+                                  (let* ((value 
+                                          (inspector::line-n inspector index)))
+                                    (if value
+                                      (%lfun-name-string value)
+                                      ":kernel")))))
+             (setf (slot-value label 'controller) self
+                   (slot-value label 'frame-number) index)
+             label))
+          ((our-frame-label-p self item)
+           (let* ((frame-inspector
+                   (or (frame-label-frame-inspector item)
+                       (setf (frame-label-frame-inspector item)
+                             (make-instance
+                              'inspector::stack-frame-inspector
+                              :frame-number (frame-label-number item)
+                              :object (inspector::inspector-object inspector)
+                              :update-line-count t)))))
+             (make-instance 'frame-item
+                            :frame-label item
+                            :index index
+                            :string
+                            (let* ((ccl::*aux-vsp-ranges* (inspector::vsp-range inspector))
+                                   (ccl::*aux-tsp-ranges* (inspector::tsp-range inspector)))
+                              (with-output-to-string (s)
+                                                     (multiple-value-bind (value label)
+                                                         (inspector::line-n
+                                                          frame-inspector
+                                                          index)
+                                                       (inspector::prin1-value
+                                                        frame-inspector
+                                                        s
+                                                        value
+                                                        label)))))))
+          (t (break) (%make-nsstring "Huh?")))))
 
 (define-objc-method ((:id :outline-view view
                           :object-value-for-table-column column
