@@ -14,6 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
 (define-condition simple-reader-error (reader-error simple-error) ()
   (:report (lambda (c output-stream)
@@ -123,13 +124,16 @@
 ;from slisp reader2.lisp.
 (defun parse-integer (string &key (start 0) end
                       (radix 10) junk-allowed)
-  (when (null end)
-    (setq end (length string)))
-  (let ((index (do ((i start (1+ i)))
-                   ((= i end)
-                    (if junk-allowed
+  (flet ((parse-integer-not-integer-string (s)
+	   (error 'parse-integer-not-integer-string :string s)))
+    (declare (inline not-integer-string-error))
+    (when (null end)
+      (setq end (length string)))
+    (let ((index (do ((i start (1+ i)))
+		     ((= i end)
+		      (if junk-allowed
                         (return-from parse-integer (values nil end))
-                        (error "Not an integer string: ~S." string)))
+                        (parse-integer-not-integer-string string)))
                    (unless (whitespacep (char string i)) (return i))))
         (minusp nil)
         (found-digit nil)
@@ -152,18 +156,18 @@
                     ((whitespacep char)
                      (until (eq (setq index (1+ index)) end)
                        (unless (whitespacep (char string index))
-                         (error "Not an integer string: ~S." string)))
+                         (parse-integer-not-integer-string string)))
                      (return nil))
                     (t
-                     (error "Not an integer string: ~S." string))))
+                     (parse-integer-not-integer-string string))))
          (setq index (1+ index)))
        (values
         (if found-digit
             (if minusp (- result) result)
             (if junk-allowed
                 nil
-                (error "Not an integer string: ~S." string)))
-        index)))
+                (parse-integer-not-integer-string string)))
+        index))))
 
 
 (set-dispatch-macro-character #\# #\#
