@@ -830,7 +830,10 @@ gc_from_tcr(TCR *tcr)
 int
 gc_from_xp(ExceptionInformation *xp)
 {
-  return gc_like_from_xp(xp, gc_from_tcr);
+  int status = gc_like_from_xp(xp, gc_from_tcr);
+
+  freeGCptrs();
+  return status;
 }
 
 int

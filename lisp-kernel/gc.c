@@ -1889,7 +1889,28 @@ mark_tcr_xframes(TCR *tcr)
   }
 }
       
-      
+
+void *postGCptrs = NULL;
+
+void
+postGCfree(void *p)
+{
+  *(void **)p = postGCptrs;
+  postGCptrs = p;
+}
+
+void
+freeGCptrs()
+{
+  void *p, *next;
+
+  for (p = postGCptrs; p; p = next) {
+    next = *((void **)p);
+    free(p);
+  }
+  postGCptrs = NULL;
+}
+
 void
 reap_gcable_ptrs()
 {
@@ -1917,7 +1938,7 @@ reap_gcable_ptrs()
           break;
 
         case xmacptr_flag_ptr:
-	  deallocate((char *)ptr_from_lispobj(ptr));
+	  postGCfree((void *)ptr_from_lispobj(ptr));
           break;
 
         case xmacptr_flag_rwlock:
