@@ -1225,7 +1225,7 @@ argument lisp string."
        
 
 ;;; Stub until BRIDGE is loaded
-(defun update-type-signatures-for-method (m) (declare (ignore m)))
+(defun update-type-signatures-for-method (m c) (declare (ignore m c)))
 
 
 ;;; If the class contains an mlist that contains a method that
@@ -1252,7 +1252,7 @@ argument lisp string."
 		    (pref method :objc_method.method_types)
 		    (make-cstring typestring)
 		    (pref method :objc_method.method_imp) imp)
-              (update-type-signatures-for-method method)
+              (update-type-signatures-for-method method classptr)
 	      (return mlist)))
 	  (do* ((n (pref mlist :objc_method_list.method_count))
 		(i 0 (1+ i))
@@ -1294,7 +1294,7 @@ argument lisp string."
 	  (external-call "__objc_update_dispatch_table_for_class"
 			 :address classptr
 			 :void))
-	(update-type-signatures-for-method (%inc-ptr method 0))))))
+	(update-type-signatures-for-method (%inc-ptr method 0) classptr)))))
 
 (defvar *lisp-objc-methods* (make-hash-table :test #'eq))
 
