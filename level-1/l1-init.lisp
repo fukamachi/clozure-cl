@@ -258,8 +258,7 @@
 (defvar *modules* nil
   "Holds list of names of modules that have been loaded thus far.
    The names are case sensitive strings.")
-(defvar *module-file-alist* nil
-  "Holds an alist of modules and associated pathnames known to the system.")
+
 
 
 
