@@ -189,6 +189,8 @@
     (:s16 . ,arch::storage-class-s16)
     (:u32 . ,arch::storage-class-u32)
     (:s32 . ,arch::storage-class-s32)
+    (:u64 . ,arch::storage-class-u64)
+    (:s64 . ,arch::storage-class-s64)
     (:address . ,arch::storage-class-address)
     (:single-float . ,arch::storage-class-single-float)
     (:double-float . ,arch::storage-class-double-float)
@@ -196,7 +198,7 @@
     (:locative . ,arch::storage-class-locative)
     (:crf . ,arch::storage-class-crf)
     (:crbit . ,arch::storage-class-crbit)
-    (:crfbit . ,arch::storage-class-crfbit)
+    (:crfbit . ,arch::storage-class-crfbit)   
     (t . nil)))
     
 (defun spec-class->storage-class (class-name)
