@@ -183,7 +183,7 @@ wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
       }
 
       if ((seconds <= 0) && (nanos <= 0)) {
-	return 0;
+	return KERN_OPERATION_TIMED_OUT;
       }
 
       q.tv_sec = seconds;
@@ -791,6 +791,12 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
+#ifdef DARWIN
+      if (mach_suspend_tcr(tcr)) {
+	tcr->flags |= TCR_FLAG_BIT_ALT_SUSPEND;
+	return true;
+      }
+#endif
     if (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_suspend_signal) == 0) {
       SEM_WAIT(tcr->suspend);
     } else {
