@@ -383,12 +383,6 @@
   nil                                   ; 'values-ctype
   nil                                   ; ctype-class-info           
   nil                                   ; ctype-enumerable
-  nil                                   ; args-ctype-required
-  nil                                   ; args-ctype-optional
-  nil                                   ; args-ctype-rest
-  nil                                   ; args-ctype-keyp
-  nil                                   ; args-ctype-keywords
-  nil                                   ; args-ctype-allowp
   ;; Lists of the type for each required and optional argument.
   values-ctype-required
   values-ctype-optional
