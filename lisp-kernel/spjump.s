@@ -25,7 +25,7 @@ _exportfn(j_SP$1)
 _endfn
 ])
 
-	
+	.align 12
         _spjump(jmpsym)
         _spjump(jmpnfn)
         _spjump(funcall)
