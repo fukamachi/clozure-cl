@@ -17,8 +17,7 @@
 
 ;; This is a hacked-up version of the CMU CL type system.
 
-(eval-when (:load-toplevel)
-  (require "SEQUENCES"))
+
 
 
 ;;; This condition is signalled whenever we make a UNKNOWN-TYPE so that
