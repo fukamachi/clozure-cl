@@ -139,9 +139,10 @@
   (let ((arg (or p 1))
 	(point (current-point)))
     (dotimes (i (abs arg))
-      (when (or (minusp arg) (end-line-p point)) (mark-before point))
+      (when (minusp arg) (mark-before point))
       (let ((prev (previous-character point))
 	    (next (next-character point)))
+
 	(cond ((not prev) (editor-error "No previous character."))
 	      ((not next) (editor-error "No next character."))
 	      (t
