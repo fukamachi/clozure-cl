@@ -51,8 +51,8 @@
   tsp                                   ; Temp-stack pointer.
   vsp                                   ; Value stack pointer; grows towards 0.
   loc-pc                                ; for return PC only.
-  fn
-  new-fn                                ; Current function (constants vector).
+  old-fn
+  fn                                ; Current function (constants vector).
   temp3                                 ; Boxed, volatile registers.  Some
 					; may be defined on function entry.
   temp2 
