@@ -191,6 +191,12 @@
     (ratio (%make-ratio (%negate (%numerator x)) (%denominator x)))
     (complex (%make-complex (%negate (%realpart X))(%negate (%imagpart X))) )))
 
+(defun %double-float-zerop (n)
+  (zerop (the double-float n)))
+
+(defun %short-float-zerop (n)
+  (zerop (the single-float n)))
+
 (defun zerop (number)
   "Is this number zero?"
   (number-case number
@@ -205,6 +211,12 @@
        (double-float (and (%double-float-zerop (%realpart number))
                           (%double-float-zerop (%imagpart number))))
        (t (and (eql 0 (%realpart number))(eql 0 (%imagpart number))))))))
+
+(defun %short-float-plusp (x)
+  (> (the single-float x) 0.0f0))
+
+(defun %double-float-plusp (x)
+  (> (the double-float x) 0.0d0))
 
 (defun plusp (number)
   "Is this real number strictly positive?"
@@ -1000,7 +1012,7 @@
                      (%double-float--2 fnum (%double-float*-2! (%double-float res f2) ,divisor f2))))))
        (truncate-rat-sfloat (number divisor)
          `(ppc32::with-stack-short-floats ((fnum ,number)
-                                    (f2))
+                                           (f2))
            (let ((res (%unary-truncate (%short-float/-2! fnum ,divisor f2))))
              (values res 
                      (%short-float--2 fnum (%short-float*-2! (%short-float res f2) ,divisor f2)))))))            
@@ -1047,7 +1059,7 @@
                                      (%short-float*-2! (%short-float res f2) divisor f2))))))
                        ((fixnum bignum ratio)
                         (ppc32::with-stack-short-floats ((fdiv divisor)
-                                                  (f2))
+                                                         (f2))
                           (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
                             (values res 
                                     (%short-float--2 
