@@ -2841,6 +2841,22 @@
       ,@body)
     (%unlock-gc-lock)))
 
+(defmacro with-pointer-to-ivector ((ptr ivector) &body body)
+  "Executes BODY with PTR bound to a pointer to the first byte of data
+in IVECTOR.  The GC is disabled during execution of BODY; PTR has
+has dynamic-extent (and the address it references may become invalid
+after the BODY exits.)  IVECTOR should be a (SIMPLE-ARRAY (*)) whose
+element-type is numeric."
+  (let* ((v (gensym)))
+    `(let* ((,v ,ivector))
+       (unless (typep ,v 'ivector) (report-bad-arg ,v 'ivector))
+       (without-gcing
+         (with-macptrs ((,ptr))
+           (%vect-data-to-macptr ,v ,ptr)
+           ,@body)))))
+      
+
+
 (defmacro with-other-threads-suspended (&body body)
   `(unwind-protect
     (progn
