@@ -63,9 +63,9 @@
         (val imm3)
         (node-temp temp1))
     (cmpwi cr0 nbytes 0)
-    (get-arg src-node-reg src)
-    (lwz src-reg ppc32::macptr.address src-node-reg)
-    (get-arg src-byteptr src-byte-offset)
+    (ldr src-node-reg src vsp)
+    (macptr-ptr src-reg src-node-reg)
+    (ldr src-byteptr src-byte-offset vsp)
     (unbox-fixnum src-byteptr src-byteptr)
     (unbox-fixnum dest-byteptr dest-byte-offset)
     (la dest-byteptr ppc32::misc-data-offset dest-byteptr)
@@ -209,31 +209,6 @@
   (mr arg_z dest)
   (blr))
   
-
-
-
-; value will be in save7 = r24
-(defppclapfunction %dbg ((arg arg_z))    ; (&optional arg)
-  (check-nargs 0 1)                      ; optional
-  (save-lisp-context)
-  (vpush save7)
-  (cmpw cr0 nargs rzero)
-  (if (:cr0 :eq)
-    (li arg_z ppc32::nil-value))
-  (mr save7 arg)
-  (set-nargs 0)
-  (call-symbol Debugger)               ; can't (easily) call "traps" inline
-  (vpop save7)
-  (restore-full-lisp-context)
-  (blr))
-
-(defvar *debugger-slep* nil)
-
-(eval-when (:compile-toplevel :execute)
-  (declaim (type t *debugger-slep*)))
-
-
-
 
 
 
