@@ -256,7 +256,7 @@ finish_allocating_cons(ExceptionInformation *xp)
          There are several equivalent instruction forms
          that might have that effect; just assign to target here.
       */
-      if (major_opcode_p(instr,31)) {
+      if (major_opcode_p(instr,major_opcode_X31)) {
 	target_reg = RA_field(instr);
       } else {
 	target_reg = RT_field(instr);
@@ -296,7 +296,7 @@ finish_allocating_uvector(ExceptionInformation *xp)
     } else {
       /* assume that this is an assignment */
 
-      if (major_opcode_p(instr,31)) {
+      if (major_opcode_p(instr,major_opcode_X31)) {
 	target_reg = RA_field(instr);
       } else {
 	target_reg = RT_field(instr);
@@ -1226,8 +1226,8 @@ do_tsp_overflow (ExceptionInformation *xp, BytePtr addr)
   new_tsp = new_a->high - frame_size;
   
   /* Emulate current instruction, which must be a stwu or stwux */
-  if ((major_opcode_p(instruction, 37) ||                /* stwu */
-       X_opcode_p(instruction, 31, 183)) &&              /* stwux */
+  if ((major_opcode_p(instruction, major_opcode_STWU) ||
+       X_opcode_p(instruction, major_opcode_X31, minor_opcode_STWUX)) &&
       (RA_field(instruction) == tsp)) {
     /* (stwu rs D tsp) or (stwux rs tsp rb) */
     LispObj *tspP = (LispObj *) new_tsp;
@@ -2270,7 +2270,22 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
   }
   
   if (frame->backlink == (frame+1)) {
-    if ((major_opcode_p(instr, 36)) && (RA_field(instr) == sp)) {
+    if ((major_opcode_p(instr, major_opcode_STW)) && 
+	(RA_field(instr) == sp) &&
+	/* There are a few places in the runtime that store into
+	   a previously-allocated frame atop the stack when
+	   throwing values around.  We only care about the case
+	   where the frame was newly allocated, in which case
+	   there must have been a CREATE_LISP_FRAME_INSTRUCTION
+	   a few instructions before the current program counter.
+	   (The whole point here is that a newly allocated frame
+	   might contain random values that we don't want the
+	   GC to see; a previously allocated frame should already
+	   be completely initialized.)
+	*/
+	((program_counter[-1] == CREATE_LISP_FRAME_INSTRUCTION) ||
+	 (program_counter[-2] == CREATE_LISP_FRAME_INSTRUCTION) ||
+	 (program_counter[-3] == CREATE_LISP_FRAME_INSTRUCTION)))  {
       int disp = D_field(instr);
       
       if (disp < 16) {
