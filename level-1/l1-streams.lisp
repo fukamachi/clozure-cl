@@ -1259,7 +1259,7 @@
 
 (defmethod stream-unread-char ((s echo-stream) c)
   (call-next-method s c)
-  (setf (slot-value s 'did-untyi) nil))
+  (setf (slot-value s 'did-untyi) c))
 
 (defmethod stream-clear-input ((s echo-stream))
   (call-next-method)
