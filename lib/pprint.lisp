@@ -329,7 +329,7 @@
 
 ;                       ---- DISPATCHING ----
 
-(cl:defstruct (pprint-dispatch (:conc-name nil) (:copier nil))
+(cl:defstruct (pprint-dispatch-table (:conc-name nil) (:copier nil))
   (conses-with-cars (make-hash-table :test #'eq) :type hash-table)
   (structures (make-hash-table :test #'eq) :type hash-table)
   (others nil :type list))
@@ -376,7 +376,7 @@
     (maphash #'(lambda (key value)
 		 (setf (gethash key new-structures) (#+ccl-2 copy-uvector #-ccl-2 copy-entry value)))
 	     (structures table))
-    (make-pprint-dispatch
+    (make-pprint-dispatch-table
       :conses-with-cars new-conses-with-cars
       :structures new-structures
       :others (copy-list (others table)))))
@@ -3406,7 +3406,7 @@
 				 :data (car loc))))))
 ) ; #-ccl-2
 
-(setq *IPD* (make-pprint-dispatch))
+(setq *IPD* (make-pprint-dispatch-table))
 
 (set-pprint-dispatch+ '(satisfies function-call-p) #'alternative-fn-call '(-5) *IPD*)
 (set-pprint-dispatch+ 'cons #'pprint-fill '(-10) *IPD*)
