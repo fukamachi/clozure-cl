@@ -26,7 +26,7 @@ error_stack_overflow = 5
 error_excised_function_call = 6
 error_too_many_values = 7
 error_cant_call = 17
-
+        
 error_type_error = 64
 
 define([def_type_error],[
@@ -131,6 +131,7 @@ $1 = $2<<fixnumshift])
 	deferr(XSGEXHAUSTED,175)
 	deferr(XSGNARGS,176)
 	deferr(XTOOMANYVALUES,177)
+        deferr(XSYMNOBIND,178)
 
 error_FPU_exception_double = 1024
 error_FPU_exception_short = 1025
