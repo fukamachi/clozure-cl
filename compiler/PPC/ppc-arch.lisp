@@ -38,7 +38,7 @@
 (defregs
   rzero                                 ; Always contains 0; not as handy as it sounds.
   sp					; The control stack.  Aligned on 16-byte boundary.
-  old-rcontext
+  linux-sys-reg                         ; volatile reg on Darwin, tp or TOC on Linux.
   imm0                                  ; Unboxed, volatile registers.
   imm1 
   imm2 
