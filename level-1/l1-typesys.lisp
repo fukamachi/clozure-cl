@@ -136,14 +136,12 @@
                     (t item)))
           arglist))
 
-(eval-when (:compile-toplevel)
-  (warn "Fix EVAL-WHEN in EXPAND-TYPE-MACRO"))
 
 (defun expand-type-macro (definer name arglist body env)
   (setq name (require-type name 'symbol))
   (multiple-value-bind (lambda doc)
       (parse-macro-internal name arglist body env '*)
-      `(eval-when (#|:compile-toplevel|# :load-toplevel :execute)
+      `(eval-when (:compile-toplevel :load-toplevel :execute)
          (,definer ',name
                    (nfunction ,name ,lambda)
                    ,doc))))
@@ -1925,6 +1923,11 @@
 ;;;
 (deftype float-format () `(member ,@float-formats))
 
+(defun type-bound-number (x)
+  (if (consp x)
+      (destructuring-bind (result) x result)
+      x))
+
 (defun make-numeric-ctype (&key class 
                                 format
                                 (complexp :real)
@@ -1932,16 +1935,41 @@
                                 high
                                 enumerable
                                 predicate)
-  (let ((ctype (%istruct 'numeric-ctype
-                         (type-class-or-lose 'number)
-                         enumerable
-                         class
-                         format
-                         complexp
-                         low
-                         high
-                         predicate))) 
-    ctype))
+  ;; if interval is empty
+  (if (and low
+	   high
+	   (if (or (consp low) (consp high)) ; if either bound is exclusive
+	     (>= (type-bound-number low) (type-bound-number high))
+	     (> low high)))
+    *empty-type*
+    (multiple-value-bind (canonical-low canonical-high)
+	(case class
+	  (integer
+	   ;; INTEGER types always have their LOW and HIGH bounds
+	   ;; represented as inclusive, not exclusive values.
+	   (values (if (consp low)
+		     (1+ (type-bound-number low))
+		     low)
+		   (if (consp high)
+		     (1- (type-bound-number high))
+		     high)))
+	  (t 
+	   ;; no canonicalization necessary
+	   (values low high)))
+      (when (and (eq class 'rational)
+		 (integerp canonical-low)
+		 (integerp canonical-high)
+		 (= canonical-low canonical-high))
+	(setf class 'integer))
+      (%istruct 'numeric-ctype
+		(type-class-or-lose 'number)
+		enumerable
+		class
+		format
+		complexp
+		canonical-low
+		canonical-high
+		predicate))))
     
 
 (defun make-numeric-ctype-predicate (ctype)
@@ -1971,51 +1999,51 @@
    t))
 
 (define-type-method (number :unparse) (type)
- (let* ((complexp (numeric-ctype-complexp type))
-        (low (numeric-ctype-low type))
-        (high (numeric-ctype-high type))
-        (base (case (numeric-ctype-class type)
-                (integer 'integer)
-                (rational 'rational)
-                (float (or (numeric-ctype-format type) 'float))
-                (t 'real))))
+  (let* ((complexp (numeric-ctype-complexp type))
+	 (low (numeric-ctype-low type))
+	 (high (numeric-ctype-high type))
+	 (base (case (numeric-ctype-class type)
+		 (integer 'integer)
+		 (rational 'rational)
+		 (float (or (numeric-ctype-format type) 'float))
+		 (t 'real))))
     (let ((base+bounds
-	     (cond ((and (eq base 'integer) high low)
-		      (let ((high-count (logcount high))
-			      (high-length (integer-length high)))
-		        (cond ((= low 0)
-			         (cond ((= high 0) '(integer 0 0))
-				         ((= high 1) 'bit)
-				         ((and (= high-count high-length)
-				               (plusp high-length))
-				          `(unsigned-byte ,high-length))
-				         (t
-				          `(mod ,(1+ high)))))
-			        ((and (= low most-negative-fixnum)
-				        (= high most-positive-fixnum))
-			         'fixnum)
-			        ((and (= low (lognot high))
-				        (= high-count high-length)
-				        (> high-count 0))
-			         `(signed-byte ,(1+ high-length)))
-			        (t
-			         `(integer ,low ,high)))))
-		     (high `(,base ,(or low '*) ,high))
-		     (low
-		      (if (and (eq base 'integer) (= low 0))
-		        'unsigned-byte
-		        `(,base ,low)))
-		     (t base))))
+	   (cond ((and (eq base 'integer) high low)
+		  (let ((high-count (logcount high))
+			(high-length (integer-length high)))
+		    (cond ((= low 0)
+			   (cond ((= high 0) '(integer 0 0))
+				 ((= high 1) 'bit)
+				 ((and (= high-count high-length)
+				       (plusp high-length))
+				  `(unsigned-byte ,high-length))
+				 (t
+				  `(mod ,(1+ high)))))
+			  ((and (= low most-negative-fixnum)
+				(= high most-positive-fixnum))
+			   'fixnum)
+			  ((and (= low (lognot high))
+				(= high-count high-length)
+				(> high-count 0))
+			   `(signed-byte ,(1+ high-length)))
+			  (t
+			   `(integer ,low ,high)))))
+		 (high `(,base ,(or low '*) ,high))
+		 (low
+		  (if (and (eq base 'integer) (= low 0))
+		      'unsigned-byte
+		      `(,base ,low)))
+		 (t base))))
       (ecase complexp
-	  (:real 
-	   base+bounds)
-	  (:complex
-	   (if (eq base+bounds 'real)
+	(:real
+	 base+bounds)
+	(:complex
+	 (if (eq base+bounds 'real)
 	     'complex
 	     `(complex ,base+bounds)))
-	  ((nil)
-	   (assert (eq base+bounds 'real))
-	   'number)))))
+	((nil)
+	 (assert (eq base+bounds 'real))
+	 'number)))))
 
 ;;; Numeric-Bound-Test  --  Internal
 ;;;
@@ -2071,17 +2099,18 @@
 ;;;
 (defmacro numeric-bound-max (x y closed open max-p)
   (once-only ((n-x x)
-	        (n-y y))
-    `(cond ((not ,n-x) ,(if max-p nil n-y))
-	     ((not ,n-y) ,(if max-p nil n-x))
-	     ((consp ,n-x)
-	      (if (consp ,n-y)
-		  (if (,closed (car ,n-x) (car ,n-y)) ,n-x ,n-y)
-		  (if (,open (car ,n-x) ,n-y) ,n-x ,n-y)))
-	     (t
-	      (if (consp ,n-y)
-		  (if (,open (car ,n-y) ,n-x) ,n-y ,n-x)
-		  (if (,closed ,n-y ,n-x) ,n-y ,n-x))))))
+	      (n-y y))
+    `(cond
+      ((not ,n-x) ,(if max-p nil n-y))
+      ((not ,n-y) ,(if max-p nil n-x))
+      ((consp ,n-x)
+       (if (consp ,n-y)
+	 (if (,closed (car ,n-x) (car ,n-y)) ,n-x ,n-y)
+	 (if (,open (car ,n-x) ,n-y) ,n-x ,n-y)))
+      (t
+       (if (consp ,n-y)
+	 (if (,open (car ,n-y) ,n-x) ,n-y ,n-x)
+	 (if (,closed ,n-y ,n-x) ,n-y ,n-x))))))
 
 
 (define-type-method (number :simple-subtypep) (type1 type2)
@@ -2127,7 +2156,7 @@
 ;;;
 (defun numeric-types-adjacent (low high)
   (let ((low-bound (numeric-ctype-high low))
-	  (high-bound (numeric-ctype-low high)))
+	(high-bound (numeric-ctype-low high)))
     (cond ((not (and low-bound high-bound)) nil)
 	    ((consp low-bound)
 	     (eql (car low-bound) high-bound))
@@ -2139,40 +2168,36 @@
 	    (t
 	     nil))))
 
-;;; NUMBER :SIMPLE-UNION method  -- Internal
 ;;;
-;;; Return the a numeric type that is a supertype for both type1 and type2.
+;;; Return a numeric type that is a supertype for both type1 and type2.
 ;;; 
-;;; ### Note: we give up early, so keep from dropping lots of information on
-;;; the floor by returning overly general types.
-;;;
 (define-type-method (number :simple-union) (type1 type2)
   (declare (type numeric-ctype type1 type2))
   (cond ((csubtypep type1 type2) type2)
-	  ((csubtypep type2 type1) type1)
-	  (t
-	   (let ((class1 (numeric-ctype-class type1))
-	         (format1 (numeric-ctype-format type1))
-	         (complexp1 (numeric-ctype-complexp type1))
-	         (class2 (numeric-ctype-class type2))
-	         (format2 (numeric-ctype-format type2))
-	         (complexp2 (numeric-ctype-complexp type2)))
-	     (when (and (eq class1 class2)
-		          (eq format1 format2)
-		          (eq complexp1 complexp2)
-		          (or (numeric-types-intersect type1 type2)
-			        (numeric-types-adjacent type1 type2)
-			        (numeric-types-adjacent type2 type1)))
+	((csubtypep type2 type1) type1)
+	(t
+	 (let ((class1 (numeric-ctype-class type1))
+	       (format1 (numeric-ctype-format type1))
+	       (complexp1 (numeric-ctype-complexp type1))
+	       (class2 (numeric-ctype-class type2))
+	       (format2 (numeric-ctype-format type2))
+	       (complexp2 (numeric-ctype-complexp type2)))
+	   (when (and (eq class1 class2)
+		      (eq format1 format2)
+		      (eq complexp1 complexp2)
+		      (or (numeric-types-intersect type1 type2)
+			  (numeric-types-adjacent type1 type2)
+			  (numeric-types-adjacent type2 type1)))
 	       (make-numeric-ctype
 	        :class class1
 	        :format format1
 	        :complexp complexp1
 	        :low (numeric-bound-max (numeric-ctype-low type1)
-				              (numeric-ctype-low type2)
-				              < <= t)
+					(numeric-ctype-low type2)
+					<= < t)
 	        :high (numeric-bound-max (numeric-ctype-high type1)
-				               (numeric-ctype-high type2)
-				               > >= t)))))))
+					 (numeric-ctype-high type2)
+					 >= > t)))))))
 
 (setf (info-type-kind 'number) :primitive
       (info-type-builtin 'number) (make-numeric-ctype :complexp nil))
@@ -2528,25 +2553,21 @@
 		   (case eltype
 		     (bit 'bit-vector)
 		     (base-char 'base-string)
-		     #|(character 'string)|#
 		     (* 'vector)
 		     (t `(vector ,eltype)))
 		   (case eltype
 		     (bit `(bit-vector ,(car dims)))
 		     (base-char `(base-string ,(car dims)))
-		     (character `(string ,(car dims)))
 		     (t `(vector ,eltype ,(car dims)))))
 	       (if (eq (car dims) '*)
 		   (case eltype
 		     (bit 'simple-bit-vector)
 		     (base-char 'simple-base-string)
-		     (character 'simple-base-string)
 		     ((t) 'simple-vector)
 		     (t `(simple-array ,eltype (*))))
 		   (case eltype
 		     (bit `(simple-bit-vector ,(car dims)))
 		     (base-char `(simple-base-string ,(car dims)))
-                     (character `(simple-base-string ,(car dims)))
 		     ((t) `(simple-vector ,(car dims)))
 		     (t `(simple-array ,eltype ,dims))))))
 	    (t
@@ -2635,7 +2656,7 @@
 			     (t
 			      (mapcar #'(lambda (x y) (if (eq x '*) y x))
 				      dims1 dims2)))
-	   :complexp (if (eq complexp1 '*) complexp2 complexp1)
+	   :complexp (if (eq complexp1 :maybe) complexp2 complexp1)
 	   :element-type (if (eq eltype1 *wild-type*) eltype2 eltype1))))
     *empty-type*))
 
@@ -2690,9 +2711,9 @@
 	      *wild-type*
 	      (dolist (stype-name specialized-array-element-types
 				        (specifier-type 't))
-		  (let ((stype (specifier-type stype-name)))
-		    (when (csubtypep eltype stype)
-		      (return stype))))))
+		(let ((stype (specifier-type stype-name)))
+		  (when (csubtypep eltype stype)
+		    (return stype))))))
     
     type))
 
@@ -2703,11 +2724,33 @@
 ;;; with this at this level because MEMBER types are fairly important and union
 ;;; and intersection are well defined.
 
-(defun make-member-ctype (&key members)
+(defun %make-member-ctype (members)
   (%istruct 'member-ctype
             (type-class-or-lose 'member)
             t
             members))
+
+(defun make-member-ctype (&key members)
+  (let* ((singlep (subsetp '(-0.0f0 0.0f0) members))
+	 (doublep (subsetp '(-0.0d0 0.0d0) members))
+	 (union-types
+	  (if singlep
+	    (if doublep
+	      (list *ctype-of-single-float-0* *ctype-of-double-float-0*)
+	      (list *ctype-of-single-float-0*))
+	    (if doublep
+	      (list *ctype-of-single-float-0*)))))
+    (if union-types
+      (progn
+	(if singlep
+	  (setq members (set-difference '(-0.0f0 0.0f0) members)))
+	(if doublep
+	  (setq members (set-difference '(-0.d00 0.0d0) members)))
+	(make-union-ctype (if (null members)
+			    union-types
+			    (cons (%make-member-ctype members) union-types))))
+      (%make-member-ctype members))))
+	
 
 (defun member-ctype-p (x) (istruct-typep x 'member-ctype))
 (setf (type-predicate 'member-ctype) 'member-ctype-p)
@@ -3239,9 +3282,7 @@
 	    ;;; one or mor classes that're a subclass of both.  We
 	    ;;; -could- try to find all such classes, but
 	    ;;; punt instead.
-            (t (if (and (typep class1 'standard-class)
-			(typep class2 'standard-class))
-		 (find-class-intersection class1 class2)
+            (t (or (find-class-intersection class1 class2)
 		 *empty-type*)))
       nil)))
 
@@ -3406,10 +3447,8 @@
                     (rational (rationalp num))
                     (float
                      (ecase (numeric-ctype-format type)
-                       (short-float (typep num 'short-float))
                        (single-float (typep num 'single-float))
                        (double-float (typep num 'double-float))
-                       (long-float (typep num 'long-float))
                        ((nil) (floatp num))))
                     ((nil) t)))
                 (flet ((bound-test (val)
@@ -3531,7 +3570,10 @@
 				   (integer 'integer)
 				   (rational 'rational)
 				   (float 'float))
-			  :format (and (floatp num) (float-format-name num))
+			  :format (and (floatp num)
+				       (if (typep num 'double-float)
+					 'double-float
+					 'single-float))
 			  :complexp complexp
 			  :low low
 			  :high high))))
@@ -3550,6 +3592,10 @@
 			 :specialized-element-type etype)))
     (t
      (%class.ctype (class-of x)))))
+
+(defvar *ctype-of-double-float-0* (ctype-of 0.0d0))
+(defvar *ctype-of-single-float-0* (ctype-of 0.0f0))
+
 
 
 
@@ -3593,10 +3639,10 @@
 
 
 (deftype string (&optional size)
-  `(base-string ,size))
+  `(array character (,size)))
 
 (deftype simple-string (&optional size)
-  `(simple-base-string ,size))
+  `(simple-array character (,size)))
 
 (deftype extended-string (&optional size)
   (declare (ignore size))
@@ -3692,7 +3738,17 @@
 (deftype simple-single-float-vector (&optional size)
   `(simple-array single-float (,size)))
 
+(deftype short-float (&optional low high)
+  `(single-float ,low ,high))
+
+(deftype long-float (&optional low high)
+  `(double-float ,low ,high))
+
+;;; As empty a type as you're likely to find ...
+(deftype extended-char ()
+  nil)
 )
+
 
 (let* ((builtin-translations 
         `((array . array)
@@ -3714,11 +3770,12 @@
           (float . float)
           (double-float . double-float)
           (long-float . double-float)
-          (short-float . short-float)
-          (single-float . short-float)
-          (rational . rational)   ; why not (or ratio integer)?
-          (ratio . (and rational (not integer))) ; why not ratio
+          (single-float . single-float)
+	  (short-float . single-float)
+
+          (rational . rational)
           (integer . integer)
+          (ratio . (and rational (not integer)))
           (fixnum . (integer ,most-negative-fixnum ,most-positive-fixnum))
           (bignum . (or (integer * (,most-negative-fixnum))
                          (integer (,most-positive-fixnum) *)))
@@ -3727,6 +3784,10 @@
   (dolist (spec builtin-translations)
     (setf (info-type-kind (car spec)) :primitive
           (info-type-builtin (car spec)) (specifier-type (cdr spec)))))
+
+
+
+
 
        
 (precompute-types '((mod 2) (mod 4) (mod 16) (mod #x100) (mod #x10000)
@@ -3737,7 +3798,14 @@
                     (or function symbol)
                     ))
 
+
 (precompute-types *cl-types*)
+
+;;; Treat CHARACTER and BASE-CHAR as equivalent.
+(setf (info-type-builtin 'character) (info-type-builtin 'base-char))
+;;; And EXTENDED-CHAR as empty.
+(setf (info-type-builtin 'extended-char) *empty-type*)
+
 (defparameter *null-type* (specifier-type 'null))
 
 
