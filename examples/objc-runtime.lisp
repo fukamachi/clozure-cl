@@ -1511,7 +1511,19 @@ argument lisp string."
   (objc-method-definition-form t selector-arg class-arg body env))
 
 (defun class-get-instance-method (class sel)
-  #+apple-objc (#_class_getInstanceMethod class sel)
+  #+apple-objc (progn
+		 (unless (logtest #$CLS_INITIALIZED (pref (pref class :objc_class.isa)  :objc_class.info))
+		   ;; Do this for effect; ignore the :<IMP> it returns.
+		   ;; (It should cause the CLS_NEED_BIND flag to turn itself
+		   ;; off after the class has been initialized; we need
+		   ;; the class and all superclasses to have been initialized,
+		   ;; so that we can find category methods via
+		   ;; #_class_getInstanceMethod.
+		   (external-call "__class_lookupMethodAndLoadCache"
+				  :id class
+				  :<SEL> sel
+				  :address))
+		 (#_class_getInstanceMethod class sel))
   #+gnu-objc (#_class_get_instance_method class sel))
 
 (defun class-get-class-method (class sel)
