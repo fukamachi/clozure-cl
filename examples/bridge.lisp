@@ -6,10 +6,6 @@
 ;;;; This provides:
 ;;;;   (1) Convenient Lisp syntax for instantiating ObjC classes
 ;;;;   (2) Convenient Lisp syntax for invoking ObjC methods
-;;;;   (3) Ability to define CLOS subclasses of ObjC class with Lisp slots
-;;;;       and have their instances be usable as ObjC objects (eventually)
-;;;;   (4) Ability to define CLOS methods on ObjC classes and have them be
-;;;;       invoked by ObjC if they match an ObjC method name (eventually)
 ;;;;
 ;;;; Copyright (c) 2003 Randall D. Beer
 ;;;; 
@@ -132,8 +128,8 @@
 
 (defun find-objc-class (cname)
   (%objc-class-classptr 
-   (if (symbolp cname)
-       (load-objc-class-descriptor (lisp-to-objc-classname cname))
+   (if (symbolp cname) 
+       (find-class cname)
      (load-objc-class-descriptor cname))))
 
 
@@ -141,19 +137,16 @@
 ;;; if O is not an ObjC object
                       
 (defun objc-class-of (o)
-  (multiple-value-bind (ignore class) (objc-object-p o)
-    (declare (ignore ignore))
-    (if (null class)
-      (error "~S is not an ObjC object" o)
-      class)))
+  (if (objc-object-p o)
+      (class-of o)
+    (error "~S is not an ObjC object" o)))
 
 
 ;;; Returns the ObjC class corresponding to the declared type OTYPE if
 ;;; possible, NIL otherwise 
 
 (defun get-objc-class-from-declaration (otype)
-  (cond ((symbolp otype)
-         (lookup-objc-class (lisp-to-objc-classname otype)))
+  (cond ((symbolp otype) (lookup-objc-class (lisp-to-objc-classname otype)))
         ((and (consp otype) (eq (first otype) '@metaclass))
          (let* ((name (second otype))
                 (c
