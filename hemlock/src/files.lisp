@@ -63,6 +63,7 @@
    if both append and keep-backup are supplied.  Access is an implementation
    dependent value that is suitable for setting pathname's access or protection
    bits."
+  (declare (ignorable access))
   (let ((if-exists-action (cond ((and keep-backup append)
 				 (error "Cannot supply non-nil values for ~
 				         both keep-backup and append."))

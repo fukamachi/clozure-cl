@@ -419,7 +419,9 @@
   (dotimes (i (or p 1)))
   (setf (last-command-type) (last-command-type)))
 
-(defun do-nothing (&rest args) nil)
+(defun do-nothing (&rest args)
+  (declare (ignore args))
+  nil)
 
 (defun maybe-change-window (window)
   (unless (eq window (current-window))

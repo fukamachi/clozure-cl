@@ -774,6 +774,7 @@
   "Calls DESCRIBE on fun.  If fun is compiled, and its original name is not sym,
    then this also outputs any 'function documentation for sym to
    *standard-output*."
+  (declare (ignorable sym))
   (describe fun)
   #+GBNIL
   (when (and (compiled-function-p fun)

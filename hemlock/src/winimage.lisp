@@ -26,15 +26,6 @@
 (setf (dis-line-old-chars (car *the-sentinel*)) :unique-thing)
 
 
-(defconstant unaltered-bits #b000
-  "This is the value of the dis-line-flags when a line is neither moved nor
-  changed nor new.")
-(defconstant changed-bit #b001
-  "This bit is set in the dis-line-flags when a line is found to be changed.")
-(defconstant moved-bit #b010
-  "This bit is set in the dis-line-flags when a line is found to be moved.")
-(defconstant new-bit #b100
-  "This bit is set in the dis-line-flags when a line is found to be new.")
 
 
 ;;; move-lines  --  Internal
