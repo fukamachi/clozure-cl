@@ -433,7 +433,7 @@
     (declare (fixnum val i bit))
     (setq val (logior (ash val 1) (%get-bit ptr bit)))))
 
-(defun (setf %get-bitfield) (val ptr start width)
+(defun %set-bitfield (ptr start width val)
   (declare (fixnum val start width))
   (do* ((v val (ash v -1))
 	(bit (1- (+ start width)) (1- bit))
