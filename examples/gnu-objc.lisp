@@ -1,22 +1,19 @@
 ;;;-*-Mode: LISP; Package: CCL -*-
 ;;;
-;;;   Copyright (C) 2002 Clozure Associates
-;;;   This file is part of Opensourced MCL.
+;;;   Copyright (C) 2002-2003 Clozure Associates
+;;;   This file is part of OpenMCL.  
 ;;;
-;;;   Opensourced MCL is free software; you can redistribute it and/or
-;;;   modify it under the terms of the GNU Lesser General Public
-;;;   License as published by the Free Software Foundation; either
-;;;   version 2.1 of the License, or (at your option) any later version.
+;;;   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+;;;   License , known as the LLGPL and distributed with OpenMCL as the
+;;;   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+;;;   which is distributed with OpenMCL as the file "LGPL".  Where these
+;;;   conflict, the preamble takes precedence.  
 ;;;
-;;;   Opensourced MCL is distributed in the hope that it will be useful,
-;;;   but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;;   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;;   Lesser General Public License for more details.
+;;;   OpenMCL is referenced in the preamble as the "LIBRARY."
 ;;;
-;;;   You should have received a copy of the GNU Lesser General Public
-;;;   License along with this library; if not, write to the Free Software
-;;;   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-;;;
+;;;   The LLGPL is also available online at
+;;;   http://opensource.franz.com/preamble.html
+
 
 (in-package "CCL")
 
@@ -25,68 +22,141 @@
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir :gnustep))
 
-(defparameter *gnustep-system-root* "/usr/GNUstep/")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (require "SPLAY-TREE")
+  (require "NAME-TRANSLATION"))
 
-(defparameter *pending-loaded-classes* ())
+(defun ensure-objc-classptr-resolved (classptr)
+  (unless (logtest #$_CLS_RESOLV (pref classptr :objc_class.info))
+    (external-call "__objc_resolve_class_links" :void)))
+
+(let* ((objc-class-map (make-splay-tree #'%ptr-eql #'(lambda (x y)
+                                                       (< (the (unsigned-byte 32)
+                                                            (%ptr-to-int x))
+                                                          (the (unsigned-byte 32)
+                                                            (%ptr-to-int Y))))))
+       (objc-metaclass-map (make-splay-tree #'%ptr-eql #'(lambda (x y)
+                                                           (< (the (unsigned-byte 32)
+                                                                (%ptr-to-int x))
+                                                              (the (unsigned-byte 32)
+                                                                (%ptr-to-int Y))))))
+       (objc-class-lock (make-lock))
+       (next-objc-class-id 0)
+       (class-table-size 1024)
+       (c (make-array 1024))
+       (m (make-array 1024))
+       (cw (make-array 1024))
+       (mw (make-array 1024))
+       (csv (make-array 1024))
+       (msv (make-array 1024)))
+
+  (flet ((assign-next-class-id ()
+           (let* ((id next-objc-class-id))
+             (if (= (incf next-objc-class-id) class-table-size)
+               (let* ((old-size class-table-size)
+                      (new-size (* 2 class-table-size)))
+                 (declare (fixnum old-size new-size))
+                 (macrolet ((extend (v)
+                              `(setq ,v (%extend-vector old-size ,v new-size))))
+                   (extend c)
+                   (extend m)
+                   (extend cw)
+                   (extend mw)
+                   (extend csv)
+                   (extend msv))
+                 (setq class-table-size new-size)))
+             id)))
+    (defun id->objc-class (i)
+      (svref c i))
+    (defun (setf id->objc-class) (new i)
+      (setf (svref c i) new))
+    (defun id->objc-metaclass (i)
+      (svref m i))
+    (defun (setf id->objc-metaclass) (new i)
+      (setf (svref m i) new))
+    (defun id->objc-class-wrapper (i)
+      (svref cw i))
+    (defun (setf id->objc-class-wrapper) (new i)
+      (setf (svref cw i) new))
+    (defun id->objc-metaclass-wrapper (i)
+      (svref mw i))
+    (defun (setf id->objc-metaclass-wrapper) (new i)
+      (setf (svref mw i) new))
+    (defun id->objc-class-slots-vector (i)
+      (svref csv i))
+    (defun (setf id->objc-class-slots-vector) (new i)
+      (setf (svref csv i) new))
+    (defun id->metaclass-slot-vector (i)
+      (svref msv i))
+    (defun (setf id->metaclass-slot-vector) (new i)
+      (setf (svref msv i) new))
+    
+    (defun %clear-objc-class-maps ()
+      (with-lock-grabbed (objc-class-lock)
+        (fill c 0)
+        (fill m 0)
+        (fill cw 0)
+        (fill mw 0)
+        (fill csv 0)
+        (fill msv 0)
+        (setf (splay-tree-root objc-class-map) nil
+              (splay-tree-root objc-metaclass-map) nil
+              next-objc-class-id 0)))
+    (defun map-objc-class (class)
+      "ensure that the class (and metaclass) are mapped to a small integer"
+      (with-lock-grabbed (objc-class-lock)
+        (or (splay-tree-get objc-class-map class)
+            (let* ((id (assign-next-class-id))
+                   (class (%inc-ptr class 0))
+                   (meta (pref class :objc_class.class_pointer)))
+              (ensure-objc-classptr-resolved class)
+              (splay-tree-put objc-class-map class id)
+              (splay-tree-put objc-metaclass-map meta id)
+              (setf (svref c id) class
+                    (svref m id) meta)
+              id))))
+    (defun objc-class-id (class)
+      (with-lock-grabbed (objc-class-lock)
+        (splay-tree-get objc-class-map class)))
+    (defun objc-metaclass-id (meta)
+      (with-lock-grabbed (objc-class-lock)
+        (splay-tree-get objc-metaclass-map meta)))
+    (defun objc-class-map () objc-class-map)
+    (defun objc-metaclass-map () objc-metaclass-map)))
+         
+                        
+
+(defparameter *gnustep-system-root* "/usr/GNUstep/" "The root of all evil.")
+(defparameter *gnustep-libraries-pathname*
+  (merge-pathnames "System/Library/Libraries/" *gnustep-system-root*))
+
+(defloadvar *pending-loaded-classes* ())
 
 (defcallback register-class-callback (:address class :address category :void)
-  (let* ((class (%inc-ptr class 0))    ; make a heap-allocated copy
-         (cell (or (assoc class *pending-loaded-classes*)
-                   (let* ((c (list class)))
-                     (push c *pending-loaded-classes*)
-                     c))))
-;    (format t "~&~s: " (%get-cstring (pref class :objc_class.name)))
+  (let* ((id (map-objc-class class)))
     (unless (%null-ptr-p category)
-      (push (%inc-ptr category 0) (cdr cell))
-      ;(format t "~&    ~s" (%get-cstring (pref category :objc_category.category_name)))
-      )))
+      (let* ((cell (or (assoc id *pending-loaded-classes*)
+                       (let* ((c (list id)))
+                         (push c *pending-loaded-classes*)
+                         c))))
+        (push (%inc-ptr category 0) (cdr cell))))))
 
-    
 
-(def-ccl-pointers gnustep-framework ()
+(defun init-gnustep-framework ()
   (or (getenv "GNUSTEP_SYSTEM_ROOT")
       (setenv "GNUSTEP_SYSTEM_ROOT" *gnustep-system-root*))
   (open-shared-library "libobjc.so.1")
   (setf (%get-ptr (foreign-symbol-address "_objc_load_callback"))
         register-class-callback)
-  (open-shared-library "/usr/GNUstep/System/Library/Libraries/libgnustep-base.so")
-  (open-shared-library "/usr/GNUstep/System/Library/Libraries/libgnustep-gui.so")
-  )
+  (open-shared-library (namestring (merge-pathnames "libgnustep-base.so"
+                                                    *gnustep-libraries-pathname*)))
+  (open-shared-library (namestring (merge-pathnames "libgnustep-gui.so"
+                                                    *gnustep-libraries-pathname*))))
 
-(defvar *objc-readtable* (copy-readtable nil))
+(def-ccl-pointers gnustep-framework ()
+  (init-gnustep-framework))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (set-syntax-from-char #\] #\) *objc-readtable*))
 
-;;; We use the convention that [:super ....] denotes a send to the
-;;; defining object's superclass's method, and that a return value
-;;; specification of the form (:-> ... x) indicates a message send
-;;; that returns a structure (by reference) via the pointer x.
-
-(set-macro-character
- #\[
- (nfunction
-  |objc-[-reader|
-  (lambda (stream ignore)
-    (declare (ignore ignore))
-    (let* ((tail (read-delimited-list #\] stream))
-	   (structptr nil))
-      (let* ((return (car (last tail))))
-	(when (and (consp return) (eq (car return) :->))
-	  (rplaca (last tail) :void)
-	  (setq structptr (car (last return)))))
-      (if (eq (car tail) :super)
-	(if structptr
-	  `(objc-message-send-super-stret ,structptr super ,@(cdr tail))
-	  `(objc-message-send-super super ,@(cdr tail)))
-	(if structptr
-	  `(objc-message-send-stret ,structptr ,@tail)
-	  `(objc-message-send ,@tail))))))
- nil
- *objc-readtable*)
-
-(eval-when (:compile-toplevel :execute)
-  (setq *readtable* *objc-readtable*))
 
 ;;; The global reference to the "NSConstantString" class allows us to
 ;;; make instances of NSConstantString, ala the @"foo" construct in
@@ -95,7 +165,7 @@
 
 (defloadvar *NSConstantString-class*
     (with-cstrs ((name "NSConstantString"))
-      (#_objc_get_class name)))
+      (#_objc_lookup_class name)))
 
 ;;; An instance of NSConstantString (which is a subclass of NSString)
 ;;; consists of a pointer to the NSConstantString class (which the
@@ -109,18 +179,18 @@
 ;;; stack-allocated NSConstantString instance (made from
 ;;; *NSConstantString-class*, CSTRING and LEN).
 (defmacro with-nsstr ((nsstr cstring len) &body body)
-  `(rlet ((,nsstr :<NSC>onstant<S>tring
+  `(rlet ((,nsstr :<NXC>onstant<S>tring
 	   :isa *NSConstantString-class*
-	   :nxcsptr ,cstring
-	   :nxcslen ,len))
+	   :c_string ,cstring
+	   :len ,len))
       ,@body))
 
 ;;; Make a persistent (heap-allocated) NSConstantString.
 (defun %make-nsstring (string)
-  (make-record :<NSC>onstant<S>tring
+  (make-record :<NXC>onstant<S>tring
 	       :isa *NSConstantString-Class*
-	       :nxcsptr (make-cstring string)
-	       :nxcslen (length string)))
+	       :c_string (make-cstring string)
+	       :len (length string)))
 
 
 ;;; Intern NSConstantString instances.
@@ -158,11 +228,15 @@
     (declare (ignore subchar numarg))
     (let* ((string (read stream)))
       (check-type string string)
-      `(@ ,string))))
- *objc-readtable*)
+      `(@ ,string)))))
 
 
 ;;; Registering named objc classes.
+
+(defun objc-class-name-string (name)
+  (etypecase name
+    (symbol (lisp-to-objc-classname name))
+    (string name)))
 
 ;;; We'd presumably cache this result somewhere, so we'd only do the
 ;;; lookup once per session (in general.)
@@ -208,16 +282,20 @@
   `(load-objc-class-descriptor ,(objc-class-descriptor-name o)))
 
 (defmacro @class (name)
-  `(%objc-class-classptr ,(objc-class-descriptor name)))
+  (let* ((name (objc-class-name-string name)))
+    `(the (@metaclass ,name) (%objc-class-classptr ,(objc-class-descriptor name)))))
+
 
 ;;; This isn't quite the inverse operation of LOOKUP-OBJC-CLASS: it
 ;;; returns a simple C string.  and can be applied to a class or any
 ;;; instance (returning the class name.)
 (defun objc-class-name (object)
-  (with-macptrs (p)
-    (%setf-macptr p (#_object_getClassName object))
-    (unless (%null-ptr-p p)
-      (%get-cstring p))))
+  (unless (%null-ptr-p object)
+    (with-macptrs ((parent (pref object :objc_object.class_pointer)))
+      (unless (%null-ptr-p parent)
+        (if (logtest (pref parent :objc_class.info) #$_CLS_CLASS)
+          (%get-cstring (pref parent :objc_class.name))
+          (%get-cstring (pref object :objc_class.name)))))))
 
 
 ;;; Likewise, we want to cache the selectors ("SEL"s) which identify
@@ -226,7 +304,7 @@
 ;;; represented by the same SEL.
 (defun get-selector-for (method-name &optional error)
   (with-cstrs ((method-name method-name))
-    (let* ((p (#_sel_get_uid method-name)))
+    (let* ((p (#_sel_get_any_uid method-name)))
       (if (%null-ptr-p p)
 	(if error
 	  (error "Can't find ObjC selector for ~a" method-name))
@@ -263,10 +341,7 @@
   (declare (ignore env))
   `(load-objc-selector ,(objc-selector-name s)))
 
-;;; #_objc_msgSend takes two required arguments (the receiving object
-;;; and the method selector) and 0 or more additional arguments;
-;;; there'd have to be some macrology to handle common cases, since we
-;;; want the compiler to see all of the args in a foreign call.
+
 
 (defmacro objc-message-send (receiver selector-name &rest argspecs)
   (when (evenp (length argspecs))
@@ -405,7 +480,7 @@
 	       (format nil "^~a" (encode-objc-arg-type target)))))
 	  (foreign-double-float-type "d")
 	  (foreign-single-float-type "f")
-63.121.41.174	  (foreign-integer-type
+	  (foreign-integer-type
 	   (let* ((signed (foreign-integer-type-signed type))
 		  (bits (foreign-integer-type-bits type)))
 	     (cond ((= bits 8)
@@ -562,14 +637,25 @@
 	(error "Unknown instance variable ~s in class ~s" ivar-name classname))))
 
 (defun find-class-ivar-offset (classname ivar-string)
-  (let* ((class (lookup-objc-class classname t)))
-    (with-cstrs ((s ivar-string))
-      (with-macptrs ((ivar))
-	(%setf-macptr ivar (#_class_getInstanceVariable class s))
-	(if (%null-ptr-p ivar)
-	  (error "Unknown instance variable ~s in class ~s"
-		 ivar-string classname)
-	  (pref ivar :objc_ivar.ivar_offset))))))
+  (with-cstrs ((s ivar-string))
+    (do* ((class (lookup-objc-class classname t)
+                 (pref class :objc_class.super_class)))
+         ((%null-ptr-p class)
+          (error "Unknown instance variable ~s in class ~s"
+                 ivar-string classname))
+      (let* ((offset (with-macptrs ((ivars (pref class :objc_class.ivars)))
+                       (unless (%null-ptr-p ivars)
+                         (do* ((i 0 (1+ i))
+                               (n (pref ivars :objc_ivar_list.ivar_count))
+                               (ivar (pref ivars :objc_ivar_list.ivar_list)
+                                     (%inc-ptr ivar (record-length :objc_ivar))))
+                              ((= i n))
+                           (with-macptrs ((name (pref ivar :objc_ivar.ivar_name)))
+                             (unless (%null-ptr-p name)
+                               (if (eql 0 (#_strcmp name s))
+                                 (return (pref ivar :objc_ivar.ivar_offset))))))))))
+        (when offset (return offset))))))
+
   
 (defun ivar-offset (info)
   (or (ivar-info-%offset info)
@@ -691,7 +777,7 @@ client methods" classname))
 	(let* ((class (%make-objc-class (objc-class-info-classname info)
 					(objc-class-info-superclassname info)
 					(objc-class-info-ivars info))))
-	  (#_objc_addClass class )
+	  (external-call "__objc_add_class_to_hash" :address class :void)
 	  (%objc-class-classptr descriptor)))))
 
 (defun ensure-lisp-objc-class-defined (classname
@@ -717,6 +803,8 @@ client methods" classname))
 
 ;;; This is intended (mostly) for debugging (e.g., to support inspecting/
 ;;; describing ObjC objects.)
+
+
 
 (defloadvar *all-objc-classes* (%null-ptr))
 
