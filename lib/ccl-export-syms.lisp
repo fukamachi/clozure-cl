@@ -242,8 +242,8 @@
      file-locked-p
      directoryp
 
-     *module-file-alist*
      *module-search-path*
+     *module-provider-functions*
      *.lisp-pathname*
      *.fasl-pathname*
      *pathname-translations-pathname*
