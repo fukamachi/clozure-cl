@@ -57,7 +57,7 @@
   (dirlist (make-dll-header))
   (attributes #+darwinppc-target '(:signed-char :struct-by-value :prepend-underscores)
 	      #+linuxppc-target ())
-  (ordinal->type (make-array 100 :fill-pointer 1)))
+  (ordinal->type (make-array 100 :fill-pointer 1 :initial-element nil)))
 
 (defvar *host-ftd* (make-ftd))
 (defvar *target-ftd* *host-ftd*)
