@@ -193,7 +193,8 @@ between the region's start and end, and if there are no ill-formed expressions i
           (hi::send-string-to-listener-process (hi::buffer-process (current-buffer))
                                            string))))))
 
-(defvar *pop-string* ":POP" "what you have to type to exit a break loop")
+(defparameter *pop-string* ":POP
+" "what you have to type to exit a break loop")
 
 (defcommand "POP or Delete Forward" (p)
   "Send :POP if input-mark is at buffer's end, else delete forward character."
