@@ -34,7 +34,7 @@
 ;;;    3) Call Real-Line-Length or Cached-Real-Line-Length to get the
 ;;; X position and number of times wrapped.
 
-(declaim (special the-sentinel))
+(declaim (special *the-sentinel*))
 
 (eval-when (:compile-toplevel :execute)
 ;;; find-line
@@ -51,14 +51,14 @@
   (declare (ignore charpos))
   `(cond
     ;; No lines at all, fail.
-    ((eq ,dis-lines the-sentinel) nil)
+    ((eq ,dis-lines *the-sentinel*) nil)
     ;; On the first line, offset is already set, so just set dis-line and
     ;; ypos and fall through.
     ((eq (dis-line-line (car ,dis-lines)) ,line)
      (setq ,dis-line ,dis-lines  ,ypos 0))
     ;; Look farther down. 
     ((do ((l (cdr ,dis-lines) (cdr l)))
-	 ((eq l the-sentinel))
+	 ((eq l *the-sentinel*))
        (when (eq (dis-line-line (car l)) ,line)
 	 (setq ,dis-line l  ,ypos (dis-line-position (car l)) ,offset 0)
 	 (return t))))
@@ -395,7 +395,7 @@
 	  (ppos (mark-charpos (window-display-start window))
 		(if (eq (dis-line-line (car dl)) (dis-line-line (car prev)))
 		    (dis-line-end (car prev)) 0)))
-	((eq dl the-sentinel)
+	((eq dl *the-sentinel*)
 	 (copy-mark (window-display-end window) :temporary))
       (when (= (dis-line-position (car dl)) y)
 	(let* ((line (dis-line-line (car dl)))

@@ -76,16 +76,16 @@
     (let ((first (window-first-line window))
 	  (last (window-last-line window))
 	  (free (window-spare-lines window)))
-      (unless (eq (cdr first) the-sentinel)
-	(shiftf (cdr last) free (cdr first) the-sentinel))
+      (unless (eq (cdr first) *the-sentinel*)
+	(shiftf (cdr last) free (cdr first) *the-sentinel*))
       (dolist (dl free)
 	(setf (dis-line-line dl) nil  (dis-line-old-chars dl) nil))
       (setf (window-spare-lines window) free))
     ;;
     ;; Set the last line and first&last changed so we know there's nothing there.
-    (setf (window-last-line window) the-sentinel
-	  (window-first-changed window) the-sentinel
-	  (window-last-changed window) the-sentinel)
+    (setf (window-last-line window) *the-sentinel*
+	  (window-first-changed window) *the-sentinel*
+	  (window-last-changed window) *the-sentinel*)
     ;;
     ;; Make sure the window gets updated, and set the buffer.
     (setf (window-tick window) -3)
@@ -496,7 +496,7 @@
   (check-type start mark)
   (setf (bitmap-hunk-changed-handler hunk) #'window-changed)
   (let ((buffer (line-buffer (mark-line start)))
-	(first (cons dummy-line the-sentinel))
+	(first (cons dummy-line *the-sentinel*))
 	(width (bitmap-hunk-char-width hunk))
 	(height (bitmap-hunk-char-height hunk)))
     (when (or (< height minimum-window-lines)
@@ -514,8 +514,8 @@
 	    :height height
 	    :width width
 	    :first-line first
-	    :last-line the-sentinel
-	    :first-changed the-sentinel
+	    :last-line *the-sentinel*
+	    :first-changed *the-sentinel*
 	    :last-changed first
 	    :tick -1)))
       (push window *window-list*)
@@ -557,11 +557,11 @@
   (let ((window (bitmap-hunk-window hunk)))
     ;;
     ;; Nuke all the lines in the window image.
-    (unless (eq (cdr (window-first-line window)) the-sentinel)
+    (unless (eq (cdr (window-first-line window)) *the-sentinel*)
       (shiftf (cdr (window-last-line window))
 	      (window-spare-lines window)
 	      (cdr (window-first-line window))
-	      the-sentinel))
+	      *the-sentinel*))
     (setf (bitmap-hunk-start hunk) (cdr (window-first-line window)))
     ;;
     ;; Add some new spare lines if needed.  If width is greater,
@@ -623,7 +623,7 @@
 (defun setup-window-image (start window height width)
   (check-type start mark)
   (let ((buffer (line-buffer (mark-line start)))
-	(first (cons dummy-line the-sentinel)))
+	(first (cons dummy-line *the-sentinel*)))
     (unless buffer (error "Window start is not in a buffer."))
     (setf (window-display-start window) (copy-mark start :right-inserting)
 	  (window-old-start window) (copy-mark start :temporary)
@@ -633,8 +633,8 @@
 	  (window-height window) height
 	  (window-width window) width
 	  (window-first-line window) first
-	  (window-last-line window) the-sentinel
-	  (window-first-changed window) the-sentinel
+	  (window-last-line window) *the-sentinel*
+	  (window-first-changed window) *the-sentinel*
 	  (window-last-changed window) first
 	  (window-tick window) -1)
     (push window *window-list*)
@@ -655,11 +655,11 @@
 ;;;
 (defun change-window-image-height (window new-height)
   ;; Nuke all the lines in the window image.
-  (unless (eq (cdr (window-first-line window)) the-sentinel)
+  (unless (eq (cdr (window-first-line window)) *the-sentinel*)
     (shiftf (cdr (window-last-line window))
 	    (window-spare-lines window)
 	    (cdr (window-first-line window))
-	    the-sentinel))
+	    *the-sentinel*))
   ;; Add some new spare lines if needed.
   (let* ((res (window-spare-lines window))
 	 (width (length (the simple-string (dis-line-chars (car res))))))

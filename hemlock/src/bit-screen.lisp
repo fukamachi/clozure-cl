@@ -750,7 +750,7 @@
 	 (thumb-bar-p (value hemlock::thumb-bar-meter))
 	 (hunk (make-bitmap-hunk
 		:font-family font-family
-		:end the-sentinel  :trashed t
+		:end *the-sentinel*  :trashed t
 		:input-handler #'window-input-handler
 		:device device
 		:thumb-bar-p (and modelinep thumb-bar-p))))
@@ -1314,7 +1314,7 @@
   (let* ((display (bitmap-device-display device))
 	 (hunk (make-bitmap-hunk
 		:font-family *default-font-family*
-		:end the-sentinel :trashed t
+		:end *the-sentinel* :trashed t
 		:input-handler #'window-input-handler
 		:device device :thumb-bar-p nil)))
     (multiple-value-bind

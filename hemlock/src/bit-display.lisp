@@ -37,10 +37,10 @@
     (hunk-reset hunk)
     (do ((i 0 (1+ i))
 	 (dl (cdr first) (cdr dl)))
-	((eq dl the-sentinel)
+	((eq dl *the-sentinel*)
 	 (setf (window-old-lines window) (1- i)))
       (dumb-line-redisplay hunk (car dl)))
-    (setf (window-first-changed window) the-sentinel
+    (setf (window-first-changed window) *the-sentinel*
 	  (window-last-changed window) first)
     (when (window-modeline-buffer window)
       (hunk-replace-modeline hunk)
@@ -129,7 +129,7 @@
     (let ((first-changed (window-first-changed window))
 	  (last-changed (window-last-changed window)))
       ;; Is there anything to do?
-      (unless (eq first-changed the-sentinel)
+      (unless (eq first-changed *the-sentinel*)
 	(when liftp (lift-cursor))
 	(if (and (eq first-changed last-changed)
 		 (zerop (dis-line-delta (car first-changed))))
@@ -144,7 +144,7 @@
 	      (do-writes hunk write)
 	      (do-rewrites hunk rewrite)))
 	;; Set the bounds so we know we displayed...
-	(setf (window-first-changed window) the-sentinel
+	(setf (window-first-changed window) *the-sentinel*
 	      (window-last-changed window) (window-first-line window))))
     ;;
     ;; Clear any extra lines at the end of the window.

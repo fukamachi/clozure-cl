@@ -236,7 +236,7 @@
    'hi::redisplay-catcher to abort redisplay."
   (maybe-update-window-image window)
   (prog1
-      (not (eq (window-first-changed window) the-sentinel))
+      (not (eq (window-first-changed window) *the-sentinel*))
     (funcall (device-smart-redisplay (device-hunk-device (window-hunk window)))
 	     window)))
 
@@ -276,7 +276,7 @@
   (invoke-hook hemlock::redisplay-hook window)
   (setup-for-recentering-redisplay window)
   (prog1
-      (not (eq (window-first-changed window) the-sentinel))
+      (not (eq (window-first-changed window) *the-sentinel*))
     (funcall (device-smart-redisplay (device-hunk-device (window-hunk window)))
 	     window)))
 

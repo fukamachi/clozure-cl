@@ -16,14 +16,14 @@
 ;;;
 (in-package :hemlock-internals)
 
-(defvar the-sentinel
+(defvar *the-sentinel*
   (list (make-window-dis-line ""))
   "This dis-line, which has several interesting properties, is used to end
   lists of dis-lines.")
-(setf (dis-line-line (car the-sentinel))
+(setf (dis-line-line (car *the-sentinel*))
       (make-line :number most-positive-fixnum :chars ""))
-(setf (dis-line-position (car the-sentinel)) most-positive-fixnum)
-(setf (dis-line-old-chars (car the-sentinel)) :unique-thing)
+(setf (dis-line-position (car *the-sentinel*)) most-positive-fixnum)
+(setf (dis-line-old-chars (car *the-sentinel*)) :unique-thing)
 
 
 (defconstant unaltered-bits #b000
@@ -55,7 +55,7 @@
 ;;;  may be NIL, in which case we are at the end of the buffer.
 ;;; Offset - The charpos within Line to continue at.
 ;;; Current - The dis-line which caused Maybe-Change-Window to choke; it
-;;;  may be the-sentinel, it may not be the dummy line at head of the
+;;;  may be *the-sentinel*, it may not be the dummy line at head of the
 ;;;  window's dis-lines.  This is the dis-line at which Maybe-Change-Window
 ;;;  turns over control, it should not be one whose image it built.
 ;;; Trail - This is the dis-line which immediately precedes Current in the
@@ -67,7 +67,7 @@
   (do* ((delta 0)
 	(cc (car current))
 	(old-line (dis-line-line cc))
-	;; Can't use current, since might be the-sentinel.
+	;; Can't use current, since might be *the-sentinel*.
 	(pos (1+ (dis-line-position (car trail))))
 	;; Are we on an extension line?
 	(is-wrapped (eq line (dis-line-line (car trail))))
@@ -76,14 +76,14 @@
 	(save trail)
 	(height (window-height window))
 	(spare-lines (window-spare-lines window))
-	;; Make the-sentinel in this buffer so we don't delete it.
-	(buffer (setf (line-%buffer (dis-line-line (car the-sentinel)))
+	;; Make *the-sentinel* in this buffer so we don't delete it.
+	(buffer (setf (line-%buffer (dis-line-line (car *the-sentinel*)))
 		      (window-buffer window)))
 	(start offset) new-num)
        ((or (= pos height) (null line))
 	;;    If we have run off the bottom or run out of lines then we are
 	;; done.  At this point Trail is the last line displayed and Current is
-	;; whatever comes after it, possibly the-sentinel.
+	;; whatever comes after it, possibly *the-sentinel*.
 	;;    We always say that last-changed is the last line so that we
 	;; don't have to max in the old last-changed.
 	(setf (window-last-changed window) trail)
@@ -93,8 +93,8 @@
 	  ;; This test works, because if the old last line was either
 	  ;; deleted or another line was inserted after it then it's
 	  ;; cdr would be something else.
-	  (when (eq (cdr last) the-sentinel)
-	    (shiftf (cdr last) spare-lines (cdr trail) the-sentinel))
+	  (when (eq (cdr last) *the-sentinel*)
+	    (shiftf (cdr last) spare-lines (cdr trail) *the-sentinel*))
 	  (setf (window-last-line window) trail))
 	(setf (window-spare-lines window) spare-lines)
 	;;    If first-changed has not been set then we set the first-changed
@@ -118,7 +118,7 @@
       (setq cc (car current)  old-line (dis-line-line cc)))
      ;; If the line-number of the old line is less than the line-number
      ;; of the line we want to display then the old line must be off the top
-     ;; of the screen - delete it.  The-Sentinel fails this test because
+     ;; of the screen - delete it.  *The-Sentinel* fails this test because
      ;; it's line-number is most-positive-fixnum.
      ((< (line-number old-line) new-num)
       (do ((ptr (cdr current) (cdr ptr))
@@ -292,7 +292,7 @@
 	     ;; and the line wrapped onto the screen.  If we started at the
 	     ;; beginning of the line then we don't need to.
 	     (unless (zerop (mark-charpos (window-old-start window)))
-	       (unless (eq current the-sentinel)
+	       (unless (eq current *the-sentinel*)
 		 (setf (dis-line-old-chars (car current)) :another-unique-thing)))
 	     (let ((start-charpos (mark-charpos display-start)))
 	       (move-mark (window-old-start window) display-start)
@@ -312,7 +312,7 @@
 	;;
 	;; We found a suspect line.
 	;; See if anything needs to be updated, if we bugged out, punt.
-	(when (and (eq current the-sentinel)
+	(when (and (eq current *the-sentinel*)
 		   (= (dis-line-position (car trail))
 		      (1- (window-height window))))
 	  (return nil))
@@ -323,7 +323,7 @@
        DONE
 	;;
 	;; We hit the end of the buffer. If lines need to be deleted bug out.
-	(unless (eq current the-sentinel)
+	(unless (eq current *the-sentinel*)
 	  (maybe-change-window window changed line 0 trail current width))
 	(return nil))))
     ;;
