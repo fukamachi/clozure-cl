@@ -614,14 +614,14 @@
                   (push fstream *open-file-streams*))
                 fstream))))))))
 
-(defun stream-external-format (stream)
-  "Return the actual external format for file-streams, otherwise :DEFAULT."
-  (etypecase stream
-    (file-stream (file-stream-external-format stream))
-    (broadcast-stream (let* ((last (last-broadcast-stream stream)))
-			(if last
-			  (stream-external-format last)
-			  :default)))))
+(defmethod stream-external-format ((s file-stream))
+  (file-stream-external-format s))
+
+(defmethod stream-external-format ((s broadcast-stream))
+  (let* ((last (last-broadcast-stream s)))
+    (if last
+        (stream-external-format s)
+        :default)))
 
 ;;; Under the circumstances, this is a very slow way of saying
 ;;; "we don't support EXTENDED-CHARs".
