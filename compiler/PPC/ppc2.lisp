@@ -7005,15 +7005,16 @@
                 (! mem-set-c-bit-1 src byte-index mask))
               (when vreg
                 (ppc2-form seg vreg nil newval)))
-            (ensuring-node-target (target vreg)
-               (unless triv-val
-                 (! temp-push-unboxed-word src)
-                 (ppc2-open-undo $undostkblk))
-               (ppc2-form seg target nil newval)
-               (unless triv-val
-                 (! temp-push-unboxed-word src)
-                 (ppc2-open-undo $undostkblk))
-               (! mem-set-c-bit src byte-index (+ 24 bit-index) target))))
+            (progn
+              (unless triv-val
+                (! temp-push-unboxed-word src)
+                (ppc2-open-undo $undostkblk))
+              (let* ((target (ppc2-one-untargeted-reg-form seg newval ppc::arg_z)))
+                (unless triv-val
+                  (! temp-pop-unboxed-word src)
+                  (ppc2-close-undo))
+                (! mem-set-c-bit src byte-index (+ 24 bit-index) target)
+                (<- target)))))
         (progn
           (unless (and triv-val triv-offset)
             (! temp-push-unboxed-word src)
