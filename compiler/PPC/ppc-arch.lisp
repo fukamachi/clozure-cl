@@ -233,7 +233,7 @@
     subprims-base                       ; start of dynamic subprims jump table
     ret1valaddr                         ; magic multiple-values return address.
     tcr-key                             ; tsd key for thread's tcr
-    gc-lock                             ; serialize access to gc
+    BAD-gc-lock                         ; serialize access to gc
     exception-lock			; serialize exception handling
     go-tag-counter        		; counter for (immediate) go tag
     block-tag-counter                   ; counter for (immediate) block tag
@@ -241,7 +241,7 @@
     gc-inhibit-count                    ; for gc locking
     os-trap-call                        ; callostrapunivesalproc's descriptor
     tb-trap-call                        ; CallUniversalProc's descriptor
-    qd-globals                          ; (untagged) pointer to QD globals.
+    altivec-present                     ; non-zero if cpu supports AltiVec 
     fwdnum                              ; fixnum: GC "forwarder" call count.
     gc-count                            ; fixnum: GC call count.
     gcable-pointers                     ; linked-list of weak macptrs.
@@ -267,8 +267,8 @@
     argv                                ; address of C lib argv
     host-platform                       ; 0 on MacOS, 1 on PPC Linux, 2 on VxWorks ...
     batch-flag				; non-zero if --batch specified
-    fpscr-save				; lisp's fpscr when in FFI-land
-    fpscr-save-high			; high word of FP reg used to save FPSCR
+    BAD-fpscr-save			; lisp's fpscr when in FFI-land
+    BAD-fpscr-save-high  		; high word of FP reg used to save FPSCR
     image-name				; current image name
     initial-tcr                         ; initial thread's context record
     ))
