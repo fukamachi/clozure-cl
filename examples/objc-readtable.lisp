@@ -41,8 +41,8 @@
 	  (setq structptr (car (last return)))))
       (if (eq (car tail) :super)
 	(if structptr
-	  `(objc-message-send-super-stret ,structptr super ,@(cdr tail))
-	  `(objc-message-send-super super ,@(cdr tail)))
+	  `(objc-message-send-super-stret ,structptr (super) ,@(cdr tail))
+	  `(objc-message-send-super (super) ,@(cdr tail)))
 	(if structptr
 	  `(objc-message-send-stret ,structptr ,@tail)
 	  `(objc-message-send ,@tail))))))
