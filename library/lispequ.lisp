@@ -225,16 +225,28 @@
 
 
 
-(defconstant $default-stackseg-size 16384)
 
-(def-accessors () %svref
+(def-accessors (fake-stack-frame) %svref
+  nil                           ; 'fake-stack-frame
+  %fake-stack-frame.sp          ; fixnum. The stack pointer where this frame "should" be
+  %fake-stack-frame.next-sp     ; Either sp or another fake-stack-frame
+  %fake-stack-frame.fn          ; The current function
+  %fake-stack-frame.lr          ; fixnum offset from fn (nil if fn is not functionp)
+  %fake-stack-frame.vsp         ; The value stack pointer
+  %fake-stack-frame.link        ; next in *fake-stack-frames* list
+  )
+
+(def-accessors () svref
   bt.dialog
   bt.youngest
   bt.oldest
   bt.tcr
   bt.restarts
   bt.top-catch
-  bt.break-condition)
+  bt.break-condition
+  bt.current
+  bt.fake-frames
+  bt.db-link)
 
 (defconstant bt.sg bt.tcr)
 (setf (macro-function 'bt.sg) (macro-function 'bt.tcr))
