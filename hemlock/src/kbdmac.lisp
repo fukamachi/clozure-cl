@@ -252,7 +252,7 @@
 
 
 (defvar *defining-a-keyboard-macro* ())
-(defvar *kbdmac-stream* (make-kbdmac-stream))
+(defvar *kbdmac-stream* #+later (make-kbdmac-stream))
 (defvar *in-a-keyboard-macro* ()
   "True if we are currently executing a keyboard macro.")
 
