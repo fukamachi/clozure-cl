@@ -16,66 +16,8 @@
 (in-package :hemlock)
 
 
-;;; Directory translation for definition editing commands.
-
-(defvar *definition-directory-translation-table*
-  (make-string-table)
-  "Hemlock string table for translating directory namestrings to other ones, so
-   a function defined in /x/y/z/.../file.ext will actually be looked for in
-   /whatever/.../file.ext.")
-
-(defun add-definition-dir-translation (dir1 dir2)
-  "Takes two directory namestrings and causes the first to be mapped to
-   the second.  This is used in commands like \"Edit Definition\".
-   Successive uses of this push into a list of translations that will
-   be tried in order of traversing the list."
-  (push (pathname dir2)
-	(getstring (directory-namestring dir1)
-		   *definition-directory-translation-table*)))
-
-(defun delete-definition-dir-translation (directory)
-  "Deletes the mapping of directory to all other directories for definition
-   editing commands."
-  (delete-string (directory-namestring directory)
-		 *definition-directory-translation-table*))
-
-
-(defcommand "Add Definition Directory Translation" (p)
-  "Prompts for two directory namestrings and causes the first to be mapped to
-   the second for definition editing commands.  Longer (more specific) directory
-   specifications are match before shorter (more general) ones.  Successive
-   uses of this push into a list of translations that will be tried in order
-   of traversing the list."
-  "Prompts for two directory namestrings and causes the first to be mapped to
-   the second for definition editing commands."
-  (declare (ignore p))
-  (let* ((dir1 (prompt-for-file :prompt "Preimage dir1: "
-				:help "directory namestring."
-				:must-exist nil))
-	 (dir2 (prompt-for-file :prompt "Postimage dir2: "
-				:help "directory namestring."
-				:must-exist nil)))
-    (add-definition-dir-translation dir1 dir2)))
-
-(defcommand "Delete Definition Directory Translation" (p)
-  "Prompts for a directory namestring and deletes it from the directory
-   translation table for the definition editing commands."
-  "Prompts for a directory namestring and deletes it from the directory
-   translation table for the definition editing commands."
-  (declare (ignore p))
-  (delete-definition-dir-translation
-   (prompt-for-file :prompt "Directory: "
-		    :help "directory namestring."
-		    :must-exist nil)))
-
-
-
 ;;; Definition Editing Commands.
 
-;;; These commands use a slave Lisp to determine the file the function is
-;;; defined in.  They do a synchronous evaluation of DEFIITION-EDITING-INFO.
-;;; Then, in the editor Lisp, GO-TO-DEFINITION possibly translates the file
-;;; name, finds the file, and tries to search for the defining form.
 
 
 ;;; For the "Go to Definition" search pattern, we just use " " as the initial
