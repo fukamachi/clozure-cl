@@ -12,10 +12,15 @@
 (defstruct (buffer-operation (:include ccl::dll-node))
   (thunk nil))
 
+(defstruct (event-queue-node (:include ccl::dll-node))
+  event)
+
+(defun event-queue-insert (q node)
+  (ccl::locked-dll-header-enqueue node q)
+  (ccl::signal-semaphore (frame-event-queue-signal q)))
 
 (defun enqueue-key-event (q event)
-  (ccl::locked-dll-header-enqueue event q)
-  (ccl::signal-semaphore (frame-event-queue-signal q)))
+  (event-queue-insert q (make-event-queue-node :event event)))
 
 (defun dequeue-key-event (q)
   (unless (listen-editor-input q)
@@ -28,7 +33,7 @@
 
 (defun unget-key-event (event q)
   (ccl::with-locked-dll-header (q)
-    (ccl::insert-dll-node-after event q))
+    (ccl::insert-dll-node-after (make-event-queue-node event) q))
   (ccl::signal-semaphore (frame-event-queue-signal q)))
 
 (defun timed-wait-for-key-event (q seconds)
@@ -73,17 +78,17 @@
 (defparameter editor-abort-key-events (list #k"Control-g" #k"Control-G"))
 
 (defmacro abort-key-event-p (key-event)
-  `(member ,key-event editor-abort-key-events))
+  `(member (event-queue-node-event ,key-event) editor-abort-key-events))
 
 
 (defun get-key-event (q &optional ignore-pending-aborts)
   (do* ((e (dequeue-key-event q) (dequeue-key-event q)))
-       ((typep e 'hemlock-ext:key-event)
+       ((typep e 'event-queue-node)
         (unless ignore-pending-aborts
           (when (abort-key-event-p e)
             (beep)
             (throw 'editor-top-level-catcher nil)))
-        (setq *last-key-event-typed* e))
+        (setq *last-key-event-typed* (event-queue-node-event e)))
     (if (typep e 'buffer-operation)
       (funcall (buffer-operation-thunk e)))))
 
