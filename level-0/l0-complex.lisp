@@ -14,6 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(eval-when (:compile-toplevel)
+  (require "NUMBER-MACROS"))
+
 (defun coerce-to-complex-type (num type)
   (cond ((complexp num)
          (let ((real (%realpart num))
