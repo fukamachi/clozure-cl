@@ -1363,7 +1363,7 @@
                    (error "Bad thing to be a type specifier: ~S." spec)))))))))
 
 (eval-when (:compile-toplevel :execute)
-  (defconstant type-cache-size (ash 1 7))
+  (defconstant type-cache-size (ash 1 12))
   (defconstant type-cache-mask (1- type-cache-size)))
 
 (defun hash-type-specifier (spec)
@@ -3213,17 +3213,51 @@
 	      (values nil t)))))
       (values nil t))))
 
+(defun find-class-intersection (c1 c2)
+  (labels ((walk-subclasses (class f)
+	     (dolist (sub (class-direct-subclasses class))
+	       (walk-subclasses sub f))
+	     (funcall f class)))
+    (let* ((intersection nil))
+      (walk-subclasses c1 #'(lambda (c)
+			      (when (subclassp c c2)
+				(pushnew (%class.ctype c) intersection))))
+      (when intersection
+	(%type-union intersection)))))
+
 (define-type-method (class :simple-intersection) (type1 type2)
   (assert (not (eq type1 type2)))
   (let* ((class1 (if (class-ctype-p type1) (class-ctype-class type1)))
          (class2 (if (class-ctype-p type2) (class-ctype-class type2))))
     (if (and class1 class2)
       (cond ((subclassp class1 class2)
-             (values type1 t))
+             type1)
             ((subclassp class2 class1)
-             (values type2 t))
-            (t (values nil t)))
-      (values nil t))))
+             type2)
+	    ;;; In the STANDARD-CLASS case where neither's
+	    ;;; a subclass of the other, there may be
+	    ;;; one or mor classes that're a subclass of both.  We
+	    ;;; -could- try to find all such classes, but
+	    ;;; punt instead.
+            (t (if (and (typep class1 'standard-class)
+			(typep class2 'standard-class))
+		 (find-class-intersection class1 class2)
+		 *empty-type*)))
+      nil)))
+
+(define-type-method (class :complex-subtypep-arg2) (type1 class2)
+  (if (and (intersection-ctype-p type1)
+	   (> (count-if #'class-ctype-p (intersection-ctype-types type1)) 1))
+      (values nil nil)
+      (invoke-complex-subtypep-arg1-method type1 class2 nil t)))
+
+(define-type-method (class :complex-subtypep-arg1) (type1 type2)
+  (if (and (function-ctype-p type2)
+	   (eq type1 (specifier-type 'function))
+	   (function-ctype-wild-args type2)
+	   (eq *wild-type* (function-ctype-returns type2)))
+      (values t t)
+      (values nil t)))
 
 (define-type-method (class :unparse) (type)
   (class-name (class-ctype-class type)))
