@@ -416,77 +416,12 @@
   The default value just calls the Command-Function with the prefix argument.")
 
 
-(defun interpret-key-event (key-event info)
-  (setf (command-interpreter-info-prefix-argument info) nil)
-  (let* ((*last-key-event-typed* key-event)
-	 (*current-command-info* info)
-	 (cmd (command-interpreter-info-current-command info))
-	 (trans (command-interpreter-info-current-translation info))
-	 (func (current-event-mode)))
-    (handler-bind
-	;; Bind this outside the invocation loop to save consing.
-	((editor-error #'(lambda (condx)
-			   (beep)
-			   (let ((string (editor-error-format-string condx)))
-			     (when string
-			       (apply #'message string
-				      (editor-error-format-arguments condx))))
 
-                           (throw 'command-loop-catcher nil))))
-	(unless (eq *current-buffer* *echo-area-buffer*)
-	  (when (buffer-modified *echo-area-buffer*) (clear-echo-area))
-	  (unless (or (zerop (length cmd))
-		      (not (value hemlock::key-echo-delay)))
-	    (editor-sleep (value hemlock::key-echo-delay))
-	    (unless t 
-	      (clear-echo-area)
-	      (dotimes (i (length cmd))
-		(hemlock-ext:print-pretty-key (aref cmd i) *echo-area-stream*)
-		(write-char #\space *echo-area-stream*)))))
-      (cond (func
-	     (funcall func key-event))
-	     (t
-	      (vector-push-extend key-event cmd)
-	      (setf (fill-pointer trans) 0)
-	      (multiple-value-bind (trans-result prefix-p)
-		  (translate-key cmd trans)
-		#+debug
-		(format t "~& trans-result = ~s, prefix-p = ~s" trans-result prefix-p)
-		(multiple-value-bind (res t-bindings)
-		    (get-current-binding trans-result)
-		  (etypecase res
-		    (command 
-		     (let ((punt t))
-		       #+debug
-		       (format t "~& key-event = ~s, res = ~s, t-bindings = ~s, prefix = ~s"
-			       key-event
-			       res t-bindings
-			       (command-interpreter-info-prefix-argument info))
-		       (catch 'command-loop-catcher
-			 (dolist (c t-bindings)
-			   (funcall *invoke-hook* c (command-interpreter-info-prefix-argument info)))
-			 (funcall *invoke-hook* res (command-interpreter-info-prefix-argument info))
-			 (setf punt nil))
-		       (when punt (invoke-hook hemlock::command-abort-hook)))
-		     (if (command-interpreter-info-command-type-set info)
-		       (setf (command-interpreter-info-command-type-set info) nil)
-		       (setf (command-interpreter-info-last-command-type info) nil))
-		     (if (command-interpreter-info-prefix-argument-supplied info)
-		       (setf (command-interpreter-info-prefix-argument-supplied info) nil)
-		       (setf (command-interpreter-info-prefix-argument info) nil))
-		     (setf (fill-pointer cmd) 0))
-		    (null
-		     (unless prefix-p
-		       (beep)
-		       (setf (command-interpreter-info-prefix-argument info) nil)
-		       (setf (fill-pointer cmd) 0)))
-		    (hash-table)))))))))
     
 ;;; %COMMAND-LOOP  --  Internal
 ;;;
 ;;;    Read commands from the terminal and execute them, forever.
 ;;;
-#+original
 (defun %command-loop ()
   (let  ((cmd *current-command*)
 	 (trans *current-translation*)
@@ -507,46 +442,52 @@
 				      (editor-error-format-arguments condx)))
 			     (throw 'command-loop-catcher nil)))))
       (loop
-	(unless (eq *current-buffer* *echo-area-buffer*)
-	  (when (buffer-modified *echo-area-buffer*) (clear-echo-area))
-	  (unless (or (zerop (length cmd))
-		      (not (value hemlock::key-echo-delay)))
-	    (editor-sleep (value hemlock::key-echo-delay))
-	    (unless (listen-editor-input *editor-input*)
-	      (clear-echo-area)
-	      (dotimes (i (length cmd))
-		(hemlock-ext:print-pretty-key (aref cmd i) *echo-area-stream*)
-		(write-char #\space *echo-area-stream*)))))
-	(vector-push-extend (get-key-event *editor-input*) cmd)
-	(multiple-value-bind (trans-result prefix-p)
-			     (translate-key cmd trans)
-	  (multiple-value-bind (res t-bindings)
-			       (get-current-binding trans-result)
-	    (etypecase res
-	      (command 
-	       (let ((punt t))
-		 (catch 'command-loop-catcher
-		   (dolist (c t-bindings)
-		     (funcall *invoke-hook* c *prefix-argument*))
-		   (funcall *invoke-hook* res *prefix-argument*)
-		   (setf punt nil))
-		 (when punt (invoke-hook hemlock::command-abort-hook)))
-	       (if *command-type-set*
-		   (setq *command-type-set* nil)
-		   (setq *last-command-type* nil))
-	       (if *prefix-argument-supplied*
-		   (setq *prefix-argument-supplied* nil)
-		   (setq *prefix-argument* nil))
-	       (setf (fill-pointer cmd) 0))
-	      (null
-	       (unless prefix-p
-		 (beep)
-		 (setq *prefix-argument* nil)
-		 (setf (fill-pointer cmd) 0)))
-	      (hash-table))))))))
+        (let* ((temporary-object-pool (allocate-temporary-object-pool)))
+          (unwind-protect
+               (progn
+                 (unless (eq *current-buffer* *echo-area-buffer*)
+                   (when (buffer-modified *echo-area-buffer*) (clear-echo-area))
+                   (unless (or (zerop (length cmd))
+                               (not (value hemlock::key-echo-delay)))
+                     (editor-sleep (value hemlock::key-echo-delay))
+                     (unless (listen-editor-input *editor-input*)
+                       (clear-echo-area)
+                       (dotimes (i (length cmd))
+                         (hemlock-ext:print-pretty-key (aref cmd i) *echo-area-stream*)
+                         (write-char #\space *echo-area-stream*)))))
+                 (vector-push-extend (get-key-event *editor-input*) cmd)
+                 (multiple-value-bind (trans-result prefix-p)
+                     (translate-key cmd trans)
+                   (multiple-value-bind (res t-bindings)
+                       (get-current-binding trans-result)
+                     (etypecase res
+                       (command 
+                        (let ((punt t))
+                          (catch 'command-loop-catcher
+                            (dolist (c t-bindings)
+                              (funcall *invoke-hook* c *prefix-argument*))
+                            (funcall *invoke-hook* res *prefix-argument*)
+                            (setf punt nil))
+                          (when punt (invoke-hook hemlock::command-abort-hook)))
+                        (if *command-type-set*
+                          (setq *command-type-set* nil)
+                          (setq *last-command-type* nil))
+                        (if *prefix-argument-supplied*
+                          (setq *prefix-argument-supplied* nil)
+                          (setq *prefix-argument* nil))
+                        (setf (fill-pointer cmd) 0))
+                       (null
+                        (unless prefix-p
+                          (beep)
+                          (setq *prefix-argument* nil)
+                          (setf (fill-pointer cmd) 0)))
+                       (hash-table)))))
+            (free-temporary-objects temporary-object-pool)))))))
 
-(defun %command-loop ()
-  (format t "~& in %command-loop: current buffer = ~s" (current-buffer)))
+
+
+
+    
 
 
 
