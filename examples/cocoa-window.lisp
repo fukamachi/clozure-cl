@@ -230,10 +230,10 @@
 (defun start-cocoa-application (&key
 				(application-proxy-class-name
 				 *default-ns-application-proxy-class-name*))
+  
   (flet ((cocoa-startup ()
-;          [(@class "NSException") "_enableLogging:" :<BOOL> #$YES :void]
 	   ;; Start up a thread to run periodic tasks.
-	   ;; Under Linux/OpenStep, some of these might have to run in
+	   ;; Under Linux/GNUstep, some of these might have to run in
 	   ;; the main thread (because of PID/thread conflation.)
 	   (process-run-function "housekeeping"
 				 #'(lambda ()
