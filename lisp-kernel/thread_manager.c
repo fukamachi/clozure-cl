@@ -236,41 +236,7 @@ linux_exception_init(TCR *tcr)
 TCR *
 get_interrupt_tcr(Boolean create)
 {
-#ifndef LINUX
   return get_tcr(create);
-#else
-  void* callers_r2 = current_r2;
-
-  if (callers_r2 == NULL) {	/* pre-glibc-2.3.2 Linux */
-    return get_tcr(create);
-  } else {
-    TCR  *head = (TCR *)lisp_global(INITIAL_TCR), *current = head;
-
-    /* We can fairly safely assume that r2 contains either the current
-       tcr or the current (linux) pthread structure, but we don't know
-       which.  We can't lock anything or call any pthreads function until
-       we're sure that r2 contains the current pthread pointer.
-
-       We can identify r2 as a TCR if we find it in the global tcr list.
-       Entries are only ever removed from the list when all threads other
-       than the GC thread are suspended; additions keep the forward
-       link (through tcr->next) consistent, so this traversal is safe.
-    
-  */
-    do {
-      if (current == callers_r2) {
-	/* r2 contained the tcr.  Set r2 to the native_thread */
-	current_r2 = current->native_thread_info;
-	return current;
-      }
-      current = current->next;
-    } while (current != head);
-    /* r2 is non-null and not any tcr.  Assume that r2 is pthread
-       struct pointer and that it's therefore safe to call get_tcr().
-    */
-    return get_tcr(create);
-  }
-#endif
 }
   
   

@@ -85,7 +85,6 @@ ifdef([DARWIN],[
 	__(stfd fp_s32conv,eabi_c_frame.minsiz+(22*4)(sp))
 ])
 	__(mr rcontext,r3)
-        __(mr old_rcontext,rcontext)        
 	__(lwi(r30,0x43300000))
 	__(lwi(r31,0x80000000))
 ifdef([DARWIN],[

@@ -20,7 +20,8 @@
 /*  Register usage: */
 #define rzero 0
 #define sp 1
-#define old_rcontext 2
+#define linux_sys_reg 2  /* volatile reg on Darwin ; thread ptr on Linux32, TOC on
+                                Linux64. */
 #define imm0 3
 #define imm1 4
 #define imm2 5

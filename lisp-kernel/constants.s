@@ -19,7 +19,8 @@
 
 define([rzero],[r0])	
 define([sp],[r1])
-define([old_rcontext],[r2])
+define([linux_sys_reg],[r2]) /* volatile reg on Darwin ; thread ptr on Linux32, TOC on
+                                Linux64. */
 define([imm0],[r3])
 define([imm1],[r4])
 define([imm2],[r5])
