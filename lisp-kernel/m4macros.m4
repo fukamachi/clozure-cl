@@ -133,8 +133,9 @@ define([_startfn],[define([__func_name],$1)
 	ifelse(eval(SYSstabs),eval(ELFstabs),[
 	.type $1,@function
 ])
-	.stabs "$1:F1",36,0,__line__,$1
 $1:
+        .stabd 68,0,__line__
+	.stabs "$1:F1",36,0,__line__,$1
 	.set func_start,$1
 ])
 
