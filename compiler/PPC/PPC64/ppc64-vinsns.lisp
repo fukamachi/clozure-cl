@@ -3140,135 +3140,135 @@
   (stw temp ppc64::tcr.interrupt-level ppc::rcontext))
 
 ;;; Subprim calls.  Done this way for the benefit of VINSN-OPTIMIZE.
-(defmacro define-ppc-subprim-call-vinsn ((name &rest other-attrs) spno)
+(defmacro define-ppc64-subprim-call-vinsn ((name &rest other-attrs) spno)
   `(define-ppc64-vinsn (,name :call :subprim-call ,@other-attrs) (() ())
     (bla ,spno)))
 
-(defmacro define-ppc-subprim-jump-vinsn ((name &rest other-attrs) spno)
+(defmacro define-ppc64-subprim-jump-vinsn ((name &rest other-attrs) spno)
   `(define-ppc64-vinsn (,name :jump :jumpLR ,@other-attrs) (() ())
     (ba ,spno)))
 
-(define-ppc-subprim-jump-vinsn (restore-interrupt-level) .SPrestoreintlevel)
+(define-ppc64-subprim-jump-vinsn (restore-interrupt-level) .SPrestoreintlevel)
 
-(define-ppc-subprim-call-vinsn (save-values) .SPsave-values)
+(define-ppc64-subprim-call-vinsn (save-values) .SPsave-values)
 
-(define-ppc-subprim-call-vinsn (recover-values)  .SPrecover-values)
+(define-ppc64-subprim-call-vinsn (recover-values)  .SPrecover-values)
 
-(define-ppc-subprim-call-vinsn (add-values) .SPadd-values)
+(define-ppc64-subprim-call-vinsn (add-values) .SPadd-values)
 
-(define-ppc-subprim-jump-vinsn (jump-known-symbol-ool) .SPjmpsym)
+(define-ppc64-subprim-jump-vinsn (jump-known-symbol-ool) .SPjmpsym)
 
-(define-ppc-subprim-call-vinsn (call-known-symbol-ool)  .SPjmpsym)
+(define-ppc64-subprim-call-vinsn (call-known-symbol-ool)  .SPjmpsym)
 
-(define-ppc-subprim-call-vinsn (pass-multiple-values)  .SPmvpass)
+(define-ppc64-subprim-call-vinsn (pass-multiple-values)  .SPmvpass)
 
-(define-ppc-subprim-call-vinsn (pass-multiple-values-symbol) .SPmvpasssym)
+(define-ppc64-subprim-call-vinsn (pass-multiple-values-symbol) .SPmvpasssym)
 
-(define-ppc-subprim-jump-vinsn (tail-call-sym-gen) .SPtcallsymgen)
+(define-ppc64-subprim-jump-vinsn (tail-call-sym-gen) .SPtcallsymgen)
 
-(define-ppc-subprim-jump-vinsn (tail-call-fn-gen) .SPtcallnfngen)
+(define-ppc64-subprim-jump-vinsn (tail-call-fn-gen) .SPtcallnfngen)
 
-(define-ppc-subprim-jump-vinsn (tail-call-sym-slide) .SPtcallsymslide)
+(define-ppc64-subprim-jump-vinsn (tail-call-sym-slide) .SPtcallsymslide)
 
-(define-ppc-subprim-jump-vinsn (tail-call-fn-slide) .SPtcallnfnslide)
+(define-ppc64-subprim-jump-vinsn (tail-call-fn-slide) .SPtcallnfnslide)
 
-(define-ppc-subprim-jump-vinsn (tail-call-sym-vsp) .SPtcallsymvsp)
+(define-ppc64-subprim-jump-vinsn (tail-call-sym-vsp) .SPtcallsymvsp)
 
-(define-ppc-subprim-jump-vinsn (tail-call-fn-vsp) .SPtcallnfnvsp)
+(define-ppc64-subprim-jump-vinsn (tail-call-fn-vsp) .SPtcallnfnvsp)
 
-(define-ppc-subprim-call-vinsn (funcall)  .SPfuncall)
+(define-ppc64-subprim-call-vinsn (funcall)  .SPfuncall)
 
-(define-ppc-subprim-jump-vinsn (tail-funcall-gen) .SPtfuncallgen)
+(define-ppc64-subprim-jump-vinsn (tail-funcall-gen) .SPtfuncallgen)
 
-(define-ppc-subprim-jump-vinsn (tail-funcall-slide) .SPtfuncallslide)
+(define-ppc64-subprim-jump-vinsn (tail-funcall-slide) .SPtfuncallslide)
 
-(define-ppc-subprim-jump-vinsn (tail-funcall-vsp) .SPtfuncallvsp)
+(define-ppc64-subprim-jump-vinsn (tail-funcall-vsp) .SPtfuncallvsp)
 
-(define-ppc-subprim-call-vinsn (spread-lexpr)  .SPspread-lexpr-z)
+(define-ppc64-subprim-call-vinsn (spread-lexpr)  .SPspread-lexpr-z)
 
-(define-ppc-subprim-call-vinsn (spread-list)  .SPspreadargz)
+(define-ppc64-subprim-call-vinsn (spread-list)  .SPspreadargz)
 
-(define-ppc-subprim-call-vinsn (pop-argument-registers)  .SPvpopargregs)
+(define-ppc64-subprim-call-vinsn (pop-argument-registers)  .SPvpopargregs)
 
-(define-ppc-subprim-call-vinsn (getxlong)  .SPgetXlong)
+(define-ppc64-subprim-call-vinsn (getxlong)  .SPgetXlong)
 
-(define-ppc-subprim-call-vinsn (stack-cons-list)  .SPstkconslist)
+(define-ppc64-subprim-call-vinsn (stack-cons-list)  .SPstkconslist)
 
-(define-ppc-subprim-call-vinsn (list) .SPconslist)
+(define-ppc64-subprim-call-vinsn (list) .SPconslist)
 
-(define-ppc-subprim-call-vinsn (stack-cons-list*)  .SPstkconslist-star)
+(define-ppc64-subprim-call-vinsn (stack-cons-list*)  .SPstkconslist-star)
 
-(define-ppc-subprim-call-vinsn (list*) .SPconslist-star)
+(define-ppc64-subprim-call-vinsn (list*) .SPconslist-star)
 
-(define-ppc-subprim-call-vinsn (make-stack-block)  .SPmakestackblock)
+(define-ppc64-subprim-call-vinsn (make-stack-block)  .SPmakestackblock)
 
-(define-ppc-subprim-call-vinsn (make-stack-block0)  .Spmakestackblock0)
+(define-ppc64-subprim-call-vinsn (make-stack-block0)  .Spmakestackblock0)
 
-(define-ppc-subprim-call-vinsn (make-stack-list)  .Spmakestacklist)
+(define-ppc64-subprim-call-vinsn (make-stack-list)  .Spmakestacklist)
 
-(define-ppc-subprim-call-vinsn (make-stack-vector)  .SPmkstackv)
+(define-ppc64-subprim-call-vinsn (make-stack-vector)  .SPmkstackv)
 
-(define-ppc-subprim-call-vinsn (make-stack-gvector)  .SPstkgvector)
+(define-ppc64-subprim-call-vinsn (make-stack-gvector)  .SPstkgvector)
 
-(define-ppc-subprim-call-vinsn (stack-misc-alloc)  .SPstack-misc-alloc)
+(define-ppc64-subprim-call-vinsn (stack-misc-alloc)  .SPstack-misc-alloc)
 
-(define-ppc-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init)
+(define-ppc64-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init)
 
-(define-ppc-subprim-call-vinsn (svar-bind-nil)  .SPsvar-bind-nil)
+(define-ppc64-subprim-call-vinsn (svar-bind-nil)  .SPsvar-bind-nil)
 
-(define-ppc-subprim-call-vinsn (svar-bind-self)  .SPsvar-bind-self)
+(define-ppc64-subprim-call-vinsn (svar-bind-self)  .SPsvar-bind-self)
 
-(define-ppc-subprim-call-vinsn (svar-bind-self-boundp-check)  .SPsvar-bind-self-boundp-check)
+(define-ppc64-subprim-call-vinsn (svar-bind-self-boundp-check)  .SPsvar-bind-self-boundp-check)
 
-(define-ppc-subprim-call-vinsn (svar-bind)  .SPsvar-bind)
+(define-ppc64-subprim-call-vinsn (svar-bind)  .SPsvar-bind)
 
-(define-ppc-subprim-jump-vinsn (nvalret :jumpLR) .SPnvalret)
+(define-ppc64-subprim-jump-vinsn (nvalret :jumpLR) .SPnvalret)
 
-(define-ppc-subprim-call-vinsn (nthrowvalues) .SPnthrowvalues)
+(define-ppc64-subprim-call-vinsn (nthrowvalues) .SPnthrowvalues)
 
-(define-ppc-subprim-call-vinsn (nthrow1value) .SPnthrow1value)
+(define-ppc64-subprim-call-vinsn (nthrow1value) .SPnthrow1value)
 
-(define-ppc-subprim-call-vinsn (slide-values) .SPmvslide)
+(define-ppc64-subprim-call-vinsn (slide-values) .SPmvslide)
 
-(define-ppc-subprim-call-vinsn (macro-bind) .SPmacro-bind)
+(define-ppc64-subprim-call-vinsn (macro-bind) .SPmacro-bind)
 
-(define-ppc-subprim-call-vinsn (destructuring-bind-inner) .SPdestructuring-bind-inner)
+(define-ppc64-subprim-call-vinsn (destructuring-bind-inner) .SPdestructuring-bind-inner)
 
-(define-ppc-subprim-call-vinsn (destructuring-bind) .SPdestructuring-bind)
+(define-ppc64-subprim-call-vinsn (destructuring-bind) .SPdestructuring-bind)
 
-(define-ppc-subprim-call-vinsn (simple-keywords) .SPsimple-keywords)
+(define-ppc64-subprim-call-vinsn (simple-keywords) .SPsimple-keywords)
 
-(define-ppc-subprim-call-vinsn (keyword-args) .SPkeyword-args)
+(define-ppc64-subprim-call-vinsn (keyword-args) .SPkeyword-args)
 
-(define-ppc-subprim-call-vinsn (keyword-bind) .SPkeyword-bind)
+(define-ppc64-subprim-call-vinsn (keyword-bind) .SPkeyword-bind)
 
-(define-ppc-subprim-call-vinsn (stack-rest-arg) .SPstack-rest-arg)
+(define-ppc64-subprim-call-vinsn (stack-rest-arg) .SPstack-rest-arg)
 
-(define-ppc-subprim-call-vinsn (req-stack-rest-arg) .SPreq-stack-rest-arg)
+(define-ppc64-subprim-call-vinsn (req-stack-rest-arg) .SPreq-stack-rest-arg)
 
-(define-ppc-subprim-call-vinsn (stack-cons-rest-arg) .SPstack-cons-rest-arg)
+(define-ppc64-subprim-call-vinsn (stack-cons-rest-arg) .SPstack-cons-rest-arg)
 
-(define-ppc-subprim-call-vinsn (heap-rest-arg) .SPheap-rest-arg)
+(define-ppc64-subprim-call-vinsn (heap-rest-arg) .SPheap-rest-arg)
 
-(define-ppc-subprim-call-vinsn (req-heap-rest-arg) .SPreq-heap-rest-arg)
+(define-ppc64-subprim-call-vinsn (req-heap-rest-arg) .SPreq-heap-rest-arg)
 
-(define-ppc-subprim-call-vinsn (heap-cons-rest-arg) .SPheap-cons-rest-arg)
+(define-ppc64-subprim-call-vinsn (heap-cons-rest-arg) .SPheap-cons-rest-arg)
 
-(define-ppc-subprim-call-vinsn (opt-supplied-p) .SPopt-supplied-p)
+(define-ppc64-subprim-call-vinsn (opt-supplied-p) .SPopt-supplied-p)
 
-(define-ppc-subprim-call-vinsn (gvector) .SPgvector)
+(define-ppc64-subprim-call-vinsn (gvector) .SPgvector)
 
 (define-ppc64-vinsn (nth-value :call :subprim-call) (((result :lisp))
                                                    ())
   (bla .SPnthvalue))
 
-(define-ppc-subprim-call-vinsn (fitvals) .SPfitvals)
+(define-ppc64-subprim-call-vinsn (fitvals) .SPfitvals)
 
-(define-ppc-subprim-call-vinsn (misc-alloc) .SPmisc-alloc)
+(define-ppc64-subprim-call-vinsn (misc-alloc) .SPmisc-alloc)
 
-(define-ppc-subprim-call-vinsn (misc-alloc-init) .SPmisc-alloc-init)
+(define-ppc64-subprim-call-vinsn (misc-alloc-init) .SPmisc-alloc-init)
 
-(define-ppc-subprim-call-vinsn (integer-sign) .SPinteger-sign)
+(define-ppc64-subprim-call-vinsn (integer-sign) .SPinteger-sign)
 
 ;;; Even though it's implemented by calling a subprim, THROW is really
 ;;; a JUMP (to a possibly unknown destination).  If the destination's
@@ -3278,41 +3278,41 @@
                                                ())
   (bla .SPthrow))
 
-(define-ppc-subprim-call-vinsn (mkcatchmv) .SPmkcatchmv)
+(define-ppc64-subprim-call-vinsn (mkcatchmv) .SPmkcatchmv)
 
-(define-ppc-subprim-call-vinsn (mkcatch1v) .SPmkcatch1v)
+(define-ppc64-subprim-call-vinsn (mkcatch1v) .SPmkcatch1v)
 
-(define-ppc-subprim-call-vinsn (setqsym) .SPsvar-setqsym)
+(define-ppc64-subprim-call-vinsn (setqsym) .SPsvar-setqsym)
 
-(define-ppc-subprim-call-vinsn (ksignalerr) .SPksignalerr)
+(define-ppc64-subprim-call-vinsn (ksignalerr) .SPksignalerr)
 
-(define-ppc-subprim-call-vinsn (subtag-misc-ref) .SPsubtag-misc-ref)
+(define-ppc64-subprim-call-vinsn (subtag-misc-ref) .SPsubtag-misc-ref)
 
-(define-ppc-subprim-call-vinsn (subtag-misc-set) .SPsubtag-misc-set)
+(define-ppc64-subprim-call-vinsn (subtag-misc-set) .SPsubtag-misc-set)
 
-(define-ppc-subprim-call-vinsn (mkunwind) .SPmkunwind)
+(define-ppc64-subprim-call-vinsn (mkunwind) .SPmkunwind)
 
-(define-ppc-subprim-call-vinsn (progvsave) .SPsvar-progvsave)
+(define-ppc64-subprim-call-vinsn (progvsave) .SPsvar-progvsave)
 
-(define-ppc-subprim-jump-vinsn (progvrestore) .SPsvar-progvrestore)
+(define-ppc64-subprim-jump-vinsn (progvrestore) .SPsvar-progvrestore)
 
-(define-ppc-subprim-call-vinsn (syscall) .SPsyscall)
+(define-ppc64-subprim-call-vinsn (syscall) .SPsyscall)
 
-(define-ppc-subprim-call-vinsn (newblocktag) .SPnewblocktag)
+(define-ppc64-subprim-call-vinsn (newblocktag) .SPnewblocktag)
 
-(define-ppc-subprim-call-vinsn (newgotag) .SPnewgotag)
+(define-ppc64-subprim-call-vinsn (newgotag) .SPnewgotag)
 
-(define-ppc-subprim-call-vinsn (misc-ref) .SPmisc-ref)
+(define-ppc64-subprim-call-vinsn (misc-ref) .SPmisc-ref)
 
-(define-ppc-subprim-call-vinsn (misc-set) .SPmisc-set)
+(define-ppc64-subprim-call-vinsn (misc-set) .SPmisc-set)
 
-(define-ppc-subprim-call-vinsn (gets64) .SPgets64)
+(define-ppc64-subprim-call-vinsn (gets64) .SPgets64)
 
-(define-ppc-subprim-call-vinsn (getu64) .SPgetu64)
+(define-ppc64-subprim-call-vinsn (getu64) .SPgetu64)
 
-(define-ppc-subprim-call-vinsn (makeu64) .SPmakeu64)
+(define-ppc64-subprim-call-vinsn (makeu64) .SPmakeu64)
 
-(define-ppc-subprim-call-vinsn (makes64) .SPmakes64)
+(define-ppc64-subprim-call-vinsn (makes64) .SPmakes64)
 
 (define-ppc64-vinsn (darwin-syscall :call :subprim-call) (()
                                                         ())
@@ -3324,11 +3324,11 @@
   (stw ppc::sp ppc64::c-frame.crsave ppc::sp)
   (bla .SPdarwin-syscall))
 
-(define-ppc-subprim-call-vinsn (eabi-ff-call) .SPeabi-ff-call)
+(define-ppc64-subprim-call-vinsn (eabi-ff-call) .SPeabi-ff-call)
 
-(define-ppc-subprim-call-vinsn (poweropen-ff-call) .SPffcall)
+(define-ppc64-subprim-call-vinsn (poweropen-ff-call) .SPffcall)
 
-(define-ppc-subprim-call-vinsn (poweropen-ff-callX) .SPffcallX)
+(define-ppc64-subprim-call-vinsn (poweropen-ff-callX) .SPffcallX)
 
 
 
