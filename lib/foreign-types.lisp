@@ -1409,7 +1409,7 @@
   (make-foreign-type :class 'root :bits 0 :alignment 0))
 
 (def-foreign-type void (root))
-(defvar *void-foreign-type* (parse-foreign-type :void)
+(defvar *void-foreign-type* (parse-foreign-type :void))
 (def-foreign-type address (* :void))
 
 (defmacro external (name)
