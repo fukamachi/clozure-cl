@@ -46,18 +46,33 @@
 ;;; Without-Interrupts.  This is done automatically by modifying-buffer; other
 ;;; users beware.
 
+
+
+#+no
 (defvar *line-cache-length* 200
   "Length of Open-Chars.")
 
+
+
+#+no
 (defvar *open-line* ()
   "Line open for hacking on.")
 
+
+
+#+no
 (defvar *open-chars*  (make-string *line-cache-length*)
   "Vector of characters for hacking on.")
 
+
+
+#+no
 (defvar *left-open-pos* 0
   "Index to first free character to left of mark in *Open-Chars*.")
 
+
+
+#+no
 (defvar *right-open-pos* 0
   "Index to first used character to right of mark in *Open-Chars*.")
 
@@ -158,38 +173,6 @@
   "Increments the ``now'' tick."
   `(incf now-tick))
 
-;;; When passing the buffer between threads, cache these special variables'
-;;; values in the buffer, iff they apply to the buffer.
-(defun normalize-buffer-gap-info (buffer)
-  (if (and *open-line* (eq buffer (line-%buffer *open-line*)))
-    (setf (buffer-open-line buffer) *open-line*
-          (buffer-open-chars buffer) *open-chars*
-          (buffer-right-open-pos buffer) *right-open-pos*
-          (buffer-left-open-pos buffer) *left-open-pos*
-          (buffer-line-cache-length buffer) *line-cache-length*)
-    (setf (buffer-open-line buffer) nil
-          (buffer-open-chars buffer) nil
-          (buffer-right-open-pos buffer) 0
-          (buffer-left-open-pos buffer) 0
-          (buffer-line-cache-length buffer) 0)))
-
-;;; Caller has presumably bound these variables, if that matters
-(defun set-gap-info-from-buffer (buffer)
-  (setq *open-line* (buffer-open-line buffer)
-        *open-chars* (buffer-open-chars buffer)
-        *right-open-pos* (buffer-right-open-pos buffer)
-        *left-open-pos* (buffer-left-open-pos buffer)
-        *line-cache-length* (buffer-line-cache-length buffer)))
-
-;;; One way to bind those variables ...
-(defmacro with-buffer-gap-info ((buffer) &body body)
-  `(let* ((*open-line* (buffer-open-line ,buffer))
-          (*open-chars* (buffer-open-chars ,buffer))
-          (*right-open-pos* (buffer-right-open-pos ,buffer))
-          (*left-open-pos* (buffer-left-open-pos ,buffer))
-          (*line-cache-length* (buffer-line-cache-length ,buffer)))
-    ,@body))
-
   
 (defun buffer-document-begin-editing (buffer)
   (when (bufferp buffer)
@@ -200,7 +183,6 @@
   (when (bufferp buffer)
     (let* ((document (buffer-document buffer)))
       (when document
-        (normalize-buffer-gap-info buffer)
         (document-end-editing document)))))
 
 
