@@ -81,6 +81,10 @@
                                   :function-arguments (cadr errargs)))
                  (sequence-index-type-error
                   (make-sequence-index-type-error (car errargs) (cadr errargs)))
+		 (cant-construct-arglist
+		  (make-condition condition-name
+				  :datum (car errargs)
+				  :format-control format-string))
                                   
                  (t (make-condition condition-name 
                                     :format-control format-string
