@@ -320,14 +320,14 @@ Boolean
 new_heap_segment(ExceptionInformation *xp, unsigned need, Boolean extend, TCR *tcr)
 {
   area *a;
-  unsigned newlimit, oldlimit;
+  natural newlimit, oldlimit;
 
 
   a  = active_dynamic_area;
-  oldlimit = (unsigned) a->active;
+  oldlimit = (natural) a->active;
   newlimit = (align_to_power_of_2(oldlimit, log2_heap_segment_size) +
 	      align_to_power_of_2(need, log2_heap_segment_size));
-  if (newlimit > (unsigned) (a->high)) {
+  if (newlimit > (natural) (a->high)) {
     if (extend) {
       resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold);
     } else {
@@ -342,7 +342,7 @@ new_heap_segment(ExceptionInformation *xp, unsigned need, Boolean extend, TCR *t
   if (!free_segments_zero_filled_by_OS) {
     BytePtr 
       pageptr = (BytePtr)align_to_power_of_2(oldlimit,log2_heap_segment_size);
-    unsigned i, npages = (newlimit-(unsigned)pageptr) >> 12;
+    natural i, npages = (newlimit-(natural)pageptr) >> 12;
 
     for (i = 0; i < npages; i++, pageptr += page_size) {
       zero_page(pageptr);
@@ -415,7 +415,8 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
   pc program_counter;
   unsigned cur_allocptr, bytes_needed = 0;
   opcode prev_instr;
-  int disp = 0, allocptr_tag;
+  signed_natural disp = 0;
+  unsigned allocptr_tag;
 
   cur_allocptr = xpGPR(xp,allocptr);
   program_counter = xpPC(xp);
@@ -465,7 +466,7 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
        size (say 128K bytes), signal a "chronically out-of-memory" condition;
        else signal a "allocation request failed" condition.
     */
-    handle_error(xp, bytes_needed < (128<<10) ? XNOMEM : error_alloc_failed, 0, 0, (unsigned) xpPC(xp));
+    handle_error(xp, bytes_needed < (128<<10) ? XNOMEM : error_alloc_failed, 0, 0,  xpPC(xp));
     return -1;
   }
   return -1;
@@ -595,7 +596,7 @@ signal_stack_soft_overflow(ExceptionInformation *xp, unsigned reg)
 #if 0
   lisp_global(CS_OVERFLOW_LIMIT) = CS_OVERFLOW_FORCE_LIMIT; /* force unsigned traps to fail */
 #endif
-  handle_error(xp, error_stack_overflow, reg, 0, (unsigned) xpPC(xp));
+  handle_error(xp, error_stack_overflow, reg, 0,  xpPC(xp));
 }
 
 /*
@@ -976,7 +977,7 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
   if (info) {
     addr = (BytePtr)(info->si_addr);
   } else {
-    addr = (BytePtr) ((int) (xpDAR(xp)));
+    addr = (BytePtr) ((natural) (xpDAR(xp)));
   }
   area = find_protected_area(addr);
 
@@ -1283,9 +1284,9 @@ do_tenured_space_write(ExceptionInformation *xp, protected_area_ptr area, BytePt
 {
   /* Note that the page has been "newly" written to, then unprotect it
      and continue */
-  unsigned 
-    page_start = ((unsigned)addr) & ~4095, 
-    pgno = (page_start - (unsigned)(area->start)) >> 12;
+  natural 
+    page_start = ((natural)addr) & ~4095, 
+    pgno = (page_start - (natural)(area->start)) >> 12;
   
   if (lisp_global(IN_GC) != 0) {
     Bug(xp, "Tenured space protected in GC");
@@ -1313,7 +1314,7 @@ handle_sigfpe(ExceptionInformation *xp, TCR *tcr)
   /* 'handle_fpux_binop' scans back from the specified PC until it finds an FPU
      operation; there's an FPU operation right at the PC, so tell it to start
      looking one word beyond */
-  return handle_fpux_binop(xp, (unsigned)(xpPC(xp))+4);
+  return handle_fpux_binop(xp, (pc)((natural)(xpPC(xp))+4));
 }
 
     
@@ -1400,7 +1401,7 @@ adjust_exception_pc(ExceptionInformation *xp, int delta)
 */
 
 OSStatus
-handle_fpux_binop(ExceptionInformation *xp, unsigned where)
+handle_fpux_binop(ExceptionInformation *xp, pc where)
 {
   OSStatus err;
   unsigned *there = (unsigned *) where, instr, errnum;
@@ -1423,7 +1424,7 @@ handle_fpux_binop(ExceptionInformation *xp, unsigned where)
     }
   }
   
-  err = handle_error(xp, errnum, rcontext, 0, (unsigned) there);
+  err = handle_error(xp, errnum, rcontext, 0,  there);
   /* Yeah, we said "non-continuable".  In case we ever change that ... */
   
   adjust_exception_pc(xp, delta);
@@ -1459,11 +1460,11 @@ handle_uuo(ExceptionInformation *xp, opcode the_uuo, pc where)
 
 
   case UUO_INTERR:
-    status = handle_error(xp, errnum, rb, 0, (unsigned) where);
+    status = handle_error(xp, errnum, rb, 0,  where);
     break;
 
   case UUO_INTCERR:
-    status = handle_error(xp, errnum, rb, 1, (unsigned) where);
+    status = handle_error(xp, errnum, rb, 1,  where);
     if (errnum == error_udf_call) {
       /* If lisp's returned from a continuable undefined-function call,
 	 it's put a code vector in the xp's PC.  Don't advance the
@@ -1473,7 +1474,7 @@ handle_uuo(ExceptionInformation *xp, opcode the_uuo, pc where)
     break;
 
   case UUO_FPUX_BINOP:
-    status = handle_fpux_binop(xp, (unsigned)where);
+    status = handle_fpux_binop(xp, where);
     bump = 0;
     break;
 
@@ -1488,16 +1489,17 @@ handle_uuo(ExceptionInformation *xp, opcode the_uuo, pc where)
   return status;
 }
 
-unsigned
-register_codevector_contains_pc (unsigned lisp_function, unsigned where)
+natural
+register_codevector_contains_pc (natural lisp_function, pc where)
 {
-  unsigned code_vector, size;
+  natural code_vector, size;
 
   if ((fulltag_of(lisp_function) == fulltag_misc) &&
       (header_subtag(header_of(lisp_function)) == subtag_function)) {
     code_vector = deref(lisp_function, 1);
     size = header_element_count(header_of(code_vector)) << 2;
-    if ((untag(code_vector) < where) && (where < (code_vector + size)))
+    if ((untag(code_vector) < (natural)where) && 
+	((natural)where < (code_vector + size)))
       return(code_vector);
   }
 
@@ -1512,12 +1514,12 @@ register_codevector_contains_pc (unsigned lisp_function, unsigned where)
    2. Otherwise use 0 and the pc itself
 */
 void
-callback_for_trap (LispObj callback_macptr, ExceptionInformation *xp, unsigned where,
-                   unsigned arg1, unsigned arg2, unsigned arg3)
+callback_for_trap (LispObj callback_macptr, ExceptionInformation *xp, pc where,
+                   natural arg1, natural arg2, natural arg3)
 {
-  unsigned code_vector = register_codevector_contains_pc(xpGPR(xp, fn), where);
+  natural code_vector = register_codevector_contains_pc(xpGPR(xp, fn), where);
   unsigned register_number = fn;
-  unsigned index = where;
+  natural index = (natural)where;
 
   if (code_vector == 0) {
     register_number = nfn;
@@ -1526,16 +1528,16 @@ callback_for_trap (LispObj callback_macptr, ExceptionInformation *xp, unsigned w
   if (code_vector == 0)
     register_number = 0;
   else
-    index = (where - (code_vector + misc_data_offset)) >> 2;
+    index = ((natural)where - (code_vector + misc_data_offset)) >> 2;
   callback_to_lisp(callback_macptr, xp, register_number, index, arg1, arg2, arg3);
 }
 
 void
 callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
-                  unsigned arg1, unsigned arg2, unsigned arg3, unsigned arg4, unsigned arg5)
+                  natural arg1, natural arg2, natural arg3, natural arg4, natural arg5)
 {
   sigset_t mask;
-  unsigned  callback_ptr, i;
+  natural  callback_ptr, i;
   area *a;
 
   TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
@@ -1632,11 +1634,11 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
       *CS_area = tcr->cs_area,
       *VS_area = tcr->vs_area;
       
-    unsigned 
+    natural 
       current_SP = xpGPR(xp,sp),
       current_VSP = xpGPR(xp,vsp);
 
-    if (current_SP  < (unsigned) (CS_area->hardlimit)) {
+    if (current_SP  < (natural) (CS_area->hardlimit)) {
       /* If we're not in soft overflow mode yet, assume that the
          user has set the soft overflow size very small and try to
          continue on another thread before throwing to toplevel */
@@ -1648,8 +1650,8 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
         /* If the control stack pointer is at least 4K away from its soft limit
 	   and the value stack pointer is at least 4K away from its soft limit,
            stop trapping.  Else keep trapping. */
-        if ((current_SP > (unsigned) ((CS_area->softlimit)+4096)) &&
-	    (current_VSP > (unsigned) ((VS_area->softlimit)+4096))) {
+        if ((current_SP > (natural) ((CS_area->softlimit)+4096)) &&
+	    (current_VSP > (natural) ((VS_area->softlimit)+4096))) {
 	  protected_area_ptr vs_soft = VS_area->softprot;
 	  if (vs_soft->nprot == 0) {
 	    protect_area(vs_soft);
@@ -1695,7 +1697,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
 	tcr->interrupt_level = (-1 << fixnumshift);
 	tcr->interrupt_pending = 0;
       }
-      callback_for_trap(cmain, xp, (unsigned) where, (unsigned) the_trap,  0, 0);
+      callback_for_trap(cmain, xp,  where, (natural) the_trap,  0, 0);
       if (event_poll_p) {
 	tcr->interrupt_level = 0;
 	tcr->interrupt_pending = 0;
@@ -1767,7 +1769,7 @@ is_conditional_trap(opcode instr)
 }
 
 OSStatus
-handle_error(ExceptionInformation *xp, unsigned errnum, unsigned rb, unsigned continuable, unsigned where)
+handle_error(ExceptionInformation *xp, unsigned errnum, unsigned rb, unsigned continuable, pc where)
 {
   LispObj   pname;
   LispObj   errdisp = nrs_ERRDISP.vcell;
@@ -1873,7 +1875,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
   wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info))) {
     char msg[512];
-    snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%08x, context->regs at #x%08x", signum, xpPC(context), (int)xpGPRvector(context));
+    snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%08lx, context->regs at #x%08lx", signum, xpPC(context), (natural)xpGPRvector(context));
     lisp_Debugger(context, signum, msg);
   }
   unlock_exception_lock_in_handler(tcr);
@@ -2060,7 +2062,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
     new_frame->savevsp=0;
     new_frame->savefn=0;
     new_frame->savelr = (LispObj)xpPC(context);
-    xpPC(context) = (LispObj *)enable_fp_exceptions;
+    xpPC(context) = (pc)enable_fp_exceptions;
     DarwinSigReturn(context);
   }
 #endif
@@ -2458,13 +2460,25 @@ pseudo_signal_handler(int signum, ExceptionInformation *context, TCR *tcr)
 int
 thread_set_fp_exceptions_enabled(mach_port_t thread, Boolean enabled)
 {
+#ifdef PPC64
+  ppc_thread_state64_t ts;
+#else
   ppc_thread_state_t ts;
+#endif
   mach_msg_type_number_t thread_state_count;
 
   lock_acquire(mach_exception_lock_set, 0);
-  thread_state_count = MACHINE_THREAD_STATE_COUNT;
+#ifdef PPC64
+  thread_state_count = PPC_THREAD_STATE64_COUNT;
+#else
+  thread_state_count = PPC_THREAD_STATE_COUNT;
+#endif
   thread_get_state(thread, 
-		   MACHINE_THREAD_STATE,	/* GPRs, some SPRs  */
+#ifdef PPC64
+		   PPC_THREAD_STATE64,	/* GPRs, some SPRs  */
+#else
+		   PPC_THREAD_STATE,	/* GPRs, some SPRs  */
+#endif
 		   (thread_state_t)&ts,
 		   &thread_state_count);
   if (enabled) {
