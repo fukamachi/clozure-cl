@@ -19,6 +19,8 @@
 (in-package :hemlock-internals)
 
 (defun maybe-update-selection (mark)
+  mark
+  #+nil
   (let* ((line (mark-line mark))
 	 (buffer (if line (line-%buffer line)))
 	 (document (if buffer (buffer-document buffer))))
