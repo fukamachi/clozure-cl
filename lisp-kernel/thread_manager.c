@@ -14,12 +14,6 @@
    http://opensource.franz.com/preamble.html
 */
 
-/*
-  $Log$
-  Revision 1.5  2003/12/10 08:25:34  gb
-  Don't free() a pointer that was just realloc()ed.
-
-*/
 
 #include "Threads.h"
 

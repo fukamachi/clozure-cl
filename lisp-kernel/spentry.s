@@ -15,12 +15,6 @@
 
 */
 
-/*
-  $Log$
-  Revision 1.5  2003/12/10 08:25:10  gb
-  Don't reference tlb_pointer until we're sure it's big enough.
-
-*/       
 	
 	include(lisp.s)
 	_beginfile
