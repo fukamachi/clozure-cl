@@ -9,10 +9,10 @@
 (def-cocoa-default *listener-rows* :int 16)
 (def-cocoa-default *listener-columns* :int 80)
 
-(def-cocoa-default *listener-background-red-component* :int 0.75f0)
-(def-cocoa-default *listener-background-green-component* :int 0.75f0)
-(def-cocoa-default *listener-background-blue-component* :int 0.75f0)
-(def-cocoa-default *listener-background-alpha-component* :int 1.0f0)
+(def-cocoa-default *listener-background-red-component* :float 0.90f0)
+(def-cocoa-default *listener-background-green-component* :float 0.90f0)
+(def-cocoa-default *listener-background-blue-component* :float 0.90f0)
+(def-cocoa-default *listener-background-alpha-component* :float 1.0f0)
 
 ;;; Setup the server end of a pty pair.
 (defun setup-server-pty (pty)

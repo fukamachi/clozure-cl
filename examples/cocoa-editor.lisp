@@ -15,10 +15,10 @@
 
 ;;; Background color components: red, blue, green, alpha.
 ;;; All should be single-floats between 0.0f0 and 1.0f0, inclusive.
-(def-cocoa-default *editor-background-red-component* :int 1.0f0)
-(def-cocoa-default *editor-background-blue-component* :int 1.0f0)
-(def-cocoa-default *editor-background-green-component* :int 1.0f0)
-(def-cocoa-default *editor-background-alpha-component* :int 1.0f0)
+(def-cocoa-default *editor-background-red-component* :float 1.0f0)
+(def-cocoa-default *editor-background-blue-component* :float 1.0f0)
+(def-cocoa-default *editor-background-green-component* :float 1.0f0)
+(def-cocoa-default *editor-background-alpha-component* :float 1.0f0)
 
 ;;; At runtime, this'll be a vector of character attribute dictionaries.
 (defloadvar *styles* ())
