@@ -44,7 +44,20 @@
 #include <sys/resource.h>
 #include <link.h>
 #include <elf.h>
+/* 
+   The version of <asm/cputable.h> provided by some distributions will
+   claim that <asm-ppc64/cputable.h> doesn't exist.  It may be present
+   in the Linux kernel source tree even if it's not copied to
+   /usr/include/asm-ppc64.  Hopefully, this will be straightened out
+   soon (and/or the PPC_FEATURE_HAS_ALTIVEC constant will be defined
+   in a less volatile place.)  Until that's straightened out, it may
+   be necessary to install a copy of the kernel header in the right
+   place and/or persuade <asm/cputable> to lighten up a bit.
+*/
 #include <asm/cputable.h>
+#ifndef PPC_FEATURE_HAS_ALTIVEC
+#define PPC_FEATURE_HAS_ALTIVEC 0x10000000
+#endif
 #endif
 
 #ifdef DARWIN
