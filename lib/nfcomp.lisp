@@ -538,8 +538,6 @@ Will differ from *compiling-file* during an INCLUDE")
         (fcomp-compile-toplevel-forms env)))))
                                                                
 (defun fcomp-eval-when (form env processing-mode &aux (eval-times (pop form)))
-  (when (or (atom eval-times) (eq (%car eval-times) 'quote))
-    (report-bad-arg eval-times 'list))
   (let* ((compile-time-too  (eq processing-mode :compile-time-too))
          (compile-time-only (eq processing-mode :compile-time))
          (at-compile-time nil)
