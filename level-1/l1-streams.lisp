@@ -203,19 +203,13 @@
 	 :format-control (format nil "~a during ~a"
 				 (%strerror error-number) context)))
 
-(defmethod instance-initialize :after ((stream input-stream) &key)
+(defmethod initialize-instance :after ((stream input-stream) &key)
   (let ((direction (slot-value stream 'direction)))
     (if (null direction)
       (set-slot-value stream 'direction :input)
       (if (eq direction :output)
         (set-slot-value stream 'direction :io)))))
 
-(defmethod instance-initialize :after ((stream output-stream) &key)
-  (let ((direction (slot-value stream 'direction)))
-    (if (null direction)
-      (set-slot-value stream 'direction :output)
-      (if (eq direction :input)
-        (set-slot-value stream 'direction :io)))))
 
 (defmethod stream-write-char ((stream stream) char)
   (declare (ignore char))
