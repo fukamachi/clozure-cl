@@ -2194,7 +2194,7 @@ typedef struct {
 #include <mach/machine/thread_status.h>
 
 void
-fatal_mach_error(format, ...);
+fatal_mach_error(char *format, ...);
 
 #define MACH_CHECK_ERROR(context,x) if (x != KERN_SUCCESS) {fatal_mach_error("Mach error while %s : ~d", context, x);}
 
