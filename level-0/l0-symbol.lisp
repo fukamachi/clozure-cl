@@ -26,6 +26,21 @@
 ;; This is called only by the compiler output of a PROGV form.
 ;; It checks for the maximum length that the progvsave subprim
 ;; can handle.
+(defun svar-check-symbol-list (l &optional (max-length
+                                        (floor (- 4096 20) (* 4 3))
+                                       ))
+  (let ((len (list-length l)))
+    (if (and len
+             (or (null max-length)
+                 (< len max-length))
+             (dolist (s l t) 
+               (unless (and (symbolp s)
+                            (not (constant-symbol-p s))
+                            (not (logbitp $sym_vbit_global (the fixnum (%symbol-bits s)))))
+                 (return nil))))
+      (mapcar #'ensure-svar l)
+      (error "~s is not a proper list of bindable symbols~@[ of length < ~s~]." l max-length))))
+
 (defun check-symbol-list (l &optional (max-length
                                         (floor (- 4096 20) (* 4 3))
                                        ))
@@ -34,7 +49,9 @@
              (or (null max-length)
                  (< len max-length))
              (dolist (s l t) 
-               (unless (and (symbolp s) (not (constant-symbol-p s)))
+               (unless (and (symbolp s)
+                            (not (constant-symbol-p s))
+                            (not (logbitp $sym_vbit_global (the fixnum (%symbol-bits s)))))
                  (return nil))))
       l
       (error "~s is not a proper list of bindable symbols~@[ of length < ~s~]." l max-length))))
@@ -192,3 +209,49 @@
     (if (zerop base)
       (values sym arch::symbol.vcell)
       (values base 8))))
+
+(let* ((svar-lock (make-lock))
+       (svar-hash (make-hash-table :test #'eq :weak t))
+       (svar-index 0))
+  (defun %set-svar-hash (hash)
+    (unless svar-hash
+      (setq svar-hash hash)))
+  (defun %find-svar (symptr)
+    (gethash symptr svar-hash))
+  (defun find-svar (sym)
+    (%find-svar (%symbol->symptr sym)))
+  (defun ensure-svar-idx (svar)
+    (let* ((sym (%svref svar arch::svar.symbol-cell))
+           (idx (%svref svar arch::svar.idx-cell))
+           (bits (%symbol-bits sym)))
+      (declare (fixnum idx bits))
+      (if (or (logbitp $sym_vbit_global bits)
+              (logbitp $sym_vbit_const bits))
+        (unless (zerop idx)
+          (setf (%svref svar arch::svar.idx-cell) 0))
+        (if (zerop idx)
+          (setf (%svref svar arch::svar.idx-cell) (incf svar-index))))
+      svar))
+  (defun %ensure-svar (symptr)
+    (with-lock-grabbed (svar-lock)
+      (let* ((svar (or (%find-svar symptr)
+                       (setf (gethash symptr svar-hash)
+                             (gvector :svar symptr 0)))))
+        (ensure-svar-idx svar))))
+  (defun ensure-svar (sym)
+    (%ensure-svar (%symbol->symptr sym)))
+  (defun cold-load-svar (svar)
+    (with-lock-grabbed (svar-lock)
+      (let* ((symptr (%symbol->symptr (%svref svar arch::svar.symbol-cell))))
+        (setf (gethash symptr svar-hash) svar)
+        (setf (%svref svar arch::svar.idx-cell) 0)
+        (ensure-svar-idx svar))))
+  (defun svar-index ()
+    svar-index)
+  (defun svar-hash ()
+    svar-hash))
+
+  
+      
+  
+   
