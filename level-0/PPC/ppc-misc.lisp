@@ -863,10 +863,23 @@
   (blr))
 
 (defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
-  ; put address of vect data in macptr
-  (addi arg_y arg_y ppc32::misc-data-offset)
-  (stw arg_y ppc32::macptr.address arg_z)
+  ;; put address of vect data in macptr.  For all vector types
+  ;; other than DOUBLE-FLOAT (or vectors thereof), the first byte
+  ;; of data is at PPC32::MISC-DATA-OFFSET; for the double-float
+  ;; types, it's at PPC32::MISC-DFLOAT-OFFSET.
+  (extract-subtag imm0 vect)
+  (cmpwi cr0 imm0 ppc32::subtag-double-float-vector)
+  (cmpwi cr1 imm0 ppc32::subtag-double-float)
+  (addi temp0 vect ppc32::misc-data-offset)
+  (beq cr0 @dfloat)
+  (beq cr1 @dfloat)
+  (stw temp0 ppc32::macptr.address arg_z)
+  (blr)
+  @dfloat
+  (addi temp0 vect ppc32::misc-dfloat-offset)
+  (stw temp0 ppc32::macptr.address arg_z)
   (blr))
+  
 
 
 
