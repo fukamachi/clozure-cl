@@ -895,8 +895,9 @@ c)" t)
  #\# 
  #\r
  #'(lambda (stream subchar numarg)
-     (require-numarg subchar numarg)
-     (check-type numarg (integer 2 36))
+     (unless *read-suppress*
+       (require-numarg subchar numarg)
+       (check-type numarg (integer 2 36)))
      (%read-rational stream subchar numarg)))
 
 (set-dispatch-macro-character
