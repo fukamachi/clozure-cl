@@ -2594,7 +2594,7 @@
     `(let* ((,got-it (%request-terminal-input)))
       (unwind-protect
 	   (progn ,@body)
-	(if ,got-it (%restore-terminal-input))))))
+	(%restore-terminal-input ,got-it)))))
 
 (defmacro do-unexhausted-lisp-threads ((thread) &body body)
   `(dolist (,thread (population-data *lisp-thread-population*))
