@@ -900,7 +900,7 @@
         (if keyword-package
           ;(define-constant symbol symbol)
           (progn
-            (%set-sym-value symbol symbol)
+            (%set-sym-global-value symbol symbol)
             (%symbol-bits symbol 
                           (logior (ash 1 $sym_vbit_special) 
                                   (ash 1 $sym_vbit_const)
