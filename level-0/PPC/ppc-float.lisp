@@ -275,37 +275,6 @@
 
 
 
-; t/nil - could as well be 1/0
-(defppclapfunction %double-float-sign ((n arg_z))
-  (lwz imm1 ppc32::double-float.value n)
-  (rlwinm. imm1 imm1 0 0 0)  ; or or.
-  (setpred arg_z :cr0 :lt) 
-  (blr))
-
-(defppclapfunction %short-float-sign ((n arg_z))
-  (lwz imm1 ppc32::single-float.value n)
-  (rlwinm. imm1 imm1 0 0 0)  ; or or.
-  (setpred arg_z :cr0 :lt) 
-  (blr))
- 
-
-; also in ppc-numbers using fpu - don't know which is better
-; Well, this was wrong ..
-; this does not (obviously) set anything in fpscr, wheras doing fcmpo with 0.0 will
-; set fex & invalid-operation if n is a NAN
-(defppclapfunction %double-float-zerop ((n arg_z))
-  (lwz imm1 ppc32::double-float.value n)
-  (clrlwi imm1 imm1 1)  ; nuke sign
-  (lwz imm0 ppc32::double-float.val-low n)
-  (or imm1 imm1 imm0 )
-  (eq0->boolean arg_z imm1 imm0)
-  (blr))
-
-(defppclapfunction %short-float-zerop ((n arg_z))
-  (lwz imm1 ppc32::single-float.value n)
-  (clrlwi imm1 imm1 1)
-  (eq0->boolean arg_z imm1 imm0)
-  (blr))
     
 
 ; this is also wrong - it doesn't check for invalid-operation
