@@ -3955,7 +3955,9 @@
 		   (type-predicate type))
               (handler-case
                   (let* ((ctype (specifier-type type)))
-                    #'(lambda (value) (%%typep value ctype)))
+                    #'(lambda (value)
+			(multiple-value-bind (win sure) (ctypep value ctype)
+			  (or (not sure) win))))
                 (parse-unknown-type (c)
                   (declare (ignore c))
                   #'(lambda (value)
@@ -3964,5 +3966,7 @@
                         (unless (typep nowctype 'unknown-ctype)
                           (setf (slot-value spec 'type-predicate)
                                 #'(lambda (value) (%%typep value nowctype))))
-                        (%%typep value nowctype)))))))))
+                        (multiple-value-bind (win sure)
+			    (ctypep value nowctype)
+			  (or (not sure) win))))))))))
 
