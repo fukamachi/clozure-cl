@@ -347,7 +347,9 @@
     
 (defun create-text-attributes (&key (font (default-font))
 				    (line-break-mode :char)
-				    (color nil))
+				    (color nil)
+                                    (obliqueness nil)
+                                    (stroke-width nil))
   (let* ((dict (make-objc-instance
 		'ns-mutable-dictionary
 		:with-capacity (if color 3 2))))
@@ -358,6 +360,14 @@
     (send dict :set-object font :for-key #@"NSFont")
     (when color
       (send dict :set-object color :for-key #@"NSColor"))
+    (when stroke-width
+      (send dict :set-object (make-objc-instance 'ns:ns-number
+                                                :with-float (float stroke-width))
+            :for-key #@"NSStrokeWidth"))
+    (when obliqueness
+      (send dict :set-object (make-objc-instance 'ns:ns-number
+                                                :with-float (float obliqueness))
+            :for-key #@"NSObliqueness"))
     dict))
 
 
