@@ -102,12 +102,8 @@
   (delete-hook nil)	      ; List of functions to call upon deletion.
   (external-format :unix)     ; Line-termination, for the time being
   process		      ; Maybe a listener
-  (line-cache-length 200)     ; initial/current length of open-chars
-  (open-line nil)             ; the current open line
-  (open-chars (make-string 200)) ; gap
-  (left-open-pos 0)
-  (right-open-pos 0)
-  
+  (gap-context )			; The value of *buffer-gap-context*
+                              ; in the thread that can modify the buffer.
   )
 
 (setf (documentation 'buffer-modes 'function)
@@ -655,3 +651,22 @@
 (defsetf modeline-field-function %set-modeline-field-function
   "Sets a modeline-field's function and updates this field for all windows in
    any buffer whose fields list contains the field.")
+
+;;; Shared buffer-gap context, used to communicate between command threads
+;;; and the event thread.  Note that this isn't buffer-specific; in particular,
+;;; OPEN-LINE and friends may not point at a line that belongs to any
+;;; buffer.
+
+(defstruct buffer-gap-context
+  (lock (ccl::make-lock))
+  (left-open-pos 0)
+  (right-open-pos 0)
+  (line-cache-length 200)
+  (open-line nil)
+  (open-chars (make-string 200)))
+
+(define-symbol-macro *line-cache-length* (buffer-gap-context-line-cache-length *buffer-gap-context*))
+(define-symbol-macro *open-line* (buffer-gap-context-open-line *buffer-gap-context*))
+(define-symbol-macro *open-chars* (buffer-gap-context-open-chars *buffer-gap-context*))
+(define-symbol-macro *left-open-pos* (buffer-gap-context-left-open-pos *buffer-gap-context*))
+(define-symbol-macro *right-open-pos* (buffer-gap-context-right-open-pos *buffer-gap-context*))
