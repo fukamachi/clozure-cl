@@ -443,6 +443,13 @@
         (when (%store-node-conditional offset v old cell)
           (return cell))))))
 
+(defun store-gvector-conditional (index gvector old new)
+  (%store-node-conditional (+ target::misc-data-offset
+			      (ash index target::word-shift))
+			   gvector
+			   old
+			   new))
+
 (defun %atomic-incf-car (cell &optional (by 1))
   (%atomic-incf-node (require-type by 'fixnum)
 		     (require-type cell 'cons)
