@@ -1105,8 +1105,11 @@
 ;;;    Return a Common Lisp type specifier corresponding to this type.
 ;;;
 (defun type-specifier (type)
-  (declare (type ctype type))
-  (funcall (type-class-unparse (ctype-class-info type)) type))
+  (unless (ctype-p type)
+    (setq type (require-type type 'ctype)))
+  (locally 
+      (declare (type ctype type))
+    (funcall (type-class-unparse (ctype-class-info type)) type)))
 
 ;;; VALUES-SPECIFIER-TYPE  --  Interface
 ;;;
@@ -3078,5 +3081,16 @@
     (setf (slot-value spec 'type-predicate)
 	  (or (and (typep type 'symbol)
 		   (type-predicate type))
-	      (let* ((ctype (specifier-type type)))
-		#'(lambda (value) (ctypep value ctype)))))))
+              (handler-case
+                  (let* ((ctype (specifier-type type)))
+                    #'(lambda (value) (%%typep value ctype)))
+                (parse-unknown-type (c)
+                  (declare (ignore c))
+                  #'(lambda (value)
+                      ;; If the type's now known, install a new predicate.
+                      (let* ((nowctype (specifier-type type)))
+                        (unless (typep nowctype 'unknown-ctype)
+                          (setf (slot-value spec 'type-predicate)
+                                #'(lambda (value) (%%typep value nowctype))))
+                        (%%typep value nowctype)))))))))
+
