@@ -309,7 +309,7 @@
 
 (defparameter *default-control-stack-size* (ash 1 20))
 (defparameter *default-value-stack-size* (ash 1 20))
-(defparameter *default-temp-stack-size* (ash 1 18))
+(defparameter *default-temp-stack-size* (ash 1 19))
 
 
 (defmacro with-area-macptr ((var area) &body body)
