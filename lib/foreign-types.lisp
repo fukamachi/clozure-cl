@@ -638,10 +638,21 @@
     (svref *unsigned-integer-types* bits)
     (make-foreign-integer-type :bits bits :signed nil)))
 
-(def-foreign-type-method (integer :unparse) (type)
-  (list (if (foreign-integer-type-signed type) :signed :unsigned)
-	(foreign-integer-type-bits type)))
+(def-foreign-type-translator bitfield (&optional (bits 1))
+  (make-foreign-integer-type :bits bits :signed nil :alignment 1))
 
+						  
+
+(def-foreign-type-method (integer :unparse) (type)
+  (let* ((bits (foreign-integer-type-bits type))
+	 (signed (foreign-integer-type-signed type))
+	 (alignment (foreign-integer-type-alignment type)))
+    (if (eql alignment 1)
+      (if (eql bits 1)
+	:bit
+	`(:bitfield ,bits))
+      (list (if signed :signed :unsigned) bits))))
+  
 (def-foreign-type-method (integer :type=) (type1 type2)
   (and (eq (foreign-integer-type-signed type1)
 	   (foreign-integer-type-signed type2))
@@ -1388,6 +1399,7 @@
 (def-foreign-type unsigned-fullword unsigned-int)
 (def-foreign-type unsigned-long (unsigned 32))
 (def-foreign-type unsigned-doubleword (unsigned 64))
+(def-foreign-type bit (bitfield 1))
 
 (def-foreign-type float single-float)
 (def-foreign-type double double-float)
