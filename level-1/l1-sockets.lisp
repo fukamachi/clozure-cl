@@ -281,7 +281,7 @@
 
 (defmethod close :before ((s file-listener-socket) &key abort)
   (declare (ignore abort))
-  (let* ((path (local-socket-filename (socket-device s))))
+  (let* ((path (local-socket-filename (socket-device s) s)))
     (when path (%delete-file path))))
 
 
