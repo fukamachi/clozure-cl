@@ -126,7 +126,11 @@
 ))
 		   v)))
 	(unless use-whole-var
-	  (simple-var w wholeform))
+	  (if (atom w)
+	    (simple-var w wholeform)
+	    (progn
+	      (setq w (structured-var "WHOLE" w (if cdr-p `(cdr ,wholeform) wholeform))
+		    cdr-p nil))))
 	(simple-var argptr `(make-destructure-state ,@(if cdr-p `((cdr ,w)) `(,w)) ,w ',lambda-list))
 	(setq most-recent-binding nil)
 	(push `(dynamic-extent ,argptr) decls)
