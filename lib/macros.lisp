@@ -1255,13 +1255,13 @@
 	(close ,var)
 	,@(if index `((setf ,index (string-input-stream-index ,var))))))))
 
-(defmacro with-output-to-string ((var &optional string &key (element-type 'base-char))
+(defmacro with-output-to-string ((var &optional string &key (element-type 'base-char element-type-p))
                                  &body body 
                                  &environment env)
   (multiple-value-bind (forms decls) (parse-body body env nil)
     `(let ((,var ,(if string
                     `(%make-string-output-stream ,string)
-                    `(make-string-output-stream :element-type ',element-type))))
+                    `(make-string-output-stream :element-type ,(if element-type-p element-type `'base-char)))))
        ,@decls
        (unwind-protect
          (progn
