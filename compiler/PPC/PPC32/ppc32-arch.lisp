@@ -17,13 +17,16 @@
 
 ;; This file matches "ccl:pmcl;constants.h" & "ccl:pmcl;constants.s"
 
+(defpackage "PPC32"
+  (:use "CL")
+  #+ppc32-target
+  (:nicknames "TARGET"))
+
+
 (in-package "PPC32")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "PPC-ARCH"))
-
-
-(in-package "PPC32")
+  (require "PPC-ARCH")
 
 
 (defmacro define-storage-layout (name origin &rest cells)
@@ -53,6 +56,8 @@
        ,@(mapcar #'(lambda (cell) (ccl::form-symbol name "." cell "-CELL")) non-header-cells))
      (defconstant ,(ccl::form-symbol name ".ELEMENT-COUNT") ,(length non-header-cells))))
 
+  
+)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 (defconstant nbits-in-word 32)
@@ -527,6 +532,16 @@
 
 (defconstant eabi-c-frame.minsize eabi-c-frame.size)
 
+(defmacro define-header (name element-count subtag)
+  `(defconstant ,name (logior (ash ,element-count num-subtag-bits) ,subtag)))
+
+(define-header single-float-header single-float.element-count subtag-single-float)
+(define-header double-float-header double-float.element-count subtag-double-float)
+(define-header one-digit-bignum-header 1 subtag-bignum)
+(define-header two-digit-bignum-header 2 subtag-bignum)
+(define-header symbol-header symbol.element-count subtag-symbol)
+(define-header value-cell-header value-cell.element-count subtag-value-cell)
+(define-header macptr-header macptr.element-count subtag-macptr)
 
 
 (defconstant yield-syscall
@@ -534,5 +549,78 @@
   #+linuxppc-target #$__NR_sched_yield)
 )
 
+
+
+
+(defun %kernel-global (sym)
+  (let* ((pos (position sym ppc::*ppc-kernel-globals* :test #'string=)))
+    (if pos
+      (- (+ fulltag-nil (* (1+ pos) 4)))
+      (error "Unknown kernel global : ~s ." sym))))
+
+(defmacro kernel-global (sym)
+  (let* ((pos (position sym ppc::*ppc-kernel-globals* :test #'string=)))
+    (if pos
+      (- (+ fulltag-nil (* (1+ pos) 4)))
+      (error "Unknown kernel global : ~s ." sym))))
+
+; The kernel imports things that are defined in various other libraries for us.
+; The objects in question are generally fixnum-tagged; the entries in the
+; "kernel-imports" vector are 4 bytes apart.
+(ccl::defenum (:prefix "KERNEL-IMPORT-" :start 0 :step 4)
+  fd-setsize-bytes
+  do-fd-set
+  do-fd-clr
+  do-fd-is-set
+  do-fd-zero
+  MakeDataExecutable
+  GetSharedLibrary
+  FindSymbol
+  malloc
+  free
+  allocate_tstack
+  allocate_vstack
+  register_cstack
+  condemn-area
+  metering-control
+  restore-soft-stack-limit
+  egc-control
+  lisp-bug
+  NewThread
+  YieldToThread
+  DisposeThread
+  ThreadCurrentStackSpace
+  usage-exit
+  save-fp-context
+  restore-fp-context
+  put-altivec-registers
+  get-altivec-registers
+  new-semaphore
+  wait-on-semaphore
+  signal-semaphore
+  destroy-semaphore
+  new-recursive-lock
+  lock-recursive-lock
+  unlock-recursive-lock
+  destroy-recursive-lock
+  suspend-other-threads
+  resume-other-threads
+  suspend-tcr
+  resume-tcr
+  rwlock-new
+  rwlock-destroy
+  rwlock-rlock
+  rwlock-wlock
+  rwlock-unlock
+  recursive-lock-trylock
+  foreign-name-and-offset
+)
+
+(defmacro nrs-offset (name)
+  (let* ((pos (position name ppc::*ppc-nilreg-relative-symbols* :test #'eq)))
+    (if pos (+ t-offset (* pos symbol.size)))))
+
+
+(defconstant reservation-discharge #x1004)
 
 (provide "PPC32-ARCH")
