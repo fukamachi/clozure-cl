@@ -251,7 +251,7 @@
                                      (push `(declare (dynamic-extent ,fn)) decls)
                                      `(',condition ,fn))
                                    (list `',condition
-                                         `(require-type ,handler 'function)))))
+                                         `,handler))))
                            clauses))
         (cluster (gensym)))    
     `(let* (,@fns
@@ -1706,7 +1706,7 @@
   (check-generic-function-lambda-list lambda-list)
   (let ((method-combination '(standard))
         (generic-function-class 'standard-generic-function)
-        options methods option-keywords method-class)
+        options declarations methods option-keywords method-class)
     (flet ((bad-option (o)
              (signal-program-error "Bad option: ~s to ~s." o 'defgeneric)))
       (dolist (o options-and-methods)
@@ -1714,7 +1714,8 @@
               (defmethod (if global-p 'defmethod 'anonymous-method)))
           (if (eq keyword :method)
             (push `(,defmethod ,function-name ,@(%cdr o)) methods)
-            (cond ((memq keyword (prog1 option-keywords (push keyword option-keywords)))
+            (cond ((and (not (eq keyword 'declare))
+			(memq keyword (prog1 option-keywords (push keyword option-keywords))))		   
                    (signal-program-error "Duplicate option: ~s to ~s" keyword 'defgeneric))
                   ((eq keyword :method-name)    ; used by generic-flet
                    (if function-name (bad-option o))
@@ -1728,7 +1729,7 @@
                      (bad-option o))
                    (setq generic-function-class (%cadr o)))
                   ((eq keyword 'declare)
-                   (push (list :declare (cdr o)) options))
+		   (push (cadr o) declarations))
                   ((eq keyword :argument-precedence-order)
                    (dolist (arg (cdr o))
                      (unless (and (symbolp arg) (memq arg lambda-list))
@@ -1746,6 +1747,8 @@
     (when method-class
       (dolist (m methods)
         (push `(:method-class ,method-class) (cddr m))))
+    (when declarations
+      (setq options `((:declarations ,declarations ,@options))))
     (values method-combination generic-function-class options methods)))
 
                  
@@ -2572,11 +2575,11 @@
       ,p)))
 
 (defmacro with-terminal-input (&body body)
-  (let* ((old-owner (gensym)))
-    `(let* ((,old-owner (%request-terminal-input)))
+  (let* ((got-it (gensym)))
+    `(let* ((,got-it (%request-terminal-input)))
       (unwind-protect
 	   (progn ,@body)
-	(%restore-terminal-input ,old-owner)))))
+	(if ,got-it (%restore-terminal-input))))))
 
 (defmacro do-unexhausted-lisp-threads ((thread) &body body)
   `(dolist (,thread (population-data *lisp-thread-population*))
