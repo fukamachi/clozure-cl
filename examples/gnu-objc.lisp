@@ -233,6 +233,7 @@
 
 ;;; Registering named objc classes.
 
+
 (defun objc-class-name-string (name)
   (etypecase name
     (symbol (lisp-to-objc-classname name))
@@ -241,7 +242,7 @@
 ;;; We'd presumably cache this result somewhere, so we'd only do the
 ;;; lookup once per session (in general.)
 (defun lookup-objc-class (name &optional error-p)
-  (with-cstrs ((cstr name))
+  (with-cstrs ((cstr (objc-class-name-string name)))
     (let* ((p (#_objc_lookup_class cstr)))
       (if (%null-ptr-p p)
 	(if error-p
@@ -284,7 +285,6 @@
 (defmacro @class (name)
   (let* ((name (objc-class-name-string name)))
     `(the (@metaclass ,name) (%objc-class-classptr ,(objc-class-descriptor name)))))
-
 
 ;;; This isn't quite the inverse operation of LOOKUP-OBJC-CLASS: it
 ;;; returns a simple C string.  and can be applied to a class or any
@@ -341,8 +341,18 @@
   (declare (ignore env))
   `(load-objc-selector ,(objc-selector-name s)))
 
+;;; A selector isn't just a canonicalized cstring in GNU ObjC, but
+;;; we can get our hands on the underlying cstring fairly easily.
+(defun lisp-string-from-sel (sel)
+  (%get-cstring (#_sel_get_name sel)))
 
+;;; #_objc_msgSend takes two required arguments (the receiving object
+;;; and the method selector) and 0 or more additional arguments;
+;;; there'd have to be some macrology to handle common cases, since we
+;;; want the compiler to see all of the args in a foreign call.
 
+;;; I don't remmber what the second half of the above comment might
+;;; have been talking about.
 (defmacro objc-message-send (receiver selector-name &rest argspecs)
   (when (evenp (length argspecs))
     (setq argspecs (append argspecs '(:id))))
@@ -571,37 +581,27 @@
 	      max-parm-end
 	      arg-info))))
 
-(defun %make-method-vector ()
-  (let* ((method-vector (malloc 16)))
-    (setf (%get-signed-long method-vector 0) 0
-	  (%get-signed-long method-vector 4) 0
-	  (%get-signed-long method-vector 8) 0
-	  (%get-signed-long method-vector 12) -1)
-    method-vector))
-  
 
 ;;; Make a meta-class object (with no instance variables or class
 ;;; methods.)
 (defun %make-basic-meta-class (nameptr superptr rootptr)
-  (let* ((method-vector (%make-method-vector)))
-    (make-record :objc_class
-		 :class_pointer (pref rootptr :objc_class.class_pointer)
-		 :super_class (pref superptr :objc_class.class_pointer)
-		 :name nameptr
-		 :version 0
-		 :info #$_CLS_META
-		 :instance_size 0
-		 :ivars (%null-ptr)
-		 :methods method-vector
-		 :dtable (%null-ptr)
-		 :subclass_list (%null-ptr)
-		 :sibling_class (%null-ptr)
-		 :protocols (%null-ptr)
-		 :gc_object_type (%null-ptr))))
+  (make-record :objc_class
+               :class_pointer (pref rootptr :objc_class.class_pointer)
+               :super_class (pref superptr :objc_class.class_pointer)
+               :name nameptr
+               :version 0
+               :info #$_CLS_META
+               :instance_size 0
+               :ivars (%null-ptr)
+               :methods (%null-ptr)
+               :dtable (%null-ptr)
+               :subclass_list (%null-ptr)
+               :sibling_class (%null-ptr)
+               :protocols (%null-ptr)
+               :gc_object_type (%null-ptr)))
 
 (defun %make-class-object (metaptr superptr nameptr ivars instance-size)
-  (let* ((method-vector (%make-method-vector)))
-    (make-record :objc_class
+  (make-record :objc_class
 		 :class_pointer metaptr
 		 :super_class superptr
 		 :name nameptr
@@ -609,9 +609,9 @@
 		 :info #$_CLS_CLASS
 		 :instance_size instance-size
 		 :ivars ivars
-		 :methods method-vector
+		 :methods (%null-ptr)
 		 :dtable (%null-ptr)
-		 :protocols (%null-ptr))))
+		 :protocols (%null-ptr)))
 
 (defstruct objc-class-info
   classname

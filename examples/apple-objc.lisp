@@ -194,8 +194,7 @@ argument lisp string."
     (declare (ignore subchar numarg))
     (let* ((string (read stream)))
       (check-type string string)
-      `(@ ,string))))
- *objc-readtable*)
+      `(@ ,string)))))
 
 
 ;;; Registering named objc classes.
@@ -318,6 +317,9 @@ argument lisp string."
 ;;; and the method selector) and 0 or more additional arguments;
 ;;; there'd have to be some macrology to handle common cases, since we
 ;;; want the compiler to see all of the args in a foreign call.
+
+;;; I don't remmber what the second half of the above comment might
+;;; have been talking about.
 
 (defmacro objc-message-send (receiver selector-name &rest argspecs)
   (when (evenp (length argspecs))
