@@ -336,6 +336,18 @@
   (init-gnustep-framework))
 )
 
+(defun get-appkit-version ()
+  (%get-double-float (foreign-symbol-address #+apple-objc "_NSAppKitVersionNumber" #+gnu-objc "NSAppKitVersionNumber")))
+
+(defun get-foundation-version ()
+  (%get-double-float (foreign-symbol-address #+apple-objc "_NSFoundationVersionNumber" #+gnu-objc "NSFoundationVersionNumber")))
+
+(defparameter *appkit-library-version-number* (get-appkit-version))
+(defparameter *foundation-library-version-number* (get-foundation-version))
+
+(def-ccl-pointers cfstring-sections ()
+  (reset-cfstring-sections)
+  (find-cfstring-sections))
 
 ;;; When starting up an image that's had ObjC classes in it, all of
 ;;; those canonical classes (and metaclasses) will have had their type
@@ -353,6 +365,14 @@
   ;; Make a first pass over the class and metaclass tables;
   ;; resolving those foreign classes that existed in the old
   ;; image and still exist in the new.
+  (unless (= *foundation-library-version-number* (get-foundation-version))
+    (format *error-output* "~&Foundation version mismatch: expected ~s, got ~s~&"
+	    *Foundation-library-version-number* (get-foundation-version))
+    (#_exit 1))
+  (unless (= *appkit-library-version-number* (get-appkit-version))
+    (format *error-output* "~&AppKit version mismatch: expected ~s, got ~s~&"
+	    *appkit-library-version-number* (get-appkit-version))
+    (#_exit 1))
   (let* ((class-map (objc-class-map))
 	 (metaclass-map (objc-metaclass-map))
 	 (nclasses (%objc-class-count)))
@@ -373,9 +393,10 @@
 		(%setf-macptr m (pref c #+apple-objc :objc_class.isa
 				      #+gnu-objc :objc_class.class_pointer)))
 	      (splay-tree-put metaclass-map m meta-id))))))
-    (break "second pass")
     ;; Second pass: install class objects for user-defined classes,
-    ;; assuming the superclasses are already "revived".
+    ;; assuming the superclasses are already "revived".  If the
+    ;; superclass is itself user-defined, it'll appear first in the
+    ;; class table; that's an artifact of the current implementation.
     (dotimes (i nclasses)
       (let* ((c (id->objc-class i)))
 	(when (and (%null-ptr-p c)
@@ -385,24 +406,27 @@
 			  (when (objc-class-p s) (return s))))
 		 (meta-id (objc-class-id->objc-metaclass-id i))
 		 (m (id->objc-metaclass meta-id)))
-	    (when (%null-ptr-p m)
+	    (unless (splay-tree-get metaclass-map m)
+	      (%revive-macptr m)
 	      (%setf-macptr m (%make-basic-meta-class
-			       (objc-metaclass-id-foreign-name meta-id)
+			       (make-cstring (objc-metaclass-id-foreign-name meta-id))
 			       super
-			       (@class "NSObject")))
+			       (find-class 'ns::ns-object)))
 	      (splay-tree-put metaclass-map m meta-id))
 	    (%setf-macptr c (%make-class-object
 			     m
 			     super
-			     (objc-class-id-foreign-name i)
+			     (make-cstring (objc-class-id-foreign-name i))
 			     (%null-ptr)
 			     0))
 	    (multiple-value-bind (ivars instance-size)
 		(%make-objc-ivars c)
 	      (%add-objc-class c ivars instance-size)
 	      (splay-tree-put class-map c i))))))))
-      
-      
+
+(pushnew #'revive-objc-classes *lisp-system-pointer-functions*
+	 :test #'eq
+	 :key #'function-name)
     
     
 
@@ -1295,7 +1319,11 @@ argument lisp string."
      typestring
      imp)))
 
-
+(def-ccl-pointers add-objc-methods ()
+  (maphash #'(lambda (impname m)
+	       (declare (ignore impname))
+	       (%add-lisp-objc-method m))
+	   *lisp-objc-methods*))
 
 (defun %define-lisp-objc-method (impname classname selname typestring imp
 					 &optional class-p)
@@ -1514,7 +1542,6 @@ argument lisp string."
   (clrhash *objc-object-slot-vectors*)
   (setf (%get-ptr (foreign-symbol-address "__dealloc")) *original-deallocate-hook*))
 
-#+testing
 (pushnew #'uninstall-lisp-deallocate-hook *lisp-cleanup-functions* :test #'eq
          :key #'function-name)
 )
