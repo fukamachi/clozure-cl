@@ -208,7 +208,8 @@ define([extract_subtag],[
 	lbz $1,misc_subtag_offset($2)])
 
 define([extract_lowbyte],[
-	clrlwi $1,$2,nbits_in_word-num_subtag_bits])
+        clrlri($1,$2,nbits_in_word-num_subtag_bits)
+        ])
 
 define([extract_header],[
 	ldr($1,misc_header_offset($2))])
