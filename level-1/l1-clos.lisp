@@ -412,7 +412,7 @@
   t)
 
 ;;; Standard classes are finalized if they have a wrapper and that
-;;; wrapper as an instance-slots vector; that implies that
+;;; wrapper has an instance-slots vector; that implies that
 ;;; both UPDATE-CPL and UPDATE-SLOTS have been called on the class.
 (defmethod class-finalized-p ((class std-class))
   (let* ((w (%class-own-wrapper class)))
@@ -463,9 +463,6 @@
                      ((= i n))
                   (unless (eq (%slot-definition-name (car sup-slotds))
                               (%slot-definition-name (car primary-slotds)))
-                    (format t "~&name of sup-slotds = ~s, name of prim = ~s"
-                            (%slot-definition-name (car sup-slotds))
-                            (%slot-definition-name (car primary-slotds)))
                     (error "While initializing ~s:~%~
                             attempt to mix incompatible primary classes:~%~
                             ~s and ~s"
@@ -499,11 +496,18 @@
     (setf (%class.cpl class) cpl)))
 
 
-(defun class-has-a-forward-referenced-superclass-p (class)
-  (or (if (forward-referenced-class-p class) class)
-      (dolist (s (%class-direct-superclasses class))
-	(let* ((fwdref (class-has-a-forward-referenced-superclass-p s)))
-	  (when fwdref (return fwdref))))))
+(defun class-has-a-forward-referenced-superclass-p (original)
+  (labels ((scan-forward-refs (class seen)
+             (unless (memq class seen)
+               (or (if (forward-referenced-class-p class) class)
+                   (progn
+                     (push class seen)
+                     (dolist (s (%class-direct-superclasses class))
+                       (when (eq s original)
+                         (error "circular class hierarchy: the class ~s is a superclass of at least one of its superclasses (~s)." original class))
+                       (let* ((fwdref (scan-forward-refs s seen)))
+                         (when fwdref (return fwdref)))))))))
+    (scan-forward-refs original ())))
 
 
 (defmethod compute-class-precedence-list ((class class))
@@ -537,7 +541,6 @@
 	     (not (class-has-a-forward-referenced-superclass-p class)))
     (finalize-inheritance class)
     (return-from update-class))
-
   (when (or finalizep
 	    (class-finalized-p class)
 	    (not (class-has-a-forward-referenced-superclass-p class)))
@@ -670,7 +673,7 @@
 (defmethod ensure-class-using-class ((class forward-referenced-class) name &rest keys &key &allow-other-keys)
   (multiple-value-bind (metaclass initargs)
       (ensure-class-metaclass-and-initargs class keys)
-    (change-class class metaclass)
+    (apply #'change-class class metaclass initargs)
     (apply #'reinitialize-instance class initargs)
     (setf (find-class name) class)))
 	   
@@ -1226,6 +1229,8 @@ governs whether DEFCLASS makes that distinction or not.")
       (fdefinition '%method-name) #'method-name
       (fdefinition '%method-lambda-list) #'method-lambda-list
       )
+
+(setf (fdefinition '%add-method) #'add-method)
 		   
       
 ;;; Make a direct-slot-definition of the appropriate class.
