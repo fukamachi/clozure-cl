@@ -187,7 +187,7 @@
     (declare (fixnum type flags index))
     (ecase flags
       (#.objc-flag-instance (or (gethash p *objc-object-slot-vectors*)
-				(error "~s has no slots." p)))
+                                (error "~s has no slots." p)))
       (#.objc-flag-class (id->objc-class-slots-vector index))
       (#.objc-flag-metaclass (id->objc-metaclass-slots-vector index)))))
 	  
