@@ -18,6 +18,11 @@
 (in-package "CCL")
 
 
+(defun show-uvector (u)
+  (dotimes (i (uvsize u) (values))
+    (format t "~&~d : ~s" i (uvref u i))
+    (force-output)))
+
 ;;; Utilities for interacting with the Apple/GNU Objective-C runtime
 ;;; systems.
 
@@ -46,10 +51,15 @@
   #+gnu-objc
   (use-interface-dir :gnustep))
 
+(defpackage "OBJC"
+  (:use)
+  (:export "OBJC-OBJECT" "OBJC-CLASS-OBJECT" "OBJC-CLASS" "OBJC-METACLASS"))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "SPLAY-TREE")
   (require "NAME-TRANSLATION")
-  (require "PROCESS-OBJC-MODULES"))
+  (require "PROCESS-OBJC-MODULES")
+  (require "OBJC-CLOS"))
 
 (defloadvar *NSApp* nil )
 
@@ -118,9 +128,9 @@
       (svref csv i))
     (defun (setf id->objc-class-slots-vector) (new i)
       (setf (svref csv i) new))
-    (defun id->metaclass-slot-vector (i)
+    (defun id->objc-metaclass-slots-vector (i)
       (svref msv i))
-    (defun (setf id->metaclass-slot-vector) (new i)
+    (defun (setf id->objc-metaclass-slots-vector) (new i)
       (setf (svref msv i) new))
     
     (defun %clear-objc-class-maps ()
@@ -136,19 +146,54 @@
               (splay-tree-count objc-class-map) 0
               (splay-tree-count objc-metaclass-map) 0
               next-objc-class-id 0)))
-    (defun map-objc-class (class)
+    (defun map-objc-class (class &optional foreign)
       "ensure that the class (and metaclass) are mapped to a small integer"
       (with-lock-grabbed (objc-class-lock)
-        (or (splay-tree-get objc-class-map class)
-            (let* ((id (assign-next-class-id))
-                   (class (%inc-ptr class 0))
-                   (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
-              (ensure-objc-classptr-resolved class)
-              (splay-tree-put objc-class-map class id)
-              (splay-tree-put objc-metaclass-map meta id)
-              (setf (svref c id) class
-                    (svref m id) meta)
-              id))))
+	(labels ((ensure-mapped-class (class)
+		   (with-macptrs ((super (pref class :objc_class.super_class)))
+		     (unless (%null-ptr-p super)
+		       (ensure-mapped-class super)))
+		   (or (splay-tree-get objc-class-map class)
+		       (let* ((id (assign-next-class-id))
+			      (class (%inc-ptr class 0))
+			      (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
+			 (ensure-objc-classptr-resolved class)
+			 (splay-tree-put objc-class-map class id)
+			 (splay-tree-put objc-metaclass-map meta id)
+			 (setf (svref c id) class
+			       (svref m id) meta)
+			 (let* ((class-name (objc-to-lisp-classname
+					     (%get-cstring
+					      (pref class :objc_class.name))
+					     "NS"))
+				(metaclass-name (intern (concatenate 'string "+" (string class-name)) (symbol-package class-name)))
+				(class-wrapper (%cons-wrapper class))
+				(meta-wrapper (%cons-wrapper meta))
+				(class-slot-vector
+				 (initialize-objc-class-slots class
+							      class-name
+							      class-wrapper
+							      foreign))
+				(meta-slot-vector
+				 (initialize-objc-metaclass-slots
+				  meta
+				  metaclass-name
+				  meta-wrapper
+				  foreign
+				  class)))
+			   (when (eq (find-package "NS")
+				     (symbol-package class-name))
+			     (export class-name "NS")
+			     (export metaclass-name "NS"))
+			 (setf (svref cw id) class-wrapper
+			       (svref mw id) meta-wrapper
+			       (svref csv id) class-slot-vector
+			       (svref msv id) meta-slot-vector
+			       (find-class class-name) class
+			       (find-class metaclass-name) meta)
+			 )
+			 id))))
+	  (ensure-mapped-class class))))
     (defun objc-class-id (class)
       (with-lock-grabbed (objc-class-lock)
         (splay-tree-get objc-class-map class)))
@@ -161,7 +206,7 @@
 (pushnew #'%clear-objc-class-maps *save-exit-functions* :test #'eq
          :key #'function-name)
 
-(defun map-objc-classes (f)
+(defun do-all-objc-classes (f)
   (map-splay-tree (objc-class-map) #'(lambda (id)
 				       (funcall f (id->objc-class id)))))
 
@@ -978,6 +1023,11 @@ client methods" classname))
 	(external-call "objc_mutex_lock" :address ,mname :void)))))
 )
 
+(defun %objc-metaclass-p (class)
+  (logtest (pref class :objc_class.info)
+	   #+apple-objc #$CLS_META
+	   #+gnu-objc #$_CLS_META))
+	   
 (defun %add-objc-class (class)
   #+apple-objc
   (#_objc_addClass class)
@@ -1021,7 +1071,7 @@ client methods" classname))
 	(note-objc-class ,class-name ,superclass-name ',instance-vars))
       (eval-when (:load-toplevel :execute)
 	(%define-objc-class (note-objc-class ,class-name ,superclass-name ',instance-vars))))))
-  
+
 
 ;;; If P is an ObjC class (or metaclass), return the class & metaclass,
 ;;; else return (VALUES NIL NIL).
@@ -1515,3 +1565,24 @@ client methods" classname))
       (external-call "__NSRemoveHandler2" :address nshandler :void)
       (error (ns-exception->lisp-condition (%inc-ptr exception 0))))))
 
+#+apple-objc
+(progn
+  (let* ((class-count 0))
+    (declare (fixnum class-count))
+    (defun reset-objc-class-count () (setq class-count 0))
+    (defun map-objc-classes ()
+      (let* ((n (#_objc_getClassList (%null-ptr) 0)))
+	(declare (fixnum n))
+	(if (> n class-count)
+	  (%stack-block ((buffer (the fixnum (ash n ppc32::word-shift))))
+	    (#_objc_getClassList buffer n)
+	  (do* ((i class-count (1+ i)))
+	       ((= i n (setq class-count i)))
+	    (declare (fixnum i))
+	    (map-objc-class
+	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift)))
+	     t)))))))
+  (def-ccl-pointers revive-objc-classes ()
+    (reset-objc-class-count)
+    (map-objc-classes)))
+    
