@@ -5,6 +5,8 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "BRIDGE"))
 
+#+apple-objc
+(progn
 ;;; NSException-handling stuff.
 ;;; First, we have to jump through some hoops so that #_longjmp can
 ;;; jump through some hoops (a jmp_buf) and wind up throwing to a
@@ -62,7 +64,7 @@
         (%get-ptr jmp-buf JMP-ctr) throw-to-catch-frame)
   t)
 
-
+)
 
 (defvar *condition-id-map* (make-id-map) "Map lisp conditions to small integers")
 
@@ -105,6 +107,8 @@ instance variable."
   (make-objc-instance 'ns-lisp-exception
                       :with-lisp-id (assign-id-map-id *condition-id-map* c)))
 
+#+apple-objc
+(progn
 ;;; (#__NSRaiseError nsexception) is entirely equivalent to
 ;;; -[NSException raise].  If we get nervous about passing the former
 ;;; around, we can always look up the method imp of the latter.
@@ -118,7 +122,7 @@ instance variable."
   (setf (%get-ptr return-value-pointer 0) (ns-exception condition))
   nil)
 
-  
+)
 
 (defun open-main-bundle ()
   (send (@class ns-bundle) 'main-bundle))
@@ -143,14 +147,13 @@ instance variable."
 		;; Copy the key, value pair from the src dict
                 (send keys :add-object nextkey)
                 (send values :add-object (send src :object-for-key nextkey)))
-	    (when (send nextkey :is-equal-to  newkey)
+	    (when (send nextkey :is-equal-to-string  newkey)
               (send keys :add-object nextkey)
               (send values :add-object newval)
 	      (return)))))
     (make-objc-instance 'ns-dictionary
                         :with-objects values
                         :for-keys keys)))
-
 
 
 (defun nsobject-description (nsobject)
@@ -184,8 +187,20 @@ NSObjects describe themselves in more detail than others."
 	 (if old (release-autorelease-pool old))
 	 (setq *listener-autorelease-pool* (create-autorelease-pool)))))))
 
+#+apple-objc
 (defun show-autorelease-pools ()
   (send (@class ns-autorelease-pool) 'show-pools))
+
+#+gnu-objc
+(defun show-autorelease-pools ()
+  (do* ((current (objc-message-send (@class ns-autorelease-pool) "currentPool")
+		 (objc-message-send current "_parentAutoreleasePool"))
+	(i 0 (1+ i)))
+       ((%null-ptr-p current) (values))
+    (format t "~& ~d : ~a [~d]"
+	    i
+	    (nsobject-description current)
+	    (pref current :<NSA>utorelease<P>ool._released_count))))
 
 (define-toplevel-command :global sap () "Log information about current thread's autorelease-pool(s) to C's standard error stream"
   (show-autorelease-pools))
