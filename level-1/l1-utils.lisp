@@ -1187,10 +1187,11 @@ vector
  (or (string-argp arg) (error "~S is not a string" arg)))
 
 (defun string-argp (arg)
- (if (symbolp arg) (symbol-name arg)
-   (if (stringp arg) (ensure-simple-string arg)
-     nil)))
-
+  (cond ((symbolp arg) (symbol-name arg))
+        ((typep arg 'character) (string arg))
+        ((stringp arg) (ensure-simple-string arg))
+        (t nil)))
+  
 (defun symbol-arg (arg)
   (unless (symbolp arg)
     (report-bad-arg arg 'symbol))
