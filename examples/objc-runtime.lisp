@@ -37,8 +37,9 @@
     (lambda (stream subchar numarg)
       (declare (ignore subchar numarg))
       (let* ((string (read stream)))
-	(check-type string string)
-	`(@ ,string))))))
+	(unless *read-suppress*
+          (check-type string string)
+          `(@ ,string)))))))
 
 (eval-when (:compile-toplevel :execute)
   #+apple-objc

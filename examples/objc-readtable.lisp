@@ -35,17 +35,18 @@
     (declare (ignore ignore))
     (let* ((tail (read-delimited-list #\] stream))
 	   (structptr nil))
-      (let* ((return (car (last tail))))
-	(when (and (consp return) (eq (car return) :->))
-	  (rplaca (last tail) :void)
-	  (setq structptr (car (last return)))))
-      (if (eq (car tail) :super)
-	(if structptr
-	  `(objc-message-send-super-stret ,structptr (super) ,@(cdr tail))
-	  `(objc-message-send-super (super) ,@(cdr tail)))
-	(if structptr
-	  `(objc-message-send-stret ,structptr ,@tail)
-	  `(objc-message-send ,@tail))))))
+      (unless *read-suppress*
+        (let* ((return (car (last tail))))
+          (when (and (consp return) (eq (car return) :->))
+            (rplaca (last tail) :void)
+            (setq structptr (car (last return)))))
+        (if (eq (car tail) :super)
+          (if structptr
+            `(objc-message-send-super-stret ,structptr (super) ,@(cdr tail))
+            `(objc-message-send-super (super) ,@(cdr tail)))
+          (if structptr
+            `(objc-message-send-stret ,structptr ,@tail)
+            `(objc-message-send ,@tail)))))))
  nil
  *objc-readtable*)
 
@@ -57,7 +58,8 @@
   (lambda (stream subchar numarg)
     (declare (ignore subchar numarg))
     (let* ((string (read stream)))
-      (check-type string string)
-      `(@ ,string))))
+      (unless *read-suppress*
+        (check-type string string)
+        `(@ ,string)))))
  *objc-readtable*)
 
