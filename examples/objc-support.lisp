@@ -23,7 +23,9 @@
 	    (install-foreign-objc-class
 	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift))))))))))
   (reset-objc-class-count)
-  (map-objc-classes))
+  (map-objc-classes)
+  (canonicalize-type-signature-classes)
+)
 
 #+gnu-objc
 (defun iterate-over-class-methods (class method-function)
