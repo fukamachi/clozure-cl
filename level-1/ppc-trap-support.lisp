@@ -65,7 +65,7 @@
     `(ldb (byte 5 21) ,instr))
   
   (defmacro lisp-reg-p (reg)
-    `(>= ,reg ppc32::fn))
+    `(>= ,reg ppc::fn))
   
   (defmacro ppc-lap-word (instruction-form)
     (uvref (uvref (compile nil
@@ -113,17 +113,17 @@
     (values (%get-ptr registers offset))))
 
 (defun xp-argument-list (xp)
-  (let ((nargs (xp-gpr-lisp xp ppc32::nargs))     ; tagged as a fixnum (how convenient)
-        (arg-x (xp-gpr-lisp xp ppc32::arg_x))
-        (arg-y (xp-gpr-lisp xp ppc32::arg_y))
-        (arg-z (xp-gpr-lisp xp ppc32::arg_z)))
+  (let ((nargs (xp-gpr-lisp xp ppc::nargs))     ; tagged as a fixnum (how convenient)
+        (arg-x (xp-gpr-lisp xp ppc::arg_x))
+        (arg-y (xp-gpr-lisp xp ppc::arg_y))
+        (arg-z (xp-gpr-lisp xp ppc::arg_z)))
     (cond ((eql nargs 0) nil)
           ((eql nargs 1) (list arg-z))
           ((eql nargs 2) (list arg-y arg-z))
           (t (let ((args (list arg-x arg-y arg-z)))
                (if (eql nargs 3)
                  args
-                 (let ((vsp (xp-gpr-macptr xp ppc32::vsp)))
+                 (let ((vsp (xp-gpr-macptr xp ppc::vsp)))
                    (dotimes (i (- nargs 3))
                      (push (%get-object vsp (* i 4)) args))
                    args)))))))
@@ -220,33 +220,33 @@
 (defun funcall-with-xp-stack-frames (xp trap-function thunk)
   (cond ((null trap-function)
          ; Maybe inside a subprim from a lisp function
-         (let* ((fn (xp-gpr-lisp xp ppc32::fn))
+         (let* ((fn (xp-gpr-lisp xp ppc::fn))
                 (lr (return-address-offset
                      xp fn lr-offset-in-register-context)))
            (if (fixnump lr)
-             (let* ((sp (xp-gpr-lisp xp ppc32::sp))
-                    (vsp (xp-gpr-lisp xp ppc32::vsp))
+             (let* ((sp (xp-gpr-lisp xp ppc::sp))
+                    (vsp (xp-gpr-lisp xp ppc::vsp))
                     (frame (%cons-fake-stack-frame sp sp fn lr vsp *fake-stack-frames*))
                     (*fake-stack-frames* frame))
                (declare (dynamic-extent frame))
                (funcall thunk frame))
-             (funcall thunk (xp-gpr-lisp xp ppc32::sp)))))
-        ((eq trap-function (xp-gpr-lisp xp ppc32::fn))
-         (let* ((sp (xp-gpr-lisp xp ppc32::sp))
+             (funcall thunk (xp-gpr-lisp xp ppc::sp)))))
+        ((eq trap-function (xp-gpr-lisp xp ppc::fn))
+         (let* ((sp (xp-gpr-lisp xp ppc::sp))
                 (fn trap-function)
                 (lr (return-address-offset
                      xp fn pc-offset-in-register-context))
-                (vsp (xp-gpr-lisp xp ppc32::vsp))
+                (vsp (xp-gpr-lisp xp ppc::vsp))
                 (frame (%cons-fake-stack-frame sp sp fn lr vsp *fake-stack-frames*))
                 (*fake-stack-frames* frame))
            (declare (dynamic-extent frame))
            (funcall thunk frame)))
-        ((eq trap-function (xp-gpr-lisp xp ppc32::nfn))
-         (let* ((sp (xp-gpr-lisp xp ppc32::sp))
-                (fn (xp-gpr-lisp xp ppc32::fn))
+        ((eq trap-function (xp-gpr-lisp xp ppc::nfn))
+         (let* ((sp (xp-gpr-lisp xp ppc::sp))
+                (fn (xp-gpr-lisp xp ppc::fn))
                 (lr (return-address-offset
                      xp fn lr-offset-in-register-context))
-                (vsp (xp-gpr-lisp xp ppc32::vsp))
+                (vsp (xp-gpr-lisp xp ppc::vsp))
                 (lr-frame (%cons-fake-stack-frame sp sp fn lr vsp))
                 (pc-fn trap-function)
                 (pc-lr (return-address-offset
@@ -255,7 +255,7 @@
                 (*fake-stack-frames* pc-frame))
            (declare (dynamic-extent lr-frame pc-frame))
            (funcall thunk pc-frame)))
-        (t (funcall thunk (xp-gpr-lisp xp ppc32::sp)))))
+        (t (funcall thunk (xp-gpr-lisp xp ppc::sp)))))
 
 
 
@@ -323,10 +323,10 @@
 	      ((match-instr the-trap
                            (ppc-instruction-mask :opcode :rt :ra)
                            (ppc-lap-word (twnei nargs ??)))
-              (%error (if (< (xp-GPR-signed-long xp ppc32::nargs) (D-field the-trap))
+              (%error (if (< (xp-GPR-signed-long xp ppc::nargs) (D-field the-trap))
                         'too-few-arguments
                         'too-many-arguments )
-                      (list :nargs (ash (xp-GPR-signed-long xp ppc32::nargs)
+                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
 					(- ppc32::fixnumshift))
 			    :fn  fn)
                       frame-ptr))
@@ -415,13 +415,13 @@
              ;; nargs check, optional or rest involved
              ((and (match-instr the-trap
                                 (ppc-instruction-mask :opcode (:to #x1c) :ra)
-                                (ppc-lap-word (twi ?? ppc32::nargs ??)))
+                                (ppc-lap-word (twi ?? ppc::nargs ??)))
                    (or (eql #b01 (setq temp (ldb #.(ppc-instruction-field :to) the-trap)))
 	               (eql #b10 temp)))
               (%error (if (eql temp #b10)
                         'too-few-arguments
                         'too-many-arguments)
-                      (list :nargs (ash (xp-GPR-signed-long xp ppc32::nargs)
+                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
 					(- ppc32::fixnumshift))
 			    :fn  fn)
                       frame-ptr))
