@@ -1532,6 +1532,12 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (format stream "~s ~s"
             (%svref svar ppc32::svar.symbol-cell)
             (%svref svar ppc32::svar.idx-cell))))
+
+(defmethod print-object ((slot-id slot-id) stream)
+  (print-unreadable-object (slot-id stream :identity t :type t)
+    (format stream "for ~s/~d"
+            (slot-id.name  slot-id)
+            (slot-id.index  slot-id))))
             
 
 ;;; ======================================================================
