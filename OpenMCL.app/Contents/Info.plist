@@ -23,7 +23,7 @@
 			<key>CFBundleTypeName</key>
 			<string>Lisp source file</string>
 			<key>NSDocumentClass</key>
-			<string>LispEditorDocument</string>
+			<string>HemlockEditorDocument</string>
 			<key>CFBundleTypeIconFile</key>
 			<string>openmcl-icon.icns</string>
 		</dict>
@@ -33,7 +33,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>NSDocumentClass</key>
-			<string>LispListenerDocument</string>
+			<string>HemlockListenerDocument</string>
 			<key>CFBundleTypeIconFile</key>
 			<string>openmcl-icon.icns</string>
 		</dict>
