@@ -383,54 +383,15 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                          (%ilsl $lfbits-nonnullenv-bit 1)))
 )
 
-#+ppc-target
-(defppclapfunction funcallable-trampoline ()
-  (svref nfn gf.dcode nfn)
-  (lwz temp0 ppc32::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
 
 (defvar *fi-trampoline-code* (uvref #'funcallable-trampoline 0))
 
-#+ppc-target
-(defppclapfunction unset-fin-trampoline ()
-  (mflr loc-pc)
-  (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
-  (vpop arg_z)                          ; whoops, didn't really want to
-  (bla .SPsavecontextvsp)
-  (lwz arg_x '"Funcallable instance ~S was called with args ~s, but has no FUNCALLABLE-INSTANCE-FUNCTION" fn)
-  (mr arg_y fn)
-  (set-nargs 3)
-  (lwz fname 'error fn)
-  (bla .SPrestorecontext)
-  (mtlr loc-pc)
-  (ba .SPjmpsym))
+
 
 (defvar *unset-fin-code* (uvref #'unset-fin-trampoline 0))
 
 
-#+ppc-target
-(defparameter *gf-proto*
-  (nfunction
-   gag
-   (lambda (&lap &lexpr args)
-     (ppc-lap-function 
-      gag 
-      ()
-      (mflr loc-pc)
-      (vpush-argregs)
-      (vpush nargs)
-      (add imm0 vsp nargs)
-      (la imm0 4 imm0)                  ; caller's vsp
-      (bla .SPlexpr-entry)
-      (mtlr loc-pc)                     ; return to kernel
-      (mr arg_z vsp)                    ; lexpr
-      (svref arg_y gf.dispatch-table nfn) ; dispatch table
-      (set-nargs 2)
-      (svref nfn gf.dcode nfn)		; dcode function
-      (lwz temp0 ppc32::misc-data-offset nfn)
-      (mtctr temp0)
-      (bctr)))))
+
 
 (defvar *gf-proto-code* (uvref *gf-proto* 0))
 
