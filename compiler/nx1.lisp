@@ -1156,8 +1156,7 @@
               *nx-nil*)))
            0))))))
 
-(defnx1 nx1-%newgotag %newgotag ()
-  (make-acode (%nx1-operator newgotag)))
+
 
 (defnx1 nx1-go go (tag)
   (multiple-value-bind (info closed)
