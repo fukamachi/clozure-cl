@@ -134,6 +134,11 @@
 	(values new-name original (truename new-name))))))
 
 
+;;; It's not clear that we can support anything stronger than
+;;; "advisory" ("you pretend the file's locked & I will too") file
+;;; locking under Darwin.
+
+
 (defun lock-file (path)
   (break "lock-file ? ~s" path))
 
@@ -238,8 +243,10 @@
 ;E.g. (directoryp "ccl;:foo:baz") might return #P"hd:mumble:foo:baz:" if baz
 ;is a dir. - should we doc this - its exported?
 (defun directoryp (path)
-  ;; This should be pretty easy.
-  (break "Directoryp ? ~s" path))
+  (let* ((native (native-translated-namestring path))
+	 (realpath (%realpath native)))
+    (if realpath (eq (%unix-file-kind realpath) :directory))))
+	 
 
 ;-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ;Wildcards
