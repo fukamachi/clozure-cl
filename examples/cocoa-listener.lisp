@@ -188,6 +188,7 @@
 			    (format nil
 				    "Listener-~d" *cocoa-listener-count*)))
 	     (buffer (hemlock-document-buffer doc)))
+	(setf (slot-value (slot-value self 'textstorage) 'append-edits) 1)
 	(send doc :set-file-name  (%make-nsstring listener-name))
 	(setf (hi::buffer-pathname buffer) nil
 	      (hi::buffer-minor-mode buffer "Listener") t

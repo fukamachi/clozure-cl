@@ -76,6 +76,10 @@
                                          :title "Typeout"
 					 :width 600
                                          :activate nil)))
+	   (rlet ((size :<NSS>ize :width 600.0f0 :height 10000.0f0))
+		 (send panel :set-max-size size)
+		 (setf (pref size :<NSS>ize.height) 1.0f0)
+		 (send panel :set-min-size size))
            (slet ((bounds (send (send panel 'content-view) 'bounds)))
 		 (let* ((view (make-instance 'typeout-view :with-frame bounds)))
 		   (send panel :set-content-view view)

@@ -396,7 +396,8 @@
 ;;; hemlock-text-storage objects
 (defclass hemlock-text-storage (ns:ns-text-storage)
     ((string :foreign-type :id)
-     (edit-count :foreign-type :int))
+     (edit-count :foreign-type :int)
+     (append-edits :foreign-type :int))
   (:metaclass ns:+ns-object))
 
 (define-objc-method ((:unsigned :line-break-before-index (:unsigned index)
@@ -532,22 +533,37 @@
       (svref *styles* style))))
 
 (define-objc-method ((:void :replace-characters-in-range (:<NSR>ange r)
-			    :with-string string)
-		     hemlock-text-storage)
-    (let* ((cache (hemlock-buffer-string-cache (send self 'string)))
-           (buffer (if cache (buffer-cache-buffer cache)))
-           (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
-           (location (pref r :<NSR>ange.location))
-           (length (pref r :<NSR>ange.length))
-           (mark (hi::buffer-%mark buffer))
-           (point (hi::buffer-point buffer)))
+  			    :with-string string)
+  		     hemlock-text-storage)
+  (let* ((cache (hemlock-buffer-string-cache (send self 'string)))
+	 (buffer (if cache (buffer-cache-buffer cache)))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+	 (location (pref r :<NSR>ange.location))
+	 (length (pref r :<NSR>ange.length))
+	 (mark (hi::buffer-%mark buffer))
+	 (point (hi::buffer-point buffer))
+	 input-mark)
+
+    ;;
+    ;; special behavior for listener windows.
+    ;;
+    (if (and (> (slot-value self 'append-edits) 0)
+	     (progn
+	       (setf input-mark (hi::variable-value 'hemlock::buffer-input-mark :buffer buffer))
+	       (not (hi::same-line-p point input-mark))))
+	(progn
+	  ;;
+	  ;;  move the point to the end of the buffer
+	  ;;
+          (setf (hi::buffer-region-active buffer) nil)
+	  (move-hemlock-mark-to-absolute-position point cache (hemlock-buffer-length buffer)))
       (cond ((> length 0)
-             (move-hemlock-mark-to-absolute-position mark cache location)
-             (move-hemlock-mark-to-absolute-position point cache (+ location length))
-             (hemlock::%buffer-activate-region buffer))
-            (t
-             (move-hemlock-mark-to-absolute-position point cache location)))
-      (hi::insert-string point (lisp-string-from-nsstring string))))
+	     (move-hemlock-mark-to-absolute-position mark cache location)
+	     (move-hemlock-mark-to-absolute-position point cache (+ location length))
+	     (hemlock::%buffer-activate-region buffer))
+	    (t
+	     (move-hemlock-mark-to-absolute-position point cache location))))
+    (hi::insert-string point (lisp-string-from-nsstring string))))
 
 
 ;;; I'm not sure if we want the text system to be able to change
