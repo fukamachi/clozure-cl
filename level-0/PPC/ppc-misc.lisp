@@ -412,9 +412,10 @@
   (sc)
   ;;; There might be some funky return conventions; set r0 back to 0
   ;;; early and often.
-  (li 0 0)
-  (li 0 0)
-  (li 0 0)
+  (li rzero 0)
+  (li rzero 0)
+  (li rzero 0)
+  (mtxer rzero)
   (box-fixnum arg_z imm0)
   (blr))
 
@@ -477,9 +478,10 @@
   (event-poll)
   (li 0 ppc32::yield-syscall)
   (sc)
-  (li 0 0)
-  (li 0 0)
-  (li 0 0)  
+  (li rzero 0)
+  (li rzero 0)
+  (li rzero 0)
+  (mtxer rzero)
   @try
   (li imm1 ppc32::lock._value)
   (lwarx imm0 lock imm1)
@@ -510,9 +512,10 @@
   (event-poll)
   (li 0 ppc32::yield-syscall)
   (sc)
-  (li 0 0)
-  (li 0 0)
-  (li 0 0)
+  (li rzero 0)
+  (li rzero 0)
+  (li rzero 0)
+  (mtxer rzero)
   @try
   (li imm1 ppc32::lock._value)
   (lwarx imm0 lock imm1)
