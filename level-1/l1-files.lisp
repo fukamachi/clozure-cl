@@ -220,7 +220,7 @@
     (if (and (not *print-readably*) (not *print-escape*))
       (write-string name stream)
       (progn
-        (format stream (if (eql flags 0) "#P" "#~DP") flags)
+        (format stream (if (or *print-escape* (eql flags 0)) "#P" "#~DP") flags)
         (write-escaped-string name stream #\")))))
 
 
