@@ -332,70 +332,15 @@ local_label(_nthrow1v_do_unwind):
 	__(b local_label(_nthrow1v_nextframe))
 
 
-/* Bind special symbol in arg_y to value in arg_z. */
-_spentry(bind)
-	__(ldr(imm0,symbol.flags(arg_y)))
-	__(ori imm0,imm0,sym_vbit_bound_mask)
-	__(ldr(imm1,tcr.db_link(rcontext)))
-	__(vpush(arg_z))
-	__(vpush(arg_y))
-	__(vpush(imm1))
-	__(str(vsp,tcr.db_link(rcontext)))
-	__(str(imm0,symbol.flags(arg_y)))
-	__(blr)
+
+_spentry(req_stack_restv_arg)
        
-_spentry(bind_self)
-	/* Uh, this isn't exactly easy with deep binding.
-	   Do the lookup inline, so any error will be
-	   more intelligible */
-	__(ldr(imm0,symbol.flags(arg_z)))
-	__(andi. imm0,imm0,sym_vbit_bound_mask)
-	__(mr arg_y,arg_z)
-	__(ldr(imm2,tcr.db_link(rcontext)))
-	__(cmpri(cr1,imm2,0))
-	__(beq 2f)
-	__(b 1f)
-0:	__(mr imm1,imm2)
-	__(ldr(temp0,4(imm1)))
-	__(cmpr(temp0,arg_y))
-	__(ldr(imm2,0(imm1)))
-	__(cmpri(cr1,imm2,0))
-	__(bne 1f)
-	__(ldr(arg_z,8(imm1)))
-	__(b 9f)        
-1:	__(bne cr1,0b)
-2:	__(ldr(arg_z,symbol.vcell(arg_y)))
-9:      __(ldr(imm0,symbol.flags(arg_y)))
-	__(ori imm0,imm0,sym_vbit_bound_mask)
-	__(ldr(imm1,tcr.db_link(rcontext)))
-	__(vpush(arg_z))
-	__(vpush(arg_y))
-	__(vpush(imm1))
-	__(str(vsp,tcr.db_link(rcontext)))
-	__(str(imm0,symbol.flags(arg_y)))
-	__(blr)
+_spentry(stack_cons_restv_arg)
 
-
-/* Bind special symbol in arg_z to  NIL. */
-_spentry(bind_nil)
-	__(ldr(imm0,symbol.flags(arg_z)))
-	__(ori imm0,imm0,sym_vbit_bound_mask)
-	__(li temp1,nil_value)
-	__(ldr(imm1,tcr.db_link(rcontext)))
-	__(vpush(temp1))
-	__(vpush(arg_z))
-	__(vpush(imm1))
-	__(str(vsp,tcr.db_link(rcontext)))
-	__(str(imm0,symbol.flags(arg_z)))
-	__(blr)
+_spentry(stack_restv_arg)
        
 
-/* Undo one special binding. */
-_spentry(unbind)
-	__(ldr(imm1,tcr.db_link(rcontext)))
-	__(ldr(imm1,0(imm1)))
-	__(str(imm1,tcr.db_link(rcontext)))
-	__(blr)
+_spentry(vspreadargz)
 
 
 /* Undo N special bindings: imm0 = n, unboxed and >0. */
@@ -2654,13 +2599,6 @@ _spentry(spread_lexprz)
    Error if arg_y is a constant. 
    arg_y is a known, non-nil symbol. */
 _spentry(setqsym)
-	__(ldr(imm0,symbol.flags(arg_y)))
-	__(andi. imm0,imm0,sym_vbit_const_mask)
-	__(beq _SPspecset)
-	__(mr arg_z,arg_y)
-	__(lwi(arg_y,XCONST))
-	__(set_nargs(2))
-	__(b _SPksignalerr)
 		
 _spentry(reset)
 	.globl _SPthrow
@@ -3993,74 +3931,11 @@ _spentry(makes64)
 	__(str(imm0,misc_data_offset+4(arg_z)))
 	__(blr)
 
-/*
-  arg_y must be a real, live symbol. On exit, arg_z might be an
-  unbound_marker; any caller who cares should check for that.
-*/
-_spentry(specref)
-	__(ldr(imm2,tcr.db_link(rcontext)))
-	__(ldr(imm0,symbol.flags(arg_y)))
-	__(andi. imm0,imm0,sym_vbit_bound_mask)
-	__(cmpri(cr1,imm2,0))
-	__(beq 9f)
-	__(b 1f)
-        .align 5
-0:	__(mr imm1,imm2)
-	__(ldr(temp0,binding.sym(imm2)))
-	__(ldr(imm2,binding.link(imm2)))
-	__(cmpr(temp0,arg_y))
-	__(cmpri(cr1,imm2,0))
-	__(bne 1f)
-	__(ldr(arg_z,binding.val(imm1)))
-	__(blr)
-1:	__(bne cr1,0b)
-9:	__(ldr(arg_z,symbol.vcell(arg_y)))
-        __(li imm1,0)
-	__(blr)
+_spentry(heap_restv_arg)
 
-/*
-  Likewise, arg_y must be a real symbol.
-*/
-_spentry(specset)
-	__(ldr(imm0,symbol.flags(arg_y)))
-	__(andi. imm0,imm0,sym_vbit_bound_mask)
-	__(ldr(imm2,tcr.db_link(rcontext)))
-	__(cmpri(cr1,imm2,0))
-	__(beq 2f)
-	__(b 1f)
-        .align 5
-0:	__(mr imm1,imm2)
-	__(ldr(temp0,binding.sym(imm2)))
-	__(ldr(imm2,binding.link(imm2)))
-	__(cmpr(temp0,arg_y))
-	__(cmpri(cr1,imm2,0))
-	__(bne 1f)
-	__(str(arg_z,binding.val(imm1)))
-	__(blr)
-1:	__(bne cr1,0b)
-2:      __(str(arg_z,symbol.vcell(arg_y)))
-	__(blr)
+_spentry(req_heap_restv_arg)
 
-_spentry(specrefcheck)
-	__(ldr(imm0,symbol.flags(arg_y)))
-	__(andi. imm0,imm0,sym_vbit_bound_mask)
-	__(ldr(imm2,tcr.db_link(rcontext)))
-	__(cmpri(cr1,imm2,0))
-	__(beq 8f)
-	__(b 1f)
-        .align 5
-0:	__(mr imm1,imm2)
-	__(ldr(temp0,binding.sym(imm2)))
-	__(ldr(imm2,binding.link(imm2)))
-	__(cmpr(temp0,arg_y))
-	__(cmpri(cr1,imm2,0))
-	__(bne 1f)
-	__(ldr(arg_z,binding.val(imm1)))
-        __(b 9f)
-1:	__(bne cr1,0b)
-8:	__(ldr(arg_z,symbol.vcell(arg_y)))
-9:	__(treqi(arg_z,unbound_marker))
-	__(blr)
+_spentry(heap_cons_restv_arg)
 
 	/* Restore current thread's interrupt level to arg_z,
 	   noting whether the tcr's interrupt_pending flag was set. */
@@ -4446,7 +4321,7 @@ _spentry(svar_progvsave)
         __(beq cr1,4f)
 	__(_car(temp2,arg_z))
 	__(_cdr(arg_z,arg_z))
-4:      __(push(temp2,imm2))
+4:      __(push(temp3,imm2))
 	__(push(imm0,imm2))
 	__(push(imm1,imm2))
         __(strx(temp2,imm4,imm0))
