@@ -71,7 +71,6 @@
 (defvar *stdin* ())
 (defvar *stdout* ())
 (defvar *stderr* ())
-(defvar *terminal-input-lock* ())
 
 ;;; The hard parts here have to do with setting up *TERMINAL-IO*.
 ;;; If file descriptors 0 and 1 denote the same TTY, that's
@@ -123,9 +122,8 @@
   (setq *debug-io* *query-io*)
   (setq *trace-output* *standard-output*)
   (push *terminal-output* *auto-flush-streams*)
-  (let* ((lock (ioblock-inbuf-lock (stream-ioblock *terminal-input*))))
-    (%lock-recursive-lock (recursive-lock-ptr lock))
-    (setq *terminal-input-lock* lock)))
+  (setf (input-stream-shared-resource *terminal-input*)
+	(make-shared-resource "Shared Terminal Input")))
 
 
 
