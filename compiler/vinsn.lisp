@@ -313,7 +313,7 @@
          (nhybrids 0)
          (local-labels ())
          (referenced-labels ())
-	 (source-indicator (ppc32::form-symbol backend-name "-VINSN"))
+	 (source-indicator (form-symbol backend-name "-VINSN"))
          (opcode-alist ()))
     (flet ((valid-spec-name (x)
 	     (or (and (consp x) 
@@ -814,7 +814,7 @@
   ; Delete unreferenced labels that the compiler might
   ; have emitted.  Subsequent operations may cause
   ; other labels to become unreferenced.
-  (let* ((labels (ppc32::collect ((labs)) 
+  (let* ((labels (collect ((labs)) 
                    (do-dll-nodes (v header)
                      (when (vinsn-label-p v) (labs v)))
                    (labs))))

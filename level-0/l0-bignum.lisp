@@ -51,8 +51,8 @@
   ;;;
   (defmacro bignum-replace (dest src &key (start1 '0) end1 (start2 '0) end2
                                  from-end)
-    (ppc32::once-only ((n-dest dest)
-                     (n-src src))
+    (once-only ((n-dest dest)
+		 (n-src src))
       (if (and (eq start1 0)(eq start2 0)(null end1)(null end2)(null from-end))
         ; this is all true for some uses today <<
         `(%copy-ivector-to-ivector ,n-src 0 ,n-dest 0 (%ilsl 2 (min (the fixnum (%bignum-length ,n-src))
@@ -84,20 +84,20 @@
   (defconstant all-ones-half-digit #xFFFF)  
   
  (defmacro %logand (h1 l1 h2 l2)
-    (ppc32::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2)) ; export this plz
+    (once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2)) ; export this plz
       `(values (%ilogand ,h1v ,h2v)(%ilogand ,l1v ,l2v))))
   
   (defmacro %logior (h1 l1 h2 l2)
-    (ppc32::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
+    (once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
       `(values (%ilogior ,h1v ,h2v)(%ilogior ,l1v ,l2v))))
   
   (defmacro %logxor (h1 l1 h2 l2)
-    (ppc32::once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
+    (once-only ((h1v h1)(l1v l1)(h2v h2)(l2v l2))
       `(values (%ilogxor ,h1v ,h2v)(%ilogxor ,l1v ,l2v))))
   
   
   (defmacro %lognot (h l)
-    (ppc32::once-only ((h1v h)(l1v l))
+    (once-only ((h1v h)(l1v l))
       `(values (%ilognot ,h1v)(%ilognot ,l1v))))
 
   (defmacro %allocate-bignum (ndigits)

@@ -53,9 +53,9 @@
 
 
 (defmacro with-stack-double-floats (specs &body body)
-    (ppc32::collect ((binds)
-                   (inits)
-                   (names))
+    (collect ((binds)
+	      (inits)
+	      (names))
       (dolist (spec specs)
         (let ((name (first spec)))
           (binds `(,name (%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float)))
@@ -72,21 +72,21 @@
 (setf (macro-function 'with-ppc-stack-double-floats) (macro-function 'with-stack-double-floats))
 
 (defmacro with-stack-short-floats (specs &body body)
-    (ppc32::collect ((binds)
-                   (inits)
-                   (names))
-      (dolist (spec specs)
-        (let ((name (first spec)))
-          (binds `(,name (%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float)))
-          (names name)
-          (let ((init (second spec)))
-            (when init
-              (inits `(%short-float ,init ,name))))))
-      `(let* ,(binds)
-         (declare (dynamic-extent ,@(names))
-                  (short-float ,@(names)))
-         ,@(inits)
-         ,@body)))
+  (collect ((binds)
+	    (inits)
+	    (names))
+    (dolist (spec specs)
+      (let ((name (first spec)))
+	(binds `(,name (%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float)))
+	(names name)
+	(let ((init (second spec)))
+	  (when init
+	    (inits `(%short-float ,init ,name))))))
+    `(let* ,(binds)
+      (declare (dynamic-extent ,@(names))
+	       (short-float ,@(names)))
+      ,@(inits)
+      ,@body)))
 
 (setf (macro-function 'with-ppc-stack-short-floats) (macro-function 'with-stack-short-floats))
 
@@ -119,9 +119,9 @@
   ;;;
 (defmacro with-bignum-buffers (specs &body body)  ; <<
   "WITH-BIGNUM-BUFFERS ({(var size [init])}*) Form*"
-  (ppc32::collect ((binds)
-                 (inits)
-                 (names))
+  (collect ((binds)
+	    (inits)
+	    (names))
     (dolist (spec specs)
       (let ((name (first spec))
             (size (second spec)))
@@ -169,20 +169,21 @@
   `(%fixnum-to-bignum-set ,big ,fix))
 
 (defmacro with-small-bignum-buffers (specs &body body)
-  (ppc32::collect ((binds)
-		  (inits)
-		  (names))
-		 (dolist (spec specs)
-		   (let ((name (first spec)))
-		     (binds `(,name (%alloc-misc 1 ppc32::subtag-bignum)))
-		     (names name)
-		     (let ((init (second spec)))
-		       (when init
-			 (inits `(fixnum-to-bignum-set ,name ,init))))))
-		 `(let* ,(binds)
-		   (declare (dynamic-extent ,@(names)))
-		   ,@(inits)
-		   ,@body)))
+  (collect ((binds)
+	    (inits)
+	    (names))
+    (dolist (spec specs)
+      (let ((name (first spec)))
+	(binds `(,name (%alloc-misc 1 ppc32::subtag-bignum)))
+	(names name)
+	(let ((init (second spec)))
+	  (when init
+	    (inits `(fixnum-to-bignum-set ,name ,init))))))
+    `(let* ,(binds)
+      (declare (dynamic-extent ,@(names)))
+      ,@(inits)
+      ,@body)))
+
 (provide "NUMBER-MACROS")
 
 ; end of number-macros.lisp

@@ -20,44 +20,6 @@
 (eval-when (:load-toplevel)
   (require "SEQUENCES"))
 
-(eval-when (:compile-toplevel :execute)
-
-(defmacro iterate (name binds &body body)
-  "Iterate Name ({(Var Initial-Value)}*) Declaration* Form*
-  This is syntactic sugar for Labels.  It creates a local function Name with
-  the specified Vars as its arguments and the Declarations and Forms as its
-  body.  This function is then called with the Initial-Values, and the result
-  of the call is return from the macro."
-  (dolist (x binds)
-    (unless (and (listp x)
-                 (= (length x) 2))
-      (error "Malformed iterate variable spec: ~S." x)))
-
-  `(labels ((,name ,(mapcar #'first binds) ,@body))
-     (,name ,@(mapcar #'second binds))))
-
-(defmacro once-only (specs &body body)
-  "Once-Only ({(Var Value-Expression)}*) Form*
-  Create a Let* which evaluates each Value-Expression, binding a temporary
-  variable to the result, and wrapping the Let* around the result of the
-  evaluation of Body.  Within the body, each Var is bound to the corresponding
-  temporary variable."
-  (iterate frob
-           ((specs specs)
-            (body body))
-    (if (null specs)
-      `(progn ,@body)
-      (let ((spec (first specs)))
-        (when (/= (length spec) 2)
-          (error "Malformed Once-Only binding spec: ~S." spec))
-        (let ((name (first spec))
-              (exp-temp (gensym)))
-          `(let ((,exp-temp ,(second spec))
-                 (,name (gensym)))
-             `(let ((,,name ,,exp-temp))
-                ,,(frob (rest specs) body))))))))
-
-)
 
 ;;; This condition is signalled whenever we make a UNKNOWN-TYPE so that
 ;;; compiler warnings can be emitted as appropriate.
