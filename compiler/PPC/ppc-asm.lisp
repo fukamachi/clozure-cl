@@ -1354,28 +1354,28 @@
 
    #.(ppc-opcode andis. (op 29) $op-mask ($ppc) $rta $rs $ui)
 
-   #.(ppc-opcode rotldi (md 30 0) $mdmb-mask ($ppc $b64) $rta $rs $sh6)
-   #.(ppc-opcode clrldi (md 30 0) $mdsh-mask ($ppc $b64) $rta $rs $mb6)
-   #.(ppc-opcode rldicl (md 30 0) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
-   #.(ppc-opcode rotldi. (md 30 1) $mdmb-mask ($ppc $b64) $rta $rs $sh6)
-   #.(ppc-opcode clrldi. (md 30 1) $mdsh-mask ($ppc $b64) $rta $rs $mb6)
-   #.(ppc-opcode rldicl. (md 30 1) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
+   #.(ppc-opcode rotldi (md 30 0 0) $mdmb-mask ($ppc $b64) $rta $rs $sh6)
+   #.(ppc-opcode clrldi (md 30 0 0) $mdsh-mask ($ppc $b64) $rta $rs $mb6)
+   #.(ppc-opcode rldicl (md 30 0 0) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
+   #.(ppc-opcode rotldi. (md 30 0 1) $mdmb-mask ($ppc $b64) $rta $rs $sh6)
+   #.(ppc-opcode clrldi. (md 30 0 1) $mdsh-mask ($ppc $b64) $rta $rs $mb6)
+   #.(ppc-opcode rldicl. (md 30 0 1) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
 
-   #.(ppc-opcode rldicr (md 30 1) $md-mask ($ppc $b64) $rta $rs $sh6 $me6)
+   #.(ppc-opcode rldicr (md 30 1 0) $md-mask ($ppc $b64) $rta $rs $sh6 $me6)
    #.(ppc-opcode rldicr. (md 30 1 1) $md-mask ($ppc $b64) $rta $rs $sh6 $me6)
 
-   #.(ppc-opcode rldic (md 30 2) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
+   #.(ppc-opcode rldic (md 30 2 0) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
    #.(ppc-opcode rldic. (md 30 2 1) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
 
-   #.(ppc-opcode rldimi (md 30 3) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
+   #.(ppc-opcode rldimi (md 30 3 0) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
    #.(ppc-opcode rldimi. (md 30 3 1) $md-mask ($ppc $b64) $rta $rs $sh6 $mb6)
 
-   #.(ppc-opcode rotld (mds 30 8) $mdsmb-mask ($ppc $b64) $rta $rs $rb)
-   #.(ppc-opcode rldcl (mds 30 8) $mds-mask ($ppc $b64) $rta $rs $rb $mb6)
+   #.(ppc-opcode rotld (mds 30 8 0) $mdsmb-mask ($ppc $b64) $rta $rs $rb)
+   #.(ppc-opcode rldcl (mds 30 8 0) $mds-mask ($ppc $b64) $rta $rs $rb $mb6)
    #.(ppc-opcode rotld. (mds 30 8 1) $mdsmb-mask ($ppc $b64) $rta $rs $rb)
    #.(ppc-opcode rldcl. (mds 30 8 1) $mds-mask ($ppc $b64) $rta $rs $rb $mb6)
 
-   #.(ppc-opcode rldcr (mds 30 9) $mds-mask ($ppc $b64) $rta $rs $rb $me6)
+   #.(ppc-opcode rldcr (mds 30 9 0) $mds-mask ($ppc $b64) $rta $rs $rb $me6)
    #.(ppc-opcode rldcr. (mds 30 9 1) $mds-mask ($ppc $b64) $rta $rs $rb $me6)
 
    #.(ppc-opcode cmpw (xcmpl 31 0 0) $xcmpl-mask ($ppc) $obf $ra $rb)
@@ -2099,8 +2099,8 @@
 (defppcmacro srdi. (ra rs n)
   `(rldicl. ,ra ,rs (- 64 ,n) ,n))
 
-(defppcmacro clrrdi. (ra rs n)
-  `(rldicr. ,ra ,rs 0 (- 63 ,n)))
+(defppcmacro clrrdi (ra rs n)
+  `(rldicr ,ra ,rs 0 (- 63 ,n)))
 
 (defppcmacro clrrdi. (ra rs n)
   `(rldicr. ,ra ,rs 0 (- 63 ,n)))
@@ -2255,11 +2255,10 @@
 ;; The DS field in a DS form instruction.  This is like D, but the
 ;; lower two bits are forced to zero.
 (defun insert-ds (high low val)
-  (declare (ignore low))
   (when (logtest #b11 val)
     (warn "low two bits of operand #x~8,'0x must be zero - clearing."
 	  val))
-  (values high (logand val #xfffc)))
+  (values high (logior low (logand val #xfffc))))
 
 (defun extract-ds (instr)
   (- (logand instr #xfffc) (if (logbitp 15 instr) #x10000 0)))
