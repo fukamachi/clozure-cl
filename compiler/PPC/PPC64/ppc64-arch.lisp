@@ -472,9 +472,8 @@
 (define-storage-layout tcr 0
   prev					; in doubly-linked list 
   next					; in doubly-linked list
-  single-float-convert			; per-tread scratch space.
+  single-float-convert			; per-thread scratch space.
   lisp-fpscr-high
-  lisp-fpscr-low
   db-link				; special binding chain head 
   catch-top				; top catch frame 
   save-vsp				; VSP when in foreign code 
@@ -512,6 +511,8 @@
   tlb-limit
   tlb-pointer
 )
+
+(defconstant lisp-fpscr-high (+ lisp-fpscr-high 4))
 
 (define-storage-layout lockptr 0
   avail
