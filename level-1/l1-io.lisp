@@ -1515,7 +1515,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
   (print-unreadable-object (uvec stream :identity t :type t)))
   
 
-(defmethod print-object ((slotdef standard-slot-definition) stream)
+(defmethod print-object ((slotdef slot-definition) stream)
   (print-unreadable-object (slotdef stream :identity t :type t)
     (format stream "for ~a slot ~s"
             (string-downcase (slot-definition-allocation slotdef))
