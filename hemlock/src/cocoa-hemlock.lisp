@@ -14,10 +14,28 @@
   (prefix-argument nil)
   (prefix-argument-supplied nil)
   frame
-  (function nil)
+  (event-mode-list nil)			; for extended modal
   )
 
 (defvar *current-command-info* nil)
+
+(defun push-event-mode-function (f)
+  (push f (command-interpreter-info-event-mode-list *current-command-info*))
+  f)
+
+(defun exit-event-mode ()
+  (setf (command-interpreter-info-event-mode-list *current-command-info*)
+	(cdr (command-interpreter-info-event-mode-list *current-command-info*))))
+
+(defun current-event-mode ()
+  (car (command-interpreter-info-event-mode-list *current-command-info*)))
+
+(defun add-one-shot-event-mode-function (f)
+  (push-event-mode-function #'(lambda (key)
+				(exit-event-mode)
+				(funcall f key))))
+
+
 
 (defun buffer-windows (buffer)
   (let* ((doc (buffer-document buffer)))
@@ -37,12 +55,7 @@
 (defun %set-current-window (new-window)
   #+not-yet
   (invoke-hook hemlock::set-window-hook new-window)
-  #+clx
-  (move-mark (window-point *current-window*)
-	     (buffer-point (window-buffer *current-window*)))
-  #+clx
-  (move-mark (buffer-point (window-buffer new-window))
-	     (window-point new-window))
+  (activate-hemlock-view new-window)
   (setq *current-window* new-window))
 
 ;;; This is a public variable.

@@ -62,8 +62,8 @@
   "Read a character from the terminal and insert it.
   With prefix argument, insert the character that many times."
   "Reads a key-event from *editor-input* and inserts it at the point."
-  (setf (hi::command-interpreter-info-function hi::*current-command-info*)
-	#'(lambda (key-event)
+  (hi::add-one-shot-event-mode-function
+   #'(lambda (key-event)
 	    (let* ((char (hemlock-ext:key-event-char key-event))
 		   (point (current-point)))
 	      (unless char (editor-error "Can't insert that character."))

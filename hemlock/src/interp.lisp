@@ -422,7 +422,7 @@
 	 (*current-command-info* info)
 	 (cmd (command-interpreter-info-current-command info))
 	 (trans (command-interpreter-info-current-translation info))
-	 (func (command-interpreter-info-function info)))
+	 (func (current-event-mode)))
     (handler-bind
 	;; Bind this outside the invocation loop to save consing.
 	((editor-error #'(lambda (condx)
@@ -444,7 +444,6 @@
 		(hemlock-ext:print-pretty-key (aref cmd i) *echo-area-stream*)
 		(write-char #\space *echo-area-stream*)))))
       (cond (func
-	     (setf (command-interpreter-info-function info) nil)
 	     (funcall func key-event))
 	     (t
 	      (vector-push-extend key-event cmd)
@@ -487,6 +486,7 @@
 ;;;
 ;;;    Read commands from the terminal and execute them, forever.
 ;;;
+#+original
 (defun %command-loop ()
   (let  ((cmd *current-command*)
 	 (trans *current-translation*)
@@ -544,6 +544,10 @@
 		 (setq *prefix-argument* nil)
 		 (setf (fill-pointer cmd) 0)))
 	      (hash-table))))))))
+
+(defun %command-loop ()
+  (format t "~& in %command-loop: current buffer = ~s" (current-buffer)))
+
 
 
 ;;; EXIT-HEMLOCK  --  Public
