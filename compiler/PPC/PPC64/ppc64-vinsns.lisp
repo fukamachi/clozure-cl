@@ -1348,7 +1348,7 @@
 			     ((arg0 t)
 			      (arg1 t))
 			     ())
-  (cmpw crf arg0 arg1))
+  (cmpd crf arg0 arg1))
 
 (define-ppc64-vinsn compare-to-nil (((crf :crf))
 				    ((arg0 t)))
