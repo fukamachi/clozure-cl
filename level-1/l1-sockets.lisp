@@ -116,7 +116,12 @@
 (define-condition socket-error (simple-stream-error)
   ((code :initarg :code :reader socket-error-code)
    (identifier :initform :unknown :initarg :identifier :reader socket-error-identifier)
-   (situation :initarg :situation :reader socket-error-situation)))
+   (Situation :initarg :situation :reader socket-error-situation)))
+
+(define-condition socket-creation-error (simple-error)
+  ((code :initarg :code :reader socket-creation-error-code)
+   (identifier :initform :unknown :initarg :identifier :reader socket-creationg-error-identifier)
+   (situation :initarg :situation :reader socket-creation-error-situation)))
 
 (defvar *socket-error-identifiers*
   (list #$EADDRINUSE :address-in-use
@@ -154,6 +159,8 @@
 
 
 (defun socket-error (stream where errno &optional nameserver-p)
+  "Creates and signals (via error) one of two socket error 
+conditions, based on the state of the arguments."
   (when (< errno 0)
     (setq errno (- errno)))
   (if stream
@@ -170,11 +177,18 @@
 						(%hstrerror errno)
 						(%strerror errno))
 					      errno stream where)))
-    (error "~a (error #~d) in ~a"
-	   (if nameserver-p
-	     (%hstrerror errno)
-	     (%strerror errno))
-	   errno where)))
+    (error (make-condition 'socket-creation-error
+			   :code errno
+			   :identifier (getf *socket-error-identifiers* errno :unknown)
+			   :situation where
+			   ;; TODO: this is a constant arg, there is a way to put this
+			   ;; in the class definition, just need to remember how...
+			   :format-control "~a (error #~d) on ~s in ~a"
+			   :format-arguments (list
+					      (if nameserver-p
+						(%hstrerror errno)
+						(%strerror errno))
+					      errno stream where)))))
     
 
 
@@ -323,106 +337,115 @@
          (socket-call socket "getsockname" (c_getsockname fd addr namelen))
 	 (path-from-unix-address addr))))
 
-         
+(defmacro with-if ((var expr) &body body)
+  `(let ((,var ,expr))
+     (if ,var
+	 (progn
+	   ,@body))))     
 
-(defun remote-socket-info (fd type)
-  (and fd
-       (rlet ((sockaddr :sockaddr_in)
-	      (namelen :signed))
-	     (setf (pref namelen :signed) (record-length :sockaddr_in))
-	     (let ((err (c_getpeername fd sockaddr namelen)))
-	       (cond ((eql err (- #$ENOTCONN)) nil)
-		     ((< err 0) (socket-error "getpeername" err))
-		     (t
-		      (when (= #$AF_INET (pref sockaddr :sockaddr_in.sin_family))
-			(ecase type
-			  (:host (#_ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr)))
-			  (:port (#_ntohs (pref sockaddr :sockaddr_in.sin_port)))))))))))
+(defun remote-socket-info (socket type)
+  (with-if (fd (socket-device socket))
+    (rlet ((sockaddr :sockaddr_in)
+	   (namelen :signed))
+	  (setf (pref namelen :signed) (record-length :sockaddr_in))
+	  (let ((err (c_getpeername fd sockaddr namelen)))
+	    (cond ((eql err (- #$ENOTCONN)) nil)
+		  ((< err 0) (socket-error socket "getpeername" err))
+		  (t
+		   (when (= #$AF_INET (pref sockaddr :sockaddr_in.sin_family))
+		     (ecase type
+		       (:host (#_ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr)))
+		       (:port (#_ntohs (pref sockaddr :sockaddr_in.sin_port)))))))))))
 
-(defun remote-socket-filename (fd)
-  (and fd
-       (rlet ((addr :sockaddr_un)
-              (namelen :signed))
-         (setf (pref namelen :signed) (record-length :sockaddr_un))
-         (let* ((err (c_getsockname fd addr namelen)))
-           (cond ((eql err (- #$ENOTCONN)) nil)
-                 ((< err 0) (socket-error "getpeername" err))
-                 (t (path-from-unix-address addr)))))))
+(defun remote-socket-filename (socket)
+  (with-if (fd (socket-device socket))
+    (rlet ((addr :sockaddr_un)
+	   (namelen :signed))
+	  (setf (pref namelen :signed) (record-length :sockaddr_un))
+	  (let* ((err (c_getsockname fd addr namelen)))
+	    (cond ((eql err (- #$ENOTCONN)) nil)
+		  ((< err 0) (socket-error socket "getpeername" err))
+		  (t (path-from-unix-address addr)))))))
 
 (defmethod LOCAL-PORT ((socket socket))
-  (local-socket-info (socket-device socket) :port socket))
+  (local-socket-info socket :port socket))
 
 (defmethod LOCAL-HOST ((socket socket))
-  (local-socket-info (socket-device socket) :host socket))
+  (local-socket-info socket :host socket))
 
 (defmethod LOCAL-FILENAME ((socket socket))
-  (local-socket-filename (socket-device socket) socket))
+  (local-socket-filename socket))
 
 ;; Returns NIL if socket is not connected
 (defmethod REMOTE-HOST ((socket socket))
-  (remote-socket-info (socket-device socket) :host))
+  (remote-socket-info socket :host))
 
 (defmethod REMOTE-PORT ((socket socket))
-  (remote-socket-info (socket-device socket) :port))
+  (remote-socket-info socket :port))
 
 (defmethod REMOTE-FILENAME ((socket socket))
-  (remote-socket-filename (socket-device socket)))
+  (remote-socket-filename socket))
   
-(defun set-socket-options (fd &key keepalive
-			           reuse-address
-				   nodelay
-				   broadcast
-				   linger
-				   address-family
-				   local-port
-				   local-host
-				   local-filename
-				   type
-				   connect
-				   out-of-band-inline
-				   &allow-other-keys)
+(defun set-socket-options (fd-or-socket &key 
+			   keepalive
+			   reuse-address
+			   nodelay
+			   broadcast
+			   linger
+			   address-family
+			   local-port
+			   local-host
+			   local-filename
+			   type
+			   connect
+			   out-of-band-inline
+			   &allow-other-keys)
   ;; see man socket(7) tcp(7) ip(7)
-  (if (null address-family)
-    (setq address-family :internet))
-  (when keepalive
-    (int-setsockopt fd #$SOL_SOCKET #$SO_KEEPALIVE 1))
-  (when reuse-address
-    (int-setsockopt fd #$SOL_SOCKET #$SO_REUSEADDR 1))
-  (when broadcast
-    (int-setsockopt fd #$SOL_SOCKET #$SO_BROADCAST 1))
-  (when out-of-band-inline
-    (int-setsockopt fd #$SOL_SOCKET #$SO_OOBINLINE 1))
-  (rlet ((plinger :linger))
-    (setf (pref plinger :linger.l_onoff) (if linger 1 0)
-	  (pref plinger :linger.l_linger) (or linger 0))
-    (socket-call nil "setsockopt"
-		 (c_setsockopt fd #$SOL_SOCKET #$SO_LINGER plinger 8)))
-  (when (eq address-family :internet)
-    (when nodelay
-      (int-setsockopt fd
-		      #+linuxppc-target #$SOL_TCP
-		      #+darwinppc-target #$IPPROTO_TCP
-		      #$TCP_NODELAY 1))
-    (when (or local-port local-host)
-      (let* ((proto (if (eq type :stream) "tcp" "udp"))
-	     (port-n (if local-port (port-as-inet-port local-port proto) 0))
-	     (host-n (if local-host (host-as-inet-host local-host) #$INADDR_ANY)))
-	;; Darwin includes the SIN_ZERO field of the sockaddr_in when
-	;; comparing the requested address to the addresses of configured
-	;; interfaces (as if the zeros were somehow part of either address.)
-	;; "rletz" zeros out the stack-allocated structure, so those zeros
-	;; will be 0.
-	(rletz ((sockaddr :sockaddr_in))
-	       (setf (pref sockaddr :sockaddr_in.sin_family) #$AF_INET
-		     (pref sockaddr :sockaddr_in.sin_port) port-n
-		     (pref sockaddr :sockaddr_in.sin_addr.s_addr) host-n)
-	       (socket-call nil "bind" (c_bind fd sockaddr (record-length :sockaddr_in)))))))
-  (when (and (eq address-family :file)
-	     (eq connect :passive)
-	     local-filename)
-    (bind-unix-socket fd local-filename))    
-  (when *multiprocessing-socket-io*
-    (socket-call nil "fcntl" (fd-set-flag fd #$O_NONBLOCK))))
+  (multiple-value-bind (socket fd) (etypecase fd-or-socket
+				     (socket (values fd-or-socket (socket-device fd-or-socket)))
+				     (integer (values nil fd-or-socket)))
+    
+    (if (null address-family)
+	(setq address-family :internet))
+    (when keepalive
+      (int-setsockopt fd #$SOL_SOCKET #$SO_KEEPALIVE 1))
+    (when reuse-address
+      (int-setsockopt fd #$SOL_SOCKET #$SO_REUSEADDR 1))
+    (when broadcast
+      (int-setsockopt fd #$SOL_SOCKET #$SO_BROADCAST 1))
+    (when out-of-band-inline
+      (int-setsockopt fd #$SOL_SOCKET #$SO_OOBINLINE 1))
+    (rlet ((plinger :linger))
+	  (setf (pref plinger :linger.l_onoff) (if linger 1 0)
+		(pref plinger :linger.l_linger) (or linger 0))
+	  (socket-call socket "setsockopt"
+		       (c_setsockopt fd #$SOL_SOCKET #$SO_LINGER plinger 8)))
+    (when (eq address-family :internet)
+      (when nodelay
+	(int-setsockopt fd
+			#+linuxppc-target #$SOL_TCP
+			#+darwinppc-target #$IPPROTO_TCP
+			#$TCP_NODELAY 1))
+      (when (or local-port local-host)
+	(let* ((proto (if (eq type :stream) "tcp" "udp"))
+	       (port-n (if local-port (port-as-inet-port local-port proto) 0))
+	       (host-n (if local-host (host-as-inet-host local-host) #$INADDR_ANY)))
+	  ;; Darwin includes the SIN_ZERO field of the sockaddr_in when
+	  ;; comparing the requested address to the addresses of configured
+	  ;; interfaces (as if the zeros were somehow part of either address.)
+	  ;; "rletz" zeros out the stack-allocated structure, so those zeros
+	  ;; will be 0.
+	  (rletz ((sockaddr :sockaddr_in))
+		 (setf (pref sockaddr :sockaddr_in.sin_family) #$AF_INET
+		       (pref sockaddr :sockaddr_in.sin_port) port-n
+		       (pref sockaddr :sockaddr_in.sin_addr.s_addr) host-n)
+		 (socket-call socket "bind" (c_bind fd sockaddr (record-length :sockaddr_in)))))))
+    (when (and (eq address-family :file)
+	       (eq connect :passive)
+	       local-filename)
+      (bind-unix-socket fd local-filename))    
+    (when *multiprocessing-socket-io*
+      (socket-call socket "fcntl" (fd-set-flag fd #$O_NONBLOCK)))))
 
 ;; I hope the inline declaration makes the &rest/apply's go away...
 (declaim (inline make-ip-socket))
@@ -507,7 +530,7 @@
     (when (eql err (- #$EINPROGRESS))
       (process-output-wait fd)
       (setq err (- (int-getsockopt fd #$SOL_SOCKET #$SO_ERROR))))
-    (unless (eql err 0) (socket-error "connect" err))))
+    (unless (eql err 0) (socket-error nil "connect" err))))
     
 (defun inet-connect (fd host-n port-n)
   (rlet ((sockaddr :sockaddr_in))
@@ -620,7 +643,7 @@
 	       (prog1 (apply stream-create-function fd (socket-keys socket))
 		 (setq fd -1)))
 	      ((eql fd (- #$EAGAIN)) nil)
-	      (t (socket-error "accept" fd))))
+	      (t (socket-error socket "accept" fd))))
       (when (>= fd 0)
 	(fd-close fd)))))
 
@@ -651,10 +674,10 @@
     (multiple-value-setq (msg offset) (verify-socket-buffer msg offset size))
     (unless remote-host
       (setq remote-host (or (getf (socket-keys socket) :remote-host)
-			    (remote-socket-info fd :host))))
+			    (remote-socket-info socket :host))))
     (unless remote-port
       (setq remote-port (or (getf (socket-keys socket) :remote-port)
-			    (remote-socket-info fd :port))))
+			    (remote-socket-info socket :port))))
     (rlet ((sockaddr :sockaddr_in))
       (setf (pref sockaddr :sockaddr_in.sin_family) #$AF_INET)
       (setf (pref sockaddr :sockaddr_in.sin_addr.s_addr)
@@ -721,7 +744,7 @@
 	(fixnum (#_htons port))
 	(string (_getservbyname port proto))
 	(symbol (_getservbyname (string-downcase (symbol-name port)) proto)))
-      (socket-error "getservbyname" (- #$ENOENT))))
+      (socket-error nil "getservbyname" (- #$ENOENT))))
 
 (defun LOOKUP-PORT (port proto)
   (if (fixnump port)
@@ -737,7 +760,7 @@
 		     (_inet_aton host))
 		(multiple-value-bind (addr err) (c_gethostbyname host)
 		  (or addr
-		      (socket-error "gethostbyname" err t)))))))
+		      (socket-error nil "gethostbyname" err t)))))))
 
 
 (defun DOTTED-TO-IPADDR (name &key (errorp t))
@@ -761,7 +784,7 @@
 (defun IPADDR-TO-HOSTNAME (ipaddr &key ignore-cache)
   (declare (ignore ignore-cache))
   (multiple-value-bind (name err) (c_gethostbyaddr (#_htonl ipaddr))
-    (or name (socket-error "gethostbyaddr" err t))))
+    (or name (socket-error nil "gethostbyaddr" err t))))
   
 
 (defun int-getsockopt (socket level optname)
@@ -772,7 +795,7 @@
       (if (and (eql 0 err)
                (eql 4 (pref vallen :signed)))
         (pref valptr :signed)
-	(socket-error "getsockopt" err)))))
+	(socket-error socket "getsockopt" err)))))
 
 (defun int-setsockopt (socket level optname optval)
   (rlet ((valptr :signed))
