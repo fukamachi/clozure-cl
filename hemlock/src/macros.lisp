@@ -628,6 +628,13 @@
 ;;; get back to the command loop and forget about the error we are currently
 ;;; handling.
 ;;;
+
+(defun lisp-error-error-handler (condition &optional internalp)
+  (declare (ignore internalp))
+  (report-hemlock-error condition)
+  (throw 'editor-top-level-catcher nil))
+
+#+no
 (defun lisp-error-error-handler (condition &optional internalp)
   (invoke-debugger condition)
   (handler-bind ((editor-error #'(lambda (condx)
