@@ -27,8 +27,13 @@
 
 (defclass backtrace-window-controller (ns:ns-window-controller)
     ((context :initarg :context :reader backtrace-controller-context)
-     (inspector :initform nil :reader backtrace-window-controller-inspector))
+     (inspector :initform nil :reader backtrace-controller-inspector)
+     (outline-view :foreign-type :id :reader backtrace-controller-outline-view))
   (:metaclass ns:+ns-object))
+
+(define-objc-method ((:id window-nib-name)
+		     backtrace-window-controller)
+  #@"backtrace")
 
 (defmethod our-frame-label-p ((self backtrace-window-controller) thing)
   (and (typep thing 'frame-label)
@@ -38,7 +43,6 @@
                               :is-item-expandable item)
                      backtrace-window-controller)
     (declare (ignore view))
-  (#_NSLog #@"is expandable")
     (or (%null-ptr-p item)
         (our-frame-label-p self item)))
 
@@ -46,8 +50,7 @@
                            :number-of-children-of-item item)
                      backtrace-window-controller)
     (declare (ignore view))
-  (#_NSLog #@"Number of children")
-    (let* ((inspector (backtrace-window-controller-inspector self)))
+    (let* ((inspector (backtrace-controller-inspector self)))
       (cond ((%null-ptr-p item)
              (inspector::inspector-line-count inspector))
             ((our-frame-label-p self item)
@@ -57,7 +60,8 @@
                                (make-instance
                                 'inspector::stack-frame-inspector
                                 :frame-number (frame-label-number item)
-                                :object (inspector::inspector-object inspector))))))
+                                :object (inspector::inspector-object inspector)
+				:update-line-count t)))))
                (inspector::inspector-line-count frame-inspector)))
             (t -1))))
              
@@ -66,8 +70,7 @@
                           :of-item item)
                      backtrace-window-controller)
     (declare (ignore view))
-  (#_NSLog #@"child of item")
-    (let* ((inspector (backtrace-window-controller-inspector self)))
+    (let* ((inspector (backtrace-controller-inspector self)))
       (cond ((%null-ptr-p item)
              (let* ((label
                      (make-instance 'frame-label
@@ -87,7 +90,8 @@
                                (make-instance
                                 'inspector::stack-frame-inspector
                                 :frame-number (frame-label-number item)
-                                :object (inspector::inspector-object inspector))))))
+                                :object (inspector::inspector-object inspector)
+				:update-line-count t)))))
                (make-objc-instance 'frame-item
                                    :frame-label item
                                    :index index
@@ -109,7 +113,6 @@
                           :by-item item)
                      backtrace-window-controller)
     (declare (ignore view column))
-  (#_NSLog #@"value for item")
     (if (%null-ptr-p item)
       #@"Open this"
       (%setf-macptr (%null-ptr) item)))
@@ -118,7 +121,7 @@
                                        &key &allow-other-keys)
   (setf (slot-value self 'inspector)
         (make-instance 'inspector::stack-inspector :info (backtrace-controller-context self) :update-line-count t))
-  (let* ((w (send self 'window))
+#|  (let* ((w (send self 'window))
          (content-view (send w 'content-view)))
     (slet ((frame (send content-view 'frame)))
       (let* ((outline-view (make-objc-instance 'ns:ns-outline-view
@@ -136,7 +139,8 @@
         (send outline-view :add-table-column column)
         (send outline-view :set-data-source self)
         (send content-view :add-subview outline-view)
-        (activate-window w)))))
+        (activate-window w))))
+  |#)
 
         
 
@@ -144,10 +148,18 @@
 
 
 (defun backtrace-window-for-context (context)
-  (make-instance 'backtrace-window-controller
-                 :with-window (new-cocoa-window :title "Backtrace"
-                                                :activate nil)
-                 :context context))
+  (let* ((cont (make-instance 'backtrace-window-controller
+			      :with-window-nib-name #@"backtrace"
+			      :context context)))
+    (send cont :show-window nil)
+    cont))
+
+
+
+
+(define-objc-method ((:void will-load)
+		     backtrace-window-controller)
+  (#_NSLog #@"will load %@" :address (send self 'window-nib-name)))
 
 #+notyet
 (progn
