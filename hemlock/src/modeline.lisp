@@ -98,13 +98,18 @@
 				   (declare (ignore buffer window))
 				   "Hemlock "))
 
-(make-modeline-field :name :external-format :width 4
-		     :function #'(lambda (buffer window)
-				   "Returns indication of buffer's external-format"
-				   (declare (ignore window))
-				   (format nil "[~c] "
-					   (schar
-					    (string (buffer-external-format buffer)) 0))))
+(make-modeline-field
+ :name :external-format
+ :function #'(lambda (buffer window)
+	       "Returns an indication of buffer's external-format, iff it's
+other than :DEFAULT"
+	       (declare (ignore window))
+	       (let* ((external-format (buffer-external-format buffer)))
+		 (case external-format
+		   ((:unix nil))
+		   (:mac "[CR] ")
+		   (:cp/m "[CRLF] ")))))
+
 
 (make-modeline-field
  :name :package

@@ -94,14 +94,46 @@
 
 (define-objc-method ((:id init) lisp-editor-document)
   (let* ((doc (send-super 'init)))
-    (setf (slot-value doc 'textstorage)
-          (make-textstorage-for-hemlock-buffer
-           (hemlock-buffer-from-nsstring
-            #@""
-            (lisp-string-from-nsstring (send doc 'display-name))
-            "Lisp")))
+    (unless (%null-ptr-p doc)
+      (let* ((buffer (hi::make-buffer
+		      (lisp-string-from-nsstring (send doc 'display-name))
+		      :modes '("Lisp"))))
+	(setf (slot-value doc 'textstorage)
+	      (make-textstorage-for-hemlock-buffer
+	       buffer)
+	      (hi::buffer-document buffer) doc)))
     doc))
                      
+
+(define-objc-method ((:id :read-from-file filename
+			  :of-type type)
+		     lisp-editor-document)
+  (declare (ignorable type))
+  (let* ((pathname (lisp-string-from-nsstring filename))
+	 (buffer-name (hi::pathname-to-buffer-name pathname))
+	 (buffer (hi::make-buffer buffer-name))
+	 (data (make-objc-instance 'ns:ns-data
+				   :with-contents-of-file filename))
+	 (string (make-objc-instance 'ns:ns-string
+				     :with-data data
+				     :encoding #$NSMacOSRomanStringEncoding)))
+    (setf (hi::buffer-pathname buffer) pathname)
+    (nsstring-to-buffer string buffer)
+    (hi::buffer-start (hi::buffer-point buffer))
+    (setf (hi::buffer-modified buffer) nil)
+    (hi::process-file-options buffer pathname)
+    (setf (slot-value self 'textstorage)
+	  (make-textstorage-for-hemlock-buffer buffer)
+	  (hi::buffer-document buffer) (%setf-macptr (%null-ptr) self))))
+    
+  
+
+(define-objc-method ((:id :data-representation-of-type type)
+		      lisp-editor-document)
+  (declare (ignorable type))
+  (send (send (slot-value self 'text-view) 'string)
+	:data-using-encoding #$NSASCIIStringEncoding
+	:allow-lossy-conversion t))
 
 (define-objc-method ((:void make-window-controllers) lisp-editor-document)
   (let* ((controller (make-objc-instance
@@ -109,23 +141,7 @@
 		      :with-window (%hemlock-frame-for-textstorage
                                     (slot-value self 'textstorage) nil nil))))
     (send self :add-window-controller controller)
-    (send controller 'release)))
-
-(define-objc-method ((:<BOOL> :load-data-representation data :of-type type)
-                     lisp-editor-document)
-    (declare (ignorable data type))
-  (let* ((nsstring 
-  nil)
-  
-
-(define-objc-method ((:id :data-representation-of-type ((* :char) type))
-		      lisp-editor-document)
-  (declare (ignorable type))
-  (send (send (slot-value self 'text-view) 'string)
-	:data-using-encoding #$NSASCIIStringEncoding
-	:allow-lossy-conversion t))
-
-	 
+    (send controller 'release)))	 
 
 #|
 (define-objc-method ((:void :window-controller-did-load-nib acontroller)
@@ -173,6 +189,10 @@
 
 (define-objc-method ((:void close) lisp-editor-document)
   (send-super 'close)
+  (let* ((textstorage (slot-value self 'textstorage)))
+    (setf (slot-value self 'textstorage) (%null-ptr))
+    (unless (%null-ptr-p textstorage)
+      (close-hemlock-textstorage textstorage)))
   (let* ((info (info-from-document self)))
     (when info
       (let* ((proc (cocoa-editor-info-listener info)))

@@ -208,6 +208,56 @@
   (declare (ignore p))
   (process-file-options (current-buffer)))
 
+(defcommand "Ensure File Options Line" (p)
+  "Insert a default file options line at the beginning of the buffer, unless such a line already exists."
+  "Insert a default file options line at the beginning of the buffer, unless such a line already exists."
+  (declare (ignore p))
+  (let* ((buffer (current-buffer))
+	 (string
+	  (line-string (mark-line (buffer-start-mark buffer))))
+	 (found (search "-*-" string))
+	 (end (if found (search "-*-" string :start2 (+ found 3)))))
+    (unless end
+      (let* ((mode (buffer-major-mode buffer)))
+	(unless mode
+	  ;; Try to derive the buffer's major mode from its pathname's
+	  ;; type.
+	  (let* ((pathname (buffer-pathname buffer))
+		 (type (if pathname (pathname-type pathname)))
+		 (hook (if type
+			 (assoc (string-downcase type) *file-type-hooks*
+				:test #'string=))))
+	    (when hook
+	      (funcall (cdr hook) buffer type)
+	      (setq mode (buffer-major-mode buffer)))))
+	(with-mark ((mark (buffer-start-mark buffer)))
+	  (if (string-equal mode "Lisp")
+	    (let* ((package-name
+		    (if (hemlock-bound-p 'current-package :buffer buffer)
+		      (variable-value 'hemlock::current-package
+				      :buffer buffer)
+		      "CL-USER")))
+	      (insert-string
+	       mark
+	       (format nil ";;; -*- Mode: Lisp; Package: ~a -*-" package-name)))
+	    (insert-string
+	     mark
+	     (format nil ";;; -*- Mode: ~a -*-" (or mode "Fundamental"))))
+	  (insert-character mark #\NewLine))))
+    (buffer-start (buffer-point buffer))))
+    
+    
+			 
+			   
+	    
+	
+	    
+	    
+	  
+		 
+	
+  
+
 (defcommand "Insert File" (p &optional pathname (buffer (current-buffer)))
   "Inserts a file which is prompted for into the current buffer at the point.
   The prefix argument is ignored."

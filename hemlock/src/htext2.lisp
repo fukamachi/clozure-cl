@@ -21,11 +21,11 @@
 (defun maybe-update-selection (mark)
   (let* ((line (mark-line mark))
 	 (buffer (if line (line-%buffer line)))
-	 (textstorage (if buffer (buffer-text-storage buffer))))
+	 (document (if buffer (buffer-document buffer))))
     (if (and buffer
 	     (eq mark (buffer-point buffer))
-	     textstorage)
-      (textstorage-set-point-position textstorage))
+	     document)
+      (document-set-point-position document))
     mark))
     
 	 

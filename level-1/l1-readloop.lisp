@@ -157,6 +157,8 @@
 
 
 (defun quit (&optional (exit-status 0))
+  (unless (typep exit-status '(signed-byte 32))
+    (report-bad-arg exit-status '(signed-byte 32)))
   (let* ((ip *initial-process*)
 	 (cp *current-process*))
     (when (process-verify-quit ip)

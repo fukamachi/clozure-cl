@@ -158,15 +158,15 @@
   "Increments the ``now'' tick."
   `(incf now-tick))
 
-(defun buffer-textstorage-begin-editing (buffer)
+(defun buffer-document-begin-editing (buffer)
   (when (bufferp buffer)
-    (let* ((textstorage (buffer-text-storage buffer)))
-      (when textstorage (textstorage-begin-editing textstorage)))))
+    (let* ((document (buffer-document buffer)))
+      (when document (document-begin-editing document)))))
 
-(defun buffer-textstorage-end-editing (buffer)
+(defun buffer-document-end-editing (buffer)
   (when (bufferp buffer)
-    (let* ((textstorage (buffer-text-storage buffer)))
-      (when textstorage (textstorage-end-editing textstorage)))))
+    (let* ((document (buffer-document buffer)))
+      (when document (document-end-editing document)))))
 
 
 
@@ -190,9 +190,9 @@
         (setf (buffer-modified-tick ,b) (tick)))
       (unwind-protect
            (progn
-             (if ,bp (buffer-textstorage-begin-editing ,b))
+             (if ,bp (buffer-document-begin-editing ,b))
              (hemlock-ext:without-interrupts ,@forms))
-        (if ,bp (buffer-textstorage-end-editing ,b))))))
+        (if ,bp (buffer-document-end-editing ,b))))))
 
 (defmacro always-change-line (mark new-line)
   (let ((scan (gensym))

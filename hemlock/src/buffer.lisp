@@ -44,6 +44,8 @@
   (if sense
       (setf (buffer-modified-tick buffer) (tick))
       (setf (buffer-unmodified-tick buffer) (tick)))
+  (let* ((document (buffer-document buffer)))
+    (if document (set-document-modified document sense)))
   sense)
 
 

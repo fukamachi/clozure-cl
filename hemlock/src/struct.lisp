@@ -93,7 +93,7 @@
   #+clx
   windows		      ; List of all windows into this buffer.
   #-clx
-  text-storage		      ; text storage object associated with this buffer
+  document		      ; NSDocument object associated with this buffer
   var-values		      ; the buffer's local variables
   variables		      ; string-table of local variables
   write-date		      ; File-Write-Date for pathname.

@@ -25,39 +25,39 @@
   (let* ((line (mark-line mark))
 	 (buffer (line-%buffer line)))
     (modifying-buffer buffer
-      (modifying-line line mark)
-      (cond ((char= character #\newline)
-	     (let* ((next (line-next line))
-		    (new-chars (subseq (the simple-string *open-chars*)
-				       0 *left-open-pos*))
-		    (new-line (make-line :%buffer buffer
-					 :chars (decf *cache-modification-tick*)
-					 :previous line
-					 :next next)))
-	       (maybe-move-some-marks (charpos line new-line) *left-open-pos*
-				      (- charpos *left-open-pos*))
-	       (setf (line-%chars line) new-chars)
-	       (setf (line-next line) new-line)
-	       (if next (setf (line-previous next) new-line))
-	       (number-line new-line)
-	       (setq *open-line* new-line  *left-open-pos* 0)))
-	    (t
-	     (if (= *right-open-pos* *left-open-pos*)
-		 (grow-open-chars))
+		      (modifying-line line mark)
+		      (cond ((char= character #\newline)
+			     (let* ((next (line-next line))
+				    (new-chars (subseq (the simple-string *open-chars*)
+						       0 *left-open-pos*))
+				    (new-line (make-line :%buffer buffer
+							 :chars (decf *cache-modification-tick*)
+							 :previous line
+							 :next next)))
+			       (maybe-move-some-marks (charpos line new-line) *left-open-pos*
+						      (- charpos *left-open-pos*))
+			       (setf (line-%chars line) new-chars)
+			       (setf (line-next line) new-line)
+			       (if next (setf (line-previous next) new-line))
+			       (number-line new-line)
+			       (setq *open-line* new-line  *left-open-pos* 0)))
+			    (t
+			     (if (= *right-open-pos* *left-open-pos*)
+			       (grow-open-chars))
 	     
-	     (maybe-move-some-marks (charpos line) *left-open-pos*
-				    (1+ charpos))
+			     (maybe-move-some-marks (charpos line) *left-open-pos*
+						    (1+ charpos))
 	     
-	     (cond
-	      ((eq (mark-%kind mark) :right-inserting)
-	       (decf *right-open-pos*)
-	       (setf (char (the simple-string *open-chars*) *right-open-pos*)
-		     character))
-	      (t
-	       (setf (char (the simple-string *open-chars*) *left-open-pos*)
-		     character)
-	       (incf *left-open-pos*)))))
-      (buffer-note-insertion buffer mark 1))))
+			     (cond
+			       ((eq (mark-%kind mark) :right-inserting)
+				(decf *right-open-pos*)
+				(setf (char (the simple-string *open-chars*) *right-open-pos*)
+				      character))
+			       (t
+				(setf (char (the simple-string *open-chars*) *left-open-pos*)
+				      character)
+				(incf *left-open-pos*)))))
+		      (buffer-note-insertion buffer mark 1))))
 
 
 (defun insert-string (mark string &optional (start 0) (end (length string)))
@@ -68,35 +68,36 @@
 	 (string (coerce string 'simple-string)))
     (declare (simple-string string))
     (unless (zerop (- end start))
-      (modifying-buffer buffer
-	(modifying-line line mark)
-	(if (%sp-find-character string start end #\newline)
-	    (with-mark ((mark mark :left-inserting))
-	      (do ((left-index start (1+ right-index))
-		   (right-index
-		    (%sp-find-character string start end #\newline)
-		    (%sp-find-character string (1+ right-index) end #\newline)))
-		  ((null right-index)
-		   (if (/= left-index end)
-		       (insert-string mark string left-index end)))
-		(insert-string mark string left-index right-index)
-		(insert-character mark #\newline)))
-	    (let ((length (- end start)))
-	      (if (<= *right-open-pos* (+ *left-open-pos* end))
-		  (grow-open-chars (* (+ *line-cache-length* end) 2)))
+      (modifying-buffer
+       buffer
+       (modifying-line line mark)
+       (if (%sp-find-character string start end #\newline)
+	 (with-mark ((mark mark :left-inserting))
+	   (do ((left-index start (1+ right-index))
+		(right-index
+		 (%sp-find-character string start end #\newline)
+		 (%sp-find-character string (1+ right-index) end #\newline)))
+	       ((null right-index)
+		(if (/= left-index end)
+		  (insert-string mark string left-index end)))
+	     (insert-string mark string left-index right-index)
+	     (insert-character mark #\newline)))
+	 (let ((length (- end start)))
+	   (if (<= *right-open-pos* (+ *left-open-pos* end))
+	     (grow-open-chars (* (+ *line-cache-length* end) 2)))
 	      
-	      (maybe-move-some-marks (charpos line) *left-open-pos*
-				     (+ charpos length))
-	      (cond
-	       ((eq (mark-%kind mark) :right-inserting)
-		(let ((new (- *right-open-pos* length)))
-		  (%sp-byte-blt string start *open-chars* new *right-open-pos*)
-		  (setq *right-open-pos* new)))
-	       (t
-		(let ((new (+ *left-open-pos* length)))
-		  (%sp-byte-blt string start *open-chars* *left-open-pos* new)
-		  (setq *left-open-pos* new))))))
-        (buffer-note-insertion buffer mark (- end start))))))
+	   (maybe-move-some-marks (charpos line) *left-open-pos*
+				  (+ charpos length))
+	   (cond
+	     ((eq (mark-%kind mark) :right-inserting)
+	      (let ((new (- *right-open-pos* length)))
+		(%sp-byte-blt string start *open-chars* new *right-open-pos*)
+		(setq *right-open-pos* new)))
+	     (t
+	      (let ((new (+ *left-open-pos* length)))
+		(%sp-byte-blt string start *open-chars* *left-open-pos* new)
+		(setq *left-open-pos* new))))))
+       (buffer-note-insertion buffer mark (- end start))))))
 
 
 (defconstant line-number-interval-guess 8

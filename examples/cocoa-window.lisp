@@ -270,11 +270,17 @@
 (defparameter *default-font-name* "Courier")
 (defparameter *default-font-size* 12.0e0)
 
+(defparameter *font-attribute-names*
+  '((:bold . #.#$NSBoldFontMask)
+    (:italic . #.#$NSItalicFontMask)
+    (:small-caps . #.#$NSSmallCapsFontMask)))
     
 ;;; Try to find the specified font.  If it doesn't exist (or isn't
 ;;; fixed-pitch), try to find a fixed-pitch font of the indicated size.
 (defun default-font (&key (name *default-font-name*)
-			  (size *default-font-size*))
+			  (size *default-font-size*)
+			  (attributes ()))
+				
   (setq size (float size 0.0f0))
   (with-cstrs ((name name))
     (with-autorelease-pool
@@ -283,14 +289,28 @@
 		(%get-single-float matrix 12) size)
           (let* ((fontname (send (@class ns-string) :string-with-c-string name))
 		 (font (send (@class ns-font)
-				  :font-with-name fontname :matrix matrix)))
+				  :font-with-name fontname :matrix matrix))
+		 (implemented-attributes ()))
 	    (if (or (%null-ptr-p font)
 		    (and 
 		     (not (send font 'is-fixed-pitch))
 		     (not (eql #$YES (objc-message-send font "_isFakeFixedPitch" :<BOOL>)))))
 	      (setq font (send (@class ns-font)
 			       :user-fixed-pitch-font-of-size size)))
-	    font)))))
+	    (when attributes
+	      (dolist (attr-name attributes)
+		(let* ((pair (assoc attr-name *font-attribute-names*))
+		       (newfont))
+		  (when pair
+		    (setq newfont
+			  (send
+			   (send (@class "NSFontManager") 'shared-font-manager)
+			   :convert-font font
+			   :to-have-trait (cdr pair)))
+		    (unless (eql font newfont)
+		      (setq font newfont)
+		      (push attr-name implemented-attributes))))))
+	    (values font implemented-attributes))))))
 
 (defparameter *tab-width* 8)
 

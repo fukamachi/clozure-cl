@@ -223,6 +223,11 @@
 	    (when event
 	      (unless (eq buffer hi::*current-buffer*)
 		(setf (hi::current-buffer) buffer))
+	      (let* ((pane (text-view-pane self)))
+		(unless (eql pane (hi::current-window))
+		  (setf (hi::current-window) pane)))
+	      #+debug
+	      (format t "~& key-event = ~s" key-event)
 	      (hi::interpret-key-event key-event info))))))))
 
 (define-objc-method ((:void :set-selected-range (:<NSR>ange r)
@@ -241,26 +246,23 @@
   
 
 (defun make-textstorage-for-hemlock-buffer (buffer)
-  (setf (hi::buffer-text-storage buffer)
-	(make-objc-instance 'lisp-text-storage
-			    :with-string
-			    (make-instance
-			     'hemlock-buffer-string
-			     :display
-			     (reset-display-cache
-			      (make-hemlock-display)
-			      buffer)))))
+  (make-objc-instance 'lisp-text-storage
+		      :with-string
+		      (make-instance
+		       'hemlock-buffer-string
+		       :display
+		       (reset-display-cache
+			(make-hemlock-display)
+			buffer))))
 
 (defclass modeline-view (ns:ns-view)
     ((pane :foreign-type :id :accessor modeline-view-pane))
   (:metaclass ns:+ns-object))
 
 
-(defloadvar *modeline-text-attributes*
-    (create-text-attributes :color (send (@class "NSColor") 'black-color)
-                            :font (default-font
-                                      :name "Courier New Bold Italic"
-                                      :size 10.0)))
+(defloadvar *modeline-text-attributes* nil)
+(defparameter *modeline-font-name* "Courier New Bold Italic")
+(defparameter *modeline-font-size* 10.0)
 
 (defun buffer-for-modeline-view (mv)
   (let* ((pane (modeline-view-pane mv)))
@@ -278,6 +280,14 @@
   (let* ((pane (modeline-view-pane modeline-view))
          (buffer (buffer-for-modeline-view modeline-view)))
     (when buffer
+      ;; You don't want to know why this is done this way.
+      (unless *modeline-text-attributes*
+	(setq *modeline-text-attributes*
+	      (create-text-attributes :color (send (@class "NSColor") 'black-color)
+				      :font (default-font
+					      :name *modeline-font-name*
+					      :size *modeline-font-size*))))
+      
       (let* ((string
               (apply #'concatenate 'string
                      (mapcar
@@ -469,8 +479,8 @@
   (send w :make-key-and-order-front nil))
 
 (defun new-hemlock-document-window (&key
-                                    (x 0.0)
-                                    (y 0.0)
+                                    (x 200.0)
+                                    (y 200.0)
                                     (height 200.0)
                                     (width 500.0)
                                     (closable t)
@@ -536,11 +546,15 @@
 
 (defun hemlock-buffer-from-nsstring (nsstring name &rest modes)
   (let* ((buffer (hi::make-buffer name :modes modes)))
+    (nsstring-to-buffer nsstring buffer)))
+
+(defun nsstring-to-buffer (nsstring buffer)    
     (hi::delete-region (hi::buffer-region buffer))
     (hi::modifying-buffer buffer)
     (hi::with-mark ((mark (hi::buffer-point buffer) :left-inserting))
       (let* ((string-len (send nsstring 'length))
 	     (line-start 0)
+	     (first-line-terminator ())
 	     (first-line (hi::mark-line mark))
 	     (previous first-line)
 	     (buffer (hi::line-%buffer first-line)))
@@ -549,7 +563,12 @@
 		 (contents-end-index :unsigned))
 	    (do* ((number (+ (hi::line-number first-line) hi::line-increment)
 			  (+ number hi::line-increment)))
-		 ((= line-start string-len))
+		 ((= line-start string-len)
+		  (let* ((line (hi::mark-line mark)))
+		    (hi::insert-string mark (make-string 0))
+		    (setf (hi::line-next previous) line
+			  (hi::line-previous line) previous))
+		  nil)
 	      (setf (pref remaining-range :<NSR>ange.location) line-start)
 	      (send nsstring
 		    :get-line-start (%null-ptr)
@@ -557,11 +576,22 @@
 		    :contents-end contents-end-index
 		    :for-range remaining-range)
 	      (let* ((contents-end (pref contents-end-index :unsigned))
+		     (line-end (pref line-end-index :unsigned))
 		     (chars (make-string (- contents-end line-start))))
 		(do* ((i line-start (1+ i))
 		      (j 0 (1+ j)))
 		     ((= i contents-end))
 		  (setf (schar chars j) (code-char (send nsstring :character-at-index i))))
+		(unless first-line-terminator
+		  (let* ((terminator (code-char
+				      (send nsstring :character-at-index
+					    contents-end))))
+		    (setq first-line-terminator
+		    (case terminator
+		      (#\return (if (= line-end (+ contents-end 2))
+				  :cp/m
+				  :mac))
+		      (t :unix)))))
 		(if (eq previous first-line)
 		  (progn
 		    (hi::insert-string mark chars)
@@ -576,10 +606,16 @@
 				  :number number)))
 		      (setf (hi::line-next previous) line)
 		      (setq previous line))))
-		(setq line-start (pref line-end-index :unsigned))))))))
+		(setq line-start line-end)))))
+	(when first-line-terminator
+	  (setf (hi::buffer-external-format buffer) first-line-terminator))))
     (setf (hi::buffer-modified buffer) nil)
-    buffer))
+    buffer)
 
+
+
+	
+	
 (setq hi::*beep-function* #'(lambda (stream)
 			      (declare (ignore stream))
 			      (#_NSBeep)))
@@ -615,14 +651,15 @@
 		     (tv (send container 'text-view)))
 		(funcall f tv)))))))))
   
-(defun hi::textstorage-begin-editing (textstorage)
-  (send textstorage 'begin-editing))
+(defun hi::document-begin-editing (document)
+  (send (slot-value document 'textstorage) 'begin-editing))
 
-(defun hi::textstorage-end-editing (textstorage)
-  (send textstorage 'end-editing))
+(defun hi::document-end-editing (document)
+  (send (slot-value document 'textstorage) 'end-editing))
 
-(defun hi::textstorage-set-point-position (textstorage)
-  (let* ((string (send textstorage 'string))
+(defun hi::document-set-point-position (document)
+  (let* ((textstorage (slot-value document 'textstorage))
+	 (string (send textstorage 'string))
 	 (buffer (hemlock-display-buffer (hemlock-buffer-string-display string)))
 	 (point (hi::buffer-point buffer))
 	 (pos (mark-absolute-position point)))
@@ -636,7 +673,8 @@
 	      
 (defun hi::buffer-note-insertion (buffer mark n)
   (when (hi::bufferp buffer)
-    (let* ((textstorage (hi::buffer-text-storage buffer)))
+    (let* ((document (hi::buffer-document buffer))
+	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
         (let* ((pos (mark-absolute-position mark)))
           (unless (eq (hi::mark-%kind mark) :right-inserting)
@@ -654,10 +692,12 @@
                 :range (ns-make-range pos n)
                 :change-in-length 0))))))
 
+  
 
 (defun hi::buffer-note-deletion (buffer mark n)
   (when (hi::bufferp buffer)
-    (let* ((textstorage (hi::buffer-text-storage buffer)))
+    (let* ((document (hi::buffer-document buffer))
+	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
         (let* ((pos (mark-absolute-position mark)))
           (setq n (abs n))
@@ -670,5 +710,22 @@
                 :range (ns-make-range pos n)
                 :change-in-length (- n)))))))
 
-            
+(defun hi::set-document-modified (document flag)
+  (let* ((windowcontrollers (send document 'window-controllers)))
+    (dotimes (i (send windowcontrollers 'length))
+      (send (send windowcontrollers :object-at-index i)
+	    :set-document-edited flag))))
+
+(defun hi::document-panes (document)
+  (let* ((ts (slot-value document 'textstorage))
+	 (panes ()))
+    (for-each-textview-using-storage
+     ts
+     #'(lambda (tv)
+	 (let* ((pane (text-view-pane tv)))
+	   (unless (%null-ptr-p pane)
+	     (push pane panes)))))
+    panes))
+    
+	 
     

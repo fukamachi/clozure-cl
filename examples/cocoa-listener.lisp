@@ -296,7 +296,7 @@
 
 
 
-  
+)  
 ;;; The LispListenerDocument class.
 
 
@@ -304,6 +304,8 @@
     ()
   (:metaclass ns:+ns-object))
 
+#-hemlock
+(progn
 (define-objc-class-method ((:id top-listener) lisp-listener-document)
   (let* ((all-documents (send *NSApp* 'ordered-Documents)))
     (dotimes (i (send all-documents 'count) (%null-ptr))
