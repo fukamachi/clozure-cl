@@ -513,7 +513,7 @@
 (defun standard-object-line-n (i n)
   (let* ((instance (inspector-object i))
          (class (class-of instance))
-         (wrapper (ccl::instance.class-wrapper instance))
+         (wrapper (ccl::standard-object-p instance))
 	 (instance-start 2))
     (if (< n instance-start)
       (if (eql n 0)
