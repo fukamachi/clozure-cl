@@ -18,14 +18,24 @@
   (ccl::signal-semaphore (frame-event-queue-signal q)))
 
 (defun dequeue-key-event (q)
+  (unless (listen-editor-input q)
+    (let* ((document (buffer-document (current-buffer))))
+      (when document
+        (document-set-point-position document))))
   (ccl::wait-on-semaphore (frame-event-queue-signal q))
   (ccl::locked-dll-header-dequeue q))
+
 
 (defun unget-key-event (event q)
   (ccl::with-locked-dll-header (q)
     (ccl::insert-dll-node-after event q))
   (ccl::signal-semaphore (frame-event-queue-signal q)))
 
+(defun timed-wait-for-key-event (q seconds)
+  (let* ((signal (frame-event-queue-signal q)))
+    (when (ccl:timed-wait-on-semaphore signal seconds)
+      (ccl:signal-semaphore signal)
+      t)))
 
 
 
@@ -63,7 +73,7 @@
 (defun get-key-event (q &optional ignore-pending-aborts)
   (declare (ignore ignore-pending-aborts))
   (do* ((e (dequeue-key-event q) (dequeue-key-event q)))
-       ((typep e 'hemlock-ext:key-event)
+       ((typep e 'hemlock-ext:key-event)        
         (setq *last-key-event-typed* e))
     (if (typep e 'buffer-operation)
       (funcall (buffer-operation-thunk e)))))
