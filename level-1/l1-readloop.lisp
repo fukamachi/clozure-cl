@@ -645,8 +645,10 @@
                    (if constant
                      (if (neq (%unbound-marker-8) constval)
                        constval
-                       (error "Can't determine value of constant symbol ~s" form)) 
-                     (symbol-value form))))))
+                       (error "Can't determine value of constant symbol ~s" form))
+                     (if (constant-symbol-p form)
+                       (%sym-global-value form)
+                       (symbol-value form)))))))
             ((atom form) form)
             ((eq (setq sym (%car form)) 'quote)
              (verify-arg-count form 1 1)
