@@ -150,8 +150,6 @@
             (= typecode ppc32::subtag-vectorH))
       (not (%array-header-simple-p x)))))
 
-(setf (type-predicate 'complex-array) 'complex-array-p)
-
 (defun simple-array-p (thing)
   "Returns T if the object is a simple array, else returns NIL.
    That's why it's called SIMPLE-ARRAY-P.  Get it ?
@@ -208,7 +206,6 @@
             (%svref array ppc32::arrayH.displacement-cell))
     (values nil 0)))
 
-(setf (type-predicate 'displaced-array) 'displaced-array-p)
 
 
 (defun eq (x y) (eq x y))
