@@ -48,11 +48,14 @@
 
 (defun make-hemlock-buffer (&rest args)
   (let* ((buf (apply #'hi::make-buffer args)))
-    (or buf
-	(progn
-	  (format t "~& couldn't make hemlock buffer with args ~s" args)
-	  (dbg)
-	  nil))))
+    (if buf
+      (progn
+	(setf (hi::buffer-gap-context buf) (hi::make-buffer-gap-context))
+	buf)
+      (progn
+	(format t "~& couldn't make hemlock buffer with args ~s" args)
+	(dbg)
+	nil))))
 	 
 ;;; Define some key event modifiers.
 
@@ -339,7 +342,10 @@
     (send self
           :edited #$NSTextStorageEditedCharacters
           :range (ns-make-range pos n)
-          :change-in-length (- n))))
+          :change-in-length (- n))
+    (let* ((display (hemlock-buffer-string-cache (send self 'string))))
+            (reset-buffer-cache display) 
+            (update-line-cache-for-index display pos))))
 
 (define-objc-method ((:void :note-modification params) hemlock-text-storage)
   (let* ((pos (send (send params :object-at-index 0) 'int-value))
@@ -383,8 +389,6 @@
 ;;; hemlock-text-storage object.  (It also creates the underlying
 ;;; hemlock-buffer-string.)
 (defun make-textstorage-for-hemlock-buffer (buffer)
-  (unless (hi::buffer-gap-context buffer)
-    (setf (hi::buffer-gap-context buffer) (hi::make-buffer-gap-context)))
   (make-objc-instance 'hemlock-text-storage
 		      :with-string
 		      (make-instance
@@ -991,7 +995,8 @@
     (nsstring-to-buffer nsstring buffer)))
 
 (defun nsstring-to-buffer (nsstring buffer)
-  (let* ((document (hi::buffer-document buffer)))
+  (let* ((document (hi::buffer-document buffer))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
     (setf (hi::buffer-document buffer) nil)
     (unwind-protect
 	 (progn
@@ -1277,7 +1282,6 @@
 		      :modes '("Lisp" "Editor"))))
 	(setf (slot-value doc 'textstorage)
 	      (make-textstorage-for-hemlock-buffer buffer)
-	      (hi::buffer-gap-context buffer) (hi::make-buffer-gap-context)
 	      (hi::buffer-document buffer) doc)))
     doc))
                      
@@ -1293,10 +1297,9 @@
 		  (let* ((b (make-hemlock-buffer buffer-name)))
 		    (setf (hi::buffer-pathname b) pathname)
 		    (setf (slot-value self 'textstorage)
-			  (make-textstorage-for-hemlock-buffer b)
-			  (hi::buffer-gap-context b)
-			  (hi::make-buffer-gap-context))
+			  (make-textstorage-for-hemlock-buffer b))
 		    b)))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
 	 (data (make-objc-instance 'ns:ns-data
 				   :with-contents-of-file filename))
 	 (string (make-objc-instance 'ns:ns-string
@@ -1358,6 +1361,8 @@
 	(setf (hi::buffer-pathname buffer) new-pathname)))))
   
 (define-objc-method ((:void make-window-controllers) hemlock-editor-document)
+  #+debug
+  (#_NSLog #@"Make window controllers")
   (let* ((controller (make-objc-instance
 		      'hemlock-editor-window-controller
 		      :with-window (%hemlock-frame-for-textstorage 
