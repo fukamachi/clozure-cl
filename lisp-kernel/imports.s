@@ -14,12 +14,21 @@
    http://opensource.franz.com/preamble.html
 */
 	include(m4macros.m4)
+define([PTR],[
+ifdef([PPC64],[
+        .quad $1
+],[        
+	.long $1
+])
+])
 	_beginfile
-	
+
+        	
 	.globl C(import_ptrs_base)
 define([defimport],[
 	.globl C($1)
-	.long C($1)
+        PTR(C($1))
+                
 # __line__
 ])
 	.data
@@ -72,8 +81,9 @@ import_ptrs_start:
         defimport(recursive_lock_trylock)
 	defimport(foreign_name_and_offset)
 
+        .globl C(import_ptrs_base)
 C(import_ptrs_base):
-	.long import_ptrs_start
+	PTR(import_ptrs_start)
 
 ifdef([LINUX],[
 	.globl __trampoline_setup
