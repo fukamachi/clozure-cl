@@ -533,8 +533,12 @@
 	 (push ,var *free-hemlock-region-streams*)))))
 
 
+
 (defmacro with-pop-up-display ((var &key height (buffer-name "Random Typeout"))
 			       &body body)
+  (declare (ignore buffer-name))
+
+
   "Execute body in a context with var bound to a stream.  Output to the stream
    appears in the buffer named buffer-name.  The pop-up display appears after
    the body completes, but if you supply :height, the output is line buffered,
@@ -543,32 +547,17 @@
     (editor-error "I doubt that you really want a window with no height"))
   (let ((cleanup-p (gensym))
 	(stream (gensym)))
-    `(let ((,cleanup-p nil)
-	   (,stream (get-random-typeout-info ,buffer-name ,height)))
+    `(let ()
+       (let ((,stream (ccl::typeout-stream)))
+       (ccl::stream-clear-output (ccl::typeout-stream))
        (unwind-protect
 	   (progn
 	     (catch 'more-punt
-	       ,(when height
-		  ;; Test height since it may be supplied, but evaluate
-		  ;; to nil.
-		  `(when ,height
-		       (prepare-for-random-typeout ,stream ,height)
-		       (setf ,cleanup-p t)))
 	       (let ((,var ,stream))
 		 ;; GB ,@decls
 		 (multiple-value-prog1
-		     (locally ,@body)
-		   (unless ,height
-		     (prepare-for-random-typeout ,stream nil)
-		     (setf ,cleanup-p t)
-		     (funcall (device-random-typeout-full-more
-			       (device-hunk-device
-				(window-hunk
-				 (random-typeout-stream-window ,stream))))
-			      ,stream))
-		   (end-random-typeout ,var))))
-	     (setf ,cleanup-p nil))
-	 (when ,cleanup-p (random-typeout-cleanup ,stream))))))
+		     (locally ,@body))))))))))
+
 
 (declaim (special *random-typeout-ml-fields* *buffer-names*))
 
