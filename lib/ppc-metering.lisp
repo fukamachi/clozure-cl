@@ -67,10 +67,7 @@ as well; but the compiler's pretty quick.
       (nbuckets :unsigned)
       (interval :unsigned)))
 
-(defppclapfunction %metering-info ((ptr arg_z))
-  (ref-global imm0 metering-info)
-  (stw imm0 ppc32::macptr.address ptr)
-  (blr))
+
 
 (defun %enable-metering (nbuckets interval)
   (progn (setq *all-metered-functions* (make-array nbuckets))

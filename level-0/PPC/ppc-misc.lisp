@@ -628,8 +628,252 @@
   (blr))
 
 
+(defppclapfunction %macptr->dead-macptr ((macptr arg_z))
+  (check-nargs 1)
+  (li imm0 ppc32::subtag-dead-macptr)
+  (stb imm0 ppc32::misc-subtag-offset macptr)
+  (blr))
+
+(defppclapfunction %%apply-in-frame ((catch-count imm0) (srv temp0) (tsp-count imm0) (db-link imm0)
+                                     (parent arg_x) (function arg_y) (arglist arg_z))
+  (check-nargs 7)
+
+  ; Throw through catch-count catch frames
+  (lwz imm0 12 vsp)                      ; catch-count
+  (vpush parent)
+  (vpush function)
+  (vpush arglist)
+  (bla .SPnthrowvalues)
+
+  ; Pop tsp-count TSP frames
+  (lwz tsp-count 16 vsp)
+  (cmpi cr0 tsp-count 0)
+  (b @test)
+@loop
+  (subi tsp-count tsp-count '1)
+  (cmpi cr0 tsp-count 0)
+  (lwz tsp 0 tsp)
+@test
+  (bne cr0 @loop)
+
+  ; Pop dynamic bindings until we get to db-link
+  (lwz imm0 12 vsp)                     ; db-link
+  (lwz imm1 ppc32::tcr.db-link rcontext)
+  (cmp cr0 imm0 imm1)
+  (beq cr0 @restore-regs)               ; .SPsvar-unbind-to expects there to be something to do
+  (bla .SPsvar-unbind-to)
+
+@restore-regs
+  ; restore the saved registers from srv
+  (lwz srv 20 vsp)
+@get0
+  (svref imm0 1 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @get1)
+  (lwz save0 0 imm0)
+@get1
+  (svref imm0 2 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @get2)
+  (lwz save1 0 imm0)
+@get2
+  (svref imm0 3 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @get3)
+  (lwz save2 0 imm0)
+@get3
+  (svref imm0 4 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @get4)
+  (lwz save3 0 imm0)
+@get4
+  (svref imm0 5 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @get5)
+  (lwz save4 0 imm0)
+@get5
+  (svref imm0 6 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @get6)
+  (lwz save5 0 imm0)
+@get6
+  (svref imm0 7 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @get7)
+  (lwz save6 0 imm0)
+@get7
+  (svref imm0 8 srv)
+  (cmpwi cr0 imm0 ppc32::nil-value)
+  (beq @got)
+  (lwz save7 0 imm0)
+@got
+
+  (vpop arg_z)                          ; arglist
+  (vpop temp0)                          ; function
+  (vpop parent)                         ; parent
+  (extract-lisptag imm0 parent)
+  (cmpi cr0 imm0 ppc32::tag-fixnum)
+  (if (:cr0 :ne)
+    ; Parent is a fake-stack-frame. Make it real
+    (progn
+      (svref sp %fake-stack-frame.sp parent)
+      (stwu sp (- ppc32::lisp-frame.size) sp)
+      (svref fn %fake-stack-frame.fn parent)
+      (stw fn ppc32::lisp-frame.savefn sp)
+      (svref temp1 %fake-stack-frame.vsp parent)
+      (stw temp1 ppc32::lisp-frame.savevsp sp)
+      (svref temp1 %fake-stack-frame.lr parent)
+      (extract-lisptag imm0 temp1)
+      (cmpi cr0 imm0 ppc32::tag-fixnum)
+      (if (:cr0 :ne)
+        ; must be a macptr encoding the actual link register
+        (macptr-ptr loc-pc temp1)
+        ; Fixnum is offset from start of function vector
+        (progn
+          (svref temp2 0 fn)        ; function vector
+          (unbox-fixnum temp1 temp1)
+          (add loc-pc temp2 temp1)))
+      (stw loc-pc ppc32::lisp-frame.savelr sp))
+    ; Parent is a real stack frame
+    (mr sp parent))
+  (set-nargs 0)
+  (bla .SPspreadargz)
+  (ba .SPtfuncallgen))
+
+;; Easiest to do this in lap, to avoid consing bignums and/or 
+;; multiple-value hair.
+;; Bang through code-vector until the end or a 0 (traceback table
+;; header) is found.  Return high-half, low-half of last instruction
+;; and index where found.
+(defppclapfunction %code-vector-last-instruction ((cv arg_z))
+  (let ((previ imm0)
+        (nexti imm1)
+        (idx imm2)
+        (offset imm3)
+        (len imm4))
+    (vector-length len cv len)
+    (li idx 0)
+    (cmpw cr0 idx len)
+    (li offset ppc32::misc-data-offset)
+    (li nexti 0)
+    (b @test)
+    @loop
+    (mr previ nexti)
+    (lwzx nexti cv offset)
+    (cmpwi cr1 nexti 0)
+    (addi idx idx '1)
+    (cmpw cr0 idx len)
+    (addi offset offset '1)
+    (beq cr1 @done)
+    @test
+    (bne cr0 @loop)
+    (mr previ nexti)
+    @done
+    (digit-h temp0 previ)
+    (digit-l temp1 previ)
+    (subi idx idx '1)
+    (vpush temp0)
+    (vpush temp1)
+    (vpush idx)
+    (set-nargs 3)
+    (la temp0 12 vsp)
+    (ba .SPvalues)))
   
-  
-  
+(defppclapfunction %%save-application ((flags arg_y) (fd arg_z))
+  (unbox-fixnum imm0 flags)
+  (ori imm0 imm0 8)
+  (unbox-fixnum imm1 fd)
+  (twlgei allocptr 0)
+  (blr))
+
+(defppclapfunction %bind-special ((sym 0) (newval arg_x) (vector arg_y) (index arg_z))
+  ; index is a byte index
+  (lwz temp0 sym vsp)  ; get sym
+  (lwz temp1 ppc32::symbol.vcell temp0) ; get old value
+  (unbox-fixnum imm0 index)
+  (addi imm0 imm0 ppc32::misc-data-offset)
+  (add imm0 imm0 vector)
+  (push temp1 imm0)  ; old value
+  (push temp0 imm0)  ; symbol
+  (lwz imm1 ppc32::tcr.db-link rcontext)
+  (push imm1 imm0)   ; dblink
+  (stw imm0 ppc32::tcr.db-link rcontext)
+  (svset newval ppc32::symbol.vcell-cell temp0) ; store new val
+  (mr arg_z newval)
+  (la vsp 4 vsp)
+  (blr))
+
+(defppclapfunction %metering-info ((ptr arg_z))
+  (ref-global imm0 metering-info)
+  (stw imm0 ppc32::macptr.address ptr)
+  (blr))
+
+(defppclapfunction %misc-address-fixnum ((misc-object arg_z))
+  (check-nargs 1)
+  (la arg_z ppc32::misc-data-offset misc-object)
+  (blr))
+
+
+
+(defppclapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
+  (check-nargs 3)
+  (macptr-ptr imm1 ptr) ; address in macptr
+  (addi imm0 imm1 9)     ; 2 for delta + 7 for alignment
+  (rlwinm imm0 imm0 0 0 28)   ; Clear low three bits to align
+  (subf imm1 imm1 imm0)  ; imm1 = delta
+  (sth imm1 -2 imm0)     ; save delta halfword
+  (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
+  (rlwimi imm1 len (- ppc32::num-subtag-bits ppc32::fixnum-shift) 0 (- 31 ppc32::num-subtag-bits))
+  (stw imm1 0 imm0)       ; store subtype & length
+  (addi arg_z imm0 ppc32::fulltag-misc) ; tag it, return it
+  (blr))
+
+(defppclapfunction %%make-disposable ((ptr arg_y) (vector arg_z))
+  (check-nargs 2)
+  (subi imm0 vector ppc32::fulltag-misc) ; imm0 is addr = vect less tag
+  (lhz imm1 -2 imm0)   ; get delta
+  (sub imm0 imm0 imm1)  ; vector addr (less tag)  - delta is orig addr
+  (stw imm0 ppc32::macptr.address ptr) 
+  (blr))
+
+(defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
+  ; put address of vect data in macptr
+  (addi arg_y arg_y ppc32::misc-data-offset)
+  (stw arg_y ppc32::macptr.address arg_z)
+  (blr))
+
+
+
+(defppclapfunction get-saved-register-values ()
+  (vpush save0)
+  (vpush save1)
+  (vpush save2)
+  (vpush save3)
+  (vpush save4)
+  (vpush save5)
+  (vpush save6)
+  (vpush save7)
+  (la temp0 32 vsp)
+  (set-nargs 8)
+  (ba .SPvalues))
+
+
+(defppclapfunction %current-db-link ()
+  (lwz arg_z ppc32::tcr.db-link rcontext)
+  (blr))
+
+(defppclapfunction %no-thread-local-binding-marker ()
+  (li arg_z ppc32::subtag-no-thread-local-binding)
+  (blr))
+
+
+(defppclapfunction break-event-pending-p ()
+  (ref-global arg_z ppc32::intflag)
+  (set-global rzero ppc32::intflag)
+  (cmpwi arg_z 0)
+  (li arg_z ppc32::nil-value)
+  (beqlr)
+  (li arg_z (+ ppc32::t-offset ppc32::nil-value))
+  (blr))
 
 ; end of ppc-misc.lisp

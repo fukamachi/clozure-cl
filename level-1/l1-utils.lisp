@@ -1283,59 +1283,11 @@ vector
     double))
 |#
 
-; Copy a single float pointed at by the macptr in single
-; to a double float pointed at by the macptr in double
-#+ppc-target
-(defppclapfunction %single-float-ptr->double-float-ptr ((single arg_y) (double arg_z))
-  (check-nargs 2)
-  (lwz imm0 ppc32::macptr.address single)
-  (lfs fp0 0 imm0)
-  (lwz imm0 ppc32::macptr.address double)
-  (stfd fp0 0 imm0)
-  (blr))
-
-#+sparc-target
-(defsparclapfunction %single-float-ptr->double-float-ptr ((single %arg_y) (double %arg_z))
-  (check-nargs 2)
-  (ld (single ppc32::macptr.address) %imm0)
-  (ldf (%imm0) %f2)
-  (fstod %f2 %f4)
-  (ld (double ppc32::macptr.address) %imm0)
-  (retl)
-    (stdf %f4 (%imm0)))
-
-
-; Copy a double float pointed at by the macptr in double
-; to a single float pointed at by the macptr in single.
-#+ppc-target
-(defppclapfunction %double-float-ptr->single-float-ptr ((double arg_y) (single arg_z))
-  (check-nargs 2)
-  (lwz imm0 ppc32::macptr.address double)
-  (lfd fp0 0 imm0)
-  (lwz imm0 ppc32::macptr.address single)
-  (stfs fp0 0 imm0)
-  (blr))
-
-#+sparc-target
-(defsparclapfunction %double-float-ptr->single-float-ptr ((double %arg_y) (single %arg_z))
-  (check-nargs 2)
-  (ld (double ppc32::macptr.address) %imm0)
-  (lddf (%imm0) %f4)
-  (fdtos %f4 %f2)
-  (fcmpd %f2 %fp-zero)			; for exception
-  (ld (double ppc32::macptr.address) %imm0)
-  (retl)
-   (stf %f2 (%imm0)))
 
 
 
-#+ppc-target
-(defppclapfunction %set-ieee-single-float-from-double ((src arg_y) (macptr arg_z))
-  (check-nargs 2)
-  (lwz imm0 ppc32::macptr.address macptr)
-  (get-double-float fp1 src)
-  (stfs fp1 0 imm0)
-  (blr))
+
+
 
 
 

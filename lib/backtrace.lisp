@@ -278,45 +278,7 @@
 (defun bit-reverse-8 (x)
   (aref *bit-reverse-8-table* x))
 
-;; Easiest to do this in lap, to avoid consing bignums and/or 
-;; multiple-value hair.
-;; Bang through code-vector until the end or a 0 (traceback table
-;; header) is found.  Return high-half, low-half of last instruction
-;; and index where found.
-#+ppc-target
-(defppclapfunction %code-vector-last-instruction ((cv arg_z))
-  (let ((previ imm0)
-        (nexti imm1)
-        (idx imm2)
-        (offset imm3)
-        (len imm4))
-    (vector-length len cv len)
-    (li idx 0)
-    (cmpw cr0 idx len)
-    (li offset ppc32::misc-data-offset)
-    (li nexti 0)
-    (b @test)
-    @loop
-    (mr previ nexti)
-    (lwzx nexti cv offset)
-    (cmpwi cr1 nexti 0)
-    (addi idx idx '1)
-    (cmpw cr0 idx len)
-    (addi offset offset '1)
-    (beq cr1 @done)
-    @test
-    (bne cr0 @loop)
-    (mr previ nexti)
-    @done
-    (digit-h temp0 previ)
-    (digit-l temp1 previ)
-    (subi idx idx '1)
-    (vpush temp0)
-    (vpush temp1)
-    (vpush idx)
-    (set-nargs 3)
-    (la temp0 12 vsp)
-    (ba .SPvalues)))
+
     
     
 

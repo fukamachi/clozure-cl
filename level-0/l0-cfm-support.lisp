@@ -19,33 +19,12 @@
 
 
 
-; offset is a fixnum, one of the ppc32::kernel-import-xxx.
-; Returns that kernel import, a fixnum.
-#+ppc-target
-(defppclapfunction %kernel-import ((offset arg_z))
-  (ref-global imm0 kernel-imports)
-  (unbox-fixnum imm1 arg_z)
-  (lwzx arg_z imm0 imm1)
-  (blr))
 
-#+sparc-target
-(defsparclapfunction %kernel-import ((%offset %arg_z))
-  (ref-global %imm0 kernel-imports)
-  (unbox-fixnum %offset %imm1)
-  (retl)
-    (ld (%imm0 %imm1) %arg_z))
 
-#+ppc-target
-(defppclapfunction %get-unboxed-ptr ((macptr arg_z))
-  (macptr-ptr imm0 arg_z)
-  (lwz arg_z 0 imm0)
-  (blr))
 
-#+sparc-target
-(defsparclapfunction %get-unboxed-ptr ((%macptr %arg_z))
-  (macptr-ptr %macptr %imm0)
-  (retl)
-   (ld (%imm0) %arg_z))
+
+
+
 
 
 ; Bootstrapping. Real version is in l1-aprims.
@@ -523,17 +502,9 @@
     (resolve-eep eep nil)
     eep))
 
-#+ppc-target
-(defppclapfunction %revive-macptr ((p arg_z))
-  (li imm0 ppc32::subtag-macptr)
-  (stb imm0 ppc32::misc-subtag-offset p)
-  (blr))
 
-#+sparc-target
-(defsparclapfunction %revive-macptr ((p %arg_z))
-  (mov ppc32::subtag-macptr %imm0)
-  (retl)
-  (stb %imm0 (p ppc32::misc-subtag-offset)))
+
+
 
 #+linux-target
 (progn

@@ -3038,27 +3038,6 @@
         (setf (evalenv-vp env) ivp))))))
           ; move newval to vcell
 
-#+ppc-target
-(defppclapfunction %bind-special ((sym 0) (newval arg_x) (vector arg_y) (index arg_z))
-  ; index is a byte index
-  (lwz temp0 sym vsp)  ; get sym
-  (lwz temp1 ppc32::symbol.vcell temp0) ; get old value
-  (unbox-fixnum imm0 index)
-  (addi imm0 imm0 ppc32::misc-data-offset)
-  (add imm0 imm0 vector)
-  (push temp1 imm0)  ; old value
-  (push temp0 imm0)  ; symbol
-  (lwz imm1 ppc32::tcr.db-link rcontext)
-  (push imm1 imm0)   ; dblink
-  (stw imm0 ppc32::tcr.db-link rcontext)
-  (svset newval ppc32::symbol.vcell-cell temp0) ; store new val
-  (mr arg_z newval)
-  (la vsp 4 vsp)
-  (blr))
-
-
-
-
 
 
   

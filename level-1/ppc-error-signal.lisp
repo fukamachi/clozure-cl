@@ -125,10 +125,7 @@
 
 
 
-(defppclapfunction %misc-address-fixnum ((misc-object arg_z))
-  (check-nargs 1)
-  (la arg_z ppc32::misc-data-offset misc-object)
-  (blr))
+
 
 ; rb is the register number of the stack that overflowed.
 ; xp & fn are passed so that we can establish error context.

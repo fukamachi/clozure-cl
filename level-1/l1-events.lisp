@@ -17,21 +17,8 @@
 
 (defvar *inhibit-abort* nil)
 
-#+ppc-target
-(defppclapfunction break-event-pending-p ()
-  (ref-global arg_z ppc32::intflag)
-  (set-global rzero ppc32::intflag)
-  (cmpwi arg_z 0)
-  (li arg_z ppc32::nil-value)
-  (beqlr)
-  (li arg_z (+ ppc32::t-offset ppc32::nil-value))
-  (blr))
-
-
-
-
-; If any bits in the *periodic-task-mask* are set in the ptaskstate.flags word of
-; a periodic task, it will not be run
+;;; If any bits in the *periodic-task-mask* are set in the
+;;; ptaskstate.flags word of a periodic task, it will not be run
 (defvar *periodic-task-mask* 0)
 
 (defmethod print-object ((p periodic-task) stream)

@@ -710,4 +710,33 @@
     (%set-fpscr-control (logior (logand new mask)
                                 (logandc2 (%get-fpscr-control) mask)))
     (get-fpu-mode)))
-    
+
+
+; Copy a single float pointed at by the macptr in single
+; to a double float pointed at by the macptr in double
+
+(defppclapfunction %single-float-ptr->double-float-ptr ((single arg_y) (double arg_z))
+  (check-nargs 2)
+  (lwz imm0 ppc32::macptr.address single)
+  (lfs fp0 0 imm0)
+  (lwz imm0 ppc32::macptr.address double)
+  (stfd fp0 0 imm0)
+  (blr))
+
+;;; Copy a double float pointed at by the macptr in double
+;;; to a single float pointed at by the macptr in single.
+(defppclapfunction %double-float-ptr->single-float-ptr ((double arg_y) (single arg_z))
+  (check-nargs 2)
+  (lwz imm0 ppc32::macptr.address double)
+  (lfd fp0 0 imm0)
+  (lwz imm0 ppc32::macptr.address single)
+  (stfs fp0 0 imm0)
+  (blr))
+
+
+(defppclapfunction %set-ieee-single-float-from-double ((src arg_y) (macptr arg_z))
+  (check-nargs 2)
+  (lwz imm0 ppc32::macptr.address macptr)
+  (get-double-float fp1 src)
+  (stfs fp1 0 imm0)
+  (blr))

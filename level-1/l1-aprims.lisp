@@ -833,26 +833,8 @@
 ; Look! GC in Lisp !
 
 
-#+ppc-target
-(defppclapfunction full-gccount ()
-  (ref-global arg_z tenured-area)
-  (cmpwi cr0 arg_z 0)
-  (if :eq
-    (ref-global arg_z gc-count)
-    (lwz arg_z ppc32::area.gc-count arg_z))
-  (blr))
 
-#+sparc-target
-(defsparclapfunction full-gccount ()
-  (ref-global %arg_z tenured-area)
-  (tst %arg_z)
-  (bne done)
-   (nop)
-  (ref-global %arg_z gc-count)
-  (ld (%arg_z ppc32::area.gc-count) %arg_z)
-  done
-  (retl)
-   (nop))
+
   
 
 (defun gccounts ()
@@ -869,69 +851,8 @@
     (values total full g2-count g1-count g0-count)))
 
       
-#+ppc-target
-(defppclapfunction gc ()
-  (check-nargs 0)
-  (li imm0 0)
-  (twlgei allocptr 0)
-  (li arg_z ppc32::nil-value)
-  (blr))
-
-#+ppc-target
-(defppclapfunction egc ((arg arg_z))
-  (check-nargs 1)
-  (subi imm1 arg nil)
-  (li imm0 32)
-  (twlgei allocptr 0)
-  (blr))
-
-(defppclapfunction %configure-egc ((e0size arg_x)
-				   (e1size arg_y)
-				   (e2size arg_z))
-  (check-nargs 3)
-  (li imm0 64)
-  (twlgei allocptr 0)
-  (blr))
-  
-
-#+ppc-target
-(defppclapfunction purify ()
-  (li imm0 1)
-  (twlgei allocptr 0)
-  (li arg_z nil)
-  (blr))
 
 
-#+ppc-target
-(defppclapfunction impurify ()
-  (li imm0 2)
-  (twlgei allocptr 0)
-  (li arg_z nil)
-  (blr))
-
-
-#+ppc-target
-(defppclapfunction lisp-heap-gc-threshold ()
-  (check-nargs 0)
-  (li imm0 16)
-  (twlgei allocptr 0)
-  (blr))
-
-#+ppc-target
-(defppclapfunction set-lisp-heap-gc-threshold ((new arg_z))
-  (check-nargs 1)
-  (li imm0 17)
-  (unbox-fixnum imm1 arg_z)
-  (twlgei allocptr 0)
-  (blr))
-
-#+ppc-target
-(defppclapfunction use-lisp-heap-gc-threshold ()
-  (check-nargs 0)
-  (li imm0 18)
-  (twlgei allocptr 0)
-  (li arg_z nil)
-  (blr))
 
 (defglobal %pascal-functions%
   (make-array 4 :initial-element nil))

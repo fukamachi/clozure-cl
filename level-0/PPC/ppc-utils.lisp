@@ -307,13 +307,164 @@ These things were always a bad idea.  Let's hope that nothing uses them.
 
 
 
+(defppclapfunction %class-of-instance ((i arg_z))
+  (svref arg_z instance.class-wrapper i)
+  (svref arg_z %wrapper-class arg_z)
+  (blr))
+
+(defppclapfunction class-of ((x arg_z))
+  (check-nargs 1)
+  (extract-fulltag imm0 x)  ; low8bits-of from here to done
+  (cmpwi cr0 imm0 ppc32::fulltag-misc)
+  (beq cr0 @misc)
+  (clrlslwi imm0 x 24 ppc32::fixnumshift)   ; clear left 24 bits, box assume = make byte index 
+  (b @done)
+  @misc
+  (extract-subtag imm0 x)
+  (box-fixnum imm0 imm0)  
+  @done
+  (addi imm0 imm0 ppc32::misc-data-offset)
+  (lwz temp1 '*class-table* nfn)
+  (lwz temp1 ppc32::symbol.vcell temp1)
+  (lwzx temp0 temp1 imm0) ; get entry from table
+  (cmpwi cr0 temp0 ppc32::nil-value)
+  (beq @bad)
+  ; functionp?
+  (extract-typecode imm1 temp0)
+  (cmpwi imm1 ppc32::subtag-function)
+  (bne @ret)  ; not function - return entry
+  ; else jump to the fn
+  ;(lwz temp0 ppc32::function.codevector temp0) ; like jump_nfn asm macro
+  (mr nfn temp0)
+  (lwz temp0 ppc32::misc-data-offset temp0) ; get the ffing codevector
+  (SET-NARGS 1) ; maybe not needed
+  (mtctr temp0)
+  (bctr)
+  @bad
+  (lwz fname 'no-class-error nfn)
+  (ba .spjmpsym)
+  @ret
+  (mr arg_z temp0)  ; return frob from table
+  (blr))
+
+(defppclapfunction full-gccount ()
+  (ref-global arg_z tenured-area)
+  (cmpwi cr0 arg_z 0)
+  (if :eq
+    (ref-global arg_z gc-count)
+    (lwz arg_z ppc32::area.gc-count arg_z))
+  (blr))
+
+
+(defppclapfunction gc ()
+  (check-nargs 0)
+  (li imm0 0)
+  (twlgei allocptr 0)
+  (li arg_z ppc32::nil-value)
+  (blr))
+
+
+(defppclapfunction egc ((arg arg_z))
+  (check-nargs 1)
+  (subi imm1 arg nil)
+  (li imm0 32)
+  (twlgei allocptr 0)
+  (blr))
 
 
 
+(defppclapfunction %configure-egc ((e0size arg_x)
+				   (e1size arg_y)
+				   (e2size arg_z))
+  (check-nargs 3)
+  (li imm0 64)
+  (twlgei allocptr 0)
+  (blr))
+
+(defppclapfunction purify ()
+  (li imm0 1)
+  (twlgei allocptr 0)
+  (li arg_z nil)
+  (blr))
 
 
-    
+(defppclapfunction impurify ()
+  (li imm0 2)
+  (twlgei allocptr 0)
+  (li arg_z nil)
+  (blr))
 
+(defppclapfunction lisp-heap-gc-threshold ()
+  (check-nargs 0)
+  (li imm0 16)
+  (twlgei allocptr 0)
+  (blr))
+
+(defppclapfunction set-lisp-heap-gc-threshold ((new arg_z))
+  (check-nargs 1)
+  (li imm0 17)
+  (unbox-fixnum imm1 arg_z)
+  (twlgei allocptr 0)
+  (blr))
+
+(defppclapfunction use-lisp-heap-gc-threshold ()
+  (check-nargs 0)
+  (li imm0 18)
+  (twlgei allocptr 0)
+  (li arg_z nil)
+  (blr))
+
+;;; Returns two fixnums: low, high
+(defppclapfunction macptr-to-fixnums ((macptr arg_z))
+  (check-nargs 1)
+  (trap-unless-typecode= macptr ppc32::subtag-macptr)
+  (lwz imm0 ppc32::macptr.address macptr)
+  (rlwinm imm1 imm0 2 14 29)
+  (vpush imm1)
+  (rlwinm imm1 imm0 18 14 29)
+  (vpush imm1)
+  (set-nargs 2)
+  (la temp0 8 vsp)
+  (ba .SPvalues))
+
+;;; This does something much like what COMPOSE-DIGIT does (in the
+;;; PPC/CMU-bignum code), only we HOPE that compose-digit disappears
+;;; REAL SOON
+(defppclapfunction %compose-unsigned-fullword ((high arg_y) (low arg_z))
+  (rlwinm imm0 low (- 32 ppc32::fixnumshift) 16 31)
+  (rlwimi imm0 high (- 16 ppc32::fixnumshift) 0 15)
+  ;; Now have an unsigned fullword in imm0.  Box it.
+  (clrrwi. imm1 imm0 (- ppc32::least-significant-bit ppc32::nfixnumtagbits))
+  (box-fixnum arg_z imm0)             ; assume no high bits set.
+  (beqlr+)
+  (ba .SPmakeu32))
+
+(defppclapfunction %compose-signed-fixnum ((high arg_y) (low arg_z))
+  (rlwinm imm0 low (- 32 ppc32::fixnumshift) 16 31)
+  (rlwimi imm0 high (- 16 ppc32::fixnumshift) 0 15)
+  ;; Now have an unsigned fullword in imm0.  Box it.
+  (box-fixnum arg_z imm0)
+  (blr))
+
+
+;;; offset is a fixnum, one of the ppc32::kernel-import-xxx.
+;;; Returns that kernel import, a fixnum.
+(defppclapfunction %kernel-import ((offset arg_z))
+  (ref-global imm0 kernel-imports)
+  (unbox-fixnum imm1 arg_z)
+  (lwzx arg_z imm0 imm1)
+  (blr))
+
+(defppclapfunction %get-unboxed-ptr ((macptr arg_z))
+  (macptr-ptr imm0 arg_z)
+  (lwz arg_z 0 imm0)
+  (blr))
+
+
+(defppclapfunction %revive-macptr ((p arg_z))
+  (li imm0 ppc32::subtag-macptr)
+  (stb imm0 ppc32::misc-subtag-offset p)
+  (blr))
 
   
 

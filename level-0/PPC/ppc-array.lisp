@@ -342,3 +342,84 @@
 
 (defun ppc-subtag-bytes (subtag element-count)
   (subtag-bytes subtag element-count))
+
+;;; If the bit-arrays are all simple-bit-vectorp, we can do the operations
+;;; 32 bits at a time.  (other case have to worry about alignment/displacement.)
+(defppclapfunction %simple-bit-boole ((op 0) (b1 arg_x) (b2 arg_y) (result arg_z))
+  (la imm0 4 vsp)
+  (save-lisp-context imm0)
+  (vector-size imm4 result imm4)
+  (srwi. imm3 imm4 5)
+  (clrlwi imm4 imm4 27)
+  (bl @get-dispatch)
+  (cmpwi cr1 imm4 0)
+  (mflr loc-pc)
+  (lwz temp0 op vsp)
+  (add loc-pc loc-pc temp0)
+  (add loc-pc loc-pc temp0)
+  (mtctr loc-pc)
+  (li imm0 ppc32::misc-data-offset)
+  (b @testw)
+  @nextw
+  (cmpwi cr0 imm3 1)
+  (subi imm3 imm3 1)
+  (lwzx imm1 b1 imm0)
+  (lwzx imm2 b2 imm0)
+  (bctrl)
+  (stwx imm1 result imm0)
+  (addi imm0 imm0 4)
+  @testw
+  (bne cr0 @nextw)
+  (beq cr1 @done)
+  ; Not sure if we need to make this much fuss about the partial word
+  ; in this simple case, but what the hell.
+  (lwzx imm1 b1 imm0)
+  (lwzx imm2 b2 imm0)
+  (bctrl)
+  (lwzx imm2 result imm0)
+  (slw imm2 imm2 imm4)
+  (srw imm2 imm2 imm4)
+  (subfic imm4 imm4 32)
+  (srw imm1 imm1 imm4)
+  (slw imm1 imm1 imm4)
+  (or imm1 imm1 imm2)
+  (stwx imm1 result imm0)
+  @done
+  (restore-full-lisp-context)
+  (blr)
+
+  @get-dispatch 
+  (blrl)
+  @disptach
+  (li imm1 0)                           ; boole-clr
+  (blr)
+  (li imm1 -1)                          ; boole-set
+  (blr)
+  (blr)                                 ; boole-1
+  (blr)                             
+  (mr imm1 imm2)                        ; boole-2
+  (blr)
+  (not imm1 imm1)                       ; boole-c1
+  (blr)
+  (not imm1 imm2)                       ; boole-c2
+  (blr)
+  (and imm1 imm1 imm2)                  ; boole-and
+  (blr)
+  (or imm1 imm1 imm2)                   ; boole-ior
+  (blr)
+  (xor imm1 imm1 imm2)                  ; boole-xor
+  (blr)
+  (eqv imm1 imm1 imm2)                  ; boole-eqv
+  (blr)
+  (nand imm1 imm1 imm2)                 ; boole-nand
+  (blr)
+  (nor imm1 imm1 imm2)                  ; boole-nor
+  (blr)
+  (andc imm1 imm2 imm1)                 ; boole-andc1
+  (blr)
+  (andc imm1 imm1 imm2)                 ; boole-andc2
+  (blr)
+  (orc imm1 imm2 imm1)                  ; boole-orc1
+  (blr)
+  (orc imm1 imm1 imm2)                  ; boole-orc2
+  (blr))

@@ -18,38 +18,9 @@
 ;;;
 ;;; Support for PPC callbacks
 
-;;;sp-callback (sp-eabi-callback for eabi) receives a
-;;;callback index in r12; this is an index into the
-;;;%pascal-functions% vector (so called because, under 68K MacOS, most
-;;;interesting foreign functions were defined in Pascal and followed
-;;;Pascal calling conventions.)  Then it funcalls #'%pascal-functions%
-;;;with two args, the %pascal-functions% index and a pointer to the
-;;;stack frame containing the arguments (tagged as a fixnum).
-;;; %pascal-functions% puts the return value in param0 in the stack frame
-;;; (which is where its argument pointer was pointing.)
 
-#+ppc-target
-(defppclapfunction %get-object ((macptr arg_y) (offset arg_z))
-  (check-nargs 2)
-  (trap-unless-typecode= arg_y ppc32::subtag-macptr)
-  (macptr-ptr imm0 arg_y)
-  (trap-unless-lisptag= arg_z ppc32::tag-fixnum imm1)
-  (unbox-fixnum imm1 arg_z)
-  (lwzx arg_z imm0 imm1)
-  (blr))
 
-;; It would be awfully nice if (setf (%get-long macptr offset)
-;;                                   (ash (the fixnum value) ppc32::fixnumshift))
-;; would do this inline.
-#+ppc-target
-(defppclapfunction %set-object ((macptr arg_x) (offset arg_y) (value arg_z))
-  (check-nargs 3)
-  (trap-unless-typecode= arg_x ppc32::subtag-macptr)
-  (macptr-ptr imm0 arg_x)
-  (trap-unless-lisptag= arg_y ppc32::tag-fixnum imm1)
-  (unbox-fixnum imm1 arg_y)
-  (stwx arg_z imm0 imm1)
-  (blr))
+
 
 
 ;; This is machine-dependent (it conses up a piece of "trampoline" code

@@ -192,20 +192,6 @@
       (%err-disp err))))
   
 
-#+ppc-target
-(defppclapfunction %%save-application ((flags arg_y) (fd arg_z))
-  (unbox-fixnum imm0 flags)
-  (ori imm0 imm0 8)
-  (unbox-fixnum imm1 fd)
-  (twlgei allocptr 0)
-  (blr))
-
-#+sparc-target
-(defsparclapfunction %%save-application ((fd %arg_z))
-  (retl)
-  (uuo_xalloc %rzero %rnil fd))
-   
-
 (defun restore-lisp-pointers ()
   (%revive-system-locks)
   (restore-pascal-functions)

@@ -1490,54 +1490,6 @@
                                                      effective-slot-definition-class)
 ))
 
-#+ppc-target
-(defppclapfunction %class-of-instance ((i arg_z))
-  (svref arg_z instance.class-wrapper i)
-  (svref arg_z %wrapper-class arg_z)
-  (blr))
-
-#+sparc-target
-(defsparclapfunction %class-of-instance ((i %arg_z))
-  (ld (i (+ (* instance.class-wrapper 4) ppc32::misc-data-offset)) %arg_z)
-  (retl)
-    (ld (%arg_z (+ (* %wrapper-class 4) ppc32::misc-data-offset)) %arg_z))
-
-
-#+ppc-target
-(defppclapfunction class-of ((x arg_z))
-  (check-nargs 1)
-  (extract-fulltag imm0 x)  ; low8bits-of from here to done
-  (cmpwi cr0 imm0 ppc32::fulltag-misc)
-  (beq cr0 @misc)
-  (clrlslwi imm0 x 24 ppc32::fixnumshift)   ; clear left 24 bits, box assume = make byte index 
-  (b @done)
-  @misc
-  (extract-subtag imm0 x)
-  (box-fixnum imm0 imm0)  
-  @done
-  (addi imm0 imm0 ppc32::misc-data-offset)
-  (lwz temp1 '*class-table* nfn)
-  (lwz temp1 ppc32::symbol.vcell temp1)
-  (lwzx temp0 temp1 imm0) ; get entry from table
-  (cmpwi cr0 temp0 ppc32::nil-value)
-  (beq @bad)
-  ; functionp?
-  (extract-typecode imm1 temp0)
-  (cmpwi imm1 ppc32::subtag-function)
-  (bne @ret)  ; not function - return entry
-  ; else jump to the fn
-  ;(lwz temp0 ppc32::function.codevector temp0) ; like jump_nfn asm macro
-  (mr nfn temp0)
-  (lwz temp0 ppc32::misc-data-offset temp0) ; get the ffing codevector
-  (SET-NARGS 1) ; maybe not needed
-  (mtctr temp0)
-  (bctr)
-  @bad
-  (lwz fname 'no-class-error nfn)
-  (ba .spjmpsym)
-  @ret
-  (mr arg_z temp0)  ; return frob from table
-  (blr))
 
 
 

@@ -228,11 +228,7 @@ nil;  otherwise return true.
     (%macptr->dead-macptr macptr)
     (macptr->dead-macptr (require-type macptr 'macptr))))
 
-(defppclapfunction %macptr->dead-macptr ((macptr arg_z))
-  (check-nargs 1)
-  (li imm0 ppc32::subtag-dead-macptr)
-  (stb imm0 ppc32::misc-subtag-offset macptr)
-  (blr))
+
 
 ; Call this before save-application.
 ; It makes no sense to keep terminable macptrs around after that.

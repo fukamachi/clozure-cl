@@ -627,10 +627,7 @@
          (declare (dynamic-extent ,thunk))
          (map-db-links ,thunk)))))
 
-#+ppc-target
-(defppclapfunction %current-db-link ()
-  (lwz arg_z ppc32::tcr.db-link rcontext)
-  (blr))
+
 
 
 (defun map-db-links (f)
@@ -1015,9 +1012,7 @@
           (when (< (decf arg-vsp) vsp)
             (error "n out of range")))))))
 
-(defppclapfunction %no-thread-local-binding-marker ()
-  (li arg_z ppc32::subtag-no-thread-local-binding)
-  (blr))
+
 
 (defun nth-value-in-frame (sp n tcr &optional lfun pc child-frame vsp parent-vsp)
   (multiple-value-bind (loc type name)

@@ -23,102 +23,6 @@
 (in-package :ccl)
 
 
-
-(defppclapfunction %get-kernel-global-from-offset ((offset arg_z))
-  (check-nargs 1)
-  (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc32::nil-value)
-  (lwz arg_z 0 imm0)
-  (blr))
-
-(defppclapfunction %set-kernel-global-from-offset ((offset arg_y) (new-value arg_z))
-  (check-nargs 2)
-  (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc32::nil-value)
-  (stw new-value 0 imm0)
-  (blr))
-
-(defppclapfunction %get-kernel-global-ptr-from-offset ((offset arg_y)
-						       (ptr arg_z))
-  (check-nargs 2)
-  (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc32::nil-value)
-  (lwz imm0 0 imm0)
-  (stw imm0 ppc32::macptr.address ptr)
-  (blr))
-
-
-(defppclapfunction %fixnum-ref ((fixnum arg_y) #| &optional |# (offset arg_z))
-  (cmpi cr0 nargs '1)
-  (check-nargs 1 2)
-  (bne cr0 @2-args)
-  (mr fixnum offset)
-  (li offset 0)
-  @2-args
-  (unbox-fixnum imm0 offset)
-  (lwzx arg_z imm0 fixnum)
-  (blr))
-
-(defppclapfunction %fixnum-ref-u32 ((fixnum arg_y) #| &optional |# (offset arg_z))
-  (cmpi cr0 nargs '1)
-  (check-nargs 1 2)
-  (bne cr0 @2-args)
-  (mr fixnum offset)
-  (li offset 0)
-  @2-args
-  (unbox-fixnum imm0 offset)
-  (lwzx imm0 imm0 fixnum)
-  (ba .SPmakeu32))
-
-
-(defppclapfunction %fixnum-set ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
-  (cmpi cr0 nargs '2)
-  (check-nargs 2 3)
-  (bne cr0 @3-args)
-  (mr fixnum offset)
-  (li offset 0)
-  @3-args
-  (unbox-fixnum imm0 offset)
-  (stwx new-value imm0 fixnum)
-  (mr arg_z new-value)
-  (blr))
-
-(defppclapfunction %fixnum-set-u32 ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
-  (cmpwi cr0 nargs '2)
-  (check-nargs 2 3)
-  (bne cr0 @3-args)
-  (mr fixnum offset)
-  (li offset 0)
-  @3-args
-  (unbox-fixnum imm0 offset)
-  (extract-typecode imm1 new-value)
-  (cmpwi cr0 imm1 ppc32::tag-fixnum)
-  (cmpwi cr1 imm1 ppc32::subtag-bignum)
-  (srwi imm2 new-value ppc32::fixnumshift)
-  (beq cr0 @store)
-  (beq cr1 @bignum)
-  @notu32
-  (uuo_interr ppc32::error-object-not-unsigned-byte-32 new-value)
-  @bignum
-  (getvheader imm0 new-value)
-  (cmpwi cr1 imm0 ppc32::one-digit-bignum-header)
-  (cmpwi cr2 imm0 ppc32::two-digit-bignum-header)
-  (lwz imm2 ppc32::misc-data-offset new-value)
-  (cmpwi cr0 imm2 0)
-  (beq cr1 @one)
-  (bne cr2 @notu32)
-  (lwz imm1 (+ 4 ppc32::misc-data-offset) new-value)
-  (cmpwi cr1 imm1 0)
-  (bgt cr0 @notu32)
-  (beq cr1 @store)
-  (b @notu32)
-  @one
-  (blt cr0 @notu32)
-  @store
-  (stwx imm2 imm0 fixnum)
-  (mr arg_z new-value)
-  (blr))
-
 ;;; Sure would be nice to have &optional in defppclapfunction arglists
 ;;; Sure would be nice not to do this at runtime.
 
@@ -136,7 +40,7 @@
                   $lfbits-numreq
                   (dpb (ldb $lfbits-numopt bits)
                        $lfbits-numopt
-                       (lfun-bits #'%fixnum-ref)))))
+                       (lfun-bits #'%fixnum-ref-u32)))))
 
 (let ((bits (lfun-bits #'(lambda (x y &optional z) (declare (ignore x y z))))))
   (lfun-bits #'%fixnum-set
@@ -152,7 +56,7 @@
                   $lfbits-numreq
                   (dpb (ldb $lfbits-numopt bits)
                        $lfbits-numopt
-                       (lfun-bits #'%fixnum-set)))))
+                       (lfun-bits #'%fixnum-set-u32)))))
 
 (defun %fixnum-ref-macptr (fixnum &optional (offset 0))
   (%int-to-ptr (%fixnum-ref-u32 fixnum offset)))
@@ -170,30 +74,7 @@
 
 
 
-(defppclapfunction %current-frame-ptr ()
-  (check-nargs 0)
-  (mr arg_z sp)
-  (blr))
 
-(defppclapfunction %current-vsp ()
-  (check-nargs 0)
-  (mr arg_z vsp)
-  (blr))
-
-(defppclapfunction %set-current-vsp ((new-vsp arg_z))
-  (check-nargs 1)
-  (mr vsp new-vsp)
-  (blr))
-
-(defppclapfunction %current-tsp ()
-  (check-nargs 0)
-  (mr arg_z tsp)
-  (blr))
-
-(defppclapfunction %set-current-tsp ((new-tsp arg_z))
-  (check-nargs 1)
-  (mr tsp new-tsp)
-  (blr))
 
     
     
@@ -210,66 +91,7 @@
              (setq fake-frame (%fake-stack-frame.link fake-frame)))))
         (t (error "~s is not a valid stack frame" p))))
 
-(defppclapfunction %%frame-backlink ((p arg_z))
-  (check-nargs 1)
-  (lwz arg_z ppc32::lisp-frame.backlink arg_z)
-  (rlwinm imm0 arg_z 30 0 0)            ; Bit 1 -> sign bit
-  (srawi imm0 imm0 31)                  ; copy sign bit to rest of word
-  (andc arg_z arg_z imm0)               ; arg_z = 0 if bit 1 was set
-  (rlwinm arg_z arg_z 0 0 29)           ; clear low two bits
-  (blr))
 
-
-
-(defppclapfunction %%frame-savefn ((p arg_z))
-  (check-nargs 1)
-  (lwz arg_z ppc32::lisp-frame.savefn arg_z)
-  (blr))
-
-(defppclapfunction %cfp-lfun ((p arg_z))
-  (lwz arg_y ppc32::lisp-frame.savefn p)
-  (extract-typecode imm0 arg_y)
-  (cmpwi imm0 ppc32::subtag-function)
-  (lwz loc-pc ppc32::lisp-frame.savelr p)
-  (bne @no)
-  (lwz arg_x ppc32::misc-data-offset arg_y)
-  (sub imm1 loc-pc arg_x)
-  (la imm1 (- ppc32::misc-data-offset) imm1)
-  (getvheader imm0 arg_x)
-  (header-length imm0 imm0)
-  (cmplw imm1 imm0)
-  (box-fixnum imm1 imm1)
-  (bge @no)
-  (vpush arg_y)
-  (vpush imm1)
-  @go
-  (set-nargs 2)
-  (la temp0 8 vsp)
-  (ba .SPvalues)
-  @no
-  (li imm0 nil)
-  (vpush imm0)
-  (vpush imm0)
-  (b @go))
-
-
-(defppclapfunction %%frame-savevsp ((p arg_z))
-  (check-nargs 1)
-  (lwz imm0 ppc32::lisp-frame.savevsp arg_z)
-  (rlwinm imm0 imm0 0 0 30)             ; clear lsb
-  (mr arg_z imm0)
-  (blr))
-
-
-
-(eval-when (:compile-toplevel :execute)
-  (assert (eql ppc32::t-offset #x11)))
-
-(defppclapfunction %uvector-data-fixnum ((uv arg_z))
-  (check-nargs 1)
-  (trap-unless-fulltag= arg_z ppc32::fulltag-misc)
-  (la arg_z ppc32::misc-data-offset arg_z)
-  (blr))
 
 
 
@@ -290,24 +112,6 @@
                (let* ((fn (%fixnum-ref p ppc32::lisp-frame.savefn)))
                  (or (eql fn 0) (typep fn 'function))))))))))
 
-(defppclapfunction %catch-top ((tcr arg_z))
-  (check-nargs 1)
-  (cmp cr0 tcr rcontext)
-  (bne cr0 @not-current)
-
-  ; tcr = current-tcr
-  (lwz arg_z ppc32::tcr.catch-top rcontext)
-  (cmpwi cr0 arg_z 0)
-  (bne @ret)
-  (li arg_z ppc32::nil-value)
- @ret
-  (blr)
-
-@not-current
-  (lwz imm0 ppc32::tcr.ts-area tcr)
-  (lwz imm0 ppc32::area.active imm0)
-  (la arg_z (+ 8 ppc32::fulltag-misc) imm0)
-  (blr))
 
 
 
@@ -315,41 +119,6 @@
 
 
 
-
-
-; Same as %address-of, but doesn't cons any bignums
-; It also left shift fixnums just like everything else.
-(defppclapfunction %fixnum-address-of ((x arg_z))
-  (check-nargs 1)
-  (box-fixnum arg_z x)
-  (blr))
-
-(defppclapfunction %sub-timevals ((result arg_x) (a arg_y) (b arg_z))
-  (let ((pa imm0)
-        (pb imm1)
-        (1m imm2)
-        (seconds imm3)
-        (micros imm4)
-        (temp imm2))
-    (macptr-ptr pa a)
-    (macptr-ptr pb b)
-    (lwz temp 4 pb)
-    (lwz micros 4 pa)
-    (subf micros temp micros)
-    (cmpwi micros 0)
-    (lwz temp 0 pb)
-    (lwz seconds 0 pa)
-    (subf seconds temp seconds)
-    (lwi 1m 1000000)
-    (macptr-ptr pa result)
-    (bge @store)
-    (add micros 1m micros)
-    (la seconds -1 seconds)
-    @store
-    (stw seconds 0 pa)
-    (stw micros 4 pa)
-    (mr arg_z result)
-    (blr)))
 
 
 ;;; A callback to handle foreign thread preparation, initialization,
@@ -377,17 +146,7 @@
 	((= param 0) (%foreign-thread-initialize) 0)
 	(t (%foreign-thread-terminate) 0)))
 
-(defppclapfunction %save-standard-binding-list ((bindings arg_z))
-  (lwz imm0 ppc32::tcr.vs-area rcontext)
-  (lwz imm1 ppc32::area.high imm0)
-  (push bindings imm1)
-  (blr))
 
-(defppclapfunction %saved-bindings-address ()
-  (lwz imm0 ppc32::tcr.vs-area rcontext)
-  (lwz imm1 ppc32::area.high imm0)
-  (la arg_z -4 imm1)
-  (blr))
 
 (defun %foreign-thread-prepare ()
   (let* ((initial-bindings (standard-initial-bindings)))

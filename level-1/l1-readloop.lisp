@@ -720,31 +720,7 @@
 
 (%fhave 'eval #'cheap-eval)
 
-#+ppc-target
-(defppclapfunction get-saved-register-values ()
-  (vpush save0)
-  (vpush save1)
-  (vpush save2)
-  (vpush save3)
-  (vpush save4)
-  (vpush save5)
-  (vpush save6)
-  (vpush save7)
-  (la temp0 32 vsp)
-  (set-nargs 8)
-  (ba .SPvalues))
 
-#+sparc-target
-(defsparclapfunction get-saved-register-values ()
-  (vpush %save0)
-  (vpush %save1)
-  (vpush %save2)
-  (vpush %save3)
-  (vpush %save4)
-  (vpush %save5)
-  (add %vsp 24 %temp0)
-  (jump-subprim .SPvalues)
-    (set-nargs 6))
 
   
 (defun call-check-regs (fn &rest args)

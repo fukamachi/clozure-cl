@@ -63,33 +63,9 @@
            new))
         (t (report-bad-arg s 'string))))
 
-; Returns two fixnums: low, high
-#+ppc-target
-(defppclapfunction macptr-to-fixnums ((macptr arg_z))
-  (check-nargs 1)
-  (trap-unless-typecode= macptr ppc32::subtag-macptr)
-  (lwz imm0 ppc32::macptr.address macptr)
-  (rlwinm imm1 imm0 2 14 29)
-  (vpush imm1)
-  (rlwinm imm1 imm0 18 14 29)
-  (vpush imm1)
-  (set-nargs 2)
-  (la temp0 8 vsp)
-  (ba .SPvalues))
 
-#+sparc-target
-(defsparclapfunction macptr-to-fixnums ((macptr %arg_z))
-  (check-nargs 1)
-  (trap-unless-typecode= macptr ppc32::subtag-macptr)
-  (ld (macptr ppc32::macptr.address) %imm0)
-  (sll %imm0 16 %imm1)
-  (srl %imm1 (- 16 ppc32::fixnumshift) %imm1)
-  (vpush %imm1)
-  (srl %imm0 (- 16 ppc32::fixnumshift) %imm1)
-  (vpush %imm1)
-  (set-nargs 2)
-  (jump-subprim .SPvalues)
-  (add %vsp 8 %temp0))
+
+
 
 
 

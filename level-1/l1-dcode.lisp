@@ -247,50 +247,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 (defmacro %standard-instance-p (i)
   `(eq (typecode ,i) ppc32::subtag-instance))
 
-#+ppc-target
-(defppclapfunction %apply-lexpr-with-method-context ((magic arg_x)
-                                                   (function arg_y)
-                                                   (args arg_z))
-  ; Somebody's called (or tail-called) us.
-  ; Put magic arg in ppc32::next-method-context (= ppc32::temp1).
-  ; Put function in ppc32::nfn (= ppc32::temp2).
-  ; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;   but preserves ppc32::nfn/ppc32::next-method-context.
-  ; Jump to the function in ppc32::nfn.
-  (mr ppc32::next-method-context magic)
-  (mr ppc32::nfn function)
-  (set-nargs 0)
-  (mflr loc-pc)
-  (bla .SPspread-lexpr-z)
-  (mtlr loc-pc)
-  (lwz temp0 ppc32::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
-
-
-
-
-#+ppc-target
-(defppclapfunction %apply-with-method-context ((magic arg_x)
-                                               (function arg_y)
-                                               (args arg_z))
-  ;; Somebody's called (or tail-called) us.
-  ;; Put magic arg in ppc32::next-method-context (= ppc32::temp1).
-  ;; Put function in ppc32::nfn (= ppc32::temp2).
-  ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;;   but preserves ppc32::nfn/ppc32::next-method-context.
-  ;; Jump to the function in ppc32::nfn.
-  (mr ppc32::next-method-context magic)
-  (mr ppc32::nfn function)
-  (set-nargs 0)
-  (mflr loc-pc)
-  (bla .SPspreadargZ)
-  (mtlr loc-pc)
-  (lwz temp0 ppc32::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
-
-
 
 
 
@@ -464,56 +420,18 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 	    (push fn (population.data %all-gfs%))
 	    fn)))
 
-;; is a winner - saves ~15%
-#+ppc-target
-(defppclapfunction gag-one-arg ((arg arg_z))
-  (check-nargs 1)  
-  (svref arg_y gf.dispatch-table nfn) ; mention dt first
-  (set-nargs 2)
-  (svref nfn gf.dcode nfn)
-  (lwz temp0 ppc32::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
 
 
 
-#+ppc-target
-(defppclapfunction gag-two-arg ((arg0 arg_y) (arg1 arg_z))
-  (check-nargs 2)  
-  (svref arg_x gf.dispatch-table nfn) ; mention dt first
-  (set-nargs 3)
-  (svref nfn gf.dcode nfn)
-  (lwz temp0 ppc32::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+
+
   
 
 
 (defparameter *gf-proto-one-arg*  #'gag-one-arg)
 (defparameter *gf-proto-two-arg*  #'gag-two-arg)
 
-#+ppc-target
-(defparameter *cm-proto*
-  (nfunction
-   gag
-   (lambda (&lap &lexpr args)
-     (ppc-lap-function 
-      gag 
-      ()
-      (mflr loc-pc)
-      (vpush-argregs)
-      (vpush nargs)
-      (add imm0 vsp nargs)
-      (la imm0 4 imm0)                  ; caller's vsp
-      (bla .SPlexpr-entry)
-      (mtlr loc-pc)                     ; return to kernel
-      (mr arg_z vsp)                    ; lexpr
-      (svref arg_y combined-method.thing nfn) ; thing
-      (set-nargs 2)
-      (svref nfn combined-method.dcode nfn) ; dcode function
-      (lwz temp0 ppc32::misc-data-offset nfn)
-      (mtctr temp0)
-      (bctr)))))
+
 
 
 
@@ -857,45 +775,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (let ((method (%find-nth-arg-combined-method dt (%lexpr-ref args args-len argnum) args)))
 	(%apply-lexpr-tail-wise method args)))))
 
-#+ppc-target
-(defppclapfunction %apply-lexpr-tail-wise ((method arg_y) (args arg_z))
-  ; This assumes
-  ; a) that "args" is a lexpr made via the .SPlexpr-entry mechanism
-  ; b) That the LR on entry to this function points to the lexpr-cleanup
-  ;    code that .SPlexpr-entry set up
-  ; c) That there weren't any required args to the lexpr, e.g. that
-  ;    (%lexpr-ref args (%lexpr-count args) 0) was the first arg to the gf.
-  ; The lexpr-cleanup code will be EQ to either (lisp-global ret1valaddr)
-  ; or (lisp-global lexpr-return1v).  In the former case, discard a frame
-  ; from the cstack (multiple-value tossing).  Restore FN and LR from
-  ; the first frame that .SPlexpr-entry pushed, restore vsp from (+ args 4),
-  ; pop the argregs, and jump to the function.
-  ; d) The lexpr args have not been modified since they were moved by a stack overflow
-  (mflr loc-pc)
-  (ref-global imm0 ret1valaddr)
-  (cmpw cr2 loc-pc imm0)
-  (lwz nargs 0 args)
-  (mr imm5 nargs)
-  (cmpwi cr0 nargs 0)
-  (cmpwi cr1 nargs '2)
-  (mr nfn arg_y)
-  (lwz temp0 ppc32::misc-data-offset nfn)
-  (mtctr temp0)
-  (if (:cr2 :eq)
-    (la sp ppc32::lisp-frame.size sp))
-  (lwz loc-pc ppc32::lisp-frame.savelr sp)
-  (lwz fn ppc32::lisp-frame.savefn sp)
-  (lwz imm0 ppc32::lisp-frame.savevsp sp)
-  (sub vsp imm0 nargs)
-  (mtlr loc-pc)
-  (la sp ppc32::lisp-frame.size sp)
-  (beqctr)
-  (vpop arg_z)
-  (bltctr cr1)
-  (vpop arg_y)
-  (beqctr cr1)
-  (vpop arg_x)
-  (bctr))
+
 
 
 

@@ -126,19 +126,10 @@
 
 
 
-#+ppc-target
-(defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
-  ; put address of vect data in macptr
-  (addi arg_y arg_y ppc32::misc-data-offset)
-  (stw arg_y ppc32::macptr.address arg_z)
-  (blr))
 
-#+sparc-target
-(defsparclapfunction %vect-data-to-macptr ((vect %arg_y) (ptr %arg_z))
-  ; put address of vect data in macptr
-  (inc ppc32::misc-data-offset vect)
-  (retl)
-   (st vect (ptr ppc32::macptr.address)))
+
+
+
 
 (defloadvar *heap-ivectors* ())
 
@@ -152,34 +143,9 @@
       (push vect *heap-ivectors*)
       (values vect p))))
 
-#+ppc-target
-(defppclapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
-  (check-nargs 3)
-  (macptr-ptr imm1 ptr) ; address in macptr
-  (addi imm0 imm1 9)     ; 2 for delta + 7 for alignment
-  (rlwinm imm0 imm0 0 0 28)   ; Clear low three bits to align
-  (subf imm1 imm1 imm0)  ; imm1 = delta
-  (sth imm1 -2 imm0)     ; save delta halfword
-  (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
-  (rlwimi imm1 len (- ppc32::num-subtag-bits ppc32::fixnum-shift) 0 (- 31 ppc32::num-subtag-bits))
-  (stw imm1 0 imm0)       ; store subtype & length
-  (addi arg_z imm0 ppc32::fulltag-misc) ; tag it, return it
-  (blr))
 
-#+sparc-target
-(defsparclapfunction fudge-heap-pointer ((ptr %arg_x) (subtype %arg_y) (len %arg_z))
-  (check-nargs 3)
-  (macptr-ptr ptr %imm1) ; address in macptr
-  (add %imm1 9 %imm0)     ; 2 for delta + 7 for alignment
-  (andn %imm0 7 %imm0)   ; Clear low three bits to align
-  (sub %imm0 %imm1 %imm1)  ; imm1 = delta
-  (sth %imm1 (%imm0 -2))     ; save delta halfword
-  (unbox-fixnum subtype %imm2)  ; subtype at low end of imm2
-  (sll len  (- ppc32::num-subtag-bits ppc32::fixnum-shift) %imm1)
-  (or %imm2 %imm1 %imm1)
-  (st %imm1 (%imm0))      ; store header
-  (retl)
-    (add %imm0 ppc32::fulltag-misc %arg_z))  ; tag it, return it
+
+  ; tag it, return it
 
 (defun %dispose-heap-ivector (v)
   (if  (uvectorp v) ;(%heap-ivector-p v)
@@ -219,23 +185,10 @@
         (%make-heap-ivector subtype element-count size-in-octets)
       (values buf p size-in-octets subtype))))
 
-#+ppc-target          
-(defppclapfunction %%make-disposable ((ptr arg_y) (vector arg_z))
-  (check-nargs 2)
-  (subi imm0 vector ppc32::fulltag-misc) ; imm0 is addr = vect less tag
-  (lhz imm1 -2 imm0)   ; get delta
-  (sub imm0 imm0 imm1)  ; vector addr (less tag)  - delta is orig addr
-  (stw imm0 ppc32::macptr.address ptr) 
-  (blr))
 
-#+sparc-target
-(defsparclapfunction %%make-disposable ((ptr %arg_y) (vector %arg_z))
-  (check-nargs 2)
-  (sub vector ppc32::fulltag-misc %imm0)
-  (lduh (%imm0 -2) %imm1)
-  (sub %imm0 %imm1 %imm0)
-  (retl)
-   (st %imm0 (ptr ppc32::macptr.address)))
+
+
+
 
 
 

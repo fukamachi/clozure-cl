@@ -93,51 +93,6 @@
             (the fixnum (%fasl-read-byte s)))))
 
 
-
-; This does something much like what COMPOSE-DIGIT does (in the PPC/CMU-bignum
-; code), only we HOPE that compose-digit disappears REAL SOON
-#+ppc-target
-(progn
-  (defppclapfunction %compose-unsigned-fullword ((high arg_y) (low arg_z))
-    (rlwinm imm0 low (- 32 ppc32::fixnumshift) 16 31)
-    (rlwimi imm0 high (- 16 ppc32::fixnumshift) 0 15)
-    ; Now have an unsigned fullword in imm0.  Box it.
-    (clrrwi. imm1 imm0 (- ppc32::least-significant-bit ppc32::nfixnumtagbits))
-    (box-fixnum arg_z imm0)             ; assume no high bits set.
-    (beqlr+)
-    (ba .SPmakeu32))
-
-  
-  (defppclapfunction %compose-signed-fixnum ((high arg_y) (low arg_z))
-    (rlwinm imm0 low (- 32 ppc32::fixnumshift) 16 31)
-    (rlwimi imm0 high (- 16 ppc32::fixnumshift) 0 15)
-    ; Now have an unsigned fullword in imm0.  Box it.
-    (box-fixnum arg_z imm0)
-    (blr))
-)
-
-#+sparc-target
-(progn
-  (defsparclapfunction %compose-unsigned-fullword ((%high %arg_y) (%low %arg_z))
-    (set #xffff %imm1)
-    (unbox-fixnum %low %imm0)
-    (and %imm1 %imm0 %imm0)
-    (sll %high (- 16 ppc32::fixnumshift) %imm1)
-    (or %imm1 %imm0 %imm0)
-    (box-unsigned-byte-32 %imm0 %imm1 %arg_z)
-    (retl)
-     (nop))
-
-  (defsparclapfunction %compose-signed-fixnum ((%high %arg_y) (%low %arg_z))
-    (set #xffff %imm1)
-    (unbox-fixnum %low %imm0)
-    (and %imm1 %imm0 %imm0)
-    (sll %high (- 16 ppc32::fixnumshift) %imm1)
-    (or %imm1 %imm0 %imm0)
-    (retl)
-     (box-fixnum %imm0 %arg_z))
-)
-
 (defun %fasl-read-long (s)
   (%compose-unsigned-fullword (%fasl-read-word s) (%fasl-read-word s)))
 
@@ -770,55 +725,6 @@
                          s)
                    (incf nnew))))))
          htab)))))
-
-#+ppc-target
-(defppclapfunction %pname-hash ((str arg_y) (len arg_z))
-  (let ((nextw imm1)
-        (accum imm0)
-        (offset imm2)
-        (tag imm3))
-    (extract-subtag tag str)
-    (cmpwi cr0 len 0)
-    (li offset ppc32::misc-data-offset)
-    (li accum 0)
-    (beqlr- cr0)    
-    @loop8
-    (cmpwi cr1 len '1)
-    (subi len len '1)
-    (lbzx nextw str offset)
-    (addi offset offset 1)
-    (rotlwi accum accum 5)
-    (xor accum accum nextw)
-    (bne cr1 @loop8)
-    (slwi accum accum 5)
-    (srwi arg_z accum (- 5 ppc32::fixnumshift))
-    (blr)))
-
-#+sparc-target
-(defsparclapfunction %pname-hash ((%str %arg_y) (%len %arg_z))
-  (let ((%nextw %imm1)
-        (%accum %imm0)
-        (%offset %imm2)
-	(%tag %imm3)
-        (%accum1 %imm4))
-    (tst %len)
-    (mov ppc32::misc-data-offset %offset)
-    (be @done)
-     (mov 0 %accum)
-    @loop8
-    (subcc %len '1 %len)
-    (ldub (%str %offset) %nextw)
-    (add %offset 1 %offset)
-    (srl %accum 27 %accum1)
-    (sll %accum 5 %accum)
-    (or %accum %accum1 %accum)
-    (bne @loop8)
-     (xor %accum %nextw %accum)
-    (sll %accum 5 %accum)
-    @done
-    (retl)
-     (srl %accum (- 5 ppc32::fixnumshift) %arg_z)))
-
         
 (defun hash-pname (str len)
   (declare (optimize (speed 3) (safety 0)))
