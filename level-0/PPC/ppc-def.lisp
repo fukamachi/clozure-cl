@@ -178,10 +178,6 @@
 (defppclapfunction %%frame-backlink ((p arg_z))
   (check-nargs 1)
   (lwz arg_z ppc32::lisp-frame.backlink arg_z)
-  (rlwinm imm0 arg_z 30 0 0)            ; Bit 1 -> sign bit
-  (srawi imm0 imm0 31)                  ; copy sign bit to rest of word
-  (andc arg_z arg_z imm0)               ; arg_z = 0 if bit 1 was set
-  (rlwinm arg_z arg_z 0 0 29)           ; clear low two bits
   (blr))
 
 
