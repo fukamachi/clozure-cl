@@ -1990,7 +1990,7 @@
                   (svref *ppc-opcode-counts* op) 1)
             (incf (svref *ppc-opcode-counts* op))))))
   (when (fboundp 'ccl::fixup-vinsn-templates)   ; not defined yet at bootstrap time
-    (ccl::fixup-vinsn-templates ccl::*ppc-vinsn-templates* *ppc-opcode-numbers* ))
+    (ccl::fixup-vinsn-templates (ccl::backend-p2-vinsn-templates ccl::*target-backend*) *ppc-opcode-numbers* ))
   (when (fboundp 'ccl::fixup-ppc-backend)
     (ccl::fixup-ppc-backend)))
 
@@ -2425,6 +2425,10 @@
 
 
 
+
+(defun ccl::lookup-ppc-opcode (name)
+  (gethash (string name) ppc::*ppc-opcode-numbers*))
+
 #|
 (defun find-ppc-opcode (i)
   (let* ((op (major-opcode i))
