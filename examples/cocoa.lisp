@@ -2,18 +2,12 @@
 
 ;;; We need to be able to point the CoreFoundation and Cocoa libraries
 ;;; at some bundle very early in the process.  If you want to use some
-;;; other bundle path, you may need to change the value of
-;;; *default-bundle-path*; if you want to use some other executable
-;;; within that bundle, you may need to change the value of
-;;; *default-executable-path*.
+;;; other bundle path, you may need to change the call to FAKE-CFBUNDLE-PATH
+;;; below.
 
+(require "FAKE-CFBUNDLE-PATH")
+(fake-cfbundle-path "ccl:OpenMCL.app;Contents;MacOS;dppccl")
 
-(defparameter *default-bundle-path* "ccl:OpenMCL.app;")
-(defparameter *default-bundle-executable-path*
-  #+darwinppc-target
-  (merge-pathnames "Contents/MacOS/dppccl" *default-bundle-path*)
-  #+linuxppc-target
-  (merge-pathnames "ppccl" *default-bundle-path*))
 
 
 (require "OBJC-SUPPORT")
