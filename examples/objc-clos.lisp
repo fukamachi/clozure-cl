@@ -15,11 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 ;;;
 ;;; TO DO
-;;;  - Issues with OFFSET/LOCATION in foreign direct and effective slot definitions
-;;;  - MAP-OBJC-CLASS needs to INITIALIZE-INSTANCE and FINALIZE-INHERITANCE
-;;;    for predefined classes
 ;;;  - Need to fully handle init keywords and ObjC init messages
-;;;  - Need to add getter and setter functions for more foreign slot types
 ;;;  - Canonicalization and retention for ObjC objects
 ;;;  - Support redef of CLOS parts, but not changes in ObjC parts
 ;;;  - Provide Lisp structs for NS-POINT, NS-RECT, etc.?
@@ -495,7 +491,6 @@ instance_size of its ObjC superclass."))
 ;;; Return the getter and setter functions for a foreign slot
 ;;; NOTE: Should be changed to use FOREIGN-TYPE-TO-REPRESENTATION-TYPE
 
-
 (defun compute-foreign-slot-accessors (eslotd)
   (let* ((ftypespec (foreign-slot-definition-foreign-type eslotd))
 	 (ftype (parse-foreign-type ftypespec)))
@@ -714,8 +709,8 @@ instance_size of its ObjC superclass."))
 	  (multiple-value-bind (ks vs) (keys-and-vals (remove-slot-initargs
 						       class
 						       initargs))
-	    (apply #'%send ; For now; Use SEND macro eventually
-		   (%send class 'alloc) (lisp-to-objc-init ks) vs))))
+	    ; The second %SEND below should be SEND eventually
+	    (apply #'%send (%send class 'alloc) (lisp-to-objc-init ks) vs))))
     (unless (%null-ptr-p instance)
       (let* ((len (length (%wrapper-instance-slots (class-own-wrapper class))))
 	     (raw-ptr (raw-macptr-for-instance instance)) 
@@ -808,21 +803,10 @@ instance_size of its ObjC superclass."))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;              Class Definition and Finalization Protocols               ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#|
-(defclass demo-view (ns:ns-view) 
-  ((x :foreign t)
-   y
-   (r :foreign t :type :<NSR>ect))
-  (:metaclass ns:+ns-object))
-|#
 
 ;;; Create the ObjC class/metaclass pair and dress it up in its minimal CLOS garb
 ;;; This currently requires that exactly one of DIRECT-SUPERCLASSES be a
 ;;; already existing subclass of OBJC:OBJC-CLASS
-
-
-  
-  
 
 (defun compute-objc-variable-name (sym)
   (let* ((pname (string sym))
@@ -853,13 +837,7 @@ instance_size of its ObjC superclass."))
 (defmethod validate-superclass ((c1 objc:objc-class) (c2 objc:objc-class))
   t)
 
-(defmethod finalize-inheritance ((class objc:objc-class))
-  ;; *** compute class precedence list
-  ;; *** create effective slot definition objects
-  )
-
 (defmethod make-instances-obsolete ((class objc:objc-class))
-  ;; What should we do here?
   class)
 
 ;;; Reader/writer methods for instances of OBJC:OBJC-CLASS
@@ -874,3 +852,114 @@ instance_size of its ObjC superclass."))
 				&rest initargs)
   (declare (ignore initargs))
   (find-class 'standard-reader-method))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                 Generic Function and Method  Protocols                 ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; The classes of ObjC generic functions and methods
+
+(defclass objc-generic-function (standard-generic-function) 
+  ()
+  (:metaclass funcallable-standard-class))
+
+(defclass objc-method (standard-method) ())
+
+
+;;; Return the generic function name and lambda list corresponding to
+;;; a given ObjC MSG
+;;; NOTE: Gary wants to handle "init..." messages specially
+
+(defun gfify (msg)
+  (let ((mcomps (split-if-char #\: msg :elide)))
+    (values
+     (compute-lisp-name (first mcomps) (find-package "NS"))
+     (case (count #\: msg)
+       (0 '(self))
+       (1 '(self arg))
+       (t `(self arg &key ,@(mapcar #'compute-lisp-name (rest mcomps))))))))
+
+
+;;; Ensure that the generic function corresponding to MSG exists
+
+(defun ensure-objc-generic-function (msg)
+  (multiple-value-bind (gf-name lambda-list) (gfify msg)	    
+    (when (and (fboundp gf-name) (generic-function-p (symbol-function gf-name)))
+      (setq lambda-list 
+	    (generalize-lambda-list
+	     (generic-function-lambda-list (symbol-function gf-name))
+	     lambda-list)))
+    (ensure-generic-function
+     gf-name
+     :lambda-list lambda-list
+     :generic-function-class (find-class 'objc-generic-function)
+     :method-class (find-class 'objc-method))))
+
+
+;;; Generalize a lambda list of an existing objc generic function to be
+;;; consistent with a new lambda list
+
+(defun generalize-lambda-list (oldll newll)
+  (if (equal oldll newll) 
+      oldll
+    (let (req opt keys)
+      (multiple-value-bind (reqold optold keysold) 
+			   (parse-objc-gf-lambda-list oldll)
+        (multiple-value-bind (reqnew ignore keysnew) (parse-objc-gf-lambda-list newll)
+	  (declare (ignore ignore))
+	  (setq opt optold)
+	  (if (/= (length reqold) (length reqnew))
+	      (setq req '(self) opt '(arg))
+	    (setq req reqold))
+	  (setq keys (union keysold keysnew))
+	  `(,@req ,@(when opt (cons '&optional opt)) ,@(when keys (cons '&key keys))))))))
+
+(defun parse-objc-gf-lambda-list (ll)
+  (let ((optpos (position '&optional ll :test #'eq))
+	(keypos (position '&key ll :test #'eq)))
+    (values
+     (subseq ll 0 (or optpos keypos))
+     (if optpos (subseq ll (1+ optpos) keypos))
+     (if keypos (subseq ll (1+ keypos))))))
+
+
+;;; Ensure that the method corresponding to CLASS's method for MSG exists
+
+(defun ensure-objc-method (msg class)
+  (multiple-value-bind (gf-name lambda-list) (gfify msg)
+    (let* ((keypos (position '&key lambda-list :test #'eq))
+	   (required-args (subseq lambda-list 0 keypos))
+	   (keyword-args 
+	    (if keypos (subseq lambda-list (1+ keypos)) nil)))
+      (ensure-objc-generic-function msg)
+      (ensure-method 
+       gf-name 
+       (cons (class-name class)
+	     (make-list (1- (length required-args)) :initial-element t))
+       :function
+       (compile nil
+	 `(lambda ,lambda-list 
+	    ,(case (length lambda-list)
+	       (1 `(send self ,msg))
+	       (2 `(send self ,msg arg))
+	       (t `(send self ,msg arg ,@(append keyword-args '(&allow-other-keys)))))))
+       :qualifiers nil
+       :lambda-list lambda-list))))
+
+
+;;; Someday, this might even work...
+
+(defun define-all-objc-gfs ()
+  (declare (special *type-signature-table*))
+  (maphash #'(lambda (msg ignore) 
+	       (declare (ignore ignore))
+	       (ensure-objc-generic-function msg))
+	   *type-signature-table*))
+
+
+;;; ISSUES
+;;;  - Generic function conflicts
+;;;  - Currently invokes compiler
+;;;  - How to handle messages requiring STRETs?
+;;;  - How to handle variable arity messages?
