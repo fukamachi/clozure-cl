@@ -54,7 +54,7 @@
 (defun effective-instance-and-class-slotds (class)
   (extract-instance-and-class-slotds (%class-slots class)))
 
-(defun %shared-initialize (instance slot-names initargs)
+(defun %early-shared-initialize (instance slot-names initargs)
   (unless (or (listp slot-names) (eq slot-names t))
     (report-bad-arg slot-names '(or list (eql t))))
   ;; Check that initargs contains valid key/value pairs,
@@ -109,6 +109,8 @@
 				 instance loc)
 				newval)))))))))))))
   instance)
+
+(setf (fdefinition '%shared-initialize) #'%early-shared-initialize)
 
 ;;; This is redefined (to call MAKE-INSTANCE) below.
 (setf (fdefinition '%make-direct-slotd)
@@ -279,36 +281,29 @@
 (defvar *update-slots-preserve-existing-wrapper* nil)
 
 (defun update-slots (class eslotds)
-  (multiple-value-bind (instance-slots class-slots)
-      (extract-instance-and-class-slotds eslotds)
-    (let* ((new-ordering
-            (let* ((v (make-array (the fixnum (length instance-slots))))
-		   (i 0))
-	      (declare (simple-vector v) (fixnum i))
-              (dolist (e instance-slots v)
-                (setf (svref v i)
-                      (%slot-definition-name e))
-		(incf i))))
-           (old-wrapper (%class-own-wrapper class))
-           (old-ordering (if old-wrapper (%wrapper-instance-slots old-wrapper)))
-           (new-wrapper
-            (cond ((null old-wrapper)
-                   (%cons-wrapper class))
-                  ((and old-wrapper *update-slots-preserve-existing-wrapper*)
-                   old-wrapper)
-                  ((and (equalp old-ordering new-ordering)
-                        (null class-slots))
-                   old-wrapper)
-                  (t
-                   (make-instances-obsolete class)
-                   ;;; Is this right ?
-                   #|(%class.own-wrapper class)|#
-                   (%cons-wrapper class)))))
-      (setf (%class-slots class) eslotds)
-      (setf (%wrapper-instance-slots new-wrapper) new-ordering
-	    (%wrapper-class-slots new-wrapper) (%class-get class :class-slots)
-            (%class-own-wrapper class) new-wrapper)
-      (setup-slot-lookup new-wrapper eslotds))))
+  (let* ((instance-slots (extract-slotds-with-allocation :instance eslotds))
+         (new-ordering
+          (let* ((v (make-array (the fixnum (length instance-slots))))
+                 (i 0))
+            (declare (simple-vector v) (fixnum i))
+            (dolist (e instance-slots v)
+              (setf (svref v i)
+                    (%slot-definition-name e))
+              (incf i))))
+         (old-wrapper (%class-own-wrapper class))
+         (new-wrapper
+          (cond ((null old-wrapper)
+                 (%cons-wrapper class))
+                ((and old-wrapper *update-slots-preserve-existing-wrapper*)
+                 old-wrapper)
+                (t
+                 (make-instances-obsolete class)
+                 (%cons-wrapper class)))))
+    (setf (%class-slots class) eslotds)
+    (setf (%wrapper-instance-slots new-wrapper) new-ordering
+          (%wrapper-class-slots new-wrapper) (%class-get class :class-slots)
+          (%class-own-wrapper class) new-wrapper)
+    (setup-slot-lookup new-wrapper eslotds)))
 
 
   
@@ -589,8 +584,11 @@
   (declare (ignore slot-names))
   (if direct-superclasses-p
     (progn
-      (setq direct-superclasses (or direct-superclasses
-                                    (list *standard-object-class*)))
+      (setq direct-superclasses
+            (or direct-superclasses
+                (list (if (typep class 'funcallable-standard-class)
+                        *funcallable-standard-object-class*
+                        *standard-object-class*))))
       (dolist (superclass direct-superclasses)
         (unless (validate-superclass class superclass)
           (error "The class ~S was specified as a~%super-class of the class ~S;~%~
@@ -904,10 +902,10 @@ governs whether DEFCLASS makes that distinction or not.")
  :direct-slots
  `((:name prototype :initform nil :initfunction ,#'false)
    (:name name :initargs (:name) :initform nil :initfunction ,#'false :readers (class-name))
-   (:name precedence-list :initargs (:precedence-list) :initform nil  :initfunction ,#'false)
-   (:name own-wrapper :initargs (:own-wrapper) :initform nil  :initfunction ,#'false :readers (class-own-wrapper) :writers ((setf class-own-wrapper)))
-   (:name direct-superclasses :initargs (:direct-superclasses) :initform nil  :initfunction ,#'false :readers (class-direct-superclasses))
-   (:name direct-subclasses :initargs (:direct-subclasses) :initform nil  :initfunction ,#'false :readers (class-direct-subclasses))
+   (:name precedence-list :initform nil  :initfunction ,#'false)
+   (:name own-wrapper :initform nil  :initfunction ,#'false :readers (class-own-wrapper) :writers ((setf class-own-wrapper)))
+   (:name direct-superclasses  :initform nil  :initfunction ,#'false :readers (class-direct-superclasses))
+   (:name direct-subclasses  :initform nil  :initfunction ,#'false :readers (class-direct-subclasses))
    (:name dependents :initform nil :initfunction ,#'false)
    (:name class-ctype :initform nil :initfunction ,#'false))
  :primary-p t)
@@ -928,12 +926,12 @@ governs whether DEFCLASS makes that distinction or not.")
  'slots-class
  :direct-superclasses '(class)
  :direct-slots `((:name direct-slots :initform nil :initfunction ,#'false
-		  :initargs (:direct-slots) :readers (class-direct-slots)
+		   :readers (class-direct-slots)
 		  :writers ((setf class-direct-slots)))
                  (:name slots :initform nil :initfunction ,#'false
 		   :readers (class-slots))
 		 (:name kernel-p :initform nil :initfunction ,#'false)
-                 (:name direct-default-initargs :initargs (:direct-default-initargs) :initform nil  :initfunction ,#'false :readers (class-direct-default-initargs))
+                 (:name direct-default-initargs  :initform nil  :initfunction ,#'false :readers (class-direct-default-initargs))
                  (:name default-initargs :initform nil  :initfunction ,#'false :readers (class-default-initargs))
                  (:name alist :initform nil  :initfunction ,#'false))
  :primary-p t)
@@ -964,11 +962,6 @@ governs whether DEFCLASS makes that distinction or not.")
 (%ensure-class-preserving-wrapper
  'generic-function
  :direct-superclasses '(metaobject funcallable-standard-object)
- :metaclass 'funcallable-standard-class)
-
-(%ensure-class-preserving-wrapper
- 'standard-generic-function
- :direct-superclasses '(generic-function)
  :direct-slots `((:name name :initargs (:name) :readers (generic-function-name))
 		 (:name method-combination :initargs (:method-combination)
                   :initform *standard-method-combination*
@@ -989,7 +982,13 @@ governs whether DEFCLASS makes that distinction or not.")
                   :initform :unspecified
                   :initfunction ,(constantly :unspecified))
 		 (:name dependents
-		  :initform nil :initfunction ,#'false))
+		  :initform nil :initfunction ,#'false)) 
+ :metaclass 'funcallable-standard-class)
+
+(%ensure-class-preserving-wrapper
+ 'standard-generic-function
+ :direct-superclasses '(generic-function)
+
  :metaclass 'funcallable-standard-class
  :primary-p t)
 
@@ -1334,6 +1333,14 @@ governs whether DEFCLASS makes that distinction or not.")
 	      gf gf-class))
     (apply #'reinitialize-instance gf initargs)))
 
+
+(defmethod initialize-instance :before ((instance generic-function)
+                                       &key &allow-other-keys)
+  (setf (gf.code-vector instance) *gf-proto-code*
+        (gf.dcode instance) #'%%0-arg-dcode))
+        
+                                       
+
 (defmethod initialize-instance :after ((gf standard-generic-function)
 				       &key
 				       (lambda-list nil ll-p)
@@ -1470,19 +1477,21 @@ governs whether DEFCLASS makes that distinction or not.")
 	 (dt (make-gf-dispatch-table))
 	 (slots (allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker)))
 	 (fn (gvector :function
-		      *gf-proto-code*
+		      *unset-fin-code*
                       wrapper
 		      slots
                       dt
-                      #'%%0-arg-dcode
+                      #'false
 		      0
 		      (logior (ash 1 $lfbits-gfn-bit)
                               (ash 1 $lfbits-aok-bit)))))
-         (setf (gf.hash fn) (strip-tag-to-fixnum fn)
+    (setf (gf.hash fn) (strip-tag-to-fixnum fn)
 	  (slot-vector.instance slots) fn
 	  (%gf-dispatch-table-gf dt) fn)
-    (push fn (population.data %all-gfs%))
+    (if (typep fn 'generic-function)
+      (push fn (population.data %all-gfs%)))
     fn))
+
 
 (defmethod slot-value-using-class ((class structure-class)
 				   instance
@@ -1531,3 +1540,87 @@ governs whether DEFCLASS makes that distinction or not.")
   new)
 
 
+;;; From Tim Moore, as part of a set of patches to support funcallable
+;;; instances.
+
+;;; Support for objects with metaclass funcallable-instance-class that are not
+;;; standard-generic-function. The objects still look a lot like generic
+;;; functions, complete with vestigial dispatch
+;;; tables. set-funcallable-instance-function will work on generic functions,
+;;; though after that it won't be much of a generic function.
+
+
+
+(defmethod instance-class-wrapper ((instance funcallable-standard-object))
+  (gf.instance.class-wrapper  instance))
+
+(defun set-funcallable-instance-function (funcallable-instance function)
+  (unless (typep funcallable-instance 'funcallable-standard-object)
+    (error "~S is not a funcallable instance" funcallable-instance))
+  (unless (functionp function)
+    (error "~S is not a function" function))
+  (setf (uvref funcallable-instance gf.code-vector) *fi-trampoline-code*)
+  (setf (uvref funcallable-instance gf.dcode) function))
+
+;;; Are we CLOS yet ?
+
+(defun %shared-initialize (instance slot-names initargs)
+  (unless (or (listp slot-names) (eq slot-names t))
+    (report-bad-arg slot-names '(or list (eql t))))
+  ;; Check that initargs contains valid key/value pairs,
+  ;; signal a PROGRAM-ERROR otherwise.  (Yes, this is
+  ;; an obscure way to do so.)
+  (destructuring-bind (&key &allow-other-keys) initargs)
+  ;; I'm not sure if there's a more portable way of detecting
+  ;; obsolete instances.  This'll eventually call
+  ;; UPDATE-INSTANCE-FOR-REDEFINED-CLASS if it needs to.
+  (let* ((wrapper (instance-class-wrapper instance))
+         (class (%wrapper-class wrapper)))
+    (when (eql 0 (%wrapper-hash-index wrapper)) ; obsolete
+      (update-obsolete-instance instance))
+    ;; Now loop over all of the class's effective slot definitions.
+    (dolist (slotd (class-slots class))
+      ;; Anything that inherits from STANDARD-EFFECTIVE-SLOT-DEFINITION
+      ;; in OpenMCL will have a CCL::TYPE-PREDICATE slot.  It's not
+      ;; well-defined to inherit from EFFECTIVE-SLOT-DEFINITION without
+      ;; also inheriting from STANDARD-EFFECTIVE-SLOT-DEFINITION,
+      ;; and I'd rather not check here.  If you really want to
+      ;; create that kind of slot definition, write your own SHARED-INITIALIZE
+      ;; method for classes that use such slot definitions ...
+      (let* ((predicate (standard-effective-slot-definition.type-predicate slotd)))
+      (multiple-value-bind (ignore new-value foundp)
+          (get-properties initargs (slot-definition-initargs slotd))
+        (declare (ignore ignore))
+        (cond (foundp
+               ;; an initarg for the slot was passed to this function
+               ;; Typecheck the new-value, then call
+               ;; (SETF SLOT-VALUE-USING-CLASS)
+                (unless (funcall predicate new-value)
+                  (error 'bad-slot-type-from-initarg
+                         :slot-definition slotd
+                         :instance instance
+                         :datum new-value
+                         :expected-type  (slot-definition-type slotd)
+                         :initarg-name (car foundp)))
+                (setf (slot-value-using-class class instance slotd) new-value))
+              ((and (or (eq slot-names t)
+                        (member (slot-definition-name slotd)
+                                slot-names
+                                :test #'eq))
+                    (not (slot-boundp-using-class class instance slotd)))
+               ;; If the slot name is among the specified slot names, or
+               ;; we're reinitializing all slots, and the slot is currently
+               ;; unbound in the instance, set the slot's value based
+               ;; on the initfunction (which captures the :INITFORM).
+               (let* ((initfunction (slot-definition-initfunction slotd)))
+                 (if initfunction
+                   (let* ((newval (funcall initfunction)))
+                     (unless (funcall predicate newval)
+                       (error 'bad-slot-type-from-initform
+                              :slot-definition slotd
+                              :expected-type (slot-definition-type slotd)
+                              :datum newval
+                              :instance instance))
+                     (setf (slot-value-using-class class instance slotd)
+                           newval))))))))))
+  instance)
