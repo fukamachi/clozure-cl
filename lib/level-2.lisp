@@ -335,7 +335,6 @@
   (%eval-redef %null-ptr-p (ptr))
 
 
-  (%eval-redef %newgotag ())
   (%eval-redef %iasr (x y))
 
   
