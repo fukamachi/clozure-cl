@@ -1061,6 +1061,7 @@
     (la sp ppc32::lisp-frame.size sp))
   (lwz loc-pc ppc32::lisp-frame.savelr sp)
   (lwz fn ppc32::lisp-frame.savefn sp)
+  (mr old-fn fn)
   (lwz imm0 ppc32::lisp-frame.savevsp sp)
   (sub vsp imm0 nargs)
   (mtlr loc-pc)
