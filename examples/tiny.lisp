@@ -25,10 +25,10 @@
 
 
 ;;; Define the DemoView class 
-;;; NOTE: This will be replaced by a DEFCLASS once ObjC objects have been
-;;;       integrated into CLOS
 
-(def-objc-class demo-view ns-view)
+(defclass demo-view (ns:ns-view)
+  ()
+  (:metaclass ns:+ns-object))
 
 
 ;;; Define the drawRect: method for DemoView 
@@ -73,8 +73,8 @@
 (defun tiny-setup ()
   (with-autorelease-pool
    (slet ((r (ns-make-rect 100.0 350.0 400.0 400.0)))
-	 (let ((w (make-objc-instance 
-		   'ns-window
+	 (let ((w (make-instance 
+		   'ns:ns-window
 		   :with-content-rect r
 		   :style-mask (logior #$NSTitledWindowMask 
 				       #$NSClosableWindowMask 
@@ -82,7 +82,7 @@
 		   :backing #$NSBackingStoreBuffered
 		   :defer nil)))
 	   (send w :set-title #@"Tiny Window Application")
-	   (let ((my-view (make-objc-instance 'demo-view :with-frame r)))
+	   (let ((my-view (make-instance 'demo-view :with-frame r)))
 	     (send w :set-content-view my-view)
 	     (send w :set-delegate my-view))
 	   (send w :make-key-and-order-front nil)
