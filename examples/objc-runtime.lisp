@@ -53,7 +53,6 @@
 
 (defloadvar *NSApp* nil )
 
-(declaim (special *default-bundle-path* *default-bundle-executable-path*))
 
 (defun ensure-objc-classptr-resolved (classptr)
   #+apple-objc (declare (ignore classptr))
@@ -166,27 +165,10 @@
   (map-splay-tree (objc-class-map) #'(lambda (id)
 				       (funcall f (id->objc-class id)))))
 
-(eval-when (:load-toplevel :execute)
-  (unless (boundp '*default-bundle-path*)
-    (error "The variable ~s should be set to point to the application bundle path" '*default-bundle-path*))
-  (unless (probe-file *default-bundle-path*)
-    (error "The bundle directory ~s doesn't exist."))
-  (unless (boundp '*default-bundle-executable-path*)
-    (error "The variable ~S should be set to point to the bundle executable file in ~s" '*default-bundle-executable-path* '*default-bundle-path*))
-  (unless (probe-file *default-bundle-executable-path*)
-    (cerror "Create it"
-	    "The executable file ~s does not exist."
-	    *default-bundle-executable-path*)
-    (create-file *default-bundle-executable-path*)))
+
 
 #+darwinppc-target
 (progn
-(defun fake-cfbundle-path ()
-  (when *default-bundle-path*
-    (let* ((fakepath
-            (native-translated-namestring *default-bundle-executable-path*)))
-      (setenv "CFProcessPath" fakepath))))
-
 (defloadvar *cocoa-event-process* *initial-process*)
 
 (defun run-in-cocoa-process-and-wait  (f)
@@ -202,8 +184,6 @@
     (car success)))
 
 
-
-(fake-cfbundle-path)
 
 
 (def-ccl-pointers cocoa-framework ()
@@ -1361,9 +1341,7 @@ client methods" classname))
 					selector-name)))
 	       (self (intern "SELF"))
 	       (_cmd (intern "_CMD"))
-	       ;; SUPER should probably be a gensym, but that'd break
-	       ;; the old [:super ...] construct
-	       (super 'super) 
+	       (super (gensym "SUPER")) 
 	       (params `(:id ,self :<sel> ,_cmd ,@argspecs)))
 	  `(progn
 	    (with-ivar-symbol-macros
@@ -1390,7 +1368,8 @@ client methods" classname))
 		      (flet ((%send-super (msg &rest args)
 			       (make-general-send nil msg args nil ,super ,class-name))
 			     (%send-super/stret (s msg &rest args)
-			       (make-general-send nil msg args s ,super ,class-name)))
+			       (make-general-send nil msg args s ,super ,class-name))
+			     (super () ,super))
 			,@body)))))
 	    (%define-lisp-objc-method
 	     ',impname
