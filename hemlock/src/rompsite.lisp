@@ -644,26 +644,13 @@
 
 (defun editor-sleep (time)
   "Sleep for approximately Time seconds."
-  #+maybe-someday
   (unless (or (zerop time) (listen-editor-input *editor-input*))
-    (internal-redisplay)
+    ;(internal-redisplay)
     (sleep-for-time time)
     nil))
 
 (defun sleep-for-time (time)
-  (let ((nrw-fun (device-note-read-wait
-		  (device-hunk-device (window-hunk (current-window)))))
-	(end (+ (get-internal-real-time)
-		(truncate (* time internal-time-units-per-second)))))
-    (loop
-      (when (listen-editor-input *editor-input*)
-	(return))
-      (let ((left (- end (get-internal-real-time))))
-	(unless (plusp left) (return nil))
-	(when nrw-fun (funcall nrw-fun t))
-	(hemlock-ext:serve-event (/ (float left)
-                                    (float internal-time-units-per-second)))))
-    (when nrw-fun (funcall nrw-fun nil))))
+  (timed-wait-for-key-event *editor-input* time))
 
 
 
