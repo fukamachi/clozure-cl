@@ -237,7 +237,7 @@
        (list-subseq* sequence start end)
        (let* ((typecode (typecode sequence)))
 	 (declare (fixnum typecode))
-	 (when (= typecode target::subtag-arrayH)
+	 (when (= typecode target::subtag-vectorH)
 	   (multiple-value-bind (data offset)
 	       (array-data-and-offset sequence)
 	     (declare (fixnum offset))
