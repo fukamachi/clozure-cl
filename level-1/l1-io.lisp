@@ -784,8 +784,14 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                  (write-abbreviate-quote head tail stream level-1))
         (progn
           (pp-start-block stream #\()
-          (write-internal stream head level-1 nil)
-          (write-internal-1 stream tail level-1 (%i- print-length 1))
+          (if (= print-length 0)
+              (%write-string "..." stream)
+              (progn
+                (write-internal stream head level-1 nil)
+                (write-internal-1 stream tail level-1
+                                  (if (atom tail)
+                                      print-length
+                                      (%i- print-length 1)))))
           (pp-end-block stream #\))))))
 
 ;;;; hack for quote and backquote
