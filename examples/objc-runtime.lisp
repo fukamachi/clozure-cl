@@ -141,15 +141,16 @@
               (splay-tree-count objc-class-map) 0
               (splay-tree-count objc-metaclass-map) 0
               next-objc-class-id 0)))
-    (defun map-objc-class (class &optional (class-name
-					    (objc-to-lisp-classname
-					     (%get-cstring
-					      (pref class :objc_class.name))
-					     "NS")
-					    class-name-p))
+    (defun map-objc-class (class &optional (name nil name-p))
       "ensure that the class (and metaclass) are mapped to a small integer"
       (with-lock-grabbed (objc-class-lock)
-	(labels ((ensure-mapped-class (class)
+	(labels ((ensure-mapped-class (class &optional
+					     (class-name
+					      (objc-to-lisp-classname
+					       (%get-cstring
+						(pref class :objc_class.name))
+					       "NS")
+					      class-name-p))
 		   (ensure-objc-classptr-resolved class)
 		   (with-macptrs ((super (pref class :objc_class.super_class)))
 		     (unless (%null-ptr-p super)
@@ -185,7 +186,9 @@
 			       (find-class metaclass-name) meta)
 			 )
 			 id))))
-	  (ensure-mapped-class class))))
+	  (if name-p
+	    (ensure-mapped-class class name)
+	    (ensure-mapped-class class)))))
     (defun objc-class-id (class)
       (with-lock-grabbed (objc-class-lock)
         (splay-tree-get objc-class-map class)))
