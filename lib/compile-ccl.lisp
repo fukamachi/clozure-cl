@@ -168,6 +168,8 @@
 	arglist
 	edit-callers
         describe
+	asdf
+	defsystem
 ))
 
 

@@ -226,5 +226,7 @@
  (solaris-records  "ccl:library;solaris-records" ("ccl:library;solaris-records.lisp"))
  (source-files     "ccl:bin;source-files"     ("ccl:lib;source-files.lisp"))
  
- (prepare-mcl-environment "ccl:bin;prepare-mcl-environment" ("ccl:lib;prepare-mcl-environment.lisp"))))
+ (prepare-mcl-environment "ccl:bin;prepare-mcl-environment" ("ccl:lib;prepare-mcl-environment.lisp"))
+ (defsystem        "ccl:tools;defsystem"      ("ccl:tools;defsystem.lisp"))
+ (asdf             "ccl:tools;asdf"	    ("ccl:tools;asdf.lisp"))))
 
