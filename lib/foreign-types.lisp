@@ -1570,7 +1570,7 @@
 		    :unsigned-fullword
 		    (if (<= bits 64)
 		      :unsigned-doubleword)))))))
-	 (foreign-record-type
+	 ((or foreign-record-type foreign-array-type)
 	  (let* ((bits (ensure-foreign-type-bits ftype)))
 	    (ceiling bits 32))))
        (error "can't determine representation keyword for ~s" f)))))
