@@ -952,55 +952,41 @@ congruent with lambda lists of existing methods." lambda-list gf)))
     (signal-program-error "Bad keyword ~s to ~s.~%keyargs: ~s~%allowable keys are ~a." key gf l readable-keys)))
 
 ; vector arg is (vector key-index keyvect combined-method) ; the next combined method
-#|
+
 (defun %%check-keywords (vector-arg args)
   (flet ((do-it (vector-arg args)
            (let* ((args-len (length args))
                   (keyvect (%svref vector-arg 1))
                   (keyvect-len (length keyvect))
                   (key-index (%svref vector-arg 0)))
-             ; vector arg is (vector key-index keyvect combined-method) ; the next combined method
+					; vector arg is (vector key-index keyvect combined-method) ; the next combined method
              (declare (fixnum args-len key-index keyvect-len))
              (when (>= args-len key-index)
-               (let* ((keys-in (- args-len key-index))
-                      aok)  ; actually * 2
+               (let* ((keys-in (- args-len key-index)))	; actually * 2
                  (declare (fixnum  key-index keys-in keyvect-len))
                  (when (logbitp 0 keys-in) (odd-keys-error vector-arg (collect-lexpr-args args key-index args-len)))
-		 (setq aok (%cadr (pl-search args :allow-other-keys)))
-                 (do ((i key-index (+ i 2))
-                      (kargs (nthcdr key-index args) (cddr kargs)))
-                     ((eq i args-len))
-                   (declare (fixnum i))
-                   (when aok (return))
-                   (let ((key (car kargs)))
-                     (when (and (eq key :allow-other-keys)
-                                (cadr kargs))
-                       (return))
-                     (when (not (dotimes (i keyvect-len nil)
-                                  (if (eq key (%svref keyvect i))
-                                    (return t))))
-                       ; not found - is :allow-other-keys t in rest of user args
-                       (when (not (do ((remargs kargs (cddr remargs)))
-                                      ((null remargs) nil)
-                                    (when (and (eq (car remargs) :allow-other-keys)
-                                               (cadr remargs))
-                                      (setq aok t)
-                                      (return t))))              
-                         (bad-key-error key vector-arg (collect-lexpr-args args key-index args-len))))))))
+		 (unless (%cadr (%pl-search (nthcdr key-index args) :allow-other-keys))
+		   (do ((i key-index (+ i 2))
+			(kargs (nthcdr key-index args) (cddr kargs)))
+		       ((eq i args-len))
+		     (declare (fixnum i))
+		     (let ((key (car kargs)))
+		       (when (not (or (eq key :allow-other-keys)
+				      (dotimes (i keyvect-len nil)
+					(if (eq key (%svref keyvect i))
+					  (return t)))))
+			 (bad-key-error key vector-arg (collect-lexpr-args args key-index args-len))
+			 ))))))
              (let ((method (%svref vector-arg 2)))
-               ; magic here ?? not needed
+					; magic here ?? not needed
                (apply method args)))))
     (if (listp args)
       (do-it vector-arg args)
       (with-list-from-lexpr (args-list args)
         (do-it vector-arg args-list)))))
-|#
 
-(defun %%check-keywords (vector-arg args)
-  (let ((method (%svref vector-arg 2)))
-    (if (listp args)
-      (apply method args)
-      (%apply-lexpr-tail-wise method args))))
+
+
   
 
 
