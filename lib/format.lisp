@@ -720,7 +720,7 @@
                                 (*format-original-arguments* args))
                            (declare (special *format-colon-rest*))
                            (unless (listp *format-arguments*)
-                             (format-error "Argument must be a list"))
+                             (report-bad-arg *format-arguments* 'list))
                            (if (functionp start)
                              (apply start stream args)
                              (sub-format stream start end)))
@@ -739,7 +739,7 @@
                (*format-top-level* nil)
                (*format-original-arguments* *format-arguments*))
           (unless (listp *format-arguments*)
-            (format-error "Argument must be a list"))
+            (report-bad-arg *format-arguments* 'list))
           (do-iteration-1 stream start end colon at-least-once-p)))))
   
 
