@@ -183,7 +183,7 @@
   #'(lambda (stream char arg)
       (declare (ignore stream))
       (if *read-suppress* 
-        (values)
+        nil
         (if arg
           (let ((pair (assoc arg %read-objects%))) ;Not assq, could be bignum!
             (if pair
