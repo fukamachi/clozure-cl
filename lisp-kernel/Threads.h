@@ -37,8 +37,6 @@
 
 Boolean threads_initialized;
 
-/* #define TCR_BIAS (0x7000) */
-#define TCR_BIAS (0)
 #define TCR_TO_TSD(tcr) ((void *)((natural)(tcr)+TCR_BIAS))
 #define TCR_FROM_TSD(tsd) ((TCR *)((natural)(tsd)-TCR_BIAS))
 
@@ -59,11 +57,11 @@ typedef semaphore_t SEMAPHORE;
 typedef struct
 {
   signed_natural avail;
-  NATURAL_POINTER_FIELD(TCR,owner);
+  TCR* owner;
   signed_natural  count;
-  NATURAL_POINTER_FIELD(void,signal);
+  void* signal;
   signed_natural waiting;
-  NATURAL_POINTER_FIELD(void,malloced_ptr);
+  void *malloced_ptr;
 } _recursive_lock, *RECURSIVE_LOCK;
 
 
