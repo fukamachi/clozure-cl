@@ -310,3 +310,5 @@
     ccl::%finalization-alist%
     ccl::%foreign-thread-control
     ))
+
+(provide "PPC-ARCH")
