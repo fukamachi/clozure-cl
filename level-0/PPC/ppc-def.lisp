@@ -123,7 +123,7 @@
   (beq cr0 @store)
   (beq cr1 @bignum)
   @notu32
-  (uuo_interr ppc32::error-object-not-unsigned-byte-32 new-value)
+  (uuo_interr arch::error-object-not-unsigned-byte-32 new-value)
   @bignum
   (getvheader imm0 new-value)
   (cmpwi cr1 imm0 ppc32::one-digit-bignum-header)
@@ -962,13 +962,13 @@
                                                    (function arg_y)
                                                    (args arg_z))
   ; Somebody's called (or tail-called) us.
-  ; Put magic arg in ppc32::next-method-context (= ppc32::temp1).
-  ; Put function in ppc32::nfn (= ppc32::temp2).
+  ; Put magic arg in ppc::next-method-context (= ppc::temp1).
+  ; Put function in ppc::nfn (= ppc::temp2).
   ; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;   but preserves ppc32::nfn/ppc32::next-method-context.
-  ; Jump to the function in ppc32::nfn.
-  (mr ppc32::next-method-context magic)
-  (mr ppc32::nfn function)
+  ;   but preserves ppc::nfn/ppc::next-method-context.
+  ; Jump to the function in ppc::nfn.
+  (mr ppc::next-method-context magic)
+  (mr ppc::nfn function)
   (set-nargs 0)
   (mflr loc-pc)
   (bla .SPspread-lexpr-z)
@@ -982,13 +982,13 @@
                                                (function arg_y)
                                                (args arg_z))
   ;; Somebody's called (or tail-called) us.
-  ;; Put magic arg in ppc32::next-method-context (= ppc32::temp1).
-  ;; Put function in ppc32::nfn (= ppc32::temp2).
+  ;; Put magic arg in ppc::next-method-context (= ppc::temp1).
+  ;; Put function in ppc::nfn (= ppc::temp2).
   ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;;   but preserves ppc32::nfn/ppc32::next-method-context.
-  ;; Jump to the function in ppc32::nfn.
-  (mr ppc32::next-method-context magic)
-  (mr ppc32::nfn function)
+  ;;   but preserves ppc::nfn/ppc::next-method-context.
+  ;; Jump to the function in ppc::nfn.
+  (mr ppc::next-method-context magic)
+  (mr ppc::nfn function)
   (set-nargs 0)
   (mflr loc-pc)
   (bla .SPspreadargZ)
