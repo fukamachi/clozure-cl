@@ -24,7 +24,7 @@
 	  ,@body)))))
 
 
-(defun pakage-name-change-hook (name kind where new-value)
+(defun package-name-change-hook (name kind where new-value)
   (declare (ignore name new-value))
   (if (eq kind :buffer)
     (hi::queue-buffer-change where)))
@@ -446,20 +446,22 @@ between the region's start and end, and if there are no ill-formed expressions i
 	   (editor-error "No current or next top level form."))
 	  (t (region start end)))))
 
+(defun eval-region (region
+		    &key
+		    (package (value current-package))
+		    (path (buffer-pathname (current-buffer))))
+  (evaluate-input-selection
+   (ccl::make-input-selection
+    :package package
+    :source-file path
+    :string-stream (make-string-input-stream
+		    (region-to-string region)))))		    
+       
+					
+
 (defun editor-compile-region (region &optional quiet)
   (unless quiet (message "Compiling region ..."))
-  (in-lisp
-   (with-input-from-region (stream region)
-     (with-pop-up-display (*error-output* :height 19)
-       ;; JDz: We don't record source locations and what not, but this
-       ;; is portable.  CMUCL specific implementation removed because
-       ;; it does not work on HEMLOCK-REGION-STREAM (but it can be
-       ;; added back later if CMUCL starts using user-extensible
-       ;; streams internally.)
-       (funcall (compile nil `(lambda ()
-                                ,@(loop for form = (read stream nil stream)
-                                        until (eq form stream)
-                                        collect form))))))))
+  (eval-region region))
 
 
 (defcommand "Editor Evaluate Defun" (p)
@@ -468,27 +470,14 @@ between the region's start and end, and if there are no ill-formed expressions i
   "Evaluates the current or next top-level form in the editor Lisp."
   (declare (ignore p))
   (if (region-active-p)
-      (editor-evaluate-region-command nil)
-      (with-input-from-region (stream (defun-region (current-point)))
-	(clear-echo-area)
-	(in-lisp
-	 (message "Editor Evaluation returned ~S"
-		  (eval (read stream)))))))
+    (editor-evaluate-region-command nil)
+    (eval-region (defun-region (current-point)))))
 
 (defcommand "Editor Evaluate Region" (p)
   "Evaluates lisp forms between the point and the mark in the editor Lisp."
   "Evaluates lisp forms between the point and the mark in the editor Lisp."
   (declare (ignore p))
-  (with-input-from-region (stream (current-region))
-    (clear-echo-area)
-    (write-string "Evaluating region in the editor ..." *echo-area-stream*)
-    (finish-output *echo-area-stream*)
-    (in-lisp
-     (do ((object (read stream nil lispbuf-eof) 
-		  (read stream nil lispbuf-eof)))
-	 ((eq object lispbuf-eof))
-       (eval object)))
-    (message "Evaluation complete.")))
+  (eval-region (current-region)))
            
 (defcommand "Editor Re-evaluate Defvar" (p)
   "Evaluate the current or next top-level form if it is a DEFVAR.  Treat the
