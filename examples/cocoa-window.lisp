@@ -96,7 +96,7 @@
 
 (define-objc-method ("_shouldTerminate" lisp-application)
   (:<BOOL>)
-  (setq termp (objc-message-send-super super "_shouldTerminate" :<BOOL>)))
+  (setq termp (objc-message-send-super (super) "_shouldTerminate" :<BOOL>)))
 
 (define-objc-method ((:<BOOL> termp) lisp-application)
   termp)
