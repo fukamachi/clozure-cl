@@ -53,12 +53,12 @@
 ;       ARGS will be filled with NIL up to the number of required args to lfun
 ; NCLOSED is the number of closed-over values that are in the prefix of ARGS
 ;       If COUNT < NCLOSED, it is not safe to restart the function.
-(defun frame-supplied-args (frame lfun pc child tcr)
+(defun frame-supplied-args (frame lfun pc child context)
   (declare (ignore child))
   (multiple-value-bind (req opt restp keys allow-other-keys optinit lexprp ncells nclosed)
                        (function-args lfun)
     (declare (ignore allow-other-keys lexprp ncells))
-    (let* ((vsp (1- (frame-vsp (parent-frame frame tcr))))
+    (let* ((vsp (1- (frame-vsp (parent-frame frame context))))
            (child-vsp (1- (frame-vsp frame)))
            (frame-size (- vsp child-vsp))
            (res nil)
@@ -147,13 +147,14 @@
 ; nth-frame-info, set-nth-frame-info, & frame-lfun are in "inspector;new-backtrace"
 
 
-(defun last-catch-since (sp tcr)
-  (let ((catch (%catch-top tcr))
-        (last-catch nil))
+(defun last-catch-since (sp context)
+  (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+         (catch (%catch-top tcr))
+         (last-catch nil))
     (loop
       (unless catch (return last-catch))
       (let ((csp (uvref catch ppc32::catch-frame.csp-cell)))
-        (when (%stack< sp csp tcr) (return last-catch))
+        (when (%stack< sp csp context) (return last-catch))
         (setq last-catch catch
               catch (next-catch catch))))))
 
@@ -196,15 +197,15 @@
 ; This isn't quite right - has to look at all functions on stack, not just those that saved VSPs.
 
 
-(defun frame-restartable-p (target &optional (tcr (%current-tcr)))
-  (multiple-value-bind (frame last-catch srv) (last-catch-since-saved-vars target tcr)
+(defun frame-restartable-p (target &optional context)
+  (multiple-value-bind (frame last-catch srv) (last-catch-since-saved-vars target context)
     (when frame
       (loop
         (when (null frame)
           (return-from frame-restartable-p nil))
         (when (eq frame target) (return))
         (multiple-value-setq (frame last-catch srv)
-          (ccl::parent-frame-saved-vars tcr frame last-catch srv srv)))
+          (ccl::parent-frame-saved-vars context frame last-catch srv srv)))
       (when (and srv (eql 0 (srv.unresolved srv)))
         (setf (srv.unresolved srv) last-catch)
         srv))))
@@ -235,26 +236,26 @@
     srv-out))
 
 (defun parent-frame-saved-vars 
-       (tcr frame last-catch srv &optional (srv-out (%cons-saved-register-vector)))
+       (context frame last-catch srv &optional (srv-out (%cons-saved-register-vector)))
   (copy-srv srv srv-out)
-  (let* ((parent (and frame (parent-frame frame tcr)))
-         (grand-parent (and parent (parent-frame parent tcr))))
+  (let* ((parent (and frame (parent-frame frame context)))
+         (grand-parent (and parent (parent-frame parent context))))
     (when grand-parent
       (loop (let ((next-catch (and last-catch (next-catch last-catch))))
               ;(declare (ignore next-catch))
-              (if (and next-catch (%stack< (catch-frame-sp next-catch) grand-parent tcr))
+              (if (and next-catch (%stack< (catch-frame-sp next-catch) grand-parent context))
                 (progn
                   (setf last-catch next-catch
                         (srv.unresolved srv-out) 0)
                   (dotimes (i *saved-register-count*)
                     (setf (srv.register-n srv i) nil)))
                 (return))))
-      (lookup-registers parent tcr grand-parent srv-out)
+      (lookup-registers parent context grand-parent srv-out)
       (values parent last-catch srv-out))))
 
-(defun lookup-registers (parent tcr grand-parent srv-out)
+(defun lookup-registers (parent context grand-parent srv-out)
   (unless (or (eql (frame-vsp grand-parent) 0)
-              (let ((gg-parent (parent-frame grand-parent tcr)))
+              (let ((gg-parent (parent-frame grand-parent context)))
                 (eql (frame-vsp gg-parent) 0)))
     (multiple-value-bind (lfun pc) (cfp-lfun parent)
       (when lfun
@@ -277,17 +278,17 @@
                               (%ilogand (srv.unresolved srv-out) (%ilognot (%ilsl j 1))))))))))))))))
 
 ; initialization for looping on parent-frame-saved-vars
-(defun last-catch-since-saved-vars (frame tcr)
-  (let* ((parent (parent-frame frame tcr))
-         (last-catch (and parent (last-catch-since parent tcr))))
+(defun last-catch-since-saved-vars (frame context)
+  (let* ((parent (parent-frame frame context))
+         (last-catch (and parent (last-catch-since parent context))))
     (when last-catch
       (let ((frame (catch-frame-sp last-catch))
             (srv (%cons-saved-register-vector)))
         (setf (srv.unresolved srv) 0)
-        (let* ((parent (parent-frame frame tcr))
-               (child (and parent (child-frame parent tcr))))
+        (let* ((parent (parent-frame frame context))
+               (child (and parent (child-frame parent context))))
           (when child
-            (lookup-registers child tcr parent srv))
+            (lookup-registers child context parent srv))
           (values child last-catch srv))))))
 
 ; Returns 2 values:
@@ -346,36 +347,37 @@
   (apply-in-nth-frame n #'values values))
 
 (defun apply-in-nth-frame (n fn arglist)
-  (let* ((bt-info (car *backtrace-dialogs*)))
+  (let* ((bt-info (car *backtrace-contexts*)))
     (and bt-info
-         (let* ((frame (nth-frame nil (bt.youngest bt-info) n)))
+         (let* ((frame (nth-frame nil (bt.youngest bt-info) n bt-info)))
            (and frame (apply-in-frame frame fn arglist)))))
   (format t "Can't return to frame ~d ." n))
 
 ; This method is shadowed by one for the backtrace window.
-(defmethod nth-frame (w target n &aux (tcr (%current-tcr)))
+(defmethod nth-frame (w target n context)
   (declare (ignore w))
   (and target (dotimes (i n target)
                 (declare (fixnum i))
-                (unless (setq target (parent-frame target tcr)) (return nil)))))
+                (unless (setq target (parent-frame target context)) (return nil)))))
 
 ; If this returns at all, it's because the frame wasn't restartable.
-(defun apply-in-frame (frame fn arglist &optional (tcr (%current-tcr)))
-  (let* ((srv (frame-restartable-p frame tcr))
+(defun apply-in-frame (frame fn arglist &optional context)
+  (let* ((srv (frame-restartable-p frame context))
          (target-sp (and srv (srv.unresolved srv))))
     (if target-sp
-      (apply-in-frame-internal tcr frame fn arglist srv))))
+      (apply-in-frame-internal context frame fn arglist srv))))
 
-(defun apply-in-frame-internal (tcr frame fn arglist srv)
-  (if (eq tcr (%current-tcr))
-    (%apply-in-frame frame fn arglist srv)
-    (let ((process (tcr->process tcr)))
-      (if process
-        (process-interrupt
-         process
-         #'%apply-in-frame
-         frame fn arglist srv)
-        (error "Can't find active process for ~s" tcr)))))
+(defun apply-in-frame-internal (context frame fn arglist srv)
+  (let* ((tcr (if context (bt.tcr context) (%current-tcr))))
+    (if (eq tcr (%current-tcr))
+      (%apply-in-frame frame fn arglist srv)
+      (let ((process (tcr->process tcr)))
+        (if process
+          (process-interrupt
+           process
+           #'%apply-in-frame
+           frame fn arglist srv)
+          (error "Can't find active process for ~s" tcr))))))
 
 
 

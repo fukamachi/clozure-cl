@@ -26,26 +26,27 @@
 ; This PRINTS the call history on *DEBUG-IO*.  It's more dangerous (because of
 ;  stack consing) to actually return it.
                                
-(defun print-call-history (&key (tcr (%current-tcr))
+(defun print-call-history (&key context
                                 (start-frame (%get-frame-ptr))
                                 (detailed-p t)
                                 (count most-positive-fixnum))
-  (if (eq tcr (%current-tcr))
-    (%print-call-history-internal tcr start-frame detailed-p count)
-    (unwind-protect
-	 (progn
-	   (%suspend-tcr tcr )
-	   (%print-call-history-internal tcr start-frame detailed-p
-					 count))
-      (%resume-tcr tcr)))
-  (values))
+  (let* ((tcr (if context (bt.tcr context) (%current-tcr))))          
+    (if (eq tcr (%current-tcr))
+      (%print-call-history-internal context start-frame detailed-p count)
+      (unwind-protect
+           (progn
+             (%suspend-tcr tcr )
+             (%print-call-history-internal context start-frame detailed-p
+                                           count))
+        (%resume-tcr tcr)))
+    (values)))
 
-(defun %show-stack-frame (p tcr lfun pc)
-  (multiple-value-bind (count vsp parent-vsp) (count-values-in-frame p tcr)
+(defun %show-stack-frame (p context lfun pc)
+  (multiple-value-bind (count vsp parent-vsp) (count-values-in-frame p context)
     (declare (fixnum count))
     (dotimes (i count)
       (multiple-value-bind (var type name) 
-          (nth-value-in-frame p i tcr lfun pc vsp parent-vsp)
+          (nth-value-in-frame p i context lfun pc vsp parent-vsp)
         (format t "~&  ~D " i)
         (when name (format t "~s" name))
         (format t ": ~s" var)
@@ -53,14 +54,14 @@
   (terpri)
   (terpri))
 
-(defun %print-call-history-internal (tcr start-frame detailed-p
+(defun %print-call-history-internal (context start-frame detailed-p
 					 &optional (count most-positive-fixnum))
   (let ((*standard-output* *debug-io*)
         (*print-circle* *error-print-circle*))
-    (do* ((p start-frame (parent-frame p tcr))
+    (do* ((p start-frame (parent-frame p context))
           (frame-number 0 (1+ frame-number))
-          (q (last-frame-ptr tcr)))
-         ((or (null p) (eq p q) (%stack< q p tcr)
+          (q (last-frame-ptr context)))
+         ((or (null p) (eq p q) (%stack< q p context)
               (>= frame-number count))
           (values))
       (declare (fixnum frame-number frames-shown))
@@ -73,7 +74,7 @@
                     (if lfun (%lfun-name-string lfun))
                     pc)
             (when detailed-p
-              (%show-stack-frame p tcr lfun pc))))))))
+              (%show-stack-frame p context lfun pc))))))))
 
 
 (defun %access-lisp-data (vstack-index)

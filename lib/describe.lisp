@@ -1540,6 +1540,7 @@
    (stack-start :initarg :stack-start :initform (ccl::%get-frame-ptr) :reader stack-start)
    (stack-end :initarg :stack-end :initform (ccl::last-frame-ptr) :reader stack-end)
    (tcr :initarg :tcr :initform (ccl::%current-tcr) :reader tcr)
+   (context :initarg :context :reader context)
    (frame-count :accessor frame-count)
    (ignored-functions :accessor ignored-functions
                       :initform (and *backtrace-hide-internal-functions-p*
@@ -1571,73 +1572,72 @@
 
 (defmethod initialize-addresses ((f error-frame))
   (let ((end (stack-end f)))
-    (flet ((skip-to-important-frame (frame tcr)
+    (flet ((skip-to-important-frame (frame context)
              (loop for this? = (or (eq frame end)
                                    (not (ignore-function-in-backtrace?
                                          f
                                          (ccl::cfp-lfun frame))))
                    until this?
-                   do (setf frame (ccl::parent-frame frame tcr))
+                   do (setf frame (ccl::parent-frame frame context))
                    finally (return frame))))
       (setf (slot-value f 'stack-start)
-            (skip-to-important-frame (stack-start f) (tcr f)))))
-  
-      (let* ((count 0)
-             (tcr (tcr f))
-             (p (stack-start f))
-             (p-child (ccl::child-frame p tcr))
-             (q (stack-end f))
-             (period (sampling-period f))
-             (addresses nil)
-             (last-frame nil))
-        (multiple-value-bind (frame catch srv)
-                             (ccl::last-catch-since-saved-vars p-child tcr)
-          (loop
-            (if (null frame) (error "Can't find saved vars info"))
-            (if (eq frame p-child) (return))
-            (multiple-value-setq (frame catch srv)
-              (ccl::parent-frame-saved-vars tcr frame catch srv srv)))
-          (push (vector p-child catch (ccl::copy-srv srv))
-                addresses)
-          (setq last-frame frame)
-          (multiple-value-setq (frame catch srv)
-            (ccl::parent-frame-saved-vars tcr frame catch srv srv))
-          (unless (eq frame p) (error "(~s (~s ~d)) <> ~d"
-                                      'ccl::parent-frame 'ccl::child-frame p p))
-          (push (vector frame catch (ccl::copy-srv srv))
-                addresses)
-          (flet ((done-p ()
-                     (or (null frame) (eql last-frame q))))
-             (block loop
-                (do* ((cnt (1+ period)))
-                     ((done-p))
-                  (loop while (ignore-function-in-backtrace?
-                             f (ccl::cfp-lfun frame))
-                      do 
-                      (setq last-frame frame)
-                      (multiple-value-setq (frame catch srv)
-                        (ccl::parent-frame-saved-vars tcr frame catch srv srv))
-                      (when (done-p) (return-from loop)))
-                  (when (eql 0 (decf cnt))
-                    (setq cnt period)
-                    (push (vector frame catch (ccl::copy-srv srv))
-                          addresses))
+            (skip-to-important-frame (stack-start f) (context f)))))
+  (let* ((count 0)
+         (context (context f))
+         (p (stack-start f))
+         (p-child (ccl::child-frame p context))
+         (q (stack-end f))
+         (period (sampling-period f))
+         (addresses nil)
+         (last-frame nil))
+    (multiple-value-bind (frame catch srv)
+        (ccl::last-catch-since-saved-vars p-child context)
+      (loop
+        (if (null frame) (error "Can't find saved vars info"))
+        (if (eq frame p-child) (return))
+        (multiple-value-setq (frame catch srv)
+          (ccl::parent-frame-saved-vars context frame catch srv srv)))
+      (push (vector p-child catch (ccl::copy-srv srv))
+            addresses)
+      (setq last-frame frame)
+      (multiple-value-setq (frame catch srv)
+        (ccl::parent-frame-saved-vars context frame catch srv srv))
+      (unless (eq frame p) (error "(~s (~s ~d)) <> ~d"
+                                  'ccl::parent-frame 'ccl::child-frame p p))
+      (push (vector frame catch (ccl::copy-srv srv))
+            addresses)
+      (flet ((done-p ()
+               (or (null frame) (eql last-frame q))))
+        (block loop
+          (do* ((cnt (1+ period)))
+               ((done-p))
+            (loop while (ignore-function-in-backtrace?
+                         f (ccl::cfp-lfun frame))
+                  do 
                   (setq last-frame frame)
                   (multiple-value-setq (frame catch srv)
-                    (ccl::parent-frame-saved-vars tcr frame catch srv srv))
-                  (incf count))))
-          (setf (frame-count f) count
-                (addresses f) (list-to-vector (nreverse addresses))))))
+                    (ccl::parent-frame-saved-vars context frame catch srv srv))
+                  (when (done-p) (return-from loop)))
+            (when (eql 0 (decf cnt))
+              (setq cnt period)
+              (push (vector frame catch (ccl::copy-srv srv))
+                    addresses))
+            (setq last-frame frame)
+            (multiple-value-setq (frame catch srv)
+              (ccl::parent-frame-saved-vars context frame catch srv srv))
+            (incf count))))
+      (setf (frame-count f) count
+            (addresses f) (list-to-vector (nreverse addresses))))))
 
 (defun error-frame-n (error-frame n)
   (let* ((addresses (addresses error-frame))
          (period (sampling-period error-frame))
-	 (tcr (tcr error-frame))
+	 (context (context error-frame))
          p child)
     (flet ((skipping-uninteresting-parent-frames (child)
             (loop while (ignore-function-in-backtrace? 
-                         error-frame (ccl::cfp-lfun (ccl::parent-frame child tcr)))
-                  do (setq child (ccl::parent-frame child tcr))
+                         error-frame (ccl::cfp-lfun (ccl::parent-frame child context)))
+                  do (setq child (ccl::parent-frame child context))
                   finally (return child))))
       (unless (< -1 n (frame-count error-frame))
         (setq n (require-type n `(integer 0 ,(1- (frame-count error-frame))))))
@@ -1650,8 +1650,8 @@
           (dotimes (i offset)
             (declare (fixnum i))
             (setq child (skipping-uninteresting-parent-frames 
-                         (ccl::parent-frame child tcr))))
-          (setq p (ccl::parent-frame child tcr))))
+                         (ccl::parent-frame child context))))
+          (setq p (ccl::parent-frame child context))))
       (values p child))))
 
 (defmethod error-frame-address-n ((f error-frame) n)
@@ -1666,7 +1666,7 @@
 (defmethod error-frame-regs-n ((f error-frame) n)
   (let* ((addresses (addresses f))
          (period (sampling-period f))
-         (tcr (tcr f))
+         (context (context f))
          p child last-catch srv)
     (unless (< -1 n (frame-count f))
       (setq n (require-type n `(integer 0 ,(1- (frame-count f))))))
@@ -1683,18 +1683,18 @@
         (flet ((maybe-ignore ()
                  (loop while (ignore-function-in-backtrace? 
                               f
-                              (ccl::cfp-lfun (ccl::parent-frame child tcr))) 
+                              (ccl::cfp-lfun (ccl::parent-frame child context))) 
                      do (multiple-value-setq (child last-catch srv)
-                          (ccl::parent-frame-saved-vars tcr child last-catch srv srv)))))
+                          (ccl::parent-frame-saved-vars context child last-catch srv srv)))))
          (maybe-ignore)
            (dotimes (i offset)
              (declare (fixnum i))
              (multiple-value-setq (child last-catch srv)
-               (ccl::parent-frame-saved-vars tcr child last-catch srv srv))
+               (ccl::parent-frame-saved-vars context child last-catch srv srv))
             (maybe-ignore)
             ))))
     (unless child (error "shouldn't happen"))
-    (setq p (ccl::parent-frame child tcr))
+    (setq p (ccl::parent-frame child context))
     (multiple-value-bind (lfun pc) (ccl::cfp-lfun p)
       (values p lfun pc child last-catch srv))))
       
@@ -1735,20 +1735,22 @@
                                 target::area.high))))
 
                            
-(defmethod initialize-instance ((i stack-inspector) &rest initargs &key info)
+(defmethod initialize-instance ((i stack-inspector) &rest initargs &key context)
   (declare (dynamic-extent initargs))
-  (let* ((tcr (ccl::bt.tcr info))
-         (start (ccl::child-frame (ccl::parent-frame (ccl::bt.youngest info) tcr) tcr))
-         (end (ccl::child-frame (ccl::parent-frame (ccl::bt.oldest info) tcr) tcr)))
-    (apply #'call-next-method i
+  (let* ((start (ccl::child-frame (ccl::parent-frame (ccl::bt.youngest context) context) context))
+         (end (ccl::child-frame (ccl::parent-frame (ccl::bt.oldest context) context) context))
+         (tcr (ccl::bt.tcr context)))
+    (apply #'call-next-method
+           i
            :object 
            (make-instance 'error-frame
              :stack-start start
              :stack-end end
              :tcr tcr
-             :break-condition (ccl::bt.break-condition info))
-           :tsp-range (make-tsp-stack-range tcr info)
-           :vsp-range (make-vsp-stack-range tcr info)
+             :context context
+             :break-condition (ccl::bt.break-condition context))
+           :tsp-range (make-tsp-stack-range tcr context)
+           :vsp-range (make-vsp-stack-range tcr context)
            initargs)))
 
 (defmethod print-object ((i stack-inspector) stream)
@@ -1827,7 +1829,7 @@
         (setf (frame-info i) frame-info)
         (let ((count (ccl::count-values-in-frame
                       (car frame-info)          ; this frame
-                      (tcr error-frame)
+                      (context error-frame)
                       (cadddr frame-info))))    ; child frame
           (setf (label-columns i) (integer-digits count))
           (let ((lfun (cadr frame-info))
@@ -1862,7 +1864,7 @@
         (declare (ignore rest))
         (let ((offset (- n saved-register-count)))
           (multiple-value-bind (var type name)
-                               (ccl::nth-value-in-frame p offset (tcr (inspector-object i)) lfun pc child)
+                               (ccl::nth-value-in-frame p offset (context (inspector-object i)) lfun pc child)
             (values var (cons n (cons type name)) :normal)))))))
 
 (defmethod (setf line-n) (value (i stack-frame-inspector) n)
@@ -1884,8 +1886,8 @@
       (destructuring-bind (p lfun pc child &rest rest) frame-info
         (declare (ignore lfun pc rest))
         (let ((offset (- n saved-register-count))
-              (tcr (tcr (inspector-object i))))
-          (ccl::set-nth-value-in-frame p offset tcr value child))))))
+              (context (context (inspector-object i))))
+          (ccl::set-nth-value-in-frame p offset context value child))))))
 
 (defun saved-register-name (reg lfun pc)
   (let* ((map (ccl::function-symbol-map lfun))

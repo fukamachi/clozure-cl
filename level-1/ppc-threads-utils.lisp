@@ -73,17 +73,15 @@
 (defsetf interrupt-level set-interrupt-level)
 
 
-
-
-
     
     
-(defun %frame-backlink (p &optional (tcr (%current-tcr)))
+(defun %frame-backlink (p &optional context)
   (cond ((fake-stack-frame-p p)
          (%fake-stack-frame.next-sp p))
         ((fixnump p)
          (let ((backlink (%%frame-backlink p))
-               (fake-frame (symbol-value-in-tcr '*fake-stack-frames* tcr)))
+               (fake-frame
+                (if context (bt.fake-frames context) *fake-stack-frames*)))
            (loop
              (when (null fake-frame) (return backlink))
              (when (eq backlink (%fake-stack-frame.sp fake-frame))
@@ -95,14 +93,14 @@
 
 
 
-(defun lisp-frame-p (p tcr)
+(defun lisp-frame-p (p context)
   (or (fake-stack-frame-p p)
       (locally (declare (fixnum p))
-        (let ((next-frame (%frame-backlink p tcr)))
+        (let ((next-frame (%frame-backlink p context)))
           (when (fake-stack-frame-p next-frame)
             (setq next-frame (%fake-stack-frame.sp next-frame)))
           (locally (declare (fixnum next-frame))
-            (if (bottom-of-stack-p next-frame tcr)
+            (if (bottom-of-stack-p next-frame context)
               (values nil t)
               (and
                (eql (ash ppc32::lisp-frame.size (- ppc32::fixnum-shift))

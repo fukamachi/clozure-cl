@@ -560,15 +560,7 @@
 ; %frame-backlink looks here
 (defvar *fake-stack-frames* nil)
 
-(def-accessors (fake-stack-frame) %svref
-  nil                           ; 'fake-stack-frame
-  %fake-stack-frame.sp          ; fixnum. The stack pointer where this frame "should" be
-  %fake-stack-frame.next-sp     ; Either sp or another fake-stack-frame
-  %fake-stack-frame.fn          ; The current function
-  %fake-stack-frame.lr          ; fixnum offset from fn (nil if fn is not functionp)
-  %fake-stack-frame.vsp         ; The value stack pointer
-  %fake-stack-frame.link        ; next in *fake-stack-frames* list
-  )
+
   
 (defmacro %cons-fake-stack-frame (&optional sp next-sp fn lr vsp link)
   `(%istruct 'fake-stack-frame ,sp ,next-sp ,fn ,lr ,vsp ,link))
@@ -603,38 +595,25 @@
        (funcall f db-link (%fixnum-ref db-link 4) (%fixnum-ref db-link 8))
        (setq db-link (%fixnum-ref db-link))))))
 
-(defun %get-frame-ptr (&optional (tcr (%current-tcr)))
-  (if (eq tcr (%current-tcr))
-    (%current-frame-ptr)
-    (%fixnum-ref (%fixnum-ref tcr ppc32::tcr.cs-area) ppc32::area.active)))
+(defun %get-frame-ptr ()
+  (%current-frame-ptr))
 
-
-(defun %stack< (index1 index2 &optional (tcr (%current-tcr)))
+(defun %stack< (index1 index2 &optional context)
   (cond ((fake-stack-frame-p index1)
          (let ((sp1 (%fake-stack-frame.sp index1)))
            (declare (fixnum sp1))
            (if (fake-stack-frame-p index2)
-             (or (%stack< sp1 (%fake-stack-frame.sp index2) tcr)
+             (or (%stack< sp1 (%fake-stack-frame.sp index2) context)
                  (eq index2 (%fake-stack-frame.next-sp index1)))
-             (%stack< sp1 (%i+ index2 1) tcr))))
+             (%stack< sp1 (%i+ index2 1) context))))
         ((fake-stack-frame-p index2)
-         (%stack< index1 (%fake-stack-frame.sp index2)))
-        (t (let* ((cs-area (%fixnum-ref tcr ppc32::tcr.cs-area)))
-             (loop
-               (when (%ptr-in-area-p index1 cs-area)
-                 (return))
-               (setq cs-area (%fixnum-ref cs-area ppc32::area.older))
-               (when (eql 0 cs-area)
-                 ; Should we signal an error here?
-                 (return-from %stack< nil)))
-             (if (%ptr-in-area-p index2 cs-area)
-               (%i< index1 index2)
-               (loop
-                 (setq cs-area (%fixnum-ref cs-area ppc32::area.older))
-                 (when (eql 0 cs-area)
-                   (return nil))
-                 (when (%ptr-in-area-p index2 cs-area)
-                   (return t))))))))
+         (%stack< index1 (%fake-stack-frame.sp index2) context))
+        (t (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+                  (cs-area (%fixnum-ref tcr ppc32::tcr.cs-area)))
+             (and (%ptr-in-area-p index1 cs-area)
+                  (%ptr-in-area-p index2 cs-area)
+                  (< (the fixnum index1) (the fixnum index2)))))))
+
 
 (defun %frame-savefn (p)
   (if (fake-stack-frame-p p)
@@ -649,16 +628,12 @@
 (defun frame-vsp (frame)
   (%frame-savevsp frame))
 
-(defun bottom-of-stack-p (p tcr)
+(defun bottom-of-stack-p (p context)
   (and (fixnump p)
        (locally (declare (fixnum p))
-	 (let* ((cs-area (%fixnum-ref tcr ppc32::tcr.cs-area)))
-	   (loop
-	       (when (%ptr-in-area-p p cs-area)
-		 (return nil))
-	       (setq cs-area (%fixnum-ref cs-area ppc32::area.older))
-	     (when (eql 0 cs-area)
-	       (return t)))))))
+	 (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+                (cs-area (%fixnum-ref tcr ppc32::tcr.cs-area)))
+	   (not (%ptr-in-area-p p cs-area))))))
 
 (defun next-catch (catch)
   (let ((next-catch (uvref catch ppc32::catch-frame.link-cell)))
@@ -667,8 +642,10 @@
 (defun catch-frame-sp (catch)
   (uvref catch ppc32::catch-frame.csp-cell))
 
-(defun catch-csp-p (p tcr)
-  (let ((catch (%catch-top tcr)))
+(defun catch-csp-p (p context)
+  (let ((catch (if context
+                 (bt.top-catch context)
+                 (%catch-top (%current-tcr)))))
     (loop
       (when (null catch) (return nil))
       (let ((sp (catch-frame-sp catch)))
@@ -677,22 +654,22 @@
       (setq catch (next-catch catch)))))
 
 ; @@@ this needs to load early so errors can work
-(defun next-lisp-frame (p tcr)
+(defun next-lisp-frame (p context)
   (let ((frame p))
     (loop
-      (let ((parent (%frame-backlink frame tcr)))
-        (multiple-value-bind (lisp-frame-p bos-p) (lisp-frame-p parent tcr)
+      (let ((parent (%frame-backlink frame context)))
+        (multiple-value-bind (lisp-frame-p bos-p) (lisp-frame-p parent context)
           (if lisp-frame-p
             (return parent)
             (if bos-p
               (return nil))))
         (setq frame parent)))))
 
-(defun parent-frame (p tcr)
+(defun parent-frame (p context)
   (loop
-    (let ((parent (next-lisp-frame p tcr)))
+    (let ((parent (next-lisp-frame p context)))
       (when (or (null parent)
-                (not (catch-csp-p parent tcr)))
+                (not (catch-csp-p parent context)))
         (return parent))
       (setq p parent))))
 
@@ -706,26 +683,26 @@
         (values fn (%fake-stack-frame.lr p))))
     (%cfp-lfun p)))
 
-(defun last-frame-ptr (&optional (tcr (%current-tcr)))
-  (let* ((current (%get-frame-ptr tcr))
+(defun last-frame-ptr (&optional context)
+  (let* ((current (if context (bt.current context) (%current-frame-ptr)))
          (last current))
     (loop
-      (setq current (parent-frame current tcr))
+      (setq current (parent-frame current context))
       (if current
         (setq last current)
         (return last)))))
 
 
 
-(defun child-frame (p tcr)
-  (let* ((current (%get-frame-ptr tcr))
+(defun child-frame (p context )
+  (let* ((current (if context (bt.current context) (%current-frame-ptr)))
          (last nil))
     (loop
       (when (null current)
         (return nil))
       (when (eq current p) (return last))
       (setq last current
-            current (parent-frame current tcr)))))
+            current (parent-frame current context)))))
 
 
 
@@ -736,8 +713,10 @@
   (ldb (byte #+ppc32-target 32 #+ppc64-target 64 0)  (ash p target::fixnumshift)))
 
 ; This returns the current head of the db-link chain.
-(defun db-link (&optional (tcr (%current-tcr)))
-  (%fixnum-ref tcr ppc32::tcr.db-link))
+(defun db-link (&optional context)
+  (if context
+    (bt.db-link context)
+    (%fixnum-ref (%current-tcr)  ppc32::tcr.db-link)))
 
 (defun previous-db-link (db-link start )
   (declare (fixnum db-link start))
@@ -748,9 +727,9 @@
       (setq prev start
             start (%fixnum-ref start 0)))))
 
-(defun count-db-links-in-frame (vsp parent-vsp &optional (tcr (%current-tcr)))
+(defun count-db-links-in-frame (vsp parent-vsp &optional context)
   (declare (fixnum vsp parent-vsp))
-  (let ((db (db-link tcr))
+  (let ((db (db-link context))
         (count 0)
         (first nil)
         (last nil))
@@ -882,17 +861,17 @@
 ; Return two values: the vsp of p and the vsp of p's "parent" frame.
 ; The "parent" frame vsp might actually be the end of p's segment,
 ; if the real "parent" frame vsp is in another segment.
-(defun vsp-limits (p tcr)
+(defun vsp-limits (p context)
   (let* ((vsp (%frame-savevsp p))
          parent)
     (when (eql vsp 0)
       ; This frame is where the code continues after an unwind-protect cleanup form
-      (setq vsp (%frame-savevsp (child-frame p tcr))))
+      (setq vsp (%frame-savevsp (child-frame p context))))
     (flet ((grand-parent (frame)
-             (let ((parent (parent-frame frame tcr)))
-               (when (and parent (eq parent (%frame-backlink frame)))
-                 (let ((grand-parent (parent-frame parent tcr)))
-                   (when (and grand-parent (eq grand-parent (%frame-backlink parent)))
+             (let ((parent (parent-frame frame context)))
+               (when (and parent (eq parent (%frame-backlink frame context)))
+                 (let ((grand-parent (parent-frame parent context)))
+                   (when (and grand-parent (eq grand-parent (%frame-backlink parent context)))
                      grand-parent))))))
       (declare (dynamic-extent #'grand-parent))
       (let* ((frame p)
@@ -902,9 +881,10 @@
           (when (or (null grand-parent) (not (eql 0 (%frame-savevsp grand-parent))))
             (return))
           (setq frame grand-parent))
-        (setq parent (parent-frame frame tcr)))
-      (let ((parent-vsp (if parent (%frame-savevsp parent) vsp))
-            (vsp-area (%fixnum-ref tcr ppc32::tcr.vs-area)))
+        (setq parent (parent-frame frame context)))
+      (let* ((parent-vsp (if parent (%frame-savevsp parent) vsp))
+             (tcr (if context (bt.tcr context) (%current-tcr)))
+             (vsp-area (%fixnum-ref tcr ppc32::tcr.vs-area)))
         (if (eql 0 parent-vsp)
           (values vsp vsp)              ; p is the kernel frame pushed by an unwind-protect cleanup form
           (progn
@@ -914,16 +894,16 @@
               (setq parent-vsp (%fixnum-ref vsp-area ppc32::area.high)))
             (values vsp parent-vsp)))))))
 
-(defun count-values-in-frame (p tcr &optional child)
+(defun count-values-in-frame (p context &optional child)
   (declare (ignore child))
-  (multiple-value-bind (vsp parent-vsp) (vsp-limits p tcr)
+  (multiple-value-bind (vsp parent-vsp) (vsp-limits p context)
     (values
      (- parent-vsp 
         vsp
-        (* 2 (count-db-links-in-frame vsp parent-vsp tcr))
+        (* 2 (count-db-links-in-frame vsp parent-vsp context))
         (* 3 (count-stack-consed-value-cells-in-frame vsp parent-vsp))))))
 
-(defun nth-value-in-frame-loc (sp n tcr lfun pc child-frame vsp parent-vsp)
+(defun nth-value-in-frame-loc (sp n context lfun pc child-frame vsp parent-vsp)
   (declare (ignore child-frame))        ; no ppc function info yet
   (declare (fixnum sp))
   (setq n (require-type n 'fixnum))
@@ -932,10 +912,10 @@
   (unless (or (null parent-vsp) (fixnump parent-vsp))
     (setq parent-vsp (require-type parent-vsp '(or null fixnum))))
   (unless (and vsp parent-vsp)
-    (multiple-value-setq (vsp parent-vsp) (vsp-limits sp tcr)))
+    (multiple-value-setq (vsp parent-vsp) (vsp-limits sp context)))
   (locally (declare (fixnum n vsp parent-vsp))
     (multiple-value-bind (db-count first-db last-db)
-                         (count-db-links-in-frame vsp parent-vsp tcr)
+                         (count-db-links-in-frame vsp parent-vsp context)
       (declare (ignore db-count))
       (declare (fixnum first-db last-db))
       (let ((arg-vsp (1- parent-vsp))
@@ -968,9 +948,9 @@
 
 
 
-(defun nth-value-in-frame (sp n tcr &optional lfun pc child-frame vsp parent-vsp)
+(defun nth-value-in-frame (sp n context &optional lfun pc child-frame vsp parent-vsp)
   (multiple-value-bind (loc type name)
-                       (nth-value-in-frame-loc sp n tcr lfun pc child-frame vsp parent-vsp)
+                       (nth-value-in-frame-loc sp n context lfun pc child-frame vsp parent-vsp)
     (let* ((val (%fixnum-ref loc)))
       (when (and (eq type :saved-special)
 		 (eq val (%no-thread-local-binding-marker))
@@ -978,9 +958,9 @@
 	(setq val (%sym-global-value name)))
       (values val  type name))))
 
-(defun set-nth-value-in-frame (sp n tcr new-value &optional child-frame vsp parent-vsp)
+(defun set-nth-value-in-frame (sp n context new-value &optional child-frame vsp parent-vsp)
   (multiple-value-bind (loc type name)
-      (nth-value-in-frame-loc sp n tcr nil nil child-frame vsp parent-vsp)
+      (nth-value-in-frame-loc sp n context nil nil child-frame vsp parent-vsp)
     (let* ((old-value (%fixnum-ref loc)))
       (if (and (eq type :saved-special)
 	       (eq old-value (%no-thread-local-binding-marker))
@@ -990,12 +970,12 @@
 	(%set-sym-global-value name new-value)
 	(setf (%fixnum-ref loc) new-value)))))
 
-(defun nth-raw-frame (n start-frame tcr)
+(defun nth-raw-frame (n start-frame context)
   (declare (fixnum n))
-  (do* ((p start-frame (parent-frame p tcr))
+  (do* ((p start-frame (parent-frame p context))
 	(i 0 (1+ i))
-	(q (last-frame-ptr tcr)))
-       ((or (null p) (eq p q) (%stack< q p tcr)))
+	(q (last-frame-ptr context)))
+       ((or (null p) (eq p q) (%stack< q p context)))
     (declare (fixnum i))
     (if (= i n)
       (return p))))
