@@ -755,7 +755,7 @@ instance_size of its ObjC superclass."))
   (let ((class (class-of instance)))
     ;; Initialize CLOS slots
     (dolist (slotd (class-slots class))
-      (when (not (typep slotd 'foreign-direct-slot-definition)) ; For now
+      (when (not (typep slotd 'foreign-effective-slot-definition)) ; For now
 	(let ((sname (slot-definition-name slotd))
 	      (slot-type (slot-definition-type slotd))
 	      (typepred (slot-value slotd 'type-predicate))
@@ -768,14 +768,19 @@ instance_size of its ObjC superclass."))
 		(if (funcall typepred newval)
 		    (setf (slot-value instance sname) newval)
 		  (report-bad-arg newval slot-type))
-	      (let ((curval (slot-value instance sname)))
+	      (let* ((loc (slot-definition-location slotd))
+		     (curval (%standard-instance-instance-location-access
+			     instance loc)))
 		(when (and (or (eq slot-names t) 
 			       (member sname slot-names :test #'eq))
 			   (eq curval (%slot-unbound-marker))
 			   initfunction)
 		  (let ((newval (funcall initfunction)))
 		    (unless (funcall typepred newval)
-		      (report-bad-arg newval slot-type))))))))))
+		      (report-bad-arg newval slot-type))
+		    (setf (%standard-instance-instance-location-access
+			   instance loc)
+			  newval)))))))))
     instance))
 
 (defmethod shared-initialize :after ((spec foreign-effective-slot-definition)
