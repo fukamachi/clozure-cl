@@ -90,7 +90,10 @@
        (mw (make-array 1024 :initial-element nil))
        (csv (make-array 1024))
        (msv (make-array 1024))
-       (class-id->metaclass-id (make-array 1024 :initial-element nil)))
+       (class-id->metaclass-id (make-array 1024 :initial-element nil))
+       (class-foreign-names (make-array 1024))
+       (metaclass-foreign-names (make-array 1024))
+       )
 
   (flet ((grow-vectors ()
 	   (let* ((old-size class-table-size)
@@ -107,7 +110,9 @@
                    (extend csv)
                    (extend msv)
 		   (extend class-id->metaclass-id)
-		   (fill class-id->metaclass-id nil :start old-size :end new-size))
+		   (fill class-id->metaclass-id nil :start old-size :end new-size)
+		   (extend class-foreign-names)
+		   (extend metaclass-foreign-names))
 	     (setq class-table-size new-size))))
     (flet ((assign-next-class-id ()
 	     (let* ((id next-objc-class-id))
@@ -143,21 +148,20 @@
 	(svref msv i))
       (defun (setf id->objc-metaclass-slots-vector) (new i)
 	(setf (svref msv i) new))
+      (defun objc-class-id-foreign-name (i)
+	(svref class-foreign-names i))
+      (defun (setf objc-class-id-foreign-name) (new i)
+	(setf (svref class-foreign-names i) new))
+      (defun objc-metaclass-id-foreign-name (i)
+	(svref metaclass-foreign-names i))
+      (defun (setf objc-metaclass-id-foreign-name) (new i)
+	(setf (svref metaclass-foreign-names i) new))
       (defun %clear-objc-class-maps ()
 	(with-lock-grabbed (objc-class-lock)
-	  (fill c 0)
-	  (fill m 0)
-	  (fill cw nil)
-	  (fill mw nil)
-	  (fill csv 0)
-	  (fill msv 0)
-	  (fill class-id->metaclass-id nil)
 	  (setf (splay-tree-root objc-class-map) nil
 		(splay-tree-root objc-metaclass-map) nil
 		(splay-tree-count objc-class-map) 0
-		(splay-tree-count objc-metaclass-map) 0
-		next-objc-class-id 0
-		next-objc-metaclass-id 0)))
+		(splay-tree-count objc-metaclass-map) 0)))
       (flet ((install-objc-metaclass (meta)
 	       (or (splay-tree-get objc-metaclass-map meta)
 		   (let* ((id (assign-next-metaclass-id))
@@ -193,7 +197,9 @@
       (defun objc-class-id->objc-metaclass (class-id)
 	(svref m (svref class-id->metaclass-id class-id)))
       (defun objc-class-map () objc-class-map)
-      (defun objc-metaclass-map () objc-metaclass-map))))
+      (defun %objc-class-count () next-objc-class-id)
+      (defun objc-metaclass-map () objc-metaclass-map)
+      (defun %objc-metaclass-count () next-objc-metaclass-id))))
 
 (pushnew #'%clear-objc-class-maps *save-exit-functions* :test #'eq
          :key #'function-name)
@@ -213,7 +219,7 @@
     (if id
       (id->objc-metaclass id)
       (error "Class ~S isn't recognized." m))))
-  
+
 
 ;;; Open shared libs.
 #+darwinppc-target
@@ -253,7 +259,6 @@
                                 :address main)
                  t))))))
 
-(pushnew 'remap-all-library-classes *lisp-system-pointer-functions*)
 
 (let* ((cfstring-sections (cons 0 nil)))
   (defun reset-cfstring-sections ()
@@ -332,6 +337,75 @@
 )
 
 
+;;; When starting up an image that's had ObjC classes in it, all of
+;;; those canonical classes (and metaclasses) will have had their type
+;;; changed (by SAVE-APPLICATION) to, CCL::DEAD-MACPTR and the addresses
+;;; of those classes may be bogus.  The splay trees (objc-class/metaclass-map)
+;;; should be empty.
+;;; For each class that -had- had an assigned ID, determine its ObjC
+;;; class name, and ask ObjC where (if anywhere) the class is now.
+;;; If we get a non-null answer, revive the class pointer and set its
+;;; address appropriately, then add an entry to the splay tree; this
+;;; means that classes that existed on both sides of SAVE-APPLICATION
+;;; will retain the same ID.
+
+(defun revive-objc-classes ()
+  ;; Make a first pass over the class and metaclass tables;
+  ;; resolving those foreign classes that existed in the old
+  ;; image and still exist in the new.
+  (let* ((class-map (objc-class-map))
+	 (metaclass-map (objc-metaclass-map))
+	 (nclasses (%objc-class-count)))
+    (dotimes (i nclasses)
+      (let* ((c (id->objc-class i))
+	     (meta-id (objc-class-id->objc-metaclass-id i))
+	     (m (id->objc-metaclass meta-id)))
+	(%revive-macptr c)
+	(%revive-macptr m)
+	(unless (splay-tree-get class-map c)
+	  (%set-pointer-to-objc-class-address (objc-class-id-foreign-name i) c)
+	  ;; If the class is valid and the metaclass is still a
+	  ;; dead pointer, revive the metaclass 
+	  (unless (%null-ptr-p c)
+	    (splay-tree-put class-map c i)
+	    (unless (splay-tree-get metaclass-map m)
+	      (when (%null-ptr-p m)
+		(%setf-macptr m (pref c #+apple-objc :objc_class.isa
+				      #+gnu-objc :objc_class.class_pointer)))
+	      (splay-tree-put metaclass-map m meta-id))))))
+    (break "second pass")
+    ;; Second pass: install class objects for user-defined classes,
+    ;; assuming the superclasses are already "revived".
+    (dotimes (i nclasses)
+      (let* ((c (id->objc-class i)))
+	(when (and (%null-ptr-p c)
+		   (not (slot-value c 'foreign)))
+	  (let* ((super (dolist (s (class-direct-superclasses c)
+				 (error "No ObjC superclass of ~s" c))
+			  (when (objc-class-p s) (return s))))
+		 (meta-id (objc-class-id->objc-metaclass-id i))
+		 (m (id->objc-metaclass meta-id)))
+	    (when (%null-ptr-p m)
+	      (%setf-macptr m (%make-basic-meta-class
+			       (objc-metaclass-id-foreign-name meta-id)
+			       super
+			       (@class "NSObject")))
+	      (splay-tree-put metaclass-map m meta-id))
+	    (%setf-macptr c (%make-class-object
+			     m
+			     super
+			     (objc-class-id-foreign-name i)
+			     (%null-ptr)
+			     0))
+	    (multiple-value-bind (ivars instance-size)
+		(%make-objc-ivars c)
+	      (%add-objc-class c ivars instance-size)
+	      (splay-tree-put class-map c i))))))))
+      
+      
+    
+    
+
 (defun install-foreign-objc-class (class)
   (let* ((id (objc-class-id class)))
     (unless id
@@ -341,22 +415,24 @@
       (let* ((super (pref class :objc_class.super_class)))
 	(unless (%null-ptr-p super)
 	  (install-foreign-objc-class super))
-	(let* ((class-name 
-		(objc-to-lisp-classname (%get-cstring
-					 (pref class :objc_class.name))
+	(let* ((class-foreign-name (%get-cstring
+					 (pref class :objc_class.name)))
+	       (class-name 
+		(objc-to-lisp-classname class-foreign-name
 					"NS"))
 	       (meta-id (objc-class-id->objc-metaclass-id id)) 
 	       (meta (id->objc-metaclass meta-id)))
 	  ;; Metaclass may already be initialized.  It'll have a class
 	  ;; wrapper if so.
 	  (unless (id->objc-metaclass-wrapper meta-id)
-	    (let* ((meta-name (intern
+	    (let* ((meta-foreign-name (%get-cstring
+				       (pref meta :objc_class.name)))
+		   (meta-name (intern
 			       (concatenate 'string
 					    "+"
 					    (string
 					     (objc-to-lisp-classname
-					      (%get-cstring
-					       (pref meta :objc_class.name))
+					      meta-foreign-name
 					      "NS")))
 				      "NS"))
 		   (meta-super (pref meta :objc_class.super_class)))
@@ -377,6 +453,8 @@
 				      (canonicalize-registered-metaclass meta-super)))
 				   :peer class
 				   :foreign t)
+	      (setf (objc-metaclass-id-foreign-name meta-id)
+		    meta-foreign-name)
 	      (setf (find-class meta-name) meta)))
 	  (setf (slot-value class 'direct-slots)
 		(%compute-foreign-direct-slots class))
@@ -389,6 +467,7 @@
 				  (canonicalize-registered-class super)))
 			       :peer meta
 			       :foreign t)
+	  (setf (objc-class-id-foreign-name id) class-foreign-name)
 	  (setf (find-class class-name) class))))))
 				
 
@@ -506,6 +585,16 @@ argument lisp string."
 	(if error-p
 	  (error "ObjC class ~a not found" name))
 	p))))
+
+(defun %set-pointer-to-objc-class-address (class-name-string ptr)
+  (with-cstrs ((cstr class-name-string))
+    (%setf-macptr ptr
+		  (#+apple-objc #_objc_lookUpClass
+		   #+gnu-objc #_objc_lookup_class
+		   cstr)))
+  nil)
+   
+		  
 
 (defvar *objc-class-descriptors* (make-hash-table :test #'equal))
 
@@ -999,7 +1088,8 @@ argument lisp string."
 		 nameptr
 		 (%null-ptr)
 		 0)))
-	   (meta (objc-class-id->objc-metaclass id))
+	   (meta-id (objc-class-id->objc-metaclass-id id))
+	   (meta (id->objc-metaclass meta-id))
 	   (class (id->objc-class id))
 	   (meta-name (intern (format nil "+~a" class-name)
 			      (symbol-package name)))
@@ -1008,7 +1098,9 @@ argument lisp string."
       (initialize-instance meta
 			 :name meta-name
 			 :direct-superclasses (list meta-super))
-      (setf (find-class meta-name) meta)
+      (setf (objc-class-id-foreign-name id) class-name
+	    (objc-metaclass-id-foreign-name meta-id) class-name
+	    (find-class meta-name) meta)
     class)))
 
 ;;; Set up the class's ivar_list and instance_size fields, then
@@ -1203,11 +1295,7 @@ argument lisp string."
      typestring
      imp)))
 
-(def-ccl-pointers add-objc-methods ()
-  (maphash #'(lambda (impname m)
-	       (declare (ignore impname))
-	       (%add-lisp-objc-method m))
-	   *lisp-objc-methods*))
+
 
 (defun %define-lisp-objc-method (impname classname selname typestring imp
 					 &optional class-p)
@@ -1408,15 +1496,27 @@ argument lisp string."
 
 #+apple-objc
 (progn
-(defcallback deallocate-nsobject (:address obj :void)
+(defloadvar *original-deallocate-hook*
+    (%get-ptr (foreign-symbol-address "__dealloc")))
+
+(defcallback deallocate-nsobject (:address obj :int)
   (unless (%null-ptr-p obj)
-    (remhash obj *objc-object-slot-vectors*)
-    (setf (pref obj :objc_object.isa)
-	  (external-call "__objc_getFreedObjectClass" :address))
-    (free obj)))
+    (remhash obj *objc-object-slot-vectors*))
+  (ff-call *original-deallocate-hook* :address obj :int))
+
+(defun install-lisp-deallocate-hook ()
+  (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))
 
 (def-ccl-pointers install-deallocate-hook ()
-  (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))
+  (install-lisp-deallocate-hook))
+
+(defun uninstall-lisp-deallocate-hook ()
+  (clrhash *objc-object-slot-vectors*)
+  (setf (%get-ptr (foreign-symbol-address "__dealloc")) *original-deallocate-hook*))
+
+#+testing
+(pushnew #'uninstall-lisp-deallocate-hook *lisp-cleanup-functions* :test #'eq
+         :key #'function-name)
 )
 
 
