@@ -27,10 +27,10 @@
 (defclass cocoa-listener-process (process)
     ((input-stream :reader cocoa-listener-process-input-stream)))
 
-(defun new-cocoa-listener-process (procname input-fd output-fd)
+(defun new-cocoa-listener-process (procname input-fd output-fd peer-fd)
   (let* ((input-stream (make-selection-input-stream
                         input-fd
-                        :peer-fd output-fd
+                        :peer-fd peer-fd
                         :elements-per-buffer (#_fpathconf
                                               input-fd
                                               #$_PC_MAX_INPUT)))
@@ -221,8 +221,10 @@
     (send self :add-window-controller controller)
     (send controller 'release)
     (setf (hi::buffer-process (hemlock-document-buffer self))
-	  (let* ((tty (slot-value controller 'clientfd)))
-	    (new-cocoa-listener-process listener-name tty tty)))
+	  (let* ((tty (slot-value controller 'clientfd))
+		 (peer-tty (send (slot-value controller 'filehandle)
+				 'file-descriptor)))
+	    (new-cocoa-listener-process listener-name tty tty peer-tty)))
     controller))
 
 ;;; This is almost completely wrong: we need to ensure that the form
@@ -251,13 +253,14 @@
           (setq name nick len nicklen))))))
 
 (defun cocoa-ide-note-package (package)
-  (process-interrupt *cocoa-event-process*
-                       #'(lambda (proc name)
-                           (dolist (buf hi::*buffer-list*)
-                             (when (eq proc (hi::buffer-process buf))
-                               (setf (hi::variable-value 'hemlock::current-package :buffer buf) name))))
-                       *current-process*
-                       (shortest-package-name package)))
+  (with-autorelease-pool
+      (process-interrupt *cocoa-event-process*
+			 #'(lambda (proc name)
+			     (dolist (buf hi::*buffer-list*)
+			       (when (eq proc (hi::buffer-process buf))
+				 (setf (hi::variable-value 'hemlock::current-package :buffer buf) name))))
+			 *current-process*
+			 (shortest-package-name package))))
 
 (defmethod hi::send-string-to-listener-process ((process cocoa-listener-process)
                                                 string &key path package)
