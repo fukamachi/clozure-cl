@@ -1325,7 +1325,10 @@
             (%get-ptr paramptrs (ash 1 target::word-shift)) sem-value)
       (let* ((params (make-objc-instance 'ns:ns-array
                                          :with-objects paramptrs
-                                         :count 2)))
+                                         :count 2))
+             (*debug-io* *typeout-stream*))
+        (stream-clear-output *debug-io*)
+        (print-call-history :detailed-p nil)
         (send frame
               :perform-selector-on-main-thread
               (@selector "runErrorSheet:")
