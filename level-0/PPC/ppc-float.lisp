@@ -22,21 +22,6 @@
   (require :number-case-macro) 
   
 
-; see "Optimizing PowerPC Code" p. 156
-; Note that the constant #x4330000080000000 is now in fp-s32conv
-  (defppclapmacro int-to-freg (int freg imm)
-    `(let ((temp 8)
-           (temp.h 8)
-           (temp.l 12))
-      (stwu tsp -16 tsp)
-      (stw tsp 4 tsp)
-      (stfd ppc::fp-s32conv temp tsp)
-      (unbox-fixnum ,imm ,int)
-      (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
-      (stw ,imm temp.l tsp)
-      (lfd ,freg temp tsp)
-      (lwz tsp 0 tsp)
-      (fsub ,freg ,freg ppc::fp-s32conv)))
  
 
   (defppclapmacro 48x32-divide (x-hi16 x-lo y freg temp-freg freg2 immx)
@@ -493,24 +478,42 @@
   (put-double-float fp0 result)
   (blr))
 
+#+ppc32-target
 (defppclapfunction %double-float->short-float ((src arg_y) (result arg_z))
   (clear-fpu-exceptions)
   (get-double-float fp0 src)
   (frsp fp1 fp0)
   (put-single-float fp1 result)
   (blr))
+
+#+ppc64-target
+(defppclapfunction %double-float->short-float ((src arg_z))
+  (clear-fpu-exceptions)
+  (get-double-float fp0 src)
+  (frsp fp1 fp0)
+  (stfs fp1 ppc64::tcr.single-float-convert rcontext)
+  (ld arg_z ppc64::tcr.single-float-convert rcontext)
+  (blr))
   
 
 
-
+#+ppc32-target
 (defppclapfunction %int-to-sfloat ((int arg_y) (sfloat arg_z))
   (int-to-freg int fp0 imm0)
   (stfs fp0 ppc32::single-float.value sfloat)
   (blr))
 
+#+ppc64-target
+(defppclapfunction %int-to-sfloat ((int arg_z))
+  (int-to-freg int fp0 imm0)
+  (stfs fp0 ppc64::tcr.single-float-convert rcontext)
+  (ld arg_z ppc64::tcr.single-float-convert rcontext)
+  (blr))
+  
+
 (defppclapfunction %int-to-dfloat ((int arg_y) (dfloat arg_z))
   (int-to-freg int fp0 imm0)
-  (stfd fp0 ppc32::double-float.value dfloat)
+  (stfd fp0 target::double-float.value dfloat)
   (blr))
 
 
@@ -519,34 +522,25 @@
 ; This  returns the bottom 8 bits of the FPSCR
 (defppclapfunction %get-fpscr-control ()
   (mffs fp0)
-  (stwu tsp -16 tsp)
-  (stw tsp 4 tsp)
-  (stfd fp0 8 tsp)
-  (lbz imm0 (+ 8 7) tsp)
-  (lwz tsp 0 tsp)
+  (stfd fp0 target::tcr.lisp-fpscr-high rcontext)
+  (lbz imm0 (+ target::tcr.lisp-fpscr-high 7) rcontext)
   (box-fixnum arg_z imm0)
   (blr))
 
 ; Returns the high 24 bits of the FPSCR
 (defppclapfunction %get-fpscr-status ()
   (mffs fp0)
-  (stwu tsp -16 tsp)
-  (stw tsp 4 tsp)
-  (stfd fp0 8 tsp)
-  (lwz imm0 12 tsp)
-  (lwz tsp 0 tsp)
+  (stfd fp0 target::tcr.lisp-fpscr-high rcontext)
+  (lwz imm0 target::tcr.lisp-fpscr-low tsp)
   (clrrwi imm0 imm0 8)
-  (srwi arg_z imm0 (- 8 ppc32::fixnumshift))
+  (srwi arg_z imm0 (- 8 target::fixnumshift))
   (blr))
 
 ; Set the high 24 bits of the FPSCR; leave the low 8 unchanged
 (defppclapfunction %set-fpscr-status ((new arg_z))
-  (slwi imm0 new (- 8 ppc32::fixnumshift))
-  (stwu tsp -16 tsp)
-  (stw tsp 4 tsp)
-  (stw imm0 12 tsp)
-  (lfd fp0 8 tsp)
-  (lwz tsp 0 tsp)
+  (slwi imm0 new (- 8 target::fixnumshift))
+  (stw imm0 target::tcr.lisp-fpscr-low rcontext)
+  (lfd fp0 target::tcr.lisp-fpscr-high rcontext)
   (mtfsf #xfc fp0)                      ; set status fields [0-5]
   (blr))
 
@@ -555,9 +549,8 @@
   (unbox-fixnum imm0 new)
   (stwu tsp -16 tsp)
   (stw tsp 4 tsp)
-  (stw imm0 12 tsp)
-  (lfd fp0 8 tsp)
-  (lwz tsp 0 tsp)
+  (stw imm0 target::tcr.lisp-fpscr-low rcontext)
+  (lfd fp0 target::tcr.lisp-fpscr-high rcontext)
   (mtfsf #x03 fp0)                      ; set control fields [6-7]
   (blr))
 
@@ -579,7 +572,7 @@
   @set
   (oris imm0 imm0 #xc000)
   @ret
-  (srwi arg_z imm0 (- 8 ppc32::fixnumshift))
+  (srwi arg_z imm0 (- 8 target::fixnumshift))
   (blr))
   
 
@@ -603,9 +596,13 @@
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
 			   (%get-fpscr-control)
-			   operation 
-			   (%copy-short-float op0 (%make-sfloat)) 
-			   (%copy-short-float op1 (%make-sfloat)))))
+			   operation
+			   #+ppc32-target
+			   (%copy-short-float op0 (%make-sfloat))
+			   #+ppc64-target op0
+			   #+ppc32-target
+			   (%copy-short-float op1 (%make-sfloat))
+			   #+ppc64-target op1)))
 
 (defun %df-check-exception-1 (operation op0 fp-status)
   (declare (fixnum fp-status))
@@ -624,8 +621,10 @@
 					; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
 			   (%get-fpscr-control)
-			   operation 
-			   (%copy-short-float op0 (%make-sfloat)))))
+			   operation
+			   #+ppc32-target
+			   (%copy-short-float op0 (%make-sfloat))
+			   #+ppc64-target op0)))
 
 
 (defun fp-condition-from-fpscr (status-bits control-bits)
@@ -665,7 +664,7 @@
     (21 '+)
     (t 'unknown)))
 
-; Don't we already have about 20 versions of this ?
+;;; Don't we already have about 20 versions of this ?
 (defppclapfunction %double-float-from-macptr! ((ptr arg_x) (byte-offset arg_y) (dest arg_z))
   (lwz imm0 ppc32::macptr.address ptr)
   (unbox-fixnum imm1 byte-offset)
@@ -717,9 +716,9 @@
 
 (defppclapfunction %single-float-ptr->double-float-ptr ((single arg_y) (double arg_z))
   (check-nargs 2)
-  (lwz imm0 ppc32::macptr.address single)
+  (macptr-ptr imm0 single)
   (lfs fp0 0 imm0)
-  (lwz imm0 ppc32::macptr.address double)
+  (macptr-ptr imm0 double)
   (stfd fp0 0 imm0)
   (blr))
 
@@ -727,16 +726,16 @@
 ;;; to a single float pointed at by the macptr in single.
 (defppclapfunction %double-float-ptr->single-float-ptr ((double arg_y) (single arg_z))
   (check-nargs 2)
-  (lwz imm0 ppc32::macptr.address double)
+  (macptr-ptr imm0 double)
   (lfd fp0 0 imm0)
-  (lwz imm0 ppc32::macptr.address single)
+  (macptr-ptr imm0 single)
   (stfs fp0 0 imm0)
   (blr))
 
 
 (defppclapfunction %set-ieee-single-float-from-double ((src arg_y) (macptr arg_z))
   (check-nargs 2)
-  (lwz imm0 ppc32::macptr.address macptr)
+  (macptr-ptr imm0 macptr)
   (get-double-float fp1 src)
   (stfs fp1 0 imm0)
   (blr))
