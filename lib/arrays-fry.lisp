@@ -152,7 +152,7 @@
                    (report-bad-arg bit-array '(array bit))))))
            (check-matching-dimensions (a1 d1 a2 d2)
              (unless (equal d1 d2)
-               (error "%s and %s have different dimensions."  a1 a2))
+               (error "~s and ~s have different dimensions." a1 a2))
              a2))
       (let* ((dims-1 (bit-array-dimensions bit-array-1 typecode-1))
              (dims-2 (bit-array-dimensions bit-array-2 typecode-2)))
