@@ -950,6 +950,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
     (signal-program-error "Bad keyword ~s to ~s.~%keyargs: ~s~%allowable keys are ~a." key gf l readable-keys)))
 
 ; vector arg is (vector key-index keyvect combined-method) ; the next combined method
+#|
 (defun %%check-keywords (vector-arg args)
   (flet ((do-it (vector-arg args)
            (let* ((args-len (length args))
@@ -963,6 +964,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                       aok)  ; actually * 2
                  (declare (fixnum  key-index keys-in keyvect-len))
                  (when (logbitp 0 keys-in) (odd-keys-error vector-arg (collect-lexpr-args args key-index args-len)))
+		 (setq aok (%cadr (pl-search args :allow-other-keys)))
                  (do ((i key-index (+ i 2))
                       (kargs (nthcdr key-index args) (cddr kargs)))
                      ((eq i args-len))
@@ -990,6 +992,15 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (do-it vector-arg args)
       (with-list-from-lexpr (args-list args)
         (do-it vector-arg args-list)))))
+|#
+
+(defun %%check-keywords (vector-arg args)
+  (let ((method (%svref vector-arg 2)))
+    (if (listp args)
+      (apply method args)
+      (%apply-lexpr-tail-wise method args))))
+  
+
 
 ; called from %%call-next-method-with-args - its the key-or-init-fn 
 ; called from call-next-method-with-args - just check the blooming keys
