@@ -1817,3 +1817,55 @@
    It must take one argument that is the prefix argument."
   :value 'indent-for-lisp
   :mode "Lisp")
+
+(defun string-to-arglist (string buffer)  
+  (let* ((name
+          (let* ((*package* (or
+                             (find-package
+                              (variable-value 'current-package :buffer buffer))
+                             *package*)))
+            (read-from-string string))))
+    (when (and (typep name 'symbol))
+      (multiple-value-bind (arglist win)
+          (ccl::arglist-string name)
+        (format nil "~S : ~A" name (if win (or arglist "()") "(unknown)"))))))
+
+(defcommand "Current Function Arglist" (p)
+  "Show arglist of function whose name precedes point."
+  "Show arglist of function whose name precedes point."
+  (declare (ignore p))
+  (let ((point (current-point)))
+    (pre-command-parse-check point)
+    (with-mark ((mark1 point)
+		(mark2 point))
+      (when (backward-up-list mark1)
+        (when (form-offset (move-mark mark2 (mark-after mark1)) 1)
+          (let* ((fun-name (region-to-string (region mark1 mark2)))
+                 (arglist-string (string-to-arglist fun-name (current-buffer))))
+            (when arglist-string
+              (message arglist-string))))))))
+
+(defcommand "Arglist On Space" (p)
+  "Insert a space, then show the current function's arglist."
+  "Insert a space, then show the current function's arglist."
+  (declare (ignore p))
+  (let ((point (current-point)))
+    (insert-character point #\Space)
+    (pre-command-parse-check point)
+    (with-mark ((mark1 point)
+		(mark2 point))
+      (when (backward-up-list mark1)
+        (when (form-offset (move-mark mark2 (mark-after mark1)) 1)
+          (with-mark ((mark3 mark2))
+            (do* ()
+                 ((mark= mark3 point)
+                  (let* ((fun-name (region-to-string (region mark1 mark2)))
+                         (arglist-string
+                          (string-to-arglist fun-name (current-buffer))))
+                    (when arglist-string
+                      (message arglist-string))))
+              (if (ccl::whitespacep (next-character mark3))
+                (mark-after mark3)
+                (return nil)))))))))
+
+                
