@@ -1218,6 +1218,18 @@
   slot-id.index                         ; index (integer)
   )
 
+(def-accessors (foreign-object-domain) %svref
+  nil					; foreign-object-domain
+  foreign-object-domain-index		; 1..n
+  foreign-object-domain-name		;
+  foreign-object-domain-recognize	; function: is object one of ours ?
+  foreign-object-domain-class-of	; function: returns class of object
+  foreign-object-domain-classp		; function: true if object is a class
+  foreign-object-domain-instance-class-wrapper ; function: returns wrapper of object's class
+  foreign-object-domain-class-own-wrapper ; function: returns class own wrapper if class
+  foreign-object-domain-slots-vector	; returns slots vector of object or nil
+  )
+
 (provide "LISPEQU")
 
 ; End of lispequ.lisp
