@@ -513,6 +513,8 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (pp-start-block stream "#<")))
 
 (defun %print-unreadable-object (object stream type id thunk)
+  (cond ((null stream) (setq stream *standard-output*))
+        ((eq stream t) (setq stream *terminal-io*)))
   (write-unreadable-start object stream)
   (when type
     (princ (type-of object) stream)
