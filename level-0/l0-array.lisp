@@ -515,26 +515,28 @@
        ppc32::subtag-simple-base-string
        ppc32::subtag-simple-vector))
     (numeric-ctype
-     (case (numeric-ctype-class ctype)
-       (integer
-        (let* ((low (numeric-ctype-low ctype))
-               (high (numeric-ctype-high ctype)))
-          (cond ((or (null low) (null high)) ppc32::subtag-simple-vector)
-                ((and (>= low 0) (<= high 1) ppc32::subtag-bit-vector))
-                ((and (>= low 0) (<= high 255)) ppc32::subtag-u8-vector)
-                ((and (>= low 0) (<= high 65535)) ppc32::subtag-u16-vector)
-                ((and (>= low 0) (<= high #xffffffff) ppc32::subtag-u32-vector))
-                ((and (>= low -128) (<= high 127)) ppc32::subtag-s8-vector)
-                ((and (>= low -32768) (<= high 32767) ppc32::subtag-s16-vector))
-                ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
-                 ppc32::subtag-s32-vector)
-                (t ppc32::subtag-simple-vector))))
-       (float
-        (case (numeric-ctype-format ctype)
-          ((double-float long-float) ppc32::subtag-double-float-vector)
-          ((single-float short-float) ppc32::subtag-single-float-vector)
-          (t ppc32::subtag-simple-vector)))
-       (t ppc32::subtag-simple-vector)))
+     (if (eq (numeric-ctype-complexp ctype) :complex)
+       ppc32::subtag-simple-vector
+       (case (numeric-ctype-class ctype)
+	 (integer
+	  (let* ((low (numeric-ctype-low ctype))
+		 (high (numeric-ctype-high ctype)))
+	    (cond ((or (null low) (null high)) ppc32::subtag-simple-vector)
+		  ((and (>= low 0) (<= high 1) ppc32::subtag-bit-vector))
+		  ((and (>= low 0) (<= high 255)) ppc32::subtag-u8-vector)
+		  ((and (>= low 0) (<= high 65535)) ppc32::subtag-u16-vector)
+		  ((and (>= low 0) (<= high #xffffffff) ppc32::subtag-u32-vector))
+		  ((and (>= low -128) (<= high 127)) ppc32::subtag-s8-vector)
+		  ((and (>= low -32768) (<= high 32767) ppc32::subtag-s16-vector))
+		  ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
+		   ppc32::subtag-s32-vector)
+		  (t ppc32::subtag-simple-vector))))
+	 (float
+	  (case (numeric-ctype-format ctype)
+	    ((double-float long-float) ppc32::subtag-double-float-vector)
+	    ((single-float short-float) ppc32::subtag-single-float-vector)
+	    (t ppc32::subtag-simple-vector)))
+	 (t ppc32::subtag-simple-vector))))
     (t ppc32::subtag-simple-vector)))
 
 (defun %set-simple-array-p (array)
