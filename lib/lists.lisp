@@ -127,11 +127,9 @@
 
 (defun copy-alist (alist)
   "Returns a new association list equal to alist, constructed in space"
-  (if (atom alist)
-    (if alist
-      (report-bad-arg alist 'list))
+  (unless (endp alist)
     (let ((result
-           (cons (if (atom (car alist))
+           (cons (if (endp (car alist))
                    (car alist)
                    (cons (caar alist) (cdar alist)) )
                  '() )))	      
@@ -139,14 +137,11 @@
            (splice result
                    (cdr (rplacd splice
                                 (cons
-                                 (if (atom (car x)) 
+                                 (if (endp (car x)) 
                                    (car x)
                                    (cons (caar x) (cdar x)))
                                  '() ))) ))
-          ;;; Non-null terminated alist done here.
-          ((atom x) (unless (null x)
-                      (rplacd splice x))
-           result)))))
+          ((endp x) result)))))
 
 ;;; More Commonly-used List Functions
 
@@ -155,18 +150,7 @@
   (dolist (a x y) (push a y)))
 
 
-(defun alt-list-length (l)
-  "Detect (and complain about) cirucular lists; allow any atom to
-terminate the list"
-  (do* ((n 0 (1+ n))
-        (fast l)
-        (slow l))
-       ((atom fast) (if fast (the fixnum (1+ n)) n))
-    (declare (fixnum n))
-    (setq fast (cdr fast))
-    (if (logbitp 0 n)
-      (if (eq (setq slow (cdr slow)) fast)
-	(%err-disp $XIMPROPERLIST l)))))
+
 
 (defun butlast (list &optional (n 1 n-p))
   "Returns a new list the same as List without the N last elements."
