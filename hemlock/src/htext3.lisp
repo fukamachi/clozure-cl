@@ -42,6 +42,7 @@
       (delete-region region))
     (modifying-buffer buffer
 		      (modifying-line line mark)
+                      (check-buffer-modification buffer mark)
 		      (cond ((char= character #\newline)
 			     (let* ((next (line-next line))
 				    (new-chars (subseq (the simple-string *open-chars*)
@@ -87,6 +88,7 @@
     (when region
       (delete-region region))
     (unless (zerop (- end start))
+      (check-buffer-modification buffer mark)
       (if (%sp-find-character string start end #\newline)
 	(with-mark ((mark mark :left-inserting))
 	   (do ((left-index start (1+ right-index))
