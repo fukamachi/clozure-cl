@@ -75,6 +75,13 @@
 				       (*auto-flush-streams-lock*)
 				     (pushnew output-stream
 					      *auto-flush-streams*))
+				   (let* ((shared-input
+					   (input-stream-shared-resource
+					    input-stream)))
+				     (when shared-input
+				       (setf (shared-resource-primary-owner
+					      shared-input)
+					     *current-process*)))
 				   (funcall initial-function))
 			      (with-lock-grabbed
 				  (*auto-flush-streams-lock*)
