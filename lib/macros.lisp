@@ -423,7 +423,7 @@
     (let ((stream (gensym)))
       (setq format-string `#'(lambda (,stream) (format ,stream ,format-string ,@format-args)))))
   `(let* ((,temp (%cons-restart ',restart-name
-                                #'(lambda () (values nil t))
+                                'simple-restart
                                 ,format-string
                                 nil
                                 nil))
