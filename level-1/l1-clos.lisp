@@ -90,8 +90,8 @@
                   (let* ((initfunction (%slot-definition-initfunction slotd)))
                     (if initfunction
                       (let* ((newval (funcall initfunction)))
-			(unless (funcall (standard-effective-slot-definition.type-predicate slotd) new-value)
-			  (report-bad-arg new-value (%slot-definition-type slotd)))
+			(unless (funcall (standard-effective-slot-definition.type-predicate slotd) newval)
+			  (report-bad-arg newval (%slot-definition-type slotd)))
                         (if (consp loc)
                           (rplacd loc newval)
                           (setf (standard-instance-instance-location-access
