@@ -103,6 +103,7 @@
  (dll-node         "ccl:bin;dll-node"         ("ccl:compiler;dll-node.lisp"))
  (ppc32-arch       "ccl:bin;ppc32-arch"       ("ccl:compiler;PPC;PPC32;ppc32-arch.lisp"))
  (ppc-arch         "ccl:bin;ppc-arch"         ("ccl:compiler;PPC;ppc-arch.lisp"))
+ (ppc64-arch       "ccl:bin;ppc64-arch"       ("ccl:compiler;PPC;PPC64;ppc64-arch.lisp"))			     
  (arch             "ccl:bin;arch"             ("ccl:compiler;arch.lisp"))
  (ppcenv           "ccl:bin;ppcenv"           ("ccl:lib;ppcenv.lisp"))
  (vreg             "ccl:bin;vreg"             ("ccl:compiler;vreg.lisp"))
@@ -116,6 +117,7 @@
  (ppc-lap          "ccl:bin;ppc-lap"          ("ccl:compiler;PPC;ppc-lap.lisp"))
  (backend          "ccl:bin;backend"          ("ccl:compiler;backend.lisp"))
  (ppc32-backend    "ccl:bin;ppc32-backend"    ("ccl:compiler;PPC;PPC32;ppc32-backend.lisp"))			   
+ (ppc64-backend    "ccl:bin;ppc64-backend"    ("ccl:compiler;PPC;PPC64;ppc64-backend.lisp"))
  (ppc-backend      "ccl:bin;ppc-backend"     ("ccl:compiler;PPC;ppc-backend.lisp"))			   
  (ppc2             "ccl:bin;ppc2"             ("ccl:compiler;PPC;ppc2.lisp"))
 
