@@ -41,6 +41,7 @@
 ;;; :configure-notify events.
 ;;;
 (defvar *hemlock-windows*
+  #+clx
   (hemlock-ext:make-object-set "Hemlock Windows" #'hemlock-ext:default-clx-event-handler))
 
 
@@ -141,8 +142,8 @@
       (xlib:display-force-output display)
       (when liftp (drop-cursor)))))
 ;;;
-(hemlock-ext:serve-exposure *hemlock-windows* #'hunk-exposed-region)
-(hemlock-ext:serve-graphics-exposure *hemlock-windows* #'hunk-exposed-region)
+#+clx (hemlock-ext:serve-exposure *hemlock-windows* #'hunk-exposed-region)
+#+clx (hemlock-ext:serve-graphics-exposure *hemlock-windows* #'hunk-exposed-region)
 
 
 ;;; HUNK-NO-EXPOSURE handles this bullshit event that gets sent without its
@@ -152,7 +153,7 @@
   (declare (ignore hunk event-key event-window major minor send-event-p))
   t)
 ;;;
-(hemlock-ext:serve-no-exposure *hemlock-windows* #'hunk-no-exposure)
+#+clx (hemlock-ext:serve-no-exposure *hemlock-windows* #'hunk-no-exposure)
 
 
 ;;; EXPOSED-REGION-PEEK-EVENT returns the position and height of an :exposure
@@ -500,7 +501,7 @@
        (when (or (/= width old-width) (/= height old-height))
 	 (window-group-changed object width height))))))
 ;;;
-(hemlock-ext:serve-configure-notify *hemlock-windows* #'hunk-reconfigured)
+#+clx (hemlock-ext:serve-configure-notify *hemlock-windows* #'hunk-reconfigured)
 
 
 ;;; HUNK-IGNORE-EVENT ignores the following unrequested events.  They all take
@@ -511,13 +512,13 @@
   (declare (ignore hunk event-key event-window window one two three four five))
   t)
 ;;;
-(hemlock-ext:serve-destroy-notify *hemlock-windows* #'hunk-ignore-event)
-(hemlock-ext:serve-unmap-notify *hemlock-windows* #'hunk-ignore-event)
-(hemlock-ext:serve-map-notify *hemlock-windows* #'hunk-ignore-event)
-(hemlock-ext:serve-reparent-notify *hemlock-windows* #'hunk-ignore-event)
-(hemlock-ext:serve-gravity-notify *hemlock-windows* #'hunk-ignore-event)
-(hemlock-ext:serve-circulate-notify *hemlock-windows* #'hunk-ignore-event)
-(hemlock-ext:serve-client-message *hemlock-windows* #'hunk-ignore-event)
+#+clx (hemlock-ext:serve-destroy-notify *hemlock-windows* #'hunk-ignore-event)
+#+clx (hemlock-ext:serve-unmap-notify *hemlock-windows* #'hunk-ignore-event)
+#+clx (hemlock-ext:serve-map-notify *hemlock-windows* #'hunk-ignore-event)
+#+clx (hemlock-ext:serve-reparent-notify *hemlock-windows* #'hunk-ignore-event)
+#+clx (hemlock-ext:serve-gravity-notify *hemlock-windows* #'hunk-ignore-event)
+#+clx (hemlock-ext:serve-circulate-notify *hemlock-windows* #'hunk-ignore-event)
+#+clx (hemlock-ext:serve-client-message *hemlock-windows* #'hunk-ignore-event)
 
 
 ;;;; Interface to X input events.
@@ -539,7 +540,7 @@
 		       key-code modifiers)
 		      x y))
 ;;;
-(hemlock-ext:serve-key-press *hemlock-windows* #'hunk-key-input)
+#+clx (hemlock-ext:serve-key-press *hemlock-windows* #'hunk-key-input)
 
 (defun hunk-mouse-input (hunk event-key event-window root child same-screen-p x y
 			 root-x root-y modifiers time key-code send-event-p)
@@ -550,8 +551,8 @@
 						     event-key)
 		      x y))
 ;;;
-(hemlock-ext:serve-button-press *hemlock-windows* #'hunk-mouse-input)
-(hemlock-ext:serve-button-release *hemlock-windows* #'hunk-mouse-input)
+#+clx (hemlock-ext:serve-button-press *hemlock-windows* #'hunk-mouse-input)
+#+clx (hemlock-ext:serve-button-release *hemlock-windows* #'hunk-mouse-input)
 
 (defun hunk-process-input (hunk char x y)
   (when char
@@ -620,7 +621,7 @@
   (let ((window (bitmap-hunk-window hunk)))
     (when window (invoke-hook hemlock::enter-window-hook window))))
 ;;;
-(hemlock-ext:serve-enter-notify *hemlock-windows* #'hunk-mouse-entered)
+#+clx (hemlock-ext:serve-enter-notify *hemlock-windows* #'hunk-mouse-entered)
 
 #+clx
 (defun hunk-mouse-left (hunk event-key event-window root child same-screen-p
@@ -640,7 +641,7 @@
   (let ((window (bitmap-hunk-window hunk)))
     (when window (invoke-hook hemlock::exit-window-hook window))))
 ;;;
-(hemlock-ext:serve-leave-notify *hemlock-windows* #'hunk-mouse-left)
+#+clx (hemlock-ext:serve-leave-notify *hemlock-windows* #'hunk-mouse-left)
 
 
 
@@ -697,6 +698,12 @@
   (maybe-prompt-user-for-window
    (xlib:screen-root (xlib:display-default-screen display))
    x y width height font-family modelinep thumb-bar-p name))
+
+#-clx
+(defun default-create-window-hook (display x y width height name font-family
+					   &optional modelinep thumb-bar-p)
+  (declare (ignore display x y width height name font-family
+					    modelinep thumb-bar-p)))
 
 ;;; MAYBE-PROMPT-USER-FOR-WINDOW -- Internal.
 ;;;
@@ -938,6 +945,9 @@
 #+clx
 (defun default-delete-window-hook (xparent)
   (xlib:destroy-window xparent))
+#-clx
+(defun default-delete-window-hook (xparent)
+  (declare (ignore xparent)))
 ;;;
 (defvar *delete-window-hook* #'default-delete-window-hook
   "Hemlock calls this function to delete an X group/parent window.  It passes
@@ -1236,6 +1246,10 @@
 	   (gcontext (if (not window) (default-gcontext win))))
       (values win gcontext)))
 
+#-clx
+(defun default-random-typeout-hook (device window height)
+  (declare (ignore device window height)))
+
 (defvar *random-typeout-hook* #'default-random-typeout-hook
   "This function is called when a window is needed to display random typeout.
    It is called with the Hemlock device, a pre-existing window or NIL, and the
@@ -1399,6 +1413,10 @@
 		     :device device :modelinep t
 		     :window echo-xwin)))))
 	(setf *current-window* main-win)))))
+
+#-clx
+(defun default-create-initial-windows-hook (device)
+  (declare (ignore device)))
 
 ;;; DEFAULT-CREATE-INITIAL-WINDOWS-ECHO makes the echo area window as wide as
 ;;; the main window and places it directly under it.  If the echo area does not
@@ -1833,6 +1851,7 @@
 (defun reverse-video-hook-fun (name kind where new-value)
   (declare (ignore name kind where new-value)))
 
+#+clx
 (defun reverse-video-frob-hunk (hunk)
   (let ((gcontext (bitmap-hunk-gcontext hunk)))
     (setf (xlib:gcontext-foreground gcontext) *default-foreground-pixel*)

@@ -447,20 +447,20 @@
 		   chars ,start (strlen chars) ,vector ,mask))))
 ;;;
 (defmacro cache-find-attribute (start result vector mask)
-  `(let ((gap (- right-open-pos left-open-pos)))
+  `(let ((gap (- *right-open-pos* *left-open-pos*)))
      (declare (fixnum gap))
      (cond
-      ((>= ,start left-open-pos)
+      ((>= ,start *left-open-pos*)
        (setq ,result
 	     (%sp-find-character-with-attribute
-	      open-chars (+ ,start gap) *line-cache-length* ,vector ,mask))
+	      *open-chars* (+ ,start gap) *line-cache-length* ,vector ,mask))
        (when ,result (decf ,result gap)))
       ((setq ,result (%sp-find-character-with-attribute
-		      open-chars ,start left-open-pos ,vector ,mask)))
+		      *open-chars* ,start *left-open-pos* ,vector ,mask)))
       (t
        (setq ,result
 	     (%sp-find-character-with-attribute
-	      open-chars right-open-pos *line-cache-length* ,vector ,mask))
+	      *open-chars* *right-open-pos* *line-cache-length* ,vector ,mask))
        (when ,result (decf ,result gap))))))
 ); eval-when (:compile-toplevel :execute)
 ;;;
@@ -514,23 +514,23 @@
 		    chars 0 ,(or start '(strlen chars)) ,vector ,mask))))
 ;;;
 (defmacro rev-cache-find-attribute (start result vector mask)
-  `(let ((gap (- right-open-pos left-open-pos)))
+  `(let ((gap (- *right-open-pos* *left-open-pos*)))
      (declare (fixnum gap))
      (cond
       ,@(when start
-	  `(((<= ,start left-open-pos)
+	  `(((<= ,start *left-open-pos*)
 	     (setq ,result
 		   (%sp-reverse-find-character-with-attribute
-		    open-chars 0 ,start ,vector ,mask)))))
+		    *open-chars* 0 ,start ,vector ,mask)))))
       ((setq ,result (%sp-reverse-find-character-with-attribute
-		      open-chars right-open-pos
+		      *open-chars* *right-open-pos*
 		      ,(if start `(+ ,start gap) '*line-cache-length*)
 		      ,vector ,mask))
        (decf ,result gap))
       (t
        (setq ,result
 	     (%sp-reverse-find-character-with-attribute
-	      open-chars 0 left-open-pos ,vector ,mask))))))
+	      *open-chars* 0 *left-open-pos* ,vector ,mask))))))
 
 ); eval-when (:compile-toplevel :execute)
 ;;;

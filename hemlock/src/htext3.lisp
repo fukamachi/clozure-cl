@@ -105,7 +105,6 @@
   (let* ((start (region-start region))
 	 (end (region-end region))
 	 (first-line (mark-line start))
-	 (buffer (line-%buffer first-line))
 	 (last-line (mark-line end))
 	 (first-charpos (mark-charpos start))
 	 (last-charpos (mark-charpos end)))
@@ -115,7 +114,7 @@
       (if (eq first-line *open-line*) (close-line))
       (insert-string mark (line-chars first-line) first-charpos last-charpos))
      (t
-      (close-line buffer)
+      (close-line)
       (let* ((line (mark-line mark))
 	     (next (line-next line))
 	     (charpos (mark-charpos mark))

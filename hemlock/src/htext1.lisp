@@ -80,7 +80,7 @@
       (let* ((length (+ *left-open-pos* (- *line-cache-length* *right-open-pos*)))
 	     (string (make-string length)))
 	(%sp-byte-blt *open-chars* 0 string 0 *left-open-pos*)
-	(%sp-byte-blt *open-chars* *right-open-pos*  string -*left-open-pos* length)
+	(%sp-byte-blt *open-chars* *right-open-pos*  string *left-open-pos* length)
 	(setf (line-chars *open-line*) string)
 	(setf *open-line* nil)))))
 
@@ -119,7 +119,7 @@
 		    (setf *left-open-pos* charpos)))))
 
 	  (t
-	   (close-line buffer)
+	   (close-line)
 	   (let* ((chars (line-chars line))
 		  (len (length chars)))
 	     (declare (simple-string chars))
