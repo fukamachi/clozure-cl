@@ -149,7 +149,8 @@
 	 (buffer (line-%buffer line)))
     (modifying-buffer buffer
       (modifying-line line mark)
-      (cond ((= *right-open-pos* *line-cache-length*)
+      (cond ((= (mark-charpos mark)
+		(- *line-cache-length* (- *right-open-pos* *left-open-pos*)))
 	     ;; The mark is at the end of the line.
 	     (unless next
 	       (error "~S has no next character, so it cannot be set." mark))
@@ -186,7 +187,8 @@
 	       (number-line new)))
 	    (t
 	     (setf (char (the simple-string *open-chars*) *right-open-pos*)
-		   character)))))
+		   character)
+	     (hi::buffer-note-modification buffer mark 1)))))
   character)
 
 ;;; %Set-Previous-Character  --  Internal
@@ -441,7 +443,7 @@
   (declare (ignore d))
   (write-string "#<Hemlock Mark \"" stream)
   (%print-before-mark structure stream)
-  (write-string "/\\" stream)
+  (write-string "^" stream)
   (%print-after-mark structure stream)
   (write-string "\">" stream))  
 
