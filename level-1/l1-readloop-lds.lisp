@@ -41,13 +41,12 @@
   name)
 
 (define-toplevel-command 
-    :global y (p) "Yield control of terminal-input to process whose name or ID is <p>"
-    (let* ((proc (find-process p)))
-	(if (null proc)
-	  (format t "~&;; not found - ~s" p)
-	  (if (not (member proc *terminal-input-requests*))
-	    (format t "~&;; process not requesting control of terminal input")
-	    (%%yield-terminal-to proc)))))
+    :global y (&optional p) "Yield control of terminal-input to process
+whose name or ID matches <p>, or to any process if <p> is null"
+    (if p
+      (let* ((proc (find-process p)))
+	(%%yield-terminal-to proc)	;may be nil
+	(%%yield-terminal-to nil))))
 
 (define-toplevel-command
     :global kill (p) "Kill process whose name or ID matches <p>"
@@ -68,8 +67,14 @@
 	     (let* ((suspend-count (process-suspend-count proc)))
 	       (if (and suspend-count (not (eql 0 suspend-count)))
 		 (format t " (Suspended)")))
-	     (if (member proc *terminal-input-requests*)
-	       (format t " (Requesting terminal input)"))
+	     (let* ((terminal-input-shared-resource
+		     (if (typep *terminal-io* 'two-way-stream)
+		       (input-stream-shared-resource
+			(two-way-stream-input-stream *terminal-io*)))))
+	       (if (and terminal-input-shared-resource
+			(%shared-resource-requestor-p
+			 terminal-input-shared-resource proc))
+		 (format t " (Requesting terminal input)")))
 	     (fresh-line)))
       (if p
 	(let* ((proc (find-process p)))
@@ -86,6 +91,13 @@
   (let* ((r (apply #'vector (compute-restarts *break-condition*))))
     (dotimes (i (length r) (terpri))
       (format t "~&~d. ~a" i (svref r i)))))
+
+;;; From Marco Baringer 2003/03/18
+(define-toplevel-command :break set (n frame value) "Set <n>th item of frame <frame> to <value>"
+  (let* ((frame-sp (nth-raw-frame frame *break-frame* (%current-tcr))))
+    (if frame-sp
+        (toplevel-print (list (set-nth-value-in-frame frame-sp n (%current-tcr) value)))
+        (format *debug-io* "No frame with number ~D~%" frame))))
 
 (define-toplevel-command :global ? () "help"
   (dolist (g *active-toplevel-commands*)
