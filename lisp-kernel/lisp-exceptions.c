@@ -1186,76 +1186,12 @@ do_vsp_overflow (ExceptionInformation *xp, BytePtr addr)
 OSStatus
 do_tsp_overflow (ExceptionInformation *xp, BytePtr addr)
 {
-  TCR *tcr = (TCR *)xpGPR(xp, rcontext);
-  area *first_a = tcr->ts_area;
-  area *a = first_a, *new_a, *maybe_new_a;
-  BytePtr tspPtr = (BytePtr) xpGPR(xp, tsp);
-  int frame_size = tspPtr - addr;
-  BytePtr new_tsp;
-  pc where = xpPC(xp);
-  opcode instruction = *where;
-
-  preserved_registers pr;
-
-  sample_preserved_registers(xp, &pr);
-
-  if ((frame_size > TSTACK_SOFTPROT) || (frame_size < 0)) {
-    Bug(xp, "TSP frame size out of range");
-  };
-
-  for (; a && ((a->low > tspPtr) || (a->high < tspPtr)); a = a->older) {
-  };
-  if (!a)
-    Bug(xp, "Can't find TSP area");
-
-  new_a = maybe_new_a = a->younger;
-
-  /* If no existing segment, allocate a new one */
-  if (! new_a) {
-#ifdef EXTEND_VSTACK
-    new_a = allocate_area_with_c_gc_context(xp, allocate_tstack, MIN_TSTACK_SIZE);
-#endif
-    if (! new_a)
-      return do_hard_stack_overflow(xp, NULL, NULL);
-    new_a->older = a;
-    a->younger = new_a;
-  };
-
-  tcr->ts_area = new_a;
-  a->active = tspPtr;
-  new_tsp = new_a->high - frame_size;
-  
-  /* Emulate current instruction, which must be a stwu or stwux */
-  if ((major_opcode_p(instruction, major_opcode_STWU) ||
-       X_opcode_p(instruction, major_opcode_X31, minor_opcode_STWUX)) &&
-      (RA_field(instruction) == tsp)) {
-    /* (stwu rs D tsp) or (stwux rs tsp rb) */
-    LispObj *tspP = (LispObj *) new_tsp;
-    unsigned reg = RS_field(instruction);
-
-    *tspP = xpGPR(xp, reg);
-    xpPC(xp) += 1;
-  } else {
-    Bug(xp, "Instruction causing TSP overflow not stwu or stwux");
-  };
-
-  /* Update the tsp. This must happen after the stwu has been emulated, so the
-     link will work correctly
-     */
-  xpGPR(xp, tsp) = (LispObj) new_tsp;
-  new_a->active = new_tsp;              /* Not really necessary */
-
-  /* Don't signal an error if we found an existing segment.
-     Unlike the VSP, this is not functionally important, but
-     it has a noticeable performance impact.
-     Also, don't signal an error if nilreg is not NIL. This happens
-     when .SPcallback allocates a TSP frame to save the C saved registers.
-     */
-  if ((maybe_new_a == NULL) && ((((unsigned) nrs_GC_EVENT_STATUS_BITS.vcell) & gc_allow_stack_overflows_bit) == 0)) {
-    handle_error(xp, error_stack_overflow, tsp, 0, (unsigned) xpPC(xp));
-  };
-  
-  return 0;                     /* if we ever return. */
+  TCR* tcr = (TCR *) xpGPR(xp, rcontext);
+  area *a = tcr->ts_area;
+  protected_area_ptr tsp_soft = a->softprot;
+  unprotect_area(tsp_soft);
+  signal_stack_soft_overflow(xp,tsp);
+  return 0;
 }
 
 OSStatus
