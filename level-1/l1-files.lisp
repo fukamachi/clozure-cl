@@ -130,24 +130,18 @@
 
 (defun probe-file (path)
   (let* ((native (native-translated-namestring path))
-	 (realpath (%realpath native))
-	 (kind (if realpath (%unix-file-kind realpath))))
+         (realpath (%realpath native))
+         (kind (if realpath (%unix-file-kind realpath))))
     ;; Darwin's #_realpath will happily return non-nil for
     ;; files that don't exist.  I don't think that
     ;; %UNIX-FILE-KIND would do so.
     (when kind
-      (when (and realpath
-		 (> (length native) 0)
-		 (eq (aref native (1- (length native))) #\/))
-	;; If started with a directory, return a directory (%realpath
-	;; always strips off the trailing /).
-	;; E.g. (truename "/foo/bar/") should return "/foo/bar/".
-	(if (eq kind :directory)
-	  (unless (eq (aref realpath (1- (length realpath))) #\/)
-	    (setq realpath (%str-cat realpath "/")))
-	  (setq realpath nil)))
-      (when realpath
-	(native-to-pathname realpath)))))
+      (if (eq kind :directory)
+          (unless (eq (aref realpath (1- (length realpath))) #\/)
+            (setq realpath (%str-cat realpath "/"))))
+      (if realpath
+        (native-to-pathname realpath)
+        nil))))
 
 (defun cwd (path)  
   (multiple-value-bind (realpath kind) (%probe-file-x (native-translated-namestring path))
