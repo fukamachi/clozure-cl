@@ -6,36 +6,30 @@
 
 (in-package :hemlock-internals)
 
-(defstruct command-interpreter-info
-  (current-command (make-array 10 :fill-pointer 0 :adjustable t))
-  (current-translation (make-array 10 :fill-pointer 0 :adjustable t))
-  (last-command-type nil)
-  (command-type-set nil)
-  (prefix-argument nil)
-  (prefix-argument-supplied nil)
-  frame
-  (event-mode-list nil)			; for extended modal
-  )
+(defstruct (frame-event-queue (:include ccl::locked-dll-header))
+  (signal (ccl::make-semaphore)))
 
-(defvar *current-command-info* nil)
-
-(defun push-event-mode-function (f)
-  (push f (command-interpreter-info-event-mode-list *current-command-info*))
-  f)
-
-(defun exit-event-mode ()
-  (setf (command-interpreter-info-event-mode-list *current-command-info*)
-	(cdr (command-interpreter-info-event-mode-list *current-command-info*))))
-
-(defun current-event-mode ()
-  (car (command-interpreter-info-event-mode-list *current-command-info*)))
-
-(defun add-one-shot-event-mode-function (f)
-  (push-event-mode-function #'(lambda (key)
-				(exit-event-mode)
-				(funcall f key))))
+(defstruct (buffer-operation (:include ccl::dll-node))
+  (thunk nil))
 
 
+(defun enqueue-key-event (q event)
+  (ccl::locked-dll-header-enqueue event q)
+  (ccl::signal-semaphore (frame-event-queue-signal q)))
+
+(defun dequeue-key-event (q)
+  (ccl::wait-on-semaphore (frame-event-queue-signal q))
+  (ccl::locked-dll-header-dequeue q))
+
+(defun unget-key-event (event q)
+  (ccl::with-locked-dll-header (q)
+    (ccl::insert-dll-node-after event q))
+  (ccl::signal-semaphore (frame-event-queue-signal q)))
+
+
+
+
+  
 
 (defun buffer-windows (buffer)
   (let* ((doc (buffer-document buffer)))
@@ -65,3 +59,15 @@
    input.")
 
 (defvar *input-transcript* ())
+
+(defun get-key-event (q &optional ignore-pending-aborts)
+  (declare (ignore ignore-pending-aborts))
+  (do* ((e (dequeue-key-event q) (dequeue-key-event q)))
+       ((typep e 'hemlock-ext:key-event)
+        (setq *last-key-event-typed* e))
+    (if (typep e 'buffer-operation)
+      (funcall (buffer-operation-thunk e)))))
+
+(defun listen-editor-input (q)
+  (ccl::with-locked-dll-header (q)
+    (not (eq (ccl::dll-header-first q) q))))
