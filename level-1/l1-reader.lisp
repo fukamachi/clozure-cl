@@ -860,7 +860,6 @@ c)" t)
                        (declare (ignore nondots))
                        (%casify-token tb (unless (atom escapes) escapes))
                        (or explicit-package
-                           (not nondots)
                            (and (not escapes)
                                 (%token-to-number tb (%validate-radix *read-base*))))))
                (%err-disp $XBADSYM)
