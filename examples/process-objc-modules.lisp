@@ -148,6 +148,8 @@ class or metaclass object."
 	(process-module-classes
 	 module
 	 #'(lambda (class)
+	     (unless (logtest #$CLS_META (pref class :objc_class.info))
+	       (map-objc-class class))
 	     (process-class-methods class methodfun)))
 	(process-module-categories	 
 	 module
