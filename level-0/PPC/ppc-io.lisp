@@ -1,4 +1,4 @@
-; -*- Mode: Lisp; Package: CCL; -*-
+;;; -*- Mode: Lisp; Package: CCL; -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -14,9 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-; level-0:ppc:ppc-io.lisp - bogus-thing-p
-
-;;;;;;;;;;;;;;;;;;;;;;;
 
 
 #+allow-in-package
@@ -25,9 +22,9 @@
 ; not very smart yet
 
 (defppclapfunction %get-errno ()
-  (lwz imm1 ppc32::tcr.errno-loc rcontext)
-  (lwz imm0 0 imm1)
-  (stw rzero 0 imm1)
+  (ldr imm1 target::tcr.errno-loc rcontext)
+  (ldr imm0 0 imm1)
+  (str rzero 0 imm1)
   (neg imm0 imm0)
   (box-fixnum arg_z imm0)
   (blr))
