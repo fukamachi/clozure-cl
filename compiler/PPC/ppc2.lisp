@@ -1373,7 +1373,7 @@
                                    (! misc-ref-double-float 0 src idx-reg)))
                              (! double->heap target 0))
                            (if (and index-known-fixnum (<= index-known-fixnum ppc32::max-1-bit-constant-index))
-                             (! misc-ref-c-bit[fixnum] target src index-known-fixnum)
+                             (! misc-ref-c-bit-fixnum target src index-known-fixnum)
                              (with-imm-temps
                                  () (word-index bitnum dest)
                                  (if index-known-fixnum
@@ -1382,7 +1382,7 @@
                                      (ppc2-lwi seg bitnum (logand index-known-fixnum #x1f)))
                                    (! scale-1bit-misc-index word-index bitnum unscaled-idx))
                                  (! misc-ref-u32 dest src word-index)
-                                 (! extract-variable-bit[fixnum] target dest bitnum))))))))
+                                 (! extract-variable-bit-fixnum target dest bitnum))))))))
                   (^))))))))))
 
 ; In this case, the target register is an fp reg and the vector is declared
@@ -3425,7 +3425,7 @@
 
 ; If "value-first-p" is true and both "offset" and "val" need to be 
 ; evaluated, evaluate "val" before evaluating "offset".
-(defun ppc2-%immediate-set-ptr (seg vreg xfer deref ptr offset val value-first-p)
+(defun ppc2-%immediate-set-ptr (seg vreg xfer  ptr offset val value-first-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((intval (acode-absolute-ptr-p val))
            (offval (acode-fixnum-form-p offset))
@@ -3465,8 +3465,6 @@
                   (if (eql intval 0)
                     (setq val-target ppc::rzero)
                     (ppc2-lwi seg val-target intval))
-                  (if deref
-                    (! mem-ref-c-fullword ptr-reg ptr-reg 0))
                   (! mem-set-c-fullword val-target ptr-reg offval)
                   (if for-value
                     (<- (set-regspec-mode val-target (gpr-mode-name-value :address)))))
@@ -3477,8 +3475,6 @@
                     (with-imm-target (address) (ptr-reg :address)
                       (! temp-pop-unboxed-word ptr-reg)
                       (ppc2-close-undo)
-                      (if deref
-                        (! mem-ref-c-fullword ptr-reg ptr-reg 0))
                       (! mem-set-c-fullword address ptr-reg offval)
                       (if for-value
                         (<- node)))))))
@@ -3557,8 +3553,6 @@
                                   xoff-reg off-reg
                                   xval-reg address
                                   node-arg_z nil)))))))
-              (if deref
-                (! mem-ref-c-fullword xptr-reg xptr-reg 0))
               (! mem-set-fullword xval-reg xptr-reg xoff-reg)
               (when for-value
                 (if node-arg_z
@@ -3589,7 +3583,7 @@
 (defun ppc2-%immediate-store  (seg vreg xfer bits ptr offset val value-first-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (if (eql 0 (%ilogand #xf bits))
-      (ppc2-%immediate-set-ptr seg vreg xfer (%ilogbitp 4 bits) ptr offset val value-first-p)
+      (ppc2-%immediate-set-ptr seg vreg xfer  ptr offset val value-first-p)
       (let* ((deref (%ilogbitp 4 bits))
              (size
               (if (eq (setq bits (%ilogand2 #xf bits)) 3) 
@@ -5232,7 +5226,7 @@
     (ppc2-form seg vreg xfer node)
     (progn
       (ensuring-node-target (target vreg) 
-        (! extract-tag[fixnum] target (ppc2-one-untargeted-reg-form seg node ppc::arg_z)))
+        (! extract-tag-fixnum target (ppc2-one-untargeted-reg-form seg node ppc::arg_z)))
       (^))))
 
 (defppc2 ppc2-ppc-fulltag ppc-fulltag (seg vreg xfer node)
@@ -5240,7 +5234,7 @@
     (ppc2-form seg vreg xfer node)
     (progn
       (ensuring-node-target (target vreg) 
-        (! extract-fulltag[fixnum] target (ppc2-one-untargeted-reg-form seg node ppc::arg_z)))
+        (! extract-fulltag-fixnum target (ppc2-one-untargeted-reg-form seg node ppc::arg_z)))
       (^))))
 
 (defppc2 ppc2-ppc-typecode ppc-typecode (seg vreg xfer node)
@@ -5249,7 +5243,7 @@
     (let* ((reg (ppc2-one-untargeted-reg-form seg node (if (eq (hard-regspec-value vreg) ppc::arg_z) 
                                                          ppc::arg_y ppc::arg_z))))
       (ensuring-node-target (target vreg) 
-        (! extract-typecode[fixnum] target reg ))
+        (! extract-typecode-fixnum target reg ))
       (^))))
 
 (defppc2 ppc2-setq-special setq-special (seg vreg xfer sym val)
@@ -5305,7 +5299,7 @@
     (unless *ppc2-reckless* (! trap-unless-tag= misc-reg ppc32::tag-misc))
     (if vreg 
       (ensuring-node-target (target vreg)
-        (! misc-element-count[fixnum] target misc-reg)))
+        (! misc-element-count-fixnum target misc-reg)))
     (^)))
 
 (defppc2 ppc2-%ilsl %ilsl (seg vreg xfer form1 form2)
@@ -6287,7 +6281,7 @@
           (src-reg :address)
           (ppc2-one-targeted-reg-form seg ptr src-reg)
           (if (node-reg-p vreg)
-            (! mem-ref-c-bit[fixnum] vreg src-reg byte-index (logand 31 (+ bit-shift
+            (! mem-ref-c-bit-fixnum vreg src-reg byte-index (logand 31 (+ bit-shift
                                                                            ppc32::fixnumshift)))
             (with-imm-target ()           ;OK if src-reg & dest overlap
               (dest :u8)
@@ -6306,7 +6300,7 @@
               (! temp-pop-unboxed-word src-reg)
               (ppc2-close-undo))
             (if (node-reg-p vreg)
-              (! mem-ref-bit[fixnum] vreg src-reg offset-reg)
+              (! mem-ref-bit-fixnum vreg src-reg offset-reg)
               (with-imm-target ()
                 (dest :u8)
                 (! mem-ref-bit dest src-reg offset-reg)
