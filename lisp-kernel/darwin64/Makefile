@@ -43,7 +43,12 @@ OPENMCL_MINOR_VERSION=14
 VPATH = ..
 RM = /bin/rm
 LD = ld64
-LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start  -sectalign "__TEXT" "__text" 0x1000 -pagezero_size 0x3000
+
+### The -pagezero_size/-seg1addr args are an attempt to work around a
+### bug (#4057702) in ld64.
+### Come to think of it, so is the '-weak_reference_mismatches' nonsense.
+
+LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start -pagezero_size 0x1000  -seg1addr 0x0000 -weak_reference_mismatches non-weak
 AS = as
 M4 = gm4
 M4FLAGS = -DDARWIN -DPPC64
