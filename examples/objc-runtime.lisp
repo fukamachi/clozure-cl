@@ -141,7 +141,7 @@
         (or (splay-tree-get objc-class-map class)
             (let* ((id (assign-next-class-id))
                    (class (%inc-ptr class 0))
-                   (meta (pref class :objc_class.class_pointer)))
+                   (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
               (ensure-objc-classptr-resolved class)
               (splay-tree-put objc-class-map class id)
               (splay-tree-put objc-metaclass-map meta id)
@@ -179,10 +179,10 @@
 (defun fake-cfbundle-path ()
   (when *default-bundle-path*
     (let* ((fakepath
-            (native-translated-namestring
-             )))
+            (native-translated-namestring *default-bundle-executable-path*)))
       (setenv "CFProcessPath" fakepath))))
 
+(defloadvar *cocoa-event-process* *initial-process*)
 
 (defun run-in-cocoa-process-and-wait  (f)
   (let* ((process *cocoa-event-process*)
@@ -1007,6 +1007,7 @@ client methods" classname))
 					(objc-class-info-superclassname info)
 					(objc-class-info-ivars info))))
 	  (%add-objc-class class)
+	  (map-objc-class class)
 	  (%objc-class-classptr descriptor)))))
 
 (defun ensure-lisp-objc-class-defined (classname
