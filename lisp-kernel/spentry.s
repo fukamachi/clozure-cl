@@ -24,7 +24,6 @@ define([_spentry],[ifdef([__func_name],[_endfn],[])
         .align 5
 	_exportfn(_SP$1)
 	.line  __line__
-        check_vsp
 ])
 
              
@@ -43,6 +42,7 @@ define([jump_builtin],[
 ])
 	
 _spentry(jmpsym)
+        __(check_vsp)
 	__(jump_fname())
         
 _spentry(jmpnfn)
@@ -50,6 +50,7 @@ _spentry(jmpnfn)
         
 	/* Call temp0 if it's either a symbol or function */
 _spentry(funcall)
+        __(check_vsp)
 	__(do_funcall())
 	
 /* Subprims for catch, throw, unwind_protect. */
@@ -105,7 +106,7 @@ local_label(_throw_found):
 	__(set_nargs(1))
 	__(beq cr1,local_label(_throw_default_1_val))
 	__(mr vsp,imm1)
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(b local_label(_throw_all_values))
 local_label(_throw_default_1_val):
 	__(li imm4,nil_value)
@@ -141,7 +142,7 @@ local_label(_throw_mvloop):
 	__(bgt local_label(_throw_mvloop))
 local_label(_throw_pushed_values):
 	__(mr vsp,imm1)
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(ldr(sp,catch_frame.csp(imm3)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
@@ -199,7 +200,7 @@ local_label(_nthrowv_push_test):
 	__(subi imm2,imm2,fixnum_one)
 	__(bne local_label(_nthrowv_push_loop))
 	__(mr vsp,imm0)
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(lmw first_nvr,catch_frame.regs(temp0))
 
 local_label(_nthrowv_skip):
@@ -243,7 +244,7 @@ local_label(_nthrowv_tpushtest):
 	__(bne local_label(_nthrowv_tpushloop))
 	__(stru(imm4,node_size(imm0)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(str(rzero,lisp_frame.savevsp(sp)))       /* tell stack overflow code to skip this frame */
 	__(bctrl)
 	__(la imm0,tsp_frame.data_offset(tsp))
@@ -294,7 +295,7 @@ local_label(_nthrow1v_dont_unbind):
 /* A catch frame.  If the last one, restore context from there. */
 	__(bne cr1,local_label(_nthrow1v_skip))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(ldr(first_nvr,catch_frame.xframe(temp0)))
 	__(str(first_nvr,tcr.xframe(rcontext)))
 	__(lmw first_nvr,catch_frame.regs(temp0))
@@ -326,7 +327,7 @@ local_label(_nthrow1v_do_unwind):
 	__(str(arg_z,tsp_frame.data_offset(tsp)))
 	__(str(imm4,tsp_frame.data_offset+node_size(tsp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(str(rzero,lisp_frame.savevsp(sp)))       /* Tell stack overflow code to ignore this frame */
 	__(bctrl)
 	__(ldr(arg_z,tsp_frame.data_offset(tsp)))
@@ -374,7 +375,7 @@ _spentry(conslist)
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(nargs,fixnum_one))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi nargs,nargs,fixnum_one)
 2:
@@ -390,7 +391,7 @@ _spentry(conslist_star)
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(nargs,fixnum_one))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi nargs,nargs,fixnum_one)
 2:
@@ -410,7 +411,7 @@ _spentry(stkconslist)
 1:	__(ldr(temp0,0(vsp)))
 	__(cmpri(cr1,nargs,fixnum_one))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(rplaca(imm1,temp0))
 	__(rplacd(imm1,arg_z))
 	__(mr arg_z,imm1)
@@ -432,7 +433,7 @@ _spentry(stkconslist_star)
 1:	__(ldr(temp0,0(vsp)))
 	__(cmpri(cr1,nargs,fixnum_one))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(rplaca(imm1,temp0))
 	__(rplacd(imm1,arg_z))
 	__(mr arg_z,imm1)
@@ -461,7 +462,7 @@ _spentry(mkstackv)
 	__(cmpri(cr1,nargs,0))
 	__(ldr(temp1,0(vsp)))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(stru(temp1,-node_size(imm1)))
 	__(bne cr1,1b)
 2:
@@ -604,6 +605,7 @@ C(nvalret):
 	
 /* funcall temp0, returning multiple values if it does. */
 _spentry(mvpass)
+        __(check_vsp)
 	__(cmpri(cr0,nargs,4*nargregs))
 	__(mflr loc_pc)
 	__(mr imm0,vsp)
@@ -622,9 +624,10 @@ _spentry(mvpass)
 /* identifies the stack frame to code which returns multiple values. */
 
 _exportfn(C(ret1valn))
+        __(check_vsp)
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)     
+        __(mr old_vsp,vsp)     
 	__(mtlr loc_pc)
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(discard_lisp_frame())
@@ -637,7 +640,7 @@ _spentry(fitvals)
 	__(li imm1,nil_value)
 	__(bge 2f)
 	__(sub vsp,vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 1:
 	__(subic. imm0,imm0,4)
@@ -659,7 +662,7 @@ _spentry(nthvalue)
 	__(ldrx(arg_z,imm0,imm1))
 1:	
 	__(la vsp,node_size(imm0))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
         
 
@@ -685,7 +688,7 @@ local_label(return_values):
 	__(ldr(arg_z,-node_size(imm0)))
 1:
 	__(mr vsp,temp0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 
 2:
@@ -706,7 +709,7 @@ local_label(return_values):
 	__(bne cr1,4f)
 	 __(ldr(arg_z,0(vsp)))
 	 __(mr vsp,imm0)
-         __(mr new_vsp,vsp)        
+         __(mr old_vsp,vsp)        
 	 __(vpush(arg_z))
 	 __(blr)
 4:
@@ -720,7 +723,7 @@ local_label(return_values):
 	__(bne cr0,5b)
 6:
 	__(mr vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 	
 /* Provide default (NIL) values for &optional arguments; imm0 is 
@@ -777,7 +780,7 @@ _spentry(heap_rest_arg)
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(imm1,fixnum_one))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi imm1,imm1,fixnum_one)
 2:
@@ -798,7 +801,7 @@ _spentry(req_heap_rest_arg)
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(imm1,fixnum_one))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi imm1,imm1,fixnum_one)
 2:
@@ -816,7 +819,7 @@ _spentry(heap_cons_rest_arg)
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(imm1,fixnum_one))
 	__(la vsp,node_size(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi imm1,imm1,fixnum_one)
 2:
@@ -990,7 +993,7 @@ _spentry(keyword_bind)
 	__(andi. imm2,keyword_flags,4<<fixnumshift)
 	__(bnelr cr0)
 	__(mr vsp,imm4)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 
 /* Signal an error.  We saved context on entry, so this thing doesn't 
@@ -1004,7 +1007,7 @@ _spentry(keyword_bind)
 	/* error with that list as an operand. */
 odd_keywords:
 	__(mr vsp,imm4)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(mr nargs,imm1)
 	__(b 1f)
 badkeys:
@@ -1190,7 +1193,7 @@ _spentry(callbackX)
 	__(la sp,(stack_align(c_frame.minsiz))(sp))
 
 	__(ldr(vsp,tcr.save_vsp(rcontext)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(ldr(tsp,tcr.save_tsp(rcontext)))		
 	__(li rzero,0)
 	__(mtxer rzero) /* lisp wants the overflow bit clear */
@@ -1436,7 +1439,7 @@ ifdef([PPC64],[
 /*  Discard whatever's been vpushed already, complain. */
 3:	
 	__(add vsp,vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(mr arg_z,arg_y)		/* recover original arg_z */
 	__(li arg_y,XNOSPREAD)
 	__(set_nargs(2))
@@ -1462,11 +1465,11 @@ _spentry(tfuncallgen)
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
 	__(mr vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(do_funcall())
 2:
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(discard_lisp_frame())
 	__(do_funcall())
 
@@ -1488,7 +1491,7 @@ _spentry(tfuncallslide)
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
 	__(mr vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(do_funcall())
 
 	/* No args were vpushed; recover saved context & do funcall */
@@ -1496,7 +1499,7 @@ _spentry(tfuncallvsp)
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(mtlr loc_pc)
 	__(discard_lisp_frame())
 	__(do_funcall())
@@ -1524,12 +1527,12 @@ _spentry(tcallsymgen)
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
 	__(mr vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(jump_fname)
 	
 2:		
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(discard_lisp_frame())
 	__(jump_fname)
 	
@@ -1551,7 +1554,7 @@ _spentry(tcallsymslide)
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
 	__(mr vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(jump_fname)
 
 /* No args were vpushed; recover saved context & call symbol */
@@ -1559,7 +1562,7 @@ _spentry(tcallsymvsp)
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(discard_lisp_frame())
 	__(mtlr loc_pc)
 	__(jump_fname)
@@ -1588,14 +1591,14 @@ _spentry(tcallnfnslide)
 	__(push(fname,imm0))
 	__(bne cr0,1b)
 	__(mr vsp,imm0)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
        	__(jump_nfn())
         
 _spentry(tcallnfnvsp)
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(discard_lisp_frame())
 	__(mtlr loc_pc)
        	__(jump_nfn())
@@ -1916,7 +1919,7 @@ _spentry(stkgvector)
 2:
 	__(bne cr1,1b)
 	__(add vsp,vsp,nargs)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 
 /* Allocate a "fulltag_misc" object.  On entry, arg_y contains the element */
@@ -2312,7 +2315,7 @@ badlist:
 	/* b destructure_error */
 destructure_error:
 	__(mr vsp,imm4)		/* undo everything done to the stack */
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(mr arg_z,whole_reg)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
@@ -2370,18 +2373,18 @@ _spentry(vpopargregs)
 	__(ldr(arg_y,node_size*1(vsp)))
 	__(ldr(arg_x,node_size*2(vsp)))
 	__(la vsp,node_size*3(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 local_label(yz):
 	__(ldr(arg_z,node_size*0(vsp)))
 	__(ldr(arg_y,node_size*1(vsp)))
 	__(la vsp,node_size*2(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 local_label(z):
 	__(ldr(arg_z,node_size*0(vsp)))
 	__(la vsp,node_size*1(vsp))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 
 /* If arg_z is an integer, return in imm0 something whose sign */
@@ -2673,7 +2676,7 @@ _spentry(mvslide)
 	__(bne cr0,1b)
 2:
 	__(mr vsp,imm2)
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 
 /* Build a new TSP area to hold nargs worth of multiple-values. */
@@ -2715,7 +2718,7 @@ local_label(save_values_to_tsp):
 2:
 	__(bne cr0,1b)
 	__(add vsp,vsp,nargs) /*  discard values */
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(blr)
 	
 
@@ -2793,7 +2796,7 @@ _spentry(callback)
 	__(la sp,(stack_align(c_frame.minsiz))(sp))
 
 	__(ldr(vsp,tcr.save_vsp(rcontext)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(ldr(tsp,tcr.save_tsp(rcontext)))		
 	__(li rzero,0)
 	__(mtxer rzero) /* lisp wants the overflow bit being clear */
@@ -2860,6 +2863,7 @@ _spentry(callback)
 /* Calls out to %init-misc, which does the rest of the work. */
 
 _spentry(misc_alloc_init)
+        __(check_vsp)
 	__(mflr loc_pc)
 	__(build_lisp_frame(fn,loc_pc,vsp))
 	__(li fn,0)
@@ -2871,7 +2875,7 @@ _spentry(misc_alloc_init)
 	__(mtlr loc_pc)
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp))) 
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(discard_lisp_frame())
 	__(li fname,nrs.init_misc)
 	__(set_nargs(2))
@@ -2892,7 +2896,7 @@ _spentry(stack_misc_alloc_init)
 	__(mtlr loc_pc)
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)
+        __(mr old_vsp,vsp)
 	__(discard_lisp_frame())
 	__(li fname,nrs.init_misc)
 	__(set_nargs(2))
@@ -3035,7 +3039,7 @@ _spentry(popj)
 C(popj):
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(mtlr loc_pc)
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(discard_lisp_frame())
@@ -3047,12 +3051,13 @@ _spentry(restorefullcontext)
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(mtlr loc_pc)
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(discard_lisp_frame())
 	__(bctr)
 
 _spentry(savecontextvsp)
+        __(check_vsp)
 	__(ldr(imm0,tcr.cs_limit(rcontext)))
 	__(build_lisp_frame(fn,loc_pc,vsp))
 	__(mr fn,nfn)
@@ -3060,6 +3065,7 @@ _spentry(savecontextvsp)
 	__(blr)
 
 _spentry(savecontext0)
+        __(check_vsp)
 	__(add imm0,vsp,imm0)
 	__(build_lisp_frame(fn,loc_pc,imm0))
 	__(ldr(imm0,tcr.cs_limit(rcontext)))
@@ -3073,7 +3079,7 @@ _spentry(savecontext0)
 _spentry(restorecontext)
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(discard_lisp_frame())
 	__(blr)
@@ -3680,7 +3686,7 @@ _local_label(FF_call_return_common):
 	__(ldr(sp,0(sp)))
 	__(mr imm2,save0)
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(vpop_saveregs())
 	__(li rzero,0)
 	__(mr loc_pc,rzero)
@@ -3789,7 +3795,7 @@ _spentry(eabi_callback)
 	__(li allocptr,0)
 	__(li allocbase,0)
 	__(ldr(vsp,tcr.save_vsp(rcontext)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(ldr(tsp,tcr.save_tsp(rcontext)))		
 	__(li rzero,0)
 	__(mtxer rzero) /* lisp wants the overflow bit clear */
@@ -3916,7 +3922,7 @@ _spentry(syscall)
 	__(ldr(sp,0(sp)))
 	__(mr imm2,temp0)
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-        __(mr new_vsp,vsp)        
+        __(mr old_vsp,vsp)        
 	__(li rzero,0)
 	__(mr loc_pc,rzero)
 	__(mr fn,rzero)

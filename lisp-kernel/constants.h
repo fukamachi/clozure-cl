@@ -31,9 +31,9 @@
 #define allocbase 10
 #define nargs 11
 #define tsp 12
-#define vsp 13
+#define old_vsp 13
 #define loc_pc 14		/*  code vector locative */
-#define new_vsp 15		
+#define vsp 15		
 #define fn 16
 #define temp3 17
 #define temp2 18
