@@ -272,7 +272,6 @@
 
 (defparameter *load-print* nil "the default for the :PRINT argument to LOAD")
 (defparameter *loading-files* nil)
-(defvar *loading-file-source-file* nil)
 (defparameter *break-level* 0)
 (defparameter *last-break-level* 0)
 (defvar *record-source-file* nil)       ; set in l1-utils.
