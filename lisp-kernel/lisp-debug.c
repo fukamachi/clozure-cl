@@ -46,8 +46,22 @@ int
 readc()
 {
   int c;
-  while ((c = getchar()) == '\n');
-  return c;
+  while (1) {
+    c = getchar();
+    switch(c) {
+    case '\n':
+      continue;
+    case EOF:
+      if (ferror(stdin)) {
+	if (errno == EINTR) {
+	  continue;
+	}
+      }
+      /* fall through */
+    default:
+      return c;
+    }
+  }
 }
 
 void
@@ -171,7 +185,7 @@ lisp_Debugger(ExceptionInformationPowerPC *xp, char *message)
     case 'B': case 'b':
       debug_backtrace(xp);
       break;
-    case 'K': case 'k':
+    case 'K': case 'k': case EOF:
       terminate_lisp();
     case 'X': case 'x':
       resume_other_threads();
