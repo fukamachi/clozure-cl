@@ -78,7 +78,8 @@
 (defconstant ncharcodebits 16)
 (defconstant charcode-shift (- nbits-in-word ncharcodebits))
 (defconstant word-shift 2)
-
+(defconstant target-most-negative-fixnum (ash -1 (1- (- nbits-in-word nfixnumtagbits))))
+(defconstant target-most-positive-fixnum (1- (ash 1 (1- (- nbits-in-word nfixnumtagbits)))))
 
 ;; PPC-32 stuff and tags.
 
