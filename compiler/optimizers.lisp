@@ -1402,132 +1402,31 @@
 
 (define-compiler-macro slot-value (&whole whole &environment env
                                           instance slot-name-form)
-  #-no (declare (ignore env instance slot-name-form))
-  #-no whole
-  #+no (slot-value-optimizer whole env instance slot-name-form))
+  (declare (ignore env))
+  (let* ((name (and (quoted-form-p slot-name-form)
+                    (typep (cadr slot-name-form) 'symbol)
+                    (cadr slot-name-form))))
+    (if name
+      `(slot-id-value ,instance (load-time-value (ensure-slot-id ',name)))
+      whole)))
+
 
 (define-compiler-macro set-slot-value (&whole whole &environment env
                                           instance slot-name-form value-form)
-  #-no (declare (ignore env instance slot-name-form value-form))
-  #-no whole
-  #+no (slot-value-optimizer whole env instance slot-name-form value-form))
+  (declare (ignore env))
+  (let* ((name (and (quoted-form-p slot-name-form)
+                    (typep (cadr slot-name-form) 'symbol)
+                    (cadr slot-name-form))))
+    (if name
+      `(set-slot-id-value
+        ,instance
+        (load-time-value (ensure-slot-id ',name))
+        ,value-form)
+      whole)))
 
-; If true, causes fastest possible code to be generated
-; for slot-value of a primary slot if (optimize (speed 3) (safety 0))
-; is in effect.
-; This generates code that doesn't check for obsolete instances.
-; That's why it's a variable.
-(defvar *super-optimize-primary-slot-access* nil)
 
-(defun slot-value-optimizer (whole env instance slot-name-form &optional (value-form nil value-form-p))
-  (let* ((type (nx-form-type instance env))
-         (class (and (symbolp type) (find-class type nil env)))
-         slot-name
-         offset)
-  (if (and (constantp slot-name-form)
-           (typep class 'standard-class)
-           (progn
-             (setq slot-name (eval-constant slot-name-form))
-             (setq offset (primary-class-slot-offset class slot-name))))
-    (if (and *super-optimize-primary-slot-access*
-             (nx-inhibit-safety-checking env))
-      (if value-form-p
-        `(setf (standard-instance-instance-location-access ,instance ,offset) ,value-form)
-        `(%standard-instance-instance-location-access ,instance ,offset))
-      (let ((instance-sym (gensym))
-            (wrapper-sym (gensym))
-            (info (gensym))
-            (offset (gensym))
-            (value-sym (gensym)))
-        `(let* ((,info (load-time-value (%class-primary-slot-accessor-info
-                                         (find-class ',type)
-                                         ',slot-name
-                                         t)))
-                (,offset (%slot-accessor-info.offset ,info))
-                (,instance-sym ,instance)
-                (,wrapper-sym (%instance-class-wrapper ,instance-sym)))
-           ,(if value-form-p
-              `(let ((,value-sym ,value-form))
-                 (if (and ,offset (%wrapper-hash-index ,wrapper-sym))
-                   (setf (%svref (%forwarded-instance ,instance-sym) ,offset) ,value-sym)
-                   (primary-class-slot-value ,instance-sym ,info ,value-sym)))
-              `(let (,value-sym)
-                 (if (and ,offset 
-                          (%wrapper-hash-index ,wrapper-sym)
-                          (neq (setq ,value-sym (%svref (%forwarded-instance ,instance-sym) ,offset))
-                               (%slot-unbound-marker)))
-                   ,value-sym
-                   (primary-class-slot-value ,instance-sym ,info)))))))
-    whole)))
+
                        
-; Returns two values, expansion and win-p.
-; If win-p is NIL, then expansion is EQ to the input form.
-; This is called on every form the compiler encounters, so it would
-; be good for it to decide quickly that there is nothing to do.
-(defun maybe-optimize-slot-accessor-form (form environment)
-  (let ((original-form form)
-        sym fbinding form-length last-arg-form last-arg-type last-arg-class offset methods method writer-p)
-    (if (and (listp form)
-             (symbolp (setq sym (car form)))
-             (typep (setq fbinding (fboundp sym)) 'standard-generic-function)
-             (and (symbolp (setq last-arg-type (nx-form-type 
-                                                (setq last-arg-form
-                                                      (nth (1- (setq form-length (length form))) form))
-                                                environment)))
-                  (not (eq last-arg-type t)))
-             (setq last-arg-class (find-class last-arg-type nil environment))
-             (%class-or-superclass-primary-p last-arg-class)
-             (member 'standard-accessor-method (generic-function-methods fbinding)
-                     :test #'(lambda (sam method)
-                               (declare (ignore sam))
-                               (typep method 'standard-accessor-method)))
-             (eql 1 (length (setq methods (compute-applicable-methods
-                                           fbinding
-                                           (if (eql form-length 2)
-                                             (list (class-prototype last-arg-class))
-                                             (list nil (class-prototype last-arg-class)))))))
-             (cond ((typep (setq method (car methods)) 'standard-reader-method)
-                    (eql form-length 2))
-                   ((typep (car methods) 'standard-writer-method)
-                    (setq writer-p (eql form-length 3)))
-                   (t nil))
-             (setq offset (primary-class-slot-offset last-arg-class (method-slot-name method))))
-      (values
-       (if (and *super-optimize-primary-slot-access*
-                (nx-inhibit-safety-checking environment))
-         (if writer-p
-           (let ((value-sym (gensym)))
-             `(let ((,value-sym ,(second form)))
-                (setf (%svref (%forwarded-instance ,last-arg-form) ,offset) ,value-sym)))
-           `(%svref (%forwarded-instance ,last-arg-form) ,offset))
-         (let ((instance-sym (gensym))
-               (value-sym (gensym))
-               (wrapper-sym (gensym))
-               (info (gensym))
-               (offset (gensym)))
-           `(let* ((,info (load-time-value (%class-primary-slot-accessor-info
-                                            (find-class ',last-arg-type)
-                                            (symbol-function ',sym)
-                                            t)))
-                   (,offset (%slot-accessor-info.offset ,info))
-                   ,@(when writer-p (list `(,value-sym ,(second form))))
-                   (,instance-sym ,last-arg-form)
-                   (,wrapper-sym (%instance-class-wrapper ,instance-sym)))
-                ,(if writer-p
-                   `(if (and ,offset (%wrapper-hash-index ,wrapper-sym))
-                      (setf (%svref (%forwarded-instance ,instance-sym) ,offset) ,value-sym)
-                      (primary-class-accessor ,instance-sym ,info ,@(and writer-p (list value-sym))))
-                   `(let (,value-sym)
-                      (if (and ,offset 
-                               (%wrapper-hash-index ,wrapper-sym)
-                               (neq (setq ,value-sym
-                                          (%svref (%forwarded-instance ,instance-sym) ,offset))
-                                    (%unbound-marker-8)))
-                        ,value-sym
-                        (primary-class-accessor ,instance-sym ,info ,@(and writer-p (list value-sym)))))))))
-       t)
-      (values original-form nil))))
-
 (defsynonym %get-unsigned-byte %get-byte)
 (defsynonym %get-unsigned-word %get-word)
 (defsynonym %get-signed-long %get-long)
