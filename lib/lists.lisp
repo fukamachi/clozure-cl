@@ -155,6 +155,19 @@
   (dolist (a x y) (push a y)))
 
 
+(defun alt-list-length (l)
+  "Detect (and complain about) cirucular lists; allow any atom to
+terminate the list"
+  (do* ((n 0 (1+ n))
+        (fast l)
+        (slow l))
+       ((atom fast) (if fast (the fixnum (1+ n)) n))
+    (declare (fixnum n))
+    (setq fast (cdr fast))
+    (if (logbitp 0 n)
+      (if (eq (setq slow (cdr slow)) fast)
+	(%err-disp $XIMPROPERLIST l)))))
+
 (defun butlast (list &optional (n 1 n-p))
   "Returns a new list the same as List without the N last elements."
   (setq list (require-type list 'list))
@@ -163,7 +176,7 @@
 	       (< (the fixnum n) 0)
 	       (not (typep n 'unsigned-byte))))
     (report-bad-arg n 'unsigned-byte))
-  (let* ((length (length list)))
+  (let* ((length (alt-list-length list)))
     (declare (fixnum length))		;guaranteed
     (when (< n length)
       (let* ((count (- length (the fixnum n)))
@@ -183,7 +196,7 @@
 	       (< (the fixnum n) 0)
 	       (not (typep n 'unsigned-byte))))
     (report-bad-arg n 'unsigned-byte))
-  (let* ((length (length list)))
+  (let* ((length (alt-list-length list)))
     (declare (fixnum length))		;guaranteed
     (when (< n length)
       (let* ((count (1- (the fixnum (- length (the fixnum n)))))
