@@ -78,6 +78,9 @@
 (defconstant hard-reg-class-gpr-mode-u8 5)      ; unboxed unsigned 8-bit value
 (defconstant hard-reg-class-gpr-mode-s8 6)      ; unboxed signed 8-bit value
 (defconstant hard-reg-class-gpr-mode-address 7) ; unboxed unsigned 32-bit address
+(defconstant hard-reg-class-gpr-mode-u64 8)
+(defconstant hard-reg-class-gpr-mode-s64 9)
+
 (defconstant hard-reg-class-gpr-mode-invalid -1) ; Never a valid mode.
 
 ; "mode" values for FPRs. 
