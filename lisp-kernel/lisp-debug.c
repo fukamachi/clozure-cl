@@ -538,6 +538,7 @@ debug_command_entry debug_command_entries[] =
    0,
    NULL,
    'X'},
+#if 0
   {debug_lose,
    "Propagate the exception to another handler (debugger or OS)",
    DEBUG_COMMAND_FLAG_REQUIRE_XP | DEBUG_COMMAND_FLAG_EXCEPTION_ENTRY_ONLY,
@@ -548,8 +549,9 @@ debug_command_entry debug_command_entries[] =
    DEBUG_COMMAND_FLAG_REQUIRE_XP,
    NULL,
    'T'},
+#endif
   {debug_kill_process,
-   "Kill MCL process",
+   "Kill OpenMCL process",
    0,
    NULL,
    'K'},
