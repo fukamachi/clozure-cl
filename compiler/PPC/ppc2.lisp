@@ -5263,13 +5263,14 @@
 
 
 (defppc2 ppc2-local-go local-go (seg vreg xfer tag)
+  (declare (ignorable xfer))
   (let* ((curstack (ppc2-encode-stack))
          (label (cadr tag))
          (deststack (caddr tag)))
     (if (not (ppc2-equal-encodings-p curstack deststack))
       (multiple-value-bind (catch cstack vstack)
                            (ppc2-decode-stack deststack)
-        (ppc2-unwind-stack seg xfer catch cstack vstack)))
+        (ppc2-unwind-stack seg nil catch cstack vstack)))
     (-> label)
     (ppc2-unreachable-store vreg)))
 
@@ -5552,37 +5553,6 @@
          (tagop (%nx1-operator tag-label)))
     (dolist (tag taglist)
       (rplacd tag (cons (backend-get-next-label) (cons encstack (cadr (cddr (cddr tag)))))))
-    ; Check to see if tags referenced by backward branches will
-    ; "obviously" do an eventcheck (via function call or otherwise)
-    ; after they're branched to.
-    ; The annotations produced by pass 1 are conservative; if we want to
-    ; try walking the forms, we might do a better job.
-    ; This can't work:
-    ; A) we don't know for sure that calls will event-poll for us
-    ; B) we don't know for sure that things that look like calls
-    ;    won't be optimized into something else.
-    #+bad-idea
-    (let* ((forms body)
-           (tag nil)
-           (form nil))
-      (while forms
-        (setq form (pop forms))
-        (if (and (eq (acode-operator form) tagop)
-                 (cddr (setq tag (cddr form)))
-                 (dolist (after forms)
-                   (let ((op (acode-operator after)))
-                     (when (or (eq op (%nx1-operator embedded-call))
-                               ;; Do branches back to our
-                               ;; tag branch back to another tag which is branched back to?
-                               (and (eq op tagop)
-                                    (cddr (cddr after))))
-                       ;(format t "~&win one,")
-                       (return t))  ;No gratuitous eventcheck here.
-                     (when (eq op (%nx1-operator embedded-nlexit))
-                       ;; Punt for now. 
-                       ;(format t "~&lose one.")
-                       (return nil)))))
-          (rplacd (cdr tag) nil))))
     (dolist (form body)
       (if (eq (acode-operator form) tagop)
         (let ((tag (cddr form)))
