@@ -127,7 +127,7 @@
 	  (%instance-vector
 	   (%class.own-wrapper *standard-effective-slot-definition-class*)
 	   name type initfunction initform initargs allocation
-	   documentation class nil nil nil nil)))
+	   documentation class nil (ensure-slot-id name))))
 
 (defmethod class-slots ((class class)))
 (defmethod class-direct-slots ((class class)))
@@ -918,9 +918,8 @@
  :direct-superclasses '(slot-definition)
  :direct-slots `((:name location :initform nil :initfunction ,#'false
 		  :readers (slot-definition-location))
-		 (:name reader-function :initform nil :initfunction ,#'false)
-		 (:name writer-function :initform nil :initfunction ,#'false)
-		 (:name boundp-function :initform nil :initfunction ,#'false))
+		 (:name slot-id :initform nil :initfunction ,#'false
+                  :readers (slot-definition-slot-id)))
  
  :primary-p t)
 
@@ -1102,6 +1101,10 @@
 (defun %make-effective-slotd (slotd-class &rest initargs)
   (declare (dynamic-extent initargs))
   (apply #'make-instance slotd-class initargs))
+
+(defmethod initialize-instance :after ((slotd effective-slot-definition) &key name)
+  (setf (standard-effective-slot-definition.slot-id slotd)
+        (ensure-slot-id name)))
   
 (defmethod specializer-direct-generic-functions ((s specializer))
   (let* ((gfs ())
@@ -1375,3 +1378,15 @@
 				    (slotd structure-effective-slot-definition))
   (declare (ignore instance))
   t)
+
+;;; This has to be somewhere, so it might as well be here.
+(defmethod make-load-form ((s slot-id) &optional env)
+  (declare (ignore env))
+  `(ensure-slot-id ,(slot-id.name s)))
+
+;;; Stupid, temporary definitions that miss the point completely:
+(defun slot-id-value (instance slot-id)
+  (slot-value instance (slot-id.name slot-id)))
+
+(defun set-slot-id-value (instance slot-id value)
+  (set-slot-value instance (slot-id.name slot-id) value))

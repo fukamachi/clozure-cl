@@ -143,6 +143,19 @@
 (defun %method-lambda-list (m)
   (%method.lambda-list m))
 
+
+;;; Map slot-names (symbols) to SLOT-ID objects (which contain unique indices).
+(let* ((slot-id-lock (make-lock))
+       (next-slot-index 0)
+       (slot-id-hash (make-hash-table :test #'eq :weak t)))
+  (defun ensure-slot-id (slot-name)
+    (setq slot-name (require-type slot-name 'symbol))
+    (with-lock-grabbed (slot-id-lock)
+      (or (gethash slot-name slot-id-hash)
+          (setf (gethash slot-name slot-id-hash)
+                (%istruct 'slot-id slot-name (incf next-slot-index))))))
+  (defun current-slot-index () next-slot-index)
+  )
 
 
 
@@ -1519,6 +1532,7 @@
 (defvar *recursive-lock-class* (make-built-in-class 'recursive-lock *lock-class*))
 (defvar *read-write-lock-class* (make-built-in-class 'read-write-lock *lock-class*))
 
+(make-built-in-class 'slot-id *istruct-class*)
 (make-built-in-class 'value-cell)
 (make-built-in-class 'restart *istruct-class*)
 (make-built-in-class 'hash-table *istruct-class*)

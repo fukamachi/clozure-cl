@@ -1083,9 +1083,7 @@
   standard-effective-slot-definition.documentation
   standard-effective-slot-definition.class
   standard-effective-slot-definition.location
-  standard-effective-slot-definition.reader-function
-  standard-effective-slot-definition.writer-function
-  standard-effective-slot-definition.boundp-function
+  standard-effective-slot-definition.slot-id
   )
 
 
@@ -1213,7 +1211,13 @@
   sgf.%lambda-list                      ; explicit lambda-list
   sgf.dependents			; dependents for MAP-DEPENDENTS et al.
   )
-    
+
+(def-accessors (slot-id) %svref
+  nil                                   ;'slot-id
+  slot-id.name                          ; slot name (symbol)
+  slot-id.index                         ; index (integer)
+  )
+
 (provide "LISPEQU")
 
 ; End of lispequ.lisp
