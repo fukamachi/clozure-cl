@@ -154,6 +154,10 @@
       (when (eq (restart-name restart) name)                 
 	(if res (return-from find-restart-2 restart)(setq res restart))))))
 |#
+
+(defglobal *quit-acknowledge* nil)
+(defglobal *quit-acknowledge-lock* (make-lock))
+
 (defun quit (&optional (exit-status 0))
   (let* ((ip *initial-process*)
 	 (cp *current-process*))
@@ -164,6 +168,9 @@
 				   #'(lambda ()
 				       (#_exit exit-status)))))
       (unless (eq cp ip)
+	(when (try-lock *quit-acknowledge-lock*)
+	  (let-globally ((*quit-acknowledge* (make-semaphore)))
+			(timed-wait-on-semaphore *quit-acknowledge* 1)))
 	(process-kill cp)))))
 
 
@@ -175,8 +182,8 @@
 
 
 (defun prepare-to-quit (&optional part)
+  (when *quit-acknowledge* (signal-semaphore *quit-acknowledge*))
   (let-globally ((*quitting* t))
-		
     (when (or (null part) (eql 0 part))
       (dolist (f *lisp-cleanup-functions*)
 	(funcall f)))
