@@ -1988,28 +1988,37 @@
         (%ilogand mask (%iasr position integer))
         (logand mask (ash integer (- position)))))))    
 
-(defun %bignum-bignum-gcd (u0 v0)
+
+#+safe-but-slow
+(defun %bignum-bignum-gcd (u v)
+  (setq u (abs u) v (abs v))
+  (do* ((g 1 (ash g 1)))
+       ((or (oddp u) (oddp v))
+	(do* ()
+	     ((zerop u) (* g v))
+	  (cond ((evenp u) (setq u (ash u -1)))
+		((evenp v) (setq v (ash v -1)))
+		(t (let* ((temp (ash (abs (- u v)) -1)))
+		     (if (< u v)
+		       (setq v temp)
+		       (setq u temp)))))))
+    (setq u (ash u -1) v (ash v -1))))
+
+
+(defun %positive-bignum-bignum-gcd (u0 v0)
   (let* ((u-len (%bignum-length u0))
-	 (u-plusp (bignum-plusp u0))
-	 (v-len (%bignum-length v0))
-	 (v-plusp (bignum-plusp v0)))
+	 (v-len (%bignum-length v0)))
     (declare (fixnum u-len v-len))
-    (with-bignum-buffers ((u (if u-plusp u-len (the fixnum (1+ u-len))))
-			  (u2 (if u-plusp u-len (the fixnum (1+ u-len))))
-			  (v (if v-plusp v-len (the fixnum (1+ v-len))))
-			  (v2 (if v-plusp v-len (the fixnum (1+ v-len)))))
-      (if u-plusp
-	(bignum-replace u u0)
-	(progn
-	  (negate-bignum u0 nil u)
-	  (%mostly-normalize-bignum-macro u)
-	  (setq u-len (%bignum-length u))))
-      (if v-plusp
-	(bignum-replace v v0)
-	(progn
-	  (negate-bignum v0 nil v)
-	  (%mostly-normalize-bignum-macro v)
-	  (setq v-len (%bignum-length v))))
+    (if (or (< u-len v-len)
+	    (and (= u-len v-len)
+		 (< (bignum-compare u0 v0) 0)))
+      (psetq u0 v0 v0 u0 u-len v-len v-len u-len))
+    (with-bignum-buffers ((u u-len)
+			  (u2 u-len)
+			  (v v-len)
+			  (v2 v-len))
+      (bignum-replace u u0)
+      (bignum-replace v v0)
       (let* ((u-trailing-0-bits (%bignum-count-trailing-zero-bits u))
 	     (u-trailing-0-digits (ash u-trailing-0-bits -5))
 	     (v-trailing-0-bits (%bignum-count-trailing-zero-bits v))
@@ -2107,6 +2116,9 @@
 		   (rotatef v v2)
 		   (%mostly-normalize-bignum-macro v)
 		   (setq v-len (%bignum-length v)))))))))))
+
+(defun %bignum-bignum-gcd (u v)
+  (with-negated-bignum-buffers u v %positive-bignum-bignum-gcd))
 
 (defun unsignedwide->integer (uwidep)
   (with-bignum-buffers ((b 3))
