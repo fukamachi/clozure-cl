@@ -1546,6 +1546,7 @@
                                      *backtrace-internal-functions*))
    (break-condition :accessor break-condition
                     :initform ccl::*break-condition*)))
+  
 
 ; This is set up to access the result of
 ; (multiple-value-call #'vector (ccl::parent-frame-saved-vars ...))
@@ -1681,8 +1682,8 @@
                 srv (ccl::copy-srv (%sv.srv child-sv))))
         (flet ((maybe-ignore ()
                  (loop while (ignore-function-in-backtrace? 
-                            f
-                            (ccl::cfp-lfun (ccl::parent-frame child tcr))) 
+                              f
+                              (ccl::cfp-lfun (ccl::parent-frame child tcr))) 
                      do (multiple-value-setq (child last-catch srv)
                           (ccl::parent-frame-saved-vars tcr child last-catch srv srv)))))
          (maybe-ignore)
@@ -1717,8 +1718,23 @@
 
 (defclass stack-inspector (inspector)
   ((show-frame-addresses :initform *show-backtrace-frame-addresses*
-                         :accessor show-frame-addresses)))
+                         :accessor show-frame-addresses)
+   (vsp-range :accessor vsp-range :initarg :vsp-range)
+   (tsp-range :accessor tsp-range :initarg :tsp-range)))
 
+(defun make-tsp-stack-range (tcr bt-info)
+  (list (cons (ccl::%catch-tsp (ccl::bt.top-catch bt-info))
+              (ccl::%fixnum-ref (ccl::%fixnum-ref tcr target::tcr.ts-area)
+                                target::area.high))))
+
+(defun make-vsp-stack-range (tcr bt-info)
+  (list (cons (ccl::%fixnum-ref
+               (ccl::%svref (ccl::bt.top-catch bt-info) target::catch-frame.csp-cell)
+               target::lisp-frame.savevsp)
+              (ccl::%fixnum-ref (ccl::%fixnum-ref tcr target::tcr.vs-area)
+                                target::area.high))))
+
+                           
 (defmethod initialize-instance ((i stack-inspector) &rest initargs &key info)
   (declare (dynamic-extent initargs))
   (let* ((tcr (ccl::bt.tcr info))
@@ -1730,6 +1746,8 @@
              :stack-start start
              :stack-end end
              :tcr tcr)
+           :tsp-range (make-tsp-stack-range tcr info)
+           :vsp-range (make-vsp-stack-range tcr info)
            initargs)))
 
 (defmethod print-object ((i stack-inspector) stream)
