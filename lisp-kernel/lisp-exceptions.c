@@ -2739,6 +2739,7 @@ mach_suspend_tcr(TCR *tcr)
     return false;
   }
   lock_acquire(mach_exception_lock_set, 0);
+  thread_abort_safely(mach_thread);
   lss = create_thread_context_frame(mach_thread, NULL);
   lss->uc_onstack = 0;
   lss->uc_sigmask = (sigset_t) 0;
