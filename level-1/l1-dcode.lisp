@@ -1957,9 +1957,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                (index (%ilogand mask (%wrapper-hash-index wrapper)))
                table-wrapper flag)
           (declare (fixnum index mask))
-          ;(print (list 'first-index index wrapper))
+          ;;(print (list 'first-index index wrapper))
           (setq index (+ index index)) ; +2 ??
-          (loop 
+          (loop
             (if (eq (setq table-wrapper (%gf-dispatch-table-ref dt index)) wrapper)
               (let* ((the-pos (%gf-dispatch-table-ref dt (the fixnum (1+ index)))))
                 (if (fixnump the-pos)
@@ -1971,7 +1971,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                  arg 
                                  (%svref (%wrapper-instance-slots wrapper) the-pos)))
                         (return the-val))))
-                  (let ((the-val (cadr the-pos)))
+                  (let ((the-val (cdr the-pos)))
                     (if (eq the-val (%slot-unbound-marker))
                       (return (slot-unbound (%wrapper-class wrapper) arg (car the-pos)))
                       (return the-val)))))
@@ -2044,7 +2044,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         (when (eql 0 slots)
           (error "Obsolete instance in reader-trap-2"))
         (let ((idx (or (%vector-member slot-name slots)
-                       (assq slot-name (%wrapper-class-slots wrapper)))))
+		       (let* ((slotd (find-slotd
+				      slot-name
+				      (class-slots (%wrapper-class wrapper)))))
+			 (if slotd (%slot-definition-location slotd))))))
           (unless idx
             (error "~s has no slot named ~s" instance slot-name))
           (let ((table (%gf-dispatch-table gf)))
