@@ -533,7 +533,7 @@
 
 ;;; Make a persistent (heap-allocated) NSConstantString.
 
-(defun %make-nsstring (string)
+(defun %make-constant-nsstring (string)
   "Make a persistent (heap-allocated) NSConstantString from the
 argument lisp string."
   #+apple-objc
@@ -548,6 +548,12 @@ argument lisp string."
 	       :len (length string))
   )
 
+(defun %make-nsstring (string)
+  (with-cstrs ((s string))
+    (make-objc-instance 'ns:ns-string
+                        :with-c-string s)))
+                        
+
 
 ;;; Intern NSConstantString instances.
 (defvar *objc-constant-strings* (make-hash-table :test #'equal))
@@ -560,7 +566,7 @@ argument lisp string."
   (or (gethash string *objc-constant-strings*)
       (setf (gethash string *objc-constant-strings*)
 	    (make-objc-constant-string :string string
-				       :nsstringptr (%make-nsstring string)))))
+				       :nsstringptr (%make-constant-nsstring string)))))
 
 (def-ccl-pointers objc-strings ()
   (maphash #'(lambda (string cached)
