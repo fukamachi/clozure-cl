@@ -552,11 +552,16 @@
   (declare (dynamic-extent parms))
   (when atsign
     (format-error "FORMAT command ~~~:[~;:~]@^ is undefined" colon))
+  (setq parms (remove-if #'null parms))
   (when
     (cond ((null parms)
            (null (if colon *format-colon-rest* *format-arguments*)))
           ((null (cdr parms))
-           (zerop (car parms)))
+           (let ((p (car parms)))
+             (typecase p
+               (number     (zerop p))
+               (character  (null p))
+               (t          nil))))
           ((null (cddr parms))
            (equal (car parms)(cadr parms)))
           (t (let ((first (car parms))(second (cadr parms))(third (caddr parms)))
