@@ -82,6 +82,22 @@
   (or *eeps*
       (setq *eeps* (make-hash-table :test #'equal))))
 
+(defun generate-external-functions (path)
+  (let* ((names ()))
+    (maphash #'(lambda (k ignore)
+		 (declare (ignore ignore))
+		 (push k names)) (eeps))
+    (with-open-file (stream path
+			    :direction :output
+			    :if-exists :supersede
+			    :if-does-not-exist :create)
+      (dolist (k names) (format stream "~&extern void * ~a();" k))
+     
+      (format stream "~&external_function external_functions[] = {")
+      (dolist (k names) (format stream "~&~t{~s,~a}," k k))
+      (format stream "~&~t{0,0}~&};"))))
+
+    
 (defvar *shared-libraries* nil)
 
 #+linux-target
@@ -375,6 +391,8 @@
       (unless (%null-ptr-p addr)	; No function can have address 0
 	(macptr->fixnum addr)))))
 
+(defvar *statically-linked* nil)
+
 #+linux-target
 (progn
 (defvar *dladdr-entry*)
@@ -392,10 +410,11 @@
 
 (defun shlib-containing-entry (entry &optional name)
   (declare (ignore name))
-  (with-macptrs (p)
-    (%setf-macptr-to-object p entry)
-    (shlib-containing-address p))))
-
+  (unless *statically-linked*
+    (with-macptrs (p)
+      (%setf-macptr-to-object p entry)
+      (shlib-containing-address p))))
+)
 
 #+darwinppc-target
 (progn
@@ -571,11 +590,14 @@
 	(when (or (not lose) (not win)) (return)))))
 )
 
+
 (defun refresh-external-entrypoints ()
+  #+linuxppc-target
+  (setq *statically-linked* (not (eql 0 (%get-kernel-global 'ppc::statically-linked))))
   (%revive-macptr *rtld-next*)
   (%revive-macptr *rtld-default*)
   #+linuxppc-target
-  (progn
+  (unless *statically-linked*
     (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
     (revive-shared-libraries)
     (%reopen-user-libraries))
