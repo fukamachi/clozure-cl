@@ -1217,27 +1217,6 @@ vector
     (setf (%get-byte ptr offset) (char-code (schar str i)))
     (incf offset)))
 
-(defun %get-double-float (macptr &optional (offset 0) (res (%copy-float 0.0d0)))
-  (unless (macptrp macptr)
-    (setq macptr (require-type macptr 'macptr)))
-  (unless (typep res 'double-float)
-    (setq res (require-type res 'double-float)))
-  (%copy-ptr-to-ivector macptr offset res (* 4 ppc32::double-float.value-cell) 8)
-  res)
-
-
-
-(defun %set-double-float (macptr offset &optional (value nil value-p))
-  (unless value-p
-    (setq value offset
-          offset 0))
-  (unless (macptrp macptr)
-    (setq macptr (require-type macptr 'macptr)))
-  (unless (typep value 'double-float)
-    (setq value (require-type value 'double-float)))
-  (%copy-ivector-to-ptr value (* 4 ppc32::double-float.value-cell) macptr offset 8)
-  value)
-
 
 
 (defun %put-double-float (macptr value &optional (offset 0))
