@@ -65,13 +65,13 @@
 
 (defppclapfunction %short-float-plusp ((number arg_z))
   (get-single-float fp0 number)
-  (fcmpo :cr1 fp0 ppc32::fp-zero)
+  (fcmpo :cr1 fp0 ppc::fp-zero)
   (setpred arg_z :cr1 :gt)
   (blr))
 
 (defppclapfunction %double-float-plusp ((number arg_z))
   (get-double-float fp0 number)
-  (fcmpo :cr1 fp0 ppc32::fp-zero)
+  (fcmpo :cr1 fp0 ppc::fp-zero)
   (setpred arg_z :cr1 :gt)
   (blr))
 

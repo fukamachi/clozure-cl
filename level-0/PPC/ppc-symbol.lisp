@@ -38,7 +38,7 @@
     (extract-typecode imm0 def)
     (cmpwi cr0 imm0 ppc32::subtag-function)
     (beqlr+)
-    (uuo_interr ppc32::error-udf symbol)))
+    (uuo_interr arch::error-udf symbol)))
 
 
 

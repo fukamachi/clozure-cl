@@ -30,13 +30,13 @@
            (temp.l 12))
       (stwu tsp -16 tsp)
       (stw tsp 4 tsp)
-      (stfd ppc32::fp-s32conv temp tsp)
+      (stfd ppc::fp-s32conv temp tsp)
       (unbox-fixnum ,imm ,int)
       (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
       (stw ,imm temp.l tsp)
       (lfd ,freg temp tsp)
       (lwz tsp 0 tsp)
-      (fsub ,freg ,freg ppc32::fp-s32conv)))
+      (fsub ,freg ,freg ppc::fp-s32conv)))
  
 
   (defppclapmacro 48x32-divide (x-hi16 x-lo y freg temp-freg freg2 immx)
@@ -566,16 +566,16 @@
   (mtcrf #xfc imm0)
   (mcrfs :cr6 :cr6)
   (mcrfs :cr7 :cr7)
-  (crand ppc32::fpscr-fex-bit ppc32::fpscr-oe-bit ppc32::fpscr-ox-bit)
-  (bt ppc32::fpscr-fex-bit @set)
-  (crand ppc32::fpscr-fex-bit ppc32::fpscr-ve-bit ppc32::fpscr-vx-bit)
-  (bt ppc32::fpscr-fex-bit @set)
-  (crand ppc32::fpscr-fex-bit ppc32::fpscr-ue-bit ppc32::fpscr-ux-bit)
-  (bt ppc32::fpscr-fex-bit @set)
-  (crand ppc32::fpscr-fex-bit ppc32::fpscr-ze-bit ppc32::fpscr-zx-bit)
-  (bt ppc32::fpscr-fex-bit @set)
-  (crand ppc32::fpscr-fex-bit ppc32::fpscr-xe-bit ppc32::fpscr-xx-bit)
-  (bf ppc32::fpscr-fex-bit @ret)
+  (crand ppc::fpscr-fex-bit ppc::fpscr-oe-bit ppc::fpscr-ox-bit)
+  (bt ppc::fpscr-fex-bit @set)
+  (crand ppc::fpscr-fex-bit ppc::fpscr-ve-bit ppc::fpscr-vx-bit)
+  (bt ppc::fpscr-fex-bit @set)
+  (crand ppc::fpscr-fex-bit ppc::fpscr-ue-bit ppc::fpscr-ux-bit)
+  (bt ppc::fpscr-fex-bit @set)
+  (crand ppc::fpscr-fex-bit ppc::fpscr-ze-bit ppc::fpscr-zx-bit)
+  (bt ppc::fpscr-fex-bit @set)
+  (crand ppc::fpscr-fex-bit ppc::fpscr-xe-bit ppc::fpscr-xx-bit)
+  (bf ppc::fpscr-fex-bit @ret)
   @set
   (oris imm0 imm0 #xc000)
   @ret
@@ -587,7 +587,7 @@
 ; exception bits in the fpscr
 (defun %df-check-exception-2 (operation op0 op1 fp-status)
   (declare (type (unsigned-byte 24) fp-status))
-  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -598,7 +598,7 @@
 
 (defun %sf-check-exception-2 (operation op0 op1 fp-status)
   (declare (type (unsigned-byte 24) fp-status))
-  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -609,7 +609,7 @@
 
 (defun %df-check-exception-1 (operation op0 fp-status)
   (declare (fixnum fp-status))
-  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -619,7 +619,7 @@
 
 (defun %sf-check-exception-1 (operation op0 fp-status)
   (declare (type (unsigned-byte 24) fp-status))
-  (when (logbitp (- 23 ppc32::fpscr-fex-bit) fp-status)
+  (when (logbitp (- 23 ppc::fpscr-fex-bit) fp-status)
     (%set-fpscr-status 0)
 					; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -631,20 +631,20 @@
 (defun fp-condition-from-fpscr (status-bits control-bits)
   (declare (fixnum status-bits control-bits))
   (cond 
-   ((and (logbitp (- 23 ppc32::fpscr-vx-bit) status-bits)
-         (logbitp (- 31 ppc32::fpscr-ve-bit) control-bits))
+   ((and (logbitp (- 23 ppc::fpscr-vx-bit) status-bits)
+         (logbitp (- 31 ppc::fpscr-ve-bit) control-bits))
     'floating-point-invalid-operation)
-   ((and (logbitp (- 23 ppc32::fpscr-ox-bit) status-bits)
-         (logbitp (- 31 ppc32::fpscr-oe-bit) control-bits))
+   ((and (logbitp (- 23 ppc::fpscr-ox-bit) status-bits)
+         (logbitp (- 31 ppc::fpscr-oe-bit) control-bits))
     'floating-point-overflow)
-   ((and (logbitp (- 23 ppc32::fpscr-ux-bit) status-bits)
-         (logbitp (- 31 ppc32::fpscr-ue-bit) control-bits))
+   ((and (logbitp (- 23 ppc::fpscr-ux-bit) status-bits)
+         (logbitp (- 31 ppc::fpscr-ue-bit) control-bits))
     'floating-point-underflow)
-   ((and (logbitp (- 23 ppc32::fpscr-zx-bit) status-bits)
-         (logbitp (- 31 ppc32::fpscr-ze-bit) control-bits))
+   ((and (logbitp (- 23 ppc::fpscr-zx-bit) status-bits)
+         (logbitp (- 31 ppc::fpscr-ze-bit) control-bits))
     'division-by-zero)
-   ((and (logbitp (- 23 ppc32::fpscr-xx-bit) status-bits)
-         (logbitp (- 31 ppc32::fpscr-xe-bit) control-bits))
+   ((and (logbitp (- 23 ppc::fpscr-xx-bit) status-bits)
+         (logbitp (- 31 ppc::fpscr-xe-bit) control-bits))
     'floating-point-inexact)))
 
 ; This assumes that the FEX and one of {VX OX UX ZX XX} is set.
