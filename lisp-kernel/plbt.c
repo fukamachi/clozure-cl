@@ -283,10 +283,9 @@ const char *
 foreign_name_and_offset(void *frame, unsigned *delta)
 {
   Dl_info info;
-#ifdef LINUX
+#if defined(LINUX) && !defined(PPC64)
   void *pc = (void *) (((eabi_c_frame *)frame)->savelr);
-#endif
-#ifdef DARWIN
+#else
   void *pc = (void *) (((c_frame *)frame)->savelr);
 #endif
 #ifndef STATIC
