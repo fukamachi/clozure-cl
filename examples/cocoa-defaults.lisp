@@ -70,14 +70,17 @@
 
     
 (defun update-cocoa-defaults ()
-  (let* ((domain (send (@class "NSUserDefaults") 'standard-user-defaults)))
+  (let* ((domain (send (@class "NSUserDefaults") 'standard-user-defaults))
+         (need-synch nil))
     (dolist (d (cocoa-defaults))
       (let* ((name (cocoa-default-symbol d))
              (key (objc-constant-string-nsstringptr (cocoa-default-string d))))
 	(if (%null-ptr-p (send domain :object-for-key key))
-	  (send domain
-		:set-object (%make-nsstring (format nil "~a" (cocoa-default-value d)))
-		:for-key key)
+          (progn
+            (send domain
+                  :set-object (%make-nsstring (format nil "~a" (cocoa-default-value d)))
+                  :for-key key)
+            (setq need-synch t))
 	  (case (cocoa-default-type d)
 	    (:int
 	     (set name (send domain :integer-for-key key)))
@@ -87,8 +90,7 @@
 	     (let* ((nsstring (send domain :string-for-key key)))
 	       (unless (%null-ptr-p nsstring)
 		 (set name (lisp-string-from-nsstring nsstring)))))))))
-    (send domain 'synchronize)
-    (send domain 'dictionary-representation)))
+    (when need-synch (send domain 'synchronize))))
 
 
   
