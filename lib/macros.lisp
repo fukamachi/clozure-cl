@@ -515,7 +515,7 @@
                          `(setf ,res ,value)
                          (default-setf form value env))))))))))
           ((oddp temp)
-           (error "Odd number of args to SETF."))
+           (error "Odd number of args to SETF : ~s." args))
           (t (do* ((a args (cddr a)) (l nil))
                   ((null a) `(progn ,@(nreverse l)))
                (push `(setf ,(car a) ,(cadr a)) l))))))
