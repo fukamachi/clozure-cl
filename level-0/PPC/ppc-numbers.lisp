@@ -63,17 +63,7 @@
 (defparameter *double-float-zero* 0.0d0)
 (defparameter *short-float-zero* 0.0s0)
 
-(defppclapfunction %short-float-plusp ((number arg_z))
-  (get-single-float fp0 number)
-  (fcmpo :cr1 fp0 ppc::fp-zero)
-  (setpred arg_z :cr1 :gt)
-  (blr))
 
-(defppclapfunction %double-float-plusp ((number arg_z))
-  (get-double-float fp0 number)
-  (fcmpo :cr1 fp0 ppc::fp-zero)
-  (setpred arg_z :cr1 :gt)
-  (blr))
 
 (defppclapfunction %sfloat-hwords ((sfloat arg_z))
   (lwz imm0 ppc32::single-float.value sfloat)
