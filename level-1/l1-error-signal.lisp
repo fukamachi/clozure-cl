@@ -67,6 +67,8 @@
                                              :format-control format-string
                                              :datum (car errargs)
                                              :expected-type (%type-error-type (cadr errargs))))
+		 (improper-list (make-condition condition-name
+						:datum (car errargs)))
                  (simple-file-error (make-condition condition-name
                                              :pathname (car errargs)
                                              :error-type format-string
