@@ -63,8 +63,8 @@
     (signed-byte 32)
     (unsigned-byte 8)
     (signed-byte 8)
-    base-char
     character
+    unused
     (unsigned-byte 16)
     (signed-byte 16)
     double-float
