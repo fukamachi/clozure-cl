@@ -14,8 +14,11 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-(in-package "PPC")
+(defpackage "PPC"
+  (:use "CL"))
 
+
+(in-package "PPC")
 ;;; Lisp registers.
 (eval-when (:compile-toplevel :execute)
   (defmacro defregs (&body regs)
@@ -139,7 +142,6 @@
   )
 
 
-(defconstant fname temp3)
 
 ;;; Calling sequence may pass additional arguments in temp registers.
 ;;; "nfn" (new function) is always passed; it's the new value of "fn".
@@ -214,3 +216,97 @@
   eq
   so
 )
+
+; Kernel globals are allocated "below" nil.  This list (used to map symbolic names to
+; rnil-relative offsets) must (of course) exactly match the kernel's notion of where 
+; things are.
+; The order here matches "ccl:pmcl;lisp_globals.h" & the lisp_globals record
+; in "ccl:pmcl;constants.s"
+(defparameter *ppc-kernel-globals*
+  '(get-tcr				; callback to obtain (real) tcr
+    tcr-count
+    interrupt-signal			; used by PROCESS-INTERRUPT
+    kernel-imports                      ; some things we need to have imported for us.
+    tcr-lock
+    emulator-registers                  ; Where the 68K registers are kept.
+    appmain                             ; application's (c-runtime) main() function
+    subprims-base                       ; start of dynamic subprims jump table
+    ret1valaddr                         ; magic multiple-values return address.
+    tcr-key                             ; tsd key for thread's tcr
+    gc-lock                             ; serialize access to gc
+    exception-lock			; serialize exception handling
+    go-tag-counter        		; counter for (immediate) go tag
+    block-tag-counter                   ; counter for (immediate) block tag
+    intflag				; interrupt-pending flag
+    gc-inhibit-count                    ; for gc locking
+    os-trap-call                        ; callostrapunivesalproc's descriptor
+    tb-trap-call                        ; CallUniversalProc's descriptor
+    qd-globals                          ; (untagged) pointer to QD globals.
+    fwdnum                              ; fixnum: GC "forwarder" call count.
+    gc-count                            ; fixnum: GC call count.
+    gcable-pointers                     ; linked-list of weak macptrs.
+    heap-start                          ; start of lisp heap
+    heap-end                            ; end of lisp heap
+    statically-linked                   ; current control-stack area
+    bad-current-vs                      ; current value-stack area
+    bad-current-ts                      ; current temp-stack area
+    bad-cs-overflow-limit               ; limit for control-stack overflow check
+    all-areas                           ; doubly-linked area list
+    lexpr-return                        ; multiple-value lexpr return address
+    lexpr-return1v                      ; single-value lexpr return address
+    in-gc                               ; non-zero when GC-ish thing active
+    metering-info                       ; kernel metering structure
+    doh-head                            ; creole
+    short-float-zero                    ; low half of 1.0d0
+    double-float-one                    ; high half of 1.0d0
+    ffi-exception                       ; ffi fpscr[fex] bit
+    exception-saved-registers           ; saved registers from exception frame
+    oldest-ephemeral                    ; doubleword address of oldest ephemeral object or 0
+    tenured-area                        ; the tenured_area.
+    errno                               ; address of C lib errno
+    argv                                ; address of C lib argv
+    host-platform                       ; 0 on MacOS, 1 on PPC Linux, 2 on VxWorks ...
+    batch-flag				; non-zero if --batch specified
+    fpscr-save				; lisp's fpscr when in FFI-land
+    fpscr-save-high			; high word of FP reg used to save FPSCR
+    image-name				; current image name
+    initial-tcr                         ; initial thread's context record
+    ))
+
+; The order here matches "ccl:pmcl;lisp_globals.h" and the nrs record
+; in "ccl:pmcl;constants.s".
+(defparameter *ppc-nilreg-relative-symbols*
+  '(t
+    nil
+    ccl::%err-disp
+    ccl::cmain
+    eval
+    ccl::apply-evaluated-function
+    error    
+    ccl::%defun
+    ccl::%defvar
+    ccl::%defconstant
+    ccl::%macro
+    ccl::%kernel-restart
+    *package*
+    ccl::*total-bytes-freed*
+    :allow-other-keys    
+    ccl::%toplevel-catch%
+    ccl::%toplevel-function%
+    ccl::%pascal-functions%    
+    ccl::*all-metered-functions*
+    ccl::*total-gc-microseconds*
+    ccl::%builtin-functions%
+    ccl::%unbound-function%
+    ccl::%init-misc
+    ccl::%macro-code%
+    ccl::%closure-code%
+    ccl::%new-gcable-ptr
+    ccl::*gc-event-status-bits*
+    ccl::*post-gc-hook*
+    ccl::%handlers%
+    ccl::%all-packages%
+    ccl::*keyword-package* 
+    ccl::%finalization-alist%
+    ccl::%foreign-thread-control
+    ))
