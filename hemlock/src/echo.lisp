@@ -106,8 +106,13 @@
 (defun clear-echo-area ()
   "You guessed it."
   (maybe-wait)
-  (delete-region *echo-area-region*)
-  (setf (buffer-modified *echo-area-buffer*) nil))
+  (let* ((b (current-buffer)))
+    (unwind-protect
+	 (progn
+	   (setf (current-buffer) *echo-area-buffer*)
+	   (delete-region *echo-area-region*)
+	   (setf (buffer-modified *echo-area-buffer*) nil))
+      (setf (current-buffer) b))))
 
 ;;; Message  --  Public
 ;;;
