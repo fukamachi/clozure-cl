@@ -410,7 +410,7 @@ BytePtr static_space_start, static_space_active, static_space_limit;
 
 #ifdef DARWIN
 #ifdef PPC64
-#define vm_region vm_region64
+#define vm_region vm_region_64
 #endif
 
 /*
@@ -420,16 +420,23 @@ BytePtr static_space_start, static_space_active, static_space_limit;
   is >= len, we can safely mmap len bytes at addr.
 */
 Boolean
-address_unmapped_p(char *addr, unsigned len)
+address_unmapped_p(char *addr, natural len)
 {
   vm_address_t vm_addr = (vm_address_t)addr;
   vm_size_t vm_size;
+#ifdef PPC64
+  vm_region_basic_info_data_64_t vm_info;
+#else
   vm_region_basic_info_data_t vm_info;
+#endif
+#ifdef PPC64
+  mach_msg_type_number_t vm_info_size = VM_REGION_BASIC_INFO_COUNT_64;
+#else
   mach_msg_type_number_t vm_info_size = VM_REGION_BASIC_INFO_COUNT;
+#endif
   port_t vm_object_name = (port_t) 0;
   kern_return_t kret;
 
-#ifndef PPC64
   kret = vm_region(mach_task_self(),
 		   &vm_addr,
 		   &vm_size,
@@ -437,9 +444,6 @@ address_unmapped_p(char *addr, unsigned len)
 		   (vm_region_info_t)&vm_info,
 		   &vm_info_size,
 		   &vm_object_name);
-#else
-  kret = KERN_SUCCESS;
-#endif
   if (kret != KERN_SUCCESS) {
     return false;
   }
