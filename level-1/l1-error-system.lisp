@@ -494,7 +494,7 @@
     (let ((fn (%restart-action restart)))
       (cond ((null fn)                  ; simple restart
              (unless (null values) (%err-disp $xtminps))
-             (throw tag (values nil T)))
+             (throw tag nil))
             ((fixnump fn)               ; restart case
              (throw tag (cons fn values)))
             (t (apply fn values))))))   ; restart bind
