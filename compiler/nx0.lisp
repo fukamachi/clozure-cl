@@ -194,6 +194,7 @@
 ; Whoever it is deserves a slow and painful death ...
 
 (defmacro define-compiler-macro  (name arglist &body body &environment env)
+  "Define a compiler-macro for NAME."
   (unless (symbolp name) (report-bad-arg name 'symbol))
   (let ((body (parse-macro-1 name arglist body env)))
     `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -228,6 +229,8 @@
 
 
 (defun compiler-macro-function (name &optional env)
+  "If NAME names a compiler-macro in ENV, return the expansion function, else
+   return NIL. Can be set with SETF when ENV is NIL."
   (unless (nx-lexical-finfo name env)
     (or (cdr (assq name *nx-compile-time-compiler-macros*))
         (values (gethash name *compiler-macros*)))))

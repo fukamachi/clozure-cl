@@ -19,21 +19,38 @@
 ;L1-readloop.lisp
 
 
-(defvar *break-on-signals* nil)
+(defvar *break-on-signals* nil
+  "When (TYPEP condition *BREAK-ON-SIGNALS*) is true, then calls to SIGNAL will
+   enter the debugger prior to signalling that condition.")
 (defvar *break-on-warnings* nil)
 (defvar *break-on-errors* t "Not CL.")
-(defvar *debugger-hook* nil)
+(defvar *debugger-hook* nil
+  "This is either NIL or a function of two arguments, a condition and the value
+   of *DEBUGGER-HOOK*. This function can either handle the condition or return
+   which causes the standard debugger to execute. The system passes the value
+   of this variable to the function because it binds *DEBUGGER-HOOK* to NIL
+   around the invocation.")
 (defvar *backtrace-on-break* nil)
-(defvar *** nil)
-(defvar ** nil)
-(defvar * nil)
-(defvar /// nil)
-(defvar // nil)
-(defvar / nil)
-(defvar +++ nil)
-(defvar ++ nil)
-(defvar + nil)
-(defvar - nil)
+(defvar *** nil
+  "the previous value of **")
+(defvar ** nil
+  "the previous value of *")
+(defvar * nil
+  "the value of the most recent top level EVAL")
+(defvar /// nil
+  "the previous value of //")
+(defvar // nil
+  "the previous value of /")
+(defvar / nil
+  "a list of all the values returned by the most recent top level EVAL")
+(defvar +++ nil
+  "the previous value of ++")
+(defvar ++ nil
+  "the previous value of +")
+(defvar + nil
+  "the value of the most recent top level READ")
+(defvar - nil
+  "the form currently being evaluated")
 
 (defvar *continuablep* nil)
 (defvar *in-read-loop* nil 
@@ -74,13 +91,18 @@
 
 
 (defun abort (&optional condition)
+  "Transfer control to a restart named ABORT, signalling a CONTROL-ERROR if
+   none exists."
   (invoke-restart-no-return (find-restart 'abort condition)))
 
 (defun continue (&optional condition)
+  "Transfer control to a restart named CONTINUE, or return NIL if none exists."
   (let ((r (find-restart 'continue condition)))
     (if r (invoke-restart r))))
 
 (defun muffle-warning (&optional condition)
+  "Transfer control to a restart named MUFFLE-WARNING, signalling a
+   CONTROL-ERROR if none exists."
   (invoke-restart-no-return (find-restart 'muffle-warning condition)))
 
 (defun abort-break ()
@@ -146,6 +168,10 @@
       (format nil "~A" kind))))
 
 (defun signal (condition &rest args)
+  "Invokes the signal facility on a condition formed from DATUM and
+   ARGUMENTS. If the condition is not handled, NIL is returned. If
+   (TYPEP condition *BREAK-ON-SIGNALS*) is true, the debugger is invoked
+   before any signalling is done."
   (setq condition (condition-arg condition args 'simple-condition))
   (lds
    (let* ((*break-on-signals* *break-on-signals*))
@@ -207,7 +233,13 @@
   (setf (gethash name *symbol-macros*) expansion)
   name)
 
-(defvar *macroexpand-hook* 'funcall) ; Should be #'funcall. 
+(defvar *macroexpand-hook* 'funcall
+  "The value of this variable must be a designator for a function that can
+  take three arguments, a macro expander function, the macro form to be
+  expanded, and the lexical environment to expand in. The function should
+  return the expanded form. This function is called by MACROEXPAND-1
+  whenever a runtime expansion is needed. Initially this is set to
+  FUNCALL.") ; Should be #'funcall. 
 ;(queue-fixup (setq *macroexpand-hook* #'funcall)) ;  No it shouldn't.
 
 (defun %symbol-macroexpand-1 (sym env)
@@ -240,6 +272,10 @@
       (if win (values (expand-it expansion) t) (values sym nil)))))
 
 (defun macroexpand-1 (form &optional env &aux fn)
+  "If form is a macro (or symbol macro), expand it once. Return two values,
+   the expanded form and a T-or-NIL flag indicating whether the form was, in
+   fact, a macro. ENV is the lexical environment to expand in, which defaults
+   to the null environment."
   (declare (resident))
   (if (and (consp form)
            (symbolp (%car form)))
@@ -251,6 +287,10 @@
       (values form nil))))
 
 (defun macroexpand (form &optional env)
+  "Repetitively call MACROEXPAND-1 until the form can no longer be expanded.
+   Returns the final resultant form, and T if it was expanded. ENV is the
+   lexical environment to expand in, or NIL (the default) for the null
+   environment."
   (declare (resident))
   (multiple-value-bind (new win) (macroexpand-1 form env)
     (do* ((won-at-least-once win))

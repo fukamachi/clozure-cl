@@ -91,7 +91,7 @@
         (values nil (%get-errno))))))
 
 (defun rename-file (file new-name &key (if-exists :error))
-  "Rename File to have the specified New-Name.  If file is a stream open to a
+  "Rename FILE to have the specified NEW-NAME. If FILE is a stream open to a
   file, then the associated file is renamed."
   (let* ((original (truename file))
 	 (original-namestring (native-translated-namestring original))
@@ -184,9 +184,11 @@
 
 
 (defun ensure-directories-exist (pathspec &key verbose (mode #o777))
-  "Tests whether the directories containing the specified file
-  actually exist, and attempts to create them if they do not.
-  Portable programs should avoid using the :MODE keyword argument."
+  "Test whether the directories containing the specified file
+  actually exist, and attempt to create them if they do not.
+  The MODE argument is an extension to control the Unix permission
+  bits.  Portable programs should avoid using the :MODE keyword
+  argument."
   (let* ((pathname (make-directory-pathname :directory (pathname-directory (translate-logical-pathname (merge-pathnames pathspec)))))
 	 (created-p nil))
     (when (wild-pathname-p pathname)
@@ -270,6 +272,11 @@
 			    (directory-pathnames t) ;; return directories as directory-pathname-p's.
 			    test              ;; Only return pathnames matching test
 			    (follow-links t)) ;; return truename's of matching files.
+  "Return a list of PATHNAMEs, each the TRUENAME of a file that matched the
+   given pathname. Note that the interaction between this ANSI-specified
+   TRUENAMEing and the semantics of the Unix filesystem (symbolic links..)
+   means this function can sometimes return files which don't have the same
+   directory as PATHNAME."
   (let* ((keys (list :directories directories ;list defaulted key values
 		     :files files
 		     :all all

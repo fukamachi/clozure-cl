@@ -412,6 +412,8 @@
             (hti.lock state)   nil)))))))
 
 (defun maphash (function hash-table)
+  "For each entry in HASH-TABLE, call the designated two-argument function
+   on the key and value of the entry. Return NIL."
   (with-hash-table-iterator (m hash-table)
     (loop
       (multiple-value-bind (found key value) (m)

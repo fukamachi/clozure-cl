@@ -615,6 +615,7 @@
                 fstream))))))))
 
 (defun stream-external-format (stream)
+  "Return the actual external format for file-streams, otherwise :DEFAULT."
   (etypecase stream
     (file-stream (file-stream-external-format stream))
     (broadcast-stream (let* ((last (last-broadcast-stream stream)))
@@ -625,6 +626,9 @@
 ;;; Under the circumstances, this is a very slow way of saying
 ;;; "we don't support EXTENDED-CHARs".
 (defun file-string-length (stream object)
+  "Return the delta in STREAM's FILE-POSITION that would be caused by writing
+   OBJECT to STREAM. Non-trivial only in implementations that support
+   international character sets."
   (if (typep stream 'broadcast-stream)
     (let* ((last (last-broadcast-stream stream)))
       (if last

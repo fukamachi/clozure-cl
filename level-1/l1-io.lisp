@@ -1613,6 +1613,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                    (simple-vector *print-simple-vector*)
                    (simple-bit-vector *print-simple-bit-vector*)
                    (string-length *print-string-length*))
+  "Output OBJECT to the specified stream, defaulting to *STANDARD-OUTPUT*"
   (let ((*print-escape* escape)
         (*print-radix* radix)
         (*print-base* base)
@@ -1656,6 +1657,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                              (simple-vector *print-simple-vector*)
                              (simple-bit-vector *print-simple-bit-vector*)
                              (string-length *print-string-length*))
+  "Return the printed representation of OBJECT as a string."
     (let ((*print-escape* escape)
           (*print-radix* radix)
           (*print-base* base)
@@ -1681,24 +1683,34 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
         (write-1 object stream))))
 
 (defun prin1-to-string (object)
+  "Return the printed representation of OBJECT as a string with
+   slashification on."
   (with-output-to-string (s)
     (prin1 object s)))
 
 (defun princ-to-string (object)
+  "Return the printed representation of OBJECT as a string with
+  slashification off."
   (with-output-to-string (s)
     (princ object s)))
 
 (defun prin1 (object &optional stream)
+  "Output a mostly READable printed representation of OBJECT on the specified
+  STREAM."
   (let ((*print-escape* t))
     (write-1 object stream)))
 
 (defun princ (object &optional stream)
+  "Output an aesthetic but not necessarily READable printed representation
+  of OBJECT on the specified STREAM."
   (let ((*print-escape* nil)
         (*print-readably* nil)
         (*print-circle* nil))
     (write-1 object stream)))
 
 (defun print (object &optional stream)
+  "Output a newline, the mostly READable printed representation of OBJECT, and
+  space to the specified STREAM."
   (setq stream (real-print-stream stream))
   (terpri stream)
   (let ((*print-escape* t))
@@ -1713,6 +1725,12 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 
 
 (defun read-sequence (seq stream &key (start 0) end)
+  "Destructively modify SEQ by reading elements from STREAM.
+  That part of SEQ bounded by START and END is destructively modified by
+  copying successive elements into it from STREAM. If the end of file
+  for STREAM is reached before copying all elements of the subsequence,
+  then the extra elements near the end of sequence are not updated, and
+  the index of the next element is returned."
   (setq end (check-sequence-bounds seq start end))
   (locally (declare (fixnum start end))
     (if (= start end)
@@ -1736,6 +1754,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 
 
 (defun write-sequence (seq stream &key (start 0) end)
+  "Write the elements of SEQ bounded by START and END to STREAM."
   (setq end (check-sequence-bounds seq start end))
   (locally (declare (fixnum start end))
     (seq-dispatch

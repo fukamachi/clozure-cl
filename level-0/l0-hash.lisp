@@ -508,6 +508,18 @@
                              (weak nil)
                              (finalizeable nil)
                              (address-based t))
+  "Create and return a new hash table. The keywords are as follows:
+     :TEST -- Indicates what kind of test to use.
+     :SIZE -- A hint as to how many elements will be put in this hash
+       table.
+     :REHASH-SIZE -- Indicates how to expand the table when it fills up.
+       If an integer, add space for that many elements. If a floating
+       point number (which must be greater than 1.0), multiply the size
+       by that amount.
+     :REHASH-THRESHOLD -- Indicates how dense the table can become before
+       forcing a rehash. Can be any positive number <=1, with density
+       approaching zero as the threshold approaches 0. Density 1 means an
+       average of one entry per bucket."
   (unless (and test (or (functionp test) (symbolp test)))
     (report-bad-arg test '(and (not null) (or symbol function))))
   (unless (or (functionp hash-function) (symbolp hash-function))
@@ -588,6 +600,8 @@
 
 ; what if somebody is mapping, growing, rehashing? 
 (defun clrhash (hash)
+  "This removes all the entries from HASH-TABLE and returns the hash table
+   itself."
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
   ;(when (neq 0 (nhash.lock hash))(dbg (nhash.lock hash)))
@@ -625,6 +639,7 @@
 
 
 (defun hash-table-count (hash)
+  "Return the number of entries in the given HASH-TABLE."
   (if (nhash.locked-additions (require-type hash 'hash-table))
     (add-locked-additions hash))
   (%normalize-hash-table-count hash)
@@ -632,17 +647,23 @@
      (the fixnum (length (nhash.locked-additions hash)))))
 
 (defun hash-table-rehash-size (hash)
+  "Return the rehash-size HASH-TABLE was created with."
   (nhash.rehash-size (require-type hash 'hash-table)))
 
 (defun hash-table-rehash-threshold (hash)
+  "Return the rehash-threshold HASH-TABLE was created with."
   (/ 1.0 (nhash.rehash-ratio (require-type hash 'hash-table))))
 
 (defun hash-table-size (hash)
+  "Return a size that can be used with MAKE-HASH-TABLE to create a hash
+   table that can hold however many entries HASH-TABLE can hold without
+   having to be grown."
   (%i+ (the fixnum (hash-table-count hash))
        (the fixnum (nhash.grow-threshold hash))
        (the fixnum (nhash.vector.deleted-count (nhash.vector hash)))))
 
 (defun hash-table-test (hash)
+  "Return the test HASH-TABLE was created with."
   (let ((f (nhash.compareF (require-type hash 'hash-table))))
     (if (fixnump f)
       (if (eql 0 f) 'eq 'eql)
@@ -818,6 +839,9 @@
         (return count)))))
 
 (defun gethash (key hash &optional default)
+  "Finds the entry in HASH-TABLE whose key is KEY and returns the associated
+   value and T as multiple values, or returns DEFAULT and NIL if there is no
+   such entry. Entries can be added using SETF."
   (unless (hash-table-p hash)
     (setq hash (require-type hash 'hash-table)))  
   (without-gcing
@@ -860,6 +884,8 @@
 	     (values default nil))))))))
 
 (defun remhash (key hash)
+  "Remove the entry in HASH-TABLE associated with KEY. Return T if there
+   was such an entry, or NIL if not."
   (unless (hash-table-p hash)
     (setq hash (require-type hash 'hash-table)))
   (without-gcing

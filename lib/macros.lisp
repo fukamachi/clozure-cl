@@ -26,6 +26,10 @@
 ;; Constants
 
 (defmacro defconstant (sym val &optional (doc () doc-p) &environment env)
+  "Define a global constant, saying that the value is constant and may be
+  compiled into code. If the variable already has a value, and this is not
+  EQL to the new value, the code is not portable (undefined behavior). The
+  third argument is an optional documentation string for the variable."
   (setq sym (require-type sym 'symbol)
         doc (if doc-p (require-type doc 'string)))
   `(progn
@@ -222,6 +226,9 @@
  `(gvector :istruct 'restart ,name ,action ,report ,interactive ,test))
 
 (defmacro restart-bind (clauses &body body)
+  "Executes forms in a dynamic context where the given restart bindings are
+   in effect. Users probably want to use RESTART-CASE. When clauses contain
+   the same restart name, FIND-RESTART will find the first such clause."
   (let* ((restarts (mapcar #'(lambda (clause) 
                                (list (make-symbol (symbol-name (require-type (car clause) 'symbol)))
                                      `(%cons-restart nil nil nil nil nil)))
@@ -240,6 +247,11 @@
            ,@body)))))
 
 (defmacro handler-bind (clauses &body body)
+  "(HANDLER-BIND ( {(type handler)}* )  body)
+   Executes body in a dynamic context where the given handler bindings are
+   in effect. Each handler must take the condition being signalled as an
+   argument. The bindings are searched first to last in the event of a
+   signalled condition."
   (let* ((fns)
          (decls)         
          (bindings (mapcan #'(lambda (clause)
@@ -263,6 +275,14 @@
          ,@body))))
 
 (defmacro restart-case (&environment env form &rest clauses)
+  "(RESTART-CASE form
+   {(case-name arg-list {keyword value}* body)}*)
+   The form is evaluated in a dynamic context where the clauses have special
+   meanings as points to which control may be transferred (see INVOKE-RESTART).
+   When clauses contain the same case-name, FIND-RESTART will find the first
+   such clause. If Expression is a call to SIGNAL, ERROR, CERROR or WARN (or
+   macroexpands into such) then the signalled condition will be associated with
+   the new restarts."
   (let ((cluster nil))
     (when clauses (setq cluster (gensym) form (restart-case-form form env cluster)))
     (flet ((restart-case-1 (name arglist &rest forms)
@@ -354,6 +374,13 @@
       
 
 (defmacro handler-case (form &rest clauses &aux last)
+  "(HANDLER-CASE form
+   { (type ([var]) body) }* )
+   Execute FORM in a context with handlers established for the condition
+   types. A peculiar property allows type to be :NO-ERROR. If such a clause
+   occurs, and form returns normally, all its values are passed to this clause
+   as if by MULTIPLE-VALUE-CALL.  The :NO-ERROR clause accepts more than one
+   var specification."
   (flet ((handler-case (type var &rest body)
            (when (eq type :no-error)
              (signal-program-error "The :no-error clause must be last."))
@@ -417,6 +444,11 @@
 (defmacro with-simple-restart ((restart-name format-string &rest format-args)
                                &body body
                                &aux (cluster (gensym)) (temp (make-symbol (symbol-name restart-name))))
+  "(WITH-SIMPLE-RESTART (restart-name format-string format-arguments)
+   body)
+   If restart-name is not invoked, then all values returned by forms are
+   returned. If control is transferred to this restart, it immediately
+   returns the values NIL and T."
   (unless (and (stringp format-string)
                (null format-args)
                (not (%str-member #\~ (ensure-simple-string format-string))))
@@ -440,6 +472,8 @@
      (catch ,cluster ,@body)))
 
 (defmacro ignore-errors (&rest forms)
+  "Execute FORMS handling ERROR conditions, returning the result of the last
+  form, or (VALUES NIL the-ERROR-that-was-caught) if an ERROR was handled."
   `(handler-case (progn ,@forms)
      (error (condition) (values nil condition))))
 
@@ -459,9 +493,9 @@
 ;  If you change anything here, be sure to make the corresponding change
 ;  in get-setf-method.
 (defmacro setf (&rest args &environment env)
-  "Takes pairs of arguments like SETQ.  The first is a place and the second
-  is the value that is supposed to go into that place.  Returns the last
-  value.  The place argument may be any of the access forms for which SETF
+  "Takes pairs of arguments like SETQ. The first is a place and the second
+  is the value that is supposed to go into that place. Returns the last
+  value. The place argument may be any of the access forms for which SETF
   knows a corresponding setting form."
   (let ((temp (length args))
         (accessor nil))
@@ -591,6 +625,7 @@
 
 ;; ---- allow inlining setf functions
 (defmacro defun (spec args &body body &environment env &aux global-name inline-spec)
+  "Define a function at top level."
   (validate-function-name spec)
   (setq args (require-type args 'list))
   (setq body (require-type body 'list))
@@ -626,6 +661,10 @@
      (setq ,var ,initform)))
 
 (defmacro defvar (&environment env var &optional (value () value-p) doc)
+  "Define a global variable at top level. Declare the variable
+  SPECIAL and, optionally, initialize it. If the variable already has a
+  value, the old value is not clobbered. The third argument is an optional
+  documentation string for the variable."
   (if (and doc (not (stringp doc))) (report-bad-arg doc 'string))
   (if (and (compile-file-environment-p env) (not *fasl-save-doc-strings*))
     (setq doc nil))
@@ -645,6 +684,11 @@
     ',name))
 
 (defmacro defparameter (&environment env var value &optional doc)
+  "Define a parameter that is not normally changed by the program,
+  but that may be changed without causing an error. Declare the
+  variable special and sets its value to VAL, overwriting any
+  previous value. The third argument is an optional documentation
+  string for the parameter."
   (if (and doc (not (stringp doc))) (signal-program-error "~S is not a string." doc))
   (if (and (compile-file-environment-p env) (not *fasl-save-doc-strings*))
     (setq doc nil))
@@ -717,13 +761,20 @@
         (setq args (%cdr args)))
       (%car args))))
 
-(defmacro case (key &body forms) 
+(defmacro case (key &body forms)
+  "CASE Keyform {({(Key*) | Key} Form*)}*
+  Evaluates the Forms in the first clause with a Key EQL to the value of
+  Keyform. If a singleton key is T then the clause is a default clause."
    (let ((key-var (gensym)))
      `(let ((,key-var ,key))
         (declare (ignorable ,key-var))
         (cond ,@(case-aux forms key-var nil nil)))))
 
 (defmacro ccase (keyplace &body forms)
+  "CCASE Keyform {({(Key*) | Key} Form*)}*
+  Evaluates the Forms in the first clause with a Key EQL to the value of
+  Keyform. If none of the keys matches then a correctable error is
+  signalled."
   (let* ((key-var (gensym))
          (tag (gensym)))
     `(prog (,key-var)
@@ -732,6 +783,9 @@
        (return (cond ,@(case-aux forms key-var tag keyplace))))))
 
 (defmacro ecase (key &body forms)
+  "ECASE Keyform {({(Key*) | Key} Form*)}*
+  Evaluates the Forms in the first clause with a Key EQL to the value of
+  Keyform. If none of the keys matches then an error is signalled."
   (let* ((key-var (gensym)))
     `(let ((,key-var ,key))
        (declare (ignorable ,key-var))
@@ -816,18 +870,27 @@
     `(cond ,@(nreverse body))))
 
 (defmacro typecase (keyform &body clauses)
+  "TYPECASE Keyform {(Type Form*)}*
+  Evaluates the Forms in the first clause for which TYPEP of Keyform and Type
+  is true."
   (let ((key-var (gensym)))
     `(let ((,key-var ,keyform))
        (declare (ignorable ,key-var))
        ,(typecase-aux key-var clauses))))
 
 (defmacro etypecase (keyform &body clauses)
+  "ETYPECASE Keyform {(Type Form*)}*
+  Evaluates the Forms in the first clause for which TYPEP of Keyform and Type
+  is true. If no form is satisfied then an error is signalled."
   (let ((key-var (gensym)))
     `(let ((,key-var ,keyform))
        (declare (ignorable ,key-var))
        ,(typecase-aux key-var clauses 'etypecase))))
 
 (defmacro ctypecase (keyform &body clauses)
+  "CTYPECASE Keyform {(Type Form*)}*
+  Evaluates the Forms in the first clause for which TYPEP of Keyform and Type
+  is true. If no form is satisfied then a correctable error is signalled."
   (let ((key-var (gensym))
         (tag (gensym)))
     `(prog (,key-var)
@@ -836,6 +899,7 @@
        (return ,(typecase-aux key-var clauses tag keyform)))))
 
 (defmacro destructuring-bind (lambda-list expression &body body)
+  "Bind the variables in LAMBDA-LIST to the contents of ARG-LIST."
   (multiple-value-bind (bindings decls)
       (%destructure-lambda-list  lambda-list expression nil nil)
     `(let* ,(nreverse bindings)
@@ -854,10 +918,14 @@
 
 
 (defmacro when (test &body body)
+  "If the first argument is true, the rest of the forms are
+  evaluated as a PROGN."
  `(if ,test
    (progn ,@body)))
 
 (defmacro unless (test &body body)
+  "If the first argument is not true, the rest of the forms are
+  evaluated as a PROGN."
  `(if (not ,test)
    (progn ,@body)))
 
@@ -887,6 +955,10 @@
         (go ,toplab)))))
 
 (defmacro psetq (&whole call &body pairs &environment env)
+  "PSETQ {var value}*
+   Set the variables to the values, like SETQ, except that assignments
+   happen in parallel, i.e. no assignments take place until all the
+   forms have been evaluated."
   (when pairs
    (if (evenp (length pairs))
      (do* ((l pairs (%cddr l))
@@ -942,9 +1014,25 @@
 )
 
 (defmacro do (&environment env var-init-steps (&optional end-test &rest result) &body body)
+  "DO ({(Var [Init] [Step])}*) (Test Exit-Form*) Declaration* Form*
+  Iteration construct. Each Var is initialized in parallel to the value of the
+  specified Init form. On subsequent iterations, the Vars are assigned the
+  value of the Step form (if any) in parallel. The Test is evaluated before
+  each evaluation of the body Forms. When the Test is true, the Exit-Forms
+  are evaluated as a PROGN, with the result being the value of the DO. A block
+  named NIL is established around the entire expansion, allowing RETURN to be
+  used as an alternate exit mechanism."
   (do-loop 'let 'psetq env var-init-steps end-test result body))
 
 (defmacro do* (&environment env var-init-steps (&optional end-test &rest result) &body body)
+  "DO* ({(Var [Init] [Step])}*) (Test Exit-Form*) Declaration* Form*
+  Iteration construct. Each Var is initialized sequentially (like LET*) to the
+  value of the specified Init form. On subsequent iterations, the Vars are
+  sequentially assigned the value of the Step form (if any). The Test is
+  evaluated before each evaluation of the body Forms. When the Test is true,
+  the Exit-Forms are evaluated as a PROGN, with the result being the value
+  of the DO. A block named NIL is established around the entire expansion,
+  allowing RETURN to be used as an laternate exit mechanism."
   (do-loop 'let* 'setq env var-init-steps end-test result body))
 
 
@@ -1021,16 +1109,25 @@
            ,@(when result `(,result)))))))
 
 (defmacro do-symbols ((var &optional pkg result) &body body &environment env)
+  "DO-SYMBOLS (VAR [PACKAGE [RESULT-FORM]]) {DECLARATION}* {TAG | FORM}*
+   Executes the FORMs at least once for each symbol accessible in the given
+   PACKAGE with VAR bound to the current symbol."
   (expand-package-iteration-macro 'iterate-over-accessable-symbols var pkg result body env))
 
 (defmacro do-present-symbols ((var &optional pkg result) &body body &environment env)
   (expand-package-iteration-macro 'iterate-over-present-symbols var pkg result body env))
 
 (defmacro do-external-symbols ((var &optional pkg result) &body body &environment env)
+  "DO-EXTERNAL-SYMBOLS (VAR [PACKAGE [RESULT-FORM]]) {DECL}* {TAG | FORM}*
+   Executes the FORMs once for each external symbol in the given PACKAGE with
+   VAR bound to the current symbol."
   (expand-package-iteration-macro 'iterate-over-external-symbols var pkg result body env))
 
-(defmacro do-all-symbols ((var &optional resultform) 
+(defmacro do-all-symbols ((var &optional resultform)
                           &body body &environment env)
+  "DO-ALL-SYMBOLS (VAR [RESULT-FORM]) {DECLARATION}* {TAG | FORM}*
+   Executes the FORMs once for each symbol in every package with VAR bound
+   to the current symbol."
   (multiple-value-bind (body decls) (parse-body body env nil)
     (let* ((ftemp (gensym))
            (vtemp (gensym))
@@ -1062,6 +1159,8 @@
     `(prog1 ,val)))
 
 (defmacro nth-value (n form)
+  "Evaluate FORM and return the Nth value (zero based). This involves no
+  consing when N is a trivial constant integer."
   `(car (nthcdr ,n (multiple-value-list ,form))))
 
 
@@ -1285,11 +1384,44 @@
        (when ,stream (close ,stream :abort (null ,done))))))
 
 (defmacro with-compilation-unit ((&key override) &body body)
+  "WITH-COMPILATION-UNIT ({Key Value}*) Form*
+  This form affects compilations that take place within its dynamic extent. It
+  is intended to be wrapped around the compilation of all files in the same
+  system. These keywords are defined:
+    :OVERRIDE Boolean-Form
+        One of the effects of this form is to delay undefined warnings
+        until the end of the form, instead of giving them at the end of each
+        compilation. If OVERRIDE is NIL (the default), then the outermost
+        WITH-COMPILATION-UNIT form grabs the undefined warnings. Specifying
+        OVERRIDE true causes that form to grab any enclosed warnings, even if
+        it is enclosed by another WITH-COMPILATION-UNIT."
   `(let* ((*outstanding-deferred-warnings* (%defer-warnings ,override)))
      (multiple-value-prog1 (progn ,@body) (report-deferred-warnings))))
 
 ; Yow! Another Done Fun.
 (defmacro with-standard-io-syntax (&body body &environment env)
+  "Bind the reader and printer control variables to values that enable READ
+   to reliably read the results of PRINT. These values are:
+       *PACKAGE*                        the COMMON-LISP-USER package
+       *PRINT-ARRAY*                    T
+       *PRINT-BASE*                     10
+       *PRINT-CASE*                     :UPCASE
+       *PRINT-CIRCLE*                   NIL
+       *PRINT-ESCAPE*                   T
+       *PRINT-GENSYM*                   T
+       *PRINT-LENGTH*                   NIL
+       *PRINT-LEVEL*                    NIL
+       *PRINT-LINES*                    NIL
+       *PRINT-MISER-WIDTH*              NIL
+       *PRINT-PRETTY*                   NIL
+       *PRINT-RADIX*                    NIL
+       *PRINT-READABLY*                 T
+       *PRINT-RIGHT-MARGIN*             NIL
+       *READ-BASE*                      10
+       *READ-DEFAULT-FLOAT-FORMAT*      SINGLE-FLOAT
+       *READ-EVAL*                      T
+       *READ-SUPPRESS*                  NIL
+       *READTABLE*                      the standard readtable"
   (multiple-value-bind (decls body) (parse-body body env)
     `(let ((*package* (find-package "CL-USER"))
            (*print-array* t)
@@ -1314,8 +1446,11 @@
            (*readtable* %initial-readtable%))
        ,@decls
        ,@body)))
-           
+
 (defmacro print-unreadable-object (&environment env (object stream &key type identity) &body forms)
+  "Output OBJECT to STREAM with \"#<\" prefix, \">\" suffix, optionally
+  with object-type prefix and object-identity suffix, and executing the
+  code in BODY to provide possible further output."
   (multiple-value-bind (body decls) (parse-body forms env)
     (if body
       (let ((thunk (gensym)))
@@ -1768,6 +1903,23 @@
 ; which tests *print-escape* ?  Scary if so ...
 
 (defmacro define-condition (name (&rest supers) &optional ((&rest slots)) &body options)
+  "DEFINE-CONDITION Name (Parent-Type*) (Slot-Spec*) Option*
+   Define NAME as a condition type. This new type inherits slots and its
+   report function from the specified PARENT-TYPEs. A slot spec is a list of:
+     (slot-name :reader <rname> :initarg <iname> {Option Value}*
+
+   The DEFINE-CLASS slot options :ALLOCATION, :INITFORM, [slot] :DOCUMENTATION
+   and :TYPE and the overall options :DEFAULT-INITARGS and
+   [type] :DOCUMENTATION are also allowed.
+
+   The :REPORT option is peculiar to DEFINE-CONDITION. Its argument is either
+   a string or a two-argument lambda or function name. If a function, the
+   function is called with the condition and stream to report the condition.
+   If a string, the string is printed.
+
+   Condition types are classes, but (as allowed by ANSI and not as described in
+   CLtL2) are neither STANDARD-OBJECTs nor STRUCTURE-OBJECTs. WITH-SLOTS and
+   SLOT-VALUE may not be used on condition objects."
   ; If we could tell what environment we're being expanded in, we'd
   ; probably want to check to ensure that all supers name conditions
   ; in that environment.
@@ -1814,6 +1966,10 @@
        ',name)))
 
 (defmacro with-condition-restarts (&environment env condition restarts &body body)
+  "Evaluates the BODY in a dynamic environment where the restarts in the list
+   RESTARTS-FORM are associated with the condition returned by CONDITION-FORM.
+   This allows FIND-RESTART, etc., to recognize restarts that are not related
+   to the error currently being debugged. See also RESTART-CASE."
   (multiple-value-bind (body decls)
                        (parse-body body env)
     (let ((cond (gensym))
@@ -1899,6 +2055,22 @@
             ,form)))
 
 (defmacro defpackage (name &rest options)
+  "Defines a new package called PACKAGE. Each of OPTIONS should be one of the 
+   following: 
+    (NICKNAMES {package-name}*)
+
+    (SIZE <integer>)
+    (SHADOW {symbol-name}*)
+    (SHADOWING-IMPORT-FROM <package-name> {symbol-name}*)
+    (USE {package-name}*)
+    (IMPORT-FROM <package-name> {symbol-name}*)
+    (INTERN {symbol-name}*)
+    (EXPORT {symbol-name}*)
+    (IMPLEMENT {package-name}*)
+    (LOCK boolean)
+    (DOCUMENTATION doc-string)
+   All options except SIZE, LOCK, and :DOCUMENTATION can be used multiple 
+   times."
   (let* ((size nil)
          (all-names-size 0)
          (intern-export-size 0)
@@ -2013,6 +2185,10 @@
 
 (defmacro with-package-iterator ((mname package-list first-type &rest other-types)
                                  &body body)
+  "Within the lexical scope of the body forms, MNAME is defined via macrolet
+   such that successive invocations of (MNAME) will return the symbols,
+   one by one, from the packages in PACKAGE-LIST. SYMBOL-TYPES may be
+   any of :INHERITED :EXTERNAL :INTERNAL."
   (setq mname (require-type mname 'symbol))
   (let ((state (make-symbol "WITH-PACKAGE-ITERATOR_STATE"))
         (types 0))
@@ -2316,8 +2492,10 @@
 
 (defmacro check-type (place typespec &optional string)
   "CHECK-TYPE Place Typespec [String]
-  Signal a correctable error if Place does not hold an object of the type
-  specified by Typespec."
+  Signal a restartable error of type TYPE-ERROR if the value of PLACE is
+  not of the specified type. If an error is signalled and the restart is
+  used to return, this can only return if the STORE-VALUE restart is
+  invoked. In that case it will store into PLACE and start over."
   `(progn
      (setf ,place 
            (ensure-value-of-type 
@@ -2328,6 +2506,12 @@
      nil))
 
 (defmacro with-hash-table-iterator ((mname hash-table) &body body &environment env)
+  "WITH-HASH-TABLE-ITERATOR ((function hash-table) &body body)
+   provides a method of manually looping over the elements of a hash-table.
+   FUNCTION is bound to a generator-macro that, within the scope of the
+   invocation, returns one or three values. The first value tells whether
+   any objects remain in the hash table. When the first value is non-NIL,
+   the second and third values are the key and the value of the next object."
   (let ((state (gensym)))
     (multiple-value-bind (body decls) (parse-body body env)
       `(let ((,state (vector nil nil ,hash-table nil nil)))
@@ -2368,6 +2552,9 @@
 
 (defmacro pprint-logical-block+ ((var args prefix suffix per-line? circle-check? atsign?)
 				 &body body)
+  "Group some output into a logical block. STREAM-SYMBOL should be either a
+   stream, T (for *TERMINAL-IO*), or NIL (for *STANDARD-OUTPUT*). The printer
+   control variable *PRINT-LEVEL* is automatically handled."
   (when (and circle-check? atsign?)
     (setq circle-check? 'not-first-p))
   `(let ((*current-level* (1+ *current-level*))
@@ -2452,6 +2639,7 @@
     `(find-method #',gf ',qualifiers (mapcar #'find-specializer ',specializers))))
 
 (defmacro time (form)
+  "Execute FORM and print timing information on *TRACE-OUTPUT*."
   `(report-time ',form #'(lambda () (progn ,form))))
 
 (defmacro with-error-reentry-detection (&body body)
@@ -2920,4 +3108,8 @@
         (error "Don't know how to do conditional store to ~s" place)))))
 
 (defmacro step (form)
+  "The form is evaluated with single stepping enabled. Function calls
+outside the lexical scope of the form can be stepped into only if the
+functions in question have been compiled with sufficient DEBUG policy
+to be at least partially steppable."
   form)

@@ -20,6 +20,7 @@
   (require "PPC-LAPMACROS"))
 
 (defppclapfunction eql ((x arg_y) (y arg_z))
+;  "Return T if OBJ1 and OBJ2 represent the same object, otherwise NIL."
   (check-nargs 2)
   @tail
   (cmpw cr0 x y)
@@ -116,6 +117,10 @@
 
 
 (defppclapfunction equal ((x arg_y) (y arg_z))
+;  "Return T if X and Y are EQL or if they are structured components
+;  whose elements are EQUAL. Strings and bit-vectors are EQUAL if they
+;  are the same length and have identical components. Other arrays must be
+;  EQ to be EQUAL."
   (check-nargs 2)
   @top
   (cmpw cr0 x y)

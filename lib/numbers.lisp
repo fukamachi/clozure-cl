@@ -297,6 +297,7 @@
             (%ilsr shift (%svref rs 2)))))
 
 (defun float-radix (float)
+  "Return (as an integer) the radix b of its floating-point argument."
   (require-type float 'float)
   2)
 
@@ -313,14 +314,20 @@
 
 
 ;==> Needs a transform...
-(defun logandc2 (integer1 integer2) (logandc1 integer2 integer1))
+(defun logandc2 (integer1 integer2)
+  "Bitwise AND INTEGER1 with (LOGNOT INTEGER2)."
+  (logandc1 integer2 integer1))
 
-(defun logorc2 (integer1 integer2) (logorc1 integer2 integer1))
+(defun logorc2 (integer1 integer2)
+  "Bitwise OR INTEGER1 with (LOGNOT INTEGER2)."
+  (logorc1 integer2 integer1))
 
 
 
 ; Figure that the common (2-arg) case is caught by a compiler transform anyway.
 (defun gcd (&lexpr numbers)
+  "Return the greatest common divisor of the arguments, which must be
+  integers. Gcd with no arguments is defined to be 0."
   (let* ((count (%lexpr-count numbers)))
     (declare (fixnum count))   
     (if (zerop count)
@@ -346,6 +353,8 @@
 	  (values (truncate (abs (* n0 n1)) (gcd large small))))))))
 
 (defun lcm (&lexpr numbers)
+  "Return the least common multiple of one or more integers. LCM of no
+  arguments is defined to be 1."
   (let* ((count (%lexpr-count numbers)))
     (declare (fixnum count))    
     (if (zerop count)
@@ -389,6 +398,10 @@
 |#
 
 (defun rationalize (number)
+  "Converts any REAL to a RATIONAL.  Floats are converted to a simple rational
+  representation exploiting the assumption that floats are only accurate to
+  their precision.  RATIONALIZE (and also RATIONAL) preserve the invariant:
+      (= x (float (rationalize x) x))"
   (if (floatp number)
     (labels ((simpler-rational (less-predicate lonum loden hinum hiden
                                                &aux (trunc (if (eql less-predicate #'<=)
@@ -528,6 +541,23 @@
 
 ;===> Change these constants to match maclisp!!
 (defun boole (op integer1 integer2)
+  "Bit-wise boolean function on two integers. Function chosen by OP:
+        0       BOOLE-CLR
+        1       BOOLE-SET
+        2       BOOLE-1
+        3       BOOLE-2
+        4       BOOLE-C1
+        5       BOOLE-C2
+        6       BOOLE-AND
+        7       BOOLE-IOR
+        8       BOOLE-XOR
+        9       BOOLE-EQV
+        10      BOOLE-NAND
+        11      BOOLE-NOR
+        12      BOOLE-ANDC1
+        13      BOOLE-ANDC2
+        14      BOOLE-ORC1
+        15      BOOLE-ORC2"
   (unless (and (typep op 'fixnum)
                (locally (declare (fixnum op))
                  (and (>= op 0)
@@ -552,6 +582,7 @@
         (setq b (* b b) e next)))))
 
 (defun signum (x)
+  "If NUMBER is zero, return NUMBER, else return (/ NUMBER (ABS NUMBER))."
   (cond ((complexp x) (if (zerop x) x (/ x (abs x))))
         ((rationalp x) (if (plusp x) 1 (if (zerop x) 0 -1)))
         ((zerop x) (float 0.0 x))
@@ -562,7 +593,8 @@
 ; Thanks to d34676@tansei.cc.u-tokyo.ac.jp (Akira KURIHARA)
 (defun isqrt (n &aux n-len-quarter n-half n-half-isqrt
                 init-value iterated-value)
-  "argument n must be a non-negative integer"
+  "Return the root of the nearest integer less than n which is a perfect
+   square.  Argument n must be a non-negative integer"
   (cond
    ((eql n 0) 0)
    ; this fails sometimes - do we care? 70851992595801818865024053174 or #x80000000
@@ -586,6 +618,7 @@
 
 
 (defun sinh (x)
+  "Return the hyperbolic sine of NUMBER."
   (if (complexp x) 
     (/ (- (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
@@ -595,6 +628,7 @@
 
 
 (defun cosh (x)
+  "Return the hyperbolic cosine of NUMBER."
   (if (complexp x) 
     (/ (+ (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
@@ -603,6 +637,7 @@
 	(%single-float-cosh! sx (%make-sfloat))))))
 
 (defun tanh (x)
+  "Return the hyperbolic tangent of NUMBER."
   (if (complexp x) 
     (/ (sinh x) (cosh x))
     (if (typep x 'double-float)
@@ -611,6 +646,7 @@
 	(%single-float-tanh! sx (%make-sfloat))))))
 
 (defun asinh (x)
+  "Return the hyperbolic arc sine of NUMBER."
   (if (complexp x) 
     (log (+ x (sqrt (+ 1 (* x x)))))
     (if (typep x 'double-float)
@@ -619,6 +655,7 @@
 	(%single-float-asinh! sx (%make-sfloat))))))
 
 (defun acosh (x)
+  "Return the hyperbolic arc cosine of NUMBER."
   (if (and (realp x) (<= 1.0 x))
     (if (typep x 'double-float)
       (%double-float-acosh! x (%make-dfloat))
@@ -627,6 +664,7 @@
     (* 2 (log (+ (sqrt (/ (1+ x) 2)) (sqrt (/ (1- x) 2)))))))
 
 (defun atanh (x)
+  "Return the hyperbolic arc tangent of NUMBER."
   (if (and (realp x) (<= -1.0 (setq x (float x)) 1.0))
     (if (typep x 'double-float)
       (%double-float-atanh! x (%make-dfloat))
@@ -635,22 +673,29 @@
 
 
 (defun ffloor (number &optional divisor)
+  "Same as FLOOR, but returns first value as a float."
   (multiple-value-bind (q r) (floor number divisor)
     (values (float q (if (floatp r) r 0.0)) r)))
 
 (defun fceiling (number &optional divisor)
+  "Same as CEILING, but returns first value as a float."
   (multiple-value-bind (q r) (ceiling number divisor)
     (values (float q (if (floatp r) r 0.0)) r)))
 
 (defun ftruncate (number &optional divisor)
+  "Same as TRUNCATE, but returns first value as a float."
   (multiple-value-bind (q r) (truncate number divisor)
     (values (float q (if (floatp r) r 0.0)) r)))
 
 (defun fround (number &optional divisor)
+  "Same as ROUND, but returns first value as a float."
   (multiple-value-bind (q r) (round number divisor)
     (values (float q (if (floatp r) r 0.0)) r)))
 
 (defun rational (number)
+  "RATIONAL produces a rational number for any real numeric argument. This is
+  more efficient than RATIONALIZE, but it assumes that floating-point is
+  completely accurate, giving a result that isn't as pretty."
   (if (floatp number)
       (multiple-value-bind (s e sign) (integer-decode-float number)
          (if (eq sign -1) (setq s (- s)))

@@ -29,6 +29,8 @@
 ; the sole element of the pname is returned. Else error.
 
 (defun character (arg)
+  "Coerce OBJECT into a CHARACTER if possible. Legal inputs are 
+  characters, strings and symbols of length 1."
   (if (typep arg 'character)
     arg
     (if (typep arg 'fixnum)
@@ -44,6 +46,9 @@
 
 
 (defun digit-char (weight &optional radix)
+  "All arguments must be integers. Returns a character object that
+  represents a digit of the given weight in the specified radix. Returns
+  NIL if no such character exists."
   (let* ((r (if radix (require-type radix 'integer) 10)))
     (if (and (typep (require-type weight 'integer) 'fixnum)
              (>= r 2)
@@ -60,6 +65,9 @@
 ;True for ascii codes 32-126 inclusive.
 ; and for guys >= 128. Its really a function of the font of the moment.
 (defun graphic-char-p (c)
+  "The argument must be a character object. GRAPHIC-CHAR-P returns T if the
+  argument is a printing character (space through ~ in ASCII), otherwise
+  returns NIL."
   (let* ((code (char-code c)))
     (unless (eq c #\rubout)
       (>= code (char-code #\space)))))
@@ -67,6 +75,9 @@
 
 ;True for ascii codes 13 and 32-126 inclusive.
 (defun standard-char-p (c)
+  "The argument must be a character object. STANDARD-CHAR-P returns T if the
+   argument is a standard character -- one of the 95 ASCII printing characters
+   or <return>."
   (let* ((code (char-code c)))
     (or (eq c #\newline)
         (and 
@@ -78,6 +89,8 @@
 
 ; if no table - then what?
 (defun upper-case-p (c)
+  "The argument must be a character object; UPPER-CASE-P returns T if the
+   argument is an upper-case character, NIL otherwise."
   (let* ((code (char-code c)))
     (declare (optimize (speed 3)(safety 0)))
     (and (%i>= code (char-code #\A))
@@ -88,6 +101,9 @@
 
 ; I assume nobody cares that this be blindingly fast
 (defun both-case-p (c)
+  "The argument must be a character object. BOTH-CASE-P returns T if the
+  argument is an alphabetic character and if the character exists in
+  both upper and lower case. For ASCII, this is the same as ALPHA-CHAR-P."
   (let* ((code (char-code c)))
     (declare (optimize (speed 3)(safety 0)))
     (if (%i>= code (char-code #\A))
@@ -97,6 +113,8 @@
           (%i<= code (char-code #\z)))))))
   
 (defun alphanumericp (c)
+  "Given a character-object argument, ALPHANUMERICP returns T if the
+   argument is either numeric or alphabetic."
   (let ((code (char-code c)))
     (declare (fixnum code))
     (or
@@ -108,6 +126,7 @@
           (<= code (char-code #\Z))))))
 
 (defun char= (ch &rest others)
+  "Return T if all of the arguments are the same character."
   (declare (dynamic-extent others))
   (unless (typep ch 'character)
     (setq ch (require-type ch 'character)))
@@ -118,6 +137,7 @@
       (return))))
 
 (defun char/= (ch &rest others)
+  "Return T if no two of the arguments are the same character."
   (declare (dynamic-extent others))
   (unless (typep ch 'character)
     (setq ch (require-type ch 'character)))
@@ -132,6 +152,8 @@
 
 
 (defun char-equal (char &rest others)
+  "Return T if all of the arguments are the same character.
+  Font, bits, and case are ignored."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (dolist (c others t)
@@ -142,6 +164,8 @@
 ; Compares each char against all following chars, not just next one. Tries
 ; to be fast for one or two args.
 (defun char-not-equal (char &rest others)
+  "Return T if no two of the arguments are the same character.
+   Font, bits, and case are ignored."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3) (safety 0)))
     (let* ((rest (cdr others)))
@@ -164,6 +188,8 @@
 
 
 (defun char-lessp (char &rest others)
+  "Return T if the arguments are in strictly increasing alphabetic order.
+   Font, bits, and case are ignored."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ((code (char-code (char-upcase char))))
@@ -172,6 +198,8 @@
           (return))))))
 
 (defun char-not-lessp (char &rest others)
+  "Return T if the arguments are in strictly non-increasing alphabetic order.
+   Font, bits, and case are ignored."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ((code (char-code (char-upcase char))))
@@ -180,6 +208,8 @@
           (return))))))
 
 (defun char-greaterp (char &rest others)
+  "Return T if the arguments are in strictly decreasing alphabetic order.
+   Font, bits, and case are ignored."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ((code (char-code (char-upcase char))))
@@ -188,6 +218,8 @@
           (return))))))
 
 (defun char-not-greaterp (char &rest others)
+  "Return T if the arguments are in strictly non-decreasing alphabetic order.
+   Font, bits, and case are ignored."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ((code (char-code (char-upcase char))))
@@ -197,6 +229,7 @@
 
 
 (defun char> (char &rest others)
+  "Return T if the arguments are in strictly decreasing alphabetic order."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ()      
@@ -207,6 +240,7 @@
             (return)))))))
 
 (defun char>= (char &rest others)
+  "Return T if the arguments are in strictly non-increasing alphabetic order."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ()      
@@ -218,6 +252,7 @@
 
 
 (defun char< (char &rest others)
+  "Return T if the arguments are in strictly increasing alphabetic order."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ()      
@@ -228,6 +263,7 @@
             (return)))))))
 
 (defun char<= (char &rest others)
+  "Return T if the arguments are in strictly non-decreasing alphabetic order."
   (declare (dynamic-extent others))
   (locally (declare (optimize (speed 3)(safety 0)))
     (let* ()      
@@ -239,6 +275,7 @@
 
 ; This is Common Lisp
 (defun char-int (c)
+  "Return the integer code of CHAR."
   (char-code c))
 
 
@@ -246,7 +283,8 @@
 ;Otherwise, if char is a graphics character, return NIL
 ;Otherwise, if char code is < 128, return "^C", otherwise "1nn"
 
-(defun char-name (c)  
+(defun char-name (c)
+  "Return the name (a STRING) for a CHARACTER object."
   (dolist (e *name-char-alist*)
     (declare (list e))    
     (when (eq c (cdr e))(return-from char-name (car e))))
@@ -411,26 +449,44 @@
 
 
 (defun string-greaterp (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically greater than
+  the second string, returns the longest common prefix (using char-equal)
+  of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-compare string1 start1 end1 string2 start2 end2)
     (if (eq result 1) pos nil)))
 
 (defun string-not-greaterp (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically less than
+  or equal to the second string, returns the longest common prefix
+  (using char-equal) of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-compare string1 start1 end1 string2 start2 end2)
     (if (eq result 1) nil pos)))
 
 (defun string-not-equal (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is not lexicographically equal
+  to the second string, returns the longest common prefix (using char-equal)
+  of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-compare string1 start1 end1 string2 start2 end2)
     (if (eq result t) nil pos)))
 
 (defun string-not-lessp (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically greater
+  than or equal to the second string, returns the longest common prefix
+  (using char-equal) of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-compare string1 start1 end1 string2 start2 end2)
     (if (eq result -1) nil pos)))
 
 (defun string-equal (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings (string1 and string2), and optional integers start1,
+  start2, end1 and end2, compares characters in string1 to characters in
+  string2 (using char-equal)."
   (eq t (string-compare string1 start1 end1 string2 start2 end2)))
 
 
 (defun string-lessp (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically less than
+  the second string, returns the longest common prefix (using char-equal)
+  of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos)(string-compare string1 start1 end1 string2 start2 end2)
     (if (eq result -1) pos nil)))
 
@@ -465,23 +521,38 @@
       (values val (%i- end1 istart1)))))
 
 (defun string> (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically greater than
+  the second string, returns the longest common prefix (using char=)
+  of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-cmp string1 start1 end1 string2 start2 end2)
     (if (eq result 1) pos nil)))
 
 (defun string>= (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically greater
+  than or equal to the second string, returns the longest common prefix
+  (using char=) of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-cmp string1 start1 end1 string2 start2 end2)
     (if (eq result -1) nil pos)))
 
 (defun string< (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically less than
+  the second string, returns the longest common prefix (using char=)
+  of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-cmp string1 start1 end1 string2 start2 end2)
     (if (eq result -1) pos nil)))
 
 (defun string<= (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is lexicographically less than
+  or equal to the second string, returns the longest common prefix
+  (using char=) of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-cmp string1 start1 end1 string2 start2 end2)
     (if (eq result 1) nil pos)))
 
 ; this need not be so fancy?
 (defun string/= (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings, if the first string is not lexicographically equal
+  to the second string, returns the longest common prefix (using char=)
+  of the two strings. Otherwise, returns ()."
   (multiple-value-bind (result pos) (string-cmp string1 start1 end1 string2 start2 end2)
     (if (eq result t) nil pos)))
 

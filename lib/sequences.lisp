@@ -67,8 +67,8 @@
 
 
 (defun make-sequence (type length &key (initial-element nil initial-element-p))
-  "Returns a sequence of the given Type and Length, with elements initialized
-  to :Initial-Element."
+  "Return a sequence of the given TYPE and LENGTH, with elements initialized
+  to INITIAL-ELEMENT."
   (setq length (require-type length 'fixnum))
   (let* ((ctype (specifier-type type)))
     (declare (fixnum length))
@@ -229,6 +229,8 @@
 ; bug ...
 
 (defun subseq (sequence start &optional end)
+  "Return a copy of a subsequence of SEQUENCE starting with element number
+   START and continuing to the end of SEQUENCE or the optional END."
   (setq end (check-sequence-bounds sequence start end))
   (locally 
       (declare (fixnum start end))
@@ -250,6 +252,7 @@
 ;;; Copy-seq:
 
 (defun copy-seq (sequence)
+  "Return a copy of SEQUENCE which is EQUAL to SEQUENCE but not EQ."
   (seq-dispatch 
    sequence
    (copy-list sequence)
@@ -364,9 +367,9 @@
 
 
 (defun concatenate (output-type-spec &rest sequences)
-  "Returns a new sequence of all the argument sequences concatenated together
-   which shares no structure with the original argument sequences of the
-   specified OUTPUT-TYPE-SPEC."
+  "Return a new sequence of all the argument sequences concatenated together
+  which shares no structure with the original argument sequences of the
+  specified OUTPUT-TYPE-SPEC."
   (declare (dynamic-extent sequences))
   (if (memq output-type-spec '(string simple-string))
     (setq output-type-spec 'base-string)
@@ -488,24 +491,39 @@
     
     
 (defun some (predicate one-seq &rest sequences)
+  "Apply PREDICATE to the 0-indexed elements of the sequences, then 
+   possibly to those with index 1, and so on. Return the first 
+   non-NIL value encountered, or NIL if the end of any sequence is reached."
   (declare (dynamic-extent sequences))
   (if sequences
       (some-xx-multi $some nil predicate one-seq sequences)
       (some-xx-one $some nil predicate one-seq)))
 
 (defun notany (predicate one-seq &rest sequences)
+  "Apply PREDICATE to the 0-indexed elements of the sequences, then 
+   possibly to those with index 1, and so on. Return NIL as soon
+   as any invocation of PREDICATE returns a non-NIL value, or T if the end
+   of any sequence is reached."
   (declare (dynamic-extent sequences))
   (if sequences
       (some-xx-multi $notany t predicate one-seq sequences)
       (some-xx-one $notany t predicate one-seq)))
 
 (defun every (predicate one-seq &rest sequences)
+  "Apply PREDICATE to the 0-indexed elements of the sequences, then
+   possibly to those with index 1, and so on. Return NIL as soon
+   as any invocation of PREDICATE returns NIL, or T if every invocation
+   is non-NIL."
   (declare (dynamic-extent sequences))
   (if sequences
       (some-xx-multi $every t predicate one-seq sequences)
       (some-xx-one $every t predicate one-seq)))
 
 (defun notevery (predicate one-seq &rest sequences)
+  "Apply PREDICATE to 0-indexed elements of the sequences, then
+   possibly to those with index 1, and so on. Return T as soon
+   as any invocation of PREDICATE returns NIL, or NIL if every invocation
+   is non-NIL."
   (declare (dynamic-extent sequences))
   (if sequences
       (some-xx-multi $notevery nil predicate one-seq sequences)
@@ -753,7 +771,7 @@
 
 ;If you change this, remember to change the transform.
 (defun coerce (object output-type-spec)
-  "Coerces the Object to an object of type Output-Type-Spec."
+  "Coerce the Object to an object of type Output-Type-Spec."
   (let* ((type (specifier-type output-type-spec)))
     (if (%typep object type)
       object
@@ -1088,6 +1106,8 @@
 
 (defun delete (item sequence &key from-end test test-not (start 0)
                     end count key)
+  "Return a sequence formed by destructively removing the specified ITEM from
+  the given SEQUENCE."
   (setq count (check-count count))
   (if sequence
     (seq-dispatch
@@ -1109,6 +1129,8 @@
 
 (defun delete-if (test sequence &key from-end (start 0)                       
                        end count key)
+  "Return a sequence formed by destructively removing the elements satisfying
+  the specified PREDICATE from the given SEQUENCE."
   (delete test sequence
           :test #'funcall
           :from-end from-end 
@@ -1118,6 +1140,8 @@
           :key key))
 
 (defun delete-if-not (test sequence &key from-end (start 0) end count key)
+  "Return a sequence formed by destructively removing the elements not
+  satisfying the specified PREDICATE from the given SEQUENCE."
   (delete test sequence 
           :test-not #'funcall 
           :from-end from-end 
@@ -1134,6 +1158,8 @@
 
 (defun remove (item sequence &key from-end test test-not (start 0)
                     end count key)
+  "Return a copy of SEQUENCE with elements satisfying the test (default is
+   EQL) with ITEM removed."
   (setq count (check-count count))
   (seq-dispatch
    sequence
@@ -1161,6 +1187,8 @@
 
 (defun remove-if (test sequence &key from-end (start 0)
                          end count key)
+  "Return a copy of sequence with elements such that predicate(element)
+   is non-null removed"
   (setq count (check-count count))
   (remove test sequence
           :test #'funcall
@@ -1172,6 +1200,8 @@
 
 (defun remove-if-not (test sequence &key from-end (start 0)
                          end count key)
+  "Return a copy of sequence with elements such that predicate(element)
+   is null removed"
   (setq count (check-count count))
   (remove test sequence
           :test-not #'funcall
@@ -1194,6 +1224,12 @@
 
 (defun remove-duplicates (sequence &key (test #'eql) test-not (start 0) 
       from-end (end (length sequence)) key)
+  "The elements of SEQUENCE are compared pairwise, and if any two match,
+   the one occurring earlier is discarded, unless FROM-END is true, in
+   which case the one later in the sequence is discarded. The resulting
+   sequence is returned.
+
+   The :TEST-NOT argument is deprecated."
   (delete-duplicates (copy-seq sequence) :from-end from-end :test test
                      :test-not test-not :start start :end end :key key))
 
@@ -1286,7 +1322,7 @@
               (setq jndex (1+ jndex)))))
 
 (defun delete-duplicates (sequence &key (test #'eql) test-not (start 0) from-end end key)
-  "The elements of Sequence are examined, and if any two match, one is
+  "The elements of SEQUENCE are examined, and if any two match, one is
    discarded.  The resulting sequence, which may be formed by destroying the
    given sequence, is returned.
    Sequences of type STR have a NEW str returned."
@@ -1371,8 +1407,8 @@
 (defun substitute (new old sequence &key from-end (test #'eql) test-not
                        (start 0) count
                        end (key #'identity))
-  "Returns a sequence of the same kind as Sequence with the same elements
-  except that all elements equal to Old are replaced with New.  See manual
+  "Return a sequence of the same kind as SEQUENCE with the same elements,
+  except that all elements equal to OLD are replaced with NEW. See manual
   for details."
   (setq count (check-count count))
   (let ((length (length sequence))        )
@@ -1394,6 +1430,9 @@
 (defun substitute-if (new test sequence &key from-end (start 0)
                           (end (length sequence))
                           count (key #'identity))
+  "Return a sequence of the same kind as SEQUENCE with the same elements
+  except that all elements satisfying the PRED are replaced with NEW. See
+  manual for details."
   (substitute new test sequence
               :from-end from-end
               :test #'funcall
@@ -1406,6 +1445,9 @@
 (defun substitute-if-not (new test sequence &key from-end (start 0)
                               (end (length sequence))
                               count (key #'identity))
+  "Return a sequence of the same kind as SEQUENCE with the same elements
+  except that all elements not satisfying the PRED are replaced with NEW.
+  See manual for details."
   (substitute new test sequence
               :from-end from-end
               :test-not #'funcall
@@ -1420,9 +1462,9 @@
 (defun nsubstitute (new old sequence &key from-end (test #'eql) test-not 
                         end 
                         (count most-positive-fixnum) (key #'identity) (start 0))
-  "Returns a sequence of the same kind as Sequence with the same elements
-  except that all elements equal to Old are replaced with New.  The Sequence
-  may be destroyed.  See manual for details." 
+  "Return a sequence of the same kind as SEQUENCE with the same elements
+  except that all elements equal to OLD are replaced with NEW. The SEQUENCE
+  may be destructively modified. See manual for details."
   (setq count (check-count count))
   (let ((incrementer 1)
 	(length (length sequence)))
@@ -1473,6 +1515,9 @@
 (defun nsubstitute-if (new test sequence &key from-end (start 0)
                            end  
                            (count most-positive-fixnum) (key #'identity))
+  "Return a sequence of the same kind as SEQUENCE with the same elements
+   except that all elements satisfying the PRED are replaced with NEW. 
+   SEQUENCE may be destructively modified. See manual for details."
   (nsubstitute new test sequence
                :from-end from-end
                :test #'funcall
@@ -1486,6 +1531,9 @@
 
 (defun nsubstitute-if-not (new test sequence &key from-end (start 0)
                                end (count most-positive-fixnum) (key #'identity))
+  "Return a sequence of the same kind as SEQUENCE with the same elements
+   except that all elements not satisfying the TEST are replaced with NEW.
+   SEQUENCE may be destructively modified. See manual for details."
   (nsubstitute new test sequence
                  :from-end from-end
                  :test-not #'funcall
@@ -1720,6 +1768,8 @@
 
 (defun count (item sequence &key from-end (test #'eql testp)
                    (test-not nil notp) (start 0) end key)
+  "Return the number of elements in SEQUENCE satisfying a test with ITEM,
+   which defaults to EQL."
   (if (and testp notp)
     (test-not-error test test-not))
   (unless key
@@ -1748,6 +1798,7 @@
 ;;; Count-if:
 
 (defun count-if (test sequence &key from-end (start 0) end key)
+  "Return the number of elements in SEQUENCE satisfying PRED(el)."
   (count test sequence
          :test #'funcall
          :from-end from-end
@@ -1758,6 +1809,7 @@
 ;;; Count-if-not:
 
 (defun count-if-not (test sequence &key from-end (start 0) end key)
+  "Return the number of elements in SEQUENCE not satisfying TEST(el)."
   (count test sequence
          :test-not #'funcall
          :from-end from-end
@@ -1807,6 +1859,14 @@
                                   (length2 (length seq2))
                                   (vectorp1 (vectorp seq1))
                                   (vectorp2 (vectorp seq2)))
+  "The specified subsequences of SEQUENCE1 and SEQUENCE2 are compared
+   element-wise. If they are of equal length and match in every element, the
+   result is NIL. Otherwise, the result is a non-negative integer, the index
+   within SEQUENCE1 of the leftmost position at which they fail to match; or,
+   if one is shorter than and a matching prefix of the other, the index within
+   SEQUENCE1 beyond the last position tested is returned. If a non-NIL
+   :FROM-END argument is given, then one plus the index of the rightmost
+   position in which the sequences differ is returned."
   ;seq type-checking is done by length
   ;start/end type-cheking is done by <= (below)
   ;test/key type-checking is done by funcall

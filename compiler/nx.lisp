@@ -67,6 +67,12 @@
 ; present;  I'd thought that the old code checked for this, though it
 ; may well have botched it.
 (defun compile (spec &optional def &aux (macro-p nil))
+  "Coerce DEFINITION (by default, the function whose name is NAME)
+  to a compiled function, returning (VALUES THING WARNINGS-P FAILURE-P),
+  where if NAME is NIL, THING is the result of compilation, and
+  otherwise THING is NAME. When NAME is not NIL, the compiled function
+  is also set into (MACRO-FUNCTION NAME) if NAME names a macro, or into
+  (FDEFINITION NAME) otherwise."
   (unless def
     (setq def (fboundp spec))
     (when (and (symbolp spec) (not (lfunp def)))

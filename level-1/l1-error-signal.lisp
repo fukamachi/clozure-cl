@@ -94,6 +94,8 @@
       (funcall '%error format-string errargs frame-ptr))))
 
 (defun error (condition &rest args)
+  "Invoke the signal facility on a condition formed from DATUM and ARGUMENTS.
+  If the condition is not handled, the debugger is invoked."
   #|
   #+ppc-target
   (with-pstrs ((pstr (if (stringp condition) condition "Error")))

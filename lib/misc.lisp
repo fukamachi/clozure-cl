@@ -18,19 +18,28 @@
 (eval-when (eval compile)
   (require 'defstruct-macros))
 
-(defun short-site-name  () (or *short-site-name* "unspecified"))
-(defun long-site-name   () (or *long-site-name* "unspecified"))
+(defun short-site-name  ()
+  "Return a string with the abbreviated site name, or NIL if not known."
+  (or *short-site-name* "unspecified"))
+
+(defun long-site-name   ()
+  "Return a string with the long form of the site name, or NIL if not known."
+  (or *long-site-name* "unspecified"))
 
 (defun machine-instance ()
+  "Return a string giving the name of the local machine."
   (%uname 1))
 
 
 (defun machine-type ()
+  "Returns a string describing the type of the local machine."
   (%uname 4))
 
 
 
 (defun machine-version ()
+  "Return a string describing the version of the computer hardware we
+are running on, or NIL if we can't find any useful information."
   #+darwinppc-target
   (%stack-block ((mib 8))
     (setf (%get-long mib 0) #$CTL_HW
@@ -50,10 +59,13 @@
 
 
 (defun software-type ()
+  "Return a string describing the supporting software."
   (%uname 0))
 
 
 (defun software-version ()
+  "Return a string describing version of the supporting software, or NIL
+   if not available."
   (%uname 2))
 
 
@@ -414,8 +426,9 @@
 
 (defun copy-symbol (symbol &optional (copy-props nil) &aux new-symbol def)
   "Make and return a new uninterned symbol with the same print name
-  as SYMBOL.  If COPY-PROPS is null, the new symbol has no properties.
-  Else, it has a copy of SYMBOL's property list."
+  as SYMBOL. If COPY-PROPS is false, the new symbol is neither bound
+  nor fbound and has no properties, else it has a copy of SYMBOL's
+  function, value and property list."
   (setq new-symbol (make-symbol (symbol-name symbol)))
   (when copy-props
       (when (boundp symbol)
@@ -431,7 +444,7 @@
   "Counter for generating unique GENTEMP symbols.")
 
 (defun gentemp (&optional (prefix "T") (package *package*))
-  "Creates a new symbol interned in package Package with the given Prefix."
+  "Creates a new symbol interned in package PACKAGE with the given PREFIX."
   (loop
     (let* ((new-pname (%str-cat (ensure-simple-string prefix) 
                                 (%integer-to-string %gentemp-counter)))

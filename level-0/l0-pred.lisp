@@ -57,6 +57,7 @@
   (or (istruct-typep thing 'pathname) (istruct-typep thing 'logical-pathname)))
 
 (defun compiled-function-p (form)
+  "Return true if OBJECT is a COMPILED-FUNCTION, and NIL otherwise."
   (and (functionp form)
        (not (logbitp $lfbits-trampoline-bit (the fixnum (lfun-bits form))))))
 
@@ -74,6 +75,7 @@
   (= (the fixnum (typecode x)) ppc32::subtag-bignum))
 
 (defun integerp (x)
+  "Return true if OBJECT is an INTEGER, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
     (or (= typecode ppc32::tag-fixnum)
@@ -84,6 +86,7 @@
 
 
 (defun rationalp (x)
+  "Return true if OBJECT is a RATIONAL, and NIL otherwise."
   (or (fixnump x)
       (let* ((typecode (typecode x)))
         (declare (fixnum typecode))
@@ -100,12 +103,14 @@
   (= (the fixnum (typecode x)) ppc32::subtag-double-float))
 
 (defun floatp (x)
+  "Return true if OBJECT is a FLOAT, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
     (and (>= typecode ppc32::min-float-subtag)
          (<= typecode ppc32::max-float-subtag))))
 
 (defun realp (x)
+  "Return true if OBJECT is a REAL, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
     (or (= typecode ppc32::tag-fixnum)
@@ -113,9 +118,11 @@
              (<= typecode ppc32::max-real-subtag)))))
 
 (defun complexp (x)
+  "Return true if OBJECT is a COMPLEX, and NIL otherwise."
   (= (the fixnum (typecode x)) ppc32::subtag-complex))
 
 (defun numberp (x)
+  "Return true if OBJECT is a NUMBER, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
     (or (= typecode ppc32::tag-fixnum)
@@ -123,13 +130,16 @@
              (<= typecode ppc32::max-numeric-subtag)))))
 
 (defun arrayp (x)
+  "Return true if OBJECT is an ARRAY, and NIL otherwise."
   (>= (the fixnum (typecode x)) ppc32::min-array-subtag))
 
 (defun vectorp (x)
+  "Return true if OBJECT is a VECTOR, and NIL otherwise."
   (>= (the fixnum (typecode x)) ppc32::min-vector-subtag))
 
 
 (defun stringp (x)
+  "Return true if OBJECT is a STRING, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
     (if (= typecode ppc32::subtag-vectorH)
@@ -141,6 +151,7 @@
   (= (the fixnum (typecode x)) ppc32::subtag-simple-base-string))
 
 (defun simple-string-p (x)
+  "Return true if OBJECT is a SIMPLE-STRING, and NIL otherwise."
   (= (the fixnum (typecode x)) ppc32::subtag-simple-base-string))
 
 (defun complex-array-p (x)
@@ -177,6 +188,7 @@
   (= (the fixnum (lisptag x)) ppc32::tag-misc))
 
 (defun simple-vector-p (x)
+  "Return true if OBJECT is a SIMPLE-VECTOR, and NIL otherwise."
   (= (the fixnum (typecode x)) ppc32::subtag-simple-vector))
 
 (defun base-string-p (thing)
@@ -189,9 +201,11 @@
                 ppc32::subtag-simple-base-string)))))
 
 (defun simple-bit-vector-p (form)
+  "Return true if OBJECT is a SIMPLE-BIT-VECTOR, and NIL otherwise."
   (= (the fixnum (typecode form)) ppc32::subtag-bit-vector))
 
 (defun bit-vector-p (thing)
+  "Return true if OBJECT is a BIT-VECTOR, and NIL otherwise."
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
     (or (= typecode ppc32::subtag-bit-vector)
@@ -212,7 +226,9 @@
 
 
 
-(defun eq (x y) (eq x y))
+(defun eq (x y)
+  "Return T if OBJ1 and OBJ2 are the same object, otherwise NIL."
+  (eq x y))
 
 
 (defun cons-equal (x y)
@@ -425,9 +441,12 @@
 
 
 ; real machine specific huh
-(defun consp (x) (consp x))
+(defun consp (x)
+  "Return true if OBJECT is a CONS, and NIL otherwise."
+  (consp x))
 
 (defun characterp (arg)
+  "Return true if OBJECT is a CHARACTER, and NIL otherwise."
   (characterp arg))
 
 (defun base-char-p (c)
@@ -454,6 +473,7 @@
     (eq (%svref thing 0) type)))
 
 (defun symbolp (thing)
+  "Return true if OBJECT is a SYMBOL, and NIL otherwise."
   (if thing
     (= (the fixnum (typecode thing)) ppc32::subtag-symbol)
     t))

@@ -52,9 +52,9 @@
 ;;; here, be sure to make the corresponding change in SETF.
 
 (defun get-setf-expansion (form &optional env)
-  "Returns five values needed by the SETF machinery: a list of temporary
-  variables, a list of values with which to fill them, the temporary for the
-  new value in a list, the setting function, and the accessing function."
+  "Return five values needed by the SETF machinery: a list of temporary
+   variables, a list of values with which to fill them, a list of temporaries
+   for the new values, the setting function, and the accessing function."
   ;This isn't actually used by setf, but it has to be compatible.
   (get-setf-expansion-aux form env t))
 
@@ -171,8 +171,8 @@
 
 ; does this wrap a named block around the body yet ?
 (defmacro define-setf-expander (access-fn lambda-list &body body)
-  "Syntax like DEFMACRO, but creates a Setf-Expansion generator.  The body
-  must be a form that returns the five magical values."
+  "Syntax like DEFMACRO, but creates a setf expander function. The body
+  of the definition must be a form that returns five appropriate values."
   (unless (symbolp access-fn)
     (signal-program-error $xnotsym access-fn))
   (multiple-value-bind (lambda-form doc)
@@ -210,6 +210,8 @@
       (values `(list ,@(nreverse new-lambda)) (nreverse temps) (nreverse vars)))))
 
 (defmacro defsetf (access-fn &rest rest &environment env)
+  "Associates a SETF update function or macro with the specified access
+  function or macro. The format is complex. See the manual for details."
   (unless (symbolp access-fn) (signal-program-error $xnotsym access-fn))
   (if (non-nil-symbol-p (%car rest))
     `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -315,6 +317,10 @@
 
   
 (defmacro psetf (&whole call &rest pairs &environment env)  ;same structure as psetq
+  "This is to SETF as PSETQ is to SETQ. Args are alternating place
+  expressions and values to go into those places. All of the subforms and
+  values are determined, left to right, and only then are the locations
+  updated. Returns NIL."
   (when pairs
     (if (evenp (length pairs))
       (let* ((places nil)
@@ -541,6 +547,9 @@
       `(getf-test ,access-form ,prop-var ,test-var ,@default-var)))))
 
 (define-setf-method ldb (bytespec place &environment env)
+  "The first argument is a byte specifier. The second is any place form
+  acceptable to SETF. Replace the specified byte of the number in this
+  place with bits from the low-order end of the new value."
   (multiple-value-bind (dummies vals newval setter getter)
 		       (get-setf-method place env)
     (let ((btemp (gensym))
@@ -555,6 +564,9 @@
 
 
 (define-setf-method mask-field (bytespec place &environment env)
+  "The first argument is a byte specifier. The second is any place form
+  acceptable to SETF. Replaces the specified byte of the number in this place
+  with bits from the corresponding position in the new value."
   (multiple-value-bind (dummies vals newval setter getter)
 		       (get-setf-method place env)
     (let ((btemp (gensym))
@@ -568,6 +580,10 @@
 	      `(mask-field ,btemp ,getter)))))
 
 (defmacro shiftf (arg1 arg2 &rest places-&-nuval &environment env)
+  "One or more SETF-style place expressions, followed by a single
+   value expression. Evaluates all of the expressions in turn, then
+   assigns the value of each expression to the place on its left,
+   returning the value of the leftmost."
   (setq places-&-nuval (list* arg1 arg2 places-&-nuval))
   (let* ((nuval (car (last places-&-nuval)))
          (places (cdr (reverse places-&-nuval)))  ; not nreverse, since &rest arg shares structure with &whole.
@@ -634,6 +650,10 @@
 |#
 
 (defmacro rotatef (&rest args &environment env)
+  "Takes any number of SETF-style place expressions. Evaluates all of the
+   expressions in turn, then assigns to each place the value of the form to
+   its right. The rightmost form gets the value of the leftmost.
+   Returns NIL."
   (when args
     (let* ((places (reverse args))  ; not nreverse, since &rest arg shares structure with &whole.
            (final-place (pop places))
@@ -673,6 +693,8 @@
 
 
 (defmacro push (value place &environment env)
+  "Takes an object and a location holding a list. Conses the object onto
+  the list, returning the modified list. OBJ is evaluated before PLACE."
   (if (not (consp place))
     `(setq ,place (cons ,value ,place))
     (multiple-value-bind (dummies vals store-var setter getter)
@@ -685,7 +707,11 @@
            ,(car store-var)
            ,setter)))))
 
-(defmacro pushnew (value place &rest keys &environment env)                               
+(defmacro pushnew (value place &rest keys &environment env)
+  "Takes an object and a location holding a list. If the object is
+  already in the list, does nothing; otherwise, conses the object onto
+  the list. Returns the modified list. If there is a :TEST keyword, this
+  is used for the comparison."
   (if (not (consp place))
     `(setq ,place (adjoin ,value ,place ,@keys))
     (let ((valvar (gensym)))
@@ -699,6 +725,8 @@
            ,setter)))))
 
 (defmacro pop (place &environment env &aux win)
+  "The argument is a location holding a list. Pops one item off the front
+  of the list and returns it."
   (while (atom place)
     (multiple-value-setq (place win) (macroexpand-1 place env))
     (unless win
@@ -755,8 +783,8 @@
 
 (defmacro remf (place indicator &environment env)
   "Place may be any place expression acceptable to SETF, and is expected
-  to hold a property list or ().  This list is destructively altered to
-  remove the property specified by the indicator.  Returns T if such a
+  to hold a property list or (). This list is destructively altered to
+  remove the property specified by the indicator. Returns T if such a
   property was present, NIL if not."
   (multiple-value-bind (dummies vals newval setter getter)
                        (get-setf-method place env)

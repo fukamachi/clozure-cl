@@ -455,6 +455,7 @@
   vector)
 
 (defun restart-name (restart)
+  "Return the name of the given restart object."
   (%restart-name (require-type restart 'restart)))
 
 (defun applicable-restart-p (restart condition)
@@ -464,6 +465,10 @@
          (or (null test) (funcall test condition)))))
 
 (defun compute-restarts (&optional condition &aux restarts)
+  "Return a list of all the currently active restarts ordered from most
+   recently established to less recently established. If CONDITION is
+   specified, then only restarts associated with CONDITION (or with no
+   condition) will be returned."
   (dolist (cluster %restarts% (nreverse restarts))
     (if (null condition)
       (setq restarts (nreconc (copy-list cluster) restarts))
@@ -472,6 +477,11 @@
           (push restart restarts))))))
 
 (defun find-restart (name &optional condition)
+  "Return the first restart named NAME. If NAME names a restart, the restart
+   is returned if it is currently active. If no such restart is found, NIL is
+   returned. It is an error to supply NIL as a name. If CONDITION is specified
+   and not NIL, then only restarts associated with that condition (or with no
+   condition) will be returned."
   (dolist (cluster %restarts%)
     (dolist (restart cluster)
       (when (and (or (eq restart name) (eq (restart-name restart) name))
@@ -490,6 +500,9 @@
   (error 'inactive-restart :restart-name name))
 
 (defun invoke-restart (restart &rest values)
+  "Calls the function associated with the given restart, passing any given
+   arguments. If the argument restart is not a restart or a currently active
+   non-nil restart name, then a CONTROL-ERROR is signalled."
   (multiple-value-bind (restart tag) (%active-restart restart)
     (let ((fn (%restart-action restart)))
       (cond ((null fn)                  ; simple restart
@@ -507,6 +520,9 @@
   (error 'restart-failure :restart restart))
 
 (defun invoke-restart-interactively (restart)
+  "Calls the function associated with the given restart, prompting for any
+   necessary arguments. If the argument restart is not a restart or a
+   currently active non-NIL restart name, then a CONTROL-ERROR is signalled."
   (multiple-value-bind (restart tag) (%active-restart restart)
     (format *error-output* "~&Invoking restart: ~a~&" restart)
     (let* ((argfn (%restart-interactive restart))
@@ -528,9 +544,13 @@
     (when restart (invoke-restart restart value))))
 
 (defun use-value (value &optional condition)
+  "Transfer control and VALUE to a restart named USE-VALUE, or return NIL if
+   none exists."
   (maybe-invoke-restart 'use-value value condition))
 
 (defun store-value (value &optional condition)
+  "Transfer control and VALUE to a restart named STORE-VALUE, or return NIL if
+   none exists."
   (maybe-invoke-restart 'store-value value condition))
 
 (defun condition-arg (thing args type)
@@ -539,6 +559,7 @@
         (t (make-condition type :format-control thing :format-arguments args))))
 
 (defun make-condition (name &rest init-list &aux class)
+  "Make an instance of a condition object using the specified initargs."
   (declare (dynamic-extent init-list))
   (if (and (setq class (find-class name nil))
            (condition-p (class-prototype class)))

@@ -46,16 +46,22 @@
 (defvar *fasl-deferred-warnings* nil)
 (defvar *fasl-non-style-warnings-signalled-p* nil)
 (defvar *fasl-warnings-signalled-p* nil)
-(defvar *compile-verbose* nil) ; Might wind up getting called *compile-FILE-verbose*
+(defvar *compile-verbose* nil ; Might wind up getting called *compile-FILE-verbose*
+  "The default for the :VERBOSE argument to COMPILE-FILE.")
 (defvar *fasl-save-doc-strings*  t)
 (defvar *fasl-save-definitions* nil)
-(defvar *compile-file-pathname* nil) ; pathname of src arg to COMPILE-FILE
-(defvar *compile-file-truename* nil) ; truename ...
+(defvar *compile-file-pathname* nil
+  "The defaulted pathname of the file currently being compiled, or NIL if not
+  compiling.") ; pathname of src arg to COMPILE-FILE
+(defvar *compile-file-truename* nil
+  "The TRUENAME of the file currently being compiled, or NIL if not
+  compiling.") ; truename ...
 (defvar *fasl-target* (backend-name *host-backend*))
 (defvar *fasl-backend* *host-backend*)
 (defvar *fcomp-external-format* :default)
 
-(defvar *compile-print* nil) ; Might wind up getting called *compile-FILE-print*
+(defvar *compile-print* nil ; Might wind up getting called *compile-FILE-print*
+  "The default for the :PRINT argument to COMPILE-FILE.")
 
 ;Note: errors need to rebind this to NIL if they do any reading without
 ; unwinding the stack!
@@ -79,6 +85,8 @@ Will differ from *compiling-file* during an INCLUDE")
 	(pushnew f new)))))
 
 (defun compile-file-pathname (pathname &rest ignore &key output-file &allow-other-keys)
+  "Return a pathname describing what file COMPILE-FILE would write to given
+   these arguments."
   (declare (ignore ignore))
   (setq pathname (merge-pathnames pathname))
   (merge-pathnames (if output-file
@@ -97,6 +105,8 @@ Will differ from *compiling-file* during an INCLUDE")
                          (save-definitions *fasl-save-definitions*)
 			 (external-format :default)
                          force)
+  "Compile INPUT-FILE, producing a corresponding fasl file and returning
+   its filename."
   (let* ((backend *host-backend*))
     (when (and target-p (not (setq backend (find-backend target))))
       (warn "Unknown :TARGET : ~S.  Reverting to ~s ..." target *fasl-target*)

@@ -187,6 +187,12 @@
 
 
 (defun room (&optional (verbose :default))
+  "Print to *STANDARD-OUTPUT* information about the state of internal
+  storage and its management. The optional argument controls the
+  verbosity of output. If it is T, ROOM prints out a maximal amount of
+  information. If it is NIL, ROOM prints out a minimal amount of
+  information. If it is :DEFAULT or it is not supplied, ROOM prints out
+  an intermediate amount of information."
   (let* ((freebytes nil)
          (usedbytes nil)
          (static-used nil)
@@ -254,6 +260,7 @@
 
 
 (defun list-length (l)
+  "Return the length of the given LIST, or NIL if the LIST is circular."
   (do* ((n 0 (+ n 2))
         (fast l (cddr fast))
         (slow l (cdr slow)))
@@ -274,6 +281,7 @@
 
 
 (defun length (seq)
+  "Return an integer that is the length of SEQUENCE."
   (seq-dispatch
    seq
    (or (list-length seq)

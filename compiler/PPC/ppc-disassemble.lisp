@@ -361,6 +361,10 @@
 ; should take care of "normalizing" the code-vector ?
 #+ppc-target
 (defun disassemble (thing)
+  "Disassemble the compiled code associated with OBJECT, which can be a
+  function, a lambda expression, or a symbol with a function definition. If
+  it is not already compiled, the compiler is called to produce something to
+  disassemble."
   (ppc-xdisassemble (require-type (function-for-disassembly thing) 'compiled-function)))
 
 (defun function-for-disassembly (thing)

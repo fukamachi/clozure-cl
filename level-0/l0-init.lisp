@@ -15,7 +15,8 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 (defconstant array-total-size-limit 
-  #.(expt 2 (- ppc32::nbits-in-word ppc32::num-subtag-bits)))
+  #.(expt 2 (- ppc32::nbits-in-word ppc32::num-subtag-bits))
+  "the exclusive upper bound on the total number of elements in an array")
 
 
 ;Features for #+/- conditionalization:
@@ -48,9 +49,11 @@
     #+darwinppc-target :darwin
     #+darwinppp-target :darwin-target
     #+darwinppc-target :poweropen-target
-    
-))
-(defparameter *load-verbose* nil)
+    )
+  "a list of symbols that describe features provided by the
+   implementation")
+(defparameter *load-verbose* nil
+  "the default for the :VERBOSE argument to LOAD")
 
 ;All Lisp package variables... Dunno if this still matters, but it
 ;used to happen in the kernel...

@@ -213,6 +213,7 @@
       #'(lambda (form) (and (characterp form) (standard-char-p form))))
 
 (defun type-of (form)
+  "Return the type of OBJECT."
   (case form
     ((t) 'boolean)
     ((0 1) 'bit)
@@ -292,6 +293,7 @@
                                  double-float long-float real member))))))
 
 (defun typep (object type &optional env)
+  "Is OBJECT of type TYPE?"
   (declare (ignore env))
   (let* ((pred (if (symbolp type) (type-predicate type))))
     (if pred
@@ -327,10 +329,10 @@
 
 (defun subtypep (type1 type2 &optional env)
   (declare (ignore env))
-  "Return two values indicating the relationship between type1 and type2:
-  T and T: type1 definitely is a subtype of type2.
-  NIL and T: type1 definitely is not a subtype of type2.
-  NIL and NIL: who knows?"
+  "Return two values indicating the relationship between type1 and type2.
+  If values are T and T, type1 definitely is a subtype of type2.
+  If values are NIL and T, type1 definitely is not a subtype of type2.
+  If values are NIL and NIL, it couldn't be determined."
   (csubtypep (specifier-type type1) (specifier-type type2)))
 
 
@@ -352,6 +354,7 @@
 
 (queue-fixup
  (defun fmakunbound (name)
+   "Make NAME have no global function definition."
    (let* ((fname (validate-function-name name)))
      (remhash fname %structure-refs%)
      (%unfhave fname))
@@ -416,6 +419,9 @@
 
 
 (defun char (string index)
+  "Given a string and a non-negative integer index less than the length of
+  the string, returns the character object representing the character at
+  that position in the string."
  (if (stringp string)
   (aref string index)
   (report-bad-arg string 'string)))
@@ -488,6 +494,8 @@
 
 
 (defun complement (function)
+  "Return a new function that returns T whenever FUNCTION returns NIL and
+   NIL whenever FUNCTION returns non-NIL."
   (let ((f (coerce-to-function function))) ; keep poor compiler from consing value cell
   #'(lambda (&rest args)
       (declare (dynamic-extent args)) ; not tail-recursive anyway

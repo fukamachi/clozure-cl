@@ -41,6 +41,33 @@
 
 ;--> To do: compiler transform for copier, possibly constructor.
 (defmacro defstruct (options &rest slots &environment env)
+  "DEFSTRUCT {Name | (Name Option*)} {Slot | (Slot [Default] {Key Value}*)}
+   Define the structure type Name. Instances are created by MAKE-<name>, 
+   which takes &KEY arguments allowing initial slot values to the specified.
+   A SETF'able function <name>-<slot> is defined for each slot to read and
+   write slot values. <name>-p is a type predicate.
+
+   Popular DEFSTRUCT options (see manual for others):
+
+   (:CONSTRUCTOR Name)
+   (:PREDICATE Name)
+       Specify the name for the constructor or predicate.
+
+   (:CONSTRUCTOR Name Lambda-List)
+       Specify the name and arguments for a BOA constructor
+       (which is more efficient when keyword syntax isn't necessary.)
+
+   (:INCLUDE Supertype Slot-Spec*)
+       Make this type a subtype of the structure type Supertype. The optional
+       Slot-Specs override inherited slot options.
+
+   Slot options:
+
+   :TYPE Type-Spec
+       Asserts that the value of this slot is always of the specified type.
+
+   :READ-ONLY {T | NIL}
+       If true, no setter function is defined for this slot."
   ;There's too much state to keep around here to break it up into little
   ;functions, so what the hell, let's do it all inline...
   (prog (struct-name type conc-name constructor copier predicate include

@@ -278,6 +278,7 @@
         (maphash delete-match %structure-refs%)))))
 
 (defun copy-structure (source)
+  "Return a copy of STRUCTURE with the same (EQL) slot values."
   (copy-uvector (require-type source 'structure-object)))
 
 (provide 'defstruct)

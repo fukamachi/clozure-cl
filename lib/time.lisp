@@ -39,6 +39,8 @@
      (timeval->milliseconds (%incf-ptr copy 8)))))
 
 (defun get-universal-time ()
+  "Return a single integer for the current time of
+   day in universal time format."
   (rlet ((tv :timeval))
     (#_gettimeofday tv (%null-ptr))
     (+ (pref tv :timeval.tv_sec) unix-to-universal-time)))
@@ -116,6 +118,9 @@
 		  (/ timezone 60))))))
 
 (defun get-decoded-time ()
+  "Return nine values specifying the current time as follows:
+   second, minute, hour, date, month, year, day of week (0 = Monday), T
+   (daylight savings times) or NIL (standard time), and timezone."
   (decode-universal-time (get-universal-time)))
 
 (defun leap-years-before (year)
@@ -134,7 +139,7 @@
 
 (defun encode-universal-time (second minute hour date month year
 				     &optional time-zone)
-  "The time values specified in decoded format are converted to 
+  "The time values specified in decoded format are converted to
    universal time, which is returned."
   (declare (type (mod 60) second)
 	   (type (mod 60) minute)
@@ -164,6 +169,8 @@
 
 
 (defun sleep (seconds)
+  "This function causes execution to be suspended for N seconds. N may
+  be any non-negative, non-complex number."
   (when (minusp seconds) (report-bad-arg seconds '(real 0 *)))
   (let* ((tps *ticks-per-second*)
 	 (npt *ns-per-tick*)
@@ -171,6 +178,8 @@
     (%nanosleep (floor ticks tps) (* npt (mod ticks tps)))))
 
 (defun get-internal-run-time ()
+  "Return the run time in the internal time format. (See
+  INTERNAL-TIME-UNITS-PER-SECOND.) This is useful for finding CPU usage."
   (rlet ((usage :rusage)
 	 (total :timeval))
     (%%rusage usage)
@@ -178,6 +187,8 @@
 					  (pref usage :rusage.ru_utime) 
 					  (pref usage :rusage.ru_stime)))))
 (defun get-internal-real-time ()
+  "Return the real time in the internal time format. (See
+  INTERNAL-TIME-UNITS-PER-SECOND.) This is useful for finding elapsed time."
   (rlet ((tv :timeval))
     (#_gettimeofday tv (%null-ptr))
     (timeval->milliseconds tv)))

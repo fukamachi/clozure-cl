@@ -1307,7 +1307,7 @@
 ;note following is smallest number >= x that is a multiple of colinc
 ;  (* colinc (floor (+ x (1- colinc)) colinc))
 
-(defun pprint-newline+ (kind xp) 
+(defun pprint-newline+ (kind xp)
   (enqueue xp :newline kind)
   (let ((queue (xp-queue xp))
         (qright (xp-qright xp)))
@@ -1855,6 +1855,7 @@
   object)
 
 (defun pprint (object &optional (stream *standard-output*))
+  "Prettily output OBJECT preceded by a newline."
   (setq stream (decode-stream-arg stream))
   (terpri stream)
   (let ((*print-escape* T) (*print-pretty* T))
@@ -2062,6 +2063,24 @@
 
 
 (defun pprint-newline (kind &optional (stream *standard-output*))
+    "Output a conditional newline to STREAM (which defaults to
+   *STANDARD-OUTPUT*) if it is a pretty-printing stream, and do
+   nothing if not. KIND can be one of:
+     :LINEAR - A line break is inserted if and only if the immediatly
+        containing section cannot be printed on one line.
+     :MISER - Same as LINEAR, but only if ``miser-style'' is in effect.
+        (See *PRINT-MISER-WIDTH*.)
+     :FILL - A line break is inserted if and only if either:
+       (a) the following section cannot be printed on the end of the
+           current line,
+       (b) the preceding section was not printed on a single line, or
+       (c) the immediately containing section cannot be printed on one
+           line and miser-style is in effect.
+     :MANDATORY - A line break is always inserted.
+   When a line break is inserted by any type of conditional newline, any
+   blanks that immediately precede the conditional newline are ommitted
+   from the output and indentation is introduced at the beginning of the
+   next line. (See PPRINT-INDENT.)"
   (setq stream (decode-stream-arg stream))
   (when (not (memq kind '(:linear :miser :fill :mandatory)))
     (error "Invalid KIND argument ~A to PPRINT-NEWLINE" kind))
@@ -2073,6 +2092,15 @@
   nil)
 
 (defun pprint-indent (relative-to n &optional (stream *standard-output*))
+  "Specify the indentation to use in the current logical block if STREAM
+   (which defaults to *STANDARD-OUTPUT*) is it is a pretty-printing stream
+   and do nothing if not. (See PPRINT-LOGICAL-BLOCK.)  N is the indentation
+   to use (in ems, the width of an ``m'') and RELATIVE-TO can be either:
+     :BLOCK - Indent relative to the column the current logical block
+        started on.
+     :CURRENT - Indent relative to the current column.
+   The new indentation value does not take effect until the following line
+   break."
   (setq stream (decode-stream-arg stream))
   (when (not (memq relative-to '(:block :current)))
     (error "Invalid KIND argument ~A to PPRINT-INDENT" relative-to))
@@ -2084,6 +2112,17 @@
   nil)
 
 (defun pprint-tab (kind colnum colinc &optional (stream *standard-output*))
+  "If STREAM (which defaults to *STANDARD-OUTPUT*) is a pretty-printing
+   stream, perform tabbing based on KIND, otherwise do nothing. KIND can
+   be one of:
+     :LINE - Tab to column COLNUM. If already past COLNUM tab to the next
+       multiple of COLINC.
+     :SECTION - Same as :LINE, but count from the start of the current
+       section, not the start of the line.
+     :LINE-RELATIVE - Output COLNUM spaces, then tab to the next multiple of
+       COLINC.
+     :SECTION-RELATIVE - Same as :LINE-RELATIVE, but count from the start
+       of the current section, not the start of the line."
   (setq stream (decode-stream-arg stream))
   (when (not (memq kind '(:line :section :line-relative :section-relative)))
     (error "Invalid KIND argument ~A to PPRINT-TAB" kind))
@@ -3017,6 +3056,10 @@
 ;exported functions.
 
 (defun pprint-linear (s list &optional (colon? T) atsign?)
+  "Output LIST to STREAM putting :LINEAR conditional newlines between each
+   element. If COLON? is NIL (defaults to T), then no parens are printed
+   around the output. ATSIGN? is ignored (but allowed so that PPRINT-LINEAR
+   can be used with the ~/.../ format directive."
   (declare (ignore atsign?))
   (pprint-logical-block (s list :prefix (if colon? "(" "")
 			        :suffix (if colon? ")" ""))
@@ -3027,6 +3070,10 @@
 	  (pprint-newline+ :linear s))))
 
 (defun pprint-fill (s list &optional (colon? T) atsign?)
+  "Output LIST to STREAM putting :FILL conditional newlines between each
+   element. If COLON? is NIL (defaults to T), then no parens are printed
+   around the output. ATSIGN? is ignored (but allowed so that PPRINT-FILL
+   can be used with the ~/.../ format directive."
   (declare (ignore atsign?))
   (pprint-logical-block (s list :prefix (if colon? "(" "")
 			        :suffix (if colon? ")" ""))
@@ -3037,6 +3084,12 @@
 	  (pprint-newline+ :fill s))))
 
 (defun pprint-tabular (s list &optional (colon? T) atsign? (tabsize nil))
+  "Output LIST to STREAM tabbing to the next column that is an even multiple
+   of TABSIZE (which defaults to 16) between each element. :FILL style
+   conditional newlines are also output between each element. If COLON? is
+   NIL (defaults to T), then no parens are printed around the output.
+   ATSIGN? is ignored (but allowed so that PPRINT-TABULAR can be used with
+   the ~/.../ format directive."
   (declare (ignore atsign?))
   (when (null tabsize) (setq tabsize 16))
   (pprint-logical-block (s list :prefix (if colon? "(" "")

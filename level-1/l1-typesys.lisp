@@ -146,7 +146,7 @@
                    ,doc))))
 
 (defmacro deftype (name arglist &body body &environment env)
-  "Syntax like DEFMACRO, but defines a new type."
+  "Define a new type, with syntax like DEFMACRO."
   (expand-type-macro '%deftype name arglist body env))
 
 (defmacro def-type-translator (name arglist &body body &environment env)
@@ -3787,6 +3787,7 @@
 
 ;;; As empty a type as you're likely to find ...
 (deftype extended-char ()
+  "Type of CHARACTERs that aren't BASE-CHARs."
   nil)
 )
 

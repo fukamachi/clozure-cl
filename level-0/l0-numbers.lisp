@@ -192,6 +192,7 @@
     (complex (%make-complex (%negate (%realpart X))(%negate (%imagpart X))) )))
 
 (defun zerop (number)
+  "Is this number zero?"
   (number-case number
     (integer (eq number 0))
     (short-float (%short-float-zerop number))
@@ -206,6 +207,7 @@
        (t (and (eql 0 (%realpart number))(eql 0 (%imagpart number))))))))
 
 (defun plusp (number)
+  "Is this real number strictly positive?"
   (number-case number
     (fixnum (%i> number 0))
     (bignum (bignum-plusp number))
@@ -215,6 +217,7 @@
 
 
 (defun minusp (number)
+  "Is this real number strictly negative?"
   (number-case number
     (fixnum (%i< number 0))
     (bignum (bignum-minusp number))
@@ -224,12 +227,14 @@
 
 
 (defun oddp (n)
+  "Is this integer odd?"
   (case (typecode n)
     (#.ppc32::tag-fixnum (logbitp 0 (the fixnum n)))
     (#.ppc32::subtag-bignum (%bignum-oddp n))
     (t (report-bad-arg n 'integer))))
 
 (defun evenp (n)
+  "Is this integer even?"
   (case (typecode n)
     (#.ppc32::tag-fixnum (not (logbitp 0 (the fixnum n))))
     (#.ppc32::subtag-bignum (not (%bignum-oddp n)))
@@ -730,16 +735,20 @@
 
 
 (defun conjugate (number)
+  "Return the complex conjugate of NUMBER. For non-complex numbers, this is
+  an identity."
   (number-case number
     (complex (complex (%realpart number) (- (%imagpart number))))
     (number number)))
 
 (defun numerator (rational)
+  "Return the numerator of NUMBER, which must be rational."
   (number-case rational
     (ratio (%numerator rational))
     (integer rational)))
 
 (defun denominator (rational)
+  "Return the denominator of NUMBER, which must be rational."
   (number-case rational
     (ratio (%denominator rational))
     (integer 1)))
@@ -747,7 +756,7 @@
 
 
 (defun abs (number)
-  "Returns the absolute value of the number."
+  "Return the absolute value of the number."
   (number-case number
    (fixnum
     (locally (declare (fixnum number))
@@ -775,9 +784,9 @@
 
 
 (defun phase (number)
-  "Returns the angle part of the polar representation of a complex number.
+  "Return the angle part of the polar representation of a complex number.
   For complex numbers, this is (atan (imagpart number) (realpart number)).
-  For non-complex positive numbers, this is 0.  For non-complex negative
+  For non-complex positive numbers, this is 0. For non-complex negative
   numbers this is PI."
   (number-case number
     (rational
@@ -799,6 +808,9 @@
 
 ; from Lib;numbers.lisp, sort of
 (defun float (number &optional other)
+  "Converts any REAL to a float. If OTHER is not provided, it returns a
+  SINGLE-FLOAT if NUMBER is not already a FLOAT. If OTHER is provided, the
+  result is the same float format as OTHER."
   (if (null other)
     (if (typep number 'float)
       number
@@ -818,7 +830,7 @@
 ;;; the divisor.
 ;;;
 (defun floor (number &optional divisor)
-  "Returns the greatest integer not greater than number, or number/divisor.
+  "Return the greatest integer not greater than number, or number/divisor.
   The second returned value is (mod number divisor)."
   (if (null divisor)(setq divisor 1))
   (multiple-value-bind (tru rem) (truncate number divisor)
@@ -855,7 +867,7 @@
 ;;; the divisor.
 ;;;
 (defun ceiling (number &optional divisor)
-  "Returns the smallest integer not less than number, or number/divisor.
+  "Return the smallest integer not less than number, or number/divisor.
   The second returned value is the remainder."
   (if (null divisor)(setq divisor 1))
   (multiple-value-bind (tru rem) (truncate number divisor)
@@ -1373,14 +1385,14 @@
 	rem)))
 
 (defun cis (theta)
-  "Return cos(Theta) + i sin(Theta), AKA exp(i Theta)."
+  "Return cos(Theta) + i sin(Theta), i.e. exp(i Theta)."
   (if (complexp theta)
     (error "Argument to CIS is complex: ~S" theta)
     (complex (cos theta) (sin theta))))
 
 
 (defun complex (realpart &optional (imagpart 0))
-  "builds a complex number from the specified components."
+  "Return a complex number with the specified real and imaginary components."
   (number-case realpart
     (short-float
       (number-case imagpart
@@ -1405,12 +1417,14 @@
 
 ;; #-PPC IN L1-NUMBERS.LISP
 (defun realpart (number)
+  "Extract the real part of a number."
   (number-case number
     (complex (%realpart number))
     (number number)))
 
 ;; #-PPC IN L1-NUMBERS.LISP
 (defun imagpart (number)
+  "Extract the imaginary part of a number."
   (number-case number
     (complex (%imagpart number))
     (float (* 0 number))
@@ -1455,15 +1469,15 @@
 ; see cmucl:compiler:srctran.lisp for transforms
 
 (defun lognand (integer1 integer2)
-  "Returns the complement of the logical AND of integer1 and integer2."
+  "Complement the logical AND of INTEGER1 and INTEGER2."
   (lognot (logand integer1 integer2)))
 
 (defun lognor (integer1 integer2)
-  "Returns the complement of the logical OR of integer1 and integer2."
+  "Complement the logical AND of INTEGER1 and INTEGER2."
   (lognot (logior integer1 integer2)))
 
 (defun logandc1 (x y)
-  "Returns the logical AND of (LOGNOT integer1) and integer2."  
+  "Return the logical AND of (LOGNOT integer1) and integer2."
   (number-case x
     (fixnum (number-case y               
               (fixnum (%ilogand (%ilognot x) y))
@@ -1480,7 +1494,7 @@
 |#
 
 (defun logorc1 (integer1 integer2)
-  "Returns the logical OR of (LOGNOT integer1) and integer2."
+  "Return the logical OR of (LOGNOT integer1) and integer2."
   (logior (lognot integer1) integer2))
 
 #|
@@ -1528,7 +1542,7 @@
              (%ilogbitp bbit lo))))))))
 
 (defun lognot (number)
-  "Returns the bit-wise logical not of integer."
+  "Return the bit-wise logical not of integer."
   (number-case number
     (fixnum (%ilognot number))
     (bignum (bignum-logical-not number))))
@@ -1547,7 +1561,7 @@
 
 
 (defun ash (integer count)
-  "Shifts integer left by count places preserving sign.  - count shifts right."
+  "Shifts integer left by count places preserving sign. - count shifts right."
   (etypecase integer
     (fixnum
      (etypecase count
@@ -1584,7 +1598,7 @@
           (error "Count ~s too large for ASH" count)))))))
 
 (defun integer-length (integer)
-  "Returns the number of significant bits in the absolute value of integer."
+  "Return the number of significant bits in the absolute value of integer."
   (number-case integer
     (fixnum
      (%fixnum-intlen (the fixnum integer)))
@@ -1597,6 +1611,7 @@
   (1- (ash 1 (the fixnum size))))
 
 (defun byte-position (bytespec)
+  "Return the position part of the byte specifier bytespec."
   (if (> bytespec 0)
     (- (integer-length bytespec) (logcount bytespec))
     (- bytespec)))
@@ -1604,6 +1619,8 @@
 
 ; CMU CL returns T.
 (defun upgraded-complex-part-type (type)
+  "Return the element type of the most specialized COMPLEX number type that
+   can hold parts of type SPEC."
   (declare (ignore type))
   'real)
 

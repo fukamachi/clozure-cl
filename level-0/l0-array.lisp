@@ -22,6 +22,8 @@
 
 ; compiler-transforms
 (defun make-string (size &key (initial-element () initial-element-p) (element-type 'character element-type-p))
+  "Given a character count and an optional fill character, makes and returns
+   a new string COUNT long filled with the fill character."
   (when (and initial-element-p (not (typep initial-element 'character)))
     (report-bad-arg initial-element 'character))
   (when (and element-type-p
@@ -71,6 +73,7 @@
     bit))
 
 (defun array-element-type (array)
+  "Return the type of the elements of the array"
   (let* ((subtag (if (%array-is-header array)
                    (%array-header-subtype array)
                    (typecode array))))
@@ -83,6 +86,8 @@
 
 
 (defun adjustable-array-p (array)
+  "Return T if (ADJUST-ARRAY ARRAY...) would return an array identical
+   to the argument, this happens for complex arrays."
   (let* ((typecode (typecode array)))
     (declare (fixnum typecode))
     (if (< typecode ppc32::min-array-subtag)
@@ -92,6 +97,8 @@
         (logbitp $arh_adjp_bit (the fixnum (%svref array ppc32::arrayH.flags-cell)))))))
 
 (defun array-displacement (array)
+  "Return the values of :DISPLACED-TO and :DISPLACED-INDEX-offset
+   options to MAKE-ARRAY, or NIL and 0 if not a displaced array."
   (let* ((typecode (typecode array)))
     (declare (fixnum typecode))
     (if (< typecode ppc32::min-array-subtag)
@@ -132,6 +139,7 @@
   
 
 (defun array-has-fill-pointer-p (array)
+  "Return T if the given ARRAY has a fill pointer, or NIL otherwise."
   (let* ((typecode (typecode array)))
     (declare (fixnum typecode))
     (if (>= typecode ppc32::min-array-subtag)
@@ -141,6 +149,7 @@
 
 
 (defun fill-pointer (array)
+  "Return the FILL-POINTER of the given VECTOR."
   (let* ((typecode (typecode array)))
     (declare (fixnum typecode))
     (if (and (= typecode ppc32::subtag-vectorH)
@@ -168,6 +177,7 @@
   (assert (eql ppc32::vectorH.physsize-cell ppc32::arrayH.physsize-cell)))
 
 (defun array-total-size (array)
+  "Return the total number of elements in the Array."
   (let* ((typecode (typecode array)))
     (declare (fixnum typecode))
     (if (< typecode ppc32::min-array-subtag)
@@ -178,6 +188,7 @@
         (uvsize array)))))
 
 (defun array-dimension (array axis-number)
+  "Return the length of dimension AXIS-NUMBER of ARRAY."
   (unless (typep axis-number 'fixnum) (report-bad-arg axis-number 'fixnum))
   (locally
     (declare (fixnum axis-number))
@@ -199,6 +210,7 @@
               (uvsize array))))))))
 
 (defun array-dimensions (array)
+  "Return a list whose elements are the dimensions of the array"
   (let* ((typecode (typecode array)))
     (declare (fixnum typecode))
     (if (< typecode ppc32::min-array-subtag)
@@ -217,6 +229,7 @@
 
 
 (defun array-rank (array)
+  "Return the number of dimensions of ARRAY."
   (let* ((typecode (typecode array)))
     (declare (fixnum typecode))
     (if (< typecode ppc32::min-array-subtag)
@@ -226,6 +239,10 @@
         1))))
 
 (defun vector-push (elt vector)
+  "Attempt to set the element of ARRAY designated by its fill pointer
+   to NEW-EL, and increment the fill pointer by one. If the fill pointer is
+   too large, NIL is returned, otherwise the index of the pushed element is
+   returned."
   (let* ((fill (fill-pointer vector))
          (len (%svref vector ppc32::vectorH.physsize-cell)))
     (declare (fixnum fill len))
@@ -263,6 +280,7 @@
 
 ; Could avoid potential memoization somehow
 (defun vector (&lexpr vals)
+  "Construct a SIMPLE-VECTOR from the given objects."
   (let* ((n (%lexpr-count vals))
          (v (%alloc-misc n ppc32::subtag-simple-vector)))
     (declare (fixnum n))
@@ -329,6 +347,7 @@
         (setq chunk-size (* chunk-size dim))))))
 
 (defun aref (a &lexpr subs)
+  "Return the element of the ARRAY specified by the SUBSCRIPTS."
   (let* ((n (%lexpr-count subs)))
     (declare (fixnum n))
     (if (= n 1)
@@ -420,6 +439,8 @@
         (setf (uvref data (the fixnum (+ rmi offset))) new)))))
 
 (defun schar (s i)
+  "SCHAR returns the character object at an indexed position in a string
+   just as CHAR does, except the string must be a simple-string."
   (let* ((typecode (typecode s)))
     (declare (fixnum typecode))
     (if (= typecode ppc32::subtag-simple-base-string)

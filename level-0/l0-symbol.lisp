@@ -80,6 +80,7 @@
     (declare (list l))))
 
 (defun symbol-plist (sym)
+  "Return SYMBOL's property list."
   (let* ((pp (%symbol-package-plist sym)))
     (if (consp pp)
       (let* ((bits (%symbol-bits sym)))
@@ -90,6 +91,8 @@
 
 
 (defun get (sym key &optional default)
+  "Look on the property list of SYMBOL for the specified INDICATOR. If this
+  is found, return the associated value, else return DEFAULT."
   (let* ((tail (%pl-search (symbol-plist sym) key)))
     (if tail (%cadr tail) default)))
 
@@ -124,12 +127,14 @@
     function))
 
 (defun symbol-value (sym)
+  "Return SYMBOL's current bound value."
   (let* ((val (%sym-value sym)))
     (if (eq val (%unbound-marker))
       (%kernel-restart $xvunbnd sym)
       val)))
 
 (defun set (sym value)
+  "Set SYMBOL's value cell to NEW-VALUE."
   (let* ((bits (%symbol-bits sym)))
     (declare (fixnum bits))
     (if (logbitp $sym_vbit_const bits)
@@ -142,6 +147,7 @@
 
 ; This leaves the SPECIAL and INDIRECT bits alone, clears the others.
 (defun makunbound (sym)
+  "Make SYMBOL unbound, removing any value it may currently have."
   (if (and *warn-if-redefine-kernel*
            (constant-symbol-p sym))
     (cerror "Make ~S be unbound anyway."
@@ -156,13 +162,16 @@
   (if (symbolp x) x))
 
 (defun symbol-package (sym)
+  "Return the package SYMBOL was interned in, or NIL if none."
   (let* ((pp (%symbol-package-plist sym)))
     (if (consp pp) (car pp) pp)))
 
 (defun boundp (sym)
+  "Return non-NIL if SYMBOL is bound to a value."
   (not (eq (%sym-value sym) (%unbound-marker))))
 
 (defun make-symbol (name)
+  "Make and return a new symbol with the NAME as its print name."
   (%gvector ppc32::subtag-symbol
                 (ensure-simple-string name) ; pname
                 (%unbound-marker)       ; value cell
@@ -198,6 +207,7 @@
 
 
 (defun symbol-name (sym)
+  "Return SYMBOL's name as a string."
   (%svref (%symbol->symptr sym) ppc32::symbol.pname-cell))
 
 

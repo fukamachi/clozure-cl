@@ -37,8 +37,10 @@
 
 
 (defvar %logical-host-translations% '())
-(defvar *load-pathname* nil)
-(defvar *load-truename* nil)
+(defvar *load-pathname* nil
+  "the defaulted pathname that LOAD is currently loading")
+(defvar *load-truename* nil
+  "the TRUENAME of the file that LOAD is currently loading")
 
 
 (defparameter *default-pathname-defaults* (%cons-pathname nil nil nil))
@@ -125,10 +127,18 @@
   (namestring (translate-logical-pathname (merge-pathnames path))))
 
 (defun truename (path)
+  "Return the pathname for the actual file described by PATHNAME.
+  An error of type FILE-ERROR is signalled if no such file exists,
+  or the pathname is wild.
+
+  Under Unix, the TRUENAME of a broken symlink is considered to be
+  the name of the broken symlink itself."
   (or (probe-file path)
       (signal-file-error $err-no-file path)))
 
 (defun probe-file (path)
+  "Return a pathname which is the truename of the file if it exists, or NIL
+  otherwise. An error of type FILE-ERROR is signaled if pathname is wild."
   (when (wild-pathname-p path)
     (error 'file-error :error-type "Inappropriate use of wild pathname ~s"
 	   :pathname path))
@@ -267,15 +277,18 @@
     dir))
 
 (defun namestring (path)
+  "Construct the full (name)string form of the pathname."
   (%str-cat (host-namestring path)
 	    (directory-namestring path)
 	    (file-namestring path)))
 
 (defun host-namestring (path)
+  "Return a string representation of the name of the host in the pathname."
   (let ((host (pathname-host path)))
     (if (and host (neq host :unspecific)) (%str-cat host ":") "")))
 
 (defun directory-namestring (path)
+  "Return a string representation of the directories used in the pathname."
   (%directory-list-namestring (pathname-directory path)
 			      (neq (pathname-host path) :unspecific)))
 
@@ -321,6 +334,7 @@
       result)))
 
 (defun file-namestring (path)
+  "Return a string representation of the name used in the pathname."
   (let* ((name (pathname-name path))
          (type (pathname-type path))
          (version (pathname-version path)))
@@ -348,6 +362,8 @@
 	      "")))
 
 (defun enough-namestring (path &optional (defaults *default-pathname-defaults*))
+  "Return an abbreviated pathname sufficent to identify the pathname relative
+   to the defaults."
   (if (null defaults)
     (namestring path)
       (let* ((dir (pathname-directory path))
@@ -391,6 +407,7 @@
     (%cons-pathname dir name type)))
 
 (defun pathname (path)
+  "Convert thing (a pathname, string or stream) into a pathname."
   (etypecase path
     (pathname path)
     (stream (%path-from-stream path))
@@ -460,6 +477,8 @@
                            (version nil version-p)
                            (defaults nil defaults-p) case
                            &aux path)
+  "Makes a new pathname from the component arguments. Note that host is
+a host-structure or string."
   (declare (ignore device))
   (when case (setq case (require-type case pathname-case-type)))
   (if (null host-p)
@@ -555,6 +574,8 @@
 ; this will allow creation of garbage pathname "foo:bar;bas:" do we care?
 (defun merge-pathnames (path &optional (defaults *default-pathname-defaults*)
                                        (default-version :newest))
+  "Construct a filled in pathname by completing the unspecified components
+   from the defaults."
   ;(declare (ignore default-version))
   (when (not (pathnamep path))(setq path (pathname path)))
   (when (and defaults (not (pathnamep defaults)))(setq defaults (pathname defaults)))
@@ -605,6 +626,7 @@
 
 ;In CCL, a pathname is logical if and only if pathname-host is not :unspecific.
 (defun pathname-host (thing &key case)
+  "Return PATHNAME's host."
   (when (streamp thing)(setq thing (%path-from-stream thing)))
   (when case (setq case (require-type case pathname-case-type)))
   (let ((name
@@ -640,6 +662,7 @@
 
 
 (defun pathname-device (thing &key case)
+  "Return PATHNAME's device."
   (declare (ignore case))
   (and (pathname thing)			;type-checking
        :unspecific))
@@ -649,6 +672,7 @@
 ;Quoted /'s are allowed at this stage, though will get an error when go to the
 ;filesystem.
 (defun pathname-directory (path &key case)
+  "Return PATHNAME's directory."
   (when (streamp path) (setq path (%path-from-stream path)))
   (when case (setq case (require-type case pathname-case-type)))
   (let* ((logical-p nil)
@@ -719,6 +743,7 @@
 		  (split sstr start end))))))))
 
 (defun pathname-version (path)
+  "Return PATHNAME's version."
   (when (streamp path) (setq path (%path-from-stream path)))
   (typecase path
     (logical-pathname (%logical-pathname-version path))
@@ -751,6 +776,7 @@
 ;Quoted /'s are allowed at this stage, though will get an error if go to the
 ;filesystem.
 (defun pathname-name (path &key case)
+  "Return PATHNAME's name."
   (when (streamp path) (setq path (%path-from-stream path)))
   (when case (setq case (require-type case pathname-case-type)))
   (let* ((logical-p nil)
@@ -786,6 +812,7 @@
 ;Quoted :'s are allowed at this stage, though will get an error if go to the
 ;filesystem.
 (defun pathname-type (path &key case)
+  "Return PATHNAME's type."
   (when (streamp path) (setq path (%path-from-stream path)))
   (when case (setq case (require-type case pathname-case-type)))
   (let* ((logical-p nil)
@@ -959,9 +986,14 @@
 
 
 (defun file-write-date (path)
+  "Return file's creation date, or NIL if it doesn't exist.
+  An error of type file-error is signaled if file is a wild pathname"
   (%file-write-date (native-translated-namestring path)))
 
 (defun file-author (path)
+  "Return the file author as a string, or NIL if the author cannot be
+  determined. Signal an error of type FILE-ERROR if FILE doesn't exist,
+  or FILE is a wild pathname."
   (%file-author (native-translated-namestring path)))
 
 (defun touch (path)
@@ -1055,7 +1087,10 @@
                        (print *load-print*)
                        (if-does-not-exist :error)
 		       (external-format :default))
-  "Extension: :PRINT :SOURCE means print source as well as value"
+  "Load the file given by FILESPEC into the Lisp environment, returning
+   T on success.
+
+   Extension: :PRINT :SOURCE means print source as well as value"
   (loop
     (restart-case
       (return (%load file-name verbose print if-does-not-exist external-format))
@@ -1155,6 +1190,7 @@
 (%fhave '%include #'include)
 
 (defun delete-file (path)
+  "Delete the specified FILE."
   (let* ((namestring (native-translated-namestring path)))
     (when (%realpath namestring)
       (let* ((err (%delete-file namestring)))
@@ -1171,6 +1207,8 @@
 	    (return t))))))
 
 (defun provide (module)
+  "Adds a new module name to *MODULES* indicating that it has been loaded.
+   Module-name is a string designator"
   (pushnew (string module) *modules* :test #'string=)
   module)
 
@@ -1191,6 +1229,13 @@ Each function receives a module name as a single argument; if the function knows
        (provide module))))
 
 (defun require (module &optional pathname)
+  "Loads a module, unless it already has been loaded. PATHNAMES, if supplied,
+   is a designator for a list of pathnames to be loaded if the module
+   needs to be. If PATHNAMES is not supplied, functions from the list
+   *MODULE-PROVIDER-FUNCTIONS* are called in order with MODULE-NAME
+   as an argument, until one of them returns non-NIL.  User code is
+   responsible for calling PROVIDE to indicate a successful load of the
+   module."
   (let* ((str (string module))
 	 (original-modules (copy-list *modules*)))
     (unless (or (member str *modules* :test #'string=)
@@ -1219,6 +1264,7 @@ Each function receives a module name as a single argument; if the function knows
             (return path)))))
 
 (defun wild-pathname-p (pathname &optional field-key)
+  "Predicate for determining whether pathname contains any wildcards."
   (flet ((wild-p (name) (or (eq name :wild)
                             (eq name :wild-inferiors)
                             (and (stringp name) (%path-mem "*" name)))))

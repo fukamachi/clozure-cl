@@ -46,14 +46,17 @@
   (%err-disp $XWRONGTYPE arg type))
 
 (defun atom (arg)
+  "Return true if OBJECT is an ATOM, and NIL otherwise."
   (not (consp arg)))
 
-(defun list (&rest args) args)
+(defun list (&rest args)
+  "Return constructs and returns a list of its arguments."
+  args)
 
 (%fhave '%temp-list #'list)
 
 (defun list* (arg &rest others)
-  "Returns a list of the arguments with last cons a dotted pair"
+  "Return a list of the arguments with last cons a dotted pair"
   (cond ((null others) arg)
 	((null (cdr others)) (cons arg (car others)))
 	(t (do ((x others (cdr x)))
@@ -63,13 +66,14 @@
 
 
 (defun funcall (fn &rest args)
+  "Call FUNCTION with the given ARGUMENTS."
   (declare (dynamic-extent args))
   (apply fn args))
 
 
 (defun apply (function arg &rest args)
-  "Applies FUNCTION to a list of arguments produced by evaluating ARGS in
-  the manner of LIST*.  That is, a list is made of the values of all but the
+  "Apply FUNCTION to a list of arguments produced by evaluating ARGUMENTS in
+  the manner of LIST*. That is, a list is made of the values of all but the
   last argument, appended to the value of the last argument, which must be a
   list."
   (declare (dynamic-extent args))
@@ -111,11 +115,13 @@
 
 
 (defun values-list (arg)
+  "Return all of the elements of LIST, in order, as values."
   (apply #'values arg))
 
 
 
 (defun make-list (size &key initial-element)
+  "Constructs a list with size elements each set to value"
   (unless (and (typep size 'fixnum)
                (>= (the fixnum size) 0))
     (report-bad-arg size '(and fixnum unsigned-byte)))
@@ -128,6 +134,7 @@
 ; copy-list
 
 (defun copy-list (list)
+  "Return a new list which is EQUAL to LIST."
   (if list
     (let ((result (cons (car list) '()) ))
       (do ((x (cdr list) (cdr x))
@@ -151,6 +158,7 @@ terminate the list"
 
 
 (defun last (list &optional (n 1))
+  "Return the last N conses (not the last element!) of a list."
   (if (and (typep n 'fixnum)
 	   (>= (the fixnum n) 0))
     (locally (declare (fixnum n))
@@ -171,6 +179,7 @@ terminate the list"
 
 
 (defun nthcdr (index list)
+  "Performs the cdr function n times on a list."
   (if (and (typep index 'fixnum)
 	   (>= (the fixnum index) 0))
     (locally (declare (fixnum index))
@@ -185,7 +194,9 @@ terminate the list"
 	  (return))))))
 
 
-(defun nth (index list) (car (nthcdr index list)))
+(defun nth (index list)
+  "Return the nth object in a list where the car is the zero-th element."
+  (car (nthcdr index list)))
 
 
 (defun nconc (&rest lists)
@@ -304,13 +315,15 @@ terminate the list"
       (rotatef (aref v left) (aref v right)))))
     
 (defun nreverse (seq)
+  "Return a sequence of the same elements in reverse order; the argument
+   is destroyed."
   (seq-dispatch seq
    (list-nreverse seq)
    (vector-nreverse seq)))
 )
 
 (defun nreconc (x y)
-  "Returns (nconc (nreverse x) y)"
+  "Return (NCONC (NREVERSE X) Y)."
   (do ((1st (cdr x) (if (endp 1st) 1st (cdr 1st)))
        (2nd x 1st)		;2nd follows first down the list.
        (3rd y 2nd))		;3rd follows 2nd down the list.
@@ -318,6 +331,7 @@ terminate the list"
     (rplacd 2nd 3rd)))
 
 (defun append (&lexpr lists)
+  "Construct a new list by concatenating the list arguments"
   (let* ((n (%lexpr-count lists)))
     (declare (fixnum n))
     (if (> n 0)
@@ -353,6 +367,7 @@ terminate the list"
             (aref v right)))))
 
 (defun reverse (seq)
+  "Return a new sequence containing the same elements but in reverse order."
   (seq-dispatch seq (list-reverse seq) (vector-reverse seq)))
 )
 
@@ -489,6 +504,8 @@ terminate the list"
 
 ; appears to be unused
 (defun upgraded-array-element-type (type &optional env)
+  "Return the element type that will actually be used to implement an array
+   with the specifier :ELEMENT-TYPE Spec."
   (declare (ignore env))
   (element-subtype-type (element-type-subtype type)))
 
@@ -646,6 +663,8 @@ terminate the list"
 
 
 (defun vector-pop (vector)
+  "Decrease the fill pointer by 1 and return the element pointed to by the
+  new fill pointer."
   (let* ((fill (fill-pointer vector)))
     (declare (fixnum fill))
     (if (zerop fill)
@@ -659,6 +678,7 @@ terminate the list"
 
 
 (defun elt (sequence idx)
+  "Return the element of SEQUENCE specified by INDEX."
   (seq-dispatch
    sequence
    (let* ((cell (nthcdr idx sequence)))
@@ -699,6 +719,7 @@ terminate the list"
 (%fhave 'equalp #'equal)                ; bootstrapping
 
 (defun copy-tree (tree)
+  "Recursively copy trees of conses."
   (if (atom tree)
     tree
     (locally (declare (type cons tree))
@@ -731,6 +752,7 @@ terminate the list"
 
 
 (defun char-downcase (c)
+  "Return CHAR converted to lower-case if that is possible."
   (let* ((code (char-code c)))
     (if (and (%i>= code (char-code #\A))(%i<= code (char-code #\Z)))
       (%code-char (%i+ code #.(- (char-code #\a)(char-code #\A))))
@@ -739,6 +761,8 @@ terminate the list"
 
 
 (defun digit-char-p (char &optional radix)
+  "If char is a digit in the specified radix, returns the fixnum for
+  which that digit stands, else returns NIL."
   (let* ((code (char-code char))
          (r (if radix (if (and (typep radix 'fixnum)
                                (%i>= radix 2)
@@ -762,6 +786,8 @@ terminate the list"
 
 
 (defun char-upcase (c)
+  "Return CHAR converted to upper-case if that is possible.  Don't convert
+   lowercase eszet (U+DF)."
   (let* ((code (char-code c)))
     (if (and (%i>= code (char-code #\a))(%i<= code (char-code #\z)))
       (%code-char (%i- code #.(- (char-code #\a)(char-code #\A))))
@@ -788,8 +814,8 @@ terminate the list"
         (values str (%i+ off start)(%i+ off end))))))
 
 (defun get-properties (place indicator-list)
-  "Like GETF, except that Indicator-List is a list of indicators which will
-  be looked for in the property list stored in Place.  Three values are
+  "Like GETF, except that INDICATOR-LIST is a list of indicators which will
+  be looked for in the property list stored in PLACE. Three values are
   returned, see manual for details."
   (do ((plist place (cddr plist)))
       ((null plist) (values nil nil nil))
@@ -799,6 +825,9 @@ terminate the list"
 	   (return (values (car plist) (cadr plist) plist))))))
 
 (defun string= (string1 string2 &key start1 end1 start2 end2)
+  "Given two strings (string1 and string2), and optional integers start1,
+  start2, end1 and end2, compares characters in string1 to characters in
+  string2 (using char=)."
     (locally (declare (optimize (speed 3)(safety 0)))
       (if (and (simple-string-p string1)(null start1)(null end1))
         (setq start1 0 end1 (length string1))
@@ -821,6 +850,11 @@ terminate the list"
 
 
 (defun function-lambda-expression (fn)
+  "Return (VALUES DEFINING-LAMBDA-EXPRESSION CLOSURE-P NAME), where
+  DEFINING-LAMBDA-EXPRESSION is NIL if unknown, or a suitable argument
+  to COMPILE otherwise, CLOSURE-P is non-NIL if the function's definition
+  might have been enclosed in some non-null lexical environment, and
+  NAME is some name (for debugging only) or NIL if there is no name."
   ;(declare (values def env-p name))
   (let* ((bits (lfun-bits (setq fn (require-type fn 'function)))))
     (declare (fixnum bits))
@@ -954,6 +988,8 @@ terminate the list"
 
 ;True for a-z.
 (defun lower-case-p (c)
+  "The argument must be a character object; LOWER-CASE-P returns T if the
+   argument is a lower-case character, NIL otherwise."
   (let ((code (char-code c)))
     (and (>= code (char-code #\a))
          (<= code (char-code #\z)))))
@@ -962,6 +998,8 @@ terminate the list"
 
 
 (defun alpha-char-p (c)
+  "The argument must be a character object. ALPHA-CHAR-P returns T if the
+   argument is an alphabetic character, A-Z or a-z; otherwise NIL."
   (let* ((code (char-code c)))
     (declare (fixnum code))
     (or (and (>= code (char-code #\A)) (<= code (char-code #\Z)))

@@ -207,6 +207,7 @@
      ,@body))
 
 (defun describe (object &optional stream)
+  "Print a description of the object X."
   (cond ((null stream) (setq stream *standard-output*))
         ((eq stream t) (setq stream *terminal-io*)))
   (setq stream (require-type stream 'stream))

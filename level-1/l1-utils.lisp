@@ -390,7 +390,9 @@
   (%defparameter var value doc))
 
 ;Needed early for member etc.
-(defun identity (x) x)
+(defun identity (x)
+  "This function simply returns what was passed to it."
+  x)
 
 (%fhave 'find-unencapsulated-definition #'identity)
 
@@ -469,6 +471,8 @@
 	(return pair)))))
 
 (defun assoc (item list &key test test-not key)
+  "Return the cons in ALIST whose car is equal (by a given test or EQL) to
+   the ITEM."
   (multiple-value-bind (test test-not key) (%key-conflict test test-not key)
     (if (null key)
       (if (eq test 'eq)
@@ -530,6 +534,8 @@
     (unless (funcall test-not-fn item (%car l)) (return l))))
 
 (defun member (item list &key test test-not key)
+  "Return the tail of LIST beginning with first element satisfying EQLity,
+   :TEST, or :TEST-NOT with the given ITEM."
   (multiple-value-bind (test test-not key) (%key-conflict test test-not key)
     (if (null key)
       (if (eq test 'eq)
@@ -550,6 +556,7 @@
               (return l)))))))
 
 (defun adjoin (item list &key test test-not key)
+  "Add ITEM to LIST unless it is already a member"
   (if (and (not test)(not test-not)(not key))
     (if (not (memeql item list))(cons item list) list)
     (multiple-value-bind (test test-not key) (%key-conflict test test-not key)
@@ -829,6 +836,8 @@ vector
   )
 
 (defun constantp (form &optional env)
+  "True of any Lisp object that has a constant value: types that eval to
+  themselves, keywords, constants, and list whose car is QUOTE."
    (or (self-evaluating-p form)
        (quoted-form-p form)
        (constant-symbol-p form)
@@ -985,6 +994,9 @@ vector
 
 
 (defun macro-function (form &optional env)
+  "If SYMBOL names a macro in ENV, returns the expansion function,
+   else returns NIL. If ENV is unspecified or NIL, use the global
+   environment only."
   (setq form (require-type form 'symbol))
   (when env
     ; A definition-environment isn't a lexical environment, but it can
@@ -1003,8 +1015,8 @@ vector
   (%global-macro-function form))
 
 (defun symbol-function (name)
-  "Returns the definition of name, even if it is a macro or a special form.
-   Errors if name doesn't have a definition."
+  "Return the definition of NAME, even if it is a macro or a special form.
+   Error if NAME doesn't have a definition."
   (or (fboundp name) ;Our fboundp returns the binding
       (prog1 (%err-disp $xfunbnd name))))
 
@@ -1021,7 +1033,12 @@ vector
 ;;;;;;;;; VALUE BINDING Functions
 
 (defun gensym (&optional (string-or-integer nil string-or-integer-p))
-  "Behaves just like Common Lisp. Imagine that."
+  "Creates a new uninterned symbol whose name is a prefix string (defaults
+   to \"G\"), followed by a decimal number. Thing, when supplied, will
+   alter the prefix if it is a string, or be used for the decimal number
+   if it is a number, of this symbol. The default value of the number is
+   the current value of *gensym-counter* which is incremented each time
+   it is used."
   (let ((prefix "G")
         (counter nil))
     (when string-or-integer-p
@@ -1078,42 +1095,56 @@ vector
 
 
 (defun caar (x)
+  "Return the car of the 1st sublist."
  (car (car x)))
 
 (defun cadr (x)
+  "Return the 2nd object in a list."
  (car (cdr x)))
 
 (defun cdar (x)
+  "Return the cdr of the 1st sublist."
  (cdr (car x)))
 
 (defun cddr (x)
+  "Return all but the 1st two objects of a list."
+
  (cdr (cdr x)))
 
 (defun caaar (x)
+  "Return the 1st object in the caar of a list."
  (car (car (car x))))
 
 (defun caadr (x)
+  "Return the 1st object in the cadr of a list."
  (car (car (cdr x))))
 
 (defun cadar (x)
+  "Return the car of the cdar of a list."
  (car (cdr (car x))))
 
 (defun caddr (x)
+  "Return the 1st object in the cddr of a list."
  (car (cdr (cdr x))))
 
 (defun cdaar (x)
+  "Return the cdr of the caar of a list."
  (cdr (car (car x))))
 
 (defun cdadr (x)
+  "Return the cdr of the cadr of a list."
  (cdr (car (cdr x))))
 
 (defun cddar (x)
+  "Return the cdr of the cdar of a list."
  (cdr (cdr (car x))))
 
 (defun cdddr (x)
+  "Return the cdr of the cddr of a list."
  (cdr (cdr (cdr x))))
 
 (defun cadddr (x)
+  "Return the car of the cdddr of a list."
  (car (cdr (cdr (cdr x)))))
 
 (%fhave 'type-of #'%type-of)
@@ -1291,9 +1322,18 @@ vector
       (%err-disp $xtoomany (cons sym args)))))
 
 (defun getf (place key &optional (default ()))
+  "Search the property list stored in Place for an indicator EQ to INDICATOR.
+  If one is found, return the corresponding value, else return DEFAULT."
   (let ((p (pl-search place key))) (if p (%cadr p) default)))
 
 (defun remprop (symbol key)
+  "Look on property list of SYMBOL for property with specified
+  INDICATOR. If found, splice this indicator and its value out of
+  the plist, and return the tail of the original list starting with
+  INDICATOR. If not found, return () with no side effects.
+
+  NOTE: The ANSI specification requires REMPROP to return true (not false)
+  or false (the symbol NIL). Portable code should not rely on any other value."
   (do* ((prev nil plist)
         (plist (symbol-plist symbol) tail)
         (tail (cddr plist) (cddr tail)))
@@ -1348,8 +1388,8 @@ vector
 
 (defun rassoc (item alist &key (test #'eql test-p) test-not (key #'identity))
   (declare (list alist))
-  "Returns the cons in alist whose cdr is equal (by a given test or EQL) to
-   the Item."
+  "Return the cons in ALIST whose CDR is equal (by a given test or EQL) to
+   the ITEM."
   (if (or test-p (not test-not))
     (progn
       (if test-not (error "Cannot specify both :TEST and :TEST-NOT."))

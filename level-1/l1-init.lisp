@@ -88,33 +88,61 @@
 
 
 
-(defconstant boole-clr 0)
-(defconstant boole-set 1)
-(defconstant boole-1 2)
-(defconstant boole-2 3)
-(defconstant boole-c1 4)
-(defconstant boole-c2 5)
-(defconstant boole-and 6)
-(defconstant boole-ior 7)
-(defconstant boole-xor 8)
-(defconstant boole-eqv 9)
-(defconstant boole-nand 10)
-(defconstant boole-nor 11)
-(defconstant boole-andc1 12)
-(defconstant boole-andc2 13)
-(defconstant boole-orc1 14)
-(defconstant boole-orc2 15)
+(defconstant boole-clr 0
+  "Boole function op, makes BOOLE return 0.")
+(defconstant boole-set 1
+  "Boole function op, makes BOOLE return -1.")
+(defconstant boole-1 2
+  "Boole function op, makes BOOLE return integer1.")
+(defconstant boole-2 3
+  "Boole function op, makes BOOLE return integer2.")
+(defconstant boole-c1 4
+  "Boole function op, makes BOOLE return complement of integer1.")
+(defconstant boole-c2 5
+  "Boole function op, makes BOOLE return complement of integer2.")
+(defconstant boole-and 6
+  "Boole function op, makes BOOLE return logand of integer1 and integer2.")
+(defconstant boole-ior 7
+  "Boole function op, makes BOOLE return logior of integer1 and integer2.")
+(defconstant boole-xor 8
+  "Boole function op, makes BOOLE return logxor of integer1 and integer2.")
+(defconstant boole-eqv 9
+  "Boole function op, makes BOOLE return logeqv of integer1 and integer2.")
+(defconstant boole-nand 10
+  "Boole function op, makes BOOLE return log nand of integer1 and integer2.")
+(defconstant boole-nor 11
+  "Boole function op, makes BOOLE return lognor of integer1 and integer2.")
+(defconstant boole-andc1 12
+  "Boole function op, makes BOOLE return logandc1 of integer1 and integer2.")
+(defconstant boole-andc2 13
+  "Boole function op, makes BOOLE return logandc2 of integer1 and integer2.")
+(defconstant boole-orc1 14
+  "Boole function op, makes BOOLE return logorc1 of integer1 and integer2.")
+(defconstant boole-orc2 15
+  "Boole function op, makes BOOLE return logorc2 of integer1 and integer2.")
 
 
 
-(defconstant internal-time-units-per-second 1000)
+(defconstant internal-time-units-per-second 1000
+  "The number of internal time units that fit into a second. See
+  GET-INTERNAL-REAL-TIME and GET-INTERNAL-RUN-TIME.")
 
-(defconstant char-code-limit #x100)
+(defconstant char-code-limit #x100
+  "the upper exclusive bound on values produced by CHAR-CODE")
 
-(defconstant array-rank-limit #x2000)
-(defconstant multiple-values-limit 200)
-(defconstant lambda-parameters-limit #x2000)
-(defconstant call-arguments-limit #x2000)
+(defconstant array-rank-limit #x2000
+  "the exclusive upper bound on the rank of an array")
+(defconstant multiple-values-limit 200
+  "The exclusive upper bound on the number of multiple VALUES that you can
+  return.")
+(defconstant lambda-parameters-limit #x2000
+  "The exclusive upper bound on the number of parameters which may be specifed
+  in a given lambda list. This is actually the limit on required and &OPTIONAL
+  parameters. With &KEY and &AUX you can get more.")
+(defconstant call-arguments-limit #x2000
+  "The exclusive upper bound on the number of arguments which may be passed
+  to a function, including &REST args."
+)
 
 ; Currently, vectors can be at most (expt 2 22) bytes, and
 ; the largest element (double-float or long-float) is 8 bytes:
@@ -124,7 +152,8 @@
                      *cl-types*))
 |#
 
-(defconstant array-dimension-limit array-total-size-limit)
+(defconstant array-dimension-limit array-total-size-limit
+  "the exclusive upper bound on any given dimension of an array")
 
 
 
@@ -132,8 +161,10 @@
   (defun hide-lsh (a b) ; so the compiler won't constant fold at compile time
     (lsh a b)))
 
-(defconstant most-positive-fixnum (load-time-value (hide-lsh -1 -1)))
-(defconstant most-negative-fixnum (load-time-value (1- (- (hide-lsh -1 -1)))))
+(defconstant most-positive-fixnum (load-time-value (hide-lsh -1 -1))
+  "the fixnum closest in value to positive infinity")
+(defconstant most-negative-fixnum (load-time-value (1- (- (hide-lsh -1 -1))))
+  "the fixnum closest in value to negative infinity")
 
 
 
@@ -144,7 +175,8 @@
 ;(defvar *read-default-float-format* 'double-float)
 
 (defconstant lambda-list-keywords 
-  '(&OPTIONAL &REST &AUX &KEY &ALLOW-OTHER-KEYS &BODY &ENVIRONMENT &WHOLE))
+  '(&OPTIONAL &REST &AUX &KEY &ALLOW-OTHER-KEYS &BODY &ENVIRONMENT &WHOLE)
+  "symbols which are magical in a lambda list")
 
 
 
@@ -154,9 +186,11 @@
 
 (defvar *read-default-float-format* 'single-float)
 
-(defvar *read-suppress* nil)
+(defvar *read-suppress* nil
+  "Suppress most interpreting in the reader when T.")
 
-(defvar *read-base* 10.)
+(defvar *read-base* 10.
+  "the radix that Lisp reads numbers in")
 
 
 (defvar %doc-string-file ())
@@ -236,7 +270,7 @@
 (defconstant *common-lisp-package* *common-lisp-package*)
 (defconstant *ccl-package* *ccl-package*)
 
-(defparameter *load-print* nil)
+(defparameter *load-print* nil "the default for the :PRINT argument to LOAD")
 (defparameter *loading-files* nil)
 (defvar *loading-file-source-file* nil)
 (defparameter *break-level* 0)
@@ -248,8 +282,9 @@
 (defparameter *save-local-symbols* t)
 
 (defvar *modules* nil
-  "Holds list of names of modules that have been loaded thus far.
-   The names are case sensitive strings.")
+  "This is a list of module names that have been loaded into Lisp so far.
+   The names are case sensitive strings.  It is used by PROVIDE and REQUIRE.")
+
 
 
 

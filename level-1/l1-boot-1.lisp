@@ -18,7 +18,7 @@
 ;; L1-boot.lisp
 
 
-(defparameter *gensym-counter* 0)
+(defparameter *gensym-counter* 0 "counter for generating unique GENSYM symbols")
 
 (defparameter *inhibit-greeting* nil)
 

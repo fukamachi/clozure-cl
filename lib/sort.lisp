@@ -416,9 +416,9 @@
 ;; will have to stand for now.
 ;; Only difficulty here is parsing the result-type for vectors.
 (defun merge (result-type sequence1 sequence2 predicate &key key)
-  "The sequences Sequence1 and Sequence2 are destructively merged into
-  a sequence of type Result-Type using the Predicate to order the elements.
-  If result-type specifies an array, the returned array will not be
+  "Merge the sequences SEQUENCE1 and SEQUENCE2 destructively into a
+   sequence of type RESULT-TYPE using PREDICATE to order the elements.
+   If result-type specifies an array, the returned array will not be
    a complex array. Usually, result-type is either LIST, ARRAY or STRING."
   (let* ((result-len (+ (length sequence1) (length sequence2)))
          (result-ctype (specifier-type result-type)))

@@ -39,6 +39,9 @@
   
 
 (defun float-sign (n1 &optional n2) ; second arg silly
+  "Return a floating-point number that has the same sign as
+   FLOAT1 and, if FLOAT2 is given, has the same absolute value
+   as FLOAT2."
   (if (and n2 (not (typep n2 'float)))
     (setq n2 (require-type n2 'float)))
   (number-case n1
@@ -150,6 +153,11 @@
         (ash (if (eq sign 0) mantissa (- mantissa)) exp)))))
 
 (defun decode-float (n)
+  "Return three values:
+   1) a floating-point number representing the significand. This is always
+      between 0.5 (inclusive) and 1.0 (exclusive).
+   2) an integer representing the exponent.
+   3) -1.0 or 1.0 (i.e. the sign of the argument.)"
   (number-case n
     (double-float
      (let* ((old-exp (%double-float-exp n))
@@ -190,7 +198,9 @@
      )))
 
 ; (* float (expt 2 int))
-(defun scale-float (float int)  
+(defun scale-float (float int)
+  "Return the value (* f (expt (float 2 f) ex)), but with no unnecessary loss
+  of precision or overflow."
   (unless (fixnump int)(setq int (require-type int 'fixnum)))
   (number-case float
     (double-float
@@ -253,7 +263,9 @@
            float))
         (t (error "Ilegal arg ~s to %copy-float" f))))
 
-(defun float-precision (float)     ; not used - not in cltl2 index ? 
+(defun float-precision (float)     ; not used - not in cltl2 index ?
+  "Return a non-negative number of significant digits in its float argument.
+  Will be less than FLOAT-DIGITS if denormalized or zero."
   (number-case float
      (double-float
       (if (eq 0 (%double-float-exp float))
@@ -509,6 +521,7 @@
 
 ;;; Transcendental functions.
 (defun sin (x)
+  "Return the sine of NUMBER."
   (if (complexp x)
     (let* ((r (realpart x))
            (i (imagpart x)))
@@ -520,6 +533,7 @@
         (%single-float-sin! sx (%make-sfloat))))))
 
 (defun cos (x)
+  "Return the cosine of NUMBER."
   (if (complexp x)
     (let* ((r (realpart x))
            (i (imagpart x)))
@@ -531,6 +545,7 @@
         (%single-float-cos! sx (%make-sfloat))))))
 
 (defun tan (x)
+  "Return the tangent of NUMBER."
   (if (complexp x)
     (/ (sin x) (cos x))
     (if (typep x 'double-float)
@@ -542,6 +557,7 @@
 
 
 (defun atan (y &optional (x nil x-p))
+  "Return the arc tangent of Y if X is omitted or Y/X if X is supplied."
   (if x-p
     (if (or (typep x 'double-float)
             (typep y 'double-float))
@@ -563,6 +579,7 @@
 
 
 (defun log (x &optional (b nil b-p))
+  "Return the logarithm of NUMBER in the base BASE, which defaults to e."
   (if b-p
     (if (zerop b)
       (if (zerop x)
@@ -602,6 +619,7 @@
 
 
 (defun exp (x)
+  "Return e raised to the power NUMBER."
   (typecase x
     (complex (* (exp (realpart x)) (cis (imagpart x))))
     (double-float (%double-float-exp! x (%make-dfloat)))
@@ -611,6 +629,7 @@
 
 
 (defun expt (b e)
+  "Return BASE raised to the POWER."
   (cond ((zerop e) (1+ (* b e)))
 	((integerp e)
          (if (minusp e) (/ 1 (%integer-power b (- e))) (%integer-power b e)))
@@ -629,7 +648,8 @@
 
 
 
-(defun sqrt (x &aux a b)  
+(defun sqrt (x &aux a b)
+  "Return the square root of NUMBER."
   (cond ((zerop x) x)
         ((complexp x) (* (sqrt (abs x)) (cis (/ (phase x) 2))))          
         ((minusp x) (complex 0 (sqrt (- x))))
@@ -649,6 +669,7 @@
 
 
 (defun asin (x)
+  "Return the arc sine of NUMBER."
   (number-case x
     (complex
       (let ((sqrt-1-x (sqrt (- 1 x)))
@@ -686,6 +707,7 @@
 
 
 (defun acos (x)
+  "Return the arc cosine of NUMBER."
   (number-case x
     (complex
      (let ((sqrt-1+x (sqrt (+ 1 x)))

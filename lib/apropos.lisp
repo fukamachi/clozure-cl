@@ -24,6 +24,8 @@
    )
 
 (defun apropos-list (string &optional package &aux list)
+  "Like APROPOS, except that it returns a list of the symbols found instead
+  of describing them."
   (setq string (string-arg string))
   (if package
     (do-symbols (sym package)
@@ -101,6 +103,10 @@
   
 #|
 (defun apropos (string &optional package)
+  "Briefly describe all symbols which contain the specified STRING.
+  If PACKAGE is supplied then only describe symbols present in
+  that package. If EXTERNAL-ONLY then only describe
+  external symbols in the specified package."
   (setq string (string-arg string))
   (if package
     (do-symbols (sym package) (apropos-aux string sym))

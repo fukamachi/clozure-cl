@@ -1250,6 +1250,8 @@
       `(and ,in-type ,out-type))))
 
 (defun make-two-way-stream (in out)
+  "Return a bidirectional stream which gets its input from INPUT-STREAM and
+   sends its output to OUTPUT-STREAM."
   (unless (input-stream-p in)
     (require-type in 'input-stream))
   (unless (output-stream-p out)
@@ -1330,6 +1332,9 @@
     (generic-binary-read-vector s vector start end)))
 
 (defun make-echo-stream (input-stream output-stream)
+  "Return a bidirectional stream which gets its input from INPUT-STREAM and
+   sends its output to OUTPUT-STREAM. In addition, all input is echoed to
+   the output stream."
   (make-instance 'echo-stream
                  :input-stream input-stream
                  :output-stream output-stream))
@@ -1423,6 +1428,8 @@
 
 
 (defun make-concatenated-stream (&rest streams)
+  "Return a stream which takes its input from each of the streams in turn,
+   going on to the next at EOF."
   (dolist (s streams (make-instance 'concatenated-stream :streams streams))
     (unless (input-stream-p s)
       (error "~S is not an input stream" s))))
@@ -1555,6 +1562,8 @@
   (make-instance 'string-output-stream :string  string))
 
 (defun make-string-output-stream (&key (element-type 'character element-type-p))
+  "Return an output stream which will accumulate all output given it for
+   the benefit of the function GET-OUTPUT-STREAM-STRING."
   (when (and element-type-p
              (not (member element-type '(base-character character
                                          standard-char))))
@@ -1714,6 +1723,8 @@
 
 (defun make-string-input-stream (string &optional (start 0)
                                         (end nil))
+  "Return an input stream which will supply the characters of STRING between
+  START and END in order."
   (setq end (check-sequence-bounds string start end))
   (make-instance 'string-input-stream
 		 :string string
@@ -2407,6 +2418,14 @@
                       (external-format :default)
 		      (class *default-file-stream-class*)
                       (elements-per-buffer *elements-per-buffer*))
+  "Return a stream which reads from or writes to FILENAME.
+  Defined keywords:
+   :DIRECTION - one of :INPUT, :OUTPUT, :IO, or :PROBE
+   :ELEMENT-TYPE - the type of object to read or write, default BASE-CHAR
+   :IF-EXISTS - one of :ERROR, :NEW-VERSION, :RENAME, :RENAME-AND-DELETE,
+                       :OVERWRITE, :APPEND, :SUPERSEDE or NIL
+   :IF-DOES-NOT-EXIST - one of :ERROR, :CREATE or NIL
+  See the manual for details."
   (loop
     (restart-case
       (return
@@ -2492,13 +2511,13 @@
 ; These are defparameters because they replace the ones that were in l1-init
 ; while bootstrapping.
 
-(defparameter *terminal-io* nil)
-(defparameter *debug-io* nil)
-(defparameter *query-io* nil)
-(defparameter *error-output* nil)
-(defparameter *standard-input* nil)
-(defparameter *standard-output* nil)
-(defparameter *trace-output* nil)
+(defparameter *terminal-io* nil "terminal I/O stream")
+(defparameter *debug-io* nil "interactive debugging stream")
+(defparameter *query-io* nil "query I/O stream")
+(defparameter *error-output* nil "error output stream")
+(defparameter *standard-input* nil "default input stream")
+(defparameter *standard-output* nil "default output stream")
+(defparameter *trace-output* nil "trace output stream")
 
 (proclaim '(stream 
           *query-io* *debug-io* *error-output* *standard-input* 

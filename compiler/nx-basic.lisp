@@ -402,6 +402,8 @@
 |#
 
 (defmacro declaim (&environment env &rest decl-specs)
+  "DECLAIM Declaration*
+  Do a declaration or declarations for the global environment."
   (let* ((body (mapcar #'(lambda (spec) `(proclaim ',spec)) decl-specs)))
   `(progn
      (eval-when (:compile-toplevel)

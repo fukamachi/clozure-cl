@@ -65,6 +65,7 @@
     (require-type version '(or fixnum string (member nil :wild :newest :unspecific)))))
 
 (defun logical-pathname-translations (host)
+  "Return the (logical) host object argument's list of translations."
   (setq host (verify-logical-host-name host))
   (let ((translations (%str-assoc host %logical-host-translations%)))
     (unless translations (host-error host))
@@ -306,6 +307,8 @@
               T))))
 
 (defun translate-pathname (source from-wildname to-wildname &key reversible)
+  "Use the source pathname to translate the from-wildname's wild and
+   unspecified elements into a completed to-pathname based on the to-wildname."
   (when (not (pathnamep source)) (setq source (pathname source)))
   (flet ((foo-error (source from)
 	   (error "Source ~S and from-wildname ~S do not match" source from)))
@@ -348,6 +351,7 @@
 
 ;; This extends CL in that it allows a host-less pathname, like "foo;bar;baz".
 (defun logical-pathname (thing &aux (path thing))
+  "Converts the pathspec argument to a logical-pathname and returns it."
   (when (typep path 'stream) (setq path (%path-from-stream path)))
   (etypecase path
     (logical-pathname path)
@@ -369,6 +373,7 @@
       (%component-match-p path-host wild-host)))
 
 (defun pathname-match-p (pathname wildname)
+  "Pathname matches the wildname template?"
   (let ((path-host (pathname-host pathname))
         (wild-host (pathname-host wildname)))
     (and
@@ -622,6 +627,7 @@
 
 
 (defun user-homedir-pathname (&optional host)
+  "Return the home directory of the user as a pathname."
   (declare (ignore host))  
   (let* ((native (get-user-home-dir (getuid))))
     (if native
@@ -632,6 +638,7 @@
 (defloadvar *user-homedir-pathname* (user-homedir-pathname))
 
 (defun translate-logical-pathname (pathname &key)
+  "Translate PATHNAME to a physical pathname, which is returned."
   (setq pathname (pathname pathname))
   (let ((host (pathname-host pathname)))
     (cond ((eq host :unspecific) pathname)

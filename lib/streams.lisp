@@ -135,6 +135,9 @@
 (defun read-from-string (string &optional (eof-error-p t) eof-value
                                 &key (start 0) end preserve-whitespace
                                 &aux idx)
+  "The characters of string are successively given to the lisp reader
+   and the lisp object built by the reader is returned. Macro chars
+   will take effect."
   (values
    (with-input-from-string (stream string :index idx :start start :end end)
      (if preserve-whitespace
@@ -160,6 +163,9 @@
 	    *error-output* old-error-output
 	    old-error-output nil)))
   (defun dribble (&optional filename)
+    "With a file name as an argument, dribble opens the file and sends a
+     record of further I/O to that file. Without an argument, it closes
+     the dribble file, and quits logging."
     (undribble)
     (when filename
       (setq dribble-stream

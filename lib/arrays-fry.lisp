@@ -18,7 +18,7 @@
 (in-package "CCL")
 
 (defun bit (bit-array &rest subscripts)
-  "Returns the bit from the Bit-Array at the specified Subscripts."
+  "Return the bit from the BIT-ARRAY at the specified SUBSCRIPTS."
   (declare (dynamic-extent subscripts))
   (unless (eq (array-element-type bit-array) 'bit)
     (report-bad-arg bit-array '(array bit)))
@@ -31,6 +31,7 @@
   (apply #'aset bit-array stuff))
 
 (defun sbit (v &optional (sub0 nil sub0-p) &rest others)
+  "Return the bit from SIMPLE-BIT-ARRAY at the specified SUBSCRIPTS."
   (declare (dynamic-extent others))
   (if sub0-p
     (if others
@@ -50,58 +51,80 @@
     (%bitset v sub0)))
 
 (defun bit-and (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical AND on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGAND on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
    (bit-boole boole-and bit-array1 bit-array2 result-bit-array))
 
 (defun bit-ior (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical IOR on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGIOR on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
   (bit-boole  boole-ior bit-array1 bit-array2 result-bit-array))
 
 (defun bit-xor (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical XOR on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGXOR on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
    (bit-boole  boole-xor bit-array1 bit-array2 result-bit-array))
 
 (defun bit-eqv (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical EQV  on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
-   (bit-boole boole-eqv bit-array1 bit-array2 result-bit-array))
+  "Perform a bit-wise LOGEQV on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
+  (bit-boole boole-eqv bit-array1 bit-array2 result-bit-array))
 
 (defun bit-nand (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical NAND  on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGNAND on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
   (bit-boole boole-nand bit-array1 bit-array2 result-bit-array))
 
 (defun bit-nor (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical NOR  on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGNOR on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
   (bit-boole boole-nor bit-array1 bit-array2 result-bit-array))
 
 (defun bit-andc1 (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical ANDC1 on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGANDC1 on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
   (bit-boole boole-andc1 bit-array1 bit-array2 result-bit-array))
 
 (defun bit-andc2 (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical ANDC2 on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGANDC2 on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
   (bit-boole boole-andc2 bit-array1 bit-array2 result-bit-array))
 
 (defun bit-orc1 (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical ORC1 on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGORC1 on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
   (bit-boole boole-orc1 bit-array1 bit-array2 result-bit-array))
 
 (defun bit-orc2 (bit-array1 bit-array2 &optional result-bit-array)
-  "Performs a bit-wise logical ORC2 on the elements of Bit-Array1 and Bit-Array2
-  putting the results in the Result-Bit-Array."
+  "Perform a bit-wise LOGORC2 on the elements of BIT-ARRAY-1 and BIT-ARRAY-2,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY-1 is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. All the arrays must have the same rank and dimensions."
   (bit-boole boole-orc2 bit-array1 bit-array2 result-bit-array))
 
 (defun bit-not (bit-array &optional result-bit-array)
-  "Performs a bit-wise logical NOT in the elements of the Bit-Array putting
-  the results into the Result-Bit-Array."
+  "Performs a bit-wise logical NOT on the elements of BIT-ARRAY,
+  putting the results in RESULT-BIT-ARRAY. If RESULT-BIT-ARRAY is T,
+  BIT-ARRAY is used. If RESULT-BIT-ARRAY is NIL or omitted, a new array is
+  created. Both arrays must have the same rank and dimensions."
   (bit-boole boole-nor bit-array bit-array result-bit-array))
 
 (defun result-bit-array (bit-array-1 bit-array-2 result)
@@ -226,6 +249,7 @@
 			   displaced-to
 			   displaced-index-offset
 			   &aux (subtype (array-element-subtype array)))
+  "Adjust ARRAY's dimensions to the given DIMENSIONS and stuff."
   (when (and element-type-p
              (neq (element-type-subtype element-type) subtype))
     (error "~S is not of element type ~S" array element-type))
@@ -404,6 +428,7 @@
             (when (eql i 0) (return sum)))))))
 
 (defun array-in-bounds-p (array &lexpr subscripts)
+  "Return T if the SUBSCIPTS are in bounds for the ARRAY, NIL otherwise."
   (let ((rank  (array-rank array))
         (nsubs (%lexpr-count subscripts)))
     (declare (fixnum nsubs rank))    
@@ -425,6 +450,8 @@
             (when (eql i 0) (return t))))))))
 
 (defun row-major-aref (array index)
+  "Return the element of array corressponding to the row-major index. This is
+   SETF'able."
   (multiple-value-bind (displaced-to offset) (displaced-array-p array)
     (aref (or displaced-to array) (+ index offset))))
 

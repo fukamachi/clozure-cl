@@ -109,6 +109,7 @@
 
 
 (defun logand (&lexpr numbers)
+  "Return the bit-wise and of its arguments. Args must be integers."
   (let* ((count (%lexpr-count numbers)))
     (declare (fixnum count))
     (if (zerop count)
@@ -124,6 +125,7 @@
 
 
 (defun logior (&lexpr numbers)
+  "Return the bit-wise or of its arguments. Args must be integers."
   (let* ((count (%lexpr-count numbers)))
     (declare (fixnum count))
     (if (zerop count)
@@ -138,6 +140,7 @@
             (setq n0 (logior (%lexpr-ref numbers count i) n0))))))))
 
 (defun logxor (&lexpr numbers)
+  "Return the bit-wise exclusive or of its arguments. Args must be integers."
   (let* ((count (%lexpr-count numbers)))
     (declare (fixnum count))
     (if (zerop count)
@@ -152,6 +155,7 @@
             (setq n0 (logxor (%lexpr-ref numbers count i) n0))))))))
 
 (defun logeqv (&lexpr numbers)
+  "Return the bit-wise equivalence of its arguments. Args must be integers."
   (let* ((count (%lexpr-count numbers))
          (result (if (zerop count)
                    0
@@ -172,6 +176,7 @@
 
 
 (defun = (num &lexpr more)
+  "Return T if all of its arguments are numerically equal, NIL otherwise."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -182,6 +187,7 @@
         (unless (=-2 (%lexpr-ref more count i) num) (return))))))
 
 (defun /= (num &lexpr more)
+  "Return T if no two of its arguments are numerically equal, NIL otherwise."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -198,6 +204,8 @@
         (setq num (%lexpr-ref more count i))))))
 
 (defun - (num &lexpr more)
+  "Subtract the second and all subsequent arguments from the first; 
+  or with one argument, negate the first argument."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -206,6 +214,8 @@
         (setq num (--2 num (%lexpr-ref more count i)))))))
 
 (defun / (num &lexpr more)
+  "Divide the first argument by each of the following arguments, in turn.
+  With one argument, return reciprocal."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -214,6 +224,7 @@
         (setq num (/-2 num (%lexpr-ref more count i)))))))
 
 (defun + (&lexpr numbers)
+  "Return the sum of its arguments. With no args, returns 0."
   (let* ((count (%lexpr-count numbers)))
     (declare (fixnum count))
     (if (zerop count)
@@ -229,6 +240,7 @@
 
 
 (defun * (&lexpr numbers)
+  "Return the product of its arguments. With no args, returns 1."
   (let* ((count (%lexpr-count numbers)))
     (declare (fixnum count))
     (if (zerop count)
@@ -244,6 +256,7 @@
 
 
 (defun < (num &lexpr more)
+  "Return T if its arguments are in strictly increasing order, NIL otherwise."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -256,6 +269,7 @@
           (return))))))
 
 (defun <= (num &lexpr more)
+  "Return T if arguments are in strictly non-decreasing order, NIL otherwise."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -269,6 +283,7 @@
 
 
 (defun > (num &lexpr more)
+  "Return T if its arguments are in strictly decreasing order, NIL otherwise."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -281,6 +296,7 @@
           (return))))))
 
 (defun >= (num &lexpr more)
+  "Return T if arguments are in strictly non-increasing order, NIL otherwise."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -296,6 +312,8 @@
   (if (> n0 n1) n0 n1))
 
 (defun max (num &lexpr more)
+  "Return the greatest of its arguments; among EQUALP greatest, return
+   the first."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -308,6 +326,8 @@
   (if (< n0 n1) n0 n1))
 
 (defun min (num &lexpr more)
+  "Return the least of its arguments; among EQUALP least, return
+  the first."
   (let* ((count (%lexpr-count more)))
     (declare (fixnum count))
     (if (zerop count)
@@ -325,6 +345,7 @@
             (logandc1 (ash mask position) integer))))
 
 (defun deposit-field (value bytespec integer)
+  "Return new integer with newbyte in specified position, newbyte is not right justified."
   (if (> bytespec 0)    
     (logior (logandc1 bytespec integer) (logand bytespec value))
     (progn
@@ -337,6 +358,8 @@
 ;;; size = 0, position > 0 -> -position
 ;;; else ->  (ash (byte-mask size) position)
 (defun byte (size position)
+  "Return a byte specifier which may be used by other byte functions
+  (e.g. LDB)."
   (unless (and (typep size 'integer)
 	       (>= size 0))
     (report-bad-arg size 'unsigned-byte))
@@ -352,11 +375,13 @@
 
 
 (defun byte-size (bytespec)
+  "Return the size part of the byte specifier bytespec."
   (if (> bytespec 0)
     (logcount bytespec)
     0))
 
 (defun ldb (bytespec integer)
+  "Extract the specified byte from integer, and right justify result."
   (if (and (fixnump bytespec) (> (the fixnum bytespec) 0)  (fixnump integer))
     (%ilsr (byte-position bytespec) (%ilogand bytespec integer))
     (let ((size (byte-size bytespec))
@@ -372,11 +397,13 @@
 	  (ash (logand bytespec integer) (- position)))))))
 
 (defun mask-field (bytespec integer)
+  "Extract the specified byte from integer, but do not right justify result."
   (if (>= bytespec 0)
     (logand bytespec integer)
     (logand integer 0)))
 
 (defun dpb (value bytespec integer)
+  "Return new integer with newbyte in specified position, newbyte is right justified."
   (if (and (fixnump value)
 	   (fixnump bytespec)
 	   (> (the fixnum bytespec) 0)
@@ -386,6 +413,7 @@
     (deposit-field (ash value (byte-position bytespec)) bytespec integer)))
 
 (defun ldb-test (bytespec integer)
+  "Return T if any of the specified bits in integer are 1's."
   (if (> bytespec 0)
     (logtest bytespec integer)
     (progn
@@ -408,6 +436,10 @@
 (defparameter *random-state* (initialize-random-state #xFBF1 9))
 
 (defun make-random-state (&optional state &aux (seed-1 0) (seed-2 0))
+  "Make a random state object. If STATE is not supplied, return a copy
+  of the default random state. If STATE is a random state, then return a
+  copy of it. If STATE is T then return a random state generated from
+  the universal time."
   (if (eq state t)
     (multiple-value-setq (seed-1 seed-2) (init-random-state-seeds))
     (progn

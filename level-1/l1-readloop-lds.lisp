@@ -294,6 +294,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
 	(abort)))))
 
 (defun break (&optional string &rest args &aux (fp (%get-frame-ptr)))
+  "Print a message and invoke the debugger without allowing any possibility
+   of condition handling occurring."
   (flet ((do-break-loop ()
            (let ((c (make-condition 'simple-condition
                                     :format-control (or string "")
@@ -312,6 +314,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
           (t (format *error-output* "Break while interrupt-level less than zero; ignored.")))))
 
 (defun invoke-debugger (condition &aux (fp (%get-frame-ptr)))
+  "Enter the debugger."
   (let ((c (require-type condition 'condition)))
     (when *debugger-hook*
       (let ((hook *debugger-hook*)
@@ -358,6 +361,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
       nil)))
 
 (defun warn (condition-or-format-string &rest args)
+  "Warn about a situation by signalling a condition formed by DATUM and
+   ARGUMENTS. While the condition is being signaled, a MUFFLE-WARNING restart
+   exists that causes WARN to immediately return NIL."
   (when (typep condition-or-format-string 'condition)
     (unless (typep condition-or-format-string 'warning)
       (report-bad-arg condition-or-format-string 'warning))

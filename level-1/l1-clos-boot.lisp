@@ -1833,6 +1833,7 @@ to replace that class with ~s" name old-class new-class)
 	(return p)))))
 
 (defun constantly (x)
+  "Return a function that always returns VALUE."
   #'(lambda (&rest ignore)
       (declare (dynamic-extent ignore)
                (ignore ignore))

@@ -133,6 +133,10 @@
 ;from slisp reader2.lisp.
 (defun parse-integer (string &key (start 0) end
                       (radix 10) junk-allowed)
+  "Examine the substring of string delimited by start and end
+  (default to the beginning and end of the string)  It skips over
+  whitespace characters and then tries to parse an integer. The
+  radix parameter must be between 2 and 36."
   (flet ((parse-integer-not-integer-string (s)
 	   (error 'parse-integer-not-integer-string :string s)))
     (declare (inline not-integer-string-error))

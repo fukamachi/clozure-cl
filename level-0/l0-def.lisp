@@ -23,6 +23,7 @@
 
 
 (defun functionp (arg)
+  "Return true if OBJECT is a FUNCTION, and NIL otherwise."
   (functionp arg))
 
 (defun lfunp (arg)
@@ -143,6 +144,7 @@
 ; FBOUNDP is true of any symbol whose function-cell contains something other
 ; than %unbound-function%; we expect FBOUNDP to return that something.
 (defun fboundp (name)
+  "Return true if name has a global function definition."
   (let* ((fname (validate-function-name name))
          (def (%svref (%symbol->symptr fname) ppc32::symbol.fcell-cell)))
     (unless (eq def %unbound-function%)
@@ -217,10 +219,8 @@
 
 
 
-(defun special-operator-p (symbol) 
-  "CL. Given a symbol returns non-nil if the symbol defines one of the forms
-   designated special by CLtL or by this implementation.
-   The non-nil value returned is not functionp."
+(defun special-operator-p (symbol)
+  "If the symbol globally names a special form, return T, otherwise NIL."
   (let ((def (fboundp symbol)))
     (and (typep def 'simple-vector)
          (not (lfunp (svref def 1))))))

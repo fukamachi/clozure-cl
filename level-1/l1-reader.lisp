@@ -55,6 +55,8 @@
 ;Otherwise return NIL.
 
 (defun name-char (name)
+  "Given an argument acceptable to STRING, NAME-CHAR returns a character
+  whose name is that string, if one exists. Otherwise, NIL is returned."
   (if (characterp name)
     name
     (let* ((name (string name)))
@@ -206,6 +208,9 @@
 
 
 (defun set-syntax-from-char (to-char from-char &optional to-readtable from-readtable)
+  "Causes the syntax of TO-CHAR to be the same as FROM-CHAR in the
+  optional readtable (defaults to the current readtable). The
+  FROM-TABLE defaults to the standard Lisp readtable when NIL."
   (setq to-char (require-type to-char 'base-char))
   (setq from-char (require-type from-char 'base-char))
   (setq to-readtable (readtable-arg to-readtable))
@@ -223,7 +228,11 @@
        (setf (uvref (rdtab.ttab to-readtable) (char-code to-char)) from-attr))
       t)))
 
-(defun get-macro-character (char &optional readtable)  
+(defun get-macro-character (char &optional readtable)
+  "Return the function associated with the specified CHAR which is a macro
+  character, or NIL if there is no such function. As a second value, return
+  T if CHAR is a macro character which is non-terminating, i.e. which can
+  be embedded in a symbol name."
   (setq readtable (readtable-arg readtable))
   (multiple-value-bind (attr info) (%get-readtable-char char readtable)
     (declare (fixnum attr) (list info))
@@ -232,6 +241,9 @@
               (= attr $cht_ntmac)))))
 
 (defun set-macro-character (char fn &optional non-terminating-p readtable)
+  "Causes CHAR to be a macro character which invokes FUNCTION when seen
+   by the reader. The NON-TERMINATINGP flag can be used to make the macro
+   character non-terminating, i.e. embeddable in a symbol name."
   (setq char (require-type char 'base-char))
   (setq readtable (readtable-arg readtable))
   (when fn
@@ -265,6 +277,9 @@
 (defsetf readtable-case %set-readtable-case)
 
 (defun make-dispatch-macro-character (char &optional non-terminating-p readtable)
+  "Cause CHAR to become a dispatching macro character in readtable (which
+   defaults to the current readtable). If NON-TERMINATING-P, the char will
+   be non-terminating."
   (setq readtable (readtable-arg readtable))
   (setq char (require-type char 'base-char))
   (let* ((info (nth-value 1 (%get-readtable-char char readtable))))
@@ -278,6 +293,8 @@
   t)
 
 (defun get-dispatch-macro-character (disp-ch sub-ch &optional (readtable *readtable*))
+  "Return the macro character function for SUB-CHAR under DISP-CHAR
+   or NIL if there is no associated function."
   (setq readtable (readtable-arg (or readtable %initial-readtable%)))
   (setq disp-ch (require-type disp-ch 'base-char))
   (setq sub-ch (char-upcase (require-type sub-ch 'base-char)))
@@ -288,6 +305,8 @@
         (error "~A is not a dispatching macro character in ~s ." disp-ch readtable)))))
 
 (defun set-dispatch-macro-character (disp-ch sub-ch fn &optional readtable)
+  "Cause FUNCTION to be called whenever the reader reads DISP-CHAR
+   followed by SUB-CHAR."
   (setq readtable (readtable-arg readtable))
   (setq disp-ch (require-type disp-ch 'base-char))
   (setq sub-ch (char-upcase (require-type sub-ch 'base-char)))
@@ -983,6 +1002,8 @@ c)" t)
       (%read-form stream (if eof-error-p 0) eof-value))))
 
 (defun read-preserving-whitespace (&optional stream (eof-error-p t) eof-value recursive-p)
+  "Read from STREAM and return the value read, preserving any whitespace
+   that followed the object."
   (setq stream (input-stream-arg stream))
   (if recursive-p
     (%read-form stream 0 nil)
@@ -991,6 +1012,8 @@ c)" t)
 
 
 (defun read-delimited-list (char &optional stream recursive-p)
+  "Read Lisp values from INPUT-STREAM until the next character after a
+   value's representation is ENDCHAR, and return the objects as a list."
   (setq char (require-type char 'character))
   (setq stream (input-stream-arg stream))
   (let ((%keep-whitespace% nil))

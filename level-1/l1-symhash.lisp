@@ -57,6 +57,7 @@
     (set-package (%kernel-restart $xnopkg name))))
 
 (defun export (sym-or-syms &optional (package *package*))
+  "Exports SYMBOLS from PACKAGE, checking that no name conflicts result."
   (setq package (pkg-arg package))
   (if (atom sym-or-syms)
     (let* ((temp (cons sym-or-syms nil)))
@@ -114,6 +115,7 @@
 
 
 (defun keywordp (x)
+  "Return true if Object is a symbol in the \"KEYWORD\" package."
   (and (symbolp x) (eq (symbol-package x) *keyword-package*)))
 
 ;No type/range checking.  For DO-SYMBOLS and friends.
@@ -124,6 +126,7 @@
       (values nil nil))))
 
 (defun find-all-symbols (name)
+  "Return a list of all symbols in the system having the specified name."
   (let* ((syms ())
          (pname (ensure-simple-string (string name)))
          (len (length pname)))
@@ -134,9 +137,12 @@
               (if foundp (pushnew sym syms :test #'eq))))))))
       
 
-(defun list-all-packages () (with-package-list-read-lock (copy-list %all-packages%)))
+(defun list-all-packages ()
+  "Return a list of all existing packages."
+  (with-package-list-read-lock (copy-list %all-packages%)))
 
 (defun rename-package (package new-name &optional new-nicknames)
+  "Changes the name and nicknames for a package."
   (setq package (pkg-arg package)
         new-name (ensure-simple-string (string new-name)))
   (with-package-lock (package)
@@ -178,6 +184,12 @@
                           (use *make-package-use-defaults*)
                           (internal-size 60)
                           (external-size 10))
+  "Make a new package having the specified NAME, NICKNAMES, and 
+  USE list. :INTERNAL-SYMBOLS and :EXTERNAL-SYMBOLS are
+  estimates for the number of internal and external symbols which
+  will ultimately be present in the package. The default value of
+  USE is implementation-dependent, and in this implementation
+  it is NIL."
   (setq internal-size (require-type internal-size 'fixnum)
         external-size (require-type external-size 'fixnum))
   (let ((pkg (gvector :package 
@@ -252,6 +264,10 @@
         (if ok-name (push ok-name (cdr names)))))))
 
 (defun find-symbol (string &optional package)
+  "Return the symbol named STRING in PACKAGE. If such a symbol is found
+  then the second value is :INTERNAL, :EXTERNAL or :INHERITED to indicate
+  how the symbol is accessible. If no symbol is found then both values
+  are NIL."
   (multiple-value-bind (sym flag)
                        (%findsym (ensure-simple-string string) (pkg-arg (or package *package*)))
     (values sym flag)))
@@ -261,6 +277,8 @@
   (%find-symbol string (length string) package))
 
 (defun intern (str &optional (package *package*))
+  "Return a symbol in PACKAGE having the specified NAME, creating it
+  if necessary."
   (setq package (pkg-arg package))
   (setq str (ensure-simple-string str))
   (with-package-lock (package)
@@ -271,6 +289,9 @@
        (values (%add-symbol str package internal-offset external-offset) nil)))))
 
 (defun unintern (symbol &optional (package *package*))
+  "Makes SYMBOL no longer present in PACKAGE. If SYMBOL was present
+  then T is returned, otherwise NIL. If PACKAGE is SYMBOL's home
+  package, then it is made uninterned."
   (setq package (pkg-arg package))
   (setq symbol (require-type symbol 'symbol))
   (multiple-value-bind (foundsym table index) (%find-package-symbol (symbol-name symbol) package)
@@ -349,6 +370,9 @@
 
 
 (defun import (sym-or-syms &optional package)
+  "Make SYMBOLS accessible as internal symbols in PACKAGE. If a symbol
+  is already accessible then it has no effect. If a name conflict
+  would result from the importation, then a correctable error is signalled."
   (setq package (pkg-arg (or package *package*)))
   (if (listp sym-or-syms)
     (dolist (sym sym-or-syms)
@@ -367,6 +391,10 @@
     nil))
 
 (defun shadow (sym-or-symbols-or-string-or-strings &optional package)
+  "Make an internal symbol in PACKAGE with the same name as each of
+  the specified SYMBOLS. If a symbol with the given name is already
+  present in PACKAGE, then the existing symbol is placed in the
+  shadowing symbols list if it is not already present."
   (setq package (pkg-arg (or package *package*)))
   (if (listp sym-or-symbols-or-string-or-strings)
     (dolist (s sym-or-symbols-or-string-or-strings)
@@ -375,6 +403,7 @@
   t)
 
 (defun unexport (sym-or-symbols &optional package)
+  "Makes SYMBOLS no longer exported from PACKAGE."
   (setq package (pkg-arg (or package *package*)))
   (if (listp sym-or-symbols)
     (dolist (sym sym-or-symbols)
@@ -512,6 +541,9 @@
     (push package-to-use (pkg.used using-package))))
 
 (defun use-package (packages-to-use &optional package)
+  "Add all the PACKAGES-TO-USE to the use list for PACKAGE so that
+  the external symbols of the used packages are accessible as internal
+  symbols in PACKAGE."
   (setq package (pkg-arg (or package *package*)))
   (if (listp packages-to-use)
     (dolist (to-use packages-to-use)
@@ -542,6 +574,8 @@
        nil))))
 
 (defun shadowing-import (sym-or-syms &optional (package *package*))
+  "Import SYMBOLS into package, disregarding any name conflict. If
+  a symbol of the same name is present, then it is uninterned."
   (setq package (pkg-arg package))
   (if (listp sym-or-syms)
     (dolist (sym sym-or-syms)
@@ -550,6 +584,7 @@
   t)
 
 (defun unuse-package (packages-to-unuse &optional package)
+  "Remove PACKAGES-TO-UNUSE from the USE list for PACKAGE."
   (let ((p (pkg-arg (or package *package*))))
     (flet ((unuse-one-package (unuse)
             (setq unuse (pkg-arg unuse))
@@ -562,6 +597,8 @@
       t)))
 
 (defun delete-package (package)
+  "Delete the package designated by PACKAGE-DESIGNATOR from the package
+  system data structures."
   (unless (packagep package)
     (setq package (or (find-package package)
                       (progn
