@@ -184,6 +184,32 @@
   (bne cr0 @loop2)
   (b @done))
 
+(defppclapfunction %copy-gvector-to-gvector ((src 4)
+					     (src-element 0)
+					     (dest arg_x)
+					     (dest-element arg_y)
+					     (nelements arg_z))
+  (subi nelements nelements '1)
+  (cmpwi nelements 0)
+  (lwz imm0 src-element vsp)
+  (lwz temp0 src vsp)
+  (la vsp 8 vsp)
+  (la imm0 ppc32::misc-data-offset imm0)
+  (la imm1 ppc32::misc-data-offset dest-element)
+  (b @test)
+  @loop
+  (subi nelements nelements '1)
+  (cmpwi nelements 0)
+  (lwzx temp1 temp0 imm0)
+  (addi imm0 imm0 '1)
+  (stwx temp1 dest imm1)
+  (addi imm1 imm1 '1)
+  @test
+  (bge @loop)
+  (mr arg_z dest)
+  (blr))
+  
+
 
 
 ; value will be in save7 = r24
