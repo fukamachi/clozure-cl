@@ -177,12 +177,15 @@
 (defun buffer-document-begin-editing (buffer)
   (when (bufferp buffer)
     (let* ((document (buffer-document buffer)))
-      (when document (document-begin-editing document)))))
+      (when document
+        (lock-buffer buffer)
+        (document-begin-editing document)))))
 
 (defun buffer-document-end-editing (buffer)
   (when (bufferp buffer)
     (let* ((document (buffer-document buffer)))
       (when document
+        (unlock-buffer buffer)
         (document-end-editing document)))))
 
 
