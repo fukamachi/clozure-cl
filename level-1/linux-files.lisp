@@ -910,8 +910,7 @@
       (with-lock-grabbed ((shared-resource-lock resource))
 	(append-dll-node request (shared-resource-requestors resource)))
       (wait-on-semaphore (shared-resource-request-signal request))
-      #+debug
-      (assert (eq current (shared-resource-current-owner request)))
+      (assert (eq current (shared-resource-current-owner resource)))
       (when verbose
 	(format t "~%~%;;;~%;;; ~a is now owned by ~a~%;;;~%~%"
 		(shared-resource-name resource) current))
@@ -926,10 +925,10 @@
 	     (primary (shared-resource-primary-owner r))
 	     (secondary (shared-resource-current-owner r)))
 	(unless (setq not-any-owner
-		      (or (eq current secondary)
-			  (and (null secondary)
-			       (eq current primary))))
-	  (when secondary
+		      (not (or (eq current secondary)
+                               (and (null secondary)
+                                    (eq current primary)))))
+	  (when (eq current secondary)
 	    (setf (shared-resource-current-owner r) nil)
 	    (signal-semaphore (shared-resource-primary-owner-notify r))))))
     (when not-any-owner
@@ -957,10 +956,12 @@
 			first)))))
 	  (when request
 	    (remove-dll-node request)
+            (setf (shared-resource-current-owner r)
+                  (shared-resource-request-process request))
 	    (signal-semaphore (shared-resource-request-signal request))))))
     (when request
       (wait-on-semaphore (shared-resource-primary-owner-notify r))
-      (format t "~&;;;~%;;;control of ~a restored to ~a~%;;;~&"
+      (format t "~%;;;~%;;;control of ~a restored to ~a~%;;;~&"
 	      (shared-resource-name r)
 	      *current-process*))))
 
