@@ -2422,6 +2422,8 @@
       (setf (%class.own-wrapper class) nil)
       (make-wrapper-obsolete wrapper))))
 
+(defmethod make-instances-obsolete ((class structure-class)))
+
 
 
 ; A wrapper is made obsolete by setting the hash-index & instance-slots to 0
