@@ -310,7 +310,7 @@
 
 
 
-(defun ppc-Xdisassemble (fn-vector &key (for-lap nil) (stream *debug-io*))
+(defun ppc-Xdisassemble (fn-vector &key (for-lap nil) (stream *standard-output*))
   (print-ppc-instructions stream (function-to-dll-header fn-vector) 
                           (if for-lap (list (uvref fn-vector (- (uvsize fn-vector) 2)))))
   (values))
