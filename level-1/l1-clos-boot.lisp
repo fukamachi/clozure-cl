@@ -19,6 +19,7 @@
 
 ; l1-clos-boot.lisp
 
+
 (in-package :ccl)
 
 ;;; Early accessors.  These functions eventually all get replaced with
@@ -146,16 +147,41 @@
 
 ;;; Map slot-names (symbols) to SLOT-ID objects (which contain unique indices).
 (let* ((slot-id-lock (make-lock))
-       (next-slot-index 0)
+       (next-slot-index 1)              ; 0 is never a valid slot-index
        (slot-id-hash (make-hash-table :test #'eq :weak t)))
   (defun ensure-slot-id (slot-name)
     (setq slot-name (require-type slot-name 'symbol))
     (with-lock-grabbed (slot-id-lock)
       (or (gethash slot-name slot-id-hash)
           (setf (gethash slot-name slot-id-hash)
-                (%istruct 'slot-id slot-name (incf next-slot-index))))))
+                (%istruct 'slot-id slot-name (prog1
+                                                 next-slot-index
+                                               (incf next-slot-index)))))))
   (defun current-slot-index () next-slot-index)
   )
+
+
+(defun %slot-id-lookup-obsolete (instance slot-id)
+  (update-obsolete-instance instance)
+  (funcall (%wrapper-slot-id->slotd (instance.class-wrapper instance))
+           instance slot-id))
+(defun slot-id-lookup-no-slots (instance slot-id)
+  (declare (ignore instance slot-id)))
+
+(defun %slot-id-ref-obsolete (instance slot-id)
+  (update-obsolete-instance instance)
+  (funcall (%wrapper-slot-id-value (instance.class-wrapper instance))
+           instance slot-id))
+(defun %slot-id-ref-missing (instance slot-id)
+  (slot-missing (class-of instance) instance (slot-id.name slot-id) 'slot-value))
+
+(defun %slot-id-set-obsolete (instance slot-id new-value)
+  (update-obsolete-instance instance)
+  (funcall (%wrapper-set-slot-id-value (instance.class-wrapper instance))
+           instance slot-id new-value))
+
+(defun %slot-id-set-missing (instance slot-id new-value)
+  (slot-missing (class-of instance) instance (slot-id.name slot-id) '(setf slot-value) new-value))
 
 
 
@@ -2294,12 +2320,18 @@
 	 (slots  (class-slots class)))
     (find-slotd name slots)))
 
-;;; Stupid, temporary definitions that miss the point completely:
+
 (defun slot-id-value (instance slot-id)
-  (slot-value instance (slot-id.name slot-id)))
+  (let* ((wrapper (if (eq (typecode instance) ppc32::subtag-instance)
+                    (instance.class-wrapper instance)
+                    (%class.own-wrapper (class-of instance)))))
+    (funcall (%wrapper-slot-id-value wrapper) instance slot-id)))
 
 (defun set-slot-id-value (instance slot-id value)
-  (set-slot-value instance (slot-id.name slot-id) value))
+  (let* ((wrapper (if (eq (typecode instance) ppc32::subtag-instance)
+                    (instance.class-wrapper instance)
+                    (%class.own-wrapper (class-of instance)))))
+    (funcall (%wrapper-set-slot-id-value wrapper) instance slot-id value)))
 
 ; returns nil if (apply gf args) wil cause an error because of the
 ; non-existance of a method (or if GF is not a generic function or the name
