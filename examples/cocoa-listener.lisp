@@ -21,6 +21,8 @@
 (declaim (special *open-editor-documents*)
 	 (type list *open-editor-documents*))
 
+#-hemlock
+(progn
 (defun new-listener-process (procname input-fd output-fd)
   (make-mcl-listener-process
    procname
@@ -334,7 +336,7 @@
 
 
 
-(defloadvar *cocoa-listener-count* 0)
+(defloadvar *cocoa-listener-count* 17)
 
 (define-objc-method ((:void :window-controller-did-load-nib acontroller)
 		     lisp-listener-document)
@@ -388,3 +390,4 @@
 	  ))))))
 
 
+); #-hemlock

@@ -260,7 +260,7 @@
     (create-text-attributes :color (send (@class "NSColor") 'black-color)
                             :font (default-font
                                       :name "Courier New Bold Italic"
-                                      :size 9.0)))
+                                      :size 10.0)))
 
 (defun buffer-for-modeline-view (mv)
   (let* ((pane (modeline-view-pane mv)))
@@ -363,10 +363,9 @@
         
 
     
-(defun make-scrolling-text-view-for-buffer (buffer x y width height)
+(defun make-scrolling-text-view-for-textstorage (textstorage x y width height)
   (slet ((contentrect (ns-make-rect x y width height)))
-    (let* ((textstorage (make-textstorage-for-hemlock-buffer buffer))
-	   (scrollview (send (make-objc-instance
+    (let* ((scrollview (send (make-objc-instance
 			      'modeline-scroll-view
 			      :with-frame contentrect) 'autorelease)))
       (send scrollview :set-border-type #$NSBezelBorder)
@@ -412,11 +411,11 @@
 	      (values tv scrollview))))))))
 
 
-(defun make-scrolling-textview-for-pane (pane buffer)
+(defun make-scrolling-textview-for-pane (pane textstorage)
   (slet ((contentrect (send (send pane 'content-view) 'frame)))
     (multiple-value-bind (tv scrollview)
-	(make-scrolling-text-view-for-buffer
-	 buffer
+	(make-scrolling-text-view-for-textstorage
+	 textstorage
 	 (pref contentrect :<NSR>ect.origin.x)
 	 (pref contentrect :<NSR>ect.origin.y)
 	 (pref contentrect :<NSR>ect.size.width)
@@ -469,20 +468,20 @@
   ;; Make w the "key" and frontmost window.  Make it visible, if need be.
   (send w :make-key-and-order-front nil))
 
-(defun new-hemlock-document-window (title &key
-					  (x 0.0)
-					  (y 0.0)
-					  (height 200.0)
-					  (width 500.0)
-					  (closable t)
-					  (iconifyable t)
-					  (metal t)
-					  (expandable t)
-					  (backing :buffered)
-					  (defer nil)
-					  (accepts-mouse-moved-events nil)
-					  (auto-display t)
-					  (activate t))
+(defun new-hemlock-document-window (&key
+                                    (x 0.0)
+                                    (y 0.0)
+                                    (height 200.0)
+                                    (width 500.0)
+                                    (closable t)
+                                    (iconifyable t)
+                                    (metal t)
+                                    (expandable t)
+                                    (backing :buffered)
+                                    (defer nil)
+                                    (accepts-mouse-moved-events nil)
+                                    (auto-display t)
+                                    (activate t))
   (rlet ((frame :<NSR>ect :origin.x (float x) :origin.y (float y) :size.width (float width) :size.height (float height)))
     (let* ((stylemask
             (logior #$NSTitledWindowMask
@@ -501,7 +500,6 @@
 	       :style-mask stylemask
 	       :backing backing-type
 	       :defer defer)))
-      (send w :set-title (%make-nsstring title))
       (setf (get-cocoa-window-flag w :accepts-mouse-moved-events)
             accepts-mouse-moved-events
             (get-cocoa-window-flag w :auto-display)
@@ -522,26 +520,22 @@
 	  
 					
 				      
-(defun textview-for-hemlock-buffer (b)
-  (process-interrupt
-   *cocoa-event-process*
-   #'(lambda ()
-      (let* ((name (hi::buffer-name b)))
-	(multiple-value-bind (window pane)
-	    (new-hemlock-document-window name :activate nil)
-	  (let* ((tv (make-scrolling-textview-for-pane pane b)))
-	    (multiple-value-bind (height width)
-		(size-of-char-in-font (default-font))
-	      (size-textview-containers tv height width 24 80))
-	    (activate-window window)
-	    tv))))))
+(defun textpane-for-textstorage (ts)
+  (let* ((pane (nth-value
+                1
+                (new-hemlock-document-window :activate nil)))
+         (tv (make-scrolling-textview-for-pane pane ts)))
+    (multiple-value-bind (height width)
+        (size-of-char-in-font (default-font))
+      (size-textview-containers tv height width 24 80))
+    pane))
 
 
 (defun read-file-to-hemlock-buffer (path)
   (hemlock::find-file-buffer path))
 
-(defun hemlock-buffer-from-nsstring (nsstring name)
-  (let* ((buffer (hi::make-buffer name)))
+(defun hemlock-buffer-from-nsstring (nsstring name &rest modes)
+  (let* ((buffer (hi::make-buffer name :modes modes)))
     (hi::delete-region (hi::buffer-region buffer))
     (hi::modifying-buffer buffer)
     (hi::with-mark ((mark (hi::buffer-point buffer) :left-inserting))
@@ -583,14 +577,31 @@
 		      (setf (hi::line-next previous) line)
 		      (setq previous line))))
 		(setq line-start (pref line-end-index :unsigned))))))))
+    (setf (hi::buffer-modified buffer) nil)
     buffer))
 
 (setq hi::*beep-function* #'(lambda (stream)
 			      (declare (ignore stream))
 			      (#_NSBeep)))
 
+;;; This function must run in the main event thread.
+(defun %hemlock-frame-for-textstorage (ts title activate)
+  (let* ((pane (textpane-for-textstorage ts))
+         (w (send pane 'window)))
+    (when title (send w :set-title (%make-nsstring title)))
+    (when activate (activate-window w))
+    w))
+
+(defun hemlock-frame-for-textstorage (ts title activate)
+  (process-interrupt *cocoa-event-process*
+                     #'%hemlock-frame-for-textstorage
+                     ts title activate))
+  
+
 (defun edit (path)
-  (textview-for-hemlock-buffer (read-file-to-hemlock-buffer path)))
+  (let* ((buffer (read-file-to-hemlock-buffer path))
+         (textstorage (make-textstorage-for-hemlock-buffer buffer)))
+    (hemlock-frame-for-textstorage textstorage (hi::buffer-name buffer) t)))
 
 (defun for-each-textview-using-storage (textstorage f)
   (let* ((layouts (send textstorage 'layout-managers)))
