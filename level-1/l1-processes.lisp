@@ -295,13 +295,14 @@
 		      (apply (car initial-form) (cdr (the list initial-form)))
 		      (setq exited t)
 		      nil)
+                    (abort-break ())
 		    (abort () (setq exited t)))
 		 (process-reset (condition)
 		   (process-reset-kill condition)))))
     ;; We either exited from the initial form normally, were told to
     ;; exit prematurely, or are being reset and should enter the
     ;; "awaiting preset" state.
-    (if (or kill exited)
+    (if (or kill exited) 
       (unless (eq kill :toplevel)
 	(process-initial-form-exited process (or kill t)))
       (progn
