@@ -1,3 +1,8 @@
+2005-03-05 01:07  bryan
+
+	* level-1/l1-io.lisp: when *print-array*, use #nA(..) syntax even
+	  when array-element-type is something other than t.
+
 2005-03-05 00:13  bryan
 
 	* level-1/l1-io.lisp: print-unreadable-object should accept t
