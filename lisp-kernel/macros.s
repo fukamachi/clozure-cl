@@ -14,6 +14,9 @@
    http://opensource.franz.com/preamble.html
 */
 
+define([check_vsp],[
+        twne new_vsp,vsp
+])               
 /* The assembler has to do the arithmetic here:	 the expression
    may not be evaluable by m4.
 */
