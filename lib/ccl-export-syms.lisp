@@ -148,6 +148,7 @@
      method-function
      method-generic-function
      method-lambda-list
+     method-name
      method-specializers
      method-qualifiers
      slot-definition-allocation
@@ -587,6 +588,7 @@
    "METHOD-FUNCTION"
    "METHOD-GENERIC-FUNCTION"
    "METHOD-LAMBDA-LIST"
+   "METHOD-NAME"
    "METHOD-SPECIALIZERS"
    "METHOD-QUALIFIERS"
    "SLOT-DEFINITION-ALLOCATION"
