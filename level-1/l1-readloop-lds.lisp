@@ -364,7 +364,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
   (let* ((*print-readably* nil))
     (%break-message msg condition error-pointer)
     (with-terminal-input
-      (restart-case (break-loop condition error-pointer *backtrace-on-break*)
+      (restart-case (break-loop condition error-pointer)
 		    (continue () :report (lambda (stream) (write-string cont-string stream))))
       (fresh-line *error-output*)
       nil)))
@@ -405,12 +405,21 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 
 (defvar %last-continue% nil)
-(defun break-loop (condition frame-pointer
-                             &optional (backtracep *backtrace-on-break*))
+(defun break-loop (condition frame-pointer)
   "Never returns"
   (when (and (%i< (interrupt-level) 0) (not *break-loop-when-uninterruptable*))
     (abort))
-  (let* ((%handlers% (last %handlers%))		; firewall
+  (let* ((context (new-backtrace-info nil
+                                      frame-pointer
+                                      (if *backtrace-contexts*
+                                        (or (child-frame
+                                             (bt.youngest (car *backtrace-contexts*))
+                                             (%current-tcr))
+                                            (last-frame-ptr))
+                                        (last-frame-ptr))
+                                      (%current-tcr)))
+         (*backtrace-contexts* (cons context *backtrace-contexts*))
+         (%handlers% (last %handlers%))		; firewall
          (*break-frame* frame-pointer)
          (*break-condition* condition)
          (*compiling-file* nil)
@@ -426,22 +435,26 @@ whose name or ID matches <p>, or to any process if <p> is null"
          (*print-readably* nil))
     (unwind-protect
 	 (with-toplevel-commands :break
-	       (if *continuablep*
-		 (let* ((*print-circle* *error-print-circle*)
+           (if *continuablep*
+             (let* ((*print-circle* *error-print-circle*)
 					;(*print-pretty* nil)
-			(*print-array* nil))
-		   (format t "~&> Type :GO to continue, :POP to abort.")
-		   (format t "~&> If continued: ~A~%" continue))
-		 (format t "~&> Type :POP to abort.~%"))
-	       (format t "~&Type :? for other options.")
-	       (terpri)
+                    (*print-array* nil))
+               (format t "~&> Type :GO to continue, :POP to abort.")
+               (format t "~&> If continued: ~A~%" continue))
+             (format t "~&> Type :POP to abort.~%"))
+           (format t "~&Type :? for other options.")
+           (terpri)
+           (force-output)
 
-	       (force-output)
-	       (when backtracep
-		 (select-backtrace))
-	       (clear-input *debug-io*)
-	       (setq *error-reentry-count* 0) ; succesfully reported error
-	       (read-loop :break-level (1+ *break-level*)))
+           (clear-input *debug-io*)
+           (setq *error-reentry-count* 0) ; succesfully reported error
+           (unwind-protect
+                (progn
+                  (application-ui-operation *application*
+                                            :enter-backtrace-context context)
+                  (read-loop :break-level (1+ *break-level*)))
+             (application-ui-operation *application* :exit-backtrace-context
+                                       context)))
       (setf (interrupt-level) level))))
 
 
