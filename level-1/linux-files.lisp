@@ -25,7 +25,8 @@
   (check-type n (real 0 #xffffffff))
   (multiple-value-bind (q r)
       (floor n)
-    (unless (zerop r)
+    (if (zerop r)
+      (setq r 0)
       (setq r (floor (* r 1000000000))))
     (values q r)))
   
