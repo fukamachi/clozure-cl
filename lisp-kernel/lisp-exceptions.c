@@ -2688,6 +2688,12 @@ darwin_exception_init(TCR *tcr)
 void
 darwin_exception_cleanup(TCR *tcr)
 {
+  void *fxs = tcr->native_thread_info;
+
+  if (fxs) {
+    tcr->native_thread_info = NULL;
+    free(fxs);
+  }
   mach_port_destroy(mach_task_self(),(mach_port_t)tcr);
 }
 
