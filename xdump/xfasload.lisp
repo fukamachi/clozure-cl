@@ -1169,8 +1169,8 @@
   (let* ((backend (or (find-xload-backend target)
 		      (error "Unknown xload backend: ~s" target)))
          ;; Saving doc-strings doesn't work in level-0 (yet.)
-         (*save-doc-strings* nil)
-         (*fasl-save-doc-strings* nil)
+         (*save-doc-strings* t)
+         (*fasl-save-doc-strings* t)
 	 (a (target-xcompile-directory target "ccl:level-0;" force))
 	 (b (target-xcompile-directory target
 				       (backend-xload-info-subdir backend)
