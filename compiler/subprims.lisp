@@ -46,7 +46,7 @@
 						    :offset offset)))
 		 (incf *next-subprim-offset* 4)
 		 `(progn
-		   (makunbound ',name)
+		   (undefine-constant ',name)
 		   (defconstant ,name ,offset)
 		   ,info))))
   (setq *next-subprim-offset* (ash 1 14))
