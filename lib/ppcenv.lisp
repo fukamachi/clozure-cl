@@ -38,8 +38,7 @@
   (logior (ash 1 ppc::temp0)
           (ash 1 ppc::temp1)
           (ash 1 ppc::temp2)
-          (ash 1 ppc::temp3)
-	  (ash 1 ppc::temp4)))
+          (ash 1 ppc::temp3)))
 
 
 (defconstant ppc-tagged-registers-mask
@@ -55,7 +54,6 @@
              ppc::temp1
              ppc::temp2
              ppc::temp3
-	     ppc::temp4
              ppc::arg_x
              ppc::arg_y
              ppc::arg_z))

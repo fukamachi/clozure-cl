@@ -22,6 +22,9 @@ typedef struct {
   void *created;
 } thread_activation;
 
+#ifdef HAVE_TLS
+__thread TCR current_tcr;
+#endif
 
 extern natural
 store_conditional(natural*, natural, natural);
@@ -444,7 +447,11 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
     *allocate_vstack_holding_area_lock(unsigned),
     *allocate_tstack_holding_area_lock(unsigned);
   area *a;
+#ifdef HAVE_TLS
+  TCR *tcr = &current_tcr;
+#else
   TCR *tcr = calloc(1, sizeof(TCR));
+#endif
   int i;
 
   lisp_global(TCR_COUNT) += (1<<fixnumshift);

@@ -435,7 +435,9 @@
   protsize                              ; number of bytes to protect
   why)
 
-(define-storage-layout tcr #x-7000
+(defconstant tcr-bias 0)
+
+(define-storage-layout tcr (- tcr-bias)
   prev					; in doubly-linked list 
   next					; in doubly-linked list 
   lisp-fpscr-high
