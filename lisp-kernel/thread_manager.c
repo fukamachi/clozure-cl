@@ -147,7 +147,6 @@ recursive_lock_trylock(RECURSIVE_LOCK m, TCR *tcr, int *was_free)
   return EBUSY;
 }
 
-  
 int
 wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
 {
@@ -166,9 +165,38 @@ wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
 #endif
 #ifdef DARWIN
   mach_timespec_t q = {seconds, nanos};
-  return SEM_TIMEDWAIT(s, q);
+  do {
+    clock_t start = clock();
+
+    int status = SEM_TIMEDWAIT(s, q);
+    clock_t finish = clock();
+
+    if (status == KERN_ABORTED) {
+      clock_t elapsed = (finish - start);
+
+      int elapsed_seconds = elapsed/CLOCKS_PER_SEC;
+      int elapsed_nanos = (elapsed - (elapsed_seconds * CLOCKS_PER_SEC)) * 1000000000/CLOCKS_PER_SEC;
+
+      seconds = seconds - elapsed_seconds - (elapsed_nanos/1000000000);
+      if (nanos  > 0) {
+	nanos = 1000000000 - elapsed_nanos;
+      }
+
+      if ((seconds <= 0) && (nanos <= 0)) {
+	return 0;
+      }
+
+      q.tv_sec = seconds;
+      q.tv_nsec = nanos;
+    } else {
+      return status;
+    }
+  } while (1==1);
+  // Possible limit on number of retries? 
+
 #endif
 }
+
 
 void
 signal_semaphore(SEMAPHORE s)
@@ -748,6 +776,7 @@ get_tcr(Boolean create)
       *(--current->save_vsp) = 0;
       current->vs_area->active -= 4;
     }
+    current->shutdown_count = 1;
     ((void (*)())ptr_from_lispobj(callback_ptr))(0);
 
   }
