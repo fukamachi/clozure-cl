@@ -452,7 +452,7 @@
         call)))
 
 (define-compiler-macro dpb (&whole call &environment env value byte integer)
-  (cond ((integerp byte)
+  (cond ((and (integerp byte) (> byte 0))
          (if (integerp value)
            `(logior ,(dpb value byte 0) (logand ,(lognot byte) ,integer))
            `(deposit-field (ash ,value ,(byte-position byte)) ,byte ,integer)))
@@ -495,7 +495,7 @@
 
 
 (define-compiler-macro ldb (&whole call &environment env byte integer)
-   (cond ((integerp byte)
+   (cond ((and (integerp byte) (> byte 0))
           (let ((size (byte-size byte))
                 (position (byte-position byte)))
             (cond ((nx-form-typep integer 'fixnum env)
@@ -1209,9 +1209,6 @@
 (defsynonym fourth cadddr)
 (defsynonym rest cdr)
 
-(defsynonym byte-size logcount)
-(defsynonym ldb-test logtest)
-(defsynonym mask-field logand)
 
 (defsynonym functionp lfunp)
 (defsynonym null not)
@@ -1543,7 +1540,13 @@
 (define-compiler-macro lockp (lock)
   `(eq ppc32::subtag-lock (typecode ,lock)))
 
-
+(define-compiler-macro integerp (thing)
+  (let* ((typecode (gensym)))
+    `(let* ((,typecode (typecode ,thing)))
+      (declare (fixnum ,typecode))
+      (or (= ,typecode ppc32::tag-fixnum)
+          (= ,typecode ppc32::subtag-bignum)))))
+       
 
 
 (provide "OPTIMIZERS")
