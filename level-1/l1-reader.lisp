@@ -1040,7 +1040,9 @@ c)" t)
               (return eof-val))
             (multiple-value-bind (form form-p) (%parse-expression stream ch nil)
               (if form-p
-                 (return form))))))))
+                 (if *read-suppress*
+                     (return nil)
+                     (return form)))))))))
 
 
 
