@@ -592,7 +592,7 @@
   (let* ((def (fboundp function-name)))
     (when (and def (not (typep def 'generic-function)))
       (cerror "Try to remove any global non-generic function or macro definition."
-	      (make-condition 'simple-program-error :format-control "The functio ~s is defined as something other than a generic function." :format-arguments (list function-name)))
+	      (make-condition 'simple-program-error :format-control "The function ~s is defined as something other than a generic function." :format-arguments (list function-name)))
       (fmakunbound function-name)
       (setq def nil))
     (apply #'%ensure-generic-function-using-class def function-name keys)))
