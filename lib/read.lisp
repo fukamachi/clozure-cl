@@ -207,7 +207,7 @@
                                      (let* ((subtype  (typecode tree)))
                                        (dotimes (i (uvsize tree))
                                          (declare (fixnum i))
-                                         (unless (and (eql i 0) (eql subtype arch::subtag-instance))
+                                         (unless (and (eql i 0) (eql subtype target::subtag-instance))
                                            (setf (uvref tree i) (circle-subst (uvref tree i))))))
                                      (locally 
                                       (declare (type cons tree))
