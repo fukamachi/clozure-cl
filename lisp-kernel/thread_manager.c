@@ -405,11 +405,16 @@ enqueue_tcr(TCR *new)
   UNLOCK(lisp_global(TCR_LOCK),new);
 }
 
-  
+
+/*
+  Caller must hold the area_lock.
+*/
 TCR *
 new_tcr(unsigned vstack_size, unsigned tstack_size)
 {
-  extern area* allocate_vstack(unsigned), *allocate_tstack(unsigned);
+  extern area
+    *allocate_vstack_holding_area_lock(unsigned),
+    *allocate_tstack_holding_tcr(unsigned);
   area *a;
   TCR *tcr = calloc(1, sizeof(TCR));
   int i;
@@ -419,10 +424,10 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
   tcr->resume = new_semaphore(0);
   tcr->reset_completion = new_semaphore(0);
   tcr->activate = new_semaphore(0);
-  a = allocate_vstack(vstack_size);
+  a = allocate_vstack_holding_area_lock(vstack_size);
   tcr->vs_area = a;
   tcr->save_vsp = (LispObj *) a->active;  
-  a = allocate_tstack(tstack_size);
+  a = allocate_tstack_holding_area_lock(tstack_size);
   tcr->ts_area = a;
   tcr->save_tsp = (LispObj *) a->active;
   tcr->valence = TCR_STATE_FOREIGN;
@@ -457,7 +462,7 @@ shutdown_thread_tcr(void *arg)
 #ifdef DARWIN
     darwin_exception_cleanup(tcr);
 #endif
-  
+    LOCK(lisp_global(AREA_LOCK),tcr);
     vs = tcr->vs_area;
     tcr->vs_area = NULL;
     ts = tcr->ts_area;
@@ -465,19 +470,20 @@ shutdown_thread_tcr(void *arg)
     cs = tcr->cs_area;
     tcr->cs_area = NULL;
     if (vs) {
-      condemn_area(vs);
+      condemn_area_holding_area_lock(vs);
     }
     if (ts) {
-      condemn_area(ts);
+      condemn_area_holding_area_lock(ts);
     }
     if (cs) {
-      condemn_area(cs);
+      condemn_area_holding_area_lock(cs);
     }
     destroy_semaphore(&tcr->suspend);
     destroy_semaphore(&tcr->resume);
     destroy_semaphore(&tcr->reset_completion);
     destroy_semaphore(&tcr->activate);
     tcr->osid = 0;
+    UNLOCK(lisp_global(AREA_LOCK),tcr);
   } else {
     tsd_set(lisp_global(TCR_KEY), tcr);
   }
@@ -499,11 +505,13 @@ current_native_thread_id()
 void
 thread_init_tcr(TCR *tcr, void *stack_base, unsigned stack_size)
 {
-  area *a, *register_cstack(BytePtr, unsigned);
+  area *a, *register_cstack_holding_area_lock(BytePtr, unsigned);
 
   tcr->osid = current_thread_osid();
   tcr->native_thread_id = current_native_thread_id();
-  a = register_cstack((BytePtr)stack_base, stack_size);
+  LOCK(lisp_global(AREA_LOCK),tcr);
+  a = register_cstack_holding_area_lock((BytePtr)stack_base, stack_size);
+  UNLOCK(lisp_global(AREA_LOCK),tcr);
   tcr->cs_area = a;
   if (!(tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN))) {
     tcr->cs_limit = (LispObj)a->softlimit;
@@ -547,7 +555,9 @@ register_thread_tcr(TCR *tcr)
 Ptr
 create_stack(int size)
 {
-  Ptr p = (Ptr) mmap(NULL,
+  Ptr p;
+  size=align_to_power_of_2(size, 12);
+  p = (Ptr) mmap(NULL,
 		     (size_t)size,
 		     PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANON | MAP_GROWSDOWN,
@@ -618,7 +628,11 @@ xNewThread(unsigned control_stack_size,
 
 {
   thread_activation activation;
+  TCR *current = get_tcr(false);
+
+  LOCK(lisp_global(AREA_LOCK),current);
   activation.tcr = new_tcr(value_stack_size, temp_stack_size);
+  UNLOCK(lisp_global(AREA_LOCK),current);
   activation.created = new_semaphore(0);
   create_system_thread(control_stack_size +(CSTACK_HARDPROT+CSTACK_SOFTPROT), 
 		       NULL, 

@@ -710,7 +710,7 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
 	}
 	make_dynamic_heap_executable(a->low, a->active);
       case AREA_READONLY:
-	add_area(a);
+	add_area_holding_area_lock(a);
 	break;
       }
     }

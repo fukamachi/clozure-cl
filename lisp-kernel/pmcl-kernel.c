@@ -176,9 +176,9 @@ allocate_lisp_stack(unsigned useable,
   return (BytePtr) ((unsigned)(base+size));
 }
 
-/* This'll allocate a tstack or a vstack, but the thread
-   mangler won't let us allocate or reliably protect
-   a control stack.
+/*
+  This should only called by something that owns the area_lock, or
+  by the initial thread before other threads exist.
 */
 area *
 allocate_lisp_stack_area(area_code stack_type,
@@ -211,25 +211,29 @@ allocate_lisp_stack_area(area_code stack_type,
     a->h = h;
     a->softprot = soft_area;
     a->hardprot = hard_area;
-    add_area(a);
+    add_area_holding_area_lock(a);
   }
   return a;
 }
 
+/*
+  Also assumes ownership of the area_lock 
+*/
 area*
-register_cstack(BytePtr bottom, unsigned size)
+register_cstack_holding_area_lock(BytePtr bottom, unsigned size)
 {
   BytePtr lowlimit = (BytePtr) (((((unsigned)bottom)-size)+4095)&~4095);
   area *a = new_area((BytePtr) bottom-size, bottom, AREA_CSTACK);
 
   a->hardlimit = lowlimit+CSTACK_HARDPROT;
   a->softlimit = a->hardlimit+CSTACK_SOFTPROT;
-  add_area(a);
+  add_area_holding_area_lock(a);
   return a;
 }
   
+
 area*
-allocate_vstack(unsigned usable)
+allocate_vstack_holding_area_lock(unsigned usable)
 {
   return allocate_lisp_stack_area(AREA_VSTACK, 
 				  usable > MIN_VSTACK_SIZE ?
@@ -241,7 +245,7 @@ allocate_vstack(unsigned usable)
 }
 
 area *
-allocate_tstack(unsigned usable)
+allocate_tstack_holding_area_lock(unsigned usable)
 {
   return allocate_lisp_stack_area(AREA_TSTACK, 
                                   usable > MIN_TSTACK_SIZE ?
@@ -271,9 +275,6 @@ unsigned unsigned_max(unsigned x, unsigned y)
     return y;
   }
 }
-
-
-
 
 
 
@@ -643,7 +644,7 @@ allocate_dynamic_area(unsigned initsize)
   end = start + totalsize;
   a = new_area(start, end, AREA_DYNAMIC);
   a->active = start+initsize;
-  add_area(a);
+  add_area_holding_area_lock(a);
   a->markbits = reserved_area->markbits;
   reserved_area->markbits = NULL;
   UnProtectMemory(start, end-start);
@@ -1155,10 +1156,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   program_name = argv[0];
   if ((argc == 2) && (*argv[1] != '-')) {
-#ifdef DARWIN
-    extern int NXArgc;
-    NXArgc = 1;
-#endif
     image_name = argv[1];
     argv[1] = NULL;
   } else {
@@ -1178,6 +1175,8 @@ main(int argc, char *argv[], char *envp[], void *aux)
   real_subprims_base = (LispObj)(1<<20);
   create_reserved_area(reserved_area_size);
   set_nil(load_image(image_name));
+  lisp_global(AREA_LOCK) = ptr_to_lispobj(area_lock);
+
   lisp_global(SUBPRIMS_BASE) = (LispObj)(1<<20);
   lisp_global(RET1VALN) = (LispObj)&ret1valn;
   lisp_global(LEXPR_RETURN) = (LispObj)&nvalret;
@@ -1223,9 +1222,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
     g1_area = new_area(lowptr, lowptr, AREA_STATIC);
     g2_area = new_area(lowptr, lowptr, AREA_STATIC);
     tenured_area = new_area(lowptr, lowptr, AREA_STATIC);
-    add_area(tenured_area);
-    add_area(g2_area);
-    add_area(g1_area);
+    add_area_holding_area_lock(tenured_area);
+    add_area_holding_area_lock(g2_area);
+    add_area_holding_area_lock(g1_area);
 
     g1_area->code = AREA_DYNAMIC;
     g2_area->code = AREA_DYNAMIC;

@@ -30,6 +30,7 @@
 #include "bits.h"
 #include "gc.h"
 #include "area.h"
+#include "Threads.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,8 +78,14 @@ add_area_before(area *new_area, area *before)
   Readonly areas come last.
 */
 
+/*
+  If we already own the area_lock (or during iniitalization), it's safe
+  to add an area.
+*/
+
+
 void
-add_area(area *new_area)
+add_area_holding_area_lock(area *new_area)
 {
   area *that = all_areas;
   int
@@ -92,6 +99,17 @@ add_area(area *new_area)
   } while (thiscode < thatcode);
   add_area_before(new_area, that);
 }
+
+/*
+  In general, we need to own the area lock before adding an area.
+*/
+void
+add_area(area *new_area, TCR *tcr)
+{
+  LOCK(lisp_global(AREA_LOCK),tcr);
+  add_area_holding_area_lock(new_area);
+  LOCK(lisp_global(AREA_LOCK),tcr);
+}  
 
 /*
   Search areas "forward" from the header's successor, until
@@ -682,7 +700,7 @@ delete_protected_area(protected_area_ptr p)
   */
 
 void
-condemn_area(area *a)
+condemn_area_holding_area_lock(area *a)
 {
   void free_stack(void *);
   area *prev = a->pred, *next = a->succ;
@@ -703,6 +721,13 @@ condemn_area(area *a)
   deallocate((Ptr)a);
 }
 
+void
+condemn_area(area *a, TCR *tcr)
+{
+  LOCK(lisp_global(AREA_LOCK),tcr);
+  condemn_area_holding_area_lock(a);
+  LOCK(lisp_global(AREA_LOCK),tcr);
+}
 
 /*
   condemn an area and all the other areas that can be reached
@@ -711,15 +736,19 @@ condemn_area(area *a)
   called by free-stack-area
   */
 void
-condemn_area_chain(area *a)
+condemn_area_chain(area *a, TCR *tcr)
 {
   area *older;
+
+  LOCK(lisp_global(AREA_LOCK),tcr);
+
   for (; a->younger; a = a->younger) ;
   for (;a;) {
     older = a->older;
-    condemn_area(a);
+    condemn_area_holding_area_lock(a);
     a = older;
   }
+  UNLOCK(lisp_global(AREA_LOCK),tcr);
 }
 
 
@@ -1875,7 +1904,7 @@ reap_gcable_ptrs()
       if (ptr) {
         switch (flag) {
         case xmacptr_flag_recursive_lock:
-	  destroy_recursive_lock(ptr);
+	  destroy_recursive_lock((RECURSIVE_LOCK)ptr);
           break;
 
         case xmacptr_flag_ptr:

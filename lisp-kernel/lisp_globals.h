@@ -30,7 +30,7 @@ extern LispObj lisp_nil;
 #define SUBPRIMS_BASE (-8)	/* where the dynamic subprims wound up */
 #define RET1VALN (-9)		/* magic multiple-values return address */
 #define TCR_KEY (-10)     	/* tsd key for per-thread tcr */
-#define bad_GC_LOCK (-11)       /* rwlock for GC */
+#define AREA_LOCK (-11)       /* all_areas lock */
 #define EXCEPTION_LOCK (-12)	/* serialize exception handling */
 #define GO_TAG_COUNTER (-13)
 #define BLOCK_TAG_COUNTER (-14)
