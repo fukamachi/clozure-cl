@@ -466,6 +466,32 @@ These things were always a bad idea.  Let's hope that nothing uses them.
   (stb imm0 ppc32::misc-subtag-offset p)
   (blr))
 
+(defppclapfunction %macptr-type ((p arg_z))
+  (check-nargs 1)
+  (trap-unless-typecode= p ppc32::subtag-macptr)
+  (svref imm0 ppc32::macptr.type-cell p)
+  (box-fixnum arg_z imm0)
+  (blr))
   
+(defppclapfunction %macptr-domain ((p arg_z))
+  (check-nargs 1)
+  (trap-unless-typecode= p ppc32::subtag-macptr)
+  (svref imm0 ppc32::macptr.domain-cell p)
+  (box-fixnum arg_z imm0)
+  (blr))
+
+(defppclapfunction %set-macptr-type ((p arg_y) (new arg_z))
+  (check-nargs 2)
+  (unbox-fixnum imm1 new)
+  (trap-unless-typecode= p ppc32::subtag-macptr)
+  (svset imm1 ppc32::macptr.type-cell p)
+  (blr))
+
+(defppclapfunction %set-macptr-domain ((p arg_y) (new arg_z))
+  (check-nargs 2)
+  (unbox-fixnum imm1 new)
+  (trap-unless-typecode= p ppc32::subtag-macptr)
+  (svset imm1 ppc32::macptr.domain-cell p)
+  (blr))
 
 ; end
