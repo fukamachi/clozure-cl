@@ -955,6 +955,13 @@
   %wrapper-class                        ; the class itself
   %wrapper-instance-slots               ; vector of instance slot names
   %wrapper-class-slots                  ; alist of (name . value-cell) pairs
+  %wrapper-slot-id->slotd               ; map slot-id to slotd, or NIL
+  %wrapper-slot-id-map                  ; (vector (mod nslots) next-slot-id-index)
+  %wrapper-slot-definition-table        ; vector of nil || slot-definitions
+  %wrapper-class-svuc-effective-method-function  ; call effective method for SLOT-VALUE-USING-CLASS
+  %wrapper-class-ssvuc-effective-method-function ; call effective method for (SETF SLOT-VALUE-USING-CLASS
+  %wrapper-slot-id-value                ; "fast" SLOT-VALUE function
+  %wrapper-set-slot-id-value            ; "fast" (SETF SLOT-VALUE) function
 )
 
 ;; Use the wrapper-class-slots for info on obsolete & forwarded instances
@@ -981,7 +988,7 @@
 
 (defmacro %cons-wrapper (class &optional 
                                (hash-index '(new-class-wrapper-hash-index)))
-  `(%istruct 'class-wrapper ,hash-index ,class nil nil #| nil nil nil nil |#))
+  `(%istruct 'class-wrapper ,hash-index ,class nil nil #'slot-id-lookup-no-slots nil nil nil nil #'%slot-id-ref-missing #'%slot-id-set-missing))
 
 
 (defmacro %instance-class (instance)
