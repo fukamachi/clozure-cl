@@ -149,9 +149,11 @@ print_lisp_frame(lisp_frame *frame)
 
   if ((fun == 0) || (fun == fulltag_misc)) {
     spname = "unknown ?";
+#ifndef STATIC
     if (dladdr((void *)pc, &info)) {
       spname = (char *)(info.dli_sname);
     }
+#endif
     Dprintf("(#x%08X) #x%08X : (subprimitive %s)", frame, pc, spname);
   } else {
     if ((fulltag_of(fun) != fulltag_misc) ||
@@ -181,13 +183,16 @@ print_foreign_frame(void *frame)
 #endif
   Dl_info foreign_info;
 
+#ifndef STATIC
   if (dladdr((void *)pc, &foreign_info)) {
     Dprintf("(#x%08x) #x%08X : %s + %d", frame, pc, foreign_info.dli_sname,
 	    pc-((int)foreign_info.dli_saddr));
   } else {
+#endif
     Dprintf("(#x%08X) #x%08X : foreign code (%s)", frame, pc, "unknown");
+#ifndef STATIC
   }
-
+#endif
 }
 
 
@@ -283,12 +288,14 @@ foreign_name_and_offset(void *frame, unsigned *delta)
 #ifdef DARWIN
   void *pc = (void *) (((c_frame *)frame)->savelr);
 #endif
+#ifndef STATIC
   if (dladdr(pc, &info)) {
     if (delta) {
       *delta = (unsigned)pc - (unsigned)info.dli_saddr;
     }
     return info.dli_sname;
   }
+#endif
   if (delta) {
     *delta = 0;
   }
