@@ -434,9 +434,11 @@
 ;;; about 12pt probably wouldn't look too good.  10pt Courier's a little
 ;;; small, but allows us to see more of the modeline fields (like the
 ;;; full pathname) in more cases.
+
 (defloadvar *modeline-text-attributes* nil)
-(defparameter *modeline-font-name* "Courier New Bold Italic")
-(defparameter *modeline-font-size* 10.0)
+
+(def-cocoa-default *modeline-font-name* :string "Courier New Bold Italic")
+(def-cocoa-default  *modeline-font-size* :float 10.0)
 
 
 ;;; Find the underlying buffer.
@@ -921,7 +923,7 @@
           (format t "~& pos = ~d, n = ~d" pos n)
           (force-output)
 	  (send textstorage
-                :edited #$NSTextStorageEditedCharacters
+                :edited #$NSTextStorageEditedAttributes
                 :range (ns-make-range pos n)
                 :change-in-length (- n))
           (let* ((cache (hemlock-buffer-string-cache (send textstorage 'string))))
@@ -1131,11 +1133,11 @@
 |#
 
 (define-objc-method ((:void close) lisp-editor-document)
-  (send-super 'close)
   (let* ((textstorage (slot-value self 'textstorage)))
     (setf (slot-value self 'textstorage) (%null-ptr))
     (unless (%null-ptr-p textstorage)
-      (close-hemlock-textstorage textstorage))))
+      (close-hemlock-textstorage textstorage)))
+    (send-super 'close))
 
 
 (provide "COCOA-EDITOR")
