@@ -445,20 +445,15 @@ shutdown_thread_tcr(void *arg)
 
   area *vs, *ts, *cs;
 
-  if (tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN)) {
-    TCR *current_tls = tsd_get(lisp_global(TCR_KEY));
-    LispObj callback_macptr = nrs_FOREIGN_THREAD_CONTROL.vcell,
-      callback_ptr = ((macptr *)(untag(callback_macptr)))->address;
-    
-    tsd_set(lisp_global(TCR_KEY), tcr);
-    ((void (*)())callback_ptr)(1);
-    tsd_set(lisp_global(TCR_KEY),current_tls);
-  }
   
   if (--(tcr->shutdown_count) == 0) {
-#ifdef DEBUG_THREAD_CLEANUP
-    fprintf(stderr, "\nprocessing final shutdown request for pthread 0x%x tcr 0x%x", pthread_self(), tcr);
-#endif
+    if (tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN)) {
+      LispObj callback_macptr = nrs_FOREIGN_THREAD_CONTROL.vcell,
+	callback_ptr = ((macptr *)(untag(callback_macptr)))->address;
+    
+      tsd_set(lisp_global(TCR_KEY), tcr);
+      ((void (*)())callback_ptr)(1);
+    }
 #ifdef DARWIN
     darwin_exception_cleanup(tcr);
 #endif
@@ -485,10 +480,6 @@ shutdown_thread_tcr(void *arg)
     tcr->osid = 0;
   } else {
     tsd_set(lisp_global(TCR_KEY), tcr);
-#ifdef DEBUG_THREAD_CLEANUP
-    fprintf(stderr, "\nprocessing early shutdown request for pthread 0x%x tcr 0x%x, tsd = 0x%x",
-	    pthread_self(), tcr, tsd_get(lisp_global(TCR_KEY)));
-#endif
   }
 }
 
@@ -514,7 +505,9 @@ thread_init_tcr(TCR *tcr, void *stack_base, unsigned stack_size)
   tcr->native_thread_id = current_native_thread_id();
   a = register_cstack((BytePtr)stack_base, stack_size);
   tcr->cs_area = a;
-  tcr->cs_limit = (LispObj)a->softlimit;
+  if (!(tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN))) {
+    tcr->cs_limit = (LispObj)a->softlimit;
+  }
 #ifdef LINUX
   tcr->native_thread_info = current_r2;
 #endif
