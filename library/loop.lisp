@@ -1358,7 +1358,7 @@ collected result will be returned as the value of the LOOP."
     (setq *loop-names* (list name nil))))
 
 (defun loop-do-return ()
-  (loop-pseudo-body (loop-construct-return (loop-get-form))))
+  (loop-emit-body (loop-construct-return (loop-get-form))))
 
 
 ;;;; Value Accumulation: List
