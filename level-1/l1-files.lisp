@@ -1202,7 +1202,7 @@ Each function receives a module name as a single argument; if the function knows
 	    (load path))
 	  (unless (some (lambda (p) (funcall p module))
 			*module-provider-functions*)
-	    (error "Module ~A was not provided by any function on" module '*module-provider-functions*)))))
+	    (error "Module ~A was not provided by any function on ~S." module '*module-provider-functions*)))))
     (values module
 	    (set-difference *modules* original-modules))))
 
