@@ -169,10 +169,10 @@
       (let* ((count (- length (the fixnum n)))
 	     (head (cons nil nil))
 	     (tail head))
-	(declare (fixnum count) (list head tail) (dynamic-extent head))
+	(declare (fixnum count) (cons head tail) (dynamic-extent head))
 	;; Return a list of the first COUNT elements of list
 	(dotimes (i count (cdr head))
-	  (setq tail (rplacd tail (cons (pop list) nil))))))))
+	  (setq tail (cdr (rplacd tail (cons (pop list) nil)))))))))
 
 
 (defun nbutlast (list &optional (n 1 n-p))
