@@ -53,9 +53,10 @@
 	ppc-arch
         ppcenv
         ppc-asm
-        ppc-vinsns
+        ppc32-vinsns
         ppc-lap
 	ppc-backend
+	ppc32-backend
         ppc2
 ))
 
