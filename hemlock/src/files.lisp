@@ -30,24 +30,9 @@
     (let* ((first-line (mark-line mark))
            (buffer (line-%buffer first-line)))
       (modifying-buffer buffer)
-      (with-open-file (input pathname :direction :input :element-type 'character)
-        (do ((line (read-line input nil :eof) (read-line input nil :eof)))
-            ((eql line :eof))
-          (insert-string mark line)
-          (insert-character mark #\newline))))))
+      (cocoa-read-file pathname mark buffer))))
       
-;;; Hackish stuff for disgusting speed:
 
-(defun read-buffered-line (line)
-  ;; This function is not used at all by now --GB
-  (declare (ignore line))
-  (error "Oops, I am not supposed to be used.")
-  #+NIL
-  (let* ((len (line-buffered-p line))
-  	 (chars (make-string len)))
-    (%primitive byte-blt (line-%chars line) 0 chars 0 len)
-    (setf (line-buffered-p line) nil)
-    (setf (line-chars line) chars)))
 
 
 ;;; Write-File:

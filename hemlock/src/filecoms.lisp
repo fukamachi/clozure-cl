@@ -520,7 +520,11 @@
   (setf (buffer-writable buffer) t)
   (delete-region (buffer-region buffer))
   (let* ((pathname (pathname pathname))
-	 (probed-pathname (probe-file pathname)))
+	 (probed-pathname (probe-file pathname))
+         (hi::*buffer-gap-context*
+          (or (hi::buffer-gap-context buffer)
+              (setf (hi::buffer-gap-context buffer)
+                    (hi::make-buffer-gap-context)))))
     (cond (probed-pathname
 	   (read-file probed-pathname (buffer-point buffer))
 	   (setf (buffer-write-date buffer) (file-write-date probed-pathname)))
@@ -620,20 +624,16 @@
 
 (defcommand "Save File" (p &optional (buffer (current-buffer)))
   "Writes the contents of the current buffer to the associated file.  If there
-  is no associated file, once is prompted for."
+  is no associated file, one is prompted for."
   "Writes the contents of the current buffer to the associated file."
   (declare (ignore p))
-  (when (or (buffer-modified buffer)
-	    (prompt-for-y-or-n 
-	     :prompt "Buffer is unmodified, write it anyway? "
-	     :default t))
-    (write-buffer-file
-     buffer
-     (or (buffer-pathname buffer)
-	 (prompt-for-file :prompt "Save File: "
-			  :help "Name of file to write to"
-			  :default (buffer-default-pathname buffer)
-			  :must-exist nil)))))
+  (let* ((document (hi::buffer-document buffer)))
+    (when document
+      (when (or (buffer-modified buffer)
+                (prompt-for-y-or-n 
+                 :prompt "Buffer is unmodified, write it anyway? "
+                 :default t))
+          (hi::save-hemlock-document document)))))
 
 (defhvar "Save All Files Confirm"
   "When non-nil, prompts for confirmation before writing each modified buffer."
