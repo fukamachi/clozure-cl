@@ -251,26 +251,7 @@
 ;-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ;Wildcards
 
-(defun wild-pathname-p (pathname &optional field-key)
-  (flet ((wild-p (name) (or (eq name :wild)
-                            (eq name :wild-inferiors)
-                            (and (stringp name) (%path-mem "*" name)))))
-    (case field-key
-      ((nil)
-       (or (some #'wild-p (pathname-directory pathname))
-           (wild-p (pathname-name pathname))
-           (wild-p (pathname-type pathname))
-           (wild-p (pathname-version pathname))))
-      (:host nil)
-      (:device nil)
-      (:directory (some #'wild-p (pathname-directory pathname)))
-      (:name (wild-p (pathname-name pathname)))
-      (:type (wild-p (pathname-type pathname)))
-      (:version (wild-p (pathname-version pathname)))
-      (t (wild-pathname-p pathname
-                          (require-type field-key 
-                                        '(member nil :host :device 
-                                          :directory :name :type :version)))))))
+
 
  
 ;-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
