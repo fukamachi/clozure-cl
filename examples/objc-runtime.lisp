@@ -134,6 +134,8 @@
         (fill msv 0)
         (setf (splay-tree-root objc-class-map) nil
               (splay-tree-root objc-metaclass-map) nil
+              (splay-tree-count objc-class-map) 0
+              (splay-tree-count objc-metaclass-map) 0
               next-objc-class-id 0)))
     (defun map-objc-class (class)
       "ensure that the class (and metaclass) are mapped to a small integer"
@@ -156,6 +158,9 @@
         (splay-tree-get objc-metaclass-map meta)))
     (defun objc-class-map () objc-class-map)
     (defun objc-metaclass-map () objc-metaclass-map)))
+
+(pushnew #'%clear-objc-class-maps *save-exit-functions* :test #'eq
+         :key #'function-name)
 
 (defun map-objc-classes (f)
   (map-splay-tree (objc-class-map) #'(lambda (id)
@@ -219,7 +224,11 @@
           (progn (external-call "__CFRunLoopSetCurrent"
                                 :address main)
                  t))))))
-         
+
+(pushnew 'remap-all-library-classes *lisp-system-pointer-functions*)
+
+
+
 )					;#+darwinppc-target
 
 #+gnu-objc

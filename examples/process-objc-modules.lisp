@@ -157,7 +157,17 @@ class or metaclass object."
 	     (process-category-methods category methodfun)))
 	(%incf-ptr module (record-length :objc_module))))))
 	   
+(defun iterate-over-module-classes (sectptr size classfn)
+  (when *objc-module-verbose*
+    (format t "~& processing classes in section ~s" sectptr)
+    (force-output t))
+  (with-macptrs ((module sectptr))
+    (let* ((nmodules (/ size (record-length :objc_module))))
+      (dotimes (i nmodules)
+	(process-module-classes module classfn)
+	(%incf-ptr module (record-length :objc_module))))))
 
+	  
 (defun process-section-methods (sectptr size methodfun &optional
 					(section-check-fun #'true))
   "If SECTION-CHECK-FUN returns true when called with the (stack-allocated,
@@ -191,6 +201,16 @@ ignored."
 	method-function
 	#'check-if-section-already-scanned))))
 
+(defun remap-all-library-classes ()
+  (process-objc-modules
+   #'(lambda (sectptr size)
+       (iterate-over-module-classes
+        sectptr
+        size
+        #'(lambda (class)
+            (unless (logtest #$CLS_META (pref class :objc_class.info))
+              (map-objc-class class)))))))
+                        
 #|
 (note-all-library-methods #'(lambda (method class)
 			      (declare (ignore class))

@@ -33,24 +33,25 @@
 ;;; setup the CCL logical host translations again.
 (defun reset-ccl-directory ()
   (or (getenv "CCL_DEFAULT_DIRECTORY")
-      (let* ((bundle (send (@class ns-bundle) 'main-bundle))
-	     (ccl-dir (unless (%null-ptr-p bundle)
-			(send bundle :object-for-info-dictionary-key
-			      #@"CCLDefaultDirectory")))
-	     (bundle-path (unless (%null-ptr-p bundle)
-			    (send bundle 'bundle-path))))
-      (when (and ccl-dir (not (%null-ptr-p ccl-dir))
-		 bundle-path (not (%null-ptr-p bundle-path)))
-	(let* ((bundle-string (lisp-string-from-nsstring bundle-path))
-	       (ccl-string (lisp-string-from-nsstring ccl-dir))
-	       (bundle-len (length bundle-string)))
-	  (if (and (> bundle-len 0)
-		   (not (eql (schar bundle-string (1- bundle-len)) #\/)))
-	    (setq bundle-string (concatenate 'string bundle-string "/")))
-	  (let* ((default-dir (native-translated-namestring
-			       (merge-pathnames ccl-string bundle-string))))
-	    (setenv "CCL_DEFAULT_DIRECTORY" default-dir t)
-	    (init-logical-directories)))))))
+      (with-autorelease-pool
+          (let* ((bundle (send (@class ns-bundle) 'main-bundle))
+                 (ccl-dir (unless (%null-ptr-p bundle)
+                            (send bundle :object-for-info-dictionary-key
+                                  #@"CCLDefaultDirectory")))
+                 (bundle-path (unless (%null-ptr-p bundle)
+                                (send bundle 'bundle-path))))
+            (when (and ccl-dir (not (%null-ptr-p ccl-dir))
+                       bundle-path (not (%null-ptr-p bundle-path)))
+              (let* ((bundle-string (lisp-string-from-nsstring bundle-path))
+                     (ccl-string (lisp-string-from-nsstring ccl-dir))
+                     (bundle-len (length bundle-string)))
+                (if (and (> bundle-len 0)
+                         (not (eql (schar bundle-string (1- bundle-len)) #\/)))
+                  (setq bundle-string (concatenate 'string bundle-string "/")))
+                (let* ((default-dir (native-translated-namestring
+                                     (merge-pathnames ccl-string bundle-string))))
+                  (setenv "CCL_DEFAULT_DIRECTORY" default-dir t)
+                  (init-logical-directories))))))))
 
 
 (defclass cocoa-application (lisp-development-system)
