@@ -127,6 +127,7 @@
 (defparameter *xload-image-file* nil)
 (defvar *xload-image-file-name*)
 (defvar *xload-startup-file*)
+(defvar *xload-svar-alist* nil)
 
 
 (defstruct xload-space
@@ -716,9 +717,6 @@
       vector)))
                           
                           
-(defun target-pmcl-kernel-version ()
-  #x04008000)                           ; Get serious.
-
 
 (defun xfasload (output-file &rest pathnames)
   (let* ((*xload-symbols* (make-hash-table :test #'eq))
@@ -732,6 +730,7 @@
          (*xload-loading-file-source-file* nil)
          (*xload-vcell-refs* nil)
          (*xload-fcell-refs* nil)
+         (*xload-svar-alist* nil)
          (*xload-aliased-package-addresses* nil))
     (xload-make-word-ivector arch::subtag-u32-vector 1027 *xload-static-space*)
     ; Make NIL.  Note that NIL is sort of a misaligned cons (it straddles two doublewords.)
@@ -954,7 +953,6 @@
          (read-only-code (and (= subtag arch::subtag-code-vector) *xload-pure-code-p*)))
     (declare (fixnum subtag))
     (when (= subtag arch::subtag-xcode-vector)
-      (break "read an xcode-vector")
       (setq subtag arch::subtag-code-vector))
     (multiple-value-bind (vector v o)
                          (xload-make-ivector 
@@ -971,14 +969,32 @@
          v (+ o arch::misc-data-offset) element-count))
       vector)))
 
+;;; About all we do with svars is to canonicalize them.
 (defxloadfaslop $fasl-gvec (s)
   (let* ((subtype (%fasl-read-byte s))
-         (n (%fasl-read-size s))
-         (vector (xload-make-gvector subtype n)))
-    (declare (fixnum n))
-    (%epushval s vector)
-    (dotimes (i n (setf (faslstate.faslval s) vector))
-      (setf (xload-%svref vector i) (%fasl-expr s)))))
+         (n (%fasl-read-size s)))
+    (declare (fixnum subtype n))
+    (if (and (= subtype arch::subtag-svar)
+             (= n arch::svar.element-count))
+      (let* ((epush (faslstate.faslepush s))
+             (ecount (faslstate.faslecnt s)))
+        (when epush
+          (%epushval s 0))
+        (let* ((sym (%fasl-expr s))
+               (ignore (%fasl-expr s))
+               (vector (cdr (assq sym *xload-svar-alist*))))
+          (declare (ignore ignore))
+          (unless vector
+            (setq vector (xload-make-gvector subtype n))
+            (setf (xload-%svref vector arch::svar.symbol-cell) sym)
+            (push (cons sym vector) *xload-svar-alist*))
+          (when epush
+            (setf (svref (faslstate.faslevec s) ecount) vector))
+          (setf (faslstate.faslval s) vector)))
+      (let* ((vector (xload-make-gvector subtype n)))
+        (%epushval s vector)
+        (dotimes (i n (setf (faslstate.faslval s) vector))
+          (setf (xload-%svref vector i) (%fasl-expr s)))))))
 
 (defun xload-note-cell-ref (loc imm)
   (if (= loc arch::symbol.fcell)
