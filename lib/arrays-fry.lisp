@@ -219,20 +219,21 @@
                                            (cdr remaining-dimensions))))))))
 
 (defun adjust-array (array dims
-                     &key (element-type nil element-type-p)
-                          (initial-element nil initial-element-p)
-                          (initial-contents nil initial-contents-p)
-                          (fill-pointer nil fill-pointer-p)
-                          displaced-to
-                          displaced-index-offset
-                     &aux (subtype (array-element-subtype array)))
+			   &key (element-type nil element-type-p)
+			   (initial-element nil initial-element-p)
+			   (initial-contents nil initial-contents-p)
+			   (fill-pointer nil fill-pointer-p)
+			   displaced-to
+			   displaced-index-offset
+			   &aux (subtype (array-element-subtype array)))
   (when (and element-type-p
              (neq (element-type-subtype element-type) subtype))
     (error "~S is not of element type ~S" array element-type))
   (when (integerp dims)(setq dims (list dims))) ; because %displace-array wants the list
   (if (neq (list-length dims)(array-rank array))
     (error "~S has wrong rank for adjusting to dimensions ~S" array dims))
-  (let ((size 1))    
+  (let ((size 1)
+        (explicitp nil))
     (dolist (dim dims)
       (when (< dim 0)(report-bad-arg dims '(integer 0 *)))
       (setq size (* size dim)))
@@ -242,61 +243,64 @@
       (error "Cannot adjust array ~S to size less than fill pointer ~S"
              array (or fill-pointer (fill-pointer array))))
     (when (and fill-pointer (not (array-has-fill-pointer-p array)))
-        (error "~S does not have a fill pointer" array))
+      (error "~S does not have a fill pointer" array))
     (when (and displaced-index-offset (null displaced-to))
       (error "Cannot specify ~S without ~S" :displaced-index-offset :displaced-to))
     (when (and initial-element-p initial-contents-p)
-        (error "Cannot specify both ~S and ~S" :initial-element :initial-contents))
+      (error "Cannot specify both ~S and ~S" :initial-element :initial-contents))
     (cond 
-     ((not (adjustable-array-p array))
-      (let ((new-array (make-array-1  dims 
+      ((not (adjustable-array-p array))
+       (let ((new-array (make-array-1  dims 
                                        (array-element-type array) T
                                        displaced-to
                                        displaced-index-offset
                                        nil
-                                       fill-pointer
+                                       (or fill-pointer
+                                           (and (array-has-fill-pointer-p array)
+                                                (fill-pointer array)))
                                        initial-element initial-element-p
                                        initial-contents initial-contents-p
                                        size)))
                      
-        (when (and (null initial-contents-p)
-                   (null displaced-to))
-          (multiple-value-bind (array-data offs) (array-data-and-offset array)
-            (let ((new-array-data (array-data-and-offset new-array))) 
-              (cond ((null dims)
-                     (uvset new-array-data 0 (uvref array-data offs)))
-                    (T
-                   (init-array-data array-data offs (array-dimensions array) 
-                                    new-array-data 0 dims))))))
-        (setq array new-array)))
-     (T (cond 
-         (displaced-to
-          (if (and displaced-index-offset 
-                   (or (not (fixnump displaced-index-offset))
-                       (< displaced-index-offset 0)))
-            (report-bad-arg displaced-index-offset '(integer 0 #.most-positive-fixnum)))
-          (when (or initial-element-p initial-contents-p)
-            (error "Cannot specify initial values for displaced arrays"))
-          (unless (eq subtype (array-element-subtype displaced-to))
-            (error "~S is not of element type ~S"
-                   displaced-to (array-element-type array)))
-          (do* ((vec displaced-to (displaced-array-p vec)))
-               ((null vec) ())
-            (when (eq vec array)
-              (error "Array cannot be displaced to itself."))))
-         (T
-          (setq displaced-to ( %alloc-misc size subtype))      
-          (cond (initial-element-p
-                 (dotimes (i (the fixnum size)) (uvset displaced-to i initial-element)))
-                (initial-contents-p
-                 (if (null dims) (uvset displaced-to 0 initial-contents)
+	 (when (and (null initial-contents-p)
+		    (null displaced-to))
+	   (multiple-value-bind (array-data offs) (array-data-and-offset array)
+	     (let ((new-array-data (array-data-and-offset new-array))) 
+	       (cond ((null dims)
+		      (uvset new-array-data 0 (uvref array-data offs)))
+		     (T
+		      (init-array-data array-data offs (array-dimensions array) 
+				       new-array-data 0 dims))))))
+	 (setq array new-array)))
+      (T (cond 
+	   (displaced-to
+	    (if (and displaced-index-offset 
+		     (or (not (fixnump displaced-index-offset))
+			 (< displaced-index-offset 0)))
+	      (report-bad-arg displaced-index-offset '(integer 0 #.most-positive-fixnum)))
+	    (when (or initial-element-p initial-contents-p)
+	      (error "Cannot specify initial values for displaced arrays"))
+	    (unless (eq subtype (array-element-subtype displaced-to))
+	      (error "~S is not of element type ~S"
+		     displaced-to (array-element-type array)))
+	    (do* ((vec displaced-to (displaced-array-p vec)))
+		 ((null vec) ())
+	      (when (eq vec array)
+		(error "Array cannot be displaced to itself.")))
+	    (setq explicitp t))
+	   (T
+	    (setq displaced-to (%alloc-misc size subtype))
+	    (cond (initial-element-p
+		   (dotimes (i (the fixnum size)) (uvset displaced-to i initial-element)))
+		  (initial-contents-p
+		   (if (null dims) (uvset displaced-to 0 initial-contents)
                      (init-uvector-contents displaced-to 0 dims initial-contents))))
-          (cond ((null dims)
-                 (uvset displaced-to 0 (aref array)))
-                ((not initial-contents-p)
-                 (multiple-value-bind (vec offs) (array-data-and-offset array)
-                   (init-array-data vec offs (array-dimensions array) displaced-to 0 dims))))))
-        (%displace-array array dims size displaced-to (or displaced-index-offset 0))))
+	    (cond ((null dims)
+		   (uvset displaced-to 0 (aref array)))
+		  ((not initial-contents-p)
+		   (multiple-value-bind (vec offs) (array-data-and-offset array)
+		     (init-array-data vec offs (array-dimensions array) displaced-to 0 dims))))))
+	 (%displace-array array dims size displaced-to (or displaced-index-offset 0) explicitp)))
     (when fill-pointer-p
       (cond
         ((eq fill-pointer t)
@@ -335,7 +339,7 @@
 
 ; only caller is adjust-array
 
-(defun %displace-array (array dims size data offset)
+(defun %displace-array (array dims size data offset explicitp)
   (let* ((typecode (typecode array))
          (array-p (eql typecode ppc32::subtag-arrayH))
          (vector-p (eql typecode ppc32::subtag-vectorH)))
@@ -353,6 +357,10 @@
             (if (> (the fixnum (typecode data)) ppc32::subtag-vectorH)
               (bitclr $arh_disp_bit flags)
               (bitset $arh_disp_bit flags)))
+      (setf (%svref array ppc32::vectorH.flags-cell)
+            (if explicitp
+              (bitset $arh_exp_disp_bit flags)
+              (bitclr $arh_exp_disp_bit flags)))
       (setf (%svref array ppc32::arrayH.data-vector-cell) data)
       (if array-p
         (progn
