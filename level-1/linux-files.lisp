@@ -474,13 +474,6 @@
     (#_close fd)))
 
 
-(defmacro with-forked-pid (pidvar child-form parent-form)
-  `(let* ((,pidvar (#_fork)))
-    (declare (fixnum ,pidvar))
-    (cond ((zerop ,pidvar) ,child-form)
-          ((> ,pidvar 0) ,parent-form)
-          (t (%errno-disp ,pidvar)))))
-
 
 
 
@@ -514,6 +507,9 @@
   core
   args
   (signal (make-semaphore))
+  (completed (make-semaphore))
+  watched-fd
+  watched-stream
   )
 
 (defmethod print-object ((p external-process) stream)
@@ -526,7 +522,7 @@
 	(format stream " : ~d" (external-process-%exit-code p)))
       (format stream ")"))))
 
-(defun get-descriptor-for (object token close-in-parent close-on-error
+(defun get-descriptor-for (object proc close-in-parent close-on-error
 				  &rest keys &key direction
 				  &allow-other-keys)
   (etypecase object
@@ -597,72 +593,22 @@
 	    (values fd nil (cons fd close-in-parent) close-on-error))))
        (:output
 	(multiple-value-bind (read-pipe write-pipe) (pipe)
-	  (watch-fd-output read-pipe object token)
+          (setf (external-process-watched-fd proc) read-pipe
+                (external-process-watched-stream proc) object)
+          (incf (car (external-process-token proc)))
 	  (values write-pipe
 		  nil
 		  (cons write-pipe close-in-parent)
 		  (cons read-pipe close-on-error))))))))
 
 (let* ((external-processes ())
-       (watched-fd-handlers ())
-       (external-processes-lock (make-lock))
-       (watched-fd-handlers-lock (make-lock)))
+       (external-processes-lock (make-lock)))
   (defun add-external-process (p)
     (with-lock-grabbed (external-processes-lock)
       (push p external-processes)))
   (defun remove-external-process (p)
     (with-lock-grabbed (external-processes-lock)
       (setq external-processes (delete p external-processes))))
-  (defun add-watched-fd-handler (h)
-    (with-lock-grabbed (watched-fd-handlers-lock)
-      (push h watched-fd-handlers)))
-  (defun remove-watched-fd-handler (h)
-    (with-lock-grabbed (watched-fd-handlers-lock)
-      (setq watched-fd-handlers (delete h watched-fd-handlers))))
-  (defun watch-file-descriptors ()
-    (with-lock-grabbed (watched-fd-handlers-lock)
-      (dolist (h watched-fd-handlers) (funcall h))
-      (null watched-fd-handlers)))
-  (defun check-all-pids ()
-    (with-lock-grabbed (external-processes-lock)
-      (dolist (p external-processes)
-	(let* ((statusflags (check-pid (external-process-pid p)))
-	       (oldstatus (external-process-%status p)))
-	  (cond ((null statusflags)
-		 (remove-external-process p))
-		((eq statusflags t))	; Running.
-		(t
-		 (multiple-value-bind (status code core)
-		     (cond ((wifstopped statusflags)
-			    (values :stopped (wstopsig statusflags)))
-			   ((wifexited statusflags)
-			    (values :exited (wexitstatus statusflags)))
-			   (t
-			    (let* ((signal (wtermsig statusflags)))
-			      (declare (fixnum signal))
-			      (values
-			       (if (or (= signal #$SIGSTOP)
-				       (= signal #$SIGTSTP)
-				       (= signal #$SIGTTIN)
-				       (= signal #$SIGTTOU))
-				 :stopped
-				 :signaled)
-			       signal
-			       (logtest #$WCOREFLAG statusflags)))))
-		   (setf (external-process-%status p) status
-			 (external-process-%exit-code p) code
-			 (external-process-core p) core)
-		   (let* ((status-hook (external-process-status-hook p)))
-		     (when (and status-hook (not (eq oldstatus status)))
-		       (funcall status-hook p)))
-		   (when (or (eq status :exited)
-			     (eq status :signaled))
-		     (remove-external-process p)))))))
-      (null external-processes)))
-  ;; Returns a copy, for debugging.
-  (defun watched-fd-handlers ()
-    (with-lock-grabbed (watched-fd-handlers-lock)
-      (copy-list watched-fd-handlers)))
   ;; Likewise
   (defun external-processes ()
     (with-lock-grabbed (external-processes-lock)
@@ -692,7 +638,70 @@
 			(write-sequence string out-stream :end n))))))))
     (add-watched-fd-handler handler))
   nil)
-  
+
+(defun monitor-external-process (p)
+  (let* ((in-fd (external-process-watched-fd p))
+         (out-stream (external-process-watched-stream p))
+         (token (external-process-token p))
+         (terminated))
+    (loop
+      (when (and terminated (null in-fd))
+        (signal-semaphore (external-process-completed p))
+        (return))
+      (if in-fd
+        (progn
+          (format t "~& waiting for input")
+        (when (fd-input-available-p in-fd *ticks-per-second*)
+          (%stack-block ((buf 1024))
+            (let* ((n (fd-read in-fd buf 1024)))
+              (declare (fixnum n))
+              (format t "~& n bytes available")
+              (if (<= n 0)
+                (progn
+                  (without-interrupts
+                   (decf (car token))
+                   (fd-close in-fd)
+                   (setq in-fd nil)))
+                (let* ((string (make-string 1024)))
+                  (declare (dynamic-extent string))
+                  (%copy-ptr-to-ivector buf 0 string 0 n)
+                  (write-sequence string out-stream :end n)))))))
+        (sleep 1))
+      (let* ((statusflags (check-pid (external-process-pid p)))
+             (oldstatus (external-process-%status p)))
+        (cond ((null statusflags)
+               (remove-external-process p)
+               (setq terminated t))
+              ((eq statusflags t))	; Running.
+              (t
+               (multiple-value-bind (status code core)
+                   (cond ((wifstopped statusflags)
+                          (values :stopped (wstopsig statusflags)))
+                         ((wifexited statusflags)
+                          (values :exited (wexitstatus statusflags)))
+                         (t
+                          (let* ((signal (wtermsig statusflags)))
+                            (declare (fixnum signal))
+                            (values
+                             (if (or (= signal #$SIGSTOP)
+                                     (= signal #$SIGTSTP)
+                                     (= signal #$SIGTTIN)
+                                     (= signal #$SIGTTOU))
+                               :stopped
+                               :signaled)
+                             signal
+                             (logtest #$WCOREFLAG statusflags)))))
+                 (setf (external-process-%status p) status
+                       (external-process-%exit-code p) code
+                       (external-process-core p) core)
+                 (let* ((status-hook (external-process-status-hook p)))
+                   (when (and status-hook (not (eq oldstatus status)))
+                     (funcall status-hook p)))
+                 (when (or (eq status :exited)
+                           (eq status :signaled))
+                   (remove-external-process p)
+                   (setq terminated t)))))))))
+      
 (defun run-external-process (proc in-fd out-fd error-fd)
   (call-with-string-vector
    #'(lambda (argv)
@@ -706,8 +715,9 @@
 	       ((> child-pid 0)
 		;; Running in the parent: success
 		(setf (external-process-pid proc) child-pid)
+		(add-external-process proc)
 		(signal-semaphore (external-process-signal proc))
-		(add-external-process proc)))))
+                (monitor-external-process proc)))))
    (external-process-args proc)))
 
 		
@@ -730,42 +740,47 @@
 	 (error-stream nil)
 	 (close-in-parent nil)
 	 (close-on-error nil)
-	 (proc nil))
+	 (proc
+          (make-external-process
+           :pid nil
+           :args args
+           :%status :running
+           :input nil
+           :output nil
+           :error nil
+           :token token
+           :status-hook status-hook)))
     (unwind-protect
 	 (progn
 	   (multiple-value-setq (in-fd in-stream close-in-parent close-on-error)
-	     (get-descriptor-for input token nil nil :direction :input
+	     (get-descriptor-for input proc  nil nil :direction :input
 				 :if-does-not-exist if-input-does-not-exist))
 	   (multiple-value-setq (out-fd out-stream close-in-parent close-on-error)
-	     (get-descriptor-for output token close-in-parent close-on-error
+	     (get-descriptor-for output proc close-in-parent close-on-error
 				 :direction :output
 				 :if-exists if-output-exists))
 	   (multiple-value-setq (error-fd error-stream close-in-parent close-on-error)
 	     (if (eq error :output)
 	       (values out-fd out-stream close-in-parent close-on-error)
-	       (get-descriptor-for error token close-in-parent close-on-error
+	       (get-descriptor-for error proc close-in-parent close-on-error
 				   :direction :output
 				   :if-exists if-error-exists)))
-	   (setq proc
-		 (make-external-process
-		  :pid nil
-		  :args args
-		  :%status :running
-		  :input in-stream
-		  :output out-stream
-		  :error error-stream
-		  :token token
-		  :status-hook status-hook))
-	   (process-interrupt *initial-process* #'run-external-process proc in-fd out-fd error-fd)
-	   (wait-on-semaphore (external-process-signal proc))
-	   )
+	   (setf (external-process-input proc) in-stream
+                 (external-process-output proc) out-stream
+                 (external-process-error proc) error-stream)
+           (process-run-function
+            (format nil "Monitor thread for external process ~a" args)
+                    
+            #'run-external-process proc in-fd out-fd error-fd)
+           (wait-on-semaphore (external-process-signal proc))
+      )
 
-      (dolist (fd close-in-parent) (fd-close fd))
-      (unless (external-process-pid proc)
-	(dolist (fd close-on-error) (fd-close fd)))
-      (when (and wait (external-process-pid proc))
-	(external-process-wait proc)))
-    (and proc (external-process-pid proc) proc)))
+    (dolist (fd close-in-parent) (fd-close fd))
+    (unless (external-process-pid proc)
+      (dolist (fd close-on-error) (fd-close fd)))
+    (when (and wait (external-process-pid proc))
+      (wait-on-semaphore (external-process-completed proc))))
+    (and (external-process-pid proc) proc)))
 
 #|
        WIFEXITED(status)
