@@ -416,7 +416,7 @@
 (defun tcr-exhausted-p (tcr)
   (or (null tcr)
       (eql tcr 0)
-      (unless (logbitp ppc32::tcr-flag-bit-awaiting-preset
+      (unless (logbitp arch::tcr-flag-bit-awaiting-preset
 		       (the fixnum (tcr-flags tcr)))
 	(let* ((vs-area (%fixnum-ref tcr ppc32::tcr.vs-area)))
 	  (declare (fixnum vs-area))
@@ -490,7 +490,7 @@
 (defun cleanup-thread-tcr (thread tcr)
   (let* ((flags (%fixnum-ref tcr ppc32::tcr.flags)))
     (declare (fixnum flags))
-    (if (logbitp ppc32::tcr-flag-bit-awaiting-preset flags)
+    (if (logbitp arch::tcr-flag-bit-awaiting-preset flags)
       (thread-change-state thread :run :reset)
       (progn
 	(thread-change-state thread :run :exit)
@@ -533,13 +533,13 @@
   (let* ((flags (%fixnum-ref tcr ppc32::tcr.flags)))
     (declare (fixnum flags))
     (setf (%fixnum-ref tcr ppc32::tcr.flags)
-	  (bitclr ppc32::tcr-flag-bit-awaiting-preset flags))))
+	  (bitclr arch::tcr-flag-bit-awaiting-preset flags))))
 
 (defun tcr-set-preset-state (tcr)
   (let* ((flags (%fixnum-ref tcr ppc32::tcr.flags)))
     (declare (fixnum flags))
     (setf (%fixnum-ref tcr ppc32::tcr.flags)
-	  (bitset ppc32::tcr-flag-bit-awaiting-preset flags))))  
+	  (bitset arch::tcr-flag-bit-awaiting-preset flags))))  
 
 (defun %activate-tcr (tcr)
   (if (and tcr (not (eql 0 tcr)))
