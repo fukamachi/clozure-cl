@@ -1606,21 +1606,20 @@
 
 (defun %hash-table-equalp (x y)
   ; X and Y are both hash tables
-  (let* ((test (hash-table-test x)))
-    (and (eq test
-             (hash-table-test y))
-         (eql (hash-table-count x)
-              (hash-table-count y))
-         (block nil
-           (let* ((default (cons nil nil))
-                  (foo #'(lambda (k v)
-                           (let ((y-value (gethash k y default)))
-                             (unless (and (neq default y-value)
-                                          (funcall test v y-value))
-                               (return nil))))))
-             (declare (dynamic-extent foo default))
-             (maphash foo x))
-           t))))
+  (and (eq (hash-table-test x)
+           (hash-table-test y))
+       (eql (hash-table-count x)
+            (hash-table-count y))
+       (block nil
+         (let* ((default (cons nil nil))
+                (foo #'(lambda (k v)
+                         (let ((y-value (gethash k y default)))
+                           (unless (and (neq default y-value)
+                                        (equalp v y-value))
+                             (return nil))))))
+           (declare (dynamic-extent foo default))
+           (maphash foo x))
+         t)))
 
 (defun sxhash (s-expr)
   "Computes a hash code for S-EXPR and returns it as an integer."
