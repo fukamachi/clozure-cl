@@ -173,7 +173,7 @@
   (funcall (%wrapper-slot-id-value (instance.class-wrapper instance))
            instance slot-id))
 (defun %slot-id-ref-missing (instance slot-id)
-  (slot-missing (class-of instance) instance (slot-id.name slot-id) 'slot-value))
+  (values (slot-missing (class-of instance) instance (slot-id.name slot-id) 'slot-value)))
 
 (defun %slot-id-set-obsolete (instance slot-id new-value)
   (update-obsolete-instance instance)
@@ -181,7 +181,9 @@
            instance slot-id new-value))
 
 (defun %slot-id-set-missing (instance slot-id new-value)
-  (slot-missing (class-of instance) instance (slot-id.name slot-id) '(setf slot-value) new-value))
+  (slot-missing (class-of instance) instance (slot-id.name slot-id) 'setf new-value)
+  new-value
+  )
 
 
 
@@ -546,7 +548,7 @@
   (let* ((def (fboundp function-name)))
     (when (and def (not (typep def 'generic-function)))
       (cerror "Try to remove any global non-generic function or macro definition."
-	      "~s is defined as something other than a generic function." function-name)
+	      (make-condition 'simple-program-error :format-control "The functio ~s is defined as something other than a generic function." :format-arguments (list function-name)))
       (fmakunbound function-name)
       (setq def nil))
     (apply #'%ensure-generic-function-using-class def function-name keys)))
@@ -1059,9 +1061,9 @@
                  #'missing-type-method
                  nil
                  nil
-                 #'(lambda (x y) (vanilla-union x y))
+                 #'(lambda (x y) (hierarchical-union2 x y))
                  nil
-                 #'(lambda (x y) (vanilla-intersection x y))
+                 #'(lambda (x y) (hierarchical-intersection2 x y))
                  nil
                  #'missing-type-method
                  nil
@@ -1097,6 +1099,8 @@
 (new-type-class 'union)
 (new-type-class 'foreign)
 (new-type-class 'cons)
+(new-type-class 'intersection)
+(new-type-class 'negation)
 (defparameter *class-type-class* (new-type-class 'class))
 
 
@@ -1581,6 +1585,8 @@ to replace that class with ~s" name old-class new-class)
 (make-built-in-class 'union-ctype *ctype-class*)
 (make-built-in-class 'foreign-ctype *ctype-class*)
 (make-built-in-class 'class-ctype *ctype-class*)
+(make-built-in-class 'negation-ctype *ctype-class*)
+(make-built-in-class 'intersection-ctype *ctype-class*)
 
 
 (make-built-in-class 'complex (find-class 'number))
@@ -2289,7 +2295,7 @@ to replace that class with ~s" name old-class new-class)
 	   (slotd (find-slotd slot-name (%class-slots class))))
       (if slotd
 	(slot-value-using-class class instance slotd)
-	(slot-missing class instance slot-name 'slot-value))))
+	(values (slot-missing class instance slot-name 'slot-value)))))
     
 
 
@@ -2315,16 +2321,19 @@ to replace that class with ~s" name old-class new-class)
 	     (slotd (find-slotd  name (%class-slots class))))
 	(if slotd
 	  (setf (slot-value-using-class class instance slotd) value)
-	  (slot-missing class instance name '(setf slot-value) value))))
+	  (progn	    
+	    (slot-missing class instance name 'setf value)
+	    value))))
 
 (defsetf slot-value set-slot-value)
 
 (defun slot-makunbound (instance name)
-    (let* ((class (class-of instance))
-	   (slotd (find-slotd name (%class-slots class))))
-      (if slotd
-	(slot-makunbound-using-class class instance slotd)
-	(slot-missing class instance name 'slot-makunbound))))
+  (let* ((class (class-of instance))
+	 (slotd (find-slotd name (%class-slots class))))
+    (if slotd
+      (slot-makunbound-using-class class instance slotd)
+      (slot-missing class instance name 'slot-makunbound))
+    instance))
 
 (defun %std-slot-vector-boundp (slot-vector slotd)
   (let* ((loc (standard-effective-slot-definition.location slotd)))
@@ -2354,7 +2363,7 @@ to replace that class with ~s" name old-class new-class)
 	 (slotd (find-slotd name (%class-slots class))))
     (if slotd
       (slot-boundp-using-class class instance slotd)
-      (slot-missing class instance name 'slot-boundp))))
+      (values (slot-missing class instance name 'slot-boundp)))))
 
 (defun slot-value-if-bound (instance name &optional default)
   (if (slot-boundp instance name)
@@ -2643,13 +2652,12 @@ to replace that class with ~s" name old-class new-class)
 	   ((null (cdr tail))
 	    (if bad-keys?
 	      (if errorp
-		(error #'(lambda (stream key name class vect)
-			   (let ((*print-array* t))
-			     (format stream 
-				     "~s is an invalid initarg to ~s for ~s.~%~
+		(signal-program-error
+		 "~s is an invalid initarg to ~s for ~s.~%~
                                     Valid initargs: ~s."
-				     key name class vect)))
-		       bad-key (function-name (car functions)) class initvect)
+		 bad-key
+		 (function-name (car functions))
+		 class (coerce initvect 'list))
 		(values bad-keys? bad-key))))
 	(if (eq initarg :allow-other-keys)
 	  (if (cadr tail)
@@ -3070,7 +3078,7 @@ to replace that class with ~s" name old-class new-class)
 (defun canonicalize-argument-precedence-order (apo req)
   (cond ((equal apo req) nil)
         ((not (eql (length apo) (length req)))
-         (error "Lengths of ~S and ~S differ." apo req))
+         (signal-program-error "Lengths of ~S and ~S differ." apo req))
         (t (let ((res nil))
              (dolist (arg apo (nreverse res))
                (let ((index (position arg req)))
