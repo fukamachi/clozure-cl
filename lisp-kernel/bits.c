@@ -17,7 +17,7 @@
 
 #include "lisp.h"
 #include "bits.h"
-
+#include "lisp-exceptions.h"
 
 
 /* This should be a lot faster than calling set_bit N times */
