@@ -973,7 +973,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                 (return-from alice  ; if several slashified
                   (write-escaped-string name stream #\|)))
               (when (or ;; could be read as a number -- is there no simpler way?
-                     (%parse-number-token name 0 len *read-base*)
+                     (%parse-number-token name 0 len *print-base*)
                      ;; commonlisp doesn't like symbols consisting entirely of .'s
                      (dotimes (i len t)
                        (declare (fixnum i))
