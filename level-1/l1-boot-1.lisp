@@ -47,11 +47,7 @@
   (%str-cat "Version " (format nil *openmcl-version* (software-type))))
 
 
-  
 
-
-
-(defun home-directory () ())
 
 (defun replace-base-translation (host-dir new-base-dir)
   (let* ((host (pathname-host host-dir))
@@ -90,6 +86,7 @@
 
 (push #'init-logical-directories *lisp-system-pointer-functions*)
 
+
 (catch :toplevel
   (setq *loading-file-source-file* nil)  ;Reset from last %fasload...
   (init-logical-directories)
@@ -99,18 +96,4 @@
 
 
 
-(defloadvar *heap-image-name*
-    (let* ((p (%null-ptr)))
-      (declare (dynamic-extent p))
-      (%get-cstring (%get-kernel-global-ptr 'ppc32::image-name p))))
 
-(defloadvar *command-line-argument-list*
-  (let* ((argv (%null-ptr))
-	 (res ()))
-    (declare (dynamic-extent argv))
-    (%get-kernel-global-ptr 'ppc32::argv argv)
-    (do* ((i 0 (+ i 4))
-	  (arg (%get-ptr argv i) (%get-ptr argv i)))
-	 ((%null-ptr-p arg) (nreverse res))
-      (declare (fixnum i))
-      (push (%get-cstring arg) res))))
