@@ -2002,16 +2002,17 @@
 
 (defformat #\R format-print-radix (stream colon atsign &rest parms)
   (declare (dynamic-extent parms))
-  (let ((number (pop-format-arg)))
-       (if parms
-           (format-print-number stream number (pop parms) colon atsign parms)
-           (if atsign
-               (if colon
-                   (format-print-old-roman stream number)
-                   (format-print-roman stream number))
-               (if colon
-                   (format-print-ordinal stream number)
-                   (format-print-cardinal stream number))))))
+  (let ((number (pop-format-arg))
+        (parm (if parms (pop parms) nil)))
+    (if parm
+        (format-print-number stream number parm colon atsign parms)
+        (if atsign
+            (if colon
+                (format-print-old-roman stream number)
+                (format-print-roman stream number))
+            (if colon
+                (format-print-ordinal stream number)
+                (format-print-cardinal stream number))))))
 
 ;;; FLOATING-POINT NUMBERS
 
