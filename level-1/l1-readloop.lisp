@@ -685,7 +685,8 @@
                (cheap-eval-in-environment (if (cheap-eval-in-environment test env) true false) env)))
             ((eq sym 'locally) (progn-in-env (%cdr form) env env))
             ((eq sym 'symbol-macrolet)
-             (progn-in-env (cddr form) env (augment-environment env :symbol-macro (cadr form))))
+	     (multiple-value-bind (body decls) (parse-body (cddr form) env)
+	       (progn-in-env body env (augment-environment env :symbol-macro (cadr form) :declare (decl-specs-from-declarations decls)))))
             ((eq sym 'macrolet)
              (let ((temp-env (augment-environment env
                                                   :macro 
