@@ -218,5 +218,5 @@ ignored."
 |#
 
 )
-(provide "PROCESS-COCOA-MODULES") 
+(provide "PROCESS-OBJC-MODULES") 
 
