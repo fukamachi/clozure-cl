@@ -704,10 +704,7 @@
         (if methods
           (remove-method gf (car methods))
           (return))))
-    (%set-defgeneric-keys gf nil)
-    (inner-lfun-bits gf (%ilogior (%ilsl $lfbits-gfn-bit 1)
-                            (%ilogand $lfbits-args-mask
-                                      (lfun-bits (%method-function method))))))
+    (%set-defgeneric-keys gf nil))
   gf)
 
 
@@ -2045,6 +2042,9 @@
   (setf (specializer.direct-methods spec)
 	(nremove method (specializer.direct-methods spec))))
 
+(ensure-generic-function 'initialize-instance
+			 :lambda-list '(instance &rest initargs &key &allow-other-keys))
+
 (defmethod find-method ((generic-function standard-generic-function)
                         method-qualifiers specializers &optional (errorp t))
   (dolist (m (%gf-methods generic-function)
@@ -2620,28 +2620,29 @@
   (declare (dynamic-extent functions))
   (declare (list functions))
   (setq class (require-type (or class (class-of instance)) 'std-class))
-  (let ((initvect (initargs-vector instance class functions)))
-    (when (eq initvect t) (return-from check-initargs nil))
-    (do* ((tail initargs (cddr tail))
-          (initarg (car tail) (car tail))
-          bad-keys? bad-key)
-         ((null (cdr tail))
-          (if bad-keys?
-            (if errorp
-              (error #'(lambda (stream key name class vect)
-                         (let ((*print-array* t))
-                           (format stream 
-                                   "~s is an invalid initarg to ~s for ~s.~%~
+  (unless (getf initargs :allow-other-keys)
+    (let ((initvect (initargs-vector instance class functions)))
+      (when (eq initvect t) (return-from check-initargs nil))
+      (do* ((tail initargs (cddr tail))
+	    (initarg (car tail) (car tail))
+	    bad-keys? bad-key)
+	   ((null (cdr tail))
+	    (if bad-keys?
+	      (if errorp
+		(error #'(lambda (stream key name class vect)
+			   (let ((*print-array* t))
+			     (format stream 
+				     "~s is an invalid initarg to ~s for ~s.~%~
                                     Valid initargs: ~s."
-                                   key name class vect)))
-                     bad-key (function-name (car functions)) class initvect)
-              (values bad-keys? bad-key))))
-      (if (eq initarg :allow-other-keys)
-        (if (cadr tail)
-          (return))                   ; (... :allow-other-keys t ...)
-        (unless (or bad-keys? (%vector-member initarg initvect))
-          (setq bad-keys? t
-                bad-key initarg))))))
+				     key name class vect)))
+		       bad-key (function-name (car functions)) class initvect)
+		(values bad-keys? bad-key))))
+	(if (eq initarg :allow-other-keys)
+	  (if (cadr tail)
+	    (return))                   ; (... :allow-other-keys t ...)
+	  (unless (or bad-keys? (%vector-member initarg initvect))
+	    (setq bad-keys? t
+		  bad-key initarg)))))))
 
 (defun initargs-vector (instance class functions)
   (let ((index (cadr (assq (car functions) *initialization-invalidation-alist*))))
@@ -2658,6 +2659,8 @@
   (let ((initargs (class-slot-initargs class))
         (cpl (%inited-class-cpl class)))
     (dolist (f functions)         ; for all the functions passed
+      (if (logbitp $lfbits-aok-bit (lfun-bits f))
+	(return-from compute-initargs-vector t))
       (dolist (method (%gf-methods f))   ; for each applicable method
         (let ((spec (car (%method-specializers method))))
           (when (if (typep spec 'eql-specializer)
@@ -3092,6 +3095,7 @@
   (unless (and (eq type 'standard) (null options))
     (error "non-standard method-combination not supported yet."))
   *standard-method-combination*)
+
 
 
 (defmethod add-direct-method ((spec specializer) (method method))
