@@ -159,6 +159,8 @@ GB
     "This hook is called whenever a buffer changes from unmodified to modified
      and vice versa.  It takes the buffer and the new value for modification
      flag.")
+  (defhvar "Buffer Package Hook"
+      "This hook is called with the new package name whenever a (Lisp) buffer's package changes")
   (defhvar "Set Buffer Hook"
     "This hook is called with the new buffer when the current buffer is set.")
   (defhvar "After Set Buffer Hook"

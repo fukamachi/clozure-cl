@@ -237,7 +237,6 @@ other than :DEFAULT"
   (add-hook hemlock::buffer-name-hook 'queue-buffer-change)
   (add-hook hemlock::buffer-pathname-hook 'queue-buffer-change)
   (add-hook hemlock::buffer-modified-hook 'queue-buffer-change)
-  (add-hook hemlock::
   (add-hook hemlock::window-buffer-hook 'queue-window-change))
 
 (defun queue-buffer-change (buffer &optional something-else another-else)
