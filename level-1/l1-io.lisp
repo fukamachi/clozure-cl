@@ -515,13 +515,14 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 (defun %print-unreadable-object (object stream type id thunk)
   (write-unreadable-start object stream)
   (when type
-    (princ (type-of object) stream))
+    (princ (type-of object) stream)
+    (stream-write-char stream #\space))
   (when thunk 
-    (when type (stream-write-char stream #\space))
     (funcall thunk))
   (if id
     (%write-address object stream #\>)
-    (pp-end-block stream ">")))
+    (pp-end-block stream ">"))
+  nil)
 
 ;;;; ======================================================================
 ;;;; internals of internals of write-internal
