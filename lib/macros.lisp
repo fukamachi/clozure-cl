@@ -423,7 +423,7 @@
     (let ((stream (gensym)))
       (setq format-string `#'(lambda (,stream) (format ,stream ,format-string ,@format-args)))))
   `(let* ((,temp (%cons-restart ',restart-name
-                                nil
+                                #'(lambda () (values nil t))
                                 ,format-string
                                 nil
                                 nil))
@@ -2866,3 +2866,38 @@
       (incf index))
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        ,@(nreverse results))))
+
+
+;;; This does something like special binding, but the "bindings" established
+;;; aren't thread-specific.
+
+(defmacro let-globally ((&rest vars) &body body &environment env)
+  (multiple-value-bind (body decls) (parse-body body env)
+    (let* ((initforms nil)
+           (psetform nil)
+           (specvars nil)
+           (restoreform nil))
+      (flet ((pair-name-value (p)
+               (if (atom p)
+                 (values (require-global-symbol p env) nil)
+                 (if (and (consp (%cdr p)) (null (%cddr p)))
+                   (values (require-global-symbol (%car p) env) (%cadr p))
+                   (error "Invalid variable initialization form : ~s")))))
+        (declare (inline pair-name-value))
+        (dolist (v vars)
+          (let* ((oldval (gensym))
+                 (newval (gensym)))
+            (multiple-value-bind (var valueform) (pair-name-value v)
+              (push var specvars)
+              (push var restoreform)
+              (push oldval restoreform)
+              (push `(,oldval (uvref ',var #.ppc32::symbol.vcell-cell)) initforms)
+              (push `(,newval ,valueform) initforms)
+              (push var psetform)
+              (push newval psetform))))
+        `(let ,(nreverse initforms)
+           ,@decls
+           (locally (declare (special ,@(nreverse specvars)))
+             (unwind-protect
+               (progn (psetq ,@(nreverse psetform)) ,@body)
+               (psetq ,@(nreverse restoreform)))))))))
