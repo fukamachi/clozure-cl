@@ -6,6 +6,19 @@
 
 (in-package :hemlock-internals)
 
+(defstruct command-interpreter-info
+  (current-command (make-array 10 :fill-pointer 0 :adjustable t))
+  (current-translation (make-array 10 :fill-pointer 0 :adjustable t))
+  (last-command-type nil)
+  (command-type-set nil)
+  (prefix-argument nil)
+  (prefix-argument-supplied nil)
+  frame
+  (function nil)
+  )
+
+(defvar *current-command-info* nil)
+
 (defun buffer-windows (buffer)
   (let* ((doc (buffer-document buffer)))
     (when doc
