@@ -482,6 +482,9 @@ shutdown_thread_tcr(void *arg)
     destroy_semaphore(&tcr->resume);
     destroy_semaphore(&tcr->reset_completion);
     destroy_semaphore(&tcr->activate);
+    free(tcr->tlb_pointer);
+    tcr->tlb_pointer = NULL;
+    tcr->tlb_limit = 0;
     tcr->osid = 0;
     UNLOCK(lisp_global(AREA_LOCK),tcr);
   } else {
@@ -835,6 +838,7 @@ suspend_other_threads()
   int dead_tcr_count = 0;
 
   LOCK(lisp_global(TCR_LOCK), current);
+  LOCK(lisp_global(AREA_LOCK), current);
   for (other = current->next; other != current; other = other->next) {
     if ((other->osid != 0)) {
       suspend_tcr(other);
@@ -864,6 +868,7 @@ resume_other_threads()
   for (other = current->next; other != current; other = other->next) {
     resume_tcr(other);
   }
+  UNLOCK(lisp_global(AREA_LOCK), current);
   UNLOCK(lisp_global(TCR_LOCK), current);
 }
 
