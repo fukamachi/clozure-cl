@@ -2043,7 +2043,8 @@
 ; called with w = 11 d = 16 - dont do it after all.
 
 (defun format-fixed-aux (stream number w d k ovf pad atsign)
-  (if  (not (or w d))  ; perhaps put this back when prin1 is better
+  (and w (<= w 0) (setq w nil))  ; if width is unreasonable, ignore it.
+  (if (not (or w d))  ; perhaps put this back when prin1 is better
     (prin1 number stream)
     (let ((spaceleft w)
           (abs-number (abs number))
