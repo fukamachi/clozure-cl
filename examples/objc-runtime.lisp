@@ -1237,13 +1237,13 @@ argument lisp string."
   
 (defun %objc-instance-class-index (p)
   #+apple-objc
-  (if (or (pointer-in-cfstring-section-p p)
-	  (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
-	    (not (%null-ptr-p zone))))
+  (if (or (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
+	    (not (%null-ptr-p zone)))
+          (pointer-in-cfstring-section-p p))
     (with-macptrs ((parent (pref p :objc_object.isa)))
       (objc-class-id parent)))
   #+gnu-objc
-  (with-macptrs ((parent (pref p objc_object.class_pointer)))
+  (with-macptrs ((parent (pref p :objc_object.class_pointer)))
     (objc-class-id-parent))
   )
 
@@ -1500,7 +1500,10 @@ argument lisp string."
 			typestring
                         struct-return)
       (parse-objc-method selector-arg class-arg body)
+    (let* ((self (intern "SELF")))
       (multiple-value-bind (body decls) (parse-body body env)
+        (unless class-p
+          (push `(%set-objc-instance-type ,self) body))
 	(setq body (coerce-foreign-boolean-args argspecs body))
 	(if (eq resulttype :<BOOL>)
 	  (setq body (lisp-boolean->foreign-boolean body)))
@@ -1508,7 +1511,6 @@ argument lisp string."
 					(if class-p #\+ #\-)
 					class-name
 					selector-name)))
-	       (self (intern "SELF"))
 	       (_cmd (intern "_CMD"))
 	       (super (gensym "SUPER"))
 	       (params `(:id ,self :<sel> ,_cmd)))
@@ -1518,38 +1520,38 @@ argument lisp string."
           (setq params (nconc params argspecs))
 	  `(progn
 	    (defcallback ,impname
-		    (:without-interrupts nil
-					 #+(and openmcl-native-threads apple-objc) :error-return
-					 #+(and openmcl-native-threads apple-objc)  (condition objc-callback-error-return) ,@params ,resulttype)
-		  (declare (ignorable ,_cmd))
-		  ,@decls
-		  (rlet ((,super :objc_super
-			   #+apple-objc :receiver #+gnu-objc :self ,self
-			   :class
-			   ,@(if class-p
-				 `((pref
-				    (pref (@class ,class-name)
-				     #+apple-objc :objc_class.isa
-				     #+gnu-objc :objc_class.super_class )
-				    :objc_class.super_class))
-				 `((pref (@class ,class-name) :objc_class.super_class)))))
-		    (macrolet ((send-super (msg &rest args &environment env) 
-				 (make-optimized-send nil msg args env nil ',super ,class-name))
-			       (send-super/stret (s msg &rest args &environment env) 
-				 (make-optimized-send nil msg args env s ',super ,class-name)))
-		      (flet ((%send-super (msg &rest args)
-			       (make-general-send nil msg args nil ,super ,class-name))
-			     (%send-super/stret (s msg &rest args)
-			       (make-general-send nil msg args s ,super ,class-name))
-			     (super () ,super))
-			,@body))))
+                (:without-interrupts nil
+                 #+(and openmcl-native-threads apple-objc) :error-return
+                 #+(and openmcl-native-threads apple-objc)  (condition objc-callback-error-return) ,@params ,resulttype)
+              (declare (ignorable ,_cmd))
+              ,@decls
+              (rlet ((,super :objc_super
+                       #+apple-objc :receiver #+gnu-objc :self ,self
+                       :class
+                       ,@(if class-p
+                             `((pref
+                                (pref (@class ,class-name)
+                                 #+apple-objc :objc_class.isa
+                                 #+gnu-objc :objc_class.super_class )
+                                :objc_class.super_class))
+                             `((pref (@class ,class-name) :objc_class.super_class)))))
+                (macrolet ((send-super (msg &rest args &environment env) 
+                             (make-optimized-send nil msg args env nil ',super ,class-name))
+                           (send-super/stret (s msg &rest args &environment env) 
+                             (make-optimized-send nil msg args env s ',super ,class-name)))
+                  (flet ((%send-super (msg &rest args)
+                           (make-general-send nil msg args nil ,super ,class-name))
+                         (%send-super/stret (s msg &rest args)
+                           (make-general-send nil msg args s ,super ,class-name))
+                         (super () ,super))
+                    ,@body))))
 	    (%define-lisp-objc-method
 	     ',impname
 	     ,class-name
 	     ,selector-name
 	     ,typestring
 	     ,impname
-	     ,class-p))))))
+	     ,class-p)))))))
 
 (defmacro define-objc-method ((selector-arg class-arg)
 			      &body body &environment env)
