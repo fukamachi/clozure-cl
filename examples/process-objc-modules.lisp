@@ -217,7 +217,7 @@ ignored."
         size
         #'(lambda (class)
             (unless (logtest #$CLS_META (pref class :objc_class.info))
-              (map-objc-class class)))))))
+              (install-foreign-objc-class class)))))))
                         
 #|
 (note-all-library-methods #'(lambda (method class)
