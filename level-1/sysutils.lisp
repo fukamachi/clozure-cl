@@ -283,7 +283,7 @@
   (let* ((pred (if (symbolp type) (type-predicate type))))
     (if pred
       (funcall pred object)
-      (%typep object type))))
+      (values (%typep object type)))))
 
 
 
