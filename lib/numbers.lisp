@@ -343,7 +343,7 @@
 	0
 	(let* ((small (if (< n0 n1) n0 n1))
 	       (large (if (eq small n0) n1 n0)))
-	  (* (truncate large (gcd n0 n1)) small))))))
+	  (values (truncate (abs (* n0 n1)) (gcd large small))))))))
 
 (defun lcm (&lexpr numbers)
   (let* ((count (%lexpr-count numbers)))
@@ -543,7 +543,7 @@
         (setq b (* b b) e next)))))
 
 (defun signum (x)
-  (cond ((complexp x) (cis (phase x)))
+  (cond ((complexp x) (if (zerop x) x (/ x (abs x))))
         ((rationalp x) (if (plusp x) 1 (if (zerop x) 0 -1)))
         ((zerop x) (float 0.0 x))
         (t (float-sign x))))
