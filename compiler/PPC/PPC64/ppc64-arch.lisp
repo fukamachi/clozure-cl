@@ -265,18 +265,19 @@
 
 
 (define-subtag single-float fulltag-imm-0 0)
-(define-subtag slot-unbound fulltag-imm-0 1)
-(defconstant slot-unbound-marker subtag-slot-unbound)
-(define-subtag illegal fulltag-imm-0 2)
-(defconstant illegal-marker subtag-illegal)
 
-(define-subtag go-tag fulltag-imm-1 0)
-(define-subtag block-tag fulltag-imm-1 1)
 (define-subtag character fulltag-imm-2 0)
+
 (define-subtag unbound fulltag-imm-3 0)
 (defconstant unbound-marker subtag-unbound)
 (defconstant undefined unbound-marker)
-(define-subtag no-thread-local-binding fulltag-imm-3 1)
+(define-subtag slot-unbound fulltag-imm-3 1)
+(defconstant slot-unbound-marker subtag-slot-unbound)
+(define-subtag illegal fulltag-imm-3 2)
+(defconstant illegal-marker subtag-illegal)
+
+(define-subtag no-thread-local-binding fulltag-imm-3 3)
+(define-subtag forward-marker fulltag-imm-3 15)
 
 
 (defconstant max-64-bit-constant-index (ash (+ #x7fff ppc64::misc-dfloat-offset) -3))
@@ -368,9 +369,9 @@
 )
 
 (define-fixedsized-object symbol
+  pname
   vcell
   fcell
-  pname
   package-plist
   flags
 )
@@ -417,8 +418,7 @@
 ;;; The kernel uses these (rather generically named) structures
 ;;; to keep track of various memory regions it (or the lisp) is
 ;;; interested in.
-;;; The gc-area record definition in "ccl:interfaces;mcl-records.lisp"
-;;; matches this.
+
 
 (define-storage-layout area 0
   pred                                  ; pointer to preceding area in DLL
