@@ -1345,7 +1345,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
 #if 1
   egc_control(true, NULL);
 #endif
-  start_lisp(tcr, 0);
+  start_lisp(TCR_TO_TSD(tcr), 0);
   exit(0);
 }
 

@@ -474,7 +474,7 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
 void
 shutdown_thread_tcr(void *arg)
 {
-  TCR *tcr = (void *)arg;
+  TCR *tcr = TCR_FROM_TSD(arg);
 
   area *vs, *ts, *cs;
 
@@ -484,7 +484,7 @@ shutdown_thread_tcr(void *arg)
       LispObj callback_macptr = nrs_FOREIGN_THREAD_CONTROL.vcell,
 	callback_ptr = ((macptr *)ptr_from_lispobj(untag(callback_macptr)))->address;
     
-      tsd_set(lisp_global(TCR_KEY), tcr);
+      tsd_set(lisp_global(TCR_KEY), TCR_TO_TSD(tcr));
       ((void (*)())ptr_from_lispobj(callback_ptr))(1);
       tsd_set(lisp_global(TCR_KEY), NULL);
     }
@@ -517,7 +517,7 @@ shutdown_thread_tcr(void *arg)
     tcr->osid = 0;
     UNLOCK(lisp_global(AREA_LOCK),tcr);
   } else {
-    tsd_set(lisp_global(TCR_KEY), tcr);
+    tsd_set(lisp_global(TCR_KEY), TCR_TO_TSD(tcr));
   }
 }
 
@@ -552,7 +552,7 @@ thread_init_tcr(TCR *tcr, void *stack_base, unsigned stack_size)
   tcr->native_thread_info = current_r2;
 #endif
   tcr->errno_loc = &errno;
-  tsd_set(lisp_global(TCR_KEY), tcr);
+  tsd_set(lisp_global(TCR_KEY), TCR_TO_TSD(tcr));
 #ifdef DARWIN
   darwin_exception_init(tcr);
 #endif
@@ -649,11 +649,11 @@ lisp_thread_entry(void *param)
     SEM_RAISE(tcr->reset_completion);
     SEM_WAIT(tcr->activate);
     /* Now go run some lisp code */
-    start_lisp(tcr,0);
+    start_lisp(TCR_TO_TSD(tcr),0);
   } while (tcr->flags & (1<<TCR_FLAG_BIT_AWAITING_PRESET));
 }
 
-TCR *
+void *
 xNewThread(unsigned control_stack_size,
 	   unsigned value_stack_size,
 	   unsigned temp_stack_size)
@@ -673,7 +673,7 @@ xNewThread(unsigned control_stack_size,
 
   SEM_WAIT(activation.created);	/* Wait until thread's entered its initial function */
   destroy_semaphore(&activation.created);
-  return activation.tcr;
+  return TCR_TO_TSD(activation.tcr);
 }
 
 Boolean
@@ -755,7 +755,8 @@ create_system_thread(size_t stack_size,
 TCR *
 get_tcr(Boolean create)
 {
-  TCR *current = (TCR *)tsd_get(lisp_global(TCR_KEY));
+  void *tsd = (void *)tsd_get(lisp_global(TCR_KEY));
+  TCR *current = (tsd == NULL) ? NULL : TCR_FROM_TSD(tsd);
 
   if ((current == NULL) && create) {
     LispObj callback_macptr = nrs_FOREIGN_THREAD_CONTROL.vcell,

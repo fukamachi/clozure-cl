@@ -37,6 +37,10 @@
 
 Boolean threads_initialized;
 
+#define TCR_BIAS (0x7000)
+#define TCR_TO_TSD(tcr) ((void *)((natural)(tcr)+TCR_BIAS))
+#define TCR_FROM_TSD(tsd) ((TCR *)((natural)(tsd)-TCR_BIAS))
+
 #ifdef LINUX
 typedef sem_t * SEMAPHORE;
 #define SEM_WAIT(s) sem_wait((SEMAPHORE)s)

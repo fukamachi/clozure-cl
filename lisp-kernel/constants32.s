@@ -655,7 +655,7 @@ tstack_alloc_limit = 0xffff
 /*
   Thread context record.
 */
-	_struct(tcr,0)
+	_struct(tcr,-0x7000)
 	 _node(prev)		/* in doubly-linked list */
 	 _node(next)		/* in doubly-linked list */
 	 _node(lisp_fpscr)	/* lisp thread's fpscr (in low word) */
@@ -700,7 +700,8 @@ tstack_alloc_limit = 0xffff
 	_ends
 
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
-TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)	
+TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)
+TCR_BIAS = 0x7000
 /* Register usage: */
 
 

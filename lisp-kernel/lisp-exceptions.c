@@ -539,7 +539,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
       if (selector & GC_TRAP_FUNCTION_SAVE_APPLICATION) {
         OSErr err;
         extern OSErr save_application(unsigned, Boolean);
-        TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
+        TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
         area *vsarea = tcr->vs_area;
 	
         nrs_TOPLFUNC.vcell = *((LispObj *)(vsarea->high)-1);
@@ -647,7 +647,7 @@ restore_soft_stack_limit(unsigned stkreg)
 void
 reset_lisp_process(ExceptionInformation *xp)
 {
-  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp,rcontext));
+  TCR *tcr = TCR_FROM_TSD(xpGPR(xp,rcontext));
   catch_frame *last_catch = (catch_frame *) ptr_from_lispobj(untag(tcr->catch_top));
 
   tcr->save_allocptr = (void *) ptr_from_lispobj(xpGPR(xp, allocptr));
@@ -769,7 +769,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
 int
 gc_like_from_xp(ExceptionInformation *xp, int(*fun)(TCR *))
 {
-  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext)), *other_tcr;
+  TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext)), *other_tcr;
   ExceptionInformation* other_xp;
   int result;
 
@@ -968,7 +968,7 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
   BytePtr addr;
   protected_area_ptr area;
   protection_handler *handler;
-  TCR *tcr = (TCR *) ptr_from_lispobj(xpGPR(xp, rcontext));
+  TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
 
   if (! is_write_fault(xp, info)) {
     return -1;
@@ -1167,7 +1167,7 @@ db_link_chain_in_area_p (area *a)
 OSStatus
 do_vsp_overflow (ExceptionInformation *xp, BytePtr addr)
 {
-  TCR* tcr = (TCR *) ptr_from_lispobj(xpGPR(xp, rcontext));
+  TCR* tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
   area *a = tcr->vs_area;
   protected_area_ptr vsp_soft = a->softprot;
   unprotect_area(vsp_soft);
@@ -1179,7 +1179,7 @@ do_vsp_overflow (ExceptionInformation *xp, BytePtr addr)
 OSStatus
 do_tsp_overflow (ExceptionInformation *xp, BytePtr addr)
 {
-  TCR* tcr = (TCR *) ptr_from_lispobj(xpGPR(xp, rcontext));
+  TCR* tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
   area *a = tcr->ts_area;
   protected_area_ptr tsp_soft = a->softprot;
   unprotect_area(tsp_soft);
@@ -1540,7 +1540,7 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
   natural  callback_ptr, i;
   area *a;
 
-  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
+  TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
 
   /* Put the active stack pointer where .SPcallback expects it */
   a = tcr->cs_area;
@@ -1599,7 +1599,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
   LispObj   cmain = nrs_CMAIN.vcell;
   Boolean   event_poll_p = false;
   int old_interrupt_level = 0;
-  TCR *tcr = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
+  TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
 
   /* If we got here, "the_trap" is either a TWI or a TW instruction.
      It's a TWI instruction iff its major opcode is major_opcode_TWI. */
