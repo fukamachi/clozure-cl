@@ -1433,13 +1433,13 @@
 
 (defun make-string-output-stream (&key (element-type 'character element-type-p))
   (when (and element-type-p
-             (not (member element-type '(base-character character string-char
+             (not (member element-type '(base-character character
                                          standard-char))))
     (unless (subtypep element-type 'character)
       (error "~S argument ~S is not a subtype of ~S."
              :element-type element-type 'character)))
   (make-instance 'string-output-stream
-                 :string (make-array 10 :element-type 'character
+                 :string (make-array 10 :element-type 'base-char
                                      :fill-pointer 0
                                      :adjustable t)))
 
