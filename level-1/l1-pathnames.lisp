@@ -23,6 +23,21 @@
 
 (in-package :ccl)
 
+(defloadvar *heap-image-name*
+    (let* ((p (%null-ptr)))
+      (declare (dynamic-extent p))
+      (%get-cstring (%get-kernel-global-ptr 'ppc32::image-name p))))
+
+(defloadvar *command-line-argument-list*
+  (let* ((argv (%null-ptr))
+	 (res ()))
+    (declare (dynamic-extent argv))
+    (%get-kernel-global-ptr 'ppc32::argv argv)
+    (do* ((i 0 (+ i 4))
+	  (arg (%get-ptr argv i) (%get-ptr argv i)))
+	 ((%null-ptr-p arg) (nreverse res))
+      (declare (fixnum i))
+      (push (%get-cstring arg) res))))
 
 ;These are used by make-pathname
 (defun %verify-logical-component (name type)
@@ -596,7 +611,14 @@
   (let* ((dirpath (getenv "CCL_DEFAULT_DIRECTORY")))
     (if dirpath
       (native-to-directory-pathname dirpath)
-      (mac-default-directory))))
+      (let* ((rpath (merge-pathnames
+		     #+darwinppc-target "../Resources/ccl/"
+		     #+linuxppc-target "Resources/ccl/"
+		     (make-pathname
+		      :directory
+		      (pathname-directory (car *command-line-argument-list*))))))
+	(or (probe-file rpath)
+	    (mac-default-directory))))))
 
 
 (defun user-homedir-pathname (&optional host)
@@ -604,6 +626,25 @@
   (let* ((native (get-user-home-dir (getuid))))
     (if native
       (native-to-directory-pathname native))))
+
+
+
+(defloadvar *user-homedir-pathname* (user-homedir-pathname))
+
+(defun translate-logical-pathname (pathname &key)
+  (setq pathname (pathname pathname))
+  (let ((host (pathname-host pathname)))
+    (cond ((eq host :unspecific) pathname)
+	  ((null host) (%cons-pathname (pathname-directory pathname)
+				       (pathname-name pathname)
+				       (pathname-type pathname)))
+	  (t
+	   (let ((rule (assoc pathname (logical-pathname-translations host)
+			      :test #'pathname-match-p)))  ; how can they match if hosts neq??
+	     (if rule
+	       (translate-logical-pathname
+		(translate-pathname pathname (car rule) (cadr rule)))
+	       (signal-file-error $xnotranslation pathname)))))))
 
 (progn
 (setf (logical-pathname-translations "home")
@@ -630,24 +671,6 @@
             ("**;*.*" ,(merge-pathnames "**/*.*" (ccl-directory)))))
 
 )
-
-(defloadvar *user-homedir-pathname* (user-homedir-pathname))
-
-(defun translate-logical-pathname (pathname &key)
-  (setq pathname (pathname pathname))
-  (let ((host (pathname-host pathname)))
-    (cond ((eq host :unspecific) pathname)
-	  ((null host) (%cons-pathname (pathname-directory pathname)
-				       (pathname-name pathname)
-				       (pathname-type pathname)))
-	  (t
-	   (let ((rule (assoc pathname (logical-pathname-translations host)
-			      :test #'pathname-match-p)))  ; how can they match if hosts neq??
-	     (if rule
-	       (translate-logical-pathname
-		(translate-pathname pathname (car rule) (cadr rule)))
-	       (signal-file-error $xnotranslation pathname)))))))
-
 ;This function should be changed to standardize the name more than it does.
 ;It should eliminate non-leading instances of "::" etc at least.  We might also
 ;want it to always return an absolute pathname (i.e. fill in the default mac
