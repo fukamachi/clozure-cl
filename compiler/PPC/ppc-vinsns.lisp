@@ -2242,6 +2242,8 @@
   (stw header ppc32::misc-header-offset ppc32::allocptr)
   (mr dest ppc32::allocptr)
   (clrrwi ppc32::allocptr ppc32::allocptr ppc32::ntagbits)
+  ;; It's not necessary to zero out the domain/type fields, since newly
+  ;; heap-allocated memory's guaranteed to be 0-filled.
   (stw address ppc32::macptr.address dest))
 
 (define-ppc-vinsn macptr->stack (((dest :lisp))
@@ -2252,6 +2254,9 @@
   (stw ppc32::tsp 4 ppc32::tsp)
   (stw header (+ 8 ppc32::fulltag-misc ppc32::macptr.header) ppc32::tsp)
   (stw address (+ 8 ppc32::fulltag-misc ppc32::macptr.address) ppc32::tsp)
+  ;; It -is- necessary to zero out the domain/type fields here, since
+  ;; stack-allocated memory isn't guaranteed to be 0-filled.
+  (stfd ppc32::fp-zero (+ 8 ppc32::fulltag-misc ppc32::macptr.domain) ppc32::tsp)
   (la dest (+ 8 ppc32::fulltag-misc) ppc32::tsp))
 
   
