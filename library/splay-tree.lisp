@@ -30,6 +30,11 @@
   parent                                ; we're the root if NIL.   
   )
 
+(defmethod print-object ((node tree-node) stream)
+  (print-unreadable-object (node stream :type t :identity t)
+    (let* ((*print-circle* t))
+      (format stream "~s -> ~s" (tree-node-key node) (tree-node-value node)))))
+
 
 (defun tree-node-is-leaf (n)
   (and (null (tree-node-left n))
@@ -64,7 +69,15 @@
   (root nil :type (or null splay-tree-node))
   equal                                 ; true if x = y
   less                                  ; true if x < y
+  (count 0)
   )
+
+(defmethod print-object ((tree splay-tree) stream)
+  (print-unreadable-object (tree stream :type t :identity t)
+    (format stream "count = ~d, root = ~s"
+	    (splay-tree-count tree)
+	    (splay-tree-root tree))))
+	    
 
 
 ;;; Returns tree-node or NIL
@@ -96,7 +109,8 @@
         (setq parent current)
         (if (funcall less key (tree-node-key current))
           (setq current (tree-node-left current))
-          (setq current (tree-node-right current)))))))
+          (setq current (tree-node-right current))))))
+  (incf (splay-tree-count tree)))
     
             
 ;;; Replace the node's parent with the node itself, updating the
