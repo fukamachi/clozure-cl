@@ -1188,13 +1188,15 @@ termination-function object
 (defvar *termination-population*
   (%cons-terminatable-alist))
 
+(defvar *termination-population-lock* (make-lock))
+
 
 (defvar *enable-automatic-termination* t)
 
 (defun terminate-when-unreachable (object &optional (function 'terminate))
   (let ((new-cell (list (cons object function)))
         (population *termination-population*))
-    (without-interrupts
+    (with-lock-grabbed (*termination-population-lock*)
      (setf (cdr new-cell) (population-data population)
            (population-data population) new-cell))
     function))
@@ -1206,7 +1208,7 @@ termination-function object
   (let ((cell nil)
         (population *termination-population*))
     (loop
-      (without-interrupts
+      (with-lock-grabbed (*termination-population-lock*)
        (let ((list (population-termination-list population)))
          (unless list (return))
          (setf cell (car list)
@@ -1221,7 +1223,7 @@ termination-function object
                       (eq function (cdr cell)))
                   (setq found-it? t))))
       (declare (dynamic-extent #'test))
-      (without-interrupts
+      (with-lock-grabbed (*termination-population-lock*)
        (setf (population-data *termination-population*)
              (delete object (population-data *termination-population*)
                      :test #'test
@@ -1229,7 +1231,8 @@ termination-function object
       found-it?)))
 
 (defun termination-function (object)
-  (cdr (assq object (population-data *termination-population*))))
+  (with-lock-grabbed (*termination-population-lock*)
+    (cdr (assq object (population-data *termination-population*)))))
 
 (defun do-automatic-termination ()
   (when *enable-automatic-termination*
