@@ -31,7 +31,9 @@
   (let* ((typecode (typecode instance)))
     (cond ((eql typecode target::subtag-instance) (instance.slots instance))
 	  ((eql typecode target::subtag-macptr) (foreign-slots-vector instance))
-	  ((typep instance 'standard-generic-function) (gf.slots instance))
+	  ((or (typep instance 'standard-generic-function)
+               (typep instance 'funcallable-standard-object))
+           (gf.slots instance))
 	  (t  (error "Don't know how to find slots of ~s" instance)))))
 
 (defun %class-name (class)
