@@ -310,7 +310,7 @@ terminate the list"
 
 (defun nreconc (x y)
   "Returns (nconc (nreverse x) y)"
-  (do ((1st (cdr x) (if (atom 1st) 1st (cdr 1st)))
+  (do ((1st (cdr x) (if (endp 1st) 1st (cdr 1st)))
        (2nd x 1st)		;2nd follows first down the list.
        (3rd y 2nd))		;3rd follows 2nd down the list.
       ((atom 2nd) 3rd)
@@ -589,10 +589,13 @@ terminate the list"
         (let ((dflags (%svref displaced-to ppc32::arrayH.flags-cell)))
           (declare (fixnum dflags))
           (when (or (logbitp $arh_adjp_bit dflags)
+		    t
                     (progn
+		      #+nope
                       (setq target (%svref displaced-to ppc32::arrayH.data-vector-cell)
                             real-offset (+ offset (%svref displaced-to ppc32::arrayH.displacement-cell)))
-                      (logbitp $arh_disp_bit dflags)))
+                      (logbitp $arh_disp_bit dflags)
+		      #-nope t))
             (setq flags (bitset $arh_disp_bit flags))))
         (setq vect-subtype (%array-header-subtype displaced-to)))
       ; assumes flags is low byte
