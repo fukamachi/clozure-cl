@@ -442,8 +442,6 @@ Default version returns OpenMCL version info."
      #'(lambda () (when sr (setf (shared-resource-primary-owner sr)
 				 *initial-process*)))
      #'(lambda ()
-	 (setq *interactive-abort-process*
-	       *current-process*)
 	 (startup-ccl (and *load-lisp-init-file* init-file))
 	 (listener-function)
 	 nil)
