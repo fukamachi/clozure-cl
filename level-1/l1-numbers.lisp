@@ -325,40 +325,72 @@
             (logandc1 (ash mask position) integer))))
 
 (defun deposit-field (value bytespec integer)
-  (logior (logandc1 bytespec integer) (logand bytespec value)))
+  (if (> bytespec 0)    
+    (logior (logandc1 bytespec integer) (logand bytespec value))
+    (progn
+      (require-type value 'integer)
+      (require-type integer 'integer))))
 
 ;;;;;;;;;;  Byte field functions ;;;;;;;;;;;;;;;;
 
+;;; Size = 0, position = 0 -> 0
+;;; size = 0, position > 0 -> -position
+;;; else ->  (ash (byte-mask size) position)
 (defun byte (size position)
-  (unless (and (integerp position) (not (minusp position))) (report-bad-arg position 'unsigned-byte))
-  (ash (byte-mask size) position))
+  (unless (and (typep size 'integer)
+	       (>= size 0))
+    (report-bad-arg size 'unsigned-byte))
+  (unless (and (typep position 'integer)
+	       (>= position 0))
+    (report-bad-arg position 'unsigned-byte))
+  (if (eql 0 size)
+    (if (eql 0 position)
+      0
+      (- position))
+    (ash (byte-mask size) position)))
 
 
 
-(defun byte-size (bytespec) (logcount bytespec))
+(defun byte-size (bytespec)
+  (if (> bytespec 0)
+    (logcount bytespec)
+    0))
 
 (defun ldb (bytespec integer)
-  (if (and (fixnump bytespec) (fixnump integer))
+  (if (and (fixnump bytespec) (> (the fixnum bytespec) 0)  (fixnump integer))
     (%ilsr (byte-position bytespec) (%ilogand bytespec integer))
     (let ((size (byte-size bytespec))
           (position (byte-position bytespec)))
-      (if (and (bignump integer)
-               (<= size  (- 31 ppc32::fixnumshift))
-               (fixnump position))
-        (%ldb-fixnum-from-bignum integer size position)
-        (ash (logand bytespec integer) (- position))))))
+      (if (eql size 0)
+	(progn
+	  (require-type integer 'integer)
+	  0)
+	(if (and (bignump integer)
+		 (<= size  (- 31 ppc32::fixnumshift))
+		 (fixnump position))
+	  (%ldb-fixnum-from-bignum integer size position)
+	  (ash (logand bytespec integer) (- position)))))))
 
 (defun mask-field (bytespec integer)
-  (logand bytespec integer))
+  (if (>= bytespec 0)
+    (logand bytespec integer)
+    (logand integer 0)))
 
 (defun dpb (value bytespec integer)
-  (if (and (fixnump value) (fixnump bytespec) (fixnump integer))
+  (if (and (fixnump value)
+	   (fixnump bytespec)
+	   (> (the fixnum bytespec) 0)
+	   (fixnump integer))
     (%ilogior (%ilogand bytespec (%ilsl (byte-position bytespec) value))
               (%ilogand (%ilognot bytespec) integer))
     (deposit-field (ash value (byte-position bytespec)) bytespec integer)))
 
 (defun ldb-test (bytespec integer)
-  (logtest bytespec integer))
+  (if (> bytespec 0)
+    (logtest bytespec integer)
+    (progn
+      (require-type integer 'integer)
+      nil)))
 
 ; random associated stuff except for the print-object method which is still in
 ; "lib;numbers.lisp"
