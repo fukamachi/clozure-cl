@@ -245,22 +245,19 @@
 
 (defppclapfunction %catch-top ((tcr arg_z))
   (check-nargs 1)
-  (cmp cr0 tcr rcontext)
-  (bne cr0 @not-current)
-
-  ; tcr = current-tcr
-  (lwz arg_z ppc32::tcr.catch-top rcontext)
+  (lwz arg_z ppc32::tcr.catch-top tcr)
   (cmpwi cr0 arg_z 0)
   (bne @ret)
   (li arg_z ppc32::nil-value)
  @ret
-  (blr)
-
-@not-current
-  (lwz imm0 ppc32::tcr.ts-area tcr)
-  (lwz imm0 ppc32::area.active imm0)
-  (la arg_z (+ 8 ppc32::fulltag-misc) imm0)
   (blr))
+
+(defppclapfunction %catch-tsp ((catch arg_z))
+  (check-nargs 1)
+  (la arg_z (- (+ target::fulltag-misc
+                                 (ash 1 (1+ target::word-shift)))) arg_z)
+  (blr))
+
 
 
 ;;; Same as %address-of, but doesn't cons any bignums
