@@ -82,6 +82,9 @@
 				       (setf (shared-resource-primary-owner
 					      shared-input)
 					     *current-process*)))
+                                   (application-ui-operation
+                                    *application*
+                                    :note-note-current-package *package*)
 				   (funcall initial-function))
 			      (with-lock-grabbed
 				  (*auto-flush-streams-lock*)
