@@ -544,14 +544,13 @@
   (mtfsf #xfc fp0)                      ; set status fields [0-5]
   (blr))
 
-; Set the low 8 bits of the FPSCR; leave the high 24 unchanged
+; Set the low 8 bits of the FPSCR.  Zero the upper 24 bits
 (defppclapfunction %set-fpscr-control ((new arg_z))
   (unbox-fixnum imm0 new)
-  (stwu tsp -16 tsp)
-  (stw tsp 4 tsp)
+  (clrlwi imm0 imm0 24)                 ; ensure that "status" fields are clear
   (stw imm0 target::tcr.lisp-fpscr-low rcontext)
   (lfd fp0 target::tcr.lisp-fpscr-high rcontext)
-  (mtfsf #x03 fp0)                      ; set control fields [6-7]
+  (mtfsf #xff fp0)                      ; set all fields [0-7]
   (blr))
 
 (defppclapfunction %ffi-exception-status ()
