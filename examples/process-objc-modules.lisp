@@ -16,9 +16,18 @@
 
 (in-package "CCL")
 
+(#-(or apple-objc gnu-objc)
+   (eval-when (:compile-toplevel :load-toplevel :execute)
+     #+darwinppc-target (pushnew :apple-objc *features*)
+     #+linuxppc-target (pushnew :gnu-objc *features*)
+     #-(or darwinppc-target linuxppc-target)
+     (error "Not sure what ObjC runtime system to use.")))
+
+#+apple-objc
+(progn
 (defvar *objc-module-verbose* nil)
 
-#+darwinppc-target
+
 (defun process-section-in-all-libraries (segname sectionname function)
   "For every loaded shared library, find the section named SECTIONNAME
 in the segment named SEGNAME.  If this section exists, call FUNCTION with
@@ -47,7 +56,6 @@ a pointer to the section data and the section's size in bytes as arguments."
               (unless (%null-ptr-p sectdata)
                 (funcall function sectdata (pref size :unsigned))))))))))
 
-#+darwinppc-target
 (defun process-objc-modules (f)
   (process-section-in-all-libraries #$SEG_OBJC #$SECT_OBJC_MODULES f))
 
@@ -187,5 +195,6 @@ ignored."
 			      (update-type-signatures-for-method method)))
 |#
 
+)
 (provide "PROCESS-COCOA-MODULES") 
 
