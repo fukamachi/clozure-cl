@@ -154,49 +154,44 @@
   "Returns (append (reverse x) y)"
   (dolist (a x y) (push a y)))
 
-;;; The outer loop finds the first non-null list.  Starting with this list
-;;; the inner loop tacks on the remaining lists in the arguments
 
-
-(defun butlast (list &optional n)
+(defun butlast (list &optional (n 1 n-p))
   "Returns a new list the same as List without the N last elements."
   (setq list (require-type list 'list))
-  (if (and n (or (not (fixnump n)) (< n 0))) (report-bad-arg n '(fixnump 0 *)))
-  (let* ((count (if n (- (alt-list-length list) n) most-positive-fixnum))
-         it tail)
-    (declare (fixnum count))
-    (do ((l list (cdr l)))
-        ((if n (<= count 0)(not (consp (cdr l)))) it)
-        (declare (list l))
-        (let ((newtail (list (car l))))
-          (cond (tail (rplacd (the cons tail) newtail))
-                (t (setq it newtail)))
-          (setq tail newtail)
-          (setq count (1- count))))))
+  (when (and n-p
+	     (if (typep n 'fixnum)
+	       (< (the fixnum n) 0)
+	       (not (typep n 'unsigned-byte))))
+    (report-bad-arg n 'unsigned-byte))
+  (let* ((length (length list)))
+    (declare (fixnum length))		;guaranteed
+    (when (< n length)
+      (let* ((count (- length (the fixnum n)))
+	     (head (cons nil nil))
+	     (tail head))
+	(declare (fixnum count) (list head tail) (dynamic-extent head))
+	;; Return a list of the first COUNT elements of list
+	(dotimes (i count (cdr head))
+	  (setq tail (rplacd tail (cons (pop list) nil))))))))
 
-(defun alt-list-length (list)
-  (let ((n 0))
-    (declare (fixnum n))
-    (while 
-      (consp list)
-      (setq list (cdr (the list list)))
-      (setq n (1+ n)))
-    n))      
 
-(defun nbutlast (list &optional n)
+(defun nbutlast (list &optional (n 1 n-p))
   "Modifies List to remove the last N elements."
   (setq list (require-type list 'list))
-  (if (and n (or (not (fixnump n)) (< n 0))) (report-bad-arg n '(fixnum 0 *)))
-  (let* ((count (if n (- (alt-list-length list) n) most-positive-fixnum)))
-
-    (declare (fixnum count))
-    (do ((last list l)
-         (l list (cdr l)))
-        ((if n (<= count 0)(not (consp (cdr l))))
-         (if (eq l list) nil (progn (rplacd (the cons last) nil) list)))
-      (declare (list l))
-      (setq count (1- count)))))
-
+  (when (and n-p
+	     (if (typep n 'fixnum)
+	       (< (the fixnum n) 0)
+	       (not (typep n 'unsigned-byte))))
+    (report-bad-arg n 'unsigned-byte))
+  (let* ((length (length list)))
+    (declare (fixnum length))		;guaranteed
+    (when (< n length)
+      (let* ((count (1- (the fixnum (- length (the fixnum n)))))
+	     (tail list))
+	(declare (fixnum count) (list tail))
+	(dotimes (i count (rplacd tail nil))
+	  (setq tail (cdr tail)))
+	list))))
       
 
 (defun ldiff (list object) 
