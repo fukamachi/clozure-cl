@@ -2474,6 +2474,17 @@
 ;;; should be printed.  (The last value has to do with how selections
 ;;; that contain multiple forms are handled; see *VERBOSE-EVAL-SELECTION*
 ;;; and the SELECTION-INPUT-STREAM method below.)
+
+(defmethod read-toplevel-form ((stream synonym-stream) eof-value)
+  (read-toplevel-form (symbol-value (synonym-stream-symbol stream)) eof-value))
+
+(defmethod read-toplevel-form ((stream two-way-stream) eof-value)
+  (read-toplevel-form (two-way-stream-input-stream stream) eof-value))
+
+(defmethod read-toplevel-form :after ((stream echoing-two-way-stream) eof-value)
+  (declare (ignore eof-value))
+  (stream-set-column (two-way-stream-output-stream stream) 0))
+
 (defmethod read-toplevel-form ((stream input-stream)
                                eof-value)
   (loop
