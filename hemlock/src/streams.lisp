@@ -81,35 +81,38 @@
 	   (setf (mark-kind ,var) :right-inserting))))))
 
 (defun hemlock-output-unbuffered-out (stream character)
-  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-character mark character)
-    (redisplay-windows-from-mark mark)))
+  (let* ((b (current-buffer))
+	 (stream-mark (hemlock-output-stream-mark stream))
+	 (new-buf (line-buffer (mark-line stream-mark))))
+    (unwind-protect
+	 (with-left-inserting-mark (mark stream-mark)
+	   (setf (current-buffer) new-buf)
+	   (insert-character mark character))
+      (setf (current-buffer) b))))
 
 (defun hemlock-output-unbuffered-sout (stream string start end)
-  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-string mark string start end)
-    (redisplay-windows-from-mark mark)))
+  (let* ((b (current-buffer))
+	 (stream-mark (hemlock-output-stream-mark stream))
+	 (new-buf (line-buffer (mark-line stream-mark))))
+    (unwind-protect
+	 (with-left-inserting-mark (mark stream-mark)
+	   (setf (current-buffer) new-buf)
+	   (insert-string mark string start end))
+      (setf (current-buffer) b))))
+    
 
 (defun hemlock-output-buffered-out (stream character)
-  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-character mark character)))
+  (hemlock-output-unbuffered-out stream character))
+
 
 (defun hemlock-output-buffered-sout (stream string start end)
-  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-string mark string start end)))
+  (hemlock-output-unbuffered-sout stream string start end))
 
 (defun hemlock-output-line-buffered-out (stream character)
-  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-character mark character)
-    (when (char= character #\newline)
-      (redisplay-windows-from-mark mark))))
+  (hemlock-output-unbuffered-out stream character))
 
 (defun hemlock-output-line-buffered-sout (stream string start end)
-  (declare (simple-string string))
-  (with-left-inserting-mark (mark (hemlock-output-stream-mark stream))
-    (insert-string mark string start end)
-    (when (find #\newline string :start start :end end)
-      (redisplay-windows-from-mark mark))))
+  (hemlock-output-unbuffered-sout stream string start end))
 
 #+NIL
 (defmethod excl:stream-line-length ((stream hemlock-output-stream))
@@ -120,11 +123,9 @@
 	     ((null w)
 	      (if (/= min most-positive-fixnum) min))))))
 
-(defmethod stream-finish-output ((stream hemlock-output-stream))
-  (redisplay-windows-from-mark (hemlock-output-stream-mark stream)))
+(defmethod stream-finish-output ((stream hemlock-output-stream)))
 
-(defmethod stream-force-output ((stream hemlock-output-stream))
-  (redisplay-windows-from-mark (hemlock-output-stream-mark stream)))
+(defmethod stream-force-output ((stream hemlock-output-stream)))
 
 (defmethod close ((stream hemlock-output-stream) &key abort)
   (declare (ignore abort))
