@@ -147,7 +147,8 @@
 	 (index (ldb objc-type-index type)))
     (declare (fixnum type flags index))
     (ecase flags
-      (#.objc-flag-instance (gethash p *objc-object-slot-vectors*))
+      (#.objc-flag-instance (or (gethash p *objc-object-slot-vectors*)
+				(error "~s has no slots." p)))
       (#.objc-flag-class (id->objc-class-slots-vector index))
       (#.objc-flag-metaclass (id->objc-metaclass-slots-vector index)))))
 	  
@@ -702,6 +703,18 @@ instance_size of its ObjC superclass."))
 	  unless (member (first l)  slot-initargs :test #'eq)
 	    append (list (first l) (second l))  into new-initargs)))
 
+(defun create-foreign-instance-slot-vector (class)
+  (let* ((max 0))
+    (dolist (slotd (class-slots class)
+	     (unless (zerop max)
+	       (allocate-typed-vector :slot-vector (1+ max) (%slot-unbound-marker))))
+      (when (typep slotd 'standard-effective-slot-definition)
+	(let* ((loc (slot-definition-location slotd)))
+	  (if (> loc max)
+	    (setq max loc)))))))
+
+	       
+					 
 (defmethod allocate-instance ((class objc:objc-class) &rest initargs &key &allow-other-keys)
   (unless (class-finalized-p class)
     (finalize-inheritance class))
@@ -712,12 +725,11 @@ instance_size of its ObjC superclass."))
 	    ; The second %SEND below should be SEND eventually
 	    (apply #'%send (%send class 'alloc) (lisp-to-objc-init ks) vs))))
     (unless (%null-ptr-p instance)
-      (let* ((len (length (%wrapper-instance-slots (class-own-wrapper class))))
-	     (raw-ptr (raw-macptr-for-instance instance)) 
-	     (slot-vector
-	      (unless (zerop len)
-		(allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker)))))
-	(setf (slot-vector.instance slot-vector) raw-ptr)
+      (let* ((raw-ptr (raw-macptr-for-instance instance)) 
+	     (slot-vector (create-foreign-instance-slot-vector class)))
+	(when slot-vector
+	  (setf (slot-vector.instance slot-vector) raw-ptr)
+	  (setf (gethash raw-ptr *objc-object-slot-vectors*) slot-vector))
 	(register-canonical-objc-instance instance raw-ptr)))))
 
 (defmethod terminate ((instance objc:objc-object))
@@ -851,7 +863,7 @@ instance_size of its ObjC superclass."))
 				(dslotd direct-slot-definition)
 				&rest initargs)
   (declare (ignore initargs))
-  (find-class 'standard-reader-method))
+  (find-class 'standard-writer-method))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
