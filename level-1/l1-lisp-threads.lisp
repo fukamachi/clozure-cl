@@ -1019,8 +1019,7 @@
                       (in-any-consing-area-p x))
             ;; This is terribly complicated, should probably write some LAP
             (let ((typecode (typecode x)))
-                  (not (or (memq x *heap-ivectors*)
-                           (case typecode
+                  (not (or (case typecode
                              (#.ppc32::tag-list
                               (temporary-cons-p x))
                              ((#.ppc32::subtag-symbol #.ppc32::subtag-code-vector)
@@ -1028,7 +1027,8 @@
                              (#.ppc32::subtag-value-cell
                               (on-any-vstack x))
                              (t
-                              (on-any-tsp-stack x)))))))))))
+                              (on-any-tsp-stack x)))
+                           (%heap-ivector-p x)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -1137,11 +1137,12 @@ termination-function object
         (population *termination-population*))
     (loop
     (without-interrupts
-      (with-lock-grabbed (*termination-population-lock*)
-       (let ((list (population-termination-list population)))
-         (unless list (return))
-         (setf cell (car list)
-               (population-termination-list population) (cdr list)))))
+     (with-lock-grabbed (*termination-population-lock*)
+       (without-gcing
+        (let ((list (population-termination-list population)))
+          (unless list (return))
+          (setf cell (car list)
+                (population-termination-list population) (cdr list))))))
       (funcall (cdr cell) (car cell)))))
 
 (defun cancel-terminate-when-unreachable (object &optional (function nil function-p))
