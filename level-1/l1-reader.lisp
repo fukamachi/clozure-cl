@@ -765,7 +765,7 @@ c)" t)
   |#(-reader| 
   (lambda (stream subchar numarg)
     (declare (ignore subchar))
-    (if (null numarg)
+    (if (or (null numarg) *read-suppress*)
       (let* ((lst (read-list stream t))
              (len (length lst))
              (vec (make-array len)))
