@@ -49,7 +49,7 @@
   allocbase
   nargs                                 ; Volatile.  SHOULDN'T be used for tag extraction. (TWI handler confusion.)
   tsp                                   ; Temp-stack pointer.
-  old-vsp                                   
+  new-rcontext                                   
   loc-pc                                ; for return PC only.
   vsp                                   ; Value stack pointer; grows towards 0.
   fn                                    ; Current function (constants vector).

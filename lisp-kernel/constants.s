@@ -30,7 +30,7 @@ define([allocptr],[r9])
 define([allocbase],[r10])
 define([nargs],[r11])
 define([tsp],[r12])      /* temp-consing stack. */
-define([old_vsp],[r13])
+define([new_rcontext],[r13])
 define([loc_pc],[r14]) 	 /* code vector locative */
 define([vsp],[r15])
 define([fn],[r16])

@@ -158,10 +158,9 @@
 
 
 
-(defppclapfunction %set-current-vsp ((xnew-vsp arg_z))
+(defppclapfunction %set-current-vsp ((new-vsp arg_z))
   (check-nargs 1)
-  (mr vsp xnew-vsp)
-  (mr old-vsp vsp)
+  (mr vsp new-vsp)
   (blr))
 
 (defppclapfunction %current-tsp ()
@@ -1064,7 +1063,6 @@
   (lwz fn ppc32::lisp-frame.savefn sp)
   (lwz imm0 ppc32::lisp-frame.savevsp sp)
   (sub vsp imm0 nargs)
-  (mr old-vsp vsp)
   (mtlr loc-pc)
   (la sp ppc32::lisp-frame.size sp)
   (beqctr)
