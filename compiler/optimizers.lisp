@@ -1547,7 +1547,12 @@
       (or (= ,typecode ppc32::tag-fixnum)
           (= ,typecode ppc32::subtag-bignum)))))
        
-
+(define-compiler-macro %composite-pointer-ref (size pointer offset)
+  (if (constantp size)
+    `(%inc-ptr ,pointer ,offset)
+    `(progn
+      ,size
+      (%inc-ptr ,pointer ,offset))))
 
 (provide "OPTIMIZERS")
 
