@@ -586,7 +586,7 @@
 		  (unless line
 		    (return))
 		  (let* ((len (length line)))
-		    (%stack-block ((buf len))
+		    (%stack-block ((buf (1+ len)))
 		      (%copy-ivector-to-ptr line 0 buf 0 len)
 		      (fd-write fd buf len)
 		      (if no-newline
