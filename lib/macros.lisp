@@ -1250,10 +1250,10 @@
 		   (t
 		    `(make-string-input-stream ,string ,(or start 0) ,end)))))
       ,@decls
-      (unwind-protect
-	   (progn ,@forms)
-	(close ,var)
-	,@(if index `((setf ,index (string-input-stream-index ,var))))))))
+      (multiple-value-prog1 (unwind-protect
+                                 (progn ,@forms)
+                              (close ,var))
+        ,@(if index `((setf ,index (string-input-stream-index ,var))))))))
 
 (defmacro with-output-to-string ((var &optional string &key (element-type 'base-char element-type-p))
                                  &body body 
