@@ -84,7 +84,7 @@
   (vpush imm4)
   (vpush imm3)
   (set-nargs 2)
-  (la vsp 8 vsp)
+  (la temp0 8 vsp)
   (ba .SPvalues)
   @sym
   (lwz arg_z ppc32::svar.symbol svar)
@@ -92,7 +92,7 @@
   (vpush arg_z)
   (vpush arg_y)
   (set-nargs 2)
-  (la vsp 8 vsp)
+  (la temp0 8 vsp)
   (ba .SPvalues))
 
 (defppclapfunction %pname-hash ((str arg_y) (len arg_z))
