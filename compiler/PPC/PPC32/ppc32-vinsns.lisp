@@ -1561,15 +1561,15 @@
    (mr dest src)))
 
 (define-ppc32-vinsn copy-gpr (((dest t))
-                            ((src t)))
+			      ((src t)))
   ((:not (:pred =
                 (:apply %hard-regspec-value dest)
                 (:apply %hard-regspec-value src)))
    (mr dest src)))
 
 
-(define-ppc32-vinsn copy-fpr (((dest t))
-                            ((src t)))
+(define-ppc32-vinsn copy-fpr (((dest :double-float))
+			      ((src :double-float)))
   ((:not (:pred =
                 (:apply %hard-regspec-value dest)
                 (:apply %hard-regspec-value src)))
