@@ -2248,7 +2248,7 @@ match_loop:
 	__(li temp0,t_value)
 	__(bne cr0,match_keys_loop)	/* already saw this */
 	__(str(arg_y,node_size*1(imm0)))
-	__(str(temp0,node_size*2(imm0)))
+	__(str(temp0,node_size*0(imm0)))
 	__(b match_keys_loop)
 match_test:
 	__(bne cr4,match_loop)
