@@ -887,16 +887,30 @@
 
 
 
+(defun integer-decode-denorm-short-float (mantissa sign)
+  (declare (fixnum mantissa sign))
+  (do* ((bias 0 (1+ bias))
+	(sig mantissa (ash sig 1)))
+       ((logbitp 23 sig)
+	(values sig
+		(- (- IEEE-single-float-bias)
+		   IEEE-single-float-digits
+		   bias)
+		sign))))
 
 
 (defun integer-decode-short-float (sfloat)
   (multiple-value-bind (mantissa exp sign)(fixnum-decode-short-float sfloat)
-    (if (eq exp 255)
-      (error "Can't decode NAN/Inf: ~s" sfloat))
-    (setq exp (- exp (if (< mantissa #x800000)
-                       (+ IEEE-single-float-mantissa-width IEEE-single-float-bias)
-                       (+ IEEE-single-float-mantissa-width (1+ IEEE-single-float-bias)))))
-    (values mantissa exp (if (eq sign 0) 1 -1))))
+    (let* ((biased (- exp IEEE-single-float-bias IEEE-single-float-digits)))
+      (setq sign (if (eql 0 sign) 1 -1))
+      (if (eq exp 255)
+	(error "Can't decode NAN/Inf: ~s" sfloat))
+      (if (eql 0 exp)
+	(if (eql 0 mantissa)
+	  (values 0 biased sign)
+	  (integer-decode-denorm-short-float (ash mantissa 1) sign))
+	(values (logior #x800000 mantissa) biased sign)))))
+
 
 
 
@@ -1583,7 +1597,9 @@
   (1- (ash 1 (the fixnum size))))
 
 (defun byte-position (bytespec)
-  (- (integer-length bytespec) (logcount bytespec)))
+  (if (> bytespec 0)
+    (- (integer-length bytespec) (logcount bytespec))
+    (- bytespec)))
 
 
 ; CMU CL returns T.
