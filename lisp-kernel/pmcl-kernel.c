@@ -56,6 +56,12 @@
 #include <mach/message.h>
 #include <mach/vm_region.h>
 #include <sys/sysctl.h>
+#ifdef PPC64
+/* Assume that if the OS is new enough to support PPC64, it has
+   a reasonable dlfcn.h
+*/
+#include <dlfcn.h>
+#endif
 #endif
 
 #include <ctype.h>
@@ -82,13 +88,13 @@ extern LispObj import_ptrs_base;
 
 
 void
-xMakeDataExecutable(void *, unsigned);
+xMakeDataExecutable(void *, unsigned long);
 
 void
 make_dynamic_heap_executable(LispObj *p, LispObj *q)
 {
   void * cache_start = (void *) p;
-  unsigned ncacheflush = (unsigned) q - (unsigned) p;
+  unsigned long ncacheflush = (unsigned long) q - (unsigned long) p;
 
   xMakeDataExecutable(cache_start, ncacheflush);  
 }
@@ -175,7 +181,7 @@ allocate_lisp_stack(unsigned useable,
     if (softp) *softp = sprotp;
   }
   if (base_p) *base_p = base;
-  return (BytePtr) ((unsigned)(base+size));
+  return (BytePtr) ((unsigned long)(base+size));
 }
 
 /*
@@ -224,7 +230,7 @@ allocate_lisp_stack_area(area_code stack_type,
 area*
 register_cstack_holding_area_lock(BytePtr bottom, unsigned size)
 {
-  BytePtr lowlimit = (BytePtr) (((((unsigned)bottom)-size)+4095)&~4095);
+  BytePtr lowlimit = (BytePtr) (((((unsigned long)bottom)-size)+4095)&~4095);
   area *a = new_area((BytePtr) bottom-size, bottom, AREA_CSTACK);
 
   a->hardlimit = lowlimit+CSTACK_HARDPROT;
@@ -379,7 +385,7 @@ extend_readonly_area(unsigned more)
     if ((a->active + more) > a->high) {
       return NULL;
     }
-    mask = ((unsigned)a->active) & 4095;
+    mask = ((unsigned long)a->active) & 4095;
     if (mask) {
       UnProtectMemory(a->active-mask, 4096);
     }
@@ -403,6 +409,10 @@ BytePtr pure_space_start, pure_space_active, pure_space_limit;
 BytePtr static_space_start, static_space_active, static_space_limit;
 
 #ifdef DARWIN
+#ifdef PPC64
+#define vm_region vm_region64
+#endif
+
 /*
   Check to see if the specified address is unmapped by trying to get
   information about the mapped address at or beyond the target.  If
@@ -419,6 +429,7 @@ address_unmapped_p(char *addr, unsigned len)
   port_t vm_object_name = (port_t) 0;
   kern_return_t kret;
 
+#ifndef PPC64
   kret = vm_region(mach_task_self(),
 		   &vm_addr,
 		   &vm_size,
@@ -426,6 +437,9 @@ address_unmapped_p(char *addr, unsigned len)
 		   (vm_region_info_t)&vm_info,
 		   &vm_info_size,
 		   &vm_object_name);
+#else
+  kret = KERN_SUCCESS;
+#endif
   if (kret != KERN_SUCCESS) {
     return false;
   }
@@ -438,7 +452,7 @@ address_unmapped_p(char *addr, unsigned len)
 
 
 area *
-create_reserved_area(unsigned totalsize)
+create_reserved_area(unsigned long totalsize)
 {
   OSErr err;
   Ptr h;
@@ -504,7 +518,7 @@ create_reserved_area(unsigned totalsize)
 
   if (start != want) {
     munmap(start, totalsize+heap_segment_size);
-    start = (void *)((((unsigned)start)+heap_segment_size-1) & ~(heap_segment_size-1));
+    start = (void *)((((unsigned long)start)+heap_segment_size-1) & ~(heap_segment_size-1));
     if(mmap(start, totalsize, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) != start) {
       return NULL;
     }
@@ -512,7 +526,7 @@ create_reserved_area(unsigned totalsize)
   mprotect(start, totalsize, PROT_NONE);
 
   h = (Ptr) start;
-  base = (unsigned) start;
+  base = (unsigned long) start;
   image_base = base;
   lastbyte = (BytePtr) (start+totalsize);
   static_space_start = static_space_active = (BytePtr)STATIC_BASE_ADDRESS;
@@ -526,13 +540,13 @@ create_reserved_area(unsigned totalsize)
      maximum useable area of the heap (+ 3 words for the EGC.)
   */
   end = lastbyte;
-  end = (BytePtr) ((unsigned)((((unsigned)end) - ((totalsize+63)>>6)) & ~4095));
+  end = (BytePtr) ((unsigned long)((((unsigned long)end) - ((totalsize+63)>>6)) & ~4095));
 
   global_mark_ref_bits = (bitvector)end;
-  end = (BytePtr) ((unsigned)((((unsigned)end) - ((totalsize+63) >> 6)) & ~4095));
+  end = (BytePtr) ((unsigned long)((((unsigned long)end) - ((totalsize+63) >> 6)) & ~4095));
   global_reloctab = (LispObj *) end;
   /* We need 2 bytes for every page for the egc pagemap */
-  end = (BytePtr) ((unsigned)((((unsigned)end) - ((totalsize+4095) >> 11)) & ~4095));
+  end = (BytePtr) ((unsigned long)((((unsigned long)end) - ((totalsize+4095) >> 11)) & ~4095));
   pagemap = (pageentry *) end;
   reserved = new_area(start, end, AREA_VOID);
   /* The root of all evil is initially linked to itself. */
@@ -599,7 +613,7 @@ file_map_reserved_pages(unsigned len, int prot, int fd, unsigned offset)
   }
 #endif
   /* UNLOCK_MMAP_LOCK(); */
-  return (void *) (((unsigned)start) + offset_in_page);
+  return (void *) (((unsigned long)start) + offset_in_page);
 }
 
 BytePtr pagemap_limit = NULL, 
@@ -784,7 +798,7 @@ metering_proc(int signum, struct sigcontext *context)
 }
 
 void
-sigint_handler (int signum, siginfo_t *info, struct ucontext *context)
+sigint_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
   if (signum == SIGINT) {
     lisp_global(INTFLAG) = (1 << fixnumshift);
@@ -821,7 +835,7 @@ initial_stack_bottom()
   while (*p) {
     p += (1+strlen(p));
   }
-  return (BytePtr)((((unsigned) p) +4095) & ~4095);
+  return (BytePtr)((((unsigned long) p) +4095) & ~4095);
 }
 
 
@@ -905,10 +919,10 @@ char *
 determine_executable_name(char *argv0)
 {
 #ifdef DARWIN
-  size_t len = 1024;
+  uint32_t len = 1024;
   char exepath[1024], *p = NULL;
 
-  if (_NSGetExecutablePath(exepath, &len) == 0) {
+  if (_NSGetExecutablePath(exepath, (void *)&len) == 0) {
     p = malloc(len+1);
     bcopy(exepath, p, len);
     p[len]=0;
@@ -1344,10 +1358,10 @@ set_nil(LispObj r)
 
 
 void
-xMakeDataExecutable(void *start, unsigned nbytes)
+xMakeDataExecutable(void *start, unsigned long nbytes)
 {
   extern void flush_cache_lines();
-  unsigned ustart = (unsigned) start, base, end;
+  unsigned long ustart = (unsigned long) start, base, end;
   
   base = (ustart) & ~(cache_block_size-1);
   end = (ustart + nbytes + cache_block_size - 1) & ~(cache_block_size-1);
@@ -1368,14 +1382,13 @@ xGetSharedLibrary(char *path, int mode)
 }
 #else
 void *
-xGetSharedLibrary(char *path, int mode)
+xGetSharedLibrary(char *path, int *resultType)
 {
   NSObjectFileImageReturnCode code;
   NSObjectFileImage	         moduleImage;
   NSModule		         module;
   const struct mach_header *     header;
   const char *                   error;
-  int *                          resultType;
   void *                         result;
   /* not thread safe */
   /*
@@ -1385,7 +1398,6 @@ xGetSharedLibrary(char *path, int mode)
     const char                *error;
   } results;	
   */
-  resultType = (int *)mode;
   result = NULL;
   error = NULL;
 
@@ -1591,15 +1603,26 @@ xFindSymbol(void* handle, char *name)
   return dlsym(handle, name);
 #endif
 #ifdef DARWIN
-  unsigned long address = 0;
+#ifdef PPC64
+  if (handle == NULL) {
+    handle = RTLD_DEFAULT;
+  }    
+  if (*name == '_') {
+    name++;
+  }
+  return dlsym(handle, name);
+#else
+  void *address = 0;
 
   if (handle == NULL) {
     if (NSIsSymbolNameDefined(name)) { /* Keep dyld_lookup from crashing */
-      _dyld_lookup_and_bind(name, &address, (void**) NULL);
+      _dyld_lookup_and_bind(name, &address, (void*) NULL);
     }
-    return (void *)address;
+    return address;
   }
   Bug(NULL, "How did this happen ?");
 #endif
+#endif
 }
+
 
