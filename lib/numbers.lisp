@@ -362,25 +362,32 @@
 
 
 #|
-(defun rationalize (number)
-  (cond ((not (floatp number)) (rational number))
-        ((minusp number) (- (rationalize (- number))))
-        ((zerop number) 0)
-        (t (let ((onum 1) (oden 0) num (den 1) rem)
-             (multiple-value-setq (num rem) (truncate number))
-             (until (<= (abs (/ (- number (/ (float num) den)) number))
-                        single-float-epsilon)
-               (multiple-value-bind (q r) (truncate 1.0 rem)
-                 (setq rem (/ r rem))
-                 (let ((nnum (+ (* q num) onum)))
-                   (setq onum num num nnum))
-                 (let ((nden (+ (* q den) oden)))
-                   (setq oden den den nden))))
-             (/ num den)))))
-;Rationalize failed. Input 1.9998229581607005 Rational 70903515/35454896 Float 1.9998229581607008
-; also gets overflow and underflow sometimes
+(defun rationalize (x)
+  (etypecase x
+    (rational x)
+    (real
+     (cond ((minusp x) (- (rationalize (- x))))
+	   ((zerop x) 0)
+	   (t
+	    (let ((eps (etypecase x
+			 (single-float single-float-epsilon)
+			 (double-float double-float-epsilon)))
+		  (y ())
+		  (a ()))
+	      (do ((xx x (setq y (/ (float 1.0 x) (- xx (float a x)))))
+		   (num (setq a (truncate x))
+			(+ (* (setq a (truncate y)) num) onum))
+		   (den 1 (+ (* a den) oden))
+		   (onum 1 num)
+		   (oden 0 den))
+		  ((and (not (zerop den))
+			(not (> (abs (/ (- x (/ (float num x)
+						(float den x)))
+					x))
+				eps)))
+		   (integer-/-integer num den)))))))))
 |#
-; Kalman's more better one
+
 (defun rationalize (number)
   (if (floatp number)
     (labels ((simpler-rational (less-predicate lonum loden hinum hiden
@@ -397,13 +404,13 @@
                                      loden (- lonum (* (1- term) loden)))
                    (values (+ den (* (1- term) num)) num)))))                           
       (multiple-value-bind (fraction exponent sign) (integer-decode-float number)
-        ; the first 2 tests may be unnecessary - I think the check for denormalized
-        ; is compensating for a bug in 3.0 re floating a rational (in order to pass tests in ppc-test-arith).
+        ;; the first 2 tests may be unnecessary - I think the check
+        ;; for denormalized is compensating for a bug in 3.0 re
+        ;; floating a rational (in order to pass tests in
+        ;; ppc-test-arith).
         (if (or (and (typep number 'double-float)  ; is it denormalized
                      (eq exponent #.(nth-value 1 (integer-decode-float least-positive-double-float)))) ; aka -1074))
-                (and nil ;(typep number 'short-float) ; was needed to pass tests but bug was elsewhere
-                     ; this won't cross compile but I assume we don't worry about that any more.
-                     (eq exponent #.(nth-value 1 (integer-decode-float least-positive-short-float)))) ; aka -149))
+                (eq exponent #.(nth-value 1 (integer-decode-float least-positive-short-float))) ; aka -149))
                 (zerop (logand fraction (1- fraction)))) ; or a power of two
           (rational number)
           (if (minusp exponent)
@@ -525,8 +532,10 @@
                (locally (declare (fixnum op))
                  (and (>= op 0)
                       (<= op 15))))
-    (report-bad-arg op '(integer 0 16)))
-  (funcall (%svref *boole-ops* op) integer1 integer2))
+    (report-bad-arg op '(integer 0 15)))
+  (funcall (%svref *boole-ops* op)
+	   (require-type integer1 'integer)
+	   (require-type integer2 'integer)))
 
 
 (defun %integer-power (b e)
