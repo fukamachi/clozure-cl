@@ -1352,11 +1352,10 @@
 
 
 
+
 (defun standard-instance-p (i)
   (eq (typecode i) ppc32::subtag-instance))
 
-
-(setf (type-predicate 'standard-instance) 'standard-instance-p)
 
 
 (defun standard-object-p (thing)
