@@ -374,7 +374,8 @@
  (nfunction
   |, reader| 
   (lambda (stream char &aux (stack *backquote-stack*))
-    (when (null stack) (error "Comma not inside backquote"))
+    (when (null stack)
+      (signal-reader-error stream "Comma not inside backquote"))
     (let ((*backquote-stack* (cdddr stack)))
       (setq char (tyi stream))
       (cond ((eq char #\@)
