@@ -281,12 +281,13 @@
   (multiple-value-bind (instance-slots class-slots)
       (extract-instance-and-class-slotds eslotds)
     (let* ((new-ordering
-            (let* ((v (make-array (the fixnum (length instance-slots)))))
+            (let* ((v (make-array (the fixnum (length instance-slots))))
+		   (i 0))
+	      (declare (simple-vector v) (fixnum i))
               (dolist (e instance-slots v)
-                (setf (svref v
-                             (the fixnum
-                               (- (%slot-definition-location e) 1)))
-                      (%slot-definition-name e)))))
+                (setf (svref v i)
+                      (%slot-definition-name e))
+		(incf i))))
            (old-wrapper (%class-own-wrapper class))
            (old-ordering (if old-wrapper (%wrapper-instance-slots old-wrapper)))
            (new-wrapper
