@@ -878,7 +878,7 @@
                                 :size in-size-in-octets
                                 :limit insize))
           (setf (ioblock-inbuf-lock ioblock) (make-lock))
-          (setf (ioblock-element-shift ioblock) (1- (/ in-size-in-octets insize)))
+          (setf (ioblock-element-shift ioblock) (ceiling (log  (/ in-size-in-octets insize) 2)))
           )))
     (if share-buffers-p
         (if insize
@@ -899,7 +899,7 @@
                                   :limit outsize
                                   :size out-size-in-octets))
             (setf (ioblock-outbuf-lock ioblock) (make-lock))
-            (setf (ioblock-element-shift ioblock) (1- (/ out-size-in-octets outsize)))
+            (setf (ioblock-element-shift ioblock) (ceiling (log (/ out-size-in-octets outsize) 2)))
             ))))
     (when element-type
       (setf (ioblock-element-type ioblock) element-type))

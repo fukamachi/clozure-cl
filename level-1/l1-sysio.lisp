@@ -367,10 +367,12 @@
 ;;; to read this time is (+ where-it-was-last-time what-we-read-last-time.)
 (defun input-file-ioblock-advance (stream file-ioblock read-p)
   (let* ((newpos (+ (file-ioblock-octet-pos file-ioblock)
-		    (io-buffer-count (file-ioblock-inbuf file-ioblock)))))
-    (unless (eql newpos (file-octet-filepos file-ioblock))
-      (break "Expected newpos to be ~d, fd is at ~d"
-	     newpos (file-octet-filepos file-ioblock)))
+		    (io-buffer-count (file-ioblock-inbuf file-ioblock))))
+	 (curpos (ioblock-octets-to-elements
+		  file-ioblock
+		  (file-octet-filepos file-ioblock))))
+    (unless (eql newpos curpos)
+      (break "Expected newpos to be ~d, fd is at ~d" newpos curpos))
     (setf (file-ioblock-octet-pos file-ioblock) newpos)
     (file-stream-advance stream file-ioblock read-p)))
 
