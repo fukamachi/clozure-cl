@@ -381,11 +381,11 @@ typedef struct doh_block {
 
 
 
-
+#define TCR_BIAS (0x7000)
 
 typedef struct tcr {
-  NATURAL_POINTER_FIELD(struct tcr,next);
-  NATURAL_POINTER_FIELD(struct tcr,prev);
+  struct tcr* next;
+  struct tcr* prev;
   struct {
     float f;
     u_int32_t tag;
@@ -394,42 +394,42 @@ typedef struct tcr {
     double d;
     struct {u_int32_t h, l;} words;
   } lisp_fpscr;			/* lisp thread's fpscr (in low word) */
-  NATURAL_POINTER_FIELD(special_binding,db_link);	/* special binding chain head */
+  special_binding* db_link;	/* special binding chain head */
   LispObj catch_top;		/* top catch frame */
-  NATURAL_POINTER_FIELD(LispObj,save_vsp);  /* VSP when in foreign code */
-  NATURAL_POINTER_FIELD(LispObj,save_tsp);  /* TSP when in foreign code */
-  NATURAL_POINTER_FIELD(struct area,cs_area); /* cstack area pointer */
-  NATURAL_POINTER_FIELD(struct area,vs_area); /* vstack area pointer */
-  NATURAL_POINTER_FIELD(struct area,ts_area); /* tstack area pointer */
+  LispObj* save_vsp;  /* VSP when in foreign code */
+  LispObj* save_tsp;  /* TSP when in foreign code */
+  struct area* cs_area; /* cstack area pointer */
+  struct area* vs_area; /* vstack area pointer */
+  struct area* ts_area; /* tstack area pointer */
   LispObj cs_limit;		/* stack overflow limit */
   natural bytes_allocated;
   signed_natural interrupt_level;      /* for w-o-i preemption */
   signed_natural interrupt_pending;	/* likewise */
-  NATURAL_POINTER_FIELD(xframe_list,xframe); /* exception-frame linked list */
-  NATURAL_POINTER_FIELD(int,errno_loc);		/* per-thread (?) errno location */
+  xframe_list* xframe; /* exception-frame linked list */
+  int* errno_loc;		/* per-thread (?) errno location */
   LispObj ffi_exception;	/* fpscr bits from ff-call */
   LispObj osid;			/* OS thread id */
   signed_natural valence;			/* odd when in foreign code */
   signed_natural foreign_exception_status;	/* non-zero -> call lisp_exit_hook */
-  NATURAL_POINTER_FIELD(void,native_thread_info);	/* platform-dependent */
-  NATURAL_POINTER_FIELD(void,native_thread_id);	/* mach_thread_t, pid_t, etc. */
-  NATURAL_POINTER_FIELD(void,last_allocptr);
-  NATURAL_POINTER_FIELD(void,save_allocptr);
-  NATURAL_POINTER_FIELD(void,save_allocbase);
-  NATURAL_POINTER_FIELD(void,reset_completion);
-  NATURAL_POINTER_FIELD(void,activate);
+  void* native_thread_info;	/* platform-dependent */
+  void* native_thread_id;	/* mach_thread_t, pid_t, etc. */
+  void* last_allocptr;
+  void* save_allocptr;
+  void* save_allocbase;
+  void* reset_completion;
+  void* activate;
   signed_natural suspend_count;
-  NATURAL_POINTER_FIELD(ExceptionInformation,suspend_context);
-  NATURAL_POINTER_FIELD(ExceptionInformation,pending_exception_context);
-  NATURAL_POINTER_FIELD(void,suspend);		/* suspension semaphore */
-  NATURAL_POINTER_FIELD(void,resume);			/* resumption semaphore */
+  ExceptionInformation* suspend_context;
+  ExceptionInformation* pending_exception_context;
+  void* suspend;		/* suspension semaphore */
+  void* resume;			/* resumption semaphore */
   u_int32_t flags_pad;
   int32_t flags;
-  NATURAL_POINTER_FIELD(ExceptionInformation,gc_context);
+  ExceptionInformation* gc_context;
   signed_natural suspend_total;
   signed_natural suspend_total_on_exception_entry;
   natural tlb_limit;
-  NATURAL_POINTER_FIELD(LispObj,tlb_pointer);
+  LispObj* tlb_pointer;
   natural shutdown_count;
 } TCR;
 
