@@ -92,16 +92,21 @@ define_cl_array_subtag(simple_base_string,ivector_class_8_bit,5)
 
 /* There's some room for expansion in non-array ivector space. */
 define_subtag(bignum,ivector_class_64_bit,0)
-define_subtag(macptr,ivector_class_64_bit,1)
-define_subtag(dead_macptr,ivector_class_64_bit,2)
 define_subtag(double_float,ivector_class_64_bit,3)
+define_subtag(macptr,ivector_class_64_bit,5)
+define_subtag(dead_macptr,ivector_class_64_bit,6)
 define_subtag(code_vector,ivector_class_32_bit,0)
 define_subtag(xcode_vector,ivector_class_32_bit,1)
 
-;; Size doesn't matter for non-CL-array gvectors; I can't think of a good
-;; reason to classify them in any particular way.  Let's put funcallable
-;; things in the first slice by themselves, though it's not clear that
-;; that helps FUNCALL much.
+
+
+        
+/*        
+ Size doesn't matter for non-CL-array gvectors; I can't think of a good
+ reason to classify them in any particular way.  Let's put funcallable
+ things in the first slice by themselves, though it's not clear that
+ that helps FUNCALL much.
+*/        
 gvector_funcallable = fulltag_nodeheader_0
 	
 define_subtag(function,gvector_funcallable,0)
@@ -133,18 +138,21 @@ misc_data_offset = misc_header_offset+4		/* first word of data */
 misc_dfloat_offset = misc_header_offset		/* double-floats are doubleword-aligned */
 
 define_subtag(single_float,fulltag_imm_0,0)
-define_subtag(slot_unbound,fulltag_imm_0,1)
-slot_unbound_marker = subtag_slot_unbound
-define_subtag(illegal,fulltag_imm_0,2)
-illegal_marker = subtag_illegal
 
 define_subtag(go_tag,fulltag_imm_1,0)
 define_subtag(block_tag,fulltag_imm_1,1)
+
 define_subtag(character,fulltag_imm_2,0)
+                	
 define_subtag(unbound,fulltag_imm_3,0)
 unbound_marker = subtag_unbound
 undefined = unbound_marker
-define_subtag(no_thread_local_binding,fulltag_imm_3,1)
+define_subtag(slot_unbound,fulltag_imm_3,1)
+slot_unbound_marker = subtag_slot_unbound
+define_subtag(illegal,fulltag_imm_3,2)
+illegal_marker = subtag_illegal
+define_subtag(no_thread_local_binding,fulltag_imm_3,3)
+no_thread_local_binding_marker = subtag_no_thread_local_binding        
 
 	
 max_64_bit_constant_index = ((0x7fff + misc_dfloat_offset)>>3)

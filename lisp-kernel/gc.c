@@ -46,12 +46,12 @@ new_area(BytePtr lowaddr, BytePtr highaddr, area_code code)
 {
   area *a = (area *) (zalloc(sizeof(area)));
   if (a) {
-    unsigned ndwords = area_dword(highaddr, lowaddr);
+    unsigned ndnodes = area_dnode(highaddr, lowaddr);
     a->low = lowaddr;
     a->high = highaddr;
     a->active = (code == AREA_DYNAMIC) ? lowaddr : highaddr;
     a->code = code;
-    a->ndwords = ndwords;
+    a->ndnodes = ndnodes;
     /* Caller must allocate markbits when allocating heap ! */
     
   }
@@ -182,23 +182,43 @@ check_node(LispObj n)
   switch (tag) {
   case fulltag_even_fixnum:
   case fulltag_odd_fixnum:
+#ifdef PPC64
+  case fulltag_imm_0:
+  case fulltag_imm_1:
+  case fulltag_imm_2:
+  case fulltag_imm_3:
+#else
   case fulltag_imm:
+#endif
     return;
 
+#ifndef PPC64
   case fulltag_nil:
     if (n != lisp_nil) {
       Bug(NULL,"Object tagged as nil, not nil : 0x%08x", n);
     }
     return;
+#endif
 
+#ifdef PPC64
+  case fulltag_nodeheader_0: 
+  case fulltag_nodeheader_1: 
+  case fulltag_nodeheader_2: 
+  case fulltag_nodeheader_3: 
+  case fulltag_immheader_0: 
+  case fulltag_immheader_1: 
+  case fulltag_immheader_2: 
+  case fulltag_immheader_3: 
+#else
   case fulltag_nodeheader:
   case fulltag_immheader:
+#endif
     Bug(NULL, "Header not expected : 0x%08x", n);
     return;
 
   case fulltag_misc:
   case fulltag_cons:
-    a = heap_area_containing((BytePtr)n);
+    a = heap_area_containing((BytePtr)ptr_from_lispobj(n));
     
     if (a == NULL) {
       /* Can't do as much sanity checking as we'd like to
@@ -206,8 +226,8 @@ check_node(LispObj n)
          If a dangling reference to the heap, that's
          bad .. */
       a = active_dynamic_area;
-      if ((n > ((LispObj)a->active)) &&
-          (n < ((LispObj)a->high))) {
+      if ((n > (ptr_to_lispobj(a->active))) &&
+          (n < (ptr_to_lispobj(a->high)))) {
         Bug(NULL, "Node points to heap free space: 0x%08x", n);
       }
       return;
@@ -218,15 +238,15 @@ check_node(LispObj n)
   header = header_of(n);
   header_tag = fulltag_of(header);
   if (tag == fulltag_cons) {
-    if ((header_tag == fulltag_nodeheader) ||
-        (header_tag == fulltag_immheader)) {
+    if ((nodeheader_tag_p(header_tag)) ||
+        (immheader_tag_p(header_tag))) {
       Bug(NULL, "Cons cell at 0x%08x has bogus header : 0x%08x", n, header);
     }
     return;
   }
 
-  if ((header_tag != fulltag_nodeheader) &&
-      (header_tag != fulltag_immheader)) {
+  if ((!nodeheader_tag_p(header_tag)) &&
+      (!immheader_tag_p(header_tag))) {
     Bug(NULL,"Vector at 0x%08x has bogus header : 0x%08x", n, header);
   }
   return;
@@ -243,9 +263,9 @@ check_range(LispObj *start, LispObj *end)
     prev = current;
     node = *current++;
     tag = fulltag_of(node);
-    if (tag == fulltag_immheader) {
+    if (immheader_tag_p(tag)) {
       current = (LispObj *)skip_over_ivector((unsigned)prev, node);
-    } else if (tag == fulltag_nodeheader) {
+    } else if (nodeheader_tag_p(tag)) {
       elements = header_element_count(node) | 1;
       while (elements--) {
         check_node(*current++);
@@ -298,7 +318,7 @@ check_all_areas()
         for (current = start;
              end != limit;
              current = next) {
-          next = (LispObj *) *current;
+          next = ptr_from_lispobj(*current);
           end = ((next >= start) && (next < limit)) ? next : limit;
           if (current[1] == 0) {
             check_range(current+2, end);
@@ -331,13 +351,13 @@ first_node_on_page(LispObj *p, LispObj *page, pageentry *bucket, LispObj *limit)
       return p;
     }
     
-    if (tag == fulltag_immheader) {
-      q = (LispObj *)skip_over_ivector((LispObj)p, header);
+    if (immheader_tag_p(tag)) {
+      q = (LispObj *)skip_over_ivector(ptr_to_lispobj(p), header);
       if (q >= nextpage) {
 	bucket->halfword = 0;
 	return q;
       }
-    } else if (tag == fulltag_nodeheader) {
+    } else if (nodeheader_tag_p(tag)) {
       q = p + ((2 + header_element_count(header)) & ~1);
       if (p >= page) {
 	bucket->bits.hasnode = 1;
@@ -375,7 +395,7 @@ make_page_node_map(LispObj *start, LispObj *end)
 {
   LispObj *p, *page = (LispObj *)truncate_to_power_of_2(start,12);
   pageentry 
-    *buckets = pagemap + (((LispObj)page - lisp_global(HEAP_START)) >> 12);
+    *buckets = pagemap + (((ptr_to_lispobj(page)) - lisp_global(HEAP_START)) >> 12);
 
   if (start != page) {
     if (buckets->bits.hasnode) {
@@ -397,7 +417,7 @@ void
 update_refmap_for_range(LispObj *start, 
                         LispObj *end,
                         LispObj ephemeral_start,
-                        unsigned long ephemeral_dwords)
+                        unsigned long ephemeral_dnodes)
 {
   LispObj node, oldspacestart = lisp_global(HEAP_START);
   int tag;
@@ -406,22 +426,22 @@ update_refmap_for_range(LispObj *start,
   while (start < end) {
     node = *start;
     tag = fulltag_of(node);
-    if (tag == fulltag_immheader) {	/* An ivector */
-      start = (LispObj *)skip_over_ivector((LispObj)start, node);
+    if (immheader_tag_p(tag)) {	/* An ivector */
+      start = ptr_from_lispobj(skip_over_ivector(ptr_to_lispobj(start), node));
     } else {
       if ((header_subtag(node) == subtag_hash_vector) ||
           /* Need to memoize location of hash vector headers, at
              least if we have to track key movement */
           (((tag == fulltag_cons) || (tag == fulltag_misc)) &&
-           (area_dword(node, ephemeral_start) < ephemeral_dwords))) {
+           (area_dnode(node, ephemeral_start) < ephemeral_dnodes))) {
         /* Tagged pointer to (some) younger generation; update refmap */
-        set_bit(refbits,area_dword(start, oldspacestart));
+        set_bit(refbits,area_dnode(start, oldspacestart));
       } else {
         node = start[1];
         tag = fulltag_of(node);
         if (((tag == fulltag_cons) || (tag == fulltag_misc)) &&
-            (area_dword(node, ephemeral_start) < ephemeral_dwords)) {
-          set_bit(refbits,area_dword(start, oldspacestart));
+            (area_dnode(node, ephemeral_start) < ephemeral_dnodes)) {
+          set_bit(refbits,area_dnode(start, oldspacestart));
         }
       }
       start += 2;
@@ -433,16 +453,16 @@ void
 update_refmap_for_page(pageentry *bucket,
 		       LispObj *page,
 		       LispObj ephemeral_start,
-		       unsigned ephemeral_dwords)
+		       unsigned ephemeral_dnodes)
 {
   LispObj *start;
   if (bucket->bits.modified) {		/* Page was written to since last GC */
     if (bucket->bits.hasnode) {		/* Some nodes on this page */
       start = page + bucket->bits.offset;
       update_refmap_for_range(start,
-                              (LispObj *) align_to_power_of_2((LispObj)start+1,12),
+                              (LispObj *) align_to_power_of_2(ptr_to_lispobj(start+1),12),
                               ephemeral_start,
-                              ephemeral_dwords);
+                              ephemeral_dnodes);
     }
   }
 }
@@ -451,25 +471,25 @@ update_refmap_for_page(pageentry *bucket,
 void
 update_refmap_for_area(area *a, BytePtr curfree)
 {
-  if (a->ndwords) {
+  if (a->ndnodes) {
     LispObj 
       *start = (LispObj *) a->low,
       *limit = (LispObj *) a->active,
       *last_whole_page_end = (LispObj *) truncate_to_power_of_2(limit,12),
       *first_partial_page_start = (LispObj *) truncate_to_power_of_2(start,12);
-    pageentry *p = pagemap + ((LispObj)start - lisp_global(HEAP_START) >> 12);
-    unsigned younger_dwords = area_dword((LispObj)curfree,(LispObj)limit);
+    pageentry *p = pagemap + (ptr_to_lispobj(start) - lisp_global(HEAP_START) >> 12);
+    unsigned younger_dnodes = area_dnode(ptr_to_lispobj(curfree),ptr_to_lispobj(limit));
     
     if (last_whole_page_end == first_partial_page_start) {
       if (p->bits.modified && p->bits.hasnode) {
-        update_refmap_for_range(start,limit,(LispObj)limit,younger_dwords);
+        update_refmap_for_range(start,limit,ptr_to_lispobj(limit),younger_dnodes);
       }
     } else {
       if (start != first_partial_page_start) {
         LispObj 
           *page_end = first_partial_page_start + (4096 / sizeof(LispObj *));
         if (p->bits.modified && p->bits.hasnode) {
-          update_refmap_for_range(start,page_end,(LispObj)limit,younger_dwords);
+          update_refmap_for_range(start,page_end,ptr_to_lispobj(limit),younger_dnodes);
         }
         start = page_end;
         p++;
@@ -477,11 +497,11 @@ update_refmap_for_area(area *a, BytePtr curfree)
       for (; 
            start < last_whole_page_end;
            start += (4096 / sizeof(LispObj *)), p++) {
-        update_refmap_for_page(p,start,(LispObj)limit,younger_dwords);
+        update_refmap_for_page(p,start,ptr_to_lispobj(limit),younger_dnodes);
       }
       if (start < limit) {
         if (p->bits.modified && p->bits.hasnode) {
-          update_refmap_for_range(start+p->bits.offset,limit,(LispObj)limit,younger_dwords);
+          update_refmap_for_range(start+p->bits.offset,limit,ptr_to_lispobj(limit),younger_dnodes);
         }
       }
     }
@@ -522,29 +542,29 @@ tenure_to_area(area *target)
     target_low = target->low,
     tenured_low = tenured_area->low;
   unsigned 
-    dynamic_dwords = area_dword(curfree, a->low),
-    new_tenured_dwords = area_dword(curfree, tenured_area->low);
+    dynamic_dnodes = area_dnode(curfree, a->low),
+    new_tenured_dnodes = area_dnode(curfree, tenured_area->low);
   bitvector 
     refbits = tenured_area->refbits,
     markbits = a->markbits,
     new_markbits;
 
   target->high = target->active = curfree;
-  target->ndwords = area_dword(curfree, target_low);
+  target->ndnodes = area_dnode(curfree, target_low);
 
   for (child = target->younger; child != a; child = child->younger) {
     child->high = child->low = child->active = curfree;
-    child->ndwords = 0;
+    child->ndnodes = 0;
   }
 
   a->low = curfree;
-  a->ndwords = area_dword(a->high, curfree);
+  a->ndnodes = area_dnode(a->high, curfree);
 
-  new_markbits = refbits + ((new_tenured_dwords + 31) >> 5);
+  new_markbits = refbits + ((new_tenured_dnodes + 31) >> 5);
   
   if (target == tenured_area) {
-    zero_bits(refbits, new_tenured_dwords);
-    lisp_global(OLDEST_EPHEMERAL) = (LispObj) curfree;
+    zero_bits(refbits, new_tenured_dnodes);
+    lisp_global(OLDEST_EPHEMERAL) = ptr_to_lispobj(curfree);
   } else {
     /* Need more (zeroed) refbits & fewer markbits */
     zero_bits(markbits, ((new_markbits-markbits)<<5));
@@ -571,17 +591,17 @@ untenure_from_area(area *from)
   if (lisp_global(OLDEST_EPHEMERAL) != 0) {
     area *a = active_dynamic_area, *child;
     BytePtr curlow = from->low;
-    unsigned new_tenured_dwords = area_dword(curlow, tenured_area->low);
+    unsigned new_tenured_dnodes = area_dnode(curlow, tenured_area->low);
     
     for (child = from; child != a; child = child->younger) {
       child->low = child->active = child->high = curlow;
-      child->ndwords = 0;
+      child->ndnodes = 0;
     }
     
     a->low = curlow;
-    a->ndwords = area_dword(a->high, curlow);
+    a->ndnodes = area_dnode(a->high, curlow);
     
-    a->markbits = (tenured_area->refbits) + ((new_tenured_dwords+31)>>5);
+    a->markbits = (tenured_area->refbits) + ((new_tenured_dnodes+31)>>5);
     if (from == tenured_area) {
       /* Everything's in the dynamic area */
       lisp_global(OLDEST_EPHEMERAL) = 0;
@@ -601,7 +621,7 @@ egc_control(Boolean activate, BytePtr curfree)
       a->active = curfree;
     }
     if (activate) {
-      LispObj *heap_start = (LispObj *)lisp_global(HEAP_START);
+      LispObj *heap_start = ptr_from_lispobj(lisp_global(HEAP_START));
 
       a->older = g1_area;
       tenure_to_area(tenured_area);
@@ -706,10 +726,10 @@ condemn_area_chain(area *a)
 
 bitvector GCmarkbits = NULL;
 LispObj GCarealow;
-unsigned GCndwords_in_area;
+unsigned GCndnodes_in_area;
 LispObj GCweakvll = (LispObj)NULL;
 LispObj GCephemeral_low;
-unsigned GCn_ephemeral_dwords;
+unsigned GCn_ephemeral_dnodes;
 
 
 /* Sooner or later, this probably wants to be in assembler */
@@ -719,39 +739,56 @@ void
 mark_root(LispObj n)
 {
   int tag_n = fulltag_of(n);
-  unsigned dword, bits, *bitsp, mask;
+  unsigned dnode, bits, *bitsp, mask;
 
   if (!is_node_fulltag(tag_n)) {
     return;
   }
 
-  dword = gc_area_dword(n);
-  if (dword >= GCndwords_in_area) {
+  dnode = gc_area_dnode(n);
+  if (dnode >= GCndnodes_in_area) {
     return;
   }
-  set_bits_vars(GCmarkbits,dword,bitsp,bits,mask);
+  set_bits_vars(GCmarkbits,dnode,bitsp,bits,mask);
   if (bits & mask) {
     return;
   }
   *bitsp = (bits | mask);
 
   if (tag_n == fulltag_cons) {
-    cons *c = (cons *) untag(n);
+    cons *c = (cons *) ptr_from_lispobj(untag(n));
     rmark(c->car);
     rmark(c->cdr);
     return;
   }
   {
-    LispObj *base = (LispObj *) untag(n);
-    unsigned
-      header = *((unsigned *) base),
+    LispObj *base = (LispObj *) ptr_from_lispobj(untag(n));
+    natural
+      header = *((natural *) base),
       subtag = header_subtag(header),
       element_count = header_element_count(header),
       total_size_in_bytes,      /* including 4-byte header */
-      suffix_dwords;
+      suffix_dnodes;
 
     tag_n = fulltag_of(header);
 
+#ifdef PPC64
+    if ((nodeheader_tag_p(tag_n)) ||
+        (tag_n == ivector_class_64_bit)) {
+      total_size_in_bytes = 8 + (element_count<<3);
+    } else if (tag_n == ivector_class_8_bit) {
+      total_size_in_bytes = 8 + element_count;
+    } else if (tag_n == ivector_class_32_bit) {
+      total_size_in_bytes = 8 + (element_count<<2);
+    } else {
+      /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+      if (subtag == subtag_bit_vector) {
+        total_size_in_bytes = 8 + ((element_count+7)>>3);
+      } else {
+        total_size_in_bytes = 8 + (element_count<<1);
+      }
+    }
+#else
     if ((tag_n == fulltag_nodeheader) ||
         (subtag <= max_32_bit_ivector_subtag)) {
       total_size_in_bytes = 4 + (element_count<<2);
@@ -764,13 +801,14 @@ mark_root(LispObj n)
     } else {
       total_size_in_bytes = 4 + ((element_count+7)>>3);
     }
-    suffix_dwords = ((total_size_in_bytes+7)>>3) -1;
+#endif
+    suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift) -1;
 
-    if (suffix_dwords) {
-      set_n_bits(GCmarkbits, dword+1, suffix_dwords);
+    if (suffix_dnodes) {
+      set_n_bits(GCmarkbits, dnode+1, suffix_dnodes);
     }
 
-    if (tag_n == fulltag_nodeheader) {
+    if (nodeheader_tag_p(tag_n)) {
       if (subtag == subtag_hash_vector) {
         ((hash_table_vector_header *) base)->cache_key = undefined;
         ((hash_table_vector_header *) base)->cache_value = lisp_nil;
@@ -817,16 +855,16 @@ Boolean
 mark_ephemeral_root(LispObj n)
 {
   int tag_n = fulltag_of(n);
-  unsigned eph_dword;
+  unsigned eph_dnode;
 
-  if (tag_n == fulltag_nodeheader) {
+  if (nodeheader_tag_p(tag_n)) {
     return (header_subtag(n) == subtag_hash_vector);
   }
  
   if ((tag_n == fulltag_cons) ||
       (tag_n == fulltag_misc)) {
-    eph_dword = area_dword(n, GCephemeral_low);
-    if (eph_dword < GCn_ephemeral_dwords) {
+    eph_dnode = area_dnode(n, GCephemeral_low);
+    if (eph_dnode < GCn_ephemeral_dnodes) {
       mark_root(n);             /* May or may not mark it */
       return true;              /* but return true 'cause it's an ephemeral node */
     }
@@ -852,20 +890,20 @@ mark_pc_root(LispObj pc)
   if (tag_of(pc) != tag_fixnum) {
     mark_root(pc);
   } else {
-    unsigned dword = gc_area_dword(pc);
-    if ((dword < GCndwords_in_area) &&
-        !ref_bit(GCmarkbits,dword)) {
+    natural dnode = gc_area_dnode(pc);
+    if ((dnode < GCndnodes_in_area) &&
+        !ref_bit(GCmarkbits,dnode)) {
       LispObj
         *headerP,
         header;
 
-      for(headerP = (LispObj*)(untag(pc));
-          dword < GCndwords_in_area;
-          headerP-=2, --dword) {
+      for(headerP = (LispObj*)ptr_from_lispobj(untag(pc));
+          dnode < GCndnodes_in_area;
+          headerP-=2, --dnode) {
         header = *headerP;
 
         if ((header & code_header_mask) == subtag_code_vector) {
-          set_n_bits(GCmarkbits, dword, (2+header_element_count(header))>>1);
+          set_n_bits(GCmarkbits, dnode, (2+header_element_count(header))>>1);
           return;
         }
       }
@@ -889,17 +927,17 @@ rmark(LispObj n)
 {
   int tag_n = fulltag_of(n);
   bitvector markbits = GCmarkbits;
-  unsigned dword, bits, *bitsp, mask;
+  unsigned dnode, bits, *bitsp, mask;
 
   if (!is_node_fulltag(tag_n)) {
     return;
   }
 
-  dword = gc_area_dword(n);
-  if (dword >= GCndwords_in_area) {
+  dnode = gc_area_dnode(n);
+  if (dnode >= GCndnodes_in_area) {
     return;
   }
-  set_bits_vars(markbits,dword,bitsp,bits,mask);
+  set_bits_vars(markbits,dnode,bitsp,bits,mask);
   if (bits & mask) {
     return;
   }
@@ -955,9 +993,9 @@ rmark(LispObj n)
     this += 4;
     tag_n = fulltag_of(next);
     if (!is_node_fulltag(tag_n)) goto MarkCdr;
-    dword = gc_area_dword(next);
-    if (dword >= GCndwords_in_area) goto MarkCdr;
-    set_bits_vars(markbits,dword,bitsp,bits,mask);
+    dnode = gc_area_dnode(next);
+    if (dnode >= GCndnodes_in_area) goto MarkCdr;
+    set_bits_vars(markbits,dnode,bitsp,bits,mask);
     if (bits & mask) goto MarkCdr;
     *bitsp = (bits | mask);
     deref(this,1) = prev;
@@ -973,9 +1011,9 @@ rmark(LispObj n)
     this -= 4;
     tag_n = fulltag_of(next);
     if (!is_node_fulltag(tag_n)) goto Climb;
-    dword = gc_area_dword(next);
-    if (dword >= GCndwords_in_area) goto Climb;
-    set_bits_vars(markbits,dword,bitsp,bits,mask);
+    dnode = gc_area_dnode(next);
+    if (dnode >= GCndnodes_in_area) goto Climb;
+    set_bits_vars(markbits,dnode,bitsp,bits,mask);
     if (bits & mask) goto Climb;
     *bitsp = (bits | mask);
     deref(this, 0) = prev;
@@ -988,16 +1026,33 @@ rmark(LispObj n)
 
   MarkVector:
     {
-      LispObj *base = (LispObj *) untag(this);
-      unsigned
-        header = *((unsigned *) base),
-      subtag = header_subtag(header),
-      element_count = header_element_count(header),
-      total_size_in_bytes,
-      suffix_dwords;
+      LispObj *base = (LispObj *) ptr_from_lispobj(untag(this));
+      natural
+        header = *((natural *) base),
+        subtag = header_subtag(header),
+        element_count = header_element_count(header),
+        total_size_in_bytes,
+        suffix_dnodes;
 
       tag_n = fulltag_of(header);
 
+#ifdef PPC64
+    if ((nodeheader_tag_p(tag_n)) ||
+        (tag_n == ivector_class_64_bit)) {
+      total_size_in_bytes = 8 + (element_count<<3);
+    } else if (tag_n == ivector_class_8_bit) {
+      total_size_in_bytes = 8 + element_count;
+    } else if (tag_n == ivector_class_32_bit) {
+      total_size_in_bytes = 8 + (element_count<<2);
+    } else {
+      /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+      if (subtag == subtag_bit_vector) {
+        total_size_in_bytes = 8 + ((element_count+7)>>3);
+      } else {
+        total_size_in_bytes = 8 + (element_count<<1);
+      }
+    }
+#else
       if ((tag_n == fulltag_nodeheader) ||
           (subtag <= max_32_bit_ivector_subtag)) {
         total_size_in_bytes = 4 + (element_count<<2);
@@ -1010,13 +1065,14 @@ rmark(LispObj n)
       } else {
         total_size_in_bytes = 4 + ((element_count+7)>>3);
       }
-      suffix_dwords = ((total_size_in_bytes+7)>>3)-1;
+#endif
+      suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
 
-      if (suffix_dwords) {
-        set_n_bits(GCmarkbits, dword+1, suffix_dwords);
+      if (suffix_dnodes) {
+        set_n_bits(GCmarkbits, dnode+1, suffix_dnodes);
       }
 
-      if (tag_n != fulltag_nodeheader) goto Climb;
+      if (!nodeheader_tag_p(tag_n)) goto Climb;
 
       if (subtag == subtag_hash_vector) {
         /* Splice onto weakvll, then climb */
@@ -1039,26 +1095,26 @@ rmark(LispObj n)
         element_count -= 1;
       }
 
-      this = untag(this) + ((element_count+1) << 2);
+      this = untag(this) + ((element_count+1) << node_shift);
       goto MarkVectorLoop;
     }
 
   ClimbVector:
-    prev = *((LispObj *) this);
-    *((LispObj *) this) = next;
+    prev = *((LispObj *) ptr_from_lispobj(this));
+    *((LispObj *) ptr_from_lispobj(this)) = next;
 
   MarkVectorLoop:
-    this -= 4;
-    next = *((LispObj *) this);
+    this -= node_size;
+    next = *((LispObj *) ptr_from_lispobj(this));
     tag_n = fulltag_of(next);
-    if (tag_n == fulltag_nodeheader) goto MarkVectorDone;
+    if (nodeheader_tag_p(tag_n)) goto MarkVectorDone;
     if (!is_node_fulltag(tag_n)) goto MarkVectorLoop;
-    dword = gc_area_dword(next);
-    if (dword >= GCndwords_in_area) goto MarkVectorLoop;
-    set_bits_vars(markbits,dword,bitsp,bits,mask);
+    dnode = gc_area_dnode(next);
+    if (dnode >= GCndnodes_in_area) goto MarkVectorLoop;
+    set_bits_vars(markbits,dnode,bitsp,bits,mask);
     if (bits & mask) goto MarkVectorLoop;
     *bitsp = (bits | mask);
-    *((LispObj *) this) = prev;
+    *(ptr_from_lispobj(this)) = prev;
     if (tag_n == fulltag_cons) goto DescendCons;
     goto DescendVector;
 
@@ -1075,14 +1131,35 @@ rmark(LispObj n)
   }
 }
 
-unsigned
-skip_over_ivector(unsigned start, LispObj header)
+LispObj *
+skip_over_ivector(natural start, LispObj header)
 {
-  unsigned
+  natural 
     element_count = header_element_count(header),
     subtag = header_subtag(header),
     nbytes;
 
+#ifdef PPC64
+  switch (fulltag_of(header)) {
+  case ivector_class_64_bit:
+    nbytes = element_count << 3;
+    break;
+  case ivector_class_32_bit:
+    nbytes = element_count << 2;
+    break;
+  case ivector_class_8_bit:
+    nbytes = element_count;
+    break;
+  case ivector_class_other_bit:
+  default:
+    if (subtag == subtag_bit_vector) {
+      nbytes = (element_count+7)>>3;
+    } else {
+      nbytes = element_count << 1;
+    }
+  }
+  return ptr_from_lispobj(start+(~15 & (nbytes + 8 + 15)));
+#else
   if (subtag <= max_32_bit_ivector_subtag) {
     nbytes = element_count << 2;
   } else if (subtag <= max_8_bit_ivector_subtag) {
@@ -1094,7 +1171,8 @@ skip_over_ivector(unsigned start, LispObj header)
   } else {
     nbytes = (element_count+7) >> 3;
   }
-  return start+(~7 & (nbytes + 4 + 7));
+  return ptr_from_lispobj(start+(~7 & (nbytes + 4 + 7)));
+#endif
 }
 
 
@@ -1103,18 +1181,19 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
 {
   LispObj x1, *base = start;
   int tag;
-  unsigned ref_dword, node_dword;
+  natural ref_dnode, node_dnode;
   Boolean intergen_ref;
 
   while (start < end) {
     x1 = *start;
-    if ((tag = fulltag_of(x1)) == fulltag_immheader) {
-      start = (LispObj *)skip_over_ivector((unsigned) start, x1);
+    tag = fulltag_of(x1);
+    if (immheader_tag_p(tag)) {
+      start = skip_over_ivector(ptr_to_lispobj(start), x1);
     } else {
       intergen_ref = false;
       if ((tag == fulltag_misc) || (tag == fulltag_cons)) {        
-        node_dword = gc_area_dword(x1);
-        if (node_dword < GCndwords_in_area) {
+        node_dnode = gc_area_dnode(x1);
+        if (node_dnode < GCndnodes_in_area) {
           intergen_ref = true;
         }
       }
@@ -1122,17 +1201,17 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
         x1 = start[1];
         tag = fulltag_of(x1);
         if ((tag == fulltag_misc) || (tag == fulltag_cons)) {
-          node_dword = gc_area_dword(x1);
-          if (node_dword < GCndwords_in_area) {
+          node_dnode = gc_area_dnode(x1);
+          if (node_dnode < GCndnodes_in_area) {
             intergen_ref = true;
           }
         }
       }
       if (intergen_ref) {
-        ref_dword = area_dword(start, base);
-        if (!ref_bit(refbits, ref_dword)) {
+        ref_dnode = area_dnode(start, base);
+        if (!ref_bit(refbits, ref_dnode)) {
           Bug(NULL, "Missing memoization in doubleword at 0x%08X", start);
-          set_bit(refbits, ref_dword);
+          set_bit(refbits, ref_dnode);
         }
       }
       start += 2;
@@ -1143,15 +1222,15 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
 
 
 void
-mark_memoized_area(area *a, unsigned num_memo_dwords)
+mark_memoized_area(area *a, unsigned num_memo_dnodes)
 {
   bitvector refbits = a->refbits;
   LispObj *p = (LispObj *) a->low, x1, x2;
-  unsigned inbits, outbits, bits, bitidx, *bitsp, nextbit, diff, memo_dword = 0;
+  unsigned inbits, outbits, bits, bitidx, *bitsp, nextbit, diff, memo_dnode = 0;
   Boolean keep_x1, keep_x2;
 
   if (GCDebug) {
-    check_refmap_consistency(p, p+(num_memo_dwords << 1), refbits);
+    check_refmap_consistency(p, p+(num_memo_dnodes << 1), refbits);
   }
 
   /* The distinction between "inbits" and "outbits" is supposed to help us
@@ -1167,16 +1246,16 @@ mark_memoized_area(area *a, unsigned num_memo_dwords)
      */
 
   /*
-    We need to ensure that there are no bits set at or beyond "num_memo_dwords"
+    We need to ensure that there are no bits set at or beyond "num_memo_dnodes"
     in the bitvector.  (This can happen as the EGC tenures/untenures things.)
     We find bits by grabbing a fullword at a time and doing a cntlzw instruction;
-    and don't want to have to check for (< memo_dword num_memo_dwords) in the loop.
+    and don't want to have to check for (< memo_dnode num_memo_dnodes) in the loop.
     */
 
   {
     unsigned 
-      bits_in_last_word = (num_memo_dwords & 0x1f),
-      index_of_last_word = (num_memo_dwords >> 5);
+      bits_in_last_word = (num_memo_dnodes & 0x1f),
+      index_of_last_word = (num_memo_dnodes >> 5);
 
     if (bits_in_last_word != 0) {
       refbits[index_of_last_word] &= ~((1<<(32-bits_in_last_word))-1);
@@ -1185,10 +1264,10 @@ mark_memoized_area(area *a, unsigned num_memo_dwords)
         
   set_bitidx_vars(refbits, 0, bitsp, bits, bitidx);
   inbits = outbits = bits;
-  while (memo_dword < num_memo_dwords) {
+  while (memo_dnode < num_memo_dnodes) {
     if (bits == 0) {
       int remain = 0x20 - bitidx;
-      memo_dword += remain;
+      memo_dnode += remain;
       p += (remain+remain);
       if (outbits != inbits) {
         *bitsp = outbits;
@@ -1199,7 +1278,7 @@ mark_memoized_area(area *a, unsigned num_memo_dwords)
     } else {
       nextbit = count_leading_zeros(bits);
       if ((diff = (nextbit - bitidx)) != 0) {
-        memo_dword += diff;
+        memo_dnode += diff;
         bitidx = nextbit;
         p += (diff+diff);
       }
@@ -1212,13 +1291,13 @@ mark_memoized_area(area *a, unsigned num_memo_dwords)
           (keep_x2 == false)) {
         outbits &= ~(BIT0_MASK >> bitidx);
       }
-      memo_dword++;
+      memo_dnode++;
       bitidx++;
     }
   }
   if (GCDebug) {
     p = (LispObj *) a->low;
-    check_refmap_consistency(p, p+(num_memo_dwords << 1), refbits);
+    check_refmap_consistency(p, p+(num_memo_dnodes << 1), refbits);
   }
 }
 
@@ -1232,16 +1311,17 @@ mark_simple_area_range(LispObj *start, LispObj *end)
 
   while (start < end) {
     x1 = *start;
-    if ((tag = fulltag_of(x1)) == fulltag_immheader) {
-      start = (LispObj *)skip_over_ivector((unsigned) start, x1);
-    } else if (tag != fulltag_nodeheader) {
+    tag = fulltag_of(x1);
+    if (immheader_tag_p(tag)) {
+      start = (LispObj *)ptr_from_lispobj(skip_over_ivector(ptr_to_lispobj(start), x1));
+    } else if (!nodeheader_tag_p(tag)) {
       ++start;
       mark_root(x1);
       mark_root(*start++);
     } else {
       int subtag = header_subtag(x1);
-      int element_count = header_element_count(x1);
-      int size = (element_count+1 + 1) & ~1;
+      natural element_count = header_element_count(x1);
+      natural size = (element_count+1 + 1) & ~1;
 
       if (subtag == subtag_hash_vector) {
         ((hash_table_vector_header *) start)->cache_key = undefined;
@@ -1274,15 +1354,6 @@ mark_simple_area_range(LispObj *start, LispObj *end)
   }
 }
 
-void
-mark_dohs( void )
-{
-  doh_block_ptr doh_block = (doh_block_ptr) lisp_global(DOH_HEAD);
-  while( doh_block ) {
-    mark_simple_area_range( &doh_block->data[0], &doh_block->data[doh_block_slots] );
-    doh_block = doh_block->link;
-  }
-}
 
 /* Mark a tstack area */
 void
@@ -1298,7 +1369,7 @@ mark_tstack_area(area *a)
   for (current = start;
        end != limit;
        current = next) {
-    next = (LispObj *) *current;
+    next = (LispObj *) ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
     if (current[1] == 0) {
       mark_simple_area_range(current+2, end);
@@ -1375,14 +1446,14 @@ reapweakv(LispObj weakv)
     cons is marked, mark the cons which contains it; otherwise, splice the cons out of the list.
     N.B. : elements 0 and 1 are already marked (or are immediate, etc.)
     */
-  LispObj *prev = ((LispObj *) untag(weakv))+(1+2), cell = *prev;
+  LispObj *prev = ((LispObj *) ptr_from_lispobj(untag(weakv))+(1+2)), cell = *prev;
   LispObj termination_list = lisp_nil;
   int weak_type = (int) deref(weakv,2);
   Boolean alistp = ((weak_type & population_type_mask) == population_weak_alist),
           terminatablep = ((weak_type >> population_termination_bit) != 0);
   Boolean done = false;
   cons *rawcons;
-  unsigned dword, car_dword;
+  unsigned dnode, car_dnode;
   bitvector markbits = GCmarkbits;
 
   if (terminatablep) {
@@ -1394,32 +1465,32 @@ reapweakv(LispObj weakv)
   } else if (alistp) {
     /* weak alist */
     while (! done) {
-      dword = gc_area_dword(cell);
-      if ((dword >= GCndwords_in_area) ||
-          (ref_bit(markbits, dword))) {
+      dnode = gc_area_dnode(cell);
+      if ((dnode >= GCndnodes_in_area) ||
+          (ref_bit(markbits, dnode))) {
         done = true;
       } else {
         /* Cons cell is unmarked. */
         LispObj alist_cell, thecar;
         unsigned cell_tag;
 
-        rawcons = (cons *) untag(cell);
+        rawcons = (cons *) ptr_from_lispobj(untag(cell));
         alist_cell = rawcons->car;
         cell_tag = fulltag_of(alist_cell);
 
         if ((cell_tag == fulltag_cons) &&
-            ((car_dword = gc_area_dword(alist_cell)) < GCndwords_in_area) &&
-            (! ref_bit(markbits, car_dword)) &&
+            ((car_dnode = gc_area_dnode(alist_cell)) < GCndnodes_in_area) &&
+            (! ref_bit(markbits, car_dnode)) &&
             (is_node_fulltag(fulltag_of(thecar = car(alist_cell)))) &&
-            ((car_dword = gc_area_dword(thecar)) < GCndwords_in_area) &&
-            (! ref_bit(markbits, car_dword))) {
+            ((car_dnode = gc_area_dnode(thecar)) < GCndnodes_in_area) &&
+            (! ref_bit(markbits, car_dnode))) {
           *prev = rawcons->cdr;
           if (terminatablep) {
             rawcons->cdr = termination_list;
             termination_list = cell;
           }
         } else {
-          set_bit(markbits, dword);
+          set_bit(markbits, dnode);
           prev = (LispObj *)(&(rawcons->cdr));
           mark_root(alist_cell);
         }
@@ -1429,9 +1500,9 @@ reapweakv(LispObj weakv)
   } else {
     /* weak list */
     while (! done) {
-      dword = gc_area_dword(cell);
-      if ((dword >= GCndwords_in_area) ||
-          (ref_bit(markbits, dword))) {
+      dnode = gc_area_dnode(cell);
+      if ((dnode >= GCndnodes_in_area) ||
+          (ref_bit(markbits, dnode))) {
         done = true;
       } else {
         /* Cons cell is unmarked. */
@@ -1443,15 +1514,15 @@ reapweakv(LispObj weakv)
         cartag = fulltag_of(thecar);
 
         if (is_node_fulltag(cartag) &&
-            ((car_dword = gc_area_dword(thecar)) < GCndwords_in_area) &&
-            (! ref_bit(markbits, car_dword))) {
+            ((car_dnode = gc_area_dnode(thecar)) < GCndnodes_in_area) &&
+            (! ref_bit(markbits, car_dnode))) {
           *prev = rawcons->cdr;
           if (terminatablep) {
             rawcons->cdr = termination_list;
             termination_list = cell;
           }
         } else {
-          set_bit(markbits, dword);
+          set_bit(markbits, dnode);
           prev = (LispObj *)(&(rawcons->cdr));
         }
         cell = *prev;
@@ -1475,9 +1546,10 @@ reapweakv(LispObj weakv)
 void
 reaphashv(LispObj hashv)
 {
-  hash_table_vector_header *hashp = (hash_table_vector_header *) untag(hashv);
-  unsigned 
-    dword,
+  hash_table_vector_header
+    *hashp = (hash_table_vector_header *) ptr_from_lispobj(untag(hashv));
+  natural
+    dnode,
     npairs = (header_element_count(hashp->header) - 
               ((sizeof(hash_table_vector_header)/sizeof(LispObj)) -1)) >> 1;
   LispObj *pairp = (LispObj*) (hashp+1), weakelement;
@@ -1494,9 +1566,9 @@ reaphashv(LispObj hashv)
     }
     tag = fulltag_of(weakelement);
     if (is_node_fulltag(tag)) {
-      dword = gc_area_dword(weakelement);
-      if ((dword < GCndwords_in_area) && 
-          ! ref_bit(markbits, dword)) {
+      dnode = gc_area_dnode(weakelement);
+      if ((dnode < GCndnodes_in_area) && 
+          ! ref_bit(markbits, dnode)) {
         pairp[0] = undefined;
         pairp[1] = lisp_nil;
         hashp->weak_deletions_count += (1<<fixnumshift);
@@ -1511,7 +1583,7 @@ reaphashv(LispObj hashv)
 Boolean
 mark_weak_hash_vector(hash_table_vector_header *hashp, unsigned elements)
 {
-  unsigned flags = hashp->flags, key_dword, val_dword;
+  unsigned flags = hashp->flags, key_dnode, val_dnode;
   Boolean 
     marked_new = false, 
     key_marked,
@@ -1542,16 +1614,16 @@ mark_weak_hash_vector(hash_table_vector_header *hashp, unsigned elements)
     key_tag = fulltag_of(key);
     val_tag = fulltag_of(val);
     if (is_node_fulltag(key_tag)) {
-      key_dword = gc_area_dword(key);
-      if ((key_dword < GCndwords_in_area) &&
-          ! ref_bit(GCmarkbits,key_dword)) {
+      key_dnode = gc_area_dnode(key);
+      if ((key_dnode < GCndnodes_in_area) &&
+          ! ref_bit(GCmarkbits,key_dnode)) {
         key_marked = false;
       }
     }
     if (is_node_fulltag(val_tag)) {
-      val_dword = gc_area_dword(val);
-      if ((val_dword < GCndwords_in_area) &&
-          ! ref_bit(GCmarkbits,val_dword)) {
+      val_dnode = gc_area_dnode(val);
+      if ((val_dnode < GCndnodes_in_area) &&
+          ! ref_bit(GCmarkbits,val_dnode)) {
         val_marked = false;
       }
     }
@@ -1576,7 +1648,7 @@ Boolean
 mark_weak_alist(LispObj weak_alist, int weak_type)
 {
   int elements = header_element_count(header_of(weak_alist));
-  unsigned dword;
+  unsigned dnode;
   int pair_tag;
   Boolean marked_new = false;
   LispObj alist, pair, key, value;
@@ -1587,24 +1659,24 @@ mark_weak_alist(LispObj weak_alist, int weak_type)
   }
   for(alist = deref(weak_alist, elements);
       (fulltag_of(alist) == fulltag_cons) &&
-      ((dword = gc_area_dword(alist)) < GCndwords_in_area) &&
-      (! ref_bit(markbits,dword));
+      ((dnode = gc_area_dnode(alist)) < GCndnodes_in_area) &&
+      (! ref_bit(markbits,dnode));
       alist = cdr(alist)) {
     pair = car(alist);
     pair_tag = fulltag_of(pair);
     if ((is_node_fulltag(pair_tag)) &&
-        ((dword = gc_area_dword(pair_tag)) < GCndwords_in_area) &&
-        (! ref_bit(markbits,dword))) {
+        ((dnode = gc_area_dnode(pair_tag)) < GCndnodes_in_area) &&
+        (! ref_bit(markbits,dnode))) {
       if (pair_tag == fulltag_cons) {
         key = car(pair);
         if ((! is_node_fulltag(fulltag_of(key))) ||
-            ((dword = gc_area_dword(key)) >= GCndwords_in_area) ||
-            ref_bit(markbits,dword)) {
+            ((dnode = gc_area_dnode(key)) >= GCndnodes_in_area) ||
+            ref_bit(markbits,dnode)) {
           /* key is marked, mark value if necessary */
           value = cdr(pair);
           if (is_node_fulltag(fulltag_of(value)) &&
-              ((dword = gc_area_dword(value)) < GCndwords_in_area) &&
-              (! ref_bit(markbits,dword))) {
+              ((dnode = gc_area_dnode(value)) < GCndnodes_in_area) &&
+              (! ref_bit(markbits,dnode))) {
             mark_root(value);
             marked_new = true;
           }
@@ -1711,7 +1783,7 @@ markhtabvs()
 void
 mark_xp(ExceptionInformation *xp)
 {
-  unsigned long *regs = (unsigned long *) xpGPRvector(xp);
+  natural *regs = (natural *) xpGPRvector(xp);
   int r;
 
 
@@ -1785,15 +1857,15 @@ reap_gcable_ptrs()
 {
   LispObj *prev = &(lisp_global(GCABLE_POINTERS)), next, ptr;
   xmacptr_flag flag;
-  unsigned dword;
+  unsigned dnode;
   xmacptr *x;
 
   while((next = *prev) != (LispObj)NULL) {
-    dword = gc_area_dword(next);
-    x = (xmacptr *) untag(next);
+    dnode = gc_area_dnode(next);
+    x = (xmacptr *) ptr_from_lispobj(untag(next));
 
-    if ((dword >= GCndwords_in_area) ||
-        (ref_bit(GCmarkbits,dword))) {
+    if ((dnode >= GCndnodes_in_area) ||
+        (ref_bit(GCmarkbits,dnode))) {
       prev = &(x->link);
     } else {
       *prev = x->link;
@@ -1807,7 +1879,7 @@ reap_gcable_ptrs()
           break;
 
         case xmacptr_flag_ptr:
-	  deallocate((char *)ptr);
+	  deallocate((char *)ptr_from_lispobj(ptr));
           break;
 
         case xmacptr_flag_rwlock:
@@ -1860,7 +1932,7 @@ const unsigned char _one_bits[256] = {
 
 /* A "pagelet" contains 32 doublewords.  The relocation table contains
    a word for each pagelet which defines the lowest address to which
-   dwords on that pagelet will be relocated.
+   dnodes on that pagelet will be relocated.
 
    The relocation address of a given pagelet is the sum of the relocation
    address for the preceding pagelet and the number of bytes occupied by
@@ -1874,7 +1946,7 @@ calculate_relocation()
   LispObj current = GCarealow;
   bitvector markbits = GCmarkbits;
   unsigned char *bytep = (unsigned char *) markbits;
-  unsigned npagelets = ((GCndwords_in_area+31)>>5);
+  unsigned npagelets = ((GCndnodes_in_area+31)>>5);
   unsigned thesebits;
   LispObj first = 0;
 
@@ -1903,25 +1975,25 @@ calculate_relocation()
 }
 
 LispObj
-dword_forwarding_address(unsigned dword, int tag_n)
+dnode_forwarding_address(unsigned dnode, int tag_n)
 {
   unsigned pagelet, nbits;
   unsigned short near_bits;
   LispObj new;
 
   if (GCDebug) {
-    if (! ref_bit(GCmarkbits, dword)) {
+    if (! ref_bit(GCmarkbits, dnode)) {
       Bug(NULL, "unmarked object being forwarded!\n");
     }
   }
 
-  pagelet = dword >> 5;
-  nbits = dword & 0x1f;
-  near_bits = ((unsigned short *)GCmarkbits)[dword>>4];
+  pagelet = dnode >> 5;
+  nbits = dnode & 0x1f;
+  near_bits = ((unsigned short *)GCmarkbits)[dnode>>4];
 
   if (nbits < 16) {
     new = GCrelocptr[pagelet] + tag_n;;
-    /* Increment "new" by the count of 1 bits which precede the dword */
+    /* Increment "new" by the count of 1 bits which precede the dnode */
     if (near_bits == 0xffff) {
       return (new + (nbits << 3));
     } else {
@@ -1952,37 +2024,43 @@ LispObj
 locative_forwarding_address(LispObj obj)
 {
   int tag_n = fulltag_of(obj);
-  unsigned dword;
+  unsigned dnode;
 
   /* Locatives can be tagged as conses, "fulltag_misc"
      objects, or as fixnums.  Immediates, headers, and nil
      shouldn't be "forwarded".  Nil never will be, but it
      doesn't hurt to check ... */
 
+#ifdef PPC64
+  if ((tag_n & lowtag_mask) != lowtag_primary) {
+    return obj;
+  }
+#else
   if ((1<<tag_n) & ((1<<fulltag_immheader) |
                     (1<<fulltag_nodeheader) |
                     (1<<fulltag_imm) |
                     (1<<fulltag_nil))) {
     return obj;
   }
+#endif
 
-  dword = gc_area_dword(obj);
+  dnode = gc_area_dnode(obj);
 
-  if ((dword >= GCndwords_in_area) ||
+  if ((dnode >= GCndnodes_in_area) ||
       (obj < GCfirstunmarked)) {
     return obj;
   }
 
-  return dword_forwarding_address(dword, tag_n);
+  return dnode_forwarding_address(dnode, tag_n);
 }
 
 LispObj
 node_forwarding_address(LispObj node)
 {
   int tag_n;
-  unsigned dword = gc_area_dword(node);
+  unsigned dnode = gc_area_dnode(node);
 
-  if ((dword >= GCndwords_in_area) ||
+  if ((dnode >= GCndnodes_in_area) ||
       (node < GCfirstunmarked)) {
     return node;
   }
@@ -1992,7 +2070,7 @@ node_forwarding_address(LispObj node)
     return node;
   }
 
-  return dword_forwarding_address(dword, tag_n);
+  return dnode_forwarding_address(dnode, tag_n);
 }
 
 Boolean
@@ -2028,7 +2106,7 @@ forward_gcable_ptrs()
 
   while ((next = *prev) != (LispObj)NULL) {
     *prev = node_forwarding_address(next);
-    prev = &(((xmacptr *)(untag(next)))->link);
+    prev = &(((xmacptr *)ptr_from_lispobj(untag(next)))->link);
   }
 }
 
@@ -2042,9 +2120,9 @@ forward_range(LispObj *range_start, LispObj *range_end)
   while (p < range_end) {
     node = *p;
     tag_n = fulltag_of(node);
-    if (tag_n == fulltag_immheader) {
+    if (immheader_tag_p(tag_n)) {
       p = (LispObj *) skip_over_ivector((unsigned) p, node);
-    } else if (tag_n == fulltag_nodeheader) {
+    } else if (nodeheader_tag_p(tag_n)) {
       nwords = header_element_count(node);
       nwords += (1- (nwords&1));
       if ((header_subtag(node) == subtag_hash_vector) &&
@@ -2093,17 +2171,17 @@ forward_range(LispObj *range_start, LispObj *range_end)
 
 
 void
-forward_memoized_area(area *a, unsigned num_memo_dwords)
+forward_memoized_area(area *a, unsigned num_memo_dnodes)
 {
   bitvector refbits = a->refbits;
   LispObj *p = (LispObj *) a->low, x1, x2, new;
-  unsigned bits, bitidx, *bitsp, nextbit, diff, memo_dword = 0, hash_dword_limit = 0;
+  unsigned bits, bitidx, *bitsp, nextbit, diff, memo_dnode = 0, hash_dnode_limit = 0;
   int tag_x1;
   hash_table_vector_header *hashp = NULL;
   Boolean header_p;
 
   if (GCDebug) {
-    check_refmap_consistency(p, p+(num_memo_dwords << 1), refbits);
+    check_refmap_consistency(p, p+(num_memo_dnodes << 1), refbits);
   }
 
   /* This is pretty straightforward, but we have to note
@@ -2111,17 +2189,17 @@ forward_memoized_area(area *a, unsigned num_memo_dwords)
      us to tell it about that. */
 
   set_bitidx_vars(refbits, 0, bitsp, bits, bitidx);
-  while (memo_dword < num_memo_dwords) {
+  while (memo_dnode < num_memo_dnodes) {
     if (bits == 0) {
       int remain = 0x20 - bitidx;
-      memo_dword += remain;
+      memo_dnode += remain;
       p += (remain+remain);
       bits = *++bitsp;
       bitidx = 0;
     } else {
       nextbit = count_leading_zeros(bits);
       if ((diff = (nextbit - bitidx)) != 0) {
-        memo_dword += diff;
+        memo_dnode += diff;
         bitidx = nextbit;
         p += (diff+diff);
       }
@@ -2129,13 +2207,13 @@ forward_memoized_area(area *a, unsigned num_memo_dwords)
       x2 = p[1];
       tag_x1 = fulltag_of(x1);
       bits &= ~(BIT0_MASK >> bitidx);
-      header_p = (tag_x1 == fulltag_nodeheader);
+      header_p = (nodeheader_tag_p(tag_x1));
 
       if (header_p &&
           (header_subtag(x1) == subtag_hash_vector)) {
         hashp = (hash_table_vector_header *) p;
         if (hashp->flags & nhash_track_keys_mask) {
-          hash_dword_limit = memo_dword + ((header_element_count(x1)+2)>>1);
+          hash_dnode_limit = memo_dnode + ((header_element_count(x1)+2)>>1);
         } else {
           hashp = NULL;
         }
@@ -2153,29 +2231,20 @@ forward_memoized_area(area *a, unsigned num_memo_dwords)
       new = node_forwarding_address(x2);
       if (new != x2) {
         *p = new;
-        if (memo_dword < hash_dword_limit) {
+        if (memo_dnode < hash_dnode_limit) {
           hashp->flags |= nhash_key_moved_mask;
-          hash_dword_limit = 0;
+          hash_dnode_limit = 0;
           hashp = NULL;
         }
       }
       p++;
-      memo_dword++;
+      memo_dnode++;
       bitidx++;
 
     }
   }
 }
 
-void
-forward_dohs( void )
-{
-  doh_block_ptr doh_block = (doh_block_ptr) lisp_global(DOH_HEAD);
-  while( doh_block ) {
-    forward_range( &doh_block->data[0], &doh_block->data[doh_block_slots] );
-    doh_block = doh_block->link;
-  }
-}
 
 
 /* Forward a tstack area */
@@ -2303,7 +2372,7 @@ LispObj
 compact_dynamic_heap()
 {
   LispObj *src = (LispObj*) GCfirstunmarked, *dest = src, node, new;
-  unsigned elements, dword = gc_area_dword(GCfirstunmarked), node_dwords = 0, imm_dwords = 0;
+  unsigned elements, dnode = gc_area_dnode(GCfirstunmarked), node_dnodes = 0, imm_dnodes = 0;
   unsigned bitidx, *bitsp, bits, nextbit, diff;
   int tag;
   bitvector markbits = GCmarkbits;
@@ -2311,14 +2380,14 @@ compact_dynamic_heap()
        code_vector headers, and only flush cache if so. */
   Boolean GCrelocated_code_vector = false;
 
-  if (dword < GCndwords_in_area) {
+  if (dnode < GCndnodes_in_area) {
     lisp_global(FWDNUM) += (1<<fixnum_shift);
   
-    set_bitidx_vars(markbits,dword,bitsp,bits,bitidx);
-    while (dword < GCndwords_in_area) {
+    set_bitidx_vars(markbits,dnode,bitsp,bits,bitidx);
+    while (dnode < GCndnodes_in_area) {
       if (bits == 0) {
         int remain = 0x20 - bitidx;
-        dword += remain;
+        dnode += remain;
         src += (remain+remain);
         bits = *++bitsp;
         bitidx = 0;
@@ -2326,10 +2395,10 @@ compact_dynamic_heap()
         /* Have a non-zero markbits word; all bits more significant than
            "bitidx" are 0.  Count leading zeros in "bits" (there'll be
            at least "bitidx" of them.)  If there are more than "bitidx"
-           leading zeros, bump "dword", "bitidx", and "src" by the difference. */
+           leading zeros, bump "dnode", "bitidx", and "src" by the difference. */
         nextbit = count_leading_zeros(bits);
         if ((diff = (nextbit - bitidx)) != 0) {
-          dword += diff;
+          dnode += diff;
           bitidx = nextbit;
           src += (diff+diff);
         }
@@ -2343,10 +2412,10 @@ compact_dynamic_heap()
 
         node = *src++;
         tag = fulltag_of(node);
-        if (tag == fulltag_nodeheader) {
+        if (nodeheader_tag_p(tag)) {
           elements = header_element_count(node);
-          node_dwords = (elements+2)>>1;
-          dword += node_dwords;
+          node_dnodes = (elements+2)>>1;
+          dnode += node_dnodes;
           if ((header_subtag(node) == subtag_hash_vector) &&
               (((hash_table_vector_header *) (src-1))->flags & nhash_track_keys_mask)) {
             hash_table_vector_header *hashp = (hash_table_vector_header *) dest;
@@ -2381,42 +2450,65 @@ compact_dynamic_heap()
           } else {
             *dest++ = node;
             *dest++ = node_forwarding_address(*src++);
-            while(--node_dwords) {
+            while(--node_dnodes) {
               *dest++ = node_forwarding_address(*src++);
               *dest++ = node_forwarding_address(*src++);
             }
           }
-          set_bitidx_vars(markbits,dword,bitsp,bits,bitidx);
-        } else if (tag == fulltag_immheader) {
+          set_bitidx_vars(markbits,dnode,bitsp,bits,bitidx);
+        } else if (immheader_tag_p(tag)) {
           *dest++ = node;
           *dest++ = *src++;
           elements = header_element_count(node);
           tag = header_subtag(node);
+#ifdef PPC64
+          switch(fulltag_of(tag)) {
+          case ivector_class_64_bit:
+            imm_dnodes = ((elements+1)+1)>>1;
+            break;
+          case ivector_class_32_bit:
+            if (tag == subtag_code_vector) {
+              GCrelocated_code_vector = true;
+            }
+            imm_dnodes = (((elements+2)+3)>>2);
+            break;
+          case ivector_class_8_bit:
+            imm_dnodes = (((elements+8)+15)>>4);
+            break;
+          case ivector_class_other_bit:
+            if (tag == subtag_bit_vector) {
+              imm_dnodes = (((elements+64)+127)>>7);
+            } else {
+              imm_dnodes = (((elements+4)+7)>>3);
+            }
+          }
+#else
           if (tag <= max_32_bit_ivector_subtag) {
             if (tag == subtag_code_vector) {
               GCrelocated_code_vector = true;
             }
-            imm_dwords = (((elements+1)+1)>>1);
+            imm_dnodes = (((elements+1)+1)>>1);
           } else if (tag <= max_8_bit_ivector_subtag) {
-            imm_dwords = (((elements+4)+7)>>3);
+            imm_dnodes = (((elements+4)+7)>>3);
           } else if (tag <= max_16_bit_ivector_subtag) {
-            imm_dwords = (((elements+2)+3)>>2);
+            imm_dnodes = (((elements+2)+3)>>2);
           } else if (tag == subtag_bit_vector) {
-            imm_dwords = (((elements+32)+63)>>6);
+            imm_dnodes = (((elements+32)+63)>>6);
           } else {
-            imm_dwords = elements+1;
+            imm_dnodes = elements+1;
           }
-          dword += imm_dwords;
-          while (--imm_dwords) {
+#endif
+          dnode += imm_dnodes;
+          while (--imm_dnodes) {
             *dest++ = *src++;
             *dest++ = *src++;
           }
-          set_bitidx_vars(markbits,dword,bitsp,bits,bitidx);
+          set_bitidx_vars(markbits,dnode,bitsp,bits,bitidx);
         } else {
           *dest++ = node_forwarding_address(node);
           *dest++ = node_forwarding_address(*src++);
           bits &= ~(BIT0_MASK >> bitidx);
-          dword++;
+          dnode++;
           bitidx++;
         }
       }
@@ -2424,13 +2516,13 @@ compact_dynamic_heap()
     }
 
     {
-      unsigned nbytes = (unsigned)dest - (unsigned)GCfirstunmarked;
+      natural nbytes = (natural)dest - (natural)GCfirstunmarked;
       if ((nbytes != 0) && GCrelocated_code_vector) {
-        xMakeDataExecutable((LogicalAddress)GCfirstunmarked, nbytes);
+        xMakeDataExecutable((LogicalAddress)ptr_from_lispobj(GCfirstunmarked), nbytes);
       }
     }
   }
-  return (LispObj)dest;
+  return ptr_to_lispobj(dest);
 }
 
 
@@ -2483,13 +2575,13 @@ gc(TCR *tcr)
 
   GCephemeral_low = lisp_global(OLDEST_EPHEMERAL);
   if (GCephemeral_low) {
-    GCn_ephemeral_dwords=area_dword(oldfree, GCephemeral_low);
+    GCn_ephemeral_dnodes=area_dnode(oldfree, GCephemeral_low);
     update_area_refmaps(oldfree);
   } else {
     if (a->younger) {
       unprotect_area(oldspace_protected_area);
     }
-    GCn_ephemeral_dwords = 0;
+    GCn_ephemeral_dnodes = 0;
   }
   
   GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
@@ -2528,31 +2620,31 @@ gc(TCR *tcr)
   }
       
   GCmarkbits = a->markbits;
-  GCarealow = (LispObj) a->low,
-  GCndwords_in_area = gc_area_dword(oldfree);
+  GCarealow = ptr_to_lispobj(a->low);
+  GCndnodes_in_area = gc_area_dnode(oldfree);
 
-  zero_bits(GCmarkbits, GCndwords_in_area);
+  zero_bits(GCmarkbits, GCndnodes_in_area);
   GCweakvll = (LispObj)NULL;
 
 
-  if (GCn_ephemeral_dwords == 0) {
+  if (GCn_ephemeral_dnodes == 0) {
     /* For GCTWA, mark the internal package hash table vector of
      *PACKAGE*, but don't mark its contents. */
     {
       LispObj
         itab;
       unsigned
-        dword, ndwords;
+        dnode, ndnodes;
       
       pkg = nrs_PACKAGE.vcell;
       if ((fulltag_of(pkg) == fulltag_misc) &&
           (header_subtag(header_of(pkg)) == subtag_package)) {
-        itab = ((package *)(untag(pkg)))->itab;
+        itab = ((package *)ptr_from_lispobj(untag(pkg)))->itab;
         itabvec = car(itab);
-        dword = gc_area_dword(itabvec);
-        if (dword < GCndwords_in_area) {
-          ndwords = (header_element_count(header_of(itabvec))+1) >> 1;
-          set_n_bits(GCmarkbits, dword, ndwords);
+        dnode = gc_area_dnode(itabvec);
+        if (dnode < GCndnodes_in_area) {
+          ndnodes = (header_element_count(header_of(itabvec))+1) >> 1;
+          set_n_bits(GCmarkbits, dnode, ndnodes);
         }
       }
     }
@@ -2596,7 +2688,7 @@ gc(TCR *tcr)
   }
   
   if (lisp_global(OLDEST_EPHEMERAL)) {
-    mark_memoized_area(tenured_area, area_dword(a->low,tenured_area->low));
+    mark_memoized_area(tenured_area, area_dnode(a->low,tenured_area->low));
   }
 
   other_tcr = tcr;
@@ -2606,7 +2698,6 @@ gc(TCR *tcr)
     other_tcr = other_tcr->next;
   } while (other_tcr != tcr);
 
-  mark_dohs();          /* Creole */
 
 
 
@@ -2626,10 +2717,10 @@ gc(TCR *tcr)
       sym = *raw++;
       if (fulltag_of(sym) == fulltag_misc) {
         lispsymbol *rawsym = (lispsymbol *)(untag(sym));
-        unsigned dword = gc_area_dword(sym);
+        unsigned dnode = gc_area_dnode(sym);
           
-        if ((dword < GCndwords_in_area) &&
-            (!ref_bit(GCmarkbits,dword))) {
+        if ((dnode < GCndnodes_in_area) &&
+            (!ref_bit(GCmarkbits,dnode))) {
           /* Symbol is in GC area, not marked.
              Mark it if fboundp, boundp, or if
              it has a plist or another home package.
@@ -2661,11 +2752,11 @@ gc(TCR *tcr)
       sym = *raw;
       if (fulltag_of(sym) == fulltag_misc) {
         lispsymbol *rawsym = (lispsymbol *)(untag(sym));
-        unsigned dword = gc_area_dword(sym);
+        unsigned dnode = gc_area_dnode(sym);
 
-        if ((dword < GCndwords_in_area) &&
-            (!ref_bit(GCmarkbits,dword))) {
-          *raw = unbound;
+        if ((dnode < GCndnodes_in_area) &&
+            (!ref_bit(GCmarkbits,dnode))) {
+          *raw = unbound_marker;
         }
       }
     }
@@ -2685,7 +2776,6 @@ gc(TCR *tcr)
     other_tcr = other_tcr->next;
   } while (other_tcr != tcr);
 
-  forward_dohs();               /* Creole */
   
   forward_gcable_ptrs();
 
@@ -2725,7 +2815,7 @@ gc(TCR *tcr)
   }
   
   if (GCephemeral_low) {
-    forward_memoized_area(tenured_area, area_dword(a->low, tenured_area->low));
+    forward_memoized_area(tenured_area, area_dnode(a->low, tenured_area->low));
   }
 
   
@@ -2799,7 +2889,7 @@ gc(TCR *tcr)
     if ((fulltag_of(val) == fulltag_misc) &&
         (header_subtag(header_of(val)) == subtag_macptr)) {
       long long justfreed = oldfree - a->active;
-      *( (long long *) ((macptr *) (untag(val)))->address) += justfreed;
+      *( (long long *) ((macptr *) ptr_from_lispobj(untag(val)))->address) += justfreed;
     }
   }
 }
@@ -2820,14 +2910,34 @@ unboxed_bytes_in_range(LispObj *start, LispObj *end)
     header = *start;
     tag = fulltag_of(header);
     
-    if ((tag == fulltag_nodeheader) ||
-        (tag == fulltag_immheader)) {
+    if ((nodeheader_tag_p(tag)) ||
+        (immheader_tag_p(tag))) {
       elements = header_element_count(header);
-      if (tag == fulltag_nodeheader) {
+      if (nodeheader_tag_p(tag)) {
         start += ((elements+2) & ~1);
       } else {
         subtag = header_subtag(header);
 
+#ifdef PPC64
+        switch(fulltag_of(header)) {
+        case ivector_class_64_bit:
+          bytes = 8 + (elements<<3);
+          break;
+        case ivector_class_32_bit:
+          bytes = 8 + (elements<<2);
+          break;
+        case ivector_class_8_bit:
+          bytes = 8 + elements;
+          break;
+        case ivector_class_other_bit:
+        default:
+          if (subtag == subtag_bit_vector) {
+            bytes = 8 + ((elements+7)>>3);
+          } else {
+            bytes = 8 + (elements<<1);
+          }
+        }
+#else
         if (subtag <= max_32_bit_ivector_subtag) {
           bytes = 4 + (elements<<2);
         } else if (subtag <= max_8_bit_ivector_subtag) {
@@ -2839,9 +2949,10 @@ unboxed_bytes_in_range(LispObj *start, LispObj *end)
         } else {
           bytes = 4 + ((elements+7)>>3);
         }
-        bytes = (bytes+7) & ~7;
+#endif
+        bytes = (bytes+dnode_size-1) & ~(dnode_size-1);
         total += bytes;
-        start += (bytes >> 2);
+        start += (bytes >> node_shift);
       }
     } else {
       start += 2;
@@ -2863,7 +2974,7 @@ purify_displaced_object(LispObj obj, area *dest, unsigned disp)
 {
   BytePtr 
     free = dest->active,
-    *old = (BytePtr *) untag(obj);
+    *old = (BytePtr *) ptr_from_lispobj(untag(obj));
   LispObj 
     header = header_of(obj), 
     new;
@@ -2877,10 +2988,6 @@ purify_displaced_object(LispObj obj, area *dest, unsigned disp)
     physbytes = 4 + element_count;
     break;
 
-  case subtag_simple_general_string:
-    physbytes = 4 + (element_count << 1);
-    break;
-
   case subtag_code_vector:
     physbytes = 4 + (element_count << 2);
     break;
@@ -2892,7 +2999,7 @@ purify_displaced_object(LispObj obj, area *dest, unsigned disp)
   physbytes = (physbytes+7)&~7;
   dest->active += physbytes;
 
-  new = (LispObj)free+disp;
+  new = ptr_to_lispobj(free)+disp;
 
   memcpy(free, (BytePtr)old, physbytes);
   /* Leave a trail of breadcrumbs.  Or maybe just one breadcrumb. */
@@ -2901,7 +3008,7 @@ purify_displaced_object(LispObj obj, area *dest, unsigned disp)
      pointers in, so we don't want garbage that we leave behind to
      look like a header.
      b) We'd like to be able to forward code-vector locatives, and
-     it's easiest to do so if we leave a {forward_marker, dword_locative}
+     it's easiest to do so if we leave a {forward_marker, dnode_locative}
      pair at every doubleword in the old vector.
      */
   while(physbytes) {
@@ -2931,19 +3038,18 @@ copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int 
   unsigned tag = fulltag_of(obj), header_tag, header_subtag;
 
   if ((tag == fulltag_misc) &&
-      (((BytePtr)obj) > low) &&
-      (((BytePtr)obj) < high)) {
+      (((BytePtr)ptr_from_lispobj(obj)) > low) &&
+      (((BytePtr)ptr_from_lispobj(obj)) < high)) {
     header = deref(obj, 0);
     if (header == forward_marker) { /* already copied */
       *ref = (untag(deref(obj,1)) + tag);
     } else {
       header_tag = fulltag_of(header);
-      if (header_tag == fulltag_immheader) {
+      if (immheader_tag_p(header_tag)) {
         header_subtag = header_subtag(header);
         if (((header_subtag == subtag_code_vector) && (what_to_copy & COPY_CODE)) ||
             ((what_to_copy & COPY_STRINGS) && 
-             ((header_subtag == subtag_simple_base_string) ||
-              (header_subtag == subtag_simple_general_string)))) {
+             ((header_subtag == subtag_simple_base_string)))) {
           *ref = purify_object(obj, dest);
         }
       }
@@ -2960,9 +3066,9 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
   unsigned
     tag = fulltag_of(loc);
 
-  if (((BytePtr)loc > low) &&
-      ((BytePtr)loc < high)) {
-    LispObj *p = (LispObj *)(untag(loc));
+  if (((BytePtr)ptr_from_lispobj(loc) > low) &&
+      ((BytePtr)ptr_from_lispobj(loc) < high)) {
+    LispObj *p = (LispObj *)ptr_from_lispobj(untag(loc));
     switch (tag) {
     case fulltag_even_fixnum:
     case fulltag_odd_fixnum:
@@ -2977,7 +3083,7 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
           tag += 8;
           header = *p;
         } while ((header & code_header_mask) != subtag_code_vector);
-        *locaddr = purify_displaced_object((LispObj)p, to, tag);
+        *locaddr = purify_displaced_object(ptr_to_lispobj(p), to, tag);
       }
       break;
 
@@ -3000,10 +3106,10 @@ purify_range(LispObj *start, LispObj *end, BytePtr low, BytePtr high, area *to, 
       start += 2;
     } else {
       tag = fulltag_of(header);
-      if (tag == fulltag_immheader) {
+      if (immheader_tag_p(tag)) {
         start = (LispObj *)skip_over_ivector((unsigned)start, header);
       } else {
-        if (tag != fulltag_nodeheader) {
+        if (!nodeheader_tag_p(tag)) {
           copy_ivector_reference(start, low, high, to, what);
         }
         start++;
@@ -3028,7 +3134,7 @@ purify_tstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
   for (current = start;
        end != limit;
        current = next) {
-    next = (LispObj *) *current;
+    next = (LispObj *) ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
     if (current[1] == 0) {
       purify_range(current+2, end, low, high, to, what);
@@ -3123,16 +3229,6 @@ purify_tcr_xframes(TCR *tcr, BytePtr low, BytePtr high, area *to, int what)
   }
 }
 
-void
-purify_dohs(BytePtr low, BytePtr high, area *to, int what)
-{
-  doh_block_ptr doh_block = (doh_block_ptr) lisp_global(DOH_HEAD);
-  while( doh_block ) {
-    purify_range( &doh_block->data[0], &doh_block->data[doh_block_slots],
-                 low, high, to, what );
-    doh_block = doh_block->link;
-  }
-}
 
 void
 purify_areas(BytePtr low, BytePtr high, area *target, int what)
@@ -3214,26 +3310,26 @@ purify(TCR *tcr)
       unsigned elements, i;
 
       while (fulltag_of(pkg_list) == fulltag_cons) {
-        c = (cons *) untag(pkg_list);
-        p = (package *) untag(c->car);
+        c = (cons *) ptr_from_lispobj(untag(pkg_list));
+        p = (package *) ptr_from_lispobj(untag(c->car));
         pkg_list = c->cdr;
-        c = (cons *) untag(p->itab);
+        c = (cons *) ptr_from_lispobj(untag(p->itab));
         htab = c->car;
         elements = header_element_count(header_of(htab));
         for (i = 1; i<= elements; i++) {
           obj = deref(htab,i);
           if (fulltag_of(obj) == fulltag_misc) {
-            rawsym = (lispsymbol *) untag(obj);
+            rawsym = (lispsymbol *) ptr_from_lispobj(untag(obj));
             copy_ivector_reference(&(rawsym->pname), a->low, a->active, new_pure_area, COPY_STRINGS);
           }
         }
-        c = (cons *) untag(p->etab);
+        c = (cons *) ptr_from_lispobj(untag(p->etab));
         htab = c->car;
         elements = header_element_count(header_of(htab));
         for (i = 1; i<= elements; i++) {
           obj = deref(htab,i);
           if (fulltag_of(obj) == fulltag_misc) {
-            rawsym = (lispsymbol *) untag(obj);
+            rawsym = (lispsymbol *) ptr_from_lispobj(untag(obj));
             copy_ivector_reference(&(rawsym->pname), a->low, a->active, new_pure_area, COPY_STRINGS);
           }
         }
@@ -3249,7 +3345,6 @@ purify(TCR *tcr)
       other_tcr = other_tcr->next;
     } while (other_tcr != tcr);
 
-    purify_dohs(a->low, a->active, new_pure_area, COPY_CODE);
 
     {
       unsigned puresize = (unsigned) (new_pure_area->active-new_pure_start);
@@ -3351,10 +3446,10 @@ impurify_range(LispObj *start, LispObj *end, LispObj low, LispObj high, int delt
   while (start < end) {
     header = *start;
     tag = fulltag_of(header);
-    if (tag == fulltag_immheader) {
+    if (immheader_tag_p(tag)) {
       start = (LispObj *)skip_over_ivector((unsigned)start, header);
     } else {
-      if (tag != fulltag_nodeheader) {
+      if (!nodeheader_tag_p(tag)) {
         impurify_noderef(start, low, high, delta);
         }
       start++;
@@ -3405,7 +3500,7 @@ impurify_tstack_area(area *a, LispObj low, LispObj high, int delta)
   for (current = start;
        end != limit;
        current = next) {
-    next = (LispObj *) *current;
+    next = (LispObj *) ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
     if (current[1] == 0) {
       impurify_range(current+2, end, low, high, delta);
@@ -3476,16 +3571,16 @@ impurify(TCR *tcr)
       a->active += n;
       bcopy(ro_base, oldfree, n);
       munmap(ro_base, n);
-      a->ndwords = area_dword(a, a->active);
+      a->ndnodes = area_dnode(a, a->active);
       pure_space_active = r->active = r->low;
-      r->ndwords = 0;
+      r->ndnodes = 0;
 
-      impurify_areas((LispObj)ro_base, (LispObj)ro_limit, delta);
+      impurify_areas(ptr_to_lispobj(ro_base), ptr_to_lispobj(ro_limit), delta);
 
       other_tcr = tcr;
       do {
-        impurify_tcr_xframes(other_tcr, (LispObj)ro_base, (LispObj)ro_limit, delta);
-        impurify_tcr_tlb(other_tcr, (LispObj)ro_base, (LispObj)ro_limit, delta);
+        impurify_tcr_xframes(other_tcr, ptr_to_lispobj(ro_base), ptr_to_lispobj(ro_limit), delta);
+        impurify_tcr_tlb(other_tcr, ptr_to_lispobj(ro_base), ptr_to_lispobj(ro_limit), delta);
         other_tcr = other_tcr->next;
       } while (other_tcr != tcr);
       lisp_global(IN_GC) = 0;

@@ -546,7 +546,7 @@ allocate_from_reserved_area(unsigned size)
   }
   reserved->low += size;
   reserved->active = reserved->low;
-  reserved->ndwords -= (size>>3);
+  reserved->ndnodes -= (size>>dnode_shift);
   return low;
 }
 
@@ -599,10 +599,10 @@ void
 ensure_gc_structures_writable()
 {
   unsigned 
-    ndwords = area_dword(lisp_global(HEAP_END),lisp_global(HEAP_START)),
+    ndnodes = area_dnode(lisp_global(HEAP_END),lisp_global(HEAP_START)),
     npages = (lisp_global(HEAP_END)-lisp_global(HEAP_START)) >> 12,
-    markbits_size = 12+((ndwords+7)>>3),
-    reloctab_size = (sizeof(LispObj)*(((ndwords+31)>>5)+1)),
+    markbits_size = 12+((ndnodes+7)>>dnode_shift),
+    reloctab_size = (sizeof(LispObj)*(((ndnodes+31)>>5)+1)),
     pagemap_size = align_to_power_of_2(npages*sizeof(pageentry),12);
   BytePtr 
     new_reloctab_limit = ((BytePtr)global_reloctab)+reloctab_size,
@@ -675,7 +675,7 @@ grow_dynamic_area(unsigned delta)
   }
 
   a->high += delta;
-  a->ndwords = area_dword(a->high, a->low);
+  a->ndnodes = area_dnode(a->high, a->low);
   a->hardlimit = a->high;
   oldspace_protected_area->end = a->high;
   lisp_global(HEAP_END) += delta;
@@ -696,12 +696,12 @@ shrink_dynamic_area(unsigned delta)
   delta = align_to_power_of_2(delta, log2_heap_segment_size);
 
   a->high -= delta;
-  a->ndwords = area_dword(a->high, a->low);
+  a->ndnodes = area_dnode(a->high, a->low);
   a->hardlimit = a->high;
   oldspace_protected_area->end = a->high;
   uncommit_pages(a->high, delta);
   reserved->low -= delta;
-  reserved->ndwords += (delta>>3);
+  reserved->ndnodes += (delta>>dnode_shift);
   lisp_global(HEAP_END) -= delta;
   return true;
 }
@@ -1182,7 +1182,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(RET1VALN) = (LispObj)&ret1valn;
   lisp_global(LEXPR_RETURN) = (LispObj)&nvalret;
   lisp_global(LEXPR_RETURN1V) = (LispObj)&popj;
-  lisp_global(ALL_AREAS) = (LispObj) (all_areas);
+  lisp_global(ALL_AREAS) = ptr_to_lispobj(all_areas);
 
 
 
@@ -1193,15 +1193,14 @@ main(int argc, char *argv[], char *envp[], void *aux)
   }
   
 
-  lisp_global(IMAGE_NAME) = (LispObj) image_name;
-  lisp_global(ARGV) = (LispObj) argv;
-  lisp_global(KERNEL_IMPORTS) = (LispObj) import_ptrs_base;
+  lisp_global(IMAGE_NAME) = ptr_to_lispobj(image_name);
+  lisp_global(ARGV) = ptr_to_lispobj(argv);
+  lisp_global(KERNEL_IMPORTS) = (LispObj)import_ptrs_base;
 
   lisp_global(METERING_INFO) = (LispObj) &lisp_metering;
   lisp_global(GET_TCR) = (LispObj) get_tcr;
   *(double *) &(lisp_global(DOUBLE_FLOAT_ONE)) = (double) 1.0;
 
-  lisp_global(ARGV) = (LispObj) argv;
   lisp_global(HOST_PLATFORM) = (LispObj)
 #ifdef LINUX
     1
@@ -1239,7 +1238,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
     g2_area->older = tenured_area;
     tenured_area->younger = g2_area;
     tenured_area->refbits = a->markbits;
-    lisp_global(TENURED_AREA) = (LispObj)(tenured_area);
+    lisp_global(TENURED_AREA) = ptr_to_lispobj(tenured_area);
     g2_area->threshold = (4<<20); /* 4MB */
     g1_area->threshold = (2<<20); /* 2MB */
     a->threshold = (1<<20);     /* 1MB */
@@ -1250,7 +1249,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   init_threads((void *)(stack_base), tcr);
   thread_init_tcr(tcr, current_sp, current_sp-stack_base);
 
-  lisp_global(EXCEPTION_LOCK) = (LispObj)new_recursive_lock();
+  lisp_global(EXCEPTION_LOCK) = ptr_to_lispobj(new_recursive_lock());
   enable_fp_exceptions();
   start_vbl();
 
@@ -1259,7 +1258,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(STATICALLY_LINKED) = 1 << fixnumshift;
 #endif
   tcr->prev = tcr->next = tcr;
-  lisp_global(TCR_LOCK) = (LispObj)new_recursive_lock();
+  lisp_global(TCR_LOCK) = ptr_to_lispobj(new_recursive_lock());
   lisp_global(INTERRUPT_SIGNAL) = (LispObj) box_fixnum(SIGNAL_FOR_PROCESS_INTERRUPT);
   tcr->interrupt_level = (-1<<fixnumshift);
   tcr->vs_area->active -= 4;

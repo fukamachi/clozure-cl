@@ -24,7 +24,7 @@
 
 #include <string.h>
 
-typedef unsigned *bitvector;
+typedef natural *bitvector;
 
 
 static inline int

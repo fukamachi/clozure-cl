@@ -37,7 +37,7 @@
 pageentry *pagemap;
 
 extern LispObj GCarealow;
-extern unsigned GCndwords_in_area;
+extern unsigned GCndnodes_in_area;
 extern bitvector GCmarkbits;
 LispObj *global_reloctab, *GCrelocptr;
 LispObj GCfirstunmarked;
@@ -47,7 +47,7 @@ void mark_root(LispObj);
 void mark_pc_root(LispObj);
 void mark_locative_root(LispObj);
 void rmark(LispObj);
-unsigned skip_over_ivector(unsigned, LispObj);
+LispObj *skip_over_ivector(LispObj, LispObj);
 void mark_simple_area_range(LispObj *,LispObj *);
 LispObj calculate_relocation();
 LispObj locative_forwarding_address(LispObj);
@@ -63,12 +63,16 @@ Boolean free_segments_zero_filled_by_OS;
 
 
 
-#define area_dword(w,low) ((((LispObj)w) - (LispObj)low)>>3)
-#define gc_area_dword(w)  area_dword(w,GCarealow)
+#define area_dnode(w,low) (((ptr_to_lispobj(w)) - ptr_to_lispobj(low))>>dnode_shift)
+#define gc_area_dnode(w)  area_dnode(w,GCarealow)
 
+#ifdef PPC64
+#define forward_marker subtag_forward_marker
+#else
 #define forward_marker fulltag_nil
+#endif
 
-#define VOID_ALLOCPTR 0xFFFFFFF8
+#define VOID_ALLOCPTR ((LispObj)(-dnode_size))
 
 
 #define GC_TRAP_FUNCTION_GC 0

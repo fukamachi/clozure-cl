@@ -21,13 +21,15 @@
 #ifndef __macros__
 #define __macros__
 
+#define ptr_to_lispobj(p) ((LispObj)((unsigned_of_pointer_size)(p)))
+#define ptr_from_lispobj(o) ((LispObj*)((unsigned_of_pointer_size)(o)))
 #define lisp_reg_p(reg)  ((reg) >= fn)
 
 #define fulltag_of(o)  ((o) & fulltagmask)
 #define tag_of(o) ((o) & tagmask)
 #define untag(o) ((o) & ~fulltagmask)
 
-#define deref(o,n) (*((LispObj*) ((LispObj *)(untag((LispObj)o)))+(n)))
+#define deref(o,n) (*((LispObj*) (ptr_from_lispobj(untag((LispObj)o)))+(n)))
 #define header_of(o) deref(o,0)
 
 #define header_subtag(h) ((h) & subtagmask)
@@ -46,6 +48,17 @@
 /* Likewise. */
 #define FBOUNDP(sym) ((((lispsymbol *)(sym))->fcell) != nrs_UDF.vcell)
 
+#ifdef PPC64
+#define nodeheader_tag_p(tag) (((tag) & lowtag_mask) == lowtag_nodeheader)
+#else
+#define nodeheader_tag_p(tag) (tag == fulltag_nodeheader)
+#endif
+
+#ifdef PPC64
+#define immheader_tag_p(tag) (((tag) & lowtag_mask) == lowtag_immheader)
+#else
+#define immheader_tag_p(tag) (tag == fulltag_immheader)
+#endif
 
 /* lfuns */
 #define lfun_bits(f) (deref(f,header_element_count(header_of(f))))

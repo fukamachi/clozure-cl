@@ -30,7 +30,6 @@ describe_symbol(LispObj sym)
 }
   
   
-unsigned skip_over_ivector(unsigned, LispObj);
 
 /*
   Walk the heap until we find a symbol

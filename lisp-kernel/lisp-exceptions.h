@@ -86,7 +86,7 @@ exception_init();
 #define UUO_MINOR(u) (((u) >> 4) & 0x7f)
 
 
-typedef unsigned opcode, *pc;
+typedef u_int32_t opcode, *pc;
 
 #ifdef LINUX
 /*

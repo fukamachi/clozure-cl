@@ -58,11 +58,14 @@ ifdef([PPC64],[
         define([ldrx],[
         ldx $@
         ])
+        define([ldru],[
+        ldu $@
+        ])
         define([str],[
         std $@
         ])
         define([strx],[
-        stdx %@
+        stdx $@
         ])
         define([stru],[
         stdu $@
@@ -101,7 +104,7 @@ ifdef([PPC64],[
         tdgti $@
         ])
         define([srari],[
-        sradi #@
+        sradi $@
         ])
         define([srri],[
         srdi $@
@@ -124,6 +127,9 @@ ifdef([PPC64],[
         ])
         define([ldrx],[
         lwzx $@
+        ])
+        define([ldru],[
+        lwzu $@
         ])
         define([str],[
         stw $@
@@ -168,7 +174,7 @@ ifdef([PPC64],[
         twgti $@
         ])
         define([srari],[
-        srawi #@
+        srawi $@
         ])
         define([srri],[
         srwi $@
@@ -228,10 +234,10 @@ macro_label(not_misc):
 ])])
 
 define([box_fixnum],[
-	slwi $1,$2,fixnumshift])
+	slri($1,$2,fixnumshift)])
 
 define([unbox_fixnum],[	
-	srawi $1,$2,fixnumshift])
+	srari($1,$2,fixnumshift)])
 
 define([loaddf],[
 	lfd $1,dfloat.value($2)])
@@ -293,7 +299,12 @@ define([header_size],[
 	
 	/* "Length" is fixnum element count */
 define([header_length],[
-	rlwinm $1,$2,nbits_in_word-(num_subtag_bits-nfixnumtagbits),(num_subtag_bits-nfixnumtagbits),31-nfixnumtagbits])
+ifdef([PPC64],[
+        clrlsldi $1,$2,nbits_in_word-num_subtag_bits,fixnum_shift
+        ],[               
+	rlwinm $1,$2,nbits_in_word-(num_subtag_bits-nfixnumtagbits),(num_subtag_bits-nfixnumtagbits),31-nfixnumtagbits
+        ])
+])        
 
 
 define([vector_size],[

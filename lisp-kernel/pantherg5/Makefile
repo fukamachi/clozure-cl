@@ -47,11 +47,11 @@ LDFLAGS = -arch ppc -dynamic  -o $@ -e start -seg1addr 0x00003000 -sectalign __T
 # -stack_addr 0xC0000000 -stack_size 0x00100000
 AS = as
 M4 = gm4
-M4FLAGS = -DDARWIN -DPPC64 -DPANTHERG5
+M4FLAGS = -DDARWIN -DPPC64 -DFOREIGN_POINTER_32BIT
 ASFLAGS = -force_cpusubtype_ALL
-CDEFINES = -DDARWIN $(BROKEN_PREPROCESSOR_WORKAROUND) -DOPENMCL_MAJOR_VERSION=$(OPENMCL_MAJOR_VERSION) -DOPENMCL_MINOR_VERSION=$(OPENMCL_MINOR_VERSION) 
+CDEFINES = -DPPC64 -DFOREIGN_POINTER_32BIT -DDARWIN $(BROKEN_PREPROCESSOR_WORKAROUND) -DOPENMCL_MAJOR_VERSION=$(OPENMCL_MAJOR_VERSION) -DOPENMCL_MINOR_VERSION=$(OPENMCL_MINOR_VERSION) 
 CDEBUG = -g
-COPT = -O2 -mpowerpc64 -DPPC64 -DPANTHERG5
+COPT = -O2 -mpowerpc64
 
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
@@ -77,7 +77,7 @@ CHEADERS = area.h bits.h constants.h lisp-errors.h gc.h lisp.h \
 # Yes:
 
 KSPOBJ= $(SPOBJ)
-all:	../../dppccl
+all:	../../dppccl64
 
 
 # No:
@@ -88,7 +88,7 @@ all:	../../dppccl
 OSLIBS = -lcrt1.o -lcc_dynamic -lSystem
 
 
-../../dppccl:	 $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
+../../dppccl64:	 $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
 	$(LD)  $(LDFLAGS) $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)   $(OSLIBS)
 
 # Can leave this unset when compiling on/for Jaguar
@@ -114,12 +114,12 @@ pad.o:	../pad.s
 thread_manager.o: thread_manager.c 
 
 cclean:
-	$(RM) -f $(KERNELOBJ) $(DEBUGOBJ) ../../dppccl 
+	$(RM) -f $(KERNELOBJ) $(DEBUGOBJ) ../../dppccl64
 
 # Some earlier versions of this Makefile built "subprims_r.o".  
 # (That file is now defunct.)
 clean:	cclean
 	$(RM) -f $(SPOBJ) $(KSPOBJ) subprims_r.o
 
-strip:	../../dppccl
-	strip -s retain ../../dppccl
+strip:	../../dppccl64
+	strip -s retain ../../dppccl64

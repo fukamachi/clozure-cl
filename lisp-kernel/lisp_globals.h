@@ -76,9 +76,13 @@ extern LispObj lisp_nil;
 #define SUBPRIMS_TARGET_0 (-512) /* absolute address of subprim 0 jump target */
 #define SUBPRIMS_TARGET_N (-257) /* absolute address of subprim 255 jump target */
 
-
+#ifdef PPC64
+#define lisp_global(g) (((LispObj *) 0x2000)[(g)])
+#define nrs_symbol(s) (((lispsymbol *) 0x2000)[(s)])
+#else
 #define lisp_global(g) (((LispObj *) (nil_value-fulltag_nil))[(g)])
 #define nrs_symbol(s) (((lispsymbol *) (nil_value+(8-fulltag_nil)+8))[(s)])
+#endif
 
 #define nrs_T 				(nrs_symbol(0))		/* t */
 #define nrs_NILSYM			(nrs_symbol(1))		/* nil */

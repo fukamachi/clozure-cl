@@ -99,7 +99,7 @@ local_label(_throw_found):
 	__(cmpri(cr1,nargs,0))
 	__(li fn,0)
 	__(add imm1,vsp,nargs)
-	__(la imm1,-4(imm1))
+	__(la imm1,-node_size(imm1))
 	__(bne cr0,local_label(_throw_all_values))
 	__(set_nargs(1))
 	__(beq cr1,local_label(_throw_default_1_val))
@@ -126,7 +126,7 @@ local_label(_throw_dont_unbind):
 	__(ldr(imm1,lisp_frame.savevsp(imm1)))
 	__(bne cr1,local_label(_throw_multiple))
 /* Catcher expects single value in arg_z */
-	__(ldr(arg_z,-4(imm0)))
+	__(ldr(arg_z,-node_size(imm0)))
 	__(b local_label(_throw_pushed_values))
 local_label(_throw_multiple):
 	__(beq cr0,local_label(_throw_pushed_values))
@@ -134,7 +134,7 @@ local_label(_throw_multiple):
 local_label(_throw_mvloop):
 	__(subi imm2,imm2,fixnum_one)
 	__(cmpri(imm2,0))
-	__(lwzu temp0,-4(imm0))
+	__(ldru(temp0,-node_size(imm0)))
 	__(push(temp0,imm1))
 	__(bgt local_label(_throw_mvloop))
 local_label(_throw_pushed_values):
@@ -189,7 +189,7 @@ local_label(_nthrowv_dont_unbind):
 	__(mr imm2,nargs)
 	__(b local_label(_nthrowv_push_test))
 local_label(_nthrowv_push_loop):
-	__(lwzu temp1,-4(imm1))
+	__(ldru(temp1,-node_size(imm1)))
 	__(push(temp1,imm0))
 local_label(_nthrowv_push_test):
 	__(cmpri(imm2,0))
@@ -226,18 +226,18 @@ local_label(_nthrowv_do_unwind):
 	__(mr imm2,nargs)
 	__(add imm1,nargs,vsp)
 	__(ldr(imm0,tsp_frame.backlink(tsp)))                      /* end of tsp frame */
-	__(str(rzero,-4(imm0)))
+	__(str(rzero,-node_size(imm0)))
 	__(la imm0,tsp_frame.data_offset(tsp))
 	__(str(nargs,0(imm0)))
 	__(b local_label(_nthrowv_tpushtest))
 local_label(_nthrowv_tpushloop):
-	__(lwzu temp0,-4(imm1))
-	__(stru(temp0,4(imm0)))
+	__(ldru(temp0,-node_size(imm1)))
+	__(stru(temp0,node_size(imm0)))
 	__(subi imm2,imm2,fixnum_one)
 local_label(_nthrowv_tpushtest):
 	__(cmpri(imm2,0))
 	__(bne local_label(_nthrowv_tpushloop))
-	__(stru(imm4,4(imm0)))
+	__(stru(imm4,node_size(imm0)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
 	__(str(rzero,lisp_frame.savevsp(sp)))       /* tell stack overflow code to skip this frame */
 	__(bctrl)
@@ -250,13 +250,13 @@ local_label(_nthrowv_tpushtest):
 	__(mr imm2,nargs)
 	__(b local_label(_nthrowv_tpoptest))
 local_label(_nthrowv_tpoploop):
-	__(lwzu temp0,4(imm0))
+	__(ldru(temp0,node_size(imm0)))
 	__(vpush(temp0))
 	__(subi imm2,imm2,fixnum_one)
 local_label(_nthrowv_tpoptest):
 	__(cmpri(imm2,0))
 	__(bne local_label(_nthrowv_tpoploop))
-	__(ldr(imm4,4(imm0)))
+	__(ldr(imm4,node_size(imm0)))
 	__(unlink(tsp))
 	__(b local_label(_nthrowv_nextframe))
 
@@ -318,12 +318,12 @@ local_label(_nthrow1v_do_unwind):
 	__(str(loc_pc,lisp_frame.savelr(sp)))
 	__(TSP_Alloc_Fixed_Boxed(8)) /* tsp overhead, value, throw count */
 	__(str(arg_z,tsp_frame.data_offset(tsp)))
-	__(str(imm4,tsp_frame.data_offset+4(tsp)))
+	__(str(imm4,tsp_frame.data_offset+node_size(tsp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
 	__(str(rzero,lisp_frame.savevsp(sp)))       /* Tell stack overflow code to ignore this frame */
 	__(bctrl)
 	__(ldr(arg_z,tsp_frame.data_offset(tsp)))
-	__(ldr(imm4,tsp_frame.data_offset+4(tsp)))
+	__(ldr(imm4,tsp_frame.data_offset+node_size(tsp)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(discard_lisp_frame())
@@ -366,7 +366,7 @@ _spentry(conslist)
 1:
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(nargs,fixnum_one))
-	__(la vsp,4(vsp))
+	__(la vsp,node_size(vsp))
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi nargs,nargs,fixnum_one)
 2:
@@ -381,7 +381,7 @@ _spentry(conslist_star)
 1:
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(nargs,fixnum_one))
-	__(la vsp,4(vsp))
+	__(la vsp,node_size(vsp))
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi nargs,nargs,fixnum_one)
 2:
@@ -400,7 +400,7 @@ _spentry(stkconslist)
 	__(b 2f)
 1:	__(ldr(temp0,0(vsp)))
 	__(cmpri(cr1,nargs,fixnum_one))
-	__(la vsp,4(vsp))
+	__(la vsp,node_size(vsp))
 	__(rplaca(imm1,temp0))
 	__(rplacd(imm1,arg_z))
 	__(mr arg_z,imm1)
@@ -421,7 +421,7 @@ _spentry(stkconslist_star)
 	__(b 2f)
 1:	__(ldr(temp0,0(vsp)))
 	__(cmpri(cr1,nargs,fixnum_one))
-	__(la vsp,4(vsp))
+	__(la vsp,node_size(vsp))
 	__(rplaca(imm1,temp0))
 	__(rplacd(imm1,arg_z))
 	__(mr arg_z,imm1)
@@ -446,11 +446,11 @@ _spentry(mkstackv)
 	__(la imm0,misc_data_offset(arg_z))
 	__(add imm1,imm0,nargs)
 1:
-	__(la nargs,-4(nargs))
+	__(la nargs,-node_size(nargs))
 	__(cmpri(cr1,nargs,0))
 	__(ldr(temp1,0(vsp)))
-	__(la vsp,4(vsp))
-	__(stwu temp1,-4(imm1))
+	__(la vsp,node_size(vsp))
+	__(stru(temp1,-node_size(imm1)))
 	__(bne cr1,1b)
 2:
 	__(blr)
@@ -503,6 +503,8 @@ local_label(cons_nil_nil):
 /* Allocate a miscobj on the temp stack.  (Push a frame on the tsp and 
    heap-cons the object if there's no room on the tstack.) */
 _spentry(stack_misc_alloc)
+ifdef([PPC64],[
+        ],[        
 	__(rlwinm. imm2,arg_y,32-fixnumshift,0,(8+fixnumshift)-1)
 	__(unbox_fixnum(imm0,arg_z))
 	__(extract_fulltag(imm1,imm0))
@@ -549,7 +551,8 @@ _spentry(stack_misc_alloc)
 	__(addi imm2,arg_y,7<<fixnumshift)
 	__(srwi imm2,imm2,fixnumshift+3)
 	__(b 1b)
-
+])
+        
 /* subtype (boxed, of course) is vpushed, followed by nargs bytes worth of */
 /* initial-contents.  Note that this can be used to cons any type of initialized */
 /* node-header'ed misc object (symbols, closures, ...) as well as vector-like */
@@ -637,11 +640,11 @@ _spentry(nthvalue)
 	__(cmplr(imm1,nargs))	/*  do unsigned compare:	 if (n < 0) => nil. */
 	__(li arg_z,nil_value)
 	__(neg imm1,imm1)
-	__(subi imm1,imm1,4)
+	__(subi imm1,imm1,node_size)
 	__(bge 1f)
 	__(ldrx(arg_z,imm0,imm1))
 1:	
-	__(la vsp,4(imm0))
+	__(la vsp,node_size(imm0))
 	__(blr)
         
 
@@ -664,7 +667,7 @@ local_label(return_values):
 	__(mtlr loc_pc)
 	__(add imm0,nargs,vsp)
 	__(blt- cr0,1f)
-	__(ldr(arg_z,-4(imm0)))
+	__(ldr(arg_z,-node_size(imm0)))
 1:
 	__(mr vsp,temp0)
 	__(blr)
@@ -695,7 +698,7 @@ local_label(return_values):
 5:
 	__(cmpr(cr0,imm2,nargs))
 	__(addi imm2,imm2,fixnum_one)
-	__(lwzu arg_z,-4(imm1))
+	__(ldru(arg_z,-node_size(imm1)))
 	__(push(arg_z,imm0))
 	__(bne cr0,5b)
 6:
@@ -755,7 +758,7 @@ _spentry(heap_rest_arg)
 1:
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(imm1,fixnum_one))
-	__(la vsp,4(vsp))
+	__(la vsp,node_size(vsp))
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi imm1,imm1,fixnum_one)
 2:
@@ -775,7 +778,7 @@ _spentry(req_heap_rest_arg)
 1:
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(imm1,fixnum_one))
-	__(la vsp,4(vsp))
+	__(la vsp,node_size(vsp))
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi imm1,imm1,fixnum_one)
 2:
@@ -792,7 +795,7 @@ _spentry(heap_cons_rest_arg)
 1:
 	__(ldr(temp0,0(vsp)))
 	__(cmpri(imm1,fixnum_one))
-	__(la vsp,4(vsp))
+	__(la vsp,node_size(vsp))
 	__(Cons(arg_z,temp0,arg_z))
 	__(subi imm1,imm1,fixnum_one)
 2:
@@ -889,14 +892,14 @@ _spentry(keyword_bind)
 	__(li imm4,nil_value)
 	__(subi arg_z,arg_z,2<<fixnumshift)
 	__(cmplri(cr0,arg_z,0))
-	__(ldr(arg_x,0(varptr)))
-	__(ldr(arg_y,4(varptr)))
-	__(str(imm4,0(varptr)))
-	__(str(imm4,4(varptr)))
-	__(la varptr,8(varptr))
-	__(str(arg_x,0(valptr)))
-	__(str(arg_y,4(valptr)))
-	__(la valptr,8(valptr))
+	__(ldr(arg_x,node_size*0(varptr)))
+	__(ldr(arg_y,node_size*1(varptr)))
+	__(str(imm4,node_size*0(varptr)))
+	__(str(imm4,node_size*1(varptr)))
+	__(la varptr,node_size*2(varptr))
+	__(str(arg_x,node_size*0(valptr)))
+	__(str(arg_y,node_size*1(valptr)))
+	__(la valptr,node_size*2(valptr))
 	__(bne cr0,4b)
 
 
@@ -912,8 +915,8 @@ _spentry(keyword_bind)
 	__(mr imm4,valptr)
 5:
         __(cmpwi cr0,keyword_flags,16<<fixnumshift) /* seen :a-o-k yet ? */
-	__(lwzu arg_z,-4(valptr))
-	__(lwzu arg_y,-4(valptr))
+	__(ldru(arg_z,-node_size(valptr)))
+	__(ldru(arg_y,-node_size(valptr)))
 	__(cmpri(cr1,arg_y,nil_value))
 	__(li arg_x,nrs.kallowotherkeys)
         /* cr6_eq <- (eq current-keyword :allow-other-keys) */
@@ -1336,6 +1339,8 @@ local_label(go):
 /* as if it denoted a 32-bit value. */
 /* Argument in arg_z, result in imm0.  May use temp0. */
 _spentry(getxlong)
+ifdef([PPC64],[
+        ],[        
 	__(extract_lisptag(imm0,arg_z))
 	__(cmpri(cr0,imm0,tag_fixnum))
 	__(cmpri(cr1,imm0,tag_misc))
@@ -1367,13 +1372,17 @@ local_label(big1):
 
 local_label(error):
 	__(uuo_interr(error_object_not_integer,arg_z)) /* not quite right but what 68K MCL said */
-        
+
+])
+                
 /* Everything up to the last arg has been vpushed, nargs is set to 
    the (boxed) count of things already pushed. 
    On exit, arg_x, arg_y, arg_z, and nargs are set as per a normal 
    function call (this may require vpopping a few things.) 
    ppc2-invoke-fn assumes that temp1 is preserved here. */
 _spentry(spreadargz)
+ifdef([PPC64],[
+        ],[        
 	__(extract_lisptag(imm1,arg_z))
 	__(cmpri(cr1,imm1,tag_list))
 	__(cmpri(cr0,arg_z,nil_value))
@@ -1407,7 +1416,7 @@ _spentry(spreadargz)
 	__(li arg_y,XNOSPREAD)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-
+])
         
 /* Tail-recursively funcall temp0. */
 	/* Pretty much the same as the tcallsym* cases above. */
@@ -1423,7 +1432,7 @@ _spentry(tfuncallgen)
 	__(subi imm1,nargs,nargregs<<fixnumshift)
 	__(add imm1,imm1,vsp)
 1:
-	__(lwzu temp2,-4(imm1))
+	__(ldru(temp2,-node_size(imm1)))
 	__(cmpr(cr0,imm1,vsp))
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
@@ -1447,7 +1456,7 @@ _spentry(tfuncallslide)
 	__(add imm1,imm1,vsp)
 	__(mtlr loc_pc)
 1:
-	__(lwzu temp2,-4(imm1))
+	__(ldru(temp2,-node_size(imm1)))
 	__(cmpr(cr0,imm1,vsp))
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
@@ -1481,7 +1490,7 @@ _spentry(tcallsymgen)
 	__(subi imm1,nargs,nargregs<<fixnumshift)
 	__(add imm1,imm1,vsp)
 1:
-	__(lwzu temp2,-4(imm1))
+	__(ldru(temp2,-node_size(imm1)))
 	__(cmpr(cr0,imm1,vsp))
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
@@ -1506,7 +1515,7 @@ _spentry(tcallsymslide)
 	__(subi imm1,nargs,nargregs<<fixnumshift)
 	__(add imm1,imm1,vsp)
 1:
-	__(lwzu temp2,-4(imm1))
+	__(ldru(temp2,-node_size(imm1)))
 	__(cmpr(cr0,imm1,vsp))
 	__(push(temp2,imm0))
 	__(bne cr0,1b)
@@ -1541,7 +1550,7 @@ _spentry(tcallnfnslide)
 	__(subi imm1,nargs,nargregs<<fixnumshift)
 	__(add imm1,imm1,vsp)
 1:
-	__(lwzu fname,-4(imm1))
+	__(ldru(fname,-node_size(imm1)))
 	__(cmpr(cr0,imm1,vsp))
 	__(push(fname,imm0))
 	__(bne cr0,1b)
@@ -1557,6 +1566,8 @@ _spentry(tcallnfnvsp)
        	__(jump_nfn())
 	
 _spentry(misc_ref)
+ifdef([PPC64],[
+        ],[
 	__(trap_unless_fulltag_equal(arg_y,fulltag_misc,imm0))
 	__(trap_unless_lisptag_equal(arg_z,tag_fixnum,imm0))
 	__(vector_length(imm0,arg_y,imm1))
@@ -1567,8 +1578,10 @@ _spentry(misc_ref)
    Note that this conses in some cases.  Return a properly-tagged 
    lisp object in arg_z.  Do type and bounds-checking. 
 */
-        
+])        
 misc_ref_common:
+ifdef([PPC64],[
+        ],[        
 	__(extract_fulltag(imm2,imm1))
 	__(cmpri(cr0,imm2,fulltag_nodeheader))
 	__(cmpri(cr1,imm1,max_32_bit_ivector_subtag))
@@ -1666,6 +1679,7 @@ local_label(ref_dfloat):
 	__(str(imm0,double_float.value(arg_z)))
 	__(str(imm1,double_float.value+4(arg_z)))
 	__(blr)
+])        
         
 	
 /* misc_set (vector index newval).  Pretty damned similar to 
@@ -1686,14 +1700,14 @@ _spentry(stkconsyz)
 	__(vpush(imm0))
 	__(vpush(imm0))
 	__(vpush(imm0))
-	__(andi. imm0,vsp,1<<2) /* (oddp vsp ?) */
+	__(andi. imm0,vsp,1<<word_shift) /* (oddp vsp ?) */
 	__(beq cr0,1f)
-	__(str(arg_y,8(vsp))) /* car */
-	__(str(arg_z,4(vsp))) /* cdr */
-	__(la arg_z,fulltag_cons+4(vsp))
+	__(str(arg_y,node_size*2(vsp))) /* car */
+	__(str(arg_z,node_size(vsp))) /* cdr */
+	__(la arg_z,fulltag_cons+node_size(vsp))
 	__(blr)
 1:
-	__(str(arg_y,4(vsp))) /* car, again */
+	__(str(arg_y,node_size(vsp))) /* car, again */
 	__(str(arg_z,0(vsp)))
 	__(la arg_z,fulltag_cons(vsp))
 	__(blr)
@@ -1814,7 +1828,7 @@ _spentry(makestacklist)
 	__(mr arg_y,arg_z)
 	__(li arg_z,nil_value)
 	__(ldr(imm2,tsp_frame.backlink(tsp)))
-	__(la imm2,-8+tag_list(imm2))
+	__(la imm2,-tsp_frame.fixed_overhead+fulltag_cons(imm2))
 	__(b 2f)
 1:
 	__(subi imm1,imm1,fixnum1)
@@ -1846,10 +1860,10 @@ _spentry(makestacklist)
 	node header subtag.) Nargs set to count of things vpushed. */
 
 _spentry(stkgvector)
-	__(la imm0,-4(nargs))
+	__(la imm0,-fixnum_one(nargs))
 	__(cmpri(cr1,imm0,0))
 	__(add imm1,vsp,nargs)
-	__(lwzu temp0,-4(imm1))
+	__(ldru(temp0,-node_size(imm1)))
 	__(slwi imm2,imm0,num_subtag_bits-fixnumshift)
 	__(rlwimi imm2,temp0,32-fixnumshift,32-num_subtag_bits,31)
         __(dnode_align(imm0,imm0,node_size+tsp_frame.fixed_overhead))
@@ -1862,8 +1876,8 @@ _spentry(stkgvector)
 1:
 	__(addi imm0,imm0,fixnum1)
 	__(cmpr(cr1,imm0,nargs))
-	__(lwzu temp0,-4(imm1))
-	__(stwu temp0,4(imm3))
+	__(ldru(temp0,-node_size(imm1)))
+	__(stru(temp0,node_size(imm3)))
 2:
 	__(bne cr1,1b)
 	__(add vsp,vsp,nargs)
@@ -1886,6 +1900,8 @@ _spentry(stkgvector)
 
 
 _spentry(misc_alloc)
+ifdef([PPC64],[
+        ],[        
 	__(extract_unsigned_byte_bits_(imm2,arg_y,24))
 	__(unbox_fixnum(imm0,arg_z))
 	__(extract_fulltag(imm1,imm0))
@@ -1918,6 +1934,7 @@ _spentry(misc_alloc)
 	__(b 1b)
 9:
 	__(uuo_interr(error_object_not_unsigned_byte_24,arg_y))
+])        
         
 /* almost exactly as above, but "swap exception handling info"
    on exit and return */
@@ -1995,12 +2012,12 @@ _spentry(bind_self_boundp_check)
 	__(beq 8f)
 	__(b 1f)
 0:	__(mr imm1,imm2)
-	__(ldr(temp0,4(imm1)))
+	__(ldr(temp0,binding.sym(imm1)))
 	__(cmpr(temp0,arg_y))
-	__(ldr(imm2,0(imm1)))
+	__(ldr(imm2,binding.link(imm1)))
 	__(cmpri(cr1,imm2,0))
 	__(bne 1f)
-	__(ldr(arg_z,8(imm1)))
+	__(ldr(arg_z,binding.val(imm1)))
 	__(b 9f)
 1:	__(bne cr1,0b)
 8:	__(ldr(arg_z,symbol.vcell(arg_y)))
@@ -2031,6 +2048,8 @@ _spentry(bind_self_boundp_check)
 	length key count. */
 
 _spentry(macro_bind)
+ifdef([PPC64],[
+        ],[        
 	__(mr whole_reg,arg_reg)
 	__(extract_lisptag(imm0,arg_reg))
 	__(cmpri(cr0,imm0,tag_list))
@@ -2042,7 +2061,7 @@ _spentry(macro_bind)
 	__(mr arg_z,whole_reg)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-
+])
 
 _spentry(destructuring_bind)
 	__(mr whole_reg,arg_reg)
@@ -2050,7 +2069,9 @@ _spentry(destructuring_bind)
 	
 _spentry(destructuring_bind_inner)
 	__(mr whole_reg,arg_z)
-destbind1:      
+destbind1:
+ifdef([PPC64],[
+        ],[
 	/* Extract required arg count. */
 	 /* A bug in gas: can't handle shift count of "32" (= 0 */
 	ifelse(eval(mask_req_width+mask_req_start),eval(32),[
@@ -2226,8 +2247,8 @@ match_loop:
 	__(cmpri(cr0,temp0,nil_value))
 	__(li temp0,t_value)
 	__(bne cr0,match_keys_loop)	/* already saw this */
-	__(str(arg_y,4(imm0)))
-	__(str(temp0,0(imm0)))
+	__(str(arg_y,node_size*1(imm0)))
+	__(str(temp0,node_size*2(imm0)))
 	__(b match_keys_loop)
 match_test:
 	__(bne cr4,match_loop)
@@ -2258,7 +2279,7 @@ destructure_error:
 	__(mr arg_z,whole_reg)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-	
+])	
 /* vpush the values in the value set atop the vsp, incrementing nargs. */
 /* Discard the tsp frame; leave values atop the vsp. */
 
@@ -2270,9 +2291,9 @@ _spentry(recover_values)
 	__(mr imm1,tsp) /* current segment */
 	__(mr imm2,tsp) /* last segment */
 local_label(walkloop):
-	__(ldr(imm3,12(imm1))) /* next segment */
+	__(ldr(imm3,tsp_frame.fixed_overhead+node_size(imm1))) /* next segment */
 	__(cmpr(cr0,imm0,imm3)) /* last segment? */
-	__(str(imm2,12(imm1))) /* reverse pointer */
+	__(str(imm2,tsp_frame.fixed_overhead+node_size(imm1))) /* reverse pointer */
 	__(mr imm2,imm1) /* last segment <- current segment */
 	__(mr imm1,imm3) /* current segment <- next segment */
 	__(bne cr0,local_label(walkloop))
@@ -2280,21 +2301,21 @@ local_label(walkloop):
 /* the final segment ptr is now in imm2 */
 /* walk backwards, pushing values on VSP and incrementing NARGS */
 local_label(pushloop):
-	__(ldr(imm0,8(imm2))) /* nargs in segment */
+	__(ldr(imm0,tsp_frame.data_offset(imm2))) /* nargs in segment */
 	__(cmpri(cr0,imm0,0))
 	__(cmpr(cr1,imm2,tsp))
-	__(la imm3,16(imm2))
+	__(la imm3,tsp_frame.data_offset+(2*node_size)(imm2))
 	__(add imm3,imm3,imm0)
 	__(add nargs,nargs,imm0)
 	__(b 2f)
 1:
-	__(lwzu arg_z,-4(imm3))
+	__(ldru(arg_z,-node_size(imm3)))
 	__(cmpri(cr0,imm0,fixnum_one))
 	__(subi imm0,imm0,fixnum_one)
 	__(vpush(arg_z))
 2:
 	__(bne cr0,1b)
-	__(ldr(imm2,12(imm2))) /* previous segment */
+	__(ldr(imm2,tsp_frame.data_offset+node_size(imm2))) /* previous segment */
 	__(bne cr1,local_label(pushloop))
 	__(unlink(tsp))
 	__(blr)
@@ -2308,19 +2329,19 @@ _spentry(vpopargregs)
 	__(beqlr cr0)
 	__(beq cr1,local_label(yz))
 	__(blt cr1,local_label(z))
-	__(ldr(arg_z,0(vsp)))
-	__(ldr(arg_y,4(vsp)))
-	__(ldr(arg_x,8(vsp)))
-	__(la vsp,12(vsp))
+	__(ldr(arg_z,node_size*0(vsp)))
+	__(ldr(arg_y,node_size*1(vsp)))
+	__(ldr(arg_x,node_size*2(vsp)))
+	__(la vsp,node_size*3(vsp))
 	__(blr)
 local_label(yz):
-	__(ldr(arg_z,0(vsp)))
-	__(ldr(arg_y,4(vsp)))
-	__(la vsp,8(vsp))
+	__(ldr(arg_z,node_size*0(vsp)))
+	__(ldr(arg_y,node_size*1(vsp)))
+	__(la vsp,node_size*2(vsp))
 	__(blr)
 local_label(z):
-	__(ldr(arg_z,0(vsp)))
-	__(la vsp,4(vsp))
+	__(ldr(arg_z,node_size*0(vsp)))
+	__(la vsp,node_size*1(vsp))
 	__(blr)
 
 /* If arg_z is an integer, return in imm0 something whose sign */
@@ -2346,12 +2367,17 @@ _spentry(integer_sign)
 
 /* like misc_set, only pass the (boxed) subtag in temp0 */
 _spentry(subtag_misc_set)
+ifdef([PPC64],[
+],[               
 	__(trap_unless_fulltag_equal(arg_x,fulltag_misc,imm0))
 	__(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
 	__(vector_length(imm0,arg_x,imm1))
 	__(trlge(arg_y,imm0))
 	__(unbox_fixnum(imm1,temp0))
+])        
 misc_set_common:
+        ifdef([PPC64],[
+        ],[
 	__(extract_fulltag(imm2,imm1))
 	__(cmpri(cr0,imm2,fulltag_nodeheader))
 	__(cmpri(cr1,imm1,max_32_bit_ivector_subtag))
@@ -2513,7 +2539,7 @@ local_label(set_dfloat):
 	__(la imm0,4(imm0))
 	__(strx(imm2,arg_x,imm0))
 	__(blr)
-        
+])        
 
 /* "spread" the lexpr in arg_z. 
    ppc2-invoke-fn assumes that temp1 is preserved here. */
@@ -2526,7 +2552,7 @@ _spentry(spread_lexprz)
 	__(add nargs,nargs,imm0)
 	__(cmpri(cr1,nargs,0))
 	__(cmpri(cr2,nargs,2<<fixnumshift))
-	__(la imm1,4(imm1))
+	__(la imm1,node_size(imm1))
 	__(bge cr3,9f)
 	__(beq cr4,2f)
 	__(bne cr0,1f)
@@ -2546,20 +2572,20 @@ _spentry(spread_lexprz)
 8:
 	__(cmpri(cr3,imm0,4<<fixnumshift))
 	__(subi imm0,imm0,fixnumone)
-	__(lwzu arg_z,-4(imm1))
+	__(ldru(arg_z,-node_size(imm1)))
 	__(vpush(arg_z))
 9:
 	__(bne cr3,8b)
-	__(ldr(arg_x,-4(imm1)))
-	__(ldr(arg_y,-8(imm1)))
-	__(ldr(arg_z,-12(imm1)))
+	__(ldr(arg_x,-node_size*1(imm1)))
+	__(ldr(arg_y,-node_size*2(imm1)))
+	__(ldr(arg_z,-node_size*3(imm1)))
 	__(blr)
 
 	/* lexpr count is two: set arg_y, arg_z from the */
 	/* lexpr, maybe vpop arg_x */
 2:	
-	__(ldr(arg_y,-4(imm1)))
-	__(ldr(arg_z,-8(imm1)))
+	__(ldr(arg_y,-node_size*1(imm1)))
+	__(ldr(arg_z,-node_size*2(imm1)))
 	__(beqlr cr2)		/* return if (new) nargs = 2 */
 	__(vpop(arg_x))
 	__(blr)
@@ -2567,7 +2593,7 @@ _spentry(spread_lexprz)
 	/* lexpr count is one: set arg_z from the lexpr, */
 	/* maybe vpop arg_y, arg_x */
 1:	
-	__(ldr(arg_z,-4(imm1)))
+	__(ldr(arg_z,-node_size(imm1)))
 	__(bltlr cr2)		/* return if (new) nargs < 2 */
 	__(vpop(arg_y))
 	__(beqlr cr2)		/* return if (new) nargs = 2 */
@@ -2602,8 +2628,8 @@ _spentry(mvslide)
 1:
 	__(cmpri(cr0,imm3,1<<fixnumshift))
 	__(subi imm3,imm3,1<<fixnumshift)
-	__(lwzu temp0,-4(imm0))
-	__(stwu temp0,-4(imm2))
+	__(ldru(temp0,-node_size(imm0)))
+	__(stru(temp0,-node_size(imm2)))
 	__(bne cr0,1b)
 2:
 	__(mr vsp,imm2)
@@ -2635,16 +2661,16 @@ local_label(save_values_to_tsp):
 	__(TSP_Alloc_Var_Boxed_nz(imm0,imm3))
 	__(str(imm1,tsp_frame.backlink(tsp))) /* keep one tsp "frame" as far as rest of lisp is concerned */
 	__(str(nargs,tsp_frame.data_offset(tsp)))
-	__(str(imm2,tsp_frame.data_offset+4(tsp))) /* previous tsp */
-	__(la imm3,tsp_frame.data_offset+8(tsp))
+	__(str(imm2,tsp_frame.data_offset+node_size(tsp))) /* previous tsp */
+	__(la imm3,tsp_frame.data_offset+node_size*2(tsp))
 	__(add imm3,imm3,nargs)
 	__(add imm0,vsp,nargs)
 	__(cmpr(cr0,imm0,vsp))
 	__(b 2f)
 1:
-	__(lwzu arg_z,-4(imm0))
+	__(ldru(arg_z,-node_size(imm0)))
 	__(cmpr(cr0,imm0,vsp))
-	__(stwu arg_z,-4(imm3))
+	__(stru(arg_z,-node_size(imm3)))
 2:
 	__(bne cr0,1b)
 	__(add vsp,vsp,nargs) /*  discard values */
@@ -2860,11 +2886,11 @@ _spentry(progvsave)
 	
         /* Next, determine the length of arg_y.  We */
         /* know that it's a proper list. */
-	__(li imm0,-4)
+	__(li imm0,-node_size)
 	__(mr temp0,arg_y)
 1:
 	__(cmpri(cr0,temp0,nil_value))
-	__(la imm0,4(imm0))
+	__(la imm0,node_size(imm0))
 	__(_cdr(temp0,temp0))
 	__(bne 1b)
 	/* imm0 is now (boxed) triplet count. */
@@ -3278,6 +3304,8 @@ _spentry(builtin_le)
 
 
 _spentry(builtin_eql)
+ifdef([PPC64],[
+        ],[        
 	__(cmpr(cr0,arg_y,arg_z))
 	__(extract_lisptag(imm0,arg_y))
 	__(extract_lisptag(imm1,arg_z))
@@ -3291,8 +3319,11 @@ _spentry(builtin_eql)
 	__(blr)
 2:	__(li arg_z,nil_value)
 	__(blr)
+])        
         
 _spentry(builtin_length)
+ifdef([PPC64],[
+        ],[    
 	__(extract_typecode(imm0,arg_z))
 	__(cmpri(cr0,imm0,min_vector_subtag))
 	__(cmpri(cr2,imm0,tag_list))
@@ -3328,8 +3359,11 @@ _spentry(builtin_length)
 9:	
 	__(mr arg_z,temp2)
 	__(blr)
+])        
 
 _spentry(builtin_seqtype)
+ifdef([PPC64],[
+],[                
 	__(extract_typecode(imm0,arg_z))
 	__(cmpri(cr0,imm0,tag_list))
 	__(cmpri(cr1,imm1,min_vector_subtag))
@@ -3341,6 +3375,7 @@ _spentry(builtin_seqtype)
 	__(blr)
 2:
 	__(jump_builtin(_builtin_seqtype,1))
+])        
         
 _spentry(builtin_assq)
 	__(cmpri(arg_z,nil_value))
@@ -4318,11 +4353,11 @@ _spentry(svar_progvsave)
 	
         /* Next, determine the length of arg_y.  We */
         /* know that it's a proper list. */
-	__(li imm0,-4)
+	__(li imm0,-node_size)
 	__(mr temp4,arg_y)
 1:
 	__(cmpri(cr0,temp4,nil_value))
-	__(la imm0,4(imm0))
+	__(la imm0,node_size(imm0))
 	__(_cdr(temp4,temp4))
 	__(bne 1b)
 	/* imm0 is now (boxed) triplet count. */

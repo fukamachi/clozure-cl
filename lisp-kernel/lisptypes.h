@@ -17,22 +17,41 @@
 #ifndef __lisptypes__
 #define __lisptypes__
 
-typedef unsigned LispObj;
+#include <sys/types.h>
+#ifdef PPC64
+typedef u_int64_t LispObj;
+typedef u_int64_t natural;
+typedef int64_t signed_natural;
+#ifdef FOREIGN_POINTER_32BIT
+typedef u_int32_t unsigned_of_pointer_size;
+#else
+typedef u_int64_t unsigned_of_pointer_size;
+#endif
+#else
+typedef u_int32_t LispObj;
+typedef u_int32_t natural;
+typedef int32_t signed_natural;
+typedef u_int32_t unsigned_of_pointer_size;
+#endif
 
 typedef struct ucontext ExceptionInformation, ExceptionInformationPowerPC;
 
-typedef char *BytePtr;
 typedef int OSStatus, OSErr;
 #define noErr ((OSErr) 0)
 typedef int Boolean;
 typedef void *LogicalAddress;
-typedef char *StringPtr;
-typedef char *Ptr;
+typedef char *Ptr, *BytePtr, *StringPtr;
 typedef unsigned int UInt32;
+
 typedef union {
   unsigned short halfword;
   struct {
+#ifdef PPC64
+    unsigned short offset:13;
+    unsigned short pad:1;
+#else
     unsigned short offset:14;
+#endif
     unsigned short hasnode:1;
     unsigned short modified:1;
   } bits;
