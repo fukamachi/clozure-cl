@@ -113,7 +113,7 @@
   #+darwinppc-target
   (require "DARWIN-SYSCALLS"))
 
-(define-condition socket-error (simple-error)
+(define-condition socket-error (simple-stream-error)
   ((code :initarg :code :reader socket-error-code)
    (identifier :initform :unknown :initarg :identifier :reader socket-error-identifier)
    (situation :initarg :situation :reader socket-error-situation)))
@@ -130,18 +130,18 @@
 	#$EHOSTUNREACH :host-unreachable
 	#$EHOSTDOWN :host-down
 	#$ENETDOWN :network-down
-	;; ?? :address-not-available
-	;; ?? :network-reset
-	;; ?? :connection-reset
-	;; ?? :shutdown
+	#$EADDRNOTAVAIL :address-not-available
+	#$ENETRESET :network-reset
+	#$ECONNRESET :connection-reset
+	#$ESHUTDOWN :shutdown
 	#$EACCES :access-denied
 	#$EPERM :access-denied))
 
 
 (declaim (inline socket-call))
-(defun socket-call (where res)
+(defun socket-call (stream where res)
   (if (< res 0)
-    (socket-error where res)
+    (socket-error stream where res)
     res))
 
 (defun %hstrerror (h_errno)
@@ -150,22 +150,33 @@
       (%get-cstring p)
       (format nil "Nameserver error ~d" (abs h_errno)))))
     
-  
-(defun socket-error (where errno &optional nameserver-p)
+
+
+
+(defun socket-error (stream where errno &optional nameserver-p)
   (when (< errno 0)
     (setq errno (- errno)))
-  (error (make-condition 'socket-error
-			 :code errno
-			 :identifier (getf *socket-error-identifiers* errno :unknown)
-			 :situation where
-			 ;; TODO: this is a constant arg, there is a way to put this
-			 ;; in the class definition, just need to remember how...
-			 :format-control "~a (error #~d) in ~a"
-			 :format-arguments (list
-                                            (if nameserver-p
-                                              (%hstrerror errno)
-                                              (%strerror errno))
-                                            errno where))))
+  (if stream
+    (error (make-condition 'socket-error
+			   :stream stream
+			   :code errno
+			   :identifier (getf *socket-error-identifiers* errno :unknown)
+			   :situation where
+			   ;; TODO: this is a constant arg, there is a way to put this
+			   ;; in the class definition, just need to remember how...
+			   :format-control "~a (error #~d) on ~s in ~a"
+			   :format-arguments (list
+					      (if nameserver-p
+						(%hstrerror errno)
+						(%strerror errno))
+					      errno stream where)))
+    (error "~a (error #~d) in ~a"
+	   (if nameserver-p
+	     (%hstrerror errno)
+	     (%strerror errno))
+	   errno where)))
+    
+
 
 ;; If true, this will try to allow other processes to run while
 ;; socket io is happening.
@@ -285,12 +296,12 @@
   (socket-device socket))
 
 ;; Returns nil for closed stream
-(defun local-socket-info (fd type)
+(defun local-socket-info (fd type socket)
   (and fd
        (rlet ((sockaddr :sockaddr_in)
 	      (namelen :signed))
 	     (setf (pref namelen :signed) (record-length :sockaddr_in))
-	     (socket-call "getsockname" (c_getsockname fd sockaddr namelen))
+	     (socket-call socket "getsockname" (c_getsockname fd sockaddr namelen))
 	     (when (= #$AF_INET (pref sockaddr :sockaddr_in.sin_family))
 	       (ecase type
 		 (:host (#_ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr)))
@@ -304,12 +315,12 @@
     #-darwinppc-target
     (%get-cstring (pref addr :sockaddr_un.sun_path))))
 
-(defun local-socket-filename (fd)
+(defun local-socket-filename (fd socket)
   (and fd
        (rlet ((addr :sockaddr_un)
               (namelen :signed))
          (setf (pref namelen :signed) (record-length :sockaddr_un))
-         (socket-call "getsockname" (c_getsockname fd addr namelen))
+         (socket-call socket "getsockname" (c_getsockname fd addr namelen))
 	 (path-from-unix-address addr))))
 
          
@@ -339,13 +350,13 @@
                  (t (path-from-unix-address addr)))))))
 
 (defmethod LOCAL-PORT ((socket socket))
-  (local-socket-info (socket-device socket) :port))
+  (local-socket-info (socket-device socket) :port socket))
 
 (defmethod LOCAL-HOST ((socket socket))
-  (local-socket-info (socket-device socket) :host))
+  (local-socket-info (socket-device socket) :host socket))
 
 (defmethod LOCAL-FILENAME ((socket socket))
-  (local-socket-filename (socket-device socket)))
+  (local-socket-filename (socket-device socket) socket))
 
 ;; Returns NIL if socket is not connected
 (defmethod REMOTE-HOST ((socket socket))
@@ -384,7 +395,7 @@
   (rlet ((plinger :linger))
     (setf (pref plinger :linger.l_onoff) (if linger 1 0)
 	  (pref plinger :linger.l_linger) (or linger 0))
-    (socket-call "setsockopt"
+    (socket-call nil "setsockopt"
 		 (c_setsockopt fd #$SOL_SOCKET #$SO_LINGER plinger 8)))
   (when (eq address-family :internet)
     (when nodelay
@@ -405,13 +416,13 @@
 	       (setf (pref sockaddr :sockaddr_in.sin_family) #$AF_INET
 		     (pref sockaddr :sockaddr_in.sin_port) port-n
 		     (pref sockaddr :sockaddr_in.sin_addr.s_addr) host-n)
-	       (socket-call "bind" (c_bind fd sockaddr (record-length :sockaddr_in)))))))
+	       (socket-call nil "bind" (c_bind fd sockaddr (record-length :sockaddr_in)))))))
   (when (and (eq address-family :file)
 	     (eq connect :passive)
 	     local-filename)
     (bind-unix-socket fd local-filename))    
   (when *multiprocessing-socket-io*
-    (socket-call "fcntl" (fd-set-flag fd #$O_NONBLOCK))))
+    (socket-call nil "fcntl" (fd-set-flag fd #$O_NONBLOCK))))
 
 ;; I hope the inline declaration makes the &rest/apply's go away...
 (declaim (inline make-ip-socket))
@@ -450,7 +461,7 @@
 (defun make-udp-socket (&rest keys &aux (fd -1))
   (unwind-protect
     (let (socket)
-      (setq fd (socket-call "socket"
+      (setq fd (socket-call nil "socket"
 			    (c_socket #$AF_INET #$SOCK_DGRAM #$IPPROTO_UDP)))
       (apply #'set-socket-options fd keys)
       (setq socket (make-instance 'udp-socket
@@ -464,7 +475,7 @@
 (defun make-tcp-socket (&rest keys &key connect &allow-other-keys &aux (fd -1))
   (unwind-protect
     (let (socket)
-      (setq fd (socket-call "socket"
+      (setq fd (socket-call nil "socket"
 			    (c_socket #$AF_INET #$SOCK_STREAM #$IPPROTO_TCP)))
       (apply #'set-socket-options fd keys)
       (setq socket
@@ -479,7 +490,7 @@
 (defun make-stream-file-socket (&rest keys &key connect &allow-other-keys &aux (fd -1))
   (unwind-protect
     (let (socket)
-      (setq fd (socket-call "socket" (c_socket #$PF_LOCAL #$SOCK_STREAM 0)))
+      (setq fd (socket-call nil "socket" (c_socket #$PF_LOCAL #$SOCK_STREAM 0)))
       (apply #'set-socket-options fd keys)
       (setq socket
 	    (ecase connect
@@ -556,18 +567,18 @@
 		    :element-type element-type)))
 
 (defun make-tcp-listener-socket (fd &rest keys &key backlog &allow-other-keys)
-  (socket-call "listen" (c_listen fd (or backlog 5)))
+  (socket-call nil "listen" (c_listen fd (or backlog 5)))
   (make-instance 'listener-socket
 		 :device fd
 		 :keys keys))
 
 (defun make-file-listener-socket (fd &rest keys &key backlog &allow-other-keys)
-  (socket-call "listen" (c_listen fd (or backlog 5)))
+  (socket-call nil "listen" (c_listen fd (or backlog 5)))
   (make-instance 'file-listener-socket
 		 :device fd
 		 :keys keys))
 
-(defun socket-accept (fd wait)
+(defun socket-accept (fd wait socket)
   (flet ((_accept (fd async)
 	   (let ((res (c_accept fd (%null-ptr) (%null-ptr))))
 	     (declare (fixnum res))
@@ -592,19 +603,19 @@
 	  (*multiprocessing-socket-io*
 	    (_accept fd t))
 	  (t
-	    (let ((old (socket-call "fcntl" (fd-get-flags fd))))
+	    (let ((old (socket-call socket "fcntl" (fd-get-flags fd))))
 	      (unwind-protect
 		  (progn
-		    (socket-call "fcntl" (fd-set-flags fd (logior old #$O_NONBLOCK)))
+		    (socket-call socket "fcntl" (fd-set-flags fd (logior old #$O_NONBLOCK)))
 		    (_accept fd t))
-		(socket-call "fcntl" (fd-set-flags fd old))))))))
+		(socket-call socket "fcntl" (fd-set-flags fd old))))))))
 
 (defun accept-socket-connection (socket wait stream-create-function)
   (let ((listen-fd (socket-device socket))
 	(fd -1))
     (unwind-protect
       (progn
-	(setq fd (socket-accept listen-fd wait))
+	(setq fd (socket-accept listen-fd wait socket))
 	(cond ((>= fd 0)
 	       (prog1 (apply stream-create-function fd (socket-keys socket))
 		 (setq fd -1)))
@@ -652,7 +663,7 @@
 	    (if remote-port (port-as-inet-port remote-port "udp") 0))
       (%stack-block ((bufptr size))
         (%copy-ivector-to-ptr msg offset bufptr 0 size)
-	(socket-call "sendto"
+	(socket-call socket "sendto"
 	  (with-eagain fd :output
 	    (c_sendto fd bufptr size 0 sockaddr (record-length :sockaddr_in))))))))
 
@@ -671,7 +682,7 @@
       (setf (pref sockaddr :sockaddr_in.sin_port) 0)
       (setf (pref namelen :signed) (record-length :sockaddr_in))
       (%stack-block ((bufptr size))
-	(setq ret-size (socket-call "recvfrom"
+	(setq ret-size (socket-call socket "recvfrom"
 			 (with-eagain fd :input
 			   (c_recvfrom fd bufptr size 0 sockaddr namelen))))
 	(unless vec
@@ -698,7 +709,7 @@
   ;; TODO: should we ignore ENOTCONN error?  (at least make sure it
   ;; is a distinct, catchable error type).
   (let ((fd (socket-device socket)))
-    (socket-call "shutdown"
+    (socket-call socket "shutdown"
       (c_shutdown fd (ecase direction
 		       (:input 0)
 		       (:output 1))))))
@@ -766,7 +777,7 @@
 (defun int-setsockopt (socket level optname optval)
   (rlet ((valptr :signed))
     (setf (pref valptr :signed) optval)
-    (socket-call "setsockopt"
+    (socket-call socket "setsockopt"
       (c_setsockopt socket level optname valptr (record-length :signed)))))
 
 (defloadvar *h-errno* (foreign-symbol-address #+darwinppc-target "_h_errno"
@@ -893,6 +904,7 @@
   (rletz ((addr :sockaddr_un))
     (init-unix-sockaddr addr path)
     (socket-call
+     nil
      "bind"
      (c_bind socketfd
              addr
@@ -1173,3 +1185,5 @@
       (error "Can't determine primary IP interface"))))
 	  
 	  
+(defmethod stream-io-error ((stream socket) errno where)
+  (socket-error stream where errno))
