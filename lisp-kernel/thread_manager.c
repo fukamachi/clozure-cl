@@ -455,30 +455,37 @@ shutdown_thread_tcr(void *arg)
     tsd_set(lisp_global(TCR_KEY),current_tls);
   }
   
+  if (tcr->flags & (1<<TCR_FLAG_BIT_SHUTDOWN_REQUEST)) {
+    tcr->flags &= ~(1<<TCR_FLAG_BIT_SHUTDOWN_REQUEST);
+
 #ifdef DARWIN
-  darwin_exception_cleanup(tcr);
+    darwin_exception_cleanup(tcr);
 #endif
   
-  vs = tcr->vs_area;
-  tcr->vs_area = NULL;
-  ts = tcr->ts_area;
-  tcr->ts_area = NULL;
-  cs = tcr->cs_area;
-  tcr->cs_area = NULL;
-  if (vs) {
-    condemn_area(vs);
+    vs = tcr->vs_area;
+    tcr->vs_area = NULL;
+    ts = tcr->ts_area;
+    tcr->ts_area = NULL;
+    cs = tcr->cs_area;
+    tcr->cs_area = NULL;
+    if (vs) {
+      condemn_area(vs);
+    }
+    if (ts) {
+      condemn_area(ts);
+    }
+    if (cs) {
+      condemn_area(cs);
+    }
+    destroy_semaphore(&tcr->suspend);
+    destroy_semaphore(&tcr->resume);
+    destroy_semaphore(&tcr->reset_completion);
+    destroy_semaphore(&tcr->activate);
+    tcr->osid = 0;
+  } else {
+    tcr->flags |= (1<<TCR_FLAG_BIT_SHUTDOWN_REQUEST);
+    tsd_set(lisp_global(TCR_KEY), tcr);
   }
-  if (ts) {
-    condemn_area(ts);
-  }
-  if (cs) {
-    condemn_area(cs);
-  }
-  destroy_semaphore(&tcr->suspend);
-  destroy_semaphore(&tcr->resume);
-  destroy_semaphore(&tcr->reset_completion);
-  destroy_semaphore(&tcr->activate);
-  tcr->osid = 0;
 }
 
 void *

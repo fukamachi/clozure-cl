@@ -502,6 +502,7 @@ typedef struct tcr {
 
 #define TCR_FLAG_BIT_FOREIGN fixnumshift
 #define TCR_FLAG_BIT_AWAITING_PRESET (fixnumshift+1)
+#define TCR_FLAG_BIT_SHUTDOWN_REQUEST (fixnumshift+2)
 
 #define TCR_STATE_FOREIGN (1)
 #define TCR_STATE_LISP    (0)
