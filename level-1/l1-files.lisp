@@ -1002,7 +1002,7 @@
                             (if realpath
                               (%probe-file-x realpath ))))
                         (eq kind :file))
-                   (values full-name file-name file-name))))))))))
+                   (values full-name file-name file-name)))))))))
 
 
 
