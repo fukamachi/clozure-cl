@@ -482,8 +482,11 @@
 (defun %active-restart (name)
   (dolist (cluster %restarts%)
     (dolist (restart cluster)
-      (when (or (eq restart name) (eq (%restart-name restart) name))
-        (return-from %active-restart (values restart cluster)))))
+      (let* ((rname (%restart-name restart))
+	     (rtest (%restart-test restart)))
+	(when (and (or (eq restart name) (eq rname name))
+		   (or (null rtest) (funcall rtest nil)))
+	  (return-from %active-restart (values restart cluster))))))
   (error 'inactive-restart :restart-name name))
 
 (defun invoke-restart (restart &rest values)
