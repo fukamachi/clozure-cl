@@ -121,12 +121,15 @@
 
 
 (defun %make-semaphore-ptr ()
-  (record-system-lock
-   (%setf-macptr
-    (make-gcable-macptr $flags_DisposeSemaphore)
-    (ff-call (%kernel-import ppc32::kernel-import-new-semaphore)
+  (let* ((p (ff-call (%kernel-import ppc32::kernel-import-new-semaphore)
 	     :signed-fullword 0
-             :address))))
+             :address)))
+    (if (%null-ptr-p p)
+      (error "Can't create semaphore.")
+      (record-system-lock
+       (%setf-macptr
+	(make-gcable-macptr $flags_DisposeSemaphore)
+	p)))))
 
 (defun make-semaphore ()
   (%istruct 'semaphore (%make-semaphore-ptr)))
