@@ -1254,11 +1254,6 @@
         (ppc2-copy-register seg node-dest arg_z)))))
 
 
-
-(defun ppc2-fix-stackreg (seg regnum amt)
-  (with-ppc-local-vinsn-macros (seg)
-    (! adjust-stack-register regnum amt)))
-
 ; safe = T means assume "vector" is miscobj, do bounds check.
 ; safe = fixnum means check that subtag of vector = "safe" and do bounds check.
 ; safe = nil means crash&burn.
@@ -4242,7 +4237,8 @@
       (multiple-value-setq (target current-cstack current-vstack)
                            (ppc2-decode-stack (aref *ppc2-undo-stack* target-catch))))
     (if (%i< 0 (setq diff (%i- current-cstack target-cstack)))
-      (ppc2-fix-stackreg seg ppc::sp diff))
+      (with-ppc-local-vinsn-macros (seg)
+        (! adjust-sp diff)))
     (if (%i< 0 (setq diff (%i- current-vstack target-vstack)))
       (with-ppc-local-vinsn-macros (seg)
         (! vstack-discard (ash diff -2))))
@@ -4503,7 +4499,7 @@
                     (progn
                       (ppc2-lwi seg ppc::imm0 vdiff)
                       (! slide-values))
-                    (ppc2-fix-stackreg seg ppc::vsp vdiff)))))
+                    (! adjust-vsp vdiff)))))
             (setq numnlispareas 0)
             (while (%i> lastcatch dest)
               (let ((reason (aref *ppc2-undo-because* (setq lastcatch (%i- lastcatch 1)))))
@@ -4512,7 +4508,8 @@
                 (if (eq reason $undostkblk)
                   (incf numnlispareas))
                 (if (%i> cstack target-cstack)
-                  (ppc2-fix-stackreg seg ppc::sp (%i- cstack target-cstack)))
+                  (with-ppc-local-vinsn-macros (seg)
+                    (! adjust-sp (%i- cstack target-cstack))))
                 ; else what's going on? $sp-stkcons, for one thing
                 (setq cstack target-cstack)))
             (popnlispareas)))
