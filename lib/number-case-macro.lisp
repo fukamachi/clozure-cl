@@ -111,7 +111,6 @@
                   cases)
                ,@(if (not t-case)
                    `((t (setq ,var (%kernel-restart $xwrongtype ,var ',(nd-type-compose selectors-so-far)))
-                        ; this causes compiler to put event-check at top - phooey
                         (go ,tag)))))))))))
 
 (provide "NUMBER-CASE-MACRO")
