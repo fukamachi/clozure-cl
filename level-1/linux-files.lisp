@@ -288,8 +288,17 @@
 
 
 
+
+#-darwinppc-target
 (defun %%rusage (usage &optional (who #$RUSAGE_SELF))
   (syscall os::getrusage who usage))
+#+darwinppc-target
+(defun %%rusage (usage &optional (who #$RUSAGE_SELF))
+  (syscall os::getrusage who usage)
+  (rlet ((count :natural_t #$TASK_THREAD_TIMES_INFO_COUNT))
+    (#_task_info (#_mach_task_self) #$TASK_THREAD_TIMES_INFO usage count)))
+    
+
 
 (defun get-internal-run-time ()
   (rlet ((usage :rusage)
@@ -675,7 +684,6 @@
   (let* ((handler ()))
     (setq handler
 	  #'(lambda ()
-	      (dbg)
 	      (when (fd-input-available-p in-fd 0)
 		(%stack-block ((buf 1024))
 		  (let* ((n (fd-read in-fd buf 1024)))
