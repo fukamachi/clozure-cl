@@ -782,7 +782,7 @@
   (number-case number
     (rational
      (if (minusp number)
-       (%double-float pi) ; is it (will it be) always double float?
+       (%short-float pi)
        0.0f0))
     (double-float
      (if (minusp number)
@@ -1381,7 +1381,7 @@
 (defun imagpart (number)
   (number-case number
     (complex (%imagpart number))
-    (float (float 0.0 number))
+    (float (* 0 number))
     (rational 0)))
 
 (defun logand-2 (x y)  
@@ -1516,30 +1516,30 @@
 
 (defun ash (integer count)
   "Shifts integer left by count places preserving sign.  - count shifts right."
-  (number-case integer
-   (fixnum
-    (cond ((eql 0 integer)
-           0)
-          (t (number-case count
-              (fixnum
-               (if (eql count 0)
-                 integer
-                 (let ((length (integer-length (the fixnum integer))))
-                   (declare (fixnum length count))
-                   (cond ((and (plusp count)
-                               (> (+ length count)
-                                  (- 31 ppc32::fixnumshift)))                          
-                          (with-small-bignum-buffers ((bi integer))
-                            (bignum-ashift-left bi count)))
-                         ((and (minusp count) (< count -31))
-                          (if (minusp integer) -1 0))
-                         (t (%iash (the fixnum integer) count))))))
-               (bignum
-                (if (minusp count)
-                  (if (minusp integer) -1 0)          
-                  (error "Count ~s too large for ASH" count)))))))
+  (etypecase integer
+    (fixnum
+     (etypecase count
+       (fixnum
+	(if (eql integer 0)
+	  0
+	  (if (eql count 0)
+	    integer
+	    (let ((length (integer-length (the fixnum integer))))
+	      (declare (fixnum length count))
+	      (cond ((and (plusp count)
+			  (> (+ length count)
+			     (- 31 ppc32::fixnumshift)))                          
+		     (with-small-bignum-buffers ((bi integer))
+		       (bignum-ashift-left bi count)))
+		    ((and (minusp count) (< count -31))
+		     (if (minusp integer) -1 0))
+		    (t (%iash (the fixnum integer) count)))))))
+       (bignum
+	(if (minusp count)
+	  (if (minusp integer) -1 0)          
+	  (error "Count ~s too large for ASH" count)))))
     (bignum
-     (number-case count
+     (etypecase count
        (fixnum
         (if (eql count 0) 
           integer
@@ -1586,23 +1586,19 @@
 
 (defun random (number &optional (state *random-state*))
   (if (not (typep state 'random-state)) (report-bad-arg state 'random-state))
-  ; below doesn't boot
-  ;(setq state (require-type (or state *random-state*) 'random-state))
-  (if (eql number 0)
-    0
-    (cond
-     ((and (fixnump number) (>= (the fixnum number) 0))
+  (cond
+     ((and (fixnump number) (> (the fixnum number) 0))
       (locally (declare (fixnum number))
         (if (< number 65536)
           (mod (%next-random-seed state) number)
           (%bignum-random number state))))
-     ((and (typep number 'double-float) (>= (the double-float number) 0.0))
+     ((and (typep number 'double-float) (> (the double-float number) 0.0))
       (%float-random number state))
-     ((and (typep number 'short-float) (>= (the short-float number) 0.0s0))
+     ((and (typep number 'short-float) (> (the short-float number) 0.0s0))
       (%float-random number state))
-     ((and (bignump number) (>= number 0))
+     ((and (bignump number) (> number 0))
       (%bignum-random number state))
-     (t (report-bad-arg number '(or (integer 0) (float 0.0)))))))
+     (t (report-bad-arg number '(or (integer (0)) (float (0.0)))))))
 
 (defun %bignum-random (number &optional state)
   (let* ((bits (+ (integer-length number) 8))
@@ -1626,7 +1622,10 @@
       (when (<= words 0) (return))
       (incf  index 2))
     ; The bignum code expects normalized bignums
-    (mod dividend number)))
+    (let* ((result (mod dividend number)))
+      (if (eq dividend result)
+	(copy-uvector result)
+	result))))
 
 (defun %float-random (number state)
   (if (zerop number)
