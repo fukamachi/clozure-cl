@@ -3066,3 +3066,17 @@
       `(or ,@(mapcar #'array-or-union-ctype-element-type 
                      (union-ctype-types ctype))))))
 
+
+;;; Ensure that standard EFFECTIVE-SLOT-DEFINITIONs have a meaningful
+;;; type predicate, if we can.
+(defmethod shared-initialize :after ((spec effective-slot-definition)
+				     slot-names
+				     &key type
+				     &allow-other-keys)
+  (declare (ignore slot-names))
+  (unless (eq type t)
+    (setf (slot-value spec 'type-predicate)
+	  (or (and (typep type 'symbol)
+		   (type-predicate type))
+	      (let* ((ctype (specifier-type type)))
+		#'(lambda (value) (ctypep value ctype)))))))
