@@ -1589,7 +1589,7 @@
                       (illegal-option option))
                     `(:metaclass (find-class ',(cadr option))))
                    (t
-                    (list `',option-name `',(cadr option))))))
+                    (list `',option-name `',(cdr option))))))
              (canonicalize-slot-spec (slot)
                (if (null slot) (signal-program-error "Illegal slot NIL"))
                (if (not (listp slot)) (setq slot (list slot)))
