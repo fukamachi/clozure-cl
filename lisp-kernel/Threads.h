@@ -46,9 +46,9 @@ typedef sem_t * SEMAPHORE;
 
 #ifdef DARWIN
 typedef semaphore_t SEMAPHORE;
-#define SEM_WAIT(s) semaphore_wait((SEMAPHORE)s)
-#define SEM_RAISE(s) semaphore_signal((SEMAPHORE)s)
-#define SEM_TIMEDWAIT(s,t) semaphore_timedwait((SEMAPHORE)s,t)
+#define SEM_WAIT(s) semaphore_wait((SEMAPHORE)(natural)s)
+#define SEM_RAISE(s) semaphore_signal((SEMAPHORE)(natural)s)
+#define SEM_TIMEDWAIT(s,t) semaphore_timedwait((SEMAPHORE)(natural)s,t)
 #endif
 
 typedef struct
