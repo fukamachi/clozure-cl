@@ -41,10 +41,12 @@
 (defconstant fixnummask (1- (ash 1 nfixnumtagbits)))
 (defconstant fixnum-mask fixnummask)
 (defconstant subtag-mask (1- (ash 1 num-subtag-bits)))
-(defconstant ncharcodebits 16)
+(defconstant ncharcodebits 32)
 (defconstant charcode-shift (- nbits-in-word ncharcodebits))
 (defconstant word-shift 3)
-
+(defconstant word-size-in-bytes 8)
+(defconstant target-most-negative-fixnum (ash -1 (1- (- nbits-in-word nfixnumtagbits))))
+(defconstant target-most-positive-fixnum (1- (ash 1 (1- (- nbits-in-word nfixnumtagbits)))))
 (defmacro define-subtag (name tag value)
   `(defconstant ,(ccl::form-symbol "SUBTAG-" name) (logior ,tag (ash ,value ntagbits))))
 
@@ -77,6 +79,9 @@
 ;;  #b110  immediate-header
 ;;  #b111  node-header
 ;;
+
+(defconstant tag-fixnum 0)
+
 ;;  Note how we're already winding up with lots of header and immediate
 ;;  "classes".  That might actually be useful.
 ;;
@@ -103,7 +108,7 @@
 (defconstant fulltag-imm-2          #b1001)
 (defconstant fulltag-immheader-2    #b1010)
 (defconstant fulltag-nodeheader-2   #b1011)
-(defconstant fulltag-uvector        #b1100)
+(defconstant fulltag-misc           #b1100)
 (defconstant fulltag-imm-3          #b1101)
 (defconstant fulltag-immheader-3    #b1110)
 (defconstant fulltag-nodeheader-3   #b1111)
@@ -112,7 +117,7 @@
 ;; The general algorithm for determining the (primary) type of an
 ;; object is something like:
 ;; (clrldi tag node 60)
-;; (cmpwi tag fulltag-uvector)
+;; (cmpwi tag fulltag-misc)
 ;; (clrldi tag tag 61
 ;; (bne @done)
 ;; (lbz tag misc-subtag-offset node)
@@ -241,7 +246,7 @@
 
 (defmacro define-fixedsized-object (name &rest non-header-cells)
   `(progn
-     (define-lisp-object ,name fulltag-uvector header ,@non-header-cells)
+     (define-lisp-object ,name fulltag-misc header ,@non-header-cells)
      (ccl::defenum ()
        ,@(mapcar #'(lambda (cell) (ccl::form-symbol name "." cell "-CELL")) non-header-cells))
      (defconstant ,(ccl::form-symbol name ".ELEMENT-COUNT") ,(length non-header-cells))))
@@ -252,7 +257,7 @@
 
 
 
-(defconstant misc-header-offset (- fulltag-uvector))
+(defconstant misc-header-offset (- fulltag-misc))
 (defconstant misc-subtag-offset (+ misc-header-offset 7 ))
 (defconstant misc-data-offset (+ misc-header-offset 8))
 (defconstant misc-dfloat-offset (+ misc-header-offset 8))
@@ -267,10 +272,11 @@
 
 (define-subtag go-tag fulltag-imm-1 0)
 (define-subtag block-tag fulltag-imm-1 1)
-(define-subtag no-thread-local-binding fulltag-imm-2 0)
+(define-subtag character fulltag-imm-2 0)
 (define-subtag unbound fulltag-imm-3 0)
 (defconstant unbound-marker subtag-unbound)
 (defconstant undefined unbound-marker)
+(define-subtag no-thread-local-binding fulltag-imm-3 1)
 
 
 (defconstant max-64-bit-constant-index (ash (+ #x7fff ppc64::misc-dfloat-offset) -3))
@@ -380,7 +386,7 @@
   flags                                 ; has-fill-pointer,displaced-to,adjustable bits; subtype of underlying simple vector.
 )
 
-(define-lisp-object arrayH fulltag-uvector
+(define-lisp-object arrayH fulltag-misc
   header                                ; subtag = subtag-arrayH
   rank                                  ; NEVER 1
   physsize                              ; total size of (possibly displaced) data vector
@@ -519,7 +525,7 @@
 ;; foreign frames can be the same size as a lisp frame.)
 
 
-(ppc32::define-storage-layout lisp-frame 0
+(ppc64::define-storage-layout lisp-frame 0
   backlink
   savefn
   savelr
@@ -586,19 +592,19 @@
 (defun %kernel-global (sym)
   (let* ((pos (position sym ppc::*ppc-kernel-globals* :test #'string=)))
     (if pos
-      (- (+ fulltag-uvector (* (1+ pos) 8)))
+      (- (+ fulltag-misc (* (1+ pos) word-size-in-bytes)))
       (error "Unknown kernel global : ~s ." sym))))
 
 (defmacro kernel-global (sym)
   (let* ((pos (position sym ppc::*ppc-kernel-globals* :test #'string=)))
     (if pos
-      (- (+ fulltag-uvector (* (1+ pos) 4)))
+      (- (+ fulltag-misc (* (1+ pos) word-size-in-bytes)))
       (error "Unknown kernel global : ~s ." sym))))
 
 ; The kernel imports things that are defined in various other libraries for us.
 ; The objects in question are generally fixnum-tagged; the entries in the
 ; "kernel-imports" vector are 8 bytes apart.
-(ccl::defenum (:prefix "KERNEL-IMPORT-" :start 0 :step 8)
+(ccl::defenum (:prefix "KERNEL-IMPORT-" :start 0 :step word-size-in-bytes)
   fd-setsize-bytes
   do-fd-set
   do-fd-clr
@@ -651,7 +657,7 @@
   (let* ((pos (position name ppc::*ppc-nilreg-relative-symbols* :test #'eq)))
     (if pos (* (1+ pos) symbol.size))))
 
-(defconstant nil-value (+ #x2000 symbol.size fulltag-uvector))
+(defconstant nil-value (+ #x2000 symbol.size fulltag-misc))
 
 
 (defconstant reservation-discharge #x1008)
