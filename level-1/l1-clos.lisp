@@ -27,10 +27,10 @@
         (right-ones s)))))
 
 (defun extract-instance-direct-slotds (class)
-  (extract-slotds-with-allocation :instance (%class.direct-slots class)))
+  (extract-slotds-with-allocation :instance (%class-direct-slots class)))
 
 (defun extract-class-direct-slotds (class)
-  (extract-slotds-with-allocation :class (%class.direct-slots class)))
+  (extract-slotds-with-allocation :class (%class-direct-slots class)))
 
 (defun extract-instance-effective-slotds (class)
   (extract-slotds-with-allocation :instance (%class-slots class)))
@@ -49,10 +49,10 @@
 
 
 (defun direct-instance-and-class-slotds (class)
-  (extract-instance-and-class-slotds (%class.direct-slots class)))
+  (extract-instance-and-class-slotds (%class-direct-slots class)))
 
 (defun effective-instance-and-class-slotds (class)
-  (extract-instance-and-class-slotds (%class.slots class)))
+  (extract-instance-and-class-slotds (%class-slots class)))
 
 (defun %shared-initialize (instance slot-names initargs)
   (unless (or (listp slot-names) (eq slot-names t))
@@ -66,7 +66,7 @@
     (when (eql 0 (%wrapper-hash-index wrapper)) ; obsolete
       (update-obsolete-instance instance)
       (setq wrapper (instance.class-wrapper instance)))
-    (dolist (slotd (%class.slots class))
+    (dolist (slotd (%class-slots class))
       (let* ((loc (%slot-definition-location slotd)))
         (unless loc (error "Blew it! no location for ~s" slotd))
         (multiple-value-bind (ignore new-value foundp)
@@ -287,7 +287,7 @@
                              (the fixnum
                                (- (%slot-definition-location e) 1)))
                       (%slot-definition-name e)))))
-           (old-wrapper (%class.own-wrapper class))
+           (old-wrapper (%class-own-wrapper class))
            (old-ordering (if old-wrapper (%wrapper-instance-slots old-wrapper)))
            (new-wrapper
             (cond ((null old-wrapper)
@@ -302,10 +302,10 @@
                    ;;; Is this right ?
                    #|(%class.own-wrapper class)|#
                    (%cons-wrapper class)))))
-      (setf (%class.slots class) eslotds)
+      (setf (%class-slots class) eslotds)
       (setf (%wrapper-instance-slots new-wrapper) new-ordering
 	    (%wrapper-class-slots new-wrapper) (%class-get class :class-slots)
-            (%class.own-wrapper class) new-wrapper)
+            (%class-own-wrapper class) new-wrapper)
       (setup-slot-lookup new-wrapper eslotds))))
 
 
@@ -389,17 +389,17 @@
 
 
 (defmethod add-direct-subclass ((class class) (subclass class))
-  (pushnew subclass (%class.subclasses class))
+  (pushnew subclass (%class-direct-subclasses class))
   subclass)
 
 (defmethod remove-direct-subclass ((class class) (subclass class))
-  (setf (%class.subclasses class)
-        (remove subclass (%class.subclasses class)))
+  (setf (%class-direct-subclasses class)
+        (remove subclass (%class-direct-subclasses class)))
   subclass)
 
 (defun add-direct-subclasses (class new)
   (dolist (n new)
-    (unless (memq class (%class.subclasses  class))
+    (unless (memq class (%class-direct-subclasses  class))
       (add-direct-subclass n class))))
 
 (defun remove-direct-subclasses (class old-supers new-supers)
@@ -415,7 +415,7 @@
 ;;; wrapper as an instance-slots vector; that implies that
 ;;; both UPDATE-CPL and UPDATE-SLOTS have been called on the class.
 (defmethod class-finalized-p ((class std-class))
-  (let* ((w (%class.own-wrapper class)))
+  (let* ((w (%class-own-wrapper class)))
     (and w (typep (%wrapper-instance-slots w) 'vector))))
 
 (defmethod finalize-inheritance ((class std-class))
@@ -484,7 +484,7 @@
 (defun class-has-a-forward-referenced-superclass-p (class)
   (or (forward-referenced-class-p class)
       (some #'class-has-a-forward-referenced-superclass-p
-	    (%class.local-supers class))))
+	    (%class-direct-superclasses class))))
 
 (defun update-cpl (class cpl)
   (if (class-finalized-p class)
@@ -560,18 +560,18 @@
           (error "The class ~S was specified as a~%super-class of the class ~S;~%~
                     but the meta-classes ~S and~%~S are incompatible."
                  superclass class (class-of superclass) (class-of class))))
-      (setf (%class.local-supers class) direct-superclasses))
-    (setq direct-superclasses (%class.local-supers class)))
+      (setf (%class-direct-superclasses class) direct-superclasses))
+    (setq direct-superclasses (%class-direct-superclasses class)))
   (setq direct-slots
 	(if direct-slots-p
-          (setf (%class.direct-slots class)
+          (setf (%class-direct-slots class)
                 (mapcar #'(lambda (initargs)
 			    (make-direct-slot-definition class initargs))
 			direct-slots))
-          (%class.direct-slots class)))
+          (%class-direct-slots class)))
   (if direct-default-initargs-p
-      (setf (%class.local-default-initargs class)  direct-default-initargs)
-      (setq direct-default-initargs (%class.local-default-initargs class)))
+      (setf (%class-direct-default-initargs class)  direct-default-initargs)
+      (setq direct-default-initargs (%class-direct-default-initargs class)))
   (let* ((class-slot-cells ()))
     (dolist (slot direct-slots)
       (when (eq (%slot-definition-allocation slot) :class)
@@ -701,7 +701,7 @@ governs whether DEFCLASS makes that distinction or not.")
     (apply #'ensure-class args)))
 
 (defun %find-direct-slotd (class name)
-  (dolist (dslotd (%class.direct-slots class)
+  (dolist (dslotd (%class-direct-slots class)
            (error "Direct slot definition for ~s not found in ~s" name class))
     (when (eq (%slot-definition-name dslotd) name)
       (return dslotd))))
@@ -711,18 +711,14 @@ governs whether DEFCLASS makes that distinction or not.")
     (dolist (pair pairs)
       (destructuring-bind (slot-name &rest readers) pair
         (setf (%slot-definition-readers (%find-direct-slotd class slot-name)) readers)))
-    (add-accessor-methods class (%class.direct-slots class))))
+    (add-accessor-methods class (%class-direct-slots class))))
 
 (defun %add-slot-writers (class-name pairs)
   (let* ((class (find-class class-name)))
     (dolist (pair pairs)
       (destructuring-bind (slot-name &rest readers) pair
         (setf (%slot-definition-writers (%find-direct-slotd class slot-name)) readers)))
-    (add-accessor-methods class (%class.direct-slots class))))
-
-
-
-
+    (add-accessor-methods class (%class-direct-slots class))))
 
 
 (%ensure-class-preserving-wrapper
@@ -1079,12 +1075,12 @@ governs whether DEFCLASS makes that distinction or not.")
 				     &allow-other-keys)
   (declare (ignore slot-names))
   (labels ((obsolete (class)
-             (dolist (sub (%class.subclasses class)) (obsolete sub))
+             (dolist (sub (%class-direct-subclasses class)) (obsolete sub))
              ;;Need to save old class info in wrapper for obsolete instance access...
              (setf (%class.cpl class) nil)))
     (obsolete class)
     (when direct-superclasses-p
-      (let* ((old-supers (%class.local-supers class))
+      (let* ((old-supers (%class-direct-superclasses class))
              (new-supers direct-superclasses))
         (dolist (c old-supers)
           (unless (memq c new-supers)
@@ -1093,8 +1089,8 @@ governs whether DEFCLASS makes that distinction or not.")
           (unless (memq c old-supers)
             (add-direct-subclass c class)))
         (setf (%class.local-supers class) new-supers)))
-    (unless (%class.own-wrapper class)
-      (setf (%class.own-wrapper class) (%cons-wrapper class)))
+    (unless (%class-own-wrapper class)
+      (setf (%class-own-wrapper class) (%cons-wrapper class)))
     (update-cpl class (compute-cpl class))))
               
 
@@ -1160,10 +1156,24 @@ governs whether DEFCLASS makes that distinction or not.")
 (setf (fdefinition '%class-name) #'class-name
       (fdefinition '%class-default-initargs) #'class-default-initargs
       (fdefinition '%class-direct-default-initargs) #'class-direct-default-initargs
+      (fdefinition '(setf %class-direct-default-initargs))
+      #'(lambda (new class)
+	  (if (typep class 'slots-class)
+	    (setf (slot-value class 'direct-default-initargs) new)
+	    new))
       (fdefinition '%class-direct-slots) #'class-direct-slots
+      (fdefinition '(setf %class-direct-slots))
+		   #'(lambda (new class)
+		       (if (typep class 'slots-class)
+			 (setf (slot-value class 'direct-slots) new)
+			 new))
       (fdefinition '%class-slots) #'class-slots
       (fdefinition '%class-direct-superclasses) #'class-direct-superclasses
-      (fdefinition '%class-direct-subclasses) #'class-direct-subclasses)
+      (fdefinition '(setf %class-direct-superclasses))
+      #'(lambda (new class)
+	  (setf (slot-value class 'direct-superclasses) new))
+      (fdefinition '%class-direct-subclasses) #'class-direct-subclasses
+)
 
   
 (setf (fdefinition '%slot-definition-name) #'slot-definition-name
