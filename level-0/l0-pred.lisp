@@ -202,8 +202,12 @@
 
 (defun displaced-array-p (array)
   (if (%array-is-header array)
-    (values (%svref array ppc32::arrayH.data-vector-cell)
-            (%svref array ppc32::arrayH.displacement-cell))
+    (do* ((disp (%svref array ppc32::arrayH.displacement-cell)
+		(+ disp (the fixnum (%svref target ppc32::arrayH.displacement-cell))))
+	  (target (%svref array ppc32::arrayH.data-vector-cell)
+		  (%svref target ppc32::arrayH.data-vector-cell)))
+	 ((not (%array-is-header target))
+	  (values target disp)))
     (values nil 0)))
 
 
