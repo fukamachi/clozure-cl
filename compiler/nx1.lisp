@@ -923,9 +923,12 @@
 			   (make-acode (%nx1-operator setq-lexical) info val))
 			 (make-acode
 			  (if (nx1-check-special-ref sym info)
-			    (if (nx-global-p sym env)
-			      (%nx1-operator global-setq)
-			      (%nx1-operator setq-special))
+			      (progn
+				(nx-record-xref-info :references sym)
+				(nx-record-xref-info :sets sym)
+			        (if (nx-global-p sym env)
+			          (%nx1-operator global-setq)
+			          (%nx1-operator setq-special)))
 			    (%nx1-operator setq-free)) ; Screw: no object lisp.  Still need setq-free ? For constants ?
 			  (nx1-note-vcell-ref sym)
 			  val))))

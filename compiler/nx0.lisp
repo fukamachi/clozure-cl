@@ -241,6 +241,18 @@
 
 (defsetf compiler-macro-function set-compiler-macro-function)
 
+(defparameter *nx-add-xref-entry-hook* nil
+  "When non-NIL, assumed to be a function of 3 arguments 
+which asserts that the specied relation from the current
+function to the indicated name is true.")
+
+;; Cross-referencing
+(defun nx-record-xref-info (relation name)
+  (when (fboundp '%add-xref-entry)
+    (funcall '%add-xref-entry relation *nx-cur-func-name* name)))
+
+
+
 (defun nx-apply-env-hook (hook env &rest args)
   (declare (dynamic-extent args))
   (when (fixnump hook) (setq hook (uvref *nx-current-compiler-policy* hook)))
@@ -718,6 +730,7 @@
   (let* ((init (nx-untyped-form initform))
          (inittype (nx-acode-form-type initform *nx-lexical-environment*))
          (bits (nx-var-bits var)))
+    (when (%ilogbitp $vbitspecial bits) (nx-record-xref-info :binds (var-name var)))
     (when inittype (setf (var-inittype var) inittype))
     (when (and (not (%ilogbitp $vbitspecial bits))
                (consp init))
@@ -1429,20 +1442,22 @@ Or something. Right? ~s ~s" var varbits))
                   (make-acode (%nx1-operator lexical-reference) info)))
               (make-acode
 	       (if (nx1-check-special-ref form info)
-		 (if (nx-global-p form env)
-		   (%nx1-operator global-ref)
-		   (if (and (not (nx-force-boundp-checks form env))
-			    (or (nx-proclaimed-parameter-p form)
-				(assq form *nx-compile-time-types*)
-				(assq form *nx-proclaimed-types*)
-				(nx-open-code-in-line env)))
-		     (%nx1-operator bound-special-ref)
-		     (%nx1-operator special-ref)))
-		 (%nx1-operator free-reference))
+		   (progn
+		     (nx-record-xref-info :references form)
+		     (if (nx-global-p form env)
+			 (%nx1-operator global-ref)
+		         (if (and (not (nx-force-boundp-checks form env))
+				  (or (nx-proclaimed-parameter-p form)
+				  (assq form *nx-compile-time-types*)
+				  (assq form *nx-proclaimed-types*)
+				  (nx-open-code-in-line env)))
+			     (%nx1-operator bound-special-ref)
+			     (%nx1-operator special-ref))))
+		   (%nx1-operator free-reference))
                (nx1-note-vcell-ref form))))))
-          (if (eq type t)
-            form
-            (make-acode (%nx1-operator typed-form) type form))))
+    (if (eq type t)
+	form
+      (make-acode (%nx1-operator typed-form) type form))))
 
 (defun nx1-check-special-ref (form auxinfo)
   (or (eq auxinfo :special) 
@@ -1643,6 +1658,7 @@ Or something. Right? ~s ~s" var varbits))
             (multiple-value-bind (info afunc) (if (and sym (symbolp sym) (not global-only)) (nx-lexical-finfo sym))
               (when (eq 'macro (car info))
                 (nx-error "Can't call macro function ~s" sym))
+	      (nx-record-xref-info :direct-calls sym)
               (if (and afunc (%ilogbitp $fbitruntimedef (afunc-bits afunc)))
                 (let ((sym (var-name (afunc-lfun afunc))))
                   (nx1-form 
@@ -1833,6 +1849,7 @@ Or something. Right? ~s ~s" var varbits))
        (when (and macro-function
 		  (or lexdefs
 		      (not (and (gethash sym *nx1-alphatizers*) (not (nx-declared-notinline-p sym environment))))))
+	 (nx-record-xref-info :macro-calls (function-name macro-function))
 	 (setq form (macroexpand-1 form environment) changed t)
 	 (go START))
      DONE)

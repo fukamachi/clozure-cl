@@ -131,8 +131,12 @@
 (eval-when (:compile-toplevel)
   (declaim (ftype (function (&rest ignore) t)  ppc-compile)))
 
+(defparameter *nx-discard-xref-info-hook* nil)
+
 (defun  compile-named-function
   (def &optional name lfun-maker env keep-lambda keep-symbols policy *load-time-eval-token* target)
+  (when (and name *nx-discard-xref-info-hook*)
+    (funcall *nx-discard-xref-info-hook* name))
   (setq 
    def
    (let ((env (new-lexical-environment env)))
