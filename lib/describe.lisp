@@ -1137,6 +1137,8 @@
 (defclass closure-inspector (function-inspector)
   ((n-closed :accessor closure-n-closed)))
 
+
+
 (defmethod inspector-class ((f function)) 'function-inspector)
 (defmethod inspector-class ((f compiled-lexical-closure)) 'closure-inspector)
 
@@ -1158,6 +1160,16 @@
              (values arglist label (if type :colon '(:comment (:plain)))))))
       (t (disassembly-line-n f (- n 3))))))
 
+(defmethod compute-line-count ((f closure-inspector))
+  (let* ((o (inspector-object f))
+	(nclosed (nth-value 8 (function-args (ccl::closure-function o)))))
+      (setf (closure-n-closed f) nclosed)
+      (+ (call-next-method)
+         1                              ; the function we close over
+         1                              ; "Closed over values"
+         nclosed
+         (if (disasm-p f) 1 0)))))      ; "Disassembly"
+
 (defmethod line-n ((f closure-inspector) n)
   (let ((o (inspector-object f))
         (nclosed (closure-n-closed f)))
@@ -1166,7 +1178,7 @@
       (cond ((eql (decf n) 0)
              (values (ccl::closure-function o) "Inner lfun: " :static))
             ((eql (decf n) 0)
-             (values 0 "Closed over values" :comment #'prin1-comment))
+             (values nclosed "Closed over values" :comment #'prin1-comment))
             ((< (decf n) nclosed)
              (let* ((value (ccl::%svref o (1+ (- nclosed n))))
                     (map (car (ccl::function-symbol-map (ccl::closure-function o))))
