@@ -209,15 +209,7 @@ ignored."
 	method-function
 	#'check-if-section-already-scanned))))
 
-(defun remap-all-library-classes ()
-  (process-objc-modules
-   #'(lambda (sectptr size)
-       (iterate-over-module-classes
-        sectptr
-        size
-        #'(lambda (class)
-            (unless (logtest #$CLS_META (pref class :objc_class.info))
-              (install-foreign-objc-class class)))))))
+
                         
 #|
 (note-all-library-methods #'(lambda (method class)
