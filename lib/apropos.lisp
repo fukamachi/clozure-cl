@@ -137,27 +137,29 @@
         (alen (length a))
         (blen (length b)))
     (declare (fixnum alen blen) (optimize (speed 3)(safety 0)))
-    (if *apropos-case-sensitive-p*
-      (dotimes (i (the fixnum (%imin blen (%i+ 1 (%i- blen alen)))))
-        (declare (fixnum i))
-        (when (eq (%schar b i) chara0)
-          (when
-            (do ((j 1 (1+ j)))
-                ((>= j alen) t)
-              (declare (fixnum j))
-              (when (neq (%schar a j)(%schar b (%i+ j i)))
-                (return nil)))
-            (return  (%i- blen i alen)))))
-     (dotimes (i (the fixnum (%imin blen (%i+ 1 (%i- blen alen)))))
-        (declare (fixnum i))
-        (when (eq (char-upcase (%schar b i)) (char-upcase chara0))
-          (when
-            (do ((j 1 (1+ j)))
-                ((>= j alen) t)
-              (declare (fixnum j))
-              (unless (eq (char-upcase (%schar a j)) (char-upcase (%schar b (%i+ j i))))
-                (return nil)))
-            (return  (%i- blen i alen))))))))
+    (if (= alen 0)  ; "" is substring of every string
+        t
+        (if *apropos-case-sensitive-p*
+            (dotimes (i (the fixnum (%imin blen (%i+ 1 (%i- blen alen)))))
+              (declare (fixnum i))
+              (when (eq (%schar b i) chara0)
+                (when
+                    (do ((j 1 (1+ j)))
+                        ((>= j alen) t)
+                      (declare (fixnum j))
+                      (when (neq (%schar a j)(%schar b (%i+ j i)))
+                        (return nil)))
+                  (return  (%i- blen i alen)))))
+            (dotimes (i (the fixnum (%imin blen (%i+ 1 (%i- blen alen)))))
+              (declare (fixnum i))
+              (when (eq (char-upcase (%schar b i)) (char-upcase chara0))
+                (when
+                    (do ((j 1 (1+ j)))
+                        ((>= j alen) t)
+                      (declare (fixnum j))
+                      (unless (eq (char-upcase (%schar a j)) (char-upcase (%schar b (%i+ j i))))
+                        (return nil)))
+                  (return  (%i- blen i alen)))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
