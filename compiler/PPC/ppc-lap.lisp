@@ -24,10 +24,9 @@
   (require "PPC-ASM")
   (require "SUBPRIMS"))
 
-(defvar *ppc-lap-macros* (make-hash-table :test #'equalp))
 
 (defun ppc-lap-macro-function (name)
-  (gethash (string name) *ppc-lap-macros*))
+  (gethash (string name) (backend-lap-macros *ppc-backend*)))
 
 (defun (setf ppc-lap-macro-function) (def name)
   (let* ((s (string name)))
@@ -36,7 +35,7 @@
     (when (ppc32::ppc-macro-function s)
 
       (error "~s already defines a PowerPC macro instruction . " name))
-    (setf (gethash s *ppc-lap-macros*) def)))
+    (setf (gethash s (backend-lap-macros *ppc-backend*)) def)))
 
 (defmacro defppclapmacro (name arglist &body body)
   `(progn
