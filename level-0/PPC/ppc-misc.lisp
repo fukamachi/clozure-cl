@@ -404,20 +404,6 @@
   (stw fun 0 imm1)
   (blr))
 
-;;; Yield the CPU, via a platform-specific syscall.
-;;; On both platforms, this bashes r3 (only) and we have to bash r0
-;;; to select the syscall.
-(defppclapfunction yield ()
-  (li 0 ppc32::yield-syscall)
-  (sc)
-  ;;; There might be some funky return conventions; set r0 back to 0
-  ;;; early and often.
-  (li rzero 0)
-  (li rzero 0)
-  (li rzero 0)
-  (mtxer rzero)
-  (box-fixnum arg_z imm0)
-  (blr))
 
 (defppclapfunction %store-node-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
   (vpop temp0)
@@ -469,63 +455,24 @@
   (isync)
   (blr))
 
-(defppclapfunction read-lock-rwlock ((lock arg_z))
+;;; Return true iff we were able to increment a non-negative
+;;; lock._value
+(defppclapfunction %try-read-lock-rwlock ((lock arg_z))
   (check-nargs 1)
-  (b @try)
-  @loop
-  (li imm0 ppc32::reservation-discharge)
-  (stwcx. rzero rzero imm0)
-  (event-poll)
-  (li 0 ppc32::yield-syscall)
-  (sc)
-  (li rzero 0)
-  (li rzero 0)
-  (li rzero 0)
-  (mtxer rzero)
-  @try
   (li imm1 ppc32::lock._value)
+  @try
   (lwarx imm0 lock imm1)
   (cmpwi imm0 0)
-  (blt @loop)				; locked for writing
+  (blt @fail)				; locked for writing
   (addi imm0 imm0 '1)
   (stwcx. imm0 lock imm1)
-  (bne @try)
+  (bne @try)                            ; lost reservation, try again
   (isync)
-  (blr))
-
-
-
-
-(defppclapfunction write-lock-rwlock ((lock arg_z))
-  (check-nargs 1)
-  ;; If it's already locked by us, just decrement the count.
-  (lwz imm0 ppc32::lock.writer lock)
-  (cmpw imm0 rcontext)
-  (bne @try)
-  (lwz imm0 ppc32::lock._value lock)
-  (subi imm0 imm0 '1)
-  (stw imm0 ppc32::lock._value lock)
-  (blr)
-  @loop
+  (blr)                                 ; return the lock
+@fail
   (li imm0 ppc32::reservation-discharge)
   (stwcx. rzero rzero imm0)
-  (event-poll)
-  (li 0 ppc32::yield-syscall)
-  (sc)
-  (li rzero 0)
-  (li rzero 0)
-  (li rzero 0)
-  (mtxer rzero)
-  @try
-  (li imm1 ppc32::lock._value)
-  (lwarx imm0 lock imm1)
-  (cmpwi imm0 0)
-  (bne @loop)				; locked by other thread
-  (subi imm0 imm0 '1)
-  (stwcx. imm0 lock imm1)
-  (bne @try)
-  (isync)
-  (stw rcontext ppc32::lock.writer lock)
+  (li arg_z nil)
   (blr))
 
 
