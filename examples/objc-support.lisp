@@ -129,7 +129,7 @@
 
 
 (defclass ns-lisp-exception (ns::ns-exception)
-    ((condition :initarg :condition :reader ns-lisp-exception-condition))
+    ((condition :initarg :condition :initform nil :reader ns-lisp-exception-condition))
   (:metaclass ns::+ns-object))
 
 (define-objc-method ((:id init)
@@ -139,6 +139,15 @@
 	:reason #@"lisp exception"
 	:user-info (%null-ptr)))
 
+
+(defmethod initialize-instance :after ((e ns-lisp-exception) &key &allow-other-keys)
+  (with-slots (condition ns:reason) e
+    (when condition
+      (setq ns:reason (%make-nsstring (format nil "~A" condition))))))
+
+        
+             
+                     
 (defun ns-exception->lisp-condition (nsexception)
   (if (typep nsexception 'ns-lisp-exception)
     (ns-lisp-exception-condition nsexception)

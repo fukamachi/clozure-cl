@@ -352,12 +352,11 @@ instance_size of its ObjC superclass.")))
 
 (defmethod shared-initialize :after ((slotd foreign-direct-slot-definition)
                                      slot-names
-                                     &key (foreign-type '(:id)))
+                                     &key (foreign-type :id))
   (declare (ignore slot-names))
-  (if (and (consp foreign-type)
-           (null (cdr foreign-type)))
-    (setf (foreign-slot-definition-foreign-type slotd) (car foreign-type))
-    (error "~S must be a 1-element list" foreign-type)))
+  (if (ignore-errors (parse-foreign-type foreign-type))
+    (setf (foreign-slot-definition-foreign-type slotd) foreign-type)
+    (error "~& unrecognized foreign type ~s" foreign-type)))
 
 (defclass foreign-effective-slot-definition (effective-slot-definition)
   ((foreign-type :initarg :foreign-type :initform :id :accessor foreign-slot-definition-foreign-type)
@@ -452,7 +451,7 @@ instance_size of its ObjC superclass.")))
     (let* ((slot 
 	    (make-direct-slot-definition
 	     class
-	     `(:foreign-type ,(list slot-type) :offset ,offset ,@initargs))))
+	     `(:foreign-type ,slot-type :offset ,offset ,@initargs))))
       slot)))
 	   
 
