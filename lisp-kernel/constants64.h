@@ -138,8 +138,8 @@
 
 #define subtag_single_float SUBTAG(fulltag_imm_0,0)
 
-#define subtag_go_tag SUBTAG(fulltag_imm_1,2)
-#define subtag_block_tag SUBTAG(fulltag_imm_1,3)
+#define subtag_go_tag SUBTAG(fulltag_imm_1,2) /* deprecated */
+#define subtag_block_tag SUBTAG(fulltag_imm_1,3) /* deprecated */
 
 #define subtag_character SUBTAG(fulltag_imm_2,0)
 
