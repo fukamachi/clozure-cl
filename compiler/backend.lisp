@@ -46,7 +46,8 @@
   (target-misc-dfloat-offset 0)
   (target-nbits-in-word 0)
   (target-ntagbits 0)
-  (target-nlisptagbits 0))
+  (target-nlisptagbits 0)
+  (target-uvector-subtags nil))
 
 (defmethod print-object ((b backend) s)
   (print-unreadable-object (b s :type t :identity t)
