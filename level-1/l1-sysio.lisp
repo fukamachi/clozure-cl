@@ -469,8 +469,7 @@
 	    (rename-file original-name filename :if-exists :overwrite))
 	  (delete-file original-name)))
       (setq *open-file-streams* (nremove s *open-file-streams*))
-      (call-next-method)
-      t)))
+      (call-next-method))))
 
 (defmethod select-stream-class ((class file-stream) in-p out-p char-p)
   (if char-p
