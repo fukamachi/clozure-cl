@@ -155,29 +155,7 @@
 (defmethod initialize-instance :after ((self backtrace-window-controller)
                                        &key &allow-other-keys)
   (setf (slot-value self 'inspector)
-        (make-instance 'inspector::stack-inspector :info (backtrace-controller-context self) :update-line-count t))
-#|  (let* ((w (send self 'window))
-         (content-view (send w 'content-view)))
-    (slet ((frame (send content-view 'frame)))
-      (let* ((outline-view (make-objc-instance 'ns:ns-outline-view
-                                               :with-frame frame))
-             (column (make-objc-instance 'ns:ns-table-column
-                                         :with-identifier #@"")))
-        
-        (send outline-view :set-autoresizing-mask (logior
-                                                   #$NSViewWidthSizable
-                                                   #$NSViewHeightSizable))
-        (send column :set-max-width 10000.0)
-        (send column :set-min-width 10.0)
-        (send column :set-width (pref frame :<NSR>ect.size.width))
-        (send column :set-resizable t)
-        (send outline-view :add-table-column column)
-        (send outline-view :set-data-source self)
-        (send content-view :add-subview outline-view)
-        (activate-window w))))
-  |#)
-
-        
+        (make-instance 'inspector::stack-inspector :context (backtrace-controller-context self) :update-line-count t)))
 
 (defun backtrace-controller-for-context (context)
   (or (bt.dialog context)
