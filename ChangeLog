@@ -1,87 +1,87 @@
-2005-03-18 Friday 22:00  gb
+2005-03-18 22:00  gb
 
 	* lisp-kernel/m4macros.m4: Try to use .size directive on ELF.
 
-2005-03-18 Friday 21:59  gb
+2005-03-18 21:59  gb
 
 	* lib/ccl-export-syms.lisp: Export
 	*IGNORE-EXTRA-CLOSE-PARENTHESIS*.
 
-2005-03-18 Friday 21:58  gb
+2005-03-18 21:58  gb
 
 	* level-1/version.lisp: Are we 0.14.3 yet ?
 
-2005-03-18 Friday 21:57  gb
+2005-03-18 21:57  gb
 
 	* level-1/l1-reader.lisp: By default, signal errors on dangling
 	close parens.
 
-2005-03-18 Friday 21:57  gb
+2005-03-18 21:57  gb
 
 	* lib/encapsulate.lisp: Doc string for TRACE: don't describe
 	obscure SBCL options.  Or obscure OpenMCL options, either
 
-2005-03-18 Friday 21:56  gb
+2005-03-18 21:56  gb
 
 	* level-1/l1-clos.lisp: Add missing #\Newline at EOF.
 
-2005-03-18 Friday 21:48  gb
+2005-03-18 21:48  gb
 
 	* lib/: eval.lisp, step.lisp: no more eval, step
 
-2005-03-18 Friday 21:07  gb
+2005-03-18 21:07  gb
 
 	* tools/.cvsignore: ignore fasls
 
-2005-03-18 Friday 20:42  gb
+2005-03-18 20:42  gb
 
 	* lisp-kernel/lisp-exceptions.c: Word-size and integer/pointer
 	64-bit issues.	Some 64-bit Mach exception stuff (needs more work.)
 
-2005-03-18 Friday 20:41  gb
+2005-03-18 20:41  gb
 
 	* lisp-kernel/pmcl-kernel.c: Word-size and integer/pointer 64-bit
 	issues.  Use vm_region64 if applicable; someday soon, use it with
 	reasonable parameters.
 
-2005-03-18 Friday 20:39  gb
+2005-03-18 20:39  gb
 
 	* lisp-kernel/: thread_manager.c, plsym.c, plbt.c: Word-size and
 	integer/pointer 64-bit issues.
 
-2005-03-18 Friday 20:22  gb
+2005-03-18 20:22  gb
 
 	* lisp-kernel/: gc.c, image.c, lisp-debug.c, lisp-exceptions.h:
 	Word-size and integer/pointer 64-bit issues.
 
-2005-03-18 Friday 20:20  gb
+2005-03-18 20:20  gb
 
 	* lisp-kernel/constants64.h: ppc64 C frame (may be the same on
 	linux/darwin.)
 
-2005-03-18 Friday 20:19  gb
+2005-03-18 20:19  gb
 
 	* lisp-kernel/bits.h: ppc64 inline asm for count_leading_zeros. 
 	(Still lots of 32-bit assumptions in callers ...)
 
-2005-03-18 Friday 20:18  gb
+2005-03-18 20:18  gb
 
 	* lisp-kernel/bits.c: Include lisp-exceptions.h, for some obscure
 	reason ...
 
-2005-03-18 Friday 20:18  gb
+2005-03-18 20:18  gb
 
 	* lisp-kernel/asmutils.s: Some 64-bit fixes.
 
-2005-03-18 Friday 20:07  gb
+2005-03-18 20:07  gb
 
 	* lisp-kernel/Threads.h: some extra casts
 
-2005-03-18 Friday 19:53  gb
+2005-03-18 19:53  gb
 
 	* lisp-kernel/darwin64/Makefile: work around some new bugs in ld64
 
-2005-03-17 Thursday 23:55  gb
+2005-03-17 23:55  gb
 
 	* lisp-kernel/lisp-exceptions.c: Use printf-style '%', not
 	format-style '~', in MACH_CHECK_ERROR.
@@ -97,16 +97,16 @@
 	Hold the mach_exception_lock_set lock before suspending in
 	suspend_tcr.
 
-2005-03-17 Thursday 23:51  gb
+2005-03-17 23:51  gb
 
 	* lisp-kernel/pmcl-kernel.c: Keep trying to get xFindSymbol to
 	compile without warnings on current and future OS releases.
 
-2005-03-13 Sunday 04:47  gb
+2005-03-13 04:47  gb
 
 	* lisp-kernel/linux/Makefile: Add -maltivec to ASFLAGS.
 
-2005-03-08 Tuesday 21:15  gb
+2005-03-08 21:15  gb
 
 	* lisp-kernel/spentry.s: Ensure that the XER is zeroed in the
 	shared ff_call return code (doh!) and in a slightly more subtle
@@ -115,46 +115,34 @@
 	weren't zeroing the XER in that case (causing spurious arithmetic
 	overflows on subsequent arithmetic operations.)
 
-2005-03-08 Tuesday 21:05  gb
+2005-03-08 21:05  gb
 
 	* level-0/PPC/ppc-misc.lisp: Move YIELD, READ-LOCK-RWLOCK, and
 	WRITE-LOCK-RWLOCK to lisp code, mostly 'cause I don't want to have
 	to trust inline syscalls from LAP.
 
-2005-03-08 Tuesday 21:04  gb
+2005-03-08 21:04  gb
 
 	* level-0/l0-misc.lisp: Move YIELD, READ-LOCK-RWLOCK, and
 	WRITE-LOCK-RWLOCK here (from ppc-misc), mostly 'cause I don't want
 	to have to trust inline syscalls from LAP.
 
-2005-03-06 Sunday 20:55  gb
+2005-03-06 20:55  gb
 
 	* level-0/PPC/ppc-misc.lisp: After doing inline syscalls, ensure
 	that the XER (especially the XER[SO] bit) is cleared.
 
-2005-03-05 Saturday 02:08  bryan
-
-	* ChangeLog: [no log message]
-
-2005-03-05 Saturday 02:07  bryan
+2005-03-05 02:07  bryan
 
 	* level-1/l1-io.lisp: when *print-array*, use #nA(..) syntax even
 	when array-element-type is something other than t.
 
-2005-03-05 Saturday 01:14  bryan
-
-	* ChangeLog: [no log message]
-
-2005-03-05 Saturday 01:13  bryan
+2005-03-05 01:13  bryan
 
 	* level-1/l1-io.lisp: print-unreadable-object should accept t
 	(*terminal-io*) and nil (*standard-output*) for the stream.
 
-2005-03-04 Friday 23:56  bryan
-
-	* ChangeLog: [no log message]
-
-2005-03-04 Friday 23:55  bryan
+2005-03-04 23:55  bryan
 
 	* level-1/l1-io.lisp: %print-unreadable-object should always return
 	nil.
@@ -163,293 +151,285 @@
 	space after the type not just when it's followed by more stuff. 
 	(seems less aesthetically pleasing, but that's what the spec says).
 
-2005-03-04 Friday 14:50  bryan
-
-	* ChangeLog: [no log message]
-
-2005-03-04 Friday 14:46  bryan
+2005-03-04 14:46  bryan
 
 	* level-1/l1-streams.lisp: ioblock-element-shift should never be <
 	0.
 
-2005-03-02 Wednesday 23:36  bryan
-
-	* ChangeLog: initial version of retroactive ChangeLog.
-
-2005-03-02 Wednesday 23:28  bryan
+2005-03-02 23:28  bryan
 
 	* level-1/version.lisp: bump.
 
-2005-03-02 Wednesday 20:05  bryan
+2005-03-02 20:05  bryan
 
 	* level-1/l1-files.lisp: when *print-escape*, pathnames always
 	print starting with #P.  (per clhs 22.1.3.11)
 
-2005-03-02 Wednesday 19:18  bryan
+2005-03-02 19:18  bryan
 
 	* level-1/l1-io.lisp: when *print-array* is nil, print bit-vectors
 	unreadably.
 
-2005-03-02 Wednesday 18:04  bryan
+2005-03-02 18:04  bryan
 
 	* level-1/l1-io.lisp: don't do *print-level* truncation for
 	bit-vectors and strings.
 
-2005-03-02 Wednesday 16:42  bryan
+2005-03-02 16:42  bryan
 
 	* level-1/l1-io.lisp: write-a-cons: when *print-length*=0, write
 	"..." for the entire cons.  when the cons is a dotted pair, don't
 	decrement print-length before printing the cdr.
 
-2005-03-02 Wednesday 14:49  bryan
+2005-03-02 14:49  bryan
 
 	* level-1/l1-io.lisp: when *print-length* would cause "..." to be
 	printed immediately following "#(", don't print a space.  thus
 	"#(...)", not "#( ...)".
 
-2005-03-02 Wednesday 13:42  bryan
+2005-03-02 13:42  bryan
 
 	* lib/format.lisp: don't insert commas inbetween padchars in #\r
 	format directive.
 
-2005-03-01 Tuesday 00:41  bryan
+2005-03-01 00:41  bryan
 
 	* level-1/version.lisp: bump.
 
-2005-03-01 Tuesday 00:40  bryan
+2005-03-01 00:40  bryan
 
 	* lib/macros.lisp: defclass: signal program error when a slot is
 	initialized more than once in :default-initargs.  defclass: make
 	duplicate slot name program error a bit more verbose.
 
-2005-02-28 Monday 23:06  bryan
+2005-02-28 23:06  bryan
 
 	* lib/describe.lisp: really big BIGNUMS shouldn't cause describe to
 	FLOATING-POINT-OVERFLOW.  instead just print the fact that it would
 	if you tried.
 
-2005-02-27 Sunday 23:43  gb
+2005-02-27 23:43  gb
 
 	* lisp-kernel/darwin64/Makefile: Build on 64-bit DarwinPPC.  Work
 	around some linker lossage.
 
-2005-02-27 Sunday 23:42  gb
+2005-02-27 23:42  gb
 
 	* lisp-kernel/darwin/Makefile: Remove some obsolete stuff.  Try to
 	handle cases where OS libs are gratuitously deleted and added in
 	unnamed, undiscussed OS releases.
 
-2005-02-27 Sunday 23:35  gb
+2005-02-27 23:35  gb
 
 	* lisp-kernel/pmcl-kernel.c: Some word size/signedness cleanup. 
 	Use dlsym() in cases where we're sure that it exists.
 
-2005-02-27 Sunday 23:34  gb
+2005-02-27 23:34  gb
 
 	* lisp-kernel/plbt.c: Rename 'dladdr' to 'darwin_dladdr', in case
 	The OS Release That Can Not Be Discussed defines its own dladdr
 	function.
 
-2005-02-27 Sunday 23:32  gb
+2005-02-27 23:32  gb
 
 	* lisp-kernel/lisp-exceptions.h: Try to work around the (old, now
 	fixed) OSX G5 kernel signal handler bug, by flipping an unused bug
 	in the XER.
 
-2005-02-27 Sunday 23:31  gb
+2005-02-27 23:31  gb
 
 	* lisp-kernel/lisp-exceptions.c: Some word size/signedness cleanup.
 
-2005-02-27 Sunday 23:30  gb
+2005-02-27 23:30  gb
 
 	* lisp-kernel/lisp-debug.c: Don't prototype print_lisp_object().
 
-2005-02-27 Sunday 23:29  gb
+2005-02-27 23:29  gb
 
 	* lisp-kernel/image.c: Be fussy about word size, signedness. 
 	(Needs more fussiness.)
 
-2005-02-27 Sunday 23:29  gb
+2005-02-27 23:29  gb
 
 	* lisp-kernel/imports.s: User PTR macro for imported addresses
 	(word size issues.)
 
-2005-02-27 Sunday 23:28  gb
+2005-02-27 23:28  gb
 
 	* lisp-kernel/m4macros.m4: Tweak FUN .stabs handling, to make fussy
 	assemblers (that can't be discussed in public yet) happy.
 
-2005-02-27 Sunday 23:23  gb
+2005-02-27 23:23  gb
 
 	* lisp-kernel/pantherg5/Makefile: no more pantherg5 stuff
 
-2005-02-27 Sunday 23:20  gb
+2005-02-27 23:20  gb
 
 	* lisp-kernel/spjump.s: Force 12 bit alignment.  (See if this
 	breaks Linux.)
 
-2005-02-27 Sunday 23:18  gb
+2005-02-27 23:18  gb
 
 	* level-1/l1-streams.lisp: Remove obsolete INSTANCE-INITIALIZE
 	methods.
 
-2005-02-27 Sunday 15:25  bryan
+2005-02-27 15:25  bryan
 
 	* lib/format.lisp: width parameter <=0 passed to ~f format
 	directive should act as if it never was specified.  previously
 	(when 0) would loop.
 
-2005-02-25 Friday 20:21  gb
+2005-02-25 20:21  gb
 
 	* lib/ccl-export-syms.lisp: Export WITH-POINTER-TO-IVECTOR from
 	CCL; export a few missing things from OPENMCL-MOP.
 
-2005-02-25 Friday 20:20  gb
+2005-02-25 20:20  gb
 
 	* lib/macros.lisp: WITH-POINTER-TO-IVECTOR.
 
-2005-02-25 Friday 20:18  gb
+2005-02-25 20:18  gb
 
 	* level-0/l0-pred.lisp: Add UVECTORP & IVECTORP; make them type
 	predicates.
 
-2005-02-25 Friday 19:40  gb
+2005-02-25 19:40  gb
 
 	* level-0/PPC/ppc-misc.lisp: Handle the DOUBLE-FLOAT case(es) in
 	%VECT-DATA-TO-MACPTR.
 
-2005-02-25 Friday 19:36  gb
+2005-02-25 19:36  gb
 
 	* level-1/l1-streams.lisp: %MAKE-HEAP-IVECTOR: element count not
 	optional.
 
-2005-02-25 Friday 18:00  gb
+2005-02-25 18:00  gb
 
 	* level-1/version.lisp: Bump.
 
-2005-02-25 Friday 17:59  gb
+2005-02-25 17:59  gb
 
 	* lisp-kernel/lisp-debug.c: Add an 'extern' to definition of
 	debug_command_entries[].  In lisp_debugger(), define 'state' before
 	executable body.
 
-2005-02-25 Friday 17:57  gb
+2005-02-25 17:57  gb
 
 	* compiler/PPC/ppc-arch.lisp: A few name changes, for consistency
 	with kernel notion of kernel-globals.
 
-2005-02-25 Friday 17:56  gb
+2005-02-25 17:56  gb
 
 	* examples/: objc-clos.lisp, objc-support.lisp: Handle changes to
 	DEFCLASS's processing of random slot options (:FOREIGN-TYPE).
 
-2005-02-25 Friday 17:55  gb
+2005-02-25 17:55  gb
 
 	* lib/macros.lisp: DEFCLASS: only collect random slot option values
 	into a list if option was provided more than once.
 
-2005-02-25 Friday 17:52  gb
+2005-02-25 17:52  gb
 
 	* level-1/l1-clos.lisp: Preserve values of class slots (:ALLOCATION
 	:CLASS) during class redefinition.
 
-2005-02-25 Friday 17:51  gb
+2005-02-25 17:51  gb
 
 	* level-1/l1-boot-2.lisp: Bind *LOADING-FILE-SOURCE-FILE* around
 	calls to %FASLOAD.
 
-2005-02-25 Friday 17:50  gb
+2005-02-25 17:50  gb
 
 	* level-1/l1-init.lisp: Define *LOADING-FILE-SOURCE-FILE*
 	elsewhere.
 
-2005-02-25 Friday 17:49  gb
+2005-02-25 17:49  gb
 
 	* level-0/l0-init.lisp: Define *LOADING-FILE-SOURCE-FILE* here.
 
-2005-02-25 Friday 17:48  gb
+2005-02-25 17:48  gb
 
 	* level-0/l0-misc.lisp: Kernel globals in PPC (not PPC32) package.
 
-2005-02-25 Friday 17:44  gb
+2005-02-25 17:44  gb
 
 	* level-1/: l1-pathnames.lisp, l1-boot-1.lisp,
 	l1-lisp-threads.lisp: Kernel globals in PPC (not PPC32) package.
 
-2005-02-23 Wednesday 01:01  bryan
+2005-02-23 01:01  bryan
 
 	* level-1/version.lisp: bump.
 
-2005-02-22 Tuesday 16:24  gb
+2005-02-22 16:24  gb
 
 	* lisp-kernel/spentry.s: Load f1 from the right stack offset when
 	returning from EABI callback.
 
-2005-02-22 Tuesday 16:01  gb
+2005-02-22 16:01  gb
 
 	* lisp-kernel/spentry.s: All callback variants try to return values
 	in r3, r4, and f1.
 
-2005-02-22 Tuesday 15:59  gb
+2005-02-22 15:59  gb
 
 	* lib/macros.lisp: Handle float returns in callbacks (needs related
 	kernel changes; untested on Linux.)
 
-2005-02-22 Tuesday 13:26  bryan
+2005-02-22 13:26  bryan
 
 	* lib/pprint.lisp: when *pretty-print* and *print-base* > 10, use
 	the slightly slower #'write-a-symbol to properly determine
 	potential numbers.
 
-2005-02-22 Tuesday 13:22  bryan
+2005-02-22 13:22  bryan
 
 	* level-1/l1-io.lisp: use *print-base*, not *read-base*, when
 	deciding whether to quote a potential number.
 
-2005-02-20 Sunday 18:47  bryan
+2005-02-20 18:47  bryan
 
 	* lib/format.lisp: handle ~v when nil for ~{...~}
 
-2005-02-20 Sunday 16:25  bryan
+2005-02-20 16:25  bryan
 
 	* level-1/version.lisp: bump.  use this version to check for
 	stream-external-format being a generic function.
 
-2005-02-20 Sunday 16:24  bryan
+2005-02-20 16:24  bryan
 
 	* level-1/l1-sysio.lisp: rewrite stream-external-format as a
 	generic function.
 
-2005-02-20 Sunday 15:36  bryan
+2005-02-20 15:36  bryan
 
 	* lib/format.lisp: treat ~vr as ~r when arg is nil.  per clhs 22.3.
 
-2005-02-20 Sunday 13:33  bryan
+2005-02-20 13:33  bryan
 
 	* level-1/l1-streams.lisp: remove unused code: (defmethod
 	file-stream-external-format ((s broadcast-stream))
 
-2005-02-20 Sunday 03:08  bryan
+2005-02-20 03:08  bryan
 
 	* level-1/version.lisp: bump.
 
-2005-02-20 Sunday 03:05  bryan
+2005-02-20 03:05  bryan
 
 	* lib/format.lisp: treat ~v[...~] as ~[...~] when arg is nil.  per
 	clhs 22.3.
 
-2005-02-19 Saturday 19:13  bryan
+2005-02-19 19:13  bryan
 
 	* lib/arrays-fry.lisp: somebody misses printf.. format uses ~ and
 	not %.
 
-2005-02-19 Saturday 16:51  bryan
+2005-02-19 16:51  bryan
 
 	* lib/format.lisp: reverse ~:@C printing per clhs: "~:@C prints
 	what ~:C would, and then if the character requires unusual  shift
 	keys on the keyboard to type it, this fact is mentioned."
 
-2005-02-19 Saturday 15:34  bryan
+2005-02-19 15:34  bryan
 
 	* level-1/l1-reader.lisp: add Fs (file separator), Gs (group
 	separator), Rs (record separator), and Us (unit seperator) to
@@ -462,35 +442,35 @@
 	probably could fix the printer (and reader?) to handle the escaped
 	case, but i like seeing the textual representation.
 
-2005-02-19 Saturday 14:29  bryan
+2005-02-19 14:29  bryan
 
 	* lib/format.lisp: when printing a number with a sign and padding,
 	print padding first and then the sign.
 
-2005-02-18 Friday 22:42  bryan
+2005-02-18 22:42  bryan
 
 	* level-1/version.lisp: bump for #A changes.
 
-2005-02-18 Friday 16:19  bryan
+2005-02-18 16:19  bryan
 
 	* lib/read.lisp: rewrite #A dispatch handler to allow for all types
 	of sequences (bitfields, strings, vectors, lists) when they make
 	sense for the supplied rank.
 
-2005-02-17 Thursday 17:02  gb
+2005-02-17 17:02  gb
 
 	* examples/: objc-readtable.lisp, objc-runtime.lisp: Observe
 	*READ-SUPPRESS* in reader macros.
 
-2005-02-16 Wednesday 18:42  bryan
+2005-02-16 18:42  bryan
 
 	* tools/asdf.lisp: hook asdf into *module-provider-functions*.
 
-2005-02-16 Wednesday 16:15  bryan
+2005-02-16 16:15  bryan
 
 	* level-1/version.lisp: bump.
 
-2005-02-16 Wednesday 14:09  bryan
+2005-02-16 14:09  bryan
 
 	* compiler/nx-basic.lisp, compiler/nx.lisp, compiler/nx0.lisp,
 	compiler/PPC/ppc-disassemble.lisp, compiler/PPC/ppc-lapmacros.lisp,
@@ -517,12 +497,12 @@
 	add docstrings to the majority of common-lisp-user symbols starting
 	with a snapshot of those found in SBCL 0.8.18.
 
-2005-02-16 Wednesday 13:34  bryan
+2005-02-16 13:34  bryan
 
 	* tools/asdf-install/: COPYRIGHT, load-asdf-install.lisp,
 	split-sequence.lisp: initial repository version from 050201 import.
 
-2005-02-16 Wednesday 13:29  bryan
+2005-02-16 13:29  bryan
 
 	* level-1/l1-reader.lisp: unmatched ') when
 	ccl::*ignore-extra-close-parenthesis* is nil should signal a
@@ -531,26 +511,26 @@
 	the default for ccl::*ignore-extra-close-parenthesis* remains t. 
 	set it to nil in your init file for maximum ansi-compliance.
 
-2005-02-16 Wednesday 13:12  bryan
+2005-02-16 13:12  bryan
 
 	* tools/: README-OpenMCL.txt, asdf-install/README,
 	asdf-install/asdf-install.asd, asdf-install/defpackage.lisp,
 	asdf-install/installer.lisp, asdf-install/port.lisp,
 	asdf-install/doc/index.html: sync with latest asdf-install code.
 
-2005-02-16 Wednesday 12:53  bryan
+2005-02-16 12:53  bryan
 
 	* tools/asdf.lisp: import latest ASDF from clocc repository.
 	
 	identical (besides revision number) to asdf.lisp found in SBCL
 	0.8.18.
 
-2005-02-16 Wednesday 12:50  bryan
+2005-02-16 12:50  bryan
 
 	* xdump/xfasload.lisp: turn on *save-doc-strings* and
 	*fasl-save-doc-strings*.
 
-2005-02-16 Wednesday 12:45  bryan
+2005-02-16 12:45  bryan
 
 	* level-1/l1-reader.lisp: ccl::%unreadable should signal a
 	reader-error.
@@ -558,22 +538,22 @@
 	ccl::%unreadable is called when the reader encounters #<, #), or
 	#<whitespace>.
 
-2005-02-16 Wednesday 12:44  bryan
+2005-02-16 12:44  bryan
 
 	* lib/read.lisp: ## when *read-suppress* should return nil, not
 	(values).
 
-2005-02-16 Wednesday 12:43  bryan
+2005-02-16 12:43  bryan
 
 	* level-1/l1-reader.lisp: #nr shouldn't type-check n when
 	*read-suppress*.
 
-2005-02-16 Wednesday 12:42  bryan
+2005-02-16 12:42  bryan
 
 	* level-1/l1-reader.lisp: #( when *read-suppress should ignore
 	array length problems.
 
-2005-02-16 Wednesday 12:41  bryan
+2005-02-16 12:41  bryan
 
 	* lib/read.lisp: rewrite #* handler
 	
@@ -588,12 +568,12 @@
 	except if *read-suppress*, then anything goes until the next
 	whitespace or terminating macro.
 
-2005-02-16 Wednesday 12:39  bryan
+2005-02-16 12:39  bryan
 
 	* level-1/l1-reader.lisp: more occurrences where error should be a
 	reader-error.
 
-2005-02-16 Wednesday 12:35  bryan
+2005-02-16 12:35  bryan
 
 	* level-1/l1-streams.lisp: fill in some missing methods for
 	echo-streams and concatenated-streams.
@@ -610,7 +590,7 @@
 	  (defmethod stream-read-vector ((s concatenated-stream) vector
 	start end)
 
-2005-02-16 Wednesday 12:31  bryan
+2005-02-16 12:31  bryan
 
 	* level-0/l0-symbol.lisp, level-0/nfasload.lisp,
 	level-1/l1-symhash.lisp: ccl::hash-pname loses when given a
@@ -630,39 +610,39 @@
 	
 	also updated ccl::new-package-name.
 
-2005-02-16 Wednesday 12:22  bryan
+2005-02-16 12:22  bryan
 
 	* lib/backquote.lisp: comma not inside backquote should signal
 	reader-error.
 
-2005-02-16 Wednesday 12:20  bryan
+2005-02-16 12:20  bryan
 
 	* level-1/l1-reader.lisp: if *read-suppress*, return NIL from
 	read(-*) forms.
 
-2005-02-16 Wednesday 12:19  bryan
+2005-02-16 12:19  bryan
 
 	* level-1/l1-io.lisp: adjustable arrays should print readably when
 	*print-array* (per clhs 22.1.3.7-8)
 
-2005-02-16 Wednesday 12:16  bryan
+2005-02-16 12:16  bryan
 
 	* lib/pprint.lisp: don't declare dynamic-extent for the unused args
 	passed to (funcall (formatter "~A") ..) which end up being returned
 	to the caller.
 
-2005-02-16 Wednesday 12:11  bryan
+2005-02-16 12:11  bryan
 
 	* lib/apropos.lisp: "" is a substring to all strings, update
 	%apropos-substring-p to explicitly check for that and return t
 	before doing any more work.
 
-2005-02-16 Wednesday 12:09  bryan
+2005-02-16 12:09  bryan
 
 	* level-1/l1-utils.lisp: a string-designator can also be a
 	singleton character, update string-argp to reflect that.
 
-2005-02-16 Wednesday 12:05  bryan
+2005-02-16 12:05  bryan
 
 	* lib/macros.lisp: typecase was always pushing the t clause (if
 	present) to the end of the clauses.  i suspect that most cases when
@@ -675,7 +655,7 @@
 	finally it now correctly raises an error if OTHERWISE (if present)
 	is not the final clause.
 
-2005-02-16 Wednesday 11:56  bryan
+2005-02-16 11:56  bryan
 
 	* lib/sequences.lisp: ccl::simple-vector-delete loses with
 	displaced arrays with a displaced-index-offset > 0.
@@ -690,31 +670,31 @@
 	explicitly excluded from the test also needs the offset to copy the
 	right items.
 
-2005-02-16 Wednesday 11:52  bryan
+2005-02-16 11:52  bryan
 
 	* lib/format.lisp: allow mincol, minpad in format directives to be
 	negative.
 
-2005-02-16 Wednesday 11:46  bryan
+2005-02-16 11:46  bryan
 
 	* lib/format.lisp: non-list args in ~{..~} format directive should
 	signal type-error.
 
-2005-02-16 Wednesday 11:41  bryan
+2005-02-16 11:41  bryan
 
 	* level-1/l1-format.lisp: allow #\+ in format directives.
 
-2005-02-16 Wednesday 11:40  bryan
+2005-02-16 11:40  bryan
 
 	* compiler/PPC/ppc-lap.lisp: modify defppclapfunction to accept a
 	docstring.
 
-2005-02-16 Wednesday 00:24  bryan
+2005-02-16 00:24  bryan
 
 	* lib/macros.lisp: don't update index if with-input-from-string
 	exits abnormally.
 
-2005-02-16 Wednesday 00:17  bryan
+2005-02-16 00:17  bryan
 
 	* lib/setf.lisp: spec says that the long form of defsetf encloses
 	the body in a block named after the access function.
@@ -726,12 +706,12 @@
 	defsetf should also return the name of the access-fn and not the
 	doc string.
 
-2005-02-15 Tuesday 19:23  bryan
+2005-02-15 19:23  bryan
 
 	* level-1/l1-reader.lisp: accept #:. per CLHS and ansi-test
 	SYNTAX.SHARP-COLON.7
 
-2005-02-15 Tuesday 19:14  bryan
+2005-02-15 19:14  bryan
 
 	* level-0/l0-hash.lisp: %hash-table-equalp uses :test arg instead
 	of equalp.
@@ -741,60 +721,60 @@
 	compares the keys of the tables using the :test function and then
 	the values of the matching keys using equalp recursively.
 
-2005-02-15 Tuesday 19:04  bryan
+2005-02-15 19:04  bryan
 
 	* level-1/l1-reader.lisp: suppress unused lexical variable warning
 	in #: handler
 
-2005-02-15 Tuesday 18:58  bryan
+2005-02-15 18:58  bryan
 
 	* level-1/l1-io.lisp: clhs 22.1.3.8 says an array is printed
 	started with #A.
 
-2005-02-15 Tuesday 18:52  bryan
+2005-02-15 18:52  bryan
 
 	* level-1/l1-io.lisp: clhs 22.1.3.1.4 says a complex number is
 	printed started with #C.
 
-2004-10-27 Wednesday 00:56  gb
+2004-10-27 00:56  gb
 
 	* lisp-kernel/lisp-exceptions.c: Hacks to keep fp exceptions
 	enabled after pthread_kill() on Darwin.
 	
 	Allways enable fp exceptions when calling back into lisp.
 
-2004-10-26 Tuesday 23:28  gb
+2004-10-26 23:28  gb
 
 	* lisp-kernel/asmutils.s: back out of earlier change, now that
 	signal_handler calls get_interrupt_tcr
 
-2004-10-26 Tuesday 23:23  gb
+2004-10-26 23:23  gb
 
 	* lisp-kernel/lisp-exceptions.c: Use get_interrupt_tcr() in
 	signal_handler on linux.
 
-2004-10-26 Tuesday 23:22  gb
+2004-10-26 23:22  gb
 
 	* lisp-kernel/thread_manager.c: get_interrupt_tcr() takes a
 	"create-p" argument, like some callers thought it did.
 
-2004-10-26 Tuesday 22:51  gb
+2004-10-26 22:51  gb
 
 	* lisp-kernel/: asmutils.s, lisp-exceptions.c: play around with r2
 	when zeroing FPSCR
 
-2004-10-06 Wednesday 16:44  gb
+2004-10-06 16:44  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-listener.lisp,
 	cocoa-typeout.lisp: Alex Crain's patches (paste in listener,
 	typeout window size)
 
-2004-10-01 Friday 05:03  gb
+2004-10-01 05:03  gb
 
 	* level-1/l1-clos.lisp: if a CERROR offers to change the class of
 	an existing GF, actually call CHANGE-CLASS to do so
 
-2004-09-25 Saturday 18:38  gb
+2004-09-25 18:38  gb
 
 	* level-1/l1-clos.lisp: Use a real SHARED-INITIALIZE after CLOS is
 	bootstrapped.  Default superclasses based on metaclass, in
@@ -804,104 +784,104 @@
 	values.) Make sure that the right version of UPDATE-SLOTS is
 	committed.
 
-2004-09-25 Saturday 18:31  gb
+2004-09-25 18:31  gb
 
 	* level-1/l1-dcode.lisp: New support for funcallable instances,
 	from Tim Moore.
 
-2004-09-25 Saturday 18:31  gb
+2004-09-25 18:31  gb
 
 	* level-1/l1-clos-boot.lisp: INSTANCE-SLOTS knows where to find
 	slots in funcallable instances that aren't GF's (from Tim Moore.)
 
-2004-09-25 Saturday 15:38  gb
+2004-09-25 15:38  gb
 
 	* level-1/l1-lisp-threads.lisp: Use %HEAP-IVECTOR-P when checking
 	bogosity.
 
-2004-09-25 Saturday 15:37  gb
+2004-09-25 15:37  gb
 
 	* level-1/l1-streams.lisp: Kinder, gentler heap-ivector stuff.	Use
 	it.
 
-2004-09-25 Saturday 15:37  gb
+2004-09-25 15:37  gb
 
 	* level-1/version.lisp: Bump.
 
-2004-09-25 Saturday 15:36  gb
+2004-09-25 15:36  gb
 
 	* lib/ccl-export-syms.lisp: Export MAKE-HEAP-IVECTOR and
 	DISPOSE-HEAP-IVECTOR.
 
-2004-09-25 Saturday 15:35  gb
+2004-09-25 15:35  gb
 
 	* lisp-kernel/darwin/Makefile, lib/macros.lisp: DEFCLASS macro:
 	handle :DOCUMENTATION as a single option, if provided.	Don't
 	default superclasses (from Tim Moore.).  Pass class name, not
 	class, in :METACLASS option.
 
-2004-09-25 Saturday 15:16  gb
+2004-09-25 15:16  gb
 
 	* level-0/PPC/ppc-misc.lisp: FUDGE-HEAP-POINTER: user clrrwi to
 	clear three bits.
 
-2004-09-25 Saturday 15:15  gb
+2004-09-25 15:15  gb
 
 	* hemlock/src/macros.lisp: WITH-POPUP-DISPLAY: use typeout-stream
 	(from Alex Crain.)
 
-2004-09-25 Saturday 15:14  gb
+2004-09-25 15:14  gb
 
 	* hemlock/src/interp.lisp: Indentation change.
 
-2004-09-25 Saturday 15:13  gb
+2004-09-25 15:13  gb
 
 	* examples/cocoa-editor.lisp: Send backtrace info to typeout window
 	on error (from Alex Crain.)
 
-2004-09-25 Saturday 15:12  gb
+2004-09-25 15:12  gb
 
 	* examples/cocoa-window.lisp: Typeout-window changes, from Alex
 	Crain.
 
-2004-09-25 Saturday 15:08  gb
+2004-09-25 15:08  gb
 
 	* examples/cocoa-typeout.lisp: New file, from Alex Crain
 
-2004-09-25 Saturday 15:08  gb
+2004-09-25 15:08  gb
 
 	* examples/bridge.lisp: Fixes to COERCE-TO-FOREIGN-TYPE, from
 	Randall Beer.
 
-2004-09-25 Saturday 15:07  gb
+2004-09-25 15:07  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/:
 	classes.nib, info.nib, objects.nib: Changes from Alex Crain, for
 	typeout window.
 
-2004-09-25 Saturday 15:07  gb
+2004-09-25 15:07  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/.cvsignore: new file
 
-2004-09-19 Sunday 17:21  gb
+2004-09-19 17:21  gb
 
 	* lisp-kernel/lisp-exceptions.c: use thread_abort_safely() when
 	suspending Mach threads
 
-2004-09-13 Monday 01:26  gb
+2004-09-13 01:26  gb
 
 	* lisp-kernel/thread_manager.c: wait_on_semaphore: return
 	KERN_OPERATION_TIMED_OUT if wait was aborted and we'd timed out
 	anyway.  suspend_tcr: use mach_suspend_tcr() preferentially on
 	Darwin.
 
-2004-09-13 Monday 01:21  gb
+2004-09-13 01:21  gb
 
 	* lisp-kernel/lisp-exceptions.c: mach_resume_tcr: it would be a
 	good idea to actually resume the thread, not just do the
 	bookkeeping (a call to thread_resume() was missing.)
 
-2004-08-30 Monday 16:20  gb
+2004-08-30 16:20  gb
 
 	* examples/cocoa-editor.lisp: Lots of changes, mostly:
 	
@@ -915,52 +895,52 @@
 	updated correctly) - DISABLE-BLINK tells the layout manager to
 	force redisplay of the (now   non-blinking) character.
 
-2004-08-30 Monday 15:59  gb
+2004-08-30 15:59  gb
 
 	* examples/objc-runtime.lisp: Assert that SELF is an instance in
 	instance method (should also assert that :ID-typed parameters are
 	instances/classes.)
 
-2004-08-30 Monday 15:58  gb
+2004-08-30 15:58  gb
 
 	* examples/objc-clos.lisp: set pointer types directly
 
-2004-08-30 Monday 15:33  gb
+2004-08-30 15:33  gb
 
 	* examples/: cocoa-listener.lisp, cocoa-window.lisp: Use (THE ...)
 	to help the bridge resolve some messages.
 
-2004-08-30 Monday 15:31  gb
+2004-08-30 15:31  gb
 
 	* hemlock/src/modeline.lisp: Use DEFPARAMETER to initialize
 	*DEFAULT-MODELINE-FIELDS*, so it's a little easier to redefine.
 
-2004-08-30 Monday 15:30  gb
+2004-08-30 15:30  gb
 
 	* hemlock/src/lispmode.lisp: Wrap some of the indentation code in a
 	MODIFYING-BUFFER, to defer display updates. (This is experimental,
 	and should probably be made more general.)
 
-2004-08-30 Monday 15:29  gb
+2004-08-30 15:29  gb
 
 	* hemlock/src/interp.lisp: Don't be quite so eager to clear the
 	echo area, especially when it's the current buffer.
 
-2004-08-30 Monday 15:25  gb
+2004-08-30 15:25  gb
 
 	* lib/foreign-types.lisp: Make (:* T) be shorthand for (:* :VOID). 
 	May lead to (benign) redefinition warnings.
 
-2004-08-30 Monday 15:25  gb
+2004-08-30 15:25  gb
 
 	* level-1/l1-init.lisp: Remove some FRED-isms.
 
-2004-08-30 Monday 15:22  gb
+2004-08-30 15:22  gb
 
 	* level-0/l0-aprims.lisp: DEREFERENCE-BASE-STRING: third return
 	value is just the length (not length + displacement).
 
-2004-08-10 Tuesday 18:54  gb
+2004-08-10 18:54  gb
 
 	* level-1/l1-readloop.lisp: Check for local macro functions (and
 	complain if FUNCTION references them) in cheap evaluator.
@@ -968,213 +948,213 @@
 	Pass a function and other information to *MACROEXPAND-HOOK* when
 	expanding symbol-macros.
 
-2004-08-10 Tuesday 18:19  gb
+2004-08-10 18:19  gb
 
 	* level-1/l1-clos.lisp: late version of %MAKE-METHOD-INSTANCE, from
 	HEL
 
-2004-08-06 Friday 01:40  gb
+2004-08-06 01:40  gb
 
 	* lib/pprint.lisp: distinguish finding NIL from not finding symbol
 	in MAYBE-PRINT-FAST
 
-2004-08-02 Monday 22:56  gb
+2004-08-02 22:56  gb
 
 	* examples/cocoa-editor.lisp: Remove subviews from hemlock-frame
 	(window) before closing it.
 
-2004-08-01 Sunday 18:54  gb
+2004-08-01 18:54  gb
 
 	* examples/cocoa-editor.lisp: INIT-WITH-TEXT-STORAGE ->
 	SET-TEXT-STORAGE (was initing twice.)
 
-2004-07-31 Saturday 17:52  gb
+2004-07-31 17:52  gb
 
 	* hemlock/src/: lispmode.lisp, lispbuf.lisp:
 	package-name-change-hook
 
-2004-07-31 Saturday 17:50  gb
+2004-07-31 17:50  gb
 
 	* hemlock/src/buffer.lisp: handle modeline update in
 	%SET-BUFFER-MODIFIED
 
-2004-07-31 Saturday 17:44  gb
+2004-07-31 17:44  gb
 
 	* examples/objc-runtime.lisp: remove a debugging call to FORMAT
 
-2004-07-31 Saturday 17:43  gb
+2004-07-31 17:43  gb
 
 	* hemlock/src/modeline.lisp: modeline buffer-update zeal
 
-2004-07-31 Saturday 17:40  gb
+2004-07-31 17:40  gb
 
 	* level-1/l1-lisp-threads.lisp: *fake-stack-frames* is
 	thread-specific, just in case
 
-2004-07-31 Saturday 17:39  gb
+2004-07-31 17:39  gb
 
 	* level-0/PPC/ppc-def.lisp: %%FRAME-BACKLINK: this isn't 0S7
 
-2004-07-31 Saturday 17:38  gb
+2004-07-31 17:38  gb
 
 	* level-1/l1-io.lisp: move %NEW-PTR here
 
-2004-07-31 Saturday 17:37  gb
+2004-07-31 17:37  gb
 
 	* level-0/l0-io.lisp: %new-ptr can't exist in level-0
 
-2004-07-31 Saturday 17:36  gb
+2004-07-31 17:36  gb
 
 	* lib/nfcomp.lisp: make-load-form for foreign-variable istruct
 
-2004-07-31 Saturday 17:35  gb
+2004-07-31 17:35  gb
 
 	* level-1/l1-files.lisp: fix dangling close paren
 
-2004-07-25 Sunday 19:15  gb
+2004-07-25 19:15  gb
 
 	* examples/rubix/: blocks.lisp, opengl.lisp, rubix.lisp: newer code
 	from Hamilton
 
-2004-07-23 Friday 16:15  gb
+2004-07-23 16:15  gb
 
 	* examples/rubix/: blocks.lisp, lights.lisp, loader.lisp,
 	opengl.lisp, rubix.lisp, vectors.lisp: new files
 
-2004-06-27 Sunday 02:55  gb
+2004-06-27 02:55  gb
 
 	* examples/objc-support.lisp: canonicalize classes referenced in
 	type signatures
 
-2004-06-27 Sunday 02:55  gb
+2004-06-27 02:55  gb
 
 	* examples/bridge.lisp: class canonicalization, for resuming images
 
-2004-06-27 Sunday 02:55  gb
+2004-06-27 02:55  gb
 
 	* examples/: cocoa-window.lisp, tiny.lisp: defer window creation
 
-2004-06-27 Sunday 02:55  gb
+2004-06-27 02:55  gb
 
 	* examples/finger.lisp: new version from Barry Perryman
 
-2004-06-27 Sunday 02:55  gb
+2004-06-27 02:55  gb
 
 	* examples/objc-runtime.lisp: early NSThread
 
-2004-06-23 Wednesday 22:24  gb
+2004-06-23 22:24  gb
 
 	* level-1/linux-files.lisp: Remove a (debugging) call to FORMAT.
 
-2004-06-23 Wednesday 11:32  gb
+2004-06-23 11:32  gb
 
 	* level-1/linux-files.lisp: New external-process waiting stuff.
 
-2004-06-23 Wednesday 11:32  gb
+2004-06-23 11:32  gb
 
 	* level-1/l1-processes.lisp: Initial restarts have descriptive
 	:report clauses.
 
-2004-06-23 Wednesday 11:30  gb
+2004-06-23 11:30  gb
 
 	* level-1/l1-files.lisp: Gary King's fix to FIND-LOAD-FILE.
 
-2004-06-23 Wednesday 11:30  gb
+2004-06-23 11:30  gb
 
 	* level-1/l1-error-system.lisp: INVOKE-RESTART-INTERACTIVELY works
 	with SIMPLE-RESTARTs again.
 
-2004-06-23 Wednesday 11:29  gb
+2004-06-23 11:29  gb
 
 	* level-1/l1-clos.lisp: UPDATE-SLOTS fix.
 
-2004-06-15 Tuesday 03:40  gb
+2004-06-15 03:40  gb
 
 	* OpenMCL.app/Contents/MacOS/dppccl: added
 
-2004-06-06 Sunday 03:12  gb
+2004-06-06 03:12  gb
 
 	* level-1/linux-files.lisp: Don't sleep/poll while monitoring
 	external process; signal completion via semaphore.
 
-2004-06-06 Sunday 03:11  gb
+2004-06-06 03:11  gb
 
 	* level-0/l0-cfm-support.lisp: Ignore NAME in
 	SHLIB-CONTAINING-ADDRESS for Linux.
 
-2004-06-06 Sunday 00:01  gb
+2004-06-06 00:01  gb
 
 	* lisp-kernel/spentry.s: Ensure TSP valid before asserting
 	lisp-mode in ffi return.
 
-2004-06-06 Sunday 00:00  gb
+2004-06-06 00:00  gb
 
 	* lisp-kernel/thread_manager.c: New post-gc freeing mechanism
 	(suspened thread may own malloc lock.) Similar mechanism for TCR
 	cleanup.
 
-2004-06-05 Saturday 23:59  gb
+2004-06-05 23:59  gb
 
 	* lisp-kernel/: gc.c, gc.h, lisp-exceptions.c: New post-gc freeing
 	mechanism (suspened thread may own malloc lock.)
 
-2004-06-05 Saturday 23:57  gb
+2004-06-05 23:57  gb
 
 	* level-1/linux-files.lisp: Do external processes differently.
 
-2004-06-05 Saturday 23:57  gb
+2004-06-05 23:57  gb
 
 	* level-1/l1-boot-3.lisp: No periodic task for external processes.
 
-2004-06-05 Saturday 23:56  gb
+2004-06-05 23:56  gb
 
 	* level-1/l1-readloop-lds.lisp: Don't pass (%CURRENT-TCR) to
 	stack-walking functions in break loop commands.
 
-2004-06-05 Saturday 23:55  gb
+2004-06-05 23:55  gb
 
 	* lib/describe.lisp: :prompt-function takes an argument.
 
-2004-05-23 Sunday 17:37  gb
+2004-05-23 17:37  gb
 
 	* level-1/linux-files.lisp: In GET-DESCRIPTOR-FOR, leave room for a
 	#\Newline when copying an arbitrary input stream to a temporary
 	file.
 
-2004-05-08 Saturday 14:21  gb
+2004-05-08 14:21  gb
 
 	* examples/cocoa.lisp: Define UI-OBJECT-DO-OPERATION for *NSApp*.
 
-2004-05-08 Saturday 14:20  gb
+2004-05-08 14:20  gb
 
 	* examples/objc-runtime.lisp: Use #?.  Find cfstrings in __const
 	section, too.
 
-2004-05-08 Saturday 14:19  gb
+2004-05-08 14:19  gb
 
 	* examples/cocoa-window.lisp: Use #?.  SET THE UI OBJECT (lost in
 	0.14.2 merge.)
 
-2004-05-08 Saturday 14:18  gb
+2004-05-08 14:18  gb
 
 	* examples/cocoa-listener.lisp: Use #?.
 
-2004-05-07 Friday 10:56  gb
+2004-05-07 10:56  gb
 
 	* examples/cocoa-editor.lisp: Fix duplicate
 	HI::SAVE-HEMLOCK-DOCUMENT.  Don't parse buffer unless we're looking
 	at a paren when trying to determine blink location.
 
-2004-05-07 Friday 02:23  gb
+2004-05-07 02:23  gb
 
 	* examples/objc-clos.lisp: Handle new issues with :foreign-type
 	(non-standard slot options collect values into a list.)
 
-2004-05-07 Friday 02:22  gb
+2004-05-07 02:22  gb
 
 	* level-1/version.lisp: Date tag for development.
 
-2004-05-06 Thursday 00:28  gb
+2004-05-06 00:28  gb
 
 	* compiler/PPC/ppc2.lisp, darwin-headers/cocoa/C/populate.sh,
 	examples/cocoa-window.lisp, examples/cocoa.lisp,
@@ -1193,906 +1173,906 @@
 	lisp-kernel/darwin/Makefile, xdump/faslenv.lisp: incorporate 0.14.2
 	changes
 
-2004-05-02 Sunday 01:28  gb
+2004-05-02 01:28  gb
 
 	* examples/cocoa-editor.lisp: save-as, open-document for Hemlock. 
 	Fix off-by-one in paren-blinking; lock view focus when disabling
 	blink to fix display glitch.
 
-2004-05-02 Sunday 01:27  gb
+2004-05-02 01:27  gb
 
 	* hemlock/src/filecoms.lisp: Use Cocoa for more file operations.
 
-2004-04-30 Friday 20:34  gb
+2004-04-30 20:34  gb
 
 	* lib/macros.lisp: SETF shows arglist in error message, if odd
 	length.
 
-2004-04-30 Friday 20:34  gb
+2004-04-30 20:34  gb
 
 	* level-1/version.lisp: Bump the version.
 
-2004-04-30 Friday 20:34  gb
+2004-04-30 20:34  gb
 
 	* hemlock/src/struct.lisp: Font-mark/font-region stuff.
 
-2004-04-30 Friday 20:33  gb
+2004-04-30 20:33  gb
 
 	* hemlock/src/streams.lisp: Add a STREAM-WRITE-STRING method for
 	echo area.
 
-2004-04-30 Friday 20:32  gb
+2004-04-30 20:32  gb
 
 	* hemlock/src/morecoms.lisp: Don't call HI::MAYBE-UPDATE-SELECTION
 	anymore.
 
-2004-04-30 Friday 20:32  gb
+2004-04-30 20:32  gb
 
 	* hemlock/src/listener.lisp: New history, font-region stuff.
 
-2004-04-30 Friday 20:31  gb
+2004-04-30 20:31  gb
 
 	* hemlock/src/lispmode.lisp: Arglist stuff.
 
-2004-04-30 Friday 20:30  gb
+2004-04-30 20:30  gb
 
 	* hemlock/src/interp.lisp: Clear echo area on entry to command.
 
-2004-04-30 Friday 20:30  gb
+2004-04-30 20:30  gb
 
 	* hemlock/src/htext3.lisp: Check buffer modification.
 
-2004-04-30 Friday 20:30  gb
+2004-04-30 20:30  gb
 
 	* hemlock/src/htext2.lisp: Remove old selection-updating code (was
 	unused.)
 
-2004-04-30 Friday 20:29  gb
+2004-04-30 20:29  gb
 
 	* hemlock/src/font.lisp: Partial integration with new font-region
 	stuff.
 
-2004-04-30 Friday 18:53  gb
+2004-04-30 18:53  gb
 
 	* hemlock/src/: filecoms.lisp, files.lisp: Partial integration with
 	Cocoa document handling.
 
-2004-04-30 Friday 18:53  gb
+2004-04-30 18:53  gb
 
 	* hemlock/src/edit-defs.lisp: Still not working, but closer.
 
-2004-04-30 Friday 18:52  gb
+2004-04-30 18:52  gb
 
 	* hemlock/src/command.lisp: Get rid of some (very) old code. 
 	CENTER-TEXT-PANE via Cocoa.
 
-2004-04-30 Friday 18:51  gb
+2004-04-30 18:51  gb
 
 	* hemlock/src/cocoa-hemlock.lisp: FONT-REGION stuff.
 
-2004-04-30 Friday 18:51  gb
+2004-04-30 18:51  gb
 
 	* hemlock/src/bindings.lisp: arglist-on-space,
 	current-function-arglist.
 
-2004-04-30 Friday 18:50  gb
+2004-04-30 18:50  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-listener.lisp: Lots-o-changes
 	...
 
-2004-04-30 Friday 18:49  gb
+2004-04-30 18:49  gb
 
 	* examples/cocoa-window.lisp: Synthesize obliqueness/boldness.
 
-2004-04-30 Friday 13:58  gb
+2004-04-30 13:58  gb
 
 	* examples/objc-runtime.lisp: %MAKE-CONSTANT-NSSTRING when
 	restoring constant NSStrings.
 
-2004-04-19 Monday 13:31  gb
+2004-04-19 13:31  gb
 
 	* examples/cocoa-editor.lisp: Lots of changes/fixes: selection,
 	view-size, scrolling, paren-matching, etc.
 
-2004-04-19 Monday 13:30  gb
+2004-04-19 13:30  gb
 
 	* hemlock/src/cocoa-hemlock.lisp: Event-queue-node constructor.
 
-2004-04-19 Monday 00:49  gb
+2004-04-19 00:49  gb
 
 	* level-1/l1-error-system.lisp: Don't use %CURRENT-TCR, in
 	%LAST-FN-ON-STACK.
 
-2004-04-13 Tuesday 13:26  gb
+2004-04-13 13:26  gb
 
 	* library/lispequ.lisp: New fields in backtrace context.
 
-2004-04-13 Tuesday 13:26  gb
+2004-04-13 13:26  gb
 
 	* library/hemlock.lisp: Simple loader, for now.
 
-2004-04-13 Tuesday 13:25  gb
+2004-04-13 13:25  gb
 
 	* level-1/version.lisp: Bump.
 
-2004-04-13 Tuesday 13:25  gb
+2004-04-13 13:25  gb
 
 	* level-1/l1-lisp-threads.lisp, level-1/l1-readloop-lds.lisp,
 	level-1/ppc-threads-utils.lisp, lib/backtrace-lds.lisp,
 	lib/backtrace.lisp, lib/describe.lisp: New stack-walking scheme:
 	pass optional backtrace context, not TCR.
 
-2004-04-13 Tuesday 13:24  gb
+2004-04-13 13:24  gb
 
 	* hemlock/src/struct.lisp: region now per-buffer.
 
-2004-04-13 Tuesday 13:23  gb
+2004-04-13 13:23  gb
 
 	* hemlock/src/streams.lisp: Less hysteria writing to echo-area
 	stream.
 
-2004-04-13 Tuesday 13:23  gb
+2004-04-13 13:23  gb
 
 	* hemlock/src/: pop-up-stream.lisp, rompsite.lisp: Remove some
 	CLXisms.
 
-2004-04-13 Tuesday 13:22  gb
+2004-04-13 13:22  gb
 
 	* hemlock/src/listener.lisp: Better EVAL-REGION.
 
-2004-04-13 Tuesday 13:22  gb
+2004-04-13 13:22  gb
 
 	* hemlock/src/killcoms.lisp: Reorganize; new per-buffer
 	active-region scheme.
 
-2004-04-13 Tuesday 13:21  gb
+2004-04-13 13:21  gb
 
 	* hemlock/src/key-event.lisp: Immutable key-event (not dll-node.)
 
-2004-04-13 Tuesday 13:21  gb
+2004-04-13 13:21  gb
 
 	* hemlock/src/htext3.lisp: Always delete current-region before
 	insertion.
 
-2004-04-13 Tuesday 13:20  gb
+2004-04-13 13:20  gb
 
 	* hemlock/src/echo.lisp: Don't call DISPLAYED-P.
 
-2004-04-13 Tuesday 13:18  gb
+2004-04-13 13:18  gb
 
 	* hemlock/src/cursor.lisp: Remove a few CLXisms.
 
-2004-04-13 Tuesday 13:18  gb
+2004-04-13 13:18  gb
 
 	* hemlock/src/command.lisp: Mark setup for new scheme.
 
-2004-04-13 Tuesday 13:17  gb
+2004-04-13 13:17  gb
 
 	* hemlock/src/cocoa-hemlock.lisp: Key events are interned, so don't
 	make them mutable.
 
-2004-04-13 Tuesday 13:16  gb
+2004-04-13 13:16  gb
 
 	* hemlock/src/bindings.lisp: #k"Enter" evaluates region, not
 	"defun".
 
-2004-04-13 Tuesday 13:16  gb
+2004-04-13 13:16  gb
 
 	* examples/cocoa-editor.lisp: Lots-o-changes: double-click, paste,
 	etc.
 
-2004-04-13 Tuesday 13:15  gb
+2004-04-13 13:15  gb
 
 	* examples/objc-runtime.lisp: (Partial) fixes to struct-returning
 	method definitions.
 
-2004-04-13 Tuesday 13:14  gb
+2004-04-13 13:14  gb
 
 	* examples/cocoa-backtrace.lisp: Remove some commented-out code.
 
-2004-04-12 Monday 13:29  gb
+2004-04-12 13:29  gb
 
 	* level-1/l1-sockets.lisp: Erik Pearson's SOCKET-ERROR
 	changes/fixes.
 
-2004-04-07 Wednesday 22:32  gb
+2004-04-07 22:32  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/MainMenu~.nib/:
 	classes.nib, info.nib, objects.nib: remove backup files
 
-2004-04-07 Wednesday 21:49  gb
+2004-04-07 21:49  gb
 
 	* examples/objc-runtime.lisp: Call #_GetCurrentEventQueue before
 	some other thread calls it ...	Make "void" NSThread early, to tell
 	AppKit we're multi-threaded.
 
-2004-04-07 Wednesday 21:46  gb
+2004-04-07 21:46  gb
 
 	* examples/cocoa-listener.lisp: Defaults changes.
 
-2004-04-07 Wednesday 21:45  gb
+2004-04-07 21:45  gb
 
 	* examples/cocoa-editor.lisp: Defaults changes.  Support clipview
 	around echo-area (horizontal scrolling).
 
-2004-04-07 Wednesday 21:43  gb
+2004-04-07 21:43  gb
 
 	* examples/cocoa-defaults.lisp: Changes to support constraints,
 	prefs dialog.
 
-2004-04-07 Wednesday 21:42  gb
+2004-04-07 21:42  gb
 
 	* examples/cocoa-prefs.lisp: New file.
 
-2004-04-07 Wednesday 21:41  gb
+2004-04-07 21:41  gb
 
 	* examples/cocoa-window.lisp: Require "COCOA-PREFS".  Doc string on
 	defaults; handle showPreferences: message.
 
-2004-04-07 Wednesday 21:38  gb
+2004-04-07 21:38  gb
 
 	* hemlock/src/cocoa-hemlock.lisp: Handle control-g (abort-event) in
 	GET-KEY-EVENT.
 
-2004-04-07 Wednesday 21:35  gb
+2004-04-07 21:35  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/:
 	classes.nib, info.nib, objects.nib: Add showPreferences: action,
 	connect Preferences item to it.
 
-2004-04-02 Friday 23:08  gb
+2004-04-02 23:08  gb
 
 	* lisp-kernel/pmcl-kernel.c: Use readlink() to determine executable
 	pathname under Linux.  Use PATH_MAX on	both platforms.
 
-2004-04-02 Friday 22:53  gb
+2004-04-02 22:53  gb
 
 	* lisp-kernel/pmcl-kernel.c: Determine executable pathname (needs
 	to use /proc on Linux.)
 
-2004-04-02 Friday 22:53  gb
+2004-04-02 22:53  gb
 
 	* lisp-kernel/lisp-exceptions.c: Hysteresis in stack-overflow
 	recovery.  (Needs testing.)
 
-2004-04-02 Friday 22:52  gb
+2004-04-02 22:52  gb
 
 	* library/lispequ.lisp: Add bt.break-condition.
 
-2004-04-02 Friday 22:51  gb
+2004-04-02 22:51  gb
 
 	* lib/describe.lisp: Break condition comes from context now.
 
-2004-04-02 Friday 22:50  gb
+2004-04-02 22:50  gb
 
 	* lib/backtrace-lds.lisp: %ACTIVE-AREA is deprecated.
 
-2004-04-02 Friday 22:49  gb
+2004-04-02 22:49  gb
 
 	* level-1/l1-readloop-lds.lisp: Backtrace context now contains the
 	break condition.
 
-2004-04-02 Friday 22:47  gb
+2004-04-02 22:47  gb
 
 	* level-1/l1-lisp-threads.lisp: Fencepost in %PTR-IN-AREA-P. 
 	Deprecate (and remove some calls to) %ACTIVE-AREA, since stacks
 	have been contiguous for a couple of years now ...
 
-2004-04-02 Friday 22:44  gb
+2004-04-02 22:44  gb
 
 	* level-1/l1-clos.lisp: Check for circularities when checking for
 	forward-referenced superclasses.  Redefine %ADD-METHOD as
 	ADD-METHOD when we're able to.	ENSURE-CLASS-USING-CLASS of a
 	forward-referenced class passes initargs to CHANGE-CLASS.
 
-2004-03-27 Saturday 18:51  gb
+2004-03-27 18:51  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-listener.lisp: Umm,
 	background color components are of type :float.
 
-2004-03-27 Saturday 04:08  gb
+2004-03-27 04:08  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/lispeditor~.nib/:
 	classes.nib, info.nib, objects.nib: remove backup files from CVS
 
-2004-03-27 Saturday 04:05  gb
+2004-03-27 04:05  gb
 
 	*
 	OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/objects.n
 	ib: Not sure what changed, but IB found inconsistencies and wanted
 	the .nib to be saved.
 
-2004-03-27 Saturday 03:59  gb
+2004-03-27 03:59  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/:
 	info.nib, objects.nib: Not sure what changed, but IB found
 	inconsistencies and wanted the .nib to be saved.
 
-2004-03-27 Saturday 03:58  gb
+2004-03-27 03:58  gb
 
 	* examples/cocoa-backtrace.lisp: Integration.
 
-2004-03-27 Saturday 03:58  gb
+2004-03-27 03:58  gb
 
 	* examples/cocoa-editor.lisp: Color stuff, redisplay changes.  Use
 	a sheet to display error messages from Hemlock command threads.
 
-2004-03-27 Saturday 03:57  gb
+2004-03-27 03:57  gb
 
 	* examples/cocoa-listener.lisp: Color stuff; maintain backtrace
 	contexts in threads.  Menu action functions, validation for
 	interrupt and backtrace.
 
-2004-03-27 Saturday 03:55  gb
+2004-03-27 03:55  gb
 
 	* examples/cocoa.lisp: Require COCOA-BACKTRACE.  Move
 	UI-DO-OPERATION here, implement backtrace operations.
 
-2004-03-27 Saturday 03:54  gb
+2004-03-27 03:54  gb
 
 	* examples/objc-runtime.lisp: Don't install deallocate hook, for
 	the time being.
 
-2004-03-27 Saturday 03:53  gb
+2004-03-27 03:53  gb
 
 	* hemlock/src/cocoa-hemlock.lisp: Update the selection before
 	grabbing the next key-event.  Timed-wait on next event, for
 	EDITOR-SLEEP.
 
-2004-03-27 Saturday 03:52  gb
+2004-03-27 03:52  gb
 
 	* hemlock/src/htext1.lisp: lock/unlock the buffer (actually the
 	gap-cache) when editing.
 
-2004-03-27 Saturday 03:52  gb
+2004-03-27 03:52  gb
 
 	* hemlock/src/htext2.lisp: MAYBE-UPDATE-SELECTION: doesn't do
 	anything anymore; should be removed.
 
-2004-03-27 Saturday 03:51  gb
+2004-03-27 03:51  gb
 
 	* hemlock/src/killcoms.lisp: Active region vars are now
 	symbol-macros.
 
-2004-03-27 Saturday 03:50  gb
+2004-03-27 03:50  gb
 
 	* hemlock/src/listener.lisp: *POP-STRING* needed a newline.
 
-2004-03-27 Saturday 03:50  gb
+2004-03-27 03:50  gb
 
 	* hemlock/src/macros.lisp: Use new error handler.
 
-2004-03-27 Saturday 03:50  gb
+2004-03-27 03:50  gb
 
 	* hemlock/src/rompsite.lisp: Make EDITOR-SLEEP kind of work.
 
-2004-03-27 Saturday 03:49  gb
+2004-03-27 03:49  gb
 
 	* hemlock/src/struct.lisp: Keep active region stuff in gap-cache.
 
-2004-03-27 Saturday 03:48  gb
+2004-03-27 03:48  gb
 
 	* level-1/l1-clos.lisp: Fix error message typo when allocating GFs.
 
-2004-03-27 Saturday 03:47  gb
+2004-03-27 03:47  gb
 
 	* level-1/l1-dcode.lisp: Don't set &allow-other-keys in GF lambda
 	lists if method only says &key.
 
-2004-03-27 Saturday 03:45  gb
+2004-03-27 03:45  gb
 
 	* level-1/l1-files.lisp: Quote more chars when converting from
 	native namestrings.
 
-2004-03-27 Saturday 03:45  gb
+2004-03-27 03:45  gb
 
 	* level-1/version.lisp: 040326.
 
-2004-03-27 Saturday 03:44  gb
+2004-03-27 03:44  gb
 
 	* lib/macros.lisp: Unknown slot options in DEFCLASS: use CDR, not
 	CADR for option value.
 
-2004-03-27 Saturday 03:43  gb
+2004-03-27 03:43  gb
 
 	* level-1/linux-files.lisp: NANOSCECONDS: always return two
 	integers.
 
-2004-03-25 Thursday 18:13  gb
+2004-03-25 18:13  gb
 
 	* level-0/PPC/ppc-float.lisp: %SET-FPSCR-CONTROL: maintain stack
 	discipline.  Write zeroes to status fields as well, to avoid
 	enabling a signaled exception.
 
-2004-03-25 Thursday 13:10  gb
+2004-03-25 13:10  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/:
 	classes.nib, info.nib, objects.nib: Lisp menu
 
-2004-03-24 Wednesday 20:28  gb
+2004-03-24 20:28  gb
 
 	* level-1/version.lisp: 040324.
 
-2004-03-24 Wednesday 18:08  gb
+2004-03-24 18:08  gb
 
 	* compiler/dll-node.lisp: PROVIDE's been in the CL package for the
 	last decade or so.  (This (small) change was made from a
 	Hemlock/Cocoa editor !)
 
-2004-03-24 Wednesday 18:07  gb
+2004-03-24 18:07  gb
 
 	* examples/cocoa-listener.lisp: EVAL-SELECTION ui methods.
 
-2004-03-24 Wednesday 18:06  gb
+2004-03-24 18:06  gb
 
 	* examples/cocoa-editor.lisp: Update the buffer-cache after
 	processing deletion notification.  MAKE-HEMLOCK-BUFFER makes the
 	gap-context, used to make all buffers except echo area. 
 	NSSTRING-TO-BUFFER needs to set up gap context.
 
-2004-03-24 Wednesday 18:04  gb
+2004-03-24 18:04  gb
 
 	* hemlock/src/bindings.lisp: #k"enter", #k"c-m-x" bound to "Editor
 	Evaluate Defun".
 
-2004-03-24 Wednesday 18:03  gb
+2004-03-24 18:03  gb
 
 	* hemlock/src/listener.lisp: Eval-region via selection queue
 	mechanism.
 
-2004-03-24 Wednesday 18:03  gb
+2004-03-24 18:03  gb
 
 	* level-1/l1-clos-boot.lisp: Fix typo in error message
 	(rededefining non-GF as GF.)
 
-2004-03-24 Wednesday 10:26  gb
+2004-03-24 10:26  gb
 
 	* examples/cocoa-editor.lisp: Clean this up: put things in the
 	right package.
 
-2004-03-24 Wednesday 01:51  gb
+2004-03-24 01:51  gb
 
 	* examples/cocoa-editor.lisp: Use new gap-cache stuff.	Keep track
 	of editing in textstorage; don't move point when editing.
 
-2004-03-24 Wednesday 01:49  gb
+2004-03-24 01:49  gb
 
 	* examples/cocoa-listener.lisp: Get FDs right when starting a
 	listener process.  Note package correctly.
 
-2004-03-24 Wednesday 01:48  gb
+2004-03-24 01:48  gb
 
 	* hemlock/src/command.lisp: Transpose Characters - do it even if at
 	line end (may be bugs in %SET-NEXT-CHARACTER.)
 
-2004-03-24 Wednesday 01:47  gb
+2004-03-24 01:47  gb
 
 	* hemlock/src/htext1.lisp: New shared gap scheme.
 
-2004-03-24 Wednesday 01:46  gb
+2004-03-24 01:46  gb
 
 	* hemlock/src/htext2.lisp: Use circumflex in mark printer. 
 	%SET-NEXT-CHARACTER changes (still bugs here.)
 
-2004-03-24 Wednesday 01:44  gb
+2004-03-24 01:44  gb
 
 	* hemlock/src/: struct.lisp, decls.lisp: New (shared) gap-cache
 	stuff.
 
-2004-03-24 Wednesday 01:43  gb
+2004-03-24 01:43  gb
 
 	* level-1/l1-streams.lisp: SELECTION-INPUT-STREAM fixes.
 
-2004-03-23 Tuesday 23:34  gb
+2004-03-23 23:34  gb
 
 	* level-0/nfasload.lisp: Skip the alignment bytes when reading a
 	(SIMPLE-ARRAY DOUBLE-FLOAT (*)).
 
-2004-03-23 Tuesday 23:33  gb
+2004-03-23 23:33  gb
 
 	* lib/nfcomp.lisp: Skip the alignment bytes when writing a
 	(SIMPLE-ARRAY DOUBLE-FLOAT (*)), but don't act as if they were
 	included in the value returned by SUBTAG-BYTES.
 
-2004-03-22 Monday 10:41  gb
+2004-03-22 10:41  gb
 
 	* examples/cocoa-editor.lisp: Process Hemlock commands in a
 	per-frame thread.
 
-2004-03-22 Monday 10:40  gb
+2004-03-22 10:40  gb
 
 	* examples/cocoa-listener.lisp: New listener
 	process/selection-stream stuff.
 
-2004-03-22 Monday 10:39  gb
+2004-03-22 10:39  gb
 
 	* examples/cocoa-window.lisp: Initialize UI object here.
 
-2004-03-22 Monday 10:38  gb
+2004-03-22 10:38  gb
 
 	* examples/cocoa.lisp: UI object will be *NSApp*.
 
-2004-03-22 Monday 10:38  gb
+2004-03-22 10:38  gb
 
 	* hemlock/src/bindings.lisp: Rearrange a bit.
 
-2004-03-22 Monday 10:38  gb
+2004-03-22 10:38  gb
 
 	* hemlock/src/cocoa-hemlock.lisp: Maintain event queue in per-frame
 	thread.
 
-2004-03-22 Monday 10:37  gb
+2004-03-22 10:37  gb
 
 	* hemlock/src/edit-defs.lisp: Start to make this saner.
 
-2004-03-22 Monday 10:37  gb
+2004-03-22 10:37  gb
 
 	* hemlock/src/htext1.lisp: Cache buffer gap variables in buffer,
 	when passing buffer between threads.
 
-2004-03-22 Monday 10:36  gb
+2004-03-22 10:36  gb
 
 	* hemlock/src/interp.lisp: Run a %COMMAND-LOOP (in a separate
 	thread) after all.
 
-2004-03-22 Monday 10:35  gb
+2004-03-22 10:35  gb
 
 	* hemlock/src/modeline.lisp: Major mode listed before others,
 	always.
 
-2004-03-22 Monday 10:35  gb
+2004-03-22 10:35  gb
 
 	* hemlock/src/listener.lisp: Hook for package change.  Use
 	selection stream.
 
-2004-03-22 Monday 10:34  gb
+2004-03-22 10:34  gb
 
 	* hemlock/src/key-event.lisp: Maintain key-events in doubly-linked
 	lists.
 
-2004-03-22 Monday 10:34  gb
+2004-03-22 10:34  gb
 
 	* hemlock/src/struct.lisp: Extra slots in BUFFER, to cache gap
 	variables.
 
-2004-03-22 Monday 10:33  gb
+2004-03-22 10:33  gb
 
 	* hemlock/src/ring.lisp: Lock rings while operating on them.
 
-2004-03-22 Monday 10:32  gb
+2004-03-22 10:32  gb
 
 	* level-1/l1-boot-lds.lisp: MAKE-MCL-LISTENER-PROCESS changes.
 
-2004-03-22 Monday 10:32  gb
+2004-03-22 10:32  gb
 
 	* level-1/l1-application.lisp: New file; define application class,
 	subclasses.
 
-2004-03-22 Monday 10:31  gb
+2004-03-22 10:31  gb
 
 	* level-1/l1-lisp-threads.lisp: NEW-TCR converts pointer to fixnum,
 	even if sign bit set.
 
-2004-03-22 Monday 10:30  gb
+2004-03-22 10:30  gb
 
 	* level-1/l1-processes.lisp: MAKE-PROCESS takes :CLASS argument.
 
-2004-03-22 Monday 10:30  gb
+2004-03-22 10:30  gb
 
 	* level-1/l1-reader.lisp: All control chars, #\Space are
 	whitespace.
 
-2004-03-22 Monday 10:30  gb
+2004-03-22 10:30  gb
 
 	* level-1/l1-readloop-lds.lisp: toplevel loop changes.
 
-2004-03-22 Monday 10:29  gb
+2004-03-22 10:29  gb
 
 	* level-1/l1-readloop.lisp: Move application stuff to
 	l1-application.
 
-2004-03-22 Monday 10:28  gb
+2004-03-22 10:28  gb
 
 	* level-1/l1-streams.lisp: Selection-stream stuff, apparently still
 	buggy.
 
-2004-03-22 Monday 10:27  gb
+2004-03-22 10:27  gb
 
 	* level-1/level-1.lisp: Load l1-application.
 
-2004-03-22 Monday 10:27  gb
+2004-03-22 10:27  gb
 
 	* level-1/version.lisp: 040322.
 
-2004-03-22 Monday 10:27  gb
+2004-03-22 10:27  gb
 
 	* lib/: compile-ccl.lisp, systems.lisp: Add l1-application.
 
-2004-03-22 Monday 10:26  gb
+2004-03-22 10:26  gb
 
 	* OpenMCL.app/Contents/Info.plist: Change document classes to
 	Hemlock*.
 
-2004-03-22 Monday 04:12  gb
+2004-03-22 04:12  gb
 
 	* hemlock/src/decls.lisp: restored
 
-2004-03-22 Monday 04:12  gb
+2004-03-22 04:12  gb
 
 	* hemlock/src/decls.lisp: accidental removal
 
-2004-03-20 Saturday 16:38  gb
+2004-03-20 16:38  gb
 
 	* level-1/version.lisp: Bump version to 040320.
 
-2004-03-20 Saturday 00:38  gb
+2004-03-20 00:38  gb
 
 	* examples/cocoa-editor.lisp: Handle key events in echo area.
 
-2004-03-20 Saturday 00:37  gb
+2004-03-20 00:37  gb
 
 	* examples/compile-hemlock.lisp: Revive kbdmac.
 
-2004-03-20 Saturday 00:37  gb
+2004-03-20 00:37  gb
 
 	* hemlock/src/rompsite.lisp: Remove more clx/tty stuff.
 
-2004-03-20 Saturday 00:36  gb
+2004-03-20 00:36  gb
 
 	* hemlock/src/kbdmac.lisp: Revive,  but don't create stream yet.
 
-2004-03-20 Saturday 00:35  gb
+2004-03-20 00:35  gb
 
 	* hemlock/src/: cocoa-hemlock.lisp, command.lisp, interp.lisp: More
 	command-interpreter changes.
 
-2004-03-19 Friday 11:39  gb
+2004-03-19 11:39  gb
 
 	* lisp-kernel/thread_manager.c: set foreign thread tcr back to NULL
 	in tsd on exit
 
-2004-03-18 Thursday 17:48  gb
+2004-03-18 17:48  gb
 
 	* hemlock/src/streams.lisp: Bind current-buffer.  No real
 	difference in output-buffering stuff.
 
-2004-03-18 Thursday 17:47  gb
+2004-03-18 17:47  gb
 
 	* hemlock/src/: main.lisp, rompsite.lisp: Remove/comment-out some
 	unused stuff.
 
-2004-03-18 Thursday 17:47  gb
+2004-03-18 17:47  gb
 
 	* hemlock/src/interp.lisp: Use MESSAGE for editor-errors.  Call
 	command-interpreter-info-function (for extended input stuff.)
 
-2004-03-18 Thursday 17:46  gb
+2004-03-18 17:46  gb
 
 	* hemlock/src/echo.lisp: Bind current-buffer when clearing echo
 	area.
 
-2004-03-18 Thursday 17:44  gb
+2004-03-18 17:44  gb
 
 	* hemlock/src/command.lisp: Quoted-insert sets up command-info
 	function.
 
-2004-03-18 Thursday 17:43  gb
+2004-03-18 17:43  gb
 
 	* hemlock/src/cocoa-hemlock.lisp: Command-information struct moves
 	here; add function slot.
 
-2004-03-18 Thursday 17:43  gb
+2004-03-18 17:43  gb
 
 	* examples/cocoa-editor.lisp: Add echo-area stuff, start to use it.
 
-2004-03-17 Wednesday 17:19  gb
+2004-03-17 17:19  gb
 
 	* lisp-kernel/thread_manager.c: Foreign thread exit on first
 	cleanup call.  (Should all threads do so, after all ?)
 
-2004-03-17 Wednesday 17:19  gb
+2004-03-17 17:19  gb
 
 	* level-1/l1-lisp-threads.lisp: Return NIL (not 0/%null-ptr) if no
 	underlying pthread.
 
-2004-03-17 Wednesday 17:18  gb
+2004-03-17 17:18  gb
 
 	* examples/cocoa-listener.lisp: Window-close on listener thread
 	exit: don't wait around (deadlocks during QUIT.)
 
-2004-03-17 Wednesday 08:43  gb
+2004-03-17 08:43  gb
 
 	* lisp-kernel/lisp-exceptions.c: Suspend other threads on entry to
 	debugger (not on entry to Bug.)
 
-2004-03-17 Wednesday 08:29  gb
+2004-03-17 08:29  gb
 
 	* lisp-kernel/lisp-debug.c: Suspend other threads on entry to
 	debugger (not on entry to Bug.)
 
-2004-03-17 Wednesday 08:29  gb
+2004-03-17 08:29  gb
 
 	* library/lispequ.lisp: Backtrace-info changes.
 
-2004-03-17 Wednesday 08:28  gb
+2004-03-17 08:28  gb
 
 	* lib/describe.lisp: tsp/vsp ranges, for bogus-object detection.
 
-2004-03-17 Wednesday 08:26  gb
+2004-03-17 08:26  gb
 
 	* level-1/l1-readloop-lds.lisp: Backtrace/break-loop changes.
 
-2004-03-17 Wednesday 08:26  gb
+2004-03-17 08:26  gb
 
 	* level-1/l1-lisp-threads.lisp: LLGPL.	Fix some dynamic-binding
 	stuff; ad-hoc scheme for bogus-thing check in (some) other threads.
 
-2004-03-17 Wednesday 08:24  gb
+2004-03-17 08:24  gb
 
 	* level-0/PPC/ppc-def.lisp: %CATCH-TOP is always in the same place.
 
-2004-03-17 Wednesday 08:23  gb
+2004-03-17 08:23  gb
 
 	* examples/cocoa-listener.lisp: No more *OPEN-EDITOR-DOCUMENTS*.
 
-2004-03-17 Wednesday 08:22  gb
+2004-03-17 08:22  gb
 
 	* examples/cocoa-backtrace.lisp: Getting closer ...
 
-2004-03-17 Wednesday 08:19  gb
+2004-03-17 08:19  gb
 
 	* examples/cocoa-window.lisp: Create an NSThread early.
 
-2004-03-17 Wednesday 08:18  gb
+2004-03-17 08:18  gb
 
 	* examples/objc-runtime.lisp:
 	%make-nsstring/%make-constant-nsstring.
 
-2004-03-17 Wednesday 08:17  gb
+2004-03-17 08:17  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/backtrace.nib/:
 	classes.nib, info.nib, objects.nib: Smaller, striped ...
 
-2004-03-12 Friday 06:24  gb
+2004-03-12 06:24  gb
 
 	* OpenMCL.app/Contents/Resources/English.lproj/backtrace.nib/:
 	classes.nib, info.nib, objects.nib: add backtrace nib
 
-2004-03-12 Friday 06:23  gb
+2004-03-12 06:23  gb
 
 	* examples/cocoa-backtrace.lisp: use nib
 
-2004-03-08 Monday 12:36  gb
+2004-03-08 12:36  gb
 
 	* lisp-kernel/lisp-exceptions.c: Fix fatal_mach_error() prototype.
 
-2004-03-08 Monday 07:02  gb
+2004-03-08 07:02  gb
 
 	* lisp-kernel/lisp-exceptions.c: Fix MACH_CHECK_ERROR.
 
-2004-03-08 Monday 07:01  gb
+2004-03-08 07:01  gb
 
 	* library/lispequ.lisp: bt.stack-group -> bt.tcr
 
-2004-03-08 Monday 07:00  gb
+2004-03-08 07:00  gb
 
 	* lib/describe.lisp: Add stack-inspector stuff.
 
-2004-03-08 Monday 06:59  gb
+2004-03-08 06:59  gb
 
 	* level-1/l1-clos.lisp: SLOTS-CLASS has to look for primary-p-ness.
 
-2004-03-08 Monday 06:58  gb
+2004-03-08 06:58  gb
 
 	* level-1/l1-clos-boot.lisp: Set GF lfun-bits if continued after
 	congruency error.  SLOTS-CLASS has to look for primary-p-ness.
 
-2004-03-08 Monday 06:56  gb
+2004-03-08 06:56  gb
 
 	* examples/cocoa-window.lisp: Factor in window creation.
 
-2004-03-08 Monday 06:56  gb
+2004-03-08 06:56  gb
 
 	* examples/cocoa-editor.lisp: Factor out window creation.
 
-2004-03-08 Monday 06:55  gb
+2004-03-08 06:55  gb
 
 	* examples/cocoa-backtrace.lisp: New file.  Doesn't work ...
 
-2004-03-07 Sunday 12:53  gb
+2004-03-07 12:53  gb
 
 	* lisp-kernel/pmcl-kernel.c: Parameterize MAXIMUM_MAPPABLE_MEMORY.
 
-2004-03-07 Sunday 12:53  gb
+2004-03-07 12:53  gb
 
 	* lib/level-2.lisp: No EVAL-REDEF for %newgotag.
 
-2004-03-07 Sunday 12:52  gb
+2004-03-07 12:52  gb
 
 	* compiler/nx1.lisp: No DEFNX1 for %newgotag.
 
-2004-03-07 Sunday 01:03  gb
+2004-03-07 01:03  gb
 
 	* lisp-kernel/constants64.h: Note that use of go/block tags is
 	deprecated.
 
-2004-03-07 Sunday 01:03  gb
+2004-03-07 01:03  gb
 
 	* compiler/: nx0.lisp, nx1.lisp: Don't use dynamic block/go tags. 
 	Forget about event-polling, etc.
 
-2004-03-07 Sunday 01:02  gb
+2004-03-07 01:02  gb
 
 	* compiler/PPC/ppc2.lisp: Don't use dynamic block/go tags.
 
-2004-03-07 Sunday 01:01  gb
+2004-03-07 01:01  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: Try to bring inline with
 	constants64.[sh]
 
-2004-03-07 Sunday 00:55  gb
+2004-03-07 00:55  gb
 
 	* examples/cocoa-editor.lisp: Echo areas on windows.  Start the UI
 	here when asked to.  Scroll windows.
 
-2004-03-07 Sunday 00:54  gb
+2004-03-07 00:54  gb
 
 	* examples/cocoa-defaults.lisp: Only synch if we added a new key.
 
-2004-03-07 Sunday 00:53  gb
+2004-03-07 00:53  gb
 
 	* examples/cocoa.lisp: APPLICATION-WILL-FINISH-LAUNCHING: start the
 	UI.
 
-2004-03-07 Sunday 00:53  gb
+2004-03-07 00:53  gb
 
 	* hemlock/src/command.lisp: Window-scrolling changes.
 
-2004-03-07 Sunday 00:53  gb
+2004-03-07 00:53  gb
 
 	* hemlock/src/cursor.lisp: Let Cocoa scroll windows.
 
-2004-03-07 Sunday 00:52  gb
+2004-03-07 00:52  gb
 
 	* level-0/l0-misc.lisp: Per-thread stack-space calculated on a
 	per-process basis.
 
-2004-03-07 Sunday 00:52  gb
+2004-03-07 00:52  gb
 
 	* level-1/l1-readloop-lds.lisp: BREAK-LOOP creates backtrace
 	context, tells the application when it's valid.
 
-2004-03-07 Sunday 00:50  gb
+2004-03-07 00:50  gb
 
 	* level-1/l1-processes.lisp: *BACKTRACE-CONTEXTS* is bound
 	per-thread.
 
-2004-03-07 Sunday 00:50  gb
+2004-03-07 00:50  gb
 
 	* level-1/ppc-threads-utils.lisp: Foreign thread initialization
 	needs to emulate shallow per-thread binding.
 
-2004-03-07 Sunday 00:49  gb
+2004-03-07 00:49  gb
 
 	* level-1/version.lisp: 040307
 
-2004-03-07 Sunday 00:49  gb
+2004-03-07 00:49  gb
 
 	* lisp-kernel/thread_manager.c: Lock the area_lock while threads
 	are suspended.	TCR cleanup frees tlb_pointer.
 
-2004-03-07 Sunday 00:48  gb
+2004-03-07 00:48  gb
 
 	* lisp-kernel/lisp-exceptions.c: darwin_exception_cleanup() frees
 	native_thread_info (foreign exception state).
 
-2004-03-07 Sunday 00:37  gb
+2004-03-07 00:37  gb
 
 	* lisp-kernel/ppc_print.c: Careful with the use of ptr_from_lispobj
 	in add_lisp_base_string.  Careful with the use of immheader_tag_p
 	when printing vectors.
 
-2004-03-06 Saturday 03:10  gb
+2004-03-06 03:10  gb
 
 	* lisp-kernel/: Threads.h, area.h, constants64.h, gc.c, image.c,
 	lisp-debug.c, lisp-exceptions.c, lisp-exceptions.h, lisptypes.h,
@@ -2101,72 +2081,72 @@
 	#x200000 on Darwin; reserve a little under 2GB by default.  Don't
 	abort() if Mach exception-port stuff fails.
 
-2004-03-06 Saturday 03:04  gb
+2004-03-06 03:04  gb
 
 	* xdump/xfasload.lisp: Move image-base to #x200000 on Darwin.
 
-2004-03-06 Saturday 02:47  gb
+2004-03-06 02:47  gb
 
 	* examples/cocoa-defaults.lisp, examples/cocoa-editor.lisp,
 	examples/cocoa-listener.lisp, hemlock/src/font.lisp,
 	hemlock/src/listener.lisp, hemlock/src/rompsite.lisp: Random
 	changes; still barely functional.
 
-2004-03-03 Wednesday 16:27  gb
+2004-03-03 16:27  gb
 
 	* level-1/l1-clos.lisp: Define and use
 	COMPUTE-CLASS-PRECEDENCE-LIST.	Flush initargs caches whenever
 	class is finalized.
 
-2004-03-03 Wednesday 15:20  gb
+2004-03-03 15:20  gb
 
 	* examples/objc-runtime.lisp: Uninstall dealloc-hook on
 	*SAVE-EXIT-FUNCTIONS* (run before SAVE-APPLICATION), not
 	*LISP-CLEANUP-FUNCTIONS* (so slot-vectors stay around during
 	shutdown.)
 
-2004-03-03 Wednesday 15:18  gb
+2004-03-03 15:18  gb
 
 	* examples/objc-clos.lisp: CRLF -> LF.
 
-2004-03-03 Wednesday 15:01  gb
+2004-03-03 15:01  gb
 
 	* examples/cocoa-window.lisp: Require (and use) "COCOA-DEFAULTS".
 
-2004-03-03 Wednesday 15:00  gb
+2004-03-03 15:00  gb
 
 	* examples/cocoa-listener.lisp: Wait until initial thread does
 	CLOSE during listener thread cleanup.
 
-2004-03-03 Wednesday 15:00  gb
+2004-03-03 15:00  gb
 
 	* examples/cocoa-editor.lisp: CLOSE message: close document before
 	invoking SUPER method, not after.  Insertion/deletion fixes.
 
-2004-03-03 Wednesday 14:56  gb
+2004-03-03 14:56  gb
 
 	* examples/cocoa-defaults.lisp: New file: maintain "defaults" via
 	NSUserDefaults.
 
-2004-03-03 Wednesday 14:53  gb
+2004-03-03 14:53  gb
 
 	* compiler/optimizers.lisp: fix %MAKE-DISPLACED-ARRAY call
 
-2004-03-02 Tuesday 19:39  gb
+2004-03-02 19:39  gb
 
 	* lisp-kernel/spentry.s: Fix in destructuring-bind code.
 
-2004-03-01 Monday 17:52  gb
+2004-03-01 17:52  gb
 
 	* hemlock/src/: main.lisp, modeline.lisp: Fix typos, start to
 	introduce package-changed hooks.
 
-2004-03-01 Monday 11:04  gb
+2004-03-01 11:04  gb
 
 	* lisp-kernel/thread_manager.c: Declare the right function in
 	new_tcr().
 
-2004-03-01 Monday 10:08  gb
+2004-03-01 10:08  gb
 
 	* lisp-kernel/: area.h, gc.c, image.c, imports.s, lisp_globals.h,
 	pmcl-kernel.c, thread_manager.c: Use AREA_LOCK when accessing
@@ -2174,40 +2154,40 @@
 	such as it is.	Need to ensure that readers/GC obey locking, as
 	well.
 
-2004-03-01 Monday 10:06  gb
+2004-03-01 10:06  gb
 
 	* level-1/l1-readloop.lisp: APPLICATION-UI-OBJECT stuff.
 
-2004-03-01 Monday 10:06  gb
+2004-03-01 10:06  gb
 
 	* level-1/l1-readloop-lds.lisp: Notify "application-ui" on package
 	change.
 
-2004-03-01 Monday 10:05  gb
+2004-03-01 10:05  gb
 
 	* level-1/l1-lisp-threads.lisp: Don't terminate LISP-THREADs.
 
-2004-03-01 Monday 10:05  gb
+2004-03-01 10:05  gb
 
 	* level-1/l1-clos-boot.lisp: DEFAULT-INITARGS: function follows
 	form ...
 
-2004-03-01 Monday 10:04  gb
+2004-03-01 10:04  gb
 
 	* level-1/l1-boot-lds.lisp: Use application-ui stuff to note
 	initial package.
 
-2004-03-01 Monday 10:03  gb
+2004-03-01 10:03  gb
 
 	* lib/macros.lisp: Invert order of initform/initfunction (FORM
 	follows FUNCTION ? Nah ..) in canonicalized
 	direct-default-initargs.
 
-2004-03-01 Monday 10:02  gb
+2004-03-01 10:02  gb
 
 	* level-0/l0-int.lisp: Fix SIZE-VECT in bignum printer.
 
-2004-03-01 Monday 10:01  gb
+2004-03-01 10:01  gb
 
 	* examples/cocoa-editor.lisp, examples/cocoa-listener.lisp,
 	examples/cocoa-window.lisp, examples/cocoa.lisp,
@@ -2216,140 +2196,140 @@
 	hemlock/src/struct.lisp: More changes.	Every day, more changes. 
 	(Listeners kind of work now.)
 
-2004-02-29 Sunday 07:56  gb
+2004-02-29 07:56  gb
 
 	* hemlock/src/bindings.lisp: Some listener-mode bindings.
 
-2004-02-28 Saturday 18:40  gb
+2004-02-28 18:40  gb
 
 	* hemlock/src/listener.lisp: Derived from lispbuf.lisp; barely
 	differs yet.  Start to bring this code into the 90s.
 
-2004-02-28 Saturday 18:39  gb
+2004-02-28 18:39  gb
 
 	* hemlock/src/bindings.lisp: Some commented-out Listener-mode
 	stuff.
 
-2004-02-28 Saturday 18:38  gb
+2004-02-28 18:38  gb
 
 	* hemlock/src/modeline.lisp: CR-terminated files have
 	:EXTERNAL-FORMAT :MACOS, not :MAC.
 
-2004-02-28 Saturday 18:36  gb
+2004-02-28 18:36  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-listener.lisp: Various
 	changes.  Listeners still aren't functional.
 
-2004-02-28 Saturday 18:36  gb
+2004-02-28 18:36  gb
 
 	* examples/compile-hemlock.lisp: "listener" replaces "lispbuf".
 
-2004-02-28 Saturday 18:35  gb
+2004-02-28 18:35  gb
 
 	* compiler/optimizers.lisp: Bryan O'Connor's fix to
 	COMP-MAKE-DISPLACED-ARRAY (make displacement explicit.)
 
-2004-02-28 Saturday 16:59  gb
+2004-02-28 16:59  gb
 
 	* level-1/l1-typesys.lisp: Fix typo, add more cases in
 	CACHEABLE-CTYPE-P.
 
-2004-02-28 Saturday 02:24  gb
+2004-02-28 02:24  gb
 
 	* examples/hemlock-textstorage.lisp: Merge into cocoa-editor.lisp,
 	remove this file.
 
-2004-02-28 Saturday 02:23  gb
+2004-02-28 02:23  gb
 
 	* hemlock/src/: bindings.lisp, cocoa-hemlock.lisp, filecoms.lisp,
 	htext1.lisp, htext3.lisp, modeline.lisp, streams.lisp, struct.lisp:
 	More changes for Cocoa Hemlock.
 
-2004-02-28 Saturday 02:22  gb
+2004-02-28 02:22  gb
 
 	* level-1/l1-typesys.lisp: Don't cache things involving certain
 	MEMBER-CTYPEs.
 
-2004-02-28 Saturday 02:21  gb
+2004-02-28 02:21  gb
 
 	* level-1/: l1-streams.lisp, l1-sysio.lisp: stream ELEMENT-SHIFT
 	fixes (from Bryan O'Connor.)
 
-2004-02-28 Saturday 02:20  gb
+2004-02-28 02:20  gb
 
 	* level-1/l1-error-system.lisp: INVOKE-RESTART recognizes simple
 	restarts (from Bryan O'Connor.)
 
-2004-02-28 Saturday 02:19  gb
+2004-02-28 02:19  gb
 
 	* level-1/: l1-aprims.lisp, l1-utils.lisp: MAKE-ARRAY (and
 	variants) track explicit array displacement (from Bryan O'Connor).
 
-2004-02-28 Saturday 02:16  gb
+2004-02-28 02:16  gb
 
 	* level-0/l0-array.lisp: ARRAY-DISPLACEMENT checks for explicit
 	displacement (from Bryan O'Connor.)
 
-2004-02-28 Saturday 02:14  gb
+2004-02-28 02:14  gb
 
 	* level-0/l0-complex.lisp: Require NUMBER-MACROS at compile-time.
 
-2004-02-28 Saturday 02:14  gb
+2004-02-28 02:14  gb
 
 	* level-1/version.lisp: 0.14.2-040228.
 
-2004-02-28 Saturday 02:13  gb
+2004-02-28 02:13  gb
 
 	* lib/arrays-fry.lisp: ADJUST-ARRAY fixes (from Bryan O'Connor).
 
-2004-02-28 Saturday 02:12  gb
+2004-02-28 02:12  gb
 
 	* lib/macros.lisp: WITH-SIMPLE-RESTART change (from Bryan
 	O'Connor).
 
-2004-02-28 Saturday 02:11  gb
+2004-02-28 02:11  gb
 
 	* library/lispequ.lisp: Define $arh_exp_disp_bit (from Bryan
 	O'Connor).
 
-2004-02-27 Friday 19:24  gb
+2004-02-27 19:24  gb
 
 	* OpenMCL.app/Contents/Info.plist: Try to persuade system to use
 	openmcl icon for lisp documents.
 
-2004-02-27 Friday 09:32  beer
+2004-02-27 09:32  beer
 
 	* examples/objc-clos.lisp: ObjC generic functions and methods for
 	predefined ObjC messages mostly seem to work; support for
 	conversion between ObjC records and Lisp structs (mostly from Gary)
 
-2004-02-27 Friday 09:27  beer
+2004-02-27 09:27  beer
 
 	* examples/bridge.lisp: *TYPE-SIGNATURE-TABLE* now contains message
 	descriptors; some new automatic type coercions for message
 	arguments
 
-2004-02-27 Friday 09:25  beer
+2004-02-27 09:25  beer
 
 	* examples/objc-runtime.lisp: UPDATE-TYPE-SIGNATURES-FOR-METHOD now
 	takes a class as a second argument
 
-2004-02-27 Friday 09:23  beer
+2004-02-27 09:23  beer
 
 	* examples/name-translation.lisp: Yet a few more new ObjC special
 	words
 
-2004-02-26 Thursday 12:59  gb
+2004-02-26 12:59  gb
 
 	* lisp-kernel/thread_manager.c: (Hopefully) return NULL if
 	semaphore_create() fails.
 
-2004-02-26 Thursday 12:58  gb
+2004-02-26 12:58  gb
 
 	* level-0/l0-aprims.lisp: Check return value from semaphore
 	creation.
 
-2004-02-26 Thursday 12:57  gb
+2004-02-26 12:57  gb
 
 	* examples/cocoa-editor.lisp, examples/cocoa-listener.lisp,
 	examples/cocoa-window.lisp, examples/hemlock-textstorage.lisp,
@@ -2360,39 +2340,39 @@
 	hemlock/src/struct.lisp, level-1/l1-readloop.lisp: QUIT typechecks
 	arg before it's too late to do so.
 
-2004-02-24 Tuesday 13:31  gb
+2004-02-24 13:31  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-listener.lisp,
 	cocoa-window.lisp, hemlock-textstorage.lisp: Start to use Hemlock
 	for documents.
 
-2004-02-24 Tuesday 13:30  gb
+2004-02-24 13:30  gb
 
 	* examples/objc-runtime.lisp: Use some other obscure way of
 	initializing class before looking for methods (Panther).
 
-2004-02-23 Monday 18:41  gb
+2004-02-23 18:41  gb
 
 	* examples/hemlock-textstorage.lisp, hemlock/src/bindings.lisp,
 	hemlock/src/cocoa-hemlock.lisp, hemlock/src/command.lisp,
 	hemlock/src/interp.lisp, hemlock/src/modeline.lisp,
 	hemlock/src/struct.lisp: more changes.
 
-2004-02-23 Monday 18:40  gb
+2004-02-23 18:40  gb
 
 	* examples/objc-runtime.lisp: method lookup: ensure class is
 	initialized, via fairly obscure means.
 
-2004-02-23 Monday 18:40  gb
+2004-02-23 18:40  gb
 
 	* examples/compile-hemlock.lisp: Add COCOA-HEMLOCK.
 
-2004-02-23 Monday 18:39  gb
+2004-02-23 18:39  gb
 
 	* examples/cocoa-editor.lisp: require HEMLOCK-TEXTSTORAGE.  (Blows
 	up during load ...).
 
-2004-02-23 Monday 10:20  gb
+2004-02-23 10:20  gb
 
 	* examples/hemlock-textstorage.lisp, hemlock/src/bindings.lisp,
 	hemlock/src/htext1.lisp, hemlock/src/htext2.lisp,
@@ -2400,24 +2380,24 @@
 	hemlock/src/interp.lisp, hemlock/src/keysym-defs.lisp,
 	hemlock/src/morecoms.lisp: Lots-o-changes.
 
-2004-02-23 Monday 10:18  gb
+2004-02-23 10:18  gb
 
 	* examples/compile-hemlock.lisp: Reorganize; use FASL-CONCATENATE.
 
-2004-02-23 Monday 10:18  gb
+2004-02-23 10:18  gb
 
 	* compiler/PPC/ppc2.lisp: Bugs in PPC2-%SET-BIT.
 
-2004-02-21 Saturday 18:41  gb
+2004-02-21 18:41  gb
 
 	* hemlock/src/keysym-defs.lisp: Learn to spell.  Learn what package
 	we're in.
 
-2004-02-21 Saturday 18:40  gb
+2004-02-21 18:40  gb
 
 	* hemlock/src/keysym-defs.lisp: Learn to spell.
 
-2004-02-21 Saturday 18:27  gb
+2004-02-21 18:27  gb
 
 	* lisp-kernel/: area.h, bits.c, bits.h, constants.h, constants32.h,
 	constants64.h, constants64.s, gc.c, gc.h, lisp-exceptions.h,
@@ -2426,331 +2406,331 @@
 	pantherg5/Makefile: PPC64 changes (some of them rather suspect
 	...).  32-bit kernel may be a little funky ...
 
-2004-02-21 Saturday 18:21  gb
+2004-02-21 18:21  gb
 
 	* examples/hemlock-textstorage.lisp: Lots of changes.  Still needs
 	event-translation work (and lots of other things.)
 
-2004-02-21 Saturday 18:20  gb
+2004-02-21 18:20  gb
 
 	* examples/compile-hemlock.lisp: Fewer files.  More warnings ...
 
-2004-02-21 Saturday 18:19  gb
+2004-02-21 18:19  gb
 
 	* hemlock/src/: htext2.lisp, htext1.lisp: Maybe update the
 	selection if the mark we move is the buffer's point.
 
-2004-02-21 Saturday 18:16  gb
+2004-02-21 18:16  gb
 
 	* hemlock/src/interp.lisp: Process single events.
 
-2004-02-21 Saturday 18:16  gb
+2004-02-21 18:16  gb
 
 	* hemlock/src/keysym-defs.lisp: Cocoa, not an RT.  (Still needs
 	some work.)
 
-2004-02-21 Saturday 18:15  gb
+2004-02-21 18:15  gb
 
 	* hemlock/src/struct.lisp: Buffers maybe have text-storage, but no
 	windows list.
 
-2004-02-21 Saturday 18:15  gb
+2004-02-21 18:15  gb
 
 	* hemlock/src/modeline.lisp: Move some modeline stuff here from
 	window.lisp.
 
-2004-02-21 Saturday 18:14  gb
+2004-02-21 18:14  gb
 
 	* examples/objc-clos.lisp: Handle INITFUNCTION/INITARG case in
 	SHARED-INITIALIZE.
 
-2004-02-18 Wednesday 11:51  beer
+2004-02-18 11:51  beer
 
 	* examples/objc-clos.lisp: More (and different!) support for ObjC
 	generic functions and methods
 
-2004-02-16 Monday 03:41  gb
+2004-02-16 03:41  gb
 
 	* level-0/l0-float.lisp: ACOS of DOUBLE-FLOAT wants to
 	(%MAKE-DFLOAT) the result.  Again.  Still.
 
-2004-02-15 Sunday 09:25  gb
+2004-02-15 09:25  gb
 
 	* lisp-kernel/thread_manager.c: Foreign threads linger, too.
 
-2004-02-15 Sunday 09:23  gb
+2004-02-15 09:23  gb
 
 	* examples/objc-support.lisp: Remove DBG trap in NS-EXCEPTION
 	method.
 
-2004-02-15 Sunday 09:23  gb
+2004-02-15 09:23  gb
 
 	* examples/objc-runtime.lisp: Metaclass of user-defined class
 	derived from class-name symbol, not foreign string.
 
-2004-02-15 Sunday 09:22  gb
+2004-02-15 09:22  gb
 
 	* examples/objc-clos.lisp: ALLOCATE-INSTANCE et al: install the
 	instance's slot-vector if it has one.  Error out (don't just return
 	nil) if instance slot-vector is missing.  Randall's fix to
 	WRITER-METHOD-CLASS.
 
-2004-02-15 Sunday 09:20  gb
+2004-02-15 09:20  gb
 
 	* examples/process-objc-modules.lisp: Fix PROVIDE call.
 
-2004-02-15 Sunday 09:19  gb
+2004-02-15 09:19  gb
 
 	* examples/cocoa-window.lisp: Change PROCESS-INTERRUPT mechanism,
 	since postEvent:atStart: doesn't seem to always do so from
 	subthreads.
 
-2004-02-15 Sunday 09:17  gb
+2004-02-15 09:17  gb
 
 	* lib/number-case-macro.lisp: SINGLE-FLOAT, in *TYPE-TO-TYPECODE*.
 
-2004-02-15 Sunday 09:16  gb
+2004-02-15 09:16  gb
 
 	* lib/macros.lisp: WITH-OUTPUT-TO-STRING: don't quote element-type.
 
-2004-02-15 Sunday 09:14  gb
+2004-02-15 09:14  gb
 
 	* lib/backtrace-lds.lisp: OPCODE is in the ARCH package.
 
-2004-02-15 Sunday 09:10  gb
+2004-02-15 09:10  gb
 
 	* lib/dumplisp.lisp: No more quit-acknowledgement.
 
-2004-02-15 Sunday 09:10  gb
+2004-02-15 09:10  gb
 
 	* level-1/version.lisp: Date suffix for bleeding-edge version.
 
-2004-02-15 Sunday 09:10  gb
+2004-02-15 09:10  gb
 
 	* level-1/l1-readloop.lisp: No more "quit acknowledgement".
 
-2004-02-15 Sunday 09:08  gb
+2004-02-15 09:08  gb
 
 	* level-0/l0-float.lisp: pick up acos/asin fixes
 
-2004-02-13 Friday 11:18  beer
+2004-02-13 11:18  beer
 
 	* examples/objc-clos.lisp: Some initial steps toward integrating
 	ObjC methods into CLOS generic functions
 
-2004-02-13 Friday 11:17  beer
+2004-02-13 11:17  beer
 
 	* examples/name-translation.lisp: Added a few more special ObjC
 	words I've come across Removed old generic function name-mangling
 	code, since we're no going that route
 
-2004-02-12 Thursday 00:22  gb
+2004-02-12 00:22  gb
 
 	* level-0/l0-float.lisp: ACOS: double-float case uses %MAKE-DFLOAT
 	to allocate result.
 
-2004-02-11 Wednesday 20:19  gb
+2004-02-11 20:19  gb
 
 	* lisp-kernel/pantherg5/Makefile: Start to conditionalize for
 	PPC64, almost.
 
-2004-02-11 Wednesday 20:17  gb
+2004-02-11 20:17  gb
 
 	* lisp-kernel/spentry.s: Fix a lot of the cases broken by removal
 	of extract_2_lisptags_.
 
-2004-02-11 Wednesday 20:16  gb
+2004-02-11 20:16  gb
 
 	* lisp-kernel/macros.s: More portability stuff; still a ways to go.
 
-2004-02-11 Wednesday 20:15  gb
+2004-02-11 20:15  gb
 
 	* lisp-kernel/constants64.s: Flesh out a bit.
 
-2004-02-11 Wednesday 20:15  gb
+2004-02-11 20:15  gb
 
 	* lisp-kernel/constants32.s: Don't suppress PPC64 defs of eabi
 	stack frames.
 
-2004-02-11 Wednesday 18:23  gb
+2004-02-11 18:23  gb
 
 	* lisp-kernel/constants.s: Hoist register names, etc into main
 	file.
 
-2004-02-11 Wednesday 12:01  gb
+2004-02-11 12:01  gb
 
 	* lisp-kernel/pantherg5/Makefile: Copy of regular Darwin Makefile,
 	for starters.
 
-2004-02-11 Wednesday 12:00  gb
+2004-02-11 12:00  gb
 
 	* lisp-kernel/darwin/Makefile: Beg the assembler to be
 	AltiVec-aware.	Probably a better way.
 
-2004-02-11 Wednesday 12:00  gb
+2004-02-11 12:00  gb
 
 	* lisp-kernel/spentry.s: Partly convert to 64-bit-maybeness.
 
-2004-02-11 Wednesday 11:59  gb
+2004-02-11 11:59  gb
 
 	* lisp-kernel/macros.s: Parameterize more for ppc32/ppc64.
 
-2004-02-11 Wednesday 11:59  gb
+2004-02-11 11:59  gb
 
 	* lisp-kernel/constants32.s: 32-bit platform constants.
 
-2004-02-11 Wednesday 11:58  gb
+2004-02-11 11:58  gb
 
 	* lisp-kernel/constants.s: Include platform-specific constants
 	file.
 
-2004-02-11 Wednesday 11:58  gb
+2004-02-11 11:58  gb
 
 	* lisp-kernel/asmutils.s: Assume that the assembler is AltiVec
 	aware in vector save/restore.  (Do we need vector save/restore ?)
 
-2004-02-11 Wednesday 01:54  gb
+2004-02-11 01:54  gb
 
 	* lib/: compile-ccl.lisp, systems.lisp: add asdf, defsystem
 
-2004-02-10 Tuesday 12:06  gb
+2004-02-10 12:06  gb
 
 	* compiler/nx-basic.lisp: VARIABLE-INFORMATION returns :SPECIAL if
 	visible binding is proclaimed (but not declared) SPECIAL.
 
-2004-02-10 Tuesday 11:39  gb
+2004-02-10 11:39  gb
 
 	* level-1/version.lisp: 0.14.1
 
-2004-02-10 Tuesday 10:58  gb
+2004-02-10 10:58  gb
 
 	* lisp-kernel/sampler.c: was never used
 
-2004-02-09 Monday 09:26  gb
+2004-02-09 09:26  gb
 
 	* level-1/l1-processes.lisp: ABORT-BREAK restart around process's
 	initial function.
 
-2004-02-09 Monday 09:22  gb
+2004-02-09 09:22  gb
 
 	* level-1/linux-files.lisp: Aargh.
 
-2004-02-09 Monday 09:22  gb
+2004-02-09 09:22  gb
 
 	* level-1/l1-readloop.lisp: WITH-STANDARD-ABORT-HANDLING around the
 	idle loop.
 
-2004-02-09 Monday 01:34  gb
+2004-02-09 01:34  gb
 
 	* lisp-kernel/pmcl-kernel.c: egc back on
 
-2004-02-09 Monday 01:33  gb
+2004-02-09 01:33  gb
 
 	* level-1/l1-files.lisp: fix error message on REQUIRE failure
 
-2004-02-08 Sunday 19:11  gb
+2004-02-08 19:11  gb
 
 	* level-0/PPC/ppc-float.lisp: %%SCALE-DFLOAT reserved 16 bytes on
 	tsp, but used 24.
 
-2004-02-07 Saturday 23:08  gb
+2004-02-07 23:08  gb
 
 	* level-1/l1-pathnames.lisp: Add "ccl:tools;" to
 	*MODULE-SEARCH-PATH*.
 
-2004-02-07 Saturday 23:08  gb
+2004-02-07 23:08  gb
 
 	* level-1/version.lisp: 040208, Alpha->Beta.
 
-2004-02-07 Saturday 22:58  gb
+2004-02-07 22:58  gb
 
 	* tools/README-OpenMCL.txt: New file.
 
-2004-02-07 Saturday 22:01  gb
+2004-02-07 22:01  gb
 
 	* tools/defsystem.lisp: imported from SourceForge clocc project
 	HEAD as of 040207
 
-2004-02-07 Saturday 22:01  gb
+2004-02-07 22:01  gb
 
 	* tools/asdf.lisp: imported from SourceForge cclan project HEAD as
 	of 040207
 
-2004-02-07 Saturday 21:57  gb
+2004-02-07 21:57  gb
 
 	* tools/asdf-install/: doc/index.html, Makefile, README,
 	defpackage.lisp, digitool.lisp, installer.lisp, loader.lisp,
 	port.lisp, .cvsignore, asdf-install.asd: imported from SourceForge
 	cclan project HEAD as of 040207
 
-2004-02-07 Saturday 18:06  gb
+2004-02-07 18:06  gb
 
 	* level-1/l1-pathnames.lisp: Don't include "ccl:" or "home:" on
 	*module-search-path*.  Do include "ccl:openmcl;modules;".
 
-2004-02-07 Saturday 18:01  gb
+2004-02-07 18:01  gb
 
 	* level-1/l1-init.lisp: *MODULE-FILE-ALIST* is gone.  Honest.
 
-2004-02-07 Saturday 18:00  gb
+2004-02-07 18:00  gb
 
 	* level-1/l1-files.lisp: Add a doc string for
 	*MODULE-PROVIDER-FUNCTIONS*; reference it in the error message if
 	REQUIRE fails.
 
-2004-02-07 Saturday 17:11  gb
+2004-02-07 17:11  gb
 
 	* level-1/l1-files.lisp: Incorporate Bryan O'Connor's changes to
 	REQUIRE (with some changes.)
 
-2004-02-07 Saturday 17:10  gb
+2004-02-07 17:10  gb
 
 	* lib/ccl-export-syms.lisp: Remove *MODULE-FILE-ALIST*.  Add
 	*MODULE-PROVIDER-FUNCTIONS*.
 
-2004-02-07 Saturday 17:09  gb
+2004-02-07 17:09  gb
 
 	* lib/dumplisp.lisp: Don't reference *MODULE-FILE-ALIST* anymore.
 
-2004-02-07 Saturday 15:20  gb
+2004-02-07 15:20  gb
 
 	* lib/macros.lisp: Define CCL::CONDITIONAL-STORE, for use by CLX
 	(and maybe other things, if it learns how to decode more "places".)
 
-2004-02-07 Saturday 15:19  gb
+2004-02-07 15:19  gb
 
 	* level-0/l0-misc.lisp: Add STORE-GVECTOR-CONDITIONAL, to hide some
 	represenatation details.
 
-2004-02-07 Saturday 14:59  gb
+2004-02-07 14:59  gb
 
 	* lib/level-2.lisp: %GET-DOUBLE-FLOAT and %GET-SINGLE-FLOAT: offset
 	defaults to 0.
 
-2004-02-07 Saturday 14:58  gb
+2004-02-07 14:58  gb
 
 	* level-1/version.lisp: bump.
 
-2004-02-07 Saturday 14:58  gb
+2004-02-07 14:58  gb
 
 	* level-1/l1-utils.lisp: %GET-DOUBLE-FLOAT/%SET-DOUBLE-FLOAT were
 	shadowed by later versions.
 
-2004-02-07 Saturday 14:57  gb
+2004-02-07 14:57  gb
 
 	* level-1/l1-readloop.lisp: Initial listener doesn't claim to be
 	*INTERACTIVE-ABORT-PROCESS*.
 
-2004-02-07 Saturday 14:56  gb
+2004-02-07 14:56  gb
 
 	* level-1/l1-files.lisp: Don't call CHOOSE-FILE-DIALOG when looking
 	for a module.
 
-2004-02-07 Saturday 14:55  gb
+2004-02-07 14:55  gb
 
 	* level-1/l1-events.lisp: New scheme to select process for SIGINT.
 
-2004-02-07 Saturday 14:54  gb
+2004-02-07 14:54  gb
 
 	* examples/objc-runtime.lisp: Revive objc-classes/methods when
 	restarting an image.  Check appkit/foundation versions, print a
@@ -2758,106 +2738,106 @@
 	sections after loading appkit/foundation, and again on image
 	startup.
 
-2004-02-07 Saturday 14:50  gb
+2004-02-07 14:50  gb
 
 	* examples/cocoa-window.lisp: Change comments.
 
-2004-02-06 Friday 12:43  gb
+2004-02-06 12:43  gb
 
 	* examples/objc-runtime.lisp: REVIVIE-OBJC-CLASSES (mostly working,
 	but needs to happen at the right time and needs to handle version
 	mismatches.)
 
-2004-02-06 Friday 12:42  gb
+2004-02-06 12:42  gb
 
 	* examples/objc-support.lisp: Don't call REMAP-OBJC-CLASSES on
 	saved-application startup.
 
-2004-02-06 Friday 12:41  gb
+2004-02-06 12:41  gb
 
 	* examples/process-objc-modules.lisp: No more
 	REMAP-ALL-LIBRARY-CLASSES.
 
-2004-02-06 Friday 12:40  gb
+2004-02-06 12:40  gb
 
 	* level-1/l1-boot-2.lisp: Replace *TERMINAL-INPUT-LOCK* with the
 	new shared-resource scheme.
 
-2004-02-06 Friday 12:39  gb
+2004-02-06 12:39  gb
 
 	* level-1/l1-boot-lds.lisp: MAKE-MCL-LISTENER-PROCESS: spawned
 	process becomes "primary owner" of input stream, if it has an
 	attached SHARED-RESOURCE.
 
-2004-02-06 Friday 12:38  gb
+2004-02-06 12:38  gb
 
 	* level-1/l1-processes.lisp: Probably better to have PROCESS-WAIT
 	sleep explicitly, so that it doesn't spend all of its time
 	yielding.
 
-2004-02-06 Friday 12:36  gb
+2004-02-06 12:36  gb
 
 	* level-1/l1-readloop-lds.lisp: Tweaks to the :Y command, to handle
 	new shared-resource scheme.  Marco Baringer's :SET breakloop
 	command, from almost a year ago.
 
-2004-02-06 Friday 12:35  gb
+2004-02-06 12:35  gb
 
 	* level-1/l1-readloop.lisp: TOPLEVEL-FUNCTION manages the "shared
 	resource" attached to the shared terminal-input stream.
 
-2004-02-06 Friday 12:33  gb
+2004-02-06 12:33  gb
 
 	* level-1/l1-streams.lisp: INPUT-STREAMs may have a SHARED-RESOURCE
 	attached to them; use it to manage terminal-input requests.
 
-2004-02-06 Friday 12:32  gb
+2004-02-06 12:32  gb
 
 	* level-1/l1-typesys.lisp: Slot type predicates use CTYPEP, to
 	(kind of) deal with (FUNCTION ...) types.
 
-2004-02-06 Friday 12:30  gb
+2004-02-06 12:30  gb
 
 	* level-1/level-1.lisp: Load DLL-NODE a little earlier.
 
-2004-02-06 Friday 12:30  gb
+2004-02-06 12:30  gb
 
 	* level-1/linux-files.lisp: SHARED-RESOURCEs, mostly for
 	arbitrating access to CCL::*TERMINAL-INPUT*.  (May not work well,
 	but neither did the old scheme.)
 
-2004-02-06 Friday 12:28  gb
+2004-02-06 12:28  gb
 
 	* level-1/version.lisp: 040206.
 
-2004-02-06 Friday 12:27  gb
+2004-02-06 12:27  gb
 
 	* lib/dumplisp.lisp: Do handshaking with initial thread before
 	shutting down for SAVE-APPLICATION.
 
-2004-02-06 Friday 12:27  gb
+2004-02-06 12:27  gb
 
 	* lib/macros.lisp: WITH-TERMINAL-INPUT changed slightly.
 
-2004-02-06 Friday 12:26  gb
+2004-02-06 12:26  gb
 
 	* lisp-kernel/thread_manager.c: Keep the tcr around as long as
 	possible (count down from PTHREAD_DESTRUCTOR_ITERATIONS).  Handle
 	the case when a pthread can no longer reveive signals but the
 	underlying Mach thread still exists, in suspend_tcr/resume_tcr.
 
-2004-02-06 Friday 12:24  gb
+2004-02-06 12:24  gb
 
 	* lisp-kernel/lisp-exceptions.c: Provide mach_suspend_tcr(),
 	mach_resume_tcr() so that threads can be suspended between
 	pthread_exit() and their actual termination.
 
-2004-02-06 Friday 11:57  gb
+2004-02-06 11:57  gb
 
 	* lisp-kernel/: constants.h, constants.s: Add shutdown_count field
 	to tcr.
 
-2004-02-02 Monday 09:22  gb
+2004-02-02 09:22  gb
 
 	* examples/objc-runtime.lisp: New
 	OBJC-[CLASS,METACLASS,INSTANCE]-p, OBJC-OBJECT-P uses them.
@@ -2868,27 +2848,27 @@
 	something else: need to check that (free) is the right way to free
 	the object.
 
-2004-02-02 Monday 09:15  gb
+2004-02-02 09:15  gb
 
 	* level-1/l1-error-system.lisp: Bryan O'Connor's change to
 	INVOKE-RESTART: throw NIL if simple-restart/null fn.
 
-2004-02-02 Monday 09:14  gb
+2004-02-02 09:14  gb
 
 	* level-1/l1-io.lisp: FUNCTION-IS-CURRENT-DEFINITION? knows about
 	these new-fangled SETF function names.
 
-2004-02-02 Monday 09:12  gb
+2004-02-02 09:12  gb
 
 	* level-1/l1-lisp-threads.lisp: Disable interrupts when accessing
 	the termination queue; may need to inhibit GC as well.
 
-2004-02-02 Monday 09:11  gb
+2004-02-02 09:11  gb
 
 	* level-1/l1-processes.lisp: REQUIRE-GLOBAL-SYMBOL checks the
 	environment, too.
 
-2004-02-02 Monday 09:11  gb
+2004-02-02 09:11  gb
 
 	* level-1/l1-readloop.lisp: Handshaking during
 	QUIT/PREPARE-TO-QUIT; this is intended to work around a bug where
@@ -2896,138 +2876,138 @@
 	if the signaling thread (a) exits and (b) runs certain Cocoa
 	tsd-cleanup routines.  (I.e., it's a mystery.)
 
-2004-02-02 Monday 09:08  gb
+2004-02-02 09:08  gb
 
 	* level-1/l1-streams.lisp: Bryan O'Connor's change to FILE-LENGTH. 
 	Default methods on some things that are supposed to TYPE-ERROR, not
 	get a NO-APPLICABLE-METHOD.
 
-2004-02-02 Monday 09:07  gb
+2004-02-02 09:07  gb
 
 	* level-1/version.lisp: 040202.
 
-2004-02-02 Monday 09:06  gb
+2004-02-02 09:06  gb
 
 	* lib/ccl-export-syms.lisp: export %STR-FROM-PTR.  Don't export
 	%STR-FROM-PTR-IN-SCRIPT, which doesn't exist.
 
-2004-02-02 Monday 09:06  gb
+2004-02-02 09:06  gb
 
 	* lib/macros.lisp: Bryan O'Connor's fix to WITH-SIMPLE-RESTART. 
 	LET-GLOBALLY moved here.
 
-2004-02-02 Monday 09:01  gb
+2004-02-02 09:01  gb
 
 	* lisp-kernel/lisp-exceptions.c: Remove old vector-copying stuff.
 
-2004-02-01 Sunday 12:41  beer
+2004-02-01 12:41  beer
 
 	* examples/objc-clos.lisp: PRINT-OBJECT shouldn't die when given an
 	OBJC-OBJECT whose ObjC part has "gone away"
 
-2004-02-01 Sunday 12:38  beer
+2004-02-01 12:38  beer
 
 	* examples/tiny.lisp: Use DEFCLASS and MAKE-INSTANCE
 
-2004-02-01 Sunday 12:37  beer
+2004-02-01 12:37  beer
 
 	* examples/bridge.lisp: Move toward the use of FIND-CLASS and
 	CLASS-OF
 
-2004-02-01 Sunday 11:09  gb
+2004-02-01 11:09  gb
 
 	* lisp-kernel/: constants.h, thread_manager.c: Experimental change,
 	to defer tcr cleanup.
 
-2004-02-01 Sunday 09:50  beer
+2004-02-01 09:50  beer
 
 	* examples/objc-clos.lisp: REMOVE-SLOT-INITARGS was dropping the
 	last KEY/VALUE pair
 
-2004-02-01 Sunday 08:42  gb
+2004-02-01 08:42  gb
 
 	* examples/bridge.lisp: Ivar parsing follows different ruls for
 	STRUCT than for *STRUCT; #\B is for :<BOOL>.  Now seems able to
 	parse all Foundation/AppKit classes in 10.3.2.
 
-2004-02-01 Sunday 06:18  gb
+2004-02-01 06:18  gb
 
 	* examples/objc-support.lisp: NS-LISP-EXCEPTION has a lisp slot. 
 	Now, to figure out a way to get rid of that ...
 
-2004-02-01 Sunday 06:17  gb
+2004-02-01 06:17  gb
 
 	* examples/: objc-clos.lisp, objc-runtime.lisp: More than one class
 	can share the same metaclass.
 
-2004-01-31 Saturday 20:05  gb
+2004-01-31 20:05  gb
 
 	* lib/number-case-macro.lisp: Remove stale comment.
 
-2004-01-31 Saturday 20:04  gb
+2004-01-31 20:04  gb
 
 	* lib/foreign-types.lisp: Fix missing close-paren.
 
-2004-01-31 Saturday 19:55  gb
+2004-01-31 19:55  gb
 
 	* lib/foreign-types.lisp: Unparse :VOID, use keywords more
 	consistently when unparsing.
 
-2004-01-31 Saturday 19:54  gb
+2004-01-31 19:54  gb
 
 	* library/lispequ.lisp: Fix DEF-ACCESSORS for VALUES-CTYPE.
 
-2004-01-31 Saturday 19:53  gb
+2004-01-31 19:53  gb
 
 	* lib/macros.lisp: PARSE-DEFGENERIC fix from Bryan O'Connor.
 
-2004-01-30 Friday 21:34  gb
+2004-01-30 21:34  gb
 
 	* examples/bridge.lisp: PARSE-FOREIGN-STRUCT-OR-UNION-SPEC allows
 	for anonymous fields.
 
-2004-01-30 Friday 16:58  gb
+2004-01-30 16:58  gb
 
 	* lisp-kernel/pmcl-kernel.c: Don't enable EGC by default (so I can
 	work on tuning it some ...)
 
-2004-01-30 Friday 16:57  gb
+2004-01-30 16:57  gb
 
 	* level-1/l1-sysio.lisp: Handle BROADCAST-STREAMs, error out on
 	other non-FILE-STREAMs.
 
-2004-01-30 Friday 16:56  gb
+2004-01-30 16:56  gb
 
 	* level-1/l1-streams.lisp: Lots of nit-picking; BROADCAST-STREAM
 	methods (at least partly) fixed to return value from last stream in
 	list.
 
-2004-01-30 Friday 16:54  gb
+2004-01-30 16:54  gb
 
 	* level-1/l1-sockets.lisp: Fix CLOSE call to LOCAL-SOCKET-FILENAME.
 
-2004-01-30 Friday 16:53  gb
+2004-01-30 16:53  gb
 
 	* level-1/l1-reader.lisp: WHITESPACEP looks in readtable.
 
-2004-01-30 Friday 16:52  gb
+2004-01-30 16:52  gb
 
 	* level-1/l1-io.lisp: FRESH-LINE uses STREAM-FRESH-LINE.
 
-2004-01-30 Friday 16:51  gb
+2004-01-30 16:51  gb
 
 	* level-1/l1-files.lisp: IF-EXISTS: dialog nonsense.  PROBE-FILE
 	checks WILD-PATHNAME-P, which moved here.
 
-2004-01-30 Friday 16:49  gb
+2004-01-30 16:49  gb
 
 	* lib/pathnames.lisp: WILD-PATHNAME-P now earlier.
 
-2004-01-30 Friday 16:48  gb
+2004-01-30 16:48  gb
 
 	* xdump/faslenv.lisp, lib/nfcomp.lisp: Bump fasl version.
 
-2004-01-30 Friday 13:09  gb
+2004-01-30 13:09  gb
 
 	* examples/objc-clos.lisp: Lots of changes: foreign slot
 	definitions have a :FOREIGN-TYPE; initarg is used to recognize
@@ -3043,375 +3023,375 @@
 	slots-vector); still needs work.  Note that saving images with
 	foreign classes in them still doesn't work.
 
-2004-01-30 Friday 12:57  gb
+2004-01-30 12:57  gb
 
 	* examples/objc-runtime.lisp: Lots of changes: get rid of old
 	DEF-OBJC-CLASS support, initialize predefined classes using CLOS
 	(mostly).
 
-2004-01-30 Friday 12:55  gb
+2004-01-30 12:55  gb
 
 	* examples/objc-support.lisp: Install predefined classes here.	Use
 	DEFCLASS to create NS-LISP-EXCEPTION.
 
-2004-01-30 Friday 12:51  gb
+2004-01-30 12:51  gb
 
 	* examples/process-objc-modules.lisp: MAP-OBJC-CLASS ->
 	INSTALL-FOREIGN-OBJC-CLASS.
 
-2004-01-30 Friday 12:49  gb
+2004-01-30 12:49  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-inspector.lisp,
 	cocoa-listener.lisp, cocoa-window.lisp, cocoa.lisp,
 	hemlock-textstorage.lisp: Used DEFCLASS to creat classes,
 	SLOT-VALUE or an accessor to access slots.
 
-2004-01-30 Friday 12:48  gb
+2004-01-30 12:48  gb
 
 	* examples/bridge.lisp: Parse instance-var type strings differently
 	from arg type strings.
 
-2004-01-30 Friday 12:46  gb
+2004-01-30 12:46  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Use CMPD vice CMPW.  (1
 	down, a few hundred to go.)
 
-2004-01-30 Friday 12:45  gb
+2004-01-30 12:45  gb
 
 	* level-1/version.lisp: 040130
 
-2004-01-30 Friday 12:44  gb
+2004-01-30 12:44  gb
 
 	* level-1/l1-utils.lisp: %CSTRLEN.
 
-2004-01-30 Friday 12:44  gb
+2004-01-30 12:44  gb
 
 	* level-1/l1-sysio.lisp: CLOSE just does CALL-NEXT-METHOD, which
 	might work now.
 
-2004-01-30 Friday 12:43  gb
+2004-01-30 12:43  gb
 
 	* level-1/l1-streams.lisp: CLOSE: set the closed slot to ...
 	something non-NULL.  STREAM-IO-ERROR: so things like sockets can
 	specialize it.	Need to test ELEMENT-SHIFT stuff; not sure if I
 	merged Bryan's patch correctly.
 
-2004-01-30 Friday 12:36  gb
+2004-01-30 12:36  gb
 
 	* level-1/l1-sockets.lisp: SOCKET-ERROR is (simple) STREAM-ERROR. 
 	Change how it's signaled, and define STREAM-IO-ERROR for SOCKET.
 
-2004-01-30 Friday 12:34  gb
+2004-01-30 12:34  gb
 
 	* level-1/l1-lisp-threads.lisp: Lock on *TERMINATION-POPULATION*
 	access.
 
-2004-01-30 Friday 12:34  gb
+2004-01-30 12:34  gb
 
 	* level-1/l1-clos.lisp: ADD-READER/WRITER-METHOD: less specialized.
 	 Turn a few early accessors into GFs; writer methods on some slots.
 
-2004-01-30 Friday 12:32  gb
+2004-01-30 12:32  gb
 
 	* level-1/l1-clos-boot.lisp: CLASS-SLOT-INITARGS,
 	CREATE-READER/WRITER-METHOD-FUNCTION: less specialized.
 
-2004-01-30 Friday 12:30  gb
+2004-01-30 12:30  gb
 
 	* lib/macros.lisp: WITH-STRING-FROM-CSTRING: stack allocate a
 	lisp-string, getting bytes from c-string.
 
-2004-01-30 Friday 12:28  gb
+2004-01-30 12:28  gb
 
 	* lib/foreign-types.lisp: BIT/BITFIELD foreign integer types.
 
-2004-01-29 Thursday 10:45  gb
+2004-01-29 10:45  gb
 
 	* level-0/l0-array.lisp: CTYPE-SUBTYPE: no specialized (COMPLEX )
 	arrays, so check NUMERIC-CTYPE-COMPLEXP first.
 
-2004-01-28 Wednesday 17:06  gb
+2004-01-28 17:06  gb
 
 	* lisp-kernel/lisp-exceptions.c: kinder, gentler do_tsp_overflow
 
-2004-01-26 Monday 18:18  gb
+2004-01-26 18:18  gb
 
 	* lib/sequences.lisp: SUBSEQ: Array-headers aren't sequences;
 	vector headers are.
 
-2004-01-26 Monday 09:51  gb
+2004-01-26 09:51  gb
 
 	* lib/level-2.lisp: (SETF %GET-BITFIELD) becomes %SET-BITFIELD,
 	which is what the setf inverse thought it was anyway.
 
-2004-01-26 Monday 09:50  gb
+2004-01-26 09:50  gb
 
 	* lib/db-io.lisp: %DECODE-FOREIGN-NAME handles 0-length names
 	correctly.
 
-2004-01-26 Monday 05:09  gb
+2004-01-26 05:09  gb
 
 	* level-1/l1-clos.lisp: Kinder, gentler %SHARED-INITIALIZE uses
 	INSTANCE-CLASS-WRAPPER.
 
-2004-01-26 Monday 05:08  gb
+2004-01-26 05:08  gb
 
 	* level-1/l1-clos-boot.lisp: INSTANCE-CLASS-WRAPPER (how many
 	versions of this are there ?) looks at pointer-based classes.
 
-2004-01-26 Monday 05:06  gb
+2004-01-26 05:06  gb
 
 	* level-1/l1-error-system.lisp: Bryan O'Connor's fix to
 	%ACTIVE-RESTART.
 
-2004-01-26 Monday 05:05  gb
+2004-01-26 05:05  gb
 
 	* level-1/version.lisp: So much for the 040124 idea ...
 
-2004-01-26 Monday 05:04  gb
+2004-01-26 05:04  gb
 
 	* lib/foreign-types.lisp: Initialize ordinal->type vector elements
 	to NIL.
 
-2004-01-25 Sunday 15:16  gb
+2004-01-25 15:16  gb
 
 	* lisp-kernel/spentry.s: Linux "as" doesn't like semicolon
 	comments, so use /* */.
 
-2004-01-25 Sunday 15:16  gb
+2004-01-25 15:16  gb
 
 	* lib/time.lisp: GET-INTERNAL-xxx-TIME moved here.
 
-2004-01-25 Sunday 15:16  gb
+2004-01-25 15:16  gb
 
 	* lib/number-macros.lisp: WITH-STACK-SHORT-FLOATS is
 	PPC32-specific.
 
-2004-01-25 Sunday 15:15  gb
+2004-01-25 15:15  gb
 
 	* lib/macros.lisp: Start to make RLET assert foreign-type ordinals,
 	then give up on the idea.  (FOREIGN-TYPES would need to work
 	earlier in the cold load than they do.)
 
-2004-01-25 Sunday 15:14  gb
+2004-01-25 15:14  gb
 
 	* lib/foreign-types.lisp: Try to introduce "foreign type ordinals",
 	which can be embedded in MACPTRs (this is hard to bootstrap for
 	many reasons.) (PREF foo :thing.embedded-record) expands into some
 	SETFable noise around %INC-PTR.
 
-2004-01-25 Sunday 15:12  gb
+2004-01-25 15:12  gb
 
 	* level-1/version.lisp: Bump.
 
-2004-01-25 Sunday 15:11  gb
+2004-01-25 15:11  gb
 
 	* level-1/sysutils.lisp: MAKE-ARRAY earlier.
 
-2004-01-25 Sunday 15:11  gb
+2004-01-25 15:11  gb
 
 	* level-1/linux-files.lisp: Move some time stuff to time.lisp.
 
-2004-01-25 Sunday 15:11  gb
+2004-01-25 15:11  gb
 
 	* level-1/l1-utils.lisp: %COMPOSITE-POINTER-REF, so embedded
 	foreign structs can be SETF-able.
 
-2004-01-25 Sunday 15:10  gb
+2004-01-25 15:10  gb
 
 	* level-1/l1-typesys.lisp: Don't REQUIRE at loadtime, so we can
 	maybe move earlier in the cold load.
 
-2004-01-25 Sunday 15:10  gb
+2004-01-25 15:10  gb
 
 	* level-1/l1-io.lisp: MACPTRs may say what they're pointing to,
 	though this idea is hard to bootstrap.
 
-2004-01-25 Sunday 15:09  gb
+2004-01-25 15:09  gb
 
 	* level-1/l1-files.lisp: Move LOGICAL-PATHNAME-P earlier.
 
-2004-01-25 Sunday 15:08  gb
+2004-01-25 15:08  gb
 
 	* level-1/: l1-aprims.lisp, l1-clos-boot.lisp: Say "target:" a few
 	times.
 
-2004-01-25 Sunday 15:07  gb
+2004-01-25 15:07  gb
 
 	* level-0/PPC/ppc-symbol.lisp: Fix %SVAR-BINDING-ADDRESS for the
 	nth time.
 
-2004-01-25 Sunday 15:07  gb
+2004-01-25 15:07  gb
 
 	* level-0/PPC/ppc-float.lisp: Some conditionalization, mostly
 	dealing with immediate/non-immediate SHORT-FLOATs.
 
-2004-01-25 Sunday 15:04  gb
+2004-01-25 15:04  gb
 
 	* level-0/l0-float.lisp, level-0/l0-numbers.lisp,
 	level-1/l1-numbers.lisp, lib/numbers.lisp: Conditionalize use of
 	WITH-STACK-SHORT-FLOATS, sortof.
 
-2004-01-25 Sunday 15:01  gb
+2004-01-25 15:01  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: No low (half-) word of
 	lisp-fpscr.
 
-2004-01-25 Sunday 15:00  gb
+2004-01-25 15:00  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp: WITH-STACK-SHORT-FLOATS moved
 	here.
 
-2004-01-25 Sunday 15:00  gb
+2004-01-25 15:00  gb
 
 	* compiler/PPC/ppc-lapmacros.lisp: Halfhearted attempt at
 	#+ppc32/#+ppc64 conditionalization.  Will need to split this in
 	half.
 
-2004-01-25 Sunday 14:59  gb
+2004-01-25 14:59  gb
 
 	* compiler/optimizers.lisp: %composite-pointer-ref.
 
-2004-01-24 Saturday 16:45  gb
+2004-01-24 16:45  gb
 
 	* lib/systems.lisp: -some- PPC64 backend stuff.
 
-2004-01-24 Saturday 16:43  gb
+2004-01-24 16:43  gb
 
 	* lib/sequences.lisp: Vector case of SUBSEQ had better be faster
 	...
 
-2004-01-24 Saturday 16:43  gb
+2004-01-24 16:43  gb
 
 	* lib/foreign-types.lisp: Start to associate "ordinal" numbers with
 	types (for typed pointers.)
 
-2004-01-24 Saturday 16:40  gb
+2004-01-24 16:40  gb
 
 	* level-1/: l1-sockets.lisp, l1-streams.lisp, l1-sysio.lisp: Return
 	was-open-p from CLOSE method.
 
-2004-01-24 Saturday 16:38  gb
+2004-01-24 16:38  gb
 
 	* level-1/l1-clos.lisp: UPDATE-SLOTS: assume that slotds are
 	ordered, don't order them by location.
 
-2004-01-24 Saturday 16:37  gb
+2004-01-24 16:37  gb
 
 	* level-0/PPC/ppc-misc.lisp: %COPY-GVECTOR-TO-GVECTOR.
 
-2004-01-24 Saturday 16:36  gb
+2004-01-24 16:36  gb
 
 	* level-0/l0-array.lisp: Array element type of strings is
 	CHARACTER, not that it matters whether it's that or BASE-CHAR.
 
-2004-01-24 Saturday 16:34  gb
+2004-01-24 16:34  gb
 
 	* examples/objc-runtime.lisp: Work harder to determine if an
 	instance really is an instance.
 
-2004-01-24 Saturday 16:34  gb
+2004-01-24 16:34  gb
 
 	* examples/objc-clos.lisp: Lots of changes from Randall Beer.
 
-2004-01-24 Saturday 16:33  gb
+2004-01-24 16:33  gb
 
 	* examples/hemlock-textstorage.lisp: Preliminary NSBox stuff.  Not
 	much of it, even.
 
-2004-01-24 Saturday 16:32  gb
+2004-01-24 16:32  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Some of these actually work
 	...
 
-2004-01-24 Saturday 16:31  gb
+2004-01-24 16:31  gb
 
 	* compiler/PPC/PPC64/ppc64-backend.lisp: target-lisp-node-size is
 	8.  Don't require vinsns (break circle).
 
-2004-01-24 Saturday 16:30  gb
+2004-01-24 16:30  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: Some fixes; call it
 	fulltag-misc after all.
 
-2004-01-24 Saturday 16:30  gb
+2004-01-24 16:30  gb
 
 	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Rename some things to
 	(start to) match ppc64.
 
-2004-01-24 Saturday 16:28  gb
+2004-01-24 16:28  gb
 
 	* compiler/PPC/PPC32/ppc32-backend.lisp: target-lisp-node-size in
 	backend.  Make default if :ppc32-target, not :ppc-target.
 
-2004-01-24 Saturday 16:27  gb
+2004-01-24 16:27  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp: Define
 	target-most-[positive,negative]-fixnum
 
-2004-01-24 Saturday 16:27  gb
+2004-01-24 16:27  gb
 
 	* compiler/PPC/ppc2.lisp: Don't use LOAD-TIME-VALUE to reference
 	vinsn-template cell; look up the template at runtime.  Change some
 	vinsn usage.
 
-2004-01-24 Saturday 16:25  gb
+2004-01-24 16:25  gb
 
 	* compiler/PPC/ppc-asm.lisp: Fix 64-bit rotates, define clrrdi
 	instead of defining clrrdi. twice.
 
-2004-01-24 Saturday 16:23  gb
+2004-01-24 16:23  gb
 
 	* compiler/vreg.lisp: Yawn.  Update spec class alist for new
 	storage-class names.
 
-2004-01-24 Saturday 16:22  gb
+2004-01-24 16:22  gb
 
 	* compiler/vinsn.lisp: Match against :u64/:s64 storage class names.
 
-2004-01-24 Saturday 16:22  gb
+2004-01-24 16:22  gb
 
 	* compiler/reg.lisp: New constants for	64-bit storage classes.
 
-2004-01-24 Saturday 16:21  gb
+2004-01-24 16:21  gb
 
 	* compiler/backend.lisp: New GPR mode-names for 64-bit storage
 	classes.
 
-2004-01-24 Saturday 16:20  gb
+2004-01-24 16:20  gb
 
 	* compiler/arch.lisp: 64-bit storage classes.
 
-2004-01-22 Thursday 03:53  gb
+2004-01-22 03:53  gb
 
 	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Um, COPY-FPR sets (and
 	uses) an FPR ...
 
-2004-01-22 Thursday 03:52  gb
+2004-01-22 03:52  gb
 
 	* compiler/vinsn.lisp: MAKE-VINSN zeros the GPRS-SET & FPRS-SET
 	fields when pulling a vinsn off of the freelist.
 
-2004-01-22 Thursday 03:51  gb
+2004-01-22 03:51  gb
 
 	* lisp-kernel/spentry.s: Try to un-botch SPbuiltin_length, for
 	about the third time in a week.
 
-2004-01-21 Wednesday 23:11  gb
+2004-01-21 23:11  gb
 
 	* level-1/l1-readloop.lisp: New --version command-line argument;
 	new APPLICATION-VERSION-STRING method.
 
-2004-01-21 Wednesday 23:10  gb
+2004-01-21 23:10  gb
 
 	* level-1/version.lisp: Bump, again.
 
-2004-01-21 Wednesday 23:10  gb
+2004-01-21 23:10  gb
 
 	* lib/compile-ccl.lisp: Correct TARGET-LEVEL-1-MODULES, to reflect
 	new target names.
 
-2004-01-21 Wednesday 01:32  gb
+2004-01-21 01:32  gb
 
 	* level-1/l1-streams.lisp: Default methods (specialized on T) of
 	OPEN-STREAM-P, INTERACTIVE-STREAM-P, INPUT-STREAM-P,
@@ -3419,277 +3399,277 @@
 	as long as users only specialize these methods on subclasses of
 	FUNDAMENTAL-STREAM, and they shouldn't be doing otherwise anyway.
 
-2004-01-21 Wednesday 00:37  gb
+2004-01-21 00:37  gb
 
 	* level-1/l1-streams.lisp: Bryan O'Connor's fix to
 	STREAM-UNREAD-CHAR method for ECHO-STREAM.
 
-2004-01-21 Wednesday 00:30  gb
+2004-01-21 00:30  gb
 
 	* compiler/nx1.lisp: NX1-ASH: where did those numbers come from ?
 
-2004-01-21 Wednesday 00:29  gb
+2004-01-21 00:29  gb
 
 	* level-1/l1-typesys.lisp: (SIGNED-BYTE 1) is perfectly legal ...
 
-2004-01-20 Tuesday 16:54  gb
+2004-01-20 16:54  gb
 
 	* compiler/PPC/ppc-backend.lisp: Define FIXUP-PPC-BACKEND in terms
 	of target.
 
-2004-01-20 Tuesday 16:54  gb
+2004-01-20 16:54  gb
 
 	* lib/compile-ccl.lisp: :PPC -> :PPC32.
 
-2004-01-20 Tuesday 16:43  gb
+2004-01-20 16:43  gb
 
 	* xdump/: xfasload.lisp, xppcfasload.lisp: Backend name changes.
 
-2004-01-20 Tuesday 16:42  gb
+2004-01-20 16:42  gb
 
 	* lib/: compile-ccl.lisp, systems.lisp: More PPC/PPC32 changes. 
 	(Not generalized yet ...)
 
-2004-01-20 Tuesday 16:41  gb
+2004-01-20 16:41  gb
 
 	* level-1/version.lisp: Bump again.
 
-2004-01-20 Tuesday 16:41  gb
+2004-01-20 16:41  gb
 
 	* level-1/l1-files.lisp: Bryan O'Connor's fix to PROBE-FILE.
 
-2004-01-20 Tuesday 16:40  gb
+2004-01-20 16:40  gb
 
 	* compiler/PPC/ppc2.lisp: Don't refer to *PPC-VINSN-TEMPLATES*; use
 	the target backend instead.
 
-2004-01-20 Tuesday 16:39  gb
+2004-01-20 16:39  gb
 
 	* compiler/nx1.lisp: New backend names.
 
-2004-01-20 Tuesday 16:38  gb
+2004-01-20 16:38  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: backend changes
 
-2004-01-20 Tuesday 16:37  gb
+2004-01-20 16:37  gb
 
 	* compiler/PPC/PPC64/ppc64-backend.lisp: new file
 
-2004-01-20 Tuesday 16:17  gb
+2004-01-20 16:17  gb
 
 	* compiler/PPC/PPC32/: ppc32-backend.lisp, ppc32-vinsns.lisp: meet
 	the new files, same as the old files
 
-2004-01-20 Tuesday 16:16  gb
+2004-01-20 16:16  gb
 
 	* compiler/PPC/ppc-backend.lisp: new file, sorta
 
-2004-01-20 Tuesday 16:15  gb
+2004-01-20 16:15  gb
 
 	* compiler/PPC/: ppc-backend.lisp, ppc-vinsns.lisp: removed, now
 	PPC32-specific
 
-2004-01-20 Tuesday 16:15  gb
+2004-01-20 16:15  gb
 
 	* compiler/PPC/ppc-asm.lisp: backend changes
 
-2004-01-19 Monday 17:41  gb
+2004-01-19 17:41  gb
 
 	* library/loop.lisp: Bryan O'Connor's fix to force RETURNing
 	clauses into the main body.
 
-2004-01-19 Monday 17:40  gb
+2004-01-19 17:40  gb
 
 	* lib/nfcomp.lisp: Allow (EVAL-WHEN () ,@body).
 
-2004-01-19 Monday 17:40  gb
+2004-01-19 17:40  gb
 
 	* lib/macros.lisp: PARSE-DEFGENERIC allows multiple DECLARE forms,
 	passes them as :DECLARATIONS option.  HANDLER-BIND a little less
 	jumpy.
 
-2004-01-19 Monday 17:37  gb
+2004-01-19 17:37  gb
 
 	* lib/foreign-types.lisp: (Finally) try to handle odd poweropen
 	struct alignment rules.
 
-2004-01-19 Monday 17:37  gb
+2004-01-19 17:37  gb
 
 	* lib/db-io.lisp: (Finally) try to handle odd poweropen struct
 	alignment rules.  Pad :DBM_CONSTANT to naturally align double-float
 	field, since unnatural alignment is now the norm.
 
-2004-01-19 Monday 17:35  gb
+2004-01-19 17:35  gb
 
 	* level-1/l1-readloop.lisp: SIGNAL keeps looking in the same
 	cluster when a handler declines.
 
-2004-01-19 Monday 17:34  gb
+2004-01-19 17:34  gb
 
 	* level-1/l1-readloop-lds.lisp: Allowing INVOKE-DEBUGGER to build a
 	condition from extra arguments would clearly lead to increased
 	street crime.
 
-2004-01-19 Monday 17:33  gb
+2004-01-19 17:33  gb
 
 	* level-1/l1-error-system.lisp: Define (and signal) some new
 	condition classes.
 
-2004-01-19 Monday 17:30  gb
+2004-01-19 17:30  gb
 
 	* level-1/l1-error-signal.lisp: Map kernel "can't construct
 	arglist" to a (new) TYPE-ERROR subclass.
 
-2004-01-19 Monday 17:29  gb
+2004-01-19 17:29  gb
 
 	* level-1/l1-dcode.lisp: GF's need to check keywords after all. 
 	Recognize :ALLOW-OTHER-KEYS T sooner, don't treat :ALLOW-OTHER-KEYS
 	NIL as an unknown argument.
 
-2004-01-19 Monday 17:27  gb
+2004-01-19 17:27  gb
 
 	* level-0/l0-array.lisp: Paranoia in CTYPE-SUBTYPE: allow float
 	aliases.
 
-2004-01-18 Sunday 21:12  gb
+2004-01-18 21:12  gb
 
 	* examples/cocoa-inspector.lisp: Don't reference *objc-readtable*.
 
-2004-01-17 Saturday 21:00  gb
+2004-01-17 21:00  gb
 
 	* library/loop.lisp: From Bryan O'Connor: "LOOP FOR x ..." uses
 	destructuring mechanism on X, so "LOOP FOR NIL ..." is accepted.
 
-2004-01-17 Saturday 20:58  gb
+2004-01-17 20:58  gb
 
 	* library/lispequ.lisp: More pathname info for DESCRIBE.  Use
 	INSTANCE-SLOTS vice INSTANCE.SLOTS, so .accessors will work on
 	other instance types.
 
-2004-01-17 Saturday 20:57  gb
+2004-01-17 20:57  gb
 
 	* lib/pprint.lisp: PPRINT-DISATCH: symbol is external in CL, so
 	don't use it as a structure name.
 
-2004-01-17 Saturday 20:55  gb
+2004-01-17 20:55  gb
 
 	* lib/numbers.lisp: RATIONALIZE comments; extra typechecking in
 	BOOLE.
 
-2004-01-17 Saturday 20:55  gb
+2004-01-17 20:55  gb
 
 	* lib/macros.lisp: WITH-HASH-TABLE-ITERATOR allows declarations.
 
-2004-01-17 Saturday 20:54  gb
+2004-01-17 20:54  gb
 
 	* lib/foreign-types.lisp: Handle FOREIGN-ARRAY-TYPE.  (Note: this
 	is Darwin-specific.)
 
-2004-01-17 Saturday 20:53  gb
+2004-01-17 20:53  gb
 
 	* lib/arrays-fry.lisp: SBIT, %SBITSET hande 0-dimensional bitvector
 	case.
 
-2004-01-17 Saturday 20:52  gb
+2004-01-17 20:52  gb
 
 	* level-1/version.lisp: Bump.
 
-2004-01-17 Saturday 20:52  gb
+2004-01-17 20:52  gb
 
 	* level-1/sysutils.lisp: TYPE-OF changes.  Blame CLHS.
 
-2004-01-17 Saturday 20:51  gb
+2004-01-17 20:51  gb
 
 	* level-1/l1-utils.lisp: More PROGRAM-ERRORs signaled during
 	destructuring.
 
-2004-01-17 Saturday 20:50  gb
+2004-01-17 20:50  gb
 
 	* level-1/l1-typesys.lisp: Lots more changes.
 
-2004-01-17 Saturday 20:49  gb
+2004-01-17 20:49  gb
 
 	* level-1/l1-streams.lisp: MAKE-STRING-OUTPUT-STREAM: no such thing
 	as a STRING-CHAR anymore.
 
-2004-01-17 Saturday 20:48  gb
+2004-01-17 20:48  gb
 
 	* level-1/l1-readloop-lds.lisp: WARN has to be more anal-retentive
 	about the condition and any args it gets.
 
-2004-01-17 Saturday 20:47  gb
+2004-01-17 20:47  gb
 
 	* level-1/l1-numbers.lisp: Handle bytespecs with size 0.
 
-2004-01-17 Saturday 20:46  gb
+2004-01-17 20:46  gb
 
 	* level-1/l1-files.lisp: Quote dots in namestring components. 
 	Catch a few bogus cases, like (:ABSOLUTE :UP) in directory.
 
-2004-01-17 Saturday 20:44  gb
+2004-01-17 20:44  gb
 
 	* level-1/l1-dcode.lisp: %%NTH-ARG-DCODE: signal program error if 0
 	args.
 
-2004-01-17 Saturday 20:40  gb
+2004-01-17 20:40  gb
 
 	* level-1/l1-clos.lisp: Use safer accessors.  (May revert back some
 	cases, since .accessors should now use INSTANCE-SLOTS rather than
 	INSTANCE.SLOTS.)
 
-2004-01-17 Saturday 20:38  gb
+2004-01-17 20:38  gb
 
 	* level-1/l1-clos-boot.lisp: Define more accessors; INSTANCE-SLOTS
 	is now used in most "early" .accessors.  Don't look at GF-AOK bit;
 	whatever the problem with initarg caching is, that's not the
 	solution.
 
-2004-01-17 Saturday 20:36  gb
+2004-01-17 20:36  gb
 
 	* level-1/l1-aprims.lisp: NRECONC uses ENDP.  %MAKE-DISPLACED-ARRAY
 	always displaces to what the user said to displace to.
 
-2004-01-17 Saturday 20:35  gb
+2004-01-17 20:35  gb
 
 	* level-0/l0-pred.lisp: DISPLACED-ARRAY-P didn't handle transitive
 	displacement.
 
-2004-01-17 Saturday 20:34  gb
+2004-01-17 20:34  gb
 
 	* level-0/l0-numbers.lisp: Handle denorms in
 	INTEGER-DECODE-SHORT-FLOAT.
 
-2004-01-17 Saturday 20:33  gb
+2004-01-17 20:33  gb
 
 	* level-0/l0-float.lisp: (EXPT b e) is (COERCE 1 (TYPE-OF B)) if
 	(ZEROP E).
 
-2004-01-17 Saturday 20:32  gb
+2004-01-17 20:32  gb
 
 	* level-0/l0-array.lisp: *BASE-CHAR-CLASS* may or may not be the
 	same as *CHARACTER-CLASS*.  (integer 1 1) denotes a BIT.
 
-2004-01-17 Saturday 20:30  gb
+2004-01-17 20:30  gb
 
 	* compiler/optimizers.lisp: Handle negative bytespecs; don't define
 	synonyms where they may be involved.  Open-code INTEGERP.
 
-2004-01-15 Thursday 01:34  gb
+2004-01-15 01:34  gb
 
 	* compiler/optimizers.lisp: Remove a stale comment.  Might consider
 	a less-hairy typespec.
 
-2004-01-15 Thursday 01:33  gb
+2004-01-15 01:33  gb
 
 	* level-0/l0-array.lisp: (INTEGER 0 0) is a subtype of (INTEGER 0
 	1), aka BIT.
 
-2004-01-15 Thursday 01:32  gb
+2004-01-15 01:32  gb
 
 	* level-1/l1-clos-boot.lisp: MAKE-INSTANCES-OBSOLETE: methods
 	return class.
 
-2004-01-15 Thursday 01:29  gb
+2004-01-15 01:29  gb
 
 	* level-1/l1-dcode.lisp: %%CHECK-KEYWORDS is (a) slow (b) wrong (c)
 	probably unnecessary.  If (c) is true, there's a similar case where
@@ -3697,87 +3677,87 @@
 	changed. (c) is certainly true in some cases (when the "combined
 	method" is a simple method.
 
-2004-01-15 Thursday 01:26  gb
+2004-01-15 01:26  gb
 
 	* level-1/l1-error-system.lisp: READER-ERROR inherits from
 	PARSE-ERROR and STREAM-ERROR.
 
-2004-01-15 Thursday 01:25  gb
+2004-01-15 01:25  gb
 
 	* level-1/l1-files.lisp: PATHNAME-DEVICE typechecks its arg before
 	ignoring it.
 
-2004-01-15 Thursday 01:20  gb
+2004-01-15 01:20  gb
 
 	* level-1/l1-streams.lisp: Default version of STREAM-FILENAME
 	signals an error; streams that aren't FILE-STREAMs aren't
 	pathname-designators.
 
-2004-01-15 Thursday 01:18  gb
+2004-01-15 01:18  gb
 
 	* level-1/l1-typesys.lisp: Bump up the (global) type-cache size. 
 	Fixes in CLASS type methods.
 
-2004-01-15 Thursday 01:16  gb
+2004-01-15 01:16  gb
 
 	* lisp-kernel/spentry.s: A million monkeys and a million
 	typewriters: sooner or later, one of them will get ASH right ...
 
-2004-01-14 Wednesday 20:59  gb
+2004-01-14 20:59  gb
 
 	* level-0/l0-numbers.lisp: Special-case (TRUNCATE
 	MOST-NEGATIVE-FIXNUM x).
 
-2004-01-13 Tuesday 21:50  gb
+2004-01-13 21:50  gb
 
 	* level-1/version.lisp: forgot to commit this earlier
 
-2004-01-13 Tuesday 18:13  gb
+2004-01-13 18:13  gb
 
 	* compiler/nx-basic.lisp: Signal a PROGRAM-ERROR or two.  Better
 	checking of SYMBOL-MACROs in AUGMENT-ENVIRONMENT.
 
-2004-01-13 Tuesday 18:12  gb
+2004-01-13 18:12  gb
 
 	* compiler/nx0.lisp: Allow NIL to be a -local- function name. 
 	Don't tail-call SIGNAL-PROGRAM-ERROR.
 
-2004-01-13 Tuesday 18:11  gb
+2004-01-13 18:11  gb
 
 	* compiler/nx1.lisp: Add a (long-)missing IN-PACKAGE.
 
-2004-01-13 Tuesday 18:11  gb
+2004-01-13 18:11  gb
 
 	* compiler/PPC/ppc-disassemble.lisp: DISASSEMBLE's output should go
 	to *STANDARD-OUTPUT*.
 
-2004-01-13 Tuesday 18:10  gb
+2004-01-13 18:10  gb
 
 	* level-0/l0-array.lisp: FILL-POINTER's lament.
 
-2004-01-13 Tuesday 18:10  gb
+2004-01-13 18:10  gb
 
 	* level-0/l0-bignum.lisp: maybe bignum-bignum-gcd really works now.
 
-2004-01-13 Tuesday 18:09  gb
+2004-01-13 18:09  gb
 
 	* level-0/l0-numbers.lisp: IMAGPART uses * vice FLOAT, to get the
 	sign of 0.0 right.  PHASE of a negative rational returns
 	single-float PI.
 
-2004-01-13 Tuesday 18:08  gb
+2004-01-13 18:08  gb
 
 	* level-1/l1-aprims.lisp: ALT-LIST-LENGTH here.  LAST allows
 	positive integers.  GET-PROPERTIES uses a TYPE-ERROR to complain
 	about bad plists.
 
-2004-01-13 Tuesday 18:06  gb
+2004-01-13 18:06  gb
 
 	* level-1/l1-clos-boot.lisp: Recognize that SLOT-MISSING might
 	return if it's specialized.  Call it with the symbol SETF, not
 	'(SETF SLOT-VALUE).
 
-2004-01-13 Tuesday 18:04  gb
+2004-01-13 18:04  gb
 
 	* level-1/l1-clos.lisp: Check initargs via DESTRUCTURING-BIND in
 	%SHARED-INITIALIZE.  ENSURE-CLASS-FOR-DEFCLASS and
@@ -3785,29 +3765,29 @@
 	CLASS-NAME) isn't an accessor; the real method uses
 	REINITIALIZE-INSTANCE.
 
-2004-01-13 Tuesday 18:02  gb
+2004-01-13 18:02  gb
 
 	* level-1/l1-dcode.lisp: Bad keywords trigger PROGRAM-ERRORs.
 
-2004-01-13 Tuesday 18:01  gb
+2004-01-13 18:01  gb
 
 	* level-1/: l1-error-signal.lisp, l1-error-system.lisp: PARSE-ERROR
 	isn't a STREAM-ERROR.  Tail-call ERROR from SIGNAL-PROGRAM-ERROR,
 	to keep it out of backtrace.  UNDEFINED-FUNCTION-CALL: lose
 	FUNCTION-NAME slot, use CELL-ERROR-NAME instead.
 
-2004-01-13 Tuesday 17:58  gb
+2004-01-13 17:58  gb
 
 	* level-1/l1-numbers.lisp: Can't have a function called
 	CL:RANDOM-STATE, so change its name and its only caller.
 
-2004-01-13 Tuesday 17:58  gb
+2004-01-13 17:58  gb
 
 	* level-1/l1-readloop.lisp: SYMBOL-MACROLET in the cheap evaluator:
 	process declarations along with symbol-macros, so that
 	AUGMENT-ENVIRONMENT can complain about SPECIAL decls easier.
 
-2004-01-13 Tuesday 17:56  gb
+2004-01-13 17:56  gb
 
 	* level-1/l1-typesys.lisp: Incorporate lots of changes (most of the
 	type system, in fact) from recent CMUCL sources.  Thank Cristophe
@@ -3816,911 +3796,911 @@
 	Warning to fix an EVAL-WHEN; can't define some stuff at
 	compile-time while bootstrapping from the old type system.
 
-2004-01-13 Tuesday 17:55  gb
+2004-01-13 17:55  gb
 
 	* level-1/l1-utils.lisp: Fix ASSOC and friends, broken just a few
 	days ago.  Signal PROGRAM-ERROR when detecting argument mismatches
 	in macros.
 
-2004-01-13 Tuesday 17:54  gb
+2004-01-13 17:54  gb
 
 	* level-1/sysutils.lisp: TYPE-OF's a little closer to being right
 	(checks for PROPERly-named classes.)
 
-2004-01-13 Tuesday 17:53  gb
+2004-01-13 17:53  gb
 
 	* lib/defstruct.lisp: STRUCTURE isn't a type specifier;
 	STRUCTURE-OBJECT is.  Use the right one in COPY-STRUCTURE.
 
-2004-01-13 Tuesday 17:52  gb
+2004-01-13 17:52  gb
 
 	* lib/lists.lisp: Use ENDP to detect bad alists in COPY-ALIST. 
 	Move ALT-LIST-LENGTH elsewhere (and fix it ...)
 
-2004-01-13 Tuesday 17:50  gb
+2004-01-13 17:50  gb
 
 	* lib/macros.lisp: DEFCLASS: allow NIL as slot :type, expand into
 	(new) ENSURE-CLASS-FOR-DEFCLASS.  Signal a PROGRAM-ERROR in
 	DEFINE-METHOD-COMBINATION.  Can't have a macro named CL:METHOD, so
 	change its name to CCL::REFERENCE-METHOD for the time being.
 
-2004-01-13 Tuesday 17:48  gb
+2004-01-13 17:48  gb
 
 	* lib/numbers.lisp: LCM-2, SIGNUM fixes.
 
-2004-01-13 Tuesday 17:47  gb
+2004-01-13 17:47  gb
 
 	* lib/pprint.lisp: (SATISFIES (OUTPUT-STREAM-P)).  (The thing
 	that's catching these things is a half-bootstrapped type system,
 	but I'd have liked to have seen that one a lot earlier ...)
 
-2004-01-13 Tuesday 17:46  gb
+2004-01-13 17:46  gb
 
 	* lib/read.lisp: Add an IN-PACKAGE.  PARSE-INTEGER signals
 	PARSE-ERRORs.
 
-2004-01-13 Tuesday 17:45  gb
+2004-01-13 17:45  gb
 
 	* lib/time.lisp: The type system is/was choking on unknown types;
 	it choked on (NUMBER 0 *), which should have been (REAL 0 *) in the
 	first place.
 
-2004-01-13 Tuesday 17:43  gb
+2004-01-13 17:43  gb
 
 	* library/lispequ.lisp: New CTYPEs for negation, intersection.
 
-2004-01-13 Tuesday 17:43  gb
+2004-01-13 17:43  gb
 
 	* lisp-kernel/spentry.s: Restore SPbuiltin_assq (ignore NILs in the
 	alist.) (ash x y) returns -1 on (<= n -29); need to find a way to
 	parameterize this while keeping M4 happy.
 
-2004-01-12 Monday 08:20  beer
+2004-01-12 08:20  beer
 
 	* examples/objc-clos.lisp: Partial support for MAKE-INSTANCE on
 	ObjC classes
 
-2004-01-12 Monday 00:31  gb
+2004-01-12 00:31  gb
 
 	* level-1/l1-dcode.lisp: Too-few args to generic-function ->
 	PROGRAM-ERROR, not just ERROR.
 
-2004-01-12 Monday 00:30  gb
+2004-01-12 00:30  gb
 
 	* lib/lists.lisp: BUTLAST, NBUTLAST handle dotted lists again.
 
-2004-01-12 Monday 00:29  gb
+2004-01-12 00:29  gb
 
 	* lib/level-2.lisp: Handle the case where &WHOLE is a structured
 	lambda-list in %destructure-lambda-list.
 
-2004-01-11 Sunday 18:54  gb
+2004-01-11 18:54  gb
 
 	* lisp-kernel/spentry.s: Start to replace some old (old-binding
 	scheme) entries with &restv support.  SPsvar_progvsave: save the
 	old binding, not the new one.
 
-2004-01-11 Sunday 18:53  gb
+2004-01-11 18:53  gb
 
 	* lisp-kernel/spjump.s: Start to replace some old (old-binding
 	scheme) entries with &restv support.
 
-2004-01-11 Sunday 18:53  gb
+2004-01-11 18:53  gb
 
 	* lib/arrays-fry.lisp: ARRAY-IN-BOUNDS-P allows bignum subscripts
 	(which are never in bounds, of course.)
 
-2004-01-11 Sunday 18:52  gb
+2004-01-11 18:52  gb
 
 	* level-1/l1-utils.lisp: ASSEQL was misparenthesized.
 
-2004-01-11 Sunday 18:51  gb
+2004-01-11 18:51  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: rename some macros:
 	ppc->ppc64.
 
-2004-01-11 Sunday 18:50  gb
+2004-01-11 18:50  gb
 
 	* compiler/nx0.lisp: NX-TAG-INFO compares tagbody tags with EQL.
 
-2004-01-10 Saturday 23:24  gb
+2004-01-10 23:24  gb
 
 	* level-1/l1-clos-boot.lisp: (SETF FIND-CLASS) checks more
 	carefully for "protected classes".
 
-2004-01-10 Saturday 23:14  gb
+2004-01-10 23:14  gb
 
 	* compiler/PPC/ppc2.lisp: Vinsn renames; slight change to remove
 	backend support for "handle"-based memory accessors.
 
-2004-01-10 Saturday 23:13  gb
+2004-01-10 23:13  gb
 
 	* compiler/PPC/ppc-vinsns.lisp: Change some vinsn names, eliminate
 	some unused vinsns.  This'll be "ppc32-vinsns.lisp" soon.
 
-2004-01-10 Saturday 23:08  gb
+2004-01-10 23:08  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: Fix nil-value constant.
 
-2004-01-10 Saturday 23:08  gb
+2004-01-10 23:08  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: New file; not close to
 	correct yet.
 
-2004-01-10 Saturday 23:07  gb
+2004-01-10 23:07  gb
 
 	* level-1/l1-lisp-threads.lisp: Make *DEFAULT-TEMP-STACK-SIZE* too
 	big.
 
-2004-01-10 Saturday 23:06  gb
+2004-01-10 23:06  gb
 
 	* lib/numbers.lisp: Fix LCM/LCM-2 error checking.
 
-2004-01-10 Saturday 23:06  gb
+2004-01-10 23:06  gb
 
 	* lisp-kernel/spentry.s: _SPbuiltin_length handles the LIST-LENGTH
 	case inline.
 
-2004-01-09 Friday 15:09  gb
+2004-01-09 15:09  gb
 
 	* xdump/xfasload.lisp: Back out of the attempt to make LIST-LENGTH
 	a builtin.
 
-2004-01-09 Friday 14:36  gb
+2004-01-09 14:36  gb
 
 	* lib/lists.lisp: Another typo in BUTLAST.
 
-2004-01-09 Friday 14:29  gb
+2004-01-09 14:29  gb
 
 	* level-1/l1-utils.lisp: Typo in ASSEQL.
 
-2004-01-09 Friday 14:27  gb
+2004-01-09 14:27  gb
 
 	* xdump/xfasload.lisp: LIST-LENGTH will soon be builtin.
 
-2004-01-09 Friday 14:27  gb
+2004-01-09 14:27  gb
 
 	* lib/lists.lisp: [N]BUTLAST fixes.
 
-2004-01-09 Friday 14:26  gb
+2004-01-09 14:26  gb
 
 	* level-1/l1-error-system.lisp: BAD-SLOT-TYPE, IMPROPER-LIST
 	conditions.
 
-2004-01-09 Friday 14:25  gb
+2004-01-09 14:25  gb
 
 	* level-1/l1-error-signal.lisp: Handle IMPROPER-LIST
 
-2004-01-09 Friday 14:24  gb
+2004-01-09 14:24  gb
 
 	* level-1/: l1-clos-boot.lisp, l1-clos.lisp: BAD-SLOT-TYPE errors.
 
-2004-01-09 Friday 14:24  gb
+2004-01-09 14:24  gb
 
 	* level-0/l0-misc.lisp: LENGTH changes.
 
-2004-01-07 Wednesday 17:30  gb
+2004-01-07 17:30  gb
 
 	* examples/: cocoa-window.lisp, cocoa.lisp: A little bit of
 	conditionalization.
 
-2004-01-07 Wednesday 17:29  gb
+2004-01-07 17:29  gb
 
 	* level-1/sysutils.lisp: TYPEP returns 1 value.
 
-2004-01-07 Wednesday 17:29  gb
+2004-01-07 17:29  gb
 
 	* level-0/l0-bignum.lisp: Detect when destructive right shifts
 	yield a fixnum more accurately (this was causing the bignums to be
 	passed to internal functions that expect fixnums in some cases).
 
-2004-01-07 Wednesday 16:40  gb
+2004-01-07 16:40  gb
 
 	* level-0/l0-misc.lisp: ASSQ is builtin, so just EVAL-REDEF it.
 
-2004-01-07 Wednesday 16:39  gb
+2004-01-07 16:39  gb
 
 	* level-1/l1-utils.lisp: ASSOC variants don't allow NIL in an
 	alist.	ASSEQL typechecks CAR/CDR.  MEMEQL uses ENDP, doesn't use
 	%CAR/%CDR in unsafe contexts.
 
-2004-01-07 Wednesday 16:38  gb
+2004-01-07 16:38  gb
 
 	* lib/level-2.lisp: Do an EVAL-REDEF for ASSQ.
 
-2004-01-07 Wednesday 16:37  gb
+2004-01-07 16:37  gb
 
 	* lisp-kernel/spentry.s: Fix (at least the function case) of
 	:ALLOW-OTHER-KEYS NIL.
 
-2004-01-07 Wednesday 08:42  beer
+2004-01-07 08:42  beer
 
 	* examples/objc-clos.lisp: Added support for foreign slot
 	definitions
 
-2004-01-06 Tuesday 20:20  gb
+2004-01-06 20:20  gb
 
 	* level-0/PPC/ppc-clos.lisp: Assume that elaboration will call
 	#'%SLOT-ID-REF-MISSING, #'%SLOT-ID-SET-MISSING as constant
 	functions (not as symbols.)
 
-2004-01-05 Monday 22:21  gb
+2004-01-05 22:21  gb
 
 	* examples/objc-clos.lisp: Print class addresses when generating
 	slots, in the commented-out FORMAT calls.
 
-2004-01-05 Monday 22:19  gb
+2004-01-05 22:19  gb
 
 	* examples/objc-runtime.lisp: Derive the names of superclasses when
 	recursively mapping classes; don't use the name MAP-OBJC-CLASS was
 	called with/defaulted to over and over.
 
-2004-01-05 Monday 20:05  gb
+2004-01-05 20:05  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp: Say "4" instead of "(ash 1
 	ppc::word-shift)", since this is platform-dependent anyway.
 
-2004-01-05 Monday 20:04  gb
+2004-01-05 20:04  gb
 
 	* examples/objc-support.lisp: Use "TARGET" package, not "ARCH".
 
-2004-01-05 Monday 19:33  gb
+2004-01-05 19:33  gb
 
 	* lisp-kernel/static-linux/: .cvsignore, Makefile, staticlib.c:
 	Preliminary support for statically-linked kernel.
 
-2004-01-05 Monday 19:30  gb
+2004-01-05 19:30  gb
 
 	* xdump/heap-image.lisp: FIXNUMSHIFT in TARGET package.
 
-2004-01-05 Monday 19:30  gb
+2004-01-05 19:30  gb
 
 	* lib/read.lisp: SUBTAG-INSTANCE in TARGET package.
 
-2004-01-05 Monday 19:29  gb
+2004-01-05 19:29  gb
 
 	* level-1/l1-lisp-threads.lisp: Intern accessors in "TARGET"
 	package.
 
-2004-01-05 Monday 19:29  gb
+2004-01-05 19:29  gb
 
 	* compiler/PPC/ppc-disassemble.lisp: EXTRACT-DEFAULT function's in
 	PPC package now.
 
-2004-01-05 Monday 19:12  gb
+2004-01-05 19:12  gb
 
 	* xdump/xppcfasload.lisp: Error codes in ARCH package.
 
-2004-01-05 Monday 19:11  gb
+2004-01-05 19:11  gb
 
 	* xdump/xfasload.lisp: Nilreg-relative-symbols are PPC common.
 
-2004-01-05 Monday 19:11  gb
+2004-01-05 19:11  gb
 
 	* lisp-kernel/pmcl-kernel.c: Set lisp_global(STATICALLY_LINKED) if
 	STATIC is defined.
 
-2004-01-05 Monday 19:10  gb
+2004-01-05 19:10  gb
 
 	* lisp-kernel/plbt.c: Don't assume that dladdr exists if STATIC is
 	defined.
 
-2004-01-05 Monday 19:09  gb
+2004-01-05 19:09  gb
 
 	* lisp-kernel/: constants.s, lisp_globals.h: STATICALLY_LINKED
 	global.
 
-2004-01-05 Monday 19:09  gb
+2004-01-05 19:09  gb
 
 	* lib/ppcenv.lisp: PPC regs are in PPC package.
 
-2004-01-05 Monday 19:08  gb
+2004-01-05 19:08  gb
 
 	* lib/backtrace-lds.lisp: Opcode/operand stuff's in ARCH package.
 
-2004-01-05 Monday 19:08  gb
+2004-01-05 19:08  gb
 
 	* level-1/version.lisp: 040106, for a while.
 
-2004-01-05 Monday 19:07  gb
+2004-01-05 19:07  gb
 
 	* level-1/: ppc-error-signal.lisp, ppc-trap-support.lisp: Error
 	codes are in ARCH package.
 
-2004-01-05 Monday 19:07  gb
+2004-01-05 19:07  gb
 
 	* level-1/l1-lisp-threads.lisp: TCR flags are in ARCH.	(Strange,
 	but true.)
 
-2004-01-05 Monday 19:06  gb
+2004-01-05 19:06  gb
 
 	* level-1/l1-io.lisp: All PPCs have an FPSCR with the same bits in
 	it ...
 
-2004-01-05 Monday 19:06  gb
+2004-01-05 19:06  gb
 
 	* level-1/l1-clos.lisp: Fix (bad) typo in %SHARED-INITIALIZE.
 
-2004-01-05 Monday 19:05  gb
+2004-01-05 19:05  gb
 
 	* level-1/l1-clos-boot.lisp: Some changes to initarg
 	checking/caching; may still not be correct.
 
-2004-01-05 Monday 19:04  gb
+2004-01-05 19:04  gb
 
 	* level-0/PPC/: ppc-float.lisp, ppc-numbers.lisp, ppc-symbol.lisp:
 	Internal-package dependency changes.
 
-2004-01-05 Monday 19:03  gb
+2004-01-05 19:03  gb
 
 	* level-0/PPC/ppc-def.lisp: Errors in ARCH package.
 
-2004-01-05 Monday 19:03  gb
+2004-01-05 19:03  gb
 
 	* level-0/l0-cfm-support.lisp: Some support for static linking
 	under Linux, and changes to the startup code for when
 	*STATICALLY-LINKED* is in effect.
 
-2004-01-05 Monday 19:02  gb
+2004-01-05 19:02  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: Should be close to having
 	PPC64 stuff (tags, object layout) here.
 
-2004-01-05 Monday 19:02  gb
+2004-01-05 19:02  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp: Should be close to having
 	PPC32 stuff (tags, object layout) here.   May need to be
 	reorganized to cross-compile cleanly.
 
-2004-01-05 Monday 19:00  gb
+2004-01-05 19:00  gb
 
 	* compiler/PPC/: ppc-disassemble.lisp, ppc-lap.lisp,
 	ppc-lapmacros.lisp, ppc-vinsns.lisp, ppc2.lisp: Mostly PPC (not
 	PPC32 or PPC64) specific, nominally.  (Undoubtedly still some PPC32
 	dependencies.)
 
-2004-01-05 Monday 18:59  gb
+2004-01-05 18:59  gb
 
 	* compiler/PPC/ppc-backend.lisp: Mostly PPC (not PPC32 or PPC64)
 	specific, nominally.
 
-2004-01-05 Monday 18:59  gb
+2004-01-05 18:59  gb
 
 	* compiler/PPC/ppc-asm.lisp: Mostly PPC (not PPC32 or PPC64)
 	specific, nominally.  Opcode/operand lap stuff's in ARCH.
 
-2004-01-05 Monday 18:56  gb
+2004-01-05 18:56  gb
 
 	* compiler/PPC/: ppc-arch.lisp, ppc-arch.lisp: Most stuff that's
 	truly PPC-specific should be here (in the PPC package) now.
 
-2004-01-05 Monday 18:54  gb
+2004-01-05 18:54  gb
 
 	* compiler/vreg.lisp: Storage classes (s64/u64 need to be added, at
 	least) are in the ARCH package.
 
-2004-01-05 Monday 18:53  gb
+2004-01-05 18:53  gb
 
 	* compiler/vinsn.lisp: (generic) opcode/operand stuff is in the
 	ARCH package.
 
-2004-01-05 Monday 18:53  gb
+2004-01-05 18:53  gb
 
 	* compiler/nx0.lisp: Builtin-functions list is in the ARCH package.
 
-2004-01-05 Monday 18:52  gb
+2004-01-05 18:52  gb
 
 	* compiler/arch.lisp: Back in the ARCH package, but there's a lot
 	less stuff here.
 
-2004-01-03 Saturday 16:36  gb
+2004-01-03 16:36  gb
 
 	* level-0/l0-bignum.lisp: Try again, using
 	WITH-NEGATED-BIGNUM-BUFFERS.
 
-2004-01-03 Saturday 16:23  gb
+2004-01-03 16:23  gb
 
 	* level-0/l0-bignum.lisp: %BIGNUM-BIGNUM-GCD wasn't zeroing out the
 	buffers it (re-)uses, so use a simpler algorithm (that conses more)
 	until this is fixed.
 
-2004-01-03 Saturday 12:52  gb
+2004-01-03 12:52  gb
 
 	* compiler/PPC/ppc-asm.lisp: Slight change to requirements.
 
-2004-01-03 Saturday 12:51  gb
+2004-01-03 12:51  gb
 
 	* compiler/PPC/ppc-arch.lisp: New file.
 
-2004-01-03 Saturday 12:51  gb
+2004-01-03 12:51  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: New (empty, in fact) file.
 
-2004-01-03 Saturday 12:50  gb
+2004-01-03 12:50  gb
 
 	* compiler/arch.lisp: Try to be less ppc32-specific.
 
-2004-01-03 Saturday 12:49  gb
+2004-01-03 12:49  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp: Try to be more
 	ppc32-specific.
 
-2004-01-03 Saturday 12:49  gb
+2004-01-03 12:49  gb
 
 	* examples/bridge.lisp: (Mostly) work with gnu-objc; may have
 	broken apple-objc ...
 
-2004-01-03 Saturday 12:48  gb
+2004-01-03 12:48  gb
 
 	* examples/name-translation.lisp: special-case GS under GNUstep.
 
-2004-01-03 Saturday 12:47  gb
+2004-01-03 12:47  gb
 
 	* examples/: objc-runtime.lisp, objc-clos.lisp: More gnu-objc
 	conditionalization.  Take user-specified class-name when mapping
 	objc-class.  Make CLASS-OF objc-metaclasses be OBJC-METACLASS.
 
-2004-01-03 Saturday 12:45  gb
+2004-01-03 12:45  gb
 
 	* examples/objc-support.lisp: More gnu-objc conditionalization.
 
-2004-01-03 Saturday 12:43  gb
+2004-01-03 12:43  gb
 
 	* level-0/nfasload.lisp: Generalize the notion of packages whose
 	symbols are always exported.
 
-2004-01-03 Saturday 12:42  gb
+2004-01-03 12:42  gb
 
 	* level-1/l1-boot-1.lisp: Move command-line-arg stuff to
 	l1-pathnames.
 
-2004-01-03 Saturday 12:42  gb
+2004-01-03 12:42  gb
 
 	* level-1/l1-boot-3.lisp: Install the kernel error callbacks, late
 	in the cold load.
 
-2004-01-03 Saturday 12:41  gb
+2004-01-03 12:41  gb
 
 	* level-1/l1-clos-boot.lisp: Move FOREIGN-OBJECT-DOMAIN accessors
 	elsewhere.  Make slot accessors work on pointer-based instances.
 
-2004-01-03 Saturday 12:40  gb
+2004-01-03 12:40  gb
 
 	* level-1/l1-clos.lisp: Add a VALIDATE-SUPERCLASS method for
 	(FOREIGN-CLASS STANDARD-CLASS), just in case.
 
-2004-01-03 Saturday 12:39  gb
+2004-01-03 12:39  gb
 
 	* level-1/l1-pathnames.lisp: Move COMMAND-LINE-ARGUMENTS stuff
 	here; use it to find the CCL directory, maybe.
 
-2004-01-03 Saturday 12:39  gb
+2004-01-03 12:39  gb
 
 	* level-1/ppc-error-signal.lisp: Rename the %ERR-DISP callback to
 	%X-ERRDISP, so the kernel doesn't try to call out to %ERR-DISP too
 	early in the cold load.
 
-2004-01-03 Saturday 12:38  gb
+2004-01-03 12:38  gb
 
 	* level-1/ppc-trap-support.lisp: Rename the CMAIN callback to
 	XCMAIN, so the kernel doesn't try to call out to CMAIN too early in
 	the cold load.
 
-2004-01-03 Saturday 12:37  gb
+2004-01-03 12:37  gb
 
 	* lib/: systems.lisp, compile-ccl.lisp: Add PPC-ARCH.  (This is all
 	still a moving target.)
 
-2004-01-03 Saturday 12:37  gb
+2004-01-03 12:37  gb
 
 	* lisp-kernel/lisp-exceptions.c: Integrate a little better with the
 	new debugger.
 
-2004-01-03 Saturday 12:36  gb
+2004-01-03 12:36  gb
 
 	* lisp-kernel/lisp-exceptions.h: According to my calculations, you
 	need 5 bits to express a 5-bit register field (RT, RA, RB, etc.)
 
-2004-01-03 Saturday 12:35  gb
+2004-01-03 12:35  gb
 
 	* lisp-kernel/ppc_print.c: Print MACPTRs, get method
 	names/specializers half-right.
 
-2004-01-03 Saturday 12:35  gb
+2004-01-03 12:35  gb
 
 	* library/lispequ.lisp: Move FOREIGN-OBJECT-DOMAIN accessors here.
 
-2004-01-03 Saturday 03:49  gb
+2004-01-03 03:49  gb
 
 	* lisp-kernel/spentry.s: Zero the domain/type fields when making a
 	stack-block.
 
-2003-12-31 Wednesday 04:12  gb
+2003-12-31 04:12  gb
 
 	* lib/describe.lisp: Use STANDARD-OBJECT-P to find instance
 	class-wrappers.
 
-2003-12-31 Wednesday 04:11  gb
+2003-12-31 04:11  gb
 
 	* level-1/l1-clos-boot.lisp: Fix an EQL-SPECIALIZER botch.  Lots of
 	stuff to support foreign classes/foreign objects.
 
-2003-12-31 Wednesday 04:09  gb
+2003-12-31 04:09  gb
 
 	* level-1/l1-clos.lisp: Use %class-slots instead of %CLASS.SLOTS
 	when CLASS-SLOTS won't do.  Move CONSTANTLY here, remove some
 	outdated comments.
 
-2003-12-31 Wednesday 04:08  gb
+2003-12-31 04:08  gb
 
 	* level-1/l1-dcode.lisp: Careful about getting wrappers in
 	dispatch.  Use %class-slots instead of %CLASS.SLOTS when
 	CLASS-SLOTS won't do.
 
-2003-12-31 Wednesday 04:06  gb
+2003-12-31 04:06  gb
 
 	* level-1/l1-io.lisp: Write the address involved in a #<Recursive
 	printing error>, as if that helps ...  Use CLASS-NAME vice
 	%CLASS.NAME.
 
-2003-12-31 Wednesday 04:04  gb
+2003-12-31 04:04  gb
 
 	* level-0/PPC/ppc-utils.lisp: Macptr domain/type accessors.  In LAP
 	to simplify treating them as (SIGNED-BYTE 32), but it was easier to
 	make domain unsigned.
 
-2003-12-31 Wednesday 04:03  gb
+2003-12-31 04:03  gb
 
 	* level-0/l0-pred.lisp: Half-hearted change to %TYPEP, to handle
 	foreign-typed macptrs.
 
-2003-12-31 Wednesday 04:02  gb
+2003-12-31 04:02  gb
 
 	* examples/process-objc-modules.lisp: Don't call MAP-OBJC-CLASS
 	when walking modules.
 
-2003-12-31 Wednesday 04:02  gb
+2003-12-31 04:02  gb
 
 	* examples/objc-runtime.lisp: Start to integrate CLOS & ObjC.
 
-2003-12-31 Wednesday 04:01  gb
+2003-12-31 04:01  gb
 
 	* examples/objc-clos.lisp: New file: start to integrate CLOS/ObjC.
 
-2003-12-31 Wednesday 04:01  gb
+2003-12-31 04:01  gb
 
 	* compiler/PPC/ppc-vinsns.lisp: MACPTR->STACK zeroes domain, type
 	fields.
 
-2003-12-29 Monday 01:19  gb
+2003-12-29 01:19  gb
 
 	* examples/objc-runtime.lisp: SUPER's gensym'ed in methods; FLET
 	SUPER accesses it.  Remove the CFBUNDLE stuff, so this file can be
 	loaded when it isn't necessary.
 
-2003-12-29 Monday 01:17  gb
+2003-12-29 01:17  gb
 
 	* examples/objc-readtable.lisp: Access SUPER via (SUPER).
 
-2003-12-29 Monday 01:17  gb
+2003-12-29 01:17  gb
 
 	* examples/fake-cfbundle-path.lisp: Put the CFBUNDLE nonsense here,
 	independent of the rest of objc-support.
 
-2003-12-29 Monday 01:17  gb
+2003-12-29 01:17  gb
 
 	* examples/cocoa.lisp: Get rid of *DEFAULT-BUNDLE-PATH* and friend;
 	require FAKE-CFBUNDLE-PATH and use the function of that name
 	explicitly.
 
-2003-12-29 Monday 01:15  gb
+2003-12-29 01:15  gb
 
 	* examples/cocoa-window.lisp: Use (SUPER) in
 	OBJC-MESSAGE-SEND-SUPER call.
 
-2003-12-21 Sunday 15:40  gb
+2003-12-21 15:40  gb
 
 	* examples/: cocoa-application.lisp, objc-runtime.lisp,
 	process-objc-modules.lisp: revive class info, autorelease-pool when
 	reiniting CCL directory
 
-2003-12-20 Saturday 05:18  gb
+2003-12-20 05:18  gb
 
 	* lisp-kernel/lisp-debug.c: Comment out things that don't (yet)
 	work.
 
-2003-12-20 Saturday 05:17  gb
+2003-12-20 05:17  gb
 
 	* level-1/: l1-clos-boot.lisp, l1-clos.lisp: Punt on primary
 	accessor methods.
 
-2003-12-20 Saturday 05:16  gb
+2003-12-20 05:16  gb
 
 	* lib/xref.lisp: Add newline before EOF.
 
-2003-12-20 Saturday 05:16  gb
+2003-12-20 05:16  gb
 
 	* lib/describe.lisp: Fix dangling close paren.
 
-2003-12-20 Saturday 03:45  gb
+2003-12-20 03:45  gb
 
 	* lib/describe.lisp: Alanr's fix to closure-inspector.
 
-2003-12-20 Saturday 00:48  gb
+2003-12-20 00:48  gb
 
 	* lisp-kernel/: spentry.s, thread_manager.c: Remove inline loginfo.
 
-2003-12-20 Saturday 00:48  gb
+2003-12-20 00:48  gb
 
 	* level-0/: l0-io.lisp, PPC/ppc-symbol.lisp: Add newline before
 	EOF.
 
-2003-12-19 Friday 17:29  gb
+2003-12-19 17:29  gb
 
 	* examples/: apple-objc.lisp, gnu-objc.lisp: Replaced by
 	objc-runtime.lisp
 
-2003-12-19 Friday 16:44  gb
+2003-12-19 16:44  gb
 
 	* lib/macros.lisp: A little clearer to say OPTION-NAME instead of
 	(CADR OPTION) in DEFCLASS misc-option case.
 
-2003-12-19 Friday 16:35  gb
+2003-12-19 16:35  gb
 
 	* lisp-kernel/lisp-debug.c: Change debugger prompt.  Still confuses
 	the hell out of ILISP.
 
-2003-12-19 Friday 16:34  gb
+2003-12-19 16:34  gb
 
 	* library/splay-tree.lisp: Keep count of splay-tree nodes;
 	PRINT-OBJECT methods.
 
-2003-12-19 Friday 16:33  gb
+2003-12-19 16:33  gb
 
 	* level-1/version.lisp: Bump the version number.
 
-2003-12-19 Friday 16:33  gb
+2003-12-19 16:33  gb
 
 	* examples/process-objc-modules.lisp: Call MAP-OBJC-CLASS on (true)
 	classes; MAP-OBJC-CLASS will handle the metaclass.
 
-2003-12-19 Friday 16:32  gb
+2003-12-19 16:32  gb
 
 	* examples/objc-support.lisp: Add (commented-out) DBG call.
 
-2003-12-19 Friday 16:31  gb
+2003-12-19 16:31  gb
 
 	* examples/objc-runtime.lisp: Some fixes: ensure that the Cocoa
 	demo works under OSX.
 
-2003-12-19 Friday 15:09  gb
+2003-12-19 15:09  gb
 
 	* lisp-kernel/: lisp-debug.c, lisp-exceptions.c, lisp-exceptions.h,
 	lispdcmd.c: New & improved debugger.
 
-2003-12-19 Friday 14:47  gb
+2003-12-19 14:47  gb
 
 	* library/splay-tree.lisp: map-splay-tree
 
-2003-12-19 Friday 14:37  gb
+2003-12-19 14:37  gb
 
 	* examples/process-objc-modules.lisp: This is all #+apple-objc.
 
-2003-12-19 Friday 14:36  gb
+2003-12-19 14:36  gb
 
 	* examples/objc-readtable.lisp: Move readtable stuff out of main
 	path; preserve (for a while) for backward- compatibility.
 
-2003-12-19 Friday 14:36  gb
+2003-12-19 14:36  gb
 
 	* examples/bridge.lisp: Require (new) OBJC-RUNTIME. Conditionalize
 	a little for runtime differences (needs more work.)
 
-2003-12-19 Friday 14:33  gb
+2003-12-19 14:33  gb
 
 	* examples/cocoa.lisp: Define bundle/executable paths here.
 
-2003-12-19 Friday 14:31  gb
+2003-12-19 14:31  gb
 
 	* examples/objc-runtime.lisp: New file, intended to replace
 	apple-objc.lisp.  Try to hide the differences between Apple/GNU
 	ObjC runtimes here.
 
-2003-12-19 Friday 07:05  beer
+2003-12-19 07:05  beer
 
 	* examples/apple-objc.lisp: Added missing comma to SELF in
 	OBJC-METHOD-DEFINITION-FORM
 
-2003-12-16 Tuesday 11:23  gb
+2003-12-16 11:23  gb
 
 	* lib/xref.lisp: use compiler frontend hooks
 
-2003-12-16 Tuesday 11:22  gb
+2003-12-16 11:22  gb
 
 	* compiler/: nx.lisp, nx0.lisp, nx1.lisp: integrate XREF changes
 
-2003-12-16 Tuesday 11:13  gb
+2003-12-16 11:13  gb
 
 	* examples/: apple-objc.lisp, gnu-objc.lisp: minor changes
 
-2003-12-15 Monday 15:16  gb
+2003-12-15 15:16  gb
 
 	* library/splay-tree.lisp: new file
 
-2003-12-15 Monday 14:12  gb
+2003-12-15 14:12  gb
 
 	* examples/: bridge.lisp, process-objc-modules.lisp: start to
 	conditionalize for runtime
 
-2003-12-15 Monday 14:11  gb
+2003-12-15 14:11  gb
 
 	* examples/gnu-objc.lisp: get more of this working
 
-2003-12-13 Saturday 14:53  gb
+2003-12-13 14:53  gb
 
 	* examples/gnu-objc.lisp: Revive efforts to get this working.
 
-2003-12-13 Saturday 14:51  gb
+2003-12-13 14:51  gb
 
 	* lib/pathnames.lisp: DIRECTORYP.
 
-2003-12-12 Friday 16:32  gb
+2003-12-12 16:32  gb
 
 	* level-1/l1-clos.lisp: SETUP-SLOT-LOOKUP does nothing if no slots.
 
-2003-12-12 Friday 16:30  gb
+2003-12-12 16:30  gb
 
 	* lib/defstruct.lisp: STRUCTURE isn't a type-specifier; use
 	STRUCTURE-OBJECT instead.
 
-2003-12-12 Friday 16:29  gb
+2003-12-12 16:29  gb
 
 	* level-1/sysutils.lisp: STRUCTURE isn't a type-specifier.
 
-2003-12-12 Friday 16:29  gb
+2003-12-12 16:29  gb
 
 	* level-1/l1-typesys.lisp: TYPE-SPECIFIER does some typechecking.
 
-2003-12-12 Friday 16:28  gb
+2003-12-12 16:28  gb
 
 	* level-1/l1-lisp-threads.lisp: FAKE-STACK-FRAME isn't a type
 	specifier.
 
-2003-12-12 Friday 16:27  gb
+2003-12-12 16:27  gb
 
 	* level-1/l1-clos-boot.lisp: STANDARD-INSTANCE isn't a type
 	specifier.
 
-2003-12-12 Friday 16:26  gb
+2003-12-12 16:26  gb
 
 	* level-0/l0-pred.lisp: COMPLEX-ARRAY, DISPLACED-ARRAY aren't type
 	specifiers.
 
-2003-12-12 Friday 14:12  gb
+2003-12-12 14:12  gb
 
 	* library/lispequ.lisp: New wrapper layout.
 
-2003-12-12 Friday 14:12  gb
+2003-12-12 14:12  gb
 
 	* lib/ccl-export-syms.lisp: Export METHOD-NAME from CCL,
 	OPENMCL-MOP.
 
-2003-12-12 Friday 14:12  gb
+2003-12-12 14:12  gb
 
 	* level-1/l1-typesys.lisp: Set TYPE-PREDICATE slot of standard slot
 	definition.
 
-2003-12-12 Friday 14:10  gb
+2003-12-12 14:10  gb
 
 	* level-1/l1-dcode.lisp: New slot-value scheme.  No more
 	reader/writer dcode.
 
-2003-12-12 Friday 14:10  gb
+2003-12-12 14:10  gb
 
 	* level-1/: l1-clos-boot.lisp, l1-clos.lisp: New slot-value scheme.
 
-2003-12-12 Friday 14:09  gb
+2003-12-12 14:09  gb
 
 	* level-0/PPC/ppc-clos.lisp: New scheme.
 
-2003-12-10 Wednesday 01:25  gb
+2003-12-10 01:25  gb
 
 	* lisp-kernel/thread_manager.c: Don't free() a pointer that was
 	just realloc()ed.
 
-2003-12-10 Wednesday 01:25  gb
+2003-12-10 01:25  gb
 
 	* lisp-kernel/spentry.s: Don't reference tlb_pointer until we're
 	sure it's big enough.
 
-2003-12-10 Wednesday 01:24  gb
+2003-12-10 01:24  gb
 
 	* library/lispequ.lisp: More wrapper slots for faster slot lookup.
 
-2003-12-10 Wednesday 01:24  gb
+2003-12-10 01:24  gb
 
 	* level-1/version.lisp: New date.
 
-2003-12-10 Wednesday 01:23  gb
+2003-12-10 01:23  gb
 
 	* level-1/l1-clos.lisp: Set things up for faster slot lookup.
 
-2003-12-10 Wednesday 01:22  gb
+2003-12-10 01:22  gb
 
 	* level-1/l1-clos-boot.lisp: SLOT-ID stuff.
 
-2003-12-10 Wednesday 01:21  gb
+2003-12-10 01:21  gb
 
 	* level-0/PPC/ppc-clos.lisp: Some LAP for slot lookup.
 
-2003-12-10 Wednesday 01:20  gb
+2003-12-10 01:20  gb
 
 	* level-0/l0-init.lisp: New PPC32, MOP features.
 
-2003-12-06 Saturday 22:25  gb
+2003-12-06 22:25  gb
 
 	* level-1/: l1-clos-boot.lisp, l1-clos.lisp: Move
 	SLOT-ID-VALUE/SETF-SLOT-ID-VALUE from l1-clos.lisp to
 	l1-clos-boot.lisp.
 
-2003-12-06 Saturday 22:24  gb
+2003-12-06 22:24  gb
 
 	* library/lispequ.lisp: There -will- be more fields in a class
 	wrapper soon.
 
-2003-12-06 Saturday 21:11  gb
+2003-12-06 21:11  gb
 
 	* compiler/optimizers.lisp: First cut at SLOT-VALUE.
 
-2003-12-06 Saturday 18:44  gb
+2003-12-06 18:44  gb
 
 	* level-1/l1-io.lisp: PRINT-OBJECT method for SLOT-ID.
 
-2003-12-06 Saturday 18:44  gb
+2003-12-06 18:44  gb
 
 	* level-1/l1-clos-boot.lisp, level-1/l1-clos.lisp,
 	library/lispequ.lisp: Start to implement new slot-lookup scheme.
 
-2003-12-06 Saturday 17:25  gb
+2003-12-06 17:25  gb
 
 	* examples/cocoa-listener.lisp: Return value of insertNewline:
 	method is void.
 
-2003-12-06 Saturday 17:16  gb
+2003-12-06 17:16  gb
 
 	* level-1/l1-clos-boot.lisp: Be more careful about recognizing EQL
 	specializers.
 
-2003-12-06 Saturday 17:15  gb
+2003-12-06 17:15  gb
 
 	* examples/apple-objc.lisp: COLLECT macro moved to CCL package.
 
-2003-12-01 Monday 14:44  gb
+2003-12-01 14:44  gb
 
 	* lib/foreign-types.lisp: %foreign-type-or-record: recognize
 	(:struct :foo) off the bat.
 
-2003-12-01 Monday 14:44  gb
+2003-12-01 14:44  gb
 
 	* level-1/linux-files.lisp: Better %%rusage, since Darwin mucks up
 	system/user time.
 
-2003-12-01 Monday 14:42  gb
+2003-12-01 14:42  gb
 
 	* level-0/PPC/ppc-symbol.lisp: %SVAR-BINDING-ADDRESS fix.
 
-2003-11-30 Sunday 01:55  gb
+2003-11-30 01:55  gb
 
 	* lisp-kernel/pmcl-kernel.c: ensure_gc_structures_writable: account
 	for entire heap, not just current dynamic area.  Don't try to
 	commit a 0-length page range.
 
-2003-11-30 Sunday 01:54  gb
+2003-11-30 01:54  gb
 
 	* lisp-kernel/lisp-debug.c: Distinguish between read errors
 	(especially EINTR) and EOF; terminate on true EOF.
 
-2003-11-19 Wednesday 01:52  gb
+2003-11-19 01:52  gb
 
 	* level-0/l0-cfm-support.lisp, level-0/l0-utils.lisp,
 	level-0/nfasload.lisp, level-0/PPC/ppc-array.lisp,
@@ -4738,11 +4718,11 @@
 	library/macptr-termination.lisp: remove sparc lap; move all PPC lap
 	code to ccl:level-0;PPC;
 
-2003-11-18 Tuesday 08:32  gb
+2003-11-18 08:32  gb
 
 	* compiler/PPC/ppc-lap.lisp: PPC lap macros hash table in backend
 
-2003-11-18 Tuesday 03:10  gb
+2003-11-18 03:10  gb
 
 	* compiler/backend.lisp, compiler/nx.lisp, compiler/vinsn.lisp,
 	compiler/PPC/ppc-arch.lisp, compiler/PPC/ppc-asm.lisp,
@@ -4754,27 +4734,27 @@
 	lib/nfcomp.lisp, lib/number-macros.lisp, lib/systems.lisp: ppc-arch
 	-> ppc32-arch, lap-macros slot in backend
 
-2003-11-18 Tuesday 02:15  gb
+2003-11-18 02:15  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp: rename of ppc-arch.lisp
 
-2003-11-18 Tuesday 01:25  gb
+2003-11-18 01:25  gb
 
 	* compiler/: arch.lisp, PPC/ppc-arch.lisp, PPC/ppc-asm.lisp: missed
 	a few DEFENUM stragglers
 
-2003-11-18 Tuesday 00:51  gb
+2003-11-18 00:51  gb
 
 	* compiler/arch.lisp, compiler/vinsn.lisp, level-0/l0-bignum.lisp,
 	level-1/l1-clos.lisp, level-1/l1-typesys.lisp,
 	lib/foreign-types.lisp, lib/macros.lisp, lib/number-macros.lisp:
 	move ONCE-ONLY, COLLECT. ITERATE to CCL package
 
-2003-11-18 Tuesday 00:51  gb
+2003-11-18 00:51  gb
 
 	* level-1/version.lisp: bump version
 
-2003-11-17 Monday 23:59  gb
+2003-11-17 23:59  gb
 
 	* compiler/nx0.lisp, compiler/nx1.lisp, compiler/optimizers.lisp,
 	compiler/vinsn.lisp, compiler/vreg.lisp, compiler/PPC/ppc-asm.lisp,
@@ -4815,321 +4795,321 @@
 	xdump/xfasload.lisp, xdump/xppcfasload.lisp: rename arch:: ppc::
 	refs to ppc32::, for now
 
-2003-11-17 Monday 23:52  gb
+2003-11-17 23:52  gb
 
 	* compiler/: arch.lisp, PPC/ppc-arch.lisp: start big package rename
 	scheme
 
-2003-11-17 Monday 20:52  gb
+2003-11-17 20:52  gb
 
 	* lib/proxy-events.lisp: hasn't been used in a long time ...
 
-2003-11-13 Thursday 02:19  gb
+2003-11-13 02:19  gb
 
 	* compiler/PPC/ppc2.lisp: PPC2-LOCAL-GO: need to clean up the
 	vstack regardless of XFER token.
 
-2003-11-09 Sunday 18:15  gb
+2003-11-09 18:15  gb
 
 	* compiler/PPC/ppc-asm.lisp: fix handling of immediate operands in
 	vector instructions
 
-2003-11-08 Saturday 12:45  gb
+2003-11-08 12:45  gb
 
 	* lib/dumplisp.lisp: Clear *INTERACTIVE-ABORT-PROCESS* in
 	KILL-LISP-POINTERS.
 
-2003-11-08 Saturday 12:44  gb
+2003-11-08 12:44  gb
 
 	* level-1/l1-events.lisp: Don't try to interrupt
 	*INTERACTIVE-ABORT-PROCESS* if it's null.
 
-2003-11-08 Saturday 12:39  gb
+2003-11-08 12:39  gb
 
 	* level-1/version.lisp: Bump the version.
 
-2003-11-06 Thursday 01:57  gb
+2003-11-06 01:57  gb
 
 	* lisp-kernel/lisp-exceptions.c: Use symbolic constants in a few
 	places.  Check for recent CREATE_LISP_FRAME_INSTRUCTION before
 	pc_luser-ing through stack frame initialization, since it may be
 	re-initialization.
 
-2003-11-06 Thursday 01:56  gb
+2003-11-06 01:56  gb
 
 	* lisp-kernel/lisp-exceptions.h: Define a few opcodes, and define
 	CREATE_LISP_FRAME_INSTRUCTION.
 
-2003-11-04 Tuesday 12:04  gb
+2003-11-04 12:04  gb
 
 	* level-1/: l1-clos-boot.lisp, l1-clos.lisp: More structure-class
 	accessor stuff.
 
-2003-11-04 Tuesday 12:04  gb
+2003-11-04 12:04  gb
 
 	* level-1/version.lisp: Guess ...
 
-2003-11-04 Tuesday 10:15  gb
+2003-11-04 10:15  gb
 
 	* level-1/l1-clos.lisp: Some more work to make STRUCTURE-CLASS have
 	real slot definitions.
 
-2003-11-04 Tuesday 10:15  gb
+2003-11-04 10:15  gb
 
 	* level-1/l1-clos-boot.lisp: Define a MAKE-INSTANCES-OBSOLETE
 	method for STRUCTURE-CLASS.  Next step: make it do something, like
 	warning ...
 
-2003-11-04 Tuesday 10:13  gb
+2003-11-04 10:13  gb
 
 	* level-1/l1-io.lisp: PRINT-OBJECT method for SLOT-DESCRIPTOR,
 	whether standard or not.
 
-2003-10-29 Wednesday 17:47  gb
+2003-10-29 17:47  gb
 
 	* level-1/l1-clos.lisp: Fix initialization of early
 	effective-slotds.  Start to integrate STRUCTURE-CLASS a bit better.
 
-2003-10-29 Wednesday 16:18  gb
+2003-10-29 16:18  gb
 
 	* lib/: defstruct-lds.lisp, defstruct-macros.lisp, defstruct.lisp:
 	Distinguish between inherited structure slots and direct ones.
 
-2003-10-29 Wednesday 16:16  gb
+2003-10-29 16:16  gb
 
 	* level-1/: l1-clos-boot.lisp, l1-clos.lisp: Introduce SLOTS-CLASS;
 	make STD-CLASS and STRUCTURE-CLASS (for now) inherit from it.
 
-2003-10-28 Tuesday 18:00  gb
+2003-10-28 18:00  gb
 
 	* hemlock/src/: files.lisp, line.lisp, linimage.lisp,
 	rompsite.lisp: More changes/fixes: line-buffered-p stuff.
 
-2003-10-28 Tuesday 17:59  gb
+2003-10-28 17:59  gb
 
 	* examples/compile-hemlock.lisp: new file
 
-2003-10-27 Monday 16:48  gb
+2003-10-27 16:48  gb
 
 	* hemlock/src/: files.lisp, macros.lisp, morecoms.lisp,
 	rompsite.lisp, window.lisp, winimage.lisp: Suppress some compiler
 	warnings.
 
-2003-10-27 Monday 16:47  gb
+2003-10-27 16:47  gb
 
 	* hemlock/src/decls.lisp: Declare some special variables.
 
-2003-10-27 Monday 15:42  gb
+2003-10-27 15:42  gb
 
 	* hemlock/src/: bit-display.lisp, bit-screen.lisp, cursor.lisp,
 	display.lisp, window.lisp, winimage.lisp: Use asterisks in (more)
 	special variable names.
 
-2003-10-27 Monday 15:28  gb
+2003-10-27 15:28  gb
 
 	* hemlock/src/: bit-screen.lisp, htext1.lisp, htext3.lisp,
 	syntax.lisp: More #-clx stuff, fix typos.
 
-2003-10-27 Monday 06:22  gb
+2003-10-27 06:22  gb
 
 	* lisp-kernel/gc.c: Fix botch in mark_tcr_tlb().
 
-2003-10-27 Monday 06:21  gb
+2003-10-27 06:21  gb
 
 	* lisp-kernel/: Threads.h, lisp-exceptions.c, thread_manager.c:
 	Handle tlb extension
 
-2003-10-27 Monday 06:21  gb
+2003-10-27 06:21  gb
 
 	* lib/nfcomp.lisp, xdump/faslenv.lisp: Bump the fasl version.
 
-2003-10-27 Monday 06:20  gb
+2003-10-27 06:20  gb
 
 	* level-0/l0-error.lisp: Handle XSYMNOBIND.
 
-2003-10-27 Monday 04:24  gb
+2003-10-27 04:24  gb
 
 	* level-0/l0-symbol.lisp: Maintain (weak) inverse mapping from idx
 	to svar.
 
-2003-10-27 Monday 04:23  gb
+2003-10-27 04:23  gb
 
 	* level-1/l1-lisp-threads.lisp: nth-value-in-frame, etc: new
 	binding scheme.
 
-2003-10-27 Monday 04:18  gb
+2003-10-27 04:18  gb
 
 	* level-1/version.lisp: Bump.
 
-2003-10-26 Sunday 03:12  gb
+2003-10-26 03:12  gb
 
 	* lisp-kernel/gc.c: Fix typo.
 
-2003-10-26 Sunday 03:10  gb
+2003-10-26 03:10  gb
 
 	* lisp-kernel/spentry.s: Check for non-bindable symbols without
 	trapping.
 
-2003-10-26 Sunday 03:09  gb
+2003-10-26 03:09  gb
 
 	* lisp-kernel/gc.c: Try to special-case
 	NO_THREAD_LOCAL_BINDING_MARKER when walking tlb.
 
-2003-10-26 Sunday 03:08  gb
+2003-10-26 03:08  gb
 
 	* lisp-kernel/errors.s: XSYMNOBIND
 
-2003-10-26 Sunday 03:06  gb
+2003-10-26 03:06  gb
 
 	* lib/prepare-mcl-environment.lisp: Look for svar-idx in
 	%RESET-OUTERMOST-BINDING.
 
-2003-10-24 Friday 10:40  gb
+2003-10-24 10:40  gb
 
 	* lib/prepare-mcl-environment.lisp: (Hopefully) fix
 	%RESET-OUTERMOST-BINDING.
 
-2003-10-24 Friday 01:33  gb
+2003-10-24 01:33  gb
 
 	* lisp-kernel/spentry.s: Enable/fix shallow-binding stuff.
 
-2003-10-24 Friday 01:33  gb
+2003-10-24 01:33  gb
 
 	* lisp-kernel/macros.s: trlle.
 
-2003-10-24 Friday 01:32  gb
+2003-10-24 01:32  gb
 
 	* lisp-kernel/gc.c: GC tcr->tlb.
 
-2003-10-24 Friday 01:31  gb
+2003-10-24 01:31  gb
 
 	* lisp-kernel/thread_manager.c: Make initial tlb a little bigger.
 
-2003-10-24 Friday 01:29  gb
+2003-10-24 01:29  gb
 
 	* lib/db-io.lisp: #$-reader takes more care with constants.
 
-2003-10-24 Friday 01:28  gb
+2003-10-24 01:28  gb
 
 	* level-1/l1-readloop.lisp: Cheap evaluator takes more care with
 	constants.
 
-2003-10-24 Friday 01:28  gb
+2003-10-24 01:28  gb
 
 	* compiler/nx0.lisp: Avoid consing SVARS unnecessarly when
 	transforming symbols.
 
-2003-10-23 Thursday 15:46  gb
+2003-10-23 15:46  gb
 
 	* level-1/l1-utils.lisp: UNDEFINE-CONSTANT.
 
-2003-10-23 Thursday 15:46  gb
+2003-10-23 15:46  gb
 
 	* level-0/PPC/ppc-symbol.lisp: Low-level symbol/svar accessors.
 
-2003-10-23 Thursday 15:45  gb
+2003-10-23 15:45  gb
 
 	* level-0/nfasload.lisp: KEYWORD interning sets global value.
 
-2003-10-23 Thursday 15:45  gb
+2003-10-23 15:45  gb
 
 	* level-0/l0-symbol.lisp: Need an SVAR for symbol-value in general;
 	global versions for when we don't.
 
-2003-10-23 Thursday 15:43  gb
+2003-10-23 15:43  gb
 
 	* compiler/subprims.lisp: Use UNDEFINE-CONSTANT vice MAKUNBOUND
 
-2003-10-23 Thursday 13:52  gb
+2003-10-23 13:52  gb
 
 	* level-0/l0-symbol.lisp, level-0/PPC/ppc-symbol.lisp,
 	lib/backtrace-lds.lisp: New binding stuff.
 
-2003-10-23 Thursday 13:51  gb
+2003-10-23 13:51  gb
 
 	* compiler/subprims.lisp: Rename old binding subprims.
 
-2003-10-23 Thursday 13:51  gb
+2003-10-23 13:51  gb
 
 	* compiler/arch.lisp: SVAR-related tcr fields.
 
-2003-10-23 Thursday 07:37  gb
+2003-10-23 07:37  gb
 
 	* compiler/PPC/: ppc-vinsns.lisp, ppc2.lisp: backend SVAR support
 
-2003-10-23 Thursday 06:59  gb
+2003-10-23 06:59  gb
 
 	* xdump/xfasload.lisp: SVAR support.
 
-2003-10-23 Thursday 06:57  gb
+2003-10-23 06:57  gb
 
 	* level-1/sysutils.lisp: More SVAR type stuff.
 
-2003-10-23 Thursday 06:57  gb
+2003-10-23 06:57  gb
 
 	* level-1/l1-io.lisp: PRINT-OBJECT for svars.
 
-2003-10-23 Thursday 06:57  gb
+2003-10-23 06:57  gb
 
 	* level-1/l1-clos-boot.lisp: SVAR class.
 
-2003-10-23 Thursday 06:57  gb
+2003-10-23 06:57  gb
 
 	* level-0/nfasload.lisp: Special-case SVARs in fasl-gvect.
 
-2003-10-23 Thursday 06:56  gb
+2003-10-23 06:56  gb
 
 	* level-0/l0-symbol.lisp: SVAR binding stuff.
 
-2003-10-23 Thursday 06:56  gb
+2003-10-23 06:56  gb
 
 	* level-0/l0-pred.lisp: SVAR type support.
 
-2003-10-23 Thursday 03:51  gb
+2003-10-23 03:51  gb
 
 	* lisp-kernel/: constants.h, constants.s, macros.s, spentry.s,
 	spjump.s, thread_manager.c: New svar stuff.  (will need GC
 	changes.)
 
-2003-10-23 Thursday 03:47  gb
+2003-10-23 03:47  gb
 
 	* compiler/nx1.lisp: svar progv support.
 
-2003-10-23 Thursday 03:47  gb
+2003-10-23 03:47  gb
 
 	* compiler/arch.lisp: svar tag, struct.
 
-2003-10-23 Thursday 03:47  gb
+2003-10-23 03:47  gb
 
 	* compiler/subprims.lisp: New subprims for svar binding scheme.
 
-2003-10-21 Tuesday 18:09  gb
+2003-10-21 18:09  gb
 
 	* darwin-headers/: carbon/.cvsignore, carbon/C/populate.sh,
 	cocoa/.cvsignore, cocoa/C/populate.sh, gl/.cvsignore,
 	gl/C/populate.sh, libc/.cvsignore, libc/C/populate.sh: recover
 	darwin-headers sources
 
-2003-10-21 Tuesday 18:07  gb
+2003-10-21 18:07  gb
 
 	* headers/: gl/.cvsignore, gl/C/populate.sh, gnome/.cvsignore,
 	gnome/C/populate.sh, gtk/.cvsignore, gtk/C/populate.sh,
 	libc/.cvsignore, libc/C/populate.sh: recover headers sources
 
-2003-10-21 Tuesday 18:00  gb
+2003-10-21 18:00  gb
 
 	* lisp-kernel/: gc.h, lisp-exceptions.c: Handle new gc-traps for
 	egc state changes.
 
-2003-10-21 Tuesday 18:00  gb
+2003-10-21 18:00  gb
 
 	* level-1/l1-dcode.lisp: CLASS-SLOT bugs in dcode/reader-trap.
 
-2003-10-21 Tuesday 17:59  gb
+2003-10-21 17:59  gb
 
 	* level-1/l1-aprims.lisp: Serialize EGC state changes.
 
-2003-10-19 Sunday 02:57  gb
+2003-10-19 02:57  gb
 
 	* .cvsignore, LGPL, LICENSE, binppc/.cvsignore, compiler/arch.lisp,
 	compiler/backend.lisp, compiler/dll-node.lisp,
@@ -5361,7 +5341,7 @@
 	hemlock/unused/struct-ed.lisp, hemlock/unused/tty-stream.lisp,
 	hemlock/website/index.html.in: Initial revision
 
-2003-10-19 Sunday 02:57  gb
+2003-10-19 02:57  gb
 
 	* .cvsignore, LGPL, LICENSE, binppc/.cvsignore, compiler/arch.lisp,
 	compiler/backend.lisp, compiler/dll-node.lisp,
