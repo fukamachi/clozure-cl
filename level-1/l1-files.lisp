@@ -86,10 +86,10 @@
 
 ;; Reverse of above, take native namestring and make a Lisp pathname.
 (defun native-to-pathname (name)
-  (pathname (%path-std-quotes name nil "*")))
+  (pathname (%path-std-quotes name nil "*;:")))
 
 (defun native-to-directory-pathname (name)
-  (make-directory-pathname  :device nil :directory (%path-std-quotes name nil "*")))
+  (make-directory-pathname  :device nil :directory (%path-std-quotes name nil "*;:")))
 
 ;;; Make a pathname which names the specified directory; use
 ;;; explict :NAME, :TYPE, and :VERSION components of NIL.
