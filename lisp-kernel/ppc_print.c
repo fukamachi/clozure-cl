@@ -54,7 +54,7 @@ add_string(char *s, int len)
 void
 add_lisp_base_string(LispObj str)
 {
-  add_string((char *) (ptr_from_lispobj(str) + misc_data_offset), header_element_count(header_of(str)));
+  add_string((char *) (ptr_from_lispobj(str + misc_data_offset)), header_element_count(header_of(str)));
 }
 
 void
@@ -316,7 +316,7 @@ sprint_vector(LispObj o, int depth)
 {
   LispObj header = header_of(o);
   
-  if (immheader_tag_p(header)) {
+  if (immheader_tag_p(fulltag_of(header))) {
     sprint_ivector(o);
   } else {
     sprint_gvector(o, depth);
