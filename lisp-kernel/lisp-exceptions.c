@@ -1857,14 +1857,8 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
   int old_valence;
 #ifdef LINUX
 
-  tcr = (TCR *) xpGPR(context,rcontext);
+  tcr = (TCR *) get_interrupt_tcr(false);
   
-  if (tcr == NULL) {
-    tcr = get_tcr(false);
-  } else {
-    current_r2 = tcr->native_thread_info;
-  }
-
   /* The signal handler's entered with all signals (notably the
      thread_suspend signal) blocked.  Don't allow any other signals
      (notably the thread_suspend signal) to preempt us until we've
@@ -2036,6 +2030,9 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	  pc_luser_xp(context, NULL);
 	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
+#ifdef DARWIN
+          enable_fp_exceptions();
+#endif
 	  PMCL_exception_handler(signum, context, tcr, info);
 	  unlock_exception_lock_in_handler(tcr);
 	  exit_signal_handler(tcr, old_valence);
