@@ -86,8 +86,11 @@ C(import_ptrs_base):
 	PTR(import_ptrs_start)
 
 ifdef([LINUX],[
+ifdef([PPC64],[
+],[        
 	.globl __trampoline_setup
 	.long  __trampoline_setup
+])        
 ])
 
 
