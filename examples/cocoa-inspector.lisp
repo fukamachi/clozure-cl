@@ -56,9 +56,6 @@ I'd rather set up this file to be
 
 (require "COCOA")
 
-(eval-when (:compile-toplevel :execute)
-  (setq *readtable* *objc-readtable*))
-
 ; This is useful when @ won't work, dynamically creating a NSString pointer from a string
 (defun nsstringptr (string)
   (objc-constant-string-nsstringptr
