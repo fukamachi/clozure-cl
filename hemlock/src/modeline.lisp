@@ -98,6 +98,14 @@
 				   (declare (ignore buffer window))
 				   "Hemlock "))
 
+(make-modeline-field :name :external-format :width 4
+		     :function #'(lambda (buffer window)
+				   "Returns indication of buffer's external-format"
+				   (declare (ignore window))
+				   (format nil "[~c] "
+					   (schar
+					    (string (buffer-external-format buffer)) 0))))
+
 (make-modeline-field
  :name :package
  :function #'(lambda (buffer window)
@@ -122,12 +130,12 @@
 (make-modeline-field
  :name :modifiedp
  :function #'(lambda (buffer window)
-	       "Returns \"* \" if buffer is modified, or the empty string."
+	       "Returns \"* \" if buffer is modified, or \"  \"."
 	       (declare (ignore window))
 	       (let ((modifiedp (buffer-modified buffer)))
 		 (if modifiedp
 		     "* "
-		     ""))))
+		     "  "))))
 
 (make-modeline-field
  :name :buffer-name
@@ -196,10 +204,10 @@
 
 
 (defvar *default-modeline-fields*
-  (list (modeline-field :hemlock-literal)
+  (list (modeline-field :modifiedp) ;(modeline-field :hemlock-literal)
+	(modeline-field :external-format)
 	(modeline-field :package)
 	(modeline-field :modes)
-	(modeline-field :modifiedp)
 	(modeline-field :buffer-name)
 	(modeline-field :buffer-pathname))
   "This is the default value for \"Default Modeline Fields\".")

@@ -439,12 +439,14 @@
       (setf (fill-pointer trans) 0)
       (multiple-value-bind (trans-result prefix-p)
           (translate-key cmd trans)
+	#+debug
         (format t "~& trans-result = ~s, prefix-p = ~s" trans-result prefix-p)
         (multiple-value-bind (res t-bindings)
             (get-current-binding trans-result)
           (etypecase res
             (command 
              (let ((punt t))
+	       #+debug
                (format t "~& key-event = ~s, res = ~s, t-bindings = ~s, prefix = ~s"
                        key-event
                        res t-bindings

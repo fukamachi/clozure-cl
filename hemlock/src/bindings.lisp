@@ -372,6 +372,8 @@
 (bind-key "Delete Previous Character Expanding Tabs" #k"backspace" :mode "Lisp")
 (bind-key "Delete Previous Character Expanding Tabs" #k"delete" :mode "Lisp")
 
+#+listener-bindings
+(progn
 (bind-key "Evaluate Expression" #k"meta-escape")
 (bind-key "Evaluate Defun" #k"control-x control-e")
 (bind-key "Compile Defun" #k"control-x control-c")
@@ -380,9 +382,12 @@
 
 (bind-key "Describe Function Call" #k"control-meta-A")
 (bind-key "Describe Symbol" #k"control-meta-S")
+)
 
 (bind-key "Goto Definition" #k"control-meta-F")
 
+#+debugger-bindings
+(progn
 (bind-key "Debug Up" #k"control-meta-hyper-u")
 (bind-key "Debug Down" #k"control-meta-hyper-d")
 (bind-key "Debug Top" #k"control-meta-hyper-t")
@@ -401,7 +406,7 @@
 (bind-key "Debug Source" #k"control-meta-hyper-s")
 (bind-key "Debug Edit Source" #k"control-meta-hyper-S")
 (bind-key "Debug Flush Errors" #k"control-meta-hyper-F")
-
+)
 
 
 ;;;; More Miscellaneous bindings.

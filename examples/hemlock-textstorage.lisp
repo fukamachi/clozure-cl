@@ -2,13 +2,14 @@
 
 (in-package "CCL")
 
-(require "COCOA")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (require "HEMLOCK"))
 
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir :cocoa))
 
 
-(defstruct hemlock-display
+(defstruct hemlock-display 
   buffer				; the hemlock buffer
   buflen				; length of buffer, if known
   workline				; cache for character-at-index
@@ -130,6 +131,7 @@
 (define-objc-method ((:id :attributes-at-index (:unsigned index)
 			  :effective-range ((* :<NSR>ange) rangeptr))
 		     lisp-text-storage)
+  (declare (ignorable index))
   #+debug
   (#_NSLog #@"Attributes at index %d, rangeptr = %x"
 	   :unsigned index :address rangeptr)
@@ -211,6 +213,7 @@
   
 (define-objc-method ((:void :key-down event)
 		     lisp-text-view)
+  #+debug
   (#_NSLog #@"Key down event = %@" :address event)
   (let* ((buffer (text-view-buffer self)))
     (when buffer
@@ -257,7 +260,7 @@
     (create-text-attributes :color (send (@class "NSColor") 'black-color)
                             :font (default-font
                                       :name "Courier New Bold Italic"
-                                      :size 12.0)))
+                                      :size 9.0)))
 
 (defun buffer-for-modeline-view (mv)
   (let* ((pane (modeline-view-pane mv)))
@@ -651,7 +654,7 @@
             (reset-display-cache display) 
             (update-line-cache-for-index display pos))
 
-          (send textstorage
+	  (send textstorage
                 :edited #$NSTextStorageEditedAttributes
                 :range (ns-make-range pos n)
                 :change-in-length (- n)))))))
