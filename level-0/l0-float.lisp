@@ -649,26 +649,33 @@
 
 
 (defun asin (x)
-  (if (typep x 'double-float)
-    (locally (declare (type double-float x))
-      (if (and (<= -1.0d0 x)
-               (<= x 1.0d0))
-        (%double-float-asin! x (%make-dfloat))
-        (let* ((temp (+ (complex -0.0d0 x)
-                        (sqrt (- 1.0d0 (the double-float (* x x)))))))
-          (complex (phase temp) (- (log (abs temp)))))))
-    
-    (let* ((x1 (%make-sfloat)))
-      (declare (dynamic-extent x1))
-      (if (and (realp x) 
-               (<= -1.0s0 (setq x (%short-float x x1)))
-               (<= x 1.0s0))
-        (%single-float-asin! x1 (%make-sfloat))
-        (progn
-          (setq x (+ (complex (- (imagpart x)) (realpart x))
-                     (sqrt (- 1 (* x x)))))
-          (complex (phase x) (- (log (abs x)))))))))
-
+  (number-case x
+    (complex
+      (let ((sqrt-1-x (sqrt (- 1 x)))
+            (sqrt-1+x (sqrt (+ 1 x))))
+        (complex (atan (/ (realpart x)
+                          (realpart (* sqrt-1-x sqrt-1+x))))
+                 (asinh (imagpart (* (conjugate sqrt-1-x)
+                                     sqrt-1+x))))))
+    (double-float
+     (locally (declare (type double-float x))
+       (if (and (<= -1.0d0 x)
+		(<= x 1.0d0))
+	 (%double-float-asin! x (%make-dfloat))
+	 (let* ((temp (+ (complex -0.0d0 x)
+			 (sqrt (- 1.0d0 (the double-float (* x x)))))))
+	   (complex (phase temp) (- (log (abs temp))))))))
+    ((short-float rational)
+     (let* ((x1 (%make-sfloat)))
+       (declare (dynamic-extent x1))
+       (if (and (realp x) 
+		(<= -1.0s0 (setq x (%short-float x x1)))
+		(<= x 1.0s0))
+	 (%single-float-asin! x1 (%make-sfloat))
+	 (progn
+	   (setq x (+ (complex (- (imagpart x)) (realpart x))
+		      (sqrt (- 1 (* x x)))))
+	   (complex (phase x) (- (log (abs x))))))))))
 
 
 (eval-when (:execute :compile-toplevel)
@@ -679,19 +686,29 @@
 
 
 (defun acos (x)
-  (if (typep x 'double-float)
-    (locally (declare (type double-float x))
-      (if (and (<= -1.0d0 x)
-               (<= x 1.0d0))
-        (%double-float-acos! x (%make-dfloat))
-        (- double-float-half-pi (asin x))))
-    (ppc32::with-stack-short-floats ((sx x))
-      (locally
-          (declare (type short-float sx))
-        (if (and (<= -1.0s0 sx)
-                 (<= sx 1.0s0))
-          (%single-float-acos! sx (%make-sfloat))
-	  (- single-float-half-pi (asin sx)))))))
+  (number-case x
+    (complex
+     (let ((sqrt-1+x (sqrt (+ 1 x)))
+	   (sqrt-1-x (sqrt (- 1 x))))
+       (complex (* 2 (atan (/ (realpart sqrt-1-x)
+			      (realpart sqrt-1+x))))
+		(asinh (imagpart (* (conjugate sqrt-1+x)
+				    sqrt-1-x))))))
+    
+    (double-float
+     (locally (declare (type double-float x))
+       (if (and (<= -1.0d0 x)
+		(<= x 1.0d0))
+	 (%double-float-acos! x (%make-sfloat))
+	 (- double-float-half-pi (asin x)))))
+    ((short-float rational)
+     (ppc32::with-stack-short-floats ((sx x))
+	(locally
+	    (declare (type short-float sx))
+	  (if (and (<= -1.0s0 sx)
+		   (<= sx 1.0s0))
+	    (%single-float-acos! sx (%make-sfloat))
+	    (- single-float-half-pi (asin sx))))))))
 
 
 (defun fsqrt (x)
