@@ -353,6 +353,22 @@
 	(activate-window w)
 	tv))))
 
+(defun put-textview-in-box (box)
+  (slet ((r (send (send box 'content-view) 'bounds)))
+    (let* ((sv (make-objc-instance 'ns-scroll-view :with-frame r))
+	   (sv-content-view (send sv 'content-view)))
+      (declare (ignorable sv-content-view))
+      (send box :set-content-view sv)
+      (slet ((sv-content-size (send sv 'content-size)))
+	(slet ((tv-frame (ns-make-rect 0.0f0 0.0f0
+				       (pref sv-content-size :<NSS>ize.width)
+				       (pref sv-content-size :<NSS>ize.height))))
+	  (let* ((tv (make-objc-instance 'ns-text-view
+					 :with-frame tv-frame)))
+	    (send sv :set-document-view tv)
+	    (send box :set-content-view sv)
+	    (values tv sv)))))))
+
 (defun read-file-to-hemlock-buffer (path)
   (let* ((buffer (hemlock::find-file-buffer path)))
     (reset-display-cache (make-hemlock-display) buffer)))
