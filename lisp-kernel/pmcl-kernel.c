@@ -917,7 +917,16 @@ determine_executable_name(char *argv0)
   return argv0;
 #endif
 #ifdef LINUX
-#error use readlink() on /proc/self/exe
+  char exepath[PATH_MAX], *p;
+  int n;
+
+  if ((n = readlink("/proc/self/exe", exepath, PATH_MAX)) > 0) {
+    p = malloc(n+1);
+    bcopy(exepath,p,n);
+    p[n]=0;
+    return p;
+  }
+  return argv0;
 #endif
 }
 
