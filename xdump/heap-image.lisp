@@ -110,7 +110,7 @@
 			    f)
       (dotimes (i 7) (image-write-fullword 0 f))
       (dolist (sect spaces)
-	(image-write-fullword (ash (xload-space-code sect) arch::fixnumshift)
+	(image-write-fullword (ash (xload-space-code sect) target::fixnumshift)
 			      f)
 	(image-write-fullword 0 f)
 	(let* ((size (xload-space-lowptr sect)))
