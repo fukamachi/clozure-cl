@@ -370,6 +370,7 @@
 (define-node-subtag istruct 16)
 (define-node-subtag value-cell 17)
 (define-node-subtag xfunction 18)       ; Function for cross-development
+(define-node-subtag svar 19)
 (defconstant max-non-array-node-subtag (logior (ash 19 ntagbits) fulltag-nodeheader))
 
 
@@ -498,6 +499,10 @@
 (define-fixedsized-object value-cell
   value)
 
+(define-fixedsized-object svar
+  symbol
+  idx)
+
 ;;; The kernel uses these (rather generically named) structures
 ;;; to keep track of various memory regions it (or the lisp) is
 ;;; interested in.
@@ -616,6 +621,7 @@
 (defconstant illegal-marker subtag-illegal)
 (define-subtag go-tag fulltag-imm 12)
 (define-subtag block-tag fulltag-imm 24)
+(define-subtag no-thread-local-binding fulltag-imm 30)
 )
 
 (defmacro make-vheader (element-count subtag)
