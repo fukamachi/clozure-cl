@@ -40,8 +40,10 @@
 
 (define-special-objc-word "AB")
 (define-special-objc-word "AE")
+(define-special-objc-word "ATS")
 (define-special-objc-word "BMP")
 (define-special-objc-word "CF")
+(define-special-objc-word "CG")
 (define-special-objc-word "CMYK")
 (define-special-objc-word "MIME")
 (define-special-objc-word "DR")
@@ -53,10 +55,13 @@
 (define-special-objc-word "HTML")
 (define-special-objc-word "HTTP")
 (define-special-objc-word "HTTPS")
+(define-special-objc-word "IB")
 (define-special-objc-word "ID")
+(define-special-objc-word "INT64")
 (define-special-objc-word "NS")
 (define-special-objc-word "MIME")
 (define-special-objc-word "PDF")
+(define-special-objc-word "PICT")
 (define-special-objc-word "PNG")
 (define-special-objc-word "QD")
 (define-special-objc-word "RGB")
@@ -69,6 +74,8 @@
 (define-special-objc-word "UTF8")
 (define-special-objc-word "URL")
 (define-special-objc-word "XOR")
+(define-special-objc-word "XML")
+(define-special-objc-word "1970")
 #+gnu-objc
 (define-special-objc-word "GS")
 
