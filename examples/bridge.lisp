@@ -403,6 +403,20 @@
 (defun message-descriptors (msg)
   (values (gethash msg *type-signature-table*)))
 
+;;; Ensure that all classes in a msg-desc are canonical (EQ to the
+;;; objc-clos class pointer.)
+(defun canonicalize-msg-desc-classes (msg-desc)
+  (do* ((classes (msg-desc-classes msg-desc) (cdr classes)))
+       ((null classes))
+    (rplaca classes (canonicalize-registered-class-or-metaclass (car classes)))))
+
+;;; Canonicalize the classes in all msg-desc in the type signature table.
+(defun canonicalize-type-signature-classes ()
+  (maphash #'(lambda (key msg-descs)
+               (declare (ignore key))
+               (dolist (msg-desc msg-descs)
+                 (canonicalize-msg-desc-classes msg-desc)))
+           *type-signature-table*))
 
 ;;; Compute the foreign type signature for method M 
 
