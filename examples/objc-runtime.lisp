@@ -1384,7 +1384,8 @@ argument lisp string."
 	 (selector-form selector-arg)
 	 (selector nil)
 	 (argspecs nil)
-	 (resulttype nil))
+	 (resulttype nil)
+         (struct-return nil))
     (flet ((bad-selector (why) (error "Can't parse method selector ~s : ~a"
 				   selector-arg why)))
       (typecase selector-form
@@ -1448,6 +1449,7 @@ argument lisp string."
 			'foreign-record-type))
 	  (progn
 	    (push name argspecs)
+            (setq struct-return t)
 	    (push :address argspecs)
 	    (setq resulttype :void))
 	  (bad-selector "Bad struct return type"))))
@@ -1461,7 +1463,8 @@ argument lisp string."
 		   ((null argspecs) (encode-objc-method-arglist
 				     `(:id :<sel> ,@(nreverse argtypes))
 				     resulttype))
-		(push (car argspecs) argtypes))))))
+		(push (car argspecs) argtypes))
+              struct-return))))
 
 (defun objc-method-definition-form (class-p selector-arg class-arg body env)
   (multiple-value-bind (selector-name
@@ -1469,7 +1472,8 @@ argument lisp string."
 			resulttype
 			argspecs
 			body
-			typestring)
+			typestring
+                        struct-return)
       (parse-objc-method selector-arg class-arg body)
       (multiple-value-bind (body decls) (parse-body body env)
 	(setq body (coerce-foreign-boolean-args argspecs body))
@@ -1481,8 +1485,12 @@ argument lisp string."
 					selector-name)))
 	       (self (intern "SELF"))
 	       (_cmd (intern "_CMD"))
-	       (super (gensym "SUPER")) 
-	       (params `(:id ,self :<sel> ,_cmd ,@argspecs)))
+	       (super (gensym "SUPER"))
+	       (params `(:id ,self :<sel> ,_cmd)))
+          (when struct-return
+            (setq params `(,(car argspecs) ,(cadr argspecs) ,@params))
+            (setq argspecs (cddr argspecs)))
+          (setq params (nconc params argspecs))
 	  `(progn
 	    (defcallback ,impname
 		    (:without-interrupts nil
