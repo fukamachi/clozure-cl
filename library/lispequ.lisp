@@ -911,7 +911,7 @@
 
 ;;; All standard-instances (classes, instances other than funcallable instances)
 ;;; consist of a vector of slot values and a pointer to the class wrapper.
-(def-accessors (instance) uvref ; %svref
+(def-accessors (instance) %svref
   instance.hash				; a fixnum for EQ-based hashing
   instance.class-wrapper
   instance.slots			; a slot-vector
@@ -922,10 +922,10 @@
 
 ;;; Get the "raw" contents of the slot, even if it's %SLOT-UNBOUND-MARKER.
 (defmacro %standard-instance-instance-location-access (instance location)
-  `(uvref (instance.slots ,instance) ,location))
+  `(%svref (instance.slots ,instance) ,location))
 
 (defmacro set-standard-instance-instance-location-access (instance location new)
-  `(setf (uvref (instance.slots ,instance) ,location) ,new))
+  `(setf (%svref (instance.slots ,instance) ,location) ,new))
 
 (defsetf standard-instance-instance-location-access
     set-standard-instance-instance-location-access)
@@ -934,10 +934,10 @@
   `(%slot-ref (gf.slots ,sgf) ,location))
 
 (defmacro %standard-generic-function-instance-location-access (sgf location)
-  `(uvref (gf.slots ,sgf) ,location))
+  `(%svref (gf.slots ,sgf) ,location))
 
 (defmacro set-standard-generic-function-instance-location-access (sgf location new)
-  `(setf (uvref (gf.slots ,sgf) ,location) ,new))
+  `(setf (%svref (gf.slots ,sgf) ,location) ,new))
 
 (defsetf standard-generic-function-instance-location-access
     set-standard-generic-function-instance-location-access)
@@ -958,8 +958,6 @@
   %wrapper-slot-id->slotd               ; map slot-id to slotd, or NIL
   %wrapper-slot-id-map                  ; (vector (mod nslots) next-slot-id-index)
   %wrapper-slot-definition-table        ; vector of nil || slot-definitions
-  %wrapper-class-svuc-effective-method-function  ; call effective method for SLOT-VALUE-USING-CLASS
-  %wrapper-class-ssvuc-effective-method-function ; call effective method for (SETF SLOT-VALUE-USING-CLASS
   %wrapper-slot-id-value                ; "fast" SLOT-VALUE function
   %wrapper-set-slot-id-value            ; "fast" (SETF SLOT-VALUE) function
 )
@@ -988,7 +986,7 @@
 
 (defmacro %cons-wrapper (class &optional 
                                (hash-index '(new-class-wrapper-hash-index)))
-  `(%istruct 'class-wrapper ,hash-index ,class nil nil #'slot-id-lookup-no-slots nil nil nil nil #'%slot-id-ref-missing #'%slot-id-set-missing))
+  `(%istruct 'class-wrapper ,hash-index ,class nil nil #'slot-id-lookup-no-slots nil nil #'%slot-id-ref-missing #'%slot-id-set-missing))
 
 
 (defmacro %instance-class (instance)
@@ -1085,6 +1083,7 @@
   standard-effective-slot-definition.class
   standard-effective-slot-definition.location
   standard-effective-slot-definition.slot-id
+  standard-effective-slot-definition.type-predicate
   )
 
 
@@ -1142,7 +1141,7 @@
 ;; These accessors are at the beginning of the table.
 ;; rest of the table is alternating wrappers & combined-methods.
 
-(def-accessors uvref ;%svref
+(def-accessors %svref
     %gf-dispatch-table-methods		; List of methods
     %gf-dispatch-table-precedence-list	; List of argument numbers in precedence order
     %gf-dispatch-table-keyvect          ; keyword vector, set by E-G-F.
@@ -1174,7 +1173,7 @@
   `(vector ,class ,options (%cons-population nil) (%cons-population nil)))
 
 ; slot accessor info for primary classes
-(def-accessors uvref ;%svref
+(def-accessors %svref
   %slot-accessor-info.class
   (%slot-accessor-info.accessor %slot-accessor-info.slot-name)
   %slot-accessor-info.offset
