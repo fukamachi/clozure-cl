@@ -699,7 +699,7 @@
      (locally (declare (type double-float x))
        (if (and (<= -1.0d0 x)
 		(<= x 1.0d0))
-	 (%double-float-acos! x (%make-sfloat))
+	 (%double-float-acos! x (%make-dfloat))
 	 (- double-float-half-pi (asin x)))))
     ((short-float rational)
      (ppc32::with-stack-short-floats ((sx x))
