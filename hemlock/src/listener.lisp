@@ -82,10 +82,48 @@
       (defhvar "Searching Interactive Pointer"
 	"Pointer into \"Interactive History\"."
 	:buffer buffer
-	:value 0))
-    (move-mark (variable-value 'buffer-input-mark :buffer buffer) point)))
+	:value 0)
+      (defhvar "Input Regions"
+        "Input region history list."
+        :buffer buffer
+        :value nil)
+      (defhvar "Current Input Font Region"
+          "Current font region, for listener input"
+        :buffer buffer
+        :value nil)
+      (defhvar "Current Output Font Region"
+          "Current font region, for listener output"
+        :buffer buffer
+        :value nil)
+      )
+    (let* ((input-mark (variable-value 'buffer-input-mark :buffer buffer)))
+      (setf (hi::buffer-protected-region buffer)
+            (region (buffer-start-mark buffer) input-mark))
+      (move-mark input-mark point)
+      (append-font-regions buffer))))
 
 (defmode "Listener" :major-p nil :setup-function #'setup-listener-mode)
+
+(declaim (special hi::*listener-input-style* hi::*listener-output-style*))
+
+(defun append-font-regions (buffer)
+  (let* ((end (region-end (buffer-region buffer))))
+    (setf (variable-value 'current-output-font-region :buffer buffer)
+          (hi::new-font-region buffer end end hi::*listener-output-style*))
+    (let* ((input (hi::new-font-region buffer end end hi::*listener-input-style*)))
+      (hi::activate-buffer-font-region buffer input)
+      (setf (variable-value 'current-input-font-region :buffer buffer) input))))
+
+(defun append-buffer-output (buffer string)
+  (let* ((output-region (variable-value 'current-output-font-region
+                                        :buffer buffer))
+         (output-end (region-end output-region)))
+    (hi::with-active-font-region (buffer output-region)
+      (insert-string output-end string)
+      (move-mark (variable-value 'buffer-input-mark :buffer buffer)
+                 output-end))))
+
+
 
 (defparameter *listener-modeline-fields*
   (list	(modeline-field :package)
@@ -128,28 +166,6 @@
 
 (defvar lispbuf-eof '(nil))
 
-(defhvar "Unwedge Interactive Input Confirm"
-  "When set (the default), trying to confirm interactive input when the
-   point is not after the input mark causes Hemlock to ask the user if he
-   needs to be unwedged.  When not set, an editor error is signaled
-   informing the user that the point is before the input mark."
-  :value t)
-
-(defun unwedge-eval-buffer ()
-  (abort-eval-input-command nil))
-
-(defhvar "Unwedge Interactive Input Fun"
-  "Function to call when input is confirmed, but the point is not past the
-   input mark."
-  :value #'unwedge-eval-buffer
-  :mode "Listener")
-
-(defhvar "Unwedge Interactive Input String"
-  "String to add to \"Point not past input mark.  \" explaining what will
-   happen if the the user chooses to be unwedged."
-  :value "Prompt again at the end of the buffer? "
-  :mode "Listener")
-
 (defun balanced-expressions-in-region (region)
   "Return true if there's at least one syntactically well-formed S-expression
 between the region's start and end, and if there are no ill-formed expressions in that region."
@@ -184,12 +200,18 @@ between the region's start and end, and if there are no ill-formed expressions i
   "Evaluate Listener Mode input between point and last prompt."
   "Evaluate Listener Mode input between point and last prompt."
   (declare (ignore p))
-  (let ((input-region (get-interactive-input)))
+  (let* ((input-region (get-interactive-input))
+         (r (if input-region
+              (region (copy-mark (region-start input-region))
+                      (copy-mark (region-end input-region) :right-inserting)))))
+
     (when input-region
       (insert-character (current-point) #\NewLine)
       (when (balanced-expressions-in-region input-region)
-        (let* ((string (region-to-string input-region)))
+        (let* ((string (region-to-string input-region))               )
+          (push (cons r nil) (value input-regions))
           (move-mark (value buffer-input-mark) (current-point))
+          (append-font-regions (current-buffer))
           (hi::send-string-to-listener-process (hi::buffer-process (current-buffer))
                                            string))))))
 
@@ -224,6 +246,21 @@ between the region's start and end, and if there are no ill-formed expressions i
 
 ;;;; General interactive commands used in eval and typescript buffers.
 
+(defhvar "Interactive History Length"
+  "This is the length used for the history ring in interactive buffers.
+   It must be set before turning on the mode."
+  :value 10)
+
+(defun input-region-containing-mark (m history-list)
+  (dolist (pair history-list)
+    (let* ((actual (car pair))
+           (start (region-start actual))
+           (end (region-end actual)))
+      (when (and (mark>= m start)
+                 (mark<= m end))        ; sic: inclusive
+        (return (or (cdr pair) (setf (cdr pair) (copy-region actual))))))))
+
+
 (defun get-interactive-input ()
   "Tries to return a region.  When the point is not past the input mark, and
    the user has \"Unwedge Interactive Input Confirm\" set, the buffer is
@@ -243,23 +280,16 @@ between the region's start and end, and if there are no ill-formed expressions i
 		   (> (length string) (value minimum-interactive-input-length)))
 	  (ring-push (copy-region input-region) ring))
 	input-region))
-     ((value unwedge-interactive-input-confirm)
-      (beep)
-      (when (prompt-for-y-or-n
-	     :prompt (concatenate 'simple-string
-				  "Point not past input mark.  "
-				  (value unwedge-interactive-input-string))
-	     :must-exist t :default t :default-string "yes")
-	(funcall (value unwedge-interactive-input-fun))
-	(message "Unwedged."))
-      nil)
      (t
-      (editor-error "Point not past input mark.")))))
+      (let* ((region (input-region-containing-mark point (value input-regions ))))
+        (buffer-end point)
+        (if region
+          (progn
+            (delete-region (region mark point))
+            (insert-region point region))
+          (beep))
+        nil)))))
 
-(defhvar "Interactive History Length"
-  "This is the length used for the history ring in interactive buffers.
-   It must be set before turning on the mode."
-  :value 10)
 
 (defhvar "Minimum Interactive Input Length"
   "When the number of characters in an interactive buffer exceeds this value,
