@@ -19,8 +19,7 @@
 (require "FASLENV" "ccl:xdump;faslenv")
 #+ppc-target
 (require "PPC-LAPMACROS")
-#+sparc-target
-(require "SPARC-LAPMACROS")
+
 
 
 (defconstant $primsizes (make-array 23
@@ -431,12 +430,25 @@
 
 (deffaslop $fasl-gvec (s)
   (let* ((subtype (%fasl-read-byte s))
-         (n (%fasl-read-size s))
-         (vector (%alloc-misc n subtype)))
-    (declare (fixnum n))
-    (%epushval s vector)
-    (dotimes (i n (setf (faslstate.faslval s) vector))
-      (setf (%svref vector i) (%fasl-expr s)))))
+         (n (%fasl-read-size s)))
+    (declare (fixnum n subtype))
+    (if (and (= subtype arch::subtag-svar)
+             (= n arch::svar.element-count))
+      (let* ((epush (faslstate.faslepush s))
+             (ecount (faslstate.faslecnt s)))
+        (when epush
+          (%epushval s 0))
+        (let* ((sym (%fasl-expr s))
+               (ignore (%fasl-expr s))
+               (vector (ensure-svar sym)))
+          (declare (ignore ignore))
+          (when epush
+            (setf (svref (faslstate.faslevec s) ecount) vector))
+          (setf (faslstate.faslval s) vector)))
+      (let* ((vector (%alloc-misc n subtype)))
+        (%epushval s vector)
+        (dotimes (i n (setf (faslstate.faslval s) vector))
+          (setf (%svref vector i) (%fasl-expr s)))))))
 
 
 
@@ -913,7 +925,14 @@
       (declare (special *xload-cold-load-functions*
                         *xload-startup-file*))
       (%set-tcr-toplevel-function (%current-tcr) nil)   ; should get reset by l1-boot.
+
      (dolist (f (prog1 *xload-cold-load-functions* (setq *xload-cold-load-functions* nil)))
         (funcall f))
+     ;; Can't bind any specials until this happens
+     (%map-areas #'(lambda (o)
+                     (when (eql (typecode o) arch::subtag-svar)
+                       (cold-load-svar o)))
+                 arch::area-dynamic
+                 arch::area-dynamic)
       (%fasload *xload-startup-file*)))
 
