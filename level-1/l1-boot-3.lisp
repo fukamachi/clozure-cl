@@ -18,18 +18,6 @@
 ;; Third part of l1-boot
 
 
-(defloadvar *external-process-task*
-    (%install-periodic-task 'external-process-watchdog
-			    #'(lambda ()
-				(loop
-				    (let* ((no-more-fds (watch-file-descriptors))
-					   (no-more-pids (check-all-pids)))
-				      (when (and no-more-fds no-more-pids)
-					(return)))))
-			    50))
-
-
-
 (catch :toplevel
     (or (find-package "COMMON-LISP-USER")
         (make-package "COMMON-LISP-USER" :use '("COMMON-LISP" "CCL") :NICKNAMES '("CL-USER")))
