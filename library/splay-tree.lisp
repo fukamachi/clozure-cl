@@ -172,3 +172,16 @@
   (check-type equal function)
   (check-type less function)
   (%make-splay-tree :equal equal :less less))
+
+;;; Do an inorder traversal of the splay tree, applying function F
+;;; to the value of each node.
+
+(defun map-splay-tree (tree f)
+  (labels ((map-tree-node (node)
+	     (when node
+	       (map-tree-node (tree-node-left node))
+	       (funcall f (tree-node-value node))
+	       (map-tree-node (tree-node-right node)))))
+    (map-tree-node (splay-tree-root tree))))
+
+	   
