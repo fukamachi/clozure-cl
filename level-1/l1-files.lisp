@@ -1170,7 +1170,10 @@
   module)
 
 (defparameter *loading-modules* () "Internal. Prevents circularity")
-(defparameter *module-provider-functions* '(module-provide-search-path))
+(defparameter *module-provider-functions* '(module-provide-search-path)
+  "A list of functions called by REQUIRE to satisfy an unmet dependency.
+Each function receives a module name as a single argument; if the function knows how to load that module, it should do so, add the module's name as a string to *MODULES* (perhaps by calling PROVIDE) and return non-NIL."
+  )
 
 (defun module-provide-search-path (module)
   ;; (format *debug-io* "trying module-provide-search-path~%")
@@ -1199,7 +1202,7 @@
 	    (load path))
 	  (unless (some (lambda (p) (funcall p module))
 			*module-provider-functions*)
-	    (error "Don't know how to load ~A" module)))))
+	    (error "Module ~A was not provided by any function on" module '*module-provider-functions*)))))
     (values module
 	    (set-difference *modules* original-modules))))
 
