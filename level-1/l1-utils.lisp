@@ -1203,6 +1203,12 @@ vector
     (report-bad-arg arg 'symbol))
   arg)
 
+(defun %cstrlen (ptr)
+  ;;(#_strlen ptr)
+  (do* ((i 0 (1+ i)))
+       ((zerop (the fixnum (%get-byte ptr i))) i)
+    (declare (fixnum i))))
+						 
 
 (defun %put-cstring (ptr str &optional (offset 0))
   (do* ((len (length str))
