@@ -496,6 +496,7 @@
 			 elements-per-buffer
 			 class
 			 external-format)
+
   (let* ((temp-name nil)
 	 (pathname (pathname filename)))
     (block open
@@ -509,7 +510,7 @@
 		((equal element-type '#.(type-expand 'unsigned-byte))
 		 (setq element-type '(unsigned-byte 8))))))
       (case direction
-	(:probe (setq if-exists :ignored if-does-not-exist nil))
+	(:probe (setq if-exists :ignored))
 	(:input (setq if-exists :ignored))
 	((:io :output) nil)
 	(t (report-bad-arg direction '(member :input :output :io :probe))))
@@ -612,19 +613,29 @@
                 fstream))))))))
 
 (defun stream-external-format (stream)
-  (require-type stream 'file-stream)
-  (file-stream-external-format stream))
+  (etypecase stream
+    (file-stream (file-stream-external-format stream))
+    (broadcast-stream (let* ((last (last-broadcast-stream stream)))
+			(if last
+			  (stream-external-format last)
+			  :default)))))
 
 ;;; Under the circumstances, this is a very slow way of saying
 ;;; "we don't support EXTENDED-CHARs".
 (defun file-string-length (stream object)
-  (unless (and (typep stream 'file-stream)
-	       (let* ((eltype (stream-element-type stream)))
-		 (or (eq 'character eltype)
-		     (eq 'base-char eltype)
-		     (subtypep eltype 'character))))
-    (error "~S is not a file stream capable of character output" stream))
-  (etypecase object
-    (character 1)
-    (string (length object))))
-
+  (if (typep stream 'broadcast-stream)
+    (let* ((last (last-broadcast-stream stream)))
+      (if last
+	(file-string-length last object)
+	1))
+    (progn
+      (unless (and (typep stream 'file-stream)
+		   (let* ((eltype (stream-element-type stream)))
+		     (or (eq 'character eltype)
+			 (eq 'base-char eltype)
+			 (subtypep eltype 'character))))
+	(error "~S is not a file stream capable of character output" stream))
+      (etypecase object
+	(character 1)
+	(string (length object))))))
+  
