@@ -201,6 +201,10 @@
 (defmethod streamp ((x stream))
   t)
 
+(defmethod stream-io-error ((stream stream) error-number context)
+  (error 'simple-stream-error :stream stream
+	 :format-control (format nil "~a during ~a"
+				 (%strerror error-number) context)))
 
 (defmethod instance-initialize :after ((stream input-stream) &key)
   (let ((direction (slot-value stream 'direction)))
@@ -243,8 +247,8 @@
 (defmethod close ((stream stream) &key abort)
   (declare (ignore abort))
   (with-slots ((closed closed)) stream
-      (unless closed
-	(setf closed nil))))
+    (unless closed
+      (setf closed t))))
 
 
 
@@ -818,28 +822,29 @@
 
 
 (defun init-stream-ioblock (stream
-			    &key
-			    insize	; integer to allocate inbuf here, nil
+                            &key
+                            insize ; integer to allocate inbuf here, nil
                                         ; otherwise
-			    outsize	; integer to allocate outbuf here, nil
+                            outsize ; integer to allocate outbuf here, nil
                                         ; otherwise
-			    share-buffers-p ; true if input and output
+                            share-buffers-p ; true if input and output
                                         ; share a buffer
-			    (element-type 'character)
-			    device
-			    advance-function
-			    listen-function
-			    eofp-function
-			    force-output-function
-			    close-function
-			    element-shift
-			    interactive
-			    &allow-other-keys)
+                            element-type
+                            device
+                            advance-function
+                            listen-function
+                            eofp-function
+                            force-output-function
+                            close-function
+                            element-shift
+                            interactive
+                            &allow-other-keys)
+  (declare (ignorable element-shift))
   (let* ((ioblock (or (let* ((ioblock (stream-ioblock stream nil)))
-			(when ioblock
-			  (setf (ioblock-stream ioblock) stream)
-			  ioblock))
-		     (stream-create-ioblock stream))))
+                        (when ioblock
+                          (setf (ioblock-stream ioblock) stream)
+                          ioblock))
+                      (stream-create-ioblock stream))))
     (when insize
       (unless (ioblock-inbuf ioblock)
         (multiple-value-bind (buffer ptr in-size-in-octets)
@@ -848,29 +853,35 @@
                 (make-io-buffer :buffer buffer
                                 :bufptr ptr
                                 :size in-size-in-octets
-				:limit insize))
-	  (setf (ioblock-inbuf-lock ioblock) (make-lock)))))
+                                :limit insize))
+          (setf (ioblock-inbuf-lock ioblock) (make-lock))
+          (setf (ioblock-element-shift ioblock) (1- (/ in-size-in-octets insize)))
+          )))
     (if share-buffers-p
-      (if insize
-        (progn (setf (ioblock-outbuf ioblock)
-		     (ioblock-inbuf ioblock))
-	       (setf (ioblock-outbuf-lock ioblock)
-		     (ioblock-inbuf-lock ioblock)))
-        (error "Can't share buffers unless insize is non-zero and non-null"))
+        (if insize
+            (progn (setf (ioblock-outbuf ioblock)
+                         (ioblock-inbuf ioblock))
+                   (setf (ioblock-outbuf-lock ioblock)
+                         (ioblock-inbuf-lock ioblock)))
+          (error "Can't share buffers unless insize is non-zero and non-null"))
       
       (when outsize
         (unless (ioblock-outbuf ioblock)
           (multiple-value-bind (buffer ptr out-size-in-octets)
               (make-heap-buffer element-type outsize)
             (setf (ioblock-outbuf ioblock)
-		  (make-io-buffer :buffer buffer
-				  :bufptr ptr
-				  :count 0
-				  :limit outsize
-				  :size out-size-in-octets))
-	    (setf (ioblock-outbuf-lock ioblock) (make-lock))))))
-    (when element-shift
-      (setf (ioblock-element-shift ioblock) element-shift))
+                  (make-io-buffer :buffer buffer
+                                  :bufptr ptr
+                                  :count 0
+                                  :limit outsize
+                                  :size out-size-in-octets))
+            (setf (ioblock-outbuf-lock ioblock) (make-lock))
+            (setf (ioblock-element-shift ioblock) (1- (/ out-size-in-octets outsize)))
+            ))))
+    (when element-type
+      (setf (ioblock-element-type ioblock) element-type))
+;    (when element-shift
+;      (setf (ioblock-element-shift ioblock) element-shift))
     (when device
       (setf (ioblock-device ioblock) device))
     (when advance-function
@@ -2148,7 +2159,7 @@
 		    (fd-read fd bufptr size))))
           (declare (fixnum n))
           (if (< n 0)
-            (error 'simple-stream-error :stream s :format-control (%strerror n))
+            (stream-io-error s (- n) "read")
             (if (> n 0)
               (setf (io-buffer-count buf)
 		    (ioblock-octets-to-elements ioblock n))
@@ -2193,9 +2204,7 @@
 			  (fd-write fd buf octets))))
 	  (declare (fixnum written))
 	  (if (< written 0)
-            (error 'simple-stream-error
-                   :stream s
-                   :format-control (%strerror written)))
+	    (stream-io-error s (- written) "write"))
 	  (decf octets written)
 	  (unless (zerop octets)
 	    (%incf-ptr buf written)))))))
