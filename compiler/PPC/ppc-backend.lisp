@@ -37,4 +37,8 @@
   #+ppc64-target *ppc64-backend*)
 
 	      
+(defun fixup-ppc-backend (&rest args)
+  #+ppc32-target (apply #'fixup-ppc32-backend args)
+  #+ppc64-target (apply #'fixup-ppc64-backend args))
+
   
