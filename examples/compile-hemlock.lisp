@@ -45,7 +45,8 @@
     "keysym-defs"
     "cocoa-hemlock"
     "rompsite"
-	       
+
+    #+clx
     "input"
     "macros"
     "line"
@@ -108,7 +109,8 @@
     ;;     "ts-buf"
     ;;     "ts-stream"
     ;;     "eval-server"
-    "lispbuf"
+    ;;      "lispbuf"
+    "listener"
     ;;     "lispeval"
     ;;     "spell-rt"
     ;;     "spell-corr"
@@ -119,6 +121,7 @@
     "overwrite"
     "abbrev"
     "icom"
+    #+clx
     "kbdmac"
     "defsyn"
     #+why
