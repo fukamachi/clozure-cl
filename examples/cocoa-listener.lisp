@@ -153,7 +153,7 @@
 			  :data-using-encoding #$NSASCIIStringEncoding
 			  :allow-lossy-conversion t)))
 
-(define-objc-method ((:id :insert-newline tv)
+(define-objc-method ((:void :insert-newline tv)
 		     lisp-listener-window-controller)
   (let* ((textbuf (send tv 'text-storage))
 	 (textlen (send textbuf 'length))
@@ -225,8 +225,7 @@
 			       (send textstring :substring-with-range lr))
 			 (setf (pref fullrange :<NSR>ange.location)
 			       (send textbuf 'length))
-			 (send tv :scroll-range-to-visible fullrange)))))))))))
-    self)
+			 (send tv :scroll-range-to-visible fullrange))))))))))))
 
 ;;; Force a break in the listener process.
 (define-objc-method ((:id :interrupt tv) lisp-listener-window-controller)
