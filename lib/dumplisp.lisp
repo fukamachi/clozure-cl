@@ -67,11 +67,6 @@
 					 :purify purify
 					 rest)))))
       (unless (eq cp ip)
-	(when (try-lock *quit-acknowledge-lock*)
-	  (let-globally ((*quit-acknowledge* (make-semaphore)))
-			(unless 
-			    (timed-wait-on-semaphore *quit-acknowledge* 1)
-			  (dbg "no quit ack"))))
 	(process-kill cp)))))
 
 (defun %save-application-internal (filename &key
