@@ -1587,7 +1587,9 @@
                     (unless (and (cadr option)
                                  (typep (cadr option) 'symbol))
                       (illegal-option option))
-                    `(:metaclass (find-class ',(cadr option))))
+                    `(:metaclass  ',(cadr option)))
+                   (:documentation
+                    `(:documentation ',(cadr option)))
                    (t
                     (list `',option-name `',(cdr option))))))
              (canonicalize-slot-spec (slot)
@@ -1656,7 +1658,7 @@
                       (if documentation-p
 			(duplicate-options slot)
 			(setq documentation-p t))
-                      (setq documentation (require-type (cadr options) 'string)))
+                      (setq documentation (cadr options)))
                      (t
                       (let* ((pair (or (assq (car options) other-options)
                                        (car (push (list (car options)) other-options)))))
@@ -1669,10 +1671,10 @@
 		   ,@(when readers `(:readers ',readers))
 		   ,@(when writers `(:writers ',writers))
 		   ,@(when type-p `(:type ',type))
-		   ,@(when documentation `(:documentation ,documentation))
+		   ,@(when documentation-p `(:documentation ,documentation))
                    ,@(mapcan #'(lambda (opt)
                                  `(',(car opt) ',(cdr opt))) other-options)))))
-	(let* ((direct-superclasses (or superclasses '(standard-object)))
+	(let* ((direct-superclasses superclasses)
 	       (direct-slot-specs (mapcar #'canonicalize-slot-spec slots))
 	       (other-options (apply #'append (mapcar #'canonicalize-defclass-option class-options ))))
 	  `(progn
@@ -1727,9 +1729,6 @@
             (cond ((and (not (eq keyword 'declare))
 			(memq keyword (prog1 option-keywords (push keyword option-keywords))))		   
                    (signal-program-error "Duplicate option: ~s to ~s" keyword 'defgeneric))
-                  ((eq keyword :method-name)    ; used by generic-flet
-                   (if function-name (bad-option o))
-                   (setq function-name (cadr o)))
                   ((eq keyword :method-combination)
                    (unless (symbolp (cadr o))
                      (bad-option o))
