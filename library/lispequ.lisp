@@ -231,8 +231,12 @@
   bt.dialog
   bt.youngest
   bt.oldest
-  bt.sg
+  bt.tcr
   bt.restarts)
+
+(defconstant bt.sg bt.tcr)
+(setf (macro-function 'bt.sg) (macro-function 'bt.tcr))
+
 
 (def-accessors (lock) %svref
   lock.value
