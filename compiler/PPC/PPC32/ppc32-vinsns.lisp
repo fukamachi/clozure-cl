@@ -1552,18 +1552,21 @@
 (define-ppc32-vinsn (vpush-register :push :node :vsp)
     (()
      ((reg :lisp)))
-  (stwu reg -4 ppc::vsp))
+  (stwu reg -4 ppc::vsp)
+  (mr ppc::new-vsp ppc::vsp))
 
 (define-ppc32-vinsn (vpush-register-arg :push :node :vsp :outgoing-argument)
     (()
      ((reg :lisp)))
-  (stwu reg -4 ppc::vsp))
+  (stwu reg -4 ppc::vsp)
+  (mr ppc::new-vsp ppc::vsp))
 
 (define-ppc32-vinsn (vpop-register :pop :node :vsp)
     (((dest :lisp))
      ())
   (lwz dest 0 ppc::vsp)
-  (la ppc::vsp 4 ppc::vsp))
+  (la ppc::vsp 4 ppc::vsp)
+  (mr ppc::new-vsp ppc::vsp))
 
 
 (define-ppc32-vinsn copy-node-gpr (((dest :lisp))
@@ -1933,6 +1936,7 @@
    (cmpwi crf immtemp0 ppc32::misc-data-offset)
    (lwz nodetemp 0 ppc::vsp)
    (la ppc::vsp 4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)   
    (stwx nodetemp dest immtemp0)
    (bne crf :loop)))
 
@@ -1952,7 +1956,8 @@
 (define-ppc32-vinsn vstack-discard (()
                                   ((nwords :u32const)))
   ((:not (:pred = nwords 0))
-   (la ppc::vsp (:apply ash nwords ppc32::word-shift) ppc::vsp)))
+   (la ppc::vsp (:apply ash nwords ppc32::word-shift) ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)))
 
 
 (define-ppc32-vinsn lcell-load (((dest :lisp))
@@ -1989,7 +1994,8 @@
                                        ()
                                        ((temp :lisp)))
   (lwzx temp ppc::vsp ppc::nargs)
-  (stwu temp -4 ppc::vsp))
+  (stwu temp -4 ppc::vsp)
+  (mr ppc::new-vsp ppc::vsp))
 
 ; Boxing/unboxing of integers.
 
@@ -2246,7 +2252,8 @@
 
 (define-ppc32-vinsn adjust-vsp (()
                               ((amount :s16const)))
-  (la ppc::vsp amount ppc::vsp))
+  (la ppc::vsp amount ppc::vsp)
+  (mr ppc::new-vsp ppc::vsp))
 
 ;; Arithmetic on fixnums & unboxed numbers
 
@@ -2631,33 +2638,45 @@
     (()
      ((first :u8const)))
   (stwu ppc::save0 -4 ppc::vsp)
+  (mr ppc::new-vsp ppc::vsp)  
   ((:pred <= first ppc::save1)
    (stwu ppc::save1 -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)
    ((:pred <= first ppc::save2)
     (stwu ppc::save2 -4 ppc::vsp)
+    (mr ppc::new-vsp ppc::vsp)
     ((:pred <= first ppc::save3)
      (stwu ppc::save3 -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp)
     ((:pred <= first ppc::save4)
      (stwu ppc::save4 -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp)
     ((:pred <= first ppc::save5)
      (stwu ppc::save5 -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp)
     ((:pred <= first ppc::save6)
      (stwu ppc::save6 -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp)
      ((:pred = first ppc::save7)
-      (stwu ppc::save7 -4 ppc::vsp)))))))))
+      (stwu ppc::save7 -4 ppc::vsp)
+      (mr ppc::new-vsp ppc::vsp)))))))))
 
 (define-ppc32-vinsn (save-nvrs :push :node :vsp :multiple)
               (()
                ((first :u8const)))
   ((:pred <= first ppc::save3)
    (subi ppc::vsp ppc::vsp (:apply * 4 (:apply - 32 first)))
+   (mr ppc::new-vsp ppc::vsp)   
    (stmw first 0 ppc::vsp))
   ((:pred >= first ppc::save2)
    (stwu ppc::save0 -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)
    ((:pred <= first ppc::save1)
     (stwu ppc::save1 -4 ppc::vsp)
+    (mr ppc::new-vsp ppc::vsp)
     ((:pred = first ppc::save2)
-     (stwu ppc::save2 -4 ppc::vsp)))))
+     (stwu ppc::save2 -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp)))))
 
 
 (define-ppc32-vinsn (restore-nvrs :pop :node :vsp :multiple)
@@ -2728,11 +2747,6 @@
                                      ((base :lisp)
                                       (offset :s16const)))
   (lwz node offset base))
-
-(define-ppc32-vinsn recover-saved-vsp (((dest :imm))
-                                     ())
-  (lwz dest ppc32::lisp-frame.savevsp ppc::sp))
-
 
 (define-ppc32-vinsn check-exact-nargs (()
                                      ((n :u16const)))
@@ -2819,24 +2833,33 @@
       (arg-temp :u32)))
   ((:pred >= min-fixed $numppcargregs)
    (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)   
    (stwu ppc::arg_y -4 ppc::vsp)
-   (stwu ppc::arg_z -4 ppc::vsp))
+   (mr ppc::new-vsp ppc::vsp)   
+   (stwu ppc::arg_z -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   ((:pred = min-fixed 2)                ; at least 2 args
    (cmplwi crfx ppc::nargs (ash 2 ppc32::word-shift))
    (beq crfx :yz2)                      ; skip arg_x if exactly 2
    (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)
    :yz2
    (stwu ppc::arg_y -4 ppc::vsp)
-   (stwu ppc::arg_z -4 ppc::vsp))
+   (mr ppc::new-vsp ppc::vsp)
+   (stwu ppc::arg_z -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp))
   ((:pred = min-fixed 1)                ; at least one arg
    (cmplwi crfx ppc::nargs (ash 2 ppc32::word-shift))
    (blt crfx :z1)                       ; branch if exactly one
    (beq crfx :yz1)                      ; branch if exactly two
    (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)
    :yz1
    (stwu ppc::arg_y -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)   
    :z1
-   (stwu ppc::arg_z -4 ppc::vsp))
+   (stwu ppc::arg_z -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   ((:pred = min-fixed 0)
    (cmplwi crfx ppc::nargs (ash 2 ppc32::word-shift))
    (cmplwi crfy ppc::nargs 0)
@@ -2845,17 +2868,22 @@
    (blt crfx :z0)                       ; one
                                         ; Three or more ...
    (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)
    :yz0
    (stwu ppc::arg_y -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)
    :z0
    (stwu ppc::arg_z -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp)
    :none
    )
   ((:pred = min-fixed 0)
-   (stwu ppc::nargs -4 ppc::vsp))
+   (stwu ppc::nargs -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   ((:not (:pred = min-fixed 0))
    (subi arg-temp ppc::nargs (:apply ash min-fixed ppc32::word-shift))
-   (stwu arg-temp -4 ppc::vsp))
+   (stwu arg-temp -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   (add entry-vsp ppc::vsp ppc::nargs)
   (la entry-vsp 4 entry-vsp)
   (bla .SPlexpr-entry))
@@ -2871,6 +2899,7 @@
      ())
   (lwz ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
   (lwz ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
+  (mr ppc::new-vsp ppc::vsp)  
   (lwz ppc::fn ppc32::lisp-frame.savefn ppc::sp)
   (mtlr ppc::loc-pc)
   (la ppc::sp ppc32::lisp-frame.size ppc::sp))
@@ -2902,7 +2931,8 @@
   (cmplwi crf ppc::nargs (:apply ash min 2))
   (bne crf :done)
   ((:pred >= min 3)
-   (stwu ppc::arg_x -4 ppc::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   ((:pred >= min 2)
    (mr ppc::arg_x ppc::arg_y))
   ((:pred >= min 1)
@@ -2918,9 +2948,11 @@
   (beq crf :one)
                                         ; We got "min" args; arg_y & arg_z default to nil
   ((:pred >= min 3)
-   (stwu ppc::arg_x -4 ppc::vsp))   
+   (stwu ppc::arg_x -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp))   
   ((:pred >= min 2)
-   (stwu ppc::arg_y -4 ppc::vsp))
+   (stwu ppc::arg_y -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   ((:pred >= min 1)
    (mr ppc::arg_x ppc::arg_z))
   (li ppc::arg_y ppc32::nil-value)
@@ -2928,7 +2960,8 @@
   :one
                                         ; We got min+1 args: arg_y was supplied, arg_z defaults to nil.
   ((:pred >= min 2)
-   (stwu ppc::arg_x -4 ppc::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   ((:pred >= min 1)
    (mr ppc::arg_x ppc::arg_y))
   (mr ppc::arg_y ppc::arg_z)
@@ -2947,26 +2980,32 @@
   (beq crfy :none)
                                         ; The first (of three) &optional args was supplied.
   ((:pred >= min 2)
-   (stwu ppc::arg_x -4 ppc::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   ((:pred >= min 1)
-   (stwu ppc::arg_y -4 ppc::vsp))
+   (stwu ppc::arg_y -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   (mr ppc::arg_x ppc::arg_z)
   (b :last-2)
   :two
                                         ; The first two (of three) &optional args were supplied.
   ((:pred >= min 1)
-   (stwu ppc::arg_x -4 ppc::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   (mr ppc::arg_x ppc::arg_y)
   (mr ppc::arg_y ppc::arg_z)
   (b :last-1)
                                         ; None of the three &optional args was provided.
   :none
   ((:pred >= min 3)
-   (stwu ppc::arg_x -4 ppc::vsp))
+   (stwu ppc::arg_x -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp))
   ((:pred >= min 2)
-   (stwu ppc::arg_y -4 ppc::vsp))
+   (stwu ppc::arg_y -4 ppc::vsp)
+     (mr ppc::new-vsp ppc::vsp))
   ((:pred >= min 1)
-   (stwu ppc::arg_z -4 ppc::vsp))
+   (stwu ppc::arg_z -4 ppc::vsp)
+   (mr ppc::new-vsp ppc::vsp))
   (li ppc::arg_x ppc32::nil-value)
   :last-2
   (li ppc::arg_y ppc32::nil-value)

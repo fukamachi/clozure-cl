@@ -254,10 +254,12 @@ define([pop],[
 	la $2,node_size($2)])
 	
 define([vpush],[
-	push($1,vsp)])
+	push($1,vsp)
+        mr new_vsp,vsp])
 	
 define([vpop],[
-	pop($1,vsp)])
+	pop($1,vsp)
+        mr new_vsp,vsp])
 	
 		
 define([unlink],[
@@ -421,7 +423,8 @@ define([restore_saveregs],[
 
 define([vpop_saveregs],[
 	restore_saveregs(vsp)
-	la vsp,node_size*8(vsp)])
+	la vsp,node_size*8(vsp)
+        mr new_vsp,vsp])
 
 define([trap_unless_lisptag_equal],[
 	extract_lisptag($3,$1)

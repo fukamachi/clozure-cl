@@ -119,10 +119,10 @@ ifdef([DARWIN],[
 	__(mr temp3,rzero)
 	__(li loc_pc,0)
 	__(li fn,0)
-        __(li old_fn,0)
 	__(cmpri(cr0,r4,0))
 	__(mtxer rzero)  /* start lisp with the overflow bit clear */
 	__(ldr(vsp,tcr.save_vsp(rcontext)))
+        __(mr new_vsp,vsp)        
 	__(ldr(tsp,tcr.save_tsp(rcontext)))
 	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
 	__(ldr(allocbase,tcr.save_allocbase(rcontext)))

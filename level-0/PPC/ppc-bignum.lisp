@@ -165,6 +165,7 @@
   (lwz temp1 r vsp)
   (lwz temp0 k vsp)
   (la vsp 16 vsp)
+  (mr new-vsp vsp)  
   (adde imm0 imm1 imm2)
   (la imm2 ppc32::misc-data-offset temp0)
   (stwx imm0 temp1 imm2)
@@ -194,6 +195,7 @@
   (lwz temp0 r vsp)
   (lwz temp1 k vsp)
   (la vsp 16 vsp)
+  (mr new-vsp vsp)  
   (subfe imm0 imm2 imm1)
   (la imm1 ppc32::misc-data-offset temp1)
   (stwx imm0 temp0 imm1)
@@ -238,6 +240,7 @@
     (la tem ppc32::misc-data-offset residx)
     (stwx prod-h resptr tem)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)      
     (blr)))
 
 
@@ -260,6 +263,7 @@
   (stw imm2 ppc32::misc-data-offset temp0)
   (lwz arg_z r vsp)
   (la vsp 8 vsp)
+  (mr new-vsp vsp)    
   (stw imm1 ppc32::misc-data-offset arg_z)
   (blr))
   
@@ -297,6 +301,7 @@
     (stw quo ppc32::misc-data-offset temp0)
     (lwz arg_z r vsp)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)  
     (stw rem ppc32::misc-data-offset arg_z)
     (blr)))
     
@@ -312,6 +317,7 @@
   (lwz arg_z bignum vsp)
   (vset32 imm0 arg_z i imm1)
   (la vsp 4 vsp)
+  (mr new-vsp vsp)
   (blr))
 
 
@@ -560,6 +566,7 @@ arg_y) (borrow-in arg_z))
     (adde x x  rzero)
     (stwx x aptr aidx)
     (la vsp 4 vsp)
+    (mr new-vsp vsp)
     (blr)))
 
 
@@ -636,6 +643,7 @@ arg_y) (borrow-in arg_z))
     (addi idx len ppc32::misc-data-offset)
     (stwx y resptr idx)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)
     (blr)))
 
 
@@ -676,6 +684,7 @@ arg_y) (borrow-in arg_z))
     (addi idx jidx ppc32::misc-data-offset)
     (stwx x resptr idx)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)
     (blr)))
 
 
@@ -866,6 +875,7 @@ arg_y) (borrow-in arg_z))
   (bgt @loop)
   @out
   (la vsp 4 vsp)
+  (mr new-vsp vsp)
   (blr))
 
 #+nomore
@@ -920,6 +930,7 @@ arg_y) (borrow-in arg_z))
     (subfe x carry x)
     (stwx x xptr tem)
     (la vsp 12 vsp)
+    (mr new-vsp vsp)
     (blr)))
 
 ;; x0 is at index, x1 at index-1, x2 at index-2
@@ -1365,6 +1376,7 @@ logical means unsigned
     (lwz resptr res-offset vsp)
     (lwz s1 s1-offset vsp)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)
     (la resptr -4 resptr)		; pre-decrement
     (la s1 -4 s1)
     (addic carry carry 0)
@@ -1405,6 +1417,7 @@ logical means unsigned
     (lwz resptr res-offset vsp)
     (lwz s1 s1-offset vsp)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)
     (la resptr -4 resptr)		; pre-decrement
     (la s1 -4 s1)
     (addic carry carry 0)
@@ -1449,6 +1462,7 @@ logical means unsigned
     (lwz up up-offset vsp)
     (la s1 -4 up)
     (la vsp 8 vsp)
+    (mr new-vsp vsp)
     (mr size un)
     (lwz limb 0 vp)
     (subi vn vn '1)

@@ -49,9 +49,9 @@
   allocbase
   nargs                                 ; Volatile.  SHOULDN'T be used for tag extraction. (TWI handler confusion.)
   tsp                                   ; Temp-stack pointer.
-  vsp                                   ; Value stack pointer; grows towards 0.
+  vsp                                   
   loc-pc                                ; for return PC only.
-  old-fn
+  new-vsp                               ; Value stack pointer; grows towards 0.
   fn                                    ; Current function (constants vector).
   temp3                                 ; Boxed, volatile registers.  Some
 					; may be defined on function entry.

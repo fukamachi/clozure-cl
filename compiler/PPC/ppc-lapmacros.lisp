@@ -138,6 +138,7 @@
   `(progn
     (lwz loc-pc ppc32::lisp-frame.savelr sp)
     (lwz ,vsp ppc32::lisp-frame.savevsp sp)
+    (mr new-vsp ,vsp)
     (mtlr loc-pc)
     (lwz fn ppc32::lisp-frame.savefn sp)
     (la sp ppc32::lisp-frame.size sp)))
@@ -149,7 +150,9 @@
   `(stwu ,src -4 ,stack))
 
 (defppclapmacro vpush (src)
-  `(push ,src vsp))
+  `(progn
+    (push ,src vsp)
+    (mr new-vsp vsp)))
 
 ; You typically don't want to do this to pop a single register (it's better to
 ; do a sequence of loads, and then adjust the stack pointer.)
@@ -160,7 +163,9 @@
      (la ,stack 4 ,stack)))
 
 (defppclapmacro vpop (dest)
-  `(pop ,dest vsp))
+  `(progn
+    (pop ,dest vsp)
+    (mr new-vsp vsp)))
 
 (defppclapmacro %cdr (dest node)
   `(lwz ,dest ppc32::cons.cdr ,node))

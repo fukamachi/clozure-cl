@@ -108,6 +108,7 @@
   (bne cr0 @loop)
   (mr arg_z dest)
   (la vsp 8 vsp)
+  (mr new-vsp vsp)
   (blr))
 
 (defppclapfunction %copy-ivector-to-ivector ((src 4) 
@@ -145,6 +146,7 @@
   (bne cr0 @loop)
   (mr arg_z dest)
   (la vsp 8 vsp)
+  (mr new-vsp vsp)
   (blr)
 
   @words      ; source and dest different - words 
@@ -159,6 +161,7 @@
   @done
   (mr arg_z dest)
   (la vsp 8 vsp)
+  (mr new-vsp vsp)
   (blr)
 
   @SisD
@@ -194,6 +197,7 @@
   (lwz imm0 src-element vsp)
   (lwz temp0 src vsp)
   (la vsp 8 vsp)
+  (mr new-vsp vsp)
   (la imm0 ppc32::misc-data-offset imm0)
   (la imm1 ppc32::misc-data-offset dest-element)
   (b @test)
@@ -777,6 +781,7 @@
   (svset newval ppc32::symbol.vcell-cell temp0) ; store new val
   (mr arg_z newval)
   (la vsp 4 vsp)
+  (mr new-vsp vsp)
   (blr))
 
 (defppclapfunction %metering-info ((ptr arg_z))
