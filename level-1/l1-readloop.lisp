@@ -465,7 +465,7 @@
           (let ((fn (cadr handlers)))
             (cond ((null fn) (throw tag condition))
                   ((fixnump fn) (throw tag (cons fn condition)))
-                  (t (return (funcall fn condition))))))))))
+                  (t (funcall fn condition)))))))))
 
 (defvar *error-print-circle* nil)   ; reset to T when we actually can print-circle
 
