@@ -285,7 +285,7 @@
 
 (defun %pop-required-arg-ptr (ptr)
   (if (atom (destructure-state.current ptr))
-    (error "Required arguments in ~s don't match lambda list ~s."
+    (signal-program-error "Required arguments in ~s don't match lambda list ~s."
 	   (destructure-state.whole ptr) (destructure-state.lambda ptr))
     (pop (destructure-state.current ptr))))
 
@@ -293,7 +293,7 @@
   (let* ((tail (destructure-state.current ptr)))
     (if tail
       (if (atom tail)
-	(error "Optional arguments in ~s don't match lambda list ~s."
+	(signal-program-error "Optional arguments in ~s don't match lambda list ~s."
 	       (destructure-state.whole ptr) (destructure-state.lambda ptr))
 	(pop (destructure-state.current ptr)))
       default)))
