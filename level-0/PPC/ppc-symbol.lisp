@@ -63,12 +63,12 @@
   (trap-unless-typecode= symptr arch::subtag-symbol imm0)
   (blr))
 
-(defppclapfunction %%sym-value ((name arg_z))
-  (mr temp0 name)
+(defppclapfunction %svar-sym-value ((svar arg_z))
+  (mr temp0 svar)
   (ba .SPsvar-specref))
 
-(defppclapfunction %%set-sym-value ((name arg_y) (val arg_z))
-  (mr temp0 name)
+(defppclapfunction %svar-set-sym-value ((svar arg_y) (val arg_z))
+  (mr temp0 svar)
   (ba .SPsvar-specset))
 
 (defppclapfunction %svar-binding-address ((svar arg_z))
