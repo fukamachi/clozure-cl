@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 
 (defnx1 nx1-the the (&whole call typespec form &environment env)
 ; Wimp out, but don't choke on (the (values ...) form)
