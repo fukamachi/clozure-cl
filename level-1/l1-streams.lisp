@@ -1495,12 +1495,6 @@
 	(stream-position last)
 	0))))
 
-(defmethod file-stream-external-format ((s broadcast-stream))
-  (let* ((last (last-broadcast-stream s)))
-    (if last
-      (file-stream-external-format last)
-      :default)))
-
 (defun make-broadcast-stream (&rest streams)
   (dolist (s streams (make-instance 'broadcast-stream :streams streams))
     (unless (output-stream-p s)
