@@ -15,7 +15,12 @@
 
 */
 
+/*
+  $Log$
+  Revision 1.5  2003/12/10 08:25:10  gb
+  Don't reference tlb_pointer until we're sure it's big enough.
 
+*/       
 	
 	include(lisp.s)
 	_beginfile
@@ -4195,11 +4200,11 @@ _spentry(svar_bind)
 0:              
         __(ldr(imm3,svar.idx(temp0)))
         __(ldr(imm0,tcr.tlb_limit(rcontext)))
-        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(cmpri(imm3,0))
         __(trlle(imm0,imm3))           /* tlb too small */
-        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
         __(beq 9f)
         __(vpush(temp1))
         __(vpush(imm3))
@@ -4217,11 +4222,11 @@ _spentry(svar_bind_self)
 0:              
         __(ldr(imm3,svar.idx(temp0)))
         __(ldr(imm0,tcr.tlb_limit(rcontext)))
-        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(cmpri(imm3,0))
         __(trlle(imm0,imm3))           /* tlb too small */
-        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
         __(cmpri(cr1,temp1,no_thread_local_binding_marker))
         __(ldr(arg_y,svar.symbol(temp0)))
         __(beq 9f)
@@ -4245,9 +4250,9 @@ _spentry(svar_bind_nil)
         __(ldr(imm3,svar.idx(temp0)))
         __(ldr(imm0,tcr.tlb_limit(rcontext)))
         __(cmpri(imm3,0))
-        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(beq- 9f)
         __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(ldrx(temp1,imm2,imm3))
         __(ldr(imm1,tcr.db_link(rcontext)))
         __(li imm0,nil_value)
@@ -4265,9 +4270,9 @@ _spentry(svar_bind_nil)
 _spentry(svar_bind_self_boundp_check)
         __(ldr(imm3,svar.idx(temp0)))
         __(ldr(imm0,tcr.tlb_limit(rcontext)))
-        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(cmpri(imm3,0))
         __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
         __(ldrx(temp1,imm2,imm3))
         __(ldr(imm1,tcr.db_link(rcontext)))
         __(beq 9f)              /* no real tlb index */
@@ -4402,7 +4407,6 @@ _spentry(svar_progvsave)
 	__(ldr(imm2,tsp_frame.backlink(tsp)))
 	__(mr temp4,arg_y)
 	__(ldr(imm1,tcr.db_link(rcontext)))
-        __(ldr(imm4,tcr.tlb_pointer(rcontext)))
         __(ldr(imm3,tcr.tlb_limit(rcontext)))
 3:
         __(cmpri(cr1,arg_z,nil_value))
@@ -4410,6 +4414,7 @@ _spentry(svar_progvsave)
         __(ldr(imm0,svar.idx(temp0)))
 	__(_cdr(temp4,temp4))
         __(trlle(imm3,imm0))
+        __(ldr(imm4,tcr.tlb_pointer(rcontext))) /* Need to reload after trap */
         __(ldrx(temp3,imm4,imm0))
 	__(cmpri(cr0,temp4,nil_value))
         __(li temp2,unbound_marker)
