@@ -353,6 +353,8 @@
 
 (bind-key "Indent Form" #k"control-meta-q")
 (bind-key "Fill Lisp Comment Paragraph" #k"meta-q" :mode "Lisp")
+(bind-key "Current Function Arglist" #k"control-x control-a" :mode "Lisp")
+(bind-key "Arglist On Space" #k"Space" :mode "Lisp")
 (bind-key "Defindent" #k"control-meta-#")
 (bind-key "Beginning of Defun" #k"control-meta-[")
 (bind-key "End of Defun" #k"control-meta-]")
