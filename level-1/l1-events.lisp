@@ -138,7 +138,7 @@
   (progn
     (handle-gc-hooks)
     (unless *inhibit-abort*
-      (when (break-event-pending-p)
+      (when (and (break-event-pending-p) *interactive-abort-process*)
         (force-break-in-listener *interactive-abort-process*)))
     (flet ((maybe-run-periodic-task (task)
              (let ((now (get-tick-count))
