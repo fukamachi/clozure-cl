@@ -1115,7 +1115,7 @@ argument lisp string."
 	   (meta-id (objc-class-id->objc-metaclass-id id))
 	   (meta (id->objc-metaclass meta-id))
 	   (class (id->objc-class id))
-	   (meta-name (intern (format nil "+~a" class-name)
+	   (meta-name (intern (format nil "+~a" name)
 			      (symbol-package name)))
 	   (meta-super (canonicalize-registered-metaclass
 			(pref meta :objc_class.super_class))))
