@@ -94,7 +94,8 @@
   (defhvar "Reverse Video"
     "Paints white on black in window bodies, black on white in modelines."
     :value nil
-    :hooks '(reverse-video-hook-fun))
+    #+clx
+    :hooks #+clx '(reverse-video-hook-fun))
   #+clx
   (defhvar "Cursor Bitmap File"
     "File to read to setup cursors for Hemlock windows.  The mask is found by

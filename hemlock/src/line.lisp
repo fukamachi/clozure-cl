@@ -87,15 +87,9 @@
   ;; A slot that indicates whether this line is a buffered line, and if so
   ;; contains information about how the text is stored.  On the RT, this is
   ;; the length of the text pointed to by the Line-%Chars.
-  #+buffered-lines
   (buffered-p ()))
 
-;;; Make Line-Chars the same as Line-%Chars on implementations without
-;;; buffered lines.
-;;;
-#-buffered-lines
-(defmacro line-chars (x)
-  `(line-%chars ,x))
+
 
 
 ;;; If buffered lines are supported, then we create the string
@@ -103,16 +97,11 @@
 ;;; who are prepared to handle buffered lines or who just want a signature
 ;;; for the contents can use Line-%chars directly.
 ;;;
-#+buffered-lines
 (defmacro line-chars (line)
-  `(the simple-string (if (line-buffered-p ,line)
-			  (read-buffered-line ,line)
-			  (line-%chars ,line))))
+  `(the simple-string (line-%chars ,line)))
 ;;;
-#+buffered-lines
 (defsetf line-chars %set-line-chars)
 ;;;
-#+buffered-lines
 (defmacro %set-line-chars (line chars)
   `(setf (line-%chars ,line) ,chars))
 
@@ -140,8 +129,8 @@
 	      :previous ,previous
 	      :number ,number
 	      :%buffer ,%buffer
-	      #+buffered-lines :buffered-p
-	      #+buffered-lines (line-buffered-p ,line)))
+	      :buffered-p
+	      (line-buffered-p ,line) ))
 
 ;;; Hide the fact that the slot isn't really called CHARS.
 ;;;

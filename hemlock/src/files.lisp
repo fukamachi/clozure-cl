@@ -110,9 +110,7 @@
             (incf length (1+ (line-length line))))
           ;;
           (macrolet ((chars (line)
-                       `(if (line-buffered-p ,line)
-                         (line-%chars ,line)
-                         (line-chars ,line))))
+                       `(line-%chars ,line)))
             (write-sequence (chars start-line) file :start start-charpos :end (+ start-charpos first-length))
             (write-char #\newline file)
             (let ((offset (1+ first-length)))

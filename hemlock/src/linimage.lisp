@@ -506,14 +506,12 @@
 	(values string underhang offset))	   
        ((eq line *open-line*)
 	(compute-cached-line-image offset dis-line xpos width))
-       #+buffered-lines
        ((line-buffered-p line)
 	(compute-buffered-line-image line offset dis-line xpos width))
        (t
  	(compute-normal-line-image line offset dis-line xpos width)))))
    ((eq line *open-line*)
     (compute-cached-line-image offset dis-line 0 width))
-   #+buffered-lines
    ((line-buffered-p line)
     (compute-buffered-line-image line offset dis-line 0 width))
    (t
