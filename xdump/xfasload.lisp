@@ -175,7 +175,7 @@
 
 ;;; This should probably be a function of the target backend.
 (defparameter *xload-image-base-address*
-  #+darwinppc-target #x01000000
+  #+darwinppc-target #x02000000
   #+linuxppc-target #x31000000)
 
 (defparameter *xload-static-reserve* (ash 1 15))
