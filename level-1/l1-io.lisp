@@ -1176,7 +1176,8 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                        ((eql l 0)
                         ;; can't use write-abbreviation since there is
                         ;;  no `object' for the abbreviation to represent
-                        (%write-string " ..." stream)
+                        (unless (eql i 0) (pp-space stream))
+                        (%write-string "..." stream)
                         (return))
                        (t (unless (eql i 0) (pp-space stream))
                           (write-internal stream (aref array i) (%i- level 1) nil))))
