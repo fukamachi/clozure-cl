@@ -608,20 +608,25 @@
         (string= x y)
         (equalp x y))))
 
+(defun undefine-constant (var)
+  (%set-sym-global-value var (%unbound-marker-8)))
+
 (defun define-constant (var value)
   (block nil
     (if (constant-symbol-p var)
-      (if (similar-as-constants-p (%sym-value var) value)
-        (return)
-        ;This should really be a cell error, allow options other than redefining (such
-        ; as don't redefine and continue)...
-        (cerror "Redefine ~S anyway"
-                "Constant ~S is already defined with a different value"
-                var)))
+      (let* ((old-value (%sym-global-value var)))
+	(unless (eq old-value (%unbound-marker-8))
+	  (if (similar-as-constants-p (%sym-global-value var) value)
+	    (return)
+	    ;; This should really be a cell error, allow options other than
+	    ;; redefining (such as don't redefine and continue)...
+	    (cerror "Redefine ~S anyway"
+		    "Constant ~S is already defined with a different value"
+		    var)))))
     (%symbol-bits var 
                   (%ilogior (%ilsl $sym_bit_special 1) (%ilsl $sym_bit_const 1)
                             (%symbol-bits var)))
-    (%set-sym-value var value))
+    (%set-sym-global-value var value))
   var)
 
 (defun %defconstant (var value &optional doc)
