@@ -403,7 +403,7 @@
     (clear-fpu-exceptions)
     (lwz imm0 ppc32::double-float.value float)
     (lwz imm1 ppc32::double-float.val-low float)
-    (stwu tsp -16 tsp)
+    (stwu tsp -24 tsp)
     (stw tsp 4 tsp)
     (stw imm0 fl.h tsp)
     (stw imm1 fl.l tsp)
