@@ -645,9 +645,10 @@
 (defformat #\[ format-condition (stream colon atsign &rest parms)
   (declare (dynamic-extent parms))
   (when parms
-    (push (pop parms) *format-arguments*)
+    (let ((p (pop parms)))
+      (if p (push p *format-arguments*)))
     (unless (null parms)
-      (format-error "Too many parameters to ~[")))
+      (format-error "Too many parameters to ~~[")))
   (format-nextchar)
   (cond (colon
          (when atsign
