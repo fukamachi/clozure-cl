@@ -404,7 +404,8 @@
   (%eval-redef %set-double-float (p o &optional (new (prog1 o (setq o 0))))
 	       (%set-double-float p o new))
   (%eval-redef %set-single-float (p o &optional (new (prog1 o (setq o 0))))
-	       (%set-single-float p o new))  
+	       (%set-single-float p o new))
+  (%eval-redef assq (item list))
 )
 
 ; In the spirit of eval-redef ...
