@@ -1176,6 +1176,19 @@
               (defenv.classes defenv)))))
   name)
 
+(defun check-setf-find-class-protected-class (old-class new-class name)
+  (when (and (standard-instance-p old-class)
+	     (%class.kernel-p old-class)
+	     *warn-if-redefine-kernel*
+	     ;; EQL might be necessary on foreign classes
+	     (not (eq new-class old-class)))
+    (cerror "Setf (FIND-CLASS ~s) to the new class."
+	    "The class name ~s currently denotes the class ~s that
+marked as being a critical part of the system; an attempt is being made
+to replace that class with ~s" name old-class new-class)
+    (setf (%class.kernel-p old-class) nil)))
+
+
 (queue-fixup
  (without-interrupts 
   (defun set-find-class (name class)
@@ -1184,10 +1197,8 @@
       (declare (type list cell))
       (when *warn-if-redefine-kernel*
         (let ((old-class (cdr cell)))
-          (when (and old-class (neq class old-class) (%class.kernel-p old-class))
-            (cerror "Redefine ~S."
-                    "~S is already defined in the CCL kernel." old-class)
-            (setf (%class.kernel-p old-class) nil))))
+	  (when old-class
+	    (check-setf-find-class-protected-class old-class class name))))
       (when (null class)
         (when cell
           (setf (cdr cell) nil))
