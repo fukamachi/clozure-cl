@@ -792,6 +792,15 @@
       (setf (car old-pp) package-or-nil)
       (%set-symbol-package-plist symbol package-or-nil))))
 
+(let* ((force-export-packages (list *keyword-package*)))
+  (defun force-export-packages ()
+    force-export-packages)
+  (defun package-force-export (p)
+    (let* ((pkg (pkg-arg p)))
+    (pushnew pkg force-export-packages)
+    pkg)))
+
+
 (defun %insert-symbol (symbol package internal-idx external-idx &optional force-export)
   (let* ((package-plist (%symbol-package-plist symbol))
          (keyword-package (eq package *keyword-package*)))
@@ -800,7 +809,7 @@
       (if (listp package-plist)
         (unless (%car package-plist) (%rplaca package-plist package)))
       (%set-symbol-package-plist symbol package))
-    (if (or force-export keyword-package)
+    (if (or force-export (memq package (force-export-packages)))
       (progn
         (%htab-add-symbol symbol (pkg.etab package) external-idx)
         (if keyword-package
