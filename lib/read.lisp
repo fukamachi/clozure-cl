@@ -86,32 +86,43 @@
 
 (set-dispatch-macro-character #\# #\A
  (qlfun |#A-reader| (stream ignore dimensions)
-  (declare (ignore ignore))
-  (cond (*read-suppress*
-	        (read stream () () t)
-	        nil)
-        ((not dimensions)
-         (signal-reader-error stream "reader macro #A used without a rank integer"))
-        ((eql dimensions 0) ;0 dimensional array
-         (make-array nil :initial-contents (read-internal stream)))
-        ((and (integerp dimensions) (> dimensions 0)) 
-	         (let* ((dlist (make-list dimensions))
-		               (init-list (read-internal stream)))
-		              (if (not (listp init-list))
-                    (signal-reader-error stream "The form following a #A reader macro should have been a list, but it was: ~S" init-list))                  
-	              (do ((dl dlist (cdr dl))
-		                  (il init-list (car il)))
-	                   	;; I think the nreverse is causing the problem.
-		                 ((null dl))
-	                  (if (listp il)
-		                     (rplaca dl (list-length il))
-		                     (error
-			                     "Initial contents for #A is inconsistent with ~
-			                     dimensions: #~SA~S" dimensions init-list)))
-	              (make-array dlist :initial-contents init-list)))
-	       (t (signal-reader-error stream 
-             "Dimensions argument to #A not a non-negative integer: ~S" 
-		           dimensions)))))
+   (declare (ignore ignore))
+   (cond (*read-suppress*
+          (read stream () () t)
+          nil)
+         ((not dimensions)
+          (signal-reader-error stream "reader macro #A used without a rank integer"))
+         ((eql dimensions 0) ;0 dimensional array
+          (make-array nil :initial-contents (read-internal stream)))
+         ((and (integerp dimensions) (> dimensions 0)) 
+          (let ((init-list (read-internal stream)))
+            (cond ((not (typep init-list 'sequence))
+                   (signal-reader-error stream "The form following a #~SA reader macro should have been a sequence, but it was: ~S" dimensions init-list))
+                  ((= (length init-list) 0)
+                   (make-array (make-list dimensions :initial-element 0)))
+                  ((= dimensions 1)
+                   (make-array (length init-list) :initial-contents init-list))
+                  ((vectorp init-list)
+                   (let ((dlist (make-list dimensions)))
+                     (do ((dl dlist (cdr dl))
+                          (il init-list (svref il 0)))
+                         ((null dl))
+                       (if (vectorp il)
+                           (rplaca dl (length il))
+                           (signal-reader-error stream "Initial contents for #A is inconsistent with dimensions: #~SA~S" dimensions init-list)))
+                     (make-array dlist :initial-contents init-list)))
+                  ((listp init-list)
+                   (let ((dlist (make-list dimensions)))
+                     (do ((dl dlist (cdr dl))
+                          (il init-list (car il)))
+                         ((null dl))
+                       (if (listp il)
+                           (rplaca dl (list-length il))
+                           (signal-reader-error stream "Initial contents for #A is inconsistent with dimensions: #~SA~S" dimensions init-list)))
+                     (make-array dlist :initial-contents init-list)))
+                  (t
+                   (signal-reader-error stream "#~SA~S invalid." dimensions init-list)))))
+         (t (signal-reader-error stream "Dimensions argument to #A not a non-negative integer: ~S" dimensions)))))
 
 (set-dispatch-macro-character #\# #\S
   (qlfun |#S-reader| (input-stream sub-char int &aux list sd)
