@@ -65,6 +65,8 @@
 (define-special-objc-word "UTF8")
 (define-special-objc-word "URL")
 (define-special-objc-word "XOR")
+#+gnu-objc
+(define-special-objc-word "GS")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
