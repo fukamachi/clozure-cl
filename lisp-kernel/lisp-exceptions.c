@@ -2695,4 +2695,44 @@ darwin_exception_cleanup(TCR *tcr)
 }
 
 
+/*
+  Only do this if pthread_kill indicated that the pthread isn't
+  listening to signals anymore, as can happen as soon as pthread_exit()
+  is called on Darwin.  The thread could still call out to lisp as it
+  is exiting, so we need another way to suspend it in this case.
+*/
+Boolean
+mach_suspend_tcr(TCR *tcr)
+{
+  mach_port_t mach_thread = (mach_port_t) tcr->native_thread_id;
+  kern_return_t status = thread_suspend(mach_thread);
+  struct ucontext *lss;
+  
+  if (status != KERN_SUCCESS) {
+    return false;
+  }
+  lock_acquire(mach_exception_lock_set, 0);
+  lss = create_thread_context_frame(mach_thread, NULL);
+  lss->uc_onstack = 0;
+  lss->uc_sigmask = (sigset_t) 0;
+  tcr->suspend_context = lss;
+  tcr->suspend_total++;
+  lock_release(mach_exception_lock_set, 0);
+  return true;
+}
+
+void
+mach_resume_tcr(TCR *tcr)
+{
+  ExceptionInformation *xp;
+  mach_port_t mach_thread = (mach_port_t)(tcr->native_thread_id);
+  
+  lock_acquire(mach_exception_lock_set, 0);
+  xp = tcr->suspend_context;
+  tcr->suspend_context = NULL;
+  restore_mach_thread_state(mach_thread, xp);
+  lock_release(mach_exception_lock_set,0);
+}
+
+
 #endif
