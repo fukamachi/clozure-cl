@@ -25,11 +25,19 @@
 (defpackage "NS"
   (:use))
 
+
+;;; Force all symbols interned in the NS package to be external
+;;; symbols.
+(package-force-export "NS")
+
 (defconstant objc-type-flags (byte 3 20))
 (defconstant objc-type-index (byte 20 0))
 (defconstant objc-flag-instance 0)
 (defconstant objc-flag-class 1)
 (defconstant objc-flag-metaclass 2)
+
+(defvar *objc-class-class*)
+(defvar *objc-metaclass-class*)
 
 (defun recognize-objc-object (p)
   (let* ((idx (objc-class-id p)))
@@ -53,7 +61,7 @@
     (ecase flags
       (#.objc-flag-instance (id->objc-class index))
       (#.objc-flag-class (id->objc-metaclass index))
-      (#.objc-flag-metaclass (id->objc-metaclass 0)))))
+      (#.objc-flag-metaclass *objc-metaclass-class*))))
 
   
 (defun %objc-domain-classp (p)
@@ -70,7 +78,7 @@
     (ecase flags
       (#.objc-flag-instance (id->objc-class-wrapper index))
       (#.objc-flag-class (id->objc-metaclass-wrapper index))
-      (#.objc-flag-metaclass (id->objc-metaclass-wrapper 0)))))
+      (#.objc-flag-metaclass (%class.own-wrapper *objc-metaclass-class*)))))
 
 (defun %objc-domain-class-own-wrapper (p)
   (let* ((type (%macptr-type p))
@@ -117,13 +125,15 @@
 (defclass objc:objc-metaclass (objc:objc-class-object)
     ())
 
+(setq *objc-metaclass-class* (find-class 'objc:objc-metaclass))
+
 (defclass objc:objc-class (objc:objc-class-object)
     ())
 
 (defmethod objc-metaclass-p ((c class))
   nil)
 
-(defmethod objc-metaclass-p ((c objc:objc-class))
+(defmethod objc-metaclass-p ((c objc:objc-class-object))
   (%objc-metaclass-p c))
 
 
@@ -131,7 +141,7 @@
   (print-unreadable-object (c stream)
     (format stream "~s ~:[~;[MetaClass] ~]~s (#x~x)" 'objc:objc-class (objc-metaclass-p c) (class-name c) (%ptr-to-int c))))
 
-'(defmethod print-object ((c objc:objc-metaclass) stream)
+(defmethod print-object ((c objc:objc-metaclass) stream)
   (print-unreadable-object (c stream)
     (format stream "~s ~s (#x~x)" 'objc:objc-metaclass (class-name c) (%ptr-to-int c))))
 
@@ -218,3 +228,4 @@
 	     foreign
 	     peer
 	     )))
+

@@ -18,11 +18,6 @@
 (in-package "CCL")
 
 
-(defun show-uvector (u)
-  (dotimes (i (uvsize u) (values))
-    (format t "~&~d : ~s" i (uvref u i))
-    (force-output)))
-
 ;;; Utilities for interacting with the Apple/GNU Objective-C runtime
 ;;; systems.
 
@@ -146,10 +141,16 @@
               (splay-tree-count objc-class-map) 0
               (splay-tree-count objc-metaclass-map) 0
               next-objc-class-id 0)))
-    (defun map-objc-class (class &optional foreign)
+    (defun map-objc-class (class &optional (class-name
+					    (objc-to-lisp-classname
+					     (%get-cstring
+					      (pref class :objc_class.name))
+					     "NS")
+					    class-name-p))
       "ensure that the class (and metaclass) are mapped to a small integer"
       (with-lock-grabbed (objc-class-lock)
 	(labels ((ensure-mapped-class (class)
+		   (ensure-objc-classptr-resolved class)
 		   (with-macptrs ((super (pref class :objc_class.super_class)))
 		     (unless (%null-ptr-p super)
 		       (ensure-mapped-class super)))
@@ -157,34 +158,25 @@
 		       (let* ((id (assign-next-class-id))
 			      (class (%inc-ptr class 0))
 			      (meta (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer)))
-			 (ensure-objc-classptr-resolved class)
 			 (splay-tree-put objc-class-map class id)
 			 (splay-tree-put objc-metaclass-map meta id)
 			 (setf (svref c id) class
 			       (svref m id) meta)
-			 (let* ((class-name (objc-to-lisp-classname
-					     (%get-cstring
-					      (pref class :objc_class.name))
-					     "NS"))
-				(metaclass-name (intern (concatenate 'string "+" (string class-name)) (symbol-package class-name)))
+			 (let* ((metaclass-name (intern (concatenate 'string "+" (string class-name)) (symbol-package class-name)))
 				(class-wrapper (%cons-wrapper class))
 				(meta-wrapper (%cons-wrapper meta))
 				(class-slot-vector
 				 (initialize-objc-class-slots class
 							      class-name
 							      class-wrapper
-							      foreign))
+							      (not class-name-p)))
 				(meta-slot-vector
 				 (initialize-objc-metaclass-slots
 				  meta
 				  metaclass-name
 				  meta-wrapper
-				  foreign
+				  (not class-name-p)
 				  class)))
-			   (when (eq (find-package "NS")
-				     (symbol-package class-name))
-			     (export class-name "NS")
-			     (export metaclass-name "NS"))
 			 (setf (svref cw id) class-wrapper
 			       (svref mw id) meta-wrapper
 			       (svref csv id) class-slot-vector
@@ -274,6 +266,20 @@
                          (push c *pending-loaded-classes*)
                          c))))
         (push (%inc-ptr category 0) (cdr cell))))))
+
+;;; Shouldn't really be GNU-objc-specific.
+
+(defun get-c-format-string (c-format-ptr c-arg-ptr)
+  (do* ((n 128))
+       ()
+    (declare (fixnum n))
+    (%stack-block ((buf n))
+      (let* ((m (#_vsnprintf buf n c-format-ptr c-arg-ptr)))
+	(declare (fixnum m))
+	(cond ((< m 0) (return nil))
+	      ((< m n) (return (%get-cstring buf)))
+	      (t (setq n m)))))))
+
 
 
 (defun init-gnustep-framework ()
@@ -374,6 +380,18 @@ argument lisp string."
 (defmacro @ (string)
   `(objc-constant-string-nsstringptr ,(ns-constant-string string)))
 
+#+gnu-objc
+(progn
+  (defcallback lisp-objc-error-handler (:id receiver :int errcode (:* :char) format :address argptr :<BOOL>)
+    (let* ((message (get-c-format-string format argptr)))
+      (error "ObjC runtime error ~d, receiver ~s :~& ~a"
+	     errcode receiver message))
+    #$YES)
+
+  (def-ccl-pointers install-lisp-objc-error-handler ()
+    (#_objc_set_error_handler lisp-objc-error-handler)))
+
+
 
 
 
@@ -457,10 +475,10 @@ argument lisp string."
 ;;; a session, all methods with a given name (e.g, "init") will be
 ;;; represented by the same SEL.
 (defun get-selector-for (method-name &optional error)
-  (with-cstrs ((method-name method-name))
+  (with-cstrs ((cmethod-name method-name))
     (let* ((p (#+apple-objc #_sel_getUid
-	       #+gnu-objc #_sel_get_any_uid
-	       method-name)))
+	       #+gnu-objc #_sel_get_uid
+	       cmethod-name)))
       (if (%null-ptr-p p)
 	(if error
 	  (error "Can't find ObjC selector for ~a" method-name))
@@ -1031,13 +1049,29 @@ client methods" classname))
 (defun %add-objc-class (class)
   #+apple-objc
   (#_objc_addClass class)
-  ;; Reading the fine print (e.g., the source), we learn that it's
-  ;; necessary to grab a mutex (lock) around the call to
-  ;; #___objc_add_class_to_hash.  Naturally.  Why would anyone want to
-  ;; (easily) add a new class procedurally ?
   #+gnu-objc
-  (with-gnu-objc-mutex-locked (*gnu-objc-runtime-mutex*)
-      (external-call "__objc_add_class_to_hash" :address class :void)))
+  ;; Why would anyone want to create a class without creating a Module ?
+  ;; Rather than ask that vexing question, let's create a Module with
+  ;; one class in it and use #___objc_exec_class to add the Module.
+  ;; (I mean "... to add the class", of course.
+  ;; It appears that we have to heap allocate the module, symtab, and
+  ;; module name: the GNU ObjC runtime wants to add the module to a list
+  ;; that it subsequently ignores.
+  (let* ((name (make-cstring "Phony Module"))
+	 (symtab (malloc (+ (record-length :objc_symtab) (record-length (:* :void)))))
+	 (m (make-record :objc_module
+			 :version 8 #|OBJC_VERSION|#
+			 :size (record-length :<M>odule)
+			 :name name
+			 :symtab symtab)))
+    (setf (%get-ptr symtab (record-length :objc_symtab)) (%null-ptr))
+    (setf (pref symtab :objc_symtab.sel_ref_cnt) 0
+	  (pref symtab :objc_symtab.refs) (%null-ptr)
+	  (pref symtab :objc_symtab.cls_def_cnt) 1
+	  (pref symtab :objc_symtab.cat_def_cnt) 0
+	  (%get-ptr (pref symtab :objc_symtab.defs)) class
+	  (pref class :objc_class.info) (logior #$_CLS_RESOLV (pref class :objc_class.info)))
+    (#___objc_exec_class m)))
   
 (defun %define-objc-class (info)
   (let* ((descriptor (objc-class-info-objc-class info)))
@@ -1046,7 +1080,7 @@ client methods" classname))
 					(objc-class-info-superclassname info)
 					(objc-class-info-ivars info))))
 	  (%add-objc-class class)
-	  (map-objc-class class)
+	  (map-objc-class class (objc-to-lisp-classname (objc-class-info-classname info)))
 	  (%objc-class-classptr descriptor)))))
 
 (defun ensure-lisp-objc-class-defined (classname
@@ -1163,44 +1197,27 @@ client methods" classname))
   ;;; We have to do this ourselves, and have to do it with the runtime
   ;;; mutex held.
   (with-gnu-objc-mutex-locked (*gnu-objc-runtime-mutex*)
-    (flet ((find-mlist ()
-	     (do* ((sel-uid (#_sel_get_uid selector))
-		   (prev (%inc-ptr classptr :objc_class.methods)
-			 (%inc-ptr mlist :objc_method_list.method_next))
-		   (mlist (%get-ptr prev) (%get-ptr prev)))
-		  ((%null-ptr-p mlist)
-		   (let* ((new-mlist (make-record :objc_method_list
-						  :method_count 1))
-			  (method (pref new-mlist :objc_method_list.method_list))
-			  (ctypestring (make-cstring typestring))
-			  (newsel (#_sel_register_typed_name
-				   (#_sel_get_uid selector) ctypestring)))
-		     (setf (pref method :objc_method.method_name) newsel
-			   (pref method :objc_method.method_types) ctypestring
-			   (pref method :objc_method.method_imp) imp)
-		     new-mlist))
-	       (let* ((existing 
-		       (do* ((method (pref mlist :objc_method_list.method_list)
-				     (%inc-ptr method (record-length :objc_method)))
-			     (i 0 (1+ i))
-			     (n (pref mlist :objc_method_list.method_count)))
-			    ((= i n))
-			 (with-macptrs ((method-sel (pref method :objc_method.method_name)))
-			   (unless (%null-ptr-p method-sel)
-			     (when (eql sel-uid (#_sel_get_uid method-sel))
-			       (setf (pref method :objc_method.method_imp)
-				     imp)
-			       (return mlist)))))))
-		 (when existing
-		   (setf (%get-ptr prev) (%null-ptr)
-			 (pref existing :objc_method_list.method_next)
-			 (%null-ptr))
-		   (return existing))))))
-      (let* ((mlist (find-mlist)))
-	(setf (pref mlist :objc_method_list.method_next)
-	      (pref classptr :objc_class.methods)
-	      (pref classptr :objc_class.methods) mlist)
-	(#___objc_update_dispatch_table_for_class classptr)))))
+    (let* ((ctypestring (make-cstring typestring))
+	   (new-mlist nil))
+      (with-macptrs ((method (external-call "search_for_method_in_list"
+			      :address (pref classptr :objc_class.methods)
+			      :address selector
+			      :address)))
+	(when (%null-ptr-p method)
+	  (setq new-mlist (make-record :objc_method_list :method_count 1))
+	  (%setf-macptr method (pref new-mlist :objc_method_list.method_list)))
+	(setf (pref method :objc_method.method_name) selector
+	      (pref method :objc_method.method_types) ctypestring
+	      (pref method :objc_method.method_imp) imp)
+	(if new-mlist
+	  (external-call "GSObjCAddMethods"
+			 :address classptr
+			 :address new-mlist
+			 :void)
+	  (external-call "__objc_update_dispatch_table_for_class"
+			 :address classptr
+			 :void))
+	(update-type-signatures-for-method (%inc-ptr method 0))))))
 
 (defvar *lisp-objc-methods* (make-hash-table :test #'eq))
 
@@ -1398,17 +1415,18 @@ client methods" classname))
 		,class-name ,self
 		(defcallback ,impname
 		    (:without-interrupts nil
-					 #+openmcl-native-threads :error-return
-					 #+openmcl-native-threads (condition objc-callback-error-return) ,@params ,resulttype)
+					 #+(and openmcl-native-threads apple-objc) :error-return
+					 #+(and openmcl-native-threads apple-objc)  (condition objc-callback-error-return) ,@params ,resulttype)
 		  (declare (ignorable ,_cmd))
 		  ,@decls
 		  (rlet ((,super :objc_super
-			   :receiver ,self
+			   #+apple-objc :receiver #+gnu-objc :self ,self
 			   :class
 			   ,@(if class-p
 				 `((pref
 				    (pref (@class ,class-name)
-				     :objc_class.isa)
+				     #+apple-objc :objc_class.isa
+				     #+gnu-objc :objc_class.super_class )
 				    :objc_class.super_class))
 				 `((pref (@class ,class-name) :objc_class.super_class)))))
 		    (macrolet ((send-super (msg &rest args &environment env) 
@@ -1501,10 +1519,23 @@ client methods" classname))
    (%class-find-ivar-offset class (unescape-foreign-name varname))
    (error "Unknown instance variable: ~s" varname)))
 
+;;; Return a typestring and offset as multiple values.
 
+(defun objc-get-method-argument-info (m i)
+  #+apple-objc
+  (%stack-block ((type 4) (offset 4))
+    (#_method_getArgumentInfo m i type offset)
+    (values (%get-cstring (%get-ptr type)) (%get-signed-long offset)))
+  #+gnu-objc
+  (progn
+    (with-macptrs ((typespec (#_objc_skip_argspec (pref m :objc_method.method_types))))
+      (dotimes (j i (values (%get-cstring typespec)
+			    (#_strtol (#_objc_skip_typespec typespec)
+				      (%null-ptr)
+				      10.)))
+	(%setf-macptr typespec (#_objc_skip_argspec typespec))))))
 
-
-	  
+  
 
 
 
@@ -1580,9 +1611,34 @@ client methods" classname))
 	       ((= i n (setq class-count i)))
 	    (declare (fixnum i))
 	    (map-objc-class
-	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift)))
-	     t)))))))
+	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift))))))))))
   (def-ccl-pointers revive-objc-classes ()
     (reset-objc-class-count)
     (map-objc-classes)))
-    
+
+#+gnu-objc
+(defun iterate-over-class-methods (class method-function)
+  (do* ((mlist (pref class :objc_class.methods)
+	       (pref mlist :objc_method_list.method_next)))
+       ((%null-ptr-p mlist))
+    (do* ((n (pref mlist :objc_method_list.method_count))
+	  (i 0 (1+ i))
+	  (method (pref mlist :objc_method_list.method_list)
+		  (%incf-ptr method (record-length :objc_method))))
+	 ((= i n))
+      (declare (fixnum i n))
+      (funcall method-function method class))))
+
+#+gnu-objc
+(progn
+  (let* ((objc-class-count 0))
+    (defun reset-objc-class-count () (setq objc-class-count 0))
+    (defun note-all-library-methods (method-function)
+      (do* ((i objc-class-count (1+ i))
+	    (class (id->objc-class i) (id->objc-class i)))
+	   ((eq class 0))
+	(iterate-over-class-methods class method-function)
+	(iterate-over-class-methods (id->objc-metaclass i) method-function))))
+  (def-ccl-pointers revive-objc-classes ()
+    (reset-objc-class-count)))
+
