@@ -71,25 +71,6 @@
 
 (setf (macro-function 'with-ppc-stack-double-floats) (macro-function 'with-stack-double-floats))
 
-(defmacro with-stack-short-floats (specs &body body)
-  (collect ((binds)
-	    (inits)
-	    (names))
-    (dolist (spec specs)
-      (let ((name (first spec)))
-	(binds `(,name (%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float)))
-	(names name)
-	(let ((init (second spec)))
-	  (when init
-	    (inits `(%short-float ,init ,name))))))
-    `(let* ,(binds)
-      (declare (dynamic-extent ,@(names))
-	       (short-float ,@(names)))
-      ,@(inits)
-      ,@body)))
-
-(setf (macro-function 'with-ppc-stack-short-floats) (macro-function 'with-stack-short-floats))
-
 
 #| ; its in ppc-float - so there
 ; see "Optimizing PowerPC Code" p. 156
