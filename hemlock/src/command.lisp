@@ -62,14 +62,12 @@
   "Read a character from the terminal and insert it.
   With prefix argument, insert the character that many times."
   "Reads a key-event from *editor-input* and inserts it at the point."
-  (hi::add-one-shot-event-mode-function
-   #'(lambda (key-event)
-	    (let* ((char (hemlock-ext:key-event-char key-event))
-		   (point (current-point)))
-	      (unless char (editor-error "Can't insert that character."))
-	      (if (and p (> p 1))
-		(insert-string point (make-string p :initial-element char))
-		(insert-character point char))))))
+  (let ((char (hemlock-ext:key-event-char (get-key-event *editor-input* t)))
+	(point (current-point)))
+    (unless char (editor-error "Can't insert that character."))
+    (if (and p (> p 1))
+	(insert-string point (make-string p :initial-element char))
+	(insert-character point char))))
 
 (defcommand "Forward Character" (p)
   "Move the point forward one character.
@@ -347,18 +345,10 @@
 ;;; messed with point and did other hard to predict stuff.
 ;;; 
 (defcommand "Refresh Screen" (p)
-  "Refreshes everything in the window, centering current line.
-   Given an argument, scroll that many lines."
-  "Refreshes everything in the window, centering current line.
-   Given an argument, scroll that many lines."
-  (let ((window (current-window)))
-    (cond ((not p) (center-window window (current-point)))
-	  ((zerop p) (line-to-top-of-window-command nil))
-	  ((line-offset (window-display-start window) 
-			(if (plusp p) (1- p) (1+ p))
-			0))
-	  (t (editor-error "Not enough lines."))))
-  (unless p (redisplay-all)))
+  "Refreshes everything in the window, centering current line."
+  "Refreshes everything in the window, centering current line."
+  (declare (ignore p))
+  (center-text-pane (current-window)))
 
 
 (defcommand "Track Buffer Point" (p)
