@@ -250,6 +250,9 @@
     (set-slot-value stream 'closed :closed)
     t))
 
+(defmethod open-stream-p ((x t))
+  (report-bad-arg x 'stream))
+
 (defmethod open-stream-p ((stream stream))
   (not (slot-value stream 'closed)))
 
@@ -261,6 +264,9 @@
   "This is meant to be shadowed by particular kinds of streams,
    esp those associated with windows."
   80)
+
+(defmethod interactive-stream-p ((x t))
+  (report-bad-arg x 'stream))
 
 (defmethod interactive-stream-p ((stream stream)) nil)
 
@@ -945,8 +951,14 @@
 (defclass fundamental-output-stream (fundamental-stream output-stream)
     ())
 
+(defmethod input-stream-p ((x t))
+  (report-bad-arg x 'stream))
+			   
 (defmethod input-stream-p ((s fundamental-input-stream))
   t)
+
+(defmethod output-stream-p ((x t))
+  (report-bad-arg x 'stream))
 
 (defmethod output-stream-p ((s fundamental-input-stream))
   (typep s 'fundamental-output-stream))
