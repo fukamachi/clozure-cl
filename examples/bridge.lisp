@@ -23,9 +23,6 @@
 (require "OBJC-RUNTIME")
 (require "NAME-TRANSLATION")
 
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                              Utilities                                 ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -185,12 +182,25 @@
       m)))
 
 
+;;; For some reason, these types sometimes show up as :STRUCTs even though they
+;;; are not structure tags, but type names
+
+(defun fudge-objc-type (ftype)
+  (if (equal ftype '(:STRUCT :<NSD>ecimal))
+      :<NSD>ecimal
+    ftype))
+
+
 ;;; Returns T if the result spec requires a STRET for its return, NIL otherwise
 ;;; RSPEC may be either a number (in which case it is interpreted as a number
 ;;; of words) or a foreign type spec acceptable to PARSE-FOREIGN-TYPE. STRETS
 ;;; must be used when a structure larger than 4 bytes is returned
 
 (defun requires-stret-p (rspec)
+  (when (member rspec '(:DOUBLE-FLOAT :UNSIGNED-DOUBLEWORD :SIGNED-DOUBLEWORD) 
+		:test #'eq)
+    (return-from requires-stret-p nil))
+  (setq rspec (fudge-objc-type rspec))
   (if (numberp rspec) 
     (> rspec 1)
     (> (ensure-foreign-type-bits (parse-foreign-type rspec)) 32)))
@@ -248,14 +258,18 @@
        (assert (= (length form) 3))
        `(,var :<NSS>ize :width ,(second form) :height ,(third form)))
       (send
-       (let ((rtype (caar (message-type-signatures (parse-message (cddr form))))))
+       (let ((rtype (first (msg-desc-type-signature 
+			    (first (message-descriptors
+				    (parse-message (cddr form))))))))
          (if (requires-stret-p rtype)
            (values `(,var ,rtype) `(send/stret ,var ,@(rest form)))
            (if errorp
              (error "NonSTRET SEND in ~S" form)
              form))))
       (send-super
-       (let ((rtype (caar (message-type-signatures (parse-message (cddr form))))))
+       (let ((rtype (first (msg-desc-type-signature 
+			    (first (message-descriptors
+				    (parse-message (cddr form))))))))
          (if (requires-stret-p rtype)
            (values `(,var ,rtype) `(send-super/stret ,var ,@(rest form)))
            (if errorp
@@ -321,20 +335,56 @@
 
 ;;; A hash table from message names to lists of foreign type signature lists
 
-(defvar *type-signature-table* (make-hash-table :test #'equal :size 6750))
+(defstruct (msg-desc
+	    (:constructor make-msg-desc 
+			  (classes type-signature i/o-signature)))
+  classes
+  type-signature
+  i/o-signature) ; Not yet used
+  
+(defvar *type-signature-table* (make-hash-table :test #'equal :size 8192))
 
 
 ;;; Add a new method to the table
 
-(defun update-type-signatures-for-method (m)
+(defun update-type-signatures-for-method (m c)
   (let* ((sel (pref m :objc_method.method_name))
-         (msg (lisp-string-from-sel sel)))
-    (when (neq (schar msg 0) #\_)
-      (pushnew 
-       (compute-method-type-signature m)
-       (gethash msg *type-signature-table*)
-       :test #'equal))))
+         (msg (lisp-string-from-sel sel))
+	 (c (%setf-macptr (%int-to-ptr 0) c)))
+    (when (and (neq (schar msg 0) #\_) )
+      (let* ((tsig (compute-method-type-signature m))
+	     (msgdesc (find tsig (gethash msg *type-signature-table*)
+			    :test #'equal
+			    :key #'msg-desc-type-signature)))
+	(if (null msgdesc)
+	    ;; Add new msg desc for this type signature
+	    (push 
+	     (make-msg-desc (list c) tsig nil)
+	     (gethash msg *type-signature-table*))
+	  ;; Merge class with existing classes for this type signature
+	  (progn
+	    (setf (msg-desc-classes msgdesc)
+		  (add-class-to-msg-desc c (msg-desc-classes msgdesc)))
+	    msgdesc))))))
 
+
+;;; Merge a new class into the current list of class in a message
+;;; descriptor. 
+
+(defun add-class-to-msg-desc (class classes)
+  (flet ((objc-subclass-p (c1 c2)
+	   (if (eql c1 c2)
+	       t
+	     (loop for s = (pref c1 :objc_class.super_class)
+		   then (pref s :objc_class.super_class)
+		   until (eql s (%null-ptr))
+		   when (eql s c2) return t))))
+    (cond ((null classes) (list class))
+	  ((objc-subclass-p class (first classes)) classes)
+	  ((objc-subclass-p (first classes) class)
+	   (add-class-to-msg-desc class (rest classes)))
+	  (t (cons (first classes) (add-class-to-msg-desc class (rest classes)))))))
+  
 
 ;;; Rescan all loaded modules for methods and update the type signature
 ;;; table accordingly
@@ -342,16 +392,15 @@
 (defun update-type-signatures ()
   (note-all-library-methods
    #'(lambda (m c)
-       (declare (ignore c))
        (#+gnu-objc progn #+apple-objc progn
 	 ;; Some libraries seem to have methods with bogus-looking
 	 ;; type signatures
-	 (update-type-signatures-for-method m)))))
+	 (update-type-signatures-for-method m c)))))
 
 
-;;; Return the type signature(s) associated with MSG
+;;; Return the message descriptor(s) associated with MSG
 
-(defun message-type-signatures (msg)
+(defun message-descriptors (msg)
   (values (gethash msg *type-signature-table*)))
 
 
@@ -540,33 +589,43 @@
 
 
 ;;; Convert a Lisp object X to a desired foreign type FTYPE 
-;;; Currently only handles T/NIL => #$YES/#$NO and NIL => (%null-ptr)
-;;; NOTE: Many conversions are done by %FF-CALL 
-
-(defmacro coerce-to-address (x)
-  (let ((x-temp (gensym)))
-    `(let ((,x-temp ,x))
-       (if (null ,x-temp) (%null-ptr) ,x-temp))))
+;;; The following conversions are currently done:
+;;;   - T/NIL => #$YES/#$NO
+;;;   - NIL => (%null-ptr)
+;;;   - Lisp string => NSString
+;;;   - Lisp numbers  => SINGLE-FLOAT when possible
 
 (defmacro coerce-to-bool (x)
   (let ((x-temp (gensym)))
     `(let ((,x-temp ,x))
        (if (or (eq ,x-temp 0) (null ,x-temp)) #$NO #$YES))))
-  
+
+(defmacro coerce-to-address (x)
+  (let ((x-temp (gensym)))
+    `(let ((,x-temp ,x))
+       (cond ((null ,x-temp) (%null-ptr))
+	     ((stringp ,x-temp) (%make-nsstring ,x-temp))
+	     (t ,x-temp)))))
+
 (defmacro coerce-to-foreign-type (x ftype)
   (cond ((and (constantp x) (constantp ftype)) 
          (case ftype
-           (:id (if (null x) `(%null-ptr) (coerce-to-address x)))
+           (:id (cond ((null x) `(%null-ptr))
+		      ((stringp x) `(%make-nsstring ,x))
+		      (t (coerce-to-address x))))
            (:char (coerce-to-bool x))
+	   (:single-float (coerce x 'single-float))
            (t x)))
         ((constantp ftype) 
          (case ftype
            (:id `(coerce-to-address ,x))
            (:char `(coerce-to-bool ,x))
+	   (:single-float `(coerce ,x 'single-float))
            (t x)))
         (t `(case ,(if (atom ftype) ftype)
               (:id (coerce-to-address ,x))
               (:char (coerce-to-bool ,x))
+	      (:single-float (coerce ,x 'single-float))
               (t ,x)))))
 
 
@@ -583,11 +642,17 @@
 ;;; for %FF-CALL 
 
 (defun convert-to-argspecs (argtypes result-ftype args evalargs)
+  (setq argtypes (mapcar #'fudge-objc-type argtypes))
+  (setq result-ftype (fudge-objc-type result-ftype))
   (flet ((foo (ftype &optional for-result)
-	   	   (let* ((translated
-		   (if for-result
-		     (translate-foreign-result-type ftype)
-		     (translate-foreign-arg-type ftype))))
+	   (let* ((translated
+		   (if (member ftype
+			       '(:unsigned-doubleword :signed-doubleword) 
+			       :test #'eq)
+		       ftype
+		     (if for-result
+			 (translate-foreign-result-type ftype)
+		       (translate-foreign-arg-type ftype)))))
 	     (if (and (consp translated) (eq (first translated) :record))
 	       #+apple-objc
 	       (/ (second translated) 32)
@@ -681,6 +746,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                        Invoking ObjC Methods                           ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;; Check that the correct number of ARGs have been supplied to the given MSG
 
 (defun check-message-arg-count (msg args)
@@ -765,13 +831,13 @@
         ;; **********************************************************************
         ;; If only the message is known at compile-time, we can still build a 
         ;; direct call if the type signature is unique
-        (let* ((mtsigs (message-type-signatures msg)))
+        (let* ((msgdescs (message-descriptors msg)))
           (cond 
-           ((null mtsigs) (error "Unknown message: ~S" msg))
-           ((null (rest mtsigs))
+           ((null msgdescs) (error "Unknown message: ~S" msg))
+           ((null (rest msgdescs))
             ;; If MSG has a unique type signature at compile-time, build a
             ;; call for that signature
-            (let* ((mtsig (first mtsigs))
+            (let* ((mtsig (msg-desc-type-signature (first msgdescs)))
                    (result-type (first mtsig))
                    (argtypes (rest mtsig))
                    (argspecs1 (convert-to-argspecs argtypes result-type args nil))
@@ -796,12 +862,12 @@
                 (build-call o `(@selector ,msg) msg argspecs svarforms sinitforms s))))
            ;; If the type signature is not unique, build a general call for now
            (t (if (null super)
-	    (if (null s) 
-		`(%send ,o ,msg ,@args) 
-	      `(%send/stret ,o ,msg ,@args))
-	  (if (null s)
-	      `(%send-super ,msg ,@args)
-	    `(%send-super/stret ,s ,msg ,@args))))))))))
+		  (if (null s) 
+		      `(%send ,o ,msg ,@args) 
+		    `(%send/stret ,o ,msg ,@args))
+		(if (null s)
+		    `(%send-super ,msg ,@args)
+		  `(%send-super/stret ,s ,msg ,@args))))))))))
 
 
 ;;; WITH-NS-EXCEPTIONS-AS-ERRORS is only available in OpenMCL 0.14 and above
@@ -967,17 +1033,6 @@
            (send (find-objc-class cname) 'alloc)
            (lisp-to-objc-init ks)
            vs)))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;                Defining CLOS Subclasses of ObjC Classes                ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;                  Defining CLOS Methods on ObjC Classes                 ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;;; Provide the BRIDGE module
