@@ -263,19 +263,23 @@
                (> n 0))
         (return nil)))))
 
+(defun proper-list-p (x)
+  (and (typep x 'list) (not (null (list-length x)))))
+
+(defun proper-sequence-p (x)
+  (cond ((typep x 'vector))
+	((typep x 'list) (not (null (list-length x))))))
 
 
 (defun length (seq)
-  (let* ((typecode (typecode seq)))
-    (declare (fixnum typecode))
-    (if (= typecode ppc32::tag-list)
-      (or (list-length seq)
-          (%err-disp $XIMPROPERLIST seq))
-      (if (= typecode ppc32::subtag-vectorH)
-        (%svref seq ppc32::vectorH.logsize-cell)
-        (if (> typecode ppc32::subtag-vectorH)
-          (uvsize seq)
-          (report-bad-arg seq 'sequence))))))
+  (seq-dispatch
+   seq
+   (or (list-length seq)
+       (%err-disp $XIMPROPERLIST seq))
+   (if (= (the fixnum (typecode seq)) ppc32::subtag-vectorH)
+     (%svref seq ppc32::vectorH.logsize-cell)
+     (uvsize seq))))
+
 (defun %str-from-ptr (pointer len)
   (%copy-ptr-to-ivector pointer 0 (make-string len :element-type 'base-char) 0 len))
 
