@@ -75,8 +75,9 @@ a pointer to the section data and the section's size in bytes as arguments."
       (dotimes (i (pref symtab :objc_symtab.cls_def_cnt))
 	(%setf-macptr classptr (%get-ptr defsptr (* i (record-length :address))))
 	(when *objc-module-verbose*
-	  (format t "~& processing class ~s"
-		  (%get-cstring (pref classptr :objc_class.name)))
+	  (format t "~& processing class ~a, info = #x~8,'0x"
+		  (%get-cstring (pref classptr :objc_class.name))
+		  (pref classptr :objc_class.info))
           (force-output t))
 	;; process the class
 	(funcall classfn classptr)
@@ -148,6 +149,13 @@ class or metaclass object."
 	(process-module-classes
 	 module
 	 #'(lambda (class)
+	     (when *objc-module-verbose*
+	       (format t "~& == processing class #x~8,'0x ~a, (#x~8,'0x) info = #x~8,'0x"
+		       (%ptr-to-int class)
+		       (%get-cstring (pref class :objc_class.name))
+		       (%ptr-to-int (pref class :objc_class.name))
+		       (pref class :objc_class.info)))
+	     #+nope
 	     (unless (logtest #$CLS_META (pref class :objc_class.info))
 	       (map-objc-class class))
 	     (process-class-methods class methodfun)))
