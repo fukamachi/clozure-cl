@@ -110,6 +110,7 @@
  (ppc-asm          "ccl:bin;ppc-asm"          ("ccl:compiler;PPC;ppc-asm.lisp"))
  (vinsn            "ccl:bin;vinsn"            ("ccl:compiler;vinsn.lisp"))
  (ppc32-vinsns     "ccl:bin;ppc32-vinsns"     ("ccl:compiler;PPC;PPC32;ppc32-vinsns.lisp"))
+ (ppc64-vinsns     "ccl:bin;ppc64-vinsns"     ("ccl:compiler;PPC;PPC64;ppc64-vinsns.lisp"))
  (ppc-reg          "ccl:bin;ppc-reg"          ("ccl:compiler;PPC;ppc-reg.lisp"))
  (reg              "ccl:bin;reg"              ("ccl:compiler;reg.lisp"))
  (subprims         "ccl:bin;subprims"         ("ccl:compiler;subprims.lisp"))
@@ -118,7 +119,7 @@
  (backend          "ccl:bin;backend"          ("ccl:compiler;backend.lisp"))
  (ppc32-backend    "ccl:bin;ppc32-backend"    ("ccl:compiler;PPC;PPC32;ppc32-backend.lisp"))			   
  (ppc64-backend    "ccl:bin;ppc64-backend"    ("ccl:compiler;PPC;PPC64;ppc64-backend.lisp"))
- (ppc-backend      "ccl:bin;ppc-backend"     ("ccl:compiler;PPC;ppc-backend.lisp"))			   
+ (ppc-backend      "ccl:bin;ppc-backend"     ("ccl:compiler;PPC;ppc-backend.lisp"))
  (ppc2             "ccl:bin;ppc2"             ("ccl:compiler;PPC;ppc2.lisp"))
 
  (ppc-lapmacros    "ccl:bin;ppc-lapmacros"    ("ccl:compiler;PPC;ppc-lapmacros.lisp"))
