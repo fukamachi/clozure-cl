@@ -179,12 +179,9 @@
 (defun target-level-1-modules (&optional (target (backend-name *host-backend*)))
   (append *level-1-modules*
 	  (case target
-	    ((:linuxppc :darwinppc)
+	    ((:linuxppc32 :darwinppc32)
 	     '(linux-files ppc-error-signal ppc-trap-support
-	       ppc-threads-utils ppc-callback-support))
-	    (:sparc '(solaris-files sparc-error-signal
-		      sparc-trap-support sparc-stack-groups
-		      sparc-callback-support)))))
+	       ppc-threads-utils ppc-callback-support)))))
 		  
 
 
