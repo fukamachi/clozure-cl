@@ -1625,7 +1625,7 @@
                       (if type-p
 			(duplicate-options slot)
 			(setq type-p t))
-                      (when (null (cadr options)) (signal-program-error "Illegal options ~S" options))
+                      ;(when (null (cadr options)) (signal-program-error "Illegal options ~S" options))
                       (setq type (cadr options)))
                      (:initform
                       (if initform-p
@@ -1671,12 +1671,10 @@
 	      (progn
 		,@(mapcar #'(lambda (s) `(note-function-info ',s nil ,env))
 			  signatures)))
-	    (progn
-	      (record-source-file ',class-name 'class)
-	      (ensure-class ',class-name
+	      (ensure-class-for-defclass ',class-name
 			    :direct-superclasses ',direct-superclasses
 			    :direct-slots ,`(list ,@direct-slot-specs)
-			    ,@other-options))))))))
+			    ,@other-options)))))))
 
 (defmacro define-method-combination (name &rest rest &environment env)
   (setq name (require-type name 'symbol))
@@ -1710,14 +1708,14 @@
         (generic-function-class 'standard-generic-function)
         options methods option-keywords method-class)
     (flet ((bad-option (o)
-             (error "Bad option: ~s to ~s." o 'defgeneric)))
+             (signal-program-error "Bad option: ~s to ~s." o 'defgeneric)))
       (dolist (o options-and-methods)
         (let ((keyword (car o))
               (defmethod (if global-p 'defmethod 'anonymous-method)))
           (if (eq keyword :method)
             (push `(,defmethod ,function-name ,@(%cdr o)) methods)
             (cond ((memq keyword (prog1 option-keywords (push keyword option-keywords)))
-                   (error "Duplicate option: ~s to ~s" keyword 'defgeneric))
+                   (signal-program-error "Duplicate option: ~s to ~s" keyword 'defgeneric))
                   ((eq keyword :method-name)    ; used by generic-flet
                    (if function-name (bad-option o))
                    (setq function-name (cadr o)))
@@ -2440,7 +2438,7 @@
          ,@body))))
 
 ; I wanted to call this ":method"
-(defmacro method (gf &rest qualifiers-and-specializers)
+(defmacro reference-method (gf &rest qualifiers-and-specializers)
   (let ((qualifiers (butlast qualifiers-and-specializers))
         (specializers (car (last qualifiers-and-specializers))))
     (if (null specializers) (report-bad-arg qualifiers-and-specializers '(not null)))
