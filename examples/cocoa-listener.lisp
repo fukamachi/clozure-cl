@@ -9,6 +9,10 @@
 (def-cocoa-default *listener-rows* :int 16 "Initial height of listener windows, in characters")
 (def-cocoa-default *listener-columns* :int 80 "Initial height of listener windows, in characters")
 
+(def-cocoa-default hi::*listener-output-style* :int 0 "Text style index for listener output")
+
+(def-cocoa-default hi::*listener-input-style* :int 1 "Text style index for listener output")
+
 (def-cocoa-default *listener-background-red-component* :float 0.90f0 "Red component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
 (def-cocoa-default *listener-background-green-component* :float 0.90f0 "Green component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
 (def-cocoa-default *listener-background-blue-component* :float 0.90f0 "Blue component of editor background color.  Should be a float between 0.0 and 1.0, inclusive.")
@@ -111,7 +115,6 @@
     (let* ((data (send (send notification 'user-info)
 		       :object-for-key *NSFileHandleNotificationDataItem*))
 	   (document (send self 'document))
-           (textstorage (slot-value document 'textstorage))
 	   (data-length (send data 'length))
 	   (buffer (hemlock-document-buffer document))
 	   (string (make-string data-length))
@@ -120,15 +123,7 @@
       (enqueue-buffer-operation
        buffer
        #'(lambda ()
-           (let* ((input-mark (hi::variable-value 'hemlock::buffer-input-mark :buffer buffer)))
-             (hi:with-mark ((mark input-mark :left-inserting))
-               (hi::insert-string mark string)
-               (hi::move-mark input-mark mark)))
-           (send textstorage
-                 :perform-selector-on-main-thread
-                 (@selector "ensureSelectionVisible")
-                 :with-object (%null-ptr)
-                 :wait-until-done t)))
+           (hemlock::append-buffer-output buffer string)))
       (send fh 'read-in-background-and-notify))))
 	     
 
@@ -206,19 +201,35 @@
         (hi::sub-set-buffer-modeline-fields buffer hemlock::*listener-modeline-fields*)))
     doc))
 
+(def-cocoa-default *initial-listener-x-pos* :float 400.0f0 "X position of upper-left corner of initial listener")
+
+(def-cocoa-default *initial-listener-y-pos* :float 400.0f0 "Y position of upper-left corner of initial listener")
+
+(defloadvar *next-listener-x-pos* nil) ; set after defaults initialized
+(defloadvar *next-listener-y-pos* nil) ; likewise
+
 (define-objc-method ((:void make-window-controllers) hemlock-listener-document)
   (let* ((textstorage (slot-value self 'textstorage))
-	 (controller (make-objc-instance
-		      'hemlock-listener-window-controller
-		      :with-window (%hemlock-frame-for-textstorage
+         (window (%hemlock-frame-for-textstorage
                                     textstorage
 				    *listener-columns*
 				    *listener-rows*
 				    t
-                                    (textview-background-color self))))
+                                    (textview-background-color self)))
+	 (controller (make-objc-instance
+		      'hemlock-listener-window-controller
+		      :with-window window))
 	 (listener-name (hi::buffer-name (hemlock-document-buffer self))))
     (send self :add-window-controller controller)
     (send controller 'release)
+    (slet ((current-point (ns-make-point (or *next-listener-x-pos*
+                                             *initial-listener-x-pos*)
+                                         (or *next-listener-y-pos*
+                                             *initial-listener-y-pos*))))
+      (slet ((new-point (send window
+                              :cascade-top-left-from-point current-point)))
+        (setf *next-listener-x-pos* (pref new-point :<NSP>oint.x)
+              *next-listener-y-pos* (pref new-point :<NSP>oint.y))))
     (setf (hi::buffer-process (hemlock-document-buffer self))
 	  (let* ((tty (slot-value controller 'clientfd))
 		 (peer-tty (send (slot-value controller 'filehandle)
