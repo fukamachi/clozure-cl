@@ -102,6 +102,7 @@
  ; PPC compiler
  (dll-node         "ccl:bin;dll-node"         ("ccl:compiler;dll-node.lisp"))
  (ppc32-arch       "ccl:bin;ppc32-arch"       ("ccl:compiler;PPC;PPC32;ppc32-arch.lisp"))
+ (ppc-arch         "ccl:bin;ppc-arch"         ("ccl:compiler;PPC;ppc-arch.lisp"))
  (arch             "ccl:bin;arch"             ("ccl:compiler;arch.lisp"))
  (ppcenv           "ccl:bin;ppcenv"           ("ccl:lib;ppcenv.lisp"))
  (vreg             "ccl:bin;vreg"             ("ccl:compiler;vreg.lisp"))
