@@ -387,7 +387,10 @@
       (escape-foreign-name 
        (subseq typestring 1 =pos)))))
 
-(defun parse-foreign-struct-or-union-spec (typestring startpos record-class)
+(defun parse-foreign-struct-or-union-spec (typestring
+                                           startpos
+                                           record-class
+                                           from-pointer)
   (flet ((extract-record-name (startpos delimpos)
 	   (unless (and (= delimpos (1+ startpos))
 			(eq (schar typestring startpos) #\?))
@@ -428,7 +431,7 @@
 		    (objc-foreign-type-for-ivar
 		     typestring
 		     (string-input-stream-index string-stream)
-		     nil)
+		     from-pointer)
 		  (fields `(,(if field-name-string (escape-foreign-name field-name-string))
 			    ,typespec))
 		  (setf (string-input-stream-index string-stream) endpos))))))))))
@@ -469,7 +472,7 @@
 
 ;;; Parse the ivar's type string and return a FOREIGN-TYPE object.
 (defun objc-foreign-type-for-ivar
-    (str &optional (startpos 0) (allow-id-name t))
+    (str &optional (startpos 0) (allow-id-name t) from-pointer)
   (let* ((endpos (1+ startpos))
 	 (startchar (schar str startpos))
 	 (spec 
@@ -487,6 +490,7 @@
 	    (#\f :single-float)
 	    (#\d :double-float)
 	    (#\v :void)
+            (#\B :<BOOL>)
 	    (#\@ (when allow-id-name
 		   (let* ((nextpos (1+ startpos)))
 		   (if (and (< nextpos (length str))
@@ -500,7 +504,7 @@
 	    (#\# '(:* (:struct :objc_class)))
 	    (#\* '(:* :char))
 	    (#\^ (multiple-value-bind (type end)
-		     (objc-foreign-type-for-ivar str (1+ startpos) t)
+		     (objc-foreign-type-for-ivar str (1+ startpos) t t)
 		   (setq endpos end)
 		   `(:* ,type)))
 	    (#\b (multiple-value-bind (n end)
@@ -520,7 +524,8 @@
 		 (parse-foreign-struct-or-union-spec
 		  str (1+ startpos) (if (eq startchar #\{)
 				      :struct
-				      :union))
+				      :union)
+                  from-pointer)
 	       (setq endpos end)
 	       type))
 	    (#\? t)
