@@ -519,7 +519,7 @@
         (let* ((low (numeric-ctype-low ctype))
                (high (numeric-ctype-high ctype)))
           (cond ((or (null low) (null high)) ppc32::subtag-simple-vector)
-                ((and (= low 0) (= high 1) ppc32::subtag-bit-vector))
+                ((and (= low 0) (<= high 1) ppc32::subtag-bit-vector))
                 ((and (>= low 0) (<= high 255)) ppc32::subtag-u8-vector)
                 ((and (>= low 0) (<= high 65535)) ppc32::subtag-u16-vector)
                 ((and (>= low 0) (<= high #xffffffff) ppc32::subtag-u32-vector))
