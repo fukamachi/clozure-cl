@@ -96,9 +96,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 ;;; From Marco Baringer 2003/03/18
 (define-toplevel-command :break set (n frame value) "Set <n>th item of frame <frame> to <value>"
-  (let* ((frame-sp (nth-raw-frame frame *break-frame* (%current-tcr))))
+  (let* ((frame-sp (nth-raw-frame frame *break-frame* nil)))
     (if frame-sp
-        (toplevel-print (list (set-nth-value-in-frame frame-sp n (%current-tcr) value)))
+        (toplevel-print (list (set-nth-value-in-frame frame-sp n nil value)))
         (format *debug-io* "No frame with number ~D~%" frame))))
 
 (define-toplevel-command :global ? () "help"
@@ -125,9 +125,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
                        :detailed-p n))
 
 (define-toplevel-command :break v (n frame-number) "Return value <n> in frame <frame-number>"
-  (let* ((frame-sp (nth-raw-frame frame-number *break-frame* (%current-tcr))))
+  (let* ((frame-sp (nth-raw-frame frame-number *break-frame* nil)))
     (if frame-sp
-      (toplevel-print (list (nth-value-in-frame frame-sp n (%current-tcr)))))))
+      (toplevel-print (list (nth-value-in-frame frame-sp n nil))))))
 
 (defun %use-toplevel-commands (group-name)
   ;; Push the whole group
