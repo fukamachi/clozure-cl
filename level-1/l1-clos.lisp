@@ -61,14 +61,13 @@
   ;; signal a PROGRAM-ERROR otherwise.  (Yes, this is
   ;; an obscure way to do so.)
   (destructuring-bind (&key &allow-other-keys) initargs)
-  (let* ((wrapper (instance.class-wrapper instance))
+  (let* ((wrapper (instance-class-wrapper instance))
          (class (%wrapper-class wrapper)))
     (when (eql 0 (%wrapper-hash-index wrapper)) ; obsolete
       (update-obsolete-instance instance)
-      (setq wrapper (instance.class-wrapper instance)))
+      (setq wrapper (instance-class-wrapper instance)))
     (dolist (slotd (%class-slots class))
       (let* ((loc (%slot-definition-location slotd)))
-        (unless loc (error "Blew it! no location for ~s" slotd))
         (multiple-value-bind (ignore new-value foundp)
             (get-properties initargs
                             (%slot-definition-initargs slotd))
