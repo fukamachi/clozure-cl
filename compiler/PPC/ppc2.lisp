@@ -34,7 +34,6 @@
 (defmacro with-ppc-p2-declarations (declsform &body body)
   `(let* ((*ppc2-tail-allow* *ppc2-tail-allow*)
           (*ppc2-reckless* *ppc2-reckless*)
-          (*ppc2-inhibit-eventchecks* *ppc2-inhibit-eventchecks*)
           (*ppc2-open-code-inline* *ppc2-open-code-inline*)
           (*ppc2-trust-declarations* *ppc2-trust-declarations*))
      (ppc2-decls ,declsform)
@@ -111,7 +110,6 @@
 
 
 (defvar *ppc-current-context-annotation* nil)
-(defvar *ppc2-inhibit-eventchecks* nil)
 (defvar *ppc2-woi* nil)
 (defvar *ppc2-open-code-inline* nil)
 (defvar *ppc2-register-restore-count* 0)
@@ -361,7 +359,6 @@
                       *ppc2-record-symbols*)))  ; always compile inner guys
     (let* ((*ppc2-cur-afunc* afunc)
            (*ppc2-returning-values* nil)
-           (*ppc2-inhibit-eventchecks* nil)
            (*ppc-current-context-annotation* nil)
            (*ppc2-woi* nil)
            (*next-lcell-id* -1)
@@ -560,7 +557,6 @@
   (if (fixnump decls)
     (locally (declare (fixnum decls))
       (setq *ppc2-tail-allow* (neq 0 (%ilogand2 $decl_tailcalls decls))
-            *ppc2-inhibit-eventchecks* (or *ppc2-woi* (neq 0 (%ilogand2 $decl_eventchk decls)))
             *ppc2-open-code-inline* (neq 0 (%ilogand2 $decl_opencodeinline decls))
             *ppc2-reckless* (neq 0 (%ilogand2 $decl_unsafe decls))
             *ppc2-trust-declarations* (neq 0 (%ilogand2 $decl_trustdecls decls))))))
@@ -5392,11 +5388,7 @@
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
     (ppc2-compare seg vreg xfer form1 form2 cr-bit true-p)))
 
-(defppc2 ppc2-embedded-non-local-lexit embedded-nlexit (seg vreg xfer form)
-  (ppc2-form seg vreg xfer form))
 
-(defppc2 ppc2-embedded-call embedded-call (seg vreg xfer form)
-  (ppc2-form seg vreg xfer form))
 
 (defppc2 ppc2-%word-to-int %word-to-int (seg vreg xfer form)
   (if (null vreg)
@@ -5527,17 +5519,6 @@
   (! ksignalerr)
   (ppc2-nil seg vreg xfer))
 
-(defppc2 ppc2-newblocktag newblocktag (seg vreg xfer)
-  (when vreg
-    (! newblocktag)
-    (<- ppc::arg_z))
-  (^))
-
-(defppc2 ppc2-newgotag newgotag (seg vreg xfer)
-  (when vreg
-    (! newgotag)
-    (<- ppc::arg_z))
-  (^))
 
 (defppc2 ppc2-symbol-name symbol-name (seg vreg xfer sym)
   (let* ((reg (ppc2-one-targeted-reg-form seg sym ($ ppc::arg_z))))
@@ -7064,12 +7045,9 @@
                 (<- result)))))
         (^)))))
 
-; The form in question just binds *interrupt-level* to -1, but we want
-; to disable the generation of event-polling sequences that would otherwise
-; appear lexically within the body.
+
 (defppc2 ppc2-without-interrupts without-interrupts (seg vreg xfer oldlevel body)
-  (let* ((*ppc2-inhibit-eventchecks* t)
-         (cleanup-label (backend-get-next-label))
+  (let* ((cleanup-label (backend-get-next-label))
          (protform-label (backend-get-next-label))
          (old-stack (ppc2-encode-stack)))
     (! mkunwind)
