@@ -648,6 +648,9 @@
 	 (cdbm-put cdbm key content))))
     (t (db-define-string-constant cdbm name (format nil "~a" val) db-read-string-constant))))
 
+
+  
+
 (defmacro with-new-db-file ((var pathname) &body body)
   (let* ((db (gensym)))
     `(let* (,db)
@@ -668,12 +671,18 @@
     (setf (interface-dir-constants-interface-db-file d) nil
 	  (interface-dir-functions-interface-db-file d) nil
 	  (interface-dir-records-interface-db-file d) nil
-	  (interface-dir-types-interface-db-file d) nil)))
+	  (interface-dir-types-interface-db-file d) nil
+          (interface-dir-vars-interface-db-file d) nil)))
 
 (defun db-constants (dir)
   (or (interface-dir-constants-interface-db-file dir)
       (setf (interface-dir-constants-interface-db-file dir)
 	    (cdb-open (interface-db-pathname "constants.cdb" dir)))))
+
+(defun db-vars (dir)
+  (or (interface-dir-vars-interface-db-file dir)
+      (setf (interface-dir-vars-interface-db-file dir)
+	    (cdb-open (interface-db-pathname "vars.cdb" dir)))))
 
 (defun db-types (dir)
   (or (interface-dir-types-interface-db-file dir)
@@ -699,6 +708,51 @@
     (let* ((*record-source-file* nil))
       (%defconstant sym val)
       val)))
+
+(defun %load-var (name)
+  (let* ((string (if (member :prepend-underscores
+                             (ftd-attributes *target-ftd*))
+                   (concatenate 'string "_" (string name))
+                   (string name)))
+         (fv (gethash string (fvs))))
+    (unless fv
+      (with-cstrs ((cstring string))
+        (let* ((type
+              (do-interface-dirs (d)
+                (let* ((vars (db-vars d)))
+                  (when vars
+                    (rletZ ((value :cdb-datum)
+                            (key :cdb-datum))
+                      (setf (pref key :cdb-datum.data) cstring
+                            (pref key :cdb-datum.size) (length string)
+                            (pref value :cdb-datum.data) (%null-ptr)
+                            (pref value :cdb-datum.size) 0)
+                      (cdb-get vars key value)
+                      (let* ((vartype (extract-db-type value)))
+                        (when vartype (return vartype)))))))))
+        (unless type (error "Foreign variable ~s not found" string))
+        (setq fv (%cons-foreign-variable string type))
+        (resolve-foreign-variable fv nil)
+        (setf (gethash string (fvs)) fv))))
+    fv))
+
+(set-dispatch-macro-character 
+ #\# #\?
+ (qlfun |#?-reader| (stream char arg)
+   (declare (ignore char arg))
+   (let* ((package (find-package (ftd-interface-package-name *target-ftd*)))
+          (sym
+	   (%read-symbol-preserving-case
+	    stream
+            package)))
+     (unless *read-suppress*
+       (let* ((fv (%load-var sym)))
+         (%foreign-access-form `(%reference-external-entry-point (load-time-value ,fv))
+                                       (fv.type fv)
+                                       0
+                                       nil))))))
+              
+      
 
 
 (defun load-external-function (sym reader-stream)
@@ -1036,6 +1090,13 @@
 
 (defun save-ffi-union (cdbm u)
   (db-write-byte-list cdbm (ffi-union-reference u) (encode-ffi-union u)))
+
+(defun db-define-var (cdbm name type)
+  (db-write-byte-list cdbm
+                      (if *prepend-underscores-to-ffi-function-names*
+                        (concatenate 'string "_" name)
+                        name)
+  (encode-ffi-type type) t))
 
 
 ;;; An "uppercase-sequence" is a maximal substring of a string that

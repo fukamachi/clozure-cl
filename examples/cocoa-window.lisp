@@ -261,7 +261,6 @@
                (or *NSApp* (setq *NSApp* (init-cocoa-application)))
                (send *NSApp* :set-application-icon-image
                      (send (@class ns-image) :image-Named #@"NSApplicationIcon"))
-               (setf (application-ui-object *application*) *NSApp*)
 
                (when application-proxy-class-name
                  (let* ((classptr (%objc-class-classptr

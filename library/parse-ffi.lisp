@@ -49,6 +49,7 @@
 (defvar *ffi-db-types* nil)
 (defvar *ffi-db-records* nil)
 (defvar *ffi-db-functions* nil)
+(defvar *ffi-db-vars* nil)
 (defvar *ffi-typedefs*)
 (defvar *ffi-global-typedefs* nil)
 (defvar *ffi-unions*)
@@ -58,6 +59,7 @@
 (defvar *ffi-functions*)
 (defvar *ffi-global-functions* nil)
 (defvar *ffi-global-constants* nil)
+(defvar *ffi-global-vars* nil)
 (defvar *ffi-macros*)
 (defvar *ffi-vars*)
 (defvar *ffi-out* t)
@@ -464,7 +466,9 @@
   (declare (ignore form)))
 
 (defun process-ffi-var (form)
-  (declare (ignore form)))
+  (let* ((name (caddr form))
+         (type (cadddr form)))
+    (cons name (reference-ffi-type type))))
 
 (defun process-ffi-enum-ident (form)
   (cons (caddr form) (cadddr form)))
@@ -605,6 +609,18 @@
 	      (t "~s)~&"))
 	    val)))
 
+(defun record-global-var (name type)
+  (when *ffi-global-vars*
+    (setf (gethash name *ffi-global-vars*) type)))
+
+(defun emit-global-var (name type)
+  (when *ffi-db-vars*
+    (db-define-var *ffi-db-vars* name type)))
+
+(defun emit-ffi-var (name type)
+  (record-global-var name type))
+
+
 (defun emit-type-reference (ref)
   (when *ffi-out*
     (ecase (car ref)
@@ -684,7 +700,8 @@
     (let* ((defined-types ())
            (defined-constants ())
            (defined-macros ())
-           (defined-functions ()))
+           (defined-functions ())
+           (defined-vars ()))
       (with-open-file (in inpath)
         (let* ((*ffi-ordinal* -1)
                (*ffi-prefix* (namestring inpath)))
@@ -700,7 +717,7 @@
                             (setf (gethash (string (ffi-macro-name m)) argument-macros) args)
 			    (push m defined-macros))))
                 (:type (push (process-ffi-typedef form) defined-types))
-                (:var (process-ffi-var form))
+                (:var (push (process-ffi-var form) defined-vars))
                 (:enum-ident (push (process-ffi-enum-ident form) defined-constants))
                 (:enum (process-ffi-enum form))
                 (:union (push (process-ffi-union form) defined-types)))))
@@ -722,6 +739,8 @@
 		       (format *ffi-out* "~%~%(cl::in-package ~a)~%~%" package-name))
 		     (dolist (x (reverse new-constants))
 		       (emit-ffi-constant (car x) (cdr x)))
+                     (dolist (x defined-vars)
+                       (emit-ffi-var (car x) (cdr x)))
 		     (when *ffi-out*
 		       (terpri *ffi-out*)
 		       (terpri *ffi-out*))
@@ -765,7 +784,8 @@
 	 (*ffi-global-unions* (make-hash-table :test 'string= :hash-function 'sxhash))
 	 (*ffi-global-structs* (make-hash-table :test 'string= :hash-function 'sxhash))
 	 (*ffi-global-functions* (make-hash-table :test 'string= :hash-function 'sxhash))
-	 (*ffi-global-constants* (make-hash-table :test 'string= :hash-function 'sxhash)))
+	 (*ffi-global-constants* (make-hash-table :test 'string= :hash-function 'sxhash))
+         (*ffi-global-vars* (make-hash-table :test 'string= :hash-function 'sxhash)))
          
     (dolist (f (directory (merge-pathnames ";C;**;*.ffi"
 					   interface-dir)))
@@ -805,6 +825,12 @@
 		   (declare (ignore name))
 		   (emit-global-function def))
 	       *ffi-global-functions*))
+    (with-new-db-file (*ffi-db-vars* (merge-pathnames
+                                      "new-vars.cdb"
+                                      interface-dir))
+      (maphash #'(lambda (name type)
+                   (emit-global-var name type))
+               *ffi-global-vars*))
     (install-new-db-files ftd d)))
 
 (defvar *c-readtable* (copy-readtable nil))
@@ -1392,6 +1418,11 @@
 	     (rename-and-reopen
 	      (interface-dir-types-interface-db-file d)
 	      "types.cdb"
-	      "new-types.cdb")))))
+	      "new-types.cdb"))
+              (setf (interface-dir-types-interface-db-file d)
+	     (rename-and-reopen
+	      (interface-dir-types-interface-db-file d)
+	      "vars.cdb"
+	      "new-vars.cdb")))))
   t)
    

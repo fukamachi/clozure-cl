@@ -1567,8 +1567,8 @@ argument lisp string."
 
 (defcallback deallocate-nsobject (:address obj :int)
   (unless (%null-ptr-p obj)
-        (remhash obj *objc-object-slot-vectors*)
-    (ff-call *original-deallocate-hook* :address obj :int)))
+    (remhash obj *objc-object-slot-vectors*))
+  (ff-call *original-deallocate-hook* :address obj :int))
 
 (defun install-lisp-deallocate-hook ()
   (setf (%get-ptr (foreign-symbol-address "__dealloc")) deallocate-nsobject))

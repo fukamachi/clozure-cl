@@ -2265,7 +2265,9 @@ to replace that class with ~s" name old-class new-class)
 (defmethod slot-value-using-class ((class standard-class)
 				   instance
 				   (slotd standard-effective-slot-definition))
-  (%std-slot-vector-value (instance-slots instance) slotd))
+  (ecase (standard-slot-definition.allocation slotd)
+    ((:instance :class)
+     (%std-slot-vector-value (instance-slots instance) slotd))))
 
 (defun %maybe-std-slot-value-using-class (class instance slotd)
   (if (and (eql (typecode class) target::subtag-instance)
@@ -2304,7 +2306,9 @@ to replace that class with ~s" name old-class new-class)
      (class standard-class)
      instance
      (slotd standard-effective-slot-definition))
-  (%set-std-slot-vector-value (instance-slots instance) slotd new))
+  (ecase (standard-slot-definition.allocation slotd)
+    ((:instance :class)
+     (%set-std-slot-vector-value (instance-slots instance) slotd new))))
 
 
 (defun %maybe-std-setf-slot-value-using-class (class instance slotd new)
@@ -2387,7 +2391,9 @@ to replace that class with ~s" name old-class new-class)
 (defmethod slot-boundp-using-class ((class standard-class)
 				    instance
 				    (slotd standard-effective-slot-definition))
-  (%std-slot-vector-boundp (instance-slots instance) slotd))
+  (ecase (standard-slot-definition.allocation slotd)
+    ((:instance :class)
+     (%std-slot-vector-boundp (instance-slots instance) slotd))))
 
 (defmethod slot-boundp-using-class ((class funcallable-standard-class)
 				    instance

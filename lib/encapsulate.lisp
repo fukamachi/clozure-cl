@@ -367,7 +367,7 @@
               (if  (or before after)
                 (setq step nil)                
                 (return-from %trace)))
-            (uncompile-for-stepping trace-thing nil t)))
+            #|(uncompile-for-stepping trace-thing nil t)|#))
         (let ((newsym (gensym "TRACE"))
               (method-p (typep trace-thing 'method)))
           (when (and (null before)(null after)(null step))

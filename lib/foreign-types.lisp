@@ -31,7 +31,8 @@
   (constants-interface-db-file)
   (functions-interface-db-file)
   (records-interface-db-file)
-  (types-interface-db-file))
+  (types-interface-db-file)
+  (vars-interface-db-file))
 
   
 ;;; This is intended to try to encapsulate foreign type stuff, to
@@ -299,6 +300,7 @@
 
 (defmethod make-load-form ((s foreign-type) &optional env)
   (make-load-form-saving-slots s :environment env))
+
 
 
 
@@ -1445,6 +1447,7 @@
   (declare (ignore env))
   `(load-eep ,(eep.name eep)))
 
+
 (defmethod print-object ((eep external-entry-point) out)
   (print-unreadable-object (eep out :type t :identity t)
     (format out "~s" (eep.name eep))
@@ -1452,6 +1455,24 @@
 	   (container (eep.container eep)))
       (if addr
 	(format out " (#x~8,'0x) " (logand #xffffffff (ash addr 2)))
+	(format out " {unresolved} "))
+      (when (and container (or (not (typep container 'macptr))
+				    (not (%null-ptr-p container))))
+	(format out "~a" (shlib.soname container))))))
+
+(make-built-in-class 'foreign-variable *istruct-class*)
+
+(defmethod make-load-form ((fv foreign-variable) &optional env)
+  (declare (ignore env))
+  `(load-fv ,(fv.name fv) ',(fv.type fv)))
+
+(defmethod print-object ((fv foreign-variable) out)
+  (print-unreadable-object (fv out :type t :identity t)
+    (format out "~s" (fv.name fv))
+    (let* ((addr (fv.addr fv))
+	   (container (fv.container fv)))
+      (if addr
+	(format out " (#x~8,'0x) " (logand #xffffffff (%ptr-to-int addr)))
 	(format out " {unresolved} "))
       (when (and container (or (not (typep container 'macptr))
 				    (not (%null-ptr-p container))))

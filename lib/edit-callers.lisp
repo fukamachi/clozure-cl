@@ -82,11 +82,7 @@
                (unless (or (and (logbitp $lfbits-cm-bit bits)(not (logbitp $lfbits-method-bit bits))) ; combined method
                            (and (logbitp $lfbits-trampoline-bit bits)(lfun-closure-p fun)
                                 (not (global-function-p fun)))) ; closure (interp or compiled)
-                 (if (logbitp $lfbits-evaluated-bit bits)
-                   (when (callers-interp fun function cfun)
-                     (push fun callers))
-                   (when  t
-                     (let* ((nm (ignore-errors (lfun-name fun)))
+                 (let* ((nm (ignore-errors (lfun-name fun)))
                             (globalp (if nm (global-function-p fun nm))))
                        (flet ((do-imm (im)
                                 (when (and (or (eq function im)
@@ -106,7 +102,7 @@
                                               (setf (gethash im *function-parent-table*) 
                                                     (list ht fun)))))))))))
                          (declare (dynamic-extent #'do-imm))                                
-                         (%map-lfimms fun #'do-imm )))))))))
+                         (%map-lfimms fun #'do-imm )))))))
       (declare (dynamic-extent #'do-it))
       (unwind-protect
            (progn
@@ -190,67 +186,7 @@
 
 
 
-(defun callers-interp (function target ctarget)
-  (if (typep function 'interpreted-lexical-closure)
-    (callers-interp (closure-function function) target ctarget)
-    (let* ((body (cddr (closure-def-expanded-form (evalenv-closure-def (%svref function 1)))))
-           calls-target)
-      ; crock!!!!! - what is the right way to do this?
-      (when (not (consp body))      
-        (dotimes (i (- (uvsize function)))
-          (let ((it (%svref function (1+ i))))
-            (when (consp it)(setq body it)(return)))))
-      (labels ((calls-in-progn (body)
-                 (dolist (expr body)
-                   (calls-in-expr expr)))
-               (calls-in-expr (expr)
-                 (when (consp expr)
-                   (let ((car (car expr)))
-                     (if (consp car)
-                       (ecase (car car)
-                         ; 34 special forms
-                         ((block progn if tagbody progv locally unwind-protect
-                                 multiple-value-list multiple-value-prog1
-                                 without-interrupts)
-                          (calls-in-progn (cdr expr)))
-                         (catch (calls-in-progn (cddr expr)))
-                         (multiple-value-call (calls-in-progn (cdr expr)))
-                         ((the return-from throw) (calls-in-expr (third expr)))                       
-                         ((%with-specials eval-when) (calls-in-progn (cddr expr)))
-                         ((%local-ref %special-ref quote %special-declare go
-                                      %closure-ref %special-bind))
-                         (%local-fref
-                          (puthash-parent (second car) function)
-                          (calls-in-progn (cdr expr)))
-                         (%init&bind (calls-in-expr (third expr)))
-                         ((let let* compiler-let)
-                          (let ((args (second expr)))
-                            (dolist (a args)
-                              (when (consp a) (calls-in-expr (second a))))
-                            (calls-in-progn (cddr expr))))
-                         ((flet labels macrolet symbol-macrolet)
-                          (calls-in-progn (cddr expr)))
-                         (setq
-                          (do ((l (cdr expr)(cddr l)))
-                              ((null l))
-                            (calls-in-expr (second l))))
-                         (function
-                          (let ((fn (second expr)))
-                            (if (symbolp fn)
-                              (when (eq fn target)(setq calls-target t))
-                              (progn
-                                (when (eq target ctarget)(setq calls-target t))
-                                (puthash-parent (second expr) function))))))
-                       (case car
-                         (%local-fref                        
-                          (puthash-parent (second expr) function))
-                         (quote)
-                         (t
-                          (when (eq car target)
-                            (setq calls-target t))
-                          (calls-in-progn (cdr expr)))))))))
-        (calls-in-progn body)
-        calls-target))))
+
 
 ; Calls function f with args (imm) on each immediate in lfv.
 

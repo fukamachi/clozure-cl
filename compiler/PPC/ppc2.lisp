@@ -119,8 +119,11 @@
 (defvar *ppc2-register-annotation-types* nil)
 (defvar *ppc2-register-ea-annotations* nil)
 
-(defparameter *ppc2-tail-call-aliases* 
-  '((%call-next-method . (%tail-call-next-method . 1))))
+(defparameter *ppc2-tail-call-aliases*
+  ()
+  #| '((%call-next-method . (%tail-call-next-method . 1))) |#
+  
+)
 
 (defvar *ppc2-popreg-labels* nil)
 (defvar *ppc2-popj-labels* nil)

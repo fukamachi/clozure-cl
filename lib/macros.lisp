@@ -1651,8 +1651,6 @@
                       (if allocation-p
 			(duplicate-options slot)
 			(setq allocation-p t))
-                      (unless (member (cadr options) '(:instance :class))
-                        (report-bad-arg (cadr options) '(member :instance :class)))
                       (setq allocation (cadr options)))
                      (:documentation
                       (if documentation-p
@@ -1660,8 +1658,9 @@
 			(setq documentation-p t))
                       (setq documentation (require-type (cadr options) 'string)))
                      (t
-                      (push `',(car options) other-options)
-                      (push `',(cadr options) other-options))))
+                      (let* ((pair (or (assq (car options) other-options)
+                                       (car (push (list (car options)) other-options)))))
+                        (push (cadr options) (cdr pair))))))
                  `(list :name ',slot-name
 		   ,@(when allocation `(:allocation ',allocation))
 		   ,@(when initform-p `(:initform ,initform
@@ -1671,7 +1670,8 @@
 		   ,@(when writers `(:writers ',writers))
 		   ,@(when type-p `(:type ',type))
 		   ,@(when documentation `(:documentation ,documentation))
-                   ,@(nreverse other-options)))))
+                   ,@(mapcan #'(lambda (opt)
+                                 `(',(car opt) ',(cdr opt))) other-options)))))
 	(let* ((direct-superclasses (or superclasses '(standard-object)))
 	       (direct-slot-specs (mapcar #'canonicalize-slot-spec slots))
 	       (other-options (apply #'append (mapcar #'canonicalize-defclass-option class-options ))))
@@ -2925,3 +2925,6 @@
             (ccl::store-gvector-conditional ,(caddr place)
              ,v ,old-value ,new-value)))
         (error "Don't know how to do conditional store to ~s" place)))))
+
+(defmacro step (form)
+  form)

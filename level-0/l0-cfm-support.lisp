@@ -53,6 +53,17 @@
   (istruct-typep x 'external-entry-point))
 
 (def-accessor-macros %svref
+    nil                                 ;'foreign-variable
+  fv.addr                               ; a MACPTR, or nil
+  fv.name                               ; a string
+  fv.type                               ; a foreign type
+  fv.container                          ; containing library
+  )
+
+(defun %cons-foreign-variable (name type &optional container)
+  (%istruct 'foreign-variable nil name type container))
+
+(def-accessor-macros %svref
     nil					;'shlib
   shlib.soname
   shlib.pathname
@@ -78,9 +89,24 @@
 
 (defvar *eeps* nil)
 
+(defvar *fvs* nil)
+
 (defun eeps ()
   (or *eeps*
       (setq *eeps* (make-hash-table :test #'equal))))
+
+(defun fvs ()
+  (or *fvs*
+      (setq *fvs* (make-hash-table :test #'equal))))
+
+(defun unload-foreign-variables (lib)
+  (let* ((fvs (fvs)))
+    (when fvs
+      (maphash #'(lambda (k fv)
+                   (declare (ignore k))
+                   (when (eq (fv.container fv) lib)
+                     (setf (fv.addr fv) nil)))
+               fvs))))
 
 (defun generate-external-functions (path)
   (let* ((names ()))
@@ -212,6 +238,10 @@
 		   (incf count)))
 	     (eeps))    
     (not (zerop count))))
+
+
+                     
+                     
 
 (defun open-shared-library (name)
   (let* ((link-map  (with-cstrs ((name name))
@@ -398,7 +428,7 @@
 (defvar *dladdr-entry*)
 (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
 
-(defun shlib-containing-address (address)
+(defun shlib-containing-address (address &optional name)
    (rletZ ((info :<D>l_info))
      (let* ((status (ff-call *dladdr-entry*
 			     :address address
@@ -409,11 +439,10 @@
 
 
 (defun shlib-containing-entry (entry &optional name)
-  (declare (ignore name))
   (unless *statically-linked*
     (with-macptrs (p)
       (%setf-macptr-to-object p entry)
-      (shlib-containing-address p))))
+      (shlib-containing-address p name))))
 )
 
 #+darwinppc-target
@@ -446,12 +475,9 @@
 ;;; got this error before putting in the call to NSIsObjectNameDefinedInImage
 ;;; dyld: /usr/local/lisp/ccl/dppccl dead lock (dyld operation attempted in a thread already doing a dyld operation)
 ;;;
-(defun shlib-containing-entry (entry &optional name)
-  (when (not name)
-  	(error "shared library name must be non-NIL."))
-  (with-macptrs (addr)
-    (%setf-macptr-to-object addr entry)
-    (dotimes (i (ff-call *dyld-image-count* :unsigned-fullword))
+
+(defun shlib-containing-address (addr name)
+  (dotimes (i (ff-call *dyld-image-count* :unsigned-fullword))
       (let ((header (ff-call *dyld-get-image-header* :unsigned-fullword i :address)))
 	(when (and (not (%null-ptr-p header))
 		   (or (eql (pref header :mach_header.filetype) #$MH_DYLIB)
@@ -483,7 +509,14 @@
 			    (setf libmodule (ff-call *nsmodule-for-symbol* :address symbol :address))
 			  (setf libheader header))
 			;; make sure that this shared library is on *shared-libraries*
-			(return (shared-library-from-header-module-or-name libheader libmodule libname))))))))))))))
+			(return (shared-library-from-header-module-or-name libheader libmodule libname)))))))))))))
+
+(defun shlib-containing-entry (entry &optional name)
+  (when (not name)
+  	(error "shared library name must be non-NIL."))
+  (with-macptrs (addr)
+    (%setf-macptr-to-object addr entry)
+    (shlib-containing-address addr name)))
 
 ;; end Darwin progn
 )
@@ -516,11 +549,31 @@
       (unless (%null-ptr-p addr)
         addr))))
 
+(defun resolve-foreign-variable (fv &optional (require-resolution t))
+  (or (fv.addr fv)
+      (let* ((name (fv.name fv))
+	     (container (fv.container fv))
+             (handle (resolve-container container require-resolution))
+	     (addr (foreign-symbol-address name handle)))
+	(if addr
+	  (progn
+	    (unless container
+	      (setf (fv.container fv) (shlib-containing-address addr name)))
+	    (setf (fv.addr fv) addr))
+	  (if require-resolution
+	    (error "Can't resolve foreign symbol ~s" name))))))
+
 (defun load-eep (name)
   (let* ((eep (or (gethash name (eeps)) (setf (gethash name *eeps*) (%cons-external-entry-point name)))))
     (resolve-eep eep nil)
     eep))
 
+(defun load-fv (name type)
+  (let* ((fv (or (gethash name (fvs)) (setf (gethash name *fvs*) (%cons-foreign-variable name type)))))
+    (resolve-foreign-variable fv nil)
+    fv))
+
+         
 
 
 
@@ -611,6 +664,13 @@
                   (declare (ignore k)) 
                   (setf (eep.address v) nil) 
                   (resolve-eep v nil))
-              *eeps*))))
+              *eeps*)))
+  (when *fvs*
+    (without-interrupts
+     (maphash #'(lambda (k v)
+                  (declare (ignore k))
+                  (setf (fv.addr v) nil)
+                  (resolve-foreign-variable v nil))
+              *fvs*))))
 
 

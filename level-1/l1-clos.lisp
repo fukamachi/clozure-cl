@@ -151,12 +151,14 @@
 (defmethod class-default-initargs ((class class)))
 (defmethod class-direct-default-initargs ((class class)))
 
-(defmethod direct-slot-definition-class ((class std-class) &rest initargs)
-  (declare (ignore initargs))
+(defmethod direct-slot-definition-class ((class std-class) &key (allocation :instance) &allow-other-keys)
+  (unless (member allocation '(:instance :class))
+    (report-bad-arg allocation '(member (:instance :class))))
   *standard-direct-slot-definition-class*)
 
-(defmethod effective-slot-definition-class ((class std-class) &rest  initargs)
-  (declare (ignore initargs))
+(defmethod effective-slot-definition-class ((class std-class) &key (allocation :instance) &allow-other-keys)
+  (unless (member allocation '(:instance :class))
+    (report-bad-arg allocation '(member (:instance :class))))
   *standard-effective-slot-definition-class*)
 
 (defun make-direct-slot-definition (class initargs)
@@ -1523,3 +1525,5 @@ governs whether DEFCLASS makes that distinction or not.")
 (defmethod (setf class-name) (new (class class))
   (reinitialize-instance class :name new)
   new)
+
+

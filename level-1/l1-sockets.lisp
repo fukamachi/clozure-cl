@@ -368,10 +368,10 @@ conditions, based on the state of the arguments."
 		  (t (path-from-unix-address addr)))))))
 
 (defmethod LOCAL-PORT ((socket socket))
-  (local-socket-info socket :port socket))
+  (local-socket-info (socket-device socket) :port socket))
 
 (defmethod LOCAL-HOST ((socket socket))
-  (local-socket-info socket :host socket))
+  (local-socket-info (socket-device socket) :host socket))
 
 (defmethod LOCAL-FILENAME ((socket socket))
   (local-socket-filename socket))

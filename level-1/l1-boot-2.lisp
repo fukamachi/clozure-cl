@@ -224,7 +224,6 @@
       (bin-load-provide "DESCRIBE" "describe")
       (bin-load-provide "SOURCE-FILES" "source-files")
       (bin-load-provide "MCL-COMPAT" "mcl-compat")
-      (bin-load-provide "STEP" "step")
       (require "LOOP")
       (bin-load-provide "CCL-EXPORT-SYMS" "ccl-export-syms")
       (l1-load-provide "VERSION" "version")

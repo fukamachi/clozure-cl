@@ -1129,7 +1129,7 @@ terminate_lisp()
 #define min_os_version "6.0"
 #endif
 #ifdef LINUX
-#define min_os_version "2.4"
+#define min_os_version "2.2"
 #endif
 
 void

@@ -816,10 +816,7 @@ terminate the list"
          (or (logbitp $lfbits-method-bit bits)
              (and (not (logbitp $lfbits-gfn-bit bits))
                   (not (logbitp $lfbits-cm-bit bits))))
-         (if (typep lfun 'interpreted-function) ; patch needs interpreted-method-function too
-           
-           (nth 4 (evalenv-fnentry (%svref lfun 1))) ; gag puke
-           (%svref lfun 1)))))
+         (%svref lfun 1))))
 
 
 

@@ -95,6 +95,20 @@
   (la temp0 8 vsp)
   (ba .SPvalues))
 
+(defppclapfunction %tcr-binding-location ((tcr arg_y) (svar arg_z))
+  (lwz imm3 ppc32::svar.idx svar)
+  (lwz imm2 ppc32::tcr.tlb-limit tcr)
+  (lwz imm4 ppc32::tcr.tlb-pointer tcr)
+  (li arg_z nil)
+  (cmplw imm3 imm2)
+  (bgelr)
+  (lwzx temp0 imm4 imm3)
+  (cmpwi temp0 ppc32::subtag-no-thread-local-binding)
+  (beqlr)
+  (add arg_z imm4 imm3)
+  (blr))
+
+  
 (defppclapfunction %pname-hash ((str arg_y) (len arg_z))
   (let ((nextw imm1)
         (accum imm0)

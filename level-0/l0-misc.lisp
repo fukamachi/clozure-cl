@@ -285,12 +285,10 @@
 (defun %str-from-ptr (pointer len)
   (%copy-ptr-to-ivector pointer 0 (make-string len :element-type 'base-char) 0 len))
 
-(defun %get-cstring (pointer &optional (offset 0) (end offset))
-  (with-macptrs ((p pointer))
-    (loop (if (%izerop (%get-byte pointer end))
-            (return)
-            (setq end (%i+ end 1))))
-    (%str-from-ptr (%incf-ptr p offset) (%i- end offset))))
+(defun %get-cstring (pointer)
+  (do* ((end 0 (1+ end)))
+       ((zerop (%get-byte pointer end))
+        (%str-from-ptr pointer end))))
 
 ;;; This is mostly here so we can bootstrap shared libs without
 ;;; having to bootstrap #_strcmp.

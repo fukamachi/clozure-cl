@@ -203,12 +203,12 @@
  (pprint           "ccl:bin;pprint"         ("ccl:lib;pprint.lisp"))
  (time             "ccl:bin;time"           ("ccl:lib;time.lisp"))
  (print-db         "ccl:bin;print-db"       ("ccl:lib;print-db.lisp"))
- (eval             "ccl:bin;eval"           ("ccl:lib;eval.lisp"))
+; (eval             "ccl:bin;eval"           ("ccl:lib;eval.lisp"))
 
  (arglist          "ccl:bin;arglist"          ("ccl:lib;arglist.lisp"))
 
  (edit-callers	   "ccl:bin;edit-callers"   ("ccl:lib;edit-callers.lisp"))
- (step             "ccl:bin;step"           ("ccl:lib;step.lisp"))
+; (step             "ccl:bin;step"           ("ccl:lib;step.lisp"))
  (ccl-export-syms  "ccl:bin;ccl-export-syms"  ("ccl:lib;ccl-export-syms.lisp"))
  (systems          "ccl:bin;systems"        ("ccl:lib;systems.lisp"))
  (compile-ccl      "ccl:bin;compile-ccl"    ("ccl:lib;compile-ccl.lisp"))

@@ -105,7 +105,7 @@
 	foreign-types
 	db-io
 	nfcomp
-	eval
+	;eval
 	))
 
 (defun target-env-modules (&optional (target
@@ -153,7 +153,7 @@
         method-combination
         case-error pprint 
         format time 
-        eval step
+;        eval step
         backtrace-lds  ccl-export-syms prepare-mcl-environment))
 
 

@@ -252,6 +252,7 @@
      event-ticks
      set-event-ticks
      event-dispatch
+     *ticks-per-second*
 
      *application*
      arglist
@@ -312,6 +313,8 @@
      macptrp
      macptr
      rlet
+     rletz
+     make-record
      pref
      rref
      with-cstrs
@@ -321,6 +324,11 @@
      define-callback
      defcallback
      ff-call
+     %ff-call
+     %reference-external-entry-point
+     foreign-symbol-entry
+     foreign-symbol-address
+     def-foreign-type
 
      uvref
      uvectorp
@@ -377,6 +385,7 @@
      STANDARD-METHOD-COMBINATION
      STREAM-DIRECTION
      *current-process*
+     PROCESS
      all-processes
      process-preset
      process-reset
@@ -408,6 +417,9 @@
      grab-lock
      release-lock
      try-lock
+     lock
+     read-write-lock
+     lock-not-owner
 
      make-read-write-lock
      with-read-lock
@@ -418,6 +430,7 @@
      wait-on-semaphore
      timed-wait-on-semaphore
      signal-semaphore
+     semaphore
 
      process-input-wait
      process-output-wait
@@ -505,6 +518,7 @@
      stream-write-vector
      ;;
      external
+     external-call
      open-shared-library
      close-shared-library
      shlib

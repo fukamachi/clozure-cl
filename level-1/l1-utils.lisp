@@ -1016,14 +1016,7 @@ vector
   nil)
 
 (defun %make-function (name fn env)
-  (let ((compile-it *compile-definitions*))
-    (when (and compile-it (neq compile-it t))
-      (setq compile-it (funcall compile-it env)))
-    (if (not compile-it)
-      ; bad things will probably occur if env contains unmunched function bindings
-      ; but enclose says the behavior in that case is "undefined"
-      (make-evaluated-function name fn env)
-      (compile-user-function fn name env))))
+  (compile-user-function fn name env))
     
 ;;;;;;;;; VALUE BINDING Functions
 

@@ -304,7 +304,7 @@
           (let ((pc-index (if (eql fn-reg 0) pc-or-index (%ptr-to-int pc-or-index)))
                 instr ra temp rs condition)
             (cond
-             ;; tweqi RA nil-value - resolve-eep
+             ;; tweqi RA nil-value - resolve-eep, or resolve-foreign-variable
 	      ((and (match-instr the-trap
 				 (ppc-instruction-mask  :opcode :to :d)
 				 (ppc-lap-word (tweqi ?? ppc32::nil-value)))
@@ -314,10 +314,16 @@
 						    (+ 4 ppc32::misc-data-offset)
 						    ??))
                                                fn pc-index)))
-	       (let* ((eep (xp-gpr-lisp xp (RA-field instr))))
-		 (resolve-eep eep)
-		 (setf (xp-gpr-lisp xp (RA-field the-trap))
-		       (eep.address eep))))
+	       (let* ((eep-or-fv (xp-gpr-lisp xp (RA-field instr))))
+                 (etypecase eep-or-fv
+                   (external-entry-point
+                    (resolve-eep eep-or-fv)
+                    (setf (xp-gpr-lisp xp (RA-field the-trap))
+                          (eep.address eep-or-fv)))
+                   (foreign-variable
+                    (resolve-foreign-variable eep-or-fv)
+                    (setf (xp-gpr-lisp xp (RA-field the-trap))
+                          (fv.addr eep-or-fv))))))
              ;; twnei RA,N; RA = nargs
              ;; nargs check, no optional or rest involved
 	      ((match-instr the-trap

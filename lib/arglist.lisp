@@ -203,8 +203,6 @@
                         ncells nclosed)
           (function-args lfun)
     (declare (ignore optinit ncells nclosed))
-    (when (typep lfun 'interpreted-function)
-      (setq argnames (evalenv-names (%svref lfun 1))))
     (macrolet ((push (elt list)
                      `(setf ,list (funcall conser ,elt ,list))))
       (flet ((push-various-args (prefix count)

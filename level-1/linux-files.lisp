@@ -142,7 +142,7 @@
        (pref stat :stat.st_mode)
        (pref stat :stat.st_size)
        #+linuxppc-target
-       (pref stat :stat.st_mtime)
+       (pref stat :stat.st_mtim.tv_sec)
        #+darwinppc-target
        (pref stat :stat.st_mtimespec.tv_sec)
        (pref stat :stat.st_ino)
@@ -396,6 +396,7 @@
 	    (setf (shlib.pathname lib) nil
 	      (shlib.base lib) nil
 	      (shlib.map lib) nil)
+            (unload-foreign-variables lib)
 	    (unload-library-entrypoints lib)))))))
 
 #+darwinppc-target

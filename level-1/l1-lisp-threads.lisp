@@ -520,38 +520,30 @@
 
 
 (defun symbol-value-in-tcr (sym tcr)
-  (let ((loc (%symbol-value-locative-in-tcr sym tcr)))
-    (if (null loc)
-      (symbol-value sym)
-      (let ((val (%fixnum-ref loc)))
-        (when (eq val (%unbound-marker-8))
-          (error "~s is unbound in context ~s" sym tcr))
-        val))))
+  (let* ((svar (ensure-svar sym)))
+    (if (eq tcr (%current-tcr))
+      (%svar-sym-value svar)
+      (unwind-protect
+           (progn
+             (%suspend-tcr tcr)
+             (let* ((loc (%tcr-binding-location tcr svar)))
+               (if loc
+                 (%fixnum-ref loc)
+                 (%sym-global-value sym))))
+        (%resume-tcr tcr)))))
 
 (defun (setf symbol-value-in-tcr) (value sym tcr)
-  (let ((loc (%symbol-value-locative-in-tcr sym tcr)))
-    (if (null loc)
-      (setf (symbol-value sym) value)
-      (setf (%fixnum-ref loc) value))))
-
-(defun %symbol-value-locative-in-tcr (sym tcr)
-  (if (eq tcr (%current-tcr))
-    nil
-    (or (%last-symbol-value-locative-in-db-chain
-         sym (db-link tcr))
-        (%last-symbol-value-locative-in-db-chain
-         sym (db-link tcr)))))
-
-(defun %last-symbol-value-locative-in-db-chain (sym db)
-  (let ((last-found nil))
-    (loop
-      (when (eql 0 db) (return))
-      (when (eq sym (%fixnum-ref db 4))
-        (setq last-found db))
-      (setq db (%fixnum-ref db 0)))
-    (and last-found (%i+ last-found 2))))
-
-
+  (let* ((svar (ensure-svar sym)))
+    (if (eq tcr (%current-tcr))
+      (%svar-set-sym-value svar value)
+      (unwind-protect
+           (progn
+             (%suspend-tcr tcr)
+             (let* ((loc (%tcr-binding-location tcr svar)))
+               (if loc
+                 (setf (%fixnum-ref loc) value)
+                 (%set-sym-global-value sym value))))
+        (%resume-tcr tcr)))))
 
 ;;; Backtrace support
 ;;;
