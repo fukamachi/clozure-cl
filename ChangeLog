@@ -1,3 +1,8 @@
+2005-03-04 13:46  bryan
+
+	* level-1/l1-streams.lisp: ioblock-element-shift should never be
+	  < 0.
+
 2005-03-02 22:28  bryan
 
 	* level-1/version.lisp: bump.
