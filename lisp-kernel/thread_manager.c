@@ -14,6 +14,12 @@
    http://opensource.franz.com/preamble.html
 */
 
+/*
+  $Log$
+  Revision 1.5  2003/12/10 08:25:34  gb
+  Don't free() a pointer that was just realloc()ed.
+
+*/
 
 #include "Threads.h"
 
@@ -1244,7 +1250,6 @@ extend_tcr_tlb(TCR *tcr,
     *work++ = no_thread_local_binding_marker;
     new_bytes -= sizeof(LispObj);
   }
-  free(old_tlb);
   tcr->tlb_pointer = new_tlb;
   tcr->tlb_limit = new_limit;
   xpGPR(xp, limit_regno) = new_limit;
