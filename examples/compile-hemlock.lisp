@@ -62,10 +62,16 @@
 		"table"
 		#+clx
 		"hunk-draw"
+		#+clx
 		"window"
+		#-clx
+		"modeline"
+		#+clx
 		"screen"
+		#+clx
 		"winimage"
 		"linimage"
+		#+clx
 		"display"
 		#+clx
 		"bit-display"
