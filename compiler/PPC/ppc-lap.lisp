@@ -19,6 +19,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "PPC32-ARCH")
+  (require "PPC64-ARCH")
   (require "RISC-LAP")
   (require "DLL-NODE")
   (require "PPC-ASM")
@@ -33,7 +34,6 @@
     (when (gethash s ppc::*ppc-opcode-numbers*)
       (error "~s already defines a PowerPC instruction . " name))
     (when (ppc::ppc-macro-function s)
-
       (error "~s already defines a PowerPC macro instruction . " name))
     (setf (gethash s (backend-lap-macros *ppc-backend*)) def)))
 
@@ -115,7 +115,7 @@
 ;;;   (bc (invert bo) bi @new)
 ;;;   (b[l] label)
 ;;; @new
-;;; Do do only if the instruction's a conditional branch
+;;; Do so only if the instruction's a conditional branch
 ;;; and the label is more than 16 bits away from the instruction.
 ;;; Return true if we do this, false otherwise.
 (defun ppc-lap-invert-conditional-branch (insn label)
@@ -191,16 +191,16 @@
     (if (>= pc (ash 1 20)) (compiler-function-overflow))
     pc))
 
-; The function's big enough that we might have generated conditional
-; branches that are too far away from their targets.  Find the set
-; of all labels that are the target of conditional branches, then
-; repeatedly assign (tentative) addresses to all instructions and
-; labels and iterate over the set of conditional branch targets,
-; "lengthening" any condtional branches that are too far away from
-; the target label.  Since lengthening a branch instruction can
-; cause a spanning branch to become a candidate for lengthening, we
-; have to repeat the process until all labels are the targets of
-; valid (short enough or unconditional) branch instructions.
+;;; The function's big enough that we might have generated conditional
+;;; branches that are too far away from their targets.  Find the set
+;;; of all labels that are the target of conditional branches, then
+;;; repeatedly assign (tentative) addresses to all instructions and
+;;; labels and iterate over the set of conditional branch targets,
+;;; "lengthening" any condtional branches that are too far away from
+;;; the target label.  Since lengthening a branch instruction can
+;;; cause a spanning branch to become a candidate for lengthening, we
+;;; have to repeat the process until all labels are the targets of
+;;; valid (short enough or unconditional) branch instructions.
 (defun ppc-lap-remove-long-branches ()
   (let* ((branch-target-labels (ppc-lap-conditional-branch-targets)))
     (do* ((done nil))
@@ -329,21 +329,22 @@
 
 (defun ppc-lap-generate-code (name maxpc bits &optional (traceback t))
   (declare (fixnum maxpc))
-  (let* ((cross-compiling (not (eq *host-backend* *target-backend*)))
+  (let* ((target-backend *target-backend*)
+         (cross-compiling (not (eq *host-backend* target-backend)))
 	 (traceback-size
 	  (traceback-fullwords (and traceback
 				    name
 				    (setq traceback (symbol-name name)))))
 	 (code-vector (%alloc-misc (+ (ash maxpc -2) traceback-size)
 				   (if cross-compiling
-				     ppc32::subtag-xcode-vector
-				     ppc32::subtag-code-vector)))
+				     target::subtag-xcode-vector
+				     target::subtag-code-vector)))
          (constants-size (+ 3 (length *ppc-lap-constants*)))
          (constants-vector (%alloc-misc
                             constants-size
 			    (if cross-compiling
-			      ppc32::subtag-xfunction
-			      ppc32::subtag-function)))
+			      target::subtag-xfunction
+			      target::subtag-function)))
          (i 0))
     (declare (fixnum i constants-size))
     (ppc-lap-resolve-labels)            ; all operands fully evaluated now.
@@ -356,7 +357,10 @@
       (let* ((imm (car immpair))
              (k (cdr immpair)))
         (declare (fixnum k))
-        (setf (uvref constants-vector (ash (- k ppc32::misc-data-offset) -2))
+        (setf (uvref constants-vector
+                     (ash
+                      (- k (backend-target-misc-data-offset target-backend))
+                      (- (backend-target-word-shift target-backend))))
               imm)))
     (setf (uvref constants-vector (1- constants-size)) bits       ; lfun-bits
           (uvref constants-vector (- constants-size 2)) name
@@ -432,7 +436,10 @@
 
 (defun ppc-lap-constant-offset (x)
   (or (cdr (assoc x *ppc-lap-constants* :test #'equal))
-      (let* ((n (+ ppc32::misc-data-offset (ash (1+ (length *ppc-lap-constants*)) 2))))
+      (let* ((target-backend *target-backend*)
+             (n (+ (backend-target-misc-data-offset target-backend)
+                   (ash (1+ (length *ppc-lap-constants*))
+                        (backend-target-word-shift target-backend)))))
         (push (cons x n) *ppc-lap-constants*)
         n)))
 
@@ -441,7 +448,7 @@
   (if (typep x 'fixnum)
     x
     (if (null x)
-      ppc32::nil-value
+      (backend-target-nil-value *target-backend*)
       (let* ((val (handler-case (eval x)          ; Look! Expression evaluation!
 		    (error (condition) (error "~&Evaluation of ~S signalled assembly-time error ~& ~A ."
 					      x condition)))))
@@ -472,12 +479,12 @@
 	(if (and (consp x) (eq (car x) 'quote))
 	  (let* ((quoted-form (cadr x)))
 	    (if (null quoted-form)
-	      ppc32::nil-value
+	      (backend-target-nil-value *target-backend*)
 	      (if (typep quoted-form 'fixnum)
-		(ash quoted-form ppc32::fixnumshift)
+		(ash quoted-form (backend-target-fixnum-shift *target-backend*))
 		(ppc-lap-constant-offset quoted-form))))
 	  (ppc-lap-evaluated-expression x)))
-    ppc32::nil-value))
+    (backend-target-nil-value *target-backend*)))
 
 (defun ppc-fpr-name-p (x)
   (and (or (symbolp x) (stringp x))
