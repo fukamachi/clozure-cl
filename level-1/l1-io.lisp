@@ -425,10 +425,21 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
         ((eq %type 'cons)
          (unless (depth stream level)
            (write-a-cons object stream level)))
-        ((or (eq %type 'symbol) (null object))
-         ;; Don't do *print-level* truncation;
-         ;;  even though strictly necessary it's pretty pointless for symbols
+        ;; Don't do *print-level* truncation for anything between
+        ;; here and the (depth ...) case.
+        ((or (eq %type 'symbol)
+             (null object))
          (write-a-symbol object stream))
+        ((or (stringp object)
+             (bit-vector-p object))
+         (cond ((or (not (stringp object))
+                    (%i> (length (the string object))
+                         (get-*print-frob* '*print-string-length*)))
+                (write-an-array object stream level))
+               ((or *print-escape* *print-readably*)
+                (write-escaped-string object stream))
+               (t
+                (%write-string object stream))))
         ((depth stream level))
         ((eq %type 'package)
          (write-a-package object stream))
