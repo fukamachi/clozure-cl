@@ -80,11 +80,11 @@
 ;These might want to compiler-transform into non-typechecking versions...
 (defun struct-ref (struct offset)
   (if (structurep struct) (uvref struct offset)
-      (report-bad-arg struct 'structure)))
+      (report-bad-arg struct 'structure-object)))
 
 (defun struct-set (struct offset value)
   (if (structurep struct) (uvset struct offset value)
-      (report-bad-arg struct 'structure)))
+      (report-bad-arg struct 'structure-object)))
 
 (defsetf struct-ref struct-set)
 
