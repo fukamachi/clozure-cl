@@ -151,7 +151,7 @@ instance variable."
   ;;; this condition.
   ;;;
 
-  (dbg (format nil "~a" c))
+  #|(dbg (format nil "~a" c))|#
   (make-instance 'ns-lisp-exception :condition c))
   
 
