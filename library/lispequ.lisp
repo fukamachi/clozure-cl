@@ -261,7 +261,13 @@
   ()                                    ; 'pathname
   %pathname-directory
   %pathname-name
-  %pathname-type
+  %pathname-type)
+
+(def-accessors (logical-pathname) %svref
+  ()                                    ; 'logical-pathname
+  %pathname-directory
+  %pathname-name
+  %pathname-type  
   %logical-pathname-host
   %logical-pathname-version)
 
@@ -939,14 +945,14 @@
 )
 ;;; Doing this via %SLOT-REF traps if the slot is unbound
 (defmacro standard-instance-instance-location-access (instance location)
-  `(%slot-ref (instance.slots ,instance) ,location))
+  `(%slot-ref (instance-slots ,instance) ,location))
 
 ;;; Get the "raw" contents of the slot, even if it's %SLOT-UNBOUND-MARKER.
 (defmacro %standard-instance-instance-location-access (instance location)
-  `(%svref (instance.slots ,instance) ,location))
+  `(%svref (instance-slots ,instance) ,location))
 
 (defmacro set-standard-instance-instance-location-access (instance location new)
-  `(setf (%svref (instance.slots ,instance) ,location) ,new))
+  `(setf (%svref (instance-slots ,instance) ,location) ,new))
 
 (defsetf standard-instance-instance-location-access
     set-standard-instance-instance-location-access)
