@@ -273,7 +273,7 @@
 ;; Some of these could probably call %err-disp instead of error,
 ;; but I was too lazy to look them up.
 
-(defcallback cmain (:without-interrupts t
+(defcallback xcmain (:without-interrupts t
 					:address xp 
 					:unsigned-fullword fn-reg 
 					:address pc-or-index 
