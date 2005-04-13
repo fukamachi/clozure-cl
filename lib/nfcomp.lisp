@@ -349,7 +349,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fcomp-find-file (file &aux path)
   (unless (or (setq path (probe-file file))
               (setq path (probe-file (merge-pathnames file *.lisp-pathname*))))
-    (error "File ~S not found" file))
+    (error 'file-error :pathname file :error-type "File ~S not found"))
   (namestring path))
 
 ; orig-file is back-translated when from fcomp-file
