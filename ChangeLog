@@ -1,3 +1,361 @@
+2005-04-12 22:57  bryan
+
+	* level-1/l1-reader.lisp: per 2.4.8.17, "#+(or) #+(or) nil nil t"
+	should probably read as T
+
+2005-04-01 03:23  gb
+
+	* darwin-headers/cocoa/C/populate.sh: No they weren't: parse
+	PreferencePanes.h
+
+2005-04-01 00:15  gb
+
+	* compiler/PPC/ppc2.lisp: Minor target package changes.
+
+2005-03-29 22:53  gb
+
+	* compiler/: backend.lisp, PPC/PPC32/ppc32-backend.lisp: Start to
+	add target-uvector-subtags to backend.
+
+2005-03-29 07:06  gb
+
+	* lisp-kernel/linux64/Makefile: First cut at a Makefile.
+
+2005-03-29 07:05  gb
+
+	* lisp-kernel/linux64/elf64ppc.x: Linker script for linux64; force
+	kernel into low memory.
+
+2005-03-29 07:05  gb
+
+	* lisp-kernel/pmcl-kernel.c: May be grief including
+	#<asm/cputable.h> on linux64.  Note that fact.
+
+2005-03-29 07:04  gb
+
+	* lisp-kernel/macros.s: extract_lowbyte uses clrlri.
+
+2005-03-29 07:04  gb
+
+	* lisp-kernel/lisp-exceptions.c: Don't save/restore PT_MQ; this had
+	something to do with saving/restoring Altivec registers, a long
+	time ago.
+
+2005-03-29 07:03  gb
+
+	* lisp-kernel/imports.s: Don't import __trampoline_setup on
+	linux64.
+
+2005-03-29 07:02  gb
+
+	* lisp-kernel/plbt.c: No eabi_c_frame on linux64.
+
+2005-03-28 04:34  gb
+
+	* darwin-headers/cocoa/C/populate.sh: The actual cocoa interfaces
+	(from darwin-interfaces-040505.tar.gz) were built from this, not
+	from what's been in CVS.
+
+2005-03-28 04:33  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp:
+	TRAP-UNLESS-{SINGLE,DOUBLE}-FLOAT, refer to the least significant
+	bit as "lowbit", not as "bit31".  A few other things implemented; a
+	lot to go.
+
+2005-03-28 04:31  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp:
+	TRAP-UNLESS-{SINGLE,DOUBLE}-FLOAT, refer to the least significant
+	bit as "lowbit", not as "bit31".
+
+2005-03-28 04:28  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Some fixes & cleanups;
+	TCR-BIAS.
+
+2005-03-28 04:26  gb
+
+	* compiler/PPC/: PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-backend.lisp: More compilation-target parameters in the
+	backend.
+
+2005-03-28 04:25  gb
+
+	* compiler/PPC/ppc2.lisp: Start to remove some ppc32-isms.
+
+2005-03-28 04:24  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: MOST (not all) things run-time
+	conditionalized for ppc32/ppc64.
+
+2005-03-28 04:24  gb
+
+	* compiler/PPC/ppc-lap.lisp: Remove some PPC32-isms.
+
+2005-03-28 04:23  gb
+
+	* compiler/backend.lisp: Put more target stuff in the backend
+	structure.
+
+2005-03-28 04:22  gb
+
+	* level-0/PPC/ppc-clos.lisp: GF protos, trampolines: LAP moved
+	here.
+
+2005-03-28 04:21  gb
+
+	* level-0/PPC/ppc-float.lisp: Float sign, zerop functions in lisp.
+
+2005-03-28 04:21  gb
+
+	* level-0/PPC/ppc-io.lisp: A little bit of conditionalization (for
+	a little bit of code.)
+
+2005-03-28 04:20  gb
+
+	* level-0/PPC/ppc-misc.lisp: A little bit of conditionalization
+	(needs more work.)
+
+2005-03-28 04:19  gb
+
+	* level-0/PPC/ppc-numbers.lisp: %DOUBLE-FLOAT-PLUSP,
+	%SHORT-FLOAT-PLUSP in lisp.
+
+2005-03-28 04:18  gb
+
+	* level-0/l0-numbers.lisp: %DOUBLE-FLOAT-ZEROP, %SHORT-FLOAT-ZEROP
+	in lisp.
+
+2005-03-28 04:18  gb
+
+	* level-0/l0-float.lisp: %DOUBLE-FLOAT-SIGN, %SHORT-FLOAT-SIGN in
+	lisp.
+
+2005-03-28 04:17  gb
+
+	* level-1/version.lisp: Bump; again, a little hard to bootstrap.
+
+2005-03-28 04:16  gb
+
+	* lib/number-macros.lisp: Remove some commented-out code.
+
+2005-03-28 04:16  gb
+
+	* lib/systems.lisp: Define PPC64-VINSNS.
+
+2005-03-28 04:15  gb
+
+	* lib/compile-ccl.lisp: Include PPC64-ARCH in
+	*PPC-COMPILER-MODULES*.
+
+2005-03-28 04:14  gb
+
+	* lisp-kernel/constants32.h: Define TCR_BIAS.
+
+2005-03-28 04:13  gb
+
+	* lisp-kernel/constants64.h: Don't use NATURAL_POINTER_FIELD. 
+	Define TCR_BIAS.
+
+2005-03-28 04:13  gb
+
+	* lisp-kernel/constants64.s: Define TCR_BIAS; ensure that TCR has
+	single_float_convert field.
+
+2005-03-28 04:12  gb
+
+	* lisp-kernel/darwin/.gdbinit: No TCR_BIAS on Darwin32; rcontext is
+	now r13.
+
+2005-03-28 04:11  gb
+
+	* lisp-kernel/lisptypes.h: Don't (try to) support 32-bit foreign
+	pointers in 64-bit code.
+
+2005-03-28 04:10  gb
+
+	* lisp-kernel/lisp.h: Don't define NATURAL_POINTER_FIELD.
+
+2005-03-28 04:10  gb
+
+	* lisp-kernel/area.h: Don't use NATURAL_POINTER_FIELD.
+
+2005-03-28 04:09  gb
+
+	* lisp-kernel/Threads.h: Don't use NATURAL_POINTER_FIELD.  Define
+	TCR_BIAS in constants{32,64}.h
+
+2005-03-28 04:08  gb
+
+	* level-1/l1-dcode.lisp: Move LAP code to level-0.
+
+2005-03-27 14:36  gb
+
+	* xdump/faslenv.lisp: Increment min fasl version.
+
+2005-03-27 14:30  gb
+
+	* lib/nfcomp.lisp: Increment fasl version.
+
+2005-03-27 14:22  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-03-27 14:22  gb
+
+	* xdump/faslenv.lisp: Increment $fasl_vers.
+
+2005-03-27 14:17  gb
+
+	* compiler/PPC/ppc-arch.lisp: Don't define old-rcontext.
+
+2005-03-27 14:16  gb
+
+	* lisp-kernel/: constants.h, constants.s, spentry.s, subprims.s,
+	thread_manager.c: Stop maintaining old_rcontext.  Don't need
+	special get_interrupt_tcr() on Linux; review other TCR-related
+	cruft.
+
+2005-03-27 13:38  gb
+
+	* lisp-kernel/: constants.h, constants.s, spentry.s, subprims.s:
+	r13 is rcontext; maintain r2 (old_rcontext) in parallel, until
+	we're bootstrapped.
+
+2005-03-27 13:38  gb
+
+	* compiler/PPC/ppc-arch.lisp: r13 is rcontext; r2 (maintained by
+	the kernel) is old-rcontext, until we stop referencing it.
+
+2005-03-27 12:01  gb
+
+	* level-0/PPC/ppc-bignum.lisp, level-0/PPC/ppc-def.lisp,
+	level-0/PPC/ppc-float.lisp, level-0/PPC/ppc-misc.lisp,
+	lisp-kernel/constants.h, lisp-kernel/constants.s,
+	lisp-kernel/macros.s, lisp-kernel/spentry.s,
+	lisp-kernel/subprims.s, compiler/PPC/ppc-arch.lisp,
+	compiler/PPC/ppc-lapmacros.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp: Stop maintaining OLD-VSP; R13
+	will soon (one more round of bootstrapping) become RCONTEXT, and
+	then the fasl version will change and there'll be new binaries.
+
+2005-03-27 11:27  gb
+
+	* level-0/PPC/: ppc-bignum.lisp, ppc-def.lisp, ppc-float.lisp,
+	ppc-misc.lisp: Maintain OLD-VSP, not NEW-VSP.
+
+2005-03-27 11:13  gb
+
+	* compiler/PPC/: ppc-lapmacros.lisp, ppc2.lisp,
+	PPC32/ppc32-vinsns.lisp: VSP is now r15, OLD-VSP is r13.  Keep them
+	in sync.  Don't use PPC2-FIX-STACKREG or vinsn
+	ADJUST-STACK-REGISTER, for bootstrapping reasons.
+
+2005-03-27 11:08  gb
+
+	* compiler/PPC/ppc-arch.lisp: VSP is now r15, OLD-VSP is r13.
+
+2005-03-27 11:04  gb
+
+	* lisp-kernel/: constants.h, constants.s, macros.s, spentry.s,
+	subprims.s: VSP is now r15, OLD-VSP is r13.  They should be
+	equivalent until we're finished bootstrapping; use check_vsp to
+	enforce that at discrete execution points.
+
+2005-03-27 07:39  gb
+
+	* level-0/PPC/ppc-float.lisp, level-0/PPC/ppc-misc.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp: Ensure vsp = new-vsp, harder.
+
+2005-03-27 07:39  gb
+
+	* lisp-kernel/spentry.s: do check_vsp on subprim entry.
+
+2005-03-27 07:38  gb
+
+	* lisp-kernel/macros.s: define check_vsp (trap if vsp != new_vsp)
+
+2005-03-27 06:55  gb
+
+	* compiler/PPC/ppc-arch.lisp, compiler/PPC/ppc-lapmacros.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp, level-0/PPC/ppc-bignum.lisp,
+	level-0/PPC/ppc-def.lisp, level-0/PPC/ppc-misc.lisp,
+	lisp-kernel/constants.s, lisp-kernel/macros.s,
+	lisp-kernel/spentry.s, lisp-kernel/subprims.s: Really no more
+	old-fn.  R15 is new-vsp; try to keep it in synch with VSP (soon to
+	become "old-vsp") at all times.
+
+2005-03-27 06:00  gb
+
+	* compiler/PPC/ppc-arch.lisp, compiler/PPC/ppc-lapmacros.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp, level-0/PPC/ppc-def.lisp,
+	lisp-kernel/constants.h, lisp-kernel/constants.s,
+	lisp-kernel/lisp-debug.c, lisp-kernel/spentry.s,
+	lisp-kernel/subprims.s: No more old-fn.
+
+2005-03-27 04:53  gb
+
+	* level-0/PPC/ppc-def.lisp: Copy FN to OLD-FN in
+	%APPLY-LEXPR-TAIL-WISE.
+
+2005-03-27 04:52  gb
+
+	* compiler/PPC/: ppc-arch.lisp, ppc-lapmacros.lisp,
+	PPC32/ppc32-vinsns.lisp: Lisp believes that FN = R16, copies it to
+	OLD-FN whenever it's set (for bootstrapping).
+
+2005-03-27 03:04  gb
+
+	* compiler/PPC/ppc-arch.lisp, compiler/PPC/ppc-lapmacros.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp, lisp-kernel/constants.h,
+	lisp-kernel/constants.s, lisp-kernel/constants32.s,
+	lisp-kernel/lisp-debug.c, lisp-kernel/spentry.s,
+	lisp-kernel/subprims.s: Remove remaining uses of temp4; define r16
+	as "new_fn".  All assignments to fn copy to new_fn, as well (more
+	bootstrapping).
+
+2005-03-27 00:50  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp, level-0/PPC/ppc-clos.lisp,
+	lib/ppcenv.lisp, lisp-kernel/Threads.h, lisp-kernel/constants32.s,
+	lisp-kernel/thread_manager.c: Back out of previous change, since
+	even current versions of Debian unstable don't provide a TLS-aware
+	gcc/glibc.  Set TCR_BIAS to 0 where relevant.
+	
+	Start to take another approach (moving rcontext to r13), by
+	starting to phase out temp4 (= r16).  Don't let the compiler
+	allocate temp4, don't use temp4 in LAP code.
+
+2005-03-26 20:35  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-03-26 20:34  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp, lisp-kernel/Threads.h,
+	lisp-kernel/constants32.s, lisp-kernel/lisp-exceptions.c,
+	lisp-kernel/pmcl-kernel.c, lisp-kernel/spentry.s,
+	lisp-kernel/thread_manager.c, lisp-kernel/darwin/.gdbinit,
+	lisp-kernel/darwin/Makefile: Start to bootstrap changes to
+	reconcile OpenMCL's notion of thread-specific-data (the TCR) with
+	Linux's.  On Darwin, this means that r2 (rcontext) points #x7000
+	bytes beyond the TCR; on Linux, the TCR structure will be the first
+	(real) thread-local variable, and the C runtime's thread pointer
+	will therefore point ... #x7000 bytes beyond the TCR.  (This
+	basically means that we can keep the same value in r2/rcontext when
+	running lisp and foreign code on Linux; Linux C and thread and
+	debugging utilities are getting increasingly insistent about that.)
+	
+	This introduces binary incompatibility; there'll need to be a
+	change in the fasl version and new images when the dust settles a
+	bit.
+
+2005-03-26 20:20  gb
+
+	* lib/dumplisp.lisp: Hmm.  Not likely that MultiFinder/UniFinder
+	are involved anymore.
+
 2005-03-18 22:00  gb
 
 	* lisp-kernel/m4macros.m4: Try to use .size directive on ELF.
