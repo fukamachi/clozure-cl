@@ -17,6 +17,7 @@
 (defpackage "PPC"
   (:use "CL"))
 
+(require "ARCH")
 
 (in-package "PPC")
 ;;; Lisp registers.
@@ -311,4 +312,7 @@
     ccl::%foreign-thread-control
     ))
 
+
+
+  
 (provide "PPC-ARCH")
