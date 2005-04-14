@@ -170,8 +170,8 @@
 				   (the fixnum (ash n 3))))
 	#+ppc64-target
 	((#.ppc64::subtag-double-float-vector
-	  #+ppc64::subtag-s64-vector
-	  #+ppc64::subtag-u64-vector)
+	  #.ppc64::subtag-s64-vector
+	  #.ppc64::subtag-u64-vector)
 	 (%copy-ivector-to-ivector src
 				   (the fixnum ash start 3)
 				   dest
