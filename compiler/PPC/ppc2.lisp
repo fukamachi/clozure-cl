@@ -31,8 +31,16 @@
 (defparameter *ppc2-target-bits-in-word* 0)
 
 
+(defun ppc2-lookup-target-uvector-subtag (name)
+  (or (cdr (assoc name (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
+      (nx-error "Type ~s not supported on target ~s"
+                name (backend-target-arch-name *target-backend*))))
 
 
+(defun ppc2-immediate-operand (x)
+  (if (eq (acode-operator x) (%nx1-operator immediate))
+    (cadr x)
+    (error "~&Bug: not an immediate: ~s" x)))
 
 (defmacro with-ppc-p2-declarations (declsform &body body)
   `(let* ((*ppc2-tail-allow* *ppc2-tail-allow*)
@@ -376,9 +384,9 @@
            (*ppc2-register-restore-ea* nil)
            (*ppc2-vstack* 0)
            (*ppc2-cstack* 0)
-	   (*ppc2-target-lcell-size* (backend-target-lisp-node-size *target-backend*))
-           (*ppc2-target-fixnum-shift* (backend-target-fixnum-shift *target-backend*))
-           (*ppc2-target-bits-in-word* (backend-target-nbits-in-word *target-backend*))
+	   (*ppc2-target-lcell-size* (arch::target-lisp-node-size (backend-target-arch *target-backend*)))
+           (*ppc2-target-fixnum-shift* (arch::target-fixnum-shift (backend-target-arch *target-backend*)))
+           (*ppc2-target-bits-in-word* (arch::target-nbits-in-word (backend-target-arch *target-backend*)))
 	   (*ppc2-target-node-size* *ppc2-target-lcell-size*)
            (*ppc2-all-lcells* ())
            (*ppc2-top-vstack-lcell* nil)
@@ -1138,6 +1146,7 @@
     (when (%ilogbitp $vbitreg bits)
       (%ilogand bits $vrefmask))))
 
+; Can't cross-compile this.  Too bad.
 #+ppc32-host
 (defun ppc2-single-float-bits (the-sf)
   (uvref the-sf ppc32::single-float.value-cell))
@@ -1488,7 +1497,7 @@
                    (! misc-set-single-float target v idx-reg)))))))))))
   target)
 
-(defun ppc2-aref2 (seg vreg xfer array i j safe typecode &optional dim0 dim1)
+(defun ppc2-aref2 (seg vreg xfer array i j safe typekeyword &optional dim0 dim1)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((i-known-fixnum (acode-fixnum-form-p i))
            (j-known-fixnum (acode-fixnum-form-p j))
@@ -1512,10 +1521,10 @@
                                            j ppc::arg_z)))
       (when safe        
         (when (typep safe 'fixnum)
-          (! trap-unless-typecode= src ppc32::subtag-arrayH)
+          (! trap-unless-array-header src)
           (! check-arrayH-rank src 2)
           (! check-arrayH-flags src
-             (dpb safe ppc32::arrayH.flags-cell-subtag-byte
+             (dpb safe target::arrayH.flags-cell-subtag-byte
                   (ash 1 $arh_simple_bit))))
         (unless i-known-fixnum
           (! trap-unless-fixnum unscaled-i))
@@ -1531,26 +1540,26 @@
           (! array-data-vector-ref v src)
           (let* ((bias ppc32::misc-data-offset))
             (multiple-value-bind (shift limit)
-                (case typecode
-                  (#.ppc32::subtag-double-float-vector
+                (case typekeyword
+                  (:double-float-vector
                    (setq bias ppc32::misc-dfloat-offset)
                    (values 3 ppc32::max-64-bit-constant-index))
-                  ((#.ppc32::subtag-single-float-vector
-                    #.ppc32::subtag-s32-vector
-                    #.ppc32::subtag-u32-vector)
+                  ((:single-float-vector
+                    :s32-vector
+                    :u32-vector)
                    (values 2 ppc32::max-32-bit-constant-index)))
               (when (and constidx (>= constidx limit))
                 (ppc2-absolute-long seg idx-reg nil (+ bias
                                                        (ash constidx shift)))
                 (setq constidx nil need-scale nil))))
-          (case typecode
-            (#.ppc32::subtag-double-float-vector
+          (case typekeyword
+            (:double-float-vector
              (if constidx
                (! misc-ref-c-double-float vreg v constidx)
                (progn
                  (when need-scale (! scale-64bit-misc-index idx-reg idx-reg))
                  (! misc-ref-double-float vreg v idx-reg))))
-            (#.ppc32::subtag-single-float-vector
+            (:single-float-vector
              (if constidx
                (! misc-ref-c-single-float vreg v constidx)
                (progn
@@ -6630,35 +6639,36 @@
   (destructuring-bind (op n0 n1) (acode-unwrapped-form form)
     (ppc2-use-operator op seg vreg xfer n0 n1 *nx-t*)))
 
-(defppc2 ppc2-%aref2 aref2 (seg vreg xfer subtag arr i j &optional dim0 dim1)
+(defppc2 ppc2-%aref2 aref2 (seg vreg xfer typename arr i j &optional dim0 dim1)
   (if (null vreg)
     (progn
       (ppc2-form seg nil nil arr)
       (ppc2-form seg nil nil i)
       (ppc2-form seg nil xfer j)))
-  (let* ((fixtype (acode-fixnum-form-p subtag))
+  (let* ((type-keyword (ppc2-immediate-operand typename))
+         (fixtype (ppc2-lookup-target-uvector-subtag type-keyword ))
          (safe (unless *ppc2-reckless* fixtype))
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
-    (case fixtype
-      (#.ppc32::subtag-double-float-vector
+    (case type-keyword
+      (:double-float-vector
        (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
-         (ppc2-aref2 seg vreg xfer arr i j safe fixtype dim0 dim1)
+         (ppc2-aref2 seg vreg xfer arr i j safe type-keyword dim0 dim1)
          (with-fp-target () (target :double-float)
-           (ppc2-aref2 seg target nil arr i j safe fixtype dim0 dim1)
+           (ppc2-aref2 seg target nil arr i j safe type-keyword dim0 dim1)
            (<- target)
            (^))))
-      (#.ppc32::subtag-single-float-vector
+      (:single-float-vector
        (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
          (ppc2-aref2 seg vreg xfer arr i j safe fixtype dim0 dim1)
          (with-fp-target () (target :single-float)
-           (ppc2-aref2 seg target nil arr i j safe fixtype dim0 dim1)
+           (ppc2-aref2 seg target nil arr i j safe type-keyword dim0 dim1)
            (<- target)
            (^))))
       (t (error "Bug: shouldn't have tried to open-code %AREF2 call.")))))
 
-(defppc2 ppc2-%aset2 aset2 (seg vreg xfer subtag arr i j new &optional dim0 dim1)
-  (let* ((fixtype (acode-fixnum-form-p subtag))
+(defppc2 ppc2-%aset2 aset2 (seg vreg xfer typename arr i j new &optional dim0 dim1)
+  (let* ((fixtype (ppc2-lookup-target-uvector-subtag typename ))
          (safe (unless *ppc2-reckless* fixtype))
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
@@ -7754,12 +7764,12 @@
 
 
 (defppc2 ppc2-with-c-frame with-c-frame (seg vreg xfer body &aux
-                                              (old-stack (ppc2-encode-stack)))
+                                             (old-stack (ppc2-encode-stack)))
   (ecase (backend-name *target-backend*)
     (:linuxppc32 (! alloc-eabi-c-frame 0))
     (:darwinppc32 (! alloc-c-frame 0)))
-    (ppc2-open-undo $undo-ppc-c-frame)
-    (ppc2-undo-body seg vreg xfer body old-stack))
+  (ppc2-open-undo $undo-ppc-c-frame)
+  (ppc2-undo-body seg vreg xfer body old-stack))
 
 ;------
 
