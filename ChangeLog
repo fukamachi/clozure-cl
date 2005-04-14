@@ -1,3 +1,68 @@
+2005-04-14 01:13  gb
+
+	* compiler/: backend.lisp, PPC/PPC32/ppc32-backend.lisp,
+	PPC/PPC64/ppc64-backend.lisp: Start to remove obsolete target
+	slots.
+
+2005-04-14 00:51  gb
+
+	* lib/sequences.lisp: Fix typos, exposed by Bryan's fix to #+/#-
+	readers.
+
+2005-04-14 00:21  gb
+
+	* level-1/version.lisp: Bump version.
+
+2005-04-14 00:20  gb
+
+	* examples/bridge.lisp: #\B in typestrings is :<BOOL>.	C arrays
+	are always passed by reference.
+
+2005-04-14 00:19  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	Factor out some typecode-specific stuff.
+
+2005-04-14 00:19  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-arch.lisp, PPC64/ppc64-backend.lisp: Backend/arch
+	parameterization.
+
+2005-04-14 00:18  gb
+
+	* compiler/PPC/ppc2.lisp: Use target-specific parameters from 
+	structure, not individually.  2d-aref/aset acode changes.
+
+2005-04-14 00:18  gb
+
+	* compiler/PPC/: ppc-lap.lisp, ppc-lapmacros.lisp: Use
+	target-specific parameters from  structure, not individually.
+
+2005-04-14 00:17  gb
+
+	* compiler/PPC/ppc-arch.lisp: Require "ARCH" at load-time.
+
+2005-04-14 00:16  gb
+
+	* compiler/nx1.lisp: Try to keep target tags out of acode (for 2d
+	array access only, so far.)
+
+2005-04-14 00:16  gb
+
+	* compiler/backend.lisp: Add a "target-arch" slot to backend
+	structure (this should allow several other slots to be removed.)
+
+2005-04-14 00:15  gb
+
+	* compiler/arch.lisp: Start moving parameters from "backend"
+	structure to new "target-arch" structure.
+
+2005-04-13 12:23  bryan
+
+	* lib/nfcomp.lisp: "file not found" during compile-file should be a
+	file-error.
+
 2005-04-12 22:57  bryan
 
 	* level-1/l1-reader.lisp: per 2.4.8.17, "#+(or) #+(or) nil nil t"
