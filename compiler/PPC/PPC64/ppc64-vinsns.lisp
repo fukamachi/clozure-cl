@@ -1086,6 +1086,18 @@
   :do-trap
   (tdnei tag ppc64::subtag-double-float))
 
+(define-ppc64-vinsn trap-unless-array-header (()
+                                              ((object :lisp))
+                                              ((tag :u8)
+                                               (crf :crf)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf tag ppc64::fulltag-misc)
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (bne crf :do-trap)
+  (lbz tag ppc64::misc-subtag-offset object)
+  :do-trap
+  (tdnei tag ppc64::subtag-arrayH))
+
 (define-ppc64-vinsn trap-unless-fulltag= (()
 					  ((object :lisp)
 					   (tagval :u16const))

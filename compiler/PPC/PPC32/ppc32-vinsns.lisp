@@ -1110,6 +1110,17 @@
   (twnei tag ppc32::subtag-double-float))
 
 
+(define-ppc32-vinsn trap-unless-array-header (()
+                                              ((object :lisp))
+                                              ((tag :u8)
+                                               (crf :crf)))
+  (clrlwi tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf tag ppc32::tag-misc)
+  (bne crf :do-trap)
+  (lbz tag ppc32::misc-subtag-offset object)
+  :do-trap
+  (twnei tag ppc32::subtag-arrayH))
+
 (define-ppc32-vinsn trap-unless-uvector (()
 					 ((object :lisp))
 					((tag :u8)))
