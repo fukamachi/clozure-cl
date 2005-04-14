@@ -46,14 +46,6 @@
 		:name :linuxppc64
 		:target-arch-name :ppc64
 		:target-foreign-type-data nil
-		:target-lisp-node-size 8
-                :target-nil-value ppc64::nil-value
-                :target-fixnum-shift ppc64::fixnum-shift
-                :target-most-positive-fixnum (1- (ash 1 (1- (- 64 ppc64::fixnumshift))))
-                :target-nbits-in-word 64
-                :target-ntagbits 4
-                :target-nlisptagbits 3
-                :target-uvector-subtags ppc64::*ppc64-target-uvector-subtags*
                 :target-arch ppc64::*ppc64-target-arch*
                 ))
 
@@ -75,14 +67,6 @@
 		:name :darwinppc64
 		:target-arch-name :ppc64
 		:target-foreign-type-data nil
-		:target-lisp-node-size 8
-                :target-nil-value ppc64::nil-value
-                :target-fixnum-shift ppc64::fixnum-shift
-                :target-most-positive-fixnum (1- (ash 1 (1- (- 64 ppc64::fixnumshift))))
-                :target-nbits-in-word 64
-                :target-ntagbits 4
-                :target-nlisptagbits 3
-                :target-uvector-subtags ppc64::*ppc64-target-uvector-subtags*
                 :target-arch ppc64::*ppc64-target-arch*))
 
 #+linuxppc-target
