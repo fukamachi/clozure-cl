@@ -645,5 +645,39 @@
 		  ,@body)))
 
 
+(defparameter *ppc32-target-uvector-subtags*
+  `((:simple-vector . ,ppc32::subtag-simple-vector)
+    (:bit-vector . ,ppc32::subtag-bit-vector)
+    (:simple-string . ,ppc32::subtag-simple-base-string)
+    (:u8-vector . ,ppc32::subtag-u8-vector)
+    (:s8-vector . ,ppc32::subtag-s8-vector)
+    (:u16-vector . ,ppc32::subtag-u16-vector)
+    (:s16-vector . ,ppc32::subtag-s16-vector)
+    (:u32-vector . ,ppc32::subtag-u32-vector)
+    (:s32-vector . ,ppc32::subtag-s32-vector)
+    (:single-float-vector . ,ppc32::subtag-single-float-vector)
+    (:double-float-vector . ,ppc32::subtag-double-float-vector)))
 
+(defparameter *ppc32-target-arch*
+  (arch::make-target-arch :name :ppc32
+                          :lisp-node-size 4
+                          :nil-value nil-value
+                          :fixnum-shift fixnumshift
+                          :most-positive-fixnum (1- (ash 1 (1- (- 32 fixnumshift))))
+                          :most-negative-fixnum (- (ash 1 (1- (- 32 fixnumshift))))
+                          :misc-data-offset misc-data-offset
+                          :misc-dfloat-offset misc-dfloat-offset
+                          :nbits-in-word 32
+                          :ntagbits 3
+                          :nlisptagbits 2
+                          :uvector-subtags *ppc32-target-uvector-subtags*
+                          :max-64-bit-constant-index max-64-bit-constant-index
+                          :max-32-bit-constant-index max-32-bit-constant-index
+                          :max-16-bit-constant-index max-16-bit-constant-index
+                          :max-8-bit-constant-index max-8-bit-constant-index
+                          :max-1-bit-constant-index max-1-bit-constant-index
+                          :word-shift 2
+                          ))
+                          
+                          
 (provide "PPC32-ARCH")

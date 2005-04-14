@@ -24,16 +24,7 @@
 
 (defvar *ppc32-vinsn-templates* (make-hash-table :test #'eq))
 
-(defparameter *ppc32-target-uvector-subtags*
-  `((:simple-vector . ,ppc32::subtag-simple-vector)
-    (:bit-vector . ,ppc32::subtag-bit-vector)
-    (:simple-string . ,ppc32::subtag-simple-base-string)
-    (:u8-vector . ,ppc32::subtag-u8-vector)
-    (:s8-vector . ,ppc32::subtag-s8-vector)
-    (:u16-vector . ,ppc32::subtag-u16-vector)
-    (:s16-vector . ,ppc32::subtag-s16-vector)
-    (:u32-vector . ,ppc32::subtag-u32-vector)
-    (:s32-vector . ,ppc32::subtag-s32-vector)))
+
 
      
 
@@ -71,7 +62,8 @@
                 :target-nbits-in-word 32
                 :target-ntagbits 3
                 :target-nlisptagbits 2
-                :target-uvector-subtags *ppc32-target-uvector-subtags*))
+                :target-uvector-subtags ppc32::*ppc32-target-uvector-subtags*
+                :target-arch ppc32::*ppc32-target-arch*))
 
 
 #+darwinppc-target
@@ -101,7 +93,8 @@
                 :target-nbits-in-word 32
                 :target-ntagbits 3
                 :target-nlisptagbits 2
-                :target-uvector-subtags *ppc32-target-uvector-subtags*))
+                :target-uvector-subtags ppc32::*ppc32-target-uvector-subtags*
+                :target-arch ppc32::*ppc32-target-arch*))
 
 #+linuxppc-target
 (pushnew *linuxppc32-backend* *known-ppc32-backends* :key #'backend-name)

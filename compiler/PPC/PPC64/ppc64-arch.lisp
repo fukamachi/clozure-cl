@@ -668,4 +668,40 @@
 
 (defconstant reservation-discharge #x1008)
 
+(defparameter *ppc64-target-uvector-subtags*
+  `((:simple-vector . ,subtag-simple-vector)
+    (:bit-vector . ,subtag-bit-vector)
+    (:simple-string . ,subtag-simple-base-string)
+    (:u8-vector . ,subtag-u8-vector)
+    (:s8-vector . ,subtag-s8-vector)
+    (:u16-vector . ,subtag-u16-vector)
+    (:s16-vector . ,subtag-s16-vector)
+    (:u32-vector . ,subtag-u32-vector)
+    (:s32-vector . ,subtag-s32-vector)
+    (:u64-vector . ,subtag-u64-vector)
+    (:s64-vector . ,subtag-s64-vector)
+    (:single-float-vector . ,subtag-single-float-vector)
+    (:double-float-vector . ,subtag-double-float-vector)))
+
+(defparameter *ppc64-target-arch*
+  (arch::make-target-arch :name :ppc64
+                          :lisp-node-size 8
+                          :nil-value nil-value
+                          :fixnum-shift fixnumshift
+                          :most-positive-fixnum (1- (ash 1 (1- (- 64 fixnumshift))))
+                          :most-negative-fixnum (- (ash 1 (1- (- 64 fixnumshift))))
+                          :misc-data-offset misc-data-offset
+                          :misc-dfloat-offset misc-dfloat-offset
+                          :nbits-in-word 64
+                          :ntagbits 4
+                          :nlisptagbits 3
+                          :uvector-subtags *ppc64-target-uvector-subtags*
+                          :max-64-bit-constant-index max-64-bit-constant-index
+                          :max-32-bit-constant-index max-32-bit-constant-index
+                          :max-16-bit-constant-index max-16-bit-constant-index
+                          :max-8-bit-constant-index max-8-bit-constant-index
+                          :max-1-bit-constant-index max-1-bit-constant-index
+                          :word-shift 3
+                          ))
+
 (provide "PPC64-ARCH")

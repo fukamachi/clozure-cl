@@ -1,6 +1,6 @@
 ;;;-*- Mode: Lisp; Package: CCL -*-
 ;;;
-;;;   Copyright (C) 2004, Clozure Associates
+;;;   Copyright (C) 2004, 2005 Clozure Associates
 ;;;   This file is part of OpenMCL.  
 ;;;
 ;;;   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
@@ -24,6 +24,8 @@
 
 (defvar *ppc64-vinsn-templates* (make-hash-table :test #'eq))
 
+
+
 (defvar *known-ppc64-backends* ())
 
 
@@ -38,7 +40,7 @@
 		:p2-compile 'ppc2-compile
 		:target-specific-features
 		'(:powerpc :ppc-target :eabi-target :linux-target :linuxppc-target :ppc64-target)
-		:target-fasl-pathname (make-pathname :type "pfsl64")
+		:target-fasl-pathname (make-pathname :type "p64fsl")
 		:target-architecture (logior 1 64)
 		:target-os :linuxppc
 		:name :linuxppc64
@@ -51,9 +53,9 @@
                 :target-nbits-in-word 64
                 :target-ntagbits 4
                 :target-nlisptagbits 3
-                )
-  
-  )
+                :target-uvector-subtags ppc64::*ppc64-target-uvector-subtags*
+                :target-arch ppc64::*ppc64-target-arch*
+                ))
 
 
 #+darwinppc-target
@@ -67,7 +69,7 @@
 		:p2-compile 'ppc2-compile
 		:target-specific-features
 		'(:powerpc :ppc-target :darwin-target :darwinppc-target :ppc64-target)
-		:target-fasl-pathname (make-pathname :type "dfsl64")
+		:target-fasl-pathname (make-pathname :type "d64fsl")
 		:target-architecture (logior 2 64)
 		:target-os :darwinppc
 		:name :darwinppc64
@@ -79,7 +81,9 @@
                 :target-most-positive-fixnum (1- (ash 1 (1- (- 64 ppc64::fixnumshift))))
                 :target-nbits-in-word 64
                 :target-ntagbits 4
-                :target-nlisptagbits 3))
+                :target-nlisptagbits 3
+                :target-uvector-subtags ppc64::*ppc64-target-uvector-subtags*
+                :target-arch ppc64::*ppc64-target-arch*))
 
 #+linuxppc-target
 (pushnew *linuxppc64-backend* *known-ppc64-backends* :key #'backend-name)
