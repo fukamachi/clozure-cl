@@ -1,3 +1,7 @@
+2005-04-14 01:39  gb
+
+	* compiler/backend.lisp: Finish bootstrapping backend changes.
+
 2005-04-14 01:13  gb
 
 	* compiler/: backend.lisp, PPC/PPC32/ppc32-backend.lisp,
