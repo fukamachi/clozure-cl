@@ -293,7 +293,7 @@
   `(mtlr loc-pc))
 
 (defppclapmacro push (src stack)
-  `(stru ,src ,(- (backend-target-lisp-node-size *target-backend*)) ,stack))
+  `(stru ,src ,(- (arch::target-lisp-node-size (backend-target-arch *target-backend*))) ,stack))
 
 (defppclapmacro vpush (src)
   `(push ,src vsp))
@@ -304,7 +304,7 @@
 (defppclapmacro pop (dest stack)
   `(progn
      (ldr ,dest 0 ,stack)
-     (la ,stack ,(backend-target-lisp-node-size *target-backend*) ,stack)))
+     (la ,stack ,(arch::target-lisp-node-size (backend-target-arch *target-backend*)) ,stack)))
 
 (defppclapmacro vpop (dest)
   `(pop ,dest vsp))
@@ -321,13 +321,13 @@
 
 (defppclapmacro extract-lisptag (dest node)
   (let* ((tb *target-backend*))
-    `(clrlri ,dest ,node (- ,(backend-target-nbits-in-word tb)
-                            ,(backend-target-nlisptagbits tb)))))
+    `(clrlri ,dest ,node (- ,(arch::target-nbits-in-word (backend-target-arch tb))
+                          ,(arch::target-nlisptagbits (backend-target-arch tb))))))
 
 (defppclapmacro extract-fulltag (dest node)
   (let* ((tb *target-backend*))
-  `(clrlri ,dest ,node (- ,(backend-target-nbits-in-word tb)
-                        ,(backend-target-ntagbits tb)))))
+  `(clrlri ,dest ,node (- ,(arch::target-nbits-in-word (backend-target-arch tb))
+                        ,(arch::target-ntagbits (backend-target-arch tb))))))
 
 (defppclapmacro extract-subtag (dest node)
   (ppc-lap-target-arch-case

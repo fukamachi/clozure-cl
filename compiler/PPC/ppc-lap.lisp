@@ -359,8 +359,8 @@
         (declare (fixnum k))
         (setf (uvref constants-vector
                      (ash
-                      (- k (backend-target-misc-data-offset target-backend))
-                      (- (backend-target-word-shift target-backend))))
+                      (- k (arch::target-misc-data-offset (backend-target-arch target-backend)))
+                      (- (arch::target-word-shift (backend-target-arch target-backend)))))
               imm)))
     (setf (uvref constants-vector (1- constants-size)) bits       ; lfun-bits
           (uvref constants-vector (- constants-size 2)) name
@@ -437,9 +437,9 @@
 (defun ppc-lap-constant-offset (x)
   (or (cdr (assoc x *ppc-lap-constants* :test #'equal))
       (let* ((target-backend *target-backend*)
-             (n (+ (backend-target-misc-data-offset target-backend)
+             (n (+ (arch::target-misc-data-offset (backend-target-arch target-backend))
                    (ash (1+ (length *ppc-lap-constants*))
-                        (backend-target-word-shift target-backend)))))
+                        (arch::target-word-shift (backend-target-arch target-backend))))))
         (push (cons x n) *ppc-lap-constants*)
         n)))
 
@@ -448,7 +448,7 @@
   (if (typep x 'fixnum)
     x
     (if (null x)
-      (backend-target-nil-value *target-backend*)
+      (arch::target-nil-value (backend-target-arch *target-backend*))
       (let* ((val (handler-case (eval x)          ; Look! Expression evaluation!
 		    (error (condition) (error "~&Evaluation of ~S signalled assembly-time error ~& ~A ."
 					      x condition)))))
@@ -479,12 +479,12 @@
 	(if (and (consp x) (eq (car x) 'quote))
 	  (let* ((quoted-form (cadr x)))
 	    (if (null quoted-form)
-	      (backend-target-nil-value *target-backend*)
+	      (arch::target-nil-value (backend-target-arch *target-backend*))
 	      (if (typep quoted-form 'fixnum)
-		(ash quoted-form (backend-target-fixnum-shift *target-backend*))
+		(ash quoted-form (arch::target-fixnum-shift (backend-target-arch *target-backend*)))
 		(ppc-lap-constant-offset quoted-form))))
 	  (ppc-lap-evaluated-expression x)))
-    (backend-target-nil-value *target-backend*)))
+    (arch::target-nil-value (backend-target-arch *target-backend*))))
 
 (defun ppc-fpr-name-p (x)
   (and (or (symbolp x) (stringp x))
