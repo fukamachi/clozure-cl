@@ -760,9 +760,9 @@
   ;; For now, we only care about the (simple-array double-float (* *)) case.
   (let* ((subtype
 	  (cond ((nx-form-typep arr '(simple-array double-float (* *)) env)
-		 ppc32::subtag-double-float-vector)
+		 :double-float-vector)
                 ((nx-form-typep arr '(simple-array single-float (* *)) env)
-		 ppc32::subtag-single-float-vector))))
+		 :single-float-vector))))
     (if subtype
       (let* ((ctype (specifier-type (nx-form-type arr env)))
 	     (dims (array-ctype-dimensions ctype))
@@ -818,9 +818,9 @@
 (defnx1 nx1-%aset2 ((%aset2)) (&whole whole &environment env arr i j new)
   (let* ((subtype
 	  (cond ((nx-form-typep arr '(simple-array double-float (* *)) env)
-		 ppc32::subtag-double-float-vector)
+		 :double-float-vector)
                 ((nx-form-typep arr '(simple-array single-float (* *)) env)
-		 ppc32::subtag-single-float-vector))))
+		 :single-float-vector))))
     (if subtype
        (let* ((ctype (specifier-type (nx-form-type arr env)))
 	      (dims (array-ctype-dimensions ctype))
