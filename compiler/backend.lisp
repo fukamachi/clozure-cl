@@ -47,7 +47,8 @@
   (target-nbits-in-word 0)
   (target-ntagbits 0)
   (target-nlisptagbits 0)
-  (target-uvector-subtags nil))
+  (target-uvector-subtags nil)
+  (target-arch nil))
 
 (defmethod print-object ((b backend) s)
   (print-unreadable-object (b s :type t :identity t)
