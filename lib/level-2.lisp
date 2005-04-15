@@ -379,7 +379,10 @@
     (%eval-redef %unbound-marker ())
     (%eval-redef %slot-unbound-marker ())
     (%eval-redef %slot-ref (v i))
-    (%eval-redef %alloc-misc (x y))
+    (%eval-redef %alloc-misc (count subtag &optional (initial nil initial-p))
+                 (if initial-p
+                   (%alloc-misc count subtag initial)
+                   (%alloc-misc count subtag)))
     (%eval-redef %typed-misc-ref (x y z))
     (%eval-redef %typed-misc-set (w x y z))
     (%eval-redef %setf-double-float (x y))
