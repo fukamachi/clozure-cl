@@ -48,7 +48,9 @@ LD = ld64
 ### bug (#4057702) in ld64.
 ### Come to think of it, so is the '-weak_reference_mismatches' nonsense.
 
-LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start -pagezero_size 0x1000  -seg1addr 0x0000 -weak_reference_mismatches non-weak
+### The -seg1addr and -pagezero_size arguments below are nonsense;
+### early versions of ld64 were/are broken.
+LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start -pagezero_size 0x1000  -seg1addr 0x0000 
 AS = as
 M4 = gm4
 M4FLAGS = -DDARWIN -DPPC64
