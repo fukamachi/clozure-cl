@@ -20,6 +20,8 @@
   (require "PPC-ASM")
   (require "PPC-LAP"))
 
+(defparameter *ppc-disassembly-backend* *host-backend*)
+
 (eval-when (:compile-toplevel :execute)
   (require "PPCENV"))
 
@@ -67,8 +69,16 @@
                ,@body))))
 
 (def-ppc-unmacroexpand stwu insn (rs d ra)
-  (if (and (= ra ppc::vsp) (= d -4))
-    `(vpush ,(ppc-gpr rs))))
+  (case (backend-target-arch-name *ppc-disassembly-backend*)
+    (:ppc32
+     (if (and (= ra ppc::vsp) (= d -4))
+       `(vpush ,(ppc-gpr rs))))))
+
+(def-ppc-unmacroexpand stdu insn (rs d ra)
+  (case (backend-target-arch-name *ppc-disassembly-backend*)
+    (:ppc64
+     (if (and (= ra ppc::vsp) (= d -8))
+       `(vpush ,(ppc-gpr rs))))))
 
 (def-ppc-unmacroexpand rlwinm insn (rt ra b mb &optional (me mb me-p))
   (if (not me-p)
@@ -79,20 +89,30 @@
       `(slwi ,(ppc-gpr rt) ,(ppc-gpr ra) ,b))))
 
 (def-ppc-unmacroexpand li insn (rt imm)
-  (if (not (logtest (1- (ash 1 ppc32::fixnumshift)) imm))
-    (if (logbitp rt ppc-node-regs)
-      `(li ,(ppc-gpr rt) ',(ash imm (- ppc32::fixnumshift)))
-      (if (eql rt ppc::nargs)
-        `(set-nargs ,(ash imm (- ppc32::fixnumshift)))))))
+  (let* ((fixnumshift (arch::target-fixnum-shift (backend-target-arch *ppc-disassembly-backend*))))
+    (if (not (logtest (1- (ash 1 fixnumshift)) imm))
+      (if (logbitp rt ppc-node-regs)
+        `(li ,(ppc-gpr rt) ',(ash imm (- fixnumshift)))
+        (if (eql rt ppc::nargs)
+          `(set-nargs ,(ash imm (- fixnumshift))))))))
 
 
 
 (def-ppc-unmacroexpand cmpwi insn (crf ra simm)
-  (if (and (not (logtest (1- (ash 1 ppc32::fixnumshift)) simm))
-	   (logbitp ra ppc-node-regs))
+  (let* ((fixnumshift (arch::target-fixnum-shift (backend-target-arch *ppc-disassembly-backend*))))
+    (if (and (not (logtest (1- (ash 1 fixnumshift)) simm))
+             (logbitp ra ppc-node-regs))
       `(cmpwi ,@(unless (eql 0 crf) `(,(aref *ppc-cr-names* (ash crf -2))))
 	,(ppc-gpr ra)
-	',(ash simm (- ppc32::fixnumshift)))))
+	',(ash simm (- fixnumshift))))))
+
+(def-ppc-unmacroexpand cmpdi insn (crf ra simm)
+  (let* ((fixnumshift (arch::target-fixnum-shift (backend-target-arch *ppc-disassembly-backend*))))
+    (if (and (not (logtest (1- (ash 1 fixnumshift)) simm))
+             (logbitp ra ppc-node-regs))
+      `(cmpdi ,@(unless (eql 0 crf) `(,(aref *ppc-cr-names* (ash crf -2))))
+	,(ppc-gpr ra)
+	',(ash simm (- fixnumshift))))))
 
 (def-ppc-unmacroexpand addi insn (rd ra simm)
   (let* ((disp-d (ppc-gpr rd))
@@ -265,11 +285,12 @@
       
 ; This returns a doubly-linked list of INSTRUCTION-ELEMENTs; the caller (disassemble, INSPECT)
 ; can format the contents however it wants.
-(defun disassemble-ppc-function (code-vector constants-vector &optional (header (make-dll-header)))
-  (let* ((*disassembled-ppc-labels* nil))
+(defun disassemble-ppc-function (code-vector constants-vector &optional (start-word 0))
+  (let* ((*disassembled-ppc-labels* nil)
+         (header (make-dll-header)))
     (let* ((n (uvsize code-vector)))
       (declare (fixnum n))
-      (do* ((i 0 (1+ i))
+      (do* ((i start-word (1+ i))
             (pc 0 (+ pc 4)))
            ((= i n))
         (declare (fixnum i))
@@ -278,8 +299,8 @@
           (if (= opcode 0)
             (return)
             (ppc-disasm-1 opcode pc header))))
-      (ppc-analyze-operands header constants-vector)))
-  header)
+      (ppc-analyze-operands header constants-vector))
+    header))
 
 (defun print-ppc-instruction (stream tabcount opcode parsed-operands)
   (let* ((name (if (symbolp opcode) opcode (arch::opcode-name opcode))))
@@ -289,7 +310,8 @@
     (dolist (op parsed-operands (format stream ")"))
       (format stream (if (and (consp op) (eq (car op) 'quote)) " ~s" " ~a") op))))
 
-(defun print-ppc-instructions (stream instructions &optional for-lap)
+(defun print-ppc-instructions (stream instructions &optional for-lap backend)
+  (declare (ignorable backend))
   (let* ((tab (if for-lap 6 2)))
     (when for-lap 
       (let* ((lap-function-name (car for-lap)))
@@ -302,22 +324,18 @@
          (print-ppc-instruction stream tab (lap-instruction-opcode i) (lap-instruction-parsed-operands i)))))
     (when for-lap (format stream ")))~&"))))
 
-;; When we're running native, we'll have to do something to "normalize" the
-;; code vector: if it's in a read-only segment, subprim calls will be pc-relative
-;; (to a copy of the subprims); if it's live and dynamic, they'll be absolute
-;; branches with the (current) subprims-base-address factored in.
-;; We don't have to worry about that when cross-developing.
 
+(defun ppc-Xdisassemble (fn-vector &key (for-lap nil) (stream *standard-output*) target)
+  (let* ((backend (if target (find-backend target) *host-backend*))
+         (prefix-length (length (arch::target-code-vector-prefix (backend-target-arch backend))))
+         (*ppc-disassembly-backend* backend))
+    (print-ppc-instructions stream (function-to-dll-header fn-vector prefix-length)
+                            (if for-lap (list (uvref fn-vector (- (uvsize fn-vector) 2)))))
+    (values)))
 
-
-(defun ppc-Xdisassemble (fn-vector &key (for-lap nil) (stream *standard-output*))
-  (print-ppc-instructions stream (function-to-dll-header fn-vector) 
-                          (if for-lap (list (uvref fn-vector (- (uvsize fn-vector) 2)))))
-  (values))
-
-(defun function-to-dll-header (fn-vector)
+(defun function-to-dll-header (fn-vector &optional (prefix #+ppc32-target 0 #+ppc64-target 1))
   (let* ((codev (uvref fn-vector 0)))
-    (disassemble-ppc-function codev fn-vector)))
+    (disassemble-ppc-function codev fn-vector prefix)))
 
 
 (defun disassemble-list (thing)
