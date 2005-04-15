@@ -1,3 +1,7 @@
+2005-04-15 06:23  gb
+
+	* level-1/version.lisp: Bump.
+
 2005-04-15 06:13  gb
 
 	* lib/level-2.lisp: Fix EVAL-REDEF of %ALLOC-MISC.
