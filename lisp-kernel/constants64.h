@@ -30,8 +30,8 @@
 #define tagmask	 7
 #define fixnummask 3
 #define subtagmask ((1<<num_subtag_bits)-1)
-#define ncharcodebits 16
-#define charcode_shift (nbits_in_word-ncharcodebits)
+#define ncharcodebits 8
+#define charcode_shift 8
 #define node_size 8
 #define node_shift 3
 
