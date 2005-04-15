@@ -702,6 +702,7 @@
                           :max-8-bit-constant-index max-8-bit-constant-index
                           :max-1-bit-constant-index max-1-bit-constant-index
                           :word-shift 3
+                          :code-vector-prefix '(#$"CODE")
                           ))
 
 (provide "PPC64-ARCH")
