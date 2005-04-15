@@ -1,3 +1,12 @@
+2005-04-14 21:19  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: Use TARGET-ARCH-CASE, no need
+	for PPC-LAP-TARGET-ARCH-CASE.
+
+2005-04-14 21:18  gb
+
+	* lib/macros.lisp: TARGET-ARCH-CASE here.
+
 2005-04-14 01:39  gb
 
 	* compiler/backend.lisp: Finish bootstrapping backend changes.
