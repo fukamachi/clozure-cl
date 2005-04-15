@@ -215,9 +215,11 @@
   `((:u8const . ,(specifier-type '(unsigned-byte 8)))
     (:u16const . ,(specifier-type '(unsigned-byte 16)))
     (:u32const . ,(specifier-type '(unsigned-byte 32)))
+    (:u64const . ,(specifier-type '(unsigned-byte 64)))
     (:s8const . ,(specifier-type '(signed-byte 8)))
     (:s16const . ,(specifier-type '(signed-byte 16)))
     (:s32const . ,(specifier-type '(signed-byte 32)))
+    (:s64-const . ,(specifier-type '(signed-byte 64)))
     (:lcell . ,(specifier-type 'lcell))))
 
 (defun match-vreg-value (vreg value)
