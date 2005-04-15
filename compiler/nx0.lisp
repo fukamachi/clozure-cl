@@ -1380,12 +1380,19 @@ Or something. Right? ~s ~s" var varbits))
 (defun nx1-prefer-areg (form env)
   (nx1-form form env))
 
+(defun nx1-target-fixnump (form)
+  (when (typep form 'integer)
+       (let* ((target (backend-target-arch *target-backend*)))
+         (and
+          (>= form (arch::target-most-negative-fixnum target))
+          (<= form (arch::target-most-positive-fixnum target))))))
+
 
 (defun nx1-immediate (form)
   (if (or (eq form t) (null form))
     (nx1-sysnode form)
     (make-acode 
-     (if (fixnump form) 
+     (if (nx1-target-fixnump form) 
        (%nx1-operator fixnum)
         (%nx1-operator immediate))   ; Screw: chars
      form)))
