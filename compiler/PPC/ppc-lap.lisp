@@ -247,11 +247,6 @@
       (dolist (insn (lap-label-refs label))
         (let* ((diff (- label-address (lap-instruction-address insn))))
           (declare (fixnum diff))
-#| Can't happen anymore.
-          (if (or (< diff #x-8000) (> diff #x7ffc))
-            (warn "PC-relative displacement too large; write smaller functions ~
-                   or smarter LAP."))
-|#
           (let* ((opvals (lap-instruction-parsed-operands insn))
                  (pos (position label opvals)))
             (unless pos
@@ -335,7 +330,9 @@
 	  (traceback-fullwords (and traceback
 				    name
 				    (setq traceback (symbol-name name)))))
-	 (code-vector (%alloc-misc (+ (ash maxpc -2) traceback-size)
+         (prefix (arch::target-code-vector-prefix (backend-target-arch *target-backend*)))
+         (prefix-size (length prefix))
+	 (code-vector (%alloc-misc (+ (ash maxpc -2) traceback-size prefix-size)
 				   (if cross-compiling
 				     target::subtag-xcode-vector
 				     target::subtag-code-vector)))
@@ -345,8 +342,10 @@
 			    (if cross-compiling
 			      target::subtag-xfunction
 			      target::subtag-function)))
-         (i 0))
+         (i prefix-size))
     (declare (fixnum i constants-size))
+    (dotimes (j prefix-size)
+      (setf (uvref code-vector j) (pop prefix)))
     (ppc-lap-resolve-labels)            ; all operands fully evaluated now.
     (do-dll-nodes (insn *lap-instructions*)
       (ppc-lap-generate-instruction code-vector i insn)
