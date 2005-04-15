@@ -3154,6 +3154,12 @@
   (lwz dest ppc32::tcr.interrupt-level ppc::rcontext)
   (stw temp ppc32::tcr.interrupt-level ppc::rcontext))
 
+(define-ppc32-vinsn load-character-constant (((dest :lisp))
+                                             ((code :u8const)))
+  (lis dest code)
+  (ori dest dest ppc32::subtag-character))
+
+
 ;;; Subprim calls.  Done this way for the benefit of VINSN-OPTIMIZE.
 (defmacro define-ppc32-subprim-call-vinsn ((name &rest other-attrs) spno)
   `(define-ppc32-vinsn (,name :call :subprim-call ,@other-attrs) (() ())
