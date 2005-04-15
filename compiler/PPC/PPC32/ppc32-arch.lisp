@@ -677,6 +677,7 @@
                           :max-8-bit-constant-index max-8-bit-constant-index
                           :max-1-bit-constant-index max-1-bit-constant-index
                           :word-shift 2
+                          :code-vector-prefix ()
                           ))
                           
                           
