@@ -1759,9 +1759,9 @@
   
 
 ;; Load an unsigned, 32-bit constant into a destination register.
-(define-ppc32-vinsn (lwi :constant-ref) (((dest :imm))
-                                       ((intval :u32const))
-                                       ())
+(define-ppc32-vinsn (lri :constant-ref) (((dest :imm))
+                                         ((intval :u32const))
+                                         ())
   ((:or (:pred = (:apply ash intval -15) #x1ffff)
         (:pred = (:apply ash intval -15) #x0))
    (li dest (:apply %word-to-int (:apply logand #xffff intval))))
@@ -1775,22 +1775,6 @@
     ((:not (:pred = 0 (:apply logand intval #xffff)))
      (ori dest dest (:apply logand intval #xffff))))))
 
-; Exactly the same thing, but take a signed integer value
-(define-ppc32-vinsn lwi-s32 (((dest :imm))
-                           ((intval :s32const))
-                           ())
-  ((:or (:pred = (:apply ash intval -15) -1)
-        (:pred = (:apply ash intval -15) #x0))
-   (li dest (:apply %word-to-int (:apply logand #xffff intval))))
-  ((:not                                ; that's :else to you, bub.
-    (:or (:pred = (:apply ash intval -15) -1)
-         (:pred = (:apply ash intval -15) #x0)))
-   ((:pred = (:apply ash intval -15) 1)
-    (ori dest ppc::rzero (:apply logand intval #xffff)))
-   ((:not (:pred = (:apply ash intval -15) 1))
-    (lis dest (:apply ash intval -16))
-    ((:not (:pred = 0 (:apply logand intval #xffff)))
-     (ori dest dest (:apply logand intval #xffff))))))
 
 (define-ppc32-vinsn discard-temp-frame (()
                                       ())
