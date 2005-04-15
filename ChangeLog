@@ -1,3 +1,60 @@
+2005-04-15 06:13  gb
+
+	* lib/level-2.lisp: Fix EVAL-REDEF of %ALLOC-MISC.
+
+2005-04-15 06:00  gb
+
+	* lisp-kernel/: constants64.h, constants64.s: Define charcodeshift,
+	ncharchodebits consistently with what ppc64-arch says.
+
+2005-04-15 06:00  gb
+
+	* lisp-kernel/darwin64/Makefile: Apparently, it isn't necessary to
+	use the well-known -weak_references_mismatch argument when that has
+	nothing to do with anything.  ld64 just keeps getting better and
+	better!
+
+2005-04-15 05:59  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: TRAP-UNLESS-MACPTR.  Do a
+	few more 64-bit comparisons.
+
+2005-04-15 05:57  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: TRAP-UNLESS-MACPTR.
+
+2005-04-15 05:57  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Need a 1-word code-vector
+	prefix here.
+
+2005-04-15 05:56  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: No code-vector prefix here.
+
+2005-04-15 05:56  gb
+
+	* compiler/PPC/ppc2.lisp: Maybe emit a "prefix" on the code vector.
+	 More PPC64 conditionalization.
+
+2005-04-15 05:53  gb
+
+	* compiler/PPC/ppc-lap.lisp: Maybe emit a "prefix" on the code
+	vector.
+
+2005-04-15 05:52  gb
+
+	* compiler/PPC/ppc-disassemble.lisp: Skip over any code-vector
+	prefix.  Start to conditionalize to make PPC64 disassembly better.
+
+2005-04-15 05:51  gb
+
+	* compiler/nx0.lisp: Define, use, NX1-TARGET-FIXNUMP.
+
+2005-04-15 05:50  gb
+
+	* compiler/arch.lisp: CODE-VECTOR-PREFIX, for PPC64 alignment.
+
 2005-04-14 21:27  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: charcode-shift is 8;
