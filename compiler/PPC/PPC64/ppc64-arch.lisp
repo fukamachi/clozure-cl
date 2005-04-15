@@ -41,8 +41,8 @@
 (defconstant fixnummask (1- (ash 1 nfixnumtagbits)))
 (defconstant fixnum-mask fixnummask)
 (defconstant subtag-mask (1- (ash 1 num-subtag-bits)))
-(defconstant ncharcodebits 32)
-(defconstant charcode-shift (- nbits-in-word ncharcodebits))
+(defconstant ncharcodebits 8)           ;24
+(defconstant charcode-shift 8)
 (defconstant word-shift 3)
 (defconstant word-size-in-bytes 8)
 (defconstant target-most-negative-fixnum (ash -1 (1- (- nbits-in-word nfixnumtagbits))))
