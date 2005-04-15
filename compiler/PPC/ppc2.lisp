@@ -506,11 +506,15 @@
     (setf (uvref function (+ numimms 1)) bits)
     (let* ((maxpc (ppc-lap-encode-regsave-info (ppc-lap-do-labels)))
 	   (traceback-size (traceback-fullwords traceback-string))
-           (code-vector (%alloc-misc (+ traceback-size (ash maxpc -2))
+           (prefix (arch::target-code-vector-prefix (backend-target-arch *target-backend*)))
+           (prefix-size (length prefix))
+           (code-vector (%alloc-misc (+ traceback-size (ash maxpc -2) prefix-size)
                                      (if cross-compiling
                                        target::subtag-xcode-vector
                                        target::subtag-code-vector)))
-           (i 0))
+           (i prefix-size))
+      (dotimes (i prefix-size)
+        (setf (uvref code-vector i) (pop prefix)))
       (ppc-lap-resolve-labels)
       (do-dll-nodes (insn *lap-instructions*)
         (ppc-lap-generate-instruction code-vector i insn)
@@ -1207,11 +1211,19 @@
       (if reg
         (ppc2-copy-register seg dest reg)
         (let* ((idx (backend-immediate-index imm)))
-          (if (< idx 8192)
-            (! ref-constant dest idx)
-            (with-imm-target () (idxreg :s32)
-              (ppc2-lri seg idxreg (+ ppc32::misc-data-offset (ash (1+ idx) 2)))
-              (! ref-indexed-constant dest idxreg)))))
+          (target-arch-case
+           (:ppc32
+            (if (< idx 8192)
+              (! ref-constant dest idx)
+              (with-imm-target () (idxreg :s32)
+                (ppc2-lri seg idxreg (+ ppc32::misc-data-offset (ash (1+ idx) 2)))
+                (! ref-indexed-constant dest idxreg))))
+           (:ppc64
+            (if (< idx 4096)
+              (! ref-constant dest idx)
+              (with-imm-target () (idxreg :s64)
+                (ppc2-lri seg idxreg (+ ppc64::misc-data-offset (ash (1+ idx) 3)))
+                (! ref-indexed-constant dest idxreg)))))))
       dest)))
 
 
@@ -1272,9 +1284,9 @@
 ; safe = T means assume "vector" is miscobj, do bounds check.
 ; safe = fixnum means check that subtag of vector = "safe" and do bounds check.
 ; safe = nil means crash&burn.
-; This mostly knows how to reference the elements of an immediate miscobj.
-; This returns a boxed object.  It'd be nice if there was some way not to.
-; Need dfloat vreg scheme.
+;;; This mostly knows how to reference the elements of an immediate miscobj.
+;;; This returns a boxed object.  It'd be nice if there was some way not to.
+;;; Need dfloat vreg scheme.
 (defun ppc2-vref (seg vreg xfer subtag vector index safe)
   (declare (fixnum subtag))
   (if (= (the fixnum (logand subtag ppc32::fulltagmask)) ppc32::fulltag-nodeheader)
@@ -1331,7 +1343,7 @@
                        (with-imm-temps
                            () (idx-reg)
                            (if index-known-fixnum
-                             (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
+                             (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
                              (! scale-32bit-misc-index idx-reg unscaled-idx))
                            (cond ((= subtag ppc32::subtag-single-float-vector)
                                   (! misc-ref-single-float 0 src idx-reg)
@@ -1350,7 +1362,7 @@
                              (with-imm-temps
                                  () (idx-reg)
                                  (if index-known-fixnum
-                                   (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset index-known-fixnum))
+                                   (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset index-known-fixnum))
                                    (! scale-8bit-misc-index idx-reg unscaled-idx))
                                  (! misc-ref-u8 temp src idx-reg)))
                            (if (= subtag ppc32::subtag-u8-vector)
@@ -1367,7 +1379,7 @@
                                (with-imm-temps
                                    () (idx-reg)
                                    (if index-known-fixnum
-                                     (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 1)))
+                                     (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 1)))
                                      (! scale-16bit-misc-index idx-reg unscaled-idx))
                                    (! misc-ref-u16 temp src idx-reg)))
                              (if (= subtag ppc32::subtag-u16-vector)
@@ -1383,7 +1395,7 @@
                                (with-imm-temps
                                    () (idx-reg)
                                    (if index-known-fixnum
-                                     (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
+                                     (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
                                      (! scale-64bit-misc-index idx-reg unscaled-idx))
                                    (! misc-ref-double-float 0 src idx-reg)))
                              (! double->heap target 0))
@@ -1421,7 +1433,7 @@
         (! misc-ref-c-double-float vreg src index-known-fixnum)
         (with-imm-temps () (idx-reg)
           (if index-known-fixnum
-            (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
+            (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
             (! scale-64bit-misc-index idx-reg unscaled-idx))
           (! misc-ref-double-float vreg src idx-reg)))
       (^))))
@@ -1479,7 +1491,7 @@
                   (#.ppc32::subtag-single-float-vector
                    (values 2 ppc32::max-32-bit-constant-index)))
               (when (and constidx (>= constidx limit))
-                (ppc2-absolute-long seg idx-reg nil (+ bias
+                (ppc2-absolute-natural seg idx-reg nil (+ bias
                                                        (ash constidx shift)))
                 (setq constidx nil need-scale nil)))
             (case typecode
@@ -1549,7 +1561,7 @@
                     :u32-vector)
                    (values 2 ppc32::max-32-bit-constant-index)))
               (when (and constidx (>= constidx limit))
-                (ppc2-absolute-long seg idx-reg nil (+ bias
+                (ppc2-absolute-natural seg idx-reg nil (+ bias
                                                        (ash constidx shift)))
                 (setq constidx nil need-scale nil))))
           (case typekeyword
@@ -1586,7 +1598,7 @@
         (! misc-ref-c-single-float vreg src index-known-fixnum)
         (with-imm-temps () (idx-reg)
           (if index-known-fixnum
-            (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
+            (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
             (! scale-32bit-misc-index idx-reg unscaled-idx))
           (! misc-ref-single-float vreg src idx-reg)))
       (^))))
@@ -1611,7 +1623,7 @@
         (! misc-ref-c-u32 vreg src index-known-fixnum)
         (with-imm-temps () (idx-reg)
           (if index-known-fixnum
-            (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
+            (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
             (! scale-32bit-misc-index idx-reg unscaled-idx))
           (! misc-ref-u32 vreg src idx-reg)))
       (^))))
@@ -1639,7 +1651,7 @@
           (! misc-set-c-u32 target src index-known-fixnum)
           (with-imm-temps (target) (idx-reg)
             (if index-known-fixnum
-              (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
+              (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
               (! scale-32bit-misc-index idx-reg unscaled-idx))
             (! misc-set-u32 target src idx-reg)))
         (<- target)                     ; should be a no-op in this case
@@ -1666,8 +1678,6 @@
                          (typep val '(signed-byte 8)))
                         ((= subtag ppc32::subtag-u8-vector)
                          (typep val '(unsigned-byte 8)))
-                        ((= subtag ppc32::subtag-simple-general-string)
-                         (typep val 'character))
                         ((= subtag ppc32::subtag-s16-vector) 
                          (typep val '(signed-byte 16)))
                         ((= subtag ppc32::subtag-u16-vector)
@@ -1742,7 +1752,7 @@
                            (progn
                              (setq idx-reg (make-unwired-lreg (select-imm-temp :u32)))
                              (if index-known-fixnum
-                               (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
+                               (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
                                (! scale-32bit-misc-index idx-reg unscaled-idx))
                              (! misc-set-u32 temp src idx-reg))))                   
                         ((<= subtag ppc32::max-8-bit-ivector-subtag)
@@ -1764,7 +1774,7 @@
                            (progn
                              (setq idx-reg (make-unwired-lreg (select-imm-temp :u32)))
                              (if index-known-fixnum
-                               (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset index-known-fixnum))
+                               (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset index-known-fixnum))
                                (! scale-8bit-misc-index idx-reg unscaled-idx))
                              (! misc-set-u8 temp src idx-reg))))
                         ((<= subtag ppc32::max-16-bit-ivector-subtag)
@@ -1786,7 +1796,7 @@
                            (progn
                              (setq idx-reg (make-unwired-lreg (select-imm-temp :u32)))
                              (if index-known-fixnum
-                               (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 1)))
+                               (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 1)))
                                (! scale-16bit-misc-index idx-reg unscaled-idx))
                              (! misc-set-u16 temp src idx-reg))))
                         ((= subtag ppc32::subtag-double-float-vector)
@@ -1799,7 +1809,7 @@
                            (progn
                              (setq idx-reg temp)
                              (if index-known-fixnum
-                               (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
+                               (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
                                (! scale-64bit-misc-index idx-reg unscaled-idx))
                              (! misc-set-double-float 0 src idx-reg))))
                         (t
@@ -1875,7 +1885,7 @@
           (! misc-set-c-double-float fp-val src index-known-fixnum)
           (with-imm-temps () (idx-reg)
             (if index-known-fixnum
-              (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
+              (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-dfloat-offset (ash index-known-fixnum 3)))
               (! scale-64bit-misc-index idx-reg unscaled-idx))
             (! misc-set-double-float fp-val src idx-reg)))
         (<- fp-val)                     ; should be a no-op in this case
@@ -1903,7 +1913,7 @@
           (! misc-set-c-single-float fp-val src index-known-fixnum)
           (with-imm-temps () (idx-reg)
             (if index-known-fixnum
-              (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
+              (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
               (! scale-32bit-misc-index idx-reg unscaled-idx))
             (! misc-set-single-float fp-val src idx-reg)))
         (<- fp-val)                     ; should be a no-op in this case
@@ -3030,7 +3040,7 @@
                            (! unbox-u32 dest src))
                           (#.hard-reg-class-gpr-mode-address
                            (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
-                             (! trap-unless-typecode= src ppc32::subtag-macptr))
+                             (! trap-unless-macptr src))
                            (! deref-macptr dest src)))))
                      ((#.hard-reg-class-gpr-mode-u32
                        #.hard-reg-class-gpr-mode-s32
@@ -3402,7 +3412,7 @@
       
 
 ; Callers should really be sure that this is what they want to use.
-(defun ppc2-absolute-long (seg vreg xfer value)
+(defun ppc2-absolute-natural (seg vreg xfer value)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (when vreg
       (ppc2-lri seg vreg value))
@@ -3909,7 +3919,7 @@
               (! misc-ref-c-node target src index-known-fixnum))
             (let* ((idx-reg ppc::imm0))
               (if index-known-fixnum
-                (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
+                (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
                 (! scale-32bit-misc-index idx-reg unscaled-idx))
               (! misc-ref-node target src idx-reg)))))
       (^))))
@@ -3935,7 +3945,7 @@
         (! misc-set-c-node val-reg src index-known-fixnum)
         (let* ((idx-reg ppc::imm0))
           (if index-known-fixnum
-            (ppc2-absolute-long seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
+            (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
             (! scale-32bit-misc-index idx-reg unscaled-idx))
           (! misc-set-node val-reg src idx-reg)))
       (<- val-reg)
@@ -5466,14 +5476,14 @@
                       (not (or (= hard-reg-class-gpr-mode-node mode)
                                (= hard-reg-class-gpr-mode-address mode))))))
       (if unboxed
-        (ppc2-absolute-long seg vreg xfer value)
+        (ppc2-absolute-natural seg vreg xfer value)
         (if (= class hard-reg-class-crf)
           (progn
             ;(break "Would have clobbered a GPR!")
             (ppc2-branch seg (ppc2-cd-true xfer) nil))
           (progn
             (ensuring-node-target (target vreg)
-              (ppc2-absolute-long seg target nil (ash value *ppc2-target-fixnum-shift*)))
+              (ppc2-absolute-natural seg target nil (ash value *ppc2-target-fixnum-shift*)))
             (^)))))))
 
 (defppc2 ppc2-%ilogbitp %ilogbitp (seg vreg xfer cc bitnum form)
@@ -6886,7 +6896,7 @@
     (ppc2-vpop-register seg ppc::arg_z)
     (unless (or *ppc2-reckless* (ppc2-form-typep x 'macptr))
       (with-imm-temps (src-reg) ()
-        (! trap-unless-typecode= ppc::arg_z ppc32::subtag-macptr)))
+        (! trap-unless-macptr ppc::arg_z)))
     (! set-macptr-address src-reg ppc::arg_z)
     (<- ppc::arg_z)
     (^)))
@@ -6898,7 +6908,7 @@
     (ppc2-one-targeted-reg-form seg fval target)
     (ppc2-vpop-register seg node)
     (unless (or *ppc2-reckless* (ppc2-form-typep fnode 'double-float))
-      (! trap-unless-typecode= node ppc32::subtag-double-float))
+      (! trap-unless-double-float node))
     (! store-double node target)
     (<- node)
     (^)))
@@ -6910,10 +6920,12 @@
     (ppc2-one-targeted-reg-form seg fval target)
     (ppc2-vpop-register seg freg)
     (unless (or *ppc2-reckless* (ppc2-form-typep fnode 'short-float))
-      (! trap-unless-typecode= freg ppc32::subtag-single-float))
+      (! trap-unless-single-float freg))
     (! store-single freg target)
     (<- freg)
     (^)))
+
+    
 
 (defppc2 ppc2-unwind-protect unwind-protect (seg vreg xfer protected-form cleanup-form)
   (let* ((cleanup-label (backend-get-next-label))
@@ -7580,7 +7592,7 @@
     (let* ((fix-x (acode-fixnum-form-p x))
            (fix-y (acode-fixnum-form-p y)))
       (if (and fix-x fix-y)
-        (ppc2-absolute-long seg vreg xfer (+ fix-x fix-y))
+        (ppc2-absolute-natural seg vreg xfer (+ fix-x fix-y))
         (let* ((u15x (and (typep fix-x '(unsigned-byte 15)) fix-x))
                (u15y (and (typep fix-y '(unsigned-byte 15)) fix-y)))
           (if (not (or u15x u15y))
@@ -7604,7 +7616,7 @@
     (let* ((fix-x (acode-fixnum-form-p x))
            (fix-y (acode-fixnum-form-p y)))
       (if (and fix-x fix-y)
-        (ppc2-absolute-long seg vreg xfer (- fix-x fix-y))
+        (ppc2-absolute-natural seg vreg xfer (- fix-x fix-y))
         (let* ((u15y (and (typep fix-y '(unsigned-byte 15)) fix-y)))
           (if (not u15y)
             (with-imm-target () (xreg :u32)
@@ -7627,7 +7639,7 @@
     (let* ((u32x (nx-u32-constant-p x))
            (u32y (nx-u32-constant-p y)))
       (if (and u32x u32y) 
-        (ppc2-absolute-long seg vreg xfer (logior u32x u32y))
+        (ppc2-absolute-natural seg vreg xfer (logior u32x u32y))
         (let* ((constant (or u32x u32y)))
           (if (not constant)
             (with-imm-target () (xreg :u32)
@@ -7652,7 +7664,7 @@
     (let* ((u32x (nx-u32-constant-p x))
            (u32y (nx-u32-constant-p y)))
       (if (and u32x u32y) 
-        (ppc2-absolute-long seg vreg xfer (logxor u32x u32y))
+        (ppc2-absolute-natural seg vreg xfer (logxor u32x u32y))
         (let* ((constant (or u32x u32y)))
           (if (not constant)
             (with-imm-target () (xreg :u32)
@@ -7677,7 +7689,7 @@
     (let* ((u32x (nx-u32-constant-p x))
            (u32y (nx-u32-constant-p y)))
       (if (and u32x u32y) 
-        (ppc2-absolute-long seg vreg xfer (logand u32x u32y))
+        (ppc2-absolute-natural seg vreg xfer (logand u32x u32y))
         (let* ((constant (or u32x u32y)))
           (if (not constant)
             (with-imm-target () (xreg :u32)
@@ -7703,7 +7715,7 @@
                           (if (= high 0)
                             (! %u32-logand-low-c other-reg other-reg low)
                             (with-imm-target (other-reg) (const-reg :u32)
-                              (ppc2-absolute-long seg const-reg nil constant)
+                              (ppc2-absolute-natural seg const-reg nil constant)
                               (! %u32-logand other-reg other-reg const-reg))))))))
                 (<- other-reg))))
           (^))))))
@@ -7729,7 +7741,9 @@
       (with-node-temps () (symreg)
         (setq symreg (or (ppc2-register-constant-p sym)
                          (ppc2-store-immediate seg sym symreg)))
-        (! node-slot-ref target symreg ppc32::symbol.vcell-cell))))
+        (! node-slot-ref target symreg (target-arch-case
+                                        (:ppc32 ppc32::symbol.vcell-cell)
+                                        (:ppc64 ppc64::symbol.vcell-cell))))))
   (^))
 
 (defppc2 ppc2-global-setq global-setq (seg vreg xfer sym val)
@@ -7737,7 +7751,10 @@
                       vreg 
                       xfer 
                       (make-acode (%nx1-operator immediate) sym)
-                      (make-acode (%nx1-operator fixnum) ppc32::symbol.vcell-cell) 
+                      (make-acode (%nx1-operator fixnum)
+                                  (target-arch-case
+                                   (:ppc32 ppc32::symbol.vcell-cell)
+                                   (:ppc64 ppc64::symbol.vcell-cell)))
                       val
                       nil))
 
@@ -7779,10 +7796,6 @@
 #+not-yet
 (progn
 
-
-
-(defppc2 ppc2-short-float short-float (val)
-  (ppc2-absolute-long (%address-of val)))
 
 ;Make a gcable macptr.
 (defppc2 ppc2-%new-ptr %new-ptr (b vreg xfer size clear-p )
