@@ -189,6 +189,7 @@
   (max-16-bit-constant-index 0)
   (max-8-bit-constant-index 0)
   (max-1-bit-constant-index 0)
-  (word-shift 0))
+  (word-shift 0)
+  (code-vector-prefix ()))
 
 (ccl::provide "ARCH")
