@@ -17,140 +17,136 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "PPC-LAP"))
-
-(defmacro ppc-lap-target-arch-case (&rest clauses)
-  `(ecase (backend-target-arch-name *target-backend*)
-    ,@clauses))
   
 
 (defppclapmacro clrrri (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(clrrwi ,@args))
    (:ppc64 `(clrrdi ,@args))))
 
 (defppclapmacro clrlri (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(clrlwi ,@args))
    (:ppc64 `(clrldi ,@args))))
 
 (defppclapmacro clrlri. (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(clrlwi. ,@args))
    (:ppc64 `(clrldi. ,@args))))
 
 (defppclapmacro ldr (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(lwz ,@args))
    (:ppc64 `(ld ,@args))))
 
 (defppclapmacro ldrx (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(lwzx ,@args))
    (:ppc64 `(ldx ,@args))))
 
 (defppclapmacro ldru (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(lwzu ,@args))
    (:ppc64 `(ldu ,@args))))
 
 (defppclapmacro str (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(stw ,@args))
    (:ppc64 `(std ,@args))))
 
 (defppclapmacro strx (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(stwx ,@args))
    (:ppc64 `(stdx ,@args))))
 
 (defppclapmacro stru (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(stwu ,@args))
    (:ppc64 `(stdu ,@args))))
 
 (defppclapmacro strux (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(stwux ,@args))
    (:ppc64 `(stdux ,@args))))
 
 (defppclapmacro cmpr (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(cmpw ,@args))
    (:ppc64 `(cmpd ,@args))))
 
 (defppclapmacro cmpri (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(cmpwi ,@args))
    (:ppc64 `(cmpdi ,@args))))
 
 (defppclapmacro cmplr (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(cmplw ,@args))
    (:ppc64 `(cmpld ,@args))))
 
 (defppclapmacro cmplri (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(cmplwi ,@args))
    (:ppc64 `(cmpldi ,@args))))
 
 (defppclapmacro trlge (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twlge ,@args))
    (:ppc64 `(tdlge ,@args))))
 
 (defppclapmacro trllt (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twllt ,@args))
    (:ppc64 `(tdllt ,@args))))
 
 (defppclapmacro trllti (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twllti ,@args))
    (:ppc64 `(tdllti ,@args))))
 
 (defppclapmacro trlgti (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twlgti ,@args))
    (:ppc64 `(tdlgti ,@args))))
 
 (defppclapmacro trlti (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twlti ,@args))
    (:ppc64 `(tdlti ,@args))))
 
 (defppclapmacro trlle (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twlle ,@args))
    (:ppc64 `(tdlle ,@args))))
 
 (defppclapmacro treqi (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(tweqi ,@args))
    (:ppc64 `(tdeqi ,@args))))
 
 (defppclapmacro trnei (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twnei ,@args))
    (:ppc64 `(tdnei ,@args))))
 
 (defppclapmacro trgti (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(twgti ,@args))
    (:ppc64 `(tdgti ,@args))))
 
 
 (defppclapmacro srari (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(srawi ,@args))
    (:ppc64 `(sradi ,@args))))
 
 (defppclapmacro srri (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(srwi ,@args))
    (:ppc64 `(srdi ,@args))))
 
 (defppclapmacro slri (&rest args)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(slwi ,@args))
    (:ppc64 `(sldi ,@args))))
 
@@ -200,7 +196,7 @@
 ;; change to "any register BUT nargs".  (Note that most number-of-args
 ;; traps use unsigned comparisons.)
 (defppclapmacro event-poll ()
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     '(progn
       (ldr nargs ppc32::tcr.interrupt-level rcontext)
@@ -245,7 +241,7 @@
 ; if any non-register arguments were received, but is usually easy to compute.
 
 (defppclapmacro save-lisp-context (&optional (vsp 'vsp) (save-pc t))
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(progn
       ,@(if save-pc 
@@ -273,7 +269,7 @@
 ;;; restored, it's no longer possible to use it to address the current
 ;;; function's constants.
 (defppclapmacro restore-full-lisp-context (&optional (vsp 'vsp))
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(progn
       (lwz loc-pc ppc32::lisp-frame.savelr sp)
@@ -310,12 +306,12 @@
   `(pop ,dest vsp))
 
 (defppclapmacro %cdr (dest node)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(lwz ,dest ppc32::cons.cdr ,node))
    (:ppc64 `(ld ,dest ppc64::cons.cdr ,node))))
 
 (defppclapmacro %car (dest node)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32 `(lwz ,dest ppc32::cons.car ,node))
    (:ppc64 `(ld ,dest ppc64::cons.car ,node))))
 
@@ -330,14 +326,14 @@
                         ,(arch::target-ntagbits (backend-target-arch tb))))))
 
 (defppclapmacro extract-subtag (dest node)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(lbz ,dest ppc32::misc-subtag-offset ,node))
    (:ppc64
     `(lbz ,dest ppc64::misc-subtag-offset ,node))))
 
 (defppclapmacro extract-typecode (dest node &optional (crf :cr0))
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(progn
       (extract-lisptag ,dest ,node)
@@ -374,7 +370,7 @@
 
 ;; This is about as hard on the pipeline as anything I can think of.
 (defppclapmacro call-symbol (function-name)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(progn
       (load-constant fname ,function-name)
@@ -396,7 +392,7 @@
      (bla .SPjmpsym)))
 
 (defppclapmacro getvheader (dest src)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(lwz ,dest ppc32::misc-header-offset ,src))
    (:ppc64
@@ -404,7 +400,7 @@
 
 ;; "Size" is unboxed element-count.
 (defppclapmacro header-size (dest vheader)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(srwi ,dest ,vheader ppc32::num-subtag-bits))
    (:ppc64
@@ -413,7 +409,7 @@
 
 ;; "Length" is fixnum element-count.
 (defppclapmacro header-length (dest vheader)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(rlwinm ,dest 
       ,vheader 
@@ -426,7 +422,7 @@
   
 
 (defppclapmacro header-subtag[fixnum] (dest vheader)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(rlwinm ,dest
            ,vheader
@@ -469,14 +465,14 @@
   `(clrlwi ,dest ,src (- 32 8)))
 
 (defppclapmacro unbox-fixnum (dest src)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(srawi ,dest ,src ppc32::fixnumshift))
    (:ppc64
     `(sradi ,dest ,src ppc64::fixnumshift))))
 
 (defppclapmacro box-fixnum (dest src)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(slwi ,dest ,src ppc32::fixnumshift))
    (:ppc64
@@ -504,7 +500,7 @@
      (rlwimi ,dest ,src 16 0 15)))
 
 (defppclapmacro ref-global (reg sym)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     (let* ((offset (ppc32::%kernel-global sym)))
       `(lwz ,reg (+ ,offset ppc32::nil-value) 0)))
@@ -513,7 +509,7 @@
       `(ld ,reg (+ ,offset ppc64::nil-value) 0)))))
 
 (defppclapmacro set-global (reg sym)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     (let* ((offset (ppc32::%kernel-global sym)))
       `(stw ,reg (+ ,offset ppc32::nil-value) 0)))
@@ -538,7 +534,7 @@
 
 ;;; Src has all but the least significant bit clear.  Map low bit to T/NIL.
 (defppclapmacro bit0->boolean (dest src temp)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(progn
       (rlwimi ,temp ,src 4 27 27)
@@ -549,7 +545,7 @@
       (addi ,dest ,temp ppc64::nil-value))))) ; dest = (src == 1), lisp-wise
 
 (defppclapmacro eq0->boolean (dest src temp)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(progn
       (cntlzw ,temp ,src)                ; 32 leading zeros if (src == 0)
@@ -573,7 +569,7 @@
       (push inst insts))))
 
 (defppclapmacro get-single-float (dest node)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(lfs ,dest ppc32::single-float.value ,node))
    (:ppc64
@@ -582,7 +578,7 @@
       (lfs ,dest ppc64::tcr.single-float-convert rcontext)))))
 
 (defppclapmacro get-double-float (dest node)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(lfd ,dest ppc32::double-float.value ,node))
    (:ppc64
@@ -590,7 +586,7 @@
   
 
 (defppclapmacro put-single-float (src node)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(stfs ,src ppc32::single-float.value ,node))
    (:ppc64
@@ -599,7 +595,7 @@
       (ld ,node ppc64::single-float-convert rcontext)))))
 
 (defppclapmacro put-double-float (src node)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(stfd ,src ppc32::double-float.value ,node))
    (:ppc64
@@ -625,14 +621,14 @@
      (rlwimi ,dest ,high (- 16 ppc32::fixnumshift) 0 15)))
 
 (defppclapmacro macptr-ptr (dest macptr)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(lwz ,dest ppc32::macptr.address ,macptr))
    (:ppc64
     `(ld ,dest ppc64::macptr.address ,macptr))))
 
 (defppclapmacro svref (dest index vector)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(lwz ,dest (+ (* 4 ,index) ppc32::misc-data-offset) ,vector))
    (:ppc64
@@ -641,7 +637,7 @@
 ;;; This evals its args in the wrong order.
 ;;; Can't imagine any code will care.
 (defppclapmacro svset (new-value index vector)
-  (ppc-lap-target-arch-case
+  (target-arch-case
    (:ppc32
     `(stw ,new-value (+ (* 4 ,index) ppc32::misc-data-offset) ,vector))
    (:ppc64
