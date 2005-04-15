@@ -3142,3 +3142,7 @@ outside the lexical scope of the form can be stepped into only if the
 functions in question have been compiled with sufficient DEBUG policy
 to be at least partially steppable."
   form)
+
+(defmacro target-arch-case (&rest clauses)
+  `(ecase (backend-target-arch-name *target-backend*)
+    ,@clauses))
