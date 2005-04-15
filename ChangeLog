@@ -1,3 +1,25 @@
+2005-04-14 21:27  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: charcode-shift is 8;
+	ncharcodebits is 8 (for now).
+
+2005-04-14 21:26  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Actually bother to define
+	LOAD-CHARACTER-CONSTANT.
+
+2005-04-14 21:26  gb
+
+	* compiler/vreg.lisp: :u64const, :s64const.
+
+2005-04-14 21:20  gb
+
+	* compiler/PPC/ppc2.lisp: LWI -> LRI, PPC2-LWI -> PPC2-LRI.
+
+2005-04-14 21:20  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: LWI -> LRI.
+
 2005-04-14 21:19  gb
 
 	* compiler/PPC/ppc-lapmacros.lisp: Use TARGET-ARCH-CASE, no need
