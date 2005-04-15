@@ -197,12 +197,12 @@
 
 (define-ppc64-vinsn misc-set-u16 (((val :u16))
 				  ((v :lisp)
-				   (scaled-idx :s32)))
+				   (scaled-idx :s64)))
   (sthx val v scaled-idx))
 
 (define-ppc64-vinsn misc-ref-s16  (((dest :s16))
 				   ((v :lisp)
-				    (scaled-idx :u32))
+				    (scaled-idx :s64))
 				   ())
   (lhax dest v scaled-idx))
 
@@ -214,7 +214,7 @@
 
 (define-ppc64-vinsn misc-ref-u8  (((dest :u8))
 				  ((v :lisp)
-				   (scaled-idx :u32))
+				   (scaled-idx :u64))
 				  ())
   (lbzx dest v scaled-idx))
 
@@ -703,10 +703,10 @@
   :again
   (clrldi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
   (beq+ crf0 :got-it)
-  (cmpwi crf0 tag ppc64::fulltag-misc)
+  (cmpdi crf0 tag ppc64::fulltag-misc)
   (bne crf0 :no-got)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmpwi crf0 tag ppc64::subtag-bignum)
+  (cmpdi crf0 tag ppc64::subtag-bignum)
   (beq+ crf0 :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-integer object)
@@ -719,10 +719,10 @@
 					    (crf :crf)))
   :again
   (clrlwi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
-  (cmpwi crf tag ppc64::fulltag-misc)
+  (cmpdi crf tag ppc64::fulltag-misc)
   (bne crf :no-got)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmpwi crf tag ppc64::subtag-simple-vector)
+  (cmpdi crf tag ppc64::subtag-simple-vector)
   (beq+ crf :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-simple-vector object)
@@ -736,10 +736,10 @@
 					    (crf2 :crf)))
   :again
   (clrlwi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
-  (cmpwi crf tag ppc64::fulltag-misc)
+  (cmpdi crf tag ppc64::fulltag-misc)
   (bne crf :no-got)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmpwi crf tag ppc64::subtag-simple-base-string)
+  (cmpdi crf tag ppc64::subtag-simple-base-string)
   (beq+ crf :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-simple-string object)
@@ -755,10 +755,10 @@
   :again
   (clrlwi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
   (beq+ crf0 :got-it)
-  (cmpwi crf0 tag ppc64::fulltag-misc)
+  (cmpdi crf0 tag ppc64::fulltag-misc)
   (bne crf0 :no-got)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmplwi crf0 tag ppc64::max-real-subtag)
+  (cmpldi crf0 tag ppc64::max-real-subtag)
   (ble+ crf0 :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-real object)
@@ -773,10 +773,10 @@
   :again
   (clrlwi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
   (beq+ crf0 :got-it)
-  (cmpwi crf0 tag ppc64::fulltag-misc)
+  (cmpdi crf0 tag ppc64::fulltag-misc)
   (bne crf0 :no-got)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmplwi crf0 tag ppc64::max-numeric-subtag)
+  (cmpldi crf0 tag ppc64::max-numeric-subtag)
   (ble+ crf0 :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-number object)
@@ -792,7 +792,7 @@
   :again
   (cmpdi crfx object ppc64::nil-value)
   (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
-  (cmpwi crfy tag ppc64::fulltag-cons)
+  (cmpdi crfy tag ppc64::fulltag-cons)
   (beq crfx :got-it)
   (beq+ crfy :got-it)
   (uuo_intcerr arch::error-object-not-list object)
@@ -804,13 +804,13 @@
 				    ((tag :u8)
 				     (crf :crf)))
   :again
-  (cmpwi crf object ppc64::nil-value)
-  (clrlwi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (cmpdi crf object ppc64::nil-value)
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
   (beq crf :got-it)
-  (cmpwi crf tag ppc64::fulltag-misc)
+  (cmpdi crf tag ppc64::fulltag-misc)
   (bne crf :no-got)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmpwi crf tag ppc64::subtag-symbol)
+  (cmpdi crf tag ppc64::subtag-symbol)
   (beq+ crf :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-symbol object)
@@ -1098,6 +1098,18 @@
   :do-trap
   (tdnei tag ppc64::subtag-arrayH))
 
+(define-ppc64-vinsn trap-unless-macptr (()
+                                        ((object :lisp))
+                                        ((tag :u8)
+                                         (crf :crf)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf tag ppc64::fulltag-misc)
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (bne crf :do-trap)
+  (lbz tag ppc64::misc-subtag-offset object)
+  :do-trap
+  (tdnei tag ppc64::subtag-macptr))
+
 (define-ppc64-vinsn trap-unless-fulltag= (()
 					  ((object :lisp)
 					   (tagval :u16const))
@@ -1361,7 +1373,7 @@
 
 (define-ppc64-vinsn compare-to-nil (((crf :crf))
 				    ((arg0 t)))
-  (cmpwi crf arg0 ppc64::nil-value))
+  (cmpdi crf arg0 ppc64::nil-value))
 
 (define-ppc64-vinsn compare-logical (((crf :crf))
 				     ((arg0 t)
@@ -1708,41 +1720,36 @@
 				      (offset :s16const)))
   (lwz dest offset base))
 
-  
 
-;; Load an unsigned, 32-bit constant into a destination register.
-(define-ppc64-vinsn (lwi :constant-ref) (((dest :imm))
-					 ((intval :u32const))
-					 ())
-  ((:or (:pred = (:apply ash intval -15) #x1ffff)
-        (:pred = (:apply ash intval -15) #x0))
+(define-ppc64-vinsn (lri :constant-ref) (((dest :imm))
+                                         ((intval :u64const))
+                                         ())
+  ((:or (:pred = (:apply ash intval -15) #x1FFFFFFFFFFFF)
+        (:pred = (:apply ash intval -15) 0))
    (li dest (:apply %word-to-int (:apply logand #xffff intval))))
-  ((:not                                ; that's :else to you, bub.
-    (:or (:pred = (:apply ash intval -15) #x1ffff)
-         (:pred = (:apply ash intval -15) #x0)))
-   ((:pred = (:apply ash intval -15) 1)
-    (ori dest ppc::rzero (:apply logand intval #xffff)))
-   ((:not (:pred = (:apply ash intval -15) 1))
-    (lis dest (:apply ash intval -16))
-    ((:not (:pred = 0 (:apply logand intval #xffff)))
-     (ori dest dest (:apply logand intval #xffff))))))
+  ((:not
+    (:or (:pred = (:apply ash intval -15) #x1FFFFFFFFFFFF)
+         (:pred = (:apply ash intval -15) 0)))
+   ((:or (:pred = (:apply ash intval -31) 0)
+         (:pred = (:apply ash intval -31) #x1ffffffff))
+    (lis dest (:apply %word-to-int (:apply ldb (:apply byte 16 16) intval)))
+    ((:not (:pred = (:apply ldb (:apply byte 16 0) intval)))
+     (ori dest dest (:apply ldb (:apply byte 16 0) intval))))
+   ((:not (:or (:pred = (:apply ash intval -31) 0)
+               (:pred = (:apply ash intval -31) #x1ffffffff)))
+    ((:pred = (:apply ash intval -32) 0)
+     (oris dest ppc::rzero (:apply ldb (:apply byte 16 16) intval))
+     ((:not (:pred = (:apply ldb (:apply byte 16 0) intval) 0))
+      (ori dest dest (:apply ldb (:apply byte 16 0) intval))))
+    ((:not (:pred = (:apply ash intval -32) 0))
+     ;; This is the general case, where all halfwords are significant.
+     ;; Hopefully, something above catches lots of other cases.
+     (lis dest (:apply %word-to-int (:apply ldb (:apply byte 16 48) intval)))
+     (ori dest dest (:apply ldb (:apply byte 16 32) intval))
+     (sldi dest dest 32)
+     (oris dest dest (:apply ldb (:apply byte 16 16) intval))
+     (ori dest dest (:apply ldb (:apply byte 16 0) intval))))))
 
-; Exactly the same thing, but take a signed integer value
-(define-ppc64-vinsn lwi-s32 (((dest :imm))
-			     ((intval :s32const))
-			     ())
-  ((:or (:pred = (:apply ash intval -15) -1)
-        (:pred = (:apply ash intval -15) #x0))
-   (li dest (:apply %word-to-int (:apply logand #xffff intval))))
-  ((:not                                ; that's :else to you, bub.
-    (:or (:pred = (:apply ash intval -15) -1)
-         (:pred = (:apply ash intval -15) #x0)))
-   ((:pred = (:apply ash intval -15) 1)
-    (ori dest ppc::rzero (:apply logand intval #xffff)))
-   ((:not (:pred = (:apply ash intval -15) 1))
-    (lis dest (:apply ash intval -16))
-    ((:not (:pred = 0 (:apply logand intval #xffff)))
-     (ori dest dest (:apply logand intval #xffff))))))
 
 (define-ppc64-vinsn discard-temp-frame (()
 					())
@@ -3151,6 +3158,13 @@
   (li temp -4)
   (lwz dest ppc64::tcr.interrupt-level ppc::rcontext)
   (stw temp ppc64::tcr.interrupt-level ppc::rcontext))
+
+(define-ppc64-vinsn load-character-constant (((dest :lisp))
+                                             ((code :u8const))
+                                             ())
+  (ori dest ppc::rzero (:apply logior (:apply ash code 8) ppc64::subtag-character)))
+
+
 
 ;;; Subprim calls.  Done this way for the benefit of VINSN-OPTIMIZE.
 (defmacro define-ppc64-subprim-call-vinsn ((name &rest other-attrs) spno)
