@@ -1,3 +1,9 @@
+2005-04-17 08:56  beer
+
+	* examples/bridge.lisp: evised %PARSE-MESSAGE and
+	CHECK-MESSAGE-ARG-COUNT to fix a bug with interpreting some
+	variable-arity message sends
+
 2005-04-15 06:23  gb
 
 	* level-1/version.lisp: Bump.
