@@ -79,14 +79,19 @@
 	   (let* ((n (count #\: (the simple-string f)))
 		  (args (rest args))
 		  (nargs (length args)))
-	     (cond ((= nargs n) (values f args nil))
-		   ((= nargs (1+ n))
-		    (values f (butlast args) l))
+	     (cond ((and (= nargs 1) (variable-arity-message-p f))
+		    (values f nil l))
+		   ((= nargs n) (values f args nil))
+		   ((= nargs (1+ n)) (values f (butlast args) l))
 		   (t (error "Improperly formatted argument list: ~S" args)))))
 	  ((keywordp f)
-	   ;; (KEY1 ARG1 ... KEYN ARGN {LIST})
+	   ;; (KEY1 ARG1 ... KEYN ARGN {LIST}) or (KEY LIST)
 	   (let ((nargs (length args)))
-	     (cond ((evenp nargs)
+	     (cond ((and (= nargs 2) (consp l) 
+			 (variable-arity-message-p 
+			  (lisp-to-objc-message (list f))))
+		    (values (lisp-to-objc-message (list f)) nil l))
+		   ((evenp nargs)
 		    (multiple-value-bind (ks vs) (keys-and-vals args)
 		      (values (lisp-to-objc-message ks) vs nil)))
 		   ((and (> nargs 1) (listp l))
@@ -759,9 +764,11 @@
 ;;; Check that the correct number of ARGs have been supplied to the given MSG
 
 (defun check-message-arg-count (msg args)
-  (unless (= (count #\: msg) (length args))
-    (error "Incorrect number of arguments (~S) to ObjC message ~S" 
-           (length args) msg)))
+  (let ((kcount (count #\: msg))
+	(acount (length args)))
+    (unless (or (= acount kcount) (variable-arity-message-p msg))
+      (error "Incorrect number of arguments (~S) to ObjC message ~S" 
+	     (length args) msg))))
 
 
 ;;; Check that the correct number of ARGs have been supplied to a method 
