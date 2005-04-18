@@ -1,3 +1,31 @@
+2005-04-17 19:29  alex
+
+	* examples/objc-clos.lisp: 
+	
+	edited %objc-domain-slots-vector to allocate slot vectors on demand
+	for object instantiated outside of lisp (AppKit).
+
+2005-04-17 19:27  alex
+
+	* level-1/l1-callbacks.lisp: 
+	
+	added a trace flag to the callback table and extended
+	%pascal-functions% to set a special variable *callback-trace-p*
+	during execution.
+
+2005-04-17 19:26  alex
+
+	* lib/encapsulate.lisp: 
+	
+	extended the trace facility to support tracing of callbacks, a
+	:backtrace argument and hook variables for the IDE
+
+2005-04-17 19:25  alex
+
+	* lib/macros.lisp: 
+	
+	Extended DEFINE-CALLBACK and DEFCALLBACK-BODY to support tracing.
+
 2005-04-17 08:56  beer
 
 	* examples/bridge.lisp: evised %PARSE-MESSAGE and
