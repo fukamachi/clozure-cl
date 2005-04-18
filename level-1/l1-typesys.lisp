@@ -104,6 +104,7 @@
 ;(defvar *type-system-initialized* nil)
 
 (defun %deftype (name fn doc)
+  (clear-type-cache)
   (cond ((null fn)
          (remhash name %deftype-expanders%))
         ((and *type-system-initialized*
@@ -3530,7 +3531,7 @@
       (member-ctype
        (if (member object (member-ctype-members type)) t))
       (class-ctype
-       (class-typep object (class-ctype-class type)))
+       (not (null (class-typep object (class-ctype-class type)))))
       (union-ctype
        (dolist (type (union-ctype-types type))
          (when (%%typep object type)
