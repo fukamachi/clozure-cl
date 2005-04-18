@@ -234,6 +234,8 @@
     (native-to-pathname native-name)))
 
 
+
+
 ; I thought I wanted to call this from elsewhere but perhaps not
 (defun absolute-directory-list (dirlist)
   ; just make relative absolute and remove ups where possible
@@ -1038,50 +1040,7 @@ a host-structure or string."
 
 
 
-(defun compile-load (file-name &rest options &key
-                               fasl-file force-compile ignore-compiler-warnings
-                               &allow-other-keys)
-  (declare (dynamic-extent options))
-  (remf options :fasl-file)
-  (remf options :force-compile)
-  (remf options :ignore-compiler-warnings)
-  (let* ((file (merge-pathnames file-name *.lisp-pathname*))
-         (fasl (merge-pathnames (if fasl-file (merge-pathnames fasl-file *.fasl-pathname*) *.fasl-pathname*)
-                                file)))
-    (when (probe-file file)
-      (when (or force-compile
-                (not (probe-file fasl))
-                (< (file-write-date fasl) (file-write-date file)))
-        (multiple-value-bind (compiled ignore bad-warnings)
-                             (apply #'compile-file file :output-file fasl options)
-          (declare (ignore ignore))
-          (unless compiled              ; skip compile to compiler error
-            (return-from compile-load nil))
-          (unless (or ignore-compiler-warnings (not bad-warnings))
-            (restart-case
-              (error "Compiling ~s produced warnings." file)
-              (retry-compile ()
-                     :report (lambda (s) (format s "Retry compiling ~s" file))
-                     (return-from compile-load (apply #'compile-load file-name options)))
-              (load-anyway ()
-                     :report (lambda (s) (format s "Load ~s despite compiler warnings" fasl)))
-              (skip-load ()
-                     :report (lambda (s) (format s "Skip loading ~s" fasl))
-                     (return-from compile-load nil)))))))
-    (if (probe-file fasl)
-      (restart-case
-        (apply #'load fasl options)
-        (retry-compile ()
-               :report (lambda (s) (format s "Retry compiling ~s" file))
-               (apply #'compile-load file-name options))
-        (skip-load ()
-               :report (lambda (s) (format s "Skip loading ~s" fasl))
-               nil))
-      (restart-case
-        (signal-file-error $err-no-file file)
-        (retry-compile ()
-               :report (lambda (s) (format s "Retry compiling ~s" file))
-               (apply #'compile-load file-name options))))))
+
 
 (defun load (file-name &key (verbose *load-verbose*)
                        (print *load-print*)
