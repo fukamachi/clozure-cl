@@ -47,7 +47,6 @@
      print-call-history
      compiler-macroexpand
      compiler-macroexpand-1
-     compile-load
      uncompile-function
      abort-break
      *trace-print-level*
@@ -100,7 +99,7 @@
      untyi
      compiled-lexical-closure		; the type name
      lsh
-
+     
 
 					; The MOP
      accessor-method-slot-definition
@@ -234,6 +233,7 @@
 
 					; Files.
      mac-default-directory
+     current-directory
      directory-pathname-p
      full-pathname
      create-file
