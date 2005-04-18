@@ -23,6 +23,7 @@
 
 
 (defvar *trace-alist* nil)
+(defvar *trace-pfun-list* nil)
 (defvar *trace-enable* t)
 (defvar *trace-level* 0)
 (defparameter *trace-max-indent* 40)
@@ -30,6 +31,9 @@
 (defvar *trace-print-length* nil)
 ;(defparameter *trace-define-if-undefined* nil)
 (defparameter *trace-bar-frequency* nil)
+(defvar *trace-hook* nil)
+(defvar *untrace-hook* nil)
+(defvar *trace-print-hook* nil)
 
 
 (defvar *advise-alist* nil)
@@ -287,7 +291,7 @@
     (method (%method-function spec))))
 
 
-(defun %trace-function-spec-p (spec &optional define-if-not)
+(defun %trace-function-spec-p (spec &optional define-if-not undefined-ok)
   ;; weed out macros and special-forms
   (typecase spec
     (symbol
@@ -296,7 +300,10 @@
      (let ((res (or (fboundp spec)(and define-if-not
                                        (progn (warn "~S was undefined" spec)
                                               (%fhave spec (%function 'trace-null-def)))))))
-       (when (not res)(error "~S is undefined." spec))
+       (when (not res)
+	 (if undefined-ok
+	     (values nil spec)
+	   (error "~S is undefined." spec)))
        (values res spec)))
     (method
      (values (%method-function spec) spec))
@@ -346,53 +353,118 @@
       (when def (warn "~S was undefined" spec))
       def)))
 
-(defun %trace (sym &key before after step define-if-not)  
+(defun %trace (sym &key before after backtrace step define-if-not)  
   (let (def newdef trace-thing)
-    (multiple-value-setq (def trace-thing) 
-      (%trace-function-spec-p sym define-if-not))
-    (if def
-      (let ()
-        (when (%traced-p trace-thing)
-          (%untrace-1 trace-thing)
-          (setq def (%trace-fboundp trace-thing)))
-        (when step   ; just check if has interpreted def
-          (if (typep def 'standard-generic-function)
-            (let ((methods (%gf-methods def)))
-              ; should we complain if no methods? naah
-              (dolist (m methods) ; stick :step-gf in advice-when slot
-                (%trace m :step t)
-                (let ((e (function-encapsulation m)))
-                  (when e (setf (encapsulation-advice-when e) :step-gf))))
-              ; we choose to believe that before and after are intended for the gf
-              (if  (or before after)
-                (setq step nil)                
-                (return-from %trace)))
-            #|(uncompile-for-stepping trace-thing nil t)|#))
-        (let ((newsym (gensym "TRACE"))
-              (method-p (typep trace-thing 'method)))
-          (when (and (null before)(null after)(null step))
-            (setq before #'trace-before)
-            (setq after #'trace-after))
-          (case before 
-            (:print (setq before #'trace-before)))
-          (case after
-            (:print (setq after #'trace-after)))
-          (setq newdef (trace-global-def 
-                        sym newsym before after step method-p))
-          (when method-p
-            (copy-method-function-bits def newdef))
-          (without-interrupts
-           (multiple-value-bind (ignore gf-dcode) (encapsulate trace-thing def 'trace sym newsym)
-             (declare (ignore ignore))
-             (cond (gf-dcode 
-                    (setf (%gf-dcode def)
-                          (%cons-combined-method def (cons newdef gf-dcode) #'%%call-gf-encapsulation)))
-                   ((symbolp trace-thing) (%fhave trace-thing newdef))
-                   ((typep trace-thing 'method)
-                    (setf (%method-function trace-thing) newdef)
-                    (remove-obsoleted-combined-methods trace-thing)
-                    newdef))))))
-      (error "Trace does not understand ~S." sym))))
+    (prog1
+      (block %trace-block
+	;;
+	;; see if we're a callback
+	;;
+	(cond
+	 ((and (typep sym 'symbol)
+	       (boundp sym)
+	       (macptrp (symbol-value sym)))
+	  (let ((len (length %pascal-functions%))
+		(sym-name (symbol-name sym)))
+	    (declare (fixnum len))
+	    (dotimes (i len)
+	      (let ((pfe (%svref %pascal-functions% i)))
+		(when (and (vectorp pfe)
+			   (string= sym-name (symbol-name (pfe.sym pfe))))
+		  (when backtrace
+		    (if (null before)
+			(setq before :print)))
+		  (setf (pfe.trace-p pfe)
+			`(,@(if before `((:before . ,before)))
+			  ,@(if after `((:after . ,after)))
+			  ,@(if backtrace `((:backtrace . ,backtrace)))))
+		  (push sym *trace-pfun-list*))))))
+
+	 ;;
+	 ;; now look for tracible methods.
+	 ;; It's possible, but not likely, that we will be both
+	 ;; a callback and a function or method, if so we trace both.
+	 ;; If we're neither, signal an error.
+	 ;;
+	 ((multiple-value-setq (def trace-thing) 
+	    (%trace-function-spec-p sym define-if-not))
+	  (if def
+	      (let ()
+		(when (%traced-p trace-thing)
+		  (%untrace-1 trace-thing)
+		  (setq def (%trace-fboundp trace-thing)))
+		(when step	   ; just check if has interpreted def
+		  (if (typep def 'standard-generic-function)
+		      (let ((methods (%gf-methods def)))
+					; should we complain if no methods? naah
+			(dolist (m methods) ; stick :step-gf in advice-when slot
+			  (%trace m :step t)
+			  (let ((e (function-encapsulation m)))
+			    (when e (setf (encapsulation-advice-when e) :step-gf))))
+					; we choose to believe that before and after are intended for the gf
+			(if  (or before after)
+			    (setq step nil)                
+			  (return-from %trace-block)))
+		    #|(uncompile-for-stepping trace-thing nil t)|#))
+		(let ((newsym (gensym "TRACE"))
+		      (method-p (typep trace-thing 'method)))
+		  (when (and (null before)(null after)(null step))
+		    (setq before #'trace-before)
+		    (setq after #'trace-after))
+		  (case before
+		    (:print	(setq before #'trace-before)))
+		  (case after
+		    (:print (setq after #'trace-after)))
+		  (when backtrace
+		    (when (null before)
+		      (setq before #'trace-before))
+		    (cond
+		     ((functionp before)
+		      (let ((bfun before))
+			(if (integerp backtrace)
+			    (setq before #'(lambda (&rest args)
+					     (apply bfun args)
+					     (let ((*debug-io* *trace-output*))
+					       (ccl::print-call-history :detailed-p nil :count backtrace)
+					       (terpri *trace-output*))))
+			  (setq before #'(lambda (&rest args)
+					   (apply bfun args)
+					   (let ((*debug-io* *trace-output*))
+					     (ccl::print-call-history :detailed-p nil)
+					     (terpri *trace-output*)))))))
+		     ((and (consp before) (or (eq (car before) 'function) (eq (car before) 'quote)))
+		      (if (integerp backtrace)
+			  (setq before `#'(lambda (&rest args)
+					    (apply ,before args)
+					    (let ((*debug-io* *trace-output*))
+					      (ccl::print-call-history :detailed-p nil :count ,backtrace)
+					      (terpri *trace-output*))))
+			(setq before `#'(lambda (&rest args)
+					  (apply ,before args)
+					  (let ((*debug-io* *trace-output*))
+					    (ccl::print-call-history :detailed-p nil)
+					    (terpri *trace-output*))))))
+		     (t
+		      (warn ":backtrace is not compatible with :before ~A" before))))
+		  (setq newdef (trace-global-def 
+				sym newsym before after step method-p))
+		  (when method-p
+		    (copy-method-function-bits def newdef))
+		  (without-interrupts
+		   (multiple-value-bind (ignore gf-dcode) (encapsulate trace-thing def 'trace sym newsym)
+		     (declare (ignore ignore))
+		     (cond (gf-dcode 
+			    (setf (%gf-dcode def)
+				  (%cons-combined-method def (cons newdef gf-dcode) #'%%call-gf-encapsulation)))
+			   ((symbolp trace-thing) (%fhave trace-thing newdef))
+			   ((typep trace-thing 'method)
+			    (setf (%method-function trace-thing) newdef)
+			    (remove-obsoleted-combined-methods trace-thing)
+			    newdef))))))
+	    (error "Trace does not understand ~S." sym)))))
+      (when *trace-hook*
+	(funcall *trace-hook* sym :before before :after after :backtrace backtrace :step step))
+    )))
 
 ;; sym is either a symbol or a method
 
@@ -418,27 +490,41 @@
 (defun %untrace (sym)
   (when (and (consp sym)(consp (car sym)))
     (setq sym (car sym)))
-  (multiple-value-bind (def trace-thing) (%trace-function-spec-p sym)
-    (let (val)
-      (when (typep def 'standard-generic-function)
-        (let ((methods (%gf-methods def)))
-          (dolist (m methods)
-            (let ((e (function-encapsulation m)))
-              (when (and e (eq (encapsulation-advice-when e) :step-gf))
-                (remove-encapsulation e)
-                (push m  val))))))
-      ; gf could have first been traced :step, and then just plain traced
-      ; maybe the latter trace should undo the stepping??
-      (when (%traced-p trace-thing)
-        (%untrace-1 trace-thing)
-        (push trace-thing val))
-      (if (null (cdr val))(car val) val))))
+  (cond
+    ((and (typep sym 'symbol)
+        (boundp sym)
+        (macptrp (symbol-value sym)))
+     (%untrace-pfun sym))
+    (t 
+     (multiple-value-bind (def trace-thing) (%trace-function-spec-p sym)
+       (let (val)
+	 (when (typep def 'standard-generic-function)
+	   (let ((methods (%gf-methods def)))
+	     (dolist (m methods)
+	       (let ((e (function-encapsulation m)))
+		 (when (and e (eq (encapsulation-advice-when e) :step-gf))
+		   (remove-encapsulation e)
+		   (push m  val))))))
+					; gf could have first been traced :step, and then just plain traced
+					; maybe the latter trace should undo the stepping??
+	 (when (%traced-p trace-thing)
+	   (%untrace-1 trace-thing)
+	   (push trace-thing val))
+	 (if (null (cdr val))(car val) val)))))
+  (when *untrace-hook*
+    (funcall *untrace-hook* sym)))
 
 (defun %untrace-all ()
   (let ((val nil))
     (dolist (cap *trace-alist*)
       (push (encapsulation-spec cap) val)
-      (remove-encapsulation cap))
+       (remove-encapsulation cap)
+       (when *untrace-hook*
+       (funcall *untrace-hook* (encapsulation-spec cap))))
+     (dolist (pfun *trace-pfun-list*)
+       (%untrace pfun)
+       (when *untrace-hook*
+       (funcall *untrace-hook* pfun)))
     val))
 
 ;; thing is a symbol or method - def is current definition
@@ -451,6 +537,20 @@
       (error "~S was not traced." thing))
     (remove-encapsulation capsule)
     (encapsulation-spec capsule)))
+
+(defun %untrace-pfun (sym)
+  (let ((len (length %pascal-functions%))
+	(sym-name (symbol-name sym)))
+    (declare (fixnum len))
+    (dotimes (i len)
+      (let ((pfe (%svref %pascal-functions% i)))
+	(when (and (vectorp pfe)
+		   (string= sym-name (symbol-name (pfe.sym pfe))))
+	  (setf (pfe.trace-p pfe) nil
+		*trace-pfun-list* (remove sym *trace-pfun-list*))
+	  (return-from %untrace-pfun sym))))
+    nil))
+
 
 
 (defmacro trace (&rest syms)
@@ -476,6 +576,8 @@ functions are called."
   (let (res)
     (dolist (x *trace-alist*)
       (push (encapsulation-spec x) res))
+    (dolist (x *trace-pfun-list*)
+      (push x res))
     res))
 
 
@@ -511,21 +613,29 @@ functions are called."
             (declare (special *trace-enable* *trace-level*))
             ,(if before
                `(when *trace-enable*
+		  (when *trace-print-hook* 
+                    (funcall *trace-print-hook* ',sym t))
                   (let* ((*trace-enable* nil))
                     ,(cond
                       ((eq before :break)
                        `(progn (apply #'trace-before ',sym args)
                                (break "~S" args)))
-                      (t `(apply ,(if (quoted-p before) before `',before) ',sym args))))))           
+                      (t `(apply ,(if (quoted-p before) before `',before) ',sym args))))
+		  (when *trace-print-hook* 
+		    (funcall *trace-print-hook* ',sym nil))))           
             ,(if after
                `(let ((vals (multiple-value-list ,do-it)))
                   (when *trace-enable*
+		    (when *trace-print-hook* 
+		      (funcall *trace-print-hook* ',sym t))
                     (let* ((*trace-enable* nil))
                       ,(cond ((eq after :break)
                               `(progn
                                  (apply #'trace-after ',sym vals)
                                  (break "~S" vals)))
-                             (t `(apply ,(if (quoted-p after) after `',after) ',sym  vals)))))
+                             (t `(apply ,(if (quoted-p after) after `',after) ',sym  vals))))
+		    (when *trace-print-hook* 
+		      (funcall *trace-print-hook* ',sym nil)))
                   (values-list vals))
                do-it)))
        `(traced ,sym)))))
