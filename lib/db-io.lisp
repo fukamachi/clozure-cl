@@ -418,6 +418,22 @@
 (defstruct (ffi-typedef (:include ffi-type))
   (type))
 
+(defstruct (ffi-objc-class (:include ffi-type))
+  super-foreign-name
+  own-ivars
+  template-structure-name
+  )
+
+(defstruct (ffi-objc-method)
+  class-name
+  arglist
+  result-type
+  class-method-p)
+
+(defstruct (ffi-objc-message (:include ffi-type))
+  methods)
+                            
+
 (defun ffi-struct-reference (s)
   (or (ffi-struct-name s) (ffi-struct-anon-global-id s)))
 
@@ -672,12 +688,24 @@
 	  (interface-dir-functions-interface-db-file d) nil
 	  (interface-dir-records-interface-db-file d) nil
 	  (interface-dir-types-interface-db-file d) nil
-          (interface-dir-vars-interface-db-file d) nil)))
+          (interface-dir-vars-interface-db-file d) nil
+          (interface-dir-objc-classes-interface-db-file d) nil
+          (interface-dir-objc-methods-interface-db-file d) nil)))
 
 (defun db-constants (dir)
   (or (interface-dir-constants-interface-db-file dir)
       (setf (interface-dir-constants-interface-db-file dir)
 	    (cdb-open (interface-db-pathname "constants.cdb" dir)))))
+
+(defun db-objc-classes (dir)
+  (or (interface-dir-objc-classes-interface-db-file dir)
+      (setf (interface-dir-objc-classes-interface-db-file dir)
+            (cdb-open (interface-db-pathname "objc-classes.cdb" dir)))))
+
+(defun db-objc-methods (dir)
+  (or (interface-dir-objc-methods-interface-db-file dir)
+      (setf (interface-dir-objc-methods-interface-db-file dir)
+            (cdb-open (interface-db-pathname "objc-methods.cdb" dir)))))
 
 (defun db-vars (dir)
   (or (interface-dir-vars-interface-db-file dir)
@@ -752,8 +780,103 @@
                                        0
                                        nil))))))
               
-      
 
+(defstruct objc-message-info
+  message-name
+  instance-methods
+  class-methods)
+
+(defstruct %objc-method-info
+  message-info
+  class-name
+  arglist
+  result-type)
+
+(defstruct (objc-class-method-info (:include %objc-method-info))
+  )
+(defstruct (objc-instance-method-info (:include %objc-method-info))
+  )
+
+(defmethod print-object ((m %objc-method-info) stream)
+  (print-unreadable-object (m stream :type t :identity t)
+    (format stream "~c[~a ~a]"
+            (if (typep m 'objc-class-method-info)
+              #\+
+              #\-)
+            (%objc-method-info-class-name m)
+            (objc-message-info-message-name
+             (%objc-method-info-message-info m)))))
+
+(defun extract-db-objc-message-info (datum info)
+  (with-macptrs ((buf))
+    (%setf-macptr buf (pref datum :cdb-datum.data))
+    (unless (%null-ptr-p buf)
+      (let* ((p 0)
+             (nmethods 0)
+             (nargs 0))
+        (multiple-value-setq (nmethods p) (%decode-u32 buf p))
+        (multiple-value-setq (nargs p) (%decode-u32 buf p))
+        (dotimes (i nmethods)
+          (let* ((is-class-method (not (= 0 (prog1
+                                                (%get-unsigned-byte buf p)
+                                              (incf p)))))
+                 (class-name ())
+                 (result-type ())
+                 (arg-types ())
+                 (arg-type ()))
+            (multiple-value-setq (class-name p) (%decode-name buf p t))
+            (multiple-value-setq (result-type p) (%decode-type buf p))
+            (dotimes (i nargs)
+              (multiple-value-setq (arg-type p) (%decode-type buf p))
+              (push arg-type arg-types))
+            (if is-class-method
+              (unless (dolist (m (objc-message-info-class-methods info))
+                        (string= (objc-class-method-info-class-name m)
+                                 class-name))
+                                 
+                (push
+                 (make-objc-class-method-info
+                 :message-info info
+                 :class-name class-name
+                 :arglist (nreverse arg-types)
+                 :result-type result-type)
+                 (objc-message-info-class-methods info)))
+              (unless (dolist (m (objc-message-info-instance-methods info))
+                        (string= (objc-instance-method-info-class-name m)
+                                 class-name))
+                (push
+                 (make-objc-instance-method-info
+                  :message-info info
+                  :class-name class-name
+                  :arglist (nreverse arg-types)
+                  :result-type result-type)
+                 (objc-message-info-instance-methods info))))))
+        (cdb-free (pref datum :cdb-datum.data))))))
+
+(defun db-note-objc-method-info (cdb message-name message-info)
+  (when cdb
+    (rletZ ((value :cdb-datum)
+            (key :cdb-datum))
+      (with-cstrs ((keyname (string message-name)))
+        (setf (pref key :cdb-datum.data) keyname
+              (pref key :cdb-datum.size) (length (string message-name))
+              (pref value :cdb-datum.data) (%null-ptr)
+              (pref value :cdb-datum.size) 0)
+        (cdb-get cdb key value)
+        (extract-db-objc-message-info value message-info)))))
+
+(defun get-objc-message-info (message-name
+                              &optional (message-info
+                                         (make-objc-message-info
+                                          :message-name (string message-name))))
+  (do-interface-dirs (d)
+    (db-note-objc-method-info (db-objc-methods d) message-name message-info))
+  message-info)
+
+(defun %find-objc-class-info (name)
+  (do-interface-dirs (d)
+    (let* ((info (db-lookup-objc-class (db-objc-classes d) name)))
+      (when info (return info)))))
 
 (defun load-external-function (sym reader-stream)
   (declare (ignore reader-stream))
@@ -902,6 +1025,56 @@
       `(,(logior encoded-type-anon-struct-ref alt-align-in-bytes-mask)
         ,@(encode-ffi-field-list (ffi-struct-fields s))))))
 
+(defun encode-ffi-objc-class (c)
+  `(,@(encode-name (ffi-objc-class-string c))
+    ,@(encode-name (ffi-objc-class-super-foreign-name c))
+    ,@(encode-name (ffi-objc-class-template-structure-name c))
+    ,@(encode-ffi-field-list (ffi-objc-class-own-ivars c))))
+
+
+(defstruct db-objc-class-info
+  class-name
+  superclass-name
+  ivars
+  template-structure
+  instance-methods
+  class-methods
+  )
+
+(defun extract-db-objc-class (datum)
+  (let* ((val nil))
+    (with-macptrs ((buf))
+      (%setf-macptr buf (pref datum :cdb-datum.data))
+      (unless (%null-ptr-p buf)
+	(let* ((p 0)
+               (class-name ())
+               (superclass-name ())
+               (template-name ())
+               (ivars ()))
+          (multiple-value-setq (class-name p) (%decode-name buf p))
+          (multiple-value-setq (superclass-name p) (%decode-name buf p))
+          (multiple-value-setq (template-name p) (%decode-name buf p))
+          (setq ivars (%decode-field-list buf p))
+	  (cdb-free (pref datum :cdb-datum.data))
+          (setq val (make-db-objc-class-info
+                     :class-name class-name
+                     :superclass-name superclass-name
+                     :ivars ivars
+                     :template-structure template-name)))))
+    val))
+
+(defun db-lookup-objc-class (cdb name)
+  (when cdb
+    (rletZ ((value :cdb-datum)
+            (key :cdb-datum))
+      (with-cstrs ((keyname (string name)))
+        (setf (pref key :cdb-datum.data) keyname
+              (pref key :cdb-datum.size) (length (string name))
+              (pref value :cdb-datum.data) (%null-ptr)
+              (pref value :cdb-datum.size) 0)
+        (cdb-get cdb key value)
+        (extract-db-objc-class value)))))
+
 (defun encode-u32 (val)
   `(,(ldb (byte 8 24) val)
     ,(ldb (byte 8 16) val)
@@ -1045,6 +1218,28 @@
       ,@(encode-name name t)		; verbatim
       ,@(encode-ffi-arg-type result t)
       ,@(encode-ffi-arg-list args))))
+
+(defun encode-ffi-objc-method (m)
+  `(,(if (ffi-objc-method-class-method-p m) 1 0)
+    ,@(encode-name (ffi-objc-method-class-name m) t)
+    ,@(encode-ffi-type (ffi-objc-method-result-type m))
+    ,@(mapcar #'encode-ffi-type (ffi-objc-method-arglist m))))
+
+(defun save-ffi-objc-message (cdbm message)
+  (let* ((methods (ffi-objc-message-methods message))
+         (nmethods (length methods))
+         (nargs (length (ffi-objc-method-arglist (car methods)))))
+    (labels ((encode-objc-method-list (ml)
+               (when ml
+                 `(,@(encode-ffi-objc-method (car ml))
+                   ,@(encode-objc-method-list (cdr ml))))))
+      (db-write-byte-list cdbm
+                          (ffi-objc-message-string message)
+                          `(,@(encode-u32 nmethods)
+                            ,@(encode-u32 nargs)
+                            ,@(encode-objc-method-list methods))
+                          t))))
+  
     
 (defun save-byte-list (ptr l)
   (do* ((l l (cdr l))
@@ -1091,12 +1286,17 @@
 (defun save-ffi-union (cdbm u)
   (db-write-byte-list cdbm (ffi-union-reference u) (encode-ffi-union u)))
 
+
+
 (defun db-define-var (cdbm name type)
   (db-write-byte-list cdbm
                       (if *prepend-underscores-to-ffi-function-names*
                         (concatenate 'string "_" name)
                         name)
   (encode-ffi-type type) t))
+
+(defun save-ffi-objc-class (cdbm c)
+  (db-write-byte-list cdbm (ffi-objc-class-name c) (encode-ffi-objc-class c)))
 
 
 ;;; An "uppercase-sequence" is a maximal substring of a string that

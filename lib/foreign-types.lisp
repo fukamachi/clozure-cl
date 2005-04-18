@@ -32,7 +32,9 @@
   (functions-interface-db-file)
   (records-interface-db-file)
   (types-interface-db-file)
-  (vars-interface-db-file))
+  (vars-interface-db-file)
+  (objc-classes-interface-db-file)
+  (objc-methods-interface-db-file))
 
   
 ;;; This is intended to try to encapsulate foreign type stuff, to

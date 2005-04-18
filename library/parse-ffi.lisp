@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+
+
 (in-package "CCL")
 
 (defvar *parse-ffi-target-ftd* *target-ftd*)
@@ -36,20 +38,8 @@
   tokens
   expression )
 
-
-
 (defstruct (ffi-enum (:include ffi-type)))
 
-
-
-
-
-
-(defvar *ffi-db-constants* nil)
-(defvar *ffi-db-types* nil)
-(defvar *ffi-db-records* nil)
-(defvar *ffi-db-functions* nil)
-(defvar *ffi-db-vars* nil)
 (defvar *ffi-typedefs*)
 (defvar *ffi-global-typedefs* nil)
 (defvar *ffi-unions*)
@@ -60,26 +50,40 @@
 (defvar *ffi-global-functions* nil)
 (defvar *ffi-global-constants* nil)
 (defvar *ffi-global-vars* nil)
+(defvar *ffi-objc-classes* nil)
+(defvar *ffi-global-objc-classes* nil)
+(defvar *ffi-global-objc-messages* nil)
 (defvar *ffi-macros*)
 (defvar *ffi-vars*)
-(defvar *ffi-out* t)
-(defvar *ffi-indent* 0)
 
 (defvar *ffi-void-reference* '(:primitive :void))
+
+
 
 (defun find-or-create-ffi-struct (string)
   (or (gethash string *ffi-structs*)
       (setf (gethash string *ffi-structs*)
             (make-ffi-struct :string string
                              :name (unless (digit-char-p (schar string 0))
-				     (escape-foreign-name string))))))
+                                     (escape-foreign-name string))))))
 
 (defun find-or-create-ffi-union (string)
   (or (gethash string *ffi-unions*)
       (setf (gethash string *ffi-unions*)
             (make-ffi-union :string string
                             :name (unless (digit-char-p (schar string 0))
-				    (escape-foreign-name string))))))  
+                                    (escape-foreign-name string))))))
+
+(defun find-or-create-ffi-objc-class (string)
+  (or (gethash string *ffi-objc-classes*)
+      (setf (gethash string *ffi-objc-classes*)
+            (make-ffi-objc-class :string string
+                                 :name (escape-foreign-name string)))))
+
+(defun find-or-create-ffi-objc-message (string)
+  (or (gethash string *ffi-global-objc-messages*)
+      (setf (gethash string *ffi-global-objc-messages*)
+            (make-ffi-objc-message :string string))))
 
 (defun find-or-create-ffi-typedef (string)
   (or (gethash string *ffi-typedefs*)
@@ -422,6 +426,44 @@
 	      (process-ffi-fieldlist fields)))
       struct)))
 
+(defun process-ffi-objc-class (form)
+  (destructuring-bind (source-info class-name superclass-form template-form ivars) (cdr form)
+    (declare (ignore source-info))
+    (let* ((class (find-or-create-ffi-objc-class class-name)))
+      (setf (ffi-objc-class-ordinal class) (incf *ffi-ordinal*))
+      (unless (ffi-objc-class-super-foreign-name class)
+        (let* ((super-name (cadr superclass-form)))
+          (unless (eq super-name :void)
+            (setf (ffi-objc-class-super-foreign-name class)
+                  super-name))))
+      (unless (ffi-objc-class-template-structure-name class)
+        (setf (ffi-objc-class-template-structure-name class)
+              (cadr (cadr template-form))))
+      (unless (ffi-objc-class-own-ivars class)
+        (setf (ffi-objc-class-own-ivars class)
+              (process-ffi-fieldlist ivars)))
+      class)))
+
+(defun process-ffi-objc-method (form)
+  (destructuring-bind (method-type source-info class-name category-name message-name arglist result-type) form
+    (declare (ignore source-info category-name))
+    (let* ((message (find-or-create-ffi-objc-message message-name))
+           (class-method-p (eq method-type :objc-class-method))
+           (method
+            (make-ffi-objc-method :class-name class-name
+                                  :arglist (mapcar #'reference-ffi-type
+                                                   arglist)
+                                  :result-type (reference-ffi-type
+                                                result-type)
+                                  :class-method-p class-method-p)))
+      (unless (dolist (m (ffi-objc-message-methods message))
+                (when (and (equal (ffi-objc-method-class-name m)
+                                  class-name)
+                           (eq (ffi-objc-method-class-method-p m)
+                               class-method-p))
+                  (return t)))
+        (push method (ffi-objc-message-methods message))))))
+      
 (defun process-ffi-typedef (form)
   (let* ((string (caddr form))
          (def (find-or-create-ffi-typedef string)))
@@ -478,7 +520,7 @@
   (when nil
   (ecase (car spec)
     (:primitive)
-    (:typedef (define-typedef (cadr spec)))
+    (:typedef (define-typedef-from-ffi-info (cadr spec)))
     (:struct (ensure-struct-defined (cadr spec)))
     (:union (ensure-union-defined (cadr spec)))
     (:pointer (ensure-referenced-type-defined (cadr spec)))
@@ -494,165 +536,78 @@
     (let* ((ftype (cadr f)))
       (ensure-referenced-type-defined ftype))))
 
-(defun emit-fieldlist (fields)
-  (when *ffi-out*
-    (format *ffi-out* "~vt~&" *ffi-indent*)
-    (let* ((*ffi-indent* (+ 2 *ffi-indent*)))
-      (dolist (f fields)
-	(format *ffi-out* "~&~vt(~s " *ffi-indent* (car f))
-	(emit-type-reference (cadr f))
-	(format *ffi-out* ")")))))
+(defun record-global-objc-class (c)
+  (when *ffi-global-objc-classes*
+    (setf (gethash (ffi-objc-class-string c) *ffi-global-objc-classes*) c)))
 
-(defun emit-union (u)
-  (when *ffi-out*
-    (format *ffi-out* "~&~vt(:union ~s " *ffi-indent* (ffi-union-name u))
-    (emit-fieldlist (ffi-union-fields u))
-    (format *ffi-out* ")")))
-
-(defun emit-global-union (u)
-  (when *ffi-db-records*
-    (save-ffi-union *ffi-db-records* u)))
+(defun define-objc-class-from-ffi-info (c)
+  (unless (ffi-objc-class-defined c)
+    (setf (ffi-objc-class-defined c) t)
+    (record-global-objc-class c)
+    (ensure-fields-defined (ffi-objc-class-own-ivars c))))
 
 (defun record-global-union (u)
   (when *ffi-global-unions*
     (setf (gethash (ffi-union-reference u) *ffi-global-unions*) u)))
 
-(defun define-union (u)
+(defun define-union-from-ffi-info (u)
   (unless (ffi-union-defined u)
     (setf (ffi-union-defined u) t)
     (record-global-union u)
     (when (ffi-union-name u)
       (let* ((fields (ffi-union-fields u)))
-        (ensure-fields-defined fields)
-	(when *ffi-out*
-	  (format *ffi-out* "~&(ccl::def-foreign-type nil~&")
-	  (let* ((*ffi-indent* (+ *ffi-indent* 2)))
-	    (emit-union u))
-	  (format *ffi-out* ")~&"))))))
+        (ensure-fields-defined fields)))))
 
 (defun ensure-union-defined (u)
   (let* ((name (ffi-union-name u)))
     (if name
-      (define-union u)
+      (define-union-from-ffi-info u)
       (ensure-fields-defined (ffi-union-fields u)))))
-
-(defun emit-struct (s)
-  (when *ffi-out*
-    (format *ffi-out* "~&~vt(:struct ~s " *ffi-indent* (ffi-struct-name s))
-    (emit-fieldlist (ffi-struct-fields s))
-    (format *ffi-out* ")")))
-
-(defun emit-global-struct (s)
-  (when *ffi-db-records*
-    (save-ffi-struct *ffi-db-records* s)))
 
 (defun record-global-struct (s)
   (when *ffi-global-structs*
     (setf (gethash (ffi-struct-reference s) *ffi-global-structs*) s)))
 
-(defun define-struct (s)
+(defun define-struct-from-ffi-info (s)
   (unless (ffi-struct-defined s)
     (setf (ffi-struct-defined s) t)
     (record-global-struct s)
     (when (typep (ffi-struct-name s) 'keyword)
       (let* ((fields (ffi-struct-fields s)))
-        (ensure-fields-defined fields)
-	(when *ffi-out*
-	  (format *ffi-out* "~&(ccl::def-foreign-type nil~&")
-	  (let* ((*ffi-indent* (+ *ffi-indent* 2)))
-	    (emit-struct s))
-	  (format *ffi-out* ")~&"))))))
+        (ensure-fields-defined fields)))))
 
 (defun ensure-struct-defined (s)
   (let* ((name (ffi-struct-name s)))
     (if (typep name 'keyword)
-      (define-struct s)
+      (define-struct-from-ffi-info s)
       (ensure-fields-defined (ffi-struct-fields s)))))
-
-(defun emit-global-typedef (def)
-  (when *ffi-db-types*
-    (save-ffi-typedef *ffi-db-types* def)))
 
 (defun record-global-typedef (def)
   (when *ffi-global-typedefs*
     (setf (gethash (ffi-typedef-string def) *ffi-global-typedefs*) def)))
   
-(defun define-typedef (def)
+(defun define-typedef-from-ffi-info (def)
   (unless (ffi-typedef-defined def)
     (setf (ffi-typedef-defined def) t)
     (record-global-typedef def)
     (let* ((target (ffi-typedef-type def)))
       (unless (and (consp target)
 		   (member (car target) '(:struct :union :primitive)))
-	(ensure-referenced-type-defined target))
-      (when *ffi-out*
-	(format *ffi-out* "~&(ccl::def-foreign-type ~s " (ffi-typedef-name def))
-	(emit-type-reference target)
-	(format *ffi-out* ")~&")))))
+	(ensure-referenced-type-defined target)))))
 
 (defun record-global-constant (name val)
   (when *ffi-global-constants*
     (setf (gethash name *ffi-global-constants*) val)))
-
-(defun emit-global-constant (name val)
-  (when *ffi-db-constants*
-    (db-define-constant *ffi-db-constants* name val)))
       
 (defun emit-ffi-constant (name val)
-  (record-global-constant name val)
-  (when *ffi-out*
-    (format *ffi-out* "~&(cl:defconstant ~a " name)
-    (format *ffi-out*
-	    (typecase val
-	      ((unsigned-byte 15) "~s)~&")
-	      (unsigned-byte "#x~x)~&")
-	      (t "~s)~&"))
-	    val)))
+  (record-global-constant name val))
 
 (defun record-global-var (name type)
   (when *ffi-global-vars*
     (setf (gethash name *ffi-global-vars*) type)))
 
-(defun emit-global-var (name type)
-  (when *ffi-db-vars*
-    (db-define-var *ffi-db-vars* name type)))
-
 (defun emit-ffi-var (name type)
   (record-global-var name type))
-
-
-(defun emit-type-reference (ref)
-  (when *ffi-out*
-    (ecase (car ref)
-      (:primitive (format *ffi-out* "~s" (cadr ref)))
-      (:typedef (format *ffi-out* "~s" (ffi-type-name (cadr ref))))
-      (:struct (let* ((s (cadr ref))
-		      (name (ffi-struct-name s)))
-		 (if (typep name 'keyword)
-		   (format *ffi-out* "(:struct ~s)" name)
-		   (emit-struct s))))
-      (:union (let* ((u (cadr ref))
-		     (name (ffi-union-name u)))
-		(if name
-		  (format *ffi-out* "(:union ~s)" name)
-		  (emit-union u))))
-      (:pointer (let* ((target (cadr ref)))
-		  (if (eq target *ffi-void-reference*)
-		    (format *ffi-out* "(* t)")
-		    (progn
-		      (format *ffi-out* "(* ")
-		      (emit-type-reference target)
-		      (format *ffi-out* ")")))))
-      (:array (format *ffi-out* "(:array ")
-	      (emit-type-reference (caddr ref))
-	      (format *ffi-out* " ~d)" (cadr ref))))
-    (format *ffi-out* " ")))
-  
-(defun emit-ffi-function-name (name-string)
-  (when *ffi-out*
-    (if (some #'upper-case-p name-string)
-      (format *ffi-out* "(~a ~s)" (string-upcase name-string) name-string)
-      (format *ffi-out* "~a" name-string))))
 
 
 (defun ffi-record-type-p (typeref)
@@ -666,10 +621,6 @@
     (setf (gethash (ffi-function-string ffi-function) *ffi-global-functions*)
 	  ffi-function)))
 
-(defun emit-global-function (ffi-function)
-  (when *ffi-db-functions*
-    (save-ffi-function *ffi-db-functions* ffi-function)))
-    
 (defun emit-function-decl (ffi-function)
   (let* ((args (ffi-function-arglist ffi-function))
          (retval (ffi-function-return-value ffi-function)))
@@ -682,20 +633,13 @@
       (setq retval *ffi-void-reference*))
     (dolist (arg args) (ensure-referenced-type-defined arg))
     (ensure-referenced-type-defined retval)
-    (record-global-function ffi-function)
-    (when *ffi-out*
-      (format *ffi-out* "~&(ccl::define-external-function ")
-      (emit-ffi-function-name (ffi-function-string ffi-function))
-      (format *ffi-out* "~&  (")
-      (dolist (arg args (format *ffi-out* ")~&  "))
-	(emit-type-reference arg))
-      (emit-type-reference retval)
-      (format *ffi-out* ")~&"))))
+    (record-global-function ffi-function)))
   
-(defun parse-ffi (inpath outpath &key (package-name))
+(defun parse-ffi (inpath)
   (let* ((*ffi-typedefs* (make-hash-table :test 'string= :hash-function 'sxhash))
          (*ffi-unions* (make-hash-table :test 'string= :hash-function 'sxhash))
          (*ffi-structs* (make-hash-table :test 'string= :hash-function 'sxhash))
+         (*ffi-objc-classes* (make-hash-table :test 'string= :hash-function 'sxhash)) 
          (argument-macros (make-hash-table :test 'equal)))
     (let* ((defined-types ())
            (defined-constants ())
@@ -703,13 +647,15 @@
            (defined-functions ())
            (defined-vars ()))
       (with-open-file (in inpath)
-        (let* ((*ffi-ordinal* -1)
-               (*ffi-prefix* (namestring inpath)))
+        (let* ((*ffi-ordinal* -1))
           (let* ((*package* (find-package "KEYWORD")))
             (do* ((form (read in nil :eof) (read in nil :eof)))
                  ((eq form :eof))
               (case (car form)
                 (:struct (push (process-ffi-struct form) defined-types))
+                (:objc-class (push (process-ffi-objc-class form) defined-types))
+                ((:objc-class-method :objc-instance-method)
+                 (process-ffi-objc-method form))
                 (:function (push (process-ffi-function form) defined-functions))
                 (:macro (let* ((m (process-ffi-macro form))
                                (args (ffi-macro-args m)))
@@ -727,49 +673,20 @@
 	    ;; into lisp macros.  We can probably turn some C macros into
 	    ;; lisp constants.
             (declare (ignore new-macros))
-	    (let* ((*ffi-out* (when outpath
-				(open outpath
-				      :direction :output
-				      :if-exists :supersede
-				      :if-does-not-exist :create))))
-	    
-	      (unwind-protect
-		   (let* ((*print-case* :downcase))
-		     (when *ffi-out*
-		       (format *ffi-out* "~%~%(cl::in-package ~a)~%~%" package-name))
-		     (dolist (x (reverse new-constants))
-		       (emit-ffi-constant (car x) (cdr x)))
-                     (dolist (x defined-vars)
-                       (emit-ffi-var (car x) (cdr x)))
-		     (when *ffi-out*
-		       (terpri *ffi-out*)
-		       (terpri *ffi-out*))
-		     (dolist (x (sort defined-types #'< :key #'ffi-type-ordinal))
-		       (typecase x
-			 (ffi-struct (define-struct x))
-			 (ffi-union (define-union x))
-			 (ffi-typedef (define-typedef x))))
-		     (when *ffi-out*
-		       (terpri *ffi-out*)
-		       (terpri *ffi-out*))
-		     (dolist (f defined-functions) (emit-function-decl f)))
-		(when *ffi-out* (close *ffi-out*))))
-            outpath))))))
-
-(defun lisp-pathname-from-ffi-pathname (ffi-pathname)
-  (let* ((inpath (pathname ffi-pathname))
-         (indir (pathname-directory ffi-pathname))
-         (outdir (remove "C" indir :test #'string=)))
-    (make-pathname :host (pathname-host inpath)
-                   :device (pathname-device inpath)
-                   :directory outdir
-                   :name (pathname-name inpath)
-                   :type "lisp")))
-
+            (dolist (x (reverse new-constants))
+              (emit-ffi-constant (car x) (cdr x)))
+            (dolist (x defined-vars)
+              (emit-ffi-var (car x) (cdr x)))
+            (dolist (x (sort defined-types #'< :key #'ffi-type-ordinal))
+              (typecase x
+                (ffi-struct (define-struct-from-ffi-info x))
+                (ffi-union (define-union-from-ffi-info x))
+                (ffi-typedef (define-typedef-from-ffi-info x))
+                (ffi-objc-class (define-objc-class-from-ffi-info x))))
+            (dolist (f defined-functions) (emit-function-decl f))))))))
 
 (defun parse-standard-ffi-files (dirname &key
 					 (ftd *target-ftd*)
-					 (write-lisp-file nil)
 					 (prepend-underscores
 					  #+(or darwinppc-target) t
 					  #-(or darwinppc-target) nil))
@@ -779,10 +696,11 @@
 			 (interface-dir-subdir d)
 			 (ftd-interface-db-directory ftd)))
 	 (*prepend-underscores-to-ffi-function-names* prepend-underscores)
-	 (package-name (ftd-interface-package-name ftd))
 	 (*ffi-global-typedefs* (make-hash-table :test 'string= :hash-function 'sxhash))
 	 (*ffi-global-unions* (make-hash-table :test 'string= :hash-function 'sxhash))
 	 (*ffi-global-structs* (make-hash-table :test 'string= :hash-function 'sxhash))
+         (*ffi-global-objc-classes* (make-hash-table :test 'string= :hash-function 'sxhash))
+         (*ffi-global-objc-messages* (make-hash-table :test 'string= :hash-function 'sxhash)) 
 	 (*ffi-global-functions* (make-hash-table :test 'string= :hash-function 'sxhash))
 	 (*ffi-global-constants* (make-hash-table :test 'string= :hash-function 'sxhash))
          (*ffi-global-vars* (make-hash-table :test 'string= :hash-function 'sxhash)))
@@ -790,47 +708,59 @@
     (dolist (f (directory (merge-pathnames ";C;**;*.ffi"
 					   interface-dir)))
       (format t "~&~s ..." f)
-      (format t " ~s" (parse-ffi f
-				 (if write-lisp-file
-				   (lisp-pathname-from-ffi-pathname f))
-				 :package-name package-name )))
-    (with-new-db-file (*ffi-db-constants* (merge-pathnames
-					   "new-constants.cdb"
-					   interface-dir))
+      (parse-ffi f )
+      (format t "~&"))
+    (with-new-db-file (constants-cdbm (merge-pathnames
+                                       "new-constants.cdb"
+                                       interface-dir))
       (maphash #'(lambda (name def)
-		   (emit-global-constant name def))
+                   (db-define-constant constants-cdbm name def))
 	       *ffi-global-constants*))
-    (with-new-db-file (*ffi-db-types* (merge-pathnames
+    (with-new-db-file (types-cdbm (merge-pathnames
 				       "new-types.cdb"
 				       interface-dir))
       (maphash #'(lambda (name def)
 		   (declare (ignore name))
-		   (emit-global-typedef def))
+		   (save-ffi-typedef types-cdbm def))
 	       *ffi-global-typedefs*))
-    (with-new-db-file (*ffi-db-records* (merge-pathnames
-					 "new-records.cdb"
-					 interface-dir))
+    (with-new-db-file (records-cdbm (merge-pathnames
+                                     "new-records.cdb"
+                                     interface-dir))
       (maphash #'(lambda (name def)
 		   (declare (ignore name))
-		   (emit-global-union def))
+                   (save-ffi-union records-cdbm def))
 	       *ffi-global-unions*)
       (maphash #'(lambda (name def)
 		   (declare (ignore name))
-		   (emit-global-struct def))
+		   (save-ffi-struct records-cdbm def))
 	       *ffi-global-structs*))
-    (with-new-db-file (*ffi-db-functions* (merge-pathnames
+    (with-new-db-file (function-cdbm (merge-pathnames
 					   "new-functions.cdb"
 					   interface-dir))
       (maphash #'(lambda (name def)
 		   (declare (ignore name))
-		   (emit-global-function def))
+		   (save-ffi-function function-cdbm def))
 	       *ffi-global-functions*))
-    (with-new-db-file (*ffi-db-vars* (merge-pathnames
-                                      "new-vars.cdb"
-                                      interface-dir))
+    (with-new-db-file (class-cdbm (merge-pathnames
+                                   "new-objc-classes.cdb"
+                                   interface-dir))
+      (maphash #'(lambda (name def)
+                   (declare (ignore name))
+                   (save-ffi-objc-class class-cdbm def))
+               *ffi-global-objc-classes*))
+    (with-new-db-file (vars-cdbm (merge-pathnames
+                             "new-vars.cdb"
+                             interface-dir))
       (maphash #'(lambda (name type)
-                   (emit-global-var name type))
+                   (db-define-var vars-cdbm name type))
                *ffi-global-vars*))
+    (with-new-db-file (methods-cdbm  (merge-pathnames
+                                      "new-objc-methods.cdb"
+                                      interface-dir))
+      (maphash #'(lambda (name message)
+                   (declare (ignore name))
+                   (save-ffi-objc-message methods-cdbm message))
+               *ffi-global-objc-messages*))
     (install-new-db-files ftd d)))
 
 (defvar *c-readtable* (copy-readtable nil))
@@ -1116,7 +1046,6 @@
                             (second macro) stream macros-not-to-expand macro-table))
     else collect token))
 
-;;; We -could-
 (defun parse-c-expression (token-list &key  constants additional-constants 
                                           expand-macros)
   (labels ((next ()
@@ -1419,10 +1348,21 @@
 	      (interface-dir-types-interface-db-file d)
 	      "types.cdb"
 	      "new-types.cdb"))
-              (setf (interface-dir-types-interface-db-file d)
+       (setf (interface-dir-vars-interface-db-file d)
 	     (rename-and-reopen
-	      (interface-dir-types-interface-db-file d)
+	      (interface-dir-vars-interface-db-file d)
 	      "vars.cdb"
-	      "new-vars.cdb")))))
+	      "new-vars.cdb"))
+       (setf (interface-dir-objc-classes-interface-db-file d)
+	     (rename-and-reopen
+	      (interface-dir-objc-classes-interface-db-file d)
+	      "objc-classes.cdb"
+	      "new-objc-classes.cdb"))
+       (setf (interface-dir-objc-methods-interface-db-file d)
+	     (rename-and-reopen
+	      (interface-dir-objc-methods-interface-db-file d)
+	      "objc-methods.cdb"
+	      "new-objc-methods.cdb")))))
   t)
-   
+
+
