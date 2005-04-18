@@ -1,3 +1,75 @@
+2005-04-18 00:48  gb
+
+	* examples/bridge.lisp: Fix typo: "dictionaryWithObjectsAndKeys:".
+
+2005-04-18 00:47  gb
+
+	* lib/db-io.lisp, lib/foreign-types.lisp, library/parse-ffi.lisp:
+	Support for ObjC class info, method info in interface files.
+
+2005-04-18 00:46  gb
+
+	* lib/ccl-export-syms.lisp: Export CURRENT-DIRECTORY; drop
+	COMPILE-LOAD.
+
+2005-04-18 00:44  gb
+
+	* level-1/version.lisp: Bump, yet again.
+
+2005-04-18 00:44  gb
+
+	* level-1/linux-files.lisp: Implement CURRENT-DIRECTORY and (SETF
+	CURRENT-DIRECTORY).
+
+2005-04-18 00:44  gb
+
+	* level-1/l1-readloop-lds.lisp: Some toplevel commands for
+	getting/setting the current directory.
+
+2005-04-18 00:43  gb
+
+	* level-1/l1-typesys.lisp: %DEFTYPE clears the type cache.
+
+2005-04-18 00:43  gb
+
+	* level-1/l1-files.lisp: Remove COMPILE-LOAD, which doesn't offer
+	much functionality beyond that offered by (compile ... :load t),
+	does it ?
+
+2005-04-18 00:41  gb
+
+	* level-0/l0-error.lisp: Say "FASL", not "PFSL" in error messages.
+
+2005-04-18 00:41  gb
+
+	* darwin-headers/libc/C/populate.sh: Use more recent headers
+	(current Panther headers.)
+
+2005-04-18 00:40  gb
+
+	* darwin-headers/gl/C/populate.sh: Process agl.h as well.
+
+2005-04-18 00:38  gb
+
+	* darwin-headers/: gl/C/.cvsignore, quicktime/C/.cvsignore,
+	quicktime/C/populate.sh: New file.
+
+2005-04-18 00:38  gb
+
+	* darwin-headers/: carbon/.cvsignore, cocoa/.cvsignore,
+	gl/.cvsignore, libc/.cvsignore: Ignore *.cdb-BAK as well.
+
+2005-04-18 00:36  gb
+
+	* darwin-headers/: carbon/C/.cvsignore, chud/.cvsignore,
+	chud/C/.cvsignore, chud/C/populate.sh, cocoa/C/.cvsignore,
+	libc/C/.cvsignore, quicktime/.cvsignore: New files.
+
+2005-04-18 00:26  gb
+
+	* compiler/optimizers.lisp: Handle the 2-argument case of
+	case-sensitive character comparison functions.
+
 2005-04-17 19:29  alex
 
 	* examples/objc-clos.lisp: 
