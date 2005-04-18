@@ -27,10 +27,13 @@
 (def-accessor-macros %svref
   pfe.routine-descriptor
   pfe.proc-info
-  pfe.lisp-function)
+  pfe.lisp-function
+  pfe.sym
+  pfe.without-interrupts
+  pfe.trace-p)
 
 (defun %cons-pfe (routine-descriptor proc-info lisp-function sym without-interrupts)
-  (vector routine-descriptor proc-info lisp-function sym without-interrupts))
+  (vector routine-descriptor proc-info lisp-function sym without-interrupts nil))
 
 ; (defcallback ...) on the PPC expands into a call to this function.
 (defun define-callback-function (lisp-function  &optional doc-string (without-interrupts t) monitor-exception-ports
@@ -87,15 +90,17 @@
   (with-lock-grabbed (*callback-lock*)
     (let* ((pfe (svref %pascal-functions% index)))
       (values (pfe.lisp-function pfe)
-              (pfe.without-interrupts pfe)))))
+              (pfe.without-interrupts pfe)
+	      (pfe.trace-p pfe)))))
 
 
 ;; The kernel only really knows how to call back to one function,
 ;; and you're looking at it ...
 (defun %pascal-functions% (index args-ptr-fixnum)
   (declare (optimize (speed 3) (safety 0)))
-  (multiple-value-bind (lisp-function without-interrupts)
+  (multiple-value-bind (lisp-function without-interrupts *callback-trace-p*)
       (%lookup-pascal-function index)
+    (declare (special *callback-trace-p*))
     (if without-interrupts
-      (without-interrupts (funcall lisp-function args-ptr-fixnum))
+	(without-interrupts (funcall lisp-function args-ptr-fixnum))
       (funcall lisp-function args-ptr-fixnum))))
