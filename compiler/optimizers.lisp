@@ -65,7 +65,7 @@
 ; There's a bit somewhere.
 ;This is very partial.  Should be a bit somewhere, there are too many of these
 ;to keep on a list.
-(can-constant-fold '(specfier-type %ilsl %ilsr 1- 1+
+(can-constant-fold '(specfier-type %ilsl %ilsr 1- 1+ eql eq
                      byte make-point - / (+ . fold-constant-subforms) (* . fold-constant-subforms) ash character
                      char-code code-char lsh
                      (logior . fold-constant-subforms) (logand . fold-constant-subforms)
@@ -1553,6 +1553,50 @@
     `(progn
       ,size
       (%inc-ptr ,pointer ,offset))))
+
+
+(define-compiler-macro char= (&whole call ch &optional (other nil other-p) &rest others)
+  (if (null others)
+    (if other-p
+      `(eq (char-code ,ch) (char-code ,other))
+      `(progn (char-code ,ch) t))
+    call))
+
+(define-compiler-macro char/= (&whole call ch &optional (other nil other-p) &rest others)
+  (if (null others)
+    (if other-p
+      `(not (eq (char-code ,ch) (char-code ,other)))
+      `(progn (char-code ,ch) t))
+    call))
+
+
+(define-compiler-macro char< (&whole call ch &optional (other nil other-p) &rest others)
+  (if (null others)
+    (if other-p
+      `(< (the fixnum (char-code ,ch)) (the fixnum (char-code ,other)))
+      `(progn (char-code ,ch) t))
+    call))
+
+(define-compiler-macro char<= (&whole call ch &optional (other nil other-p) &rest others)
+  (if (null others)
+    (if other-p
+      `(<= (the fixnum (char-code ,ch)) (the fixnum (char-code ,other)))
+      `(progn (char-code ,ch) t))
+    call))
+
+(define-compiler-macro char> (&whole call ch &optional (other nil other-p) &rest others)
+  (if (null others)
+    (if other-p
+      `(> (the fixnum (char-code ,ch)) (the fixnum (char-code ,other)))
+      `(progn (char-code ,ch) t))
+    call))
+
+(define-compiler-macro char>= (&whole call ch &optional (other nil other-p) &rest others)
+  (if (null others)
+    (if other-p
+      `(>= (the fixnum (char-code ,ch)) (the fixnum (char-code ,other)))
+      `(progn (char-code ,ch) t))
+    call))
 
 (provide "OPTIMIZERS")
 
