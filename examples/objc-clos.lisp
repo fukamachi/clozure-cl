@@ -186,15 +186,25 @@
       (#.objc-flag-metaclass (id->objc-metaclass-wrapper index)))))
 
 (defun %objc-domain-slots-vector (p)
-  (let* ((type (%macptr-type p))
-	 (flags (ldb objc-type-flags type))
-	 (index (ldb objc-type-index type)))
-    (declare (fixnum type flags index))
-    (ecase flags
-      (#.objc-flag-instance (or (gethash p *objc-object-slot-vectors*)
-                                (error "~s has no slots." p)))
-      (#.objc-flag-class (id->objc-class-slots-vector index))
-      (#.objc-flag-metaclass (id->objc-metaclass-slots-vector index)))))
+       (let* ((type (%macptr-type p))
+             (flags (ldb objc-type-flags type))
+             (index (ldb objc-type-index type)))
+        (declare (fixnum type flags index))
+        (ecase flags
+          (#.objc-flag-instance (or (gethash p *objc-object-slot-vectors*)
+                                    ; try to allocate the slot vector on demand
+                                    (let* ((raw-ptr (raw-macptr-for-instance p))
+                                           (slot-vector (create-foreign-instance-slot-vector (class-of 
+p))))
+                                      (when slot-vector
+                                        (setf (slot-vector.instance slot-vector) raw-ptr)
+                                        (setf (gethash raw-ptr *objc-object-slot-vectors*) slot-vector)
+					(register-canonical-objc-instance p raw-ptr)
+					(initialize-instance p))
+                                      slot-vector)
+                                    (error "~s has no slots." p)))
+          (#.objc-flag-class (id->objc-class-slots-vector index))
+          (#.objc-flag-metaclass (id->objc-metaclass-slots-vector index)))))
 	  
 (defloadvar *objc-object-domain*
     (register-foreign-object-domain :objc
