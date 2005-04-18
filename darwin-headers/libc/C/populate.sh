@@ -15,20 +15,16 @@ h-to-ffi.sh /usr/include/ctype.h
 h-to-ffi.sh /usr/include/curl/curl.h
 h-to-ffi.sh /usr/include/curses.h
 h-to-ffi.sh /usr/include/db.h
-h-to-ffi.sh /usr/include/dev/disk.h
-h-to-ffi.sh /usr/include/dev/disk_label.h
 h-to-ffi.sh /System/Library/Frameworks/IOKit.framework/Headers/hidsystem/ev_keymap.h
 h-to-ffi.sh /System/Library/Frameworks/IOKit.framework/Headers/hidsystem/IOHIDTypes.h
 h-to-ffi.sh /System/Library/Frameworks/IOKit.framework/Headers/hidsystem/IOLLEvent.h
-#h-to-ffi.sh /usr/include/dev/EventShmemLock.h
 h-to-ffi.sh /System/Library/Frameworks/IOKit.framework/Headers/hidsystem/IOHIDShared.h
-#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/dev/random/randomdev.h
+h-to-ffi.sh /System/Library/Frameworks/IOKit.framework/Headers/hidsystem/event_status_driver.h
 h-to-ffi.sh /usr/include/device/device_port.h
 h-to-ffi.sh /usr/include/device/device_types.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/dirent.h
 h-to-ffi.sh /usr/include/disktab.h
 h-to-ffi.sh /usr/include/DNSServiceDiscovery/DNSServiceDiscovery.h
-h-to-ffi.sh /usr/include/drivers/event_status_driver.h
 h-to-ffi.sh /usr/include/err.h
 h-to-ffi.sh /usr/include/errno.h
 h-to-ffi.sh /usr/include/eti.h
@@ -48,7 +44,7 @@ h-to-ffi.sh -include /usr/include/gssapi/gssapi.h /usr/include/gssapi/gssapi_krb
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/hfs/hfs_format.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/hfs/hfs_mount.h
 h-to-ffi.sh /usr/include/histedit.h
-#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/httpd/httpd.h
+#h-to-ffi.sh /usr/include/httpd/httpd.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/ifaddrs.h
 h-to-ffi.sh /usr/include/inttypes.h
 h-to-ffi.sh /usr/include/iodbcinst.h
@@ -137,7 +133,7 @@ h-to-ffi.sh /usr/include/mach/vm_attributes.h
 h-to-ffi.sh /usr/include/mach/vm_behavior.h
 h-to-ffi.sh /usr/include/mach/vm_inherit.h
 h-to-ffi.sh /usr/include/mach/vm_map.h
-#h-to-ffi.sh /usr/include/mach/vm_param.h
+h-to-ffi.sh /usr/include/mach/machine/vm_param.h
 h-to-ffi.sh /usr/include/mach/vm_prot.h
 h-to-ffi.sh -include /usr/include/mach/mach_types.h /usr/include/mach/vm_region.h
 h-to-ffi.sh /usr/include/mach/vm_statistics.h
@@ -145,8 +141,8 @@ h-to-ffi.sh /usr/include/mach/vm_sync.h
 h-to-ffi.sh /usr/include/mach/vm_task.h
 h-to-ffi.sh /usr/include/mach/vm_types.h
 h-to-ffi.sh /usr/include/mach-o/arch.h
-h-to-ffi.sh /usr/include/mach-o/dyld.h
-h-to-ffi.sh /usr/include/mach-o/dyld_debug.h
+h-to-ffi.sh -D__private_extern__=extern /usr/include/mach-o/dyld.h
+h-to-ffi.sh -D__private_extern__=extern /usr/include/mach-o/dyld_debug.h
 h-to-ffi.sh /usr/include/mach-o/fat.h
 h-to-ffi.sh /usr/include/mach-o/getsect.h
 h-to-ffi.sh /usr/include/mach-o/ldsyms.h
@@ -163,40 +159,25 @@ h-to-ffi.sh /usr/include/mach_debug/mach_debug_types.h
 h-to-ffi.sh /usr/include/mach_debug/page_info.h
 h-to-ffi.sh /usr/include/mach_debug/vm_info.h
 h-to-ffi.sh /usr/include/mach_debug/zone_info.h
+h-to-ffi.sh /usr/include/malloc/malloc.h
 h-to-ffi.sh /usr/include/math.h
 h-to-ffi.sh /usr/include/memory.h
-#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/miscfs/devfs/devfs.h
-#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/miscfs/devfs/devfs_proto.h
-#h-to-ffi.sh -include /usr/include/sys/types.h  /usr/include/miscfs/devfs/devfsdefs.h
-#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/miscfs/fdesc/fdesc.h
-#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/miscfs/specfs/specdev.h
-#h-to-ffi.sh -include /usr/include/sys/types.h/usr/include/miscfs/union/union.h
 h-to-ffi.sh /usr/include/monitor.h
-#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/mpool.h
-h-to-ffi.sh /usr/include/mysql/mysql.h
 h-to-ffi.sh /usr/include/nameser.h
 h-to-ffi.sh /usr/include/ncurses_dll.h
 h-to-ffi.sh /usr/include/ndbm.h
 h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/time.h /usr/include/net/bpf.h
-#h-to-ffi.sh /usr/include/net/dlil.h
-#h-to-ffi.sh /usr/include/net/dlil_pvt.h
-#h-to-ffi.sh /usr/include/net/etherdefs.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/net/ethernet.h
 h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/socket.h /usr/include/net/if.h
 h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/socket.h /usr/include/net/if_arp.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/net/if_dl.h
-#h-to-ffi.sh /usr/include/net/if_gif.h
 h-to-ffi.sh -include /usr/include/sys/types.h  /usr/include/net/if_llc.h
 h-to-ffi.sh /usr/include/net/if_media.h
-#h-to-ffi.sh /usr/include/net/if_mib.h
 h-to-ffi.sh /usr/include/net/if_types.h
-#h-to-ffi.sh /usr/include/net/if_var.h
-#h-to-ffi.sh /usr/include/net/if_vlan_var.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/net/kext_net.h
-#h-to-ffi.sh /usr/include/net/ndrv.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/net/pfkeyv2.h
 h-to-ffi.sh -include /usr/include/sys/types.h  /usr/include/net/radix.h
-#h-to-ffi.sh /usr/include/net/route.h
+#h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/net/route.h
 #h-to-ffi.sh /usr/include/net/slcompress.h
 #h-to-ffi.sh /usr/include/net/slip.h
 #h-to-ffi.sh /usr/include/netat/adsp.h
@@ -348,7 +329,6 @@ h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/nfs/rpcv2.h
 h-to-ffi.sh /usr/include/nfs/xdr_subs.h
 h-to-ffi.sh /usr/include/nlist.h
 h-to-ffi.sh /usr/include/NSSystemDirectories.h
-h-to-ffi.sh /usr/include/objc/malloc.h
 h-to-ffi.sh /usr/include/objc/objc-load.h
 h-to-ffi.sh /usr/include/objc/objc-runtime.h
 h-to-ffi.sh /usr/include/objc/objc.h
@@ -370,13 +350,11 @@ h-to-ffi.sh /usr/include/openssl/des.h
 h-to-ffi.sh /usr/include/openssl/dh.h
 h-to-ffi.sh /usr/include/openssl/dsa.h
 h-to-ffi.sh /usr/include/openssl/dso.h
-h-to-ffi.sh /usr/include/openssl/e_os.h
 h-to-ffi.sh /usr/include/openssl/e_os2.h
 h-to-ffi.sh /usr/include/openssl/ebcdic.h
 h-to-ffi.sh /usr/include/openssl/err.h
 h-to-ffi.sh /usr/include/openssl/evp.h
 h-to-ffi.sh /usr/include/openssl/hmac.h
-h-to-ffi.sh /usr/include/openssl/idea.h
 h-to-ffi.sh /usr/include/openssl/lhash.h
 h-to-ffi.sh /usr/include/openssl/md2.h
 h-to-ffi.sh /usr/include/openssl/md4.h
@@ -504,10 +482,11 @@ h-to-ffi.sh /usr/include/sys/attr.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/sys/buf.h
 h-to-ffi.sh /usr/include/sys/callout.h
 h-to-ffi.sh /usr/include/sys/cdefs.h
-#h-to-ffi.sh /usr/include/sys/clist.h
+h-to-ffi.sh /usr/include/sys/clist.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/sys/conf.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/sys/dir.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/sys/dirent.h
+h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/sys/disk.h
 h-to-ffi.sh -include /usr/include/sys/types.h  /usr/include/sys/disklabel.h
 h-to-ffi.sh /usr/include/sys/disktab.h
 h-to-ffi.sh /usr/include/sys/dkstat.h
@@ -594,7 +573,6 @@ h-to-ffi.sh /usr/include/sys/ux_exception.h
 h-to-ffi.sh /usr/include/sys/vadvise.h
 h-to-ffi.sh /usr/include/sys/vcmd.h
 h-to-ffi.sh /usr/include/sys/version.h
-h-to-ffi.sh /usr/include/sys/vlimit.h
 h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/time.h -include /usr/include/sys/vmparam.h /usr/include/sys/vm.h
 h-to-ffi.sh -include /usr/include/sys/types.h /usr/include/sys/vmmeter.h
 h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/time.h /usr/include/sys/vmparam.h
