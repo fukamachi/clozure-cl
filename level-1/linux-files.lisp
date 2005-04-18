@@ -98,6 +98,13 @@
 	  string))))
 
 
+(defun current-directory ()
+  (mac-default-directory))
+
+(defun (setf current-directory) (path)
+  (cwd path)
+  path)
+
 (defun %chdir (dirname)
   (with-cstrs ((dirname dirname))
     (syscall os::chdir dirname)))
