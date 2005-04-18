@@ -714,7 +714,7 @@
 (define-variable-arity-message "arrayWithObjects:")
 (define-variable-arity-message "encodeValuesOfObjCTypes:")
 (define-variable-arity-message "decodeValuesOfObjCTypes:")
-(define-variable-arity-message "dictinaryWithObjectsAndKeys:")
+(define-variable-arity-message "dictionaryWithObjectsAndKeys:")
 (define-variable-arity-message 
   "handleFailureInFunction:object:file:lineNumber:description:")
 (define-variable-arity-message 
