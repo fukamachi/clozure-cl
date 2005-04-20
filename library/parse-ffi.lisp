@@ -393,12 +393,13 @@
     (dolist (field fields (nreverse parsed-fields))
       (let* ((field-name (escape-foreign-name (car field)))
              (field-descr (cadr field)))
-        (push (list field-name
-                    (ecase (car field-descr)
-                      (:field (reference-ffi-type (cadr field-descr)))
-                      (:bit-field `(:primitive (:unsigned ,(nth 3 (nth 4 field-descr)))))
-                      (:bitfield `(:primitive (:unsigned ,(car (last field-descr)))))))
-              parsed-fields)))))
+        (destructuring-bind (field-type offset width)
+            (cdr field-descr)
+          (push (cons field-name
+                      (ecase (car field-descr)
+                        (:field `(,(reference-ffi-type field-type) ,(ash offset 3) ,(ash width 3)))
+                        (:bitfield `((:primitive (:unsigned ,width)) ,offset ,width))))
+                parsed-fields))))))
 
 (defun process-ffi-union (form)
   (destructuring-bind (source-info string fields &optional alignform)

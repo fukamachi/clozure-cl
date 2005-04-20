@@ -814,8 +814,8 @@
       (let* ((p 0)
              (nmethods 0)
              (nargs 0))
-        (multiple-value-setq (nmethods p) (%decode-u32 buf p))
-        (multiple-value-setq (nargs p) (%decode-u32 buf p))
+        (multiple-value-setq (nmethods p) (%decode-uint buf p))
+        (multiple-value-setq (nargs p) (%decode-uint buf p))
         (dotimes (i nmethods)
           (let* ((is-class-method (not (= 0 (prog1
                                                 (%get-unsigned-byte buf p)
@@ -971,7 +971,9 @@
   (defconstant encoded-type-named-type-ref 15) ; <name>
   (defconstant encoded-type-anon-struct-ref 16) ; <tag>
   (defconstant encoded-type-anon-union-ref 17) ; <tag>
+  (defconstant encoded-type-bitfield-marker 18) ; <nbits>
   )
+
 
 (defconstant encoded-type-type-byte (byte 5 0))
 (defconstant encoded-type-align-byte (byte 3 5)
@@ -992,14 +994,18 @@
       (cons length (map 'list #'char-code string)))))
 
 (defun encode-ffi-field (field)
-  `(,@(encode-name (car field)) ,@(encode-ffi-type (cadr field))))
+  (destructuring-bind (name type offset width) field
+  `(,@(encode-name name)
+    ,@(encode-ffi-type type)
+    ,@(encode-uint offset)
+    ,@(encode-uint width))))
 
 (defun encode-ffi-field-list (fields)
   (let* ((len (length fields)))
     (labels ((encode-fields (fields)
                (if fields
                  `(,@(encode-ffi-field (car fields)) ,@(encode-fields (cdr fields))))))
-      `(,len ,@(encode-fields fields)))))
+      `(,@(encode-uint len) ,@(encode-fields fields)))))
 
 (defun encode-ffi-union (u)
   (let* ((name (ffi-union-name u))
@@ -1051,8 +1057,8 @@
                (superclass-name ())
                (template-name ())
                (ivars ()))
-          (multiple-value-setq (class-name p) (%decode-name buf p))
-          (multiple-value-setq (superclass-name p) (%decode-name buf p))
+          (multiple-value-setq (class-name p) (%decode-name buf p t))
+          (multiple-value-setq (superclass-name p) (%decode-name buf p t))
           (multiple-value-setq (template-name p) (%decode-name buf p))
           (setq ivars (%decode-field-list buf p))
 	  (cdb-free (pref datum :cdb-datum.data))
@@ -1081,6 +1087,16 @@
     ,(ldb (byte 8 8) val)
     ,(ldb (byte 8 0) val)))
 
+(defun encode-uint (val)
+  (collect ((bytes))
+    (do* ((b (ldb (byte 7 0) val) (ldb (byte 7 0) val))
+          (done nil))
+         (done (bytes))
+      (when (zerop (setq val (ash val -7)))
+        (setq b (logior #x80 b) done t))
+      (bytes b))))
+
+    
 
 (defun encode-ffi-type (spec)
   (case (car spec)
@@ -1141,7 +1157,7 @@
                                      '(:primitive :void)
                                      (cadr spec)))))
      (:array
-      `(,encoded-type-array ,@(encode-u32 (cadr spec)) ,@(encode-ffi-type (caddr spec))))
+      `(,encoded-type-array ,@(encode-uint (cadr spec)) ,@(encode-ffi-type (caddr spec))))
      (t
       (break "Type spec = ~s" spec))))
 
@@ -1235,8 +1251,8 @@
                    ,@(encode-objc-method-list (cdr ml))))))
       (db-write-byte-list cdbm
                           (ffi-objc-message-string message)
-                          `(,@(encode-u32 nmethods)
-                            ,@(encode-u32 nargs)
+                          `(,@(encode-uint nmethods)
+                            ,@(encode-uint nargs)
                             ,@(encode-objc-method-list methods))
                           t))))
   
@@ -1392,6 +1408,16 @@
              (byte 8 8)
              (%get-unsigned-byte buf (+ p 3)))))
           (+ p 4)))
+
+(defun %decode-uint (buf p)
+  (do* ((val 0)
+        (p p (1+ p))
+        (shift 0 (+ shift 7))
+        (done nil))
+       (done (values val p))
+    (let* ((b (%get-unsigned-byte buf p)))
+      (setq done (logbitp 7 b) val (logior val (ash (logand b #x7f) shift))))))
+       
   
 ;; Should return a FOREIGN-TYPE structure.
 (defun %decode-type (buf p)
@@ -1423,7 +1449,7 @@
                                   (values (make-foreign-pointer-type :to target)
                                           qq)))
       (#.encoded-type-array
-       (multiple-value-bind (size qq) (%decode-u32 buf q)
+       (multiple-value-bind (size qq) (%decode-uint buf q)
          (multiple-value-bind (target qqq) (%decode-type buf qq)
            (let* ((type-alignment (foreign-type-alignment target))
                   (type-bits (foreign-type-bits target)))
@@ -1484,15 +1510,21 @@
 
 (defun %decode-field (buf p)
   (declare (type macptr buf) (fixnum p))
-  (multiple-value-bind (name q) (%decode-name buf p)
-    (multiple-value-bind (type r) (%decode-type buf q)
-      (values (make-foreign-record-field :type type :name name) r))))
+  (multiple-value-bind (name p) (%decode-name buf p)
+    (multiple-value-bind (type p) (%decode-type buf p)
+      (multiple-value-bind (offset p) (%decode-uint buf p)
+        (multiple-value-bind (width p) (%decode-uint buf p)
+          (values (make-foreign-record-field :type type
+                                             :name name
+                                             :bits width
+                                             :offset offset)
+                  p))))))
 
 (defun %decode-field-list (buf p)
   (declare (type macptr buf) (fixnum p))
-  (let* ((n (%get-unsigned-byte buf p))
+  (let* ((n nil)
          (fields nil))
-    (incf p)
+    (multiple-value-setq (n p) (%decode-uint buf p))
     (dotimes (i n (values (nreverse fields) p))
       (multiple-value-bind (field q) (%decode-field buf p)
         (push field fields)
