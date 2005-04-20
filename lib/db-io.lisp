@@ -177,7 +177,8 @@
   (let* ((fid (fid-open-output pathname))
 	 (cdbm (make-cdbm :fid fid :pathname pathname))
 	 (final (cdbm-final cdbm)))
-    ;;; Write the (empty) final table to the start of the file.
+    ;;; Write the (empty) final table to the start of the file.  Twice.
+    (fid-write-u32-vector fid final (length final) 0)
     (fid-write-u32-vector fid final (length final) 0)
     cdbm))
 
@@ -289,7 +290,7 @@
 	    (fid-write-u32 fid (hp-h hash u))
 	    (fid-write-u32 fid (hp-p hash u))
 	    (incf pos 8))))
-      (fid-seek fid 0)
+      (fid-seek fid (* 256 2 4)) ; skip the empty "final" table, write the new one
       (let* ((final (cdbm-final cdbm)))
 	(fid-write-u32-vector fid final (length final) 0))
       (fid-close fid)
@@ -313,7 +314,7 @@
 ;;; of data (or NIL if no matching key.)
 (defun %cdb-seek (fid key keylen)
   (let* ((hash (cdb-hash key keylen)))
-    (fid-seek fid (* 8 (logand hash 255)))
+    (fid-seek fid (+ (* 256 2 4) (* 8 (logand hash 255))))
     (let* ((pos (fid-read-u32 fid))
 	   (lenhash (fid-read-u32 fid)))
       (unless (zerop lenhash)
