@@ -41,6 +41,8 @@
 	      (data (* t))
 	      (size :unsigned-long))))
 
+(defparameter *interface-abi-version* 1)
+
 (defun cdb-hash (buf len)
     (declare (fixnum len))
     (let* ((h 5381))
@@ -110,6 +112,11 @@
   (defun fid-pos (fid)
     (fd-tell fid))
 
+  ;;; Return the current size of the file referenced by FID, in
+  ;;; octets.
+  (defun fid-size (fid)
+    (fd-size fid))
+  
   ;;; Seek to specified position (relative to file start.)
   (defun fid-seek (fid pos)
     (fd-lseek fid pos #$SEEK_SET))
@@ -290,12 +297,20 @@
 	    (fid-write-u32 fid (hp-h hash u))
 	    (fid-write-u32 fid (hp-p hash u))
 	    (incf pos 8))))
+      (write-cdbm-trailer cdbm)
       (fid-seek fid (* 256 2 4)) ; skip the empty "final" table, write the new one
       (let* ((final (cdbm-final cdbm)))
 	(fid-write-u32-vector fid final (length final) 0))
       (fid-close fid)
       (setf (cdbm-fid cdbm) nil))))
 
+(defun write-cdbm-trailer (cdbm)
+  (let* ((string (format nil "~s ~s ~d" "OpenMCL Interface File" (backend-name *target-backend*) *interface-abi-version*)))
+    (%stack-block ((buf 512))
+      (%copy-ivector-to-ptr string 0 buf 0 (length string))
+      (fid-write (cdbm-fid cdbm) buf 512))))
+
+      
 ;;; A CDB is used to access a database.
 (defstruct (cdb (:include cdbx))
   (lock (make-lock)))
@@ -356,10 +371,35 @@
 
 (defun cdb-open (pathname)
   (if (probe-file pathname)
-    (make-cdb :fid (fid-open-input (cdb-native-namestring pathname))
-              :pathname (namestring pathname))
+    (let* ((cdb (make-cdb :fid (fid-open-input (cdb-native-namestring pathname))
+                          :pathname (namestring pathname))))
+      (cdb-check-trailer cdb))
     (warn "Interface file ~s does not exist." pathname)))
 
+(defun cdb-check-trailer (cdb)
+  (flet ((error-with-cdb (string &rest args)
+           (error "Error in interface file at ~s: ~a"
+                  (cdb-pathname cdb) (apply string args))))
+    (let* ((fid (cdb-fid cdb)))
+      (fid-seek fid (- (fid-size fid) 512))
+      (%stack-block ((buf 512))
+        (fid-read fid buf 512)
+        (let* ((string (make-string 512)))
+          (%copy-ptr-to-ivector buf 0 string 0 512)
+          (with-input-from-string (s string)
+            (let* ((sig (ignore-errors (read s)))
+                   (target (ignore-errors (read s)))
+                   (version (ignore-errors (read s))))
+              (if (equal sig "OpenMCL Interface File")
+                (if (eq target (backend-name *target-backend*))
+                  (if (eql version *interface-abi-version*)
+                    cdb
+                    (error-with-cdb "Wrong interface ABI version."))
+                  (error-with-cdb "Wrong target."))
+                (error-with-cdb "Missing interface file signature.  Obsolete version?")))))))))
+
+                  
+    
 (defun cdb-close (cdb)
   (let* ((fid (cdb-fid cdb)))
     (setf (cdb-fid cdb) nil)
