@@ -1,3 +1,36 @@
+2005-04-20 00:53  gb
+
+	* lib/db-io.lisp, library/parse-ffi.lisp: Changes to how some
+	things are encoded in .cdb files; field offsets and widths are now
+	provided explicitly.  This will require new .cdb files and is a
+	little hard to bootstrap ...
+
+2005-04-20 00:50  gb
+
+	* level-1/l1-reader.lisp: Bryan's change to allow potential numbers
+	with package prefixes to be treated as symbols.
+
+2005-04-20 00:49  gb
+
+	* headers/libc/C/populate.sh: Updated, a bit.
+
+2005-04-20 00:48  gb
+
+	* headers/gnome/C/populate.sh: Assume new-style location for
+	gnome.h
+
+2005-04-20 00:47  gb
+
+	* headers/: gl/.cvsignore, gnome/.cvsignore, gtk/.cvsignore,
+	libc/.cvsignore: Ignore backup .cdb files.
+
+2005-04-20 00:44  gb
+
+	* headers/: gl/C/.cvsignore, gnome/C/.cvsignore, gnome2/.cvsignore,
+	gnome2/C/populate.sh, gnustep/.cvsignore, gnustep/C/populate.sh,
+	gtk/C/.cvsignore, gtk2/C/.cvsignore, gtk2/C/populate.sh,
+	libc/C/.cvsignore, gnustep/C/.cvsignore, gtk2/.cvsignore: New file.
+
 2005-04-18 00:48  gb
 
 	* examples/bridge.lisp: Fix typo: "dictionaryWithObjectsAndKeys:".
