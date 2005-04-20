@@ -595,10 +595,8 @@
               (signal-reader-error stream "Illegal symbol syntax."))
             ; Something other than a buffer full of dots.  Thank god.
             (let* ((num (if (null escapes) (%token-to-number tb (%validate-radix *read-base*)))))
-              (if num
-                (if explicit-package
-                  (%err-disp $XBADSYM)          ; a "potential number" with package qualifier is bad
-                  num)
+              (if (and num (not explicit-package))
+                num
                 (if (and (zerop len) (null escapes))
                   (%err-disp $XBADSYM)
                   (progn                  ; Muck with readtable case of extended token.
