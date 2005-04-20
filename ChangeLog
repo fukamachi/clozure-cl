@@ -1,3 +1,15 @@
+2005-04-20 06:25  gb
+
+	* lib/db-io.lisp: Write trailer on CDB files, check for it.
+
+2005-04-20 06:25  gb
+
+	* level-1/version.lisp: Bump, once again.
+
+2005-04-20 06:24  gb
+
+	* headers/gnome2/C/.cvsignore: New file.
+
 2005-04-20 03:08  gb
 
 	* lib/db-io.lisp: Prepend 2K of NULs to .CDB files, for backward
