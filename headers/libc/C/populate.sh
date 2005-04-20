@@ -1,4 +1,7 @@
 #!/bin/sh
+# Note that it may be necessary to patch <sys/procfs.h>, since
+# it (mis)uses features not supported by GCC 4.0.  See
+# <http://gcc.gnu.org/ml/gcc/2005-01/msg00509.html>
 h-to-ffi.sh /usr/include/_G_config.h
 h-to-ffi.sh /usr/include/a.out.h
 h-to-ffi.sh /usr/include/aio.h
@@ -18,9 +21,9 @@ h-to-ffi.sh /usr/include/complex.h
 h-to-ffi.sh /usr/include/cpio.h
 h-to-ffi.sh /usr/include/crypt.h
 h-to-ffi.sh /usr/include/ctype.h
-h-to-ffi.sh /usr/include/db1/db.h
+#h-to-ffi.sh /usr/include/db1/db.h
 #h-to-ffi.sh /usr/include/db1/mpool.h
-h-to-ffi.sh /usr/include/db1/ndbm.h
+#h-to-ffi.sh /usr/include/db1/ndbm.h
 h-to-ffi.sh /usr/include/dirent.h
 h-to-ffi.sh -D _GNU_SOURCE  /usr/include/dlfcn.h
 h-to-ffi.sh /usr/include/elf.h
@@ -55,7 +58,7 @@ h-to-ffi.sh /usr/include/lastlog.h
 h-to-ffi.sh /usr/include/libgen.h
 h-to-ffi.sh /usr/include/libintl.h
 h-to-ffi.sh /usr/include/libio.h
-h-to-ffi.sh /usr/include/limits.h
+#h-to-ffi.sh /usr/include/limits.h
 h-to-ffi.sh /usr/include/link.h
 h-to-ffi.sh /usr/include/locale.h
 h-to-ffi.sh /usr/include/malloc.h
@@ -100,7 +103,7 @@ h-to-ffi.sh /usr/include/nl_types.h
 h-to-ffi.sh /usr/include/nss.h
 h-to-ffi.sh /usr/include/obstack.h
 h-to-ffi.sh /usr/include/paths.h
-h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/time.h  -include /usr/include/stdio.h -include /usr/include/net/bpf.h /usr/include/pcap-namedb.h
+h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/time.h  -include /usr/include/stdio.h -include /usr/include/pcap-bpf.h /usr/include/pcap-namedb.h
 h-to-ffi.sh /usr/include/pcap.h
 h-to-ffi.sh /usr/include/pci/config.h
 h-to-ffi.sh /usr/include/pci/header.h
@@ -165,7 +168,7 @@ h-to-ffi.sh /usr/include/shadow.h
 h-to-ffi.sh /usr/include/spawn.h
 h-to-ffi.sh /usr/include/signal.h
 h-to-ffi.sh /usr/include/stab.h
-h-to-ffi.sh /usr/include/stack-alloc.h
+#h-to-ffi.sh /usr/include/stack-alloc.h
 h-to-ffi.sh /usr/include/stdint.h
 h-to-ffi.sh /usr/include/stdio.h
 h-to-ffi.sh -D_GNU_SOURCE /usr/include/stdlib.h
