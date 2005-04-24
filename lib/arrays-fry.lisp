@@ -147,7 +147,7 @@
                  (if (and (or array-p vector-p) 
                           (= (the fixnum (%array-header-subtype bit-array)) ppc32::subtag-bit-vector))
                    (if vector-p
-                     (length bit-array)
+                     (array-dimension bit-array 0)
                      (array-dimensions bit-array))
                    (report-bad-arg bit-array '(array bit))))))
            (check-matching-dimensions (a1 d1 a2 d2)
