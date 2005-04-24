@@ -1,3 +1,8 @@
+2005-04-24 00:01  gb
+
+	* lib/arrays-fry.lisp: Ignore fill-pointers when looking at array
+	dimensions in RESULT-BIT-ARRAY.
+
 2005-04-20 06:25  gb
 
 	* lib/db-io.lisp: Write trailer on CDB files, check for it.
