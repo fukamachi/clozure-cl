@@ -355,18 +355,18 @@ of field, relative to start of class's own slots")
    (offset :initarg :offset
 	   :initform nil
 	   :accessor foreign-direct-slot-definition-offset
-	   :documentation "A byte- (or, if certain high bits are set, bit-)
-offset, relative to the start of the instance's slots.  The corresponding
-effective slot definition's offset is a product of this value and the
-instance_size of its ObjC superclass.")))
+	   :documentation "A bit-offset, relative to the start of the
+            instance's slots.  The corresponding effective slot definition's
+            offset is strictly determined by this value")))
 
 (defmethod shared-initialize :after ((slotd foreign-direct-slot-definition)
                                      slot-names
                                      &key (foreign-type :id))
   (declare (ignore slot-names))
-  (if (ignore-errors (parse-foreign-type foreign-type))
-    (setf (foreign-slot-definition-foreign-type slotd) foreign-type)
-    (error "~& unrecognized foreign type ~s" foreign-type)))
+  (unless (typep foreign-type 'foreign-type)
+    (setq foreign-type (parse-foreign-type foreign-type)))
+  (setf (foreign-slot-definition-foreign-type slotd) foreign-type))
+
 
 (defclass foreign-effective-slot-definition (effective-slot-definition)
   ((foreign-type :initarg :foreign-type :initform :id :accessor foreign-slot-definition-foreign-type)
@@ -398,6 +398,7 @@ instance_size of its ObjC superclass.")))
 
 (defun make-ivar-parse-state (class)
   (%make-ivar-parse-state (superclass-instance-size class)))
+
 
 
 ;;; Create FOREIGN-DIRECT-SLOT-DEFINITIONs for each foreign instance variable
@@ -465,43 +466,30 @@ instance_size of its ObjC superclass.")))
       slot)))
 	   
 
-(defun set-objc-foreign-direct-slot-offsets (dslotds)
-  (let* ((byte-offset 0))
-    (dolist (d dslotds)
-      (let* ((type (foreign-slot-definition-foreign-type d))
-	     (ftype (parse-foreign-type type))
-	     (type-alignment (progn (ensure-foreign-type-bits ftype)
-				    (foreign-type-alignment ftype))))
-	(if (= type-alignment 1)
-	  (break "Bitfields not handled yet: ~s" type))
-	(setq byte-offset
-	      (align-offset byte-offset (ceiling type-alignment 8)))
-	(setf (foreign-direct-slot-definition-offset d) byte-offset)
-	
-	(setq byte-offset
-	      (+ byte-offset
-		 (ceiling (foreign-type-bits ftype) 8)))))))
-	
+(defun set-objc-foreign-direct-slot-offsets (dslotds bit-offset)
+  (dolist (d dslotds)
+    (let* ((ftype (foreign-slot-definition-foreign-type d))
+           (type-alignment (progn (ensure-foreign-type-bits ftype)
+                                  (foreign-type-alignment ftype))))
+      (setq bit-offset
+            (align-offset bit-offset type-alignment))
+      (setf (foreign-direct-slot-definition-offset d) bit-offset)
+      (setq bit-offset (+ bit-offset (foreign-type-bits ftype))))))
 
-;;; When an ObjC class is created by the user, the OFFSET fields in
-;;; its foreign direct slot definitions are generally not set.  We
-;;; can compute them fairly easily, but this is stateful (a slot's
-;;; offset may depend on its predecessor's offset.)  Intercept the
-;;; attempt to set the classes direct slots and ensure that all
-;;; of those slots have proper offsets.
-;;; (In any case that I can think of, we should either find that
-;;; all foreign direct slots have non-null offsets or that none
-;;; do.  If any don't, recompute all of them.
 (defmethod (setf class-direct-slots) :before (dslotds (class objc::objc-class))
   (let* ((foreign-dslotds
 	  (loop for d in dslotds
 		when (typep d 'foreign-direct-slot-definition)
-		collect d)))
+		collect d))
+         (bit-offset (dolist (c (class-direct-superclasses class) 0)
+                       (when (typep c 'objc::objc-class)
+                         (return
+                           (ash (pref c :objc_class.instance_size) 3))))))
     (unless
       (dolist (d foreign-dslotds t)
 	(if (not (foreign-direct-slot-definition-offset d))
 	  (return nil)))
-      (set-objc-foreign-direct-slot-offsets foreign-dslotds))))
+      (set-objc-foreign-direct-slot-offsets foreign-dslotds bit-offset))))
 					       
 
 (defun lisp-defined-slot-name-to-objc-slot-name (lisp-name)
@@ -529,16 +517,13 @@ instance_size of its ObjC superclass.")))
 				 :objc_ivar :bytes))))
 	   ((null l) (values ivars (align-offset offset 4)))
 	(let* ((string (lisp-defined-slot-name-to-objc-slot-name (slot-definition-name dslotd)))
-	       (type (parse-foreign-type (foreign-slot-definition-foreign-type dslotd)))
+	       (type (foreign-slot-definition-foreign-type dslotd))
 	       (encoding (encode-objc-type type)))
 	  (setq offset
-	    (+ start-offset
-		   (ldb objc-bitfield-offset-byte-offset
-			(foreign-direct-slot-definition-offset dslotd))))
+                (ash (foreign-direct-slot-definition-offset dslotd) 3))
 	  (setf (pref ivar :objc_ivar.ivar_name) (make-cstring string)
 		(pref ivar :objc_ivar.ivar_type) (make-cstring encoding)
-		(pref ivar :objc_ivar.ivar_offset) offset)
-	  (setq offset (+ offset (ceiling (foreign-type-bits type) 8)))))))))
+		(pref ivar :objc_ivar.ivar_offset) offset)))))))
 
 (defun %objc-ivar-offset-in-class (name c)
   ;; If C is a non-null ObjC class that contains an instance variable
@@ -577,70 +562,136 @@ instance_size of its ObjC superclass.")))
 ;;; NOTE: Should be changed to use FOREIGN-TYPE-TO-REPRESENTATION-TYPE
 
 (defun compute-foreign-slot-accessors (eslotd)
-  (let* ((ftypespec (foreign-slot-definition-foreign-type eslotd))
-	 (ftype (parse-foreign-type ftypespec)))
+  (let* ((ftype (foreign-slot-definition-foreign-type eslotd)))
     (etypecase ftype
       (foreign-integer-type
        (let* ((bits (foreign-integer-type-bits ftype))
 	      (align (foreign-integer-type-alignment ftype))
 	      (signed (foreign-integer-type-signed ftype)))
-	 (if (= bits align)
-	   (ecase bits
-	     (1 (values #'%get-bit #'%set-bit))
-	     (8 (values (if signed #'%get-signed-byte #'%get-unsigned-byte)
-			#'%set-byte))
-	     (16 (values (if signed #'%get-signed-word #'%get-unsigned-word)
-			 #'%set-word))
-	     (32 (values (if signed #'%get-signed-long #'%get-unsigned-long)
-			 #'%set-long))
-	     (64 (if signed
-		   (values #'%%get-signed-longlong #'%%set-signed-longlong)
-		   (values #'%%get-unsigned-longlong #'%%set-unsigned-longlong))))
+         (flet ((%get-signed-byte-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%get-signed-byte ptr (ash bit-offset -3)))
+                (%get-unsigned-byte-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%get-unsigned-byte ptr (ash bit-offset -3)))
+                (%set-byte-at-bit-offset (ptr bit-offset new)
+                  (declare (fixnum bit-offset))
+                  (%set-byte ptr (ash bit-offset -3) new))
+                (%get-signed-word-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%get-signed-word ptr (ash bit-offset -3)))
+                (%get-unsigned-word-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%get-unsigned-word ptr (ash bit-offset -3)))
+                (%set-word-at-bit-offset (ptr bit-offset new)
+                  (declare (fixnum bit-offset))
+                  (%set-word ptr (ash bit-offset -3) new))
+                (%get-signed-long-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%get-signed-long ptr (ash bit-offset -3)))
+                (%get-unsigned-long-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%get-unsigned-long ptr (ash bit-offset -3)))
+                (%set-long-at-bit-offset (ptr bit-offset new)
+                  (declare (fixnum bit-offset))
+                  (%set-long ptr (ash bit-offset -3) new))
+                (%%get-signed-longlong-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%%get-signed-longlong ptr (ash bit-offset -3)))
+                (%%get-unsigned-longlong-at-bit-offset (ptr bit-offset)
+                  (declare (fixnum bit-offset))
+                  (%%get-unsigned-longlong ptr (ash bit-offset -3)))
+                (%%set-signed-longlong-at-bit-offset (ptr bit-offset new)
+                  (declare (fixnum bit-offset))
+                  (%%set-signed-longlong ptr (ash bit-offset -3) new))
+                (%%set-unsigned-longlong-at-bit-offset (ptr bit-offset new)
+                  (declare (fixnum bit-offset))
+                  (%%set-unsigned-longlong ptr (ash bit-offset -3) new)))
+           (if (= bits align)
+             (ecase bits
+               (1 (values #'%get-bit #'%set-bit))
+               (8 (values (if signed
+                            #'%get-signed-byte-at-bit-offset
+                            #'%get-unsigned-byte-at-bit-offset)
+                          #'%set-byte-at-bit-offset))
+               (16 (values (if signed
+                             #'%get-signed-word-at-bit-offset
+                             #'%get-unsigned-word-at-bit-offset)
+                           #'%set-word-at-bit-offset))
+               (32 (values (if signed
+                             #'%get-signed-long-at-bit-offset
+                             #'%get-unsigned-long-at-bit-offset)
+                           #'%set-long-at-bit-offset))
+               (64 (if signed
+                     (values #'%%get-signed-longlong-at-bit-offset #'%%set-signed-longlong-at-bit-offset)
+                     (values #'%%get-unsigned-longlong-at-bit-offset #'%%set-unsigned-longlong-at-bit-offset))))
 	     (values #'(lambda (ptr offset)
-			  (%get-bitfield ptr offset bits))
-		      #'(lambda (ptr offset new)
-			  (setf (%get-bitfield ptr offset bits) new))))))
+                         (%get-bitfield ptr offset bits))
+                     #'(lambda (ptr offset new)
+                         (setf (%get-bitfield ptr offset bits) new)))))))
       (foreign-double-float-type
-       (values #'%get-double-float #'%set-double-float))
+       (values #'(lambda (ptr bit-offset)
+                   (declare (fixnum bit-offset))
+                   (%get-double-float ptr (ash bit-offset -3)))
+               #'(lambda (ptr bit-offset new)
+                   (declare (fixnum bit-offset))
+                   (%set-double-float ptr (ash bit-offset -3) new))))
       (foreign-single-float-type
-       (values #'%get-single-float #'%set-single-float))
+       (values #'(lambda (ptr bit-offset)
+                   (declare (fixnum bit-offset))
+                   (%get-single-float ptr (ash bit-offset -3)))
+               #'(lambda (ptr bit-offset new)
+                   (declare (fixnum bit-offset))
+                   (%set-single-float ptr (ash bit-offset -3) new))))
       (foreign-pointer-type
        ;; If we're pointing to a structure whose first field is
        ;; a pointer to a structure named :OBJC_CLASS, we're of
        ;; type :ID and can (fairly) safely use %GET-PTR.
        ;; Otherwise, reference the field as a raw  macptr.
-       (let* ((to (foreign-pointer-type-to ftype)))
-	 (if
-	   (and (typep to 'foreign-record-type)
-		(eq :struct (foreign-record-type-kind to))
-		(progn
-		  (ensure-foreign-type-bits to)
-		  (let* ((first-field (car (foreign-record-type-fields to)))
-			 (first-field-type
-			  (if first-field
-			    (foreign-record-field-type first-field))))
-		    (and (typep first-field-type 'foreign-pointer-type)
-			 (let* ((first-to (foreign-pointer-type-to
-					   first-field-type)))
-			   (and (typep first-to 'foreign-record-type)
-				(eq :struct
-				    (foreign-record-type-kind first-to))
-				(eq :objc_class
-				    (foreign-record-type-name first-to))))))))
-	   (values #'%get-ptr #'%set-ptr)
-	   (values #'(lambda (ptr offset)
-		       (let* ((p (%null-ptr)))
-			 (%set-macptr-domain p 1)
-			 (%setf-macptr p (%get-ptr ptr offset))))
-		   #'%set-ptr))))
+       (flet ((%set-ptr-at-bit-offset (ptr bit-offset new)
+                (declare (fixnum bit-offset))
+                (%set-ptr ptr (ash bit-offset -3) new)))
+         (let* ((to (foreign-pointer-type-to ftype)))
+           (if
+             (and (typep to 'foreign-record-type)
+                  (eq :struct (foreign-record-type-kind to))
+                  (progn
+                    (ensure-foreign-type-bits to)
+                    (let* ((first-field (car (foreign-record-type-fields to)))
+                           (first-field-type
+                            (if first-field
+                              (foreign-record-field-type first-field))))
+                      (and (typep first-field-type 'foreign-pointer-type)
+                           (let* ((first-to (foreign-pointer-type-to
+                                             first-field-type)))
+                             (and (typep first-to 'foreign-record-type)
+                                  (eq :struct
+                                      (foreign-record-type-kind first-to))
+                                  (eq :objc_class
+                                      (foreign-record-type-name first-to))))))))
+             (values #'(lambda (ptr bit-offset)
+                         (declare (fixnum bit-offset))
+                         (%get-ptr ptr (ash bit-offset -3)))
+                     #'%set-ptr-at-bit-offset)
+             (values #'(lambda (ptr bit-offset)
+                         (declare (fixnum bit-offset))
+                         (let* ((p (%null-ptr)))
+                           (%set-macptr-domain p 1)
+                           (%setf-macptr p
+                                         (%get-ptr ptr (ash bit-offset -3)))))
+                     #'%set-ptr-at-bit-offset)))))
       (foreign-mem-block-type
        (let* ((nbytes (%foreign-type-or-record-size ftype :bytes)))
-	 (values #'%inc-ptr #'(lambda (pointer offset new)
-				(setf (%composite-pointer-ref
-				       nbytes
-				       pointer
-				       offset)
-				      new))))))))
+	 (values #'(lambda (ptr bits)
+                     (declare (fixnum bits))
+                     (%inc-ptr ptr (ash bits -3)))
+                 #'(lambda (pointer bit-offset new)
+                     (declare (fixnum bit-offset))
+                     (setf (%composite-pointer-ref
+                            nbytes
+                            pointer
+                            (ash bit-offset -3))
+                           new))))))))
     
 
 
@@ -695,13 +746,10 @@ instance_size of its ObjC superclass.")))
 
 (defun determine-foreign-slot-location (class slot-name)
   (or
-   (let* ((origin (superclass-instance-size class)))
-     (dolist (d (class-direct-slots class))
-       (when (and (eq slot-name (slot-definition-name d))
-		   (typep d 'foreign-direct-slot-definition))
-	  (return (+ origin
-		     (ldb objc-bitfield-offset-byte-offset
-			  (foreign-direct-slot-definition-offset d)))))))
+   (dolist (d (class-direct-slots class))
+     (when (and (eq slot-name (slot-definition-name d))
+                (typep d 'foreign-direct-slot-definition))
+       (return (foreign-direct-slot-definition-offset d))))
    (dolist (super (class-direct-superclasses class))
      (when (typep super 'objc:objc-class) ; can be at most 1
        (let* ((e (find slot-name (class-slots super) :key #'slot-definition-name)))
