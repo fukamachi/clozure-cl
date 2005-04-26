@@ -198,4 +198,10 @@
 	       (map-tree-node (tree-node-right node)))))
     (map-tree-node (splay-tree-root tree))))
 
-	   
+(defun map-splay-tree-keys-and-values (tree f)
+  (labels ((map-tree-node (node)
+	     (when node
+	       (map-tree-node (tree-node-left node))
+	       (funcall f (tree-node-key node) (tree-node-value node))
+	       (map-tree-node (tree-node-right node)))))
+    (map-tree-node (splay-tree-root tree)))) 
