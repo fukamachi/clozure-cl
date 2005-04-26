@@ -1,3 +1,33 @@
+2005-04-26 11:02  gb
+
+	* lisp-kernel/spentry.s: Make Darwin assembler happy.  (Well,
+	happier than it ordinarily is.)
+
+2005-04-26 11:01  gb
+
+	* examples/objc-runtime.lisp: Declare NSConcreteData.
+
+2005-04-26 10:59  gb
+
+	* lisp-kernel/: spentry.s, spjump.s: SPstore_node_conditional.
+
+2005-04-26 10:58  gb
+
+	* level-0/PPC/ppc-misc.lisp: Remove (very) obsolete %BIND-SPECIAL.
+
+2005-04-26 10:57  gb
+
+	* compiler/PPC/ppc2.lisp: Do rplaca/rplacd (and variants), svset
+	(and variants) out-of-line, for new write-barrier scheme.
+
+2005-04-26 10:55  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: A few indentation changes.
+
+2005-04-26 10:55  gb
+
+	* compiler/subprims.lisp: Add .SPstore-node-conditional.
+
 2005-04-26 04:57  gb
 
 	* compiler/subprims.lisp: Updated.
