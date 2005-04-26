@@ -357,6 +357,23 @@ _spentry(gvset)
         __(la imm0,misc_data_offset(arg_y))
         __(strx(arg_z,arg_x,imm0))
         __(blr)
+
+_spentry(store_node_conditional)
+        __(crclr 2)              /* 2 = cr0_EQ */
+        __(vpop(temp0))
+        __(unbox_fixnum(imm0,temp0))
+1:      __(lwarx temp1,arg_x,imm0)
+        __(cmpr(cr1,temp1,arg_y))
+        __(bne cr1,2f)
+        __(stwcx. arg_z,arg_x,imm0)
+        __(bne 1b)
+        __(isync)
+        __(li arg_z,t_value)
+        __(blr)
+2:      __(li imm0,RESERVATION_DISCHARGE)
+        __(stwcx. rzero,rzero,imm0)
+        __(li arg_z,nil_value)
+        __(blr)
         
 _spentry(conslist)
 	__(li arg_z,nil_value)
@@ -2568,10 +2585,6 @@ _spentry(spread_lexprz)
 	__(vpop(arg_x))
 	__(blr)
         
-/* Set the special variable in arg_y to the value in arg_z. 
-   Error if arg_y is a constant. 
-   arg_y is a known, non-nil symbol. */
-_spentry(setqsym)
 		
 _spentry(reset)
 	.globl _SPthrow

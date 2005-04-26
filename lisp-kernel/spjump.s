@@ -103,7 +103,7 @@ _endfn
         _spjump(integer_sign)
         _spjump(subtag_misc_set)
         _spjump(spread_lexprz)
-        _spjump(setqsym)
+        _spjump(store_node_conditional)
         _spjump(reset)
         _spjump(mvslide)
         _spjump(save_values)
