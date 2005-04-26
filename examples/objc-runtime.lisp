@@ -69,6 +69,27 @@
     (external-call "__objc_resolve_class_links" :void)))
 
 
+(defstruct private-objc-class-info
+  name
+  declared-ancestor)
+
+(defun compute-objc-direct-slots-from-info (info class)
+  (let* ((ns-package (find-package "NS")))
+    (mapcar #'(lambda (field)
+                (let* ((name (compute-lisp-name (unescape-foreign-name
+                                                 (foreign-record-field-name
+                                                  field))
+                                                ns-package))
+                       (type (foreign-record-field-type field)))
+                  (make-instance 'foreign-direct-slot-definition
+                                 :initfunction #'false
+                                 :initform nil
+                                 :name name
+                                 :foreign-type type
+                                 :class class
+                                 :offset (foreign-record-field-offset field)
+                                 :allocation :instance)))
+            (db-objc-class-info-ivars info))))
 
 
 (let* ((objc-class-map (make-splay-tree #'%ptr-eql
@@ -83,6 +104,15 @@
 						     (%ptr-to-int x))
 						   (the (unsigned-byte 32)
 						     (%ptr-to-int Y))))))
+       ;;; These are NOT lisp classes; we mostly want to keep track
+       ;;; of them so that we can pretend that instances of them
+       ;;; are instances of some known (declared) superclass.
+       (private-objc-classes (make-splay-tree #'%ptr-eql
+                                              #'(lambda (x y)
+                                                  (< (the (unsigned-byte 32)
+                                                       (%ptr-to-int x))
+                                                     (the (unsigned-byte 32)
+                                                       (%ptr-to-int Y))))))
        (objc-class-lock (make-lock))
        (next-objc-class-id 0)
        (next-objc-metaclass-id 0)
@@ -202,7 +232,18 @@
       (defun objc-class-map () objc-class-map)
       (defun %objc-class-count () next-objc-class-id)
       (defun objc-metaclass-map () objc-metaclass-map)
-      (defun %objc-metaclass-count () next-objc-metaclass-id))))
+      (defun %objc-metaclass-count () next-objc-metaclass-id)
+      (defun %register-private-objc-class (c name)
+        (splay-tree-put private-objc-classes c (make-private-objc-class-info :name name)))
+      (defun %get-private-objc-class (c)
+        (splay-tree-get private-objc-classes c))
+      (defun (setf %get-private-objc-class) (public c)
+        (let* ((node (binary-tree-get private-objc-classes c)))
+          (if node
+            (setf (tree-node-value node) public)
+            (error "Private class ~s not found" c))))
+      (defun private-objc-classes ()
+        private-objc-classes))))
 
 (pushnew #'%clear-objc-class-maps *save-exit-functions* :test #'eq
          :key #'function-name)
@@ -464,71 +505,96 @@
 	 :test #'eq
 	 :key #'function-name)
     
-    
+
+(defun find-named-objc-superclass (class string)
+  (unless (or (null string) (%null-ptr-p class))
+    (with-macptrs ((name (pref class :objc_class.name)))
+      (or
+       (dotimes (i (length string) class)
+         (let* ((b (%get-unsigned-byte name i)))
+           (unless (eq b (char-code (schar string i)))
+             (return))))
+       (find-named-objc-superclass (pref class :objc_class.super_class)
+                                   string)))))
 
 (defun install-foreign-objc-class (class)
   (let* ((id (objc-class-id class)))
     (unless id
-      (setq id (register-objc-class class)
-	    class (id->objc-class id))
-      ;; If not mapped, map the superclass (if there is one.)
-      (let* ((super (pref class :objc_class.super_class)))
-	(unless (%null-ptr-p super)
-	  (install-foreign-objc-class super))
-	(let* ((class-foreign-name (%get-cstring
-					 (pref class :objc_class.name)))
-	       (class-name 
-		(objc-to-lisp-classname class-foreign-name
-					"NS"))
-	       (meta-id (objc-class-id->objc-metaclass-id id)) 
-	       (meta (id->objc-metaclass meta-id)))
-	  ;; Metaclass may already be initialized.  It'll have a class
-	  ;; wrapper if so.
-	  (unless (id->objc-metaclass-wrapper meta-id)
-	    (let* ((meta-foreign-name (%get-cstring
-				       (pref meta :objc_class.name)))
-		   (meta-name (intern
-			       (concatenate 'string
-					    "+"
-					    (string
-					     (objc-to-lisp-classname
-					      meta-foreign-name
-					      "NS")))
-				      "NS"))
-		   (meta-super (pref meta :objc_class.super_class)))
-	      ;; It's important (here and when initializing the class
-	      ;; below) to use the "canonical" (registered) version
-	      ;; of the class, since some things in CLOS assume
-	      ;; EQness.  We probably don't want to violate that
-	      ;; assumption; it'll be easier to revive a saved image
-	      ;; if we don't have a lot of EQL-but-not-EQ class pointers
-	      ;; to deal with.
-	      (initialize-instance meta
-				   :name meta-name
-				   :direct-superclasses
-				   (list
-				    (if (or (%null-ptr-p meta-super)
-					    (not (%objc-metaclass-p meta-super)))
-				      (find-class 'objc:objc-class)
-				      (canonicalize-registered-metaclass meta-super)))
-				   :peer class
-				   :foreign t)
-	      (setf (objc-metaclass-id-foreign-name meta-id)
-		    meta-foreign-name)
-	      (setf (find-class meta-name) meta)))
-	  (setf (slot-value class 'direct-slots)
-		(%compute-foreign-direct-slots class))
-	  (initialize-instance class
-			       :name class-name
-			       :direct-superclasses
-			       (list
-				(if (%null-ptr-p super)
-				  (find-class 'objc:objc-object)
-				  (canonicalize-registered-class super)))
-			       :peer meta
-			       :foreign t)
-	  (setf (objc-class-id-foreign-name id) class-foreign-name)
-	  (setf (find-class class-name) class))))))
+      (let* ((name (%get-cstring (pref class :objc_class.name)))
+             (decl (get-objc-class-decl name)))
+        (if (null decl)
+          (or (%get-private-objc-class class)
+              (%register-private-objc-class class name))
+          (progn
+            (setq id (register-objc-class class)
+                  class (id->objc-class id))
+            ;; If not mapped, map the superclass (if there is one.)
+            (let* ((super (find-named-objc-superclass
+                           (pref class :objc_class.super_class)
+                           (db-objc-class-info-superclass-name decl))))
+              (unless (null super)
+                (install-foreign-objc-class super))
+              (let* ((class-name 
+                      (objc-to-lisp-classname
+                       name
+                       "NS"))
+                     (meta-id
+                      (objc-class-id->objc-metaclass-id id)) 
+                     (meta (id->objc-metaclass meta-id)))
+                ;; Metaclass may already be initialized.  It'll have a
+                ;; class wrapper if so.
+                (unless (id->objc-metaclass-wrapper meta-id)
+                  (let* ((meta-foreign-name
+                          (%get-cstring
+                           (pref meta :objc_class.name)))
+                         (meta-name
+                          (intern
+                           (concatenate 'string
+                                        "+"
+                                        (string
+                                         (objc-to-lisp-classname
+                                          meta-foreign-name
+                                          "NS")))
+                           "NS"))
+                         (meta-super
+                          (if super (pref super :objc_class.isa))))
+                    ;; It's important (here and when initializing the
+                    ;; class below) to use the "canonical"
+                    ;; (registered) version of the class, since some
+                    ;; things in CLOS assume EQness.  We probably
+                    ;; don't want to violate that assumption; it'll be
+                    ;; easier to revive a saved image if we don't have
+                    ;; a lot of EQL-but-not-EQ class pointers to deal
+                    ;; with.
+                    (initialize-instance
+                     meta
+                     :name meta-name
+                     :direct-superclasses
+                     (list
+                      (if (or (null meta-super)
+                              (not (%objc-metaclass-p meta-super)))
+                        (find-class 'objc:objc-class)
+                        (canonicalize-registered-metaclass meta-super)))
+                     :peer class
+                     :foreign t)
+                    (setf (objc-metaclass-id-foreign-name meta-id)
+                          meta-foreign-name)
+                    (setf (find-class meta-name) meta)))
+                (setf (slot-value class 'direct-slots)
+                      (compute-objc-direct-slots-from-info decl class))
+                (initialize-instance
+                 class
+                 :name class-name
+                 :direct-superclasses
+                 (list
+                  (if (null super)
+                    (find-class 'objc:objc-object)
+                    (canonicalize-registered-class super)))
+                 :peer meta
+                 :foreign t)
+                (setf (objc-class-id-foreign-name id)
+                      name)
+                (setf (find-class class-name) class)))))))))
 				
 
 ;;; An instance of NSConstantString (which is a subclass of NSString)
@@ -584,11 +650,42 @@ argument lisp string."
 	       :len (length string))
   )
 
-(defun %make-nsstring (string)
-  (with-cstrs ((s string))
-    (make-objc-instance 'ns:ns-string
-                        :with-c-string s)))
-                        
+;;; Class declarations
+(defparameter *objc-class-declarations* (make-hash-table :test #'equal))
+
+(defun get-objc-class-decl (class-name)
+  (or (gethash class-name *objc-class-declarations*)
+      (let* ((decl (%find-objc-class-info class-name)))
+        (when decl
+          (setf (gethash class-name *objc-class-declarations*) decl)))))
+
+(defun %ensure-class-declaration (name super-name)
+  (unless (get-objc-class-decl name)
+    (setf (gethash name *objc-class-declarations*)
+          (make-db-objc-class-info :class-name (string name)
+                                   :superclass-name (string super-name))))
+  name)
+
+;;; It's hard (and questionable) to allow ivars here.
+(defmacro declare-objc-class (name super-name)
+  `(%ensure-class-declaration ',name ',super-name))
+
+#+apple-objc
+(progn
+  (declare-objc-class "NSCFString" "NSString")
+  (declare-objc-class "NSCFArray" "NSArray")
+  (declare-objc-class "NSCFDictionary" "NSDictionary")
+  (declare-objc-class "NSPlaceholderMutableArray" "NSMutableArray")
+  (declare-objc-class "NSPlaceholderArray" "NSArray")
+  (declare-objc-class "NSPlaceholderMutableDictionary" "NSMutableDictionary")
+  (declare-objc-class "NSPlaceholderDictionary" "NSDictionary")
+  (declare-objc-class "NSPlaceholderMutableSet" "NSMutableSet")
+  (declare-objc-class "NSPlaceholderSet" "NSSet")
+  (declare-objc-class "NSPlaceholderMutableString" "NSMutableString")
+  (declare-objc-class "NSPlaceholderString" "NSString")
+  (declare-objc-class "NSPlaceholderNumber" "NSNumber")
+  (declare-objc-class "NSPlaceholderValue" "NSValue")
+  (declare-objc-class "NSConcreteFileHandle" "NSFileHandle"))
 
 
 ;;; Intern NSConstantString instances.
@@ -1202,6 +1299,11 @@ argument lisp string."
     (#___objc_exec_class m)))
 
 
+(defun %make-nsstring (string)
+  (with-cstrs ((s string))
+    (objc-message-send
+     (objc-message-send (find-class 'ns:ns-string) "alloc")
+     "initWithCString:" :address s)))
 
 ;;; Return the "canonical" version of P iff it's a known ObjC class
 (defun objc-class-p (p)
@@ -1471,13 +1573,10 @@ argument lisp string."
 		 (eq (car resulttype) :struct))
 	(destructuring-bind (typespec name) (cdr resulttype)
 	(if (and (typep name 'symbol)
-		 (typep (parse-foreign-type typespec)
+		 (typep (parse-foreign-type `(:struct ,typespec))
 			'foreign-record-type))
-	  (progn
-	    (push name argspecs)
-            (setq struct-return t)
-	    (push :address argspecs)
-	    (setq resulttype :void))
+          (setq struct-return name
+                resulttype `(:struct ,typespec))
 	  (bad-selector "Bad struct return type"))))
       (values selector
 	      class-name
@@ -1501,6 +1600,14 @@ argument lisp string."
 			typestring
                         struct-return)
       (parse-objc-method selector-arg class-arg body)
+    (%declare-objc-method selector-name
+                          class-name
+                          class-p
+                          (parse-foreign-type resulttype)
+                          (collect ((argtypes))
+                            (do* ((argspecs argspecs (cddr argspecs)))
+                                 ((null argspecs) (mapcar #'parse-foreign-type (argtypes)))
+                              (argtypes (car argspecs)))))
     (let* ((self (intern "SELF")))
       (multiple-value-bind (body decls) (parse-body body env)
         (unless class-p
@@ -1516,8 +1623,8 @@ argument lisp string."
 	       (super (gensym "SUPER"))
 	       (params `(:id ,self :<sel> ,_cmd)))
           (when struct-return
-            (setq params `(,(car argspecs) ,(cadr argspecs) ,@params))
-            (setq argspecs (cddr argspecs)))
+            (setq params `(:address ,struct-return ,@params)
+                  resulttype :void))
           (setq params (nconc params argspecs))
 	  `(progn
 	    (defcallback ,impname
