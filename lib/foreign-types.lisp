@@ -142,37 +142,37 @@
 
   (defvar *foreign-type-classes* (make-hash-table :test #'eq))
   
-  (defun info-foreign-type-translator (x)
-    (gethash (make-keyword x) (ftd-translators *target-ftd*)))
-  (defun (setf info-foreign-type-translator) (val x)
-    (setf (gethash (make-keyword x) (ftd-translators *target-ftd*)) val))
+  (defun info-foreign-type-translator (x &optional (ftd *target-ftd*))
+    (gethash (make-keyword x) (ftd-translators ftd)))
+  (defun (setf info-foreign-type-translator) (val x &optional (ftd *target-ftd*))
+    (setf (gethash (make-keyword x) (ftd-translators ftd)) val))
 
-  (defun info-foreign-type-kind (x)
-    (or (gethash (make-keyword x) (ftd-kind-info *target-ftd*)) :unknown))
-  (defun (setf info-foreign-type-kind) (val x)
-    (setf (gethash (make-keyword x) (ftd-kind-info *target-ftd*)) val))
+  (defun info-foreign-type-kind (x &optional (ftd *target-ftd*))
+    (or (gethash (make-keyword x) (ftd-kind-info ftd)) :unknown))
+  (defun (setf info-foreign-type-kind) (val x &optional (ftd *target-ftd*))
+    (setf (gethash (make-keyword x) (ftd-kind-info ftd)) val))
 		   
-  (defun info-foreign-type-definition (x)
-    (gethash (make-keyword x) (ftd-definitions *target-ftd*)))
-  (defun (setf info-foreign-type-definition) (val x)
-    (setf (gethash (make-keyword x) (ftd-definitions *target-ftd*)) val))
-  (defun clear-info-foreign-type-definition (x)
-    (remhash (make-keyword x) (ftd-definitions *target-ftd*)))
+  (defun info-foreign-type-definition (x &optional (ftd *target-ftd*))
+    (gethash (make-keyword x) (ftd-definitions ftd)))
+  (defun (setf info-foreign-type-definition) (val x &optional (ftd *target-ftd*))
+    (setf (gethash (make-keyword x) (ftd-definitions ftd)) val))
+  (defun clear-info-foreign-type-definition (x &optional (ftd *target-ftd*))
+    (remhash (make-keyword x) (ftd-definitions ftd)))
 
-  (defun info-foreign-type-struct (x)
-    (gethash (make-keyword x) (ftd-struct-definitions *target-ftd*)))
-  (defun (setf info-foreign-type-struct) (val x)
-    (setf (gethash (make-keyword x) (ftd-struct-definitions *target-ftd*)) val))
+  (defun info-foreign-type-struct (x &optional (ftd *target-ftd*))
+    (gethash (make-keyword x) (ftd-struct-definitions ftd)))
+  (defun (setf info-foreign-type-struct) (val x &optional (ftd *target-ftd*))
+    (setf (gethash (make-keyword x) (ftd-struct-definitions ftd)) val))
 
-  (defun info-foreign-type-union (x)
-    (gethash (make-keyword x) (ftd-union-definitions *target-ftd*)))
-  (defun (setf info-foreign-type-union) (val x)
-    (setf (gethash (make-keyword x) (ftd-union-definitions *target-ftd*)) val))
+  (defun info-foreign-type-union (x &optional (ftd *target-ftd*))
+    (gethash (make-keyword x) (ftd-union-definitions ftd)))
+  (defun (setf info-foreign-type-union) (val x  &optional (ftd *target-ftd*))
+    (setf (gethash (make-keyword x) (ftd-union-definitions ftd)) val))
 
-  (defun info-foreign-type-enum (x)
-    (gethash (make-keyword x) (ftd-enum-definitions *target-ftd*)))
-  (defun (setf info-foreign-type-enum) (val x)
-    (setf (gethash (make-keyword x) (ftd-enum-definitions *target-ftd*)) val))
+  (defun info-foreign-type-enum (x  &optional (ftd *target-ftd*))
+    (gethash (make-keyword x) (ftd-enum-definitions ftd)))
+  (defun (setf info-foreign-type-enum) (val x &optional (ftd *target-ftd*))
+    (setf (gethash (make-keyword x) (ftd-enum-definitions ftd)) val))
 
 
 
@@ -617,7 +617,9 @@
       (setf (svref a i) (make-foreign-integer-type :signed nil
 						   :bits i
 						   :alignment
-						   (if (logtest 7 i) 1 i))))))
+						   (if (= 1 (logcount i))
+                                                     i
+                                                     1))))))
 
 (defvar *signed-integer-types*
   (let* ((a (make-array 33)))
@@ -625,7 +627,9 @@
       (setf (svref a i) (make-foreign-integer-type :signed t
 						   :bits i
 						   :alignment
- 						   (if (logtest 7 i) 1 i))))))
+                                                   (if (= 1 (logcount i))
+                                                     i
+                                                     1))))))
          
 (def-foreign-type-translator signed (&optional (bits 32))
   (if (<= bits 32)
@@ -647,17 +651,22 @@
 (def-foreign-type-translator bitfield (&optional (bits 1))
   (make-foreign-integer-type :bits bits :signed nil :alignment 1))
 
+(defvar *bool-type* (make-foreign-integer-type :bits 8 :signed #+darwinppc-target t #-darwinppc-target nil))
+
+(def-foreign-type-translator :<BOOL> () *bool-type*)
 						  
 
 (def-foreign-type-method (integer :unparse) (type)
-  (let* ((bits (foreign-integer-type-bits type))
-	 (signed (foreign-integer-type-signed type))
-	 (alignment (foreign-integer-type-alignment type)))
-    (if (eql alignment 1)
-      (if (eql bits 1)
-	:bit
-	`(:bitfield ,bits))
-      (list (if signed :signed :unsigned) bits))))
+  (if (eq type *bool-type*)
+    :<BOOL>
+    (let* ((bits (foreign-integer-type-bits type))
+           (signed (foreign-integer-type-signed type))
+           (alignment (foreign-integer-type-alignment type)))
+      (if (eql alignment 1)
+        (if (eql bits 1)
+          :bit
+          `(:bitfield ,bits))
+        (list (if signed :signed :unsigned) bits)))))
   
 (def-foreign-type-method (integer :type=) (type1 type2)
   (and (eq (foreign-integer-type-signed type1)
@@ -710,8 +719,6 @@
 (def-foreign-type-translator boolean (&optional (bits 32))
   (make-foreign-boolean-type :bits bits :signed nil))
 
-(def-foreign-type-method (boolean :unparse) (type)
-  `(boolean ,(foreign-boolean-type-bits type)))
 
 (def-foreign-type-method (boolean :lisp-rep) (type)
   (declare (ignore type))
@@ -725,6 +732,9 @@
   (declare (ignore type))
   `(if ,value 1 0))
 
+
+(def-foreign-type-method (boolean :unparse) (type)
+  `(boolean ,(foreign-boolean-type-bits type)))
 
 
 ;;;; the FLOAT types.
@@ -942,11 +952,12 @@
 	     (:print-object
 	      (lambda (field stream)
 		(print-unreadable-object (field stream :type t)
-		  (funcall (formatter "~S ~S~@[:~D~]")
+		  (funcall (formatter "~S ~S~@[ ~D@~D~]")
 			   stream
 			   (foreign-record-field-type field)
 			   (foreign-record-field-name field)
-			   (foreign-record-field-bits field))))))
+			   (foreign-record-field-bits field)
+                           (foreign-record-field-offset field))))))
   (name () :type symbol)
   (type () :type foreign-type)
   (bits nil :type (or unsigned-byte null))
