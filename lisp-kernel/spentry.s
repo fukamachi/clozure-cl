@@ -343,22 +343,21 @@ _spentry(stack_restv_arg)
 _spentry(vspreadargz)
 
 
-/* Undo N special bindings: imm0 = n, unboxed and >0. */
-_spentry(unbind_n)
-	__(ldr(imm1,tcr.db_link(rcontext)))
-1:
-	__(cmpri(cr0,imm0,1))
-	__(subi imm0,imm0,1)
-	__(ldr(imm1,0(imm1)))
-	__(bne cr0,1b)
-	__(str(imm1,tcr.db_link(rcontext)))
+
+
+_spentry(_rplaca)
+        __(rplaca(arg_y,arg_z))
+        __(blr)
+
+_spentry(_rplacd)
+	__(rplacd(arg_y,arg_z))
 	__(blr)
 
-/* Unwind special bindings until the head of the linked list = imm0. */
-_spentry(unbind_to)
-	__(str(imm0,tcr.db_link(rcontext)))
-	__(blr)
-
+_spentry(gvset)
+        __(la imm0,misc_data_offset(arg_y))
+        __(strx(arg_z,arg_x,imm0))
+        __(blr)
+        
 _spentry(conslist)
 	__(li arg_z,nil_value)
 	__(cmpri(nargs,0))
@@ -2002,35 +2001,7 @@ _spentry(ffcallX)
 	__(lfd f1,c_frame.param2(sp))
 	__(b _local_label(FF_call_return_common))	
         
-/* Bind special symbol in arg_z to its current value. */
-_spentry(bind_self_boundp_check)
-	__(ldr(imm0,symbol.flags(arg_z)))
-	__(andi. imm0,imm0,sym_vbit_bound_mask)
-	__(mr arg_y,arg_z)
-	__(ldr(imm2,tcr.db_link(rcontext)))
-	__(cmpri(cr1,imm2,0))
-	__(beq 8f)
-	__(b 1f)
-0:	__(mr imm1,imm2)
-	__(ldr(temp0,binding.sym(imm1)))
-	__(cmpr(temp0,arg_y))
-	__(ldr(imm2,binding.link(imm1)))
-	__(cmpri(cr1,imm2,0))
-	__(bne 1f)
-	__(ldr(arg_z,binding.val(imm1)))
-	__(b 9f)
-1:	__(bne cr1,0b)
-8:	__(ldr(arg_z,symbol.vcell(arg_y)))
-9:	__(treqi(arg_z,unbound_marker))
-	__(ldr(imm0,symbol.flags(arg_y)))
-	__(ori imm0,imm0,sym_vbit_bound_mask)
-	__(ldr(imm1,tcr.db_link(rcontext)))
-	__(vpush(arg_z))
-	__(vpush(arg_y))
-	__(vpush(imm1))
-	__(str(vsp,tcr.db_link(rcontext)))
-	__(str(imm0,symbol.flags(arg_y)))
-	__(blr)
+
 
 /* Destructuring-bind, macro-bind. 
    */
@@ -2383,10 +2354,7 @@ misc_set_common:
 	__(cmpri(cr1,imm1,max_32_bit_ivector_subtag))
 	__(cmpri(cr2,imm1,max_8_bit_ivector_subtag))
 	__(addi imm0,arg_y,misc_data_offset)
-	__(bne cr0,local_label(set_imm))
-	/* A node vector. */
-	__(strx(arg_z,arg_x,imm0))
-	__(blr)
+        __(beq cr0,_SPgvset)
 local_label(set_imm):
 	__(extract_lisptag(imm2,arg_z))
 	__(cmpri(cr7,imm2,tag_misc))
@@ -2938,12 +2906,6 @@ _spentry(progvsave)
 */
 	
 _spentry(progvrestore)
-	__(ldr(imm0,tsp_frame.backlink(tsp)))	/* ignore .SPnthrowXXX values frame */
-	__(ldr(imm0,tsp_frame.data_offset(imm0)))
-	__(cmpri(cr0,imm0,0))
-	__(unbox_fixnum(imm0,imm0))
-	__(bne+ cr0,_SPunbind_n)
-	__(blr)
 
 _spentry(callbuiltin)
 	__(ref_nrs_value(fname,builtin_functions))
@@ -4313,8 +4275,9 @@ _spentry(svar_specset)
         __(beq 1f)
         __(strx(arg_z,imm2,imm3))
         __(blr)
-1:     	__(str(arg_z,symbol.vcell(arg_y)))
-        __(blr)
+1:     	__(mr arg_x,arg_y)
+        __(li arg_y,symbol.vcell-misc_data_offset)
+        __(b _SPgvset)
 
 
 _spentry(svar_setqsym)
