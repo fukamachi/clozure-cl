@@ -141,7 +141,9 @@
 (defun objc-class-of (o)
   (if (objc-object-p o)
       (class-of o)
-    (error "~S is not an ObjC object" o)))
+    (progn
+      (dbg o)
+      (error "~S is not an ObjC object" o))))
 
 
 ;;; Returns the ObjC class corresponding to the declared type OTYPE if
@@ -263,23 +265,29 @@
        (assert (= (length form) 3))
        `(,var :<NSS>ize :width ,(second form) :height ,(third form)))
       (send
-       (let ((rtype (first (msg-desc-type-signature 
-			    (first (message-descriptors
-				    (parse-message (cddr form))))))))
-         (if (requires-stret-p rtype)
-           (values `(,var ,rtype) `(send/stret ,var ,@(rest form)))
-           (if errorp
-             (error "NonSTRET SEND in ~S" form)
-             form))))
+       (let* ((info (get-objc-message-info (parse-message (cddr form)))))
+         (if (null info)
+           (error "Can't determine message being sent in ~s" form))
+         (let* ((rtype (objc-method-info-result-type
+                        (car (objc-message-info-methods info)))))
+           (if (getf (objc-message-info-flags info) :returns-structure)
+             (values `(,var ,(unparse-foreign-type rtype))
+                     `(send/stret ,var ,@(rest form)))
+             (if errorp
+               (error "NonSTRET SEND in ~S" form)
+               form)))))
       (send-super
-       (let ((rtype (first (msg-desc-type-signature 
-			    (first (message-descriptors
-				    (parse-message (cddr form))))))))
-         (if (requires-stret-p rtype)
-           (values `(,var ,rtype) `(send-super/stret ,var ,@(rest form)))
-           (if errorp
-             (error "NonSTRET SEND-SUPER in ~S" form)
-             form))))
+       (let* ((info (get-objc-message-info (parse-message (cddr form)))))
+         (if (null info)
+           (error "Can't determine message being sent in ~s" form))
+         (let* ((rtype (objc-method-info-result-type
+                        (car (objc-message-info-methods info)))))
+           (if (getf (objc-message-info-flags info) :returns-structure)
+             (values `(,var ,(unparse-foreign-type rtype))
+                     `(send-super/stret ,var ,@(rest form)))
+             (if errorp
+               (error "NonSTRET SEND-SUPER in ~S" form)
+               form)))))
       (t (if errorp
            (error "Unrecognized STRET call in ~S" form)
            form)))
@@ -349,6 +357,99 @@
   
 (defvar *type-signature-table* (make-hash-table :test #'equal :size 8192))
 
+(defvar *objc-message-info* (make-hash-table :test #'equal :size 5000))
+
+(defun result-type-requires-structure-return (result-type)
+  (and (typep result-type 'foreign-record-type)
+       (> (ensure-foreign-type-bits result-type) 32)))
+
+(defun postprocess-objc-message-info (message-info)
+  (flet ((reduce-to-ffi-type (ftype)
+           (if (objc-id-type-p ftype)
+             :id
+             (unparse-foreign-type ftype))))
+    (flet ((ensure-method-signature (m)
+             (unless (objc-method-info-signature m)
+               (setf (objc-method-info-signature m)
+                     (cons (reduce-to-ffi-type
+                            (objc-method-info-result-type m))
+                           (mapcar #'reduce-to-ffi-type
+                                   (objc-method-info-arglist m)))))))
+      (let* ((methods (objc-message-info-methods message-info)))
+        (dolist (m methods)
+          (ensure-method-signature m))
+        (setf (objc-message-info-flags message-info) nil)
+        (let* ((first-method (car methods))
+               (first-sig (objc-method-info-signature first-method))
+               (first-sig-len (length first-sig)))
+          (setf (objc-message-info-req-args message-info)
+                (1- first-sig-len))
+          (when (dolist (m (cdr methods))
+                  (let* ((msig (objc-method-info-signature m)))
+                    (unless (= (length msig) first-sig-len)
+                      (setf (getf (objc-message-info-flags message-info)
+                                  :inconsistent)
+                            t))
+                    (unless (equal first-sig msig)
+                      (return t))))
+            (setf (getf (objc-message-info-flags message-info) :ambiguous) t))
+          ;; Whether some arg/result types vary or not, we want to insist
+          ;; on (a) either no methods take a variable number of arguments,
+          ;; or all do, and (b) either no method uses structure-return
+          ;; conventions, or all do. (It's not clear that these restrictions
+          ;; are entirely reasonable in the long run; in the short term,
+          ;; they'll help get things
+          (flet ((method-returns-structure (m)
+                   (result-type-requires-structure-return
+                    (objc-method-info-result-type m)))
+                 (method-accepts-varargs (m)
+                   (eq (car (last (objc-method-info-arglist m)))
+                       *void-foreign-type*)))
+            (let* ((first-result-is-structure (method-returns-structure first-method))
+                   (first-accepts-varargs (method-accepts-varargs first-method)))
+              (if (dolist (m (cdr methods) t)
+                    (unless (eq (method-returns-structure m)
+                                first-result-is-structure)
+                      (return nil)))
+                (if first-result-is-structure
+                  (setf (getf (objc-message-info-flags message-info)
+                              :returns-structure) t)))
+              (if (dolist (m (cdr methods) t)
+                    (unless (eq (method-accepts-varargs m)
+                                first-accepts-varargs)
+                      (return nil)))
+                (if first-accepts-varargs
+                  (progn
+                    (setf (getf (objc-message-info-flags message-info)
+                                :accepts-varargs) t)
+                    (decf (objc-message-info-req-args message-info))))))))))))
+          
+                     
+(defun get-objc-message-info (message-name)
+  (or (gethash message-name *objc-message-info*)
+      (let* ((info (lookup-objc-message-info message-name)))
+        (when info
+          (setf (gethash message-name *objc-message-info*) info)
+          (postprocess-objc-message-info info)
+          info))))
+
+(defun %declare-objc-method (message-name class-name class-p result-type args)
+  (let* ((info (get-objc-message-info message-name)))
+    (unless info
+      (setq info (make-objc-message-info :message-name message-name))
+      (setf (gethash message-name *objc-message-info*) info))
+    (let* ((was-ambiguous (getf (objc-message-info-flags info) :ambiguous))
+           (method-info (make-objc-method-info :message-info info
+                                               :class-name class-name
+                                               :result-type result-type
+                                               :arglist args
+                                               :flags (if class-p '(:class t)))))
+      (push method-info (objc-message-info-methods info))
+      (postprocess-objc-message-info info)
+      (if (and (getf (objc-message-info-flags info) :ambiguous)
+               (not was-ambiguous))
+        (warn "previously declared methods on ~s all had the same type signature, but ~s introduces ambiguity" message-name method-info))
+      info)))
 
 ;;; Add a new method to the table
 
@@ -395,12 +496,13 @@
 ;;; table accordingly
 
 (defun update-type-signatures ()
+  (time
   (note-all-library-methods
    #'(lambda (m c)
        (#+gnu-objc progn #+apple-objc progn
 	 ;; Some libraries seem to have methods with bogus-looking
 	 ;; type signatures
-	 (update-type-signatures-for-method m c)))))
+	 (update-type-signatures-for-method m c))))))
 
 
 ;;; Return the message descriptor(s) associated with MSG
@@ -411,9 +513,13 @@
 ;;; Ensure that all classes in a msg-desc are canonical (EQ to the
 ;;; objc-clos class pointer.)
 (defun canonicalize-msg-desc-classes (msg-desc)
-  (do* ((classes (msg-desc-classes msg-desc) (cdr classes)))
-       ((null classes))
-    (rplaca classes (canonicalize-registered-class-or-metaclass (car classes)))))
+  (collect ((new-classes))
+    (dolist (c (msg-desc-classes msg-desc))
+      (if (if (%objc-metaclass-p c)
+            (objc-metaclass-id c)
+            (objc-class-id c))
+        (new-classes (canonicalize-registered-class-or-metaclass c) )))
+    (setf (msg-desc-classes msg-desc) (new-classes))))
 
 ;;; Canonicalize the classes in all msg-desc in the type signature table.
 (defun canonicalize-type-signature-classes ()
@@ -789,9 +895,62 @@
   (make-optimized-send o msg args env s))
 
 
+
+
 ;;; Optimize special cases of SEND and SEND/STRET
 
-(defun make-optimized-send (o msg args env &optional s super sclassname)
+(defun make-optimized-send (o msg args env  &optional s super sclassname)
+  (new-make-optimized-send o msg args env s super sclassname))
+
+(defun new-make-optimized-send (o msg args env  &optional s super sclassname)
+  (multiple-value-bind (msg args vargs) (parse-message (cons msg args))
+    (let* ((message-info (get-objc-message-info msg)))
+      (if (null message-info)
+        (error "Unknown message: ~S" msg))
+      ;; If a vararg exists, make sure that the message can accept it
+      (when (and vargs (not (getf (objc-message-info-flags message-info)
+                                  :accepts-varargs)))
+        (error "Message ~S cannot accept a variable number of arguments" msg))
+      (unless (= (length args) (objc-message-info-req-args message-info))
+        (error "Message ~S requires ~a ~d args, but ~d were provided."
+               (if vargs "at least" "exactly")
+               (objc-message-info-req-args message-info)
+               (length args)))
+      (multiple-value-bind (args svarforms sinitforms) (sletify-message-args args)
+        (let* ((ambiguous (getf (objc-message-info-flags message-info) :ambiguous))
+               (methods (objc-message-info-methods message-info))
+               (method (if (not ambiguous) (car methods))))
+          (if ambiguous
+            (let* ((class (if sclassname 
+                            (find-objc-class sclassname)
+                            (get-objc-class-from-declaration (declared-type o env)))))
+              (if class
+                (dolist (m methods)
+                  (let* ((mclass (or (objc-method-info-class-pointer m)
+                                     (setf (objc-method-info-class-pointer m)
+                                           (let* ((c (lookup-objc-class (objc-method-info-class-name m))))
+                                             (if c
+                                               (let* ((id (objc-class-id c)))
+                                                 (if id
+                                                   (id->objc-class id)))))))))
+                    (when (and class (subtypep class mclass))
+                      (return (setq method m))))))))
+          (if method
+            (build-call-from-method-info method
+                                         args
+                                         vargs
+                                         o
+                                         msg
+                                         svarforms
+                                         sinitforms
+                                         s
+                                         super)
+            (progn
+              (format t "~& punting on ~a" msg)
+              (old-make-optimized-send o msg args env s super sclassname))))))))
+
+    
+(defun old-make-optimized-send (o msg args env &optional s super sclassname)
   ;; Try to determine the class of the receiver
   (let ((class (if sclassname 
                  (find-objc-class sclassname)
@@ -801,7 +960,7 @@
     (multiple-value-setq (msg args vargs) (parse-message (cons msg args)))
     ;; If the message cannot be determined, use a general send
     (unless (stringp msg)
-      (return-from make-optimized-send
+      (return-from old-make-optimized-send
 	(if (null super)
 	    (if (null s) 
 		`(%send ,o ,msg ,@args) 
@@ -939,6 +1098,56 @@
               ;; STRET not required but provided
               (error "The message ~S must be sent using SEND" msg)))))))
 
+(defun objc-id-type-p (foreign-type)
+  (and (typep foreign-type 'foreign-pointer-type)
+       (let* ((to (foreign-pointer-type-to foreign-type)))
+         (and (typep to 'foreign-record-type)
+              (eq :struct (foreign-record-type-kind to))
+              (not (null (progn (ensure-foreign-type-bits to) (foreign-record-type-fields to))))
+              (let* ((target (foreign-record-field-type (car (foreign-record-type-fields to)))))
+                (and (typep target 'foreign-pointer-type)
+                     (let* ((target-to (foreign-pointer-type-to target)))
+                       (and (typep target-to 'foreign-record-type)
+                            (eq :struct (foreign-record-type-kind target-to))
+                            (eq :objc_class (foreign-record-type-name target-to))))))))))
+
+
+(defun build-call-from-method-info (method-info args vargs o  msg  svarforms sinitforms s super)
+  (let* ((arglist ()))
+    (collect ((specs))
+      (do* ((args args (cdr args))
+            (argtypes (objc-method-info-arglist method-info) (cdr argtypes))
+            (reptypes (cdr (objc-method-info-signature method-info)) (cdr reptypes)))
+           ((null args) (setq arglist (append (specs) vargs)))
+        (let* ((reptype (if (objc-id-type-p (car argtypes)) :id (car reptypes)))
+               (arg (car args)))
+          (specs reptype)
+          (case reptype
+            (:<BOOL> (specs `(coerce-to-bool ,arg)))
+            (:id (specs `(coerce-to-address ,arg)))
+            (t (specs arg)))))
+      ;(break "~& arglist = ~s" arglist)
+      `(with-ns-exceptions-as-errors
+        (rlet ,svarforms
+          ,@sinitforms
+          ,(if (result-type-requires-structure-return
+                (objc-method-info-result-type method-info))
+               (if (null s)
+                 ;; STRET required but not provided
+                 (error "The message ~S must be sent using SEND/STRET" msg)
+                 (if (null super)
+                   `(objc-message-send-stret ,s ,o ,msg ,@arglist :void)
+                   `(objc-message-send-super-stret ,s ,super ,msg ,@arglist :void)))
+               (if s
+                 ;; STRET provided but not required
+                 (error "The message ~S must be sent using SEND" msg)
+                 (let* ((result-spec (car (objc-method-info-signature method-info)))
+                        (form (if super
+                                `(objc-message-send-super ,super ,msg ,@arglist ,result-spec)
+                                `(objc-message-send ,o ,msg ,@arglist ,result-spec))))
+                   (if (eq result-spec :<BOOL>)
+                     `(coerce-from-bool ,form)
+                     form)))))))))
 
 ;;; The %SEND and %SEND/STRET functions for sending general messages 
 
