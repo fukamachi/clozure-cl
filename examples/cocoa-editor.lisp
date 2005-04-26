@@ -268,7 +268,7 @@
   (char-code (hemlock-char-at-index (hemlock-buffer-string-cache self) index)))
 
 
-(define-objc-method ((:void :get-characters (:address buffer) :range (:<NSR>ange r))
+(define-objc-method ((:void :get-characters ((:* :unichar) buffer) :range (:<NSR>ange r))
                      hemlock-buffer-string)
   (let* ((cache (hemlock-buffer-string-cache self))
          (index (pref r :<NSR>ange.location))
@@ -754,7 +754,7 @@
 (defmethod text-view-buffer ((self hemlock-text-view))
   (buffer-cache-buffer (hemlock-buffer-string-cache (send (send self 'text-storage) 'string))))
 
-(define-objc-method (((:struct :<NSR>ange r)
+(define-objc-method (((:struct :_<NSR>ange r)
                       :selection-range-for-proposed-range (:<NSR>ange proposed)
                       :granularity (:<NSS>election<G>ranularity g))
                      hemlock-textstorage-text-view)
@@ -1823,7 +1823,7 @@
         :alpha *editor-background-alpha-component*))
 
 
-(define-objc-method ((:id :set-text-storage ts)
+(define-objc-method ((:void :set-text-storage ts)
                      hemlock-editor-document)
   (let* ((doc (%inc-ptr self 0))
          (string (send ts 'string))
@@ -1831,11 +1831,8 @@
          (buffer (buffer-cache-buffer cache)))
     (unless (%null-ptr-p doc)
       (setf (slot-value doc 'textstorage) ts
-            (hi::buffer-document buffer) doc))
-    doc))
+            (hi::buffer-document buffer) doc))))
          
-      
-   
             
   
 (define-objc-method ((:id init) hemlock-editor-document)
@@ -1850,8 +1847,8 @@
     doc))
                      
 
-(define-objc-method ((:id :read-from-file filename
-			  :of-type type)
+(define-objc-method ((:<BOOL> :read-from-file filename
+                              :of-type type)
 		     hemlock-editor-document)
   (declare (ignorable type))
   (let* ((pathname (lisp-string-from-nsstring filename))
@@ -1882,7 +1879,7 @@
     (hi::document-end-editing self)
     (setf (hi::buffer-modified buffer) nil)
     (hi::process-file-options buffer pathname)
-    self))
+    #$YES))
     
   
 (defmethod hemlock-document-buffer (document)
@@ -2013,7 +2010,7 @@
         :wait-until-done t))
 
 ;;; This needs to run on the main thread.
-(define-objc-method ((void update-hemlock-selection)
+(define-objc-method ((:void update-hemlock-selection)
                      hemlock-text-storage)
   (let* ((string (send self 'string))
          (buffer (buffer-cache-buffer (hemlock-buffer-string-cache string)))
