@@ -152,6 +152,7 @@
          (data (send (make-objc-instance 'ns-mutable-data
                                          :with-length len) 'autorelease))
          (bytes (send data 'mutable-bytes)))
+    (declare (type ns:ns-file-handle filehandle))
     (%copy-ivector-to-ptr string 0 bytes 0 len)
     (send filehandle :write-data data)
     (send filehandle 'synchronize-file)))

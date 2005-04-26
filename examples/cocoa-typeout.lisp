@@ -181,6 +181,7 @@
   (let* ((typeout-view (typeout-panel-typeout-view *typeout-panel*))
 	 (text-storage (slot-value typeout-view 'text-storage))
 	 (len (send text-storage 'length)))
+    (declare (type ns:ns-text-storage text-storage))
     (send text-storage :delete-characters-in-range (ns-make-range 0 len))))
 
 (defloadvar *typeout-stream* (make-instance 'typeout-stream))
