@@ -428,18 +428,17 @@
       struct)))
 
 (defun process-ffi-objc-class (form)
-  (destructuring-bind (source-info class-name superclass-form template-form ivars) (cdr form)
+  (destructuring-bind (source-info class-name superclass-form protocols ivars) (cdr form)
     (declare (ignore source-info))
     (let* ((class (find-or-create-ffi-objc-class class-name)))
       (setf (ffi-objc-class-ordinal class) (incf *ffi-ordinal*))
       (unless (ffi-objc-class-super-foreign-name class)
-        (let* ((super-name (cadr superclass-form)))
+        (let* ((super-name (car superclass-form)))
           (unless (eq super-name :void)
             (setf (ffi-objc-class-super-foreign-name class)
                   super-name))))
-      (unless (ffi-objc-class-template-structure-name class)
-        (setf (ffi-objc-class-template-structure-name class)
-              (cadr (cadr template-form))))
+      (unless (ffi-objc-class-protocol-names class)
+        (setf (ffi-objc-class-protocol-names class) protocols))
       (unless (ffi-objc-class-own-ivars class)
         (setf (ffi-objc-class-own-ivars class)
               (process-ffi-fieldlist ivars)))
@@ -448,22 +447,29 @@
 (defun process-ffi-objc-method (form)
   (destructuring-bind (method-type source-info class-name category-name message-name arglist result-type) form
     (declare (ignore source-info category-name))
-    (let* ((message (find-or-create-ffi-objc-message message-name))
-           (class-method-p (eq method-type :objc-class-method))
-           (method
-            (make-ffi-objc-method :class-name class-name
-                                  :arglist (mapcar #'reference-ffi-type
-                                                   arglist)
-                                  :result-type (reference-ffi-type
-                                                result-type)
-                                  :class-method-p class-method-p)))
-      (unless (dolist (m (ffi-objc-message-methods message))
-                (when (and (equal (ffi-objc-method-class-name m)
-                                  class-name)
-                           (eq (ffi-objc-method-class-method-p m)
-                               class-method-p))
-                  (return t)))
-        (push method (ffi-objc-message-methods message))))))
+    (let* ((flags ()))
+      (if (or (eq method-type :objc-class-method)
+              (eq method-type :objc-protocol-class-method))
+        (setf (getf flags :class) t))
+      (if (or (eq method-type :objc-protocol-class-method)
+              (eq method-type :objc-protocol-instance-method))
+        (setf (getf flags :protocol) t))
+      (let* ((message (find-or-create-ffi-objc-message message-name))
+             (class-method-p (getf flags :class))
+             (method
+              (make-ffi-objc-method :class-name class-name
+                                    :arglist (mapcar #'reference-ffi-type
+                                                     arglist)
+                                    :result-type (reference-ffi-type
+                                                  result-type)
+                                    :flags flags)))
+        (unless (dolist (m (ffi-objc-message-methods message))
+                  (when (and (equal (ffi-objc-method-class-name m)
+                                    class-name)
+                             (eq (getf (ffi-objc-method-flags m) :class)
+                                 class-method-p))
+                    (return t)))
+          (push method (ffi-objc-message-methods message)))))))
       
 (defun process-ffi-typedef (form)
   (let* ((string (caddr form))
@@ -655,7 +661,11 @@
               (case (car form)
                 (:struct (push (process-ffi-struct form) defined-types))
                 (:objc-class (push (process-ffi-objc-class form) defined-types))
-                ((:objc-class-method :objc-instance-method)
+                ((:objc-class-method
+                  :objc-instance-method
+                  :objc-protocol-class-method
+                  :objc-protocol-instance-method
+                  )
                  (process-ffi-objc-method form))
                 (:function (push (process-ffi-function form) defined-functions))
                 (:macro (let* ((m (process-ffi-macro form))

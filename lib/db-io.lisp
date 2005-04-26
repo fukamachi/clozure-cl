@@ -461,15 +461,15 @@
 
 (defstruct (ffi-objc-class (:include ffi-type))
   super-foreign-name
+  protocol-names
   own-ivars
-  template-structure-name
   )
 
 (defstruct (ffi-objc-method)
   class-name
   arglist
   result-type
-  class-method-p)
+  flags)
 
 (defstruct (ffi-objc-message (:include ffi-type))
   methods)
@@ -824,43 +824,53 @@
 
 (defstruct objc-message-info
   message-name
-  instance-methods
-  class-methods)
+  methods
+  req-args
+  flags)
 
-(defstruct %objc-method-info
+(defstruct objc-method-info
   message-info
   class-name
+  class-pointer                         ;canonical, in some sense
   arglist
-  result-type)
-
-(defstruct (objc-class-method-info (:include %objc-method-info))
-  )
-(defstruct (objc-instance-method-info (:include %objc-method-info))
+  result-type
+  flags
+  signature
   )
 
-(defmethod print-object ((m %objc-method-info) stream)
+
+
+(defmethod print-object ((m objc-method-info) stream)
   (print-unreadable-object (m stream :type t :identity t)
     (format stream "~c[~a ~a]"
-            (if (typep m 'objc-class-method-info)
+            (if (getf (objc-method-info-flags m) :class)
               #\+
               #\-)
-            (%objc-method-info-class-name m)
+            (let* ((name (objc-method-info-class-name m)))
+              (if (getf (objc-method-info-flags m) :protocol)
+                (format nil "<~a>" name)
+                name))
             (objc-message-info-message-name
-             (%objc-method-info-message-info m)))))
+                          (objc-method-info-message-info m)))))
 
-(defun extract-db-objc-message-info (datum info)
+(defun extract-db-objc-message-info (datum message-name info)
   (with-macptrs ((buf))
     (%setf-macptr buf (pref datum :cdb-datum.data))
     (unless (%null-ptr-p buf)
+      (unless info
+        (setq info
+              (make-objc-message-info
+               :message-name (string message-name))))
       (let* ((p 0)
              (nmethods 0)
              (nargs 0))
         (multiple-value-setq (nmethods p) (%decode-uint buf p))
         (multiple-value-setq (nargs p) (%decode-uint buf p))
         (dotimes (i nmethods)
-          (let* ((is-class-method (not (= 0 (prog1
-                                                (%get-unsigned-byte buf p)
-                                              (incf p)))))
+          (let* ((flag-byte (prog1 (%get-unsigned-byte buf p)
+                              (incf p)))
+                 (is-class-method (logbitp 0 flag-byte))
+                 (is-protocol-method (logbitp 1 flag-byte))
                  (class-name ())
                  (result-type ())
                  (arg-types ())
@@ -870,29 +880,26 @@
             (dotimes (i nargs)
               (multiple-value-setq (arg-type p) (%decode-type buf p))
               (push arg-type arg-types))
-            (if is-class-method
-              (unless (dolist (m (objc-message-info-class-methods info))
-                        (string= (objc-class-method-info-class-name m)
-                                 class-name))
-                                 
+            (unless (dolist (m (objc-message-info-methods info))
+                      (when (and (eq (getf (objc-method-info-flags m) :class)  is-class-method)
+                                 (string= (objc-method-info-class-name m)
+                                          class-name))
+                        (return t)))
+              (let* ((flags ()))
+                (if is-class-method
+                  (setf (getf flags :class) t))
+                (if is-protocol-method
+                  (setf (getf flags :protocol) t))
                 (push
-                 (make-objc-class-method-info
-                 :message-info info
-                 :class-name class-name
-                 :arglist (nreverse arg-types)
-                 :result-type result-type)
-                 (objc-message-info-class-methods info)))
-              (unless (dolist (m (objc-message-info-instance-methods info))
-                        (string= (objc-instance-method-info-class-name m)
-                                 class-name))
-                (push
-                 (make-objc-instance-method-info
+                 (make-objc-method-info
                   :message-info info
                   :class-name class-name
                   :arglist (nreverse arg-types)
-                  :result-type result-type)
-                 (objc-message-info-instance-methods info))))))
-        (cdb-free (pref datum :cdb-datum.data))))))
+                  :result-type result-type
+                  :flags flags)
+                 (objc-message-info-methods info))))))
+        (cdb-free (pref datum :cdb-datum.data))))
+    info))
 
 (defun db-note-objc-method-info (cdb message-name message-info)
   (when cdb
@@ -904,14 +911,12 @@
               (pref value :cdb-datum.data) (%null-ptr)
               (pref value :cdb-datum.size) 0)
         (cdb-get cdb key value)
-        (extract-db-objc-message-info value message-info)))))
+        (extract-db-objc-message-info value message-name message-info)))))
 
-(defun get-objc-message-info (message-name
-                              &optional (message-info
-                                         (make-objc-message-info
-                                          :message-name (string message-name))))
+(defun lookup-objc-message-info (message-name &optional message-info)
   (do-interface-dirs (d)
-    (db-note-objc-method-info (db-objc-methods d) message-name message-info))
+    (setq message-info
+          (db-note-objc-method-info (db-objc-methods d) message-name message-info)))
   message-info)
 
 (defun %find-objc-class-info (name)
@@ -1025,7 +1030,7 @@
 
 (defun encode-name (name &optional verbatim)
   (if (null name)
-    '(0)
+    (list 0)
     (let* ((string
 	    (if (and (typep name 'keyword)
 		     (not verbatim))
@@ -1073,17 +1078,23 @@
         ,@(encode-ffi-field-list (ffi-struct-fields s))))))
 
 (defun encode-ffi-objc-class (c)
-  `(,@(encode-name (ffi-objc-class-string c))
-    ,@(encode-name (ffi-objc-class-super-foreign-name c))
-    ,@(encode-name (ffi-objc-class-template-structure-name c))
-    ,@(encode-ffi-field-list (ffi-objc-class-own-ivars c))))
+  (let* ((protocols (ffi-objc-class-protocol-names c)))
+    (labels ((encode-name-list (names)
+               (if names
+                 `(,@(encode-name (car names) t)
+                   ,@(encode-name-list (cdr names))))))
+      `(,@(encode-name (ffi-objc-class-string c))
+        ,@(encode-name (ffi-objc-class-super-foreign-name c))
+        ,@(encode-uint (length protocols))
+        ,@(encode-name-list protocols)
+        ,@(encode-ffi-field-list (ffi-objc-class-own-ivars c))))))
 
 
 (defstruct db-objc-class-info
   class-name
   superclass-name
+  protocols
   ivars
-  template-structure
   instance-methods
   class-methods
   )
@@ -1094,20 +1105,26 @@
       (%setf-macptr buf (pref datum :cdb-datum.data))
       (unless (%null-ptr-p buf)
 	(let* ((p 0)
+               (protocol-count 0)
                (class-name ())
                (superclass-name ())
-               (template-name ())
+               (protocol-name ())
                (ivars ()))
-          (multiple-value-setq (class-name p) (%decode-name buf p t))
-          (multiple-value-setq (superclass-name p) (%decode-name buf p t))
-          (multiple-value-setq (template-name p) (%decode-name buf p))
-          (setq ivars (%decode-field-list buf p))
-	  (cdb-free (pref datum :cdb-datum.data))
-          (setq val (make-db-objc-class-info
-                     :class-name class-name
-                     :superclass-name superclass-name
-                     :ivars ivars
-                     :template-structure template-name)))))
+          (collect ((protocols))
+            (multiple-value-setq (class-name p) (%decode-name buf p t))
+            (multiple-value-setq (superclass-name p) (%decode-name buf p t))
+            (multiple-value-setq (protocol-count p) (%decode-uint buf p))
+            (dotimes (i protocol-count)
+              (multiple-value-setq (protocol-name p) (%decode-name buf p t))
+              (protocols protocol-name))
+            (setq ivars (%decode-field-list buf p))
+            (cdb-free (pref datum :cdb-datum.data))
+            (setq val (make-db-objc-class-info
+                       :class-name class-name
+                       :superclass-name superclass-name
+                       :ivars ivars
+                       :protocols (protocols)
+                     ))))))
     val))
 
 (defun db-lookup-objc-class (cdb name)
@@ -1277,10 +1294,12 @@
       ,@(encode-ffi-arg-list args))))
 
 (defun encode-ffi-objc-method (m)
-  `(,(if (ffi-objc-method-class-method-p m) 1 0)
+  (let* ((flag-byte (logior (if (getf (ffi-objc-method-flags m) :class) 1 0)
+                            (if (getf (ffi-objc-method-flags m) :protocol) 2 0))))
+  `(,flag-byte
     ,@(encode-name (ffi-objc-method-class-name m) t)
     ,@(encode-ffi-type (ffi-objc-method-result-type m))
-    ,@(mapcar #'encode-ffi-type (ffi-objc-method-arglist m))))
+    ,@(apply #'append (mapcar #'encode-ffi-type (ffi-objc-method-arglist m))))))
 
 (defun save-ffi-objc-message (cdbm message)
   (let* ((methods (ffi-objc-message-methods message))
