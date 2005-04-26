@@ -371,7 +371,7 @@ _spentry(store_node_conditional)
         __(li arg_z,t_value)
         __(blr)
 2:      __(li imm0,RESERVATION_DISCHARGE)
-        __(stwcx. rzero,rzero,imm0)
+        __(stwcx. rzero,0,imm0)
         __(li arg_z,nil_value)
         __(blr)
         
