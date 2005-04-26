@@ -3926,28 +3926,14 @@
 
 (defun ppc2-misc-node-set (seg vreg xfer miscobj index value safe)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
-    (let* ((index-known-fixnum (acode-fixnum-form-p index))
-           (src )
-           (unscaled-idx )
-           (val-reg ))
-      (if (or safe (not index-known-fixnum))
-        (multiple-value-setq (src unscaled-idx val-reg)
-          (ppc2-three-untargeted-reg-forms seg miscobj ppc::arg_x index ppc::arg_y value ppc::arg_z))
-        (multiple-value-setq (src val-reg)
-          (ppc2-two-untargeted-reg-forms seg miscobj ppc::arg_y value ppc::arg_z)))
+    (multiple-value-bind (src unscaled-idx val-reg)
+        (ppc2-three-targeted-reg-forms seg miscobj ($ ppc::arg_x) index ($ ppc::arg_y) value ($ ppc::arg_z))
       (when safe
         (if (typep safe 'fixnum)
           (! trap-unless-typecode= src safe))
-        (unless index-known-fixnum
-          (! trap-unless-fixnum unscaled-idx))
+        (! trap-unless-fixnum unscaled-idx)
         (! check-misc-bound unscaled-idx src))
-      (if (and index-known-fixnum (<= index-known-fixnum ppc32::max-32-bit-constant-index))
-        (! misc-set-c-node val-reg src index-known-fixnum)
-        (let* ((idx-reg ppc::imm0))
-          (if index-known-fixnum
-            (ppc2-absolute-natural seg idx-reg nil (+ ppc32::misc-data-offset (ash index-known-fixnum 2)))
-            (! scale-32bit-misc-index idx-reg unscaled-idx))
-          (! misc-set-node val-reg src idx-reg)))
+      (! call-subprim-3 val-reg .SPgvset src unscaled-idx val-reg)
       (<- val-reg)
       (^))))
 
@@ -4045,12 +4031,12 @@
   (if (ppc2-form-typep ptrform 'cons)
     (setq safe nil))                    ; May also have been passed as NIL.
   (with-ppc-local-vinsn-macros (seg vreg xfer)
-    (multiple-value-bind (ptr-vreg val-vreg) (ppc2-two-untargeted-reg-forms seg ptrform ppc::arg_y valform ppc::arg_z)
+    (multiple-value-bind (ptr-vreg val-vreg) (ppc2-two-targeted-reg-forms seg ptrform ($ ppc::arg_y) valform ($ ppc::arg_z))
       (when safe
         (! TRAP-UNLESS-FULLTAG= ptr-vreg ppc32::fulltag-cons))
       (if setcdr
-        (! %set-cdr ptr-vreg val-vreg)
-        (! %set-car ptr-vreg val-vreg))
+        (! call-subprim-2 ($ ppc::arg_z) .SPrplacd ptr-vreg val-vreg)
+        (! call-subprim-2 ($ ppc::arg_z) .SPrplaca ptr-vreg val-vreg))
       (if returnptr
         (<- ptr-vreg)
         (<- val-vreg))
