@@ -129,7 +129,7 @@
      (defppcsubprim .SPinteger-sign)
      (defppcsubprim .SPsubtag-misc-set)
      (defppcsubprim .SPspread-lexpr-z)
-     (defppcsubprim .SPOLDsetqsym)
+     (defppcsubprim .SPstore-node-conditional)
      (defppcsubprim .SPreset)
      (defppcsubprim .SPmvslide)
      (defppcsubprim .SPsave-values)
