@@ -1,3 +1,16 @@
+2005-04-26 04:57  gb
+
+	* compiler/subprims.lisp: Updated.
+
+2005-04-26 04:56  gb
+
+	* lisp-kernel/pmcl-kernel.c: Disable EGC, initially.
+
+2005-04-26 04:54  gb
+
+	* lisp-kernel/: spentry.s, spjump.s: Start new write-barrier
+	scheme.
+
 2005-04-26 00:55  gb
 
 	* examples/bridge.lisp: Partially implement SEND in terms of
