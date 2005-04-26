@@ -1,3 +1,50 @@
+2005-04-26 00:55  gb
+
+	* examples/bridge.lisp: Partially implement SEND in terms of
+	interface information.
+
+2005-04-26 00:54  gb
+
+	* examples/cocoa-editor.lisp: Avoid message arg type ambiguity.
+
+2005-04-26 00:53  gb
+
+	* examples/: cocoa-typeout.lisp, cocoa-listener.lisp: Declare SEND
+	arg type.
+
+2005-04-26 00:52  gb
+
+	* examples/objc-clos.lisp: Handle foreign slots differently, since
+	offset/width info is available from interfaces.
+
+2005-04-26 00:52  gb
+
+	* examples/objc-runtime.lisp: Derive class info from interfaces,
+	not via introspection.
+
+2005-04-26 00:51  gb
+
+	* examples/objc-support.lisp: Don't references private slots or use
+	SEND to send undeclared messages.
+
+2005-04-26 00:50  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-04-26 00:50  gb
+
+	* lib/foreign-types.lisp: Start thinking about making some of this
+	target-sensitive.  Pre-define :<BOOL> as an integer type.
+
+2005-04-26 00:48  gb
+
+	* library/parse-ffi.lisp, lib/db-io.lisp: Handle protocol methods,
+	protocols in ObjC class decls.
+
+2005-04-26 00:47  gb
+
+	* library/splay-tree.lisp: Add MAP-SPLAY-TREE-KEYS-AND-VALUES.
+
 2005-04-24 00:01  gb
 
 	* lib/arrays-fry.lisp: Ignore fill-pointers when looking at array
