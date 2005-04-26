@@ -140,10 +140,12 @@
 	:user-info (%null-ptr)))
 
 
-(defmethod initialize-instance :after ((e ns-lisp-exception) &key &allow-other-keys)
-  (with-slots (condition ns:reason) e
-    (when condition
-      (setq ns:reason (%make-nsstring (format nil "~A" condition))))))
+(define-objc-method ((:id reason) ns-lisp-exception)
+  (with-slots (condition) self
+    (if condition
+      (%make-nsstring (format nil "~A" condition))
+      (send-super 'reason))))
+    
 
         
              
@@ -253,7 +255,7 @@ NSObjects describe themselves in more detail than others."
 
 #+apple-objc
 (defun show-autorelease-pools ()
-  (send (@class ns-autorelease-pool) 'show-pools))
+  (objc-message-send (@class ns-autorelease-pool) "showPools" :void))
 
 #+gnu-objc
 (defun show-autorelease-pools ()
