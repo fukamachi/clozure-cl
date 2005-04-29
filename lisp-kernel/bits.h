@@ -28,9 +28,9 @@ typedef natural *bitvector;
 
 
 static inline int
-set_bit(bitvector bits,unsigned bitnum)
+set_bit(bitvector bits,natural bitnum)
 {
-  unsigned 
+  natural
     windex = bitnum>>5, 
     old = bits[windex],
     new = old | (0x80000000 >> (bitnum & 0x1f));
@@ -42,10 +42,21 @@ set_bit(bitvector bits,unsigned bitnum)
   }
 }
 
-void set_n_bits(bitvector,unsigned,unsigned);
+static inline int 
+atomic_set_bit(bitvector bits ,natural bitnum)
+{
+  extern int atomic_ior(bitvector, natural);
+  natural
+    windex = bitnum>>5,
+    mask = (0x80000000 >> (bitnum & 0x1f));
+
+  return atomic_ior(bits + windex, mask);
+}
+
+void set_n_bits(bitvector,natural,natural);
 
 static inline int
-clr_bit(bitvector bits, unsigned bitnum)
+clr_bit(bitvector bits, natural bitnum)
 {
   unsigned 
     windex = bitnum>>5, 
@@ -61,22 +72,22 @@ clr_bit(bitvector bits, unsigned bitnum)
 
 
 static inline unsigned
-ref_bit(bitvector bits,unsigned bitnum)
+ref_bit(bitvector bits,natural bitnum)
 {
   return ((bits[bitnum>>5] & (0x80000000 >> (bitnum & 0x1f))) != 0);
 }
 
-bitvector new_bitvector(unsigned);
-void zero_bits(bitvector, unsigned);
-void ior_bits(bitvector,bitvector,unsigned);
+bitvector new_bitvector(natural);
+void zero_bits(bitvector, natural);
+void ior_bits(bitvector,bitvector,natural);
 
 #define BIT0_MASK 0x80000000U 
-#define bits_word_index(bitnum) (((unsigned)(bitnum)) >> 5)
-#define bits_bit_index(bitnum) (((unsigned)(bitnum)) & 0x1f)
+#define bits_word_index(bitnum) (((natural)(bitnum)) >> 5)
+#define bits_bit_index(bitnum) (((natural)(bitnum)) & 0x1f)
 #define bits_word_ptr(bits,bitnum) \
-  ((unsigned *) (((unsigned *) bits) + ((unsigned) (bits_word_index(bitnum)))))
+  ((natural*) (((natural*) bits) + ((natural) (bits_word_index(bitnum)))))
 #define bits_word_mask(bitnum) ((BIT0_MASK) >> bits_bit_index(bitnum))
-#define bits_indexed_word(bitv,indexw) ((((unsigned *)(bitv))[indexw]))
+#define bits_indexed_word(bitv,indexw) ((((natural*)(bitv))[indexw]))
 #define bits_word(bitv,bitnum) bits_indexed_word(bits,bits_word_index(bitnum))
 
 /* Evaluates some arguments twice */
@@ -89,8 +100,11 @@ void ior_bits(bitvector,bitvector,unsigned);
     BITWvar = (*BITPvar << BITIDXvar) >> BITIDXvar; }
 
 #ifdef __GNUC__
-static __inline__ int
-count_leading_zeros(unsigned long w)
+static __inline__ unsigned
+count_leading_zeros(natural w) __attribute__((always_inline));
+
+static __inline__ unsigned
+count_leading_zeros(natural w)
 {
   unsigned lz;
 #ifdef PPC64
@@ -102,7 +116,7 @@ count_leading_zeros(unsigned long w)
 }
 #else
 unsigned
-count_leading_zeros(unsigned long);
+count_leading_zeros(natural);
 #endif
 
 

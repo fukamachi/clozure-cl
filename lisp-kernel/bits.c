@@ -23,16 +23,16 @@
 /* This should be a lot faster than calling set_bit N times */
 
 void
-set_n_bits(bitvector bits, unsigned first, unsigned n)
+set_n_bits(bitvector bits, natural first, natural n)
 {
   if (n) {
-    unsigned
+    natural
       lastbit = (first+n)-1,
       leftbit = first & 0x1f,
       leftmask = 0xffffffff >> leftbit,
       rightmask = 0xffffffff << (31 - (lastbit & 0x1f)),
-      *wstart = ((unsigned *) bits) + (first>>5),
-      *wend = ((unsigned *) bits) + (lastbit>>5);
+      *wstart = ((natural *) bits) + (first>>5),
+      *wend = ((natural *) bits) + (lastbit>>5);
 
     if (wstart == wend) {
       *wstart |= (leftmask & rightmask);
@@ -57,20 +57,20 @@ set_n_bits(bitvector bits, unsigned first, unsigned n)
 
 
 bitvector 
-new_bitvector(unsigned nbits)
+new_bitvector(natural nbits)
 {
-  return (bitvector) zalloc((sizeof(unsigned)*(nbits+31)>>5));
+  return (bitvector) zalloc(((sizeof(natural)*(nbits+31))>>5));
 }
 
 /* Note that this zeros fullwords */
 void
-zero_bits(bitvector bits, unsigned nbits)
+zero_bits(bitvector bits, natural nbits)
 {
-  memset(bits, 0, (sizeof(unsigned)*((nbits+31)>>5)));
+  memset(bits, 0, ((sizeof(natural)*((nbits+31))>>5)));
 }
 
 void
-ior_bits(bitvector dest, bitvector src, unsigned nbits)
+ior_bits(bitvector dest, bitvector src, natural nbits)
 {
   while (nbits > 0) {
     *dest++ |= *src++;
