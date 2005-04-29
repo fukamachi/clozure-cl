@@ -562,9 +562,6 @@ create_reserved_area(unsigned long totalsize)
   global_mark_ref_bits = (bitvector)end;
   end = (BytePtr) ((unsigned long)((((unsigned long)end) - ((totalsize+63) >> 6)) & ~4095));
   global_reloctab = (LispObj *) end;
-  /* We need 2 bytes for every page for the egc pagemap */
-  end = (BytePtr) ((unsigned long)((((unsigned long)end) - ((totalsize+4095) >> 11)) & ~4095));
-  pagemap = (pageentry *) end;
   reserved = new_area(start, end, AREA_VOID);
   /* The root of all evil is initially linked to itself. */
   reserved->pred = reserved->succ = reserved;
@@ -642,12 +639,10 @@ ensure_gc_structures_writable()
     ndnodes = area_dnode(lisp_global(HEAP_END),lisp_global(HEAP_START)),
     npages = (lisp_global(HEAP_END)-lisp_global(HEAP_START)) >> 12,
     markbits_size = 12+((ndnodes+7)>>dnode_shift),
-    reloctab_size = (sizeof(LispObj)*(((ndnodes+31)>>5)+1)),
-    pagemap_size = align_to_power_of_2(npages*sizeof(pageentry),12);
+    reloctab_size = (sizeof(LispObj)*(((ndnodes+31)>>5)+1));
   BytePtr 
     new_reloctab_limit = ((BytePtr)global_reloctab)+reloctab_size,
-    new_markbits_limit = ((BytePtr)global_mark_ref_bits)+markbits_size,
-    new_pagemap_limit = ((BytePtr)pagemap)+ pagemap_size;
+    new_markbits_limit = ((BytePtr)global_mark_ref_bits)+markbits_size;
 
   if (new_reloctab_limit > reloctab_limit) {
     UnProtectMemory(global_reloctab, reloctab_size);
@@ -658,16 +653,8 @@ ensure_gc_structures_writable()
     UnProtectMemory(global_mark_ref_bits, markbits_size);
     markbits_limit = new_markbits_limit;
   }
-  
-  if (new_pagemap_limit > pagemap_limit) {
-    UnProtectMemory(pagemap,align_to_power_of_2(npages*sizeof(pageentry),12));
-    pagemap_limit = new_pagemap_limit;
-  }
-
 }
 
-protected_area_ptr
-oldspace_protected_area = NULL;
 
 area *
 allocate_dynamic_area(unsigned initsize)
@@ -690,7 +677,6 @@ allocate_dynamic_area(unsigned initsize)
   a->h = start;
   a->softprot = NULL;
   a->hardprot = NULL;
-  oldspace_protected_area = new_protected_area(start, end, kTenuredprotect, 0, false);
   a->hardlimit = end;
   ensure_gc_structures_writable();
   return a;
@@ -717,7 +703,6 @@ grow_dynamic_area(unsigned delta)
   a->high += delta;
   a->ndnodes = area_dnode(a->high, a->low);
   a->hardlimit = a->high;
-  oldspace_protected_area->end = a->high;
   lisp_global(HEAP_END) += delta;
   ensure_gc_structures_writable();
   return true;
@@ -738,7 +723,6 @@ shrink_dynamic_area(unsigned delta)
   a->high -= delta;
   a->ndnodes = area_dnode(a->high, a->low);
   a->hardlimit = a->high;
-  oldspace_protected_area->end = a->high;
   uncommit_pages(a->high, delta);
   reserved->low -= delta;
   reserved->ndnodes += (delta>>dnode_shift);
@@ -828,7 +812,7 @@ sigint_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 
 
 void
-start_vbl()
+register_sigint_handler()
 {
   struct sigaction sa;
 
@@ -1329,6 +1313,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
     tenured_area->younger = g2_area;
     tenured_area->refbits = a->markbits;
     lisp_global(TENURED_AREA) = ptr_to_lispobj(tenured_area);
+    lisp_global(REFBITS) = ptr_to_lispobj(tenured_area->refbits);
     g2_area->threshold = (4<<20); /* 4MB */
     g1_area->threshold = (2<<20); /* 2MB */
     a->threshold = (1<<20);     /* 1MB */
@@ -1341,7 +1326,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   lisp_global(EXCEPTION_LOCK) = ptr_to_lispobj(new_recursive_lock());
   enable_fp_exceptions();
-  start_vbl();
+  register_sigint_handler();
 
   lisp_global(ALTIVEC_PRESENT) = altivec_present << fixnumshift;
 #if STATIC
