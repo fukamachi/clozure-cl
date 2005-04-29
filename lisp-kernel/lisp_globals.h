@@ -36,8 +36,8 @@ extern LispObj lisp_nil;
 #define BLOCK_TAG_COUNTER (-14)
 #define INTFLAG (-15)
 #define GC_INHIBIT_COUNT (-16)
-#define OS_TRAP_CALL (-17)
-#define TB_TRAP_CALL (-18)
+#define REFBITS (-17)
+#define OLDSPACE_DNODE_COUNT (-18) /* count of dynamic dnodes older than generation 0 */
 #define ALTIVEC_PRESENT (-19)   /* non-zero if AltiVec present. */
 #define FWDNUM (-20)            /* fixnum: GC "forwarder" call count. */
 #define GC_NUM (-21)            /* fixnum: GC call count. */
