@@ -380,7 +380,6 @@ allocate_object(ExceptionInformation *xp,
   */
   if ((lisp_global(HEAP_END)-lisp_global(HEAP_START)) > bytes_needed) {
     untenure_from_area(tenured_area); /* force a full GC */
-    unprotect_area(oldspace_protected_area);
     gc_from_xp(xp);
   }
   
@@ -864,27 +863,6 @@ protect_area(protected_area_ptr p)
   }
 }
 
-void
-protect_oldspace(BytePtr end)
-{
-  protected_area_ptr p = oldspace_protected_area;
-  BytePtr 
-    start = (BytePtr) ptr_from_lispobj(lisp_global(HEAP_START)),
-    endpage = (BytePtr)ptr_from_lispobj(align_to_power_of_2(ptr_to_lispobj(end),12));
-  int i, npages = (endpage-start)>>12;
-  pageentry *pe = pagemap;
-  
-  p->start = start;
-  p->end = endpage;
-  p->protsize = endpage-start;
-  p->nprot = 0;
-  protect_area(p);
-
-  for (i = 0; i < npages; i++, pe++) {
-    pe->bits.modified = 0;
-  }
-}
-
 
 
 
@@ -897,7 +875,6 @@ protection_handler
    do_hard_stack_overflow,    
    do_hard_stack_overflow,
    do_hard_stack_overflow,
-   do_tenured_space_write
    };
 
 
@@ -1279,26 +1256,6 @@ is_ephemeral_node_store(ExceptionInformation *xp, BytePtr ea)
       
 
 
-OSStatus
-do_tenured_space_write(ExceptionInformation *xp, protected_area_ptr area, BytePtr addr)
-{
-  /* Note that the page has been "newly" written to, then unprotect it
-     and continue */
-  natural 
-    page_start = ((natural)addr) & ~4095, 
-    pgno = (page_start - (natural)(area->start)) >> 12;
-  
-  if (lisp_global(IN_GC) != 0) {
-    Bug(xp, "Tenured space protected in GC");
-  }
-
-  pagemap[pgno].bits.modified = 1;
-  UnProtectMemory((LogicalAddress)page_start, 4096);
-  if (is_ephemeral_node_store(xp, addr)) {
-    adjust_exception_pc(xp,4);
-  }
-  return 0;
-}
 
 
 
@@ -1899,7 +1856,18 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
      up or move forward, according to whether we're in the middle
      of allocating a cons cell or allocating a uvector.
   d) a STMW to the vsp
+  e) EGC write-barrier subprims.
 */
+
+extern pc
+  egc_write_barrier_start,
+  egc_write_barrier_end, 
+  egc_store_node_conditional, 
+  egc_set_hash_key,
+  egc_gvset,
+  egc_rplaca,
+  egc_rplacd;
+
 void
 pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
 {
@@ -1909,6 +1877,54 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
   LispObj cur_allocptr = xpGPR(xp, allocptr);
   int allocptr_tag = fulltag_of(cur_allocptr);
   
+  if ((program_counter < egc_write_barrier_end) && 
+      (program_counter >= egc_write_barrier_start)) {
+    LispObj *ea = 0, val, root;
+    bitvector refbits = (bitvector)(lisp_global(REFBITS));
+    Boolean need_store = true, need_check_memo = true, need_memoize_root = false;
+
+    if (program_counter >= egc_store_node_conditional) {
+      if ((program_counter == egc_store_node_conditional) || ! (xpCCR(xp) & 0x20000000)) {
+        /* The conditional store either hasn't been attempted yet, or
+           has failed.  No need to adjust the PC, or do memoization. */
+        return;
+      }
+      val = xpGPR(xp,arg_z);
+      ea = (LispObj*)(xpGPR(xp,arg_x) + xpGPR(xp,imm4));
+      xpGPR(xp,arg_z) = t_value;
+      need_store = false;
+    } else if (program_counter >= egc_set_hash_key) {
+      root = xpGPR(xp,arg_x);
+      ea = (LispObj *) (root+xpGPR(xp,arg_y)+fulltag_misc);
+      need_memoize_root = true;
+    } else if (program_counter >= egc_gvset) {
+      ea = (LispObj *) (xpGPR(xp,arg_x)+xpGPR(xp,arg_y)+fulltag_misc);
+      val = xpGPR(xp,arg_z);
+    } else if (program_counter >= egc_rplacd) {
+      ea = (LispObj *) untag(xpGPR(xp,arg_y));
+      val = xpGPR(xp,arg_z);
+    } else {                      /* egc_rplaca */
+      ea =  ((LispObj *) untag(xpGPR(xp,arg_y)))+1;
+      val = xpGPR(xp,arg_z);
+    }
+    if (need_store) {
+      *ea = val;
+    }
+    if (need_check_memo) {
+      natural  bitnumber = area_dnode(ea, lisp_global(HEAP_START));
+      if ((bitnumber < lisp_global(OLDSPACE_DNODE_COUNT)) &&
+          ((LispObj)ea < val)) {
+        atomic_set_bit(refbits, bitnumber);
+        if (need_memoize_root) {
+          bitnumber = area_dnode(root, lisp_global(HEAP_START));
+          atomic_set_bit(refbits, bitnumber);
+        }
+      }
+    }
+    set_xpPC(xp, xpLR(xp));
+    return;
+  }
+
 
   if (instr == 0x918c0004) {	/* stw tsp,tsp_frame.type(tsp) */
     LispObj tsp_val = xpGPR(xp,tsp);
