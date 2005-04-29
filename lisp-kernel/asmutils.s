@@ -208,6 +208,22 @@ _exportfn(C(atomic_swap))
 	__(mr r3,r5)
 	__(blr)
 _endfn
+
+/*
+        Logior the value in *r3 with the value in r4 (presumably a bitmask with exactly 1
+        bit set.)  Return non-zero if any of the bits in that bitmask were already set.
+*/        
+_exportfn(C(atomic_ior))
+        __(sync)
+1:	__(lwarx r5,0,r3)
+        __(or r6,r4,r5)
+	__(stwcx. r6,0,r3)
+	__(bne- 1b)
+	__(isync)
+	__(and r3,r4,r5)
+	__(blr)
+_endfn
+        
 	
 ifdef([DARWIN],[      
 _exportfn(C(enable_fp_exceptions))
