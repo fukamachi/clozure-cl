@@ -96,6 +96,7 @@ typedef struct cons {
 /*  set in the result. */
 
 #define t_offset (8+(8-fulltag_nil)+fulltag_misc)
+#define t_value (lisp_nil+t_offset)
 
 /*  The order in which various header values are defined is significant in several ways: */
 /*  1) Numeric subtags precede non-numeric ones; there are further orderings among numeric subtags. */
