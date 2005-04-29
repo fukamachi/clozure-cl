@@ -269,9 +269,10 @@
     (cond ((typep ea 'lreg)
             (ppc2-copy-register seg ea valreg))
           ((addrspec-vcell-p ea)     ; closed-over vcell
-           (with-node-temps (valreg) (vcell)
-             (ppc2-stack-to-register seg ea vcell)
-             (! vcell-set vcell valreg)))
+           (ppc2-copy-register seg ppc::arg_z valreg)
+           (ppc2-stack-to-register seg ea ppc::arg_x)
+           (ppc2-copy-register seg ppc::arg_y ppc::rzero)
+           (! call-subprim-3 ppc::arg_z .SPgvset ppc::arg_x ppc::arg_y ppc::arg_z))
           ((memory-spec-p ea)    ; vstack slot
            (ppc2-register-to-stack seg valreg ea))
           (t
@@ -5329,7 +5330,7 @@
           (let* ((src (ppc2-one-untargeted-reg-form seg form2 ppc::arg_z)))
             (if (<= const 31)
               (! %ilsl-c target const src)
-              (!  lwi target 0)))
+              (!  lri target 0)))
           (multiple-value-bind (count src) (ppc2-two-untargeted-reg-forms seg form1 ppc::arg_y form2 ppc::arg_z)
             (! %ilsl target count src))))
       (^))))
@@ -6019,7 +6020,7 @@
           (let ((src (ppc2-one-untargeted-reg-form seg form2 ($ ppc::arg_z))))
             (if (<= count 31)
               (! %ilsr-c target count src)
-              (!  lwi target 0)))
+              (!  lri target 0)))
           (multiple-value-bind (cnt src) (ppc2-two-targeted-reg-forms seg form1 ($ ppc::arg_y) form2 ($ ppc::arg_z))
             (! %ilsr target cnt src))))
       (^))))
