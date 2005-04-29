@@ -56,19 +56,6 @@ typedef void *LogicalAddress;
 typedef char *Ptr, *BytePtr, *StringPtr;
 typedef unsigned int UInt32;
 
-typedef union {
-  unsigned short halfword;
-  struct {
-#ifdef PPC64
-    unsigned short offset:13;
-    unsigned short pad:1;
-#else
-    unsigned short offset:14;
-#endif
-    unsigned short hasnode:1;
-    unsigned short modified:1;
-  } bits;
-} pageentry;
 
 
 #define true 1
