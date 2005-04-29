@@ -109,8 +109,24 @@ ifdef([PPC64],[
         define([srri],[
         srdi $@
         ])
+        define([srr],[
+        srd $@
+        ])
         define([slri],[
         sldi $@
+        ])
+        define([lrarx],[
+        ldarx $@
+        ])
+        define([strcx],[
+        stdcx. $@
+        ])
+        define([load_highbit],[
+        lis $1,0x8000
+        sldi $1,$1,32
+        ])
+        define([extract_bit_shift_count],[
+        clrldi $1,$2,64-bitmap_shift
         ])
 ],[
         define([clrrri],[
@@ -179,9 +195,24 @@ ifdef([PPC64],[
         define([srri],[
         srwi $@
         ])
+        define([srr],[
+        srw $@
+        ])
         define([slri],[
         slwi $@
-        ])        
+        ])
+        define([lrarx],[
+        lwarx $@
+        ])
+        define([strcx],[
+        stwcx. $@
+        ])
+        define([load_highbit],[
+        lis $1,0x8000
+        ])
+        define([extract_bit_shift_count],[
+        clrlwi $1,$2,32-bitmap_shift
+        ])
 ])
 
 /*
@@ -393,10 +424,10 @@ define([_car],[
 define([_cdr],[
 	ldr($1,cons.cdr($2))])
 	
-define([rplaca],[
+define([_rplaca],[
 	str($2,cons.car($1))])
 	
-define([rplacd],[
+define([_rplacd],[
 	str($2,cons.cdr($1))])
 
 define([vpush_saveregs],[
