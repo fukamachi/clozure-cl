@@ -38,7 +38,6 @@ typedef enum {
   kSPhardguard,			/* Touch one and die. */
   kVSPhardguard,
   kTSPhardguard,
-  kTenuredprotect,		/* Write to oldspace when EGC active */
   kHEAPsoft,			/* Uninitialized page in the heap */
   kHEAPhard,			/* The end-of-the-line in the heap */
   /* Phony last entry. */
@@ -76,8 +75,6 @@ OSStatus do_memo_reset(ExceptionInformationPowerPC *, TCR *, BytePtr);
 void
 exception_cleanup(void);
 
-protected_area_ptr
-oldspace_protected_area;
 
   
 #endif /* __memprotect_h__ */
