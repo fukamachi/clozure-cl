@@ -381,6 +381,9 @@
 
 
 (defppclapfunction %store-node-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
+  (ba .SPstore-node-conditional))
+
+(defppclapfunction %store-immediate-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
   (vpop temp0)
   (unbox-fixnum imm0 temp0)
   (let ((current temp1))
