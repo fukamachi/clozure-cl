@@ -234,21 +234,22 @@
     subprims-base                       ; start of dynamic subprims jump table
     ret1valaddr                         ; magic multiple-values return address.
     tcr-key                             ; tsd key for thread's tcr
-    BAD-gc-lock                         ; serialize access to gc
+    area-lock                         ; serialize access to gc
     exception-lock			; serialize exception handling
     go-tag-counter        		; counter for (immediate) go tag
     block-tag-counter                   ; counter for (immediate) block tag
     intflag				; interrupt-pending flag
     gc-inhibit-count                    ; for gc locking
-    os-trap-call                        ; callostrapunivesalproc's descriptor
-    tb-trap-call                        ; CallUniversalProc's descriptor
+    refbits                             ; oldspace refbits
+    oldspace-dnode-count                ; number of dnodes in dynamic space that are older than
+                                        ; youngest generation
     altivec-present                     ; non-zero if cpu supports AltiVec 
     fwdnum                              ; fixnum: GC "forwarder" call count.
     gc-count                            ; fixnum: GC call count.
     gcable-pointers                     ; linked-list of weak macptrs.
     heap-start                          ; start of lisp heap
     heap-end                            ; end of lisp heap
-    statically-linked                   ; current control-stack area
+    statically-linked                   ; true if the lisp kernel is statically linked
     bad-current-vs                      ; current value-stack area
     bad-current-ts                      ; current temp-stack area
     bad-cs-overflow-limit               ; limit for control-stack overflow check
@@ -262,7 +263,7 @@
     double-float-one                    ; high half of 1.0d0
     ffi-exception                       ; ffi fpscr[fex] bit
     exception-saved-registers           ; saved registers from exception frame
-    oldest-ephemeral                    ; doubleword address of oldest ephemeral object or 0
+    oldest-ephemeral                    ; doublenode address of oldest ephemeral object or 0
     tenured-area                        ; the tenured_area.
     errno                               ; address of C lib errno
     argv                                ; address of C lib argv
