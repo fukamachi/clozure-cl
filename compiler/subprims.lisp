@@ -137,7 +137,7 @@
      (defppcsubprim .SPcallback)
      (defppcsubprim .SPmisc-alloc-init)
      (defppcsubprim .SPstack-misc-alloc-init)
-     (defppcsubprim .SPOLDprogvsave)
+     (defppcsubprim .SPset-hash-key)
      (defppcsubprim .SPOLDprogvrestore)
      (defppcsubprim .SPcallbuiltin)
      (defppcsubprim .SPcallbuiltin0)
