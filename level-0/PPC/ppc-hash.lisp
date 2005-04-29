@@ -100,9 +100,7 @@
 ; ensure that the vector header gets memoized as well
 #+ppc-target
 (defppclapfunction %set-hash-table-vector-key ((vector arg_x) (index arg_y) (value arg_z))
-  (la imm0 ppc32::misc-data-offset index)
-  (stwx value vector imm0)
-  (blr))
+  (ba .SPset-hash-key))
 
 
 ; end of ppc-hash.lisp
