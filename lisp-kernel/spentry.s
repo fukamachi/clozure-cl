@@ -341,38 +341,207 @@ _spentry(stack_restv_arg)
        
 
 _spentry(vspreadargz)
+        __(nop)
 
+        .globl C(egc_write_barrier_start)
+C(egc_write_barrier_start):
 
+/*
+   The function pc_luser_xp() - which is used to ensure that suspended threads
+   are suspended in a GC-safe way - has to treat these subprims (which implement
+   the EGC write-barrier) specially.  Specifically, a store that might introduce
+   an intergenerational reference (a young pointer stored in an old object) has
+   to "memoize" that reference by setting a bit in the global "refbits" bitmap.
+   This has to happen atomically, and has to happen atomically wrt GC.
 
+   Note that updating a word in a bitmap is itself not atomic, unless we use
+   interlocked loads and stores.
+*/
 
-_spentry(_rplaca)
-        __(rplaca(arg_y,arg_z))
+/*
+  For RPLACA and RPLACD, things are fairly simple: regardless of where we are
+  in the function, we can do the store (even if it's already been done) and
+  calculate whether or not we need to set the bit out-of-line.  (Actually
+  setting the bit needs to be done atomically, unless we're sure that other
+  threads are suspended.
+  We can unconditionally set the suspended thread's PC to its LR.
+*/
+_spentry(rplaca)
+        .globl C(egc_rplaca)
+C(egc_rplaca):          
+        __(cmplr(cr2,arg_z,arg_y))
+        __(_rplaca(arg_y,arg_z))
+        __(blelr cr2)
+        __(ref_global(imm2,heap_start))
+        __(sub imm0,arg_y,imm2)
+        __(load_highbit(imm3))
+        __(srri(imm0,imm0,dnode_shift))       
+        __(ref_global(imm1,oldspace_dnode_count))
+        __(extract_bit_shift_count(imm4,imm0))
+        __(cmplr(imm0,imm1))
+        __(srr(imm3,imm3,imm4))
+        __(srri(imm0,imm0,bitmap_shift))       
+        __(ref_global(imm2,refbits))
+        __(bgelr)
+        __(slri(imm0,imm0,word_shift))
+1:      __(lwarx imm1,imm2,imm0)
+        __(or imm1,imm1,imm3)
+        __(stwcx. imm1,imm2,imm0)
+        __(bne- 1b)
+        __(isync)
         __(blr)
 
-_spentry(_rplacd)
-	__(rplacd(arg_y,arg_z))
-	__(blr)
+_spentry(rplacd)
+        .globl C(egc_rplacd)
+C(egc_rplacd):          
+        __(cmplr(cr2,arg_z,arg_y))
+	__(_rplacd(arg_y,arg_z))
+        __(blelr cr2)
+        __(ref_global(imm2,heap_start))
+        __(sub imm0,arg_y,imm2)
+        __(load_highbit(imm3))
+        __(srri(imm0,imm0,dnode_shift))       
+        __(ref_global(imm1,oldspace_dnode_count))
+        __(extract_bit_shift_count(imm4,imm0))
+        __(cmplr(imm0,imm1))
+        __(srr(imm3,imm3,imm4))
+        __(srri(imm0,imm0,bitmap_shift))       
+        __(ref_global(imm2,refbits))
+        __(bgelr)
+        __(slri(imm0,imm0,word_shift))
+1:      __(lwarx imm1,imm2,imm0)
+        __(or imm1,imm1,imm3)
+        __(stwcx. imm1,imm2,imm0)
+        __(bne- 1b)
+        __(isync)
+        __(blr)
 
+/*
+  Storing into a gvector can be handled the same way as storing into a CONS.
+*/
+          
 _spentry(gvset)
+        .globl C(egc_gvset)
+C(egc_gvset):  
+        __(cmplr(cr2,arg_z,arg_x))
         __(la imm0,misc_data_offset(arg_y))
         __(strx(arg_z,arg_x,imm0))
+        __(blelr cr2)
+        __(add imm0,imm0,arg_x)
+        __(ref_global(imm2,heap_start))
+        __(load_highbit(imm3))
+        __(ref_global(imm1,oldspace_dnode_count))
+        __(sub imm0,imm0,imm2)
+        __(srri(imm0,imm0,dnode_shift))       
+        __(cmplr(imm0,imm1))
+        __(extract_bit_shift_count(imm4,imm0))
+        __(srri(imm0,imm0,bitmap_shift))       
+        __(srr(imm3,imm3,imm4))
+        __(ref_global(imm2,refbits))
+        __(bgelr)
+        __(slri(imm0,imm0,word_shift))
+1:      __(lwarx imm1,imm2,imm0)
+        __(or imm1,imm1,imm3)
+        __(stwcx. imm1,imm2,imm0)
+        __(bne- 1b)
+        __(isync)
         __(blr)
 
+/* This is a special case of storing into a gvector: if we need to memoize the store,
+   record the address of the hash-table vector in the refmap, as well.
+*/        
+_spentry(set_hash_key)
+        .globl C(egc_set_hash_key)
+C(egc_set_hash_key):  
+        __(cmplr(cr2,arg_z,arg_x))
+        __(la imm0,misc_data_offset(arg_y))
+        __(strx(arg_z,arg_x,imm0))
+        __(blelr cr2)
+        __(add imm0,imm0,arg_x)
+        __(ref_global(imm2,heap_start))
+        __(load_highbit(imm3))
+        __(ref_global(imm1,oldspace_dnode_count))
+        __(sub imm0,imm0,imm2)
+        __(srri(imm0,imm0,dnode_shift))       
+        __(cmplr(imm0,imm1))
+        __(extract_bit_shift_count(imm4,imm0))
+        __(srri(imm0,imm0,bitmap_shift))       
+        __(srr(imm3,imm3,imm4))
+        __(ref_global(imm2,refbits))
+        __(bgelr)
+        __(slri(imm0,imm0,word_shift))
+1:      __(lwarx imm1,imm2,imm0)
+        __(or imm1,imm1,imm3)
+        __(stwcx. imm1,imm2,imm0)
+        __(bne- 1b)
+        __(isync)
+        __(ref_global(imm1,heap_start))
+        __(sub imm0,arg_x,imm1)
+        __(srri(imm0,imm0,dnode_shift))
+        __(load_highbit(imm3))
+        __(extract_bit_shift_count(imm4,imm0))
+        __(srri(imm0,imm0,bitmap_shift))
+        __(srr(imm3,imm3,imm4))
+        __(slri(imm0,imm0,word_shift))
+2:      __(lwarx imm1,imm2,imm0)
+        __(or imm1,imm1,imm3)
+        __(stwcx. imm1,imm2,imm0)
+        __(bne- 2b)
+        __(isync)
+        __(blr)
+        
+/*
+  This is a little trickier: the first instruction clears the EQ bit in CR0; the only
+  way that it can get set is if the conditional store succeeds.  So:
+  a) if we're interrupted on the first instruction, or if we're interrupted on a subsequent
+     instruction but CR0[EQ] is clear, the condtional store hasn't succeeded yet.  We don't
+     have to adjust the PC in this case; when the thread's resumed, the conditional store
+     will be (re-)attempted and will eventually either succeed or fail.
+  b) if the CR0[EQ] bit is set (on some instruction other than the first), the handler can
+     decide if/how to handle memoization.  The handler should set the PC to the LR, and
+     set arg_z to T.
+*/
 _spentry(store_node_conditional)
+        .globl C(egc_store_node_conditional)
+C(egc_store_node_conditional):  
         __(crclr 2)              /* 2 = cr0_EQ */
+        __(cmplr(cr2,arg_z,arg_x))
         __(vpop(temp0))
-        __(unbox_fixnum(imm0,temp0))
-1:      __(lwarx temp1,arg_x,imm0)
+        __(unbox_fixnum(imm4,temp0))
+1:      __(lwarx temp1,arg_x,imm4)
         __(cmpr(cr1,temp1,arg_y))
-        __(bne cr1,2f)
-        __(stwcx. arg_z,arg_x,imm0)
+        __(bne cr1,3f)
+        __(stwcx. arg_z,arg_x,imm4)
         __(bne 1b)
         __(isync)
-        __(li arg_z,t_value)
-        __(blr)
-2:      __(li imm0,RESERVATION_DISCHARGE)
+        __(add imm0,imm4,arg_x)
+        __(ref_global(imm2,heap_start))
+        __(ref_global(imm1,oldspace_dnode_count))
+        __(sub imm0,imm0,imm2)
+        __(load_highbit(imm3))
+        __(srri(imm0,imm0,dnode_shift))       
+        __(cmplr(imm0,imm1))
+        __(extract_bit_shift_count(imm2,imm0))
+        __(srri(imm0,imm0,bitmap_shift))       
+        __(srr(imm3,imm3,imm2))
+        __(ref_global(imm2,refbits))
+        __(bge 5f)
+        __(slri(imm0,imm0,word_shift))
+2:      __(lwarx imm1,imm2,imm0)
+        __(or imm1,imm1,imm3)
+        __(stwcx. imm1,imm2,imm0)
+        __(bne- 2b)
+        __(isync)
+        __(b 5f)
+3:      __(li imm0,RESERVATION_DISCHARGE)
         __(stwcx. rzero,0,imm0)
-        __(li arg_z,nil_value)
+/*        __(b 4f) */
+
+       .globl C(egc_write_barrier_end)
+C(egc_write_barrier_end):
+4:      __(li arg_z,nil_value)
+        __(blr)
+5:      __(li arg_z,t_value)
         __(blr)
         
 _spentry(conslist)
@@ -417,8 +586,8 @@ _spentry(stkconslist)
 1:	__(ldr(temp0,0(vsp)))
 	__(cmpri(cr1,nargs,fixnum_one))
 	__(la vsp,node_size(vsp))
-	__(rplaca(imm1,temp0))
-	__(rplacd(imm1,arg_z))
+	__(_rplaca(imm1,temp0))
+	__(_rplacd(imm1,arg_z))
 	__(mr arg_z,imm1)
 	__(la imm1,cons.size(imm1))
 	__(la nargs,-fixnum_one(nargs))
@@ -438,8 +607,8 @@ _spentry(stkconslist_star)
 1:	__(ldr(temp0,0(vsp)))
 	__(cmpri(cr1,nargs,fixnum_one))
 	__(la vsp,node_size(vsp))
-	__(rplaca(imm1,temp0))
-	__(rplacd(imm1,arg_z))
+	__(_rplaca(imm1,temp0))
+	__(_rplacd(imm1,arg_z))
 	__(mr arg_z,imm1)
 	__(la imm1,cons.size(imm1))
 	__(la nargs,-fixnum_one(nargs))
@@ -1106,8 +1275,8 @@ _spentry(stack_cons_rest_arg)
 	__(cmpri(cr0,imm1,8))	/* last time through ? */
 	__(subi imm1,imm1,8)
 	__(vpop(arg_x))
-	__(rplacd(imm0,arg_z))
-	__(rplaca(imm0,arg_x))
+	__(_rplacd(imm0,arg_z))
+	__(_rplaca(imm0,arg_x))
 	__(mr arg_z,imm0)
 	__(la imm0,cons.size(imm0))
 	__(bne cr0,1b)
@@ -1849,8 +2018,8 @@ _spentry(makestacklist)
 1:
 	__(subi imm1,imm1,fixnum1)
 	__(cmpri(cr1,imm1,0))
-	__(rplacd(imm2,arg_z))
-	__(rplaca(imm2,arg_y))
+	__(_rplacd(imm2,arg_z))
+	__(_rplaca(imm2,arg_y))
 	__(mr arg_z,imm2)
 	__(subi imm2,imm2,cons.size)
 2:
@@ -2835,78 +3004,6 @@ _spentry(stack_misc_alloc_init)
 	__(mr arg_y,temp0)
 	__(jump_fname())
 
-/* save the values of a list of special variables (arg_y); set them 
-   to the corresponding values in the list in arg_z. 
-   We've checked to make sure that arg_y is a proper list of bindable 
-   symbols, but we're not sure what's in arg_z. 
-   Save the special binding triplets on the tstack.  If there's not 
-   enough room, die.  Prepend the triplets with a boxed triplet 
-   count. */
-_spentry(progvsave)
-	/* Error if arg_z isn't a proper list.  That's unlikely,
-	   but it's better to check now than to crash later.
-	*/
-	__(cmpri(arg_z,nil_value))
-	__(mr temp0,arg_z)	/* fast */
-	__(mr temp1,arg_z)	/* slow */
-	__(beq 9f)		/* Null list is proper */
-0:	
-	__(trap_unless_list(temp0,imm0))
-	__(_cdr(temp2,temp0))	/* (null (cdr fast)) ? */
-	__(cmpri(temp2,nil_value))
-	__(trap_unless_list(temp2,imm0))
-	__(_cdr(temp0,temp2))
-	__(beq 9f)
-	__(_cdr(temp1,temp1))
-	__(cmpr(temp0,temp1))
-	__(bne 0b)
-	__(lwi(arg_y,XIMPROPERLIST))
-	__(set_nargs(2))
-	__(b _SPksignalerr)
-9:	/* Whew */	
-	
-        /* Next, determine the length of arg_y.  We */
-        /* know that it's a proper list. */
-	__(li imm0,-node_size)
-	__(mr temp0,arg_y)
-1:
-	__(cmpri(cr0,temp0,nil_value))
-	__(la imm0,node_size(imm0))
-	__(_cdr(temp0,temp0))
-	__(bne 1b)
-	/* imm0 is now (boxed) triplet count. */
-	/* Determine word count, add 1 (to align), and make room. */
-	/* if count is 0, make an empty tsp frame and exit */
-	__(cmpri(cr0,imm0,0))
-	__(add imm1,imm0,imm0)
-	__(add imm1,imm1,imm0)
-        __(dnode_align(imm1,imm1,node_size))
-	__(bne+ cr0,2f)
-	 __(TSP_Alloc_Fixed_Boxed(8))
-	 __(blr)
-2:
-	__(la imm1,tsp_frame.fixed_overhead(imm1))	/* tsp header */
-	__(TSP_Alloc_Var_Boxed_nz(imm1,imm2))
-	__(str(imm0,tsp_frame.data_offset(tsp)))
-	__(ldr(imm2,tsp_frame.backlink(tsp)))
-	__(mr temp0,arg_y)
-	__(ldr(imm1,tcr.db_link(rcontext)))
-3:
-	__(_car(temp1,temp0))
-	__(ldr(imm0,symbol.flags(temp1)))
-	__(ori imm0,imm0,sym_vbit_bound_mask)
-	__(_cdr(temp0,temp0))
-	__(_car(temp2,arg_z))
-	__(_cdr(arg_z,arg_z))
-	__(cmpri(cr0,temp0,nil_value))
-	__(push(temp2,imm2))
-	__(push(temp1,imm2))
-	__(push(imm1,imm2))
-	__(mr imm1,imm2)
-	__(str(imm0,symbol.flags(temp1)))
-	__(bne cr0,3b)
-	__(str(imm1,tcr.db_link(rcontext)))
-	__(blr)
 	
 /*
    Restore the special bindings from the top of the tstack, 
