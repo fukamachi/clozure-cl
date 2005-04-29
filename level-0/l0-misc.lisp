@@ -492,7 +492,7 @@
           (decf (%svref lock target::lock._value-cell))
           lock)
         (loop
-          (when (%store-node-conditional target::lock._value lock 0 -1)
+          (when (%store-immediate-conditional target::lock._value lock 0 -1)
             (setf (%svref lock target::lock.writer-cell) context)
             (return lock))
           (%nanosleep 0 *ns-per-tick*)))))
