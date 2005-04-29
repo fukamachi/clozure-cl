@@ -350,192 +350,6 @@ check_all_areas()
   }
 }
 
-/*
-  Scan forward from the object boundary P until a node address >= to
-   PAGE is found.
-*/
-LispObj *
-first_node_on_page(LispObj *p, LispObj *page, pageentry *bucket, LispObj *limit)
-{
-  LispObj *q, *nextpage = (LispObj *) ((BytePtr)page + 4096), header;
-  int tag;
-
-  while (p < limit) {
-    header = *p;
-    tag = fulltag_of(header);
-
-    if (p >= nextpage) {
-      bucket->halfword = 0;
-      return p;
-    }
-    
-    if (immheader_tag_p(tag)) {
-      q = (LispObj *)skip_over_ivector(ptr_to_lispobj(p), header);
-      if (q >= nextpage) {
-	bucket->halfword = 0;
-	return q;
-      }
-    } else if (nodeheader_tag_p(tag)) {
-      q = p + ((2 + header_element_count(header)) & ~1);
-      if (p >= page) {
-	bucket->bits.hasnode = 1;
-	bucket->bits.offset = (p-page);
-        if (q > nextpage) {
-          return p;
-        }
-	return q;
-      }
-      if (q >= page) {
-	bucket->bits.hasnode = 1;
-	bucket->bits.offset = 0;
-	if (q > nextpage) {
-	  return p;
-	}
-	return q;
-      }
-    } else {
-      q = p + 2;
-      if (p >= page) {
-	bucket->bits.hasnode = 1;
-	bucket->bits.offset = (p-page);
-	return q;
-      }
-    }
-    p = q;
-  }
-  bucket->halfword = 0;
-  return p;
-}
-
-
-void
-make_page_node_map(LispObj *start, LispObj *end)
-{
-  LispObj *p, *page = (LispObj *)truncate_to_power_of_2(start,12);
-  pageentry 
-    *buckets = pagemap + (((ptr_to_lispobj(page)) - lisp_global(HEAP_START)) >> 12);
-
-  if (start != page) {
-    if (buckets->bits.hasnode) {
-      /* We already know (from having built older generation's page_node_map)
-         where the first node on this page is.  We're more interested in
-         the next page(s) */
-      buckets++;
-      page += (4096/sizeof(LispObj *));
-    }
-  }
-  for (p = start;
-       p < end;
-       page += (4096/sizeof(LispObj *)), buckets++) {
-    p = first_node_on_page(p, page, buckets, end);
-  }
-}
-
-void
-update_refmap_for_range(LispObj *start, 
-                        LispObj *end,
-                        LispObj ephemeral_start,
-                        unsigned long ephemeral_dnodes)
-{
-  LispObj node, oldspacestart = lisp_global(HEAP_START);
-  int tag;
-  bitvector refbits = tenured_area->refbits;
-
-  while (start < end) {
-    node = *start;
-    tag = fulltag_of(node);
-    if (immheader_tag_p(tag)) {	/* An ivector */
-      start = ptr_from_lispobj(skip_over_ivector(ptr_to_lispobj(start), node));
-    } else {
-      if ((header_subtag(node) == subtag_hash_vector) ||
-          /* Need to memoize location of hash vector headers, at
-             least if we have to track key movement */
-          (((tag == fulltag_cons) || (tag == fulltag_misc)) &&
-           (area_dnode(node, ephemeral_start) < ephemeral_dnodes))) {
-        /* Tagged pointer to (some) younger generation; update refmap */
-        set_bit(refbits,area_dnode(start, oldspacestart));
-      } else {
-        node = start[1];
-        tag = fulltag_of(node);
-        if (((tag == fulltag_cons) || (tag == fulltag_misc)) &&
-            (area_dnode(node, ephemeral_start) < ephemeral_dnodes)) {
-          set_bit(refbits,area_dnode(start, oldspacestart));
-        }
-      }
-      start += 2;
-    }
-  }
-}
-                        
-void
-update_refmap_for_page(pageentry *bucket,
-		       LispObj *page,
-		       LispObj ephemeral_start,
-		       unsigned ephemeral_dnodes)
-{
-  LispObj *start;
-  if (bucket->bits.modified) {		/* Page was written to since last GC */
-    if (bucket->bits.hasnode) {		/* Some nodes on this page */
-      start = page + bucket->bits.offset;
-      update_refmap_for_range(start,
-                              (LispObj *) align_to_power_of_2(ptr_to_lispobj(start+1),12),
-                              ephemeral_start,
-                              ephemeral_dnodes);
-    }
-  }
-}
-
-
-void
-update_refmap_for_area(area *a, BytePtr curfree)
-{
-  if (a->ndnodes) {
-    LispObj 
-      *start = (LispObj *) a->low,
-      *limit = (LispObj *) a->active,
-      *last_whole_page_end = (LispObj *) truncate_to_power_of_2(limit,12),
-      *first_partial_page_start = (LispObj *) truncate_to_power_of_2(start,12);
-    pageentry *p = pagemap + (ptr_to_lispobj(start) - lisp_global(HEAP_START) >> 12);
-    unsigned younger_dnodes = area_dnode(ptr_to_lispobj(curfree),ptr_to_lispobj(limit));
-    
-    if (last_whole_page_end == first_partial_page_start) {
-      if (p->bits.modified && p->bits.hasnode) {
-        update_refmap_for_range(start,limit,ptr_to_lispobj(limit),younger_dnodes);
-      }
-    } else {
-      if (start != first_partial_page_start) {
-        LispObj 
-          *page_end = first_partial_page_start + (4096 / sizeof(LispObj *));
-        if (p->bits.modified && p->bits.hasnode) {
-          update_refmap_for_range(start,page_end,ptr_to_lispobj(limit),younger_dnodes);
-        }
-        start = page_end;
-        p++;
-      }
-      for (; 
-           start < last_whole_page_end;
-           start += (4096 / sizeof(LispObj *)), p++) {
-        update_refmap_for_page(p,start,ptr_to_lispobj(limit),younger_dnodes);
-      }
-      if (start < limit) {
-        if (p->bits.modified && p->bits.hasnode) {
-          update_refmap_for_range(start+p->bits.offset,limit,ptr_to_lispobj(limit),younger_dnodes);
-        }
-      }
-    }
-  }
-}
-
-void
-update_area_refmaps(BytePtr curfree)
-{
-  unprotect_area(oldspace_protected_area);
-  update_refmap_for_area(tenured_area,curfree);
-  update_refmap_for_area(g2_area,curfree);
-  update_refmap_for_area(g1_area,curfree);
-}
-      
-
 
 /*
   Make everything "younger" than the start of the target area
@@ -589,8 +403,7 @@ tenure_to_area(area *target)
   }
    
   a->markbits = new_markbits;
-  make_page_node_map((LispObj *)target_low, (LispObj *)curfree);
-  protect_oldspace(curfree);
+  lisp_global(OLDSPACE_DNODE_COUNT) = area_dnode(curfree, lisp_global(HEAP_START));
 }
 
 /*
@@ -623,6 +436,7 @@ untenure_from_area(area *from)
     if (from == tenured_area) {
       /* Everything's in the dynamic area */
       lisp_global(OLDEST_EPHEMERAL) = 0;
+      lisp_global(OLDSPACE_DNODE_COUNT) = 0;
     }
   }
 }
@@ -647,7 +461,6 @@ egc_control(Boolean activate, BytePtr curfree)
     } else {
       untenure_from_area(tenured_area);
       a->older = NULL;
-      unprotect_area(oldspace_protected_area);
       egc_is_active = false;
     }
   }
@@ -768,7 +581,7 @@ void
 mark_root(LispObj n)
 {
   int tag_n = fulltag_of(n);
-  unsigned dnode, bits, *bitsp, mask;
+  natural dnode, bits, *bitsp, mask;
 
   if (!is_node_fulltag(tag_n)) {
     return;
@@ -965,7 +778,7 @@ rmark(LispObj n)
 {
   int tag_n = fulltag_of(n);
   bitvector markbits = GCmarkbits;
-  unsigned dnode, bits, *bitsp, mask;
+  natural dnode, bits, *bitsp, mask;
 
   if (!is_node_fulltag(tag_n)) {
     return;
@@ -1264,7 +1077,7 @@ mark_memoized_area(area *a, unsigned num_memo_dnodes)
 {
   bitvector refbits = a->refbits;
   LispObj *p = (LispObj *) a->low, x1, x2;
-  unsigned inbits, outbits, bits, bitidx, *bitsp, nextbit, diff, memo_dnode = 0;
+  natural inbits, outbits, bits, bitidx, *bitsp, nextbit, diff, memo_dnode = 0;
   Boolean keep_x1, keep_x2;
 
   if (GCDebug) {
@@ -2234,7 +2047,7 @@ forward_memoized_area(area *a, unsigned num_memo_dnodes)
 {
   bitvector refbits = a->refbits;
   LispObj *p = (LispObj *) a->low, x1, x2, new;
-  unsigned bits, bitidx, *bitsp, nextbit, diff, memo_dnode = 0, hash_dnode_limit = 0;
+  natural bits, bitidx, *bitsp, nextbit, diff, memo_dnode = 0, hash_dnode_limit = 0;
   int tag_x1;
   hash_table_vector_header *hashp = NULL;
   Boolean header_p;
@@ -2431,8 +2244,8 @@ LispObj
 compact_dynamic_heap()
 {
   LispObj *src = ptr_from_lispobj(GCfirstunmarked), *dest = src, node, new;
-  unsigned elements, dnode = gc_area_dnode(GCfirstunmarked), node_dnodes = 0, imm_dnodes = 0;
-  unsigned bitidx, *bitsp, bits, nextbit, diff;
+  unsigned long elements, dnode = gc_area_dnode(GCfirstunmarked), node_dnodes = 0, imm_dnodes = 0;
+  natural bitidx, *bitsp, bits, nextbit, diff;
   int tag;
   bitvector markbits = GCmarkbits;
     /* keep track of whether or not we saw any
@@ -2628,18 +2441,13 @@ gc(TCR *tcr)
   BytePtr oldfree = a->active;
   TCR *other_tcr;
 
-  /* make_page_node_map((LispObj) a->low, (LispObj)a->active); */
   get_time(start);
   lisp_global(IN_GC) = (1<<fixnumshift);
 
   GCephemeral_low = lisp_global(OLDEST_EPHEMERAL);
   if (GCephemeral_low) {
     GCn_ephemeral_dnodes=area_dnode(oldfree, GCephemeral_low);
-    update_area_refmaps(oldfree);
   } else {
-    if (a->younger) {
-      unprotect_area(oldspace_protected_area);
-    }
     GCn_ephemeral_dnodes = 0;
   }
   
