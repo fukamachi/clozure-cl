@@ -34,7 +34,6 @@
 
 #define code_header_mask ((0x3f<<26) | subtag_code_vector)
 
-pageentry *pagemap;
 
 extern LispObj GCarealow;
 extern unsigned GCndnodes_in_area;
