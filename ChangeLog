@@ -1,3 +1,7 @@
+2005-04-29 03:35  gb
+
+	* lib/nfcomp.lisp, xdump/faslenv.lisp: Increment FASL version.
+
 2005-04-29 03:07  gb
 
 	* lisp-kernel/spentry.s: Writes that may introduce
