@@ -258,14 +258,6 @@
                                   ())
   (lwzx dest v scaled-idx))
 
-(define-ppc32-vinsn misc-set-node (()
-                                 ((val :lisp)
-                                  (v :lisp)
-                                  (scaled-idx :s32))
-                                 ())
-  (stwx val v scaled-idx))
-
-
 
 
 (define-ppc32-vinsn misc-ref-c-node (((dest :lisp))
@@ -274,6 +266,8 @@
                                    ())
   (lwz dest (:apply + ppc32::misc-data-offset (:apply ash idx 2)) v))
 
+;;; This should only be used for initialization (when the value being
+;;; stored is known to be older than the vector V.)
 (define-ppc32-vinsn misc-set-c-node (()
                                    ((val :lisp)
                                     (v :lisp)
@@ -1638,11 +1632,6 @@
 (define-ppc32-vinsn vcell-ref (((dest :lisp))
 			       ((vcell :lisp)))
   (lwz dest ppc32::misc-data-offset vcell))
-
-(define-ppc32-vinsn vcell-set (()
-                             ((vcell :lisp)
-                              (value :lisp)))
-  (stw value ppc32::misc-data-offset vcell))
 
 
 (define-ppc32-vinsn make-vcell (((dest :lisp))
