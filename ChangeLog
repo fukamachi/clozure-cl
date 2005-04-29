@@ -1,3 +1,116 @@
+2005-04-29 03:07  gb
+
+	* lisp-kernel/spentry.s: Writes that may introduce
+	intergenerational references should all be handled here; ensuring
+	atomicity and handling locatives requires some support in
+	pc_luser_xp().
+
+2005-04-29 03:05  gb
+
+	* lisp-kernel/spjump.s: New subprims replace some old ones.
+
+2005-04-29 03:05  gb
+
+	* lisp-kernel/pmcl-kernel.c: No more hardware EGC write barrier. 
+	EGC off by default (for bootstrapping new write barrier.)
+
+2005-04-29 03:03  gb
+
+	* lisp-kernel/memprotect.h: No more hardware EGC write barrier.
+
+2005-04-29 03:02  gb
+
+	* lisp-kernel/macros.s: A little more 32/64 macrology; some support
+	for bitvector operations.
+
+2005-04-29 03:01  gb
+
+	* lisp-kernel/lisptypes.h: No more pageentry type.
+
+2005-04-29 03:01  gb
+
+	* lisp-kernel/lisp_globals.h: New globals (REFBITS,
+	OLDSPACE_DNODE_COUNT).
+
+2005-04-29 03:00  gb
+
+	* lisp-kernel/lisp-exceptions.c: No more protectin-based write
+	barrier.  Some new pc-luser support to make software write barrier
+	appear to be atomic (needs testing.)
+
+2005-04-29 02:59  gb
+
+	* lisp-kernel/gc.h: No more pagemap.
+
+2005-04-29 02:59  gb
+
+	* lisp-kernel/gc.c: New (software) EGC write barrier; drop support
+	for the old one ...
+
+2005-04-29 02:57  gb
+
+	* lisp-kernel/: constants32.s, constants64.s: Move lisp-global
+	definitions elsewhere; define some bitvector-related values.
+
+2005-04-29 02:57  gb
+
+	* lisp-kernel/constants32.h: Define t_value.
+
+2005-04-29 02:56  gb
+
+	* lisp-kernel/constants.s: Move lisp-global definitions here.
+
+2005-04-29 02:54  gb
+
+	* lisp-kernel/: bits.c, bits.h: Some word-size issues; still very
+	32-bit-centric.
+
+2005-04-29 02:53  gb
+
+	* lisp-kernel/asmutils.s: Add atomic_ior.
+
+2005-04-29 02:51  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-04-29 02:51  gb
+
+	* level-0/PPC/ppc-misc.lisp: %STORE-NODE-CONDITIONAL goes
+	out-of-line, for EGC write barrier.
+	
+	%STORE-IMMEDIATE-CONDITIONAL skips that, when fixnums/immediates
+	are known to be involved.
+
+2005-04-29 02:50  gb
+
+	* level-0/PPC/ppc-hash.lisp: %SET-HASH-TABLE-VECTOR-KEY goes out of
+	line, to handle EGC write barrier.
+
+2005-04-29 02:49  gb
+
+	* level-0/l0-misc.lisp: Use %STORE-IMMEDIATE-CONDITIONAL when
+	fixnums are involved.
+
+2005-04-29 02:48  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Remove misc-set-node and
+	vcell-set.
+
+2005-04-29 02:48  gb
+
+	* compiler/PPC/ppc2.lisp: lwi -> lri.  Do setq of closed-over
+	vcells via .SPgvset, for EGC.
+
+2005-04-29 02:46  gb
+
+	* compiler/PPC/ppc-arch.lisp: Replace some obsolete globals with
+	refbits and oldspace-dnode-count.
+
+2005-04-29 02:45  gb
+
+	* compiler/subprims.lisp: Replace something obsolete with
+	.SPset-hash-key.
+
 2005-04-26 11:02  gb
 
 	* lisp-kernel/spentry.s: Make Darwin assembler happy.  (Well,
