@@ -356,7 +356,7 @@
 			      (mylookat *camera-pos* picked-point *y-axis*)
 			      ;; NOW render the cube like we were doing before
 			      (opengl:with-matrix-mode (#$GL_MODELVIEW)
-				(with-transformation (*cube*)
+				(with-transformation (objc)
 				  (render-children-for-selection objc)))))))
 		      (#_glFlush)))))
 	(when (and (numberp hits)
