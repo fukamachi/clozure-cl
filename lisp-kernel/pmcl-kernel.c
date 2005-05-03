@@ -325,12 +325,14 @@ initial_stack_size = DEFAULT_INITIAL_STACK_SIZE;
 
 /*
   'start' should be on a segment boundary; 'len' should be
-  an integral number of segments.
-  remap the entire range, a segment at a time.
+  an integral number of segments.  remap the entire range.
 */
 
+BytePtr 
+HeapHighWaterMark = NULL;
+
 void 
-uncommit_pages(void *start, unsigned len)
+uncommit_pages(void *start, size_t len)
 {
   if (len) {
     madvise(start, len, MADV_DONTNEED);
@@ -345,10 +347,11 @@ uncommit_pages(void *start, unsigned len)
       fprintf(stderr, "errno = %d", err);
     }
   }
+  HeapHighWaterMark = start;
 }
 
 void
-commit_pages(void *start, unsigned len)
+commit_pages(void *start, size_t len)
 {
   if (len != 0) {
     int i, err;
@@ -361,6 +364,7 @@ commit_pages(void *start, unsigned len)
 		  -1,
 		  0);
       if (addr  == start) {
+        HeapHighWaterMark = ((BytePtr)start) + len;
 	return;
       }
       err = errno;
@@ -696,9 +700,7 @@ grow_dynamic_area(unsigned delta)
   if (!allocate_from_reserved_area(delta)) {
     return false;
   }
-  if ( nrs_GC_EVENT_STATUS_BITS.vcell & gc_retain_pages_bit) {
-    commit_pages(a->high,delta);
-  }
+  commit_pages(a->high,delta);
 
   a->high += delta;
   a->ndnodes = area_dnode(a->high, a->low);
@@ -1158,6 +1160,7 @@ check_os_version(char *progname)
     exit(1);
   }
 }
+
   
 main(int argc, char *argv[], char *envp[], void *aux)
 {
@@ -1258,8 +1261,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(LEXPR_RETURN1V) = (LispObj)&popj;
   lisp_global(ALL_AREAS) = ptr_to_lispobj(all_areas);
 
-
-
   exception_init();
 
   if (lisp_global(SUBPRIMS_BASE) == 0) {
@@ -1340,7 +1341,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;
   nrs_TOPLFUNC.vcell = lisp_nil;
   enable_fp_exceptions();
-#if 0
+#if 1
   egc_control(true, NULL);
 #endif
   start_lisp(TCR_TO_TSD(tcr), 0);
