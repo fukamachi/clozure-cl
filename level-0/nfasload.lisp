@@ -841,11 +841,14 @@
 (defvar %toplevel-function%
   #'(lambda ()
       (declare (special *xload-cold-load-functions*
+                        *xload-cold-load-documentation*
                         *xload-startup-file*))
       (%set-tcr-toplevel-function (%current-tcr) nil)   ; should get reset by l1-boot.
 
      (dolist (f (prog1 *xload-cold-load-functions* (setq *xload-cold-load-functions* nil)))
         (funcall f))
+     (dolist (f (prog1 *xload-cold-load-documentation* (setq *xload-cold-load-documentation* nil)))
+       (apply 'set-documentation f))
      ;; Can't bind any specials until this happens
      (%map-areas #'(lambda (o)
                      (when (eql (typecode o) ppc32::subtag-svar)
