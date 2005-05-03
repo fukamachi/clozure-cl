@@ -198,6 +198,7 @@
 (defparameter *xload-package-alist* nil)         ; maps real package to clone
 (defparameter *xload-aliased-package-addresses* nil)     ; cloned package to address
 (defparameter *xload-cold-load-functions* nil)
+(defparameter *xload-cold-load-documentation* nil)
 (defparameter *xload-fcell-refs* nil)    ; function cells referenced, for warnings
 (defparameter *xload-vcell-refs* nil)    ; value cells, for warnings
 (defparameter *xload-loading-file-source-file* nil)
@@ -727,6 +728,7 @@
 						 
          (*xload-package-alist* (xload-clone-packages %all-packages%))
          (*xload-cold-load-functions* nil)
+         (*xload-cold-load-documentation* nil)
          (*xload-loading-file-source-file* nil)
          (*xload-vcell-refs* nil)
          (*xload-fcell-refs* nil)
@@ -784,6 +786,10 @@
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))
           (xload-save-list (setq *xload-cold-load-functions*
                                 (nreverse *xload-cold-load-functions*))))
+    (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-documentation*))
+          (xload-save-list (setq *xload-cold-load-documentation*
+                                 (nreverse *xload-cold-load-documentation*))))
+                              
     (xload-note-undefined-references)
     (xload-finalize-packages)
     (xload-dump-image output-file *xload-image-base-address*)))
@@ -1034,6 +1040,13 @@
                             *xload-nil*))))
             (setf (xload-symbol-plist symaddr) (xload-make-cons keyaddr keyval))))))))
 
+(defun xload-set-documentation (symaddr indicator doc)
+  (push (xload-save-list
+         (list symaddr
+               (xload-copy-symbol indicator)
+               doc))
+        *xload-cold-load-documentation*))
+
 (defxloadfaslop $fasl-xchar (s)
   (%epushval s (xload-immval (code-char (%fasl-read-word s)))))
 
@@ -1044,8 +1057,9 @@
   (%cant-epush s)
   (let* ((fun (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (declare (ignore doc))
     (let* ((sym (xload-lfun-name fun)))
+      (unless (= doc *xload-nil*)
+        (xload-set-documentation sym 'function doc))
       (xload-record-source-file sym 'function)
       (xload-fset sym fun))))
 
@@ -1053,11 +1067,12 @@
   (%cant-epush s)
   (let* ((fun (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (declare (ignore doc))
     (let* ((sym (xload-lfun-name fun))
            (vector (xload-make-gvector ppc32::subtag-simple-vector 2)))
       (setf (xload-%svref vector 0) (xload-symbol-value (xload-lookup-symbol '%macro-code%))
             (xload-%svref vector 1) fun)
+      (unless (= doc *xload-nil*)
+        (xload-set-documentation sym 'function doc))
       (xload-record-source-file sym 'function)
       (xload-fset sym vector))))
 
@@ -1066,7 +1081,8 @@
   (let* ((sym (%fasl-expr s))
          (val (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (declare (ignore doc))              ; could push it on some vcell somewhere.
+    (unless (= doc *xload-nil*)
+      (xload-set-documentation sym 'variable doc))
     (xload-record-source-file sym 'variable)
     (setf (xload-symbol-value sym) val)
     (setf (xload-u32-at-address (+ sym ppc32::symbol.flags))
@@ -1082,7 +1098,8 @@
   (let* ((sym (%fasl-expr s))
          (val (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (declare (ignore doc))              ; could push it on some vcell somewhere.
+    (unless (= doc *xload-nil*)
+      (xload-set-documentation sym 'variable doc))
     (xload-record-source-file sym 'variable)
     (setf (xload-symbol-value sym) val)
     (setf (xload-u32-at-address (+ sym ppc32::symbol.flags))
@@ -1108,7 +1125,8 @@
   (let* ((sym (%fasl-expr s))
          (val (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (declare (ignore doc))              ; could push it on some vcell somewhere.
+    (unless (= doc *xload-nil*)
+      (xload-set-documentation sym 'variable doc))
     (when (= ppc32::unbound-marker (xload-symbol-value sym))
       (setf (xload-symbol-value sym) val))
     (xload-record-source-file sym 'variable)
