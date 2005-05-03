@@ -1,3 +1,74 @@
+2005-05-03 16:31  gb
+
+	* lisp-kernel/gc.c: No need to zero_last_page() anymore.
+
+2005-05-03 16:31  gb
+
+	* lisp-kernel/gc.h: use HeapHighWaterMark to mark highest mapped
+	address known to be zero-filled.
+
+2005-05-03 16:30  gb
+
+	* lisp-kernel/image.c: No memory protection anymore, so no need to
+	zero_last_page().
+
+2005-05-03 16:30  gb
+
+	* lisp-kernel/lisp-debug.c: Add a missing #\Newline.
+
+2005-05-03 16:29  gb
+
+	* lisp-kernel/lisp-exceptions.c: New handling of heap resizing and
+	segment allocation/zeroing.
+
+2005-05-03 16:28  gb
+
+	* lisp-kernel/pmcl-kernel.c: Turn the EGC on again; track
+	HeapHighWaterMark.
+
+2005-05-03 16:28  gb
+
+	* lisp-kernel/thread_manager.c: Use allocate_tcr() to ... allocate
+	TCR pointers, to ensure that a Mach port can be assigned the TCR's
+	address as a "name".
+
+2005-05-03 16:27  gb
+
+	* xdump/xfasload.lisp: Support doc strings in level-0.
+
+2005-05-03 16:26  gb
+
+	* level-1/linux-files.lisp: Return another value from %STAT-VALUES.
+
+2005-05-03 16:25  gb
+
+	* level-1/l1-utils.lisp: MEMBER/ASSOC support, MACRO-FUNCTION moved
+	to level-0 (to handle early doc strings.)
+
+2005-05-03 16:25  gb
+
+	* level-0/nfasload.lisp: Handle cold-load documentation.
+
+2005-05-03 16:24  gb
+
+	* level-0/l0-utils.lisp: Some MEMBER/ASSOC support here.
+
+2005-05-03 16:24  gb
+
+	* level-0/l0-misc.lisp: Change the wording in ROOM: it's not 1989
+	anymore.
+
+2005-05-03 16:23  gb
+
+	* level-0/l0-def.lisp: Remove (this version of) SET-DOCUMENTATION,
+	which might or might not have been overridden by another version
+	...
+	
+	Define a SET-FUNCTION-INFO, which handles the case where a
+	function's information is just a doc string.
+	
+	Move the definition of MACRO-FUNCTION here.
+
 2005-05-01 17:53  gb
 
 	* examples/rubix/blocks.lisp: Hamilton's fix in
