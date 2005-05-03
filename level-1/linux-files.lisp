@@ -153,8 +153,9 @@
        #+darwinppc-target
        (pref stat :stat.st_mtimespec.tv_sec)
        (pref stat :stat.st_ino)
-       (pref stat :stat.st_uid))
-      (values nil nil nil nil nil nil)))
+       (pref stat :stat.st_uid)
+       (pref stat :stat.st_blksize))
+      (values nil nil nil nil nil nil nil)))
 
 
 (defun %%stat (name stat)
