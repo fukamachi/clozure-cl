@@ -145,7 +145,7 @@ describe_illegal(ExceptionInformationPowerPC *xp)
     }
   }
   if (!described) {
-    fprintf(stderr, "Illegal instruction (0x%08x) at 0x%08x",
+    fprintf(stderr, "Illegal instruction (0x%08x) at 0x%08x\n",
             the_uuo, where);
   }
 }
