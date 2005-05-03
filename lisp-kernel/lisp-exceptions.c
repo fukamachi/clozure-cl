@@ -338,15 +338,10 @@ new_heap_segment(ExceptionInformation *xp, unsigned need, Boolean extend, TCR *t
   tcr->last_allocptr = (void *)newlimit;
   xpGPR(xp,allocptr) = (LispObj) newlimit;
   xpGPR(xp,allocbase) = (LispObj) oldlimit;
-  
-  if (!free_segments_zero_filled_by_OS) {
-    BytePtr 
-      pageptr = (BytePtr)align_to_power_of_2(oldlimit,log2_heap_segment_size);
-    natural i, npages = (newlimit-(natural)pageptr) >> 12;
 
-    for (i = 0; i < npages; i++, pageptr += page_size) {
-      zero_page(pageptr);
-    }
+  while (HeapHighWaterMark < (BytePtr)newlimit) {
+    zero_page(HeapHighWaterMark);
+    HeapHighWaterMark+=page_size;
   }
   return true;
 }
@@ -658,14 +653,6 @@ reset_lisp_process(ExceptionInformation *xp)
   start_lisp(tcr, 1);
 }
   
-void
-zero_last_page(BytePtr newfree)
-{
-  BytePtr base = (BytePtr)truncate_to_power_of_2(newfree,12);
-  if (base != newfree) {
-    memset(newfree, 0, base+4096-newfree);
-  }
-}
 
 /* 
    Grow or shrink the dynamic area.  Or maybe not.
@@ -677,37 +664,37 @@ void
 resize_dynamic_heap(BytePtr newfree, 
 		    unsigned free_space_size)
 {
-  unsigned protbytes;
+  unsigned protbytes, zerobytes;
   area *a = active_dynamic_area;
-  BytePtr newlimit, protptr;
+  BytePtr newlimit, protptr, zptr;
   
+  /* 
+     Zero the region between the new freepointer and the end of the
+     containing segment.
+  */
+  zptr = (BytePtr) align_to_power_of_2(newfree,log2_heap_segment_size);
+  zerobytes = zptr-newfree;
+  HeapHighWaterMark = zptr;
+
+  while (zerobytes >= page_size) {
+    zptr -= page_size;
+    zerobytes -= page_size;
+    zero_page(zptr);
+  }
+  
+  if (zerobytes) {
+    bzero(newfree, zerobytes);
+  }
   if (free_space_size) {
     BytePtr lowptr = a->active;
     newlimit = lowptr + align_to_power_of_2(newfree-lowptr+free_space_size,
 					    log2_heap_segment_size);
     if (newlimit > a->high) {
       grow_dynamic_area(newlimit-a->high);
-    } else if ((newlimit + free_space_size) < a->high) {
+    } else if ((HeapHighWaterMark + free_space_size) < a->high) {
       shrink_dynamic_area(a->high-newlimit);
     }
   }
-
-  protbytes = (((a->high)-newfree)&~(heap_segment_size-1));
-  protptr = a->high-protbytes;
-
-  free_segments_zero_filled_by_OS = false;
-  if (!( nrs_GC_EVENT_STATUS_BITS.vcell & gc_retain_pages_bit)) {
-    commit_pages(protptr, protbytes);
-    free_segments_zero_filled_by_OS = true;
-  }
-  protbytes = (protptr-newfree);
-
-  while (protbytes >= page_size) {
-    protptr -= page_size;
-    protbytes -= page_size;
-    zero_page(protptr);
-  }
-  /*  memset(newfree,0,protbytes); */
 }
 
 
@@ -1828,6 +1815,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%08lx, context->regs at #x%08lx", signum, xpPC(context), (natural)xpGPRvector(context));
     lisp_Debugger(context, signum, msg);
   }
+
   unlock_exception_lock_in_handler(tcr);
 
   /* This thread now looks like a thread that was suspended while
@@ -2253,6 +2241,7 @@ void
 restore_mach_thread_state(mach_port_t thread, ExceptionInformation *lss)
 {
   int i, j;
+  kern_return_t kret;
 #ifdef PPC64
   struct mcontext64 *mc = UC_MCONTEXT(lss);
 #else
@@ -2260,23 +2249,26 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *lss)
 #endif
 
   /* Set the thread's FP state from the lss */
-  thread_set_state(thread,
-		   PPC_FLOAT_STATE,
-		   (thread_state_t)&(mc->fs),
-		   PPC_FLOAT_STATE_COUNT);
+  kret = thread_set_state(thread,
+                          PPC_FLOAT_STATE,
+                          (thread_state_t)&(mc->fs),
+                          PPC_FLOAT_STATE_COUNT);
+
+  MACH_CHECK_ERROR("setting thread FP state", kret);
 
   /* The thread'll be as good as new ... */
 #ifdef PPC64
-  thread_set_state(thread,
-                   PPC_THREAD_STATE64,
-                   (thread_state_t)&(mc->ss),
-                   PPC_THREAD_STATE64_COUNT);
+  kret = thread_set_state(thread,
+                          PPC_THREAD_STATE64,
+                          (thread_state_t)&(mc->ss),
+                          PPC_THREAD_STATE64_COUNT);
 #else
-  thread_set_state(thread, 
-		   MACHINE_THREAD_STATE,
-		   (thread_state_t)&(mc->ss),
-		   MACHINE_THREAD_STATE_COUNT);
+  kret = thread_set_state(thread, 
+                          MACHINE_THREAD_STATE,
+                          (thread_state_t)&(mc->ss),
+                          MACHINE_THREAD_STATE_COUNT);
 #endif
+  MACH_CHECK_ERROR("setting thread state", kret);
 }  
 
 /* This code runs in the exception handling thread, in response
@@ -2614,7 +2606,7 @@ exception_handler_proc(void *arg)
   extern boolean_t exc_server();
   mach_port_t p = (mach_port_t) arg;
 
-  mach_msg_server(exc_server, 256, p, 0);
+  mach_msg_server(exc_server, 2048, p, 0);
   /* Should never return. */
   abort();
 }
@@ -2734,7 +2726,12 @@ restore_foreign_exception_ports(TCR *tcr)
   }
 }
 				   
-				    
+
+/*
+  This assumes that a Mach port (to be used as the thread's exception port) whose
+  "name" matches the TCR's 32-bit address has already been allocated.
+*/
+
 kern_return_t
 setup_mach_exception_handling(TCR *tcr)
 {
@@ -2743,12 +2740,6 @@ setup_mach_exception_handling(TCR *tcr)
     target_thread = pthread_mach_thread_np((pthread_t)ptr_from_lispobj(tcr->osid)),
     task_self = mach_task_self();
   kern_return_t kret;
-
-  kret = mach_port_allocate_name(task_self,
-				 MACH_PORT_RIGHT_RECEIVE,
-				 thread_exception_port);
-
-  MACH_CHECK_ERROR("naming exception_port",kret);
 
   kret = mach_port_insert_right(task_self,
 				thread_exception_port,
