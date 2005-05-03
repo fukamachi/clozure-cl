@@ -402,6 +402,46 @@ enqueue_tcr(TCR *new)
   UNLOCK(lisp_global(TCR_LOCK),new);
 }
 
+TCR *
+allocate_tcr()
+{
+  TCR *tcr, *chain = NULL, *next;
+#ifdef DARWIN
+  kern_return_t kret;
+  mach_port_t 
+    thread_exception_port,
+    task_self = mach_task_self();
+#endif
+  for (;;) {
+    tcr = calloc(1, sizeof(TCR));
+#ifdef DARWIN
+#ifdef PPC64
+    if (((unsigned)((natural)tcr)) != ((natural)tcr)) {
+      tcr->next = chain;
+      chain = tcr;
+      continue;
+    }
+#endif
+    thread_exception_port = (mach_port_t)((natural)tcr);
+    kret = mach_port_allocate_name(task_self,
+                                   MACH_PORT_RIGHT_RECEIVE,
+                                   thread_exception_port);
+    if (kret != KERN_SUCCESS) {
+      tcr->next = chain;
+      chain = tcr;
+      continue;
+    }
+#endif
+    for (next = chain; next;) {
+      next = next->next;
+      free(chain);
+    }
+    return tcr;
+  }
+}
+
+
+
 
 /*
   Caller must hold the area_lock.
@@ -416,7 +456,7 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
 #ifdef HAVE_TLS
   TCR *tcr = &current_tcr;
 #else
-  TCR *tcr = calloc(1, sizeof(TCR));
+  TCR *tcr = allocate_tcr();
 #endif
   int i;
 
@@ -765,7 +805,7 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-#ifdef DARWIN
+#ifdef DARWIN_but_there_are_problems_here
       if (mach_suspend_tcr(tcr)) {
 	tcr->flags |= TCR_FLAG_BIT_ALT_SUSPEND;
 	return true;
