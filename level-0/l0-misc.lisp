@@ -216,7 +216,7 @@
              (%stack-space))
            (unless (eq verbose :default)
              (setq stack-used-by-thread (%stack-space-by-lisp-thread))))))
-    (format t "~&There are at least ~:D bytes of available RAM.~%"
+    (format t "~&There are at least ~:D bytes of memory available. ~%"
             freebytes)
     (when verbose
       (flet ((k (n) (round n 1024)))
@@ -360,6 +360,8 @@
 
 
 (%fhave 'set-documentation #'%set-documentation)
+
+
 
 ;;; This is intended for use by debugging tools.  It's a horrible thing
 ;;; to do otherwise.  The caller really needs to hold the heap-segment
