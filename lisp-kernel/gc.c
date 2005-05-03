@@ -2687,10 +2687,6 @@ gc(TCR *tcr)
 
   
   a->active = (BytePtr) ptr_from_lispobj(compact_dynamic_heap());
-  
-  /* Need to do this before protection kicks back in */
-  zero_last_page(a->active);
-
   if (to) {
     tenure_to_area(to);
   }
