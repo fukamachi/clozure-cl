@@ -247,16 +247,7 @@
 
 
 (eval-when (:compile-toplevel :execute)
-  (defmacro need-use-eql-macro (key)
-    `(let* ((typecode (typecode ,key)))
-       (declare (fixnum typecode))
-       (or (= typecode ppc32::subtag-macptr)
-           (and (>= typecode ppc32::min-numeric-subtag)
-                (<= typecode ppc32::max-numeric-subtag)))))
-  (require "NUMBER-MACROS")
-)
-
-
+  (require "NUMBER-MACROS"))
 
 
 
@@ -440,13 +431,7 @@
 
 ; (asseql item list) <=> (assoc item list :test #'eql :key #'identity)
 
-(defun asseql (item list)
-  (if (need-use-eql-macro item)
-    (dolist (pair list)
-      (if pair
-	(if (eql item (car pair))
-	  (return pair))))
-    (assq item list)))
+
 
 ; (assoc-test item list test-fn) 
 ;   <=> 
@@ -494,36 +479,6 @@
 
 
 ;;;; Member.
-
-; (memeql item list) <=> (member item list :test #'eql :key #'identity)
-
-;nil or error - supposed to error if not proper list?
-(defun memeql (item list)
-  (if (need-use-eql-macro item)
-    (do* ((l list (%cdr l)))
-         ((endp l))
-      (when (eql (%car l) item) (return l)))
-    (memq item list))
-)
-
-; (member-test item list test-fn) 
-;   <=> 
-;     (member item list :test test-fn :key #'identity)
-(defun member-test (item list test-fn)
-  (if (or (eq test-fn 'eq)(eq test-fn  #'eq)
-          (and (or (eq test-fn 'eql)(eq test-fn  #'eql))
-               (not (need-use-eql-macro item))))
-    (do* ((l list (cdr l)))
-         ((null l))
-      (when (eq item (car l))(return l)))
-    (if (or (eq test-fn 'eql)(eq test-fn  #'eql))
-      (do* ((l list (cdr l)))
-           ((null l))
-        (when (eql item (car l))(return l)))    
-      (do* ((l list (cdr l)))
-           ((null l))
-        (when (funcall test-fn item (car l)) (return l))))))
-
 
 ; (member-test-not item list test-not-fn) 
 ;   <=> 
@@ -993,26 +948,7 @@ vector
 ;        on a special form.
 
 
-(defun macro-function (form &optional env)
-  "If SYMBOL names a macro in ENV, returns the expansion function,
-   else returns NIL. If ENV is unspecified or NIL, use the global
-   environment only."
-  (setq form (require-type form 'symbol))
-  (when env
-    ; A definition-environment isn't a lexical environment, but it can
-    ; be an ancestor of one.
-    (unless (istruct-typep env 'lexical-environment)
-        (report-bad-arg env 'lexical-environment))
-      (let ((cell nil))
-        (tagbody
-          top
-          (if (setq cell (%cdr (assq form (lexenv.functions env))))
-            (return-from macro-function 
-              (if (eq (car cell) 'macro) (%cdr cell))))
-          (unless (listp (setq env (lexenv.parent-env env)))
-            (go top)))))
-      ; Not found in env, look in function cell.
-  (%global-macro-function form))
+
 
 (defun symbol-function (name)
   "Return the definition of NAME, even if it is a macro or a special form.
