@@ -761,7 +761,6 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
         }
 #endif
 	resize_dynamic_heap(a->active, lisp_heap_gc_threshold);
-        zero_last_page(a->active);
 	xMakeDataExecutable(a->low, a->active - a->low);
 	break;
       }
