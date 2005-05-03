@@ -81,11 +81,6 @@
 (setq *fasload-print* nil)
 (setq *save-doc-strings* t)
 
-(defun bootstrapping-set-documentation (symbol doc-type string)
-  (declare (ignore symbol doc-type))
-  string)
-
-(%fhave 'set-documentation #'bootstrapping-set-documentation)
 
 
 (%fhave '%defun-encapsulated-maybe ;Redefined in encapsulate
@@ -108,7 +103,10 @@
           (declare (ignore fn))
           nil))
 
-(%fhave 'set-function-info (qlfun set-function-info  (name info) (declare (ignore info)) name))
+(%fhave 'set-function-info (qlfun set-function-info  (name info)
+                                  (if (typep info 'string)
+                                    (set-documentation name 'function info))
+                                  name))
 
 (defun %defun (named-fn &optional info &aux (name (function-name named-fn)))
    (record-source-file name 'function)
@@ -233,5 +231,26 @@
        (null (%cddr thing))
        (eq (%car thing) 'setf)
        (symbolp (%cadr thing))))
+
+(defun macro-function (form &optional env)
+  "If SYMBOL names a macro in ENV, returns the expansion function,
+   else returns NIL. If ENV is unspecified or NIL, use the global
+   environment only."
+  (setq form (require-type form 'symbol))
+  (when env
+    ; A definition-environment isn't a lexical environment, but it can
+    ; be an ancestor of one.
+    (unless (istruct-typep env 'lexical-environment)
+        (report-bad-arg env 'lexical-environment))
+      (let ((cell nil))
+        (tagbody
+          top
+          (if (setq cell (%cdr (assq form (lexenv.functions env))))
+            (return-from macro-function 
+              (if (eq (car cell) 'macro) (%cdr cell))))
+          (unless (listp (setq env (lexenv.parent-env env)))
+            (go top)))))
+      ; Not found in env, look in function cell.
+  (%global-macro-function form))
 
 ; end of l0-def.lisp
