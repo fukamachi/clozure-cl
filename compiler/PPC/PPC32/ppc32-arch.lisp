@@ -656,7 +656,7 @@
     (:xcode-vector . ,subtag-xcode-vector)
     (:macptr . ,subtag-macptr )
     (:catch-frame . ,subtag-catch-frame)
-    (:structure . ,subtag-struct )
+    (:struct . ,subtag-struct )    
     (:istruct . ,subtag-istruct )
     (:pool . ,subtag-pool )
     (:population . ,subtag-weak )
