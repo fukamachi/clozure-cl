@@ -712,7 +712,7 @@
                                                  :unsigned-8-bit-vector
                                                  :simple-string)
                           :16-bit-ivector-types '(:signed-16-bit-vector
-                                                  :unsiged-16-bit-vector)
+                                                  :unsigned-16-bit-vector)
                           :32-bit-ivector-types '(:signed-32-bit-vector
                                                   :unsigned-32-bit-vector
                                                   :single-float
