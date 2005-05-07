@@ -346,24 +346,6 @@
 (defnx1 nx1-macro-binop ((nth-value)) (arg1 arg2)
   (make-acode (%nx1-default-operator) (nx1-form arg1) (nx1-form arg2)))
 
-
-
-(defnx1 nx1-%typed-miscref ((%typed-miscref) (%typed-misc-ref)) (subtype uvector index)
-  (make-acode (%nx1-operator %typed-uvref) 
-                (nx1-form subtype) 
-                (nx1-form uvector) 
-                (nx1-form index)))
-
-
-
-(defnx1 nx1-%typed-miscset ((%typed-miscset) (%typed-misc-set)) (subtype uvector index newvalue)
-  (make-acode (%nx1-operator %typed-uvset) 
-                (nx1-form subtype) 
-                (nx1-form uvector) 
-                (nx1-form index) 
-                (nx1-form newvalue)))
- 
-
 (defnx1 nx1-logior-2 ((logior-2)) (&whole w &environment env arg-1 arg-2)
   (nx-binary-boole-op w 
                       env 
@@ -725,27 +707,30 @@
 
 (defun nx1-1d-vref (env arr dim0 &optional uvref-p)
   (let* ((simple-vector-p (nx-form-typep arr 'simple-vector env))
-              (string-p (unless simple-vector-p 
-                          (if (nx-form-typep arr 'string env)
-                              (or (nx-form-typep arr 'simple-string env)
-                                  (return-from nx1-1d-vref (nx1-form `(char ,arr ,dim0)))))))
-              (simple-1d-array-p (unless (or simple-vector-p string-p) 
-                                   (nx-form-typep arr '(simple-array * (*)) env)))
-              
-              (element-type (if simple-1d-array-p (type-specifier (array-ctype-element-type (specifier-type  (nx-form-type arr env))))))
-              (subtype (if element-type (element-type-subtype element-type))))
-         (if subtype
-             (make-acode (%nx1-operator %typed-uvref) 
-                         (nx1-immediate subtype)
-                         (nx1-form arr)
-                         (nx1-form dim0))
-             (let* ((op (cond (simple-1d-array-p (%nx1-operator uvref))
-                              (string-p (%nx1-operator %sbchar))
-                              (simple-vector-p 
-                               (if (nx-inhibit-safety-checking env) (%nx1-operator %svref) (%nx1-operator svref)))
-			      (uvref-p (%nx1-operator uvref))
-			      (t (%nx1-operator %aref1)))))
-                    (make-acode op (nx1-form arr) (nx1-form dim0))))))
+         (string-p (unless simple-vector-p 
+                     (if (nx-form-typep arr 'string env)
+                       (or (nx-form-typep arr 'simple-string env)
+                           (return-from nx1-1d-vref (nx1-form `(char ,arr ,dim0)))))))
+         (simple-1d-array-p (unless (or simple-vector-p string-p) 
+                              (nx-form-typep arr '(simple-array * (*)) env)))
+         
+         (array-type (specifier-type  (nx-form-type arr env)))
+         (type-keyword (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        array-type)))
+    (if type-keyword
+      (make-acode (%nx1-operator %typed-uvref) 
+                  (nx1-immediate type-keyword)
+                  (nx1-form arr)
+                  (nx1-form dim0))
+      (let* ((op (cond (simple-1d-array-p (%nx1-operator uvref))
+                       (string-p (%nx1-operator %sbchar))
+                       (simple-vector-p 
+                        (if (nx-inhibit-safety-checking env) (%nx1-operator %svref) (%nx1-operator svref)))
+                       (uvref-p (%nx1-operator uvref))
+                       (t (%nx1-operator %aref1)))))
+        (make-acode op (nx1-form arr) (nx1-form dim0))))))
   
 (defnx1 nx1-aref ((aref)) (&whole whole &environment env arr &optional (dim0 nil dim0-p)
                                   &rest other-dims)
@@ -779,17 +764,20 @@
 
 (defun nx1-1d-vset (arr newval dim0 env &optional uvset-p)
   (let* ((simple-vector-p (nx-form-typep arr 'simple-vector env))
-              (string-p (unless simple-vector-p 
-                          (if (nx-form-typep arr 'string env)
-                              (or (nx-form-typep arr 'simple-string env)
-                                  (return-from nx1-1d-vset (nx1-form `(set-char ,arr ,newval ,dim0)))))))
-              (simple-1d-array-p (unless (or simple-vector-p string-p) 
-                                   (nx-form-typep arr '(simple-array * (*)) env)))
-              (element-type (if simple-1d-array-p (array-ctype-element-type (specifier-type (nx-form-type arr env)))))
-              (subtype (if element-type (element-type-subtype (type-specifier element-type)))))
-         (if subtype
+         (string-p (unless simple-vector-p 
+                     (if (nx-form-typep arr 'string env)
+                       (or (nx-form-typep arr 'simple-string env)
+                           (return-from nx1-1d-vset (nx1-form `(set-char ,arr ,newval ,dim0)))))))
+         (simple-1d-array-p (unless (or simple-vector-p string-p) 
+                              (nx-form-typep arr '(simple-array * (*)) env)))
+         (array-type (specifier-type  (nx-form-type arr env)))
+         (type-keyword (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        array-type)))
+         (if type-keyword
              (make-acode (%nx1-operator %typed-uvset) 
-                         (nx1-immediate subtype)
+                         (nx1-immediate type-keyword)
                          (nx1-form arr)
                          (nx1-form newval)
                          (nx1-form dim0))
