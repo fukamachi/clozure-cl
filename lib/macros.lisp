@@ -742,23 +742,33 @@
                       `(values ,(car clause))))))
 
 (defmacro and (&rest args)
+  "And Form*
+AND evaluates each form in sequence, from left to right.  If any form
+returns NIL, AND returns NIL; otherwise, AND returns the values(s) returned
+by the last form.  If there are no forms, AND returns T."
   (if (null args) t
     (if (null (cdr args)) (car args)
       `(if ,(car args) (and ,@(cdr args))))))
 
 (defmacro or (&rest args)
+  "Or Form*
+OR evaluates each Form, in sequence, from left to right.
+If any Form but the last returns a non-NIL value, OR returns that
+single value (without evaluating any subsequent Forms.)  If OR evaluates
+the last Form, it returns all values returned by that Form.  If there
+are no Forms, OR returns NIL."
   (if args
     (if (cdr args)
       (do* ((temp (gensym))
             (handle (list nil))
             (forms `(let ((,temp ,(pop args)))
-                      (if ,temp ,temp ,@handle))))
+                     (if ,temp ,temp ,@handle))))
            ((null (cdr args))
             (%rplaca handle (%car args))
             forms)
         (%rplaca handle `(if (setq ,temp ,(%car args)) 
-                           ,temp 
-                           ,@(setq handle (list nil))))
+                          ,temp 
+                          ,@(setq handle (list nil))))
         (setq args (%cdr args)))
       (%car args))))
 
