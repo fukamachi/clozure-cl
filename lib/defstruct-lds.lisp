@@ -28,7 +28,7 @@
 
 
 (defun uvector-subtype-p (thing subtype-number)
-  (= (the fixnum (%vect-subtype thing)) subtype-number))
+  (= (the fixnum (typecode thing)) subtype-number))
 
 (defun uvector (subtype &rest p)
   (declare (dynamic-extent p))
@@ -308,8 +308,9 @@
   `(defun ,constructor (&key ,@(nreverse args))
      ,(case (setq name (defstruct-reftype (sd-type sd)))
           (#.$defstruct-nth `(list ,@values))
-          (#.ppc32::subtag-simple-vector `(vector ,@values))
-          (#.ppc32::subtag-struct `(%gvector ppc32::subtag-struct ,@values))
+          (#.target::subtag-simple-vector `(vector ,@values))
+          ((#.ppc32::subtag-struct #.$defstruct-struct)
+           `(gvector :struct ,@values))
           (t `(uvector ,name ,@values)))))
 
 (defun defstruct-boa-constructors (sd boas &aux (list ()))
@@ -353,8 +354,9 @@
   `(defun ,(car boa) ,(nreverse args)
      ,(case (setq slot (defstruct-reftype (sd-type sd)))
           (#.$defstruct-nth `(list ,@values))
-          (#.ppc32::subtag-simple-vector `(vector ,@values))
-          (#.ppc32::subtag-struct `(%gvector ppc32::subtag-struct ,@values))
+          (#.target::subtag-simple-vector `(vector ,@values))
+          ((#.ppc32::subtag-struct #.$defstruct-struct)
+           `(gvector :struct ,@values))
           (t `(uvector ,slot ,@values)))))
 
 (defun defstruct-copier (sd copier env)
