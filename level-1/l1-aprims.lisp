@@ -575,7 +575,7 @@ terminate the list"
                            (car dimensions)
                            (if (eql rank 0) 1 ; why not 0?
                            (apply #'* dimensions))))))
-           (vect-subtype (%vect-subtype displaced-to))
+           (vect-subtype (typecode displaced-to))
            (target displaced-to)
            (real-offset offset)
            (flags 0))

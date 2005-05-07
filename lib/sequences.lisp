@@ -1029,7 +1029,7 @@
     (declare (dynamic-extent bv)
              (type (simple-array bit (*)) bv))
     (multiple-value-setq (vector offset)(array-data-and-offset vector))
-    (setq subtype (%vect-subtype vector))
+    (setq subtype (typecode vector))
     (setq pos start)
     (loop
       (when (or (eq count 0) (eq pos end))
