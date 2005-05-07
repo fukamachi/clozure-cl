@@ -644,19 +644,42 @@
 		  ,@(inits)
 		  ,@body)))
 
-
 (defparameter *ppc32-target-uvector-subtags*
-  `((:simple-vector . ,ppc32::subtag-simple-vector)
-    (:bit-vector . ,ppc32::subtag-bit-vector)
-    (:simple-string . ,ppc32::subtag-simple-base-string)
-    (:u8-vector . ,ppc32::subtag-u8-vector)
-    (:s8-vector . ,ppc32::subtag-s8-vector)
-    (:u16-vector . ,ppc32::subtag-u16-vector)
-    (:s16-vector . ,ppc32::subtag-s16-vector)
-    (:u32-vector . ,ppc32::subtag-u32-vector)
-    (:s32-vector . ,ppc32::subtag-s32-vector)
-    (:single-float-vector . ,ppc32::subtag-single-float-vector)
-    (:double-float-vector . ,ppc32::subtag-double-float-vector)))
+  `((:bignum . ,subtag-bignum)
+    (:ratio . ,subtag-ratio)
+    (:single-float . ,subtag-single-float)
+    (:double-float . ,subtag-double-float)
+    (:complex . ,subtag-complex  )
+    (:symbol . ,subtag-symbol)
+    (:function . ,subtag-function )
+    (:code-vector . ,subtag-code-vector)
+    (:xcode-vector . ,subtag-xcode-vector)
+    (:macptr . ,subtag-macptr )
+    (:catch-frame . ,subtag-catch-frame)
+    (:structure . ,subtag-struct )
+    (:istruct . ,subtag-istruct )
+    (:pool . ,subtag-pool )
+    (:population . ,subtag-weak )
+    (:hash-vector . ,subtag-hash-vector )
+    (:package . ,subtag-package )
+    (:value-cell . ,subtag-value-cell)
+    (:instance . ,subtag-instance )
+    (:lock . ,subtag-lock )
+    (:slot-vector . ,subtag-slot-vector)
+    (:svar . ,subtag-svar)
+    (:simple-string . ,subtag-simple-base-string )
+    (:bit-vector . ,subtag-bit-vector )
+    (:signed-8-bit-vector . ,subtag-s8-vector )
+    (:unsigned-8-bit-vector . ,subtag-u8-vector )
+    (:signed-16-bit-vector . ,subtag-s16-vector )
+    (:unsigned-16-bit-vector . ,subtag-u16-vector )
+    (:signed-32-bit-vector . ,subtag-s32-vector )
+    (:unsigned-32-bit-vector . ,subtag-u32-vector )
+    (:single-float-vector . ,subtag-single-float-vector)
+    (:double-float-vector . ,subtag-double-float-vector )
+    (:simple-vector . ,subtag-simple-vector )))
+
+
 
 (defparameter *ppc32-target-arch*
   (arch::make-target-arch :name :ppc32
@@ -678,6 +701,24 @@
                           :max-1-bit-constant-index max-1-bit-constant-index
                           :word-shift 2
                           :code-vector-prefix ()
+                          :gvector-types '(:ratio :complex :symbol :function
+                                           :catch-frame :structure :istruct
+                                           :pool :population :hash-vector
+                                           :package :value-cell :instance
+                                           :lock :slot-vector :svar
+                                           :simple-vector)
+                          :1-bit-ivector-types '(:bit-vector)
+                          :8-bit-ivector-types '(:signed-8-bit-vector
+                                                 :unsigned-8-bit-vector
+                                                 :simple-string)
+                          :16-bit-ivector-types '(:signed-16-bit-vector
+                                                  :unsiged-16-bit-vector)
+                          :32-bit-ivector-types '(:signed-32-bit-vector
+                                                  :unsigned-32-bit-vector
+                                                  :single-float
+                                                  :double-float
+                                                  :bignum)
+                          :64-bit-ivector-types '(:double-float-vector)
                           ))
                           
                           
