@@ -1519,12 +1519,12 @@
 
 (define-compiler-macro sbit (&environment env &whole call v &optional sub0 &rest others)
   (if (and sub0 (null others))
-    `(%typed-miscref #.ppc32::subtag-bit-vector ,v ,sub0)
+    `(aref (the simple-bit-vector ,v) ,sub0)
     call))
 
 (define-compiler-macro %sbitset (&environment env &whole call v sub0 &optional (newval nil newval-p) &rest newval-was-really-sub1)
   (if (and newval-p (not newval-was-really-sub1) )
-    `(%typed-miscset #.ppc32::subtag-bit-vector ,v ,sub0 ,newval)
+    `(setf (aref (the simple-bit-vector ,v) ,sub0) ,newval)
     call))
 
 (define-compiler-macro simple-base-string-p (thing)

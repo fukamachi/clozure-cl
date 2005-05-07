@@ -260,11 +260,11 @@
           (subtype (element-type-subtype (array-element-type sequence)))
           (result  (%alloc-misc length subtype))
           )
-     (multiple-value-bind (src offset subtype) (array-data-offset-subtype sequence)
-       (declare (fixnum offset subtype))                          
+     (multiple-value-bind (src offset) (array-data-and-offset sequence)
+       (declare (fixnum offset))                          
        (dotimes (i length result)
          (declare (fixnum i))
-         (%typed-miscset subtype result i (%typed-miscref subtype src offset))
+         (setf (uvref result i) (uvref src offset))
          (incf offset))))))
 
 
@@ -1014,7 +1014,7 @@
 
 ; The vector will be freshly consed & nothing is displaced to it,
 ; so it's legit to destructively truncate it.
-; Likewise, it's ok to access its components with (%typed-)UVREF.
+; Likewise, it's ok to access its components with UVREF.
 
 (defun simple-vector-delete (item vector test test-not key start end inc count
                                   &aux (length (length vector)) 
@@ -1036,7 +1036,7 @@
         (unless (eq pos end)
           (incf fill (abs (- pos end))))
         (return))
-      (if (matchp2 item (%typed-miscref subtype vector (%i+ pos offset))
+      (if (matchp2 item (uvref  vector (%i+ pos offset))
                    test test-not key)
         (progn (setf (aref bv pos) 1)
                (setq count (%i- count 1)))
@@ -1051,7 +1051,7 @@
       (declare (fixnum tail size))
       (when (neq 0 start)
         (dotimes (i start)
-          (%typed-miscset subtype new-vect i (%typed-miscref subtype vector (%i+ offset i)))
+          (setf (uvref new-vect i) (uvref  vector (%i+ offset i)))
           ))
       (setq fill start)
       (setq pos start)
@@ -1059,13 +1059,13 @@
         (if (eq fill fill-end) (return))
         (if (neq 1 (aref bv pos))
           (progn
-            (%typed-miscset subtype new-vect fill (%typed-miscref subtype vector (%i+ offset pos)))
+            (setf (uvref new-vect fill) (uvref vector (%i+ offset pos)))
             (setq fill (%i+ fill 1))))
         (setq pos (%i+ pos 1)))
       (setq pos end)
       (loop
         (when (eq fill size) (return))
-          (%typed-miscset subtype new-vect fill (%typed-miscref subtype vector (%i+ offset pos)))
+          (setf (uvref  new-vect fill) (uvref  vector (%i+ offset pos)))
           (setq fill (%i+ fill 1)
                 pos (%i+ pos 1)))
       new-vect)))

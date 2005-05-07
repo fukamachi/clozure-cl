@@ -296,7 +296,7 @@
   (let* ((typecode (typecode v)))
     (declare (fixnum typecode))
     (if (> typecode ppc32::subtag-vectorH)
-      (%typed-miscref typecode v i)
+      (uvref v i)
       (if (= typecode ppc32::subtag-vectorH)
         (multiple-value-bind (data offset)
                              (%array-header-data-and-offset v)
@@ -309,7 +309,7 @@
   (let* ((typecode (typecode v)))
     (declare (fixnum typecode))
     (if (> typecode ppc32::subtag-vectorH)
-      (%typed-miscset typecode v i new)
+      (setf (uvref v i) new)
       (if (= typecode ppc32::subtag-vectorH)
         (multiple-value-bind (data offset)
                              (%array-header-data-and-offset v)
@@ -443,11 +443,9 @@
    just as CHAR does, except the string must be a simple-string."
   (let* ((typecode (typecode s)))
     (declare (fixnum typecode))
-    (if (= typecode ppc32::subtag-simple-base-string)
-      (%typed-miscref ppc32::subtag-simple-base-string s i)
-      (if (= typecode ppc32::subtag-simple-general-string)
-        (%typed-miscref ppc32::subtag-simple-general-string s i)
-        (report-bad-arg s 'simple-string)))))
+    (if (= typecode target::subtag-simple-base-string)
+      (aref (the simple-string s) i)
+      (report-bad-arg s 'simple-string))))
 
 
 
@@ -458,37 +456,26 @@
     (if (= typecode ppc32::subtag-simple-base-string)
       (locally
         (declare (optimize (speed 3) (safety 0)))
-        (%typed-miscref ppc32::subtag-u8-vector s i))
-      (if (= typecode ppc32::subtag-simple-general-string)
-        (locally
-          (declare (optimize (speed 3) (safety 0)))
-          (%typed-miscref ppc32::subtag-u16-vector s i))
-        (report-bad-arg s 'simple-string)))))
+        (aref (the (simple-array (unsigned-byte 8) (*)) s) i))
+        (report-bad-arg s 'simple-string))))
 
 
 (defun set-schar (s i v)
   (let* ((typecode (typecode s)))
     (declare (fixnum typecode))
-    (if (= typecode ppc32::subtag-simple-base-string)
-      (setf (%typed-miscref ppc32::subtag-simple-base-string s i) v)
-      (if (= typecode ppc32::subtag-simple-general-string)
-        (setf (%typed-miscref ppc32::subtag-simple-general-string s i) v)
-        (report-bad-arg s 'simple-string)))))
-
+    (if (= typecode target::subtag-simple-base-string)
+      (setf (aref (the simple-string s) i) v)
+        (report-bad-arg s 'simple-string))))
 
  
 (defun %set-scharcode (s i v)
   (let* ((typecode (typecode s)))
     (declare (fixnum typecode))
-    (if (= typecode ppc32::subtag-simple-base-string)
+    (if (= typecode target::subtag-simple-base-string)
       (locally
         (declare (optimize (speed 3) (safety 0)))
-        (setf (%typed-miscref ppc32::subtag-u8-vector s i) v))
-      (if (= typecode ppc32::subtag-simple-general-string)
-        (locally
-          (declare (optimize (speed 3) (safety 0)))
-          (setf (%typed-miscref ppc32::subtag-u16-vector s i) v))
-        (report-bad-arg s 'simple-string)))))
+        (setf (aref (the simple-string s) i) v))
+        (report-bad-arg s 'simple-string))))
   
 
 ; Strings are simple-strings, start & end values are sane.
