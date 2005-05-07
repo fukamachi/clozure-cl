@@ -371,8 +371,6 @@
   (%eval-redef endp (x))
 
   (progn
-    (%eval-redef %typed-miscref (s a i))
-    (%eval-redef %typed-miscset (s a i v))
     (%eval-redef typecode (x))
     (%eval-redef lisptag (x))
     (%eval-redef fulltag (x))
@@ -383,8 +381,6 @@
                  (if initial-p
                    (%alloc-misc count subtag initial)
                    (%alloc-misc count subtag)))
-    (%eval-redef %typed-misc-ref (x y z))
-    (%eval-redef %typed-misc-set (w x y z))
     (%eval-redef %setf-double-float (x y))
     (%eval-redef %lisp-word-ref (x y))
     (%eval-redef %temp-cons (x y))
