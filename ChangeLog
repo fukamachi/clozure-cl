@@ -1,3 +1,17 @@
+2005-05-06 22:59  gb
+
+	* compiler/PPC/ppc2.lisp: Typed-uvref/uvset operators accept
+	keywords.
+
+2005-05-06 22:59  gb
+
+	* compiler/nx1.lisp: Use the new (keyword-based) typed-uvref/uvset
+	operators.
+
+2005-05-06 22:21  gb
+
+	* compiler/PPC/ppc2.lisp: Remove some ppc32 package constants.
+
 2005-05-06 22:15  gb
 
 	* compiler/: arch.lisp, PPC/PPC32/ppc32-arch.lisp:
