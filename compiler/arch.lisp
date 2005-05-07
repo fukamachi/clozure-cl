@@ -196,6 +196,7 @@
   (8-bit-ivector-types ())
   (16-bit-ivector-types ())
   (32-bit-ivector-types ())
-  (64-bit-ivector-types ()))
+  (64-bit-ivector-types ())
+  (array-type-name-from-ctype-function ()))
 
 (ccl::provide "ARCH")

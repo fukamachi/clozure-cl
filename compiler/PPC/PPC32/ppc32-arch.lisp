@@ -680,7 +680,47 @@
     (:simple-vector . ,subtag-simple-vector )))
 
 
-
+;;; This should return NIL unless it's sure of how the indicated
+;;; type would be represented (in particular, it should return
+;;; NIL if the element type is unknown or unspecified at compile-time.
+(defun ppc32-array-type-name-from-ctype (ctype)
+  (when (typep ctype 'ccl::array-ctype)
+    (let* ((element-type (ccl::array-ctype-element-type ctype)))
+      (typecase element-type
+        (ccl::class-ctype
+         (let* ((class (ccl::class-ctype-class element-type)))
+           (if (or (eq class ccl::*character-class*)
+                   (eq class ccl::*base-char-class*)
+                   (eq class ccl::*standard-char-class*))
+             :simple-string
+             :simple-vector)))
+        (ccl::numeric-ctype
+         (if (eq (ccl::numeric-ctype-complexp element-type) :complex)
+           :simple-vector
+           (case (ccl::numeric-ctype-class element-type)
+             (integer
+              (let* ((low (ccl::numeric-ctype-low element-type))
+                     (high (ccl::numeric-ctype-high element-type)))
+                (cond ((or (null low) (null high)) :simple-vector)
+                      ((and (>= low 0) (<= high 1) :bit-vector))
+                      ((and (>= low 0) (<= high 255)) :unsigned-8-bit-vector)
+                      ((and (>= low 0) (<= high 65535)) :unsigned-16-bit-vector)
+                      ((and (>= low 0) (<= high #xffffffff) :unsigned-32-bit-vector))
+                      ((and (>= low -128) (<= high 127)) :signed-8-bit-vector)
+                      ((and (>= low -32768) (<= high 32767) :signed-16-bit-vector))
+                      ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
+                       :signed-32-bit-vector)
+                      (t :simple-vector))))
+             (float
+              (case (ccl::numeric-ctype-format element-type)
+                ((double-float long-float) :double-float-vector)
+                ((single-float short-float) :single-float-vector)
+                (t :simple-vector)))
+             (t ppc32::subtag-simple-vector))))
+        (ccl::unknown-ctype)
+        (t :simple-vector)))))
+        
+        
 (defparameter *ppc32-target-arch*
   (arch::make-target-arch :name :ppc32
                           :lisp-node-size 4
@@ -719,6 +759,8 @@
                                                   :double-float
                                                   :bignum)
                           :64-bit-ivector-types '(:double-float-vector)
+                          :array-type-name-from-ctype-function
+                          #'ppc32-array-type-name-from-ctype
                           ))
                           
                           
