@@ -1,3 +1,27 @@
+2005-05-06 18:17  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Fix typo.
+
+2005-05-06 18:06  gb
+
+	* lib/sequences.lisp: Change typecode name in TYPE-KEYWORD-CODE
+	call, do the call at readtime, not runtime.
+
+2005-05-06 18:05  gb
+
+	* level-1/sysutils.lisp: TYPE-KEYWORD-CODE uses vector types from
+	target.
+
+2005-05-06 18:05  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Define vector type names. 
+	Flesh out uvector type codes.
+
+2005-05-06 18:04  gb
+
+	* compiler/arch.lisp: Add vector type names (gvector,
+	n-bit-ivector.)
+
 2005-05-03 16:31  gb
 
 	* lisp-kernel/gc.c: No need to zero_last_page() anymore.
