@@ -27,6 +27,9 @@
 
 
 (defconstant $defstruct-nth 0)   ; Anything that won't conflict with array types...
+(defconstant $defstruct-struct 8)
+(defconstant $defstruct-simple-vector 16)
+
 
 (defmacro ssd-name (ssd) `(car ,ssd))
 ;(defmacro ssd-type (ssd) (declare (ignore ssd)) t)
