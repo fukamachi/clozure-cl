@@ -1674,6 +1674,10 @@
   (lwz dest (+ ppc32::symbol.vcell (ppc32::nrs-offset %closure-code%) ppc32::nil-value) 0))
 
 
+(define-ppc32-vinsn single-float-bits (((dest :u32))
+                                       ((src :lisp)))
+  (lwz dest ppc32::single-float.value src))
+
 (define-ppc32-vinsn (call-subprim :call :subprim-call) (()
                                                       ((spno :s32const)))
   (bla spno))
