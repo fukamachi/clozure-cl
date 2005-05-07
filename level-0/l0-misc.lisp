@@ -345,10 +345,7 @@
        (if (typep thing 'symbol)
          (let* ((def (fboundp thing)))
            (if def
-             (if (or (functionp def)
-                     (setq def (macro-function thing)))
-               (%put-documentation def t doc-string)
-               (%put-documentation thing doc-id doc-string))))
+             (%put-documentation def t doc-string)))
          (if (setf-function-name-p thing)
            (%set-documentation
             (setf-function-name thing) doc-id doc-string)))))
