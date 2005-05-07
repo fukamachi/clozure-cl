@@ -1148,6 +1148,18 @@
   (clrlwi tag object (- ppc32::nbits-in-word 8))
   (twnei tag tagval))
 
+(define-ppc32-vinsn trap-unless-character (()
+                                           ((object :lisp))
+                                           ((tag :u8)))
+  (clrlwi tag object (- ppc32::nbits-in-word 8))
+  (twnei tag ppc32::subtag-character))
+
+(define-ppc32-vinsn trap-unless-cons (()
+                                      ((object :lisp))
+                                      ((tag :u8)))
+  (clrlwi tag object (- ppc32::nbits-in-word ppc32::ntagbits))
+  (twnei tag ppc32::fulltag-cons))
+
 (define-ppc32-vinsn trap-unless-typecode= (()
                                          ((object :lisp)
                                           (tagval :u16const))
