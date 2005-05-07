@@ -211,9 +211,6 @@
 ; Note also that the condition is a CR bit specification (or a "negated" one).
 ; Whatever affected that bit (hopefully) happened earlier in the pipeline.
 (defppclapmacro if (test then &optional (else nil else-p))
-  "If Predicate Then [Else]
-  If Predicate evaluates to non-null, evaluate Then and returns its values,
-  otherwise evaluate Else and return its values. Else defaults to NIL."
   (multiple-value-bind (bitform negated) (ppc-lap-parse-test test)
     (let* ((false-label (gensym)))
       (if (not else-p)
