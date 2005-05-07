@@ -190,6 +190,12 @@
   (max-8-bit-constant-index 0)
   (max-1-bit-constant-index 0)
   (word-shift 0)
-  (code-vector-prefix ()))
+  (code-vector-prefix ())
+  (gvector-types ())
+  (1-bit-ivector-types ())
+  (8-bit-ivector-types ())
+  (16-bit-ivector-types ())
+  (32-bit-ivector-types ())
+  (64-bit-ivector-types ()))
 
 (ccl::provide "ARCH")
