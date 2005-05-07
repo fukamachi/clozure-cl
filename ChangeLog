@@ -1,3 +1,9 @@
+2005-05-06 22:15  gb
+
+	* compiler/: arch.lisp, PPC/PPC32/ppc32-arch.lisp:
+	ARRAY-TYPE-NAME-FROM-CTYPE-FUNCTION in arch struct, and PPC32
+	implementation.
+
 2005-05-06 19:54  gb
 
 	* compiler/PPC/PPC32/ppc32-vinsns.lisp: SINGLE-FLOAT-BITS.
