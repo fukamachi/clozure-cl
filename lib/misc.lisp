@@ -91,20 +91,16 @@ are running on, or NIL if we can't find any useful information."
 (defmethod documentation ((symbol symbol) (doc-type (eql 'function)))
   (let* ((def (fboundp symbol)))	; FBOUNDP returns info about definition
     (when def
-      (if (special-operator-p symbol)
-        (call-next-method)
-        (%get-documentation (or (macro-function symbol) def) t)))))
+      (%get-documentation def t))))
 
 (defmethod (setf documentation) ((new t)
 				 (symbol symbol)
 				 (doc-type (eql 'function)))
   (let* ((def (fboundp symbol)))	; FBOUNDP returns info about definition
     (when def
-      (if (special-operator-p symbol)
-        (call-next-method)
-        (%put-documentation (or (macro-function symbol) def)
-                            t
-                            new)))
+      (%put-documentation def
+                          t
+                          new))
     new))
 
 (defmethod documentation ((symbol symbol) (doc-type (eql 'setf)))
@@ -284,6 +280,17 @@ are running on, or NIL if we can't find any useful information."
         (push (cons symbol lambda-expression) *nx-globally-inline*))
       (if cons (setq *nx-globally-inline* (delete cons *nx-globally-inline*)))))
   symbol)
+
+
+(setf (documentation 'if 'function)
+      "If Predicate Then [Else]
+  If Predicate evaluates to non-null, evaluate Then and returns its values,
+  otherwise evaluate Else and return its values. Else defaults to NIL.")
+
+(setf (documentation 'progn 'function)
+      "progn form*
+  Evaluates each FORM and returns the value(s) of the last FORM.")
+
 
 
 #|
