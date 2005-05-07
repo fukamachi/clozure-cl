@@ -6699,26 +6699,22 @@
                                         (list new j i))))))))
 
 (defppc2 ppc2-%typed-uvref %typed-uvref (seg vreg xfer subtag uvector index)
-  (let* ((fixtype (acode-fixnum-form-p subtag)))
-    (if fixtype
-      (ppc2-vref seg vreg xfer (ppc2-target-uvector-subtag-name fixtype) uvector index (unless *ppc2-reckless* fixtype))
-      (progn
-        (ppc2-three-targeted-reg-forms seg subtag ($ ppc::arg_x) uvector ($ ppc::arg_y) index ($ ppc::arg_z))
-        (! subtag-misc-ref)
-        (when vreg (<- ($ ppc::arg_z)))
-        (^)))))
+  (let* ((type-keyword
+          (let* ((fixtype (acode-fixnum-form-p subtag)))
+            (if fixtype
+              (ppc2-target-uvector-subtag-name fixtype)
+              (ppc2-immediate-operand subtag))))
+         (fixtype (ppc2-lookup-target-uvector-subtag type-keyword)))
+    (ppc2-vref seg vreg xfer type-keyword uvector index (unless *ppc2-reckless* fixtype))))
 
 (defppc2 ppc2-%typed-uvset %typed-uvset (seg vreg xfer subtag uvector index newval)
-  (let* ((fixtype (acode-fixnum-form-p subtag)))
-    (if fixtype
-      (ppc2-vset seg vreg xfer (ppc2-target-uvector-subtag-name fixtype) uvector index newval (unless *ppc2-reckless* fixtype))
-      (progn                            ; Could always do a four-targeted-reg-forms ...
-        (ppc2-vpush-register seg (ppc2-one-untargeted-reg-form seg subtag ppc::arg_z))
-        (ppc2-three-targeted-reg-forms seg uvector ($ ppc::arg_x) index ($ ppc::arg_y) newval ($ ppc::arg_z))
-        (ppc2-vpop-register seg ($ ppc::temp0))
-        (! subtag-misc-set)
-        (when vreg (<- ($ ppc::arg_z)))
-        (^)))))
+  (let* ((type-keyword
+          (let* ((fixtype (acode-fixnum-form-p subtag)))
+            (if fixtype
+              (ppc2-target-uvector-subtag-name fixtype)
+              (ppc2-immediate-operand subtag))))
+         (fixtype (ppc2-lookup-target-uvector-subtag type-keyword)))
+    (ppc2-vset seg vreg xfer type-keyword uvector index newval (unless *ppc2-reckless* fixtype))))
 
 (defppc2 ppc2-%macptrptr% %macptrptr% (seg vreg xfer form)
   (with-imm-target () (target :address)
