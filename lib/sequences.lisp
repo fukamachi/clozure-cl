@@ -796,7 +796,7 @@
         (let ((length (array-ctype-length type)))
           (if (and length (neq length (length object)))
             (report-bad-arg (make-string length) `(string ,(length object)))))
-        (coerce-to-uarray object (type-keyword-code :base-string)
+        (coerce-to-uarray object #.(type-keyword-code :simple-string)
                           t))
        ((csubtypep type (specifier-type 'vector))
         (let* ((element-type (type-specifier (array-ctype-element-type type))))
