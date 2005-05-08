@@ -1,3 +1,20 @@
+2005-05-07 22:01  gb
+
+	* lib/nfcomp.lisp: Remove (old, unused) extended-string stuff.
+
+2005-05-07 21:46  gb
+
+	* lib/nfcomp.lisp: FASL-OUT-COUNT, to encode arbitrary-sized
+	UNSIGNED-BYTE values.
+
+2005-05-07 21:45  gb
+
+	* level-0/nfasload.lisp: implement some new fasl operators.
+
+2005-05-07 21:45  gb
+
+	* xdump/faslenv.lisp: Define some new fasl operators.
+
 2005-05-07 17:54  gb
 
 	* lib/: defstruct.lisp, defstruct-lds.lisp: use $DEFSTUCT-STRUCT,
