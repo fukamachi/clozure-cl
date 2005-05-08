@@ -573,9 +573,9 @@
 	    (return)
 	    ;; This should really be a cell error, allow options other than
 	    ;; redefining (such as don't redefine and continue)...
-	    (cerror "Redefine ~S anyway"
-		    "Constant ~S is already defined with a different value"
-		    var)))))
+	    (cerror "Redefine ~S to have new value ~*~s"
+		    "Constant ~S is already defined with a different value (~s)"
+		    var old-value value)))))
     (%symbol-bits var 
                   (%ilogior (%ilsl $sym_bit_special 1) (%ilsl $sym_bit_const 1)
                             (%symbol-bits var)))
