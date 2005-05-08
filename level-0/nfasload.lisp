@@ -44,7 +44,9 @@
 (defvar *fasl-dispatch-table* #50(%bad-fasl))
 
 (defun %bad-fasl (s)
-  (error "bad opcode in FASL file ~s" (faslstate.faslfname s)))
+  (error "bad opcode near position ~d in FASL file ~s"
+         (%fasl-get-file-pos s)
+         (faslstate.faslfname s)))
 
 (defun %cant-epush (s)
   (if (faslstate.faslepush s)
