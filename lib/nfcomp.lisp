@@ -1184,6 +1184,8 @@ Will differ from *compiling-file* during an INCLUDE")
                      (fasl-out-ivect exp 0 n)))
     (symbol (fasl-dump-symbol exp))
     (package (fasl-dump-package exp))
+    (function (fasl-dump-function exp))
+    (xfunction (fasl-dump-function exp))
     (ivector    
      (let* ((typecode (typecode exp))
             (n (uvsize exp))
@@ -1204,18 +1206,28 @@ Will differ from *compiling-file* during an INCLUDE")
            (fasl-out-ivect exp 0 nb)))))
     (gvector
      (let* ((typecode (typecode exp))
-            (n (uvsize exp))
-            (out-typecode (if (= typecode ppc32::subtag-xfunction) ppc32::subtag-function typecode)))
-       (declare (fixnum n typecode out-typecode))
-       (if (and (not (eq *fasl-backend* *host-backend*))
-                (= typecode ppc32::subtag-function))
-         (break "Dumping a native function! ~s" exp))
-       
+            (n (uvsize exp)))
+       (declare (fixnum n typecode))
        (fasl-out-opcode $fasl-vgvec exp)
-       (fasl-out-byte out-typecode)
+       (fasl-out-byte typecode)
        (fasl-out-count n)
        (dotimes (i n)
          (fasl-dump-form (%svref exp i)))))))
+
+;;; This is used to dump functions and "xfunctions".
+;;; If we're cross-compiling, we shouldn't reference any
+;;; (host) functions as constants; try to detect that
+;;; case.
+(defun fasl-dump-function (f)
+  (if (and (not (eq *fasl-backend* *host-backend*))
+           (typep f 'function))
+    (break "Dumping a native function constant ~s during cross-compilation." f))
+  (let* ((n (uvsize f)))
+    (fasl-out-opcode $fasl-function f)
+    (fasl-out-count n)
+    (dotimes (i n)
+      (fasl-dump-form (%svref f i)))))
+  
 
 (defun fasl-out-codevector (codevector size-in-bytes)
   (declare (ignore size-in-bytes))
