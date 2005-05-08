@@ -1,3 +1,12 @@
+2005-05-08 06:25  gb
+
+	* level-1/version.lisp: Bump; time for new binaries.
+
+2005-05-08 06:24  gb
+
+	* xdump/xfasload.lisp, level-0/nfasload.lisp: Remove old
+	code-vector/svar loading cases.
+
 2005-05-08 06:17  gb
 
 	* lib/nfcomp.lisp: Remove old code-vector/svar dumping cases.
