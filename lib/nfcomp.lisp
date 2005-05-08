@@ -1394,6 +1394,15 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fasl-out-byte (byte)
   (write-byte (%ilogand2 byte #xFF) *fasdump-stream*))
 
+;;; Write an unsigned integer in 7-bit chunks.
+(defun fasl-out-count (val)
+  (do* ((b (ldb (byte 7 0) val) (ldb (byte 7 0) val))
+        (done nil))
+       (done)
+    (when (zerop (setq val (ash val -7)))
+      (setq b (logior #x80 b) done t))
+    (fasl-out-byte b)))
+
 (defun fasl-filepos ()
   (file-position *fasdump-stream*))
 
