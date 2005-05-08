@@ -76,7 +76,7 @@
   (let ((res 0))
     (with-macptrs (p)
       (do-consing-areas (area)
-        (when (eql (%fixnum-ref area ppc32::area.code) ppc32::area-dynamic)
+        (when (eql (%fixnum-ref area ppc32::area.code) ppc::area-dynamic)
           (%setf-macptr-to-object p  area)
           (incf res (- (%get-unsigned-long p ppc32::area.high)
                        (%get-unsigned-long p ppc32::area.active))))))
@@ -106,9 +106,9 @@
 			 (%get-unsigned-long p ppc32::area.low)))
 	       (code (%fixnum-ref area ppc32::area.code)))
 	  (when (object-in-application-heap-p active)
-	    (if (eql code ppc32::area-dynamic)
+	    (if (eql code ppc::area-dynamic)
 	      (incf dynamic bytes)
-	      (if (eql code ppc32::area-staticlib)
+	      (if (eql code ppc::area-staticlib)
 		(incf library bytes)
 		(incf static bytes)))))))
     (values dynamic static library)))
@@ -122,9 +122,9 @@
     (with-macptrs (p)
       (do-gc-areas (area)
 	(when (member (%fixnum-ref area ppc32::area.code)
-		      '(#.ppc32::area-vstack
-			#.ppc32::area-cstack
-                      #.ppc32::area-tstack))
+		      '(#.ppc::area-vstack
+			#.ppc::area-cstack
+                      #.ppc::area-tstack))
 	  (%setf-macptr-to-object p area)
 	  (let ((active (%get-unsigned-long p ppc32::area.active))
 		(high (%get-unsigned-long p ppc32::area.high))

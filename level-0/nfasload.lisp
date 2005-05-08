@@ -213,12 +213,11 @@
                         thing))))
     (let* ((typecode (typecode xthing)))
         (declare (fixnum typecode))
-        (cond ((= typecode ppc32::subtag-package)
+        (cond ((= typecode target::subtag-package)
                (if (or deleted-ok (pkg.names xthing))
                  xthing
                  (error "~S is a deleted package ." thing)))
-              ((or (= typecode ppc32::subtag-simple-base-string)
-                   (= typecode ppc32::subtag-simple-general-string))
+              ((= typecode target::subtag-simple-base-string)
                (or (%find-pkg xthing)
                    (%kernel-restart $xnopkg xthing)))
               (t (report-bad-arg thing 'simple-string))))))
@@ -291,13 +290,7 @@
   ;; A double-float is a 3-element "misc" object.
   ;; Element 0 is always 0 and exists solely to keep elements 1 and 2
   ;; aligned on a 64-bit boundary.
-  (let* ((df (%alloc-misc ppc32::double-float.element-count
-                          ppc32::subtag-double-float)))
-    (setf (%misc-ref df ppc32::double-float.value-cell)
-          (%fasl-read-long s))
-    (setf (%misc-ref df ppc32::double-float.val-low-cell)
-          (%fasl-read-long s))
-    (%epushval s df)))
+  (%epushval s (double-float-from-bits (%fasl-read-long s) (%fasl-read-long s))))
 
 (deffaslop $fasl-sfloat (s)
   (%epushval s (host-single-float-from-unsigned-byte-32 (%fasl-read-long s))))
@@ -311,11 +304,8 @@
 (deffaslop $fasl-word-fixnum (s)
   (%epushval s (%word-to-int (%fasl-read-word s))))
 
-
-
 (deffaslop $fasl-vmksym (s)
   (%fasl-vmake-symbol s))
-
 
 (deffaslop $fasl-vintern (s)
   (%fasl-vintern s *package*))
@@ -850,7 +840,7 @@
      (%map-areas #'(lambda (o)
                      (when (eql (typecode o) ppc32::subtag-svar)
                        (cold-load-svar o)))
-                 ppc32::area-dynamic
-                 ppc32::area-dynamic)
+                 ppc::area-dynamic
+                 ppc::area-dynamic)
       (%fasload *xload-startup-file*)))
 

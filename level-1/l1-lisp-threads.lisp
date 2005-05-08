@@ -806,10 +806,10 @@
   (let ((code (gensym)))
   `(do-gc-areas (,area)
      (let ((,code (%fixnum-ref ,area ppc32::area.code)))
-       (when (or (eql ,code ppc32::area-readonly)
-                 (eql ,code ppc32::area-staticlib)
-                 (eql ,code ppc32::area-static)
-                 (eql ,code ppc32::area-dynamic))
+       (when (or (eql ,code ppc::area-readonly)
+                 (eql ,code ppc::area-staticlib)
+                 (eql ,code ppc::area-static)
+                 (eql ,code ppc::area-dynamic))
          ,@body)))))
 
 

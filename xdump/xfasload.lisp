@@ -704,9 +704,9 @@
 (defun xfasload (output-file &rest pathnames)
   (let* ((*xload-symbols* (make-hash-table :test #'eq))
          (*xload-spaces* nil)
-         (*xload-readonly-space* (init-xload-space *xload-readonly-space-address* *xload-readonly-space-size* ppc32::area-readonly))
-         (*xload-dynamic-space* (init-xload-space *xload-dynamic-space-address* *xload-dynamic-space-size* ppc32::area-dynamic))
-	 (*xload-static-space* (init-xload-space *xload-static-space-address* *xload-static-space-size* ppc32::area-static))
+         (*xload-readonly-space* (init-xload-space *xload-readonly-space-address* *xload-readonly-space-size* ppc::area-readonly))
+         (*xload-dynamic-space* (init-xload-space *xload-dynamic-space-address* *xload-dynamic-space-size* ppc::area-dynamic))
+	 (*xload-static-space* (init-xload-space *xload-static-space-address* *xload-static-space-size* ppc::area-static))
 						 
          (*xload-package-alist* (xload-clone-packages %all-packages%))
          (*xload-cold-load-functions* nil)

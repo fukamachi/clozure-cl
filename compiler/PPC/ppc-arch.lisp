@@ -313,7 +313,22 @@
     ccl::%foreign-thread-control
     ))
 
+(ccl::defenum (:prefix "AREA-")
+  void                                  ; list header
+  cstack                                ; a control stack
+  vstack                                ; a value stack
+  tstack                                ; (dynamic-extent) temp stack
+  readonly                              ; readonly section
+  staticlib                             ; static data in library
+  static                                ; static data in application
+  dynamic                               ; dynmaic (heap) data in application
+)
 
+; areas are sorted such that (in the "succ" direction) codes are >=.
+; If you think that you're looking for a stack (instead of a heap), look
+; in the "pred" direction from the all-areas header.
+(defconstant max-stack-area-code area-tstack)
+(defconstant min-heap-area-code area-readonly)
 
   
 (provide "PPC-ARCH")

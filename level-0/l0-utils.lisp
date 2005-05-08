@@ -28,28 +28,28 @@
 
 
 ; We MAY need a scheme for finding all of the areas in a lisp library.
-(defun %map-areas (function &optional (maxcode ppc32::area-dynamic) (mincode ppc32::area-readonly))
+(defun %map-areas (function &optional (maxcode ppc::area-dynamic) (mincode ppc::area-readonly))
   (declare (fixnum maxcode mincode))
   (do* ((a (%normalize-areas) (%lisp-word-ref a (ash ppc32::area.succ -2)))
-        (code ppc32::area-dynamic (%lisp-word-ref a (ash ppc32::area.code -2)))
+        (code ppc::area-dynamic (%lisp-word-ref a (ash ppc32::area.code -2)))
         (dynamic t nil))
-       ((= code ppc32::area-void))
+       ((= code ppc::area-void))
     (declare (fixnum code))
     (if (and (<= code maxcode)
              (>= code mincode))
       (if dynamic 
         (walk-dynamic-area a function)
-        (unless (= code ppc32::area-dynamic)        ; ignore egc areas, 'cause walk-dynamic-area sees them.
+        (unless (= code ppc::area-dynamic)        ; ignore egc areas, 'cause walk-dynamic-area sees them.
           (walk-static-area a function))))))
 
 
-   ; there'll be functions in static lib areas.
-
+;;; there'll be functions in static lib areas.
+;;; (Well, there would be if there were really static lib areas.)
 
 (defun %map-lfuns (f)
   (let* ((filter #'(lambda (obj) (when (functionp obj) (funcall f obj)))))
     (declare (dynamic-extent filter))
-    (%map-areas filter ppc32::area-dynamic ppc32::area-staticlib)))
+    (%map-areas filter ppc::area-dynamic ppc::area-staticlib)))
 
 
 (defun ensure-simple-string (s)
