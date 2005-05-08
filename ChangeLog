@@ -1,3 +1,20 @@
+2005-05-08 06:17  gb
+
+	* lib/nfcomp.lisp: Remove old code-vector/svar dumping cases.
+
+2005-05-08 05:59  gb
+
+	* compiler/PPC/ppc-arch.lisp, compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp, level-0/l0-misc.lisp,
+	level-0/l0-utils.lisp, level-0/nfasload.lisp,
+	level-1/l1-lisp-threads.lisp, xdump/xfasload.lisp: AREA-
+	enumeration constants are PPC-specific, not platform-specific. 
+	(AREA. accessors -are- platform-specific).
+
+2005-05-08 05:57  gb
+
+	* lib/nfcomp.lisp: Use $fasl-svar, $fasl-codevector.
+
 2005-05-08 05:10  gb
 
 	* level-0/nfasload.lisp, xdump/faslenv.lisp, xdump/xfasload.lisp:
