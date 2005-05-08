@@ -1,3 +1,25 @@
+2005-05-07 23:52  gb
+
+	* level-0/PPC/ppc-float.lisp: (host) support to get/set
+	single-float bits.
+
+2005-05-07 23:51  gb
+
+	* lib/nfcomp.lisp: Use new (so far ...) operators.
+
+2005-05-07 23:51  gb
+
+	* xdump/xfasload.lisp: Add support for new (so far) operators.
+
+2005-05-07 23:50  gb
+
+	* xdump/faslenv.lisp: Rename $FASL-FLOAT to $FASL-DFLOAT.
+
+2005-05-07 23:50  gb
+
+	* level-0/nfasload.lisp: Ignore (ignored) extended-string flag in
+	obsolete FASL-READSTR and equally obsolete callers.
+
 2005-05-07 22:01  gb
 
 	* lib/nfcomp.lisp: Remove (old, unused) extended-string stuff.
