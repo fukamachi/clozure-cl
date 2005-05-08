@@ -1,3 +1,16 @@
+2005-05-08 03:07  gb
+
+	* lib/nfcomp.lisp, xdump/faslenv.lisp: Increment fasl version.
+
+2005-05-08 02:52  gb
+
+	* lib/nfcomp.lisp: FASL-DUMP-DISPATCH: don't forget to dump
+	character constants, and use ETYPECASE to keep from quietly
+	neglecting to dump other types in the future.
+	
+	(All of this is getting tricky to bootstrap; there will be new
+	binaries soon.)
+
 2005-05-08 01:17  gb
 
 	* lib/nfcomp.lisp: Know (a bit) less about platform-dependent
