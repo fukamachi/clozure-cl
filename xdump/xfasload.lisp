@@ -199,8 +199,6 @@
 (defparameter *xload-aliased-package-addresses* nil)     ; cloned package to address
 (defparameter *xload-cold-load-functions* nil)
 (defparameter *xload-cold-load-documentation* nil)
-(defparameter *xload-fcell-refs* nil)    ; function cells referenced, for warnings
-(defparameter *xload-vcell-refs* nil)    ; value cells, for warnings
 (defparameter *xload-loading-file-source-file* nil)
 
 (defparameter *xload-pure-code-p* t)     ; when T, subprims are copied to readonly space
@@ -681,23 +679,7 @@
         (dotimes (i len str)
           (setf (schar str i) (code-char (u8-ref v (+ p i))))))))
 
-(defun xload-note-undefined-references ()
-  (let* ((unbound-vcells nil)
-         (undefined-fcells nil))
-    (dolist (vcell *xload-vcell-refs*)
-      (when (=  (xload-u32-at-address (+ vcell ppc32::symbol.vcell))
-               ppc32::unbound-marker)
-        (push vcell unbound-vcells)))
-    (dolist (fcell *xload-fcell-refs*)
-      (declare (fixnum fcell))
-      (when (= (xload-u32-at-address (+ fcell ppc32::symbol.fcell))
-               %xload-unbound-function%)
-        (push fcell undefined-fcells)))
-    (flet ((xload-symbol-name-string (addr) (xload-get-string (xload-symbol-name addr))))
-      (when undefined-fcells
-        (warn "Function names referenced but not defined: ~a" (mapcar #'xload-symbol-name-string undefined-fcells)))
-      (when unbound-vcells
-        (warn "Variable names referenced but not defined: ~a" (mapcar #'xload-symbol-name-string unbound-vcells))))))
+
   
 (defparameter *xload-use-trampoline-subprims-code* t)
 
@@ -735,8 +717,6 @@
          (*xload-cold-load-functions* nil)
          (*xload-cold-load-documentation* nil)
          (*xload-loading-file-source-file* nil)
-         (*xload-vcell-refs* nil)
-         (*xload-fcell-refs* nil)
          (*xload-svar-alist* nil)
          (*xload-aliased-package-addresses* nil))
     (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
@@ -795,7 +775,6 @@
           (xload-save-list (setq *xload-cold-load-documentation*
                                  (nreverse *xload-cold-load-documentation*))))
                               
-    (xload-note-undefined-references)
     (xload-finalize-packages)
     (xload-dump-image output-file *xload-image-base-address*)))
 
@@ -825,8 +804,6 @@
 ;;; The xloader
 
 (xload-copy-faslop $fasl-noop)
-(xload-copy-faslop $fasl-etab-alloc)
-(xload-copy-faslop $fasl-eref)
 (xload-copy-faslop $fasl-vetab-alloc)
 (xload-copy-faslop $fasl-veref)
 
@@ -858,13 +835,6 @@
 (defxloadfaslop $fasl-sfloat (s)
   (%epushval s (xload-make-sfloat *xload-readonly-space* (%fasl-read-long s))))
 
-(defxloadfaslop $fasl-str (s)
-  (let* ((n (%fasl-read-size s)))
-    (multiple-value-bind (str v o) (xload-make-ivector *xload-readonly-space* ppc32::subtag-simple-base-string n)
-      (%epushval s str)
-      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) n)
-      str)))
-
 (defxloadfaslop $fasl-vstr (s)
   (let* ((n (%fasl-read-count s)))
     (multiple-value-bind (str v o) (xload-make-ivector *xload-readonly-space* ppc32::subtag-simple-base-string n)
@@ -875,28 +845,11 @@
 (defxloadfaslop $fasl-word-fixnum (s)
   (%epushval s (xload-immval (%word-to-int (%fasl-read-word s)))))
 
-(defun %xload-fasl-make-symbol (s)
-  (%epushval s (xload-make-symbol (%xload-fasl-readstr s))))
-
 (defun %xload-fasl-vmake-symbol (s)
   (%epushval s (xload-make-symbol (%xload-fasl-vreadstr s))))
 
-(defxloadfaslop $fasl-mksym (s)
-  (%xload-fasl-make-symbol s))
-
 (defxloadfaslop $fasl-vmksym (s)
   (%xload-fasl-vmake-symbol s))
-
-(defun %xload-fasl-intern (s package)
-  (multiple-value-bind (str len new-p) (%fasl-readstr s)
-    (without-interrupts
-     (multiple-value-bind (cursym access internal external) (%find-symbol str len package)
-       (unless access
-         (unless new-p (setq str (%fasl-copystr str len)))
-         (setq cursym (%add-symbol str package internal external)))
-       ; cursym now exists in the load-time world; make sure that it exists
-       ; (and is properly "interned" in the world we're making as well)
-       (%epushval s (xload-copy-symbol cursym))))))
 
 (defun %xload-fasl-vintern (s package)
   (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
@@ -909,27 +862,16 @@
        ; (and is properly "interned" in the world we're making as well)
        (%epushval s (xload-copy-symbol cursym))))))
 
-(defxloadfaslop $fasl-intern (s)
-  (%xload-fasl-intern s *package*))
 
 (defxloadfaslop $fasl-vintern (s)
   (%xload-fasl-vintern s *package*))
 
-(defxloadfaslop $fasl-pkg-intern (s)
-  (let* ((addr (%fasl-expr-preserve-epush  s))
-         (pkg (xload-addr->package addr)))
-    (%xload-fasl-intern s pkg)))
 
 (defxloadfaslop $fasl-vpkg-intern (s)
   (let* ((addr (%fasl-expr-preserve-epush  s))
          (pkg (xload-addr->package addr)))
     (%xload-fasl-vintern s pkg)))
 
-(defun %xload-fasl-package (s)
-  (multiple-value-bind (str len new-p) (%fasl-readstr s)
-    (let* ((p (%find-pkg str len)))
-      (%epushval s (xload-package->addr 
-                    (or p (%kernel-restart $XNOPKG (if new-p str (%fasl-copystr str len)))))))))
 
 (defun %xload-fasl-vpackage (s)
   (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
@@ -937,8 +879,6 @@
       (%epushval s (xload-package->addr 
                     (or p (%kernel-restart $XNOPKG (if new-p str (%fasl-copystr str len)))))))))
 
-(defxloadfaslop $fasl-pkg (s)
-  (%xload-fasl-package s))
 
 (defxloadfaslop $fasl-vpkg (s)
   (%xload-fasl-vpackage s))
@@ -949,17 +889,6 @@
           (xload-cdr cons) (%fasl-expr s))
     (setf (faslstate.faslval s) cons)))
     
-(defun %xload-fasl-listX (s dotp)
-  (let* ((len (%fasl-read-word s)))
-    (declare (fixnum len))
-    (let* ((val (%epushval s (xload-make-cons *xload-nil* *xload-nil*)))
-           (tail val))
-      (setf (xload-car val) (%fasl-expr s))
-      (dotimes (i len)
-        (setf (xload-cdr tail) (setq tail (xload-make-cons  (%fasl-expr s) *xload-nil*))))
-      (if dotp
-        (setf (xload-cdr tail) (%fasl-expr s)))
-      (setf (faslstate.faslval s) val))))
 
 (defun %xload-fasl-vlistX (s dotp)
   (let* ((len (%fasl-read-count s)))
@@ -973,14 +902,8 @@
         (setf (xload-cdr tail) (%fasl-expr s)))
       (setf (faslstate.faslval s) val))))
 
-(defxloadfaslop $fasl-list (s)
-  (%xload-fasl-listX s nil))
-
 (defxloadfaslop $fasl-vlist (s)
   (%xload-fasl-vlistX s nil))
-
-(defxloadfaslop $fasl-list* (s)
-  (%xload-fasl-listX s t))
 
 (defxloadfaslop $fasl-vlist* (s)
   (%xload-fasl-vlistX s t))
@@ -1019,30 +942,6 @@
     (error "Can't evaluate expression ~s in cold load ." expr)
     (%epushval s (eval expr))))         ; could maybe evaluate symbols, constants ...
 
-; Whether or not it's a good idea to allocate other things there
-; is hard to say.  Let's assume that it is, for the time being.
-(defxloadfaslop $fasl-ivec (s)
-  (let* ((subtag (%fasl-read-byte s))
-         (element-count (%fasl-read-size s))
-         (read-only-code (and (= subtag ppc32::subtag-code-vector) *xload-pure-code-p*)))
-    (declare (fixnum subtag))
-    (when (= subtag ppc32::subtag-xcode-vector)
-      (setq subtag ppc32::subtag-code-vector))
-    (multiple-value-bind (vector v o)
-                         (xload-make-ivector 
-                          (if (and (= subtag ppc32::subtag-code-vector) (not *xload-pure-code-p*))
-                            *xload-dynamic-space* 
-                            *xload-readonly-space*)
-                          subtag 
-                          element-count)
-      (%epushval s vector)
-      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes subtag element-count))
-      (when read-only-code
-	(funcall
-	 (backend-xload-info-relativize-subprims-hook *xload-target-backend*)
-         v (+ o ppc32::misc-data-offset) element-count))
-      vector)))
-
 (defxloadfaslop $fasl-vivec (s)
   (let* ((subtag (%fasl-read-byte s))
          (element-count (%fasl-read-count s))
@@ -1066,32 +965,6 @@
       vector)))
 
 ;;; About all we do with svars is to canonicalize them.
-(defxloadfaslop $fasl-gvec (s)
-  (let* ((subtype (%fasl-read-byte s))
-         (n (%fasl-read-size s)))
-    (declare (fixnum subtype n))
-    (if (and (= subtype ppc32::subtag-svar)
-             (= n ppc32::svar.element-count))
-      (let* ((epush (faslstate.faslepush s))
-             (ecount (faslstate.faslecnt s)))
-        (when epush
-          (%epushval s 0))
-        (let* ((sym (%fasl-expr s))
-               (ignore (%fasl-expr s))
-               (vector (cdr (assq sym *xload-svar-alist*))))
-          (declare (ignore ignore))
-          (unless vector
-            (setq vector (xload-make-gvector subtype n))
-            (setf (xload-%svref vector ppc32::svar.symbol-cell) sym)
-            (push (cons sym vector) *xload-svar-alist*))
-          (when epush
-            (setf (svref (faslstate.faslevec s) ecount) vector))
-          (setf (faslstate.faslval s) vector)))
-      (let* ((vector (xload-make-gvector subtype n)))
-        (%epushval s vector)
-        (dotimes (i n (setf (faslstate.faslval s) vector))
-          (setf (xload-%svref vector i) (%fasl-expr s)))))))
-
 (defxloadfaslop $fasl-vgvec (s)
   (let* ((subtype (%fasl-read-byte s))
          (n (%fasl-read-count s)))
@@ -1118,12 +991,13 @@
         (dotimes (i n (setf (faslstate.faslval s) vector))
           (setf (xload-%svref vector i) (%fasl-expr s)))))))
 
-(defun xload-note-cell-ref (loc imm)
-  (if (= loc ppc32::symbol.fcell)
-    (pushnew imm *xload-fcell-refs*)
-    (if (= loc ppc32::symbol.vcell)
-      (pushnew imm *xload-vcell-refs*)))
-  (+ loc imm))
+(defxloadfaslop $fasl-function (s)
+  (let* ((n (%fasl-read-count s)))
+    (declare (fixnum n))
+    (let* ((f (xload-make-gvector ppc32::subtag-function n)))
+      (%epushval s vector)
+      (dotimes (i n (setf (faslstate.faslval s) f))
+        (setf (xload-%svref f i) (%fasl-expr s))))))
 
 
 (defun xload-lfun-name (lf)

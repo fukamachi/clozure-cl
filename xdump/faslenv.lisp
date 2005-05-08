@@ -69,26 +69,25 @@
 
 (defconstant $fasl-noop 0)              ;<nada:zilch>.  
 ;(defconstant $fasl-obsolete 1)
-(defconstant $fasl-etab-alloc 2)        ;<count:long>. Make a new expression table
-                                        ; with count slots.  Current etab gets lost.
-(defconstant $fasl-eref 3)              ;<index:word> Get the value from an etab slot.
+(defconstant $fasl-unused-2 2)          ;
+(defconstant $fasl-unused-3 3)          ;
 (defconstant $fasl-lfuncall 4)          ;<lfun:expr> funcall the lfun.
 (defconstant $fasl-globals 5)           ;<expr> global symbols vector
 (defconstant $fasl-char 6)              ;<char:byte> Make a char
 (defconstant $fasl-fixnum 7)            ;<value:long> Make a (4-byte) fixnum
 (defconstant $fasl-dfloat 8)            ;<hi:long><lo:long> Make a DOUBLE-FLOAT
-(defconstant $fasl-str 9)               ;<string> Make a string
+(defconstant $fasl-unused-9 9)          ;
 (defconstant $fasl-word-fixnum 10)      ;<value:word> Make a fixnum
-(defconstant $fasl-mksym 11)            ;<string> Make an uninterned sym
-(defconstant $fasl-intern 12)           ;<string> Intern in current pkg.
-(defconstant $fasl-pkg-intern 13)       ;<pkg:expr><string> Make a sym in pkg.
-(defconstant $fasl-pkg 14)              ;<string> Returns the package of given name
+(defconstant $fasl-unused-11 11)        ;
+(defconstant $fasl-unused-12 12)        ;
+(defconstant $fasl-unused-14 13)        ;
+(defconstant $fasl-unused-15 14)        ;
 (defconstant $fasl-cons 15)             ;<car:expr><cdr:expr> Make a cons
-(defconstant $fasl-list 16)             ;<n:word> <data: n+1 exprs> Make a list
-(defconstant $fasl-list* 17)            ;<n:word> <data:n+2 exprs> Make an sexpr
+(defconstant $fasl-unused-16 16)        ;
+(defconstant $fasl-unused-17 17)        ;
 (defconstant $fasl-nil 18)              ; Make nil
 (defconstant $fasl-timm 19)             ;<n:long>
-(defconstant $fasl-lfun 20)             ;<lfunvec:expr> Make lfun
+(defconstant $fasl-function 20)         ;<count> Make function
 (defconstant $fasl-vstr 21)             ;<vstring> Make a string
 (defconstant $fasl-vmksym 22)           ;<vstring> Make an uninterned symbol
 (defconstant $fasl-arch 23)             ;<n:byte> Ensure that file's loadable on arch n.
@@ -98,8 +97,8 @@
 (defconstant $fasl-fixnum8 26)          ;<high:long><low:long> Make an 8-byte fixnum.
 (defconstant $fasl-symfn 27)            ;<sym:expr> returns #'sym.
 (defconstant $fasl-eval 28)             ;<expr> Eval <expr> and return value.
-(defconstant $fasl-ivec 29)             ;<subtype:byte><n:size><n data bytes>
-(defconstant $fasl-gvec 30)             ;<subtype:byte><n:size><n exprs>
+(defconstant $fasl-unused-29 29)        ;
+(defconstant $fasl-unused-30 30)        ;
 (defconstant $fasl-vintern 31)          ;<vstring> Intern in current pkg.
 (defconstant $fasl-vpkg-intern 32)      ;<pkg:expr><vstring> Make a sym in pkg.
 (defconstant $fasl-vpkg 33)             ;<string> Returns the package of given name
