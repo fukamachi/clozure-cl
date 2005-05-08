@@ -1171,8 +1171,9 @@ Will differ from *compiling-file* during an INCLUDE")
 
 
 (defun fasl-dump-dispatch (exp)
-  (typecase exp
+  (etypecase exp
     (fixnum (fasl-dump-fixnum exp))
+    (character (fasl-dump-char exp))
     (list (fasl-dump-list exp))
     (immediate (fasl-dump-t_imm exp))
     (double-float (fasl-dump-dfloat exp))
