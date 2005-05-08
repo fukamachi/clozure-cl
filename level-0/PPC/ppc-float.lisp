@@ -707,3 +707,25 @@
   (get-double-float fp1 src)
   (stfs fp1 0 imm0)
   (blr))
+
+#+ppc32-target
+(defun host-single-float-from-unsigned-byte-32 (u32)
+  (let* ((f (%make-sfloat)))
+    (setf (uvref f ppc32::single-float.value-cell) u32)
+    f))
+
+#+ppc64-target
+(defppclapfunction host-single-float-from-unsigned-byte-32 ((u32 arg_z))
+  (sldi arg_z arg_z (- 32 ppc64::fixnumshift))
+  (ori arg_z arg_z ppc64::subtag-single-float)
+  (blr))
+
+
+#+ppc32-target
+(defun single-float-bits (f)
+  (uvref f ppc32::single-float.value-cell))
+
+#+ppc64-target
+(defppclapfunction single-float-bits ((f arg_z))
+  (srdi arg_z f (- 32 ppc64::fixnumshift))
+  (blr))
