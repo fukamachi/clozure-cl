@@ -1,4 +1,4 @@
-;;-*- Mode: Lisp; Package: CCL -*-
+;;;-*- Mode: Lisp; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -372,6 +372,9 @@
     (setf (%misc-ref df ppc32::double-float.val-low-cell)
           (%fasl-read-long s))
     (%epushval s df)))
+
+(deffaslop $fasl-sfloat (s)
+  (%epushval s (host-single-float-from-unsigned-byte-32 (%fasl-read-long s))))
 
 (deffaslop $fasl-str (s)
   (let* ((n (%fasl-read-size s))
