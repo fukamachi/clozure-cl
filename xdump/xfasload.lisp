@@ -406,6 +406,14 @@
     (setf (u32-ref v (the fixnum (+ o ppc32::double-float.value))) high)
     (setf (u32-ref v (the fixnum (+ o ppc32::double-float.val-low))) low)
     dfloat-addr))
+
+(defun xload-make-sfloat (space bits)
+  (multiple-value-bind (sfloat-addr v o) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::single-float.element-count)
+    (declare (fixnum o))
+    (setf (u32-ref v (the fixnum (+ o ppc32::single-float.header))) 
+          (make-xload-header ppc32::single-float.element-count ppc32::subtag-single-float))
+    (setf (u32-ref v (the fixnum (+ o ppc32::single-float.value))) bits)
+    sfloat-addr))
         
 (defun xload-make-ivector (space subtag nelements)
   (declare (fixnum subtype nelements))
@@ -844,8 +852,11 @@
                   (setf (%get-long long) (%fasl-read-long s))
                   (%get-long long)))))
 
-(defxloadfaslop $fasl-float (s)
+(defxloadfaslop $fasl-dfloat (s)
   (%epushval s (xload-make-dfloat *xload-readonly-space* (%fasl-read-long s) (%fasl-read-long s))))
+
+(defxloadfaslop $fasl-sfloat (s)
+  (%epushval s (xload-make-sfloat *xload-readonly-space* (%fasl-read-long s))))
 
 (defxloadfaslop $fasl-str (s)
   (let* ((n (%fasl-read-size s)))

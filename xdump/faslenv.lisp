@@ -77,7 +77,6 @@
 (defconstant $fasl-char 6)              ;<char:byte> Make a char
 (defconstant $fasl-fixnum 7)            ;<value:long> Make a (4-byte) fixnum
 (defconstant $fasl-dfloat 8)            ;<hi:long><lo:long> Make a DOUBLE-FLOAT
-(defconstant $fasl-float $fasl-dfloat)
 (defconstant $fasl-str 9)               ;<string> Make a string
 (defconstant $fasl-word-fixnum 10)      ;<value:word> Make a fixnum
 (defconstant $fasl-mksym 11)            ;<string> Make an uninterned sym
@@ -115,7 +114,7 @@
 (defconstant $fasl-prog1 43)            ;<expr><expr> - Second <expr> is for side-affects only
 (defconstant $fasl-vlist 44)            ;<n:count> <data: n+1 exprs> Make a list
 (defconstant $fasl-vlist* 45)           ;<n:count> <data:n+2 exprs> Make an sexpr
-(defconstant $fasl-unused-46 46)        ;
+(defconstant $fasl-sfloat 46)           ;<long> Make SINGLE-FLOAT from bits
 (defconstant $fasl-src 47)              ;<expr> - Set *loading-file-source-file * to <expr>.
 (defconstant $fasl-unused-48 48)        ;
 (defconstant $fasl-provide 49)          ;<string:expr>
