@@ -1133,8 +1133,8 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fasl-dump-form (form)
   (let ((info (gethash form *fasdump-hash*)))
     (cond ((fixnump info)
-           (fasl-out-byte $fasl-eref)
-           (fasl-out-word info))
+           (fasl-out-byte $fasl-veref)
+           (fasl-out-count info))
           ((consp info)
            (fasl-dump-user-form form info))
           (t
@@ -1170,13 +1170,6 @@ Will differ from *compiling-file* during an INCLUDE")
   (puthash form *fasdump-hash* (setq *fasdump-eref* (1+ *fasdump-eref*))))
 
 
-
-
-
-
-
-
-
 (defun fasl-dump-dispatch (exp)
   (let* ((typecode (typecode exp)))
     (declare (fixnum typecode))
@@ -1186,10 +1179,11 @@ Will differ from *compiling-file* during an INCLUDE")
       (#.ppc32::tag-imm (if (characterp exp) (fasl-dump-char exp) (fasl-dump-t_imm exp)))
       (t
        (if (= (the fixnum (logand typecode ppc32::fulltagmask)) ppc32::fulltag-immheader)
-         ; Double-floats and simple-base-strings get special treatment.  For everything else,
-         ; dump a $fasl-imm opcode, the subtag (typecode), and the raw data.  (For
-         ; double-float vectors, skip the first 4 bytes of raw data.)
-         ; ppc Code vectors have to be dumped in "normalized" form.
+         ;; Double-floats and simple-base-strings get special
+         ;; treatment.  For everything else, dump a $fasl-imm opcode,
+         ;; the subtag (typecode), and the raw data.  (For
+         ;; double-float vectors, skip the first 4 bytes of raw data.)
+         ;; ppc Code vectors have to be dumped in "normalized" form.
          (if (= typecode ppc32::subtag-double-float)
            (fasl-dump-dfloat exp)
            (let* ((n (uvsize exp))
@@ -1200,11 +1194,11 @@ Will differ from *compiling-file* during an INCLUDE")
 		      (= typecode ppc32::subtag-code-vector))
 		 (break "Dumping a native code-vector! ~s" exp))
              (if (= typecode ppc32::subtag-simple-base-string)
-               (fasl-out-opcode $fasl-str exp)
+               (fasl-out-opcode $fasl-vstr exp)
                (progn
-                 (fasl-out-opcode $fasl-ivec exp)
+                 (fasl-out-opcode $fasl-vivec exp)
                  (fasl-out-byte out-typecode)))
-             (fasl-out-size n)
+             (fasl-out-count n)
              (if (= typecode ppc32::subtag-double-float-vector)
                ; Account for alignment word
                (fasl-out-ivect exp 4 nb)
@@ -1222,14 +1216,14 @@ Will differ from *compiling-file* during an INCLUDE")
 		      (= typecode ppc32::subtag-function))
 		 (break "Dumping a native function! ~s" exp))
 	       
-               (fasl-out-opcode $fasl-gvec exp)
+               (fasl-out-opcode $fasl-vgvec exp)
                (fasl-out-byte out-typecode)
-               (fasl-out-size n)
+               (fasl-out-count n)
                (dotimes (i n)
                  (fasl-dump-form (%svref exp i)))))))))))
 
 (defun fasl-out-codevector (codevector size-in-bytes)
-  (declare  (ignore size-in-bytes))
+  (declare (ignore size-in-bytes))
   (fasl-out-ivect codevector))
            
 
@@ -1264,8 +1258,8 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fasl-dump-package (pkg)
   (let ((name (package-name pkg)))
-    (fasl-out-opcode $fasl-pkg pkg)
-    (fasl-out-string name)))
+    (fasl-out-opcode $fasl-vpkg pkg)
+    (fasl-out-vstring name)))
 
 
 
@@ -1295,14 +1289,8 @@ Will differ from *compiling-file* during an INCLUDE")
   (if (eql 0 cdr-len)
     (fasl-out-opcode $fasl-cons cons)
     (progn
-      (fasl-out-opcode (if end $fasl-list* $fasl-list) cons)
-      ;; If the length doesn't fit in a 16-bit word, output
-      ;; a word of 0 followed by a 32-bit length
-      (if (> cdr-len #xffff)
-	(progn
-	  (fasl-out-word 0)
-	  (fasl-out-long cdr-len))
-	(fasl-out-word cdr-len))))
+      (fasl-out-opcode (if end $fasl-vlist* $fasl-vlist) cons)
+      (fasl-out-count cdr-len)))
   (dotimes (i (the fixnum (1+ cdr-len)))
     (fasl-dump-form (%car cons))
     (setq cons (%cdr cons)))
@@ -1311,47 +1299,32 @@ Will differ from *compiling-file* during an INCLUDE")
 
 
 
-(defun fasl-dump-symbol (sym &aux (pkg (symbol-package sym))
-                                  (name (symbol-name sym))
-                                  )
-  (cond ((null pkg) 
+(defun fasl-dump-symbol (sym)
+  (let* ((pkg (symbol-package sym))
+         (name (symbol-name sym)))
+    (cond ((null pkg) 
            (progn 
-             (fasl-out-opcode $fasl-mksym sym)
-             (fasl-out-string name)))
-
-        (*fasdump-epush*
-         (progn
-             (fasl-out-byte (fasl-epush-op $fasl-pkg-intern))
+             (fasl-out-opcode $fasl-vmksym sym)
+             (fasl-out-vstring name)))
+          (*fasdump-epush*
+           (progn
+             (fasl-out-byte (fasl-epush-op $fasl-vpkg-intern))
              (fasl-dump-form pkg)
              (fasl-dump-epush sym)
-             (fasl-out-string name)))
-        (t
-         (progn
-             (fasl-out-byte $fasl-pkg-intern)
+             (fasl-out-vstring name)))
+          (t
+           (progn
+             (fasl-out-byte $fasl-vpkg-intern)
              (fasl-dump-form pkg)
-             (fasl-out-string name)))))
+             (fasl-out-vstring name))))))
 
 
 (defun fasl-unknown (exp)
   (error "Can't dump ~S - unknown type" exp)) 
 
-(defun fasl-out-string (str)
-  (fasl-out-size (length str))
+(defun fasl-out-vstring (str)
+  (fasl-out-count (length str))
   (fasl-out-ivect str))
-
-(defun fasl-out-xstring (str) 
-  ; really the same as fasl-out-string wherein byte-size = length
-  ; could save 40 bytes or so by exploiting that
-  (fasl-out-size (subtag-bytes ppc32::subtag-simple-general-string (length str)))
-  (fasl-out-ivect str))
-
-
-
-(defun fasl-out-size (size)
-  (if (%i< size #xFF) (fasl-out-byte size)
-      (progn (fasl-out-byte #xFF)
-             (if (%i< size #xFFFF) (fasl-out-word size)
-                 (progn (fasl-out-word #xFFFF) (fasl-out-long size))))))
 
 (defun fasl-out-ivect (iv &optional 
                           (start 0) 
