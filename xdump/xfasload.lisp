@@ -567,11 +567,6 @@
         addr)))
 
 ;;; Read a string from fasl file, save it to readonly-space.
-(defun %xload-fasl-readstr (s)
-  (multiple-value-bind (str n new-p) (%fasl-readstr s)
-    (declare (fixnum n subtype))
-    (values (xload-save-string str n) str n new-p)))
-
 (defun %xload-fasl-vreadstr (s)
   (multiple-value-bind (str n new-p) (%fasl-vreadstr s)
     (declare (fixnum n subtype))
