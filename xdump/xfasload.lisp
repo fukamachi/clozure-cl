@@ -995,7 +995,7 @@
   (let* ((n (%fasl-read-count s)))
     (declare (fixnum n))
     (let* ((f (xload-make-gvector ppc32::subtag-function n)))
-      (%epushval s vector)
+      (%epushval s f)
       (dotimes (i n (setf (faslstate.faslval s) f))
         (setf (xload-%svref f i) (%fasl-expr s))))))
 
