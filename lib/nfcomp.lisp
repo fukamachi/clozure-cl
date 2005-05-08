@@ -1104,8 +1104,8 @@ Will differ from *compiling-file* during an INCLUDE")
       (error "Too many multiply-referenced objects in fasl file.~%Limit is ~d. Were ~d." 65535 etab-size))
     (fasl-out-word FASL-VERSION)          ; Word 0
     (fasl-out-long  0)
-    (fasl-out-byte $fasl-etab-alloc)
-    (fasl-out-long etab-size)
+    (fasl-out-byte $fasl-vetab-alloc)
+    (fasl-out-count etab-size)
     (fasl-dump gnames goffsets forms hash)
     (fasl-out-byte $fasl-end)))
 
