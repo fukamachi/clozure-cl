@@ -1171,56 +1171,50 @@ Will differ from *compiling-file* during an INCLUDE")
 
 
 (defun fasl-dump-dispatch (exp)
-  (let* ((typecode (typecode exp)))
-    (declare (fixnum typecode))
-    (case typecode
-      (#.ppc32::tag-fixnum (fasl-dump-fixnum exp))
-      (#.ppc32::tag-list (fasl-dump-list exp))
-      (#.ppc32::tag-imm (if (characterp exp) (fasl-dump-char exp) (fasl-dump-t_imm exp)))
-      (t
-       (if (= (the fixnum (logand typecode ppc32::fulltagmask)) ppc32::fulltag-immheader)
-         ;; Double-floats and simple-base-strings get special
-         ;; treatment.  For everything else, dump a $fasl-imm opcode,
-         ;; the subtag (typecode), and the raw data.  (For
-         ;; double-float vectors, skip the first 4 bytes of raw data.)
-         ;; ppc Code vectors have to be dumped in "normalized" form.
-         (if (= typecode ppc32::subtag-double-float)
-           (fasl-dump-dfloat exp)
-           (let* ((n (uvsize exp))
-		  (out-typecode (if (= typecode ppc32::subtag-xcode-vector) ppc32::subtag-code-vector typecode))
-                  (nb (subtag-bytes typecode n)))
-             (declare (fixnum n nb))
-	     (if (and (not (eq *fasl-backend* *host-backend*))
-		      (= typecode ppc32::subtag-code-vector))
-		 (break "Dumping a native code-vector! ~s" exp))
-             (if (= typecode ppc32::subtag-simple-base-string)
-               (fasl-out-opcode $fasl-vstr exp)
-               (progn
-                 (fasl-out-opcode $fasl-vivec exp)
-                 (fasl-out-byte out-typecode)))
-             (fasl-out-count n)
-             (if (= typecode ppc32::subtag-double-float-vector)
-               ; Account for alignment word
-               (fasl-out-ivect exp 4 nb)
-               (if (= out-typecode ppc32::subtag-code-vector)
-                 (fasl-out-codevector exp nb)
-                 (fasl-out-ivect exp 0 nb)))))
-         (if (= typecode ppc32::subtag-package)
-           (fasl-dump-package exp)
-           (if (= typecode ppc32::subtag-symbol)
-             (fasl-dump-symbol exp)
-             (let* ((n (uvsize exp))
-		    (out-typecode (if (= typecode ppc32::subtag-xfunction) ppc32::subtag-function typecode)))
-               (declare (fixnum n))
-	     (if (and (not (eq *fasl-backend* *host-backend*))
-		      (= typecode ppc32::subtag-function))
-		 (break "Dumping a native function! ~s" exp))
-	       
-               (fasl-out-opcode $fasl-vgvec exp)
-               (fasl-out-byte out-typecode)
-               (fasl-out-count n)
-               (dotimes (i n)
-                 (fasl-dump-form (%svref exp i)))))))))))
+  (typecase exp
+    (fixnum (fasl-dump-fixnum exp))
+    (list (fasl-dump-list exp))
+    (immediate (fasl-dump-t_imm exp))
+    (double-float (fasl-dump-dfloat exp))
+    (single-float (fasl-dump-sfloat exp))
+    (simple-string (let* ((n (length exp)))
+                     (fasl-out-opcode $fasl-vstr exp)
+                     (fasl-out-count n)
+                     (fasl-out-ivect exp 0 n)))
+    (symbol (fasl-dump-symbol exp))
+    (package (fasl-dump-package exp))
+    (ivector    
+     (let* ((typecode (typecode exp))
+            (n (uvsize exp))
+            (out-typecode (if (= typecode ppc32::subtag-xcode-vector) ppc32::subtag-code-vector typecode))
+            (nb (subtag-bytes typecode n)))
+       (declare (fixnum n nb typecode out-typecode))
+       (if (and (not (eq *fasl-backend* *host-backend*))
+                (= typecode ppc32::subtag-code-vector))
+         (break "Dumping a native code-vector! ~s" exp))
+       (fasl-out-opcode $fasl-vivec exp)
+       (fasl-out-byte out-typecode)
+       (fasl-out-count n)
+       (if (= typecode ppc32::subtag-double-float-vector)
+         ;; Account for alignment word
+         (fasl-out-ivect exp 4 nb)
+         (if (= out-typecode ppc32::subtag-code-vector)
+           (fasl-out-codevector exp nb)
+           (fasl-out-ivect exp 0 nb)))))
+    (gvector
+     (let* ((typecode (typecode exp))
+            (n (uvsize exp))
+            (out-typecode (if (= typecode ppc32::subtag-xfunction) ppc32::subtag-function typecode)))
+       (declare (fixnum n typecode out-typecode))
+       (if (and (not (eq *fasl-backend* *host-backend*))
+                (= typecode ppc32::subtag-function))
+         (break "Dumping a native function! ~s" exp))
+       
+       (fasl-out-opcode $fasl-vgvec exp)
+       (fasl-out-byte out-typecode)
+       (fasl-out-count n)
+       (dotimes (i n)
+         (fasl-dump-form (%svref exp i)))))))
 
 (defun fasl-out-codevector (codevector size-in-bytes)
   (declare (ignore size-in-bytes))
@@ -1246,14 +1240,13 @@ Will differ from *compiling-file* during an INCLUDE")
       (fasl-out-opcode $fasl-fixnum fixnum)
       (fasl-out-long fixnum))))
  
-
-
 (defun fasl-dump-dfloat (float)
-  (fasl-out-opcode $fasl-float float)
+  (fasl-out-opcode $fasl-dfloat float)
   (fasl-out-ivect float 4 8))
-                                                    
-                 
-  
+
+(defun fasl-dump-sfloat (float)
+  (fasl-out-opcode $fasl-sfloat float)
+  (fasl-out-long (single-float-bits float)))
 
 
 (defun fasl-dump-package (pkg)
