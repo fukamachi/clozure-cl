@@ -138,8 +138,8 @@
                 (%incf-ptr bufptr nthere)))))))
         
 
-(defun %fasl-readstr (s &optional ignore)
-  (declare (fixnum subtype) (ignore ignore))
+(defun %fasl-readstr (s)
+  (declare (fixnum subtype))
   (let* ((nbytes (%fasl-read-size s))
          (copy t)
          (n nbytes)
@@ -361,9 +361,7 @@
     (%compose-signed-fixnum (%fasl-read-word s) (%fasl-read-word s))))
 
 
-
-
-(deffaslop $fasl-float (s)
+(deffaslop $fasl-dfloat (s)
   ;; A double-float is a 3-element "misc" object.
   ;; Element 0 is always 0 and exists solely to keep elements 1 and 2
   ;; aligned on a 64-bit boundary.
