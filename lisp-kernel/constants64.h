@@ -91,12 +91,12 @@
 
 
 /* There's some room for expansion in non-array ivector space. */
-#define subtag_bignum SUBTAG(ivector_class_64_bit,0)
-#define subtag_double_float SUBTAG(ivector_class_64_bit,3)
 #define subtag_macptr SUBTAG(ivector_class_64_bit,5)
 #define subtag_dead_macptr SUBTAG(ivector_class_64_bit,6)
 #define subtag_code_vector SUBTAG(ivector_class_32_bit,0)
 #define subtag_xcode_vector SUBTAG(ivector_class_32_bit,1)
+#define subtag_bignum SUBTAG(ivector_class_32_bit,2)
+#define subtag_double_float SUBTAG(ivector_class_32_bit,3)
 
 
 /*

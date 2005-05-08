@@ -169,8 +169,8 @@
 ;;                               u64             u32            u8
 ;;  Other ivector types       MACPTR           CODE-VECTOR
 ;;                            DEAD-MACPTR     XCODE-VECTOR
-;;                            BIGNUM
-;;                            DOUBLE-FLOAT
+;;                                            BIGNUM
+;;                                            DOUBLE-FLOAT
 ;; There might possibly be ivectors with 128-bit (VMX/AltiVec) elements
 ;; someday, and there might be multiple character sizes (16/32 bits).
 ;; That sort of suggests that we use the four immheader classes to
@@ -196,13 +196,13 @@
 (define-cl-array-subtag simple-base-string ivector-class-8-bit 5)
 
 ;; There's some room for expansion in non-array ivector space.
-(define-subtag bignum ivector-class-64-bit 0)
 (define-subtag macptr ivector-class-64-bit 1)
 (define-subtag dead-macptr ivector-class-64-bit 2)
-(define-subtag double-float ivector-class-64-bit 3)
 
 (define-subtag code-vector ivector-class-32-bit 0)
 (define-subtag xcode-vector ivector-class-32-bit 1)
+(define-subtag bignum ivector-class-32-bit 2)
+(define-subtag double-float ivector-class-32-bit 3)
 
 ;; Size doesn't matter for non-CL-array gvectors; I can't think of a good
 ;; reason to classify them in any particular way.  Let's put funcallable

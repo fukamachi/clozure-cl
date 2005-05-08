@@ -93,12 +93,12 @@ define_cl_array_subtag(u8_vector,ivector_class_8_bit,2)
 define_cl_array_subtag(simple_base_string,ivector_class_8_bit,5)
 
 /* There's some room for expansion in non-array ivector space. */
-define_subtag(bignum,ivector_class_64_bit,0)
-define_subtag(double_float,ivector_class_64_bit,3)
 define_subtag(macptr,ivector_class_64_bit,5)
 define_subtag(dead_macptr,ivector_class_64_bit,6)
 define_subtag(code_vector,ivector_class_32_bit,0)
 define_subtag(xcode_vector,ivector_class_32_bit,1)
+define_subtag(bignum,ivector_class_32_bit,2)
+define_subtag(double_float,ivector_class_32_bit,3)
 
 
 
