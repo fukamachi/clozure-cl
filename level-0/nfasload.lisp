@@ -107,6 +107,15 @@
         (setq size (%fasl-read-long s))))
     size))
 
+(defun %fasl-read-count (s)
+  (do* ((val 0)
+        (shift 0 (+ shift 7))
+        (done nil))
+       (done val)
+    (let* ((b (%fasl-read-byte s)))
+      (declare (type (unsigned-byte 8) b))
+      (setq done (logbitp 7 b) val (logior val (ash (logand b #x7f) shift))))))
+
 (defun %simple-fasl-read-n-bytes (s ivector byte-offset n)
   (declare (fixnum byte-offset n))
   (do* ()
@@ -132,6 +141,19 @@
 (defun %fasl-readstr (s &optional ignore)
   (declare (fixnum subtype) (ignore ignore))
   (let* ((nbytes (%fasl-read-size s))
+         (copy t)
+         (n nbytes)
+         (str (faslstate.faslstr s)))
+    (declare (fixnum n nbytes))
+    (if (> n (length str))
+        (setq str (make-string n :element-type 'base-char))
+        (setq copy nil))
+    (%fasl-read-n-bytes s str 0 nbytes)
+    (values str n copy)))
+
+(defun %fasl-vreadstr (s &optional ignore)
+  (declare (fixnum subtype) (ignore ignore))
+  (let* ((nbytes (%fasl-read-count s))
          (copy t)
          (n nbytes)
          (str (faslstate.faslstr s)))
@@ -168,9 +190,17 @@
     (setf (faslstate.faslepush s) epush)
     val))
 
-(defun %fasl-make-symbol (s ignore)
-  (declare (fixnum subtype) (ignore ignore))
+(defun %fasl-make-symbol (s)
+  (declare (fixnum subtype))
   (let* ((n (%fasl-read-size s))
+         (str (make-string n :element-type 'base-char)))
+    (declare (fixnum n))
+    (%fasl-read-n-bytes s str 0 n)
+    (%epushval s (make-symbol str))))
+
+(defun %fasl-vmake-symbol (s)
+  (declare (fixnum subtype))
+  (let* ((n (%fasl-read-count s))
          (str (make-string n :element-type 'base-char)))
     (declare (fixnum n))
     (%fasl-read-n-bytes s str 0 n)
@@ -179,6 +209,16 @@
 (defun %fasl-intern (s package ignore)
   (declare (ignore ignore))
   (multiple-value-bind (str len new-p) (%fasl-readstr s)
+    (with-package-lock (package)
+     (multiple-value-bind (symbol access internal-offset external-offset)
+                          (%find-symbol str len package)
+       (unless access
+         (unless new-p (setq str (%fasl-copystr str len)))
+         (setq symbol (%add-symbol str package internal-offset external-offset)))
+       (%epushval s symbol)))))
+
+(defun %fasl-vintern (s package)
+  (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
     (with-package-lock (package)
      (multiple-value-bind (symbol access internal-offset external-offset)
                           (%find-symbol str len package)
@@ -228,6 +268,11 @@
     (let* ((p (%find-pkg str len)))
       (%epushval s (or p (%kernel-restart $XNOPKG (if new-p str (%fasl-copystr str len))))))))
 
+(defun %fasl-vpackage (s)
+  (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
+    (let* ((p (%find-pkg str len)))
+      (%epushval s (or p (%kernel-restart $XNOPKG (if new-p str (%fasl-copystr str len))))))))
+
 (defun %fasl-listX (s dotp)
   (let* ((len (%fasl-read-word s)))
     (declare (fixnum len))
@@ -243,6 +288,19 @@
         (setf (cdr tail) (%fasl-expr s)))
       (setf (faslstate.faslval s) val))))
 
+(defun %fasl-vlistX (s dotp)
+  (let* ((len (%fasl-read-count s)))
+    (declare (fixnum len))
+    (let* ((val (%epushval s (cons nil nil)))
+           (tail val))
+      (declare (type cons val tail))
+      (setf (car val) (%fasl-expr s))
+      (dotimes (i len)
+        (setf (cdr tail) (setq tail (cons (%fasl-expr s) nil))))
+      (if dotp
+        (setf (cdr tail) (%fasl-expr s)))
+      (setf (faslstate.faslval s) val))))
+
 
 
 (deffaslop $fasl-noop (s)
@@ -251,6 +309,11 @@
 (deffaslop $fasl-etab-alloc (s)
   (%cant-epush s)
   (setf (faslstate.faslevec s) (make-array (the fixnum (%fasl-read-long s)))
+        (faslstate.faslecnt s) 0))
+
+(deffaslop $fasl-vetab-alloc (s)
+  (%cant-epush s)
+  (setf (faslstate.faslevec s) (make-array (the fixnum (%fasl-read-count s)))
         (faslstate.faslecnt s) 0))
 
 (deffaslop $fasl-arch (s)
@@ -267,6 +330,13 @@
 
 (deffaslop $fasl-eref (s)
   (let* ((idx (%fasl-read-word s)))     ; 16 bit limit ? why ?
+    (declare (fixnum idx))
+    (if (>= idx (the fixnum (faslstate.faslecnt s)))
+      (%bad-fasl s))
+    (%epushval s (svref (faslstate.faslevec s) idx))))
+
+(deffaslop $fasl-veref (s)
+  (let* ((idx (%fasl-read-count s)))
     (declare (fixnum idx))
     (if (>= idx (the fixnum (faslstate.faslecnt s)))
       (%bad-fasl s))
@@ -311,14 +381,26 @@
     (%epushval s str)
     (%fasl-read-n-bytes s str 0 n)))
 
+(deffaslop $fasl-vstr (s)
+  (let* ((n (%fasl-read-count s))
+         (str (make-string (the fixnum n) :element-type 'base-char)))
+    (%epushval s str)
+    (%fasl-read-n-bytes s str 0 n)))
+
 (deffaslop $fasl-word-fixnum (s)
   (%epushval s (%word-to-int (%fasl-read-word s))))
 
 (deffaslop $fasl-mksym (s)
-  (%fasl-make-symbol s nil))
+  (%fasl-make-symbol s))
+
+(deffaslop $fasl-vmksym (s)
+  (%fasl-vmake-symbol s))
 
 (deffaslop $fasl-intern (s)
   (%fasl-intern s *package* nil))
+
+(deffaslop $fasl-vintern (s)
+  (%fasl-vintern s *package*))
 
 (deffaslop $fasl-pkg-intern (s)
   (let* ((pkg (%fasl-expr-preserve-epush s)))
@@ -326,8 +408,17 @@
     (setq pkg (pkg-arg pkg))
     (%fasl-intern s pkg nil)))
 
+(deffaslop $fasl-vpkg-intern (s)
+  (let* ((pkg (%fasl-expr-preserve-epush s)))
+    #+paranoia
+    (setq pkg (pkg-arg pkg))
+    (%fasl-vintern s pkg)))
+
 (deffaslop $fasl-pkg (s)
   (%fasl-package s nil))
+
+(deffaslop $fasl-vpkg (s)
+  (%fasl-vpackage s))
 
 (deffaslop $fasl-cons (s)
   (let* ((cons (%epushval s (cons nil nil))))
@@ -339,12 +430,17 @@
 (deffaslop $fasl-list (s)
   (%fasl-listX s nil))
 
+(deffaslop $fasl-vlist (s)
+  (%fasl-vlistX s nil))
+
 (deffaslop $fasl-list* (s)
   (%fasl-listX s t))
 
+(deffaslop $fasl-vlist* (s)
+  (%fasl-vlistX s t))
+
 (deffaslop $fasl-nil (s)
   (%epushval s nil))
-
 
 
 (deffaslop $fasl-timm (s)
@@ -385,6 +481,19 @@
       (%make-code-executable vector))
     vector))
 
+(deffaslop $fasl-vivec (s)
+  (let* ((subtag (%fasl-read-byte s))
+         (element-count (%fasl-read-count s))
+         (size-in-bytes (subtag-bytes subtag element-count))
+         (vector (%alloc-misc element-count subtag))
+         (byte-offset (or #+ppc32-target (if (= subtag ppc32::subtag-double-float-vector) 4) 0)))
+    (declare (fixnum subtag element-count size-in-bytes))
+    (%epushval s vector)
+    (%fasl-read-n-bytes s vector byte-offset size-in-bytes)
+    (when (= subtag ppc32::subtag-code-vector)
+      (%make-code-executable vector))
+    vector))
+
 
 (deffaslop $fasl-gvec (s)
   (let* ((subtype (%fasl-read-byte s))
@@ -408,15 +517,29 @@
         (dotimes (i n (setf (faslstate.faslval s) vector))
           (setf (%svref vector i) (%fasl-expr s)))))))
 
-
-
-
+(deffaslop $fasl-vgvec (s)
+  (let* ((subtype (%fasl-read-byte s))
+         (n (%fasl-read-count s)))
+    (declare (fixnum n subtype))
+    (if (and (= subtype ppc32::subtag-svar)
+             (= n ppc32::svar.element-count))
+      (let* ((epush (faslstate.faslepush s))
+             (ecount (faslstate.faslecnt s)))
+        (when epush
+          (%epushval s 0))
+        (let* ((sym (%fasl-expr s))
+               (ignore (%fasl-expr s))
+               (vector (ensure-svar sym)))
+          (declare (ignore ignore))
+          (when epush
+            (setf (svref (faslstate.faslevec s) ecount) vector))
+          (setf (faslstate.faslval s) vector)))
+      (let* ((vector (%alloc-misc n subtype)))
+        (%epushval s vector)
+        (dotimes (i n (setf (faslstate.faslval s) vector))
+          (setf (%svref vector i) (%fasl-expr s)))))))
           
-(deffaslop $fasl-xchar (s)
-  (%epushval s (code-char (%fasl-read-word s))))
     
-(deffaslop $fasl-mkxsym (s)
-  (%fasl-make-symbol s t))
 
 (deffaslop $fasl-defun (s)
   (%cant-epush s)
@@ -450,37 +573,19 @@
     (unless (%defvar sym (%fasl-expr s))
       (set sym val))))
 
-(deffaslop $fasl-skip (s)
-  (%fasl-expr s)
-  (%fasl-expr s))
 
 (deffaslop $fasl-prog1 (s)
   (let* ((val (%fasl-expr s)))
     (%fasl-expr s)
     (setf (faslstate.faslval s) val)))
 
-(deffaslop $fasl-xintern (s)
-  (%fasl-intern s *package* t))
 
-(deffaslop $fasl-pkg-xintern (s)
-  (let* ((pkg (%fasl-expr-preserve-epush s)))
-    #+paranoia
-    (setq pkg (pkg-arg pkg))
-    (%fasl-intern s pkg t)))
-
-(deffaslop $fasl-xpkg (s)
-  (%fasl-package s t))
 
 (deffaslop $fasl-src (s)
   (%cant-epush s)
   (let* ((source-file (%fasl-expr s)))
     ; (format t "~& source-file = ~s" source-file)
     (setq *loading-file-source-file* source-file)))
-
-#-openmcl
-(deffaslop $fasl-library-pointer (s)
-  (setf (faslstate.faslval s)
-        (pfsl-shared-library-offset s)))
 
 (defvar *modules* nil)
 
