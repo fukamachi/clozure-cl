@@ -1240,11 +1240,8 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fasl-dump-char (char)     ; << maybe not
   (let ((code (%char-code char)))
-    (cond ((%i> code #xff)
-           (fasl-out-opcode $fasl-xchar char)
-           (fasl-out-word code))
-          (t (fasl-out-opcode $fasl-char char)
-             (fasl-out-byte code)))))
+    (fasl-out-opcode $fasl-char char)
+    (fasl-out-byte code)))
 
 (defun fasl-dump-fixnum (fixnum)
   (if (short-fixnum-p fixnum)
@@ -1267,13 +1264,8 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fasl-dump-package (pkg)
   (let ((name (package-name pkg)))
-    (if (simple-base-string-p name)
-      (progn
-        (fasl-out-opcode $fasl-pkg pkg)
-        (fasl-out-string name))
-      (progn
-        (fasl-out-opcode $fasl-xpkg pkg)
-        (fasl-out-xstring name)))))
+    (fasl-out-opcode $fasl-pkg pkg)
+    (fasl-out-string name)))
 
 
 
@@ -1321,38 +1313,23 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fasl-dump-symbol (sym &aux (pkg (symbol-package sym))
                                   (name (symbol-name sym))
-                                  (base (simple-base-string-p name)))
+                                  )
   (cond ((null pkg) 
-         (if base
            (progn 
              (fasl-out-opcode $fasl-mksym sym)
-             (fasl-out-string name))
-           (progn
-             (fasl-out-opcode $fasl-mkxsym sym)
-             (fasl-out-xstring name))))
+             (fasl-out-string name)))
 
         (*fasdump-epush*
-         (if base
-           (progn
+         (progn
              (fasl-out-byte (fasl-epush-op $fasl-pkg-intern))
              (fasl-dump-form pkg)
              (fasl-dump-epush sym)
-             (fasl-out-string name))
-           (progn
-             (fasl-out-byte (fasl-epush-op $fasl-pkg-xintern))
-             (fasl-dump-form pkg)
-             (fasl-dump-epush sym)
-             (fasl-out-xstring name))))
+             (fasl-out-string name)))
         (t
-         (if base
-           (progn
+         (progn
              (fasl-out-byte $fasl-pkg-intern)
              (fasl-dump-form pkg)
-             (fasl-out-string name))
-           (progn
-             (fasl-out-byte $fasl-pkg-xintern)
-             (fasl-dump-form pkg)
-             (fasl-out-xstring name))))))
+             (fasl-out-string name)))))
 
 
 (defun fasl-unknown (exp)
