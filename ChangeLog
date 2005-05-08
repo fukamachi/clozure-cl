@@ -1,3 +1,16 @@
+2005-05-08 05:10  gb
+
+	* level-0/nfasload.lisp, xdump/faslenv.lisp, xdump/xfasload.lisp:
+	Define (and use) $FASL-CODE-VECTOR, $FASL-SVAR.
+
+2005-05-08 04:30  gb
+
+	* xdump/xfasload.lisp: Remove obsolete function.
+
+2005-05-08 04:20  gb
+
+	* lib/nfcomp.lisp: FASL-DUMP-FUNCTION.
+
 2005-05-08 04:19  gb
 
 	* level-0/nfasload.lisp: Report file position of bad fasl opcode.
