@@ -69,8 +69,8 @@
 
 (defconstant $fasl-noop 0)              ;<nada:zilch>.  
 ;(defconstant $fasl-obsolete 1)
-(defconstant $fasl-unused-2 2)          ;
-(defconstant $fasl-unused-3 3)          ;
+(defconstant $fasl-code-vector 2)       ;<count> words of code
+(defconstant $fasl-svar 3)              ;<expr> Make SVAR for special symbol
 (defconstant $fasl-lfuncall 4)          ;<lfun:expr> funcall the lfun.
 (defconstant $fasl-globals 5)           ;<expr> global symbols vector
 (defconstant $fasl-char 6)              ;<char:byte> Make a char

@@ -939,8 +939,7 @@
 
 (defxloadfaslop $fasl-vivec (s)
   (let* ((subtag (%fasl-read-byte s))
-         (element-count (%fasl-read-count s))
-         (read-only-code (and (= subtag ppc32::subtag-code-vector) *xload-pure-code-p*)))
+         (element-count (%fasl-read-count s)))
     (declare (fixnum subtag))
     (when (= subtag ppc32::subtag-xcode-vector)
       (setq subtag ppc32::subtag-code-vector))
@@ -953,10 +952,19 @@
                           element-count)
       (%epushval s vector)
       (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes subtag element-count))
-      (when read-only-code
-	(funcall
-	 (backend-xload-info-relativize-subprims-hook *xload-target-backend*)
-         v (+ o ppc32::misc-data-offset) element-count))
+      vector)))
+
+(defxloadfaslop $fasl-code-vector (s)
+  (let* ((element-count (%fasl-read-count s)))
+    (multiple-value-bind (vector v o)
+                         (xload-make-ivector 
+                          (if (not *xload-pure-code-p*)
+                            *xload-dynamic-space* 
+                            *xload-readonly-space*)
+                          ppc32::subtag-code-vector 
+                          element-count)
+      (%epushval s vector)
+      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes ppc32::subtag-code-vector element-count))
       vector)))
 
 ;;; About all we do with svars is to canonicalize them.
@@ -985,6 +993,21 @@
         (%epushval s vector)
         (dotimes (i n (setf (faslstate.faslval s) vector))
           (setf (xload-%svref vector i) (%fasl-expr s)))))))
+
+(defxloadfaslop $fasl-svar (s)
+  (let* ((epush (faslstate.faslepush s))
+         (ecount (faslstate.faslecnt s)))
+    (when epush
+      (%epushval s 0))
+    (let* ((sym (%fasl-expr s))
+           (vector (cdr (assq sym *xload-svar-alist*))))
+      (unless vector
+        (setq vector (xload-make-gvector ppc32::subtag-svar ppc32::svar.element-count))
+        (setf (xload-%svref vector ppc32::svar.symbol-cell) sym)
+        (push (cons sym vector) *xload-svar-alist*))
+      (when epush
+        (setf (svref (faslstate.faslevec s) ecount) vector))
+      (setf (faslstate.faslval s) vector))))
 
 (defxloadfaslop $fasl-function (s)
   (let* ((n (%fasl-read-count s)))

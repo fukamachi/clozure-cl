@@ -382,6 +382,15 @@
       (%make-code-executable vector))
     vector))
 
+(deffaslop $fasl-code-vector (s)
+  (let* ((element-count (%fasl-read-count s))
+         (size-in-bytes (* 4 element-count))
+         (vector (allocate-typed-vector :code-vector element-count)))
+    (declare (fixnum subtag element-count size-in-bytes))
+    (%epushval s vector)
+    (%fasl-read-n-bytes s vector 0 size-in-bytes)
+    (%make-code-executable vector)
+    vector))
 
 (deffaslop $fasl-vgvec (s)
   (let* ((subtype (%fasl-read-byte s))
@@ -411,7 +420,18 @@
     (%epushval s f)
     (dotimes (i n (setf (faslstate.faslval s) f))
       (setf (%svref f i) (%fasl-expr s)))))
-                
+
+(deffaslop $fasl-svar (s)
+  (let* ((epush (faslstate.faslepush s))
+         (ecount (faslstate.faslecnt s)))
+    (when epush
+      (%epushval s 0))
+    (let* ((sym (%fasl-expr s))
+           (vector (ensure-svar sym)))
+      (when epush
+        (setf (svref (faslstate.faslevec s) ecount) vector))
+      (setf (faslstate.faslval s) vector))))
+
 
 (deffaslop $fasl-defun (s)
   (%cant-epush s)
