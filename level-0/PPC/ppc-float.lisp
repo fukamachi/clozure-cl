@@ -729,3 +729,13 @@
 (defppclapfunction single-float-bits ((f arg_z))
   (srdi arg_z f (- 32 ppc64::fixnumshift))
   (blr))
+
+(defun double-float-bits (f)
+  (values (uvref f target::double-float.value-cell)
+          (uvref f target::double-float.val-low-cell)))
+
+(defun double-float-from-bits (high low)
+  (let* ((f (%make-dfloat)))
+    (setf (uvref f target::double-float.value-cell) high
+          (uvref f target::double-float.val-low-cell) low)
+    f))
