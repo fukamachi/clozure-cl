@@ -1,3 +1,58 @@
+2005-05-07 17:54  gb
+
+	* lib/: defstruct.lisp, defstruct-lds.lisp: use $DEFSTUCT-STRUCT,
+	to simplify cross-compilation.
+
+2005-05-07 17:36  gb
+
+	* lib/defstruct-macros.lisp: define $DEFSTUCT-STRUCT, to simplify
+	cross-compilation.
+
+2005-05-07 17:34  gb
+
+	* lib/macros.lisp: Provide a couple of doc strings.
+
+2005-05-07 17:34  gb
+
+	* lib/misc.lisp: Function (macro, special-operator) documentation
+	associated with function object.
+
+2005-05-07 17:28  gb
+
+	* level-1/l1-aprims.lisp, lib/sequences.lisp: Don't use
+	%VECT-SUBTYPE.
+
+2005-05-07 17:28  gb
+
+	* level-0/l0-misc.lisp: Associate documentation with the
+	definition.
+
+2005-05-07 17:27  gb
+
+	* level-0/l0-array.lisp: Don't define %VECT-SUBTYPE, to remove
+	temptation to use it.
+
+2005-05-07 17:27  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: TRAP-UNLESS-CHARACTER,
+	TRAP-UNLESS-CONS.
+
+2005-05-07 17:26  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Use :struct to name structure
+	type.
+
+2005-05-07 17:26  gb
+
+	* compiler/PPC/ppc2.lisp: Hide a few more ppc32 dependencies. 
+	Still issues when native typecodes are involved (%gvector,
+	%alloc-misc, etc.)
+
+2005-05-07 17:24  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: Remove doc string from IF lap
+	macro.
+
 2005-05-06 22:59  gb
 
 	* compiler/PPC/ppc2.lisp: Typed-uvref/uvset operators accept
