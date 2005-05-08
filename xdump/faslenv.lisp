@@ -75,8 +75,8 @@
 (defconstant $fasl-lfuncall 4)          ;<lfun:expr> funcall the lfun.
 (defconstant $fasl-globals 5)           ;<expr> global symbols vector
 (defconstant $fasl-char 6)              ;<char:byte> Make a char
-(defconstant $fasl-fixnum 7)            ;<value:long> Make a fixnum
-(defconstant $fasl-float 8)             ;<hi:long><lo:long> Make a float
+(defconstant $fasl-fixnum 7)            ;<value:long> Make a (4-byte) fixnum
+(defconstant $fasl-float 8)             ;<hi:long><lo:long> Make a DOUBLE-FLOAT
 (defconstant $fasl-str 9)               ;<string> Make a string
 (defconstant $fasl-word-fixnum 10)      ;<value:word> Make a fixnum
 (defconstant $fasl-mksym 11)            ;<string> Make an uninterned sym
@@ -89,33 +89,34 @@
 (defconstant $fasl-nil 18)              ; Make nil
 (defconstant $fasl-timm 19)             ;<n:long>
 (defconstant $fasl-lfun 20)             ;<lfunvec:expr> Make lfun
-(defconstant $fasl-eref-lfun 21)        ;<index:word> Make lfun from etab lfunvector.
-(defconstant $fasl-extern 22)           ;<string> intern in current pkg, then export.
+(defconstant $fasl-vstr 21)             ;<vstring> Make a string
+(defconstant $fasl-vmksym 22)           ;<vstring> Make an uninterned symbol
 (defconstant $fasl-arch 23)             ;<n:byte> Ensure that file's loadable on arch n.
-(defconstant $fasl-a5nodeblk 24)
-(defconstant $fasl-a5lfun 25)
-(defconstant $fasl-a5ref 26)
+(defconstant $fasl-vetab-alloc 24)      ;<count:count> Make a new expression table
+                                        ; with count slots.  Current etab gets lost.
+(defconstant $fasl-veref 25)            ;<index:count> Get the value from an etab slot.
+(defconstant $fasl-fixnum8 26)          ;<high:long><low:long> Make an 8-byte fixnum.
 (defconstant $fasl-symfn 27)            ;<sym:expr> returns #'sym.
 (defconstant $fasl-eval 28)             ;<expr> Eval <expr> and return value.
 (defconstant $fasl-ivec 29)             ;<subtype:byte><n:size><n data bytes>
 (defconstant $fasl-gvec 30)             ;<subtype:byte><n:size><n exprs>
-(defconstant $fasl-lfvec 31)            ;<n:max size><m:size><m words><imms> Make an lfun-vector
-(defconstant $fasl-nlfvec 32)           ;<n:size><n bytes><imms> Make an lfun-vector
-(defconstant $fasl-xchar 33)            ; extended character
-(defconstant $fasl-mkxsym 34)           ;<xstring> uninterned symbol 
+(defconstant $fasl-vintern 31)          ;<vstring> Intern in current pkg.
+(defconstant $fasl-vpkg-intern 32)      ;<pkg:expr><vstring> Make a sym in pkg.
+(defconstant $fasl-vpkg 33)             ;<string> Returns the package of given name
+(defconstant $fasl-vgvec 34)            ;<subtype:byte><n:count><n exprs>
 (defconstant $fasl-defun 35)            ;<fn:expr><doc:expr>
 (defconstant $fasl-macro 37)            ;<fn:expr><doc:expr>
 (defconstant $fasl-defconstant 38)      ;<sym:expr><val:expr><doc:expr>
 (defconstant $fasl-defparameter 39)     ;<sym:expr><val:expr><doc:expr>
 (defconstant $fasl-defvar 40)           ;<sym:expr>
 (defconstant $fasl-defvar-init 41)      ;<sym:expr><val:expr><doc:expr>
-(defconstant $fasl-skip 42)             ;<expr><expr> - First <expr> is for side-affects only
+(defconstant $fasl-vivec 42)            ;<subtype:byte><n:count><n data bytes>
 (defconstant $fasl-prog1 43)            ;<expr><expr> - Second <expr> is for side-affects only
-(defconstant $fasl-xintern 44)          ;<xstring> intern in current package
-(defconstant $fasl-pkg-xintern 45)      ;<pkg:expr><xstring> Make a sym in pkg.
-(defconstant $fasl-xpkg 46)             ;<xstring> Returns the package of given name
+(defconstant $fasl-vlist 44)            ;<n:count> <data: n+1 exprs> Make a list
+(defconstant $fasl-vlist* 45)           ;<n:count> <data:n+2 exprs> Make an sexpr
+(defconstant $fasl-unused-46 46)        ;
 (defconstant $fasl-src 47)              ;<expr> - Set *loading-file-source-file * to <expr>.
-(defconstant $fasl-library-pointer 48)  ;<offset:long>[<library-name:expr>]
+(defconstant $fasl-unused-48 48)        ;
 (defconstant $fasl-provide 49)          ;<string:expr>
 
 ; <string> means <size><size bytes>
