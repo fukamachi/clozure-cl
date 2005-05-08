@@ -76,7 +76,8 @@
 (defconstant $fasl-globals 5)           ;<expr> global symbols vector
 (defconstant $fasl-char 6)              ;<char:byte> Make a char
 (defconstant $fasl-fixnum 7)            ;<value:long> Make a (4-byte) fixnum
-(defconstant $fasl-float 8)             ;<hi:long><lo:long> Make a DOUBLE-FLOAT
+(defconstant $fasl-dfloat 8)            ;<hi:long><lo:long> Make a DOUBLE-FLOAT
+(defconstant $fasl-float $fasl-dfloat)
 (defconstant $fasl-str 9)               ;<string> Make a string
 (defconstant $fasl-word-fixnum 10)      ;<value:word> Make a fixnum
 (defconstant $fasl-mksym 11)            ;<string> Make an uninterned sym
