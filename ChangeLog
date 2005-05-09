@@ -1,3 +1,20 @@
+2005-05-08 23:01  gb
+
+	* level-0/l0-array.lisp: Start to conditionalize for
+	#+ppc64-target; -mostly- involves changing PPC32 package prefix to
+	TARGET (but some -real- differences.) 2 down, about 100 to go.
+
+2005-05-08 23:01  gb
+
+	* level-0/l0-aprims.lisp: Start to conditionalize for
+	#+ppc64-target; -mostly- involves changing PPC32 package prefix to
+	TARGET.
+
+2005-05-08 22:59  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Define lowtag constants,
+	min-{vector,array}-subtag values.
+
 2005-05-08 21:14  gb
 
 	* lisp-kernel/constants64.s, compiler/PPC/PPC64/ppc64-arch.lisp:
