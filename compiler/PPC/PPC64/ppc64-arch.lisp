@@ -113,6 +113,12 @@
 (defconstant fulltag-immheader-3    #b1110)
 (defconstant fulltag-nodeheader-3   #b1111)
 
+(defconstant lowtagmask 3)
+(defconstant lowtag-mask lowtagmask)
+(defconstant lowtag-primary 0)
+(defconstant lowtag-imm 1)
+(defconstant lowtag-immheader 2)
+(defconstant lowtag-nodeheader 3)
 
 ;; The general algorithm for determining the (primary) type of an
 ;; object is something like:
@@ -154,7 +160,8 @@
 ;;   indicate CL-array-ness, we'd still have 6 bits to encode non-CL
 ;;   array types.  
 
-(defconstant cl-array-subtag-mask #x80)
+(defconstant cl-array-subtag-bit 7)
+(defconstant cl-array-subtag-mask (ash 1 cl-array-subtag-bit))
 (defmacro define-cl-array-subtag (name tag value)
   `(defconstant ,(ccl::form-symbol "SUBTAG-" name)
     (logior cl-array-subtag-mask (logior ,tag (ash ,value ntagbits)))))
@@ -162,6 +169,8 @@
 (define-cl-array-subtag arrayH  fulltag-nodeheader-1 0)
 (define-cl-array-subtag vectorH fulltag-nodeheader-2 0)
 (define-cl-array-subtag simple-vector fulltag-nodeheader-3 0)
+(defconstant min-array-subtag subtag-arrayH)
+(defconstant min-vector-subtag subtag-vectorH)
 
 ;;  bits:                         64             32       16    8     1
 ;;  CL-array ivector types    DOUBLE-FLOAT     SINGLE    s16   CHAR  BIT
