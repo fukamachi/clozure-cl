@@ -1,3 +1,12 @@
+2005-05-09 07:42  gb
+
+	* level-0/PPC/: ppc-clos.lisp, ppc-utils.lisp: conditionalize for
+	ppc64.
+
+2005-05-09 07:41  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: EXTRACT-LOWBYTE for ppc64.
+
 2005-05-09 05:43  gb
 
 	* level-0/PPC/ppc-array.lisp: Conditionalize some for ppc64; warn
