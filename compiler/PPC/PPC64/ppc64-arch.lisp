@@ -31,6 +31,7 @@
 (defconstant ntagbits 4)
 (defconstant nlisptagbits 3)
 (defconstant nfixnumtagbits 3)          ; See ?
+(defconstant nlowtagbits 2)
 (defconstant num-subtag-bits 8)         ; tag part of header is 8 bits wide
 (defconstant fixnumshift nfixnumtagbits)
 (defconstant fixnum-shift fixnumshift)          ; A pet name for it.
@@ -113,7 +114,7 @@
 (defconstant fulltag-immheader-3    #b1110)
 (defconstant fulltag-nodeheader-3   #b1111)
 
-(defconstant lowtagmask 3)
+(defconstant lowtagmask (1- (ash 1 nlowtagbits)))
 (defconstant lowtag-mask lowtagmask)
 (defconstant lowtag-primary 0)
 (defconstant lowtag-imm 1)
@@ -238,6 +239,7 @@
 (define-subtag xfunction fulltag-nodeheader-2 5)
 (define-subtag ratio fulltag-nodeheader-2 6)
 (define-subtag complex fulltag-nodeheader-2 7)
+
 
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
