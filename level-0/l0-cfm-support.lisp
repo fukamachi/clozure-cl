@@ -209,7 +209,7 @@
 
 (defun %dlopen-shlib (l)
   (with-cstrs ((n (shlib.soname l)))
-    (ff-call (%kernel-import ppc32::kernel-import-GetSharedLibrary)
+    (ff-call (%kernel-import target::kernel-import-GetSharedLibrary)
 	     :address n
 	     :unsigned-fullword *dlopen-flags*
 	     :void)))
@@ -246,7 +246,7 @@
 (defun open-shared-library (name)
   (let* ((link-map  (with-cstrs ((name name))
                       (ff-call
-		       (%kernel-import ppc32::kernel-import-GetSharedLibrary)
+		       (%kernel-import target::kernel-import-GetSharedLibrary)
 		       :address name
 		       :unsigned-fullword *dlopen-flags*
 		       :address))))
@@ -317,7 +317,7 @@
 (defun open-shared-library (name)
   (rlet ((type :signed))
     (let ((result (with-cstrs ((cname name))
-		    (ff-call (%kernel-import ppc32::kernel-import-GetSharedLibrary)
+		    (ff-call (%kernel-import target::kernel-import-GetSharedLibrary)
 			     :address cname
 			     :address type
 			     :address))))
@@ -367,7 +367,7 @@
 	    (unless (and header module)
 	      (rlet ((type :signed))
 		(let ((result (with-cstrs ((cname (shlib.soname lib)))
-				(ff-call (%kernel-import ppc32::kernel-import-GetSharedLibrary)
+				(ff-call (%kernel-import target::kernel-import-GetSharedLibrary)
 					 :address cname
 					 :address type
 					 :address))))
@@ -414,7 +414,7 @@
   (with-cstrs ((n name))
     (with-macptrs (addr)      
       (%setf-macptr addr
-		    (ff-call (%kernel-import ppc32::kernel-import-FindSymbol)
+		    (ff-call (%kernel-import target::kernel-import-FindSymbol)
 			     :address handle
 			     :address n
 			     :address))
@@ -546,7 +546,7 @@
 
 (defun foreign-symbol-address (name &optional (map *rtld-default*))
   (with-cstrs ((n name))
-    (let* ((addr (ff-call (%kernel-import ppc32::kernel-import-FindSymbol) :address map :address n :address)))
+    (let* ((addr (ff-call (%kernel-import target::kernel-import-FindSymbol) :address map :address n :address)))
       (unless (%null-ptr-p addr)
         addr))))
 
@@ -607,7 +607,7 @@
 	      ;;; unless we open the library (which is, of course,
 	      ;;; already open ...)  ourselves, passing in the
 	      ;;; #$RTLD_GLOBAL flag.
-	      (ff-call (%kernel-import ppc32::kernel-import-GetSharedLibrary)
+	      (ff-call (%kernel-import target::kernel-import-GetSharedLibrary)
 		       :address soname
 		       :unsigned-fullword *dlopen-flags*
 		       :void)
@@ -629,7 +629,7 @@
 	    (unless map
 	      (with-cstrs ((soname (shlib.soname lib)))
 		(setq map (ff-call
-			   (%kernel-import ppc32::kernel-import-GetSharedLibrary)
+			   (%kernel-import target::kernel-import-GetSharedLibrary)
 			   :address soname
 			   :unsigned-fullword *dlopen-flags*
 			   :address))
