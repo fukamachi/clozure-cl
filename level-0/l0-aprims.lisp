@@ -110,12 +110,12 @@
   (gvector :lock (%make-recursive-lock-ptr) 'recursive-lock 0 name))
 
 (defun lock-name (lock)
-  (uvref (require-type lock 'lock) ppc32::lock.name-cell))
+  (uvref (require-type lock 'lock) target::lock.name-cell))
 
 (defun recursive-lock-ptr (r)
-  (if (and (eq ppc32::subtag-lock (typecode r))
-           (eq (%svref r ppc32::lock.kind-cell) 'recursive-lock))
-    (%svref r ppc32::lock._value-cell)
+  (if (and (eq target::subtag-lock (typecode r))
+           (eq (%svref r target::lock.kind-cell) 'recursive-lock))
+    (%svref r target::lock._value-cell)
     (report-bad-arg r 'recursive-lock)))
 
 
@@ -125,7 +125,7 @@
 
 
 (defun %make-semaphore-ptr ()
-  (let* ((p (ff-call (%kernel-import ppc32::kernel-import-new-semaphore)
+  (let* ((p (ff-call (%kernel-import target::kernel-import-new-semaphore)
 	     :signed-fullword 0
              :address)))
     (if (%null-ptr-p p)
