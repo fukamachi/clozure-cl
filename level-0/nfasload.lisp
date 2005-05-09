@@ -96,7 +96,7 @@
 
 
 (defun %fasl-read-long (s)
-  (%compose-unsigned-fullword (%fasl-read-word s) (%fasl-read-word s)))
+  (logior (ash (%fasl-read-word s) 16) (%fasl-read-word s)))
 
 
 (defun %fasl-read-count (s)
@@ -283,7 +283,9 @@
 (deffaslop $fasl-fixnum (s)
   (%epushval
    s
-    (%compose-signed-fixnum (%fasl-read-word s) (%fasl-read-word s))))
+   (logior (the fixnum (ash (the fixnum (%word-to-int (%fasl-read-word s)))
+                            16))
+           (the fixnum (%fasl-read-word s))) ))
 
 
 (deffaslop $fasl-dfloat (s)

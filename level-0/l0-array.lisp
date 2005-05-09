@@ -115,7 +115,7 @@
              #+ppc32-target
              (ash (the fixnum (- subtag ppc32::min-cl-ivector-subtag)) -3)
              #+ppc64-target
-             (ash (the fixnum (logand subtag #x7f) -2))))))
+             (ash (the fixnum (logand subtag #x7f) (- ppc64::nlowtagbits)))))))
 
 
 
