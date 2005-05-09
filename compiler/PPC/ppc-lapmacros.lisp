@@ -472,7 +472,9 @@
      (stwx ,src ,miscobj ,scaled-idx)))
 
 (defppclapmacro extract-lowbyte (dest src)
-  `(clrlwi ,dest ,src (- 32 8)))
+  (target-arch-case
+   (:ppc32 `(clrlwi ,dest ,src (- 32 8)))
+   (:ppc64 `(clrldi ,dest ,src (- 64 8)))))
 
 (defppclapmacro unbox-fixnum (dest src)
   (target-arch-case
