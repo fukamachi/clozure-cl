@@ -64,25 +64,6 @@
         (t (report-bad-arg s 'string))))
 
 
-
-
-
-
-
-(defun macptr<= (p1 p2)
-  (multiple-value-bind (p1-low p1-high) (macptr-to-fixnums p1)
-    (declare (fixnum p1-low p1-high))
-    (multiple-value-bind (p2-low p2-high) (macptr-to-fixnums p2)
-      (declare (fixnum p2-low p2-high))
-      (or (< p1-high p2-high)
-          (and (eql p1-high p2-high)
-               (<= p1-low p2-low))))))
-
-(defun macptr-evenp (p)
-  (let ((low (macptr-to-fixnums p)))
-    (declare (fixnum low))
-    (evenp low)))
-
 (defun nremove (elt list)
   (let* ((handle (cons nil list))
          (splice handle))
