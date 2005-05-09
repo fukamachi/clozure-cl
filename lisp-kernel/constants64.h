@@ -1,4 +1,5 @@
 /*
+   Copyright (C) 2003-2005, Clozure Associates.
    Copyright (C) 1994-2001 Digitool, Inc
    This file is part of OpenMCL.  
 
@@ -117,12 +118,15 @@
 #define subtag_weak SUBTAG(fulltag_nodeheader_1,5)
 #define subtag_package SUBTAG(fulltag_nodeheader_1,6)
 #define subtag_svar SUBTAG(fulltag_nodeheader_1,7)
-#define subtag_slot_vector SUBTAG(0,fulltag_nodeheader_2)
-#define subtag_instance SUBTAG(1,fulltag_nodeheader_2)
-#define subtag_struct SUBTAG(2,fulltag_nodeheader_2)
-#define subtag_istruct SUBTAG(3,fulltag_nodeheader_2)
-#define subtag_value_cell SUBTAG(4,fulltag_nodeheader_2)
-#define subtag_xfunction SUBTAG(5,fulltag_nodeheader_2)
+#define subtag_slot_vector SUBTAG(fulltag_nodeheader_2,0)
+#define subtag_instance SUBTAG(fulltag_nodeheader_2,1)
+#define subtag_struct SUBTAG(fulltag_nodeheader_2,2)
+#define subtag_istruct SUBTAG(fulltag_nodeheader_2,3)
+#define subtag_value_cell SUBTAG(fulltag_nodeheader_2,4)
+#define subtag_xfunction SUBTAG(fulltag_nodeheader_2,5)
+#define subtag_ratio SUBTAG(fulltag_nodeheader_2,6)
+#define subtag_complex SUBTAG(fulltag_nodeheader_2,7)
+
 
 
 #define nil_value (0x2000+fulltag_misc+sizeof(struct lispsymbol))
