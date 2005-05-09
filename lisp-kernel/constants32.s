@@ -716,3 +716,5 @@ define([TCR_STATE_EXCEPTION_WAIT],2)
 define([TCR_STATE_EXCEPTION_RETURN],4)
 
 define([RESERVATION_DISCHARGE],0x1004)
+
+tag_of_nil = fulltag_nil
