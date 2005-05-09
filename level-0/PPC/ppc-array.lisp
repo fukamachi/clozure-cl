@@ -16,15 +16,19 @@
 
 
 (eval-when (:compile-toplevel :execute)
+  #+ppc32-target
   (require "PPC32-ARCH")
+  #+ppc64-target
+  (require "PPC64-ARCH")
   (require "PPC-LAPMACROS"))
 
 
 ; Users of this shouldn't make assumptions about return value.
 
 
-; Assumptions made by %init-misc
+#+ppc32-target
 (eval-when (:compile-toplevel :execute)
+;;; Assumptions made by %init-misc
   (assert (and (< ppc32::max-32-bit-ivector-subtag
                   ppc32::max-8-bit-ivector-subtag
                   ppc32::max-16-bit-ivector-subtag)
@@ -32,6 +36,7 @@
                (eql ppc32::max-16-bit-ivector-subtag ppc32::subtag-s16-vector)
                (eql ppc32::max-8-bit-ivector-subtag ppc32::subtag-simple-base-string))))
 
+#+ppc32-target
 (defppclapfunction %init-misc ((val arg_y)
                                (miscobj arg_z))
   (getvheader imm0 miscobj)
@@ -182,10 +187,15 @@
   (bne cr0 @set-32)
   (blr))
 
-; Make a new vector of size newsize whose subtag matches that of oldv-arg.
-; Blast the contents of the old vector into the new one as quickly as
-; possible; leave remaining elements of new vector undefined (0).
-; Return new-vector.
+#+ppc64-target
+(eval-when (:compile-toplevel)
+  (warn "Missing #+ppc64-target %INIT-MISC"))
+
+;;; Make a new vector of size newsize whose subtag matches that of oldv-arg.
+;;; Blast the contents of the old vector into the new one as quickly as
+;;; possible; leave remaining elements of new vector undefined (0).
+;;; Return new-vector.
+#+ppc32-target
 (defppclapfunction %extend-vector ((start-arg arg_x) (oldv-arg arg_y) (newsize arg_z))
   (let ((oldv save0)
         (oldsize save1)
@@ -213,7 +223,7 @@
     (li imm3 ppc32::misc-data-offset)
     (beq cr0 @done)
     (bne cr1 @imm)
-    ; copy nodes.  New vector is "new", so no memoization required.
+    ;; copy nodes.  New vector is "new", so no memoization required.
     @node-loop
     (cmpwi cr0 oldsize '1)
     (lwzx temp0 oldv imm1)
@@ -222,7 +232,7 @@
     (stwx temp0 arg_z imm3)
     (addi imm3 imm3 4)
     (bne cr0 @node-loop)
-    ;Restore registers.  New vector's been in arg_z all this time.
+    ;;Restore registers.  New vector's been in arg_z all this time.
     @done
     (lwz save3 0 vsp)
     (lwz save2 4 vsp)
@@ -313,13 +323,12 @@
       (vpop save3)
       (b @done))))
 
+#+ppc64-target
+(eval-when (:compile-toplevel)
+  (warn "Missing #+ppc64-target %EXTEND-VECTOR"))
 
 
-  
-
-
-
-;; argument is a vector header or an array header.  Or else.
+;;; argument is a vector header or an array header.  Or else.
 (defppclapfunction %array-header-data-and-offset ((a arg_z))
   (let ((offset arg_y)
         (disp arg_x)
@@ -327,24 +336,23 @@
     (li offset 0)
     (mr temp a)
     @loop
-    (lwz a ppc32::arrayH.data-vector temp)
-    (lbz imm0 ppc32::misc-subtag-offset a)
-    (cmpwi cr0 imm0 ppc32::subtag-vectorH)
-    (lwz disp ppc32::arrayH.displacement temp)
+    (ldr a target::arrayH.data-vector temp)
+    (lbz imm0 target::misc-subtag-offset a)
+    (cmpri cr0 imm0 target::subtag-vectorH)
+    (ldr disp target::arrayH.displacement temp)
     (mr temp a)
     (add offset offset disp)
     (ble cr0 @loop)
     (vpush a)
     (vpush offset)
     (set-nargs 2)
-    (la temp0 8 vsp)
+    (la temp0 (* 2 (ash 1 target::word-shift)) vsp)
     (ba .SPvalues)))
 
-(defun ppc-subtag-bytes (subtag element-count)
-  (subtag-bytes subtag element-count))
 
 ;;; If the bit-arrays are all simple-bit-vectorp, we can do the operations
 ;;; 32 bits at a time.  (other case have to worry about alignment/displacement.)
+#+ppc32-target
 (defppclapfunction %simple-bit-boole ((op 0) (b1 arg_x) (b2 arg_y) (result arg_z))
   (la imm0 4 vsp)
   (save-lisp-context imm0)
@@ -371,8 +379,8 @@
   @testw
   (bne cr0 @nextw)
   (beq cr1 @done)
-  ; Not sure if we need to make this much fuss about the partial word
-  ; in this simple case, but what the hell.
+  ;; Not sure if we need to make this much fuss about the partial word
+  ;; in this simple case, but what the hell.
   (lwzx imm1 b1 imm0)
   (lwzx imm2 b2 imm0)
   (bctrl)
@@ -423,3 +431,87 @@
   (blr)
   (orc imm1 imm1 imm2)                  ; boole-orc2
   (blr))
+
+#+ppc64-target
+(defppclapfunction %simple-bit-boole ((op 0) (b1 arg_x) (b2 arg_y) (result arg_z))
+  (la imm0 8 vsp)
+  (save-lisp-context imm0)
+  (vector-size imm4 result imm4)
+  (srdi. imm3 imm4 6)
+  (clrldi imm4 imm4 (- 64 6))
+  (bl @get-dispatch)
+  (cmpwi cr1 imm4 0)
+  (mflr loc-pc)
+  (ld temp0 op vsp)
+  (add loc-pc loc-pc temp0)
+  (mtctr loc-pc)
+  (li imm0 ppc64::misc-data-offset)
+  (b @testd)
+  @nextd
+  (cmpdi cr0 imm3 1)
+  (subi imm3 imm3 1)
+  (ldx imm1 b1 imm0)
+  (ldx imm2 b2 imm0)
+  (bctrl)
+  (stdx imm1 result imm0)
+  (addi imm0 imm0 4)
+  @testd
+  (bne cr0 @nextd)
+  (beq cr1 @done)
+  ;; Not sure if we need to make this much fuss about the partial word
+  ;; in this simple case, but what the hell.
+  (ldx imm1 b1 imm0)
+  (ldx imm2 b2 imm0)
+  (bctrl)
+  (ldx imm2 result imm0)
+  (sld imm2 imm2 imm4)
+  (srd imm2 imm2 imm4)
+  (subfic imm4 imm4 64)
+  (srd imm1 imm1 imm4)
+  (sld imm1 imm1 imm4)
+  (or imm1 imm1 imm2)
+  (stdx imm1 result imm0)
+  @done
+  (restore-full-lisp-context)
+  (blr)
+
+  @get-dispatch 
+  (blrl)
+  @disptach
+  (li imm1 0)                           ; boole-clr
+  (blr)
+  (li imm1 -1)                          ; boole-set
+  (blr)
+  (blr)                                 ; boole-1
+  (blr)                             
+  (mr imm1 imm2)                        ; boole-2
+  (blr)
+  (not imm1 imm1)                       ; boole-c1
+  (blr)
+  (not imm1 imm2)                       ; boole-c2
+  (blr)
+  (and imm1 imm1 imm2)                  ; boole-and
+  (blr)
+  (or imm1 imm1 imm2)                   ; boole-ior
+  (blr)
+  (xor imm1 imm1 imm2)                  ; boole-xor
+  (blr)
+  (eqv imm1 imm1 imm2)                  ; boole-eqv
+  (blr)
+  (nand imm1 imm1 imm2)                 ; boole-nand
+  (blr)
+  (nor imm1 imm1 imm2)                  ; boole-nor
+  (blr)
+  (andc imm1 imm2 imm1)                 ; boole-andc1
+  (blr)
+  (andc imm1 imm1 imm2)                 ; boole-andc2
+  (blr)
+  (orc imm1 imm2 imm1)                  ; boole-orc1
+  (blr)
+  (orc imm1 imm1 imm2)                  ; boole-orc2
+  (blr))
+
+
+
+  
+
