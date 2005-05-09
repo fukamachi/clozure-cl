@@ -1,3 +1,34 @@
+2005-05-09 05:43  gb
+
+	* level-0/PPC/ppc-array.lisp: Conditionalize some for ppc64; warn
+	at compile time about missing ppc64 functions.
+
+2005-05-09 05:30  gb
+
+	* level-0/l0-utils.lisp: Remove some unused functions.
+
+2005-05-09 05:29  gb
+
+	* level-0/l0-cfm-support.lisp: TARGET package.
+
+2005-05-09 05:29  gb
+
+	* level-0/: l0-array.lisp, nfasload.lisp: Use CL arithmetic to
+	create 32-bit integers ...
+
+2005-05-09 05:28  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: lowtag constants.
+
+2005-05-09 05:28  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: TRLGEI, EXTRACT-LOWTAG.
+
+2005-05-09 05:27  gb
+
+	* level-1/l1-clos-boot.lisp: 64-bit vectors, *CLASS-TABLE* changes
+	for #+ppc64-target.
+
 2005-05-08 23:01  gb
 
 	* level-0/l0-array.lisp: Start to conditionalize for
