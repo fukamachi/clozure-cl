@@ -1,4 +1,5 @@
 /*
+   Copyright (C) 2003-2005, Clozure Associates.
    Copyright (C) 1994-2001 Digitool, Inc
    This file is part of OpenMCL.  
 
@@ -121,12 +122,14 @@ define_subtag(pool,fulltag_nodeheader_1,4)
 define_subtag(weak,fulltag_nodeheader_1,5)
 define_subtag(package,fulltag_nodeheader_1,6)
 define_subtag(svar,fulltag_nodeheader_1,7)
-define_subtag(slot_vector,0,fulltag_nodeheader_2)
-define_subtag(instance,1,fulltag_nodeheader_2)
-define_subtag(struct,2,fulltag_nodeheader_2)
-define_subtag(istruct,3,fulltag_nodeheader_2)
-define_subtag(value_cell,4,fulltag_nodeheader_2)
-define_subtag(xfunction,5,fulltag_nodeheader_2)
+define_subtag(slot_vector,fulltag_nodeheader_2,0)
+define_subtag(instance,fulltag_nodeheader_2,1)
+define_subtag(struct,fulltag_nodeheader_2,2)
+define_subtag(istruct,fulltag_nodeheader_2,3)
+define_subtag(value_cell,fulltag_nodeheader_2,4)
+define_subtag(xfunction,fulltag_nodeheader_2,5)
+define_subtag(ratio,fulltag_nodeheader_2,6)
+define_subtag(complex,fulltag_nodeheader_2,7)
 			
 nil_value = (0x2000+fulltag_misc+symbol.size)
 t_value = (0x2000+fulltag_misc)	
@@ -605,3 +608,6 @@ TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)
 nil_value = 0x2000+symbol.size+fulltag_misc
 	
 define([RESERVATION_DISCHARGE],0x1008)
+
+tag_of_nil = fulltag_misc
+                

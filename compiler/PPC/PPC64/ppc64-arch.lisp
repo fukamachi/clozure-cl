@@ -221,13 +221,14 @@
 (define-subtag package fulltag-nodeheader-1 6)
 (define-subtag svar fulltag-nodeheader-1 7)
 
-(define-subtag slot-vector 0 fulltag-nodeheader-2)
-(define-subtag instance 1 fulltag-nodeheader-2)
-(define-subtag struct 2  fulltag-nodeheader-2)
-(define-subtag istruct 3  fulltag-nodeheader-2)
-(define-subtag value-cell 4  fulltag-nodeheader-2)
-(define-subtag xfunction 5 fulltag-nodeheader-2)
-
+(define-subtag slot-vector fulltag-nodeheader-2 0)
+(define-subtag instance fulltag-nodeheader-2 1)
+(define-subtag struct fulltag-nodeheader-2  2)
+(define-subtag istruct fulltag-nodeheader-2  3)
+(define-subtag value-cell fulltag-nodeheader-2  4)
+(define-subtag xfunction fulltag-nodeheader-2 5)
+(define-subtag ratio fulltag-nodeheader-2 6)
+(define-subtag complex fulltag-nodeheader-2 7)
 
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -654,19 +655,92 @@
 (defconstant reservation-discharge #x1008)
 
 (defparameter *ppc64-target-uvector-subtags*
-  `((:simple-vector . ,subtag-simple-vector)
-    (:bit-vector . ,subtag-bit-vector)
-    (:simple-string . ,subtag-simple-base-string)
-    (:u8-vector . ,subtag-u8-vector)
-    (:s8-vector . ,subtag-s8-vector)
-    (:u16-vector . ,subtag-u16-vector)
-    (:s16-vector . ,subtag-s16-vector)
-    (:u32-vector . ,subtag-u32-vector)
-    (:s32-vector . ,subtag-s32-vector)
-    (:u64-vector . ,subtag-u64-vector)
-    (:s64-vector . ,subtag-s64-vector)
+  `((:bignum . ,subtag-bignum)
+    (:ratio . ,subtag-ratio)
+    (:single-float . ,subtag-single-float)
+    (:double-float . ,subtag-double-float)
+    (:complex . ,subtag-complex  )
+    (:symbol . ,subtag-symbol)
+    (:function . ,subtag-function )
+    (:code-vector . ,subtag-code-vector)
+    (:xcode-vector . ,subtag-xcode-vector)
+    (:macptr . ,subtag-macptr )
+    (:catch-frame . ,subtag-catch-frame)
+    (:struct . ,subtag-struct )    
+    (:istruct . ,subtag-istruct )
+    (:pool . ,subtag-pool )
+    (:population . ,subtag-weak )
+    (:hash-vector . ,subtag-hash-vector )
+    (:package . ,subtag-package )
+    (:value-cell . ,subtag-value-cell)
+    (:instance . ,subtag-instance )
+    (:lock . ,subtag-lock )
+    (:slot-vector . ,subtag-slot-vector)
+    (:svar . ,subtag-svar)
+    (:simple-string . ,subtag-simple-base-string )
+    (:bit-vector . ,subtag-bit-vector )
+    (:signed-8-bit-vector . ,subtag-s8-vector )
+    (:unsigned-8-bit-vector . ,subtag-u8-vector )
+    (:signed-16-bit-vector . ,subtag-s16-vector )
+    (:unsigned-16-bit-vector . ,subtag-u16-vector )
+    (:signed-32-bit-vector . ,subtag-s32-vector )
+    (:unsigned-32-bit-vector . ,subtag-u32-vector )
+    (:signed-64-bit-vector . ,subtag-s64-vector)
+    (:unsigned-64-bit-vector . ,subtag-u64-vector)    
     (:single-float-vector . ,subtag-single-float-vector)
-    (:double-float-vector . ,subtag-double-float-vector)))
+    (:double-float-vector . ,subtag-double-float-vector )
+    (:simple-vector . ,subtag-simple-vector )))
+
+;;; This should return NIL unless it's sure of how the indicated
+;;; type would be represented (in particular, it should return
+;;; NIL if the element type is unknown or unspecified at compile-time.
+(defun ppc64-array-type-name-from-ctype (ctype)
+  (when (typep ctype 'ccl::array-ctype)
+    (let* ((element-type (ccl::array-ctype-element-type ctype)))
+      (typecase element-type
+        (ccl::class-ctype
+         (let* ((class (ccl::class-ctype-class element-type)))
+           (if (or (eq class ccl::*character-class*)
+                   (eq class ccl::*base-char-class*)
+                   (eq class ccl::*standard-char-class*))
+             :simple-string
+             :simple-vector)))
+        (ccl::numeric-ctype
+         (if (eq (ccl::numeric-ctype-complexp element-type) :complex)
+           :simple-vector
+           (case (ccl::numeric-ctype-class element-type)
+             (integer
+              (let* ((low (ccl::numeric-ctype-low element-type))
+                     (high (ccl::numeric-ctype-high element-type)))
+                (cond ((or (null low) (null high))
+                       :simple-vector)
+                      ((and (>= low 0) (<= high 1))
+                       :bit-vector)
+                      ((and (>= low 0) (<= high 255))
+                       :unsigned-8-bit-vector)
+                      ((and (>= low 0) (<= high 65535))
+                       :unsigned-16-bit-vector)
+                      ((and (>= low 0) (<= high #xffffffff))
+                       :unsigned-32-bit-vector)
+                      ((and (>= low 0) (<= high #xffffffffffffffff))
+                       :unsigned-64-bit-vector)
+                      ((and (>= low -128) (<= high 127))
+                       :signed-8-bit-vector)
+                      ((and (>= low -32768) (<= high 32767))
+                       :signed-16-bit-vector)
+                      ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
+                       :signed-32-bit-vector)
+                      ((and (>= low (ash -1 63)) (<= high (1- (ash 1 63))))
+                       :signed-64-bit-vector)
+                      (t :simple-vector))))
+             (float
+              (case (ccl::numeric-ctype-format element-type)
+                ((double-float long-float) :double-float-vector)
+                ((single-float short-float) :single-float-vector)
+                (t :simple-vector)))
+             (t ppc32::subtag-simple-vector))))
+        (ccl::unknown-ctype)
+        (t :simple-vector)))))
 
 (defparameter *ppc64-target-arch*
   (arch::make-target-arch :name :ppc64
@@ -688,6 +762,28 @@
                           :max-1-bit-constant-index max-1-bit-constant-index
                           :word-shift 3
                           :code-vector-prefix '(#$"CODE")
+                          :gvector-types '(:ratio :complex :symbol :function
+                                           :catch-frame :structure :istruct
+                                           :pool :population :hash-vector
+                                           :package :value-cell :instance
+                                           :lock :slot-vector :svar
+                                           :simple-vector)
+                          :1-bit-ivector-types '(:bit-vector)
+                          :8-bit-ivector-types '(:signed-8-bit-vector
+                                                 :unsigned-8-bit-vector
+                                                 :simple-string)
+                          :16-bit-ivector-types '(:signed-16-bit-vector
+                                                  :unsigned-16-bit-vector)
+                          :32-bit-ivector-types '(:signed-32-bit-vector
+                                                  :unsigned-32-bit-vector
+                                                  :single-float
+                                                  :double-float
+                                                  :bignum)
+                          :64-bit-ivector-types '(:double-float-vector
+                                                  :unsigned-64-bit-vector
+                                                  :signed-64-bit-vector)
+                          :array-type-name-from-ctype-function
+                          #'ppc64-array-type-name-from-ctype
                           ))
 
 (provide "PPC64-ARCH")
