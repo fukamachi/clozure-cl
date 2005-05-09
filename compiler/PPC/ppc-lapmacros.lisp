@@ -94,6 +94,11 @@
    (:ppc32 `(twlge ,@args))
    (:ppc64 `(tdlge ,@args))))
 
+(defppclapmacro trlgei (&rest args)
+  (target-arch-case
+   (:ppc32 `(twlgei ,@args))
+   (:ppc64 `(tdlgei ,@args))))
+
 (defppclapmacro trllt (&rest args)
   (target-arch-case
    (:ppc32 `(twllt ,@args))
@@ -321,6 +326,14 @@
   (let* ((tb *target-backend*))
   `(clrlri ,dest ,node (- ,(arch::target-nbits-in-word (backend-target-arch tb))
                         ,(arch::target-ntagbits (backend-target-arch tb))))))
+
+(defppclapmacro extract-lowtag (dest node)
+  (target-arch-case
+   (:ppc32
+    (error "EXTRACT-LOWTAG lapmacro makes no sense on PPC32."))
+   (:ppc64
+    `(clrldi ,dest ,node (- 64 ppc64::nlowtagbits)))))
+
 
 (defppclapmacro extract-subtag (dest node)
   (target-arch-case
