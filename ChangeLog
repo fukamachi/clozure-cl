@@ -1,3 +1,23 @@
+2005-05-08 21:14  gb
+
+	* lisp-kernel/constants64.s, compiler/PPC/PPC64/ppc64-arch.lisp:
+	Fix some tag definitions, add missing ratio/complex.
+
+2005-05-08 21:14  gb
+
+	* lisp-kernel/constants64.h: Fix some tag definitions, add missing
+	ratio/complex, define tag_of_nil.
+
+2005-05-08 21:12  gb
+
+	* lisp-kernel/constants32.s: Define tag_of_nil, for lisp_globals
+	parameterization.
+
+2005-05-08 21:11  gb
+
+	* lisp-kernel/constants.s: Parameterize lisp_globals struct origin
+	stuff.
+
 2005-05-08 06:25  gb
 
 	* level-1/version.lisp: Bump; time for new binaries.
