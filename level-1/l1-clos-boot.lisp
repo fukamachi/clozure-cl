@@ -1692,7 +1692,15 @@ to replace that class with ~s" name old-class new-class)
   (setf (find-class 'simple-long-float-vector) (find-class 'simple-double-float-vector))
   (setf (find-class 'simple-single-float-vector) (find-class 'simple-short-float-vector))
 )
-  
+
+#+ppc64-target
+(progn
+  (make-built-in-class 'doubleword-vector *vector-class*)
+  (make-built-in-class 'simple-doubleword-vector (find-class 'doubleword-vector) (find-class 'simple-1d-array))
+  (make-built-in-class 'unsigned-doubleword-vector *vector-class*)
+  (make-built-in-class 'simple-unsigned-doubleword-vector (find-class 'unsigned-doubleword-vector) (find-class 'simple-1d-array))
+  ) ; #+ppc-64-target
+
 (make-built-in-class 'long-vector *vector-class*)
 (make-built-in-class 'simple-long-vector (find-class 'long-vector) (find-class 'simple-1d-array))
 (make-built-in-class 'unsigned-long-vector *vector-class*)
@@ -1738,7 +1746,6 @@ to replace that class with ~s" name old-class new-class)
            (when class 
              (rplacd class-cell class)
              class))
-          ;(if errorp (dbg-paws (format nil "Class ~s not found." (car class-cell))))))))
           (if errorp (error "Class ~s not found." (car class-cell)) nil)))))
   
 
@@ -1751,20 +1758,54 @@ to replace that class with ~s" name old-class new-class)
 
 (defvar *general-vector-class* (find-class 'general-vector))
 
-(defvar *ivector-vector-classes*
+#+ppc32-target
+(defparameter *ivector-vector-classes*
   (vector (find-class 'short-float-vector)
           (find-class 'unsigned-long-vector)
           (find-class 'long-vector)
           (find-class 'unsigned-byte-vector)
           (find-class 'byte-vector)
           (find-class 'base-string)
-          (find-class 'base-string)     ;WRONG
+          *null-class*
           (find-class 'unsigned-word-vector)
           (find-class 'word-vector)
           (find-class 'double-float-vector)
           (find-class 'bit-vector)))
 
-
+#+ppc64-target
+(defparameter *ivector-vector-classes*
+  (vector *t-class*
+          *t-class*
+          *t-class*
+          *t-class*
+          (find-class 'signed-byte-vector)
+          (find-class 'signed-word-vector)
+          (find-class 'signed-long-vector)
+          (find-class 'signed-doubleword-vector)
+          (find-class 'unsigned-byte-vector)
+          (find-class 'unsigned-word-vector)
+          (find-class 'unsigned-long-vector)
+          (find-class 'unsigned-doubleword-vector)
+          *t-class*
+          *t-class*
+          (find-class 'short-float-vector)
+          *t-class*
+          *t-class*
+          *t-class*
+          *t-class*
+          (find-class 'double-float-vector)
+          (find-class 'base-string)
+          *t-class*
+          *t-class*
+          *t-class*
+          *t-class*
+          *t-class*
+          *t-class*
+          *t-class*
+          *t-class*
+          (find-class 'bit-vector)
+          *t-class*
+          *t-class*))
 
 
 (defun make-foreign-object-domain (&key index name recognize class-of classp
@@ -1878,9 +1919,10 @@ to replace that class with ~s" name old-class new-class)
 
 (defparameter *class-table*
   (let* ((v (make-array 256 :initial-element nil)))
-    ; Make one loop through the vector, initializing fixnum & list cells
-    ; Set all things of ppc32::fulltag-imm to *immediate-class*, then special-case
-    ; characters later.
+    ;; Make one loop through the vector, initializing fixnum & list
+    ;; cells.  Set all immediates to *immediate-class*, then
+    ;; special-case characters later.
+    #+ppc32-target
     (do* ((slice 0 (+ 8 slice)))
          ((= slice 256))
       (declare (type (unsigned-byte 8) slice))
@@ -1889,67 +1931,87 @@ to replace that class with ~s" name old-class new-class)
             (%svref v (+ slice ppc32::fulltag-cons)) *cons-class*
             (%svref v (+ slice ppc32::fulltag-nil)) *null-class*
             (%svref v (+ slice ppc32::fulltag-imm)) *immediate-class*))
+    #+ppc64-target
+    (do* ((slice 0 (+ 16 slice)))
+         ((= slice 256))
+      (declare (type (unsigned-byte 8) slice))
+      (setf (%svref v (+ slice ppc64::fulltag-even-fixnum)) *fixnum-class*
+            (%svref v (+ slice ppc64::fulltag-odd-fixnum))  *fixnum-class*
+            (%svref v (+ slice ppc64::fulltag-cons)) *cons-class*
+            (%svref v (+ slice ppc64::fulltag-imm-0)) *immediate-class*
+            (%svref v (+ slice ppc64::fulltag-imm-1)) *immediate-class*
+            (%svref v (+ slice ppc64::fulltag-imm-2)) *immediate-class*
+            (%svref v (+ slice ppc64::fulltag-imm-3)) *immediate-class*))
     (macrolet ((map-subtag (subtag class-name)
-               `(setf (%svref v ,subtag) (find-class ',class-name))))
-      ; immheader types map to built-in classes.
-      (map-subtag ppc32::subtag-bignum bignum)
-      (map-subtag ppc32::subtag-double-float double-float)
-      (map-subtag ppc32::subtag-single-float short-float)
-      (map-subtag ppc32::subtag-dead-macptr ivector)
-      (map-subtag ppc32::subtag-code-vector code-vector)
-      (map-subtag ppc32::subtag-creole-object creole-object)
-      (map-subtag ppc32::subtag-xcode-vector xcode-vector)
-      (map-subtag ppc32::subtag-xfunction xfunction)
-      (map-subtag ppc32::subtag-svar svar)
-      (map-subtag ppc32::subtag-single-float-vector simple-short-float-vector)
-      (map-subtag ppc32::subtag-u32-vector simple-unsigned-long-vector)
-      (map-subtag ppc32::subtag-s32-vector simple-long-vector)
-      (map-subtag ppc32::subtag-u8-vector simple-unsigned-byte-vector)
-      (map-subtag ppc32::subtag-s8-vector simple-byte-vector)
-      (map-subtag ppc32::subtag-simple-base-string simple-base-string)
-      (map-subtag ppc32::subtag-u16-vector simple-unsigned-word-vector)
-      (map-subtag ppc32::subtag-s16-vector simple-word-vector)
-      (map-subtag ppc32::subtag-double-float-vector simple-double-float-vector)
-      (map-subtag ppc32::subtag-bit-vector simple-bit-vector)
-      ; Some nodeheader types map to built-in-classes; others
-      ; require further dispatching.
-      (map-subtag ppc32::subtag-ratio ratio)
-      (map-subtag ppc32::subtag-complex complex)
-      (map-subtag ppc32::subtag-catch-frame catch-frame)
-      (map-subtag ppc32::subtag-lisp-thread lisp-thread)
-      (map-subtag ppc32::subtag-hash-vector hash-table-vector)
-      (map-subtag ppc32::subtag-value-cell value-cell)
-      (map-subtag ppc32::subtag-pool pool)
-      (map-subtag ppc32::subtag-weak population)
-      (map-subtag ppc32::subtag-package package)
-      (map-subtag ppc32::subtag-simple-vector simple-vector)
-      (map-subtag ppc32::subtag-slot-vector slot-vector))
-    (setf (%svref v ppc32::subtag-arrayH) *array-class*)
-    ; These need to be special-cased:
-    (setf (%svref v ppc32::subtag-macptr) #'foreign-class-of)
-    (setf (%svref v ppc32::subtag-character)
+                 `(setf (%svref v ,subtag) (find-class ',class-name))))
+      ;; immheader types map to built-in classes.
+      (map-subtag target::subtag-bignum bignum)
+      (map-subtag target::subtag-double-float double-float)
+      (map-subtag target::subtag-single-float short-float)
+      (map-subtag target::subtag-dead-macptr ivector)
+      (map-subtag target::subtag-code-vector code-vector)
+      #+ppc32-target
+      (map-subtag target::subtag-creole-object creole-object)
+      (map-subtag target::subtag-xcode-vector xcode-vector)
+      (map-subtag target::subtag-xfunction xfunction)
+      (map-subtag target::subtag-svar svar)
+      (map-subtag target::subtag-single-float-vector simple-short-float-vector)
+      (map-subtag target::subtag-u32-vector simple-unsigned-long-vector)
+      (map-subtag target::subtag-s32-vector simple-long-vector)
+      (map-subtag target::subtag-u8-vector simple-unsigned-byte-vector)
+      (map-subtag target::subtag-s8-vector simple-byte-vector)
+      (map-subtag target::subtag-simple-base-string simple-base-string)
+      (map-subtag target::subtag-u16-vector simple-unsigned-word-vector)
+      (map-subtag target::subtag-s16-vector simple-word-vector)
+      (map-subtag target::subtag-double-float-vector simple-double-float-vector)
+      (map-subtag target::subtag-bit-vector simple-bit-vector)
+      ;; Some nodeheader types map to built-in-classes; others require
+      ;; further dispatching.
+      (map-subtag target::subtag-ratio ratio)
+      (map-subtag target::subtag-complex complex)
+      (map-subtag target::subtag-catch-frame catch-frame)
+      (map-subtag target::subtag-lisp-thread lisp-thread)
+      (map-subtag target::subtag-hash-vector hash-table-vector)
+      (map-subtag target::subtag-value-cell value-cell)
+      (map-subtag target::subtag-pool pool)
+      (map-subtag target::subtag-weak population)
+      (map-subtag target::subtag-package package)
+      (map-subtag target::subtag-simple-vector simple-vector)
+      (map-subtag target::subtag-slot-vector slot-vector))
+    (setf (%svref v target::subtag-arrayH) *array-class*)
+    ;; These need to be special-cased:
+    (setf (%svref v target::subtag-macptr) #'foreign-class-of)
+    (setf (%svref v target::subtag-character)
           #'(lambda (c) (let* ((code (%char-code c)))
-                            (if (or (eq c #\NewLine)
-                                    (and (>= code (char-code #\space))
-                                         (< code (char-code #\rubout))))
-                              *standard-char-class*
-			      *base-char-class*))))
-    (setf (%svref v ppc32::subtag-struct)
-          #'(lambda (s) (%structure-class-of s)))       ; need DEFSTRUCT
-    (setf (%svref v ppc32::subtag-istruct)
+                          (if (or (eq c #\NewLine)
+                                  (and (>= code (char-code #\space))
+                                       (< code (char-code #\rubout))))
+                            *standard-char-class*
+                            *base-char-class*))))
+    (setf (%svref v target::subtag-struct)
+          #'(lambda (s) (%structure-class-of s))) ; need DEFSTRUCT
+    (setf (%svref v target::subtag-istruct)
           #'(lambda (i) (or (find-class (%svref i 0) nil) *istruct-class*)))
-    (setf (%svref v ppc32::subtag-instance)
-          #'%class-of-instance) ; #'(lambda (i) (%wrapper-class (instance.class-wrapper i))))
-    (setf (%svref v ppc32::subtag-symbol)
+    (setf (%svref v target::subtag-instance)
+          #'%class-of-instance)
+    (setf (%svref v target::subtag-symbol)
+          #+ppc32-target
           #'(lambda (s) (if (eq (symbol-package s) *keyword-package*)
                           *keyword-class*
-                          *symbol-class*)))
-    (setf (%svref v ppc32::subtag-function)
+                          *symbol-class*))
+          #+ppc64-target
+          #'(lambda (s)
+              (if s
+                (if (eq (symbol-package s) *keyword-package*)
+                          *keyword-class*
+                          *symbol-class*)
+                *null-class*)))
+    (setf (%svref v target::subtag-function)
           #'(lambda (thing)
               (let ((bits (lfun-bits thing)))
                 (declare (fixnum bits))
                 (if (logbitp $lfbits-trampoline-bit bits)
-                  ; closure
+                  ;; closure
 		  (if (logbitp $lfbits-evaluated-bit bits)
 		    *interpreted-lexical-closure-class*
 		    (let ((inner-fn (closure-function thing)))
@@ -1962,7 +2024,7 @@ to replace that class with ~s" name old-class new-class)
 			      (if (logbitp $lfbits-cm-bit inner-bits)
 				*combined-method-class*
 				*compiled-lexical-closure-class*))))
-                          *compiled-lexical-closure-class*)))
+                        *compiled-lexical-closure-class*)))
                   (if (logbitp $lfbits-evaluated-bit bits)
                     (if (logbitp $lfbits-method-bit bits)
                       *interpreted-method-function-class*
@@ -1974,18 +2036,21 @@ to replace that class with ~s" name old-class new-class)
                         (if (logbitp $lfbits-cm-bit bits)
                           *combined-method-class*
                           *compiled-function-class*))))))))
-    (setf (%svref v ppc32::subtag-vectorH)
+    (setf (%svref v target::subtag-vectorH)
           #'(lambda (v)
               (let* ((subtype (%array-header-subtype v)))
                 (declare (fixnum subtype))
-                (if (eql subtype ppc32::subtag-simple-vector)
+                (if (eql subtype target::subtag-simple-vector)
                   *general-vector-class*
                   (%svref *ivector-vector-classes*
+                          #+ppc32-target
                           (ash (the fixnum (- subtype ppc32::min-cl-ivector-subtag))
-                               (- ppc32::ntagbits)))))))
-    (setf (%svref v ppc32::subtag-lock)
+                               (- ppc32::ntagbits))
+                          #+ppc64-target
+                          (ash (the fixnum (logand subtype #x7f) (- ppc64::nlowtagbits))))))))
+    (setf (%svref v target::subtag-lock)
           #'(lambda (thing)
-              (case (%svref thing ppc32::lock.kind-cell)
+              (case (%svref thing target::lock.kind-cell)
                 (recursive-lock *recursive-lock-class*)
                 (read-write-lock *read-write-lock-class*)
                 (t *lock-class*))))
