@@ -145,7 +145,7 @@
 #define subtag_go_tag SUBTAG(fulltag_imm_1,2) /* deprecated */
 #define subtag_block_tag SUBTAG(fulltag_imm_1,3) /* deprecated */
 
-#define subtag_character SUBTAG(fulltag_imm_2,0)
+#define subtag_character SUBTAG(fulltag_imm_1,0)
 
 #define subtag_unbound SUBTAG(fulltag_imm_3,0)
 #define unbound_marker subtag_unbound
@@ -157,7 +157,7 @@
 #define illegal_marker subtag_illegal
 #define subtag_no_thread_local_binding SUBTAG(fulltag_imm_3,3)
 #define no_thread_local_binding_marker subtag_no_thread_local_binding        
-#define subtag_forward_marker SUBTAG(fulltag_imm_3,15)
+#define subtag_forward_marker SUBTAG(fulltag_imm_3,7)
 	
 #define max_64_bit_constant_index ((0x7fff + misc_dfloat_offset)>>3)
 #define max_32_bit_constant_index ((0x7fff + misc_data_offset)>>2)
