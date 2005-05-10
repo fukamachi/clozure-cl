@@ -744,6 +744,8 @@
                           :64-bit-ivector-types '(:double-float-vector)
                           :array-type-name-from-ctype-function
                           #'ppc32-array-type-name-from-ctype
+                          :package-name "PPC32"
+                          :t-offset t-offset
                           ))
                           
                           
