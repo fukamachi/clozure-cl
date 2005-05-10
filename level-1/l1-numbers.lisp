@@ -599,6 +599,8 @@
     (%df-check-exception-1 'log n (%ffi-exception-status))
     (%setf-double-float result TEMP)))
 
+#+ppc32-target
+(progn
 #-darwinppc-target
 (defun %single-float-log! (n result)
   (declare (single-float n result))
@@ -614,6 +616,13 @@
 			     (result2))
     (%double-float-log! n2 result2)
     (%double-float->short-float result2 result)))
+)
+
+#+ppc64-target
+(defun %single-float-log (n)
+  (let* ((result (#_logf n)))
+    (%sf-check-exception-1 'log n (%ffi-exception-status))
+    result))
 
 (defun %double-float-tan! (n result)
   (declare (double-float n result))
