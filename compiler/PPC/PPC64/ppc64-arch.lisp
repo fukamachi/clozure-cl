@@ -14,7 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-;; This file matches "ccl:pmcl;constants.h" & "ccl:pmcl;constants.s"
+;;; This file matches "ccl:lisp-kernel;constants64.h" &
+;;; "ccl:lisp-kernel;constants64.s"
 
 (defpackage "PPC64"
   (:use "CL")
@@ -52,51 +53,59 @@
 (defmacro define-subtag (name tag value)
   `(defconstant ,(ccl::form-symbol "SUBTAG-" name) (logior ,tag (ash ,value ntagbits))))
 
-;; PPC64 stuff and tags.
+;;; PPC64 stuff and tags.
 
-;; There are several ways to look at the 4 tag bits of any object or
-;; header.  Looking at the low 2 bits, we can classify things as
-;; follows (I'm not sure if we'd ever want to do this) :
+;;; There are several ways to look at the 4 tag bits of any object or
+;;; header.  Looking at the low 2 bits, we can classify things as
+;;; follows (I'm not sure if we'd ever want to do this) :
+;;;
+;;;  #b00   a "primary" object: fixnum, cons, uvector
+;;;  #b01   an immediate
+;;;  #b10   the header on an immediate uvector
+;;;  #b11   the header on a node (pointer-containing) uvector
 ;;
-;;  #b00   a "primary" object: fixnum, cons, uvector
-;;  #b01   an immediate
-;;  #b10   the header on an immediate uvector
-;;  #b11   the header on a node (pointer-containing) uvector
-;;
-;;  Note that the ppc64's LD and STD instructions require that the low
-;;  two bits of the constant displacement be #b00.  If we want to use constant
-;;  offsets to access CONS and UVECTOR fields, we're pretty much obligated
-;;  to ensure that CONS and UVECTOR have tags that also end in #b00, and
-;;  fixnum addition and subtraction work better when fixnum tags are all 0.
-;;  We generally have to look at all 4 tag bits before we really know what
-;;  class of "potentially primary" object we're looking at.
-;;  If we look at 3 tag bits, we can see:
-;;
-;;  #b000  fixnum
-;;  #b001  immediate
-;;  #b010  immedate-header
-;;  #b011  node-header
-;;  #b100  CONS or UVECTOR
-;;  #b101  immediate
-;;  #b110  immediate-header
-;;  #b111  node-header
-;;
+;;;  Note that the ppc64's LD and STD instructions require that the low
+;;;  two bits of the constant displacement be #b00.  If we want to use constant
+;;;  offsets to access CONS and UVECTOR fields, we're pretty much obligated
+;;;  to ensure that CONS and UVECTOR have tags that also end in #b00, and
+;;;  fixnum addition and subtraction work better when fixnum tags are all 0.
+;;;  We generally have to look at all 4 tag bits before we really know what
+;;;  class of "potentially primary" object we're looking at.
+;;;  If we look at 3 tag bits, we can see:
+;;;
+;;;  #b000  fixnum
+;;;  #b001  immediate
+;;;  #b010  immedate-header
+;;;  #b011  node-header
+;;;  #b100  CONS or UVECTOR
+;;;  #b101  immediate
+;;;  #b110  immediate-header
+;;;  #b111  node-header
+;;;
 
 (defconstant tag-fixnum 0)
+(defconstant tag-imm-0 1)
+(defconstant tag-immheader-0 2)
+(defconstant tag-nodeheader-0 3)
+(defconstant tag-memory 4)
+(defconstant tag-imm2 5)
+(defconstant tag-immheader2 6)
+(defconstant tag-nodeheader2 7)
 
-;;  Note how we're already winding up with lots of header and immediate
-;;  "classes".  That might actually be useful.
+
+;;;  Note how we're already winding up with lots of header and immediate
+;;;  "classes".  That might actually be useful.
 ;;
-;;  When we move to 4 bits, we wind up (obviously) with 4 tags of the form
-;;  #bxx00.  There are two partitionings that make (some) sense: we can either
-;;  use 2 of these for (even and odd) fixnums, or we can give NIL a tag
-;;  that's congruent (mod 16) with CONS.  There seem to be a lot of tradeoffs
-;;  involved, but it ultimately seems best to be able to treat 64-bit
-;;  aligned addresses as fixnums: we don't want the VSP to look like a
-;;  vector.   That basically requires that NIL really be a symbol (good
-;;  bye, nilsym) and that we ensure that there are NILs where its CAR and
-;;  CDR would be (-4, 4 bytes from the tagged pointer.)  That means that
-;;  CONS is 4 and UVECTOR is 12, and we have even more immediate/header types.
+;;;  When we move to 4 bits, we wind up (obviously) with 4 tags of the form
+;;;  #bxx00.  There are two partitionings that make (some) sense: we can either
+;;;  use 2 of these for (even and odd) fixnums, or we can give NIL a tag
+;;;  that's congruent (mod 16) with CONS.  There seem to be a lot of tradeoffs
+;;;  involved, but it ultimately seems best to be able to treat 64-bit
+;;;  aligned addresses as fixnums: we don't want the VSP to look like a
+;;;  vector.   That basically requires that NIL really be a symbol (good
+;;;  bye, nilsym) and that we ensure that there are NILs where its CAR and
+;;;  CDR would be (-4, 4 bytes from the tagged pointer.)  That means that
+;;;  CONS is 4 and UVECTOR is 12, and we have even more immediate/header types.
 
 (defconstant fulltag-even-fixnum    #b0000)
 (defconstant fulltag-imm-0          #b0001)
@@ -122,45 +131,45 @@
 (defconstant lowtag-immheader 2)
 (defconstant lowtag-nodeheader 3)
 
-;; The general algorithm for determining the (primary) type of an
-;; object is something like:
-;; (clrldi tag node 60)
-;; (cmpwi tag fulltag-misc)
-;; (clrldi tag tag 61
-;; (bne @done)
-;; (lbz tag misc-subtag-offset node)
-;; @done
+;;; The general algorithm for determining the (primary) type of an
+;;; object is something like:
+;;; (clrldi tag node 60)
+;;; (cmpwi tag fulltag-misc)
+;;; (clrldi tag tag 61)
+;;; (bne @done)
+;;; (lbz tag misc-subtag-offset node)
+;;; @done
 ;;
-;; That's good enough to identify FIXNUM, "generally immediate", cons,
-;; or a header tag from a UVECTOR.  In some cases, we may need to hold
-;; on to the full 4-bit tag.
-;; In no specific order:
-;; - it's important to be able to quickly recognize fixnums; that's
-;;    simple
-;; - it's important to be able to quickly recognize lists (for CAR/CDR)
-;;   and somewhat important to be able to quickly recognize conses.
-;;   Also simple, though we have to special-case NIL.
-;; - it's desirable to be able to do VECTORP, ARRAYP, and specific-array-type-
-;;   p.  We need at least 12 immediate CL vector types (SIGNED/UNSIGNED-BYTE
-;;   8/16/32/64, SINGLE-FLOAT, DOUBLE-FLOAT, BIT, and at least one CHARACTER;
-;;   we need SIMPLE-ARRAY, VECTOR-HEADER, and ARRAY-HEADER as node
-;;   array types.  That's suspciciously close to 16
-;; - it's desirable to be able (in FUNCALL) to quickly recognize
-;;   functions/symbols/other, and probably desirable to trap on other.
-;;   Pretty much have to do a memory reference and at least one comparison
-;;   here.
-;; - it's sometimes desirable to recognize numbers and distinct numeric
-;;   types (other than FIXNUM) quickly.
-;; - The GC (especially) needs to be able to determine the size of
-;;   ivectors (ivector elements) fairly cheaply.  Most ivectors are CL
-;;   arrays, but code-vectors are fairly common (and have 32-bit elements,
-;;   naturally.)
-;; - We have a fairly large number of non-array gvector types, and it's
-;;   always desirable to have room for expansion.
-;; - we basically have 8 classes of header subtags, each of which has
-;;   16 possible values.  If we stole the high bit of the subtag to
-;;   indicate CL-array-ness, we'd still have 6 bits to encode non-CL
-;;   array types.  
+;;; That's good enough to identify FIXNUM, "generally immediate", cons,
+;;; or a header tag from a UVECTOR.  In some cases, we may need to hold
+;;; on to the full 4-bit tag.
+;;; In no specific order:
+;;; - it's important to be able to quickly recognize fixnums; that's
+;;;    simple
+;;; - it's important to be able to quickly recognize lists (for CAR/CDR)
+;;;   and somewhat important to be able to quickly recognize conses.
+;;;   Also simple, though we have to special-case NIL.
+;;; - it's desirable to be able to do VECTORP, ARRAYP, and specific-array-type-
+;;;   p.  We need at least 12 immediate CL vector types (SIGNED/UNSIGNED-BYTE
+;;;   8/16/32/64, SINGLE-FLOAT, DOUBLE-FLOAT, BIT, and at least one CHARACTER;
+;;;   we need SIMPLE-ARRAY, VECTOR-HEADER, and ARRAY-HEADER as node
+;;;   array types.  That's suspciciously close to 16
+;;; - it's desirable to be able (in FUNCALL) to quickly recognize
+;;;   functions/symbols/other, and probably desirable to trap on other.
+;;;   Pretty much have to do a memory reference and at least one comparison
+;;;   here.
+;;; - it's sometimes desirable to recognize numbers and distinct numeric
+;;;   types (other than FIXNUM) quickly.
+;;; - The GC (especially) needs to be able to determine the size of
+;;;   ivectors (ivector elements) fairly cheaply.  Most ivectors are CL
+;;;   arrays, but code-vectors are fairly common (and have 32-bit elements,
+;;;   naturally.)
+;;; - We have a fairly large number of non-array gvector types, and it's
+;;;   always desirable to have room for expansion.
+;;; - we basically have 8 classes of header subtags, each of which has
+;;;   16 possible values.  If we stole the high bit of the subtag to
+;;;   indicate CL-array-ness, we'd still have 6 bits to encode non-CL
+;;;   array types.  
 
 (defconstant cl-array-subtag-bit 7)
 (defconstant cl-array-subtag-mask (ash 1 cl-array-subtag-bit))
@@ -174,19 +183,19 @@
 (defconstant min-array-subtag subtag-arrayH)
 (defconstant min-vector-subtag subtag-vectorH)
 
-;;  bits:                         64             32       16    8     1
-;;  CL-array ivector types    DOUBLE-FLOAT     SINGLE    s16   CHAR  BIT
-;;                               s64             s32     u16    s8
-;;                               u64             u32            u8
-;;  Other ivector types       MACPTR           CODE-VECTOR
-;;                            DEAD-MACPTR     XCODE-VECTOR
-;;                                            BIGNUM
-;;                                            DOUBLE-FLOAT
-;; There might possibly be ivectors with 128-bit (VMX/AltiVec) elements
-;; someday, and there might be multiple character sizes (16/32 bits).
-;; That sort of suggests that we use the four immheader classes to
-;; encode the ivector size (64, 32, 8, other) and make BIT an easily-
-;; detected case of OTHER.
+;;;  bits:                         64             32       16    8     1
+;;;  CL-array ivector types    DOUBLE-FLOAT     SINGLE    s16   CHAR  BIT
+;;;                               s64             s32     u16    s8
+;;;                               u64             u32            u8
+;;;  Other ivector types       MACPTR           CODE-VECTOR
+;;;                            DEAD-MACPTR     XCODE-VECTOR
+;;;                                            BIGNUM
+;;;                                            DOUBLE-FLOAT
+;;; There might possibly be ivectors with 128-bit (VMX/AltiVec) elements
+;;; someday, and there might be multiple character sizes (16/32 bits).
+;;; That sort of suggests that we use the four immheader classes to
+;;; encode the ivector size (64, 32, 8, other) and make BIT an easily-
+;;; detected case of OTHER.
 
 (defconstant ivector-class-64-bit fulltag-immheader-3)
 (defconstant ivector-class-32-bit fulltag-immheader-2)
@@ -206,7 +215,7 @@
 (define-cl-array-subtag u8-vector ivector-class-8-bit 2)
 (define-cl-array-subtag simple-base-string ivector-class-8-bit 5)
 
-;; There's some room for expansion in non-array ivector space.
+;;; There's some room for expansion in non-array ivector space.
 (define-subtag macptr ivector-class-64-bit 1)
 (define-subtag dead-macptr ivector-class-64-bit 2)
 
@@ -215,10 +224,10 @@
 (define-subtag bignum ivector-class-32-bit 2)
 (define-subtag double-float ivector-class-32-bit 3)
 
-;; Size doesn't matter for non-CL-array gvectors; I can't think of a good
-;; reason to classify them in any particular way.  Let's put funcallable
-;; things in the first slice by themselves, though it's not clear that
-;; that helps FUNCALL much.
+;;; Size doesn't matter for non-CL-array gvectors; I can't think of a good
+;;; reason to classify them in any particular way.  Let's put funcallable
+;;; things in the first slice by themselves, though it's not clear that
+;;; that helps FUNCALL much.
 (defconstant gvector-funcallable fulltag-nodeheader-0)
 (define-subtag function gvector-funcallable 0)
 (define-subtag symbol gvector-funcallable 1)
@@ -279,7 +288,10 @@
 
 (define-subtag single-float fulltag-imm-0 0)
 
-(define-subtag character fulltag-imm-2 0)
+(define-subtag character fulltag-imm-1 0)
+
+;;; FULLTAG-IMM-2 is unused, so the only type with lisptag (3-bit tag)
+;;; TAG-IMM-0 should be SINGLE-FLOAT.
 
 (define-subtag unbound fulltag-imm-3 0)
 (defconstant unbound-marker subtag-unbound)
@@ -290,7 +302,7 @@
 (defconstant illegal-marker subtag-illegal)
 
 (define-subtag no-thread-local-binding fulltag-imm-3 3)
-(define-subtag forward-marker fulltag-imm-3 15)
+(define-subtag forward-marker fulltag-imm-3 7)
 
 
 (defconstant max-64-bit-constant-index (ash (+ #x7fff ppc64::misc-dfloat-offset) -3))
@@ -525,8 +537,8 @@
   waiting
   malloced-ptr)
 
-;; For the eabi port: mark this stack frame as Lisp's (since EABI
-;; foreign frames can be the same size as a lisp frame.)
+;;; For the eabi port: mark this stack frame as Lisp's (since EABI
+;;; foreign frames can be the same size as a lisp frame.)
 
 
 (ppc64::define-storage-layout lisp-frame 0
@@ -555,22 +567,6 @@
 
 (defconstant c-frame.minsize c-frame.size)
 
-;; .SPeabi-ff-call "shrinks" this frame after loading the GPRs.
-(ppc32::define-storage-layout eabi-c-frame 0
-  backlink
-  savelr
-  param0
-  param1
-  param2
-  param3
-  param4
-  param5
-  param6
-  param7
-)
-
-(defconstant eabi-c-frame.minsize eabi-c-frame.size)
-
 (defmacro define-header (name element-count subtag)
   `(defconstant ,name (logior (ash ,element-count num-subtag-bits) ,subtag)))
 
@@ -596,7 +592,7 @@
 (defun %kernel-global (sym)
   (let* ((pos (position sym ppc::*ppc-kernel-globals* :test #'string=)))
     (if pos
-      (- (+ fulltag-misc (* (1+ pos) word-size-in-bytes)))
+      (- (+ symbol.size fulltag-misc (* (1+ pos) word-size-in-bytes)))
       (error "Unknown kernel global : ~s ." sym))))
 
 (defmacro kernel-global (sym)
@@ -796,6 +792,8 @@
                                                   :signed-64-bit-vector)
                           :array-type-name-from-ctype-function
                           #'ppc64-array-type-name-from-ctype
+                          :package-name "PPC64"
+                          :t-offset t-offset
                           ))
 
 (provide "PPC64-ARCH")
