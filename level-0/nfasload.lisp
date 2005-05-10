@@ -31,7 +31,7 @@
                                   :element-type '(unsigned-byte 16)
                                   :initial-contents '(5 7 11 13 17 19 23 29)))
 
-; Symbol hash tables: (htvec . (hcount . hlimit))
+;;; Symbol hash tables: (htvec . (hcount . hlimit))
 
 (defmacro htvec (htab) `(%car ,htab))
 (defmacro htcount (htab) `(%cadr ,htab))
@@ -350,7 +350,7 @@
 (deffaslop $fasl-eval (s)
   (%epushval s (eval (%fasl-expr-preserve-epush s))))
 
-; For bootstrapping. The real version is cheap-eval in l1-readloop
+;;; For bootstrapping. The real version is cheap-eval in l1-readloop
 (when (not (fboundp 'eval))
   (defun eval (form)
     (if (and (listp form)
@@ -429,12 +429,12 @@
     (%defvar sym (%fasl-expr s))
     (set sym val)))
 
-; (defvar var)
+;;; (defvar var)
 (deffaslop $fasl-defvar (s)
   (%cant-epush s)
   (%defvar (%fasl-expr s)))
 
-; (defvar var initfom doc)
+;;; (defvar var initfom doc)
 (deffaslop $fasl-defvar-init (s)
   (%cant-epush s)
   (let* ((sym (%fasl-expr s))
@@ -458,7 +458,7 @@
 
 (defvar *modules* nil)
 
-; Bootstrapping version
+;;; Bootstrapping version
 (defun provide (module-name)
   (push module-name *modules*))
 
@@ -487,7 +487,7 @@
 
 (defparameter *%fasload-verbose* t)
 
-;; the default fasl file opener sets up the fasl state and checks the header
+;;; the default fasl file opener sets up the fasl state and checks the header
 (defun %simple-fasl-open (string s)
   (let* ((ok nil)
 	 (fd (fd-open string #$O_RDONLY))
@@ -506,8 +506,8 @@
     (unless (eql err 0) (setf (faslstate.faslerr s) err))
     ok))
 
-;; once the fasl state is set up, this checks the fasl header
-;; and returns (values ok err)
+;;; once the fasl state is set up, this checks the fasl header and
+;;; returns (values ok err)
 (defun %fasl-check-header (s)
   (let* ((signature (%fasl-read-word s)))
     (declare (fixnum signature))
@@ -558,7 +558,7 @@
 (defun %fasload (string &optional (table *fasl-dispatch-table*)
                         start-faslops-function
                         stop-faslops-function)
-  ;(dbg string) 
+  ;;(dbg string) 
   (when (and *%fasload-verbose*
 	     (not *load-verbose*))
     (%string-to-stderr ";Loading ") (pdbg string))
@@ -642,10 +642,10 @@
 
 (defun %initialize-htab (htab size)
   (declare (fixnum size))
-  ; Ensure that "size" is relatively prime to all secondary hash values.
-  ; If it's small enough, pick the next highest known prime out of the
-  ; "primsizes" array.  Otherwize, iterate through all all of "hprimes"
-  ; until we find something relatively prime to all of them.
+  ;; Ensure that "size" is relatively prime to all secondary hash values.
+  ;; If it's small enough, pick the next highest known prime out of the
+  ;; "primsizes" array.  Otherwize, iterate through all all of "hprimes"
+  ;; until we find something relatively prime to all of them.
   (setq size
         (if (> size 32749)
           (do* ((nextsize (logior 1 size) (+ nextsize 2)))
@@ -708,8 +708,6 @@
   (let* ((primary (%pname-hash str len)))
     (declare (fixnum primary))
     (values primary (aref (the (simple-array (unsigned-byte 16) (8)) $hprimes) (logand primary 7)))))
-
-
     
 
 
@@ -781,7 +779,7 @@
 (defun %insert-symbol (symbol package internal-idx external-idx &optional force-export)
   (let* ((package-plist (%symbol-package-plist symbol))
          (keyword-package (eq package *keyword-package*)))
-    ; Set home package
+    ;; Set home package
     (if package-plist
       (if (listp package-plist)
         (unless (%car package-plist) (%rplaca package-plist package)))
@@ -790,7 +788,7 @@
       (progn
         (%htab-add-symbol symbol (pkg.etab package) external-idx)
         (if keyword-package
-          ;(define-constant symbol symbol)
+          ;;(define-constant symbol symbol)
           (progn
             (%set-sym-global-value symbol symbol)
             (%symbol-bits symbol 
@@ -800,17 +798,15 @@
       (%htab-add-symbol symbol (pkg.itab package) internal-idx))
     symbol))
 
-; PNAME must be a simple string!
+;;; PNAME must be a simple string!
 (defun %add-symbol (pname package internal-idx external-idx &optional force-export)
   (let* ((sym (make-symbol pname)))
     (%insert-symbol sym package internal-idx external-idx force-export)))
 
 
-; The initial %toplevel-function% sets %toplevel-function% to NIL;
-; if the %fasload call fails, the lisp should exit (instead of repeating
-; the process endlessly ...
-
-
+;;; The initial %toplevel-function% sets %toplevel-function% to NIL;
+;;; if the %fasload call fails, the lisp should exit (instead of
+;;; repeating the process endlessly ...
 
 (defvar %toplevel-function%
   #'(lambda ()
