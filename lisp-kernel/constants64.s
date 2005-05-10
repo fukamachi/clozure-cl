@@ -147,7 +147,7 @@ define_subtag(single_float,fulltag_imm_0,0)
 define_subtag(go_tag,fulltag_imm_1,0)
 define_subtag(block_tag,fulltag_imm_1,1)
 
-define_subtag(character,fulltag_imm_2,0)
+define_subtag(character,fulltag_imm_1,0)
                 	
 define_subtag(unbound,fulltag_imm_3,0)
 unbound_marker = subtag_unbound
@@ -609,5 +609,7 @@ nil_value = 0x2000+symbol.size+fulltag_misc
 	
 define([RESERVATION_DISCHARGE],0x1008)
 
-tag_of_nil = fulltag_misc
+lisp_globals_limit = 0x2000
+        
+	
                 
