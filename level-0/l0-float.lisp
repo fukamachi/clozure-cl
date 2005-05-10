@@ -620,7 +620,7 @@
      #+ppc32-target
      (ppc32::with-stack-short-floats ((sx x))
        (if (minusp x)
-         (complex (%single-float-log! (%%short-float-abs sx sx) (%make-sfloat))
+         (complex (%single-float-log! (%%short-float-abs! sx sx) (%make-sfloat))
                   #.(coerce pi 'short-float))
          (%single-float-log! sx (%make-sfloat))))
      #+ppc64-target
