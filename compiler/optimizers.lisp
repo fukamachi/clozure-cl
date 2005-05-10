@@ -1431,51 +1431,75 @@
 
 
 (define-compiler-macro arrayp (arg)
-  `(>= (the fixnum (typecode ,arg)) #.ppc32::subtag-arrayH))
+  `(>= (the fixnum (typecode ,arg))
+    ,(target-arch-case
+      (:ppc32 ppc32::subtag-arrayH)
+      (:ppc64 ppc64::subtag-arrayH))))
 
 (define-compiler-macro vectorp (arg)
-  `(>= (the fixnum (typecode ,arg)) #.ppc32::subtag-vectorH))
+  `(>= (the fixnum (typecode ,arg))
+    ,(target-arch-case
+      (:ppc32 ppc32::subtag-vectorH)
+      (:ppc64 ppc64::subtag-vectorH))))
 
 
 (define-compiler-macro fixnump (arg)
-  `(eql (lisptag ,arg) #.ppc32::tag-fixnum))
+  `(eql (lisptag ,arg) ,(target-arch-case
+                         (:ppc32 ppc32::tag-fixnum)
+                         (:ppc64 ppc64::tag-fixnum))))
 
 (define-compiler-macro float (&whole w number &optional other)
   (declare (ignore number other))
   w)
 
 (define-compiler-macro double-float-p (n)
-  `(eql (typecode ,n) #.ppc32::subtag-double-float))
+  `(eql (typecode ,n)
+    ,(target-arch-case (:ppc32 ppc32::subtag-double-float)
+                       (:ppc64 ppc64::subtag-double-float))))
 
 
 (define-compiler-macro short-float-p (n)
-  `(eql (typecode ,n) #.ppc32::subtag-single-float))
+  `(eql (typecode ,n) ,(target-arch-case (:ppc32 ppc32::subtag-single-float)
+                                         (:ppc64 ppc64::subtag-single-float))))
 
 
 (define-compiler-macro floatp (n)
   (let* ((typecode (make-symbol "TYPECODE")))
     `(let* ((,typecode (typecode ,n)))
        (declare (fixnum ,typecode))
-       (or (= ,typecode #.ppc32::subtag-double-float)
-           (= ,typecode #.ppc32::subtag-single-float)))))
+       (or (= ,typecode ,(target-arch-case (:ppc32 ppc32::subtag-double-float)
+                                           (:ppc64 ppc64::subtag-double-float)))
+           (= ,typecode ,(target-arch-case (:ppc32 ppc32::subtag-single-float)
+                                           (:ppc64 ppc64::subtag-single-float)))))))
 
 (define-compiler-macro functionp (n)
-  `(eql (typecode ,n) #.ppc32::subtag-function))
+  `(eql (typecode ,n) ,(target-arch-case (:ppc32 ppc32::subtag-function)
+                                         (:ppc64 ppc64::subtag-function))))
 
 (define-compiler-macro listp (n)
-  `(eql (lisptag ,n) #.ppc32::tag-list))
+  (target-arch-case
+   (:ppc32 `(eql (lisptag ,n) #.ppc32::tag-list))
+   (:ppc64 (let ((n (gensym)))
+             `(let* ((,n ,n))
+               (if ,n (consp ,n) t))))))
 
 (define-compiler-macro consp (n)
-  `(eql (fulltag ,n) #.ppc32::fulltag-cons))
+  `(eql (fulltag ,n) ,(target-arch-case (:ppc32 ppc32::fulltag-cons)
+                                        (:ppc64 ppc64::fulltag-cons))))
 
 (define-compiler-macro bignump (n)
-  `(eql (typecode ,n) #.ppc32::subtag-bignum))
+  `(eql (typecode ,n) ,(target-arch-case (:ppc32 ppc32::subtag-bignum)
+                                         (:ppc64 ppc64::subtag-bignum))))
 
 (define-compiler-macro ratiop (n)
-  `(eql (typecode ,n) #.ppc32::subtag-ratio))
+  `(eql (typecode ,n) ,(target-arch-case
+                        (:ppc32 ppc32::subtag-ratio)
+                        (:ppc64 ppc64::subtag-ratio))))
 
 (define-compiler-macro complexp (n)
-  `(eql (typecode ,n) #.ppc32::subtag-complex))
+  `(eql (typecode ,n) ,(target-arch-case
+                        (:ppc32 ppc32::subtag-complex)
+                        (:ppc64 ppc64::subtag-complex))))
 
 
 (define-compiler-macro aref (&whole call a &rest subscripts &environment env)
@@ -1510,10 +1534,10 @@
                (quoted-form-p element-type))
         (let* ((element-type (cadr element-type)))
           (if (subtypep element-type 'base-char)
-            `(%alloc-misc ,size #.ppc32::subtag-simple-base-string ,@(if initial-element-p `(,initial-element)))
+            `(allocate-typed-vector :simple-string ,size ,@(if initial-element-p `(,initial-element)))
             call))
         (if (not element-type-p)
-          `(%alloc-misc ,size #.ppc32::subtag-simple-base-string ,@(if initial-element-p `(,initial-element)))
+          `(allocate-typed-vector :simple-string ,size ,@(if initial-element-p `(,initial-element)))
           call)))
     call))
 
@@ -1528,7 +1552,9 @@
     call))
 
 (define-compiler-macro simple-base-string-p (thing)
-  `(= (the fixnum (typecode ,thing)) #.ppc32::subtag-simple-base-string))
+  `(= (the fixnum (typecode ,thing)) ,(target-arch-case
+                                       (:ppc32 ppc32::subtag-simple-base-string)
+                                       (:ppc64 ppc64::subtag-simple-base-string))))
 
 (define-compiler-macro simple-string-p (thing)
   `(simple-base-string-p ,thing))
