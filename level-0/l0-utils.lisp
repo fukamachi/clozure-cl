@@ -63,7 +63,6 @@
            new))
         (t (report-bad-arg s 'string))))
 
-
 (defun nremove (elt list)
   (let* ((handle (cons nil list))
          (splice handle))

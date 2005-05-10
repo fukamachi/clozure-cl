@@ -19,9 +19,10 @@
   (require "PPC32-ARCH")
   (require "PPC-LAPMACROS"))
 
-; This assumes that macros & special-operators
-; have something that's not FUNCTIONP in their
-; function-cells.
+;;; This assumes that macros & special-operators
+;;; have something that's not FUNCTIONP in their
+;;; function-cells.
+#+ppc32-target
 (defppclapfunction %function ((sym arg_z))
   (check-nargs 1)
   (cmpwi cr1 sym ppc32::nil-value)
@@ -40,27 +41,48 @@
     (beqlr+)
     (uuo_interr arch::error-udf symbol)))
 
+#+ppc64-target
+(defppclapfunction %function ((sym arg_z))
+  (check-nargs 1)
+  (let ((symbol temp1)
+        (def arg_z))
+    (mr symbol sym)
+    (trap-unless-typecode= sym ppc64::subtag-symbol)
+    (mr symbol sym)
+    (ld def ppc64::symbol.fcell symptr)
+    (extract-typecode imm0 def)
+    (cmpdi cr0 imm0 ppc64::subtag-function)
+    (beqlr+)
+    (uuo_interr arch::error-udf symbol)))
 
-
-; Traps unless sym is NIL or some other symbol.
+;;; Traps unless sym is NIL or some other symbol.
+;;; On PPC32, NIL isn't really a symbol; this function maps from NIL
+;;; to an internal proxy symbol ("nilsym").
+;;; On PPC64, NIL is a real symbol, so this function just does a
+;;; little bit of type checking.
 (defppclapfunction %symbol->symptr ((sym arg_z))
-  (cmpwi cr0 arg_z ppc32::nil-value)
-  (if (:cr0 :eq)
-    (progn
-      (li arg_z (+ ppc32::nilsym-offset ppc32::nil-value))
-      (blr)))
-  (trap-unless-typecode= arg_z ppc32::subtag-symbol)
+  #+ppc32-target
+  (progn
+    (cmpwi cr0 arg_z ppc32::nil-value)
+    (if (:cr0 :eq)
+      (progn
+        (li arg_z (+ ppc32::nilsym-offset ppc32::nil-value))
+        (blr))))
+  (trap-unless-typecode= arg_z target::subtag-symbol)
   (blr))
 
-; Traps unless symptr is a symbol; returns NIL if symptr is NILSYM.
+;;; Traps unless symptr is a symbol; on PPC32, returns NIL if symptr
+;;; is NILSYM.
 (defppclapfunction %symptr->symbol ((symptr arg_z))
-  (li imm1 (+ ppc32::nilsym-offset ppc32::nil-value))
-  (cmpw cr0 imm1 symptr)
-  (if (:cr0 :eq)
-    (progn 
-      (li arg_z ppc32::nil-value)
-      (blr)))
-  (trap-unless-typecode= symptr ppc32::subtag-symbol imm0)
+  #+ppc32-target
+  (progn
+    (li imm1 (+ ppc32::nilsym-offset ppc32::nil-value))
+    (cmpw cr0 imm1 symptr)
+    (if (:cr0 :eq)
+      (progn 
+        (li arg_z nil)
+        (blr))))
+  (trap-unless-typecode= symptr target::subtag-symbol imm0)
   (blr))
 
 (defppclapfunction %svar-sym-value ((svar arg_z))
@@ -72,38 +94,38 @@
   (ba .SPsvar-specset))
 
 (defppclapfunction %svar-binding-address ((svar arg_z))
-  (lwz imm3 ppc32::svar.idx svar)
-  (lwz imm2 ppc32::tcr.tlb-limit rcontext)
-  (lwz imm4 ppc32::tcr.tlb-pointer rcontext)
-  (cmplw imm3 imm2)
+  (ldr imm3 target::svar.idx svar)
+  (ldr imm2 target::tcr.tlb-limit rcontext)
+  (ldr imm4 target::tcr.tlb-pointer rcontext)
+  (cmplr imm3 imm2)
   (bge @sym)
-  (lwzx temp0 imm4 imm3)
-  (cmpwi temp0 ppc32::subtag-no-thread-local-binding)
-  (slwi imm3 imm3 ppc32::fixnumshift)
+  (ldrx temp0 imm4 imm3)
+  (cmpdi temp0 target::subtag-no-thread-local-binding)
+  (sldi imm3 imm3 target::fixnumshift)
   (beq @sym)
   (vpush imm4)
   (vpush imm3)
   (set-nargs 2)
-  (la temp0 8 vsp)
+  (la temp0 '2 vsp)
   (ba .SPvalues)
   @sym
-  (lwz arg_z ppc32::svar.symbol svar)
-  (li arg_y '#.ppc32::symbol.vcell)
+  (lwz arg_z target::svar.symbol svar)
+  (li arg_y '#.target::symbol.vcell)
   (vpush arg_z)
   (vpush arg_y)
   (set-nargs 2)
-  (la temp0 8 vsp)
+  (la temp0 '2 vsp)
   (ba .SPvalues))
 
 (defppclapfunction %tcr-binding-location ((tcr arg_y) (svar arg_z))
-  (lwz imm3 ppc32::svar.idx svar)
-  (lwz imm2 ppc32::tcr.tlb-limit tcr)
-  (lwz imm4 ppc32::tcr.tlb-pointer tcr)
+  (ldr imm3 target::svar.idx svar)
+  (ldr imm2 target::tcr.tlb-limit tcr)
+  (ldr imm4 target::tcr.tlb-pointer tcr)
   (li arg_z nil)
-  (cmplw imm3 imm2)
+  (cmplr imm3 imm2)
   (bgelr)
-  (lwzx temp0 imm4 imm3)
-  (cmpwi temp0 ppc32::subtag-no-thread-local-binding)
+  (ldrx temp0 imm4 imm3)
+  (cmpri temp0 target::subtag-no-thread-local-binding)
   (beqlr)
   (add arg_z imm4 imm3)
   (blr))
@@ -116,17 +138,20 @@
         (tag imm3))
     (extract-subtag tag str)
     (cmpwi cr0 len 0)
-    (li offset ppc32::misc-data-offset)
+    (li offset target::misc-data-offset)
     (li accum 0)
     (beqlr- cr0)    
     @loop8
-    (cmpwi cr1 len '1)
+    (cmpri cr1 len '1)
     (subi len len '1)
     (lbzx nextw str offset)
     (addi offset offset 1)
+    #+ppc32-target
     (rotlwi accum accum 5)
+    #+ppc64-target
+    (rotldi accum accum 5)
     (xor accum accum nextw)
     (bne cr1 @loop8)
-    (slwi accum accum 5)
-    (srwi arg_z accum (- 5 ppc32::fixnumshift))
+    (slri accum accum 5)
+    (srri arg_z accum (- 5 target::fixnumshift))
     (blr)))

@@ -23,7 +23,7 @@
 
 
 (defppclapfunction %fixnum-signum ((number arg_z))
-  (cmpwi :cr0 number '0)
+  (cmpri :cr0 number '0)
   (li arg_z '0)
   (beqlr :cr0)
   (li arg_z '1)               ; assume positive
@@ -49,22 +49,22 @@
     (blr)))
 
 (defppclapfunction %iash ((number arg_y) (count arg_z))
-  (unbox-fixnum imm0 number)
   (unbox-fixnum imm1 count)
+  (unbox-fixnum imm0 number)
   (neg. imm2 imm1)
   (blt @left)
-  (sraw imm0 imm0 imm2)
+  (srar imm0 imm0 imm2)
   (box-fixnum arg_z imm0)
   (blr)
   @left
-  (slw arg_z number imm1)
+  (slr arg_z number imm1)
   (blr))
 
 (defparameter *double-float-zero* 0.0d0)
 (defparameter *short-float-zero* 0.0s0)
 
 
-
+#+ppc32-target
 (defppclapfunction %sfloat-hwords ((sfloat arg_z))
   (lwz imm0 ppc32::single-float.value sfloat)
   (digit-h temp0 imm0)
@@ -75,23 +75,9 @@
   (set-nargs 2)
   (ba .SPvalues))
 
-; used by fasl-dump-dfloat
-(defppclapfunction %dfloat-hwords ((dfloat arg_z))
-  (lwz imm0 ppc32::double-float.value dfloat)
-  (lwz imm1 ppc32::double-float.val-low dfloat)
-  (digit-h temp0 imm0)
-  (digit-l temp1 imm0)
-  (digit-h temp2 imm1)
-  (digit-l temp3 imm1)
-  (vpush temp0)
-  (vpush temp1)
-  (vpush temp2)
-  (vpush temp3)
-  (la temp0 16 vsp)
-  (set-nargs 4)
-  (ba .SPvalues))
 
 ; (integer-length arg) = (- 32 (cntlz (if (>= arg 0) arg (lognot arg))))
+#+ppc32-target
 (defppclapfunction %fixnum-intlen ((number arg_z))  
   (unbox-fixnum imm0 arg_z)
   (cntlzw. imm1 imm0)			; testing result of cntlzw? - ah no zeros if neg
@@ -103,22 +89,18 @@
   (box-fixnum arg_z imm1)
   (blr))
 
-;;; Returns the number of leading zeros in the unboxed 32-bit representation
-;;; of X.  Only really makes sense if (>= X 0).
-(defppclapfunction %count-leading-zeros((x arg_z))
-  (unbox-fixnum imm0 x)
-  (cntlzw imm0 imm0)
-  (box-fixnum arg_z imm0)
+#+ppc64-target
+(defppclapfunction %fixnum-intlen ((number arg_z))  
+  (unbox-fixnum imm0 arg_z)
+  (cntlzd. imm1 imm0)
+  (bne @nonneg)
+  (not imm1 imm0)
+  (cntlzd imm1 imm1)
+  @nonneg
+  (subfic imm1 imm1 64)
+  (box-fixnum arg_z imm1)
   (blr))
 
-(defppclapfunction %count-trailing-zeros ((x arg_z))
-  (unbox-fixnum imm0 x)
-  (neg imm1 imm0)
-  (and imm0 imm0 imm1)
-  (cntlzw imm0 imm0)
-  (subfic imm0 imm0 31)
-  (box-fixnum arg_z imm0)
-  (blr))
 
 (defppclapfunction %double-float-negate! ((src arg_y) (res arg_z))
   (get-double-float fp0 src)
@@ -126,15 +108,24 @@
   (put-double-float fp1 res)
   (blr))
 
+#+ppc32-target
 (defppclapfunction %short-float-negate! ((src arg_y) (res arg_z))
   (get-single-float fp0 src)
   (fneg fp1 fp0)
   (put-single-float fp1 res)
   (blr))
 
+#+ppc64-target
+;;; Non-destructive.
+(defppclapfunction %short-float-negate ((src arg_z))
+  (get-single-float fp0 src)
+  (fneg fp1 fp0)
+  (put-single-float fp1 res)
+  (blr))
 
 
-; Caller guarantees that result fits in a fixnum.
+;;; Caller guarantees that result fits in a fixnum.
+#+ppc32-target
 (defppclapfunction %truncate-double-float->fixnum ((arg arg_z))
   (get-double-float fp0 arg)
   (fctiwz fp0 fp0)
@@ -146,6 +137,19 @@
   (box-fixnum arg_z imm0)  
   (blr))
 
+#+ppc64-target
+(defppclapfunction %truncate-double-float->fixnum ((arg arg_z))
+  (get-double-float fp0 arg)
+  (fctidz fp0 fp0)
+  (stdu tsp -16 tsp)
+  (std tsp 4 tsp)
+  (stfd fp0 8 tsp)
+  (ld imm0 8 tsp)
+  (ld tsp 0 tsp)
+  (box-fixnum arg_z imm0)  
+  (blr))
+
+#+ppc32-target
 (defppclapfunction %truncate-short-float->fixnum ((arg arg_z))
   (get-single-float fp0 arg)
   (fctiwz fp0 fp0)
@@ -157,7 +161,20 @@
   (box-fixnum arg_z imm0)  
   (blr))
 
-; DOES round to even
+#+ppc64-target
+(defppclapfunction %truncate-short-float->fixnum ((arg arg_z))
+  (get-single-float fp0 arg)
+  (fctidz fp0 fp0)
+  (stdu tsp -16 tsp)
+  (std tsp 4 tsp)
+  (stfd fp0 8 tsp)
+  (ld imm0 8 tsp)
+  (ld tsp 0 tsp)
+  (box-fixnum arg_z imm0)  
+  (blr))
+
+;;; DOES round to even
+#+ppc32-target
 (defppclapfunction %round-nearest-double-float->fixnum ((arg arg_z))
   (get-double-float fp0 arg)
   (fctiw fp0 fp0)
@@ -169,6 +186,19 @@
   (box-fixnum arg_z imm0)  
   (blr))
 
+#+ppc64-target
+(defppclapfunction %round-nearest-double-float->fixnum ((arg arg_z))
+  (get-double-float fp0 arg)
+  (fctid fp0 fp0)
+  (stdu tsp -16 tsp)
+  (std tsp 4 tsp)
+  (stfd fp0 8 tsp)
+  (ld imm0 8 tsp)
+  (ld tsp 0 tsp)
+  (box-fixnum arg_z imm0)  
+  (blr))
+
+#+ppc32-target
 (defppclapfunction %round-nearest-short-float->fixnum ((arg arg_z))
   (get-single-float fp0 arg)
   (fctiw fp0 fp0)
@@ -180,10 +210,23 @@
   (box-fixnum arg_z imm0)  
   (blr))
 
+#+ppc64-target
+(defppclapfunction %round-nearest-short-float->fixnum ((arg arg_z))
+  (get-single-float fp0 arg)
+  (fctid fp0 fp0)
+  (stdu tsp -16 tsp)
+  (std tsp 4 tsp)
+  (stfd fp0 8 tsp)
+  (ld imm0 8 tsp)
+  (ld tsp 0 tsp)
+  (box-fixnum arg_z imm0)  
+  (blr))
 
 
 
-;; maybe this could be smarter but frankly scarlett I dont give a damn
+
+;;;; maybe this could be smarter but frankly scarlett I dont give a damn
+#+ppc32-target
 (defppclapfunction %fixnum-truncate ((dividend arg_y) (divisor arg_z))
   (let ((unboxed-quotient imm0)
         (unboxed-dividend imm1)
@@ -197,23 +240,13 @@
     (divwo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
     (box-fixnum boxed-quotient unboxed-quotient)
     (mullw unboxed-product unboxed-quotient unboxed-divisor)
-    (bns+ @not-0)
+    (bns+ @ok)
     (mtxer rzero)
     (save-lisp-context)
     (set-nargs 3)
     (load-constant arg_x 'truncate)
     (call-symbol divide-by-zero-error)
     @not-0
-    (unbox-fixnum imm2 boxed-quotient)  ; bashing unboxed divisor
-    (cmpw cr0 imm2 unboxed-quotient)
-    (beq+ @ok)
-    (li imm4 ppc32::one-digit-bignum-header)
-    (la allocptr (- ppc32::fulltag-misc 8) allocptr)
-    (twllt allocptr allocptr)
-    (stw imm4 ppc32::misc-header-offset allocptr)
-    (mr boxed-quotient allocptr)
-    (clrrwi allocptr allocptr ppc32::ntagbits)
-    (stw unboxed-quotient ppc32::misc-data-offset boxed-quotient)
     @ok
     (subf imm0 unboxed-product unboxed-dividend)
     (vpush boxed-quotient)
@@ -223,10 +256,40 @@
     (la temp0 8 vsp)
     (ba .SPvalues)))
 
+#+ppc64-target
+(defppclapfunction %fixnum-truncate ((dividend arg_y) (divisor arg_z))
+  (let ((unboxed-quotient imm0)
+        (unboxed-dividend imm1)
+        (unboxed-divisor imm2)
+        (unboxed-product imm3)
+        (product temp0)
+        (boxed-quotient temp1)
+        (remainder temp2))
+    (unbox-fixnum unboxed-dividend dividend)
+    (unbox-fixnum unboxed-divisor divisor)
+    (divdo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
+    (box-fixnum boxed-quotient unboxed-quotient)
+    (muld unboxed-product unboxed-quotient unboxed-divisor)
+    (bns+ @ok)
+    (mtxer rzero)
+    (save-lisp-context)
+    (set-nargs 3)
+    (load-constant arg_x 'truncate)
+    (call-symbol divide-by-zero-error)
+    @not-0
+    @ok
+    (subf imm0 unboxed-product unboxed-dividend)
+    (vpush boxed-quotient)
+    (box-fixnum remainder imm0)
+    (vpush remainder)
+    (set-nargs 2)
+    (la temp0 '2 vsp)
+    (ba .SPvalues)))
+
 
 (defppclapfunction called-for-mv-p ()
   (ref-global imm0 ret1valaddr)
-  (lwz imm1 ppc32::lisp-frame.savelr sp)
+  (ldr imm1 target::lisp-frame.savelr sp)
   (eq->boolean arg_z imm0 imm1 imm0)
   (blr))
   
@@ -278,6 +341,7 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 |#
 ; Use the two fixnums in state to generate a random fixnum >= 0 and < 65536
 ; Scramble those fixnums up a bit.
+#+ppc32-target
 (defppclapfunction %next-random-seed ((state arg_z))
   (let ((seed0 imm0)
         (seed1 imm1)
@@ -304,7 +368,12 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
     (box-fixnum arg_z temp)
     (blr)))
 
-; n1 and n2 must be positive (esp non zero)
+#+ppc64-target
+(eval-when (:compile-toplevel)
+  (warn "No implementation of %NEXT-RANDOM-SEED for PPC64"))
+
+;;; n1 and n2 must be positive (esp non zero)
+#+ppc32-target
 (defppclapfunction %fixnum-gcd ((n1 arg_y)(n2 arg_z))
   (let ((temp imm0)
 	(u imm1)
@@ -346,6 +415,51 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
     @shiftv
     (andi. temp v (ash 1 1))
     (srwi v v 1)
+    (beq cr0 @shiftv)
+    (b @loop)))
+
+#+ppc64-target
+(defppclapfunction %fixnum-gcd ((n1 arg_y)(n2 arg_z))
+  (let ((temp imm0)
+	(u imm1)
+	(v imm2)
+	(ut0 imm3)
+	(vt0 imm4))
+    (unbox-fixnum u n1)
+    (unbox-fixnum v n2)
+    (neg temp u)
+    (and temp temp u)
+    (cntlzd ut0 temp)
+    (subfic ut0 ut0 63)
+    (neg temp v)
+    (and temp temp v)
+    (cntlzd vt0 temp)
+    (subfic vt0 vt0 63)
+    (cmpw cr2 ut0 vt0)
+    (srd u u ut0)
+    (srd v v vt0)
+    (addi ut0 ut0 ppc64::fixnum-shift)
+    (addi vt0 vt0 ppc64::fixnum-shift)
+    @loop
+    (cmpd cr0 u v)
+    (sld arg_z u ut0)
+    (bgt cr0 @u>v)
+    (blt cr0 @u<v)
+    (blelr cr2)
+    (sl arg_z u vt0)
+    (blr)
+    @u>v
+    (sub u u v)
+    @shiftu
+    (andi. temp u (ash 1 1))
+    (srdi u u 1)
+    (beq cr0 @shiftu)
+    (b @loop)
+    @u<v
+    (sub v v u)
+    @shiftv
+    (andi. temp v (ash 1 1))
+    (srdi v v 1)
     (beq cr0 @shiftv)
     (b @loop)))
     

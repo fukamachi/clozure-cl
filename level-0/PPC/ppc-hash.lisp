@@ -27,22 +27,21 @@
 
 ; This should stay in LAP so that it's fast
 ; Equivalent to cl:mod when both args are positive fixnums
+#+ppc32-target
 (defppclapfunction fast-mod ((number arg_y) (divisor arg_z))
   (divwu imm0 number divisor)
   (mullw arg_z imm0 divisor)
   (subf arg_z arg_z number)
   (blr))
 
-; not used today
-(defppclapfunction fixnum-rotate ((number arg_y) (count arg_z))
-  (unbox-fixnum imm0 count)
-  (unbox-fixnum imm1 number)
-  (rlwnm imm1 imm1 imm0 0 31)
-  (box-fixnum arg_z imm1)
+#+ppc64-target
+(defppclapfunction fast-mod ((number arg_y) (divisor arg_z))
+  (divdu imm0 number divisor)
+  (muld arg_z imm0 divisor)
+  (subf arg_z arg_z number)
   (blr))
 
-
-
+#+ppc32-target
 (defppclapfunction %dfloat-hash ((key arg_z))
   (lwz imm0 ppc32::double-float.value key)
   (lwz imm1 ppc32::double-float.val-low key)
@@ -50,18 +49,31 @@
   (box-fixnum arg_z imm0)
   (blr))
 
+#+ppc64-target
+(defppclapfunction %dfloat-hash ((key arg_z))
+  (ld imm0 ppc64::double-float.value key)
+  (box-fixnum arg_z imm0)
+  (blr))
+
+#+ppc32-target
 (defppclapfunction %sfloat-hash ((key arg_z))
   (lwz imm0 ppc32::single-float.value key)
   (box-fixnum arg_z imm0)
   (blr))
 
-(defppclapfunction %macptr-hash ((key arg_z))
-  (lwz imm0 ppc32::macptr.address key)
-  (slwi imm1 imm0 24)
-  (add imm0 imm0 imm1)
-  (clrrwi arg_z imm0 ppc32::fixnumshift)
+#+ppc64-target
+(defppclapfunction %sfloat-hash ((key arg_z))
+  (srdi arg_z f (- 32 ppc64::fixnumshift))
   (blr))
 
+(defppclapfunction %macptr-hash ((key arg_z))
+  (ldr imm0 target::macptr.address key)
+  (slri imm1 imm0 24)
+  (add imm0 imm0 imm1)
+  (clrrri arg_z imm0 target::fixnumshift)
+  (blr))
+
+#+ppc32-target
 (defppclapfunction %bignum-hash ((key arg_z))
   (let ((header imm3)
         (offset imm2)
@@ -83,22 +95,41 @@
     (clrrwi arg_z immhash ppc32::fixnumshift)
     (blr)))
 
-      
+#+ppc64-target
+(defppclapfunction %bignum-hash ((key arg_z))
+  (let ((header imm3)
+        (offset imm2)
+        (ndigits imm1)
+        (immhash imm0))
+    (li immhash 0)
+    (li offset ppc64::misc-data-offset)
+    (getvheader header key)
+    (header-size ndigits header)
+    (let ((next header))
+      @loop
+      (cmpdi cr0 ndigits 1)
+      (subi ndigits ndigits 1)
+      (lwzx next key offset)
+      (rotldi immhash immhash 13)
+      (addi offset offset 4)
+      (add immhash immhash next)
+      (bne cr0 @loop))
+    (clrrdi arg_z immhash ppc64::fixnumshift)
+    (blr)))
 
 
 (defppclapfunction %get-fwdnum ()
-  (ref-global arg_z ppc32::fwdnum)
+  (ref-global arg_z target::fwdnum)
   (blr))
 
 
 (defppclapfunction %get-gc-count ()
-  (ref-global arg_z ppc32::gc-count)
+  (ref-global arg_z target::gc-count)
   (blr))
 
 
 ; Setting a key in a hash-table vector needs to 
 ; ensure that the vector header gets memoized as well
-#+ppc-target
 (defppclapfunction %set-hash-table-vector-key ((vector arg_x) (index arg_y) (value arg_z))
   (ba .SPset-hash-key))
 

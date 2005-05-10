@@ -123,24 +123,24 @@
       (setf-function-name (cadr name))
       (report-bad-arg name 'function-name))))
 
-;;; There are three kinds of things which can go in the function
-;;; cell of a symbol:
-;;; 1) A function.
-;;; 2) The thing which is the value of %unbound-function%: a 1-element
-;;;    vector whose 0th element is a code vector which causes an "undefined function"
-;;;    error to be signalled.
-;;; 3) A macro or special-form definition, which is a 2-element vector whose 0th
-;;;    element is a code vector which signals a "can't apply macro or special form"
-;;;    error when executed and whose 1st element is a macro or special-operator name.
-; It doesn't what type of vector cases 2 and 3 are.  Once that's decided, it wouldn't
-;;; hurt if %FHAVE typechecked its second arg.
+;;;    There are three kinds of things which can go in the function
+;;;    cell of a symbol: 1) A function.  2) The thing which is the
+;;;    value of %unbound-function%: a 1-element vector whose 0th
+;;;    element is a code vector which causes an "undefined function"
+;;;    error to be signalled.  3) A macro or special-form definition,
+;;;    which is a 2-element vector whose 0th element is a code vector
+;;;    which signals a "can't apply macro or special form" error when
+;;;    executed and whose 1st element is a macro or special-operator
+;;;    name.  It doesn't what type of vector cases 2 and 3 are.  Once
+;;;    that's decided, it wouldn't hurt if %FHAVE typechecked its
+;;;    second arg.
 
 (defun %fhave (name def)
   (let* ((fname (validate-function-name name)))
-    (setf (%svref (%symbol->symptr fname) ppc32::symbol.fcell-cell) def)))
+    (setf (%svref (%symbol->symptr fname) target::symbol.fcell-cell) def)))
 
-; FBOUNDP is true of any symbol whose function-cell contains something other
-; than %unbound-function%; we expect FBOUNDP to return that something.
+;;; FBOUNDP is true of any symbol whose function-cell contains something other
+;;; than %unbound-function%; we expect FBOUNDP to return that something.
 (defun fboundp (name)
   "Return true if name has a global function definition."
   (let* ((fname (validate-function-name name))
@@ -148,8 +148,8 @@
     (unless (eq def %unbound-function%)
       def)))
 
-; %UNFHAVE doesn't seem to want to deal with SETF names or function specs.
-; Who does ?
+;;; %UNFHAVE doesn't seem to want to deal with SETF names or function specs.
+;;; Who does ?
 
 (defun %unfhave (sym)
   (let* ((symptr (%symbol->symptr sym))

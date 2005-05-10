@@ -58,9 +58,11 @@
 
 
 
-; get xidx thing from x, yidx thing from y
-; if same return #xffff #xffff
-; otherwise get another thing from x and 1- xidx and do as %floor of xthing otherx ything
+;;; get xidx thing from x, yidx thing from y if same return #xffff
+;;; #xffff otherwise get another thing from x and 1- xidx and do as
+;;; %floor of xthing otherx ything
+;;; Huh?
+#+ppc32-target
 (defppclapfunction %floor-99 ((x-stk 0)(xidx arg_x)(yptr arg_y)(yidx arg_z))
   (let ((xptr temp0)
         (a imm1)
@@ -121,8 +123,9 @@
     
     
 
-; for truncate-by-fixnum etal
-; doesnt store quotient - just returns rem in 2 halves
+;;; for truncate-by-fixnum etal
+;;; doesnt store quotient - just returns rem in 2 halves
+#+ppc32-target
 (defppclapfunction %floor-loop-no-quo ((q arg_x)(yhi arg_y)(ylo arg_z))
   (let ((a imm1)
         (b imm2)
@@ -179,6 +182,7 @@
     (ba .SPvalues)))
 
 ; store result in dest, return rem in 2 halves
+#+ppc32-target
 (defppclapfunction %floor-loop-quo ((q-stk 0)(dest arg_x)(yhi arg_y)(ylo arg_z))
   (let ((a imm1)
         (b imm2)
@@ -243,14 +247,15 @@
 
 
 
-; make a float from hi - high 24 bits mantissa (ignore implied higher bit)
-;                   lo -  low 28 bits mantissa
-;                   exp  - take low 11 bits
-;                   sign - sign(sign) => result
-; hi result - 1 bit sign: 11 bits exp: 20 hi bits of hi arg
-; lo result - 4 lo bits of hi arg: 28 lo bits of lo arg
-; no error checks, no tweaks, no nuthin 
+;;; make a float from hi - high 24 bits mantissa (ignore implied higher bit)
+;;;                   lo -  low 28 bits mantissa
+;;;                   exp  - take low 11 bits
+;;;                   sign - sign(sign) => result
+;;; hi result - 1 bit sign: 11 bits exp: 20 hi bits of hi arg
+;;; lo result - 4 lo bits of hi arg: 28 lo bits of lo arg
+;;; no error checks, no tweaks, no nuthin 
 
+#+ppc32-target
 (defppclapfunction %make-float-from-fixnums ((float 4)(hi 0) (lo arg_x) (exp arg_y) (sign arg_z))
   (rlwinm imm0 sign 0 0 0)  ; just leave sign bit 
   (rlwimi imm0 exp (- 20 ppc32::fixnumshift)  1 11) ;  exp left 20 right 2 keep 11 bits
@@ -265,6 +270,7 @@
   (la vsp 8 vsp)
   (blr))
 
+#+ppc32-target
 (defppclapfunction %make-short-float-from-fixnums ((float 0) (sig arg_x) (exp arg_y) (sign arg_z))
   (unbox-fixnum imm0 sig)
   (rlwimi imm0 exp (- 29 8) 1 8)
@@ -274,27 +280,30 @@
   (blr))
 
 
-
-    
-
-; this is also wrong - it doesn't check for invalid-operation
-; same is true for double-float-negate
-(defppclapfunction %%double-float-abs ((n arg_y)(val arg_z))
+(defppclapfunction %%double-float-abs! ((n arg_y)(val arg_z))
   (get-double-float fp1 n)
   (fabs fp1 fp1)
   (put-double-float fp1 val)
   (blr))
 
-; Likewise.
-(defppclapfunction %%short-float-abs ((n arg_y) (val arg_z))
+#+ppc32-target
+(defppclapfunction %%short-float-abs! ((n arg_y) (val arg_z))
   (get-single-float fp1 n)
   (fabs fp0 fp1)
   (put-single-float fp0 val)
   (blr))
 
+#+ppc64-target
+(defppclapfunction %short-float-abs ((n arg_z))
+  (get-single-float fp1 n)
+  (fabs fp0 fp1)
+  (put-single-float fp0 arg_z)
+  (blr))
 
 
-; rets hi (25 bits) lo (28 bits) exp sign
+
+;;; rets hi (25 bits) lo (28 bits) exp sign
+#+ppc32-target
 (defppclapfunction %integer-decode-double-float ((n arg_z))
   (lwz imm0  ppc32::double-float.value n)
   (rlwinm imm1 imm0 (+ 1 ppc32::fixnumshift) (- 32 ppc32::fixnumshift 1) ; sign boxed
@@ -326,8 +335,9 @@
   (ba .SPvalues))
 
 
-; hi is 25 bits lo is 28 bits
-; big is 32 lo, 21 hi right justified
+;;; hi is 25 bits lo is 28 bits
+;;; big is 32 lo, 21 hi right justified
+#+ppc32-target
 (defppclapfunction make-big-53 ((hi arg_x)(lo arg_y)(big arg_z))
   (rlwinm imm0 lo (- 32 ppc32::fixnumshift) 4 31)
   (rlwimi imm0 hi (- 32 4 ppc32::fixnumshift) 0 3)
@@ -408,33 +418,35 @@
 
 
 (defppclapfunction %copy-double-float ((f1 arg_y) (f2 arg_z))
-  (lfd fp0 ppc32::double-float.value f1)
-  (stfd fp0 ppc32::double-float.value f2)
+  (lfd fp0 target::double-float.value f1)
+  (stfd fp0 target::double-float.value f2)
   (blr))
                    
 
+#+ppc32-target
 (defppclapfunction %copy-short-float ((f1 arg_y) (f2 arg_z))
   (lfs fp0 ppc32::single-float.value f1)
   (stfs fp0 ppc32::single-float.value f2)
   (blr))
 
 (defppclapfunction %double-float-exp ((n arg_z))
-  (lwz imm1 ppc32::double-float.value n)
-  (rlwinm arg_z imm1 (- 32 (- 20 ppc32::fixnumshift)) 19  29) ; right 20 left 2 = right 18 = left 14
+  (lwz imm1 target::double-float.value n)
+  (rlwinm arg_z imm1 (- 32 (- 20 target::fixnumshift)) 19  29) ; right 20 left 2 = right 18 = left 14
   (blr))
 
 (defppclapfunction set-%double-float-exp ((float arg_y) (exp arg_z))
-  (lwz imm1 ppc32::double-float.value float)
-  (rlwimi imm1 exp (- 20 ppc32::fixnumshift) 1 11)
-  (stw imm1 ppc32::double-float.value float) ; hdr - tag = 8 - 2
+  (lwz imm1 target::double-float.value float)
+  (rlwimi imm1 exp (- 20 target::fixnumshift) 1 11)
+  (stw imm1 target::double-float.value float) ; hdr - tag = 8 - 2
   (blr))
 
-
+#+ppc32-target
 (defppclapfunction %short-float-exp ((n arg_z))
   (lwz imm1 ppc32::single-float.value n)
   (rlwinm arg_z imm1 (- 32 (- 23 ppc32::fixnumshift)) 22 29)
   (blr))
 
+#+ppc32-target
 (defppclapfunction set-%short-float-exp ((float arg_y) (exp arg_z))
   (lwz imm1 ppc32::single-float.value float)
   (rlwimi imm1 exp (- 23 ppc32::fixnumshift) 1 8)
@@ -460,8 +472,7 @@
   (clear-fpu-exceptions)
   (get-double-float fp0 src)
   (frsp fp1 fp0)
-  (stfs fp1 ppc64::tcr.single-float-convert rcontext)
-  (ld arg_z ppc64::tcr.single-float-convert rcontext)
+  (put-single-float fp1 arg_z)
   (blr))
   
 
@@ -614,8 +625,7 @@
          (logbitp (- 31 ppc::fpscr-xe-bit) control-bits))
     'floating-point-inexact)))
 
-; This assumes that the FEX and one of {VX OX UX ZX XX} is set.
-; Ignore 
+;;; This assumes that the FEX and one of {VX OX UX ZX XX} is set.
 (defun %fp-error-from-status (status-bits control-bits operation &rest operands)
   (declare (type (unsigned-byte 16) status-bits))
   (let* ((condition-class (fp-condition-from-fpscr status-bits control-bits)))
@@ -634,7 +644,7 @@
 
 ;;; Don't we already have about 20 versions of this ?
 (defppclapfunction %double-float-from-macptr! ((ptr arg_x) (byte-offset arg_y) (dest arg_z))
-  (lwz imm0 ppc32::macptr.address ptr)
+  (ldr imm0 target::macptr.address ptr)
   (unbox-fixnum imm1 byte-offset)
   (lfdx fp1 imm0 imm1)
   (put-double-float fp1 dest)
@@ -653,7 +663,7 @@
                      :invalid ,(logbitp 7 flags)
                      :inexact ,(logbitp 2 flags))))
 
-;; did we document this?
+;;; did we document this?
 (defun set-fpu-mode (&key (rounding-mode :nearest rounding-p)
                           (overflow t overflow-p)
                           (underflow t underflow-p)
@@ -679,8 +689,8 @@
     (get-fpu-mode)))
 
 
-; Copy a single float pointed at by the macptr in single
-; to a double float pointed at by the macptr in double
+;;; Copy a single float pointed at by the macptr in single
+;;; to a double float pointed at by the macptr in double
 
 (defppclapfunction %single-float-ptr->double-float-ptr ((single arg_y) (double arg_z))
   (check-nargs 2)

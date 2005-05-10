@@ -19,39 +19,14 @@
 
 ;(in-package "CCL")
 
-(eval-when (:execute :compile-toplevel)
-  (defppclapmacro get-arg (dest arg)
-    `(lwz ,dest ,arg vsp))
+;;; Copy N bytes from pointer src, starting at byte offset src-offset,
+;;; to ivector dest, starting at offset dest-offset.
+;;; It's fine to leave this in lap.
+;;; Depending on alignment, it might make sense to move more than
+;;; a byte at a time.
+;;; Does no arg checking of any kind.  Really.
 
-  (defppclapmacro bignum-ref (dest src index)
-    `(lwz ,dest (+ ppc32::misc-data-offset (ash ,index 2)) ,src))
-
-  (defppclapmacro get-hv (h v pt)
-    (let ((lbl-got (gensym)))
-      `(progn
-         ;(eq-if-fixnum 0 ,h ,pt)
-         (clrlwi. ,h ,pt (- ppc32::nbits-in-word ppc32::nlisptagbits))
-         (unbox-fixnum ,h ,pt)
-         (beq+ cr0 ,lbl-got)
-         ; Should probably branch around a uuo_interr ppc32::error-object-not-signed-byte-32
-         (trap-unless-typecode= ,pt ppc32::subtag-bignum ,h)
-         (bignum-ref ,h ,pt 0)
-         ,lbl-got                       ; now "h" has (signed-byte 32): vvvvhhhh
-         (srawi ,v ,h 16)
-         (extsh ,h ,h))))
-
-
-  )
-
-
-; Copy N bytes from pointer src, starting at byte offset src-offset,
-; to ivector dest, starting at offset dest-offset.
-; It's fine to leave this in lap.
-; Depending on alignment, it might make sense to move more than
-; a byte at a time.
-; Does no arg checking of any kind.  Really.
-
-(defppclapfunction %copy-ptr-to-ivector ((src 4) 
+(defppclapfunction %copy-ptr-to-ivector ((src (* 1 target::node-size) )
                                          (src-byte-offset 0) 
                                          (dest arg_x)
                                          (dest-byte-offset arg_y)
@@ -62,17 +37,17 @@
         (dest-byteptr imm2)
         (val imm3)
         (node-temp temp1))
-    (cmpwi cr0 nbytes 0)
+    (cmpri cr0 nbytes 0)
     (ldr src-node-reg src vsp)
     (macptr-ptr src-reg src-node-reg)
     (ldr src-byteptr src-byte-offset vsp)
     (unbox-fixnum src-byteptr src-byteptr)
     (unbox-fixnum dest-byteptr dest-byte-offset)
-    (la dest-byteptr ppc32::misc-data-offset dest-byteptr)
+    (la dest-byteptr target::misc-data-offset dest-byteptr)
     (b @test)
     @loop
     (subi nbytes nbytes '1)
-    (cmpwi cr0 nbytes '0)
+    (cmpri cr0 nbytes '0)
     (lbzx val src-reg src-byteptr)
     (la src-byteptr 1 src-byteptr)
     (stbx val dest dest-byteptr)
@@ -80,26 +55,25 @@
     @test
     (bne cr0 @loop)
     (mr arg_z dest)
-    (la vsp 8 vsp)
+    (la vsp '2 vsp)
     (blr)))
 
-; %copy-ivector-to-ptr - from hello.lisp:
-(defppclapfunction %copy-ivector-to-ptr ((src 4) 
+(defppclapfunction %copy-ivector-to-ptr ((src (* 1 target::node-size))
                                          (src-byte-offset 0) 
                                          (dest arg_x)
                                          (dest-byte-offset arg_y)
                                          (nbytes arg_z))
-  (lwz temp0 src vsp)
-  (cmpwi cr0 nbytes 0)
-  (lwz imm0 src-byte-offset vsp)
+  (ldr temp0 src vsp)
+  (cmpri cr0 nbytes 0)
+  (ldr imm0 src-byte-offset vsp)
   (unbox-fixnum imm0 imm0)
-  (la imm0 ppc32::misc-data-offset imm0)
+  (la imm0 target::misc-data-offset imm0)
   (unbox-fixnum imm2 dest-byte-offset)
-  (lwz imm1 ppc32::macptr.address dest)
+  (ldr imm1 target::macptr.address dest)
   (b @test)
   @loop
   (subi nbytes nbytes '1)
-  (cmpwi cr0 nbytes 0)
+  (cmpri cr0 nbytes 0)
   (lbzx imm3 temp0 imm0)
   (addi imm0 imm0 1)
   (stbx imm3 imm1 imm2)
@@ -107,9 +81,10 @@
   @test
   (bne cr0 @loop)
   (mr arg_z dest)
-  (la vsp 8 vsp)
+  (la vsp '2 vsp)
   (blr))
 
+#+ppc32-target
 (defppclapfunction %copy-ivector-to-ivector ((src 4) 
                                              (src-byte-offset 0) 
                                              (dest arg_x)
@@ -118,17 +93,17 @@
   (lwz temp0 src vsp)
   (cmpwi cr0 nbytes 0)
   (cmpw cr2 temp0 dest)   ; source and dest same?
-  (rlwinm imm3 nbytes 0 (- 30 ppc32::fixnum-shift) 31)  
+  (rlwinm imm3 nbytes 0 (- 30 target::fixnum-shift) 31)  
   (lwz imm0 src-byte-offset vsp)
-  (rlwinm imm1 imm0 0 (- 30 ppc32::fixnum-shift) 31)
+  (rlwinm imm1 imm0 0 (- 30 target::fixnum-shift) 31)
   (or imm3 imm3 imm1)
   (unbox-fixnum imm0 imm0)
-  (la imm0 ppc32::misc-data-offset imm0)
+  (la imm0 target::misc-data-offset imm0)
   (unbox-fixnum imm2 dest-byte-offset)
   (rlwimi imm1 imm2 0 30 31)
   (or imm3 imm3 imm1)
   (cmpwi cr1 imm3 0)  ; is everybody multiple of 4?
-  (la imm2 ppc32::misc-data-offset imm2)
+  (la imm2 target::misc-data-offset imm2)
   (beq cr2 @SisD)   ; source and dest same
   @fwd
   (beq :cr1 @wtest)
@@ -184,41 +159,116 @@
   (bne cr0 @loop2)
   (b @done))
 
-(defppclapfunction %copy-gvector-to-gvector ((src 4)
+#+ppc64-target
+(defppclapfunction %copy-ivector-to-ivector ((src 8) 
+                                             (src-byte-offset 0) 
+                                             (dest arg_x)
+                                             (dest-byte-offset arg_y)
+                                             (nbytes arg_z))
+  (subi nbytes bytes '1)
+  (ld imm0 src-byte-offset vsp)
+  (cmpdi nbytes 0 )
+  (ld temp0 src vsp)
+  (la vsp '2 vsp)
+  (cmpd cr1 temp0 dest)
+  (cmpdi cr2 src-byte-offset dest-byte-offset)
+  (la imm0 target::misc-data-offset imm0)
+  (la imm1 target::misc-data-offset dest-element)
+  (bne cr1 @test)
+  ;; Maybe overlap, or maybe nothing to do.
+  (beq cr2 @done)                       ; same vectors, same offsets
+  (blt cr2 @back)                       ; copy backwards, avoid overlap
+  (b @test)
+  @loop
+  (subi nbytes nbytes '1)
+  (lbzx imm3 temp0 imm0)
+  (cmpdi nbytes 0)
+  (addi imm0 imm0 1)
+  (stbx immr dest imm1)
+  (addi imm1 imm1 1)
+  @test
+  (bge @loop)
+  @done
+  (mr arg_z dest)
+  (blr)
+  @back
+  ;; nbytes was predecremented above
+  (unbox-fixnum imm2 nbytes)
+  (add imm0 imm2 imm0)
+  (add imm1 imm2 imm1)
+  (b @back-test)
+  @back-loop
+  (subi nbytes nbytes '1)
+  (lbzx imm3 temp0 imm0)
+  (cmpdi nbytes 0)
+  (subi imm0 imm0 1)
+  (stbx immr dest imm1)
+  (subi imm1 imm1 1)
+  @back-test
+  (bge @back-loop)
+  (mr arg_z dest)
+  (blr))
+  
+
+(defppclapfunction %copy-gvector-to-gvector ((src (* 1 target::node-size))
 					     (src-element 0)
 					     (dest arg_x)
 					     (dest-element arg_y)
 					     (nelements arg_z))
   (subi nelements nelements '1)
-  (cmpwi nelements 0)
-  (lwz imm0 src-element vsp)
-  (lwz temp0 src vsp)
-  (la vsp 8 vsp)
-  (la imm0 ppc32::misc-data-offset imm0)
-  (la imm1 ppc32::misc-data-offset dest-element)
+  (cmpri nelements 0)
+  (ldr imm0 src-element vsp)
+  (ldr temp0 src vsp)
+  (la vsp '2 vsp)
+  (cmpr cr1 temp0 dest)
+  (cmpri cr2 src-element dest-element)
+  (la imm0 target::misc-data-offset imm0)
+  (la imm1 target::misc-data-offset dest-element)
+  (bne cr1 @test)
+  ;; Maybe overlap, or maybe nothing to do.
+  (beq cr2 @done)                       ; same vectors, same offsets
+  (blt cr2 @back)                       ; copy backwards, avoid overlap
   (b @test)
   @loop
   (subi nelements nelements '1)
-  (cmpwi nelements 0)
-  (lwzx temp1 temp0 imm0)
+  (cmpri nelements 0)
+  (ldrx temp1 temp0 imm0)
   (addi imm0 imm0 '1)
-  (stwx temp1 dest imm1)
+  (strx temp1 dest imm1)
   (addi imm1 imm1 '1)
   @test
   (bge @loop)
+  @done
+  (mr arg_z dest)
+  (blr)
+  @back
+  ;; We decremented NELEMENTS by 1 above.
+  (add imm1 nelements imm1)
+  (add imm0 nelements imm0)
+  (b @back-test)
+  @back-loop
+  (subi nelements nelements '1)
+  (cmpri nelements 0)
+  (ldrx temp1 temp0 imm0)
+  (subi imm0 imm0 '1)
+  (strx temp1 dest imm1)
+  (subi imm1 imm1 '1)
+  @back-test
+  (bge @back-loop)
   (mr arg_z dest)
   (blr))
+  
   
 
 
 
-
+#+ppc32-target
 (defppclapfunction %heap-bytes-allocated ()
-  (lwz imm2 ppc32::tcr.last-allocptr rcontext)
+  (lwz imm2 target::tcr.last-allocptr rcontext)
   (cmpwi cr1 imm2 0)
   (cmpwi allocptr -8)			;void_allocptr
-  (lwz imm0 ppc32::tcr.total-bytes-allocated-high rcontext)
-  (lwz imm1 ppc32::tcr.total-bytes-allocated-low rcontext)
+  (lwz imm0 target::tcr.total-bytes-allocated-high rcontext)
+  (lwz imm1 target::tcr.total-bytes-allocated-low rcontext)
   (sub imm2 imm2 allocptr)
   (beq cr1 @go)
   (beq @go)
@@ -227,17 +277,18 @@
   @go
   (ba .SPmakeu64))
 
-
-
-
-
-
-
-
-
-
-
-
+#+ppc64-target
+(defppclapfunction %heap-bytes-allocated ()
+  (ld imm2 target::tcr.last-allocptr rcontext)
+  (cmpri cr1 imm2 0)
+  (cmpri allocptr -8)			;void_allocptr
+  (ld imm0 target::tcr.total-bytes-allocated-high rcontext)
+  (sub imm2 imm2 allocptr)
+  (beq cr1 @go)
+  (beq @go)
+  (add imm0 imm0 imm2)
+  @go
+  (ba .SPmakeu64))
 
 
 (defppclapfunction values ()
@@ -250,18 +301,19 @@
 #+ppc-target
 (defppclapfunction %setf-macptr-to-object ((macptr arg_y) (object arg_z))
   (check-nargs 2)
-  (trap-unless-typecode= arg_y ppc32::subtag-macptr)
-  (stw arg_z ppc32::macptr.address arg_y)
+  (trap-unless-typecode= arg_y target::subtag-macptr)
+  (str arg_z target::macptr.address arg_y)
   (blr))
 
 (defppclapfunction %fixnum-from-macptr ((macptr arg_z))
   (check-nargs 1)
-  (trap-unless-typecode= arg_z ppc32::subtag-macptr)
-  (lwz imm0 ppc32::macptr.address arg_z)
-  (trap-unless-lisptag= imm0 ppc32::tag-fixnum imm1)
+  (trap-unless-typecode= arg_z target::subtag-macptr)
+  (ldr imm0 target::macptr.address arg_z)
+  (trap-unless-lisptag= imm0 target::tag-fixnum imm1)
   (mr arg_z imm0)
   (blr))
 
+#+ppc32-target
 (defppclapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
   (trap-unless-typecode= ptr ppc32::subtag-macptr)
   (macptr-ptr imm1 ptr)
@@ -271,6 +323,15 @@
   (lwz imm1 4 imm2)
   (ba .SPmakeu64))
 
+#+ppc64-target
+(defppclapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
+  (macptr-ptr imm1 ptr)
+  (unbox-fixnum imm2 offset)
+  (ldx imm0 imm2 imm1)
+  (ba .SPmakeu64))
+
+#+ppc32-target
 (defppclapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
   (trap-unless-typecode= ptr ppc32::subtag-macptr)
   (macptr-ptr imm1 ptr)
@@ -280,6 +341,15 @@
   (lwz imm1 4 imm2)
   (ba .SPmakes64))
 
+#+ppc64-target
+(defppclapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
+  (macptr-ptr imm1 ptr)
+  (unbox-fixnum imm2 offset)
+  (ldx imm0 imm2 imm1)
+  (ba .SPmakes64))
+
+#+ppc32-target
 (defppclapfunction %%set-unsigned-longlong ((ptr arg_x)
 					      (offset arg_y)
 					      (val arg_z))
@@ -293,6 +363,19 @@
   (stw imm1 4 imm2)
   (ba .SPpopj))
 
+#+ppc64-target
+(defppclapfunction %%set-unsigned-longlong ((ptr arg_x)
+                                            (offset arg_y)
+                                            (val arg_z))
+  (save-lisp-context)
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
+  (bla .SPgetu64)
+  (macptr-ptr imm2 ptr)
+  (unbox-fixnum imm3 offset)
+  (stdx imm0 imm3 imm2)
+  (ba .SPpopj))
+
+#+ppc32-target
 (defppclapfunction %%set-signed-longlong ((ptr arg_x)
 					    (offset arg_y)
 					    (val arg_z))
@@ -306,34 +389,46 @@
   (stw imm1 4 imm2)
   (ba .SPpopj))
 
+#+ppc64-target
+(defppclapfunction %%set-signed-longlong ((ptr arg_x)
+                                          (offset arg_y)
+                                          (val arg_z))
+  (save-lisp-context)
+  (trap-unless-typecode= ptr target::subtag-macptr)
+  (bla .SPgets64)
+  (macptr-ptr imm2 ptr)
+  (unbox-fixnum imm3 offset)
+  (stdx imm0 imm3 imm2)
+  (ba .SPpopj))
+
 (defppclapfunction interrupt-level ()
-  (lwz arg_z ppc32::tcr.interrupt-level rcontext)
+  (ldr arg_z target::tcr.interrupt-level rcontext)
   (blr))
 
 
 (defppclapfunction disable-lisp-interrupts ()
   (li imm0 '-1)
-  (lwz arg_z ppc32::tcr.interrupt-level rcontext)
-  (stw imm0 ppc32::tcr.interrupt-level rcontext)
+  (ldr arg_z target::tcr.interrupt-level rcontext)
+  (str imm0 target::tcr.interrupt-level rcontext)
   (blr))
 
 (defppclapfunction set-interrupt-level ((new arg_z))
-  (trap-unless-lisptag= new ppc32::tag-fixnum imm0)
-  (stw new ppc32::tcr.interrupt-level rcontext)
+  (trap-unless-lisptag= new target::tag-fixnum imm0)
+  (str new target::tcr.interrupt-level rcontext)
   (blr))
 
 ;;; If we're restoring the interrupt level to 0 and an interrupt
 ;;; was pending, restore the level to 1 and zero the pending status.
 (defppclapfunction restore-interrupt-level ((old arg_z))
-  (cmpwi :cr1 old 0)
-  (lwz imm0 ppc32::tcr.interrupt-pending rcontext)
-  (cmpwi :cr0 imm0 0)
+  (cmpri :cr1 old 0)
+  (ldr imm0 target::tcr.interrupt-pending rcontext)
+  (cmpri :cr0 imm0 0)
   (bne :cr1 @store)
   (beq :cr0 @store)
-  (stw rzero ppc32::tcr.interrupt-pending rcontext)
+  (str rzero target::tcr.interrupt-pending rcontext)
   (li old '1)
   @store
-  (stw old ppc32::tcr.interrupt-level rcontext)
+  (str old target::tcr.interrupt-level rcontext)
   (blr))
 
 (defppclapfunction %interrupt-poll ()
@@ -348,38 +443,38 @@
 
 (defppclapfunction %tcr-toplevel-function ((tcr arg_z))
   (check-nargs 1)
-  (cmpw tcr rcontext)
+  (cmpr tcr rcontext)
   (mr imm0 vsp)
-  (lwz temp0 ppc32::tcr.vs-area tcr)
-  (lwz imm1 ppc32::area.high temp0)
+  (ldr temp0 target::tcr.vs-area tcr)
+  (ldr imm1 target::area.high temp0)
   (beq @room)
-  (lwz imm0 ppc32::area.active temp0)
+  (ldr imm0 target::area.active temp0)
   @room
-  (cmpw imm1 imm0)
+  (cmpr imm1 imm0)
   (li arg_z nil)
   (beqlr)
-  (lwz arg_z -4 imm1)
+  (ldr arg_z (- target::node-size) imm1)
   (blr))
 
 (defppclapfunction %set-tcr-toplevel-function ((tcr arg_y) (fun arg_z))
   (check-nargs 2)
-  (cmpw tcr rcontext)
+  (cmpr tcr rcontext)
   (mr imm0 vsp)
-  (lwz temp0 ppc32::tcr.vs-area tcr)
-  (lwz imm1 ppc32::area.high temp0)
+  (ldr temp0 target::tcr.vs-area tcr)
+  (ldr imm1 target::area.high temp0)
   (beq @check-room)
-  (lwz imm0 ppc32::area.active temp0)
+  (ldr imm0 target::area.active temp0)
   @check-room
-  (cmpw imm1 imm0)
-  (stwu rzero -4 imm1)
+  (cmpr imm1 imm0)
+  (push rzero imm1)
   (bne @have-room)
-  (stw imm1 ppc32::area.active temp0)
-  (stw imm1 ppc32::tcr.save-vsp tcr)
+  (str imm1 target::area.active temp0)
+  (str imm1 target::tcr.save-vsp tcr)
   @have-room
   (stw fun 0 imm1)
   (blr))
 
-
+;;; This needs to be done out-of-line, to handle EGC memoization.
 (defppclapfunction %store-node-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
   (ba .SPstore-node-conditional))
 
@@ -388,47 +483,47 @@
   (unbox-fixnum imm0 temp0)
   (let ((current temp1))
     @again
-    (lwarx current object imm0)
-    (cmpw current old)
+    (lrarx current object imm0)
+    (cmpr current old)
     (bne @lose)
-    (stwcx. new object imm0)
+    (strcx. new object imm0)
     (bne @again)
     (isync)
-    (la arg_z (+ ppc32::t-offset ppc32::nil-value) 0)
+    (li arg_z (+ target::t-offset target::nil-value))
     (blr)
     @lose
-    (li imm0 ppc32::reservation-discharge)
-    (stwcx. rzero rzero imm0)
+    (li imm0 target::reservation-discharge)
+    (strcx. rzero rzero imm0)
     (li arg_z nil)
     (blr)))
 
-(defppclapfunction set-%gcable-macptrs% ((ptr ppc32::arg_z))
-  (li imm0 (+ ppc32::nil-value (ppc32::kernel-global gcable-pointers)))
+(defppclapfunction set-%gcable-macptrs% ((ptr target::arg_z))
+  (li imm0 (+ target::nil-value (target::kernel-global gcable-pointers)))
   @again
-  (lwarx arg_y rzero imm0)
-  (stw arg_y ppc32::xmacptr.link ptr)
-  (stwcx. ptr rzero imm0)
+  (lrarx arg_y rzero imm0)
+  (str arg_y target::xmacptr.link ptr)
+  (strcx. ptr rzero imm0)
   (bne @again)
   (isync)
   (blr))
 
 ;;; Atomically increment the gc-inhibit-count kernel-global
 (defppclapfunction %lock-gc-lock ()
-  (li imm0 (+ ppc32::nil-value (ppc32::kernel-global gc-inhibit-count)))
+  (li imm0 (+ target::nil-value (target::kernel-global gc-inhibit-count)))
   @again
-  (lwarx arg_z rzero imm0)
+  (lrarx arg_z rzero imm0)
   (addi arg_z arg_z '1)
-  (stwcx. arg_z rzero imm0)
+  (strcx. arg_z rzero imm0)
   (bne @again)
   (isync)
   (blr))
 
 (defppclapfunction %unlock-gc-lock ()
-  (li imm0 (+ ppc32::nil-value (ppc32::kernel-global gc-inhibit-count)))
+  (li imm0 (+ target::nil-value (target::kernel-global gc-inhibit-count)))
   @again
-  (lwarx arg_z rzero imm0)
+  (lrarx arg_z rzero imm0)
   (subi arg_z arg_z '1)
-  (stwcx. arg_z rzero imm0)
+  (strcx. arg_z rzero imm0)
   (bne @again)
   (isync)
   (blr))
@@ -437,49 +532,49 @@
 ;;; lock._value
 (defppclapfunction %try-read-lock-rwlock ((lock arg_z))
   (check-nargs 1)
-  (li imm1 ppc32::lock._value)
+  (li imm1 target::lock._value)
   @try
-  (lwarx imm0 lock imm1)
-  (cmpwi imm0 0)
+  (lrarx imm0 lock imm1)
+  (cmpri imm0 0)
   (blt @fail)				; locked for writing
   (addi imm0 imm0 '1)
-  (stwcx. imm0 lock imm1)
+  (strcx. imm0 lock imm1)
   (bne @try)                            ; lost reservation, try again
   (isync)
   (blr)                                 ; return the lock
 @fail
-  (li imm0 ppc32::reservation-discharge)
-  (stwcx. rzero rzero imm0)
+  (li imm0 target::reservation-discharge)
+  (strcx. rzero rzero imm0)
   (li arg_z nil)
   (blr))
 
 
 
 (defppclapfunction unlock-rwlock ((lock arg_z))
-  (lwz imm2 ppc32::lock._value lock)
-  (cmpwi imm2 0)
-  (li imm1 ppc32::lock._value)
+  (ldr imm2 target::lock._value lock)
+  (cmpri imm2 0)
+  (li imm1 target::lock._value)
   (ble @unlock-write)
   @unlock-read
-  (lwarx imm0 lock imm1)
+  (lrarx imm0 lock imm1)
   (subi imm0 imm0 '1)
-  (stwcx. imm0 lock imm1)
+  (strcx. imm0 lock imm1)
   (bne @unlock-read)
   (isync)
   (blr)
   @unlock-write
   ;;; If we aren't the writer, return NIL.
   ;;; If we are and the value's about to go to 0, clear the writer field.
-  (lwz imm0 ppc32::lock.writer lock)
+  (ldr imm0 target::lock.writer lock)
   (cmpw imm0 rcontext)
-  (lwzx imm0 lock imm1)
-  (cmpwi cr1 imm0 '-1)
+  (ldrx imm0 lock imm1)
+  (cmpri cr1 imm0 '-1)
   (addi imm0 imm0 '1)
   (bne @fail)
   (bne cr1 @noclear)
-  (stw rzero ppc32::lock.writer lock)
+  (str rzero target::lock.writer lock)
   @noclear
-  (stw imm0 ppc32::lock._value lock)
+  (str imm0 target::lock._value lock)
   (blr)
   @fail
   (li arg_z nil)
@@ -489,9 +584,9 @@
   (check-nargs 3)
   (unbox-fixnum imm1 disp)
   @again
-  (lwarx arg_z node imm1)
+  (lrarx arg_z node imm1)
   (add arg_z arg_z by)
-  (stwcx. arg_z node imm1)
+  (strcx. arg_z node imm1)
   (bne- @again)
   (isync)
   (blr))
@@ -499,9 +594,9 @@
 (defppclapfunction %atomic-incf-ptr ((ptr arg_z))
   (macptr-ptr imm1 ptr)
   @again
-  (lwarx imm0 0 imm1)
+  (lrarx imm0 0 imm1)
   (addi imm0 imm0 1)
-  (stwcx. imm0 0 imm1)
+  (strcx. imm0 0 imm1)
   (bne @again)
   (isync)
   (box-fixnum arg_z imm0)
@@ -511,9 +606,9 @@
   (macptr-ptr imm1 ptr)
   (unbox-fixnum imm2 by)
   @again
-  (lwarx imm0 0 imm1)
+  (lrarx imm0 0 imm1)
   (add imm0 imm0 imm2)
-  (stwcx. imm0 0 imm1)
+  (strcx. imm0 0 imm1)
   (bne @again)
   (isync)
   (box-fixnum arg_z imm0)
@@ -522,9 +617,9 @@
 (defppclapfunction %atomic-decf-ptr ((ptr arg_z))
   (macptr-ptr imm1 ptr)
   @again
-  (lwarx imm0 0 imm1)
+  (lrarx imm0 0 imm1)
   (subi imm0 imm0 1)
-  (stwcx. imm0 0 imm1)
+  (strcx. imm0 0 imm1)
   (bne @again)
   (isync)
   (box-fixnum arg_z imm0)
@@ -533,19 +628,19 @@
 (defppclapfunction %atomic-decf-ptr-if-positive ((ptr arg_z))
   (macptr-ptr imm1 ptr)
   @again
-  (lwarx imm0 0 imm1)
-  (cmpwi cr1 imm0 0)
+  (lrarx imm0 0 imm1)
+  (cmpri cr1 imm0 0)
   (subi imm0 imm0 1)
   (beq @done)
-  (stwcx. imm0 0 imm1)
+  (strcx. imm0 0 imm1)
   (bne @again)
   (isync)
   (box-fixnum arg_z imm0)
   (blr)
   @done
-  (li imm1 ppc32::reservation-discharge)
+  (li imm1 target::reservation-discharge)
   (box-fixnum arg_z imm0)
-  (stwcx. rzero rzero imm1)
+  (strcx. rzero rzero imm1)
   (blr))
 
 (defppclapfunction %atomic-swap-ptr ((ptr arg_y) (newval arg_z))
@@ -553,8 +648,8 @@
   (macptr-ptr imm1 ptr)
   (unbox-fixnum imm2 arg_z)
   @again
-  (lwarx imm0 0 imm1)
-  (stwcx. imm2 0 imm1)
+  (lrarx imm0 0 imm1)
+  (strcx. imm2 0 imm1)
   (bne @again)
   (isync)
   (box-fixnum arg_z imm0)
@@ -567,25 +662,25 @@
   (unbox-fixnum imm1 expected-oldval)
   (unbox-fixnum imm2 newval)
   @again
-  (lwarx imm3 0 imm0)
-  (cmpw imm3 imm1)
+  (lrarx imm3 0 imm0)
+  (cmpr imm3 imm1)
   (bne- @done)
-  (stwcx. imm2 0 imm0)
+  (strcx. imm2 0 imm0)
   (bne- @again)
   (isync)
   (box-fixnum arg_z imm3)
   (blr)
   @done
-  (li imm0 ppc32::reservation-discharge)
+  (li imm0 target::reservation-discharge)
   (box-fixnum arg_z imm3)
-  (stwcx. rzero 0 imm0)
+  (strcx. rzero 0 imm0)
   (blr))
 
 
 (defppclapfunction %macptr->dead-macptr ((macptr arg_z))
   (check-nargs 1)
-  (li imm0 ppc32::subtag-dead-macptr)
-  (stb imm0 ppc32::misc-subtag-offset macptr)
+  (li imm0 target::subtag-dead-macptr)
+  (stb imm0 target::misc-subtag-offset macptr)
   (blr))
 
 (defppclapfunction %%apply-in-frame ((catch-count imm0) (srv temp0) (tsp-count imm0) (db-link imm0)
@@ -612,7 +707,7 @@
 
   ; Pop dynamic bindings until we get to db-link
   (lwz imm0 12 vsp)                     ; db-link
-  (lwz imm1 ppc32::tcr.db-link rcontext)
+  (lwz imm1 target::tcr.db-link rcontext)
   (cmp cr0 imm0 imm1)
   (beq cr0 @restore-regs)               ; .SPsvar-unbind-to expects there to be something to do
   (bla .SPsvar-unbind-to)
@@ -622,42 +717,42 @@
   (lwz srv 20 vsp)
 @get0
   (svref imm0 1 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @get1)
   (lwz save0 0 imm0)
 @get1
   (svref imm0 2 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @get2)
   (lwz save1 0 imm0)
 @get2
   (svref imm0 3 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @get3)
   (lwz save2 0 imm0)
 @get3
   (svref imm0 4 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @get4)
   (lwz save3 0 imm0)
 @get4
   (svref imm0 5 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @get5)
   (lwz save4 0 imm0)
 @get5
   (svref imm0 6 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @get6)
   (lwz save5 0 imm0)
 @get6
   (svref imm0 7 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @get7)
   (lwz save6 0 imm0)
 @get7
   (svref imm0 8 srv)
-  (cmpwi cr0 imm0 ppc32::nil-value)
+  (cmpwi cr0 imm0 target::nil-value)
   (beq @got)
   (lwz save7 0 imm0)
 @got
@@ -666,19 +761,19 @@
   (vpop temp0)                          ; function
   (vpop parent)                         ; parent
   (extract-lisptag imm0 parent)
-  (cmpi cr0 imm0 ppc32::tag-fixnum)
+  (cmpi cr0 imm0 target::tag-fixnum)
   (if (:cr0 :ne)
     ; Parent is a fake-stack-frame. Make it real
     (progn
       (svref sp %fake-stack-frame.sp parent)
-      (stwu sp (- ppc32::lisp-frame.size) sp)
+      (stwu sp (- target::lisp-frame.size) sp)
       (svref fn %fake-stack-frame.fn parent)
-      (stw fn ppc32::lisp-frame.savefn sp)
+      (stw fn target::lisp-frame.savefn sp)
       (svref temp1 %fake-stack-frame.vsp parent)
-      (stw temp1 ppc32::lisp-frame.savevsp sp)
+      (stw temp1 target::lisp-frame.savevsp sp)
       (svref temp1 %fake-stack-frame.lr parent)
       (extract-lisptag imm0 temp1)
-      (cmpi cr0 imm0 ppc32::tag-fixnum)
+      (cmpi cr0 imm0 target::tag-fixnum)
       (if (:cr0 :ne)
         ; must be a macptr encoding the actual link register
         (macptr-ptr loc-pc temp1)
@@ -687,7 +782,7 @@
           (svref temp2 0 fn)        ; function vector
           (unbox-fixnum temp1 temp1)
           (add loc-pc temp2 temp1)))
-      (stw loc-pc ppc32::lisp-frame.savelr sp))
+      (stw loc-pc target::lisp-frame.savelr sp))
     ; Parent is a real stack frame
     (mr sp parent))
   (set-nargs 0)
@@ -708,7 +803,7 @@
     (vector-length len cv len)
     (li idx 0)
     (cmpw cr0 idx len)
-    (li offset ppc32::misc-data-offset)
+    (li offset target::misc-data-offset)
     (li nexti 0)
     (b @test)
     @loop
@@ -730,8 +825,9 @@
     (vpush temp1)
     (vpush idx)
     (set-nargs 3)
-    (la temp0 12 vsp)
+    (la temp0 '3 vsp)
     (ba .SPvalues)))
+
   
 (defppclapfunction %%save-application ((flags arg_y) (fd arg_z))
   (unbox-fixnum imm0 flags)
@@ -742,16 +838,16 @@
 
 (defppclapfunction %metering-info ((ptr arg_z))
   (ref-global imm0 metering-info)
-  (stw imm0 ppc32::macptr.address ptr)
+  (stw imm0 target::macptr.address ptr)
   (blr))
 
 (defppclapfunction %misc-address-fixnum ((misc-object arg_z))
   (check-nargs 1)
-  (la arg_z ppc32::misc-data-offset misc-object)
+  (la arg_z target::misc-data-offset misc-object)
   (blr))
 
 
-
+#+ppc32-target
 (defppclapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
   (check-nargs 3)
   (macptr-ptr imm1 ptr) ; address in macptr
@@ -760,19 +856,35 @@
   (subf imm1 imm1 imm0)  ; imm1 = delta
   (sth imm1 -2 imm0)     ; save delta halfword
   (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
-  (rlwimi imm1 len (- ppc32::num-subtag-bits ppc32::fixnum-shift) 0 (- 31 ppc32::num-subtag-bits))
+  (rlwimi imm1 len (- target::num-subtag-bits target::fixnum-shift) 0 (- 31 target::num-subtag-bits))
   (stw imm1 0 imm0)       ; store subtype & length
-  (addi arg_z imm0 ppc32::fulltag-misc) ; tag it, return it
+  (addi arg_z imm0 target::fulltag-misc) ; tag it, return it
+  (blr))
+
+#+ppc64-target
+(defppclapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
+  (check-nargs 3)
+  (macptr-ptr imm1 ptr) ; address in macptr
+  (addi imm0 imm1 9)     ; 2 for delta + 7 for alignment
+  (clrrdi imm0 imm0 3)   ; Clear low three bits to align
+  (subf imm1 imm1 imm0)  ; imm1 = delta
+  (sth imm1 -2 imm0)     ; save delta halfword
+  (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
+  (sldi imm2 len (- target::num-subtag-bits target::fixnum-shift))
+  (or imm1 imm2 imm1)
+  (stw imm1 0 imm0)       ; store subtype & length
+  (addi arg_z imm0 target::fulltag-misc) ; tag it, return it
   (blr))
 
 (defppclapfunction %%make-disposable ((ptr arg_y) (vector arg_z))
   (check-nargs 2)
-  (subi imm0 vector ppc32::fulltag-misc) ; imm0 is addr = vect less tag
+  (subi imm0 vector target::fulltag-misc) ; imm0 is addr = vect less tag
   (lhz imm1 -2 imm0)   ; get delta
   (sub imm0 imm0 imm1)  ; vector addr (less tag)  - delta is orig addr
-  (stw imm0 ppc32::macptr.address ptr) 
+  (str imm0 target::macptr.address ptr) 
   (blr))
 
+#+ppc32-target
 (defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
   ;; put address of vect data in macptr.  For all vector types
   ;; other than DOUBLE-FLOAT (or vectors thereof), the first byte
@@ -790,9 +902,12 @@
   (addi temp0 vect ppc32::misc-dfloat-offset)
   (stw temp0 ppc32::macptr.address arg_z)
   (blr))
-  
 
-
+#+ppc64-target
+(defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
+  (la imm0 ppc64::misc-data-offset vect)
+  (std imm0 ppc64::macptr.address ptr)
+  (blr))
 
 (defppclapfunction get-saved-register-values ()
   (vpush save0)
@@ -803,27 +918,27 @@
   (vpush save5)
   (vpush save6)
   (vpush save7)
-  (la temp0 32 vsp)
+  (la temp0 (* 8 target::node-size) vsp)
   (set-nargs 8)
   (ba .SPvalues))
 
 
 (defppclapfunction %current-db-link ()
-  (lwz arg_z ppc32::tcr.db-link rcontext)
+  (ldr arg_z target::tcr.db-link rcontext)
   (blr))
 
 (defppclapfunction %no-thread-local-binding-marker ()
-  (li arg_z ppc32::subtag-no-thread-local-binding)
+  (li arg_z target::subtag-no-thread-local-binding)
   (blr))
 
 
 (defppclapfunction break-event-pending-p ()
-  (ref-global arg_z ppc32::intflag)
-  (set-global rzero ppc32::intflag)
-  (cmpwi arg_z 0)
-  (li arg_z ppc32::nil-value)
+  (ref-global arg_z target::intflag)
+  (set-global rzero target::intflag)
+  (cmpri arg_z 0)
+  (li arg_z nil)
   (beqlr)
-  (li arg_z (+ ppc32::t-offset ppc32::nil-value))
+  (la arg_z target::t-offset arg_z)
   (blr))
 
 ; end of ppc-misc.lisp

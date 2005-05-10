@@ -79,12 +79,13 @@
 (defun %double-float-abs (n)
   (if (not (%double-float-sign n))
     n 
-    (%%double-float-abs n (%make-dfloat))))
+    (%%double-float-abs! n (%make-dfloat))))
 
+#+ppc32-target
 (defun %short-float-abs (n)
   (if (not (%short-float-sign n))
     n 
-    (%%short-float-abs n (%make-sfloat))))
+    (%%short-float-abs! n (%make-sfloat))))
 
 (defun fixnum-decode-float (n)
   (etypecase n
@@ -613,14 +614,20 @@
     ((typep x 'double-float)
      (with-stack-double-floats ((dx x))
        (if (minusp x)
-         (complex (%double-float-log! (%%double-float-abs dx dx) (%make-dfloat)) pi)
+         (complex (%double-float-log! (%%double-float-abs! dx dx) (%make-dfloat)) pi)
          (%double-float-log! dx (%make-dfloat)))))
     (t
+     #+ppc32-target
      (ppc32::with-stack-short-floats ((sx x))
        (if (minusp x)
          (complex (%single-float-log! (%%short-float-abs sx sx) (%make-sfloat))
                   #.(coerce pi 'short-float))
-         (%single-float-log! sx (%make-sfloat)))))))
+         (%single-float-log! sx (%make-sfloat))))
+     #+ppc64-target
+     (if (minusp x)
+       (complex (%single-float-log (%short-float-abx x) #.(coerce pi 'single-float)))
+       (%single-float-log x))
+     )))
 
 
 

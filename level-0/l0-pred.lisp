@@ -244,57 +244,57 @@
 
 (defun hairy-equal (x y)
   (declare (optimize (speed 3)))
-  ; X and Y are not EQL, and are both of tag ppc32::fulltag-misc.
+  ;; X and Y are not EQL, and are both of tag target::fulltag-misc.
   (let* ((x-type (typecode x))
 	 (y-type (typecode y)))
     (declare (fixnum x-type y-type))
-    (if (and (>= x-type ppc32::subtag-vectorH)
-	     (>= y-type ppc32::subtag-vectorH))
-	(let* ((x-simple (if (= x-type ppc32::subtag-vectorH)
-			     (ldb ppc32::arrayH.flags-cell-subtag-byte 
-				  (the fixnum (%svref x ppc32::arrayH.flags-cell)))
+    (if (and (>= x-type target::subtag-vectorH)
+	     (>= y-type target::subtag-vectorH))
+	(let* ((x-simple (if (= x-type target::subtag-vectorH)
+			     (ldb target::arrayH.flags-cell-subtag-byte 
+				  (the fixnum (%svref x target::arrayH.flags-cell)))
 			     x-type))
-	       (y-simple (if (= y-type ppc32::subtag-vectorH)
-			     (ldb ppc32::arrayH.flags-cell-subtag-byte 
-				  (the fixnum (%svref y ppc32::arrayH.flags-cell)))
+	       (y-simple (if (= y-type target::subtag-vectorH)
+			     (ldb target::arrayH.flags-cell-subtag-byte 
+				  (the fixnum (%svref y target::arrayH.flags-cell)))
 			     y-type)))
 	  (declare (fixnum x-simple y-simple))
-	  (if (= x-simple ppc32::subtag-simple-base-string)
-	      (if (= y-simple ppc32::subtag-simple-base-string)
+	  (if (= x-simple target::subtag-simple-base-string)
+	      (if (= y-simple target::subtag-simple-base-string)
 		  (locally
                       (declare (optimize (speed 3) (safety 0)))
-		    (let* ((x-len (if (= x-type ppc32::subtag-vectorH) 
-                                      (%svref x ppc32::vectorH.logsize-cell)
+		    (let* ((x-len (if (= x-type target::subtag-vectorH) 
+                                      (%svref x target::vectorH.logsize-cell)
                                       (uvsize x)))
 			   (x-pos 0)
-			   (y-len (if (= y-type ppc32::subtag-vectorH) 
-                                      (%svref y ppc32::vectorH.logsize-cell)
+			   (y-len (if (= y-type target::subtag-vectorH) 
+                                      (%svref y target::vectorH.logsize-cell)
                                       (uvsize y)))
 			   (y-pos 0))
 		      (declare (fixnum x-len x-pos y-len y-pos))
-		      (when (= x-type ppc32::subtag-vectorH)
+		      (when (= x-type target::subtag-vectorH)
 			(multiple-value-setq (x x-pos) (array-data-and-offset x)))
-		      (when (= y-type ppc32::subtag-vectorH)
+		      (when (= y-type target::subtag-vectorH)
 			(multiple-value-setq (y y-pos) (array-data-and-offset y)))
 		      (%simple-string= x y x-pos y-pos (the fixnum (+ x-pos x-len)) (the fixnum (+ y-pos y-len))))))
 	      ;;Bit-vector case or fail.
-	      (and (= x-simple ppc32::subtag-bit-vector)
-		   (= y-simple ppc32::subtag-bit-vector)
+	      (and (= x-simple target::subtag-bit-vector)
+		   (= y-simple target::subtag-bit-vector)
 		   (locally
 		       (declare (optimize (speed 3) (safety 0)))
-		     (let* ((x-len (if (= x-type ppc32::subtag-vectorH) 
-				       (%svref x ppc32::vectorH.logsize-cell)
+		     (let* ((x-len (if (= x-type target::subtag-vectorH) 
+				       (%svref x target::vectorH.logsize-cell)
 				       (uvsize x)))
 			    (x-pos 0)
-			    (y-len (if (= y-type ppc32::subtag-vectorH) 
-				       (%svref y ppc32::vectorH.logsize-cell)
+			    (y-len (if (= y-type target::subtag-vectorH) 
+				       (%svref y target::vectorH.logsize-cell)
 				       (uvsize y)))
 			    (y-pos 0))
 		       (declare (fixnum x-len x-pos y-len y-pos))
 		       (when (= x-len y-len)
-			 (when (= x-type ppc32::subtag-vectorH)
+			 (when (= x-type target::subtag-vectorH)
 			   (multiple-value-setq (x x-pos) (array-data-and-offset x)))
-			 (when (= y-type ppc32::subtag-vectorH)
+			 (when (= y-type target::subtag-vectorH)
 			   (multiple-value-setq (y y-pos) (array-data-and-offset y)))
 			 (do* ((i 0 (1+ i)))
 			      ((= i x-len) t)
@@ -304,7 +304,7 @@
 			   (incf x-pos)
 			   (incf y-pos))))))))
 	(if (= x-type y-type)
-	    (if (= x-type ppc32::subtag-istruct)
+	    (if (= x-type target::subtag-istruct)
 		(and (let* ((structname (%svref x 0)))
 		       (and (eq structname (%svref y 0))
 			    (or (eq structname 'pathname)
@@ -364,7 +364,7 @@
     code-vector                         ; 5
     creole-object                       ; 6
     ;; 8-20 are unused
-    xcode-vecor                         ; 7
+    xcode-vector                        ; 7
     bogus                               ; 8
     bogus                               ; 9
     bogus                               ; 10
@@ -463,37 +463,37 @@
 
 (defun structurep (form)
   "True if the given object is a named structure, Nil otherwise."
-  (= (the fixnum (typecode form)) ppc32::subtag-struct))
+  (= (the fixnum (typecode form)) target::subtag-struct))
 
 (defun istructp (form)
-  (= (the fixnum (typecode form)) ppc32::subtag-istruct))
+  (= (the fixnum (typecode form)) target::subtag-istruct))
 
 (defun structure-typep (thing type)
-  (if (= (the fixnum (typecode thing)) ppc32::subtag-struct)
+  (if (= (the fixnum (typecode thing)) target::subtag-struct)
     (if (memq type (%svref thing 0))
       t)))
 
 
 (defun istruct-typep (thing type)
-  (if (= (the fixnum (typecode thing)) ppc32::subtag-istruct)
+  (if (= (the fixnum (typecode thing)) target::subtag-istruct)
     (eq (%svref thing 0) type)))
 
 (defun symbolp (thing)
   "Return true if OBJECT is a SYMBOL, and NIL otherwise."
   (if thing
-    (= (the fixnum (typecode thing)) ppc32::subtag-symbol)
+    (= (the fixnum (typecode thing)) target::subtag-symbol)
     t))
 
 (defun packagep (thing)
-  (= (the fixnum (typecode thing)) ppc32::subtag-package))
+  (= (the fixnum (typecode thing)) target::subtag-package))
 
 ; 1 if by land, 2 if by sea.
 (defun sequence-type (x)
-  (unless (>= (the fixnum (typecode x)) ppc32::min-vector-subtag)
+  (unless (>= (the fixnum (typecode x)) target::min-vector-subtag)
     (or (listp x)
         (report-bad-arg x 'sequence))))
 
 (defun uvectorp (x)
-  (= (the fixnum (lisptag x)) ppc32::tag-misc))
+  (= (the fixnum (fulltag x)) target::fulltag-misc))
 
 (setf (type-predicate 'uvector) 'uvectorp)

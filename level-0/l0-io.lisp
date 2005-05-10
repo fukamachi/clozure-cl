@@ -78,17 +78,25 @@
 (defun fd-ftruncate (fd new)
   (syscall os::ftruncate fd new))
 
+(defun %string-to-stderr (str)
+  (with-cstrs ((s str))
+    (fd-write 2 s (length str))))
+
+(defun pdbg (string)
+  (%string-to-stderr string)
+  (%string-to-stderr #.(string #\LineFeed)))
 
 
-;; Not really I/O, but ...
+
+;;; Not really I/O, but ...
 (defun malloc (size)
   (ff-call 
-   (%kernel-import ppc32::kernel-import-malloc)
+   (%kernel-import target::kernel-import-malloc)
    :unsigned-fullword size :address))
 
 (defun free (ptr)
   (ff-call 
-   (%kernel-import ppc32::kernel-import-free)
+   (%kernel-import target::kernel-import-free)
    :address ptr :void))
 
 
