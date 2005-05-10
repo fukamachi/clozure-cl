@@ -2455,12 +2455,7 @@
   :foo  
   )
 
-(define-ppc32-vinsn %ilsr-c (((dest :imm))
-                           ((count :u8const)
-                            (src :imm))
-                           ((temp :s32)))
-  (rlwinm temp src (:apply - 32 count) count 31)
-  (clrrwi dest temp ppc32::fixnumshift))
+
 
 (define-ppc32-vinsn u32-shift-left (((dest :u32))
                                   ((src :u32)
