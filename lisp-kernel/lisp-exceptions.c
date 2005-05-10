@@ -1295,7 +1295,7 @@ PMCL_exception_handler(int xnum,
         that the addess in question is still protected, the object
         being written to may have moved, etc.  Retry the instuction.
         If it faults again, hopefully it'll eventually do so in an
-        environmet where this handler runs without having been
+        environment where this handler runs without having been
         suspended.  Note that a pending write to tenured space hasn't
         happened yet.
       */
