@@ -1,3 +1,46 @@
+2005-05-10 00:39  gb
+
+	* lisp-kernel/bits.h: Parameterize, try to force a few more things
+	to inline.
+
+2005-05-10 00:39  gb
+
+	* lisp-kernel/darwin64/Makefile: Link with -lmx.
+
+2005-05-10 00:39  gb
+
+	* level-1/l1-numbers.lisp: Add a non-destructive %SINGLE-FLOAT-LOG
+	for PPC64.  (Assumes -lmx on Darwin64).
+
+2005-05-10 00:37  gb
+
+	* level-1/l1-init.lisp: Use target::most-positive/negative-fixnum. 
+	Remove a few MCL-isms.
+
+2005-05-10 00:36  gb
+
+	* level-0/: l0-def.lisp, l0-float.lisp, l0-io.lisp, l0-pred.lisp,
+	l0-utils.lisp, PPC/ppc-debug.lisp, PPC/ppc-float.lisp,
+	PPC/ppc-hash.lisp, PPC/ppc-misc.lisp, PPC/ppc-numbers.lisp,
+	PPC/ppc-pred.lisp, PPC/ppc-symbol.lisp: some more #+ppc64-target
+	conditionalization; still more to be done (especially bignum
+	stuff.)
+
+2005-05-10 00:33  gb
+
+	* level-0/: l0-clos.lisp, l0-dcode.lisp, l0-debug.lisp: remove
+	empty files.  (Remember to remove old fasls before (XLOAD-LEVEL-0).
+
+2005-05-10 00:32  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp:
+	NODE-SIZE.
+
+2005-05-10 00:31  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: interlocked loads/stores, some
+	more shifts, interrupt-checking fixes.
+
 2005-05-09 07:42  gb
 
 	* level-0/PPC/: ppc-clos.lisp, ppc-utils.lisp: conditionalize for
