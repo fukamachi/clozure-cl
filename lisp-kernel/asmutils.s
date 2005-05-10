@@ -68,7 +68,11 @@ ifdef([DARWIN],[],[
 _endfn
 	
 _exportfn(C(count_leading_zeros))
+ifdef([PPC64],[
+        __(cntlzd r3,r3)
+],[                
 	__(cntlzw r3,r3)
+])        
 	__(blr)
 _endfn
 
@@ -183,15 +187,15 @@ _endfn
 */
 _exportfn(C(store_conditional))
         __(mr r6,r3)
-1:      __(lwarx r3,0,r6)
+1:      __(lrarx(r3,0,r6))
         __(cmpw r3,r4)
         __(bne- 2f)
-        __(stwcx. r5,0,r6)
+        __(strcx(r5,0,r6))
         __(bne- 1b)
         __(isync)
         __(blr)
 2:      __(li r0,RESERVATION_DISCHARGE)
-        __(stwcx. r0,0,r0)
+        __(strcx(r0,0,r0))
         __(blr)
 _endfn
 
@@ -201,8 +205,8 @@ _endfn
 */
 _exportfn(C(atomic_swap))
         __(sync)
-1:	__(lwarx r5,0,r3)
-	__(stwcx. r4,0,r3)
+1:	__(lrarx(r5,0,r3))
+	__(strcx(r4,0,r3))
 	__(bne- 1b)
 	__(isync)
 	__(mr r3,r5)
@@ -215,9 +219,9 @@ _endfn
 */        
 _exportfn(C(atomic_ior))
         __(sync)
-1:	__(lwarx r5,0,r3)
+1:	__(lrarx(r5,0,r3))
         __(or r6,r4,r5)
-	__(stwcx. r6,0,r3)
+	__(strcx(r6,0,r3))
 	__(bne- 1b)
 	__(isync)
 	__(and r3,r4,r5)
