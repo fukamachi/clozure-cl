@@ -109,6 +109,19 @@
   (setq *default-compiler-policy* 
         (if new-policy (require-type new-policy 'compiler-policy) (new-compiler-policy))))
 
+(defun xcompile-lambda (target def)
+  (multiple-value-bind (xlfun warnings)
+                       (compile-named-function def nil nil
+                                               nil
+                                               nil
+                                               nil
+                                               nil
+                                               nil
+                                               target)
+    (signal-or-defer-warnings warnings nil)
+    (ppc-xdisassemble xlfun :target target)
+    xlfun))
+  
 (defun compile-user-function (def name &optional env)
   (multiple-value-bind (lfun warnings)
                        (compile-named-function def name nil
