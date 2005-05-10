@@ -577,7 +577,7 @@ macro_label(stack_ok):
 define([stack_align],[((($1)+STACK_ALIGN_MASK)&~STACK_ALIGN_MASK)])
 
 define([clear_alloc_tag],[
-	clrrwi allocptr,allocptr,ntagbits
+	clrrri(allocptr,allocptr,ntagbits)
 ])
 
 /* If the GC interrupts the current thread (after the trap), it needs
