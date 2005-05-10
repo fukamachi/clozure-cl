@@ -26,14 +26,26 @@
 
 typedef natural *bitvector;
 
+#ifdef PPC64
+#define bitmap_shift 6
+#define BIT0_MASK 0x8000000000000000ULL
+#else
+#define bitmap_shift 5
+#define BIT0_MASK 0x80000000U 
+#endif
+
+#define bitmap_shift_count_mask ((1<<bitmap_shift)-1)
+
+static inline int
+set_bit(bitvector bits,natural bitnum)  __attribute__((always_inline));
 
 static inline int
 set_bit(bitvector bits,natural bitnum)
 {
   natural
-    windex = bitnum>>5, 
+    windex = bitnum>>bitmap_shift, 
     old = bits[windex],
-    new = old | (0x80000000 >> (bitnum & 0x1f));
+    new = old | (BIT0_MASK >> (bitnum & bitmap_shift_count_mask));
   if (new == old) {
     return 1;			/* Was set */
   } else {
@@ -47,8 +59,8 @@ atomic_set_bit(bitvector bits ,natural bitnum)
 {
   extern int atomic_ior(bitvector, natural);
   natural
-    windex = bitnum>>5,
-    mask = (0x80000000 >> (bitnum & 0x1f));
+    windex = bitnum>>bitmap_shift,
+    mask = (BIT0_MASK >> (bitnum & bitmap_shift_count_mask));
 
   return atomic_ior(bits + windex, mask);
 }
@@ -59,9 +71,9 @@ static inline int
 clr_bit(bitvector bits, natural bitnum)
 {
   unsigned 
-    windex = bitnum>>5, 
+    windex = bitnum>>bitmap_shift, 
     old = bits[windex],
-    new = old & ~(0x80000000 >> (bitnum & 0x1f));
+    new = old & ~(BIT0_MASK >> (bitnum & bitmap_shift_count_mask));
   if (new == old) {
     return 0;	/* Was clear */
   } else {
@@ -72,18 +84,20 @@ clr_bit(bitvector bits, natural bitnum)
 
 
 static inline unsigned
+ref_bit(bitvector bits,natural bitnum) __attribute__((always_inline));
+
+static inline unsigned
 ref_bit(bitvector bits,natural bitnum)
 {
-  return ((bits[bitnum>>5] & (0x80000000 >> (bitnum & 0x1f))) != 0);
+  return ((bits[bitnum>>bitmap_shift] & (BIT0_MASK >> (bitnum & bitmap_shift_count_mask))) != 0);
 }
 
 bitvector new_bitvector(natural);
 void zero_bits(bitvector, natural);
 void ior_bits(bitvector,bitvector,natural);
 
-#define BIT0_MASK 0x80000000U 
-#define bits_word_index(bitnum) (((natural)(bitnum)) >> 5)
-#define bits_bit_index(bitnum) (((natural)(bitnum)) & 0x1f)
+#define bits_word_index(bitnum) (((natural)(bitnum)) >> bitmap_shift)
+#define bits_bit_index(bitnum) (((natural)(bitnum)) & bitmap_shift_count_mask)
 #define bits_word_ptr(bits,bitnum) \
   ((natural*) (((natural*) bits) + ((natural) (bits_word_index(bitnum)))))
 #define bits_word_mask(bitnum) ((BIT0_MASK) >> bits_bit_index(bitnum))
