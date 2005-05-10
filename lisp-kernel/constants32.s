@@ -717,4 +717,5 @@ define([TCR_STATE_EXCEPTION_RETURN],4)
 
 define([RESERVATION_DISCHARGE],0x1004)
 
-tag_of_nil = fulltag_nil
+lisp_globals_limit = 0x2010
+        

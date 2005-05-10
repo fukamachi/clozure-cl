@@ -136,8 +136,7 @@ ifdef([PPC64],[
 
 num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	
-	_struct(lisp_globals,nil_value-((4096+tag_of_nil)))
-	 _struct_pad((1024-num_lisp_globals)*node_size)
+	_struct(lisp_globals,lisp_globals_limit-(num_lisp_globals*node_size))
 	 _node(initial_tcr)	        /* initial thread tcr */
 	 _node(image_name)	        /* --image-name argument */
 	 _node(BADfpscr_save_high)	        /* high word of FP reg used to save FPSCR */
