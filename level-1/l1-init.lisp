@@ -155,31 +155,15 @@
 (defconstant array-dimension-limit array-total-size-limit
   "the exclusive upper bound on any given dimension of an array")
 
-
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun hide-lsh (a b) ; so the compiler won't constant fold at compile time
-    (lsh a b)))
-
-(defconstant most-positive-fixnum (load-time-value (hide-lsh -1 -1))
+(defconstant most-positive-fixnum target::most-positive-fixnum
   "the fixnum closest in value to positive infinity")
-(defconstant most-negative-fixnum (load-time-value (1- (- (hide-lsh -1 -1))))
+(defconstant most-negative-fixnum target::most-negative-fixnum
   "the fixnum closest in value to negative infinity")
 
-
-
-
-
-
-; single-float ought to be ok if only one format but not sure it will work today
-;(defvar *read-default-float-format* 'double-float)
 
 (defconstant lambda-list-keywords 
   '(&OPTIONAL &REST &AUX &KEY &ALLOW-OTHER-KEYS &BODY &ENVIRONMENT &WHOLE)
   "symbols which are magical in a lambda list")
-
-
-
 
 
 (defparameter %toplevel-catch% ':toplevel)
@@ -193,10 +177,6 @@
   "the radix that Lisp reads numbers in")
 
 
-(defvar %doc-string-file ())
-(defvar *fast-help* t)
-(defglobal *idle* nil)
-(defparameter *foreground* t)
 (defparameter *warn-if-redefine-kernel* nil)
 (defvar *next-screen-context-lines* 2 "Number of lines to show of old screen
   after a scroll-up or scroll-down.")
@@ -215,8 +195,6 @@
   "If non-nil, compile-and-call any forms which would be expensive to evaluate.")
 |#
 (defvar *declaration-handlers* ())
-
-(defvar *eval-macro-displacement* nil)
 
 
 (defvar *lisp-system-pointer-functions* nil)
