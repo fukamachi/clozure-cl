@@ -22,7 +22,6 @@
   #+ppc32-target
   (:nicknames "TARGET"))
 
-
 (in-package "PPC32")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -78,6 +77,8 @@
 (defconstant ncharcodebits 16)
 (defconstant charcode-shift (- nbits-in-word ncharcodebits))
 (defconstant word-shift 2)
+(defconstant word-size-in-bytes 4)
+(defconstant node-size 4)
 (defconstant target-most-negative-fixnum (ash -1 (1- (- nbits-in-word nfixnumtagbits))))
 (defconstant target-most-positive-fixnum (1- (ash 1 (1- (- nbits-in-word nfixnumtagbits)))))
 
@@ -99,12 +100,12 @@
   tag-imm                               ; Immediate-objects: characters, UNBOUND, other markers.
 )
 
-;; And there are 8 FULLTAG values.  Note that NIL has its own FULLTAG (congruent mod 4 to tag-list),
-;; that FULLTAG-MISC is > 4 (so that code-vector entry-points can be branched to, since the low
-;; two bits of the PC are ignored) and that both FULLTAG-MISC and FULLTAG-IMM have header fulltags
-;; that share the same TAG.
-;; Things that walk memory (and the stack) have to be careful to look at the FULLTAG of each
-;; object that they see.
+;;; And there are 8 FULLTAG values.  Note that NIL has its own FULLTAG (congruent mod 4 to tag-list),
+;;; that FULLTAG-MISC is > 4 (so that code-vector entry-points can be branched to, since the low
+;;; two bits of the PC are ignored) and that both FULLTAG-MISC and FULLTAG-IMM have header fulltags
+;;; that share the same TAG.
+;;; Things that walk memory (and the stack) have to be careful to look at the FULLTAG of each
+;;; object that they see.
 (ccl::defenum ()
   fulltag-even-fixnum                   ; I suppose EVENP/ODDP might care; nothing else does.
   fulltag-cons                          ; a real (non-null) cons.  Shares TAG with fulltag-nil.
@@ -127,23 +128,23 @@
 
 
 (defconstant nil-value #x00002015)
-; T is almost adjacent to NIL: since NIL is a misaligned CONS, it spans
-; two doublewords.  The arithmetic difference between T and NIL is
-; such that the least-significant bit and exactly one other bit is
-; set in the result.
+;;; T is almost adjacent to NIL: since NIL is a misaligned CONS, it spans
+;;; two doublewords.  The arithmetic difference between T and NIL is
+;;; such that the least-significant bit and exactly one other bit is
+;;; set in the result.
 
 (defconstant t-offset (+ 8 (- 8 fulltag-nil) fulltag-misc))
 (assert (and (logbitp 0 t-offset) (= (logcount t-offset) 2)))
 
-; The order in which various header values are defined is significant in several ways:
-; 1) Numeric subtags precede non-numeric ones; there are further orderings among numeric subtags.
-; 2) All subtags which denote CL arrays are preceded by those that don't,
-;    with a further ordering which requires that (< header-arrayH header-vectorH ,@all-other-CL-vector-types)
-; 3) The element-size of ivectors is determined by the ordering of ivector subtags.
-; 4) All subtags are >= fulltag-immheader .
+;;; The order in which various header values are defined is significant in several ways:
+;;; 1) Numeric subtags precede non-numeric ones; there are further orderings among numeric subtags.
+;;; 2) All subtags which denote CL arrays are preceded by those that don't,
+;;;    with a further ordering which requires that (< header-arrayH header-vectorH ,@all-other-CL-vector-types)
+;;; 3) The element-size of ivectors is determined by the ordering of ivector subtags.
+;;; 4) All subtags are >= fulltag-immheader .
 
 
-; Numeric subtags.
+;;; Numeric subtags.
 (define-imm-subtag bignum 0)
 (defconstant min-numeric-subtag subtag-bignum)
 (define-node-subtag ratio 1)
@@ -158,10 +159,10 @@
 (define-node-subtag complex 3)
 (defconstant max-numeric-subtag subtag-complex)
 
-; CL array types.  There are more immediate types than node types; all CL array subtags must be > than
-; all non-CL-array subtags.  So we start by defining the immediate subtags in decreasing order, starting
-; with that subtag whose element size isn't an integral number of bits and ending with those whose
-; element size - like all non-CL-array fulltag-immheader types - is 32 bits.
+;;; CL array types.  There are more immediate types than node types; all CL array subtags must be > than
+;;; all non-CL-array subtags.  So we start by defining the immediate subtags in decreasing order, starting
+;;; with that subtag whose element size isn't an integral number of bits and ending with those whose
+;;; element size - like all non-CL-array fulltag-immheader types - is 32 bits.
 (define-imm-subtag bit-vector 31)
 (define-imm-subtag double-float-vector 30)
 (define-imm-subtag s16-vector 29)
@@ -192,8 +193,8 @@
 (defconstant min-vector-subtag subtag-vectorH)
 (defconstant min-array-subtag subtag-arrayH)
 
-; So, we get the remaining subtags (n: (n > max-numeric-subtag) & (n < min-array-subtag))
-; for various immediate/node object types.
+;;; So, we get the remaining subtags (n: (n > max-numeric-subtag) & (n < min-array-subtag))
+;;; for various immediate/node object types.
 
 (define-imm-subtag macptr 3)
 (defconstant min-non-numeric-imm-subtag subtag-macptr)
@@ -246,11 +247,11 @@
 (defconstant max-1-bit-constant-index (ash (+ #x7fff ppc32::misc-data-offset) 5))
 
 
-; The objects themselves look something like this:
+;;; The objects themselves look something like this:
 
-; Order of CAR and CDR doesn't seem to matter much - there aren't
-; too many tricks to be played with predecrement/preincrement addressing.
-; Keep them in the confusing MCL 3.0 order, to avoid confusion.
+;;; Order of CAR and CDR doesn't seem to matter much - there aren't
+;;; too many tricks to be played with predecrement/preincrement addressing.
+;;; Keep them in the confusing MCL 3.0 order, to avoid confusion.
 (define-lisp-object cons tag-list 
   cdr 
   car)
@@ -274,8 +275,8 @@
 )
 
 
-; There are two kinds of macptr; use the length field of the header if you
-; need to distinguish between them
+;;; There are two kinds of macptr; use the length field of the header if you
+;;; need to distinguish between them
 (define-fixedsized-object macptr
   address
   domain
@@ -290,9 +291,9 @@
   link
 )
 
-; Catch frames go on the tstack; they point to a minimal lisp-frame
-; on the cstack.  (The catch/unwind-protect PC is on the cstack, where
-; the GC expects to find it.)
+;;; Catch frames go on the tstack; they point to a minimal lisp-frame
+;;; on the cstack.  (The catch/unwind-protect PC is on the cstack, where
+;;; the GC expects to find it.)
 (define-fixedsized-object catch-frame
   catch-tag                             ; #<unbound> -> unwind-protect, else catch
   link                                  ; tagged pointer to next older catch frame
@@ -470,8 +471,8 @@
   waiting
   malloced-ptr)
 
-;; For the eabi port: mark this stack frame as Lisp's (since EABI
-;; foreign frames can be the same size as a lisp frame.)
+;;; For the eabi port: mark this stack frame as Lisp's (since EABI
+;;; foreign frames can be the same size as a lisp frame.)
 
 
 (ppc32::define-storage-layout lisp-frame 0
@@ -500,7 +501,7 @@
 
 (defconstant c-frame.minsize c-frame.size)
 
-;; .SPeabi-ff-call "shrinks" this frame after loading the GPRs.
+;;; .SPeabi-ff-call "shrinks" this frame after loading the GPRs.
 (ppc32::define-storage-layout eabi-c-frame 0
   backlink
   savelr
@@ -527,7 +528,6 @@
 (define-header value-cell-header value-cell.element-count subtag-value-cell)
 (define-header macptr-header macptr.element-count subtag-macptr)
 
-
 (defconstant yield-syscall
   #+darwinppc-target -60
   #+linuxppc-target #$__NR_sched_yield)
@@ -548,9 +548,10 @@
       (- (+ fulltag-nil (* (1+ pos) 4)))
       (error "Unknown kernel global : ~s ." sym))))
 
-; The kernel imports things that are defined in various other libraries for us.
-; The objects in question are generally fixnum-tagged; the entries in the
-; "kernel-imports" vector are 4 bytes apart.
+;;; The kernel imports things that are defined in various other
+;;; libraries for us.  The objects in question are generally
+;;; fixnum-tagged; the entries in the "kernel-imports" vector are 4
+;;; bytes apart.
 (ccl::defenum (:prefix "KERNEL-IMPORT-" :start 0 :step 4)
   fd-setsize-bytes
   do-fd-set

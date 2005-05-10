@@ -46,6 +46,7 @@
 (defconstant charcode-shift 8)
 (defconstant word-shift 3)
 (defconstant word-size-in-bytes 8)
+(defconstant node-size word-size-in-bytes)
 (defconstant target-most-negative-fixnum (ash -1 (1- (- nbits-in-word nfixnumtagbits))))
 (defconstant target-most-positive-fixnum (1- (ash 1 (1- (- nbits-in-word nfixnumtagbits)))))
 (defmacro define-subtag (name tag value)
