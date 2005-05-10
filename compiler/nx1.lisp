@@ -208,7 +208,9 @@
   (nx1-cc-binaryop (%nx1-default-operator) :ne form1 form2))
 
 (defnx1 nx1-logbitp ((logbitp)) (&whole w bitnum int &environment env)
-  (if (and (nx-form-typep bitnum '(integer 0 29) env)
+  (if (and (nx-form-typep bitnum
+                          (target-arch-case (:ppc32 '(integer 0 29))
+                                            (:ppc64 '(integer 0 59))) env)
            (nx-form-typep int 'fixnum env))
     (nx1-cc-binaryop (%nx1-operator %ilogbitp) :ne bitnum int)
     (make-acode (%nx1-operator logbitp) (nx1-form bitnum) (nx1-form int))))
