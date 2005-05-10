@@ -1,3 +1,113 @@
+2005-05-10 13:16  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-05-10 13:16  gb
+
+	* level-0/l0-float.lisp: Use ! to indicate destructive operation in
+	LOG-E.
+
+2005-05-10 13:16  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Bring back (and
+	comment-out) the old %ILSR-C vinsn, just in case (I had some
+	problems reading float contants around the time that the previous
+	change was made; I was messing with how shift operations were
+	compiled at the time, and the problem may have been elsewhere. 
+	Just in case.)
+
+2005-05-10 12:45  gb
+
+	* lisp-kernel/asmutils.s: conditionalize count_leading_zeros,
+	conditional loads/stores.
+
+2005-05-10 12:44  gb
+
+	* lisp-kernel/: constants32.s, constants.s: New scheme for
+	assembler kernel globals.
+
+2005-05-10 12:43  gb
+
+	* lisp-kernel/constants64.h: Move SUBTAG_CHARACTER.
+
+2005-05-10 12:42  gb
+
+	* lisp-kernel/constants64.s: Move SUBTAG_CHARACTER.  New scheme for
+	assembler kernel globals.
+
+2005-05-10 12:39  gb
+
+	* lisp-kernel/macros.s: CLEAR_ALLOC_TAG: parenthesize operands.
+
+2005-05-10 12:39  gb
+
+	* lisp-kernel/lisp-exceptions.c: Typo.
+
+2005-05-10 12:39  gb
+
+	* level-0/nfasload.lisp: Colons.
+
+2005-05-10 12:38  gb
+
+	* level-0/l0-symbol.lisp: #+PPC64-target: special-case (SYMBOL-NAME
+	NIL).
+
+2005-05-10 12:37  gb
+
+	* level-0/l0-numbers.lisp: LOGIOR X 0 is X, LOGIOR 0 Y is Y. 
+	Sheesh.
+
+2005-05-10 12:37  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: There were 2 (different)
+	definitions of %ILSR-C; the second (which took effect) generated
+	slightly worse code (for an operation that's rarely used.)
+
+2005-05-10 12:35  gb
+
+	* compiler/vinsn.lisp: Change source file indicator.
+
+2005-05-10 12:34  gb
+
+	* compiler/nx1.lisp: Parameterize LOGBITP a bit.
+
+2005-05-10 12:34  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Lots of changes, mostly for
+	the better ...
+
+2005-05-10 12:33  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Target package-name,
+	t-offset.  Lots of other changes, including reassigning
+	SUBTAG-CHARACTER to make SUBTAG-SINGLE-FLOAT easier to identify.
+
+2005-05-10 12:32  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Target package-name,
+	t-offset.
+
+2005-05-10 12:31  gb
+
+	* compiler/PPC/ppc-lap.lisp: Support T as a (constant) operand.
+
+2005-05-10 12:31  gb
+
+	* compiler/PPC/ppc-disassemble.lisp: Conditionalize for ppc64.
+
+2005-05-10 12:30  gb
+
+	* compiler/optimizers.lisp: Conditionalize for ppc64, partly (but
+	see MAKE-ARRAY).
+
+2005-05-10 12:29  gb
+
+	* compiler/nx.lisp: XCOMPILE-LAMBDA, to test cross-compiler.
+
+2005-05-10 12:29  gb
+
+	* compiler/arch.lisp: Package name, t-offset in target-arch struct.
+
 2005-05-10 00:39  gb
 
 	* lisp-kernel/bits.h: Parameterize, try to force a few more things
