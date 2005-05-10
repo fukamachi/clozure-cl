@@ -1457,11 +1457,15 @@
     (fixnum (number-case y
               (fixnum (%ilogior2 x y))
               (bignum
-               (with-small-bignum-buffers ((bx x))
-                 (bignum-logical-ior bx y)))))
+               (if (zerop x)
+                 y
+                 (with-small-bignum-buffers ((bx x))
+                   (bignum-logical-ior bx y))))))
     (bignum (number-case y
-              (fixnum (with-small-bignum-buffers ((by y))
-                        (bignum-logical-ior x by)))
+              (fixnum (if (zerop y)
+                        x
+                        (with-small-bignum-buffers ((by y))
+                          (bignum-logical-ior x by))))
               (bignum (bignum-logical-ior x y))))))
 
 (defun logxor-2 (x y)
