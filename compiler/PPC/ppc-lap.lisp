@@ -147,8 +147,10 @@
               (setq high (if insert-function
                            (funcall insert-function high low val)
                            (ppc::insert-default operand high low val)))))
-          ; "high" now contains the major opcode, BO, and BI fields of the original branch instruction.
-          ; Generate a (BC (invert BO) BI new-label) instruction, and insert it before the original instruction.
+          ;; "high" now contains the major opcode, BO, and BI fields
+          ;; of the original branch instruction.  Generate a (BC
+          ;; (invert BO) BI new-label) instruction, and insert it
+          ;; before the original instruction.
           (let* ((bc-opcode (svref ppc::*ppc-opcodes* (gethash "BC" ppc::*ppc-opcode-numbers*)))
                  (bo (logxor #b1000 (the fixnum (ldb (byte 5 5) high))))
                  (bi (ldb (byte 5 0) high))
@@ -161,14 +163,14 @@
             (push new-instruction (lap-label-refs new-label))
             (insert-dll-node-after new-instruction (dll-node-pred insn))
             (insert-dll-node-after new-label insn))
-          ; Now, change INSN's opcode to B or BL, and make sure that it
-          ; references nothing but the old label.
+          ;; Now, change INSN's opcode to B or BL, and make sure that
+          ;; it references nothing but the old label.
           (let* ((long-branch (svref ppc::*ppc-opcodes* (gethash (if link-p "BL" "B") ppc::*ppc-opcode-numbers*)))
                  (opvect (alloc-lap-operand-vector)))
             (setf (svref opvect 0) label
                   (lap-instruction-opcode insn) long-branch
                   (lap-instruction-parsed-operands insn) opvect)
-            ; We're finally done.  Return t.
+            ;; We're finally done.  Return t.
             t))))))
             
 
@@ -448,13 +450,16 @@
     x
     (if (null x)
       (arch::target-nil-value (backend-target-arch *target-backend*))
-      (let* ((val (handler-case (eval x)          ; Look! Expression evaluation!
-		    (error (condition) (error "~&Evaluation of ~S signalled assembly-time error ~& ~A ."
-					      x condition)))))
-	(unless (typep val 'fixnum)
-	  (warn "assembly-time evaluation of ~S returned ~S, which may not have been intended ."
-		x val))
-	val))))
+      (if (eq x t)
+        (+ (arch::target-nil-value (backend-target-arch *target-backend*))
+           (arch::target-t-offset  (backend-target-arch *target-backend*)))
+        (let* ((val (handler-case (eval x) ; Look! Expression evaluation!
+                      (error (condition) (error "~&Evaluation of ~S signalled assembly-time error ~& ~A ."
+                                                x condition)))))
+          (unless (typep val 'fixnum)
+            (warn "assembly-time evaluation of ~S returned ~S, which may not have been intended ."
+                  x val))
+          val)))))
 
 (defparameter *ppc-lap-register-aliases*
   `((nfn . ,ppc::nfn)
@@ -475,14 +480,17 @@
 (defun ppc-register-name-or-expression (x)
   (if x
     (or (ppc-gpr-name-p x)
-	(if (and (consp x) (eq (car x) 'quote))
-	  (let* ((quoted-form (cadr x)))
-	    (if (null quoted-form)
-	      (arch::target-nil-value (backend-target-arch *target-backend*))
-	      (if (typep quoted-form 'fixnum)
-		(ash quoted-form (arch::target-fixnum-shift (backend-target-arch *target-backend*)))
-		(ppc-lap-constant-offset quoted-form))))
-	  (ppc-lap-evaluated-expression x)))
+        (if (and (consp x) (eq (car x) 'quote))
+          (let* ((quoted-form (cadr x)))
+            (if (null quoted-form)
+              (arch::target-nil-value (backend-target-arch *target-backend*))
+              (if (eq quoted-form t)
+                (+ (arch::target-nil-value (backend-target-arch *target-backend*))
+                   (arch::target-t-offset (backend-target-arch *target-backend*)))
+                (if (typep quoted-form 'fixnum)
+                  (ash quoted-form (arch::target-fixnum-shift (backend-target-arch *target-backend*)))
+                  (ppc-lap-constant-offset quoted-form)))))
+          (ppc-lap-evaluated-expression x)))
     (arch::target-nil-value (backend-target-arch *target-backend*))))
 
 (defun ppc-fpr-name-p (x)
