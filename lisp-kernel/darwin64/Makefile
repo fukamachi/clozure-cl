@@ -91,7 +91,7 @@ all:	../../dppccl64
 # KSPOBJ=
 
 OSEARLYLIBS = -lcrt1.o
-OSLATELIBS = -lSystem
+OSLATELIBS = -lSystem -lmx
 
 # If the linker can find an absolute path to -lSystemStubs, use
 # -lSystemStubs; otherwise, just use libgcc.a
