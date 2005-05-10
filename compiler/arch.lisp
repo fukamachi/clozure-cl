@@ -197,6 +197,9 @@
   (16-bit-ivector-types ())
   (32-bit-ivector-types ())
   (64-bit-ivector-types ())
-  (array-type-name-from-ctype-function ()))
+  (array-type-name-from-ctype-function ())
+  (package-name ())
+  (t-offset ())
+  (aligned-array-size-function ()))
 
 (ccl::provide "ARCH")
