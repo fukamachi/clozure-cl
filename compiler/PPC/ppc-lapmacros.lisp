@@ -69,6 +69,16 @@
    (:ppc32 `(stwux ,@args))
    (:ppc64 `(stdux ,@args))))
 
+(defppclapmacro lrarx (&rest args)
+  (target-arch-case
+   (:ppc32 `(lwarx ,@args))
+   (:ppc64 `(ldarx ,@args))))
+
+(defppclapmacro strcx. (&rest args)
+  (target-arch-case
+   (:ppc32 `(stwcx. ,@args))
+   (:ppc64 `(stdcx. ,@args))))
+  
 (defppclapmacro cmpr (&rest args)
   (target-arch-case
    (:ppc32 `(cmpw ,@args))
@@ -145,6 +155,16 @@
    (:ppc32 `(srawi ,@args))
    (:ppc64 `(sradi ,@args))))
 
+(defppclapmacro srar (&rest args)
+  (target-arch-case
+   (:ppc32 `(sraw ,@args))
+   (:ppc64 `(srad ,@args))))
+
+(defppclapmacro slr (&rest args)
+  (target-arch-case
+   (:ppc32 `(slw ,@args))
+   (:ppc64 `(sld ,@args))))
+
 (defppclapmacro srri (&rest args)
   (target-arch-case
    (:ppc32 `(srwi ,@args))
@@ -204,12 +224,12 @@
   (target-arch-case
    (:ppc32
     '(progn
-      (ldr nargs ppc32::tcr.interrupt-level rcontext)
-      (trgti nargs 0)))
+      (lwz nargs ppc32::tcr.interrupt-level rcontext)
+      (twgti nargs 0)))
    (:ppc64
     '(progn     
       (ld nargs ppc64::tcr.interrupt-level rcontext)
-      (trgti nargs 0)))))
+      (tdgti nargs 0)))))
     
 
 ; There's no "else"; learn to say "(progn ...)".
@@ -378,7 +398,7 @@
 (defppclapmacro load-constant (dest constant)
   `(ldr ,dest ',constant fn))
 
-;; This is about as hard on the pipeline as anything I can think of.
+;;; This is about as hard on the pipeline as anything I can think of.
 (defppclapmacro call-symbol (function-name)
   (target-arch-case
    (:ppc32
