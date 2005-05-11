@@ -2166,7 +2166,7 @@
 
 (defun format-exp-aux (stream number w d e k ovf pad marker atsign &optional string exp)
   (when (not k) (setq k 1))
-  (if (not (or w d e (neq k 1)))
+  (if (not (or w d e marker (neq k 1)))
     (print-a-float number stream t)
     (prog () 
       (when d
