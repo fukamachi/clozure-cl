@@ -1,3 +1,8 @@
+2005-05-10 20:47  gb
+
+	* lib/format.lisp: Don't revert to standard float printer if MARKER
+	argument provided, in FORMAT-EXP-AUX.
+
 2005-05-10 13:16  gb
 
 	* level-1/version.lisp: Bump.
