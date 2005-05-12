@@ -47,7 +47,7 @@
   (with-lock-grabbed (*callback-lock*)
     (let ((len (length %pascal-functions%)))
       (declare (fixnum len))
-      (when (boundp name)
+      (when (and name (boundp name))
         (let ((old-tramp (symbol-value name)))
           (dotimes (i len)
             (let ((pfe (%svref %pascal-functions% i)))
@@ -59,7 +59,7 @@
                 (setq trampoline old-tramp))))))
       (unless trampoline
         (let ((index (dotimes (i (length %pascal-functions%)
-                               (let* ((new-len (+ len 5))
+                               (let* ((new-len (if (zerop len) 32 (* len 2)))
                                       (new-pf (make-array (the fixnum new-len))))
                                  (declare (fixnum new-len))
                                  (dotimes (i len)
@@ -77,12 +77,12 @@
                 (%cons-pfe trampoline monitor-exception-ports lisp-function name without-interrupts)))))
     ;;(%proclaim-special name)          ;
     ;; already done by defpascal expansion
-    (set name trampoline)
+    (when name (set name trampoline))
     (record-source-file name 'defcallback)
     (when (and doc-string *save-doc-strings*)
       (setf (documentation name 'variable) doc-string))
     (when *fasload-print* (format t "~&~S~%" name))
-    name))
+    (or name trampoline)))
 
 
 (defun %lookup-pascal-function (index)
@@ -93,6 +93,23 @@
               (pfe.without-interrupts pfe)
 	      (pfe.trace-p pfe)))))
 
+
+(defun %delete-pascal-function (pointer)
+  (with-lock-grabbed (*callback-lock*)
+    (let* ((index (dotimes (i (length %pascal-functions%))
+                    (when (eql (pfe.routine-descriptor (svref %pascal-functions% i)) pointer)
+                      (return i)))))
+      (when index
+        (let* ((entry (svref %pascal-functions% index))
+               (sym (pfe.sym entry)))
+          (setf (svref %pascal-functions% index) nil)
+          (when (and sym
+                     (boundp sym)
+                     (eql (symbol-value sym)
+                          (pfe.routine-descriptor entry)))
+            (set (symbol-value sym) nil))
+          (free (pfe.routine-descriptor entry))
+          t)))))
 
 ;; The kernel only really knows how to call back to one function,
 ;; and you're looking at it ...
