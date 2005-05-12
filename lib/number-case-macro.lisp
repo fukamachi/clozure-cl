@@ -22,16 +22,10 @@
 ;;;;;;;;;
 ;; support fns and vars for number-case
 
-(defvar *type-to-typecode* `((fixnum . ,ppc32::tag-fixnum)(bignum . ,ppc32::subtag-bignum)
-                           (double-float . ,ppc32::subtag-double-float) 
-                           (short-float . ,ppc32::subtag-single-float)
-			   (single-float . ,ppc32::subtag-single-float)
-                           (ratio . ,ppc32::subtag-ratio)(complex . ,ppc32::subtag-complex)))
-
 (defun type-name-to-code (name)
-  (let ((res (cdr (assq name *type-to-typecode*))))
-    (when (not res) (error "illegal numeric type name ~s" name))
-    res))
+  (funcall (arch::target-numeric-type-name-to-typecode-function
+            (backend-target-arch *target-backend*))
+           name))
 
 (defvar nd-onions `((integer fixnum bignum) (rational fixnum bignum ratio)
                     (float double-float short-float)
@@ -45,7 +39,8 @@
     res))
 
 (defun nd-type-compose (selectors)
-  ; this could do better but probably not worth the trouble - only for require-type error
+  ;; this could do better but probably not worth the trouble - only
+  ;; for require-type error
   (or (dolist (union nd-onions)
         (if (when (eq (length selectors)(length (cdr union)))
               (dolist (e selectors t)(if (not (memq e (cdr union)))(return))))
@@ -59,8 +54,8 @@
 ;; Simpler number dispatch. Syntax is just like case.
 ;;
 ;; (number-case x                 =>         (case (typecode x)
-;;     (fixnum (print 4))		        (ppc32::tag-fixnum (print 4)) ; actually tag value
-;;     ((bignum ratio)(print 5)))		((ppc32::tag-bignum ppc32::tag-ratio)(print 5))
+;;     (fixnum (print 4))		        (target::tag-fixnum (print 4)) ; actually tag value
+;;     ((bignum ratio)(print 5)))		((target::tag-bignum target::tag-ratio)(print 5))
 ;;	                      			(t (require-type x 'rational)))) 
 ;;						  
 
