@@ -616,7 +616,7 @@
 		 (names))
 		(dolist (spec specs)
 		  (let ((name (first spec)))
-		    (binds `(,name (ccl::%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float)))
+		    (binds `(,name (ccl::%make-sfloat)))
 		    (names name)
 		    (let ((init (second spec)))
 		      (when init
@@ -701,7 +701,10 @@
                 (t :simple-vector)))
              (t ppc32::subtag-simple-vector))))
         (ccl::unknown-ctype)
-        (t :simple-vector)))))
+        (ccl::named-ctype
+         (if (eq element-type ccl::*universal-type*)
+           :simple-vector))
+        (t nil)))))
         
         
 (defparameter *ppc32-target-arch*
@@ -746,6 +749,16 @@
                           #'ppc32-array-type-name-from-ctype
                           :package-name "PPC32"
                           :t-offset t-offset
+                          :numeric-type-name-to-typecode-function
+                          #'(lambda (type-name)
+                              (ecase type-name
+                                (fixnum tag-fixnum)
+                                (bignum subtag-bignum)
+                                ((short-float single-float) subtag-single-float)
+                                ((long-float double-float) subtag-double-float)
+                                (ratio subtag-ratio)
+                                (complex subtag-complex)))
+                          
                           ))
                           
                           
