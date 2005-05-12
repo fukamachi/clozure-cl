@@ -918,15 +918,6 @@
   )
 
 
-;;;sp-callback (sp-eabi-callback for eabi) receives a
-;;;callback index in r12; this is an index into the
-;;;%pascal-functions% vector (so called because, under 68K MacOS, most
-;;;interesting foreign functions were defined in Pascal and followed
-;;;Pascal calling conventions.)  Then it funcalls #'%pascal-functions%
-;;;with two args, the %pascal-functions% index and a pointer to the
-;;;stack frame containing the arguments (tagged as a fixnum).
-;;; %pascal-functions% puts the return value in param0 in the stack frame
-;;; (which is where its argument pointer was pointing.)
 
 
 (defppclapfunction %get-object ((macptr arg_y) (offset arg_z))
