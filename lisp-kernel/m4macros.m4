@@ -224,6 +224,28 @@ define([local_label],[_local_label($1[]__local_label_counter__)])
 
 define([macro_label],[_local_label($1[]__macro_label_counter__)])
 
+/*
+  The Darwin assembler doesn't seem to support .ifdef/.ifndef, but
+  does understand .if.  
+  Note that using M4's own ifdef is certainly possible, but it's
+  hard to generate source line information when doing so.
+*/
+  
+define([__ifdef],[ifdef([$1],[.if 1],[.if 0])])
+define([__ifndef],[ifdef([$1],[.if 0],[.if 1])])
+define([__else],[.else])
+define([__endif],[.endif])
+define([__if],[.if $1])
+
+define([equate_if_defined],[ifdef($1,[
+[$1] = 1
+],[
+[$1] = 0
+])])
+
+equate_if_defined([DARWIN])
+equate_if_defined([LINUX])
+equate_if_defined([PPC64])
 
 
 
