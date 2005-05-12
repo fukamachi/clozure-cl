@@ -1,3 +1,67 @@
+2005-05-11 23:10  gb
+
+	* lisp-kernel/subprims.s: save/load NVRs without using stmw/lmw
+	(since there aren't 64-bit equivalents.) use new __ifdef mechanism
+	(old mechanism interfered with source line number scheme.)
+
+2005-05-11 23:10  gb
+
+	* lisp-kernel/spentry.s: save/load NVRs without using stmw/lmw
+	(since there aren't 64-bit equivalents.) use new __ifdef mechanism
+	(old mechanism interfered with source line number scheme.) A little
+	bit of __ifdef([PPC64]) stuff works.
+
+2005-05-11 23:06  gb
+
+	* lisp-kernel/macros.s: save/load NVRs without using stmw/lmw
+	(since there aren't 64-bit equivalents.)
+
+2005-05-11 23:05  gb
+
+	* lisp-kernel/m4macros.m4: New __ifdef mechanism.
+
+2005-05-11 23:04  gb
+
+	* lisp-kernel/constants64.s: min_array_subtag, min_vector_subtag.
+
+2005-05-11 23:04  gb
+
+	* lisp-kernel/constants.s: Enumerate all NVR names.  Apple's
+	assembler sucks.
+
+2005-05-11 23:03  gb
+
+	* lisp-kernel/: asmutils.s, imports.s: Use new __ifdef mechanism.
+
+2005-05-11 23:03  gb
+
+	* examples/objc-support.lisp: Provide a more ... descriptive
+	description for lisp exceptions.
+
+2005-05-11 23:02  gb
+
+	* examples/objc-runtime.lisp: Declare a few more private classes,
+	for document load/save.  Need a better long-term solution,
+	obviously.
+
+2005-05-11 23:01  gb
+
+	* examples/cocoa-editor.lisp: Don't call CCL::DBG on duplicate
+	Hemlock buffer names.
+	
+	Disable "smart insertion and deletion"; apparently, this has
+	something to do with frameworks.
+	
+	Turn on backup files, which would be named "foo~.lisp".  Not sure
+	how easy this is to change.
+
+2005-05-11 22:59  gb
+
+	* examples/bridge.lisp: Failures in OBJC-CLASS-OF are often
+	spurious, but we really shouldn't be asking this question in a lot
+	of cases.  When #+debug, try to print the object's class name, so
+	that we can special-case it.
+
 2005-05-11 22:14  gb
 
 	* examples/bridge.lisp: Remove a DBG trap; don't TIME the call to
