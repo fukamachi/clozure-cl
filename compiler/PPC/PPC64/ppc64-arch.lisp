@@ -326,8 +326,14 @@
   numer
   denom)
 
-(define-fixedsized-object double-float
-  value)
+;;; It's slightly easier (for bootstrapping reasons)
+;;; to view a DOUBLE-FLOAT as being UVECTOR with 2 32-bit elements
+;;; (rather than 1 64-bit element).
+
+(defconstant double-float.value misc-data-offset)
+(defconstant double-float.val-low (+ double-float.value 4))
+(defconstant double-float.element-count 2)
+(defconstant double-float.size 16)
 
 (define-fixedsized-object complex
   realpart
@@ -748,6 +754,9 @@
                 (t :simple-vector)))
              (t ppc32::subtag-simple-vector))))
         (ccl::unknown-ctype)
+        (ccl::named-ctype
+         (if (eq element-type ccl::*universal-type*)
+           :simple-vector))
         (t :simple-vector)))))
 
 (defparameter *ppc64-target-arch*
@@ -794,6 +803,14 @@
                           #'ppc64-array-type-name-from-ctype
                           :package-name "PPC64"
                           :t-offset t-offset
-                          ))
+                          :numeric-type-name-to-typecode-function
+                          #'(lambda (type-name)
+                              (ecase type-name
+                                (fixnum tag-fixnum)
+                                (bignum subtag-bignum)
+                                ((short-float single-float) subtag-single-float)
+                                ((long-float double-float) subtag-double-float)
+                                (ratio subtag-ratio)
+                                (complex subtag-complex)))                          ))
 
 (provide "PPC64-ARCH")
