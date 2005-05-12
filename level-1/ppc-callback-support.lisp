@@ -20,9 +20,6 @@
 
 
 
-
-
-
 ;; This is machine-dependent (it conses up a piece of "trampoline" code
 ;; which calls a subprim in the lisp kernel.)
 (defun make-callback-trampoline (index &optional monitor-exception-ports)
@@ -36,33 +33,16 @@
 	     (if monitor-exception-ports
 	       #.(subprim-name->offset '.SPcallbackX)
 	       #.(subprim-name->offset '.SPcallback)))
-           (p (malloc 20)))
-      (setf (%get-long p 0) (ppc-lap-word (lis 12 ??))
-	    (%get-word p 2) (ash subprim -16)
-	    (%get-long p 4) (ppc-lap-word (ori 12 12 ??))
-	    (%get-word p 6) (logand #xffff subprim)
-            (%get-long p 8) (ppc-lap-word (mtctr 12))
-            (%get-long p 12) (logior index (ppc-lap-word (li 11 ??)))   ; unboxed index
-	    (%get-word p 14) index
-            (%get-long p 16) (ppc-lap-word (bctr)))
+           (p (malloc 12)))
+      (setf (%get-long p 0) (logior (ldb (byte 8 16) index)
+                                    (ppc-lap-word (lis 11 ??)))   ; unboxed index
+            (%get-long p 4) (logior (ldb (byte 16 0) index)
+                                    (ppc-lap-word (ori 11 11 ??)))
+                                   
+	    (%get-long p 8) (logior subprim
+                                    (ppc-lap-word (ba ??))))
       (ff-call (%kernel-import #.ppc32::kernel-import-makedataexecutable) 
                :address p 
-               :unsigned-fullword 20
+               :unsigned-fullword 12
                :void)
       p)))
-
-
-
-
-
-
-
-
-
-
-; This is called by .SPcallback
-
-
-
-; moved to "lib;dumplisp" as restore-pascal-functions
-
