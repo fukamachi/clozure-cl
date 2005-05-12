@@ -467,7 +467,7 @@ define([trap_unless_list],[
 	cmpdi ifelse($3,$3,cr0),$1,nil_value
 	extract_fulltag($2,$1)
 	beq ifelse($3,$3,cr0),macro_label(is_list)
-	twnei $2,fulltag_cons
+	tdnei $2,fulltag_cons
 macro_label(is_list):	
 
 ])],[	
@@ -551,7 +551,18 @@ define([mkcatch],[
 	str(sp,catch_frame.csp(imm1))
 	lwi(imm2,(catch_frame.element_count<<num_subtag_bits)|subtag_catch_frame)
 	str(imm0,catch_frame.db_link(imm1))
- 	stmw first_nvr,catch_frame.regs(imm1)
+        __ifdef([PPC64])
+         __(std first_nvr,catch_frame.regs+0*8(imm1))
+         __(std second_nvr,catch_frame.regs+1*8(imm1))
+         __(std third_nvr,catch_frame.regs+2*8(imm1))
+         __(std fourth_nvr,catch_frame.regs+3*8(imm1))
+         __(std fifth_nvr,catch_frame.regs+4*8(imm1))
+         __(std sixth_nvr,catch_frame.regs+5*8(imm1))
+         __(std seventh_nvr,catch_frame.regs+6*8(imm1))
+         __(std eighth_nvr,catch_frame.regs+7*8(imm1))        
+        __else
+ 	 stmw first_nvr,catch_frame.regs(imm1)
+        __endif
 	str(imm2,catch_frame.header(imm1))
 	ldr(imm0,tcr.xframe(rcontext))
 	str(imm0,catch_frame.xframe(imm1))
@@ -560,7 +571,16 @@ define([mkcatch],[
 	blr
 ])	
 
-
+define([restore_catch_nvrs],[
+        ldr(first_nvr,catch_frame.regs+(node_size*0)($1))
+        ldr(second_nvr,catch_frame.regs+(node_size*1)($1))
+        ldr(third_nvr,catch_frame.regs+(node_size*2)($1))
+        ldr(fourth_nvr,catch_frame.regs+(node_size*3)($1))
+        ldr(fifth_nvr,catch_frame.regs+(node_size*4)($1))
+        ldr(sixth_nvr,catch_frame.regs+(node_size*5)($1))
+        ldr(seventh_nvr,catch_frame.regs+(node_size*6)($1))
+        ldr(eighth_nvr,catch_frame.regs+(node_size*7)($1))
+])               
 
 define([DCBZL],[
 	.long (31<<26)+(1<<21)+($1<<16)+($2<<11)+(1014<<1)
