@@ -146,6 +146,11 @@
       (%make-nsstring (format nil "~A" condition))
       (send-super 'reason))))
     
+(define-objc-method ((:id description) ns-lisp-exception)
+  (send (find-class 'ns:ns-string)
+        :string-with-format #@"Lisp exception: %@"
+        (:id (send self 'reason))))
+
 
         
              
@@ -164,7 +169,9 @@ instance variable."
   ;;; this condition.
   ;;;
 
+
   #|(dbg (format nil "~a" c))|#
+  ;;(#_NSLog #@"Lisp exception: %@" :id (%make-nsstring (format nil "~a" c)))
   (make-instance 'ns-lisp-exception :condition c))
   
 
