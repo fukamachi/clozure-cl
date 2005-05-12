@@ -1400,6 +1400,16 @@ vector
                      initial-contents initial-contents-p
                      nil size)))))
 
+(defun %make-simple-array (subtype dims)
+  (let* ((size (if (listp dims) (apply #'* dims) dims))
+         (vector (%alloc-misc size subtype)))
+    (if (and (listp dims)
+             (not (eql (length dims) 1)))
+      (let* ((array (%make-displaced-array dims vector)))
+        (%set-simple-array-p array)
+        array)
+      vector)))
+
 (defun make-uarray-1 (subtype dims adjustable fill-pointer
                               initial-element initial-element-p
                               initial-contents initial-contents-p
