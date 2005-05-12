@@ -73,7 +73,9 @@ define_subtag($1,(cl_array_subtag_mask|$2),$3)
 define_cl_array_subtag(arrayH,fulltag_nodeheader_1,0)
 define_cl_array_subtag(vectorH,fulltag_nodeheader_2,0)
 define_cl_array_subtag(simple_vector,fulltag_nodeheader_3,0)
-min_vector_subtag = subtag_vectorH	
+min_vector_subtag = subtag_vectorH
+min_array_subtag = subtag_arrayH
+        
 	
 ivector_class_64_bit = fulltag_immheader_3
 ivector_class_32_bit = fulltag_immheader_2
