@@ -440,7 +440,13 @@
   (declare (short-float sfloat))
   (if (and (eq int 0)(= sfloat 0.0s0))
     0
+    #+ppc32-target
     (ppc32::with-stack-short-floats ((tem int))
+      (if (= tem sfloat)
+        0
+        (if (< tem sfloat) -1 1)))
+    #+ppc64-target
+    (let* ((tem (%int-to-sfloat int)))
       (if (= tem sfloat)
         0
         (if (< tem sfloat) -1 1)))))
@@ -1011,11 +1017,21 @@
              (values res 
                      (%double-float--2 fnum (%double-float*-2! (%double-float res f2) ,divisor f2))))))
        (truncate-rat-sfloat (number divisor)
+         #+ppc32-target
          `(ppc32::with-stack-short-floats ((fnum ,number)
                                            (f2))
            (let ((res (%unary-truncate (%short-float/-2! fnum ,divisor f2))))
              (values res 
-                     (%short-float--2 fnum (%short-float*-2! (%short-float res f2) ,divisor f2)))))))            
+                     (%short-float--2 fnum (%short-float*-2! (%short-float res f2) ,divisor f2)))))
+         #+ppc64-target
+         `(let* ((fnum (%short-float ,number))
+                 (res (%unary-truncate (/ (the short-float fnum)
+                                          (the short-float ,divisor)))))
+           (values res
+            (- (the short-float fnum)
+             (the short-float (* (the short-float (%short-float res))
+                                 (the short-float ,divisor))))))
+         ))            
     (number-case number
       (fixnum
        (if (eql number most-negative-fixnum)
@@ -1051,12 +1067,21 @@
                        (values res (- number res)))
                      (number-case divisor
                        (short-float
+                        #+ppc32-target
                         (ppc32::with-stack-short-floats ((f2))
                           (let ((res (%unary-truncate (%short-float/-2! number divisor f2))))
                             (values res 
                                     (%short-float--2
                                      number 
-                                     (%short-float*-2! (%short-float res f2) divisor f2))))))
+                                     (%short-float*-2! (%short-float res f2) divisor f2)))))
+                        #+ppc64-target
+                        (let ((res (%unary-truncate
+                                    ((/ (the short-float number)
+                                        (the short-float divisor))))))
+                            (values res
+                                    (- (the short-float number)
+                                       (* (the short-float (%short-float res))
+                                          (the short-float divisor))))))
                        ((fixnum bignum ratio)
                         (ppc32::with-stack-short-floats ((fdiv divisor)
                                                          (f2))
@@ -1108,9 +1133,14 @@
                                       (f2))
          (%unary-truncate (%double-float/-2! fnum ,divisor f2))))
      (truncate-rat-sfloat (number divisor)
+       #+ppc32-target
        `(ppc32::with-stack-short-floats ((fnum ,number)
                                       (f2))
-         (%unary-truncate (%short-float/-2! fnum ,divisor f2)))))
+         (%unary-truncate (%short-float/-2! fnum ,divisor f2)))
+       #+ppc64-target
+       `(let ((fnum (%short-float ,number)))
+         (%unary-truncate (/ (the short-float fnum)
+                           (the short-float ,divisor))))))
     (number-case number
     (fixnum
      (if (eql number most-negative-fixnum)
@@ -1162,14 +1192,22 @@
                       RES)
                     (number-case divisor
                       ((fixnum bignum ratio)
+                       #+ppc32-target
                        (ppc32::with-stack-short-floats ((fdiv divisor)
                                                  (f2))
                          (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
-                           RES)))
+                           RES))
+                       #+ppc64-target
+                       (%unary-truncate (/ (the short-float number)
+                                           (the short-float (%short-float divisor)))))
                       (short-float
+                       #+ppc32-target
                        (ppc32::with-stack-short-floats ((ddiv divisor)
                                                       (f2))
-                         (%unary-truncate (%short-float/-2! number ddiv f2))))
+                         (%unary-truncate (%short-float/-2! number ddiv f2)))
+                       #+ppc64-target
+                       (%unary-truncate (/ (the short-float number)
+                                           (the short-float (%short-float divisor)))))
                       (double-float
                        (with-stack-double-floats ((n2 number)
 						      (f2))
