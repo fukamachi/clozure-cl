@@ -15,11 +15,11 @@
 */
 	include(m4macros.m4)
 define([PTR],[
-ifdef([PPC64],[
+        __ifdef([PPC64])
         .quad $1
-],[        
+        __else
 	.long $1
-])
+        __endif
 ])
 	_beginfile
 
@@ -85,13 +85,12 @@ import_ptrs_start:
 C(import_ptrs_base):
 	PTR(import_ptrs_start)
 
-ifdef([LINUX],[
-ifdef([PPC64],[
-],[        
-	.globl __trampoline_setup
+        __ifdef([LINUX])
+        __ifndef([PPC64])
+        .globl __trampoline_setup
 	.long  __trampoline_setup
-])        
-])
+        __endif
+        __endif
 
 
 

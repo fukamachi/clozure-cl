@@ -62,17 +62,17 @@ _exportfn(C(current_stack_pointer))
    load libm, so lisp code can use it.   Under Darwin, the functionality
    of libm is contained in libsystem, along with libc & everything else.
 */
-ifdef([DARWIN],[],[
+        __ifndef([DARWIN])
 	__(b exp)
-])
+        __endif
 _endfn
 	
 _exportfn(C(count_leading_zeros))
-ifdef([PPC64],[
+        __ifdef([PPC64])
         __(cntlzd r3,r3)
-],[                
+        __else
 	__(cntlzw r3,r3)
-])        
+        __endif
 	__(blr)
 _endfn
 
@@ -229,7 +229,7 @@ _exportfn(C(atomic_ior))
 _endfn
         
 	
-ifdef([DARWIN],[      
+        __ifdef([DARWIN])
 _exportfn(C(enable_fp_exceptions))
         __(.long 0)
         __(blr)
@@ -239,12 +239,12 @@ _exportfn(C(disable_fp_exceptions))
         __(.long 0)
         __(blr)
 _endfn
-])
-	
+
 _exportfn(C(pseudo_sigreturn))
 	__(.long 0)
 	__(b C(pseudo_sigreturn))
-_endfn        
+_endfn
+        __endif
 /*
 	Copy all 32 Altivec registers (+ VSCR & VRSAVE) to the buffer
 	in r3.  If the buffer's non-NULL, it's aligned and big enough,
@@ -405,7 +405,7 @@ _endfn
    big deal out of that at link time.  This is here to try
    to fool those versions of glibc.
 */
-ifdef([LINUX],[
+        __ifdef([LINUX])
 	.globl set_errno
 _exportfn(C(madvise))
 	__(li r0,205)	/* _NR_madvise; see /usr/include/asm/unistd.h */
@@ -413,6 +413,6 @@ _exportfn(C(madvise))
 	__(bnslr)
 	__(b set_errno)
 _endfn
-])
+        __endif
 
 	_endfile
