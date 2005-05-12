@@ -26,10 +26,18 @@
   )
 
 (defmacro %make-sfloat ()
-  `(%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float))
+  (target-arch-case
+   (:ppc32
+    `(%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float))
+   (:ppc64
+    (error "%MAKE-SFLOAT shouldn't be used in code targeting PPC64"))))
 
 (defmacro %make-dfloat ()
-  `(%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float))
+  (target-arch-case
+   (:ppc32
+    `(%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float))
+   (:ppc64
+    `(%alloc-misc ppc64::double-float.element-count ppc64::subtag-double-float))))
 
 (defmacro require-null-or-double-float-sym (sym)
   (setq sym (require-type sym 'symbol))
@@ -37,37 +45,43 @@
      (setq ,sym (require-type ,sym 'double-float))))
 
 
-
-
 (defmacro %numerator (x)
-  `(%svref ,x ppc32::ratio.numer-cell))
+  (target-arch-case
+   (:ppc32 `(%svref ,x ppc32::ratio.numer-cell))
+   (:ppc64 `(%svref ,x ppc64::ratio.numer-cell))))
 
 (defmacro %denominator (x)
-  `(%svref ,x ppc32::ratio.denom-cell))
+  (target-arch-case
+   (:ppc32 `(%svref ,x ppc32::ratio.denom-cell))
+   (:ppc64 `(%svref ,x ppc64::ratio.denom-cell))))
 
 (defmacro %realpart (x)
-  `(%svref ,x ppc32::complex.realpart-cell))
+  (target-arch-case
+   (:ppc32 `(%svref ,x ppc32::complex.realpart-cell))
+   (:ppc64 `(%svref ,x ppc64::complex.realpart-cell))))
 
 (defmacro %imagpart (x)
-  `(%svref ,x ppc32::complex.imagpart-cell))
+  (target-arch-case
+   (:ppc32 `(%svref ,x ppc32::complex.imagpart-cell))
+   (:ppc64 `(%svref ,x ppc64::complex.imagpart-cell))))
 
 
 (defmacro with-stack-double-floats (specs &body body)
-    (collect ((binds)
-	      (inits)
-	      (names))
-      (dolist (spec specs)
-        (let ((name (first spec)))
-          (binds `(,name (%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float)))
-          (names name)
-          (let ((init (second spec)))
-            (when init
-              (inits `(%double-float ,init ,name))))))
-      `(let* ,(binds)
-         (declare (dynamic-extent ,@(names))
-                  (double-float ,@(names)))
-         ,@(inits)
-         ,@body)))
+  (collect ((binds)
+            (inits)
+            (names))
+    (dolist (spec specs)
+      (let ((name (first spec)))
+        (binds `(,name (%make-dfloat)))
+        (names name)
+        (let ((init (second spec)))
+          (when init
+            (inits `(%double-float ,init ,name))))))
+    `(let* ,(binds)
+      (declare (dynamic-extent ,@(names))
+               (double-float ,@(names)))
+      ,@(inits)
+      ,@body)))
 
 (setf (macro-function 'with-ppc-stack-double-floats) (macro-function 'with-stack-double-floats))
 
@@ -86,7 +100,7 @@
     (dolist (spec specs)
       (let ((name (first spec))
             (size (second spec)))
-        (binds `(,name (%alloc-misc ,size ppc32::subtag-bignum)))
+        (binds `(,name (allocate-typed-vector :bignum ,size)))
         (names name)          
         (let ((init (third spec)))
           (when init
@@ -135,7 +149,7 @@
 	    (names))
     (dolist (spec specs)
       (let ((name (first spec)))
-	(binds `(,name (%alloc-misc 1 ppc32::subtag-bignum)))
+	(binds `(,name (allocate-typed-vector :bignum 1)))
 	(names name)
 	(let ((init (second spec)))
 	  (when init
