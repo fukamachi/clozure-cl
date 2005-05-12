@@ -142,7 +142,9 @@
   (if (objc-object-p o)
       (class-of o)
     (progn
-      ;;(dbg o)
+      #+debug
+      (#_NSLog #@"class name = %s" :address (pref (pref o :objc_object.isa)
+                                                  :objc_class.name))
       (error "~S is not an ObjC object" o))))
 
 
