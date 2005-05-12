@@ -55,6 +55,13 @@ define([fname],[temp3])
 define([nfn],[temp2])
 define([next_method_context],[temp1])
 define([first_nvr],[save7])
+define([second_nvr],[save6])        
+define([third_nvr],[save5])
+define([fourth_nvr],[save4])        
+define([fifth_nvr],[save3])
+define([sixth_nvr],[save2])        
+define([seventh_nvr],[save1])
+define([eighth_nvr],[save0])        
 define([nargregs],[3])
 	
 r0 = 0
