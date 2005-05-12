@@ -686,7 +686,8 @@ argument lisp string."
   (declare-objc-class "NSPlaceholderNumber" "NSNumber")
   (declare-objc-class "NSPlaceholderValue" "NSValue")
   (declare-objc-class "NSConcreteFileHandle" "NSFileHandle")
-  (declare-objc-class "NSConcreteData" "NSData"))
+  (declare-objc-class "NSConcreteData" "NSData")
+  (declare-objc-class "NSConcreteMutableData" "NSMutableData"))
 
 
 ;;; Intern NSConstantString instances.
