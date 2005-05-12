@@ -275,13 +275,14 @@
          (if short 
            (make-short-float-from-fixnums (ldb (byte 23 0) significand)
                                           biased-exponent
-                                          ; on ppc result makes sense but not on 68K
-                                          sign result)
+                                          sign #-ppc64-target result)
            (make-float-from-fixnums (ldb (byte 24 28) significand)
                                     (ldb (byte 28 0) significand)
                                     biased-exponent
                                     sign result))
          lowbits)))))
+
+
 
 
 (defparameter a-short-float 1.0s0)
