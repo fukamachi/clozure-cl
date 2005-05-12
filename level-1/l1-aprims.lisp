@@ -923,7 +923,7 @@ terminate the list"
 
 
 (defglobal %pascal-functions%
-  (make-array 4 :initial-element nil))
+  (make-array 32 :initial-element nil))
 
 
 (defun gc-retain-pages (arg)
