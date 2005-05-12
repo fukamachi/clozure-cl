@@ -142,7 +142,7 @@
   (if (objc-object-p o)
       (class-of o)
     (progn
-      (dbg o)
+      ;;(dbg o)
       (error "~S is not an ObjC object" o))))
 
 
@@ -496,13 +496,12 @@
 ;;; table accordingly
 
 (defun update-type-signatures ()
-  (time
   (note-all-library-methods
    #'(lambda (m c)
        (#+gnu-objc progn #+apple-objc progn
 	 ;; Some libraries seem to have methods with bogus-looking
 	 ;; type signatures
-	 (update-type-signatures-for-method m c))))))
+	 (update-type-signatures-for-method m c)))))
 
 
 ;;; Return the message descriptor(s) associated with MSG
