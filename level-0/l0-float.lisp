@@ -33,9 +33,19 @@
     (%make-float-from-fixnums the-float hi lo exp sign)
     the-float))
 
+#+ppc32-target
 (defun make-short-float-from-fixnums (significand biased-exp sign &optional result)
   (%make-short-float-from-fixnums (or result (%make-sfloat)) significand biased-exp sign))
 
+#+ppc64-target
+(defun make-short-float-from-fixnums (significand biased-exp sign)
+  (host-single-float-from-unsigned-byte-32
+   (dpb sign (byte 1 31)
+        (dpb biased-exp (byte IEEE-single-float-exponent-width
+                              IEEE-single-float-exponent-offset)
+             (ldb (byte IEEE-single-float-mantissa-width
+                        IEEE-single-float-mantissa-offset)
+                  significand)))))
 
 (defun %double-float-sign (n)
   (< (the double-float n) 0.0d0))
@@ -354,13 +364,13 @@
                    (float-rat-neg-exp num den (if minusp -1 1) result)))))))))))
 
 
-
+#+ppc32-target
 (defun %short-float-ratio (number &optional result)
   (if (not result)(setq result (%make-sfloat)))
   (let* ((num (%numerator number))
          (den (%denominator number)))
-    ; dont error if result is floatable when either top or bottom is not.
-    ; maybe do usual first, catching error
+    ;; dont error if result is floatable when either top or bottom is
+    ;; not.  maybe do usual first, catching error
     (if (not (or (bignump num)(bignump den)))
       (ppc32::with-stack-short-floats ((fnum num)
 				       (fden den))       
@@ -403,6 +413,51 @@
               (progn  
                 (float-rat-neg-exp num den (if minusp -1 1) result t)))))))))
 
+#+ppc64-target
+(defun %short-float-ratio (number)
+  (let* ((num (%numerator number))
+         (den (%denominator number)))
+    ;; dont error if result is floatable when either top or bottom is
+    ;; not.  maybe do usual first, catching error
+    (if (not (or (bignump num)(bignump den)))
+      (/ (the short-float (%short-float num))
+         (the short-float (%short-float den)))
+      (let* ((numlen (integer-length num))
+             (denlen (integer-length den))
+             (exp (- numlen denlen))
+             (minusp (minusp num)))
+        (if (and (<= numlen IEEE-single-float-bias)
+                 (<= denlen IEEE-single-float-bias)
+                 #|(not (minusp exp))|# 
+                 (<= (abs exp) IEEE-single-float-mantissa-width))
+          (/ (the short-float (%short-float num))
+             (the short-float (%short-float den)))
+          (if (> exp IEEE-single-float-mantissa-width)
+            (progn  (%short-float (round num den)))
+            (if (>= exp 0)
+              ; exp between 0 and 23 and nums big
+              (let* ((shift (- IEEE-single-float-digits exp))
+                     (num (if minusp (- num) num))
+                     (int (round (ash num shift) den)) ; gaak
+                     (intlen (integer-length int))
+                     (new-exp (+ intlen (- IEEE-single-float-bias shift))))
+		(when (> intlen IEEE-single-float-digits)
+                  (setq shift (1- shift))
+                  (setq int (round (ash num shift) den))
+                  (setq intlen (integer-length int))
+                  (setq new-exp (+ intlen (- IEEE-single-float-bias shift))))
+                (when (> new-exp IEEE-single-float-normal-exponent-max)
+                  (error (make-condition 'floating-point-overflow
+                                         :operation 'short-float
+                                         :operands (list number))))
+                (make-short-float-from-fixnums 
+                   (ldb (byte IEEE-single-float-digits  (- intlen  IEEE-single-float-digits)) int)
+                   new-exp
+                   (if minusp 1 0)))
+              ; den > num - exp negative
+              (progn  
+                (float-rat-neg-exp num den (if minusp -1 1) result t)))))))))
+
 
 #+ppc32-target
 (defun %short-float (number &optional result)
@@ -428,6 +483,7 @@
     (ratio (%short-float-ratio number))))
 
 
+#+ppc32-target
 (defun float-rat-neg-exp (integer divisor sign &optional result short)
   (if (minusp sign)(setq integer (- integer)))       
   (let* ((integer-length (integer-length integer))
@@ -443,12 +499,32 @@
     (multiple-value-bind (quotient remainder)(floor scaled-integer divisor)
       (unless (zerop remainder) ; whats this - tells us there's junk below
         (setq quotient (logior quotient 1)))
-      ; why do it return 2 values?
+      ;; why do it return 2 values?
       (values (float-and-scale-and-round sign quotient (- shift-factor)  short result)))))
 
-;; when is (negate-bignum (bignum-ashift-right big)) ; can't negate in place cause may get bigger
-;; cheaper than (negate-bignum big) - 6 0r 8 digits ; 8 longs so win if digits > 7
-;; or negate it on the stack
+#+ppc64-target
+(defun float-rat-neg-exp (integer divisor sign &optional short-p)
+  (if (minusp sign)(setq integer (- integer)))       
+  (let* ((integer-length (integer-length integer))
+         ;; make sure we will have enough bits in the quotient
+         ;; (and a couple extra for rounding)
+         (shift-factor (+ (- (integer-length divisor) integer-length) (if short-p 28 60))) ; fix
+         (scaled-integer integer))
+    (if (plusp shift-factor)
+      (setq scaled-integer (ash integer shift-factor))
+      (setq divisor (ash divisor (- shift-factor)))  ; assume div > num
+      )
+    ;(pprint (list shift-factor scaled-integer divisor))
+    (multiple-value-bind (quotient remainder)(floor scaled-integer divisor)
+      (unless (zerop remainder) ; whats this - tells us there's junk below
+        (setq quotient (logior quotient 1)))
+      ;; why do it return 2 values?
+      (values (float-and-scale-and-round sign quotient (- shift-factor) short-p)))))
+
+;;; when is (negate-bignum (bignum-ashift-right big)) ; can't negate
+;;; in place cause may get bigger cheaper than (negate-bignum big) - 6
+;;; 0r 8 digits ; 8 longs so win if digits > 7 or negate it on the
+;;; stack
 
 (defun %bignum-dfloat (big &optional result)  
   (let* ((minusp (bignum-minusp big)))
@@ -520,11 +596,17 @@
       (%int-to-dfloat fix result))))
 
 
-
+#+ppc32-target
 (defun %fixnum-sfloat (fix &optional result)
   (if (eq 0 fix)
     (if result (%copy-short-float 0.0s0 result) 0.0s0)
     (%int-to-sfloat fix (or result (%make-sfloat)))))
+
+#+ppc64-target
+(defun %fixnum-sfloat (fix)
+  (if (eq 0 fix)
+    0.0s0
+    (%int-to-sfloat fix)))
 
 ;;; Transcendental functions.
 (defun sin (x)
