@@ -1,3 +1,87 @@
+2005-05-11 22:14  gb
+
+	* examples/bridge.lisp: Remove a DBG trap; don't TIME the call to
+	import method type signatures.
+
+2005-05-11 22:04  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Be more careful to
+	distinguish between (ARRAY *) and (ARRAY T) cases.  Treat
+	DOUBLE-FLOAT objects as if they consisted of 2 32-bit elements.
+
+2005-05-11 22:04  gb
+
+	* compiler/optimizers.lisp: Use TARGET-ARCH-CASE; try to simplify
+	simple MAKE-ARRAY calls
+
+2005-05-11 22:03  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Be more careful to
+	distinguish between (ARRAY *) and (ARRAY T) cases.
+
+2005-05-11 22:02  gb
+
+	* level-0/l0-numbers.lisp: Don't use
+	WITH-STACK-SHORT-FLOATS/destuctive sfloat operations on PPC64.
+
+2005-05-11 22:01  gb
+
+	* level-0/l0-float.lisp: Changes for immediate single/short floats
+	on ppc64.
+
+2005-05-11 22:00  gb
+
+	* level-0/PPC/ppc-def.lisp: Remove a comment.
+
+2005-05-11 22:00  gb
+
+	* level-0/PPC/ppc-float.lisp: Add #\Newline at EOF.
+
+2005-05-11 21:59  gb
+
+	* level-1/l1-aprims.lisp: %PASCAL-FUNCTIONS% starts out a little
+	bigger.
+
+2005-05-11 21:58  gb
+
+	* level-1/l1-callbacks.lisp: DELETE-PASCAL-FUNCTION, be a little
+	more careful about assumptions that PFEs are named/named globally.
+
+2005-05-11 21:57  gb
+
+	* level-1/l1-utils.lisp: %MAKE-SIMPLE-ARRAY.
+
+2005-05-11 21:57  gb
+
+	* level-1/ppc-callback-support.lisp: Make shorter trampolines (use
+	absolute branches.)
+
+2005-05-11 21:56  gb
+
+	* level-1/version.lisp: 050511.
+
+2005-05-11 21:56  gb
+
+	* lib/number-macros.lisp: Use TARGET-ARCH-CASE in most macros.
+
+2005-05-11 21:55  gb
+
+	* lib/numbers.lisp: Some non-destructive SINGLE/SHORT-FLOAT stuff
+	for PPC64.
+
+2005-05-11 21:54  gb
+
+	* lib/sequences.lisp: Comment indentation.
+
+2005-05-11 21:54  gb
+
+	* lib/number-case-macro.lisp: Use architecture-specific
+	NUMERIC-TYPE-NAME-TO-TYPECODE-FUNCTION.
+
+2005-05-11 21:54  gb
+
+	* compiler/arch.lisp: NUMERIC-TYPE-NAME-TO-TYPECODE-FUNCTION.
+
 2005-05-10 20:47  gb
 
 	* lib/format.lisp: Don't revert to standard float printer if MARKER
