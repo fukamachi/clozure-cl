@@ -559,13 +559,15 @@
       `(progn ,@body))))
 
 
-(defun target-element-type-subtype (typespec)
-  (let* ((ctype (ignore-errors (specifier-type typespec))))
+(defun target-element-type-type-keyword (typespec)
+  (let* ((ctype (ignore-errors (specifier-type `(array ,typespec)))))
     (if (or (null ctype) (typep ctype 'unknown-ctype))
       (progn
         (nx1-whine :unknown-type-declaration typespec)
         nil)
-      (ctype-subtype ctype))))
+      (funcall (arch::target-array-type-name-from-ctype-function
+                (backend-target-arch *target-backend*))
+               ctype))))
 
 (define-compiler-macro make-array (&whole call &environment env dims &rest keys)
   (if (constant-keywords-p keys)
@@ -593,26 +595,26 @@
                (comp-make-displaced-array dims keys)))
             ((or displaced-index-offset-p 
                  (not (constantp element-type))
-                 (null (setq element-type (target-element-type-subtype (eval element-type)))))
+                 (null (setq element-type (target-element-type-type-keyword
+                                           (eval element-type)))))
              (comp-make-array-1 dims keys))
-            ((and (typep element-type 'fixnum) 
+            ((and (typep element-type 'keyword) 
                   (nx-form-typep dims 'fixnum env) 
                   (null (or adjustable fill-pointer initial-contents 
                             initial-contents-p))) 
              (if 
                (or (null initial-element-p) 
-                   (cond ((eql element-type ppc32::subtag-double-float-vector) 
+                   (cond ((eql element-type :double-float-vector) 
                           (eql initial-element 0.0d0)) 
-                         ((eql element-type ppc32::subtag-single-float-vector) 
+                         ((eql element-type :single-float-vector) 
                           (eql initial-element 0.0s0)) 
-                         ((or (eql element-type ppc32::subtag-simple-base-string) 
-                              (eql element-type ppc32::subtag-simple-general-string)) 
+                         ((eql element-type :simple-string) 
                           (eql initial-element #\Null))
                          (t (eql initial-element 0))))
-               `(%alloc-misc ,dims ,element-type) 
-               `(%alloc-misc ,dims ,element-type ,initial-element))) 
+               `(allocate-typed-vector ,element-type ,dims) 
+               `(allocate-typed-vector ,element-type ,dims ,initial-element))) 
 	     (t ;Should do more here
-             (comp-make-uarray dims keys element-type))))
+             (comp-make-uarray dims keys (type-keyword-code element-type)))))
     call))
 
 (defun comp-make-displaced-array (dims keys)
@@ -630,8 +632,10 @@
        (%make-displaced-array ,dims-var ,@call-list t))))
 
 (defun comp-make-uarray (dims keys subtype)
-  (let* ((call-list (make-list 6))
-	 (dims-var (make-symbol "DIMS"))
+  (if (null keys)
+    `(%make-simple-array ,subtype ,dims)
+    (let* ((call-list (make-list 6))
+           (dims-var (make-symbol "DIMS"))
          (let-list (comp-nuke-keys keys
                                    '((:adjustable 0)
                                      (:fill-pointer 1)
@@ -640,7 +644,7 @@
                                    call-list
 				   `((,dims-var ,dims)))))
     `(let ,let-list
-       (make-uarray-1 ,subtype ,dims-var ,@call-list nil nil))))
+       (make-uarray-1 ,subtype ,dims-var ,@call-list nil nil)))))
 
 (defun comp-make-array-1 (dims keys)
   (let* ((call-list (make-list 10 :initial-element nil))
