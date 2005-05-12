@@ -344,8 +344,9 @@
            target-sequence)
         (declare (fixnum target-index source-index))
         (aset target-sequence target-index (car source-sequence)))
-      ;;; If we are copying around in the same vector, be careful not to copy the
-      ;;; same elements over repeatedly.  We do this by copying backwards.
+      ;; If we are copying around in the same vector, be careful not
+      ;; to copy the same elements over repeatedly.  We do this by
+      ;; copying backwards.
       (if (and (eq target-sequence source-sequence) 
                (> target-start source-start))
         (let ((nelts (min (- target-end target-start) 
