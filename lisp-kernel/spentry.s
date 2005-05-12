@@ -144,7 +144,7 @@ local_label(_throw_pushed_values):
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(discard_lisp_frame())
 	__(mtlr loc_pc)
-	__(lmw first_nvr,catch_frame.regs(imm3))
+        __(restore_catch_nvrs(imm3))
 	__(ldr(imm1,catch_frame.xframe(imm3)))
 	__(str(imm1,tcr.xframe(rcontext)))
 	__(ldr(imm3,catch_frame.link(imm3)))
@@ -196,7 +196,7 @@ local_label(_nthrowv_push_test):
 	__(subi imm2,imm2,fixnum_one)
 	__(bne local_label(_nthrowv_push_loop))
 	__(mr vsp,imm0)
-	__(lmw first_nvr,catch_frame.regs(temp0))
+        __(restore_catch_nvrs(temp0))
 
 local_label(_nthrowv_skip):
 	__(la tsp,-(8+fulltag_misc)(temp0))
@@ -211,7 +211,7 @@ local_label(_nthrowv_do_unwind):
 /* protect.  (Clever, eh ?) */
 	__(ldr(first_nvr,catch_frame.xframe(temp0)))
 	__(str(first_nvr,tcr.xframe(rcontext)))
-	__(lmw first_nvr,catch_frame.regs(temp0))
+        __(restore_catch_nvrs(temp0))
 	__(la tsp,-(8+fulltag_misc)(temp0))
 	__(unlink(tsp))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
@@ -291,7 +291,7 @@ local_label(_nthrow1v_dont_unbind):
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
 	__(ldr(first_nvr,catch_frame.xframe(temp0)))
 	__(str(first_nvr,tcr.xframe(rcontext)))
-	__(lmw first_nvr,catch_frame.regs(temp0))
+        __(restore_catch_nvrs(temp0))
 local_label(_nthrow1v_skip):
 	__(la tsp,-(tsp_frame.fixed_overhead+fulltag_misc)(temp0))
 	__(unlink(tsp))
@@ -306,7 +306,7 @@ local_label(_nthrow1v_do_unwind):
 
 	__(ldr(first_nvr,catch_frame.xframe(temp0)))
 	__(str(first_nvr,tcr.xframe(rcontext)))
-	__(lmw first_nvr,catch_frame.regs(temp0))
+        __(restore_catch_nvrs(temp0))
 	__(la tsp,-(tsp_frame.fixed_overhead+fulltag_misc)(temp0))
 	__(unlink(tsp))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
@@ -688,8 +688,8 @@ local_label(cons_nil_nil):
 /* Allocate a miscobj on the temp stack.  (Push a frame on the tsp and 
    heap-cons the object if there's no room on the tstack.) */
 _spentry(stack_misc_alloc)
-ifdef([PPC64],[
-        ],[        
+        __ifdef([PPC64])
+        __else
 	__(rlwinm. imm2,arg_y,32-fixnumshift,0,(8+fixnumshift)-1)
 	__(unbox_fixnum(imm0,arg_z))
 	__(extract_fulltag(imm1,imm0))
@@ -736,7 +736,7 @@ ifdef([PPC64],[
 	__(addi imm2,arg_y,7<<fixnumshift)
 	__(srwi imm2,imm2,fixnumshift+3)
 	__(b 1b)
-])
+        __endif
         
 /* subtype (boxed, of course) is vpushed, followed by nargs bytes worth of */
 /* initial-contents.  Note that this can be used to cons any type of initialized */
@@ -747,14 +747,19 @@ ifdef([PPC64],[
 _spentry(gvector)
 	__(ldrx(arg_z,vsp,nargs))
 	__(unbox_fixnum(imm0,arg_z))
-	__(rlwimi imm0,nargs,num_subtag_bits-fixnum_shift,0,31-num_subtag_bits)
+        __ifdef([PPC64])
+         __(sldi imm1,nargs,num_subtag_bits-fixnum_shift)
+         __(or imm0,im0,imm1)
+        __else
+	 __(rlwimi imm0,nargs,num_subtag_bits-fixnum_shift,0,31-num_subtag_bits)
+        __endif
         __(dnode_align(imm1,nargs,node_size))
 	__(Misc_Alloc(arg_z,imm0,imm1))
 	__(mr imm1,nargs)
-	__(addi imm2,imm1,misc_data_offset)
+	__(la imm2,misc_data_offset(imm1))
 	__(b 2f)
 1:
-	__(stwx temp0,arg_z,imm2)
+	__(strx(temp0,arg_z,imm2))
 2:
 	__(subi imm1,imm1,node_size)
 	__(cmpri(cr0,imm1,0))
@@ -1310,7 +1315,25 @@ _spentry(callbackX)
 	/* This is a non-standard stack frame, but noone will ever see it, */
         /* so it doesn't matter. It will look like more of the stack frame pushed below. */
 	__(stru(sp,-(stack_align(c_reg_save.size))(sp)))
-	__(stmw r13,c_reg_save.save_gprs(sp))
+        __(str(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+        __(str(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+        __(str(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+        __(str(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+        __(str(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+        __(str(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+        __(str(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+        __(str(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+        __(str(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+        __(str(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+        __(str(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+        __(str(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+        __(str(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+        __(str(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+        __(str(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+        __(str(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+        __(str(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+        __(str(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+        __(str(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
 	__(check_stack_alignment(r0))
 	__(mffs f0)
 	__(stfd f0,c_reg_save.save_fp_zero(sp))
@@ -1404,7 +1427,25 @@ _spentry(callbackX)
 	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
 	__(lfd f0,c_reg_save.save_fp_zero(sp))
 	__(mtfsf 0xff,f0)
-	__(lmw r13,c_reg_save.save_gprs(sp))
+	__(ldr(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+	__(ldr(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+	__(ldr(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+	__(ldr(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+	__(ldr(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+	__(ldr(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+	__(ldr(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+	__(ldr(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+	__(ldr(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+	__(ldr(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+	__(ldr(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+	__(ldr(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+	__(ldr(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+	__(ldr(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+	__(ldr(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+	__(ldr(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+	__(ldr(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+	__(ldr(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+	__(ldr(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
 	__(lfd fp_s32conv,c_reg_save.save_fps32conv(sp))
 	__(beq 9f)
 	__(ref_global(r12,lisp_exit_hook))
@@ -1524,9 +1565,9 @@ local_label(go):
 /* as if it denoted a 32-bit value. */
 /* Argument in arg_z, result in imm0.  May use temp0. */
 _spentry(getxlong)
-ifdef([PPC64],[
-        ],[        
-	__(extract_lisptag(imm0,arg_z))
+        __ifdef([PPC64])
+        __else
+        __(extract_lisptag(imm0,arg_z))
 	__(cmpri(cr0,imm0,tag_fixnum))
 	__(cmpri(cr1,imm0,tag_misc))
 	__(unbox_fixnum(imm0,arg_z))
@@ -1558,7 +1599,7 @@ local_label(big1):
 local_label(error):
 	__(uuo_interr(error_object_not_integer,arg_z)) /* not quite right but what 68K MCL said */
 
-])
+        __endif
                 
 /* Everything up to the last arg has been vpushed, nargs is set to 
    the (boxed) count of things already pushed. 
@@ -1566,8 +1607,8 @@ local_label(error):
    function call (this may require vpopping a few things.) 
    ppc2-invoke-fn assumes that temp1 is preserved here. */
 _spentry(spreadargz)
-ifdef([PPC64],[
-        ],[        
+        __ifdef([PPC64])
+        __else
 	__(extract_lisptag(imm1,arg_z))
 	__(cmpri(cr1,imm1,tag_list))
 	__(cmpri(cr0,arg_z,nil_value))
@@ -1601,7 +1642,7 @@ ifdef([PPC64],[
 	__(li arg_y,XNOSPREAD)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-])
+        __endif
         
 /* Tail-recursively funcall temp0. */
 	/* Pretty much the same as the tcallsym* cases above. */
@@ -1751,8 +1792,6 @@ _spentry(tcallnfnvsp)
        	__(jump_nfn())
 	
 _spentry(misc_ref)
-ifdef([PPC64],[
-        ],[
 	__(trap_unless_fulltag_equal(arg_y,fulltag_misc,imm0))
 	__(trap_unless_lisptag_equal(arg_z,tag_fixnum,imm0))
 	__(vector_length(imm0,arg_y,imm1))
@@ -1763,10 +1802,9 @@ ifdef([PPC64],[
    Note that this conses in some cases.  Return a properly-tagged 
    lisp object in arg_z.  Do type and bounds-checking. 
 */
-])        
 misc_ref_common:
-ifdef([PPC64],[
-        ],[        
+        __ifdef([PPC64])
+        __else
 	__(extract_fulltag(imm2,imm1))
 	__(cmpri(cr0,imm2,fulltag_nodeheader))
 	__(cmpri(cr1,imm1,max_32_bit_ivector_subtag))
@@ -1864,7 +1902,7 @@ local_label(ref_dfloat):
 	__(str(imm0,double_float.value(arg_z)))
 	__(str(imm1,double_float.value+4(arg_z)))
 	__(blr)
-])        
+        __endif
         
 	
 /* misc_set (vector index newval).  Pretty damned similar to 
@@ -1914,7 +1952,7 @@ _spentry(stkvcell0)
 	__(beq cr0,1f)
 	__(str(arg_z,8(vsp)))
 	__(str(imm1,4(vsp)))
-	__(la arg_z,fulltag_misc+4(vsp))
+	__(la arg_z,fulltag_misc+node_size(vsp))
 	__(str(arg_z,0(imm0)))
 	__(blr)
 1:
@@ -2085,8 +2123,8 @@ _spentry(stkgvector)
 
 
 _spentry(misc_alloc)
-ifdef([PPC64],[
-        ],[        
+        __ifdef([PPC64])
+        __else
 	__(extract_unsigned_byte_bits_(imm2,arg_y,24))
 	__(unbox_fixnum(imm0,arg_z))
 	__(extract_fulltag(imm1,imm0))
@@ -2119,7 +2157,7 @@ ifdef([PPC64],[
 	__(b 1b)
 9:
 	__(uuo_interr(error_object_not_unsigned_byte_24,arg_y))
-])        
+        __endif
         
 /* almost exactly as above, but "swap exception handling info"
    on exit and return */
@@ -2205,8 +2243,8 @@ _spentry(ffcallX)
 	length key count. */
 
 _spentry(macro_bind)
-ifdef([PPC64],[
-        ],[        
+        __ifdef([PPC64])
+        __else
 	__(mr whole_reg,arg_reg)
 	__(extract_lisptag(imm0,arg_reg))
 	__(cmpri(cr0,imm0,tag_list))
@@ -2218,7 +2256,7 @@ ifdef([PPC64],[
 	__(mr arg_z,whole_reg)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-])
+        __endif
 
 _spentry(destructuring_bind)
 	__(mr whole_reg,arg_reg)
@@ -2227,8 +2265,8 @@ _spentry(destructuring_bind)
 _spentry(destructuring_bind_inner)
 	__(mr whole_reg,arg_z)
 destbind1:
-ifdef([PPC64],[
-        ],[
+        __ifdef([PPC64])
+        __else
 	/* Extract required arg count. */
 	 /* A bug in gas: can't handle shift count of "32" (= 0 */
 	ifelse(eval(mask_req_width+mask_req_start),eval(32),[
@@ -2436,7 +2474,8 @@ destructure_error:
 	__(mr arg_z,whole_reg)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-])	
+        __endif
+        
 /* vpush the values in the value set atop the vsp, incrementing nargs. */
 /* Discard the tsp frame; leave values atop the vsp. */
 
@@ -2524,17 +2563,17 @@ _spentry(integer_sign)
 
 /* like misc_set, only pass the (boxed) subtag in temp0 */
 _spentry(subtag_misc_set)
-ifdef([PPC64],[
-],[               
+        __ifdef([PPC64])
+        __else
 	__(trap_unless_fulltag_equal(arg_x,fulltag_misc,imm0))
 	__(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
 	__(vector_length(imm0,arg_x,imm1))
 	__(trlge(arg_y,imm0))
 	__(unbox_fixnum(imm1,temp0))
-])        
+        __endif
 misc_set_common:
-        ifdef([PPC64],[
-        ],[
+        __ifdef([PPC64])
+        __else
 	__(extract_fulltag(imm2,imm1))
 	__(cmpri(cr0,imm2,fulltag_nodeheader))
 	__(cmpri(cr1,imm1,max_32_bit_ivector_subtag))
@@ -2693,7 +2732,7 @@ local_label(set_dfloat):
 	__(la imm0,4(imm0))
 	__(strx(imm2,arg_x,imm0))
 	__(blr)
-])        
+        __endif
 
 /* "spread" the lexpr in arg_z. 
    ppc2-invoke-fn assumes that temp1 is preserved here. */
@@ -2863,7 +2902,25 @@ _spentry(callback)
 	/* This is a non-standard stack frame, but noone will ever see it, */
         /* so it doesn't matter. It will look like more of the stack frame pushed below. */
 	__(stru(sp,-(stack_align(c_reg_save.size))(sp)))
-	__(stmw r13,c_reg_save.save_gprs(sp))
+        __(str(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+        __(str(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+        __(str(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+        __(str(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+        __(str(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+        __(str(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+        __(str(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+        __(str(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+        __(str(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+        __(str(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+        __(str(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+        __(str(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+        __(str(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+        __(str(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+        __(str(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+        __(str(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+        __(str(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+        __(str(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+        __(str(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
 	__(check_stack_alignment(r0))
 	__(mffs f0)
 	__(stfd f0,c_reg_save.save_fp_zero(sp))
@@ -2950,7 +3007,25 @@ _spentry(callback)
 	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
 	__(lfd f0,c_reg_save.save_fp_zero(sp))
 	__(mtfsf 0xff,f0)
-	__(lmw r13,c_reg_save.save_gprs(sp))
+	__(ldr(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+	__(ldr(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+	__(ldr(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+	__(ldr(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+	__(ldr(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+	__(ldr(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+	__(ldr(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+	__(ldr(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+	__(ldr(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+	__(ldr(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+	__(ldr(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+	__(ldr(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+	__(ldr(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+	__(ldr(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+	__(ldr(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+	__(ldr(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+	__(ldr(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+	__(ldr(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+	__(ldr(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
 	__(lfd fp_s32conv,c_reg_save.save_fps32conv(sp))
 	__(ldr(sp,0(sp)))
 	__(ldr(r3,c_frame.param0(sp)))
@@ -3376,8 +3451,6 @@ _spentry(builtin_le)
 
 
 _spentry(builtin_eql)
-ifdef([PPC64],[
-        ],[        
 	__(cmpr(cr0,arg_y,arg_z))
 	__(extract_lisptag(imm0,arg_y))
 	__(extract_lisptag(imm1,arg_z))
@@ -3391,19 +3464,20 @@ ifdef([PPC64],[
 	__(blr)
 2:	__(li arg_z,nil_value)
 	__(blr)
-])        
         
 _spentry(builtin_length)
-ifdef([PPC64],[
-        ],[    
+        __(cmpri(cr1,arg_z,nil_value))
 	__(extract_typecode(imm0,arg_z))
 	__(cmpri(cr0,imm0,min_vector_subtag))
+        __(beq cr1,1f)
 	__(cmpri(cr2,imm0,tag_list))
 	__(beq- cr0,2f)
 	__(blt- cr0,3f)
 	/* (simple-array * (*)) */
 	__(vector_length(arg_z,arg_z,imm0))
 	__(blr)
+1:      __(li arg_z,0)
+        __(blr)
 2:
 	__(ldr(arg_z,vectorH.logsize(arg_z)))
 	__(blr)
@@ -3431,12 +3505,15 @@ ifdef([PPC64],[
 9:	
 	__(mr arg_z,temp2)
 	__(blr)
-])        
 
 _spentry(builtin_seqtype)
-ifdef([PPC64],[
-],[                
-	__(extract_typecode(imm0,arg_z))
+        __ifdef([PPC64])
+         __(cmpdi cr2,arg_z,nil_value)
+         __(extract_typecode(imm0,arg_z))
+         __(beq cr2,1f)
+        __else
+	 __(extract_typecode(imm0,arg_z))
+        __endif
 	__(cmpri(cr0,imm0,tag_list))
 	__(cmpri(cr1,imm1,min_vector_subtag))
 	__(beq cr0,1f)
@@ -3447,7 +3524,6 @@ ifdef([PPC64],[
 	__(blr)
 2:
 	__(jump_builtin(_builtin_seqtype,1))
-])        
         
 _spentry(builtin_assq)
 	__(cmpri(arg_z,nil_value))
@@ -3467,8 +3543,6 @@ _spentry(builtin_assq)
 2:	__(bne cr1,1b)
 	__(blr)
 
-
-
 _spentry(builtin_memq)
 	__(cmpri(cr1,arg_z,nil_value))
 	__(b 2f)
@@ -3482,18 +3556,28 @@ _spentry(builtin_memq)
 2:	__(bne cr1,1b)
 	__(blr)
 
-
+        __ifdef([PPC64])
+logbitp_max_bit = 61
+        __else
+logbitp_max_bit = 30
+        __endif
+        
 _spentry(builtin_logbitp)
-	/* Call out unless both fixnums,0 <=  arg_y < 30 */
-	__(cmplri(cr2,arg_y,30<<fixnum_shift))
+	/* Call out unless both fixnums,0 <=  arg_y < logbitp_max_bit */
+        __(cmplri(cr2,arg_y,logbitp_max_bit<<fixnum_shift))
         __(extract_lisptag(imm0,arg_y))
         __(extract_lisptag(imm1,arg_z))
         __(cmpri(cr0,imm0,tag_fixnum))
         __(cmpri(cr1,imm1,tag_fixnum))
 	__(unbox_fixnum(imm0,arg_y))
-	__(subfic imm0,imm0,30)
-	__(rlwnm imm0,arg_z,imm0,31,31)
-	__(rlwimi imm0,imm0,4,27,27)
+	__(subfic imm0,imm0,logbitp_max_bit)
+        __ifdef([PPC64])
+         __(rldcl imm0,arg_z,imm0,63)
+         __(mulli imm0,imm0,t_offset)
+        __else
+  	 __(rlwnm imm0,arg_z,imm0,31,31)
+	 __(rlwimi imm0,imm0,4,27,27)
+        __endif
 	__(bnl cr2,1f)
 	__(bne cr0,1f)
         __(bne cr1,1f)
@@ -3774,7 +3858,25 @@ _spentry(eabi_callback)
 	/* This is a non-standard stack frame, but noone will ever see it, */
         /* so it doesn't matter. It will look like more of the stack frame pushed below. */
 	__(stru(sp,-(c_reg_save.size)(sp)))
-	__(stmw r13,c_reg_save.save_gprs(sp))
+        __(str(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+        __(str(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+        __(str(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+        __(str(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+        __(str(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+        __(str(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+        __(str(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+        __(str(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+        __(str(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+        __(str(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+        __(str(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+        __(str(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+        __(str(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+        __(str(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+        __(str(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+        __(str(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+        __(str(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+        __(str(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+        __(str(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
 	__(mffs f0)
 	__(stfd f0,c_reg_save.save_fp_zero(sp))
 	__(ldr(r31,c_reg_save.save_fp_zero+4(sp)))	/* recover FPSCR image */
@@ -3860,7 +3962,25 @@ _spentry(eabi_callback)
 	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
 	__(lfd f0,c_reg_save.save_fp_zero(sp))
 	__(mtfsf 0xff,f0)
-	__(lmw r13,c_reg_save.save_gprs(sp))
+	__(ldr(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+	__(ldr(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+	__(ldr(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+	__(ldr(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+	__(ldr(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+	__(ldr(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+	__(ldr(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+	__(ldr(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+	__(ldr(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+	__(ldr(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+	__(ldr(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+	__(ldr(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+	__(ldr(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+	__(ldr(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+	__(ldr(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+	__(ldr(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+	__(ldr(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+	__(ldr(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+	__(ldr(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
 	__(lfd fp_s32conv,c_reg_save.save_fps32conv(sp))
 	__(ldr(sp,0(sp)))
 
@@ -4411,10 +4531,10 @@ _spentry(svar_progvsave)
 0:	
 	__(trap_unless_list(arg_x,imm0))
 	__(_cdr(temp2,arg_x))	/* (null (cdr fast)) ? */
-	__(cmpri(temp2,nil_value))
-	__(trap_unless_list(temp2,imm0))
+	__(cmpri(cr3,temp2,nil_value))
+	__(trap_unless_list(temp2,imm0,cr0))
 	__(_cdr(arg_x,temp2))
-	__(beq 9f)
+	__(beq cr3,9f)
 	__(_cdr(temp1,temp1))
 	__(cmpr(arg_x,temp1))
 	__(bne 0b)
