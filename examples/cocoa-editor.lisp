@@ -62,7 +62,7 @@
 	buf)
       (progn
 	(format t "~& couldn't make hemlock buffer with args ~s" args)
-	(dbg)
+	;;(dbg)
 	nil))))
 	 
 ;;; Define some key event modifiers.
@@ -1147,6 +1147,7 @@
 	      (send tv :set-vertically-resizable t) 
 	      (send tv :set-autoresizing-mask #$NSViewWidthSizable)
               (send tv :set-background-color color)
+              (send tv :set-smart-insert-delete-enabled nil)
 	      (send container :set-width-tracks-text-view tracks-width)
 	      (send container :set-height-tracks-text-view nil)
 	      (send scrollview :set-document-view tv)	      
@@ -1880,8 +1881,22 @@
     (setf (hi::buffer-modified buffer) nil)
     (hi::process-file-options buffer pathname)
     #$YES))
-    
-  
+
+#+experimental
+(define-objc-method ((:<BOOL> :write-with-backup-to-file path
+                              :of-type type
+                              :save-operation (:<NSS>ave<O>peration<T>ype save-operation))
+                     hemlock-editor-document)
+  #+debug
+  (#_NSLog #@"saving file to %@" :id path)
+  (send-super :write-with-backup-to-file path :of-type type :save-operation save-operation))
+
+;;; This should be a preference.
+(define-objc-method ((:<BOOL> keep-backup-file)
+                     hemlock-editor-document)
+  #$YES)
+
+
 (defmethod hemlock-document-buffer (document)
   (let* ((string (send (slot-value document 'textstorage) 'string)))
     (unless (%null-ptr-p string)
