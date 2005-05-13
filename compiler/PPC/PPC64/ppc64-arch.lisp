@@ -757,7 +757,20 @@
         (ccl::named-ctype
          (if (eq element-type ccl::*universal-type*)
            :simple-vector))
-        (t :simple-vector)))))
+        (t)))))
+
+(defun ppc64-misc-byte-count (subtag element-count)
+  (declare (fixnum subtag))
+  (if (= lowtag-nodeheader (logand subtag lowtagmask))
+    (ash element-count 3)
+    (case (logand subtag fulltagmask)
+      (#.ivector-class-64-bit (ash element-count 3))
+      (#.ivector-class-32-bit (ash element-count 2))
+      (#.ivector-class-8-bit element-count)
+      (t
+       (if (= subtag subtag-bit-vector)
+         (ash (+ 7 element-count) -3)
+         (ash element-count 1))))))
 
 (defparameter *ppc64-target-arch*
   (arch::make-target-arch :name :ppc64
@@ -803,6 +816,7 @@
                           #'ppc64-array-type-name-from-ctype
                           :package-name "PPC64"
                           :t-offset t-offset
+                          :array-data-size-function #'ppc64-misc-byte-count
                           :numeric-type-name-to-typecode-function
                           #'(lambda (type-name)
                               (ecase type-name
