@@ -1,3 +1,91 @@
+2005-05-13 04:19  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: rename most u32 operations
+	to "natural" ones.  Handle some of them, as well as some u64/s64
+	boxing/unboxing operations.
+
+2005-05-13 04:18  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: rename most u32 operations
+	to "natural" ones.
+
+2005-05-13 04:18  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Implement byte-count stuff.
+
+2005-05-13 04:17  gb
+
+	* compiler/nx1.lisp: u32/natural changes.
+
+2005-05-13 04:16  gb
+
+	* compiler/nx0.lisp: Recognize "natural" constants and operands, as
+	well as U32 ones.
+
+2005-05-13 04:15  gb
+
+	* compiler/nxenv.lisp: Change most *u32* operator names to
+	*natural*.
+
+2005-05-13 04:14  gb
+
+	* compiler/vinsn.lisp: FIXUP-VINSN-TEMPLATE: account for the
+	possibility that some (target-specific) vinsn templates may be
+	missing.
+
+2005-05-13 04:13  gb
+
+	* compiler/vreg.lisp: Note when vinsn parameters/results have modes
+	:s64/:u64, to prevent the corresponding registers from being used
+	as temps.
+
+2005-05-13 04:12  gb
+
+	* compiler/backend.lisp: Accept :NATURAL as an alias for an
+	unsigned "natural width" (32/64-bit) integer.
+	
+	AVAILABLE-IMM-TEMP defaults mode to :NATURAL, as does the
+	WITH-IMM-TARGET macro.
+
+2005-05-13 04:10  gb
+
+	* compiler/arch.lisp: Architecture-specific
+	ARRAY-DATA-SIZE-FUNCTION.
+
+2005-05-13 04:09  gb
+
+	* examples/objc-runtime.lisp: Skip the library version checks (at
+	least in theory, the only classes/foreign methods we believe in are
+	those described by the interface files.)
+	
+	Make %MLIST-CONTAINING force canonicaliazation of class pointers
+	when updating message signature tables.
+
+2005-05-13 04:07  gb
+
+	* examples/bridge.lisp: UPDATE-TYPE-SIGNATURES-FOR-METHOD
+	optionally canonicalizes the class, so that references to
+	user-defined classes in method descriptor tables get revived when a
+	saved image is restarted.
+
+2005-05-13 04:05  gb
+
+	* level-0/PPC/ppc-def.lisp: %FIXNUM-REF-U32 -> %FIXNUM-REF-NATURAL,
+	and other 32/64-bit changes.
+
+2005-05-13 04:04  gb
+
+	* level-1/: ppc-threads-utils.lisp, l1-lisp-threads.lisp:
+	%FIXNUM-REF-U32 -> %FIXNUM-REF-NATURAL.
+
+2005-05-13 04:04  gb
+
+	* lisp-kernel/spentry.s: fix some 32/64-bit boxing stuff.
+
+2005-05-13 04:02  gb
+
+	* level-1/version.lisp: 050513.
+
 2005-05-11 23:10  gb
 
 	* lisp-kernel/subprims.s: save/load NVRs without using stmw/lmw
