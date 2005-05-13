@@ -200,7 +200,7 @@
   (array-type-name-from-ctype-function ())
   (package-name ())
   (t-offset ())
-  (aligned-array-size-function ())
+  (array-data-size-function ())
   (numeric-type-name-to-typecode-function ()))
 
 (ccl::provide "ARCH")
