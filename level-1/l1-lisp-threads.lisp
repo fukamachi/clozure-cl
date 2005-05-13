@@ -173,7 +173,7 @@
 
 (defmacro %get-kernel-global-ptr (name-or-offset dest)
   `(%setf-macptr ,dest
-    (%fixnum-ref-u32 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset)))))
+    (%fixnum-ref-natural 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset)))))
 
 (defmacro %set-kernel-global (name-or-offset new-value)
   `(%set-kernel-global-from-offset
