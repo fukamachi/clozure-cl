@@ -706,7 +706,19 @@
            :simple-vector))
         (t nil)))))
         
-        
+(defun ppc32-misc-byte-count (subtag element-count)
+  (declare (fixnum subtag))
+  (if (or (= fulltag-nodeheader (logand subtag fulltagmask))
+          (<= subtag max-32-bit-ivector-subtag))
+    (ash element-count 2)
+    (if (<= subtag max-8-bit-ivector-subtag)
+      element-count
+      (if (<= subtag max-16-bit-ivector-subtag)
+        (ash element-count 1)
+        (if (= subtag subtag-bit-vector)
+          (ash (+ element-count 7) -3)
+          (+ 4 (ash element-count 3)))))))
+
 (defparameter *ppc32-target-arch*
   (arch::make-target-arch :name :ppc32
                           :lisp-node-size 4
@@ -749,6 +761,7 @@
                           #'ppc32-array-type-name-from-ctype
                           :package-name "PPC32"
                           :t-offset t-offset
+                          :array-data-size-function #'ppc32-misc-byte-count
                           :numeric-type-name-to-typecode-function
                           #'(lambda (type-name)
                               (ecase type-name
