@@ -1407,6 +1407,16 @@ Or something. Right? ~s ~s" var varbits))
                  (eq (acode-operator form) (%nx1-operator fixnum))
                  (eq (acode-operator form) (%nx1-operator simple-function)))))))
 
+(defun nx-natural-constant-p (form)
+  (setq form (nx-untyped-form form))
+  (if (consp form)
+    (let* ((val (if (or (eq (acode-operator form) (%nx1-operator fixnum))
+			(eq (acode-operator form) (%nx1-operator immediate)))
+		  (cadr form))))
+      (target-arch-case
+       (:ppc32 (and (typep val '(unsigned-byte 32)) val))
+       (:ppc64 (and (typep val '(unsigned-byte 64)) val))))))
+
 (defun nx-u32-constant-p (form)
   (setq form (nx-untyped-form form))
   (if (consp form)
@@ -1414,6 +1424,7 @@ Or something. Right? ~s ~s" var varbits))
 			(eq (acode-operator form) (%nx1-operator immediate)))
 		  (cadr form))))
       (and (typep val '(unsigned-byte 32)) val))))
+
 
 ;; Reference-count vcell, fcell refs.
 (defun nx1-note-vcell-ref (sym)
@@ -2036,16 +2047,22 @@ Or something. Right? ~s ~s" var varbits))
            (and (nx-trust-declarations env)
                 (subtypep *nx-form-type* 'fixnum)))))
 
-(defun nx-binary-u32-op-p (form1 form2 env)
-  (and (nx-form-typep form1 '(unsigned-byte 32)  env)
-       (nx-form-typep form2 '(unsigned-byte 32)  env)))
+(defun nx-binary-natural-op-p (form1 form2 env)
+  (target-arch-case
+   (:ppc32
+    (and (nx-form-typep form1 '(unsigned-byte 32)  env)
+         (nx-form-typep form2 '(unsigned-byte 32)  env)))
+   (:ppc64
+    (and (nx-form-typep form1 '(unsigned-byte 64)  env)
+         (nx-form-typep form2 '(unsigned-byte 64)  env)))))
+    
 
 
-(defun nx-binary-boole-op (whole env arg-1 arg-2 fixop intop u32op)
+(defun nx-binary-boole-op (whole env arg-1 arg-2 fixop intop naturalop)
   (let* ((use-fixop (nx-binary-fixnum-op-p arg-1 arg-2 env t))
-	 (use-u32op (nx-binary-u32-op-p arg-1 arg-2 env)))
-    (if (or use-fixop use-u32op intop)
-      (make-acode (if use-fixop fixop (if use-u32op u32op intop))
+	 (use-naturalop (nx-binary-natural-op-p arg-1 arg-2 env)))
+    (if (or use-fixop use-naturalop intop)
+      (make-acode (if use-fixop fixop (if use-naturalop naturalop intop))
 		  (nx1-form arg-1)
 		  (nx1-form arg-2))
       (nx1-treat-as-call whole))))
