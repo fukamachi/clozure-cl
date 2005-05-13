@@ -16,9 +16,8 @@
 
 (in-package "CCL")
 
-
+;;; Wimp out, but don't choke on (the (values ...) form)
 (defnx1 nx1-the the (&whole call typespec form &environment env)
-; Wimp out, but don't choke on (the (values ...) form)
   (if (or (and (consp typespec) (eq (car typespec) 'values))
           (and (self-evaluating-p form)
                (not (typep form typespec))
@@ -61,8 +60,8 @@
      (nx1-form size)
      (nx1-form (%cadr keys)))))
 
-; New semantics: expansion functions are defined in current lexical environment
-; vice null environment.  May be meaningless ...
+;;; New semantics: expansion functions are defined in current lexical environment
+;;; vice null environment.  May be meaningless ...
 (defnx1 nx1-macrolet macrolet (defs &body body)
   (let* ((old-env *nx-lexical-environment*)
          (new-env (new-lexical-environment old-env)))
@@ -83,7 +82,7 @@
           (nx-process-declarations pending decls)
           (nx1-progn-body body))))))
 
-; Does SYMBOL-MACROLET allow declarations ?  Yes ...
+;;; Does SYMBOL-MACROLET allow declarations ?  Yes ...
 (defnx1 nx1-symbol-macrolet symbol-macrolet (defs &body forms)
   (let* ((old-env *nx-lexical-environment*))
     (with-nx-declarations (pending)
@@ -125,7 +124,7 @@
 (defnx1 nx1-nullaryop ((%current-tcr) (%interrupt-poll) (%current-frame-ptr)) ()
   (make-acode (%nx1-default-operator)))
 
-(defnx1 nx1-fixnum-ref ((%fixnum-ref) (%fixnum-ref-u32)) (base &optional (offset 0))
+(defnx1 nx1-fixnum-ref ((%fixnum-ref) (%fixnum-ref-natural)) (base &optional (offset 0))
   (make-acode (%nx1-default-operator)
               (nx1-form base)
               (nx1-form offset)))
@@ -142,7 +141,7 @@
         
 
 (defnx1 nx1-code-char ((code-char)) (arg &environment env)
-  (make-acode (if (nx-form-typep arg '(unsigned-byte 16) env)
+  (make-acode (if (nx-form-typep arg '(unsigned-byte 8) env)
                 (%nx1-operator %code-char)
                 (%nx1-operator code-char))
               (nx1-form arg)))
@@ -210,7 +209,7 @@
 (defnx1 nx1-logbitp ((logbitp)) (&whole w bitnum int &environment env)
   (if (and (nx-form-typep bitnum
                           (target-arch-case (:ppc32 '(integer 0 29))
-                                            (:ppc64 '(integer 0 59))) env)
+                                            (:ppc64 '(integer 0 60))) env)
            (nx-form-typep int 'fixnum env))
     (nx1-cc-binaryop (%nx1-operator %ilogbitp) :ne bitnum int)
     (make-acode (%nx1-operator logbitp) (nx1-form bitnum) (nx1-form int))))
@@ -241,8 +240,8 @@
 (defnx1 nx1-%new-ptr (%new-ptr) (&whole whole size clear-p)
   (make-acode (%nx1-operator %new-ptr) (nx1-form size) (nx1-form clear-p)))
 
-; This might also want to look at, e.g., the last form in a progn:
-;  (not (progn ... x)) => (progn ... (not x)), etc.
+;;; This might also want to look at, e.g., the last form in a progn:
+;;;  (not (progn ... x)) => (progn ... (not x)), etc.
 (defnx1 nx1-negation ((not) (null)) (arg)
   (if (nx1-negate-form (setq arg (nx1-form arg)))
     arg
@@ -259,8 +258,8 @@
            (acode-invert-condition-keyword (%cadr (%cadr subform))))
           t)))))
 
-; This is called from pass 1, and therefore shouldn't mess with "puntable bindings"
-; (assuming, of course, that anyone should ...)
+;;; This is called from pass 1, and therefore shouldn't mess with "puntable bindings"
+;;; (assuming, of course, that anyone should ...)
 (defun nx-untyped-form (form)
   (while (and (consp form)
               (eq (%car form) (%nx1-operator typed-form)))
@@ -311,8 +310,8 @@
   (make-acode (%nx1-operator %sbchar) (nx1-form s env) (nx1-form i env)))
 
 
-; This has to be ultra-bizarre because %schar is a macro.
-; %schar shouldn't be a macro.
+;;; This has to be ultra-bizarre because %schar is a macro.
+;;; %schar shouldn't be a macro.
 (defnx1 nx1-%schar ((%schar)) (&whole w arg idx &environment env)
   (let* ((arg (nx-transform arg env))
          (idx (nx-transform idx env))
@@ -355,7 +354,7 @@
                       arg-2 
                       (%nx1-operator %ilogior2)
                       (%nx1-operator logior2)
-		      (%nx1-operator %u32-logior)))
+		      (%nx1-operator %natural-logior)))
 
 (defnx1 nx1-logxor-2 ((logxor-2)) (&whole w &environment env arg-1 arg-2)
   (nx-binary-boole-op w 
@@ -364,7 +363,7 @@
                       arg-2 
                       (%nx1-operator %ilogxor2)
                       (%nx1-operator logxor2)
-		      (%nx1-operator %u32-logxor)))
+		      (%nx1-operator %natural-logxor)))
 
 (defnx1 nx1-logand-2 ((logand-2)) (&whole w &environment env arg-1 arg-2)
   (nx-binary-boole-op w 
@@ -373,7 +372,7 @@
                       arg-2 
                       (%nx1-operator %ilogand2)
                       (%nx1-operator logand2)
-		      (%nx1-operator %u32-logand)))
+		      (%nx1-operator %natural-logand)))
 
 (defnx1 nx1-require ((require-simple-vector) (require-simple-string) (require-integer) (require-list)
                      (require-fixnum) (require-real) (require-character) (require-number) (require-symbol))
@@ -393,7 +392,7 @@
 ;;; in which the lambda was defined (e.g., macros and symbol-macros.)
 ;;; (I'm not sure that the traditional MCL/OpenMCL frontend handles
 ;;; these cases 100% correctly, but it seems difficult to do this
-;;  correctly without being able to jerk around with the environment,
+;;;  correctly without being able to jerk around with the environment,
 ;;; for a variety of reasons.)
 ;;; A lambda application - ((lambda ()) ...) is applied in the same
 ;;; environment it's defined in, so the hard case involves inlining
@@ -465,7 +464,9 @@
     (if (and (nx-form-typep num1 'fixnum env) ; (nx-acode-fixnum-type-p f1 env)
              (nx-form-typep num2 'fixnum env)) ;(nx-acode-fixnum-type-p f2 env))
       (let* ((fixadd (make-acode (%nx1-operator %i+) f1 f2))
-             (small-enough '(signed-byte 28)))
+             (small-enough (target-arch-case
+                            (:ppc32 '(signed-byte 28))
+                            (:ppc64 '(signed-byte 59)))))
         (if (or (and (nx-acode-form-typep f1 small-enough env)
                      (nx-acode-form-typep f2 small-enough env))
                 (and (nx-trust-declarations env)
@@ -483,7 +484,7 @@
 		   (subtypep *nx-form-type* '(unsigned-byte 32)))
 	    (make-acode (%nx1-operator typed-form)
 			'(unsigned-byte 32)
-			(make-acode (%nx1-operator %u32+) f1 f2))
+			(make-acode (%nx1-operator %natural+) f1 f2))
 	    (make-acode (%nx1-operator typed-form) 'number 
 			(make-acode (%nx1-operator add2) f1 f2))))))))
   
@@ -523,7 +524,9 @@
     (let* ((f0 (nx1-form num0))
 	   (f1 (nx1-form num1))
 	   (fixsub (make-acode (%nx1-operator %i-) f0 f1))
-	   (small-enough '(signed-byte 28)))
+	   (small-enough (target-arch-case
+                          (:ppc32 '(signed-byte 28))
+                          (:ppc64 '(signed-byte 59)))))
       (if (or (and (nx-acode-form-typep f0 small-enough env)
 		   (nx-acode-form-typep f1 small-enough env))
 	      (and (nx-trust-declarations env)
@@ -540,7 +543,7 @@
 		 (nx-form-typep num1 '(unsigned-byte 32) env)
 		 (nx-trust-declarations env)
 		 (subtypep *nx-form-type* '(unsigned-byte 32)))
-	  (make-acode (%nx1-operator %u32-)
+	  (make-acode (%nx1-operator %natural-)
 		      (nx1-form num0)
 		      (nx1-form num1))		 
 	  (nx1-treat-as-call whole))))))
@@ -560,7 +563,7 @@
   (let* ((op *nx-sfname*)
          (both-fixnums (and (nx-form-typep num1 'fixnum env)
                             (nx-form-typep num2 'fixnum env)))
-	 (both-u32 (and (nx-form-typep num1 '(unsigned-byte 32) env)
+	 (both-natural (and (nx-form-typep num1 '(unsigned-byte 32) env)
 			(nx-form-typep num2 '(unsigned-byte 32) env)))
          (both-double-floats
           (let* ((dfloat-1 (nx-form-typep num1 'double-float env))
@@ -575,12 +578,12 @@
               (or sfloat-2 (if (typep num2 'fixnum) (setq num2 (coerce num2 'short-float))))
               (if sfloat-2 (if (typep num1 'fixnum) (setq num1 (coerce num1 'short-float))))))))
 
-    (if (or both-fixnums both-double-floats both-short-floats both-u32)
+    (if (or both-fixnums both-double-floats both-short-floats both-natural)
       (make-acode
        (if both-fixnums
          (%nx1-operator %i<>)
-	 (if both-u32
-	   (%nx1-operator %u32<>)
+	 (if both-natural
+	   (%nx1-operator %natural<>)
 	   (if both-double-floats
 	     (%nx1-operator double-float-compare)
 	     (%nx1-operator short-float-compare))))
@@ -601,7 +604,7 @@
   (let* ((op *nx-sfname*)
 	 (2-fixnums (and (nx-form-typep num1 'fixnum env)
 			 (nx-form-typep num2 'fixnum env)))
-	 (2-u32s (and (nx-form-typep num1 '(unsigned-byte 32) env)
+	 (2-naturals (and (nx-form-typep num1 '(unsigned-byte 32) env)
 		      (nx-form-typep num2 '(unsigned-byte 32) env)))
          (2-rats (and (nx-form-typep num1 'rational env)
                       (nx-form-typep num2 'rational env)))
@@ -616,9 +619,9 @@
                         (or sfloat-2 (if (typep num2 'fixnum) (setq num2 (coerce num2 'short-float))))
                         (if sfloat-2 (if (typep num1 'fixnum) (setq num1 (coerce num1 'short-float)))))))
          )
-    (if (and 2-u32s (not 2-fixnums))
+    (if (and 2-naturals (not 2-fixnums))
       (make-acode
-       (%nx1-operator %u32<>)
+       (%nx1-operator %natural<>)
        (make-acode
 	(%nx1-operator immediate)
 	(if (eq op '=-2)
@@ -895,11 +898,11 @@
 	(setq args (%cddr args)))))
   (make-acode (%nx1-operator progn) (nreverse res)))
 
-; See if we're trying to setq something that's currently declared "UNSETTABLE"; whine if so.
-; If we find a contour in which a "SETTABLE NIL" vdecl for the variable exists, whine.
-; If we find a contour in which a "SETTABLE T" vdecl for the variable exists. or
-;    the contour in which the variable's bound, return nil.
-; Should find something ...
+;;; See if we're trying to setq something that's currently declared "UNSETTABLE"; whine if so.
+;;; If we find a contour in which a "SETTABLE NIL" vdecl for the variable exists, whine.
+;;; If we find a contour in which a "SETTABLE T" vdecl for the variable exists. or
+;;;    the contour in which the variable's bound, return nil.
+;;; Should find something ...
 (defun nx1-check-assignment (sym env)
   (loop
     (unless (and env (istruct-typep env 'lexical-environment))
@@ -916,11 +919,11 @@
           (when (eq (var-name var) sym) (return-from nx1-check-assignment nil)))))
     (setq env (lexenv.parent-env env))))
 
-; The cleanup issue is a little vague (ok, it's a -lot- vague) about the environment in
-; which the load-time form is defined, although it apparently gets "executed in a null
-; lexical environment".  Ignoring the fact that it's meaningless to talk of executing
-; something in a lexical environment, we can sort of infer that it must also be defined
-; in a null lexical environment.
+;;; The cleanup issue is a little vague (ok, it's a -lot- vague) about the environment in
+;;; which the load-time form is defined, although it apparently gets "executed in a null
+;;; lexical environment".  Ignoring the fact that it's meaningless to talk of executing
+;;; something in a lexical environment, we can sort of infer that it must also be defined
+;;; in a null lexical environment.
 
 (defnx1 nx1-load-time-value (load-time-value) (&environment env form &optional read-only-p)
   ; Validate the "read-only-p" argument
@@ -1840,8 +1843,8 @@
            *nx-new-p2decls*))))))
 
 
-; This isn't intended to be user-visible; there isn't a whole lot of 
-; sanity-checking applied to the subtag.
+;;; This isn't intended to be user-visible; there isn't a whole lot of 
+;;; sanity-checking applied to the subtag.
 (defnx1 nx1-%alloc-misc ((%alloc-misc)) (element-count subtag &optional (init nil init-p))
   (if init-p                            ; ensure that "init" is evaluated before miscobj is created.
     (make-acode (%nx1-operator %make-uvector)
@@ -1867,7 +1870,7 @@
 				   (- amt))
 		       (nx1-form num))
 	   (if (nx-form-typep num '(unsigned-byte 32) env)
-	     (make-acode (%nx1-operator u32-shift-right)
+	     (make-acode (%nx1-operator natural-shift-right)
 			 (nx1-form num)
 			 (make-acode (%nx1-operator fixnum)
 				     (- amt)))
@@ -1877,7 +1880,7 @@
 	      (nx-form-typep num '(unsigned-byte 32) env)
 	      (nx-trust-declarations env)
 	      (subtypep *nx-form-type* '(unsigned-byte 32)))
-	 (make-acode (%nx1-operator u32-shift-left)
+	 (make-acode (%nx1-operator natural-shift-left)
 		     (nx1-form num)
 		     (nx1-form amt)))
         ((and (fixnump amt)
@@ -1890,12 +1893,6 @@
         (t (nx1-treat-as-call call))))
 
     
-; This idea went nowhere
-#+later
-(defnx1 nx1-%lisp-lowbyte-ref (%lisp-lowbyte-ref) (base offset)
-  (make-acode (%nx1-operator %lisp-lowbyte-ref)
-              (nx1-form base)
-              (nx1-form offset)))
         
 (defun nx-badformat (&rest args)
  (nx-error "Bad argument format in ~S ." args))
