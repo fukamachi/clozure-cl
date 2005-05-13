@@ -183,7 +183,7 @@
  
 
 
-; Before any defppc2's, make the *ppc2-specials* vector.
+;;; Before any defppc2's, make the *ppc2-specials* vector.
 
 (defvar *ppc2-all-lcells* ())
 
@@ -219,7 +219,7 @@
 (defun ppc2-vstack-mark-top ()
   (ppc2-new-lcell :tos *ppc2-top-vstack-lcell* 0 0 nil))
 
-; Alist mapping VARs to lcells/lregs
+;;; Alist mapping VARs to lcells/lregs
 (defvar *ppc2-var-cells* ())
 
 (defun ppc2-note-var-cell (var cell)
@@ -245,8 +245,8 @@
 
 
   
-; ensure that lcell's offset matches what we expect it to.
-; For bootstrapping.
+;;; ensure that lcell's offset matches what we expect it to.
+;;; For bootstrapping.
 
 (defun ppc2-ensure-lcell-offset (c expected)
   (if c (= (calc-lcell-offset c) expected) (zerop expected)))
@@ -284,8 +284,8 @@
     (when vreg
       (<- valreg))))
 
-; ensure that next-method-var is heap-consed (if it's closed over.)
-; it isn't ever setqed, is it ?
+;;; ensure that next-method-var is heap-consed (if it's closed over.)
+;;; it isn't ever setqed, is it ?
 (defun ppc2-heap-cons-next-method-var (seg var)
   (with-ppc-local-vinsn-macros (seg)
     (when (eq (ash 1 $vbitclosed)
@@ -591,8 +591,8 @@
   (declare (cons x y))
   (> (the fixnum (cdr x)) (the fixnum (cdr y))))
 
-; Return an unordered list of "varsets": each var in a varset can be assigned a register
-; and all vars in a varset can be assigned the same register (e.g., no scope conflicts.)
+;;; Return an unordered list of "varsets": each var in a varset can be assigned a register
+;;; and all vars in a varset can be assigned the same register (e.g., no scope conflicts.)
 
 (defun ppc2-partition-vars (vars)
   (labels ((var-weight (var)
@@ -653,8 +653,8 @@
                   (push (cons (nreverse varset) weight) varsets)))))))
       varsets)))
 
-; Maybe globally allocate registers to symbols naming functions & variables,
-; and to simple lexical variables.
+;;; Maybe globally allocate registers to symbols naming functions & variables,
+;;; and to simple lexical variables.
 (defun ppc2-allocate-global-registers (fcells vcells all-vars no-regs)
   (if no-regs
     (progn
@@ -687,8 +687,8 @@
                                  (%ilsl $vbitreg 1))))))))))
           
     
-;; Vpush the last N non-volatile-registers.
-;; Could use a STM here, especially if N is largish or optimizing for space.
+;;; Vpush the last N non-volatile-registers.
+;;; Could use a STM here, especially if N is largish or optimizing for space.
 (defun ppc2-save-nvrs (seg n)
   (declare (fixnum n))
   (when (> n 0)
@@ -704,14 +704,14 @@
           *ppc2-register-restore-count* n)))
 
 
-; If there are an indefinite number of args/values on the vstack,
-; we have to restore from a register that matches the compiler's
-; notion of the vstack depth.  This can be computed by the caller 
-; (sum of vsp & nargs, or copy of vsp  before indefinite number of 
-; args pushed, etc.)
-; We DON'T try to compute this from the saved context, since the
-; saved vsp may belong to a different stack segment.  (It's cheaper
-; to compute/copy than to load it, anyway.)
+;;; If there are an indefinite number of args/values on the vstack,
+;;; we have to restore from a register that matches the compiler's
+;;; notion of the vstack depth.  This can be computed by the caller 
+;;; (sum of vsp & nargs, or copy of vsp  before indefinite number of 
+;;; args pushed, etc.)
+;;; We DON'T try to compute this from the saved context, since the
+;;; saved vsp may belong to a different stack segment.  (It's cheaper
+;;; to compute/copy than to load it, anyway.)
 
 (defun ppc2-restore-nvrs (seg ea nregs &optional from-fp)
   (when (null from-fp)
@@ -723,9 +723,9 @@
         (! restore-nvrs first from-fp (- *ppc2-vstack* ea))))))
 
 
-;; The change is to ask for a stack-consed rest var if the rest var is ignored.
-;; And also to pop the rest var immediately if it's ignored, rather than at the end
-;; of the function.  That will allow calling the final function tail-recursively.  
+;;; The change is to ask for a stack-consed rest var if the rest var is ignored.
+;;; And also to pop the rest var immediately if it's ignored, rather than at the end
+;;; of the function.  That will allow calling the final function tail-recursively.  
 
 
 
@@ -774,7 +774,7 @@
           (progn
             (ppc2-load-lexpr-address seg reg)
             (ppc2-set-var-ea seg rest reg))
-          (with-imm-temps () ((nargs-cell :u32))
+          (with-imm-temps () ((nargs-cell :natural))
             (ppc2-load-lexpr-address seg nargs-cell)
             (let* ((loc *ppc2-vstack*))
               (ppc2-vpush-register seg nargs-cell :reserved)
@@ -850,8 +850,8 @@
             (ppc2-bind-var seg spvar sploc sp-lcell))))
       (setq vloc (%i+ vloc 8)))))
 
-; Vpush register r, unless var gets a globally-assigned register.
-; Return NIL if register was vpushed, else var.
+;;; Vpush register r, unless var gets a globally-assigned register.
+;;; Return NIL if register was vpushed, else var.
 (defun ppc2-vpush-arg-register (seg reg var)
   (when var
     (let* ((bits (nx-var-bits var)))
@@ -863,11 +863,11 @@
           nil)))))
 
 
-; nargs has been validated, arguments defaulted and canonicalized.
-; Save caller's context, then vpush any argument registers that
-; didn't get global registers assigned to their variables.
-; Return a list of vars/nils for each argument register 
-;  (nil if vpushed, var if still in arg_reg).
+;;; nargs has been validated, arguments defaulted and canonicalized.
+;;; Save caller's context, then vpush any argument registers that
+;;; didn't get global registers assigned to their variables.
+;;; Return a list of vars/nils for each argument register 
+;;;  (nil if vpushed, var if still in arg_reg).
 (defun ppc2-argregs-entry (seg revargs)
   (with-ppc-local-vinsn-macros (seg)
     (let* ((nargs (length revargs))
@@ -896,9 +896,9 @@
             (push (ppc2-vpush-arg-register seg ($ ppc::arg_z) zvar) reg-vars))))
       reg-vars)))
 
-; Just required args.
-; Since this is just a stupid bootstrapping port, always save 
-; lisp context.
+;;; Just required args.
+;;; Since this is just a stupid bootstrapping port, always save 
+;;; lisp context.
 (defun ppc2-req-nargs-entry (seg rev-fixed-args)
   (let* ((nargs (length rev-fixed-args)))
     (declare (type (unsigned-byte 16) nargs))
@@ -907,8 +907,8 @@
         (! check-exact-nargs nargs))
       (ppc2-argregs-entry seg rev-fixed-args))))
 
-; No more than three &optional args; all default to NIL and none have
-; supplied-p vars.  No &key/&rest.
+;;; No more than three &optional args; all default to NIL and none have
+;;; supplied-p vars.  No &key/&rest.
 (defun ppc2-simple-opt-entry (seg rev-opt-args rev-req-args)
   (let* ((min (length rev-req-args))
          (nopt (length rev-opt-args))
@@ -926,11 +926,11 @@
           (! default-3-args min)))
       (ppc2-argregs-entry seg (append rev-opt-args rev-req-args)))))
 
-; if "num-fixed" is > 0, we've already ensured that at least that many args
-; were provided; that may enable us to generate better code for saving the
-; argument registers.
-; We're responsible for computing the caller's VSP and saving
-; caller's state.
+;;; if "num-fixed" is > 0, we've already ensured that at least that many args
+;;; were provided; that may enable us to generate better code for saving the
+;;; argument registers.
+;;; We're responsible for computing the caller's VSP and saving
+;;; caller's state.
 (defun ppc2-lexpr-entry (seg num-fixed)
   (with-ppc-local-vinsn-macros (seg)
     (! save-lexpr-argregs num-fixed)
@@ -1012,7 +1012,7 @@
             (apply fn seg vreg xfer (%cdr form)))
           (error "ppc2-form ? ~s" form))))))
 
-; dest is a float reg - form is acode
+;;; dest is a float reg - form is acode
 (defun ppc2-form-float (seg freg xfer form)
   (declare (ignore xfer))
   (when (or (nx-null form)(nx-t form))(error "ppc2-form to freg ~s" form))
@@ -1039,8 +1039,8 @@
   (declare (dynamic-extent forms))
   (apply (svref *ppc2-specials* (%ilogand operator-id-mask op)) seg vreg xfer forms))
 
-; Returns true iff lexical variable VAR isn't setq'ed in FORM.
-; Punts a lot ...
+;;; Returns true iff lexical variable VAR isn't setq'ed in FORM.
+;;; Punts a lot ...
 (defun ppc2-var-not-set-by-form-p (var form)
   (or (not (%ilogbitp $vbitsetq (nx-var-bits var)))
       (ppc2-setqed-var-not-set-by-form-p var form)))
@@ -1098,14 +1098,14 @@
   (setq *ppc2-vstack* new))
 
 
-; Emit a note at the end of the segment.
+;;; Emit a note at the end of the segment.
 (defun ppc2-emit-note (seg class &rest info)
   (declare (dynamic-extent info))
   (let* ((note (make-vinsn-note class info)))
     (append-dll-node (vinsn-note-label note) seg)
     note))
 
-; Emit a note immediately before the target vinsn.
+;;; Emit a note immediately before the target vinsn.
 (defun ppc-prepend-note (vinsn class &rest info)
   (declare (dynamic-extent info))
   (let* ((note (make-vinsn-note class info)))
@@ -1155,7 +1155,7 @@
     (when (%ilogbitp $vbitreg bits)
       (%ilogand bits $vrefmask))))
 
-; Can't cross-compile this.  Too bad.
+;;; Can't cross-compile this.  Too bad.
 #+ppc32-host
 (defun ppc2-single-float-bits (the-sf)
   (uvref the-sf ppc32::single-float.value-cell))
@@ -1232,7 +1232,7 @@
       dest)))
 
 
-; Returns label iff form is (local-go <tag>) and can go without adjusting stack.
+;;; Returns label iff form is (local-go <tag>) and can go without adjusting stack.
 (defun ppc2-go-label (form)
   (let ((current-stack (ppc2-encode-stack)))
     (while (and (acode-p form) (or (eq (acode-operator form) (%nx1-operator progn))
@@ -1267,7 +1267,9 @@
 
 (defun ppc2-box-s32 (seg node-dest s32-src)
   (with-ppc-local-vinsn-macros (seg)
-    (if *ppc2-open-code-inline*
+    (if (target-arch-case
+         (:ppc32 *ppc2-open-code-inline*)
+         (:ppc64 t))
       (! s32->integer node-dest s32-src)
       (let* ((arg_z ($ ppc::arg_z))
              (imm0 ($ ppc::imm0 :mode :s32)))
@@ -1275,9 +1277,23 @@
         (! call-subprim .SPmakes32)
         (ppc2-copy-register seg node-dest arg_z)))))
 
+(defun ppc2-box-s64 (seg node-dest s64-src)
+  (with-ppc-local-vinsn-macros (seg)
+    (if (target-arch-case
+         (:ppc32 (error "Bug!"))
+         (:ppc64 *ppc2-open-code-inline*))
+      (! s64->integer node-dest s64-src)
+      (let* ((arg_z ($ ppc::arg_z))
+             (imm0 ($ ppc::imm0 :mode :s64)))
+        (ppc2-copy-register seg imm0 s64-src)
+        (! call-subprim .SPmakes64)
+        (ppc2-copy-register seg node-dest arg_z)))))
+
 (defun ppc2-box-u32 (seg node-dest u32-src)
   (with-ppc-local-vinsn-macros (seg)
-    (if *ppc2-open-code-inline*
+    (if (target-arch-case
+         (:ppc32 *ppc2-open-code-inline*)
+         (:ppc64 t))
       (! u32->integer node-dest u32-src)
       (let* ((arg_z ($ ppc::arg_z))
              (imm0 ($ ppc::imm0 :mode :u32)))
@@ -1285,10 +1301,22 @@
         (! call-subprim .SPmakeu32)
         (ppc2-copy-register seg node-dest arg_z)))))
 
+(defun ppc2-box-u64 (seg node-dest u64-src)
+  (with-ppc-local-vinsn-macros (seg)
+    (if (target-arch-case
+         (:ppc32 (error "Bug!"))
+         (:ppc64 *ppc2-open-code-inline*))
+      (! u64->integer node-dest u64-src)
+      (let* ((arg_z ($ ppc::arg_z))
+             (imm0 ($ ppc::imm0 :mode :u64)))
+        (ppc2-copy-register seg imm0 u64-src)
+        (! call-subprim .SPmakeu64)
+        (ppc2-copy-register seg node-dest arg_z)))))
 
-; safe = T means assume "vector" is miscobj, do bounds check.
-; safe = fixnum means check that subtag of vector = "safe" and do bounds check.
-; safe = nil means crash&burn.
+
+;;; safe = T means assume "vector" is miscobj, do bounds check.
+;;; safe = fixnum means check that subtag of vector = "safe" and do bounds check.
+;;; safe = nil means crash&burn.
 ;;; This mostly knows how to reference the elements of an immediate miscobj.
 (defun ppc2-vref (seg vreg xfer type-keyword vector index safe)
   (let* ((arch (backend-target-arch *target-backend*))
@@ -1425,8 +1453,8 @@
                                     (! extract-variable-bit-fixnum target dest bitnum)))))))))
                     (^)))))))))))
 
-; In this case, the target register is an fp reg and the vector is declared
-; do be a double-float vector.  Avoid boxing the result!
+;;; In this case, the target register is an fp reg and the vector is declared
+;;; do be a double-float vector.  Avoid boxing the result!
 (defun ppc2-df-vref (seg vreg xfer vector index safe)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((index-known-fixnum (acode-fixnum-form-p index))
@@ -1770,7 +1798,7 @@
                                     (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
                              (! misc-set-c-u32 temp src index-known-fixnum)
                              (progn
-                               (setq idx-reg (make-unwired-lreg (select-imm-temp :u32)))
+                               (setq idx-reg (make-unwired-lreg (select-imm-temp :natural)))
                                (if index-known-fixnum
                                  (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 2)))
                                  (! scale-32bit-misc-index idx-reg unscaled-idx))
@@ -1792,7 +1820,7 @@
                                     (<= index-known-fixnum (arch::target-max-8-bit-constant-index arch)))
                              (! misc-set-c-u8 temp src index-known-fixnum)
                              (progn
-                               (setq idx-reg (make-unwired-lreg (select-imm-temp :u32)))
+                               (setq idx-reg (make-unwired-lreg (select-imm-temp :natural)))
                                (if index-known-fixnum
                                  (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) index-known-fixnum))
                                  (! scale-8bit-misc-index idx-reg unscaled-idx))
@@ -1810,7 +1838,7 @@
                                     (<= index-known-fixnum (arch::target-max-16-bit-constant-index arch)))
                              (! misc-set-c-u16 temp src index-known-fixnum)
                              (progn
-                               (setq idx-reg (make-unwired-lreg (select-imm-temp :u32)))
+                               (setq idx-reg (make-unwired-lreg (select-imm-temp :natural)))
                                (if index-known-fixnum
                                  (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 1)))
                                  (! scale-16bit-misc-index idx-reg unscaled-idx))
@@ -1881,8 +1909,8 @@
                   (when vreg (<- val-reg)))
                 (^)))))))))
 
-;; In this case, the destination (vreg) is either an FPR or null, so
-;; we can maybe avoid boxing the value.
+;;; In this case, the destination (vreg) is either an FPR or null, so
+;;; we can maybe avoid boxing the value.
 (defun ppc2-df-vset (seg vreg xfer vector index value safe)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((index-known-fixnum (acode-fixnum-form-p index))
@@ -1948,8 +1976,8 @@
       (make-acode (%nx1-operator immediate) (car alias))
       immref)))
 
-; If BODY is essentially an APPLY involving an &rest arg, try to avoid
-; consing it.
+;;; If BODY is essentially an APPLY involving an &rest arg, try to avoid
+;;; consing it.
 (defun ppc2-eliminate-&rest (body rest key-p auxen rest-values)
   (when (and rest (not key-p) (not (cadr auxen)) rest-values)
     (when (eq (logand (the fixnum (nx-var-bits rest))
@@ -2087,7 +2115,7 @@
         (! jump-known-symbol-ool)
         (! call-known-symbol-ool)))))
 
-; Nargs = nil -> multiple-value case.
+;;; Nargs = nil -> multiple-value case.
 (defun ppc2-invoke-fn (seg fn nargs spread-p xfer)
   (with-ppc-local-vinsn-macros (seg)
     (let* ((f-op (acode-unwrapped-form fn))
@@ -2276,7 +2304,9 @@
           (let* ((cell 0))
             (declare (fixnum cell))
             (progn
-              (ppc2-lri seg ppc::imm0 (logior (ash vsize ppc32::num-subtag-bits) (ppc2-lookup-target-uvector-subtag :function)))
+              (ppc2-lri seg
+                        ppc::imm0
+                        (arch::make-vheader vsize (ppc2-lookup-target-uvector-subtag :function)))
               (! %alloc-misc-fixed dest ppc::imm0 (ash vsize (arch::target-word-shift arch)))
               )       
             (! %closure-code% ppc::arg_x)
@@ -2391,25 +2421,25 @@
 
 
 
-; treat form as a 32-bit immediate value and load it into immreg.
-; This is the "lenient" version of 32-bit-ness; OSTYPEs and chars
-; count, and we don't care about the integer's sign.
+;;; treat form as a 32-bit immediate value and load it into immreg.
+;;; This is the "lenient" version of 32-bit-ness; OSTYPEs and chars
+;;; count, and we don't care about the integer's sign.
 
 (defun ppc2-unboxed-integer-arg-to-reg (seg form immreg)
   (with-ppc-local-vinsn-macros (seg)
     (let* ((value (ppc2-long-constant-p form)))
       (if value
         (if (eql value 0)
-          ($  ppc::rzero :mode :u32)
+          ($  ppc::rzero :mode :natural)
           (progn
             (unless (typep immreg 'lreg)
-              (setq immreg (make-unwired-lreg immreg :mode (gpr-mode-name-value :u32))))
+              (setq immreg (make-unwired-lreg immreg :mode (gpr-mode-name-value :natural))))
             (ppc2-lri seg immreg value)
             immreg))
         (progn 
           (ppc2-one-targeted-reg-form seg form ($ ppc::arg_z))
           (! getXlong)
-          ($ ppc::imm0 :mode :u32))))))
+          ($ ppc::imm0 :mode :natural))))))
 
 
 (defun ppc2-macptr-arg-to-reg (seg form address-reg)  
@@ -2538,8 +2568,8 @@
             (elide-vinsn pop-vinsn)))))))
                 
         
-; we never leave the first form pushed (the 68K compiler had some subprims that
-; would vpop the first argument out of line.)
+;;; we never leave the first form pushed (the 68K compiler had some subprims that
+;;; would vpop the first argument out of line.)
 (defun ppc2-two-targeted-reg-forms (seg aform areg bform breg)
   (unless (typep areg 'lreg)
     (warn "~s is not an lreg (1/2)" areg))
@@ -2788,7 +2818,7 @@
 
 
 
-; There are other cases involving constants that are worth exploiting.
+;;; There are other cases involving constants that are worth exploiting.
 (defun ppc2-compare (seg vreg xfer i j cr-bit true-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((jconstant (acode-fixnum-form-p j))
@@ -2818,7 +2848,7 @@
           (multiple-value-bind (ireg jreg) (ppc2-two-untargeted-reg-forms seg i ppc::arg_y j ppc::arg_z)
             (ppc2-compare-registers seg vreg xfer ireg jreg cr-bit true-p)))))))
 
-(defun ppc2-u32-compare (seg vreg xfer i j cr-bit true-p)
+(defun ppc2-natural-compare (seg vreg xfer i j cr-bit true-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((jconstant (acode-fixnum-form-p j))
            (ju16 (typep jconstant '(unsigned-byte 16)))
@@ -2827,20 +2857,20 @@
            (boolean (backend-crf-p vreg)))
       (if (and boolean (or ju16 iu16))
         (with-imm-target
-            () (reg :u32)
+            () (reg :natural)
             (ppc2-one-targeted-reg-form seg (if ju16 i j) reg)
             (! compare-unsigned-u16const vreg reg (if ju16 jconstant iconstant))
             (unless (or ju16 (eq cr-bit ppc::ppc-eq-bit)) 
               (setq cr-bit (- 1 cr-bit)))
             (^ cr-bit true-p))
-        (with-imm-target
-            () (ireg :u32)
-            (with-imm-target
-                (ireg) (jreg :u32)
+        (with-imm-target ()
+          (ireg :natural)
+            (with-imm-target 
+                (ireg) (jreg :natural)
                 (ppc2-two-targeted-reg-forms seg i ireg j jreg)
-                (ppc2-compare-u32-registers seg vreg xfer ireg jreg cr-bit true-p)))))))
+                (ppc2-compare-natural-registers seg vreg xfer ireg jreg cr-bit true-p)))))))
 
-(defun ppc2-compare-u32-registers (seg vreg xfer ireg jreg cr-bit true-p)
+(defun ppc2-compare-natural-registers (seg vreg xfer ireg jreg cr-bit true-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (if vreg
       (regspec-crf-gpr-case 
@@ -2848,7 +2878,7 @@
        (progn
          (! compare-logical dest ireg jreg)
          (^ cr-bit true-p))
-       (with-imm-temps () ((b31-reg :u32))
+       (with-imm-temps () ((b31-reg :natural))
          (ecase cr-bit
            (#. ppc::ppc-eq-bit 
             (if true-p
@@ -2875,7 +2905,7 @@
        (progn
          (! compare dest ireg jreg)
          (^ cr-bit true-p))
-       (with-imm-temps () ((b31-reg :u32))
+       (with-imm-temps () ((b31-reg :natural))
          (ecase cr-bit
            (#. ppc::ppc-eq-bit 
             (if true-p
@@ -2902,7 +2932,7 @@
        (progn
          (! compare-to-nil dest ireg)
          (^ cr-bit true-p))
-       (with-imm-temps () ((b31-reg :u32))
+       (with-imm-temps () ((b31-reg :natural))
          (ecase cr-bit
            (#. ppc::ppc-eq-bit 
             (if true-p
@@ -2913,7 +2943,7 @@
          (^)))
       (^))))
 
-; Have to extract a bit out of the CR when a boolean result needed.
+;;; Have to extract a bit out of the CR when a boolean result needed.
 (defun ppc2-compare-double-float-registers (seg vreg xfer ireg jreg cr-bit true-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (if vreg
@@ -2922,7 +2952,7 @@
        (progn
          (! double-float-compare dest ireg jreg)
          (^ cr-bit true-p))
-       (with-imm-temps () ((lowbit-reg :u32))
+       (with-imm-temps () ((lowbit-reg :natural))
          (with-crf-target () flags
            (! double-float-compare flags ireg jreg)
            (! crbit->bit31 lowbit-reg flags cr-bit))
@@ -3028,102 +3058,208 @@
                 ;; on the register-renaming pipeline nonsense than
                 ;; (MR dest-gpr rzero) would be.
                 (! lri dest-gpr 0)
-                (case dest-mode
-                  (#.hard-reg-class-gpr-mode-node      ; boxed result.
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (unless (eql  dest-gpr src-gpr)
-                        (! copy-gpr dest src)))
-                     (#.hard-reg-class-gpr-mode-u32
-                      (ppc2-box-u32 seg dest src))
-                     (#.hard-reg-class-gpr-mode-s32
-                      (ppc2-box-s32 seg dest src))
-                     (#.hard-reg-class-gpr-mode-u16
-                      (! u16->fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-s16
-                      (! s16->fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-u8
-                      (! u8->fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-s8
-                      (! s8->fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-address
-                      (! macptr->heap dest src))))
-                  ((#.hard-reg-class-gpr-mode-u32
-                    #.hard-reg-class-gpr-mode-address)
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (let* ((src-type (get-node-regspec-type-modes src)))
-                        (declare (fixnum src-type))
-                        (case dest-mode
-                          (#.hard-reg-class-gpr-mode-u32
-                           (! unbox-u32 dest src))
-                          (#.hard-reg-class-gpr-mode-address
-                           (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
-                             (! trap-unless-macptr src))
-                           (! deref-macptr dest src)))))
-                     ((#.hard-reg-class-gpr-mode-u32
-                       #.hard-reg-class-gpr-mode-s32
-                       #.hard-reg-class-gpr-mode-address)
-                      (unless (eql  dest-gpr src-gpr)
-                        (! copy-gpr dest src)))
-                     ((#.hard-reg-class-gpr-mode-u16
-                       #.hard-reg-class-gpr-mode-s16)
-                      (! u16->u32 dest src))
-                     ((#.hard-reg-class-gpr-mode-u8
-                       #.hard-reg-class-gpr-mode-s8)
-                      (! u8->u32 dest src))))
-                  (#.hard-reg-class-gpr-mode-s32
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-s32 dest src))
-                     ((#.hard-reg-class-gpr-mode-u32
-                       #.hard-reg-class-gpr-mode-s32
-                       #.hard-reg-class-gpr-mode-address)
-                      (unless (eql  dest-gpr src-gpr)
-                        (! copy-gpr dest src)))
-                     (#.hard-reg-class-gpr-mode-u16
-                      (! u16->u32 dest src))                 
-                     (#.hard-reg-class-gpr-mode-s16
-                      (! s16->s32 dest src))
-                     (#.hard-reg-class-gpr-mode-u8
-                      (! u8->u32 dest src))
-                     (#.hard-reg-class-gpr-mode-s8
-                      (! s8->s32 dest src))))
-                  (#.hard-reg-class-gpr-mode-u16
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-u16 dest src))
-                     ((#.hard-reg-class-gpr-mode-u8
-                       #.hard-reg-class-gpr-mode-s8)
-                      (! u8->u32 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src)))))
-                  (#.hard-reg-class-gpr-mode-s16
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-s16 dest src))
-                     (#.hard-reg-class-gpr-mode-s8
-                      (! s8->s32 dest src))
-                     (#.hard-reg-class-gpr-mode-u8
-                      (! u8->u32 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src)))))
-                  (#.hard-reg-class-gpr-mode-u8
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-u8 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src)))))
-                  (#.hard-reg-class-gpr-mode-s8
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-s8 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src)))))))
+                ;; This is the "GPR <- GPR" case.  There are
+                ;; word-size dependencies, but there's also
+                ;; lots of redundancy here.
+                (target-arch-case
+                 (:ppc32
+                  (case dest-mode
+                    (#.hard-reg-class-gpr-mode-node ; boxed result.
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u32
+                        (ppc2-box-u32 seg dest src))
+                       (#.hard-reg-class-gpr-mode-s32
+                        (ppc2-box-s32 seg dest src))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! u16->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! s16->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-address
+                        (! macptr->heap dest src))))
+                    ((#.hard-reg-class-gpr-mode-u32
+                      #.hard-reg-class-gpr-mode-address)
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (let* ((src-type (get-node-regspec-type-modes src)))
+                          (declare (fixnum src-type))
+                          (case dest-mode
+                            (#.hard-reg-class-gpr-mode-u32
+                             (! unbox-u32 dest src))
+                            (#.hard-reg-class-gpr-mode-address
+                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                               (! trap-unless-macptr src))
+                             (! deref-macptr dest src)))))
+                       ((#.hard-reg-class-gpr-mode-u32
+                         #.hard-reg-class-gpr-mode-s32
+                         #.hard-reg-class-gpr-mode-address)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       ((#.hard-reg-class-gpr-mode-u16
+                         #.hard-reg-class-gpr-mode-s16)
+                        (! u16->u32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u8
+                         #.hard-reg-class-gpr-mode-s8)
+                        (! u8->u32 dest src))))
+                    (#.hard-reg-class-gpr-mode-s32
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u32
+                         #.hard-reg-class-gpr-mode-s32
+                         #.hard-reg-class-gpr-mode-address)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! u16->u32 dest src))                 
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! s16->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))))
+                    (#.hard-reg-class-gpr-mode-u16
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u16 dest src))
+                       ((#.hard-reg-class-gpr-mode-u8
+                         #.hard-reg-class-gpr-mode-s8)
+                        (! u8->u32 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-s16
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s16 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-u8
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u8 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-s8
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s8 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))))
+                 (:ppc64
+                  (case dest-mode
+                    (#.hard-reg-class-gpr-mode-node ; boxed result.
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u64
+                        (ppc2-box-u64 seg dest src))
+                       (#.hard-reg-class-gpr-mode-s64
+                        (ppc2-box-s64 seg dest src))
+                       (#.hard-reg-class-gpr-mode-u32
+                        (ppc2-box-u32 seg dest src))
+                       (#.hard-reg-class-gpr-mode-s32
+                        (ppc2-box-s32 seg dest src))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! u16->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! s16->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-address
+                        (! macptr->heap dest src))))
+                    ((#.hard-reg-class-gpr-mode-u64
+                      #.hard-reg-class-gpr-mode-address)
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (let* ((src-type (get-node-regspec-type-modes src)))
+                          (declare (fixnum src-type))
+                          (case dest-mode
+                            (#.hard-reg-class-gpr-mode-u64
+                             (! unbox-u64 dest src))
+                            (#.hard-reg-class-gpr-mode-address
+                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                               (! trap-unless-macptr src))
+                             (! deref-macptr dest src)))))
+                       ((#.hard-reg-class-gpr-mode-u64
+                         #.hard-reg-class-gpr-mode-s64
+                         #.hard-reg-class-gpr-mode-address)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       ((#.hard-reg-class-gpr-mode-u16
+                         #.hard-reg-class-gpr-mode-s16)
+                        (! u16->u32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u8
+                         #.hard-reg-class-gpr-mode-s8)
+                        (! u8->u32 dest src))))
+                    (#.hard-reg-class-gpr-mode-s32
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u32
+                         #.hard-reg-class-gpr-mode-s32
+                         #.hard-reg-class-gpr-mode-address)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! u16->u32 dest src))                 
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! s16->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))))
+                    (#.hard-reg-class-gpr-mode-u16
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u16 dest src))
+                       ((#.hard-reg-class-gpr-mode-u8
+                         #.hard-reg-class-gpr-mode-s8)
+                        (! u8->u32 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-s16
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s16 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-u8
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u8 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-s8
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s8 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))))))
               (if src-gpr
                 (if dest-fpr
                   (progn
@@ -3162,7 +3298,7 @@
   (declare (ignore vreg))
   nil)
 
-; bind vars to initforms, as per let*, &aux.
+;;; bind vars to initforms, as per let*, &aux.
 (defun ppc2-seq-bind (seg vars initforms)
   (dolist (var vars)
     (ppc2-seq-bind-var seg var (pop initforms))))
@@ -3329,9 +3465,9 @@
 
 
 
-; Never make a vcell if this is an inherited var.
-; If the var's inherited, its bits won't be a fixnum (and will
-; therefore be different from what NX-VAR-BITS returns.)
+;;; Never make a vcell if this is an inherited var.
+;;; If the var's inherited, its bits won't be a fixnum (and will
+;;; therefore be different from what NX-VAR-BITS returns.)
 (defun ppc2-bind-var (seg var vloc &optional lcell &aux 
                           (bits (nx-var-bits var)) 
                           (closed-p (and (%ilogbitp $vbitclosed bits) (%ilogbitp $vbitsetq bits)))
@@ -3414,8 +3550,8 @@
       (ppc2-new-vstack-lcell :special-link *ppc2-target-lcell-size* 0 sym)
       (ppc2-adjust-vstack (* 3 *ppc2-target-node-size*)))))
 
-; Store the contents of EA - which denotes either a vframe location
-; or a hard register - in reg.
+;;; Store the contents of EA - which denotes either a vframe location
+;;; or a hard register - in reg.
 
 (defun ppc2-store-ea (seg ea reg)
   (if (typep ea 'fixnum)
@@ -3430,7 +3566,7 @@
 
       
 
-; Callers should really be sure that this is what they want to use.
+;;; Callers should really be sure that this is what they want to use.
 (defun ppc2-absolute-natural (seg vreg xfer value)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (when vreg
@@ -3470,8 +3606,8 @@
 
 
 
-; If "value-first-p" is true and both "offset" and "val" need to be 
-; evaluated, evaluate "val" before evaluating "offset".
+;;; If "value-first-p" is true and both "offset" and "val" need to be 
+;;; evaluated, evaluate "val" before evaluating "offset".
 (defun ppc2-%immediate-set-ptr (seg vreg xfer  ptr offset val value-first-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((intval (acode-absolute-ptr-p val))
@@ -3846,8 +3982,8 @@
 
 
 
-; "Trivial" means can be evaluated without allocating or modifying registers.
-; Interim definition, which will probably stay here forever.
+;;; "Trivial" means can be evaluated without allocating or modifying registers.
+;;; Interim definition, which will probably stay here forever.
 (defun ppc2-trivial-p (form &aux op bits)
   (setq form (nx-untyped-form form))
   (and
@@ -3886,7 +4022,7 @@
         (<- dest)))
     (^)))
 
-;; Should be less eager to box result
+;;; Should be less eager to box result
 (defun ppc2-extract-charcode (seg vreg xfer char safe)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((src (ppc2-one-untargeted-reg-form seg char ppc::arg_z)))
@@ -3911,11 +4047,11 @@
             (! %car target src))))
       (^))))
 
-; If safe, ensure that index is a fixnum (if non-constant)
-; and check vector bound.
-; If we're going to have to evaluate the index into a register (to do
-; the bounds check), but know that the index could be a constant 16-bit
-; displacement, this'll look pretty silly ..
+;;; If safe, ensure that index is a fixnum (if non-constant)
+;;; and check vector bound.
+;;; If we're going to have to evaluate the index into a register (to do
+;;; the bounds check), but know that the index could be a constant 16-bit
+;;; displacement, this'll look pretty silly ..
 (defun ppc2-misc-node-ref (seg vreg xfer miscobj index safe)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((index-known-fixnum (acode-fixnum-form-p index))
@@ -3960,28 +4096,22 @@
 
 
 (defun ppc2-misc-byte-count (subtag element-count)
-  (declare (fixnum subtag))
-  (if (or (= ppc32::fulltag-nodeheader (logand subtag ppc32::fulltagmask))
-          (<= subtag ppc32::max-32-bit-ivector-subtag))
-    (ash element-count 2)
-    (if (<= subtag ppc32::max-8-bit-ivector-subtag)
-      element-count
-      (if (<= subtag ppc32::max-16-bit-ivector-subtag)
-        (ash element-count 1)
-        (if (= subtag ppc32::subtag-bit-vector)
-          (ash (+ element-count 7) -3)
-          (+ 4 (ash element-count 3)))))))
+  (funcall (arch::target-array-data-size-function
+            (backend-target-arch *target-backend*))
+           subtag element-count))
 
-; The naive approach is to vpush all of the initforms, allocate the miscobj,
-; then sit in a loop vpopping the values into the vector.
-; That's "naive" when most of the initforms in question are "side-effect-free"
-; (constant references or references to un-SETQed lexicals), in which case
-; it makes more sense to just store the things into the vector cells, vpushing/
-; vpopping only those things that aren't side-effect-free.  (It's necessary
-; to evaluate any non-trivial forms before allocating the miscobj, since that
-; ensures that the initforms are older (in the EGC sense) than it is.)
-; The break-even point space-wise is when there are around 3 non-trivial initforms
-; to worry about.
+
+;;; The naive approach is to vpush all of the initforms, allocate the
+;;; miscobj, then sit in a loop vpopping the values into the vector.
+;;; That's "naive" when most of the initforms in question are
+;;; "side-effect-free" (constant references or references to un-SETQed
+;;; lexicals), in which case it makes more sense to just store the
+;;; things into the vector cells, vpushing/ vpopping only those things
+;;; that aren't side-effect-free.  (It's necessary to evaluate any
+;;; non-trivial forms before allocating the miscobj, since that
+;;; ensures that the initforms are older (in the EGC sense) than it
+;;; is.)  The break-even point space-wise is when there are around 3
+;;; non-trivial initforms to worry about.
 
 
 (defun ppc2-allocate-initialized-gvector (seg vreg xfer subtag initforms)
@@ -3997,7 +4127,7 @@
                        (dolist (f initforms count) 
                          (unless (ppc-side-effect-free-form-p f)
                            (incf count)))))
-             (header (logior (ash n target::num-subtag-bits) subtag)))
+             (header (arch::make-vheader n subtag)))
         (declare (fixnum n nntriv))
         (cond ( (or *ppc2-open-code-inline* (> nntriv 3))
                (ppc2-formlist seg initforms nil)
@@ -4027,15 +4157,15 @@
                          (if form
                            (setq reg (ppc2-one-untargeted-reg-form seg form nodetemp))
                            (progn
-                             (decf pushed-cell 4)
+                             (decf pushed-cell *ppc2-target-node-size*)
                              (ppc2-stack-to-register seg (ppc2-vloc-ea pushed-cell) nodetemp)))
                          (! misc-set-c-node reg target index)))))
                  (! vstack-discard nntriv))
                ))))
      (^)))
 
-;; Heap-allocated constants -might- need memoization: they might be newly-created,
-;; as in the case of synthesized toplevel functions in .pfsl files.
+;;; Heap-allocated constants -might- need memoization: they might be newly-created,
+;;; as in the case of synthesized toplevel functions in .pfsl files.
 (defun ppc2-acode-needs-memoization (valform)
   (if (ppc2-form-typep valform 'fixnum)
     nil
@@ -4103,14 +4233,14 @@
           *ppc2-nilret-labels*)
     lab))
 
-; If we know that the form is something that sets a CR bit,
-; allocate a CR field and evaluate the form in such a way
-; as to set that bit.
-; If it's a compile-time constant, branch accordingly and
-; let the dead code die.
-; Otherwise, evaluate it to some handy register and compare
-; that register to RNIL.
-; "XFER" is a compound destination.
+;;; If we know that the form is something that sets a CR bit,
+;;; allocate a CR field and evaluate the form in such a way
+;;; as to set that bit.
+;;; If it's a compile-time constant, branch accordingly and
+;;; let the dead code die.
+;;; Otherwise, evaluate it to some handy register and compare
+;;; that register to RNIL.
+;;; "XFER" is a compound destination.
 (defun ppc2-conditional-form (seg xfer form)
   (let* ((uwf (acode-unwrapped-form form)))
     (if (nx-null uwf)
@@ -4221,7 +4351,7 @@
                          (%char-code (char form 3)))
                  (if (characterp form) (%char-code form))))))))
 
-; execute body, cleanup afterwards (if need to)
+;;; execute body, cleanup afterwards (if need to)
 (defun ppc2-undo-body (seg vreg xfer body old-stack)
   (let* ((current-stack (ppc2-encode-stack))
          (numundo (%i- *ppc2-undo-count* (ppc2-encoding-undo-count old-stack))))
@@ -4279,11 +4409,11 @@
         (! vstack-discard (ash diff -2))))
     exit-vstack))
 
-; We can sometimes combine unwinding the catch stack with returning from the function
-; by jumping to a subprim that knows how to do this.  If catch frames were distinguished
-; from unwind-protect frames, we might be able to do this even when saved registers
-; are involved (but the subprims restore them from the last catch frame.)
-; *** there are currently only subprims to handle the "1 frame" case; add more ***
+;;; We can sometimes combine unwinding the catch stack with returning from the function
+;;; by jumping to a subprim that knows how to do this.  If catch frames were distinguished
+;;; from unwind-protect frames, we might be able to do this even when saved registers
+;;; are involved (but the subprims restore them from the last catch frame.)
+;;; *** there are currently only subprims to handle the "1 frame" case; add more ***
 (defun ppc2-do-return (seg)
   (let* ((*ppc2-vstack* *ppc2-vstack*)
          (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
@@ -4551,7 +4681,7 @@
         vstack))))
 
 
-; Restore the N most recent dynamic bindings.
+;;; Restore the N most recent dynamic bindings.
 (defun ppc2-dpayback (seg n)
   (declare (fixnum n))
   (with-ppc-local-vinsn-macros (seg)
@@ -4636,14 +4766,14 @@
   (free-logical-registers)
   (ppc2-free-lcells))
 
-; It's not clear whether or not predicates, etc. want to look
-; at an lreg or just at its value slot.
-; It's clear that the assembler just wants the value, and that
-; the value had better be assigned by the time we start generating
-; machine code.
-; For now, we replace lregs in the operand vector with their values
-; on entry, but it might be reasonable to make PARSE-OPERAND-FORM
-; deal with lregs ...
+;;; It's not clear whether or not predicates, etc. want to look
+;;; at an lreg or just at its value slot.
+;;; It's clear that the assembler just wants the value, and that
+;;; the value had better be assigned by the time we start generating
+;;; machine code.
+;;; For now, we replace lregs in the operand vector with their values
+;;; on entry, but it might be reasonable to make PARSE-OPERAND-FORM
+;;; deal with lregs ...
 (defun ppc2-expand-vinsn (vinsn)
   (let* ((template (vinsn-template vinsn))
          (vp (vinsn-variable-parts vinsn))
@@ -5055,8 +5185,8 @@
 (defppc2 ppc2-svref svref (seg vreg xfer vector index)
   (ppc2-misc-node-ref seg vreg xfer vector index (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag :simple-vector))))
 
-;; It'd be nice if this didn't box the result.  Worse things happen ...
-;;  Once there's a robust mechanism, adding a CHARCODE storage class shouldn't be hard.
+;;; It'd be nice if this didn't box the result.  Worse things happen ...
+;;;  Once there's a robust mechanism, adding a CHARCODE storage class shouldn't be hard.
 (defppc2 ppc2-%sbchar %sbchar (seg vreg xfer string index)
   (ppc2-vref seg vreg xfer :simple-string string index (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag :simple-string))))
 
@@ -5129,7 +5259,9 @@
   (ppc2-reference-list seg vreg xfer form t t))
 
 (defppc2 ppc2-vector vector (seg vreg xfer arglist)
-  (ppc2-allocate-initialized-gvector seg vreg xfer ppc32::subtag-simple-vector arglist))
+  (ppc2-allocate-initialized-gvector seg vreg xfer
+                                     (ppc2-lookup-target-uvector-subtag
+                                      :simple-vector) arglist))
 
 (defppc2 ppc2-%ppc-gvector %ppc-gvector (seg vreg xfer arglist)
   (let* ((all-on-stack (append (car arglist) (reverse (cadr arglist))))
@@ -5145,15 +5277,9 @@
             (! gvector))
           (<- ppc::arg_z)
           (^))
-        (let* ((subtag-tag (logand subtag ppc32::full-tag-mask)))
-          (declare (fixnum subtag-tag))
-          (unless (= subtag-tag ppc32::fulltag-nodeheader)
-            (let* ((newtag ppc32::subtag-simple-vector))
-              (warn "%gvector: subtag was ~d, using ~d instead" subtag newtag)
-              (setq subtag newtag)))
-          (ppc2-allocate-initialized-gvector seg vreg xfer subtag (cdr all-on-stack)))))))
+        (ppc2-allocate-initialized-gvector seg vreg xfer subtag (cdr all-on-stack))))))
 
-;; Should be less eager to box result
+;;; Should be less eager to box result
 (defppc2 ppc2-%char-code %char-code (seg vreg xfer c)
   (ppc2-extract-charcode seg vreg xfer c nil))
 
@@ -5181,8 +5307,8 @@
           (if vreg (ensuring-node-target (target vreg) (! %logior2 target r1 r2)))))   
       (^))))
 
-; in a lot of (typical ?) cases, it might be possible to use a rotate-and-mask instead
-; of andi./andis.
+;;; in a lot of (typical ?) cases, it might be possible to use a rotate-and-mask instead
+;;; of andi./andis.
 
 (defppc2 ppc2-%ilogand2 %ilogand2 (seg vreg xfer form1 form2)
   (let* ((fix1 (acode-fixnum-form-p form1))
@@ -5803,7 +5929,14 @@
          ;; why we didn't bother.
          (let* ((fix1 (acode-fixnum-form-p form1))
                 (fix2 (acode-fixnum-form-p form2))
-                (other (if fix1 form2 (if fix2 form1))))
+                (other (if (and fix1
+                                (typep (ash fix1 *ppc2-target-fixnum-shift*)
+                                       '(signed-byte 32)))
+                         form2
+                         (if (and fix2
+                                  (typep (ash fix2 *ppc2-target-fixnum-shift*)
+                                              '(signed-byte 32)))
+                           form1))))
            (if (and fix1 fix2)
              (ppc2-lri seg vreg (ash (+ fix1 fix2) *ppc2-target-fixnum-shift*))
              (if other
@@ -5832,7 +5965,7 @@
          (v2 (acode-fixnum-form-p num2)))
     (if (and v1 v2)
       (ppc2-use-operator (%nx1-operator fixnum) seg vreg xfer (%i- v1 v2))
-      (if (and v2  (neq v2 most-negative-fixnum))
+      (if (and v2 (neq v2 most-negative-fixnum))
         (ppc2-use-operator (%nx1-operator %i+) seg vreg xfer num1 (make-acode (%nx1-operator fixnum) (- v2)) overflow) 
         (if (eq v2 0)
           (ppc2-form seg vreg xfer num1)
@@ -5993,7 +6126,10 @@
            (nelements (acode-fixnum-form-p element-count))         
            (nbytes (if (and subtag nelements) (ppc2-misc-byte-count subtag nelements))))
       (if (and  nbytes (null initval)
-               (< (logand (lognot 7) (+ nbytes 4 7)) #x8000))
+                (< (logand
+                    (lognot (1- (* 2 *ppc2-target-node-size*)))
+                    (+ nbytes *ppc2-target-node-size*
+                       (1- (* 2 *ppc2-target-node-size*)))) #x8000))
         (with-imm-temps () (header)
           (ppc2-lri seg header (arch::make-vheader nelements subtag))
           (ensuring-node-target (target vreg)
@@ -6008,7 +6144,7 @@
               (ppc2-two-targeted-reg-forms seg element-count ($ ppc::arg_y) st ($ ppc::arg_z))
               (! misc-alloc)
               (<- ($ ppc::arg_z))))))
-      (^))))
+        (^))))
 
 (defppc2 ppc2-%iasr %iasr (seg vreg xfer form1 form2)
   (if (null vreg)
@@ -6045,9 +6181,9 @@
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
     (ppc2-compare seg vreg xfer form1 form2 cr-bit true-p)))
 
-(defppc2 ppc2-%u32<> %u32<> (seg vreg xfer cc form1 form2)
+(defppc2 ppc2-%natural<> %natural<> (seg vreg xfer cc form1 form2)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
-    (ppc2-u32-compare seg vreg xfer form1 form2 cr-bit true-p)))
+    (ppc2-natural-compare seg vreg xfer form1 form2 cr-bit true-p)))
 
 (defppc2 ppc2-double-float-compare double-float-compare (seg vreg xfer cc form1 form2)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
@@ -6312,7 +6448,7 @@
     
       
                                       
-; This returns an unboxed object, unless the caller wants to box it.
+;;; This returns an unboxed object, unless the caller wants to box it.
 (defppc2 ppc2-immediate-get-xxx immediate-get-xxx (seg vreg xfer bits ptr offset)
   (let* ((lowbits (%ilogand2 3 bits))
          (deref (%ilogbitp 4 bits))
@@ -6336,7 +6472,7 @@
              (setq absptr nil))
            (and offval (%i> (integer-length offval) 15) (setq offval nil))
            (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
-           (with-imm-target () (dest :u32)
+           (with-imm-target () (dest :natural)
              (if absptr
                (if (eq size 4)
                  (! mem-ref-c-fullword dest ppc::rzero absptr)
@@ -6373,7 +6509,7 @@
                        (if (eq size 2)
                          (! mem-ref-u16 dest src-reg offset-reg)
                          (! mem-ref-u8 dest src-reg offset-reg)))))))
-             ; %get-fixnum: if storing to a node vreg, ignore any overflow.
+             ;; %get-fixnum: if storing to a node vreg, ignore any overflow.
              (if (and (eq size 4) 
                       (%ilogbitp 5 bits)
                       (node-reg-p vreg))
@@ -6487,10 +6623,10 @@
           (dolist (var real-vars)
             (ppc2-close-var seg var)))))))
 
-; Make a function call (e.g., to mapcar) with some of the toplevel arguments
-; stack-consed (downward) closures.  Bind temporaries to these closures so
-; that tail-recursion/non-local exits work right.
-; (all of the closures are distinct: FLET and LABELS establish dynamic extent themselves.)
+;;; Make a function call (e.g., to mapcar) with some of the toplevel arguments
+;;; stack-consed (downward) closures.  Bind temporaries to these closures so
+;;; that tail-recursion/non-local exits work right.
+;;; (all of the closures are distinct: FLET and LABELS establish dynamic extent themselves.)
 (defppc2 ppc2-with-downward-closures with-downward-closures (seg vreg xfer tempvars closures callform)
   (let* ((old-stack (ppc2-encode-stack)))
     (ppc2-seq-bind seg tempvars closures)
@@ -6580,13 +6716,13 @@
                    (! lisp-word-ref target breg otemp)))
                (^))))))
 
-(defppc2 ppc2-%fixnum-ref-u32 %fixnum-ref-u32 (seg vreg xfer base offset)
+(defppc2 ppc2-%fixnum-ref-natural %fixnum-ref-natural (seg vreg xfer base offset)
   (let* ((fixoffset (acode-fixnum-form-p offset)))
     (cond ((null vreg)
            (ppc2-form seg nil nil base)
            (ppc2-form seg nil xfer offset))
           ((typep fixoffset '(signed-byte 16))
-           (with-imm-target () (val :u32)
+           (with-imm-target () (val :natural)
              (! lisp-word-ref-c val
                 (ppc2-one-untargeted-reg-form seg base ppc::arg_z) 
                 fixoffset)
@@ -6596,7 +6732,7 @@
 		 (ppc2-two-untargeted-reg-forms seg base ppc::arg_y offset ppc::arg_z)
                (with-imm-target () (otemp :s32)
                  (! fixnum->s32 otemp oreg)
-                 (with-imm-target () (val :u32)
+                 (with-imm-target () (val :natural)
                    (! lisp-word-ref val breg otemp)
                    (<- val)))
                (^))))))
@@ -6726,7 +6862,7 @@
   (^))
            
 
-; cons a macptr, unless "vreg" is an immediate register of mode :address.
+;;; cons a macptr, unless "vreg" is an immediate register of mode :address.
 (defppc2 ppc2-%consmacptr% %consmacptr% (seg vreg xfer form)
   (cond ((null vreg) (ppc2-form seg nil xfer form))
         ((eql (get-regspec-mode vreg) hard-reg-class-gpr-mode-address)
@@ -6741,7 +6877,7 @@
     (ppc2-form seg nil xfer form)
     (with-imm-target () (address-reg :address)
       (ppc2-form seg address-reg nil form)
-      (<- (set-regspec-mode address-reg (gpr-mode-name-value :u32)))
+      (<- (set-regspec-mode address-reg (gpr-mode-name-value :natural)))
       (^))))
 
 (defppc2 ppc2-%immediate-int-to-ptr %immediate-int-to-ptr (seg vreg xfer form)
@@ -6750,10 +6886,10 @@
     (progn
       (unless (logbitp (hard-regspec-value vreg) ppc-imm-regs)
         (error "I give up.  When will I get this right ?"))
-      (let* ((u32-reg (ppc2-one-targeted-reg-form seg 
-                                                    form
-                                                    ($ vreg :mode :u32))))
-        (<- u32-reg)
+      (let* ((natural-reg (ppc2-one-targeted-reg-form seg 
+                                                      form
+                                                      ($ vreg :mode :natural))))
+        (<- natural-reg)
         (^)))))
 
 
@@ -6872,7 +7008,7 @@
    (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag :simple-string))))
 
 
-; If we didn't use this for stack consing, turn it into a call.  Ugh.
+;;; If we didn't use this for stack consing, turn it into a call.  Ugh.
 
 (defppc2 ppc2-make-list make-list (seg vreg xfer size initial-element)
   (ppc2-form seg vreg xfer (make-acode (%nx1-operator call)
@@ -7139,7 +7275,7 @@
           (t
            (! set-eabi-c-arg
               (with-imm-target ()
-                (valreg :u32)
+                (valreg :natural)
                 (ppc2-unboxed-integer-arg-to-reg seg valform valreg))
               nextarg)))
         (incf nextarg)))
@@ -7216,7 +7352,7 @@
                      (incf nextarg))))
                (decf nextarg))
              (with-imm-target ()
-               (valreg :u32)
+               (valreg :natural)
                (if longval
                  (ppc2-lri seg valreg longval)
                  (ppc2-unboxed-integer-arg-to-reg seg valform valreg))
@@ -7433,7 +7569,7 @@
                       (! set-eabi-c-arg ptr other-offset)
                       (incf other-offset)))))
             (t
-             (with-imm-target () (valreg :u32)
+             (with-imm-target () (valreg :natural)
                 (let* ((reg (ppc2-unboxed-integer-arg-to-reg seg valform valreg)))
                   (incf ngpr-args)
                   (cond ((<= ngpr-args 8)
@@ -7568,11 +7704,11 @@
       (dolist (var vars) (ppc2-close-var seg var)))))
 
 
-;; Under MacsBug 5.3 (and some others ?), this'll do a low-level user
-;; break.  If the debugger doesn't recognize the trap instruction,
-;; you'll have to manually advance the PC past it.  "arg" winds up in the
-;; arg_z register; whatever's in arg_z on return is returned by
-;; the %debug-trap construct.
+;;; Under MacsBug 5.3 (and some others ?), this'll do a low-level user
+;;; break.  If the debugger doesn't recognize the trap instruction,
+;;; you'll have to manually advance the PC past it.  "arg" winds up in the
+;;; arg_z register; whatever's in arg_z on return is returned by
+;;; the %debug-trap construct.
 
 (defppc2 ppc2-%debug-trap %debug-trap (seg vreg xfer arg)
   (ppc2-one-targeted-reg-form seg arg ($ ppc::arg_z))
@@ -7588,7 +7724,7 @@
       (! eep.address target reg))
     (^)))
 
-(defppc2 ppc2-%u32+ %u32+ (seg vreg xfer x y)
+(defppc2 ppc2-%natural+ %natural+ (seg vreg xfer x y)
   (if (null vreg)
     (progn
       (ppc2-form seg nil nil x)
@@ -7600,19 +7736,19 @@
         (let* ((u15x (and (typep fix-x '(unsigned-byte 15)) fix-x))
                (u15y (and (typep fix-y '(unsigned-byte 15)) fix-y)))
           (if (not (or u15x u15y))
-            (with-imm-target () (xreg :u32)
-              (with-imm-target (xreg) (yreg :u32)
+            (with-imm-target () (xreg :natural)
+              (with-imm-target (xreg) (yreg :natural)
                 (ppc2-two-targeted-reg-forms seg x xreg y yreg)
-                (! %u32+ xreg xreg yreg))
+                (! %natural+ xreg xreg yreg))
               (<- xreg))
             (let* ((other (if u15x y x)))
-              (with-imm-target () (other-reg :u32)
+              (with-imm-target () (other-reg :natural)
                 (ppc2-one-targeted-reg-form seg other other-reg)
-                (! %u32+-c other-reg other-reg (or u15x u15y))
+                (! %natural+-c other-reg other-reg (or u15x u15y))
                 (<- other-reg))))
           (^))))))
 
-(defppc2 ppc2-%u32- %u32- (seg vreg xfer x y)
+(defppc2 ppc2-%natural- %natural- (seg vreg xfer x y)
   (if (null vreg)
     (progn
       (ppc2-form seg nil nil x)
@@ -7623,118 +7759,123 @@
         (ppc2-absolute-natural seg vreg xfer (- fix-x fix-y))
         (let* ((u15y (and (typep fix-y '(unsigned-byte 15)) fix-y)))
           (if (not u15y)
-            (with-imm-target () (xreg :u32)
-              (with-imm-target (xreg) (yreg :u32)
+            (with-imm-target () (xreg :natural)
+              (with-imm-target (xreg) (yreg :natural)
                 (ppc2-two-targeted-reg-forms seg x xreg y yreg)
-                (! %u32- xreg xreg yreg))
+                (! %natural- xreg xreg yreg))
               (<- xreg))
             (progn
-              (with-imm-target () (xreg :u32)
+              (with-imm-target () (xreg :natural)
                 (ppc2-one-targeted-reg-form seg x xreg)
-                (! %u32--c xreg xreg u15y)
+                (! %natural--c xreg xreg u15y)
                 (<- xreg))))
           (^))))))
 
-(defppc2 ppc2-%u32-logior %u32-logior (seg vreg xfer x y)
+(defppc2 ppc2-%natural-logior %natural-logior (seg vreg xfer x y)
   (if (null vreg)
     (progn
       (ppc2-form seg nil nil x)
       (ppc2-form seg nil xfer y))
-    (let* ((u32x (nx-u32-constant-p x))
-           (u32y (nx-u32-constant-p y)))
-      (if (and u32x u32y) 
-        (ppc2-absolute-natural seg vreg xfer (logior u32x u32y))
-        (let* ((constant (or u32x u32y)))
+    (let* ((naturalx (nx-natural-constant-p x))
+           (naturaly (nx-natural-constant-p y)))
+      (if (and naturalx naturaly) 
+        (ppc2-absolute-natural seg vreg xfer (logior naturalx naturaly))
+        (let* ((u32x (nx-u32-constant-p x))
+               (u32y (nx-u32-constant-p y))
+               (constant (or u32x u32y)))
           (if (not constant)
-            (with-imm-target () (xreg :u32)
-              (with-imm-target (xreg) (yreg :u32)
+            (with-imm-target () (xreg :natural)
+              (with-imm-target (xreg) (yreg :natural)
                 (ppc2-two-targeted-reg-forms seg x xreg y yreg)
-                (! %u32-logior xreg xreg yreg))
+                (! %natural-logior xreg xreg yreg))
               (<- xreg))
             (let* ((other (if u32x y x))
                    (high (ldb (byte 16 16) constant))
                    (low (ldb (byte 16 0) constant)))
-              (with-imm-target () (other-reg :u32)
+              (with-imm-target () (other-reg :natural)
                 (ppc2-one-targeted-reg-form seg other other-reg)
-                (! %u32-logior-c other-reg other-reg high low)
+                (! %natural-logior-c other-reg other-reg high low)
                 (<- other-reg))))
           (^))))))
 
-(defppc2 ppc2-%u32-logxor %u32-logxor (seg vreg xfer x y)
+(defppc2 ppc2-%natural-logxor %natural-logxor (seg vreg xfer x y)
   (if (null vreg)
     (progn
       (ppc2-form seg nil nil x)
       (ppc2-form seg nil xfer y))
-    (let* ((u32x (nx-u32-constant-p x))
-           (u32y (nx-u32-constant-p y)))
-      (if (and u32x u32y) 
-        (ppc2-absolute-natural seg vreg xfer (logxor u32x u32y))
-        (let* ((constant (or u32x u32y)))
+    (let* ((naturalx (nx-natural-constant-p x))
+           (naturaly (nx-natural-constant-p y)))
+      (if (and naturalx naturaly) 
+        (ppc2-absolute-natural seg vreg xfer (logxor naturalx naturaly))
+        (let* ((u32x (nx-u32-constant-p x))
+               (u32y (nx-u32-constant-p y))
+               (constant (or u32x u32y)))
           (if (not constant)
-            (with-imm-target () (xreg :u32)
-              (with-imm-target (xreg) (yreg :u32)
+            (with-imm-target () (xreg :natural)
+              (with-imm-target (xreg) (yreg :natural)
                 (ppc2-two-targeted-reg-forms seg x xreg y yreg)
-                (! %u32-logxor xreg xreg yreg))
+                (! %natural-logxor xreg xreg yreg))
               (<- xreg))
             (let* ((other (if u32x y x))
                    (high (ldb (byte 16 16) constant))
                    (low (ldb (byte 16 0) constant)))
-              (with-imm-target () (other-reg :u32)
+              (with-imm-target () (other-reg :natural)
                 (ppc2-one-targeted-reg-form seg other other-reg)
-                (! %u32-logxor-c other-reg other-reg high low)
+                (! %natural-logxor-c other-reg other-reg high low)
                 (<- other-reg))))
           (^))))))
 
-(defppc2 ppc2-%u32-logand %u32-logand (seg vreg xfer x y)
+(defppc2 ppc2-%natural-logand %natural-logand (seg vreg xfer x y)
   (if (null vreg)
     (progn
       (ppc2-form seg nil nil x)
       (ppc2-form seg nil xfer y))
-    (let* ((u32x (nx-u32-constant-p x))
-           (u32y (nx-u32-constant-p y)))
-      (if (and u32x u32y) 
-        (ppc2-absolute-natural seg vreg xfer (logand u32x u32y))
-        (let* ((constant (or u32x u32y)))
+    (let* ((naturalx (nx-natural-constant-p x))
+           (naturaly (nx-natural-constant-p y)))
+      (if (and naturalx naturaly) 
+        (ppc2-absolute-natural seg vreg xfer (logand naturalx naturaly))
+        (let* ((u32x (nx-u32-constant-p x))
+               (u32y (nx-u32-constant-p y))
+               (constant (or u32x u32y)))
           (if (not constant)
-            (with-imm-target () (xreg :u32)
-              (with-imm-target (xreg) (yreg :u32)
+            (with-imm-target () (xreg :natural)
+              (with-imm-target (xreg) (yreg :natural)
                 (ppc2-two-targeted-reg-forms seg x xreg y yreg)
-                (! %u32-logand xreg xreg yreg))
+                (! %natural-logand xreg xreg yreg))
               (<- xreg))
-            (let* ((other (if u32x y x))
-                   (constant (or u32x u32y)))
-              (with-imm-target () (other-reg :u32)
+            (let* ((other (if u32x y x)))
+              (with-imm-target () (other-reg :natural)
                 (ppc2-one-targeted-reg-form seg other other-reg)
                 (multiple-value-bind (start-bit stop-bit)
                     (ppc2-mask-bits constant)
                   (if start-bit
-                    (! %u32-logand-mask-c other-reg other-reg start-bit stop-bit)
+                    (! %natural-logand-mask-c other-reg other-reg start-bit stop-bit)
                     (let* ((high (ldb (byte 16 16) constant))
                            (low (ldb (byte 16 0) constant)))
                       (declare (type (unsigned-byte 16) high low))
                       (unless (and (= high #xffff)
                                    (= low high))
                         (if (= low 0)
-                          (! %u32-logand-high-c other-reg other-reg high)
+                          (! %natural-logand-high-c other-reg other-reg high)
                           (if (= high 0)
-                            (! %u32-logand-low-c other-reg other-reg low)
-                            (with-imm-target (other-reg) (const-reg :u32)
+                            (! %natural-logand-low-c other-reg other-reg low)
+                            (with-imm-target (other-reg) (const-reg :natural)
                               (ppc2-absolute-natural seg const-reg nil constant)
-                              (! %u32-logand other-reg other-reg const-reg))))))))
+                              (! %natural-logand other-reg other-reg const-reg))))))))
                 (<- other-reg))))
           (^))))))
 
-(defppc2 ppc2-u32-shift-right u32-shift-right (seg vreg xfer num amt)
-  (with-imm-target () (dest :u32)
+(defppc2 ppc2-natural-shift-right natural-shift-right (seg vreg xfer num amt)
+  (with-imm-target () (dest :natural)
     (ppc2-one-targeted-reg-form seg num dest)
-    (! u32-shift-right dest dest (acode-fixnum-form-p amt))
+    (! natural-shift-right dest dest (acode-fixnum-form-p amt))
     (<- dest)
     (^)))
 
-(defppc2 ppc2-u32-shift-left u32-shift-left (seg vreg xfer num amt)
-  (with-imm-target () (dest :u32)
+(defppc2 ppc2-natural-shift-left natural-shift-left (seg vreg xfer num amt)
+  (with-imm-target () (dest :natural)
     (ppc2-one-targeted-reg-form seg num dest)
-    (! u32-shift-left dest dest (acode-fixnum-form-p amt))
+    (! natural-shift-left dest dest (acode-fixnum-form-p amt))
     (<- dest)
     (^)))
 
