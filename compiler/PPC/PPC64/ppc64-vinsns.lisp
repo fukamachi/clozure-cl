@@ -744,12 +744,12 @@
 
 
 (define-ppc64-vinsn require-real (()
-				    ((object :lisp))
-				    ((crf0 (:crf 0))
-                                     (crf1 :crf)
-                                     (crf2 :crf)
-				     (tag :u8)
-                                     (tag2 :u8)))
+                                  ((object :lisp))
+                                  ((crf0 (:crf 0))
+                                   (crf1 :crf)
+                                   (crf2 :crf)
+                                   (tag :u8)
+                                   (tag2 :u8)))
   :again
   (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
   (clrldi. tag2 object (- ppc64::nbits-in-word ppc64::nlisptagbits))
@@ -1142,7 +1142,7 @@
 
 (define-ppc64-vinsn invert-lowbit (((bits :u64))
                                    ((bits :u64))
-				  ())
+                                   ())
   (xori bits bits 1))
 
                            
@@ -1923,25 +1923,32 @@
 				 ((src :imm)))
   (sradi result src ppc64::fixnumshift))
 
+(define-ppc64-vinsn s32->integer (((result :lisp))
+                                  ((src :s32)))
+  (sldi result src ppc64::fixnumshift))
+
+
 ;;; A signed 64-bit untagged value can be at worst a 1-digit bignum.
 ;;; There should be something very much like this that takes a stack-consed
 ;;; bignum result ...
 (define-ppc64-vinsn s64->integer (((result :lisp))
 				  ((src :s64))
 				  ((crf (:crf 0)) ; a casualty
-				   (temp :s64)))        
+				   (temp :s64)
+                                   (header :s64)))
   (addo temp src src)
   (addo temp temp temp)
   (addo. result temp temp)
+  (rotldi temp src 32)
   (bns+ :done)
   (mtxer ppc::rzero)
-  (li temp ppc64::one-digit-bignum-header)
+  (li header ppc64::two-digit-bignum-header)
   (la ppc::allocptr (- ppc64::fulltag-misc 16) ppc::allocptr)
   (tdllt ppc::allocptr ppc::allocbase)
-  (std temp ppc64::misc-header-offset ppc::allocptr)
+  (std header ppc64::misc-header-offset ppc::allocptr)
   (mr result ppc::allocptr)
   (rldicr ppc::allocptr ppc::allocptr 0 (- 63 ppc64::ntagbits))
-  (std src ppc64::misc-data-offset result)
+  (std temp ppc64::misc-data-offset result)
   :done)
 
 
@@ -1949,6 +1956,37 @@
 (define-ppc64-vinsn u32->integer (((result :lisp))
 				  ((src :u32)))
   (sldi result src ppc64::fixnumshift))
+
+;;; An unsigned 64-bit untagged value is either a fixnum, a 2 (32-bit)
+;;; digit bignum, or a 3 (32-bit) digit bignum.
+(define-ppc64-vinsn u64->integer (((result :lisp))
+                                  ((src :u64))
+                                  ((temp :u64)
+                                   (header :u64)
+                                   (crf0 (:crf 0))
+                                   (crf1 :crf)))
+  (clrrdi. temp src (- 64 ppc64::nfixnumtagbits))
+  (cmpdi crf1 temp 0)
+  (sldi result src ppc64::fixnumshift)
+  (beq crf0 :done)
+  (rotldi temp src 32)
+  (li header ppc64::two-digit-bignum-header)
+  (blt crf1 :three)
+  (la ppc::allocptr (- ppc64::fulltag-misc 16) ppc::allocptr)
+  (tdllt ppc::allocptr ppc::allocbase)
+  (std header ppc64::misc-header-offset ppc::allocptr)
+  (mr result ppc::allocptr)
+  (rldicr ppc::allocptr ppc::allocptr 0 (- 63 ppc64::ntagbits))
+  (b :store)
+  :three
+  (la ppc::allocptr (- ppc64::fulltag-misc 32) ppc::allocptr)
+  (tdllt ppc::allocptr ppc::allocbase)
+  (std header ppc64::misc-header-offset ppc::allocptr)
+  (mr result ppc::allocptr)
+  (rldicr ppc::allocptr ppc::allocptr 0 (- 63 ppc64::ntagbits))
+  :store
+  (std temp ppc64::misc-data-offset result)
+  :done)
 
 (define-ppc64-vinsn u16->u32 (((dest :u32))
 			      ((src :u16)))
@@ -2150,7 +2188,7 @@
   (twllt ppc::allocptr ppc::allocbase)
   (stw header ppc64::misc-header-offset ppc::allocptr)
   (mr dest ppc::allocptr)
-  (clrrwi ppc::allocptr ppc::allocptr ppc64::ntagbits)
+  (clrrdi ppc::allocptr ppc::allocptr ppc64::ntagbits)
   (stw unboxed ppc64::misc-data-offset dest)
   :done)
 
