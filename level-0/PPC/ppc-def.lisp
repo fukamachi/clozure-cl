@@ -27,30 +27,30 @@
     ;; This is going to have to pass a lisp object to a foreign function.
     ;; If we ever have a preemptive scheduler, we'd better hope that
     ;; WITHOUT-INTERRUPTS refuses to run lisp code from a callback.
-    (stwu sp (- (+ #+linuxppc-target ppc32::eabi-c-frame.minsize
-		   #+darwinppc-target ppc32::c-frame.minsize ppc32::lisp-frame.size)) sp)	; make an FFI frame.
+    (stru sp (- (+ #+linuxppc-target ppc32::eabi-c-frame.minsize
+		   #+darwinppc-target target::c-frame.minsize ppc32::lisp-frame.size)) sp)	; make an FFI frame.
     (la imm0 ppc32::misc-data-offset codev)
-    (stw imm0 #+linuxppc-target ppc32::eabi-c-frame.param0 #+darwinppc-target ppc32::c-frame.param0  sp)
-    (stw len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target ppc32::c-frame.param1 sp)
+    (str imm0 #+linuxppc-target ppc32::eabi-c-frame.param0 #+darwinppc-target target::c-frame.param0  sp)
+    (stw len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target target::c-frame.param1 sp)
     (ref-global imm3 kernel-imports)
-    (lwz arg_z ppc32::kernel-import-MakeDataExecutable imm3)
+    (ldr arg_z target::kernel-import-MakeDataExecutable imm3)
     (bla #+linuxppc-target .SPeabi-ff-call #+darwinppc-target .SPffcall)
-    (li arg_z ppc32::nil-value)
+    (li arg_z nil)
     (restore-full-lisp-context)
     (blr)))
 
 (defppclapfunction %get-kernel-global-from-offset ((offset arg_z))
   (check-nargs 1)
   (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc32::nil-value)
-  (lwz arg_z 0 imm0)
+  (addi imm0 imm0 target::nil-value)
+  (ldr arg_z 0 imm0)
   (blr))
 
 (defppclapfunction %set-kernel-global-from-offset ((offset arg_y) (new-value arg_z))
   (check-nargs 2)
   (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc32::nil-value)
-  (stw new-value 0 imm0)
+  (addi imm0 imm0 target::nil-value)
+  (str new-value 0 imm0)
   (blr))
 
 
@@ -59,29 +59,29 @@
 						       (ptr arg_z))
   (check-nargs 2)
   (unbox-fixnum imm0 offset)
-  (addi imm0 imm0 ppc32::nil-value)
-  (lwz imm0 0 imm0)
-  (stw imm0 ppc32::macptr.address ptr)
+  (addi imm0 imm0 target::nil-value)
+  (ldr imm0 0 imm0)
+  (str imm0 target::macptr.address ptr)
   (blr))
 
 
 
 
 (defppclapfunction %fixnum-ref ((fixnum arg_y) #| &optional |# (offset arg_z))
-  (cmpi cr0 nargs '1)
+  (cmpri cr0 nargs '1)
   (check-nargs 1 2)
   (bne cr0 @2-args)
   (mr fixnum offset)
   (li offset 0)
   @2-args
   (unbox-fixnum imm0 offset)
-  (lwzx arg_z imm0 fixnum)
+  (ldrx arg_z imm0 fixnum)
   (blr))
 
 
-
-(defppclapfunction %fixnum-ref-u32 ((fixnum arg_y) #| &optional |# (offset arg_z))
-  (cmpi cr0 nargs '1)
+#+ppc32-target
+(defppclapfunction %fixnum-ref-natural ((fixnum arg_y) #| &optional |# (offset arg_z))
+  (cmpri cr0 nargs '1)
   (check-nargs 1 2)
   (bne cr0 @2-args)
   (mr fixnum offset)
@@ -91,8 +91,17 @@
   (lwzx imm0 imm0 fixnum)
   (ba .SPmakeu32))
 
-
-
+#+ppc64-target
+(defppclapfunction %fixnum-ref-natural ((fixnum arg_y) #| &optional |# (offset arg_z))
+  (cmpdi cr0 nargs '1)
+  (check-nargs 1 2)
+  (bne cr0 @2-args)
+  (mr fixnum offset)
+  (li offset 0)
+  @2-args
+  (unbox-fixnum imm0 offset)
+  (ldx imm0 imm0 fixnum)
+  (ba .SPmakeu64))
 
 (defppclapfunction %fixnum-set ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
   (cmpi cr0 nargs '2)
@@ -102,12 +111,11 @@
   (li offset 0)
   @3-args
   (unbox-fixnum imm0 offset)
-  (stwx new-value imm0 fixnum)
+  (strx new-value imm0 fixnum)
   (mr arg_z new-value)
   (blr))
 
-
-
+#+ppc32-target
 (defppclapfunction %fixnum-set-u32 ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
   (cmpwi cr0 nargs '2)
   (check-nargs 2 3)
@@ -141,6 +149,44 @@
   (blt cr0 @notu32)
   @store
   (stwx imm2 imm0 fixnum)
+  (mr arg_z new-value)
+  (blr))
+
+#+ppc64-target
+(defppclapfunction %fixnum-set-u32 ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
+  (cmpdi cr0 nargs '2)
+  (check-nargs 2 3)
+  (bne cr0 @3-args)
+  (mr fixnum offset)
+  (li offset 0)
+  @3-args
+  (unbox-fixnum imm0 offset)
+  (extract-typecode imm1 new-value)
+  (cmpdi cr0 imm1 ppc64::tag-fixnum)
+  (cmpdi cr1 imm1 ppc64::subtag-bignum)
+  (srdi imm2 new-value ppc32::fixnumshift)
+  (beq cr0 @store)
+  (beq cr1 @bignum)
+  @notu64
+  (uuo_interr arch::error-object-not-unsigned-byte-64 new-value)
+  @bignum
+  (ld imm2 ppc64::misc-data-offset new-value)
+  (getvheader imm0 new-value)
+  (cmpdi cr1 imm0 ppc64::two-digit-bignum-header)
+  (rotldi imm2 imm2 32)
+  (cmpdi cr2 imm0 ppc64::three-digit-bignum-header)
+  (cmpdi cr0 imm2 0)
+  (beq cr1 @two)
+  (bne cr2 @notu64)
+  (lwz imm1 (+ 8 ppc32::misc-data-offset) new-value)
+  (cmpwi cr1 imm1 0)
+  (bgt cr0 @notu64)
+  (beq cr1 @store)
+  (b @notu64)
+  @two
+  (blt cr0 @notu64)
+  @store
+  (stdx imm2 imm0 fixnum)
   (mr arg_z new-value)
   (blr))
 
