@@ -1,3 +1,12 @@
+2005-05-13 04:21  gb
+
+	* compiler/PPC/ppc2.lisp: U32/natural changes, start handling
+	64-bit register copies.
+
+2005-05-13 04:20  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: misc byte-count stuff.
+
 2005-05-13 04:19  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: rename most u32 operations
