@@ -455,11 +455,13 @@
 
 ;;; Add a new method to the table
 
-(defun update-type-signatures-for-method (m c)
+(defun update-type-signatures-for-method (m c &optional canonicalize-class)
   (let* ((sel (pref m :objc_method.method_name))
          (msg (lisp-string-from-sel sel))
-	 (c (%setf-macptr (%int-to-ptr 0) c)))
-    (when (and (neq (schar msg 0) #\_) )
+	 (c (if canonicalize-class
+              (canonicalize-registered-class-or-metaclass c)
+              (%setf-macptr (%int-to-ptr 0) c))))
+    (when (neq (schar msg 0) #\_)
       (let* ((tsig (compute-method-type-signature m))
 	     (msgdesc (find tsig (gethash msg *type-signature-table*)
 			    :test #'equal
