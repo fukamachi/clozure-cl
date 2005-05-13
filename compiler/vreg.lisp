@@ -266,7 +266,7 @@
 	  (when vreg-value
 	    (case class
 	      (:crf (use-crf-temp vreg-value))
-	      ((:u8 :s8 :u16 :s16 :u32 :s32 :address)
+	      ((:u8 :s8 :u16 :s16 :u32 :s32 :u64 :s64 :address)
 	       (when result-p (note-vinsn-sets-gpr vinsn vreg-value))
 	       (use-imm-temp vreg-value))
 	      ((:single-float :double-float)
