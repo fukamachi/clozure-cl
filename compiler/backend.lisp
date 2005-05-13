@@ -67,6 +67,11 @@
     (:s64 . 9)))
 
 (defun gpr-mode-name-value (name)
+  (if (eq name :natural)
+    (setq name
+          (target-arch-case
+           (:ppc32 :u32)
+           (:ppc64 :u64))))
   (or (cdr (assq name *mode-name-value-alist*))
       (error "Unknown gpr mode name: ~s" name)))
 
@@ -125,7 +130,7 @@
         (setq *available-backend-node-temps* (bitclr bit mask))
         (return bit))))))
 
-(defun available-imm-temp (mask &optional (mode-name :u32))
+(defun available-imm-temp (mask &optional (mode-name :natural))
   (dotimes (bit 32 (error "Bug: ran out of imm temp registers."))
     (when (logbitp bit mask)
       (return (set-regspec-mode bit (gpr-mode-name-value mode-name))))))
@@ -330,7 +335,7 @@
 ; Choose an immediate register (for targeting), but don't "reserve" it.
 (defmacro with-imm-target ((&rest reserved) spec &body body)
   (let* ((name (if (atom spec) spec (car spec)))
-         (mode-name (if (atom spec) :u32 (cadr spec))))
+         (mode-name (if (atom spec) :natural (cadr spec))))
     `(let* ((,name (make-unwired-lreg
 		    (available-imm-temp
 		     (logand
