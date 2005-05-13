@@ -4148,6 +4148,23 @@ _spentry(gets64)
   Construct a lisp integer out of the 64-bit unsigned value in
   imm0 (high 32 bits) and imm1 (low 32 bits). */
 _spentry(makeu64)
+        __ifdef([PPC64])
+	 __(clrrdi. imm1,imm0,64-nfixnumtagbits)
+	 __(cmpri(cr1,imm0,0))
+	 __(box_fixnum(arg_z,imm0))
+	 __(beqlr cr0) /* A fixnum */
+         __(rotldi(imm1,imm0,32)
+	 __(li imm2,two_digit_bignum_header)
+	 __(blt cr1,2f)
+	 __(Misc_Alloc_Fixed(arg_z,imm2,node_size*2))
+	 __(str(imm1,misc_data_offset(arg_z)))
+	 __(blr)
+2:
+	 __(li imm2,two_digit_bignum_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm2,node_size*4))
+	 __(str(imm1,misc_data_offset(arg_z)))
+	 __(blr)
+        __else        
 	__(cmpri(cr1,imm0,0))
 	__(rlwinm. imm2,imm1,0,0,fixnum_shift)
 	__(li imm2,three_digit_bignum_header)
@@ -4167,30 +4184,44 @@ _spentry(makeu64)
 	__(str(imm1,misc_data_offset(arg_z)))
 	__(str(imm0,misc_data_offset+4(arg_z)))
 	__(blr)
+        __endif
 
 
 /*
   Construct a lisp integer out of the 64-bit signed value in
   imm0 (high 32 bits) and imm1 (low 32 bits). */
 _spentry(makes64)
-	__(srawi imm2,imm1,31)
-	__(cmpr(cr1,imm2,imm0))
-	__(addo imm2,imm1,imm1)
-	__(addo. arg_z,imm2,imm2)
-	__(bne cr1,2f) /* High word is significant */
-	__(li imm2,one_digit_bignum_header)
-	__(bnslr cr0) /* No overflow:	 fixnum */
-	__(mtxer rzero)
-	__(Misc_Alloc_Fixed(arg_z,imm2,8))
-	__(str(imm1,misc_data_offset(arg_z)))
-	__(blr)
+        __ifdef([PPC64])
+	 __(addo imm1,imm0,imm0)
+         __(addo imm1,imm1,imm1)
+	 __(addo. arg_z,imm1,imm1)
+	 __(bnslr+)
+	 __(mtxer rzero)
+	 __(li imm1,two_digit_bignum_header)
+         __(rotldi imm2,imm0,32)
+	 __(Misc_Alloc_Fixed(arg_z,imm1,node_size*2))
+	 __(str(imm1,misc_data_offset(arg_z)))
+         __(blr)
+        __else
+	 __(srawi imm2,imm1,31)
+	 __(cmpr(cr1,imm2,imm0))
+	 __(addo imm2,imm1,imm1)
+	 __(addo. arg_z,imm2,imm2)
+	 __(bne cr1,2f) /* High word is significant */
+	 __(li imm2,one_digit_bignum_header)
+	 __(bnslr cr0) /* No overflow:	 fixnum */
+	 __(mtxer rzero)
+	 __(Misc_Alloc_Fixed(arg_z,imm2,8))
+	 __(str(imm1,misc_data_offset(arg_z)))
+	 __(blr)
 2:
-	__(mtxer rzero)
-	__(li imm2,two_digit_bignum_header)
-	__(Misc_Alloc_Fixed(arg_z,imm2,16))
-	__(str(imm1,misc_data_offset(arg_z)))
-	__(str(imm0,misc_data_offset+4(arg_z)))
-	__(blr)
+	 __(mtxer rzero)
+	 __(li imm2,two_digit_bignum_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm2,16))
+	 __(str(imm1,misc_data_offset(arg_z)))
+	 __(str(imm0,misc_data_offset+4(arg_z)))
+	 __(blr)
+        __endif
 
 _spentry(heap_restv_arg)
 
@@ -4218,33 +4249,42 @@ _spentry(restoreintlevel)
   Construct a lisp integer out of the 32-bit signed value in imm0
  */
 _spentry(makes32)
-	__(addo imm1,imm0,imm0)
-	__(addo. arg_z,imm1,imm1)
-	__(bnslr+)
-	__(mtxer rzero)
-	__(li imm1,one_digit_bignum_header)
-	__(Misc_Alloc_Fixed(arg_z,imm1,node_size*2))
-	__(str(imm0,misc_data_offset(arg_z)))
-	__(blr)
+        __ifdef(PPC64)
+         __(box_fixnum(arg_z,imm0))
+        __else
+	 __(addo imm1,imm0,imm0)
+	 __(addo. arg_z,imm1,imm1)
+	 __(bnslr+)
+	 __(mtxer rzero)
+	 __(li imm1,one_digit_bignum_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm1,node_size*2))
+	 __(str(imm0,misc_data_offset(arg_z)))
+        __endif
+	 __(blr)
 
 /*
   Construct a lisp integer out of the 32-bit unsigned value in imm0
  */
 _spentry(makeu32)
-	__(clrrwi. imm1,imm0,31-nfixnumtagbits)
-	__(cmpri(cr1,imm0,0))
-	__(box_fixnum(arg_z,imm0))
-	__(beqlr cr0) /* A fixnum */
-	__(blt cr1,2f)
-	__(li imm2,one_digit_bignum_header)
-	__(Misc_Alloc_Fixed(arg_z,imm2,8))
-	__(str(imm0,misc_data_offset(arg_z)))
-	__(blr)
+        __ifdef([PPC64])
+         __(box_fixnum(arg_z,imm0))
+         __(blr)
+        __else
+	 __(clrrwi. imm1,imm0,31-nfixnumtagbits)
+	 __(cmpri(cr1,imm0,0))
+	 __(box_fixnum(arg_z,imm0))
+	 __(beqlr cr0) /* A fixnum */
+	 __(blt cr1,2f)
+	 __(li imm2,one_digit_bignum_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm2,8))
+	 __(str(imm0,misc_data_offset(arg_z)))
+	 __(blr)
 2:
-	__(li imm2,two_digit_bignum_header)
-	__(Misc_Alloc_Fixed(arg_z,imm2,16))
-	__(str(imm0,misc_data_offset(arg_z)))
-	__(blr)
+	 __(li imm2,two_digit_bignum_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm2,16))
+	 __(str(imm0,misc_data_offset(arg_z)))
+	 __(blr)
+        __endif
 
 /* 
   arg_z should be of type (SIGNED-BYTE 32); return unboxed result in imm0
