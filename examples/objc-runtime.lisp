@@ -442,14 +442,6 @@
   ;; Make a first pass over the class and metaclass tables;
   ;; resolving those foreign classes that existed in the old
   ;; image and still exist in the new.
-  (unless (= *foundation-library-version-number* (get-foundation-version))
-    (format *error-output* "~&Foundation version mismatch: expected ~s, got ~s~&"
-	    *Foundation-library-version-number* (get-foundation-version))
-    (#_exit 1))
-  (unless (= *appkit-library-version-number* (get-appkit-version))
-    (format *error-output* "~&AppKit version mismatch: expected ~s, got ~s~&"
-	    *appkit-library-version-number* (get-appkit-version))
-    (#_exit 1))
   (let* ((class-map (objc-class-map))
 	 (metaclass-map (objc-metaclass-map))
 	 (nclasses (%objc-class-count)))
@@ -496,6 +488,7 @@
 			     (make-cstring (objc-class-id-foreign-name i))
 			     (%null-ptr)
 			     0))
+
 	    (multiple-value-bind (ivars instance-size)
 		(%make-objc-ivars c)
 	      (%add-objc-class c ivars instance-size)
@@ -1371,7 +1364,8 @@ argument lisp string."
        
 
 ;;; Stub until BRIDGE is loaded
-(defun update-type-signatures-for-method (m c) (declare (ignore m c)))
+(defun update-type-signatures-for-method (m c &optional flag)
+  (declare (ignore m c flag)))
 
 
 ;;; If the class contains an mlist that contains a method that
@@ -1398,7 +1392,7 @@ argument lisp string."
 		    (pref method :objc_method.method_types)
 		    (make-cstring typestring)
 		    (pref method :objc_method.method_imp) imp)
-              (update-type-signatures-for-method method classptr)
+              (update-type-signatures-for-method method classptr t)
 	      (return mlist)))
 	  (do* ((n (pref mlist :objc_method_list.method_count))
 		(i 0 (1+ i))
@@ -1440,7 +1434,7 @@ argument lisp string."
 	  (external-call "__objc_update_dispatch_table_for_class"
 			 :address classptr
 			 :void))
-	(update-type-signatures-for-method (%inc-ptr method 0) classptr)))))
+	(update-type-signatures-for-method (%inc-ptr method 0) classptr t)))))
 
 (defvar *lisp-objc-methods* (make-hash-table :test #'eq))
 
@@ -1721,7 +1715,6 @@ argument lisp string."
 (pushnew #'uninstall-lisp-deallocate-hook *save-exit-functions* :test #'eq
          :key #'function-name)
 )
-
 
 ;;; Return a typestring and offset as multiple values.
 
