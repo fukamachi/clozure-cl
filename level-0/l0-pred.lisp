@@ -61,13 +61,13 @@
   (and (functionp form)
        (not (logbitp $lfbits-trampoline-bit (the fixnum (lfun-bits form))))))
 
-; all characters are base-chars.
+;;; all characters are base-chars.
 (defun extended-char-p (c)
   (declare (ignore c)))
 
 
-; Some of these things are probably open-coded.
-; The functions have to exist SOMEWHERE ...
+;;; Some of these things are probably open-coded.
+;;; The functions have to exist SOMEWHERE ...
 (defun fixnump (x)
   (= (the fixnum (lisptag x)) ppc32::tag-fixnum))
 
@@ -177,8 +177,8 @@
   (= (the fixnum (typecode x)) ppc32::subtag-macptr))
 
 
-; Note that this is true of symbols and functions and many other
-; things that it wasn't true of on the 68K.
+;;; Note that this is true of symbols and functions and many other
+;;; things that it wasn't true of on the 68K.
 (defun gvectorp (x)
   (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask)) ppc32::fulltag-nodeheader))
 
@@ -191,7 +191,7 @@
 (setf (type-predicate 'ivector) 'ivectorp)
 
 (defun miscobjp (x)
-  (= (the fixnum (lisptag x)) ppc32::tag-misc))
+  (= (the fixnum (lisptag x)) target::tag-misc))
 
 (defun simple-vector-p (x)
   "Return true if OBJECT is a SIMPLE-VECTOR, and NIL otherwise."
@@ -446,7 +446,7 @@
 		      type)))))))))))
 
 
-; real machine specific huh
+;;; real machine specific huh
 (defun consp (x)
   "Return true if OBJECT is a CONS, and NIL otherwise."
   (consp x))
@@ -480,14 +480,17 @@
 
 (defun symbolp (thing)
   "Return true if OBJECT is a SYMBOL, and NIL otherwise."
+  #+ppc32-target
   (if thing
-    (= (the fixnum (typecode thing)) target::subtag-symbol)
-    t))
-
+    (= (the fixnum (typecode thing)) ppc32::subtag-symbol)
+    t)
+  #+ppc64-target
+  (= (the fixnum (typecode thing)) ppc64::subtag-symbol))
+      
 (defun packagep (thing)
   (= (the fixnum (typecode thing)) target::subtag-package))
 
-; 1 if by land, 2 if by sea.
+;;; 1 if by land, 2 if by sea.
 (defun sequence-type (x)
   (unless (>= (the fixnum (typecode x)) target::min-vector-subtag)
     (or (listp x)
