@@ -496,8 +496,8 @@ of field, relative to start of class's own slots")
   (lisp-to-objc-message (list lisp-name)))
 
 ;;; This is only going to be called on a class created by the user;
-;;; the byte part of each foreign direct slotd's offset field should
-;;; already have been set.
+;;; each foreign direct slotd's offset field should already have been
+;;; set to the slot's bit offset.
 (defun %make-objc-ivars (class)
   (let* ((start-offset (superclass-instance-size class))
 	 (foreign-dslotds (loop for s in (class-direct-slots class)
@@ -520,7 +520,7 @@ of field, relative to start of class's own slots")
 	       (type (foreign-slot-definition-foreign-type dslotd))
 	       (encoding (encode-objc-type type)))
 	  (setq offset
-                (ash (foreign-direct-slot-definition-offset dslotd) 3))
+                (ash (foreign-direct-slot-definition-offset dslotd) -3))
 	  (setf (pref ivar :objc_ivar.ivar_name) (make-cstring string)
 		(pref ivar :objc_ivar.ivar_type) (make-cstring encoding)
 		(pref ivar :objc_ivar.ivar_offset) offset)))))))
