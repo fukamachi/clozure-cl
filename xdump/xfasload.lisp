@@ -35,15 +35,11 @@
 
 (defstruct backend-xload-info
   name
-  application-entry-code
   macro-apply-code
   closure-trampoline-code
   udf-code
-  excised-code				;for calls to function in excised libs
   default-image-name
   default-startup-file-name
-  relativize-subprims-hook
-  prepend-subprims-hook
   subdir
   compiler-target-name
 )
@@ -64,12 +60,17 @@
 
 
 (defun make-xload-header (element-count subtag)
-  (logior (ash element-count ppc32::num-subtag-bits) subtag))
+  (logior (ash element-count target::num-subtag-bits) subtag))
 
 
 (defparameter *xload-record-source-file-p* t)
 
-(defvar *xload-symbol-header* (make-xload-header ppc32::symbol.element-count ppc32::subtag-symbol))
+(defun xload-symbol-header ()
+  (target-arch-case
+   (:ppc32 (make-xload-header ppc32::symbol.element-count
+                              ppc32::subtag-symbol))
+   (:ppc64 (make-xload-header ppc64::symbol.element-count
+                              ppc64::subtag-symbol))))
 
 (defparameter *xload-fasl-dispatch-table* (make-array (length *fasl-dispatch-table*)
                                                      :initial-element #'%bad-fasl))
@@ -348,7 +349,7 @@
 					(space *xload-dynamic-space*))
   (multiple-value-bind (cell-addr data offset) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::symbol.element-count)
     (declare (fixnum offset))
-      (setf (u32-ref data (+ offset ppc32::symbol.header)) *xload-symbol-header*)
+      (setf (u32-ref data (+ offset ppc32::symbol.header)) (xload-symbol-header))
       (setf (u32-ref data (+ offset ppc32::symbol.flags)) 0)
       (setf (u32-ref data (+ offset ppc32::symbol.pname)) pname-address)
       (setf (u32-ref data (+ offset ppc32::symbol.vcell)) ppc32::unbound-marker)
@@ -375,25 +376,15 @@
     t))
      
 
-(defun xload-dword-align (nbytes &optional (header-p t))
-  (logand (lognot 7) (+ nbytes 7 (if header-p 4 0))))
+(defun xload-dnode-align (nbytes &optional (header-p t))
+  (target-arch-case
+   (:ppc32 (logand (lognot 7) (+ nbytes 7 (if header-p 4 0))))
+   (:ppc64 (logand (lognot 15) (+ nbytes 15 (if header-p 8 0))))))
 
 (defun xload-subtag-bytes (subtag element-count)
-  (declare (fixnum subtag element-count))
-  (unless (= ppc32::fulltag-immheader (logand subtag ppc32::fulltagmask))
-    (error "Not an ivector subtag: ~s" subtag))
-  (let* ((element-bit-shift
-          (if (<= subtag ppc32::max-32-bit-ivector-subtag)
-            5
-            (if (<= subtag ppc32::max-8-bit-ivector-subtag)
-              3
-              (if (<= subtag ppc32::max-16-bit-ivector-subtag)
-                4
-                (if (= subtag ppc32::subtag-double-float-vector)
-                  6
-                  1)))))
-         (total-bits (ash element-count element-bit-shift)))
-    (ash (+ 7 total-bits) -3)))    ; byte count
+  (funcall (arch::target-array-data-size-function
+            (backend-target-arch *target-backend*))
+           subtag element-count))
 
     
 (defun xload-make-dfloat (space high low)
@@ -406,16 +397,20 @@
     dfloat-addr))
 
 (defun xload-make-sfloat (space bits)
-  (multiple-value-bind (sfloat-addr v o) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::single-float.element-count)
-    (declare (fixnum o))
-    (setf (u32-ref v (the fixnum (+ o ppc32::single-float.header))) 
-          (make-xload-header ppc32::single-float.element-count ppc32::subtag-single-float))
-    (setf (u32-ref v (the fixnum (+ o ppc32::single-float.value))) bits)
-    sfloat-addr))
+  (target-arch-case
+   (:ppc32
+    (multiple-value-bind (sfloat-addr v o) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::single-float.element-count)
+      (declare (fixnum o))
+      (setf (u32-ref v (the fixnum (+ o ppc32::single-float.header))) 
+            (make-xload-header ppc32::single-float.element-count ppc32::subtag-single-float))
+      (setf (u32-ref v (the fixnum (+ o ppc32::single-float.value))) bits)
+      sfloat-addr))
+   (:ppc64
+    (logior (ash bits 32) ppc64::subtag-single-float))))
         
 (defun xload-make-ivector (space subtag nelements)
   (declare (fixnum subtype nelements))
-  (multiple-value-bind (addr v o) (xload-alloc space ppc32::fulltag-misc (xload-dword-align (xload-subtag-bytes subtag nelements) t))
+  (multiple-value-bind (addr v o) (xload-alloc space ppc32::fulltag-misc (xload-dnode-align (xload-subtag-bytes subtag nelements) t))
     (declare (fixnum o))
     (setf (u32-ref v (the fixnum (- o ppc32::fulltag-misc))) (make-xload-header nelements subtag))
     (values addr v o)))
@@ -465,19 +460,19 @@
     (error "Not a list: #x~x" addr)))
 
 (defun xload-symbol-value (addr)
-  (if (= (xload-%svref addr -1) *xload-symbol-header*)
+  (if (= (xload-%svref addr -1) (xload-symbol-header))
     (xload-%svref addr ppc32::symbol.vcell-cell)
     (error "Not a symbol: #x~x" addr)))
   
 (defun xload-symbol-name (addr)
   (if (= addr *xload-nil*) (incf addr (+ ppc32::t-offset ppc32::symbol.size)))
   (let* ((header (xload-%svref addr -1)))
-    (if (= header *xload-symbol-header*)
+    (if (= header (xload-symbol-header))
       (xload-%svref addr ppc32::symbol.pname-cell)
       (error "Not a symbol: #x~x" addr))))
 
 (defun (setf xload-symbol-value) (new addr)
-  (if (= (xload-%svref addr -1) *xload-symbol-header*)
+  (if (= (xload-%svref addr -1) (xload-symbol-header))
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
       (setf (u32-ref v (the fixnum (+ offset ppc32::symbol.vcell))) new))
@@ -491,7 +486,7 @@
     (setf (xload-symbol-value symaddr) val)))
 
 (defun xload-fset (addr def)
-  (if (= (xload-%svref addr -1) *xload-symbol-header*)
+  (if (= (xload-%svref addr -1) (xload-symbol-header))
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
       (setf (u32-ref v (the fixnum (+ offset ppc32::symbol.fcell))) def))
@@ -684,19 +679,14 @@
   (let* ((read-only-p *xload-pure-code-p*)
          (n (uvsize code)))
     (declare (fixnum n))
-    (multiple-value-bind (vector v o) 
-                         (xload-make-ivector 
-                          (if read-only-p
-                            *xload-readonly-space*
-                            *xload-dynamic-space*)
-                          ppc32::subtag-code-vector
-                          n)
+    (let* ((vector (xload-make-ivector 
+                    (if read-only-p
+                      *xload-readonly-space*
+                      *xload-dynamic-space*)
+                    ppc32::subtag-code-vector
+                    n)))
       (dotimes (i n)
         (setf (xload-%svref vector i) (uvref code i)))
-      (when read-only-p
-	(funcall
-	 (backend-xload-info-relativize-subprims-hook *xload-target-backend*)
-	 v (+ o ppc32::misc-data-offset) n))
       vector)))
                           
                           
@@ -937,6 +927,12 @@
     (error "Can't evaluate expression ~s in cold load ." expr)
     (%epushval s (eval expr))))         ; could maybe evaluate symbols, constants ...
 
+
+(defun xload-target-subtype (name)
+  (or
+   (cdr (assoc name (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
+   (error "Unknown uvector type name ~s" name)))
+
 (defxloadfaslop $fasl-vivec (s)
   (let* ((subtag (%fasl-read-byte s))
          (element-count (%fasl-read-count s)))
@@ -950,6 +946,70 @@
       (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes subtag element-count))
       vector)))
 
+(defun xfasl-read-ivector (s subtag)
+  (let* ((element-count (%fasl-read-count s)))
+    (multiple-value-bind (vector v o)
+                         (xload-make-ivector 
+                          *xload-readonly-space*
+                          subtag 
+                          element-count)
+      (%epushval s vector)
+      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes subtag element-count))
+      vector)))
+
+(defxloadfaslop $fasl-u8-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :unsigned-8-bit-vector)))
+
+(defxloadfaslop $fasl-s8-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :signed-8-bit-vector)))
+
+(defxloadfaslop $fasl-u16-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :unsigned-16-bit-vector)))
+
+(defxloadfaslop $fasl-s16-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :signed-16-bit-vector)))
+
+(defxloadfaslop $fasl-u32-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :unsigned-32-bit-vector)))
+
+(defxloadfaslop $fasl-s32-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :signed-32-bit-vector)))
+
+
+;;; We really can't compile 64-bit vectors on a 32-bit host.
+#+ppc64-target
+(defxloadfaslop $fasl-u64-vector (s)
+  (xfasl-read-ivector s ppc64::subtag-u64-vector))
+
+#+ppc64-target
+(defxloadfaslop $fasl-u64-vector (s)
+  (xfasl-read-ivector s ppc64::subtag-s64-vector))
+
+(defxloadfaslop $fasl-bit-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :bit-vector)))
+
+(defxloadfaslop $fasl-bignum32 (s)
+  (xfasl-read-ivector s (xload-target-subtype :bignum)))
+
+(defxloadfaslop $fasl-single-float-vector (s)
+  (xfasl-read-ivector s (xload-target-subtype :single-float-vector)))
+
+(defxloadfaslop $fasl-double-float-vector (s)
+  (target-arch-case
+   (:ppc64 (xfasl-read-ivector s ppc64::subtag-double-float-vector))
+   (:ppc32
+    (let* ((element-count (%fasl-read-count s))
+           (size-in-bytes (subtag-bytes ppc32::subtag-double-float-vector
+                                        element-count))
+           (vector (%alloc-misc element-count
+                                ppc32::subtag-double-float-vector)))
+      (declare (fixnum subtag element-count size-in-bytes))
+      (%epushval s vector)
+      (%fasl-read-n-bytes s vector (- ppc32::misc-dfloat-offset
+                                      ppc32::misc-data-offset)
+                          size-in-bytes)
+      vector))))
+
 (defxloadfaslop $fasl-code-vector (s)
   (let* ((element-count (%fasl-read-count s)))
     (multiple-value-bind (vector v o)
@@ -957,20 +1017,45 @@
                           (if (not *xload-pure-code-p*)
                             *xload-dynamic-space* 
                             *xload-readonly-space*)
-                          ppc32::subtag-code-vector 
+                          (xload-target-subtype :code-vector) 
                           element-count)
       (%epushval s vector)
       (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes ppc32::subtag-code-vector element-count))
       vector)))
 
+(defun xfasl-read-gvector (s subtype)
+  (declare (fixnum subtype))
+  (let* ((n (%fasl-read-count s))
+         (vector (xload-make-gvector subtype n)))
+    (%epushval s vector)
+    (dotimes (i n (setf (faslstate.faslval s) vector))
+      (setf (xload-%svref vector i) (%fasl-expr s)))))
+  
 (defxloadfaslop $fasl-vgvec (s)
-  (let* ((subtype (%fasl-read-byte s))
-         (n (%fasl-read-count s)))
-    (declare (fixnum subtype n))
-    (let* ((vector (xload-make-gvector subtype n)))
-      (%epushval s vector)
-      (dotimes (i n (setf (faslstate.faslval s) vector))
-        (setf (xload-%svref vector i) (%fasl-expr s))))))
+  (let* ((subtype (%fasl-read-byte s)))
+    (xfasl-read-gvector s subtype)))
+
+(defxloadfaslop $fasl-vector-header (s)
+  (xfasl-read-gvector s (xload-target-subtype :vector-header)))
+
+(defxloadfaslop $fasl-array-header (s)
+  (xfasl-read-gvector s (xload-target-subtype :array-header)))
+
+(defxloadfaslop $fasl-ratio (s)
+  (let* ((r (xload-make-gvector target::ratio.element-count
+                                (xload-target-subtype :ratio))))
+    (%epushval s r)
+    (setf (xload-%svref r target::ratio.numer-cell) (%fasl-expr s)
+          (xload-%svref r target::ratio.denom-cell) (%fasl-expr s))
+    (setf (faslstate.faslval s) r)))
+
+(defxloadfaslop $fasl-complex (s)
+  (let* ((r (xload-make-gvector target::complex.element-count
+                                (xload-target-subtype :complex))))
+    (%epushval s r)
+    (setf (xload-%svref r target::complex.realpart-cell) (%fasl-expr s)
+          (xload-%svref r target::complex.imagpart-cell) (%fasl-expr s))
+    (setf (faslstate.faslval s) r)))
 
 ;;; About all that we do with svars is to canonicalize them.
 (defxloadfaslop $fasl-svar (s)
@@ -988,14 +1073,14 @@
         (setf (svref (faslstate.faslevec s) ecount) vector))
       (setf (faslstate.faslval s) vector))))
 
-(defxloadfaslop $fasl-function (s)
-  (let* ((n (%fasl-read-count s)))
-    (declare (fixnum n))
-    (let* ((f (xload-make-gvector ppc32::subtag-function n)))
-      (%epushval s f)
-      (dotimes (i n (setf (faslstate.faslval s) f))
-        (setf (xload-%svref f i) (%fasl-expr s))))))
+(defxloadfaslop $fasl-t-vector (s)
+  (xfasl-read-gvector s (xload-target-subtype :simple-vector)))
 
+(defxloadfaslop $fasl-function (s)
+  (xfasl-read-gvector s (xload-target-subtype :function)))
+
+(defxloadfaslop $fasl-istruct (s)
+  (xfasl-read-gvector s (xload-target-subtype :istruct)))
 
 (defun xload-lfun-name (lf)
   (let* ((header (xload-%svref lf -1)))
