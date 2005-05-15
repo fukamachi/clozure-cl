@@ -376,10 +376,10 @@
     t))
      
 
-(defun xload-dnode-align (nbytes &optional (header-p t))
+(defun xload-dnode-align (nbytes)
   (target-arch-case
-   (:ppc32 (logand (lognot 7) (+ nbytes 7 (if header-p 4 0))))
-   (:ppc64 (logand (lognot 15) (+ nbytes 15 (if header-p 8 0))))))
+   (:ppc32 (logand (lognot 7) (+ nbytes 7 4)))
+   (:ppc64 (logand (lognot 15) (+ nbytes 15 8)))))
 
 (defun xload-subtag-bytes (subtag element-count)
   (funcall (arch::target-array-data-size-function
@@ -410,7 +410,7 @@
         
 (defun xload-make-ivector (space subtag nelements)
   (declare (fixnum subtype nelements))
-  (multiple-value-bind (addr v o) (xload-alloc space ppc32::fulltag-misc (xload-dnode-align (xload-subtag-bytes subtag nelements) t))
+  (multiple-value-bind (addr v o) (xload-alloc space ppc32::fulltag-misc (xload-dnode-align (xload-subtag-bytes subtag nelements)))
     (declare (fixnum o))
     (setf (u32-ref v (the fixnum (- o ppc32::fulltag-misc))) (make-xload-header nelements subtag))
     (values addr v o)))
