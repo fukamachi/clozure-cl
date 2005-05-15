@@ -54,7 +54,7 @@
   faslapi.fasl-read-byte
   faslapi.fasl-read-n-bytes)
 
-(defconstant numfaslops 50 "Number of fasl file opcodes, roughly")
+(defconstant numfaslops 64 "Number of fasl file opcodes, roughly")
 (defconstant $fasl-epush-bit 7)
 (defconstant $fasl-file-id #xff00)
 (defconstant $fasl-file-id1 #xff01)
@@ -68,7 +68,7 @@
 
 
 (defconstant $fasl-noop 0)              ;<nada:zilch>.  
-;(defconstant $fasl-obsolete 1)
+(defconstant $fasl-s32-vector 1)        ;<count> Make a (SIMPLE-ARRAY (SIGNED-BYTE 32) <count>)
 (defconstant $fasl-code-vector 2)       ;<count> words of code
 (defconstant $fasl-svar 3)              ;<expr> Make SVAR for special symbol
 (defconstant $fasl-lfuncall 4)          ;<lfun:expr> funcall the lfun.
@@ -76,15 +76,15 @@
 (defconstant $fasl-char 6)              ;<char:byte> Make a char
 (defconstant $fasl-fixnum 7)            ;<value:long> Make a (4-byte) fixnum
 (defconstant $fasl-dfloat 8)            ;<hi:long><lo:long> Make a DOUBLE-FLOAT
-(defconstant $fasl-unused-9 9)          ;
+(defconstant $fasl-bignum32 9)          ;<count> make a bignum with count digits
 (defconstant $fasl-word-fixnum 10)      ;<value:word> Make a fixnum
-(defconstant $fasl-unused-11 11)        ;
-(defconstant $fasl-unused-12 12)        ;
-(defconstant $fasl-unused-14 13)        ;
-(defconstant $fasl-unused-15 14)        ;
+(defconstant $fasl-double-float-vector 11) ;<count> make a (SIMPLE-ARRAY DOUBLE-FLOAT <count>)
+(defconstant $fasl-single-float-vector 12) ;<count> make a (SIMPLE-ARRAY SINGLE-FLOAT <count>)
+(defconstant $fasl-bit-vector 13)       ;<count> make a (SIMPLE-ARRAY BIT <count>)
+(defconstant $fasl-u8-vector 14)        ;<count> make a (SIMPLE-ARRAY (UNSIGNED-BYTE 8) <count>)
 (defconstant $fasl-cons 15)             ;<car:expr><cdr:expr> Make a cons
-(defconstant $fasl-unused-16 16)        ;
-(defconstant $fasl-unused-17 17)        ;
+(defconstant $fasl-s8-vector 16)        ;<count> make a (SIMPLE-ARRAY (SIGNED-BYTE 8) <count>)
+(defconstant $fasl-t-vector 17)         ;<count> make a (SIMPLE-ARRAY T <count>)
 (defconstant $fasl-nil 18)              ; Make nil
 (defconstant $fasl-timm 19)             ;<n:long>
 (defconstant $fasl-function 20)         ;<count> Make function
@@ -97,8 +97,8 @@
 (defconstant $fasl-fixnum8 26)          ;<high:long><low:long> Make an 8-byte fixnum.
 (defconstant $fasl-symfn 27)            ;<sym:expr> returns #'sym.
 (defconstant $fasl-eval 28)             ;<expr> Eval <expr> and return value.
-(defconstant $fasl-unused-29 29)        ;
-(defconstant $fasl-unused-30 30)        ;
+(defconstant $fasl-u16-vector 29)       ;<count> Make a (SIMPLE-ARRAY (UNSIGNED-BYTE 16) <count>)
+(defconstant $fasl-s16-vector 30)       ;<count> Make a (SIMPLE-ARRAY (SIGNED-BYTE 16) <count>)
 (defconstant $fasl-vintern 31)          ;<vstring> Intern in current pkg.
 (defconstant $fasl-vpkg-intern 32)      ;<pkg:expr><vstring> Make a sym in pkg.
 (defconstant $fasl-vpkg 33)             ;<string> Returns the package of given name
@@ -115,8 +115,15 @@
 (defconstant $fasl-vlist* 45)           ;<n:count> <data:n+2 exprs> Make an sexpr
 (defconstant $fasl-sfloat 46)           ;<long> Make SINGLE-FLOAT from bits
 (defconstant $fasl-src 47)              ;<expr> - Set *loading-file-source-file * to <expr>.
-(defconstant $fasl-unused-48 48)        ;
+(defconstant $fasl-u32-vector 48)       ;<count> Make a (SIMPLE-ARRAY (UNSIGNED-BYTE 32) <count>)
 (defconstant $fasl-provide 49)          ;<string:expr>
+(defconstant $fasl-u64-vector 50)       ;<count> Make a (SIMPLE-ARRAY (UNSIGNED-BYTE 64) <count>)
+(defconstant $fasl-s64-vector 51)       ;<count> Make a (SIMPLE-ARRAY (SIGNED-BYTE 64) <count>)
+(defconstant $fasl-istruct 52)          ;<count> Make an ISTRUCT with <count> elements
+(defconstant $fasl-complex 53)          ;<real:expr><imag:expr>
+(defconstant $fasl-ratio 54)            ;<num:expr><den:expr>
+(defconstant $fasl-vector-header 55)    ;<count> Make a vector header
+(defconstant $fasl-array-header 56)     ;<count> Make an array header.
 
 ; <string> means <size><size bytes>
 ; <size> means either <n:byte> with n<#xFF, or <FF><n:word> with n<#xFFFF or
