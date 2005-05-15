@@ -1,3 +1,13 @@
+2005-05-15 05:29  gb
+
+	* level-1/version.lisp: Bump; new binaries soon.
+
+2005-05-15 05:29  gb
+
+	* compiler/nx.lisp, compiler/nx1.lisp, compiler/PPC/ppc2.lisp,
+	lib/nfcomp.lisp: Lose old, obsolet LFUN-MAKER argument.  May need
+	to use XCOMPILE-CCL to bootstrap.
+
 2005-05-15 01:18  gb
 
 	* examples/objc-clos.lisp: Shift in the right direction when
