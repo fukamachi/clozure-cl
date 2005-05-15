@@ -660,7 +660,9 @@
     (:unsigned-32-bit-vector . ,subtag-u32-vector )
     (:single-float-vector . ,subtag-single-float-vector)
     (:double-float-vector . ,subtag-double-float-vector )
-    (:simple-vector . ,subtag-simple-vector )))
+    (:simple-vector . ,subtag-simple-vector )
+    (:vector-header . ,subtag-vectorH)
+    (:array-header . ,subtag-arrayH)))
 
 
 ;;; This should return NIL unless it's sure of how the indicated
