@@ -107,10 +107,10 @@ Will differ from *compiling-file* during an INCLUDE")
                          force)
   "Compile INPUT-FILE, producing a corresponding fasl file and returning
    its filename."
-  (let* ((backend *host-backend*))
+  (let* ((backend *target-backend*))
     (when (and target-p (not (setq backend (find-backend target))))
       (warn "Unknown :TARGET : ~S.  Reverting to ~s ..." target *fasl-target*)
-      (setq target *fasl-target*  backend *host-backend*))
+      (setq target *fasl-target*  backend *target-backend*))
     (loop
 	(restart-case
 	 (return (%compile-file src output-file verbose print load features
@@ -223,9 +223,10 @@ Will differ from *compiling-file* during an INCLUDE")
   (new-compiler-policy :force-boundp-checks t))
 
 (defun %compile-time-eval (form env)
-  (funcall (compile-named-function
-            `(lambda () ,form) nil t env nil nil
-            *compile-time-evaluation-policy*)))
+  (let* ((*target-backend* *host-backend*))
+    (funcall (compile-named-function
+              `(lambda () ,form) nil t env nil nil
+              *compile-time-evaluation-policy*))))
 
 
 ;;; No methods by default, not even for structures.  This really sux.
@@ -1182,6 +1183,29 @@ Will differ from *compiling-file* during an INCLUDE")
                      (fasl-out-opcode $fasl-vstr exp)
                      (fasl-out-count n)
                      (fasl-out-ivect exp 0 n)))
+    (simple-bit-vector (fasl-dump-bit-vector exp))
+    ((simple-array (unsigned-byte 8) (*))
+     (fasl-dump-8-bit-ivector exp $fasl-u8-vector))
+    ((simple-array (signed-byte 8) (*))
+     (fasl-dump-8-bit-ivector exp $fasl-s8-vector))
+    ((simple-array (unsigned-byte 16) (*))
+     (fasl-dump-16-bit-ivector exp $fasl-u16-vector))
+    ((simple-array (signed-byte 16) (*))
+     (fasl-dump-16-bit-ivector exp $fasl-s16-vector))
+    ((simple-array (unsigned-byte 32) (*))
+     (fasl-dump-32-bit-ivector exp $fasl-u32-vector))
+    ((simple-array (signed-byte 32) (*))
+     (fasl-dump-32-bit-ivector exp $fasl-s32-vector))
+    ((simple-array single-float (*))
+     (fasl-dump-32-bit-ivector exp $fasl-single-float-vector))
+    ((simple-array double-float (*))
+     (fasl-dump-double-float-vector exp))
+    #+ppc64-target
+    ((simple-array (unsigned-byte 64) (*))
+     (fasl-dump-64-bit-ivector v $fasl-u64-vector))
+    #+ppc64-target
+    ((simple-array (signed-byte 64) (*))
+     (fasl-dump-64-bit-ivector v $fasl-s64-vector))
     (symbol (fasl-dump-symbol exp))
     (package (fasl-dump-package exp))
     (function (fasl-dump-function exp))
@@ -1189,7 +1213,15 @@ Will differ from *compiling-file* during an INCLUDE")
     (svar (fasl-dump-svar exp))
     (code-vector (fasl-dump-codevector exp))
     (xcode-vector (fasl-dump-codevector exp))
-    (ivector    
+    (simple-vector (fasl-dump-gvector exp $fasl-t-vector))
+    (ratio (fasl-dump-ratio exp))
+    (complex (fasl-dump-complex exp))
+    (vector (fasl-dump-gvector exp $fasl-vector-header))
+    (array (fasl-dump-gvector exp $fasl-array-header))
+    (ivector
+     (unless (eq (backend-target-arch-name *target-backend*)
+                 (backend-target-arch-name *host-backend*))
+       (error "can't cross-compile constant reference to ~s" exp))
      (let* ((typecode (typecode exp))
             (n (uvsize exp))
             (nb (subtag-bytes typecode n)))
@@ -1197,19 +1229,82 @@ Will differ from *compiling-file* during an INCLUDE")
        (fasl-out-opcode $fasl-vivec exp)
        (fasl-out-byte typecode)
        (fasl-out-count n)
-       (if (= typecode ppc32::subtag-double-float-vector)
-         ;; Account for alignment word
-         (fasl-out-ivect exp 4 nb)
-         (fasl-out-ivect exp 0 nb))))
+       (fasl-out-ivect exp 0 nb)))
     (gvector
-     (let* ((typecode (typecode exp))
-            (n (uvsize exp)))
-       (declare (fixnum n typecode))
-       (fasl-out-opcode $fasl-vgvec exp)
-       (fasl-out-byte typecode)
-       (fasl-out-count n)
-       (dotimes (i n)
-         (fasl-dump-form (%svref exp i)))))))
+     (if (= (typecode exp) target::subtag-istruct)
+       (fasl-dump-gvector exp $fasl-istruct)
+       (progn
+         (unless (eq (backend-target-arch-name *target-backend*)
+                     (backend-target-arch-name *host-backend*))
+           (error "can't cross-compile constant reference to ~s" exp))
+         (let* ((typecode (typecode exp))
+                (n (uvsize exp)))
+           (declare (fixnum n typecode))
+           (fasl-out-opcode $fasl-vgvec exp)
+           (fasl-out-byte typecode)
+           (fasl-out-count n)
+           (dotimes (i n)
+             (fasl-dump-form (%svref exp i)))))))))
+
+(defun fasl-dump-gvector (v op)
+  (let* ((n (uvsize v)))
+    (fasl-out-opcode op v)
+    (fasl-out-count n)
+    (dotimes (i n)
+      (fasl-dump-form (%svref v i)))))
+
+(defun fasl-dump-ratio (v)
+  (fasl-out-opcode $fasl-ratio v)
+  (fasl-dump-form (%svref v target::ratio.numer-cell))
+  (fasl-dump-form (%svref v target::ratio.denom-cell)))
+
+(defun fasl-dump-complex (v)
+  (fasl-out-opcode $fasl-complex v)
+  (fasl-dump-form (%svref v target::complex.realpart-cell))
+  (fasl-dump-form (%svref v target::complex.imagpart-cell)))
+
+(defun fasl-dump-bit-vector (v)
+  (let* ((n (uvsize v)))
+    (fasl-out-opcode $fasl-bit-vector v)
+    (fasl-out-count n)
+    (let* ((nb (ash (+ n 7) -3)))
+      (fasl-out-ivect v 0 nb))))
+
+(defun fasl-dump-8-bit-ivector (v op)
+  (let* ((n (uvsize v)))
+    (fasl-out-opcode op v)
+    (fasl-out-count n)
+    (let* ((nb n))
+      (fasl-out-ivect v 0 nb))))
+
+(defun fasl-dump-16-bit-ivector (v op)
+  (let* ((n (uvsize v)))
+    (fasl-out-opcode op v)
+    (fasl-out-count n)
+    (let* ((nb (ash n 1)))
+      (fasl-out-ivect v 0 nb))))
+
+(defun fasl-dump-32-bit-ivector (v op)
+  (let* ((n (uvsize v)))
+    (fasl-out-opcode op v)
+    (fasl-out-count n)
+    (let* ((nb (ash n 2)))
+      (fasl-out-ivect v 0 nb))))
+
+(defun fasl-dump-64-bit-ivector (v op)
+  (let* ((n (uvsize v)))
+    (fasl-out-opcode op v)
+    (fasl-out-count n)
+    (let* ((nb (ash n 3)))
+      (fasl-out-ivect v 0 nb))))
+
+(defun fasl-dump-double-float-vector (v)
+  (let* ((n (uvsize v)))
+    (fasl-out-opcode $fasl-double-float-vector v)
+    (fasl-out-count n)
+    (let* ((nb (ash n 3)))
+      (fasl-out-ivect v (- target::misc-dfloat-offset
+                           target::misc-data-offset) nb))))
 
 ;;; This is used to dump functions and "xfunctions".
 ;;; If we're cross-compiling, we shouldn't reference any
