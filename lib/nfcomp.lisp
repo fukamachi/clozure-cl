@@ -225,7 +225,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun %compile-time-eval (form env)
   (let* ((*target-backend* *host-backend*))
     (funcall (compile-named-function
-              `(lambda () ,form) nil t env nil nil
+              `(lambda () ,form) env nil nil
               *compile-time-evaluation-policy*))))
 
 
@@ -645,7 +645,7 @@ Will differ from *compiling-file* during an INCLUDE")
     (if definition-env
       (push (list* name 
                    'macro 
-                   (compile-named-function lambda-expression name t env)) 
+                   (compile-named-function lambda-expression name env)) 
             (defenv.functions definition-env)))
     name))
 
@@ -829,7 +829,7 @@ Will differ from *compiling-file* during an INCLUDE")
   (let* ((env (new-lexical-environment env)))
     (multiple-value-bind (lfun warnings)
                          (compile-named-function
-                          def name t
+                          def name
                           env
                           *fasl-save-definitions*
                           *fasl-save-local-symbols*

@@ -366,16 +366,14 @@
     (rplaca cell (ensure-svar (car cell))))
   vcells)
 
-(defun ppc2-compile (afunc &optional lfun-maker lambda-form *ppc2-record-symbols*)
+(defun ppc2-compile (afunc &optional lambda-form *ppc2-record-symbols*)
   (progn
-    (when (eq lfun-maker t) (setq lfun-maker #'ppc2-xmake-function))
     (dolist (a  (afunc-inner-functions afunc))
       (unless (afunc-lfun a)
         (ppc2-compile a 
-                      (or (null lfun-maker) lfun-maker) 
                       (if lambda-form 
                         (afunc-lambdaform a)) 
-                      *ppc2-record-symbols*)))  ; always compile inner guys
+                      *ppc2-record-symbols*))) ; always compile inner guys
     (let* ((*ppc2-cur-afunc* afunc)
            (*ppc2-returning-values* nil)
            (*ppc-current-context-annotation* nil)
@@ -410,7 +408,6 @@
            (bits 0)
            (*logical-register-counter* -1)
            (*backend-all-lregs* ())
-           
            (*ppc2-popj-labels* nil)
            (*ppc2-popreg-labels* nil)
            (*ppc2-valret-labels* nil)
@@ -442,58 +439,57 @@
          *ppc2-undo-because*
          (set-fill-pointer
           *backend-immediates* 0))))
-      (backend-get-next-label) ; start @ label 1, 0 is confused with NIL in compound cd
+      (backend-get-next-label)          ; start @ label 1, 0 is confused with NIL in compound cd
       (with-dll-node-freelist (vinsns *vinsn-freelist*)
         (unwind-protect
-          (progn
-            (setq bits (ppc2-form vinsns (make-wired-lreg *ppc2-result-reg*) $backend-return (afunc-acode afunc)))
-            (dotimes (i (length *backend-immediates*))
-              (let ((imm (aref *backend-immediates* i)))
-                (when (ppc2-symbol-locative-p imm) (aset *backend-immediates* i (car imm)))))
-            (optimize-vinsns vinsns)
-            (when (logbitp ppc2-debug-vinsns-bit *ppc2-debug-mask*)
-              (format t "~% vinsns for ~s (after generation)" (afunc-name afunc))
-              (do-dll-nodes (v vinsns) (format t "~&~s" v))
-              (format t "~%~%"))
+             (progn
+               (setq bits (ppc2-form vinsns (make-wired-lreg *ppc2-result-reg*) $backend-return (afunc-acode afunc)))
+               (dotimes (i (length *backend-immediates*))
+                 (let ((imm (aref *backend-immediates* i)))
+                   (when (ppc2-symbol-locative-p imm) (aset *backend-immediates* i (car imm)))))
+               (optimize-vinsns vinsns)
+               (when (logbitp ppc2-debug-vinsns-bit *ppc2-debug-mask*)
+                 (format t "~% vinsns for ~s (after generation)" (afunc-name afunc))
+                 (do-dll-nodes (v vinsns) (format t "~&~s" v))
+                 (format t "~%~%"))
             
             
-            (with-dll-node-freelist (*lap-instructions* *lap-instruction-freelist*)
-              (let* ((*lap-labels* nil))
-                (ppc2-expand-vinsns vinsns) 
-                (if (logbitp $fbitnonnullenv (the fixnum (afunc-bits afunc)))
-                  (setq bits (+ bits (ash 1 $lfbits-nonnullenv-bit))))
-                (let* ((function-debugging-info (afunc-lfun-info afunc)))
-                  (when (or function-debugging-info lambda-form *ppc2-record-symbols*)
-                    (if lambda-form (setq function-debugging-info 
-                                          (list* 'function-lambda-expression lambda-form function-debugging-info)))
-                    (if *ppc2-record-symbols*
-                      (setq function-debugging-info (nconc (list 'function-symbol-map *ppc2-recorded-symbols*)
-                                                           function-debugging-info)))
-                    (setq bits (logior (ash 1 $lfbits-symmap-bit) bits))
-                    (backend-new-immediate function-debugging-info)))
-                (if (or fname lambda-form *ppc2-recorded-symbols*)
-                  (backend-new-immediate fname)
-                  (setq bits (logior (ash -1 $lfbits-noname-bit) bits)))                                     
-                (unless (afunc-parent afunc)
-                  (ppc2-fixup-fwd-refs afunc))
-                (setf (afunc-all-vars afunc) nil)
-                (setf (afunc-argsword afunc) bits)
-                (let* ((regsave-label (if (typep *ppc2-compiler-register-save-label* 'vinsn-note)
-                                          (vinsn-label-info (vinsn-note-label *ppc2-compiler-register-save-label*))))
-                       (regsave-reg (if regsave-label (- 32 *ppc2-register-restore-count*)))
-                       (regsave-addr (if regsave-label (- *ppc2-register-restore-ea*))))
-                  (when lfun-maker
-                    (setf (afunc-lfun afunc)
-                          (funcall lfun-maker
-                                   *lap-instructions*
-                                   *lap-labels*
-                                   *backend-immediates*
-                                   bits
-                                   regsave-label
-                                   regsave-reg
-                                   regsave-addr
-				   (if (and fname (symbolp fname)) (symbol-name fname))))))
-                (ppc2-digest-symbols))))
+               (with-dll-node-freelist (*lap-instructions* *lap-instruction-freelist*)
+                 (let* ((*lap-labels* nil))
+                   (ppc2-expand-vinsns vinsns) 
+                   (if (logbitp $fbitnonnullenv (the fixnum (afunc-bits afunc)))
+                     (setq bits (+ bits (ash 1 $lfbits-nonnullenv-bit))))
+                   (let* ((function-debugging-info (afunc-lfun-info afunc)))
+                     (when (or function-debugging-info lambda-form *ppc2-record-symbols*)
+                       (if lambda-form (setq function-debugging-info 
+                                             (list* 'function-lambda-expression lambda-form function-debugging-info)))
+                       (if *ppc2-record-symbols*
+                         (setq function-debugging-info (nconc (list 'function-symbol-map *ppc2-recorded-symbols*)
+                                                              function-debugging-info)))
+                       (setq bits (logior (ash 1 $lfbits-symmap-bit) bits))
+                       (backend-new-immediate function-debugging-info)))
+                   (if (or fname lambda-form *ppc2-recorded-symbols*)
+                     (backend-new-immediate fname)
+                     (setq bits (logior (ash -1 $lfbits-noname-bit) bits)))                                     
+                   (unless (afunc-parent afunc)
+                     (ppc2-fixup-fwd-refs afunc))
+                   (setf (afunc-all-vars afunc) nil)
+                   (setf (afunc-argsword afunc) bits)
+                   (let* ((regsave-label (if (typep *ppc2-compiler-register-save-label* 'vinsn-note)
+                                           (vinsn-label-info (vinsn-note-label *ppc2-compiler-register-save-label*))))
+                          (regsave-reg (if regsave-label (- 32 *ppc2-register-restore-count*)))
+                          (regsave-addr (if regsave-label (- *ppc2-register-restore-ea*))))
+                     (setf (afunc-lfun afunc)
+                           (ppc2-xmake-function
+                            *lap-instructions*
+                            *lap-labels*
+                            *backend-immediates*
+                            bits
+                            regsave-label
+                            regsave-reg
+                            regsave-addr
+                            (if (and fname (symbolp fname)) (symbol-name fname)))))
+                   (ppc2-digest-symbols))))
           (backend-remove-labels))))
     afunc))
 

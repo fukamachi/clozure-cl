@@ -85,7 +85,7 @@
   (multiple-value-bind (lfun warnings)
                        (if (functionp def)
                          def
-                         (compile-named-function def spec nil nil *save-definitions* *save-local-symbols*))
+                         (compile-named-function def spec nil *save-definitions* *save-local-symbols*))
     (let ((harsh nil) (some nil) (init t))
       (dolist (w warnings)
         (multiple-value-setq (harsh some) (signal-compiler-warning w init nil harsh some))
@@ -111,7 +111,7 @@
 
 (defun xcompile-lambda (target def)
   (multiple-value-bind (xlfun warnings)
-                       (compile-named-function def nil nil
+                       (compile-named-function def nil
                                                nil
                                                nil
                                                nil
@@ -124,7 +124,7 @@
   
 (defun compile-user-function (def name &optional env)
   (multiple-value-bind (lfun warnings)
-                       (compile-named-function def name nil
+                       (compile-named-function def name
                                                env
                                                *save-definitions*
                                                *save-local-symbols*)
@@ -152,8 +152,8 @@
 
 (defparameter *nx-discard-xref-info-hook* nil)
 
-(defun  compile-named-function
-  (def &optional name lfun-maker env keep-lambda keep-symbols policy *load-time-eval-token* target)
+(defun compile-named-function
+    (def &optional name env keep-lambda keep-symbols policy *load-time-eval-token* target)
   (when (and name *nx-discard-xref-info-hook*)
     (funcall *nx-discard-xref-info-hook* name))
   (setq 
@@ -174,7 +174,6 @@
            (funcall (backend-p2-compile *target-backend*)
             afunc
             ; will also bind *nx-lexical-environment*
-            (or lfun-maker t)
             (if keep-lambda (if (lambda-expression-p keep-lambda) keep-lambda def))
             keep-symbols)))))
   (values (afunc-lfun def) (afunc-warnings def)))
