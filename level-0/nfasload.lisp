@@ -39,9 +39,9 @@
 )
 
 (eval-when (:execute :compile-toplevel)
-  (assert (= 50 numfaslops)))
+  (assert (= 64 numfaslops)))
 
-(defvar *fasl-dispatch-table* #50(%bad-fasl))
+(defvar *fasl-dispatch-table* #64(%bad-fasl))
 
 (defun %bad-fasl (s)
   (error "bad opcode near position ~d in FASL file ~s"
@@ -372,6 +372,68 @@
     (%fasl-read-n-bytes s vector byte-offset size-in-bytes)
     vector))
 
+(defun fasl-read-ivector (s subtag)
+  (let* ((element-count (%fasl-read-count s))
+         (size-in-bytes (subtag-bytes subtag element-count))
+         (vector (%alloc-misc element-count subtag)))
+    (declare (fixnum subtag element-count size-in-bytes))
+    (%epushval s vector)
+    (%fasl-read-n-bytes s vector 0 size-in-bytes)
+    vector))
+  
+(deffaslop $fasl-u8-vector (s)
+  (fasl-read-ivector s target::subtag-u8-vector))
+
+(deffaslop $fasl-s8-vector (s)
+  (fasl-read-ivector s target::subtag-s8-vector))
+
+(deffaslop $fasl-u16-vector (s)
+  (fasl-read-ivector s target::subtag-u16-vector))
+
+(deffaslop $fasl-s16-vector (s)
+  (fasl-read-ivector s target::subtag-s16-vector))
+
+(deffaslop $fasl-u32-vector (s)
+  (fasl-read-ivector s target::subtag-u32-vector))
+
+(deffaslop $fasl-s32-vector (s)
+  (fasl-read-ivector s target::subtag-s32-vector))
+
+#+ppc64-target
+(deffaslop $fasl-u64-vector (s)
+  (fasl-read-ivector s ppc64::subtag-u64-vector))
+
+#+ppc64-target
+(deffaslop $fasl-u64-vector (s)
+  (fasl-read-ivector s ppc64::subtag-s64-vector))
+
+(deffaslop $fasl-bit-vector (s)
+  (fasl-read-ivector s target::subtag-bit-vector))
+
+(deffaslop $fasl-bignum32 (s)
+  (fasl-read-ivector s target::subtag-bignum))
+
+(deffaslop $fasl-single-float-vector (s)
+  (fasl-read-ivector s target::subtag-single-float-vector))
+
+(deffaslop $fasl-double-float-vector (s)
+  #+ppc64-target
+  (fasl-read-ivector s ppc64::subtag-double-float-vector)
+  #+ppc32-target
+  (let* ((element-count (%fasl-read-count s))
+         (size-in-bytes (subtag-bytes ppc32::subtag-double-float-vector
+                                      element-count))
+         (vector (%alloc-misc element-count
+                              ppc32::subtag-double-float-vector)))
+    (declare (fixnum subtag element-count size-in-bytes))
+    (%epushval s vector)
+    (%fasl-read-n-bytes s vector (- ppc32::misc-dfloat-offset
+                                    ppc32::misc-data-offset)
+                        size-in-bytes)
+    vector))
+
+
+
 (deffaslop $fasl-code-vector (s)
   (let* ((element-count (%fasl-read-count s))
          (size-in-bytes (* 4 element-count))
@@ -382,21 +444,47 @@
     (%make-code-executable vector)
     vector))
 
-(deffaslop $fasl-vgvec (s)
-  (let* ((subtype (%fasl-read-byte s))
-         (n (%fasl-read-count s))
+(defun fasl-read-gvector (s subtype)
+  (let* ((n (%fasl-read-count s))
          (vector (%alloc-misc n subtype)))
     (declare (fixnum n subtype))
     (%epushval s vector)
     (dotimes (i n (setf (faslstate.faslval s) vector))
       (setf (%svref vector i) (%fasl-expr s)))))
-          
+
+(deffaslop $fasl-vgvec (s)
+  (let* ((subtype (%fasl-read-byte s)))
+    (fasl-read-gvector s subtype)))
+  
+(deffaslop $fasl-ratio (s)
+  (let* ((r (%alloc-misc target::ratio.element-count target::subtag-ratio)))
+    (%epushval s r)
+    (setf (%svref r target::ratio.numer-cell) (%fasl-expr s)
+          (%svref r target::ratio.denom-cell) (%fasl-expr s))
+    (setf (faslstate.faslval s) r)))
+
+(deffaslop $fasl-complex (s)
+  (let* ((c (%alloc-misc target::complex.element-count
+                         target::subtag-complex)))
+    (%epushval s c)
+    (setf (%svref c target::complex.realpart-cell) (%fasl-expr s)
+          (%svref c target::complex.imagpart-cell) (%fasl-expr s))
+    (setf (faslstate.faslval s) c)))
+
+(deffaslop $fasl-t-vector (s)
+  (fasl-read-gvector s target::subtag-simple-vector))
+
 (deffaslop $fasl-function (s)
-  (let* ((n (%fasl-read-count s))
-         (f (allocate-typed-vector :function n)))
-    (%epushval s f)
-    (dotimes (i n (setf (faslstate.faslval s) f))
-      (setf (%svref f i) (%fasl-expr s)))))
+  (fasl-read-gvector s target::subtag-function))
+
+(deffaslop $fasl-istruct (s)
+  (fasl-read-gvector s target::subtag-istruct))
+
+(deffaslop $fasl-vector-header (s)
+  (fasl-read-gvector s target::subtag-vectorH))
+
+(deffaslop $fasl-array-header (s)
+  (fasl-read-gvector s target::subtag-arrayH))
 
 (deffaslop $fasl-svar (s)
   (let* ((epush (faslstate.faslepush s))
@@ -408,7 +496,6 @@
       (when epush
         (setf (svref (faslstate.faslevec s) ecount) vector))
       (setf (faslstate.faslval s) vector))))
-
 
 (deffaslop $fasl-defun (s)
   (%cant-epush s)
