@@ -1,3 +1,47 @@
+2005-05-15 01:18  gb
+
+	* examples/objc-clos.lisp: Shift in the right direction when
+	converting bit- to byte-offsets.
+
+2005-05-15 01:18  gb
+
+	* lib/nfcomp.lisp: Default to *target-backend* (need to re-think
+	some of this), use new (more specialized) fasl ops.
+
+2005-05-15 01:16  gb
+
+	* xdump/xfasload.lisp: XLOAD-DNODE-ALIGN: always account for
+	header.
+
+2005-05-15 01:15  gb
+
+	* level-0/PPC/ppc-def.lisp: Change an STW to an STR.
+
+2005-05-15 01:15  gb
+
+	* level-0/l0-pred.lisp: A few target-package changes, comments,
+	indentation.
+
+2005-05-15 01:14  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp: Add
+	vector/array headers to target-uvector alist.
+
+2005-05-15 00:39  gb
+
+	* level-0/nfasload.lisp: Recognize new fasl operators (specialized
+	uvector/array types.)
+
+2005-05-15 00:38  gb
+
+	* xdump/: xfasload.lisp, xppcfasload.lisp: More fasl operators, for
+	specialized array types.  Remove some (very) old code/concepts.
+
+2005-05-15 00:38  gb
+
+	* xdump/faslenv.lisp: More fasl operators, for specialized array
+	types.
+
 2005-05-14 17:18  gb
 
 	* xdump/xsparcfasload.lisp: very old, irrelevant
