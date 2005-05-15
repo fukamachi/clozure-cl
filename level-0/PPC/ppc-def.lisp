@@ -31,7 +31,7 @@
 		   #+darwinppc-target target::c-frame.minsize ppc32::lisp-frame.size)) sp)	; make an FFI frame.
     (la imm0 ppc32::misc-data-offset codev)
     (str imm0 #+linuxppc-target ppc32::eabi-c-frame.param0 #+darwinppc-target target::c-frame.param0  sp)
-    (stw len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target target::c-frame.param1 sp)
+    (str len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target target::c-frame.param1 sp)
     (ref-global imm3 kernel-imports)
     (ldr arg_z target::kernel-import-MakeDataExecutable imm3)
     (bla #+linuxppc-target .SPeabi-ff-call #+darwinppc-target .SPffcall)
