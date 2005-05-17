@@ -50,8 +50,7 @@
   ;; Do we even use this ?
   (enum-definitions (make-hash-table :test #'eq))
   (interface-db-directory ())
-  (interface-package-name
-())
+  (interface-package-name ())
   (external-function-definitions (make-hash-table :test #'eq))
   (syscalls (make-hash-table :test #'eq))
   (dirlist (make-dll-header))
@@ -71,8 +70,8 @@
                     #+(and darwinppc-target ppc32-target) "DARWIN32"
                     #+(and darwinppc-target ppc64-target) "DARWIN64"
                     :attributes
-                    #+darwinppc-target '(:signed-char :struct-by-value :prepend-underscores)
-                    #+linuxppc-target ()))
+                    #+darwinppc-target '(:signed-char t :struct-by-value t :prepend-underscores t :bits-per-word #+ppc32-target 32 #+ppc64-target 64)
+                    #+linuxppc-target '(:bits-per-word #+ppc64-target 64 :ppc32-target 32)))
                     
 (defvar *target-ftd* *host-ftd*)
 (setf (backend-target-foreign-type-data *host-backend*)
@@ -152,12 +151,11 @@
 
 
   (defvar *foreign-type-classes* (make-hash-table :test #'eq))
-  (defvar *foreign-type-translators* (make-hash-table :test #'eq))
   
-  (defun info-foreign-type-translator (x)
-    (gethash (make-keyword x) *foreign-type-translators*))
-  (defun (setf info-foreign-type-translator) (val x)
-    (setf (gethash (make-keyword x) *foreign-type-translators*) val))
+  (defun info-foreign-type-translator (x &optional (ftd *target-ftd*))
+    (gethash (make-keyword x) (ftd-translators ftd)))
+  (defun (setf info-foreign-type-translator) (val x &optional (ftd *target-ftd*))
+    (setf (gethash (make-keyword x) (ftd-translators ftd)) val))
 
   (defun info-foreign-type-kind (x &optional (ftd *target-ftd*))
     (if (info-foreign-type-translator x)
@@ -309,9 +307,6 @@
 
 
 
-
-
-
 
 ;;;; Type parsing and unparsing.
 
@@ -332,37 +327,37 @@
 
 ;;; PARSE-FOREIGN-TYPE -- public
 ;;;
-(defun parse-foreign-type (type)
+(defun parse-foreign-type (type &optional (ftd *target-ftd*))
   "Parse the list structure TYPE as a foreign type specifier and return
    the resultant foreign-type structure."
   (if (boundp '*new-auxiliary-types*)
-    (%parse-foreign-type type)
+    (%parse-foreign-type type ftd)
     (let ((*new-auxiliary-types* nil))
-      (%parse-foreign-type type))))
+      (%parse-foreign-type type ftd))))
 
-(defun %parse-foreign-type (type)
+(defun %parse-foreign-type (type &optional (ftd *target-ftd*))
   (if (consp type)
-    (let ((translator (info-foreign-type-translator (car type))))
+    (let ((translator (info-foreign-type-translator (car type) ftd)))
       (unless translator
         (error "Unknown foreign type: ~S" type))
       (funcall translator type nil))
     (case (info-foreign-type-kind type)
       (:primitive
-       (let ((translator (info-foreign-type-translator type)))
+       (let ((translator (info-foreign-type-translator type ftd)))
          (unless translator
            (error "No translator for primitive foreign type ~S?" type))
       (funcall translator (list type) nil)))
       (:defined
-          (or (info-foreign-type-definition type)
+          (or (info-foreign-type-definition type ftd)
               (error "Definition missing for foreign type ~S?" type)))
       (:unknown
-       (let* ((loaded (load-foreign-type type)))
+       (let* ((loaded (load-foreign-type type ftd)))
 	 (if loaded
 	   (setq type loaded)))
-       (or (info-foreign-type-definition type)
+       (or (info-foreign-type-definition type ftd)
            (error "Unknown foreign type: ~S" type))))))
 
-(defun auxiliary-foreign-type (kind name)
+(defun auxiliary-foreign-type (kind name &optional (ftd *target-ftd*))
   (flet ((aux-defn-matches (x)
 	   (and (eq (first x) kind) (eq (second x) name))))
     (let ((in-auxiliaries
@@ -372,11 +367,11 @@
 	  (values (third in-auxiliaries) t)
 	  (ecase kind
 	    (:struct
-	     (info-foreign-type-struct name))
+	     (info-foreign-type-struct name ftd))
 	    (:union
-	     (info-foreign-type-union name))
+	     (info-foreign-type-union name ftd))
 	    (:enum
-	     (info-foreign-type-enum name)))))))
+	     (info-foreign-type-enum name ftd)))))))
 
 (defun %set-auxiliary-foreign-type (kind name defn)
   (flet ((aux-defn-matches (x)
@@ -390,18 +385,6 @@
 
 (defsetf auxiliary-foreign-type %set-auxiliary-foreign-type)
 
-(defun verify-local-auxiliaries-okay ()
-  (dolist (info *new-auxiliary-types*)
-    (destructuring-bind (kind name defn) info
-      (declare (ignore defn))
-      (when (ecase kind
-	      (:struct
-	       (info-foreign-type-struct name))
-	      (:union
-	       (info-foreign-type-union name))
-	      (:enum
-	       (info-foreign-type-enum name)))
-	(error "Attempt to shadow definition of ~A ~S." kind name)))))
 
 ;;; *record-type-already-unparsed* -- internal
 ;;;
@@ -469,18 +452,18 @@
 	  (:union (frob info-foreign-type-union))
 	  (:enum (frob info-foreign-type-enum)))))))
 
-(defun %def-foreign-type (name new)
-  (ecase (info-foreign-type-kind name)
+(defun %def-foreign-type (name new &optional (ftd *target-ftd*))
+  (ecase (info-foreign-type-kind name ftd)
     (:primitive
      (error "~S is a built-in foreign type." name))
     (:defined
-     (let ((old (info-foreign-type-definition name)))
+     (let ((old (info-foreign-type-definition name ftd)))
        (unless (or (null old) (foreign-type-= new old))
 	 (warn "Redefining ~S to be:~%  ~S,~%was~%  ~S" name
 	       (unparse-foreign-type new) (unparse-foreign-type old)))))
     (:unknown))
-  (setf (info-foreign-type-definition name) new)
-  (setf (info-foreign-type-kind name) :defined)
+  (setf (info-foreign-type-definition name ftd) new)
+  (setf (info-foreign-type-kind name ftd) :defined)
   name)
 
 
@@ -563,6 +546,8 @@
 
 ;;;; Default methods.
 
+(defvar *void-foreign-type* (make-foreign-type :class 'root :bits 0 :alignment 0))
+
 (def-foreign-type-method (root :unparse) (type)
   (if (eq type *void-foreign-type*)
     :void
@@ -608,6 +593,7 @@
   (error "Cannot return foreigns of type ~S from call-out"
 	 (unparse-foreign-type type)))
 
+
 
 ;;;; The INTEGER type.
 
@@ -634,29 +620,9 @@
                                                      i
                                                      1))))))
          
-(def-foreign-type-translator signed (&optional (bits 32))
-  (if (<= bits 32)
-    (svref *signed-integer-types* bits)
-    (make-foreign-integer-type :bits bits)))
-
-
-
-(def-foreign-type-translator integer (&optional (bits 32))
-  (if (<= bits 32)
-    (svref *signed-integer-types* bits)
-    (make-foreign-integer-type :bits bits)))
-
-(def-foreign-type-translator unsigned (&optional (bits 32))
-  (if (<= bits 32)
-    (svref *unsigned-integer-types* bits)
-    (make-foreign-integer-type :bits bits :signed nil)))
-
-(def-foreign-type-translator bitfield (&optional (bits 1))
-  (make-foreign-integer-type :bits bits :signed nil :alignment 1))
 
 (defvar *bool-type* (make-foreign-integer-type :bits 8 :signed #+darwinppc-target t #-darwinppc-target nil))
 
-(def-foreign-type-translator :<BOOL> () *bool-type*)
 						  
 
 (def-foreign-type-method (integer :unparse) (type)
@@ -719,8 +685,6 @@
 
 (def-foreign-type-class (boolean :include integer :include-args (signed)))
 
-(def-foreign-type-translator boolean (&optional (bits 32))
-  (make-foreign-boolean-type :bits bits :signed nil))
 
 
 (def-foreign-type-method (boolean :lisp-rep) (type)
@@ -766,8 +730,6 @@
 (def-foreign-type-class (single-float :include (float (bits 32))
 				    :include-args (type)))
 
-(def-foreign-type-translator single-float ()
-  (make-foreign-single-float-type :type 'single-float))
 
 (def-foreign-type-method (single-float :extract-gen) (type sap offset)
   (declare (ignore type))
@@ -777,8 +739,6 @@
 (def-foreign-type-class (double-float :include (float (bits 64))
 				    :include-args (type)))
 
-(def-foreign-type-translator double-float ()
-  (make-foreign-double-float-type :type 'double-float))
 
 (def-foreign-type-method (double-float :extract-gen) (type sap offset)
   (declare (ignore type))
@@ -790,8 +750,6 @@
 
 (def-foreign-type-class (macptr))
 
-(def-foreign-type-translator macptr ()
-  (make-foreign-macptr-type :bits #-alpha 32 #+alpha 64))
 
 (def-foreign-type-method (macptr :unparse) (type)
   (declare (ignore type))
@@ -842,8 +800,7 @@
 						      #+alpha 64)))
   (to *void-foreign-type* :type foreign-type))
 
-(def-foreign-type-translator * (to)
-  (make-foreign-pointer-type :to (if (eq to t) *void-foreign-type* (parse-foreign-type to))))
+
 
 (def-foreign-type-method (pointer :unparse) (type)
   (let ((to (foreign-pointer-type-to type)))
@@ -905,26 +862,7 @@
   (element-type () :type foreign-type)
   (dimensions () :type list))
 
-(def-foreign-type-translator array (ele-type &rest dims)
-  (when dims
-    (unless (typep (first dims) '(or index null))
-      (error "First dimension is not a non-negative fixnum or NIL: ~S"
-	     (first dims)))
-    (let ((loser (find-if-not #'(lambda (x) (typep x 'index))
-			      (rest dims))))
-      (when loser
-	(error "Dimension is not a non-negative fixnum: ~S" loser))))
-	
-  (let ((type (parse-foreign-type ele-type)))
-    (make-foreign-array-type
-     :element-type type
-     :dimensions dims
-     :alignment (foreign-type-alignment type)
-     :bits (if (and (ensure-foreign-type-bits type)
-		    (every #'integerp dims))
-	       (* (align-offset (foreign-type-bits type)
-				(foreign-type-alignment type))
-		  (reduce #'* dims))))))
+
 
 (def-foreign-type-method (array :unparse) (type)
   `(array ,(%unparse-foreign-type (foreign-array-type-element-type type))
@@ -980,11 +918,6 @@
   ;; of record fields and the overall alignment of the record.
   (alt-align nil :type (or unsigned-byte null)))
 
-(def-foreign-type-translator struct (name &rest fields)
-  (parse-foreign-record-type :struct name fields))
-
-(def-foreign-type-translator union (name &rest fields)
-  (parse-foreign-record-type :union name fields))
 
 (defun parse-foreign-record-type (kind name fields)
   (if fields
@@ -1148,11 +1081,7 @@
   (arg-types () :type list)
   (stub nil :type (or null function)))
 
-(def-foreign-type-translator function (result-type &rest arg-types)
-  (make-foreign-function-type
-   :result-type (let ((*values-type-okay* t))
-		  (parse-foreign-type result-type))
-   :arg-types (mapcar #'parse-foreign-type arg-types)))
+
 
 (def-foreign-type-method (function :unparse) (type)
   `(function ,(%unparse-foreign-type (foreign-function-type-result-type type))
@@ -1172,12 +1101,7 @@
 (def-foreign-type-class (values)
   (values () :type list))
 
-(def-foreign-type-translator values (&rest values)
-  (unless *values-type-okay*
-    (error "Cannot use values types here."))
-  (let ((*values-type-okay* nil))
-    (make-foreign-values-type
-     :values (mapcar #'parse-foreign-type values))))
+
 
 (def-foreign-type-method (values :unparse) (type)
   `(values ,@(mapcar #'%unparse-foreign-type
@@ -1398,37 +1322,6 @@
            sap offset type value))
 
 
-(def-foreign-type signed-char (signed 8))
-(def-foreign-type signed-byte (signed 8))
-(def-foreign-type short (signed 16))
-(def-foreign-type signed-halfword short)
-(def-foreign-type int (signed 32))
-(def-foreign-type signed-fullword int)
-(def-foreign-type long (integer 32))
-(def-foreign-type signed-short (signed 16))
-(def-foreign-type signed-int (signed 32))
-(def-foreign-type signed-long (signed 32))
-(def-foreign-type signed-doubleword (signed 64))
-(def-foreign-type char #+linuxppc-target (unsigned 8)
-		  #+darwinppc-target (signed 8))
-(def-foreign-type unsigned-char (unsigned 8))
-(def-foreign-type unsigned-byte (unsigned 8))
-(def-foreign-type unsigned-short (unsigned 16))
-(def-foreign-type unsigned-halfword unsigned-short)
-(def-foreign-type unsigned-int (unsigned 32))
-(def-foreign-type unsigned-fullword unsigned-int)
-(def-foreign-type unsigned-long (unsigned 32))
-(def-foreign-type unsigned-doubleword (unsigned 64))
-(def-foreign-type bit (bitfield 1))
-
-(def-foreign-type float single-float)
-(def-foreign-type double double-float)
-(def-foreign-type-translator root ()
-  (make-foreign-type :class 'root :bits 0 :alignment 0))
-
-(def-foreign-type void (root))
-(defvar *void-foreign-type* (parse-foreign-type :void))
-(def-foreign-type address (* :void))
 
 (defmacro external (name)
   `(load-eep ,name))
@@ -1593,8 +1486,8 @@
       (progn
         (setq entry-name (unescape-foreign-name name)
               name (intern entry-name package))
-        (if (member :prepend-underscore
-                    (ftd-attributes *target-ftd*))
+        (if (getf :prepend-underscore
+                  (ftd-attributes *target-ftd*))
           (setq entry-name (concatenate 'string "_" entry-name)))))
     `(progn
       (setf (gethash ',name (ftd-external-function-definitions *target-ftd*))
@@ -1666,8 +1559,116 @@
 	    (accessors s))
 	  (accessors field-name))))))
 
+(defun install-standard-foreign-types (ftd)
+  (let* ((*target-ftd* ftd))
+    
+    (def-foreign-type-translator signed (&optional (bits 32))
+      (if (<= bits 32)
+        (svref *signed-integer-types* bits)
+        (make-foreign-integer-type :bits bits)))
 
 
+    (def-foreign-type-translator integer (&optional (bits 32))
+      (if (<= bits 32)
+        (svref *signed-integer-types* bits)
+        (make-foreign-integer-type :bits bits)))
 
-  
-  
+    (def-foreign-type-translator unsigned (&optional (bits 32))
+      (if (<= bits 32)
+        (svref *unsigned-integer-types* bits)
+        (make-foreign-integer-type :bits bits :signed nil)))
+
+    (def-foreign-type-translator bitfield (&optional (bits 1))
+      (make-foreign-integer-type :bits bits :signed nil :alignment 1))
+
+    (def-foreign-type-translator root ()
+      (make-foreign-type :class 'root :bits 0 :alignment 0))
+
+    (def-foreign-type-translator :<BOOL> () *bool-type*)
+
+    (def-foreign-type-translator single-float ()
+      (make-foreign-single-float-type :type 'single-float))
+
+    (def-foreign-type-translator double-float ()
+      (make-foreign-double-float-type :type 'double-float))
+
+    (def-foreign-type-translator macptr ()
+      (make-foreign-macptr-type :bits #-alpha 32 #+alpha 64))
+
+    (def-foreign-type-translator values (&rest values)
+      (unless *values-type-okay*
+        (error "Cannot use values types here."))
+      (let ((*values-type-okay* nil))
+        (make-foreign-values-type
+         :values (mapcar #'parse-foreign-type values))))
+
+    (def-foreign-type-translator function (result-type &rest arg-types)
+      (make-foreign-function-type
+       :result-type (let ((*values-type-okay* t))
+                      (parse-foreign-type result-type))
+       :arg-types (mapcar #'parse-foreign-type arg-types)))
+    (def-foreign-type-translator struct (name &rest fields)
+      (parse-foreign-record-type :struct name fields))
+    
+    (def-foreign-type-translator union (name &rest fields)
+      (parse-foreign-record-type :union name fields))
+
+    (def-foreign-type-translator array (ele-type &rest dims)
+      (when dims
+        (unless (typep (first dims) '(or index null))
+          (error "First dimension is not a non-negative fixnum or NIL: ~S"
+                 (first dims)))
+        (let ((loser (find-if-not #'(lambda (x) (typep x 'index))
+                                  (rest dims))))
+          (when loser
+            (error "Dimension is not a non-negative fixnum: ~S" loser))))
+	
+      (let ((type (parse-foreign-type ele-type)))
+        (make-foreign-array-type
+         :element-type type
+         :dimensions dims
+         :alignment (foreign-type-alignment type)
+         :bits (if (and (ensure-foreign-type-bits type)
+                        (every #'integerp dims))
+                 (* (align-offset (foreign-type-bits type)
+                                  (foreign-type-alignment type))
+                    (reduce #'* dims))))))
+    (def-foreign-type-translator * (to)
+      (make-foreign-pointer-type
+       :to (if (eq to t) *void-foreign-type* (parse-foreign-type to))
+       :bits #+alpha 64 #-alpha 32))
+    (def-foreign-type-translator boolean (&optional (bits 32))
+      (make-foreign-boolean-type :bits bits :signed nil))
+    (def-foreign-type signed-char (signed 8))
+    (def-foreign-type signed-byte (signed 8))
+    (def-foreign-type short (signed 16))
+    (def-foreign-type signed-halfword short)
+    (def-foreign-type int (signed 32))
+    (def-foreign-type signed-fullword int)
+    (def-foreign-type long (integer 32))
+    (def-foreign-type signed-short (signed 16))
+    (def-foreign-type signed-int (signed 32))
+    (def-foreign-type signed-long (signed 32))
+    (def-foreign-type signed-doubleword (signed 64))
+    (def-foreign-type char #+linuxppc-target (unsigned 8)
+                      #+darwinppc-target (signed 8))
+    (def-foreign-type unsigned-char (unsigned 8))
+    (def-foreign-type unsigned-byte (unsigned 8))
+    (def-foreign-type unsigned-short (unsigned 16))
+    (def-foreign-type unsigned-halfword unsigned-short)
+    (def-foreign-type unsigned-int (unsigned 32))
+    (def-foreign-type unsigned-fullword unsigned-int)
+    (def-foreign-type unsigned-long (unsigned 32))
+    (def-foreign-type unsigned-doubleword (unsigned 64))
+    (def-foreign-type bit (bitfield 1))
+
+    (def-foreign-type float single-float)
+    (def-foreign-type double double-float)
+
+    (def-foreign-type void (root))
+    (def-foreign-type address (* :void))
+    
+    ))
+
+(install-standard-foreign-types *host-ftd*)
+
