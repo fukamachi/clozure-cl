@@ -69,6 +69,7 @@ error_object_not_$1 = (error_type_error+$2)])
 	def_type_error(unsigned_byte_24,34)
 	def_type_error(u64,35)
 	def_type_error(s64,36)
+        def_type_error(unsigned_byte_56,37)
 	
 	/* These are the "old" error constants that %ERR-DISP understands. */
 

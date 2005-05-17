@@ -80,6 +80,7 @@
 #define error_object_not_unsigned_byte_24 type_error(34)
 #define error_object_not_u64 type_error(35)
 #define error_object_not_s64 type_error(36)
+#define error_object_not_unsigned_byte_56 type_error(37)
 
 #define error_FPU_exception_double 1024
 #define error_FPU_exception_short 1025
