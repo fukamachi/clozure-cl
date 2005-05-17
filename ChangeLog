@@ -1,3 +1,26 @@
+2005-05-17 05:05  gb
+
+	* lib/db-io.lisp: Pass the ftd around, mostly so that we can
+	determine the (ftd-specific/ target-specific) size of a pointer.
+
+2005-05-17 04:44  gb
+
+	* lib/foreign-types.lisp: fix linux typo.
+
+2005-05-17 04:44  gb
+
+	* level-1/version.lisp: um, 050517b.
+
+2005-05-17 04:32  gb
+
+	* lib/foreign-types.lisp: Get GETF arg order right.  Set
+	long/pointer type sizes based on :bits-per-word.
+
+2005-05-17 04:32  gb
+
+	* lib/db-io.lisp, library/parse-ffi.lisp: Get GETF arg order right
+	...
+
 2005-05-17 03:48  gb
 
 	* library/parse-ffi.lisp: ftd-attributes is now a plist; use its
