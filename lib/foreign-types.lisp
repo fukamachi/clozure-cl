@@ -795,9 +795,7 @@
 
 ;;;; The POINTER type.
 
-(def-foreign-type-class (pointer :include (foreign-value (bits
-						      #-alpha 32
-						      #+alpha 64)))
+(def-foreign-type-class (pointer :include (foreign-value))
   (to *void-foreign-type* :type foreign-type))
 
 
@@ -1486,8 +1484,8 @@
       (progn
         (setq entry-name (unescape-foreign-name name)
               name (intern entry-name package))
-        (if (getf :prepend-underscore
-                  (ftd-attributes *target-ftd*))
+        (if (getf (ftd-attributes *target-ftd*)
+                  :prepend-underscore)
           (setq entry-name (concatenate 'string "_" entry-name)))))
     `(progn
       (setf (gethash ',name (ftd-external-function-definitions *target-ftd*))
@@ -1560,7 +1558,8 @@
 	  (accessors field-name))))))
 
 (defun install-standard-foreign-types (ftd)
-  (let* ((*target-ftd* ftd))
+  (let* ((*target-ftd* ftd)
+         (natural-word-size (getf (ftd-attributes ftd) :bits-per-word)))
     
     (def-foreign-type-translator signed (&optional (bits 32))
       (if (<= bits 32)
@@ -1593,7 +1592,7 @@
       (make-foreign-double-float-type :type 'double-float))
 
     (def-foreign-type-translator macptr ()
-      (make-foreign-macptr-type :bits #-alpha 32 #+alpha 64))
+      (make-foreign-macptr-type :bits natural-word-size))
 
     (def-foreign-type-translator values (&rest values)
       (unless *values-type-okay*
@@ -1636,7 +1635,7 @@
     (def-foreign-type-translator * (to)
       (make-foreign-pointer-type
        :to (if (eq to t) *void-foreign-type* (parse-foreign-type to))
-       :bits #+alpha 64 #-alpha 32))
+       :bits natural-word-size))
     (def-foreign-type-translator boolean (&optional (bits 32))
       (make-foreign-boolean-type :bits bits :signed nil))
     (def-foreign-type signed-char (signed 8))
@@ -1645,10 +1644,8 @@
     (def-foreign-type signed-halfword short)
     (def-foreign-type int (signed 32))
     (def-foreign-type signed-fullword int)
-    (def-foreign-type long (integer 32))
     (def-foreign-type signed-short (signed 16))
     (def-foreign-type signed-int (signed 32))
-    (def-foreign-type signed-long (signed 32))
     (def-foreign-type signed-doubleword (signed 64))
     (def-foreign-type char #+linuxppc-target (unsigned 8)
                       #+darwinppc-target (signed 8))
@@ -1658,7 +1655,6 @@
     (def-foreign-type unsigned-halfword unsigned-short)
     (def-foreign-type unsigned-int (unsigned 32))
     (def-foreign-type unsigned-fullword unsigned-int)
-    (def-foreign-type unsigned-long (unsigned 32))
     (def-foreign-type unsigned-doubleword (unsigned 64))
     (def-foreign-type bit (bitfield 1))
 
@@ -1667,8 +1663,14 @@
 
     (def-foreign-type void (root))
     (def-foreign-type address (* :void))
-    
-    ))
+    (let* ((signed-long-type (parse-foreign-type
+                              `(:signed ,natural-word-size)))
+           (unsigned-long-type (parse-foreign-type
+                                `(:unsigned ,natural-word-size))))
+      (%def-foreign-type :long signed-long-type ftd)
+      (%def-foreign-type :signed-long signed-long-type ftd)
+      (%def-foreign-type :unsigned-long unsigned-long-type ftd))))
+
 
 (install-standard-foreign-types *host-ftd*)
 
