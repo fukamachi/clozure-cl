@@ -2729,7 +2729,7 @@ _spentry(integer_sign)
 	__(getvheader(imm0,arg_z))
 	__(header_length(imm0,imm0)) /* boxed length = scaled size */
 	__(addi imm0,imm0,misc_data_offset-4) /* bias, less 1 element */
-	__(lwz imm0,arg_z,imm0)
+	__(lwzx imm0,arg_z,imm0)
 	__(cmpri(cr0,imm0,0))
 	__(li imm0,1)
 	__(bgelr cr0)
@@ -3656,7 +3656,7 @@ _spentry(builtin_length)
 	__(extract_typecode(imm0,arg_z))
 	__(cmpri(cr0,imm0,min_vector_subtag))
         __(beq cr1,1f)
-        __ifdef([PPC64]
+        __ifdef([PPC64])
          __(cmpdi cr2,imm0,fulltag_cons)
         __else
 	 __(cmpwi cr2,imm0,tag_list)
