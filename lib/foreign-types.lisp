@@ -1661,7 +1661,7 @@
     (def-foreign-type float single-float)
     (def-foreign-type double double-float)
 
-    (def-foreign-type void (root))
+    (%def-foreign-type void *void-foreign-type*)
     (def-foreign-type address (* :void))
     (let* ((signed-long-type (parse-foreign-type
                               `(:signed ,natural-word-size)))
