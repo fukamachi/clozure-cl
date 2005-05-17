@@ -1,3 +1,21 @@
+2005-05-17 03:48  gb
+
+	* library/parse-ffi.lisp: ftd-attributes is now a plist; use its
+	:bits-per-word key to determine bit size of primitive :long,
+	:unsigned-long types.
+
+2005-05-17 03:45  gb
+
+	* lib/db-io.lisp: Pass the target ftd around a bit more, but that's
+	probably hopeless.  ftd-attributes is now a plist.
+
+2005-05-17 03:44  gb
+
+	* lib/foreign-types.lisp: Conditionalize more; pass the target ftd
+	around a bit more, but that's probably hopeless.  Type translators
+	are ftd-specific after all; basic types get installed per-ftd. 
+	ftd-attributes is now a plist.
+
 2005-05-17 01:32  gb
 
 	* level-1/version.lisp: Bump  version.
