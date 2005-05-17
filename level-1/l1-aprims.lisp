@@ -1112,14 +1112,12 @@ terminate the list"
 
 
 (defpackage "OS"
-  (:nicknames "OPERATING-SYSTEM" 
-	      #+linuxppc-target "LINUX"
-	      #+darwinppc-target "DARWIN")
-  (:use "COMMON-LISP")
-  (:shadow "OPEN" "CLOSE" "READ" "WRITE" "SLEEP" "LISTEN" "FTRUNCATE" "SIGNAL" "DELETE"
-           "WARN" "ERROR" "FLOOR" "SQRT" "LOG" "EXP" "ATANH" "ASINH"
-           "ACOSH" "TANH" "SINH" "COSH" "TAN" "SIN" "COS" "ATAN" "ASIN"
-           "ACOS" "MIN" "MAX" "GCD" "TRUNCATE" "TIME"))
+  (:nicknames "OPERATING-SYSTEM"
+   #+(and linuxppc-target ppc32-target) "LINUX32"
+   #+(and linuxppc-target ppc64-target) "LINUX64"
+   #+(and darwinppc-target ppc32-target) "DARWIN32"
+   #+(and darwinppc-target ppc64-target) "DARWIN64")
+  (:use "COMMON-LISP"))
 
 
 
