@@ -401,10 +401,30 @@
 					 (index :s16const)))
   (lwz dest index src))
 
+(define-ppc64-vinsn mem-ref-c-signed-fullword (((dest :s32))
+                                               ((src :address)
+                                                (index :s16const)))
+  (lwa dest index src))
+
+(define-ppc64-vinsn mem-ref-c-natural (((dest :u64))
+                                       ((src :address)
+                                        (index :s16const)))
+  (ld dest index src))
+
 (define-ppc64-vinsn mem-ref-fullword (((dest :u32))
 				      ((src :address)
-				       (index :s32)))
+				       (index :s64)))
   (lwzx dest src index))
+
+(define-ppc64-vinsn mem-ref-signed-fullword (((dest :s32))
+                                             ((src :address)
+                                              (index :s64)))
+  (lwax dest src index))
+
+(define-ppc64-vinsn mem-ref-natural (((dest :u64))
+				      ((src :address)
+				       (index :s64)))
+  (ldx dest src index))
 
 (define-ppc64-vinsn mem-ref-c-u16 (((dest :u16))
 				   ((src :address)
@@ -1924,8 +1944,10 @@
   (sradi result src ppc64::fixnumshift))
 
 (define-ppc64-vinsn s32->integer (((result :lisp))
-                                  ((src :s32)))
-  (sldi result src ppc64::fixnumshift))
+                                  ((src :s32))
+                                  ((temp :s64)))
+  (extsw temp src)
+  (sldi result temp ppc64::fixnumshift))
 
 
 ;;; A signed 64-bit untagged value can be at worst a 1-digit bignum.

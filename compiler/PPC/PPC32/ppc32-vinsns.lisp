@@ -382,10 +382,33 @@
                                          (index :s16const)))
   (lwz dest index src))
 
+
+(define-ppc32-vinsn mem-ref-c-signed-fullword (((dest :s32))
+                                               ((src :address)
+                                                (index :s16const)))
+  (lwz dest index src))
+
+(define-ppc32-vinsn mem-ref-c-natural (((dest :u32))
+                                       ((src :address)
+                                        (index :s16const)))
+  (lwz dest index src))
+  
+
 (define-ppc32-vinsn mem-ref-fullword (((dest :u32))
                                       ((src :address)
                                        (index :s32)))
   (lwzx dest src index))
+
+(define-ppc32-vinsn mem-ref-signed-fullword (((dest :u32))
+                                             ((src :address)
+                                              (index :s32)))
+  (lwzx dest src index))
+
+(define-ppc32-vinsn mem-ref-natural (((dest :u32))
+                                     ((src :address)
+                                      (index :s32)))
+  (lwzx dest src index))
+
 
 (define-ppc32-vinsn mem-ref-c-u16 (((dest :u16))
                                    ((src :address)
