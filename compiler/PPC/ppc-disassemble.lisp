@@ -86,7 +86,43 @@
   (if (and (= me 31) (= (+ b mb) 32))
     `(srwi ,(ppc-gpr rt) ,(ppc-gpr ra) ,mb)
     (if (and (= mb 0) (= (+ b me) 31))
-      `(slwi ,(ppc-gpr rt) ,(ppc-gpr ra) ,b))))
+      (if (and (case (backend-target-arch-name *ppc-disassembly-backend*)
+                 (:ppc32 t))
+             (logbitp rt ppc-node-regs)
+             (not (logbitp ra ppc-node-regs))
+             (= b (arch::target-fixnum-shift (backend-target-arch
+                                               *ppc-disassembly-backend*))))
+        `(box-fixnum ,(ppc-gpr rt) ,(ppc-gpr ra))
+        `(slwi ,(ppc-gpr rt) ,(ppc-gpr ra) ,b)))))
+
+(def-ppc-unmacroexpand rldicr insn (rt ra sh me)
+  (if (= (+ sh me) 63)
+    (if (and (case (backend-target-arch-name *ppc-disassembly-backend*)
+               (:ppc64 t))
+             (logbitp rt ppc-node-regs)
+             (not (logbitp ra ppc-node-regs))
+             (= sh (arch::target-fixnum-shift (backend-target-arch
+                                               *ppc-disassembly-backend*))))
+      `(box-fixnum ,(ppc-gpr rt) ,(ppc-gpr ra))
+      `(sldi ,(ppc-gpr rt) ,(ppc-gpr ra) ,sh))))
+
+(def-ppc-unmacroexpand srawi insn (rt ra sh)
+  (if (and (case (backend-target-arch-name *ppc-disassembly-backend*)
+             (:ppc32 t))
+           (not (logbitp rt ppc-node-regs))
+           (logbitp ra ppc-node-regs)
+           (= sh (arch::target-fixnum-shift (backend-target-arch
+                                             *ppc-disassembly-backend*))))
+    `(unbox-fixnum ,(ppc-gpr rt) ,(ppc-gpr ra))))
+
+(def-ppc-unmacroexpand sradi insn (rt ra sh)
+  (if (and (case (backend-target-arch-name *ppc-disassembly-backend*)
+             (:ppc64 t))
+           (not (logbitp rt ppc-node-regs))
+           (logbitp ra ppc-node-regs)
+           (= sh (arch::target-fixnum-shift (backend-target-arch
+                                             *ppc-disassembly-backend*))))
+    `(unbox-fixnum ,(ppc-gpr rt) ,(ppc-gpr ra))))
 
 (def-ppc-unmacroexpand li insn (rt imm)
   (let* ((fixnumshift (arch::target-fixnum-shift (backend-target-arch *ppc-disassembly-backend*))))
