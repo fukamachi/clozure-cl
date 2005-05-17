@@ -778,8 +778,8 @@
       (%defconstant sym val)
       val)))
 
-(defun %load-var (name)
-  (let* ((string (if (getf (ftd-attributes *target-ftd*)
+(defun %load-var (name &optional (ftd *target-ftd*))
+  (let* ((string (if (getf (ftd-attributes ftd)
                            :prepend-underscores)
                    (concatenate 'string "_" (string name))
                    (string name)))
@@ -797,7 +797,7 @@
                             (pref value :cdb-datum.data) (%null-ptr)
                             (pref value :cdb-datum.size) 0)
                       (cdb-get vars key value)
-                      (let* ((vartype (extract-db-type value)))
+                      (let* ((vartype (extract-db-type value ftd)))
                         (when vartype (return vartype)))))))))
         (unless type (error "Foreign variable ~s not found" string))
         (setq fv (%cons-foreign-variable string type))
@@ -853,7 +853,8 @@
             (objc-message-info-message-name
                           (objc-method-info-message-info m)))))
 
-(defun extract-db-objc-message-info (datum message-name info)
+(defun extract-db-objc-message-info (datum message-name info &optional
+                                           (ftd *target-ftd*))
   (with-macptrs ((buf))
     (%setf-macptr buf (pref datum :cdb-datum.data))
     (unless (%null-ptr-p buf)
@@ -876,9 +877,9 @@
                  (arg-types ())
                  (arg-type ()))
             (multiple-value-setq (class-name p) (%decode-name buf p t))
-            (multiple-value-setq (result-type p) (%decode-type buf p))
+            (multiple-value-setq (result-type p) (%decode-type buf p ftd))
             (dotimes (i nargs)
-              (multiple-value-setq (arg-type p) (%decode-type buf p))
+              (multiple-value-setq (arg-type p) (%decode-type buf p ftd))
               (push arg-type arg-types))
             (unless (dolist (m (objc-message-info-methods info))
                       (when (and (eq (getf (objc-method-info-flags m) :class)  is-class-method)
@@ -1099,7 +1100,7 @@
   class-methods
   )
 
-(defun extract-db-objc-class (datum)
+(defun extract-db-objc-class (datum &optional (ftd *target-ftd*))
   (let* ((val nil))
     (with-macptrs ((buf))
       (%setf-macptr buf (pref datum :cdb-datum.data))
@@ -1117,7 +1118,7 @@
             (dotimes (i protocol-count)
               (multiple-value-setq (protocol-name p) (%decode-name buf p t))
               (protocols protocol-name))
-            (setq ivars (%decode-field-list buf p))
+            (setq ivars (%decode-field-list buf p ftd))
             (cdb-free (pref datum :cdb-datum.data))
             (setq val (make-db-objc-class-info
                        :class-name class-name
@@ -1480,7 +1481,7 @@
        
   
 ;; Should return a FOREIGN-TYPE structure.
-(defun %decode-type (buf p)
+(defun %decode-type (buf p ftd)
   (declare (type macptr buf) (fixnum p))
   (let* ((q (1+ p)))
     (ecase (ldb encoded-type-type-byte (%get-unsigned-byte buf p))
@@ -1505,12 +1506,16 @@
                                     (if (eql (%get-unsigned-byte buf q)
                                              encoded-type-void)
                                       (values nil (1+ q))
-                                      (%decode-type buf q))
-                                  (values (make-foreign-pointer-type :to target)
+                                      (%decode-type buf q ftd))
+                                (values (make-foreign-pointer-type
+                                         :to target
+                                         :bits (getf (ftd-attributes ftd)
+                                                     :bits-per-word)
+                                         )
                                           qq)))
       (#.encoded-type-array
        (multiple-value-bind (size qq) (%decode-uint buf q)
-         (multiple-value-bind (target qqq) (%decode-type buf qq)
+         (multiple-value-bind (target qqq) (%decode-type buf qq ftd)
            (let* ((type-alignment (foreign-type-alignment target))
                   (type-bits (foreign-type-bits target)))
              (values (make-foreign-array-type
@@ -1541,11 +1546,11 @@
        (multiple-value-bind (tag qq) (%decode-name buf q t)
          (values (load-record tag) qq))))))
 
-(defun extract-db-type (datum)
+(defun extract-db-type (datum ftd)
   (let* ((data (pref datum :cdb-datum.data)))
     (unless (%null-ptr-p data)
       (prog1
-	  (%decode-type data 0)
+	  (%decode-type data 0 ftd)
 	(cdb-free data)))))
 
 (defun %load-foreign-type (cdb name ftd)
@@ -1558,7 +1563,7 @@
             (pref contents :cdb-datum.data) (%null-ptr)
             (pref contents :cdb-datum.size) 0)
       (cdb-get cdb key contents)
-      (let* ((type (extract-db-type contents)))
+      (let* ((type (extract-db-type contents ftd)))
 	(if type
 	  (%def-foreign-type (escape-foreign-name name) type ftd)))))))
 
@@ -1568,10 +1573,10 @@
       (let* ((type (%load-foreign-type (db-types d) name ftd)))
 	(when type (return type))))))
 
-(defun %decode-field (buf p)
+(defun %decode-field (buf p ftd)
   (declare (type macptr buf) (fixnum p))
   (multiple-value-bind (name p) (%decode-name buf p)
-    (multiple-value-bind (type p) (%decode-type buf p)
+    (multiple-value-bind (type p) (%decode-type buf p ftd)
       (multiple-value-bind (offset p) (%decode-uint buf p)
         (multiple-value-bind (width p) (%decode-uint buf p)
           (values (make-foreign-record-field :type type
@@ -1580,13 +1585,13 @@
                                              :offset offset)
                   p))))))
 
-(defun %decode-field-list (buf p)
+(defun %decode-field-list (buf p ftd)
   (declare (type macptr buf) (fixnum p))
   (let* ((n nil)
          (fields nil))
     (multiple-value-setq (n p) (%decode-uint buf p))
     (dotimes (i n (values (nreverse fields) p))
-      (multiple-value-bind (field q) (%decode-field buf p)
+      (multiple-value-bind (field q) (%decode-field buf p ftd)
         (push field fields)
         (setq p q)))))
 
@@ -1633,7 +1638,7 @@
 	  (foreign-record-type-alt-align rtype) alt-align)
     rtype))
 
-(defun %decode-record-type (buf p)
+(defun %decode-record-type (buf p ftd)
   (declare (type macptr buf) (fixnum p))
   (let* ((rbyte (%get-unsigned-byte buf p))
 	 (rcode (ldb encoded-type-type-byte rbyte))
@@ -1661,17 +1666,17 @@
                   :struct
                   :union)
           :name name))
-       (%decode-field-list buf q)
+       (%decode-field-list buf q ftd)
        alt-align))))
 
-(defun extract-db-record (datum)
+(defun extract-db-record (datum ftd)
   (let* ((data (pref datum :cdb-datum.data)))
     (unless (%null-ptr-p data)
       (prog1
-	  (%decode-record-type data 0)
+	  (%decode-record-type data 0 ftd)
 	(cdb-free data)))))
 
-(defun %load-foreign-record (cdb name)
+(defun %load-foreign-record (cdb name ftd)
   (when cdb
     (with-cstrs ((string (string name)))
       (rlet ((contents :cdb-datum)
@@ -1681,10 +1686,10 @@
               (pref contents :cdb-datum.data) (%null-ptr)
               (pref contents :cdb-datum.size) 0)
         (cdb-get cdb key contents)
-        (extract-db-record contents)))))
+        (extract-db-record contents ftd)))))
 
-(defun load-record (name)
+(defun load-record (name &optional (ftd *target-ftd*))
   (let* ((name (unescape-foreign-name name)))
     (do-interface-dirs (d)
-      (let* ((r (%load-foreign-record (db-records d) name)))
+      (let* ((r (%load-foreign-record (db-records d) name ftd)))
 	(when r (return r))))))
