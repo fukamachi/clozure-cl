@@ -71,7 +71,7 @@
                     #+(and darwinppc-target ppc64-target) "DARWIN64"
                     :attributes
                     #+darwinppc-target '(:signed-char t :struct-by-value t :prepend-underscores t :bits-per-word #+ppc32-target 32 #+ppc64-target 64)
-                    #+linuxppc-target '(:bits-per-word #+ppc64-target 64 :ppc32-target 32)))
+                    #+linuxppc-target '(:bits-per-word #+ppc64-target 64 #+ppc32-target 32)))
                     
 (defvar *target-ftd* *host-ftd*)
 (setf (backend-target-foreign-type-data *host-backend*)
