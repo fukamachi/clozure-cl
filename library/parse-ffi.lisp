@@ -706,16 +706,17 @@
             (dolist (f defined-functions) (emit-function-decl f))))))))
 
 (defun parse-standard-ffi-files (dirname &key
-					 (ftd *target-ftd*)
-					 (prepend-underscores
-					  #+(or darwinppc-target) t
-					  #-(or darwinppc-target) nil))
-  (let* ((*parse-ffi-target-ftd* ftd)
+					 target)
+  (let* ((backend (if target (find-backend target) *target-backend*))
+         (ftd (backend-target-foreign-type-data backend))
+         (*parse-ffi-target-ftd* ftd)
+         (*target-ftd* ftd)
 	 (d (use-interface-dir dirname ftd))
 	 (interface-dir (merge-pathnames
 			 (interface-dir-subdir d)
 			 (ftd-interface-db-directory ftd)))
-	 (*prepend-underscores-to-ffi-function-names* prepend-underscores)
+	 (*prepend-underscores-to-ffi-function-names*
+          (getf (ftd-attributes ftd) :prepend-underscores))
 	 (*ffi-global-typedefs* (make-hash-table :test 'string= :hash-function 'sxhash))
 	 (*ffi-global-unions* (make-hash-table :test 'string= :hash-function 'sxhash))
 	 (*ffi-global-structs* (make-hash-table :test 'string= :hash-function 'sxhash))
