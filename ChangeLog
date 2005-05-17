@@ -1,3 +1,72 @@
+2005-05-16 22:10  gb
+
+	* lisp-kernel/spentry.s: Define a lot of PPC64 stuff.
+
+2005-05-16 22:10  gb
+
+	* lisp-kernel/constants64.s: Migrate builtin_function indices,
+	fpscr bits to constants.s.  Add lowtag defs.  Fix double-float
+	struct.
+
+2005-05-16 22:09  gb
+
+	* lisp-kernel/constants32.s: Migrate builtin_function indices,
+	fpscr bits to constants.s.
+
+2005-05-16 22:09  gb
+
+	* lisp-kernel/constants.s: Migrate builtin_function indices, fpscr
+	bits here from arch-specific files.
+
+2005-05-16 22:08  gb
+
+	* lisp-kernel/pmcl-kernel.c: Work around lack of
+	<asm-ppc64/cputable.h>
+
+2005-05-16 22:07  gb
+
+	* lisp-kernel/macros.s: extract_lowtag for PPC64.
+
+2005-05-16 22:07  gb
+
+	* lisp-kernel/: errors.s, lisp-errors.h: Add
+	error_object_not_unsigned_byte_56.
+
+2005-05-16 22:03  gb
+
+	* lib/foreign-types.lisp: Target packages, interface dirs.
+
+2005-05-16 22:03  gb
+
+	* lib/db-io.lisp: Don't garble error messages when checking
+	trailer.
+
+2005-05-16 22:02  gb
+
+	* level-1/l1-aprims.lisp: Rename OS package.
+
+2005-05-16 22:02  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	Try to distinguish between referencing fullwords and "natural"
+	words in memory.
+
+2005-05-16 22:02  gb
+
+	* compiler/PPC/ppc2.lisp: Don't dereference pointers more than once
+	(old %HGET stuff.) Try to distinguish between referencing fullwords
+	and "natural" words in memory.
+
+2005-05-16 22:00  gb
+
+	* compiler/PPC/ppc-disassemble.lisp: Recognize a few more
+	operations.
+
+2005-05-16 21:59  gb
+
+	* compiler/nx1.lisp: %SET-SINGLE-FLOAT is ppc32-specific.  Don't
+	dereference pointers more than once (old %HGET stuff.)
+
 2005-05-15 05:29  gb
 
 	* level-1/version.lisp: Bump; new binaries soon.
