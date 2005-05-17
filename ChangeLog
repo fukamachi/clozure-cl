@@ -1,3 +1,7 @@
+2005-05-16 22:29  gb
+
+	* lisp-kernel/spentry.s: fix typos.
+
 2005-05-16 22:10  gb
 
 	* lisp-kernel/spentry.s: Define a lot of PPC64 stuff.
