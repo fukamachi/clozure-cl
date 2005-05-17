@@ -54,7 +54,10 @@
    be necessary to install a copy of the kernel header in the right
    place and/or persuade <asm/cputable> to lighten up a bit.
 */
+
+#ifndef PPC64
 #include <asm/cputable.h>
+#endif
 #ifndef PPC_FEATURE_HAS_ALTIVEC
 #define PPC_FEATURE_HAS_ALTIVEC 0x10000000
 #endif
