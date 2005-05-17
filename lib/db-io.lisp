@@ -779,8 +779,8 @@
       val)))
 
 (defun %load-var (name)
-  (let* ((string (if (member :prepend-underscores
-                             (ftd-attributes *target-ftd*))
+  (let* ((string (if (getf :prepend-underscores
+                           (ftd-attributes *target-ftd*))
                    (concatenate 'string "_" (string name))
                    (string name)))
          (fv (gethash string (fvs))))
@@ -1548,7 +1548,7 @@
 	  (%decode-type data 0)
 	(cdb-free data)))))
 
-(defun %load-foreign-type (cdb name)
+(defun %load-foreign-type (cdb name ftd)
   (when cdb
     (with-cstrs ((string (string name)))
       (rletZ ((contents :cdb-datum)
@@ -1560,12 +1560,12 @@
       (cdb-get cdb key contents)
       (let* ((type (extract-db-type contents)))
 	(if type
-	  (%def-foreign-type (escape-foreign-name name) type)))))))
+	  (%def-foreign-type (escape-foreign-name name) type ftd)))))))
 
-(defun load-foreign-type (name)
+(defun load-foreign-type (name &optional (ftd *target-ftd*))
   (let* ((name (unescape-foreign-name name)))
-    (do-interface-dirs (d)
-      (let* ((type (%load-foreign-type (db-types d) name)))
+    (do-interface-dirs (d ftd)
+      (let* ((type (%load-foreign-type (db-types d) name ftd)))
 	(when type (return type))))))
 
 (defun %decode-field (buf p)
