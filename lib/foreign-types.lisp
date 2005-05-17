@@ -49,24 +49,31 @@
   (union-definitions (make-hash-table :test #'eq))
   ;; Do we even use this ?
   (enum-definitions (make-hash-table :test #'eq))
-  (interface-db-directory
-   #+(and linuxppc-target ppc32-target) "ccl:headers;"
-   #+(and linuxppc-target ppc64-target) "ccl:headers64;"
-   #+(and darwinppc-target ppc32-target) "ccl:darwin-headers;"
-   #+(and darwinppc-target ppc64-target) "ccl:darwin-headers64;")
+  (interface-db-directory ())
   (interface-package-name
-   #+(and linuxppc-target ppc32-target) "LINUX32"
-   #+(and linuxppc-target ppc64-target) "LINUX64"
-   #+(and darwinppc-target ppc32-target) "DARWIN32"
-   #+(and darwinppc-target ppc64-target) "DARWIN64")
+())
   (external-function-definitions (make-hash-table :test #'eq))
   (syscalls (make-hash-table :test #'eq))
   (dirlist (make-dll-header))
-  (attributes #+darwinppc-target '(:signed-char :struct-by-value :prepend-underscores)
-	      #+linuxppc-target ())
-  (ordinal->type (make-array 100 :fill-pointer 1 :initial-element nil)))
+  (attributes ()))
 
-(defvar *host-ftd* (make-ftd))
+
+
+(defvar *host-ftd* (make-ftd
+                    :interface-db-directory
+                    #+(and linuxppc-target ppc32-target) "ccl:headers;"
+                    #+(and linuxppc-target ppc64-target) "ccl:headers64;"
+                    #+(and darwinppc-target ppc32-target) "ccl:darwin-headers;"
+                    #+(and darwinppc-target ppc64-target) "ccl:darwin-headers64;"
+                    :interface-package-name
+                    #+(and linuxppc-target ppc32-target) "LINUX32"
+                    #+(and linuxppc-target ppc64-target) "LINUX64"
+                    #+(and darwinppc-target ppc32-target) "DARWIN32"
+                    #+(and darwinppc-target ppc64-target) "DARWIN64"
+                    :attributes
+                    #+darwinppc-target '(:signed-char :struct-by-value :prepend-underscores)
+                    #+linuxppc-target ()))
+                    
 (defvar *target-ftd* *host-ftd*)
 (setf (backend-target-foreign-type-data *host-backend*)
       *host-ftd*)
@@ -145,14 +152,17 @@
 
 
   (defvar *foreign-type-classes* (make-hash-table :test #'eq))
+  (defvar *foreign-type-translators* (make-hash-table :test #'eq))
   
-  (defun info-foreign-type-translator (x &optional (ftd *target-ftd*))
-    (gethash (make-keyword x) (ftd-translators ftd)))
-  (defun (setf info-foreign-type-translator) (val x &optional (ftd *target-ftd*))
-    (setf (gethash (make-keyword x) (ftd-translators ftd)) val))
+  (defun info-foreign-type-translator (x)
+    (gethash (make-keyword x) *foreign-type-translators*))
+  (defun (setf info-foreign-type-translator) (val x)
+    (setf (gethash (make-keyword x) *foreign-type-translators*) val))
 
   (defun info-foreign-type-kind (x &optional (ftd *target-ftd*))
-    (or (gethash (make-keyword x) (ftd-kind-info ftd)) :unknown))
+    (if (info-foreign-type-translator x)
+      :primitive
+      (or (gethash (make-keyword x) (ftd-kind-info ftd)) :unknown)))
   (defun (setf info-foreign-type-kind) (val x &optional (ftd *target-ftd*))
     (setf (gethash (make-keyword x) (ftd-kind-info ftd)) val))
 		   
@@ -177,8 +187,6 @@
     (gethash (make-keyword x) (ftd-enum-definitions ftd)))
   (defun (setf info-foreign-type-enum) (val x &optional (ftd *target-ftd*))
     (setf (gethash (make-keyword x) (ftd-enum-definitions ftd)) val))
-
-
 
   (defun require-foreign-type-class (name)
     (or (gethash name  *foreign-type-classes*)
@@ -292,16 +300,8 @@
 		 (prin1 (unparse-foreign-type s) out)))))
   (class 'root :type symbol)
   (bits nil :type (or null unsigned-byte))
-  (alignment (guess-alignment bits) :type (or null unsigned-byte))
-  (assigned-ordinal nil))
+  (alignment (guess-alignment bits) :type (or null unsigned-byte)))
 
-(defun foreign-type-ordinal (ftype)
-  (or (foreign-type-assigned-ordinal ftype)
-      (setf (foreign-type-assigned-ordinal ftype)
-	    (vector-push-extend ftype (ftd-ordinal->type *target-ftd*)))))
-
-(defun ordinal-to-foreign-type (ordinal &optional (ftd *target-ftd*))
-  (elt (ftd-ordinal->type ftd) ordinal))
 
 
 (defmethod make-load-form ((s foreign-type) &optional env)
@@ -439,7 +439,6 @@
 
 (defun %def-foreign-type-translator (name translator docs)
   (declare (ignore docs))
-  (setf (info-foreign-type-kind name) :primitive)
   (setf (info-foreign-type-translator name) translator)
   (clear-info-foreign-type-definition name)
   #+nil
@@ -1667,14 +1666,7 @@
 	    (accessors s))
 	  (accessors field-name))))))
 
-(defun %assert-macptr-ftype (macptr ftype)
-  (if (eq (class-of macptr) *macptr-class*)
-    (%set-macptr-type macptr (foreign-type-ordinal ftype)))
-  macptr)
 
-(defun %macptr-ftype (macptr)
-  (if (eq (class-of macptr) *macptr-class*)
-    (ordinal-to-foreign-type (%macptr-type macptr))))
 
 
   
