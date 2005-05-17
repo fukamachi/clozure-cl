@@ -92,7 +92,27 @@
 
 #+ppc64-target
 (setq *host-backend* *ppc64-backend* *target-backend* *ppc64-backend*)
-
+#-ppc64-target
+(unless (backend-target-foreign-type-data *ppc64-backend*)
+  (let* ((ftd (make-ftd
+               :interface-db-directory
+               #+darwinppc-target "ccl:darwin-headers64;"
+               #+linuxppc-target "ccl:headers64;"
+               :interface-package-name
+               #+darwinppc-target "DARWIN64"
+               #+linuxppc-target "LINUX64"
+               :attributes
+               #+darwinppc-target
+               '(:signed-char t
+                 :struct-by-value t
+                 :prepend-underscores t
+                 :bits-per-word  64)
+               #+linuxppc-target
+               '(:bits-per-word  64))))
+    (install-standard-foreign-types ftd)
+    (use-interface-dir :libc ftd)
+    (setf (backend-target-foreign-type-data *ppc64-backend*) ftd)))
+  
 (pushnew *ppc64-backend* *known-backends* :key #'backend-name)
 
 (provide "PPC64-BACKEND")

@@ -97,6 +97,26 @@
 
 #+ppc32-target
 (setq *host-backend* *ppc32-backend* *target-backend* *ppc32-backend*)
+#-ppc32-target
+(unless (backend-target-foreign-type-data *ppc32-backend*)
+  (let* ((ftd (make-ftd
+               :interface-db-directory
+               #+darwinppc-target "ccl:darwin-headers;"
+               #+linuxppc-target "ccl:headers;"
+               :interface-package-name
+               #+darwinppc-target "DARWIN32"
+               #+linuxppc-target "LINUX32"
+               :attributes
+               #+darwinppc-target
+               '(:signed-char t
+                 :struct-by-value t
+                 :prepend-underscores t
+                 :bits-per-word  32)
+               #+linuxppc-target
+               '(:bits-per-word 32))))
+    (install-standard-foreign-types ftd)
+    (use-interface-dir :libc ftd)
+    (setf (backend-target-foreign-type-data *ppc32-backend*) ftd)))
 
 (pushnew *ppc32-backend* *known-backends* :key #'backend-name)
 
