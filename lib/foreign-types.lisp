@@ -50,11 +50,15 @@
   ;; Do we even use this ?
   (enum-definitions (make-hash-table :test #'eq))
   (interface-db-directory
-   #+linuxppc-target"ccl:headers;"
-   #+darwinppc-target "ccl:darwin-headers;")
+   #+(and linuxppc-target ppc32-target) "ccl:headers;"
+   #+(and linuxppc-target ppc64-target) "ccl:headers64;"
+   #+(and darwinppc-target ppc32-target) "ccl:darwin-headers;"
+   #+(and darwinppc-target ppc64-target) "ccl:darwin-headers64;")
   (interface-package-name
-   #+linuxppc-target "LINUX"
-   #+darwinppc-target "DARWIN")
+   #+(and linuxppc-target ppc32-target) "LINUX32"
+   #+(and linuxppc-target ppc64-target) "LINUX64"
+   #+(and darwinppc-target ppc32-target) "DARWIN32"
+   #+(and darwinppc-target ppc64-target) "DARWIN64")
   (external-function-definitions (make-hash-table :test #'eq))
   (syscalls (make-hash-table :test #'eq))
   (dirlist (make-dll-header))
