@@ -1,3 +1,7 @@
+2005-05-17 09:20  gb
+
+	* library/solaris-records.lisp: old old file
+
 2005-05-17 08:43  gb
 
 	* library/parse-ffi.lisp: change target ftd arg handling
