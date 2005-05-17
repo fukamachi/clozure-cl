@@ -21,6 +21,7 @@ nbits_in_byte = 8
 ntagbits = 4
 nlisptagbits = 3
 nfixnumtagbits = 3
+nlowtagbits = 2        
 num_subtag_bits = 8
 fixnumshift = 3
 fixnum_shift = 3
@@ -41,6 +42,13 @@ fixnum_one = fixnumone
 fixnum1 = fixnumone
 
 
+lowtagmask = ((1<<nlowtagbits)-1)
+lowtag_mask = lowtagmask
+
+lowtag_primary = 0
+lowtag_imm = 1
+lowtag_immheader = 2
+lowtag_nodeheader = 3
 
 tag_fixnum = 0
 
@@ -137,7 +145,7 @@ nil_value = (0x2000+fulltag_misc+symbol.size)
 t_value = (0x2000+fulltag_misc)	
 misc_bias = fulltag_misc
 cons_bias = fulltag_cons
-
+t_offset = (nil_value-t_value)
 	
 misc_header_offset = -fulltag_misc
 misc_subtag_offset = misc_header_offset+7       /* low byte of header */
@@ -186,8 +194,8 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	_endstructf
 	
 	_structf(double_float)
-	 _word(pad)
-	 _dword(value)
+	 _word(value)
+         _word(val_low)
 	_endstructf
 	
 	_structf(macptr)
@@ -508,52 +516,6 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 	 _dword(save_fps32conv)
 	_ends
 
-/* Indices in %builtin-functions% */
-_builtin_plus = 0	/* +-2 */
-_builtin_minus = 1	/* --2 */
-_builtin_times = 2	/* *-2 */
-_builtin_div = 3	/* /-2 */
-_builtin_eq = 4		/* =-2 */
-_builtin_ne = 5		/* /-2 */
-_builtin_gt = 6		/* >-2 */
-_builtin_ge = 7		/* >=-2 */
-_builtin_lt = 8		/* <-2 */
-_builtin_le = 9		/* <=-2 */
-_builtin_eql = 10	/* eql */
-_builtin_length = 11	/* length */
-_builtin_seqtype = 12	/* sequence-type */
-_builtin_assq = 13	/* assq */
-_builtin_memq = 14	/* memq */
-_builtin_logbitp = 15	/* logbitp */
-_builtin_logior = 16	/* logior-2 */
-_builtin_logand = 17	/* logand-2 */
-_builtin_ash = 18	/* ash */
-_builtin_negate = 19	/* %negate */
-_builtin_logxor = 20	/* logxor-2 */
-_builtin_aref1 = 21	/* %aref1 */
-_builtin_aset1 = 22	/* %aset1 */
-
-	/* FPSCR status bits */
-fpscr_FX = 0
-fpscr_FEX = 1
-fpscr_VX = 2
-fpscr_OX = 3
-fpscr_UX = 4
-fpscr_ZX = 5
-fpscr_XX = 6
-	/* FPSCR control bits */
-fpscr_VE = 24
-fpscr_OE = 25
-fpscr_UE = 26
-fpscr_ZE = 27
-fpscr_XE = 28
-	
-
-/*
-  This should be (a) an (UNSIGNED-BYTE 16) and (b) one less than
-  TSTACK_SOFTPROT (defined in "area.h")
-*/		
-tstack_alloc_limit = 0xffff
 
 TCR_BIAS = 0x7000        
 /*
