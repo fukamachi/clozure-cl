@@ -1,3 +1,31 @@
+2005-05-17 07:18  gb
+
+	* darwin-headers64/libc/: .cvsignore, C/.cvsignore: new files.
+
+2005-05-17 07:16  gb
+
+	* darwin-headers64/libc/C/populate.sh: new file; generates some
+	warnings.
+
+2005-05-17 07:12  gb
+
+	* headers64/libc/: C/.cvsignore, .cvsignore: new files.
+
+2005-05-17 07:11  gb
+
+	* headers64/libc/C/populate.sh: New file; use Fedora Core 4 test 3
+	headers.
+
+2005-05-17 07:10  gb
+
+	* compiler/PPC/: PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-backend.lisp: make & install foreign type data for
+	non-native backends.
+
+2005-05-17 07:09  gb
+
+	* lib/foreign-types.lisp: Straighten out :void type identity.
+
 2005-05-17 05:05  gb
 
 	* lib/db-io.lisp: Pass the ftd around, mostly so that we can
