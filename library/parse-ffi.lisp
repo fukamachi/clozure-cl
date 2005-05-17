@@ -366,7 +366,7 @@
     (t
      (list :primitive
            (ecase (car spec)
-	     (:char (if (member :signed-char
+	     (:char (if (getf :signed-char
 			       (ftd-attributes *parse-ffi-target-ftd*))
 		      '(:signed 8)
 		      '(:unsigned 8)))
@@ -374,8 +374,16 @@
              (:unsigned-char '(:unsigned 8))
              (:short '(:signed 16))
              (:unsigned-short '(:unsigned 16))
-             ((:int :long)  '(:signed 32))
-             ((:unsigned :unsigned-long) '(:unsigned 32))
+             (:int '(:signed 32))
+             (:long (ecase (getf :bits-per-word
+                                (ftd-attributes *parse-ffi-target-ftd*))
+                      (32 '(:signed 32))
+                      (64 '(:signed 64))))
+             (:unsigned  '(:unsigned 32))
+             (:unsigned-long (ecase (getf :bits-per-word
+                                (ftd-attributes *parse-ffi-target-ftd*))
+                               (32 '(:unsigned 32))
+                               (64 '(:unsigned 64))))
              (:long-long '(:signed 64))
              (:unsigned-long-long '(:unsigned 64))
              (:float :float)
