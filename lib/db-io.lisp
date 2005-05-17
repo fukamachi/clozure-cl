@@ -379,7 +379,7 @@
 (defun cdb-check-trailer (cdb)
   (flet ((error-with-cdb (string &rest args)
            (error "Error in interface file at ~s: ~a"
-                  (cdb-pathname cdb) (apply string args))))
+                  (cdb-pathname cdb) (apply #'format nil string args))))
     (let* ((fid (cdb-fid cdb)))
       (fid-seek fid (- (fid-size fid) 512))
       (%stack-block ((buf 512))
