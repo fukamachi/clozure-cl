@@ -440,9 +440,9 @@ C(egc_gvset):
         __(ref_global(imm2,refbits))
         __(bgelr)
         __(slri(imm0,imm0,word_shift))
-1:      __(lwarx imm1,imm2,imm0)
+1:      __(lrarx(imm1,imm2,imm0))
         __(or imm1,imm1,imm3)
-        __(stwcx. imm1,imm2,imm0)
+        __(strcx(imm1,imm2,imm0))
         __(bne- 1b)
         __(isync)
         __(blr)
@@ -470,9 +470,9 @@ C(egc_set_hash_key):
         __(ref_global(imm2,refbits))
         __(bgelr)
         __(slri(imm0,imm0,word_shift))
-1:      __(lwarx imm1,imm2,imm0)
+1:      __(lrarx(imm1,imm2,imm0))
         __(or imm1,imm1,imm3)
-        __(stwcx. imm1,imm2,imm0)
+        __(strcx(imm1,imm2,imm0))
         __(bne- 1b)
         __(isync)
         __(ref_global(imm1,heap_start))
@@ -483,9 +483,9 @@ C(egc_set_hash_key):
         __(srri(imm0,imm0,bitmap_shift))
         __(srr(imm3,imm3,imm4))
         __(slri(imm0,imm0,word_shift))
-2:      __(lwarx imm1,imm2,imm0)
+2:      __(lrarx(imm1,imm2,imm0))
         __(or imm1,imm1,imm3)
-        __(stwcx. imm1,imm2,imm0)
+        __(strcx(imm1,imm2,imm0))
         __(bne- 2b)
         __(isync)
         __(blr)
@@ -689,37 +689,82 @@ local_label(cons_nil_nil):
    heap-cons the object if there's no room on the tstack.) */
 _spentry(stack_misc_alloc)
         __ifdef([PPC64])
+         __(rldicr. imm2,arg_y,64-fixnumshift,7)
+         __(unbox_fixnum(imm0,arg_z))
+         __(clrldi imm2,imm0,64-nlowtagbits)
+         __(extract_fulltag(imm1,imm0))
+         __(bne cr0,9f)
+         __(cmpdi cr2,imm2,lowtag_nodeheader)
+         __(cmpdi cr4,imm1,ivector_class_8_bit)
+         __(cmpdi cr1,imm1,ivector_class_64_bit)
+         __(cmpdi cr3,imm1,ivector_class_32_bit)
+         __(cmpdi cr5,imm1,ivector_class_other_bit)
+         __(sldi imm1,arg_y,num_subtag_bits-fixnumshift)
+         __(mr imm2,arg_y)
+         __(beq cr2,3f)
+         __(cmpdi cr2,imm0,subtag_bit_vector)
+         __(beq cr1,3f)
+         __(beq cr3,1f)
+         __(beq cr4,2f)
+         __(beq cr2,0f)
+         /* 2 bytes per element */
+         __(srdi imm2,imm2,2)
+         __(b 3f)
+0:       /* bit-vector case */
+         __(addi imm2,imm2,7<<fixnumshift)
+         __(srdi imm2,imm2,3+fixnumshift)
+         __(b 3f)        
+         /* 4 bytes per element */
+1:       __(srdi imm2,imm2,1)
+         __(b 3f)
+2:       /* 1 byte per element */
+         __(srdi imm2,imm2,3)
+3:       /* 8 bytes per element */
+         __(or imm0,imm1,imm0)   /* imm0 = header, imm2 = byte count */
+         __(dnode_align(imm3,imm2,tsp_frame.fixed_overhead+node_size))
+	 __(cmpldi cr0,imm3,tstack_alloc_limit) /* more than limit ? */
+	 __(bgt- cr0,4f)
+	 __(TSP_Alloc_Var_Boxed_nz(imm3,imm4))
+        /* Slap the header on the vector, then return. */
+	 __(str(imm0,tsp_frame.data_offset(tsp)))
+	 __(la arg_z,tsp_frame.data_offset+fulltag_misc(tsp))
+	__(blr)
+        /* Too large to safely fit on tstack.  Heap-cons the vector, but make 
+           sure that there's an empty tsp frame to keep the compiler happy. */
+	
+4:       __(TSP_Alloc_Fixed_Unboxed(0))
+	 __(b _SPmisc_alloc)
         __else
-	__(rlwinm. imm2,arg_y,32-fixnumshift,0,(8+fixnumshift)-1)
-	__(unbox_fixnum(imm0,arg_z))
-	__(extract_fulltag(imm1,imm0))
-	__(bne- cr0,9f)
-	__(cmpri(cr0,imm1,fulltag_nodeheader))
-	__(mr imm3,imm0)
-	__(cmplri(cr1,imm0,max_32_bit_ivector_subtag))
-	__(rlwimi imm0,arg_y,num_subtag_bits-fixnum_shift,0,31-num_subtag_bits) /* imm0 now = header */
-	__(mr imm2,arg_y)
-	__(beq cr0,1f)	/* do probe if node object 
+	 __(rlwinm. imm2,arg_y,32-fixnumshift,0,(8+fixnumshift)-1)
+	 __(unbox_fixnum(imm0,arg_z))
+	 __(extract_fulltag(imm1,imm0))
+	 __(bne- cr0,9f)
+	 __(cmpri(cr0,imm1,fulltag_nodeheader))
+	 __(mr imm3,imm0)
+	 __(cmplri(cr1,imm0,max_32_bit_ivector_subtag))
+	 __(rlwimi imm0,arg_y,num_subtag_bits-fixnum_shift,0,31-num_subtag_bits) /* imm0 now = header */
+	 __(mr imm2,arg_y)
+	 __(beq cr0,1f)	/* do probe if node object 
 			   (fixnum element count = byte count). */
-	__(cmplri(cr0,imm3,max_16_bit_ivector_subtag))
-	__(bng cr1,1f) /* do probe if 32-bit imm object */
-	__(cmplri(cr1,imm3,max_8_bit_ivector_subtag))
-	__(srwi imm2,imm2,1)
-	__(bgt cr0,3f)
-	__(bgt cr1,1f)
-	__(srwi imm2,imm2,1)
+	 __(cmplri(cr0,imm3,max_16_bit_ivector_subtag))
+	 __(bng cr1,1f) /* do probe if 32-bit imm object */
+	 __(cmplri(cr1,imm3,max_8_bit_ivector_subtag))
+	 __(srwi imm2,imm2,1)
+	 __(bgt cr0,3f)
+	 __(bgt cr1,1f)
+	 __(srwi imm2,imm2,1)
 /* imm2 now = byte count.  Add 4 for header, 7 to align, then 
 	clear low three bits. */
 1:
-        __(dnode_align(imm3,imm2,tsp_frame.fixed_overhead+node_size))
-	__(cmplri(cr0,imm3,tstack_alloc_limit)) /* more than limit ? */
-	__(bgt- cr0,0f)
-	__(TSP_Alloc_Var_Boxed_nz(imm3,imm4))
+         __(dnode_align(imm3,imm2,tsp_frame.fixed_overhead+node_size))
+	 __(cmplri(cr0,imm3,tstack_alloc_limit)) /* more than limit ? */
+	 __(bgt- cr0,0f)
+	 __(TSP_Alloc_Var_Boxed_nz(imm3,imm4))
 
 /* Slap the header on the vector, then return. */
-	__(str(imm0,tsp_frame.data_offset(tsp)))
-	__(la arg_z,tsp_frame.data_offset+fulltag_misc(tsp))
-	__(blr)
+	 __(str(imm0,tsp_frame.data_offset(tsp)))
+	 __(la arg_z,tsp_frame.data_offset+fulltag_misc(tsp))
+	 __(blr)
 9: 
 
 
@@ -727,15 +772,15 @@ _spentry(stack_misc_alloc)
 /* Too large to safely fit on tstack.  Heap-cons the vector, but make 
    sure that there's an empty tsp frame to keep the compiler happy. */
 0:
-	__(TSP_Alloc_Fixed_Unboxed(0))
-	__(b _SPmisc_alloc)
+	 __(TSP_Alloc_Fixed_Unboxed(0))
+	 __(b _SPmisc_alloc)
 3:
-	__(cmplri(imm3,subtag_double_float_vector))
-	__(slwi imm2,arg_y,1)
-	__(beq 1b)
-	__(addi imm2,arg_y,7<<fixnumshift)
-	__(srwi imm2,imm2,fixnumshift+3)
-	__(b 1b)
+	 __(cmplri(imm3,subtag_double_float_vector))
+	 __(slwi imm2,arg_y,1)
+	 __(beq 1b)
+	 __(addi imm2,arg_y,7<<fixnumshift)
+	 __(srwi imm2,imm2,fixnumshift+3)
+	 __(b 1b)
         __endif
         
 /* subtype (boxed, of course) is vpushed, followed by nargs bytes worth of */
@@ -749,7 +794,7 @@ _spentry(gvector)
 	__(unbox_fixnum(imm0,arg_z))
         __ifdef([PPC64])
          __(sldi imm1,nargs,num_subtag_bits-fixnum_shift)
-         __(or imm0,im0,imm1)
+         __(or imm0,imm0,imm1)
         __else
 	 __(rlwimi imm0,nargs,num_subtag_bits-fixnum_shift,0,31-num_subtag_bits)
         __endif
@@ -782,11 +827,11 @@ C(nvalret):
 	
 /* funcall temp0, returning multiple values if it does. */
 _spentry(mvpass)
-	__(cmpri(cr0,nargs,4*nargregs))
+	__(cmpri(cr0,nargs,node_size*nargregs))
 	__(mflr loc_pc)
 	__(mr imm0,vsp)
 	__(ble+ cr0,1f)
-	 __(subi imm0,imm0,4*nargregs)
+	 __(subi imm0,imm0,node_size*nargregs)
 	 __(add imm0,imm0,nargs)
 1:
 	__(build_lisp_frame(fn,loc_pc,imm0))
@@ -816,9 +861,9 @@ _spentry(fitvals)
 	__(sub vsp,vsp,imm0)
 	__(blr)
 1:
-	__(subic. imm0,imm0,4)
+	__(subic. imm0,imm0,node_size)
 	__(vpush(imm1))
-	__(addi nargs,nargs,4)
+	__(addi nargs,nargs,node_size)
 2:
 	__(bne 1b)
 	__(blr)
@@ -849,7 +894,7 @@ local_label(return_values):
 	__(li arg_z,nil_value)
 	/* max tsp frame is 4K. 8+8 is overhead for save_values_to_tsp below */
 	/* and @do_unwind in nthrowvalues in "sp_catch.s". */
-	__(cmpri(cr2,nargs,4096-(8+8)))
+	__(cmpri(cr2,nargs,4096-(dnode_size+dnode_size)))
 	__(cmpr(cr1,imm0,loc_pc))
 	__(cmpri(cr0,nargs,fixnum_one))
 	__(bge cr2,2f)
@@ -920,18 +965,33 @@ _spentry(opt_supplied_p)
 	__(li imm1,0)
 1:
 	/* (vpush (< imm1 nargs)) */
-	__(xor imm2,imm1,nargs)
-	__(srawi imm2,imm2,31)
-	__(or imm2,imm2,imm1)
-	__(addi imm1,imm1,fixnumone)
-	__(cmpr(cr0,imm1,imm0))
-	__(subf imm2,nargs,imm2)
-	__(srwi imm2,imm2,31)
-	__(insrwi imm2,imm2,1,27)
-	__(addi imm2,imm2,nil_value)
-	__(vpush(imm2))
-	__(bne cr0,1b)
-	__(blr)
+        __ifdef([PPC64])
+	 __(xor imm2,imm1,nargs)
+	 __(sradi imm2,imm2,63)
+	 __(or imm2,imm2,imm1)
+	 __(addi imm1,imm1,fixnumone)
+	 __(cmpr(cr0,imm1,imm0))
+	 __(subf imm2,nargs,imm2)
+	 __(srdi imm2,imm2,63)
+         __(mulli imm2,imm2,t_offset)
+	 __(addi imm2,imm2,nil_value)
+	 __(vpush(imm2))
+	 __(bne cr0,1b)
+	 __(blr)
+        __else
+	 __(xor imm2,imm1,nargs)
+	 __(srawi imm2,imm2,31)
+	 __(or imm2,imm2,imm1)
+	 __(addi imm1,imm1,fixnumone)
+	 __(cmpr(cr0,imm1,imm0))
+	 __(subf imm2,nargs,imm2)
+	 __(srwi imm2,imm2,31)
+	 __(insrwi imm2,imm2,1,27)
+	 __(addi imm2,imm2,nil_value)
+	 __(vpush(imm2))
+	 __(bne cr0,1b)
+	 __(blr)
+        __endif
 	
 
 
@@ -1075,7 +1135,7 @@ _spentry(keyword_bind)
 	__(addi imm4,imm4,12)
 	/* error if odd number of keyword/value args */
 	__(mr varptr,imm4)
-	__(la limit,12(vsp))
+	__(la limit,3*node_size(vsp))
 	__(mr valptr,limit)
 	__(mr arg_z,imm1)
 4:
@@ -1104,7 +1164,7 @@ _spentry(keyword_bind)
    situation was unexpected. */
 	__(mr imm4,valptr)
 5:
-        __(cmpwi cr0,keyword_flags,16<<fixnumshift) /* seen :a-o-k yet ? */
+        __(cmpri(cr0,keyword_flags,16<<fixnumshift)) /* seen :a-o-k yet ? */
 	__(ldru(arg_z,-node_size(valptr)))
 	__(ldru(arg_y,-node_size(valptr)))
 	__(cmpri(cr1,arg_y,nil_value))
@@ -1167,9 +1227,9 @@ _spentry(keyword_bind)
    It might be hard to then cons an &rest arg. 
    In the general case, it's hard to recover the set of args that were 
    actually supplied to us ... */
-	/* For now, just cons a list out of the keyword/value pairs */
-	/* that were actually provided, and signal an "invalid keywords" */
-	/* error with that list as an operand. */
+/* For now, just cons a list out of the keyword/value pairs
+   that were actually provided, and signal an "invalid keywords"
+   error with that list as an operand. */
 odd_keywords:
 	__(mr vsp,imm4)
 	__(mr nargs,imm1)
@@ -1177,7 +1237,6 @@ odd_keywords:
 badkeys:
 	__(sub nargs,imm4,vsp)
 1:
-	.globl _SPconslist
 	__(bl _SPconslist)
 	__(li arg_y,XBADKEYS)
 	__(set_nargs(2))
@@ -1268,7 +1327,7 @@ _spentry(req_stack_rest_arg)
 _spentry(stack_cons_rest_arg)
 	__(sub imm1,nargs,imm0)
 	__(cmpri(cr0,imm1,0))
-	__(cmpri(cr1,imm1,(4096-8)/2))
+	__(cmpri(cr1,imm1,(4096-dnode_size)/2))
 	__(li arg_z,nil_value)
 	__(ble cr0,2f)		/* always temp-push something. */
 	__(bge cr1,3f)
@@ -1341,8 +1400,8 @@ _spentry(callbackX)
 	__(str(r31,c_reg_save.save_fpscr(sp)))
 	__(lwi(r30,0x43300000))
 	__(lwi(r31,0x80000000))
-	__(str(r30,c_reg_save.save_fp_zero(sp)))
-	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
+	__(stw r30,c_reg_save.save_fp_zero(sp))
+	__(stw r31,c_reg_save.save_fp_zero+4(sp))
 	__(stfd fp_s32conv,c_reg_save.save_fps32conv(sp))
 	__(lfd fp_s32conv,c_reg_save.save_fp_zero(sp))
 	__(stfd fp_zero,c_reg_save.save_fp_zero(sp))
@@ -1608,9 +1667,12 @@ local_label(error):
    ppc2-invoke-fn assumes that temp1 is preserved here. */
 _spentry(spreadargz)
         __ifdef([PPC64])
+	 __(extract_fulltag(imm1,arg_z))
+	 __(cmpri(cr1,imm1,fulltag_cons))
         __else
-	__(extract_lisptag(imm1,arg_z))
-	__(cmpri(cr1,imm1,tag_list))
+	 __(extract_lisptag(imm1,arg_z))
+	 __(cmpri(cr1,imm1,tag_list))
+        __endif
 	__(cmpri(cr0,arg_z,nil_value))
 	__(li imm0,0)
 	__(mr arg_y,arg_z)		/*  save in case of error */
@@ -1620,8 +1682,13 @@ _spentry(spreadargz)
 	__(_car(arg_x,arg_z))
 	__(_cdr(arg_z,arg_z))
 	__(cmpri(cr0,arg_z,nil_value))
-	__(extract_lisptag(imm1,arg_z))
-	__(cmpri(cr1,imm1,tag_list))
+        __ifdef([PPC64])
+	 __(extract_fulltag(imm1,arg_z))
+	 __(cmpri(cr1,imm1,fulltag_cons))
+        __else
+	 __(extract_lisptag(imm1,arg_z))
+	 __(cmpri(cr1,imm1,tag_list))
+        __endif
 	__(vpush(arg_x))
 	__(addi imm0,imm0,fixnum_one)
 	__(bne cr0,1b)
@@ -1642,7 +1709,6 @@ _spentry(spreadargz)
 	__(li arg_y,XNOSPREAD)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-        __endif
         
 /* Tail-recursively funcall temp0. */
 	/* Pretty much the same as the tcallsym* cases above. */
@@ -1804,104 +1870,181 @@ _spentry(misc_ref)
 */
 misc_ref_common:
         __ifdef([PPC64])
-        __else
-	__(extract_fulltag(imm2,imm1))
-	__(cmpri(cr0,imm2,fulltag_nodeheader))
-	__(cmpri(cr1,imm1,max_32_bit_ivector_subtag))
-	__(cmpri(cr2,imm1,max_8_bit_ivector_subtag))
-	__(addi imm0,arg_z,misc_data_offset)
-	__(bne cr0,local_label(ref_imm))
-	/* A node vector. */
-	__(ldrx(arg_z,arg_y,imm0))
-	__(blr)
+	 __(extract_fulltag(imm2,imm1))
+         __(extract_lowtag(imm3,imm1))
+         __(cmpdi cr1,imm2,ivector_class_64_bit)
+         __(cmpdi cr0,imm3,lowtag_nodeheader)
+         __(cmpdi cr2,imm2,ivector_class_8_bit)
+         __(cmpdi cr3,imm2,ivector_class_32_bit)
+         __(la imm0,misc_data_offset(arg_z))
+         __(bne cr0,local_label(ref_imm))
+         /* A node vector */
+         __(ldx arg_z,arg_y,imm0)
+         __(blr)
 local_label(ref_imm):
-	__(bgt cr1,local_label(ref_not32))
-	__(cmpri(cr1,imm1,subtag_single_float_vector))
-	__(cmpri(cr0,imm1,subtag_s32_vector))
-	__(ldrx(imm0,arg_y,imm0))
-	__(beq cr1,local_label(ref_sfloat))
-	__(beq cr0,local_label(ref_signed))
+         __(cmpdi cr0,imm1,subtag_double_float_vector)
+         __(bne cr1,local_label(ref_not_64))
+         __(cmpdi cr1,subtag_s64_vector)
+         __(ldx imm0,arg_y,imm0)
+         __(beq cr0,local_label(ref_dfloat))
+         __(beq cr1,_SPmakes64)
+         __(b _SPmakeu64)
+local_label(ref_dfloat):        
+         __(li imm1,double_float_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm1,double_float.size))
+         __(std imm0,double_float.value(arg_z))
+         __(blr)
+local_label(ref_not_64):
+         __(cmpdi cr0,imm1,subtag_s32_vector)
+         __(bne cr3,local_label(ref_not_32))
+         __(srdi imm0,arg_z,1)
+         __(cmpdi cr3,imm1,subtag_single_float_vector)
+         __(la imm0,misc_data_offset(imm0))
+         __(lwzx imm0,arg_y,imm0)
+         __(beq cr0,2f)
+         __(bne cr3,1f)
+         __(extsw imm0,imm0)
+1:       __(box_fixnum(arg_z,imm0))
+         __(blr)
+2:       __(rldicr arg_z,imm0,32,31)
+         __(ori arg_z,arg_z,subtag_single_float)
+         __(blr)
+local_label(ref_not_32):
+         __(cmpdi cr0,imm1,subtag_simple_base_string)
+         __(bne cr2,local_label(ref_not_8))
+         __(srdi imm0,arg_z,3)
+         __(cmpdi cr2,imm1,subtag_s8_vector)
+         __(la imm0,misc_data_offset(imm0))
+         __(lbzx imm0,arg_y,imm0)
+         __(beq cr0,2f)
+         __(bne cr2,1f)
+         __(extsb imm0,imm0)
+1:       __(box_fixnum(arg_z,imm0))
+         __(blr)
+2:       __(sldi imm0,imm0,charcode_shift)
+         __(ori arg_z,imm0,subtag_character)
+         __(blr)
+/* either s16, u16, or bit vector */
+local_label(ref_not_8):
+         __(cmpdi cr0,imm1,subtag_bit_vector)
+         __(cmpdi cr1,imm1,subtag_s16_vector)
+         __(srdi imm0,arg_z,2)
+         __(la imm0,misc_data_offset(imm0))
+         __(beq cr0,2f)
+         __(bne cr1,1f)
+         __(lhzx imm0,arg_y,imm0)
+         __(box_fixnum(arg_z,imm0))
+         __(blr)
+1:       __(lhax imm0,arg_y,imm0)
+         __(box_fixnum(arg_z,imm0))
+         __(blr)
+2:                      
+	 __(extrwi imm1,arg_z,5,32-(fixnumshift+5))	/* imm1 = bitnum */
+	 __(la imm1,1+fixnumshift(imm1))
+         __(srdi imm0,arg_z,5+fixnumshift)
+         __(sldi imm0,imm0,2)
+	 __(la imm0,misc_data_offset(imm0))
+	 __(ldrx(imm0,arg_y,imm0))
+	 __(rlwnm arg_z,imm0,imm1,31-fixnumshift,31-fixnumshift)
+	 __(blr)
+        __else
+	 __(extract_fulltag(imm2,imm1))
+	 __(cmpri(cr0,imm2,fulltag_nodeheader))
+	 __(cmpri(cr1,imm1,max_32_bit_ivector_subtag))
+	 __(cmpri(cr2,imm1,max_8_bit_ivector_subtag))
+	 __(addi imm0,arg_z,misc_data_offset)
+	 __(bne cr0,local_label(ref_imm))
+	 /* A node vector. */
+	 __(ldrx(arg_z,arg_y,imm0))
+	 __(blr)
+local_label(ref_imm):
+	 __(bgt cr1,local_label(ref_not32))
+	 __(cmpri(cr1,imm1,subtag_single_float_vector))
+	 __(cmpri(cr0,imm1,subtag_s32_vector))
+	 __(ldrx(imm0,arg_y,imm0))
+	 __(beq cr1,local_label(ref_sfloat))
+	 __(beq cr0,local_label(ref_signed))
 local_label(ref_unsigned):
-	__(cmpri(cr1,imm0,0))
-	__(srawi. imm1,imm0,31-nfixnumtagbits)
-	__(box_fixnum(arg_z,imm0))
-	__(beqlr+ cr0)
-	__(li imm1,one_digit_bignum_header)
-	__(blt cr1,local_label(two_digit))
-	__(Misc_Alloc_Fixed(arg_z,imm1,8))
-	__(str(imm0,misc_data_offset(arg_z)))
-	__(blr)
+	 __(cmpri(cr1,imm0,0))
+	 __(srawi. imm1,imm0,31-nfixnumtagbits)
+	 __(box_fixnum(arg_z,imm0))
+	 __(beqlr+ cr0)
+	 __(li imm1,one_digit_bignum_header)
+	 __(blt cr1,local_label(two_digit))
+	 __(Misc_Alloc_Fixed(arg_z,imm1,8))
+	 __(str(imm0,misc_data_offset(arg_z)))
+	 __(blr)
 local_label(two_digit):
-	__(li imm1,two_digit_bignum_header)
-	__(Misc_Alloc_Fixed(arg_z,imm1,16))
-	__(str(imm0,misc_data_offset(arg_z)))
-	__(blr)	
+	 __(li imm1,two_digit_bignum_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm1,16))
+	 __(str(imm0,misc_data_offset(arg_z)))
+	 __(blr)	
 local_label(ref_signed):
-	__(addo imm1,imm0,imm0)
-	__(addo. arg_z,imm1,imm1)
-	__(bnslr)
-	__(mtxer rzero)
-	__(li imm1,one_digit_bignum_header)
-	__(Misc_Alloc_Fixed(arg_z,imm1,8))
-	__(str(imm0,misc_data_offset(arg_z)))
-	__(blr)
+	 __(addo imm1,imm0,imm0)
+	 __(addo. arg_z,imm1,imm1)
+	 __(bnslr)
+	 __(mtxer rzero)
+	 __(li imm1,one_digit_bignum_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm1,8))
+	 __(str(imm0,misc_data_offset(arg_z)))
+	 __(blr)
 local_label(ref_sfloat):
-	__(li imm1,single_float_header)
-	__(Misc_Alloc_Fixed(arg_z,imm1,single_float.size))
-	__(str(imm0,single_float.value(arg_z)))
-	__(blr)
+	 __(li imm1,single_float_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm1,single_float.size))
+	 __(str(imm0,single_float.value(arg_z)))
+	 __(blr)
 local_label(ref_not32):	
-	__(cmpri(cr1,imm1,max_16_bit_ivector_subtag))
-	__(bgt cr2,local_label(ref_not8))
-	/* 8-bit objects are either u8, s8, or base_strings. */
-	/* cr2_eq is set if base_string (= max_8_bit_ivector_subtag) */
-	__(cmpri(cr1,imm1,subtag_s8_vector))
-	__(srwi imm0,arg_z,2)
-	__(la imm0,misc_data_offset(imm0))
-	__(lbzx imm0,arg_y,imm0)
-	__(beq cr2,local_label(ref_char))
-	__(bne cr1,local_label(ref_box))
-	__(extsb imm0,imm0)
+	 __(cmpri(cr1,imm1,max_16_bit_ivector_subtag))
+	 __(bgt cr2,local_label(ref_not8))
+	 /* 8-bit objects are either u8, s8, or base_strings. */
+	 /* cr2_eq is set if base_string (= max_8_bit_ivector_subtag) */
+	 __(cmpri(cr1,imm1,subtag_s8_vector))
+	 __(srwi imm0,arg_z,2)
+	 __(la imm0,misc_data_offset(imm0))
+	 __(lbzx imm0,arg_y,imm0)
+	 __(beq cr2,local_label(ref_char))
+	 __(bne cr1,local_label(ref_box))
+	 __(extsb imm0,imm0)
 local_label(ref_box):	
-	__(box_fixnum(arg_z,imm0))
-	__(blr)
+	 __(box_fixnum(arg_z,imm0))
+	 __(blr)
 local_label(ref_char):	
-	__(slwi arg_z,imm0,charcode_shift)
-	__(ori arg_z,arg_z,subtag_character)
-	__(blr)
+	 __(slwi arg_z,imm0,charcode_shift)
+	 __(ori arg_z,arg_z,subtag_character)
+	 __(blr)
 local_label(ref_not8):
-	__(cmpri(cr2,imm1,subtag_bit_vector))
-	__(bgt cr1,local_label(ref_not16))
-	/* 16-bit objects are either u16, s16, or general_strings. */
-	/* cr1_eq is set if s16_vector (= max_16_bit_ivector_subtag) */
-	__(cmpri(cr0,imm1,subtag_simple_general_string))
-	__(srwi imm0,arg_z,1)
-	__(la imm0,misc_data_offset(imm0))
-	__(lhzx imm0,arg_y,imm0)
-	__(beq cr0,local_label(ref_char))
-	__(bne cr1,local_label(ref_box))
-	__(extsh imm0,imm0)
-	__(b local_label(ref_box))
+	 __(cmpri(cr2,imm1,subtag_bit_vector))
+	 __(bgt cr1,local_label(ref_not16))
+	 /* 16-bit objects are either u16, s16, or general_strings. */
+	 /* cr1_eq is set if s16_vector (= max_16_bit_ivector_subtag) */
+	 __(cmpri(cr0,imm1,subtag_simple_general_string))
+	 __(srwi imm0,arg_z,1)
+	 __(la imm0,misc_data_offset(imm0))
+	 __(lhzx imm0,arg_y,imm0)
+	 __(beq cr0,local_label(ref_char))
+	 __(bne cr1,local_label(ref_box))
+	 __(extsh imm0,imm0)
+	 __(b local_label(ref_box))
 local_label(ref_not16):
-	__(bne cr2,local_label(ref_dfloat))
-	__(extrwi imm1,arg_z,5,32-(fixnumshift+5))	/* imm1 = bitnum */
-	__(la imm1,1+fixnumshift(imm1))
-	__(rlwinm imm0,arg_z,32-5,5,31-fixnumshift)
-	__(la imm0,misc_data_offset(imm0))
-	__(ldrx(imm0,arg_y,imm0))
-	__(rlwnm arg_z,imm0,imm1,31-fixnumshift,31-fixnumshift)
-	__(blr)
+	 __(bne cr2,local_label(ref_dfloat))
+	 __(extrwi imm1,arg_z,5,32-(fixnumshift+5))	/* imm1 = bitnum */
+	 __(la imm1,1+fixnumshift(imm1))
+	 __(rlwinm imm0,arg_z,32-5,5,31-fixnumshift)
+	 __(la imm0,misc_data_offset(imm0))
+	 __(ldrx(imm0,arg_y,imm0))
+	 __(rlwnm arg_z,imm0,imm1,31-fixnumshift,31-fixnumshift)
+	 __(blr)
 local_label(ref_dfloat):
-	__(slwi imm0,arg_z,1)
-	__(la imm0,misc_dfloat_offset(imm0))
-	__(la imm1,4(imm0))
-	__(ldrx(imm0,arg_y,imm0))
-	__(ldrx(imm1,arg_y,imm1))
-	__(li imm2,double_float_header)
-	__(Misc_Alloc_Fixed(arg_z,imm2,double_float.size))
-	__(str(imm0,double_float.value(arg_z)))
-	__(str(imm1,double_float.value+4(arg_z)))
-	__(blr)
+	 __(slwi imm0,arg_z,1)
+	 __(la imm0,misc_dfloat_offset(imm0))
+	 __(la imm1,4(imm0))
+	 __(ldrx(imm0,arg_y,imm0))
+	 __(ldrx(imm1,arg_y,imm1))
+	 __(li imm2,double_float_header)
+	 __(Misc_Alloc_Fixed(arg_z,imm2,double_float.size))
+	 __(str(imm0,double_float.value(arg_z)))
+	 __(str(imm1,double_float.value+4(arg_z)))
+	 __(blr)
         __endif
         
 	
@@ -1944,19 +2087,19 @@ _spentry(stkvcell0)
 	__(vpush(arg_z))
 	__(vpush(arg_z))
 	__(vpush(arg_z))
-	__(addi imm1,imm1,12)
+	__(addi imm1,imm1,node_size*3)
 	__(add imm0,vsp,imm1) /* in case stack overflowed */
-	__(andi. imm1,vsp,1<<2) /* (oddp vsp) ? */
+	__(andi. imm1,vsp,1<<word_shift) /* (oddp vsp) ? */
 	__(li imm1,value_cell_header)
 	__(ldr(arg_z,0(imm0)))
 	__(beq cr0,1f)
-	__(str(arg_z,8(vsp)))
-	__(str(imm1,4(vsp)))
+	__(str(arg_z,node_size*2(vsp)))
+	__(str(imm1,node_size(vsp)))
 	__(la arg_z,fulltag_misc+node_size(vsp))
 	__(str(arg_z,0(imm0)))
 	__(blr)
 1:
-	__(str(arg_z,4(vsp)))
+	__(str(arg_z,node_size(vsp)))
 	__(str(imm1,0(vsp)))
 	__(la arg_z,fulltag_misc(vsp))
 	__(str(arg_z,0(imm0)))
@@ -1968,29 +2111,27 @@ _spentry(stkvcellvsp)
 	__(vpush(arg_z))
 	__(vpush(arg_z))
 	__(vpush(arg_z))
-	__(li imm1,12)
+	__(li imm1,node_size*3)
 	__(add imm0,vsp,imm1) /* in case stack overflowed */
-	__(andi. imm1,vsp,1<<2) /* (oddp vsp) ? */
+	__(andi. imm1,vsp,1<<word_shift) /* (oddp vsp) ? */
 	__(li imm1,value_cell_header)
 	__(ldr(arg_z,0(imm0)))
 	__(beq cr0,1f)
-	__(str(arg_z,8(vsp)))
-	__(str(imm1,4(vsp)))
-	__(la arg_z,fulltag_misc+4(vsp))
+	__(str(arg_z,node_size*2(vsp)))
+	__(str(imm1,node_size(vsp)))
+	__(la arg_z,fulltag_misc+node_size(vsp))
 	__(str(arg_z,0(imm0)))
 	__(blr)
 1:
-	__(str(arg_z,4(vsp)))
+	__(str(arg_z,node_size(vsp)))
 	__(str(imm1,0(vsp)))
 	__(la arg_z,fulltag_misc(vsp))
 	__(str(arg_z,0(imm0)))
 	__(blr)
 
 /* Make a "raw" area on the temp stack, stack-cons a macptr to point to it, 
-   and return the macptr.  Size (in bytes, boxed) is in arg_z on entry; macptr in 
-   arg_z on exit. 
-   It would be nice to cons in the Mac heap if there's not room on 
-   the tstack. This code will handle a new tstack segment being added. */
+   and return the macptr.  Size (in bytes, boxed) is in arg_z on entry; macptr
+   in arg_z on exit. */
 _spentry(makestackblock)
 	__(unbox_fixnum(imm0,arg_z))
         __(dnode_align(imm0,imm0,tsp_frame.fixed_overhead+macptr.size))
@@ -2042,7 +2183,7 @@ _spentry(makestackblock0)
    the tstack.  Return the list in arg_z. */
 _spentry(makestacklist)
 	__(add imm0,arg_y,arg_y)
-	__(cmplri(cr1,imm0,((tstack_alloc_limit+1)-8)))
+	__(cmplri(cr1,imm0,((tstack_alloc_limit+1)-cons.size)))
 	__(addi imm0,imm0,tsp_frame.fixed_overhead)
 	__(bge cr1,3f)
 	__(TSP_Alloc_Var_Boxed(imm0,imm1))
@@ -2087,8 +2228,13 @@ _spentry(stkgvector)
 	__(cmpri(cr1,imm0,0))
 	__(add imm1,vsp,nargs)
 	__(ldru(temp0,-node_size(imm1)))
-	__(slwi imm2,imm0,num_subtag_bits-fixnumshift)
-	__(rlwimi imm2,temp0,32-fixnumshift,32-num_subtag_bits,31)
+	__(slri(imm2,imm0,num_subtag_bits-fixnumshift))
+        __ifdef([PPC64])
+         __(unbox_fixnum(imm3,temp0))
+         __(or imm2,imm3,imm2)
+        __else
+	 __(rlwimi imm2,temp0,32-fixnumshift,32-num_subtag_bits,31)
+        __endif
         __(dnode_align(imm0,imm0,node_size+tsp_frame.fixed_overhead))
 	__(TSP_Alloc_Var_Boxed_nz(imm0,imm3))
 	__(str(imm2,tsp_frame.data_offset(tsp)))
@@ -2109,7 +2255,7 @@ _spentry(stkgvector)
 /* Allocate a "fulltag_misc" object.  On entry, arg_y contains the element */
 /* count (boxed) and  arg_z contains the subtag (boxed).  Both of these  */
 /* parameters must be "reasonable" (the  subtag must be valid, the element */
-/* count must be of type (unsigned-byte 24).  */
+/* count must be of type (unsigned-byte 24)/(unsigned-byte 56).  */
 /* On exit, arg_z contains the (properly tagged) misc object; it'll have a */
 /* proper header on it and its contents will be 0.   imm0 contains  */
 /* the object's header (fulltag = fulltag_immheader or fulltag_nodeheader.) */
@@ -2124,39 +2270,70 @@ _spentry(stkgvector)
 
 _spentry(misc_alloc)
         __ifdef([PPC64])
+         __(rldicr. imm2,arg_y,64-fixnumshift,7)
+         __(unbox_fixnum(imm0,arg_z))
+         __(clrldi imm1,imm0,64-nlowtagbits)
+         __(extract_fulltag(imm2,imm0))
+         __(cmpdi cr1,imm1,lowtag_nodeheader)
+         __(cmpdi cr2,imm2,ivector_class_64_bit)
+         __(bne- cr0,9f)
+         __(cmpdi cr3,imm2,ivector_class_32_bit)
+         __(cmpdi cr4,imm2,ivector_class_8_bit)
+         __(mr imm2,arg_y)
+         __(cmpdi cr5,imm1,subtag_bit_vector)
+         __(beq cr1,1f)
+         __(beq cr2,1f)
+         __(srdi imm2,imm2,1)
+         __(beq cr3,1f)
+         __(beq cr5,2f)
+         __(srdi imm2,imm2,1)
+         __(bne cr4,1f)
+         __(srdi imm2,imm2,1)
+/* imm2 now = byte count.  Add 8 for header, 15 to align, then clear low four bits. */
+1:
+         __(dnode_align(imm2,imm2,node_size))
+
+	 __(Misc_Alloc(arg_z,imm0,imm2))
+	 __(blr)
+2:      /* bit-vector case */
+         __(addi imm2,arg_y,7<<fixnumshift)
+         __(srdi imm2,imm2,3+fixnumshift)
+         __(b 1b)
+9:                      
+	 __(uuo_interr(error_object_not_unsigned_byte_56,arg_y))
         __else
-	__(extract_unsigned_byte_bits_(imm2,arg_y,24))
-	__(unbox_fixnum(imm0,arg_z))
-	__(extract_fulltag(imm1,imm0))
-	__(bne- cr0,9f)
-	__(cmpri(cr0,imm1,fulltag_nodeheader))
-	__(mr imm3,imm0)
-	__(cmplri(cr1,imm0,max_32_bit_ivector_subtag))
-	__(rlwimi imm0,arg_y,num_subtag_bits-fixnum_shift,0,31-num_subtag_bits	/* imm0 now = header */)
-	__(mr imm2,arg_y)
-	__(beq cr0,1f)	/* do probe if node object (fixnum element count = byte count). */
-	__(cmplri(cr0,imm3,max_16_bit_ivector_subtag))
-	__(bng cr1,1f)	/* do probe if 32-bit imm object */
-	__(cmplri(cr1,imm3,max_8_bit_ivector_subtag))
-	__(srwi imm2,imm2,1)
-	__(bgt cr0,2f)
-	__(bgt cr1,1f)
-	__(srwi imm2,imm2,1)
+	 __(extract_unsigned_byte_bits_(imm2,arg_y,24))
+	 __(unbox_fixnum(imm0,arg_z))
+	 __(extract_fulltag(imm1,imm0))
+	 __(bne- cr0,9f)
+	 __(cmpri(cr0,imm1,fulltag_nodeheader))
+	 __(mr imm3,imm0)
+	 __(cmplri(cr1,imm0,max_32_bit_ivector_subtag))
+	 __(rlwimi imm0,arg_y,num_subtag_bits-fixnum_shift,0,31-num_subtag_bits	/* imm0 now = header */)
+	 __(mr imm2,arg_y)
+	 __(beq cr0,1f)	/* do probe if node object (fixnum element count = byte count). */
+	 __(cmplri(cr0,imm3,max_16_bit_ivector_subtag))
+	 __(bng cr1,1f)	/* do probe if 32-bit imm object */
+	 __(cmplri(cr1,imm3,max_8_bit_ivector_subtag))
+	 __(srwi imm2,imm2,1)
+	 __(bgt cr0,2f)
+	 __(bgt cr1,1f)
+	 __(srwi imm2,imm2,1)
 /* imm2 now = byte count.  Add 4 for header, 7 to align, then clear low three bits. */
 1:
-        __(dnode_align(imm2,imm2,node_size))
+         __(dnode_align(imm2,imm2,node_size))
 
-	__(Misc_Alloc(arg_z,imm0,imm2))
-	__(blr)
+	 __(Misc_Alloc(arg_z,imm0,imm2))
+	 __(blr)
 2:
-	__(cmplri(imm3,subtag_double_float_vector))
-	__(slwi imm2,arg_y,1)
-	__(beq 1b)
-	__(addi imm2,arg_y,7<<fixnumshift)
-	__(srwi imm2,imm2,fixnumshift+3)
-	__(b 1b)
+	 __(cmplri(imm3,subtag_double_float_vector))
+	 __(slwi imm2,arg_y,1)
+	 __(beq 1b)
+	 __(addi imm2,arg_y,7<<fixnumshift)
+	 __(srwi imm2,imm2,fixnumshift+3)
+	 __(b 1b)
 9:
-	__(uuo_interr(error_object_not_unsigned_byte_24,arg_y))
+	 __(uuo_interr(error_object_not_unsigned_byte_24,arg_y))
         __endif
         
 /* almost exactly as above, but "swap exception handling info"
@@ -2552,7 +2729,7 @@ _spentry(integer_sign)
 	__(getvheader(imm0,arg_z))
 	__(header_length(imm0,imm0)) /* boxed length = scaled size */
 	__(addi imm0,imm0,misc_data_offset-4) /* bias, less 1 element */
-	__(ldrx(imm0,arg_z,imm0))
+	__(lwz imm0,arg_z,imm0)
 	__(cmpri(cr0,imm0,0))
 	__(li imm0,1)
 	__(bgelr cr0)
@@ -2563,14 +2740,11 @@ _spentry(integer_sign)
 
 /* like misc_set, only pass the (boxed) subtag in temp0 */
 _spentry(subtag_misc_set)
-        __ifdef([PPC64])
-        __else
 	__(trap_unless_fulltag_equal(arg_x,fulltag_misc,imm0))
 	__(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
 	__(vector_length(imm0,arg_x,imm1))
 	__(trlge(arg_y,imm0))
 	__(unbox_fixnum(imm1,temp0))
-        __endif
 misc_set_common:
         __ifdef([PPC64])
         __else
@@ -3451,14 +3625,26 @@ _spentry(builtin_le)
 
 
 _spentry(builtin_eql)
-	__(cmpr(cr0,arg_y,arg_z))
-	__(extract_lisptag(imm0,arg_y))
-	__(extract_lisptag(imm1,arg_z))
-	__(cmpr(cr1,imm0,imm1))
-	__(beq cr0,1f)
-	__(cmpri(cr0,imm0,tag_misc))
-	__(bne cr1,2f)
-	__(bne cr0,2f)
+        __ifdef([PPC64])
+         __(cmpd cr1,arg_y,arg_z)
+         __(extract_typecode(imm0,arg_y))
+         __(extract_typecode(imm1,arg_z))
+         __(cmpd cr0,imm0,imm1)
+         __(extract_fulltag(imm2,arg_y))
+         __(beq cr1,1f)
+         __(cmpdi cr1,imm2,fulltag_misc)
+         __(bne cr0,2f)
+         __(bne cr1,2f)
+        __else
+	 __(cmpr(cr0,arg_y,arg_z))
+	 __(extract_lisptag(imm0,arg_y))
+	 __(extract_lisptag(imm1,arg_z))
+	 __(cmpr(cr1,imm0,imm1))
+	 __(beq cr0,1f)
+	 __(cmpri(cr0,imm0,tag_misc))
+	 __(bne cr1,2f)
+	 __(bne cr0,2f)
+        __endif
 	__(jump_builtin(_builtin_eql,2))
 1:	__(li arg_z,t_value)
 	__(blr)
@@ -3470,7 +3656,11 @@ _spentry(builtin_length)
 	__(extract_typecode(imm0,arg_z))
 	__(cmpri(cr0,imm0,min_vector_subtag))
         __(beq cr1,1f)
-	__(cmpri(cr2,imm0,tag_list))
+        __ifdef([PPC64]
+         __(cmpdi cr2,imm0,fulltag_cons)
+        __else
+	 __(cmpwi cr2,imm0,tag_list)
+        __endif
 	__(beq- cr0,2f)
 	__(blt- cr0,3f)
 	/* (simple-array * (*)) */
@@ -3480,11 +3670,13 @@ _spentry(builtin_length)
         __(blr)
 2:
 	__(ldr(arg_z,vectorH.logsize(arg_z)))
-	__(blr)
+	__(blr)        
 3:	__(bne cr2,8f)
 	__(li temp2,-1<<fixnum_shift)
 	__(mr temp0,arg_z)	/* fast pointer */
 	__(mr temp1,arg_z)	/* slow pointer */
+        __ifdef([PPC64])
+        __else
 4:	__(extract_lisptag(imm0,temp0))
 	__(cmpri(cr7,temp0,nil_value))
 	__(cmpri(cr1,imm0,tag_list))
@@ -3500,21 +3692,23 @@ _spentry(builtin_length)
 	__(_cdr(temp1,temp1))
 	__(cmpr(cr0,temp0,temp1))
 	__(bne cr0,4b)
+        __endif
 8:	
 	__(jump_builtin(_builtin_length,1))
 9:	
 	__(mr arg_z,temp2)
 	__(blr)
-
+        
 _spentry(builtin_seqtype)
         __ifdef([PPC64])
          __(cmpdi cr2,arg_z,nil_value)
          __(extract_typecode(imm0,arg_z))
          __(beq cr2,1f)
+	 __(cmpri(cr0,imm0,fulltag_cons))
         __else
 	 __(extract_typecode(imm0,arg_z))
+ 	 __(cmpri(cr0,imm0,tag_list))
         __endif
-	__(cmpri(cr0,imm0,tag_list))
 	__(cmpri(cr1,imm1,min_vector_subtag))
 	__(beq cr0,1f)
 	__(blt- cr1,2f)
