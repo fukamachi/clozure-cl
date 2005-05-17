@@ -779,8 +779,8 @@
       val)))
 
 (defun %load-var (name)
-  (let* ((string (if (getf :prepend-underscores
-                           (ftd-attributes *target-ftd*))
+  (let* ((string (if (getf (ftd-attributes *target-ftd*)
+                           :prepend-underscores)
                    (concatenate 'string "_" (string name))
                    (string name)))
          (fv (gethash string (fvs))))
