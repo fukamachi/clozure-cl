@@ -1567,7 +1567,6 @@
    (%nx1-operator %consmacptr%)
    (make-acode
     (%nx1-operator immediate-get-ptr)
-    (if (eq *nx-sfname* '%get-ptr) 0 16)
     (make-acode (%nx1-operator %macptrptr%) (nx1-form ptrform))
     (nx1-form offset))))
 
@@ -1584,20 +1583,25 @@
     (nx1-form offset))))
 
 (defnx1 nx1-%set-float ((%set-single-float)
-			(%set-double-float)) (ptrform offset &optional (newval nil newval-p))
+			(%set-double-float)) (&whole whole ptrform offset &optional (newval nil newval-p))
   (unless newval-p
     (setq newval offset
 	  offset 0))
-  (make-acode
-   (%nx1-operator typed-form)
-   (if (eq *nx-sfname* '%set-single-float)
-     'single-float
-     'double-float)
-   (make-acode
-    (%nx1-default-operator)
-    (make-acode (%nx1-operator %macptrptr%) (nx1-form ptrform))
-    (nx1-form offset)
-    (nx1-form newval))))
+  (if (and (eq *nx-sfname* '%set-single-float)
+           (target-arch-case
+            (:ppc64 t)
+            (:ppc32 nil)))
+    (nx1-treat-as-call whole)
+    (make-acode
+     (%nx1-operator typed-form)
+     (if (eq *nx-sfname* '%set-single-float)
+       'single-float
+       'double-float)
+     (make-acode
+      (%nx1-default-operator)
+      (make-acode (%nx1-operator %macptrptr%) (nx1-form ptrform))
+      (nx1-form offset)
+      (nx1-form newval)))))
 
 (defnx1 nx1-let let (pairs &body forms &environment old-env)
   (let* ((vars nil)
