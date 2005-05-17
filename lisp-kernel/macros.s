@@ -238,6 +238,11 @@ define([extract_lisptag_],[
 define([extract_subtag],[
 	lbz $1,misc_subtag_offset($2)])
 
+ifdef([PPC64],[
+define([extract_lowtag],[
+        clrldi $1,$2,nbits_in_word-nlowtagbits
+])])
+                               
 define([extract_lowbyte],[
         clrlri($1,$2,nbits_in_word-num_subtag_bits)
         ])
