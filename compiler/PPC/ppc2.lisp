@@ -3741,19 +3741,15 @@
                        (gpr-mode-name-value :address))))))))
         (^)))))
   
-(defun ppc2-memory-store-displaced (seg valreg basereg displacement size deref)
+(defun ppc2-memory-store-displaced (seg valreg basereg displacement size)
   (with-ppc-local-vinsn-macros (seg)
-    (if deref
-      (! mem-ref-c-fullword basereg basereg 0))
     (case size
       (4 (! mem-set-c-fullword valreg basereg displacement))
       (2 (! mem-set-c-halfword valreg basereg displacement))
       (1 (! mem-set-c-byte valreg basereg displacement)))))
 
-(defun ppc2-memory-store-indexed (seg valreg basereg idxreg size deref)
+(defun ppc2-memory-store-indexed (seg valreg basereg idxreg size)
   (with-ppc-local-vinsn-macros (seg)
-    (if deref
-      (! mem-ref-c-fullword basereg basereg 0))
     (case size
       (4 (! mem-set-fullword valreg basereg idxreg))
       (2 (! mem-set-halfword valreg basereg idxreg))
@@ -3763,8 +3759,7 @@
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (if (eql 0 (%ilogand #xf bits))
       (ppc2-%immediate-set-ptr seg vreg xfer  ptr offset val value-first-p)
-      (let* ((deref (%ilogbitp 4 bits))
-             (size
+      (let* ((size
               (if (eq (setq bits (%ilogand2 #xf bits)) 3) 
                 1
                 (if (eq bits 2) 
@@ -3773,7 +3768,7 @@
              (long-p (eq bits 1))
              (intval (if long-p (ppc2-long-constant-p val) (acode-fixnum-form-p val)))
              (offval (acode-fixnum-form-p offset))
-             (absptr (unless deref (and offval (acode-absolute-ptr-p ptr))))
+             (absptr (and offval (acode-absolute-ptr-p ptr)))
              (for-value (ppc2-for-value-p vreg)))
         (declare (fixnum size))
         (flet ((val-to-argz-and-imm0 ()
@@ -3792,7 +3787,7 @@
                 (if (eql intval 0)
                   (setq val-target ppc::rzero)
                   (ppc2-lri seg val-target intval))
-                (ppc2-memory-store-displaced seg val-target ppc::rzero absptr size nil)
+                (ppc2-memory-store-displaced seg val-target ppc::rzero absptr size)
                 (if for-value
                   (<- (set-regspec-mode 
                        val-target 
@@ -3804,7 +3799,7 @@
                             :s8)))))))
               (progn
                 (val-to-argz-and-imm0)
-                (ppc2-memory-store-displaced seg ppc::imm0 ppc::rzero absptr size nil)
+                (ppc2-memory-store-displaced seg ppc::imm0 ppc::rzero absptr size)
                 (<- ppc::arg_z)))
             ; No absolute ptr (which is presumably a rare case anyway.)
             (if offval
@@ -3816,7 +3811,7 @@
                     (if (eql intval 0)
                       (setq val-target ppc::rzero)
                       (ppc2-lri seg val-target intval))
-                    (ppc2-memory-store-displaced seg val-target ptr-reg offval size deref)
+                    (ppc2-memory-store-displaced seg val-target ptr-reg offval size)
                     (if for-value
                       (<- (set-regspec-mode 
                            val-target 
@@ -3833,7 +3828,7 @@
                     (with-imm-target (ppc::imm0) (ptr-reg :address)
                       (! temp-pop-unboxed-word ptr-reg)
                       (ppc2-close-undo)
-                      (ppc2-memory-store-displaced seg ppc::imm0 ptr-reg offval size deref)                    
+                      (ppc2-memory-store-displaced seg ppc::imm0 ptr-reg offval size)                    
                       (if for-value
                         (<- ppc::arg_z))))))
               ;; No (16-bit) constant offset.  Might still have a 32-bit constant offset;
@@ -3914,7 +3909,7 @@
                                     xoff-reg off-reg
                                     xval-reg ppc::imm0
                                     node-arg_z nil)))))))
-                (ppc2-memory-store-indexed seg xval-reg xptr-reg xoff-reg size deref)              
+                (ppc2-memory-store-indexed seg xval-reg xptr-reg xoff-reg size)
                 (when for-value
                   (if node-arg_z
                     (<- ppc::arg_z)
@@ -6358,9 +6353,8 @@
   (with-fp-target () (fp-reg :single-float)
     (ppc2-set-float seg vreg xfer ptr offset newval nil fp-reg)))
 
-(defppc2 ppc2-immediate-get-ptr immediate-get-ptr (seg vreg xfer bits ptr offset)
-  (let* ((deref (%ilogbitp 4 bits))
-         (absptr (unless deref (acode-absolute-ptr-p ptr)))
+(defppc2 ppc2-immediate-get-ptr immediate-get-ptr (seg vreg xfer ptr offset)
+  (let* ((absptr (acode-absolute-ptr-p ptr))
          (triv-p (ppc2-trivial-p offset))
          (dest vreg)
          (offval (acode-fixnum-form-p offset)))
@@ -6374,21 +6368,17 @@
            (and offval (%i> (integer-length offval) 15) (setq offval nil))
            (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
            (if absptr
-             (! mem-ref-c-fullword dest ppc::rzero absptr)
+             (! mem-ref-c-natural dest ppc::rzero absptr)
              (if offval
                (let* ((src (ppc2-macptr-arg-to-reg seg ptr ($ ppc::imm0 :mode :address))))
-                 (if deref 
-                   (! mem-ref-c-fullword src src 0))
-                 (! mem-ref-c-fullword dest src offval))
+                 (! mem-ref-c-natural dest src offval))
                (let* ((src (ppc2-macptr-arg-to-reg seg ptr ($ ppc::imm0 :mode :address))))
                  (if triv-p
                    (with-imm-temps (src) (x)
                      (if (acode-fixnum-form-p offset)
                        (ppc2-lri seg x (acode-fixnum-form-p offset))
                        (! fixnum->s32 x (ppc2-one-untargeted-reg-form seg offset ppc::arg_z)))
-                     (if deref 
-                       (! mem-ref-c-fullword src src 0))
-                     (! mem-ref-fullword dest src x))
+                     (! mem-ref-natural dest src x))
                    (progn
                      (! temp-push-unboxed-word src)
                      (ppc2-open-undo $undostkblk)
@@ -6396,10 +6386,8 @@
                        (with-imm-temps () (src x)
                          (! temp-pop-unboxed-word src)
                          (ppc2-close-undo)
-                         (if deref 
-                           (! mem-ref-c-fullword src src 0))
                          (! fixnum->s32 x oreg)
-                         (! mem-ref-fullword dest src x)))))))) 
+                         (! mem-ref-natural dest src x)))))))) 
            (^)))))
 
 (defppc2 ppc2-get-bit %get-bit (seg vreg xfer ptr offset)
@@ -6447,7 +6435,6 @@
 ;;; This returns an unboxed object, unless the caller wants to box it.
 (defppc2 ppc2-immediate-get-xxx immediate-get-xxx (seg vreg xfer bits ptr offset)
   (let* ((lowbits (%ilogand2 3 bits))
-         (deref (%ilogbitp 4 bits))
          (size 
           (if (eq lowbits 3) 
             1 
@@ -6455,7 +6442,7 @@
               2 
               4)))
          (extend-p (%ilogbitp 2 bits)) ;(setq bits (%ilogand2 #xf bits))))
-         (absptr (unless deref (acode-absolute-ptr-p ptr)))
+         (absptr (acode-absolute-ptr-p ptr))
          (triv-p (ppc2-trivial-p offset))
          (offval (acode-fixnum-form-p offset)))
     (declare (fixnum size))
@@ -6478,8 +6465,6 @@
                (if offval
                  (with-imm-target () (src-reg :address)
                    (ppc2-one-targeted-reg-form seg ptr src-reg)
-                   (if deref
-                     (! mem-ref-c-fullword src-reg src-reg 0))
                    (if (eq size 4)
                      (! mem-ref-c-fullword dest src-reg offval)
                      (if (eq size 2)
@@ -6498,8 +6483,6 @@
                          (! fixnum->s32 offset-reg (ppc2-one-untargeted-reg-form seg offset ppc::arg_z))
                          (! temp-pop-unboxed-word src-reg)
                          (ppc2-close-undo)))
-                     (if deref
-                       (! mem-ref-c-fullword src-reg src-reg 0))
                      (if (eq size 4)
                        (! mem-ref-fullword dest src-reg offset-reg)
                        (if (eq size 2)
