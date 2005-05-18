@@ -130,10 +130,6 @@
                                       :address)))
     (when (%null-ptr-p cstack)
       (error "Can't allocate cstack"))
-    ; Prevent stack overflow of infant stack group
-    ; (Actually, I don't think this is necessary)
-    (setf (pref cstack :gc-area.softlimit) (%null-ptr)
-          (pref cstack :gc-area.hardlimit) (%null-ptr))
     (%fixnum-from-macptr cstack)))
 
 
@@ -312,7 +308,7 @@
   )
 
 (defun %current-xp ()
-  (let ((xframe (%fixnum-ref (%current-tcr) ppc32::tcr.xframe)))
+  (let ((xframe (%fixnum-ref (%current-tcr) target::tcr.xframe)))
     (when (eql xframe 0)
       (error "No current exception frame"))
     (%fixnum-ref xframe
