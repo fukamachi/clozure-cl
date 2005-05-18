@@ -406,9 +406,14 @@
                                                 (index :s16const)))
   (lwa dest index src))
 
-(define-ppc64-vinsn mem-ref-c-natural (((dest :u64))
-                                       ((src :address)
-                                        (index :s16const)))
+(define-ppc64-vinsn mem-ref-c-doubleword (((dest :u64))
+                                          ((src :address)
+                                           (index :s16const)))
+  (ld dest index src))
+
+(define-ppc64-vinsn mem-ref-c-signed-doubleword (((dest :s64))
+                                                 ((src :address)
+                                                  (index :s16const)))
   (ld dest index src))
 
 (define-ppc64-vinsn mem-ref-fullword (((dest :u32))
@@ -421,9 +426,14 @@
                                               (index :s64)))
   (lwax dest src index))
 
-(define-ppc64-vinsn mem-ref-natural (((dest :u64))
-				      ((src :address)
-				       (index :s64)))
+(define-ppc64-vinsn mem-ref-doubleword (((dest :u64))
+                                        ((src :address)
+                                         (index :s64)))
+  (ldx dest src index))
+
+(define-ppc64-vinsn mem-ref-signed-doubleword (((dest :s64))
+                                               ((src :address)
+                                                (index :s64)))
   (ldx dest src index))
 
 (define-ppc64-vinsn mem-ref-c-u16 (((dest :u16))
@@ -555,7 +565,31 @@
 					   (index :s32)))
   (stfsx val src index))
 
-                                           
+
+(define-ppc64-vinsn mem-set-c-doubleword (()
+                                          ((val :u64)
+                                           (src :address)
+                                           (index :s16const)))
+  (std val index src))
+
+(define-ppc64-vinsn mem-set-doubleword (()
+                                        ((val :u64)
+                                         (src :address)
+                                         (index :s64)))
+  (stdx val index src))
+
+(define-ppc64-vinsn mem-set-c-address (()
+                                       ((val :address)
+                                        (src :address)
+                                        (index :s16const)))
+  (std val src index))
+
+(define-ppc64-vinsn mem-set-address (()
+                                     ((val :address)
+                                      (src :address)
+                                      (index :s64)))
+  (stdx val src index))
+
 (define-ppc64-vinsn mem-set-c-fullword (()
 					((val :u32)
 					 (src :address)
@@ -880,12 +914,12 @@
 				((src :s64)))
   (sldi dest src ppc64::fixnumshift))
 
-(define-ppc64-vinsn fixnum->s32 (((dest :s32))
-				 ((src :imm)))
+(define-ppc64-vinsn fixnum->signed-natural (((dest :s64))
+                                            ((src :imm)))
   (sradi dest src ppc64::fixnumshift))
 
-(define-ppc64-vinsn fixnum->u32 (((dest :u32))
-				 ((src :imm)))
+(define-ppc64-vinsn fixnum->unsigned-natural (((dest :u64))
+                                              ((src :imm)))
   (srdi dest src ppc64::fixnumshift))
 
 ;;; An object is of type (UNSIGNED-BYTE 32) iff
@@ -2520,7 +2554,7 @@
     (((w :u64))
      ())
   (ld w 16 ppc::tsp)
-  (ld ppc::tsp 0 ppc::tsp))
+  (la ppc::tsp 32 ppc::tsp))
 
 (define-ppc64-vinsn (temp-push-double-float :push :doubleword :tsp)
     (((d :double-float))
@@ -2533,7 +2567,7 @@
     (()
      ((d :double-float)))
   (lfd d 16 ppc::tsp)
-  (ld ppc::tsp 0 ppc::tsp))
+  (la ppc::tsp 32 ppc::tsp))
 
 (define-ppc64-vinsn (temp-push-single-float :push :word :tsp)
     (((s :single-float))
@@ -2546,7 +2580,7 @@
     (()
      ((s :single-float)))
   (lfs s 16 ppc::tsp)
-  (ld ppc::tsp 0 ppc::tsp))
+  (la ppc::tsp 32 ppc::tsp))
 
 
 (define-ppc64-vinsn (save-nvrs-individually :push :node :vsp :multiple)

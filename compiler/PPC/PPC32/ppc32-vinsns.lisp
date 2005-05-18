@@ -415,10 +415,12 @@
                                     (index :s16const)))
   (lhz dest index src))
 
+
 (define-ppc32-vinsn mem-ref-u16 (((dest :u16))
                                  ((src :address)
                                   (index :s32)))
   (lhzx dest src index))
+
 
 
 (define-ppc32-vinsn mem-ref-c-s16 (((dest :s16))
@@ -539,7 +541,19 @@
 					   (index :s32)))
   (stfsx val src index))
 
-                                           
+
+(define-ppc32-vinsn mem-set-c-address (()
+                                       ((val :address)
+                                        (src :address)
+                                        (index :s16const)))
+  (stw val index src))
+
+(define-ppc32-vinsn mem-set-address (()
+                                     ((val :address)
+                                      (src :address)
+                                      (index :s32)))
+  (stwx val src index))
+
 (define-ppc32-vinsn mem-set-c-fullword (()
 					((val :u32)
 					 (src :address)
@@ -847,12 +861,12 @@
                                 ((src :s32)))
   (slwi dest src ppc32::fixnumshift))
 
-(define-ppc32-vinsn fixnum->s32 (((dest :s32))
-                                 ((src :imm)))
+(define-ppc32-vinsn fixnum->signed-natural (((dest :s32))
+                                            ((src :imm)))
   (srawi dest src ppc32::fixnumshift))
 
-(define-ppc32-vinsn fixnum->u32 (((dest :u32))
-                                 ((src :imm)))
+(define-ppc32-vinsn fixnum->unsigned-natural (((dest :u32))
+                                              ((src :imm)))
   (srwi dest src ppc32::fixnumshift))
 
 ;;; An object is of type (UNSIGNED-BYTE 32) iff
@@ -2662,7 +2676,7 @@
     (((w :u32))
      ())
   (lwz w 8 ppc::tsp)
-  (lwz ppc::tsp 0 ppc::tsp))
+  (la ppc::tsp 16 ppc::tsp))
 
 (define-ppc32-vinsn (temp-push-double-float :push :doubleword :tsp)
     (((d :double-float))
@@ -2675,7 +2689,7 @@
     (()
      ((d :double-float)))
   (lfd d 8 ppc::tsp)
-  (lwz ppc::tsp 0 ppc::tsp))
+  (la ppc::tsp 16 ppc::tsp))
 
 (define-ppc32-vinsn (temp-push-single-float :push :word :tsp)
     (((s :single-float))
@@ -2688,7 +2702,7 @@
     (()
      ((s :single-float)))
   (lfs s 8 ppc::tsp)
-  (lwz ppc::tsp 0 ppc::tsp))
+  (la ppc::tsp 16 ppc::tsp))
 
 
 (define-ppc32-vinsn (save-nvrs-individually :push :node :vsp :multiple)
