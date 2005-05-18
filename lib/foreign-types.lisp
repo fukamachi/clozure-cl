@@ -1669,7 +1669,33 @@
                                 `(:unsigned ,natural-word-size))))
       (%def-foreign-type :long signed-long-type ftd)
       (%def-foreign-type :signed-long signed-long-type ftd)
-      (%def-foreign-type :unsigned-long unsigned-long-type ftd))))
+      (%def-foreign-type :unsigned-long unsigned-long-type ftd))
+    ;;
+    ;; Defining the handful of foreign structures that are used
+    ;; to build OpenMCL here ensures that all backends see appropriate
+    ;; definitions of them.
+    ;;
+    (def-foreign-type nil
+        (struct :cdb-datum
+                (data (* t))
+                (size :unsigned-long)))
+    (def-foreign-type nil
+        (:struct dbm-constant
+                 (:class (:unsigned 32))
+                 (:pad (:unsigned 32))
+                 (:value
+                  (:union nil
+                          (:s32 (:signed 32))
+                          (:u32 (:unsigned 32))
+                          (:single-float :float)
+                          (:double-float :double)))))
+    ;; This matches the xframe-list struct definition in
+    ;; "ccl:lisp-kernel;constants.h"
+    (def-foreign-type nil
+        (struct :xframe-list
+                (this (* t #|(struct :ucontext)|#))
+                (prev (* (struct  :xframe-list)))))
+    ))
 
 
 (install-standard-foreign-types *host-ftd*)
