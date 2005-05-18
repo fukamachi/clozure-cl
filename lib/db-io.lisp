@@ -35,11 +35,6 @@
 ;;; that this code is self-contained (doesn't depend on any Unix database
 ;;; library) should make it easier to port to other platforms.
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (def-foreign-type nil
-      (struct :cdb-datum
-	      (data (* t))
-	      (size :unsigned-long))))
 
 (defparameter *interface-abi-version* 1)
 
@@ -485,16 +480,7 @@
   arglist
   return-value)
     
-(def-foreign-type nil
-  (:struct dbm-constant
-   (:class (:unsigned 32))
-   (:pad (:unsigned 32))
-   (:value
-    (:union nil
-      (:s32 (:signed 32))
-      (:u32 (:unsigned 32))
-      (:single-float :float)
-      (:double-float :double)))))
+
 
 (defconstant db-string-constant 0)
 (defconstant db-read-string-constant 1)
