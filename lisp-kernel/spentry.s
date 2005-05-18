@@ -1618,33 +1618,30 @@ local_label(go):
 	__(mtctr loc_pc)
 	__(bctr)
         
-/*This (for better or worse) treats anything that's either */
-/* (signed-byte 32), (unsigned-byte 32), (simple-base-string 4), or  */
-/* (satisfies (lambda (s) (and (symbolp s) (typep (symbol-name s) '(simple-base-string 4))) */
-/* as if it denoted a 32-bit value. */
-/* Argument in arg_z, result in imm0.  May use temp0. */
+/* This  treats anything that's either
+   #+ppc32 (signed-byte 32), (unsigned-byte 32)
+   #+ppc64 (signed-byte 64), (unsigned-byte 64)
+   as if it denoted a "natural-sized" value. 
+   Argument in arg_z, result in imm0.  May use temp0. */
 _spentry(getxlong)
         __ifdef([PPC64])
         __else
-        __(extract_lisptag(imm0,arg_z))
+        __(extract_typecode(imm0,arg_z))
 	__(cmpri(cr0,imm0,tag_fixnum))
-	__(cmpri(cr1,imm0,tag_misc))
+	__(cmpri(cr1,imm0,subtag_bignum))
 	__(unbox_fixnum(imm0,arg_z))
 	__(beqlr cr0)
 	__(mr temp0,arg_z)
 	__(bne- cr1,local_label(error))
 	__(getvheader(imm0,temp0))
-	__(cmpri(cr0,imm0,symbol_header))
 	__(cmpri(cr1,imm0,one_digit_bignum_header))
 	__(cmpri(cr7,imm0,two_digit_bignum_header))
-	__(bne- cr0,local_label(not_sym))
-	__(ldr(temp0,symbol.pname(arg_z)))
-	__(getvheader(imm0,temp0))
-local_label(not_sym):
-	__(cmpri(cr0,imm0,(4<<num_subtag_bits)|subtag_simple_base_string))
 	__(beq cr1,local_label(big1))
-	__(beq cr0,local_label(big1))
-	__(bne cr7,local_label(error))
+        __(beq cr7,local_label(big2))
+local_label(error):
+	__(uuo_interr(error_object_not_integer,arg_z)) /* not quite right but what 68K MCL said */
+
+
 
 local_label(big2):
 	__(vrefr(imm0,temp0,1)) /* sign digit must be 0 */
@@ -1654,9 +1651,6 @@ local_label(big1):
 	__(vrefr(imm0,temp0,0))
 	__(blr)
 
-
-local_label(error):
-	__(uuo_interr(error_object_not_integer,arg_z)) /* not quite right but what 68K MCL said */
 
         __endif
                 
