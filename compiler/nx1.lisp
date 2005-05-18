@@ -1479,21 +1479,7 @@
          body
          *nx-new-p2decls*)))))
 
-(defnx1 nx1-put-xxx ((%put-ptr) (%put-long) (%put-full-long)  (%put-ostype) (%put-word) (%put-byte)) 
-        (ptr newval &optional (offset 0) &aux (op *nx-sfname*))
-  (make-acode
-   (%nx1-operator immediate-put-xxx)
-   (case op
-     (%put-ptr 0)
-     (%put-word 2)
-     (%put-byte 3)
-     (t 1))
-   (make-acode (%nx1-operator %macptrptr%) (nx1-form ptr))
-   (let ((valform (nx1-form newval)))
-     (if (or (eq op '%put-ptr) )
-       (make-acode (%nx1-operator %macptrptr%) valform)
-       valform))
-   (nx1-form offset)))
+
 
 (defnx1 nx1-set-bit ((%set-bit)) (ptr offset &optional (newval nil newval-p))
   (unless newval-p (setq newval offset offset 0))
@@ -1511,11 +1497,25 @@
    (case op
      (%set-ptr 0)
      (%set-word 2)
-     (%set-byte 3)
-     (t 1))
+     (%set-byte 1)
+     (t 4))
    (make-acode (%nx1-operator %macptrptr%) (nx1-form ptr))
    (nx1-form offset)
    (nx1-form newval)))
+
+(defnx1 nx1-set-64-xxx ((%%set-unsigned-longlong) (%%set-signed-longlong)) 
+        (&whole w ptr offset newval &aux (op *nx-sfname*))
+  (target-arch-case
+   (:ppc32 (nx1-treat-as-call w))
+   (:ppc64
+    (make-acode
+     (%nx1-operator %immediate-set-xxx)
+     (case op
+       (%%set-signed-longlong (logior 32 8))
+       (t 8))
+     (make-acode (%nx1-operator %macptrptr%) (nx1-form ptr))
+     (nx1-form offset)
+     (nx1-form newval)))))
 
 
 (defnx1 nx1-get-bit ((%get-bit)) (ptrform &optional (offset 0))
@@ -1527,6 +1527,25 @@
     (make-acode (%nx1-operator %macptrptr%) (nx1-form ptrform))
     (nx1-form offset))))
 
+(defnx1 nx1-get-64-xxx ((%%get-unsigned-longlong) (%%get-signed-longlong))
+  (&whole w ptrform offsetform)
+  (target-arch-case
+   (:ppc32 (nx1-treat-as-call w))
+   (:ppc64
+    (let* ((flagbits (case *nx-sfname*
+                       (%%get-unsigned-longlong 8)
+                       (%%get-signed-longlong (logior 32 8))))
+           (signed (logbitp 5 flagbits)))
+      (make-acode (%nx1-operator typed-form)
+                  (if signed
+                    '(signed-byte 64)
+                    '(unsigned-byte 64))
+                (make-acode 
+                 (%nx1-operator immediate-get-xxx)
+                 flagbits
+                 (make-acode (%nx1-operator %macptrptr%) (nx1-form ptrform))
+                 (nx1-form offsetform)))))))
+
 (defnx1 nx1-get-xxx ((%get-long)  (%get-full-long)  (%get-signed-long)
                      (%get-fixnum) 
                      (%get-word) (%get-unsigned-word)
@@ -1537,25 +1556,29 @@
   (ptrform &optional (offset 0))
   (let* ((sfname *nx-sfname*)
          (flagbits (case sfname
-                     ((%get-long %get-full-long  %get-signed-long) 1)
-                     (%get-fixnum 33)
+                     ((%get-long %get-full-long  %get-signed-long) (logior 4 32))
+                     (%get-fixnum (logior 4 32 64))
 		     
                      ((%get-word %get-unsigned-word) 2)
-                     (%get-signed-word 6)
-                     ((%get-byte %get-unsigned-byte) 3)
-                     (%get-signed-byte 7)
-                     (%get-unsigned-long 9))))
+                     (%get-signed-word (logior 2 32))
+                     ((%get-byte %get-unsigned-byte) 1)
+                     (%get-signed-byte (logior 1 32))
+                     (%get-unsigned-long 4)))
+         (signed (logbitp 5 flagbits)))
     (declare (fixnum flagbits))
     (make-acode (%nx1-operator typed-form)
                 (case (logand 15 flagbits)
-                  (1 (case sfname
-                       ((%get-fixnum ) 'fixnum)
-                       (t '(signed-byte 32))))
-                  (9 '(unsigned-byte 32))
-                  (2 '(unsigned-byte 16))
-                  (6 '(signed-byte 16))
-                  (3 '(unsigned-byte 8))
-                  (7 '(signed-byte 8)))
+                  (4 (if (logbitp 6 flagbits)
+                       'fixnum
+                       (if signed
+                         '(signed-byte 32)
+                         '(unsigned-byte 32))))
+                  (2 (if signed
+                       '(signed-byte 16)
+                       '(unsigned-byte 16)))
+                  (1 (if signed
+                       '(signed-byte 8)
+                       '(unsigned-byte 8))))
                 (make-acode 
                  (%nx1-operator immediate-get-xxx)
                  flagbits
