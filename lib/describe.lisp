@@ -1494,22 +1494,14 @@
      label
      type)))
 
+#|
 (defmethod line-n-inspector ((i thread-inspector) n value label type)
   (declare (ignore n type))
   (or (and value
            (macptrp value)
-           (not (%null-ptr-p value))
-           (cond ((memq label '(ccl::sg.cs-area ccl::sg.vs-area ccl::sg.ts-area))
-                  (make-instance 'record-inspector
-                    :object value
-                    :record-type :gc-area))
-                 ((eq label 'ccl::sg.xframe)
-                  (make-instance 'record-inspector
-                    :object value
-                    :record-type :xframe-list))
-                 (t nil)))
+           (not (%null-ptr-p value)))
       (call-next-method)))
-
+|#
 
 
 (defmethod line-n-inspector (i n value label type)
