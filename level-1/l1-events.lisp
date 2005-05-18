@@ -25,7 +25,7 @@
   (print-unreadable-object (p stream :type t :identity t)
     (format stream "~s ~d"
 	    (ptask.name p)
-	    (pref (ptask.state p) :ptaskstate.interval))))
+	    (ptaskstate.interval (ptask.state p)))))
 
 (defvar *periodic-task-lock* (make-lock))
 
@@ -39,14 +39,14 @@
                                     (privatedata (%null-ptr)))
   (with-lock-grabbed (*periodic-task-lock*)
    (let* ((already (find-named-periodic-task name))
-          (state (if already (ptask.state already) 
-		     (malloc (record-length ptaskstate))))
+          (state (if already (ptask.state already)
+                   (%istruct 'ptaskstate 0 0 0 0)))
           (task (or already (%istruct 'periodic-task state name nil))))
      (setf (ptask.function task) function)
-     (setf (rref state ptaskstate.interval) interval
-           (rref state ptaskstate.flags) flags
-           (rref state ptaskstate.private) privatedata
-           (rref state ptaskstate.nexttick) (+ (get-tick-count) interval))
+     (setf (ptaskstate.interval state) interval
+           (ptaskstate.flags state ) flags
+           (ptaskstate.privatedata state) privatedata
+           (ptaskstate.nexttick state) (+ (get-tick-count) interval))
      (unless already (push task *%periodic-tasks%*))
      (let* ((interval-in-seconds (/ interval (float *ticks-per-second*))))
        (if (< interval-in-seconds *periodic-task-interval*)
@@ -129,11 +129,12 @@
     (flet ((maybe-run-periodic-task (task)
              (let ((now (get-tick-count))
                    (state (ptask.state task)))
-               (when (and (>= (- now (rref state ptaskstate.nexttick))
+               (when (and (>= (- now (ptaskstate.nexttick state))
                               0)
-                          (eql 0 (logand (the fixnum (rref state ptaskstate.flags))
+                          (eql 0 (logand (the fixnum (ptaskstate.flags state))
                                          (the fixnum *periodic-task-mask*))))
-                 (setf (rref state ptaskstate.nexttick) (+ now (rref state ptaskstate.interval)))
+                 (setf (ptaskstate.nexttick state)
+                       (+ now (ptaskstate.interval state)))
                  (funcall (ptask.function task))))))
       (let ((event-dispatch-task *event-dispatch-task*))
         (maybe-run-periodic-task event-dispatch-task)
@@ -155,7 +156,7 @@
             (dolist (other *%periodic-tasks%*
                      (set-periodic-task-interval (/ min-ticks (float *ticks-per-second*))))
               (let* ((other-ticks
-                      (pref (ptask.state other) :ptaskstate.interval)))
+                      (ptaskstate.interval (ptask.state other))))
                 (if (< other-ticks min-ticks)
                   (setq min-ticks other-ticks)))))
           (set-periodic-task-interval 1)))
@@ -180,12 +181,12 @@
 
 (defun event-ticks ()
   (let ((task *event-dispatch-task*))
-    (when task (rref (ptask.state task) ptaskstate.interval))))
+    (when task (ptaskstate.interval (ptask.state task)))))
 
 (defun set-event-ticks (n)
-  (setq n (require-type n '(integer 0 3767)))   ;  Why this weird limit ?
+  (setq n (require-type n '(integer 0 32767)))   ;  Why this weird limit ?
   (let ((task *event-dispatch-task*))
-    (when task (setf (rref (ptask.state task) ptaskstate.interval) n))))
+    (when task (setf (ptaskstate.interval (ptask.state task)) n))))
 
 ;; Making the *initial-process* quit will cause an exit(),
 ;; though it might be nicer if all processes were shut down
