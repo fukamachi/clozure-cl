@@ -889,62 +889,17 @@
 (defconstant kFPUNotNeeded (ash 1 3))
 (defconstant kExactMatchThread (ash 1 4))
 
-#+ppc-target
-(progn
-(def-foreign-type nil
-    (struct :ptaskstate
-            (nexttick :unsigned)
-            (interval :unsigned)
-            (private (* t))
-            (flags (:unsigned 16))))
+
+(def-accessors (ptaskstate) %svref
+  nil                                   ;ptaskstate
+  ptaskstate.nexttick
+  ptaskstate.interval
+  ptaskstate.privatedata
+  ptaskstate.flags)
 
 
 
-;;; This matches the (define-storage-layout area ...) form in
-;;; "ccl:compiler;ppc;ppc-arch.lisp"
 
-(def-foreign-type nil
-    (struct :gc-area
-            (pred (* (struct :gc-area)))
-            (succ (* (struct :gc-area)))
-            (low (* t))
-            (high (* t))
-            (active (* t))
-            (softlimit (* t))
-            (hardlimit (* t))
-            (code (:signed 32))
-            (markbits (* t))
-            (ndwords (:signed 32))
-            (older (* (:struct :gc-area)))
-            (younger (* (:struct  :gc-area)))
-            (h (* t))
-            (softprot (* (:struct :protected-area)))
-            (hardprot (* (:struct :protected-area)))
-            (owner (:signed 32))
-            (refbits (* t))
-            (threshold (* t))
-            (gc-count (:signed 32))))
-
-
-
-(def-foreign-type nil
-    (struct :protected-area
-            (next (* (struct :protected-area)))
-            (start (* t))               ; first byte (page-aligned) that might be protected
-            (end (* t))                 ; last byte (page-aligned) that could be protected
-            (nprot (:unsigned 32))  ; Might be 0
-            (protsize (:unsigned 32)) ; number of bytes to protect
-            (why (:signed 32))))
-
-
-;;; This matches the xframe-list struct definition in
-;;; "ccl:lisp-kernel;constants.h"
-(def-foreign-type nil
-    (struct :xframe-list
-            (this (* t #|(struct :ucontext)|#))
-            (prev (* (struct  :xframe-list)))))
-
-  )
 
 
 ;;;;;; clos instance and class layout.
