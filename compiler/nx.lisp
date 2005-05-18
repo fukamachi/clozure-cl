@@ -110,17 +110,18 @@
         (if new-policy (require-type new-policy 'compiler-policy) (new-compiler-policy))))
 
 (defun xcompile-lambda (target def)
-  (multiple-value-bind (xlfun warnings)
-                       (compile-named-function def nil
-                                               nil
-                                               nil
-                                               nil
-                                               nil
-                                               nil
-                                               target)
-    (signal-or-defer-warnings warnings nil)
-    (ppc-xdisassemble xlfun :target target)
-    xlfun))
+  (let* ((*ppc2-debug-mask* (ash 1 ppc2-debug-vinsns-bit)))
+    (multiple-value-bind (xlfun warnings)
+        (compile-named-function def nil
+                                nil
+                                nil
+                                nil
+                                nil
+                                nil
+                                target)
+      (signal-or-defer-warnings warnings nil)
+      (ppc-xdisassemble xlfun :target target)
+      xlfun)))
   
 (defun compile-user-function (def name &optional env)
   (multiple-value-bind (lfun warnings)
