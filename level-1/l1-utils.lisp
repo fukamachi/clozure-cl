@@ -1118,27 +1118,6 @@ vector
        ((zerop (the fixnum (%get-byte ptr i))) i)
     (declare (fixnum i))))
 						 
-
-(defun %put-cstring (ptr str &optional (offset 0))
-  (do* ((len (length str))
-	(i 0 (1+ i)))
-       ((= i len) (setf (%get-byte ptr offset) 0))
-    (setf (%get-byte ptr offset) (char-code (schar str i)))
-    (incf offset)))
-
-
-
-(defun %put-double-float (macptr value &optional (offset 0))
-  (%set-double-float macptr offset value))
-
-
-
-
-
-(defun %put-single-float (macptr value &optional (offset 0))
-  (%set-single-float macptr offset value))
-
-
   
 ; Single float is sign, 8 bits of exponent, 23 bits of mantissa
 ; Double float is sign, 11 bits of exponent, 52 bits of mantissa

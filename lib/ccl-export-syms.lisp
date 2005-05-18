@@ -290,11 +290,8 @@
      %get-string
      %get-cstring
      %str-from-ptr
-     %get-ostype
      %get-double-float
      %get-single-float
-     %put-double-float
-     %put-single-float
      %inc-ptr
      %incf-ptr
      %setf-macptr
