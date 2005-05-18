@@ -155,6 +155,7 @@
          (disp-d (ppc-gpr rd))
 	 (disp-a (ppc-gpr ra)))
     (if (or (eql ra ppc::sp)
+            (eql ra ppc::tsp)
 	    (eql ra ppc::vsp))
 	`(la ,disp-d ,simm ,disp-a)
 	(let* ((opcode 'addi)
