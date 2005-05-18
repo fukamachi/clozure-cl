@@ -1,3 +1,86 @@
+2005-05-18 00:58  gb
+
+	* lib/ccl-export-syms.lisp, level-1/l1-utils.lisp: Remove some more
+	old/unreferenced stuff.
+
+2005-05-18 00:58  gb
+
+	* level-1/version.lisp: 050518a, since it's reasonable to assume
+	that there will be more than 1-per-day.
+
+2005-05-18 00:48  gb
+
+	* xdump/xsym.lisp: no longer 1994
+
+2005-05-18 00:44  gb
+
+	* level-1/l1-utils.lisp: Lose some more old stuff.
+
+2005-05-18 00:38  gb
+
+	* lisp-kernel/spentry.s: Kinder, gentler .SPgetxlong (u32/s32
+	only.)
+
+2005-05-18 00:38  gb
+
+	* library/lispequ.lisp: Remove some unused foreign struct
+	definitions; make PTASKSTATE an istruct.
+
+2005-05-18 00:37  gb
+
+	* lib/foreign-types.lisp: All (lisp-level) foreign structs defined
+	per-ftd.
+
+2005-05-18 00:37  gb
+
+	* lib/describe.lisp: Don't try to describe exception frames ...
+
+2005-05-18 00:37  gb
+
+	* lib/ccl-export-syms.lisp: Export STREAM-DEVICE; don't export some
+	old MCL stuff, %PUT-* functions.
+
+2005-05-18 00:35  gb
+
+	* lib/db-io.lisp: Move foreign struct definitions elsewhere.
+
+2005-05-18 00:34  gb
+
+	* lib/level-2.lisp: Don't eval-redef %put-* functions.
+
+2005-05-18 00:34  gb
+
+	* level-1/l1-lisp-threads.lisp: Don't mess with stack overflow
+	limits on new stacks.
+
+2005-05-18 00:33  gb
+
+	* level-1/l1-events.lisp: PTASKSTATE is now an istruct.
+
+2005-05-18 00:33  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	New memory access stuff.
+
+2005-05-18 00:32  gb
+
+	* compiler/PPC/ppc-disassemble.lisp: Recognize LA to TSP.
+
+2005-05-18 00:32  gb
+
+	* compiler/: nx1.lisp, PPC/ppc2.lisp: Drop old (undocumented,
+	problematic) %PUT-* memory update functions.  Try to handle some
+	64-bit memory reference/assignments, make encoding a little more
+	sane.
+
+2005-05-18 00:30  gb
+
+	* compiler/nx.lisp: Enable vinsn debugging in XCOMPILE-LAMBDA.
+
+2005-05-18 00:30  gb
+
+	* compiler/backend.lisp: Recognize :SIGNED-NATURAL alias, as well.
+
 2005-05-17 09:20  gb
 
 	* library/solaris-records.lisp: old old file
