@@ -287,16 +287,10 @@
      %get-fixnum
      %get-point
      %get-ptr
-     %get-full-long
      %get-string
      %get-cstring
      %str-from-ptr
      %get-ostype
-     %put-byte
-     %put-word
-     %put-long
-     %put-ptr
-     %put-full-long
      %get-double-float
      %get-single-float
      %put-double-float
@@ -369,14 +363,8 @@
      gc-retaining-pages
      *trace-max-indent* 
      *trace-level* 
-     *record-types* 
      *fasl-save-doc-strings* 
      *fasl-save-definitions* 
-     *current-view* 
-     *color-available* 
-     *background-event-ticks* 
-     *pascal-full-longs*
-
 
      compiler-let
 
@@ -389,6 +377,7 @@
      SET-CURRENT-COMPILER-POLICY
      SET-CURRENT-FILE-COMPILER-POLICY
      STANDARD-METHOD-COMBINATION
+     STREAM-DEVICE
      STREAM-DIRECTION
      *current-process*
      PROCESS
