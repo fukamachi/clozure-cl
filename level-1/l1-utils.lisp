@@ -1087,62 +1087,10 @@ vector
 
 
 
-
-
-
-
-
-
 (defun pointerp (thing &optional errorp)
   (if (macptrp thing)
     t
     (if errorp (error "~S is not a pointer" thing) nil)))
-
-(defun zone-pointerp (thing)
-  (pointerp thing))
-
-(defun handlep (p)
-  (declare (ignore p))
-  nil)
-
-(defun %get-ostype (pointer &optional (offset 0))
-  (values (make-keyword (%str-from-ptr (%inc-ptr pointer offset) 4))))
-
-
-     
-(defun %put-ostype (pointer str &optional (offset 0))
-  (%put-ostype pointer str offset))     ; gets compiled inline
-
-(defun %set-ostype (pointer offset &optional (str (prog1 offset
-                                                   (setq offset 0))))
-  (%put-ostype pointer str offset)
-  str)
-
-(defsetf %get-ostype %set-ostype)
-
-
-
-
-
-
-(defun %ostype-ptr (str)
-  (%stack-block ((type 4))
-    (%put-ostype type str)
-    (%get-ptr type)))
-
-(defun ostype-p (x)
-  (or (integerp x)
-      (and (stringp x)
-           (eql 4 (length x))
-           (or (eq 'base-char (array-element-type x))
-               (dotimes (i 4 t)
-                 (unless (< (the fixnum (char-code (char x i))) 256)
-                   (return nil)))))
-      (and (symbolp x)
-           (ostype-p (symbol-name x)))))
-
-
-
 
 
 ;Add an item to a dialog items list handle.  HUH ?
