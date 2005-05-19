@@ -2809,7 +2809,7 @@
     (let* ((jconstant (acode-fixnum-form-p j))
            (js16 (target-arch-case
                   (:ppc32 (typep jconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))
-                  (:ppc64 (typep jconstant '(signed-byte  #.(- 16 ppc64::fixnumshift)))))
+                  (:ppc64 (typep jconstant '(signed-byte  #.(- 16 ppc64::fixnumshift))))))
            (iconstant (acode-fixnum-form-p i))
            (is16 (target-arch-case
                   (:ppc32 (typep iconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))
