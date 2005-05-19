@@ -1,3 +1,16 @@
+2005-05-18 20:07  gb
+
+	* lib/db-io.lisp: CDB-OPEN creates a CDB structure (which may have
+	a null FID); %CDB-GET does nothing if the FID is null.	(This is
+	intended to avoid repeated attempts to open a missing .cdb file, as
+	when populating an interface directory for the first time.)
+
+2005-05-18 20:04  gb
+
+	* library/parse-ffi.lisp: Handle 128-bit integers here.  (Well,
+	they aren't really handled anywhere, but we should at least
+	recognize the data types.)
+
 2005-05-18 19:05  gb
 
 	* compiler/PPC/ppc2.lisp: Fix missing close-paren.
