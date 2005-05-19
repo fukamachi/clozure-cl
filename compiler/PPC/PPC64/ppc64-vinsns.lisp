@@ -3067,8 +3067,8 @@
 
 (define-ppc64-vinsn eep.address (((dest t))
 				 ((src (:lisp (:ne dest )))))
-  (lwz dest (+ (ash 1 2) ppc64::misc-data-offset) src)
-  (tweqi dest ppc64::nil-value))
+  (ld dest (+ (ash 1 ppc64::word-shift) ppc64::misc-data-offset) src)
+  (tdeqi dest ppc64::nil-value))
                  
 (define-ppc64-vinsn %u32+ (((dest :u32))
 			   ((x :u32) (y :u32)))
