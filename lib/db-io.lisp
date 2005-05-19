@@ -326,39 +326,40 @@
   (let* ((hash (cdb-hash key keylen)))
     (fid-seek fid (+ (* 256 2 4) (* 8 (logand hash 255))))
     (let* ((pos (fid-read-u32 fid))
-	   (lenhash (fid-read-u32 fid)))
+           (lenhash (fid-read-u32 fid)))
       (unless (zerop lenhash)
-	(let* ((h2 (mod (ash hash -8) lenhash)))
-	  (dotimes (i lenhash)
-	    (fid-seek fid (+ pos (* 8 h2)))
-	    (let* ((hashed-key (fid-read-u32 fid))
-		   (poskd (fid-read-u32 fid)))
-	      (when (zerop poskd)
-		(return-from %cdb-seek nil))
-	      (when (= hashed-key hash)
-		(fid-seek fid poskd)
-		(let* ((hashed-key-len (fid-read-u32 fid))
-		       (data-len (fid-read-u32 fid)))
-		  (when (= hashed-key-len keylen)
-		    (if (%cdb-match fid key keylen)
-		      (return-from %cdb-seek data-len)))))
-	      (if (= (incf h2) lenhash)
-		(setq h2 0)))))))))
+        (let* ((h2 (mod (ash hash -8) lenhash)))
+          (dotimes (i lenhash)
+            (fid-seek fid (+ pos (* 8 h2)))
+            (let* ((hashed-key (fid-read-u32 fid))
+                   (poskd (fid-read-u32 fid)))
+              (when (zerop poskd)
+                (return-from %cdb-seek nil))
+              (when (= hashed-key hash)
+                (fid-seek fid poskd)
+                (let* ((hashed-key-len (fid-read-u32 fid))
+                       (data-len (fid-read-u32 fid)))
+                  (when (= hashed-key-len keylen)
+                    (if (%cdb-match fid key keylen)
+                      (return-from %cdb-seek data-len)))))
+              (if (= (incf h2) lenhash)
+                (setq h2 0)))))))))
 
 ;;; This should only be called with the cdb-lock of the containing cdb
 ;;; held.
 (defun %cdb-get (fid key value)
   (setf (pref value :cdb-datum.size) 0
 	(pref value :cdb-datum.data) (%null-ptr))
-  (let* ((datalen (%cdb-seek fid
-			     (pref key :cdb-datum.data)
-			     (pref key :cdb-datum.size))))
-    (when datalen
-      (let* ((buf (cdb-alloc datalen)))
-	(fid-read fid buf datalen)
-	(setf (pref value :cdb-datum.size) datalen
-	      (pref value :cdb-datum.data) buf)))
-    value))
+  (when fid
+    (let* ((datalen (%cdb-seek fid
+                               (pref key :cdb-datum.data)
+                               (pref key :cdb-datum.size))))
+      (when datalen
+        (let* ((buf (cdb-alloc datalen)))
+          (fid-read fid buf datalen)
+          (setf (pref value :cdb-datum.size) datalen
+                (pref value :cdb-datum.data) buf)))
+      value)))
 
 (defun cdb-get (cdb key value)
   (with-lock-grabbed ((cdb-lock cdb))
@@ -369,7 +370,9 @@
     (let* ((cdb (make-cdb :fid (fid-open-input (cdb-native-namestring pathname))
                           :pathname (namestring pathname))))
       (cdb-check-trailer cdb))
-    (warn "Interface file ~s does not exist." pathname)))
+    (progn
+      (warn "Interface file ~s does not exist." pathname)
+      (make-cdb :fid nil :pathname (namestring pathname)))))
 
 (defun cdb-check-trailer (cdb)
   (flet ((error-with-cdb (string &rest args)
