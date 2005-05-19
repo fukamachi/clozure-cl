@@ -325,6 +325,7 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
    and minor opcode "minor" */
 #define X_opcode_p(instr,major,minor) match_instr((instr),X_MASK,X(major,minor))
 
+#define major_opcode_TDI 2
 #define major_opcode_TWI 3
 #define major_opcode_ADDI 14
 #define major_opcode_RLWINM 21
@@ -333,6 +334,7 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define major_opcode_LBZ 34
 #define major_opcode_STW 36
 #define major_opcode_STWU 37
+#define major_opcode_LD_LDU_LWA 58
 #define major_opcode_FPU_SINGLE 59
 #define major_opcode_FPU_DOUBLE 63
 
