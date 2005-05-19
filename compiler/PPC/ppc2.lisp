@@ -1151,15 +1151,11 @@
     (when (%ilogbitp $vbitreg bits)
       (%ilogand bits $vrefmask))))
 
-;;; Can't cross-compile this.  Too bad.
-#+ppc32-host
 (defun ppc2-single-float-bits (the-sf)
-  (uvref the-sf ppc32::single-float.value-cell))
+  (single-float-bits the-sf))
 
-#+ppc32-host
 (defun ppc2-double-float-bits (the-df)
-  (values (uvref the-df ppc32::double-float.value-cell)
-          (uvref the-df ppc32::double-float.val-low-cell)))
+  (double-float-bits the-df))
 
 (defun ppc2-immediate (seg vreg xfer form)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
@@ -1507,7 +1503,7 @@
             (! trap-unless-array-header src)
             (! check-arrayH-rank src 2)
             (! check-arrayH-flags src
-               (dpb safe ppc32::arrayh.flags-cell-subtag-byte
+               (dpb safe target::arrayh.flags-cell-subtag-byte
                     (ash 1 $arh_simple_bit))))
           (unless i-known-fixnum
             (! trap-unless-fixnum unscaled-i))
@@ -2811,9 +2807,13 @@
 (defun ppc2-compare (seg vreg xfer i j cr-bit true-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((jconstant (acode-fixnum-form-p j))
-           (js16 (typep jconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))
+           (js16 (target-arch-case
+                  (:ppc32 (typep jconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))
+                  (:ppc64 (typep jconstant '(signed-byte  #.(- 16 ppc64::fixnumshift)))))
            (iconstant (acode-fixnum-form-p i))
-           (is16 (typep iconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))                      
+           (is16 (target-arch-case
+                  (:ppc32 (typep iconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))
+                  (:ppc64 (typep jconstant '(signed-byte  #.(- 16 ppc64::fixnumshift))))))
            (boolean (backend-crf-p vreg)))
       (if (and boolean (or js16 is16))
         (let* ((reg (ppc2-one-untargeted-reg-form seg (if js16 i j) ppc::arg_z)))
@@ -5082,19 +5082,6 @@
           (ppc2-form seg nil nil form)
           (return (ppc2-form seg vreg xfer form)))))))
 
-#|
-(defppc2 ppc2-prog1 prog1 (seg vreg xfer forms)
-  (if (eq (list-length forms) 1)
-    (ppc2-use-operator (%nx1-operator values) seg vreg xfer forms)
-    (progn
-      (if vreg
-        (ppc2-vpush-register seg (ppc2-one-untargeted-reg-form seg (pop forms) ppc::arg_z))
-        (ppc2-form seg nil nil (pop forms)))
-      (dolist (form forms)
-        (ppc2-form seg nil nil form))
-      (if vreg (ppc2-vpop-register seg vreg))
-      (^))))
-|#
 
 
 (defppc2 ppc2-prog1 prog1 (seg vreg xfer forms)
@@ -5335,10 +5322,10 @@
   (ppc2-char-p seg vreg xfer cc form))
 
 (defppc2 ppc2-struct-ref struct-ref (seg vreg xfer struct offset)
-  (ppc2-misc-node-ref seg vreg xfer struct offset ppc32::subtag-struct))
+  (ppc2-misc-node-ref seg vreg xfer struct offset (ppc2-lookup-target-uvector-subtag :struct)))
 
 (defppc2 ppc2-struct-set struct-set (seg vreg xfer struct offset value)
-  (ppc2-misc-node-set seg vreg xfer struct offset value ppc32::subtag-struct))
+  (ppc2-misc-node-set seg vreg xfer struct offset value (ppc2-lookup-target-uvector-subtag :struct)))
 
 (defppc2 ppc2-ppc-lisptag ppc-lisptag (seg vreg xfer node)
   (if (null vreg)
@@ -5636,15 +5623,6 @@
   (! ksignalerr)
   (ppc2-nil seg vreg xfer))
 
-
-(defppc2 ppc2-symbol-name symbol-name (seg vreg xfer sym)
-  (let* ((reg (ppc2-one-targeted-reg-form seg sym ($ ppc::arg_z))))
-    (unless *ppc2-reckless*
-      (! trap-unless-typecode= reg ppc32::subtag-symbol))
-    (when vreg
-      (ensuring-node-target (target vreg)
-        (! misc-ref-c-node target reg ppc32::symbol.pname-cell)))
-    (^)))
 
 (defppc2 ppc2-local-tagbody local-tagbody (seg vreg xfer taglist body)
   (let* ((encstack (ppc2-encode-stack))
@@ -6007,7 +5985,10 @@
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
       (! mask-base-char ppc::imm0 (ppc2-one-untargeted-reg-form seg form ppc::arg_z))
-      (ppc2-test-reg-%izerop seg vreg xfer ppc::imm0 cr-bit true-p ppc32::subtag-character))))
+      (ppc2-test-reg-%izerop seg vreg xfer ppc::imm0 cr-bit true-p
+                             (target-arch-case
+                              (:ppc32 ppc32::subtag-character)
+                              (:ppc64 ppc64::subtag-character))))))
 
 
 (defppc2 ppc2-let* let* (seg vreg xfer vars vals body p2decls &aux
@@ -6699,11 +6680,13 @@
     (cond ((null vreg)
            (ppc2-form seg nil nil base)
            (ppc2-form seg nil xfer offset))
-          ((typep fixoffset '(signed-byte 14))
+          ((target-arch-case
+            (:ppc32 (typep fixoffset '(signed-byte 14)))
+            (:ppc64 (typep fixoffset '(signed-byte 13))))
            (ensuring-node-target (target vreg)
              (! lisp-word-ref-c target 
                 (ppc2-one-untargeted-reg-form seg base ppc::arg_z) 
-                (ash fixoffset ppc32::word-shift)))
+                (ash fixoffset *ppc2-target-fixnum-shift*)))
            (^))
           (t (multiple-value-bind (breg oreg)
                                   (ppc2-two-untargeted-reg-forms seg base ppc::arg_y offset ppc::arg_z)
