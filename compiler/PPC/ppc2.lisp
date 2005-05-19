@@ -7322,8 +7322,11 @@
              (! gets64)
              (! getu64))
            (! set-c-arg ($ ppc::imm0) nextarg)
-           (incf nextarg)
-           (! set-c-arg ($ ppc::imm1) nextarg))
+           (target-arch-case
+            (:ppc32
+             (incf nextarg)
+             (! set-c-arg ($ ppc::imm1) nextarg))
+            (:ppc64)))
           (:double-float
            (let* ((df ($ ppc::fp1 :class :fpr :mode :double-float)))
              (ppc2-one-targeted-reg-form seg valform df)
@@ -7349,8 +7352,12 @@
                  (ppc2-one-targeted-reg-form seg valform ptr)
                  (with-imm-temps (ptr) (r)
                    (dotimes (i spec)
-                     (! mem-ref-c-fullword r ptr (ash i 2))
-                     (! set-c-arg r nextarg)
+                     (target-arch-case
+                      (:ppc32
+                       (! mem-ref-c-fullword r ptr (ash i ppc32::word-shift)))
+                      (:ppc64
+                       (! mem-ref-c-doubleword r ptr (ash i ppc64::word-shift)))
+                      (! set-c-arg r nextarg))
                      (incf nextarg))))
                (decf nextarg))
              (with-imm-target ()
