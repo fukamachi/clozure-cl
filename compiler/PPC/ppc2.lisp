@@ -2410,21 +2410,28 @@
 ;;; This is the "lenient" version of 32-bit-ness; OSTYPEs and chars
 ;;; count, and we don't care about the integer's sign.
 
-(defun ppc2-unboxed-integer-arg-to-reg (seg form immreg)
-  (with-ppc-local-vinsn-macros (seg)
-    (let* ((value (ppc2-long-constant-p form)))
-      (if value
-        (if (eql value 0)
-          ($  ppc::rzero :mode :natural)
-          (progn
-            (unless (typep immreg 'lreg)
-              (setq immreg (make-unwired-lreg immreg :mode (gpr-mode-name-value :natural))))
-            (ppc2-lri seg immreg value)
-            immreg))
-        (progn 
-          (ppc2-one-targeted-reg-form seg form ($ ppc::arg_z))
-          (! getXlong)
-          ($ ppc::imm0 :mode :natural))))))
+(defun ppc2-unboxed-integer-arg-to-reg (seg form immreg &optional ffi-arg-type)
+  (let* ((mode (case ffi-arg-type
+                 ((nil) :natural)
+                 (:signed-byte :s8)
+                 (:unsigned-byte :u8)
+                 (:signed-word :s16)
+                 (:unsigned-word :u16)
+                 (:signed-fullword :s32)
+                 (:unsigned-fullword :u32)))
+         (modeval (gpr-mode-name-value mode)))
+    (with-ppc-local-vinsn-macros (seg)
+      (let* ((value (ppc2-long-constant-p form)))
+        (if value
+          (if (eql value 0)
+            (make-wired-lreg ppc::rzero :mode modeval)
+            (progn
+              (unless (typep immreg 'lreg)
+                (setq immreg (make-unwired-lreg immreg :mode modeval)))
+              (ppc2-lri seg immreg value)
+              immreg))
+          (progn 
+            (ppc2-one-targeted-reg-form seg form (make-wired-lreg ppc::imm0 :mode modeval))))))))
 
 
 (defun ppc2-macptr-arg-to-reg (seg form address-reg)  
@@ -7271,7 +7278,7 @@
            (! set-eabi-c-arg
               (with-imm-target ()
                 (valreg :natural)
-                (ppc2-unboxed-integer-arg-to-reg seg valform valreg))
+                (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec))
               nextarg)))
         (incf nextarg)))
     (ppc2-form seg ppc::arg_z nil idx)
@@ -7350,7 +7357,7 @@
                (valreg :natural)
                (if longval
                  (ppc2-lri seg valreg longval)
-                 (ppc2-unboxed-integer-arg-to-reg seg valform valreg))
+                 (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec))
                (! set-c-arg valreg nextarg)))))
         (incf nextarg)))
     (do* ((fpreg ppc::fp1 (1+ fpreg))
@@ -7565,7 +7572,7 @@
                       (incf other-offset)))))
             (t
              (with-imm-target () (valreg :natural)
-                (let* ((reg (ppc2-unboxed-integer-arg-to-reg seg valform valreg)))
+                (let* ((reg (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec)))
                   (incf ngpr-args)
                   (cond ((<= ngpr-args 8)
                          (! set-eabi-c-arg reg gpr-offset)
