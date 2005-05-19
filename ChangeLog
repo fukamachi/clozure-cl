@@ -1,3 +1,7 @@
+2005-05-18 23:35  gb
+
+	* compiler/nx.lisp: Remove FORMAT call.
+
 2005-05-18 23:17  gb
 
 	* compiler/PPC/ppc2.lisp: Fix parenthesization in
