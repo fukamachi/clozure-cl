@@ -1,5 +1,5 @@
 #!/bin/sh
-CFLAGS=-m64;export CFLAGS
+CFLAGS="-m64 -Wno-endif-labels";export CFLAGS
 h-to-ffi.sh /usr/include/ar.h
 h-to-ffi.sh /usr/include/arpa/ftp.h
 h-to-ffi.sh -include /usr/include/sys/types.h -include /usr/include/sys/socket.h -include /usr/include/netinet/in.h /usr/include/arpa/inet.h
@@ -67,7 +67,7 @@ h-to-ffi.sh /usr/include/libgen.h
 #h-to-ffi.sh /usr/include/libkern/libkern.h
 h-to-ffi.sh /usr/include/libkern/OSReturn.h
 h-to-ffi.sh /usr/include/libkern/OSTypes.h
-h-to-ffi.sh -include /usr/include/float.h /usr/include/limits.h
+h-to-ffi.sh /usr/include/limits.h
 h-to-ffi.sh /usr/include/locale.h
 h-to-ffi.sh /usr/include/mach/boolean.h
 #h-to-ffi.sh /usr/include/mach/boot_info.h
