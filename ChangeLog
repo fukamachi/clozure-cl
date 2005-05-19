@@ -1,3 +1,44 @@
+2005-05-18 23:17  gb
+
+	* compiler/PPC/ppc2.lisp: Fix parenthesization in
+	PPC2-POWEROPEN-FOREIGN-ARGS.
+
+2005-05-18 23:10  gb
+
+	* darwin-headers64/libc/C/populate.sh: Don't warn about tokens
+	after #endif.  (Don't know how to suppress warnings about tokens
+	after #include <foo>.)
+	
+	Don't pre-include float.h in limits.h
+
+2005-05-18 23:07  gb
+
+	* compiler/PPC/ppc2.lisp: ppc64 changes in poweropen-ffi-arglist
+	stuff.
+
+2005-05-18 23:01  gb
+
+	* compiler/nx1.lisp: Pretend that :darwinppc64/:linuxppc64 targets
+	follow PowerOpen ABI, which is kind of half-right, at least.
+
+2005-05-18 23:00  gb
+
+	* compiler/nx.lisp: XCOMPILE-LAMBDA binds target-ftd.
+
+2005-05-18 22:59  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Fix eep.address.
+
+2005-05-18 22:56  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: No more
+	PPC64::ONE-DIGIT-BIGNUM-HEADER; fix a few things that thought that
+	there was.
+
+2005-05-18 22:55  gb
+
+	* compiler/PPC/ppc2.lisp: New PPC2-UNBOXED-INTEGER-ARG-TO-REG.
+
 2005-05-18 20:07  gb
 
 	* lib/db-io.lisp: CDB-OPEN creates a CDB structure (which may have
