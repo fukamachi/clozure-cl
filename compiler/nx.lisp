@@ -115,7 +115,6 @@
          (*target-ftd* (if backend
                          (backend-target-foreign-type-data backend)
                          *target-ftd*)))
-    (format t "~& *target-fd* = ~s" *target-ftd*)
     (multiple-value-bind (xlfun warnings)
         (compile-named-function def nil
                                 nil
