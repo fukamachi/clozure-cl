@@ -54,32 +54,25 @@
 	ppc-arch
         ppcenv
         ppc-asm
-        ppc32-vinsns
         ppc-lap
 	ppc-backend
-	ppc32-backend
-        ppc2
 ))
 
+(defparameter *ppc32-compiler-backend-modules*
+  '(ppc32-backend ppc32-vinsns))
 
-(defparameter *sparc-compiler-modules*
-      '(sparc-arch
-        sparcenv
-        sparc-asm
-        sparc-vinsns
-        sparc-lap
-	sparc-backend
-        sparc2
-        sparc-disassemble
-        sparc-lapmacros
-))
+(defparameter *ppc64-compiler-backend-modules*
+  '(ppc64-backend ppc64-vinsns))
 
-(defparameter *sparc-bootstrap-modules* '(sparc-bootstrap))
+(defparameter *ppc-compiler-backend-modules*
+  '(ppc2))
+
+
+
 
 (defparameter *ppc-xload-modules* '(xppcfasload xfasload heap-image ))
 
 
-(defparameter *sparc-xload-modules* '(xsparcfasload xfasload heap-image))
 
 ;; Not too OS-specific.
 (defparameter *ppc-xdev-modules* '(ppc2 ppc-lapmacros ppc-disassemble nxenv ))
@@ -87,12 +80,12 @@
 				       (backend-target-arch-name
 					*host-backend*)))
   (case target
-    (:ppc32 *ppc-xdev-modules*)))
+    ((:ppc32 :ppc64) *ppc-xdev-modules*)))
 
 (defun target-xload-modules (&optional (target
 					(backend-target-arch-name *host-backend*)))
   (case target
-    (:ppc32 *ppc-xload-modules*)))
+    ((:ppc32 :ppc64) *ppc-xload-modules*)))
 
 
 
@@ -106,21 +99,24 @@
 	foreign-types
 	db-io
 	nfcomp
-	;eval
 	))
 
 (defun target-env-modules (&optional (target
 				      (backend-target-arch-name
 				       *host-backend*)))
-  (append *env-modules*
-	  (case target
-	    (:ppc32 '( ppc-lapmacros)))))
+  (declare (ignore target))
+  *env-modules*)
 
 (defun target-compiler-modules (&optional (target
 					   (backend-target-arch-name
 					    *host-backend*)))
   (case target
-    (:ppc32 *ppc-compiler-modules*)))
+    (:ppc32 (append *ppc-compiler-modules*
+                    *ppc32-compiler-backend-modules*
+                    *ppc-compiler-backend-modules*))
+    (:ppc64 (append *ppc-compiler-modules*
+                    *ppc64-compiler-backend-modules*
+                    *ppc-compiler-backend-modules*))))
 
 (defparameter *other-lib-modules*
       '(streams pathnames backtrace
@@ -133,13 +129,13 @@
 					     *host-backend*)))
   (append *other-lib-modules*
 	  (case target
-	    (:ppc32 '(ppc-disassemble)))))
+	    ((:ppc32 :ppc64) '(ppc-disassemble)))))
 
 (defun target-compiler-modules (&optional
 				(target
 				 (backend-target-arch-name *target-backend*)))
   (case target
-    (:ppc32 *ppc-compiler-modules*)))
+    ((:ppc32 :ppc64) *ppc-compiler-modules*)))
 	  
 
 (defun target-lib-modules (&optional (target
@@ -306,14 +302,6 @@
   (compile-modules *code-modules* force-compile))
 
 
-
-#+ppc-target
-(defun load-ccl ()
-  (ppc-load-ccl))
-
-
-
-
 ;Compile but don't load
 
 #+ppc-target
@@ -361,12 +349,6 @@
     (target-compile-modules *aux-modules* target force)
     (target-compile-modules *code-modules* target force)))
 
-(defun ppc-load-ccl ()
-  (require-modules *ppc-compiler-modules*)
-  (require-modules (target-lib-modules))
-  (require-modules *code-modules*)
-  ;(require-modules *ppc-xload-modules*)
-  )
 
 (defun ppc-require-module (module force-load)
   (multiple-value-bind (fasl source) (find-module module)
