@@ -7356,8 +7356,8 @@
                       (:ppc32
                        (! mem-ref-c-fullword r ptr (ash i ppc32::word-shift)))
                       (:ppc64
-                       (! mem-ref-c-doubleword r ptr (ash i ppc64::word-shift)))
-                      (! set-c-arg r nextarg))
+                       (! mem-ref-c-doubleword r ptr (ash i ppc64::word-shift))))
+                     (! set-c-arg r nextarg)
                      (incf nextarg))))
                (decf nextarg))
              (with-imm-target ()
