@@ -555,7 +555,11 @@
 ;;; type (unsigned-byte "width").  Set (:CR0 :EQ) according to the
 ;;; result.
 (defppclapmacro extract-unsigned-byte-bits. (dest src width)
-  `(rlwinm. ,dest ,src 0 (- 32 ppc32::fixnumshift) (- 31 (+ ,width ppc32::fixnumshift))))
+  (target-arch-case
+   (:ppc32
+    `(rlwinm. ,dest ,src 0 (- 32 ppc32::fixnumshift) (- 31 (+ ,width ppc32::fixnumshift))))
+   (:ppc64
+    `(rldicr. ,dest ,src (- 64 ppc64::fixnumshift) (- 63 ,width)))))
 
 
 
