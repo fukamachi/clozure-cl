@@ -188,8 +188,177 @@
   (blr))
 
 #+ppc64-target
-(eval-when (:compile-toplevel)
-  (warn "Missing #+ppc64-target %INIT-MISC"))
+(defppclapfunction %init-misc ((val arg_y)
+                               (miscobj arg_z))
+  (getvheader imm0 miscobj)
+  ;(extract-lowtag imm2 imm0)
+  (clrldi imm2 imm0 (- 64 ppc64::nlowtagbits))
+  (header-size imm3 imm0)
+  (cmpdi cr3 imm3 0)
+  (extract-fulltag imm1 imm0)
+  (cmpdi cr0 imm2 ppc64::lowtag-nodeheader)
+  (extract-lowbyte imm2 imm0)
+  (beqlr cr3)                           ; Silly 0-length case
+  (li imm4 ppc64::misc-data-offset)
+  (bne cr0 @imm)
+  ; Node vector.  Don't need to memoize, since initial value is
+  ; older than vector.
+  @node-loop
+  (cmpdi cr0 imm3 1)
+  (subi imm3 imm3 1)
+  (stdx val miscobj imm4)
+  (la imm4 ppc64::node-size imm4)
+  (bne cr0 @node-loop)
+  (blr)
+  @imm
+  (extract-typecode imm0 val)		
+  (cmpdi cr0 imm1 ppc64::ivector-class-64-bit)
+  (cmpdi cr1 imm1 ppc64::ivector-class-32-bit)
+  (cmpdi cr2 imm1 ppc64::ivector-class-8-bit)
+  (cmpwi cr7 imm0 ppc32::tag-fixnum)
+  (beq cr0 @64)
+  (beq cr1 @32)
+  (beq cr2 @8)
+  ;; u16, s16, or bit-vector.  Val must be a fixnum.
+  (cmpdi cr0 imm2 ppc32::subtag-u16-vector)
+  (cmpdi cr1 imm2 ppc32::subtag-s16-vector)
+  (bne cr7 @bad)                        ; not a fixnum
+  (beq cr0 @u16)
+  (beq cr1 @s16)
+  ; Bit vector.
+  (cmpldi cr0 val '1)
+  (la imm3 31 imm3)
+  (srdi imm3 imm3 5)
+  (unbox-fixnum imm0 val)
+  (neg imm0 imm0)
+  (ble+ cr0 @set-32)
+  @bad
+  (li arg_x '#.$xnotelt)
+  (save-lisp-context)
+  (set-nargs 3)
+  (call-symbol %err-disp)
+  @64
+  (cmpdi cr1 imm2 ppc64::subtag-double-float-vector)
+  (cmpdi cr2 imm2 ppc64::subtag-u64-vector)
+  (cmpdi cr3 imm0 ppc64::subtag-bignum)
+  (beq cr1 @dfloat)
+  (beq cr2 @u64)
+  ;; s64
+  (beq cr7 @set-64)                     ; all fixnums are (SIGNED-BYTE 64)
+  (bne cr3 @bad)                        ; as are 2-digit bignums
+  (getvheader imm1 val)
+  (ld imm0 ppc64::misc-data-offset val)
+  (cmpdi imm1 ppc64::two-digit-bignum-header)
+  (rotldi imm0 imm0 32)
+  (beq @set-64)
+  (b @bad)
+  ;; u64 if fixnum and positive, 2-digit bignum and positive, or
+  ;; 3-digit bignum with most-significant digit 0.
+  @u64
+  (cmpdi cr2 val 0)
+  (bne cr7 @u64-maybe-bignum)
+  (bge cr2 @set-64)
+  (b @bad)
+  @u64-maybe-bignum
+  (bne cr3 @bad)
+  (ld imm0 ppc64::misc-data-offset val)
+  (getvheader imm1 val)
+  (rotldi imm0 imm0 32)
+  (cmpdi cr2 imm1 ppc64::two-digit-bignum-header)
+  (cmpdi cr3 imm1 ppc64::three-digit-bignum-header)
+  (cmpdi cr0 imm0 0)
+  (beq cr2 @u32-two-digit)
+  (bne cr3 @bad)
+  (lwz imm1 (+ 8 ppc64::misc-data-offset) val)
+  (cmpwi imm0 0)
+  (beq @set-64)
+  (b @bad)
+  @u32-two-digit
+  (bgt cr0 @set-64)
+  (b @bad)
+  @dfloat
+  (cmpdi cr0 imm0 ppc64::subtag-double-float)
+  (bne- cr0 @bad)
+  (ld imm0 ppc64::double-float.value val)
+  (b @set-64)
+  @32
+  (cmpdi cr2 imm0 ppc64::subtag-s32-vector)
+  (cmpdi cr0 imm2 ppc64::subtag-single-float-vector)
+  (beq cr2 @s32)
+  (bne cr0 @u32)
+  ;@sfloat
+  (cmpdi cr0 imm0 ppc64::subtag-single-float)
+  (srdi imm0 val 32)
+  (bne- cr0 @bad)
+  (b @set-32)
+  @s32
+  ;; Must be a fixnum (and a (SIGNED-BYTE 32)).
+  (bne cr7 @bad)
+  (unbox-fixnum imm0 val)
+  (sldi imm1 imm0 32)
+  (sradi imm1 imm1 32)
+  (cmpd imm1 imm0)
+  (bne @bad)
+  (b @set-32)
+  @u32
+  ;; Also has to be a fixnum (and an (UNSIGNED-BYTE 32)).
+  (unbox-fixnum imm0 val)
+  (clrrdi. imm1 imm0 32)                ; ~Z if any high bits set
+  (bne cr7 @bad)
+  (bne cr0 @bad)
+  (b @set-32)
+  @u16
+  (unbox-fixnum imm0 val)
+  (clrrdi. imm1 imm0 16)
+  (bne cr7 @bad)
+  (bne cr0 @bad)
+  (b @set-16)
+  @s16
+  (sldi imm0 val (- 64 (+ 16 ppc64::fixnumshift)))
+  (srawi imm0 imm0 (- 64 (+ 16 ppc64::fixnumshift)))
+  (cmpw cr0 imm0 val)
+  (unbox-fixnum imm0 val)
+  (bne- cr7 @bad)
+  (beq+ cr0 @set-16)
+  (b @bad)
+  @8
+  (cmpdi cr2 imm0 ppc64::subtag-simple-base-string)
+  (cmpdi cr0 imm0 ppc32::subtag-s8-vector)
+  (beq cr2 @char8)                      ; ppc32::max-8-bit-ivector-subtag
+  (beq cr0 @s8)
+  (extract-unsigned-byte-bits. imm0 val 8)
+  (unbox-fixnum imm0 val)
+  (beq+ cr0 @set-8)
+  (b @bad)
+  @s8
+  (sldi imm0 val (- 64 (+ 8 ppc64::fixnumshift)))
+  (sradi imm0 imm0 (- 64 (+ 8 ppc64::fixnumshift)))
+  (cmpd cr0 imm0 val)
+  (unbox-fixnum imm0 val)
+  (bne- cr7 @bad)
+  (beq+ cr0 @set-8)
+  (b @bad)
+  @char8
+  (unbox-base-char imm0 val cr0)   ; this type checks val
+  @set-8                                ; propagate low 8 bits into low 16
+  (la imm3 1 imm3)
+  (rlwimi imm0 imm0 8 (- 32 16) (- 31 8))
+  (srdi imm3 imm3 1)
+  @set-16                               ; propagate low 16 bits into high 16
+  (la imm3 1 imm3)
+  (rlwimi imm0 imm0 16 0 (- 31 16))
+  (srdi imm3 imm3 1) 
+  @set-32                               ; propagate low 32 bits into high 32
+  (la imm3 1 imm3)
+  (rldimi imm0 imm0 32 0)
+  (srdi imm3 imm3 1)
+  @set-64
+  (cmpdi cr0 imm3 1)
+  (subi imm3 imm3 1)
+  (stdx imm0 miscobj imm4)
+  (la imm4 8 imm4)
+  (bne cr0 @set-64)
+  (blr))
 
 ;;; Make a new vector of size newsize whose subtag matches that of oldv-arg.
 ;;; Blast the contents of the old vector into the new one as quickly as
@@ -252,21 +421,21 @@
     (ble cr1 @8-bit)
     (ble cr0 @16-bit)
     (beq cr2 @1-bit)
-    ; 64-bit (double-float) vectors.  There's a different
-    ; initial offset, but we're always word-aligned, so that
-    ; part's easy.
+    ;; 64-bit (double-float) vectors.  There's a different
+    ;; initial offset, but we're always word-aligned, so that
+    ;; part's easy.
     (li imm1 ppc32::misc-dfloat-offset)   ; scaled destination pointer
     (slwi imm2 imm2 1)                  ; twice as many fullwords
     (slwi imm3 imm3 3)                  ; convert dword count to byte offset
     (la imm4 ppc32::misc-dfloat-offset imm3)      ; scaled source pointer
     (b @fullword-loop)
-    ; The bitvector case is hard if START-OFFSET isn't on an 8-bit boundary,
-    ;  and can be turned into the 8-bit case otherwise.
-    ; The 8-bit case is hard if START-OFFSET isn't on a 16-bit boundary, 
-    ;  and can be turned into the 16-bit case otherwise.
-    ; The 16-bit case is hard if START-OFFSET isn't on a 32-bit boundary, 
-    ;  and can be turned into the 32-bit case otherwise.
-    ; Hmm.
+    ;; The bitvector case is hard if START-OFFSET isn't on an 8-bit boundary,
+    ;;  and can be turned into the 8-bit case otherwise.
+    ;; The 8-bit case is hard if START-OFFSET isn't on a 16-bit boundary, 
+    ;;  and can be turned into the 16-bit case otherwise.
+    ;; The 16-bit case is hard if START-OFFSET isn't on a 32-bit boundary, 
+    ;;  and can be turned into the 32-bit case otherwise.
+    ;; Hmm.
     @1-bit
     (clrlwi. imm0 imm3 (- 32 3))
     (bne- cr0 @hard-1-bit)
