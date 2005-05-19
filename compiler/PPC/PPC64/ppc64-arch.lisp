@@ -577,8 +577,11 @@
   `(defconstant ,name (logior (ash ,element-count num-subtag-bits) ,subtag)))
 
 (define-header double-float-header double-float.element-count subtag-double-float)
-(define-header one-digit-bignum-header 1 subtag-bignum)
+;;; Since we're using 32-bit bignum digits, there's no such thing as
+;;; a one-digit bignum header.  (A 64-bit value that overflows a fixnum
+;;; needs 2 or 3 32-bit digits to be represented in a bignum.)
 (define-header two-digit-bignum-header 2 subtag-bignum)
+(define-header three-digit-bignum-header 3 subtag-bignum)
 (define-header symbol-header symbol.element-count subtag-symbol)
 (define-header value-cell-header value-cell.element-count subtag-value-cell)
 (define-header macptr-header macptr.element-count subtag-macptr)
