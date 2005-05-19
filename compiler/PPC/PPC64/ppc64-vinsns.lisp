@@ -991,7 +991,7 @@
 			      ((crf0 (:crf 0))))
   ;; The bottom ppc64::fixnumshift bits and the top (- 63 (+
   ;; ppc64::fixnumshift 8)) must all be zero.
-  (rldicr. dest src (- 64 ppc64::fixnumshift) 47)
+  (rldicr. dest src (- 64 ppc64::fixnumshift) 55)
   (srdi dest src ppc64::fixnumshift)
   (beq+ crf0 :got-it)
   (uuo_interr arch::error-object-not-unsigned-byte-8 src)
