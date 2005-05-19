@@ -110,7 +110,12 @@
         (if new-policy (require-type new-policy 'compiler-policy) (new-compiler-policy))))
 
 (defun xcompile-lambda (target def)
-  (let* ((*ppc2-debug-mask* (ash 1 ppc2-debug-vinsns-bit)))
+  (let* ((*ppc2-debug-mask* (ash 1 ppc2-debug-vinsns-bit))
+         (backend (find-backend target))
+         (*target-ftd* (if backend
+                         (backend-target-foreign-type-data backend)
+                         *target-ftd*)))
+    (format t "~& *target-fd* = ~s" *target-ftd*)
     (multiple-value-bind (xlfun warnings)
         (compile-named-function def nil
                                 nil
