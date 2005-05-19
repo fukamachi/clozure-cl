@@ -29,7 +29,9 @@
   `(progn
     (setf (gethash ',name (ftd-syscalls *target-ftd*))
      (make-syscall :idx ,idx
-      :arg-specs ',arg-specs :result-spec ',result-spec :min-args ,min-args))
+      :arg-specs ',(mapcar #'foreign-type-to-representation-type arg-specs)
+      :result-spec ',(foreign-type-to-representation-type result-spec)
+      :min-args ,min-args))
     ',name))
 
 (defmacro syscall (name &rest args)
