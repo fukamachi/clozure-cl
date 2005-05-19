@@ -374,6 +374,8 @@
              (:unsigned-char '(:unsigned 8))
              (:short '(:signed 16))
              (:unsigned-short '(:unsigned 16))
+             (:unsigned-long-long-long '(:unsigned 128))
+             (:signed-long-long-long '(:signed 128))
              (:int '(:signed 32))
              (:long (ecase (getf (ftd-attributes *parse-ffi-target-ftd*)
                                 :bits-per-word)
