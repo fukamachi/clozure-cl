@@ -1,3 +1,32 @@
+2005-05-19 02:02  gb
+
+	* lib/compile-ccl.lisp: Compiler backend stuff.
+
+2005-05-19 02:02  gb
+
+	* lib/foreign-types.lisp: Record types passed by address on Linux
+	(and any other sane ABI.) Integer encoding is in natural-sized
+	words (32/64) when ABI is not sane.
+
+2005-05-19 02:00  gb
+
+	* library/darwin-syscalls.lisp: A few things (at least a few of
+	those that we know about) take/return :LONG or :UNSIGNED-LONG.
+
+2005-05-19 01:59  gb
+
+	* library/syscall.lisp: Pass args/results through
+	FOREIGN-TYPE-TO-REPRESENTATION-TYPE (to handle things like :LONG,
+	etc.)
+
+2005-05-19 01:58  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Fix UNBOX-S32.
+
+2005-05-19 01:58  gb
+
+	* compiler/PPC/ppc2.lisp: :signed/unsigned-HALFword.
+
 2005-05-18 23:35  gb
 
 	* compiler/nx.lisp: Remove FORMAT call.
