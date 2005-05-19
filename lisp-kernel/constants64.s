@@ -468,7 +468,6 @@ define([def_header],[
 $1 = ($2<<num_subtag_bits)|$3])
 
 	def_header(double_float_header,double_float.element_count,subtag_double_float)
-	def_header(one_digit_bignum_header,1,subtag_bignum)
 	def_header(two_digit_bignum_header,2,subtag_bignum)
 	def_header(three_digit_bignum_header,3,subtag_bignum)
 	def_header(symbol_header,symbol.element_count,subtag_symbol)
