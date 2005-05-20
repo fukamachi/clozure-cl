@@ -2,8 +2,9 @@
 *ccl*
 *boot
 *.pfsl
-*.sfsl
+*.p64fsl
 *.dfsl
+*.d64fsl
 .gdb*
 *.image
 README*
