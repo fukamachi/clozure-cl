@@ -1483,9 +1483,9 @@
 (define-compiler-macro listp (n)
   (target-arch-case
    (:ppc32 `(eql (lisptag ,n) #.ppc32::tag-list))
-   (:ppc64 (let ((n (gensym)))
-             `(let* ((,n ,n))
-               (if ,n (consp ,n) t))))))
+   (:ppc64 (let ((nvar (gensym)))
+             `(let* ((,nvar ,n))
+               (if ,nvar (consp ,nvar) t))))))
 
 (define-compiler-macro consp (n)
   `(eql (fulltag ,n) ,(target-arch-case (:ppc32 ppc32::fulltag-cons)
