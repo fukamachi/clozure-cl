@@ -68,7 +68,7 @@
   ;;        N < bufsize: success, string is of length n
   ;;        N > bufsize: buffer needs to be larger.
   #+linuxppc-target
-  (syscall os::getcwd buf bufsize)	; which is exactly what Linux does
+  (syscall syscalls::getcwd buf bufsize)	; which is exactly what Linux does
   #+darwinppc-target
   (let* ((p (#_getcwd buf bufsize)))
     (declare (dynamic-extent p))
@@ -107,7 +107,7 @@
 
 (defun %chdir (dirname)
   (with-cstrs ((dirname dirname))
-    (syscall os::chdir dirname)))
+    (syscall syscalls::chdir dirname)))
 
 (defun %mkdir (name mode)
   (let* ((last (1- (length name))))
@@ -115,7 +115,7 @@
       (when (and (>= last 0)
 		 (eql (%get-byte name last) (char-code #\/)))
 	(setf (%get-byte name last) 0))
-    (syscall os::mkdir name mode))))
+    (syscall syscalls::mkdir name mode))))
 
 (defun getenv (key)
   (with-cstrs ((key (string key)))
@@ -132,10 +132,10 @@
     (#_setenv ckey cvalue (if overwrite 1 0))))
 
 (defun setuid (uid)
-  (syscall os::setuid uid))
+  (syscall syscalls::setuid uid))
 
 (defun setgid (uid)
-  (syscall os::setgid uid))
+  (syscall syscalls::setgid uid))
   
 
 ;;; On Linux, "stat" & friends are implemented in terms of deeper,
@@ -164,7 +164,7 @@
      #+linuxppc-target
      (#_ __xstat #$_STAT_VER_LINUX cname stat)
      #+darwinppc-target
-     (syscall os::stat cname stat)
+     (syscall syscalls::stat cname stat)
      stat)))
 
 (defun %%fstat (fd stat)
@@ -172,7 +172,7 @@
    #+linuxppc-target
    (#_ __fxstat #$_STAT_VER_LINUX fd stat)
    #+darwinppc-target
-   (syscall os::fstat fd stat)
+   (syscall syscalls::fstat fd stat)
    stat))
 
 (defun %%lstat (name stat)
@@ -181,7 +181,7 @@
      #+linuxppc-target
      (#_ __lxstat #$_STAT_VER_LINUX cname stat)
      #+darwinppc-target
-     (syscall os::lstat cname stat)
+     (syscall syscalls::lstat cname stat)
      stat)))
 
 
@@ -227,7 +227,7 @@
 #+linuxppc-target
 (defun %uname (idx)
   (%stack-block ((buf (* 65 6)))  
-    (%uts-string (syscall os::uname buf) idx buf)))
+    (%uts-string (syscall syscalls::uname buf) idx buf)))
 
 #+darwinppc-target
 (defun %uname (idx)
@@ -235,16 +235,16 @@
     (%uts-string (#_uname buf) idx buf)))
 
 (defun fd-dup (fd)
-  (syscall os::dup fd))
+  (syscall syscalls::dup fd))
 
 (defun fd-fsync (fd)
-  (syscall os::fsync fd))
+  (syscall syscalls::fsync fd))
 
 (defun fd-get-flags (fd)
-  (syscall os::fcntl fd #$F_GETFL))
+  (syscall syscalls::fcntl fd #$F_GETFL))
 
 (defun fd-set-flags (fd new)
-  (syscall os::fcntl fd #$F_SETFL new))
+  (syscall syscalls::fcntl fd #$F_SETFL new))
 
 (defun fd-set-flag (fd mask)
   (let* ((old (fd-get-flags fd)))
@@ -296,10 +296,10 @@
 
 #-darwinppc-target
 (defun %%rusage (usage &optional (who #$RUSAGE_SELF))
-  (syscall os::getrusage who usage))
+  (syscall syscalls::getrusage who usage))
 #+darwinppc-target
 (defun %%rusage (usage &optional (who #$RUSAGE_SELF))
-  (syscall os::getrusage who usage)
+  (syscall syscalls::getrusage who usage)
   (rlet ((count :natural_t #$TASK_THREAD_TIMES_INFO_COUNT))
     (#_task_info (#_mach_task_self) #$TASK_THREAD_TIMES_INFO usage count)))
     
@@ -354,10 +354,10 @@
   (#_tcgetpgrp fd))
 
 (defun getpid ()
-  (syscall os::getpid))
+  (syscall syscalls::getpid))
 
 (defun getuid ()
-  (syscall os::getuid))
+  (syscall syscalls::getuid))
 
 (defun get-user-home-dir (userid)
   (with-macptrs ((pw (#_getpwuid userid)))
@@ -367,7 +367,7 @@
 
 (defun %delete-file (name)
   (with-cstrs ((n name))
-    (syscall os::unlink n)))
+    (syscall syscalls::unlink n)))
 
 (defun os-command (string)
   (with-cstrs ((s string))
@@ -488,14 +488,14 @@
 #+linuxppc-target
 (defun pipe ()
   (%stack-block ((pipes 8))
-    (let* ((status (syscall os::pipe pipes)))
+    (let* ((status (syscall syscalls::pipe pipes)))
       (if (= 0 status)
 	(values (%get-long pipes 0) (%get-long pipes 4))
 	(%errno-disp status)))))
 
 #+darwinppc-target
 (defun pipe ()
-  (let* ((ans (syscall os::pipe)))
+  (let* ((ans (syscall syscalls::pipe)))
     (if (< ans 0)
       (%errno-disp ans nil)
       (values (ldb (byte 32 32) ans) (ldb (byte 32 0) ans)))))
@@ -870,7 +870,7 @@
 (defun signal-external-process (proc signal)
   (require-type proc 'external-process)
   (let* ((pid (external-process-pid proc))
-	 (error (syscall os::kill pid signal)))
+	 (error (syscall syscalls::kill pid signal)))
     (or (eql error 0)
 	(%errno-disp error))))
 

@@ -2062,7 +2062,7 @@
 (defun unread-data-available-p (fd)
   (%stack-block ((arg 4))
     (setf (%get-long arg) 0)
-    (when (zerop (syscall os::ioctl fd #$FIONREAD arg))
+    (when (zerop (syscall syscalls::ioctl fd #$FIONREAD arg))
       (let* ((avail (%get-long arg)))
 	(and (> avail 0) avail)))))
 
@@ -2158,7 +2158,7 @@
       (fd-zero errfds)
       (fd-set fd infds)
       (fd-set fd errfds)
-      (let* ((res (syscall os::select (1+ fd) infds (%null-ptr) errfds
+      (let* ((res (syscall syscalls::select (1+ fd) infds (%null-ptr) errfds
                            (if ticks tv (%null-ptr)))))
         (> res 0)))))
 

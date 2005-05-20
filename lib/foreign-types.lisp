@@ -52,7 +52,6 @@
   (interface-db-directory ())
   (interface-package-name ())
   (external-function-definitions (make-hash-table :test #'eq))
-  (syscalls (make-hash-table :test #'eq))
   (dirlist (make-dll-header))
   (attributes ()))
 

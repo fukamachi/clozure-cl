@@ -24,17 +24,17 @@
 
 ; write nbytes bytes from buffer buf to file-descriptor fd.
 (defun fd-write (fd buf nbytes)
-  (syscall os::write fd buf nbytes))
+  (syscall syscalls::write fd buf nbytes))
 
 (defun fd-read (fd buf nbytes)
-  (syscall os::read fd buf nbytes))
+  (syscall syscalls::read fd buf nbytes))
 
 (defun fd-open (path flags &optional (create-mode #o666))
   (with-cstrs ((p path))
-    (syscall os::open p flags create-mode)))
+    (syscall syscalls::open p flags create-mode)))
 
 (defun fd-chmod (fd mode)
-  (syscall os::fchmod fd mode))
+  (syscall syscalls::fchmod fd mode))
 
 ;;; This should really be conditionalized on whether the seek system
 ;;; call supports 64-bit offsets or on whether one has to use some
@@ -45,7 +45,7 @@
 	 (low (ldb (byte 32 0) offset)))
     (declare (type (unsigned-byte 32) high low))
     (%stack-block ((pos 8))
-      (let* ((res (syscall os::_llseek fd high low pos whence)))
+      (let* ((res (syscall syscalls::_llseek fd high low pos whence)))
 	(declare (fixnum res))
 	(if (< res 0)
 	  res
@@ -58,10 +58,10 @@
 
 #-linuxppc-target
 (defun fd-lseek (fd offset whence)
-  (syscall os::lseek fd offset whence))
+  (syscall syscalls::lseek fd offset whence))
 
 (defun fd-close (fd)
-  (syscall os::close fd)) 
+  (syscall syscalls::close fd)) 
 
 (defun fd-tell (fd)
   (fd-lseek fd 0 #$SEEK_CUR))
@@ -76,7 +76,7 @@
        (fd-lseek fd curpos #$SEEK_SET)))))
 
 (defun fd-ftruncate (fd new)
-  (syscall os::ftruncate fd new))
+  (syscall syscalls::ftruncate fd new))
 
 (defun %string-to-stderr (str)
   (with-cstrs ((s str))
