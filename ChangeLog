@@ -1,3 +1,19 @@
+2005-05-20 07:38  gb
+
+	* level-1/version.lisp: 050520b.
+
+2005-05-20 07:38  gb
+
+	* level-0/l0-io.lisp, level-1/l1-sockets.lisp,
+	level-1/l1-streams.lisp, level-1/linux-files.lisp,
+	lib/foreign-types.lisp, library/darwin-syscalls.lisp,
+	library/linux-syscalls.lisp, library/syscall.lisp: System calls
+	defined in OS-specific hash tables, not in the FTD.  System call
+	indices are in the "SYSCALLS" package, not "OS".  (These changes
+	make it a little easier to cross-compile between different
+	architectures on the same OS, and perhaps a little more awkward to
+	cross-compile between OSes.)
+
 2005-05-20 04:18  gb
 
 	* lib/macros.lisp: TARGET-OS-CASE.
