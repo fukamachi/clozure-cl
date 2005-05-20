@@ -20,12 +20,7 @@
 
 (defstruct (interface-dir
 	     (:include dll-node)
-	     (:print-object
-	      (lambda (d stream)
-		(print-unreadable-object (d stream :type t :identity t)
-		  (format stream "~s ~s"
-			  (interface-dir-name d)
-			  (interface-dir-subdir d))))))
+	    )
   (name)
   (subdir)
   (constants-interface-db-file)
@@ -36,6 +31,11 @@
   (objc-classes-interface-db-file)
   (objc-methods-interface-db-file))
 
+(defmethod print-object ((d interface-dir) stream)
+  (print-unreadable-object (d stream :type t :identity t)
+    (format stream "~s ~s"
+            (interface-dir-name d)
+            (interface-dir-subdir d))))
   
 ;;; This is intended to try to encapsulate foreign type stuff, to
 ;;; ease cross-compilation (among other things.)
@@ -129,11 +129,7 @@
           ((> bits 1) 8)
           (t 1)))
 
-  (defstruct (foreign-type-class
-	       (:print-object
-		(lambda (f out)
-		  (print-unreadable-object (f out :type t :identity t)
-		    (prin1 (foreign-type-class-name f) out)))))
+  (defstruct foreign-type-class
     (name nil :type symbol)
     (include nil :type (or null foreign-type-class))
     (unparse nil :type (or null function))
@@ -217,6 +213,10 @@
     (cdr (or (assoc method method-slot-alist)
              (error "No method ~S" method))))
   )
+
+(defmethod print-object ((f foreign-type-class) out)
+  (print-unreadable-object (f out :type t :identity t)
+    (prin1 (foreign-type-class-name f) out)))
 
 
 ;;; We define a keyword "BOA" constructor so that we can reference the slots
@@ -1113,95 +1113,6 @@
 	      (foreign-values-type-values type2))))
 
 
-
-;;;; Foreign variables.
-
-;;; HEAP-FOREIGN-INFO -- defstruct.
-;;;
-;;; Information describing a heap-allocated foreign.
-;;; 
-(defstruct (heap-foreign-info
-	     (:print-object
-	      (lambda (info stream)
-		(print-unreadable-object (info stream :type t)
-		  (funcall (formatter "~S ~S")
-			   stream
-			   (heap-foreign-info-sap-form info)
-			   (unparse-foreign-type (heap-foreign-info-type info)))))))
-  ;; The type of this foreign.
-  (type () :type foreign-type)
-  ;; The form to evaluate to produce the SAP pointing to where in the heap
-  ;; it is.
-  (sap-form ()))
-
-
-;;;
-
-
-(defmethod make-load-form ((h heap-foreign-info) &optional env)
-  (make-load-form-saving-slots h :environment env))
-
-;;; LOCAL-FOREIGN-INFO -- public defstruct.
-;;;
-;;; Information about local foreigns.  The WITH-FOREIGN macro builds one of these
-;;; structures and local-foreign and friends comunicate information about how
-;;; that local foreign is represented.
-;;; 
-(defstruct (local-foreign-info
-	     (:constructor make-local-foreign-info (&key type force-to-memory-p))
-	     (:print-object
-	      (lambda (info stream)
-		(print-unreadable-object (info stream :type t)
-		  (funcall (formatter "~:[~;(forced to stack) ~]~S")
-			   stream
-			   (local-foreign-info-force-to-memory-p info)
-			   (unparse-foreign-type (local-foreign-info-type info)))))))
-  ;; The type of the local foreign.
-  (type () :type foreign-type)
-  ;; T if this local foreign must be forced into memory.  Using the ADDR macro
-  ;; on a local foreign will set this.
-  (force-to-memory-p (or (foreign-array-type-p type) (foreign-record-type-p type))
-		     :type (member t nil)))
-;;;
-
-
-(defmethod make-load-form ((l local-foreign-info) &optional env)
-  (make-load-form-saving-slots l :environment env))
-
-;;; GUESS-FOREIGN-NAME-FROM-LISP-NAME -- internal.
-;;;
-;;; Make a string out of the symbol, converting all uppercase letters to
-;;; lower case and hyphens into underscores.
-;;; 
-(defun guess-foreign-name-from-lisp-name (lisp-name)
-  (declare (type symbol lisp-name))
-  (nsubstitute #\_ #\- (string-downcase (symbol-name lisp-name))))
-
-;;; GUESS-LISP-NAME-FROM-FOREIGN-NAME -- internal.
-;;;
-;;; The opposite of GUESS-FOREIGN-NAME-FROM-LISP-NAME.  Make a symbol out of the
-;;; string, converting all lowercase letters to uppercase and underscores into
-;;; hyphens.
-;;;
-(defun guess-lisp-name-from-foreign-name (foreign-name)
-  (declare (type simple-string foreign-name))
-  (intern (nsubstitute #\- #\_ (string-upcase foreign-name))))
-
-;;; PICK-LISP-AND-FOREIGN-NAMES -- internal.
-;;;
-;;; Extract the lisp and foreign names from NAME.  If only one is given, guess
-;;; the other.
-;;; 
-(defun pick-lisp-and-foreign-names (name)
-  (etypecase name
-    (string
-     (values (guess-lisp-name-from-foreign-name name) name))
-    (symbol
-     (values name (guess-foreign-name-from-lisp-name name)))
-    (list
-     (unless (= (length name) 2)
-       (error "Badly formed foreign name."))
-     (values (cadr name) (car name)))))
 
 
 ;;;; The FOREIGN-SIZE macro.
