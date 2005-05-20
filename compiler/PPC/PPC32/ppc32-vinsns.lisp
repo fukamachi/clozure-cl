@@ -2500,14 +2500,14 @@
   (rlwinm temp src (:apply - 32 count) count 31)
   (clrrwi dest temp ppc32::fixnumshift))
 
-(define-ppc32-vinsn u32-shift-left (((dest :u32))
-                                    ((src :u32)
-                                     (count :u8const)))
+(define-ppc32-vinsn natural-shift-left (((dest :u32))
+                                        ((src :u32)
+                                         (count :u8const)))
   (rlwinm dest src count 0 (:apply - 31 count)))
 
-(define-ppc32-vinsn u32-shift-right (((dest :u32))
-                                     ((src :u32)
-                                      (count :u8const)))
+(define-ppc32-vinsn natural-shift-right (((dest :u32))
+                                         ((src :u32)
+                                          (count :u8const)))
   (rlwinm dest src (:apply - 32 count) count 31))
 
 (define-ppc32-vinsn sign-extend-halfword (((dest :imm))
