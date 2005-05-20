@@ -81,7 +81,7 @@ Will differ from *compiling-file* during an INCLUDE")
       (dolist (f features)
 	(unless (memq f nope) (pushnew f new)))
       (dolist (f (backend-target-specific-features backend)
-	       (progn (pushnew :cross-compiling new)new))
+	       (progn (pushnew :cross-compiling new) new))
 	(pushnew f new)))))
 
 (defun compile-file-pathname (pathname &rest ignore &key output-file &allow-other-keys)
@@ -1200,10 +1200,10 @@ Will differ from *compiling-file* during an INCLUDE")
      (fasl-dump-32-bit-ivector exp $fasl-single-float-vector))
     ((simple-array double-float (*))
      (fasl-dump-double-float-vector exp))
-    #+ppc64-target
+    #+(and ppc64-target (not cross-compiling))
     ((simple-array (unsigned-byte 64) (*))
      (fasl-dump-64-bit-ivector v $fasl-u64-vector))
-    #+ppc64-target
+    #+(and ppc64-target (not cross-compiling))
     ((simple-array (signed-byte 64) (*))
      (fasl-dump-64-bit-ivector v $fasl-s64-vector))
     (symbol (fasl-dump-symbol exp))
@@ -1327,7 +1327,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fasl-dump-codevector (c)
   (if (and (not (eq *fasl-backend* *host-backend*))
            (typep c 'code-vector))
-    (break "Dumping a native function constant ~s during cross-compilation." c))
+    (break "Dumping a native code-vector constant ~s during cross-compilation." c))
   (let* ((n (uvsize c)))
     (fasl-out-opcode $fasl-code-vector c)
     (fasl-out-count n)
@@ -1570,6 +1570,50 @@ Will differ from *compiling-file* during an INCLUDE")
 	  (when (and created? (not finished?))
 	    (delete-file out-file))))
       out-file)))
+
+;;; Cross-compilation environment stuff.  Some of this involves
+;;; setting up the TARGET and OS packages.
+(defun ensure-package-nickname (name package)
+  (let* ((old (find-package name)))
+    (unless (eq old package)
+      (rename-package old (package-name old) (delete name (package-nicknames old) :test #'string=))
+      (rename-package package (package-name package) (cons name (package-nicknames package)))
+      old)))
+
+(defmacro with-cross-compilation-package ((name target) &body body)
+  (let* ((old-package (gensym))
+         (name-var (gensym))
+         (target-var (gensym)))
+    `(let* ((,name-var ,name)
+            (,target-var ,target)
+            (,old-package (ensure-package-nickname ,name-var ,target-var)))
+      (unwind-protect
+           (progn ,@body)
+        (when ,old-package (ensure-package-nickname ,name-var
+                                                          ,old-package))))))
+
+(defun %with-cross-compilation-target (target thunk)
+  (let* ((backend (find-backend target)))
+    (if (null backend)
+      (error "No known compilation target named ~s." target)
+      (let* ((arch (backend-target-arch backend))
+             (arch-package-name (arch::target-package-name arch))
+             (ftd (backend-target-foreign-type-data backend))
+             (ftd-package-name (ftd-interface-package-name ftd)))
+        (or (find-package arch-package-name)
+            (make-package arch-package-name))
+        (or (find-package ftd-package-name)
+            (make-package ftd-package-name :use "COMMON-LISP"))
+        (with-cross-compilation-package ("OS" ftd-package-name)
+          (with-cross-compilation-package ("TARGET" arch-package-name)
+            (let* ((*target-ftd* ftd))
+              (funcall thunk))))))))
+
+(defmacro with-cross-compilation-target ((target) &body body)
+  `(%with-cross-compilation-target ,target #'(lambda () ,@body)))
+             
+
+  
 
 (provide 'nfcomp)
 
