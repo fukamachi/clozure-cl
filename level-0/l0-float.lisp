@@ -831,7 +831,11 @@
 (defun fsqrt (x)
   (etypecase x
     (double-float (%double-float-sqrt! x (%make-dfloat)))
-    (single-float (%single-float-sqrt! x (%make-sfloat)))))
+    (single-float
+     #+ppc32-target
+     (%single-float-sqrt! x (%make-sfloat))
+     #+ppc64-target
+     (%single-float-sqrt x))))
 
 
 
