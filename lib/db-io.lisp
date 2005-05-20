@@ -393,7 +393,7 @@
                   (if (eql version *interface-abi-version*)
                     cdb
                     (error-with-cdb "Wrong interface ABI version."))
-                  (error-with-cdb "Wrong target."))
+                  cdb #+nil(error-with-cdb "Wrong target."))
                 (error-with-cdb "Missing interface file signature.  Obsolete version?")))))))))
 
                   
