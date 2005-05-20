@@ -624,8 +624,11 @@
     (/ (- (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
       (%double-float-sinh! x (%make-dfloat))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
-	(%single-float-sinh! sx (%make-sfloat))))))
+	(%single-float-sinh! sx (%make-sfloat)))
+      #+ppc64-target
+        (%single-float-sinh (%single-float x.0f0)))))
 
 
 (defun cosh (x)
@@ -634,8 +637,11 @@
     (/ (+ (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
       (%double-float-cosh! x (%make-dfloat))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
-	(%single-float-cosh! sx (%make-sfloat))))))
+	(%single-float-cosh! sx (%make-sfloat)))
+      #+ppc64-target
+      (%single-float-cosh (%short-float x)))))
 
 (defun tanh (x)
   "Return the hyperbolic tangent of NUMBER."
@@ -643,8 +649,11 @@
     (/ (sinh x) (cosh x))
     (if (typep x 'double-float)
       (%double-float-tanh! x (%make-dfloat))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
-	(%single-float-tanh! sx (%make-sfloat))))))
+	(%single-float-tanh! sx (%make-sfloat)))
+      #+ppc64-target
+      (%single-float-tanh (%short-float x)))))
 
 (defun asinh (x)
   "Return the hyperbolic arc sine of NUMBER."
@@ -652,16 +661,22 @@
     (log (+ x (sqrt (+ 1 (* x x)))))
     (if (typep x 'double-float)
       (%double-float-asinh! x (%make-dfloat))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
-	(%single-float-asinh! sx (%make-sfloat))))))
+	(%single-float-asinh! sx (%make-sfloat)))
+      #+ppc64-target
+      (%single-float-asinh (%short-float x)))))
 
 (defun acosh (x)
   "Return the hyperbolic arc cosine of NUMBER."
   (if (and (realp x) (<= 1.0 x))
     (if (typep x 'double-float)
       (%double-float-acosh! x (%make-dfloat))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
-	(%single-float-acosh! sx (%make-sfloat))))
+	(%single-float-acosh! sx (%make-sfloat)))
+      #+ppc64-target
+      (%single-float-acosh (%single-float x)))
     (* 2 (log (+ (sqrt (/ (1+ x) 2)) (sqrt (/ (1- x) 2)))))))
 
 (defun atanh (x)
@@ -669,7 +684,10 @@
   (if (and (realp x) (<= -1.0 (setq x (float x)) 1.0))
     (if (typep x 'double-float)
       (%double-float-atanh! x (%make-dfloat))
-      (%single-float-atanh! x (%make-sfloat)))
+      #+ppc32-target
+      (%single-float-atanh! x (%make-sfloat))
+      #+ppc64-target
+      (%single-float-atanh x))
     (/ (log (/ (+ 1 x) (- 1 x))) 2)))
 
 
