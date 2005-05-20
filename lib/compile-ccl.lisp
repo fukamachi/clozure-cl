@@ -130,12 +130,6 @@
   (append *other-lib-modules*
 	  (case target
 	    ((:ppc32 :ppc64) '(ppc-disassemble)))))
-
-(defun target-compiler-modules (&optional
-				(target
-				 (backend-target-arch-name *target-backend*)))
-  (case target
-    ((:ppc32 :ppc64) *ppc-compiler-modules*)))
 	  
 
 (defun target-lib-modules (&optional (target
@@ -348,6 +342,10 @@
     (target-compile-modules (target-lib-modules arch) target force)
     (target-compile-modules *aux-modules* target force)
     (target-compile-modules *code-modules* target force)))
+
+(defun cross-compile-ccl (target &optional force)
+  (with-cross-compilation-target (target)
+    (target-xcompile-ccl target force)))
 
 
 (defun ppc-require-module (module force-load)
