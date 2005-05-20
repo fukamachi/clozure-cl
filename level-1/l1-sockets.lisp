@@ -16,7 +16,9 @@
 
 (in-package "CCL")
 
-;; basic socket API
+
+
+;;; basic socket API
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export '(MAKE-SOCKET
 	    ACCEPT-CONNECTION
@@ -46,6 +48,24 @@
 	    SOCKET-ERROR-IDENTIFIER
 	    SOCKET-ERROR-SITUATION
 	    WITH-OPEN-SOCKET)))
+
+;;; The PPC is big-endian (uses network byte order), which makes
+;;; things like #_htonl and #_htonl no-ops.  These functions aren't
+;;; necessarily defined as functions in some header files (I'm sure
+;;; that that either complies with or violates some C standard), and
+;;; it doesn't seem to make much sense to fight that to do ff-calls
+;;; to a couple of identity functions.
+
+#+ppc-target
+(progn
+  (defmacro HTONL (x) x)
+  (defmacro HTONS (x) x)
+  (defmacro NTOHL (x) x)
+  (defmacro NTOHS (x) x))
+  
+
+;;; On some (hypothetical) little-endian platform, we might want to
+;;; define HTONL and HTONS to actually swap bytes around.
 
 (defpackage "OPENMCL-SOCKET"
   (:use "CL")
@@ -318,8 +338,8 @@ conditions, based on the state of the arguments."
 	     (socket-call socket "getsockname" (c_getsockname fd sockaddr namelen))
 	     (when (= #$AF_INET (pref sockaddr :sockaddr_in.sin_family))
 	       (ecase type
-		 (:host (#_ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr)))
-		 (:port (#_ntohs (pref sockaddr :sockaddr_in.sin_port))))))))
+		 (:host (ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr)))
+		 (:port (ntohs (pref sockaddr :sockaddr_in.sin_port))))))))
 
 (defun path-from-unix-address (addr)
   (when (= #$AF_LOCAL (pref addr :sockaddr_un.sun_family))
@@ -354,8 +374,8 @@ conditions, based on the state of the arguments."
 		  (t
 		   (when (= #$AF_INET (pref sockaddr :sockaddr_in.sin_family))
 		     (ecase type
-		       (:host (#_ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr)))
-		       (:port (#_ntohs (pref sockaddr :sockaddr_in.sin_port)))))))))))
+		       (:host (ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr)))
+		       (:port (ntohs  (pref sockaddr :sockaddr_in.sin_port)))))))))))
 
 (defun remote-socket-filename (socket)
   (with-if (fd (socket-device socket))
@@ -725,8 +745,8 @@ conditions, based on the state of the arguments."
 		    (t 
 		     (subseq vec vec-offset (+ vec-offset ret-size))))
 	      ret-size
-	      (#_ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr))
-	      (#_ntohs (pref sockaddr :sockaddr_in.sin_port))))))
+	      (ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr))
+	      (ntohs (pref sockaddr :sockaddr_in.sin_port))))))
 
 (defmethod SHUTDOWN (socket &key direction)
   ;; TODO: should we ignore ENOTCONN error?  (at least make sure it
@@ -741,7 +761,7 @@ conditions, based on the state of the arguments."
 ;; order.  Protocol should be one of "tcp" or "udp".  Error if not known.
 (defun port-as-inet-port (port proto)
   (or (etypecase port
-	(fixnum (#_htons port))
+	(fixnum (htons port))
 	(string (_getservbyname port proto))
 	(symbol (_getservbyname (string-downcase (symbol-name port)) proto)))
       (socket-error nil "getservbyname" (- #$ENOENT))))
@@ -749,13 +769,13 @@ conditions, based on the state of the arguments."
 (defun LOOKUP-PORT (port proto)
   (if (fixnump port)
     port
-    (#_ntohs (port-as-inet-port port proto))))
+    (#+ppc-target progn #-ppc-target #_ntohs (port-as-inet-port port proto))))
 
 ;; Accepts host as specified by user, returns host number in network byte
 ;; order.
 (defun host-as-inet-host (host)
   (etypecase host
-    (integer (#_htonl host))
+    (integer (htonl host))
     (string (or (and (every #'(lambda (c) (position c ".0123456789")) host)
 		     (_inet_aton host))
 		(multiple-value-bind (addr err) (c_gethostbyname host)
@@ -765,13 +785,13 @@ conditions, based on the state of the arguments."
 
 (defun DOTTED-TO-IPADDR (name &key (errorp t))
   (let ((addr (_inet_aton name)))
-    (if addr (#_ntohl addr)
+    (if addr (ntohl addr)
       (and errorp (error "Invalid dotted address ~s" name)))))
     
 (defun LOOKUP-HOSTNAME (host)
   (if (typep host 'integer)
     host
-    (#_ntohl (host-as-inet-host host))))
+    (ntohl (host-as-inet-host host))))
 
 (defun IPADDR-TO-DOTTED (addr &key values)
   (if values
@@ -779,11 +799,11 @@ conditions, based on the state of the arguments."
 	      (ldb (byte 8 16) addr)
 	      (ldb (byte 8  8) addr)
 	      (ldb (byte 8  0) addr))
-    (_inet_ntoa (#_htonl addr))))
+    (_inet_ntoa (htonl addr))))
 
 (defun IPADDR-TO-HOSTNAME (ipaddr &key ignore-cache)
   (declare (ignore ignore-cache))
-  (multiple-value-bind (name err) (c_gethostbyaddr (#_htonl ipaddr))
+  (multiple-value-bind (name err) (c_gethostbyaddr (htonl ipaddr))
     (or name (socket-error nil "gethostbyaddr" err t))))
   
 
