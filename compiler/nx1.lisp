@@ -1189,11 +1189,22 @@
       ((:darwinppc32 :linuxppc64 :darwinppc64) (%nx1-operator poweropen-ff-call)))))
 
 (defnx1 nx1-syscall ((%syscall)) (idx &rest arg-specs-and-result-spec)
-   (nx1-ff-call-internal	
-    idx arg-specs-and-result-spec
-    (ecase (backend-name *target-backend*)
-      (:linuxppc32 (%nx1-operator linux-syscall))
-      (:darwinppc32 (%nx1-operator darwin-syscall)))))
+  (flet ((map-to-representation-types (list)
+           (collect ((out))
+             (do* ((l list (cddr l)))
+                  ((null (cdr l))
+                   (if l
+                     (progn
+                       (out (foreign-type-to-representation-type (car l)))
+                       (out))
+                     (error "Missing result type in ~s" list)))
+               (out (foreign-type-to-representation-type (car l)))
+               (out (cadr l))))))
+          (nx1-ff-call-internal	
+           idx (map-to-representation-types arg-specs-and-result-spec)
+           (ecase (backend-name *target-backend*)
+             (:linuxppc32 (%nx1-operator linux-syscall))
+             (:darwinppc32 (%nx1-operator darwin-syscall))))))
 
 (defun nx1-ff-call-internal (address-expression arg-specs-and-result-spec operator )
   (let* ((specs ())
