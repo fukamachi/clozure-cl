@@ -173,7 +173,7 @@
 	  #.ppc64::subtag-s64-vector
 	  #.ppc64::subtag-u64-vector)
 	 (%copy-ivector-to-ivector src
-				   (the fixnum ash start 3)
+				   (the fixnum (ash start 3))
 				   dest
 				   0
 				   (the fixnum (ash n 3))))
