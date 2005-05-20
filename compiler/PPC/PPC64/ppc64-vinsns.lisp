@@ -416,6 +416,11 @@
                                                   (index :s16const)))
   (ld dest index src))
 
+(define-ppc64-vinsn mem-ref-c-natural (((dest :u64))
+                                       ((src :address)
+                                        (index :s16const)))
+  (ld dest index src))
+
 (define-ppc64-vinsn mem-ref-fullword (((dest :u32))
 				      ((src :address)
 				       (index :s64)))
@@ -427,6 +432,11 @@
   (lwax dest src index))
 
 (define-ppc64-vinsn mem-ref-doubleword (((dest :u64))
+                                        ((src :address)
+                                         (index :s64)))
+  (ldx dest src index))
+
+(define-ppc64-vinsn mem-ref-natural (((dest :u64))
                                         ((src :address)
                                          (index :s64)))
   (ldx dest src index))
@@ -1048,14 +1058,16 @@
 						(sh :u32)))
   (srw dest src sh))
 
-(define-ppc64-vinsn u64logandc2 (((dest :u64))
-				 ((x :u64)
-				  (y :u64)))
+;;; These vinsns are used in bit extraction operations, which
+;;; currently do 32-bit memory references on both platforms.
+(define-ppc64-vinsn u32logandc2 (((dest :u32))
+				 ((x :u32)
+				  (y :u32)))
   (andc dest x y))
 
-(define-ppc64-vinsn u64logior (((dest :u64))
-			       ((x :u64)
-				(y :u64)))
+(define-ppc64-vinsn u32logior (((dest :u32))
+			       ((x :u32)
+				(y :u32)))
   (or dest x y))
 
 
@@ -1064,6 +1076,19 @@
 					((tag :u8)))
   (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
   (tdnei tag ppc64::tag-fixnum))
+
+(define-ppc64-vinsn trap-unless-character (()
+                                           ((object :lisp))
+                                           ((tag :u8)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::num-subtag-bits))
+  (tdnei tag ppc64::subtag-character))
+
+
+(define-ppc64-vinsn trap-unless-cons (()
+					((object :lisp))
+					((tag :u8)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (tdnei tag ppc64::fulltag-cons))
 
 (define-ppc64-vinsn trap-unless-list (()
 				      ((object :lisp))
@@ -2385,15 +2410,15 @@
   :foo  
   )
 
-(define-ppc64-vinsn u32-shift-left (((dest :u32))
-				    ((src :u32)
-				     (count :u8const)))
-  (rlwinm dest src count 0 (:apply - 31 count)))
+(define-ppc64-vinsn natural-shift-left (((dest :u64))
+                                        ((src :u64)
+                                         (count :u8const)))
+  (rldicr dest src count  (:apply - 63 count)))
 
-(define-ppc64-vinsn u32-shift-right (((dest :u32))
-				     ((src :u32)
-				      (count :u8const)))
-  (rlwinm dest src (:apply - 32 count) count 31))
+(define-ppc64-vinsn natural-shift-right (((dest :u64))
+                                         ((src :u64)
+                                          (count :u8const)))
+  (rldicr dest src (:apply - 64 count) count))
 
 (define-ppc64-vinsn sign-extend-halfword (((dest :imm))
 					  ((src :imm)))
@@ -2812,19 +2837,18 @@
      ((min-fixed :u16const))
      ((crfx :crf)
       (crfy :crf)
-      (entry-vsp (:u64 ppc::imm0))
+      (entry-vsp (:u64 #.ppc::imm0))
       (arg-temp :u64)))
   ((:pred >= min-fixed $numppcargregs)
    (stdu ppc::arg_x -8 ppc::vsp)
    (stdu ppc::arg_y -8 ppc::vsp)
    (stdu ppc::arg_z -8 ppc::vsp))
   ((:pred = min-fixed 2)                ; at least 2 args
-   (cmplwi crfx ppc::nargs (ash 2 ppc64::word-shift))
+   (cmpldi crfx ppc::nargs (ash 2 ppc64::word-shift))
    (beq crfx :yz2)                      ; skip arg_x if exactly 2
    (stdu ppc::arg_x -8 ppc::vsp)
    :yz2
-   (stdu ppc::arg_y -8
-	 ppc::vsp)
+   (stdu ppc::arg_y -8 ppc::vsp)
    (stdu ppc::arg_z -8 ppc::vsp))
   ((:pred = min-fixed 1)                ; at least one arg
    (cmpldi crfx ppc::nargs (ash 2 ppc64::word-shift))
@@ -2842,20 +2866,20 @@
    (beq crfy :none)                     ; exactly zero
    (blt crfx :z0)                       ; one
                                         ; Three or more ...
-   (stwu ppc::arg_x -4 ppc::vsp)
+   (stdu ppc::arg_x -8 ppc::vsp)
    :yz0
-   (stwu ppc::arg_y -4 ppc::vsp)
+   (stdu ppc::arg_y -8 ppc::vsp)
    :z0
-   (stwu ppc::arg_z -4 ppc::vsp)
+   (stdu ppc::arg_z -8 ppc::vsp)
    :none
    )
   ((:pred = min-fixed 0)
-   (stwu ppc::nargs -4 ppc::vsp))
+   (stdu ppc::nargs -8 ppc::vsp))
   ((:not (:pred = min-fixed 0))
    (subi arg-temp ppc::nargs (:apply ash min-fixed ppc64::word-shift))
-   (stwu arg-temp -4 ppc::vsp))
+   (stdu arg-temp -8 ppc::vsp))
   (add entry-vsp ppc::vsp ppc::nargs)
-  (la entry-vsp 4 entry-vsp)
+  (la entry-vsp 8 entry-vsp)
   (bla .SPlexpr-entry))
 
 
