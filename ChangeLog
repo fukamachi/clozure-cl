@@ -1,3 +1,36 @@
+2005-05-20 04:18  gb
+
+	* lib/macros.lisp: TARGET-OS-CASE.
+
+2005-05-20 03:26  gb
+
+	* level-1/l1-aprims.lisp: OS is now a nickname for the
+	platform-specific package.
+	
+	Remove %COERCE-TO-UVECTOR. Whatever it was ...
+
+2005-05-20 03:23  gb
+
+	* level-1/l1-clos-boot.lisp: Fix typos in code which initializes
+	ppc64 class table.
+
+2005-05-20 03:22  gb
+
+	* level-1/l1-numbers.lisp: Avoid "consing"
+	single-floats/destructive operations on single-floats on PPC64.
+
+2005-05-20 03:21  gb
+
+	* level-1/l1-pathnames.lisp: setup CCL pathname translations for
+	64-bit fasls.
+
+2005-05-20 03:20  gb
+
+	* level-1/l1-sockets.lisp: htonl, ntohs, etc. may not be defined in
+	Tiger header files (and are no-ops on big-endian machines, anyway.)
+	 Use lisp macros to remind ourselves that there may be byte-order
+	issues here, someday.
+
 2005-05-20 03:19  gb
 
 	* level-1/l1-streams.lisp: Conditionalize MAKE-HEAP-IVECTOR.
