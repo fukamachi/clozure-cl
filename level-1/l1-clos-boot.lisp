@@ -2047,7 +2047,7 @@ to replace that class with ~s" name old-class new-class)
                           (ash (the fixnum (- subtype ppc32::min-cl-ivector-subtag))
                                (- ppc32::ntagbits))
                           #+ppc64-target
-                          (ash (the fixnum (logand subtype #x7f) (- ppc64::nlowtagbits))))))))
+                          (ash (the fixnum (logand subtype #x7f)) (- ppc64::nlowtagbits)))))))
     (setf (%svref v target::subtag-lock)
           #'(lambda (thing)
               (case (%svref thing target::lock.kind-cell)
