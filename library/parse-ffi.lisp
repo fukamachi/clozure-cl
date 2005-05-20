@@ -707,12 +707,12 @@
                 (ffi-objc-class (define-objc-class-from-ffi-info x))))
             (dolist (f defined-functions) (emit-function-decl f))))))))
 
-(defun parse-standard-ffi-files (dirname &key
-					 target)
+(defun parse-standard-ffi-files (dirname &optional target)
   (let* ((backend (if target (find-backend target) *target-backend*))
          (ftd (backend-target-foreign-type-data backend))
          (*parse-ffi-target-ftd* ftd)
          (*target-ftd* ftd)
+         (*target-backend* backend)
 	 (d (use-interface-dir dirname ftd))
 	 (interface-dir (merge-pathnames
 			 (interface-dir-subdir d)
@@ -790,12 +790,14 @@
 (setf (readtable-case *c-readtable*) :preserve)
 
 
-;;; Each element of operators can be a symbol or a list of a symbol, a function, and args
-;;; All the symbols must start with the character for which this is the macro-character fcn
-;;; The entries must be in the right order, e.g. dictionary order, so any two symbols
-;;; with a common prefix are adjacent in the list.  Furthermore each symbol in the list
-;;; must be preceded by every non-empty leading substring of that symbol, since we only
-;;; have one character of look-ahead in the stream.
+;;; Each element of operators can be a symbol or a list of a symbol, a
+;;; function, and args All the symbols must start with the character
+;;; for which this is the macro-character fcn The entries must be in
+;;; the right order, e.g. dictionary order, so any two symbols with a
+;;; common prefix are adjacent in the list.  Furthermore each symbol
+;;; in the list must be preceded by every non-empty leading substring
+;;; of that symbol, since we only have one character of look-ahead in
+;;; the stream.
 (defun operator-macro (operators)
   ;; The tree is an alist keyed by character (with a nil key at the end for the default)
   ;; The cdr of each entry is either a symbol to produce, another decision tree,
