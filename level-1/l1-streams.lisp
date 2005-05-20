@@ -174,8 +174,13 @@
 
 (defun make-heap-ivector (element-count element-type)
   (let* ((subtag (ccl::element-type-subtype element-type)))
-    (unless (= (logand subtag target::fulltagmask)
-               target::fulltag-immheader)
+    (unless
+        #+ppc32-target
+        (= (logand subtag ppc32::fulltagmask)
+               ppc32::fulltag-immheader)
+        #+ppc64-target
+        (= (logand subtag ppc64::lowtagmask)
+           ppc64::lowtag-immheader)
       (error "~s is not an ivector subtype." element-type))
     (let* ((size-in-octets (ccl::subtag-bytes subtag element-count)))
       (multiple-value-bind (pointer vector)
