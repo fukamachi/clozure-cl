@@ -457,41 +457,8 @@ terminate the list"
           new)))))
 
 
-(defun coerce-to-uvector (object subtype simple-p)  ; simple-p ?  
-  (let ((type-code (typecode object)))
-    (cond ((eq type-code target::tag-list)
-           (%list-to-uvector subtype object))
-          ((>= type-code target::min-cl-ivector-subtag)  ; 175
-           (if (or (null subtype)(= subtype type-code))
-             (return-from coerce-to-uvector object)))
-          ((>= type-code target::min-vector-subtag)     ; 170
-           (if (= type-code target::subtag-simple-vector)
-             (if (or (null subtype)
-                     (= type-code subtype))
-               (return-from coerce-to-uvector object))
-             (if (and (null simple-p)
-                      (or (null subtype)
-                          (= subtype (typecode (array-data-and-offset object)))))
-               (return-from coerce-to-uvector object))))
-          (t (error "Can't coerce ~s to Uvector" object))) ; or just let length error
-    (if (null subtype)(setq subtype target::subtag-simple-vector))
-    (let* ((size (length object))
-           (val (%alloc-misc size subtype)))
-      (declare (fixnum size))
-      (multiple-value-bind (vect offset) (array-data-and-offset object)
-        (declare (fixnum offset))
-        (dotimes (i size val)
-          (declare (fixnum i)) 
-          (uvset val i (uvref vect (%i+ offset i))))))))
 
-
-
-
-
-
-
-
-; 3 callers
+;;; 3 callers
 (defun %list-to-uvector (subtype list)   ; subtype may be nil (meaning simple-vector
   (let* ((n (length list))
          (new (%alloc-misc n (or subtype target::subtag-simple-vector))))  ; yech
@@ -1111,12 +1078,11 @@ terminate the list"
 
 
 
-(defpackage "OS"
-  (:nicknames "OPERATING-SYSTEM"
-   #+(and linuxppc-target ppc32-target) "LINUX32"
-   #+(and linuxppc-target ppc64-target) "LINUX64"
-   #+(and darwinppc-target ppc32-target) "DARWIN32"
-   #+(and darwinppc-target ppc64-target) "DARWIN64")
+(defpackage #+(and linuxppc-target ppc32-target) "LINUX32"
+            #+(and linuxppc-target ppc64-target) "LINUX64"
+            #+(and darwinppc-target ppc32-target) "DARWIN32"
+            #+(and darwinppc-target ppc64-target) "DARWIN64"
+  (:nicknames "OS")
   (:use "COMMON-LISP"))
 
 
