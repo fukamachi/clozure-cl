@@ -8,7 +8,7 @@ SEARCH_DIR(/lib); SEARCH_DIR(/usr/lib); SEARCH_DIR(/usr/local/lib); SEARCH_DIR(/
 VERSION {default { global : __trampoline_setup ;  } ;}
 SECTIONS
 {
-  . = 0x00003000 + SIZEOF_HEADERS;
+  . = 0x00004000 + SIZEOF_HEADERS;
   .pad : { pad.o(.text) }
   .subprims ALIGN(0x1000)    :  
   {
