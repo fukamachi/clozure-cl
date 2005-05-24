@@ -459,7 +459,7 @@
     (%df-check-exception-2 'expt b e (%ffi-exception-status))
     (%setf-double-float result TEMP)))
 
-#+(and ppc32-targt (not darwinppc-target))
+#+(and ppc32-target (not darwinppc-target))
 (defun %single-float-expt! (b e result)
   (declare (single-float b e result))
   (ppc32::with-stack-short-floats ((temp))
@@ -490,7 +490,7 @@
     (%df-check-exception-1 'sin n (%ffi-exception-status))
     (%setf-double-float result TEMP)))
 
-#+(and ppc32 (not darwinppc-target))
+#+(and ppc32-target (not darwinppc-target))
 (defun %single-float-sin! (n result)
   (declare (single-float n result))
   (ppc32::with-stack-short-floats ((temp))
