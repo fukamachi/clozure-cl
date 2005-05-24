@@ -145,7 +145,7 @@ nil_value = (0x2000+fulltag_misc+symbol.size)
 t_value = (0x2000+fulltag_misc)	
 misc_bias = fulltag_misc
 cons_bias = fulltag_cons
-t_offset = (nil_value-t_value)
+define([t_offset],-symbol.size)
 	
 misc_header_offset = -fulltag_misc
 misc_subtag_offset = misc_header_offset+7       /* low byte of header */
@@ -524,8 +524,8 @@ TCR_BIAS = 0x7000
 	 _node(prev)		/* in doubly-linked list */
 	 _node(next)		/* in doubly-linked list */
          _node(single_float_convert) /* xxxf0 */
-	 _node(lisp_fpscr)	/* lisp thread's fpscr (in low word) */
-	 _node(lisp_fpscr_low)
+	 _word(lisp_fpscr)	/* lisp thread's fpscr (in low word) */
+	 _word(lisp_fpscr_low)
 	 _node(db_link)		/* special binding chain head */
 	 _node(catch_top)	/* top catch frame */
 	 _node(save_vsp)	/* VSP when in foreign code */
@@ -534,8 +534,8 @@ TCR_BIAS = 0x7000
 	 _node(vs_area)		/* vstack area pointer */
 	 _node(ts_area)		/* tstack area pointer */
 	 _node(cs_limit)	/* cstack overflow limit */
-	 _node(bytes_consed_high)
-	 _node(bytes_consed_low)
+	 _word(bytes_consed_high)
+	 _word(bytes_consed_low)
 	 _node(interrupt_level)
 	 _node(interrupt_pending)
 	 _node(xframe)		/* per-thread exception frame list */
