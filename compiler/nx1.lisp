@@ -1203,13 +1203,14 @@
           (nx1-ff-call-internal	
            idx (map-to-representation-types arg-specs-and-result-spec)
            (ecase (backend-name *target-backend*)
-             (:linuxppc32 (%nx1-operator linux-syscall))
-             (:darwinppc32 (%nx1-operator darwin-syscall))))))
+             (:linuxppc32 (%nx1-operator eabi-syscall))
+             ((:darwinppc32 :darwinppc64 :linuxppc64)
+              (%nx1-operator poweropen-syscall))))))
 
 (defun nx1-ff-call-internal (address-expression arg-specs-and-result-spec operator )
   (let* ((specs ())
          (vals ())
-	 (darwin-target-p (or (eql operator (%nx1-operator darwin-syscall))
+	 (darwin-target-p (or (eql operator (%nx1-operator poweropen-syscall))
 			      (eql operator (%nx1-operator poweropen-ff-call))))
 	 (monitor (eq (car arg-specs-and-result-spec) :monitor-exception-ports))
          (arg-specs (butlast arg-specs-and-result-spec))
