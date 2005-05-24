@@ -2514,9 +2514,18 @@ thread_set_fp_exceptions_enabled(mach_port_t thread, Boolean enabled)
     }
   }
   thread_set_state(thread, 
-		   MACHINE_THREAD_STATE,
+#ifdef PPC64
+		   PPC_THREAD_STATE64,	/* GPRs, some SPRs  */
+#else
+		   PPC_THREAD_STATE,	/* GPRs, some SPRs  */
+#endif
 		   (thread_state_t)&ts,
-		   MACHINE_THREAD_STATE_COUNT);
+#ifdef PPC64
+                   PPC_THREAD_STATE64_COUNT
+#else
+		   PPC_THREAD_STATE_COUNT
+#endif
+                   );
 
   lock_release(mach_exception_lock_set, 0);
   return 0;
