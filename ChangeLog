@@ -1,3 +1,94 @@
+2005-05-24 00:04  gb
+
+	* lisp-kernel/linux/elf32ppclinux.x: Move image up a page.
+
+2005-05-24 00:03  gb
+
+	* level-1/l1-numbers.lisp: Fix botched #+ conditionalization.
+
+2005-05-24 00:01  gb
+
+	* lib/nfcomp.lisp, xdump/faslenv.lisp: Increment FASL version.
+
+2005-05-24 00:00  gb
+
+	* lisp-kernel/spjump.s: Don't pad jump table by extra page; revert
+	to pc-relative branches.
+
+2005-05-24 00:00  gb
+
+	* lisp-kernel/pmcl-kernel.c: Don't copy spjump table anymore.
+
+2005-05-23 23:59  gb
+
+	* lisp-kernel/darwin/Makefile: Adjust image start address.
+
+2005-05-23 23:36  gb
+
+	* level-1/version.lisp: New binaries soon.
+
+2005-05-23 23:29  gb
+
+	* xdump/: heap-image.lisp, xfasload.lisp, xppcfasload.lisp: 64-bit
+	xloader, cross-xloader.  New image header stuff for PPC64.
+
+2005-05-23 23:28  gb
+
+	* lisp-kernel/darwin64/Makefile: Mach Header too far away from old
+	spjump address, so we'll have to move the spjump table.
+
+2005-05-23 23:28  gb
+
+	* lisp-kernel/pmcl-kernel.c: Duplicate the subprims jump table
+	(bootstrapping kludge.)
+	
+	Observe word size when vpushing initial function.
+
+2005-05-23 23:26  gb
+
+	* lisp-kernel/macros.s: Use STRU when allocating TSP frames.
+
+2005-05-23 23:25  gb
+
+	* lisp-kernel/spentry.s: Fix bignum boxing for __ifdef([PPC64])
+	case.
+
+2005-05-23 23:24  gb
+
+	* lisp-kernel/spjump.s: Do absolute jumps, to make relocation of
+	the jump table itself simpler.
+
+2005-05-23 23:24  gb
+
+	* lisp-kernel/lisp_globals.h: Remove some very old stuff.
+
+2005-05-23 23:23  gb
+
+	* lisp-kernel/lisp-exceptions.c: Fix at least one Mach
+	exception-handling case.
+
+2005-05-23 23:22  gb
+
+	* lisp-kernel/image.h: Allow loading 64-bit images.
+
+2005-05-23 23:21  gb
+
+	* lisp-kernel/image.c: Load PPC64 images.
+
+2005-05-23 23:21  gb
+
+	* lisp-kernel/constants64.s: Fix t_offset def.	Align TCR fields
+	correctly.
+
+2005-05-23 23:20  gb
+
+	* lisp-kernel/area.h: area_codes are native fixnums.
+
+2005-05-23 23:20  gb
+
+	* lib/numbers.lisp: Call non-destructive single-float stuff on
+	ppc64.
+
 2005-05-23 23:19  gb
 
 	* lib/nfcomp.lisp: Fix compile-time compilation (env/function name
