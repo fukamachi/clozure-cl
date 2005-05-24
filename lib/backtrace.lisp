@@ -122,15 +122,16 @@
                      "optional"
                      (progn
                        (setq n (- n nopt))
-                       (if (and restp (eq n 0))
-                         "rest"
-                         (progn
-                           (if restp (setq n (1- n)))
-                           (if (and nkeys (< n nkeys))
-                             (if (not (logbitp 0 n)) ; a keyword
-                               "keyword"
-                               "key-supplied-p")
-                             "opt-supplied-p"))))))))
+                       (progn
+                         (if (and nkeys (< n nkeys))
+                           (if (not (logbitp 0 n)) ; a keyword
+                             "keyword"
+                             "key-supplied-p")
+                           (progn
+                             (if nkeys (setq n (- n nkeys)))
+                             (if (and restp (zerop n))
+                               "rest"
+                               "opt-supplied-p")))))))))
              (let* ((info (function-symbol-map lfun))
                     (syms (%car info))
                     (ptrs (%cdr info)))
