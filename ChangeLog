@@ -1,3 +1,62 @@
+2005-05-23 23:19  gb
+
+	* lib/nfcomp.lisp: Fix compile-time compilation (env/function name
+	screwup).  Fasdump bignums using new fasl-op.
+
+2005-05-23 23:17  gb
+
+	* lib/backtrace.lisp: FIND-LOCAL-NAME: fix some incorrect
+	stack-frame layout assumptions.
+
+2005-05-23 23:15  gb
+
+	* level-0/: l0-array.lisp, l0-float.lisp, l0-numbers.lisp,
+	l0-pred.lisp, PPC/ppc-float.lisp, PPC/ppc-hash.lisp,
+	PPC/ppc-misc.lisp, PPC/ppc-numbers.lisp, PPC/ppc-pred.lisp,
+	PPC/ppc-symbol.lisp: Lots of #+ppc64 bug fixes and
+	conditionalization.
+
+2005-05-23 23:14  gb
+
+	* level-1/l1-numbers.lisp: More non-destuctive short/single-float
+	stuff.
+
+2005-05-23 23:14  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: LOAD-DOUBLE-FLOAT-CONSTANT
+	in 2 32-bit halves.
+
+2005-05-23 23:13  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Double-float -cell indices.
+
+2005-05-23 23:12  gb
+
+	* compiler/PPC/ppc2.lisp: Renamed syscall stuff.
+
+2005-05-23 23:12  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: SINGLE-FLOAT-CONVERT: use TCR.
+	prefix.
+
+2005-05-23 23:11  gb
+
+	* compiler/subprims.lisp: Subprims jump table moved from 0x4000 to
+	0x5000 (at the moment, it's both places.)
+
+2005-05-23 23:10  gb
+
+	* compiler/nxenv.lisp: Rename syscall operators.
+
+2005-05-23 23:10  gb
+
+	* compiler/nx1.lisp: Use (new, renamed) POWEROPEN-SYSCALL for both
+	PPC64 platforms.
+
+2005-05-23 23:08  gb
+
+	* compiler/arch.lisp: Define more error/UUO codes.
+
 2005-05-20 07:38  gb
 
 	* level-1/version.lisp: 050520b.
@@ -3301,16 +3360,16 @@
 
 2004-06-27 02:55  gb
 
+	* examples/: cocoa-window.lisp, tiny.lisp: defer window creation
+
+2004-06-27 02:55  gb
+
 	* examples/objc-support.lisp: canonicalize classes referenced in
 	type signatures
 
 2004-06-27 02:55  gb
 
 	* examples/bridge.lisp: class canonicalization, for resuming images
-
-2004-06-27 02:55  gb
-
-	* examples/: cocoa-window.lisp, tiny.lisp: defer window creation
 
 2004-06-27 02:55  gb
 
@@ -7617,7 +7676,7 @@
 	hemlock/unused/hi-integrity.lisp, hemlock/unused/keytran.lisp,
 	hemlock/unused/keytrandefs.lisp, hemlock/unused/spell-build.lisp,
 	hemlock/unused/struct-ed.lisp, hemlock/unused/tty-stream.lisp,
-	hemlock/website/index.html.in: Initial revision
+	hemlock/website/index.html.in: recovered 0.14 sources
 
 2003-10-19 02:57  gb
 
@@ -7849,5 +7908,5 @@
 	hemlock/unused/hi-integrity.lisp, hemlock/unused/keytran.lisp,
 	hemlock/unused/keytrandefs.lisp, hemlock/unused/spell-build.lisp,
 	hemlock/unused/struct-ed.lisp, hemlock/unused/tty-stream.lisp,
-	hemlock/website/index.html.in: recovered 0.14 sources
+	hemlock/website/index.html.in: Initial revision
 
