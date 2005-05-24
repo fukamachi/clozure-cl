@@ -40,6 +40,15 @@
    0
    ))
 
+(defun ppc-fixup-macro-apply-code ()
+  (let* ((codev (%extend-vector 0 *ppc-macro-apply-code*
+                                (uvsize *ppc-macro-apply-code*))))
+    (setf (uvref codev 5)
+          (logior (logand #xffff00000 (uvref *ppc-macro-apply-code* 5))
+                  (target-arch-case
+                   (:ppc32 (ash $xnotfun ppc32::fixnumshift))
+                   (:ppc64 (ash $xnotfun ppc64::fixnumshift)))))
+    codev))
 
 
 (defparameter *ppc-closure-trampoline-code*
@@ -56,8 +65,8 @@
 
 (defparameter *ppc32-xload-backend*
   (make-backend-xload-info
-   :name (backend-name *host-backend*)
-   :macro-apply-code *ppc-macro-apply-code*
+   :name #+darwinppc-target :darwinppc32 #+linuxppc-target :linuxppc32
+   :macro-apply-code-function 'ppc-fixup-macro-apply-code
    :closure-trampoline-code *ppc-closure-trampoline-code*
    :udf-code *ppc-udf-code*
    :default-image-name
@@ -74,9 +83,34 @@
 
 (add-xload-backend *ppc32-xload-backend*)
 
+(defparameter *ppc64-xload-backend*
+  (make-backend-xload-info
+   :name #+darwinppc-target :darwinppc64 #+linuxppc-target :linuxppc64
+   :macro-apply-code-function 'ppc-fixup-macro-apply-code
+   :closure-trampoline-code *ppc-closure-trampoline-code*
+   :udf-code *ppc-udf-code*
+   :default-image-name
+   #+linuxppc-target "ccl:ccl;ppc-boot64"
+   #+darwinppc-target "ccl:ccl;ppc-boot64.image"
+   :default-startup-file-name
+   #+linuxppc-target "level-1.p64fsl"
+   #+darwinppc-target "level-1.d64fsl"
+   :subdir "ccl:level-0;PPC;"
+   :compiler-target-name
+   #+linuxppc-target :linuxppc64
+   #+darwinppc-target :darwinppc64
+))
+(add-xload-backend *ppc64-xload-backend*)
+
 #+ppc32-target
 (progn
 (setq *xload-default-backend* *ppc32-xload-backend*)
+)
+
+#+ppc64-target
+(progn
+
+  (setq *xload-default-backend* *ppc64-xload-backend*))
 
 (defun Xcompile-directory (dir &optional force)
   (target-xcompile-directory (backend-name *host-backend*) dir  force))
@@ -87,4 +121,4 @@
 (defun xload-level-0 (&optional (recompile t))
   (target-xload-level-0 (backend-name *host-backend*) recompile))
 
-)
+

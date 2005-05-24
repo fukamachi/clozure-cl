@@ -32,10 +32,105 @@
 )
 
 
+;;; I'm not sure that there's a better way to do this.
+
+(defparameter *xload-target-nil* nil)
+(defparameter *xload-target-fixnumshift* nil)
+(defparameter *xload-target-fulltag-cons* nil)
+(defparameter *xload-target-fulltag-misc* nil)
+(defparameter *xload-target-misc-data-offset* nil)
+(defparameter *xload-target-fulltagmask* nil)
+(defparameter *xload-target-fulltag-cons* nil)
+(defparameter *xload-target-cons-size* nil)
+(defparameter *xload-target-car-offset* nil)
+(defparameter *xload-target-cdr-offset* nil)
+(defparameter *xload-target-misc-header-offset* nil)
+(defparameter *xload-target-misc-subtag-offset* nil)
+(defparameter *xload-target-unbound-marker* nil)
+(defparameter *xload-target-subtag-char* nil)
+(defparameter *xload-target-charcode-shift* nil)
+
+(defun setup-xload-target-parameters ()
+  (setq *xload-target-nil*
+          (target-arch-case
+           (:ppc32 ppc32::nil-value)
+           (:ppc64 ppc64::nil-value)))
+  (setq *xload-target-unbound-marker*
+        (target-arch-case
+         (:ppc32 ppc32::unbound-marker)
+         (:ppc64 ppc64::unbound-marker)))
+  (setq *xload-target-misc-header-offset*
+        (target-arch-case
+         (:ppc32 ppc32::misc-header-offset)
+         (:ppc64 ppc64::misc-header-offset)))
+  (setq *xload-target-misc-subtag-offset*
+        (target-arch-case
+         (:ppc32 ppc32::misc-subtag-offset)
+         (:ppc64 ppc64::misc-subtag-offset)))
+  (setq *xload-target-fixnumshift*
+        (target-arch-case
+         (:ppc32 ppc32::fixnumshift)
+         (:ppc64 ppc64::fixnumshift)))
+  (setq *xload-target-fulltag-cons*
+        (target-arch-case
+         (:ppc32 ppc32::fulltag-cons)
+         (:ppc64 ppc64::fulltag-cons)))
+  (setq *xload-target-car-offset*
+        (target-arch-case
+         (:ppc32 ppc32::cons.car)
+         (:ppc64 ppc64::cons.car)))
+  (setq *xload-target-cdr-offset*
+        (target-arch-case
+         (:ppc32 ppc32::cons.cdr)
+         (:ppc64 ppc64::cons.cdr)))
+  (setq *xload-target-cons-size*
+        (target-arch-case
+         (:ppc32 ppc32::cons.size)
+         (:ppc64 ppc64::cons.size)))
+  (setq *xload-target-fulltagmask*
+        (target-arch-case
+         (:ppc32 ppc32::fulltagmask)
+         (:ppc64 ppc64::fulltagmask)))
+  (setq *xload-target-misc-data-offset*
+        (target-arch-case
+         (:ppc32 ppc32::misc-data-offset)
+         (:ppc64 ppc64::misc-data-offset)))
+  (setq *xload-target-fulltag-misc*
+        (target-arch-case
+         (:ppc32 ppc32::fulltag-misc)
+         (:ppc64 ppc64::fulltag-misc)))
+  (setq *xload-target-subtag-char*
+        (target-arch-case
+         (:ppc32 ppc32::subtag-character)
+         (:ppc64 ppc64::subtag-character)))
+  (setq *xload-target-charcode-shift*
+        (target-arch-case
+         (:ppc32 ppc32::charcode-shift)
+         (:ppc64 ppc64::charcode-shift)))
+                 
+  )
+
+
+
+
+
+(defun xload-target-consp (addr)
+  (target-arch-case
+   (:ppc32 (= ppc32::fulltag-cons (logand addr ppc32::fulltagmask)))
+   (:ppc64 (= ppc64::fulltag-cons (logand addr ppc64::fulltagmask)))))
+
+
+(defun xload-target-listp (addr)
+  (or (= addr *xload-target-nil*)
+      (xload-target-consp addr)))
+
+
+
+
 
 (defstruct backend-xload-info
   name
-  macro-apply-code
+  macro-apply-code-function
   closure-trampoline-code
   udf-code
   default-image-name
@@ -63,6 +158,7 @@
   (logior (ash element-count target::num-subtag-bits) subtag))
 
 
+
 (defparameter *xload-record-source-file-p* t)
 
 (defun xload-symbol-header ()
@@ -76,10 +172,6 @@
                                                      :initial-element #'%bad-fasl))
 
 
-; Maybe we should use this version for both targets.
-; It's only marginally slower than the lap (a couple of extra shift instructions)
-
-(progn
 
 (defun u32-ref (u32v byte-offset)
   (declare (type (simple-array (unsigned-byte 32) (*)) u32v)
@@ -119,10 +211,25 @@
   (locally (declare (optimize (speed 3) (safety 0)))
     (setf (aref u8v byte-offset) new)))
 
-) ; end of #-ppc-target
+(defun natural-ref (u32v byte-offset)
+  (target-arch-case
+   (:ppc32 (u32-ref u32v byte-offset))
+   (:ppc64 (dpb (u32-ref u32v byte-offset)
+                (byte 32 32)
+                (u32-ref u32v (+ byte-offset 4))))))
 
-(defun untagged-addr (addr)
-  (logand (lognot 7) addr))
+(defun (setf natural-ref) (new u32v byte-offset)
+  (target-arch-case
+   (:ppc32 (setf (u32-ref u32v byte-offset) new))
+   (:ppc64 (setf (u32-ref u32v byte-offset) (ldb (byte 32 32) new))
+           (setf (u32-ref u32v (+ byte-offset 4)) (ldb (byte 32 0) new))
+           new)))
+
+
+(defun xload-aligned-uvector-size (nbytes)
+  (target-arch-case
+   (:ppc32 (logand (lognot 7) (+ 4 7 nbytes )))
+   (:ppc64 (logand (lognot 15) (+ 15 8 nbytes)))))
 
 (defparameter *xload-spaces* nil)
 (defparameter *xload-image-file* nil)
@@ -142,7 +249,7 @@
   (print-unreadable-object (s stream :type t)
     (format stream "~a @#x~8,'0x len = ~d" (xload-space-code s) (xload-space-vaddr s) (xload-space-lowptr s))))
 
-; :constructor ... :constructor ... <gasp> ... must remember ... :constructor
+;;; :constructor ... :constructor ... <gasp> ... must remember ... :constructor
 
 (defun init-xload-space (vaddr size code)
   (let* ((nfullwords (ash (+ size 3) -2))
@@ -188,10 +295,13 @@
 (defparameter *xload-dynamic-space-address* (+ *xload-image-base-address*
 					       *xload-purespace-reserve*))
 (defparameter *xload-dynamic-space-size* (ash 1 18))
-(defparameter *xload-nil* (+ *xload-static-space-address* 16 (* 1024 4) ppc32::fulltag-nil))
-(defparameter *xload-T* (+ *xload-nil* ppc32::t-offset))
-(defparameter *xload-nilsym* (+ *xload-T* ppc32::symbol.size))
-(defparameter %xload-unbound-function% (+ *xload-dynamic-space-address* ppc32::fulltag-misc))
+
+
+
+
+(defun  %xload-unbound-function% ()
+  (+ *xload-dynamic-space-address* *xload-target-fulltag-misc*))
+
 (defparameter *xload-dynamic-space* nil)
 (defparameter *xload-readonly-space* nil)
 (defparameter *xload-static-space* nil)
@@ -229,6 +339,14 @@
   (multiple-value-bind (v o) (xload-lookup-address address)
     (setf (u32-ref v o) new)))
 
+(defun xload-natural-at-address (address)
+  (multiple-value-bind (v o) (xload-lookup-address address)
+    (natural-ref v o)))
+
+(defun (setf xload-natural-at-address) (new address)
+  (multiple-value-bind (v o) (xload-lookup-address address)
+    (setf (natural-ref v o) new)))
+    
 (defun xload-u16-at-address (address)
   (multiple-value-bind (v o) (xload-lookup-address address)
     (u16-ref v o)))
@@ -246,12 +364,13 @@
     (setf (u8-ref v o) new)))
 
 (defun xload-immval (imm)
-  (if (or (typep imm 'fixnum)
-          (and (<= #.(ash (- (expt 2 31)) (- ppc32::fixnum-shift))
-                   imm
-                   #.(1- (ash (expt 2 31) (- ppc32::fixnum-shift))))))
-    (ash imm ppc32::fixnumshift)
-    (error "Bad idea.")))
+  (let* ((arch (backend-target-arch *target-backend*))
+         (most-negative (arch::target-most-negative-fixnum arch))
+         (most-positive (arch::target-most-positive-fixnum arch)))
+  (if (and (typep imm 'integer)
+           (<= most-negative imm most-positive))
+    (ash imm (arch::target-fixnum-shift arch))
+    (error "Bad idea."))))
 
 ;;; "grow" the space: make a new data vector. Copy old data 
 ;;;  to new data vector.  Update size and data fields.
@@ -292,45 +411,51 @@
        (xload-space-data space)
        offset))))
 
-; element-count doesn't include header
+;;; element-count doesn't include header
 (defun xload-alloc-fullwords (space tag nelements)
-  (xload-alloc space tag (logand (lognot 7) (+ 7 4 (ash nelements 2)))))
+  (xload-alloc space tag (xload-aligned-uvector-size (ash nelements 2))))
 
 (defun xload-alloc-halfwords (space tag nelements)
-  (xload-alloc space tag (logand (lognot 7) (+ 7 4 (ash nelements 1)))))
+  (xload-alloc space tag (xload-aligned-uvector-size (ash nelements 1))))
 
 (defun xload-alloc-bytes (space tag nelements)
-  (xload-alloc space tag (logand (lognot 7) (+ 7 4 nelements))))
+  (xload-alloc space tag (xload-aligned-uvector-size nelements)))
 
 (defun xload-alloc-doublewords (space tag nelements)
-  (xload-alloc space tag (logand (lognot 7) (+ 7 4 (ash nelements 3)))))
+  (xload-alloc space tag (xload-aligned-uvector-size (ash nelements 3))))
 
 (defun xload-alloc-bits (space tag nelements)
   (xload-alloc space tag (logand (lognot 7) (+ 7 4 (ash (+ 7 nelements) -3)))))
 
 
 (defun xload-make-cons (car cdr &optional (space *xload-dynamic-space*))
-  (multiple-value-bind (cell-addr data offset) (xload-alloc space  ppc32::fulltag-cons ppc32::cons.size)
-    (setf (u32-ref data (the fixnum (+ offset ppc32::cons.car))) car)
-    (setf (u32-ref data (the fixnum (+ offset ppc32::cons.cdr))) cdr)
+  (multiple-value-bind (cell-addr data offset) (xload-alloc space  *xload-target-fulltag-cons* *xload-target-cons-size*)
+    (setf (u32-ref data (the fixnum (+ offset *xload-target-car-offset*))) car)
+    (setf (u32-ref data (the fixnum (+ offset *xload-target-cdr-offset*))) cdr)
     cell-addr))
 
-; This initializes the gvector's contents to 0.  Might want to
-; consider initializing it to NIL for the benefit of package and
-; hashtable code.
+;;; This initializes the gvector's contents to 0.  Might want to
+;;; consider initializing it to NIL for the benefit of package and
+;;; hashtable code.
 (defun xload-make-gvector (subtag len)
-  (declare (fixnum subtype len))
-  (multiple-value-bind (cell-addr data offset) (xload-alloc-fullwords *xload-dynamic-space* ppc32::fulltag-misc len)
-    (declare (fixnum offset))
-    (setf (u32-ref data (+ offset ppc32::misc-header-offset)) (make-xload-header len subtag))
-    cell-addr))
+  (unless (typep subtag 'fixnum)
+    (setq subtag (type-keyword-code subtag)))
+  (locally
+      (declare (fixnum subtype len))
+      (multiple-value-bind (cell-addr data offset)
+          (target-arch-case
+           (:ppc32 (xload-alloc-fullwords *xload-dynamic-space* *xload-target-fulltag-misc* len))
+           (:ppc64 (xload-alloc-doublewords *xload-dynamic-space* *xload-target-fulltag-misc* len)))
+        (declare (fixnum offset))
+        (setf (natural-ref data (+ offset *xload-target-misc-header-offset*)) (make-xload-header len subtag))
+        cell-addr)))
 
 (defun xload-make-word-ivector (subtag len space)
   (declare (fixnum subtype len))
-  (multiple-value-bind (cell-addr data offset) (xload-alloc-fullwords space  ppc32::fulltag-misc len)
-    (declare (fixnum offset))
-    (setf (u32-ref data (+ offset ppc32::misc-header-offset)) (make-xload-header len subtag))
-    cell-addr))
+    (multiple-value-bind (cell-addr data offset) (xload-alloc-fullwords space  *xload-target-fulltag-misc* len)
+      (declare (fixnum offset))
+      (setf (natural-ref data (+ offset *xload-target-misc-header-offset*)) (make-xload-header len subtag))
+      cell-addr))
 
 (defun xload-package->addr (p)
   (or (cdr (assq (or (cdr (assq p *xload-package-alist*)) 
@@ -345,23 +470,26 @@
       (error "Package at address ~d not cloned ." a)))
 
 (defun xload-make-symbol (pname-address &optional
-					(package-address *xload-nil*)
+					(package-address *xload-target-nil*)
 					(space *xload-dynamic-space*))
-  (multiple-value-bind (cell-addr data offset) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::symbol.element-count)
-    (declare (fixnum offset))
-      (setf (u32-ref data (+ offset ppc32::symbol.header)) (xload-symbol-header))
-      (setf (u32-ref data (+ offset ppc32::symbol.flags)) 0)
-      (setf (u32-ref data (+ offset ppc32::symbol.pname)) pname-address)
-      (setf (u32-ref data (+ offset ppc32::symbol.vcell)) ppc32::unbound-marker)
-      (setf (u32-ref data (+ offset ppc32::symbol.package-plist)) package-address)
-      (setf (u32-ref data (+ offset ppc32::symbol.fcell)) %xload-unbound-function%)
-      ;(break "Made symbol at #x~x (#x~x)" cell-addr offset)
-      cell-addr))
+  (let* ((sym
+          (target-arch-case
+           (:ppc32 (xload-alloc-fullwords space *xload-target-fulltag-misc* target::symbol.element-count))
+           (:ppc64 (xload-alloc-doublewords space *xload-target-fulltag-misc* target::symbol.element-count)))))
+    (setf (xload-%svref sym -1)  (xload-symbol-header))
+    (setf (xload-%svref sym target::symbol.flags-cell) 0)
+    (setf (xload-%svref sym target::symbol.pname-cell) pname-address)     
+    (setf (xload-%svref sym target::symbol.vcell-cell) *xload-target-unbound-marker*)
+    (setf (xload-%svref sym target::symbol.package-plist-cell) package-address)
+    (setf (xload-%svref sym target::symbol.fcell-cell) (%xload-unbound-function%))
+    ;;(break "Made symbol at #x~x (#x~x)" cell-addr offset)
+    sym))
 
-; No importing or shadowing can (easily) happen during the cold load; a symbol is present
-; in no package other than its home package.
-; This -just- finds or adds the symbol in the "clone" package's itab/etab.
-; Somebody else has to copy the symbol to the image ...
+;;; No importing or shadowing can (easily) happen during the cold
+;;; load; a symbol is present in no package other than its home
+;;; package.
+;;; This -just- finds or adds the symbol in the "clone" package's itab/etab.
+;;; Somebody else has to copy the symbol to the image ...
 (defun xload-intern (symbol)
   (let* ((pname (symbol-name symbol))
          (namelen (length pname))
@@ -388,13 +516,23 @@
 
     
 (defun xload-make-dfloat (space high low)
-  (multiple-value-bind (dfloat-addr v o) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::double-float.element-count)
-    (declare (fixnum o))
-    (setf (u32-ref v (the fixnum (+ o ppc32::double-float.header))) 
-          (make-xload-header ppc32::double-float.element-count ppc32::subtag-double-float))
-    (setf (u32-ref v (the fixnum (+ o ppc32::double-float.value))) high)
-    (setf (u32-ref v (the fixnum (+ o ppc32::double-float.val-low))) low)
-    dfloat-addr))
+  (target-arch-case
+   (:ppc32
+    (multiple-value-bind (dfloat-addr v o) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::double-float.element-count)
+      (declare (fixnum o))
+      (setf (u32-ref v (the fixnum (+ o ppc32::double-float.header))) 
+            (make-xload-header ppc32::double-float.element-count ppc32::subtag-double-float))
+      (setf (u32-ref v (the fixnum (+ o ppc32::double-float.value))) high)
+      (setf (u32-ref v (the fixnum (+ o ppc32::double-float.val-low))) low)
+      dfloat-addr))
+   (:ppc64
+    (multiple-value-bind (dfloat-addr v o) (xload-alloc-fullwords space ppc64::fulltag-misc ppc64::double-float.element-count)
+      (declare (fixnum o))
+      (setf (natural-ref v (the fixnum (+ o ppc64::misc-header-offset))) 
+            (make-xload-header ppc64::double-float.element-count ppc64::subtag-double-float))
+      (setf (u32-ref v (the fixnum (+ o ppc64::double-float.value))) high)
+      (setf (u32-ref v (the fixnum (+ o ppc64::double-float.val-low))) low)
+      dfloat-addr))))
 
 (defun xload-make-sfloat (space bits)
   (target-arch-case
@@ -409,73 +547,103 @@
     (logior (ash bits 32) ppc64::subtag-single-float))))
         
 (defun xload-make-ivector (space subtag nelements)
-  (declare (fixnum subtype nelements))
-  (multiple-value-bind (addr v o) (xload-alloc space ppc32::fulltag-misc (xload-dnode-align (xload-subtag-bytes subtag nelements)))
-    (declare (fixnum o))
-    (setf (u32-ref v (the fixnum (- o ppc32::fulltag-misc))) (make-xload-header nelements subtag))
-    (values addr v o)))
+  (unless (typep subtag 'fixnum)
+    (setq subtag (type-keyword-code subtag)))
+  (locally
+      (declare (fixnum subtype nelements))
+    (multiple-value-bind (addr v o) (xload-alloc space *xload-target-fulltag-misc* (xload-dnode-align (xload-subtag-bytes subtag nelements)))
+      (declare (fixnum o))
+      (setf (natural-ref v (the fixnum (- o *xload-target-fulltag-misc*))) (make-xload-header nelements subtag))
+      (values addr v o))))
 
 (defun xload-%svref (addr i)
   (declare (fixnum i))
-  (if (= (the fixnum (logand addr ppc32::fulltagmask)) ppc32::fulltag-misc)
-    (multiple-value-bind (v offset) (xload-lookup-address addr)
-      (declare (fixnum offset))
-      (u32-ref v (the fixnum (+ offset (the fixnum (+ ppc32::misc-data-offset (the fixnum (ash i 2))))))))
-    (error "Not a vector: #x~x" addr)))
+  (target-arch-case
+   (:ppc32
+    (if (= (the fixnum (logand addr ppc32::fulltagmask)) ppc32::fulltag-misc)
+      (multiple-value-bind (v offset) (xload-lookup-address addr)
+        (declare (fixnum offset))
+        (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2))))))))
+      (error "Not a vector: #x~x" addr)))
+   (:ppc64
+    (if (= (the fixnum (logand addr ppc64::fulltagmask)) ppc64::fulltag-misc)
+      (multiple-value-bind (v offset) (xload-lookup-address addr)
+        (declare (fixnum offset))
+        (natural-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 3))))))))
+      (error "Not a vector: #x~x" addr)))))
 
 (defun (setf xload-%svref) (new addr i)
   (declare (fixnum i))
-  (if (= (the fixnum (logand addr ppc32::fulltagmask)) ppc32::fulltag-misc)
+  (target-arch-case
+   (:ppc32
+    (if (= (the fixnum (logand addr ppc32::fulltagmask)) ppc32::fulltag-misc)
+      (multiple-value-bind (v offset) (xload-lookup-address addr)
+        (declare (fixnum offset))
+        (setf (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2))))))) new))
+      (error "Not a vector: #x~x" addr)))
+   (:ppc64
+    (if (= (the fixnum (logand addr ppc64::fulltagmask)) ppc64::fulltag-misc)
+      (multiple-value-bind (v offset) (xload-lookup-address addr)
+        (declare (fixnum offset))
+        (setf (natural-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 3))))))) new))
+      (error "Not a vector: #x~x" addr)))))
+
+
+(defun xload-%fullword-ref (addr i)
+  (declare (fixnum i))
+  (if (= (the fixnum (logand addr *xload-target-fulltagmask*))
+           *xload-target-fulltag-misc*)
+      (multiple-value-bind (v offset) (xload-lookup-address addr)
+        (declare (fixnum offset))
+        (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2))))))))
+      (error "Not a vector: #x~x" addr)))
+
+(defun (setf xload-%fullword-ref) (new addr i)
+  (declare (fixnum i))
+  (if (= (the fixnum (logand addr *xload-target-fulltagmask*))
+         *xload-target-fulltag-misc*)
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
-      (setf (u32-ref v (the fixnum (+ offset (the fixnum (+ ppc32::misc-data-offset (the fixnum (ash i 2))))))) new))
+      (setf (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2))))))) new))
     (error "Not a vector: #x~x" addr)))
 
 (defun xload-car (addr)
-  (if (= (the fixnum (logand addr ppc32::tagmask)) ppc32::tag-list)
+  (if (xload-target-listp addr)
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
-      (u32-ref v (the fixnum (+ offset ppc32::cons.car))))
+      (u32-ref v (the fixnum (+ offset *xload-target-car-offset*))))
     (error "Not a list: #x~x" addr)))
 
 (defun (setf xload-car) (new addr)
-  (if (= (the fixnum (logand addr ppc32::tagmask)) ppc32::tag-list)
+  (if (xload-target-consp addr)
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
-      (setf (u32-ref v (the fixnum (+ offset ppc32::cons.car))) new))
-    (error "Not a list: #x~x" addr)))
+      (setf (natural-ref v (the fixnum (+ offset *xload-target-car-offset*))) new))
+    (error "Not a cons: #x~x" addr)))
 
 (defun xload-cdr (addr)
-  (if (= (the fixnum (logand addr ppc32::tagmask)) ppc32::tag-list)
+  (if (xload-target-listp addr)
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
-      (u32-ref v (the fixnum (+ offset ppc32::cons.cdr))))
+      (natural-ref v (the fixnum (+ offset *xload-target-cdr-offset*))))
     (error "Not a list: #x~x" addr)))
 
 (defun (setf xload-cdr) (new addr)
-  (if (= (the fixnum (logand addr ppc32::tagmask)) ppc32::tag-list)
+  (if (xload-target-consp addr)
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
-      (setf (u32-ref v (the fixnum (+ offset ppc32::cons.cdr))) new))
-    (error "Not a list: #x~x" addr)))
+      (setf (natural-ref v (the fixnum (+ offset *xload-target-cdr-offset*))) new))
+    (error "Not a cons: #x~x" addr)))
 
 (defun xload-symbol-value (addr)
   (if (= (xload-%svref addr -1) (xload-symbol-header))
-    (xload-%svref addr ppc32::symbol.vcell-cell)
+    (xload-%svref addr target::symbol.vcell-cell)
     (error "Not a symbol: #x~x" addr)))
   
-(defun xload-symbol-name (addr)
-  (if (= addr *xload-nil*) (incf addr (+ ppc32::t-offset ppc32::symbol.size)))
-  (let* ((header (xload-%svref addr -1)))
-    (if (= header (xload-symbol-header))
-      (xload-%svref addr ppc32::symbol.pname-cell)
-      (error "Not a symbol: #x~x" addr))))
 
 (defun (setf xload-symbol-value) (new addr)
   (if (= (xload-%svref addr -1) (xload-symbol-header))
-    (multiple-value-bind (v offset) (xload-lookup-address addr)
-      (declare (fixnum offset))
-      (setf (u32-ref v (the fixnum (+ offset ppc32::symbol.vcell))) new))
+    (setf (xload-%svref addr target::symbol.vcell-cell) new)
     (error "Not a symbol: #x~x" addr)))
 
 (defun xload-set (sym val)
@@ -487,27 +655,16 @@
 
 (defun xload-fset (addr def)
   (if (= (xload-%svref addr -1) (xload-symbol-header))
-    (multiple-value-bind (v offset) (xload-lookup-address addr)
-      (declare (fixnum offset))
-      (setf (u32-ref v (the fixnum (+ offset ppc32::symbol.fcell))) def))
+    (setf (xload-%svref addr target::symbol.fcell-cell) def)
     (error "Not a symbol: #x~x" addr)))
 
 (defun (setf xload-symbol-plist) (new addr)
-  (let* ((plist-addr (+ addr ppc32::symbol.package-plist))
-         (package-plist (xload-u32-at-address plist-addr)))
-    (if (= ppc32::fulltag-cons (logand package-plist ppc32::fulltagmask))
-      (let* ((pname-addr (+ addr ppc32::symbol.pname))
-	     (pname (xload-u32-at-address pname-addr))
-	     (header (xload-u32-at-address (+ pname ppc32::misc-header-offset)))
-	     (len (ash header -8))
-	     (str (make-string len)))
-	(multiple-value-bind (v o) (xload-lookup-address pname)
-	  (incf o ppc32::misc-data-offset)
-	  (dotimes (i len) (setf (schar str i)
-				 (code-char (u8-ref v (+ i o)))))
-	  (break "str = ~s" str)
-	  (warn "Symbol at #x~x: plist already set." addr)))
-      (setf (xload-u32-at-address plist-addr)
+  (let* ((package-plist (xload-%svref addr target::symbol.package-plist-cell)))
+    (if (xload-target-consp package-plist)
+      (let* ((str (xload-get-string (xload-%svref addr target::symbol.pname-cell))))
+        (break "str = ~s" str)
+        (warn "Symbol at #x~x: plist already set." addr))
+      (setf (xload-%svref addr target::symbol.package-plist-cell)
             (xload-make-cons package-plist new)))
     new))
       
@@ -524,17 +681,18 @@
       (let* ((pname (symbol-name symbol))
              (home-package (symbol-package symbol))
              (addr (xload-make-symbol (xload-save-string pname (length pname))
-                                     (if home-package 
-                                       (xload-package->addr home-package)
-                                       *xload-nil*)
-				     space)))
+                                      (if home-package 
+                                        (xload-package->addr home-package)
+                                        *xload-target-nil*)
+                                      space)))
         (xload-intern symbol)
-        (let* ((bits (logandc2 (%symbol-bits symbol) (ash 1 $sym_vbit_typeppred))))
-          (setf (xload-u32-at-address (+ addr ppc32::symbol.flags))
+        (let* ((bits (logandc2 (%symbol-bits symbol)
+                               (ash 1 $sym_vbit_typeppred))))
+          (setf (xload-%svref addr target::symbol.flags-cell)
                 (ash (if preserve-constantness
                        bits
-                       (logand (lognot (ash 1 $sym_vbit_const)) bits)) 
-                     ppc32::fixnumshift)))
+                       (logand (lognot (ash 1 $sym_vbit_const)) bits))
+                     *xload-target-fixnumshift*)))
         (if (and (constantp symbol)
                  (eq (symbol-value symbol) symbol))
           (setf (xload-symbol-value addr) addr))
@@ -543,18 +701,19 @@
 
 ;;; Write a list to dynamic space.  No detection of circularity or
 ;;; structure sharing.  The cdr of the final cons can be nil (treated
-;;; as *xload-nil*.)  All cars must be addresses.
+;;; as *xload-target-nil*.  All cars must be addresses.
 
 (defun xload-save-list (l)
   (if (atom l)
-    (or l *xload-nil*)
+    (or l *xload-target-nil*)
     (xload-make-cons (car l) (xload-save-list (cdr l)))))
 
 (defun xload-save-string (str &optional (n (length str)))
   (declare (fixnum n))
-  (let* ((subtag ppc32::subtag-simple-base-string))
+  (let* ((subtag (type-keyword-code :simple-string)))
     (multiple-value-bind (addr v offset) (xload-make-ivector *xload-readonly-space* subtag n)
-      (do* ((p (+ offset ppc32::misc-data-offset) (1+ p))
+      (do* ((p (+ offset *xload-target-misc-data-offset*)
+               (1+ p))
               (i 0 (1+ i)))
              ((= i n) str)
           (declare (fixnum i p))
@@ -573,13 +732,17 @@
                                   (gvector :package
                                             (cons (make-array (the fixnum (length (car (uvref p 0))))
                                                               :initial-element nil)
-                                                  (cons 0 (cddr (uvref p 0))))   ; itab
-                                            (cons (make-array (the fixnum (length (car (uvref p 1))))
-                                                              :initial-element nil)
-                                                  (cons 0 (cddr (uvref p 1))))   ; etab
+                                                  (cons 0 (cddr (pkg.itab p))))
+                                            (cons (make-array
+                                                   (the fixnum
+                                                     (length
+                                                      (car
+                                                       (pkg.etab p))))
+                                                   :initial-element nil)
+                                                  (cons 0 (cddr (pkg.etab p))))
                                             nil                         ; used
                                             nil                         ; used-by
-                                            (copy-list (uvref p 4))     ; names
+                                            (copy-list (pkg.names p))     ; names
                                             nil ;shadowed
                                             nil ;lock
                                             )))
@@ -591,11 +754,11 @@
           (setf (pkg.used dup) (mapcar #'lookup-clone (pkg.used orig))
                 (pkg.used-by dup) (mapcar #'lookup-clone (pkg.used-by orig))))))))
 
-; Dump each cloned package into dynamic-space; return an alist
+;;; Dump each cloned package into dynamic-space; return an alist
 (defun xload-assign-aliased-package-addresses (alist)
   (let* ((addr-alist (mapcar #'(lambda (pair)
                                  (let* ((p (cdr pair))
-                                        (v (xload-make-gvector ppc32::subtag-package (uvsize p))))
+                                        (v (xload-make-gvector :package (uvsize p))))
                                    (setf (xload-%svref v pkg.names)
                                          (xload-save-list (mapcar #'(lambda (n) (xload-save-string n))
                                                                  (pkg.names p))))
@@ -632,21 +795,20 @@
         (multiple-value-bind (winp err) (%fasload (native-translated-namestring path) *xload-fasl-dispatch-table*)
           (if (not winp) (%err-disp err)))))))
   
-(defun xload-check-symbols ()
-  )
+
 
 
 (defun xload-save-htab (htab)
   (let* ((htvec (car htab))
          (len (length htvec))
-         (xvec (xload-make-gvector ppc32::subtag-simple-vector len))
-         (deleted-marker ppc32::unbound-marker))
+         (xvec (xload-make-gvector :simple-vector len))
+         (deleted-marker *xload-target-unbound-marker*))
     (dotimes (i len)
       (let* ((s (%svref htvec i)))
         (setf (xload-%svref xvec i)
               (if s
                 (if (symbolp s) (xload-lookup-symbol s) deleted-marker)
-                *xload-nil*))))
+                *xload-target-nil*))))
     (xload-make-cons  
      xvec 
      (xload-make-cons
@@ -662,17 +824,12 @@
 
 (defun xload-get-string (address)
     (multiple-value-bind (v o) (xload-lookup-address address)
-      (let* ((header (u32-ref v (+ o ppc32::misc-header-offset)))
-             (len (ash header (- ppc32::num-subtag-bits)))
-             (str (make-string len :element-type 'base-char))
-             (p (+ o ppc32::misc-data-offset)))
+      (let* ((header (natural-ref v (+ o *xload-target-misc-header-offset*)))
+             (len (ash header (- target::num-subtag-bits)))
+             (str (make-string len))
+             (p (+ o *xload-target-misc-data-offset*)))
         (dotimes (i len str)
           (setf (schar str i) (code-char (u8-ref v (+ p i))))))))
-
-
-  
-(defparameter *xload-use-trampoline-subprims-code* t)
-
 
                
 (defun xload-save-code-vector (code)
@@ -683,10 +840,10 @@
                     (if read-only-p
                       *xload-readonly-space*
                       *xload-dynamic-space*)
-                    ppc32::subtag-code-vector
+                    :code-vector
                     n)))
       (dotimes (i n)
-        (setf (xload-%svref vector i) (uvref code i)))
+        (setf (xload-%fullword-ref vector i) (uvref code i)))
       vector)))
                           
                           
@@ -704,23 +861,29 @@
          (*xload-loading-file-source-file* nil)
          (*xload-svar-alist* nil)
          (*xload-aliased-package-addresses* nil))
-    (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
-    ; Make NIL.  Note that NIL is sort of a misaligned cons (it straddles two doublewords.)
-    (xload-make-cons *xload-nil* 0 *xload-static-space*)
-    (xload-make-cons 0 *xload-nil* *xload-static-space*)
+    (target-arch-case
+     (:ppc32
+      (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
+      ;; Make NIL.  Note that NIL is sort of a misaligned cons (it straddles two doublewords.)
+      (xload-make-cons *xload-target-nil* 0 *xload-static-space*)
+      (xload-make-cons 0 *xload-target-nil* *xload-static-space*))
+     (:ppc64
+      (xload-make-ivector *xload-static-space* ppc64::subtag-u64-vector
+                         (1- (/ 4096 8)))))
     ;; Create %unbound-function% and the package objects in dynamic space,
     ;; then fill in the nilreg-relative symbols in static space.
     ;; Then start consing ..
-    ;; The undefined-function object is a 1-element simple-vector (not a function vector).
-    ;; The code-vector in its 0th element should report the appropriate error.
-    (let* ((udf-object (xload-make-gvector ppc32::subtag-simple-vector 1)))
+    ;; The undefined-function object is a 1-element simple-vector (not
+    ;; a function vector).  The code-vector in its 0th element should
+    ;; report the appropriate error.
+    (let* ((udf-object (xload-make-gvector :simple-vector 1)))
       (setf (xload-%svref udf-object 0) (xload-save-code-vector
 					 (backend-xload-info-udf-code
 					  *xload-target-backend*))))
     (setq *xload-aliased-package-addresses* (xload-assign-aliased-package-addresses *xload-package-alist*))
     (dolist (pair *xload-nrs*)
       (let* ((val-p (consp pair))
-	     (val (if val-p (or (cdr pair) *xload-nil*)))
+	     (val (if val-p (or (cdr pair) *xload-target-nil*)))
 	     (sym (if val-p (car pair) pair)))
 	(xload-copy-symbol sym
 			   :preserve-constantness t
@@ -730,17 +893,18 @@
     (xload-set '*package* (xload-package->addr *ccl-package*))
     (xload-set '*keyword-package* (xload-package->addr *keyword-package*))
     (xload-set '%all-packages% (xload-save-list (mapcar #'cdr *xload-aliased-package-addresses*)))
-    (xload-set '%unbound-function% %xload-unbound-function%)
+    (xload-set '%unbound-function% (%xload-unbound-function%))
     (xload-set '*gc-event-status-bits* (xload-immval 0 #|(ash 1 $gc-integrity-check-bit)|#))
     (xload-set '%toplevel-catch% (xload-copy-symbol :toplevel))
     (xload-set '%closure-code% (xload-save-code-vector
 				(backend-xload-info-closure-trampoline-code
 				 *xload-target-backend*)))
     (xload-set '%macro-code% (xload-save-code-vector
-			      (backend-xload-info-macro-apply-code
-			       *xload-target-backend*)))
+			      (funcall
+                               (backend-xload-info-macro-apply-code-function
+                                *xload-target-backend*))))
     (let* ((len (length %builtin-functions%))
-           (v (xload-make-gvector ppc32::subtag-simple-vector len)))
+           (v (xload-make-gvector :simple-vector len)))
       (dotimes (i len)
         (setf (xload-%svref v i) (xload-copy-symbol (svref %builtin-functions% i))))
       (xload-set '%builtin-functions% v))
@@ -748,10 +912,8 @@
     (xload-fasload pathnames)
     (xload-set '*xload-startup-file*
               (xload-save-string *xload-startup-file*))
-    (xload-check-symbols)                ; Make sure interned symbols are.
     (let* ((toplevel (xload-symbol-value (xload-lookup-symbol '%toplevel-function%))))      
-      (when (= toplevel
-	       ppc32::undefined)
+      (when (= toplevel *xload-target-unbound-marker*)
 	(warn "~S not set in loading ~S ." '%toplevel-function pathnames)))
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))
           (xload-save-list (setq *xload-cold-load-functions*
@@ -765,16 +927,6 @@
 
 (defun xload-dump-image (output-file heap-start)
   (declare (ftype (function (t t list)) write-image-file))
-  ;; Write the 0th and first elements of the kernel_globals vectors as
-  ;; untagged pointers to the beginning and end of "static space".
-  (setf (xload-u32-at-address (+ *xload-static-space-address* 16)) *xload-static-space-address*)
-  (setf (xload-u32-at-address (+ *xload-static-space-address* 20)) (+ *xload-static-space-address* (xload-space-lowptr *xload-static-space*)))
-
-  ;; The next word is supposed to be a pointer to some other static
-  ;; section in the application.  The following two words describe the
-  ;; start and end of the readonly section.
-  (setf (xload-u32-at-address (+ *xload-static-space-address* 28)) *xload-readonly-space-address*)
-  (setf (xload-u32-at-address (+ *xload-static-space-address* 32)) (+ *xload-readonly-space-address* (xload-space-lowptr *xload-readonly-space*)))
   (write-image-file output-file
 		    heap-start
 		    (list *xload-readonly-space*
@@ -802,14 +954,17 @@
 
 (xload-copy-faslop $fasl-globals)        ; what the hell did this ever do ?
 
-; fasl-char: maybe epush, return 32-bit representation of BASE-CHARACTER
-
+;;; fasl-char: maybe epush, return target representation of BASE-CHARACTER
 (defxloadfaslop $fasl-char (s)
-  (%epushval s (xload-immval (code-char (%fasl-read-byte s)))))
+  (let* ((code (%fasl-read-byte s))
+         (target-char (logior *xload-target-subtag-char*
+                              (ash code *xload-target-charcode-shift*))))
+    (%epushval s target-char)))
 
 (defxloadfaslop $fasl-fixnum (s)
   (%epushval s (xload-immval
-                ;; This nonsense converts unsigned %fasl-read-long result to signed
+                ;; This nonsense converts unsigned %fasl-read-long
+                ;; result to signed
                 (rlet ((long :long))
                   (setf (%get-long long) (%fasl-read-long s))
                   (%get-long long)))))
@@ -822,9 +977,9 @@
 
 (defxloadfaslop $fasl-vstr (s)
   (let* ((n (%fasl-read-count s)))
-    (multiple-value-bind (str v o) (xload-make-ivector *xload-readonly-space* ppc32::subtag-simple-base-string n)
+    (multiple-value-bind (str v o) (xload-make-ivector *xload-readonly-space* :simple-string n)
       (%epushval s str)
-      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) n)
+      (%fasl-read-n-bytes s v (+ o *xload-target-misc-data-offset*) n)
       str)))
 
 (defxloadfaslop $fasl-word-fixnum (s)
@@ -869,7 +1024,7 @@
   (%xload-fasl-vpackage s))
 
 (defxloadfaslop $fasl-cons (s)
-  (let* ((cons (%epushval s (xload-make-cons *xload-nil* *xload-nil*))))
+  (let* ((cons (%epushval s (xload-make-cons *xload-target-nil* *xload-target-nil*))))
     (setf (xload-car cons) (%fasl-expr s)
           (xload-cdr cons) (%fasl-expr s))
     (setf (faslstate.faslval s) cons)))
@@ -878,11 +1033,11 @@
 (defun %xload-fasl-vlistX (s dotp)
   (let* ((len (%fasl-read-count s)))
     (declare (fixnum len))
-    (let* ((val (%epushval s (xload-make-cons *xload-nil* *xload-nil*)))
+    (let* ((val (%epushval s (xload-make-cons *xload-target-nil* *xload-target-nil*)))
            (tail val))
       (setf (xload-car val) (%fasl-expr s))
       (dotimes (i len)
-        (setf (xload-cdr tail) (setq tail (xload-make-cons  (%fasl-expr s) *xload-nil*))))
+        (setf (xload-cdr tail) (setq tail (xload-make-cons  (%fasl-expr s) *xload-target-nil*))))
       (if dotp
         (setf (xload-cdr tail) (%fasl-expr s)))
       (setf (faslstate.faslval s) val))))
@@ -894,7 +1049,7 @@
   (%xload-fasl-vlistX s t))
 
 (defxloadfaslop $fasl-nil (s)
-  (%epushval s *xload-nil*))
+  (%epushval s *xload-target-nil*))
 
 (defxloadfaslop $fasl-timm (s)
   (let* ((val (%fasl-read-long s)))
@@ -911,14 +1066,16 @@
 	 (backend (find-backend backend-name)))
     (declare (fixnum arch))
     (unless (= arch (ash (backend-target-architecture backend)
-			 ppc32::fixnumshift))
+			 *xload-target-fixnumshift*))
       (error "Not a ~A fasl file : ~s" backend-name (faslstate.faslfname s)))))
+
 
 (defxloadfaslop $fasl-symfn (s)
   (let* ((symaddr (%fasl-expr-preserve-epush s))
-         (fnobj (xload-u32-at-address (+ symaddr ppc32::symbol.fcell))))
-    (if (and (= ppc32::fulltag-misc (logand fnobj ppc32::fulltagmask))
-             (= ppc32::subtag-function (xload-u8-at-address (+ fnobj ppc32::misc-subtag-offset))))
+         (fnobj (xload-%svref symaddr target::symbol.fcell-cell)))
+    (if (and (= *xload-target-fulltag-misc*
+                (logand fnobj *xload-target-fulltagmask*))
+             (= (type-keyword-code :function) (xload-u8-at-address (+ fnobj *xload-target-misc-subtag-offset*))))
       (%epushval s fnobj)
       (error "symbol at #x~x is unfbound . " symaddr))))
 
@@ -943,7 +1100,7 @@
                           subtag 
                           element-count)
       (%epushval s vector)
-      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes subtag element-count))
+      (%fasl-read-n-bytes s v (+ o  *xload-target-misc-data-offset*) (xload-subtag-bytes subtag element-count))
       vector)))
 
 (defun xfasl-read-ivector (s subtag)
@@ -954,7 +1111,10 @@
                           subtag 
                           element-count)
       (%epushval s vector)
-      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes subtag element-count))
+      (%fasl-read-n-bytes s
+                          v
+                          (+ o *xload-target-misc-data-offset*)
+                          (xload-subtag-bytes subtag element-count))
       vector)))
 
 (defxloadfaslop $fasl-u8-vector (s)
@@ -998,29 +1158,30 @@
   (target-arch-case
    (:ppc64 (xfasl-read-ivector s ppc64::subtag-double-float-vector))
    (:ppc32
-    (let* ((element-count (%fasl-read-count s))
-           (size-in-bytes (subtag-bytes ppc32::subtag-double-float-vector
-                                        element-count))
-           (vector (%alloc-misc element-count
-                                ppc32::subtag-double-float-vector)))
-      (declare (fixnum subtag element-count size-in-bytes))
-      (%epushval s vector)
-      (%fasl-read-n-bytes s vector (- ppc32::misc-dfloat-offset
-                                      ppc32::misc-data-offset)
-                          size-in-bytes)
-      vector))))
+    (let* ((element-count (%fasl-read-count s)))
+      (multiple-value-bind (vector v o)
+          (xload-make-ivector 
+           *xload-readonly-space*
+           ppc32::subtag-double-float-vector
+           element-count)
+        (%epushval s vector)
+        (%fasl-read-n-bytes s v (+ o  ppc32::misc-dfloat-offset) (xload-subtag-bytes ppc32::subtag-double-float-vector  element-count))
+        vector)))))
 
 (defxloadfaslop $fasl-code-vector (s)
-  (let* ((element-count (%fasl-read-count s)))
+  (let* ((element-count (%fasl-read-count s))
+         (subtag (xload-target-subtype :code-vector)))
     (multiple-value-bind (vector v o)
                          (xload-make-ivector 
                           (if (not *xload-pure-code-p*)
                             *xload-dynamic-space* 
                             *xload-readonly-space*)
-                          (xload-target-subtype :code-vector) 
+                          subtag 
                           element-count)
       (%epushval s vector)
-      (%fasl-read-n-bytes s v (+ o  ppc32::misc-data-offset) (xload-subtag-bytes ppc32::subtag-code-vector element-count))
+      (%fasl-read-n-bytes s v (+ o
+                                 *xload-target-misc-data-offset*)
+                          (xload-subtag-bytes subtag element-count))
       vector)))
 
 (defun xfasl-read-gvector (s subtype)
@@ -1066,8 +1227,8 @@
     (let* ((sym (%fasl-expr s))
            (vector (cdr (assq sym *xload-svar-alist*))))
       (unless vector
-        (setq vector (xload-make-gvector ppc32::subtag-svar ppc32::svar.element-count))
-        (setf (xload-%svref vector ppc32::svar.symbol-cell) sym)
+        (setq vector (xload-make-gvector :svar target::svar.element-count))
+        (setf (xload-%svref vector target::svar.symbol-cell) sym)
         (push (cons sym vector) *xload-svar-alist*))
       (when epush
         (setf (svref (faslstate.faslevec s) ecount) vector))
@@ -1084,12 +1245,14 @@
 
 (defun xload-lfun-name (lf)
   (let* ((header (xload-%svref lf -1)))
-    (unless (= ppc32::subtag-function (logand header (1- (ash 1 ppc32::num-subtag-bits))))
+    (unless (= (type-keyword-code :function)
+               (logand header (1- (ash 1 target::num-subtag-bits))))
       (error "Not a function address: ~s" lf))
-    (let* ((n (ash header (- ppc32::num-subtag-bits))))
+    (let* ((n (ash header (- target::num-subtag-bits))))
       (if (> n 2)
-        (let* ((bits (ash (xload-%svref lf (1- n)) (- ppc32::fixnumshift))))
-          (unless (logbitp 29 bits)
+        (let* ((bits (ash (xload-%svref lf (1- n))
+                          (- *xload-target-fixnumshift*))))
+          (unless (logbitp $lfbits-noname-bit bits)
             (xload-%svref lf (- n 2))))
         (error "Teeny, tiny, little function : ~s" lf)))))
 
@@ -1104,12 +1267,12 @@
                              (setq *xload-loading-file-source-file* (xload-save-string *loading-file-source-file*))))))
         (when pathaddr
           (let* ((keyval (if (eq indicator 'function)
-                           (xload-make-cons  pathaddr *xload-nil*)
+                           (xload-make-cons  pathaddr *xload-target-nil*)
                            (xload-make-cons
                             (xload-make-cons 
                              (xload-make-cons  (xload-copy-symbol indicator) pathaddr)
-                             *xload-nil*)
-                            *xload-nil*))))
+                             *xload-target-nil*)
+                            *xload-target-nil*))))
             (setf (xload-symbol-plist symaddr) (xload-make-cons keyaddr keyval))))))))
 
 (defun xload-set-documentation (symaddr indicator doc)
@@ -1126,7 +1289,7 @@
   (let* ((fun (%fasl-expr s))
          (doc (%fasl-expr s)))
     (let* ((sym (xload-lfun-name fun)))
-      (unless (= doc *xload-nil*)
+      (unless (= doc *xload-target-nil*)
         (xload-set-documentation sym 'function doc))
       (xload-record-source-file sym 'function)
       (xload-fset sym fun))))
@@ -1136,10 +1299,10 @@
   (let* ((fun (%fasl-expr s))
          (doc (%fasl-expr s)))
     (let* ((sym (xload-lfun-name fun))
-           (vector (xload-make-gvector ppc32::subtag-simple-vector 2)))
+           (vector (xload-make-gvector :simple-vector 2)))
       (setf (xload-%svref vector 0) (xload-symbol-value (xload-lookup-symbol '%macro-code%))
             (xload-%svref vector 1) fun)
-      (unless (= doc *xload-nil*)
+      (unless (= doc *xload-target-nil*)
         (xload-set-documentation sym 'function doc))
       (xload-record-source-file sym 'function)
       (xload-fset sym vector))))
@@ -1149,66 +1312,65 @@
   (let* ((sym (%fasl-expr s))
          (val (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (unless (= doc *xload-nil*)
+    (unless (= doc *xload-target-nil*)
       (xload-set-documentation sym 'variable doc))
     (xload-record-source-file sym 'variable)
     (setf (xload-symbol-value sym) val)
-    (setf (xload-u32-at-address (+ sym ppc32::symbol.flags))
+    (setf (xload-%svref sym target::symbol.flags-cell)
           (ash 
            (logior (ash 1 $sym_vbit_special) 
                    (ash 1 $sym_vbit_const) 
-                   (ash (xload-u32-at-address (+ sym ppc32::symbol.flags)) 
-                        (- ppc32::fixnumshift)))
-           ppc32::fixnumshift))))
+                   (ash (xload-%svref sym target::symbol.flags-cell)
+                        (- *xload-target-fixnumshift*)))
+           *xload-target-fixnumshift*))))
 
 (defxloadfaslop $fasl-defparameter (s)
   (%cant-epush s)
   (let* ((sym (%fasl-expr s))
          (val (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (unless (= doc *xload-nil*)
+    (unless (= doc *xload-target-nil*)
       (xload-set-documentation sym 'variable doc))
     (xload-record-source-file sym 'variable)
     (setf (xload-symbol-value sym) val)
-    (setf (xload-u32-at-address (+ sym ppc32::symbol.flags))
+    (setf (xload-%svref sym target::symbol.flags-cell)
           (ash 
            (logior (ash 1 $sym_vbit_special) 
-                   (ash (xload-u32-at-address (+ sym ppc32::symbol.flags)) 
-                        (- ppc32::fixnumshift)))
-           ppc32::fixnumshift))))
+                   (ash (xload-%svref sym target::symbol.flags-cell)
+                        (- *xload-target-fixnumshift*)))
+           *xload-target-fixnumshift*))))
 
 (defxloadfaslop $fasl-defvar (s)
   (%cant-epush s)
   (let* ((sym (%fasl-expr s)))
     (xload-record-source-file sym 'variable)
-    (setf (xload-u32-at-address (+ sym ppc32::symbol.flags))
+    (setf (xload-%svref sym target::symbol.flags-cell)
           (ash 
            (logior (ash 1 $sym_vbit_special) 
-                   (ash (xload-u32-at-address (+ sym ppc32::symbol.flags)) 
-                        (- ppc32::fixnumshift)))
-           ppc32::fixnumshift))))
+                   (ash (xload-%svref sym target::symbol.flags-cell)
+                         (- *xload-target-fixnumshift*)))
+           *xload-target-fixnumshift*))))
 
 (defxloadfaslop $fasl-defvar-init (s)
   (%cant-epush s)
   (let* ((sym (%fasl-expr s))
          (val (%fasl-expr s))
          (doc (%fasl-expr s)))
-    (unless (= doc *xload-nil*)
+    (unless (= doc *xload-target-nil*)
       (xload-set-documentation sym 'variable doc))
-    (when (= ppc32::unbound-marker (xload-symbol-value sym))
+    (when (= *xload-target-unbound-marker*
+             (xload-symbol-value sym))
       (setf (xload-symbol-value sym) val))
     (xload-record-source-file sym 'variable)
-    (setf (xload-u32-at-address (+ sym ppc32::symbol.flags))
+    (setf (xload-%svref sym target::symbol.flags-cell)
           (ash 
            (logior (ash 1 $sym_vbit_special) 
-                   (ash (xload-u32-at-address (+ sym ppc32::symbol.flags)) 
-                        (- ppc32::fixnumshift)))
-           ppc32::fixnumshift))))
+                   (ash (xload-%svref sym target::symbol.flags-cell)
+                        (- *xload-target-fixnumshift*)))
+           *xload-target-fixnumshift*))))
 
 
 (xload-copy-faslop $fasl-prog1)
-
-
 
 (defxloadfaslop $fasl-src (s)
   (%cant-epush s)
@@ -1216,7 +1378,6 @@
     (setq *xload-loading-file-source-file* path)))
 
 
-(defparameter *pef-image-file-type* "APPL")
 (defparameter *xcompile-features* nil)
 
 
@@ -1252,6 +1413,10 @@
 				       force)))
     (or a b)))
 
+(defun cross-compile-level-0 (target &optional (recompile t))
+  (with-cross-compilation-target (target)
+    (target-xcompile-level-0 target recompile)))
+    
 (defun target-Xload-level-0 (target &optional (recompile t))
   (let* ((*xload-target-backend* (or (find-xload-backend target)
 				     *xload-default-backend*))
@@ -1265,6 +1430,7 @@
 	(delete-package user-pkg))
       (when (and lisp-pkg (not (eq lisp-pkg (find-package "CL"))))
 	(delete-package lisp-pkg)))
+    (setup-xload-target-parameters)
     (in-development-mode
      (when recompile
        (target-Xcompile-level-0 target (eq recompile :force)))
@@ -1272,7 +1438,7 @@
 	    (compiler-backend (find-backend
 			       (backend-xload-info-compiler-target-name
 				*xload-target-backend*)))
-	    (wild-fasls (concatenate 'simple-base-string
+	    (wild-fasls (concatenate 'simple-string
 				     "*."
 				     (pathname-type
 				      (backend-target-fasl-pathname
@@ -1285,5 +1451,10 @@
        (apply #'xfasload *xload-image-file-name*
 	      (append (sort (directory wild-subdir) #'string< :key #'namestring)
 		      (sort (directory wild-root) #'string< :key #'namestring)))))))
+
+(defun cross-xload-level-0 (target &optional (recompile t))
+  (with-cross-compilation-target (target)
+    (let* ((*target-backend* (find-backend target)))
+      (target-xload-level-0 target recompile))))
 
 (provide "XFASLOAD")

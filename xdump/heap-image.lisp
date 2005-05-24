@@ -44,17 +44,20 @@
 				       (byte 8 8)
 				       (char-code #\e)))))
 
+#|
 (def-foreign-type
     openmcl-image-section-header
     (:struct nil
-	     (:code :unsigned)
+	     (:code :unsigned-long)
 	     (:area (:* t))
-	     (:memory-size :unsigned)
-	     (:disk-size :unsigned)))
+	     (:memory-size :unsigned-long)
+	     (:disk-size :unsigned-long)))
+|#
 
-(defparameter *image-section-size*
-  (%foreign-type-or-record-size :openmcl-image-section-header :bytes))
+(defparameter *image-section-size* ())
 
+
+#|
 (def-foreign-type
     openmcl-image-file-header
     (:struct nil
@@ -68,10 +71,15 @@
 	     (:nsections :unsigned)
 	     (:abi-version :unsigned)
 	     (:pad (:array :unsigned 7))))
+|#
 
+(defparameter *image-header-size* nil)
 
-(defparameter *image-header-size*
-  (%foreign-type-or-record-size :openmcl-image-file-header :bytes))
+(defun target-setup-image-header-sizes ()
+  (setq *image-header-size* (* 4 16))
+  (setq *image-section-size* (* 4 (target-arch-case
+                                   (:ppc32 4)
+                                   (:ppc64 8)))))
 
 (defun image-write-fullword (w f)
   (write-byte (ldb (byte 8 24) w) f)
@@ -79,12 +87,22 @@
   (write-byte (ldb (byte 8 8) w) f)
   (write-byte (ldb (byte 8 0) w) f))
 
+(defun image-write-doubleword (dw f)
+  (image-write-fullword (ldb (byte 32 32) dw) f)
+  (image-write-fullword (ldb (byte 32 0) dw) f))
+
+(defun image-write-natural (n f)
+  (target-arch-case
+   (:ppc32 (image-write-fullword n f))
+   (:ppc64 (image-write-doubleword n f))))
+
 (defun image-align-output-position (f)
   (file-position f (logand (lognot 4095)
 			   (+ 4095 (file-position f)))))
 
 
 (defun write-image-file (pathname image-base spaces)
+  (target-setup-image-header-sizes)
   (with-open-file (f pathname
 		     :direction :output
 		     :if-does-not-exist :create
@@ -99,8 +117,12 @@
       (image-write-fullword image-sig2 f)
       (image-write-fullword image-sig3 f)
       (image-write-fullword (get-universal-time) f)
-      (image-write-fullword *xload-image-base-address* f)
-      (image-write-fullword image-base f)
+      (image-write-fullword (target-arch-case
+                             (:ppc32 *xload-image-base-address*)
+                             (:ppc64 0)) f)
+      (image-write-fullword (target-arch-case
+                             (:ppc32 image-base)
+                             (:ppc64 0)) f)
       (image-write-fullword nsections f)
       (image-write-fullword (dpb *openmcl-major-version*
 				 (byte 8 24)
@@ -108,20 +130,30 @@
 				      (byte 8 16)
 				      *openmcl-revision*))
 			    f)
-      (dotimes (i 7) (image-write-fullword 0 f))
+      (target-arch-case
+       (:ppc32
+        (dotimes (i 7) (image-write-fullword 0 f)))
+       (:ppc64
+        (image-write-fullword 0 f)
+        (image-write-fullword 0 f)
+        (image-write-fullword 1 f)
+        (image-write-doubleword *xload-image-base-address* f)
+        (image-write-doubleword image-base f)))
       (dolist (sect spaces)
-	(image-write-fullword (ash (xload-space-code sect) target::fixnumshift)
+	(image-write-natural (ash (xload-space-code sect)
+                                   *xload-target-fixnumshift*)
 			      f)
-	(image-write-fullword 0 f)
+	(image-write-natural 0 f)
 	(let* ((size (xload-space-lowptr sect)))
-	  (image-write-fullword size f)
-	  (image-write-fullword size f)))
+	  (image-write-natural size f)
+	  (image-write-natural size f)))
       (dolist (sect spaces)
 	(image-align-output-position f)
 	(stream-write-ivector f
 			      (xload-space-data sect)
 			      0
 			      (xload-space-lowptr sect)))
+      ;; Write an openmcl_image_file_trailer.
       (image-write-fullword image-sig0 f)
       (image-write-fullword image-sig1 f)
       (image-write-fullword image-sig2 f)
