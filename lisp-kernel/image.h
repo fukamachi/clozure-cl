@@ -42,21 +42,36 @@
 */
 
 typedef struct {
-  area_code code;
+  unsigned long code;
   area *area;
-  unsigned memory_size;
-  unsigned disk_size;
+  unsigned long memory_size;
+  unsigned long disk_size;
 } openmcl_image_section_header;
 
 typedef struct {
   unsigned sig0, sig1, sig2, sig3;
   unsigned timestamp;
-  unsigned canonical_image_base; /* IMAGE_BASE_ADDRESS */
-  unsigned actual_image_base;	/* Hopefully the same */
+  unsigned canonical_image_base_32; /* IMAGE_BASE_ADDRESS */
+  unsigned actual_image_base_32;	/* Hopefully the same */
   unsigned nsections;
   unsigned abi_version;
+#ifdef PPC64
+  unsigned pad[2];
+  unsigned flags;
+  natural canonical_image_base_64;
+  natural actual_image_base_64;
+#else
   unsigned pad[7];
+#endif
 } openmcl_image_file_header;
+
+#ifdef PPC64
+#define ACTUAL_IMAGE_BASE(header) ((header)->actual_image_base_64)
+#define CANONICAL_IMAGE_BASE(header) ((header)->canonical_image_base_64)
+#else
+#define ACTUAL_IMAGE_BASE(header) ((header)->actual_image_base_32)
+#define CANONICAL_IMAGE_BASE(header) ((header)->canonical_image_base_32)
+#endif
 
 typedef struct {
   unsigned sig0, sig1, sig2;
