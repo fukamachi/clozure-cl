@@ -241,7 +241,12 @@ define([extract_subtag],[
 ifdef([PPC64],[
 define([extract_lowtag],[
         clrldi $1,$2,nbits_in_word-nlowtagbits
-])])
+])
+define([trap_unless_lowtag_equal],[
+        clrldi $3,$1,nbits_in_word-nlowtagbits
+        tdnei $3,$2
+])                
+        ])
                                
 define([extract_lowbyte],[
         clrlri($1,$2,nbits_in_word-num_subtag_bits)
@@ -715,7 +720,7 @@ define([Set_TSP_Frame_Boxed],[
   that it doesn't contain tagged data.
 */
 define([TSP_Alloc_Fixed_Unboxed],[
-	stwu tsp,-($1+tsp_frame.data_offset)(tsp)
+	stru(tsp,-($1+tsp_frame.data_offset)(tsp))
 	Set_TSP_Frame_Unboxed()
 ])
 
