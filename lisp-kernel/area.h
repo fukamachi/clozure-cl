@@ -25,16 +25,16 @@
 
 typedef enum {
   AREA_VOID = 0,		/* Not really an area at all */
-  AREA_CSTACK = 4,              /* A control stack */
-  AREA_VSTACK = 8,              /* A value stack.  The GC sees it as being doubleword-aligned */
-  AREA_TSTACK = 12,             /* A temp stack.  It -is- doubleword-aligned */
-  AREA_READONLY = 16,           /* A (cfm) read-only section. */
-  AREA_STATICLIB = 20,          /* A static section in a shared library.  May
-                                 contain pointers to other static sections, but
-                                 not to any dynamic areas */
-  AREA_STATIC = 24,             /* A (cfm or other) static section: contains
+  AREA_CSTACK = 1<<fixnumshift, /* A control stack */
+  AREA_VSTACK = 2<<fixnumshift, /* A value stack.  The GC sees it as being doubleword-aligned */
+  AREA_TSTACK = 3<<fixnumshift, /* A temp stack.  It -is- doubleword-aligned */
+  AREA_READONLY = 4<<fixnumshift, /* A (cfm) read-only section. */
+  AREA_STATICLIB = 5<fixnumshift, /* A static section in a shared library.  May
+                                     contain pointers to other static sections, but
+                                     not to any dynamic areas */
+  AREA_STATIC = 6<<fixnumshift, /* A (cfm or other) static section: contains
                                  roots, but not GCed */
-  AREA_DYNAMIC = 28		/* A heap. Only one such area is "the heap."*/
+  AREA_DYNAMIC = 7<<fixnumshift /* A heap. Only one such area is "the heap."*/
 } area_code;
 
 typedef struct area {
