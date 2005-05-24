@@ -331,7 +331,9 @@
 ;;; (rather than 1 64-bit element).
 
 (defconstant double-float.value misc-data-offset)
+(defconstant double-float.value-cell 0)
 (defconstant double-float.val-low (+ double-float.value 4))
+(defconstant double-float.val-low-cell 1)
 (defconstant double-float.element-count 2)
 (defconstant double-float.size 16)
 
