@@ -20,7 +20,12 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
- (require :number-macros))
+ (require :number-macros)
+ #+(and cross-compiling ppc64-target)
+ (declaim (ftype function %single-float-atanh %single-float-acosh
+                 %single-float-asinh %single-float-tanh
+                 %single-float-cosh %single-float-sinh)))
+                 
 
 (defun parse-float (str len off)  
   ; we cant assume this really is a float but dont call with eg s1 or e1
@@ -628,7 +633,7 @@
       (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-sinh! sx (%make-sfloat)))
       #+ppc64-target
-        (%single-float-sinh (%single-float x.0f0)))))
+        (%single-float-sinh (%short-float x)))))
 
 
 (defun cosh (x)
@@ -676,7 +681,7 @@
       (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-acosh! sx (%make-sfloat)))
       #+ppc64-target
-      (%single-float-acosh (%single-float x)))
+      (%single-float-acosh (%short-float x)))
     (* 2 (log (+ (sqrt (/ (1+ x) 2)) (sqrt (/ (1- x) 2)))))))
 
 (defun atanh (x)
