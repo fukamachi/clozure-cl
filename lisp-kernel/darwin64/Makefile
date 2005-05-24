@@ -42,22 +42,21 @@ OPENMCL_MINOR_VERSION=14
 
 VPATH = ..
 RM = /bin/rm
-LD = ld64
+LD = /usr/local/src/ld64-21/build/ld64
 
 ### The -pagezero_size/-seg1addr args are an attempt to work around a
 ### bug (#4057702) in ld64.
-### Come to think of it, so is the '-weak_reference_mismatches' nonsense.
 
 ### The -seg1addr and -pagezero_size arguments below are nonsense;
 ### early versions of ld64 were/are broken.
-LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start -pagezero_size 0x1000  -seg1addr 0x0000 
+LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start  -pagezero_size 0x3000 -sectalign __TEXT __text 0x1000
 AS = as
 M4 = gm4
 M4FLAGS = -DDARWIN -DPPC64
 ASFLAGS = -arch ppc64
 CDEFINES = -DDARWIN -DPPC64 $(BROKEN_PREPROCESSOR_WORKAROUND) -DOPENMCL_MAJOR_VERSION=$(OPENMCL_MAJOR_VERSION) -DOPENMCL_MINOR_VERSION=$(OPENMCL_MINOR_VERSION)
 CDEBUG = -g
-COPT = -O2
+COPT = #-O2
 
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
@@ -73,11 +72,11 @@ COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
 KERNELOBJ= imports.o $(COBJ) asmutils.o 
 
-SPINC =	lisp.s m4macros.m4 constants.s macros.s errors.s uuo.s
+SPINC =	lisp.s m4macros.m4 constants.s macros.s errors.s uuo.s constants64.s
 
 CHEADERS = area.h bits.h constants.h lisp-errors.h gc.h lisp.h \
 	lisp-exceptions.h lisp_globals.h macros.h memprotect.h image.h \
-	Threads.h lisptypes.h
+	Threads.h lisptypes.h constants64.h
 
 # Subprims linked into the kernel ?
 # Yes:
