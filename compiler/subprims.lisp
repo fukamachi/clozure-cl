@@ -35,7 +35,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 (defparameter *subprims-shift* 2)
-(defparameter *next-subprim-offset* (ash 1 14) )
+(defparameter *next-subprim-offset* (ash 5 12) )
 )
 
 ; For now, nothing's nailed down and we don't say anything about
@@ -47,6 +47,7 @@
 		 (incf *next-subprim-offset* 4)
 		 `(progn
 		   (undefine-constant ',name)
+                   (makunbound ',name)
 		   (defconstant ,name ,offset)
 		   ,info))))
   (setq *next-subprim-offset* (ash 1 14))
