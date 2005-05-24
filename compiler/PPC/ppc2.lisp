@@ -7249,7 +7249,7 @@
 
 
 
-(defppc2 ppc2-linux-syscall linux-syscall (seg vreg xfer idx argspecs argvals resultspec &optional monitor-exception-ports)
+(defppc2 ppc2-eabi-syscall eabi-syscall (seg vreg xfer idx argspecs argvals resultspec &optional monitor-exception-ports)
   (declare (ignore monitor-exception-ports))
   (let* ((*ppc2-vstack* *ppc2-vstack*)
          (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
@@ -7411,7 +7411,7 @@
 
     (^)))
 
-(defppc2 ppc2-darwin-syscall darwin-syscall (seg vreg xfer idx argspecs argvals resultspec &optional monitor-exception-ports)
+(defppc2 ppc2-poweropen-syscall poweropen-syscall (seg vreg xfer idx argspecs argvals resultspec &optional monitor-exception-ports)
   (declare (ignore monitor-exception-ports))
   (let* ((*ppc2-vstack* *ppc2-vstack*)
          (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
