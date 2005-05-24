@@ -627,8 +627,8 @@
     `(stfs ,src ppc32::single-float.value ,node))
    (:ppc64
     `(progn
-      (stfs ,src ppc64::single-float-convert rcontext)
-      (ld ,node ppc64::single-float-convert rcontext)))))
+      (stfs ,src ppc64::tcr.single-float-convert rcontext)
+      (ld ,node ppc64::tcr.single-float-convert rcontext)))))
 
 (defppclapmacro put-double-float (src node)
   (target-arch-case
