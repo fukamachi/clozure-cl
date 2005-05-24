@@ -47,18 +47,26 @@
 	`(,op (the double-float (%double-float ,x)) (the double-float ,y))))
 
   (defmacro sfloat-rat (op x y &optional (destructive-op (cdr (assq op *sfloat-dops*))))
-    (if destructive-op
+    (let* ((use-destructive-op
+            (target-arch-case
+             (:ppc32 destructive-op)
+             (:ppc64 nil))))
+      (if use-destructive-op
 	(let ((f2 (gensym)))
 	  `(let ((,f2 (%short-float ,y (%make-sfloat)))) 
 	    (,destructive-op ,x ,f2 ,f2)))
-	`(,op (the short-float ,x) (the short-float (%short-float ,y)))))
+	`(,op (the short-float ,x) (the short-float (%short-float ,y))))))
 
   (defmacro rat-sfloat (op x y &optional (destructive-op (cdr (assq op *sfloat-dops*))))
-  (if destructive-op
-    (let ((f1 (gensym)))
-      `(let ((,f1 (%short-float ,x (%make-sfloat)))) 
-         (,destructive-op ,f1 ,y ,f1)))
-    `(,op (the short-float (%short-float ,x)) (the short-float ,y))))
+    (let* ((use-destructive-op
+            (target-arch-case
+             (:ppc32 destructive-op)
+             (:ppc64 nil))))
+      (if use-destructive-op
+        (let ((f1 (gensym)))
+          `(let ((,f1 (%short-float ,x (%make-sfloat)))) 
+            (,destructive-op ,f1 ,y ,f1)))
+        `(,op (the short-float (%short-float ,x)) (the short-float ,y)))))
 
 
   
@@ -169,6 +177,7 @@
   (defdestructive-df-op %double-float*-2 %double-float*-2! *)
   (defdestructive-df-op %double-float/-2 %double-float/-2! /))
 
+#-ppc64-target
 (macrolet ((defdestructive-sf-op (non-destructive-name destructive-name op)
              `(progn
                 (defun ,non-destructive-name (x y)
@@ -186,7 +195,9 @@
   (number-case x
     (fixnum  (- (the fixnum x)))
     (double-float  (%double-float-negate! x (%make-dfloat)))
-    (short-float (%short-float-negate! x (%make-sfloat)))
+    (short-float
+     #+ppc32-target (%short-float-negate! x (%make-sfloat))
+     #+ppc64-target (%short-float-negate x))
     (bignum (negate-bignum x))
     (ratio (%make-ratio (%negate (%numerator x)) (%denominator x)))
     (complex (%make-complex (%negate (%realpart X))(%negate (%imagpart X))) )))
@@ -1023,15 +1034,15 @@
            (let ((res (%unary-truncate (%short-float/-2! fnum ,divisor f2))))
              (values res 
                      (%short-float--2 fnum (%short-float*-2! (%short-float res f2) ,divisor f2)))))
-         #+ppc64-target
-         `(let* ((fnum (%short-float ,number))
-                 (res (%unary-truncate (/ (the short-float fnum)
+          #+ppc64-target
+         `(let* ((temp (%short-float ,number))
+                 (res (%unary-truncate (/ (the short-float temp)
                                           (the short-float ,divisor)))))
            (values res
-            (- (the short-float fnum)
+            (- (the short-float temp)
              (the short-float (* (the short-float (%short-float res))
-                                 (the short-float ,divisor))))))
-         ))            
+                                 (the short-float ,divisor)))))))
+         )
     (number-case number
       (fixnum
        (if (eql number most-negative-fixnum)
@@ -1076,20 +1087,29 @@
                                      (%short-float*-2! (%short-float res f2) divisor f2)))))
                         #+ppc64-target
                         (let ((res (%unary-truncate
-                                    ((/ (the short-float number)
-                                        (the short-float divisor))))))
+                                    (/ (the short-float number)
+                                       (the short-float divisor)))))
                             (values res
                                     (- (the short-float number)
                                        (* (the short-float (%short-float res))
                                           (the short-float divisor))))))
                        ((fixnum bignum ratio)
+                        #+ppc32-target
                         (ppc32::with-stack-short-floats ((fdiv divisor)
                                                          (f2))
                           (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
                             (values res 
                                     (%short-float--2 
                                      number 
-                                     (%short-float*-2! (%short-float res f2) fdiv f2))))))
+                                     (%short-float*-2! (%short-float res f2) fdiv f2)))))
+                        #+ppc64-target
+                        (let* ((fdiv (%short-float divisor))
+                               (res (%unary-truncate
+                                     (/ (the short-float number)
+                                        (the short-float fdiv)))))
+                          (values res (- number (* res fdiv))))
+                                     
+                        )
                        (double-float
                         (with-stack-double-floats ((fnum number)
                                                    (f2))

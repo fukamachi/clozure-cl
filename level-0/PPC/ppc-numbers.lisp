@@ -120,7 +120,7 @@
 (defppclapfunction %short-float-negate ((src arg_z))
   (get-single-float fp0 src)
   (fneg fp1 fp0)
-  (put-single-float fp1 res)
+  (put-single-float fp1 arg_z)
   (blr))
 
 
@@ -269,7 +269,7 @@
     (unbox-fixnum unboxed-divisor divisor)
     (divdo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
     (box-fixnum boxed-quotient unboxed-quotient)
-    (muld unboxed-product unboxed-quotient unboxed-divisor)
+    (mulld unboxed-product unboxed-quotient unboxed-divisor)
     (bns+ @ok)
     (mtxer rzero)
     (save-lisp-context)
@@ -446,7 +446,7 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
     (bgt cr0 @u>v)
     (blt cr0 @u<v)
     (blelr cr2)
-    (sl arg_z u vt0)
+    (sld arg_z u vt0)
     (blr)
     @u>v
     (sub u u v)

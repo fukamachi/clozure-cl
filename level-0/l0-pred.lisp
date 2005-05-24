@@ -191,7 +191,11 @@
 (setf (type-predicate 'ivector) 'ivectorp)
 
 (defun miscobjp (x)
-  (= (the fixnum (lisptag x)) target::tag-misc))
+  #+ppc32-target
+  (= (the fixnum (lisptag x)) ppc32::tag-misc)
+  #+ppc64-target
+  (= (the fixnum (fulltag x)) ppc64::fulltag-misc)
+  )
 
 (defun simple-vector-p (x)
   "Return true if OBJECT is a SIMPLE-VECTOR, and NIL otherwise."

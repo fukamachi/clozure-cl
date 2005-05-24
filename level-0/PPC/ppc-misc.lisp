@@ -165,7 +165,7 @@
                                              (dest arg_x)
                                              (dest-byte-offset arg_y)
                                              (nbytes arg_z))
-  (subi nbytes bytes '1)
+  (subi nbytes nbytes '1)
   (ld imm0 src-byte-offset vsp)
   (cmpdi nbytes 0 )
   (ld temp0 src vsp)
@@ -173,7 +173,7 @@
   (cmpd cr1 temp0 dest)
   (cmpdi cr2 src-byte-offset dest-byte-offset)
   (la imm0 target::misc-data-offset imm0)
-  (la imm1 target::misc-data-offset dest-element)
+  (la imm1 target::misc-data-offset dest-byte-offset)
   (bne cr1 @test)
   ;; Maybe overlap, or maybe nothing to do.
   (beq cr2 @done)                       ; same vectors, same offsets
@@ -184,7 +184,7 @@
   (lbzx imm3 temp0 imm0)
   (cmpdi nbytes 0)
   (addi imm0 imm0 1)
-  (stbx immr dest imm1)
+  (stbx imm3 dest imm1)
   (addi imm1 imm1 1)
   @test
   (bge @loop)
@@ -202,7 +202,7 @@
   (lbzx imm3 temp0 imm0)
   (cmpdi nbytes 0)
   (subi imm0 imm0 1)
-  (stbx immr dest imm1)
+  (stbx imm3 dest imm1)
   (subi imm1 imm1 1)
   @back-test
   (bge @back-loop)

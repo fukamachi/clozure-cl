@@ -115,7 +115,7 @@
              #+ppc32-target
              (ash (the fixnum (- subtag ppc32::min-cl-ivector-subtag)) -3)
              #+ppc64-target
-             (ash (the fixnum (logand subtag #x7f) (- ppc64::nlowtagbits)))))))
+             (ash (the fixnum (logand subtag #x7f)) (- ppc64::nlowtagbits))))))
 
 
 
@@ -551,7 +551,7 @@
   (declare (fixnum subtag element-count))
   (unless (= ppc64::lowtag-immheader (logand subtag ppc64::lowtagmask))
     (error "Not an ivector subtag: ~s" subtag))
-  (let* ((ivector-class (logand subtag ppc64::fulltag-mask))
+  (let* ((ivector-class (logand subtag ppc64::fulltagmask))
          (element-bit-shift
           (if (= ivector-class ppc64::ivector-class-32-bit)
             5

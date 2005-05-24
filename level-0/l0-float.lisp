@@ -185,7 +185,7 @@
            (let* ((val (%make-dfloat))
                   (zeros (dfloat-significand-zeros n)))
              (%copy-double-float n val)
-             (%%scale-dfloat n (+ 2 IEEE-double-float-bias zeros) val) ; get it normalized
+             (%%scale-dfloat! n (+ 2 IEEE-double-float-bias zeros) val) ; get it normalized
              (set-%double-float-exp val IEEE-double-float-bias)      ; then bash exponent
              (values val (- old-exp zeros IEEE-double-float-bias) sign )))
          (if (> old-exp 2046)
@@ -200,19 +200,28 @@
        (if (eq 0 old-exp)
          (if  (%short-float-zerop n)
            (values 0.0s0 0 sign)
+           #+ppc32-target
            (let* ((val (%make-sfloat))
                   (zeros (sfloat-significand-zeros n)))
              (%copy-short-float n val)
-             (%%scale-sfloat n (+ 2 IEEE-single-float-bias zeros) val) ; get it normalized
+             (%%scale-sfloat! n (+ 2 IEEE-single-float-bias zeros) val) ; get it normalized
              (set-%short-float-exp val IEEE-single-float-bias)      ; then bash exponent
-             (values val (- old-exp zeros IEEE-single-float-bias) sign )))
+             (values val (- old-exp zeros IEEE-single-float-bias) sign ))
+           #+ppc64-target
+           (let* ((zeros (sfloat-significand-zeros n))
+                  (val (%%scale-sfloat n (+ 2 IEEE-single-float-bias zeros))))
+             (values (set-%short-float-exp val IEEE-single-float-bias)
+                     (- old-exp zeros IEEE-single-float-bias) sign )))
          (if (> old-exp IEEE-single-float-normal-exponent-max)
            (error "Can't decode NAN or infinity ~s" n)
+           #+ppc32-target
            (let ((val (%make-sfloat)))
              (%copy-short-float n val)
              (set-%short-float-exp val IEEE-single-float-bias)
-             (values val (- old-exp IEEE-single-float-bias) sign)))))
-     )))
+             (values val (- old-exp IEEE-single-float-bias) sign))
+           #+ppc64-target
+           (values (set-%short-float-exp n IEEE-single-float-bias)
+                   (- old-exp IEEE-single-float-bias) sign)))))))
 
 ; (* float (expt 2 int))
 (defun scale-float (float int)
@@ -227,7 +236,7 @@
          (if (%double-float-zerop float)
            float 
            (let ((result (%make-dfloat)))
-             (%%scale-dfloat float (+ (1+ IEEE-double-float-bias) int) result)))
+             (%%scale-dfloat! float (+ (1+ IEEE-double-float-bias) int) result)))
          (if (<= new-exp 0)  ; maybe going denormalized        
            (if (<= new-exp (- IEEE-double-float-digits))
              0.0d0 ; should this be underflow? - should just be normal and result is fn of current fpu-mode
@@ -235,7 +244,7 @@
              (let ((result (%make-dfloat)))
                (%copy-double-float float result)
                (set-%double-float-exp result 1) ; scale by float-exp -1
-               (%%scale-dfloat result (+ IEEE-double-float-bias (+ float-exp int)) result)              
+               (%%scale-dfloat! result (+ IEEE-double-float-bias (+ float-exp int)) result)              
                result))
            (if (> new-exp IEEE-double-float-normal-exponent-max) 
              (error (make-condition 'floating-point-overflow
@@ -250,26 +259,38 @@
             (new-exp (+ float-exp int)))
        (if (eq 0 float-exp) ; already denormalized?
          (if (%short-float-zerop float)
-           float 
+           float
+           #+ppc32-target
            (let ((result (%make-sfloat)))
-             (%%scale-sfloat float (+ (1+ IEEE-single-float-bias) int) result)))
+             (%%scale-sfloat! float (+ (1+ IEEE-single-float-bias) int) result))
+           #+ppc64-target
+           (%%scale-float float (+ (1+ IEEE-single-float-bias) int)))
          (if (<= new-exp 0)  ; maybe going denormalized        
-           (if (<= new-exp (- IEEE-single-float-digits)) 
-             0.0s0 ; should this be underflow? - should just be normal and result is fn of current fpu-mode
-             ;(error "Can't scale ~s by ~s." float int) ; should signal something                      
+           (if (<= new-exp (- IEEE-single-float-digits))
+             ;; should this be underflow? - should just be normal and
+             ;; result is fn of current fpu-mode (error "Can't scale
+             ;; ~s by ~s." float int) ; should signal something
+             0.0s0
+             #+ppc32-target
              (let ((result (%make-sfloat)))
                (%copy-short-float float result)
                (set-%short-float-exp result 1) ; scale by float-exp -1
-               (%%scale-sfloat result (+ IEEE-single-float-bias (+ float-exp int)) result)              
-               result))
+               (%%scale-sfloat! result (+ IEEE-single-float-bias (+ float-exp int)) result)              
+               result)
+             #+ppc64-target
+             (%%scale-sfloat (set-%short-float-exp float 1)
+                             (+ IEEE-single-float-bias (+ float-exp int))))
            (if (> new-exp IEEE-single-float-normal-exponent-max) 
              (error (make-condition 'floating-point-overflow
                                     :operation 'scale-float
                                     :operands (list float int)))
+             #+ppc32-target
              (let ((new-float (%make-sfloat)))
                (%copy-short-float float new-float)
                (set-%short-float-exp new-float new-exp)
-               new-float))))))))
+               new-float)
+             #+ppc64-target
+             (set-%short-float-exp float new-exp))))))))
 
 (defun %copy-float (f)
   ;Returns a freshly consed float.  float can also be a macptr.
@@ -600,7 +621,7 @@
 (defun %fixnum-sfloat (fix &optional result)
   (if (eq 0 fix)
     (if result (%copy-short-float 0.0s0 result) 0.0s0)
-    (%int-to-sfloat fix (or result (%make-sfloat)))))
+    (%int-to-sfloat! fix (or result (%make-sfloat)))))
 
 #+ppc64-target
 (defun %fixnum-sfloat (fix)
@@ -618,8 +639,11 @@
                (* (cos r) (sinh i))))
     (if (typep x 'double-float)
       (%double-float-sin! x (%make-dfloat))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
-        (%single-float-sin! sx (%make-sfloat))))))
+        (%single-float-sin! sx (%make-sfloat)))
+      #+ppc64-target
+      (%single-float-sin (%short-float x)))))
 
 (defun cos (x)
   "Return the cosine of NUMBER."
@@ -630,8 +654,11 @@
                (* (sin r) (sinh i))))
     (if (typep x 'double-float)
       (%double-float-cos! x (%make-dfloat))
+      #+ppc32
       (ppc32::with-stack-short-floats ((sx x))
-        (%single-float-cos! sx (%make-sfloat))))))
+        (%single-float-cos! sx (%make-sfloat)))
+      #+ppc64
+      (%single-float-cos (%short-float x)))))
 
 (defun tan (x)
   "Return the tangent of NUMBER."
@@ -639,8 +666,12 @@
     (/ (sin x) (cos x))
     (if (typep x 'double-float)
       (%double-float-tan! x (%make-dfloat))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
-        (%single-float-tan! sx (%make-sfloat))))))
+        (%single-float-tan! sx (%make-sfloat)))
+      #+ppc64-target
+      (%single-float-tan (%short-float x))
+      )))
 
 
 
@@ -653,17 +684,24 @@
       (with-stack-double-floats ((dy y)
                                  (dx x))
         (%df-atan2 dy dx))
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sy y)
                                 (sx x))
-        (%sf-atan2 sy sx)))
+        (%sf-atan2! sy sx))
+      #+ppc64-target
+      (%sf-atan2 (%short-float y) (%short-float x)))
     (if (typep y 'complex)
       (let* ((iy (* (sqrt -1) y)))
              (/ (- (log (+ 1 iy)) (log (- 1 iy)))
                 #c(0 2)))
       (if (typep y 'double-float)
         (%double-float-atan! y (%make-dfloat))
+        #+ppc32-target
         (ppc32::with-stack-short-floats ((sy y))
-          (%single-float-atan! sy (%make-sfloat)))))))
+          (%single-float-atan! sy (%make-sfloat)))
+        #+ppc64-target
+        (%single-float-atan (%short-float y))
+        ))))
 
 
 
@@ -707,7 +745,7 @@
          (%single-float-log! sx (%make-sfloat))))
      #+ppc64-target
      (if (minusp x)
-       (complex (%single-float-log (%short-float-abx x) #.(coerce pi 'single-float)))
+       (complex (%single-float-log (%short-float-abs x) #.(coerce pi 'single-float)))
        (%single-float-log x))
      )))
 
@@ -718,8 +756,12 @@
   (typecase x
     (complex (* (exp (realpart x)) (cis (imagpart x))))
     (double-float (%double-float-exp! x (%make-dfloat)))
-    (t (ppc32::with-stack-short-floats ((sx x))
-         (%single-float-exp! sx (%make-sfloat))))))
+    (t
+     #+ppc32-target
+     (ppc32::with-stack-short-floats ((sx x))
+       (%single-float-exp! sx (%make-sfloat)))
+     #+ppc64-target
+     (%single-float-exp (%short-float x)))))
 
 
 
@@ -736,9 +778,13 @@
            (with-stack-double-floats ((b1 b)
                                       (e1 e))
              (%double-float-expt! b1 e1 (%make-dfloat)))
+           #+ppc32-target
            (ppc32::with-stack-short-floats ((b1 b)
                                      (e1 e))
-             (%single-float-expt! b1 e1 (%make-sfloat)))))
+             (%single-float-expt! b1 e1 (%make-sfloat)))
+           #+ppc64-target
+           (%single-float-expt (%short-float b) (%short-float e))
+           ))
         (t (exp (* e (log b))))))
 
 
@@ -758,8 +804,12 @@
                      (eql (setq d (denominator x))
                           (* (setq b (isqrt d)) b)))))
          (/ a b))          
-        (t (ppc32::with-stack-short-floats ((f1))
-             (fsqrt (%short-float x f1))))))
+        (t
+         #+ppc32-target
+         (ppc32::with-stack-short-floats ((f1))
+             (fsqrt (%short-float x f1)))
+         #+ppc64-target
+         (fsqrt (%short-float x)))))
 
 
 
@@ -782,6 +832,7 @@
 			 (sqrt (- 1.0d0 (the double-float (* x x)))))))
 	   (complex (phase temp) (- (log (abs temp))))))))
     ((short-float rational)
+     #+ppc32-target
      (let* ((x1 (%make-sfloat)))
        (declare (dynamic-extent x1))
        (if (and (realp x) 
@@ -791,7 +842,17 @@
 	 (progn
 	   (setq x (+ (complex (- (imagpart x)) (realpart x))
 		      (sqrt (- 1 (* x x)))))
-	   (complex (phase x) (- (log (abs x))))))))))
+	   (complex (phase x) (- (log (abs x)))))))
+     #+ppc64-target
+     (if (and (realp x) 
+              (<= -1.0s0 (setq x (%short-float x)))
+              (<= x 1.0s0))
+	 (%single-float-asin x)
+	 (progn
+	   (setq x (+ (complex (- (imagpart x)) (realpart x))
+		      (sqrt (- 1 (* x x)))))
+	   (complex (phase x) (- (log (abs x))))))
+     )))
 
 
 (eval-when (:execute :compile-toplevel)
@@ -819,13 +880,22 @@
 	 (%double-float-acos! x (%make-dfloat))
 	 (- double-float-half-pi (asin x)))))
     ((short-float rational)
+     #+ppc32-tarrget
      (ppc32::with-stack-short-floats ((sx x))
 	(locally
 	    (declare (type short-float sx))
 	  (if (and (<= -1.0s0 sx)
 		   (<= sx 1.0s0))
 	    (%single-float-acos! sx (%make-sfloat))
-	    (- single-float-half-pi (asin sx))))))))
+	    (- single-float-half-pi (asin sx)))))
+     #+ppc64-target
+     (let* ((sx (%short-float x)))
+       (declare (type short-float sx))
+       (if (and (<= -1.0s0 sx)
+                (<= sx 1.0s0))
+         (%single-float-acos sx)
+         (- single-float-half-pi (asin sx))))
+     )))
 
 
 (defun fsqrt (x)
@@ -848,7 +918,8 @@
       (float-sign y double-float-half-pi))
     (%double-float-atan2! y x (or result (%make-dfloat)))))
 
-(defun %sf-atan2 (y x &optional result)
+#+ppc32-target
+(defun %sf-atan2! (y x &optional result)
   (if (zerop x)
     (if (zerop y)
       (if (plusp (float-sign x))
@@ -856,5 +927,32 @@
         (float-sign y pi))
       (float-sign y single-float-half-pi))
     (%single-float-atan2! y x (or result (%make-sfloat)))))
+
+#+ppc64-target
+(defun %sf-atan2 (y x)
+  (if (zerop x)
+    (if (zerop y)
+      (if (plusp (float-sign x))
+        y
+        (float-sign y pi))
+      (float-sign y single-float-half-pi))
+    (%single-float-atan2 y x)))
+
+#+ppc64-target
+(defun set-%short-float-exp (float exp)
+  (host-single-float-from-unsigned-byte-32
+   (dpb exp
+        (byte IEEE-single-float-exponent-width
+              IEEE-single-float-exponent-offset)
+        (single-float-bits float))))
+
+#+ppc64-target
+(defun %%scale-sfloat (float int)
+  (* (the single-float float)
+     (the single-float (dpb int
+                            (byte IEEE-single-float-exponent-width
+                                  IEEE-single-float-exponent-offset)
+                            0))))
+                            
 
 ; end of l0-float.lisp

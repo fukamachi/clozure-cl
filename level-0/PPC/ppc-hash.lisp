@@ -37,7 +37,7 @@
 #+ppc64-target
 (defppclapfunction fast-mod ((number arg_y) (divisor arg_z))
   (divdu imm0 number divisor)
-  (muld arg_z imm0 divisor)
+  (mulld arg_z imm0 divisor)
   (subf arg_z arg_z number)
   (blr))
 
@@ -63,7 +63,7 @@
 
 #+ppc64-target
 (defppclapfunction %sfloat-hash ((key arg_z))
-  (srdi arg_z f (- 32 ppc64::fixnumshift))
+  (srdi arg_z key (- 32 ppc64::fixnumshift))
   (blr))
 
 (defppclapfunction %macptr-hash ((key arg_z))

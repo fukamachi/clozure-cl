@@ -49,7 +49,7 @@
     (mr symbol sym)
     (trap-unless-typecode= sym ppc64::subtag-symbol)
     (mr symbol sym)
-    (ld def ppc64::symbol.fcell symptr)
+    (ld def ppc64::symbol.fcell symbol)
     (extract-typecode imm0 def)
     (cmpdi cr0 imm0 ppc64::subtag-function)
     (beqlr+)

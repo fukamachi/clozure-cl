@@ -374,7 +374,7 @@
 
 
 
-(defppclapfunction %%scale-dfloat ((float arg_x)(int arg_y)(result arg_z))
+(defppclapfunction %%scale-dfloat! ((float arg_x)(int arg_y)(result arg_z))
   (let ((fl.h 8)
         (fl.l 12)
         (sc.h 16)
@@ -398,12 +398,13 @@
     (stfd fp2 ppc32::double-float.value result)
     (blr)))
 
-(defppclapfunction %%scale-sfloat ((float arg_x)(int arg_y)(result arg_z))
+#+ppc32-target
+(defppclapfunction %%scale-sfloat! ((float arg_x)(int arg_y)(result arg_z))
   (let ((sc.h 12))
     (clear-fpu-exceptions)
     (lfs fp0 ppc32::single-float.value float)
     (unbox-fixnum imm0 int)
-    (slwi imm0 imm0 IEEE-single-float-mantissa-width)
+    (slwi imm0 imm0 IEEE-single-float-exponent-offset)
     (stwu tsp -16 tsp)
     (stw tsp 4 tsp)
     (stw imm0 sc.h tsp)
@@ -478,7 +479,7 @@
 
 
 #+ppc32-target
-(defppclapfunction %int-to-sfloat ((int arg_y) (sfloat arg_z))
+(defppclapfunction %int-to-sfloat! ((int arg_y) (sfloat arg_z))
   (int-to-freg int fp0 imm0)
   (stfs fp0 ppc32::single-float.value sfloat)
   (blr))

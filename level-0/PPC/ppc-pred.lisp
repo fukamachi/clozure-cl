@@ -319,7 +319,7 @@
   (set-nargs 2)
   (bla .SPjmpsym)
   (cmpdi arg_z nil)
-  (restore-lisp-context)
+  (restore-full-lisp-context)
   (vpop y)
   (vpop x)
   (bne @win)
