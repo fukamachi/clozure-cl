@@ -2730,12 +2730,11 @@
 
 (define-ppc64-vinsn load-double-float-constant
     (((dest :double-float))
-     ((val t)))
-  (stdu ppc::tsp -32 ppc::tsp)
-  (std ppc::tsp 8 ppc::tsp)
-  (std val 16 ppc::tsp)
-  (lfd dest 16 ppc::tsp)
-  (ld ppc::tsp 0 ppc::tsp))
+     ((high :u32)
+      (low :u32)))
+  (stw high -8 ppc::sp)
+  (stw low -4 ppc::sp)
+  (lfd dest -8 ppc::sp))
 
 (define-ppc64-vinsn load-single-float-constant
     (((dest :single-float))
