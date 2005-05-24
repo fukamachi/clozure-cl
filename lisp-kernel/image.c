@@ -706,7 +706,7 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
   if (find_openmcl_image_file_header(fd, h)) {
     int i, nsections = h->nsections;
     openmcl_image_section_header sections[nsections], *sect=sections;
-    LispObj bias = image_base - h->actual_image_base;
+    LispObj bias = image_base - ACTUAL_IMAGE_BASE(h);
 
     if (read (fd, sections, nsections*sizeof(openmcl_image_section_header)) !=
 	nsections * sizeof(openmcl_image_section_header)) {
@@ -726,7 +726,7 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
       case AREA_STATIC:
 	nilreg_area = a;
 #ifdef PPC64
-        image_nil = ptr_to_lispobj(a->low + sizeof(lispsymbol) + fulltag_misc);
+        image_nil = ptr_to_lispobj(a->low + (1024*4) + sizeof(lispsymbol) + fulltag_misc);
 #else
 	image_nil = (LispObj)(a->low + 8 + 8 + (1024*4) + fulltag_nil);
 #endif
@@ -860,13 +860,16 @@ save_application(unsigned fd, Boolean compress)
   fh.sig2 = IMAGE_SIG2;
   fh.sig3 = IMAGE_SIG3;
   fh.timestamp = time(NULL);
-  fh.canonical_image_base = IMAGE_BASE_ADDRESS;
-  fh.actual_image_base = image_base;
+  CANONICAL_IMAGE_BASE(&fh) = IMAGE_BASE_ADDRESS;
+  ACTUAL_IMAGE_BASE(&fh) = image_base;
   fh.nsections = 3;
   fh.abi_version=(OPENMCL_MAJOR_VERSION<<24)|(OPENMCL_MINOR_VERSION<<16);
   for (i = 0; i < sizeof(fh.pad)/sizeof(fh.pad[0]); i++) {
     fh.pad[i] = 0;
   }
+#ifdef PPC64
+  fh.flags = 1;
+#endif
   header_pos = seek_to_next_page(fd);
 
   if (lseek (fd, header_pos, SEEK_SET) < 0) {
