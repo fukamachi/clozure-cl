@@ -1145,7 +1145,11 @@ terminate_lisp()
 }
 
 #ifdef DARWIN
+#ifdef PPC64
+#define min_os_version "8.0"
+#else
 #define min_os_version "6.0"
+#endif
 #endif
 #ifdef LINUX
 #define min_os_version "2.2"
@@ -1162,16 +1166,6 @@ check_os_version(char *progname)
     exit(1);
   }
 }
-
-#if 1
-void
-duplicate_spjump_kludge()
-{
-  UnProtectMemory((LogicalAddress)0x5000,4096);
-  bcopy((void *)0x4000,(void *)0x5000,4096);
-  xMakeDataExecutable((void *)0x5000,4096);
-}
-#endif  
   
 main(int argc, char *argv[], char *envp[], void *aux)
 {
@@ -1186,9 +1180,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
   TCR *tcr;
   int i;
 
-#if 1
-  duplicate_spjump_kludge();
-#endif
   check_os_version(argv[0]);
   real_executable_name = determine_executable_name(argv[0]);
 
