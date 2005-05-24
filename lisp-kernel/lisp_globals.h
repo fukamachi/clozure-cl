@@ -68,13 +68,6 @@ extern LispObj lisp_nil;
 #define BAD_FPSCR_SAVE_HIGH (-46)	/* high word of FP reg used to save FPSCR */
 #define IMAGE_NAME (-47)	/* --image-name arg */
 #define INITIAL_TCR (-48)	/* initial thread tcr */
-#define READONLY_SECTION_END (-1020)
-#define READONLY_SECTION_START (-1021)
-#define STATIC_HEAP_NEXT (-1022) /* next static heap triplet in application or NULL */
-#define STATIC_HEAP_END (-1023) /* end of (primary) static heap */
-#define STATIC_HEAP_START (-1024) /* start of (primary) static heap */
-#define SUBPRIMS_TARGET_0 (-512) /* absolute address of subprim 0 jump target */
-#define SUBPRIMS_TARGET_N (-257) /* absolute address of subprim 255 jump target */
 
 #ifdef PPC64
 #define lisp_global(g) (((LispObj *) 0x2000)[(g)])
