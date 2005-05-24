@@ -19,13 +19,14 @@
 	_beginfile
 	
 define([_spjump],[
+        .align 2
         .globl _SP$1
 _exportfn(j_SP$1)
-        __(b _SP$1)
+        __(ba _SP$1)
 _endfn
 ])
 
-	.align 12
+        /*	.align 12 */
         _spjump(jmpsym)
         _spjump(jmpnfn)
         _spjump(funcall)
@@ -179,5 +180,7 @@ _endfn
         _spjump(svar_setqsym)
         _spjump(svar_progvsave)
         _spjump(svar_progvrestore)
+        .org 0x1ffc
+        nop
         _endfile
         
