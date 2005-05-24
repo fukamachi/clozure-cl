@@ -93,7 +93,6 @@ bitvector global_mark_ref_bits = NULL;
 extern LispObj ret1valn;
 extern LispObj nvalret;
 extern LispObj popj;
-LispObj real_subprims_base = 0;
 LispObj text_start = 0;
 
 /* A pointer to some of the kernel's own data; also persistent. */
@@ -1164,6 +1163,15 @@ check_os_version(char *progname)
   }
 }
 
+#if 1
+void
+duplicate_spjump_kludge()
+{
+  UnProtectMemory((LogicalAddress)0x5000,4096);
+  bcopy((void *)0x4000,(void *)0x5000,4096);
+  xMakeDataExecutable((void *)0x5000,4096);
+}
+#endif  
   
 main(int argc, char *argv[], char *envp[], void *aux)
 {
@@ -1178,6 +1186,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
   TCR *tcr;
   int i;
 
+#if 1
+  duplicate_spjump_kludge();
+#endif
   check_os_version(argv[0]);
   real_executable_name = determine_executable_name(argv[0]);
 
@@ -1253,7 +1264,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   prepare_for_the_worst();
 
-  real_subprims_base = (LispObj)(1<<20);
   create_reserved_area(reserved_area_size);
   set_nil(load_image(image_name));
   lisp_global(AREA_LOCK) = ptr_to_lispobj(area_lock);
@@ -1340,7 +1350,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(TCR_LOCK) = ptr_to_lispobj(new_recursive_lock());
   lisp_global(INTERRUPT_SIGNAL) = (LispObj) box_fixnum(SIGNAL_FOR_PROCESS_INTERRUPT);
   tcr->interrupt_level = (-1<<fixnumshift);
-  tcr->vs_area->active -= 4;
+  tcr->vs_area->active -= node_size;
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;
   nrs_TOPLFUNC.vcell = lisp_nil;
   enable_fp_exceptions();
