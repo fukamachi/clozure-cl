@@ -1,3 +1,4 @@
+
 ;;;-*-Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
@@ -225,7 +226,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun %compile-time-eval (form env)
   (let* ((*target-backend* *host-backend*))
     (funcall (compile-named-function
-              `(lambda () ,form) env nil nil
+              `(lambda () ,form) nil env nil nil
               *compile-time-evaluation-policy*))))
 
 
@@ -1174,6 +1175,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fasl-dump-dispatch (exp)
   (etypecase exp
     (fixnum (fasl-dump-fixnum exp))
+    (bignum (fasl-dump-32-bit-ivector exp $fasl-bignum32))
     (character (fasl-dump-char exp))
     (list (fasl-dump-list exp))
     (immediate (fasl-dump-t_imm exp))
@@ -1607,7 +1609,7 @@ Will differ from *compiling-file* during an INCLUDE")
         (with-cross-compilation-package ("OS" ftd-package-name)
           (with-cross-compilation-package ("TARGET" arch-package-name)
             (let* ((*target-ftd* ftd))
-              (funcall thunk))))))))
+               (funcall thunk))))))))
 
 (defmacro with-cross-compilation-target ((target) &body body)
   `(%with-cross-compilation-target ,target #'(lambda () ,@body)))
