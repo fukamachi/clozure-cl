@@ -224,11 +224,11 @@
   (target-arch-case
    (:ppc32
     '(progn
-      (lwz nargs ppc32::tcr.interrupt-level rcontext)
+      (lwz nargs ppc32::tcr.interrupt-level ppc32::rcontext)
       (twgti nargs 0)))
    (:ppc64
     '(progn     
-      (ld nargs ppc64::tcr.interrupt-level rcontext)
+      (ld nargs ppc64::tcr.interrupt-level ppc32::rcontext)
       (tdgti nargs 0)))))
     
 
@@ -610,8 +610,8 @@
     `(lfs ,dest ppc32::single-float.value ,node))
    (:ppc64
     `(progn
-      (std ,node ppc64::tcr.single-float-convert rcontext)
-      (lfs ,dest ppc64::tcr.single-float-convert rcontext)))))
+      (std ,node ppc64::tcr.single-float-convert ppc64::rcontext)
+      (lfs ,dest ppc64::tcr.single-float-convert ppc64::rcontext)))))
 
 (defppclapmacro get-double-float (dest node)
   (target-arch-case
@@ -627,8 +627,8 @@
     `(stfs ,src ppc32::single-float.value ,node))
    (:ppc64
     `(progn
-      (stfs ,src ppc64::tcr.single-float-convert rcontext)
-      (ld ,node ppc64::tcr.single-float-convert rcontext)))))
+      (stfs ,src ppc64::tcr.single-float-convert ppc64::rcontext)
+      (ld ,node ppc64::tcr.single-float-convert ppc64::rcontext)))))
 
 (defppclapmacro put-double-float (src node)
   (target-arch-case
@@ -915,19 +915,28 @@
 ;;; Note that the constant #x4330000080000000 is now in fp-s32conv
 
 (defppclapmacro int-to-freg (int freg imm)
-  `(let ((temp 8)
-	 (temp.h 8)
-	 (temp.l 12))
-    (stwu tsp -16 tsp)
-    (stw tsp 4 tsp)
-    (stfd ppc::fp-s32conv temp tsp)
-    (unbox-fixnum ,imm ,int)
-    (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
-    (stw ,imm temp.l tsp)
-    (lfd ,freg temp tsp)
-    (lwz tsp 0 tsp)
-    (fsub ,freg ,freg ppc::fp-s32conv)))
-
+  (target-arch-case
+   (:ppc32
+    `(let ((temp 8)
+           (temp.h 8)
+           (temp.l 12))
+      (stwu tsp -16 tsp)
+      (stw tsp 4 tsp)
+      (stfd ppc::fp-s32conv temp tsp)
+      (unbox-fixnum ,imm ,int)
+      (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
+      (stw ,imm temp.l tsp)
+      (lfd ,freg temp tsp)
+      (lwz tsp 0 tsp)
+      (fsub ,freg ,freg ppc::fp-s32conv)))
+   (:ppc64
+    `(progn
+      (stfd ppc::fp-s32conv -8 sp)
+      (unbox-fixnum ,imm ,int)
+      (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
+      (stw ,imm -4 sp)
+      (lfd ,freg -8 sp)
+      (fsub ,freg ,freg ppc::fp-s32conv)))))
 
 
 
