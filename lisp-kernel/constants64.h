@@ -18,6 +18,7 @@
 #ifndef __constants64__
 #define __constants64__ 1
 
+#define rcontext 2
 
 #define nbits_in_word 64
 #define nbits_in_byte 8
@@ -92,8 +93,8 @@
 
 
 /* There's some room for expansion in non-array ivector space. */
-#define subtag_macptr SUBTAG(ivector_class_64_bit,5)
-#define subtag_dead_macptr SUBTAG(ivector_class_64_bit,6)
+#define subtag_macptr SUBTAG(ivector_class_64_bit,1)
+#define subtag_dead_macptr SUBTAG(ivector_class_64_bit,2)
 #define subtag_code_vector SUBTAG(ivector_class_32_bit,0)
 #define subtag_xcode_vector SUBTAG(ivector_class_32_bit,1)
 #define subtag_bignum SUBTAG(ivector_class_32_bit,2)
@@ -137,7 +138,7 @@
 	
 #define misc_header_offset -fulltag_misc
 #define misc_subtag_offset misc_header_offset+7       /* low byte of header */
-#define misc_data_offset misc_header_offset+4		/* first word of data */
+#define misc_data_offset misc_header_offset+8		/* first word of data */
 #define misc_dfloat_offset misc_header_offset		/* double-floats are doubleword-aligned */
 
 #define subtag_single_float SUBTAG(fulltag_imm_0,0)
@@ -230,7 +231,7 @@ typedef struct c_frame {
   natural crsave;
   natural savelr;
   natural unused[2];
-  natural savetoc;		/* Used with CFM */
+  natural savetoc;		/* Used with CFM (and on Linux.)
   natural params[8];		/* Space for callee to save r3-r10 */
 } c_frame;
 
@@ -385,7 +386,7 @@ typedef struct doh_block {
 
 
 
-#define TCR_BIAS (0x7000)
+#define TCR_BIAS (0x0)
 
 typedef struct tcr {
   struct tcr* next;

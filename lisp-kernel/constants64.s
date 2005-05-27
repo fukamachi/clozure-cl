@@ -15,7 +15,8 @@
    http://opensource.franz.com/preamble.html
 */
 
-
+define([rcontext],[r2])
+        
 nbits_in_word = 64
 nbits_in_byte = 8
 ntagbits = 4
@@ -104,8 +105,8 @@ define_cl_array_subtag(u8_vector,ivector_class_8_bit,2)
 define_cl_array_subtag(simple_base_string,ivector_class_8_bit,5)
 
 /* There's some room for expansion in non-array ivector space. */
-define_subtag(macptr,ivector_class_64_bit,5)
-define_subtag(dead_macptr,ivector_class_64_bit,6)
+define_subtag(macptr,ivector_class_64_bit,1)
+define_subtag(dead_macptr,ivector_class_64_bit,2)
 define_subtag(code_vector,ivector_class_32_bit,0)
 define_subtag(xcode_vector,ivector_class_32_bit,1)
 define_subtag(bignum,ivector_class_32_bit,2)
@@ -148,8 +149,8 @@ cons_bias = fulltag_cons
 define([t_offset],-symbol.size)
 	
 misc_header_offset = -fulltag_misc
-misc_subtag_offset = misc_header_offset+7       /* low byte of header */
-misc_data_offset = misc_header_offset+4		/* first word of data */
+misc_data_offset = misc_header_offset+node_size /* first word of data */ 
+misc_subtag_offset = misc_data_offset-1       /* low byte of header */
 misc_dfloat_offset = misc_header_offset		/* double-floats are doubleword-aligned */
 
 define_subtag(single_float,fulltag_imm_0,0)
@@ -256,7 +257,7 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	 _node(backlink)
 	 _node(crsave)
 	 _node(savelr)
-	 _field(unused, 8)
+	 _field(unused, 16)
 	 _node(savetoc)
 	 _struct_label(params)
          _node(param0)
@@ -516,7 +517,7 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 	_ends
 
 
-TCR_BIAS = 0x7000        
+TCR_BIAS = 0
 /*
   Thread context record.
 */
