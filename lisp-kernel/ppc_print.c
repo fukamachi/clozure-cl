@@ -63,26 +63,30 @@ add_c_string(char *s)
   add_string(s, strlen(s));
 }
 
-char numbuf[32];
+char numbuf[64];
 
 void
-sprint_signed_decimal(int n)
+sprint_signed_decimal(signed_natural n)
 {
-  sprintf(numbuf, "%d", n);
+  sprintf(numbuf, "%ld", n);
   add_c_string(numbuf);
 }
 
 void
-sprint_unsigned_decimal(unsigned n)
+sprint_unsigned_decimal(natural n)
 {
-  sprintf(numbuf, "%u", n);
+  sprintf(numbuf, "%lu", n);
   add_c_string(numbuf);
 }
 
 void
-sprint_unsigned_hex(unsigned n)
+sprint_unsigned_hex(natural n)
 {
-  sprintf(numbuf, "#x%08x", n);
+#ifdef PPC64
+  sprintf(numbuf, "#x%016lx", n);
+#else
+  sprintf(numbuf, "#x%08lx", n);
+#endif
   add_c_string(numbuf);
 }
 
@@ -182,7 +186,7 @@ void
 sprint_function(LispObj o, int depth)
 {
   LispObj lfbits, header, name = lisp_nil;
-  unsigned elements;
+  natural elements;
 
   header = header_of(o);
   elements = header_element_count(header);
@@ -288,7 +292,7 @@ sprint_ivector(LispObj o)
     
   case subtag_bignum:
     if (elements == 1) {
-      sprint_signed_decimal((int)(deref(o, 1)));
+      sprint_signed_decimal((signed_natural)(deref(o, 1)));
       return;
     }
     if ((elements == 2) && (deref(o, 2) == 0)) {
