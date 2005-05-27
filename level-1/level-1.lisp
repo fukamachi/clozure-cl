@@ -27,23 +27,23 @@
 	     (let* ((namestring
 		     (concatenate 'simple-base-string
 				  #+linuxppc-target "./l1-pfsls/"
-				  #+sparc-target "./l1-sfsls/"
 				  #+darwinppc-target "./l1-dfsls/"
 				  (string name)
-				  #+linuxppc-target ".pfsl"
-				  #+sparc-target ".sfsl"
-				  #+darwinppc-target ".dfsl")))
+				  #+(and linuxppc-target ppc64-target) ".p64fsl"
+                                  #+(and linuxppc-target ppc32-target) ".pfsl"
+				  #+(and darwinppc-target ppc64-target) ".d64fsl"
+                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
 	       `(%fasload ,namestring)))
 	   (bin-load (name)
 	     (let* ((namestring
 		     (concatenate 'simple-base-string
 				  #+linuxppc-target "./binppc/"
-				  #+sparc-target "./binsparc/"
 				  #+darwinppc-target "./bindarwin/"
 				  (string name)
-				  #+linuxppc-target ".pfsl"
-				  #+sparc-target ".sfsl"
-				  #+darwinppc-target ".dfsl")))
+				  #+(and linuxppc-target ppc64-target) ".p64fsl"
+                                  #+(and linuxppc-target ppc32-target) ".pfsl"
+				  #+(and darwinppc-target ppc64-target) ".d64fsl"
+                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
 	       `(%fasload ,namestring))))
 
   (l1-load "l1-cl-package")

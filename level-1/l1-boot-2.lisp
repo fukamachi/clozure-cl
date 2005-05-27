@@ -25,8 +25,10 @@
 				  #+linuxppc-target "./l1-pfsls/"
 				  #+darwinppc-target "./l1-dfsls/"
 				  (string name)
-				  #+linuxppc-target ".pfsl"
-				  #+darwinppc-target ".dfsl")))
+				  #+(and linuxppc-target ppc64-target) ".p64fsl"
+                                  #+(and linuxppc-target ppc32-target) ".pfsl"
+				  #+(and darwinppc-target ppc64-target) ".d64fsl"
+                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
 	       `(let* ((*loading-file-source-file* *loading-file-source-file*))
                  (%fasload ,namestring))))
 	   (bin-load (name)
@@ -35,8 +37,10 @@
 				  #+linuxppc-target "./binppc/"
 				  #+darwinppc-target "./bindarwin/"
 				  (string name)
-				  #+linuxppc-target ".pfsl"
-				  #+darwinppc-target ".dfsl")))
+				  #+(and linuxppc-target ppc64-target) ".p64fsl"
+                                  #+(and linuxppc-target ppc32-target) ".pfsl"
+				  #+(and darwinppc-target ppc64-target) ".d64fsl"
+                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
                `(let* ((*loading-file-source-file* *loading-file-source-file*))
                  (%fasload ,namestring)))))
 
