@@ -25,24 +25,30 @@
   (require "XFASLOAD" "ccl:xdump;xfasload"))
 
 
+(defun xload-ppc-lap-word (instruction-form)
+  (uvref (uvref (compile nil
+                         `(lambda (&lap 0)
+                           (ppc-lap-function () ((?? 0))
+                            ,instruction-form)))
+                  0) #+ppc32-target 0 #+ppc64-target 1))
 
 (defparameter *ppc-macro-apply-code*
-  (uvref
-   (%define-ppc-lap-function  ()
-                              '((mflr loc-pc)
-                                (bla .SPheap-rest-arg)
-                                (mtlr loc-pc)
-                                (vpop arg_z)
-                                (mr arg_y fname)
-                                (li arg_x '#.$xnotfun)
-                                (set-nargs 3)
-                                (ba .SPksignalerr)))
-   0
-   ))
+  (let* ((code '((mflr loc-pc)
+                 (bla .SPheap-rest-arg)
+                 (mtlr loc-pc)
+                 (vpop arg_z)
+                 (mr arg_y fname)
+                 (li arg_x '#.$xnotfun)
+                 (set-nargs 3)
+                 (ba .SPksignalerr))))
+    (make-array (length code)
+                :element-type '(unsigned-byte 32)
+                :initial-contents
+                (mapcar #'xload-ppc-lap-word code))))
+
 
 (defun ppc-fixup-macro-apply-code ()
-  (let* ((codev (%extend-vector 0 *ppc-macro-apply-code*
-                                (uvsize *ppc-macro-apply-code*))))
+  (let* ((codev *ppc-macro-apply-code*))
     (setf (uvref codev 5)
           (logior (logand #xffff00000 (uvref *ppc-macro-apply-code* 5))
                   (target-arch-case
@@ -52,15 +58,20 @@
 
 
 (defparameter *ppc-closure-trampoline-code*
-  (uvref
-   (%define-ppc-lap-function  ()
-                              '((ba .SPcall-closure)))
-   0
-   ))
+  (let* ((code '((ba .SPcall-closure))))
+    (make-array (length code)
+                :element-type '(unsigned-byte 32)
+                :initial-contents
+                (mapcar #'xload-ppc-lap-word code))))
+
 
 ;;; For now, do this with a UUO so that the kernel can catch it.
 (defparameter *ppc-udf-code*
-  (uvref (%define-ppc-lap-function nil '((uuo_interr #.arch::error-udf-call 0))) 0))
+  (let* ((code '((uuo_interr #.arch::error-udf-call 0))))
+    (make-array (length code)
+                :element-type '(unsigned-byte 32)
+                :initial-contents
+                (mapcar #'xload-ppc-lap-word code))))
 
 
 (defparameter *ppc32-xload-backend*
