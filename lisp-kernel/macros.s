@@ -342,7 +342,8 @@ define([header_size],[
 	/* "Length" is fixnum element count */
 define([header_length],[
 ifdef([PPC64],[
-        clrlsldi $1,$2,nbits_in_word-num_subtag_bits,fixnum_shift
+        rldicr $1,$2,nbits_in_word-(num_subtag_bits-nfixnumtagbits),63-nfixnumtagbits
+        clrldi $1,$1,(num_subtag_bits-nfixnumtagbits)
         ],[               
 	rlwinm $1,$2,nbits_in_word-(num_subtag_bits-nfixnumtagbits),(num_subtag_bits-nfixnumtagbits),31-nfixnumtagbits
         ])
@@ -375,11 +376,19 @@ define([set_nrs_value],[
 ])
 
 define([extract_unsigned_byte_bits],[
+ifdef([PPC64],[
+        rldicr $1,$2,64-fixnumshift,63-$3
+],[                
         rlwinm $1,$2,0,32-fixnumshift,31-($3+fixnumshift)
+])        
 ])
 
-define([extract_unsigned_byte_bits_],[/* dest,src,width*/
+define([extract_unsigned_byte_bits_],[
+ifdef([PPC64],[
+        rldicr. $1,$2,64-fixnumshift,63-$3
+],[                
         rlwinm. $1,$2,0,32-fixnumshift,31-($3+fixnumshift)
+])        
 ])
 
 	/* vpop argregs - nargs is known to be non-zero */
