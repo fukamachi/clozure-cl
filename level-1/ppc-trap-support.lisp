@@ -73,7 +73,7 @@
 			     (ppc-lap-function () ((?? 0))
 			      ,instruction-form)))
 		  
-                  0) 0))
+                  0) #+ppc32-target 0 #+ppc64-target 1))
   
   (defmacro ppc-instruction-mask (&rest fields)
     `(logior ,@(mapcar #'ppc-instruction-field-mask (cons :opcode fields))))
