@@ -18,10 +18,10 @@
 	
 	include(lisp.s)
 	_beginfile
+        .align 2
 	
 local_label(start):	
 define([_spentry],[ifdef([__func_name],[_endfn],[])
-        .align 5
 	_exportfn(_SP$1)
 	.line  __line__
 ])
@@ -199,7 +199,7 @@ local_label(_nthrowv_push_test):
         __(restore_catch_nvrs(temp0))
 
 local_label(_nthrowv_skip):
-	__(la tsp,-(8+fulltag_misc)(temp0))
+	__(la tsp,-(tsp_frame.fixed_overhead+fulltag_misc)(temp0))
 	__(unlink(tsp))
 	__(discard_lisp_frame())
 	__(b local_label(_nthrowv_nextframe))
@@ -212,7 +212,7 @@ local_label(_nthrowv_do_unwind):
 	__(ldr(first_nvr,catch_frame.xframe(temp0)))
 	__(str(first_nvr,tcr.xframe(rcontext)))
         __(restore_catch_nvrs(temp0))
-	__(la tsp,-(8+fulltag_misc)(temp0))
+	__(la tsp,-(tsp_frame.fixed_overhead+fulltag_misc)(temp0))
 	__(unlink(tsp))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(ldr(nfn,lisp_frame.savefn(sp)))
@@ -221,12 +221,10 @@ local_label(_nthrowv_do_unwind):
 	__(mflr loc_pc)
 	__(mr fn,nfn)
 	__(str(loc_pc,lisp_frame.savelr(sp)))
-	__(dnode_align(imm0,nargs,tsp_frame.fixed_overhead+8))	/* tsp overhead, nargs, throw count */
+	__(dnode_align(imm0,nargs,tsp_frame.fixed_overhead+(2*node_size)))	/* tsp overhead, nargs, throw count */
 	__(TSP_Alloc_Var_Boxed_nz(imm0,imm1))
 	__(mr imm2,nargs)
 	__(add imm1,nargs,vsp)
-	__(ldr(imm0,tsp_frame.backlink(tsp)))                      /* end of tsp frame */
-	__(str(rzero,-node_size(imm0)))
 	__(la imm0,tsp_frame.data_offset(tsp))
 	__(str(nargs,0(imm0)))
 	__(b local_label(_nthrowv_tpushtest))
@@ -239,7 +237,6 @@ local_label(_nthrowv_tpushtest):
 	__(bne local_label(_nthrowv_tpushloop))
 	__(stru(imm4,node_size(imm0)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-	__(str(rzero,lisp_frame.savevsp(sp)))       /* tell stack overflow code to skip this frame */
 	__(bctrl)
 	__(la imm0,tsp_frame.data_offset(tsp))
 	__(ldr(fn,lisp_frame.savefn(sp)))
@@ -316,11 +313,10 @@ local_label(_nthrow1v_do_unwind):
 	__(mflr loc_pc)
 	__(mr fn,nfn)
 	__(str(loc_pc,lisp_frame.savelr(sp)))
-	__(TSP_Alloc_Fixed_Boxed(8)) /* tsp overhead, value, throw count */
+	__(TSP_Alloc_Fixed_Boxed(2*node_size)) /* tsp overhead, value, throw count */
 	__(str(arg_z,tsp_frame.data_offset(tsp)))
 	__(str(imm4,tsp_frame.data_offset+node_size(tsp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-	__(str(rzero,lisp_frame.savevsp(sp)))       /* Tell stack overflow code to ignore this frame */
 	__(bctrl)
 	__(ldr(arg_z,tsp_frame.data_offset(tsp)))
 	__(ldr(imm4,tsp_frame.data_offset+node_size(tsp)))
@@ -384,9 +380,9 @@ C(egc_rplaca):
         __(ref_global(imm2,refbits))
         __(bgelr)
         __(slri(imm0,imm0,word_shift))
-1:      __(lwarx imm1,imm2,imm0)
+1:      __(lrarx(imm1,imm2,imm0))
         __(or imm1,imm1,imm3)
-        __(stwcx. imm1,imm2,imm0)
+        __(strcx(imm1,imm2,imm0))
         __(bne- 1b)
         __(isync)
         __(blr)
@@ -409,9 +405,9 @@ C(egc_rplacd):
         __(ref_global(imm2,refbits))
         __(bgelr)
         __(slri(imm0,imm0,word_shift))
-1:      __(lwarx imm1,imm2,imm0)
+1:      __(lrarx(imm1,imm2,imm0))
         __(or imm1,imm1,imm3)
-        __(stwcx. imm1,imm2,imm0)
+        __(strcx(imm1,imm2,imm0))
         __(bne- 1b)
         __(isync)
         __(blr)
@@ -419,10 +415,10 @@ C(egc_rplacd):
 /*
   Storing into a gvector can be handled the same way as storing into a CONS.
 */
-          
+
 _spentry(gvset)
         .globl C(egc_gvset)
-C(egc_gvset):  
+C(egc_gvset):
         __(cmplr(cr2,arg_z,arg_x))
         __(la imm0,misc_data_offset(arg_y))
         __(strx(arg_z,arg_x,imm0))
@@ -508,10 +504,10 @@ C(egc_store_node_conditional):
         __(cmplr(cr2,arg_z,arg_x))
         __(vpop(temp0))
         __(unbox_fixnum(imm4,temp0))
-1:      __(lwarx temp1,arg_x,imm4)
+1:      __(lrarx(temp1,arg_x,imm4))
         __(cmpr(cr1,temp1,arg_y))
         __(bne cr1,3f)
-        __(stwcx. arg_z,arg_x,imm4)
+        __(strcx(arg_z,arg_x,imm4))
         __(bne 1b)
         __(isync)
         __(add imm0,imm4,arg_x)
@@ -527,14 +523,14 @@ C(egc_store_node_conditional):
         __(ref_global(imm2,refbits))
         __(bge 5f)
         __(slri(imm0,imm0,word_shift))
-2:      __(lwarx imm1,imm2,imm0)
+2:      __(lrarx(imm1,imm2,imm0))
         __(or imm1,imm1,imm3)
-        __(stwcx. imm1,imm2,imm0)
+        __(strcx( imm1,imm2,imm0))
         __(bne- 2b)
         __(isync)
         __(b 5f)
 3:      __(li imm0,RESERVATION_DISCHARGE)
-        __(stwcx. rzero,0,imm0)
+        __(strcx(rzero,0,imm0))
 /*        __(b 4f) */
 
        .globl C(egc_write_barrier_end)
@@ -641,45 +637,36 @@ _spentry(mkstackv)
 	__(blr)
 
 	
-/* like misc_ref, only the boxed subtag is in arg_x. 
-*/
-_spentry(subtag_misc_ref)
-	__(trap_unless_fulltag_equal(arg_y,fulltag_misc,imm0))
-        __(trap_unless_lisptag_equal(arg_z,tag_fixnum,imm0))
-	__(vector_length(imm0,arg_y,imm1))
-	__(trlge(arg_z,imm0))
-	__(unbox_fixnum(imm1,arg_x))
-        __(b misc_ref_common)
         
 
 /* Is it worth trying to avoid (postpone) consing here ? */
 _spentry(newblocktag)
         __(li imm1,lisp_globals.block_tag_counter)
 1:              
-        __(lwarx imm0,0,imm1)
+        __(lrarx(imm0,0,imm1))
 	__(addi imm0,imm0,1<<num_subtag_bits)
 	__(cmpri(imm0,0))
 	__(ori arg_z,imm0,subtag_block_tag)
 	__(beq- local_label(cons_nil_nil))
-        __(stwcx. imm0,0,imm1)
+        __(strcx(imm0,0,imm1))
         __(bne- 1b)
         __(isync)
 	__(blr)
 	
 _spentry(newgotag)
         __(li imm1,lisp_globals.go_tag_counter)
-1:      __(lwarx imm0,0,imm1)
+1:      __(lrarx(imm0,0,imm1))
 	__(addi imm0,imm0,1<<num_subtag_bits)
 	__(cmpri(imm0,0))
 	__(ori arg_z,imm0,subtag_go_tag)
 	__(beq- local_label(cons_nil_nil))
-        __(stwcx. imm0,0,imm1)
+        __(strcx(imm0,0,imm1))
         __(bne- 1b)
         __(isync)
 	__(blr)
 local_label(cons_nil_nil):
         __(li imm2,RESERVATION_DISCHARGE)
-        __(stwcx. imm2,0,imm2)
+        __(strcx(imm2,0,imm2))
 	__(li imm0,nil_value)
 	__(Cons(arg_z,imm0,imm0))
 	__(blr)
@@ -814,16 +801,6 @@ _spentry(gvector)
 	__(bge cr0,1b)
 	__(blr)
 	
-	.globl C(nvalret)
-	
-	/* Come here with saved context on top of stack. */
-_spentry(nvalret)
-C(nvalret):	
-	__(ldr(loc_pc,lisp_frame.savelr(sp)))
-	__(ldr(temp0,lisp_frame.savevsp(sp)))
-	__(ldr(fn,lisp_frame.savefn(sp)))
-	__(discard_lisp_frame())
-        __(b local_label(return_values))
 	
 /* funcall temp0, returning multiple values if it does. */
 _spentry(mvpass)
@@ -889,7 +866,7 @@ _spentry(nthvalue)
 
 _spentry(values)
 	__(mflr loc_pc)
-local_label(return_values):	
+local_label(return_values):  
 	__(ref_global(imm0,ret1val_addr))
 	__(li arg_z,nil_value)
 	/* max tsp frame is 4K. 8+8 is overhead for save_values_to_tsp below */
@@ -939,7 +916,18 @@ local_label(return_values):
 6:
 	__(mr vsp,imm0)
 	__(blr)
+
+	.globl C(nvalret)
 	
+	/* Come here with saved context on top of stack. */
+_spentry(nvalret)
+C(nvalret):	
+	__(ldr(loc_pc,lisp_frame.savelr(sp)))
+	__(ldr(temp0,lisp_frame.savevsp(sp)))
+	__(ldr(fn,lisp_frame.savefn(sp)))
+	__(discard_lisp_frame())
+        __(b local_label(return_values))
+        	
 /* Provide default (NIL) values for &optional arguments; imm0 is 
    the (fixnum) upper limit on the total of required and &optional 
    arguments.  nargs is preserved, all arguments wind up on the 
@@ -1132,7 +1120,7 @@ _spentry(keyword_bind)
 	/* recompute ptr to user args in case stack overflowed */
 	__(add imm4,vsp,imm3)
 	__(add imm4,imm4,imm3)
-	__(addi imm4,imm4,12)
+	__(addi imm4,imm4,3*node_size)
 	/* error if odd number of keyword/value args */
 	__(mr varptr,imm4)
 	__(la limit,3*node_size(vsp))
@@ -1300,7 +1288,7 @@ _spentry(ffcall)
 	   to the function on entry. */
 	__(mr r12,arg_z)
 	__(bctrl)
-	__(b _local_label(FF_call_return_common))
+	__(b FF_call_return_common)
 
 _spentry(ffcalladdress)
         __(b _SPbreakpoint)
@@ -1862,7 +1850,7 @@ _spentry(misc_ref)
    Note that this conses in some cases.  Return a properly-tagged 
    lisp object in arg_z.  Do type and bounds-checking. 
 */
-misc_ref_common:
+local_label(misc_ref_common):   
         __ifdef([PPC64])
 	 __(extract_fulltag(imm2,imm1))
          __(extract_lowtag(imm3,imm1))
@@ -2041,17 +2029,23 @@ local_label(ref_dfloat):
 	 __(blr)
         __endif
         
-	
-/* misc_set (vector index newval).  Pretty damned similar to 
-   misc_ref, as one might imagine. 
+/* like misc_ref, only the boxed subtag is in arg_x. 
 */
-_spentry(misc_set)
-	__(trap_unless_fulltag_equal(arg_x,fulltag_misc,imm0))
-	__(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
-	__(vector_length(imm0,arg_x,imm1))
-	__(trlge(arg_y,imm0))
-	__(extract_lowbyte(imm1,imm1))
-        __(b misc_set_common)
+_spentry(subtag_misc_ref)
+	__(trap_unless_fulltag_equal(arg_y,fulltag_misc,imm0))
+        __(trap_unless_lisptag_equal(arg_z,tag_fixnum,imm0))
+	__(vector_length(imm0,arg_y,imm1))
+	__(trlge(arg_z,imm0))
+	__(unbox_fixnum(imm1,arg_x))
+        __(b local_label(misc_ref_common))
+
+_spentry(builtin_aref1)
+	__(extract_typecode(imm0,arg_y))
+	__(cmpri(cr0,imm0,min_vector_subtag))
+	__(box_fixnum(arg_x,imm0))
+	__(bgt cr0,_SPsubtag_misc_ref)
+	__(jump_builtin(_builtin_aref1,2))
+        	
 	
 /* Make a cons cell on the vstack.  Always push 3 words, 'cause we're  
    not sure how the vstack will be aligned. */
@@ -2137,7 +2131,12 @@ _spentry(makestackblock)
 	__(str(imm0,tsp_frame.data_offset(tsp)))
 	__(la arg_z,tsp_frame.data_offset+fulltag_misc(tsp))
 	__(str(imm1,macptr.address(arg_z)))
-	__(stfd fp_zero,macptr.domain(arg_z))
+        __ifdef([PPC64])
+         __(std rzero,macptr.domain(arg_z))
+         __(std rzero,macptr.type(arg_z))
+        __else
+	 __(stfd fp_zero,macptr.domain(arg_z))
+        __endif
 	__(blr)
 
 /* Too big. Heap cons a gcable macptr */
@@ -2266,7 +2265,9 @@ _spentry(misc_alloc)
         __ifdef([PPC64])
          __(rldicr. imm2,arg_y,64-fixnumshift,7)
          __(unbox_fixnum(imm0,arg_z))
+         __(sldi imm2,arg_y,num_subtag_bits-fixnumshift)
          __(clrldi imm1,imm0,64-nlowtagbits)
+         __(or imm0,imm2,imm0)
          __(extract_fulltag(imm2,imm0))
          __(cmpdi cr1,imm1,lowtag_nodeheader)
          __(cmpdi cr2,imm2,ivector_class_64_bit)
@@ -2394,7 +2395,7 @@ _spentry(ffcallX)
 	__(ldr(r3,c_frame.param0(sp)))
 	__(ldr(r4,c_frame.param1(sp)))
 	__(lfd f1,c_frame.param2(sp))
-	__(b _local_label(FF_call_return_common))	
+	__(b FF_call_return_common)	
         
 
 
@@ -2739,8 +2740,176 @@ _spentry(subtag_misc_set)
 	__(vector_length(imm0,arg_x,imm1))
 	__(trlge(arg_y,imm0))
 	__(unbox_fixnum(imm1,temp0))
-misc_set_common:
+local_label(misc_set_common):
         __ifdef([PPC64])
+         __(extract_typecode(imm0,arg_z))
+         __(extract_lowtag(imm3,imm1))
+         __(extract_fulltag(imm2,imm1))
+         __(cmpdi cr0,imm3,lowtag_nodeheader)
+         __(cmpdi cr1,imm2,ivector_class_64_bit)
+         __(cmpdi cr2,imm2,ivector_class_32_bit)
+         __(cmpdi cr3,imm2,ivector_class_8_bit)
+         __(cmpdi cr7,imm0,tag_fixnum)
+         __(la imm4,misc_data_offset(arg_y))
+         __(beq cr0,_SPgvset)
+         __(cmpdi cr0,imm1,subtag_bit_vector)
+         __(beq cr1,local_label(set64))
+         __(beq cr2,local_label(set32)
+         __(beq cr3,local_label(set8))
+/* Bit-vector, s16, or u16 */
+         __(cmpdi cr1,imm1,subtag_s16_vector)
+         __(lis imm3,0x8000)
+         __(bne cr0,local_label(setu16))
+         __(extract_unsigned_byte_bits_(imm0,arg_z,1))
+         __(beq cr1,local_label(sets16))
+	 __(extrwi imm1,arg_z,5,32-(fixnumshift+5))	/* imm1 = bitnum */
+	 __(la imm1,1+fixnumshift(imm1))
+         __(srdi imm0,arg_z,5+fixnumshift)
+	 __(srw imm3,imm3,imm1)
+         __(bne local_label(misc_set_bad))
+         __(cmpdi cr0,arg_z,0)
+         __(sldi imm0,imm0,2)
+	 __(la imm0,misc_data_offset(imm0))
+	 __(ldx imm2,arg_x,imm0)
+         __(beq 1f)
+         __(or imm2,imm3,imm2)
+         __(stdx imm2,arg_x,imm0)
+         __(blr)
+1:       __(andc imm2,imm3,imm2)
+         __(stdx imm2,arg_y,imm0)
+         __(blr)
+local_label(sets16):
+         __(sldi imm0,arg_z,64-(16-fixnumshift))
+         __(sradi imm0,imm0,64-(16-fixnumshift))
+         __(cmpd imm0,arg_z)
+         __(unbox_fixnum(imm0,arg_z))
+         __(srdi imm1,arg_y,2)
+         __(la imm1,misc_data_offset(imm1))
+         __(bne local_label(misc_set_bad))
+         __(bne cr7,local_label(misc_set_bad))
+         __(sthx imm0,arg_x,imm1)
+         __(blr)
+local_label(setu16):
+         __(extract_unsigned_byte_bits_(imm0,arg_z,16))
+         __(unbox_fixnum(imm0,arg_z))
+         __(srdi imm1,arg_y,2)                
+         __(la imm1,misc_data_offset(imm1))
+         __(bne local_label(misc_set_bad))
+         __(sthx imm0,arg_x,imm1)
+         __(blr)
+local_label(set32):     
+         __(srdi imm4,arg_y,1)
+         __(cmpdi cr1,imm1,subtag_s32_vector)
+         __(cmpdi cr2,imm1,subtag_u32_vector)
+         __(cmpdi cr3,imm0,subtag_single_float)
+         __(la imm4,misc_data_offset(imm4))
+         __(beq cr1,local_label(sets32))
+         __(beq cr2,local_label(setu32))
+         __(bne cr3,local_label(misc_set_bad))
+         __(srdi imm0,arg_z,32)
+         __(stwx imm0,arg_x,imm4)
+         __(blr)
+local_label(sets32):
+         __(unbox_fixnum(imm0,arg_z))
+         __(sldi imm1,imm0,32)
+         __(sradi imm1,imm1,32)
+         __(bne cr7,local_label(misc_set_bad))
+         __(cmpd imm1,imm0)
+         __(bne local_label(misc_set_bad))
+         __(srdi imm0,arg_z,32)
+         __(stwx imm0,arg_x,imm4)
+         __(blr)
+local_label(setu32):    
+         __(extract_unsigned_byte_bits_(imm0,arg_z,32))
+         __(unbox_fixnum(imm0,arg_z))
+         __(bne local_label(misc_set_bad))
+         __(srdi imm0,arg_z,32)
+         __(stwx imm0,arg_x,imm4)
+         __(blr)
+local_label(set8):      
+         __(extract_lowbyte(imm0,arg_z))                
+         __(srdi imm4,arg_y,3)
+         __(cmpdi cr1,imm1,subtag_s8_vector)
+         __(cmpdi cr2,imm1,subtag_u8_vector)
+         __(cmpdi cr0,imm0,subtag_character)
+         __(la imm4,misc_data_offset(imm4))
+         __(beq cr1,local_label(sets8))
+         __(beq cr2,local_label(setu8))
+         __(bne cr0,local_label(misc_set_bad))
+         __(srwi imm0,arg_z,charcode_shift)
+         __(stbx imm0,arg_x,imm4)
+         __(blr)
+local_label(sets8):     
+         __(unbox_fixnum(imm0,arg_z))
+         __(sldi imm1,imm0,56))
+         __(sradi imm1,imm1,56)
+         __(bne cr7,local_label(misc_set_bad))
+         __(cmpd imm1,imm0)
+         __(bne local_label(misc_set_bad))
+         __(stbx imm0,arg_x,imm4)
+         __(blr)
+local_label(setu8):     
+         __(extract_unsigned_byte_bits_(imm0,arg_z,8))
+         __(unbox_fixnum(imm0,arg_z))
+         __(bne local_label(misc_set_bad))
+         __(stbx imm0,arg_x,imm4)
+         __(blr)
+local_label(set64):     
+         __(cmpdi cr1,imm1,subtag_s64_vector)
+         __(cmpdi cr2,imm1,subtag_double_float_vector)                         
+         __(cmpdi cr5,imm0,subtag_double_float)
+         __(cmpdi cr6,imm0,subtag_bignum)
+         __(beq cr1,local_label(sets64))
+         __(beq cr2,local_label(setdfloat))
+         __(cmpdi cr0,arg_z,0)
+         __(bne cr7,local_label(setu64_maybe_bignum))
+         __(unbox_fixnum(imm0,arg_z))
+         __(blt cr0,local_label(misc_set_bad))
+         __(stdx imm0,arg_x,imm4)
+         __(blr)
+local_label(setu64_maybe_bignum):
+         __(bne cr6,local_label(misc_set_bad))
+         __(getvheader(imm1,arg_z))
+         __(ld imm0,misc_data_offset(arg_z))
+         __(lwz imm3,misc_data_offset+8(arg_z))
+         __(rotldi imm0,imm0,32)
+         __(cmpdi cr2,imm1,two_digit_bignum_header)
+         __(cmpdi cr3,imm1,three_digit_bignum_header)
+         __(cmpdi cr0,imm0,0)
+         __(cmpdi cr4,imm0,0)
+         __(beq cr2,1f)
+         __(bne cr3,local_label(misc_set_bad))
+         __(bne cr4,local_label(misc_set_bad))
+         __(stdx imm0,arg_x,imm4)
+         __(blr)
+1:       __(blt cr0,local_label(misc_set_bad))
+         __(stdx imm0,arg_x,imm4)
+         __(blr)
+local_label(setdfloat): 
+         __(bne cr5,local_label(misc_set_bad))
+         __(ld imm0,misc_dfloat_offset(arg_z))
+         __(stdx imm0,arg_x,imm4)
+         __(blr)
+local_label(sets64):    
+         __(unbox_fixnum(imm0,arg_z))
+         __(bne cr7,local_label(sets64_maybe_bignum))
+         __(stdx imm0,arg_x,imm4)
+         __(blr)
+local_label(sets64_maybe_bignum):       
+         __(bne cr6,local_label(misc_set_bad))
+         __(getvheader(imm1,arg_z))
+         __(ld imm0,misc_data_offset(arg_z))
+         __(cmpdi cr1,imm1,two_digit_bignum_header)
+         __(rotldi imm0,imm0,32)
+         __(bne cr1,local_label(misc_set_bad))
+         __(stdx imm0,arg_x,imm4)
+         __(blr)
+local_label(misc_set_bad):
+	 __(mr arg_y,arg_z)
+	 __(mr arg_z,arg_x)
+	 __(li arg_x,XNOTELT)
+	 __(set_nargs(3))
+	 __(b _SPksignalerr)
         __else
 	__(extract_fulltag(imm2,imm1))
 	__(cmpri(cr0,imm2,fulltag_nodeheader))
@@ -2902,6 +3071,17 @@ local_label(set_dfloat):
 	__(blr)
         __endif
 
+/* misc_set (vector index newval).  Pretty damned similar to 
+   misc_ref, as one might imagine. 
+*/
+_spentry(misc_set)
+	__(trap_unless_fulltag_equal(arg_x,fulltag_misc,imm0))
+	__(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
+	__(vector_length(imm0,arg_x,imm1))
+	__(trlge(arg_y,imm0))
+	__(extract_lowbyte(imm1,imm1))
+        __(b local_label(misc_set_common))
+        
 /* "spread" the lexpr in arg_z. 
    ppc2-invoke-fn assumes that temp1 is preserved here. */
 _spentry(spread_lexprz)
@@ -3911,16 +4091,8 @@ _spentry(builtin_logxor)
 	__(jump_builtin(_builtin_logxor,2))
 
 
-_spentry(builtin_aref1)
-	.globl _SPsubtag_misc_ref
-	__(extract_typecode(imm0,arg_y))
-	__(cmpri(cr0,imm0,min_vector_subtag))
-	__(box_fixnum(arg_x,imm0))
-	__(bgt cr0,1f)
-	__(jump_builtin(_builtin_aref1,2))
-1:
-	__(b _SPsubtag_misc_ref)
 
+        
 _spentry(builtin_aset1)
 	__(extract_typecode(imm0,arg_x))
 	__(cmpri(cr0,imm0,min_vector_subtag))
@@ -3995,7 +4167,9 @@ _spentry(eabi_ff_call)
 	garbage results */
 	__(crset 6)
 	__(bctrl)
-_local_label(FF_call_return_common):
+        _endsubp(eabi_ff_call)
+	
+        _startfn(FF_call_return_common)
 	/* C should have preserved save0 (= rcontext) for us. */
 	__(ldr(sp,0(sp)))
 	__(mr imm2,save0)
@@ -4451,7 +4625,7 @@ _spentry(restoreintlevel)
 	__(beq cr0,1f)
 	__(str(rzero,tcr.interrupt_pending(rcontext)))
 	__(li nargs,fixnum_one)
-	__(twgti nargs,0)
+	__(trgti(nargs,0))
 	__(blr)
 1:	
 	__(str(arg_z,tcr.interrupt_level(rcontext)))
@@ -4584,11 +4758,11 @@ _spentry(fix_overflow)
         symbol.
 */
 _spentry(mvpasssym)
-	__(cmpri(cr0,nargs,4*nargregs))
+	__(cmpri(cr0,nargs,node_size*nargregs))
 	__(mflr loc_pc)
 	__(mr imm0,vsp)
 	__(ble+ cr0,1f)
-	 __(subi imm0,imm0,4*nargregs)
+	 __(subi imm0,imm0,node_size*nargregs)
 	 __(add imm0,imm0,nargs)
 1:            
 	__(build_lisp_frame(fn,loc_pc,imm0))
