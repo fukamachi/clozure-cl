@@ -407,7 +407,7 @@ OSStatus
 handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
 {
   pc program_counter;
-  unsigned cur_allocptr, bytes_needed = 0;
+  natural cur_allocptr, bytes_needed = 0;
   opcode prev_instr;
   signed_natural disp = 0;
   unsigned allocptr_tag;
@@ -439,7 +439,7 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
                            OP(major_opcode_ADDI) | 
                            RT(allocptr) |
                            RA(allocptr))) {
-      disp = (int) ((short) prev_instr);
+      disp = (signed_natural) ((short) prev_instr);
     }
     if (disp) {
       bytes_needed = (-disp) + fulltag_misc;
@@ -2225,7 +2225,7 @@ typedef struct {
 #define	C_STK_ALIGN			16
 #define C_PARAMSAVE_LEN		64
 #define	C_LINKAGE_LEN		48
-#define TRUNC_DOWN(a,b,c)  (((((unsigned)a)-(b))/(c)) * (c))
+#define TRUNC_DOWN(a,b,c)  (((((natural)a)-(b))/(c)) * (c))
 #include <mach/mach.h>
 #include <mach/mach_error.h>
 #include <mach/machine/thread_state.h>
@@ -2299,7 +2299,7 @@ do_pseudo_sigreturn(mach_port_t thread, TCR *tcr)
 
 ExceptionInformation *
 create_thread_context_frame(mach_port_t thread, 
-			    unsigned *new_stack_top)
+			    natural *new_stack_top)
 {
 #ifdef PPC64
   ppc_thread_state64_t ts;
@@ -2326,7 +2326,7 @@ create_thread_context_frame(mach_port_t thread,
 #else
   thread_state_count = MACHINE_THREAD_STATE_COUNT;
   result = thread_get_state(thread, 
-                            MACHINE_THREAD_STATE,	/* GPRs, some SPRs  */
+                            PPC_THREAD_STATE,	/* GPRs, some SPRs  */
                             (thread_state_t)&ts,
                             &thread_state_count);
 #endif
@@ -2407,7 +2407,7 @@ setup_signal_frame(mach_port_t thread,
   ExceptionInformation *lss;
   int i, j;
   kern_return_t result;
-  unsigned stackp;
+  natural stackp;
 
   lock_acquire(mach_exception_lock_set, 0);
 
@@ -2436,6 +2436,7 @@ setup_signal_frame(mach_port_t thread,
 
 
 #ifdef PPC64
+  ts.r13 = xpGPR(lss,13);
   thread_set_state(thread,
                    PPC_THREAD_STATE64,
                    (thread_state_t)&ts,
