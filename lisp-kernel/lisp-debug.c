@@ -415,6 +415,22 @@ debug_show_registers(ExceptionInformationPowerPC *xp, int arg)
 {
   int a, b, c, d, i;
 
+#ifdef PPC64
+  for (a = 0, b = 16; a < 16; a++, b++) {
+    fprintf(stderr,"r%02d = 0x%016X  r%02d = 0x%016X\n",
+	    a, xpGPR(xp, a),
+	    b, xpGPR(xp, b));
+  }
+  
+  fprintf(stderr, "\n PC = 0x%016X   LR = 0x%016X\n",
+          xpPC(xp), xpLR(xp));
+  fprintf(stderr, "CTR = 0x%016X  CCR = 0x%08X\n",
+          xpCTR(xp), xpCCR(xp));
+  fprintf(stderr, "XER = 0x%08X  MSR = 0x%016X\n",
+          xpXER(xp), xpMSR(xp));
+  fprintf(stderr,"DAR = 0x%016X  DSISR = 0x%08X\n",
+	  xpDAR(xp), xpDSISR(xp));
+#else
   for (a = 0, b = 8, c = 16, d = 24; a < 8; a++, b++, c++, d++) {
     fprintf(stderr,"r%02d = 0x%08X  r%02d = 0x%08X  r%02d = 0x%08X  r%02d = 0x%08X\n",
 	    a, xpGPR(xp, a),
@@ -426,6 +442,7 @@ debug_show_registers(ExceptionInformationPowerPC *xp, int arg)
 	  xpPC(xp), xpLR(xp), xpCTR(xp), xpCCR(xp));
   fprintf(stderr, "XER = 0x%08X  MSR = 0x%08X  DAR = 0x%08X  DSISR = 0x%08X\n",
 	  xpXER(xp), xpMSR(xp), xpDAR(xp), xpDSISR(xp));
+#endif
   return debug_continue;
 }
 
