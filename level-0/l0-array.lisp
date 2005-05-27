@@ -57,51 +57,51 @@
 #+ppc32-target
 (defconstant ppc32::*immheader-array-types*
   '#(short-float
-    (unsigned-byte 32)
-    (signed-byte 32)
-    (unsigned-byte 8)
-    (signed-byte 8)
-    character
-    unused
-    (unsigned-byte 16)
-    (signed-byte 16)
-    double-float
-    bit))
+     (unsigned-byte 32)
+     (signed-byte 32)
+     (unsigned-byte 8)
+     (signed-byte 8)
+     character
+     unused
+     (unsigned-byte 16)
+     (signed-byte 16)
+     double-float
+     bit))
 
 #+ppc64-target
 (defconstant ppc64::*immheader-array-types*
-  #(unused
-    unused
-    unused
-    unused
-    (signed-byte 8)
-    (signed-byte 16)
-    (signed-byte 32)
-    (signed-byte 64)
-    (unsigned-byte 8)
-    (unsigned-byte 16)
-    (unsigned-byte 32)
-    (unsigned-byte 64)
-    unused
-    unused
-    short-float
-    unused
-    unused
-    unused
-    unused
-    double-float
-    character
-    unused
-    unused
-    unused
-    unused
-    unused
-    unused
-    unused
-    unused
-    bit
-    unused
-    unused))
+  '#(unused
+     unused
+     unused
+     unused
+     (signed-byte 8)
+     (signed-byte 16)
+     (signed-byte 32)
+     (signed-byte 64)
+     (unsigned-byte 8)
+     (unsigned-byte 16)
+     (unsigned-byte 32)
+     (unsigned-byte 64)
+     unused
+     unused
+     short-float
+     unused
+     unused
+     unused
+     unused
+     double-float
+     character
+     unused
+     unused
+     unused
+     unused
+     unused
+     unused
+     unused
+     unused
+     bit
+     unused
+     unused))
 
 (defun array-element-type (array)
   "Return the type of the elements of the array"

@@ -119,7 +119,7 @@
     (declare (fixnum bits))
     (if (logbitp $sym_vbit_typeppred bits)
       (%rplaca (%cdr (%symbol-package-plist name)) function)
-      (without-interrupts
+      (progn
         (%symbol-bits name (the fixnum (bitset $sym_vbit_typeppred bits)))
         (if (atom spp)
           (%set-symbol-package-plist name (cons spp (cons function nil)))
@@ -172,7 +172,7 @@
 
 (defun make-symbol (name)
   "Make and return a new symbol with the NAME as its print name."
-  (%gvector ppc32::subtag-symbol
+  (%gvector target::subtag-symbol
                 (ensure-simple-string name) ; pname
                 (%unbound-marker)       ; value cell
                 %unbound-function%      ; function cell
@@ -181,9 +181,9 @@
 
 (defun %symbol-bits (sym &optional new)
   (let* ((p (%symbol->symptr sym))
-         (bits (%svref p ppc32::symbol.flags-cell)))
+         (bits (%svref p target::symbol.flags-cell)))
     (if new
-      (setf (%svref p ppc32::symbol.flags-cell) new))
+      (setf (%svref p target::symbol.flags-cell) new))
     bits))
 
 (defun %sym-value (name)
@@ -193,16 +193,16 @@
   (%svar-set-sym-value (%ensure-svar (%symbol->symptr name)) val))
 
 (defun %sym-global-value (name)
-  (%svref (%symbol->symptr name) ppc32::symbol.vcell-cell))
+  (%svref (%symbol->symptr name) target::symbol.vcell-cell))
 
 (defun %set-sym-global-value (name val)
-  (setf (%svref (%symbol->symptr name) ppc32::symbol.vcell-cell) val))
+  (setf (%svref (%symbol->symptr name) target::symbol.vcell-cell) val))
 
 (defun %symbol-package-plist (sym)
-  (%svref (%symbol->symptr sym) ppc32::symbol.package-plist-cell))
+  (%svref (%symbol->symptr sym) target::symbol.package-plist-cell))
 
 (defun %set-symbol-package-plist (sym new)
-  (setf (%svref (%symbol->symptr sym) ppc32::symbol.package-plist-cell) new))
+  (setf (%svref (%symbol->symptr sym) target::symbol.package-plist-cell) new))
 
 
 
@@ -241,18 +241,18 @@
   (defun find-svar (sym)
     (%find-svar (%symbol->symptr sym)))
   (defun ensure-svar-idx (svar)
-    (let* ((sym (%svref svar ppc32::svar.symbol-cell))
-           (idx (%svref svar ppc32::svar.idx-cell))
+    (let* ((sym (%svref svar target::svar.symbol-cell))
+           (idx (%svref svar target::svar.idx-cell))
            (bits (%symbol-bits sym)))
       (declare (fixnum idx bits))
       (if (or (logbitp $sym_vbit_global bits)
               (logbitp $sym_vbit_const bits))
         (unless (zerop idx)
 	  (remhash idx svar-idx-map)
-          (setf (%svref svar ppc32::svar.idx-cell) 0))
+          (setf (%svref svar target::svar.idx-cell) 0))
         (if (zerop idx)
 	  (let* ((new-idx (incf svar-index)))
-	    (setf (%svref svar ppc32::svar.idx-cell) new-idx)
+	    (setf (%svref svar target::svar.idx-cell) new-idx)
 	    (setf (gethash new-idx svar-idx-map) svar))))
       svar))
   (defun %ensure-svar (symptr)
@@ -265,9 +265,9 @@
     (%ensure-svar (%symbol->symptr sym)))
   (defun cold-load-svar (svar)
     (with-lock-grabbed (svar-lock)
-      (let* ((symptr (%symbol->symptr (%svref svar ppc32::svar.symbol-cell))))
+      (let* ((symptr (%symbol->symptr (%svref svar target::svar.symbol-cell))))
         (setf (gethash symptr svar-hash) svar)
-        (setf (%svref svar ppc32::svar.idx-cell) 0)
+        (setf (%svref svar target::svar.idx-cell) 0)
         (ensure-svar-idx svar))))
   (defun svar-index ()
     svar-index)

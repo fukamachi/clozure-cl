@@ -44,11 +44,7 @@
 (defun function-name (fun)
   (or (and (functionp fun) (lfun-name fun))
       (if (compiled-function-p (setq fun (closure-function fun)))
-        (lfun-name fun)
-        (if (and (consp fun) (eq (%car fun) 'lambda))
-          (dolist (x (cddr fun))
-            (when (and (consp x) (eq (%car x) 'block))
-              (return (car (%cdr x)))))))))
+        (lfun-name fun))))
 
 
 (defun bootstrapping-fmakunbound (name)
@@ -131,9 +127,9 @@
 ;;;    which is a 2-element vector whose 0th element is a code vector
 ;;;    which signals a "can't apply macro or special form" error when
 ;;;    executed and whose 1st element is a macro or special-operator
-;;;    name.  It doesn't what type of vector cases 2 and 3 are.  Once
-;;;    that's decided, it wouldn't hurt if %FHAVE typechecked its
-;;;    second arg.
+;;;    name.  It doesn't matter what type of gvector cases 2 and 3
+;;;    are.  Once that's decided, it wouldn't hurt if %FHAVE
+;;;    typechecked its second arg.
 
 (defun %fhave (name def)
   (let* ((fname (validate-function-name name)))
@@ -144,7 +140,7 @@
 (defun fboundp (name)
   "Return true if name has a global function definition."
   (let* ((fname (validate-function-name name))
-         (def (%svref (%symbol->symptr fname) ppc32::symbol.fcell-cell)))
+         (def (%svref (%symbol->symptr fname) target::symbol.fcell-cell)))
     (unless (eq def %unbound-function%)
       def)))
 
@@ -153,9 +149,10 @@
 
 (defun %unfhave (sym)
   (let* ((symptr (%symbol->symptr sym))
-         (old (%svref symptr ppc32::symbol.fcell-cell)))
-    (setf (%svref symptr ppc32::symbol.fcell-cell) %unbound-function%)
-    (not (eq old %unbound-function%))))
+         (old (%svref symptr target::symbol.fcell-cell))
+         (unbound %unbound-function%))
+    (setf (%svref symptr target::symbol.fcell-cell) unbound)
+    (not (eq old unbound))))
 
 ; It's guaranteed that lfun-bits is a fixnum.  Might be a 30-bit fixnum ...
 (defun lfun-bits (function &optional new)
@@ -169,12 +166,9 @@
     old))
 
 
-; Remember that %DEFUN calls this and that it calls %nth-immediate (defined in
-;  the compiler) in the case where its argument isn't compiled-function-p.
-
 (defun closure-function (fun)
   (while (and (functionp fun)  (not (compiled-function-p fun)))
-    (setq fun (%svref fun 1))           ; 0 is %closure-code% or something.
+    (setq fun (%svref fun 1))
     (when (vectorp fun)
       (setq fun (svref fun 0))))
   fun)
@@ -203,18 +197,15 @@
     (when (and set-name-p (neq new-name stored-name))
       (if (and stored? (eq new-name (lfun-vector-name fun)))
         (remhash fun *lfun-names*)
-        (if (logbitp 29 (the fixnum (lfun-bits fun)))   ; no name-cell in function vector.
+        (if (logbitp $lfbits-noname-bit (the fixnum (lfun-bits fun)))   ; no name-cell in function vector.
           (puthash fun *lfun-names* new-name)
           (lfun-vector-name fun new-name))))
     stored-name))
-
-
 
     
 (defun %macro-have (symbol macro-function)
   (declare (special %macro-code%))      ; magically set by xloader.
   (%fhave symbol (vector %macro-code% macro-function)))
-
 
 
 (defun special-operator-p (symbol)

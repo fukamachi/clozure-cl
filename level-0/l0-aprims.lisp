@@ -31,18 +31,18 @@
   (dolist (s (population-data %system-locks%))
     (%revive-macptr s)
     (%setf-macptr s
-                  (case (uvref s ppc32::xmacptr.flags-cell)
+                  (case (uvref s target::xmacptr.flags-cell)
                     (#.$flags_DisposeRecursiveLock
                      (ff-call
-                      (%kernel-import ppc32::kernel-import-new-recursive-lock)
+                      (%kernel-import target::kernel-import-new-recursive-lock)
                       :address))
                     (#.$flags_DisposeRwlock
                      (ff-call
-                      (%kernel-import ppc32::kernel-import-rwlock-new)
+                      (%kernel-import target::kernel-import-rwlock-new)
                       :address))
 		    (#.$flags_DisposeSemaphore
 		     (ff-call
-		      (%kernel-import ppc32::kernel-import-new-semaphore)
+		      (%kernel-import target::kernel-import-new-semaphore)
 		      :signed-fullword 0
 		      :address))))
     (set-%gcable-macptrs% s)))
@@ -88,9 +88,9 @@
     (values vector offset (length s))))
 
 (defun make-gcable-macptr (flags)
-  (let ((v (%alloc-misc ppc32::xmacptr.element-count ppc32::subtag-macptr)))
-    (setf (uvref v ppc32::xmacptr.address-cell) 0) ; ?? yup.
-    (setf (uvref v ppc32::xmacptr.flags-cell) flags)
+  (let ((v (%alloc-misc target::xmacptr.element-count target::subtag-macptr)))
+    (setf (uvref v target::xmacptr.address-cell) 0) ; ?? yup.
+    (setf (uvref v target::xmacptr.flags-cell) flags)
     (set-%gcable-macptrs% v)
     v))
 
@@ -98,7 +98,7 @@
   (record-system-lock
    (%setf-macptr
     (make-gcable-macptr $flags_DisposeRecursiveLock)
-    (ff-call (%kernel-import ppc32::kernel-import-new-recursive-lock)
+    (ff-call (%kernel-import target::kernel-import-new-recursive-lock)
              :address))))
 
 

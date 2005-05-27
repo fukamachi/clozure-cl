@@ -95,8 +95,8 @@
 
 (defppclapfunction %svar-binding-address ((svar arg_z))
   (ldr imm3 target::svar.idx svar)
-  (ldr imm2 target::tcr.tlb-limit rcontext)
-  (ldr imm4 target::tcr.tlb-pointer rcontext)
+  (ldr imm2 target::tcr.tlb-limit target::rcontext)
+  (ldr imm4 target::tcr.tlb-pointer target::rcontext)
   (cmplr imm3 imm2)
   (bge @sym)
   (ldrx temp0 imm4 imm3)

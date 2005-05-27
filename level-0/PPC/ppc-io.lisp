@@ -22,7 +22,7 @@
 ; not very smart yet
 
 (defppclapfunction %get-errno ()
-  (ldr imm1 target::tcr.errno-loc rcontext)
+  (ldr imm1 target::tcr.errno-loc target::rcontext)
   (ldr imm0 0 imm1)
   (str rzero 0 imm1)
   (neg imm0 imm0)

@@ -908,7 +908,7 @@
        (apply 'set-documentation f))
      ;; Can't bind any specials until this happens
      (%map-areas #'(lambda (o)
-                     (when (eql (typecode o) ppc32::subtag-svar)
+                     (when (eql (typecode o) target::subtag-svar)
                        (cold-load-svar o)))
                  ppc::area-dynamic
                  ppc::area-dynamic)

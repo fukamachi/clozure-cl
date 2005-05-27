@@ -247,7 +247,7 @@
   (vpush y)
   (mflr loc-pc)
   (save-lisp-context)
-  (lwz imm0 ppc32::tcr.cs-limit rcontext) ; stack probe
+  (lwz imm0 ppc32::tcr.cs-limit ppc32::rcontext) ; stack probe
   (twllt ppc32::sp imm0)
   (%car x x)
   (%car y y)
@@ -294,7 +294,7 @@
   (vpush y)
   (mflr loc-pc)
   (save-lisp-context)
-  (ld imm0 ppc64::tcr.cs-limit rcontext) ; stack probe
+  (ld imm0 ppc64::tcr.cs-limit ppc64::rcontext) ; stack probe
   (tdllt ppc32::sp imm0)
   (%car x x)
   (%car y y)

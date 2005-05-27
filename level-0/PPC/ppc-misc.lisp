@@ -264,11 +264,11 @@
 
 #+ppc32-target
 (defppclapfunction %heap-bytes-allocated ()
-  (lwz imm2 target::tcr.last-allocptr rcontext)
+  (lwz imm2 target::tcr.last-allocptr ppc32::rcontext)
   (cmpwi cr1 imm2 0)
   (cmpwi allocptr -8)			;void_allocptr
-  (lwz imm0 target::tcr.total-bytes-allocated-high rcontext)
-  (lwz imm1 target::tcr.total-bytes-allocated-low rcontext)
+  (lwz imm0 target::tcr.total-bytes-allocated-high ppc32::rcontext)
+  (lwz imm1 target::tcr.total-bytes-allocated-low ppc32::rcontext)
   (sub imm2 imm2 allocptr)
   (beq cr1 @go)
   (beq @go)
@@ -279,10 +279,10 @@
 
 #+ppc64-target
 (defppclapfunction %heap-bytes-allocated ()
-  (ld imm2 target::tcr.last-allocptr rcontext)
+  (ld imm2 target::tcr.last-allocptr ppc64::rcontext)
   (cmpri cr1 imm2 0)
   (cmpri allocptr -8)			;void_allocptr
-  (ld imm0 target::tcr.total-bytes-allocated-high rcontext)
+  (ld imm0 target::tcr.total-bytes-allocated-high ppc64::rcontext)
   (sub imm2 imm2 allocptr)
   (beq cr1 @go)
   (beq @go)
@@ -402,33 +402,33 @@
   (ba .SPpopj))
 
 (defppclapfunction interrupt-level ()
-  (ldr arg_z target::tcr.interrupt-level rcontext)
+  (ldr arg_z target::tcr.interrupt-level target::rcontext)
   (blr))
 
 
 (defppclapfunction disable-lisp-interrupts ()
   (li imm0 '-1)
-  (ldr arg_z target::tcr.interrupt-level rcontext)
-  (str imm0 target::tcr.interrupt-level rcontext)
+  (ldr arg_z target::tcr.interrupt-level target::rcontext)
+  (str imm0 target::tcr.interrupt-level target::rcontext)
   (blr))
 
 (defppclapfunction set-interrupt-level ((new arg_z))
   (trap-unless-lisptag= new target::tag-fixnum imm0)
-  (str new target::tcr.interrupt-level rcontext)
+  (str new target::tcr.interrupt-level target::rcontext)
   (blr))
 
 ;;; If we're restoring the interrupt level to 0 and an interrupt
 ;;; was pending, restore the level to 1 and zero the pending status.
 (defppclapfunction restore-interrupt-level ((old arg_z))
   (cmpri :cr1 old 0)
-  (ldr imm0 target::tcr.interrupt-pending rcontext)
+  (ldr imm0 target::tcr.interrupt-pending target::rcontext)
   (cmpri :cr0 imm0 0)
   (bne :cr1 @store)
   (beq :cr0 @store)
-  (str rzero target::tcr.interrupt-pending rcontext)
+  (str rzero target::tcr.interrupt-pending target::rcontext)
   (li old '1)
   @store
-  (str old target::tcr.interrupt-level rcontext)
+  (str old target::tcr.interrupt-level target::rcontext)
   (blr))
 
 (defppclapfunction %interrupt-poll ()
@@ -438,12 +438,12 @@
   (blr))
 
 (defppclapfunction %current-tcr ()
-  (mr arg_z rcontext)
+  (mr arg_z target::rcontext)
   (blr))
 
 (defppclapfunction %tcr-toplevel-function ((tcr arg_z))
   (check-nargs 1)
-  (cmpr tcr rcontext)
+  (cmpr tcr target::rcontext)
   (mr imm0 vsp)
   (ldr temp0 target::tcr.vs-area tcr)
   (ldr imm1 target::area.high temp0)
@@ -458,7 +458,7 @@
 
 (defppclapfunction %set-tcr-toplevel-function ((tcr arg_y) (fun arg_z))
   (check-nargs 2)
-  (cmpr tcr rcontext)
+  (cmpr tcr target::rcontext)
   (mr imm0 vsp)
   (ldr temp0 target::tcr.vs-area tcr)
   (ldr imm1 target::area.high temp0)
@@ -566,7 +566,7 @@
   ;;; If we aren't the writer, return NIL.
   ;;; If we are and the value's about to go to 0, clear the writer field.
   (ldr imm0 target::lock.writer lock)
-  (cmpw imm0 rcontext)
+  (cmpr imm0 target::rcontext)
   (ldrx imm0 lock imm1)
   (cmpri cr1 imm0 '-1)
   (addi imm0 imm0 '1)
@@ -707,7 +707,7 @@
 
   ; Pop dynamic bindings until we get to db-link
   (lwz imm0 12 vsp)                     ; db-link
-  (lwz imm1 target::tcr.db-link rcontext)
+  (lwz imm1 target::tcr.db-link target::rcontext)
   (cmp cr0 imm0 imm1)
   (beq cr0 @restore-regs)               ; .SPsvar-unbind-to expects there to be something to do
   (bla .SPsvar-unbind-to)
@@ -924,7 +924,7 @@
 
 
 (defppclapfunction %current-db-link ()
-  (ldr arg_z target::tcr.db-link rcontext)
+  (ldr arg_z target::tcr.db-link target::rcontext)
   (blr))
 
 (defppclapfunction %no-thread-local-binding-marker ()

@@ -69,20 +69,20 @@
 ;;; Some of these things are probably open-coded.
 ;;; The functions have to exist SOMEWHERE ...
 (defun fixnump (x)
-  (= (the fixnum (lisptag x)) ppc32::tag-fixnum))
+  (= (the fixnum (lisptag x)) target::tag-fixnum))
 
 (defun bignump (x)
-  (= (the fixnum (typecode x)) ppc32::subtag-bignum))
+  (= (the fixnum (typecode x)) target::subtag-bignum))
 
 (defun integerp (x)
   "Return true if OBJECT is an INTEGER, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (or (= typecode ppc32::tag-fixnum)
-        (= typecode ppc32::subtag-bignum))))
+    (or (= typecode target::tag-fixnum)
+        (= typecode target::subtag-bignum))))
 
 (defun ratiop (x)
-  (= (the fixnum (typecode x)) ppc32::subtag-ratio))
+  (= (the fixnum (typecode x)) target::subtag-ratio))
 
 
 (defun rationalp (x)
@@ -90,75 +90,92 @@
   (or (fixnump x)
       (let* ((typecode (typecode x)))
         (declare (fixnum typecode))
+        #+ppc32-target
         (and (>= typecode ppc32::min-numeric-subtag)
-             (<= typecode ppc32::max-rational-subtag)))))
-
-
+             (<= typecode ppc32::max-rational-subtag))
+        #+ppc64-target
+        (cond ((= typecode ppc64::subtag-bignum) t)
+              ((= typecode ppc64::subtag-ratio) t)))))
 
 (defun short-float-p (x)
-  (= (the fixnum (typecode x)) ppc32::subtag-single-float))
+  (= (the fixnum (typecode x)) target::subtag-single-float))
 
 
 (defun double-float-p (x)
-  (= (the fixnum (typecode x)) ppc32::subtag-double-float))
+  (= (the fixnum (typecode x)) target::subtag-double-float))
 
 (defun floatp (x)
   "Return true if OBJECT is a FLOAT, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (and (>= typecode ppc32::min-float-subtag)
-         (<= typecode ppc32::max-float-subtag))))
+    (or (= typecode target::subtag-single-float)
+        (= typecode target::subtag-double-float))))
 
 (defun realp (x)
   "Return true if OBJECT is a REAL, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
+    #+ppc32-target
     (or (= typecode ppc32::tag-fixnum)
         (and (>= typecode ppc32::min-numeric-subtag)
-             (<= typecode ppc32::max-real-subtag)))))
+             (<= typecode ppc32::max-real-subtag)))
+    #+ppc64-target
+    (cond ((= typecode ppc64::tag-fixnum) t)
+          ((= typecode ppc64::subtag-single-float) t)
+          ((= typecode ppc64::subtag-bignum) t)
+          ((= typecode ppc64::subtag-double-float) t)
+          ((= typecode ppc64::subtag-ratio) t))))
 
 (defun complexp (x)
   "Return true if OBJECT is a COMPLEX, and NIL otherwise."
-  (= (the fixnum (typecode x)) ppc32::subtag-complex))
+  (= (the fixnum (typecode x)) target::subtag-complex))
 
 (defun numberp (x)
   "Return true if OBJECT is a NUMBER, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
+    #+ppc32-target
     (or (= typecode ppc32::tag-fixnum)
         (and (>= typecode ppc32::min-numeric-subtag)
-             (<= typecode ppc32::max-numeric-subtag)))))
+             (<= typecode ppc32::max-numeric-subtag)))
+    #+ppc64-target
+    (cond ((= typecode ppc64::tag-fixnum) t)
+          ((= typecode ppc64::subtag-single-float) t)
+          ((= typecode ppc64::subtag-bignum) t)
+          ((= typecode ppc64::subtag-double-float) t)
+          ((= typecode ppc64::subtag-ratio) t)
+          ((= typecode ppc64::subtag-complex t)))))
 
 (defun arrayp (x)
   "Return true if OBJECT is an ARRAY, and NIL otherwise."
-  (>= (the fixnum (typecode x)) ppc32::min-array-subtag))
+  (>= (the fixnum (typecode x)) target::min-array-subtag))
 
 (defun vectorp (x)
   "Return true if OBJECT is a VECTOR, and NIL otherwise."
-  (>= (the fixnum (typecode x)) ppc32::min-vector-subtag))
+  (>= (the fixnum (typecode x)) target::min-vector-subtag))
 
 
 (defun stringp (x)
   "Return true if OBJECT is a STRING, and NIL otherwise."
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (if (= typecode ppc32::subtag-vectorH)
-      (setq typecode (ldb ppc32::arrayH.flags-cell-subtag-byte (the fixnum (%svref x ppc32::arrayH.flags-cell)))))
-    (= typecode ppc32::subtag-simple-base-string)))
+    (if (= typecode target::subtag-vectorH)
+      (setq typecode (ldb target::arrayH.flags-cell-subtag-byte (the fixnum (%svref x target::arrayH.flags-cell)))))
+    (= typecode target::subtag-simple-base-string)))
 
 
 (defun simple-base-string-p (x)
-  (= (the fixnum (typecode x)) ppc32::subtag-simple-base-string))
+  (= (the fixnum (typecode x)) target::subtag-simple-base-string))
 
 (defun simple-string-p (x)
   "Return true if OBJECT is a SIMPLE-STRING, and NIL otherwise."
-  (= (the fixnum (typecode x)) ppc32::subtag-simple-base-string))
+  (= (the fixnum (typecode x)) target::subtag-simple-base-string))
 
 (defun complex-array-p (x)
   (let* ((typecode (typecode x)))
     (declare (fixnum typecode))
-    (if (or (= typecode ppc32::subtag-arrayH)
-            (= typecode ppc32::subtag-vectorH))
+    (if (or (= typecode target::subtag-arrayH)
+            (= typecode target::subtag-vectorH))
       (not (%array-header-simple-p x)))))
 
 (defun simple-array-p (thing)
@@ -168,25 +185,32 @@
    and may not be adjustable."
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
-    (if (or (= typecode ppc32::subtag-arrayH)
-            (= typecode ppc32::subtag-vectorH))
+    (if (or (= typecode target::subtag-arrayH)
+            (= typecode target::subtag-vectorH))
       (%array-header-simple-p thing)
-      (> typecode ppc32::subtag-vectorH))))
+      (> typecode target::subtag-vectorH))))
 
 (defun macptrp (x)
-  (= (the fixnum (typecode x)) ppc32::subtag-macptr))
+  (= (the fixnum (typecode x)) target::subtag-macptr))
 
 
 ;;; Note that this is true of symbols and functions and many other
 ;;; things that it wasn't true of on the 68K.
 (defun gvectorp (x)
-  (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask)) ppc32::fulltag-nodeheader))
+  #+ppc32-target
+  (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask)) ppc32::fulltag-nodeheader)
+  #+ppc64-target
+  (= (the fixnum (logand (the fixnum (typecode x)) ppc64::lowtagmask)) ppc64::lowtag-nodeheader))
+
 
 (setf (type-predicate 'gvector) 'gvectorp)
 
 (defun ivectorp (x)
-  (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask))
-     ppc32::fulltag-immheader))
+  #+ppc32-target
+    (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask))
+       ppc32::fulltag-immheader)
+  #+ppc64-target
+  (= (the fixnum (logand (the fixnum (typecode x)) ppc64::lowtagmask)) ppc64::lowtag-immheader))
 
 (setf (type-predicate 'ivector) 'ivectorp)
 
@@ -199,37 +223,37 @@
 
 (defun simple-vector-p (x)
   "Return true if OBJECT is a SIMPLE-VECTOR, and NIL otherwise."
-  (= (the fixnum (typecode x)) ppc32::subtag-simple-vector))
+  (= (the fixnum (typecode x)) target::subtag-simple-vector))
 
 (defun base-string-p (thing)
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
-    (or (= typecode ppc32::subtag-simple-base-string)
-        (and (= typecode ppc32::subtag-vectorh)
+    (or (= typecode target::subtag-simple-base-string)
+        (and (= typecode target::subtag-vectorh)
              (= (the fixnum 
-                  (ldb ppc32::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing ppc32::arrayH.flags-cell))))
-                ppc32::subtag-simple-base-string)))))
+                  (ldb target::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing target::arrayH.flags-cell))))
+                target::subtag-simple-base-string)))))
 
 (defun simple-bit-vector-p (form)
   "Return true if OBJECT is a SIMPLE-BIT-VECTOR, and NIL otherwise."
-  (= (the fixnum (typecode form)) ppc32::subtag-bit-vector))
+  (= (the fixnum (typecode form)) target::subtag-bit-vector))
 
 (defun bit-vector-p (thing)
   "Return true if OBJECT is a BIT-VECTOR, and NIL otherwise."
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
-    (or (= typecode ppc32::subtag-bit-vector)
-        (and (= typecode ppc32::subtag-vectorh)
+    (or (= typecode target::subtag-bit-vector)
+        (and (= typecode target::subtag-vectorh)
              (= (the fixnum 
-                  (ldb ppc32::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing ppc32::arrayH.flags-cell))))
-                ppc32::subtag-bit-vector)))))
+                  (ldb target::arrayH.flags-cell-subtag-byte (the fixnum (%svref thing target::arrayH.flags-cell))))
+                target::subtag-bit-vector)))))
 
 (defun displaced-array-p (array)
   (if (%array-is-header array)
-    (do* ((disp (%svref array ppc32::arrayH.displacement-cell)
-		(+ disp (the fixnum (%svref target ppc32::arrayH.displacement-cell))))
-	  (target (%svref array ppc32::arrayH.data-vector-cell)
-		  (%svref target ppc32::arrayH.data-vector-cell)))
+    (do* ((disp (%svref array target::arrayH.displacement-cell)
+		(+ disp (the fixnum (%svref target target::arrayH.displacement-cell))))
+	  (target (%svref array target::arrayH.data-vector-cell)
+		  (%svref target target::arrayH.data-vector-cell)))
 	 ((not (%array-is-header target))
 	  (values target disp)))
     (values nil 0)))
@@ -324,6 +348,7 @@
                                (unless (equal (%svref x i) (%svref y i))
                                  (return))))))))))))
 
+#+ppc32-target
 (defparameter *nodeheader-types*
   #(bogus                               ; 0
     ratio                               ; 1
@@ -359,6 +384,7 @@
     bogus                               ; 31
     ))
 
+#+ppc32-target
 (defparameter *immheader-types*
   #(bignum                              ; 0
     short-float                         ; 1
@@ -398,7 +424,7 @@
 
 
 
-
+#+ppc32-target
 (defun %type-of (thing)
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))

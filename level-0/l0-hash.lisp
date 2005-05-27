@@ -310,10 +310,10 @@
 ;; that attribute exists), rehashing won't ever be necessary.
 (defun %%eqhash (key)
   (let* ((typecode (typecode key)))
-    (if (eq typecode ppc32::subtag-instance)
+    (if (eq typecode target::subtag-instance)
       (values (mixup-hash-code (instance.hash key)) nil)
-      (if (eq typecode ppc32::subtag-symbol)
-	(let* ((name (if key (%svref key ppc32::symbol.pname-cell) "NIL")))
+      (if (eq typecode target::subtag-symbol)
+	(let* ((name (if key (%svref key target::symbol.pname-cell) "NIL")))
 	  (values (mixup-hash-code (string-hash name 0 (length name))) nil))
 	(let ((hash (mixup-hash-code (strip-tag-to-fixnum key))))
 	  (if (immediate-p-macro key)
@@ -578,8 +578,8 @@
     (values new-size 
             (%hash-size (max (+ new-size 2) (ceiling (* new-size rehash-ratio)))))))
 
-; Suggested size is a fixnum: number of pairs.
-;  Return a fixnum >= that size that is relatively prime to all secondary keys.
+;;;  Suggested size is a fixnum: number of pairs.  Return a fixnum >=
+;;;  that size that is relatively prime to all secondary keys.
 (defun %hash-size (suggestion)
   (declare (fixnum suggestion))
   (declare (optimize (speed 3)(safety 0)))
@@ -1593,8 +1593,6 @@
         (incf offset))
       (values hash addressp))))
 
-
-
 (defun %%equalphash-aux (limit key)
   (if (<= limit 0) 
     #.(mixup-hash-code 11)
@@ -1675,22 +1673,36 @@
 
 
 
-
+#+ppc32-target
 (defun immediate-p (thing)
   (let* ((tag (lisptag thing)))
     (declare (fixnum tag))
     (or (= tag ppc32::tag-fixnum)
         (= tag ppc32::tag-imm))))
 
-; Is KEY something which can be EQL to something it's not EQ to ?
-; (e.g., is it a number or macptr ?)
-; This can be more general than necessary but shouldn't be less so.
+#+ppc64-target
+(defun immediate-p (thing)
+  (let* ((tag (lisptag thing)))
+    (declare (fixnum tag))
+    (or (= tag ppc64::tag-fixnum)
+        (= (logand tag ppc64::lowtagmask) ppc64::lowtag-imm))))
+
+;;; Is KEY something which can be EQL to something it's not EQ to ?
+;;; (e.g., is it a number or macptr ?)
+;;; This can be more general than necessary but shouldn't be less so.
 (defun need-use-eql (key)
   (let* ((typecode (typecode key)))
     (declare (fixnum typecode))
-    (or (= typecode ppc32::subtag-macptr)
+    (or (= typecode target::subtag-macptr)
+        #+ppc32-target
         (and (>= typecode ppc32::min-numeric-subtag)
-             (<= typecode ppc32::max-numeric-subtag)))))
+             (<= typecode ppc32::max-numeric-subtag))
+        #+ppc64-target
+        (or (= typecode ppc64::subtag-bignum)
+            (= typecode ppc64::subtag-single-float)
+            (= typecode ppc64::subtag-double-float)
+            (= typecode ppc64::subtag-ratio)
+            (= typecode ppc64::subtag-complex)))))
 
 (defun get-fwdnum (&optional hash)
   (let* ((res (%get-fwdnum)))
@@ -1707,7 +1719,7 @@
 
 (defun %cons-nhash-vector (size &optional (flags 0))
   (declare (fixnum size))
-  (let* ((vector (%alloc-misc (+ (+ size size) $nhash.vector_overhead) ppc32::subtag-hash-vector (%unbound-marker-8))))
+  (let* ((vector (%alloc-misc (+ (+ size size) $nhash.vector_overhead) target::subtag-hash-vector (%unbound-marker-8))))
     (setf (nhash.vector.link vector) 0
           (nhash.vector.flags vector) flags
           (nhash.vector.free-alist vector) nil

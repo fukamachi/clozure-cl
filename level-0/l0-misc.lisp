@@ -60,7 +60,7 @@
         (%copy-ivector-to-ptr arg 0 buf 0 len)
         (setf (%get-byte buf len) 0)
         (ff-call 
-         (%kernel-import ppc32::kernel-import-lisp-bug)
+         (%kernel-import target::kernel-import-lisp-bug)
          :address buf
          :void)))
     (bug "Bug called with non-simple-base-string.")))
@@ -76,17 +76,29 @@
   (let ((res 0))
     (with-macptrs (p)
       (do-consing-areas (area)
-        (when (eql (%fixnum-ref area ppc32::area.code) ppc::area-dynamic)
+        (when (eql (%fixnum-ref area target::area.code) ppc::area-dynamic)
           (%setf-macptr-to-object p  area)
-          (incf res (- (%get-unsigned-long p ppc32::area.high)
-                       (%get-unsigned-long p ppc32::area.active))))))
+          (incf res (- #+ppc32-target
+                       (%get-unsigned-long p target::area.high)
+                       #+ppc64-target
+                       (%%get-unsigned-longlong p target::area.high)
+                       #+ppc32-target
+                       (%get-unsigned-long p target::area.active)
+                       #+ppc64-target
+                       (%%get-unsigned-longlong p target::area.active))))))
     res))
 
 (defun %reservedbytes ()
   (with-macptrs (p)
     (%setf-macptr-to-object p (%get-kernel-global 'ppc::all-areas))
-    (- (%get-unsigned-long p ppc32::area.high)
-       (%get-unsigned-long p ppc32::area.low))))
+    (- #+ppc32-target
+       (%get-unsigned-long p target::area.active)
+       #+ppc64-target
+       (%%get-unsigned-longlong p target::area.active)
+       #+ppc32-target
+       (%get-unsigned-long p target::area.low)
+       #+ppc64-target
+       (%%get-unsigned-longlong p target::area.low))))
 
 (defun object-in-application-heap-p (address)
   (declare (ignore address))
@@ -101,10 +113,16 @@
     (with-macptrs (p)
       (do-consing-areas (area)
 	(%setf-macptr-to-object p area)
-	(let* ((active (%fixnum-ref area ppc32::area.active))
-	       (bytes (- (%get-unsigned-long p ppc32::area.active)
-			 (%get-unsigned-long p ppc32::area.low)))
-	       (code (%fixnum-ref area ppc32::area.code)))
+	(let* ((active (%fixnum-ref area target::area.active))
+	       (bytes (- #+ppc32-target
+                         (%get-unsigned-long p target::area.active)
+                         #+ppc64-target
+                         (%%get-unsigned-longlong p target::area.active)
+                         #+ppc32-target
+                         (%get-unsigned-long p target::area.low)
+                         #+ppc64-target
+                         (%%get-unsigned-longlong p target::area.low)))
+	       (code (%fixnum-ref area target::area.code)))
 	  (when (object-in-application-heap-p active)
 	    (if (eql code ppc::area-dynamic)
 	      (incf dynamic bytes)
@@ -121,14 +139,26 @@
         (used 0))
     (with-macptrs (p)
       (do-gc-areas (area)
-	(when (member (%fixnum-ref area ppc32::area.code)
+	(when (member (%fixnum-ref area target::area.code)
 		      '(#.ppc::area-vstack
 			#.ppc::area-cstack
                       #.ppc::area-tstack))
 	  (%setf-macptr-to-object p area)
-	  (let ((active (%get-unsigned-long p ppc32::area.active))
-		(high (%get-unsigned-long p ppc32::area.high))
-		(low (%get-unsigned-long p ppc32::area.low)))
+	  (let ((active
+                 #+ppc32-target
+                  (%get-unsigned-long p ppc32::area.active)
+                  #+ppc64-target
+                  (%%get-unsigned-longlong p ppc64::area.active))
+		(high
+                 #+ppc32-target
+                  (%get-unsigned-long p ppc32::area.high)
+                  #+ppc64-target
+                  (%%get-unsigned-longlong p ppc64::area.high))
+		(low
+                 #+ppc32-target
+                 (%get-unsigned-long p ppc32::area.low)
+                 #+ppc64-target
+                 (%%get-unsigned-longlong p ppc64::area.low)))
 	    (incf used (- high active))
 	    (incf free (- active low))))))
     (values (+ free used) used free)))
@@ -162,27 +192,47 @@
   (labels ((free-and-used (area)
 	     (with-macptrs (p)
 	       (%setf-macptr-to-object p area)
-	       (let* ((low (%get-unsigned-long p ppc32::area.low))
-		      (high (%get-unsigned-long p ppc32::area.high))
-		      (active (%get-unsigned-long p ppc32::area.active))
+	       (let* ((low
+                       #+ppc32-target
+                       (%get-unsigned-long p ppc32::area.low)
+                       #+ppc64-target
+                       (%%get-unsigned-longlong p ppc64::area.low))
+		      (high
+                       #+ppc32-target
+                        (%get-unsigned-long p ppc32::area.high)
+                        #+ppc64-target
+                        (%%get-unsigned-longlong p ppc64::area.high))
+		      (active
+                       #+ppc32-target
+                       (%get-unsigned-long p ppc32::area.active)
+                       #+ppc64-target
+                       (%%get-unsigned-longlong p ppc64::area.active))
 		      (free (- active low))
 		      (used (- high active)))
 		 (loop
-		     (setq area (%fixnum-ref area ppc32::area.older))
+		     (setq area (%fixnum-ref area target::area.older))
 		     (when (eql area 0) (return))
 		   (%setf-macptr-to-object p area)
-		   (let ((low (%get-unsigned-long p ppc32::area.low))
-			 (high (%get-unsigned-long p ppc32::area.high)))
+		   (let ((low
+                          #+ppc32-target
+                           (%get-unsigned-long p ppc32::area.low)
+                           #+ppc64-target
+                           (%%get-unsigned-longlong p ppc64::area.low))
+			 (high
+                          #+ppc32-target
+                           (%get-unsigned-long p ppc32::area.high)
+                           #+ppc64-target
+                           (%%get-unsigned-longlong p ppc64::area.high)))
 		     (declare (fixnum low high))
 		     (incf used (- high low))))
 		 (values free used)))))
-    (let* ((tcr (%svref thread ppc32::lisp-thread.tcr-cell)))
+    (let* ((tcr (%svref thread target::lisp-thread.tcr-cell)))
       (if (or (null tcr)
-	      (zerop (%fixnum-ref (%fixnum-ref tcr ppc32::tcr.cs-area))))
+	      (zerop (%fixnum-ref (%fixnum-ref tcr target::tcr.cs-area))))
 	(values 0 0 0 0 0 0)
-	(multiple-value-bind (cf cu) (free-and-used (%fixnum-ref tcr ppc32::tcr.cs-area))
-	  (multiple-value-bind (vf vu) (free-and-used (%fixnum-ref tcr ppc32::tcr.vs-area))
-	    (multiple-value-bind (tf tu) (free-and-used (%fixnum-ref tcr ppc32::tcr.ts-area ))
+	(multiple-value-bind (cf cu) (free-and-used (%fixnum-ref tcr target::tcr.cs-area))
+	  (multiple-value-bind (vf vu) (free-and-used (%fixnum-ref tcr target::tcr.vs-area))
+	    (multiple-value-bind (tf tu) (free-and-used (%fixnum-ref tcr target::tcr.ts-area ))
 	      (values cf cu vf vu tf tu))))))))
 
 
@@ -286,8 +336,8 @@
    seq
    (or (list-length seq)
        (%err-disp $XIMPROPERLIST seq))
-   (if (= (the fixnum (typecode seq)) ppc32::subtag-vectorH)
-     (%svref seq ppc32::vectorH.logsize-cell)
+   (if (= (the fixnum (typecode seq)) target::subtag-vectorH)
+     (%svref seq target::vectorH.logsize-cell)
      (uvsize seq))))
 
 (defun %str-from-ptr (pointer len)
@@ -364,53 +414,68 @@
 ;;; to do otherwise.  The caller really needs to hold the heap-segment
 ;;; lock; this grabs the tcr queue lock as well.
 (defun %suspend-other-threads ()
-  (ff-call (%kernel-import ppc32::kernel-import-suspend-other-threads)
+  (ff-call (%kernel-import target::kernel-import-suspend-other-threads)
            :void))
 
 (defun %resume-other-threads ()
-  (ff-call (%kernel-import ppc32::kernel-import-resume-other-threads)
+  (ff-call (%kernel-import target::kernel-import-resume-other-threads)
            :void))
 
 (defun %lock-recursive-lock (lock)
   (with-macptrs ((p)
-		 (owner (%get-ptr lock ppc32::lockptr.owner))
-		 (signal (%get-ptr lock ppc32::lockptr.signal)))
+		 (owner (%get-ptr lock target::lockptr.owner))
+		 (signal (%get-ptr lock target::lockptr.signal)))
     (%setf-macptr-to-object p (%current-tcr))
     (if (eql p owner)
-      (incf (%get-unsigned-long lock ppc32::lockptr.count))
+      (incf #+ppc32-target
+            (%get-unsigned-long lock ppc32::lockptr.count)
+            #+ppc64-target
+            (%%get-unsigned-longlong lock ppc64::lockptr.count))
       (loop
 	(when (eql 1 (%atomic-incf-ptr lock))
-	  (setf (%get-ptr lock ppc32::lockptr.owner) p
-		(%get-unsigned-long lock ppc32::lockptr.count) 1)
+	  (setf (%get-ptr lock target::lockptr.owner) p
+                #+ppc32-target
+		(%get-unsigned-long lock ppc32::lockptr.count)
+                #+ppc64-target
+                (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
 	  (return t))
 	(%timed-wait-on-semaphore-ptr signal 1 0)))))
 
 (defun %try-recursive-lock (lock)
   (with-macptrs ((p)
-		 (owner (%get-ptr lock ppc32::lockptr.owner)))
+		 (owner (%get-ptr lock target::lockptr.owner)))
     (%setf-macptr-to-object p (%current-tcr))
     (cond ((eql p owner)
-	   (incf (%get-unsigned-long lock ppc32::lockptr.count))
+	   (incf #+ppc32-target
+		(%get-unsigned-long lock ppc32::lockptr.count)
+                #+ppc64-target
+                (%%get-unsigned-longlong lock ppc64::lockptr.count))
 	   t)
 	  ((eql 0 (%ptr-store-conditional lock 0 1))
-	   (setf (%get-ptr lock ppc32::lockptr.owner) p
-		(%get-unsigned-long lock ppc32::lockptr.count) 1)
+	   (setf (%get-ptr lock target::lockptr.owner) p
+                 #+ppc32-target
+		(%get-unsigned-long lock ppc32::lockptr.count)
+                #+ppc64-target
+                (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
 	   t)
 	  (t nil))))
 
 
 (defun %unlock-recursive-lock (lock)
   (with-macptrs ((p)
-		 (owner (%get-ptr lock ppc32::lockptr.owner))
-		 (signal (%get-ptr lock ppc32::lockptr.signal)))
+		 (owner (%get-ptr lock target::lockptr.owner))
+		 (signal (%get-ptr lock target::lockptr.signal)))
     (%setf-macptr-to-object p (%current-tcr))
     (unless (eql p owner)
       (error 'not-lock-owner :lock lock))
-    (when (eql 0 (decf (the fixnum (%get-unsigned-long lock ppc32::lockptr.count))))
-      (setf (%get-ptr lock ppc32::lockptr.owner) (%null-ptr))
+    (when (eql 0 (decf (the fixnum #+ppc32-target
+                            (%get-unsigned-long lock ppc32::lockptr.count)
+                            #+ppc64-target
+                            (%%get-unsigned-longlong lock ppc64::lockptr.count))))
+      (setf (%get-ptr lock target::lockptr.owner) (%null-ptr))
       (let* ((pending (1- (the fixnum (%atomic-swap-ptr lock 0)))))
 	(declare (fixnum pending))
-	(with-macptrs ((waiting (%inc-ptr lock ppc32::lockptr.waiting)))
+	(with-macptrs ((waiting (%inc-ptr lock target::lockptr.waiting)))
 	  (%atomic-incf-ptr-by waiting pending)
 	  (when (>= (the fixnum (%atomic-decf-ptr-if-positive waiting)) 0)
 	    (%signal-semaphore-ptr signal)))))
@@ -422,28 +487,28 @@
   
 (defun %suspend-tcr (tcr)
   (not (zerop (the fixnum 
-                (ff-call (%kernel-import ppc32::kernel-import-suspend-tcr)
-                         :unsigned-fullword (ash tcr ppc32::fixnumshift)
+                (ff-call (%kernel-import target::kernel-import-suspend-tcr)
+                         :unsigned-fullword (ash tcr target::fixnumshift)
                          :unsigned-fullword)))))
 
 (defun %resume-tcr (tcr)
   (not (zerop (the fixnum
-		(ff-call (%kernel-import ppc32::kernel-import-resume-tcr)
-			 :unsigned-fullword (ash tcr ppc32::fixnumshift)
+		(ff-call (%kernel-import target::kernel-import-resume-tcr)
+			 :unsigned-fullword (ash tcr target::fixnumshift)
 			 :unsigned-fullword)))))
 
 
 
 (defun %rplaca-conditional (cons-cell old new)
-  (%store-node-conditional ppc32::cons.car cons-cell old new))
+  (%store-node-conditional target::cons.car cons-cell old new))
 
 (defun %rplacd-conditional (cons-cell old new)
-  (%store-node-conditional ppc32::cons.cdr cons-cell old new))
+  (%store-node-conditional target::cons.cdr cons-cell old new))
 
 ;;; Atomically push NEW onto the list in the I'th cell of uvector V.
 (defun atomic-push-uvector-cell (v i new)
   (let* ((cell (cons new nil))
-         (offset (+ ppc32::misc-data-offset (ash 2 i))))
+         (offset (+ target::misc-data-offset (ash i target::word-shift))))
     (loop
       (let* ((old (uvref v i)))
         (rplacd cell old)
@@ -460,25 +525,25 @@
 (defun %atomic-incf-car (cell &optional (by 1))
   (%atomic-incf-node (require-type by 'fixnum)
 		     (require-type cell 'cons)
-		     ppc32::cons.car))
+		     target::cons.car))
 
 (defun %atomic-incf-cdr (cell &optional (by 1))
   (%atomic-incf-node (require-type by 'fixnum)
 		     (require-type cell 'cons)
-		     ppc32::cons.cdr))
+		     target::cons.cdr))
 
 (defun %atomic-incf-gvector (v i &optional (by 1))
   (setq v (require-type v 'gvector))
   (setq i (require-type i 'fixnum))
-  (%atomic-incf-node by v (+ ppc32::misc-data-offset (ash i 2))))
+  (%atomic-incf-node by v (+ target::misc-data-offset (ash i target::word-shift))))
 
 (defun %atomic-incf-symbol-value (s &optional (by 1))
   (setq s (require-type s 'symbol))
   (let* ((binding-address (%symbol-binding-address s)))
     (declare (fixnum binding-address))
     (if (zerop binding-address)
-      (%atomic-incf-node by s ppc32::symbol.vcell-cell)
-      (%atomic-incf-node by binding-address 8))))
+      (%atomic-incf-node by s target::symbol.vcell-cell)
+      (%atomic-incf-node by binding-address (* 2 target::node-size)))))
 
 ;;; Yield the CPU, via a platform-specific syscall.
 (defun yield ()

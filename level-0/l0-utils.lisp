@@ -76,12 +76,24 @@
 
 
 (eval-when (:compile-toplevel :execute)
+  #+ppc32-target
   (defmacro need-use-eql-macro (key)
     `(let* ((typecode (typecode ,key)))
        (declare (fixnum typecode))
        (or (= typecode ppc32::subtag-macptr)
            (and (>= typecode ppc32::min-numeric-subtag)
                 (<= typecode ppc32::max-numeric-subtag)))))
+  #+ppc64-target
+  (defmacro need-use-eql-macro (key)
+    `(let* ((typecode (typecode ,key)))
+       (declare (fixnum typecode))
+          (cond ((= typecode ppc64::tag-fixnum) t)
+                ((= typecode ppc64::subtag-single-float) t)
+                ((= typecode ppc64::subtag-bignum) t)
+                ((= typecode ppc64::subtag-double-float) t)
+                ((= typecode ppc64::subtag-ratio) t)
+                ((= typecode ppc64::subtag-complex t))
+                ((= typecode ppc32::subtag-macptr) t))))
 
 )
 

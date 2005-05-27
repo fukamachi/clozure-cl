@@ -487,8 +487,8 @@
 #+ppc64-target
 (defppclapfunction %int-to-sfloat ((int arg_z))
   (int-to-freg int fp0 imm0)
-  (stfs fp0 ppc64::tcr.single-float-convert rcontext)
-  (ld arg_z ppc64::tcr.single-float-convert rcontext)
+  (stfs fp0 ppc64::tcr.single-float-convert ppc64::rcontext)
+  (ld arg_z ppc64::tcr.single-float-convert ppc64::rcontext)
   (blr))
   
 
@@ -503,15 +503,15 @@
 ; This  returns the bottom 8 bits of the FPSCR
 (defppclapfunction %get-fpscr-control ()
   (mffs fp0)
-  (stfd fp0 target::tcr.lisp-fpscr-high rcontext)
-  (lbz imm0 (+ target::tcr.lisp-fpscr-high 7) rcontext)
+  (stfd fp0 target::tcr.lisp-fpscr-high target::rcontext)
+  (lbz imm0 (+ target::tcr.lisp-fpscr-high 7) target::rcontext)
   (box-fixnum arg_z imm0)
   (blr))
 
 ; Returns the high 24 bits of the FPSCR
 (defppclapfunction %get-fpscr-status ()
   (mffs fp0)
-  (stfd fp0 target::tcr.lisp-fpscr-high rcontext)
+  (stfd fp0 target::tcr.lisp-fpscr-high target::rcontext)
   (lwz imm0 target::tcr.lisp-fpscr-low tsp)
   (clrrwi imm0 imm0 8)
   (srwi arg_z imm0 (- 8 target::fixnumshift))
@@ -520,8 +520,8 @@
 ; Set the high 24 bits of the FPSCR; leave the low 8 unchanged
 (defppclapfunction %set-fpscr-status ((new arg_z))
   (slwi imm0 new (- 8 target::fixnumshift))
-  (stw imm0 target::tcr.lisp-fpscr-low rcontext)
-  (lfd fp0 target::tcr.lisp-fpscr-high rcontext)
+  (stw imm0 target::tcr.lisp-fpscr-low target::rcontext)
+  (lfd fp0 target::tcr.lisp-fpscr-high target::rcontext)
   (mtfsf #xfc fp0)                      ; set status fields [0-5]
   (blr))
 
@@ -529,13 +529,13 @@
 (defppclapfunction %set-fpscr-control ((new arg_z))
   (unbox-fixnum imm0 new)
   (clrlwi imm0 imm0 24)                 ; ensure that "status" fields are clear
-  (stw imm0 target::tcr.lisp-fpscr-low rcontext)
-  (lfd fp0 target::tcr.lisp-fpscr-high rcontext)
+  (stw imm0 target::tcr.lisp-fpscr-low target::rcontext)
+  (lfd fp0 target::tcr.lisp-fpscr-high target::rcontext)
   (mtfsf #xff fp0)                      ; set all fields [0-7]
   (blr))
 
 (defppclapfunction %ffi-exception-status ()
-  (lwz imm0  ppc32::tcr.ffi-exception rcontext)
+  (lwz imm0  ppc32::tcr.ffi-exception target::rcontext)
   (mtcrf #xfc imm0)
   (mcrfs :cr6 :cr6)
   (mcrfs :cr7 :cr7)

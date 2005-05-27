@@ -201,8 +201,8 @@
   (beqlr cr3)                           ; Silly 0-length case
   (li imm4 ppc64::misc-data-offset)
   (bne cr0 @imm)
-  ; Node vector.  Don't need to memoize, since initial value is
-  ; older than vector.
+  ;; Node vector.  Don't need to memoize, since initial value is
+  ;; older than vector.
   @node-loop
   (cmpdi cr0 imm3 1)
   (subi imm3 imm3 1)
@@ -244,6 +244,7 @@
   (beq cr1 @dfloat)
   (beq cr2 @u64)
   ;; s64
+  (unbox-fixnum imm0 arg_z)
   (beq cr7 @set-64)                     ; all fixnums are (SIGNED-BYTE 64)
   (bne cr3 @bad)                        ; as are 2-digit bignums
   (getvheader imm1 val)

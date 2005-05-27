@@ -458,6 +458,7 @@
         (if (< tem sfloat) -1 1)))
     #+ppc64-target
     (let* ((tem (%int-to-sfloat int)))
+      (declare (single-float tem))
       (if (= tem sfloat)
         0
         (if (< tem sfloat) -1 1)))))
@@ -992,15 +993,15 @@
     (ratio (truncate-no-rem (%numerator number) (%denominator number)))
     (double-float
      (if (and (< (the double-float number) 
-                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 0.0d0))
-              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 0.0d0)
+                 (float (1- (ash 1 (- (1- target::nbits-in-word) target::fixnumshift))) 0.0d0))
+              (< (float (ash -1 (- (1- target::nbits-in-word) target::fixnumshift)) 0.0d0)
 	         (the double-float number)))
        (%truncate-double-float->fixnum number)
        (%truncate-double-float number)))
     (short-float
      (if (and (< (the short-float number) 
-                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 0.0s0))
-              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 0.0s0)
+                 (float (1- (ash 1 (- (1- target::nbits-in-word) target::fixnumshift))) 0.0s0))
+              (< (float (ash -1 (- (1- target::nbits-in-word) target::fixnumshift)) 0.0s0)
 	         (the short-float number)))
        (%truncate-short-float->fixnum number)
        (%truncate-short-float number)))))

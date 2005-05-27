@@ -62,15 +62,15 @@
         (temp imm2))
 
     ; update active pointer for tsp area.
-    (ldr address target::tcr.ts-area rcontext)
+    (ldr address target::tcr.ts-area target::rcontext)
     (str tsp target::area.active address)
     
     ;; Update active pointer for vsp area.
-    (ldr address target::tcr.vs-area rcontext)
+    (ldr address target::tcr.vs-area target::rcontext)
     (str vsp target::area.active address)
     
     ; Update active pointer for SP area
-    (ldr arg_z target::tcr.cs-area rcontext)
+    (ldr arg_z target::tcr.cs-area target::rcontext)
     (str sp target::area.active arg_z)
 
 
