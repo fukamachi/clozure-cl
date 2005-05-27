@@ -31,6 +31,11 @@
 ;;; Index "scaling" and constant-offset misc-ref vinsns.
 
 
+(define-ppc64-vinsn scale-node-misc-index (((dest :u64))
+                                           ((idx :imm)	; A fixnum
+                                            )
+                                           ())
+  (addi dest idx ppc64::misc-data-offset))
 
 (define-ppc64-vinsn scale-32bit-misc-index (((dest :u64))
 					    ((idx :imm)	; A fixnum
@@ -304,11 +309,11 @@
 					       ((v :lisp))
 					       ((temp :u32)))
   (ld temp ppc64::misc-header-offset v)
-  (rlwinm dest 
-          temp 
-          (- ppc64::nbits-in-word (- ppc64::num-subtag-bits ppc64::fixnumshift))
-          (- ppc64::num-subtag-bits ppc64::fixnumshift) 
-          (- ppc64::least-significant-bit ppc64::fixnumshift)))
+  (rldicr temp
+          temp
+          (- 64 (- ppc64::num-subtag-bits ppc64::fixnumshift))
+          (- 63 ppc64::fixnumshift))
+  (clrldi dest dest (- ppc64::num-subtag-bits ppc64::fixnumshift)))
 
 (define-ppc64-vinsn check-misc-bound (()
 				      ((idx :imm)
@@ -374,8 +379,8 @@
 					 (xreg :u32)))
   (lis xreg (:apply ldb (byte 16 16) (:apply ash expected ppc64::fixnumshift)))
   (ori xreg xreg (:apply ldb (byte 16 0) (:apply ash expected ppc64::fixnumshift)))
-  (lwz flags ppc64::arrayH.flags header)
-  (tw 27 flags xreg))
+  (ld flags ppc64::arrayH.flags header)
+  (td 27 flags xreg))
 
   
 (define-ppc64-vinsn node-slot-ref  (((dest :lisp))
@@ -1698,7 +1703,7 @@
 
 (define-ppc64-vinsn event-poll (()
 				())
-  (ld ppc::nargs ppc64::tcr.interrupt-level ppc::rcontext)
+  (ld ppc::nargs ppc64::tcr.interrupt-level ppc64::rcontext)
   (tdgti ppc::nargs 0))
 
                          
@@ -1761,7 +1766,7 @@
    ((:or (:pred = (:apply ash intval -31) 0)
          (:pred = (:apply ash intval -31) #x1ffffffff))
     (lis dest (:apply %word-to-int (:apply ldb (:apply byte 16 16) intval)))
-    ((:not (:pred = (:apply ldb (:apply byte 16 0) intval)))
+    ((:not (:pred = (:apply ldb (:apply byte 16 0) intval) 0))
      (ori dest dest (:apply ldb (:apply byte 16 0) intval))))
    ((:not (:or (:pred = (:apply ash intval -31) 0)
                (:pred = (:apply ash intval -31) #x1ffffffff)))
@@ -1781,7 +1786,7 @@
 
 (define-ppc64-vinsn discard-temp-frame (()
 					())
-  (lwz ppc::tsp 0 ppc::tsp))
+  (ld ppc::tsp 0 ppc::tsp))
 
 
 ;;; Somewhere, deep inside the "OS_X_PPC_RuntimeConventions.pdf"
@@ -1821,7 +1826,7 @@
 ;;; of each frame.
 (define-ppc64-vinsn discard-c-frame (()
 				     ())
-  (lwz ppc::sp 0 ppc::sp))
+  (ld ppc::sp 0 ppc::sp))
 
 
 
@@ -2105,8 +2110,8 @@
 
 (define-ppc64-vinsn single->node (((result :lisp)) ; tagged as a single-float
 				  ((fpreg :single-float)))
-  (stfs fpreg ppc64::tcr.single-float-convert ppc::rcontext)
-  (ld result  ppc64::tcr.single-float-convert ppc::rcontext))
+  (stfs fpreg ppc64::tcr.single-float-convert ppc64::rcontext)
+  (ld result  ppc64::tcr.single-float-convert ppc64::rcontext))
 
 
 ;;; "dest" is preallocated, presumably on a stack somewhere.
@@ -2142,13 +2147,13 @@
 				  ((dest :lisp)
 				   (source :single-float))
 				  ())
-  (stfs source ppc64::tcr.single-float-convert ppc::rcontext)
-  (ld dest ppc64::tcr.single-float-convert ppc::rcontext))
+  (stfs source ppc64::tcr.single-float-convert ppc64::rcontext)
+  (ld dest ppc64::tcr.single-float-convert ppc64::rcontext))
 
 (define-ppc64-vinsn get-single (((target :single-float))
 				((source :lisp)))
-  (std source ppc64::tcr.single-float-convert ppc::rcontext)
-  (lfs target ppc64::tcr.single-float-convert ppc::rcontext))
+  (std source ppc64::tcr.single-float-convert ppc64::rcontext)
+  (lfs target ppc64::tcr.single-float-convert ppc64::rcontext))
 
 ;;; ... of characters ...
 (define-ppc64-vinsn charcode->u16 (((dest :u16))
@@ -2707,7 +2712,7 @@
 
 (define-ppc64-vinsn %current-tcr (((dest :imm))
 				  ())
-  (mr dest ppc::rcontext))
+  (mr dest ppc64::rcontext))
 
 (define-ppc64-vinsn (svar-dpayback :call :subprim-call) (()
 							 ((n :s16const))
@@ -2739,11 +2744,11 @@
 (define-ppc64-vinsn load-single-float-constant
     (((dest :single-float))
      ((src t)))
-  (stwu ppc::tsp -16 ppc::tsp)
-  (stw ppc::tsp 4 ppc::tsp)
-  (stw src 12 ppc::tsp)
-  (lfs dest 12 ppc::tsp)
-  (lwz ppc::tsp 0 ppc::tsp))
+  (stdu ppc::tsp -32 ppc::tsp)
+  (std ppc::tsp 8 ppc::tsp)
+  (std src 16 ppc::tsp)
+  (lfs dest 20 ppc::tsp)
+  (la ppc::tsp 32 ppc::tsp))
 
 (define-ppc64-vinsn load-indexed-node (((node :lisp))
 				       ((base :lisp)
@@ -2765,7 +2770,7 @@
 
 (define-ppc64-vinsn check-max-nargs (()
 				     ((max :u16const)))
-  (twlgti ppc::nargs (:apply ash max ppc64::word-shift)))
+  (tdlgti ppc::nargs (:apply ash max ppc64::word-shift)))
 
 ;;; Save context and establish FN.  The current VSP is the the
 ;;; same as the caller's, e.g., no arguments were vpushed.
@@ -2778,7 +2783,7 @@
   (std ppc::vsp ppc64::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (ld imm ppc64::tcr.cs-limit ppc::rcontext)
+  (ld imm ppc64::tcr.cs-limit ppc64::rcontext)
   (tdllt ppc::sp imm))
 
 ;;; Do the same thing via a subprim call.
@@ -2798,7 +2803,7 @@
   (std imm ppc64::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (ld imm ppc64::tcr.cs-limit ppc::rcontext)
+  (ld imm ppc64::tcr.cs-limit ppc64::rcontext)
   (tdllt ppc::sp imm))
 
 (define-ppc64-vinsn save-lisp-context-offset-ool (()
@@ -2817,7 +2822,7 @@
   (std ppc::vsp ppc64::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (ld imm ppc64::tcr.cs-limit ppc::rcontext)
+  (ld imm ppc64::tcr.cs-limit ppc64::rcontext)
   (tdllt ppc::sp imm))
   
 (define-ppc64-vinsn save-cleanup-context (()
@@ -3154,9 +3159,9 @@
 (define-ppc64-vinsn disable-interrupts (((dest :lisp))
 					()
 					((temp :imm)))
-  (li temp -4)
-  (lwz dest ppc64::tcr.interrupt-level ppc::rcontext)
-  (stw temp ppc64::tcr.interrupt-level ppc::rcontext))
+  (li temp -8)
+  (ld dest ppc64::tcr.interrupt-level ppc64::rcontext)
+  (std temp ppc64::tcr.interrupt-level ppc64::rcontext))
 
 (define-ppc64-vinsn load-character-constant (((dest :lisp))
                                              ((code :u8const))
