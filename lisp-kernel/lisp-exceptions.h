@@ -358,8 +358,13 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 
 #define LISP_BREAK_INSTRUCTION 0x7F810808
 
+#ifdef PPC64
+/* tdllt allocptr,allocbase */
+#define ALLOC_TRAP_INSTRUCTION 0x7c495088
+#else
 /* twllt allocptr,allocbase */
 #define ALLOC_TRAP_INSTRUCTION 0x7C495008
+#endif
 
 /* twlgei allocptr,0 */
 #define GC_TRAP_INSTRUCTION 0x0CA90000
