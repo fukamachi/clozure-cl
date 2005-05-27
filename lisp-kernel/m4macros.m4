@@ -117,6 +117,10 @@ define([__pwd__],substr(pwd0,0,decr(len(pwd0)))[/])
 define([_beginfile],[
 	.stabs "__pwd__",N_SO,0,0,StartTextLabel()
 	.stabs "__file__",N_SO,0,0,StartTextLabel()
+ifdef([PPC64],[
+ifdef([DARWIN],[
+        .machine ppc64
+])])
 	.text
 StartTextLabel():
 # __line__ "__file__"
@@ -246,6 +250,17 @@ define([equate_if_defined],[ifdef($1,[
 equate_if_defined([DARWIN])
 equate_if_defined([LINUX])
 equate_if_defined([PPC64])
+
+
+/* We use (more-or-less) a PowerOpen C frame, except on LinuxPPC32 */
+define([USE_POWEROPEN_C_FRAME],[])
+undefine([USE_EABI_C_FRAME])
+
+ifdef([LINUX],[
+ifdef([PPC64],[],[
+define([USE_EABI_C_FRAME],[])
+undefine([USE_POWEROPEN_C_FRAME])
+])])
 
 
 
