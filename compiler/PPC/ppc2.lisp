@@ -28,6 +28,7 @@
 (defparameter *ppc2-target-lcell-size* 0)
 (defparameter *ppc2-target-node-size* 0)
 (defparameter *ppc2-target-fixnum-shift* 0)
+(defparameter *ppc2-target-node-shift* 0)
 (defparameter *ppc2-target-bits-in-word* 0)
 
 
@@ -389,6 +390,7 @@
            (*ppc2-cstack* 0)
 	   (*ppc2-target-lcell-size* (arch::target-lisp-node-size (backend-target-arch *target-backend*)))
            (*ppc2-target-fixnum-shift* (arch::target-fixnum-shift (backend-target-arch *target-backend*)))
+           (*ppc2-target-node-shift* (arch::target-word-shift  (backend-target-arch *target-backend*)))
            (*ppc2-target-bits-in-word* (arch::target-nbits-in-word (backend-target-arch *target-backend*)))
 	   (*ppc2-target-node-size* *ppc2-target-lcell-size*)
            (*ppc2-all-lcells* ())
@@ -719,11 +721,6 @@
         (! restore-nvrs first from-fp (- *ppc2-vstack* ea))))))
 
 
-;;; The change is to ask for a stack-consed rest var if the rest var is ignored.
-;;; And also to pop the rest var immediately if it's ignored, rather than at the end
-;;; of the function.  That will allow calling the final function tail-recursively.  
-
-
 
 (defun ppc2-bind-lambda (seg lcells req opt rest keys auxen optsupvloc passed-in-regs lexpr &optional inherited
                              &aux (vloc 0) (numopt (%ilsl 2 (list-length (%car opt))))
@@ -750,7 +747,8 @@
   (when opt
     (if (ppc2-hard-opt-p opt)
       (setq vloc (apply #'ppc2-initopt seg vloc optsupvloc lcells (nthcdr (- (length lcells) (ash numopt -2)) lcells) opt)
-              lcells (nthcdr (ash numopt -2) lcells))
+            lcells (nthcdr (ash numopt -2) lcells))
+
       (dolist (var (%car opt))
         (if (memq var passed-in-regs)
           (ppc2-set-var-ea seg var (var-ea var))
@@ -825,7 +823,7 @@
              (var-lcell (pop lcells))
              (sp-lcell (pop lcells))
              (sp-reg ($ ppc::arg_z))
-             (sploc (%i+ vloc 4)))
+             (sploc (%i+ vloc *ppc2-target-node-size*)))
         (unless (nx-null initform)
           (ppc2-stack-to-register seg (ppc2-vloc-ea sploc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
@@ -844,7 +842,7 @@
           (if (setq reg (ppc2-assign-register-var spvar))
             (ppc2-init-regvar seg spvar reg (ppc2-vloc-ea sploc))
             (ppc2-bind-var seg spvar sploc sp-lcell))))
-      (setq vloc (%i+ vloc 8)))))
+      (setq vloc (%i+ vloc (* 2 *ppc2-target-node-size*))))))
 
 ;;; Vpush register r, unless var gets a globally-assigned register.
 ;;; Return NIL if register was vpushed, else var.
@@ -874,7 +872,7 @@
         (if *ppc2-open-code-inline*
           (! save-lisp-context-vsp)
           (! save-lisp-context-vsp-ool))
-        (let* ((offset (ash (the fixnum (- nargs $numppcargregs)) 2)))
+        (let* ((offset (* (the fixnum (- nargs $numppcargregs)) *ppc2-target-node-size*)))
           (declare (fixnum offset))
           (if *ppc2-open-code-inline*
             (! save-lisp-context-offset offset)
@@ -2057,7 +2055,7 @@
       (if (and (eq xfer $backend-return) (not (ppc2-tailcallok xfer)))
         (progn
           (ppc2-call-fn seg vreg $backend-mvpass fn arglist spread-p)
-          (ppc2-set-vstack (%i+ (if simple-case 0 4) vstack))
+          (ppc2-set-vstack (%i+ (if simple-case 0 *ppc2-target-node-size*) vstack))
           (setq  *ppc2-cstack* cstack)
           (let ((*ppc2-returning-values* t)) (ppc2-do-return seg)))
         (let* ((mv-p (ppc2-mv-p xfer)))
@@ -2474,8 +2472,9 @@
                   reg
                   (if (and (acode-p form)
                            (eq (acode-operator form) (%nx1-operator %current-tcr)))
-                    ($ ppc::rcontext)
-                    
+                    (target-arch-case
+                     (:ppc32 ($ ppc32::rcontext))
+                     (:ppc64 ($ ppc64::rcontext)))
                     (ppc2-one-untargeted-lreg-form seg form suggested)))))))
         (ppc2-one-untargeted-lreg-form seg form suggested)))))
              
@@ -4043,8 +4042,8 @@
               (! misc-ref-c-node target src index-known-fixnum))
             (let* ((idx-reg ppc::imm0))
               (if index-known-fixnum
-                (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 2)))
-                (! scale-32bit-misc-index idx-reg unscaled-idx))
+                (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum *ppc2-target-node-shift*)))
+                (! scale-node-misc-index idx-reg unscaled-idx))
               (! misc-ref-node target src idx-reg)))))
       (^))))
 
@@ -4374,7 +4373,7 @@
         (! adjust-sp diff)))
     (if (%i< 0 (setq diff (%i- current-vstack target-vstack)))
       (with-ppc-local-vinsn-macros (seg)
-        (! vstack-discard (ash diff -2))))
+        (! vstack-discard (ash diff (- *ppc2-target-fixnum-shift*)))))
     exit-vstack))
 
 ;;; We can sometimes combine unwinding the catch stack with returning from the function
@@ -4433,7 +4432,7 @@
       (if (and (eq xfer $backend-return) (not (ppc2-tailcallok xfer)))
         (progn
           (ppc2-mvcall seg vreg $backend-mvpass fn arglist t)
-          (ppc2-set-vstack (%i+ (if arglist 4 0) vstack))
+          (ppc2-set-vstack (%i+ (if arglist *ppc2-target-node-size* 0) vstack))
           (setq *ppc2-cstack* cstack)
           (let* ((*ppc2-returning-values* t)) (^)))
         (let* ((mv-p (ppc2-mv-p xfer)))
@@ -4459,7 +4458,7 @@
                 (let* ((*ppc2-returning-values* t))
                   (^)))
               (progn 
-                (ppc2-adjust-vstack -4)          ; discard function
+                (ppc2-adjust-vstack (- *ppc2-target-node-size*)) ; discard function
                 (! vstack-discard 1)
                 (<- ppc::arg_z)
                 (^)))))))))
@@ -4695,7 +4694,7 @@
             (ppc2-store-ea seg enclosing-ea ppc::arg_z)
             (! destructuring-bind-inner))
           (! destructuring-bind)))
-      (ppc2-set-vstack (%i+ *ppc2-vstack* (%ilsl 2 vtotal)))
+      (ppc2-set-vstack (%i+ *ppc2-vstack* (* *ppc2-target-node-size* vtotal)))
       (ppc2-collect-lcells :reserved old-top))))
 
 
@@ -4951,9 +4950,10 @@
                         (! keyword-args)
                         (! keyword-bind)))))
                 (when rest
-                  ;; If any keyword-binding's happened, the key/value pairs have been slid to the top-of-stack
-                  ;; for us.  There'll be an even number of them (nargs - the "previous" (required/&optional)
-                  ;; count.)
+                  ;; If any keyword-binding's happened, the key/value
+                  ;; pairs have been slid to the top-of-stack for us.
+                  ;; There'll be an even number of them (nargs - the
+                  ;; "previous" (required/&optional) count.)
                   (if lexprp
                     (ppc2-lexpr-entry seg num-fixed)
                     (progn
@@ -4993,7 +4993,7 @@
                                           (if hardopt num-opt 0) 
                                           (if lexprp 0 (if rest 1 0))
                                           (ash (length (%cadr keys)) 1)))
-                       (nbytes-vpushed (ash nwords-vpushed 2)))
+                       (nbytes-vpushed (* nwords-vpushed *ppc2-target-node-size*)))
                   (declare (fixnum nwords-vpushed nbytes-vpushed))
                   (unless (or lexprp keys) 
                     (if *ppc2-open-code-inline*
@@ -5006,6 +5006,7 @@
           (unless (= 0 pregs)
             ;; Save NVRs; load constants into any that get constants.
             (ppc2-save-nvrs seg pregs)
+
             (dolist (pair reglocatives)
               (declare (cons pair))
               (let* ((constant (car pair))
@@ -6009,7 +6010,7 @@
 (defppc2 ppc2-multiple-value-bind multiple-value-bind (seg vreg xfer vars valform body p2decls)
   (let* ((n (list-length vars))
          (vloc *ppc2-vstack*)
-         (nbytes (%ilsl 2 n))
+         (nbytes (* n *ppc2-target-node-size*))
          (old-stack (ppc2-encode-stack)))
     (with-ppc-p2-declarations p2decls
       (ppc2-multiple-value-body seg valform)
@@ -6020,7 +6021,7 @@
              (lcells (progn (ppc2-reserve-vstack-lcells n) (ppc2-collect-lcells :reserved old-top))))
         (dolist (var vars)
           (ppc2-bind-var seg var vloc (pop lcells))
-          (setq vloc (%i+ vloc 4))))
+          (setq vloc (%i+ vloc *ppc2-target-node-size*))))
       (ppc2-undo-body seg vreg xfer body old-stack)
       (dolist (var vars)
         (ppc2-close-var seg var)))))
@@ -6956,7 +6957,7 @@
               (ppc2-open-undo $undostkblk))
             (! list))
           (ppc2-vpush-register seg ppc::arg_z)
-          (ppc2-set-vstack (%i+ restloc 4)))
+          (ppc2-set-vstack (%i+ restloc *ppc2-target-node-size*)))
         (when rest (ppc2-bind-var seg rest restloc))
         (destructuring-bind (vars inits) auxen
           (while vars
@@ -7081,10 +7082,15 @@
     (@ cleanup-label)
     (let* ((*ppc2-vstack* *ppc2-vstack*)
            (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
-           (*ppc2-cstack* (%i+ *ppc2-cstack* 16)))
+           (*ppc2-cstack* (%i+ *ppc2-cstack* (target-arch-case
+                                              (:ppc32 ppc32::lisp-frame.size)
+                                              (:ppc64 ppc64::lisp-frame.size)))))
       (ppc2-open-undo $undostkblk)      ; tsp frame created by nthrow.
       (! save-cleanup-context)
-      (setq *ppc2-cstack* (%i+ *ppc2-cstack* 16))       ; the frame we just pushed
+      (setq *ppc2-cstack* (%i+ *ppc2-cstack*
+                               (target-arch-case
+                                (:ppc32 ppc32::lisp-frame.size)
+                                (:ppc64 ppc64::lisp-frame.size))))       ; the frame we just pushed
       (ppc2-form seg nil nil cleanup-form)
       (ppc2-close-undo)
       (! restore-cleanup-context)
@@ -7229,7 +7235,9 @@
     (@ cleanup-label)
     (let* ((*ppc2-vstack* *ppc2-vstack*)
            (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
-           (*ppc2-cstack* (%i+ *ppc2-cstack* 16)))
+           (*ppc2-cstack* (%i+ *ppc2-cstack* (target-arch-case
+                                              (:ppc32 ppc32::lisp-frame.size)
+                                              (:ppc64 ppc64::lisp-frame.size)))))
       (ppc2-open-undo $undostkblk)      ; tsp frame created by nthrow.
       (let* ((level-reg ($ ppc::arg_z)))
         (ppc2-one-targeted-reg-form seg oldlevel level-reg)
