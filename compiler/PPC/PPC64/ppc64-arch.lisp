@@ -26,6 +26,8 @@
 (in-package "PPC64")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+(defconstant rcontext 2)                ;sigh.  Could use r13+bias on Linux,
+                                        ; but Apple hasn't invented tls yet.
 (defconstant nbits-in-word 64)
 (defconstant least-significant-bit 63)
 (defconstant nbits-in-byte 8)
@@ -489,7 +491,7 @@
   protsize                              ; number of bytes to protect
   why)
 
-(defconstant tcr-bias #x7000)
+(defconstant tcr-bias 0)
 
 (define-storage-layout tcr (- tcr-bias)
   prev					; in doubly-linked list 
@@ -505,7 +507,6 @@
   ts-area				; tstack area pointer 
   cs-limit				; cstack overflow limit
   total-bytes-allocated-high
-  total-bytes-allocated-low
   interrupt-level			; fixnum
   interrupt-pending			; fixnum
   xframe				; exception frame linked list
@@ -536,6 +537,7 @@
 )
 
 (defconstant tcr.lisp-fpscr-low (+ tcr.lisp-fpscr-high 4))
+(defconstant tcr.total-bytes-allocated-low (+ tcr.total-bytes-allocated-high 4))
 
 (define-storage-layout lockptr 0
   avail
@@ -609,7 +611,7 @@
 (defmacro kernel-global (sym)
   (let* ((pos (position sym ppc::*ppc-kernel-globals* :test #'string=)))
     (if pos
-      (- (+ fulltag-misc (* (1+ pos) word-size-in-bytes)))
+      (- (+ symbol.size fulltag-misc (* (1+ pos) word-size-in-bytes)))
       (error "Unknown kernel global : ~s ." sym))))
 
 ; The kernel imports things that are defined in various other libraries for us.
@@ -666,7 +668,7 @@
 
 (defmacro nrs-offset (name)
   (let* ((pos (position name ppc::*ppc-nilreg-relative-symbols* :test #'eq)))
-    (if pos (* (1+ pos) symbol.size))))
+    (if pos (* (1- pos) symbol.size))))
 
 (defconstant nil-value (+ #x2000 symbol.size fulltag-misc))
 
