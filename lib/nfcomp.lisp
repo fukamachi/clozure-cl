@@ -607,7 +607,7 @@ Will differ from *compiling-file* during an INCLUDE")
       (setq doc nil))
     (if (quoted-form-p sym)
       (setq sym (%cadr sym)))
-    (if (and (typep sym 'symbol) (or (numberp valform) (quoted-form-p valform) (null valform) (eq valform t)))
+    (if (and (typep sym 'symbol) (or  (quoted-form-p valform) (self-evaluating-p valform)))
       (fcomp-output-form $fasl-defconstant env sym (eval-constant valform) (eval-constant doc))
       (fcomp-random-toplevel-form form env))))
 
