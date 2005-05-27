@@ -21,6 +21,7 @@
 #endif
 
 #ifdef DARWIN
+#ifndef PPC64
 #undef undefined
 #include <mach-o/dyld.h>
 #include <mach-o/nlist.h>
@@ -128,6 +129,9 @@ darwin_dladdr(void *p, Dl_info *info)
 }
 
 #define dladdr darwin_dladdr
+#else
+#include <dlfcn.h>
+#endif
 #endif
 
 
@@ -153,13 +157,28 @@ print_lisp_frame(lisp_frame *frame)
 #ifndef STATIC
     if (dladdr((void *)ptr_from_lispobj(pc), &info)) {
       spname = (char *)(info.dli_sname);
+#ifdef DARWIN
+#ifdef PPC64
+      if (spname[-1] != '_') {
+        --spname;
+      }
+#endif
+#endif
     }
 #endif
+#ifdef PPC64
+    Dprintf("(#x%016lX) #x%016lX : (subprimitive %s)", frame, pc, spname);
+#else
     Dprintf("(#x%08X) #x%08X : (subprimitive %s)", frame, pc, spname);
+#endif
   } else {
     if ((fulltag_of(fun) != fulltag_misc) ||
         (header_subtag(header_of(fun)) != subtag_function)) {
+#ifdef PPC64
+      Dprintf("(#x%016lX) #x%016lX : (not a function!)", frame, pc);
+#else
       Dprintf("(#x%08X) #x%08X : (not a function!)", frame, pc);
+#endif
     } else {
       LispObj code_vector = deref(fun, 1);
       
@@ -167,7 +186,11 @@ print_lisp_frame(lisp_frame *frame)
           (pc < ((code_vector+misc_data_offset)+(header_element_count(header_of(code_vector))<<2)))) {
         delta = (pc - (code_vector+misc_data_offset));
       }
+#ifdef PPC64
+      Dprintf("(#x%016lX) #x%016lX : %s + %d", frame, pc, print_lisp_object(fun), delta);
+#else
       Dprintf("(#x%08X) #x%08X : %s + %d", frame, pc, print_lisp_object(fun), delta);
+#endif
     }
   }
 }
