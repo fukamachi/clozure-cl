@@ -1,3 +1,75 @@
+2005-05-27 14:44  gb
+
+	* level-1/version.lisp: 050527a.
+
+2005-05-27 14:43  gb
+
+	* lisp-kernel/: constants.h, constants.s: rcontext defined
+	per-architecture.
+
+2005-05-27 14:43  gb
+
+	* lisp-kernel/: constants32.s, constants32.h: rcontext = r13.
+
+2005-05-27 14:41  gb
+
+	* lisp-kernel/: constants64.s, constants64.h: rcontext = r2.  Fix
+	several typos/inconsistencies.
+
+2005-05-27 14:40  gb
+
+	* lisp-kernel/lisp-debug.c: Print wide registers (needs some
+	tweaking.)
+
+2005-05-27 14:38  gb
+
+	* lisp-kernel/lisp-exceptions.c: Word-size fixes; preserve r13 when
+	setting up pseudo-signal trampoline on ppc64.
+
+2005-05-27 14:37  gb
+
+	* lisp-kernel/lisp-exceptions.h: Define ALLOCPTR_TRAP for PPC64.
+
+2005-05-27 14:36  gb
+
+	* lisp-kernel/m4macros.m4: Use .machine directive in _beginfile. 
+	Define stack-frame-type equates.
+
+2005-05-27 14:34  gb
+
+	* lisp-kernel/macros.s: header_length looks at all of the bits, as
+	does extract_unsigned_byte_bits_.
+
+2005-05-27 14:33  gb
+
+	* lisp-kernel/plbt.c: Use dlsym() on Darwinppc64; print wide
+	addresses on ppc64.
+
+2005-05-27 14:32  gb
+
+	* lisp-kernel/pmcl-kernel.c: Remap the subprims jump table on
+	Darwinppc64
+
+2005-05-27 14:31  gb
+
+	* lisp-kernel/ppc_print.c: Print "natural-sized" integers.
+
+2005-05-27 14:23  gb
+
+	* lisp-kernel/spentry.s: Lots of word-size fixes, flesh out
+	misc-set, deal with Tiger ld64/as64 alignment crap.  (Filed a bug.)
+
+2005-05-27 14:22  gb
+
+	* lisp-kernel/spjump.s: Add, export labels, so that we can work
+	around Tiger ld64 lossage.
+
+2005-05-27 14:21  gb
+
+	* lisp-kernel/subprims.s: Use lwz to load each half of fp
+	conversion constant.  (Hmmm.  May need another constant for 64-bit
+	conversions.)
+
 2005-05-27 14:19  gb
 
 	* level-0/: l0-aprims.lisp, l0-array.lisp, l0-cfm-support.lisp,
