@@ -39,7 +39,7 @@
 (defregs
   rzero                                 ; Always contains 0; not as handy as it sounds.
   sp					; The control stack.  Aligned on 16-byte boundary.
-  linux-sys-reg                         ; volatile reg on Darwin, tp or TOC on Linux.
+  target-1                              ; volatile reg on Darwin, tp or TOC on Linux.
   imm0                                  ; Unboxed, volatile registers.
   imm1 
   imm2 
@@ -50,7 +50,7 @@
   allocbase
   nargs                                 ; Volatile.  SHOULDN'T be used for tag extraction. (TWI handler confusion.)
   tsp                                   ; Temp-stack pointer.
-  rcontext                                   
+  target-2
   loc-pc                                ; for return PC only.
   vsp                                   ; Value stack pointer; grows towards 0.
   fn                                    ; Current function (constants vector).
