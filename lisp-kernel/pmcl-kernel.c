@@ -1155,6 +1155,50 @@ terminate_lisp()
 #define min_os_version "2.2"
 #endif
 
+#ifdef DARWIN
+#ifdef PPC64
+/* ld64 on Darwin doesn't offer anything close to reliable control
+   over the layout of a program in memory.  About all that we can
+   be assured of is that the canonical subprims jump table address
+   (currently 0x5000) is unmapped.  Map that page, and copy the
+   actual spjump table there. */
+
+
+void
+remap_spjump()
+{
+  extern opcode spjump_start, spjump_end;
+  pc new = mmap((pc) 0x5000,
+                0x1000,
+                PROT_READ | PROT_WRITE | PROT_EXEC,
+                MAP_PRIVATE | MAP_ANON | MAP_FIXED,
+                -1,
+                0),
+    old = &spjump_start,
+    limit = &spjump_end,
+    work;
+  opcode instr;
+  void *target;
+  int disp;
+  
+  if (new != (pc) 0x5000) {
+    exit(1);
+  }
+  
+  for (work = new; old < limit; work++, old++) {
+    instr = *old;
+    disp = instr & ((1<<26)-1);
+    target = (void*)old+disp;
+    disp = target-(void *)work;
+    *work = ((instr >> 26) << 26) | disp;
+  }
+  xMakeDataExecutable(new, (void*)work-(void*)new);
+  mprotect(new, 0x1000, PROT_READ | PROT_EXEC);
+}
+#endif
+#endif
+
+
 void
 check_os_version(char *progname)
 {
@@ -1183,6 +1227,11 @@ main(int argc, char *argv[], char *envp[], void *aux)
   check_os_version(argv[0]);
   real_executable_name = determine_executable_name(argv[0]);
 
+#ifdef DARWIN
+#ifdef PPC64
+  remap_spjump();
+#endif
+#endif
 
 #ifdef LINUX
   {
