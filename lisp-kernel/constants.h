@@ -32,7 +32,6 @@
 #define allocbase 10
 #define nargs 11
 #define tsp 12
-#define rcontext 13
 #define loc_pc 14		/*  code vector locative */
 #define vsp 15		
 #define fn 16
