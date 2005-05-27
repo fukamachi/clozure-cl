@@ -22,11 +22,17 @@ define([_spjump],[
         .align 2
         .globl _SP$1
 _exportfn(j_SP$1)
-        __(b _SP$1)
+          __(b _SP$1)
 _endfn
 ])
 
         /*	.align 12 */
+        __ifdef([DARWIN])
+         __ifdef([PPC64])
+         .globl C(spjump_start)
+C(spjump_start):
+         __endif
+       __endif
         _spjump(jmpsym)
         _spjump(jmpnfn)
         _spjump(funcall)
@@ -180,5 +186,11 @@ _endfn
         _spjump(svar_setqsym)
         _spjump(svar_progvsave)
         _spjump(svar_progvrestore)
+        __ifdef([DARWIN])
+         __ifdef([PPC64])
+          .globl C(spjump_end)
+C(spjump_end):
+         __endif
+        __endif
         _endfile
         
