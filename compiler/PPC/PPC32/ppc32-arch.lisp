@@ -27,7 +27,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "PPC-ARCH")
 
-
+  
 (defmacro define-storage-layout (name origin &rest cells)
   `(progn
      (ccl::defenum (:start ,origin :step 4)
@@ -58,6 +58,7 @@
 )
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+(defconstant rcontext 13)  
 (defconstant nbits-in-word 32)
 (defconstant least-significant-bit 31)
 (defconstant nbits-in-byte 8)
