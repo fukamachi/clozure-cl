@@ -14,7 +14,8 @@
    http://opensource.franz.com/preamble.html
 */
 
-
+define([rcontext],[r13])
+        
 nbits_in_word = 32
 nbits_in_byte = 8
 ntagbits = 3	/* But only 2 are significant to lisp */
