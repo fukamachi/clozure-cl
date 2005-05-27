@@ -30,6 +30,12 @@
 
 ;;; Index "scaling" and constant-offset misc-ref vinsns.
 
+(define-ppc32-vinsn scale-node-misc-index (((dest :u32))
+                                            ((idx :imm) ; A fixnum
+                                             )
+                                            ())
+  (addi dest idx ppc32::misc-data-offset))
+
 (define-ppc32-vinsn scale-32bit-misc-index (((dest :u32))
                                             ((idx :imm) ; A fixnum
                                              )
@@ -1761,7 +1767,7 @@
 
 (define-ppc32-vinsn event-poll (()
                                 ())
-  (lwz ppc::nargs ppc32::tcr.interrupt-level ppc::rcontext)
+  (lwz ppc::nargs ppc32::tcr.interrupt-level ppc32::rcontext)
   (twgti ppc::nargs 0))
 
                          
@@ -2761,7 +2767,7 @@
 
 (define-ppc32-vinsn %current-tcr (((dest :imm))
                                   ())
-  (mr dest ppc::rcontext))
+  (mr dest ppc32::rcontext))
 
 (define-ppc32-vinsn (svar-dpayback :call :subprim-call) (()
                                                          ((n :s16const))
@@ -2830,7 +2836,7 @@
   (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
+  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
   (twllt ppc::sp imm))
 
 ;;; Do the same thing via a subprim call.
@@ -2850,7 +2856,7 @@
   (stw imm ppc32::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
+  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
   (twllt ppc::sp imm))
 
 (define-ppc32-vinsn save-lisp-context-offset-ool (()
@@ -2869,7 +2875,7 @@
   (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (lwz imm ppc32::tcr.cs-limit ppc::rcontext)
+  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
   (twllt ppc::sp imm))
   
 (define-ppc32-vinsn save-cleanup-context (()
@@ -3207,8 +3213,8 @@
                                         ()
                                         ((temp :imm)))
   (li temp -4)
-  (lwz dest ppc32::tcr.interrupt-level ppc::rcontext)
-  (stw temp ppc32::tcr.interrupt-level ppc::rcontext))
+  (lwz dest ppc32::tcr.interrupt-level ppc32::rcontext)
+  (stw temp ppc32::tcr.interrupt-level ppc32::rcontext))
 
 (define-ppc32-vinsn load-character-constant (((dest :lisp))
                                              ((code :u8const)))
