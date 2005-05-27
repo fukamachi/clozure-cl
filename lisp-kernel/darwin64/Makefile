@@ -42,14 +42,14 @@ OPENMCL_MINOR_VERSION=14
 
 VPATH = ..
 RM = /bin/rm
-LD = /usr/local/src/ld64-21/build/ld64
+LD = ld64
 
 ### The -pagezero_size/-seg1addr args are an attempt to work around a
 ### bug (#4057702) in ld64.
 
 ### The -seg1addr and -pagezero_size arguments below are nonsense;
 ### early versions of ld64 were/are broken.
-LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start  -pagezero_size 0x3000 -sectalign __TEXT __text 0x1000
+LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start -seg1addr 0x6000
 AS = as
 M4 = gm4
 M4FLAGS = -DDARWIN -DPPC64
