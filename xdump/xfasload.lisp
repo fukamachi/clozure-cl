@@ -430,8 +430,8 @@
 
 (defun xload-make-cons (car cdr &optional (space *xload-dynamic-space*))
   (multiple-value-bind (cell-addr data offset) (xload-alloc space  *xload-target-fulltag-cons* *xload-target-cons-size*)
-    (setf (u32-ref data (the fixnum (+ offset *xload-target-car-offset*))) car)
-    (setf (u32-ref data (the fixnum (+ offset *xload-target-cdr-offset*))) cdr)
+    (setf (natural-ref data (the fixnum (+ offset *xload-target-car-offset*))) car)
+    (setf (natural-ref data (the fixnum (+ offset *xload-target-cdr-offset*))) cdr)
     cell-addr))
 
 ;;; This initializes the gvector's contents to 0.  Might want to
@@ -478,7 +478,12 @@
            (:ppc64 (xload-alloc-doublewords space *xload-target-fulltag-misc* target::symbol.element-count)))))
     (setf (xload-%svref sym -1)  (xload-symbol-header))
     (setf (xload-%svref sym target::symbol.flags-cell) 0)
-    (setf (xload-%svref sym target::symbol.pname-cell) pname-address)     
+    ;; On PPC64, NIL's pname must be NIL.
+    (setf (xload-%svref sym target::symbol.pname-cell)
+          (if (and (target-arch-case (:ppc64 t) (:ppc32 nil))
+                   (= sym *xload-target-nil*))
+            *xload-target-nil*
+            pname-address))
     (setf (xload-%svref sym target::symbol.vcell-cell) *xload-target-unbound-marker*)
     (setf (xload-%svref sym target::symbol.package-plist-cell) package-address)
     (setf (xload-%svref sym target::symbol.fcell-cell) (%xload-unbound-function%))
@@ -611,7 +616,7 @@
   (if (xload-target-listp addr)
     (multiple-value-bind (v offset) (xload-lookup-address addr)
       (declare (fixnum offset))
-      (u32-ref v (the fixnum (+ offset *xload-target-car-offset*))))
+      (natural-ref v (the fixnum (+ offset *xload-target-car-offset*))))
     (error "Not a list: #x~x" addr)))
 
 (defun (setf xload-car) (new addr)
@@ -834,19 +839,39 @@
                
 (defun xload-save-code-vector (code)
   (let* ((read-only-p *xload-pure-code-p*)
-         (n (uvsize code)))
+         (vlen (uvsize code))
+         (prefix (arch::target-code-vector-prefix (backend-target-arch
+                                                   *target-backend*)))
+         (n (+ (length prefix) vlen)))
     (declare (fixnum n))
     (let* ((vector (xload-make-ivector 
                     (if read-only-p
                       *xload-readonly-space*
                       *xload-dynamic-space*)
                     :code-vector
-                    n)))
+                    n))
+           (j -1))
+      (declare (fixnum j))
       (dotimes (i n)
-        (setf (xload-%fullword-ref vector i) (uvref code i)))
+        (setf (xload-%fullword-ref vector i)
+              (if prefix
+                (pop prefix)
+                (uvref code (incf j)))))
       vector)))
                           
-                          
+;;; For debugging
+(defun xload-show-list (l)
+  (labels ((show-list (l)
+             (unless (= l *xload-target-nil*)
+               (format t "#x~x" (xload-car l))
+               (setq l (xload-cdr l))
+               (unless (= l *xload-target-nil*)
+                 (format t " ")
+                 (show-list l)))))
+    (format t "~&(")
+    (show-list l)
+    (format t ")")))
+
 
 (defun xfasload (output-file &rest pathnames)
   (let* ((*xload-symbols* (make-hash-table :test #'eq))
@@ -918,6 +943,8 @@
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))
           (xload-save-list (setq *xload-cold-load-functions*
                                 (nreverse *xload-cold-load-functions*))))
+    (format t "~&cold-load-functions list:")
+    (xload-show-list (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*)))
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-documentation*))
           (xload-save-list (setq *xload-cold-load-documentation*
                                  (nreverse *xload-cold-load-documentation*))))
@@ -949,7 +976,7 @@
   (let* ((fun (%fasl-expr-preserve-epush s)))
     (when (faslstate.faslepush s)
       (error "Can't call function for value : ~s" fun))
-    (format t "~& cold-load function:")
+    (format t "~& cold-load function: #x~x" fun)
     (push fun *xload-cold-load-functions*)))
 
 (xload-copy-faslop $fasl-globals)        ; what the hell did this ever do ?
