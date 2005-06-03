@@ -172,7 +172,7 @@
 (defun target-level-1-modules (&optional (target (backend-name *host-backend*)))
   (append *level-1-modules*
 	  (case target
-	    ((:linuxppc32 :darwinppc32)
+	    ((:linuxppc32 :darwinppc32 :linuxppc64 :darwinppc64)
 	     '(linux-files ppc-error-signal ppc-trap-support
 	       ppc-threads-utils ppc-callback-support)))))
 		  
@@ -341,11 +341,13 @@
     (target-compile-modules (target-level-1-modules target) target force)
     (target-compile-modules (target-lib-modules arch) target force)
     (target-compile-modules *aux-modules* target force)
-    (target-compile-modules *code-modules* target force)))
+    (target-compile-modules *code-modules* target force)
+    (target-compile-modules (target-xdev-modules arch) target force)))
 
 (defun cross-compile-ccl (target &optional force)
   (with-cross-compilation-target (target)
-    (target-xcompile-ccl target force)))
+    (let* ((*target-backend* (find-backend target)))
+      (target-xcompile-ccl target force))))
 
 
 (defun ppc-require-module (module force-load)
