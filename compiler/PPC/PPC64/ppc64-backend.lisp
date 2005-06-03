@@ -62,7 +62,7 @@
 		:target-specific-features
 		'(:powerpc :ppc-target :darwin-target :darwinppc-target :ppc64-target)
 		:target-fasl-pathname (make-pathname :type "d64fsl")
-		:target-architecture (logior 2 64)
+		:target-architecture (logior 3 64)
 		:target-os :darwinppc
 		:name :darwinppc64
 		:target-arch-name :ppc64
@@ -114,5 +114,8 @@
     (setf (backend-target-foreign-type-data *ppc64-backend*) ftd)))
   
 (pushnew *ppc64-backend* *known-backends* :key #'backend-name)
+
+#+ppc64-target
+(require "PPC64-VINSNS")
 
 (provide "PPC64-BACKEND")
