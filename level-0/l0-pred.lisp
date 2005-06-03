@@ -414,7 +414,7 @@
     simple-unsigned-byte-vector         ; 24
     simple-signed-byte-vector           ; 25
     simple-base-string                  ; 26
-    *unused*                            ; 27
+    bogus                               ; 27
     simple-unsigned-word-vector         ; 28
     simple-signed-word-vector           ; 29
     simple-double-float-vector          ; 30
@@ -474,6 +474,187 @@
 		      (or (uvref thing ppc32::lock.kind-cell)
 			  type)
 		      type)))))))))))
+
+#+ppc64-target
+(defparameter *immheader-types*
+  #(bogus
+    bogus
+    code-vector
+    bogus
+    bogus
+    bogus
+    xcode-vector
+    macptr
+    bogus
+    bogus
+    bignum
+    dead-macptr
+    bogus
+    bogus
+    double-float
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    simple-signed-byte-vector
+    simple-signed-word-vector
+    simple-signed-long-vector
+    simple-signed-doubleword-vector
+    simple-unsigned-byte-vector
+    simple-unsigned-word-vector
+    simple-unsigned-long-vector
+    simple-unsigned-doubleword-vector
+    bogus
+    bogus
+    simple-short-float-vector
+    bogus
+    bogus
+    bogus
+    bogus
+    simple-double-float-vector
+    simple-base-string
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    simple-bit-vector
+    bogus
+    bogus))
+
+#+ppc64-target
+(defparameter *nodeheader-types*
+    #(function
+      catch-frame
+      slot-vector
+      bogus
+      symbol
+      lisp-thread
+      standard-instance
+      bogus
+      bogus
+      lock
+      structure
+      bogus
+      bogus
+      hash-vector
+      internal-structure
+      bogus
+      bogus
+      pool
+      value-cell
+      bogus
+      bogus
+      population
+      xfunction
+      bogus
+      bogus
+      package
+      ratio
+      bogus
+      bogus
+      svar
+      complex
+      bogus
+      bogus
+      array-header
+      vector-header
+      simple-vector
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      )
+  )
+
+#+ppc64-target
+(defun %type-of (thing)
+  (let* ((typecode (typecode thing)))
+    (declare (fixnum typecode))
+    (cond ((= typecode ppc64::tag-fixnum) 'fixnum)
+          ((= typecode ppc64::fulltag-cons) 'cons)
+          ((= typecode ppc64::subtag-character) 'character)
+          ((= typecode ppc64::subtag-single-float) 'short-float)
+          (t (let* ((lowtag (logand typecode ppc64::lowtagmask)))
+               (declare (fixnum lowtag))
+               (cond ((= lowtag ppc64::lowtag-immheader)
+                       (%svref *immheader-types* (ash typecode -2)))
+                      ((= lowtag ppc64::lowtag-nodeheader)
+                       (let* ((type (%svref *nodeheader-types*
+                                            (ash typecode -2))))
+                         (cond ((eq type 'function)
+                                (let ((bits (lfun-bits thing)))
+                                  (declare (fixnum bits))
+                                  (if (logbitp $lfbits-trampoline-bit bits)
+                                    (if (logbitp $lfbits-evaluated-bit bits)
+                                      'interpreted-lexical-closure
+                                      (let ((inner-fn (closure-function thing)))
+                                        (if (neq inner-fn thing)
+                                          (let ((inner-bits (lfun-bits inner-fn)))
+                                            (if (logbitp $lfbits-method-bit inner-bits)
+                                              'compiled-lexical-closure
+                                              (if (logbitp $lfbits-gfn-bit inner-bits)
+                                                'standard-generic-function ; not precisely - see class-of
+                                                (if (logbitp  $lfbits-cm-bit inner-bits)
+                                                  'combined-method
+                                                  'compiled-lexical-closure))))
+                                          'compiled-lexical-closure)))
+                                    (if (logbitp $lfbits-evaluated-bit bits)
+                                      (if (logbitp $lfbits-method-bit bits)
+                                        'interpreted-method-function
+                                        'interpreted-function)
+                                      (if (logbitp  $lfbits-method-bit bits)
+                                        'method-function          
+                                        'compiled-function)))))
+                               ((eq type 'lock)
+                                (or (uvref thing ppc64::lock.kind-cell)
+                                    type))
+                               (t type))))
+                      (t 'immediate)))))))
 
 
 ;;; real machine specific huh
