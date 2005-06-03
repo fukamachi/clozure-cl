@@ -892,7 +892,6 @@
 ; This has to be defined fairly early (assuming, of course, that it "has" to be defined at all ...
 
 (defun ensure-value-of-type (value typespec placename &optional (typename typespec))
-  (declare (resident))
   (tagbody
     again
     (unless (typep value typespec)
