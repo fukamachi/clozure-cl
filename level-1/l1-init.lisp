@@ -15,8 +15,6 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
-(defvar *ccl-file-creator* #+ppc-target :|CCL2| #-ppc-target :|CCL2|)
-
 
 (eval-when (:compile-toplevel :execute :load-toplevel)
 
@@ -155,9 +153,9 @@
 (defconstant array-dimension-limit array-total-size-limit
   "the exclusive upper bound on any given dimension of an array")
 
-(defconstant most-positive-fixnum target::most-positive-fixnum
+(defconstant most-positive-fixnum target::target-most-positive-fixnum
   "the fixnum closest in value to positive infinity")
-(defconstant most-negative-fixnum target::most-negative-fixnum
+(defconstant most-negative-fixnum target::target-most-negative-fixnum
   "the fixnum closest in value to negative infinity")
 
 
