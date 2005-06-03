@@ -1,4 +1,4 @@
-;;-*-Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -247,9 +247,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 (defmacro %standard-instance-p (i)
-  `(eq (typecode ,i) ppc32::subtag-instance))
-
-
+  `(eq (typecode ,i) ,(target-arch-case
+                       (:ppc32 ppc32::subtag-instance)
+                       (:ppc64 ppc64::subtag-instance))))
 
 
 
@@ -814,10 +814,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
     (make-no-applicable-method-function gf)))
 
 (defun 1st-arg-combined-method-trap (gf wrapper arg)
-  ; Here when we can't find the method in the dispatch table.
-  ; Compute it and add it to the table.  This code will remain in Lisp.
-  ;In case pointing to the lfun-vector of a swappable - punt swapping
-  ;#-bccl (setq gf (require-type gf 'standard-generic-function))  
+  ;; Here when we can't find the method in the dispatch table.
+  ;; Compute it and add it to the table.  This code will remain in Lisp.
   (let ((table (%gf-dispatch-table gf))
         (combined-method (compute-1st-arg-combined-method gf arg wrapper)))
     (multiple-value-bind (index obsolete-wrappers-p)
@@ -1132,9 +1130,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                        (lfun-bits (%method.function method)))
             (return t)))))))
 
-; The METHODS arg is a sorted list of applicable methods.
-; Returns the method-list expected by %%before-and-after-combined-method-dcode
-; or a single method, or NIL if there are no applicable primaries
+;;; The METHODS arg is a sorted list of applicable methods.  Returns
+;;; the method-list expected by
+;;; %%before-and-after-combined-method-dcode or a single method, or
+;;; NIL if there are no applicable primaries
 (defun compute-method-list (methods)
   (let (arounds befores primaries afters qs)
     (dolist (m methods)
@@ -1530,9 +1529,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (return)))
   methods)
 
-; ok
-; Lap mania struck again - I'm immune
-; Often used as a predicate - dont need index
+
 (defun cpl-index (superclass cpl)
   ;; This will be table lookup later.  Also we'll prelookup the tables
   ;; in compute-1st-arg-combined-methods above.
@@ -1550,33 +1547,26 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (if (eq superclass (%car cpl))
         (return cpl)))))
 
-;; Combined method interpretation
+;;; Combined method interpretation
 
 
-; magic is a list of (cnm-cm (methods) . args)
-; cnm-cm is the argument checker for call-next-method-with-args or nil
-; could make it be a cons as a flag that magic has been heap consed - done
-; could also switch car and cadr
-; if we do &lexpr business then if cddr is  lexpr-p (aka (not listp)) thats the clue
-;  also would need to do lexpr-apply or apply depending on the state.
+;;; magic is a list of (cnm-cm (methods) . args) cnm-cm is the
+;;; argument checker for call-next-method-with-args or nil could make
+;;; it be a cons as a flag that magic has been heap consed - done
+;;; could also switch car and cadr if we do &lexpr business then if
+;;; cddr is lexpr-p (aka (not listp)) thats the clue also would need
+;;; to do lexpr-apply or apply depending on the state.
 
 
-; per gb - use cons vs. make-list - untested - shorter tho
-(defun %%standard-combined-method-dcode (methods  args)
-  ; combined-methods as made by make-combined-method are in methods
-  ; args are as put there by the caller of the gf.
-  ;(declare (dynamic-extent args))
+(defun %%standard-combined-method-dcode (methods args)
+  ;; combined-methods as made by make-combined-method are in methods
+  ;; args are as put there by the caller of the gf.
   (let* ((car-meths (car methods))
          (cell-2 (cons methods args))
          (magic (cons nil cell-2)))
-    ; i.e. magic is nil methods . args
+    ;; i.e. magic is nil methods . args
     (declare (dynamic-extent magic)
              (dynamic-extent cell-2))    
-    ;(%rplaca magic nil) ; not needed ? 
-    ;(setf (cadr magic) methods)
-    ;(%rplaca (cdr magic) methods)
-    ;(setf (cddr magic) args)
-    ;(%rplacd (cdr magic) args)
     (if (listp car-meths)
       (progn
         (%%before-and-after-combined-method-dcode magic))
@@ -1587,7 +1577,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         ; so maybe its a combined-method ?? - no
         (apply-with-method-context magic (%method.function car-meths) args)))))
 
-; args is list, old-args may be lexpr
+;;; args is list, old-args may be lexpr
 (defun cmp-args-old-args (args old-args numreq)
   (declare (optimize (speed 3)(safety 0)))
   (if (listp old-args)
@@ -1661,7 +1651,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 
-; here if car of methods is listp. methods = (befores afters . primaries)
+;;; here if car of methods is listp. methods = (befores afters . primaries)
 (defun %%before-and-after-combined-method-dcode (magic) 
   (declare (list magic))
   (let* ((methods (cadr magic))         
