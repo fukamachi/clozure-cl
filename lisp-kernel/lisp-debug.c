@@ -100,9 +100,9 @@ void
 describe_memfault(ExceptionInformationPowerPC *xp)
 {
   void *addr = (void *)xpDAR(xp);
-  unsigned dsisr = xpDSISR(xp);
+  natural dsisr = xpDSISR(xp);
 
-  fprintf(stderr, "%s operation to %s address 0x%08x\n",
+  fprintf(stderr, "%s operation to %s address 0x%lx\n",
 	  dsisr & (1<<25) ? "Write" : "Read",
 	  dsisr & (1<<27) ? "protected" : "unmapped",
 	  addr);
@@ -159,7 +159,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
   char *name = NULL;
   Boolean identified = false;
 
-  if ((the_trap & OP_MASK) == OP(major_opcode_TWI)) {
+  if ((the_trap & OP_MASK) == OP(major_opcode_TRI)) {
     /* TWI.  If the RA field is "nargs", that means that the
        instruction is either a number-of-args check or an
        event-poll.  Otherwise, the trap is some sort of
@@ -200,7 +200,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
       switch (TO_field(the_trap)) {
       case TO_EQ:
 	/* Boundp traps are of the form:
-	   tweqi rX,unbound
+	   treqi rX,unbound
 	   where some preceding instruction is of the form:
 	   lwz rX,symbol.value(rY).
 	   The error message should try to say that rY is unbound. */
@@ -223,12 +223,14 @@ describe_trap(ExceptionInformationPowerPC *xp)
 	break;
 	
       case TO_NE:
-	/* A type check.  If the type (the immediate field of the trap instruction)
-	   is a header type, an "lbz rX,misc_header_offset(rY)" should precede it,
-	   in which case we say that "rY is not of header type <type>."  If the
-	   type is not a header type, then rX should have been set by a preceding
-	   "clrlwi rX,rY,29/30".  In that case, scan backwards for an RLWINM instruction
-	   that set rX and report that rY isn't of the indicated type. */
+	/* A type check.  If the type (the immediate field of the trap
+	   instruction) is a header type, an "lbz
+	   rX,misc_header_offset(rY)" should precede it, in which case
+	   we say that "rY is not of header type <type>."  If the type
+	   is not a header type, then rX should have been set by a
+	   preceding "clrlwi rX,rY,29/30".  In that case, scan
+	   backwards for an RLWINM instruction that set rX and report
+	   that rY isn't of the indicated type. */
 	err_arg2 = D_field(the_trap);
 	if (nodeheader_tag_p(err_arg2) ||
 	    immheader_tag_p(err_arg2)) {
@@ -310,7 +312,7 @@ debug_lisp_registers(ExceptionInformationPowerPC *xp, int arg)
   if (!active_tcr_p(xpcontext)) {
     fprintf(stderr, "(INVALID)\n");
   } else {
-    fprintf(stderr, "\nnargs = %d\n", xpGPR(xp, nargs) >> 2);
+    fprintf(stderr, "\nnargs = %d\n", xpGPR(xp, nargs) >> fixnumshift);
     show_lisp_register(xp, "fn", fn);
     show_lisp_register(xp, "arg_z", arg_z);
     show_lisp_register(xp, "arg_y", arg_y);
@@ -343,11 +345,12 @@ debug_command_return
 debug_identify_exception(ExceptionInformationPowerPC *xp, int arg)
 {
   pc program_counter = xpPC(xp);
-  opcode instruction = *program_counter;
+  opcode instruction = 0;
 
   switch (arg) {
   case SIGILL:
   case SIGTRAP:
+    instruction = *program_counter;
     if (major_opcode_p(instruction, major_opcode_TWI) ||
 	X_opcode_p(instruction,major_opcode_X31,minor_opcode_TW)) {
       describe_trap(xp);
@@ -417,16 +420,16 @@ debug_show_registers(ExceptionInformationPowerPC *xp, int arg)
 
 #ifdef PPC64
   for (a = 0, b = 16; a < 16; a++, b++) {
-    fprintf(stderr,"r%02d = 0x%016X  r%02d = 0x%016X\n",
+    fprintf(stderr,"r%02d = 0x%016lX    r%02d = 0x%016lX\n",
 	    a, xpGPR(xp, a),
 	    b, xpGPR(xp, b));
   }
   
-  fprintf(stderr, "\n PC = 0x%016X   LR = 0x%016X\n",
+  fprintf(stderr, "\n PC = 0x%016X     LR = 0x%016X\n",
           xpPC(xp), xpLR(xp));
-  fprintf(stderr, "CTR = 0x%016X  CCR = 0x%08X\n",
+  fprintf(stderr, "CTR = 0x%016X    CCR = 0x%08X\n",
           xpCTR(xp), xpCCR(xp));
-  fprintf(stderr, "XER = 0x%08X  MSR = 0x%016X\n",
+  fprintf(stderr, "XER = 0x%08X            MSR = 0x%016X\n",
           xpXER(xp), xpMSR(xp));
   fprintf(stderr,"DAR = 0x%016X  DSISR = 0x%08X\n",
 	  xpDAR(xp), xpDSISR(xp));
