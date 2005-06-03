@@ -24,33 +24,7 @@
 
  
 
-  (defppclapmacro 48x32-divide (x-hi16 x-lo y freg temp-freg freg2 immx)
-    `(let ((temp 16)
-           (temp.h 16)
-           (temp.l 20)
-           (zero 8)
-           (zero.h 8)
-           (zero.l 12))
-      (stwu tsp -24 tsp)
-      (stw tsp 4 tsp)
-      (lwi ,immx #x43300000)  ; 1075 = 1022+53 
-      (stw ,immx zero.h tsp)
-      (stw rzero zero.l tsp)
-      (lfd ,temp-freg zero tsp)
-      (rlwimi ,immx ,x-hi16 0 16 31)           
-      (stw ,immx temp.h tsp)
-      (stw ,x-lo temp.l tsp)
-      (lfd ,freg temp tsp)
-      
-      (fsub ,freg ,freg ,temp-freg)
-      (lwi ,immx #x43300000)
-      (stw ,immx temp.h tsp)
-      (stw ,y temp.l tsp)
-      (lfd ,freg2 temp tsp)
-      (lwz tsp 0 tsp)
-      (fsub ,freg2 ,freg2 ,temp-freg)
-      (fdiv ,freg ,freg ,freg2)
-      ))
+
    
 )
 
@@ -58,191 +32,7 @@
 
 
 
-;;; get xidx thing from x, yidx thing from y if same return #xffff
-;;; #xffff otherwise get another thing from x and 1- xidx and do as
-;;; %floor of xthing otherx ything
-;;; Huh?
-#+ppc32-target
-(defppclapfunction %floor-99 ((x-stk 0)(xidx arg_x)(yptr arg_y)(yidx arg_z))
-  (let ((xptr temp0)
-        (a imm1)
-        (b imm2)
-        (y imm3)
-        (quo imm0)) 
-    (vpop xptr)
-    (la imm4 ppc32::misc-data-offset XIDX)
-    (lwzx a xptr imm4)
-    (la imm4 ppc32::misc-data-offset YIDX)
-    (lwzx y yptr imm4)
-    (cmpw a y)
-    (bne @more)
-    (li imm4 #xffff)
-    (rlwinm imm4 imm4 ppc32::fixnumshift (- 16 ppc32::fixnumshift) (- 31 ppc32::fixnum-shift))
-    (vpush imm4)
-    (vpush imm4)
-    (la temp0 8 vsp)
-    (set-nargs 2)
-    (ba .spvalues)
-    @MORE
-    ;  a has 16 bits from ahi, bhi gets alo blo gets bhi
-    (la imm4 (- ppc32::misc-data-offset 4) xidx)
-    (lwzx b xptr imm4)
-    (rlwinm b b 16 16 31)  ; bhi to blo 
-    (rlwimi b a 16 0 15)   ; alo to bhi
-    (rlwinm a a 16 16 31)  ; a gets alo 
-    (48x32-divide a b y fp0 fp1 fp2 imm4)
-    (fctiwz fp0 fp0)
-    (stwu tsp -32 tsp)
-    (stw tsp 4 tsp)
-    (stfd fp0 24 tsp)
-    (lwz quo (+ 24 4) tsp) ; 16 quo bits above stuff used by 48x32
-    ; now mul quo by y
-    (mullw imm4 y quo)
-    ; and subtract from a,b
-    (subfc b imm4 b)
-    ; AND AGAIN
-    (rlwinm a b -16 16 31) ; a gets b hi
-    (rlwinm b b 16 0 15)   ; b lo to b hi
-    (la imm4 (- ppc32::misc-data-offset 4) xidx) 
-    (lwzx imm4 imm4 xptr)
-    (rlwimi b imm4 0 16 31)
-    (48x32-divide a b y fp0 fp1 fp2 imm4)
-    (fctiwz fp0 fp0)
-    (stfd fp0 16 tsp)  ; quo lo
-    (lwz quo (+ 24 4) tsp) ; quo-hi
-    (box-fixnum temp0 quo)
-    (vpush temp0)
-    (lwz quo (+ 16 4) tsp) ; quo lo
-    (lwz tsp 0 tsp)
-    (box-fixnum temp0 quo)
-    (vpush temp0)    
-    (la temp0 8 vsp)
-    (set-nargs 2)
-    (ba .SPvalues)))
-    
-    
-    
 
-;;; for truncate-by-fixnum etal
-;;; doesnt store quotient - just returns rem in 2 halves
-#+ppc32-target
-(defppclapfunction %floor-loop-no-quo ((q arg_x)(yhi arg_y)(ylo arg_z))
-  (let ((a imm1)
-        (b imm2)
-        (y imm3)
-        (quo imm0)
-        (qidx temp0)
-        (qlen temp1))
-    (lwz imm4 (- ppc32::fulltag-misc) q)
-    (header-length qlen imm4)
-    (subi qidx qlen 4)
-    (mr b rzero)
-    (compose-digit y yhi ylo)
-    @loop
-    (rlwinm a b -16 16 31)
-    (rlwinm b b 16 0 15)
-    (la imm4 ppc32::misc-data-offset q)
-    (lwzx imm4 qidx imm4) ; q contents
-    (rlwimi b imm4 16 16 31) ; hi 16 to lo b
-    ;(dbg)         
-    (48x32-divide a b y fp0 fp1 fp2 imm4)
-    (fctiwz fp0 fp0)
-    (stwu tsp -32 tsp)
-    (stw tsp 4 tsp)
-    (stfd fp0 24 tsp)
-    (lwz quo (+ 24 4) tsp) ; 16 quo bits above stuff used by 48x32
-    ; now mul quo by y
-    (mullw imm4 y quo)
-    ; and subtract from a,b
-    (subfc b imm4 b)
-    ; new a and b are low 2 digits of this (b) and last digit in array
-    ; and do it again on low 3 digits
-    ;(dbg)
-    (rlwinm a b -16 16 31)
-    (rlwinm b b 16 0 15)
-    (la imm4 ppc32::misc-data-offset q)
-    (lwzx imm4 qidx imm4)
-    (rlwimi b imm4 0 16 31)
-    (48x32-divide a b y fp0 fp1 fp2 imm4)
-    (fctiwz fp0 fp0)
-    (stfd fp0 16 tsp)  ; quo lo
-    (subi qidx qidx 4)
-    (cmpwi :cr1 qidx 0)
-    (lwz quo (+ 16 4) tsp)
-    (lwz tsp 0 tsp)
-    (mullw imm4 y quo)
-    (subfc b imm4 b)  ; b is remainder
-    (bge :cr1 @loop)
-    (digit-h temp0 b)
-    (vpush temp0)
-    (digit-l temp0 b)
-    (vpush temp0)
-    (la temp0 8 vsp)
-    (set-nargs 2)
-    (ba .SPvalues)))
-
-; store result in dest, return rem in 2 halves
-#+ppc32-target
-(defppclapfunction %floor-loop-quo ((q-stk 0)(dest arg_x)(yhi arg_y)(ylo arg_z))
-  (let ((a imm1)
-        (b imm2)
-        (y imm3)
-        (quo imm0)
-        (qidx temp0)
-        (qlen temp1)
-        (q temp2))
-    (vpop q)
-    (lwz imm4 (- ppc32::fulltag-misc) q)
-    (header-length qlen imm4)
-    (subi qidx qlen 4)
-    (mr b rzero)
-    (compose-digit y yhi ylo)
-    @loop
-    (rlwinm a b -16 16 31)
-    (rlwinm b b 16 0 15)
-    (la imm4 ppc32::misc-data-offset q)
-    (lwzx imm4 qidx imm4) ; q contents
-    (rlwimi b imm4 16 16 31) ; hi 16 to lo b        
-    (48x32-divide a b y fp0 fp1 fp2 imm4)
-    (fctiwz fp0 fp0)
-    (stwu tsp -32 tsp)
-    (stw tsp 4 tsp)
-    (stfd fp0 24 tsp)
-    (lwz quo (+ 24 4) tsp) ; 16 quo bits above stuff used by 48x32
-    ; now mul quo by y
-    (mullw imm4 y quo)
-    ; and subtract from a,b
-    (subfc b imm4 b)
-    ; new a and b are low 2 digits of this (b) and last digit in array
-    ; and do it again on low 3 digits
-    ;(dbg)
-    (rlwinm a b -16 16 31)
-    (rlwinm b b 16 0 15)
-    (la imm4 ppc32::misc-data-offset q)
-    (lwzx imm4 qidx imm4)
-    (rlwimi b imm4 0 16 31)
-    (48x32-divide a b y fp0 fp1 fp2 imm4)
-    (fctiwz fp0 fp0)
-    (stfd fp0 16 tsp)  ; quo lo
-    (lwz quo (+ 16 4) tsp)
-    (mullw imm4 y quo)
-    (subfc b imm4 b)  ; b is remainder    
-    (lwz quo (+ 24 4) tsp) ; quo-hi
-    (rlwinm quo quo 16 0 15)
-    (lwz imm4 (+ 16 4) tsp) ; quo lo
-    (lwz tsp 0 tsp)
-    (rlwimi quo imm4 0 16 31)    
-    (la imm4 ppc32::misc-data-offset dest)
-    (stwx quo qidx imm4)
-    (subic. qidx qidx 4)
-    (bge @loop)
-    (digit-h temp0 b)
-    (vpush temp0)
-    (digit-l temp0 b)
-    (vpush temp0)
-    (la temp0 8 vsp)
-    (set-nargs 2)
-    (ba .SPvalues)))
 
 
 
@@ -268,6 +58,21 @@
   (stw imm0 ppc32::double-float.value temp0)
   (stw imm1 ppc32::double-float.val-low temp0)
   (la vsp 8 vsp)
+  (blr))
+
+#+ppc64-target
+(defppclapfunction %make-float-from-fixnums ((float 8)(hi 0) (lo arg_x) (exp arg_y) (sign arg_z))
+  (rlwinm imm0 sign 0 0 0)  ; just leave sign bit 
+  (rlwimi imm0 exp (- 20 ppc64::fixnumshift)  1 11) ;  exp left 20 right 2 keep 11 bits
+  (ld imm1 hi vsp)
+  (srawi imm1 imm1 ppc64::fixnumshift)   ; fold into below? nah keep for later
+  (rlwimi imm0 imm1 (- 32 4) 12 31)   ; right 4 - keep  20 - stuff into hi result
+  (rlwinm imm1 imm1 28 0 3)  ; hi goes left 28 - keep 4 hi bits
+  (rlwimi imm1 lo (- 32 ppc64::fixnumshift) 4 31) ; stuff in 28 bits of lo
+  (ld temp0 float vsp)         ; the float
+  (stw imm0 ppc64::double-float.value temp0)
+  (stw imm1 ppc64::double-float.val-low temp0)
+  (la vsp '2 vsp)
   (blr))
 
 #+ppc32-target
