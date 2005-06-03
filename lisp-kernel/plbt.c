@@ -135,12 +135,6 @@ darwin_dladdr(void *p, Dl_info *info)
 #endif
 
 
-Boolean
-emulated_frame_p(lisp_frame *frame)
-{
-  return ((((long) (frame->backlink)) & 1) != 0);
-}
-
 
 extern Boolean lisp_frame_p(lisp_frame *);
 
@@ -200,29 +194,40 @@ void
 print_foreign_frame(void *frame)
 {
 #ifdef LINUX
-  long pc = (long) (((eabi_c_frame *)frame)->savelr);
+  natural pc = (natural) (((eabi_c_frame *)frame)->savelr);
 #endif
 #ifdef DARWIN
-  long pc = (long) (((c_frame *)frame)->savelr);
+  natural pc = (natural) (((c_frame *)frame)->savelr);
 #endif
   Dl_info foreign_info;
 
 #ifndef STATIC
   if (dladdr((void *)pc, &foreign_info)) {
-    Dprintf("(#x%08x) #x%08X : %s + %d", frame, pc, foreign_info.dli_sname,
+    Dprintf(
+#ifdef PPC64
+"(#x%016lx) #x%016lX : %s + %d"
+#else
+"(#x%08x) #x%08X : %s + %d"
+#endif
+, frame, pc, foreign_info.dli_sname,
 	    pc-((long)foreign_info.dli_saddr));
   } else {
 #endif
-    Dprintf("(#x%08X) #x%08X : foreign code (%s)", frame, pc, "unknown");
+    Dprintf(
+#ifdef PPC64
+"(#x%016X) #x%016X : foreign code (%s)"
+#else
+"(#x%08X) #x%08X : foreign code (%s)"
+#endif
+, frame, pc, "unknown");
 #ifndef STATIC
   }
 #endif
 }
 
 
-/* Walk frames from "start" to "end".  Give up if an emulated frame is
-   encountered.  Say whatever can be said about foreign frames and
-   lisp frames.
+/* Walk frames from "start" to "end". 
+   Say whatever can be said about foreign frames and lisp frames.
 */
 
 void
@@ -231,9 +236,6 @@ walk_stack_frames(lisp_frame *start, lisp_frame *end)
   lisp_frame *next;
   Dprintf("\n");
   while (start < end) {
-    if (emulated_frame_p(start)) {
-      break;
-    }
 
     if (lisp_frame_p(start)) {
       print_lisp_frame(start);
