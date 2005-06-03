@@ -482,7 +482,7 @@
 
 
 (defun ctype-p (x)
-  (and (eql (typecode x) ppc32::subtag-istruct)
+  (and (eql (typecode x) target::subtag-istruct)
        (memq (%svref x 0) 
              '#.(cons 'ctype 
                       (cons 'unknown-ctype                             
@@ -1397,7 +1397,7 @@
     (cons-ctype
      (and (cacheable-ctype-p (cons-ctype-car-ctype ctype))
 	  (cacheable-ctype-p (cons-ctype-cdr-ctype ctype))))
-    ;;; Anything else ?  Simple things (numbers, classes) can't lose.
+    ;; Anything else ?  Simple things (numbers, classes) can't lose.
     (t t)))
 		
       
@@ -3643,7 +3643,6 @@
 
 ; These DEFTYPES should only happen while initializing.
 
-
 (progn
 (let-globally ((*type-system-initialized* nil))
 
@@ -3834,6 +3833,7 @@
 
        
 (precompute-types '((mod 2) (mod 4) (mod 16) (mod #x100) (mod #x10000)
+                    #-cross-compiling
 		    (mod #x100000000)
 		    (unsigned-byte 1) 
 		    (unsigned-byte 8) (unsigned-byte 16) (unsigned-byte 32)
@@ -3856,8 +3856,6 @@
          (let* ((class-name (if (atom thing) thing (car thing)))
                 (spec (if (atom thing) thing (cadr thing)))
                 (spectype (specifier-type spec)))
-           (when (typep spectype 'class-ctype)
-             (dbg class-name))
            (setf (class-ctype-translation
                   (%class.ctype (find-class class-name))) spectype))))
   (mapc #'set-builtin-class-type-translation
