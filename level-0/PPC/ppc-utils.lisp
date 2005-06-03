@@ -382,7 +382,7 @@
     (ld imm5 ppc64::area.low a)
     @loop
     (ld header 0 imm5)
-    (extract-lisptag tag header)
+    (extract-lowtag tag header)
     (cmpdi cr0 tag ppc64::lowtag-immheader)
     (cmpdi cr1 tag ppc64::lowtag-nodeheader)
     (beq cr0 @misc)
@@ -406,7 +406,7 @@
     (extract-lowtag tag header)    
     (extract-fulltag subtag header)
     (cmpdi cr1 tag ppc64::lowtag-nodeheader)
-    (extract-subtag tag header)
+    (extract-lowbyte tag header)
     (cmpri cr2 subtag ppc64::ivector-class-64-bit)
     (cmpri cr3 subtag ppc64::ivector-class-8-bit)
     (cmpri cr4 subtag ppc64::ivector-class-32-bit)
@@ -426,7 +426,7 @@
     @bump
     (la bytes (+ 8 15) bytes)
     (clrrdi bytes bytes 4)
-    (subi imm5 obj ppc32::fulltag-misc)
+    (subi imm5 obj ppc64::fulltag-misc)
     (add imm5 imm5 bytes)
     (b @loop)
     @done
@@ -459,7 +459,7 @@
   (extract-subtag imm0 x)
   @done
   (slri imm0 imm0 target::word-shift)
-  (lwz temp1 '*class-table* nfn)
+  (ldr temp1 '*class-table* nfn)
   (addi imm0 imm0 target::misc-data-offset)
   (ldr temp1 target::symbol.vcell temp1)
   (ldrx temp0 temp1 imm0) ; get entry from table
