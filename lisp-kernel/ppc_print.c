@@ -171,7 +171,13 @@ sprint_symbol(LispObj o)
     pname = rawsym->pname,
     package = rawsym->package_plist,
     pname_header = header_of(pname);
-    
+
+#ifdef PPC64
+  if (o == lisp_nil) {
+    add_c_string("()");
+    return;
+  }
+#endif
   if (fulltag_of(package) == fulltag_cons) {
     package = car(package);
   }
@@ -369,7 +375,7 @@ sprint_lisp_object(LispObj o, int depth)
         add_c_string("#<Unbound>");
       } else {
         if (header_subtag(o) == subtag_character) {
-          unsigned c = (o >> 16);
+          unsigned c = (o >> charcode_shift);
           add_c_string("#\\");
           if ((c >= ' ') && (c < 0x7f)) {
             add_char(c);
