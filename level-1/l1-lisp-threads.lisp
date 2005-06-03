@@ -47,7 +47,7 @@
       (thread-accessor state-change-lock))))
 	     
 (defun lisp-thread-p (thing)
-  (eq (typecode thing) ppc32::subtag-lisp-thread))
+  (eq (typecode thing) target::subtag-lisp-thread))
 
 (setf (type-predicate 'lisp-thread) 'lisp-thread-p)
 
@@ -100,7 +100,7 @@
 ; Allocate a tstack area with at least useable-bytes
 ; Returns a fixnum encoding the address of an area structure.
 (defun allocate-tstack (useable-bytes)
-  (with-macptrs ((tstack (ff-call (%kernel-import ppc32::kernel-import-allocate_tstack)
+  (with-macptrs ((tstack (ff-call (%kernel-import target::kernel-import-allocate_tstack)
                                       :unsigned-fullword (logand (+ useable-bytes 4095) -4096)
                                       :address)))
     (when (%null-ptr-p tstack)
@@ -112,7 +112,7 @@
 ; Allocate a vstack area with at least useable-bytes
 ; Returns a fixnum encoding the address of an area structure.
 (defun allocate-vstack (useable-bytes)
-  (with-macptrs ((vstack (ff-call (%kernel-import ppc32::kernel-import-allocate_vstack)
+  (with-macptrs ((vstack (ff-call (%kernel-import target::kernel-import-allocate_vstack)
                                       :unsigned-fullword (logand (+ useable-bytes 4095) -4096)
                                       :address)))
     (when (%null-ptr-p vstack)
@@ -124,7 +124,7 @@
 ; Create a new, empty control stack area
 ; Returns a fixnum encoding the address of an area structure.
 (defun new-cstack-area ()
-  (with-macptrs ((cstack (ff-call (%kernel-import ppc32::kernel-import-register_cstack)
+  (with-macptrs ((cstack (ff-call (%kernel-import target::kernel-import-register_cstack)
                                       :unsigned-fullword 0   ; address
                                       :unsigned-fullword 0   ; size
                                       :address)))
@@ -137,7 +137,7 @@
 (defun free-stack-area (stack-area)
   (with-macptrs ((area-ptr (%null-ptr)))
     (%setf-macptr-to-object area-ptr stack-area)
-    (ff-call (%kernel-import ppc32::kernel-import-condemn-area)
+    (ff-call (%kernel-import target::kernel-import-condemn-area)
                  :address area-ptr
                  :void))
   nil)
@@ -147,7 +147,7 @@
 (defun %kernel-global-offset (name-or-offset)
   (if (fixnump name-or-offset)
     name-or-offset
-    (ppc32::%kernel-global name-or-offset)))
+    (target::%kernel-global name-or-offset)))
 
 (defun %kernel-global-offset-form (name-or-offset-form)
   (cond ((and (listp name-or-offset-form)
@@ -155,7 +155,9 @@
               (listp (cdr name-or-offset-form))
               (symbolp (cadr name-or-offset-form))
               (null (cddr name-or-offset-form)))
-         (ppc32::%kernel-global (cadr name-or-offset-form)))
+         (target-arch-case
+          (:ppc32 (ppc32::%kernel-global (cadr name-or-offset-form)))
+          (:ppc64 (ppc64::%kernel-global (cadr name-or-offset-form)))))
         ((fixnump name-or-offset-form)
          name-or-offset-form)
         (t `(%kernel-global-offset ,name-or-offset-form))))
@@ -165,11 +167,20 @@
 ; and a compiler macro, but we can't define compiler macros yet,
 ; and I don't want to add it to "ccl:compiler;optimizers.lisp"
 (defmacro %get-kernel-global (name-or-offset)
-  `(%fixnum-ref 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset))))
+  (target-arch-case
+   (:ppc32
+    `(%fixnum-ref 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset))))
+   (:ppc64
+    `(%fixnum-ref 0 (+ ppc64::nil-value  ,(%kernel-global-offset-form name-or-offset))))))
 
 (defmacro %get-kernel-global-ptr (name-or-offset dest)
-  `(%setf-macptr ,dest
-    (%fixnum-ref-natural 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset)))))
+  (target-arch-case
+   (:ppc32
+    `(%setf-macptr ,dest
+      (%fixnum-ref-natural 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset)))))
+   (:ppc64
+    `(%setf-macptr ,dest
+      (%fixnum-ref-natural 0 (+ ppc64::nil-value  ,(%kernel-global-offset-form name-or-offset)))))))
 
 (defmacro %set-kernel-global (name-or-offset new-value)
   `(%set-kernel-global-from-offset
@@ -180,17 +191,17 @@
 
 ; The number of bytes in a consing (or stack) area
 (defun %area-size (area)
-  (ash (- (%fixnum-ref area ppc32::area.high)
-          (%fixnum-ref area ppc32::area.low))
-       2))
+  (ash (- (%fixnum-ref area target::area.high)
+          (%fixnum-ref area target::area.low))
+       target::fixnumshift))
 
 (defun %stack-area-usable-size (area)
-  (ash (- (%fixnum-ref area ppc32::area.high)
-	  (%fixnum-ref area ppc32::area.softlimit))
+  (ash (- (%fixnum-ref area target::area.high)
+	  (%fixnum-ref area target::area.softlimit))
        target::fixnum-shift))
 
 (defun %cons-lisp-thread (name &optional tcr)
-  (%gvector ppc32::subtag-lisp-thread
+  (%gvector target::subtag-lisp-thread
 	    tcr
 	    name
 	    0
@@ -234,11 +245,11 @@
 (defun init-thread-from-tcr (tcr thread)
   (setf (lisp-thread.tcr thread) tcr
 	(lisp-thread.cs-size thread)
-	(%stack-area-usable-size (%fixnum-ref tcr ppc32::tcr.cs-area))
+	(%stack-area-usable-size (%fixnum-ref tcr target::tcr.cs-area))
 	(lisp-thread.vs-size thread)
-	(%stack-area-usable-size (%fixnum-ref tcr ppc32::tcr.vs-area))
+	(%stack-area-usable-size (%fixnum-ref tcr target::tcr.vs-area))
 	(lisp-thread.ts-size thread)
-	(%stack-area-usable-size (%fixnum-ref tcr ppc32::tcr.ts-area))
+	(%stack-area-usable-size (%fixnum-ref tcr target::tcr.ts-area))
 	(lisp-thread.startup-function thread)
 	(thread-make-startup-function thread tcr))
   thread)
@@ -279,30 +290,13 @@
 
 
 (defun gc-area.return-sp (area)
-  (%fixnum-ref area ppc32::area.gc-count))
+  (%fixnum-ref area target::area.gc-count))
 
 
 (defun (setf gc-area.return-sp) (return-sp area)
-  (setf (%fixnum-ref area ppc32::area.gc-count) return-sp))
+  (setf (%fixnum-ref area target::area.gc-count) return-sp))
 
-#+later
-(defun %free-younger-cs-areas (cs-area &optional (free-cs-area-too nil))
-  (let (younger-cs-area)
-    (loop
-      (setf younger-cs-area (%fixnum-ref cs-area ppc32::area.younger)
-            (%fixnum-ref cs-area ppc32::area.younger) 0)
-      (when free-cs-area-too
-        (progn (ff-call
-                 (%kernel-import ppc32::kernel-import-disposethread)
-                 :unsigned-fullword (gc-area.threadID cs-area)
-                 :address (%null-ptr)
-                 :unsigned-fullword 0
-                 :signed-halfword))
-        (setf (%fixnum-ref cs-area ppc32::area.older) 0)          ; free-stack-area frees the whole younger/older chain
-        (free-stack-area cs-area))
-      (when (eql 0 younger-cs-area) (return))
-      (setq cs-area younger-cs-area)
-      (setq free-cs-area-too t))))
+
 
 (defun shutdown-lisp-threads ()
   )
@@ -317,7 +311,7 @@
 (defun new-tcr (cs-size vs-size ts-size)
   (macptr->fixnum
    (ff-call
-    (%kernel-import ppc32::kernel-import-newthread)
+    (%kernel-import target::kernel-import-newthread)
      :unsigned-fullword cs-size
      :unsigned-fullword vs-size
      :unsigned-fullword ts-size
@@ -369,18 +363,18 @@
 
 
 (defun tcr-flags (tcr)
-  (%fixnum-ref tcr ppc32::tcr.flags))
+  (%fixnum-ref tcr target::tcr.flags))
 
 (defun tcr-exhausted-p (tcr)
   (or (null tcr)
       (eql tcr 0)
       (unless (logbitp arch::tcr-flag-bit-awaiting-preset
 		       (the fixnum (tcr-flags tcr)))
-	(let* ((vs-area (%fixnum-ref tcr ppc32::tcr.vs-area)))
+	(let* ((vs-area (%fixnum-ref tcr target::tcr.vs-area)))
 	  (declare (fixnum vs-area))
 	  (or (zerop vs-area)
-	      (eq (%fixnum-ref vs-area ppc32::area.high)
-		  (%fixnum-ref tcr ppc32::tcr.save-vsp)))))))
+	      (eq (%fixnum-ref vs-area target::area.high)
+		  (%fixnum-ref tcr target::tcr.save-vsp)))))))
 
 (defun thread-exhausted-p (thread)
   (or (null thread)
@@ -436,7 +430,7 @@
   (let* ((tcr (or (lisp-thread.tcr thread) (new-tcr-for-thread thread))))
     (multiple-value-bind (seconds nanos) (nanoseconds timeout)
       (with-macptrs (s)
-	(%setf-macptr-to-object s (%fixnum-ref tcr ppc32::tcr.reset-completion))
+	(%setf-macptr-to-object s (%fixnum-ref tcr target::tcr.reset-completion))
 	(when (%wait-on-semaphore-ptr s seconds nanos)
 	  (%set-tcr-toplevel-function
 	   tcr
@@ -446,7 +440,7 @@
 			      
 
 (defun cleanup-thread-tcr (thread tcr)
-  (let* ((flags (%fixnum-ref tcr ppc32::tcr.flags)))
+  (let* ((flags (%fixnum-ref tcr target::tcr.flags)))
     (declare (fixnum flags))
     (if (logbitp arch::tcr-flag-bit-awaiting-preset flags)
       (thread-change-state thread :run :reset)
@@ -467,10 +461,10 @@
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
       #+linuxppc-target
-      (let* ((pthread (%get-unsigned-long tcrp ppc32::tcr.osid)))
+      (let* ((pthread (%get-unsigned-long tcrp target::tcr.osid)))
 	(unless (zerop pthread) pthread))
       #-linuxppc-target
-      (let* ((pthread (%get-ptr tcrp ppc32::tcr.osid)))
+      (let* ((pthread (%get-ptr tcrp target::tcr.osid)))
 	(unless (%null-ptr-p pthread) pthread)))))
                          
 ;;; This returns something lower-level than the pthread, if that
@@ -483,30 +477,30 @@
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      (%get-unsigned-long tcrp ppc32::tcr.native-thread-id))))
+      (%get-unsigned-long tcrp target::tcr.native-thread-id))))
 
 (defun lisp-thread-suspend-count (thread)
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      (%get-unsigned-long tcrp ppc32::tcr.suspend-count))))
+      (%get-unsigned-long tcrp target::tcr.suspend-count))))
 
 (defun tcr-clear-preset-state (tcr)
-  (let* ((flags (%fixnum-ref tcr ppc32::tcr.flags)))
+  (let* ((flags (%fixnum-ref tcr target::tcr.flags)))
     (declare (fixnum flags))
-    (setf (%fixnum-ref tcr ppc32::tcr.flags)
+    (setf (%fixnum-ref tcr target::tcr.flags)
 	  (bitclr arch::tcr-flag-bit-awaiting-preset flags))))
 
 (defun tcr-set-preset-state (tcr)
-  (let* ((flags (%fixnum-ref tcr ppc32::tcr.flags)))
+  (let* ((flags (%fixnum-ref tcr target::tcr.flags)))
     (declare (fixnum flags))
-    (setf (%fixnum-ref tcr ppc32::tcr.flags)
+    (setf (%fixnum-ref tcr target::tcr.flags)
 	  (bitset arch::tcr-flag-bit-awaiting-preset flags))))  
 
 (defun %activate-tcr (tcr)
   (if (and tcr (not (eql 0 tcr)))
     (with-macptrs (s)
-      (%setf-macptr-to-object s (%fixnum-ref tcr ppc32::tcr.activate))
+      (%setf-macptr-to-object s (%fixnum-ref tcr target::tcr.activate))
       (unless (%null-ptr-p s)
 	(%signal-semaphore-ptr s)
 	t))))
@@ -577,10 +571,10 @@
 
 (defun map-db-links (f)
   (without-interrupts
-   (let ((db-link (%fixnum-ref (%current-db-link))))         ; skip the without-interrupts binding
+   (let ((db-link (%current-db-link)))
      (loop
        (when (eql 0 db-link) (return))
-       (funcall f db-link (%fixnum-ref db-link 4) (%fixnum-ref db-link 8))
+       (funcall f db-link (%fixnum-ref db-link (* 1 target::node-size)) (%fixnum-ref db-link (* 2 target::node-size)))
        (setq db-link (%fixnum-ref db-link))))))
 
 (defun %get-frame-ptr ()
@@ -597,7 +591,7 @@
         ((fake-stack-frame-p index2)
          (%stack< index1 (%fake-stack-frame.sp index2) context))
         (t (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
-                  (cs-area (%fixnum-ref tcr ppc32::tcr.cs-area)))
+                  (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
              (and (%ptr-in-area-p index1 cs-area)
                   (%ptr-in-area-p index2 cs-area)
                   (< (the fixnum index1) (the fixnum index2)))))))
@@ -620,15 +614,15 @@
   (and (fixnump p)
        (locally (declare (fixnum p))
 	 (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
-                (cs-area (%fixnum-ref tcr ppc32::tcr.cs-area)))
+                (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
 	   (not (%ptr-in-area-p p cs-area))))))
 
 (defun next-catch (catch)
-  (let ((next-catch (uvref catch ppc32::catch-frame.link-cell)))
+  (let ((next-catch (uvref catch target::catch-frame.link-cell)))
     (unless (eql next-catch 0) next-catch)))
 
 (defun catch-frame-sp (catch)
-  (uvref catch ppc32::catch-frame.csp-cell))
+  (uvref catch target::catch-frame.csp-cell))
 
 (defun catch-csp-p (p context)
   (let ((catch (if context
@@ -704,7 +698,7 @@
 (defun db-link (&optional context)
   (if context
     (bt.db-link context)
-    (%fixnum-ref (%current-tcr)  ppc32::tcr.db-link)))
+    (%fixnum-ref (%current-tcr)  target::tcr.db-link)))
 
 (defun previous-db-link (db-link start )
   (declare (fixnum db-link start))
@@ -738,24 +732,24 @@
 
 (defun %ptr-in-area-p (ptr area)
   (declare (fixnum ptr area))           ; lie, maybe
-  (and (<= (the fixnum (%fixnum-ref area ppc32::area.low)) ptr)
-       (> (the fixnum (%fixnum-ref area ppc32::area.high)) ptr)))
+  (and (<= (the fixnum (%fixnum-ref area target::area.low)) ptr)
+       (> (the fixnum (%fixnum-ref area target::area.high)) ptr)))
 
 (defun %active-area (area active)
-  (or (do ((a area (%fixnum-ref a ppc32::area.older)))
+  (or (do ((a area (%fixnum-ref a target::area.older)))
           ((eql a 0))
         (when (%ptr-in-area-p active a)
           (return a)))
-      (do ((a (%fixnum-ref area ppc32::area.younger) (%fixnum-ref a ppc32::area.younger)))
+      (do ((a (%fixnum-ref area target::area.younger) (%fixnum-ref a target::area.younger)))
           ((eql a 0))
         (when (%ptr-in-area-p active a)
           (return a)))))
 
 (defun %ptr-to-vstack-p (tcr idx)
-  (%ptr-in-area-p idx (%fixnum-ref tcr ppc32::tcr.vs-area)))
+  (%ptr-in-area-p idx (%fixnum-ref tcr target::tcr.vs-area)))
 
 (defun %on-tsp-stack (tcr object)
-  (%ptr-in-area-p object (%fixnum-ref tcr ppc32::tcr.ts-area)))
+  (%ptr-in-area-p object (%fixnum-ref tcr target::tcr.ts-area)))
 
 (defparameter *aux-tsp-ranges* ())
 (defparameter *aux-vsp-ranges* ())
@@ -793,7 +787,9 @@
             (,area ,initial-area))
        (declare (fixnum ,initial-area ,area))
        (loop
-         (setq ,area (%fixnum-ref ,area ppc32::area.succ))
+         (setq ,area (%fixnum-ref ,area ,(target-arch-case
+                                          (:ppc32 ppc32::area.succ)
+                                          (:ppc64 ppc64::area.succ))))
          (when (eql ,area ,initial-area)
            (return))
          ,@body))))
@@ -801,7 +797,9 @@
 (defmacro do-consing-areas ((area) &body body)
   (let ((code (gensym)))
   `(do-gc-areas (,area)
-     (let ((,code (%fixnum-ref ,area ppc32::area.code)))
+     (let ((,code (%fixnum-ref ,area  ,(target-arch-case
+                                        (:ppc32 ppc32::area.code)
+                                        (:ppc64 ppc64::area.code)))))
        (when (or (eql ,code ppc::area-readonly)
                  (eql ,code ppc::area-staticlib)
                  (eql ,code ppc::area-static)
@@ -811,7 +809,7 @@
 
 
 (defun %value-cell-header-at-p (cur-vsp)
-  (eql ppc32::value-cell-header (%fixnum-address-of (%fixnum-ref cur-vsp))))
+  (eql target::value-cell-header (%fixnum-address-of (%fixnum-ref cur-vsp))))
 
 (defun count-stack-consed-value-cells-in-frame (vsp parent-vsp)
   (let ((cur-vsp vsp)
@@ -872,14 +870,14 @@
         (setq parent (parent-frame frame context)))
       (let* ((parent-vsp (if parent (%frame-savevsp parent) vsp))
              (tcr (if context (bt.tcr context) (%current-tcr)))
-             (vsp-area (%fixnum-ref tcr ppc32::tcr.vs-area)))
+             (vsp-area (%fixnum-ref tcr target::tcr.vs-area)))
         (if (eql 0 parent-vsp)
           (values vsp vsp)              ; p is the kernel frame pushed by an unwind-protect cleanup form
           (progn
             (unless vsp-area
               (error "~s is not a stack frame pointer for context ~s" p tcr))
             (unless (%ptr-in-area-p parent-vsp vsp-area)
-              (setq parent-vsp (%fixnum-ref vsp-area ppc32::area.high)))
+              (setq parent-vsp (%fixnum-ref vsp-area target::area.high)))
             (values vsp parent-vsp)))))))
 
 (defun count-values-in-frame (p context &optional child)
@@ -926,7 +924,7 @@
                          :saved-special
 			 (let* ((svar (index-svar (%fixnum-ref (1+ arg-vsp)))))
 			   (if svar
-			     (%svref svar ppc32::svar.symbol-cell)
+			     (%svref svar target::svar.symbol-cell)
 			     nil)))
                  (multiple-value-bind (type name) (find-local-name phys-cell lfun pc)
                    (values arg-vsp type name))))))
@@ -971,8 +969,8 @@
 ; True if the object is in one of the heap areas
 (defun %in-consing-area-p (x area)
   (declare (fixnum x))                  ; lie
-  (let* ((low (%fixnum-ref area ppc32::area.low))
-         (high (%fixnum-ref area ppc32::area.high))
+  (let* ((low (%fixnum-ref area target::area.low))
+         (high (%fixnum-ref area target::area.high))
 )
     (declare (fixnum low high))
     (and (<= low x) (< x high))))
