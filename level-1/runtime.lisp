@@ -16,7 +16,6 @@
 
 ;;; Load .pfsl files, create a "runtime" (compiler- & development-tools-less)
 ;;; image.
-(setq *lds* t)
 
 (%fasload "./l1-pfsls/l1-cl-package.pfsl")
 (%fasload "./l1-pfsls/l1-utils.pfsl")
