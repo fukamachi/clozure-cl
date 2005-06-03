@@ -176,6 +176,9 @@
    (:ppc64 `(sldi ,@args))))
 
 
+(defppclapmacro bkpt ()
+  `(tweq rzero rzero))
+
 (defppclapmacro dbg (&optional save-lr?)
   (if save-lr?
     `(progn
@@ -447,8 +450,12 @@
       (- ppc32::num-subtag-bits ppc32::nfixnumtagbits)
       (- ppc32::least-significant-bit ppc32::nfixnumtagbits)))
    (:ppc64
-    `(clrlsldi ,dest ,vheader (- ppc64::nbits-in-word ppc64::num-subtag-bits)
-      ppc64::fixnumshift))))
+    `(progn
+      (rldicr ,dest
+       ,vheader
+       (- 64 (- ppc64::num-subtag-bits ppc64::fixnumshift))
+       (- 63 ppc64::fixnumshift))
+      (clrldi ,dest ,dest (- ppc64::num-subtag-bits ppc64::fixnumshift))))))
   
 
 (defppclapmacro header-subtag[fixnum] (dest vheader)
@@ -462,7 +469,7 @@
    (:ppc64
     `(clrlsldi ,dest
       ,vheader (- ppc64::nbits-in-word ppc64::num-subtag-bits)
-      ppc64::fixnumhift))))
+      ppc64::fixnumshift))))
 
 
 (defppclapmacro vector-size (dest v vheader)
@@ -931,12 +938,10 @@
       (fsub ,freg ,freg ppc::fp-s32conv)))
    (:ppc64
     `(progn
-      (stfd ppc::fp-s32conv -8 sp)
       (unbox-fixnum ,imm ,int)
-      (xoris ,imm ,imm #x8000)       ; invert sign of unboxed fixnum
-      (stw ,imm -4 sp)
+      (std ,imm -8 sp)
       (lfd ,freg -8 sp)
-      (fsub ,freg ,freg ppc::fp-s32conv)))))
+      (fcfid ,freg ,freg)))))
 
 
 
