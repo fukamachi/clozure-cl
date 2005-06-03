@@ -918,7 +918,8 @@
                      (cons info info-list))
                info)))))
 
-;; Clear the %class.primary-slot-accessor-info for an added or removed method's specializers
+;;; Clear the %class.primary-slot-accessor-info for an added or
+;;; removed method's specializers
 (defun clear-accessor-method-offsets (gf method)
   (when (or (typep method 'standard-accessor-method)
             (member 'standard-accessor-method
@@ -935,8 +936,8 @@
       (declare (dynamic-extent #'clear-class))
       (mapc #'clear-class (%method-specializers method)))))
 
-;; Remove methods which specialize on a sub-class of method's specializers from
-;; the generic-function dispatch-table dt.
+;;; Remove methods which specialize on a sub-class of method's
+;;; specializers from the generic-function dispatch-table dt.
 (defun remove-obsoleted-combined-methods (method &optional dt
                                                  (specializers (%method-specializers method)))
   (without-interrupts
@@ -966,10 +967,10 @@
              (setq index (%i+ index 2)))))
        (setf (%gf-dispatch-table-ref dt 1) nil)))))   ; clear 0-arg gf cm
 
-; SETQ'd below after the GF's exist.
+;;; SETQ'd below after the GF's exist.
 (defvar *initialization-invalidation-alist* nil)
 
-; Called by %add-method, %remove-method
+;;; Called by %add-method, %remove-method
 (defun invalidate-initargs-vector-for-gf (gf &optional first-specializer &rest other-specializers)
   (declare (ignore other-specializers))
   (when (and first-specializer (typep first-specializer 'class))        ; no eql methods or gfs with no specializers need apply
@@ -983,10 +984,10 @@
                                (invalidate subclass indices))))
           (invalidate first-specializer indices))))))
 
-;; Return two values:
-;; 1) the index of the first non-T specializer of method, or NIL if
-;;    all the specializers are T or only the first one is T
-;; 2) the index of the first non-T specializer
+;;; Return two values:
+;;; 1) the index of the first non-T specializer of method, or NIL if
+;;;    all the specializers are T or only the first one is T
+;;; 2) the index of the first non-T specializer
 (defun multi-method-index (method &aux (i 0) index)
   (dolist (s (%method-specializers method) (values nil index))
     (unless (eq s *t-class*)
@@ -1363,8 +1364,9 @@ to replace that class with ~s" name old-class new-class)
       (apply #'make-built-in-class (%class.name sub) (%class.local-supers sub)))
     class))
 
-;; This will be filled in below.  Need it defined now as it goes in the
-;; instance.class-wrapper of all the classes that standard-class inherits from.
+;;; This will be filled in below.  Need it defined now as it goes in
+;;; the instance.class-wrapper of all the classes that STANDARD-CLASS
+;;; inherits from.
 (defvar *standard-class-wrapper* 
   (%cons-wrapper 'standard-class))
 
@@ -1766,7 +1768,7 @@ to replace that class with ~s" name old-class new-class)
           (find-class 'unsigned-byte-vector)
           (find-class 'byte-vector)
           (find-class 'base-string)
-          *null-class*
+          *t-class*
           (find-class 'unsigned-word-vector)
           (find-class 'word-vector)
           (find-class 'double-float-vector)
@@ -1778,10 +1780,10 @@ to replace that class with ~s" name old-class new-class)
           *t-class*
           *t-class*
           *t-class*
-          (find-class 'signed-byte-vector)
-          (find-class 'signed-word-vector)
-          (find-class 'signed-long-vector)
-          (find-class 'signed-doubleword-vector)
+          (find-class 'byte-vector)
+          (find-class 'word-vector)
+          (find-class 'long-vector)
+          (find-class 'doubleword-vector)
           (find-class 'unsigned-byte-vector)
           (find-class 'unsigned-word-vector)
           (find-class 'unsigned-long-vector)
@@ -2559,14 +2561,15 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-; A wrapper is made obsolete by setting the hash-index & instance-slots to 0
-; The instance slots are saved for update-obsolete-instance
-; by consing them onto the class slots.
-; Method dispatch looks at the hash-index.
-; slot-value & set-slot-value look at the instance-slots.
-; Each wrapper may have an associated forwarding wrapper, which must also be made
-; obsolete.  The forwarding-wrapper is stored in the hash table below keyed
-; on the wrapper-hash-index of the two wrappers.
+;;; A wrapper is made obsolete by setting the hash-index & instance-slots to 0
+;;; The instance slots are saved for update-obsolete-instance
+;;; by consing them onto the class slots.
+;;; Method dispatch looks at the hash-index.
+;;; slot-value & set-slot-value look at the instance-slots.
+;;; Each wrapper may have an associated forwarding wrapper, which must
+;;; also be made obsolete.  The forwarding-wrapper is stored in the
+;;; hash table below keyed on the wrapper-hash-index of the two
+;;; wrappers.
 (defvar *forwarding-wrapper-hash-table* (make-hash-table :test 'eq))  
 
 
@@ -2602,10 +2605,10 @@ to replace that class with ~s" name old-class new-class)
 			   (return (%slot-definition-location slot))))))))
       (when pos (return pos)))))
 
-; Called by the compiler-macro expansion for slot-value
-; info is the result of a %class-primary-slot-accessor-info call.
-; value-form is specified if this is set-slot-value.
-; Otherwise it's slot-value.
+;;; Called by the compiler-macro expansion for slot-value
+;;; info is the result of a %class-primary-slot-accessor-info call.
+;;; value-form is specified if this is set-slot-value.
+;;; Otherwise it's slot-value.
 (defun primary-class-slot-value (instance info &optional (value-form nil value-form-p))
   (let ((slot-name (%slot-accessor-info.slot-name info)))
     (prog1
@@ -3021,7 +3024,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-;; Need to define this for all of the built-in-class'es.
+;;; Need to define this for all of the BUILT-IN-CLASSes.
 (defmethod class-prototype ((class std-class))
   (or (%class.prototype class)
       (setf (%class.prototype class) (allocate-instance class))))
@@ -3117,8 +3120,8 @@ to replace that class with ~s" name old-class new-class)
           (return nil))))))
 
 
-; Need this so that (compute-applicable-methods #'class-precedence-list ...)
-; will not recurse.
+;;; Need this so that (compute-applicable-methods
+;;; #'class-precedence-list ...)  will not recurse.
 (defun %class-precedence-list (class)
   (if (eq (class-of class) *standard-class-class*)
     (%inited-class-cpl class)
@@ -3126,11 +3129,6 @@ to replace that class with ~s" name old-class new-class)
 
 (defmethod class-precedence-list ((class class))
   (%inited-class-cpl class))
-
-
-
-
-
 
 
 (defun make-all-methods-kernel ()
@@ -3149,15 +3147,10 @@ to replace that class with ~s" name old-class new-class)
 	  (change-class method *standard-method-class*))))))
 
 
-
-
-
 (defun required-lambda-list-args (l)
   (multiple-value-bind (ok req) (verify-lambda-list l)
     (unless ok (error "Malformed lambda-list: ~s" l))
     req))
-
-
 
 
 (defun check-generic-function-lambda-list (ll &optional (errorp t))
@@ -3191,9 +3184,8 @@ to replace that class with ~s" name old-class new-class)
     ok))
 
 
-
-
 (defun canonicalize-argument-precedence-order (apo req)
+  (dbg)
   (cond ((equal apo req) nil)
         ((not (eql (length apo) (length req)))
          (signal-program-error "Lengths of ~S and ~S differ." apo req))
@@ -3203,7 +3195,6 @@ to replace that class with ~s" name old-class new-class)
                  (if (or (null index) (memq index res))
                    (error "Missing or duplicate arguments in ~s" apo))
                  (push index res)))))))
-
 
 
 (defun %defgeneric (function-name lambda-list method-combination generic-function-class
@@ -3242,7 +3233,6 @@ to replace that class with ~s" name old-class new-class)
   (pushnew method (specializer.direct-methods spec)))
 
 (setf (fdefinition '%do-add-direct-method) #'add-direct-method)
-
 
 (defmethod remove-direct-method ((spec specializer) (method method))
   (setf (specializer.direct-methods spec)
