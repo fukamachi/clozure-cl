@@ -90,7 +90,6 @@
   nil					;'semaphore
   semaphore.value)
 
-; it's BAAACK. sort of.
 
 (defmacro %istruct (istruct-name &rest initial-values)
   `(gvector :ISTRUCT ,istruct-name ,@initial-values))
@@ -99,11 +98,9 @@
 (defmacro %cons-resource (constructor &optional destructor initializer)
   `(%istruct 'resource ,constructor ,destructor ,initializer (%cons-pool)))
 
-#|  `(%gvector $v_istruct 'resource ,constructor ,destructor ,initializer (%cons-pool))) |#
 
 
-
-; Symbol [f,v]bits.
+;;; Symbol [f,v]bits.
 
 (defconstant $sym_bit_bound 0)		;Proclaimed bound.
 (defconstant $sym_bit_const 1)
@@ -904,8 +901,9 @@
 
 ;;;;;; clos instance and class layout.
 
-;;; All standard-instances (classes, instances other than funcallable instances)
-;;; consist of a vector of slot values and a pointer to the class wrapper.
+;;; All standard-instances (classes, instances other than funcallable
+;;; instances) consist of a vector of slot values and a pointer to the
+;;; class wrapper.
 (def-accessors (instance) %svref
   instance.hash				; a fixnum for EQ-based hashing
   instance.class-wrapper
