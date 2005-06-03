@@ -257,7 +257,8 @@
       svar))
   (defun %ensure-svar (symptr)
     (with-lock-grabbed (svar-lock)
-      (let* ((svar (or (%find-svar symptr)
+      (let* ((found (%find-svar symptr))
+             (svar (or found
                        (setf (gethash symptr svar-hash)
                              (gvector :svar symptr 0)))))
         (ensure-svar-idx svar))))
