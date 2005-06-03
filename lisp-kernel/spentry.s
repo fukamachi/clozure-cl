@@ -32,7 +32,8 @@ define([_endsubp],[
 # __line__
 ])
 
-	
+
+                	
                
 define([jump_builtin],[
 	ref_nrs_value(fname,builtin_functions)
@@ -116,7 +117,7 @@ local_label(_throw_all_values):
 	__(ldr(imm4,catch_frame.mvflag(imm3)))
 	__(cmpr(cr0,imm0,imm1))
 	__(cmpri(cr1,imm4,0))
-	__(la tsp,-(fulltag_misc+8)(imm3))
+	__(la tsp,-((tsp_frame.fixed_overhead+fulltag_misc))(imm3))
 	__(beq cr0,local_label(_throw_dont_unbind))
         __(bl _SPsvar_unbind_to)
 local_label(_throw_dont_unbind):
@@ -1324,8 +1325,8 @@ _spentry(stack_cons_rest_arg)
 	__(TSP_Alloc_Var_Boxed(imm2,imm3))
 	__(la imm0,tsp_frame.data_offset+fulltag_cons(tsp))
 1:
-	__(cmpri(cr0,imm1,8))	/* last time through ? */
-	__(subi imm1,imm1,8)
+	__(cmpri(cr0,imm1,cons.size))	/* last time through ? */
+	__(subi imm1,imm1,cons.size)
 	__(vpop(arg_x))
 	__(_rplacd(imm0,arg_z))
 	__(_rplaca(imm0,arg_x))
@@ -1883,8 +1884,8 @@ local_label(ref_not_64):
          __(cmpdi cr3,imm1,subtag_single_float_vector)
          __(la imm0,misc_data_offset(imm0))
          __(lwzx imm0,arg_y,imm0)
-         __(beq cr0,2f)
-         __(bne cr3,1f)
+         __(beq cr3,2f)
+         __(bne cr0,1f)
          __(extsw imm0,imm0)
 1:       __(box_fixnum(arg_z,imm0))
          __(blr)
@@ -2800,11 +2801,17 @@ local_label(setu16):
 local_label(set32):     
          __(srdi imm4,arg_y,1)
          __(cmpdi cr1,imm1,subtag_s32_vector)
-         __(cmpdi cr2,imm1,subtag_u32_vector)
+         __(cmpdi cr2,imm1,subtag_single_float_vector)
          __(cmpdi cr3,imm0,subtag_single_float)
          __(la imm4,misc_data_offset(imm4))
          __(beq cr1,local_label(sets32))
-         __(beq cr2,local_label(setu32))
+         __(beq cr2,local_label(setsfloat))
+         __(extract_unsigned_byte_bits_(imm0,arg_z,32))
+         __(unbox_fixnum(imm0,arg_z))
+         __(bne local_label(misc_set_bad))
+         __(stwx imm0,arg_x,imm4)
+         __(blr)
+local_label(setsfloat):         
          __(bne cr3,local_label(misc_set_bad))
          __(srdi imm0,arg_z,32)
          __(stwx imm0,arg_x,imm4)
@@ -2815,13 +2822,6 @@ local_label(sets32):
          __(sradi imm1,imm1,32)
          __(bne cr7,local_label(misc_set_bad))
          __(cmpd imm1,imm0)
-         __(bne local_label(misc_set_bad))
-         __(srdi imm0,arg_z,32)
-         __(stwx imm0,arg_x,imm4)
-         __(blr)
-local_label(setu32):    
-         __(extract_unsigned_byte_bits_(imm0,arg_z,32))
-         __(unbox_fixnum(imm0,arg_z))
          __(bne local_label(misc_set_bad))
          __(srdi imm0,arg_z,32)
          __(stwx imm0,arg_x,imm4)
@@ -3194,7 +3194,7 @@ _spentry(save_values)
 /* common exit: nargs = values in this set, imm1 = ptr to tsp before call to save_values */
 local_label(save_values_to_tsp):
 	__(mr imm2,tsp)
-	__(dnode_align(imm0,nargs,tsp_frame.fixed_overhead+8)) /* count, link */
+	__(dnode_align(imm0,nargs,tsp_frame.fixed_overhead+(2*node_size))) /* count, link */
 	__(TSP_Alloc_Var_Boxed_nz(imm0,imm3))
 	__(str(imm1,tsp_frame.backlink(tsp))) /* keep one tsp "frame" as far as rest of lisp is concerned */
 	__(str(nargs,tsp_frame.data_offset(tsp)))
@@ -3607,17 +3607,20 @@ _spentry(darwin_syscall)
 	__(b 1f)
 	__(b 9f)
 1:
-	__(ldr(imm2,c_frame.crsave(sp)))
-	__(cmpri(cr0,imm2,0))
-	__(bne cr0,2f)
-	/* 32-bit result */
-	__(neg r3,r3)
-	__(b 9f)
+        __ifdef([PPC64])
+         __(neg r3,r3)
+        __else
+	 __(ldr(imm2,c_frame.crsave(sp)))
+	 __(cmpri(cr0,imm2,0))
+	 __(bne cr0,2f)
+	 /* 32-bit result */
+	 __(neg r3,r3)
+	 __(b 9f)
 2:
-	/* 64-bit result */
-	__(neg r4,r3)
-	__(li r3,-1)
-
+	 /* 64-bit result */
+	 __(neg r4,r3)
+	 __(li r3,-1)
+        __endif
 9:
 	__(mr imm2,save0)	/* recover context */
 	__(ldr(sp,c_frame.backlink(sp)))
@@ -3995,63 +3998,123 @@ _spentry(builtin_logand)
 	__(jump_builtin(_builtin_logand,2))
 	
 _spentry(builtin_ash)
-	__(cmpri(cr1,arg_z,0))
-        __(extract_lisptag(imm0,arg_y))
-        __(extract_lisptag(imm1,arg_z))
-        __(cmpri(cr0,imm0,tag_fixnum))
-        __(cmpri(cr3,imm1,tag_fixnum))
-	__(cmpri(cr2,arg_z,-(29<<2)))	/* !! 2 =  fixnumshift */
-	__(bne- cr0,9f)
-        __(bne- cr3,9f)
-	__(bne cr1,0f)
-	__(mr arg_z,arg_y)	/* (ash n 0) => n */
-	__(blr)
+        __ifdef([PPC64])
+	 __(cmpdi cr1,arg_z,0)
+         __(extract_lisptag(imm0,arg_y))
+         __(extract_lisptag(imm1,arg_z))
+         __(cmpdi cr0,imm0,tag_fixnum)
+         __(cmpdi cr3,imm1,tag_fixnum)
+	 __(cmpdi cr2,arg_z,-(63<<3))	/* !! 3 =  fixnumshift */
+	 __(bne- cr0,9f)
+         __(bne- cr3,9f)
+	 __(bne cr1,0f)
+	 __(mr arg_z,arg_y)	/* (ash n 0) => n */
+	 __(blr)
 0:		
-	__(unbox_fixnum(imm1,arg_y))
-	__(unbox_fixnum(imm0,arg_z))
-	__(bgt cr1,2f)
-	/* (ash n -count) => fixnum */
-	__(neg imm2,imm0)
-	__(bgt cr2,1f)
-	__(li imm2,31)
+	 __(unbox_fixnum(imm1,arg_y))
+	 __(unbox_fixnum(imm0,arg_z))
+	 __(bgt cr1,2f)
+	 /* (ash n -count) => fixnum */
+	 __(neg imm2,imm0)
+	 __(bgt cr2,1f)
+	 __(li imm2,63)
 1:	
-	__(sraw imm0,imm1,imm2)
-	__(box_fixnum(arg_z,imm0))
-	__(blr)
-	/* Integer-length of arg_y/imm1 to imm2 */
+	 __(srad imm0,imm1,imm2)
+	 __(box_fixnum(arg_z,imm0))
+	 __(blr)
+	 /* Integer-length of arg_y/imm1 to imm2 */
 2:		
-	__(cntlzw. imm2,imm1)
-	__(bne 3f)		/* cr0[eq] set if negative */
-	__(not imm2,imm1)
-	__(cntlzw imm2,imm2)
+	 __(cntlzd. imm2,imm1)
+	 __(bne 3f)		/* cr0[eq] set if negative */
+	 __(not imm2,imm1)
+	 __(cntlzd imm2,imm2)
 3:
-	__(subfic imm2,imm2,32)
-	__(add imm2,imm2,imm0)	 /* imm2 <- integer-length(imm1) + count */
-	__(cmpri(cr1,imm2,31-fixnumshift))
-	__(cmpri(cr2,imm0,32))
-	__(slw imm2,imm1,imm0)
-	__(bgt cr1,6f)
-	__(box_fixnum(arg_z,imm2))
-	__(blr)	
+	 __(subfic imm2,imm2,64)
+	 __(add imm2,imm2,imm0)	 /* imm2 <- integer-length(imm1) + count */
+	 __(cmpdi cr1,imm2,63-fixnumshift)
+	 __(cmpdi cr2,imm0,64)
+	 __(sld imm2,imm1,imm0)
+	 __(bgt cr1,6f)
+	 __(box_fixnum(arg_z,imm2))
+	 __(blr)	
 6:
-	__(bgt cr2,9f)
-	__(bne cr2,7f)
-	/* Shift left by 32 bits exactly */
-	__(mr imm0,imm1)
-	__(li imm1,0)
-	__(beq _SPmakes64)
-	__(b _SPmakeu64)
+	 __(bgt cr2,9f)
+	 __(bne cr2,7f)
+	 /* Shift left by 64 bits exactly */
+	 __(mr imm0,imm1)
+	 __(li imm1,0)
+	 __(beq _SPmakes64)
+	 __(b _SPmakeu64)
 7:
-	/* Shift left by fewer than 32 bits, result not a fixnum */
-	__(subfic imm0,imm0,32)
-	__(beq 8f)
-	__(srw imm0,imm1,imm0)
-	__(mr imm1,imm2)
-	__(b _SPmakeu64)
+	 /* Shift left by fewer than 32 bits, result not a fixnum */
+	 __(subfic imm0,imm0,32)
+	 __(beq 8f)
+	 __(srw imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakeu64)
 8:	
-	__(sraw imm0,imm1,imm0)
-	__(mr imm1,imm2)
-	__(b _SPmakes64)	
+	 __(sraw imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakes64)
+        __else
+	 __(cmpri(cr1,arg_z,0))
+         __(extract_lisptag(imm0,arg_y))
+         __(extract_lisptag(imm1,arg_z))
+         __(cmpri(cr0,imm0,tag_fixnum))
+         __(cmpri(cr3,imm1,tag_fixnum))
+	 __(cmpri(cr2,arg_z,-(29<<2)))	/* !! 2 =  fixnumshift */
+	 __(bne- cr0,9f)
+         __(bne- cr3,9f)
+	 __(bne cr1,0f)
+	 __(mr arg_z,arg_y)	/* (ash n 0) => n */
+	 __(blr)
+0:		
+	 __(unbox_fixnum(imm1,arg_y))
+	 __(unbox_fixnum(imm0,arg_z))
+	 __(bgt cr1,2f)
+	 /* (ash n -count) => fixnum */
+	 __(neg imm2,imm0)
+	 __(bgt cr2,1f)
+	 __(li imm2,31)
+1:	
+	 __(sraw imm0,imm1,imm2)
+	 __(box_fixnum(arg_z,imm0))
+	 __(blr)
+	 /* Integer-length of arg_y/imm1 to imm2 */
+2:		
+	 __(cntlzw. imm2,imm1)
+	 __(bne 3f)		/* cr0[eq] set if negative */
+	 __(not imm2,imm1)
+	 __(cntlzw imm2,imm2)
+3:
+	 __(subfic imm2,imm2,32)
+	 __(add imm2,imm2,imm0)	 /* imm2 <- integer-length(imm1) + count */
+	 __(cmpri(cr1,imm2,31-fixnumshift))
+	 __(cmpri(cr2,imm0,32))
+	 __(slw imm2,imm1,imm0)
+	 __(bgt cr1,6f)
+	 __(box_fixnum(arg_z,imm2))
+	 __(blr)	
+6:
+	 __(bgt cr2,9f)
+	 __(bne cr2,7f)
+	 /* Shift left by 32 bits exactly */
+	 __(mr imm0,imm1)
+	 __(li imm1,0)
+	 __(beq _SPmakes64)
+	 __(b _SPmakeu64)
+7:
+	 /* Shift left by fewer than 32 bits, result not a fixnum */
+	 __(subfic imm0,imm0,32)
+	 __(beq 8f)
+	 __(srw imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakeu64)
+8:	
+	 __(sraw imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakes64)
+        __endif
 9:		
 	__(jump_builtin(_builtin_ash,2))
 
@@ -4472,10 +4535,38 @@ _spentry(syscall)
 	__(mtxer rzero)
 	__(blr)
         
-/* arg_z should be of type (UNSIGNED-BYTE 64); return high 32 bits
-	in imm0, low 32 bits in imm1 */
+/* arg_z should be of type (UNSIGNED-BYTE 64); 
+   On PPC32, return high 32 bits in imm0, low 32 bits in imm1
+   On PPC64, return unboxed value in imm0 */
 
 _spentry(getu64)
+        __ifdef([PPC64])
+        __(extract_typecode(imm0,arg_z))
+        __(cmpdi cr0,imm0,tag_fixnum)
+        __(cmpdi cr2,arg_z,0)
+        __(cmpdi cr1,imm0,subtag_bignum)
+        __(bne cr0,1f)
+        __(unbox_fixnum(imm0,arg_z))
+        __(bgelr cr2)
+0:             
+	__(uuo_interr(error_object_not_u64,arg_z))
+        
+1:      __(bne cr1,0b)
+        __(getvheader(imm1,arg_z))
+        __(ld imm0,misc_data_offset(arg_z))
+        __(cmpdi cr2,imm1,two_digit_bignum_header)
+        __(rotldi imm0,imm0,32)
+        __(cmpdi cr1,imm1,three_digit_bignum_header)
+        __(cmpdi cr0,imm0,0)
+        __(beq cr2,2f)
+        __(lwz imm1,misc_data_offset+8(arg_z))
+        __(bne cr1,0b)
+        __(cmpwi imm1,0)
+        __(bne 0b)
+        __(blr)
+2:      __(blt 0b)
+        __(blr)        
+        __else
 	__(extract_typecode(imm0,arg_z))
 	__(cmpri(cr0,imm0,tag_fixnum))
 	__(cmpri(cr1,arg_z,0))
@@ -4508,25 +4599,41 @@ _spentry(getu64)
 	__(bne- cr0,9b)
 	__(bne- cr1,9b)
 	__(blr)
-
-/* arg_z should be of type (SIGNED-BYTE 64); return high 32 bits
-	in imm0, low 32 bits in imm1 */
+        __endif
+        
+/* arg_z should be of type (SIGNED-BYTE 64); 
+        PPC32:   return high 32 bits  in imm0, low 32 bits in imm1 
+        PPC64:   return unboxed value in imm0 */
 
 _spentry(gets64)
-	__(extract_typecode(imm0,arg_z))
-	__(cmpri(cr0,imm0,tag_fixnum))
-	__(cmpri(cr2,imm0,subtag_bignum))
-	__(unbox_fixnum(imm1,arg_z))
-	__(srawi imm0,imm1,31)
-	__(beqlr cr0)
-	__(bne cr2,9f)
-	__(getvheader(imm2,arg_z))
-	__(cmpri(cr2,imm2,two_digit_bignum_header))
-	__(vrefr(imm1,arg_z,0))
-	__(srawi imm0,imm1,31)
-	__(bltlr cr2)
-	__(vrefr(imm0,arg_z,1))
-	__(beqlr cr2)
+        __ifdef([PPC64])
+	 __(extract_typecode(imm1,arg_z))
+         __(unbox_fixnum(imm0,arg_z))
+	 __(cmpri(cr0,imm1,tag_fixnum))
+	 __(cmpri(cr2,imm1,subtag_bignum))
+         __(beqlr cr0)
+         __(bne cr2,9f)
+         __(ld imm1,misc_header_offset(arg_z))
+         __(ld imm0,misc_data_offset(arg_z))
+         __(cmpdi imm1,two_digit_bignum_header)
+         __(rotldi imm0,imm0,32)
+         __(beqlr)
+        __else
+	 __(extract_typecode(imm0,arg_z))
+	 __(cmpri(cr0,imm0,tag_fixnum))
+	 __(cmpri(cr2,imm0,subtag_bignum))
+	 __(unbox_fixnum(imm1,arg_z))
+	 __(srawi imm0,imm1,31)
+	 __(beqlr cr0)
+	 __(bne cr2,9f)
+	 __(getvheader(imm2,arg_z))
+	 __(cmpri(cr2,imm2,two_digit_bignum_header))
+	 __(vrefr(imm1,arg_z,0))
+	 __(srawi imm0,imm1,31)
+	 __(bltlr cr2)
+	 __(vrefr(imm0,arg_z,1))
+	 __(beqlr cr2)
+        __endif
 9:
 	__(uuo_interr(error_object_not_s64,arg_z))
 
