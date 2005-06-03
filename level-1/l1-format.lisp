@@ -31,7 +31,7 @@
        ',name))
   )
 
-(defparameter *format-char-table* (make-array 128 :initial-element nil))
+(defparameter *format-char-table* (let* ((x (make-array 128 :initial-element nil))) x))
 
 (defun add-format-char (char def)
   (unless (and (characterp char) (%i< (%char-code char) 128))
