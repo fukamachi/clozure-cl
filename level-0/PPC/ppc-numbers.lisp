@@ -371,6 +371,10 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 #+ppc64-target
 (eval-when (:compile-toplevel)
   (warn "No implementation of %NEXT-RANDOM-SEED for PPC64"))
+#+ppc64-target
+(defun %next-random-seed (state)
+  (declare (ignore state))
+  17)
 
 ;;; n1 and n2 must be positive (esp non zero)
 #+ppc32-target
