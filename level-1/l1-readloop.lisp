@@ -83,10 +83,9 @@
   (if p (process-interrupt p 
                            #'(lambda ()
                                (unless *inhibit-abort*
-                                 (lds (if *in-read-loop* 
+                                 (if *in-read-loop* 
                                         (abort-break)
                                         (abort))
-                                      (abort))
                                  )))))
 
 
@@ -173,8 +172,7 @@
    (TYPEP condition *BREAK-ON-SIGNALS*) is true, the debugger is invoked
    before any signalling is done."
   (setq condition (condition-arg condition args 'simple-condition))
-  (lds
-   (let* ((*break-on-signals* *break-on-signals*))
+  (let* ((*break-on-signals* *break-on-signals*))
      (let* ((old-bos *break-on-signals*))
        (when (unknown-ctype-p (let* ((*break-on-signals* nil)) (specifier-type old-bos)))
 	 (setq *break-on-signals* nil)
@@ -182,7 +180,7 @@
 	 
    (when (typep condition *break-on-signals*)
      (let ((*break-on-signals* nil))
-       (cbreak-loop "Signal" "Signal the condition." condition (%get-frame-ptr))))))
+       (cbreak-loop "Signal" "Signal the condition." condition (%get-frame-ptr)))))
   (let ((%handlers% %handlers%))
     (while %handlers%
       (do* ((tag (pop %handlers%)) (handlers tag (cddr handlers)))
