@@ -1248,8 +1248,9 @@
                        (symbolp typep))
                   `(,typep ,thing))
                  ((%deftype-expander type)
-                  ;; recurse here, rather than returning the partially-expanded form
-                  ;; mostly since it doesn't seem to further optimize the result otherwise
+                  ;; recurse here, rather than returning the
+                  ;; partially-expanded form mostly since it doesn't
+                  ;; seem to further optimize the result otherwise
                   (let ((expanded-type (type-expand type)))
                     (or (optimize-typep thing expanded-type env)
                         ;; at least do the first expansion
@@ -1480,6 +1481,13 @@
   `(eql (typecode ,n) ,(target-arch-case (:ppc32 ppc32::subtag-function)
                                          (:ppc64 ppc64::subtag-function))))
 
+(define-compiler-macro symbolp (s)
+  (target-arch-case
+   (:ppc32 (let* ((sym (gensym)))
+             `(let* ((,sym ,s))
+               (if ,sym (eql (typecode ,sym) ppc32::subtag-symbol) t))))
+   (:ppc64 `(eql (typecode ,s) ppc64::subtag-symbol))))
+           
 (define-compiler-macro listp (n)
   (target-arch-case
    (:ppc32 `(eql (lisptag ,n) #.ppc32::tag-list))
