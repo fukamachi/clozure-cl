@@ -33,7 +33,7 @@
 	 (res ()))
     (declare (dynamic-extent argv))
     (%get-kernel-global-ptr 'ppc::argv argv)
-    (do* ((i 0 (+ i 4))
+    (do* ((i 0 (+ i target::node-size))
 	  (arg (%get-ptr argv i) (%get-ptr argv i)))
 	 ((%null-ptr-p arg) (nreverse res))
       (declare (fixnum i))
@@ -653,41 +653,44 @@
 		(translate-pathname pathname (car rule) (cadr rule)))
 	       (signal-file-error $xnotranslation pathname)))))))
 
-(progn
-(setf (logical-pathname-translations "home")
-          `(("**;*.*" ,(merge-pathnames "**/*.*" (user-homedir-pathname)))))
+;;; Hide this from COMPILE-FILE, for obscure cross-compilation reasons
 
-(setf (logical-pathname-translations "ccl")
-          `(("l1;**;*.pfsl" "ccl:l1pf;*.pfsl")
-            ("l1;**;*.p64fsl" "ccl:l1pf;*.p64fsl")
-	    ("l1;**;*.dfsl" "ccl:l1df;*.dfsl")
-	    ("l1;**;*.d64fsl" "ccl:l1df;*.d64fsl")
-            ("l1;**;*.*" "ccl:level-1;**;*.*")
-            ("l1f;**;*.pfsl" "ccl:l1pf;**;*.pfsl")
-            ("l1f;**;*.p64fsl" "ccl:l1pf;**;*.p64fsl")
-	    ("l1f;**;*.dfsl" "ccl:l1df;**;*.dfsl")
-	    ("l1f;**;*.d64fsl" "ccl:l1df;**;*.d64fsl")
-            ("bin;**;*.pfsl" "ccl:binppc;**;*.pfsl")
-            ("bin;**;*.p64fsl" "ccl:binppc;**;*.p64fsl")
-	    ("bin;**;*.dfsl" "ccl:bindarwin;**.*.dfsl")
-	    ("bin;**;*.d64fsl" "ccl:bindarwin;**.*.d64fsl")
-            ("l1pf;**;*.*" "ccl:l1-pfsls;**;*.*")
-	    ("l1df;**;*.*" "ccl:l1-dfsls;**;*.*")
-            ("ccl;*.*" ,(merge-pathnames "*.*" (ccl-directory)))
-            ("**;*.*" ,(merge-pathnames "**/*.*" (ccl-directory)))))
+(defun setup-initial-translations ()
+  (setf (logical-pathname-translations "home")
+        `(("**;*.*" ,(merge-pathnames "**/*.*" (user-homedir-pathname)))))
 
-)
-;This function should be changed to standardize the name more than it does.
-;It should eliminate non-leading instances of "::" etc at least.  We might also
-;want it to always return an absolute pathname (i.e. fill in the default mac
-;directory), so as to make it a sort of harmless truename (which is how I think
-;it's mainly used).  Unfortunately that would make it go to the file system,
-;but it might be worth it.
-;This function used to also remove quoting so as to make the name suitable for
-;passing to rom.  It doesn't anymore. Use mac-namestring for that.
-; does anybody use this??
-; DO - merge in default if relative, and do the :: stuff
-; perhaps call it expand-pathname or expanded-pathname
+  (setf (logical-pathname-translations "ccl")
+        `(("l1;**;*.pfsl" "ccl:l1pf;*.pfsl")
+          ("l1;**;*.p64fsl" "ccl:l1pf;*.p64fsl")
+          ("l1;**;*.dfsl" "ccl:l1df;*.dfsl")
+          ("l1;**;*.d64fsl" "ccl:l1df;*.d64fsl")
+          ("l1;**;*.*" "ccl:level-1;**;*.*")
+          ("l1f;**;*.pfsl" "ccl:l1pf;**;*.pfsl")
+          ("l1f;**;*.p64fsl" "ccl:l1pf;**;*.p64fsl")
+          ("l1f;**;*.dfsl" "ccl:l1df;**;*.dfsl")
+          ("l1f;**;*.d64fsl" "ccl:l1df;**;*.d64fsl")
+          ("bin;**;*.pfsl" "ccl:binppc;**;*.pfsl")
+          ("bin;**;*.p64fsl" "ccl:binppc;**;*.p64fsl")
+          ("bin;**;*.dfsl" "ccl:bindarwin;**.*.dfsl")
+          ("bin;**;*.d64fsl" "ccl:bindarwin;**.*.d64fsl")
+          ("l1pf;**;*.*" "ccl:l1-pfsls;**;*.*")
+          ("l1df;**;*.*" "ccl:l1-dfsls;**;*.*")
+          ("ccl;*.*" ,(merge-pathnames "*.*" (ccl-directory)))
+          ("**;*.*" ,(merge-pathnames "**/*.*" (ccl-directory))))))
+
+(setup-initial-translations)
+
+;;;This function should be changed to standardize the name more than
+;;;it does.  It should eliminate non-leading instances of "::" etc at
+;;;least.  We might also want it to always return an absolute pathname
+;;;(i.e. fill in the default mac directory), so as to make it a sort
+;;;of harmless truename (which is how I think it's mainly used).
+;;;Unfortunately that would make it go to the file system, but it
+;;;might be worth it.  This function used to also remove quoting so as
+;;;to make the name suitable for passing to rom.  It doesn't
+;;;anymore. Use mac-namestring for that.  does anybody use this??  DO
+;;;- merge in default if relative, and do the :: stuff perhaps call it
+;;;expand-pathname or expanded-pathname
 
 (defun full-pathname (path &key (no-error t))
   (let ((orig-path path))
