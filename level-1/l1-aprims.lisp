@@ -104,9 +104,9 @@
       (pop rest-args-tail))
     (apply function (nconc butlast-args rest-args))))
 
-; This is slow, and since %apply-lexpr isn't documented either,
-; nothing in the world should depend on it.  This is just being
-; anal retentive.  VERY anal retentive.
+;;; This is slow, and since %apply-lexpr isn't documented either,
+;;; nothing in the world should depend on it.  This is just being
+;;; anal retentive.  VERY anal retentive.
 
 (defun %apply-lexpr (function arg &rest args)
   (cond ((null args) (%apply-lexpr function arg))
@@ -415,12 +415,7 @@ terminate the list"
 
 
 (defun move-string-bytes (source dest off1 off2 n)
-  (declare (optimize (speed 3)(safety 0)))
-  (declare (fixnum off1 off2 n))
-  (let* ((base-source (typep source 'simple-base-string))
-         (base-dest (typep dest 'simple-base-string)))
-    (if (and base-dest base-source)
-      (%copy-ivector-to-ivector source off1 dest off2 n))))
+  (%copy-ivector-to-ivector source off1 dest off2 n))
 
 
 (defun %str-cat (s1 s2 &rest more)
@@ -452,8 +447,8 @@ terminate the list"
       (let ((newlen (%i- end start)))
         (when (%i> end len)(error "End ~S exceeds length ~S." end len))
         (when (%i< start 0)(error "Negative start"))
-        (let ((new (make-string newlen :element-type (array-element-type str))))
-          (move-string-bytes str new (%i+ start strb) 0 newlen)
+        (let ((new (make-string newlen)))
+          (%copy-ivector-to-ivector str (%i+ start strb) new 0 newlen)
           new)))))
 
 
@@ -482,9 +477,8 @@ terminate the list"
   'real)
 
 
-
+#+ppc32-target
 (progn
-  ; we are making assumptions - put in ppc-arch? - almost same as *ppc-immheader-array-types
   (defparameter array-element-subtypes
     #(single-float 
       (unsigned-byte 32)
@@ -506,18 +500,54 @@ terminate the list"
                (ash (- subtype ppc32::min-cl-ivector-subtag) (- ppc32::ntagbits)))))
   )
 
+#+ppc64-target
+(progn
 
+(defparameter array-element-subtypes
+  #(bogus
+    bogus
+    bogus
+    bogus
+    (signed-byte 8)
+    (signed-byte 16)
+    (signed-byte 32)
+    (signed-byte 64)
+    (unsigned-byte 8)
+    (unsigned-byte 16)
+    (unsigned-byte 32)
+    (unsigned-byte 64)
+    bogus
+    bogus
+    single-float
+    bogus
+    bogus
+    bogus
+    bogus
+    double-float
+    base-char
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bit
+    bogus
+    bogus))  
 
+  
+  ; given uvector subtype - what is the corresponding element-type
+  (defun element-subtype-type (subtype)
+    (declare (fixnum subtype))
+    (if  (= subtype ppc64::subtag-simple-vector)
+      t
+      (svref array-element-subtypes 
+             (ash (- subtype 128) -2))))
+  )
 
-
-
-;Used by transforms.
-(defun make-uvector (length subtype &key (initial-element () initp))
-  (if initp
-    (%alloc-misc length subtype initial-element)
-    (%alloc-misc length subtype)))
-
-; %make-displaced-array assumes the following
+;;; %make-displaced-array assumes the following
 
 (eval-when (:compile-toplevel)
   (assert (eql target::arrayH.flags-cell target::vectorH.flags-cell))
@@ -865,12 +895,6 @@ terminate the list"
       (when fun-p
 	(%set-tcr-toplevel-function tcr fun)))))
 
-; Look! GC in Lisp !
-
-
-
-
-  
 
 (defun gccounts ()
   (let* ((total (%get-gc-count))
@@ -890,7 +914,10 @@ terminate the list"
 
 
 (defglobal %pascal-functions%
-  (make-array 32 :initial-element nil))
+    #(NIL NIL NIL NIL NIL NIL NIL NIL
+      NIL NIL NIL NIL NIL NIL NIL NIL
+      NIL NIL NIL NIL NIL NIL NIL NIL
+      NIL NIL NIL NIL NIL NIL NIL NIL))
 
 
 (defun gc-retain-pages (arg)
