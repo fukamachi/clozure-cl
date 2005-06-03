@@ -17,11 +17,8 @@
 
 ; Level-1.lisp
 
-;; **** There must be NO lisp package or nilreg-rel immediates in this file ****
 
-(unless 
-    nil
-  (setq *lds* t))
+
 
 (macrolet ((l1-load (name)
 	     (let* ((namestring
@@ -85,8 +82,7 @@
   (l1-load "l1-io")
   (l1-load "l1-reader")
   (l1-load "l1-readloop")
-  (lds (l1-load "l1-readloop-lds")
-       (l1-load "l1-base-app"))
+  (l1-load "l1-readloop-lds")
   (l1-load "l1-error-system")
 
   (l1-load "l1-events")
@@ -94,7 +90,7 @@
   (l1-load "l1-format")
   (l1-load "l1-sysio")
   (l1-load "l1-pathnames")
-  (lds (l1-load "l1-boot-lds"))		; load before l1-boot
+  (l1-load "l1-boot-lds")
 
   (l1-load "l1-boot-1")
   (l1-load "l1-boot-2")
@@ -102,7 +98,7 @@
   )
 
 (require "PREPARE-MCL-ENVIRONMENT")
-(progn  (%set-toplevel #'toplevel-loop) (set-user-environment t) (toplevel))
+(progn (%set-toplevel #'toplevel-loop) (set-user-environment t) (toplevel))
 
 
 
