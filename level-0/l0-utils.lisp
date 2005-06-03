@@ -30,8 +30,8 @@
 ; We MAY need a scheme for finding all of the areas in a lisp library.
 (defun %map-areas (function &optional (maxcode ppc::area-dynamic) (mincode ppc::area-readonly))
   (declare (fixnum maxcode mincode))
-  (do* ((a (%normalize-areas) (%lisp-word-ref a (ash ppc32::area.succ -2)))
-        (code ppc::area-dynamic (%lisp-word-ref a (ash ppc32::area.code -2)))
+  (do* ((a (%normalize-areas) (%lisp-word-ref a (ash target::area.succ (- target::fixnumshift))))
+        (code ppc::area-dynamic (%lisp-word-ref a (ash target::area.code (- target::fixnumshift))))
         (dynamic t nil))
        ((= code ppc::area-void))
     (declare (fixnum code))
@@ -87,13 +87,13 @@
   (defmacro need-use-eql-macro (key)
     `(let* ((typecode (typecode ,key)))
        (declare (fixnum typecode))
-          (cond ((= typecode ppc64::tag-fixnum) t)
-                ((= typecode ppc64::subtag-single-float) t)
-                ((= typecode ppc64::subtag-bignum) t)
-                ((= typecode ppc64::subtag-double-float) t)
-                ((= typecode ppc64::subtag-ratio) t)
-                ((= typecode ppc64::subtag-complex t))
-                ((= typecode ppc32::subtag-macptr) t))))
+      (cond ((= typecode ppc64::tag-fixnum) t)
+            ((= typecode ppc64::subtag-single-float) t)
+            ((= typecode ppc64::subtag-bignum) t)
+            ((= typecode ppc64::subtag-double-float) t)
+            ((= typecode ppc64::subtag-ratio) t)
+            ((= typecode ppc64::subtag-complex) t)
+            ((= typecode ppc64::subtag-macptr) t))))
 
 )
 
@@ -105,9 +105,7 @@
 	  (return pair))))
     (assq item list)))
 
-; (memeql item list) <=> (member item list :test #'eql :key #'identity)
-
-;nil or error - supposed to error if not proper list?
+;;; (memeql item list) <=> (member item list :test #'eql :key #'identity)
 (defun memeql (item list)
   (if (need-use-eql-macro item)
     (do* ((l list (%cdr l)))
