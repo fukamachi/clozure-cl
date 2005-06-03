@@ -1276,11 +1276,14 @@ PMCL_exception_handler(int xnum,
   unsigned oldMQ;
   OSStatus status = -1;
   pc program_counter;
-  opcode instruction;
+  opcode instruction = 0;
 
 
   program_counter = xpPC(xp);
-  instruction = *program_counter;
+  
+  if ((xnum == SIGILL) | (xnum == SIGTRAP)) {
+    instruction = *program_counter;
+  }
 
   if (instruction == ALLOC_TRAP_INSTRUCTION) {
     status = handle_alloc_trap(xp, tcr);
@@ -1610,7 +1613,12 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
       if (message == NULL) {
 	message = "Lisp Breakpoint";
       }
-      lisp_Debugger(xp, debug_entry_dbg,message);
+      lisp_Debugger(xp, debug_entry_dbg, message);
+      return noErr;
+    }
+    if (the_trap == QUIET_LISP_BREAK_INSTRUCTION) {
+      adjust_exception_pc(xp,4);
+      lisp_Debugger(xp, debug_entry_dbg, "Lisp Breakpoint");
       return noErr;
     }
     /*
@@ -1681,7 +1689,8 @@ is_conditional_trap(opcode instr)
   int is_tw = X_opcode_p(instr,major_opcode_X31,minor_opcode_TW);
 
 #ifndef MACOS
-  if (instr == LISP_BREAK_INSTRUCTION) {
+  if ((instr == LISP_BREAK_INSTRUCTION) ||
+      (instr == QUIET_LISP_BREAK_INSTRUCTION)) {
     return 1;
   }
 #endif
@@ -2134,12 +2143,15 @@ Bug(ExceptionInformation *xp, const char *format, ...)
 void
 lisp_bug(char *string)
 {
-  Bug(NULL, "Bug in MCL-PPC system code:\n%s", string);
+  Bug(NULL, "Bug in OpenMCL system code:\n%s", string);
 }
 
 
 
 #ifdef DARWIN
+
+#define TCR_FROM_EXCEPTION_PORT(p) ((TCR *)((natural)p))
+#define TCR_TO_EXCEPTION_PORT(tcr) ((mach_port_t)((natural)(tcr)))
 
 lock_set_t mach_exception_lock_set;
 
@@ -2356,9 +2368,17 @@ create_thread_context_frame(mach_port_t thread,
 		   &thread_state_count);
 
 
+#ifdef PPC64
+  thread_state_count = PPC_EXCEPTION_STATE64_COUNT;
+#else
   thread_state_count = PPC_EXCEPTION_STATE_COUNT;
+#endif
   thread_get_state(thread,
+#ifdef PPC64
+                   PPC_EXCEPTION_STATE64,
+#else
 		   PPC_EXCEPTION_STATE,
+#endif
 		   (thread_state_t)&(mc->es),
 		   &thread_state_count);
 
@@ -2402,7 +2422,6 @@ setup_signal_frame(mach_port_t thread,
 #else
   ppc_thread_state_t ts;
 #endif
-  ppc_exception_state_t xs;
   mach_msg_type_number_t thread_state_count;
   ExceptionInformation *lss;
   int i, j;
@@ -2566,7 +2585,7 @@ catch_exception_raise(mach_port_t exception_port,
        (code1 == (int)enable_fp_exceptions) ||
        (code1 == (int)disable_fp_exceptions))) {
     if (code1 == (int)pseudo_sigreturn) {
-      return do_pseudo_sigreturn(thread, (TCR *) exception_port);
+      return do_pseudo_sigreturn(thread, TCR_FROM_EXCEPTION_PORT(exception_port));
     }
     if (code1 == (int)enable_fp_exceptions) {
       return thread_set_fp_exceptions_enabled(thread, true);
@@ -2600,7 +2619,7 @@ catch_exception_raise(mach_port_t exception_port,
 			      (void *)pseudo_signal_handler,
 			      signum,
                               code,
-			      (TCR *) exception_port);
+			      TCR_FROM_EXCEPTION_PORT(exception_port));
   }
   return 17;
 }
@@ -2614,7 +2633,7 @@ void *
 exception_handler_proc(void *arg)
 {
   extern boolean_t exc_server();
-  mach_port_t p = (mach_port_t) arg;
+  mach_port_t p = TCR_TO_EXCEPTION_PORT(arg);
 
   mach_msg_server(exc_server, 2048, p, 0);
   /* Should never return. */
@@ -2640,7 +2659,7 @@ mach_exception_port_set()
     create_system_thread(0,
                          NULL,
                          exception_handler_proc, 
-                         (void *)__exception_port_set);
+                         (void *)((natural)__exception_port_set));
   }
   return __exception_port_set;
 }
@@ -2674,7 +2693,7 @@ tcr_establish_exception_port(TCR *tcr, mach_port_t thread)
   MACH_foreign_exception_state *fxs = (MACH_foreign_exception_state *)tcr->native_thread_info;
   int i;
   unsigned n = NUM_LISP_EXCEPTIONS_HANDLED;
-  mach_port_t lisp_port = (mach_port_t)tcr, foreign_port;
+  mach_port_t lisp_port = TCR_TO_EXCEPTION_PORT(tcr), foreign_port;
   exception_mask_t mask = 0;
 
   kret = thread_swap_exception_ports(thread,
@@ -2705,7 +2724,7 @@ tcr_establish_exception_port(TCR *tcr, mach_port_t thread)
 kern_return_t
 tcr_establish_lisp_exception_port(TCR *tcr)
 {
-  return tcr_establish_exception_port(tcr, (mach_port_t)tcr->native_thread_id);
+  return tcr_establish_exception_port(tcr, (mach_port_t)((natural)tcr->native_thread_id));
 }
 
 /*
@@ -2726,7 +2745,7 @@ restore_foreign_exception_ports(TCR *tcr)
 
     for (i = 0; i < n; i++) {
       if ((tm = fxs->masks[i]) & m) {
-	thread_set_exception_ports((mach_port_t)tcr->native_thread_id,
+	thread_set_exception_ports((mach_port_t)((natural)tcr->native_thread_id),
 				   tm,
 				   fxs->ports[i],
 				   fxs->behaviors[i],
@@ -2746,7 +2765,7 @@ kern_return_t
 setup_mach_exception_handling(TCR *tcr)
 {
   mach_port_t 
-    thread_exception_port = (mach_port_t)tcr,
+    thread_exception_port = TCR_TO_EXCEPTION_PORT(tcr),
     target_thread = pthread_mach_thread_np((pthread_t)ptr_from_lispobj(tcr->osid)),
     task_self = mach_task_self();
   kern_return_t kret;
@@ -2757,7 +2776,7 @@ setup_mach_exception_handling(TCR *tcr)
 				MACH_MSG_TYPE_MAKE_SEND);
   MACH_CHECK_ERROR("adding send right to exception_port",kret);
 
-  kret = tcr_establish_exception_port(tcr, (mach_port_t) tcr->native_thread_id);
+  kret = tcr_establish_exception_port(tcr, (mach_port_t)((natural) tcr->native_thread_id));
   if (kret == KERN_SUCCESS) {
     mach_port_t exception_port_set = mach_exception_port_set();
 
@@ -2801,8 +2820,8 @@ darwin_exception_cleanup(TCR *tcr)
     tcr->native_thread_info = NULL;
     free(fxs);
   }
-  mach_port_deallocate(mach_task_self(),(mach_port_t)tcr);
-  mach_port_destroy(mach_task_self(),(mach_port_t)tcr);
+  mach_port_deallocate(mach_task_self(),TCR_TO_EXCEPTION_PORT(tcr));
+  mach_port_destroy(mach_task_self(),TCR_TO_EXCEPTION_PORT(tcr));
 }
 
 
@@ -2815,7 +2834,7 @@ darwin_exception_cleanup(TCR *tcr)
 Boolean
 mach_suspend_tcr(TCR *tcr)
 {
-  mach_port_t mach_thread = (mach_port_t) tcr->native_thread_id;
+  mach_port_t mach_thread = (mach_port_t)((natural)( tcr->native_thread_id));
   kern_return_t status;
   ExceptionInformation *lss;
   Boolean result = false;
@@ -2839,7 +2858,7 @@ void
 mach_resume_tcr(TCR *tcr)
 {
   ExceptionInformation *xp;
-  mach_port_t mach_thread = (mach_port_t)(tcr->native_thread_id);
+  mach_port_t mach_thread = (mach_port_t)((natural)(tcr->native_thread_id));
   
   lock_acquire(mach_exception_lock_set, 0);
   xp = tcr->suspend_context;
