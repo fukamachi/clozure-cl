@@ -19,7 +19,6 @@
 
 (eval-when (:compile-toplevel :execute)
   (require "ARCH")
-  (defconstant ppc32::nfulltagbits ppc32::ntagbits)
   (require "LISPEQU")
   (require "NUMBER-MACROS")
   (require "NUMBER-CASE-MACRO")
@@ -1705,8 +1704,8 @@
 	 (high (ldb (byte 16 16) ticks)) 
 	 (low (ldb (byte 16 0) ticks)))
     (declare (fixnum high low))
-    (values (the fixnum (ash high (- 16 ppc32::fixnum-shift)))
-            (the fixnum (ash low (- 16 ppc32::fixnum-shift))))))
+    (values (the fixnum (ash high (- 16 target::fixnum-shift)))
+            (the fixnum (ash low (- 16 target::fixnum-shift))))))
 
 
 
@@ -1716,7 +1715,7 @@
      ((and (fixnump number) (> (the fixnum number) 0))
       (locally (declare (fixnum number))
         (if (< number 65536)
-          (mod (%next-random-seed state) number)
+          (fast-mod (%next-random-seed state) number)
           (%bignum-random number state))))
      ((and (typep number 'double-float) (> (the double-float number) 0.0))
       (%float-random number state))
@@ -1728,9 +1727,9 @@
 
 (defun %bignum-random (number &optional state)
   (let* ((bits (+ (integer-length number) 8))
-         (words (ash (the fixnum (+ bits 15)) -4))
-         (long-words (ash (+ words 1) -1))
-         (dividend (%alloc-misc long-words ppc32::subtag-bignum 0))
+         (half-words (ash (the fixnum (+ bits 15)) -4))
+         (long-words (ash (+ half-words 1) -1))
+         (dividend (%alloc-misc long-words target::subtag-bignum 0))
          (16-bit-dividend dividend)
          (index 1))
     (declare (fixnum long-words words words-2 index)
@@ -1740,14 +1739,14 @@
     (loop
       ; This had better inline due to the lie above, or it will error
       (setf (aref 16-bit-dividend index) (%next-random-seed state))
-      (decf words)
-      (when (<= words 0) (return))
+      (decf half-words)
+      (when (<= half-words 0) (return))
       (setf (aref 16-bit-dividend (the fixnum (1- index)))
             (%next-random-seed state))
-      (decf words)
-      (when (<= words 0) (return))
-      (incf  index 2))
-    ; The bignum code expects normalized bignums
+      (decf half-words)
+      (when (<= half-words 0) (return))
+      (incf index 2))
+    ;; The bignum code expects normalized bignums
     (let* ((result (mod dividend number)))
       (if (eq dividend result)
 	(copy-uvector result)
