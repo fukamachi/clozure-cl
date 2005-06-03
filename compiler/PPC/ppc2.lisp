@@ -723,7 +723,7 @@
 
 
 (defun ppc2-bind-lambda (seg lcells req opt rest keys auxen optsupvloc passed-in-regs lexpr &optional inherited
-                             &aux (vloc 0) (numopt (%ilsl 2 (list-length (%car opt))))
+                             &aux (vloc 0) (numopt (list-length (%car opt)))
                              (nkeys (list-length (%cadr keys))) 
                              reg)
   (declare (fixnum vloc))
@@ -746,8 +746,8 @@
         (setq vloc (%i+ vloc *ppc2-target-node-size*)))))
   (when opt
     (if (ppc2-hard-opt-p opt)
-      (setq vloc (apply #'ppc2-initopt seg vloc optsupvloc lcells (nthcdr (- (length lcells) (ash numopt -2)) lcells) opt)
-            lcells (nthcdr (ash numopt -2) lcells))
+      (setq vloc (apply #'ppc2-initopt seg vloc optsupvloc lcells (nthcdr (- (length lcells) numopt) lcells) opt)
+            lcells (nthcdr numopt lcells))
 
       (dolist (var (%car opt))
         (if (memq var passed-in-regs)
@@ -3220,6 +3220,22 @@
                         (! u8->u32 dest src))
                        (#.hard-reg-class-gpr-mode-s8
                         (! s8->s32 dest src))))
+                    (#.hard-reg-class-gpr-mode-u32
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u32
+                         #.hard-reg-class-gpr-mode-s32)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! u16->u32 dest src))                 
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! s16->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))))
                     (#.hard-reg-class-gpr-mode-u16
                      (case src-mode
                        (#.hard-reg-class-gpr-mode-node
@@ -3685,9 +3701,9 @@
                       (ppc2-one-targeted-reg-form seg ptr ptr-reg)
                       (! temp-push-unboxed-word ptr-reg)
                       (ppc2-open-undo $undostkblk))
-                    (with-imm-target () (off-reg :s32)
+                    (with-imm-target () (off-reg :signed-natural)
                       (! fixnum->signed-natural off-reg (ppc2-one-targeted-reg-form seg offset ($ ppc::arg_z)))
-                      (with-imm-target (off-reg) (val-reg :s32)
+                      (with-imm-target (off-reg) (val-reg :signed-natural)
                         (if (eql intval 0)
                           (setq val-reg ppc::rzero)
                           (ppc2-lri seg val-reg intval))
