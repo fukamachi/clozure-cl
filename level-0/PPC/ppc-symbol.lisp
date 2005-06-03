@@ -146,10 +146,7 @@
     (subi len len '1)
     (lbzx nextw str offset)
     (addi offset offset 1)
-    #+ppc32-target
     (rotlwi accum accum 5)
-    #+ppc64-target
-    (rotldi accum accum 5)
     (xor accum accum nextw)
     (bne cr1 @loop8)
     (slri accum accum 5)
