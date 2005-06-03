@@ -1,3 +1,183 @@
+2005-06-03 09:10  gb
+
+	* level-1/version.lisp: Bump: 050603.
+
+2005-06-03 09:09  gb
+
+	* lisp-kernel/darwin/.gdbinit: 32/64-bit versions of some
+	utilities; need to do
+	
+	(gdb) set $ppc64=1
+	
+	manually to enable 64-bit versions.
+
+2005-06-03 09:08  gb
+
+	* level-1/runtime.lisp: No more *LDS*.
+
+2005-06-03 09:06  gb
+
+	* level-1/: ppc-callback-support.lisp, ppc-trap-support.lisp:
+	Target:: package changes, code-vector prefix.
+
+2005-06-03 09:06  gb
+
+	* level-1/: linux-files.lisp, ppc-threads-utils.lisp: Target::
+	package changes.
+
+2005-06-03 09:05  gb
+
+	* level-1/level-1.lisp: No more LDS/*LDS*.
+
+2005-06-03 09:02  gb
+
+	* level-1/l1-utils.lisp: Remove some obsolete/archaic stuff.
+
+2005-06-03 09:01  gb
+
+	* level-1/l1-typesys.lisp: Some target-package/cross-compilation
+	stuff.
+
+2005-06-03 09:01  gb
+
+	* level-1/l1-streams.lisp: Heap-ivector, other target-package
+	fixes.
+
+2005-06-03 09:00  gb
+
+	* level-1/l1-readloop.lisp: Don't use (archaic) LDS macro.
+
+2005-06-03 08:55  gb
+
+	* level-1/l1-pathnames.lisp: Node size when getting command-line
+	arguments.  Hide some pathname creation forms from COMPILE-FILE
+	toplevel processing (may not be necessary now that
+	cross-compilation binds *target-backend*.)
+
+2005-06-03 08:53  gb
+
+	* level-1/l1-numbers.lisp: LDB: look at target-package constants.
+
+2005-06-03 08:52  gb
+
+	* level-1/l1-lisp-threads.lisp: Lots of target-package changes.
+
+2005-06-03 08:51  gb
+
+	* level-1/l1-init.lisp: Use the right target-package symbols to
+	initialize MOST-POSITIVE-FIXNUM and MOST-NEGATIVE-FIXNUM.
+
+2005-06-03 08:50  gb
+
+	* level-1/l1-format.lisp: Hide toplevel MAKE-ARRAY call (in
+	*FORMAT-CHAR-TABLE* initial value); may not be necessary now that
+	cross-compilation binds *target-backend*.
+
+2005-06-03 08:49  gb
+
+	* level-1/l1-files.lisp: Initialize *.fasl-pathname* correctly. 
+	Hide toplevel macro call (in *default-pathname-defaults* initial
+	value); may not be necessary now that cross-compilation binds
+	*target-backend*.
+
+2005-06-03 08:47  gb
+
+	* level-1/l1-error-system.lisp: Remove a (meaningless) RESIDENT
+	declaration.
+
+2005-06-03 08:46  gb
+
+	* level-1/l1-dcode.lisp: %STANDARD-INSTANCE-P uses
+	TARGET-ARCH-CASE.
+
+2005-06-03 08:45  gb
+
+	* level-1/l1-clos-boot.lisp: Fix PPC64 ivector class names.  Lots
+	of formatting changes.
+
+2005-06-03 08:44  gb
+
+	* level-1/l1-boot-2.lisp: More conditionalized pathnames.
+
+2005-06-03 08:43  gb
+
+	* level-1/l1-aprims.lisp: Some ppc64 changes + fixes.
+
+2005-06-03 08:41  gb
+
+	* level-0/PPC/ppc-utils.lisp: CLASS-OF, heap-walking fixes.
+
+2005-06-03 08:40  gb
+
+	* level-0/PPC/ppc-symbol.lisp: Don't bother conditionalizing pname
+	hashes (32 bits is plenty, and we need to rehash after
+	cross-compilation anyhow.)
+
+2005-06-03 08:39  gb
+
+	* level-0/PPC/ppc-pred.lisp: PPC64 EQUAL: recover NFN from FN after
+	recursing.
+
+2005-06-03 08:38  gb
+
+	* level-0/PPC/ppc-numbers.lisp: Fake %NEXT-RANDOM-SEED for ppc64.
+
+2005-06-03 08:37  gb
+
+	* level-0/PPC/ppc-misc.lisp: Lots of fixes in 64-bit code.
+
+2005-06-03 08:35  gb
+
+	* level-0/PPC/ppc-float.lisp: Move some stuff used to do integer
+	truncation elsewhere.
+
+2005-06-03 08:32  gb
+
+	* lib/compile-ccl.lisp: All PPC targets seem to have the same set
+	of level-1 modules.  Compile target-xdev modules when
+	cross-compiling.  Bind *TARGET-BACKEND* when cross-compiling, so
+	that macros that use TARGET-ARCH-CASE or similar dtrt.
+
+2005-06-03 08:30  gb
+
+	* lib/nfcomp.lisp: Comment/formatting changes only.
+
+2005-06-03 08:29  gb
+
+	* lib/number-macros.lisp: Small bignums have two (32-bit) words on
+	PPC64.
+
+2005-06-03 08:28  gb
+
+	* lib/pprint.lisp: No more *FRED-SPECIAL-INDENT-ALIST*.  (Might
+	someday want something similar.)
+
+2005-06-03 08:27  gb
+
+	* lib/prepare-mcl-environment.lisp: Word size issues, target
+	package.
+
+2005-06-03 08:26  gb
+
+	* xdump/: xfasload.lisp, xppcfasload.lisp: Multiple subdirs.
+
+2005-06-03 08:24  gb
+
+	* lisp-kernel/spentry.s: Lots of bug fixes, 64-bit changes.
+
+2005-06-03 08:22  gb
+
+	* lisp-kernel/ppc_print.c: Fix character printing (use
+	charcode_shift), NIL printing on PPC64.
+
+2005-06-03 08:21  gb
+
+	* lisp-kernel/pmcl-kernel.c: Disable EGC on PPC64, until it works.
+
+2005-06-03 08:20  gb
+
+	* lisp-kernel/plbt.c: Print addresses with "l" qualifier.
+
 2005-06-03 08:19  gb
 
 	* lisp-kernel/lisp-exceptions.h: Quiet breakpoint trap, start to
