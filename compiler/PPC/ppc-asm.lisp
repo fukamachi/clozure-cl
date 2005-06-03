@@ -2105,11 +2105,11 @@
 (defppcmacro clrrdi. (ra rs n)
   `(rldicr. ,ra ,rs 0 (- 63 ,n)))
 
-(defppcmacro clrlsldi (ra rs b n)
-  `(rldic ,ra ,rs ,b (- ,b ,n)))
+(defppcmacro clrlsldi (ra rs b sh)
+  `(rldic ,ra ,rs ,sh (- ,b ,sh)))
 
-(defppcmacro clrlsldi. (ra rs b n)
-  `(rldic. ,ra ,rs ,b (- ,b ,n)))
+(defppcmacro clrlsldi. (ra rs b sh)
+  `(rldic. ,ra ,rs ,sh (- ,b ,sh)))
 
 
 ;; Vector unit macros
