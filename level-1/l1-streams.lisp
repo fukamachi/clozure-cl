@@ -148,7 +148,10 @@
 
 
 (defun %make-heap-ivector (subtype size-in-bytes size-in-elts)
-  (with-macptrs ((ptr (malloc (+ size-in-bytes (+ 4 2 7))))) ; 4 for header, 2 for delta, 7 for round up
+  (with-macptrs ((ptr (malloc (+ size-in-bytes
+                                 #+ppc32-target (+ 4 2 7) ; 4 for header, 2 for delta, 7 for round up
+                                 #+ppc64-target (+ 8 2 15) ; 8 for header, 2 for delta, 15 for round up
+                                 ))))
     (let ((vect (fudge-heap-pointer ptr subtype size-in-elts))
           (p (%null-ptr)))
       (%vect-data-to-macptr vect p)
@@ -597,14 +600,14 @@
     (setf (ioblock-charpos ioblock) 0)
     (incf (ioblock-charpos ioblock)))
   (unless (eq (typecode (io-buffer-buffer (ioblock-outbuf ioblock)))
-	      ppc32::subtag-simple-base-string)
+	      target::subtag-simple-base-string)
     (setq char (char-code char)))
   (%ioblock-write-element ioblock char))
 
 (defun %ioblock-write-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
   (when (eq (typecode (io-buffer-buffer (ioblock-outbuf ioblock)))
-	    ppc32::subtag-simple-base-string)
+	    target::subtag-simple-base-string)
     (setq byte (code-char byte)))
   (%ioblock-write-element ioblock byte))
 
@@ -620,7 +623,7 @@
 	 (eof nil)
 	 (inbuf (ioblock-inbuf ioblock))
 	 (buf (io-buffer-buffer inbuf))
-	 (newline (if (eq (typecode buf) ppc32::subtag-simple-base-string)
+	 (newline (if (eq (typecode buf) target::subtag-simple-base-string)
 		    #\newline
 		    (char-code #\newline))))
     (let* ((ch (ioblock-untyi-char ioblock)))
@@ -2056,7 +2059,7 @@
       (%ioblock-binary-read-vector ioblock vector start end))))
 
 (defloadvar *fd-set-size*
-    (ff-call (%kernel-import ppc32::kernel-import-fd-setsize-bytes)
+    (ff-call (%kernel-import target::kernel-import-fd-setsize-bytes)
              :unsigned-fullword))
 
 (defun unread-data-available-p (fd)
@@ -2079,24 +2082,24 @@
 	    (decf avail count)))))))
 
 (defun fd-zero (fdset)
-  (ff-call (%kernel-import ppc32::kernel-import-do-fd-zero)
+  (ff-call (%kernel-import target::kernel-import-do-fd-zero)
            :address fdset
            :void))
 
 (defun fd-set (fd fdset)
-  (ff-call (%kernel-import ppc32::kernel-import-do-fd-set)
+  (ff-call (%kernel-import target::kernel-import-do-fd-set)
            :unsigned-fullword fd
            :address fdset
            :void))
 
 (defun fd-clr (fd fdset)
-  (ff-call (%kernel-import ppc32::kernel-import-do-fd-clr)
+  (ff-call (%kernel-import target::kernel-import-do-fd-clr)
            :unsigned-fullword fd
            :address fdset
            :void))
 
 (defun fd-is-set (fd fdset)
-  (not (= 0 (the fixnum (ff-call (%kernel-import ppc32::kernel-import-do-fd-is-set)
+  (not (= 0 (the fixnum (ff-call (%kernel-import target::kernel-import-do-fd-is-set)
                                  :unsigned-fullword fd
                                  :address fdset
                                  :unsigned-fullword)))))
