@@ -2041,11 +2041,19 @@ Or something. Right? ~s ~s" var varbits))
 
 
 (defun nx-binary-fixnum-op-p (form1 form2 env &optional ignore-result-type)
-  (and (nx-form-typep form1 'fixnum env)
-       (nx-form-typep form2 'fixnum env)
-       (or ignore-result-type
-           (and (nx-trust-declarations env)
-                (subtypep *nx-form-type* 'fixnum)))))
+  (and
+   (target-arch-case
+    (:ppc32 (nx-form-typep form1 '(signed-byte 30) env))
+    (:ppc64 (nx-form-typep form1 '(signed-byte 61) env)))
+   (target-arch-case
+    (:ppc32 (nx-form-typep form2 '(signed-byte 30) env))
+    (:ppc64 (nx-form-typep form2 '(signed-byte 61) env)))
+   (or ignore-result-type
+        (and (nx-trust-declarations env)
+                (target-arch-case
+                 (:ppc32 (subtypep *nx-form-type* '(signed-byte 30)))
+                 (:ppc64 (subtypep *nx-form-type* '(signed-byte 61))))))))
+
 
 (defun nx-binary-natural-op-p (form1 form2 env)
   (target-arch-case
