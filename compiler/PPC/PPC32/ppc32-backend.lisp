@@ -120,5 +120,6 @@
 
 (pushnew *ppc32-backend* *known-backends* :key #'backend-name)
 
+#+ppc32-target
 (require "PPC32-VINSNS")
 (provide "PPC32-BACKEND")
