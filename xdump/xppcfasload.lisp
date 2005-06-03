@@ -86,7 +86,7 @@
    :default-startup-file-name
    #+linuxppc-target "level-1.pfsl"
    #+darwinppc-target "level-1.dfsl"
-   :subdir "ccl:level-0;PPC;"
+   :subdirs '("ccl:level-0;PPC;PPC32;" "ccl:level-0;PPC;")
    :compiler-target-name
    #+linuxppc-target :linuxppc32
    #+darwinppc-target :darwinppc32
@@ -106,7 +106,7 @@
    :default-startup-file-name
    #+linuxppc-target "level-1.p64fsl"
    #+darwinppc-target "level-1.d64fsl"
-   :subdir "ccl:level-0;PPC;"
+   :subdirs '("ccl:level-0;PPC;PPC64;" "ccl:level-0;PPC;")
    :compiler-target-name
    #+linuxppc-target :linuxppc64
    #+darwinppc-target :darwinppc64

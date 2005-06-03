@@ -135,7 +135,7 @@
   udf-code
   default-image-name
   default-startup-file-name
-  subdir
+  subdirs
   compiler-target-name
 )
 
@@ -1435,9 +1435,9 @@
          (*save-doc-strings* t)
          (*fasl-save-doc-strings* t)
 	 (a (target-xcompile-directory target "ccl:level-0;" force))
-	 (b (target-xcompile-directory target
-				       (backend-xload-info-subdir backend)
-				       force)))
+	 (b
+          (dolist (d (backend-xload-info-subdirs backend))
+            (target-xcompile-directory target d force))))
     (or a b)))
 
 (defun cross-compile-level-0 (target &optional (recompile t))
@@ -1471,13 +1471,18 @@
 				      (backend-target-fasl-pathname
 				       compiler-backend))))
 	    (wild-root (merge-pathnames "ccl:level-0;" wild-fasls))
-	    (wild-subdir (merge-pathnames
-			  (backend-xload-info-subdir *xload-target-backend*)
-			  wild-fasls))
+	    (wild-subdirs
+             (mapcar #'(lambda (d)
+                         (merge-pathnames d wild-fasls))
+			  (backend-xload-info-subdirs *xload-target-backend*)))
 	    (*xload-image-file-name* (backend-xload-info-default-image-name *xload-target-backend*)))
        (apply #'xfasload *xload-image-file-name*
-	      (append (sort (directory wild-subdir) #'string< :key #'namestring)
-		      (sort (directory wild-root) #'string< :key #'namestring)))))))
+              (append
+               (apply #'append
+                      (mapcar #'(lambda (d)
+                                  (sort (directory d) #'string< :key #'namestring))
+                              wild-subdirs))
+               (sort (directory wild-root) #'string< :key #'namestring)))))))
 
 (defun cross-xload-level-0 (target &optional (recompile t))
   (with-cross-compilation-target (target)
