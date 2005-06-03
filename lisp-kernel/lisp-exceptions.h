@@ -327,6 +327,11 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 
 #define major_opcode_TDI 2
 #define major_opcode_TWI 3
+#ifdef PPC64
+#define major_opcode_TRI major_opcode_TDI
+#else
+#define major_opcode_TRI major_opcode_TWI
+#endif
 #define major_opcode_ADDI 14
 #define major_opcode_RLWINM 21
 #define major_opcode_X31 31		/* an "X" form instruction; see minor opcode */
@@ -339,6 +344,7 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define major_opcode_FPU_DOUBLE 63
 
 #define minor_opcode_TW 4
+#define minor_opcode_TD 68
 #define minor_opcode_SUBF 40
 #define minor_opcode_STWX 151
 #define minor_opcode_STWUX 183
@@ -357,6 +363,7 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define unmasked_register              0
 
 #define LISP_BREAK_INSTRUCTION 0x7F810808
+#define QUIET_LISP_BREAK_INSTRUCTION 0x7C800008
 
 #ifdef PPC64
 /* tdllt allocptr,allocbase */
