@@ -391,7 +391,7 @@
 	  (require-type integer 'integer)
 	  0)
 	(if (and (bignump integer)
-		 (<= size  (- 31 ppc32::fixnumshift))
+		 (<= size  (- (1- target::nbits-in-word)  target::fixnumshift))
 		 (fixnump position))
 	  (%ldb-fixnum-from-bignum integer size position)
 	  (ash (logand bytespec integer) (- position)))))))
