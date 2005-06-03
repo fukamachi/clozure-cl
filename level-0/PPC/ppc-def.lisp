@@ -24,12 +24,13 @@
     (save-lisp-context)
     (getvheader word-offset codev)
     (header-length len word-offset)
-    ;; This is going to have to pass a lisp object to a foreign function.
-    ;; If we ever have a preemptive scheduler, we'd better hope that
-    ;; WITHOUT-INTERRUPTS refuses to run lisp code from a callback.
+    ;; The idea is that if we GC here, no harm is done (since the GC
+    ;; will do any necessary cache-flushing.)  The idea may be
+    ;; incorrect: if we pass an address that's not mapped anymore,
+    ;; could we fault ?
     (stru sp (- (+ #+linuxppc-target ppc32::eabi-c-frame.minsize
 		   #+darwinppc-target target::c-frame.minsize ppc32::lisp-frame.size)) sp)	; make an FFI frame.
-    (la imm0 ppc32::misc-data-offset codev)
+    (la imm0 target::misc-data-offset codev)
     (str imm0 #+linuxppc-target ppc32::eabi-c-frame.param0 #+darwinppc-target target::c-frame.param0  sp)
     (str len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target target::c-frame.param1 sp)
     (ref-global imm3 kernel-imports)
@@ -164,7 +165,7 @@
   (extract-typecode imm1 new-value)
   (cmpdi cr0 imm1 ppc64::tag-fixnum)
   (cmpdi cr1 imm1 ppc64::subtag-bignum)
-  (srdi imm2 new-value ppc32::fixnumshift)
+  (srdi imm2 new-value ppc64::fixnumshift)
   (beq cr0 @store)
   (beq cr1 @bignum)
   @notu64
@@ -178,7 +179,7 @@
   (cmpdi cr0 imm2 0)
   (beq cr1 @two)
   (bne cr2 @notu64)
-  (lwz imm1 (+ 8 ppc32::misc-data-offset) new-value)
+  (lwz imm1 (+ 8 ppc64::misc-data-offset) new-value)
   (cmpwi cr1 imm1 0)
   (bgt cr0 @notu64)
   (beq cr1 @store)
@@ -223,7 +224,7 @@
 
 (defppclapfunction %%frame-backlink ((p arg_z))
   (check-nargs 1)
-  (lwz arg_z ppc32::lisp-frame.backlink arg_z)
+  (ldr arg_z target::lisp-frame.backlink arg_z)
   (blr))
 
 
@@ -232,28 +233,28 @@
 
 (defppclapfunction %%frame-savefn ((p arg_z))
   (check-nargs 1)
-  (lwz arg_z ppc32::lisp-frame.savefn arg_z)
+  (ldr arg_z target::lisp-frame.savefn arg_z)
   (blr))
 
 (defppclapfunction %cfp-lfun ((p arg_z))
-  (lwz arg_y ppc32::lisp-frame.savefn p)
+  (ldr arg_y target::lisp-frame.savefn p)
   (extract-typecode imm0 arg_y)
-  (cmpwi imm0 ppc32::subtag-function)
-  (lwz loc-pc ppc32::lisp-frame.savelr p)
+  (cmpri imm0 target::subtag-function)
+  (ldr loc-pc target::lisp-frame.savelr p)
   (bne @no)
-  (lwz arg_x ppc32::misc-data-offset arg_y)
+  (ldr arg_x target::misc-data-offset arg_y)
   (sub imm1 loc-pc arg_x)
-  (la imm1 (- ppc32::misc-data-offset) imm1)
+  (la imm1 (- target::misc-data-offset) imm1)
   (getvheader imm0 arg_x)
   (header-length imm0 imm0)
-  (cmplw imm1 imm0)
+  (cmplr imm1 imm0)
   (box-fixnum imm1 imm1)
   (bge @no)
   (vpush arg_y)
   (vpush imm1)
   @go
   (set-nargs 2)
-  (la temp0 8 vsp)
+  (la temp0 '2 vsp)
   (ba .SPvalues)
   @no
   (li imm0 nil)
@@ -266,31 +267,29 @@
 
 (defppclapfunction %%frame-savevsp ((p arg_z))
   (check-nargs 1)
-  (lwz imm0 ppc32::lisp-frame.savevsp arg_z)
-  (rlwinm imm0 imm0 0 0 30)             ; clear lsb
-  (mr arg_z imm0)
+  (ldr arg_z target::lisp-frame.savevsp arg_z)
   (blr))
 
 
 
 
 
-
+#+ppc32-target
 (eval-when (:compile-toplevel :execute)
   (assert (eql ppc32::t-offset #x11)))
 
 (defppclapfunction %uvector-data-fixnum ((uv arg_z))
   (check-nargs 1)
-  (trap-unless-fulltag= arg_z ppc32::fulltag-misc)
-  (la arg_z ppc32::misc-data-offset arg_z)
+  (trap-unless-fulltag= arg_z target::fulltag-misc)
+  (la arg_z target::misc-data-offset arg_z)
   (blr))
 
 (defppclapfunction %catch-top ((tcr arg_z))
   (check-nargs 1)
-  (lwz arg_z ppc32::tcr.catch-top tcr)
-  (cmpwi cr0 arg_z 0)
+  (ldr arg_z target::tcr.catch-top tcr)
+  (cmpri cr0 arg_z 0)
   (bne @ret)
-  (li arg_z ppc32::nil-value)
+  (li arg_z nil)
  @ret
   (blr))
 
@@ -308,7 +307,6 @@
   (check-nargs 1)
   (box-fixnum arg_z x)
   (blr))
-
 
 
 
@@ -355,7 +353,7 @@
   (macptr-ptr imm0 pcptr)
   (ldr loc-pc 0 imm0)
   (sub imm0 loc-pc code-vector)
-  (subi imm0 imm0 ppc32::misc-data-offset)
+  (subi imm0 imm0 target::misc-data-offset)
   (getvheader imm1 code-vector)
   (header-size imm1 imm1)
   (slri imm1 imm1 2)
@@ -968,42 +966,42 @@
 
 (defppclapfunction %get-object ((macptr arg_y) (offset arg_z))
   (check-nargs 2)
-  (trap-unless-typecode= arg_y ppc32::subtag-macptr)
+  (trap-unless-typecode= arg_y target::subtag-macptr)
   (macptr-ptr imm0 arg_y)
-  (trap-unless-lisptag= arg_z ppc32::tag-fixnum imm1)
+  (trap-unless-lisptag= arg_z target::tag-fixnum imm1)
   (unbox-fixnum imm1 arg_z)
-  (lwzx arg_z imm0 imm1)
+  (ldrx arg_z imm0 imm1)
   (blr))
 
 ;; It would be awfully nice if (setf (%get-long macptr offset)
-;;                                   (ash (the fixnum value) ppc32::fixnumshift))
+;;                                   (ash (the fixnum value) target::fixnumshift))
 ;; would do this inline.
 (defppclapfunction %set-object ((macptr arg_x) (offset arg_y) (value arg_z))
   (check-nargs 3)
-  (trap-unless-typecode= arg_x ppc32::subtag-macptr)
+  (trap-unless-typecode= arg_x target::subtag-macptr)
   (macptr-ptr imm0 arg_x)
-  (trap-unless-lisptag= arg_y ppc32::tag-fixnum imm1)
+  (trap-unless-lisptag= arg_y target::tag-fixnum imm1)
   (unbox-fixnum imm1 arg_y)
   (stwx arg_z imm0 imm1)
   (blr))
 
 
 (defppclapfunction %apply-lexpr-with-method-context ((magic arg_x)
-                                                   (function arg_y)
-                                                   (args arg_z))
-  ; Somebody's called (or tail-called) us.
-  ; Put magic arg in ppc::next-method-context (= ppc::temp1).
-  ; Put function in ppc::nfn (= ppc::temp2).
-  ; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;   but preserves ppc::nfn/ppc::next-method-context.
-  ; Jump to the function in ppc::nfn.
+                                                     (function arg_y)
+                                                     (args arg_z))
+  ;; Somebody's called (or tail-called) us.
+  ;; Put magic arg in ppc::next-method-context (= ppc::temp1).
+  ;; Put function in ppc::nfn (= ppc::temp2).
+  ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
+  ;;   but preserves ppc::nfn/ppc::next-method-context.
+  ;; Jump to the function in ppc::nfn.
   (mr ppc::next-method-context magic)
   (mr ppc::nfn function)
   (set-nargs 0)
   (mflr loc-pc)
   (bla .SPspread-lexpr-z)
   (mtlr loc-pc)
-  (lwz temp0 ppc32::misc-data-offset nfn)
+  (ldr temp0 target::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
 
@@ -1023,7 +1021,7 @@
   (mflr loc-pc)
   (bla .SPspreadargZ)
   (mtlr loc-pc)
-  (lwz temp0 ppc32::misc-data-offset nfn)
+  (ldr temp0 target::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
 
@@ -1034,7 +1032,7 @@
   (svref arg_y gf.dispatch-table nfn) ; mention dt first
   (set-nargs 2)
   (svref nfn gf.dcode nfn)
-  (lwz temp0 ppc32::misc-data-offset nfn)
+  (ldr temp0 target::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
 
@@ -1044,7 +1042,7 @@
   (svref arg_x gf.dispatch-table nfn) ; mention dt first
   (set-nargs 3)
   (svref nfn gf.dcode nfn)
-  (lwz temp0 ppc32::misc-data-offset nfn)
+  (ldr temp0 target::misc-data-offset nfn)
   (mtctr temp0)
   (bctr))
 
@@ -1059,49 +1057,48 @@
       (vpush-argregs)
       (vpush nargs)
       (add imm0 vsp nargs)
-      (la imm0 4 imm0)                  ; caller's vsp
+      (la imm0 target::node-size imm0)                  ; caller's vsp
       (bla .SPlexpr-entry)
       (mtlr loc-pc)                     ; return to kernel
       (mr arg_z vsp)                    ; lexpr
       (svref arg_y combined-method.thing nfn) ; thing
       (set-nargs 2)
       (svref nfn combined-method.dcode nfn) ; dcode function
-      (lwz temp0 ppc32::misc-data-offset nfn)
+      (ldr temp0 target::misc-data-offset nfn)
       (mtctr temp0)
       (bctr)))))
 
 
 (defppclapfunction %apply-lexpr-tail-wise ((method arg_y) (args arg_z))
-  ; This assumes
-  ; a) that "args" is a lexpr made via the .SPlexpr-entry mechanism
-  ; b) That the LR on entry to this function points to the lexpr-cleanup
-  ;    code that .SPlexpr-entry set up
-  ; c) That there weren't any required args to the lexpr, e.g. that
-  ;    (%lexpr-ref args (%lexpr-count args) 0) was the first arg to the gf.
-  ; The lexpr-cleanup code will be EQ to either (lisp-global ret1valaddr)
-  ; or (lisp-global lexpr-return1v).  In the former case, discard a frame
-  ; from the cstack (multiple-value tossing).  Restore FN and LR from
-  ; the first frame that .SPlexpr-entry pushed, restore vsp from (+ args 4),
-  ; pop the argregs, and jump to the function.
-  ; d) The lexpr args have not been modified since they were moved by a stack overflow
+  ;; This assumes
+  ;; a) that "args" is a lexpr made via the .SPlexpr-entry mechanism
+  ;; b) That the LR on entry to this function points to the lexpr-cleanup
+  ;;    code that .SPlexpr-entry set up
+  ;; c) That there weren't any required args to the lexpr, e.g. that
+  ;;    (%lexpr-ref args (%lexpr-count args) 0) was the first arg to the gf.
+  ;; The lexpr-cleanup code will be EQ to either (lisp-global ret1valaddr)
+  ;; or (lisp-global lexpr-return1v).  In the former case, discard a frame
+  ;; from the cstack (multiple-value tossing).  Restore FN and LR from
+  ;; the first frame that .SPlexpr-entry pushed, restore vsp from (+
+  ;; args node-size), pop the argregs, and jump to the function.
   (mflr loc-pc)
   (ref-global imm0 ret1valaddr)
-  (cmpw cr2 loc-pc imm0)
-  (lwz nargs 0 args)
+  (cmpr cr2 loc-pc imm0)
+  (ldr nargs 0 args)
   (mr imm5 nargs)
-  (cmpwi cr0 nargs 0)
-  (cmpwi cr1 nargs '2)
+  (cmpri cr0 nargs 0)
+  (cmpri cr1 nargs '2)
   (mr nfn arg_y)
-  (lwz temp0 ppc32::misc-data-offset nfn)
+  (ldr temp0 target::misc-data-offset nfn)
   (mtctr temp0)
   (if (:cr2 :eq)
-    (la sp ppc32::lisp-frame.size sp))
-  (lwz loc-pc ppc32::lisp-frame.savelr sp)
-  (lwz fn ppc32::lisp-frame.savefn sp)
-  (lwz imm0 ppc32::lisp-frame.savevsp sp)
+    (la sp target::lisp-frame.size sp))
+  (ldr loc-pc target::lisp-frame.savelr sp)
+  (ldr fn target::lisp-frame.savefn sp)
+  (ldr imm0 target::lisp-frame.savevsp sp)
   (sub vsp imm0 nargs)
   (mtlr loc-pc)
-  (la sp ppc32::lisp-frame.size sp)
+  (la sp target::lisp-frame.size sp)
   (beqctr)
   (vpop arg_z)
   (bltctr cr1)
@@ -1111,4 +1108,4 @@
   (bctr))
 
 
-; end of ppc-def.lisp
+;;; end of ppc-def.lisp
