@@ -470,40 +470,39 @@ Will differ from *compiling-file* during an INCLUDE")
     (macrolet (fcomp-macrolet body env processing-mode))
     ((%include include) (fcomp-include form env processing-mode))
     (t
-     ;Need to macroexpand to see if get more progn's/eval-when's and so should
-     ;stay at toplevel.  But don't expand if either the evaluator or the
-     ;compiler might not - better safe than sorry... 
-     ; Good advice, but the hard part is knowing which is which.
+     ;;Need to macroexpand to see if get more progn's/eval-when's and so should
+     ;;stay at toplevel.  But don't expand if either the evaluator or the
+     ;;compiler might not - better safe than sorry... 
+     ;; Good advice, but the hard part is knowing which is which.
      (cond 
-      ((and (non-nil-symbol-p sym)
-            (macro-function sym env)            
-	      (not (evaluator-special-form-p sym))
-	      (not (compiler-macro-function sym env))
-            (not (eq sym '%defvar-init))        ;  a macro that we want to special-case
-	      (multiple-value-bind (new win) (macroexpand-1 form env)
-	        (if win (setq form new))
-	        win))
-       (fcomp-form form env processing-mode))
-      ((and (not *fcomp-inside-eval-always*)
-            (memq sym *fcomp-eval-always-functions*))
-       (let* ((*fcomp-inside-eval-always* t))
-         (fcomp-form-1 `(eval-when (:execute :compile-toplevel :load-toplevel) ,form) env processing-mode)))
-      (t
-       (when (or (eq processing-mode :compile-time) (eq processing-mode :compile-time-too))
-         (%compile-time-eval form env))
-       (when (and processing-mode (neq processing-mode :compile-time))
-         (case sym
-           ((%defconstant) (fcomp-load-%defconstant form env))
-           ((%defparameter) (fcomp-load-%defparameter form env))
-           ((%defvar %defvar-init) (fcomp-load-defvar form env))
-           ((%defun) (fcomp-load-%defun form env))
-           ((set-package %define-package)
-            (fcomp-random-toplevel-form form env)
-            (fcomp-compile-toplevel-forms env))
-           ((%macro) (fcomp-load-%macro form env))
-           ;      ((%deftype) (fcomp-load-%deftype form))
-           ;      ((define-setf-method) (fcomp-load-define-setf-method form))
-           (t (fcomp-random-toplevel-form form env)))))))))
+       ((and (non-nil-symbol-p sym)
+             (macro-function sym env)            
+             (not (compiler-macro-function sym env))
+             (not (eq sym '%defvar-init)) ;  a macro that we want to special-case
+             (multiple-value-bind (new win) (macroexpand-1 form env)
+               (if win (setq form new))
+               win))
+        (fcomp-form form env processing-mode))
+       ((and (not *fcomp-inside-eval-always*)
+             (memq sym *fcomp-eval-always-functions*))
+        (let* ((*fcomp-inside-eval-always* t))
+          (fcomp-form-1 `(eval-when (:execute :compile-toplevel :load-toplevel) ,form) env processing-mode)))
+       (t
+        (when (or (eq processing-mode :compile-time) (eq processing-mode :compile-time-too))
+          (%compile-time-eval form env))
+        (when (and processing-mode (neq processing-mode :compile-time))
+          (case sym
+            ((%defconstant) (fcomp-load-%defconstant form env))
+            ((%defparameter) (fcomp-load-%defparameter form env))
+            ((%defvar %defvar-init) (fcomp-load-defvar form env))
+            ((%defun) (fcomp-load-%defun form env))
+            ((set-package %define-package)
+             (fcomp-random-toplevel-form form env)
+             (fcomp-compile-toplevel-forms env))
+            ((%macro) (fcomp-load-%macro form env))
+                                        ;      ((%deftype) (fcomp-load-%deftype form))
+                                        ;      ((define-setf-method) (fcomp-load-define-setf-method form))
+            (t (fcomp-random-toplevel-form form env)))))))))
 
 (defun fcomp-form-list (forms env processing-mode)
   (dolist (form forms) (fcomp-form form env processing-mode)))
@@ -760,12 +759,13 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fcomp-random-toplevel-form (form env)
   (unless (constantp form)
-    (unless (or (atom form) (compiler-special-form-p (%car form)))
-      ;Pre-compile any lfun args.  This is an efficiency hack, since compiler
-      ;reentering itself for inner lambdas tends to be more expensive than
-      ;top-level compiles.
-      ;This assumes the form has been macroexpanded, or at least none of the
-      ;non-evaluated macro arguments could look like functions.
+    (unless (or (atom form)
+                (compiler-special-form-p (%car form)))
+      ;;Pre-compile any lfun args.  This is an efficiency hack, since compiler
+      ;;reentering itself for inner lambdas tends to be more expensive than
+      ;;top-level compiles.
+      ;;This assumes the form has been macroexpanded, or at least none of the
+      ;lnon-evaluated macro arguments could look like functions.
       (let (lfun (args (%cdr form)))
         (while args
           (multiple-value-bind (arg win) (fcomp-transform (%car args) env)
