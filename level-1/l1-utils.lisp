@@ -30,16 +30,13 @@
 
 (setq %lisp-system-fixups% nil)
 
-(setq *lfun-names* (make-hash-table :test 'eq :weak t))
-
-
 
 (setq *warn-if-redefine-kernel* nil)
 
 (setq *warn-if-redefine* nil)
 (setq *record-source-file* t)
 
-; Kluge for record-source-file bootstrapping
+;;; Kludge for record-source-file bootstrapping
 
 ; Set T by l1-boot.lisp
 (setq *level-1-loaded* nil)
@@ -331,25 +328,18 @@
 	       %vreflet ppc-lap-function sparc-lap-function fbind))
   (%macro-have sym sym))
 
-
-
-(locally (declare (special *fred-special-indent-alist*))
-   (setq *fred-special-indent-alist* nil))
   
-(defun %macro (named-fn &optional doc &aux body-pos arglist)
+(defun %macro (named-fn &optional doc &aux arglist)
   ; "doc" is either a string or a list of the form :
   ; (doc-string-or-nil . (body-pos-or-nil . arglist-or-nil))
   (if (listp doc)
-    (setq body-pos (cadr doc)
-          arglist (cddr doc)
+    (setq arglist (cddr doc)
           doc (car doc)))
   (let* ((name (function-name named-fn)))
     (record-source-file name 'function)
     (set-macro-function name named-fn)
     (when (and doc *save-doc-strings*)
       (set-documentation name 'function doc))
-    (when body-pos
-      (setf (assq name *fred-special-indent-alist*) body-pos))
     (when arglist
       (record-arglist name arglist))
     (when *fasload-print* (format t "~&~S~%" name))
@@ -599,10 +589,7 @@
   (or (eq sym 'quote)
       (if (memq sym *nx1-compiler-special-forms*) t)))
 
-(defun evaluator-special-form-p (sym)
-  (declare (ignore sym))
- '(get sym 'special-in-evaluator)
- nil)
+
 
 (defparameter *nx-known-declarations* ())
 (defparameter *nx-proclaimed-inline* ())
@@ -806,9 +793,7 @@ vector
       (if (self-evaluating-p form) form
 	(report-bad-arg form '(satisfies constantp))))))
 
-; SETQ'd above before we could DEFVAR.
-(defvar *fred-special-indent-alist*)
-; avoid hanging onto beezillions of pathnames
+;;; avoid hanging onto beezillions of pathnames
 (defvar *last-back-translated-name* nil)
 (defvar *lfun-names*)
 
@@ -822,7 +807,7 @@ vector
     (setf (gethash name %lambda-lists%) args)))
 
 
-;Support the simple case of defsetf.
+;;;Support the simple case of defsetf.
 (%fhave 'store-setf-method
         (qlfun bootstrapping-store-setf-method (name fn &optional doc)
           (declare (ignore doc))
@@ -832,79 +817,7 @@ vector
           (get name 'bootstrapping-setf-method)))
 
 
-;;; Lisp Development System/Application Module Loading
-
-(defvar *lds* t
-  "True to load all Lisp Development System modules")
-(defvar *app-optional-modules* nil
-  "Optional modules to load into application and keys to control contents")
-(defvar *app-modules* nil
-  "Custom modules to load into application")
-
-#| *app-modules* keys:
-:unbind-macros
-:unintern-macros
-:unbind-constants
-:unintern-constants
-:clear-vars
-|#
-
-; (lds <lds-form>)
-; (lds <lds-form> <else-form> ...)
-; (lds <lds-form> :module <module(s)>)
-; (lds <lds-form> :module <module(s)> <else-form> ...)
-
-(defmacro lds (form &rest base-forms &aux modules)
-  (when (eq (first base-forms) :module)
-    (setq modules (second base-forms)
-          base-forms (cddr base-forms)))
-  `(if ,(if (null modules)
-          '*lds*
-          `(or *lds* (,(if (listp modules) 'intersection 'memq)
-                      ',modules *app-modules*)))
-     ,form
-     ,@(if base-forms `((progn ,@base-forms)))))
-
-(defun lds-key-aux (test keys forms)
-  `(,test (,(if (listp keys) 'intersection 'memq)
-           ',keys *app-modules*)
-          ,@forms))
-
-(defmacro lds-key (keys &rest forms)
-  (lds-key-aux 'when keys forms))
-
-(defmacro lds-not-key (keys &rest forms)
-  (lds-key-aux 'unless keys forms))
-
-#| tests
-(lds (print "included"))
-(lds (print "included")
-     (print "other") (print "another"))
-(lds (print "included") :module :eval)
-(lds (print "included") :module :eval
-     (print "other") (print "another"))
-(lds (print "included") :module (:eval :compiler))
-(lds (print "included") :module (:eval :compiler)
-     (print "other") (print "another"))
-
-(setq *lds* nil)
-(setq *lds* t)
-(setq *app-modules* nil)
-(setq *app-modules* '(:eval))
-(setq *app-modules* '(:compiler))
-
-(lds-key :uno (foo))
-(lds-key :uno (foo)(bar))
-(lds-key (:uno :dos) (foo))
-(lds-key (:uno :dos) (foo) (bar))
-(lds-not-key :uno (foo))
-(lds-not-key :uno (foo) (bar))
-(lds-not-key (:uno :dos) (foo))
-(lds-not-key (:uno :dos) (foo) (bar))
-|#
-
-
-; defmacro uses (setf (assq ...) ...) for &body forms.
+;;; defmacro uses (setf (assq ...) ...) for &body forms.
 (defun adjoin-assq (indicator alist value)
   (let ((cell (assq indicator alist)))
     (if cell 
@@ -935,17 +848,17 @@ vector
 
 ;;;;;FUNCTION BINDING Functions
 
-; A symbol's entrypoint contains:
-;  1) something tagged as $t_lfun if the symbol is
-;     not fbound as a macro or special form;
-;  2) a cons, otherwise, where the cdr is a fixnum
-;     whose value happens to be the same bit-pattern
-;     as a "jsr_subprim $sp-apply-macro" instruction.
-;     The car of this cons is either:
-;     a) a function -> macro-function;
-;     b) a symbol: special form not redefined as a macro.
-;     c) a cons whose car is a function -> macro function defined
-;        on a special form.
+;;; A symbol's entrypoint contains:
+;;;  1) something tagged as $t_lfun if the symbol is
+;;;     not fbound as a macro or special form;
+;;;  2) a cons, otherwise, where the cdr is a fixnum
+;;;     whose value happens to be the same bit-pattern
+;;;     as a "jsr_subprim $sp-apply-macro" instruction.
+;;;     The car of this cons is either:
+;;;     a) a function -> macro-function;
+;;;     b) a symbol: special form not redefined as a macro.
+;;;     c) a cons whose car is a function -> macro function defined
+;;;        on a special form.
 
 
 
