@@ -149,7 +149,10 @@
 	    (names))
     (dolist (spec specs)
       (let ((name (first spec)))
-	(binds `(,name (allocate-typed-vector :bignum 1)))
+	(binds `(,name (allocate-typed-vector :bignum
+                        ,(target-arch-case (:ppc32 1)
+                                           (:ppc64 2)))))
+                        
 	(names name)
 	(let ((init (second spec)))
 	  (when init
