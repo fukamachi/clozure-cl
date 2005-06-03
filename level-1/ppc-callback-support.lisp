@@ -20,12 +20,12 @@
 
 
 
-;; This is machine-dependent (it conses up a piece of "trampoline" code
-;; which calls a subprim in the lisp kernel.)
+;;; This is machine-dependent (it conses up a piece of "trampoline" code
+;;; which calls a subprim in the lisp kernel.)
 (defun make-callback-trampoline (index &optional monitor-exception-ports)
   (declare (ignorable monitor-exception-ports))
   (macrolet ((ppc-lap-word (instruction-form)
-               (uvref (uvref (compile nil `(lambda (&lap 0) (ppc-lap-function () ((?? 0)) ,instruction-form))) 0) 0)))
+               (uvref (uvref (compile nil `(lambda (&lap 0) (ppc-lap-function () ((?? 0)) ,instruction-form))) 0) #+ppc32-host 0 #+ppc64-host 1)))
     (let* ((subprim
 	    #+eabi-target
 	     #.(subprim-name->offset '.SPeabi-callback)
@@ -41,7 +41,7 @@
                                    
 	    (%get-long p 8) (logior subprim
                                     (ppc-lap-word (ba ??))))
-      (ff-call (%kernel-import #.ppc32::kernel-import-makedataexecutable) 
+      (ff-call (%kernel-import #.target::kernel-import-makedataexecutable) 
                :address p 
                :unsigned-fullword 12
                :void)
