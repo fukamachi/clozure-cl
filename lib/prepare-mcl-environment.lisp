@@ -22,11 +22,11 @@
 (defun %reset-outermost-binding (symbol value)
   (let* ((svar (find-svar symbol)))
     (when svar
-      (let* ((idx (%svref svar ppc32::svar.idx-cell)))
+      (let* ((idx (%svref svar target::svar.idx-cell)))
         (do-db-links (db var)
           (when (eq var idx)
-            (setf (%fixnum-ref db 8) value))))))
-  (setf (uvref symbol ppc32::symbol.vcell-cell) value))
+            (setf (%fixnum-ref db (* 2 target::node-size)) value))))))
+  (setf (uvref symbol target::symbol.vcell-cell) value))
 
 (defun freeze-current-definitions ()
   ;; Set the frozen bits so that redefine-kernel-function
