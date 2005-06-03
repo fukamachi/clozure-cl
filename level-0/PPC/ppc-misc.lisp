@@ -160,54 +160,58 @@
   (b @done))
 
 #+ppc64-target
-(defppclapfunction %copy-ivector-to-ivector ((src 8) 
-                                             (src-byte-offset 0) 
+(defppclapfunction %copy-ivector-to-ivector ((src-offset 8) 
+                                             (src-byte-offset-offset 0) 
                                              (dest arg_x)
                                              (dest-byte-offset arg_y)
                                              (nbytes arg_z))
-  (subi nbytes nbytes '1)
-  (ld imm0 src-byte-offset vsp)
-  (cmpdi nbytes 0 )
-  (ld temp0 src vsp)
-  (la vsp '2 vsp)
-  (cmpd cr1 temp0 dest)
-  (cmpdi cr2 src-byte-offset dest-byte-offset)
-  (la imm0 target::misc-data-offset imm0)
-  (la imm1 target::misc-data-offset dest-byte-offset)
-  (bne cr1 @test)
-  ;; Maybe overlap, or maybe nothing to do.
-  (beq cr2 @done)                       ; same vectors, same offsets
-  (blt cr2 @back)                       ; copy backwards, avoid overlap
-  (b @test)
-  @loop
-  (subi nbytes nbytes '1)
-  (lbzx imm3 temp0 imm0)
-  (cmpdi nbytes 0)
-  (addi imm0 imm0 1)
-  (stbx imm3 dest imm1)
-  (addi imm1 imm1 1)
-  @test
-  (bge @loop)
-  @done
-  (mr arg_z dest)
-  (blr)
-  @back
-  ;; nbytes was predecremented above
-  (unbox-fixnum imm2 nbytes)
-  (add imm0 imm2 imm0)
-  (add imm1 imm2 imm1)
-  (b @back-test)
-  @back-loop
-  (subi nbytes nbytes '1)
-  (lbzx imm3 temp0 imm0)
-  (cmpdi nbytes 0)
-  (subi imm0 imm0 1)
-  (stbx imm3 dest imm1)
-  (subi imm1 imm1 1)
-  @back-test
-  (bge @back-loop)
-  (mr arg_z dest)
-  (blr))
+  (let ((src temp0)
+        (src-byte-offset imm0))
+    (subi nbytes nbytes '1)
+    (ld src-byte-offset src-byte-offset-offset vsp)
+    (cmpdi nbytes 0 )
+    (ld src src-offset vsp)
+    (la vsp '2 vsp)
+    (cmpd cr1 src dest)
+    (cmpdi cr2 src-byte-offset dest-byte-offset)
+    (unbox-fixnum src-byte-offset src-byte-offset)
+    (unbox-fixnum imm1 dest-byte-offset)
+    (la imm0 target::misc-data-offset src-byte-offset)
+    (la imm1 target::misc-data-offset imm1)
+    (bne cr1 @test)
+    ;; Maybe overlap, or maybe nothing to do.
+    (beq cr2 @done)                       ; same vectors, same offsets
+    (blt cr2 @back)                       ; copy backwards, avoid overlap
+    (b @test)
+    @loop
+    (subi nbytes nbytes '1)
+    (lbzx imm3 src imm0)
+    (cmpdi nbytes 0)
+    (addi imm0 imm0 1)
+    (stbx imm3 dest imm1)
+    (addi imm1 imm1 1)
+    @test
+    (bge @loop)
+    @done
+    (mr arg_z dest)
+    (blr)
+    @back
+    ;; nbytes was predecremented above
+    (unbox-fixnum imm2 nbytes)
+    (add imm0 imm2 imm0)
+    (add imm1 imm2 imm1)
+    (b @back-test)
+    @back-loop
+    (subi nbytes nbytes '1)
+    (lbzx imm3 src imm0)
+    (cmpdi nbytes 0)
+    (subi imm0 imm0 1)
+    (stbx imm3 dest imm1)
+    (subi imm1 imm1 1)
+    @back-test
+    (bge @back-loop)
+    (mr arg_z dest)
+    (blr)))
   
 
 (defppclapfunction %copy-gvector-to-gvector ((src (* 1 target::node-size))
@@ -471,7 +475,7 @@
   (str imm1 target::area.active temp0)
   (str imm1 target::tcr.save-vsp tcr)
   @have-room
-  (stw fun 0 imm1)
+  (str fun 0 imm1)
   (blr))
 
 ;;; This needs to be done out-of-line, to handle EGC memoization.
@@ -865,14 +869,14 @@
 (defppclapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
   (check-nargs 3)
   (macptr-ptr imm1 ptr) ; address in macptr
-  (addi imm0 imm1 9)     ; 2 for delta + 7 for alignment
-  (clrrdi imm0 imm0 3)   ; Clear low three bits to align
+  (addi imm0 imm1 17)     ; 2 for delta + 15 for alignment
+  (clrrdi imm0 imm0 4)   ; Clear low four bits to align
   (subf imm1 imm1 imm0)  ; imm1 = delta
   (sth imm1 -2 imm0)     ; save delta halfword
   (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
   (sldi imm2 len (- target::num-subtag-bits target::fixnum-shift))
   (or imm1 imm2 imm1)
-  (stw imm1 0 imm0)       ; store subtype & length
+  (std imm1 0 imm0)       ; store subtype & length
   (addi arg_z imm0 target::fulltag-misc) ; tag it, return it
   (blr))
 
