@@ -65,7 +65,7 @@
          (bufptr (%get-ptr buffer)))
     (declare (dynamic-extent bufptr)
              (type macptr buffer bufptr pb))
-    (%setf-macptr bufptr (%inc-ptr buffer 4))
+    (%setf-macptr bufptr (%inc-ptr buffer target::node-size))
     (setf (%get-ptr buffer) bufptr)
     (let* ((n (fd-read fd bufptr $fasl-buf-len)))
       (declare (fixnum n))
@@ -130,8 +130,7 @@
                 (%incf-ptr bufptr nthere)))))))
         
 
-(defun %fasl-vreadstr (s &optional ignore)
-  (declare (fixnum subtype) (ignore ignore))
+(defun %fasl-vreadstr (s)
   (let* ((nbytes (%fasl-read-count s))
          (copy t)
          (n nbytes)
@@ -144,7 +143,6 @@
     (values str n copy)))
 
 (defun %fasl-copystr (str len)
-  ; IS THIS OK?
   (declare (fixnum len))
   (let* ((new (make-string len :element-type 'base-char)))
     (declare (simple-base-string new))
@@ -181,12 +179,12 @@
 (defun %fasl-vintern (s package)
   (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
     (with-package-lock (package)
-     (multiple-value-bind (symbol access internal-offset external-offset)
-                          (%find-symbol str len package)
-       (unless access
-         (unless new-p (setq str (%fasl-copystr str len)))
-         (setq symbol (%add-symbol str package internal-offset external-offset)))
-       (%epushval s symbol)))))
+      (multiple-value-bind (symbol access internal-offset external-offset)
+          (%find-symbol str len package)
+        (unless access
+          (unless new-p (setq str (%fasl-copystr str len)))
+          (setq symbol (%add-symbol str package internal-offset external-offset)))
+        (%epushval s symbol)))))
 
 (defun %find-pkg (name &optional (len (length name)))
   (declare (fixnum len)
@@ -254,11 +252,21 @@
   (let* ((arch (%fasl-expr s)))
     (declare (fixnum arch))
     #+linuxppc-target
-    (unless (= arch 1) (error "Not a LinuxPPC fasl file : ~s" (faslstate.faslfname s)))
-    #+sparc-target
-    (unless (= arch 16) (error "Not a SPARC fasl file : ~s" (faslstate.faslfname s)))
+    (progn
+      #+ppc32-target
+      (unless (= arch 1)
+        (error "Not a LinuxPPC32 fasl file : ~s" (faslstate.faslfname s)))
+      #+ppc64-target
+      (unless (= arch (logior 64 1))
+        (error "Not a LinuxPPC64 fasl file : ~s" (faslstate.faslfname s))))
     #+darwinppc-target
-    (unless (= arch 3) (error "Not a Darwin PPC fasl file : ~s" (faslstate.faslfname s)))
+    (progn
+      #+ppc32-target
+      (unless (= arch 3)
+        (error "Not a DarwinPPC32 fasl file : ~s" (faslstate.faslfname s)))
+      #+ppc64-target
+      (unless (= arch (logior 64 3))
+        (error "Not a DarwinPPC64 fasl file : ~s" (faslstate.faslfname s))))
     ))
 
 
@@ -411,7 +419,14 @@
   (fasl-read-ivector s target::subtag-bit-vector))
 
 (deffaslop $fasl-bignum32 (s)
-  (fasl-read-ivector s target::subtag-bignum))
+  (let* ((element-count (%fasl-read-count s))
+         (size-in-bytes (* element-count 4))
+         (num (%alloc-misc element-count target::subtag-bignum)))
+    (declare (fixnum subtag element-count size-in-bytes))
+    (%fasl-read-n-bytes s num 0 size-in-bytes)
+    (setq num (%normalize-bignum-2 t num))
+    (%epushval s num)
+    num))
 
 (deffaslop $fasl-single-float-vector (s)
   (fasl-read-ivector s target::subtag-single-float-vector))
@@ -563,7 +578,10 @@
         (if (>= (decf count posoffset ) 0)
           (progn
             (setf (faslstate.bufcount s) posoffset)
-            (incf (%get-long (faslstate.iobuffer s)) count)
+            (incf #+ppc32-target (%get-long (faslstate.iobuffer s))
+                  #+ppc64-target (%%get-signed-longlong (faslstate.iobuffer s)
+                                                        0)
+                  count)
             (return-from %simple-fasl-set-file-pos nil)))))
     (progn
       (setf (faslstate.bufcount s) 0)
@@ -581,14 +599,14 @@
 	 (err 0))
     (declare (fixnum fd))
     (if (>= fd 0)
-	(if (< (fd-lseek fd 0 #$SEEK_END) 4)
-	    (setq err $xnotfasl)
-	  (progn
-	    (setq err 0)
-	    (setf (faslstate.bufcount s) 0
-		  (faslstate.faslfd s) fd)
-	    (fd-lseek fd 0 #$SEEK_SET)
-	    (multiple-value-setq (ok err) (%fasl-check-header s))))
+      (if (< (fd-lseek fd 0 #$SEEK_END) 4)
+        (setq err $xnotfasl)
+        (progn
+          (setq err 0)
+          (setf (faslstate.bufcount s) 0
+                (faslstate.faslfd s) fd)
+          (fd-lseek fd 0 #$SEEK_SET)
+          (multiple-value-setq (ok err) (%fasl-check-header s))))
       (setq err fd))
     (unless (eql err 0) (setf (faslstate.faslerr s) err))
     ok))
@@ -642,9 +660,7 @@
 (defun %fasl-read-n-bytes (s ivector byte-offset n)
   (funcall (faslapi.fasl-read-n-bytes *fasl-api*) s ivector byte-offset n))
 
-(defun %fasload (string &optional (table *fasl-dispatch-table*)
-                        start-faslops-function
-                        stop-faslops-function)
+(defun %fasload (string &optional (table *fasl-dispatch-table*))
   ;;(dbg string) 
   (when (and *%fasload-verbose*
 	     (not *load-verbose*))
@@ -669,7 +685,7 @@
     (setf (faslstate.faslfname s) string)
     (setf (faslstate.fasldispatch s) table)
     (setf (faslstate.faslversion s) 0)
-    (%stack-block ((buffer (+ 4 $fasl-buf-len)))
+    (%stack-block ((buffer (+ target::node-size $fasl-buf-len)))
       (setf (faslstate.iobuffer s) buffer)
       (%fasl-init-buffer s)
       (let* ((parse-string (make-string 255 :element-type 'base-char)))
@@ -678,18 +694,14 @@
               (faslstate.faslstr s) parse-string)
 	(unwind-protect
           (when (%fasl-open string s)
-	    (let* ((nblocks (%fasl-read-word s))
-		   (*pfsl-library-base* nil)
-		   (*pfsl-library* nil))
+	    (let* ((nblocks (%fasl-read-word s)))
 	      (declare (fixnum nblocks))
-	      (declare (special *pfsl-library-base* *pfsl-library*))
 	      (unless (= nblocks 0)
 		(let* ((pos (%fasl-get-file-pos s)))
 		  (dotimes (i nblocks)
 		    (%fasl-set-file-pos s pos)
 		    (%fasl-set-file-pos s (%fasl-read-long s))
 		    (incf pos 8)
-		    (when start-faslops-function (funcall start-faslops-function s))
 		    (let* ((version (%fasl-read-word s)))
 		      (declare (fixnum version))
 		      (if (or (> version (+ #xff00 $fasl-vers))
@@ -704,9 +716,7 @@
 			  (do* ((op (%fasl-read-byte s) (%fasl-read-byte s)))
 			       ((= op $faslend))
 			    (declare (fixnum op))
-			    (%fasl-dispatch s op))
-			  (when stop-faslops-function (funcall stop-faslops-function s))
-			  ))))))))
+			    (%fasl-dispatch s op))))))))))
 	  (%fasl-close s))
 	(let* ((err (faslstate.faslerr s)))
 	  (if err
@@ -904,6 +914,9 @@
 
      (dolist (f (prog1 *xload-cold-load-functions* (setq *xload-cold-load-functions* nil)))
         (funcall f))
+     (dolist (p %all-packages%)
+       (%resize-htab (pkg.itab p))
+       (%resize-htab (pkg.etab p)))
      (dolist (f (prog1 *xload-cold-load-documentation* (setq *xload-cold-load-documentation* nil)))
        (apply 'set-documentation f))
      ;; Can't bind any specials until this happens
