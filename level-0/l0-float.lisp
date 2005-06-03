@@ -21,7 +21,7 @@
   (require :number-case-macro) 
 )
 
-; used by float reader
+;;; used by float reader
 (defun make-float-from-fixnums (hi lo exp sign &optional result)
   ;(require-null-or-double-float-sym result)
   ; maybe nuke all these require-types?
@@ -33,6 +33,7 @@
     (%make-float-from-fixnums the-float hi lo exp sign)
     the-float))
 
+
 #+ppc32-target
 (defun make-short-float-from-fixnums (significand biased-exp sign &optional result)
   (%make-short-float-from-fixnums (or result (%make-sfloat)) significand biased-exp sign))
@@ -40,12 +41,10 @@
 #+ppc64-target
 (defun make-short-float-from-fixnums (significand biased-exp sign)
   (host-single-float-from-unsigned-byte-32
-   (dpb sign (byte 1 31)
-        (dpb biased-exp (byte IEEE-single-float-exponent-width
-                              IEEE-single-float-exponent-offset)
-             (ldb (byte IEEE-single-float-mantissa-width
-                        IEEE-single-float-mantissa-offset)
-                  significand)))))
+   (logior
+    (ash sign 31)
+    (logior (ash biased-exp IEEE-single-float-exponent-offset)
+            significand))))
 
 (defun %double-float-sign (n)
   (< (the double-float n) 0.0d0))
@@ -477,7 +476,7 @@
                    (if minusp 1 0)))
               ; den > num - exp negative
               (progn  
-                (float-rat-neg-exp num den (if minusp -1 1) result t)))))))))
+                (float-rat-neg-exp num den (if minusp -1 1) nil t)))))))))
 
 
 #+ppc32-target
@@ -746,7 +745,7 @@
      #+ppc64-target
      (if (minusp x)
        (complex (%single-float-log (%short-float-abs x) #.(coerce pi 'single-float)))
-       (%single-float-log x))
+       (%single-float-log (%short-float x)))
      )))
 
 
