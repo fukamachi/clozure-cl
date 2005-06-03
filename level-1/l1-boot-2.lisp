@@ -210,8 +210,14 @@
       (bin-load-provide "CCL-EXPORT-SYMS" "ccl-export-syms")
       (l1-load-provide "VERSION" "version")
       (progn  ; Shouldn't need this at load time ...
-	(%fasload #+linuxppc-target "./library/lispequ.pfsl"
-		  #+darwinppc-target "./library/lispequ.dfsl")
+	(%fasload #+linuxppc-target
+                  (progn
+                    #+ppc32-target "./library/lispequ.pfsl"
+                    #+ppc64-target "./library/lispequ.p64fsl")
+                  #+darwinppc-target
+                  (progn
+                    #+ppc32-target  "./library/lispequ.dfsl"
+                    #+ppc64-target  "./library/lispequ.d64fsl"))
 	(provide "LISPEQU"))
       )
     (setq *%fasload-verbose* nil)
