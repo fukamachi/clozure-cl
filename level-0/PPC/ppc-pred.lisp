@@ -319,16 +319,13 @@
   (set-nargs 2)
   (bla .SPjmpsym)
   (cmpdi arg_z nil)
+  (mr nfn fn)
   (restore-full-lisp-context)
   (vpop y)
   (vpop x)
   (bne @win)
   (set-nargs 2)
   (ld fname 'hairy-equal nfn)
-  (ba .SPjmpsym)
-  @eql
-  (set-nargs 2)
-  (ld fname 'eql nfn)
   (ba .SPjmpsym))
 
 
