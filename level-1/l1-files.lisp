@@ -43,7 +43,9 @@
   "the TRUENAME of the file that LOAD is currently loading")
 
 
-(defparameter *default-pathname-defaults* (%cons-pathname nil nil nil))
+(defparameter *default-pathname-defaults*
+  (let* ((hide-from-compile-file (%cons-pathname nil nil nil)))
+    hide-from-compile-file))
 
 ;Right now, the only way it's used is that an explicit ";" expands into it.
 ;Used to merge with it before going to ROM.  Might be worth to bring that back,
@@ -53,11 +55,13 @@
 ;These come in useful...  We should use them consistently and then document them,
 ;thereby earning the eternal gratitude of any users who find themselves with a
 ;ton of "foo.CL" files...
-(defparameter *.fasl-pathname* (%cons-pathname nil nil
-					       #+linuxppc-target "pfsl"
-					       #+darwinppc-target "dfsl"
-					       #+sparc-target "sfsl"
-					       #-(or sparc-target ppc-target) "fasl"))
+(defparameter *.fasl-pathname*
+  (%cons-pathname nil nil
+                  #+(and linuxppc-target ppc32-target) "pfsl"
+                  #+(and linuxppc-target ppc64-target) "p64fsl"
+                  #+(and darwinppc-target ppc32-target) "dfsl"
+                  #+(and darwinppc-target ppc64-target) "d64fsl"))
+
 (defparameter *.lisp-pathname* (%cons-pathname nil nil "lisp"))
 
 (defun if-exists (if-exists filename &optional (prompt "Create ..."))
