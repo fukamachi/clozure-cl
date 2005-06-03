@@ -313,7 +313,7 @@
           temp
           (- 64 (- ppc64::num-subtag-bits ppc64::fixnumshift))
           (- 63 ppc64::fixnumshift))
-  (clrldi dest dest (- ppc64::num-subtag-bits ppc64::fixnumshift)))
+  (clrldi dest temp (- ppc64::num-subtag-bits ppc64::fixnumshift)))
 
 (define-ppc64-vinsn check-misc-bound (()
 				      ((idx :imm)
@@ -393,7 +393,7 @@
 (define-ppc64-vinsn  %slot-ref (((dest :lisp))
 				((instance (:lisp (:ne dest)))
 				 (index :lisp))
-				((scaled :u32)))
+				((scaled :s64)))
   (la scaled ppc64::misc-data-offset index)
   (ldx dest instance scaled)
   (tdeqi dest ppc64::slot-unbound-marker))
@@ -597,7 +597,7 @@
                                        ((val :address)
                                         (src :address)
                                         (index :s16const)))
-  (std val src index))
+  (std val index src))
 
 (define-ppc64-vinsn mem-set-address (()
                                      ((val :address)
@@ -702,31 +702,22 @@
 (define-ppc64-vinsn extract-tag (((tag :u8)) 
 				 ((object :lisp)) 
 				 ())
-  (clrlwi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits)))
 
 (define-ppc64-vinsn extract-tag-fixnum (((tag :imm))
 					((object :lisp)))
-  (rlwinm tag 
-          object 
-          ppc64::fixnum-shift 
-          (- ppc64::nbits-in-word 
-             (+ ppc64::nlisptagbits ppc64::fixnum-shift)) 
-          (- ppc64::least-significant-bit ppc64::fixnum-shift)))
+  (clrlsldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits) ppc64::fixnum-shift))
 
 (define-ppc64-vinsn extract-fulltag (((tag :u8))
 				     ((object :lisp))
 				     ())
-  (clrlwi tag object (- ppc64::nbits-in-word ppc64::ntagbits)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits)))
 
 
 (define-ppc64-vinsn extract-fulltag-fixnum (((tag :imm))
 					    ((object :lisp)))
-  (rlwinm tag 
-          object 
-          ppc64::fixnum-shift 
-          (- ppc64::nbits-in-word 
-             (+ ppc64::ntagbits ppc64::fixnum-shift)) 
-          (- ppc64::least-significant-bit ppc64::fixnum-shift)))
+  (clrlsldi tag object (- ppc64::nbits-in-word ppc64::ntagbits) ppc64::fixnum-shift))
+
 
 (define-ppc64-vinsn extract-typecode (((code :u8))
 				      ((object :lisp))
@@ -889,7 +880,7 @@
 				    ((tag :u8)
 				     (crf :crf)))
   :again
-  (clrldi tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
   (cmpdi crf tag ppc64::fulltag-misc)
   (bne crf :no-got)
   (lbz tag ppc64::misc-subtag-offset object)
@@ -937,11 +928,74 @@
                                               ((src :imm)))
   (srdi dest src ppc64::fixnumshift))
 
+
+
+(define-ppc64-vinsn unbox-u64 (((dest :u64))
+                               ((src :lisp))
+                               ((crf0 :crf)
+                                (crf1 :crf)
+                                (crf2 :crf)
+                                (tag :u64)))
+
+  (clrldi tag src (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf0 tag ppc64::fulltag-misc)
+  (cmpdi crf1 tag ppc64::fulltag-even-fixnum)
+  (cmpdi crf2 tag ppc64::fulltag-odd-fixnum)
+  (beq crf0 :bignum)
+  (sradi dest src ppc64::fixnumshift)
+  (cmpdi crf0 src 0)
+  (beq crf1 :good-if-non-negative)
+  (beq crf2 :good-if-non-negative)
+  :bad
+  (uuo_interr arch::error-object-not-unsigned-byte-64 src)
+  ;; SRC may be a bignum.  We haven't checked the tag, but only
+  ;; certain headers could possibly denote an (UNSIGNED-BYTE 64).
+  :bignum
+  (ld dest ppc64::misc-data-offset src)
+  (ld tag ppc64::misc-header-offset src)
+  (rotldi dest dest 32)
+  (cmpdi crf2 tag ppc64::two-digit-bignum-header)
+  (cmpdi crf0 dest 0)
+  (cmpdi crf1 tag ppc64::three-digit-bignum-header)
+  (beq crf2 :good-if-non-negative)
+  (bne crf1 :bad)
+  (lwz tag (+ ppc64::misc-data-offset 8) src)
+  (cmpwi crf0 tag 0)
+  :good-if-non-negative
+  (blt crf0 :bad)
+  :good
+  )
+
+(define-ppc64-vinsn unbox-s64 (((dest :s64))
+                               ((src :lisp))
+                               ((crf0 :crf)
+                                (crf1 :crf)
+                                (crf2 :crf)
+                                (tag :u64)))
+  
+  (clrldi tag src (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf0 tag ppc64::fulltag-even-fixnum)
+  (cmpdi crf1 tag ppc64::fulltag-odd-fixnum)
+  (cmpdi crf2 tag ppc64::fulltag-misc)
+  (sradi dest src ppc64::fixnumshift)
+  (beq+ crf0 :good)
+  (beq+ crf1 :good)
+  (beq+ crf2 :bignum)
+  :bad
+  (uuo_interr arch::error-object-not-unsigned-byte-64 src)
+  :bignum
+  (ld tag ppc64::misc-header-offset src)
+  (ld dest ppc64::misc-data-offset src)
+  (cmpdi crf0 tag ppc64::two-digit-bignum-header)
+  (rotldi dest dest 32)
+  (bne- crf0 :bad)
+  :good
+  )
+
 ;;; An object is of type (UNSIGNED-BYTE 32) iff
 ;;;  a) it's of type (UNSIGNED-BYTE 32)
 ;;; That pretty much narrows it down.
-
-
+  
 (define-ppc64-vinsn unbox-u32 (((dest :u32))
 			       ((src :lisp))
 			       ((crf0 (:crf 0))))
@@ -1807,7 +1861,7 @@
    ;; A normal C frame has room for 10 args (when padded out to
    ;; 16-byte alignment. Add enough double words to accomodate the
    ;; remaining args, in multiples of 4.
-   (stwu ppc::sp (:apply - (:apply +
+   (stdu ppc::sp (:apply - (:apply +
                                    8
                                    (+ ppc64::c-frame.size ppc64::lisp-frame.size)
                                    (:apply ash
@@ -1898,8 +1952,8 @@
 				   (nodetemp :lisp)
 				   (crf :crf)))
   (la ppc::allocptr (:apply - ppc64::fulltag-misc
-                            (:apply logand (lognot 7)
-                                    (:apply + (+ 7 4) nbytes)))
+                            (:apply logand (lognot 15)
+                                    (:apply + (+ 15 8) nbytes)))
       ppc::allocptr)
   (tdllt ppc::allocptr ppc::allocbase)
   (std Rheader ppc64::misc-header-offset ppc::allocptr)
@@ -1977,7 +2031,7 @@
 (define-ppc64-vinsn u8->fixnum (((result :imm)) 
 				((val :u8)) 
 				())
-  (rlwinm result val ppc64::fixnumshift (- 32 (+ 8 ppc64::fixnumshift)) (- 31 ppc64::fixnumshift)))
+  (clrlsldi result val (- ppc64::nbits-in-word 8) ppc64::fixnumshift))
 
 ;;; Treat the low 8 bits of VAL as a signed integer; set RESULT to the
 ;;; equivalent fixnum.
@@ -1993,7 +2047,7 @@
 (define-ppc64-vinsn u16->fixnum (((result :imm)) 
 				 ((val :u16)) 
 				 ())
-  (rlwinm result val ppc64::fixnumshift (- 32 (+ 16 ppc64::fixnumshift)) (- 31 ppc64::fixnumshift)))
+  (clrlsldi result val (- ppc64::nbits-in-word 16) ppc64::fixnumshift))
 
 ;;; Treat the low 16 bits of VAL as a signed integer; set RESULT to
 ;;; the equivalent fixnum.
@@ -2159,34 +2213,22 @@
 (define-ppc64-vinsn charcode->u16 (((dest :u16))
 				   ((src :imm))
 				   ())
-  (srwi dest src ppc64::charcode-shift))
+  (srdi dest src ppc64::charcode-shift))
 
 (define-ppc64-vinsn character->fixnum (((dest :lisp))
 				       ((src :lisp))
 				       ())
-  (rlwinm dest
-          src
-          (- ppc64::nbits-in-word (- ppc64::charcode-shift ppc64::fixnumshift))
-          (- ppc64::nbits-in-word (+ ppc64::charcode-shift ppc64::fixnumshift)) 
-          (- ppc64::least-significant-bit ppc64::fixnumshift)))
+  (srdi dest src (- ppc64::charcode-shift ppc64::fixnumshift)))
 
 (define-ppc64-vinsn character->code (((dest :u32))
 				     ((src :lisp)))
-  (rlwinm dest src ppc64::charcode-shift ppc64::charcode-shift ppc64::least-significant-bit))
+  (srdi dest src ppc64::charcode-shift))
 
-(define-ppc64-vinsn charcode->fixnum (((dest :lisp))
-				      ((src :imm))
-				      ())
-  (rlwinm dest 
-          src 
-          (+ ppc64::charcode-shift ppc64::fixnumshift)  
-          (- ppc64::nbits-in-word (+ ppc64::charcode-shift ppc64::fixnumshift))  
-          (- ppc64::least-significant-bit ppc64::fixnumshift)))
 
 (define-ppc64-vinsn fixnum->char (((dest :lisp))
 				  ((src :imm))
 				  ())
-  (rlwinm dest src (- ppc64::charcode-shift ppc64::fixnumshift) 8 (1- ppc64::charcode-shift))
+  (sldi dest src (- ppc64::charcode-shift ppc64::fixnumshift))
   (addi dest dest ppc64::subtag-character))
 
 (define-ppc64-vinsn u8->char (((dest :lisp))
@@ -2540,7 +2582,7 @@
 ;;; should be EXACTLY = to subtag-base-char
 (define-ppc64-vinsn mask-base-char (((dest :u32))
 				    ((src :imm)))
-  (rlwinm dest src 0 (1+ (- ppc64::least-significant-bit ppc64::charcode-shift)) (1- (- ppc64::nbits-in-word (+ ppc64::charcode-shift 8)))))
+  (clrldi dest src (- ppc64::nbits-in-word ppc64::num-subtag-bits)))
 
                              
 ;;; Boundp, fboundp stuff.
@@ -2862,7 +2904,7 @@
    :yz1
    (stdu ppc::arg_y -8 ppc::vsp)
    :z1
-   (stwu ppc::arg_z -8 ppc::vsp))
+   (stdu ppc::arg_z -8 ppc::vsp))
   ((:pred = min-fixed 0)
    (cmpldi crfx ppc::nargs (ash 2 ppc64::word-shift))
    (cmpldi crfy ppc::nargs 0)
@@ -2942,7 +2984,7 @@
   (cmpldi crf ppc::nargs (:apply ash (:apply 1+ min) ppc64::word-shift))
   (bgt crf :done)
   (beq crf :one)
-                                        ; We got "min" args; arg_y & arg_z default to nil
+  ;; We got "min" args; arg_y & arg_z default to nil
   ((:pred >= min 3)
    (stdu ppc::arg_x -8 ppc::vsp))   
   ((:pred >= min 2)
@@ -2952,7 +2994,7 @@
   (li ppc::arg_y ppc64::nil-value)
   (b :last)
   :one
-                                        ; We got min+1 args: arg_y was supplied, arg_z defaults to nil.
+  ;; We got min+1 args: arg_y was supplied, arg_z defaults to nil.
   ((:pred >= min 2)
    (stdu ppc::arg_x -8 ppc::vsp))
   ((:pred >= min 1)
@@ -2971,7 +3013,7 @@
   (bgt crfx :done)
   (beq crfx :two)
   (beq crfy :none)
-                                        ; The first (of three) &optional args was supplied.
+  ;; The first (of three) &optional args was supplied.
   ((:pred >= min 2)
    (stdu ppc::arg_x -8 ppc::vsp))
   ((:pred >= min 1)
@@ -2979,20 +3021,20 @@
   (mr ppc::arg_x ppc::arg_z)
   (b :last-2)
   :two
-                                        ; The first two (of three) &optional args were supplied.
+  ;; The first two (of three) &optional args were supplied.
   ((:pred >= min 1)
    (stdu ppc::arg_x -8 ppc::vsp))
   (mr ppc::arg_x ppc::arg_y)
   (mr ppc::arg_y ppc::arg_z)
   (b :last-1)
-                                        ; None of the three &optional args was provided.
+  ;; None of the three &optional args was provided.
   :none
   ((:pred >= min 3)
    (stdu ppc::arg_x -8 ppc::vsp))
   ((:pred >= min 2)
    (stdu ppc::arg_y -8 ppc::vsp))
   ((:pred >= min 1)
-   (stwu ppc::arg_z -4 ppc::vsp))
+   (stdu ppc::arg_z -8 ppc::vsp))
   (li ppc::arg_x ppc64::nil-value)
   :last-2
   (li ppc::arg_y ppc64::nil-value)
@@ -3352,7 +3394,7 @@
 
 (define-ppc64-vinsn (darwin-syscall-s64 :call :subprim-call) (()
 							      ())
-  (stw ppc::sp ppc64::c-frame.crsave ppc::sp)
+  (std ppc::sp ppc64::c-frame.crsave ppc::sp)
   (bla .SPdarwin-syscall))
 
 (define-ppc64-subprim-call-vinsn (eabi-ff-call) .SPeabi-ff-call)
