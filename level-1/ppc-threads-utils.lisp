@@ -103,11 +103,11 @@
             (if (bottom-of-stack-p next-frame context)
               (values nil t)
               (and
-               (eql (ash ppc32::lisp-frame.size (- ppc32::fixnum-shift))
+               (eql (ash target::lisp-frame.size (- target::fixnum-shift))
                     (the fixnum (- next-frame p)))
                ;; EABI C functions keep their saved LRs where we save FN or 0
                ;; The saved LR of such a function would be fixnum-tagged and never 0.
-               (let* ((fn (%fixnum-ref p ppc32::lisp-frame.savefn)))
+               (let* ((fn (%fixnum-ref p target::lisp-frame.savefn)))
                  (or (eql fn 0) (typep fn 'function))))))))))
 
 
@@ -173,13 +173,13 @@
       (save-binding nil (ensure-svar '*current-process*) bsp)
       (dolist (pair initial-bindings)
 	(save-binding (funcall (cdr pair)) (ensure-svar (car pair)) bsp))
-      (setf (%fixnum-ref (%current-tcr) ppc32::tcr.db-link) bsp)
+      (setf (%fixnum-ref (%current-tcr) target::tcr.db-link) bsp)
       ;; Ensure that pending unwind-protects (for WITHOUT-INTERRUPTS
       ;; on the callback) don't try to unwind the binding stack beyond
       ;; where it was just set.
-      (let* ((top-catch (%fixnum-ref (%current-tcr) ppc32::tcr.catch-top)))
+      (let* ((top-catch (%fixnum-ref (%current-tcr) target::tcr.catch-top)))
         (unless (eql 0 top-catch)
-          (setf (%fixnum-ref top-catch ppc32::catch-frame.db-link) bsp)))))
+          (setf (%fixnum-ref top-catch target::catch-frame.db-link) bsp)))))
   (let* ((thread (new-lisp-thread-from-tcr (%current-tcr) "foreign")))
     (setq *current-lisp-thread* thread
 	  *current-process*
