@@ -233,7 +233,7 @@
                                     (t (assoc key na
                                               :test (hash-table-test-function hash)))))))
           (if addp
-            (or cell (%car (push (cons key (%unbound-marker-8)) (nhash.locked-additions hash))))
+            (or cell (%car (push (cons key (%unbound-marker)) (nhash.locked-additions hash))))
             cell)))))
 
 ;;; Don't rehash at all, unless some key is address-based (directly or
@@ -271,15 +271,19 @@
       (setf (nhash.vector.flags vector) (logior (ash 1 $nhash_key_moved_bit) flags)))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-
+#+ppc32-target
 (defun mixup-hash-code (fixnum)
   (declare (fixnum fixnum))
   (the fixnum
     (+ fixnum
        (the fixnum (%ilsl (- 32 8)
                           (logand (1- (ash 1 (- 8 3))) fixnum))))))
+#+ppc64-target
+(defun mixup-hash-code (fixnum)
+  fixnum)
 )
 
+#+ppc32-target
 (defun rotate-hash-code (fixnum)
   (declare (fixnum fixnum))
   (let* ((low-3 (logand 7 fixnum))
@@ -289,6 +293,10 @@
     (declare (fixnum low-3 but-low-3 low-3*64K low-3-in-high-3))
     (the fixnum (+ low-3-in-high-3
                    (the fixnum (logxor low-3*64K but-low-3))))))
+
+#+ppc64-target
+(defun rotate-hash-code (fixnum)
+  fixnum)
 
 
 ; Strip the tag bits to turn x into a fixnum
@@ -612,14 +620,14 @@
           (index $nhash.vector_overhead))
      (declare (fixnum size count index))
      (dotimes (i count)
-       (setf (%svref vector index) (%unbound-marker-8))
+       (setf (%svref vector index) (%unbound-marker))
        (incf index))
      (incf (the fixnum (nhash.grow-threshold hash))
            (the fixnum (+ (the fixnum (nhash.count hash))
                           (the fixnum (nhash.vector.deleted-count vector)))))
      (setf (nhash.count hash) 0
            (nhash.locked-additions hash) nil
-           (nhash.vector.cache-key vector) (%unbound-marker-8)
+           (nhash.vector.cache-key vector) (%unbound-marker)
            (nhash.vector.cache-value vector) nil
            (nhash.vector.finalization-alist vector) nil
            (nhash.vector.free-alist vector) nil
@@ -707,7 +715,7 @@
          (let ((cell (nhash-locked-additions-cell key hash t)))
            (declare (cons cell))
            ;; Table must be locked, add to locked-additions alist
-           (setf (nhash.vector.cache-key vector) (%unbound-marker-8)
+           (setf (nhash.vector.cache-key vector) (%unbound-marker)
                  (nhash.vector.cache-value vector) nil)
            (setf (car cell) key
                  (cdr cell) value)
@@ -718,7 +726,7 @@
          (let ((cell (nhash-locked-additions-cell key hash)))
            (declare (list cell))
            (when cell
-             (setf (nhash.vector.cache-key vector) (%unbound-marker-8)
+             (setf (nhash.vector.cache-key vector) (%unbound-marker)
                    (nhash.vector.cache-value vector) nil)
              (setf (cdr cell) value)
              (return-from puthash value))))
@@ -742,7 +750,7 @@
                  (let ((cell (nhash-locked-additions-cell key hash t)))
                    (declare (cons cell))
                    ;; Table is locked and needs rehash or wants to grow
-                   (setf (nhash.vector.cache-key vector) (%unbound-marker-8)
+                   (setf (nhash.vector.cache-key vector) (%unbound-marker)
                          (nhash.vector.cache-value vector) nil)
                    (setf (car cell) key
                          (cdr cell) value)
@@ -809,9 +817,9 @@
      (let ((cell (nhash-locked-additions-cell key hash)))
        (declare (list cell))
        (when cell
-         (setf (nhash.vector.cache-key (nhash.vector hash)) (%unbound-marker-8))
+         (setf (nhash.vector.cache-key (nhash.vector hash)) (%unbound-marker))
          (return-from gethash-woi
-           (if (eq (cdr cell) (%unbound-marker-8))
+           (if (eq (cdr cell) (%unbound-marker))
              (values default nil)
              (values (cdr cell) t))))))|#
    (multiple-value-bind (foundp value idx)
@@ -823,7 +831,7 @@
     (let ((cell (nhash-locked-additions-cell key hash)))
       (declare (list cell))
       (if cell
-        (if (eq (cdr cell) (%unbound-marker-8))
+        (if (eq (cdr cell) (%unbound-marker))
           t          
           nil)))))
 
@@ -833,7 +841,7 @@
          (idx $nhash.vector_overhead)
          (count 0))
     (loop
-      (when (neq (%svref vector idx) (%unbound-marker-8))
+      (when (neq (%svref vector idx) (%unbound-marker))
         (incf count))
       (when (>= (setq idx (+ idx 2)) size)
         (return count)))))
@@ -861,7 +869,7 @@
 	     (when cell
 	       (let ((value (cdr cell)))
 		 (return-from gethash
-		   (if (eq value (%unbound-marker-8))
+		   (if (eq value (%unbound-marker))
 		     (values default nil)
 		     (values value t))))))))
        (let ((lock (nhash.lock hash)))
@@ -877,6 +885,9 @@
 	 (multiple-value-bind (foundp value index) (%hash-probe hash key nil)
 	   (if foundp
 	     (let ((vector (nhash.vector hash))) ; may have changed
+               (when (eq value (%unbound-marker))
+                 (dbg)
+                 (%hash-probe hash key nil))
 	       (setf (nhash.vector.cache-key vector) (%svref vector (index->vector-index index))
 		     (nhash.vector.cache-value vector) value
 		     (nhash.vector.cache-idx vector) index)
@@ -900,20 +911,20 @@
            ;; growing or rehashing.  Not allowed to touch the vector
            (return-from remhash
              (prog1
-                 (if (eq (gethash key hash (%unbound-marker-8)) (%unbound-marker-8))
+                 (if (eq (gethash key hash (%unbound-marker)) (%unbound-marker))
                    nil                  ; wasnt there anyway
                    (let ((cell (nhash-locked-additions-cell key hash t)))
                      (declare (cons cell))
-                     (setf (cdr cell) (%unbound-marker-8))
+                     (setf (cdr cell) (%unbound-marker))
                      t))
-               (setf (nhash.vector.cache-key vector) (%unbound-marker-8)
+               (setf (nhash.vector.cache-key vector) (%unbound-marker)
                      (nhash.vector.cache-value vector) nil)))))    
        (when (and (eq key (nhash.vector.cache-key vector))
                   (eq 0 (%ilogand (nhash.lock hash) $nhash.lock-grow-or-rehash)))
-         (setf (nhash.vector.cache-key vector) (%unbound-marker-8)
+         (setf (nhash.vector.cache-key vector) (%unbound-marker)
                (nhash.vector.cache-value vector) nil)
          (let ((vidx (index->vector-index (nhash.vector.cache-idx vector))))
-           (setf (%svref vector vidx) (%unbound-marker-8))
+           (setf (%svref vector vidx) (%unbound-marker))
            (setf (%svref vector (the fixnum (1+ vidx))) nil))
          (incf (the fixnum (nhash.vector.deleted-count vector)))
          (decf (the fixnum (nhash.count hash)))
@@ -925,10 +936,10 @@
            (declare (list cell))
            (when cell
              (let ((old (cdr cell)))
-               (setf (nhash.vector.cache-key vector) (%unbound-marker-8)
+               (setf (nhash.vector.cache-key vector) (%unbound-marker)
                      (nhash.vector.cache-value vector) nil)
-               (setf (cdr cell) (%unbound-marker-8))
-               (return-from remhash (if (eq old (%unbound-marker-8)) nil t))))))
+               (setf (cdr cell) (%unbound-marker))
+               (return-from remhash (if (eq old (%unbound-marker)) nil t))))))
        (progn 
         (multiple-value-bind (foundp value idx) (%hash-probe hash key nil)
          (declare (ignore-if-unused value))
@@ -940,7 +951,7 @@
            (setq vector (nhash.vector hash))         ; in case it changed
            ; always clear the cache cause I'm too lazy to call the comparison function
            ; and don't want to keep a possibly deleted key from being GC'd
-           (setf (nhash.vector.cache-key vector) (%unbound-marker-8)
+           (setf (nhash.vector.cache-key vector) (%unbound-marker)
                  (nhash.vector.cache-value vector) nil)
            ; Update the count
            (incf (the fixnum (nhash.vector.deleted-count vector)))
@@ -951,7 +962,7 @@
            ; Delete the value from the table.
            (let ((vector-index (index->vector-index index)))
            (declare (fixnum vector-index))
-           (setf (%svref vector vector-index) (%unbound-marker-8)
+           (setf (%svref vector vector-index) (%unbound-marker)
                  (%svref vector (the fixnum (1+ vector-index))) nil))
          ;; We deleted something
          t)))))))                         ; Found something
@@ -1024,7 +1035,7 @@
                 
                 (without-interrupts
                  (let ((key (%svref old-vector vector-index)))
-                   (unless (eq key (%unbound-marker-8))
+                   (unless (eq key (%unbound-marker))
                      (let* ((new-index (%growhash-probe vector hash key))
                             (new-vector-index (index->vector-index new-index)))
                        (setf (%svref vector new-vector-index) key)
@@ -1041,7 +1052,7 @@
                (setf (nhash.rehash-bits hash) nil
                      (nhash.vector hash) vector
                      (nhash.vector.hash vector) hash
-                     (nhash.vector.cache-key vector) (%unbound-marker-8)
+                     (nhash.vector.cache-key vector) (%unbound-marker)
                      (nhash.vector.cache-value vector) nil
                      (nhash.fixnum hash) fwdnum
                      (nhash.gc-count hash) gc-count
@@ -1082,7 +1093,7 @@
           (progn
             (while (and additions (neq 0 (nhash.grow-threshold hash))) ; but what if its a bunch of remhashes?
               (setq cell (car additions))
-              (if (neq (cdr cell) (%unbound-marker-8))
+              (if (neq (cdr cell) (%unbound-marker))
                 (puthash (car cell) hash (cdr cell))
                 (remhash (car cell) hash))
               (pop additions))
@@ -1092,7 +1103,7 @@
                 (while tem
                   (let ((cell (car tem)))
                     (setq tem (cdr tem))
-                    (when (eq (cdr cell)(%unbound-marker-8))
+                    (when (eq (cdr cell)(%unbound-marker))
                       (remhash (car cell) hash) 
                       (setq additions (delq cell additions))))))))
           (when additions
@@ -1168,8 +1179,7 @@
              (first-deleted-index nil)
              (rehash-count (nhash.puthash-count hash)))
         (declare (fixnum vector-index rehash-count))
-        (macrolet (;testing (%svref (x y) `(uvref ,x ,y))
-                   (return-it (form)
+        (macrolet ((return-it (form)
                      `(return-from %hash-probe
                         (if (eq rehash-count (nhash.puthash-count hash))
                           ,form
@@ -1180,12 +1190,12 @@
                           (setq vector-index (index->vector-index index)
                                 table-key (%svref vector vector-index)
                                 table-value (%svref vector (the fixnum (1+ vector-index))))
-                          (cond ((eq table-key (%unbound-marker-8))
-                                 (when (eq table-value (%unbound-marker-8))
+                          (cond ((eq table-key (%unbound-marker))
+                                 (when (eq table-value (%unbound-marker))
                                    (return-it
                                     (if first-deleted-index
                                       (values nil nil first-deleted-index)
-                                      (values nil (%unbound-marker-8) index))))
+                                      (values nil (%unbound-marker) index))))
                                  (unless first-deleted-index
                                    (setq first-deleted-index index)))
                                 ((,@predicate key table-key)
@@ -1238,7 +1248,7 @@
       (macrolet ((do-it (predicate)
                    `(loop                      
                       (setq table-key (%svref vector vector-index))
-                      (unless (eq table-key (%unbound-marker-8))
+                      (unless (eq table-key (%unbound-marker))
                         (when (test-it ,predicate key table-key)
                           (return
                            (values t
@@ -1262,7 +1272,7 @@
          done)
     (unwind-protect
       (progn
-        (setf (nhash.vector.cache-key vector)(%unbound-marker-8))
+        (setf (nhash.vector.cache-key vector)(%unbound-marker))
         (setf (nhash.rehashF hash) #'%am-rehashing)
         ;; somebody could have started mapping between last time checked map count and now
         (without-interrupts ; paranoia 7/96 - well it does happen rather often
@@ -1303,7 +1313,7 @@
          (rehash-bits (%make-rehash-bits hash size))   ; int here
          (index -1))
     (declare (fixnum size index vector-index))    
-    (setf (nhash.vector.cache-key vector) (%unbound-marker-8))
+    (setf (nhash.vector.cache-key vector) (%unbound-marker))
     (%set-does-not-need-rehashing hash)
     (setf (nhash.puthash-count hash)(the fixnum (1+ (nhash.puthash-count hash)))) ; whazzat
     (loop
@@ -1314,7 +1324,7 @@
         (let* ((key (%svref vector vector-index))
                (value (%svref vector (the fixnum (1+ vector-index)))))
           (unless
-            (when (eq key (%unbound-marker-8))
+            (when (eq key (%unbound-marker))
               (if (null value)  ; one less deleted entry
                 (let ((count (1- (nhash.vector.deleted-count vector))))
                   (declare (fixnum count))
@@ -1325,7 +1335,7 @@
                       (incf (nhash.vector.deleted-count vector) wdc)
                       (decf (nhash.count hash) wdc)))
                   (incf (nhash.grow-threshold hash))
-                  (setf (%svref vector (1+ vector-index)) (%unbound-marker-8)))) ; deleted => empty
+                  (setf (%svref vector (1+ vector-index)) (%unbound-marker)))) ; deleted => empty
               t)
             (without-interrupts  ; shouldnt be needed ??? 
               (let ((last-index index)
@@ -1348,11 +1358,11 @@
                               (newvalue (%svref vector (1+ found-vector-index))))
                          (when first ; or (eq last-index index) ?
                            (setq first nil)
-                           (setf (%svref vector vector-index) (%unbound-marker-8))
-                           (setf (%svref vector (the fixnum (1+ vector-index))) (%unbound-marker-8)))
+                           (setf (%svref vector vector-index) (%unbound-marker))
+                           (setf (%svref vector (the fixnum (1+ vector-index))) (%unbound-marker)))
 			 (%set-hash-table-vector-key vector found-vector-index key)
                          (setf (%svref vector (the fixnum (1+ found-vector-index))) value)                       
-                         (when (eq newkey (%unbound-marker-8))
+                         (when (eq newkey (%unbound-marker))
                            (when (null newvalue)  ; one less deleted entry - huh
                              (let ((count (1- (nhash.vector.deleted-count vector))))
                                (declare (fixnum count))
@@ -1408,7 +1418,7 @@
     (when (null hash-code)(cerror "nuts" "Nuts"))
     (let* ((vector-index (index->vector-index  index)))
       (declare (fixnum vector-index))
-      (if (eq (%unbound-marker-8) (%svref vector vector-index))
+      (if (eq (%unbound-marker) (%svref vector vector-index))
         (return-from %growhash-probe index)
         (let ((second (%svref secondary-keys (%ilogand 7 hash-code))))
           (declare (fixnum second))
@@ -1416,7 +1426,7 @@
             (setq index (+ index second))
             (when (>= index entries)
               (setq index (- index entries)))
-            (when (eq (%unbound-marker-8) (%svref vector (index->vector-index index)))
+            (when (eq (%unbound-marker) (%svref vector (index->vector-index index)))
               (return-from %growhash-probe index))))))))
 
 ;;;;;;;;;;;;;
@@ -1719,7 +1729,7 @@
 
 (defun %cons-nhash-vector (size &optional (flags 0))
   (declare (fixnum size))
-  (let* ((vector (%alloc-misc (+ (+ size size) $nhash.vector_overhead) target::subtag-hash-vector (%unbound-marker-8))))
+  (let* ((vector (%alloc-misc (+ (+ size size) $nhash.vector_overhead) target::subtag-hash-vector (%unbound-marker))))
     (setf (nhash.vector.link vector) 0
           (nhash.vector.flags vector) flags
           (nhash.vector.free-alist vector) nil
@@ -1727,7 +1737,7 @@
           (nhash.vector.weak-deletions-count vector) 0
           (nhash.vector.hash vector) nil
           (nhash.vector.deleted-count vector) 0
-          (nhash.vector.cache-key vector) (%unbound-marker-8)
+          (nhash.vector.cache-key vector) (%unbound-marker)
           (nhash.vector.cache-value vector) nil
           (nhash.vector.cache-idx vector) nil)
     vector))
