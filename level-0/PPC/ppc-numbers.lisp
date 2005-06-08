@@ -267,7 +267,7 @@
         (remainder temp2))
     (unbox-fixnum unboxed-dividend dividend)
     (unbox-fixnum unboxed-divisor divisor)
-    (divdo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
+    (divduo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
     (box-fixnum boxed-quotient unboxed-quotient)
     (mulld unboxed-product unboxed-quotient unboxed-divisor)
     (bns+ @ok)
