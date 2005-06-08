@@ -251,15 +251,15 @@
 (defun oddp (n)
   "Is this integer odd?"
   (case (typecode n)
-    (#.ppc32::tag-fixnum (logbitp 0 (the fixnum n)))
-    (#.ppc32::subtag-bignum (%bignum-oddp n))
+    (#.target::tag-fixnum (logbitp 0 (the fixnum n)))
+    (#.target::subtag-bignum (%bignum-oddp n))
     (t (report-bad-arg n 'integer))))
 
 (defun evenp (n)
   "Is this integer even?"
   (case (typecode n)
-    (#.ppc32::tag-fixnum (not (logbitp 0 (the fixnum n))))
-    (#.ppc32::subtag-bignum (not (%bignum-oddp n)))
+    (#.target::tag-fixnum (not (logbitp 0 (the fixnum n))))
+    (#.target::subtag-bignum (not (%bignum-oddp n)))
     (t (report-bad-arg n 'integer))))
 
 ;; expansion slightly changed
@@ -1259,8 +1259,8 @@
              (values q (- number q))))
     (double-float
      (if (and (< (the double-float number) 
-                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 1.0d0))
-              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 1.0d0)
+                 (float (1- (ash 1 (- (1- target::nbits-in-word) target::fixnumshift))) 1.0d0))
+              (< (float (ash -1 (- (1- target::nbits-in-word) target::fixnumshift)) 1.0d0)
                  (the double-float number)))
        (let ((round (%unary-round-to-fixnum number)))
          (values round (- number round)))
@@ -1274,8 +1274,8 @@
              (values (1- trunc) (+ 1.0d0 rem)))))))
     (short-float
      (if (and (< (the short-float number) 
-                 (float (1- (ash 1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift))) 1.0s0))
-              (< (float (ash -1 (- (1- ppc32::nbits-in-word) ppc32::fixnumshift)) 1.0s0)
+                 (float (1- (ash 1 (- (1- target::nbits-in-word) target::fixnumshift))) 1.0s0))
+              (< (float (ash -1 (- (1- target::nbits-in-word) target::fixnumshift)) 1.0s0)
                  (the double-float number)))
        (let ((round (%unary-round-to-fixnum number)))
          (values round (- number round)))
@@ -1648,10 +1648,10 @@
 	      (declare (fixnum length count))
 	      (cond ((and (plusp count)
 			  (> (+ length count)
-			     (- 31 ppc32::fixnumshift)))                          
+			     (- target::least-significant-bit target::fixnumshift)))                          
 		     (with-small-bignum-buffers ((bi integer))
 		       (bignum-ashift-left bi count)))
-		    ((and (minusp count) (< count -31))
+		    ((and (minusp count) (< count (- target::least-significant-bit)))
 		     (if (minusp integer) -1 0))
 		    (t (%iash (the fixnum integer) count)))))))
        (bignum
