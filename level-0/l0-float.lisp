@@ -126,8 +126,8 @@
       (values mantissa exp (%ilsr 15 high)))))
   
                    
-                      
 
+#+ppc32-target
 (defun integer-decode-double-float (n)
   (multiple-value-bind (hi lo exp sign)(%integer-decode-double-float n)
     ; is only 53 bits and positive so should be easy
@@ -136,15 +136,46 @@
     (setq exp (- exp (if (< hi #x1000000) 
                        (+ IEEE-double-float-mantissa-width IEEE-double-float-bias)
                        (+ IEEE-double-float-mantissa-width (1+ IEEE-double-float-bias)))))
-    (if (< hi (ash 1 (1- ppc32::fixnumshift))) ; aka 2
+    (if (< hi (ash 1 (1- target::fixnumshift))) ; aka 2
       (values (logior (ash hi 28) lo) exp sign)
       ; might fit in 1 word?
-      (let ((big (%alloc-misc 2 ppc32::subtag-bignum)))
+      (let ((big (%alloc-misc 2 target::subtag-bignum)))
         (make-big-53 hi lo big)
         (if (< hi #x1000000) (%normalize-bignum big))
         (values big exp sign)))))
 
-;; actually only called when magnitude bigger than a fixnum
+#+ppc64-target
+(defun integer-decode-double-float (n)
+  (multiple-value-bind (high low) (double-float-bits n)
+    (declare (fixnum high low))
+    (let* ((sign (if (logbitp 31 high) -1 1))
+           (raw-exp (ldb (byte IEEE-double-float-exponent-width
+                                 #.(- IEEE-double-float-exponent-offset 32))
+                         high))
+           (raw-mantissa
+            (logior low
+                    (ash (ldb
+                          (byte #.(- IEEE-double-float-mantissa-width 32)
+                                  0)
+                          high)
+                         32)))
+           (biased-exp (- raw-exp IEEE-double-float-bias IEEE-double-float-digits)))
+      (declare (fixnum raw-exp raw-mantissa biased-exp))
+      (cond ((> raw-exp IEEE-double-float-normal-exponent-max)
+             (error "Can't decode NaN or Inf : ~s" n))
+            ((and (zerop raw-exp) (zerop raw-mantissa))
+             (values 0 biased-exp sign))
+            ((< raw-exp IEEE-double-float-normal-exponent-min)
+             (integer-decode-denormalized-double-float n))
+            (t
+      (values (logior raw-mantissa (ash 1 IEEE-double-float-hidden-bit))
+              biased-exp
+              sign))))))
+            
+           
+    
+
+;;; actually only called when magnitude bigger than a fixnum
 (defun %truncate-double-float (n)
   (multiple-value-bind (hi lo exp sign)(%integer-decode-double-float n)
     (if (< exp (1+ IEEE-double-float-bias)) ; this is false in practice
@@ -158,6 +189,7 @@
               (- poo))
             (let ((poo (logior (ash hi 28) lo)))
               (ash (- poo) exp))))))))
+
 
 ; actually only called when bigger than a fixnum
 (defun %truncate-short-float (n)
