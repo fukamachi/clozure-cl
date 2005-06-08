@@ -1096,172 +1096,7 @@
 ;;; DO NOT EVEN THINK OF ATTEMPTING TO UNDERSTAND THIS CODE WITHOUT READING 
 ;;; THE PAPER!
 
-;(defvar *digits* "0123456789")
-  
-;(defvar *digit-string*
-;  (make-array 50 :element-type 'base-char :fill-pointer 0 :adjustable t))
-#|
-(defun flonum-to-string (x &optional width fdigits scale fmin no-zeros
-                           ;&aux (string *digit-string*)
-                           &aux (string (make-array 10 :element-type 'base-char :fill-pointer 0 :adjustable t)))
-  ;(setf (fill-pointer string) 0)
-  (cond ((zerop x)
-         ;;zero is a special case which float-string cannot handle
-         (vector-push-extend #\0 string)
-         (when (not no-zeros)(vector-push-extend #\. string))
-         (let ((count (max (or fmin 0) (or fdigits (and width (- width 2)) 0))))
-           (dotimes (i count)
-             (declare (fixnum i))
-             (vector-push-extend #\0 string))
-           (values string (+ count 2) nil (eq 0 count) 1)))
-        (t
-         (multiple-value-bind (sig exp) (integer-decode-float x)
-           ;;24 and 53 are the number of bits of information in the
-           ;;significand, less sign, of a short float and a long float
-           ;;respectively.
-           (float-string string sig exp (if (typep x 'short-float) 24 53) width fdigits scale fmin no-zeros)))))
 
-; If no-zeros is T just return the non-leading/trailing 0 digits.
-; The #\. is in the string only if it is neither preceded nor followed by insignificant zeros
-; Well leading dots are there, trailing dots are not
-(defun float-string (string fraction exponent precision width fdigits scale fmin &optional no-zeros)
-  (declare (resident))
-  (flet ((nth-digit (n) (%code-char (%i+ n (%char-code #\0)))))
-    (let ((r fraction) (s 1) (m- 1) (m+ 1) (k 0)
-          (digits 0) (decpnt 0) (cutoff nil) (roundup nil) u low high (nzeros 0))
-      ;;Represent fraction as r/s, error bounds as m+/s and m-/s.
-      ;;Rational arithmetic avoids loss of precision in subsequent calculations.
-      (cond ((> exponent 0)
-             (setq r (ash fraction exponent))
-             (setq m- (ash 1 exponent))
-             (setq m+ m-))
-            ((< exponent 0)
-             (setq s (ash 1 (- exponent)))))
-      ;;adjust the error bounds m+ and m- for unequal gaps
-      (when (= fraction (ash 1 precision))  ; can this ever be true??
-        (setq m+ (ash m+ 1))
-        (setq r (ash r 1))
-        (setq s (ash s 1)))
-      ;;scale value by requested amount, and update error bounds
-      (when (and (or (null scale)(zerop scale))(not (zerop exponent)))
-        ; approximate k
-        (let ((fudge 0))
-          (when (>= fraction (ash 1 (1- precision)))
-            (setq fudge precision))
-          (setq k (truncate (*  (+ exponent fudge) .301)))
-          (when (not (= 0 k))
-            (setq scale (- k)))))
-      (when scale
-        (if (minusp scale)
-          (let ((scale-factor (expt 10 (- scale))))
-            (setq s (* s scale-factor)))
-          (let ((scale-factor (expt 10 scale)))
-            (setq r (* r scale-factor))
-            (setq m+ (* m+ scale-factor))
-            (setq m- (* m- scale-factor)))))
-      ;;scale r and s and compute initial k, the base 10 logarithm of r
-      (let ((ceil (ceiling s 10))(fudge 1))
-        (do ()
-            ((>= r ceil))
-          (setq k (1- k))
-          (setq r (* r 10))
-          (setq fudge (* fudge 10)))
-        (when (> fudge 1)
-          (setq m- (* m- fudge))
-          (setq m+ (* m+ fudge))))
-      ;(print (list k r s m+ m-))
-      (let ((ash-r-1 (ash r 1)))
-        (loop
-          (do ()
-              ((and (< r s) ; save some bignums (everything is positive)
-                    (< (+ ash-r-1 m+) (ash s 1))))
-            (setq s (* s 10))
-            (setq k (1+ k)))
-          ;;determine number of fraction digits to generate
-          (cond (fdigits
-                 ;;use specified number of fraction digits
-                 (setq cutoff (- fdigits))
-                 ;;don't allow less than fmin fraction digits
-                 (if (and fmin (> cutoff (- fmin))) (setq cutoff (- fmin))))
-                (width
-                 ;;use as many fraction digits as width will permit
-                 ;;but force at least fmin digits even if width will be exceeded
-                 (if (< k 0)
-                   (setq cutoff (- 1 width))
-                   (setq cutoff (1+ (- k width))))
-                 (if (and fmin (> cutoff (- fmin))) (setq cutoff (- fmin)))))
-          ;;If we decided to cut off digit generation before precision has
-          ;;been exhausted, rounding the last digit may cause a carry propagation.
-          ;;We can prevent this, preserving left-to-right digit generation, with
-          ;;a few magical adjustments to m- and m+.  Of course, correct rounding
-          ;;is also preserved.
-          (when (or fdigits width)
-            (let ((a (- cutoff k))
-                  (y s))
-              (if (>= a 0)
-                (dotimes (i a) (declare (fixnum i)) (setq y (* y 10)))
-                (dotimes (i (- a)) (declare (fixnum i)) (setq y (ceiling y 10))))
-              (setq m- (max y m-))
-              (setq m+ (max y m+))
-              (when (= m+ y) (setq roundup t))))
-          (when (< (+ ash-r-1 m+) (ash s 1)) (return))))
-      ;(print k)
-      ;(print (list r s m+))     
-      ;;zero-fill before fraction if no integer part      
-      (when (< k 0)
-        (setq decpnt digits)
-        (when (null no-zeros)(vector-push-extend #\. string))
-        (dotimes (i (- k))
-          (declare (fixnum i))
-          (setq digits (1+ digits))
-          (setq nzeros (1+ nzeros))
-          (when (null no-zeros)(vector-push-extend #\0 string))))
-      ;;generate the significant digits
-      (loop
-        (setq k (1- k))
-        (when (= k -1)
-          (vector-push-extend #\. string)
-          (setq decpnt digits))
-        (multiple-value-setq (u r) (truncate (* r 10) s))
-        (setq m- (* m- 10))
-        (setq m+ (* m+ 10))
-        (let ((ash-r-1 (ash r 1)))
-          (setq low (< ash-r-1 m-))
-          (if roundup
-            (setq high (>= ash-r-1 (- (ash s 1) m+)))
-            (setq high (> ash-r-1 (- (ash s 1) m+)))))
-        ;;stop when either precision is exhausted or we have printed as many
-        ;;fraction digits as permitted
-        (when (or low high (and cutoff (<= k cutoff))) (return))
-        (vector-push-extend (nth-digit u) string)
-        (setq digits (1+ digits)))
-      ;;if cutoff occured before first digit, then no digits generated at all
-      (when (or (not cutoff) (>= k cutoff))
-        ;;last digit may need rounding
-        (vector-push-extend (nth-digit
-                             (cond ((and low (not high)) u)
-                                   ((and high (not low)) (1+ u))
-                                   (t (if (<= (ash r 1) s) u (1+ u)))))
-                            string)
-        (setq digits (1+ digits)))
-      ;;zero-fill after integer part if no fraction
-      (when (>= k 0)
-        (dotimes (i k) 
-          (declare (fixnum i))
-          (setq digits (1+ digits))
-          (if (null no-zeros)(vector-push-extend #\0 string)))
-        (if (null no-zeros)(vector-push-extend #\. string))
-        (setq decpnt digits))
-      ;;add trailing zeroes to pad fraction if fdigits specified
-      (when (or fdigits fmin)
-        (dotimes (i (- (or fdigits fmin) (- digits decpnt)))
-          (declare (fixnum i))
-          (setq digits (1+ digits))
-          (vector-push-extend #\0 string)))
-      ;;all done      
-      (values string (1+ digits) (= decpnt 0)
-              (= decpnt digits) decpnt nzeros))))
-|#
 
 
 (defun flonum-to-string (n &optional width fdigits scale)
@@ -1277,137 +1112,28 @@
                (multiple-value-bind (sig exp)(integer-decode-float n)
                  (float-string string sig exp (integer-length sig) width fdigits scale)))))))
 
-; if width given and fdigits nil then if exponent is >= 0 returns at most width-1 digits
-;    if exponent is < 0 returns (- width (- exp) 1) digits
-; if fdigits given width is ignored, returns fdigits after (implied) point
-; The Steele/White algorithm can produce a leading zero for 1e23
-; which lies exactly between two double floats - rounding picks the float whose rational is
-; 99999999999999991611392. This guy wants to print as 9.999999999999999E+22. The untweaked
-; algorithm generates a leading zero in this case.
-; (actually wants to print as 1e23!)
-; If we choose s such that r < s - m/2, and r = s/10 - m/2 (which it does in this case)
-; then r * 10 < s => first digit is zero
-; and (remainder (* r 10) s) is r * 10 = new-r, 10 * m = new-m
-; new-r = s - new-m/2 so high will be false and she won't round up
-#|
-(defun float-string (string f e p &optional width fdigits scale)
-  (flet ((nth-digit (n) (%code-char (%i+ n (%char-code #\0)))))
-  (let ((r f)(s 1)(m- 1)(m+ 1)(k 0) cutoff roundup (mm nil))
-    (cond ((> e 0)
-           (setq r (ash f e))
-           (setq m- (ash 1 e))
-           (setq m+ m-))
-          ((< e 0)
-           (setq s (ash 1 (- e)))))
-    (when (= f (if (eql p 53) #.(ash 1 52) (ash 1 (1- p))))
-      (setq m+ (+ m+ m+))
-      (setq mm t)
-      (setq r (+ r r))
-      (setq s (+ s s)))
-    (when (and (or (null scale)(zerop scale)))
-      ; approximate k
-      (let ((fudge 0))
-        (setq fudge (truncate (*  (%i+ e p) .301)))
-        (when (neq fudge 0)
-          (setq k fudge)
-          (setq scale (- k)))))
-    (when (and scale (not (eql scale 0)))      
-      (if (minusp scale)
-        (setq s (* s (10-to-e  (- scale))))
-        (let ((scale-factor (10-to-e scale)))
-          (setq r (* r scale-factor))
-          (setq m+ (* m+ scale-factor))
-          (when mm (setq m- (* m- scale-factor))))))
-    (let ((ceil (ceiling s 10))(fudge 1))
-      (while (< r ceil)
-        (setq k (1- k))
-        (setq r (* r 10))
-        (setq fudge (* fudge 10)))
-      (when (> fudge 1)
-        (setq m+ (* m+ fudge))
-        (when mm (setq m- (* m- fudge)))))    
-    (let ((2r (+ r r)))
-      (loop
-        (let ((2rm+ (+ 2r m+)))          
-          (while
-            (if (not roundup)  ; guarantee no leading zero
-              (> 2rm+ (+ s s))
-              (>=  2rm+ (+ s s)))
-            (setq s (* s 10))
-            (setq k (1+ k))))
-        (when (not (or fdigits width))(return)) ; omit this makes 1e23 print right but others wrong??
-        (cond 
-         (fdigits
-          (setq cutoff (- fdigits))
-          ;(if (and fmin (> cutoff (- fmin))) (setq cutoff (- fmin)))
-          )
-         (width
-          (setq cutoff
-                (if (< k 0) (- 1 width)(1+ (- k width))))
-          ;(if (and fmin (> cutoff (- fmin))) (setq cutoff (- fmin)))
-          ))
-        (let ((a (if cutoff (- cutoff k) 0))
-              (y s))
-          (DECLARE (FIXNUM A))
-          (if (>= a 0)
-            (WHEN (> A 0)(SETQ Y (* Y (10-to-e a))))
-            ;(dotimes (i (the fixnum a))  (setq y (* y 10)))
-            ;(dotimes (i (the fixnum (- a))) (setq y (ceiling y 10)))
-            (SETQ Y (CEILING Y (10-to-e (THE FIXNUM (- A))))))
-          (when mm (setq m- (max y m-)))
-          (setq m+ (max y m+))
-          (when (= m+ y) (setq roundup t)))
-        (when (if (not roundup)   ; tweak as above
-                (<= (+ 2r m+)(+ s s))
-                (< (+ 2r m+)(+ s s)))
-          (return))))
-    (let* ((h k)
-           ;(2s (+ s s))
-           (half-m+ (* m+ 5))  ; 10 * m+/2
-           (half-m- (if mm (* m- 5)))
-           u high low 
-           ;2r
-           )
-      ;(print (list r s m+ roundup))
-      (unless (and fdigits (>= (- k) fdigits))
-        (loop
-          (setq k (1- k))
-          (multiple-value-setq (u r) (truncate (* r 10) s))          
-          ;(setq 2r (+ r r))
-          (setq low (< r (if mm half-m- half-m+)))
-          (setq high 
-                (if (not roundup)
-                  (> r (- s half-m+))
-                  (>= r (- s half-m+))))                   
-          (if (or low high)
-            (return)
-            (progn
-              (vector-push-extend (nth-digit u) string)))
-          (when mm (setq half-m- (* half-m- 10) ))
-          (setq half-m+ (* half-m+ 10)))
-        ;(print (list r s  high low h k))
-        (vector-push-extend
-         (nth-digit (cond
-                     ((and low (not high)) u) 
-                     ((and high (not low))(+ u 1))
-                     
-                     (t ;(and high low)
-                      (if (<= (+ r r) s) u (1+ u)))))
-         string))
-      ; second value is exponent, third is exponent - # digits generated
-      (values string h k)))))
-|#
-; yet another
-; instead of multiplying r * (expt 2 e) and s * (expt 10 (- scale))
-; we do r * (expt 2 (- e (- scale))) and s * (expt 5 (- scale))
-; i.e. both less by (expt 2 (- scale))
+;;; if width given and fdigits nil then if exponent is >= 0 returns at
+;;; most width-1 digits if exponent is < 0 returns (- width (- exp) 1)
+;;; digits if fdigits given width is ignored, returns fdigits after
+;;; (implied) point The Steele/White algorithm can produce a leading
+;;; zero for 1e23 which lies exactly between two double floats -
+;;; rounding picks the float whose rational is
+;;; 99999999999999991611392. This guy wants to print as
+;;; 9.999999999999999E+22. The untweaked algorithm generates a leading
+;;; zero in this case.  (actually wants to print as 1e23!)  If we
+;;; choose s such that r < s - m/2, and r = s/10 - m/2 (which it does
+;;; in this case) then r * 10 < s => first digit is zero and
+;;; (remainder (* r 10) s) is r * 10 = new-r, 10 * m = new-m new-r = s
+;;; - new-m/2 so high will be false and she won't round up we do r *
+;;; (expt 2 (- e (- scale))) and s * (expt 5 (- scale)) i.e. both less
+;;; by (expt 2 (- scale))
 
 (defun float-string (string f e p &optional width fdigits scale)
   (macrolet ((nth-digit (n) `(%code-char (%i+ ,n (%char-code #\0)))))    
     (let ((r f)(s 1)(m- 1)(m+ 1)(k 0) cutoff roundup (mm nil))
       (when (= f (if (eql p 53) #.(ash 1 52) (ash 1 (1- p))))
         (setq mm t))
-      (when (and (or (null scale)(zerop scale)))
+      (when (or (null scale)(zerop scale))
         ; approximate k
         (let ((fudge 0))
           (setq fudge (truncate (*  (%i+ e p) .301)))
@@ -1453,10 +1179,7 @@
               (setq k (1+ k))))
           (when (not (or fdigits width))(return))
           (cond 
-           (fdigits
-            (setq cutoff (- fdigits))
-            ;(if (and fmin (> cutoff (- fmin))) (setq cutoff (- fmin)))
-            )
+           (fdigits (setq cutoff (- fdigits)))
            (width
             (setq cutoff
                   (if (< k 0) (- 1 width)(1+ (- k width))))
@@ -1466,10 +1189,8 @@
                 (y s))
             (DECLARE (FIXNUM A))
             (if (>= a 0)
-              (WHEN (> A 0)(SETQ Y (* Y (10-to-e a))))
-              ;(dotimes (i (the fixnum a))  (setq y (* y 10)))
-              ;(dotimes (i (the fixnum (- a))) (setq y (ceiling y 10)))
-              (SETQ Y (CEILING Y (10-to-e (THE FIXNUM (- A))))))
+              (when (> a 0)(setq y (* y (10-to-e a))))
+              (setq y (ceiling y (10-to-e (the fixnum (- a))))))
             (when mm (setq m- (max y m-)))
             (setq m+ (max y m+))
             (when (= m+ y) (setq roundup t)))
@@ -1477,20 +1198,16 @@
                   (<= (+ 2r m+)(+ s s))
                   (< (+ 2r m+)(+ s s)))
             (return))))
-      ;(print (list r s m+))
       (let* ((h k)
-             ;(2s (+ s s))
              (half-m+ (* m+ 5))  ; 10 * m+/2
              (half-m- (if mm (* m- 5)))
              u high low 
-             ;2r
              )
         ;(print (list r s m+ roundup))
         (unless (and fdigits (>= (- k) fdigits))
           (loop
             (setq k (1- k))
             (multiple-value-setq (u r) (truncate (* r 10) s))          
-            ;(setq 2r (+ r r))
             (setq low (< r (if mm half-m- half-m+)))
             (setq high 
                   (if (not roundup)
