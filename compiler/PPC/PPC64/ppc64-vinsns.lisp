@@ -1156,7 +1156,7 @@
   (cmpldi crf object ppc64::nil-value)
   (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
   (beq crf :ok)
-  (tdnei tag ppc64::fulltag-cons)
+  (tdi 3 tag ppc64::fulltag-cons)
   :ok)
 
 (define-ppc64-vinsn trap-unless-uvector (()
@@ -1204,19 +1204,6 @@
   :do-trap
   (tdnei tag ppc64::subtag-macptr))
 
-(define-ppc64-vinsn trap-unless-fulltag= (()
-					  ((object :lisp)
-					   (tagval :u16const))
-					  ((tag :u8)))
-  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
-  (twnei tag tagval))
-
-(define-ppc64-vinsn trap-unless-lowbyte= (()
-					  ((object :lisp)
-					   (tagval :u16const))
-					  ((tag :u8)))
-  (clrlwi tag object (- ppc64::nbits-in-word 8))
-  (twnei tag tagval))
 
 (define-ppc64-vinsn trap-unless-typecode= (()
 					   ((object :lisp)
@@ -1832,10 +1819,13 @@
      ;; This is the general case, where all halfwords are significant.
      ;; Hopefully, something above catches lots of other cases.
      (lis dest (:apply %word-to-int (:apply ldb (:apply byte 16 48) intval)))
-     (ori dest dest (:apply ldb (:apply byte 16 32) intval))
+     ((:not (:pred = (:apply ldb (:apply byte 16 32) intval) 0))
+      (ori dest dest (:apply ldb (:apply byte 16 32) intval)))
      (sldi dest dest 32)
-     (oris dest dest (:apply ldb (:apply byte 16 16) intval))
-     (ori dest dest (:apply ldb (:apply byte 16 0) intval))))))
+     ((:not (:pred = (:apply ldb (:apply byte 16 16) intval) 0))
+      (oris dest dest (:apply ldb (:apply byte 16 16) intval)))
+     ((:not (:pred = (:apply ldb (:apply byte 16 0) intval) 0))
+      (ori dest dest (:apply ldb (:apply byte 16 0) intval)))))))
 
 
 (define-ppc64-vinsn discard-temp-frame (()
