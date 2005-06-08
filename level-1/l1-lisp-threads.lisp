@@ -982,6 +982,7 @@
     (when (%in-consing-area-p x area)
       (return t))))
 
+#+ppc32-target
 (defun valid-subtag-p (subtag)
   (declare (fixnum subtag))
   (let* ((tagval (ldb (byte (- ppc32::num-subtag-bits ppc32::ntagbits) ppc32::ntagbits) subtag)))
@@ -991,8 +992,18 @@
       (#. ppc32::fulltag-nodeheader (not (eq (%svref *nodeheader-types* tagval) 'bogus)))
       (t nil))))
 
+#+ppc64-target
+(defun valid-subtag-p (subtag)
+  (declare (fixnum subtag))
+  (let* ((tagval (ash subtag (- ppc64::nlowtagbits))))
+    (declare (fixnum tagval))
+    (case (logand subtag ppc64::lowtagmask)
+      (#. ppc64::lowtag-immheader (not (eq (%svref *immheader-types* tagval) 'bogus)))
+      (#. ppc64::lowtag-nodeheader (not (eq (%svref *nodeheader-types* tagval) 'bogus)))
+      (t nil))))
 
 
+#+ppc32-target
 (defun valid-header-p (thing)
   (let* ((fulltag (fulltag thing)))
     (declare (fixnum fulltag))
@@ -1001,9 +1012,24 @@
       ((#.ppc32::fulltag-immheader #.ppc32::fulltag-nodeheader) nil)
       (t t))))
 
+#+ppc64-target
+(defun valid-header-p (thing)
+  (let* ((fulltag (fulltag thing)))
+    (declare (fixnum fulltag))
+    (case fulltag
+      (#.ppc64::fulltag-misc (valid-subtag-p (typecode thing)))
+      ((#.ppc64::fulltag-immheader-0
+        #.ppc64::fulltag-immheader-1
+        #.ppc64::fulltag-immheader-2
+        #.ppc64::fulltag-immheader-3
+        #.ppc64::fulltag-nodeheader-0
+        #.ppc64::fulltag-nodeheader-1
+        #.ppc64::fulltag-nodeheader-2
+        #.ppc64::fulltag-nodeheader-3) nil)
+      (t t))))
 
 
-
+#+ppc32-target
 (defun bogus-thing-p (x)
   (when x
     (or (not (valid-header-p x))
@@ -1019,6 +1045,28 @@
                              ((#.ppc32::subtag-symbol #.ppc32::subtag-code-vector)
                               t)              ; no stack-consed symbols or code vectors
                              (#.ppc32::subtag-value-cell
+                              (on-any-vstack x))
+                             (t
+                              (on-any-tsp-stack x)))
+                           (%heap-ivector-p x)))))))))
+
+#+ppc64-target
+(defun bogus-thing-p (x)
+  (when x
+    (or (not (valid-header-p x))
+        (let ((tag (lisptag x)))
+          (unless (or (eql tag ppc64::tag-fixnum)
+                      (eql tag ppc64::tag-imm-0)
+                      (eql tag ppc64::tag-imm-2)
+                      (in-any-consing-area-p x))
+            ;; This is terribly complicated, should probably write some LAP
+            (let ((typecode (typecode x)))
+                  (not (or (case typecode
+                             (#.ppc64::fulltag-cons
+                              (temporary-cons-p x))
+                             ((#.ppc64::subtag-symbol #.ppc64::subtag-code-vector)
+                              t)              ; no stack-consed symbols or code vectors
+                             (#.ppc64::subtag-value-cell
                               (on-any-vstack x))
                              (t
                               (on-any-tsp-stack x)))
