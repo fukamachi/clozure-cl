@@ -1576,14 +1576,21 @@
 
 
 (define-compiler-macro lockp (lock)
-  `(eq ppc32::subtag-lock (typecode ,lock)))
+  (target-arch-case
+   (:ppc32 `(eq ppc32::subtag-lock (typecode ,lock)))
+   (:ppc64 `(eq ppc64::subtag-lock (typecode ,lock)))))
 
 (define-compiler-macro integerp (thing)
   (let* ((typecode (gensym)))
-    `(let* ((,typecode (typecode ,thing)))
-      (declare (fixnum ,typecode))
-      (or (= ,typecode ppc32::tag-fixnum)
-          (= ,typecode ppc32::subtag-bignum)))))
+    (target-arch-case
+     (:ppc32 `(let* ((,typecode (typecode ,thing)))
+               (declare (fixnum ,typecode))
+               (or (= ,typecode ppc32::tag-fixnum)
+                (= ,typecode ppc32::subtag-bignum))))
+     (:ppc64 `(let* ((,typecode (typecode ,thing)))
+               (declare (fixnum ,typecode))
+               (or (= ,typecode ppc64::tag-fixnum)
+                (= ,typecode ppc64::subtag-bignum)))))))
        
 (define-compiler-macro %composite-pointer-ref (size pointer offset)
   (if (constantp size)
