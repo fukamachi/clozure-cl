@@ -121,7 +121,7 @@
 ;;;No type/range checking.  For DO-SYMBOLS and friends.
 (defun %htab-symbol (array index)
   (let* ((sym (%svref array index)))
-    (if (and sym (neq sym (package-deleted-marker)))
+    (if (symbolp sym)
       (values (%symptr->symbol sym) t)
       (values nil nil))))
 
@@ -176,7 +176,6 @@
 
 ;;; On principle, this should get exported here.  Unfortunately, we
 ;;; can't execute calls to export quite yet.
-;(export '*make-package-use-defaults* )
 
 
 (defun make-package (name &key
@@ -479,8 +478,7 @@
                  (dotimes (i (uvsize smaller-v))
                    (declare (fixnum i))
                    (let ((symptr (%svref smaller-v i)))
-                     (when (and symptr
-                                (neq symptr (package-deleted-marker)))
+                     (when (symbolp symptr)
                        (let* ((sym (%symptr->symbol symptr))
                               (symname (symbol-name sym)))
                          (unless (member symname shadowed-in-using :test #'string=)
@@ -502,7 +500,7 @@
                    (dotimes (i (the fixnum (uvsize v)))
                      (declare (fixnum i))
                      (let ((symptr (%svref v i)))
-                       (when (and symptr (neq symptr (package-deleted-marker)))
+                       (when (symbolp symptr)
                          (let* ((sym (%symptr->symbol symptr)))
                            (unless (memq sym shadowed-in-using)
                              (let* ((name (symbol-name symptr)))
@@ -623,13 +621,13 @@
     (dotimes (i (the fixnum (length ivec)))
       (let* ((sym (%svref ivec i)))
         (setf (%svref ivec i) deleted)          ; in case it's in STATIC space
-        (when (and sym (not (eq sym deleted)))
+        (when (symbolp sym)
           (if (eq (symbol-package sym) package)
             (%set-symbol-package sym nil)))))
     (dotimes (i (the fixnum (length evec)))
       (let* ((sym (%svref evec i)))
         (setf (%svref evec i) deleted)          ; in case it's in STATIC space
-        (when (and sym (not (eq sym deleted)))
+        (when (symbolp sym)
           (if (eq (symbol-package sym) package)
             (%set-symbol-package sym nil))))))
   (let ((itab (pkg.itab package)) (etab (pkg.etab package)) (v '#(nil nil nil)))
@@ -652,14 +650,16 @@
             (values nil nil nil)))))))
 
 ;;;For the inspector, number of symbols in pkg.
-(defun %pkgtab-count (pkgtab &aux (n 0))
-  (dovector (x (pkgtab-table pkgtab))
-    (when (and x (neq x (package-deleted-marker)))
-      (setq n (%i+ n 1))))
-  n)
+(defun %pkgtab-count (pkgtab)
+  (let* ((n 0))
+    (declare (fixnum n))
+    (dovector (x (pkgtab-table pkgtab) n)
+       (when (symbolp x)
+         (incf n
+               (setq n (%i+ n 1)))))))
+
 
 (defun %resize-package (pkg)
-  #-bccl (unless (packagep pkg) (report-bad-arg pkg 'package))
   (%resize-htab (pkg.itab pkg))
   (%resize-htab (pkg.etab pkg))
   pkg)

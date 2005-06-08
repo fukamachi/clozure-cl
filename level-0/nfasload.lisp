@@ -757,7 +757,7 @@
               (declare (fixnum psize))
               (if (>= psize size) 
                 (return psize))))))
-  (setf (htvec htab) (make-array size :initial-element nil))
+  (setf (htvec htab) (make-array size :initial-element 0))
   (setf (htcount htab) 0)
   (setf (htlimit htab) (the fixnum (- size (the fixnum (ash size -3)))))
   htab)
@@ -819,7 +819,7 @@
           (elt (svref vec i) (svref vec i)))
          ((or (eql elt 0) (null elt)) (values nil nil i))
       (declare (fixnum i idx))
-      (when (and elt (symbolp elt))
+      (when (symbolp elt)
         (let* ((pname (symbol-name elt)))
           (if (and 
                (= (the fixnum (length pname)) len)
