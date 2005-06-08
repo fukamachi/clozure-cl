@@ -495,7 +495,7 @@
   (check-nargs 0)
   (li imm0 0)
   (trlgei allocptr 0)
-  (li arg_z ppc32::nil-value)
+  (li arg_z target::nil-value)
   (blr))
 
 
