@@ -118,7 +118,8 @@
   (box-fixnum arg_z imm0)
   (blr))
 
-;;; Count the sign bits in the most significant digit of bignum; return fixnum count.
+;;; Count the sign bits in the most significant digit of bignum;
+;;; return fixnum count.
 (defppclapfunction %bignum-sign-bits ((bignum arg_z))
   (vector-length imm0 bignum imm0)
   (la imm0 (- ppc32::misc-data-offset 4) imm0) ; Reference last (most significant) digit
