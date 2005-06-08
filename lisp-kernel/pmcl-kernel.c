@@ -318,10 +318,10 @@ int cache_block_size=32;
 #define DEFAULT_LISP_HEAP_GC_THRESHOLD (16<<20)
 #define DEFAULT_INITIAL_STACK_SIZE (1<<20)
 
-unsigned
+natural
 lisp_heap_gc_threshold = DEFAULT_LISP_HEAP_GC_THRESHOLD;
 
-unsigned 
+natural 
 initial_stack_size = DEFAULT_INITIAL_STACK_SIZE;
 
 
@@ -459,7 +459,11 @@ address_unmapped_p(char *addr, natural len)
   kret = vm_region(mach_task_self(),
 		   &vm_addr,
 		   &vm_size,
+#ifdef PPC64
+                   VM_REGION_BASIC_INFO_64,
+#else
 		   VM_REGION_BASIC_INFO,
+#endif
 		   (vm_region_info_t)&vm_info,
 		   &vm_info_size,
 		   &vm_object_name);
@@ -479,7 +483,7 @@ create_reserved_area(unsigned long totalsize)
 {
   OSErr err;
   Ptr h;
-  unsigned base, n;
+  natural base, n;
   BytePtr 
     end, 
     lastbyte, 
@@ -641,11 +645,11 @@ BytePtr pagemap_limit = NULL,
 void
 ensure_gc_structures_writable()
 {
-  unsigned 
+  natural 
     ndnodes = area_dnode(lisp_global(HEAP_END),lisp_global(HEAP_START)),
     npages = (lisp_global(HEAP_END)-lisp_global(HEAP_START)) >> 12,
-    markbits_size = 12+((ndnodes+7)>>dnode_shift),
-    reloctab_size = (sizeof(LispObj)*(((ndnodes+31)>>5)+1));
+    markbits_size = (3*sizeof(LispObj))+((ndnodes+7)>>3),
+    reloctab_size = (sizeof(LispObj)*(((ndnodes+((1<<bitmap_shift)-1))>>bitmap_shift)+1));
   BytePtr 
     new_reloctab_limit = ((BytePtr)global_reloctab)+reloctab_size,
     new_markbits_limit = ((BytePtr)global_mark_ref_bits)+markbits_size;
@@ -1305,6 +1309,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   prepare_for_the_worst();
 
   create_reserved_area(reserved_area_size);
+  gc_init();
   set_nil(load_image(image_name));
   lisp_global(AREA_LOCK) = ptr_to_lispobj(area_lock);
 
