@@ -98,7 +98,7 @@
                  (multiple-value-bind (foundsym foundp internal-offset)
                                       (%findsym (symbol-name s) package)
                    (when (eq foundp :internal)
-                     (setf (%svref ivec internal-offset) (%unbound-marker-8))
+                     (setf (%svref ivec internal-offset) (package-deleted-marker))
                      (let* ((pname (symbol-name foundsym)))
                        (%htab-add-symbol foundsym etab (nth-value 2 (%get-htab-symbol pname (length pname) etab)))))))))))))))
 
@@ -118,10 +118,10 @@
   "Return true if Object is a symbol in the \"KEYWORD\" package."
   (and (symbolp x) (eq (symbol-package x) *keyword-package*)))
 
-;No type/range checking.  For DO-SYMBOLS and friends.
+;;;No type/range checking.  For DO-SYMBOLS and friends.
 (defun %htab-symbol (array index)
   (let* ((sym (%svref array index)))
-    (if (and sym (neq sym (%unbound-marker-8)))
+    (if (and sym (neq sym (package-deleted-marker)))
       (values (%symptr->symbol sym) t)
       (values nil nil))))
 
@@ -152,7 +152,7 @@
       (rplacd names nil))
     (%add-nicknames new-nicknames package)))
 
-; Someday, this should become LISP:IN-PACKAGE.
+;;; Someday, this should become LISP:IN-PACKAGE.
 (defun old-in-package (name &key 
                         nicknames 
                         (use nil use-p) 
@@ -174,8 +174,8 @@
 
 (defvar *make-package-use-defaults* '("COMMON-LISP" "CCL"))
 
-; On principle, this should get exported here.  Unfortunately, we
-; can't execute calls to export quite yet.
+;;; On principle, this should get exported here.  Unfortunately, we
+;;; can't execute calls to export quite yet.
 ;(export '*make-package-use-defaults* )
 
 
@@ -311,19 +311,19 @@
                (others nil))
           (declare (dynamic-extent first))
           (with-package-lock (package)
-           (dolist (pkg (pkg.used package))
-             (with-package-lock (pkg)
-               (multiple-value-bind (found conflicting-sym) (%get-htab-symbol name len (pkg.etab pkg))
-                 (when found
-                   (if first-p
-                     (unless (or (eq conflicting-sym first)
-                               (memq conflicting-sym others))
-                     (push conflicting-sym others))
-                     (setq first-p t first conflicting-sym)))))))
+            (dolist (pkg (pkg.used package))
+              (with-package-lock (pkg)
+                (multiple-value-bind (found conflicting-sym) (%get-htab-symbol name len (pkg.etab pkg))
+                  (when found
+                    (if first-p
+                      (unless (or (eq conflicting-sym first)
+                                  (memq conflicting-sym others))
+                        (push conflicting-sym others))
+                      (setq first-p t first conflicting-sym)))))))
           (when others
-            ; If this returns, it will have somehow fixed things.
+            ;;If this returns, it will have somehow fixed things.
             (return-from unintern (%kernel-restart $xunintc symbol package (cons first others)))))
-        ; No conflicts found, but symbol was on shadowing-symbols list.  Remove it atomically.
+        ;; No conflicts found, but symbol was on shadowing-symbols list.  Remove it atomically.
         (do* ((head (cons nil (pkg.shadowed package)))
               (prev head next)
               (next (cdr prev) (cdr next)))
@@ -335,9 +335,10 @@
             (setf (cdr prev) (cdr next)
                   (pkg.shadowed package) (cdr head))
             (return))))
-      ; Now remove the symbol from package; if package was its home package, set its package to NIL.
-      ; If we get here, the "table" and "index" values returned above are still valid.
-      (%svset (car table) index (%unbound-marker-8))
+      ;; Now remove the symbol from package; if package was its home
+      ;; package, set its package to NIL.  If we get here, the "table"
+      ;; and "index" values returned above are still valid.
+      (%svset (car table) index (package-deleted-marker))
       (when (eq (symbol-package symbol) package)
         (%set-symbol-package symbol nil))
       t)))
@@ -426,7 +427,7 @@
              (ivec (car itab))
              (icount&limit (cdr itab)))
         (declare (type cons etab itab icount&limit))
-        (setf (svref evec external-offset) (%unbound-marker-8))
+        (setf (svref evec external-offset) (package-deleted-marker))
         (setf (svref ivec internal-offset) (%symbol->symptr foundsym))
         (if (eql (setf (car icount&limit)
                        (the fixnum (1+ (the fixnum (car icount&limit)))))
@@ -434,7 +435,7 @@
           (%resize-htab itab)))))
   nil)
 
-; Both args must be packages.
+;;; Both args must be packages.
 (defun %use-package-conflict-check (using-package package-to-use)
   (let ((already-used (pkg.used using-package)))
     (unless (or (eq using-package package-to-use)
@@ -479,7 +480,7 @@
                    (declare (fixnum i))
                    (let ((symptr (%svref smaller-v i)))
                      (when (and symptr
-                                (neq symptr (%unbound-marker-8)))
+                                (neq symptr (package-deleted-marker)))
                        (let* ((sym (%symptr->symbol symptr))
                               (symname (symbol-name sym)))
                          (unless (member symname shadowed-in-using :test #'string=)
@@ -501,7 +502,7 @@
                    (dotimes (i (the fixnum (uvsize v)))
                      (declare (fixnum i))
                      (let ((symptr (%svref v i)))
-                       (when (and symptr (neq symptr (%unbound-marker-8)))
+                       (when (and symptr (neq symptr (package-deleted-marker)))
                          (let* ((sym (%symptr->symbol symptr)))
                            (unless (memq sym shadowed-in-using)
                              (let* ((name (symbol-name symptr)))
@@ -514,7 +515,7 @@
                  (dotimes (i (uvsize v))
                    (declare (fixnum i))
                    (let ((symptr (%svref v i)))
-                     (when (and symptr (neq symptr (%unbound-marker-8)))
+                     (when (and symptr (neq symptr (package-deleted-marker)))
                        (let* ((sym (%symptr->symbol symptr)))
                          (multiple-value-bind (using-sym found-p) (%find-package-symbol (symbol-name sym) using-package)
                            (when (and found-p
@@ -563,7 +564,7 @@
            (progn                       ; Delete conflicting symbol
              (if (eq (symbol-package othersym) package)
                (%set-symbol-package othersym nil))
-             (setf (%svref (car htab) offset) (%unbound-marker-8))
+             (setf (%svref (car htab) offset) (package-deleted-marker))
              (setf (pkg.shadowed package) (delete othersym (pkg.shadowed package) :test #'eq)))))
        (if need-add                   ; No symbols with same pname; intern & shadow
          (multiple-value-bind (xsym foundp internal-offset external-offset) 
@@ -618,7 +619,7 @@
   (setf (pkg.names package) nil)
   (let* ((ivec (car (pkg.itab package)))
          (evec (car (pkg.etab package)))
-         (deleted (%unbound-marker-8)))
+         (deleted (package-deleted-marker)))
     (dotimes (i (the fixnum (length ivec)))
       (let* ((sym (%svref ivec i)))
         (setf (%svref ivec i) deleted)          ; in case it's in STATIC space
@@ -650,10 +651,10 @@
             (values sym etab offset)
             (values nil nil nil)))))))
 
-;For the inspector, number of symbols in pkg.
+;;;For the inspector, number of symbols in pkg.
 (defun %pkgtab-count (pkgtab &aux (n 0))
   (dovector (x (pkgtab-table pkgtab))
-    (when (and x (neq x (%unbound-marker-8)))
+    (when (and x (neq x (package-deleted-marker)))
       (setq n (%i+ n 1))))
   n)
 
@@ -678,7 +679,7 @@
 (defun package-used-by-list (pkg) (pkg.used-by (pkg-arg-allow-deleted pkg)))
 (defun package-shadowing-symbols (pkg) (pkg.shadowed (pkg-arg-allow-deleted pkg)))
 
-; This assumes that all symbol-names and package-names are strings.
+;;; This assumes that all symbol-names and package-names are strings.
 (defun %define-package (name size 
                              external-size ; extension (may be nil.)
                              nicknames
@@ -732,7 +733,7 @@
         (set-documentation pkg t doc))
       pkg)))
 
-; The guts of with-package-iterator
+;;; The guts of with-package-iterator
 (defun %start-with-package-iterator (p)
   (let ((pkgs (pkg-iter.pkgs p)))
     (if (listp pkgs)
@@ -849,15 +850,15 @@
                 (%get-pkg-iter-inherited p))
               (%pkg-iter-next-package p))))))))
 
-; For do-symbols and with-package-iterator
-; string must be a simple string
-; package must be a package
-; Wouldn't it be nice if this distinguished "not found" from "found NIL" ?
+;;; For do-symbols and with-package-iterator
+;;; string must be a simple string
+;;; package must be a package
+;;; Wouldn't it be nice if this distinguished "not found" from "found NIL" ?
 (defun %name-present-in-package-p (string package)
   (values (%find-package-symbol string package)))
 
-; This is supposed to be (somewhat) like the lisp machine's MAKE-PACKAGE.
-; Accept and ignore some keyword arguments, accept and process some others.
+;;; This is supposed to be (somewhat) like the lisp machine's MAKE-PACKAGE.
+;;; Accept and ignore some keyword arguments, accept and process some others.
 
 (defun lispm-make-package (name &key 
                                 (use *make-package-use-defaults*)
