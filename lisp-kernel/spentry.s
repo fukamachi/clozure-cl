@@ -3710,16 +3710,29 @@ _spentry(builtin_times)
 	__(unbox_fixnum(imm2,arg_y))
 	__(bne cr0,1f)
         __(bne cr1,1f)
-	__(mullwo. imm3,arg_z,imm2)
-	__(bso 2f)		/*  SO set if result would overflow a fixnum */
-	__(mr arg_z,imm3)
-	__(blr)
-	/* Args are fixnums; result can't be */
-2:	__(mtxer rzero)
-	__(unbox_fixnum(imm3,arg_z))
-	__(mullw imm1,imm3,imm2) /* imm1 = low  32 bits */
-	__(mulhw imm0,imm3,imm2) /* imm0 = high 32 bits */
-	__(b _SPmakes64)
+        __ifdef([PPC64])
+         __(mulldo. imm3,arg_z,imm2)
+         __(bso 2f)
+         __(mr arg_z,imm3)
+         __(blr)
+	 /* Args are fixnums; result can't be */
+2:	 __(mtxer rzero)
+	 __(unbox_fixnum(imm3,arg_z))
+	 __(mulld imm1,imm3,imm2) /* imm1 = low  32 bits */
+	 __(mulhd imm0,imm3,imm2) /* imm0 = high 32 bits */
+	 __(b _SPmakes128)
+        __else
+	 __(mullwo. imm3,arg_z,imm2)
+	 __(bso 2f)		/*  SO set if result would overflow a fixnum */
+	 __(mr arg_z,imm3)
+	 __(blr)
+	 /* Args are fixnums; result can't be */
+2:	 __(mtxer rzero)
+	 __(unbox_fixnum(imm3,arg_z))
+	 __(mullw imm1,imm3,imm2) /* imm1 = low  32 bits */
+	 __(mulhw imm0,imm3,imm2) /* imm0 = high 32 bits */
+	 __(b _SPmakes64)
+        __endif
 
 1:	__(jump_builtin(_builtin_times,2))
 
@@ -4043,19 +4056,19 @@ _spentry(builtin_ash)
 	 /* Shift left by 64 bits exactly */
 	 __(mr imm0,imm1)
 	 __(li imm1,0)
-	 __(beq _SPmakes64)
-	 __(b _SPmakeu64)
+	 __(beq _SPmakes128)
+	 __(b _SPmakeu128)
 7:
-	 /* Shift left by fewer than 32 bits, result not a fixnum */
-	 __(subfic imm0,imm0,32)
+	 /* Shift left by fewer than 64 bits, result not a fixnum */
+	 __(subfic imm0,imm0,64)
 	 __(beq 8f)
-	 __(srw imm0,imm1,imm0)
+	 __(srd imm0,imm1,imm0)
 	 __(mr imm1,imm2)
-	 __(b _SPmakeu64)
+	 __(b _SPmakeu128)
 8:	
-	 __(sraw imm0,imm1,imm0)
+	 __(srad imm0,imm1,imm0)
 	 __(mr imm1,imm2)
-	 __(b _SPmakes64)
+	 __(b _SPmakes128)
         __else
 	 __(cmpri(cr1,arg_z,0))
          __(extract_lisptag(imm0,arg_y))
@@ -4716,6 +4729,82 @@ _spentry(makes64)
 	 __(blr)
         __endif
 
+/* imm0:imm1 constitute an unsigned integer, almost certainly a bignum.
+   Make a lisp integer out of those 128 bits .. */
+_spentry(makeu128)
+        __ifdef([PPC64])
+         __(cmpdi imm0,0)
+         __(cmpdi cr1,imm1,0)
+         __(srdi imm3,imm0,32)
+         __(srawi imm4,imm0,31)
+         __(cmpdi cr3,imm3,0)
+         __(cmpdi cr4,imm4,0)
+         __(li imm2,five_digit_bignum_header)
+         __(blt cr1,0f)
+         __(beq 3f)
+0:              
+         __(bgt 1f)
+         /* All 128 bits are significant, and the most significant
+            bit is set.  Allocate a 5-digit bignum (with a zero
+            sign digit */
+         __(Misc_Alloc_Fixed(arg_z,imm2,48))
+         __(rotldi imm0,imm0,32)
+         __(rotldi imm1,imm1,32)
+         __(std imm1,misc_data_offset(arg_z))
+         __(std imm0,misc_data_offset+8(arg_z))
+         __(blr)
+1:      /* If the high word of imm0 is a zero-extension of the low
+           word, we only need 3 digits ; otherwise, we need 4. */
+         __(li imm2,three_digit_bignum_header)
+         __(rotldi imm1,imm1,32)
+         __(bne cr3,2f) /* high word of imm0 is non-zero */
+         __(bne cr4,2f) /* sign bit is on in low word of imm0 */
+         __(Misc_Alloc_Fixed(arg_z,imm2,32))
+         __(std imm1,misc_data_offset(arg_z))
+         __(stw imm0,misc_data_offset+8(arg_z))
+         __(blr)
+2:       __(li imm2,four_digit_bignum_header)
+         __(rotldi imm0,imm0,32)
+         __(Misc_Alloc_Fixed(arg_z,imm2,48))
+         __(std imm1,misc_data_offset(arg_z))
+         __(std imm0,misc_data_offset+8(arg_z))
+         __(blr)
+3:       __(mr imm0,imm1)
+         __(b _SPmakeu64)              
+        __else
+         __(twgei r0,r0)
+        __endif
+
+/* imm0:imm1 constitute a signed integer, almost certainly a bignum.
+   Make a lisp integer out of those 128 bits .. */
+_spentry(makes128)
+        __ifdef([PPC64])
+        /* Is imm0 just a sign-extension of imm1 ? */
+         __(srdi imm2,imm1,64)
+        /* Is the high word of imm0 just a sign-extension of the low word ? */
+         __(extsw imm3,imm0)
+         __(cmpdi imm2,imm0)
+         __(cmpdi cr1,imm3,imm0)
+         __(beq 2f)
+         __(rotldi imm0,imm0,32)
+         __(rotldi imm1,imm1,32)
+         __(beq cr1,1f)
+         __(li imm2,four_digit_bignum_header)
+         __(Misc_Alloc_Fixed(arg_z,imm2,48))
+         __(std imm1,misc_data_offset(arg_z))
+         __(std imm0,misc_data_offset+8(arg_z))
+         __(blr)
+1:       __(li imm2,three_digit_bignum_header)
+         __(Misc_Alloc_Fixed(arg_z,imm2,32))
+         __(std imm1,misc_data_offset(arg_z))
+         __(stw imm0,misc_data_offset+8(arg_z))
+         __(blr)
+2:       __(mr imm0,imm1)
+         __(b _SPmakes64)        
+        __else
+         __(twgei r0,r0)
+        __endif        
+                        
 _spentry(heap_restv_arg)
 
 _spentry(req_heap_restv_arg)
