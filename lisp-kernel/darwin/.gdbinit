@@ -127,7 +127,7 @@ break Bug
 
 display/i $pc
 
-
+handle SIGKILL pass nostop noprint
 handle SIGILL pass nostop noprint
 handle SIGSEGV pass nostop noprint
 handle SIGBUS pass nostop noprint
