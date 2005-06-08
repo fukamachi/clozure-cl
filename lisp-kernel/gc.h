@@ -36,12 +36,12 @@
 
 extern BytePtr HeapHighWaterMark; /* highest zeroed dynamic address  */
 extern LispObj GCarealow;
-extern unsigned GCndnodes_in_area;
+extern natural GCndnodes_in_area;
 extern bitvector GCmarkbits;
 LispObj *global_reloctab, *GCrelocptr;
 LispObj GCfirstunmarked;
 
-extern unsigned lisp_heap_gc_threshold;
+extern natural lisp_heap_gc_threshold;
 void mark_root(LispObj);
 void mark_pc_root(LispObj);
 void mark_locative_root(LispObj);
@@ -61,9 +61,15 @@ void delete_protected_area(protected_area_ptr);
 Boolean egc_control(Boolean, BytePtr);
 Boolean free_segments_zero_filled_by_OS;
 
+/* an type representing 1/4 of a natural word */
+#ifdef PPC64
+typedef unsigned short qnode;
+#else
+typedef unsigned char qnode;
+#endif
 
 
-#define area_dnode(w,low) (((ptr_to_lispobj(w)) - ptr_to_lispobj(low))>>dnode_shift)
+#define area_dnode(w,low) ((natural)(((ptr_to_lispobj(w)) - ptr_to_lispobj(low))>>dnode_shift))
 #define gc_area_dnode(w)  area_dnode(w,GCarealow)
 
 #ifdef PPC64
