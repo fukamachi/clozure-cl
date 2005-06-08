@@ -75,7 +75,7 @@
 
 
 ;; Not too OS-specific.
-(defparameter *ppc-xdev-modules* '(ppc2 ppc-lapmacros ppc-disassemble nxenv ))
+(defparameter *ppc-xdev-modules* '(ppc-lapmacros nxenv ))
 (defun target-xdev-modules (&optional (target
 				       (backend-target-arch-name
 					*host-backend*)))
