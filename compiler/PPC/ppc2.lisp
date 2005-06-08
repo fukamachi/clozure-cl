@@ -1629,7 +1629,7 @@
         (unless index-known-fixnum
           (! trap-unless-fixnum unscaled-idx))
         (! check-misc-bound unscaled-idx src))
-      (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
+      (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
         (! misc-ref-c-single-float vreg src index-known-fixnum)
         (with-imm-temps () (idx-reg)
           (if index-known-fixnum
@@ -5437,11 +5437,12 @@
     (progn
       (ppc2-form seg nil nil form1)
       (ppc2-form seg nil xfer form2))
-    (let* ((const (acode-fixnum-form-p form1)))
+    (let* ((const (acode-fixnum-form-p form1))
+           (max (target-arch-case (:ppc32 31) (:ppc64 63))))
       (ensuring-node-target (target vreg)
         (if const
           (let* ((src (ppc2-one-untargeted-reg-form seg form2 ppc::arg_z)))
-            (if (<= const 31)
+            (if (<= const max)
               (! %ilsl-c target const src)
               (!  lri target 0)))
           (multiple-value-bind (count src) (ppc2-two-untargeted-reg-forms seg form1 ppc::arg_y form2 ppc::arg_z)
@@ -6117,10 +6118,12 @@
     (progn
       (ppc2-form seg nil nil form1)
       (ppc2-form seg vreg xfer form2))
-    (let* ((count (acode-fixnum-form-p form1)))
+    (let* ((count (acode-fixnum-form-p form1))
+           (max (target-arch-case (:ppc32 31) (:ppc64 63))))
+      (declare (fixnum max))
       (ensuring-node-target (target vreg)
         (if count
-          (! %iasr-c target (if (> count 31) 31 count)
+          (! %iasr-c target (if (> count max) max count)
              (ppc2-one-untargeted-reg-form seg form2 ppc::arg_z))
           (multiple-value-bind (cnt src) (ppc2-two-targeted-reg-forms seg form1 ($ ppc::arg_y) form2 ($ ppc::arg_z))
             (! %iasr target cnt src))))
