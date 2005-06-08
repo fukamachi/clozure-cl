@@ -2590,7 +2590,9 @@ are printed.")
                           (or last-form-in-selection *verbose-eval-selection*))))))))
 
                              
-        
+(defun column (&optional stream)
+  (let* ((stream (real-print-stream stream)))
+    (stream-line-column stream)))        
 
 
 ; end of L1-streams.lisp
