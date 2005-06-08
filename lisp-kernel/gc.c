@@ -47,7 +47,7 @@ new_area(BytePtr lowaddr, BytePtr highaddr, area_code code)
 {
   area *a = (area *) (zalloc(sizeof(area)));
   if (a) {
-    unsigned ndnodes = area_dnode(highaddr, lowaddr);
+    natural ndnodes = area_dnode(highaddr, lowaddr);
     a->low = lowaddr;
     a->high = highaddr;
     a->active = (code == AREA_DYNAMIC) ? lowaddr : highaddr;
@@ -275,7 +275,7 @@ check_range(LispObj *start, LispObj *end)
 {
   LispObj node, *current = start, *prev;
   int tag;
-  unsigned elements;
+  natural elements;
 
   while (current < end) {
     prev = current;
@@ -319,7 +319,7 @@ check_all_areas()
         LispObj* low = (LispObj *)a->active;
         LispObj* high = (LispObj *)a->high;
         
-        if (((natural)low) & 4) {
+        if (((natural)low) & node_size) {
           check_node(*low++);
         }
         check_range(low, high);
@@ -373,7 +373,7 @@ tenure_to_area(area *target)
     curfree = a->active,
     target_low = target->low,
     tenured_low = tenured_area->low;
-  unsigned 
+  natural 
     dynamic_dnodes = area_dnode(curfree, a->low),
     new_tenured_dnodes = area_dnode(curfree, tenured_area->low);
   bitvector 
@@ -392,7 +392,7 @@ tenure_to_area(area *target)
   a->low = curfree;
   a->ndnodes = area_dnode(a->high, curfree);
 
-  new_markbits = refbits + ((new_tenured_dnodes + 31) >> 5);
+  new_markbits = refbits + ((new_tenured_dnodes + (nbits_in_word-1)) >> bitmap_shift);
   
   if (target == tenured_area) {
     zero_bits(refbits, new_tenured_dnodes);
@@ -422,7 +422,7 @@ untenure_from_area(area *from)
   if (lisp_global(OLDEST_EPHEMERAL) != 0) {
     area *a = active_dynamic_area, *child;
     BytePtr curlow = from->low;
-    unsigned new_tenured_dnodes = area_dnode(curlow, tenured_area->low);
+    natural new_tenured_dnodes = area_dnode(curlow, tenured_area->low);
     
     for (child = from; child != a; child = child->younger) {
       child->low = child->active = child->high = curlow;
@@ -432,7 +432,7 @@ untenure_from_area(area *from)
     a->low = curlow;
     a->ndnodes = area_dnode(a->high, curlow);
     
-    a->markbits = (tenured_area->refbits) + ((new_tenured_dnodes+31)>>5);
+    a->markbits = (tenured_area->refbits) + ((new_tenured_dnodes+(nbits_in_word-1))>>bitmap_shift);
     if (from == tenured_area) {
       /* Everything's in the dynamic area */
       lisp_global(OLDEST_EPHEMERAL) = 0;
@@ -568,10 +568,10 @@ condemn_area_chain(area *a, TCR *tcr)
 
 bitvector GCmarkbits = NULL;
 LispObj GCarealow;
-unsigned GCndnodes_in_area;
+natural GCndnodes_in_area;
 LispObj GCweakvll = (LispObj)NULL;
 LispObj GCephemeral_low;
-unsigned GCn_ephemeral_dnodes;
+natural GCn_ephemeral_dnodes;
 
 
 /* Sooner or later, this probably wants to be in assembler */
@@ -609,7 +609,7 @@ mark_root(LispObj n)
       header = *((natural *) base),
       subtag = header_subtag(header),
       element_count = header_element_count(header),
-      total_size_in_bytes,      /* including 4-byte header */
+      total_size_in_bytes,      /* including 4/8-byte header */
       suffix_dnodes;
 
     tag_n = fulltag_of(header);
@@ -664,7 +664,7 @@ mark_root(LispObj n)
       }
       
       if (subtag == subtag_weak) {
-        int weak_type = (unsigned) base[2];
+        natural weak_type = (natural) base[2];
         if (weak_type >> population_termination_bit) {
           element_count -= 2;
         } else {
@@ -697,7 +697,7 @@ Boolean
 mark_ephemeral_root(LispObj n)
 {
   int tag_n = fulltag_of(n);
-  unsigned eph_dnode;
+  natural eph_dnode;
 
   if (nodeheader_tag_p(tag_n)) {
     return (header_subtag(n) == subtag_hash_vector);
@@ -841,7 +841,7 @@ rmark(LispObj n)
 
   MarkCons:
     next = deref(this,1);
-    this += 4;
+    this += node_size;
     tag_n = fulltag_of(next);
     if (!is_node_fulltag(tag_n)) goto MarkCdr;
     dnode = gc_area_dnode(next);
@@ -859,7 +859,7 @@ rmark(LispObj n)
 
   MarkCdr:
     next = deref(this, 0);
-    this -= 4;
+    this -= node_size;
     tag_n = fulltag_of(next);
     if (!is_node_fulltag(tag_n)) goto Climb;
     dnode = gc_area_dnode(next);
@@ -939,7 +939,7 @@ rmark(LispObj n)
       }
 
       if (subtag == subtag_weak) {
-        int weak_type = (unsigned) base[2];
+        natural weak_type = (natural) base[2];
         if (weak_type >> population_termination_bit)
           element_count -= 2;
         else
@@ -1073,7 +1073,7 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
 
 
 void
-mark_memoized_area(area *a, unsigned num_memo_dnodes)
+mark_memoized_area(area *a, natural num_memo_dnodes)
 {
   bitvector refbits = a->refbits;
   LispObj *p = (LispObj *) a->low, x1, x2;
@@ -1105,11 +1105,12 @@ mark_memoized_area(area *a, unsigned num_memo_dnodes)
 
   {
     unsigned 
-      bits_in_last_word = (num_memo_dnodes & 0x1f),
-      index_of_last_word = (num_memo_dnodes >> 5);
+      bits_in_last_word = (num_memo_dnodes & bitmap_shift_count_mask);
+    natural
+      index_of_last_word = (num_memo_dnodes >> bitmap_shift);
 
     if (bits_in_last_word != 0) {
-      refbits[index_of_last_word] &= ~((1<<(32-bits_in_last_word))-1);
+      refbits[index_of_last_word] &= ~((1<<(nbits_in_word-bits_in_last_word))-1);
     }
   }
         
@@ -1117,7 +1118,7 @@ mark_memoized_area(area *a, unsigned num_memo_dnodes)
   inbits = outbits = bits;
   while (memo_dnode < num_memo_dnodes) {
     if (bits == 0) {
-      int remain = 0x20 - bitidx;
+      int remain = nbits_in_word - bitidx;
       memo_dnode += remain;
       p += (remain+remain);
       if (outbits != inbits) {
@@ -1186,7 +1187,7 @@ mark_simple_area_range(LispObj *start, LispObj *end)
         }
 
         if (subtag == subtag_weak) {
-          int weak_type = (unsigned) start[2];
+          natural weak_type = (natural) start[2];
           if (weak_type >> population_termination_bit)
             element_count -= 2;
           else
@@ -1432,9 +1433,9 @@ reaphashv(LispObj hashv)
 
 
 Boolean
-mark_weak_hash_vector(hash_table_vector_header *hashp, unsigned elements)
+mark_weak_hash_vector(hash_table_vector_header *hashp, natural elements)
 {
-  unsigned flags = hashp->flags, key_dnode, val_dnode;
+  natural flags = hashp->flags, key_dnode, val_dnode;
   Boolean 
     marked_new = false, 
     key_marked,
@@ -1498,8 +1499,9 @@ mark_weak_hash_vector(hash_table_vector_header *hashp, unsigned elements)
 Boolean
 mark_weak_alist(LispObj weak_alist, int weak_type)
 {
-  int elements = header_element_count(header_of(weak_alist));
-  unsigned dnode;
+  natural
+    elements = header_element_count(header_of(weak_alist)),
+    dnode;
   int pair_tag;
   Boolean marked_new = false;
   LispObj alist, pair, key, value;
@@ -1663,7 +1665,7 @@ mark_xp(ExceptionInformation *xp)
 void
 mark_tcr_tlb(TCR *tcr)
 {
-  unsigned n = tcr->tlb_limit;
+  natural n = tcr->tlb_limit;
   LispObj 
     *start = tcr->tlb_pointer,
     *end = (LispObj *) ((BytePtr)start+n),
@@ -1729,7 +1731,7 @@ reap_gcable_ptrs()
 {
   LispObj *prev = &(lisp_global(GCABLE_POINTERS)), next, ptr;
   xmacptr_flag flag;
-  unsigned dnode;
+  natural dnode;
   xmacptr *x;
 
   while((next = *prev) != (LispObj)NULL) {
@@ -1775,7 +1777,36 @@ reap_gcable_ptrs()
 
 
 
-#if 1
+#ifdef PPC64
+unsigned short *_one_bits = NULL;
+
+unsigned short
+logcount16(unsigned short n)
+{
+  unsigned short c=0;
+  
+  while(n) {
+    n = n & (n-1);
+    c++;
+  }
+  return c;
+}
+
+void
+gc_init()
+{
+  int i;
+  
+  _one_bits = malloc(sizeof(unsigned short) * (1<<16));
+
+  for (i = 0; i < (1<<16); i++) {
+    _one_bits[i] = dnode_size*logcount16(i);
+  }
+}
+
+#define one_bits(x) _one_bits[x]
+
+#else
 const unsigned char _one_bits[256] = {
     0*8,1*8,1*8,2*8,1*8,2*8,2*8,3*8,1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,
     1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
@@ -1797,8 +1828,10 @@ const unsigned char _one_bits[256] = {
 
 #define one_bits(x) _one_bits[x]
 
-#else
-#define one_bits(x) logcount16(x)
+void
+gc_init()
+{
+}
 
 #endif
 
@@ -1817,39 +1850,85 @@ calculate_relocation()
   LispObj *relocptr = GCrelocptr;
   LispObj current = GCarealow;
   bitvector markbits = GCmarkbits;
-  unsigned char *bytep = (unsigned char *) markbits;
-  unsigned npagelets = ((GCndnodes_in_area+31)>>5);
-  unsigned thesebits;
+  qnode *q = (qnode *) markbits;
+  natural npagelets = ((GCndnodes_in_area+(nbits_in_word-1))>>bitmap_shift);
+  natural thesebits;
   LispObj first = 0;
 
   do {
     *relocptr++ = current;
     thesebits = *markbits++;
-    if (thesebits == 0xffffffff) {
-      current += 32*8;
-      bytep += 4;
+    if (thesebits == ALL_ONES) {
+      current += nbits_in_word*dnode_size;
+      q += 4; /* sic */
     } else {
       if (!first) {
         first = current;
-        while (thesebits & 0x80000000) {
-          first += 8;
+        while (thesebits & BIT0_MASK) {
+          first += dnode_size;
           thesebits += thesebits;
         }
       }
-      current += one_bits(*bytep++);
-      current += one_bits(*bytep++);
-      current += one_bits(*bytep++);
-      current += one_bits(*bytep++);
+      current += one_bits(*q++);
+      current += one_bits(*q++);
+      current += one_bits(*q++);
+      current += one_bits(*q++);
     }
   } while(--npagelets);
   *relocptr++ = current;
   return first ? first : current;
 }
 
+#ifdef PPC64
 LispObj
-dnode_forwarding_address(unsigned dnode, int tag_n)
+dnode_forwarding_address(natural dnode, int tag_n)
 {
-  unsigned pagelet, nbits;
+  natural pagelet, nbits;
+  unsigned int near_bits;
+  LispObj new;
+
+  if (GCDebug) {
+    if (! ref_bit(GCmarkbits, dnode)) {
+      Bug(NULL, "unmarked object being forwarded!\n");
+    }
+  }
+
+  pagelet = dnode >> bitmap_shift;
+  nbits = dnode & bitmap_shift_count_mask;
+  near_bits = ((unsigned int *)GCmarkbits)[dnode>>(dnode_shift+1)];
+
+  if (nbits < 32) {
+    new = GCrelocptr[pagelet] + tag_n;;
+    /* Increment "new" by the count of 1 bits which precede the dnode */
+    if (near_bits == 0xffffffff) {
+      return (new + (nbits << 4));
+    } else {
+      near_bits &= (0xffffffff00000000 >> nbits);
+      if (nbits > 15) {
+        new += one_bits(near_bits & 0xffff);
+      }
+      return (new + (one_bits(near_bits >> 16))); 
+    }
+  } else {
+    new = GCrelocptr[pagelet+1] + tag_n;
+    nbits = 64-nbits;
+
+    if (near_bits == 0xffffffff) {
+      return (new - (nbits << 4));
+    } else {
+      near_bits &= (1<<nbits)-1;
+      if (nbits > 15) {
+        new -= one_bits(near_bits >> 16);
+      }
+      return (new -  one_bits(near_bits & 0xffff));
+    }
+  }
+}
+#else
+LispObj
+dnode_forwarding_address(natural dnode, int tag_n)
+{
+  natural pagelet, nbits;
   unsigned short near_bits;
   LispObj new;
 
@@ -1890,13 +1969,14 @@ dnode_forwarding_address(unsigned dnode, int tag_n)
     }
   }
 }
+#endif
 
 
 LispObj
 locative_forwarding_address(LispObj obj)
 {
   int tag_n = fulltag_of(obj);
-  unsigned dnode;
+  natural dnode;
 
   /* Locatives can be tagged as conses, "fulltag_misc"
      objects, or as fixnums.  Immediates, headers, and nil
@@ -1930,7 +2010,7 @@ LispObj
 node_forwarding_address(LispObj node)
 {
   int tag_n;
-  unsigned dnode = gc_area_dnode(node);
+  natural dnode = gc_area_dnode(node);
 
   if ((dnode >= GCndnodes_in_area) ||
       (node < GCfirstunmarked)) {
@@ -1986,7 +2066,8 @@ void
 forward_range(LispObj *range_start, LispObj *range_end)
 {
   LispObj *p = range_start, node, new;
-  int tag_n, nwords;
+  int tag_n;
+  natural nwords;
   hash_table_vector_header *hashp;
 
   while (p < range_end) {
@@ -1999,7 +2080,7 @@ forward_range(LispObj *range_start, LispObj *range_end)
       nwords += (1- (nwords&1));
       if ((header_subtag(node) == subtag_hash_vector) &&
           ((((hash_table_vector_header *)p)->flags) & nhash_track_keys_mask)) {
-        int skip = (sizeof(hash_table_vector_header)/sizeof(LispObj))-1;
+        natural skip = (sizeof(hash_table_vector_header)/sizeof(LispObj))-1;
         hashp = (hash_table_vector_header *) p;
         p++;
         nwords -= skip;
@@ -2043,7 +2124,7 @@ forward_range(LispObj *range_start, LispObj *range_end)
 
 
 void
-forward_memoized_area(area *a, unsigned num_memo_dnodes)
+forward_memoized_area(area *a, natural num_memo_dnodes)
 {
   bitvector refbits = a->refbits;
   LispObj *p = (LispObj *) a->low, x1, x2, new;
@@ -2063,7 +2144,7 @@ forward_memoized_area(area *a, unsigned num_memo_dnodes)
   set_bitidx_vars(refbits, 0, bitsp, bits, bitidx);
   while (memo_dnode < num_memo_dnodes) {
     if (bits == 0) {
-      int remain = 0x20 - bitidx;
+      int remain = nbits_in_word - bitidx;
       memo_dnode += remain;
       p += (remain+remain);
       bits = *++bitsp;
@@ -2204,7 +2285,7 @@ forward_xp(ExceptionInformation *xp)
 void
 forward_tcr_tlb(TCR *tcr)
 {
-  unsigned n = tcr->tlb_limit;
+  natural n = tcr->tlb_limit;
   LispObj 
     *start = tcr->tlb_pointer, 
     *end = (LispObj *) ((BytePtr)start+n),
@@ -2237,15 +2318,23 @@ forward_tcr_xframes(TCR *tcr)
 
 /*
   Compact the dynamic heap (from GCfirstunmarked through its end.)
-  Return the doubleword address of the new freeptr.
+  Return the doublenode address of the new freeptr.
   */
 
 LispObj
 compact_dynamic_heap()
 {
   LispObj *src = ptr_from_lispobj(GCfirstunmarked), *dest = src, node, new;
-  unsigned long elements, dnode = gc_area_dnode(GCfirstunmarked), node_dnodes = 0, imm_dnodes = 0;
-  natural bitidx, *bitsp, bits, nextbit, diff;
+  natural 
+    elements, 
+    dnode = gc_area_dnode(GCfirstunmarked), 
+    node_dnodes = 0, 
+    imm_dnodes = 0, 
+    bitidx, 
+    *bitsp, 
+    bits, 
+    nextbit, 
+    diff;
   int tag;
   bitvector markbits = GCmarkbits;
     /* keep track of whether or not we saw any
@@ -2258,16 +2347,17 @@ compact_dynamic_heap()
     set_bitidx_vars(markbits,dnode,bitsp,bits,bitidx);
     while (dnode < GCndnodes_in_area) {
       if (bits == 0) {
-        int remain = 0x20 - bitidx;
+        int remain = nbits_in_word - bitidx;
         dnode += remain;
         src += (remain+remain);
         bits = *++bitsp;
         bitidx = 0;
       } else {
-        /* Have a non-zero markbits word; all bits more significant than
-           "bitidx" are 0.  Count leading zeros in "bits" (there'll be
-           at least "bitidx" of them.)  If there are more than "bitidx"
-           leading zeros, bump "dnode", "bitidx", and "src" by the difference. */
+        /* Have a non-zero markbits word; all bits more significant
+           than "bitidx" are 0.  Count leading zeros in "bits"
+           (there'll be at least "bitidx" of them.)  If there are more
+           than "bitidx" leading zeros, bump "dnode", "bitidx", and
+           "src" by the difference. */
         nextbit = count_leading_zeros(bits);
         if ((diff = (nextbit - bitidx)) != 0) {
           dnode += diff;
@@ -2277,7 +2367,7 @@ compact_dynamic_heap()
 
         if (GCDebug) {
           if (dest != ptr_from_lispobj(locative_forwarding_address(ptr_to_lispobj(src)))) {
-            Bug(NULL, "Out of synch in heap compaction.  Forwarding from 0x%08x to 0x%08x,\n expected to go to 0x%08x\n", 
+            Bug(NULL, "Out of synch in heap compaction.  Forwarding from 0x%lx to 0x%lx,\n expected to go to 0x%lx\n", 
                 src, dest, locative_forwarding_address(ptr_to_lispobj(src)));
           }
         }
@@ -2500,7 +2590,7 @@ gc(TCR *tcr)
     {
       LispObj
         itab;
-      unsigned
+      natural
         dnode, ndnodes;
       
       pkg = nrs_PACKAGE.vcell;
@@ -2584,7 +2674,7 @@ gc(TCR *tcr)
       sym = *raw++;
       if (fulltag_of(sym) == fulltag_misc) {
         lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
-        unsigned dnode = gc_area_dnode(sym);
+        natural dnode = gc_area_dnode(sym);
           
         if ((dnode < GCndnodes_in_area) &&
             (!ref_bit(GCmarkbits,dnode))) {
@@ -2619,7 +2709,7 @@ gc(TCR *tcr)
       sym = *raw;
       if (fulltag_of(sym) == fulltag_misc) {
         lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
-        unsigned dnode = gc_area_dnode(sym);
+        natural dnode = gc_area_dnode(sym);
 
         if ((dnode < GCndnodes_in_area) &&
             (!ref_bit(GCmarkbits,dnode))) {
@@ -2692,16 +2782,15 @@ gc(TCR *tcr)
   }
 
   /*
-    If the EGC is enabled:
-     If there's no room for the youngest generation, untenure everything.
-     If this was a full GC and there's now room for the youngest generation,
-     tenure everything.
+    If the EGC is enabled: If there's no room for the youngest
+    generation, untenure everything.  If this was a full GC and
+    there's now room for the youngest generation, tenure everything.
      */
   resize_dynamic_heap(a->active,
 		      (GCephemeral_low == 0) ? lisp_heap_gc_threshold : 0);
 
   if (a->older != NULL) {
-    unsigned nfree = (a->high - a->active);
+    natural nfree = (a->high - a->active);
 
 
     if (nfree < a->threshold) {
@@ -2763,10 +2852,10 @@ gc(TCR *tcr)
   Total the (physical) byte sizes of all ivectors in the indicated memory range
 */
 
-unsigned
+natural
 unboxed_bytes_in_range(LispObj *start, LispObj *end)
 {
-  unsigned total=0, elements, tag, subtag, bytes;
+  natural total=0, elements, tag, subtag, bytes;
   LispObj header;
 
   while (start < end) {
@@ -2833,7 +2922,7 @@ unboxed_bytes_in_range(LispObj *start, LispObj *end)
 
 
 LispObj
-purify_displaced_object(LispObj obj, area *dest, unsigned disp)
+purify_displaced_object(LispObj obj, area *dest, natural disp)
 {
   BytePtr 
     free = dest->active,
@@ -2841,7 +2930,7 @@ purify_displaced_object(LispObj obj, area *dest, unsigned disp)
   LispObj 
     header = header_of(obj), 
     new;
-  unsigned 
+  natural 
     subtag = header_subtag(header), 
     element_count = header_element_count(header),
     physbytes;
@@ -2898,7 +2987,7 @@ void
 copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int what_to_copy)
 {
   LispObj obj = *ref, header;
-  unsigned tag = fulltag_of(obj), header_tag, header_subtag;
+  natural tag = fulltag_of(obj), header_tag, header_subtag;
 
   if ((tag == fulltag_misc) &&
       (((BytePtr)ptr_from_lispobj(obj)) > low) &&
@@ -2926,7 +3015,7 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
   LispObj
     loc = *locaddr,
     header;
-  unsigned
+  natural
     tag = fulltag_of(loc);
 
   if (((BytePtr)ptr_from_lispobj(loc) > low) &&
@@ -3070,7 +3159,7 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
 void
 purify_tcr_tlb(TCR *tcr, BytePtr low, BytePtr high, area *to, int what)
 {
-  unsigned n = tcr->tlb_limit;
+  natural n = tcr->tlb_limit;
   LispObj *start = tcr->tlb_pointer, *end = (LispObj *) ((BytePtr)start+n);
 
   purify_range(start, end, low, high, to, what);
