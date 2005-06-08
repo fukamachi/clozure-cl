@@ -2019,7 +2019,10 @@
         (lo (numeric-ctype-low ctype))
         (hi (numeric-ctype-high ctype)))
     (if (eq class 'integer)
-      (if (and hi lo (<= hi most-positive-fixnum)(>= lo most-negative-fixnum))      
+      (if (and hi
+               lo
+               (<= hi target::target-most-positive-fixnum)
+               (>= lo target::target-most-negative-fixnum))      
         #'(lambda (n)
             (and (fixnump n)
                  (locally (declare (fixnum n hi lo))
@@ -2061,8 +2064,8 @@
 				  `(unsigned-byte ,high-length))
 				 (t
 				  `(mod ,(1+ high)))))
-			  ((and (= low most-negative-fixnum)
-				(= high most-positive-fixnum))
+			  ((and (= low target::target-most-negative-fixnum)
+				(= high target::target-most-positive-fixnum))
 			   'fixnum)
 			  ((and (= low (lognot high))
 				(= high-count high-length)
@@ -2272,9 +2275,9 @@
 
 (def-type-translator integer (&optional low high)
   (let* ((l (check-bound low integer))
-	   (lb (if (consp l) (1+ (car l)) l))
-	   (h (check-bound high integer))
-	   (hb (if (consp h) (1- (car h)) h)))
+         (lb (if (consp l) (1+ (car l)) l))
+         (h (check-bound high integer))
+         (hb (if (consp h) (1- (car h)) h)))
     (if (and hb lb (< hb lb))
       *empty-type*
       (make-numeric-ctype :class 'integer  :complexp :real
@@ -3818,9 +3821,10 @@
           (rational . rational)
           (integer . integer)
           (ratio . (and rational (not integer)))
-          (fixnum . (integer ,most-negative-fixnum ,most-positive-fixnum))
-          (bignum . (or (integer * (,most-negative-fixnum))
-                         (integer (,most-positive-fixnum) *)))
+          (fixnum . (integer ,target::target-most-negative-fixnum
+                     ,target::target-most-positive-fixnum))
+          (bignum . (or (integer * (,target::target-most-negative-fixnum))
+                         (integer (,target::target-most-positive-fixnum) *)))
           
           )))
   (dolist (spec builtin-translations)
@@ -3963,7 +3967,7 @@
 (deftype void () t)
 ;;;
 ;;; An index into an integer.
-(deftype bit-index () `(integer 0 ,most-positive-fixnum))
+(deftype bit-index () `(integer 0 ,target::target-most-positive-fixnum))
 ;;;
 ;;; Offset argument to Ash (a signed bit index).
 (deftype ash-index () 'fixnum)

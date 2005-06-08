@@ -226,14 +226,14 @@
        (fixnum
 	(if (< (the fixnum form) 0)
 	  'fixnum
-	  '(integer 0 #.most-positive-fixnum)))
+	  '(integer 0 #.target::target-most-positive-fixnum)))
        (bignum
 	(if (< form 0)
 	  'bignum
-	  '(integer  #.(1+ most-positive-fixnum))))
+	  '(integer  #.(1+ target::target-most-positive-fixnum))))
        ((or array complex) (type-specifier (ctype-of form)))
        (t
-	(if (eql (typecode form) ppc32::subtag-istruct)
+	(if (eql (typecode form) target::subtag-istruct)
 	  (%svref form 0)
 	  (let* ((class (class-of form))
 		 (class-name (class-name class)))
