@@ -2352,24 +2352,60 @@ are no Forms, OR returns NIL."
              (mapcar
 	      #+poweropen-target
 	      #'(lambda (name type)
-		  (let* ((delta 4)
+		  (let* ((delta (target-arch-case
+                                 (:ppc32 4)
+                                 (:ppc64 8)))
 			 (bias 0))
 		    (prog1
 			(list name
 			      `(,
 				(if (typep type 'unsigned-byte)
-				  (progn (setq delta (* 4 type)) '%inc-ptr)
+				  (progn (setq delta (* (target-arch-case
+                                                         (:ppc32 4)
+                                                         (:ppc64 8)) type)) '%inc-ptr)
 				  (ecase type
-				    (:single-float '%get-single-float)
+				    (:single-float (setq bias
+                                                         (target-arch-case
+                                                          (:ppc32 0)
+                                                          (:ppc64 4)))
+                                                   '%get-single-float)
 				    (:double-float (setq delta 8)'%get-double-float)
 				    (:signed-doubleword (setq delta 8) '%%get-signed-longlong)
-				    (:signed-fullword '%get-signed-long)
-				    (:signed-halfword (setq bias 2) '%get-signed-word)
-				    (:signed-byte (setq bias 3) '%get-signed-byte)
+				    (:signed-fullword
+                                     (setq bias
+                                           (target-arch-case
+                                            (:ppc32 0)
+                                            (:ppc64 4)))
+                                     '%get-signed-long)
+				    (:signed-halfword (setq bias
+                                                            (target-arch-case
+                                                             (:ppc32 2)
+                                                             (:ppc64 6)))
+                                                      '%get-signed-word)
+				    (:signed-byte (setq bias
+                                                        (target-arch-case
+                                                         (:ppc32 3)
+                                                         (:ppc64 7)))
+                                                  '%get-signed-byte)
 				    (:unsigned-doubleword (setq delta 8) '%%get-unsigned-longlong)
-				    (:unsigned-fullword '%get-unsigned-long)
-				    (:unsigned-halfword (setq bias 2) '%get-unsigned-word)
-				    (:unsigned-byte (setq bias 3) '%get-unsigned-byte)
+				    (:unsigned-fullword
+                                     (setq bias
+                                           (target-arch-case
+                                            (:ppc32 0)
+                                            (:ppc64 4)))
+                                     '%get-unsigned-long)
+				    (:unsigned-halfword
+                                     (setq bias
+                                           (target-arch-case
+                                            (:ppc32 2)
+                                            (:ppc64 6)))
+                                     '%get-unsigned-word)
+				    (:unsigned-byte
+                                     (setq bias
+                                           (target-arch-case
+                                            (:ppc32 3)
+                                            (:ppc64 7)))
+                                     '%get-unsigned-byte)
 				    (:address '%get-ptr)))
 				,stack-ptr
 				(+ ,offset ,bias)))
@@ -2450,7 +2486,11 @@ are no Forms, OR returns NIL."
                               ,(defcallback-body name stack-ptr lets dynamic-extent-names
                                                  decls body return-type error-return
                                                  #+poweropen-target
-                                                 (- ppc32::c-frame.savelr ppc32::c-frame.param0)
+                                                 (target-arch-case
+                                                  (:ppc32
+                                                   (- ppc32::c-frame.savelr ppc32::c-frame.param0))
+                                                  (:ppc64
+                                                   (- ppc64::c-frame.savelr ppc64::c-frame.param0)))
                                                  #-poweropen-target 0
 						 trace-args trace-return-type)))))
              ,doc
