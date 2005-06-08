@@ -90,7 +90,7 @@
 (defconstant tag-immheader-0 2)
 (defconstant tag-nodeheader-0 3)
 (defconstant tag-memory 4)
-(defconstant tag-imm2 5)
+(defconstant tag-imm-2 5)
 (defconstant tag-immheader2 6)
 (defconstant tag-nodeheader2 7)
 
