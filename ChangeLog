@@ -1,3 +1,8 @@
+2005-06-07 23:35  gb
+
+	* xdump/xfasload.lisp: Initial element in cloned package htabs is
+	0, too.  New binaries.
+
 2005-06-07 22:49  gb
 
 	* level-1/version.lisp: 050607,  once in a lifetime.
