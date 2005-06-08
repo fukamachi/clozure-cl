@@ -88,8 +88,8 @@
   (let ((digit-string "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))    
     (cond ((fixnump int)  ; ugh                      
            ; 29 bits max magnitude (base 2) + 1 for sign
-           (let ((temstring (make-string (- 32 ppc32::fixnumshift) :element-type 'base-char))
-                 (i (- 32 ppc32::fixnumshift 1))
+           (let ((temstring (make-string (- target::nbits-in-word target::fixnumshift) :element-type 'base-char))
+                 (i (- target::nbits-in-word  target::fixnumshift 1))
                  (neg (< int 0))
                  (rem 0))
              (declare (fixnum i rem))
@@ -107,8 +107,9 @@
                (when neg 
                  (setf (%schar temstring (setq i (1- i))) #\-))
                (if return-it
-                 (%substr temstring i (- 32 ppc32::fixnumshift))
-                 (write-string temstring stream :start i :end (- 32 ppc32::fixnumshift))))))          
+                 (%substr temstring i (- target::nbits-in-word
+                                         target::fixnumshift))
+                 (write-string temstring stream :start i :end (- target::nbits-in-word target::fixnumshift))))))          
           (t (let* ((size-vect #(nil nil 32 21 16 14 13 12 11
                                  11   10 10  9  9  9  9  8  8
                                  8     8  8  8  8  8  7  7  7
@@ -140,19 +141,23 @@
 ;;; each *print-base*.  We want this number as close to *most-positive-fixnum*
 ;;; as possible, i.e. (floor (log most-positive-fixnum *print-base*)).
 ;;; 
-(defparameter *base-power* #(NIL NIL 268435456 387420489 268435456 244140625 362797056 
- 282475249 134217728 387420489 100000000 214358881 429981696 62748517
-  105413504 170859375 268435456 410338673 34012224 47045881 64000000
-  85766121 113379904 148035889 191102976 244140625 308915776 387420489
-  481890304 20511149 24300000 28629151 33554432 39135393 45435424 52521875 60466176))
+(defparameter *base-power* ())
 
 ;;; *FIXNUM-POWER--1* holds the number of digits for each *print-base* that
 ;;; fit in the corresponding *base-power*.
 ;;; 
-(defparameter *fixnum-power--1* #(NIL NIL 27 17 13 11 10 9 8 8 7 7 7
-                                      6 6 6 6 6 5 5 5 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4))
+(defparameter *fixnum-power--1* ())
 
-
+(do* ((b (make-array 37 :initial-element nil))
+      (f (make-array 37 :initial-element nil))
+      (base 2 (1+ base)))
+     ((= base 37) (setq *base-power* b *fixnum-power--1* f))
+  (do ((power-1 -1 (1+ power-1))
+       (new-divisor base (* new-divisor base))
+       (divisor 1 new-divisor))
+      ((not (fixnump new-divisor))
+       (setf (aref b base) divisor)
+       (setf (aref f base) power-1))))
 
 
 (defun print-bignum-2 (big radix string digit-string)
