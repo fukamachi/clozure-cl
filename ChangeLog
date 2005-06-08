@@ -1,3 +1,14 @@
+2005-06-07 22:49  gb
+
+	* level-1/version.lisp: 050607,  once in a lifetime.
+
+2005-06-07 22:48  gb
+
+	* level-0/nfasload.lisp, level-1/l1-symhash.lisp: Finish package
+	bootstrapping (unless I missed something): package hash tables
+	contain symbols (NILSYM on PPC32), 0 (unused/free entries), or
+	(PACKAGE-DELETED-MARKER)s.
+
 2005-06-07 21:06  gb
 
 	* lisp-kernel/darwin/.gdbinit: Don't stop in GDB on SIGKILL.
