@@ -1,3 +1,97 @@
+2005-06-07 21:06  gb
+
+	* lisp-kernel/darwin/.gdbinit: Don't stop in GDB on SIGKILL.
+
+2005-06-07 21:06  gb
+
+	* lisp-kernel/spentry.s: ASH can return 64-bit results, as can
+	fixnum multiplication.
+
+2005-06-07 21:05  gb
+
+	* lisp-kernel/pmcl-kernel.c: 64-bit changes.
+
+2005-06-07 21:04  gb
+
+	* lisp-kernel/lisp-exceptions.h: define some PPC64 opcodes/masks.
+
+2005-06-07 21:02  gb
+
+	* lisp-kernel/: lisp-debug.c, lisp-exceptions.c: Propagate
+	exceptions on Darwin.
+
+2005-06-07 21:02  gb
+
+	* lisp-kernel/gc.h: 64-bit changes/fixes.  Ensure that area_dnode
+	returns natural.
+
+2005-06-07 21:01  gb
+
+	* lisp-kernel/gc.c: 64-bit changes/fixes.
+
+2005-06-07 21:00  gb
+
+	* lisp-kernel/constants64.s: 4&5-bit bignum headers.
+
+2005-06-07 20:59  gb
+
+	* lisp-kernel/constants.h: TCR_FLAG_BIT_PROPAGATE_EXCEPTION.
+
+2005-06-07 20:58  gb
+
+	* lisp-kernel/: bits.c, bits.h: 64-bit changes.
+
+2005-06-07 20:57  gb
+
+	* level-1/ppc-trap-support.lisp: Decode and handle 64-bit traps.
+
+2005-06-07 20:56  gb
+
+	* level-1/: l1-typesys.lisp, sysutils.lisp: Use
+	target::target-most-positive-fixnum when applicable.
+
+2005-06-07 20:56  gb
+
+	* level-1/l1-symhash.lisp: Use PACKAGE-DELETED-MARKER.
+
+2005-06-07 20:55  gb
+
+	* level-1/l1-streams.lisp: COLUMN moved here.
+
+2005-06-07 20:54  gb
+
+	* level-1/l1-lisp-threads.lisp: Recognize 64-bit bogus-objects.
+
+2005-06-07 20:53  gb
+
+	* level-1/l1-io.lisp: lower-case 1 char.
+
+2005-06-07 20:53  gb
+
+	* lib/compile-ccl.lisp: Remove some duplication.
+
+2005-06-07 20:52  gb
+
+	* lib/format.lisp: Remove some commented-out code.
+
+2005-06-07 20:51  gb
+
+	* lib/macros.lisp: 64-bit (DarwinPPC) callbacks.
+
+2005-06-07 20:50  gb
+
+	* lib/streams.lisp: Move COLUMN definition earlier.
+
+2005-06-07 20:47  gb
+
+	* library/lispequ.lisp: PACKAGE-DELETED-MARKER, some
+	comment/formatting changes.
+
+2005-06-07 20:46  gb
+
+	* level-0/PPC/PPC64/: l0-bignum-ppc64.lisp, ppc64-bignum.lisp: Bug
+	fixes.
+
 2005-06-07 18:36  gb
 
 	* level-0/PPC/PPC32/ppc32-bignum.lisp: Comment formatting.
