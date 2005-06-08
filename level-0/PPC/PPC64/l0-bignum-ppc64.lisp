@@ -78,43 +78,44 @@
 ;;; %ALLOCATE-BIGNUM must zero all elements.
 ;;;
   (defmacro %allocate-bignum (ndigits)
-    `(%alloc-misc ,ndigits ppc32::subtag-bignum))
+    `(%alloc-misc ,ndigits ppc64::subtag-bignum))
 
   (declaim (inline  %bignum-length))
 
-  ;;; This macro is used by BIGNUM-ASHIFT-RIGHT, BIGNUM-BUFFER-ASHIFT-RIGHT, and
-;;; BIGNUM-LDB-BIGNUM-RES. They supply a termination form that references
-;;; locals established by this form. Source is the source bignum. Start-digit
-;;; is the first digit in source from which we pull bits. Start-pos is the
-;;; first bit we want. Res-len-form is the form that computes the length of
-;;; the resulting bignum. Termination is a DO termination form with a test and
-;;; body. When result is supplied, it is the variable to which this binds a
-;;; newly allocated bignum.
+;;; This macro is used by BIGNUM-ASHIFT-RIGHT,
+;;; BIGNUM-BUFFER-ASHIFT-RIGHT, and BIGNUM-LDB-BIGNUM-RES. They supply
+;;; a termination form that references locals established by this
+;;; form. Source is the source bignum. Start-digit is the first digit
+;;; in source from which we pull bits. Start-pos is the first bit we
+;;; want. Res-len-form is the form that computes the length of the
+;;; resulting bignum. Termination is a DO termination form with a test
+;;; and body. When result is supplied, it is the variable to which
+;;; this binds a newly allocated bignum.
 ;;;
 ;;; Given start-pos, 1-31 inclusively, of shift, we form the j'th resulting
 ;;; digit from high bits of the i'th source digit and the start-pos number of
 ;;; bits from the i+1'th source digit.
-(defmacro shift-right-unaligned (source
-				       start-digit
-				       start-pos
-				       res-len-form
-				       termination
-				       &optional result)
-  `(let* ((high-bits-in-first-digit (- digit-size ,start-pos))
-	  (res-len ,res-len-form)
-	  (res-len-1 (1- res-len))
-	  ,@(if result `((,result (%allocate-bignum res-len)))))
-     (declare (type bignum-index res-len res-len-1))
-     (do ((i ,start-digit i+1)
-	  (i+1 (1+ ,start-digit) (1+ i+1))
-	  (j 0 (1+ j)))
-	 ,termination
-       (declare (type bignum-index i i+1 j))
-       (setf (bignum-ref ,(if result result source) j)
-	     (%logior (%digit-logical-shift-right (bignum-ref ,source i)
-						  ,start-pos)
-		      (%ashl (bignum-ref ,source i+1)
-			     high-bits-in-first-digit))))))
+  (defmacro shift-right-unaligned (source
+                                   start-digit
+                                   start-pos
+                                   res-len-form
+                                   termination
+                                   &optional result)
+    `(let* ((high-bits-in-first-digit (- digit-size ,start-pos))
+            (res-len ,res-len-form)
+            (res-len-1 (1- res-len))
+            ,@(if result `((,result (%allocate-bignum res-len)))))
+      (declare (type bignum-index res-len res-len-1))
+      (do ((i ,start-digit i+1)
+           (i+1 (1+ ,start-digit) (1+ i+1))
+           (j 0 (1+ j)))
+          ,termination
+        (declare (type bignum-index i i+1 j))
+        (setf (bignum-ref ,(if result result source) j)
+              (%logior (%digit-logical-shift-right (bignum-ref ,source i)
+                                                   ,start-pos)
+                       (%ashl (bignum-ref ,source i+1)
+                              high-bits-in-first-digit))))))
   )
 
 
@@ -138,7 +139,7 @@
   (uvref b i))
 
 (defun bignum-set (b i val)
-  (setf (uvref b i) val))
+  (setf (uvref b i) (logand val all-ones-digit)))
 
 (eval-when (:compile-toplevel)
   (defsetf bignum-ref bignum-set))
@@ -173,16 +174,22 @@
 
 (defun %subtract-with-borrow (a-digit b-digit borrow-in)
   (declare (fixnum a-digit b-digit borrow-in))
-  (let* ((diff (+ (the fixnum (- a-digit b-digit))
-                  (the fixnum (1- borrow-in)))))
+  (let* ((diff (- (the fixnum (- a-digit b-digit))
+                  (the fixnum (- 1 borrow-in)))))
     (declare (fixnum diff))
     (values (logand all-ones-digit diff)
-            (1- (logand (the fixnum (ash diff -32)) 1)))))
+            (- 1 (logand (the fixnum (ash diff -32)) 1)))))
 
-  
+(defun bignum-negate-loop-really (big len res)
+  (let* ((carry 1))
+    (dotimes (i len carry)
+      (multiple-value-bind (result-digit carry-out)
+          (%add-with-carry (%lognot (bignum-ref big i)) 0 carry)
+        (setf (bignum-ref res i) result-digit
+              carry carry-out)))))
 
 
-  
+
 
 
 (defun %compare-digits (bignum-a bignum-b idx)
@@ -251,30 +258,18 @@
     (let* ((borrow 1)
 	   (sign-a (%bignum-sign a))
 	   (sign-b (%bignum-sign b)))
-      (dotimes (i (the bignum-index (min len-a len-b)))
+      (dotimes (i (the bignum-index len-res))
         (multiple-value-bind (result-digit borrow-out)
-            (%subtract-with-carry (bignum-ref a i) (bignum-ref b i))
+            (%subtract-with-borrow
+             (if (< i len-a)
+               (bignum-ref a i)
+               sign-a)
+             (if (< i len-b)
+               (bignum-ref b i)
+               sign-b)
+             borrow)
           (setf (bignum-ref res i) result-digit
-                borrow borrow-out)))
-      (if (< len-a len-b)
-	(do* ((i len-a (1+ i)))
-	     ((= i len-b)
-	      (if (< i len-res)
-                (setf (bignum-ref res i)
-                      (%subtract-with-borrw sign-a sign-b borrow))))
-          (multiple-value-bind (result-digit borrow-out)
-              (%subtract-with-borrow sign-a (bignum-ref b i) borrow)
-            (setf (bignum-ref res i) result-digit
-                  borrow borrow-out)))
-	(do* ((i len-b (1+ i)))
-	     ((= i len-a)
-	      (if (< i len-res)
-                (setf (bignum-ref res i)
-                      (%subtract-with-borrow sign-a sign-b borrow))))
-          (multiple-value-bind (result-digit borrow-out)
-              (%subtract-with-borrow (bignum-ref a i) sign-b borrow)
-            (setf (bignum-ref res i) result-digit
-                  borrw borrow-out)))))))
+                borrow borrow-out))))))
 
 
 ;;;; Multiplication.
@@ -775,31 +770,9 @@
 
 (defun multiply-bignum-and-fixnum (bignum fixnum)
   (declare (type bignum-type bignum) (fixnum fixnum))
-  (let* ((bignum-len (%bignum-length bignum))
-         (bignum-plus-p (bignum-plusp bignum))
-	 (fixnum-plus-p (not (minusp fixnum)))
-         (negate-res (neq bignum-plus-p fixnum-plus-p)))
-    (declare (type bignum-type bignum)
-	     (type bignum-index bignum-len))
-    (flet ((do-it (bignum fixnum  negate-res)
-             (let* ((bignum-len (%bignum-length bignum))
-                    (result (%allocate-bignum (the fixnum (1+ bignum-len)))))
-               (declare (type bignum-type bignum)
-	                (type bignum-index bignum-len))
-	       (with-small-bignum-buffers ((carry-digit)
-					   (result-digit))
-		 (dotimes (i bignum-len (%set-digit result bignum-len carry-digit))
-		   (%set-digit result i
-			       (%multiply-and-add4 result-digit carry-digit bignum i fixnum))))
-               (when negate-res
-                 (negate-bignum-in-place result))
-               (%normalize-bignum-macro result ))))
-      (declare (dynamic-extent do-it))
-      (if bignum-plus-p
-        (do-it bignum (if fixnum-plus-p fixnum (- fixnum))  negate-res)
-        (with-bignum-buffers ((b1 (the fixnum (1+ bignum-len))))
-          (negate-bignum bignum nil b1)
-          (do-it b1 (if fixnum-plus-p fixnum (- fixnum))  negate-res))))))
+  (with-small-bignum-buffers ((big-fix fixnum))
+    (multiply-bignums bignum big-fix)))
+
 
 ;; assume we already know result won't fit in a fixnum
 ;; only caller is fixnum-*-2
@@ -1521,11 +1494,11 @@
                        (declare (type bignum-element-type high-digit))
                        (if (and (= high-digit 0)
                                 (or (> high-guess*y2
-                                                    middle-digit)
+                                       middle-digit)
                                     (and (= middle-digit
                                             high-guess*y2)
                                          (> low-guess*y2
-                                                         x-i-2))))
+                                            x-i-2))))
                          (setf guess (%subtract-with-borrow guess 1 1))
                          (return guess)))))))))
 	;;; Divide TRUNCATE-X by TRUNCATE-Y, returning the quotient
@@ -1591,8 +1564,8 @@
 	     (dotimes (j len-y)
 	       (multiple-value-bind (high-digit low-digit)
 		   (%multiply-and-add3 guess
-				      (bignum-ref truncate-y j)
-				      carry-digit)
+                                       (bignum-ref truncate-y j)
+                                       carry-digit)
 		 (declare (type bignum-element-type high-digit low-digit))
 		 (setf carry-digit high-digit)
 		 (multiple-value-bind (x temp-borrow)
@@ -1787,7 +1760,7 @@
 
 (defun load-byte (size position integer)
   (if (and (bignump integer)
-           (<= size (- 31 ppc32::fixnumshift)) #|#.(integer-length most-positive-fixnum))|#
+           (<= size (- 63 ppc64::fixnumshift)) #|#.(integer-length most-positive-fixnum))|#
            (fixnump position))
     (%ldb-fixnum-from-bignum integer size position)
     (let ((mask (byte-mask size)))

@@ -117,11 +117,25 @@
 ;;; Any words in the "tail" of the bignum should have been
 ;;; zeroed by the caller.
 (defppclapfunction %set-bignum-length ((newlen arg_y) (bignum arg_z))
-  (sldi imm0 newlen (- ppc64::misc-subtag-offset ppc64::fixnumshift))
+  (sldi imm0 newlen (- ppc64::num-subtag-bits ppc64::fixnumshift))
   (ori imm0 imm0 ppc64::subtag-bignum)
   (std imm0 ppc64::misc-header-offset bignum)
   (blr))
 
+;;; Count the sign bits in the most significant digit of bignum;
+;;; return fixnum count.
+(defppclapfunction %bignum-sign-bits ((bignum arg_z))
+  (vector-length imm0 bignum imm0)
+  (la imm0 (- ppc64::misc-data-offset 4) imm0) ; Reference last (most significant) digit
+  (lwzx imm0 bignum imm0)
+  (cmpwi imm0 0)
+  (not imm0 imm0)
+  (blt @wasneg)
+  (not imm0 imm0)
+  @wasneg
+  (cntlzw imm0 imm0)
+  (box-fixnum arg_z imm0)
+  (blr))
 
 (defppclapfunction %signed-bignum-ref ((bignum arg_y) (index arg_z))
   (srdi imm0 index 1)
