@@ -16,8 +16,6 @@
 
 
 ;; LispEqu.lisp
-; Supposed to mirror :build:asms:constants.i
-
 
 (in-package :ccl)
 
@@ -39,8 +37,8 @@
 (defconstant $population_weak-alist 1)
 (defconstant $population_termination-bit 16)
 
-; type of 0 is a weak-list
-; Note that this evals its args in the wrong order.
+;;; type of 0 is a weak-list
+;;; Note that this evals its args in the wrong order.
 (defmacro %cons-population (data &optional (type 0) (termination? nil))
   (if termination?
     `(gvector :population 0 (logior (ash 1 $population_termination-bit) ,type) ,data nil)
@@ -49,9 +47,9 @@
 (defmacro %cons-terminatable-alist (&optional data)
   `(%cons-population ,data $population_weak-alist t))
 
-; The GC assumes that this structure is laid out exactly as below.
-; It also assumes that if the $population_termination-bit is set in the
-; population.type slot, the vector is of length 4, otherwise 3.
+;;; The GC assumes that this structure is laid out exactly as below.
+;;; It also assumes that if the $population_termination-bit is set in the
+;;; population.type slot, the vector is of length 4, otherwise 3.
 (def-accessors (population) %svref
   population.gclink
   population.type
@@ -189,7 +187,7 @@
   defenv.fdecls				; shadows lexenv.fdecls
   defenv.vdecls				; shadows lexenv.vdecls
   defenv.mdecls				; shadows lexenv.mdecls
-; extended info
+;;; extended info
   defenv.types				; compile-time deftype info, shadows lexenv.function
   defenv.defined			; functions defined in compilation unit.
   defenv.specials
@@ -220,7 +218,8 @@
   pkg.lock
   )
 
-
+(defmacro package-deleted-marker ()
+  (%unbound-marker))
 
 
 (def-accessors (fake-stack-frame) %svref
@@ -266,12 +265,7 @@
 (defmacro pkgtab-hlimit (htab) `(cdr (the list (cdr (the list ,htab)))))
 |#
 
-(def-accessors (trap) uvref
-  nil                                   ; 'trap
-  trap-args
-  trap-return
-  trap-implementation
-  trap-call)
+
 
 (def-accessors (pathname) %svref
   ()                                    ; 'pathname
@@ -307,7 +301,7 @@
   %restart-interactive
   %restart-test)
 
-; %cons-restart now in level-2.lisp
+;;; %cons-restart now in level-2.lisp
 
 
 (def-accessors %svref
@@ -394,7 +388,7 @@
   key-info-type                         ; type (ctype) of this &key arg
 )
 
-; VALUES-ctype is a subtype of ARGS-ctype.
+;;; VALUES-ctype is a subtype of ARGS-ctype.
 (def-accessors (values-ctype) %svref
   nil                                   ; 'values-ctype
   nil                                   ; ctype-class-info           
@@ -413,7 +407,7 @@
   values-ctype-allowp
 )
 
-; FUNCTION-ctype is a subtype of ARGS-ctype.
+;;; FUNCTION-ctype is a subtype of ARGS-ctype.
 (def-accessors (args-ctype) %svref
   nil                                   ; 'function-ctype
   nil                                   ; ctype-class-info           
@@ -479,7 +473,7 @@
 ;;; are hairy but defined.
 ;;;
 
-; This means that UNKNOWN-ctype is a HAIRY-ctype.
+;;; This means that UNKNOWN-ctype is a HAIRY-ctype.
 (def-accessors (unknown-ctype) %svref
   nil                                   ; 'unknown-ctype
   nil                                   ; ctype-class-info           
@@ -496,7 +490,7 @@
   cons-ctype-cdr-ctype                  ; ctype of the cdr
   )
 
-; NUMERIC-ctype is a subclass of CTYPE
+;;; NUMERIC-ctype is a subclass of CTYPE
 (def-accessors (numeric-ctype) %svref
   nil                                   ; numeric-ctype
   nil                                   ; ctype-class-info           
@@ -518,7 +512,7 @@
   numeric-ctype-predicate
 )
 
-; ARRAY-ctype is a subclass of CTYPE.
+;;; ARRAY-ctype is a subclass of CTYPE.
 (def-accessors (array-ctype) %svref
   nil                                   ; 'array-ctype
   nil                                   ; ctype-class-info           
@@ -538,7 +532,7 @@
   array-ctype-specialized-element-type
 )
 
-; MEMBER-ctype is a direct subclass of CTYPE.
+;;; MEMBER-ctype is a direct subclass of CTYPE.
 (def-accessors (member-ctype) %svref
   nil                                   ; 'member-ctype
   nil                                   ; ctype-class-info           
@@ -548,7 +542,7 @@
   member-ctype-members
 )
 
-; UNION-ctype is a direct subclass of CTYPE.
+;;; UNION-ctype is a direct subclass of CTYPE.
 (def-accessors (union-ctype) %svref
   nil                                   ; 'union-ctype
   nil                                   ; ctype-class-info           
@@ -558,7 +552,7 @@
   union-ctype-types
 )
 
-; INTERSECTION-ctype is a direct subclass of CTYPE.
+;;; INTERSECTION-ctype is a direct subclass of CTYPE.
 (def-accessors (intersection-ctype) %svref
   nil                                   ; 'intersection-ctype
   nil                                   ; ctype-class-info           
@@ -579,7 +573,7 @@
 
 
 
-; It'd be nice to integrate "foreign" types into the type system
+;;; It'd be nice to integrate "foreign" types into the type system
 (def-accessors (foreign-ctype) %svref
   nil                                   ; 'foreign-ctype
   nil                                   ; ctype-class-info           
@@ -587,7 +581,7 @@
   foreign-ctype-foreign-type
 )
   
-; Most "real" CLOS objects have one of these in their %class.ctype slot
+;;; Most "real" CLOS objects have one of these in their %class.ctype slot
 
 (def-accessors (class-ctype) %svref
   nil                                   ; 'class-ctype
@@ -612,7 +606,7 @@
   pkg-iter.tbl                          ; current pkg.itab or pkg.etab
   pkg-iter.index)                       ; index in table
 
-; Bits for pkg-iter.types
+;;; Bits for pkg-iter.types
 (defconstant $pkg-iter-external 0)
 (defconstant $pkg-iter-internal 1)
 (defconstant $pkg-iter-inherited 2)
@@ -631,7 +625,7 @@
 (defconstant $catchfsize (+ $catch.pc 4))
 
 
-; Bits in *gc-event-status-bits*
+;;; Bits in *gc-event-status-bits*
 (defconstant $gc-retain-pages-bit 0)
 (defconstant $gc-integrity-check-bit 2)
 (defconstant $gc-allow-stack-overflows-bit 5)
@@ -639,7 +633,7 @@
 
 
 
-; Values for the flags arg to %install-periodic-task
+;;; Values for the flags arg to %install-periodic-task
 (defconstant $ptask_draw-flag 1)       ; set for tasks that do drawing
 (defconstant $ptask_event-dispatch-flag 2)      ; set for tasks that do event processing
 
@@ -667,14 +661,14 @@
 
 (defconstant $cht_macbit 3)             ;This bit on in CHT_TMAC and CHT_NTMAC
 
-; quantifiers
+;;; quantifiers
 
 (defconstant $some 0)
 (defconstant $notany 1)
 (defconstant $every 2)
 (defconstant $notevery 3)
 
-; Error string constants.  As accurate as constants.i ...
+;;; Error string constants.  As accurate as constants.i ...
 
 (defconstant $XVUNBND 1)
 (defconstant $XNOCDR 2)
@@ -873,18 +867,6 @@
 (defconstant IEEE-double-float-digits (1+ IEEE-double-float-mantissa-width))
 
 
-(defconstant kNoThreadID 0)
-(defconstant kCurrentThreadID 1)
-(defconstant kApplicationThreadID 2)
-
-(defconstant kCooperativeThread (ash 1 0))
-(defconstant kPreemptiveThread (ash 1 1))
-
-(defconstant kNewSuspend (ash 1 0))
-(defconstant kUsePremadeThread (ash 1 1))
-(defconstant kCreateIfNeeded (ash 1 2))
-(defconstant kFPUNotNeeded (ash 1 3))
-(defconstant kExactMatchThread (ash 1 4))
 
 
 (def-accessors (ptaskstate) %svref
@@ -1154,7 +1136,7 @@
                :initial-element nil))
 
 
-; method-combination info
+;;; method-combination info
 (def-accessors svref
   mci.class                             ; short-method-combination or long-method-combination
   mci.options                           ; short-form-options or long-form function
@@ -1165,7 +1147,7 @@
 (defmacro %cons-mci (&optional class options)
   `(vector ,class ,options (%cons-population nil) (%cons-population nil)))
 
-; slot accessor info for primary classes
+;;; slot accessor info for primary classes
 (def-accessors %svref
   %slot-accessor-info.class
   (%slot-accessor-info.accessor %slot-accessor-info.slot-name)
@@ -1225,4 +1207,4 @@
 
 (provide "LISPEQU")
 
-; End of lispequ.lisp
+;;; End of lispequ.lisp
