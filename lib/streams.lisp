@@ -99,9 +99,7 @@
     (stream-finish-output stream)
     nil))
 
-(defun column (&optional stream)
-  (let* ((stream (real-print-stream stream)))
-    (stream-line-column stream)))
+
 
 (defun line-length (stream)
   (declare (ignore stream))
