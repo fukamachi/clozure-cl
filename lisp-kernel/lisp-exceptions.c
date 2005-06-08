@@ -87,7 +87,7 @@ disable_fp_exceptions()
 
 extern LispObj lisp_nil;
 
-extern unsigned lisp_heap_gc_threshold;
+extern natural lisp_heap_gc_threshold;
 extern Boolean grow_dynamic_area(unsigned);
 
 
@@ -1686,7 +1686,7 @@ int
 is_conditional_trap(opcode instr)
 {
   unsigned to = TO_field(instr);
-  int is_tw = X_opcode_p(instr,major_opcode_X31,minor_opcode_TW);
+  int is_tr = X_opcode_p(instr,major_opcode_X31,minor_opcode_TR);
 
 #ifndef MACOS
   if ((instr == LISP_BREAK_INSTRUCTION) ||
@@ -1694,15 +1694,15 @@ is_conditional_trap(opcode instr)
     return 1;
   }
 #endif
-  if (is_tw || major_opcode_p(instr,major_opcode_TWI)) {
-    /* A "tw" or "twi" instruction.  To be unconditional, the EQ bit must be set
-       in the TO mask and either the register operands (if "tw") are the same or
-       either both of the signed or both of the unsigned inequality bits
-       must be set. */
+  if (is_tr || major_opcode_p(instr,major_opcode_TRI)) {
+    /* A "tw/td" or "twi/tdi" instruction.  To be unconditional, the
+       EQ bit must be set in the TO mask and either the register
+       operands (if "tw") are the same or either both of the signed or
+       both of the unsigned inequality bits must be set. */
     if (! (to & TO_EQ)) {
       return 1;			/* Won't trap on EQ: conditional */
     }
-    if (is_tw && (RA_field(instr) == RB_field(instr))) {
+    if (is_tr && (RA_field(instr) == RB_field(instr))) {
       return 0;			/* Will trap on EQ, same regs: unconditional */
     }
     if (((to & (TO_LO|TO_HI)) == (TO_LO|TO_HI)) || 
@@ -1711,7 +1711,8 @@ is_conditional_trap(opcode instr)
     }
     return 1;			/* must be conditional */
   }
-  return 0;			/* Not "tw" or "twi".  Let debugger have it */
+  return 0;			/* Not "tw/td" or "twi/tdi".  Let
+                                   debugger have it */
 }
 
 OSStatus
@@ -1822,7 +1823,9 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info))) {
     char msg[512];
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%08lx, context->regs at #x%08lx", signum, xpPC(context), (natural)xpGPRvector(context));
-    lisp_Debugger(context, signum, msg);
+    if (lisp_Debugger(context, signum, msg)) {
+      (tcr->flags |= TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
+    }
   }
 
   unlock_exception_lock_in_handler(tcr);
@@ -1923,7 +1926,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
   }
 
 
-  if (instr == 0x918c0004) {	/* stw tsp,tsp_frame.type(tsp) */
+  if (instr == MARK_TSP_FRAME_INSTRUCTION) {
     LispObj tsp_val = xpGPR(xp,tsp);
     
     ((LispObj *)ptr_from_lispobj(tsp_val))[1] = tsp_val;
@@ -1932,7 +1935,13 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
   }
   
   if (frame->backlink == (frame+1)) {
-    if ((major_opcode_p(instr, major_opcode_STW)) && 
+    if (
+#ifdef PPC64
+        (major_opcode_p(instr, major_opcode_DS_STORE64)) &&
+        (DS_VARIANT_FIELD(instr) == DS_STORE64_VARIANT_STD) &&
+#else
+        (major_opcode_p(instr, major_opcode_STW)) && 
+#endif
 	(RA_field(instr) == sp) &&
 	/* There are a few places in the runtime that store into
 	   a previously-allocated frame atop the stack when
@@ -1948,13 +1957,17 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
 	((program_counter[-1] == CREATE_LISP_FRAME_INSTRUCTION) ||
 	 (program_counter[-2] == CREATE_LISP_FRAME_INSTRUCTION) ||
 	 (program_counter[-3] == CREATE_LISP_FRAME_INSTRUCTION)))  {
+#ifdef PPC64
+      int disp = DS_field(instr) << 2;
+#else      
       int disp = D_field(instr);
+#endif
       
-      if (disp < 16) {
+      if (disp < (4*node_size)) {
 	frame->savevsp = 0;
-	if (disp < 12) {
+	if (disp < (3*node_size)) {
 	  frame->savelr = 0;
-	  if (disp == 4) {
+	  if (disp == node_size) {
 	    frame->savefn = 0;
 	  }
 	}
@@ -1999,7 +2012,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
       }
     }
   }
-
+#ifndef PC64
   if ((major_opcode_p(instr, 47)) && /* 47 = stmw */
       (RA_field(instr) == vsp)) {
     int r;
@@ -2010,6 +2023,7 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
     }
     adjust_exception_pc(xp, 4);
   }
+#endif
 }
 
 void
@@ -2578,6 +2592,8 @@ catch_exception_raise(mach_port_t exception_port,
 		      mach_msg_type_number_t code_count)
 {
   int signum = 0, code = *code_vector, code1;
+  TCR *tcr = TCR_FROM_EXCEPTION_PORT(exception_port);
+
 
   if ((exception == EXC_BAD_INSTRUCTION) &&
       (code_vector[0] == EXC_PPC_UNIPL_INST) &&
@@ -2585,12 +2601,16 @@ catch_exception_raise(mach_port_t exception_port,
        (code1 == (int)enable_fp_exceptions) ||
        (code1 == (int)disable_fp_exceptions))) {
     if (code1 == (int)pseudo_sigreturn) {
-      return do_pseudo_sigreturn(thread, TCR_FROM_EXCEPTION_PORT(exception_port));
+      return do_pseudo_sigreturn(thread, tcr);
     }
     if (code1 == (int)enable_fp_exceptions) {
       return thread_set_fp_exceptions_enabled(thread, true);
     }
     return thread_set_fp_exceptions_enabled(thread, false);
+  }
+  if (tcr->flags & TCR_FLAG_BIT_PROPAGATE_EXCEPTION) {
+    tcr->flags &= ~TCR_FLAG_BIT_PROPAGATE_EXCEPTION;
+    return 17;
   }
   switch (exception) {
   case EXC_BAD_ACCESS:
@@ -2619,7 +2639,7 @@ catch_exception_raise(mach_port_t exception_port,
 			      (void *)pseudo_signal_handler,
 			      signum,
                               code,
-			      TCR_FROM_EXCEPTION_PORT(exception_port));
+			      tcr);
   }
   return 17;
 }

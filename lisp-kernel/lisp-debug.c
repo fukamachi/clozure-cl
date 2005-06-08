@@ -562,12 +562,14 @@ debug_command_entry debug_command_entries[] =
    0,
    NULL,
    'X'},
-#if 0
+#ifdef DARWIN
   {debug_lose,
    "Propagate the exception to another handler (debugger or OS)",
    DEBUG_COMMAND_FLAG_REQUIRE_XP | DEBUG_COMMAND_FLAG_EXCEPTION_ENTRY_ONLY,
    NULL,
    'P'},
+#endif
+#if 0
   {debug_thread_reset,
    "Reset current thread (as if in response to stack overflow)",
    DEBUG_COMMAND_FLAG_REQUIRE_XP,
