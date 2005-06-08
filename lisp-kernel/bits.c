@@ -28,21 +28,21 @@ set_n_bits(bitvector bits, natural first, natural n)
   if (n) {
     natural
       lastbit = (first+n)-1,
-      leftbit = first & 0x1f,
-      leftmask = 0xffffffff >> leftbit,
-      rightmask = 0xffffffff << (31 - (lastbit & 0x1f)),
-      *wstart = ((natural *) bits) + (first>>5),
-      *wend = ((natural *) bits) + (lastbit>>5);
+      leftbit = first & bitmap_shift_count_mask,
+      leftmask = ALL_ONES >> leftbit,
+      rightmask = ALL_ONES << ((nbits_in_word-1) - (lastbit & bitmap_shift_count_mask)),
+      *wstart = ((natural *) bits) + (first>>bitmap_shift),
+      *wend = ((natural *) bits) + (lastbit>>bitmap_shift);
 
     if (wstart == wend) {
       *wstart |= (leftmask & rightmask);
     } else {
       *wstart++ |= leftmask;
-      n -= (32 - leftbit);
+      n -= (nbits_in_word - leftbit);
       
-      while (n >= 32) {
-        *wstart++ = 0xffffffff;
-        n-=32;
+      while (n >= nbits_in_word) {
+        *wstart++ = ALL_ONES;
+        n-= nbits_in_word;
       }
       
       if (n) {
@@ -51,22 +51,12 @@ set_n_bits(bitvector bits, natural first, natural n)
     }
   }
 }
-  
 
-
-
-
-bitvector 
-new_bitvector(natural nbits)
-{
-  return (bitvector) zalloc(((sizeof(natural)*(nbits+31))>>5));
-}
-
-/* Note that this zeros fullwords */
+/* Note that this zeros longwords */
 void
 zero_bits(bitvector bits, natural nbits)
 {
-  memset(bits, 0, ((sizeof(natural)*((nbits+31))>>5)));
+  memset(bits, 0, ((sizeof(natural)*((nbits+(nbits_in_word-1)))>>bitmap_shift)));
 }
 
 void
@@ -74,6 +64,6 @@ ior_bits(bitvector dest, bitvector src, natural nbits)
 {
   while (nbits > 0) {
     *dest++ |= *src++;
-    nbits -= 32;
+    nbits -= nbits_in_word;
   }
 }

@@ -14,9 +14,6 @@
    http://opensource.franz.com/preamble.html
 */
 
-/*
-  12/26/95  gb  lots o macros.
-*/
 
 
 #ifndef __bits_h__
@@ -29,9 +26,11 @@ typedef natural *bitvector;
 #ifdef PPC64
 #define bitmap_shift 6
 #define BIT0_MASK 0x8000000000000000ULL
+#define ALL_ONES  0xffffffffffffffffULL
 #else
 #define bitmap_shift 5
 #define BIT0_MASK 0x80000000U 
+#define ALL_ONES  0xFFFFFFFFU
 #endif
 
 #define bitmap_shift_count_mask ((1<<bitmap_shift)-1)
@@ -92,7 +91,6 @@ ref_bit(bitvector bits,natural bitnum)
   return ((bits[bitnum>>bitmap_shift] & (BIT0_MASK >> (bitnum & bitmap_shift_count_mask))) != 0);
 }
 
-bitvector new_bitvector(natural);
 void zero_bits(bitvector, natural);
 void ior_bits(bitvector,bitvector,natural);
 
