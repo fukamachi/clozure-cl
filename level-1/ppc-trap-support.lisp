@@ -30,11 +30,20 @@
       (:ra . ,(byte 5 16))
       (:rb . ,(byte 5 11))
       (:d . ,(byte 16 0))
+      (:ds . ,(byte 14 2))
+      (:ds-xo . ,(byte 2 0))
+      (:sh . ,(byte 5 11))
       (:mb . ,(byte 5 6))
       (:me . ,(byte 5 1))
+      (:mb6 . ,(byte 6 5))
+      (:me6 . ,(byte 6 5))
+      (:sh6 . ,(byte 1 1))
       (:x-minor . ,(byte 10 1))
-      (:fulltag . ,(byte ppc32::ntagbits 0))
-      (:lisptag . ,(byte ppc32::nlisptagbits 0))))
+      (:fulltag32 . ,(byte ppc32::ntagbits 0))
+      (:lisptag32 . ,(byte ppc32::nlisptagbits 0))
+      (:fulltag64 . ,(byte ppc64::ntagbits 0))
+      (:lisptag64 . ,(byte ppc64::nlisptagbits 0))
+      (:lowtag64 . ,(byte ppc64::nlowtagbits 0))))
   
   (defun ppc-instruction-field (field-name)
     (or (cdr (assoc field-name *ppc-instruction-fields*))
@@ -47,10 +56,17 @@
   
 
   (defmacro with-xp-registers-and-gpr-offset ((xp register-number) (registers offset) &body body)
-    `(with-macptrs ((,registers #+linuxppc-target (pref ,xp :ucontext.uc_mcontext.regs)
-		                #+darwinppc-target (pref ,xp :ucontext.uc_mcontext.ss)))
+    (let* ((regform  #+linuxppc-target
+                     (target-arch-case
+                      (:ppc32 `(pref ,xp :ucontext.uc_mcontext.regs))
+                      (:ppc64 fix-this))
+                     #+darwinppc-target
+                     (target-arch-case
+                      (:ppc32 `(pref ,xp :ucontext.uc_mcontext.ss))
+                      (:ppc64 `(pref ,xp :ucontext64.uc_mcontext64.ss)))))
+    `(with-macptrs ((,registers ,regform))
       (let ((,offset (xp-gpr-offset ,register-number)))
-	,@body)))
+	,@body))))
 
   (defmacro RA-field (instr)
     `(ldb (byte 5 16) ,instr))
@@ -82,9 +98,6 @@
 
 
 
-; The #.'s are necessary below since (get-field-offset ..) expands into
-; (values n type), and the compiler is not smart enough to notice that
-; it's only going to use n, a constant fixnum.
 (defun xp-gpr-offset (register-number)
   (unless (and (fixnump register-number)
                (<= -2 (the fixnum register-number))
@@ -92,7 +105,8 @@
     (setq register-number (require-type register-number '(integer -2 48))))
   (the fixnum 
     (* (the fixnum #+linuxppc-target register-number
-	           #+darwinppc-target (+ register-number 2)) 4)))
+	           #+darwinppc-target (+ register-number 2))
+       target::node-size)))
 
 
 
@@ -180,7 +194,10 @@
 
 (defun return-address-offset (xp fn machine-state-offset)
   (with-macptrs ((regs (pref xp #+linuxppc-target :ucontext.uc_mcontext.regs
-			        #+darwinppc-target :ucontext.uc_mcontext)))
+			        #+(and darwinppc-target ppc32-target)
+                                :ucontext.uc_mcontext
+                                #+(and darwinppc-target ppc64-target)
+                                :ucontext64.uc_mcontext64)))
     (if (functionp fn)
       (or (%code-vector-pc (uvref fn 0) (%inc-ptr regs machine-state-offset))
            (%get-ptr regs machine-state-offset))
@@ -188,13 +205,21 @@
 
 (defconstant lr-offset-in-register-context
   #+linuxppc-target (ash #$PT_LNK 2)
-  #+darwinppc-target (+ (get-field-offset :mcontext.ss)
-			(get-field-offset :ppc_thread_state.lr)))
+  #+(and darwinppc-target ppc32-target)
+  (+ (get-field-offset :mcontext.ss)
+     (get-field-offset :ppc_thread_state.lr))
+  #+(and darwinppc-target ppc64-target)
+  (+ (get-field-offset :mcontext64.ss)
+     (get-field-offset :ppc_thread_state64.lr)))
 
 (defconstant pc-offset-in-register-context
   #+linuxppc-target (ash #$PT_NIP 2)
-  #+darwinppc-target (+ (get-field-offset :mcontext.ss)
-			(get-field-offset :ppc_thread_state.srr0)))
+  #+(and darwinppc-target ppc32-target)
+  (+ (get-field-offset :mcontext.ss)
+     (get-field-offset :ppc_thread_state.srr0))
+  #+(and darwinppc-target ppc64-target)
+  (+ (get-field-offset :mcontext64.ss)
+     (get-field-offset :ppc_thread_state64.srr0)))
 
 ; When a trap happens, we may have not yet created control
 ; stack frames for the functions containing PC & LR.
@@ -273,19 +298,18 @@
 ;; Some of these could probably call %err-disp instead of error,
 ;; but I was too lazy to look them up.
 
+#+ppc32-target
 (defcallback xcmain (:without-interrupts t
 					:address xp 
 					:unsigned-fullword fn-reg 
 					:address pc-or-index 
 					:unsigned-fullword the-trap
-					:signed-fullword 
-					#+proxy-scheduler trap-level
-					#-proxy-scheduler ignore-0
+					:signed-fullword  ignore-0
 					:signed-fullword ignore-1)
-  (declare (ignore ignore-1 #-proxy-scheduler ignore-0))
+  (declare (ignore ignore-1  ignore-0))
   ;; twgti nargs,0
   ;; time for event polling.
-  ;; This happens a lot so we test for it first.
+  ;; This used to happen a lot so we test for it first.
   (let ((fn (unless (eql fn-reg 0) (xp-gpr-lisp xp fn-reg))))
     (with-xp-stack-frames (xp fn frame-ptr)
       (if (eql the-trap (ppc-lap-word (twgti nargs 0)))
@@ -327,7 +351,7 @@
              ;; twnei RA,N; RA = nargs
              ;; nargs check, no optional or rest involved
 	      ((match-instr the-trap
-                           (ppc-instruction-mask :opcode :rt :ra)
+                           (ppc-instruction-mask :opcode :to :ra)
                            (ppc-lap-word (twnei nargs ??)))
               (%error (if (< (xp-GPR-signed-long xp ppc::nargs) (D-field the-trap))
                         'too-few-arguments
@@ -340,10 +364,10 @@
              ;; twnei RA,N; RA != nargs, N = fulltag_node/immheader
              ;; type check; look for "lbz rt-imm,-3(ra-node)"
              ((and (or (match-instr the-trap
-                                    (ppc-instruction-mask :opcode :rt :fulltag)
+                                    (ppc-instruction-mask :opcode :to :fulltag32)
                                     (ppc-lap-word (twnei ?? ppc32::fulltag-nodeheader)))
                        (match-instr the-trap
-                                    (ppc-instruction-mask :opcode :rt :fulltag)
+                                    (ppc-instruction-mask :opcode :to :fulltag32)
                                     (ppc-lap-word (twnei ?? ppc32::fulltag-immheader))))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :d)
                                                (ppc-lap-word (lbz ?? ppc32::misc-subtag-offset ??))
@@ -365,7 +389,7 @@
              ;; twnei RA,N; RA != nargs, N = subtag_character
              ;; type check; look for "clrlwi rs-node,ra-imm,24" = "rlwinm rs,ra,0,24,31"
              ((and (match-instr the-trap
-                                (ppc-instruction-mask :opcode :rt :d)
+                                (ppc-instruction-mask :opcode :to :d)
                                 (ppc-lap-word (twnei ?? ppc32::subtag-character)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :rb :mb :me)
                                                (ppc-lap-word (rlwinm ?? ?? 0 24 31))
@@ -378,9 +402,10 @@
                         frame-ptr))
 
              ;; twnei RA,N; RA != nargs, N != fulltag_node/immheader
+             ;; (since that case was handled above.)
              ;; type check; look for "clrlwi rs-node,ra-imm,29/30" = "rlwinm rs,ra,0,29/30,31"
              ((and (match-instr the-trap
-                                (ppc-instruction-mask :opcode :rt)                                
+                                (ppc-instruction-mask :opcode :to) 
                                 (ppc-lap-word (twnei ?? ??)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :rb (:mb 28) :me)
                                                (ppc-lap-word (rlwinm ?? ?? 0 28 31))                                               
@@ -401,21 +426,6 @@
                         nil
                         frame-ptr)))
              
-             ;; twnei RA,N; RA != nargs, N = subtag_character
-             ;; type check; look for "clrlwi rs-node,ra-imm,24" = "rlwinm rs,ra,0,24,31"
-             ((and (match-instr the-trap
-                                (ppc-instruction-mask :opcode :rt :d)
-                                (ppc-lap-word (twnei ?? ppc32::subtag-character)))
-                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :rb :mb :me)
-                                               (ppc-lap-word (rlwinm ?? ?? 0 24 31))
-                                               fn pc-index))
-                   (lisp-reg-p (setq rs (RS-field instr))))
-              (%error (make-condition 'type-error
-                                      :datum (xp-GPR-lisp xp rs)
-                                      :expected-type 'character)
-                      nil
-                      frame-ptr))
-             
              ;; twlgti RA,N; RA = nargs (xy = 01)
              ;; twllti RA,N; RA = nargs (xy = 10)
              ;; nargs check, optional or rest involved
@@ -435,7 +445,7 @@
              ;; tweqi RA,N; N = unbound
              ;; symeval boundp check; look for "lwz RA,symbol.vcell(nodereg)"
              ((and (match-instr the-trap
-                                (ppc-instruction-mask :opcode :rt :d)                                
+                                (ppc-instruction-mask :opcode :to :d)                                
                                 (ppc-lap-word (tweqi ?? ppc32::unbound-marker)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :d)
                                                (ppc-lap-word (lwz ?? ppc32::symbol.vcell ??))                                               
@@ -447,7 +457,7 @@
 	     ;; slot-unbound trap.  Look for preceding "lwzx RA,rx,ry".
 	     ;; rx = slots-vector, ry = scaled index in slots vector.
 	     ((and (match-instr the-trap
-				(ppc-instruction-mask :opcode :rt :d)
+				(ppc-instruction-mask :opcode :to :d)
 				(ppc-lap-word (tweqi ?? ppc32::slot-unbound-marker)))
 		   (setq instr (scan-for-instr (ppc-instruction-mask
 						:opcode :rt  :x-minor)
@@ -523,6 +533,298 @@
              ;; Unknown trap
              (t (%error "Unknown trap: #x~x~%xp: ~s, fn: ~s, pc: #x~x"
                         (list the-trap xp fn (ash pc-index ppc32::fixnumshift))
+                        frame-ptr)))))))))
+
+#+ppc64-target
+(defcallback xcmain (:without-interrupts t
+					:address xp 
+					:unsigned-fullword fn-reg 
+					:address pc-or-index 
+					:unsigned-fullword the-trap
+					:signed-fullword  ignore-0
+					:signed-fullword ignore-1)
+  (declare (ignore ignore-1  ignore-0))
+  ;; tdgti nargs,0
+  ;; time for event polling.
+  ;; This used to happen a lot so we test for it first.
+  (let ((fn (unless (eql fn-reg 0) (xp-gpr-lisp xp fn-reg))))
+    (with-xp-stack-frames (xp fn frame-ptr)
+      (if (eql the-trap (ppc-lap-word (tdgti nargs 0)))
+        (unwind-protect
+          (progn
+            ;(setq *interrupt-level* 0)
+            (cmain))
+	  (let* ((catch-top (%catch-top (%current-tcr)))
+		 (csp (catch-frame-sp catch-top))
+		 (vsp (%%frame-savevsp csp))
+		 (topword (%fixnum-ref vsp)))
+	    (declare (fixnum topword))
+	    (unless (>= topword 0)
+	      (setf (%fixnum-ref vsp) 0))))
+        (with-error-reentry-detection
+          (let ((pc-index (if (eql fn-reg 0) pc-or-index (%ptr-to-int pc-or-index)))
+                instr ra temp rs condition)
+            (cond
+              ;; tdeqi RA nil-value - resolve-eep, or resolve-foreign-variable
+	      ((and (match-instr the-trap
+				 (ppc-instruction-mask  :opcode :to :d)
+				 (ppc-lap-word (tdeqi ?? ppc64::nil-value)))
+		    (setq instr (scan-for-instr
+				 (ppc-instruction-mask :opcode :ds :ds-xo)
+				 (ppc-lap-word (ld ??
+						    (+ 8 ppc64::misc-data-offset)
+						    ??))
+                                               fn pc-index)))
+	       (let* ((eep-or-fv (xp-gpr-lisp xp (RA-field instr))))
+                 (etypecase eep-or-fv
+                   (external-entry-point
+                    (resolve-eep eep-or-fv)
+                    (setf (xp-gpr-lisp xp (RA-field the-trap))
+                          (eep.address eep-or-fv)))
+                   (foreign-variable
+                    (resolve-foreign-variable eep-or-fv)
+                    (setf (xp-gpr-lisp xp (RA-field the-trap))
+                          (fv.addr eep-or-fv))))))
+              ;; tdnei RA,N; RA = nargs
+              ;; nargs check, no optional or rest involved
+	      ((match-instr the-trap
+                           (ppc-instruction-mask :opcode :to :ra)
+                           (ppc-lap-word (tdnei nargs ??)))
+              (%error (if (< (xp-GPR-signed-long xp ppc::nargs) (D-field the-trap))
+                        'too-few-arguments
+                        'too-many-arguments )
+                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
+					(- ppc64::fixnumshift))
+			    :fn  fn)
+                      frame-ptr))
+             
+             ;; tdnei RA,N; RA != nargs, N = lowtag_node/immheader
+             ;; type check; look for "lbz rt-imm,-5(ra-node)"
+             ((and (or (match-instr the-trap
+                                    (ppc-instruction-mask :opcode :to :lowtag64)
+                                    (ppc-lap-word (tdnei ?? ppc64::lowtag-nodeheader)))
+                       (match-instr the-trap
+                                    (ppc-instruction-mask :opcode :rt :lowtag64)
+                                    (ppc-lap-word (tdnei ?? ppc64::lowtag-immheader))))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :d)
+                                               (ppc-lap-word (lbz ?? ppc64::misc-subtag-offset ??))
+                                               fn pc-index))
+                   (lisp-reg-p (setq ra (RA-field instr))))
+              (let* ((typecode (D-field the-trap))
+                     (type-tag (logand typecode ppc64::lowtagmask))
+                     (type-name (svref (if (eql type-tag ppc64::lowtag-nodeheader)
+                                         *nodeheader-types*
+                                         *immheader-types*)
+                                       (ash typecode (- ppc64::nlowtagbits)))))
+                (%error (make-condition 'type-error
+                                        :format-control (%rsc-string $XWRONGTYPE)
+                                        :datum (xp-GPR-lisp xp ra)
+                                        :expected-type type-name)
+                        nil
+                        frame-ptr)))
+             ;; tdnei RA,N; RA != nargs, N = subtag_character type
+             ;; check; look for "clrldi rs-node,ra-imm,56" = "rldicl
+             ;; rs,ra,0,55"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :rt :d)
+                                (ppc-lap-word (tdnei ?? ppc64::subtag-character)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :sh :mb6 :sh6)
+                                               (ppc-lap-word (rldicl ?? ?? 0 56))
+                                               fn pc-index))
+                   (lisp-reg-p (setq rs (RS-field instr))))
+              (%error (make-condition 'type-error
+                                        :datum (xp-GPR-lisp xp rs)
+                                        :expected-type 'character)
+                        nil
+                        frame-ptr))
+
+             ;; tdnei RA,N; RA != nargs, N = ppc64::tag-fixnum.  type
+             ;; check; look for "clrldi rs-node,ra-imm,61" = "rldicl
+             ;; rs,ra,61"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :rt)
+                                (ppc-lap-word (tdnei ?? ppc64::tag-fixnum)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :sh :mb6 :sh6)
+                                               (ppc-lap-word (rldicl ?? ?? 0 62))                                               
+                                               fn pc-index))
+
+                   (lisp-reg-p (setq rs (RS-field instr))))
+                (%error (make-condition 'type-error
+                                        :datum (xp-GPR-lisp xp rs)
+                                        :expected-type 'fixnum)
+                        nil
+                        frame-ptr))
+             ;; tdi 3,RA,ppc64::fulltag-cons; RA != nargs type check;
+             ;; look for "clrldi rs-node,ra-imm,60" = "rldicl
+             ;; rs,ra,60"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :to :d)
+                                (ppc-lap-word (tdi 3 ?? ppc64::fulltag-cons)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :sh :mb6 :sh6)
+                                               (ppc-lap-word (rldicl ?? ?? 0 60))                                               
+                                               fn pc-index))
+
+                   (lisp-reg-p (setq rs (RS-field instr))))
+                (%error (make-condition 'type-error
+                                        :datum (xp-GPR-lisp xp rs)
+                                        :expected-type 'list)
+                        nil
+                        frame-ptr))             
+             ;; tdnei RA,ppc64::fulltag-cons; RA != nargs type check;
+             ;; look for "clrldi rs-node,ra-imm,60" = "rldicl
+             ;; rs,ra,60"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :to :d)
+                                (ppc-lap-word (tdnei ?? ppc64::fulltag-cons)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :sh :mb6 :sh6)
+                                               (ppc-lap-word (rldicl ?? ?? 0 60))                                               
+                                               fn pc-index))
+
+                   (lisp-reg-p (setq rs (RS-field instr))))
+                (%error (make-condition 'type-error
+                                        :datum (xp-GPR-lisp xp rs)
+                                        :expected-type 'cons)
+                        nil
+                        frame-ptr))
+             ;; tdnei RA,ppc64::subtag-single-float; RA != nargs type check;
+             ;; look for "clrldi rs-node,ra-imm,60" = "rldicl
+             ;; rs,ra,60"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :to :d)
+                                (ppc-lap-word (tdnei ?? ppc64::subtag-single-float)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :sh :mb6 :sh6)
+                                               (ppc-lap-word (rldicl ?? ?? 0 60))                                               
+                                               fn pc-index))
+
+                   (lisp-reg-p (setq rs (RS-field instr))))
+                (%error (make-condition 'type-error
+                                        :datum (xp-GPR-lisp xp rs)
+                                        :expected-type 'short-float)
+                        nil
+                        frame-ptr))
+             ;; tdnei RA,ppc64::fulltag-misc; RA != nargs type check;
+             ;; look for "clrldi rs-node,ra-imm,60" = "rldicl
+             ;; rs,ra,60"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :to :d)
+                                (ppc-lap-word (tdnei ?? ppc64::fulltag-misc)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :sh :mb6 :sh6)
+                                               (ppc-lap-word (rldicl ?? ?? 0 60))                                               
+                                               fn pc-index))
+
+                   (lisp-reg-p (setq rs (RS-field instr))))
+                (%error (make-condition 'type-error
+                                        :datum (xp-GPR-lisp xp rs)
+                                        :expected-type 'uvector)
+                        nil
+                        frame-ptr))
+             ;; tdlgti RA,N; RA = nargs (xy = 01)
+             ;; tdllti RA,N; RA = nargs (xy = 10)
+             ;; nargs check, optional or rest involved
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode (:to #x1c) :ra)
+                                (ppc-lap-word (tdi ?? ppc::nargs ??)))
+                   (or (eql #b01 (setq temp (ldb #.(ppc-instruction-field :to) the-trap)))
+	               (eql #b10 temp)))
+              (%error (if (eql temp #b10)
+                        'too-few-arguments
+                        'too-many-arguments)
+                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
+					(- ppc64::fixnumshift))
+			    :fn  fn)
+                      frame-ptr))
+             
+             ;; tdeqi RA,N; N = unbound
+             ;; symeval boundp check; look for "ld RA,symbol.vcell(nodereg)"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :to :d) 
+                                (ppc-lap-word (tdeqi ?? ppc64::unbound-marker)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :ds :ds-xo)
+                                               (ppc-lap-word (ld ?? ppc64::symbol.vcell ??))                                               
+                                               fn pc-index))
+                   (lisp-reg-p (setq ra (RA-field instr))))
+              (setf (xp-GPR-lisp xp (RA-field the-trap))
+                    (%kernel-restart-internal $xvunbnd (list (xp-GPR-lisp xp ra)) frame-ptr)))
+	     ;; tdeqi RA,N: n = (%slot-unbound-marker)
+	     ;; slot-unbound trap.  Look for preceding "ldx RA,rx,ry".
+	     ;; rx = slots-vector, ry = scaled index in slots vector.
+	     ((and (match-instr the-trap
+				(ppc-instruction-mask :opcode :to :d)
+				(ppc-lap-word (tdeqi ?? ppc64::slot-unbound-marker)))
+		   (setq instr (scan-for-instr (ppc-instruction-mask
+						:opcode :rt  :x-minor)
+					       (dpb
+						(RA-field the-trap)
+						(byte 5 21)
+						(ppc-lap-word
+						 (ldx ?? ?? ??)))
+					       fn pc-index)))
+              ;; %SLOT-UNBOUND-TRAP will decode the arguments further, then call
+              ;; the generic function SLOT-UNBOUND.  That might return a value; if
+              ;; so, set the value of the register that caused the trap to that
+              ;; value.
+              (setf (xp-gpr-lisp xp (ra-field the-trap))
+                    (%slot-unbound-trap (xp-gpr-lisp xp (RA-field instr))
+                                        (ash (- (xp-gpr-signed-long xp (RB-field instr))
+                                                ppc64::misc-data-offset)
+                                             (- ppc64::word-shift))
+                                        frame-ptr)))
+             ;; tdlge RA,RB
+             ;; vector bounds check; look for "ld immreg, misc_header_offset(nodereg)"
+             ((and (match-instr the-trap
+                                (ppc-instruction-mask :opcode :to :x-minor)
+                                (ppc-lap-word (tdlge ?? ??)))
+                   (setq instr (scan-for-instr (ppc-instruction-mask :opcode #|:d|# :ds-xo)
+                                               (ppc-lap-word (ld ?? ?? #|ppc32::misc-header-offset|# ??))
+                                               fn pc-index))
+                   (lisp-reg-p (setq ra (RA-field instr))))
+              (%error (%rsc-string $xarroob)
+                      (list (xp-GPR-lisp xp (RA-field the-trap))
+                            (xp-GPR-lisp xp ra))
+                      frame-ptr))
+             ;; tdi 27 ra d - array header rank check
+	     ((and (match-instr the-trap
+				(ppc-instruction-mask :opcode :to)
+				(ppc-lap-word (tdi 27 ?? ??)))
+		   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :ds :ds-xo)
+                                               (ppc-lap-word (ld ?? ppc64::arrayH.rank ??))
+                                               fn pc-index))
+		   (lisp-reg-p (setq ra (RA-field instr))))
+	      (%error (%rsc-string $xndims)
+		      (list (xp-gpr-lisp xp ra)
+			    (ash (ldb (byte 16 0) the-trap) (- ppc64::fixnumshift)))
+		      frame-ptr))
+	     ;; td 27 ra rb - array flags check
+	     ((and (match-instr the-trap
+				(ppc-instruction-mask :opcode :to :x-minor)
+				(ppc-lap-word (td 27 ?? ??)))
+		   (setq instr (scan-for-instr (ppc-instruction-mask :opcode :ds :ds-xo)
+                                               (ppc-lap-word (ld ?? ppc64::arrayH.flags ??))
+                                               fn pc-index))
+		   (lisp-reg-p (setq ra (RA-field instr)))
+		   (let* ((expected (xp-gpr-lisp xp (RB-field the-trap)))
+			  (expected-subtype (ldb
+					     ppc64::arrayH.flags-cell-subtag-byte
+					     expected))
+			  (expect-simple (=
+					  (ldb ppc64::arrayH.flags-cell-bits-byte
+					       expected)
+					  (ash 1 $arh_simple_bit)))
+			  (type-name
+			   (case expected-subtype
+			     (#.ppc64::subtag-double-float-vector 'double-float))))
+
+		     (and type-name expect-simple
+			  (setq condition
+				(make-condition 'type-error
+						:datum (xp-gpr-lisp xp ra)
+						:expected-type
+						`(simple-array ,type-name))))))
+	      (%error condition nil frame-ptr))
+			       
+             ;; Unknown trap
+             (t (%error "Unknown trap: #x~x~%xp: ~s, fn: ~s, pc: #x~x"
+                        (list the-trap xp fn (ash pc-index ppc64::fixnumshift))
                         frame-ptr)))))))))
 
 #+ppc-target
