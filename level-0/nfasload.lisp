@@ -817,7 +817,7 @@
     (do* ((idx (fast-mod primary vlen) (+ i secondary))
           (i idx (if (>= idx vlen) (- idx vlen) idx))
           (elt (svref vec i) (svref vec i)))
-         ((null elt) (values nil nil i))
+         ((or (eql elt 0) (null elt)) (values nil nil i))
       (declare (fixnum i idx))
       (when (and elt (symbolp elt))
         (let* ((pname (symbol-name elt)))
