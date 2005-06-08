@@ -266,6 +266,8 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define RA_field(instr)  (((instr) >> 16) & 0x1f)
 #define RB_field(instr)  (((instr) >> 11) & 0x1f)
 #define D_field(instr)   ((instr) & 0xffff)
+#define DS_field(instr)  ((instr) & 0xfffc)
+#define DS_VARIANT_FIELD(instr) ((instr) & 3)
 
 #define RT(val) ((val & 0x1f) << 21)
 #define RS(val) (RT(val))
@@ -345,9 +347,21 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 
 #define minor_opcode_TW 4
 #define minor_opcode_TD 68
+#ifdef PPC64
+#define minor_opcode_TR minor_opcode_TD
+#else
+#define minor_opcode_TR minor_opcode_TD
+#endif
 #define minor_opcode_SUBF 40
 #define minor_opcode_STWX 151
 #define minor_opcode_STWUX 183
+
+#define major_opcode_DS_LOAD64 58
+#define DS_LOAD64_VARIANT_LD 0
+
+#define major_opcode_DS_STORE64 62
+#define DS_STORE64_VARIANT_STD 0
+
 
 
 #define D_instruction(major,rt,ra,imm) (OP(major)|((rt)<<21)|((ra)<<16)|((imm)&D_MASK))
@@ -362,34 +376,69 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 
 #define unmasked_register              0
 
-#define LISP_BREAK_INSTRUCTION 0x7F810808
-#define QUIET_LISP_BREAK_INSTRUCTION 0x7C800008
+#define LISP_BREAK_INSTRUCTION 0x7f810808
+#define QUIET_LISP_BREAK_INSTRUCTION 0x7c800008
 
 #ifdef PPC64
 /* tdllt allocptr,allocbase */
 #define ALLOC_TRAP_INSTRUCTION 0x7c495088
 #else
 /* twllt allocptr,allocbase */
-#define ALLOC_TRAP_INSTRUCTION 0x7C495008
+#define ALLOC_TRAP_INSTRUCTION 0x7c495008
 #endif
 
+#ifdef PPC64
+/* tdlgei allocptr,0 */
+#define GC_TRAP_INSTRUCTION 0x08a90000
+#else
 /* twlgei allocptr,0 */
-#define GC_TRAP_INSTRUCTION 0x0CA90000
+#define GC_TRAP_INSTRUCTION 0x0ca90000
+#endif
 
+#ifdef PPC64
+/* clrrdi allocptr,allocptr,4 */
+#define UNTAG_ALLOCPTR_INSTRUCTION 0x792906e4
+#else
 /* clrrwi allocptr,allocptr,3 */
 #define UNTAG_ALLOCPTR_INSTRUCTION 0x55290038
+#endif
 
+#ifdef PPC64
+/* std rX,misc_header_offset(allocptr) */
+#define STORE_HEADER_ALLOCPTR_INSTRUCTION 0xf809fff4
+#else
 /* stw rX,misc_header_offset(allocptr) */
-#define STORE_HEADER_ALLOCPTR_INSTRUCTION 0x9009FFFA
+#define STORE_HEADER_ALLOCPTR_INSTRUCTION 0x9009fffa
+#endif
 #define STORE_HEADER_ALLOCPTR_MASK D_RA_IMM_MASK
 
+#ifdef PPC64
+/* std rX,cons.cXr(allocptr) */
+#define STORE_CAR_ALLOCPTR_INSTRUCTION 0xf8090004
+#define STORE_CDR_ALLOCPTR_INSTRUCTION 0xf809fffc
+#else
 /* stw rX,cons.cXr(allocptr) */
 #define STORE_CAR_ALLOCPTR_INSTRUCTION 0x90090003
 #define STORE_CDR_ALLOCPTR_INSTRUCTION 0x9009ffff
+#endif
 #define STORE_CXR_ALLOCPTR_MASK D_RA_IMM_MASK
 
+
+#ifdef PPC64
+/* stdu sp,-32(sp) */
+#define CREATE_LISP_FRAME_INSTRUCTION 0xf821ffe1
+#else
 /* stwu sp,-16(sp) */
-#define CREATE_LISP_FRAME_INSTRUCTION 0x9421FFF0
+#define CREATE_LISP_FRAME_INSTRUCTION 0x9421fff0
+#endif
+
+#ifdef PPC64
+/* std tsp,tsp_frame.type(tsp) */
+#define MARK_TSP_FRAME_INSTRUCTION 0xf98c0008
+#else
+/* stw tsp,tsp_frame.type(tsp) */
+#define MARK_TSP_FRAME_INSTRUCTION 0x918c0004
+#endif
 
 void Bug(ExceptionInformationPowerPC *, const char *format_string, ...);
 int gc_from_xp(ExceptionInformationPowerPC *);
