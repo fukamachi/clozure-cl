@@ -736,14 +736,14 @@
                             (cons p
                                   (gvector :package
                                             (cons (make-array (the fixnum (length (car (uvref p 0))))
-                                                              :initial-element nil)
+                                                              :initial-element 0)
                                                   (cons 0 (cddr (pkg.itab p))))
                                             (cons (make-array
                                                    (the fixnum
                                                      (length
                                                       (car
                                                        (pkg.etab p))))
-                                                   :initial-element nil)
+                                                   :initial-element 0)
                                                   (cons 0 (cddr (pkg.etab p))))
                                             nil                         ; used
                                             nil                         ; used-by
