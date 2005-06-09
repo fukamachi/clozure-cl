@@ -259,7 +259,7 @@
   (compile-modules 'nxenv force-compile)
   (update-modules *compiler-modules* force-compile)
   (update-modules (target-compiler-modules) force-compile)
-  (update-modules (cdr (target-xdev-modules)) force-compile)
+  (update-modules (target-xdev-modules) force-compile)
   (update-modules (target-xload-modules)  force-compile)
   (let* ((env-modules (target-env-modules))
 	 (other-lib (target-other-lib-modules)))
