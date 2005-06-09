@@ -1,3 +1,9 @@
+2005-06-09 15:29  gb
+
+	* lib/compile-ccl.lisp: Compile all of target-xdev-modules, not
+	just the cdr of the list (why was it ever skipping the car of that
+	list ???)
+
 2005-06-07 23:35  gb
 
 	* xdump/xfasload.lisp: Initial element in cloned package htabs is
