@@ -178,7 +178,7 @@
 
 
 
-
+#+ppc32-target
 (defppclapfunction %%scale-dfloat! ((float arg_x)(int arg_y)(result arg_z))
   (let ((fl.h 8)
         (fl.l 12)
@@ -201,6 +201,31 @@
     (lwz tsp 0 tsp)
     (fmul fp2 fp0 fp1)
     (stfd fp2 ppc32::double-float.value result)
+    (blr)))
+
+#+ppc64-target
+(defppclapfunction %%scale-dfloat! ((float arg_x)(int arg_y)(result arg_z))
+  (let ((fl.h 16)
+        (fl.l 20)
+        (sc.h 24)
+        (sc.l 28))
+    (clear-fpu-exceptions)
+    (lwz imm0 ppc64::double-float.value float)
+    (lwz imm1 ppc64::double-float.val-low float)
+    (stdu tsp -32 tsp)
+    (std tsp 8 tsp)
+    (stw imm0 fl.h tsp)
+    (stw imm1 fl.l tsp)
+    (unbox-fixnum imm0 int)
+    ;(addi imm0 imm0 1022)  ; bias exponent - we assume no ovf
+    (slwi imm0 imm0 20)     ; more important - get it in right place
+    (stw imm0 sc.h tsp)
+    (stw rzero sc.l tsp)
+    (lfd fp0 fl.h tsp)
+    (lfd fp1 sc.h tsp)
+    (la tsp 32 tsp)
+    (fmul fp2 fp0 fp1)
+    (stfd fp2 ppc64::double-float.value result)
     (blr)))
 
 #+ppc32-target
@@ -235,22 +260,35 @@
   (stfs fp0 ppc32::single-float.value f2)
   (blr))
 
+#+ppc32-target
 (defppclapfunction %double-float-exp ((n arg_z))
   (lwz imm1 target::double-float.value n)
   (rlwinm arg_z imm1 (- 32 (- 20 target::fixnumshift)) 19  29) ; right 20 left 2 = right 18 = left 14
   (blr))
 
+
+
+#+ppc32-target
 (defppclapfunction set-%double-float-exp ((float arg_y) (exp arg_z))
   (lwz imm1 target::double-float.value float)
   (rlwimi imm1 exp (- 20 target::fixnumshift) 1 11)
   (stw imm1 target::double-float.value float) ; hdr - tag = 8 - 2
   (blr))
 
+
+
 #+ppc32-target
 (defppclapfunction %short-float-exp ((n arg_z))
   (lwz imm1 ppc32::single-float.value n)
   (rlwinm arg_z imm1 (- 32 (- 23 ppc32::fixnumshift)) 22 29)
   (blr))
+
+#+ppc64-target
+(defppclapfunction %short-float-exp ((n arg_z))
+  (srdi imm1 n 32)
+  (rlwinm arg_z imm1 (- 32 (- 23 ppc32::fixnumshift)) 22 29)
+  (blr))
+
 
 #+ppc32-target
 (defppclapfunction set-%short-float-exp ((float arg_y) (exp arg_z))
