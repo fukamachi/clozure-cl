@@ -837,7 +837,7 @@
   (unbox-fixnum imm0 flags)
   (ori imm0 imm0 8)
   (unbox-fixnum imm1 fd)
-  (twlgei allocptr 0)
+  (trlgei allocptr 0)
   (blr))
 
 (defppclapfunction %metering-info ((ptr arg_z))
