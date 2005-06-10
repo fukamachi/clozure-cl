@@ -35,16 +35,23 @@
 
 (defun host-platform ()
   (let* ((pf (%get-kernel-global 'ppc::host-platform)))
-    (case pf
-      (0 :macos)
-      (1 :linux)
-      (2 :vxworks)
-      (3 :darwin)
-      (16 :solaris)
-      (t :unknown))))
+    (values
+     (case (logand pf 63)
+       (0 :macos)
+       (1 :linux)
+       (2 :vxworks)
+       (3 :darwin)
+       (16 :solaris)
+       (t :unknown))
+     (logbitp 6 pf))))
+
+(defun platform-description ()
+  (let* ((bits (if (nth-value 1 (host-platform)) 64 32))
+         (cpu #+ppc-target "PPC" #-ppc-target "???"))
+    (format nil "~a~a~d" (software-type) cpu bits)))
 
 (defun lisp-implementation-version ()
-  (%str-cat "Version " (format nil *openmcl-version* (software-type))))
+  (%str-cat "Version " (format nil *openmcl-version* (platform-description))))
 
 
 
