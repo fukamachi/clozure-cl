@@ -559,7 +559,8 @@ TCR_BIAS = 0
 	 _node(pending_exception_context)
 	 _node(suspend)		/* semaphore for suspension notify */
 	 _node(resume)		/* sempahore for resumption notify */
-	 _node(flags)      
+         _word(flags_pad)
+	 _word(flags)      
 	 _node(gc_context)
          _node(suspend_total)
          _node(suspend_total_on_exception_entry)
