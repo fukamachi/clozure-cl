@@ -1,3 +1,59 @@
+2005-06-10 16:13  gb
+
+	* lisp-kernel/thread_manager.c: sigaction flags, node_size changes
+	in thread startup.
+
+2005-06-10 16:12  gb
+
+	* lisp-kernel/subprims.s: start_lisp: save/restore C registers,
+	build C stack frame in node_size multiples (not 4-byte multiples.)
+
+2005-06-10 16:11  gb
+
+	* lisp-kernel/ppc_print.c: Print (immedate) SINGLE-FLOATs on ppc64.
+
+2005-06-10 16:09  gb
+
+	* lisp-kernel/pmcl-kernel.c: sigaction flags.
+
+2005-06-10 16:08  gb
+
+	* lisp-kernel/lisp_globals.h: Define MIN_KERNEL_GLOBAL.
+
+2005-06-10 16:08  gb
+
+	* lisp-kernel/lisp-exceptions.h: We seem to be committed to the
+	"new" DarwinSigReturn.	Add a little bit of abstraction for trap
+	opcodes.
+
+2005-06-10 16:04  gb
+
+	* lisp-kernel/lisp-exceptions.c: Decode some traps more portably;
+	still some work to be done here.
+
+2005-06-10 16:02  gb
+
+	* lisp-kernel/image.c: Word-size issues; use MIN_KERNEL_GLOBAL
+	rather than platform-dependent constant.
+
+2005-06-10 15:58  gb
+
+	* lisp-kernel/gc.c: Lots of word-size issues.
+
+2005-06-10 15:57  gb
+
+	* lisp-kernel/constants64.s: Split tcr.flags into two 32-bit words,
+	because the .h file does so.
+
+2005-06-10 15:56  gb
+
+	* compiler/optimizers.lisp: Always do N-ary +/- as a sequence of
+	2-arg operations.
+
+2005-06-10 15:55  gb
+
+	* lib/numbers.lisp: Comment indentation.
+
 2005-06-10 15:18  gb
 
 	* level-1/version.lisp: Version de jour.
