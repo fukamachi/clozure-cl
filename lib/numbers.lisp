@@ -178,7 +178,7 @@
         (let* ((signed-integer (prog1 (if (minusp sign) (- integer) integer)))
                (float (float signed-integer (if short 0.0s0 0.0d0)))
                (10-to-power (scale-float (float-5-to-e abs-power) abs-power)))
-          ; coerce to short-float does not whine about undeflow, but does re overflow
+          ;; coerce to short-float does not whine about undeflow, but does re overflow
           (when short (setq 10-to-power (coerce 10-to-power 'short-float)))
           (if (zerop abs-power)
             float
