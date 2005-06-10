@@ -118,13 +118,30 @@
                     (and (eq exp 255)
                          (eq 0 mantissa)))))))
 
+#+ppc32-target
 (defun fixnum-decode-short-float (float)
   (multiple-value-bind (high low)(%sfloat-hwords float)
     (let*  ((mantissa (%ilogior2 low (%ilsl 16 (%ilogand2 high #x007F))))
             (exp (%ilsr 7 (%ilogand2 high #x7F80))))
       (if (and (neq exp 0)(neq exp 255))(setq mantissa (%ilogior mantissa #x800000)))
       (values mantissa exp (%ilsr 15 high)))))
-  
+
+#+ppc64-target
+(defun fixnum-decode-short-float (float)
+  (let* ((bits (single-float-bits float)))
+    (declare (fixnum bits))
+    (let* ((mantissa (ldb (byte IEEE-single-float-mantissa-width
+                                IEEE-single-float-mantissa-offset)
+                          bits))
+           (exp (ldb (byte IEEE-single-float-exponent-width
+                           IEEE-single-float-exponent-offset)
+                     bits))
+           (sign (ash bits -31)))
+      (declare (fixnum mantissa exp sign))
+      (unless (or (= exp 0) (= exp 255))
+        (setq mantissa (logior mantissa (ash 1 IEEE-single-float-hidden-bit))))
+      (values mantissa exp sign))))
+                  
                    
 
 #+ppc32-target
@@ -980,10 +997,28 @@
 #+ppc64-target
 (defun %%scale-sfloat (float int)
   (* (the single-float float)
-     (the single-float (dpb int
-                            (byte IEEE-single-float-exponent-width
-                                  IEEE-single-float-exponent-offset)
-                            0))))
-                            
+     (the single-float (host-single-float-from-unsigned-byte-32
+                        (dpb int
+                             (byte IEEE-single-float-exponent-width
+                                   IEEE-single-float-exponent-offset)
+                             0)))))
+
+#+ppc64-target
+(defun %double-float-exp (n)
+  (let* ((highword (double-float-bits n)))
+    (declare (fixnum highword))
+    (logand (1- (ash 1 IEEE-double-float-exponent-width))
+            (ash highword (- (- IEEE-double-float-exponent-offset 32))))))
+
+#+ppc64-target
+(defun set-%double-float-exp (float exp)
+  (let* ((highword (double-float-bits float)))
+    (declare (fixnum highword))
+    (setf (uvref float 0)
+          (dpb exp
+               (byte IEEE-double-float-exponent-width
+                     (- IEEE-double-float-exponent-offset 32))
+               highword))
+    exp))
 
 ; end of l0-float.lisp
