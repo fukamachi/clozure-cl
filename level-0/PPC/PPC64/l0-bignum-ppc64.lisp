@@ -45,7 +45,7 @@
     (once-only ((n-dest dest)
                 (n-src src))
                (if (and (eq start1 0)(eq start2 0)(null end1)(null end2)(null from-end))
-                                        ; this is all true for some uses today <<
+                 ;; this is all true for some uses today <<
                  `(%copy-ivector-to-ivector ,n-src 0 ,n-dest 0 (%ilsl 2 (min (the fixnum (%bignum-length ,n-src))
                                                                          (the fixnum (%bignum-length ,n-dest)))))
                  (let* ((n-start1 (gensym))
@@ -973,7 +973,7 @@
 	       (%ashr (bignum-ref bignum i) remaining-bits))
 	 (if resp
 	     (%mostly-normalize-bignum-macro res)
-	     (%normalize-bignum-macro res)))
+	     (%zero-trailing-sign-digits res res-len)))
       (declare (type bignum-index i i+1 j))
       (setf (bignum-ref res j)
 	    (%logior (%digit-logical-shift-right (bignum-ref bignum i)
@@ -1416,8 +1416,12 @@
 ;;; This is stolen from SBCL sources.  It should (someday) avoid
 ;;; calculating the remainder if NO-REM is true, and stack-allocate
 ;;; some of the temporary bignums when possible.
+
+(defparameter *debug-bignum-truncate* nil)
+
 (defun bignum-truncate (x y)
   (declare (type bignum-type x y))
+  (when *debug-bignum-truncate* (dbg))
   (let (truncate-x truncate-y)
     (labels	       
         ;;; Divide X by Y when Y is a single bignum digit. BIGNUM-TRUNCATE
@@ -1717,7 +1721,7 @@
 
 (defun %zero-trailing-sign-digits (bignum len)
   (declare (fixnum len))
-  (unless (<= len 2)
+  (unless (<= len 1)
     (do* ((next (bignum-ref bignum (the fixnum (- len 2)))
                 (bignum-ref bignum (the fixnum (- len 2))))
           (sign (bignum-ref bignum (the fixnum (- len 1)))
@@ -1725,7 +1729,9 @@
          ((not (zerop (the fixnum (logxor sign (%ashr next 31))))))
       (decf len)
       (setf (bignum-ref bignum len) 0)
-      (when (= len 2)
+      ;; Return, unless we've already done so (having found significant
+      ;; digits earlier.)
+      (when (= len 1)
         (return))))
   len)
 
@@ -1734,13 +1740,11 @@
   (let* ((len (%bignum-length bignum))
          (newlen (%zero-trailing-sign-digits bignum len)))
     (declare (fixnum len newlen))
+    (unless (= len newlen)
+      (%set-bignum-length newlen bignum))
     (or (and return-fixnum-p
-             (<= newlen 2)
-             (%maybe-fixnum-from-two-digit-bignum bignum))
-        (progn
-          (unless (= len newlen)
-            (%set-bignum-length newlen bignum))
-          bignum))))
+             (%maybe-fixnum-from-one-or-two-digit-bignum bignum))
+        bignum)))
            
     
 ;;; %MOSTLY-NORMALIZE-BIGNUM -- Internal.

@@ -17,11 +17,25 @@
 
 ;(in-package "CCL")
 
+;;; The caller has allocated a two-digit bignum (quite likely on the stack).
+;;; If we can fit in a single digit (if the high word is just a sign
+;;; extension of the low word, truncate the bignum in place (the
+;;; trailing words should already be zeroed.)
 (defppclapfunction %fixnum-to-bignum-set ((bignum arg_y) (fixnum arg_z))
   (unbox-fixnum imm0 fixnum)
-  (rotldi imm0 imm0 32)
-  (std imm0 ppc64::misc-data-offset bignum)
+  (srdi imm1 imm0 32)
+  (srawi imm2 imm0 31)
+  (cmpw imm2 imm1)
+  (stw imm0 ppc64::misc-data-offset bignum)
+  (li imm2 ppc64::one-digit-bignum-header)
+  (beq @chop)
+  (stw imm1 (+ ppc64::misc-data-offset 4) bignum)
+  (blr)
+  @chop
+  (std imm2 ppc64::misc-header-offset bignum)
   (blr))
+  
+
 
 ;;; Multiply the (32-bit) digits X and Y, producing a 64-bit result.
 ;;; Add the 32-bit "prev" digit and the 32-bit carry-in digit to that 64-bit
@@ -35,10 +49,11 @@
         (high arg_y)
         (low arg_z))
     (ld temp0 x-arg vsp)
-    (extrdi unboxed-x temp0 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
-    (extrdi unboxed-y y 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
-    (extrdi unboxed-prev prev 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
-    (extrdi unboxed-carry-in carry-in 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
+    (unbox-fixnum unboxed-x temp0)
+    (unbox-fixnum unboxed-x temp0)
+    (unbox-fixnum unboxed-y y)
+    (unbox-fixnum unboxed-prev prev)
+    (unbox-fixnum unboxed-carry-in carry-in)
     (mulld result64 unboxed-x unboxed-y)
     (add result64 result64 prev)
     (add result64 result64 carry-in)
@@ -58,9 +73,9 @@
         (result64 imm3)
         (high arg_y)
         (low arg_z))
-    (extrdi unboxed-x arg_x 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
-    (extrdi unboxed-y y 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
-    (extrdi unboxed-carry-in carry-in 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
+    (unbox-fixnum unboxed-x arg_x)
+    (unbox-fixnum unboxed-y y)
+    (unbox-fixnum unboxed-carry-in carry-in)
     (mulld result64 unboxed-x unboxed-y)
     (add result64 result64 carry-in)
     (clrlsldi low result64 32 ppc64::fixnumshift)
@@ -81,8 +96,8 @@
         (unboxed-quo imm3)
         (unboxed-rem imm4))
     (sldi unboxed-num num-high (- 32 ppc64::fixnumshift))
-    (extrdi unboxed-low num-low 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
-    (extrdi unboxed-divisor divisor 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
+    (unbox-fixnum unboxed-low num-low)
+    (unbox-fixnum unboxed-divisor divisor)
     (or unboxed-num unboxed-low unboxed-num)
     (divdu unboxed-quo unboxed-num unboxed-divisor)
     (mulld unboxed-rem unboxed-quo unboxed-divisor)
@@ -102,8 +117,8 @@
         (unboxed-y imm1)
         (unboxed-high imm2)
         (unboxed-low imm3))
-    (extrdi unboxed-x x 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
-    (extrdi unboxed-y y 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
+    (unbox-fixnum unboxed-x x)
+    (unbox-fixnum unboxed-y y)
     (mullw unboxed-low unboxed-x unboxed-y)
     (mulhwu unboxed-high unboxed-x unboxed-y)
     (box-fixnum arg_z unboxed-low)
@@ -125,7 +140,8 @@
 ;;; Count the sign bits in the most significant digit of bignum;
 ;;; return fixnum count.
 (defppclapfunction %bignum-sign-bits ((bignum arg_z))
-  (vector-length imm0 bignum imm0)
+  (vector-size imm0 bignum imm0)
+  (sldi imm0 imm0 2)
   (la imm0 (- ppc64::misc-data-offset 4) imm0) ; Reference last (most significant) digit
   (lwzx imm0 bignum imm0)
   (cmpwi imm0 0)
@@ -144,41 +160,48 @@
   (box-fixnum arg_z imm0)
   (blr))
 
-(defppclapfunction %fixnum-from-two-digit-bignum ((bignum arg_z))
-  (ld imm0 ppc64::misc-data-offset bignum)
-  (rotldi imm0 imm0 32)
-  (box-fixnum arg_z imm0)
-  (blr))
 
-;;; If the two least-significant words of bignum can be represented
-;;; in a fixnum, return that fixnum; else return nil.
-(defppclapfunction %maybe-fixnum-from-two-digit-bignum ((bignum arg_z))
+;;; If the bignum is a one-digit bignum, return the value of the
+;;; single digit as a fixnum.  Otherwise, if it's a two-digit-bignum
+;;; and the two words of the bignum can be represented in a fixnum,
+;;; return that fixnum; else return nil.
+(defppclapfunction %maybe-fixnum-from-one-or-two-digit-bignum ((bignum arg_z))
+  (ld imm1 ppc64::misc-header-offset bignum)
+  (cmpdi cr1 imm1 ppc64::one-digit-bignum-header)
+  (cmpdi cr2 imm1 ppc64::two-digit-bignum-header)
+  (beq cr1 @one)
+  (bne cr2 @no)
   (ld imm0 ppc64::misc-data-offset bignum)
   (rotldi imm0 imm0 32)
   (box-fixnum arg_z imm0)
   (unbox-fixnum imm1 arg_z)
   (cmpd imm0 imm1)
   (beqlr)
+  @no
   (li arg_z nil)
+  (blr)
+  @one
+  (lwa imm0 ppc64::misc-data-offset bignum)
+  (box-fixnum arg_z imm0)
   (blr))
 
 
 (defppclapfunction %digit-logical-shift-right ((digit arg_y) (count arg_z))
-  (extrdi imm0 digit 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
+  (unbox-fixnum imm0 digit)
   (unbox-fixnum imm1 count)
   (srw imm0 imm0 imm1)
   (box-fixnum arg_z imm0)
   (blr))
 
 (defppclapfunction %ashr ((digit arg_y) (count arg_z))
-  (extrdi imm0 digit 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
+  (unbox-fixnum imm0 digit)
   (unbox-fixnum imm1 count)
   (sraw imm0 imm0 imm1)
   (box-fixnum arg_z imm0)
   (blr))
 
 (defppclapfunction %ashl ((digit arg_y) (count arg_z))
-  (extrdi imm0 digit 32 (- (- 64 ppc64::fixnumshift) (- 32 1)))
+  (unbox-fixnum imm0 digit)
   (unbox-fixnum imm1 count)
   (slw imm0 imm0 imm1)
   (clrlsldi arg_z imm0 32 ppc64::fixnumshift)
