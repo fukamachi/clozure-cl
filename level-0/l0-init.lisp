@@ -14,8 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-(defconstant array-total-size-limit 
-  #.(expt 2 (- ppc32::nbits-in-word ppc32::num-subtag-bits))
+(defconstant array-total-size-limit
+  #.(expt 2 (- target::nbits-in-word target::num-subtag-bits))
   "the exclusive upper bound on the total number of elements in an array")
 
 
@@ -50,6 +50,12 @@
     #+darwinppc-target :darwin
     #+darwinppp-target :darwin-target
     #+darwinppc-target :poweropen-target
+    #+ppc64-target :64-bit-target
+    #+ppc64-target :64-bit-host
+    #+ppc32-target :32-bit-target
+    #+ppc32-target :32-bit-host
+    #+ppc-target :big-endian-target
+    #+ppc-target :big-endian-host
     )
   "a list of symbols that describe features provided by the
    implementation")
