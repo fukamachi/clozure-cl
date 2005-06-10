@@ -1,3 +1,54 @@
+2005-06-10 15:18  gb
+
+	* level-1/version.lisp: Version de jour.
+
+2005-06-10 15:16  gb
+
+	* level-1/l1-processes.lisp: target:: package prefix changes.
+
+2005-06-10 15:16  gb
+
+	* level-1/l1-boot-1.lisp: HOST-PLATFORM returns second (64-bit-p)
+	value; PLATFORM-DESCRIPTION decodes that,
+	LISP-IMPLEMENTATION-VERSION uses that info.
+
+2005-06-10 15:13  gb
+
+	* level-0/PPC/PPC64/: l0-bignum-ppc64.lisp, ppc64-bignum.lisp: Bug
+	fixes ...
+
+2005-06-10 15:12  gb
+
+	* level-0/PPC/ppc-misc.lisp: Use trlgei in (IIRC)
+	%%SAVE-APPLICATION trap.
+
+2005-06-10 15:11  gb
+
+	* level-0/PPC/ppc-float.lisp: Move some #+ppc64 code to lisp.
+
+2005-06-10 15:09  gb
+
+	* level-0/nfasload.lisp: Finish package changes.
+
+2005-06-10 15:08  gb
+
+	* level-0/l0-init.lisp: Conditionalize ARRAY-TOTAL-SIZE-LIMIT; add
+	*features* for word size, endianness.
+
+2005-06-10 15:07  gb
+
+	* level-0/l0-float.lisp: Some 64-bit conditionalization.
+
+2005-06-10 15:04  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Need to define
+	ONE-DIGIT-BIGNUM-HEADER after all.
+
+2005-06-10 15:04  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: SET-GLOBAL sets all 64  bits on
+	PPC64.
+
 2005-06-09 15:29  gb
 
 	* lib/compile-ccl.lisp: Compile all of target-xdev-modules, not
