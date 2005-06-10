@@ -554,7 +554,7 @@
       `(stw ,reg (+ ,offset ppc32::nil-value) 0)))
    (:ppc64
     (let* ((offset (ppc64::%kernel-global sym)))
-      `(stw ,reg (+ ,offset ppc64::nil-value) 0)))))
+      `(std ,reg (+ ,offset ppc64::nil-value) 0)))))
 
 ;;; Set "dest" to those bits in "src" that are other than those that
 ;;; would be set if "src" is a fixnum and of type (unsigned-byte
