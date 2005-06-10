@@ -2937,18 +2937,18 @@ purify_displaced_object(LispObj obj, area *dest, natural disp)
 
   switch(subtag) {
   case subtag_simple_base_string:
-    physbytes = 4 + element_count;
+    physbytes = node_size + element_count;
     break;
 
   case subtag_code_vector:
-    physbytes = 4 + (element_count << 2);
+    physbytes = node_size + (element_count << 2);
     break;
 
   default:
     Bug(NULL, "Can't purify object at 0x%08x", obj);
     return obj;
   }
-  physbytes = (physbytes+7)&~7;
+  physbytes = (physbytes+(dnode_size-1))&~(dnode_size-1);
   dest->active += physbytes;
 
   new = ptr_to_lispobj(free)+disp;
@@ -2966,8 +2966,8 @@ purify_displaced_object(LispObj obj, area *dest, natural disp)
   while(physbytes) {
     *old++ = (BytePtr) forward_marker;
     *old++ = (BytePtr) free;
-    free += 8;
-    physbytes -= 8;
+    free += dnode_size;
+    physbytes -= dnode_size;
   }
   return new;
 }
@@ -3024,6 +3024,10 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
     switch (tag) {
     case fulltag_even_fixnum:
     case fulltag_odd_fixnum:
+#ifdef PPC64
+    case fulltag_cons:
+    case fulltag_misc:
+#endif
       if (*p == forward_marker) {
         *locaddr = (p[1]+tag);
       } else {
@@ -3039,9 +3043,11 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
       }
       break;
 
+#ifndef PPC64
     case fulltag_misc:
       copy_ivector_reference(locaddr, low, high, to, what);
       break;
+#endif
     }
   }
 }
@@ -3150,10 +3156,6 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
   purify_locref((LispObj*) (&(xpPC(xp))), low, high, to, what);
   purify_locref((LispObj*) (&(xpLR(xp))), low, high, to, what);
   purify_locref((LispObj*) (&(xpCTR(xp))), low, high, to, what);
-
-  /* Don't purify loc_g. It doesn't point at a code_vector, and purify_locref
-     handles only code vectors.
-   */
 }
 
 void
@@ -3230,7 +3232,7 @@ purify(TCR *tcr)
     *new_pure_area;
 
   TCR  *other_tcr;
-  unsigned max_pure_size;
+  natural max_pure_size;
   OSErr err;
   BytePtr new_pure_start;
 
@@ -3259,7 +3261,7 @@ purify(TCR *tcr)
       LispObj pkg_list = rawsym->vcell, htab, obj;
       package *p;
       cons *c;
-      unsigned elements, i;
+      natural elements, i;
 
       while (fulltag_of(pkg_list) == fulltag_cons) {
         c = (cons *) ptr_from_lispobj(untag(pkg_list));
@@ -3299,7 +3301,7 @@ purify(TCR *tcr)
 
 
     {
-      unsigned puresize = (unsigned) (new_pure_area->active-new_pure_start);
+      natural puresize = (unsigned) (new_pure_area->active-new_pure_start);
       if (puresize != 0) {
         xMakeDataExecutable(new_pure_start, puresize);
   
@@ -3321,6 +3323,9 @@ impurify_locref(LispObj *p, LispObj low, LispObj high, int delta)
   LispObj q = *p;
   
   switch (fulltag_of(q)) {
+#ifdef PPC64
+  case fulltag_cons:
+#endif
   case fulltag_misc:
   case fulltag_even_fixnum:
   case fulltag_odd_fixnum:
