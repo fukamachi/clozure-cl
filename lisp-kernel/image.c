@@ -800,7 +800,8 @@ prepare_to_write_dynamic_space()
 OSErr
 write_area_pages(int fd, area *a)
 {
-  int total = a->active - a->low, count, n, done=0;
+  natural total = a->active - a->low, count, done=0;
+  signed_natural n;
   char buffer[32768];
 
   while (total) {
@@ -892,7 +893,7 @@ save_application(unsigned fd, Boolean compress)
     lisp_global(GC_NUM) and lisp_global(FWDNUM) are persistent.
     Nothing else is even meaningful at this point.
   */
-  for (i = -1019; i < 0; i++) {
+  for (i = MIN_KERNEL_GLOBAL; i < 0; i++) {
     switch (i) {
     case FWDNUM:
     case GC_NUM:
@@ -903,7 +904,7 @@ save_application(unsigned fd, Boolean compress)
   }
 
   for (i = 0; i < 3; i++) {
-    int n;
+    natural n;
     a = areas[i];
     seek_to_next_page(fd);
     n = sections[i].disk_size;
