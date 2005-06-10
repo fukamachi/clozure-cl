@@ -822,14 +822,7 @@ sigint_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 void
 register_sigint_handler()
 {
-  struct sigaction sa;
-
-  sa.sa_sigaction = (void *)sigint_handler;
-  sigfillset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-  sigaction(SIGINT, &sa, NULL);
-  
+  install_signal_handler(SIGINT, (void *)sigint_handler);
 }
 
 
@@ -1335,12 +1328,20 @@ main(int argc, char *argv[], char *envp[], void *aux)
   *(double *) &(lisp_global(DOUBLE_FLOAT_ONE)) = (double) 1.0;
 
   lisp_global(HOST_PLATFORM) = (LispObj)
+    (
+#ifdef PPC64
+     64
+#else
+     0
+#endif
+     |
 #ifdef LINUX
-    1
+     1
 #endif
 #ifdef DARWIN
-    3
+     3
 #endif
+     )
     /* We'll get a syntax error here if nothing's defined. */
     << fixnumshift;
 
