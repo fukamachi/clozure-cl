@@ -1027,19 +1027,8 @@
       `(/=-2 ,n0 ,n1))))
 
 (define-compiler-macro + (&whole w  &environment env &optional (n0 nil n0p) (n1 nil n1p) &rest more)
-  
   (if more
-    (if (and (subtypep *nx-form-type* 'fixnum)
-             (nx-trust-declarations env)
-             (nx-form-typep n0 'fixnum env)
-             (nx-form-typep n1 'fixnum env)
-             (dolist (x more t)
-               (if (not (nx-form-typep x 'fixnum env))(return nil))))
-      `(%i+ ,n0 ,n1 ,@more)
-      (let ((type (nx-form-type w env)))
-        (if (and type (numeric-type-p type))
-          `(+-2 ,n0 (+ ,n1 ,@more))
-          w)))
+    `(+ (+-2 ,n0 ,n1) ,@more)
     (if n1p
       `(+-2 ,n0 ,n1)
       (if n0p
@@ -1048,17 +1037,7 @@
 
 (define-compiler-macro - (&whole w &environment env n0 &optional (n1 nil n1p) &rest more)
   (if more
-    (if (and (subtypep *nx-form-type* 'fixnum)
-             (nx-trust-declarations env)
-             (nx-form-typep n0 'fixnum env)
-             (nx-form-typep n1 'fixnum env)
-             (dolist (x more t)
-               (if (not (nx-form-typep x 'fixnum env))(return nil))))
-      `(%i- ,n0 (%i+ ,n1 ,@more))
-      (let ((type (nx-form-type w env)))
-        (if (and type (numeric-type-p type)) ; go pairwise if type known, else not
-          `(--2 ,n0 (+ ,n1 ,@more))
-          w)))
+    `(- (--2 ,n0 ,n1) ,@more)
     (if n1p
       `(--2 ,n0 ,n1)
       `(%negate ,n0))))
