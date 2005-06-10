@@ -69,6 +69,7 @@ extern LispObj lisp_nil;
 #define IMAGE_NAME (-47)	/* --image-name arg */
 #define INITIAL_TCR (-48)	/* initial thread tcr */
 
+#define MIN_KERNEL_GLOBAL INITIAL_TCR
 #ifdef PPC64
 #define lisp_global(g) (((LispObj *) 0x2000)[(g)])
 #define nrs_symbol(s) (((lispsymbol *) 0x2000)[(s)])
