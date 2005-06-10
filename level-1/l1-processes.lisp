@@ -75,8 +75,8 @@
       (process-enable p)
       )))
 
-; Done with a queue-fixup so that it will be the last thing
-; that happens on startup.
+;;; Done with a queue-fixup so that it will be the last thing
+;;; that happens on startup.
 (queue-fixup
  (pushnew 'startup-shutdown-processes *lisp-system-pointer-functions*))
 
@@ -179,7 +179,7 @@
 
 
 (defun process-tcr (p)
-  (%svref (process-thread p) ppc32::lisp-thread.tcr-cell))
+  (%svref (process-thread p) target::lisp-thread.tcr-cell))
 
 
 
@@ -260,7 +260,7 @@
        (not (process-exhausted-p p))))
 
   
-; Used by process-run-function
+;;; Used by process-run-function
 (defun process-preset (process function &rest args)
   (let* ((p (require-type process 'process))
          (f (require-type function 'function))
@@ -314,7 +314,7 @@
 	(setf (%process-whostate process) "Reset")))
     nil))
 
-; Separated from run-process-initial-form just so I can change it easily.
+;;; Separated from run-process-initial-form just so I can change it easily.
 (defun process-initial-form-exited (process kill)
   ;; Enter the *initial-process* and have it finish us up
   (without-interrupts
@@ -350,8 +350,8 @@
 
 (defmethod print-object ((s lock) stream)
   (print-unreadable-object (s stream :type t :identity t)
-    (let* ((val (uvref s ppc32::lock._value-cell))
-	   (name (uvref s ppc32::lock.name-cell)))
+    (let* ((val (uvref s target::lock._value-cell))
+	   (name (uvref s target::lock.name-cell)))
       (when name
 	(format t "~s " name))
       (if (typep val 'macptr)
@@ -359,17 +359,17 @@
                 (%ptr-to-int val))))))
 
 (defun lockp (l)
-  (eq ppc32::subtag-lock (typecode l)))
+  (eq target::subtag-lock (typecode l)))
 
 (set-type-predicate 'lock 'lockp)
 
 (defun recursive-lock-p (l)
-  (and (eq ppc32::subtag-lock (typecode l))
-       (eq 'recursive-lock (%svref l ppc32::lock.kind-cell))))
+  (and (eq target::subtag-lock (typecode l))
+       (eq 'recursive-lock (%svref l target::lock.kind-cell))))
 
 (defun read-write-lock-p (l)
-  (and (eq ppc32::subtag-lock (typecode l))
-       (eq 'read-write-lock (%svref l ppc32::lock.kind-cell))))
+  (and (eq target::subtag-lock (typecode l))
+       (eq 'read-write-lock (%svref l target::lock.kind-cell))))
 
 (setf (type-predicate 'recursive-lock) 'recursive-lock-p
       (type-predicate 'read-write-lock) 'read-write-lock-p)
@@ -430,12 +430,12 @@
 
 
 
-; This one is in the Symbolics documentation
+;;; This one is in the Symbolics documentation
 (defun process-allow-schedule ()
   (yield))
 
 
-; something unique that users won't get their hands on
+;;; something unique that users won't get their hands on
 (defun process-reset-tag (process)
   (process-splice process))
 
