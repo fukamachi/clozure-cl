@@ -784,8 +784,6 @@
                   (simple-vector new-vector))
          (dotimes (i old-len (setf (htcount htab) nnew))
            (let* ((s (svref old-vector i)))
-             (when s
-               (setf (svref old-vector i) nil)       ; in case old-vector was static
                (if (symbolp s)
                  (let* ((pname (symbol-name s)))
                    (setf (svref 
@@ -797,7 +795,7 @@
                             (length pname)
                             htab)))
                          s)
-                   (incf nnew))))))
+                   (incf nnew)))))
          htab)))))
         
 (defun hash-pname (str len)
@@ -817,7 +815,7 @@
     (do* ((idx (fast-mod primary vlen) (+ i secondary))
           (i idx (if (>= idx vlen) (- idx vlen) idx))
           (elt (svref vec i) (svref vec i)))
-         ((or (eql elt 0) (null elt)) (values nil nil i))
+         ((eql elt 0) (values nil nil i))
       (declare (fixnum i idx))
       (when (symbolp elt)
         (let* ((pname (symbol-name elt)))
@@ -899,6 +897,8 @@
 (defun %add-symbol (pname package internal-idx external-idx &optional force-export)
   (let* ((sym (make-symbol pname)))
     (%insert-symbol sym package internal-idx external-idx force-export)))
+
+
 
 
 ;;; The initial %toplevel-function% sets %toplevel-function% to NIL;
