@@ -383,7 +383,13 @@ sprint_lisp_object(LispObj o, int depth)
             sprintf(numbuf, "%o", c);
             add_c_string(numbuf);
           }
+#ifdef PPC64
+        } else if (header_subtag(o) == subtag_single_float) {
+          sprintf(numbuf, "%f", o>>32);
+          add_c_string(numbuf);
+#endif
         } else {
+
           add_c_string("#<imm ");
           sprint_unsigned_hex(o);
           add_c_string(">");
