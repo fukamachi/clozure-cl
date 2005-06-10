@@ -1319,7 +1319,7 @@ PMCL_exception_handler(int xnum,
   } else if (xnum == SIGNAL_FOR_PROCESS_INTERRUPT) {
     tcr->interrupt_level = (-1 << fixnumshift);
     tcr->interrupt_pending = 0;
-    callback_for_trap(nrs_CMAIN.vcell, xp, 0, TWI_instruction(TO_GT,nargs,0),0, 0);
+    callback_for_trap(nrs_CMAIN.vcell, xp, 0, TRI_instruction(TO_GT,nargs,0),0, 0);
     tcr->interrupt_level = 0;
     tcr->interrupt_pending = 0;
     status = 0;
@@ -1541,33 +1541,37 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
   int old_interrupt_level = 0;
   TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
 
-  /* If we got here, "the_trap" is either a TWI or a TW instruction.
-     It's a TWI instruction iff its major opcode is major_opcode_TWI. */
+  /* If we got here, "the_trap" is either a TRI or a TR instruction.
+     It's a TRI instruction iff its major opcode is major_opcode_TRI. */
 
-  /* If it's a "twllt" instruction where RA == sp, it's a failed 
+  /* If it's a "trllt" instruction where RA == sp, it's a failed 
      control stack overflow check.  In that case:
      
-     a) We're in "yellow zone" mode if the value of the lisp_global(CS_OVERFLOW_LIMIT)
-     is CS_OVERFLOW_FORCE_LIMIT.  If we're not already in yellow zone mode, attempt to create
-     a new thread and continue execution on its stack. If that fails, call
-     signal_stack_soft_overflow to enter yellow zone mode and signal the condition to lisp.
+     a) We're in "yellow zone" mode if the value of the
+     lisp_global(CS_OVERFLOW_LIMIT) is CS_OVERFLOW_FORCE_LIMIT.  If
+     we're not already in yellow zone mode, attempt to create a new
+     thread and continue execution on its stack. If that fails, call
+     signal_stack_soft_overflow to enter yellow zone mode and signal
+     the condition to lisp.
      
      b) If we're already in "yellow zone" mode, then:
      
-     1) if the SP is past the current control-stack area's hard overflow limit,
-     signal a "hard" stack overflow error (e.g., throw to toplevel as quickly as
-     possible. If we aren't in "yellow zone" mode, attempt to continue on another
-     thread first.
+     1) if the SP is past the current control-stack area's hard
+     overflow limit, signal a "hard" stack overflow error (e.g., throw
+     to toplevel as quickly as possible. If we aren't in "yellow zone"
+     mode, attempt to continue on another thread first.
      
-     2) if SP is "well" (> 4K) below its soft overflow limit, set lisp_global(CS_OVERFLOW_LIMIT)
-     to its "real" value.  We're out of "yellow zone mode" in this case.
+     2) if SP is "well" (> 4K) below its soft overflow limit, set
+     lisp_global(CS_OVERFLOW_LIMIT) to its "real" value.  We're out of
+     "yellow zone mode" in this case.
      
-     3) Otherwise, do nothing.  We'll continue to trap every time something gets pushed
-     on the control stack, so we should try to detect and handle all of these cases
-     fairly quickly.  Of course, the trap overhead is going to slow things down quite a bit.
+     3) Otherwise, do nothing.  We'll continue to trap every time
+     something gets pushed on the control stack, so we should try to
+     detect and handle all of these cases fairly quickly.  Of course,
+     the trap overhead is going to slow things down quite a bit.
      */
 
-  if (X_opcode_p(the_trap,major_opcode_X31,minor_opcode_TW) &&
+  if (X_opcode_p(the_trap,major_opcode_X31,minor_opcode_TR) &&
       (RA_field(the_trap) == sp) &&
       (TO_field(the_trap) == TO_LO)) {
     area 
@@ -1625,7 +1629,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
       twlle ra,rb is used to detect tlb overflow, where RA = current
       limit and RB = index to use.
     */
-    if ((X_opcode_p(the_trap, 31, minor_opcode_TW)) && 
+    if ((X_opcode_p(the_trap, 31, minor_opcode_TR)) && 
         (TO_field(the_trap) == (TO_LO|TO_EQ))) {
       if (extend_tcr_tlb(tcr, xp, RA_field(the_trap), RB_field(the_trap))) {
         return noErr;
@@ -1636,7 +1640,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
     if ((fulltag_of(cmain) == fulltag_misc) &&
         (header_subtag(header_of(cmain)) == subtag_macptr)) {
       /* cmain is a macptr, we can call back to lisp */
-      if (the_trap == TWI_instruction(TO_GT,nargs,0)) {
+      if (the_trap == TRI_instruction(TO_GT,nargs,0)) {
         /* Disable interrupts if we're about to process one */
         event_poll_p = true;    /* remember to turn interrupts back on */
 	tcr->interrupt_level = (-1 << fixnumshift);
@@ -2097,7 +2101,15 @@ install_signal_handler(int signo, __sighandler_t handler)
   
   sa.sa_sigaction = (void *)handler;
   sigfillset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART | SA_SIGINFO;
+  sa.sa_flags = 
+    SA_RESTART
+    | SA_SIGINFO
+#ifdef DARWIN
+#ifdef PPC64
+    | SA_64REGSET
+#endif
+#endif
+    ;
 
   sigaction(signo, &sa, NULL);
 }
