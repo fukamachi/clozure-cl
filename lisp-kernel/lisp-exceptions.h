@@ -181,10 +181,10 @@ typedef u_int32_t opcode, *pc;
    have (hopefully) matching, redundant hardwired definitions in
    the source.
 */
-#if 1
-#define DarwinSigReturn(x) (UC_MCONTEXT(x)->ss.xer)^=0x80
+#ifdef PPC64
+#define DarwinSigReturn(x)
 #else
-#define DarwinSigReturn(x)  syscall(103,x)
+#define DarwinSigReturn(x) (UC_MCONTEXT(x)->ss.xer)^=0x80
 #endif
 #endif
 
@@ -365,7 +365,7 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 
 
 #define D_instruction(major,rt,ra,imm) (OP(major)|((rt)<<21)|((ra)<<16)|((imm)&D_MASK))
-#define TWI_instruction(rt,ra,imm)     D_instruction(major_opcode_TWI,rt,ra,imm)
+#define TRI_instruction(rt,ra,imm)     D_instruction(major_opcode_TRI,rt,ra,imm)
 #define LBZ_instruction(rt,ra,imm)     D_instruction(major_opcode_LBZ,rt,ra,imm)
 #define LWZ_instruction(rt,ra,imm)     D_instruction(major_opcode_LWZ,rt,ra,imm)
 
