@@ -278,7 +278,15 @@ thread_signal_setup()
   thread_resume_signal = SIG_RESUME_THREAD;
   sigfillset(&action.sa_mask);
   sigdelset(&action.sa_mask,thread_suspend_signal);
-  action.sa_flags = SA_RESTART | SA_SIGINFO;
+  action.sa_flags = 
+    SA_RESTART 
+    | SA_SIGINFO 
+#ifdef DARWIN
+#ifdef PPC64
+    | SA_64REGSET
+#endif
+#endif
+    ;
   action.sa_sigaction = (void *) suspend_resume_handler;
   sigaction(thread_suspend_signal, &action, NULL);
   sigaction(thread_resume_signal, &action, NULL);
@@ -460,6 +468,9 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
 #endif
   int i;
 
+#ifdef PPC64
+  tcr->single_float_convert.tag = subtag_single_float;
+#endif
   lisp_global(TCR_COUNT) += (1<<fixnumshift);
   tcr->suspend = new_semaphore(0);
   tcr->resume = new_semaphore(0);
@@ -653,7 +664,7 @@ lisp_thread_entry(void *param)
   pthread_sigmask(SIG_SETMASK, &mask, &old_mask);
 
   register_thread_tcr(tcr);
-  tcr->vs_area->active -= 4;
+  tcr->vs_area->active -= node_size;
   *(--tcr->save_vsp) = lisp_nil;
   enable_fp_exceptions();
   tcr->flags |= (1<<TCR_FLAG_BIT_AWAITING_PRESET);
@@ -667,9 +678,9 @@ lisp_thread_entry(void *param)
 }
 
 void *
-xNewThread(unsigned control_stack_size,
-	   unsigned value_stack_size,
-	   unsigned temp_stack_size)
+xNewThread(natural control_stack_size,
+	   natural value_stack_size,
+	   natural temp_stack_size)
 
 {
   thread_activation activation;
