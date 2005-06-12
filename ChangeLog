@@ -1,3 +1,9 @@
+2005-06-12 15:29  gb
+
+	* level-1/l1-symhash.lisp: Missed another thing (in
+	%USE-PACKAGE-CONFLICT-CHECK) that accesses package hash tables
+	directly (and was doing so incorreclty, per the New Order.)
+
 2005-06-10 16:13  gb
 
 	* lisp-kernel/thread_manager.c: sigaction flags, node_size changes
