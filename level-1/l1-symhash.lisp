@@ -439,11 +439,12 @@
   (let ((already-used (pkg.used using-package)))
     (unless (or (eq using-package package-to-use)
                 (memq package-to-use already-used))
-      ; There are two types of conflict that can potentially occur:
-      ;   1) An external symbol in the package being used conflicts
-      ;        with a symbol present in the using package
-      ;   2) An external symbol in the package being used conflicts
-      ;        with an external symbol in some other package that's already used.
+      ;; There are two types of conflict that can potentially occur:
+      ;;   1) An external symbol in the package being used conflicts
+      ;;        with a symbol present in the using package
+      ;;   2) An external symbol in the package being used conflicts
+      ;;        with an external symbol in some other package that's
+      ;;        already used.
       (let* ((ext-ext-conflicts nil)
              (used-using-conflicts nil)
              (shadowed-in-using (pkg.shadowed using-package))
@@ -465,10 +466,12 @@
                          (when (%get-htab-symbol sname len user-etab)   ; external in user
                            (multiple-value-bind (external-in-used used-sym) (%get-htab-symbol sname len used-etab)
                              (when (and external-in-used (neq used-sym shadow))
-                               (push (list shadow used-sym) ext-ext-conflicts)))))))))   ; Remember what we're doing here ?
-               ; Neither of the two packages use the other.  Iterate over the external
-               ; symbols in the package that has the fewest external symbols and note
-               ; conflicts with external symbols in the other package.
+                               (push (list shadow used-sym) ext-ext-conflicts)))))))))
+               ;; Remember what we're doing here ?
+               ;; Neither of the two packages use the other.  Iterate
+               ;; over the external symbols in the package that has
+               ;; the fewest external symbols and note conflicts with
+               ;; external symbols in the other package.
                (let* ((smaller (if (%i< (%cadr to-use-etab) (%cadr (pkg.etab already)))
                                  package-to-use
                                  already))
@@ -486,14 +489,15 @@
                                                 (%get-htab-symbol symname (length symname) larger-etab)
                              (when (and found-in-larger (neq sym-in-larger sym))
                                (push (list sym sym-in-larger) ext-ext-conflicts))))))))))))
-         ; Now see if any non-shadowed, directly present symbols in the using package conflicts with
-         ; an external symbol in the package being used.  There are two ways of doing this; one of
-         ; them -may- be much faster than the other.
+         ;; Now see if any non-shadowed, directly present symbols in
+         ;; the using package conflicts with an external symbol in the
+         ;; package being used.  There are two ways of doing this; one
+         ;; of them -may- be much faster than the other.
          (let* ((to-use-etab-size (%cadr to-use-etab))
                 (present-symbols-size (%i+ (%cadr (pkg.itab using-package)) (%cadr (pkg.etab using-package)))))
            (unless (eql 0 present-symbols-size)
              (if (%i< present-symbols-size to-use-etab-size)
-               ; Faster to look up each present symbol in to-use-etab.
+               ;; Faster to look up each present symbol in to-use-etab.
                (let ((htabvs (list (%car (pkg.etab using-package)) (%car (pkg.itab using-package)))))
                  (declare (dynamic-extent htabvs))
                  (dolist (v htabvs)
@@ -507,13 +511,14 @@
                                (multiple-value-bind (found-p to-use-sym) (%get-htab-symbol name (length name) to-use-etab)
                                  (when (and found-p (neq to-use-sym sym))
                                    (push (list sym to-use-sym) used-using-conflicts)))))))))))
-               ; See if any external symbol present in the package being used conflicts with
-               ;  any symbol present in the using package.
+               ;; See if any external symbol present in the package
+               ;; being used conflicts with any symbol present in the
+               ;; using package.
                (let ((v (%car to-use-etab)))
                  (dotimes (i (uvsize v))
                    (declare (fixnum i))
                    (let ((symptr (%svref v i)))
-                     (when (and symptr (neq symptr (package-deleted-marker)))
+                     (when (symbolp symptr)
                        (let* ((sym (%symptr->symbol symptr)))
                          (multiple-value-bind (using-sym found-p) (%find-package-symbol (symbol-name sym) using-package)
                            (when (and found-p
