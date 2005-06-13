@@ -1,3 +1,8 @@
+2005-06-13 15:17  gb
+
+	* lisp-kernel/lisp-exceptions.h: minor_opcode_TR cut-and-paste
+	mishap.
+
 2005-06-12 15:29  gb
 
 	* level-1/l1-symhash.lisp: Missed another thing (in
