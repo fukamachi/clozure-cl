@@ -350,7 +350,7 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #ifdef PPC64
 #define minor_opcode_TR minor_opcode_TD
 #else
-#define minor_opcode_TR minor_opcode_TD
+#define minor_opcode_TR minor_opcode_TW
 #endif
 #define minor_opcode_SUBF 40
 #define minor_opcode_STWX 151
