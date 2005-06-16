@@ -1826,7 +1826,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
   wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info))) {
     char msg[512];
-    snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%08lx, context->regs at #x%08lx", signum, xpPC(context), (natural)xpGPRvector(context));
+    snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
     if (lisp_Debugger(context, signum, msg)) {
       (tcr->flags |= TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     }
