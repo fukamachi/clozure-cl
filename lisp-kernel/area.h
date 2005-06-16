@@ -125,13 +125,17 @@ typedef struct area_list {
 #define MIN_TSTACK_SIZE (1<<18)
 #define TSTACK_HARDPROT 0
 #define TSTACK_SOFTPROT (1<<16)
-#define CS_OVERFLOW_FORCE_LIMIT ((unsigned)0xfffffff0)
+#define CS_OVERFLOW_FORCE_LIMIT ((natural)(-(sizeof(lisp_frame))))
 
 #ifdef LINUX
 #define IMAGE_BASE_ADDRESS 0x31000000
 #endif
 #ifdef DARWIN
+#ifdef PPC64
+#define IMAGE_BASE_ADDRESS 0x100000000L
+#else
 #define IMAGE_BASE_ADDRESS 0x02000000
+#endif
 #endif
 
 #define PURESPACE_RESERVE 0x04000000 /* 64MB */
