@@ -42,8 +42,8 @@
     (declare (fixnum len))
     (let* ((h 5381))
       (declare (fixnum h))
-      (dotimes (i len (logand h most-positive-fixnum))
-	(incf h (the fixnum (ash h 5)))
+      (dotimes (i len (logand h ppc32::target-most-positive-fixnum))
+	(incf h (the fixnum (logand ppc32::target-most-positive-fixnum (ash h 5))))
 	(setq h (logxor (the (unsigned-byte 8) (%get-unsigned-byte buf i)) h)))))
 
 (defconstant cdbm-hplist 1000)
@@ -132,19 +132,21 @@
 ;;; I suppose that if we wanted to store these things in little-endian
 ;;; order this'd be the place to swap bytes ...
 (defun fid-write-u32 (fid val)
-  (rlet ((valptr :unsigned-long))
-    (setf (pref valptr :unsigned-long) val)
+  (%stack-block ((valptr 4))
+    (setf (%get-unsigned-long valptr) val)
     (fid-write fid valptr 4)
     val))
 
 (defun fid-read-u32 (fid)
-  (rlet ((valptr :unsigned-long))
+  (%stack-block ((valptr 4))
     (fid-read fid valptr 4)
-    (pref valptr :unsigned-long)))
+    (%get-unsigned-long valptr)))
 
-;;; Write N elements of a vector of type (UNSIGNED-BYTE 32) to file-id FID,
-;;; starting at element START.  The vector should be a simple (non-displaced)
-;;; array.
+
+
+;;; Write N elements of a vector of type (UNSIGNED-BYTE 32) to file-id
+;;; FID, starting at element START.  The vector should be a simple
+;;; (non-displaced) array.
 (defun fid-write-u32-vector (fid v n start)
   (let* ((remaining-octets (* n 4))
 	 (start-octet (* start 4))
