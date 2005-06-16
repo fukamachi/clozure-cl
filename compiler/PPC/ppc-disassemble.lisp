@@ -21,12 +21,17 @@
   (require "PPC-LAP"))
 
 (defparameter *ppc-disassembly-backend* *host-backend*)
+(defparameter *ppc-disassemble-raw-instructions* nil)
 
 (eval-when (:compile-toplevel :execute)
   (require "PPCENV"))
 
 (defun ppc-gpr (r)
-  (svref ppc::*gpr-register-names* r))
+  (or
+   (case (backend-target-arch-name *ppc-disassembly-backend*)
+     (:ppc32 (and (eql r ppc32::rcontext) 'ppc32::rcontext))
+     (:ppc64 (and (eql r ppc64::rcontext) 'ppc64::rcontext)))
+   (svref ppc::*gpr-register-names* r)))
 
 (defun ppc-fpr (r)
   (svref ppc::*fpr-register-names* r))
@@ -34,19 +39,19 @@
 (defun ppc-vr (r)
     (svref ppc::*vector-register-names* r))
 
-; To "unmacroexpand" something is to undo the effects of
-; some sort of macroexpansion, returning some presumably
-; more meaningful equivalent form.  Some cases of this
-; are trivial (e.g., turning (stwu rX -4 vsp) into (vpush rX);
-; some would depend on surrounding context and are still
-; heuristic.  A few cases can probably benefit from state
-; maintained by preceding instructions, e.g., (twnei rX 1)
-; is presumably looking at the low 2 or three bits of rX; we
-; have to know what set rX to know which.
+;;; To "unmacroexpand" something is to undo the effects of
+;;; some sort of macroexpansion, returning some presumably
+;;; more meaningful equivalent form.  Some cases of this
+;;; are trivial (e.g., turning (stwu rX -4 vsp) into (vpush rX);
+;;; some would depend on surrounding context and are still
+;;; heuristic.  A few cases can probably benefit from state
+;;; maintained by preceding instructions, e.g., (twnei rX 1)
+;;; is presumably looking at the low 2 or three bits of rX; we
+;;; have to know what set rX to know which.
 
-; For now, just try to handle a few simple cases.
-; Return a new form (new-opcode-name &rest new-operands) or NIL.
-;
+;;; For now, just try to handle a few simple cases.
+;;; Return a new form (new-opcode-name &rest new-operands) or NIL.
+;;;
 
 (defparameter *ppc-unmacroexpanders* (make-hash-table :test #'equalp))
 
@@ -170,12 +175,13 @@
                                                (arch::target-nil-value (backend-target-arch *ppc-disassembly-backend*))) nil val)))))))
 
 (defun ppc-unmacroexpand (insn)
-  (let* ((expander (ppc-unmacroexpand-function (arch::opcode-name (lap-instruction-opcode insn))))
-         (expansion (if expander (funcall expander insn))))
-    (when expansion
-      (setf (lap-instruction-opcode insn) (car expansion)
-            (lap-instruction-parsed-operands insn) (cdr expansion))
-      expansion)))
+  (unless *ppc-disassemble-raw-instructions*
+    (let* ((expander (ppc-unmacroexpand-function (arch::opcode-name (lap-instruction-opcode insn))))
+           (expansion (if expander (funcall expander insn))))
+      (when expansion
+        (setf (lap-instruction-opcode insn) (car expansion)
+              (lap-instruction-parsed-operands insn) (cdr expansion))
+        expansion))))
 
 
 (defun find-ppc-opcode (i)
@@ -316,7 +322,7 @@
         (let* ((nregs (- 32 reg)))
           (declare (fixnum nregs))
           (setq pc (ash (the fixnum (dpb (ldb (byte 2 0) offset) (byte 2 5) pc)) 2)
-                offset (- (logand (lognot 3) (- offset)) (ash nregs 2))))
+                offset (- (logand (lognot 3) (- offset)) (ash nregs target::word-shift))))
         (setf (lap-instruction-opcode regsave-pseudo) :regsave
               (lap-instruction-parsed-operands regsave-pseudo)
               (list (ppc-gpr reg) offset)
@@ -369,7 +375,7 @@
     (when for-lap (format stream ")))~&"))))
 
 
-(defun ppc-Xdisassemble (fn-vector &key (for-lap nil) (stream *standard-output*) target)
+(defun ppc-Xdisassemble (fn-vector &key (for-lap nil) (stream *standard-output*) target ((:raw *ppc-disassemble-raw-instructions*) nil))
   (let* ((backend (if target (find-backend target) *host-backend*))
          (prefix-length (length (arch::target-code-vector-prefix (backend-target-arch backend))))
          (*ppc-disassembly-backend* backend))
