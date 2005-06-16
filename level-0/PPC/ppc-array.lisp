@@ -215,13 +215,13 @@
   (cmpdi cr0 imm1 ppc64::ivector-class-64-bit)
   (cmpdi cr1 imm1 ppc64::ivector-class-32-bit)
   (cmpdi cr2 imm1 ppc64::ivector-class-8-bit)
-  (cmpwi cr7 imm0 ppc32::tag-fixnum)
+  (cmpwi cr7 imm0 ppc64::tag-fixnum)
   (beq cr0 @64)
   (beq cr1 @32)
   (beq cr2 @8)
   ;; u16, s16, or bit-vector.  Val must be a fixnum.
-  (cmpdi cr0 imm2 ppc32::subtag-u16-vector)
-  (cmpdi cr1 imm2 ppc32::subtag-s16-vector)
+  (cmpdi cr0 imm2 ppc64::subtag-u16-vector)
+  (cmpdi cr1 imm2 ppc64::subtag-s16-vector)
   (bne cr7 @bad)                        ; not a fixnum
   (beq cr0 @u16)
   (beq cr1 @s16)
@@ -239,8 +239,7 @@
   (call-symbol %err-disp)
   @64
   (cmpdi cr1 imm2 ppc64::subtag-double-float-vector)
-  (cmpdi cr2 imm2 ppc64::subtag-u64-vector)
-  (cmpdi cr3 imm0 ppc64::subtag-bignum)
+  (cmpdi cr2 imm2 ppc64::subtag-s64-vector)
   (beq cr1 @dfloat)
   (beq cr2 @u64)
   ;; s64
@@ -283,7 +282,7 @@
   (ld imm0 ppc64::double-float.value val)
   (b @set-64)
   @32
-  (cmpdi cr2 imm0 ppc64::subtag-s32-vector)
+  (cmpdi cr2 imm2 ppc64::subtag-s32-vector)
   (cmpdi cr0 imm2 ppc64::subtag-single-float-vector)
   (beq cr2 @s32)
   (bne cr0 @u32)
@@ -323,8 +322,8 @@
   (beq+ cr0 @set-16)
   (b @bad)
   @8
-  (cmpdi cr2 imm0 ppc64::subtag-simple-base-string)
-  (cmpdi cr0 imm0 ppc32::subtag-s8-vector)
+  (cmpdi cr2 imm2 ppc64::subtag-simple-base-string)
+  (cmpdi cr0 imm2 ppc64::subtag-s8-vector)
   (beq cr2 @char8)                      ; ppc32::max-8-bit-ivector-subtag
   (beq cr0 @s8)
   (extract-unsigned-byte-bits. imm0 val 8)
