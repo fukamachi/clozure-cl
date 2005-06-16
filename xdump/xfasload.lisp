@@ -50,7 +50,39 @@
 (defparameter *xload-target-subtag-char* nil)
 (defparameter *xload-target-charcode-shift* nil)
 
+(defvar *xload-backends* nil)
+(defvar *xload-default-backend*)
+(defvar *xload-target-backend*)
+
+(defparameter *xload-image-base-address* nil)
+
+(defparameter *xload-purespace-reserve* #x04000000)
+(defparameter *xload-static-space-address* (ash 1 12))
+(defparameter *xload-static-space-size* (ash 8 10))
+(defparameter *xload-readonly-space-address* nil)
+(defparameter *xload-readonly-space-size* (ash 1 18))
+(defparameter *xload-dynamic-space-address* nil)
+(defparameter *xload-dynamic-space-size* (ash 1 18))
+
+(defstruct backend-xload-info
+  name
+  macro-apply-code-function
+  closure-trampoline-code
+  udf-code
+  default-image-name
+  default-startup-file-name
+  subdirs
+  compiler-target-name
+  image-base-address
+)
 (defun setup-xload-target-parameters ()
+  (setq *xload-image-base-address*
+        (backend-xload-info-image-base-address
+         *xload-target-backend*))
+  (setq *xload-readonly-space-address* *xload-image-base-address*)
+  (setq *xload-dynamic-space-address*
+        (+ *xload-image-base-address*
+           *xload-purespace-reserve*))
   (setq *xload-target-nil*
           (target-arch-case
            (:ppc32 ppc32::nil-value)
@@ -114,6 +146,8 @@
 
 
 
+
+
 (defun xload-target-consp (addr)
   (target-arch-case
    (:ppc32 (= ppc32::fulltag-cons (logand addr ppc32::fulltagmask)))
@@ -127,21 +161,6 @@
 
 
 
-
-(defstruct backend-xload-info
-  name
-  macro-apply-code-function
-  closure-trampoline-code
-  udf-code
-  default-image-name
-  default-startup-file-name
-  subdirs
-  compiler-target-name
-)
-
-(defvar *xload-backends* nil)
-(defvar *xload-default-backend*)
-(defvar *xload-target-backend*)
 
 (defun find-xload-backend (target)
   (find target *xload-backends* :key #'backend-xload-info-name))
@@ -281,22 +300,6 @@
 	   s))
    ppc::*ppc-nilreg-relative-symbols*))
 
-;;; This should probably be a function of the target backend.
-(defparameter *xload-image-base-address*
-  #+darwinppc-target #x02000000
-  #+linuxppc-target #x31000000)
-
-(defparameter *xload-static-reserve* (ash 1 15))
-(defparameter *xload-purespace-reserve* #x04000000)
-(defparameter *xload-static-space-address* (ash 1 12))
-(defparameter *xload-static-space-size* (ash 8 10))
-(defparameter *xload-readonly-space-address* *xload-image-base-address*)
-(defparameter *xload-readonly-space-size* (ash 1 18))
-(defparameter *xload-dynamic-space-address* (+ *xload-image-base-address*
-					       *xload-purespace-reserve*))
-(defparameter *xload-dynamic-space-size* (ash 1 18))
-
-
 
 
 (defun  %xload-unbound-function% ()
@@ -363,14 +366,20 @@
   (multiple-value-bind (v o) (xload-lookup-address address)
     (setf (u8-ref v o) new)))
 
-(defun xload-immval (imm)
+(defun xload-integer (imm &optional (nwords 1))
   (let* ((arch (backend-target-arch *target-backend*))
          (most-negative (arch::target-most-negative-fixnum arch))
          (most-positive (arch::target-most-positive-fixnum arch)))
   (if (and (typep imm 'integer)
            (<= most-negative imm most-positive))
     (ash imm (arch::target-fixnum-shift arch))
-    (error "Bad idea."))))
+    (let* ((bignum (xload-make-ivector
+                    *xload-dynamic-space*
+                    :bignum
+                    nwords)))
+      (dotimes (i nwords bignum)
+        (setf (xload-%fullword-ref bignum i) (ldb (byte 32 0) imm)
+              imm (ash imm -32)))))))
 
 ;;; "grow" the space: make a new data vector. Copy old data 
 ;;;  to new data vector.  Update size and data fields.
@@ -817,8 +826,8 @@
     (xload-make-cons  
      xvec 
      (xload-make-cons
-      (xload-immval (cadr htab))
-      (xload-immval (cddr htab))))))
+      (xload-integer (cadr htab))
+      (xload-integer (cddr htab))))))
 
 (defun xload-finalize-packages ()
   (dolist (pair *xload-aliased-package-addresses*)
@@ -919,7 +928,7 @@
     (xload-set '*keyword-package* (xload-package->addr *keyword-package*))
     (xload-set '%all-packages% (xload-save-list (mapcar #'cdr *xload-aliased-package-addresses*)))
     (xload-set '%unbound-function% (%xload-unbound-function%))
-    (xload-set '*gc-event-status-bits* (xload-immval 0 #|(ash 1 $gc-integrity-check-bit)|#))
+    (xload-set '*gc-event-status-bits* (xload-integer 0 #|(ash 1 $gc-integrity-check-bit)|#))
     (xload-set '%toplevel-catch% (xload-copy-symbol :toplevel))
     (xload-set '%closure-code% (xload-save-code-vector
 				(backend-xload-info-closure-trampoline-code
@@ -988,13 +997,7 @@
                               (ash code *xload-target-charcode-shift*))))
     (%epushval s target-char)))
 
-(defxloadfaslop $fasl-fixnum (s)
-  (%epushval s (xload-immval
-                ;; This nonsense converts unsigned %fasl-read-long
-                ;; result to signed
-                (rlet ((long :long))
-                  (setf (%get-long long) (%fasl-read-long s))
-                  (%get-long long)))))
+
 
 (defxloadfaslop $fasl-dfloat (s)
   (%epushval s (xload-make-dfloat *xload-readonly-space* (%fasl-read-long s) (%fasl-read-long s))))
@@ -1009,8 +1012,31 @@
       (%fasl-read-n-bytes s v (+ o *xload-target-misc-data-offset*) n)
       str)))
 
+
+(defxloadfaslop $fasl-fixnum (s)
+  (%epushval s (xload-integer
+                ;; This nonsense converts unsigned %fasl-read-long
+                ;; result to signed
+                (rlet ((long :long))
+                  (setf (%get-long long) (%fasl-read-long s))
+                  (%get-long long)))))
+
 (defxloadfaslop $fasl-word-fixnum (s)
-  (%epushval s (xload-immval (%word-to-int (%fasl-read-word s)))))
+  (%epushval s (xload-integer (%word-to-int (%fasl-read-word s)))))
+
+(defxloadfaslop $fasl-s32 (s)
+  (%stack-block ((n 4))
+    (setf (%get-unsigned-word n 0) (%fasl-read-word s)
+          (%get-unsigned-word n 2) (%fasl-read-word s))
+    (%epushval s (xload-integer (%get-signed-long n)))))
+
+(defxloadfaslop $fasl-s64 (s)
+  (%stack-block ((n 8))
+    (setf (%get-unsigned-word n 0) (%fasl-read-word s)
+          (%get-unsigned-word n 2) (%fasl-read-word s)
+          (%get-unsigned-word n 4) (%fasl-read-word s)
+          (%get-unsigned-word n 6) (%fasl-read-word s))
+    (%epushval s (xload-integer (%%get-signed-longlong n 0) 2))))
 
 (defun %xload-fasl-vmake-symbol (s)
   (%epushval s (xload-make-symbol (%xload-fasl-vreadstr s))))
@@ -1230,20 +1256,20 @@
   (xfasl-read-gvector s (xload-target-subtype :array-header)))
 
 (defxloadfaslop $fasl-ratio (s)
-  (let* ((r (xload-make-gvector target::ratio.element-count
-                                (xload-target-subtype :ratio))))
+  (let* ((r (xload-make-gvector (xload-target-subtype :ratio)
+                                target::ratio.element-count)))
     (%epushval s r)
     (setf (xload-%svref r target::ratio.numer-cell) (%fasl-expr s)
           (xload-%svref r target::ratio.denom-cell) (%fasl-expr s))
     (setf (faslstate.faslval s) r)))
 
 (defxloadfaslop $fasl-complex (s)
-  (let* ((r (xload-make-gvector target::complex.element-count
-                                (xload-target-subtype :complex))))
-    (%epushval s r)
-    (setf (xload-%svref r target::complex.realpart-cell) (%fasl-expr s)
-          (xload-%svref r target::complex.imagpart-cell) (%fasl-expr s))
-    (setf (faslstate.faslval s) r)))
+  (let* ((c (xload-make-gvector (xload-target-subtype :complex)
+                                target::complex.element-count)))
+    (%epushval s c)
+    (setf (xload-%svref c target::complex.realpart-cell) (%fasl-expr s)
+          (xload-%svref c target::complex.imagpart-cell) (%fasl-expr s))
+    (setf (faslstate.faslval s) c)))
 
 ;;; About all that we do with svars is to canonicalize them.
 (defxloadfaslop $fasl-svar (s)
@@ -1449,18 +1475,19 @@
 				     *xload-default-backend*))
 	 (*xload-startup-file* (backend-xload-info-default-startup-file-name
 				*xload-target-backend*)))
-    ;; This just undoes the CLtL1 compatability stuff in "ccl:library;lisp-package".
-    ;; If someone's created LISP and/or USER packages, nuke 'em.
+    ;; This just undoes the CLtL1 compatability stuff in
+    ;; "ccl:library;lisp-package".  If someone's created LISP and/or
+    ;; USER packages, nuke 'em.
     (let* ((user-pkg (find-package "USER"))
 	   (lisp-pkg (find-package "LISP")))
       (when (and user-pkg (not (eq user-pkg (find-package "CL-USER"))))
 	(delete-package user-pkg))
       (when (and lisp-pkg (not (eq lisp-pkg (find-package "CL"))))
 	(delete-package lisp-pkg)))
-    (setup-xload-target-parameters)
     (in-development-mode
      (when recompile
        (target-Xcompile-level-0 target (eq recompile :force)))
+     (setup-xload-target-parameters)
      (let* ((*load-verbose* t)
 	    (compiler-backend (find-backend
 			       (backend-xload-info-compiler-target-name
