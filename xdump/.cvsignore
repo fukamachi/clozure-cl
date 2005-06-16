@@ -1,3 +1,4 @@
 *.pfsl
 *.dfsl
-*.sfsl
+*.p64fsl
+*.d64fsl
