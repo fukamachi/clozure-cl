@@ -1,3 +1,143 @@
+2005-06-15 23:16  gb
+
+	* level-1/version.lisp: Bump; claim "Alpha" status for PPC64.
+
+2005-06-15 23:15  gb
+
+	* level-0/PPC/ppc-array.lisp: Fixes in %INIT-MISC.
+
+2005-06-15 23:15  gb
+
+	* level-0/PPC/ppc-def.lisp: %MAKE-CODE-EXECUTABLE fixes for PPC64.
+
+2005-06-15 23:14  gb
+
+	* level-0/PPC/ppc-misc.lisp: Word-size fixes.
+
+2005-06-15 23:13  gb
+
+	* level-0/PPC/ppc-numbers.lisp: don't do unsigned divide in
+	%FIXNUM-TRUNCATE.  Bad %NEXT-RANDOM-SEED is arguably better than
+	none.
+
+2005-06-15 23:12  gb
+
+	* level-0/PPC/ppc-utils.lisp: Fix in #+ppc64-target
+	walk-static-area.
+
+2005-06-15 23:11  gb
+
+	* level-0/PPC/PPC64/: ppc64-bignum.lisp, l0-bignum-ppc64.lisp:
+	Lots-o-bug-fixes.
+
+2005-06-15 23:10  gb
+
+	* level-1/l1-typesys.lisp: specialized-array-element-types include
+	ppc64 64-bit array types.
+
+2005-06-15 23:09  gb
+
+	* level-1/l1-numbers.lisp: RANDOM-STATE changes for ppc64;
+	%single-float-atanh for ppc64.
+
+2005-06-15 23:08  gb
+
+	* level-1/l1-clos-boot.lisp: Set up ppc64 signed/unsigned 64-bit
+	vectors in class table.
+
+2005-06-15 23:07  gb
+
+	* xdump/xppcfasload.lisp: Define image-base-address per-backend.
+
+2005-06-15 23:06  gb
+
+	* xdump/xfasload.lisp: New fasl ops for 32-bit, 64-bit signed
+	integers.  Image-base-address determined by backend.
+
+2005-06-15 23:06  gb
+
+	* xdump/faslenv.lisp: New fasl ops for 32-bit, 64-bit signed
+	integers.
+
+2005-06-15 23:04  gb
+
+	* xdump/heap-image.lisp: Remove (obsolete) reference defs.
+
+2005-06-15 23:03  gb
+
+	* xdump/.cvsignore: Ignore 64-bit FASL files.
+
+2005-06-15 23:02  gb
+
+	* scripts/openmcl64: New file.
+
+2005-06-15 23:01  gb
+
+	* lisp-kernel/darwin64/Makefile: Need to check gcc version in some
+	other way (actually, we can assume >= 4.0 for DarwinPPC64.)
+
+2005-06-15 23:00  gb
+
+	* lisp-kernel/darwin/.gdbinit: So, Apple ?  What's with all the
+	SIGTTIN's ?
+
+2005-06-15 22:59  gb
+
+	* lisp-kernel/spentry.s: Fix bit vectore ref/set, small-bignum
+	initialization after shifts/multiplies for ppc64.
+
+2005-06-15 22:58  gb
+
+	* lisp-kernel/ppc_print.c: Print some more uvector types in kernel
+	debugger.
+
+2005-06-15 22:57  gb
+
+	* lisp-kernel/pmcl-kernel.c: Create much larger reserved area on
+	ppc64.	Fix handling of HeapHighWaterMark, especially in cases when
+	EGC is off.
+
+2005-06-15 22:56  gb
+
+	* lisp-kernel/lisp.h: Ensure that _align_to_power_of_2 DTRT on
+	ppc64.
+
+2005-06-15 22:53  gb
+
+	* lisp-kernel/: lisp-exceptions.c, lisp-exceptions.h: Word-size
+	changes.
+
+2005-06-15 22:49  gb
+
+	* lisp-kernel/lisp-debug.c: (S) command to find/describe symbol
+	with matching pname.
+
+2005-06-15 22:49  gb
+
+	* lisp-kernel/gc.h: PPC64 code-vector-prefix.
+
+2005-06-15 22:48  gb
+
+	* lisp-kernel/gc.c: Lots of word-size fixes.
+
+2005-06-15 22:47  gb
+
+	* lisp-kernel/area.h: 64-bit IMAGE_BASE_ADDRESS for ppc64.
+
+2005-06-15 22:46  gb
+
+	* lib/setf-runtime.lisp: APPLY+ changes for PPC64.
+
+2005-06-15 22:45  gb
+
+	* lib/numbers.lisp: Use target::fixnumshift in PRINT-OBJECT method
+	on RANDOM-STATE.
+
+2005-06-15 22:44  gb
+
+	* lib/nfcomp.lisp: Dump small integers (signed-byte 16, 32, 64) via
+	specialized ops.
+
 2005-06-15 22:14  gb
 
 	* lib/macros.lisp: Parameterize %ilogbitp, other things for ppc64.
