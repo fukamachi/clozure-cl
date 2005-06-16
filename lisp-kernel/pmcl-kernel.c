@@ -1367,7 +1367,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   nrs_TOPLFUNC.vcell = lisp_nil;
   enable_fp_exceptions();
   /* don't trust EGC on PPC64 yet */
-#ifndef PPC64
+#if 1
   egc_control(true, NULL);
 #endif
   start_lisp(TCR_TO_TSD(tcr), 0);
