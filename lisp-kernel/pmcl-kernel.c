@@ -300,7 +300,11 @@ unsigned unsigned_max(unsigned x, unsigned y)
 }
 
 #ifdef DARWIN
+#ifdef PPC64
+#define MAXIMUM_MAPPABLE_MEMORY (128L<<30L)
+#else
 #define MAXIMUM_MAPPABLE_MEMORY ((1U<<31)-2*heap_segment_size)
+#endif
 #endif
 
 #ifdef LINUX
@@ -349,7 +353,9 @@ uncommit_pages(void *start, size_t len)
       fprintf(stderr, "errno = %d", err);
     }
   }
-  HeapHighWaterMark = start;
+  if (HeapHighWaterMark > (BytePtr) start) {
+    HeapHighWaterMark = start;
+  }
 }
 
 void
@@ -581,11 +587,12 @@ create_reserved_area(unsigned long totalsize)
 }
 
 void *
-allocate_from_reserved_area(unsigned size)
+allocate_from_reserved_area(natural size)
 {
   area *reserved = reserved_area;
   BytePtr low = reserved->low, high = reserved->high;
-  unsigned avail = high-low;
+  natural avail = high-low;
+  
   size = align_to_power_of_2(size, log2_heap_segment_size);
 
   if (size > avail) {
@@ -598,50 +605,9 @@ allocate_from_reserved_area(unsigned size)
 }
 
 
-#define FILE_MAP_FROM_RESERVED_AREA 0
 
-void *
-file_map_reserved_pages(unsigned len, int prot, int fd, unsigned offset)
-{
-  void *start;
-  unsigned 
-    offset_of_page = offset & ~((1<<12)-1), 
-    offset_in_page = offset - offset_of_page,
-    segment_len = align_to_power_of_2((offset+len)-offset_of_page, 
-				      log2_heap_segment_size);
-  
-  /* LOCK_MMAP_LOCK(); */
-#if FILE_MAP_FROM_RESERVED_AREA
-  start = allocate_from_reserved_area(segment_len);
-  if (start == NULL) {
-    return start;
-  }
-#endif
-#if FILE_MAP_FROM_RESERVED_AREA
-  if (start != mmap(start,
-		    segment_len,
-		    prot,
-		    MAP_PRIVATE | MAP_FIXED,
-		    fd,
-		    offset_of_page)) {
-    return NULL;
-  }
-#else
-  if ((start = mmap(NULL,
-		    segment_len,
-		    prot,
-		    MAP_PRIVATE,
-		    fd,
-		    offset_of_page)) == (void *)-1) {
-    return NULL;
-  }
-#endif
-  /* UNLOCK_MMAP_LOCK(); */
-  return (void *) (((unsigned long)start) + offset_in_page);
-}
+BytePtr reloctab_limit = NULL, markbits_limit = NULL;
 
-BytePtr pagemap_limit = NULL, 
-  reloctab_limit = NULL, markbits_limit = NULL;
 void
 ensure_gc_structures_writable()
 {
@@ -667,9 +633,9 @@ ensure_gc_structures_writable()
 
 
 area *
-allocate_dynamic_area(unsigned initsize)
+allocate_dynamic_area(natural initsize)
 {
-  unsigned totalsize = align_to_power_of_2(initsize, log2_heap_segment_size);
+  natural totalsize = align_to_power_of_2(initsize, log2_heap_segment_size);
   BytePtr start, end;
   area *a;
 
@@ -694,10 +660,10 @@ allocate_dynamic_area(unsigned initsize)
 
 
 Boolean
-grow_dynamic_area(unsigned delta)
+grow_dynamic_area(natural delta)
 {
   area *a = active_dynamic_area, *reserved = reserved_area;
-  unsigned avail = reserved->high - reserved->low;
+  natural avail = reserved->high - reserved->low;
   
   delta = align_to_power_of_2(delta, log2_heap_segment_size);
   if (delta > avail) {
@@ -706,7 +672,10 @@ grow_dynamic_area(unsigned delta)
   if (!allocate_from_reserved_area(delta)) {
     return false;
   }
-  commit_pages(a->high,delta);
+  /*
+    commit_pages(a->high,delta);
+  */
+  commit_pages(HeapHighWaterMark,(a->high+delta)-HeapHighWaterMark);
 
   a->high += delta;
   a->ndnodes = area_dnode(a->high, a->low);
@@ -958,7 +927,7 @@ usage_exit(char *herald, int exit_status, char* other_args)
   if (other_args && *other_args) {
     fputs(other_args, stderr);
   }
-  fprintf(stderr, "\t-R, --heap-reserve <n>: reserve <n> (default: %d)\n",
+  fprintf(stderr, "\t-R, --heap-reserve <n>: reserve <n> (default: %ld)\n",
 	  reserved_area_size);
   fprintf(stderr, "\t\t bytes for heap expansion\n");
   fprintf(stderr, "\t-S, --stack-size <n>: set size of initial stacks to <n> (default: %d)\n", initial_stack_size);
@@ -1306,7 +1275,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   set_nil(load_image(image_name));
   lisp_global(AREA_LOCK) = ptr_to_lispobj(area_lock);
 
-  lisp_global(SUBPRIMS_BASE) = (LispObj)(1<<20);
+  lisp_global(SUBPRIMS_BASE) = (LispObj)(5<<10);
   lisp_global(RET1VALN) = (LispObj)&ret1valn;
   lisp_global(LEXPR_RETURN) = (LispObj)&nvalret;
   lisp_global(LEXPR_RETURN1V) = (LispObj)&popj;
@@ -1314,9 +1283,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   exception_init();
 
-  if (lisp_global(SUBPRIMS_BASE) == 0) {
-    Fatal(": Couldn't load subprims library.", "");
-  }
   
 
   lisp_global(IMAGE_NAME) = ptr_to_lispobj(image_name);
