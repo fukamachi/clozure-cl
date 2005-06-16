@@ -124,6 +124,8 @@
 (defconstant $fasl-ratio 54)            ;<num:expr><den:expr>
 (defconstant $fasl-vector-header 55)    ;<count> Make a vector header
 (defconstant $fasl-array-header 56)     ;<count> Make an array header.
+(defconstant $fasl-s32 57)              ;<4bytes> Make a (SIGNED-BYTE 32)
+(defconstant $fasl-s64 59)              ;<8bytes> Make a (SIGNED-BYTE 64)
 
 ; <string> means <size><size bytes>
 ; <size> means either <n:byte> with n<#xFF, or <FF><n:word> with n<#xFFFF or
