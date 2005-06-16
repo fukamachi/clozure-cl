@@ -2069,7 +2069,7 @@
 
 (defun one-bignum-factor-of-two (a)  
   (declare (type bignum-type a))
-  (let ((len (%bignum-length a))) ß
+  (let ((len (%bignum-length a)))
     (declare (fixnum len))
     (dotimes (i len)
       (multiple-value-bind (a-h a-l) (%bignum-ref a i)
