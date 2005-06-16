@@ -206,6 +206,7 @@
     
 
 ;;; actually only called when magnitude bigger than a fixnum
+#+ppc32-target
 (defun %truncate-double-float (n)
   (multiple-value-bind (hi lo exp sign)(%integer-decode-double-float n)
     (if (< exp (1+ IEEE-double-float-bias)) ; this is false in practice
@@ -219,6 +220,12 @@
               (- poo))
             (let ((poo (logior (ash hi 28) lo)))
               (ash (- poo) exp))))))))
+
+#+ppc64-target
+(defun %truncate-double-float (n)
+  (multiple-value-bind (mantissa exp sign) (integer-decode-float n)
+    (* sign (ash mantissa exp))))
+
 
 
 ; actually only called when bigger than a fixnum
