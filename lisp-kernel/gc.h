@@ -25,6 +25,9 @@
 
 #define is_node_fulltag(f)  ((1<<(f))&((1<<fulltag_cons)|(1<<fulltag_misc)))
 
+#ifdef PPC64
+#define PPC64_CODE_VECTOR_PREFIX (('C'<< 24) | ('O' << 16) | ('D' << 8) | 'E')
+#else
 /*
   A code-vector's header can't look like a valid instruction or UUO:
   the low 8 bits must be subtag_code_vector, and the top 6 bits
@@ -33,6 +36,7 @@
 */
 
 #define code_header_mask ((0x3f<<26) | subtag_code_vector)
+#endif
 
 extern BytePtr HeapHighWaterMark; /* highest zeroed dynamic address  */
 extern LispObj GCarealow;
