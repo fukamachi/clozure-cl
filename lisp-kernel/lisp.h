@@ -29,7 +29,7 @@
 static inline unsigned long
 _align_to_power_of_2(unsigned long n, unsigned power)
 {
-  unsigned align = (1<<power) -1;
+  unsigned long align = (1<<power) -1;
 
   return (n+align) & ~align;
 }
