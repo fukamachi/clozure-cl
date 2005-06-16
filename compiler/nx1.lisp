@@ -561,10 +561,8 @@
 
 (defnx1 nx1-numcmp ((<-2) (>-2) (<=-2) (>=-2)) (&whole whole &environment env num1 num2)
   (let* ((op *nx-sfname*)
-         (both-fixnums (and (nx-form-typep num1 'fixnum env)
-                            (nx-form-typep num2 'fixnum env)))
-	 (both-natural (and (nx-form-typep num1 '(unsigned-byte 32) env)
-			(nx-form-typep num2 '(unsigned-byte 32) env)))
+         (both-fixnums (nx-binary-fixnum-op-p num1 num2 env t))
+	 (both-natural (nx-binary-natural-op-p num1 num2 env ))
          (both-double-floats
           (let* ((dfloat-1 (nx-form-typep num1 'double-float env))
                  (dfloat-2 (nx-form-typep num2 'double-float env)))
@@ -602,10 +600,8 @@
 
 (defnx1 nx1-num= ((=-2) (/=-2)) (&whole whole &environment env num1 num2 )
   (let* ((op *nx-sfname*)
-	 (2-fixnums (and (nx-form-typep num1 'fixnum env)
-			 (nx-form-typep num2 'fixnum env)))
-	 (2-naturals (and (nx-form-typep num1 '(unsigned-byte 32) env)
-		      (nx-form-typep num2 '(unsigned-byte 32) env)))
+	 (2-fixnums (nx-binary-fixnum-op-p num1 num2 env t))
+	 (2-naturals (nx-binary-natural-op-p num1 num2 env))
          (2-rats (and (nx-form-typep num1 'rational env)
                       (nx-form-typep num2 'rational env)))
          (2-dfloats (let* ((dfloat-1 (nx-form-typep num1 'double-float env))
@@ -630,7 +626,7 @@
        (nx1-form num1)
        (nx1-form num2))
       (if 2-rats
-	(let* ((form `(eql ,num1 ,num2))) 
+	(let* ((form `(,(if 2-fixnums 'eq 'eql) ,num1 ,num2))) 
 	  (nx1-form (if (eq op '=-2) form `(not ,form))))
 	(if (or  2-dfloats 2-sfloats)
 	  (make-acode 
