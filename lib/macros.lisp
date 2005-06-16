@@ -1261,7 +1261,11 @@ are no Forms, OR returns NIL."
 (defmacro %i* (x y) `(the fixnum (* (the fixnum ,x) (the fixnum ,y))))
 
 (defmacro %ilogbitp (b i)
-  `(logbitp (the (integer 0 29) ,b) (the fixnum ,i)))
+  (target-arch-case
+   (:ppc32
+    `(logbitp (the (integer 0 29) ,b) (the fixnum ,i)))
+   (:ppc64
+    `(logbitp (the (integer 0 60) ,b) (the fixnum ,i)))))
 
 ;;; Seq-Dispatch does an efficient type-dispatch on the given Sequence.
 
@@ -2784,9 +2788,14 @@ are no Forms, OR returns NIL."
 (defmacro scan-for-instr (mask opcode fn pc-index &optional (tries *trap-lookup-tries*))
   `(%scan-for-instr ,mask ,opcode ,fn ,pc-index ,tries))
 
+
 (defmacro codevec-header-p (word)
-  `(eql ppc32::subtag-code-vector
-    (logand ,word ppc32::subtag-mask)))
+  (target-arch-case
+   (:ppc32
+    `(eql ppc32::subtag-code-vector
+      (logand ,word ppc32::subtag-mask)))
+   (:ppc64
+    `(eql ,word #$"CODE"))))
 
 (defmacro match-instr (instr mask bits-to-match)
   `(eql (logand ,instr ,mask) ,bits-to-match))
@@ -2820,8 +2829,9 @@ are no Forms, OR returns NIL."
     *standard-input*))
 
 (defmacro pref (pointer accessor)
-  (destructuring-bind (type-name &rest accessors) (decompose-record-accessor accessor)
-    (%foreign-access-form pointer (%foreign-type-or-record type-name) 0 accessors)))
+  (let* ((*target-ftd* (backend-target-foreign-type-data *target-backend*)))
+    (destructuring-bind (type-name &rest accessors) (decompose-record-accessor accessor)
+      (%foreign-access-form pointer (%foreign-type-or-record type-name) 0 accessors))))
 
 (defmacro rref (pointer accessor &key (storage :pointer storage-p))
   (when storage-p
@@ -2829,14 +2839,16 @@ are no Forms, OR returns NIL."
   `(pref ,pointer ,accessor))
 
 (defmacro rlet (spec &body body)
-  `(%stack-block ,(rlet-sizes spec)
-     ,@(rlet-inits spec)
-     ,@body))
+  (let* ((*target-ftd* (backend-target-foreign-type-data *target-backend*)))
+    `(%stack-block ,(rlet-sizes spec)
+      ,@(rlet-inits spec)
+      ,@body)))
 
 (defmacro rletZ (spec &body body)
-  `(%stack-block ,(rlet-sizes spec t)
-     ,@(rlet-inits spec)
-     ,@body))
+  (let* ((*target-ftd* (backend-target-foreign-type-data *target-backend*)))
+    `(%stack-block ,(rlet-sizes spec t)
+      ,@(rlet-inits spec)
+      ,@body)))
 
 (defun rlet-sizes (inits &optional clear-p &aux result)
   (dolist (item inits (nreverse result))
@@ -3214,7 +3226,7 @@ element-type is numeric."
               (push var specvars)
               (push var restoreform)
               (push oldval restoreform)
-              (push `(,oldval (uvref ',var #.ppc32::symbol.vcell-cell)) initforms)
+              (push `(,oldval (uvref ',var #.target::symbol.vcell-cell)) initforms)
               (push `(,newval ,valueform) initforms)
               (push var psetform)
               (push newval psetform))))
