@@ -57,21 +57,6 @@
 (defparameter *image-section-size* ())
 
 
-#|
-(def-foreign-type
-    openmcl-image-file-header
-    (:struct nil
-	     (:sig0 :unsigned)
-     	     (:sig1 :unsigned)
-	     (:sig2 :unsigned)
-	     (:sig3 :unsigned)
-	     (:timestamp :unsigned)
-	     (:canonical-image-base :unsigned)
-	     (:actual-image-base :unsigned)
-	     (:nsections :unsigned)
-	     (:abi-version :unsigned)
-	     (:pad (:array :unsigned 7))))
-|#
 
 (defparameter *image-header-size* nil)
 
