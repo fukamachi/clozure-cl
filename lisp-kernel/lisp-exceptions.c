@@ -88,7 +88,7 @@ disable_fp_exceptions()
 extern LispObj lisp_nil;
 
 extern natural lisp_heap_gc_threshold;
-extern Boolean grow_dynamic_area(unsigned);
+extern Boolean grow_dynamic_area(natural);
 
 
 /* top 6 bits will be zero, subtag will be subtag_code_vector */
@@ -99,7 +99,7 @@ extern Boolean grow_dynamic_area(unsigned);
 
 
 void
-allocation_failure(Boolean pointerp, unsigned size)
+allocation_failure(Boolean pointerp, natural size)
 {
   char buf[64];
   sprintf(buf, "Can't allocate %s of size %d bytes.", pointerp ? "pointer" : "handle", size);
@@ -116,7 +116,7 @@ fatal_oserr(StringPtr param, OSErr err)
 
 
 Ptr
-allocate(unsigned size)
+allocate(natural size)
 {
   return (Ptr) malloc(size);
 }
@@ -128,7 +128,7 @@ deallocate(Ptr p)
 }
 
 Ptr
-zalloc(unsigned size)
+zalloc(natural size)
 {
   Ptr p = allocate(size);
   if (p != NULL) {
@@ -159,7 +159,7 @@ void
 unprotect_area(protected_area_ptr p)
 {
   BytePtr start = p->start;
-  unsigned nprot = p->nprot;
+  natural nprot = p->nprot;
   
   if (nprot) {
     UnProtectMemory(start, nprot);
@@ -317,7 +317,7 @@ Boolean free_segments_zero_filled_by_OS = true;
 */
 
 Boolean
-new_heap_segment(ExceptionInformation *xp, unsigned need, Boolean extend, TCR *tcr)
+new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tcr)
 {
   area *a;
   natural newlimit, oldlimit;
@@ -348,7 +348,7 @@ new_heap_segment(ExceptionInformation *xp, unsigned need, Boolean extend, TCR *t
 
 Boolean
 allocate_object(ExceptionInformation *xp,
-                unsigned bytes_needed, 
+                natural bytes_needed, 
                 int disp_from_allocptr,
 		TCR *tcr)
 {
@@ -662,9 +662,9 @@ reset_lisp_process(ExceptionInformation *xp)
 */
 void
 resize_dynamic_heap(BytePtr newfree, 
-		    unsigned free_space_size)
+		    natural free_space_size)
 {
-  unsigned protbytes, zerobytes;
+  natural protbytes, zerobytes;
   area *a = active_dynamic_area;
   BytePtr newlimit, protptr, zptr;
   
@@ -842,7 +842,7 @@ void
 protect_area(protected_area_ptr p)
 {
   BytePtr start = p->start;
-  unsigned n = p->protsize;
+  natural n = p->protsize;
 
   if (n && ! p->nprot) {
     ProtectMemory(start, n);
@@ -956,7 +956,7 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
 
 
 protected_area_ptr
-new_protected_area(BytePtr start, BytePtr end, lisp_protection_kind reason, unsigned protsize, Boolean now)
+new_protected_area(BytePtr start, BytePtr end, lisp_protection_kind reason, natural protsize, Boolean now)
 {
   protected_area_ptr p = (protected_area_ptr) allocate(sizeof(protected_area));
   
@@ -1016,10 +1016,10 @@ do_hard_stack_overflow(ExceptionInformation *xp, protected_area_ptr area, BytePt
 }
 
 extern area*
-allocate_vstack(unsigned useable);       /* This is in "pmcl-kernel.c" */
+allocate_vstack(natural useable);       /* This is in "pmcl-kernel.c" */
 
 extern area*
-allocate_tstack(unsigned useable);       /* This is in "pmcl-kernel.c" */
+allocate_tstack(natural useable);       /* This is in "pmcl-kernel.c" */
 
 #ifdef EXTEND_VSTACK
 Boolean
@@ -1095,7 +1095,7 @@ lisp_frame *
 find_non_catch_frame_from_xp (ExceptionInformation *xp)
 {
   lisp_frame *spPtr = (lisp_frame *) xpGPR(xp, sp);
-  if ((((unsigned) spPtr) + sizeof(lisp_frame)) != ((unsigned) (spPtr->backlink))) {
+  if ((((natural) spPtr) + sizeof(lisp_frame)) != ((natural) (spPtr->backlink))) {
     ffcall_overflow_count++;          /* This is mostly so I can breakpoint here */
   }
   for (; !lisp_frame_p(spPtr)  || /* In the process of ppc-ff-call */
@@ -1344,7 +1344,7 @@ OSStatus
 handle_fpux_binop(ExceptionInformation *xp, pc where)
 {
   OSStatus err;
-  unsigned *there = (unsigned *) where, instr, errnum;
+  opcode *there = (opcode *) where, instr, errnum;
   int i = TRAP_LOOKUP_TRIES, delta = 0;
   
   while (i--) {
@@ -1512,7 +1512,7 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
 }
 
 area *
-allocate_no_stack (unsigned size)
+allocate_no_stack (natural size)
 {
 #ifdef SUPPORT_PRAGMA_UNUSED
 #pragma unused(size)

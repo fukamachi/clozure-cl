@@ -47,7 +47,7 @@ OSStatus
 handle_protection_violation(ExceptionInformationPowerPC *, siginfo_t *);
 
 protected_area_ptr 
-new_protected_area(BytePtr, BytePtr, lisp_protection_kind, unsigned, Boolean);
+new_protected_area(BytePtr, BytePtr, lisp_protection_kind, natural, Boolean);
 
 void
 unprotect_area_prefix(protected_area_ptr, size_t);
@@ -60,7 +60,7 @@ protect_area(protected_area_ptr);
 
 
 void
-resize_dynamic_heap(BytePtr, unsigned);
+resize_dynamic_heap(BytePtr, natural);
 
 OSStatus
 PMCL_exception_handler(int, ExceptionInformationPowerPC *, TCR *, siginfo_t *);
@@ -467,10 +467,10 @@ Fatal(StringPtr, StringPtr);
 
 
 Ptr
-allocate(unsigned);
+allocate(natural);
 
 Ptr
-zalloc(unsigned);
+zalloc(natural);
 
 void
 deallocate(Ptr);
