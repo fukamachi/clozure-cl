@@ -1953,11 +1953,15 @@ to replace that class with ~s" name old-class new-class)
       (map-subtag target::subtag-dead-macptr ivector)
       (map-subtag target::subtag-code-vector code-vector)
       #+ppc32-target
-      (map-subtag target::subtag-creole-object creole-object)
+      (map-subtag ppc32::subtag-creole-object creole-object)
       (map-subtag target::subtag-xcode-vector xcode-vector)
       (map-subtag target::subtag-xfunction xfunction)
       (map-subtag target::subtag-svar svar)
       (map-subtag target::subtag-single-float-vector simple-short-float-vector)
+      #+ppc64-target
+      (map-subtag ppc64::subtag-u64-vector simple-unsigned-doubleword-vector)
+      #+ppc64-target
+      (map-subtag ppc64::subtag-s64-vector simple-doubleword-vector)
       (map-subtag target::subtag-u32-vector simple-unsigned-long-vector)
       (map-subtag target::subtag-s32-vector simple-long-vector)
       (map-subtag target::subtag-u8-vector simple-unsigned-byte-vector)
