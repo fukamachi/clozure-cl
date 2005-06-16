@@ -267,7 +267,7 @@
         (remainder temp2))
     (unbox-fixnum unboxed-dividend dividend)
     (unbox-fixnum unboxed-divisor divisor)
-    (divduo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
+    (divdo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
     (box-fixnum boxed-quotient unboxed-quotient)
     (mulld unboxed-product unboxed-quotient unboxed-divisor)
     (bns+ @ok)
@@ -368,13 +368,18 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
     (box-fixnum arg_z temp)
     (blr)))
 
-#+ppc64-target
-(eval-when (:compile-toplevel)
-  (warn "No implementation of %NEXT-RANDOM-SEED for PPC64"))
+
+
 #+ppc64-target
 (defun %next-random-seed (state)
-  (declare (ignore state))
-  17)
+  (let* ((seed (logior (%svref state 1) (%svref state 2))))
+    (multiple-value-bind (seed-low seed-high) (%multiply seed (* 2 48271))
+      (setq seed (logand #xffffffff (+ seed-low seed-high)))
+      (setf (%svref state 1) (logand seed #xffff0000)
+            (%svref state 2) (logand seed #x0000ffff))
+      (dpb (ldb (byte 8 0) seed-low) (byte 8 8) (ldb (byte 8 3) seed-high)))))
+
+
 
 ;;; n1 and n2 must be positive (esp non zero)
 #+ppc32-target
