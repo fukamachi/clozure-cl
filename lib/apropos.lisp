@@ -69,12 +69,6 @@
               (subseq pr-string 0 displayOffset)
               (subseq pr-string displayOffset))))
   
-#| sorry, not CL
-(defun apropos-list (theString &optional package)
-  (multiple-value-bind (symVector indent) (apropos-list-aux theString package *apropos-indent-to-search-string*)
-    (loop for symTuple across symVector
-          collect (aref symTuple 0))))
-|#
 
 (defun apropos-aux (theString symtuple indent)
   (declare (ignore theString))
