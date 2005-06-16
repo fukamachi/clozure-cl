@@ -219,7 +219,7 @@
     (extract-lowtag tag header)
     (extract-fulltag subtag header)
     (cmpri cr1 tag ppc64::lowtag-nodeheader)
-    (extract-subtag tag header)
+    (extract-lowbyte tag header)
     (cmpri cr2 subtag ppc64::ivector-class-64-bit)
     (cmpri cr3 subtag ppc64::ivector-class-8-bit)
     (cmpri cr4 subtag ppc64::ivector-class-32-bit)
