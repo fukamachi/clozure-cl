@@ -151,8 +151,60 @@ sprint_specializers_list(LispObj o, int depth)
   add_char(')');
 }
 
+char *
+vector_subtag_name(unsigned subtag)
+{
+  switch (subtag) {
+  case subtag_bit_vector:
+    return "BIT-VECTOR";
+    break;
+  case subtag_instance:
+    return "INSTANCE";
+    break;
+  case subtag_bignum:
+    return "BIGNUM";
+    break;
+  case subtag_u8_vector:
+    return "(UNSIGNED-BYTE 8)";
+    break;
+  case subtag_s8_vector:
+    return "(SIGNED-BYTE 8)";
+    break;
+  case subtag_u16_vector:
+    return "(UNSIGNED-BYTE 16)";
+    break;
+  case subtag_s16_vector:
+    return "(SIGNED-BYTE 16)";
+    break;
+  case subtag_u32_vector:
+    return "(UNSIGNED-BYTE 32)";
+    break;
+  case subtag_s32_vector:
+    return "(SIGNED-BYTE 32)";
+    break;
+#ifdef PPC64
+  case subtag_u64_vector:
+    return "(UNSIGNED-BYTE 64)";
+    break;
+  case subtag_s64_vector:
+    return "(SIGNED-BYTE 64)";
+    break;
+#endif
+  case subtag_package:
+    return "PACKAGE";
+    break;
+  case subtag_code_vector:
+    return "CODE-VECTOR";
+    break;
+  default:
+    return "";
+    break;
+  }
+}
+
+
 void
-sprint_random_vector(LispObj o, unsigned subtag, unsigned elements)
+sprint_random_vector(LispObj o, unsigned subtag, natural elements)
 {
   add_c_string("#<");
   sprint_unsigned_decimal(elements);
@@ -160,7 +212,9 @@ sprint_random_vector(LispObj o, unsigned subtag, unsigned elements)
   sprintf(numbuf, "%02X @", subtag);
   add_c_string(numbuf);
   sprint_unsigned_hex(o);
-  add_c_string(">");
+  add_c_string(" (");
+  add_c_string(vector_subtag_name(subtag));
+  add_c_string(")>");
 }
 
 void
