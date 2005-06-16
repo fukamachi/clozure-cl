@@ -246,7 +246,7 @@
 ;; hide this last instruction ...
 ;;   
 
-#+ppc-target
+#+ppc32-target
 (defun registers-used-by (lfun &optional at-pc)
   (let* ((regs-used nil)
          (where-saved nil))
@@ -263,6 +263,24 @@
               (setq where-saved (- (ash (- offset) -2) nregs))
               (setq regs-used nil))))))
     (values (and regs-used (bit-reverse-8 regs-used)) where-saved)))
+
+#+ppc64-target
+(defun registers-used-by (lfun &optional at-pc)
+  (let* ((regs-used nil)
+         (where-saved nil)
+         (instr (%code-vector-last-instruction (uvref lfun 0))))
+      (if (eql (ldb (byte 6 26) instr) 32)       ; LWZ
+        (let* ((nregs (- 32 (ldb (byte 5 21) instr)))
+               (pc (dpb (ldb (byte 2 0) instr) (byte 2 5) (ldb (byte 5 16) instr)))
+               (offset (%word-to-int (logand instr (lognot 7)))))
+          (declare (fixnum nregs pc offset))
+          (setq regs-used (1- (ash 1 nregs)))
+          (if at-pc
+            (if (>= at-pc pc)
+              (setq where-saved (- (ash (- offset) -3) nregs))
+              (setq regs-used nil)))))        
+      (values (and regs-used (bit-reverse-8 regs-used)) where-saved)))    
+  
 
 (defparameter *bit-reverse-8-table*
   #.(let ((table (make-array 256 :element-type '(unsigned-byte 8))))
