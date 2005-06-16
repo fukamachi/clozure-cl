@@ -19,18 +19,19 @@
 ;;; If the GC moves this function while we're trying to flush the cache,
 ;;; it'll flush the cache: no harm done in that case.
 (defppclapfunction %make-code-executable ((codev arg_z))
-  (let ((len temp2)
+  (let ((len imm2)
 	(word-offset imm0))
     (save-lisp-context)
     (getvheader word-offset codev)
-    (header-length len word-offset)
+    (header-size len word-offset)
     ;; The idea is that if we GC here, no harm is done (since the GC
     ;; will do any necessary cache-flushing.)  The idea may be
     ;; incorrect: if we pass an address that's not mapped anymore,
     ;; could we fault ?
     (stru sp (- (+ #+linuxppc-target ppc32::eabi-c-frame.minsize
-		   #+darwinppc-target target::c-frame.minsize ppc32::lisp-frame.size)) sp)	; make an FFI frame.
+		   #+darwinppc-target target::c-frame.minsize target::lisp-frame.size)) sp)	; make an FFI frame.
     (la imm0 target::misc-data-offset codev)
+    (slri len len 2)
     (str imm0 #+linuxppc-target ppc32::eabi-c-frame.param0 #+darwinppc-target target::c-frame.param0  sp)
     (str len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target target::c-frame.param1 sp)
     (ref-global imm3 kernel-imports)
