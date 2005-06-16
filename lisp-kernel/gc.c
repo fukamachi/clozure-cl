@@ -231,7 +231,7 @@ check_node(LispObj n)
   case fulltag_nodeheader:
   case fulltag_immheader:
 #endif
-    Bug(NULL, "Header not expected : 0x%08x", n);
+    Bug(NULL, "Header not expected : 0x%lx", n);
     return;
 
   case fulltag_misc:
@@ -246,7 +246,7 @@ check_node(LispObj n)
       a = active_dynamic_area;
       if ((n > (ptr_to_lispobj(a->active))) &&
           (n < (ptr_to_lispobj(a->high)))) {
-        Bug(NULL, "Node points to heap free space: 0x%08x", n);
+        Bug(NULL, "Node points to heap free space: 0x%lx", n);
       }
       return;
     }
@@ -258,14 +258,14 @@ check_node(LispObj n)
   if (tag == fulltag_cons) {
     if ((nodeheader_tag_p(header_tag)) ||
         (immheader_tag_p(header_tag))) {
-      Bug(NULL, "Cons cell at 0x%08x has bogus header : 0x%08x", n, header);
+      Bug(NULL, "Cons cell at 0x%lx has bogus header : 0x%lx", n, header);
     }
     return;
   }
 
   if ((!nodeheader_tag_p(header_tag)) &&
       (!immheader_tag_p(header_tag))) {
-    Bug(NULL,"Vector at 0x%08x has bogus header : 0x%08x", n, header);
+    Bug(NULL,"Vector at 0x%lx has bogus header : 0x%lx", n, header);
   }
   return;
 }
@@ -715,6 +715,51 @@ mark_ephemeral_root(LispObj n)
 }
   
 
+#ifdef PPC64
+/* Any register (srr0, the lr or ctr) or stack location that
+   we're calling this on should have its low 2 bits clear; it'll
+   be tagged as a "primary" object, but the pc/lr/ctr should
+   never point to a tagged object or contain a fixnum.
+   
+   If the "pc" appears to be pointing into a heap-allocated
+   code vector that's not yet marked, back up until we find
+   the code-vector's prefix (the 32-bit word containing the
+   value 'CODE' whic precedes the code-vector's first instruction)
+   and mark the entire code-vector.
+*/
+void
+mark_pc_root(LispObj xpc)
+{
+  if ((xpc & 3) != 0) {
+    Bug(NULL, "Bad PC locatitive!");
+  } else {
+    natural dnode = gc_area_dnode(xpc);
+    if ((dnode < GCndnodes_in_area) &&
+        !ref_bit(GCmarkbits,dnode)) {
+      LispObj
+        *headerP,
+        header;
+      opcode *program_counter;
+
+      for(program_counter=(opcode *)ptr_from_lispobj(xpc & ~4);
+          dnode < GCndnodes_in_area;
+          program_counter-=2, --dnode) {
+        if (*program_counter == PPC64_CODE_VECTOR_PREFIX) {
+          headerP = ((LispObj *)program_counter)-1;
+          header = *headerP;
+          set_n_bits(GCmarkbits, dnode, (2+header_element_count(header))>>1);
+          return;
+        }
+      }
+      /*
+        Expected to have found a header by now, but didn't.
+        That's a bug.
+        */
+      Bug(NULL, "code_vector header not found!");
+    }
+  }
+}
+#else
 /*
   Some objects (saved LRs on the control stack, the LR, PC, and CTR
   in exception frames) may be tagged as fixnums but are really
@@ -757,7 +802,7 @@ mark_pc_root(LispObj pc)
     }
   }
 }
-
+#endif
 
 #ifdef PPC64
 #define RMARK_PREV_ROOT fulltag_imm_3
@@ -1097,10 +1142,11 @@ mark_memoized_area(area *a, natural num_memo_dnodes)
      */
 
   /*
-    We need to ensure that there are no bits set at or beyond "num_memo_dnodes"
-    in the bitvector.  (This can happen as the EGC tenures/untenures things.)
-    We find bits by grabbing a fullword at a time and doing a cntlzw instruction;
-    and don't want to have to check for (< memo_dnode num_memo_dnodes) in the loop.
+    We need to ensure that there are no bits set at or beyond
+    "num_memo_dnodes" in the bitvector.  (This can happen as the EGC
+    tenures/untenures things.)  We find bits by grabbing a fullword at
+    a time and doing a cntlzw instruction; and don't want to have to
+    check for (< memo_dnode num_memo_dnodes) in the loop.
     */
 
   {
@@ -1293,16 +1339,18 @@ void
 reapweakv(LispObj weakv)
 {
   /*
-    element 2 of the weak vector should be tagged as a cons: if it isn't, just mark it as a root.
-    if it is, cdr through it until a "marked" cons is encountered.  If the car of any unmarked
-    cons is marked, mark the cons which contains it; otherwise, splice the cons out of the list.
-    N.B. : elements 0 and 1 are already marked (or are immediate, etc.)
-    */
+    element 2 of the weak vector should be tagged as a cons: if it
+    isn't, just mark it as a root.  if it is, cdr through it until a
+    "marked" cons is encountered.  If the car of any unmarked cons is
+    marked, mark the cons which contains it; otherwise, splice the
+    cons out of the list.  N.B. : elements 0 and 1 are already marked
+    (or are immediate, etc.)
+  */
   LispObj *prev = ((LispObj *) ptr_from_lispobj(untag(weakv))+(1+2)), cell = *prev;
   LispObj termination_list = lisp_nil;
-  int weak_type = (int) deref(weakv,2);
+  natural weak_type = (natural) deref(weakv,2);
   Boolean alistp = ((weak_type & population_type_mask) == population_weak_alist),
-          terminatablep = ((weak_type >> population_termination_bit) != 0);
+    terminatablep = ((weak_type >> population_termination_bit) != 0);
   Boolean done = false;
   cons *rawcons;
   natural dnode, car_dnode;
@@ -1564,7 +1612,7 @@ markhtabvs()
       subtag = header_subtag(header);
       
       if (subtag == subtag_weak) {
-        int weak_type = deref(this,2);
+        natural weak_type = deref(this,2);
         deref(this,1) = pending;
         pending = this;
         if ((weak_type & population_type_mask) == population_weak_alist) {
@@ -1573,7 +1621,7 @@ markhtabvs()
           }
         }
       } else if (subtag == subtag_hash_vector) {
-        int elements = header_element_count(header), i;
+        natural elements = header_element_count(header), i;
 
         hashp = (hash_table_vector_header *) ptr_from_lispobj(untag(this));
         if (hashp->flags & nhash_weak_mask) {
@@ -2524,7 +2572,6 @@ gc(TCR *tcr)
   area *a = active_dynamic_area, *to = NULL, *from = NULL, *note = NULL;
   unsigned timeidx = 1;
   xframe_list *x;
-  special_binding *sb = (tcr->db_link);
   LispObj
     pkg,
     itabvec = 0;
@@ -2663,7 +2710,7 @@ gc(TCR *tcr)
        */
     
   if (itabvec) {
-    int
+    natural
       i,
       n = header_element_count(header_of(itabvec));
     LispObj
@@ -2698,7 +2745,7 @@ gc(TCR *tcr)
   (void)markhtabvs();
 
   if (itabvec) {
-    int
+    natural
       i,
       n = header_element_count(header_of(itabvec));
     LispObj
@@ -3014,13 +3061,18 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
 {
   LispObj
     loc = *locaddr,
-    header;
+    *headerP;
+  opcode
+    *p,
+    insn;
   natural
     tag = fulltag_of(loc);
 
   if (((BytePtr)ptr_from_lispobj(loc) > low) &&
+
       ((BytePtr)ptr_from_lispobj(loc) < high)) {
-    LispObj *p = (LispObj *)ptr_from_lispobj(untag(loc));
+
+    headerP = (LispObj *)ptr_from_lispobj(untag(loc));
     switch (tag) {
     case fulltag_even_fixnum:
     case fulltag_odd_fixnum:
@@ -3028,18 +3080,25 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
     case fulltag_cons:
     case fulltag_misc:
 #endif
-      if (*p == forward_marker) {
-        *locaddr = (p[1]+tag);
+      if (*headerP == forward_marker) {
+        *locaddr = (headerP[1]+tag);
       } else {
         /* Grovel backwards until the header's found; copy
            the code vector to to space, then treat it as if it 
            hasn't already been copied. */
+        p = (opcode *)headerP;
         do {
           p -= 2;
           tag += 8;
-          header = *p;
-        } while ((header & code_header_mask) != subtag_code_vector);
+          insn = *p;
+#ifdef PPC64
+        } while (insn != PPC64_CODE_VECTOR_PREFIX);
+        headerP = ((LispObj*)p)-1;
+        *locaddr = purify_displaced_object(((LispObj)headerP), to, tag);
+#else
+        } while ((insn & code_header_mask) != subtag_code_vector);
         *locaddr = purify_displaced_object(ptr_to_lispobj(p), to, tag);
+#endif
       }
       break;
 
