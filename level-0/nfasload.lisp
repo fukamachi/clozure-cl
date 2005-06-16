@@ -23,7 +23,7 @@
 
 
 (defconstant $primsizes (make-array 23
-                                    :element-type 'fixnum
+                                    :element-type '(unsigned-byte 16)
                                     :initial-contents
                                     '(41 61 97 149 223 337 509 769 887 971 1153 1559 1733
                                       2609 2801 3917 5879 8819 13229 19843 24989 29789 32749)))
@@ -288,6 +288,7 @@
 (deffaslop $fasl-char (s)
   (%epushval s (code-char (%fasl-read-byte s))))
 
+;;; Deprecated
 (deffaslop $fasl-fixnum (s)
   (%epushval
    s
@@ -295,6 +296,19 @@
                             16))
            (the fixnum (%fasl-read-word s))) ))
 
+(deffaslop $fasl-s32 (s)
+  (%stack-block ((buf 4))
+    (setf (%get-unsigned-word buf 0) (%fasl-read-word s)
+          (%get-unsigned-word buf 2) (%fasl-read-word s))
+    (%epushval s (%get-signed-long buf))))
+
+(deffaslop $fasl-s64 (s)
+  (%stack-block ((buf 8))
+    (setf (%get-unsigned-word buf 0) (%fasl-read-word s)
+          (%get-unsigned-word buf 2) (%fasl-read-word s)
+          (%get-unsigned-word buf 4) (%fasl-read-word s)
+          (%get-unsigned-word buf 6) (%fasl-read-word s))
+    (%epushval s (%%get-signed-longlong buf 0))))
 
 (deffaslop $fasl-dfloat (s)
   ;; A double-float is a 3-element "misc" object.
@@ -757,13 +771,14 @@
               (declare (fixnum psize))
               (if (>= psize size) 
                 (return psize))))))
-  (setf (htvec htab) (make-array size :initial-element 0))
+  (setf (htvec htab) (make-array size #|:initial-element 0|#))
   (setf (htcount htab) 0)
   (setf (htlimit htab) (the fixnum (- size (the fixnum (ash size -3)))))
   htab)
 
+
 (defun %resize-htab (htab)
-  (declare (optimize (speed 3) (safety 0)))
+  (declare (optimize (speed 3) (safety 0)))  
   (without-interrupts
    (let* ((old-vector (htvec htab))
           (old-len (length old-vector)))
@@ -772,7 +787,7 @@
      (let* ((nsyms 0))
        (declare (fixnum nsyms))
        (dovector (s old-vector)
-         (and s (symbolp s) (incf nsyms)))
+         (when (symbolp s) (incf nsyms)))
        (%initialize-htab htab 
                          (the fixnum (+ 
                                       (the fixnum 
