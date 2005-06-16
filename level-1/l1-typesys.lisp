@@ -2565,8 +2565,8 @@
 (defun specialized-element-type-maybe (type)
   (declare (type array-ctype type))
   (if *use-implementation-types*
-      (array-ctype-specialized-element-type type)
-      (array-ctype-element-type type)))
+    (array-ctype-specialized-element-type type)
+    (array-ctype-element-type type)))
 
 (define-type-method (array :simple-=) (type1 type2)
   (if (or (unknown-ctype-p (array-ctype-element-type type1))
@@ -2743,10 +2743,13 @@
 		         :element-type (specifier-type element-type)
 		         :complexp nil)))
 
+;;; Order matters here.
 (defparameter specialized-array-element-types
-  '(bit (unsigned-byte 8) (signed-byte 8) (unsigned-byte 16) 
+  '(bit (unsigned-byte 8) (signed-byte 8) (unsigned-byte 16)
     (signed-byte 16) (unsigned-byte 32) (signed-byte 32)
-    character *unused* short-float double-float))
+    #+ppc64-target (unsigned-byte 64)
+    #+ppc64-target (signed-byte 64)
+    character  short-float double-float))
 
 (defun specialize-array-type (type)
   (let ((eltype (array-ctype-element-type type)))
