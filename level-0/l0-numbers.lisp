@@ -448,8 +448,8 @@
 
 
         
-; lotta stuff to avoid making a rational from a float
-; returns -1 less, 0 equal, 1 greater
+;;; lotta stuff to avoid making a rational from a float
+;;; returns -1 less, 0 equal, 1 greater
 (defun bignum-dfloat-compare (int float)
   (cond 
    ((and (eq int 0)(= float 0.0d0)) 0)
@@ -462,8 +462,7 @@
         gt  ; if different signs, done
         (let ((intlen (integer-length int)) 
               (exp (- (the fixnum (%double-float-exp float)) 1022)))
-          (declare (fixnum intlen exp)) ; someday intlen may not be a fixnum - but is today
-          ;(print (list intlen exp))
+          (declare (fixnum intlen exp))
           (cond 
            ((and (not fminus) (< intlen exp)) -1)
            ((> intlen exp)  gt)   ; if different exp, done
@@ -1657,7 +1656,6 @@
   (declare (ignore type))
   'real)
 
-#+ppc32-target
 (defun init-random-state-seeds ()
   (let* ((ticks (ldb (byte 32 0) (get-internal-real-time)))
 	 (high (ldb (byte 16 16) ticks)) 
