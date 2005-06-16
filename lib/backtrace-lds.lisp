@@ -16,8 +16,8 @@
 
 
 
-; backtrace-lds.lisp
-; low-level support for stack-backtrace dialog (Lisp Development System)
+;;; backtrace-lds.lisp
+;;; low-level support for stack-backtrace dialog (Lisp Development System)
 
 (in-package :ccl)
 
@@ -30,7 +30,7 @@
 )
 
 
-; Act as if VSTACK-INDEX points somewhere where DATA could go & put it there.
+;;; Act as if VSTACK-INDEX points somewhere where DATA could go & put it there.
 (defun set-lisp-data (vstack-index data)
   (let* ((old (%access-lisp-data vstack-index)))
     (if (closed-over-value-p old)
@@ -44,15 +44,15 @@
 
 
 
-; Returns five values: (ARGS TYPES NAMES COUNT NCLOSED)
-; ARGS is a list of the args supplied to the function
-; TYPES is a list of the types of the args.
-; NAMES is a list of the names of the args.
-;       TYPES & NAMES will hae entries only for closed-over, required, & optional args.
-; COUNT is the number of known-correct elements of ARGS, or T if they're all correct.
-;       ARGS will be filled with NIL up to the number of required args to lfun
-; NCLOSED is the number of closed-over values that are in the prefix of ARGS
-;       If COUNT < NCLOSED, it is not safe to restart the function.
+;;; Returns five values: (ARGS TYPES NAMES COUNT NCLOSED)
+;;; ARGS is a list of the args supplied to the function
+;;; TYPES is a list of the types of the args.
+;;; NAMES is a list of the names of the args.
+;;;       TYPES & NAMES will hae entries only for closed-over, required, & optional args.
+;;; COUNT is the number of known-correct elements of ARGS, or T if they're all correct.
+;;;       ARGS will be filled with NIL up to the number of required args to lfun
+;;; NCLOSED is the number of closed-over values that are in the prefix of ARGS
+;;;       If COUNT < NCLOSED, it is not safe to restart the function.
 (defun frame-supplied-args (frame lfun pc child context)
   (declare (ignore child))
   (multiple-value-bind (req opt restp keys allow-other-keys optinit lexprp ncells nclosed)
@@ -144,7 +144,7 @@
             (values (nreconc res rest) (nreverse types) (nreverse names)
                     t nclosed)))))))
 
-; nth-frame-info, set-nth-frame-info, & frame-lfun are in "inspector;new-backtrace"
+;;; nth-frame-info, set-nth-frame-info, & frame-lfun are in "inspector;new-backtrace"
 
 
 (defun last-catch-since (sp context)
@@ -153,7 +153,7 @@
          (last-catch nil))
     (loop
       (unless catch (return last-catch))
-      (let ((csp (uvref catch ppc32::catch-frame.csp-cell)))
+      (let ((csp (uvref catch target::catch-frame.csp-cell)))
         (when (%stack< sp csp context) (return last-catch))
         (setq last-catch catch
               catch (next-catch catch))))))
@@ -173,7 +173,7 @@
   #+sparc-target #(wrong)
   #+ppc-target #(31 30 29 28 27 26 25 24))
 
-; Don't do unbound checks in compiled code
+;;; Don't do unbound checks in compiled code
 (declaim (type t *saved-register-count* *saved-register-count+1*
                *saved-register-names* *saved-register-numbers*))
 
@@ -194,7 +194,7 @@
 (defmacro srv.register-n (saved-register-vector n)
   `(svref ,saved-register-vector (1+ ,n)))
 
-; This isn't quite right - has to look at all functions on stack, not just those that saved VSPs.
+;;; This isn't quite right - has to look at all functions on stack, not just those that saved VSPs.
 
 
 (defun frame-restartable-p (target &optional context)
@@ -211,9 +211,9 @@
         srv))))
 
 
-; get the saved register addresses for this frame
-; still need to worry about this unresolved business
-; could share some code with parent-frame-saved-vars
+;;; get the saved register addresses for this frame
+;;; still need to worry about this unresolved business
+;;; could share some code with parent-frame-saved-vars
 (defun my-saved-vars (frame &optional (srv-out (%cons-saved-register-vector)))
   (let ((unresolved 0))
     (multiple-value-bind (lfun pc) (cfp-lfun frame)
@@ -277,7 +277,7 @@
                               (srv.unresolved srv-out)
                               (%ilogand (srv.unresolved srv-out) (%ilognot (%ilsl j 1))))))))))))))))
 
-; initialization for looping on parent-frame-saved-vars
+;;; initialization for looping on parent-frame-saved-vars
 (defun last-catch-since-saved-vars (frame context)
   (let* ((parent (parent-frame frame context))
          (last-catch (and parent (last-catch-since parent context))))
@@ -291,12 +291,12 @@
             (lookup-registers child context parent srv))
           (values child last-catch srv))))))
 
-; Returns 2 values:
-; mask srv
-; The mask says which registers are used at PC in LFUN.
-; srv is a saved-register-vector whose register contents are the register values
-; registers whose bits are not set in MASK or set in UNRESOLVED will
-; be returned as NIL.
+;;; Returns 2 values:
+;;; mask srv
+;;; The mask says which registers are used at PC in LFUN.
+;;; srv is a saved-register-vector whose register contents are the register values
+;;; registers whose bits are not set in MASK or set in UNRESOLVED will
+;;; be returned as NIL.
 
 (defun saved-register-values 
        (lfun pc child last-catch srv &optional (srv-out (%cons-saved-register-vector)))
@@ -321,7 +321,7 @@
 ; Set the nth saved register to value.
 (defun set-saved-register (value n lfun pc child last-catch srv)
   (declare (ignore lfun pc child) (dynamic-extent saved-register-values))
-  (let ((j (- 4 n))
+  (let ((j (- target::node-size n))
         (unresolved (srv.unresolved srv))
         (addr (srv.register-n srv n)))
     (when (logbitp j unresolved)
@@ -334,14 +334,14 @@
 (defun get-register-value (address last-catch index)
   (if address
     (%fixnum-ref address)
-    (uvref last-catch (+ index ppc32::catch-frame.save-save7-cell))))
+    (uvref last-catch (+ index target::catch-frame.save-save7-cell))))
 
 ; Inverse of get-register-value
 
 (defun set-register-value (value address last-catch index)
   (if address
     (%fixnum-set address value)
-    (setf (uvref last-catch (+ index ppc32::catch-frame.save-save7-cell)) value)))
+    (setf (uvref last-catch (+ index target::catch-frame.save-save7-cell)) value)))
 
 (defun return-from-nth-frame (n &rest values)
   (apply-in-nth-frame n #'values values))
@@ -392,7 +392,7 @@
          (parent (parent-frame frame tcr))
          (vsp (frame-vsp parent))
          (catch-top (%catch-top tcr))
-         (db-link (%svref catch ppc32::catch-frame.db-link-cell))
+         (db-link (%svref catch target::catch-frame.db-link-cell))
          (catch-count 0))
     (declare (fixnum parent vsp db-link catch-count))
     ; Figure out how many catch frames to throw through
@@ -625,7 +625,7 @@
                      (unless (and (equalp prev-name "li")
                                   (equalp (car prev-operands) "imm0"))
                        (error "Can't determine throw count for ~s" instr))
-                     (values :throw nil (+ pc 4) (ash (cadr prev-operands) (- ppc32::fixnum-shift)))))
+                     (values :throw nil (+ pc 4) (ash (cadr prev-operands) (- target::fixnum-shift)))))
                   ((.SPprogvsave
                     .SPstack-rest-arg .SPreq-stack-rest-arg .SPstack-cons-rest-arg
                     .SPmakestackblock .SPmakestackblock0 .SPmakestacklist .SPstkgvector
