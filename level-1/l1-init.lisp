@@ -128,16 +128,16 @@
 (defconstant char-code-limit #x100
   "the upper exclusive bound on values produced by CHAR-CODE")
 
-(defconstant array-rank-limit #x2000
+(defconstant array-rank-limit (floor #x8000 target::node-size)
   "the exclusive upper bound on the rank of an array")
 (defconstant multiple-values-limit 200
   "The exclusive upper bound on the number of multiple VALUES that you can
   return.")
-(defconstant lambda-parameters-limit #x2000
+(defconstant lambda-parameters-limit (floor #x8000 target::node-size)
   "The exclusive upper bound on the number of parameters which may be specifed
   in a given lambda list. This is actually the limit on required and &OPTIONAL
   parameters. With &KEY and &AUX you can get more.")
-(defconstant call-arguments-limit #x2000
+(defconstant call-arguments-limit (floor #x8000 target::node-size)
   "The exclusive upper bound on the number of arguments which may be passed
   to a function, including &REST args."
 )
