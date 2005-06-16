@@ -1,4 +1,3 @@
-
 ;;;-*-Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
@@ -38,7 +37,10 @@
 
 (require "FASLENV" "ccl:xdump;faslenv")
 
+#+ppc32-target
 (require "PPC32-ARCH")
+#+ppc64-target
+(require "PPC64-ARCH")
 ) ;eval-when (:compile-toplevel :execute)
 
 ;File compiler options.  Not all of these need to be exported/documented, but
@@ -947,32 +949,43 @@ Will differ from *compiling-file* during an INCLUDE")
 
 
 (defun fasl-scan-dispatch (exp)
-  (let ((type-code (typecode exp)))
-    (declare (fixnum type-code))
-    (case type-code
-      (#.ppc32::tag-fixnum
-       (fasl-scan-fixnum exp))
-      (#.ppc32::tag-list (fasl-scan-list exp))
-      (#.ppc32::tag-imm)
-      (t
-       (if (= (the fixnum (logand type-code ppc32::full-tag-mask)) ppc32::fulltag-immheader)            
+  (when exp
+    (let ((type-code (typecode exp)))
+      (declare (fixnum type-code))
+      (case type-code
+        (#.target::tag-fixnum
+         (fasl-scan-fixnum exp))
+        (#.target::fulltag-cons (fasl-scan-list exp))
+        #+ppc32-target
+        (#.ppc32::tag-imm)
+        #+ppc64-target
+        ((#.ppc64::fulltag-imm-0
+          #.ppc64::fulltag-imm-1
+          #.ppc64::fulltag-imm-2
+          #.ppc64::fulltag-imm-3))
+        (t
+         (if
+           #+ppc32-target
+           (= (the fixnum (logand type-code ppc32::full-tag-mask)) ppc32::fulltag-immheader)
+           #+ppc64-target
+           (= (the fixnum (logand type-code ppc64::lowtagmask)) ppc64::lowtag-immheader)
            (case type-code
-             ((#.ppc32::subtag-macptr #.ppc32::subtag-dead-macptr) (fasl-unknown exp))
+             ((#.target::subtag-macptr #.target::subtag-dead-macptr) (fasl-unknown exp))
              (t (fasl-scan-ref exp)))
            (case type-code
-             ((#.ppc32::subtag-pool #.ppc32::subtag-weak #.ppc32::subtag-lock) (fasl-unknown exp))
-             (#.ppc32::subtag-symbol (fasl-scan-ppc-symbol exp))
-             ((#.ppc32::subtag-instance #.ppc32::subtag-struct)
+             ((#.target::subtag-pool #.target::subtag-weak #.target::subtag-lock) (fasl-unknown exp))
+             (#.target::subtag-symbol (fasl-scan-ppc-symbol exp))
+             ((#.target::subtag-instance #.target::subtag-struct)
               (fasl-scan-user-form exp))
-             (#.ppc32::subtag-package (fasl-scan-ref exp))
-             (#.ppc32::subtag-istruct
+             (#.target::subtag-package (fasl-scan-ref exp))
+             (#.target::subtag-istruct
               (if (memq (uvref exp 0) *istruct-make-load-form-types*)
                 (progn
                   (if (hash-table-p exp)
                     (fasl-lock-hash-table exp))
                   (fasl-scan-user-form exp))
                 (fasl-scan-gvector exp)))
-             (t (fasl-scan-gvector exp))))))))
+             (t (fasl-scan-gvector exp)))))))))
               
 
 (defun fasl-scan-ref (form)
@@ -1002,7 +1015,7 @@ Will differ from *compiling-file* during an INCLUDE")
        (eq (%car form) 'funcall)
        (listp (%cdr form))
        (or (functionp (%cadr form))
-           (eql (typecode (%cadr form)) ppc32::subtag-xfunction))
+           (eql (typecode (%cadr form)) target::subtag-xfunction))
        (null (%cddr form))))
 
 (defun fasl-scan-list (list)
@@ -1174,7 +1187,9 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fasl-dump-dispatch (exp)
   (etypecase exp
-    (fixnum (fasl-dump-fixnum exp))
+    ((signed-byte 16) (fasl-dump-s16 exp))
+    ((signed-byte 32) (fasl-dump-s32 exp))
+    ((signed-byte 64) (fasl-dump-s64 exp))
     (bignum (fasl-dump-32-bit-ivector exp $fasl-bignum32))
     (character (fasl-dump-char exp))
     (list (fasl-dump-list exp))
@@ -1204,10 +1219,10 @@ Will differ from *compiling-file* during an INCLUDE")
      (fasl-dump-double-float-vector exp))
     #+(and ppc64-target (not cross-compiling))
     ((simple-array (unsigned-byte 64) (*))
-     (fasl-dump-64-bit-ivector v $fasl-u64-vector))
+     (fasl-dump-64-bit-ivector exp $fasl-u64-vector))
     #+(and ppc64-target (not cross-compiling))
     ((simple-array (signed-byte 64) (*))
-     (fasl-dump-64-bit-ivector v $fasl-s64-vector))
+     (fasl-dump-64-bit-ivector exp $fasl-s64-vector))
     (symbol (fasl-dump-symbol exp))
     (package (fasl-dump-package exp))
     (function (fasl-dump-function exp))
@@ -1344,18 +1359,27 @@ Will differ from *compiling-file* during an INCLUDE")
     (fasl-out-opcode $fasl-char char)
     (fasl-out-byte code)))
 
-(defun fasl-dump-fixnum (fixnum)
-  (if (short-fixnum-p fixnum)
-    (progn
-      (fasl-out-opcode $fasl-word-fixnum fixnum)
-      (fasl-out-word fixnum))
-    (progn
-      (fasl-out-opcode $fasl-fixnum fixnum)
-      (fasl-out-long fixnum))))
+(defun fasl-dump-s16 (s16)
+  (fasl-out-opcode $fasl-word-fixnum s16)
+  (fasl-out-word s16))
+
+(defun fasl-dump-s32 (s32)
+  (fasl-out-opcode $fasl-s32 s32)
+  (fasl-out-word (ldb (byte 16 16) s32))
+  (fasl-out-word (ldb (byte 16 0) s32)))
+
+(defun fasl-dump-s64 (s64)
+  (fasl-out-opcode $fasl-s64 s64)
+  (fasl-out-word (ldb (byte 16 48) s64))
+  (fasl-out-word (ldb (byte 16 32) s64))
+  (fasl-out-word (ldb (byte 16 16) s64))
+  (fasl-out-word (ldb (byte 16 0) s64)))
  
 (defun fasl-dump-dfloat (float)
   (fasl-out-opcode $fasl-dfloat float)
-  (fasl-out-ivect float 4 8))
+  (multiple-value-bind (high low) (double-float-bits float)
+    (fasl-out-long high)
+    (fasl-out-long low)))
 
 (defun fasl-dump-sfloat (float)
   (fasl-out-opcode $fasl-sfloat float)
@@ -1444,7 +1468,7 @@ Will differ from *compiling-file* during an INCLUDE")
   (fasl-out-word (logand long #xFFFF)))
 
 (defun fasl-out-word (word)
-  (fasl-out-byte (%ilsr 8 word))
+  (fasl-out-byte (ash word -8))
   (fasl-out-byte word))
 
 (defun fasl-out-byte (byte)
