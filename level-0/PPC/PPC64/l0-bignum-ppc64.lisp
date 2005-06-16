@@ -19,6 +19,8 @@
   (require "ARCH")
   (require "NUMBER-MACROS")
   (require "NUMBER-CASE-MACRO")
+
+  (defsetf bignum-ref bignum-set)
   
   (defconstant digit-size 32)
   (defconstant half-digit-size (/ digit-size 2))
@@ -38,6 +40,8 @@
     `(logand #xffffffff (lognot (the fixnum ,x))))
   (defmacro %logior (x y)
     `(logior (the fixnum ,x) (the fixnum ,y)))
+  (defmacro %logxor (x y)
+    `(logand #xffffffff (logxor (the fixnum ,x) (the fixnum ,y))))
   
   ;;; BIGNUM-REPLACE -- Internal.
   ;;;
@@ -135,7 +139,7 @@
 ;;; We can probably do better than UVREF here, but
 ;;; a) it's not -that- bad
 ;;; b) it does some bounds/sanity checking, which isn't a bad idea.
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :execute)
   (declaim (inline bignum-ref bignum-set)))
 
 (defun bignum-ref (b i)
@@ -145,7 +149,7 @@
   (setf (uvref b i) (logand val all-ones-digit)))
 
 (eval-when (:compile-toplevel :execute)
-  (defsetf bignum-ref bignum-set))
+)
 
 (defun bignum-plusp (b)
   (not (logbitp 31 (the fixnum (bignum-ref b (1- (%bignum-length b)))))))
@@ -1720,7 +1724,7 @@
                (bignum-ref bignum (the fixnum (- len 2))))
          (sign (bignum-ref bignum (the fixnum (- len 1)))
                next))
-        ((not (zerop (the fixnum (logxor sign (%ashr next 31))))))
+        ((not (zerop (the fixnum (%logxor sign (%ashr next 31))))))
       (decf len)
       (setf (bignum-ref bignum len) 0)
       ;; Return, unless we've already done so (having found significant
@@ -1954,8 +1958,10 @@
                    (the fixnum (logand (the fixnum (ash low-word (- low-bit)))
                                        low-mask)))))))))
 
+
 (defun bignum-negate-loop-really (big len res)
-  (let* ((carry 0))
+  (declare (fixnum len))
+  (let* ((carry 1))
     (dotimes (i len carry)
       (multiple-value-bind (result-digit carry-out)
           (%add-with-carry (%lognot (bignum-ref big i)) 0 carry)
