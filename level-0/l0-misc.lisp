@@ -92,9 +92,9 @@
   (with-macptrs (p)
     (%setf-macptr-to-object p (%get-kernel-global 'ppc::all-areas))
     (- #+ppc32-target
-       (%get-unsigned-long p target::area.active)
+       (%get-unsigned-long p target::area.high)
        #+ppc64-target
-       (%%get-unsigned-longlong p target::area.active)
+       (%%get-unsigned-longlong p target::area.high)
        #+ppc32-target
        (%get-unsigned-long p target::area.low)
        #+ppc64-target
