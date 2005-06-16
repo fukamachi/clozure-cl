@@ -296,11 +296,12 @@
 (defmethod print-object ((rs random-state) stream)
   ;;Besides #.grossness, this is buggy because cl:random-state
   ;;is not allowed to have a function definition...
-  (let ((shift (%i- 16 ppc32::fixnum-shift)))
+  (let ((shift (%i- 16 target::fixnum-shift)))
     (format stream "#.(~S ~S ~S)"   ;>> #.GAG!!!
             'random-state
             (%ilsr shift (%svref rs 1))
-            (%ilsr shift (%svref rs 2)))))
+            (%ilsr shift (%svref rs 2))))
+  )
 
 (defun float-radix (float)
   "Return (as an integer) the radix b of its floating-point argument."
