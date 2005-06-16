@@ -2724,10 +2724,15 @@ _spentry(integer_sign)
 	__(beqlr+ cr1)
 	__(bne- cr0,1f)
 	__(getvheader(imm0,arg_z))
-	__(header_length(imm0,imm0)) /* boxed length = scaled size */
-	__(addi imm0,imm0,misc_data_offset-4) /* bias, less 1 element */
+        __ifdef([PPC64])
+         __(header_size(imm0,imm0))
+         __(sldi imm0,imm0,2)
+        __else
+         __(header_length(imm0,imm0)) /* boxed length = scaled size */
+        __endif
+        __(addi imm0,imm0,misc_data_offset-4) /* bias, less 1 element */
 	__(lwzx imm0,arg_z,imm0)
-	__(cmpri(cr0,imm0,0))
+	__(cmpwi cr0,imm0,0)
 	__(li imm0,1)
 	__(bgelr cr0)
 	__(li imm0,-1)
@@ -3273,12 +3278,12 @@ _spentry(callback)
 	__(check_stack_alignment(r0))
 	__(mffs f0)
 	__(stfd f0,c_reg_save.save_fp_zero(sp))
-	__(ldr(r31,c_reg_save.save_fp_zero+4(sp)))	/* recover FPSCR image */
-	__(str(r31,c_reg_save.save_fpscr(sp)))
+	__(lwz r31,c_reg_save.save_fp_zero+4(sp))	/* recover FPSCR image */
+	__(stw r31,c_reg_save.save_fpscr(sp))
 	__(lwi(r30,0x43300000))
 	__(lwi(r31,0x80000000))
-	__(str(r30,c_reg_save.save_fp_zero(sp)))
-	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
+	__(stw r30,c_reg_save.save_fp_zero(sp))
+	__(stw r31,c_reg_save.save_fp_zero+4(sp))
 	__(stfd fp_s32conv,c_reg_save.save_fps32conv(sp))
 	__(lfd fp_s32conv,c_reg_save.save_fp_zero(sp))
 	__(stfd fp_zero,c_reg_save.save_fp_zero(sp))
@@ -3352,8 +3357,8 @@ _spentry(callback)
 	__(str(imm1,tcr.valence(rcontext)))
 	/* Restore the non-volatile registers & fpscr */
 	__(lfd fp_zero,c_reg_save.save_fp_zero(sp))
-	__(ldr(r31,c_reg_save.save_fpscr(sp)))
-	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
+	__(lwz r31,c_reg_save.save_fpscr(sp))
+	__(stw r31,c_reg_save.save_fp_zero+4(sp))
 	__(lfd f0,c_reg_save.save_fp_zero(sp))
 	__(mtfsf 0xff,f0)
 	__(ldr(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
