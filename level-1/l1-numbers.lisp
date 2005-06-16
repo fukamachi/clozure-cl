@@ -420,32 +420,36 @@
       (require-type integer 'integer)
       nil)))
 
-; random associated stuff except for the print-object method which is still in
-; "lib;numbers.lisp"
+;;; random associated stuff except for the print-object method which
+;;; is still in "lib;numbers.lisp"
 (defun initialize-random-state (seed-1 seed-2)
   (unless (and (fixnump seed-1) (%i<= 0 seed-1) (%i< seed-1 #x10000))
     (report-bad-arg seed-1 '(unsigned-byte 16)))
   (unless (and (fixnump seed-2) (%i<= 0 seed-2) (%i< seed-2 #x10000))
     (report-bad-arg seed-2 '(unsigned-byte 16)))
-  (let ((shift (%i- 16 ppc32::fixnum-shift)))
+  (let ((shift (%i- 16 target::fixnum-shift)))
     (gvector :istruct
              'random-state
              (%ilsl shift seed-1)
              (%ilsl shift seed-2))))
 
+
 (defparameter *random-state* (initialize-random-state #xFBF1 9))
 
-(defun make-random-state (&optional state &aux (seed-1 0) (seed-2 0))
+
+(defun make-random-state (&optional state)
   "Make a random state object. If STATE is not supplied, return a copy
   of the default random state. If STATE is a random state, then return a
   copy of it. If STATE is T then return a random state generated from
   the universal time."
-  (if (eq state t)
-    (multiple-value-setq (seed-1 seed-2) (init-random-state-seeds))
-    (progn
-      (setq state (require-type (or state *random-state*) 'random-state))
-      (setq seed-1 (random.seed-1 state) seed-2 (random.seed-2 state))))
-  (gvector :istruct 'random-state seed-1 seed-2))
+  (let* ((seed-1 0)
+         (seed-2 0))
+    (if (eq state t)
+      (multiple-value-setq (seed-1 seed-2) (init-random-state-seeds))
+      (progn
+        (setq state (require-type (or state *random-state*) 'random-state))
+        (setq seed-1 (random.seed-1 state) seed-2 (random.seed-2 state))))
+    (gvector :istruct 'random-state seed-1 seed-2)))
 
 (defun random-state-p (thing) (istruct-typep thing 'random-state))
 
@@ -704,7 +708,7 @@
     (%setf-double-float result TEMP)))
 
 
-#-darwinppc-target
+#+(and ppc32-target (not darwinppc-target))
 (defun %single-float-atan! (n result)
   (declare (single-float n result))
   (ppc32::with-stack-short-floats ((temp))
@@ -712,7 +716,7 @@
     (%sf-check-exception-1 'atan n (%ffi-exception-status))
     (%setf-short-float result TEMP)))
 
-#+darwinppc-target
+#+(and ppc32-target darwinppc-target)
 (defun %single-float-atan! (n result)
   (declare (single-float n result))
   (with-stack-double-floats ((n2 n)
@@ -720,6 +724,12 @@
     (%double-float-atan! n2 result2)
     (%double-float->short-float result2 result)))
 
+#+ppc64-target
+(defun %single-float-atan (n)
+  (declare (single-float n))
+  (let* ((temp (#_atanf n)))
+    (%sf-check-exception-1 'atan n (%ffi-exception-status))
+    temp))
 
 (defun %double-float-atan2! (x y result)
   (declare (double-float x y result))
@@ -930,7 +940,7 @@
     (%double-float->short-float result2 result)))
 
 #+ppc64-target
-(defun %single-float-atanh! (n)
+(defun %single-float-atanh (n)
   (declare (single-float n)) 
   (let* ((result (#_atanhf n)))
     (%sf-check-exception-1 'atanh n (%ffi-exception-status))
