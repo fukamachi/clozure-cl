@@ -135,3 +135,5 @@ handle SIGFPE pass nostop noprint
 handle SIGUSR1 pass nostop noprint
 handle SIGUSR2 pass nostop noprint
 handle SIGEMT pass nostop noprint
+# Work around apparent Apple GDB bug
+handle SIGTTIN nopass nostop noprint
