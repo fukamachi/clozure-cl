@@ -1918,12 +1918,11 @@
 
 (defun load-byte (size position integer)
   (if (and (bignump integer)
-           (<= size (- 31 ppc32::fixnumshift)) #|#.(integer-length most-positive-fixnum))|#
+           (<= size (- 31 ppc32::fixnumshift))
            (fixnump position))
     (%ldb-fixnum-from-bignum integer size position)
     (let ((mask (byte-mask size)))
-      (if (and (fixnump mask) (fixnump integer)(fixnump position)) ;(<= position (- 31 ppc32::fixnumshift)))
-        ; %iasr was busted when count > 31 - maybe just shouldn't use it
+      (if (and (fixnump mask) (fixnump integer)(fixnump position))
         (%ilogand mask (%iasr position integer))
         (logand mask (ash integer (- position)))))))    
 
@@ -2067,3 +2066,49 @@
       (if (typep n 'bignum)
         (copy-bignum n)
         n))))
+
+(defun one-bignum-factor-of-two (a)  
+  (declare (type bignum-type a))
+  (let ((len (%bignum-length a))) ß
+    (declare (fixnum len))
+    (dotimes (i len)
+      (multiple-value-bind (a-h a-l) (%bignum-ref a i)
+        (declare (fixnum a-h a-l))
+        (unless (and (= a-h 0)(= a-l 0))
+          (return (+ (%ilsl 5 i)
+                     (let* ((j 0)
+                            (a a-l))
+                       (declare (fixnum a j))
+                       (if (= a-l 0) (setq j 16 a a-h))
+                       (dotimes (i 16)            
+                         (if (oddp a)
+                           (return (%i+ j i))
+                           (setq a (%iasr 1 a))))))))))))
+
+(defun logbitp (index integer)
+  "Predicate returns T if bit index of integer is a 1."
+  (number-case index
+    (fixnum
+     (if (minusp (the fixnum index))(report-bad-arg index '(integer 0))))
+    (bignum
+     ;; assuming bignum cant have more than most-positive-fixnum bits
+     ;; (2 expt 24 longs)
+     (if (bignum-minusp index)(report-bad-arg index '(integer 0)))
+     ;; should error if integer isn't
+     (return-from logbitp (minusp (require-type integer 'integer)))))
+  (number-case integer
+    (fixnum
+     (if (%i<= index (- ppc32::nbits-in-word ppc32::fixnumshift))
+       (%ilogbitp index integer)
+       (minusp (the fixnum integer))))
+    (bignum
+     (let ((bidx (%iasr 5 index))
+           (bbit (%ilogand index 31)))
+       (declare (fixnum bidx bbit))
+       (if (>= bidx (%bignum-length integer))
+         (bignum-minusp integer)
+         (multiple-value-bind (hi lo) (%bignum-ref integer bidx)
+           (declare (fixnum hi lo))
+           (if (> bbit 15)
+             (%ilogbitp (%i- bbit 16) hi)
+             (%ilogbitp bbit lo))))))))
