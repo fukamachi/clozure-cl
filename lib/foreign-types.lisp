@@ -1593,7 +1593,7 @@
     (def-foreign-type nil
         (struct :cdb-datum
                 (data (* t))
-                (size :unsigned-long)))
+                (size (:unsigned 32))))
     (def-foreign-type nil
         (:struct dbm-constant
                  (:class (:unsigned 32))
