@@ -142,7 +142,7 @@
    (subi nargs nargs '2)                ; remove count for butlast & last
    (mflr loc-pc)
    (bla .SPspreadargz)
-   (cmpi cr0 nargs '3)
+   (cmpri cr0 nargs '3)
    (mtlr loc-pc)
    (addi nargs nargs '1)                ; count for last
    (blt cr0 @nopush)
@@ -151,35 +151,8 @@
    (mr arg_x arg_y)
    (mr arg_y arg_z)
    (mr arg_z temp0)
-   (lwz temp0 'funcall nfn)
+   (ldr temp0 'funcall nfn)
    (ba .SPfuncall)))
 
-#+sparc-target
-(defun apply+ (&lap function arg1 arg2 &rest other-args)
-  (sparc-lap-function apply+ ()
-   (check-nargs 3 nil)
-   (vpush %arg_x)
-   (mov %arg_z %temp0)                     ; last
-   (mov %arg_y %arg_z)                     ; butlast
-   (mov %ra0 %ra1)
-   (call-subprim .SPspreadargz)
-    (dec '2 %nargs)                ; remove count for butlast & last
-   (cmp %nargs '3)
-   (mov %ra1 %ra0)
-   (bl  @nopush)
-    (inc '1 %nargs)                ; count for last
-   (vpush %arg_x)
-@nopush
-   (mov %arg_y %arg_x)
-   (mov %arg_z %arg_y)
-   (mov %temp0 %arg_z)
-   (jump-subprim .SPfuncall)
-    (ld (%nfn 'funcall) %temp0)))
-
-
-; We really need syntax to allow lap functions to have &optional and &rest args
-(lfun-bits #'apply+ 
-           #.(lfun-bits #'(lambda (function arg1 arg2 &rest other-args)
-                            (declare (ignore function arg1 arg2 other-args)))))
 
 ; End of setf-runtime.lisp
