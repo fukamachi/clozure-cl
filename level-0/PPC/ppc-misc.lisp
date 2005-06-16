@@ -329,7 +329,7 @@
 
 #+ppc64-target
 (defppclapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
+  (trap-unless-typecode= ptr ppc64::subtag-macptr)
   (macptr-ptr imm1 ptr)
   (unbox-fixnum imm2 offset)
   (ldx imm0 imm2 imm1)
@@ -347,7 +347,7 @@
 
 #+ppc64-target
 (defppclapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
+  (trap-unless-typecode= ptr ppc64::subtag-macptr)
   (macptr-ptr imm1 ptr)
   (unbox-fixnum imm2 offset)
   (ldx imm0 imm2 imm1)
@@ -372,7 +372,7 @@
                                             (offset arg_y)
                                             (val arg_z))
   (save-lisp-context)
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
+  (trap-unless-typecode= ptr ppc64::subtag-macptr)
   (bla .SPgetu64)
   (macptr-ptr imm2 ptr)
   (unbox-fixnum imm3 offset)
@@ -384,7 +384,7 @@
 					    (offset arg_y)
 					    (val arg_z))
   (save-lisp-context)
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
+  (trap-unless-typecode= ptr ppc64::subtag-macptr)
   (bla .SPgets64)
   (macptr-ptr imm2 ptr)
   (unbox-fixnum imm3 offset)
@@ -779,25 +779,26 @@
       (extract-lisptag imm0 temp1)
       (cmpi cr0 imm0 target::tag-fixnum)
       (if (:cr0 :ne)
-        ; must be a macptr encoding the actual link register
+        ;; must be a macptr encoding the actual link register
         (macptr-ptr loc-pc temp1)
-        ; Fixnum is offset from start of function vector
+        ;; Fixnum is offset from start of function vector
         (progn
           (svref temp2 0 fn)        ; function vector
           (unbox-fixnum temp1 temp1)
           (add loc-pc temp2 temp1)))
       (stw loc-pc target::lisp-frame.savelr sp))
-    ; Parent is a real stack frame
+    ;; Parent is a real stack frame
     (mr sp parent))
   (set-nargs 0)
   (bla .SPspreadargz)
   (ba .SPtfuncallgen))
 
-;; Easiest to do this in lap, to avoid consing bignums and/or 
-;; multiple-value hair.
-;; Bang through code-vector until the end or a 0 (traceback table
-;; header) is found.  Return high-half, low-half of last instruction
-;; and index where found.
+#+ppc32-target
+;;; Easiest to do this in lap, to avoid consing bignums and/or 
+;;; multiple-value hair.
+;;; Bang through code-vector until the end or a 0 (traceback table
+;;; header) is found.  Return high-half, low-half of last instruction
+;;; and index where found.
 (defppclapfunction %code-vector-last-instruction ((cv arg_z))
   (let ((previ imm0)
         (nexti imm1)
@@ -831,6 +832,21 @@
     (set-nargs 3)
     (la temp0 '3 vsp)
     (ba .SPvalues)))
+
+#+ppc64-target
+(defun %code-vector-last-instruction (cv)
+  (do* ((i 1 (1+ i))
+        (instr nil)
+        (n (uvsize cv)))
+       ((= i n) instr)
+    (declare (fixnum i n))
+    (let* ((next (uvref cv i)))
+      (declare (type (unsigned-byte 32) next))
+      (if (zerop next)
+        (return instr)
+        (setq instr next)))))
+
+        
 
   
 (defppclapfunction %%save-application ((flags arg_y) (fd arg_z))
