@@ -1,3 +1,37 @@
+2005-06-16 05:44  gb
+
+	* level-0/l0-float.lisp: %truncate-double-float for PPC64.
+
+2005-06-16 05:43  gb
+
+	* level-0/l0-numbers.lisp: INIT-RANDOM-STATE-SEEDS on both
+	platforms.
+
+2005-06-16 05:41  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: Use old (safe-but-slow)
+	bignum GCD routine on PPC64, for now.  Define
+	ONE-BIGNUM-FACTOR-OF-TWO.
+
+2005-06-16 05:39  gb
+
+	* level-1/version.lisp: 050616.
+
+2005-06-16 05:38  gb
+
+	* lisp-kernel/darwin/Makefile: Don't try to determine GCC version
+	from "reading specs from ..." verbose output if specs aren't read
+	from a file (assume modern GCC in that case.)
+
+2005-06-16 05:36  gb
+
+	* lisp-kernel/pmcl-kernel.c: Enable EGC on PPC64.
+
+2005-06-16 05:36  gb
+
+	* lisp-kernel/gc.c: Zero enough bits (shift by "bitmap_shift", not
+	"5") when tenuring to an area other than the oldest.
+
 2005-06-15 23:41  gb
 
 	* lib/nfcomp.lisp, xdump/faslenv.lisp: Bump fasl version.
