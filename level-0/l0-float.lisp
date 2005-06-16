@@ -112,11 +112,24 @@
                     (and (eq 2047 exp)
                          (eq #x1000000 hi)
                          (eq 0 lo))))
-    (short-float (multiple-value-bind (high low)(%sfloat-hwords n)
+    (short-float
+     #+ppc32-target
+     (multiple-value-bind (high low)(%sfloat-hwords n)
                   (let*  ((mantissa (%ilogior2 low (%ilsl 16 (%ilogand2 high #x007F))))
                           (exp (%ilsr 7 (%ilogand2 high #x7F80))))
                     (and (eq exp 255)
-                         (eq 0 mantissa)))))))
+                         (eq 0 mantissa))))
+     #+ppc64-target
+     (let* ((bits (single-float-bits n))
+            (exp (ldb (byte IEEE-single-float-exponent-width
+                            IEEE-single-float-exponent-offset)
+                      bits))
+            (mantissa (ldb (byte IEEE-single-float-mantissa-width
+                            IEEE-single-float-mantissa-offset)
+                           bits)))
+       (declare (fixnum bits exp mantissa))
+       (and (= exp 255)
+            (zerop mantissa))))))
 
 #+ppc32-target
 (defun fixnum-decode-short-float (float)
@@ -182,8 +195,8 @@
              (error "Can't decode NaN or Inf : ~s" n))
             ((and (zerop raw-exp) (zerop raw-mantissa))
              (values 0 biased-exp sign))
-            ((< raw-exp IEEE-double-float-normal-exponent-min)
-             (integer-decode-denormalized-double-float n))
+            #|((< raw-exp IEEE-double-float-normal-exponent-min)
+             (integer-decode-denormalized-double-float n))|#
             (t
       (values (logior raw-mantissa (ash 1 IEEE-double-float-hidden-bit))
               biased-exp
@@ -793,7 +806,7 @@
          (%single-float-log! sx (%make-sfloat))))
      #+ppc64-target
      (if (minusp x)
-       (complex (%single-float-log (%short-float-abs x) #.(coerce pi 'single-float)))
+       (complex (%single-float-log (%short-float-abs x)) #.(coerce pi 'single-float))
        (%single-float-log (%short-float x)))
      )))
 
