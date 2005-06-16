@@ -399,7 +399,7 @@ tenure_to_area(area *target)
     lisp_global(OLDEST_EPHEMERAL) = ptr_to_lispobj(curfree);
   } else {
     /* Need more (zeroed) refbits & fewer markbits */
-    zero_bits(markbits, ((new_markbits-markbits)<<5));
+    zero_bits(markbits, ((new_markbits-markbits)<<bitmap_shift));
   }
    
   a->markbits = new_markbits;
