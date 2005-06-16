@@ -90,6 +90,9 @@
    :compiler-target-name
    #+linuxppc-target :linuxppc32
    #+darwinppc-target :darwinppc32
+   :image-base-address
+   #+darwinppc-target #x02000000
+   #+linuxppc-target #x31000000
 ))
 
 (add-xload-backend *ppc32-xload-backend*)
@@ -110,7 +113,8 @@
    :compiler-target-name
    #+linuxppc-target :linuxppc64
    #+darwinppc-target :darwinppc64
-))
+   :image-base-address #x100000000))
+
 (add-xload-backend *ppc64-xload-backend*)
 
 #+ppc32-target
