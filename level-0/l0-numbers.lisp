@@ -416,23 +416,7 @@
     (setq lo (+ (%ilogxor lo #xfffffff) 1)))
   (values hi lo))
 
-(defun one-bignum-factor-of-two (a)  
-  (declare (type bignum-type a))
-  (let ((len (%bignum-length a)))
-    (declare (fixnum len))
-    (dotimes (i len)
-      (multiple-value-bind (a-h a-l) (%bignum-ref a i)
-        (declare (fixnum a-h a-l))
-        (unless (and (= a-h 0)(= a-l 0))
-          (return (+ (%ilsl 5 i)
-                     (let* ((j 0)
-                            (a a-l))
-                       (declare (fixnum a j))
-                       (if (= a-l 0) (setq j 16 a a-h))
-                       (dotimes (i 16)            
-                         (if (oddp a)
-                           (return (%i+ j i))
-                           (setq a (%iasr 1 a))))))))))))
+
 
 ;; gary's more better idea
 (defun fixnum-dfloat-compare (int dfloat)
@@ -1588,32 +1572,7 @@
               (fixnum (logtest-fix-big integer2 integer1))
               (bignum (bignum-logtest integer1 integer2)))))) 
 
-(defun logbitp (index integer)
-  "Predicate returns T if bit index of integer is a 1."
-  (number-case index
-    (fixnum
-     (if (minusp (the fixnum index))(report-bad-arg index '(integer 0))))
-    (bignum
-     ; assuming bignum cant have more than most-positive-fixnum bits (2 expt 24 longs)
-     (if (bignum-minusp index)(report-bad-arg index '(integer 0)))
-     ; should error if integer isn't
-     (return-from logbitp (minusp (require-type integer 'integer)))))
-  (number-case integer
-    (fixnum
-     (if (%i<= index 28)   ; could also be 29 but then change nx1-logbitp and %ilogbitp
-       (%ilogbitp index integer)
-       (minusp (the fixnum integer))))
-    (bignum
-     (let ((bidx (%iasr 5 index))
-           (bbit (%ilogand index 31)))
-       (declare (fixnum bidx bbit))
-       (if (>= bidx (%bignum-length integer))
-         (bignum-minusp integer)
-         (multiple-value-bind (hi lo) (%bignum-ref integer bidx)
-           (declare (fixnum hi lo))
-           (if (> bbit 15)
-             (%ilogbitp (%i- bbit 16) hi)
-             (%ilogbitp bbit lo))))))))
+
 
 (defun lognot (number)
   "Return the bit-wise logical not of integer."
@@ -1698,7 +1657,7 @@
   (declare (ignore type))
   'real)
 
-
+#+ppc32-target
 (defun init-random-state-seeds ()
   (let* ((ticks (ldb (byte 32 0) (get-internal-real-time)))
 	 (high (ldb (byte 16 16) ticks)) 
@@ -1706,7 +1665,6 @@
     (declare (fixnum high low))
     (values (the fixnum (ash high (- 16 target::fixnum-shift)))
             (the fixnum (ash low (- 16 target::fixnum-shift))))))
-
 
 
 (defun random (number &optional (state *random-state*))
