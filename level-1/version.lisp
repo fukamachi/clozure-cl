@@ -17,9 +17,12 @@
 (defparameter *openmcl-major-version* 0)
 (defparameter *openmcl-minor-version* 14)
 (defparameter *openmcl-revision* 3)
-(defparameter *openmcl-suffix* "050610a")
+(defparameter *openmcl-suffix* "050615")
+(defparameter *openmcl-dev-level*
+  #+ppc64-target "Alpha" #-ppc64-target "Beta")
 
-(defparameter *openmcl-version* (format nil "(Beta: ~~A) ~d.~d~@[.~d~]~@[-~a~]"
+(defparameter *openmcl-version* (format nil "(~A: ~~A) ~d.~d~@[.~d~]~@[-~a~]"
+                                        *openmcl-dev-level*
 					*openmcl-major-version*
 					*openmcl-minor-version*
 					(unless (zerop *openmcl-revision*)
