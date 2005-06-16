@@ -458,13 +458,13 @@ debug_show_registers(ExceptionInformationPowerPC *xp, int arg)
 	    b, xpGPR(xp, b));
   }
   
-  fprintf(stderr, "\n PC = 0x%016X     LR = 0x%016X\n",
+  fprintf(stderr, "\n PC = 0x%016lX     LR = 0x%016lX\n",
           xpPC(xp), xpLR(xp));
-  fprintf(stderr, "CTR = 0x%016X    CCR = 0x%08X\n",
+  fprintf(stderr, "CTR = 0x%016lX    CCR = 0x%08X\n",
           xpCTR(xp), xpCCR(xp));
-  fprintf(stderr, "XER = 0x%08X            MSR = 0x%016X\n",
+  fprintf(stderr, "XER = 0x%08X            MSR = 0x%016lX\n",
           xpXER(xp), xpMSR(xp));
-  fprintf(stderr,"DAR = 0x%016X  DSISR = 0x%08X\n",
+  fprintf(stderr,"DAR = 0x%016lX  DSISR = 0x%08X\n",
 	  xpDAR(xp), xpDSISR(xp));
 #else
   for (a = 0, b = 8, c = 16, d = 24; a < 8; a++, b++, c++, d++) {
