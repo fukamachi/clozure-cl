@@ -1,3 +1,12 @@
+2005-06-15 23:41  gb
+
+	* lib/nfcomp.lisp, xdump/faslenv.lisp: Bump fasl version.
+
+2005-06-15 23:41  gb
+
+	* level-0/PPC/PPC32/l0-bignum-ppc32.lisp: Remove embedded control
+	char.
+
 2005-06-15 23:16  gb
 
 	* level-1/version.lisp: Bump; claim "Alpha" status for PPC64.
