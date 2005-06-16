@@ -65,19 +65,15 @@
 					    ())
   (addi dest idx ppc64::misc-data-offset))
 
-(define-ppc64-vinsn scale-1bit-misc-index (((word-index :u32)
+(define-ppc64-vinsn scale-1bit-misc-index (((word-index :s64)
 					    (bitnum :u8)) ; (unsigned-byte 5)
 					   ((idx :imm) ; A fixnum
 					    )
 					   )
-					; Logically, we want to:
-					; 1) Unbox the index by shifting it right 2 bits.
-					; 2) Shift (1) right 5 bits
-					; 3) Scale (2) by shifting it left 2 bits.
-					; We get to do all of this with one instruction
-  (rlwinm word-index idx (- ppc64::nbits-in-word 5) 5 (- ppc64::least-significant-bit ppc64::fixnum-shift))
+  (srdi word-index idx  (+ 5 ppc64::fixnum-shift))
+  (sldi word-index word-index 2)
   (addi word-index word-index ppc64::misc-data-offset) ; Hmmm. Also one instruction, but less impressive somehow.
-  (extrwi bitnum idx 5 (- ppc64::nbits-in-word (+ ppc64::fixnum-shift 5))))
+  (extrwi bitnum idx 5 (- 32 (+ ppc64::fixnum-shift 5))))
 
 
 
@@ -1581,7 +1577,7 @@
 						     ((temp :u64)))
   (srdi temp bit ppc64::fixnumshift)
   (subfic temp temp (- 64 ppc64::fixnumshift))
-  (rldicl dest src temp 63))
+  (rldcl dest src temp 63))
                                                
 ;;; Operations on lists and cons cells
 
@@ -2403,9 +2399,10 @@
 
 (define-ppc64-vinsn %ilsr-c (((dest :imm))
 			     ((count :u8const)
-			      (src :imm)))
-
-  (rldicr dest src (:apply - ppc64::nbits-in-word count)  (- ppc64::nbits-in-word ppc64::fixnumshift)))
+			      (src :imm))
+                             ((temp :s64)))
+  (rldicl temp src (:apply - 64 count) count)
+  (rldicr dest temp 0 (- 63 ppc64::fixnumshift)))
 
 
 
