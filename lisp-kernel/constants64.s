@@ -513,7 +513,7 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 	 _node(tsp_link)	/* backpointer */
 	 _node(tsp_mark)	/* frame type */
 	 _node(save_fpscr)	/* for Cs FPSCR */
-	 _field(save_gprs,19*4) /* r13-r31 */
+	 _field(save_gprs,19*node_size) /* r13-r31 */
 	 _dword(save_fp_zero)	/* for fp_zero */
 	 _dword(save_fps32conv)
 	_ends
