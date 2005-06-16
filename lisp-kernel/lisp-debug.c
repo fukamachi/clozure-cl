@@ -160,7 +160,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
   Boolean identified = false;
 
   if ((the_trap & OP_MASK) == OP(major_opcode_TRI)) {
-    /* TWI.  If the RA field is "nargs", that means that the
+    /* TWI/TDI.  If the RA field is "nargs", that means that the
        instruction is either a number-of-args check or an
        event-poll.  Otherwise, the trap is some sort of
        typecheck. */
@@ -368,6 +368,26 @@ debug_identify_exception(ExceptionInformationPowerPC *xp, int arg)
   return debug_continue;
 }
 
+char *
+debug_get_string_value(char *prompt)
+{
+  static char buf[128];
+  char *p;
+
+  do {
+    fpurge(stdin);
+    fprintf(stderr, "\n %s :",prompt);
+    buf[0] = 0;
+    fgets(buf, sizeof(buf)-1, stdin);
+  } while (0);
+  p = strchr(buf, '\n');
+  if (p) {
+    *p = 0;
+    return buf;
+  }
+  return NULL;
+}
+
 unsigned
 debug_get_u32_value(char *prompt)
 {
@@ -399,6 +419,19 @@ debug_get_u5_value(char *prompt)
   } while ((n != 1) || (val > 31));
   return val;
 }
+
+debug_command_return
+debug_show_symbol(ExceptionInformationPowerPC *xp, int arg)
+{
+  char *pname = debug_get_string_value("symbol name");
+  
+  if (pname != NULL) {
+    plsym(sp, pname);
+  }
+  return debug_continue;
+}
+
+      
 
 debug_command_return
 debug_set_gpr(ExceptionInformationPowerPC *xp, int arg)
@@ -525,7 +558,7 @@ debug_command_entry debug_command_entries[] =
    "Set specified GPR to new value",
    DEBUG_COMMAND_FLAG_AUX_REGNO,
    "GPR to set (0-31) ?",
-   'S'},
+   'G'},
   {debug_advance_pc,
    "Advance the program counter by one instruction (use with caution!)",
    DEBUG_COMMAND_FLAG_REQUIRE_XP | DEBUG_COMMAND_FLAG_EXCEPTION_ENTRY_ONLY,
@@ -552,6 +585,11 @@ debug_command_entry debug_command_entries[] =
    DEBUG_COMMAND_FLAG_REQUIRE_XP,
    NULL,
    'F'},
+  {debug_show_symbol,
+   "Find and describe symbol matching specified name",
+   0,
+   NULL,
+   'S'},
   {debug_backtrace,
    "Show backtrace",
    0,
