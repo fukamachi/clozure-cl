@@ -1,3 +1,34 @@
+2005-06-16 17:13  gb
+
+	* lisp-kernel/spentry.s: Fix ppc64 bignum case of integer-sign.
+	
+	Some stores and loads (FP constants, fpscr, etc.) need to be
+	32-bit, not ldr/str.
+
+2005-06-16 17:11  gb
+
+	* lisp-kernel/lisp-exceptions.c: Just say "%lx", not %08lx".
+
+2005-06-16 17:11  gb
+
+	* lisp-kernel/lisp-debug.c: Forgot to say "%lx" in some printf
+	calls.
+
+2005-06-16 17:10  gb
+
+	* lisp-kernel/constants64.s: c_reg_save has room for N nodes, not N
+	4-byte things.
+
+2005-06-16 17:08  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: Define and use %LOGXOR,
+	and set carry on entry to negation loop.
+
+2005-06-16 17:07  gb
+
+	* level-1/l1-init.lisp: ARRAY-RANK-LIMIT, CALL-ARGUMENTS-LIMIT,
+	LAMBDA-PARAMETERS-LIMIT are functions of target::node-size.
+
 2005-06-16 05:44  gb
 
 	* level-0/l0-float.lisp: %truncate-double-float for PPC64.
