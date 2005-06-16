@@ -144,7 +144,7 @@
           ((= typecode ppc64::subtag-bignum) t)
           ((= typecode ppc64::subtag-double-float) t)
           ((= typecode ppc64::subtag-ratio) t)
-          ((= typecode ppc64::subtag-complex t)))))
+          ((= typecode ppc64::subtag-complex) t))))
 
 (defun arrayp (x)
   "Return true if OBJECT is an ARRAY, and NIL otherwise."
