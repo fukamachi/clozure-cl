@@ -29,11 +29,11 @@ gccdir = $(shell $(CC) -v 2>&1 | grep "specs from" | sed -e 's/.*from //' -e 's|
 # trailing slash.  The make intrinsic 'notdir' will strip a leading directory
 # prefix from that pathname, leaving us with a string that should match
 # the gcc version number
-gccversion:=$(notdir $(gccdir))
-oldgcc:=$(shell expr $(gccversion) "<" "3.3")
-ifeq ($(oldgcc),1)
-BROKEN_PREPROCESSOR_WORKAROUND = -traditional-cpp
-endif
+#gccversion:=$(notdir $(gccdir))
+#oldgcc:=$(shell expr $(gccversion) "<" "3.3")
+#ifeq ($(oldgcc),1)
+#BROKEN_PREPROCESSOR_WORKAROUND = -traditional-cpp
+#endif
 
 MDYNAMIC_NO_PIC = $(shell ($(CC) --help -v 2>&1 | grep -q -e "-mdynamic-no-pic") && /bin/echo "-mdynamic-no-pic")
 
