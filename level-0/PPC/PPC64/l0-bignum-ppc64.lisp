@@ -1767,7 +1767,7 @@
         (logand mask (ash integer (- position)))))))
 
 
-#+safe-but-slow
+#+(or safe-but-slow ppc64-target)
 (defun %bignum-bignum-gcd (u v)
   (setq u (abs u) v (abs v))
   (do* ((g 1 (ash g 1)))
@@ -1782,7 +1782,8 @@
 		       (setq u temp)))))))
     (setq u (ash u -1) v (ash v -1))))
 
-
+#+ppc32-target
+(progn
 (defun %positive-bignum-bignum-gcd (u0 v0)
   (let* ((u-len (%bignum-length u0))
 	 (v-len (%bignum-length v0)))
@@ -1897,6 +1898,7 @@
 
 (defun %bignum-bignum-gcd (u v)
   (with-negated-bignum-buffers u v %positive-bignum-bignum-gcd))
+)
 
 (defun unsignedwide->integer (uwidep)
   (with-bignum-buffers ((b 3))
@@ -1977,7 +1979,22 @@
             (return)))))
     count))
                   
-                 
+
+(defun one-bignum-factor-of-two (a)  
+  (declare (type bignum-type a))
+  (let ((len (%bignum-length a)))
+    (declare (fixnum len))
+    (dotimes (i len)
+      (let* ((x (bignum-ref a i)))
+        (declare (fixnum x))
+        (unless (zerop x)
+          (return (+ (ash i 5)
+                     (let* ((j 0))
+                       (dotimes (i 16)            
+                         (if (oddp x)
+                           (return (the fixnum (+ j i)))
+                           (setq x (ash x -1))))))))))))
+
 (defun logbitp (index integer)
   "Predicate returns T if bit index of integer is a 1."
   (number-case index
