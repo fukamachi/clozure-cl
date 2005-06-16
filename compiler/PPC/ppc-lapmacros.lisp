@@ -235,9 +235,9 @@
       (tdgti nargs 0)))))
     
 
-; There's no "else"; learn to say "(progn ...)".
-; Note also that the condition is a CR bit specification (or a "negated" one).
-; Whatever affected that bit (hopefully) happened earlier in the pipeline.
+;;; There's no "else"; learn to say "(progn ...)".
+;;; Note also that the condition is a CR bit specification (or a "negated" one).
+;;; Whatever affected that bit (hopefully) happened earlier in the pipeline.
 (defppclapmacro if (test then &optional (else nil else-p))
   (multiple-value-bind (bitform negated) (ppc-lap-parse-test test)
     (let* ((false-label (gensym)))
@@ -258,12 +258,13 @@
 (defppclapmacro save-pc ()
   `(mflr loc-pc))
 
-; This needs to be done if we aren't a leaf function (e.g., if we clobber our
-; return address or need to reference any constants.  Note that it's not
-; atomic wrt a preemptive scheduler, but we need to pretend that it will be.)
-; The VSP to be saved is the value of the VSP before any of this function's
-; arguments were vpushed by its caller; that's not the same as the VSP register
-; if any non-register arguments were received, but is usually easy to compute.
+;;; This needs to be done if we aren't a leaf function (e.g., if we
+;;; clobber our return address or need to reference any constants.  Note
+;;; that it's not atomic wrt a preemptive scheduler, but we need to
+;;; pretend that it will be.)  The VSP to be saved is the value of the
+;;; VSP before any of this function's arguments were vpushed by its
+;;; caller; that's not the same as the VSP register if any non-register
+;;; arguments were received, but is usually easy to compute.
 
 (defppclapmacro save-lisp-context (&optional (vsp 'vsp) (save-pc t))
   (target-arch-case
@@ -319,8 +320,8 @@
 (defppclapmacro vpush (src)
   `(push ,src vsp))
 
-; You typically don't want to do this to pop a single register (it's better to
-; do a sequence of loads, and then adjust the stack pointer.)
+;;; You typically don't want to do this to pop a single register (it's better to
+;;; do a sequence of loads, and then adjust the stack pointer.)
 
 (defppclapmacro pop (dest stack)
   `(progn
@@ -431,7 +432,7 @@
    (:ppc64
     `(ld ,dest ppc64::misc-header-offset ,src))))
 
-;; "Size" is unboxed element-count.
+;;; "Size" is unboxed element-count.
 (defppclapmacro header-size (dest vheader)
   (target-arch-case
    (:ppc32
@@ -440,7 +441,7 @@
     `(srdi ,dest ,vheader ppc64::num-subtag-bits))))
 
 
-;; "Length" is fixnum element-count.
+;;; "Length" is fixnum element-count.
 (defppclapmacro header-length (dest vheader)
   (target-arch-case
    (:ppc32
@@ -519,18 +520,30 @@
 
 
 
-; If crf is specified, type checks src
+;;; If crf is specified, type checks src
 (defppclapmacro unbox-base-char (dest src &optional crf)
   (if (null crf)
-    `(srwi ,dest ,src ppc32::charcode-shift)
+    (target-arch-case
+     (:ppc32 `(srwi ,dest ,src ppc32::charcode-shift))
+     (:ppc64 `(srdu ,dest ,src ppc64::charcode-shift)))
     (let ((label (gensym)))
-      `(progn
-         (rlwinm ,dest ,src 8 16 31)
-         (cmpwi ,crf ,dest (ash ppc32::subtag-character 8))
-         (srwi ,dest ,src ppc32::charcode-shift)
-         (beq+ ,crf ,label)
-         (uuo_interr arch::error-object-not-base-char ,src)
-         ,label))))
+      (target-arch-case
+       (:ppc32 `(progn
+                 (rlwinm ,dest ,src 8 16 31)
+                 (cmpwi ,crf ,dest (ash ppc32::subtag-character 8))
+                 (srwi ,dest ,src ppc32::charcode-shift)
+                 (beq+ ,crf ,label)
+                 (uuo_interr arch::error-object-not-base-char ,src)
+                 ,label))
+       (:ppc64
+        `(progn
+          (clrldi ,dest ,src (- ppc64::nbits-in-word ppc64::num-subtag-bits))
+          (cmpdi ,crf ,dest ppc64::subtag-character)
+          (srdi ,dest ,src ppc64::charcode-shift)
+          (beq+ ,crf ,label)
+          (uuo_interr arch::error-object-not-base-char ,src)
+          ,label))))))
+
 
 
 (defppclapmacro box-character (dest src)
@@ -649,19 +662,31 @@
 
 
 
-; from ppc-bignum.lisp
+;;; from ppc-bignum.lisp
 (defppclapmacro digit-h (dest src)
-  `(rlwinm ,dest ,src (+ 16 ppc32::fixnumshift) (- 16 ppc32::fixnumshift) (- 31 ppc32::fixnumshift)))
+  (target-arch-case
+   (:ppc32
+    `(rlwinm ,dest ,src (+ 16 ppc32::fixnumshift) (- 16 ppc32::fixnumshift) (- 31 ppc32::fixnumshift)))
+   (:ppc64
+    (error "DIGIT-H on PPC64 ?"))))
 
-; from ppc-bignum.lisp
+;;; from ppc-bignum.lisp
 (defppclapmacro digit-l (dest src)
-  `(clrlslwi ,dest ,src 16 ppc32::fixnumshift))
+  (target-arch-case
+   (:ppc32
+    `(clrlslwi ,dest ,src 16 ppc32::fixnumshift))
+   (:ppc64
+    (error "DIGIT-L on PPC64 ?"))))
   
-; from ppc-bignum.lisp
+;;; from ppc-bignum.lisp
 (defppclapmacro compose-digit (dest high low)
-  `(progn
-     (rlwinm ,dest ,low (- ppc32::nbits-in-word ppc32::fixnumshift) 16 31)
-     (rlwimi ,dest ,high (- 16 ppc32::fixnumshift) 0 15)))
+  (target-arch-case
+   (:ppc32
+    `(progn
+      (rlwinm ,dest ,low (- ppc32::nbits-in-word ppc32::fixnumshift) 16 31)
+      (rlwimi ,dest ,high (- 16 ppc32::fixnumshift) 0 15)))
+   (:ppc64
+    (error "COMPOSE-DIGIT on PPC64 ?"))))
 
 (defppclapmacro macptr-ptr (dest macptr)
   (target-arch-case
@@ -945,6 +970,6 @@
 
 
 
-(ccl::provide "PPC-LAPMACROS")
+(provide "PPC-LAPMACROS")
 
-; end of ppc-lapmacros.lisp
+;;; end of ppc-lapmacros.lisp
