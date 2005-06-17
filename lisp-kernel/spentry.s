@@ -1914,7 +1914,7 @@ local_label(ref_not_8):
          __(srdi imm0,arg_z,2)
          __(la imm0,misc_data_offset(imm0))
          __(beq cr0,2f)
-         __(bne cr1,1f)
+         __(beq cr1,1f)
          __(lhzx imm0,arg_y,imm0)
          __(box_fixnum(arg_z,imm0))
          __(blr)
