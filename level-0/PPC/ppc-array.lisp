@@ -470,10 +470,10 @@
     @hard-1-bit
     @hard-8-bit
     @hard-16-bit
-    (let ((newv save3)
-          (outi save4))
-      (vpush save3)
+    (let ((newv save4)
+          (outi save5))
       (vpush save4)
+      (vpush save5)
       (mr newv arg_z)
       (li outi 0)
       @hard-loop
@@ -488,8 +488,8 @@
       (la start-offset '1 start-offset)
       (bne @hard-loop)
       (mr arg_z newv)
+      (vpop save5)
       (vpop save4)
-      (vpop save3)
       (b @done))))
 
 #+ppc64-target
@@ -594,10 +594,10 @@
     (bne cr0 @64-loop)
     (b @done)
     @1-bit
-    (let ((newv save3)
-          (outi save4))
-      (vpush save3)
+    (let ((newv save4)
+          (outi save5))
       (vpush save4)
+      (vpush save5)
       (mr newv arg_z)
       (li outi 0)
       @hard-loop
@@ -612,8 +612,8 @@
       (la start-offset '1 start-offset)
       (bne @hard-loop)
       (mr arg_z newv)
+      (vpop save5)
       (vpop save4)
-      (vpop save3)
       (b @done))))
 
 
