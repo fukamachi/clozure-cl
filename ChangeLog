@@ -1,3 +1,36 @@
+2005-06-17 04:48  gb
+
+	* lisp-kernel/spentry.s: s16 and u16 cases were backwards in
+	misc_ref.
+
+2005-06-17 04:48  gb
+
+	* lisp-kernel/pmcl-kernel.c: EGC not ready on PPC64 yet.
+
+2005-06-17 04:47  gb
+
+	* lisp-kernel/constants64.s: misc_dloat_offset isn't
+	misc_header_offset ...	double_float_header reflects the view of a
+	double-float as two 32-bit elements.
+
+2005-06-17 04:45  gb
+
+	* lib/arrays-fry.lisp: Sigh.  May not be ppc32, use target package.
+
+2005-06-17 04:44  gb
+
+	* level-1/ppc-trap-support.lisp: Define and use
+	XP-GPR-SIGNED-DOUBLEWORD.
+
+2005-06-17 04:43  gb
+
+	* level-1/l1-aprims.lisp: Don't do APPEND two lists at a time ...
+
+2005-06-17 04:29  gb
+
+	* level-0/PPC/ppc-array.lisp: Don't reuse NVRs in hard case of
+	%EXTEND-VECTOR on either platform.
+
 2005-06-16 17:13  gb
 
 	* lisp-kernel/spentry.s: Fix ppc64 bignum case of integer-sign.
