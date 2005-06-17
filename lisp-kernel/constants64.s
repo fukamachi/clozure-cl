@@ -151,7 +151,7 @@ define([t_offset],-symbol.size)
 misc_header_offset = -fulltag_misc
 misc_data_offset = misc_header_offset+node_size /* first word of data */ 
 misc_subtag_offset = misc_data_offset-1       /* low byte of header */
-misc_dfloat_offset = misc_header_offset		/* double-floats are doubleword-aligned */
+misc_dfloat_offset = misc_data_offset		/* double-floats are doubleword-aligned */
 
 define_subtag(single_float,fulltag_imm_0,0)
 
@@ -468,7 +468,7 @@ symbol_extra = symbol.size-fulltag_misc
 define([def_header],[
 $1 = ($2<<num_subtag_bits)|$3])
 
-	def_header(double_float_header,double_float.element_count,subtag_double_float)
+	def_header(double_float_header,2,subtag_double_float)
 	def_header(two_digit_bignum_header,2,subtag_bignum)
 	def_header(three_digit_bignum_header,3,subtag_bignum)
 	def_header(four_digit_bignum_header,4,subtag_bignum)
