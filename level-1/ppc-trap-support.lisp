@@ -122,6 +122,11 @@
   (with-xp-registers-and-gpr-offset (xp register-number) (registers offset)
     (values (%get-signed-long registers offset))))
 
+(defun xp-gpr-signed-doubleword (xp register-number)
+  (with-xp-registers-and-gpr-offset (xp register-number) (registers offset)
+    (values (%%get-signed-longlong registers offset))))
+  
+
 (defun xp-gpr-macptr (xp register-number)
   (with-xp-registers-and-gpr-offset (xp register-number) (registers offset)
     (values (%get-ptr registers offset))))
@@ -590,10 +595,10 @@
 	      ((match-instr the-trap
                            (ppc-instruction-mask :opcode :to :ra)
                            (ppc-lap-word (tdnei nargs ??)))
-              (%error (if (< (xp-GPR-signed-long xp ppc::nargs) (D-field the-trap))
+              (%error (if (< (xp-GPR-signed-doubleword xp ppc::nargs) (D-field the-trap))
                         'too-few-arguments
                         'too-many-arguments )
-                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
+                      (list :nargs (ash (xp-GPR-signed-doubleword xp ppc::nargs)
 					(- ppc64::fixnumshift))
 			    :fn  fn)
                       frame-ptr))
@@ -729,7 +734,7 @@
               (%error (if (eql temp #b10)
                         'too-few-arguments
                         'too-many-arguments)
-                      (list :nargs (ash (xp-GPR-signed-long xp ppc::nargs)
+                      (list :nargs (ash (xp-GPR-signed-doubleword xp ppc::nargs)
 					(- ppc64::fixnumshift))
 			    :fn  fn)
                       frame-ptr))
@@ -765,7 +770,7 @@
               ;; value.
               (setf (xp-gpr-lisp xp (ra-field the-trap))
                     (%slot-unbound-trap (xp-gpr-lisp xp (RA-field instr))
-                                        (ash (- (xp-gpr-signed-long xp (RB-field instr))
+                                        (ash (- (xp-gpr-signed-doubleword xp (RB-field instr))
                                                 ppc64::misc-data-offset)
                                              (- ppc64::word-shift))
                                         frame-ptr)))
