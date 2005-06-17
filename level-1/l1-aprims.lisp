@@ -330,17 +330,21 @@ terminate the list"
       ((atom 2nd) 3rd)
     (rplacd 2nd 3rd)))
 
-(defun append (&lexpr lists)
+;;; The two-arg case is maybe a bit faster.  We -don't- want to
+;;; do the two-arg case repeatedly to implement the N-arg case.
+(defun append (&rest lists)
+  (declare (dynamic-extent lists))
   "Construct a new list by concatenating the list arguments"
-  (let* ((n (%lexpr-count lists)))
-    (declare (fixnum n))
-    (if (> n 0)
-      (if (= n 1)
-        (%lexpr-ref lists n 0)
-        (do* ((res (%lexpr-ref lists n 0) (append-2 res (%lexpr-ref lists n j)))
-              (j 1 (1+ j)))
-             ((= j n) res)
-          (declare (fixnum j)))))))
+  (let* ((head (cons nil nil))
+         (tail head))
+    (declare (dynamic-extent head)
+             (cons head tail))
+    (dolist (list lists (cdr head))
+      (when list
+        (dolist (element list)
+          (setq tail (cdr (rplacd tail (cons element nil)))))))))
+
+                     
 
 
 
