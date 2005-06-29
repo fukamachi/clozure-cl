@@ -1,3 +1,16 @@
+2005-06-29 16:52  gb
+
+	* level-1/version.lisp: bump.
+
+2005-06-29 16:30  gb
+
+	* compiler/PPC/ppc2.lisp: %ilogand2: use clear-left, clear-right if
+	appropriate.
+	
+	NOTE: clear-left doesn't ensure that tag bits are cleared; code
+	which says (logand (the fixnum x) mask) - and lies about the type
+	of X - is unsafe, but any such code is pretty bogus to begin with.
+
 2005-06-29 16:11  gb
 
 	* compiler/PPC/: PPC64/ppc64-vinsns.lisp, PPC32/ppc32-vinsns.lisp:
