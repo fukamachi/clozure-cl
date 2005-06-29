@@ -1106,7 +1106,7 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
       if (intergen_ref) {
         ref_dnode = area_dnode(start, base);
         if (!ref_bit(refbits, ref_dnode)) {
-          Bug(NULL, "Missing memoization in doubleword at 0x%08X", start);
+          Bug(NULL, "Missing memoization in doublenode at 0x%08X", start);
           set_bit(refbits, ref_dnode);
         }
       }
@@ -1150,13 +1150,13 @@ mark_memoized_area(area *a, natural num_memo_dnodes)
     */
 
   {
-    unsigned 
-      bits_in_last_word = (num_memo_dnodes & bitmap_shift_count_mask);
-    natural
+    natural 
+      bits_in_last_word = (num_memo_dnodes & bitmap_shift_count_mask),
       index_of_last_word = (num_memo_dnodes >> bitmap_shift);
 
     if (bits_in_last_word != 0) {
-      refbits[index_of_last_word] &= ~((1<<(nbits_in_word-bits_in_last_word))-1);
+      natural mask = ~((1L<<(nbits_in_word-bits_in_last_word))-1L);
+      refbits[index_of_last_word] &= mask;
     }
   }
         
