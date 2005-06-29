@@ -3189,7 +3189,6 @@ to replace that class with ~s" name old-class new-class)
 
 
 (defun canonicalize-argument-precedence-order (apo req)
-  (dbg)
   (cond ((equal apo req) nil)
         ((not (eql (length apo) (length req)))
          (signal-program-error "Lengths of ~S and ~S differ." apo req))
