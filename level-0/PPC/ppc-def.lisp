@@ -311,33 +311,6 @@
 
 
 
-(defppclapfunction %sub-timevals ((result arg_x) (a arg_y) (b arg_z))
-  (let ((pa imm0)
-        (pb imm1)
-        (1m imm2)
-        (seconds imm3)
-        (micros imm4)
-        (temp imm2))
-    (macptr-ptr pa a)
-    (macptr-ptr pb b)
-    (lwz temp 4 pb)
-    (lwz micros 4 pa)
-    (subf micros temp micros)
-    (cmpwi micros 0)
-    (lwz temp 0 pb)
-    (lwz seconds 0 pa)
-    (subf seconds temp seconds)
-    (lwi 1m 1000000)
-    (macptr-ptr pa result)
-    (bge @store)
-    (add micros 1m micros)
-    (la seconds -1 seconds)
-    @store
-    (stw seconds 0 pa)
-    (stw micros 4 pa)
-    (mr arg_z result)
-    (blr)))
-
 (defppclapfunction %save-standard-binding-list ((bindings arg_z))
   (ldr imm0 target::tcr.vs-area target::rcontext)
   (ldr imm1 target::area.high imm0)
