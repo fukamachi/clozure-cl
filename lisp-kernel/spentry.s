@@ -360,7 +360,7 @@ C(egc_write_barrier_start):
   in the function, we can do the store (even if it's already been done) and
   calculate whether or not we need to set the bit out-of-line.  (Actually
   setting the bit needs to be done atomically, unless we're sure that other
-  threads are suspended.
+  threads are suspended.)
   We can unconditionally set the suspended thread's PC to its LR.
 */
 _spentry(rplaca)
