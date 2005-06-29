@@ -2415,6 +2415,17 @@
                               ())
   (and dest x y))
 
+(define-ppc32-vinsn clear-left (((dest :imm))
+                                ((src :imm)
+                                 (nbits :s8const)))
+  (rlwinm dest src 0 (:apply 1+ nbits) 31))
+
+(define-ppc32-vinsn clear-right (((dest :imm))
+                                 ((src :imm)
+                                  (nbits :s8const)))
+  (rlwinm dest src 0 0 (:apply - 31 nbits)))
+
+                               
 (define-ppc32-vinsn logxor-high (((dest :imm))
                                  ((src :imm)
                                   (high :u16const)))
