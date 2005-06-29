@@ -291,15 +291,19 @@
 	  (pref result :timeval.tv_usec) micros)
     result))
 
+(defun %sub-timevals (result a b)
+  (let* ((seconds (- (pref a :timeval.tv_sec) (pref b :timeval.tv_sec)))
+	 (micros (- (pref a :timeval.tv_usec) (pref b :timeval.tv_usec))))
+    (if (< micros 0)
+      (setq seconds (1- seconds) micros (+ micros 1000000)))
+    (setf (pref result :timeval.tv_sec) seconds
+	  (pref result :timeval.tv_usec) micros)
+    result))
 
 
-
-#-darwinppc-target
-(defun %%rusage (usage &optional (who #$RUSAGE_SELF))
-  (syscall syscalls::getrusage who usage))
-#+darwinppc-target
 (defun %%rusage (usage &optional (who #$RUSAGE_SELF))
   (syscall syscalls::getrusage who usage)
+  #+(and darwinppc-target (not 64-bit-target))
   (rlet ((count :natural_t #$TASK_THREAD_TIMES_INFO_COUNT))
     (#_task_info (#_mach_task_self) #$TASK_THREAD_TIMES_INFO usage count)))
     
