@@ -5279,8 +5279,8 @@
           (if vreg (ensuring-node-target (target vreg) (! %logior2 target r1 r2)))))   
       (^))))
 
-;;; in a lot of (typical ?) cases, it might be possible to use a rotate-and-mask instead
-;;; of andi./andis.
+;;; in a lot of (typical ?) cases, it might be possible to use a
+;;; rotate-and-mask instead of andi./andis.
 
 (defppc2 ppc2-%ilogand2 %ilogand2 (seg vreg xfer form1 form2)
   (let* ((fix1 (acode-fixnum-form-p form1))
@@ -5288,6 +5288,7 @@
     (if (and fix1 fix2)
       (ppc2-use-operator (%nx1-operator fixnum) seg vreg xfer (logand fix1 fix2)))
     (let* ((fixval (or fix1 fix2))
+           (fixlen (if fixval (integer-length fixval)))
            (unboxed-fixval (if fixval (ash fixval *ppc2-target-fixnum-shift*)))
            (high (if fixval (if (= unboxed-fixval (logand #xffff0000 unboxed-fixval)) (ash unboxed-fixval -16))))
            (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
@@ -5299,8 +5300,19 @@
               (if high
                 (! logand-high target other-reg high)
                 (! logand-low target other-reg low)))))
-        (multiple-value-bind (r1 r2) (ppc2-two-untargeted-reg-forms seg form1 ppc::arg_y form2 ppc::arg_z)
-          (if vreg (ensuring-node-target (target vreg) (! %logand2 target r1 r2)))))
+        (if (and fixval (= fixlen (logcount fixval)))
+          (let* ((nbits (- *ppc2-target-bits-in-word*
+                           (1+ (+ *ppc2-target-fixnum-shift* fixlen))))
+                 (otherreg (ppc2-one-untargeted-reg-form seg (if fix1 form2 form1) ppc::arg_z)))
+            
+            (if vreg (ensuring-node-target (target vreg)
+                       (if (> fixval 0)
+                         (! clear-left target otherreg nbits)
+                         (! clear-right target otherreg (+ fixlen
+                                                           *ppc2-target-fixnum-shift*))))))
+          
+          (multiple-value-bind (r1 r2) (ppc2-two-untargeted-reg-forms seg form1 ppc::arg_y form2 ppc::arg_z)
+            (if vreg (ensuring-node-target (target vreg) (! %logand2 target r1 r2))))))
       (^))))
 
 (defppc2 ppc2-%ilogxor2 %ilogxor2 (seg vreg xfer form1 form2)
