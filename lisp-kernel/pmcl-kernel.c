@@ -319,7 +319,18 @@ area *all_areas=NULL;
 int cache_block_size=32;
 
 
+#ifdef PPC64
+#define DEFAULT_LISP_HEAP_GC_THRESHOLD (32<<20)
+#define G2_AREA_THRESHOLD (8<<20)
+#define G1_AREA_THRESHOLD (4<<20)
+#define G0_AREA_THRESHOLD (2<<20)
+#else
 #define DEFAULT_LISP_HEAP_GC_THRESHOLD (16<<20)
+#define G2_AREA_THRESHOLD (4<<20)
+#define G1_AREA_THRESHOLD (2<<20)
+#define G0_AREA_THRESHOLD (1<<20)
+#endif
+
 #define DEFAULT_INITIAL_STACK_SIZE (1<<20)
 
 natural
@@ -1340,9 +1351,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
     tenured_area->refbits = a->markbits;
     lisp_global(TENURED_AREA) = ptr_to_lispobj(tenured_area);
     lisp_global(REFBITS) = ptr_to_lispobj(tenured_area->refbits);
-    g2_area->threshold = (4<<20); /* 4MB */
-    g1_area->threshold = (2<<20); /* 2MB */
-    a->threshold = (1<<20);     /* 1MB */
+    g2_area->threshold = G2_AREA_THRESHOLD;
+    g1_area->threshold = G1_AREA_THRESHOLD;
+    a->threshold = G0_AREA_THRESHOLD;
   }
 
   tcr = new_tcr(initial_stack_size, MIN_TSTACK_SIZE);
@@ -1367,7 +1378,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   nrs_TOPLFUNC.vcell = lisp_nil;
   enable_fp_exceptions();
   /* don't trust EGC on PPC64 yet */
-#ifndef PPC64
+#if 1
   egc_control(true, NULL);
 #endif
   start_lisp(TCR_TO_TSD(tcr), 0);
