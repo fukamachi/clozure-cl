@@ -722,10 +722,10 @@
                (* (sin r) (sinh i))))
     (if (typep x 'double-float)
       (%double-float-cos! x (%make-dfloat))
-      #+ppc32
+      #+ppc32-target
       (ppc32::with-stack-short-floats ((sx x))
         (%single-float-cos! sx (%make-sfloat)))
-      #+ppc64
+      #+ppc64-target
       (%single-float-cos (%short-float x)))))
 
 (defun tan (x)
@@ -948,7 +948,7 @@
 	 (%double-float-acos! x (%make-dfloat))
 	 (- double-float-half-pi (asin x)))))
     ((short-float rational)
-     #+ppc32-tarrget
+     #+ppc32-target
      (ppc32::with-stack-short-floats ((sx x))
 	(locally
 	    (declare (type short-float sx))
