@@ -20,57 +20,57 @@
 
 #define rcontext 2
 
-#define nbits_in_word 64
-#define nbits_in_byte 8
-#define ntagbits 4	
-#define nlisptagbits 3
-#define nfixnumtagbits 2
-#define num_subtag_bits 8
-#define fixnumshift 3
-#define fixnum_shift 3
-#define fulltagmask 15
-#define tagmask	 7
+#define nbits_in_word 64L
+#define nbits_in_byte 8L
+#define ntagbits 4L
+#define nlisptagbits 3L
+#define nfixnumtagbits 2L
+#define num_subtag_bits 8L
+#define fixnumshift 3L
+#define fixnum_shift 3L
+#define fulltagmask 15L
+#define tagmask	 7L
 #define fixnummask 3
-#define subtagmask ((1<<num_subtag_bits)-1)
-#define ncharcodebits 8
-#define charcode_shift 8
-#define node_size 8
-#define node_shift 3
+#define subtagmask ((1L<<num_subtag_bits)-1L)
+#define ncharcodebits 8L
+#define charcode_shift 8L
+#define node_size 8L
+#define node_shift 3L
 
-#define lowtagmask 3
+#define lowtagmask 3L
 #define lowtag_mask lowtagmask
 
-#define lowtag_primary 0
-#define lowtag_imm 1
-#define lowtag_immheader 2
-#define lowtag_nodeheader 3
+#define lowtag_primary 0L
+#define lowtag_imm 1L
+#define lowtag_immheader 2L
+#define lowtag_nodeheader 3L
 
-#define tag_fixnum 0
+#define tag_fixnum 0L
 
-#define fulltag_even_fixnum 0
-#define fulltag_imm_0 1
-#define fulltag_immheader_0 2
-#define fulltag_nodeheader_0 3
-#define fulltag_cons 4
-#define fulltag_imm_1 5
-#define fulltag_immheader_1 6
-#define fulltag_nodeheader_1 7
-#define fulltag_odd_fixnum 8
-#define fulltag_imm_2 9
-#define fulltag_immheader_2 10
-#define fulltag_nodeheader_2 11
-#define fulltag_misc 12
-#define fulltag_imm_3 13
-#define fulltag_immheader_3 14
-#define fulltag_nodeheader_3 15
+#define fulltag_even_fixnum 0L
+#define fulltag_imm_0 1L
+#define fulltag_immheader_0 2L
+#define fulltag_nodeheader_0 3L
+#define fulltag_cons 4L
+#define fulltag_imm_1 5L
+#define fulltag_immheader_1 6L
+#define fulltag_nodeheader_1 7L
+#define fulltag_odd_fixnum 8L
+#define fulltag_imm_2 9L
+#define fulltag_immheader_2 10L
+#define fulltag_nodeheader_2 11L
+#define fulltag_misc 12L
+#define fulltag_imm_3 13L
+#define fulltag_immheader_3 14L
+#define fulltag_nodeheader_3 15L
 
 #define SUBTAG(tag,subtag) ((tag) | ((subtag) << ntagbits))
-#define cl_array_subtag_mask 0x80
+#define cl_array_subtag_mask 0x80L
 #define CL_ARRAY_SUBTAG(tag,subtag) (cl_array_subtag_mask | (SUBTAG(tag,subtag)))
 
-#define subtag_arrayH CL_ARRAY_SUBTAG(fulltag_nodeheader_1,0)
-#define subtag_vectorH CL_ARRAY_SUBTAG(fulltag_nodeheader_2,0)
-#define subtag_simple_vector CL_ARRAY_SUBTAG(fulltag_nodeheader_3,0)
+#define subtag_arrayH CL_ARRAY_SUBTAG(fulltag_nodeheader_1,0L)
+#define subtag_vectorH CL_ARRAY_SUBTAG(fulltag_nodeheader_2,0L)
+#define subtag_simple_vector CL_ARRAY_SUBTAG(fulltag_nodeheader_3,0L)
 #define min_vector_subtag subtag_vectorH	
 
 #define ivector_class_64_bit fulltag_immheader_3
@@ -440,6 +440,14 @@ typedef struct tcr {
 
 #define t_offset -(sizeof(lispsymbol))
 
+/* 
+  These were previously global variables.  There are lots of implicit
+  assumptions about the size of a heap segment, so they might as well
+  be constants.
+*/
+
+#define heap_segment_size 0x00020000L
+#define log2_heap_segment_size 17L
 
 #endif
 
