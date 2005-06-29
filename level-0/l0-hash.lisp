@@ -313,9 +313,9 @@
 (defconstant $nhash-clear-key-bits-mask #xfffff)
 
 
-;; Hash on address, or at least on some persistent, immutable
-;; attribute of the key.  If all keys are fixnums or immediates (or if
-;; that attribute exists), rehashing won't ever be necessary.
+;;; Hash on address, or at least on some persistent, immutable
+;;; attribute of the key.  If all keys are fixnums or immediates (or if
+;;; that attribute exists), rehashing won't ever be necessary.
 (defun %%eqhash (key)
   (let* ((typecode (typecode key)))
     (if (eq typecode target::subtag-instance)
@@ -348,10 +348,11 @@
                
 
 
-; new function
+;;; new function
 
 (defun %%eqlhash (key)
-; if key is a macptr, float, bignum, ratio, or complex, convert it to a fixnum
+  ;; if key is a macptr, float, bignum, ratio, or complex, convert it
+  ;; to a fixnum
   (if (hashed-by-identity key)
     (%%eqhash key)
     (let ((primary  (%%eqlhash-internal key)))
