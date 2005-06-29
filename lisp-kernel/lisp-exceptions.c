@@ -91,11 +91,14 @@ extern natural lisp_heap_gc_threshold;
 extern Boolean grow_dynamic_area(natural);
 
 
+#ifdef PPC64
+#define codevec_hdr_p(value) ((value) == (('C'<<24)|('O'<<16)|('D'<<8)|'E'))
+#else
 /* top 6 bits will be zero, subtag will be subtag_code_vector */
 #define CV_HDR_MASK     (OP_MASK | subtagmask)
 #define CV_HDR_VALUE    subtag_code_vector
 #define codevec_hdr_p(value)	(((value) & CV_HDR_MASK) == CV_HDR_VALUE)
-
+#endif
 
 
 void
@@ -307,7 +310,6 @@ finish_allocating_uvector(ExceptionInformation *xp)
 }
 
 
-Boolean free_segments_zero_filled_by_OS = true;
 
 /*
   This doesn't GC; it returns true if it made enough room, false
@@ -339,6 +341,10 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
   xpGPR(xp,allocptr) = (LispObj) newlimit;
   xpGPR(xp,allocbase) = (LispObj) oldlimit;
 
+#ifdef PPC64x
+  bzero((BytePtr)oldlimit,align_to_power_of_2(oldlimit, 12)-oldlimit);
+  HeapHighWaterMark = (BytePtr)align_to_power_of_2(oldlimit, 12);
+#endif
   while (HeapHighWaterMark < (BytePtr)newlimit) {
     zero_page(HeapHighWaterMark);
     HeapHighWaterMark+=page_size;
@@ -349,7 +355,7 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
 Boolean
 allocate_object(ExceptionInformation *xp,
                 natural bytes_needed, 
-                int disp_from_allocptr,
+                signed_natural disp_from_allocptr,
 		TCR *tcr)
 {
   area *a = active_dynamic_area;
@@ -433,7 +439,7 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
                     XO(major_opcode_X31,minor_opcode_SUBF, 0, 0) |
                     RT(allocptr) |
                     RB(allocptr))) {
-      disp = -((int) xpGPR(xp, RA_field(prev_instr)));
+      disp = -((signed_natural) xpGPR(xp, RA_field(prev_instr)));
     } else if (match_instr(prev_instr,
                            OP_MASK | RT_MASK | RA_MASK,
                            OP(major_opcode_ADDI) | 
