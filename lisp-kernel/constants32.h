@@ -459,6 +459,14 @@ typedef struct tcr {
   unsigned shutdown_count;
 } TCR;
 
+/* 
+  These were previously global variables.  There are lots of implicit
+  assumptions about the size of a heap segment, so they might as well
+  be constants.
+*/
+
+#define heap_segment_size 0x00010000
+#define log2_heap_segment_size 16
 
 
 #endif

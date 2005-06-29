@@ -57,14 +57,6 @@
 #define next_method_context temp1
 #define closure_data temp0
 
-/* 
-  These were previously global variables.  There are lots of implicit
-  assumptions about the size of a heap segment, so they might as well
-  be constants.
-*/
-
-#define heap_segment_size 0x00010000
-#define log2_heap_segment_size 16
 
 #define BA_MASK ((unsigned) ((-1<<26) | (1<<1)))
 #define BA_VAL  ((unsigned) ((18<<26) | (1<<1)))
