@@ -110,25 +110,18 @@
   (let ((static 0)
         (dynamic 0)
         (library 0))
-    (with-macptrs (p)
       (do-consing-areas (area)
-	(%setf-macptr-to-object p area)
 	(let* ((active (%fixnum-ref area target::area.active))
-	       (bytes (- #+ppc32-target
-                         (%get-unsigned-long p target::area.active)
-                         #+ppc64-target
-                         (%%get-unsigned-longlong p target::area.active)
-                         #+ppc32-target
-                         (%get-unsigned-long p target::area.low)
-                         #+ppc64-target
-                         (%%get-unsigned-longlong p target::area.low)))
+	       (bytes (ash (- active
+                            (%fixnum-ref area target::area.low))
+                           target::fixnumshift))
 	       (code (%fixnum-ref area target::area.code)))
 	  (when (object-in-application-heap-p active)
 	    (if (eql code ppc::area-dynamic)
 	      (incf dynamic bytes)
 	      (if (eql code ppc::area-staticlib)
 		(incf library bytes)
-		(incf static bytes)))))))
+		(incf static bytes))))))
     (values dynamic static library)))
 
 
