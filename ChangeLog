@@ -1,3 +1,74 @@
+2005-06-29 15:06  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: Reorganize TRUNCATE and
+	related functions.
+
+2005-06-29 15:04  gb
+
+	* level-0/PPC/ppc-def.lisp: %SUB-TIMEVALS in lisp.
+
+2005-06-29 15:03  gb
+
+	* level-0/l0-misc.lisp: Kinder, gentler %usedbytes.
+
+2005-06-29 15:02  gb
+
+	* level-0/l0-hash.lisp: Comment indentation.
+
+2005-06-29 15:01  gb
+
+	* level-0/l0-float.lisp: Fix typos in conditionalization.
+
+2005-06-29 15:00  gb
+
+	* lisp-kernel/spentry.s: Missing close-paren in comment.
+
+2005-06-29 14:59  gb
+
+	* lisp-kernel/pmcl-kernel.c: lisp_heap_threshold, egc thresholds
+	are platform-specific (twice as large on 64-bit.)
+	
+	Enable EGC on PPC64.
+
+2005-06-29 14:58  gb
+
+	* lisp-kernel/lisp-exceptions.c: PPC64 codevector header stuff.
+	
+	When handling an allocation trap, ensure that displacement is a
+	"signed natural" (signed int of natural word size), not an "int"
+	(signed-byte 32).
+	
+	Don't explicitly zero pages that should already be zeroed in
+	new_heap_segment; the PPC64-specific bug was elsewhere.
+
+2005-06-29 14:54  gb
+
+	* lisp-kernel/gc.c: If EGC memoization is missing, say "doublenode"
+	instead of "doubleword".
+	
+	When masking out bits at the end of the "refbits" bit vector,
+	ensure that C does 64-bit arithmetic.
+
+2005-06-29 14:52  gb
+
+	* lisp-kernel/constants64.h: heap_segment_size (and log2 of it) are
+	platform-specific.  Make many constants explicitly "long", to
+	discourage 32-bit arithmetic.
+
+2005-06-29 14:50  gb
+
+	* lisp-kernel/: constants.h, constants32.h: heap_segment_size (and
+	log2 of it) are platform-specific.
+
+2005-06-29 14:49  gb
+
+	* level-1/linux-files.lisp: Do SUB-TIMEVALS in lisp.  (Did this
+	cons or something ? Why was it in LAP ?)
+
+2005-06-29 14:48  gb
+
+	* level-1/l1-clos-boot.lisp: Remove stray DBG call.
+
 2005-06-17 04:48  gb
 
 	* lisp-kernel/spentry.s: s16 and u16 cases were backwards in
