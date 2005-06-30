@@ -91,6 +91,9 @@ ifdef([PPC64],[
         define([trllt],[
         tdllt $@
         ])
+        define([trlt],[
+        tdlt $@
+        ])
 	define([trlle],[
 	tdlle $@
 	])
@@ -176,6 +179,9 @@ ifdef([PPC64],[
         ])
         define([trllt],[
         twllt $@
+        ])
+        define([trlt],[
+        twlt $@
         ])
         define([trlle],[
         twlle $@
@@ -640,7 +646,7 @@ define([clear_alloc_tag],[
 	
 define([Cons],[
 	la allocptr,(-cons.size+fulltag_cons)(allocptr)
-	trllt(allocptr,allocbase)
+	trlt(allocptr,allocbase)
 	str($3,cons.cdr(allocptr))
 	str($2,cons.car(allocptr))
 	mr $1,allocptr
@@ -675,7 +681,7 @@ define([Cons],[
 define([Misc_Alloc],[
 	la $3,-fulltag_misc($3)
 	sub allocptr,allocptr,$3
-	trllt(allocptr,allocbase)
+	trlt(allocptr,allocbase)
 	str($2,misc_header_offset(allocptr))
 	mr $1,allocptr
 	clear_alloc_tag()
@@ -686,7 +692,7 @@ define([Misc_Alloc],[
 */
 define([Misc_Alloc_Fixed],[
 	la allocptr,(-$3)+fulltag_misc(allocptr)
-	trllt(allocptr,allocbase)
+	trlt(allocptr,allocbase)
 	str($2,misc_header_offset(allocptr))
 	mr $1,allocptr
 	clear_alloc_tag()
