@@ -143,17 +143,15 @@
   (declaim (inline bignum-ref bignum-set)))
 
 (defun bignum-ref (b i)
-  (uvref b i))
+  (%typed-miscref :bignum b i))
 
 (defun bignum-set (b i val)
   (declare (fixnum val))
-  (setf (uvref b i) (logand val all-ones-digit)))
+  (%typed-miscset :bignum b i (logand val all-ones-digit)))
 
-(eval-when (:compile-toplevel :execute)
-)
 
 (defun bignum-plusp (b)
-  (not (logbitp 31 (the fixnum (bignum-ref b (1- (%bignum-length b)))))))
+  (not (logbitp (1- digit-size) (the bignum-element-type (bignum-ref b (1- (%bignum-length b)))))))
 
 ;;; Return T if digit is positive, or NIL if negative.
 (defun %digit-0-or-plusp (digit)
