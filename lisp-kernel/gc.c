@@ -731,7 +731,7 @@ void
 mark_pc_root(LispObj xpc)
 {
   if ((xpc & 3) != 0) {
-    Bug(NULL, "Bad PC locatitive!");
+    Bug(NULL, "Bad PC locative!");
   } else {
     natural dnode = gc_area_dnode(xpc);
     if ((dnode < GCndnodes_in_area) &&
