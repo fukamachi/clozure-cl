@@ -369,12 +369,13 @@ uncommit_pages(void *start, size_t len)
   }
 }
 
-void
+Boolean
 commit_pages(void *start, size_t len)
 {
   if (len != 0) {
     int i, err;
     void *addr;
+
     for (i = 0; i < 3; i++) {
       addr = mmap(start, 
 		  len, 
@@ -384,16 +385,16 @@ commit_pages(void *start, size_t len)
 		  0);
       if (addr  == start) {
         HeapHighWaterMark = ((BytePtr)start) + len;
-	return;
+	return true;
       }
       err = errno;
-      Bug(NULL, "mmap failure returned 0x%08x, attempt %d: %s\n",
+      Bug(NULL, "mmap failure returned 0x%lx, attempt %d: %s\n",
 	  addr,
 	  i,
-	  strerror(errno));
+	  strerror(err));
       sleep(5);
     }
-    Fatal("mmap error", "");
+    return false;
   }
 }
 
@@ -678,7 +679,7 @@ grow_dynamic_area(natural delta)
   
   delta = align_to_power_of_2(delta, log2_heap_segment_size);
   if (delta > avail) {
-    delta = avail;
+    return false;
   }
   if (!allocate_from_reserved_area(delta)) {
     return false;
