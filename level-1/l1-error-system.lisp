@@ -927,7 +927,7 @@
 	(cons $xnospread 'cant-construct-arglist)
         ))
 
-; do we like this?
+
 (defparameter *simple-error-types*
   (vector nil 'simple-program-error 'simple-file-error))
 
@@ -974,6 +974,7 @@
     (unsigned-byte 24)                  ; (integer 0 (array-total-size-limit))
     (unsigned-byte 64)
     (signed-byte 64)
+    (unsigned-byte 56)
 ))
 
 
