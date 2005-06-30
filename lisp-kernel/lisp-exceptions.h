@@ -59,7 +59,7 @@ void
 protect_area(protected_area_ptr);
 
 
-void
+Boolean
 resize_dynamic_heap(BytePtr, natural);
 
 OSStatus
@@ -381,10 +381,14 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 
 #ifdef PPC64
 /* tdllt allocptr,allocbase */
-#define ALLOC_TRAP_INSTRUCTION 0x7c495088
+#define OLD_ALLOC_TRAP_INSTRUCTION 0x7c495088
+/* tdlt allocptr,allocbase */
+#define ALLOC_TRAP_INSTRUCTION 0x7e095088
 #else
 /* twllt allocptr,allocbase */
-#define ALLOC_TRAP_INSTRUCTION 0x7c495008
+#define OLD_ALLOC_TRAP_INSTRUCTION 0x7c495008
+/* twlt allocptr,allocbase */
+#define ALLOC_TRAP_INSTRUCTION 0x7e095008
 #endif
 
 #ifdef PPC64
