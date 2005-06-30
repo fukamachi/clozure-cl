@@ -3991,14 +3991,15 @@
                      (union-ctype-types ctype))))))
 
 
+
 ;;; Ensure that standard EFFECTIVE-SLOT-DEFINITIONs have a meaningful
 ;;; type predicate, if we can.
 (defmethod shared-initialize :after ((spec effective-slot-definition)
 				     slot-names
-				     &key type
+				     &key 
 				     &allow-other-keys)
   (declare (ignore slot-names))
-  (unless (eq type t)
+  (let* ((type (slot-definition-type spec)))
     (setf (slot-value spec 'type-predicate)
 	  (or (and (typep type 'symbol)
 		   (type-predicate type))
@@ -4008,14 +4009,14 @@
 			(multiple-value-bind (win sure) (ctypep value ctype)
 			  (or (not sure) win))))
                 (parse-unknown-type (c)
-                  (declare (ignore c))
-                  #'(lambda (value)
-                      ;; If the type's now known, install a new predicate.
-                      (let* ((nowctype (specifier-type type)))
-                        (unless (typep nowctype 'unknown-ctype)
-                          (setf (slot-value spec 'type-predicate)
-                                #'(lambda (value) (%%typep value nowctype))))
-                        (multiple-value-bind (win sure)
-			    (ctypep value nowctype)
-			  (or (not sure) win))))))))))
+                                    (declare (ignore c))
+                                    #'(lambda (value)
+                                        ;; If the type's now known, install a new predicate.
+                                        (let* ((nowctype (specifier-type type)))
+                                          (unless (typep nowctype 'unknown-ctype)
+                                            (setf (slot-value spec 'type-predicate)
+                                                  #'(lambda (value) (%%typep value nowctype))))
+                                          (multiple-value-bind (win sure)
+                                              (ctypep value nowctype)
+                                            (or (not sure) win))))))))))
 
