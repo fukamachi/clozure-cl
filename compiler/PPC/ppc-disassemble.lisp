@@ -111,6 +111,10 @@
       `(box-fixnum ,(ppc-gpr rt) ,(ppc-gpr ra))
       `(sldi ,(ppc-gpr rt) ,(ppc-gpr ra) ,sh))))
 
+(def-ppc-unmacroexpand rldicl insn (rt ra sh mb)
+  (if (= (+ sh mb) 64)
+    `(srdi ,(ppc-gpr rt) ,(ppc-gpr ra) ,mb)))
+
 (def-ppc-unmacroexpand srawi insn (rt ra sh)
   (if (and (case (backend-target-arch-name *ppc-disassembly-backend*)
              (:ppc32 t))
