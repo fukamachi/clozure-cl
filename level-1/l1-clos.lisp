@@ -175,6 +175,18 @@
 	 (apply #'effective-slot-definition-class class initargs)
 	 initargs))
 
+;;; The type of an effective slot definition is the intersection of
+;;; the types of the direct slot definitions it's initialized from.
+(defun dslotd-type-intersection (direct-slots)
+  (or (dolist (dslotd direct-slots t)
+        (unless (eq t (%slot-definition-type dslotd))
+          (return)))
+      (type-specifier
+       (specifier-type `(and ,@(mapcar #'(lambda (d)
+                                           (or (%slot-definition-type d)
+                                               t))
+                                       direct-slots))))))
+
 
 (defmethod compute-effective-slot-definition ((class slots-class)
                                               name
@@ -203,7 +215,7 @@
      :initargs initargs
      :initfunction (if initer (%slot-definition-initfunction initer))
      :initform (if initer (%slot-definition-initform initer))
-     :type (or (%slot-definition-type first) t))))
+     :type (dslotd-type-intersection direct-slots))))
 
 (defmethod compute-slots ((class slots-class))
   (let* ((slot-name-alist ()))
@@ -718,17 +730,6 @@ governs whether DEFCLASS makes that distinction or not.")
     (apply #'ensure-class-using-class existing-class name keys)))
 
 
-(defun slot-plist-from-%slotd (%slotd allocation)
-  (destructuring-bind (name initform initargs . type) %slotd
-    (let* ((initfunction (if (functionp initform)
-                           initform
-                           (if (consp initform)
-                             (constantly (car initform))))))
-      `(:name ,name :alllocation ,allocation :initargs ,initargs
-        ,@(when initfunction `(:initfunction ,initfunction :initform ',initform))
-        :type ,(or type t)))))
-
-
 
 
 (defmethod method-slot-name ((m standard-accessor-method))
@@ -1014,7 +1015,7 @@ governs whether DEFCLASS makes that distinction or not.")
   :direct-slots `((:name name :initargs (:name) :readers (slot-definition-name)
 		  :initform nil :initfunction ,#'false)
 		 (:name type :initargs (:type) :readers (slot-definition-type)
-		  :initform nil :initfunction ,#'false)
+		  :initform t :initfunction ,#'true)
 		 (:name initfunction :initargs (:initfunction) :readers (slot-definition-initfunction)
 		  :initform nil :initfunction ,#'false)
 		 (:name initform :initargs (:initform) :readers (slot-definition-initform)
@@ -1569,6 +1570,10 @@ governs whether DEFCLASS makes that distinction or not.")
   (setf (uvref funcallable-instance gf.code-vector) *fi-trampoline-code*)
   (setf (uvref funcallable-instance gf.dcode) function))
 
+(defmethod reinitialize-instance ((slotd slot-definition) &key &allow-other-keys)
+  (error "Can't reinitialize ~s" slotd))
+
+
 ;;; Are we CLOS yet ?
 
 (defun %shared-initialize (instance slot-names initargs)
@@ -1594,40 +1599,40 @@ governs whether DEFCLASS makes that distinction or not.")
       ;; and I'd rather not check here.  If you really want to
       ;; create that kind of slot definition, write your own SHARED-INITIALIZE
       ;; method for classes that use such slot definitions ...
-      (let* ((predicate (standard-effective-slot-definition.type-predicate slotd)))
-      (multiple-value-bind (ignore new-value foundp)
-          (get-properties initargs (slot-definition-initargs slotd))
-        (declare (ignore ignore))
-        (cond (foundp
-               ;; an initarg for the slot was passed to this function
-               ;; Typecheck the new-value, then call
-               ;; (SETF SLOT-VALUE-USING-CLASS)
-                (unless (funcall predicate new-value)
-                  (error 'bad-slot-type-from-initarg
-                         :slot-definition slotd
-                         :instance instance
-                         :datum new-value
-                         :expected-type  (slot-definition-type slotd)
-                         :initarg-name (car foundp)))
-                (setf (slot-value-using-class class instance slotd) new-value))
-              ((and (or (eq slot-names t)
-                        (member (slot-definition-name slotd)
-                                slot-names
-                                :test #'eq))
-                    (not (slot-boundp-using-class class instance slotd)))
-               ;; If the slot name is among the specified slot names, or
-               ;; we're reinitializing all slots, and the slot is currently
-               ;; unbound in the instance, set the slot's value based
-               ;; on the initfunction (which captures the :INITFORM).
-               (let* ((initfunction (slot-definition-initfunction slotd)))
-                 (if initfunction
-                   (let* ((newval (funcall initfunction)))
-                     (unless (funcall predicate newval)
-                       (error 'bad-slot-type-from-initform
-                              :slot-definition slotd
-                              :expected-type (slot-definition-type slotd)
-                              :datum newval
-                              :instance instance))
-                     (setf (slot-value-using-class class instance slotd)
-                           newval))))))))))
+      (let* ((predicate (slot-definition-predicate slotd)))
+        (multiple-value-bind (ignore new-value foundp)
+            (get-properties initargs (slot-definition-initargs slotd))
+          (declare (ignore ignore))
+          (cond (foundp
+                 ;; an initarg for the slot was passed to this function
+                 ;; Typecheck the new-value, then call
+                 ;; (SETF SLOT-VALUE-USING-CLASS)
+                 (unless (funcall predicate new-value)
+                   (error 'bad-slot-type-from-initarg
+                          :slot-definition slotd
+                          :instance instance
+                          :datum new-value
+                          :expected-type  (slot-definition-type slotd)
+                          :initarg-name (car foundp)))
+                 (setf (slot-value-using-class class instance slotd) new-value))
+                ((and (or (eq slot-names t)
+                          (member (slot-definition-name slotd)
+                                  slot-names
+                                  :test #'eq))
+                      (not (slot-boundp-using-class class instance slotd)))
+                 ;; If the slot name is among the specified slot names, or
+                 ;; we're reinitializing all slots, and the slot is currently
+                 ;; unbound in the instance, set the slot's value based
+                 ;; on the initfunction (which captures the :INITFORM).
+                 (let* ((initfunction (slot-definition-initfunction slotd)))
+                   (if initfunction
+                     (let* ((newval (funcall initfunction)))
+                       (unless (funcall predicate newval)
+                         (error 'bad-slot-type-from-initform
+                                :slot-definition slotd
+                                :expected-type (slot-definition-type slotd)
+                                :datum newval
+                                :instance instance))
+                       (setf (slot-value-using-class class instance slotd)
+                             newval))))))))))
   instance)
