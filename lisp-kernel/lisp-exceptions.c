@@ -197,7 +197,9 @@ allocptr_displacement(ExceptionInformation *xp)
   pc program_counter = xpPC(xp);
   opcode instr = *program_counter, prev_instr = *(program_counter-1);
 
-  if (instr == ALLOC_TRAP_INSTRUCTION) {
+  if ((instr == ALLOC_TRAP_INSTRUCTION)
+      || (instr == OLD_ALLOC_TRAP_INSTRUCTION)
+) {
     if (match_instr(prev_instr, 
                     XO_MASK | RT_MASK | RB_MASK,
                     XO(major_opcode_X31,minor_opcode_SUBF, 0, 0) |
@@ -331,7 +333,9 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
 	      align_to_power_of_2(need, log2_heap_segment_size));
   if (newlimit > (natural) (a->high)) {
     if (extend) {
-      resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold);
+      if (! resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold)) {
+        return false;
+      }
     } else {
       return false;
     }
@@ -466,6 +470,7 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
        size (say 128K bytes), signal a "chronically out-of-memory" condition;
        else signal a "allocation request failed" condition.
     */
+    xpGPR(xp,allocptr) = xpGPR(xp,allocbase) = VOID_ALLOCPTR;
     handle_error(xp, bytes_needed < (128<<10) ? XNOMEM : error_alloc_failed, 0, 0,  xpPC(xp));
     return -1;
   }
@@ -666,7 +671,7 @@ reset_lisp_process(ExceptionInformation *xp)
    ensure that everything between the freeptr and the heap end
    is mapped and read/write.  (It'll incidentally be zeroed.)
 */
-void
+Boolean
 resize_dynamic_heap(BytePtr newfree, 
 		    natural free_space_size)
 {
@@ -696,9 +701,10 @@ resize_dynamic_heap(BytePtr newfree,
     newlimit = lowptr + align_to_power_of_2(newfree-lowptr+free_space_size,
 					    log2_heap_segment_size);
     if (newlimit > a->high) {
-      grow_dynamic_area(newlimit-a->high);
+      return grow_dynamic_area(newlimit-a->high);
     } else if ((HeapHighWaterMark + free_space_size) < a->high) {
       shrink_dynamic_area(a->high-newlimit);
+      return true;
     }
   }
 }
@@ -1291,7 +1297,10 @@ PMCL_exception_handler(int xnum,
     instruction = *program_counter;
   }
 
-  if (instruction == ALLOC_TRAP_INSTRUCTION) {
+  if ((instruction == ALLOC_TRAP_INSTRUCTION)
+      || (instruction == OLD_ALLOC_TRAP_INSTRUCTION)
+
+) {
     status = handle_alloc_trap(xp, tcr);
   } else if ((xnum == SIGSEGV) ||
 	     (xnum == SIGBUS)) {
