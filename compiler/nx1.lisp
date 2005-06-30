@@ -347,6 +347,21 @@
 (defnx1 nx1-macro-binop ((nth-value)) (arg1 arg2)
   (make-acode (%nx1-default-operator) (nx1-form arg1) (nx1-form arg2)))
 
+(defnx1 nx1-%typed-miscref ((%typed-miscref) (%typed-misc-ref)) (subtype uvector index)
+  (make-acode (%nx1-operator %typed-uvref) 
+                (nx1-form subtype) 
+                (nx1-form uvector) 
+                (nx1-form index)))
+
+
+
+(defnx1 nx1-%typed-miscset ((%typed-miscset) (%typed-misc-set)) (subtype uvector index newvalue)
+  (make-acode (%nx1-operator %typed-uvset) 
+                (nx1-form subtype) 
+                (nx1-form uvector) 
+                (nx1-form index) 
+                (nx1-form newvalue)))
+
 (defnx1 nx1-logior-2 ((logior-2)) (&whole w &environment env arg-1 arg-2)
   (nx-binary-boole-op w 
                       env 
