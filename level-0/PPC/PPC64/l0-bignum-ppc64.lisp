@@ -177,12 +177,16 @@
 
 (defun %add-with-carry (a-digit b-digit carry-in)
   (declare (fixnum a-digit b-digit carry-in))
+  (setq a-digit (logand all-ones-digit a-digit)
+        b-digit (logand all-ones-digit b-digit))
   (let* ((sum (+ carry-in (the fixnum (+ a-digit b-digit)))))
     (declare (fixnum sum))
-    (values (logand #xffffffff sum) (logand 1 (ash sum -32)))))
+    (values (logand all-ones-digit sum) (logand 1 (ash sum -32)))))
 
 (defun %subtract-with-borrow (a-digit b-digit borrow-in)
   (declare (fixnum a-digit b-digit borrow-in))
+  (setq a-digit (logand all-ones-digit a-digit)
+        b-digit (logand all-ones-digit b-digit))
   (let* ((diff (- (the fixnum (- a-digit b-digit))
                   (the fixnum (- 1 borrow-in)))))
     (declare (fixnum diff))
@@ -233,7 +237,7 @@
   (do* ((i start (1+ i)))
        ((= i end)
         (setf (bignum-ref result end)
-              (%add-with-carry (%bignum-sign a) sign-b carry)))
+              (%add-with-carry (%sign-digit a end) sign-b carry)))
     (multiple-value-bind (result-digit carry-out)
         (%add-with-carry (bignum-ref a i) sign-b carry)
       (setf (bignum-ref result i) result-digit
