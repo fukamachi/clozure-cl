@@ -196,7 +196,7 @@
   (la imm1 4 imm1)
   (bne cr0 @lose)
   (bne cr1 @bignum-next)
-  (li arg_z (+ ppc64::t-offset ppc64::nil-value))
+  (li arg_z t)
   (blr))
   
 
