@@ -243,8 +243,6 @@
         (scale-float (float (if (minusp sign) (- integer) integer) (if short a-short-float))
                      power-of-2)))    
     (let* ((exponent (+ length power-of-2))
-           ; 68K short float biased by 30 rather than 14 for reasons too complicated
-           ; to explain having to do with the format allowing easy conversion to IEEE single float
            (biased-exponent (+ exponent (if short *short-float-bias* *double-float-bias*)))
            (sticky-residue nil))
       (cond
@@ -259,7 +257,6 @@
         ; somewhere between 1 and (- ep prec) bits
         (setq lowbits (ash (ldb (byte (- lowest prec) (- length lowest)) integer) (- ep lowest))))
       (let* ((significand (ldb (byte (1- prec) (- length prec)) integer)))
-        ;(break)
         (when (and (not (zerop (ldb (byte 1 (- length (1+ prec))) integer)))   ; round bit
                    (or sticky-residue (oddp significand)
                        (not (zerop (ldb (byte (- ep prec 1) 0) lowbits)))))
