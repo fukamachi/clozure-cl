@@ -1732,9 +1732,11 @@
     (bignum-truncate bignum y)))
 
 (defun bignum-truncate-by-fixnum-no-quo (bignum fixnum)
-  (values (bignum-truncate-by-fixnum bignum fixnum)))
+  (nth-value 1 (bignum-truncate-by-fixnum bignum fixnum)))
 
-
+;;; This may do unnecessary computation in some cases.
+(defun bignum-rem (x y)
+  (nth-value 1 (bignum-truncate x y)))
 
 
 
@@ -1942,36 +1944,31 @@
 
 (defun %ldb-fixnum-from-bignum (bignum size position)
   (declare (fixnum size position))
-  (let* ((len (%bignum-length bignum))
-         (minusp (bignum-minusp bignum))
-         (low-idx (ash position -5))
-         (high-idx (1+ low-idx))
+  (let* ((low-idx (ash position -5))
          (low-bit (logand position 31))
-         (low-word (if (< low-idx len)
-                     (bignum-ref bignum low-idx)
-                     (if minusp
-                       all-ones-digit
-                       0)))
-         (mask (1- (the fixnum (ash 1 size)))))
-    (declare (fixnum size position low-bit high-idx low-idx len mask)
-             (type (unsigned-byte 32) low-word))
-    (if (<= (the fixnum (+ low-bit size)) 32)
-      (logand mask (ash low-word (- low-bit)))
-      (let* ((high-word (if (< high-idx len)
-                          (bignum-ref bignum low-idx)
-                          (if minusp
-                            all-ones-digit
-                            0)))
-             (low-retain (- 32 low-bit))
-             (low-mask (1- (ash 1 low-retain))))
-        (declare (fixnum low-retain low-mask)
-                 (type (unsigned-byte 32) high-word))
-        (logand mask
-                (the fixnum
-                  (logior
-                   (the fixnum (ash high-word low-retain))
-                   (the fixnum (logand (the fixnum (ash low-word (- low-bit)))
-                                       low-mask)))))))))
+         (hi-bit (+ low-bit size))
+         (len (%bignum-length bignum))
+         (minusp (bignum-minusp bignum)))
+    (declare (fixnum size position low-bit hi-bit low-idx len))
+    (if (>= low-idx len)
+      (if minusp (1- (ash 1 size)) 0)
+      (flet ((ldb32 (digit size pos)
+               (declare (fixnum digit size pos))
+               (logand (the fixnum (1- (ash 1 size)))
+                       (the fixnum (ash digit (the fixnum (- pos)))))))
+        (let* ((low-digit (bignum-ref bignum low-idx))
+               (chunk-lo (ldb32 low-digit (min size (%i- 32 low-bit)) low-bit)))
+          (if (< hi-bit 32) 
+            chunk-lo
+            (progn
+              (setq low-idx (1+ low-idx))
+              (let* ((high-digit
+                      (if (>= low-idx len)
+                        (if minusp all-ones-digit 0)
+                        (bignum-ref bignum low-idx)))
+                     (chunk-hi (ldb32 high-digit (%i- size (%i- 32 low-bit)) 0)))
+                (%ilogior (ash chunk-hi (%i- 32 low-bit)) chunk-lo)))))))))
+
 
 
 (defun bignum-negate-loop-really (big len res)
@@ -2010,11 +2007,10 @@
         (declare (fixnum x))
         (unless (zerop x)
           (return (+ (ash i 5)
-                     (let* ((j 0))
-                       (dotimes (i 16)            
-                         (if (oddp x)
-                           (return (the fixnum (+ j i)))
-                           (setq x (ash x -1))))))))))))
+                     (dotimes (j 32)
+                       (if (logbitp j x)
+                         (return j))))))))))
+
 
 (defun logbitp (index integer)
   "Predicate returns T if bit index of integer is a 1."
