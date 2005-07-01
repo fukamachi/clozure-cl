@@ -4792,7 +4792,7 @@ _spentry(makeu128)
 _spentry(makes128)
         __ifdef([PPC64])
         /* Is imm0 just a sign-extension of imm1 ? */
-         __(srdi imm2,imm1,63)
+         __(sradi imm2,imm1,63)
         /* Is the high word of imm0 just a sign-extension of the low word ? */
          __(extsw imm3,imm0)
          __(cmpd imm2,imm0)
