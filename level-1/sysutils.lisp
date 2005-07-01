@@ -395,7 +395,8 @@
 (defsetf symbol-function fset)
 (defsetf fdefinition fset)
 
-(defun set-macro-function (name macro-fun)
+(defun set-macro-function (name macro-fun &optional env)
+  (declare (ignore env))
   (if (special-operator-p name)
     (error "Can not redefine a special-form: ~S ." name))
   (when (and (fboundp name) (not (macro-function name)))
