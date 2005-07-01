@@ -105,6 +105,9 @@
   (cwd path)
   path)
 
+(defun cd (path)
+  (cwd path))
+
 (defun %chdir (dirname)
   (with-cstrs ((dirname dirname))
     (syscall syscalls::chdir dirname)))
