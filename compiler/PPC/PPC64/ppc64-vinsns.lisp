@@ -2270,6 +2270,10 @@
 				((amount :s16const)))
   (la ppc::vsp amount ppc::vsp))
 
+(define-ppc64-vinsn adjust-sp (()
+                               ((amount :s16const)))
+  (la ppc::sp amount ppc::sp))
+
 ;;; Arithmetic on fixnums & unboxed numbers
 
 (define-ppc64-vinsn u64-lognot (((dest :u64))
