@@ -1,3 +1,9 @@
+2005-07-01 16:00  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: %ADD-WITH-CARRY and
+	%SUBTRACT-WITH-BORROW operate on the low 32 bits of their arguments
+	(e.g, -1 is #x00000000ffffffff)).
+
 2005-07-01 03:55  gb
 
 	* level-0/PPC/ppc-float.lisp: ppc64 bug fixes.
