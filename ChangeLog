@@ -1,3 +1,79 @@
+2005-06-30 17:47  gb
+
+	* lisp-kernel/spentry.s: Zero the CTR when entering/returning from
+	lisp code.
+	
+	Fix valence when reentering lisp with exception-handler swap.
+
+2005-06-30 17:46  gb
+
+	* lisp-kernel/pmcl-kernel.c: commit_pages() may fail, so it returns
+	Boolean.  This needs work (overcommit, etc.)
+
+2005-06-30 17:45  gb
+
+	* lisp-kernel/macros.s: Use signed alloc traps.
+
+2005-06-30 17:45  gb
+
+	* lisp-kernel/lisp-exceptions.h: resize_dyamic_heap() may fail, so
+	it returns a Boolean.
+	
+	Define new alloc trap instructions; contunue to define old ones,
+	for bootstrapping.
+
+2005-06-30 17:43  gb
+
+	* lisp-kernel/lisp-exceptions.c: Recognize old (unsigned) alloc
+	traps as well as new (signed) ones.
+	
+	Check for failure in memory allocation requests; fixup allocptr
+	before signalling lisp errors in case of failure.
+
+2005-06-30 17:41  gb
+
+	* lisp-kernel/gc.c: What exactly is a "locatitive" ?
+
+2005-06-30 17:40  gb
+
+	* level-1/l1-typesys.lisp: Compute an effective slot-definition's
+	type predicate based on the value of its type slot, not the
+	(possibly unsupplied) :TYPE initarg.
+
+2005-06-30 17:39  gb
+
+	* level-1/l1-error-system.lisp: Recognize (UNSIGNED-BYTE 56) as an
+	expected type in some UUO type errors.
+
+2005-06-30 17:38  gb
+
+	* level-1/l1-clos.lisp: Slot-definition's TYPE slots default to T,
+	damn it.  Compute the intersection of all direct slots' types when
+	determining an effective slot's type.  (We should probably complain
+	if the intersection is empty, and there may be cases where it can't
+	be computed.)
+
+2005-06-30 17:34  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: Allow
+	BIGNUM-REF/BIGNUM-SET to inline.
+
+2005-06-30 17:34  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	Use signed alloc traps.  (This means that valid heap addresses are
+	limited to the low half of the address space; this has been true
+	because of OS limitations.)
+
+2005-06-30 17:31  gb
+
+	* compiler/PPC/ppc-disassemble.lisp: Recognize SRDI.
+
+2005-06-30 17:30  gb
+
+	* compiler/: nx1.lisp, PPC/ppc2.lisp: (partially) revive
+	%TYPED-MISCREF and %TYPED-MISCSET.
+
 2005-06-29 16:52  gb
 
 	* level-1/version.lisp: bump.
