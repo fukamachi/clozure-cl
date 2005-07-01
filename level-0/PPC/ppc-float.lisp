@@ -136,7 +136,7 @@
   (vpush temp1)  ; exp
   (vpush temp0)  ; sign
   (set-nargs 4)
-  (la temp0 16 vsp)
+  (la temp0 '4 vsp)
   (ba .SPvalues))
 
 
@@ -153,24 +153,23 @@
 
 
 
-
-
 (defppclapfunction dfloat-significand-zeros ((dfloat arg_z))
-  (lwz imm1 ppc32::double-float.value dfloat)
+  (lwz imm1 target::double-float.value dfloat)
   (rlwinm. imm1 imm1 12 0 19)
   (cntlzw imm1 imm1)
   (beq @golo)
   (box-fixnum arg_z imm1)
   (blr)
   @golo
-  (lwz imm1 ppc32::double-float.val-low dfloat)
+  (lwz imm1 target::double-float.val-low dfloat)
   (cntlzw imm1 imm1)
   (addi imm1 imm1 20)
   (box-fixnum arg_z imm1)
   (blr))
 
 (defppclapfunction sfloat-significand-zeros ((sfloat arg_z))
-  (lwz imm1 ppc32::single-float.value sfloat)
+  #+ppc32-target (lwz imm1 ppc32::single-float.value sfloat)
+  #+ppc64-target (srdi imm1 sfloat 32)
   (rlwinm imm1 imm1 9 0 22)
   (cntlzw imm1 imm1)
   (box-fixnum arg_z imm1)
@@ -283,11 +282,6 @@
   (rlwinm arg_z imm1 (- 32 (- 23 ppc32::fixnumshift)) 22 29)
   (blr))
 
-#+ppc64-target
-(defppclapfunction %short-float-exp ((n arg_z))
-  (srdi imm1 n 32)
-  (rlwinm arg_z imm1 (- 32 (- 23 ppc32::fixnumshift)) 22 29)
-  (blr))
 
 
 #+ppc32-target
