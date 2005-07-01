@@ -499,7 +499,7 @@
 
 
 
-; I don't know if it's worth doing a more "real" version of this.
+;;; I don't know if it's worth doing a more "real" version of this.
 (defun bignum-sfloat-compare (int float)
   (with-stack-double-floats ((df float))
     (bignum-dfloat-compare int df)))
