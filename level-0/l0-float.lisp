@@ -40,11 +40,14 @@
 
 #+ppc64-target
 (defun make-short-float-from-fixnums (significand biased-exp sign)
+  (declare (fixnum significand biased-exp sign))
   (host-single-float-from-unsigned-byte-32
    (logior
-    (ash sign 31)
-    (logior (ash biased-exp IEEE-single-float-exponent-offset)
-            significand))))
+    (the fixnum (if (< sign 0) (ash 1 31) 0))
+    (the fixnum (ash biased-exp IEEE-single-float-exponent-offset))
+    (the fixnum (logand significand
+                        (1- (ash 1 IEEE-single-float-hidden-bit)))))))
+
 
 (defun %double-float-sign (n)
   (< (the double-float n) 0.0d0))
@@ -149,7 +152,7 @@
            (exp (ldb (byte IEEE-single-float-exponent-width
                            IEEE-single-float-exponent-offset)
                      bits))
-           (sign (ash bits -31)))
+           (sign (lsh bits -31)))
       (declare (fixnum mantissa exp sign))
       (unless (or (= exp 0) (= exp 255))
         (setq mantissa (logior mantissa (ash 1 IEEE-single-float-hidden-bit))))
@@ -176,33 +179,11 @@
 
 #+ppc64-target
 (defun integer-decode-double-float (n)
-  (multiple-value-bind (high low) (double-float-bits n)
-    (declare (fixnum high low))
-    (let* ((sign (if (logbitp 31 high) -1 1))
-           (raw-exp (ldb (byte IEEE-double-float-exponent-width
-                                 #.(- IEEE-double-float-exponent-offset 32))
-                         high))
-           (raw-mantissa
-            (logior low
-                    (ash (ldb
-                          (byte #.(- IEEE-double-float-mantissa-width 32)
-                                  0)
-                          high)
-                         32)))
-           (biased-exp (- raw-exp IEEE-double-float-bias IEEE-double-float-digits)))
-      (declare (fixnum raw-exp raw-mantissa biased-exp))
-      (cond ((> raw-exp IEEE-double-float-normal-exponent-max)
-             (error "Can't decode NaN or Inf : ~s" n))
-            ((and (zerop raw-exp) (zerop raw-mantissa))
-             (values 0 biased-exp sign))
-            #|((< raw-exp IEEE-double-float-normal-exponent-min)
-             (integer-decode-denormalized-double-float n))|#
-            (t
-      (values (logior raw-mantissa (ash 1 IEEE-double-float-hidden-bit))
-              biased-exp
-              sign))))))
-            
-           
+  (multiple-value-bind (hi lo exp sign)(%integer-decode-double-float n)
+    (setq exp (- exp (if (< hi #x1000000) 
+                       (+ IEEE-double-float-mantissa-width IEEE-double-float-bias)
+                       (+ IEEE-double-float-mantissa-width (1+ IEEE-double-float-bias)))))
+    (values (logior (ash hi 28) lo) exp sign)))
     
 
 ;;; actually only called when magnitude bigger than a fixnum
@@ -572,7 +553,6 @@
     (ratio (%short-float-ratio number))))
 
 
-#+ppc32-target
 (defun float-rat-neg-exp (integer divisor sign &optional result short)
   (if (minusp sign)(setq integer (- integer)))       
   (let* ((integer-length (integer-length integer))
@@ -591,24 +571,7 @@
       ;; why do it return 2 values?
       (values (float-and-scale-and-round sign quotient (- shift-factor)  short result)))))
 
-#+ppc64-target
-(defun float-rat-neg-exp (integer divisor sign &optional short-p)
-  (if (minusp sign)(setq integer (- integer)))       
-  (let* ((integer-length (integer-length integer))
-         ;; make sure we will have enough bits in the quotient
-         ;; (and a couple extra for rounding)
-         (shift-factor (+ (- (integer-length divisor) integer-length) (if short-p 28 60))) ; fix
-         (scaled-integer integer))
-    (if (plusp shift-factor)
-      (setq scaled-integer (ash integer shift-factor))
-      (setq divisor (ash divisor (- shift-factor)))  ; assume div > num
-      )
-    ;(pprint (list shift-factor scaled-integer divisor))
-    (multiple-value-bind (quotient remainder)(floor scaled-integer divisor)
-      (unless (zerop remainder) ; whats this - tells us there's junk below
-        (setq quotient (logior quotient 1)))
-      ;; why do it return 2 values?
-      (values (float-and-scale-and-round sign quotient (- shift-factor) short-p)))))
+
 
 ;;; when is (negate-bignum (bignum-ashift-right big)) ; can't negate
 ;;; in place cause may get bigger cheaper than (negate-bignum big) - 6
@@ -649,7 +612,7 @@
       (declare (dynamic-extent #'doit))
       (with-one-negated-bignum-buffer big doit))))
 
-
+#+ppc32-target
 (defun %bignum-sfloat (big &optional result)  
   (let* ((minusp (bignum-minusp big)))
     (flet 
@@ -669,6 +632,31 @@
                    (setq int-len (1+ int-len))
                    (setq lo (%ilsr 1 lo))))
                (make-short-float-from-fixnums  lo (+ IEEE-single-float-bias int-len)(if minusp -1 1) result))
+             ))))
+      (declare (dynamic-extent #'doit))
+      (with-one-negated-bignum-buffer big doit))))
+
+
+#+ppc64-target
+(defun %bignum-sfloat (big)  
+  (let* ((minusp (bignum-minusp big)))
+    (flet 
+      ((doit (new-big)
+         (let* ((int-len (bignum-integer-length new-big)))
+           (when (>= int-len (- 255 IEEE-single-float-bias)) ; args?
+             (error (make-condition 'floating-point-overflow 
+                                    :operation 'float :operands (list big 1.0s0))))
+           (if t ;(> int-len IEEE-single-float-digits) ; always true
+             (let* ((lo (ldb (byte IEEE-single-float-digits  (- int-len  IEEE-single-float-digits)) new-big)))
+               (when (and (logbitp (- int-len 25) new-big)  ; round bit
+                          (or (%ilogbitp 0 lo)    ; oddp
+                              ; or more bits below round
+                              (%i< (one-bignum-factor-of-two new-big) (- int-len 25))))
+                 (setq lo (1+ lo))
+                 (when (%ilogbitp 24 lo) ; got bigger
+                   (setq int-len (1+ int-len))
+                   (setq lo (%ilsr 1 lo))))
+               (make-short-float-from-fixnums  lo (+ IEEE-single-float-bias int-len)(if minusp -1 1)))
              ))))
       (declare (dynamic-extent #'doit))
       (with-one-negated-bignum-buffer big doit))))
@@ -1007,12 +995,19 @@
     (%single-float-atan2 y x)))
 
 #+ppc64-target
+(defun %short-float-exp (n)
+  (let* ((bits (single-float-bits n)))
+    (declare (type (unsigned-byte 32) bits))
+    (ldb (byte IEEE-single-float-exponent-width IEEE-single-float-exponent-offset) bits)))
+
+
+#+ppc64-target
 (defun set-%short-float-exp (float exp)
   (host-single-float-from-unsigned-byte-32
    (dpb exp
         (byte IEEE-single-float-exponent-width
               IEEE-single-float-exponent-offset)
-        (single-float-bits float))))
+        (the (unsigned-byte 32) (single-float-bits float)))))
 
 #+ppc64-target
 (defun %%scale-sfloat (float int)
@@ -1041,4 +1036,29 @@
                highword))
     exp))
 
-; end of l0-float.lisp
+#+ppc64-target
+(defun %integer-decode-double-float (f)
+  (multiple-value-bind (hiword loword) (double-float-bits f)
+    (declare (type (unsigned-byte 32) hiword loword))
+    (let* ((exp (ldb (byte IEEE-double-float-exponent-width
+                           (- IEEE-double-float-exponent-offset 32))
+                     hiword))
+           (mantissa (logior
+                      (the fixnum
+                        (dpb (ldb (byte (- IEEE-double-float-mantissa-width 32)
+                                        IEEE-double-float-mantissa-offset)
+                                  hiword)
+                             (byte (- IEEE-double-float-mantissa-width 32)
+                                   32)
+                             loword))
+                      (if (zerop exp)
+                        0
+                        (ash 1 IEEE-double-float-hidden-bit))))
+           (sign (if (logbitp 31 hiword) -1 1)))
+      (declare (fixnum exp mantissa sign))
+      (values (ldb (byte 25 28) mantissa)
+              (ldb (byte 28 0) mantissa)
+              exp
+              sign))))
+
+;;; end of l0-float.lisp
