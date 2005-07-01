@@ -1,3 +1,7 @@
+2005-06-30 18:36  gb
+
+	* level-1/version.lisp: bump.
+
 2005-06-30 17:47  gb
 
 	* lisp-kernel/spentry.s: Zero the CTR when entering/returning from
