@@ -393,8 +393,8 @@
 	(if (and (bignump integer)
 		 (<= size  (- (1- target::nbits-in-word)  target::fixnumshift))
 		 (fixnump position))
-	  (%ldb-fixnum-from-bignum integer size position)
-	  (ash (logand bytespec integer) (- position)))))))
+          (%ldb-fixnum-from-bignum integer size position)
+          (ash (logand bytespec integer) (- position)))))))
 
 (defun mask-field (bytespec integer)
   "Extract the specified byte from integer, but do not right justify result."
