@@ -1,3 +1,8 @@
+2005-07-02 14:42  gb
+
+	* lib/backtrace.lisp: FIND-LOCAL-NAME: encoded stack-frame
+	addresses are a function of target::word-size.
+
 2005-07-02 05:51  gb
 
 	* level-0/PPC/PPC64/ppc64-bignum.lisp: %MULTIPLY returns (values
