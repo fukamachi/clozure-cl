@@ -16,15 +16,15 @@
 
 
 
-; backtrace.lisp
-; low-level support for stack-backtrace printing
+;;; backtrace.lisp
+;;; low-level support for stack-backtrace printing
 
 (in-package :ccl)
 
 
 
-; This PRINTS the call history on *DEBUG-IO*.  It's more dangerous (because of
-;  stack consing) to actually return it.
+;;; This PRINTS the call history on *DEBUG-IO*.  It's more dangerous
+;;; (because of stack consing) to actually return it.
                                
 (defun print-call-history (&key context
                                 (start-frame (%get-frame-ptr))
@@ -93,7 +93,7 @@
 
 
 
-; Act as if VSTACK-INDEX points at some lisp data & return that data.
+;;; Act as if VSTACK-INDEX points at some lisp data & return that data.
 (defun access-lisp-data (vstack-index)
   (closed-over-value (%access-lisp-data vstack-index)))
 
@@ -211,12 +211,12 @@
 (defun safe-cell-value (val)
   val)
 
-; Returns two values:
-;  [nil, nil] if it can be reliably determined that function uses no registers at PC
-;  [mask, savevsp]  if it can be reliably determined that the registers specified by "mask"
-;      were saved at "savevsp" in the function's stack frame
-;  [mask, nil] if registers in "mask" MAY have been saved, but we don't know how to restore them
-;      (perhaps because the "at-pc" argument wasn't specified.
+;;; Returns two values:
+;;;  [nil, nil] if it can be reliably determined that function uses no registers at PC
+;;;  [mask, savevsp]  if it can be reliably determined that the registers specified by "mask"
+;;;      were saved at "savevsp" in the function's stack frame
+;;;  [mask, nil] if registers in "mask" MAY have been saved, but we don't know how to restore them
+;;;      (perhaps because the "at-pc" argument wasn't specified.
 
 
 ;; If the last instruction in a code vector is an
@@ -304,4 +304,4 @@
 
 
 
-; End of backtrace.lisp
+;;; End of backtrace.lisp
