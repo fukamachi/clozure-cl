@@ -1,3 +1,18 @@
+2005-07-02 16:52  gb
+
+	* level-0/l0-array.lisp: PPC64-specific changes: Get upper bound of
+	(UNSIGNED-BYTE 64) right.
+
+2005-07-02 16:32  gb
+
+	* lisp-kernel/spentry.s: PPC64-specific changes: makeu64: make a
+	3-digit bignum if we need 3 digits misc_set_common: get
+	type-checking right on (SIGNED-BYTE 16), (UNSIGNED-BYTE 64).
+
+2005-07-02 16:31  gb
+
+	* lib/backtrace.lisp: ; -> ;;; on section comments.
+
 2005-07-02 14:42  gb
 
 	* lib/backtrace.lisp: FIND-LOCAL-NAME: encoded stack-frame
