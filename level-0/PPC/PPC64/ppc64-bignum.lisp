@@ -119,13 +119,13 @@
     (unbox-fixnum unboxed-x x)
     (unbox-fixnum unboxed-y y)
     (mulld imm2 unboxed-x unboxed-y)
-    (clrlsldi arg_y imm2 32 ppc64::fixnumshift)
+    (clrlsldi arg_y imm2 32 ppc64::fixnumshift) ; arg_y = low32
     (srdi imm2 imm2 32)
-    (box-fixnum arg_z imm2)
+    (box-fixnum arg_z imm2)             ; arg_z = high32
     (mr temp0 vsp)
-    (vpush arg_y)
-    (set-nargs 2)
     (vpush arg_z)
+    (set-nargs 2)
+    (vpush arg_y)
     (ba .SPvalues)))
 
 ;;; Any words in the "tail" of the bignum should have been
