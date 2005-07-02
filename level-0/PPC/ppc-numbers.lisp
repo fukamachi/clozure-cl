@@ -216,7 +216,7 @@
   (fctid fp0 fp0)
   (stdu tsp -32 tsp)
   (std tsp 8 tsp)
-  (stfd fp0 17 tsp)
+  (stfd fp0 16 tsp)
   (ld imm0 16 tsp)
   (la tsp 32 tsp)
   (box-fixnum arg_z imm0)  
