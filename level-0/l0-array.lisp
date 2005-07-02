@@ -594,7 +594,7 @@
 		  ((and (>= low 0) (<= high #xffffffff))
                    target::subtag-u32-vector)
                   #+ppc64-target
-                  ((and (>= low 0) (<= high #xffffffffffffffffff))
+                  ((and (>= low 0) (<= high (1- (ash 1 64))))
                    ppc64::subtag-u64-vector)
 		  ((and (>= low -128) (<= high 127)) target::subtag-s8-vector)
 		  ((and (>= low -32768) (<= high 32767)) target::subtag-s16-vector)
