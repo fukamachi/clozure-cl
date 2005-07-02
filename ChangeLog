@@ -1,3 +1,22 @@
+2005-07-02 05:51  gb
+
+	* level-0/PPC/PPC64/ppc64-bignum.lisp: %MULTIPLY returns (values
+	"high 32 bits of product" low 32 bits of product") in that order. 
+	(%MULTIPLY is currently only used to validate the "guess" digit in
+	BIGNUM-TRUNCATE's aux functions, so getting things completely
+	backwards here only caused some bad guess digits to be accepted.)
+
+2005-07-02 05:47  gb
+
+	* level-0/PPC/PPC32/ppc32-bignum.lisp: Some comments had been
+	line-wrapped (presumably causing some words to become lap labels).
+
+2005-07-02 05:45  gb
+
+	* level-0/PPC/ppc-numbers.lisp: 64-bit
+	%ROUND-NEAREST-SHORT-FLOAT->FIXNUM stores FP0 in the right place
+	...
+
 2005-07-01 16:00  gb
 
 	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: %ADD-WITH-CARRY and
