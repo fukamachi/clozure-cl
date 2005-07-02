@@ -138,7 +138,7 @@
                (when info
                  (dotimes (i (length syms))
                    (let ((j (%i+ i (%i+ i i ))))
-                     (and (eq (uvref ptrs j) (%ilogior (%ilsl 8 cellno) #o77))
+                     (and (eq (uvref ptrs j) (%ilogior (%ilsl (+ 6 target::word-shift) cellno) #o77))
                           (%i>= pc (uvref ptrs (%i+ j 1)))
                           (%i< pc (uvref ptrs (%i+ j 2)))
                           (return (aref syms i))))))))))))))
