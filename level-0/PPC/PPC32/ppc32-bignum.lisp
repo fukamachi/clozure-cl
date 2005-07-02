@@ -995,11 +995,9 @@ arg_y) (borrow-in arg_z))
     (lwz tem x0-idx tsp)    ; get x0
     (subfe. tem gy1-hi tem)      ; - val not used just cr
     (lwz y2 y2-idx tsp)     ; get y2
-    (mulhwu gy2-hi guess y2)   ; does it pay to do this now even tho may
-not need?
+    (mulhwu gy2-hi guess y2)   ; does it pay to do this now even tho may not need?
     (bne @done)
-    (cmpl :cr0 gy2-hi m)       ; if > or = and foo then more - L means
-logical means unsigned
+    (cmpl :cr0 gy2-hi m)       ; if > or = and foo then more - L means logical means unsigned
     (blt @done)           ; if < done
     (bne @more)           ; if = test lo
     (mullw gy2-lo guess y2)
