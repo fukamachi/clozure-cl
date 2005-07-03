@@ -335,14 +335,20 @@ terminate the list"
 (defun append (&rest lists)
   (declare (dynamic-extent lists))
   "Construct a new list by concatenating the list arguments"
-  (let* ((head (cons nil nil))
-         (tail head))
-    (declare (dynamic-extent head)
-             (cons head tail))
-    (dolist (list lists (cdr head))
-      (when list
-        (dolist (element list)
-          (setq tail (cdr (rplacd tail (cons element nil)))))))))
+  (if lists
+    (let* ((head (cons nil nil))
+           (tail head))
+      (declare (dynamic-extent head)
+               (cons head tail))
+      (do* ()
+           ((null lists) (cdr head))
+        (let* ((list (pop lists)))
+          (if (null lists)
+            (rplacd tail list)
+            (dolist (element list)
+                (setq tail (cdr (rplacd tail (cons element nil)))))))))))
+
+
 
                      
 
