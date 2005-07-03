@@ -48,8 +48,10 @@
                #'(lambda (env)
                    (eq (debug-optimize-quantity env) 3))   ; inhibit-register-allocation
                #'(lambda (env)
-                   (>= (speed-optimize-quantity env)
-                       (safety-optimize-quantity env)))   ; trust-declarations
+                   (let* ((safety (safety-optimize-quantity env)))
+                     (and (< safety 3)
+                          (>= (speed-optimize-quantity env)
+                              safety)))) ; trust-declarations
                #'(lambda (env)
                    (>= (speed-optimize-quantity env)
                        (+ (space-optimize-quantity env) 2)))   ; open-code-inline
@@ -63,6 +65,7 @@
                    (neq (debug-optimize-quantity env) 3))   ; inline-self-calls
                #'(lambda (env)
                    (and (neq (compilation-speed-optimize-quantity env) 3)
+                        (neq (safety-optimize-quantity env) 3)
                         (neq (debug-optimize-quantity env) 3)))   ; allow-transforms
                #'(lambda (var env)       ; force-boundp-checks
                    (declare (ignore var))
