@@ -222,7 +222,7 @@
 (defun nhash.vector-size (vector)
   (ash (the fixnum (- (the fixnum (uvsize vector)) $nhash.vector_overhead)) -1))
 
-; gets an optional additions argument for do-hash-table-iteration
+;;; gets an optional additions argument for do-hash-table-iteration
 
 (defun nhash-locked-additions-cell (key hash &optional addp additions)
   (without-interrupts  ; do this help ??? seems to - shouldnt be necessary
@@ -299,7 +299,7 @@
   fixnum)
 
 
-; Strip the tag bits to turn x into a fixnum
+;;; Strip the tag bits to turn x into a fixnum
 
 (defun strip-tag-to-fixnum (x)
   (declare (fixnum x))
@@ -607,7 +607,7 @@
 
 
 
-; what if somebody is mapping, growing, rehashing? 
+;;; what if somebody is mapping, growing, rehashing? 
 (defun clrhash (hash)
   "This removes all the entries from HASH-TABLE and returns the hash table
    itself."
@@ -679,7 +679,7 @@
       (let ((name (if (symbolp f) f (function-name f))))
         (if (memq name '(equal equalp)) name f)))))
 
-; sometimes you'd rather have the function than the symbol.
+;;; sometimes you'd rather have the function than the symbol.
 (defun hash-table-test-function (hash)
   (let ((f (nhash.compareF (require-type hash 'hash-table))))
     (if (fixnump f)
@@ -803,11 +803,11 @@
 
 
 
-; do gethash without interrupts using linear search
-; called by gethash if rehashing or (if growing and need rehashing).
-; seems hardly more time woi than copying the vector (woi)
-; and much less space consuming
-; cant seem to get this to happen in real life - tested by setting rehashing bit at toplevel
+;;; do gethash without interrupts using linear search
+;;; called by gethash if rehashing or (if growing and need rehashing).
+;;; seems hardly more time woi than copying the vector (woi)
+;;; and much less space consuming
+;;; cant seem to get this to happen in real life - tested by setting rehashing bit at toplevel
 
 (defun gethash-woi (key hash default)
   (without-interrupts
@@ -968,8 +968,8 @@
          ;; We deleted something
          t)))))))                         ; Found something
                   
-; Grow the hash table, then add the given (key value) pair.
-; caller has set lock-while growing (usually)
+;;; Grow the hash table, then add the given (key value) pair.
+;;; caller has set lock-while growing (usually)
 (defun grow-hash-table (hash)
   (unless (hash-table-p hash)
     (setq hash (require-type hash 'hash-table)))
@@ -1076,7 +1076,7 @@
                     (nhash.vector.flags old-vector)
                     (logior weak-flags (the fixnum (nhash.vector.flags old-vector)))))))))))
 
-; need this for now cause bits are different
+;;; need this for now cause bits are different
 (defun add-locked-additions (hash)
   (without-interrupts
    (when (eql 0 (nhash.lock hash))
@@ -1113,18 +1113,18 @@
       t)))
 
 
-; values of nhash.rehashF
-; %no-rehash - do nothing
-; %maybe-rehash - if doesnt need rehashing - if is rehashing 0 else nil
+;;; values of nhash.rehashF
+;;; %no-rehash - do nothing
+;;; %maybe-rehash - if doesnt need rehashing - if is rehashing 0 else nil
 ;		  if locked 0
 ;		  else rehash, return t
-; %am-rehashing - 0
-; %am-growing   - calls %maybe-rehash
+;;; %am-rehashing - 0
+;;; %am-growing   - calls %maybe-rehash
 
-; compute-hash-code funcalls it if addressp and maybe-rehash-p
-;                  sets to maybe-rehash if addressp and update-maybe-rehash (ie from puthash)
-; grow-hash-table sets to %am-growing when doing so, resets to original value when done
-; rehash sets to %am-rehashing, then to original when done
+;;; compute-hash-code funcalls it if addressp and maybe-rehash-p
+;;;                  sets to maybe-rehash if addressp and update-maybe-rehash (ie from puthash)
+;;; grow-hash-table sets to %am-growing when doing so, resets to original value when done
+;;; rehash sets to %am-rehashing, then to original when done
 
 (defun %no-rehash (hash)
   (declare (%noforcestk)
@@ -1231,7 +1231,7 @@
 
 
 
-; Here when the table is locked and needs rehashing 
+;;; Here when the table is locked and needs rehashing 
 
 (defun %hash-linear-probe (hash key)
   (let* ((test (nhash.compareF hash))
@@ -1263,7 +1263,7 @@
 
 
 
-; Rehash
+;;; Rehash
 (defun %rehash (hash)
   (progn ;without-interrupts
   (let* ((vector (nhash.vector hash))
@@ -1388,7 +1388,7 @@
                 (return-from do-rehash nil))))))))
     t )
 
-; Hash to an index that is not set in rehash-bits
+;;; Hash to an index that is not set in rehash-bits
 (defun %rehash-probe (rehash-bits hash key)
   (declare (optimize (speed 3)(safety 0)))  
   (multiple-value-bind (hash-code index entries)(compute-hash-code hash key nil t)
@@ -1409,9 +1409,9 @@
                       (eq key (%svref vector (index->vector-index index))))
               (return-from %rehash-probe index))))))))
 
-; Returns one value: the index of the entry in the vector
-; Since we're growing, we don't need to compare and can't find a key that's
-; already there.
+;;; Returns one value: the index of the entry in the vector
+;;; Since we're growing, we don't need to compare and can't find a key that's
+;;; already there.
 (defun %growhash-probe (vector hash key)
   (declare (optimize (speed 3)(safety 0)))
   (multiple-value-bind (hash-code index entries)(compute-hash-code hash key nil t vector)
@@ -1453,9 +1453,9 @@
 
 
 
-; so whats so special about bit vectors as opposed to any other vectors of bytes
-; For starters, it's guaranteed that they exist in the implementation; that may
-; not be true of other immediate vector types.
+;;; so whats so special about bit vectors as opposed to any other vectors of bytes
+;;; For starters, it's guaranteed that they exist in the implementation; that may
+;;; not be true of other immediate vector types.
 (defun bit-vector-hash (bv)
   (declare (optimize (speed 3)(safety 0)))
   (let ((length (length bv)))
@@ -1503,15 +1503,15 @@
 |#
 
 
-; Same as %%equalhash, but different:
-;  1) Real numbers are hashed as if they were double-floats.  The real components of complex numbers
-;     are hashed as double-floats and XORed together.
-;  2) Characters and strings are hashed in a case-insensitive manner.
-;  3) Hash tables are hashed based on their size and type.
-;  4) Structures and CL array types are hashed based on their content.
+;;; Same as %%equalhash, but different:
+;;;  1) Real numbers are hashed as if they were double-floats.  The real components of complex numbers
+;;;     are hashed as double-floats and XORed together.
+;;;  2) Characters and strings are hashed in a case-insensitive manner.
+;;;  3) Hash tables are hashed based on their size and type.
+;;;  4) Structures and CL array types are hashed based on their content.
 
 
-; check fixnum befor immediate-p. call %%eqlhash
+;;; check fixnum befor immediate-p. call %%eqlhash
 
 (defun %%equalphash (key)
   (cond ((or (fixnump key)(short-float-p key))
@@ -1640,7 +1640,7 @@
       hash-table)))
 
 (defun %hash-table-equalp (x y)
-  ; X and Y are both hash tables
+  ;; X and Y are both hash tables
   (and (eq (hash-table-test x)
            (hash-table-test y))
        (eql (hash-table-count x)
