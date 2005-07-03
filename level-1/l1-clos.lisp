@@ -1184,7 +1184,7 @@ governs whether DEFCLASS makes that distinction or not.")
   (let* ((instance nil)
 	 (class nil)
 	 (slot nil))
-    (if (and (eq (typecode slotv) ppc32::subtag-slot-vector)
+    (if (and (eq (typecode slotv) target::subtag-slot-vector)
 	     (setq instance (slot-vector.instance slotv))
 	     (setq slot
 		   (find idx (class-slots (setq class (class-of instance)))
