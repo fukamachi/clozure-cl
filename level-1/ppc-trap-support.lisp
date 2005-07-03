@@ -472,10 +472,10 @@
 						(ppc-lap-word
 						 (lwzx ?? ?? ??)))
 					       fn pc-index)))
-              ;; %SLOT-UNBOUND-TRAP will decode the arguments further, then call
-              ;; the generic function SLOT-UNBOUND.  That might return a value; if
-              ;; so, set the value of the register that caused the trap to that
-              ;; value.
+              ;; %SLOT-UNBOUND-TRAP will decode the arguments further,
+              ;; then call the generic function SLOT-UNBOUND.  That
+              ;; might return a value; if so, set the value of the
+              ;; register that caused the trap to that value.
               (setf (xp-gpr-lisp xp (ra-field the-trap))
                     (%slot-unbound-trap (xp-gpr-lisp xp (RA-field instr))
                                         (ash (- (xp-gpr-signed-long xp (RB-field instr))
@@ -764,10 +764,10 @@
 						(ppc-lap-word
 						 (ldx ?? ?? ??)))
 					       fn pc-index)))
-              ;; %SLOT-UNBOUND-TRAP will decode the arguments further, then call
-              ;; the generic function SLOT-UNBOUND.  That might return a value; if
-              ;; so, set the value of the register that caused the trap to that
-              ;; value.
+              ;; %SLOT-UNBOUND-TRAP will decode the arguments further,
+              ;; then call the generic function SLOT-UNBOUND.  That
+              ;; might return a value; if so, set the value of the
+              ;; register that caused the trap to that value.
               (setf (xp-gpr-lisp xp (ra-field the-trap))
                     (%slot-unbound-trap (xp-gpr-lisp xp (RA-field instr))
                                         (ash (- (xp-gpr-signed-doubleword xp (RB-field instr))
