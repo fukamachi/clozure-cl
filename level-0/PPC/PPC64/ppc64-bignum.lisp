@@ -239,7 +239,7 @@
   (blr)
   @store
   (rotldi imm1 imm1 32)
-  (std imm1 ppc64::misc-data-offset big)
+  (std imm1 ppc64::misc-data-offset dest)
   (blr))
 
 (defppclapfunction fix-digit-logandc1 ((fix arg_x) (big arg_y) (dest arg_z))
@@ -253,7 +253,7 @@
   (blr)
   @store
   (rotldi imm1 imm1 32)
-  (std imm1 ppc64::misc-data-offset big)
+  (std imm1 ppc64::misc-data-offset dest)
   (blr))
 
 
