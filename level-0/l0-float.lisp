@@ -49,13 +49,6 @@
                         (1- (ash 1 IEEE-single-float-hidden-bit)))))))
 
 
-(defun %double-float-sign (n)
-  (< (the double-float n) 0.0d0))
-
-(defun %short-float-sign (n)
-  (< (the single-float n) 0.0f0))
-
-
 (defun float-sign (n1 &optional n2) ; second arg silly
   "Return a floating-point number that has the same sign as
    FLOAT1 and, if FLOAT2 is given, has the same absolute value
@@ -801,7 +794,7 @@
          (%single-float-log! sx (%make-sfloat))))
      #+ppc64-target
      (if (minusp x)
-       (complex (%single-float-log (%short-float-abs x)) #.(coerce pi 'single-float))
+       (complex (%single-float-log (%short-float-abs (%short-float x))) #.(coerce pi 'single-float))
        (%single-float-log (%short-float x)))
      )))
 
