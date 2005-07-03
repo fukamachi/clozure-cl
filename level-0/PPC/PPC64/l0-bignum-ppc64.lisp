@@ -1234,7 +1234,7 @@
     (let ((val (fix-digit-logandc1 fix big res)))
       (if res
         (progn  
-          (bignum-replace res big :start1 1 :start2 1 :end1 len-b :end2 len-b)
+          (bignum-replace res big :start1 2 :start2 2 :end1 len-b :end2 len-b)
           (%normalize-bignum-macro res))
         val))))
 
@@ -1331,16 +1331,16 @@
 	   (type bignum-index len-a len-b))
   (dotimes (i len-a)
     (setf (bignum-ref res i)
-          (logior (the fixnum (bignum-ref a i))
+          (%logxor (the fixnum (bignum-ref a i))
                   (the fixnum (bignum-ref b i)))))
   (unless (= len-a len-b)
-    (let ((sign (if (bignum-minusp a) #xffffffff 0)))
+    (let ((sign (if (bignum-minusp a) all-ones-digit 0)))
       (declare (fixnum sign))
       (do ((i len-a (1+ i)))
           ((= i len-b))
         (declare (type bignum-index i))
         (setf (bignum-ref res i)
-              (logxor (bignum-ref b i) sign)))))
+              (%logxor (bignum-ref b i) sign)))))
   (%normalize-bignum-macro res))
 
 
