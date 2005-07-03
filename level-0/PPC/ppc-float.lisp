@@ -587,3 +587,21 @@
     (setf (uvref f target::double-float.value-cell) high
           (uvref f target::double-float.val-low-cell) low)
     f))
+
+(defppclapfunction %double-float-sign ((n arg_z))
+  (lwz imm0 target::double-float.value n)
+  (cmpwi imm0 0)
+  (li arg_z nil)
+  (bgelr)
+  (li arg_z t)
+  (blr))
+
+(defppclapfunction %short-float-sign ((n arg_z))
+  #+ppc32-target (lwz imm0 ppc32::single-float.value n)
+  #+ppc64-target (srdi imm0 n 32)
+  (cmpwi imm0 0)
+  (li arg_z nil)
+  (bgelr)
+  (li arg_z t)
+  (blr))
+  
