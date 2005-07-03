@@ -378,6 +378,10 @@
          (hash (if (and key (not id-p)) (%%eqlhash-internal key)))
          addressp)
     (cond ((null key) (mixup-hash-code 17))
+          #+ppc64-target
+          ((and (typep key 'single-float)
+                (zerop (the single-float key)))
+           0)
           ((immediate-p-macro key) (mixup-hash-code (strip-tag-to-fixnum key)))
           ((and hash (neq hash key)) hash)  ; eql stuff
           (t (typecase key
@@ -1661,25 +1665,20 @@
   (logand (sxhash-aux s-expr 7 17) most-positive-fixnum))
 
 (defun sxhash-aux (expr counter key)
-  (declare (fixnum counter key))
   (declare (fixnum counter))
-  ; key often not fixnum
-  ;(when (bignump key) (print (list 'big key)))
-  ;(setq key (logand key most-positive-fixnum))
   (if (> counter 0)
     (typecase expr
-      ((or string bit-vector number)  (%i+ key (%%equalhash expr)))
+      ((or string bit-vector number character)  (+ key (%%equalhash expr)))
       ((or pathname logical-pathname)
        (dotimes (i (uvsize expr) key)
          (declare (fixnum i))
-         (setq key (%i+ key (sxhash-aux (%svref expr i) (1- counter) key)))))
-      (symbol (%i+ key (%%equalhash (symbol-name expr))))
+         (setq key (+ key (sxhash-aux (%svref expr i) (1- counter) key)))))
+      (symbol (+ key (%%equalhash (symbol-name expr))))
       (cons (sxhash-aux
              (cdr expr)
              (the fixnum (1- counter))             
-             (%i+ key (sxhash-aux (car expr) (the fixnum (1- counter)) key))))
-      (t (%i+ counter key
-            (%%equalhash (symbol-name (%type-of expr))))))
+             (+ key (sxhash-aux (car expr) (the fixnum (1- counter)) key))))
+      (t (+  key (%%equalhash (symbol-name (%type-of expr))))))
     key))
 
 
@@ -1742,58 +1741,4 @@
           (nhash.vector.cache-value vector) nil
           (nhash.vector.cache-idx vector) nil)
     vector))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;; Support for locking hash tables while fasdumping is in "ccl:lib;hash"
-;;
-
-;; "Weak table" stuff - which may or may not be just taking up space -
-;; is there as well.
-#| ; testing 1 2 3
-(defvar *p1 nil)
-(defvar *p2 nil)
-(defvar *hash nil)
-
-(setq *p1  (make-process "P1" :background-p t))
-(setq *p2 (make-process "P2" :background-p t))
-(setq *hash (make-hash-table :size 10))
-(process-preset *p1 #'(lambda ()
-                        (loop
-                          (dotimes (i 100)
-                            (setq *hash (make-hash-table :size 10))
-                            (dotimes (i 2000)
-                              (puthash (cons (gensym) i) *hash i)
-                              (when (and (eq 0 (mod i 10))(eq 0 (nhash.lock *hash)))
-                                ;(incf crud)
-                                ;(%rehash *hash)
-                                )
-                              ;(when (eq 0 (mod i 500)) (gc))
-                              )))))
-(process-preset *p2 #'(lambda ()
-                        (loop
-                          (dotimes (i 400)
-                            (let ((hash *hash))
-                              (setq it nil)
-                              (dotimes (i 200)
-                                (setq it (cons i it)))
-                              (sleep .1) ; fewer locked additions, more need to linear-probe
-                              
-                              (let  ((poo 0))
-                                (maphash #'(lambda (a b)
-                                             (setq it (cons (cons a b) it))
-                                             (let ((c (gethash a hash)))
-                                               (when (neq c b)                                               
-                                                 (format t "~&test failing ~s ~s ~s ~x ~s" a b c 
-                                                         (nhash.lock hash) hash)))
-                                             (incf poo)
-                                             (when (eq 0 (mod poo 5))                                               
-                                               (remhash a hash)
-                                               (if (gethash a hash) (format t "~&remhash puked"))))
-                                         hash)))))))
-    
-(process-enable *p1)
-(process-enable *p2)
-|#
 
