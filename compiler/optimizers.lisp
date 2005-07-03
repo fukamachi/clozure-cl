@@ -345,7 +345,7 @@
           call)))))
 
 (define-compiler-macro ash (&whole call &environment env num amt)
-  (cond ((eq amt 0) num)
+  (cond ((eq amt 0) `(require-type ,num 'integer))
         ((and (fixnump amt)
               (< amt 0)
               (nx-form-typep num 'fixnum env))
