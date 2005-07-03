@@ -1039,7 +1039,7 @@
       (or (dotimes (i (min length1 length2))
             (unless (zerop (the fixnum
                              (logand (the fixnum (bignum-ref num1 i))
-                                     (the fixnum (bignum-ref num1 i)))))
+                                     (the fixnum (bignum-ref num2 i)))))
               (return t)))
           (if (< length1 length2)
             n1-minusp
@@ -1050,7 +1050,11 @@
   (declare (fixnum fix))
   (unless (zerop fix)
     (if (plusp fix)
-      (not (eql 0 (the fixnum (logand (the fixnum (bignum-ref big 0)) fix))))
+      (or
+       (not (eql 0 (the fixnum (logand (the fixnum (bignum-ref big 0)) fix))))
+       (and (> (%bignum-length big) 1)
+            (not (eql 0 (the fixnum (logand (the fixnum (bignum-ref big 1))
+                                            (the fixnum (ash fix -32))))))))
       t)))
 
 
