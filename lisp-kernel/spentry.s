@@ -2830,7 +2830,6 @@ local_label(sets32):
          __(bne cr7,local_label(misc_set_bad))
          __(cmpd imm1,imm0)
          __(bne local_label(misc_set_bad))
-         __(srdi imm0,arg_z,32)
          __(stwx imm0,arg_x,imm4)
          __(blr)
 local_label(set8):      
