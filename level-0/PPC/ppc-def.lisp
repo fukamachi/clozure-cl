@@ -947,16 +947,14 @@
   (ldrx arg_z imm0 imm1)
   (blr))
 
-;; It would be awfully nice if (setf (%get-long macptr offset)
-;;                                   (ash (the fixnum value) target::fixnumshift))
-;; would do this inline.
+
 (defppclapfunction %set-object ((macptr arg_x) (offset arg_y) (value arg_z))
   (check-nargs 3)
   (trap-unless-typecode= arg_x target::subtag-macptr)
   (macptr-ptr imm0 arg_x)
   (trap-unless-lisptag= arg_y target::tag-fixnum imm1)
   (unbox-fixnum imm1 arg_y)
-  (stwx arg_z imm0 imm1)
+  (strx arg_z imm0 imm1)
   (blr))
 
 
