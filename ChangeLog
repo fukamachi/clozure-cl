@@ -1,3 +1,56 @@
+2005-07-03 02:38  gb
+
+	* lisp-kernel/spentry.s: Try to schedule special-variable reference
+	subprims a little better.  (Hard, since we can't do speculative
+	execution, but at least move a test further from a dependent
+	branch.)
+
+2005-07-03 02:36  gb
+
+	* level-0/PPC/PPC64/ppc64-bignum.lisp: Single-digit LOGANDC1,
+	LOGANDC2: store value in DEST if non-nil (was clobbering source
+	bignum arg.)
+
+2005-07-03 02:35  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: Bignum LOGXOR does LOGXOR
+	(not LOGIOR ...) on each digit.
+	
+	Bignun-X-fixnum LOGANDC1, LOGANDC2 assume that the fixnum op has
+	set low 2 (32-bit) digits.
+
+2005-07-03 02:32  gb
+
+	* level-0/PPC/ppc-float.lisp: %DOUBLE-FLOAT-SIGN, %SHORT-FLOAT-SIGN
+	back in LAP, return T iff sign bit is set.
+
+2005-07-03 02:31  gb
+
+	* level-0/l0-hash.lisp: Some paranoia in SXHASH-AUX; ensure that
+	the "similar" -0.0 and 0.0 SXHASH to the same value on PPC64.
+
+2005-07-03 02:30  gb
+
+	* level-0/l0-float.lisp: Move %DOUBLE-FLOAT-SIGN,
+	%SINGLE-FLOAT-SIGN back to LAP (and make them return boolean
+	valures, as their callers expect.)
+	
+	PPC64: LOG-E: coerce X to SINGLE-FLOAT before calling
+	%SHORT-FLOAT-ABS on it.  (Note: bugs like this may clobber the
+	tcr's single-float convert slot, making it hard to box/unbox
+	single-floats in that thread.  If user code can do this (or if
+	system code keeps being buggy ...), should make it easier to fix
+	the tcr slot.)
+
+2005-07-03 02:22  gb
+
+	* compiler/optimizers.lisp: (ASH x 0) - return X, but typecheck it
+
+2005-07-03 02:21  gb
+
+	* compiler/nx-basic.lisp: In default compiler policy, don't trust
+	declarations or do unsafe things if SAFETY optimize quantity is 3.
+
 2005-07-02 20:01  gb
 
 	* xdump/hashenv.lisp: TARGET-ARCH-CASE for some hash-table macros. 
