@@ -63,10 +63,15 @@
     (if condition-name      
       (funcall '%error
                (case condition-name
-                 (type-error (make-condition condition-name
+                 (type-error
+                  (if (cdr errargs)
+                    (make-condition condition-name
                                              :format-control format-string
                                              :datum (car errargs)
-                                             :expected-type (%type-error-type (cadr errargs))))
+                                             :expected-type (%type-error-type (cadr errargs)))
+                    (make-condition condition-name
+                                             :format-control format-string
+                                             :datum (car errargs))))
 		 (improper-list (make-condition condition-name
 						:datum (car errargs)))
                  (simple-file-error (make-condition condition-name
