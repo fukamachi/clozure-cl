@@ -1,3 +1,74 @@
+2005-07-02 20:01  gb
+
+	* xdump/hashenv.lisp: TARGET-ARCH-CASE for some hash-table macros. 
+	(l0-hash.lisp functions have been a little confused about
+	types/tags.)
+
+2005-07-02 20:00  gb
+
+	* lisp-kernel/spentry.s: Store low 32 bits, not high 32 when
+	storing into a (SIMPLE-ARRAY (SIGNED-BYTE 32) (*)).
+
+2005-07-02 19:59  gb
+
+	* lisp-kernel/lisp-debug.c: Avoid "%08x" in printf format strings,
+	when size of arg isn't known to be 32 bits.
+
+2005-07-02 19:57  gb
+
+	* level-1/version.lisp: Lisp image du jour.
+
+2005-07-02 19:56  gb
+
+	* level-1/sysutils.lisp: Make a real (SETF MACRO-FUNCTION)
+	function; make the old SET-MACRO-FUNCTION call it.  (Note that this
+	may be a little tricky to bootstrap: it may be necessary to do:
+	
+	? (remhash 'macro-function ccl::%setf-methods%)
+	
+	to remove the old SETF inverse established by DEFSETF.)
+
+2005-07-02 19:54  gb
+
+	* level-1/ppc-trap-support.lisp: So many mis-indented comments, so
+	little time.
+
+2005-07-02 19:52  gb
+
+	* level-1/l1-error-signal.lisp: Make TYPE-ERROR objects with
+	implicit EXPECTED-TYPE slots if no type info available.
+
+2005-07-02 19:51  gb
+
+	* level-1/l1-clos.lisp: target package in %SLOT-UNBOUND-TRAP.
+
+2005-07-02 19:50  gb
+
+	* level-1/l1-aprims.lisp: APPEND has something to do with the CL
+	definition ...
+
+2005-07-02 19:49  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: LOGTEST of 2 bignums
+	looks at both args (rather than LOGTESTing the first with itself.)
+	
+	LOGTEST of fixnum and bignum looks at second 32-bit digit if it
+	exists and no intersection on first digit.
+
+2005-07-02 19:47  gb
+
+	* level-0/PPC/ppc-def.lisp: %SET-OBJECT stores a natural-sized
+	value, not a 32-bit word ...
+
+2005-07-02 19:46  gb
+
+	* level-0/l0-misc.lisp: PROPER-LIST-P returns false on dotted lists
+	(as someone may have suggested a few months ago.)
+
+2005-07-02 19:46  gb
+
+	* level-0/l0-hash.lisp: Comment formatting changes only.
+
 2005-07-02 16:52  gb
 
 	* level-0/l0-array.lisp: PPC64-specific changes: Get upper bound of
