@@ -145,7 +145,7 @@ describe_illegal(ExceptionInformationPowerPC *xp)
     }
   }
   if (!described) {
-    fprintf(stderr, "Illegal instruction (0x%08x) at 0x%08x\n",
+    fprintf(stderr, "Illegal instruction (0x%08x) at 0x%lx\n",
             the_uuo, where);
   }
 }
@@ -242,7 +242,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
 	  if (instr) {
 	    ra = RA_field(instr);
 	    if (lisp_reg_p(ra)) {
-	      fprintf(stderr, "value 0x%08X is not of the expected header type 0x%02X\n", xpGPR(xp, ra), err_arg2);
+	      fprintf(stderr, "value 0x%lX is not of the expected header type 0x%02X\n", xpGPR(xp, ra), err_arg2);
 	      identified = true;
 	    }
 	  }
@@ -254,7 +254,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
 	  if (instr) {
 	    rs = RS_field(instr);
 	    if (lisp_reg_p(rs)) {
-	      fprintf(stderr, "value 0x%08X is not of the expected type 0x%02X\n",
+	      fprintf(stderr, "value 0x%lX is not of the expected type 0x%02X\n",
 		      xpGPR(xp, rs), err_arg2);
 	      identified = true;
 	    }
@@ -285,7 +285,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
       if (instr) {
 	ra = RA_field(instr);
 	if (lisp_reg_p(ra)) {
-	  fprintf(stderr, "Bad index %d for vector %08X length %d\n",
+	  fprintf(stderr, "Bad index %d for vector %lX length %d\n",
 		  unbox_fixnum(xpGPR(xp, RA_field(the_trap))),
 		  xpGPR(xp, ra),
 		  unbox_fixnum(xpGPR(xp, RB_field(the_trap))));
@@ -308,7 +308,7 @@ debug_lisp_registers(ExceptionInformationPowerPC *xp, int arg)
 {
   TCR *xpcontext = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
 
-  fprintf(stderr, "rcontext = 0x%08X ", xpcontext);
+  fprintf(stderr, "rcontext = 0x%lX ", xpcontext);
   if (!active_tcr_p(xpcontext)) {
     fprintf(stderr, "(INVALID)\n");
   } else {
