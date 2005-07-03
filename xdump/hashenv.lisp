@@ -67,20 +67,37 @@
    
 (defmacro immediate-p-macro (thing)	; boot weirdness
   (let* ((tag (gensym)))
-    `(let* ((,tag (lisptag ,thing)))
-      (declare (fixnum ,tag))
-      (or (= ,tag ppc32::tag-fixnum)
-       (= ,tag ppc32::tag-imm)))))
+    (target-arch-case
+     (:ppc32
+      `(let* ((,tag (lisptag ,thing)))
+        (declare (fixnum ,tag))
+        (or (= ,tag ppc32::tag-fixnum)
+         (= ,tag ppc32::tag-imm))))
+      (:ppc64
+      `(let* ((,tag (lisptag ,thing)))
+        (declare (fixnum ,tag))
+        (or (= ,tag ppc64::tag-fixnum)
+            (= (logand ,tag ppc64::lowtagmask) ppc64::lowtag-imm)))))))
 
 (defmacro hashed-by-identity (thing)
   (let* ((typecode (gensym)))
-    `(let* ((,typecode (typecode ,thing)))
-      (declare (fixnum ,typecode))
-      (or
-       (= ,typecode ppc32::tag-fixnum)
-       (= ,typecode ppc32::tag-imm)
-       (= ,typecode ppc32::subtag-symbol)
-       (= ,typecode ppc32::subtag-instance)))))
+    (target-arch-case
+     (:ppc32
+      `(let* ((,typecode (typecode ,thing)))
+        (declare (fixnum ,typecode))
+        (or
+         (= ,typecode ppc32::tag-fixnum)
+         (= ,typecode ppc32::tag-imm)
+         (= ,typecode ppc32::subtag-symbol)
+         (= ,typecode ppc32::subtag-instance))))
+     (:ppc64
+      `(let* ((,typecode (typecode ,thing)))
+        (declare (fixnum ,typecode))
+        (or
+         (= ,typecode ppc64::tag-fixnum)
+         (= (logand ,typecode ppc64::lowtagmask) ppc64::lowtag-imm)
+         (= ,typecode ppc64::subtag-symbol)
+         (= ,typecode ppc64::subtag-instance)))))))
           
 	 
   
