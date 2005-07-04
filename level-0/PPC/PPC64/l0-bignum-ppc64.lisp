@@ -1208,10 +1208,6 @@
         val))))
 
 
-
-
-  
-
 (defun fix-big-logandc2 (fix big)
   (let* ((len-b (%bignum-length big))
          (res (if (< fix 0)(%allocate-bignum len-b))))
@@ -1219,7 +1215,7 @@
     (let ((val (fix-digit-logandc2 fix big res)))
       (if res
         (progn
-          (do ((i 1 (1+ i)))
+          (do ((i 2 (1+ i)))
               ((= i len-b))
             (declare (type bignum-index i))
             (setf (bignum-ref res i)
@@ -1237,11 +1233,6 @@
           (bignum-replace res big :start1 2 :start2 2 :end1 len-b :end2 len-b)
           (%normalize-bignum-macro res))
         val))))
-
-
-
-
-
 
 
 ;;; IOR.
