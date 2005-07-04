@@ -63,7 +63,12 @@
 
 #+ppc64-target
 (defppclapfunction %sfloat-hash ((key arg_z))
+  (lis imm0 #x8000)
+  (srdi imm1 key 32)
+  (cmpw imm0 imm1)
   (srdi arg_z key (- 32 ppc64::fixnumshift))
+  (bnelr)
+  (li arg_z 0)
   (blr))
 
 (defppclapfunction %macptr-hash ((key arg_z))
