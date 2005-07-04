@@ -287,9 +287,13 @@
 (defparameter *autoload-lisp-package* nil)   ; Make 'em suffer
 (defparameter *apropos-case-sensitive-p* nil)
 
-(defloadvar *total-gc-microseconds* (let* ((p (malloc (* 5 8))))
-                                      (dotimes (i 10 p)
-                                        (setf (%get-long p (* i 4)) 0))))
+(defloadvar *total-gc-microseconds* (let* ((timeval-size
+                                            #.(%foreign-type-or-record-size
+                                               :timeval :bytes))
+                                           (p (malloc (* 5 timeval-size))))
+                                      (#_bzero p (* 5 timeval-size))
+                                      p))
+
 
 (defloadvar *total-bytes-freed* (let* ((p (malloc 8)))
                                   (setf (%get-long p 0) 0
