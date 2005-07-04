@@ -29,14 +29,15 @@
 )
 
 (defun gctime ()
-  (%stack-block ((copy (* 8 5)))
-    (#_memmove copy *total-gc-microseconds* (* 8 5))
-    (values
-     (timeval->milliseconds copy)
-     (timeval->milliseconds (%incf-ptr copy 8))
-     (timeval->milliseconds (%incf-ptr copy 8))
-     (timeval->milliseconds (%incf-ptr copy 8))
-     (timeval->milliseconds (%incf-ptr copy 8)))))
+  (let* ((timeval-size (record-length :timeval)))
+    (%stack-block ((copy (* timeval-size 5)))
+      (#_memmove copy *total-gc-microseconds* (* timeval-size 5))
+      (values
+       (timeval->milliseconds copy)
+       (timeval->milliseconds (%incf-ptr copy timeval-size))
+       (timeval->milliseconds (%incf-ptr copy timeval-size))
+       (timeval->milliseconds (%incf-ptr copy timeval-size))
+       (timeval->milliseconds (%incf-ptr copy timeval-size))))))
 
 (defun get-universal-time ()
   "Return a single integer for the current time of
@@ -45,22 +46,26 @@
     (#_gettimeofday tv (%null-ptr))
     (+ (pref tv :timeval.tv_sec) unix-to-universal-time)))
 
-;;; This should stop using #_localtime: not all times can be represented
-;;; as a 32-bit offset from the start of Unix time, and (more importantly)
-;;; #_localtime isn't reentrant.
-;;; For now, if the time won't fit in 32 bits, use an arbitrary time
+;;; This should stop using #_localtime_r: not all times can be represented
+;;; as a signed natural offset from the start of Unix time.
+;;; For now, if the time won't fit in a :time_t, use an arbitrary time
 ;;; value to get the time zone and assume that DST was -not- in effect.
 (defun get-timezone (time)
-  (let* ((toobig (not (or (typep time '(unsigned-byte 32))
-			  (typep time '(signed-byte 32))))))
+  (let* ((toobig   (not (typep time '(signed-byte
+                                      #+ppc32-target 32
+                                      #+ppc64-target 64
+                                      )))))
     (when toobig
       (setq time 0))
-    (rlet ((when :long))
-      (setf (%get-long when) time)
-      (without-interrupts			;reentrancy ?
-       (with-macptrs ((ltm (#_localtime when)))
-	 (values (floor (pref ltm :tm.tm_gmtoff) -60)
-		 (unless toobig (not (zerop (pref ltm :tm.tm_isdst))))))))))
+    (rlet ((when :time_t)
+           (tm :tm))
+      (setf (pref when :time_t) time)
+      (with-macptrs ((ltm (#_localtime_r when tm)))
+        (if (%null-ptr-p ltm)
+          (values 0 nil)
+          (progn
+            (values (floor (pref tm :tm.tm_gmtoff) -60)
+                    (unless toobig (not (zerop (pref tm :tm.tm_isdst)))))))))))
 
 
 (defun decode-universal-time (universal-time &optional time-zone)
