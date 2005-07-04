@@ -26,37 +26,42 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defparameter *name-char-alist*
-  '(("Null" . #\000) ("Nul" . #\000)
+  '(;; Standard character names
+    ("Newline" .  #\012) ("Space" . #\040)
+    ;; Semi-standard character names
+    ("Rubout" . #\177) ("Page" . #\014) ("Tab" . #\011)
+    ("Backspace" . #\010) ("Return" . #\015) ("Linefeed" . #\012)
+    ;; Other character names.  (When available, standard names
+    ;; should be used for printing in preference to any non-standard
+    ;; names.)
+    ("Null" . #\000) ("Nul" . #\000)
     ("Bell"  . #\007) ; ^G , used by Franz (and others with bells.)
-    ("Delete" . #\010) ("Backspace" . #\010)("BS" . #\010)
-    ("Tab" . #\011)
-    ("Newline" .  #\012) ; arguably, the more "standard" name.
-    ("Linefeed" . #\012) ("LF" . #\012)
+    ("Delete" . #\010) ("BS" . #\010)
+    ("LF" . #\012)
     ("PageUp" . #\013)
-    ("Page" . #\014)("PageDown" . #\014)("Formfeed" . #\014) ("FF" . #\014)
-    ("Return" . #\015) ("CR" . #\015)
+    ("PageDown" . #\014)("Formfeed" . #\014) ("FF" . #\014)
+    ("CR" . #\015)
     ("ESC" .  #\033) ("Escape" . #\033) ("Clear" .  #\033)
-       ("Altmode" .  #\033) ("ALT" .  #\033)
+    ("Altmode" .  #\033) ("ALT" .  #\033)
     ("Fs" . #\034)
     ("Gs" . #\035)
     ("Rs" . #\036)
     ("Us" . #\037)
-    ("Space" . #\040)
-    ("DEL" . #\177)("ForwardDelete" . #\177) ("Rubout" . #\177)
+    ("DEL" . #\177)("ForwardDelete" . #\177) 
     ))
 
-; Character names are stored in *NAME-CHAR-ALIST* which consists of
-; (name . char) where name must be a simple string and char must be
-; a character.
+;;; Character names are stored in *NAME-CHAR-ALIST* which consists of
+;;; (name . char) where name must be a simple string and char must be
+;;; a character.
 
-;(NAME-CHAR name)
-;If name has an entry in the *NAME-CHAR-ALIST*, return first such entry.
-;Otherwise, if it consists of one char, return it.
-;Otherwise, if it consists of two chars, the first of which  is ^,
-; return %code-char(c xor 64), where c is the uppercased second char.
-;Otherwise, if it consists of octal digits, the digits are
-; interpreted as the (mod 256) ascii code of a character.
-;Otherwise return NIL.
+;;;(NAME-CHAR name)
+;;;If name has an entry in the *NAME-CHAR-ALIST*, return first such entry.
+;;;Otherwise, if it consists of one char, return it.
+;;;Otherwise, if it consists of two chars, the first of which  is ^,
+;;; return %code-char(c xor 64), where c is the uppercased second char.
+;;;Otherwise, if it consists of octal digits, the digits are
+;;; interpreted as the (mod 256) ascii code of a character.
+;;;Otherwise return NIL.
 
 (defun name-char (name)
   "Given an argument acceptable to STRING, NAME-CHAR returns a character
@@ -111,11 +116,11 @@
 ;;			Readtables					;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Readtable = istructure with data [1] type-table and [2] macro-char-alist
-; Type-table is a 256 byte ivector with a type byte for each char.
-; macro-char-alist is a list of (char . defn).  The defn is either a
-; cons of (#'read-dispatch . macro-char-alist) for
-; dispatch macros, or it is a function or a symbol to call for simple macros.
+;;; Readtable = istructure with data [1] type-table and [2] macro-char-alist
+;;; Type-table is a 256 byte ivector with a type byte for each char.
+;;; macro-char-alist is a list of (char . defn).  The defn is either a
+;;; cons of (#'read-dispatch . macro-char-alist) for
+;;; dispatch macros, or it is a function or a symbol to call for simple macros.
 
 (defun readtablep (object) (istruct-typep object 'readtable)) 
 
@@ -157,7 +162,7 @@
               (funcall dispfun stream subchar numarg)
               (%err-disp $XNORDISP subchar char)))))))
 
-; This -really- gets initialized later in the file
+;;; This -really- gets initialized later in the file
 (defvar %initial-readtable%
   (let* ((ttab (make-array 256 :element-type '(signed-byte 8)))
          (macs `((#\# . (,#'read-dispatch))))
@@ -198,10 +203,10 @@
     (declare (fixnum code))
     (aref attrtab code)))
 
-; returns: (values attrib <aux-info>), where
-;           <aux-info> = (char . fn), if terminating macro
-;                      = (char . (fn . dispatch-alist)), if dispatching macro
-;                      = nil otherwise
+;;; returns: (values attrib <aux-info>), where
+;;;           <aux-info> = (char . fn), if terminating macro
+;;;                      = (char . (fn . dispatch-alist)), if dispatching macro
+;;;                      = nil otherwise
 
 
 (defun %get-readtable-char (char &optional (readtable *readtable*))
@@ -350,7 +355,7 @@
      (setf (pool.data pool)
            (cheap-cons str (pool.data pool))))))
 
-;Look for an exact match, else create a simple-string.
+;;;Look for an exact match, else create a simple-string.
 (defun %get-token-string (len)
   (declare (fixnum len))
   (without-interrupts
@@ -448,7 +453,7 @@
         (unless (= attr $cht_wsp)
           (return (values ch attr)))))))
 
-; "escapes" is a list of escaped character positions, in reverse order
+;;; "escapes" is a list of escaped character positions, in reverse order
 (defun %casify-token (token escapes)
   (let* ((case (readtable-case *readtable*))
          (opos (token.opos token))
@@ -492,11 +497,12 @@
                 (setq nextesc (if escapes (pop escapes) -1))
                 (setf (%schar string i) (char-downcase (%schar string i)))))))))))
 
-; MCL's reader has historically treated ||:foo as a reference to the symbol FOO in the 
-; package which has the null string as its name.  Some other implementations treat it
-; as a keyword.  This takes an argument indicating whether or not something was "seen"
-; before the first colon was read, even if that thing caused no characters to be
-; added to the token.
+;;; MCL's reader has historically treated ||:foo as a reference to the
+;;; symbol FOO in the package which has the null string as its name.
+;;; Some other implementations treat it as a keyword.  This takes an
+;;; argument indicating whether or not something was "seen" before the
+;;; first colon was read, even if that thing caused no characters to
+;;; be added to the token.
 
 (defun %token-package (token colonpos seenbeforecolon)
   (if colonpos
@@ -507,9 +513,10 @@
             (%kernel-restart $XNOPKG (subseq string 0 colonpos)))))
     *package*))
 
-;; Returns 3 values: reversed list of escaped character positions, explicit package
-;; (if unescaped ":" or "::") or nil, t iff any non-dot, non-escaped chars in token,
-;; and t if either no explicit package or "::"
+;;; Returns 3 values: reversed list of escaped character positions,
+;;; explicit package (if unescaped ":" or "::") or nil, t iff any
+;;; non-dot, non-escaped chars in token, and t if either no explicit
+;;; package or "::"
 
 (defun %collect-xtoken (token stream 1stchar)
   (let* ((escapes ())
@@ -579,8 +586,8 @@
 (defun %token-to-number (token radix &optional no-rat)
   (new-numtoken (token.string token) (token.ipos token) (token.opos token) radix no-rat))
 
-; If we're allowed to have a single "." in this context, DOT-OK is some distinguished
-; value that's returned to the caller when exactly one dot is present.
+;;; If we're allowed to have a single "." in this context, DOT-OK is some distinguished
+;;; value that's returned to the caller when exactly one dot is present.
 (defun %parse-token (stream firstchar dot-ok)
   (with-token-buffer (tb)
     (multiple-value-bind (escapes explicit-package nondots double-colon) (%collect-xtoken tb stream firstchar)
@@ -633,11 +640,11 @@
 (%parse-token-test ":foo")
 |#
 
-; firstchar must not be whitespace.
-; People who think that there's so much overhead in all of
-; this (multiple-value-list, etc.) should probably consider
-; rewriting those parts of the CLOS and I/O code that make
-; using things like READ-CHAR impractical ...
+;;; firstchar must not be whitespace.
+;;; People who think that there's so much overhead in all of
+;;; this (multiple-value-list, etc.) should probably consider
+;;; rewriting those parts of the CLOS and I/O code that make
+;;; using things like READ-CHAR impractical ...
 (defun %parse-expression (stream firstchar dot-ok)
   (let* ((readtable *readtable*)
          (attrtab (rdtab.ttab readtable)))
@@ -855,7 +862,7 @@ c)" t)
  #\.
  #'read-eval)
 
-; This has been deprecated.  Why not nuke it ?
+;;; This has been deprecated.  Why not nuke it ?
 (set-dispatch-macro-character
  #\#
  #\,
@@ -990,10 +997,10 @@ c)" t)
 
 
      
-;Since some built-in read macros used to use internal reader entry points
-;for efficiency, we couldn't reliably offer a protocol for stream-dependent
-;recursive reading.  So recursive reads always get done via tyi's, and streams
-;only get to intercept toplevel reads.
+;;;Since some built-in read macros used to use internal reader entry points
+;;;for efficiency, we couldn't reliably offer a protocol for stream-dependent
+;;;recursive reading.  So recursive reads always get done via tyi's, and streams
+;;;only get to intercept toplevel reads.
 
 (defun read (&optional stream (eof-error-p t) eof-value recursive-p)
   (declare (resident))
@@ -1055,9 +1062,9 @@ c)" t)
 (defresource *parse-string-resource*
   :constructor (make-string 255 :element-type 'base-char))
 
-;arg=0 : read form, error if eof
-;arg=nil : read form, eof-val if eof.
-;arg=char : read delimited list
+;;;arg=0 : read form, error if eof
+;;;arg=nil : read form, eof-val if eof.
+;;;arg=char : read delimited list
 (defun %read-form (stream arg eof-val)
   (declare (resident))
   (check-type *readtable* readtable)
@@ -1081,7 +1088,7 @@ c)" t)
 
 
 
-;Until load backquote...
+;;;Until load backquote...
 (set-macro-character #\`
   #'(lambda (stream char) (declare (ignore stream)) (%err-disp $xbadmac char)))
 (set-macro-character #\, (get-macro-character #\`))

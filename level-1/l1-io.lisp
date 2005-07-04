@@ -530,12 +530,14 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 ;;;; internals of internals of write-internal
 
 (defmethod print-object ((char character) stream &aux name)
-  (cond ((or *print-escape* *print-readably*)   ;print #\ for read-ability
+  (cond ((or *print-escape* *print-readably*) ;print #\ for read-ability
          (stream-write-char stream #\#)
          (stream-write-char stream #\\)
-         (if (setq name (char-name char))
-             (%write-string name stream)
-             (stream-write-char stream char)))
+         (if (and (or (eql char #\newline)
+                      (not (standard-char-p char)))
+                  (setq name (char-name char)))
+           (%write-string name stream)
+           (stream-write-char stream char)))
         (t
          (stream-write-char stream char))))
 
