@@ -1589,7 +1589,7 @@
 (defun %determine-record-attributes (rtype parsed-fields &optional alt-align)
   (let* ((total-bits 0)
          (overall-alignment 1)
-	 #+poweropen-target
+	 #+(and darwinppc-target ppc32-target)
 	 (first-field-p t)
          (kind (foreign-record-type-kind rtype)))
     (dolist (field parsed-fields)
@@ -1598,13 +1598,13 @@
              (natural-alignment (foreign-type-alignment field-type))
 	     (alignment (if alt-align
 			  (min natural-alignment alt-align)
-			  #+poweropen-target
+			  #+(and darwinppc-target ppc32-target)
 			  (if first-field-p
 			    (progn
 			      (setq first-field-p nil)
 			      natural-alignment)
 			    (min 32 natural-alignment))
-			  #-poweropen-target
+			  #-(and darwinppc-target ppc32-target)
 			  natural-alignment)))
         (unless bits
           (error "Unknown size: ~S"
@@ -1615,8 +1615,10 @@
         (setq overall-alignment (max overall-alignment alignment))
 
         (ecase kind
-          (:struct (let* ((offset (align-offset total-bits alignment)))
-                     (setf (foreign-record-field-offset field) offset)
+          (:struct (let* ((imported-offset (foreign-record-field-offset field))
+                          (offset (or imported-offset (align-offset total-bits alignment))))
+                     (unless imported-offset
+                       (setf (foreign-record-field-offset field) offset))
                      (setq total-bits (+ offset bits))))
           (:union (setq total-bits (max total-bits bits))))))
     (setf (foreign-record-type-fields rtype) parsed-fields
