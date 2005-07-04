@@ -1,3 +1,70 @@
+2005-07-04 01:55  gb
+
+	* lisp-kernel/spentry.s: _SPbuiltin_length does
+	list-length/circularity check on PPC64.
+	
+	_SPbuiltin_seqtype was checking (random) imm1 value, rather than
+	typecode in imm0; this means that sequence functions sometimes
+	tried to treat non-list arguments as vectors (rather than
+	complaining about non-sequences.) (This seems to have been present
+	on both platforms, and may have been long-standing.)
+
+2005-07-04 01:52  gb
+
+	* lib/time.lisp: Use reentrant #_localtime_r.
+	
+	GCTIME uses (host) :timeval size, not hardwired constant.
+
+2005-07-04 01:51  gb
+
+	* lib/db-io.lisp: Don't override field offsets assigned by
+	interface translator!
+	
+	Assume that DarwinPPC64 uses natural PPC struct alignment.  (AFAIK,
+	Apple hasn't bothered to document the ABI yet.)
+
+2005-07-04 01:49  gb
+
+	* level-1/: l1-io.lisp, l1-reader.lisp: Only use character names
+	for non-graphic-standard-chars (for #\Newline and for
+	non-standard-chars) when writing chars with #\ syntax.
+	
+	*NAME-CHAR-ALIST*: reorder so that standard/semi-standard char
+	names are preferred.
+
+2005-07-04 01:47  gb
+
+	* level-1/l1-init.lisp: Make *TOTAL-GC-MICROSECONDS* big enough.
+
+2005-07-04 01:46  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: fix-big-logandc2:  start
+	complementing at second digit, since fixnum op handled low 2
+	digits.
+
+2005-07-04 01:45  gb
+
+	* level-0/PPC/ppc-hash.lisp: EQL hashing treats +/- 0.0 the same.
+
+2005-07-04 01:44  gb
+
+	* level-0/PPC/ppc-array.lisp: %EXTEND-VECTOR: handle bit-vector
+	case with non-zero start offset.
+
+2005-07-04 01:43  gb
+
+	* compiler/PPC/ppc-lap.lisp: Functions can't (easily) overflow on
+	PPC64.
+
+2005-07-04 01:42  gb
+
+	* compiler/nx1.lisp: NX1-ASH: (ash X 0) should typecheck X.
+
+2005-07-04 01:41  gb
+
+	* compiler/optimizers.lisp: TRANSFORM-LOGOP: some logical
+	operations aren't commutative.
+
 2005-07-03 02:38  gb
 
 	* lisp-kernel/spentry.s: Try to schedule special-variable reference
