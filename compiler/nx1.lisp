@@ -1918,7 +1918,7 @@
          (maxbits (target-arch-case
                    (:ppc32 29)
                    (:ppc64 60))))
-    (cond ((eq amt 0) (nx1-form num))
+    (cond ((eq amt 0) (nx1-form `(require-type ,num 'integer) env))
           ((and (fixnump amt)
                 (< amt 0))
            (if (nx-form-typep num 'fixnum env)
