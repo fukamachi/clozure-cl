@@ -1134,11 +1134,11 @@
   `(lognot (logior ,n0 ,n1)))
 
 
-(defun transform-logop (whole identity binop)
+(defun transform-logop (whole identity binop &optional (transform-complement t))
   (destructuring-bind (op &optional (n0 nil n0p) (n1 nil n1p) &rest more) whole
     (if (and n1p (eql n0 identity))
       `(,op ,n1 ,@more)
-      (if (and n1p (eql n0 (lognot identity)))
+      (if (and transform-complement n1p (eql n0 (lognot identity)))
         `(progn
            (,op ,n1 ,@more)
            ,(lognot identity))
@@ -1162,7 +1162,7 @@
 
 (define-compiler-macro logxor (&whole w &rest all)
   (declare (ignore all))
-  (transform-logop w 0 'logxor-2))
+  (transform-logop w 0 'logxor-2 nil))
 
 (define-compiler-macro lognot (&whole w &environment env n1)
   (if (nx-form-typep n1 'fixnum env)
