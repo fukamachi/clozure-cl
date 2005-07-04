@@ -190,6 +190,7 @@
       (if (typep node 'lap-label)
         (if delete-labels-p (remove-dll-node node))
         (incf pc 4)))
+    #+ppc32-target
     (if (>= pc (ash 1 20)) (compiler-function-overflow))
     pc))
 
