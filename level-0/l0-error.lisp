@@ -12,6 +12,9 @@
 ;;;
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
+
+(in-package "CCL")
+
 (defparameter *error-format-strings* 
   '((1 . "Unbound variable: ~S .")
     (2 . "Can't take CDR of ~S.")

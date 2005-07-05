@@ -16,6 +16,8 @@
 ;;;
 ;;; level-0;l0-float.lisp
 
+(in-package "CCL")
+
 (eval-when (:compile-toplevel :execute)
   (require "NUMBER-MACROS")
   (require :number-case-macro) 
@@ -23,12 +25,12 @@
 
 ;;; used by float reader
 (defun make-float-from-fixnums (hi lo exp sign &optional result)
-  ;(require-null-or-double-float-sym result)
-  ; maybe nuke all these require-types?
-  ;(setq hi (require-type hi 'fixnum))
-  ;(setq lo (require-type lo 'fixnum))
-  ;(setq exp (require-type exp 'fixnum))
-  ;(setq sign (require-type sign 'fixnum))
+  ;;(require-null-or-double-float-sym result)
+  ;; maybe nuke all these require-types?
+  ;;(setq hi (require-type hi 'fixnum))
+  ;;(setq lo (require-type lo 'fixnum))
+  ;;(setq exp (require-type exp 'fixnum))
+  ;;(setq sign (require-type sign 'fixnum))
   (let ((the-float (or result (%make-dfloat))))
     (%make-float-from-fixnums the-float hi lo exp sign)
     the-float))

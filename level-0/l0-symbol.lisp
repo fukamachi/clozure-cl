@@ -14,20 +14,22 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-; No error checking, no interrupts, no protect_caller, no nuthin.
-; No error, no cons.  No problem.
+(in-package "CCL")
+
+;;; No error checking, no interrupts, no protect_caller, no nuthin.
+;;; No error, no cons.  No problem.
 (defun %progvrestore (saved)
   (declare (optimize (speed 3) (safety 0)))
   (dolist (pair saved)
     (%set-sym-value (car pair) (cdr pair))))
 
-;; Check that something that's supposed to be a proper list of
-;; symbols is; error otherwise.
-;; This is called only by the compiler output of a PROGV form.
-;; It checks for the maximum length that the progvsave subprim
-;; can handle.
+;;; Check that something that's supposed to be a proper list of
+;;; symbols is; error otherwise.
+;;; This is called only by the compiler output of a PROGV form.
+;;; It checks for the maximum length that the progvsave subprim
+;;; can handle.
 (defun svar-check-symbol-list (l &optional (max-length
-                                        (floor (- 4096 20) (* 4 3))
+                                        (floor (- 4096 20) (* target::node-size 3))
                                        ))
   (let ((len (list-length l)))
     (if (and len
@@ -42,7 +44,7 @@
       (error "~s is not a proper list of bindable symbols~@[ of length < ~s~]." l max-length))))
 
 (defun check-symbol-list (l &optional (max-length
-                                        (floor (- 4096 20) (* 4 3))
+                                        (floor (- 4096 20) (* target::node-size 3))
                                        ))
   (let ((len (list-length l)))
     (if (and len
@@ -104,9 +106,9 @@
       (set-symbol-plist sym (cons key (cons value plist))))
     value))
 
-; This is how things have traditionally been defined: if %sym_vbit_typeppred 
-; is set in the symbol's %SYMBOL-BITS, it's assumed that it's safe to
-; take the %CADR of the %SYMBOL-PACKAGE-PLIST.
+;;; This is how things have traditionally been defined: if %sym_vbit_typeppred 
+;;; is set in the symbol's %SYMBOL-BITS, it's assumed that it's safe to
+;;; take the %CADR of the %SYMBOL-PACKAGE-PLIST.
 (defun get-type-predicate (name)
   (let* ((bits (%symbol-bits name)))
     (declare (fixnum bits))
@@ -145,7 +147,7 @@
   (and (symbolp sym)
        (%ilogbitp $sym_vbit_const (%symbol-bits sym))))
 
-; This leaves the SPECIAL and INDIRECT bits alone, clears the others.
+;;; This leaves the SPECIAL and INDIRECT bits alone, clears the others.
 (defun makunbound (sym)
   "Make SYMBOL unbound, removing any value it may currently have."
   (if (and *warn-if-redefine-kernel*

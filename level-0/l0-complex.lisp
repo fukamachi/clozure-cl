@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 (eval-when (:compile-toplevel)
   (require "NUMBER-MACROS"))
 
@@ -28,4 +30,4 @@
                       (coerce imag type)))))
         (t (complex (coerce num type)))))
 
-; end of l0-complex.lisp
+;;; end of l0-complex.lisp

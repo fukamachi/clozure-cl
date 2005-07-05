@@ -14,9 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
-
-; primitives that manipulate function & variable definitions.
+;;; primitives that manipulate function & variable definitions.
 
 
 
@@ -55,7 +55,7 @@
   (%unfhave name)
   name)
 
-; redefined in sysutils.
+;;; redefined in sysutils.
 (%fhave 'fmakunbound #'bootstrapping-fmakunbound)
 
 (defun bootstrapping-fset (name fn)
@@ -154,7 +154,7 @@
     (setf (%svref symptr target::symbol.fcell-cell) unbound)
     (not (eq old unbound))))
 
-; It's guaranteed that lfun-bits is a fixnum.  Might be a 30-bit fixnum ...
+;;; It's guaranteed that lfun-bits is a fixnum.  Might be a 30-bit fixnum ...
 (defun lfun-bits (function &optional new)
   (unless (functionp function)
     (setq function (require-type function 'function)))
@@ -244,4 +244,4 @@
       ; Not found in env, look in function cell.
   (%global-macro-function form))
 
-; end of l0-def.lisp
+;;; end of l0-def.lisp

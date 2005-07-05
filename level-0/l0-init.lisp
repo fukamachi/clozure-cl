@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 (defconstant array-total-size-limit
   #.(expt 2 (- target::nbits-in-word target::num-subtag-bits))
   "the exclusive upper bound on the total number of elements in an array")

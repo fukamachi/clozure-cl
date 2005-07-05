@@ -14,7 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-#+allow-in-package
 (in-package "CCL")
 
 (defun make-string (size &key (initial-element () initial-element-p) (element-type 'character element-type-p))

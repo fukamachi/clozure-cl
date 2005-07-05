@@ -15,6 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
+(in-package "CCL")
 
 ; l0-aprims.lisp
 
@@ -51,7 +52,6 @@
   (setf (pkg.lock p) (make-read-write-lock)))
 
 (defparameter %all-packages-lock% nil)
-(setq %all-packages-lock% (make-read-write-lock))
 
 
 

@@ -19,7 +19,6 @@
 ; l0-utils.lisp
 
 
-#+allow-in-package
 (in-package "CCL")
 
 (defun %proclaim-notspecial (sym)
@@ -27,7 +26,7 @@
 
 
 
-; We MAY need a scheme for finding all of the areas in a lisp library.
+;;; We MAY need a scheme for finding all of the areas in a lisp library.
 (defun %map-areas (function &optional (maxcode ppc::area-dynamic) (mincode ppc::area-readonly))
   (declare (fixnum maxcode mincode))
   (do* ((a (%normalize-areas) (%lisp-word-ref a (ash target::area.succ (- target::fixnumshift))))

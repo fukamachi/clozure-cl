@@ -17,6 +17,8 @@
 ;;;
 ;;; level-0;l0-numbers.lisp
 
+(in-package "CCL")
+
 (eval-when (:compile-toplevel :execute)
   (require "ARCH")
   (require "LISPEQU")
