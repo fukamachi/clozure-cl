@@ -2037,7 +2037,7 @@
      (return-from logbitp (minusp (require-type integer 'integer)))))
   (number-case integer
     (fixnum
-     (if (%i<= index (- ppc32::nbits-in-word ppc32::fixnumshift))
+     (if (%i< index (- target::nbits-in-word target::fixnumshift))
        (%ilogbitp index integer)
        (minusp (the fixnum integer))))
     (bignum
