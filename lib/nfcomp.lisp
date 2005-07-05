@@ -15,6 +15,8 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
+(in-package "CCL")
+
 ;; :lib:nfcomp.lisp - New fasl compiler.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -31,9 +33,6 @@
 
 (defmacro short-fixnum-p (fixnum)
   `(and (fixnump ,fixnum) (< (integer-length ,fixnum) 16)))
-
-
-
 
 (require "FASLENV" "ccl:xdump;faslenv")
 
@@ -502,8 +501,8 @@ Will differ from *compiling-file* during an INCLUDE")
              (fcomp-random-toplevel-form form env)
              (fcomp-compile-toplevel-forms env))
             ((%macro) (fcomp-load-%macro form env))
-                                        ;      ((%deftype) (fcomp-load-%deftype form))
-                                        ;      ((define-setf-method) (fcomp-load-define-setf-method form))
+            ;; ((%deftype) (fcomp-load-%deftype form))
+            ;; ((define-setf-method) (fcomp-load-define-setf-method form))
             (t (fcomp-random-toplevel-form form env)))))))))
 
 (defun fcomp-form-list (forms env processing-mode)
