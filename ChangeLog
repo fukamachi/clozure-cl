@@ -1,3 +1,8 @@
+2005-07-05 07:25  gb
+
+	* level-0/PPC/PPC32/l0-bignum-ppc32.lisp: Need NUMBER-CASE-MACRO at
+	compile-time.
+
 2005-07-05 07:12  gb
 
 	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: LOGBITP: fencepost on
