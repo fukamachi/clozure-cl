@@ -202,15 +202,23 @@ describe_trap(ExceptionInformationPowerPC *xp)
 	/* Boundp traps are of the form:
 	   treqi rX,unbound
 	   where some preceding instruction is of the form:
-	   lwz rX,symbol.value(rY).
+	   lwz/ld rX,symbol.value(rY).
 	   The error message should try to say that rY is unbound. */
 	
 	if (D_field(the_trap) == unbound) {
+#ifdef PPC64
+	  instr = scan_for_instr(LD_instruction(RA_field(the_trap),
+                                                unmasked_register,
+                                                offsetof(lispsymbol,vcell)-fulltag_misc),
+				 D_RT_IMM_MASK,
+				 where);
+#else
 	  instr = scan_for_instr(LWZ_instruction(RA_field(the_trap),
 						 unmasked_register,
 						 offsetof(lispsymbol,vcell)-fulltag_misc),
 				 D_RT_IMM_MASK,
 				 where);
+#endif
 	  if (instr) {
 	    ra = RA_field(instr);
 	    if (lisp_reg_p(ra)) {
@@ -351,8 +359,8 @@ debug_identify_exception(ExceptionInformationPowerPC *xp, int arg)
   case SIGILL:
   case SIGTRAP:
     instruction = *program_counter;
-    if (major_opcode_p(instruction, major_opcode_TWI) ||
-	X_opcode_p(instruction,major_opcode_X31,minor_opcode_TW)) {
+    if (major_opcode_p(instruction, major_opcode_TRI) ||
+	X_opcode_p(instruction,major_opcode_X31,minor_opcode_TR)) {
       describe_trap(xp);
     } else {
       describe_illegal(xp);
