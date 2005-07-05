@@ -1,3 +1,17 @@
+2005-07-05 07:12  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: LOGBITP: fencepost on
+	fixnum-only bound (can only access most significant bit of fixnum,
+	not beyond ...).  (Was looking at ppc32 constants, so this didn't
+	lead to erroneous code, but may have been very inefficient in some
+	cases.)
+
+2005-07-05 07:11  gb
+
+	* level-0/PPC/PPC32/l0-bignum-ppc32.lisp: LOGBITP: fencepost on
+	fixnum-only bound (can only access most significant bit of fixnum,
+	not beyond ...).
+
 2005-07-05 04:25  gb
 
 	* level-1/version.lisp: Bump.
