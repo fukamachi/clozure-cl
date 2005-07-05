@@ -255,6 +255,7 @@
 
 ; destructively mungs dir
 (defun remove-up (dir)
+  (setq dir (delete "." dir  :test #'string=))
   (let ((n 0)
         (last nil)
         (sub dir)
