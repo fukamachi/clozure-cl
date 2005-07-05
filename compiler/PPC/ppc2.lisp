@@ -942,7 +942,7 @@
     (dolist (var vars vloc)
       (let* ((initform (pop inits))
              (spvar (pop spvars))
-             (spvloc (%i+ vloc 4))
+             (spvloc (%i+ vloc *ppc2-target-node-size*))
              (var-lcell (pop lcells))
              (sp-reg ($ ppc::arg_z))
              (sp-lcell (pop lcells)))
@@ -956,7 +956,7 @@
         (ppc2-bind-structured-var seg var vloc var-lcell context)
         (when spvar
           (ppc2-bind-var seg spvar spvloc sp-lcell)))
-      (setq vloc (%i+ vloc 8)))))
+      (setq vloc (%i+ vloc (* 2 *ppc2-target-node-size*))))))
 
 
 
@@ -966,7 +966,7 @@
     (dolist (var keyvars)
       (let* ((spvar (pop keysupp))
              (initform (pop keyinits))
-             (sploc (%i+ vloc 4))
+             (sploc (%i+ vloc *ppc2-target-node-size*))
              (var-lcell (pop lcells))
              (sp-reg ($ ppc::arg_z))
              (sp-lcell (pop lcells)))
@@ -980,7 +980,7 @@
         (ppc2-bind-structured-var seg var vloc var-lcell context)
         (when spvar
           (ppc2-bind-var seg spvar sploc sp-lcell)))
-      (setq vloc (%i+ vloc 8)))))
+      (setq vloc (%i+ vloc (* 2 *ppc2-target-node-size*))))))
 
 (defun ppc2-vloc-ea (n &optional vcell-p)
   (setq n (make-memory-spec (dpb memspec-frame-address memspec-type-byte n)))
@@ -4558,23 +4558,23 @@
   (declare (fixnum vloc))
   (when whole
     (ppc2-bind-structured-var seg whole vloc (pop lcells))
-    (incf vloc 4))
+    (incf vloc *ppc2-target-node-size*))
   (dolist (arg req)
     (ppc2-bind-structured-var seg arg vloc (pop lcells) context)
-    (incf vloc 4))
+    (incf vloc *ppc2-target-node-size*))
   (when opt
    (if (ppc2-hard-opt-p opt)
      (setq vloc (apply #'ppc2-structured-initopt seg lcells vloc context opt)
            lcells (nthcdr (ash (length (car opt)) 1) lcells))
      (dolist (var (%car opt))
        (ppc2-bind-structured-var seg var vloc (pop lcells) context)
-       (incf vloc 4))))
+       (incf vloc *ppc2-target-node-size*))))
   (when rest
     (ppc2-bind-structured-var seg rest vloc (pop lcells) context)
-    (incf vloc 4))
+    (incf vloc *ppc2-target-node-size*))
   (when keys
     (apply #'ppc2-structured-init-keys seg lcells vloc context keys)
-    (setq vloc (%i+ vloc (%ilsl 3 nkeys))))
+    (setq vloc (%i+ vloc (* *ppc2-target-node-size* (+ nkeys nkeys)))))
   (ppc2-seq-bind seg (%car auxen) (%cadr auxen)))
 
 (defun ppc2-structured-var-p (var)
@@ -6992,7 +6992,7 @@
               (with-node-temps () (temp)
                 (ppc2-stack-to-register seg (ppc2-vloc-ea restloc) temp)
                 (ppc2-vpush-register seg temp))
-              (setq restloc (%i+ restloc 4))))
+              (setq restloc (%i+ restloc *ppc2-target-node-size*))))
           (ppc2-set-nargs seg (length rest-arg))
           (if (%ilogbitp $vbitdynamicextent (nx-var-bits rest))
             (progn
@@ -7008,7 +7008,7 @@
               (if (fixnump val)
                 (progn
                   (when rest (setq val (%i+ (%i+ val val) 1)))
-                  (ppc2-bind-var seg (%car vars) (%i+ vloc (%ilsl 2 val))))
+                  (ppc2-bind-var seg (%car vars) (%i+ vloc (* val *ppc2-target-node-size*))))
                 (ppc2-seq-bind-var seg (%car vars) val)))
             (setq vars (%cdr vars) inits (%cdr inits))))
         (ppc2-undo-body seg vreg xfer body old-stack)
