@@ -1,3 +1,29 @@
+2005-07-05 04:19  gb
+
+	* level-0/: l0-aprims.lisp, l0-array.lisp, l0-complex.lisp,
+	l0-def.lisp, l0-error.lisp, l0-float.lisp, l0-hash.lisp,
+	l0-init.lisp, l0-int.lisp, l0-io.lisp, l0-misc.lisp,
+	l0-numbers.lisp, l0-pred.lisp, l0-symbol.lisp, l0-utils.lisp: Add
+	(IN-PACKAGE "CCL").
+
+2005-07-05 04:18  gb
+
+	* level-0/nfasload.lisp: Add (IN-PACKAGE "CCL").
+	
+	Do SET-PACKAGE and FIND-PACKAGE here, so that IN-PACKAGE can be
+	used in level-0 and early level-1 files.  (All of these files are
+	in the CCL package; the IN-PACKAGE forms are supposed to help text
+	editors set the buffer package reasonably when editing these
+	files.)
+
+2005-07-05 04:11  gb
+
+	* level-0/PPC/: PPC32/ppc32-bignum.lisp,
+	PPC32/l0-bignum-ppc32.lisp, ppc-array.lisp, ppc-clos.lisp,
+	ppc-def.lisp, ppc-float.lisp, ppc-hash.lisp, ppc-io.lisp,
+	ppc-misc.lisp, ppc-numbers.lisp, ppc-pred.lisp, ppc-symbol.lisp,
+	ppc-utils.lisp: Add (IN-PACKAGE "CCL").
+
 2005-07-05 02:52  gb
 
 	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: Add (IN-PACKAGE "CCL").
