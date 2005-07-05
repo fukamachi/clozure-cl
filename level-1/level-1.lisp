@@ -51,8 +51,6 @@
   (l1-load "l1-aprims")
   #+ppc-target
   (l1-load "ppc-callback-support")
-  #+sparc-target
-  (l1-load "sparc-callback-support")
   (l1-load "l1-callbacks")
   (l1-load "l1-sort")
   (bin-load "lists")
@@ -64,10 +62,7 @@
   (bin-load "defstruct")
   (bin-load "dll-node")
   (l1-load "l1-streams")
-  #+ppc-target
   (l1-load "linux-files")
-  #+sparc-target
-  (l1-load "solaris-files")
   (bin-load "chars")
   (l1-load "l1-files")
   (provide "SEQUENCES")
