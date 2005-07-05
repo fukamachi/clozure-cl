@@ -2392,7 +2392,7 @@
 			    (src :imm))
 			   ((temp :u32)
 			    (crx :crf)))
-  (cmpdi crx count (ash 31 ppc64::fixnumshift))
+  (cmpdi crx count (ash 63 ppc64::fixnumshift))
   (srdi temp count ppc64::fixnumshift)
   (sld dest src temp)
   (ble+ crx :foo)
