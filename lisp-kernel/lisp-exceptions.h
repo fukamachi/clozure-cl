@@ -365,9 +365,11 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 
 
 #define D_instruction(major,rt,ra,imm) (OP(major)|((rt)<<21)|((ra)<<16)|((imm)&D_MASK))
+#define DS_instruction(major,rt,ra,imm,minor) (OP(major)|((rt)<<21)|((ra)<<16)|(((imm)&D_MASK)&~3)|((minor)&3))
 #define TRI_instruction(rt,ra,imm)     D_instruction(major_opcode_TRI,rt,ra,imm)
 #define LBZ_instruction(rt,ra,imm)     D_instruction(major_opcode_LBZ,rt,ra,imm)
 #define LWZ_instruction(rt,ra,imm)     D_instruction(major_opcode_LWZ,rt,ra,imm)
+#define LD_instruction(rt,ra,imm)      DS_instruction(58,rt,ra,imm,0)
 
 #define D_RT_IMM_MASK                  (OP_MASK|RT_MASK|D_MASK)
 #define D_RA_IMM_MASK                  (OP_MASK|RA_MASK|D_MASK)
