@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 (eval-when (:compile-toplevel :execute)
 
 (require "FASLENV" "ccl:xdump;faslenv")
@@ -186,9 +188,18 @@
           (setq symbol (%add-symbol str package internal-offset external-offset)))
         (%epushval s symbol)))))
 
+(defun find-package (name)
+  (if (packagep name) 
+    name
+    (%find-pkg (string name))))
+
+(defun set-package (name &aux (pkg (find-package name)))
+  (if pkg
+    (setq *package* pkg)
+    (set-package (%kernel-restart $xnopkg name))))
+
+  
 (defun %find-pkg (name &optional (len (length name)))
-  (declare (fixnum len)
-           (optimize (speed 3) (safety 0)))
   (with-package-list-read-lock
       (dolist (p %all-packages%)
         (if (dolist (pkgname (pkg.names p))
@@ -925,20 +936,22 @@
       (declare (special *xload-cold-load-functions*
                         *xload-cold-load-documentation*
                         *xload-startup-file*))
-      (%set-tcr-toplevel-function (%current-tcr) nil)   ; should get reset by l1-boot.
-
-     (dolist (f (prog1 *xload-cold-load-functions* (setq *xload-cold-load-functions* nil)))
+      (%set-tcr-toplevel-function (%current-tcr) nil) ; should get reset by l1-boot.
+      ;; Need to make %ALL-PACKAGES-LOCK% early, so that we can casually
+      ;; do SET-PACKAGE in cold load functions.
+      (setq %all-packages-lock% (make-read-write-lock))
+      (dolist (f (prog1 *xload-cold-load-functions* (setq *xload-cold-load-functions* nil)))
         (funcall f))
-     (dolist (p %all-packages%)
-       (%resize-htab (pkg.itab p))
-       (%resize-htab (pkg.etab p)))
-     (dolist (f (prog1 *xload-cold-load-documentation* (setq *xload-cold-load-documentation* nil)))
-       (apply 'set-documentation f))
-     ;; Can't bind any specials until this happens
-     (%map-areas #'(lambda (o)
-                     (when (eql (typecode o) target::subtag-svar)
-                       (cold-load-svar o)))
-                 ppc::area-dynamic
-                 ppc::area-dynamic)
+      (dolist (p %all-packages%)
+        (%resize-htab (pkg.itab p))
+        (%resize-htab (pkg.etab p)))
+      (dolist (f (prog1 *xload-cold-load-documentation* (setq *xload-cold-load-documentation* nil)))
+        (apply 'set-documentation f))
+      ;; Can't bind any specials until this happens
+      (%map-areas #'(lambda (o)
+                      (when (eql (typecode o) target::subtag-svar)
+                        (cold-load-svar o)))
+                  ppc::area-dynamic
+                  ppc::area-dynamic)
       (%fasload *xload-startup-file*)))
 
