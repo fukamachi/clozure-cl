@@ -15,12 +15,12 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
-;(in-package "CCL")
+(in-package "CCL")
 
 ;;; The caller has allocated a two-digit bignum (quite likely on the stack).
 ;;; If we can fit in a single digit (if the high word is just a sign
-;;; extension of the low word, truncate the bignum in place (the
-;;; trailing words should already be zeroed.)
+;;; extension of the low word), truncate the bignum in place (the
+;;; trailing words should already be zeroed.
 (defppclapfunction %fixnum-to-bignum-set ((bignum arg_y) (fixnum arg_z))
   (unbox-fixnum imm0 fixnum)
   (srdi imm1 imm0 32)
