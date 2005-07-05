@@ -14,6 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   (require "ARCH")
@@ -1959,14 +1960,26 @@
                (chunk-lo (ldb32 low-digit (min size (%i- 32 low-bit)) low-bit)))
           (if (< hi-bit 32) 
             chunk-lo
-            (progn
+            (let* ((have (- 32 low-bit))
+                   (remain (- size have)))
+              (declare (fixnum have remain))
               (setq low-idx (1+ low-idx))
+              (when (> remain 32)
+                (setq chunk-lo
+                      (logior (ash (if (< low-idx len)
+                                     (bignum-ref bignum low-idx)
+                                     (if minusp all-ones-digit 0))
+                                   have)
+                              chunk-lo))
+                (incf have 32)
+                (decf remain 32)
+                (incf low-idx))
               (let* ((high-digit
                       (if (>= low-idx len)
                         (if minusp all-ones-digit 0)
                         (bignum-ref bignum low-idx)))
-                     (chunk-hi (ldb32 high-digit (%i- size (%i- 32 low-bit)) 0)))
-                (%ilogior (ash chunk-hi (%i- 32 low-bit)) chunk-lo)))))))))
+                     (chunk-hi (ldb32 high-digit remain 0)))
+                (%ilogior (ash chunk-hi have) chunk-lo)))))))))
 
 
 
