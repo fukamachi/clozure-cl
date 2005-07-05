@@ -2061,19 +2061,14 @@ are no Forms, OR returns NIL."
 ; package if it didn't exist.
 ; Should see how well this works & maybe flush the whole idea.
 
-(defmacro in-package (&whole call name &rest gratuitous-backward-compatibility)
+(defmacro in-package (name)
   (let ((form nil))
-    (cond (gratuitous-backward-compatibility
-           (cerror "Macroexpand into a call to the old IN-PACKAGE function."
-                   "Macro call ~S contains extra arguments." call )
-           (setq form `(ccl::old-in-package ,name ,@gratuitous-backward-compatibility)))
-        (t
-         (when (quoted-form-p name)
-           (warn "Unquoting argument ~S to ~S." name 'in-package )
-           (setq name (cadr name)))    
-         (setq form `(set-package ,(string name)))))
-         `(eval-when (:execute :load-toplevel :compile-toplevel)
-            ,form)))
+    (when (quoted-form-p name)
+      (warn "Unquoting argument ~S to ~S." name 'in-package )
+      (setq name (cadr name)))    
+    (setq form `(set-package ,(string name)))
+    `(eval-when (:execute :load-toplevel :compile-toplevel)
+      ,form)))
 
 (defmacro defpackage (name &rest options)
   "Defines a new package called PACKAGE. Each of OPTIONS should be one of the 
