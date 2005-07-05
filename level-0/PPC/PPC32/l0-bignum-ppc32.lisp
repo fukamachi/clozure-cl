@@ -19,7 +19,8 @@
 (eval-when (:compile-toplevel :execute)
   (require "ARCH")
   (require "NUMBER-MACROS")
-
+  (require "NUMBER-CASE-MACRO")
+  
   (defconstant digit-size 32)
   (defconstant half-digit-size (/ digit-size 2))
   
