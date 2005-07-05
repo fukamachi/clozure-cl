@@ -16,10 +16,9 @@
 
 
 
-#+allow-in-package
 (in-package "CCL")
 
-; not very smart yet
+;;; not very smart yet
 
 (defppclapfunction %get-errno ()
   (ldr imm1 target::tcr.errno-loc target::rcontext)

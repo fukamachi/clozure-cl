@@ -17,7 +17,7 @@
 ;;; level-0;ppc;ppc-misc.lisp
 
 
-;(in-package "CCL")
+(in-package "CCL")
 
 ;;; Copy N bytes from pointer src, starting at byte offset src-offset,
 ;;; to ivector dest, starting at offset dest-offset.

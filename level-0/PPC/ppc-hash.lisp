@@ -17,7 +17,7 @@
 ;;; level-0;ppc;ppc-hash.lisp
 
 
-;(in-package "CCL")
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   (require "HASHENV" "ccl:xdump;hashenv"))

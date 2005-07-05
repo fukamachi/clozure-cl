@@ -14,6 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
 ;;; Do an FF-CALL to MakeDataExecutable so that the data cache gets flushed.
 ;;; If the GC moves this function while we're trying to flush the cache,

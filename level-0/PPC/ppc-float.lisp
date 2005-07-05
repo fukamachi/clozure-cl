@@ -14,27 +14,11 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-#+allow-in-package
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   (require "NUMBER-MACROS")
-  (require :number-case-macro) 
-  
-
- 
-
-
-   
-)
-
-
-
-
-
-
-
-
+  (require :number-case-macro))
 
 
 ;;; make a float from hi - high 24 bits mantissa (ignore implied higher bit)

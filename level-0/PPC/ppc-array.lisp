@@ -14,6 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   #+ppc32-target
@@ -23,7 +24,7 @@
   (require "PPC-LAPMACROS"))
 
 
-; Users of this shouldn't make assumptions about return value.
+;;; Users of this shouldn't make assumptions about return value.
 
 
 #+ppc32-target

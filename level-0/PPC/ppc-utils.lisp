@@ -15,17 +15,16 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
-#+allow-in-package
 (in-package "CCL")
 
 #+ppc32-target
 (defppclapfunction %address-of ((arg arg_z))
-  ; %address-of a fixnum is a fixnum, just for spite.
-  ; %address-of anything else is the address of that thing as an integer.
+  ;; %address-of a fixnum is a fixnum, just for spite.
+  ;; %address-of anything else is the address of that thing as an integer.
   (clrlwi. imm0 arg (- 32 ppc32::nlisptagbits))
   (beqlr cr0)
   (mr imm0 arg_z)
-  ; set cr0_eq if result fits in a fixnum
+  ;; set cr0_eq if result fits in a fixnum
   (clrrwi. imm1 imm0 (- ppc32::least-significant-bit ppc32::nfixnumtagbits))
   (box-fixnum arg_z imm0)               ; assume it did
   (beqlr+ cr0)                          ; else arg_z tagged ok, but missing bits
@@ -34,12 +33,12 @@
 
 #+ppc64-target
 (defppclapfunction %address-of ((arg arg_z))
-  ; %address-of a fixnum is a fixnum, just for spite.
-  ; %address-of anything else is the address of that thing as an integer.
+  ;; %address-of a fixnum is a fixnum, just for spite.
+  ;; %address-of anything else is the address of that thing as an integer.
   (clrldi. imm0 arg (- 64 ppc64::nlisptagbits))
   (beqlr cr0)
   (mr imm0 arg_z)
-  ; set cr0_eq if result fits in a fixnum
+  ;; set cr0_eq if result fits in a fixnum
   (clrrdi. imm1 imm0 (- ppc64::least-significant-bit ppc64::nfixnumtagbits))
   (box-fixnum arg_z imm0)               ; assume it did
   (beqlr+ cr0)                          ; else arg_z tagged ok, but missing bits

@@ -16,7 +16,7 @@
 
 
 
-;(in-package "CCL")
+(in-package "CCL")
 
 ;(push (cons 'number-case 1) *fred-special-indent-alist*) do later
 

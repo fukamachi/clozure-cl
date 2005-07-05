@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 ;;; It's easier to keep this is LAP; we want to play around with its
 ;;; constants.
 
