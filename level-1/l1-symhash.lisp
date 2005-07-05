@@ -46,15 +46,6 @@
 
 
 
-(defun find-package (name)
-  (if (packagep name) 
-    name
-    (%find-pkg (string name))))
-
-(defun set-package (name &aux (pkg (find-package name)))
-  (if pkg
-    (setq *package* pkg)
-    (set-package (%kernel-restart $xnopkg name))))
 
 (defun export (sym-or-syms &optional (package *package*))
   "Exports SYMBOLS from PACKAGE, checking that no name conflicts result."
