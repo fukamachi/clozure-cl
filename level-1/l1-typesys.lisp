@@ -3785,6 +3785,15 @@
 (deftype simple-single-float-vector (&optional size)
   `(simple-array single-float (,size)))
 
+#+ppc64-target
+(deftype simple-doubleword-vector (&optional size)
+  `(simple-array (signed-byte 64) (,size)))
+
+#+ppc64-target
+(deftype simple-unsigned-doubleword-vector (&optional size)
+  `(simple-array (unsigned-byte 64) (,size)))
+
+
 (deftype short-float (&optional low high)
   `(single-float ,low ,high))
 
@@ -3844,7 +3853,9 @@
 		    (mod #x100000000)
 		    (unsigned-byte 1) 
 		    (unsigned-byte 8) (unsigned-byte 16) (unsigned-byte 32)
+                    (unsigned-byte 64)
 		    (signed-byte 8) (signed-byte 16) (signed-byte 32)
+                    (signed-byte 64)
                     (or function symbol)
                     ))
 
@@ -3885,6 +3896,10 @@
           byte-vector word-vector long-vector
           single-float-vector double-float-vector
           general-vector
+          #+ppc64-target
+          doubleword-vector
+          #+ppc64-targe
+          unsigned-doubleword-vector
           ;;   Simple 1-Dimensional Arrays
           simple-1d-array  simple-string simple-base-string simple-bit-vector
           simple-unsigned-byte-vector
@@ -3896,6 +3911,10 @@
           simple-single-float-vector 
           simple-double-float-vector
           simple-vector
+          #+ppc64-target
+          simple-doubleword-vector
+          #+ppc64-target
+          simple-unsigned-doubleword-vector
           ;; Sequence types
           sequence list  cons null
           
