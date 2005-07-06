@@ -430,12 +430,12 @@
       (warn "Dynamic libraries cannot be closed on Darwin."))
      ((and (%null-ptr-p (shlib.map lib))
 	   (not (%null-ptr-p (shlib.base lib))))
-      ;; we have a bundle type library
-      ;; not sure what to do with the completely flag
-      ;; when we open the same bundle more than once, Darwin gives back
-      ;; a new module address, so we have multiple entries on *shared-libraries*
-      ;; the best we can do is unlink the module asked for (or our best guess based on name)
-      ;; and invalidate any entries which refer to this container
+      ;; we have a bundle type library not sure what to do with the
+      ;; completely flag when we open the same bundle more than once,
+      ;; Darwin gives back a new module address, so we have multiple
+      ;; entries on *shared-libraries* the best we can do is unlink
+      ;; the module asked for (or our best guess based on name) and
+      ;; invalidate any entries which refer to this container
       (if (= 0 (#_NSUnLinkModule (shlib.base lib) #$NSUNLINKMODULE_OPTION_NONE))
 	  (error "Unable to close shared library, NSUnlinkModule failed.")
 	(progn
@@ -452,7 +452,7 @@
 (defun call-with-string-vector (function strings)
   (let ((bufsize (reduce #'+ strings
 			 :key #'(lambda (s) (1+ (length (string s))))))
-	(argvsize (ash (1+ (length strings)) 2))
+	(argvsize (ash (1+ (length strings)) target::word-shift))
 	(bufpos 0)
 	(argvpos 0))
     (%stack-block ((buf bufsize) (argv argvsize))
@@ -463,7 +463,7 @@
 		 (setf (%get-byte buf (%i+ bufpos len)) 0)
 		 (setf (%get-ptr argv argvpos) (%inc-ptr buf bufpos))
 		 (setq bufpos (%i+ bufpos len 1))
-		 (setq argvpos (%i+ argvpos 4))))))
+		 (setq argvpos (%i+ argvpos target::node-size))))))
 	(declare (dynamic-extent #'init))
 	(map nil #'init strings))
       (setf (%get-ptr argv argvpos) (%null-ptr))
@@ -500,12 +500,17 @@
 	(values (%get-long pipes 0) (%get-long pipes 4))
 	(%errno-disp status)))))
 
+
+;;; I believe that the Darwin syscall infterface is rather ... odd.
+;;; Use libc's interface.
 #+darwinppc-target
 (defun pipe ()
-  (let* ((ans (syscall syscalls::pipe)))
-    (if (< ans 0)
-      (%errno-disp ans nil)
-      (values (ldb (byte 32 32) ans) (ldb (byte 32 0) ans)))))
+  (%stack-block ((pipes 8))
+    (let* ((status (#_pipe pipes)))
+      (if (zerop status)
+        (values (%get-long pipes 0) (%get-long pipes 4))
+        (%errno-disp (%get-errno))))))
+
 
 
 (defstruct external-process
