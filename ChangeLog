@@ -1,3 +1,35 @@
+2005-07-05 20:04  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: natural ALU ops were ...
+	missing; problems with inlined boxing/unboxing of 64-bit integers. 
+	64-bit aref.
+
+2005-07-05 19:56  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: natural ALU ops take 32-bit
+	args, return 32-bit results on PPC32.
+
+2005-07-05 19:48  gb
+
+	* compiler/PPC/ppc2.lisp: natural-vref, natural-vset for ppc64. 
+	Handle 64-bit integer vectors.
+
+2005-07-05 19:47  gb
+
+	* compiler/nx1.lisp: Two-arg addition, subtraction on unsigned
+	natural-sized integers.
+
+2005-07-05 19:46  gb
+
+	* compiler/nx0.lisp: NX-BINARY-NATURAL-OP-P may want to look at
+	result type.
+
+2005-07-05 19:44  gb
+
+	* compiler/arch.lisp: Error codes for not-u64, not-s64 were
+	backwards.  (continue from constant redefinition CERRORs, recompile
+	everything).
+
 2005-07-05 07:25  gb
 
 	* level-0/PPC/PPC32/l0-bignum-ppc32.lisp: Need NUMBER-CASE-MACRO at
