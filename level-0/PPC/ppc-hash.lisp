@@ -25,8 +25,8 @@
 
 
 
-; This should stay in LAP so that it's fast
-; Equivalent to cl:mod when both args are positive fixnums
+;;; This should stay in LAP so that it's fast
+;;; Equivalent to cl:mod when both args are positive fixnums
 #+ppc32-target
 (defppclapfunction fast-mod ((number arg_y) (divisor arg_z))
   (divwu imm0 number divisor)
@@ -133,10 +133,15 @@
   (blr))
 
 
-; Setting a key in a hash-table vector needs to 
-; ensure that the vector header gets memoized as well
+;;; Setting a key in a hash-table vector needs to 
+;;; ensure that the vector header gets memoized as well
 (defppclapfunction %set-hash-table-vector-key ((vector arg_x) (index arg_y) (value arg_z))
   (ba .SPset-hash-key))
 
+;;; Strip the tag bits to turn x into a fixnum
+(defppclapfunction strip-tag-to-fixnum ((x arg_z))
+  (unbox-fixnum imm0 x)
+  (box-fixnum arg_z imm0)
+  (blr))
 
-; end of ppc-hash.lisp
+;;; end of ppc-hash.lisp
