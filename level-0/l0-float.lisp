@@ -308,7 +308,7 @@
            (let ((result (%make-sfloat)))
              (%%scale-sfloat! float (+ (1+ IEEE-single-float-bias) int) result))
            #+ppc64-target
-           (%%scale-float float (+ (1+ IEEE-single-float-bias) int)))
+           (%%scale-sfloat float (+ (1+ IEEE-single-float-bias) int)))
          (if (<= new-exp 0)  ; maybe going denormalized        
            (if (<= new-exp (- IEEE-single-float-digits))
              ;; should this be underflow? - should just be normal and
