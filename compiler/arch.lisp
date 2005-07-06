@@ -100,8 +100,8 @@
   base-char
   bit
   unsigned-byte-24
-  signed-byte-64
   unsigned-byte-64
+  signed-byte-64
   unsigned-byte-56
   )
 
