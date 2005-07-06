@@ -2055,14 +2055,21 @@ Or something. Right? ~s ~s" var varbits))
                  (:ppc64 (subtypep *nx-form-type* '(signed-byte 61))))))))
 
 
-(defun nx-binary-natural-op-p (form1 form2 env)
-  (target-arch-case
-   (:ppc32
-    (and (nx-form-typep form1 '(unsigned-byte 32)  env)
+(defun nx-binary-natural-op-p (form1 form2 env &optional (ignore-result-type t))
+  (and
+   (target-arch-case
+    (:ppc32
+     (and (nx-form-typep form1 '(unsigned-byte 32)  env)
          (nx-form-typep form2 '(unsigned-byte 32)  env)))
-   (:ppc64
-    (and (nx-form-typep form1 '(unsigned-byte 64)  env)
-         (nx-form-typep form2 '(unsigned-byte 64)  env)))))
+    (:ppc64
+     (and (nx-form-typep form1 '(unsigned-byte 64)  env)
+          (nx-form-typep form2 '(unsigned-byte 64)  env))))
+   (or ignore-result-type
+       (and (nx-trust-declarations env)
+            (target-arch-case
+             (:ppc32 (subtypep *nx-form-type* '(unsigned-byte 32)))
+             (:ppc64 (subtypep *nx-form-type* '(unsigned-byte 64))))))))
+
     
 
 
