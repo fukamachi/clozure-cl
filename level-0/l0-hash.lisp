@@ -270,18 +270,13 @@
     (when (logbitp $nhash_track_keys_bit flags)
       (setf (nhash.vector.flags vector) (logior (ash 1 $nhash_key_moved_bit) flags)))))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-#+ppc32-target
 (defun mixup-hash-code (fixnum)
   (declare (fixnum fixnum))
   (the fixnum
     (+ fixnum
        (the fixnum (%ilsl (- 32 8)
                           (logand (1- (ash 1 (- 8 3))) fixnum))))))
-#+ppc64-target
-(defun mixup-hash-code (fixnum)
-  fixnum)
-)
+
 
 #+ppc32-target
 (defun rotate-hash-code (fixnum)
@@ -296,16 +291,10 @@
 
 #+ppc64-target
 (defun rotate-hash-code (fixnum)
-  fixnum)
+  (declare (fixnum fixnum))
+  (logior (logand #xffff (the fixnum (ash fixnum -16)))
+          (ash (the fixnum (logand fixnum #xffff)) 16)))
 
-
-;;; Strip the tag bits to turn x into a fixnum
-
-(defun strip-tag-to-fixnum (x)
-  (declare (fixnum x))
-  ;; logand-2 happens to know how to turn itself into %ilogand2,
-  ;; but doesn't try to be smart about "-1".
-  (logand-2 (lsh x -1) -1))
 
 (defconstant $nhash-track-keys-mask
   #.(- (ash 1 $nhash_track_keys_bit)))
@@ -880,9 +869,9 @@
        (let ((lock (nhash.lock hash)))
 	 (declare (fixnum lock))
 	 (when (or (logbitp $nhash-rehashing-bit lock)
-					;(logbitp $nhash-growing-bit lock)
+                   ;;(logbitp $nhash-growing-bit lock)
 		   (and (neq 0 (nhash.lock hash)) ;(logbitp $nhash-growing-bit lock) ; << 7/96
-					; if lock is 0, hash-probe will rehash it for us, else won't
+                        ;; if lock is 0, hash-probe will rehash it for us, else won't
 			(%needs-rehashing-p hash)))
 	   (return-from gethash
 	     (gethash-woi key hash default))))     
@@ -1170,6 +1159,8 @@
 ;;;           to insert it if foundp is nil)
 ;;; If update-maybe-rehash is true, will update the nhash.rehashF slot
 ;;; appropriately (true when called from puthash)
+
+
 (defun %hash-probe (hash key update-maybe-rehash)  
   (multiple-value-bind (hash-code index entries)
                        (compute-hash-code hash key t update-maybe-rehash)
@@ -1393,6 +1384,7 @@
     t )
 
 ;;; Hash to an index that is not set in rehash-bits
+  
 (defun %rehash-probe (rehash-bits hash key)
   (declare (optimize (speed 3)(safety 0)))  
   (multiple-value-bind (hash-code index entries)(compute-hash-code hash key nil t)
