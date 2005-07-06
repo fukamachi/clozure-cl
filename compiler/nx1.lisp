@@ -476,16 +476,14 @@
 (defnx1 nx1-+ ((+-2)) (&whole whole &environment env num1 num2)
   (let* ((f1 (nx1-form num1))
          (f2 (nx1-form num2)))
-    (if (and (nx-form-typep num1 'fixnum env) ; (nx-acode-fixnum-type-p f1 env)
-             (nx-form-typep num2 'fixnum env)) ;(nx-acode-fixnum-type-p f2 env))
+    (if (nx-binary-fixnum-op-p num1 num2 env t)
       (let* ((fixadd (make-acode (%nx1-operator %i+) f1 f2))
              (small-enough (target-arch-case
                             (:ppc32 '(signed-byte 28))
                             (:ppc64 '(signed-byte 59)))))
         (if (or (and (nx-acode-form-typep f1 small-enough env)
                      (nx-acode-form-typep f2 small-enough env))
-                (and (nx-trust-declarations env)
-                     (subtypep *nx-form-type* 'fixnum)))
+                (nx-binary-fixnum-op-p num1 num2 env nil))
           fixadd
           (make-acode (%nx1-operator typed-form) 'integer (make-acode (%nx1-operator fixnum-overflow) fixadd))))
       (if (and (nx-form-typep num1 'double-float env)
@@ -494,11 +492,13 @@
         (if (and (nx-form-typep num1 'short-float env)
                  (nx-form-typep num2 'short-float env))
           (nx1-form `(%short-float+-2 ,num1 ,num2))
-	  (if (and (nx-form-typep num1 '(unsigned-byte 32) env)
-		   (nx-form-typep num2 '(unsigned-byte 32) env)
-		   (subtypep *nx-form-type* '(unsigned-byte 32)))
+	  (if (nx-binary-natural-op-p num1 num2 env nil)
 	    (make-acode (%nx1-operator typed-form)
-			'(unsigned-byte 32)
+                        (target-arch-case
+                         (:ppc32
+                          '(unsigned-byte 32))
+                         (:ppc64
+                          '(unsigned-byte 64)))
 			(make-acode (%nx1-operator %natural+) f1 f2))
 	    (make-acode (%nx1-operator typed-form) 'number 
 			(make-acode (%nx1-operator add2) f1 f2))))))))
@@ -534,8 +534,8 @@
     (make-acode (%nx1-operator minus1) (nx1-form num))))
 
         
-(defnx1 nx1--2 ((--2)) (&whole whole &environment env num0 num1)
-  (if (and (nx-form-typep num0 'fixnum env) (nx-form-typep num1 'fixnum env))
+(defnx1 nx1--2 ((--2)) (&whole whole &environment env num0 num1)        
+  (if (nx-binary-fixnum-op-p num0 num1 env t)
     (let* ((f0 (nx1-form num0))
 	   (f1 (nx1-form num1))
 	   (fixsub (make-acode (%nx1-operator %i-) f0 f1))
@@ -544,8 +544,7 @@
                           (:ppc64 '(signed-byte 59)))))
       (if (or (and (nx-acode-form-typep f0 small-enough env)
 		   (nx-acode-form-typep f1 small-enough env))
-	      (and (nx-trust-declarations env)
-		   (subtypep *nx-form-type* 'fixnum)))
+              (nx-binary-fixnum-op-p num0 num1 env nil))
 	fixsub
 	(make-acode (%nx1-operator fixnum-overflow) fixsub)))
     (if (and (nx-form-typep num0 'double-float env)
@@ -554,10 +553,7 @@
       (if (and (nx-form-typep num0 'short-float env)
 	       (nx-form-typep num1 'short-float env))
 	(nx1-form `(%short-float--2 ,num0 ,num1))
-	(if (and (nx-form-typep num0 '(unsigned-byte 32) env)
-		 (nx-form-typep num1 '(unsigned-byte 32) env)
-		 (nx-trust-declarations env)
-		 (subtypep *nx-form-type* '(unsigned-byte 32)))
+	(if (nx-binary-natural-op-p num0 num1 env nil)
 	  (make-acode (%nx1-operator %natural-)
 		      (nx1-form num0)
 		      (nx1-form num1))		 
