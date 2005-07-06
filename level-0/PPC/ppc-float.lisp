@@ -228,8 +228,21 @@
     (blr)))
                    
 
-
-
+#+ppc64-target
+(defppclapfunction %%scale-sfloat! ((float arg_y)(int arg_z))
+  (let ((sc.h 16))
+    (clear-fpu-exceptions)
+    (get-single-float fp0 float)
+    (unbox-fixnum imm0 int)
+    (slwi imm0 imm0 IEEE-single-float-exponent-offset)
+    (stwu tsp -32 tsp)
+    (stw tsp 8 tsp)
+    (stw imm0 sc.h tsp)
+    (lfs fp1 sc.h tsp)
+    (la tsp 32 tsp)
+    (fmuls fp2 fp0 fp1)
+    (put-single-float fp2 arg_z)
+    (blr)))
 
 (defppclapfunction %copy-double-float ((f1 arg_y) (f2 arg_z))
   (lfd fp0 target::double-float.value f1)
