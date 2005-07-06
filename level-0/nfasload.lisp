@@ -587,7 +587,7 @@
 
 ;;; Bootstrapping version
 (defun provide (module-name)
-  (push module-name *modules*))
+  (push (string module-name) *modules*))
 
 (deffaslop $fasl-provide (s)
   (provide (%fasl-expr s)))    
