@@ -1,3 +1,7 @@
+2005-07-08 04:58  gb
+
+	* lisp-kernel/pmcl-kernel.c: exit if initial mmap fails
+
 2005-07-06 12:09  gb
 
 	* level-1/version.lisp: Bump again, since I botched the checking
