@@ -1282,7 +1282,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   prepare_for_the_worst();
 
-  create_reserved_area(reserved_area_size);
+  if (!create_reserved_area(reserved_area_size)) {
+    exit(-1);
+  }
   gc_init();
   set_nil(load_image(image_name));
   lisp_global(AREA_LOCK) = ptr_to_lispobj(area_lock);
