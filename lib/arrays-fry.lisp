@@ -361,7 +361,7 @@
      (uvset nvec noff (uvref vec off))
      (setq off (%i+ off 1) noff (%i+ noff 1))))
 
-; only caller is adjust-array
+;;; only caller is adjust-array
 
 (defun %displace-array (array dims size data offset explicitp)
   (let* ((typecode (typecode array))
@@ -378,7 +378,7 @@
     (let* ((flags (%svref array target::vectorH.flags-cell)))
       (declare (fixnum flags))
       (setf (%svref array target::vectorH.flags-cell)
-            (if (> (the fixnum (typecode data)) ppc32::subtag-vectorH)
+            (if (> (the fixnum (typecode data)) target::subtag-vectorH)
               (bitclr $arh_disp_bit flags)
               (bitset $arh_disp_bit flags)))
       (setf (%svref array target::vectorH.flags-cell)

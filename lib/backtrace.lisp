@@ -203,7 +203,7 @@
 
 
 (defun closed-over-value-p (value)
-  (eql ppc32::subtag-value-cell (typecode value)))
+  (eql target::subtag-value-cell (typecode value)))
 
 
 
