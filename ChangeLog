@@ -1,3 +1,34 @@
+2005-07-09 08:13  gb
+
+	* lib/: defstruct-lds.lisp, defstruct.lisp: ref-type shouldn't
+	contain ppc32 subtag.
+
+2005-07-09 08:11  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-07-09 08:11  gb
+
+	* level-1/l1-sockets.lisp: Check for 8-bit element type on ppc64,
+	too.
+
+2005-07-09 08:10  gb
+
+	* level-1/l1-io.lisp: target:: package prefix.	Don't print
+	block/go tags, 'cause we don't use them anymore.
+
+2005-07-09 08:09  gb
+
+	* level-1/l1-application.lisp, lib/arrays-fry.lisp,
+	lib/backtrace.lisp: target:: package prefix.
+
+2005-07-09 08:09  gb
+
+	* compiler/PPC/ppc-asm.lisp: Change package in buffer attribute
+	line.
+	
+	Always require PPC-ARCH.
+
 2005-07-08 04:58  gb
 
 	* lisp-kernel/pmcl-kernel.c: exit if initial mmap fails
