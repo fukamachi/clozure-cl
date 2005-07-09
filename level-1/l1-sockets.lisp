@@ -681,8 +681,10 @@ conditions, based on the state of the arguments."
     (setq buf arr offset (+ offset start)))
   ;; TODO: maybe should allow any raw vector
   (let ((subtype (typecode buf)))
-    (unless (and (<= ppc32::min-8-bit-ivector-subtag subtype)
-		 (<= subtype ppc32::max-8-bit-ivector-subtag))
+    (unless #+ppc32-target (and (<= ppc32::min-8-bit-ivector-subtag subtype)
+                                (<= subtype ppc32::max-8-bit-ivector-subtag))
+            #+ppc64-target (= (the fixnum (logand subtype ppc64::fulltagmask))
+                              ppc64::ivector-class-8-bit)
       (report-bad-arg buf `(or (array character)
 			       (array (unsigned-byte 8))
 			       (array (signed-byte 8))))))
