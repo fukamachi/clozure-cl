@@ -189,8 +189,7 @@
                       (%svref '#(first second third fourth fifth
                                        sixth seventh eighth ninth tenth) offset)))
              `(defun ,name (x) (declare (optimize (safety 3))) (nth ,offset x))))
-          ((or (eq ref  ppc32::subtag-struct)
-               (eq ref $defstruct-struct))
+          ((eq ref $defstruct-struct)
            (if (and (%i< offset 10) *defstruct-share-accessor-functions*)
              `(fset ',name , (%svref *struct-ref-vector* offset))
              `(defun ,name (x) (declare (optimize (safety 3))) (struct-ref x ,offset))))
@@ -220,7 +219,7 @@
          ,@(mapcar #'(lambda (name) `(note-function-info ',name nil ,env)) defs))
        (declaim (inline ,@defs)))))
 
-;Used by setf and whatever...
+;;;Used by setf and whatever...
 (defun defstruct-ref-transform (predicate-or-type-and-refinfo args)
   (if (type-and-refinfo-p predicate-or-type-and-refinfo)
     (multiple-value-bind (type refinfo)
@@ -233,8 +232,7 @@
              (accessor
               (cond ((eq ref $defstruct-nth)
                      `(nth ,offset ,@args))
-                    ((or (eq ref ppc32::subtag-struct)
-                         (eq ref $defstruct-struct))
+                    ((eq ref $defstruct-struct)
                      `(struct-ref ,@args ,offset))
                     ((eq ref target::subtag-simple-vector)
                      `(svref ,@args ,offset))

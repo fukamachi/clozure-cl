@@ -309,7 +309,7 @@
      ,(case (setq name (defstruct-reftype (sd-type sd)))
           (#.$defstruct-nth `(list ,@values))
           (#.target::subtag-simple-vector `(vector ,@values))
-          ((#.ppc32::subtag-struct #.$defstruct-struct)
+          ((#.target::subtag-struct #.$defstruct-struct)
            `(gvector :struct ,@values))
           (t `(uvector ,name ,@values)))))
 
@@ -355,7 +355,7 @@
      ,(case (setq slot (defstruct-reftype (sd-type sd)))
           (#.$defstruct-nth `(list ,@values))
           (#.target::subtag-simple-vector `(vector ,@values))
-          ((#.ppc32::subtag-struct #.$defstruct-struct)
+          ((#.target::subtag-struct #.$defstruct-struct)
            `(gvector :struct ,@values))
           (t `(uvector ,slot ,@values)))))
 
