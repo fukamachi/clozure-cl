@@ -1,4 +1,4 @@
-; -*- Mode: LISP; Package: CCL -*-
+;;; -*- Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -471,23 +471,17 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                 (%write-string object stream))))
 
  ; whazzat        
-        ((uvectorp object)  ; in ppc land this is catch all for misc - pretty much same as 68k here.
-         ; does e.g. population, pool, hash-table-vector
+        ((uvectorp object)  
          (write-a-uvector object stream level))
         (t
          (print-unreadable-object (object stream)
-           (let* ((address (%address-of object))
-                  (low-bits (logand #xff address)))
+           (let* ((address (%address-of object)))
              (cond ((eq object (%unbound-marker-8))
                     (%write-string "Unbound" stream))
                    ((eq object (%slot-unbound-marker))
                     (%write-string "Slot-Unbound" stream))
                    (t
                     (cond
-                     ((eq ppc32::subtag-block-tag low-bits)
-                      (%write-string "BLOCK-TAG " stream))
-                     ((eq  ppc32::subtag-go-tag low-bits)
-                      (%write-string "GO TAG " stream))
                      (t
                       (%write-string "Unprintable " stream)
                       (write-a-symbol %type stream)
@@ -688,7 +682,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 
 (defmethod print-object ((value-cell value-cell) stream)
   (print-unreadable-object (value-cell stream :type t :identity t)
-    (prin1 (uvref value-cell ppc32::value-cell.value-cell) stream)))
+    (prin1 (uvref value-cell target::value-cell.value-cell) stream)))
 
 ;(defun symbol-begins-with-vowel-p (sym)
 ;  (and (symbolp sym)
@@ -1559,8 +1553,8 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 (defmethod print-object ((svar svar) stream)
   (print-unreadable-object (svar stream :identity t :type t)
     (format stream "~s ~s"
-            (%svref svar ppc32::svar.symbol-cell)
-            (%svref svar ppc32::svar.idx-cell))))
+            (%svref svar target::svar.symbol-cell)
+            (%svref svar target::svar.idx-cell))))
 
 (defmethod print-object ((slot-id slot-id) stream)
   (print-unreadable-object (slot-id stream :identity t :type t)
