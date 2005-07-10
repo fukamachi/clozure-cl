@@ -187,17 +187,31 @@ are running on, or NIL if we can't find any useful information."
 				 (doc-type (eql 'function)))
   (setf (documentation f t) new))
 
-(defmethod documentation ((l list) (doc-type (eql 'function)))
-  (documentation (setf-function-spec-name l) doc-type))
+(defmethod documentation ((l cons) (doc-type (eql 'function)))
+  (let* ((name (setf-function-spec-name l)))
+    (if name
+      (documentation name doc-type)
+      (%get-documentation l doc-type))))
 
-(defmethod (setf documentation) ((new t) (l list) (doc-type (eql 'function)))
-  (setf (documentation (setf-function-spec-name l) doc-type) new))
+(defmethod (setf documentation) ((new t) (l cons) (doc-type (eql 'function)))
+  (let* ((name  (setf-function-spec-name l)))
+    (if name
+      (setf (documentation name doc-type) new)
+      (%put-documentation l doc-type new))))
 
-(defmethod documentation ((l list) (doc-type (eql 'compiler-macro)))
-  (documentation (setf-function-spec-name l) doc-type))
 
-(defmethod (setf documentation) ((new t) (l list) (doc-type (eql 'function)))
-  (setf (documentation (setf-function-spec-name l) doc-type) new))
+(defmethod documentation ((l cons) (doc-type (eql 'compiler-macro)))
+  (let* ((name (setf-function-spec-name l)))
+    (if name
+      (documentation name doc-type)
+      (%get-documentation l doc-type))))
+
+(defmethod (setf documentation) ((new t) (l cons) (doc-type (eql 'compiler-macr0)))
+  (let* ((name (setf-function-spec-name l)))
+    (if name
+      (setf (documentation name doc-type) new)
+      (%put-documentation l doc-type new))))
+
 
 (defmethod documentation ((m method-combination)
 			  (doc-type (eql 'method-combination)))
