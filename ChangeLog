@@ -1,3 +1,22 @@
+2005-07-10 02:40  gb
+
+	* lib/misc.lisp: Try to be saner about DOCUMENTATION methods on
+	SETF function names (as reported by alanr); define methods on the
+	class CONS (not LIST), and only treat the CONS as a SETF function
+	name if it is one.
+
+2005-07-10 02:38  gb
+
+	* level-1/ppc-error-signal.lisp: Use ;;; for file-level comments. 
+	(A losing battle ...)
+	
+	Use target::  package prefix for stack-overflow fixup kernel call.
+
+2005-07-10 02:37  gb
+
+	* level-1/l1-error-signal.lisp: Use ;;; for file-level comments. 
+	(A losing battle ...)
+
 2005-07-09 08:13  gb
 
 	* lib/: defstruct-lds.lisp, defstruct.lisp: ref-type shouldn't
