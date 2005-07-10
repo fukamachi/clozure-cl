@@ -28,8 +28,8 @@
     (when (eq (car f) error-type)
       (return (apply (cdr f) frame-ptr args)))))
 
-; this is the def of %err-disp.
-; Yup.  That was my first guess.
+;;; this is the def of %err-disp.
+;;; Yup.  That was my first guess.
 (defun %err-disp (err-num &rest errargs)
   (%err-disp-internal err-num errargs (%get-frame-ptr)))
 
