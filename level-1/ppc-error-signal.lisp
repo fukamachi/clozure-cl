@@ -18,7 +18,7 @@
 
 
 
-;; callback here from C exception handler
+;;; callback here from C exception handler
 
 (defcallback 
     %xerr-disp 
@@ -128,8 +128,8 @@
 
 
 
-; rb is the register number of the stack that overflowed.
-; xp & fn are passed so that we can establish error context.
+;;; rb is the register number of the stack that overflowed.
+;;; xp & fn are passed so that we can establish error context.
 (defun handle-stack-overflow (xp fn rb)
   (unwind-protect
        (with-xp-stack-frames (xp fn frame-ptr) ; execute body with dummy stack frame(s)
@@ -146,7 +146,7 @@
 				    "temp"
 				    "unknown")))))
 	  nil frame-ptr))
-    (ff-call (%kernel-import ppc32::kernel-import-restore-soft-stack-limit)
+    (ff-call (%kernel-import target::kernel-import-restore-soft-stack-limit)
 	     :unsigned-fullword rb
 	     :void)))
 
