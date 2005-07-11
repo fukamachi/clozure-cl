@@ -45,10 +45,8 @@
 (define-toplevel-command 
     :global y (&optional p) "Yield control of terminal-input to process
 whose name or ID matches <p>, or to any process if <p> is null"
-    (if p
-      (let* ((proc (find-process p)))
-	(%%yield-terminal-to proc)	;may be nil
-	(%%yield-terminal-to nil))))
+    (%%yield-terminal-to (if p (find-process p))))	;may be nil
+
 
 (define-toplevel-command
     :global kill (p) "Kill process whose name or ID matches <p>"
