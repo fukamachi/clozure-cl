@@ -1,3 +1,9 @@
+2005-07-11 03:07  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	MEM-REF-C-S16 was generating "lha dest,src(index)" instead of "lha
+	dest,index(src)".
+
 2005-07-10 02:40  gb
 
 	* lib/misc.lisp: Try to be saner about DOCUMENTATION methods on
