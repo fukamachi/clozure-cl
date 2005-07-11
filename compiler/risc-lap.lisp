@@ -53,21 +53,28 @@
 
 (def-standard-initial-binding *operand-vector-freelist* (%cons-pool))
 
-(defun alloc-lap-operand-vector ()
-  (without-interrupts 
-   (let* ((v (pool.data *operand-vector-freelist*)))
-     (if v
-       (progn
-         (setf (pool.data *operand-vector-freelist*) 
-               (svref v 0))
-	 (%init-misc nil v)
-         v)
-       (make-array 5 :initial-element nil)))))
+(defconstant lap-operand-vector-size #+ppc-target 5)
+
+(defun alloc-lap-operand-vector (&optional (size lap-operand-vector-size))
+  (declare (fixnum size))
+  (if (eql size lap-operand-vector-size)
+    (without-interrupts 
+     (let* ((freelist  *operand-vector-freelist*)
+            (v (pool.data freelist)))
+       (if v
+         (progn
+           (setf (pool.data freelist) 
+                 (svref v 0))
+           (%init-misc nil v)
+           v)
+         (make-array lap-operand-vector-size  :initial-element nil))))
+    (make-array size :initial-element nil)))
 
 (defun free-lap-operand-vector (v)
-  (without-interrupts 
-   (setf (svref v 0) (pool.data *operand-vector-freelist*)
-         (pool.data *operand-vector-freelist*) nil)))
+  (when (= (length v) lap-operand-vector-size)
+    (without-interrupts 
+     (setf (svref v 0) (pool.data *operand-vector-freelist*)
+           (pool.data *operand-vector-freelist*) nil))))
 
 (defun %make-lap-label (name)
   (let* ((lab (alloc-dll-node *lap-label-freelist*)))
