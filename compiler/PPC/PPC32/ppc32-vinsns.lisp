@@ -432,7 +432,7 @@
 (define-ppc32-vinsn mem-ref-c-s16 (((dest :s16))
                                    ((src :address)
                                     (index :s16const)))
-  (lha dest src index))
+  (lha dest index src))
 
 (define-ppc32-vinsn mem-ref-s16 (((dest :s16))
                                  ((src :address)
