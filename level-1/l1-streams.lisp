@@ -2487,8 +2487,11 @@
 
 
 (defun %%yield-terminal-to (&optional process)
-  (let* ((shared-resource
-	  (if (typep *terminal-io* 'two-way-stream)
+  (let* ((stream (if (typep *terminal-io* 'synonym-stream)
+                   (symbol-value (synonym-stream-symbol *terminal-io*))
+                   *terminal-io*))
+         (shared-resource
+	  (if (typep stream 'two-way-stream)
 	    (input-stream-shared-resource
 	     (two-way-stream-input-stream *terminal-io*)))))
     (when shared-resource (%yield-shared-resource shared-resource process))))
