@@ -1,3 +1,22 @@
+2005-07-11 17:50  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-07-11 17:50  gb
+
+	* level-1/l1-streams.lisp: Chritian Nybo's change to
+	%%YIELD-TERMINAL-TO (handle the case where *TERMINAL-IO* is a
+	SYNONYM-STREAM.)
+
+2005-07-11 17:48  gb
+
+	* level-1/l1-readloop-lds.lisp: Chritian Nybo's fix to :Y command.
+
+2005-07-11 17:48  gb
+
+	* compiler/X86/: x86-arch.lisp, x86-asm.lisp: Gotta start
+	somewhere.
+
 2005-07-11 08:45  gb
 
 	* compiler/risc-lap.lisp: ALLOC-LAP-OPERAND-VECTOR takes an
