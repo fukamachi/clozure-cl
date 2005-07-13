@@ -134,7 +134,7 @@ typedef struct area_list {
 #ifdef PPC64
 #define IMAGE_BASE_ADDRESS 0x100000000L
 #else
-#define IMAGE_BASE_ADDRESS 0x02000000
+#define IMAGE_BASE_ADDRESS 0x04000000
 #endif
 #endif
 
