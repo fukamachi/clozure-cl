@@ -459,8 +459,13 @@
   (make-acode (%nx1-operator %setf-double-float) (nx1-form double-node) (nx1-form double-val)))
 
 (defnx1 nx1-%setf-short-float ((%setf-short-float) (%setf-single-float)) (short-node short-val)
-  (make-acode (%nx1-operator %setf-short-float) (nx1-form short-node) (nx1-form short-val)))
+  (target-arch-case
+   (:ppc32
+    (make-acode (%nx1-operator %setf-short-float) (nx1-form short-node) (nx1-form short-val)))
+   (:ppc64
+    (error "%SETF-SHORT-FLOAT makes no sense on PPC64."))))
 
+   
 (defnx1 nx1-%inc-ptr ((%inc-ptr)) (ptr &optional (increment 1))
   (make-acode (%nx1-operator %consmacptr%)
               (make-acode (%nx1-operator %immediate-inc-ptr)
@@ -1629,11 +1634,6 @@
   (unless newval-p
     (setq newval offset
 	  offset 0))
-  (if (and (eq *nx-sfname* '%set-single-float)
-           (target-arch-case
-            (:ppc64 t)
-            (:ppc32 nil)))
-    (nx1-treat-as-call whole)
     (make-acode
      (%nx1-operator typed-form)
      (if (eq *nx-sfname* '%set-single-float)
@@ -1643,7 +1643,7 @@
       (%nx1-default-operator)
       (make-acode (%nx1-operator %macptrptr%) (nx1-form ptrform))
       (nx1-form offset)
-      (nx1-form newval)))))
+      (nx1-form newval))))
 
 (defnx1 nx1-let let (pairs &body forms &environment old-env)
   (let* ((vars nil)
