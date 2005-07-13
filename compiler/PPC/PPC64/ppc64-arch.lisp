@@ -242,15 +242,15 @@
 (define-subtag weak fulltag-nodeheader-1 5)
 (define-subtag package fulltag-nodeheader-1 6)
 (define-subtag svar fulltag-nodeheader-1 7)
-
 (define-subtag slot-vector fulltag-nodeheader-2 0)
 (define-subtag instance fulltag-nodeheader-2 1)
 (define-subtag struct fulltag-nodeheader-2  2)
 (define-subtag istruct fulltag-nodeheader-2  3)
 (define-subtag value-cell fulltag-nodeheader-2  4)
 (define-subtag xfunction fulltag-nodeheader-2 5)
-(define-subtag ratio fulltag-nodeheader-2 6)
-(define-subtag complex fulltag-nodeheader-2 7)
+
+(define-subtag ratio fulltag-nodeheader-3 0)
+(define-subtag complex fulltag-nodeheader-3 1)
 
 
 
