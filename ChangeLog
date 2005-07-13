@@ -1,3 +1,14 @@
+2005-07-12 22:40  gb
+
+	* lisp-kernel/spentry.s: Inline-lambda+keyword args support for
+	PPC64.	(Needs more testing, but at least the PPC64 changes are
+	nominally there.)
+
+2005-07-12 22:38  gb
+
+	* compiler/nx1.lisp: Don't inhibit %SET-SINGLE-FLOAT on PPC64; -do-
+	inhibit %SETF-SINGLE-FLOAT there.
+
 2005-07-11 17:50  gb
 
 	* level-1/version.lisp: Bump.
