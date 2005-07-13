@@ -197,9 +197,7 @@ allocptr_displacement(ExceptionInformation *xp)
   pc program_counter = xpPC(xp);
   opcode instr = *program_counter, prev_instr = *(program_counter-1);
 
-  if ((instr == ALLOC_TRAP_INSTRUCTION)
-      || (instr == OLD_ALLOC_TRAP_INSTRUCTION)
-) {
+  if (instr == ALLOC_TRAP_INSTRUCTION) {
     if (match_instr(prev_instr, 
                     XO_MASK | RT_MASK | RB_MASK,
                     XO(major_opcode_X31,minor_opcode_SUBF, 0, 0) |
@@ -1297,10 +1295,7 @@ PMCL_exception_handler(int xnum,
     instruction = *program_counter;
   }
 
-  if ((instruction == ALLOC_TRAP_INSTRUCTION)
-      || (instruction == OLD_ALLOC_TRAP_INSTRUCTION)
-
-) {
+  if (instruction == ALLOC_TRAP_INSTRUCTION) {
     status = handle_alloc_trap(xp, tcr);
   } else if ((xnum == SIGSEGV) ||
 	     (xnum == SIGBUS)) {

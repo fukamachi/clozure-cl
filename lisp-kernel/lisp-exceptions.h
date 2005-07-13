@@ -382,15 +382,21 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define QUIET_LISP_BREAK_INSTRUCTION 0x7c800008
 
 #ifdef PPC64
-/* tdllt allocptr,allocbase */
-#define OLD_ALLOC_TRAP_INSTRUCTION 0x7c495088
+/* Have to use signed comparisons on PPC64; if we decrememt
+   allocptr and it "wraps around" address 0, that's an 
+   attempt to allocate a large object.  Note that this
+   means that valid heap addresses can't have the high
+   bit set. */
 /* tdlt allocptr,allocbase */
 #define ALLOC_TRAP_INSTRUCTION 0x7e095088
 #else
+/* On PPC32, we can use an unsigned comparison, as long
+   as  HEAP_IMAGE_BASE+PURESPACE_RESERVE is greater than
+   the maximum possible allocation (around 27 bits).
+   Decrementing allocptr may cause it to wrap around
+   #x80000000, but it should never wrap around 0. */
 /* twllt allocptr,allocbase */
-#define OLD_ALLOC_TRAP_INSTRUCTION 0x7c495008
-/* twlt allocptr,allocbase */
-#define ALLOC_TRAP_INSTRUCTION 0x7e095008
+#define ALLOC_TRAP_INSTRUCTION 0x7c495008
 #endif
 
 #ifdef PPC64
