@@ -91,7 +91,7 @@
    #+linuxppc-target :linuxppc32
    #+darwinppc-target :darwinppc32
    :image-base-address
-   #+darwinppc-target #x02000000
+   #+darwinppc-target #x04000000
    #+linuxppc-target #x31000000
 ))
 
