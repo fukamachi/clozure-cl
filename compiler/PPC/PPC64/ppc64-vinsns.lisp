@@ -102,7 +102,30 @@
   (ld dest (:apply + ppc64::misc-data-offset (:apply ash idx ppc64::word-shift)) v))
 
   
+(define-ppc64-vinsn misc-set-u64 (()
+                                  ((val :u64)
+                                   (v :lisp)
+                                   (scaled-idx :u64)))
+  (stdx val v scaled-idx))
 
+(define-ppc64-vinsn misc-set-c-u64 (()
+				    ((val :u64)
+				     (v :lisp)
+				     (idx :u32const)))
+  (std val (:apply + ppc64::misc-data-offset (:apply ash idx 3)) v))
+
+(define-ppc64-vinsn misc-set-s64 (()
+                                  ((val :s64)
+                                   (v :lisp)
+                                   (scaled-idx :u64)))
+  (stdx val v scaled-idx))
+
+
+(define-ppc64-vinsn misc-set-c-s64 (()
+				    ((val :s64)
+				     (v :lisp)
+				     (idx :u32const)))
+  (std val (:apply + ppc64::misc-data-offset (:apply ash idx 3)) v))
 
 (define-ppc64-vinsn misc-ref-u32  (((dest :u32))
 				   ((v :lisp)
@@ -811,53 +834,56 @@
                                   ((object :lisp))
                                   ((crf0 (:crf 0))
                                    (crf1 :crf)
-                                   (crf2 :crf)
                                    (tag :u8)
-                                   (tag2 :u8)))
+                                   (mask :u64)))
   :again
+  (lis mask (ash 1 (- ppc64::subtag-double-float (+ 32 16))))
   (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
-  (clrldi. tag2 object (- ppc64::nbits-in-word ppc64::nlisptagbits))
-  (cmpdi crf1 tag ppc64::subtag-single-float)
-  (cmpdi crf2 tag ppc64::fulltag-misc)
-  (beq+ crf0 :got-it)
-  (beq crf1 :got-it)
-  (bne crf2 :no-got)
+  (ori mask mask (ash 1 (- ppc64::subtag-bignum 32)))
+  (cmpdi crf0 tag ppc64::fulltag-misc)
+  (sldi mask mask 32)
+  (bne crf0 :have-typecode)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmpdi crf0 tag ppc64::subtag-bignum)
+  :have-typecode
+  (ori mask mask (logior (ash 1 ppc64::subtag-ratio)
+                         (ash 1 ppc64::fulltag-odd-fixnum)
+                         (ash 1 ppc64::subtag-single-float)
+                         (ash 1 ppc64::fulltag-even-fixnum)))
   (cmpdi crf1 tag ppc64::subtag-double-float)
-  (cmpdi crf2 tag ppc64::subtag-ratio)
-  (beq crf0 :got-it)
-  (beq crf1 :got-it)
-  (beq crf2 :got-it)
+  (srd mask mask tag)
+  (clrldi. mask mask 63)
+  (bgt crf1 :no-got)
+  (bne+ :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-number object)
   (b :again)
   :got-it)
 
 (define-ppc64-vinsn require-number (()
-				    ((object :lisp))
-				    ((crf0 (:crf 0))
+                                    ((object :lisp))
+                                    ((crf0 (:crf 0))
                                      (crf1 :crf)
-                                     (crf2 :crf)
-				     (tag :u8)
-                                     (tag2 :u8)))
+                                     (tag :u8)
+                                     (mask :u64)))
   :again
+  (lis mask (ash 1 (- ppc64::subtag-double-float (+ 32 16))))
   (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
-  (clrldi. tag2 object (- ppc64::nbits-in-word ppc64::nlisptagbits))
-  (cmpdi crf1 tag ppc64::subtag-single-float)
-  (cmpdi crf2 tag ppc64::fulltag-misc)
-  (beq+ crf0 :got-it)
-  (beq crf1 :got-it)
-  (bne crf2 :no-got)
+  (ori mask mask (ash 1 (- ppc64::subtag-bignum 32)))
+  (cmpdi crf0 tag ppc64::fulltag-misc)
+  (sldi mask mask 32)
+  (bne crf0 :have-typecode)
   (lbz tag ppc64::misc-subtag-offset object)
-  (cmpdi crf0 tag ppc64::subtag-bignum)
+  :have-typecode
+  (ori mask mask (logior (ash 1 ppc64::subtag-ratio)
+                         (ash 1 ppc64::fulltag-odd-fixnum)
+                         (ash 1 ppc64::subtag-single-float)
+                         (ash 1 ppc64::fulltag-even-fixnum)))
   (cmpdi crf1 tag ppc64::subtag-double-float)
-  (cmpdi crf2 tag ppc64::subtag-ratio)
-  (beq crf0 :got-it)
-  (cmpdi crf0 tag ppc64::subtag-complex)
-  (beq crf1 :got-it)
-  (beq crf2 :got-it)
-  (beq crf0 :got-it)
+  (oris mask mask (ash 1 (- ppc64::subtag-complex 16)))
+  (srd mask mask tag)
+  (clrldi. mask mask 63)
+  (bgt crf1 :no-got)
+  (bne+ :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-number object)
   (b :again)
@@ -971,17 +997,14 @@
                                ((src :lisp))
                                ((crf0 :crf)
                                 (crf1 :crf)
-                                (crf2 :crf)
                                 (tag :u64)))
   
+  (clrldi. tag src (- ppc64::nbits-in-word ppc64::fixnumshift))
   (clrldi tag src (- ppc64::nbits-in-word ppc64::ntagbits))
-  (cmpdi crf0 tag ppc64::fulltag-even-fixnum)
-  (cmpdi crf1 tag ppc64::fulltag-odd-fixnum)
-  (cmpdi crf2 tag ppc64::fulltag-misc)
+  (cmpdi crf1 tag ppc64::fulltag-misc)
   (sradi dest src ppc64::fixnumshift)
   (beq+ crf0 :good)
-  (beq+ crf1 :good)
-  (beq+ crf2 :bignum)
+  (beq+ crf1 :bignum)
   :bad
   (uuo_interr arch::error-object-not-unsigned-byte-64 src)
   :bignum
@@ -1710,6 +1733,9 @@
 				    ())
   (ld dest (+ ppc64::symbol.vcell (ppc64::nrs-offset %closure-code%) ppc64::nil-value) 0))
 
+(define-ppc64-vinsn single-float-bits (((dest :u32))
+                                       ((src :lisp)))
+  (srdi dest  src 32))
 
 (define-ppc64-vinsn (call-subprim :call :subprim-call) (()
 							((spno :s32const)))
@@ -2059,9 +2085,9 @@
   (sldi result temp ppc64::fixnumshift))
 
 
-;;; A signed 64-bit untagged value can be at worst a 1-digit bignum.
-;;; There should be something very much like this that takes a stack-consed
-;;; bignum result ...
+;;; A signed 64-bit untagged value can be at worst a 2-digit
+;;; (minimal-sized) bignum.  There should be something very much like
+;;; this that takes a stack-consed bignum result ...
 (define-ppc64-vinsn s64->integer (((result :lisp))
 				  ((src :s64))
 				  ((crf (:crf 0)) ; a casualty
