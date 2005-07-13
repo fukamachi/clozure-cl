@@ -2434,7 +2434,7 @@ _spentry(macro_bind)
 	 __(cmpri(cr0,imm0,tag_list))
 	 __(bne- cr0,1f)
 	 __(_cdr(arg_reg,arg_reg))
-	 __(b destbind1)
+	 __(b (local_label(destbind1)))
         __endif
 1:
 	__(li arg_y,XCALLNOMATCH)
