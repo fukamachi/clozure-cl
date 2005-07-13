@@ -1,3 +1,78 @@
+2005-07-13 08:59  gb
+
+	* level-1/version.lisp: Bump.  Will need new binaries to bootstrap.
+
+2005-07-13 08:58  gb
+
+	* lib/nfcomp.lisp, xdump/faslenv.lisp: Increment FASL version.
+
+2005-07-13 08:41  gb
+
+	* xdump/xppcfasload.lisp: Increase heap-image-base for DarwinPPC32.
+
+2005-07-13 08:41  gb
+
+	* lisp-kernel/macros.s: Define platform-specific alloc_trap, use
+	it.
+
+2005-07-13 08:40  gb
+
+	* lisp-kernel/: constants64.h, constants64.s: Redefine RATIO,
+	COMPLEX subtags.
+
+2005-07-13 08:40  gb
+
+	* lisp-kernel/area.h: new (higher) HEAP_IMAGE_BASE for DarwinPPC32.
+
+2005-07-13 08:38  gb
+
+	* level-0/l0-pred.lisp: New NUMBERP/REALP for PPC64 (depends on new
+	complex/ratio typecodes.) Redefine PPC64 *NODEHEADER-TYPES*.
+
+2005-07-13 08:37  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Redefine PPC64::SUBTAG-RATIO
+	and PPC64::SUBTAG-COMPLEX, so that a mask of all numeric typecodes
+	fits (just barely) in a fixnum.  (This enables things like NUMBERP
+	and REALP to check several typecodes via LOGBITP, rather than via a
+	6-or-7 arm CASE statement.)
+	
+	This requires some bootstrapping and will require new binaries.
+
+2005-07-13 08:33  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Define some missing vinsns
+	(some of which were found/defined by jamesjb) for 64-bit vector
+	set, SINGLE-FLOAT-BITS.
+
+2005-07-13 08:32  gb
+
+	* compiler/PPC/ppc2.lisp: Fix some cases of PPC2-VSET involving
+	64-bit arrays.
+
+2005-07-13 08:31  gb
+
+	* compiler/vinsn.lisp: Define MISSING-VINSNS, which found a handful
+	of them.
+
+2005-07-13 08:30  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Revert to using "trap
+	logical" alloc-traps on PPC32.
+	
+	Rationale: the largest object we can allocate is about 2^27 bytes
+	in size (a DOUBLE-FLOAT vector with almost 2^24 elements).  If
+	HEAP-IMAGE-BASE is effectively above 2^27, we can never cause
+	allocptr to change sign from positive to negative (to wrap around
+	0), but we -might-  cause it to change sign from negative to
+	positive (to wrap around #x80000000).
+	
+	On PPC64, we'd have to be able to guarantee that HEAP-IMAGE-BASE
+	was above 2^59 to ensure this.	That's hard to do, so we have to
+	basically limit ourselves to the low 63 bits of memory ("positive"
+	addresses) and do signed comparisons. (Wrapping around 0 should
+	trap; wrapping around #x8000000000000000 shouldn't be possible.)
+
 2005-07-13 08:19  gb
 
 	* compiler/optimizers.lisp: Comment formatting.
