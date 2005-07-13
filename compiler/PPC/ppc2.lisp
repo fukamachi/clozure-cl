@@ -1826,7 +1826,7 @@
                     (unless index-known-fixnum
                       (! trap-unless-fixnum unscaled-idx))
                     (! check-misc-bound unscaled-idx src))
-                  (with-imm-temps () (temp)
+                  (with-imm-temps  () (temp)
                     (cond (is-32-bit
                            (if constval
                              (ppc2-lri seg temp
@@ -1910,7 +1910,7 @@
                                  (! unbox-s64 s64 val-reg)
                                  (if (and index-known-fixnum 
                                           (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
-                                   (! misc-set-c-s64 temp src index-known-fixnum)
+                                   (! misc-set-c-s64 s64 src index-known-fixnum)
                                    (progn
                                      (setq idx-reg temp)
                                      (if index-known-fixnum
@@ -1919,10 +1919,10 @@
                                      (! misc-set-s64 s64 src idx-reg)))))
                               (:unsigned-64-bit-vector
                                (with-imm-target (temp) (u64 :u64)
-                                 (! unbox-s64 u64 val-reg)
+                                 (! unbox-u64 u64 val-reg)
                                  (if (and index-known-fixnum 
                                           (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
-                                   (! misc-set-c-u64 temp src index-known-fixnum)
+                                   (! misc-set-c-u64 u64 src index-known-fixnum)
                                    (progn
                                      (setq idx-reg temp)
                                      (if index-known-fixnum
@@ -1978,8 +1978,8 @@
                                    (! misc-ref-u32 temp src word-index)
                                    (! u32logandc2 temp temp bit-number) ; clear bit-number'th bit
                                    (! u32logior temp temp bitval))) ; (B4)                     
-                               (! misc-set-u32 temp src word-index))))))
-                  (when vreg (<- val-reg)))
+                               (! misc-set-u32 temp src word-index)))))
+                  (when vreg (<- val-reg))))
                 (^)))))))))
 
 ;;; In this case, the destination (vreg) is either an FPR or null, so
