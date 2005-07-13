@@ -2419,29 +2419,37 @@ _spentry(ffcallX)
 
 _spentry(macro_bind)
         __ifdef([PPC64])
+ 	 __(mr whole_reg,arg_reg)
+	 __(extract_fulltag(imm0,arg_reg))
+         __(cmpri(cr1,arg_reg,nil_value))
+	 __(cmpri(cr0,imm0,fulltag_cons))
+         __(beq cr1,0f)
+	 __(bne- cr0,1f)
+0:             
+	 __(_cdr(arg_reg,arg_reg))
+	 __(b local_label(destbind1))
         __else
-	__(mr whole_reg,arg_reg)
-	__(extract_lisptag(imm0,arg_reg))
-	__(cmpri(cr0,imm0,tag_list))
-	__(bne- cr0,1f)
-	__(_cdr(arg_reg,arg_reg))
-	__(b destbind1)
+	 __(mr whole_reg,arg_reg)
+	 __(extract_lisptag(imm0,arg_reg))
+	 __(cmpri(cr0,imm0,tag_list))
+	 __(bne- cr0,1f)
+	 __(_cdr(arg_reg,arg_reg))
+	 __(b destbind1)
+        __endif
 1:
 	__(li arg_y,XCALLNOMATCH)
 	__(mr arg_z,whole_reg)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-        __endif
+
 
 _spentry(destructuring_bind)
 	__(mr whole_reg,arg_reg)
-        __(b destbind1)
+        __(b local_label(destbind1))
 	
 _spentry(destructuring_bind_inner)
 	__(mr whole_reg,arg_z)
-destbind1:
-        __ifdef([PPC64])
-        __else
+local_label(destbind1): 
 	/* Extract required arg count. */
 	 /* A bug in gas: can't handle shift count of "32" (= 0 */
 	ifelse(eval(mask_req_width+mask_req_start),eval(32),[
@@ -2462,8 +2470,13 @@ destbind1:
 	__(beq cr0,2f)
 1:
 	__(cmpri(cr7,arg_reg,nil_value))
-	__(extract_lisptag(imm3,arg_reg))
-	__(cmpri(cr3,imm3,tag_list))
+        __ifdef([PPC64])
+         __(extract_fulltag(imm3,arg_reg))
+         __(cmpri(cr3,imm3,fulltag_cons))
+        __else       
+	 __(extract_lisptag(imm3,arg_reg))
+	 __(cmpri(cr3,imm3,tag_list))
+        __endif
 	__(subi imm0,imm0,1)
 	__(cmpri(cr0,imm0,0))
 	__(beq cr7,toofew)
@@ -2478,8 +2491,13 @@ destbind1:
 	/* 'simple' &optionals:	 no supplied-p, default to nil. */
 simple_opt_loop:
 	__(cmpri(cr0,arg_reg,nil_value))
-	__(extract_lisptag(imm3,arg_reg))
-	__(cmpri(cr3,imm3,tag_list))
+        __ifdef([PPC64])
+         __(extract_fulltag(imm3,arg_reg))
+         __(cmpri(cr3,imm3,fulltag_cons))
+        __else
+	 __(extract_lisptag(imm3,arg_reg))
+	 __(cmpri(cr3,imm3,tag_list))
+        __endif
 	__(subi imm1,imm1,1)
 	__(cmpri(cr1,imm1,0))
 	__(li imm5,nil_value)
@@ -2502,8 +2520,13 @@ opt_supp:
 	__(li arg_y,t_value)
 opt_supp_loop:
 	__(cmpri(cr0,arg_reg,nil_value))
-	__(extract_lisptag(imm3,arg_reg))
-	__(cmpri(cr3,imm3,tag_list))
+        __ifdef([PPC64])
+         __(extract_fulltag(imm3,arg_reg))
+         __(cmpri(cr3,imm3,fulltag_cons))
+        __else        
+	 __(extract_lisptag(imm3,arg_reg))
+	 __(cmpri(cr3,imm3,tag_list))
+        __endif
 	__(subi imm1,imm1,1)
 	__(cmpri(cr1,imm1,0))
 	__(beq cr0,default_hard_opt)
@@ -2536,20 +2559,30 @@ have_keys:
 	__(li imm0,256)
 	__(mr arg_x,arg_reg)
 count_keys_loop:
-	__(extract_lisptag(imm3,arg_x))
-	__(cmpri(cr3,imm3,tag_list))
+        __ifdef([PPC64])
+         __(extract_fulltag(imm3,arg_x))
+         __(cmpri(cr3,imm3,fulltag_cons))
+        __else
+	 __(extract_lisptag(imm3,arg_x))
+	 __(cmpri(cr3,imm3,tag_list))
+        __endif
 	__(cmpri(cr0,arg_x,nil_value))
 	__(subi imm0,imm0,1)
 	__(cmpri(cr4,imm0,0))
-	__(bne cr3,badlist)
 	__(beq cr0,counted_keys)
+	__(bne cr3,badlist)
 	__(ldr(arg_x,cons.cdr(arg_x)))
-	__(extract_lisptag(imm3,arg_x))
-	__(cmpri(cr3,imm3,tag_list))
+        __ifdef([PPC64])
+         __(extract_fulltag(imm3,arg_x))
+         __(cmpri(cr3,imm3,fulltag_cons))
+        __else
+	 __(extract_lisptag(imm3,arg_x))
+	 __(cmpri(cr3,imm3,tag_list))
+        __endif
 	__(blt cr4,toomany)
 	__(cmpri(cr0,arg_x,nil_value))
-	__(bne cr3,badlist)
 	__(beq cr0,db_badkeys)
+	__(bne cr3,badlist)
 	__(ldr(arg_x,cons.cdr(arg_x)))
 	__(b count_keys_loop)
 counted_keys:
@@ -2649,7 +2682,6 @@ destructure_error:
 	__(mr arg_z,whole_reg)
 	__(set_nargs(2))
 	__(b _SPksignalerr)
-        __endif
         
 /* vpush the values in the value set atop the vsp, incrementing nargs. */
 /* Discard the tsp frame; leave values atop the vsp. */
