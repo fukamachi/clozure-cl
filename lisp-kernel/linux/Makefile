@@ -13,8 +13,6 @@
 #   The LLGPL is also available online at
 #   http://opensource.franz.com/preamble.html
 
-OPENMCL_MAJOR_VERSION=0
-OPENMCL_MINOR_VERSION=14
 
 VPATH = ../
 RM = /bin/rm
@@ -24,7 +22,7 @@ AS = as
 M4 = m4
 ASFLAGS = -mregnames -mppc32 -maltivec
 M4FLAGS = -DLINUX
-CDEFINES = -DLINUX -D_REENTRANT  -DOPENMCL_MAJOR_VERSION=$(OPENMCL_MAJOR_VERSION) -DOPENMCL_MINOR_VERSION=$(OPENMCL_MINOR_VERSION)
+CDEFINES = -DLINUX -D_REENTRANT
 CDEBUG = -g
 COPT = -O2
 
