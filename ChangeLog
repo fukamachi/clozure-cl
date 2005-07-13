@@ -1,3 +1,8 @@
+2005-07-13 01:17  gb
+
+	* lisp-kernel/spentry.s: destbind1 is now a local label (there was
+	some PPC32 code that thought it was still global.)
+
 2005-07-12 22:40  gb
 
 	* lisp-kernel/spentry.s: Inline-lambda+keyword args support for
