@@ -1,3 +1,34 @@
+2005-07-13 09:58  gb
+
+	* lisp-kernel/: lisp-exceptions.c, lisp-exceptions.h: Only
+	recognize unsigned alloc_trap on PPC32; only recognize signed
+	alloc_trap on PPC64.
+
+2005-07-13 09:57  gb
+
+	* lisp-kernel/: darwin64/Makefile, darwin/Makefile: Don't pass
+	major/minor release version to CPP.
+
+2005-07-13 09:28  gb
+
+	* xdump/heap-image.lisp: Write newfangled ABI-VERSION to image
+	header.
+
+2005-07-13 09:27  gb
+
+	* lisp-kernel/image.c: Check abi version in image header;
+	SAVE-APPLICATION writes current version to header.
+
+2005-07-13 09:26  gb
+
+	* lisp-kernel/image.h: Define min,max, current ABI version
+	(arbitrarily, 1001.  I've lost count.)
+
+2005-07-13 09:24  gb
+
+	* lisp-kernel/linux/Makefile: Dont define version numbers in
+	Makefile.
+
 2005-07-13 08:59  gb
 
 	* level-1/version.lisp: Bump.  Will need new binaries to bootstrap.
