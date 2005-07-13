@@ -183,3 +183,7 @@ typedef struct compressed_node {
   } u;
 } compressed_node;
 
+
+#define ABI_VERSION_MIN 1001
+#define ABI_VERSION_CURRENT 1001
+#define ABI_VERSION_MAX 1001
