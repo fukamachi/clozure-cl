@@ -608,19 +608,14 @@ find_openmcl_image_file_header(int fd, openmcl_image_file_header *header)
       (header->sig3 != IMAGE_SIG3)) {
     return false;
   }
-  version = header->abi_version;
-  if (version) {
-    unsigned 
-      major = version >> 24, 
-      minor = (version >> 16) & 0xff;
-
-    if ((major != OPENMCL_MAJOR_VERSION) ||
-	(minor != OPENMCL_MINOR_VERSION)) {
-      fprintf(stderr, "Image is for version %d.%d; kernel is for version %d.%d\n", major, minor, OPENMCL_MAJOR_VERSION, OPENMCL_MINOR_VERSION);
-      return false;
-    }
-  } else {
-    Bug(NULL, "No version stamp on image file");
+  version = (header->abi_version) & 0xffff;
+  if (version < ABI_VERSION_MIN) {
+    fprintf(stderr, "Heap image is too old for this kernel.\n");
+    return false;
+  }
+  if (version > ABI_VERSION_MAX) {
+    fprintf(stderr, "Heap image is too new for this kernel.\n");
+    return false;
   }
   return true;
 }
@@ -864,7 +859,7 @@ save_application(unsigned fd, Boolean compress)
   CANONICAL_IMAGE_BASE(&fh) = IMAGE_BASE_ADDRESS;
   ACTUAL_IMAGE_BASE(&fh) = image_base;
   fh.nsections = 3;
-  fh.abi_version=(OPENMCL_MAJOR_VERSION<<24)|(OPENMCL_MINOR_VERSION<<16);
+  fh.abi_version=ABI_VERSION_CURRENT;
   for (i = 0; i < sizeof(fh.pad)/sizeof(fh.pad[0]); i++) {
     fh.pad[i] = 0;
   }
