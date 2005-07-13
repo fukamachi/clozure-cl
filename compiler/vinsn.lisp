@@ -888,6 +888,20 @@
     (declare (fixnum p) (dynamic-extent process-after))
     (dfs-walk fgns :process-after process-after)
     v))
-    
+
+;;; This generally only gives a meaningful result if pass 2 of the
+;;; compiler has been compiled in the current session.
+;;; TODO (maybe): keep track of the "expected missing vinsns" for
+;;; each backend, call this function after compiling pass 2.  That's
+;;; a little weird, since it'd require modifying backend X whenever
+;;; backend Y changes, but it's probably better than blowing up when
+;;; compiling user code.
+(defun missing-vinsns (&optional (backend *target-backend*))
+  (let* ((missing ()))
+    (maphash #'(lambda (name info)
+                 (unless (cdr info)
+                   (push name missing)))
+             (backend-p2-vinsn-templates backend))
+    missing))
 		      
 (provide "VINSN")
