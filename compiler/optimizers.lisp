@@ -62,9 +62,8 @@
   '(apply #'proclaim-inline t inlines)
 )
 
-; There's a bit somewhere.
-;This is very partial.  Should be a bit somewhere, there are too many of these
-;to keep on a list.
+;;; There's a bit somewhere.  This is very partial.  Should be a bit
+;;; somewhere, there are too many of these to keep on a list.
 (can-constant-fold '(specfier-type %ilsl %ilsr 1- 1+ eql eq
                      byte make-point - / (+ . fold-constant-subforms) (* . fold-constant-subforms) ash character
                      char-code code-char lsh
@@ -119,11 +118,11 @@
          (fixnumify (nreverse targs) op))))
     call))
 
-;True if arg is an alternating list of keywords and args,
-; only recognizes keywords in keyword package.
-; Historical note: this used to try to ensure that the
-; keyword appeared at most once.  Why ? (Even before
-; destructuring, pl-search/getf would have dtrt.)
+;;; True if arg is an alternating list of keywords and args,
+;;; only recognizes keywords in keyword package.
+;;; Historical note: this used to try to ensure that the
+;;; keyword appeared at most once.  Why ? (Even before
+;;; destructuring, pl-search/getf would have dtrt.)
 (defun constant-keywords-p (keys)
   (when (plistp keys)
     (while keys
@@ -132,7 +131,8 @@
       (setq keys (%cddr keys)))
     t))
 
-; return new form if no keys (or if keys constant and specify :TEST {#'eq, #'eql} only.)
+;;; return new form if no keys (or if keys constant and specify :TEST
+;;; {#'eq, #'eql} only.)
 (defun eq-eql-call (x l keys eq-fn  eql-fn env)
   (flet ((eql-to-eq ()
            (or (eql-iff-eq-p x env)
@@ -238,42 +238,13 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; The new (roughly alphabetical) order.
-; 
+;;;
+;;; The new (roughly alphabetical) order.
+;;; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Compiler macros on functions can assume that their arguments have already been transformed.
-
-
-#| ; two of these too - damn
-(define-compiler-macro * (&whole call &environment env 
-                                 &optional (num1 nil num1-p) (num2 nil num2-p) 
-                                 &rest more-nums)
-  (if num1-p
-    (if num2-p
-      (if (and (typep num1 'real)
-               (let* ((type (type-of num1)))
-                 (and (nx-form-typep num2 type)
-                      (every #'(lambda (x) (nx-form-typep x type env)) more-nums))))
-        (if (zerop num1)
-          num1
-          (if (= num1 1)
-            (if more-nums
-              `(* ,num2 ,@more-nums)
-              num2)
-            (if (and (fixnump num1)
-                     (typep num1 'unsigned-byte)
-                     (eq (logcount num1) 1)
-                     (null more-nums)
-                     (nx-form-typep num2 'fixnum))
-              `(ash ,num2 ,(1- (integer-length num1)))
-              call)))
-        call)
-      `(require-type ,num1 'number))
-    1))
-|#
-
+;;; Compiler macros on functions can assume that their arguments have
+;;; already been transformed.
 
 
 (defun transform-real-n-ary-comparision (whole binary-name)
@@ -544,7 +515,7 @@
 
 
 
-;(CONS X NIL) is same size as (LIST X) and faster.
+;;;(CONS X NIL) is same size as (LIST X) and faster.
 (define-compiler-macro list  (&whole call &optional (first nil first-p) &rest more)
   (if more
     call
@@ -771,10 +742,11 @@
   (if first-p
     (if rest call first)))
 
-;This isn't quite right... The idea is that (car (require-type foo 'list))
-;can become just (<typechecking-car> foo) [regardless of optimize settings],
-;but I don't think this can be done just with optimizers... For now, at least
-;try to get it to become (%car (<typecheck> foo)).
+;;; This isn't quite right... The idea is that (car (require-type foo
+;;; 'list)) ;can become just (<typechecking-car> foo) [regardless of
+;;; optimize settings], ;but I don't think this can be done just with
+;;; optimizers... For now, at least try to get it to become (%car
+;;; (<typecheck> foo)).
 (define-compiler-macro require-type (&whole call &environment env arg type)
   (cond ((and (quoted-form-p type)
 	      (setq type (%cadr type))
@@ -1061,7 +1033,8 @@
       `(/-2 ,n0 ,n1)
       `(%quo-1 ,n0))))
 
-; beware of limits - truncate of most-negative-fixnum & -1 ain't a fixnum - too bad
+;;; beware of limits - truncate of most-negative-fixnum & -1 ain't a
+;;; fixnum - too bad
 (define-compiler-macro truncate (&whole w &environment env n0 &optional (n1 nil n1p))
   (let ((*nx-form-type* t))
     (if (nx-form-typep n0 'fixnum env)
@@ -1200,11 +1173,12 @@
 ;;; Improvemets file by Bob Cassels
 ;;; Just what are "Improvemets", anyway ?
 
-;;; Optimize some CL sequence functions, mostly by inlining them in simple cases
-;;; when the type of the sequence is known.  In some cases, dynamic-extent declarations are
-;;; automatically inserted.  For some sequence functions, if the type of the
-;;; sequence is known at compile time, the function is inlined.  If the type
-;;; isn't known but the call is "simple", a call to a faster (positional-arg)
+;;; Optimize some CL sequence functions, mostly by inlining them in
+;;; simple cases when the type of the sequence is known.  In some
+;;; cases, dynamic-extent declarations are automatically inserted.
+;;; For some sequence functions, if the type of the sequence is known
+;;; at compile time, the function is inlined.  If the type isn't known
+;;; but the call is "simple", a call to a faster (positional-arg)
 ;;; function is substituted.
 
 
@@ -1274,7 +1248,6 @@
 
 
 (define-compiler-macro find-class (&whole call type &optional (errorp t) env)
-  ;(declare (ignore env))
   (if (and (quoted-form-p type)(not *dont-find-class-optimize*)(not env))
       `(class-cell-find-class (load-time-value (find-class-cell ,type t)) ,errorp)
     call))
