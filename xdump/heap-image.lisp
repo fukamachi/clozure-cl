@@ -86,7 +86,9 @@
 			   (+ 4095 (file-position f)))))
 
 
-(defun write-image-file (pathname image-base spaces)
+(defparameter *image-abi-version* 1001)
+
+(defun write-image-file (pathname image-base spaces &optional (abi-version *image-abi-version*))
   (target-setup-image-header-sizes)
   (with-open-file (f pathname
 		     :direction :output
@@ -109,12 +111,7 @@
                              (:ppc32 image-base)
                              (:ppc64 0)) f)
       (image-write-fullword nsections f)
-      (image-write-fullword (dpb *openmcl-major-version*
-				 (byte 8 24)
-				 (dpb *openmcl-minor-version*
-				      (byte 8 16)
-				      *openmcl-revision*))
-			    f)
+      (image-write-fullword abi-version f)
       (target-arch-case
        (:ppc32
         (dotimes (i 7) (image-write-fullword 0 f)))
