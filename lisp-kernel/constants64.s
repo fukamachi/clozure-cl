@@ -133,14 +133,16 @@ define_subtag(pool,fulltag_nodeheader_1,4)
 define_subtag(weak,fulltag_nodeheader_1,5)
 define_subtag(package,fulltag_nodeheader_1,6)
 define_subtag(svar,fulltag_nodeheader_1,7)
+        
 define_subtag(slot_vector,fulltag_nodeheader_2,0)
 define_subtag(instance,fulltag_nodeheader_2,1)
 define_subtag(struct,fulltag_nodeheader_2,2)
 define_subtag(istruct,fulltag_nodeheader_2,3)
 define_subtag(value_cell,fulltag_nodeheader_2,4)
 define_subtag(xfunction,fulltag_nodeheader_2,5)
-define_subtag(ratio,fulltag_nodeheader_2,6)
-define_subtag(complex,fulltag_nodeheader_2,7)
+	
+define_subtag(ratio,fulltag_nodeheader_3,0)
+define_subtag(complex,fulltag_nodeheader_3,1)
 			
 nil_value = (0x2000+fulltag_misc+symbol.size)
 t_value = (0x2000+fulltag_misc)	
