@@ -131,6 +131,9 @@ ifdef([PPC64],[
         define([extract_bit_shift_count],[
         clrldi $1,$2,64-bitmap_shift
         ])
+        define([alloc_trap],[
+        tdlt allocptr,allocbase
+        ])
 ],[
         define([clrrri],[
         clrrwi $@
@@ -218,6 +221,9 @@ ifdef([PPC64],[
         ])
         define([extract_bit_shift_count],[
         clrlwi $1,$2,32-bitmap_shift
+        ])
+        define([alloc_trap],[
+        twllt allocptr,allocbase
         ])
 ])
 
@@ -646,7 +652,7 @@ define([clear_alloc_tag],[
 	
 define([Cons],[
 	la allocptr,(-cons.size+fulltag_cons)(allocptr)
-	trlt(allocptr,allocbase)
+        alloc_trap()
 	str($3,cons.cdr(allocptr))
 	str($2,cons.car(allocptr))
 	mr $1,allocptr
@@ -681,7 +687,7 @@ define([Cons],[
 define([Misc_Alloc],[
 	la $3,-fulltag_misc($3)
 	sub allocptr,allocptr,$3
-	trlt(allocptr,allocbase)
+        alloc_trap()
 	str($2,misc_header_offset(allocptr))
 	mr $1,allocptr
 	clear_alloc_tag()
@@ -692,7 +698,7 @@ define([Misc_Alloc],[
 */
 define([Misc_Alloc_Fixed],[
 	la allocptr,(-$3)+fulltag_misc(allocptr)
-	trlt(allocptr,allocbase)
+        alloc_trap()
 	str($2,misc_header_offset(allocptr))
 	mr $1,allocptr
 	clear_alloc_tag()
