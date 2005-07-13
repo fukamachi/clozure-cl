@@ -121,11 +121,13 @@
         (and (>= typecode ppc32::min-numeric-subtag)
              (<= typecode ppc32::max-real-subtag)))
     #+ppc64-target
-    (cond ((= typecode ppc64::tag-fixnum) t)
-          ((= typecode ppc64::subtag-single-float) t)
-          ((= typecode ppc64::subtag-bignum) t)
-          ((= typecode ppc64::subtag-double-float) t)
-          ((= typecode ppc64::subtag-ratio) t))))
+    (if (<= typecode ppc64::subtag-double-float)
+      (logbitp (the (integer 0 #.ppc64::subtag-double-float) typecode)
+               (logior (ash 1 ppc64::tag-fixnum)
+                       (ash 1 ppc64::subtag-single-float)
+                       (ash 1 ppc64::subtag-double-float)
+                       (ash 1 ppc64::subtag-bignum)
+                       (ash 1 ppc64::subtag-ratio))))))
 
 (defun complexp (x)
   "Return true if OBJECT is a COMPLEX, and NIL otherwise."
@@ -140,12 +142,14 @@
         (and (>= typecode ppc32::min-numeric-subtag)
              (<= typecode ppc32::max-numeric-subtag)))
     #+ppc64-target
-    (cond ((= typecode ppc64::tag-fixnum) t)
-          ((= typecode ppc64::subtag-single-float) t)
-          ((= typecode ppc64::subtag-bignum) t)
-          ((= typecode ppc64::subtag-double-float) t)
-          ((= typecode ppc64::subtag-ratio) t)
-          ((= typecode ppc64::subtag-complex) t))))
+    (if (<= typecode ppc64::subtag-double-float)
+      (logbitp (the (integer 0 #.ppc64::subtag-double-float) typecode)
+               (logior (ash 1 ppc64::tag-fixnum)
+                       (ash 1 ppc64::subtag-bignum)
+                       (ash 1 ppc64::subtag-single-float)
+                       (ash 1 ppc64::subtag-double-float)
+                       (ash 1 ppc64::subtag-ratio)
+                       (ash 1 ppc64::subtag-complex))))))
 
 (defun arrayp (x)
   "Return true if OBJECT is an ARRAY, and NIL otherwise."
@@ -548,11 +552,11 @@
     #(function
       catch-frame
       slot-vector
-      bogus
+      ratio
       symbol
       lisp-thread
       standard-instance
-      bogus
+      complex
       bogus
       lock
       structure
@@ -571,11 +575,11 @@
       bogus
       bogus
       package
-      ratio
+      bogus
       bogus
       bogus
       svar
-      complex
+      bogus
       bogus
       bogus
       array-header
