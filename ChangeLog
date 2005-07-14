@@ -1,3 +1,18 @@
+2005-07-14 15:11  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-07-14 15:01  gb
+
+	* lisp-kernel/gc.h: PPC64 VOID-ALLOCPTR is "most-positive-dnode"
+	(e.g, non-negative.)
+
+2005-07-14 15:00  gb
+
+	* level-0/PPC/ppc-utils.lisp: In #+ppc64 walk-dynamic-area, use a
+	signed alloc trap; ensure that ALLOCBASE contains the new
+	(non-negative) VOID_ALLOCPTR.
+
 2005-07-13 09:58  gb
 
 	* lisp-kernel/: lisp-exceptions.c, lisp-exceptions.h: Only
