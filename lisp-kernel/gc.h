@@ -82,7 +82,11 @@ typedef unsigned char qnode;
 #define forward_marker fulltag_nil
 #endif
 
+#ifdef PPC64
+#define VOID_ALLOCPTR ((LispObj)(0x8000000000000000-dnode_size))
+#else
 #define VOID_ALLOCPTR ((LispObj)(-dnode_size))
+#endif
 
 
 #define GC_TRAP_FUNCTION_GC 0
