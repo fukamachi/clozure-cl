@@ -1,3 +1,8 @@
+2005-07-15 00:30  gb
+
+	* examples/rubix/rubix.lisp: Hamilton's patch for the
+	right-mouse-button challenged.
+
 2005-07-14 15:11  gb
 
 	* level-1/version.lisp: Bump.
