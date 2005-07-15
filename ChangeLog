@@ -1,3 +1,9 @@
+2005-07-15 12:29  gb
+
+	* examples/objc-runtime.lisp: Clear the "private" class tree on
+	application exit; ensure that it gets re-populated on application
+	launch.
+
 2005-07-15 06:47  gb
 
 	* examples/rubix/rubix.lisp: Reference *CUBE*, not CUBE.  (Need to
