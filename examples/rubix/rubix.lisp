@@ -34,7 +34,7 @@
   (#_glDepthFunc #$GL_LEQUAL)
   (#_glHint #$GL_PERSPECTIVE_CORRECTION_HINT #$GL_NICEST)
 
-  (setf cube (make-instance 'rubix-cube))
+  (setf *cube* (make-instance 'rubix-cube))
 
   (#_glEnable #$GL_LIGHTING)
 
@@ -56,11 +56,11 @@
 
   (#_glFlush))
 
-(ccl::define-objc-method ((:void :draw-rect a-rect) rubix-opengl-view)
+(ccl::define-objc-method ((:void :draw-rect (:<NSR>ect a-rect)) rubix-opengl-view)
   (declare (ignorable a-rect))
   ;; drawing callback
   (#_glClear (logior #$GL_COLOR_BUFFER_BIT #$GL_DEPTH_BUFFER_BIT))
-  (render cube)
+  (render *cube*)
   (#_glFlush))
 
 ;; want to be able to send keystrokes to the rubix cube
@@ -71,6 +71,8 @@
 ;; want to be able to click and start dragging (without moving the window)
 (ccl::define-objc-method ((:<BOOL> accepts-first-mouse) rubix-opengl-view)
   #$YES)
+
+(defparameter *rubix-face-snap* 8.0) ; degrees
 
 (ccl::define-objc-method ((:void :mouse-down the-event) rubix-opengl-view)
   ;; this makes dragging spin the cube
@@ -85,7 +87,7 @@
 							   #$NSLeftMouseDraggedMask))))
 			 (rlet ((mouse-loc :<NSP>oint))
 			       (ccl::send/stret mouse-loc the-event 'location-in-window)
-			       (cond ((eq #$NSLeftMouseDragged (ccl::send the-event 'type))
+			       (cond ((eq #$NSLeftMouseDragged (ccl::send (the ns:ns-event the-event) 'type))
 				      (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
 						       (pref last-loc :<NSP>oint.x)))
 					    (deltay (- (pref last-loc :<NSP>oint.y)
@@ -93,7 +95,7 @@
 					    (vert-rot-axis (cross *y-axis* *camera-pos*)))
 					(setf (pref last-loc :<NSP>oint.x) (pref mouse-loc :<NSP>oint.x)
 					      (pref last-loc :<NSP>oint.y) (pref mouse-loc :<NSP>oint.y))
-					(rotate-relative cube
+					(rotate-relative *cube*
 							 (mulquats (axis-angle->quat vert-rot-axis deltay)
 								   (axis-angle->quat *y-axis* deltax))))
 				      (ccl::send self :set-needs-display #$YES))
@@ -111,20 +113,20 @@
 	       (ccl::send/stret pick-loc self :convert-point first-loc :from-view nil)
 	       (let ((dragging-p t)
 		     (reference-snap 0))
-		 (setf (turning-face cube) (render-for-selection
-					    cube
-					    (opengl:unproject (pref pick-loc :<NSP>oint.x)
-							      (pref pick-loc :<NSP>oint.y)))
-		       (face-turning-p cube) (when (numberp (turning-face cube)) t)
-		       (face-theta cube) 0.0)
-		 (loop while (and dragging-p (face-turning-p cube)) do
+		 (setf (turning-face *cube*) (render-for-selection
+                                              *cube*
+                                              (opengl:unproject (pref pick-loc :<NSP>oint.x)
+                                                                (pref pick-loc :<NSP>oint.y)))
+		       (face-turning-p *cube*) (when (numberp (turning-face *cube*)) t)
+		       (face-theta *cube*) 0.0)
+		 (loop while (and dragging-p (face-turning-p *cube*)) do
 		       (let ((the-event (ccl::send (ccl::send self 'window)
 						   :next-event-matching-mask
 						   (logior #$NSLeftMouseUpMask
 							   #$NSLeftMouseDraggedMask))))
 			 (rlet ((mouse-loc :<NSP>oint))
 			       (ccl::send/stret mouse-loc the-event 'location-in-window)
-			       (cond ((eq #$NSLeftMouseDragged (ccl::send the-event 'type))
+			       (cond ((eq #$NSLeftMouseDragged (ccl::send (the ns:ns-event the-event) 'type))
 				      (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
 						       (pref first-loc :<NSP>oint.x))))
 					(multiple-value-bind (snap-to snap-dist) (round deltax 90.0)
@@ -134,27 +136,26 @@
 								      (cond ((zerop rotations) nil)
 									    ((< 0 rotations)
 									     (dotimes (i rotations)
-									       (turnfaceclockwise cube (turning-face cube)))
+									       (turnfaceclockwise *cube* (turning-face *cube*)))
 									     (setf reference-snap snap-to))
 									    ((> 0 rotations)
 									     (dotimes (i (abs rotations))
-									       (turnfacecounterclockwise cube (turning-face cube)))
+									       (turnfacecounterclockwise *cube* (turning-face *cube*)))
 									     (setf reference-snap snap-to))))
 								    ;; determine where face will be drawn
-								    (setf (face-theta cube) 0.0))
+								    (setf (face-theta *cube*) 0.0))
 								   (t ; no snap
-								    (setf (face-theta cube) (- deltax (* 90.0 reference-snap))))
+								    (setf (face-theta *cube*) (- deltax (* 90.0 reference-snap))))
 								   )))
 				      (ccl::send self :set-needs-display #$YES))
 				     (t
-				      (setf (face-turning-p cube) nil
-					    (turning-face cube) nil
-					    (face-theta cube) nil
+				      (setf (face-turning-p *cube*) nil
+					    (turning-face *cube*) nil
+					    (face-theta *cube*) nil
 					    dragging-p nil))))))
 		 (ccl::send self :set-needs-display #$YES)))
 	 )))
 
-(defparameter *rubix-face-snap* 8.0) ; degrees
 (ccl::define-objc-method ((:void :right-mouse-down the-event) rubix-opengl-view)
   ;; this makes dragging left/right turn a face counterclockwise/clockwise
   ;; ... clicked-on face determines face turned
@@ -167,20 +168,20 @@
     (ccl::send/stret pick-loc self :convert-point first-loc :from-view nil)
     (let ((dragging-p t)
 	  (reference-snap 0))
-      (setf (turning-face cube) (render-for-selection
-				 cube
+      (setf (turning-face *cube*) (render-for-selection
+				 *cube*
 				 (opengl:unproject (pref pick-loc :<NSP>oint.x)
 						   (pref pick-loc :<NSP>oint.y)))
-	    (face-turning-p cube) (when (numberp (turning-face cube)) t)
-	    (face-theta cube) 0.0)
-      (loop while (and dragging-p (face-turning-p cube)) do
+	    (face-turning-p *cube*) (when (numberp (turning-face *cube*)) t)
+	    (face-theta *cube*) 0.0)
+      (loop while (and dragging-p (face-turning-p *cube*)) do
 	    (let ((the-event (ccl::send (ccl::send self 'window)
 					:next-event-matching-mask
 					(logior #$NSRightMouseUpMask
 						#$NSRightMouseDraggedMask))))
 	      (rlet ((mouse-loc :<NSP>oint))
 		(ccl::send/stret mouse-loc the-event 'location-in-window)
-		(cond ((eq #$NSRightMouseDragged (ccl::send the-event 'type))
+		(cond ((eq #$NSRightMouseDragged (ccl::send (the ns:ns-event the-event) 'type))
 		       (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
 					(pref first-loc :<NSP>oint.x))))
 			 (multiple-value-bind (snap-to snap-dist) (round deltax 90.0)
@@ -190,22 +191,22 @@
 				    (cond ((zerop rotations) nil)
 					  ((< 0 rotations)
 					   (dotimes (i rotations)
-					     (turnfaceclockwise cube (turning-face cube)))
+					     (turnfaceclockwise *cube* (turning-face *cube*)))
 					   (setf reference-snap snap-to))
 					  ((> 0 rotations)
 					   (dotimes (i (abs rotations))
-					     (turnfacecounterclockwise cube (turning-face cube)))
+					     (turnfacecounterclockwise *cube* (turning-face *cube*)))
 					   (setf reference-snap snap-to))))
 				  ;; determine where face will be drawn
-				  (setf (face-theta cube) 0.0))
+				  (setf (face-theta *cube*) 0.0))
 				 (t ; no snap
-				  (setf (face-theta cube) (- deltax (* 90.0 reference-snap))))
+				  (setf (face-theta *cube*) (- deltax (* 90.0 reference-snap))))
 				 )))
 		       (ccl::send self :set-needs-display #$YES))
 		      (t
-		       (setf (face-turning-p cube) nil
-			     (turning-face cube) nil
-			     (face-theta cube) nil
+		       (setf (face-turning-p *cube*) nil
+			     (turning-face *cube*) nil
+			     (face-theta *cube*) nil
 			     dragging-p nil))))))
       (ccl::send self :set-needs-display #$YES))))
 
