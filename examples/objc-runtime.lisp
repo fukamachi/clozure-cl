@@ -197,8 +197,10 @@
 	(with-lock-grabbed (objc-class-lock)
 	  (setf (splay-tree-root objc-class-map) nil
 		(splay-tree-root objc-metaclass-map) nil
+                (splay-tree-root private-objc-classes) nil
 		(splay-tree-count objc-class-map) 0
-		(splay-tree-count objc-metaclass-map) 0)))
+		(splay-tree-count objc-metaclass-map) 0
+                (splay-tree-count private-objc-classes) 0)))
       (flet ((install-objc-metaclass (meta)
 	       (or (splay-tree-get objc-metaclass-map meta)
 		   (let* ((id (assign-next-metaclass-id))
@@ -496,7 +498,13 @@
 	    (multiple-value-bind (ivars instance-size)
 		(%make-objc-ivars c)
 	      (%add-objc-class c ivars instance-size)
-	      (splay-tree-put class-map c i))))))))
+	      (splay-tree-put class-map c i))))))
+    ;; Finally, iterate over all classes in the runtime world.
+    ;; Register any class that's not found in the class map
+    ;; as a "private" ObjC class.
+    (reset-objc-class-count)
+    (map-objc-classes)
+    ))
 
 (pushnew #'revive-objc-classes *lisp-system-pointer-functions*
 	 :test #'eq
