@@ -80,14 +80,18 @@
                                                  (foreign-record-field-name
                                                   field))
                                                 ns-package))
-                       (type (foreign-record-field-type field)))
+
+                       (type (foreign-record-field-type field))
+                       (offset (progn
+                                    (ensure-foreign-type-bits type)
+                                    (foreign-record-field-offset field))))
                   (make-instance 'foreign-direct-slot-definition
                                  :initfunction #'false
                                  :initform nil
                                  :name name
                                  :foreign-type type
                                  :class class
-                                 :offset (foreign-record-field-offset field)
+                                 :bit-offset offset
                                  :allocation :instance)))
             (db-objc-class-info-ivars info))))
 
@@ -321,7 +325,7 @@
        ;; in the thread that's going to process events.  Looking up a
        ;; symbol in the library should cause it to be initialized
        (open-shared-library "/System/Library/Frameworks/Cocoa.framework/Cocoa")
-       (#_GetCurrentEventQueue)
+       ;(#_GetCurrentEventQueue)
        (current-ns-thread)
        (create-void-nsthread))))
 
@@ -680,7 +684,8 @@ argument lisp string."
   (declare-objc-class "NSPlaceholderValue" "NSValue")
   (declare-objc-class "NSConcreteFileHandle" "NSFileHandle")
   (declare-objc-class "NSConcreteData" "NSData")
-  (declare-objc-class "NSConcreteMutableData" "NSMutableData"))
+  (declare-objc-class "NSConcreteMutableData" "NSMutableData")
+  (declare-objc-class "NSConcreteAttributedString" "NSAttributedString"))
 
 
 ;;; Intern NSConstantString instances.
@@ -1332,14 +1337,30 @@ argument lisp string."
 	(declare (fixnum size))
 	(unless (zerop size)
 	  size)))))
-  
+
+(defun objc-private-class-id (classptr)
+  (let* ((info (%get-private-objc-class classptr)))
+    (when info
+      (or (private-objc-class-info-declared-ancestor info)
+          (with-macptrs ((super (pref classptr :objc_class.super_class)))
+            (loop
+              (when (%null-ptr-p super)
+                (return))
+              (let* ((id (objc-class-id super)))
+                (if id
+                  (return (setf (private-objc-class-info-declared-ancestor info)
+                                id))
+                  (%setf-macptr super (pref super :objc_class.super_class))))))))))
+
 (defun %objc-instance-class-index (p)
   #+apple-objc
   (if (or (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
 	    (not (%null-ptr-p zone)))
           (pointer-in-cfstring-section-p p))
     (with-macptrs ((parent (pref p :objc_object.isa)))
-      (objc-class-id parent)))
+      (or
+       (objc-class-id parent)
+       (objc-private-class-id parent))))
   #+gnu-objc
   (with-macptrs ((parent (pref p :objc_object.class_pointer)))
     (objc-class-id-parent))
@@ -1667,7 +1688,7 @@ argument lisp string."
 
 (defun class-get-instance-method (class sel)
   #+apple-objc (let* ((p (#_class_getInstanceMethod class sel)))
-                 (if (%null-ptr-p p)
+                 (if (%null-ptr-p p)                   
                    (unless (logtest #$CLS_INITIALIZED (pref (pref class :objc_class.isa)  :objc_class.info))
                      ;; Do this for effect; ignore the :<IMP> it returns.
                      ;; (It should cause the CLS_NEED_BIND flag to turn itself
