@@ -74,31 +74,85 @@
 
 (ccl::define-objc-method ((:void :mouse-down the-event) rubix-opengl-view)
   ;; this makes dragging spin the cube
-  (let ((dragging-p t))
-    (rlet ((last-loc :<NSP>oint))
-      (ccl::send/stret last-loc the-event 'location-in-window)
-      (loop while dragging-p do
-	    (let ((the-event (ccl::send (ccl::send self 'window)
-					:next-event-matching-mask
-					(logior #$NSLeftMouseUpMask
-						#$NSLeftMouseDraggedMask))))
-	      (rlet ((mouse-loc :<NSP>oint))
-		(ccl::send/stret mouse-loc the-event 'location-in-window)
-		(cond ((eq #$NSLeftMouseDragged (ccl::send the-event 'type))
-		       (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
-					(pref last-loc :<NSP>oint.x)))
-			     (deltay (- (pref last-loc :<NSP>oint.y)
-					(pref mouse-loc :<NSP>oint.y)))
-			     (vert-rot-axis (cross *y-axis* *camera-pos*)))
-			 (setf (pref last-loc :<NSP>oint.x) (pref mouse-loc :<NSP>oint.x)
-			       (pref last-loc :<NSP>oint.y) (pref mouse-loc :<NSP>oint.y))
-			 (rotate-relative cube
-					  (mulquats (axis-angle->quat vert-rot-axis deltay)
-						    (axis-angle->quat *y-axis* deltax))))
-		       (ccl::send self :set-needs-display #$YES))
-		      (t
-		       (setf dragging-p nil))))))
-      (ccl::send self :set-needs-display #$YES))))
+  (cond ((zerop (logand #$NSControlKeyMask (ccl::send the-event 'modifier-flags))) ; not ctrl-click
+	 (let ((dragging-p t))
+	   (rlet ((last-loc :<NSP>oint))
+		 (ccl::send/stret last-loc the-event 'location-in-window)
+		 (loop while dragging-p do
+		       (let ((the-event (ccl::send (ccl::send self 'window)
+						   :next-event-matching-mask
+						   (logior #$NSLeftMouseUpMask
+							   #$NSLeftMouseDraggedMask))))
+			 (rlet ((mouse-loc :<NSP>oint))
+			       (ccl::send/stret mouse-loc the-event 'location-in-window)
+			       (cond ((eq #$NSLeftMouseDragged (ccl::send the-event 'type))
+				      (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
+						       (pref last-loc :<NSP>oint.x)))
+					    (deltay (- (pref last-loc :<NSP>oint.y)
+						       (pref mouse-loc :<NSP>oint.y)))
+					    (vert-rot-axis (cross *y-axis* *camera-pos*)))
+					(setf (pref last-loc :<NSP>oint.x) (pref mouse-loc :<NSP>oint.x)
+					      (pref last-loc :<NSP>oint.y) (pref mouse-loc :<NSP>oint.y))
+					(rotate-relative cube
+							 (mulquats (axis-angle->quat vert-rot-axis deltay)
+								   (axis-angle->quat *y-axis* deltax))))
+				      (ccl::send self :set-needs-display #$YES))
+				     (t
+				      (setf dragging-p nil))))))
+		 (ccl::send self :set-needs-display #$YES))))
+	(t ;; ctrl-click, do what right-click does... note that once
+	   ;; ctrl-click is done dragging will not require ctrl be held down
+
+	 ;; NOTE THE GRATUITOUS CUT-AND-PASTE, debug the right-mouse-down
+	 ;; version preferentially and update this one with fixes as needed
+	 (rlet ((first-loc :<NSP>oint)
+		(pick-loc :<NSP>oint))
+	       (ccl::send/stret first-loc the-event 'location-in-window)
+	       (ccl::send/stret pick-loc self :convert-point first-loc :from-view nil)
+	       (let ((dragging-p t)
+		     (reference-snap 0))
+		 (setf (turning-face cube) (render-for-selection
+					    cube
+					    (opengl:unproject (pref pick-loc :<NSP>oint.x)
+							      (pref pick-loc :<NSP>oint.y)))
+		       (face-turning-p cube) (when (numberp (turning-face cube)) t)
+		       (face-theta cube) 0.0)
+		 (loop while (and dragging-p (face-turning-p cube)) do
+		       (let ((the-event (ccl::send (ccl::send self 'window)
+						   :next-event-matching-mask
+						   (logior #$NSLeftMouseUpMask
+							   #$NSLeftMouseDraggedMask))))
+			 (rlet ((mouse-loc :<NSP>oint))
+			       (ccl::send/stret mouse-loc the-event 'location-in-window)
+			       (cond ((eq #$NSLeftMouseDragged (ccl::send the-event 'type))
+				      (let ((deltax (- (pref mouse-loc :<NSP>oint.x)
+						       (pref first-loc :<NSP>oint.x))))
+					(multiple-value-bind (snap-to snap-dist) (round deltax 90.0)
+							     (cond ((>= *rubix-face-snap* (abs snap-dist)) ; snap
+								    ;; update cube structure
+								    (let ((rotations (- snap-to reference-snap)))
+								      (cond ((zerop rotations) nil)
+									    ((< 0 rotations)
+									     (dotimes (i rotations)
+									       (turnfaceclockwise cube (turning-face cube)))
+									     (setf reference-snap snap-to))
+									    ((> 0 rotations)
+									     (dotimes (i (abs rotations))
+									       (turnfacecounterclockwise cube (turning-face cube)))
+									     (setf reference-snap snap-to))))
+								    ;; determine where face will be drawn
+								    (setf (face-theta cube) 0.0))
+								   (t ; no snap
+								    (setf (face-theta cube) (- deltax (* 90.0 reference-snap))))
+								   )))
+				      (ccl::send self :set-needs-display #$YES))
+				     (t
+				      (setf (face-turning-p cube) nil
+					    (turning-face cube) nil
+					    (face-theta cube) nil
+					    dragging-p nil))))))
+		 (ccl::send self :set-needs-display #$YES)))
+	 )))
 
 (defparameter *rubix-face-snap* 8.0) ; degrees
 (ccl::define-objc-method ((:void :right-mouse-down the-event) rubix-opengl-view)
