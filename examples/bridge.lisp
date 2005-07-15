@@ -949,7 +949,7 @@
                                          s
                                          super)
             (progn
-              (format t "~& punting on ~a" msg)
+              (format t "~& punting on ~s" msg)
               (old-make-optimized-send o msg args env s super sclassname))))))))
 
     
