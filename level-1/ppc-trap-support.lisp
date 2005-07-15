@@ -13,10 +13,9 @@
 ;;;
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
-;; Copyright 1995 Digitool, Inc. The 'tool rules!
-;;
-;; Support for PPC traps, this includes the event-poll trap
-;; and all the twxxx traps for type checks & arg count checks.
+
+;;; Support for PPC traps, this includes the event-poll trap
+;;; and all the trxxx traps for type checks & arg count checks.
 
 
 
@@ -650,7 +649,7 @@
                                 (ppc-instruction-mask :opcode :rt)
                                 (ppc-lap-word (tdnei ?? ppc64::tag-fixnum)))
                    (setq instr (scan-for-instr (ppc-instruction-mask :opcode :sh :mb6 :sh6)
-                                               (ppc-lap-word (rldicl ?? ?? 0 62))                                               
+                                               (ppc-lap-word (rldicl ?? ?? 0 61))                                               
                                                fn pc-index))
 
                    (lisp-reg-p (setq rs (RS-field instr))))
