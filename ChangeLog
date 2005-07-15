@@ -1,3 +1,61 @@
+2005-07-15 06:47  gb
+
+	* examples/rubix/rubix.lisp: Reference *CUBE*, not CUBE.  (Need to
+	ask Hamilton about this, and incorporate his "ctrl-left-moust =
+	right-mouse" patches.)
+
+2005-07-15 06:45  gb
+
+	* examples/objc-clos.lisp: Clarify that foreign direct slotds's
+	"offset" is a bit offset; change the name of the slot and its
+	accessor/initarg to reflect this.
+	
+	Foreign effective slot definitions generally treat the location as
+	a byte offset (except the slot's type is a bit or bitfield.)
+	
+	Fix some bugs in calculating instance size of lisp-defined classes,
+	which had led to general chaos/memory corruption problems.
+
+2005-07-15 06:42  gb
+
+	* examples/objc-runtime.lisp: Declare the class
+	NSConcreteAttributedString, until SEND is converted to always use
+	decl info.
+	
+	Recognize instances of private (i.e., undeclared) classes.
+	
+	When creating a foreign direct slot,  ensure that the type's bits
+	have been determined; use the new :BIT-OFFSET initarg.
+
+2005-07-15 06:38  gb
+
+	* level-1/l1-readloop-lds.lisp: NEW-BACKTRACE-INFO records the
+	(new) break level.
+
+2005-07-15 06:38  gb
+
+	* library/lispequ.lisp: Add a bt.break-level field to backtrace
+	info.
+
+2005-07-15 06:34  gb
+
+	* lib/backtrace-lds.lisp: Comments.
+
+2005-07-15 06:33  gb
+
+	* examples/cocoa.lisp: Change some indentation; make
+	UI-OBJECT-DO-OPERATION use EQL specializers on the operation name.
+
+2005-07-15 06:32  gb
+
+	* examples/cocoa-backtrace.lisp: Set backtrace window title to
+	indicate process and its break level.
+
+2005-07-15 06:31  gb
+
+	* examples/bridge.lisp: SEND still punts to old SEND code
+	sometimes, but formats the message differently.
+
 2005-07-15 04:25  gb
 
 	* level-1/ppc-trap-support.lisp: Look for an RLDICL that clears the
