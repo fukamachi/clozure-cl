@@ -194,7 +194,8 @@
 (defmacro srv.register-n (saved-register-vector n)
   `(svref ,saved-register-vector (1+ ,n)))
 
-;;; This isn't quite right - has to look at all functions on stack, not just those that saved VSPs.
+;;; This isn't quite right - has to look at all functions on stack,
+;;; not just those that saved VSPs.
 
 
 (defun frame-restartable-p (target &optional context)
@@ -293,10 +294,10 @@
 
 ;;; Returns 2 values:
 ;;; mask srv
-;;; The mask says which registers are used at PC in LFUN.
-;;; srv is a saved-register-vector whose register contents are the register values
-;;; registers whose bits are not set in MASK or set in UNRESOLVED will
-;;; be returned as NIL.
+;;; The mask says which registers are used at PC in LFUN.  srv is a
+;;; saved-register-vector whose register contents are the register
+;;; values registers whose bits are not set in MASK or set in
+;;; UNRESOLVED will be returned as NIL.
 
 (defun saved-register-values 
        (lfun pc child last-catch srv &optional (srv-out (%cons-saved-register-vector)))
@@ -382,8 +383,9 @@
 
 
 
-; (srv.unresolved srv) is the last catch frame, left there by frame-restartable-p
-; The registers in srv are locations of variables saved between frame and that catch frame.
+;;; (srv.unresolved srv) is the last catch frame, left there by
+;;; frame-restartable-p The registers in srv are locations of
+;;; variables saved between frame and that catch frame.
 (defun %apply-in-frame (frame fn arglist srv)
   (declare (fixnum frame))
   (let* ((catch (srv.unresolved srv))
@@ -395,7 +397,7 @@
          (db-link (%svref catch target::catch-frame.db-link-cell))
          (catch-count 0))
     (declare (fixnum parent vsp db-link catch-count))
-    ; Figure out how many catch frames to throw through
+    ;; Figure out how many catch frames to throw through
     (loop
       (unless catch-top
         (error "Didn't find catch frame"))
@@ -403,12 +405,12 @@
       (when (eq catch-top catch)
         (return))
       (setq catch-top (next-catch catch-top)))
-    ; Figure out where the db-link should be
+    ;; Figure out where the db-link should be
     (loop
       (when (or (eql db-link 0) (>= db-link vsp))
         (return))
       (setq db-link (%fixnum-ref db-link)))
-    ; Figure out how many TSP frames to pop after throwing.
+    ;; Figure out how many TSP frames to pop after throwing.
     (let ((sp (catch-frame-sp catch)))
       (loop
         (multiple-value-bind (f pc) (cfp-lfun sp)
