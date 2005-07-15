@@ -1,3 +1,9 @@
+2005-07-15 04:25  gb
+
+	* level-1/ppc-trap-support.lisp: Look for an RLDICL that clears the
+	left 61 (not 62) bits, preceding a (TDNEI <reg> PPC64::TAG-FIXNUM)
+	trap, in XCMAIN.
+
 2005-07-15 00:30  gb
 
 	* examples/rubix/rubix.lisp: Hamilton's patch for the
