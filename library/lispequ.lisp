@@ -242,7 +242,8 @@
   bt.break-condition
   bt.current
   bt.fake-frames
-  bt.db-link)
+  bt.db-link
+  bt.break-level)
 
 (defconstant bt.sg bt.tcr)
 (setf (macro-function 'bt.sg) (macro-function 'bt.tcr))
