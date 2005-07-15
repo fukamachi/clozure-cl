@@ -385,8 +385,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 (declaim (notinline select-backtrace))
 
-(defmacro new-backtrace-info (dialog youngest oldest tcr condition current fake db-link)
-  `(vector ,dialog ,youngest ,oldest ,tcr nil (%catch-top ,tcr) ,condition ,current ,fake ,db-link))
+(defmacro new-backtrace-info (dialog youngest oldest tcr condition current fake db-link level)
+  `(vector ,dialog ,youngest ,oldest ,tcr nil (%catch-top ,tcr) ,condition ,current ,fake ,db-link ,level))
 
 (defun select-backtrace ()
   (declare (notinline select-backtrace))
@@ -434,7 +434,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
                                       condition
                                       (%current-frame-ptr)
                                       *fake-stack-frames*
-                                      (db-link)))
+                                      (db-link)
+                                      (1+ *break-level*)))
                 (*backtrace-contexts* (cons context *backtrace-contexts*)))
 	 (with-toplevel-commands :break
            (if *continuablep*
