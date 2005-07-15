@@ -70,7 +70,17 @@
                       
                 (send header-cell :set-font (default-font :attributes '(:bold)))
                 (send header-cell :set-string-value
-                      (%make-nsstring break-condition-string))))))))))
+                      (%make-nsstring break-condition-string))))))))
+    (let* ((window (send self 'window)))
+      (unless (%null-ptr-p window)
+        (let* ((context (backtrace-controller-context self))
+               (process (tcr->process (bt.tcr context))))
+          (send window :set-title (%make-nsstring
+                                   (format nil "Backtrace for ~a(~d), break level ~d"
+                                           (process-name process)
+                                           (process-serial-number process)
+                                           (bt.break-level context)))))))))
+
               
 (define-objc-method ((:<BOOL> :outline-view view
                               :is-item-expandable item)
