@@ -7,19 +7,14 @@
 
 #+darwinppc-target
 (progn
-(require "FAKE-CFBUNDLE-PATH")
-(fake-cfbundle-path "ccl:OpenMCL.app;Contents;MacOS;dppccl"))
-
-
-
+  (require "FAKE-CFBUNDLE-PATH")
+  (fake-cfbundle-path "ccl:OpenMCL.app;Contents;MacOS;dppccl"))
 
 
 (require "OBJC-SUPPORT")
 (require "COCOA-WINDOW")
 (require "COCOA-LISTENER")
 (require "COCOA-BACKTRACE")
-
-  
 
 
 
@@ -57,14 +52,31 @@
 
 
 (defmethod ui-object-do-operation ((o ns:ns-application)
-                                   operation &rest args)
-  (case operation
-    (:note-current-package (ui-object-note-package o (car args)))
-    (:eval-selection (ui-object-eval-selection o (car args)))
-    (:enter-backtrace-context
-     (ui-object-enter-backtrace-context o (car args)))
-    (:exit-backtrace-context
-     (ui-object-exit-backtrace-context o (car args)))))
+                                   operation
+                                   &rest args)
+  (declare (ignore operation args))
+  ;; Do nothing.  Would it be better to warn and/or log this ?
+  )
+
+(defmethod ui-object-do-operation ((o ns:ns-application)
+                                   (operation (eql :note-current-package))
+                                   &rest args)
+  (ui-object-note-package o (car args)))
+
+(defmethod ui-object-do-operation ((o ns:ns-application)
+                                   (operation (eql :eval-selection))
+                                   &rest args)
+  (ui-object-eval-selection o (car args)))
+
+(defmethod ui-object-do-operation ((o ns:ns-application)
+                                   (operation (eql :enter-backtrace-context))
+                                   &rest args)
+  (ui-object-enter-backtrace-context o (car args)))
+
+(defmethod ui-object-do-operation ((o ns:ns-application)
+                                   (operation (eql :exit-backtrace-context))
+                                   &rest args)
+  (ui-object-exit-backtrace-context o (car args)))
 
 
 (start-cocoa-application)
