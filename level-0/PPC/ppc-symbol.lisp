@@ -102,7 +102,7 @@
   (bge @sym)
   (ldrx temp0 imm4 imm3)
   (cmpdi temp0 target::subtag-no-thread-local-binding)
-  (sldi imm3 imm3 target::fixnumshift)
+  (slri imm3 imm3 target::fixnumshift)
   (beq @sym)
   (vpush imm4)
   (vpush imm3)
@@ -110,7 +110,7 @@
   (la temp0 '2 vsp)
   (ba .SPvalues)
   @sym
-  (lwz arg_z target::svar.symbol svar)
+  (ldr arg_z target::svar.symbol svar)
   (li arg_y '#.target::symbol.vcell)
   (vpush arg_z)
   (vpush arg_y)
