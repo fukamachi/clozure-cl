@@ -259,7 +259,8 @@ terminate the list"
     (if (and (consp name)
              (consp (%cdr name))
              (null (%cddr name))
-             (symbolp (%cadr name)))
+             (symbolp (%cadr name))
+             (eq (car name) 'setf))
       (values t (setf-function-name (%cadr name)))
       ; What other kinds of function names do we care to support ?
       (values nil nil))))
