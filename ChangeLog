@@ -1,3 +1,26 @@
+2005-07-15 18:31  gb
+
+	* level-1/l1-aprims.lisp: Don't assume that all function names
+	that're lists of 2 symbols are SETF function names in
+	VALID-FUNCTION-NAME-P.	(Unless they -are- SETF function names, of
+	course.)
+
+2005-07-15 18:28  gb
+
+	* level-0/PPC/ppc-symbol.lisp: %SVAR-BINDING-ADDRESS fixes.
+
+2005-07-15 18:27  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp:
+	PPC64::PPC64-ARRAY-TYPE-NAME-FROM-CTYPE should return a keyword or
+	NIL, not ppc32::subtag-simple-vector (sic).
+
+2005-07-15 18:27  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp:
+	PPC32::PPC32-ARRAY-TYPE-NAME-FROM-CTYPE should return a keyword or
+	NIL, not ppc32::subtag-simple-vector.
+
 2005-07-15 12:29  gb
 
 	* examples/objc-runtime.lisp: Clear the "private" class tree on
