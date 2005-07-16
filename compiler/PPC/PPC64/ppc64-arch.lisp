@@ -764,7 +764,7 @@
                 ((double-float long-float) :double-float-vector)
                 ((single-float short-float) :single-float-vector)
                 (t :simple-vector)))
-             (t ppc32::subtag-simple-vector))))
+             (t :simple-vector))))
         (ccl::unknown-ctype)
         (ccl::named-ctype
          (if (eq element-type ccl::*universal-type*)
