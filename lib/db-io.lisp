@@ -302,7 +302,7 @@
       (setf (cdbm-fid cdbm) nil))))
 
 (defun write-cdbm-trailer (cdbm)
-  (let* ((string (format nil "~s ~s ~d" "OpenMCL Interface File" (backend-name *target-backend*) *interface-abi-version*)))
+  (let* ((string (format nil "~s ~s ~d " "OpenMCL Interface File" (backend-name *target-backend*) *interface-abi-version*)))
     (%stack-block ((buf 512))
       (%copy-ivector-to-ptr string 0 buf 0 (length string))
       (fid-write (cdbm-fid cdbm) buf 512))))
@@ -394,7 +394,7 @@
                 (if (eq target (backend-name *target-backend*))
                   (if (eql version *interface-abi-version*)
                     cdb
-                    (error-with-cdb "Wrong interface ABI version."))
+                    (error-with-cdb "Wrong interface ABI version. Expected ~d, got ~d" *interface-abi-version* version))
                   cdb #+nil(error-with-cdb "Wrong target."))
                 (error-with-cdb "Missing interface file signature.  Obsolete version?")))))))))
 
@@ -1614,6 +1614,8 @@
                  (unparse-foreign-type field-type)))
         (setq overall-alignment (max overall-alignment alignment))
 
+        (format t "~& field = ~s, offset = ~s"
+                field (foreign-record-field-offset field))
         (ecase kind
           (:struct (let* ((imported-offset (foreign-record-field-offset field))
                           (offset (or imported-offset (align-offset total-bits alignment))))
@@ -1668,6 +1670,7 @@
       (prog1
 	  (%decode-record-type data 0 ftd)
 	(cdb-free data)))))
+
 
 (defun %load-foreign-record (cdb name ftd)
   (when cdb
