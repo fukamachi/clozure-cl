@@ -1375,7 +1375,6 @@
 	  (hi::region hi::*parse-starting-mark*
 		      (hi::region-end region)))
          (hi::*cache-modification-tick* -1)
-         (hi::now-tick 0)
          (hi::*disembodied-buffer-counter* 0)
          (hi::*in-a-recursive-edit* nil)
          (hi::*last-key-event-typed* nil)
