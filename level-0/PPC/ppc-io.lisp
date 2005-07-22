@@ -22,8 +22,8 @@
 
 (defppclapfunction %get-errno ()
   (ldr imm1 target::tcr.errno-loc target::rcontext)
-  (ldr imm0 0 imm1)
-  (str rzero 0 imm1)
+  (lwz imm0 0 imm1)
+  (stw rzero 0 imm1)
   (neg imm0 imm0)
   (box-fixnum arg_z imm0)
   (blr))
