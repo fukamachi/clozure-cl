@@ -1,3 +1,37 @@
+2005-07-22 00:58  gb
+
+	* level-1/version.lisp: Haven't bumped in a while.
+
+2005-07-22 00:57  gb
+
+	* lib/db-io.lisp: Ensure that ASCII info in trailer block is
+	space-delimited.
+
+2005-07-22 00:57  gb
+
+	* level-0/PPC/ppc-io.lisp: %GET-ERRNO: errno value is always 32-bit
+	int; pointer to errno may be 32/64 bits ...
+
+2005-07-22 00:56  gb
+
+	* level-1/l1-aprims.lisp: Add SETF-FUNCTION-NAME-P, use it in
+	VALID-FUNCTION-NAME-P.
+
+2005-07-22 00:52  gb
+
+	* headers/libc/C/populate.sh: Include /usr/include/ifaddrs.h, for
+	#_getifaddrs/#_freeifaddrs.
+
+2005-07-22 00:51  gb
+
+	* level-1/l1-sockets.lisp: Kinder, gentler %GET-IP-INTERFACES,
+	based on #_getifaddrs.	 #_getifaddrs seems to be supported on
+	Darwin at least as far back as Jaguar,	 and on Linux at least as
+	far back as ... libc versions from 2002 or so.	 (Note that
+	/usr/include/ifaddrs.h hasn't been included in the Linux interfaces
+	  up until this point; note also that the interface names aren't
+	returned correctly   on PPC64 Darwin as of OS release 10.4.1).
+
 2005-07-15 18:31  gb
 
 	* level-1/l1-aprims.lisp: Don't assume that all function names
