@@ -1146,57 +1146,23 @@ conditions, based on the state of the arguments."
     (format t " ~2,'0x" (%get-byte p i))))
 
 (defun %get-ip-interfaces ()
-  (let* ((buffsize 4000))
-    (%stack-block ((buff buffsize))
-      (rlet ((conf :ifconf :ifc_len buffsize))
-	(setf (pref conf :ifconf.ifc_ifcu.ifcu_buf) buff)
-        (let* ((fd (c_socket #$AF_INET #$SOCK_DGRAM 0)))
-	  (if (< fd 0)
-	    (error "Error creating socket."))
-	  (if (< (#_ioctl fd #$SIOCGIFCONF :address conf) 0)
-	    (error "Can't get interfaces configuration"))
-	  (do* ((n (pref conf :ifconf.ifc_len))
-		(offset 0)
-		(req (pref conf :ifconf.ifc_ifcu.ifcu_req))
-		(res ()))
-	       ((>= offset n) (progn (fd-close fd) (nreverse res)))
-	    (declare (fixnum offset n))
-	    (let* ((sa_len #+darwinppc-target (pref (pref req :ifreq.ifr_ifru.ifru_addr) :sockaddr_in.sin_len)
-			   #+linuxppc-target
-			   (external-call "__libc_sa_len"
-					  :unsigned-halfword
-					  (pref (pref req :ifreq.ifr_ifru.ifru_addr) :sockaddr_in.sin_family)
-					  :signed-fullword))
-		   (delta
-		    (max (+ 16 sa_len)
-			 (%foreign-type-or-record-size :ifreq :bytes))))
-	      (declare (fixnum sa_len delta))
-	      ;(dump-buffer req delta)
-	      (let* ((name (%get-cstring (pref req
-					       #+darwinppc-target :ifreq.ifr_name
-					       #+linuxppc-target :ifreq.ifr_ifrn.ifrn_name
-					       ))))
-		(unless (member name res
-				:test #'string=
-				:key #'ip-interface-name)
-		  (when (zerop (#_ioctl fd #$SIOCGIFADDR :address req))
-		    (let* ((addr (pref (pref req :ifreq.ifr_ifru.ifru_addr)
-				       :sockaddr_in.sin_addr.s_addr))
-			   (af (pref (pref req :ifreq.ifr_ifru.ifru_addr)
-				     :sockaddr_in.sin_family)))
-		      (when (zerop (#_ioctl fd #$SIOCGIFFLAGS :address req))
-			(let* ((flags (pref req :ifreq.ifr_ifru.ifru_flags)))
-			  (when (zerop (#_ioctl fd #$SIOCGIFNETMASK :address req))
-			    (push (make-ip-interface
-				   :name name
-				   :addr addr
-				   :netmask (pref (pref req :ifreq.ifr_ifru.ifru_addr)
+  (rlet ((p :address (%null-ptr)))
+    (if (zerop (#_getifaddrs p))
+      (unwind-protect
+           (do* ((q (%get-ptr p) (pref q :ifaddrs.ifa_next))
+                 (res ()))
+                ((%null-ptr-p q) (nreverse res))
+             (let* ((addr (pref q :ifaddrs.ifa_addr)))
+               (when (eql (pref addr :sockaddr.sa_family) #$AF_INET)
+                 (push (make-ip-interface
+				   :name (%get-cstring (pref q :ifaddrs.ifa_name))
+				   :addr (pref addr :sockaddr_in.sin_addr.s_addr)
+				   :netmask (pref (pref q :ifaddrs.ifa_netmask)
 						  :sockaddr_in.sin_addr.s_addr)
-				   :flags flags
-				   :address-family af)
-				  res))))))))
-	      (%incf-ptr req delta)
-	      (incf offset delta))))))))
+				   :flags (pref q :ifaddrs.ifa_flags)
+				   :address-family #$AF_INET)
+                       res))))
+        (#_freeifaddrs (pref p :address))))))
 
 
 (defloadvar *ip-interfaces* ())
