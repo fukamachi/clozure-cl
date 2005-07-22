@@ -1613,9 +1613,6 @@
           (error "Unknown alignment: ~S"
                  (unparse-foreign-type field-type)))
         (setq overall-alignment (max overall-alignment alignment))
-
-        (format t "~& field = ~s, offset = ~s"
-                field (foreign-record-field-offset field))
         (ecase kind
           (:struct (let* ((imported-offset (foreign-record-field-offset field))
                           (offset (or imported-offset (align-offset total-bits alignment))))
