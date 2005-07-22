@@ -253,14 +253,17 @@ terminate the list"
           (%str-cat (prin1-to-string pkg) "::" (princ-to-string sym)))
         *setf-package*)))))
 
-(defun valid-function-name-p (name)
-  (if (symbolp name)                    ; Nil is a valid function name.  I guess.
-    (values t name)
-    (if (and (consp name)
+(defun setf-function-name-p (name)
+  (and (consp name)
              (consp (%cdr name))
              (null (%cddr name))
              (symbolp (%cadr name))
-             (eq (car name) 'setf))
+             (eq (car name) 'setf)))
+
+(defun valid-function-name-p (name)
+  (if (symbolp name)                    ; Nil is a valid function name.  I guess.
+    (values t name)
+    (if (setf-function-name-p name)
       (values t (setf-function-name (%cadr name)))
       ; What other kinds of function names do we care to support ?
       (values nil nil))))
