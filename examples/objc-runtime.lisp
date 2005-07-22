@@ -332,8 +332,10 @@
        (create-void-nsthread))))
 
 
-(let* ((cfstring-sections (cons 0 nil)))
+(let* ((cfstring-sections (cons 0 nil))
+       (cfstring-sections-vector ()))
   (defun reset-cfstring-sections ()
+    (setq cfstring-sections-vector nil)
     (rplaca cfstring-sections 0)
     (rplacd cfstring-sections nil))
   (defun find-cfstring-sections ()
@@ -354,17 +356,30 @@
          #$SEG_DATA
          "__cfstr"
          #'func)))
-	(setf (car cfstring-sections) image-count)))
+	(setf (car cfstring-sections) image-count)
+        (setq cfstring-sections-vector
+              (coerce (sort (copy-list (cdr cfstring-sections))
+                                    #'<
+                                    :key #'car)
+                      'vector))))
   (defun pointer-in-cfstring-section-p (ptr)
-    (let* ((addr (%ptr-to-int ptr)))
-      (dolist (s (cdr cfstring-sections))
-	(when (and (>= addr (car s))
-		   (< addr (cdr s)))
-	  (return t)))))
+    (let* ((addr (%ptr-to-int ptr))
+           (min 0)
+           (max (length cfstring-sections-vector)))
+      (do* ()
+           ((>= min max))
+        (let* ((mid (ash (+ min max) -1))
+               (pair (svref cfstring-sections-vector mid))
+               (low (car pair))
+               (high (cdr pair)))
+          (if (and (>= addr low)
+                   (< addr high))
+            (return t)
+            (if (>= addr high)
+              (setq min (1+ mid))
+              (setq max (1- mid))))))))
   (defun cfstring-sections ()
     (cdr cfstring-sections)))
-	       
-					  
 
 )
 
