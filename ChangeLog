@@ -1,3 +1,22 @@
+2005-07-22 02:01  gb
+
+	* examples/objc-runtime.lisp: Look for pointers in data sections
+	(cfstrings) via binary search (vice linear search.)
+
+2005-07-22 02:00  gb
+
+	* examples/cocoa-editor.lisp: Don't bind HI::NOW-TICK per-thread.
+
+2005-07-22 01:59  gb
+
+	* hemlock/src/buffer.lisp: In %SET-BUFFER-MODIFIED: do
+	QUEUE-BUFFER-CHANGE (e.g., update modified status in modeline)
+	after status change.
+
+2005-07-22 01:33  gb
+
+	* lib/db-io.lisp: Remove a FORMAT (debugging) call.
+
 2005-07-22 00:58  gb
 
 	* level-1/version.lisp: Haven't bumped in a while.
