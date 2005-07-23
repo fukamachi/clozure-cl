@@ -2307,6 +2307,8 @@ are no Forms, OR returns NIL."
 (defun define-callback (name args body env)
   (let* ((stack-word (gensym))
          (stack-ptr (gensym))
+         #+darwinppc-target (fp-arg-regs (gensym))
+         #+darwinppc-target (fp-arg-num 0)
          (arg-names ())
          (arg-types ())
 	 (trace-args ())
@@ -2354,7 +2356,8 @@ are no Forms, OR returns NIL."
 		  (let* ((delta (target-arch-case
                                  (:ppc32 4)
                                  (:ppc64 8)))
-			 (bias 0))
+			 (bias 0)
+                         (use-fp-args nil))
 		    (prog1
 			(list name
 			      `(,
@@ -2363,12 +2366,16 @@ are no Forms, OR returns NIL."
                                                          (:ppc32 4)
                                                          (:ppc64 8)) type)) '%inc-ptr)
 				  (ecase type
-				    (:single-float (setq bias
-                                                         (target-arch-case
-                                                          (:ppc32 0)
-                                                          (:ppc64 4)))
-                                                   '%get-single-float)
-				    (:double-float (setq delta 8)'%get-double-float)
+				    (:single-float
+                                     (if (< (incf fp-arg-num) 14)
+                                       (setq use-fp-args t))
+
+                                     '%get-single-float-from-double-ptr)
+				    (:double-float
+                                     (setq delta 8)
+                                     (if (< (incf fp-arg-num) 14)
+                                       (setq use-fp-args t))
+                                     '%get-double-float)
 				    (:signed-doubleword (setq delta 8) '%%get-signed-longlong)
 				    (:signed-fullword
                                      (setq bias
@@ -2406,8 +2413,9 @@ are no Forms, OR returns NIL."
                                             (:ppc64 7)))
                                      '%get-unsigned-byte)
 				    (:address '%get-ptr)))
-				,stack-ptr
-				(+ ,offset ,bias)))
+				,(if use-fp-args fp-arg-regs stack-ptr)
+				,(if use-fp-args (* 8 (1- fp-arg-num))
+                                     `(+ ,offset ,bias))))
 		      (when (or (eq type :address)
 				(typep type 'unsigned-byte))
 			(push name dynamic-extent-names))
@@ -2491,13 +2499,16 @@ are no Forms, OR returns NIL."
                                                   (:ppc64
                                                    (- ppc64::c-frame.savelr ppc64::c-frame.param0)))
                                                  #-poweropen-target 0
-						 trace-args trace-return-type)))))
+						 trace-args trace-return-type
+                                                 #+poweropen-target
+                                                 fp-arg-regs
+                                                 )))))
              ,doc
              ,woi
 	     ,monitor))))))
 
 (declaim (special *trace-print-hook*))
-(defun defcallback-body (name stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta trace-args trace-result-type)
+(defun defcallback-body (name stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta trace-args trace-result-type #+poweropen-target fp-arg-ptr)
   (let* ((result (gensym))
          (offset (case return-type
                    ((:single-float :double-float) 8)
@@ -2505,68 +2516,72 @@ are no Forms, OR returns NIL."
          (condition-name (if (atom error-return) 'error (car error-return)))
          (error-return-function (if (atom error-return) error-return (cadr error-return)))
          (body
-   	  `(let* ((trace-before (assoc :before *callback-trace-p*))
-		  (trace-backtrace (assoc :backtrace *callback-trace-p*))
-		  (trace-after (assoc :after *callback-trace-p*))
-		  ;;
-		  ;; it would be nice if we only bound this when we were tracing
-		  ;;
-		  (*trace-level* (if (or trace-before trace-after)
-				     (1+ *trace-level*)
-				   *trace-level*)))
-	     (declare (special *trace-level*))
-	     (let ,lets
-	       (declare (dynamic-extent ,@dynamic-extent-names))
-	       ,@decls
-	       (when trace-before
-		 (when *trace-print-hook* 
-		   (funcall *trace-print-hook* ',name t))
-		 (case (cdr trace-before)
-		   (:print
-		    (let ,lets
-		      (trace-tab)
-		      (format *trace-output* "CALLING ~A sp=~X~%" ',name ,stack-ptr)
-		      ,@(let (result)
-			  (dolist (l trace-args)
-			    (push '(trace-tab) result)
-			    (push `(%trace-print-arg *trace-output* ',(car l) ,(car l) ',(cdr l)) result))
-			  (nreverse result))
-		      (cond
-		       ((integerp trace-backtrace)
-			(ccl::print-call-history :detailed-p nil :count (cdr trace-backtrace)))
-		       (trace-backtrace
-			(ccl::print-call-history :detailed-p nil)))))
-		   (:break
-		    (break)))
-		 (when *trace-print-hook* 
-		   (funcall *trace-print-hook* ',name nil)))
-	       (let ((,result (progn ,@body)))
-		 (declare (ignorable ,result))
-		 ,@(progn
+   	  `(#+poweropen-target %stack-block #+poweropen-target ((,fp-arg-ptr (* 8 13)))
+            #+poweropen-target (%get-fp-arg-regs ,fp-arg-ptr)
+            #-poweropen-target progn
+
+            (let* ((trace-before (assoc :before *callback-trace-p*))
+                   (trace-backtrace (assoc :backtrace *callback-trace-p*))
+                   (trace-after (assoc :after *callback-trace-p*))
+                   ;;
+                   ;; it would be nice if we only bound this when we were tracing
+                   ;;
+                   (*trace-level* (if (or trace-before trace-after)
+                                    (1+ *trace-level*)
+                                    *trace-level*)))
+              (declare (special *trace-level*))
+              (let ,lets
+                (declare (dynamic-extent ,@dynamic-extent-names))
+                ,@decls
+                (when trace-before
+                  (when *trace-print-hook* 
+                    (funcall *trace-print-hook* ',name t))
+                  (case (cdr trace-before)
+                    (:print
+                     (let ,lets
+                       (trace-tab)
+                       (format *trace-output* "CALLING ~A sp=~X~%" ',name ,stack-ptr)
+                       ,@(let (result)
+                              (dolist (l trace-args)
+                                (push '(trace-tab) result)
+                                (push `(%trace-print-arg *trace-output* ',(car l) ,(car l) ',(cdr l)) result))
+                              (nreverse result))
+                       (cond
+                         ((integerp trace-backtrace)
+                          (ccl::print-call-history :detailed-p nil :count (cdr trace-backtrace)))
+                         (trace-backtrace
+                          (ccl::print-call-history :detailed-p nil)))))
+                    (:break
+                     (break)))
+                  (when *trace-print-hook* 
+                    (funcall *trace-print-hook* ',name nil)))
+                (let ((,result (progn ,@body)))
+                  (declare (ignorable ,result))
+                  ,@(progn
 		     (when (eq return-type :single-float)
 		       (setq result `(float ,result 0.0d0)))
 		     nil)
-		 (when trace-after
-		   (when *trace-print-hook* 
-		     (funcall *trace-print-hook* ',name t))
-		   (case (cdr trace-after)
-		     (:print
-		      (trace-tab)
+                  (when trace-after
+                    (when *trace-print-hook* 
+                      (funcall *trace-print-hook* ',name t))
+                    (case (cdr trace-after)
+                      (:print
+                       (trace-tab)
 		       (format *trace-output* " ~A returned " ',name)
 		       (%trace-print-arg *trace-output* nil ,result ,trace-result-type))
-		     (:break
-		      (break)))
-		   (when *trace-print-hook* 
-		     (funcall *trace-print-hook* ',name nil)))
-		 ,(when return-type
-		    `(setf (,
-			    (case return-type
-			      (:address '%get-ptr)
-			      (:signed-doubleword '%%get-signed-longlong)
-			      (:unsigned-doubleword '%%get-unsigned-longlong)
-			      (:double-float '%get-double-float)
-			      (:single-float '%get-single-float)
-			      (t '%get-long)) ,stack-ptr ,offset) ,result)))))))
+                      (:break
+                       (break)))
+                    (when *trace-print-hook* 
+                      (funcall *trace-print-hook* ',name nil)))
+                  ,(when return-type
+                         `(setf (,
+                                 (case return-type
+                                   (:address '%get-ptr)
+                                   (:signed-doubleword '%%get-signed-longlong)
+                                   (:unsigned-doubleword '%%get-unsigned-longlong)
+                                   (:double-float '%get-double-float)
+                                   (:single-float '%get-single-float)
+                                   (t '%get-long)) ,stack-ptr ,offset) ,result))))))))
     (if error-return
       (let* ((cond (gensym)))
         `(handler-case ,body
