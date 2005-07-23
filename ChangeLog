@@ -1,3 +1,14 @@
+2005-07-23 03:38  gb
+
+	* lib/macros.lisp: First cut at handling (lots of) FP args in
+	Darwin callbacks.  (Probably needs some further testing: there are
+	lots of boundary cases.)
+
+2005-07-23 03:36  gb
+
+	* level-0/PPC/ppc-float.lisp: %GET-FP-ARG-REGS, for Darwin
+	callbacks.
+
 2005-07-22 02:01  gb
 
 	* examples/objc-runtime.lisp: Look for pointers in data sections
