@@ -602,3 +602,22 @@
   (li arg_z t)
   (blr))
   
+
+#+darwinppc-target
+(defppclapfunction %get-fp-arg-regs ((ptr arg_z))
+  (macptr-ptr imm0 ptr)
+  (stfd fp1 0 imm0)
+  (stfd fp2 8 imm0)
+  (stfd fp3 16 imm0)
+  (stfd fp4 24 imm0)
+  (stfd fp5 32 imm0)
+  (stfd fp6 40 imm0)
+  (stfd fp7 48 imm0)
+  (stfd fp8 56 imm0)
+  (stfd fp9 64 imm0)
+  (stfd fp10 72 imm0)
+  (stfd fp11 80 imm0)
+  (stfd fp12 88 imm0)
+  (stfd fp13 96 imm0)
+  (blr))
+
