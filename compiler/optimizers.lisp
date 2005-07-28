@@ -1245,7 +1245,16 @@
         call)
     call))
 
+(define-compiler-macro true (&rest args)
+  `(progn
+    ,@args
+    t))
 
+
+(define-compiler-macro false (&rest args)
+  `(progn
+    ,@args
+    nil))
 
 (define-compiler-macro find-class (&whole call type &optional (errorp t) env)
   (if (and (quoted-form-p type)(not *dont-find-class-optimize*)(not env))
