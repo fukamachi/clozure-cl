@@ -851,6 +851,15 @@ p))))
   (find-class 'standard-writer-method))
 
 
+;;; This (interesting) code has never been enabled, and is (slightly)
+;;; broken by the new (lazy, declaration-based) implementation of SEND
+;;; and friends.
+;;; We probably want to un-break this (and figure out how to define
+;;; ObjC gf's in the new world), and some of the code for compiling
+;;; arbitrary message sends may be useful in other contexts.
+
+#+objc-generic-functions
+(progn
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                 Generic Function and Method  Protocols                 ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1189,3 +1198,4 @@ p))))
 (associate-record-with-structure :_<NSA>ffine<T>ransform<S>truct 
 				 'ns-affine-transform-struct 
 				 'make-ns-affine-transform-struct)
+) ; #+objc-generic-functions
