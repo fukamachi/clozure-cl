@@ -3,13 +3,17 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "COCOA"))
+  (require "COCOA")
+  (use-interface-dir :webkit)
+  (update-objc-method-info)
+  )
 
 ;;; Create web browser objects, via the OSX WebKit.
-;;; As of this writing (July 2003), the WebKit framework is installed
-;;;  as part of Safari 1.0 (but apparently not as part of earlier versions
-;;;  of Safari); Safari 1.0 is available as a free download from Apple's
-;;;  web site.
+;;; WebKit is bundled with versions of OSX >= 10.3; it is (or was)
+;;; also available as part of Safari 1.0 (for OSX 10.2).
+;;; Some very old versions had a bug which rendered NSTextViews
+;;; inoperable if WebKit was loaded after an NSTextView had been
+;;; created.
 
 (let* ((checked-for-webkit nil)
        (webkit-loaded nil))
@@ -27,15 +31,17 @@
 		   #@"/System/Library/Frameworks/WebKit.framework")))
 	    (setq checked-for-webkit t
 		  webkit-loaded (unless (%null-ptr-p bundle)
-				  (send bundle 'load))))))))
+				  (send (the ns:ns-bundle bundle) 'load)))
+            ;; Process class, method decls
+            (map-objc-classes)
+            webkit-loaded)))))
 
 (defun require-webkit ()
   (or (check-for-webkit)
       (error "The WebKit framework doesn't seem to be installed on this machine.~&It's available as part of Safari 1.0.")))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require-webkit)
-  (update-type-signatures))
+  (require-webkit))
 
 (defun pathname-to-file-url (pathname)
   ;; NATIVE-TRANSLATED-NAMESTRING returns a simple string that can be
@@ -74,7 +80,7 @@
 		   ;; Backing styles other than #$NSBackingStoreBuffered
 		   ;; don't work at all in Cocoa.
 		   :backing #$NSBackingStoreBuffered
-		   :defer nil)))
+		   :defer t)))
 	  (send w :set-title (send (the ns-url url) 'absolute-string))
 	  ;; Create a web-view instance,
 	  (let* ((v (make-objc-instance
@@ -104,3 +110,4 @@
 	      (send w :make-key-and-order-front nil))
 	    v)))))
 	
+;;; (browser-window "http://openmcl.clozure.com")
