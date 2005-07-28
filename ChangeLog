@@ -1,3 +1,38 @@
+2005-07-28 07:17  gb
+
+	* .cvsignore, compiler/.cvsignore, compiler/PPC/.cvsignore,
+	compiler/PPC/PPC32/.cvsignore, compiler/PPC/PPC64/.cvsignore,
+	compiler/X86/.cvsignore, darwin-headers/.cvsignore,
+	darwin-headers/carbon/.cvsignore,
+	darwin-headers/carbon/C/.cvsignore, darwin-headers/chud/.cvsignore,
+	darwin-headers/chud/C/.cvsignore, darwin-headers/cocoa/.cvsignore,
+	darwin-headers/cocoa/C/.cvsignore, darwin-headers/gl/.cvsignore,
+	darwin-headers/gl/C/.cvsignore, darwin-headers/libc/.cvsignore,
+	darwin-headers/libc/C/.cvsignore,
+	darwin-headers/quicktime/.cvsignore,
+	darwin-headers/quicktime/C/.cvsignore, darwin-headers64/.cvsignore,
+	examples/.cvsignore, examples/rubix/.cvsignore, headers/.cvsignore,
+	headers/gl/.cvsignore, headers/gl/C/.cvsignore,
+	headers/gnome/.cvsignore, headers/gnome/C/.cvsignore,
+	headers/gnome2/.cvsignore, headers/gnome2/C/.cvsignore,
+	headers/gnustep/.cvsignore, headers/gnustep/C/.cvsignore,
+	headers/gtk/.cvsignore, headers/gtk/C/.cvsignore,
+	headers/gtk2/.cvsignore, headers/gtk2/C/.cvsignore,
+	headers/libc/.cvsignore, headers/libc/C/.cvsignore,
+	headers64/.cvsignore, headers64/libc/.cvsignore,
+	headers64/libc/C/.cvsignore, hemlock/.cvsignore,
+	hemlock/bin/.cvsignore, hemlock/bin/openmcl/.cvsignore,
+	hemlock/doc/.cvsignore, hemlock/doc/cim/.cvsignore,
+	hemlock/doc/misc/.cvsignore,
+	hemlock/doc/scribe-converter/.cvsignore,
+	hemlock/doc/user/.cvsignore, hemlock/maint/.cvsignore,
+	hemlock/resources/.cvsignore, hemlock/src/.cvsignore,
+	hemlock/src/elisp/.cvsignore, hemlock/src/spell/.cvsignore,
+	hemlock/src/tty/.cvsignore, hemlock/unused/.cvsignore,
+	hemlock/website/.cvsignore, level-1/.cvsignore: Ensure that more
+	.cvsignore files exist and that files matching *~.* (e.g., Cocoa
+	NSDocument backup files) are ignored.
+
 2005-07-23 03:38  gb
 
 	* lib/macros.lisp: First cut at handling (lots of) FP args in
