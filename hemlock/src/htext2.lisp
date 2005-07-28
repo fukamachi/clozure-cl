@@ -139,6 +139,7 @@
   (let* ((line (mark-line mark))
 	 (next (line-next line))
 	 (buffer (line-%buffer line)))
+    (check-buffer-modification buffer mark)
     (modifying-buffer buffer
       (modifying-line line mark)
       (cond ((= (mark-charpos mark)

@@ -32,6 +32,7 @@
   (let* ((line (mark-line mark))
 	 (charpos (mark-charpos mark))
 	 (length (line-length* line)))
+    (check-buffer-modification (line-%buffer line) mark)
     (cond
       ((zerop n) t)
       ;; Deleting chars on one line, just bump the pointers.
@@ -86,6 +87,8 @@
 	 (last-charpos (mark-charpos end))
 	 (buffer (line-%buffer first-line))
          (ndel (count-characters region)))
+    (check-buffer-modification buffer start)
+    (check-buffer-modification buffer end)
     (unless (and (eq first-line last-line)
 		 (= first-charpos last-charpos))
       (modifying-buffer buffer
@@ -156,6 +159,8 @@
 	 (last-charpos (mark-charpos end))
 	 (buffer (line-%buffer first-line))
          (ndel (count-characters region)))
+    (check-buffer-modification buffer start)
+    (check-buffer-modification buffer end)
     (cond
       ((and (eq first-line last-line)
             (= first-charpos last-charpos))
@@ -334,8 +339,11 @@
 	 (end (region-end region))
 	 (end-line (mark-line end))
 	 (last (mark-charpos end))
-	 (marks ()))
-    (modifying-buffer (line-%buffer start-line)
+	 (marks ())
+         (buffer (line-%buffer start-line)))
+    (check-buffer-modification buffer start)
+    (check-buffer-modification buffer end)
+    (modifying-buffer buffer
       (modifying-line end-line end)
       (cond ((eq start-line end-line)
 	     (let* ((res (fcs function (subseq *open-chars* first last)))

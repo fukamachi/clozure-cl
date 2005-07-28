@@ -38,11 +38,11 @@
   (let* ((line (mark-line mark))
 	 (buffer (line-%buffer line))
          (region (%buffer-current-region buffer)))
+    (check-buffer-modification buffer mark)
     (when region
       (delete-region region))
     (modifying-buffer buffer
 		      (modifying-line line mark)
-                      (check-buffer-modification buffer mark)
 		      (cond ((char= character #\newline)
 			     (let* ((next (line-next line))
 				    (new-chars (subseq (the simple-string *open-chars*)
@@ -85,10 +85,10 @@
 	 (string (coerce string 'simple-string))
          (region (%buffer-current-region buffer)))
     (declare (simple-string string))
+    (check-buffer-modification buffer mark)
     (when region
       (delete-region region))
     (unless (zerop (- end start))
-      (check-buffer-modification buffer mark)
       (if (%sp-find-character string start end #\newline)
 	(with-mark ((mark mark :left-inserting))
 	   (do ((left-index start (1+ right-index))
@@ -146,6 +146,7 @@
 	     (buffer (line-%buffer line))
 	     (old-chars (line-chars line)))
 	(declare (simple-string old-chars))
+        (check-buffer-modification buffer mark)
 	(modifying-buffer buffer
 	  ;;hack marked line's chars
 	  (let* ((first-chars (line-chars first-line))
@@ -216,6 +217,7 @@
 	     (buffer (line-%buffer line))
 	     (old-chars (line-chars line)))
 	(declare (simple-string old-chars))
+        (check-buffer-modification buffer mark)
 	(modifying-buffer buffer
 	  ;; Make new chars for first and last lines.
 	  (let* ((first-chars (line-chars first-line))

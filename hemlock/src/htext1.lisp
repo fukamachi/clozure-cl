@@ -171,7 +171,7 @@
 
 (defmacro tick ()
   "Increments the ``now'' tick."
-  `(incf now-tick))
+  `(ccl::atomic-incf now-tick))
 
   
 (defun buffer-document-begin-editing (buffer)
