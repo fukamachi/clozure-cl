@@ -1,3 +1,101 @@
+2005-07-28 07:48  gb
+
+	* lib/db-io.lisp: OBJC-MESSAGE-INFO structure has "ambiguous
+	methods" slot, used by bridge.
+
+2005-07-28 07:47  gb
+
+	* hemlock/src/: htext1.lisp, htext2.lisp, htext3.lisp, htext4.lisp,
+	lispmode.lisp: Don't modify buffer if doing so would change a
+	protected region.
+
+2005-07-28 07:46  gb
+
+	* examples/webkit.lisp: Works again (doesn't do much, but WebKit is
+	pretty impressive.)
+	
+	Need new interfaces.
+
+2005-07-28 07:46  gb
+
+	* examples/bridge.lisp: Handle ambiguiuty in SEND; convert %SEND to
+	use new (decl-based) scheme.  No need to parse ObjC types or
+	introspect to find method/message info.
+
+2005-07-28 07:45  gb
+
+	* examples/process-objc-modules.lisp: Remove the commented-out call
+	at the end of file; no need to update type signatures via
+	introspection
+
+2005-07-28 07:44  gb
+
+	* examples/objc-support.lisp: No need to canonicalize class
+	references in type signature table.
+
+2005-07-28 07:43  gb
+
+	* examples/objc-runtime.lisp: No need to declare some internal
+	classes (was needed to keep %SEND happy.)
+	
+	No need to update old method type-signature table.
+
+2005-07-28 07:42  gb
+
+	* examples/objc-clos.lisp: Conditionalize out the ObjC GF
+	integration stuff (until it can be adapted to the New Order.)  Note
+	that we may need a way to obtain all (declared) ObjC messages - as
+	well as tweak this to use the new method/message decl structures -
+	to revive this.
+
+2005-07-28 07:40  gb
+
+	* examples/cocoa-editor.lisp: Set bold weight to 9.0 (not a factor
+	of the point size).
+	
+	ObjC "count" message is unambiguous, so no need for type decl.
+
+2005-07-28 07:38  gb
+
+	* level-0/PPC/ppc-def.lisp: Make %FF-CALL stuff explicitly 32-bit
+	only.  (Didn't this already happen last week ?)
+
+2005-07-28 07:35  gb
+
+	* darwin-headers/webkit/: C/populate.sh, .cvsignore, C/.cvsignore:
+	New file.
+
+2005-07-28 07:34  gb
+
+	* darwin-headers/cocoa/.cvsignore: Ensure that more .cvsignore
+	files exist and that files matching *~.* (e.g., Cocoa NSDocument
+	backup files) are ignored.
+
+2005-07-28 07:29  gb
+
+	* darwin-headers64/libc/.cvsignore, level-0/PPC/PPC64/.cvsignore,
+	lib/.cvsignore, library/.cvsignore, lisp-kernel/.cvsignore,
+	lisp-kernel/darwin/.cvsignore, lisp-kernel/darwin64/.cvsignore,
+	lisp-kernel/linux/.cvsignore, lisp-kernel/linux64/.cvsignore,
+	lisp-kernel/static-linux/.cvsignore, scripts/.cvsignore,
+	tools/.cvsignore, tools/asdf-install/.cvsignore,
+	tools/asdf-install/doc/.cvsignore, xdump/.cvsignore: Ensure that
+	more .cvsignore files exist and that files matching *~.* (e.g.,
+	Cocoa NSDocument backup files) are ignored.
+
+2005-07-28 07:23  gb
+
+	* level-0/.cvsignore, hemlock/src/wire/.cvsignore,
+	level-0/PPC/.cvsignore, level-0/PPC/PPC32/.cvsignore: Ensure that
+	more .cvsignore files exist and that files matching *~.* (e.g.,
+	Cocoa NSDocument backup files) are ignored.
+
+2005-07-28 07:23  gb
+
+	* compiler/optimizers.lisp: CCL::TRUE and CCL::FALSE.  (There are
+	things that wind up calling TRUE at runtime; there's no reason to
+	actually do that.)
+
 2005-07-28 07:17  gb
 
 	* .cvsignore, compiler/.cvsignore, compiler/PPC/.cvsignore,
