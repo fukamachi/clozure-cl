@@ -815,7 +815,8 @@
 
 (defstruct objc-message-info
   message-name
-  methods
+  methods                               ; all methods
+  ambiguous-methods                     ; partitioned by signature
   req-args
   flags)
 
@@ -882,13 +883,12 @@
                   (setf (getf flags :class) t))
                 (if is-protocol-method
                   (setf (getf flags :protocol) t))
-                (push
-                 (make-objc-method-info
-                  :message-info info
-                  :class-name class-name
-                  :arglist (nreverse arg-types)
-                  :result-type result-type
-                  :flags flags)
+                (push (make-objc-method-info
+                                     :message-info info
+                                     :class-name class-name
+                                     :arglist (nreverse arg-types)
+                                     :result-type result-type
+                                     :flags flags)
                  (objc-message-info-methods info))))))
         (cdb-free (pref datum :cdb-datum.data))))
     info))
