@@ -77,9 +77,12 @@
     (cond ((stringp f)
 	   ;; (STRING-with-N-colons ARG1 ... ARGN {LIST}) 
 	   (let* ((n (count #\: (the simple-string f)))
+                  (message-info (get-objc-message-info f))
 		  (args (rest args))
 		  (nargs (length args)))
-	     (cond ((and (= nargs 1) (variable-arity-message-p f))
+	     (cond ((and (= nargs 1)
+                         (getf (objc-message-info-flags message-info)
+                               :accepts-varargs))
 		    (values f nil l))
 		   ((= nargs n) (values f args nil))
 		   ((= nargs (1+ n)) (values f (butlast args) l))
@@ -87,9 +90,11 @@
 	  ((keywordp f)
 	   ;; (KEY1 ARG1 ... KEYN ARGN {LIST}) or (KEY LIST)
 	   (let ((nargs (length args)))
-	     (cond ((and (= nargs 2) (consp l) 
-			 (variable-arity-message-p 
-			  (lisp-to-objc-message (list f))))
+	     (cond ((and (= nargs 2) (consp l)
+                         (let* ((info (get-objc-message-info
+                                       (lisp-to-objc-message (list f)))))
+                           (getf (objc-message-info-flags info)
+                                 :accepts-varargs)))
 		    (values (lisp-to-objc-message (list f)) nil l))
 		   ((evenp nargs)
 		    (multiple-value-bind (ks vs) (keys-and-vals args)
@@ -219,10 +224,10 @@
 ;;;;                      Stret Convenience Stuff                           ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; Allocate any temporary storage necessary to hold strets required AT TOPLEVEL
-;;; in the value forms.  Special recognition is given to SENDs involving strets
-;;; and to stret pseudo-functions NS-MAKE-POINT, NS-MAKE-RANGE, NS-MAKE-RECT and
-;;; NS-MAKE-SIZE
+;;; Allocate any temporary storage necessary to hold strets required
+;;; AT TOPLEVEL in the value forms.  Special recognition is given to
+;;; SENDs involving strets and to stret pseudo-functions
+;;; NS-MAKE-POINT, NS-MAKE-RANGE, NS-MAKE-RECT and NS-MAKE-SIZE
 
 (defmacro slet (varforms &body body &environment env)
   (multiple-value-bind (clean-body decls) (parse-body body env nil)
@@ -348,18 +353,9 @@
 ;;;;                             Type Stuff                                 ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; A hash table from message names to lists of foreign type signature lists
 
-(defstruct (msg-desc
-	    (:constructor make-msg-desc 
-			  (classes type-signature i/o-signature)))
-  classes
-  type-signature
-  i/o-signature) ; Not yet used
-  
-(defvar *type-signature-table* (make-hash-table :test #'equal :size 8192))
 
-(defvar *objc-message-info* (make-hash-table :test #'equal :size 5000))
+(defvar *objc-message-info* (make-hash-table :test #'equal :size 500))
 
 (defun result-type-requires-structure-return (result-type)
   (and (typep result-type 'foreign-record-type)
@@ -371,36 +367,40 @@
              :id
              (unparse-foreign-type ftype))))
     (flet ((ensure-method-signature (m)
-             (unless (objc-method-info-signature m)
-               (setf (objc-method-info-signature m)
-                     (cons (reduce-to-ffi-type
-                            (objc-method-info-result-type m))
-                           (mapcar #'reduce-to-ffi-type
-                                   (objc-method-info-arglist m)))))))
-      (let* ((methods (objc-message-info-methods message-info)))
+             (or (objc-method-info-signature m)
+                 (setf (objc-method-info-signature m)
+                       (cons (reduce-to-ffi-type
+                              (objc-method-info-result-type m))
+                             (mapcar #'reduce-to-ffi-type
+                                     (objc-method-info-arglist m)))))))
+      (let* ((methods (objc-message-info-methods message-info))
+             (signature-alist ()))
         (dolist (m methods)
-          (ensure-method-signature m))
+          (let* ((signature (ensure-method-signature m))
+                 (pair (assoc signature signature-alist :test #'equal)))
+            (if pair
+              (push m (cdr pair))
+              (push (cons signature (list m)) signature-alist))))
+        (setf (objc-message-info-ambiguous-methods message-info)
+              (mapcar #'cdr
+                      (sort signature-alist
+                            #'(lambda (x y)
+                                (< (length (cdr x))
+                                   (length (cdr y)))))))
         (setf (objc-message-info-flags message-info) nil)
+        (when (cdr (objc-message-info-ambiguous-methods message-info))
+          (setf (getf (objc-message-info-flags message-info) :ambiguous) t))
         (let* ((first-method (car methods))
                (first-sig (objc-method-info-signature first-method))
                (first-sig-len (length first-sig)))
           (setf (objc-message-info-req-args message-info)
                 (1- first-sig-len))
-          (when (dolist (m (cdr methods))
-                  (let* ((msig (objc-method-info-signature m)))
-                    (unless (= (length msig) first-sig-len)
-                      (setf (getf (objc-message-info-flags message-info)
-                                  :inconsistent)
-                            t))
-                    (unless (equal first-sig msig)
-                      (return t))))
-            (setf (getf (objc-message-info-flags message-info) :ambiguous) t))
           ;; Whether some arg/result types vary or not, we want to insist
           ;; on (a) either no methods take a variable number of arguments,
           ;; or all do, and (b) either no method uses structure-return
           ;; conventions, or all do. (It's not clear that these restrictions
           ;; are entirely reasonable in the long run; in the short term,
-          ;; they'll help get things
+          ;; they'll help get things working.)
           (flet ((method-returns-structure (m)
                    (result-type-requires-structure-return
                     (objc-method-info-result-type m)))
@@ -426,7 +426,9 @@
                                 :accepts-varargs) t)
                     (decf (objc-message-info-req-args message-info))))))))))))
           
-                     
+;;; -may- need to invalidate cached info whenever new interface files
+;;; are made accessible.  Probably the right thing to do is to insist
+;;; that (known) message signatures be updated in that case.
 (defun get-objc-message-info (message-name)
   (or (gethash message-name *objc-message-info*)
       (let* ((info (lookup-objc-message-info message-name)))
@@ -434,6 +436,45 @@
           (setf (gethash message-name *objc-message-info*) info)
           (postprocess-objc-message-info info)
           info))))
+
+;;; Should be called after using new interfaces that may define
+;;; new methods on existing messages.
+(defun update-objc-method-info ()
+  (maphash #'(lambda (message-name info)
+               (lookup-objc-message-info message-name info)
+               (postprocess-objc-message-info info))
+           *objc-message-info*))
+
+
+;;; Of the method declarations (OBJC-METHOD-INFO structures) associated
+;;; with the message-declaration (OBJC-MESSAGE-INFO structure) M,
+;;; return the one that seems to be applicable for the object O.
+;;; (If there's no ambiguity among the declare methods, any method
+;;; will do; this just tells runtime %SEND functions how to compose
+;;; an %FF-CALL).
+(defun %lookup-objc-method-info (m o)
+  (let* ((methods (objc-message-info-methods m))
+         (ambiguous (getf (objc-message-info-flags m) :ambiguous)))
+    (if (not ambiguous)
+      (car methods)
+      (or 
+       (dolist (method methods)
+         (let* ((mclass (or (objc-method-info-class-pointer method)
+                            (setf (objc-method-info-class-pointer method)
+                                  (let* ((c (lookup-objc-class (objc-method-info-class-name method))))
+                                    (if c
+                                      (let* ((meta
+                                              (getf (objc-method-info-flags method) :class)))
+                                        (if meta
+                                          (let* ((id (objc-metaclass-id c)))
+                                            (if id
+                                              (id->objc-metaclass id)))
+                                          (let* ((id (objc-class-id c)))
+                                            (if id
+                                              (id->objc-class id)))))))))))
+           (if (typep o mclass)
+             (return method))))
+       (error "Can't determine ObjC method type signature for message ~s, object ~s" (objc-message-info-message-name m) o)))))
 
 (defun %declare-objc-method (message-name class-name class-p result-type args)
   (let* ((info (get-objc-message-info message-name)))
@@ -453,259 +494,9 @@
         (warn "previously declared methods on ~s all had the same type signature, but ~s introduces ambiguity" message-name method-info))
       info)))
 
-;;; Add a new method to the table
-
-(defun update-type-signatures-for-method (m c &optional canonicalize-class)
-  (let* ((sel (pref m :objc_method.method_name))
-         (msg (lisp-string-from-sel sel))
-	 (c (if canonicalize-class
-              (canonicalize-registered-class-or-metaclass c)
-              (%setf-macptr (%int-to-ptr 0) c))))
-    (when (neq (schar msg 0) #\_)
-      (let* ((tsig (compute-method-type-signature m))
-	     (msgdesc (find tsig (gethash msg *type-signature-table*)
-			    :test #'equal
-			    :key #'msg-desc-type-signature)))
-	(if (null msgdesc)
-	    ;; Add new msg desc for this type signature
-	    (push 
-	     (make-msg-desc (list c) tsig nil)
-	     (gethash msg *type-signature-table*))
-	  ;; Merge class with existing classes for this type signature
-	  (progn
-	    (setf (msg-desc-classes msgdesc)
-		  (add-class-to-msg-desc c (msg-desc-classes msgdesc)))
-	    msgdesc))))))
 
 
-;;; Merge a new class into the current list of class in a message
-;;; descriptor. 
 
-(defun add-class-to-msg-desc (class classes)
-  (flet ((objc-subclass-p (c1 c2)
-	   (if (eql c1 c2)
-	       t
-	     (loop for s = (pref c1 :objc_class.super_class)
-		   then (pref s :objc_class.super_class)
-		   until (eql s (%null-ptr))
-		   when (eql s c2) return t))))
-    (cond ((null classes) (list class))
-	  ((objc-subclass-p class (first classes)) classes)
-	  ((objc-subclass-p (first classes) class)
-	   (add-class-to-msg-desc class (rest classes)))
-	  (t (cons (first classes) (add-class-to-msg-desc class (rest classes)))))))
-  
-
-;;; Rescan all loaded modules for methods and update the type signature
-;;; table accordingly
-
-(defun update-type-signatures ()
-  (note-all-library-methods
-   #'(lambda (m c)
-       (#+gnu-objc progn #+apple-objc progn
-	 ;; Some libraries seem to have methods with bogus-looking
-	 ;; type signatures
-	 (update-type-signatures-for-method m c)))))
-
-
-;;; Return the message descriptor(s) associated with MSG
-
-(defun message-descriptors (msg)
-  (values (gethash msg *type-signature-table*)))
-
-;;; Ensure that all classes in a msg-desc are canonical (EQ to the
-;;; objc-clos class pointer.)
-(defun canonicalize-msg-desc-classes (msg-desc)
-  (collect ((new-classes))
-    (dolist (c (msg-desc-classes msg-desc))
-      (if (if (%objc-metaclass-p c)
-            (objc-metaclass-id c)
-            (objc-class-id c))
-        (new-classes (canonicalize-registered-class-or-metaclass c) )))
-    (setf (msg-desc-classes msg-desc) (new-classes))))
-
-;;; Canonicalize the classes in all msg-desc in the type signature table.
-(defun canonicalize-type-signature-classes ()
-  (maphash #'(lambda (key msg-descs)
-               (declare (ignore key))
-               (dolist (msg-desc msg-descs)
-                 (canonicalize-msg-desc-classes msg-desc)))
-           *type-signature-table*))
-
-;;; Compute the foreign type signature for method M 
-
-(defun compute-method-type-signature (m)
-  (cons
-   (objc-foreign-arg-type (method-typestring m))
-   (loop for i from 2 below (method-get-number-of-arguments m)
-	 collect 
-	 (objc-foreign-arg-type (objc-get-method-argument-info m i)))))
-
-
-;;; Return the foreign type corresponding to the structure encoded in 
-;;; TYPESTRING
-;;; NOTE:  For some reason, :<NSD>ecimal shows up as {?=b8b4b1b1b18[8S]} 
-;;;        and must be special-cased 
-
-(defun extract-foreign-struct-name (typestring)
-  (if (string= typestring "{?=b8b4b1b1b18[8S]}" 
-               :end1 (min (length typestring) 19))
-    :<NSD>ecimal
-    (let ((=pos (position #\= typestring)))
-      (when (null =pos)
-        (error "Improperly formatted structure typestring: ~S" typestring))
-      (escape-foreign-name 
-       (subseq typestring 1 =pos)))))
-
-(defun parse-foreign-struct-or-union-spec (typestring
-                                           startpos
-                                           record-class
-                                           from-pointer)
-  (flet ((extract-record-name (startpos delimpos)
-	   (unless (and (= delimpos (1+ startpos))
-			(eq (schar typestring startpos) #\?))
-	     (escape-foreign-name (subseq typestring startpos delimpos)))))
-    (let ((=pos (position #\= typestring :start startpos))
-	  (end-char (if (eq record-class :struct) #\} #\))))
-      (if (null =pos)
-	;; It's optional: everything between the delimiters is the record
-	;; name, and no fields are specified.
-	(let* ((end-pos (position end-char typestring :start startpos)))
-	  (if (null end-pos)
-	    (error "Improperly formatted structure/union typestring: ~S"
-		   typestring)
-	    (values `(,record-class ,(extract-record-name startpos end-pos))
-		    (1+ end-pos))))
-	(let* ((record-name (extract-record-name startpos =pos))
-	       (string-stream-start (1+ =pos))
-	       (string-stream
-		(make-string-input-stream typestring string-stream-start)))
-	  (collect ((fields))
-	    (do* ()
-		 ((eql (peek-char nil string-stream) end-char)
-		  (values
-		   (if (and record-name (load-record record-name))
-		     `(,record-class ,record-name)
-		     `(,record-class ,record-name ,@(fields)))
-		   (1+ (string-input-stream-index string-stream))))
-	      (let* ((field-name-string
-		      (if (eql (peek-char nil string-stream) #\")
-			(read string-stream))))
-		(if (eql (peek-char nil string-stream) #\")
-		  (setq field-name-string (read string-stream)))
-		(unless (or (null field-name-string)
-			    (typep field-name-string 'string))
-		  (error "Bad field name in ~s: expected a quoted string, got ~s"
-			 typestring field-name-string))
-		(multiple-value-bind (typespec endpos)
-		    (objc-foreign-type-for-ivar
-		     typestring
-		     (string-input-stream-index string-stream)
-		     from-pointer)
-		  (fields `(,(if field-name-string (escape-foreign-name field-name-string))
-			    ,typespec))
-		  (setf (string-input-stream-index string-stream) endpos))))))))))
-		
-
-
-;;; Return the foreign type spec corresponding to the ObjC type string STR.
-;;; Things are encoded differently for instance variables than for method
-;;; arguments.
-
-(defun objc-foreign-arg-type (str)
-    (case (schar str 0)
-      (#\c :char)
-      (#\C :unsigned-byte)
-      (#\s :signed-halfword)
-      (#\S :unsigned-halfword)
-      (#\i :signed-fullword)
-      (#\I :unsigned-fullword)
-      (#\l :signed-fullword)
-      (#\L :unsigned-fullword)
-      (#\q :signed-doubleword)
-      (#\Q :unsigned-doubleword)
-      (#\f :single-float)
-      (#\d :double-float)
-      (#\v :void)
-      (#\@ :id)
-      (#\: :<sel>)
-      (#\# '(:* (:struct :objc_class)))
-      (#\* '(:* :char))
-      (#\^ :address)
-      (#\b (error "ObjC BITFIELD not yet supported"))
-      (#\B :<BOOL>)
-      (#\[ :address)
-      (#\{ `(:struct ,(extract-foreign-struct-name str)))
-      (#\( (error "ObjC UNION type not yet supported"))
-      (#\? t)
-      ((#\r #\R #\o #\O #\n #\N #\V) (objc-foreign-arg-type (subseq str 1)))
-      (t (error "Unrecognized ObjC type string: ~S" str))))
-
-;;; Parse the ivar's type string and return a FOREIGN-TYPE object.
-(defun objc-foreign-type-for-ivar
-    (str &optional (startpos 0) (allow-id-name t) from-pointer)
-  (let* ((endpos (1+ startpos))
-	 (startchar (schar str startpos))
-	 (spec 
-	  (case startchar
-	    (#\c :char)
-	    (#\C :unsigned-byte)
-	    (#\s :signed-halfword)
-	    (#\S :unsigned-halfword)
-	    (#\i :signed-fullword)
-	    (#\I :unsigned-fullword)
-	    (#\l :signed-fullword)
-	    (#\L :unsigned-fullword)
-	    (#\q :signed-doubleword)
-	    (#\Q :unsigned-doubleword)
-	    (#\f :single-float)
-	    (#\d :double-float)
-	    (#\v :void)
-            (#\B :<BOOL>)
-	    (#\@ (when allow-id-name
-		   (let* ((nextpos (1+ startpos)))
-		   (if (and (< nextpos (length str))
-			    (eq (schar str nextpos) #\"))
-		     (let* ((end (position #\" str :start (1+ nextpos))))
-		       (unless end
-			 (error "Missing double-quote in ~s" str))
-		       (setq endpos (1+ end))))))
-		 :id)
-	    (#\: :<sel>)
-	    (#\# '(:* (:struct :objc_class)))
-	    (#\* '(:* :char))
-	    (#\^ (multiple-value-bind (type end)
-		     (objc-foreign-type-for-ivar str (1+ startpos) t t)
-		   (setq endpos end)
-		   `(:* ,type)))
-	    (#\b (multiple-value-bind (n end)
-		     (parse-integer str :start (1+ startpos) :junk-allowed t )
-		   (setq endpos end)
-		   `(:bitfield ,n)))
-	    (#\[ (multiple-value-bind (size size-end)
-		     (parse-integer str :start (1+ startpos) :junk-allowed t)
-		   (multiple-value-bind (element-type end)
-		       (objc-foreign-type-for-ivar str size-end t)
-		     (unless (eq (schar str end) #\])
-		       (error "No closing ] in array typespec: ~s" str))
-		     (setq endpos (1+ end))
-		     `(:array ,element-type ,size))))
-	    ((#\{ #\()
-	     (multiple-value-bind (type end)
-		 (parse-foreign-struct-or-union-spec
-		  str (1+ startpos) (if (eq startchar #\{)
-				      :struct
-				      :union)
-                  from-pointer)
-	       (setq endpos end)
-	       type))
-	    (#\? t)
-	    ((#\r #\R #\o #\O #\n #\N #\V)
-	     (return-from objc-foreign-type-for-ivar
-	       (objc-foreign-type-for-ivar str (1+ startpos) allow-id-name)))
-	    (t (error "Unrecognized ObjC type string: ~S/~d" str startpos)))))
-    (values spec endpos)))
-	 
 
 
 ;;; TRANSLATE-FOREIGN-ARG-TYPE doesn't accept :VOID
@@ -740,16 +531,16 @@
    (cond ((and (constantp x) (constantp ftype))
           (case ftype
             (:id (if (null x) `(%null-ptr) (coerce-to-address x)))
-            (:char (coerce-to-bool (eval x)))
+            (:<BOOL> (coerce-to-bool (eval x)))
             (t x)))
          ((constantp ftype)
           (case ftype
             (:id `(coerce-to-address ,x))
-            (:char `(coerce-to-bool ,x))
+            (:<BOOL> `(coerce-to-bool ,x))
             (t x)))
          (t `(case ,(if (atom ftype) ftype)
                (:id (coerce-to-address ,x))
-               (:char (coerce-to-bool ,x))
+               (:<BOOL> (coerce-to-bool ,x))
                (t ,x)))))
 
 ;;; Convert a foreign object X to T or NIL 
@@ -795,98 +586,13 @@
      (list (foo result-ftype t)))))
  
 
-;;; Initialize the type signature table
-
-(eval-when (:load-toplevel :execute)
-  (with-autorelease-pool 
-   (update-type-signatures)))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;                 Support for variable arity messages                    ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; A table to keep track of which messages allow variable numbers of args
-
-(defvar *variable-arity-messages-table* (make-hash-table :test #'equal))
-
-(defmacro define-variable-arity-message (msg)
-  `(setf (gethash ,msg *variable-arity-messages-table*) t))
-
-(defun variable-arity-message-p (msg)
-  (gethash msg *variable-arity-messages-table*))
-
-
-;;; Known variable arity messages
-
-(define-variable-arity-message "appendFormat:")
-(define-variable-arity-message "arrayWithObjects:")
-(define-variable-arity-message "encodeValuesOfObjCTypes:")
-(define-variable-arity-message "decodeValuesOfObjCTypes:")
-(define-variable-arity-message "dictionaryWithObjectsAndKeys:")
-(define-variable-arity-message 
-  "handleFailureInFunction:object:file:lineNumber:description:")
-(define-variable-arity-message 
-  "handleFailureInMethod:object:file:lineNumber:description:")
-(define-variable-arity-message "initWithFormat:")
-(define-variable-arity-message "initWithObjects:")
-(define-variable-arity-message "initWithObjectsAndKeys:")
-(define-variable-arity-message "initWithFormat:locale:")
-(define-variable-arity-message "localizedStringWithFormat:")
-(define-variable-arity-message "raise:format:")
-(define-variable-arity-message "setWithObjects:")
-(define-variable-arity-message "stringByAppendingFormat:")
-(define-variable-arity-message "stringWithFormat:")
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                       Boolean Return Hackery                           ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; Because Cocoa runtime type info encodes BOOL as CHAR, we can't tell which
-;;; messages return BOOL (which should be converted to Lisp T or NIL)  and which
-;;; truly return CHAR.  To temporarily deal with this problem, the bridge
-;;; assumes that *all* messages returning CHAR are actually returning BOOL.
-;;; The facility below allows one to define exceptions to this assumption.
-;;; Eventually, the right way to deal with issues like this is probably to
-;;; process the .h files for all type info rather than relying on Cocoa's
-;;; runtime types.
-
-(defvar *returns-boolean-exception-table* (make-hash-table :test #'equal))
-
-(defmacro define-returns-boolean-exception (msg)
-  `(setf (gethash ,msg *returns-boolean-exception-table*) t))
-
-(defun returns-boolean-exception-p (msg)
-  (gethash msg *returns-boolean-exception-table*))
-
-
-;;; Known exceptions 
-
-(define-returns-boolean-exception "charValue")
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                        Invoking ObjC Methods                           ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Check that the correct number of ARGs have been supplied to the given MSG
-
-(defun check-message-arg-count (msg args)
-  (let ((kcount (count #\: msg))
-	(acount (length args)))
-    (unless (or (= acount kcount) (variable-arity-message-p msg))
-      (error "Incorrect number of arguments (~S) to ObjC message ~S" 
-	     (length args) msg))))
-
-
-;;; Check that the correct number of ARGs have been supplied to a method 
-
-(defun check-method-arg-count (m args)
-  (unless (= (length args) (- (method-get-number-of-arguments m) 2))
-    (error "Incorrect number of arguments (~S) to ObjC message ~S" 
-           (length args) 
-           (%get-cstring (lisp-string-from-sel (pref m :objc_method.method_name))))))
 
 
 ;;; The SEND and SEND/STRET macros
@@ -903,9 +609,6 @@
 ;;; Optimize special cases of SEND and SEND/STRET
 
 (defun make-optimized-send (o msg args env  &optional s super sclassname)
-  (new-make-optimized-send o msg args env s super sclassname))
-
-(defun new-make-optimized-send (o msg args env  &optional s super sclassname)
   (multiple-value-bind (msg args vargs) (parse-message (cons msg args))
     (let* ((message-info (get-objc-message-info msg)))
       (if (null message-info)
@@ -933,9 +636,15 @@
                                      (setf (objc-method-info-class-pointer m)
                                            (let* ((c (lookup-objc-class (objc-method-info-class-name m))))
                                              (if c
-                                               (let* ((id (objc-class-id c)))
-                                                 (if id
-                                                   (id->objc-class id)))))))))
+                                               (let* ((meta
+                                                       (getf (objc-method-info-flags m) :class)))
+                                                 (if meta
+                                                   (let* ((id (objc-metaclass-id c)))
+                                                     (if id
+                                                       (id->objc-metaclass id)))
+                                                   (let* ((id (objc-class-id c)))
+                                                     (if id
+                                                       (id->objc-class id)))))))))))
                     (when (and class (subtypep class mclass))
                       (return (setq method m))))))))
           (if method
@@ -948,106 +657,17 @@
                                          sinitforms
                                          s
                                          super)
-            (progn
-              (format t "~& punting on ~s" msg)
-              (old-make-optimized-send o msg args env s super sclassname))))))))
+            (build-ambiguous-send-form message-info
+                                       args
+                                       vargs
+                                       o
+                                       msg
+                                       svarforms
+                                       sinitforms
+                                       s
+                                       super)))))))
 
     
-(defun old-make-optimized-send (o msg args env &optional s super sclassname)
-  ;; Try to determine the class of the receiver
-  (let ((class (if sclassname 
-                 (find-objc-class sclassname)
-                 (get-objc-class-from-declaration (declared-type o env))))
-	(vargs nil))
-    ;; Get message and args
-    (multiple-value-setq (msg args vargs) (parse-message (cons msg args)))
-    ;; If the message cannot be determined, use a general send
-    (unless (stringp msg)
-      (return-from old-make-optimized-send
-	(if (null super)
-	    (if (null s) 
-		`(%send ,o ,msg ,@args) 
-	      `(%send/stret ,o ,msg ,@args))
-	  (if (null s) 
-	      `(%send-super ,msg ,@args) 
-	    `(%send-super/stret ,s ,msg ,@args)))))
-    ;; If a vararg exists, make sure that the message can accept it
-    (when (and vargs (not (variable-arity-message-p msg)))
-      (error "Message ~S cannot accept a variable number of arguments" msg))
-    ;; Check the argument count
-    (check-message-arg-count msg args)
-    ;; Process message arguments inside an implicit SLET
-    (multiple-value-bind (args svarforms sinitforms) (sletify-message-args args)
-      ;; Analyze the object and message arguments to SEND
-      (if class
-        ;;***********************************************************************
-        ;; If both the message and the class are known at compile-time, 
-        ;; construct a direct call
-        (let* ((m (get-method class (get-selector msg)))
-               (mtsig (compute-method-type-signature m))
-               (result-type (first mtsig))
-               (argtypes (rest mtsig))
-               (argspecs1 (convert-to-argspecs argtypes result-type args nil))
-	       (argspecs (append (butlast argspecs1) vargs (last argspecs1))))
-          (if (and (null super) (= (optimization-setting 'safety env) 3))
-            ;; If SAFETY = 3, then check that the runtime method signature 
-            ;; is the same as it was at compile-time
-            (let ((otemp (gensym))
-                  (ctemp (gensym))
-                  (seltemp (gensym)))
-              `(let* ((,otemp ,o)
-                      (,ctemp (objc-class-of ,otemp))
-                      (,seltemp (@selector ,msg)))
-                 (get-method ,ctemp ,seltemp)
-                 (if (string= (method-typestring (get-method ,ctemp ,seltemp))
-                              ,(method-typestring m))
-                   ,(build-call otemp seltemp msg argspecs svarforms sinitforms s)
-                   (error "The type signature of ~S has changed since compile-time" 
-                          ,msg)))))
-          ;; Otherwise, we trust the declaration
-          (build-call o `(@selector ,msg) msg argspecs svarforms sinitforms s super))
-        ;; **********************************************************************
-        ;; If only the message is known at compile-time, we can still build a 
-        ;; direct call if the type signature is unique
-        (let* ((msgdescs (message-descriptors msg)))
-          (cond 
-           ((null msgdescs) (error "Unknown message: ~S" msg))
-           ((null (rest msgdescs))
-            ;; If MSG has a unique type signature at compile-time, build a
-            ;; call for that signature
-            (let* ((mtsig (msg-desc-type-signature (first msgdescs)))
-                   (result-type (first mtsig))
-                   (argtypes (rest mtsig))
-                   (argspecs1 (convert-to-argspecs argtypes result-type args nil))
-		   (argspecs (append (butlast argspecs1) vargs (last argspecs1))))
-              (if (= (optimization-setting 'safety env) 3)
-                ;; If SAFETY = 3, then check that the runtime method signature
-                ;; is the same as it was at compile-time 
-                (let ((otemp (gensym))
-                      (ctemp (gensym))
-                      (seltemp (gensym)))
-                  `(let* ((,otemp ,o)
-                          (,ctemp (objc-class-of ,otemp))
-                          (,seltemp (@selector ,msg)))
-                     (get-method ,ctemp ,seltemp)
-                     (if (equal (compute-method-type-signature
-                                 (get-method ,ctemp ,seltemp))
-                                ',mtsig)
-                       ,(build-call otemp seltemp msg argspecs svarforms sinitforms s)
-                       (error "The type signature of ~S has changed since compile-time" 
-                              ,msg))))
-                ;; Otherwise, we assume that nothing changes
-                (build-call o `(@selector ,msg) msg argspecs svarforms sinitforms s))))
-           ;; If the type signature is not unique, build a general call for now
-           (t (if (null super)
-		  (if (null s) 
-		      `(%send ,o ,msg ,@args) 
-		    `(%send/stret ,o ,msg ,@args))
-		(if (null s)
-		    `(%send-super ,msg ,@args)
-		  `(%send-super/stret ,s ,msg ,@args))))))))))
-
-
 ;;; WITH-NS-EXCEPTIONS-AS-ERRORS is only available in OpenMCL 0.14 and above
 
 #-openmcl-native-threads
@@ -1115,7 +735,74 @@
                             (eq :objc_class (foreign-record-type-name target-to))))))))))
 
 
-(defun build-call-from-method-info (method-info args vargs o  msg  svarforms sinitforms s super)
+
+;;; Generate some sort of CASE or COND to handle an ambiguous message
+;;; send (where the signature of the FF-CALL depends on the type of the
+;;; receiver.)
+;;; AMBIGUOUS-METHODS is a list of lists of OBJC-METHOD-INFO structures,
+;;; where the methods in each sublist share the same type signature.  It's
+;;; sorted so that more unique method/signature combinations appear first
+;;; (and are easier to special-case via TYPECASE.)
+(defun build-send-case (ambiguous-methods
+                        args
+                        vargs
+                        receiver
+                        msg
+                        s
+                        super)
+  (flet ((method-class-name (m)
+           (let* ((mclass (or (objc-method-info-class-pointer m)
+                                     (setf (objc-method-info-class-pointer m)
+                                           (let* ((c (lookup-objc-class (objc-method-info-class-name m))))
+                                             (if c
+                                               (let* ((meta
+                                                       (getf (objc-method-info-flags m) :class)))
+                                                 (if meta
+                                                   (let* ((id (objc-metaclass-id c)))
+                                                     (if id
+                                                       (id->objc-metaclass id)))
+                                                   (let* ((id (objc-class-id c)))
+                                                     (if id
+                                                       (id->objc-class id)))))))))))
+             (unless mclass
+               (error "Can't find class with ObjC name ~s"
+                      (objc-method-info-class-name m)))
+             (class-name mclass))))
+    (collect ((clauses))
+      (do* ((methods ambiguous-methods (cdr methods)))
+           ((null (cdr methods))
+            (clauses `(t
+                       ,(build-internal-call-from-method-info
+                         (caar methods) args vargs receiver msg s super))))
+        (clauses `(,(if (cdar methods)
+                        `(or ,@(mapcar #'method-class-name (car methods)))
+                        (method-class-name (caar methods)))
+                   ,(build-internal-call-from-method-info
+                     (caar methods) args vargs receiver msg s super))))
+      `(typecase ,receiver
+        ,@(clauses)))))
+
+(defun build-ambiguous-send-form (message-info args vargs o msg svarforms sinitforms s super)
+  (let* ((receiver (gensym))
+         (caseform (build-send-case
+                    (objc-message-info-ambiguous-methods message-info)
+                    args
+                    vargs
+                    receiver
+                    msg
+                    s
+                    super)))
+    `(with-ns-exceptions-as-errors
+      (rlet ,svarforms
+        ,@sinitforms
+        (let* ((,receiver ,o))
+          ,caseform)))))
+
+
+;;; Generate the "internal" part of a method call; the "external" part
+;;; has established ObjC exception handling and handled structure-return
+;;  details
+(defun build-internal-call-from-method-info (method-info args vargs o msg s super)
   (let* ((arglist ()))
     (collect ((specs))
       (do* ((args args (cdr args))
@@ -1129,86 +816,109 @@
             (:<BOOL> (specs `(coerce-to-bool ,arg)))
             (:id (specs `(coerce-to-address ,arg)))
             (t (specs arg)))))
-      ;(break "~& arglist = ~s" arglist)
-      `(with-ns-exceptions-as-errors
-        (rlet ,svarforms
-          ,@sinitforms
-          ,(if (result-type-requires-structure-return
-                (objc-method-info-result-type method-info))
-               (if (null s)
-                 ;; STRET required but not provided
-                 (error "The message ~S must be sent using SEND/STRET" msg)
-                 (if (null super)
-                   `(objc-message-send-stret ,s ,o ,msg ,@arglist :void)
-                   `(objc-message-send-super-stret ,s ,super ,msg ,@arglist :void)))
-               (if s
-                 ;; STRET provided but not required
-                 (error "The message ~S must be sent using SEND" msg)
-                 (let* ((result-spec (car (objc-method-info-signature method-info)))
-                        (form (if super
-                                `(objc-message-send-super ,super ,msg ,@arglist ,result-spec)
-                                `(objc-message-send ,o ,msg ,@arglist ,result-spec))))
-                   (if (eq result-spec :<BOOL>)
-                     `(coerce-from-bool ,form)
-                     form)))))))))
+      ;;(break "~& arglist = ~s" arglist)
+      (if (result-type-requires-structure-return
+           (objc-method-info-result-type method-info))
+        (if (null s)
+          ;; STRET required but not provided
+          (error "The message ~S must be sent using SEND/STRET" msg)
+          (if (null super)
+            `(objc-message-send-stret ,s ,o ,msg ,@arglist :void)
+            `(objc-message-send-super-stret ,s ,super ,msg ,@arglist :void)))
+        (if s
+          ;; STRET provided but not required
+          (error "The message ~S must be sent using SEND" msg)
+          (let* ((result-spec (car (objc-method-info-signature method-info)))
+                 (form (if super
+                         `(objc-message-send-super ,super ,msg ,@arglist ,result-spec)
+                         `(objc-message-send ,o ,msg ,@arglist ,result-spec))))
+            (if (eq result-spec :<BOOL>)
+              `(coerce-from-bool ,form)
+              form)))))))
+  
+(defun build-call-from-method-info (method-info args vargs o  msg  svarforms sinitforms s super)
+  `(with-ns-exceptions-as-errors
+    (rlet ,svarforms
+      ,@sinitforms
+      ,(build-internal-call-from-method-info
+        method-info
+        args
+        vargs
+        o
+        msg
+        s
+        super))))
+
+
 
 ;;; The %SEND and %SEND/STRET functions for sending general messages 
 
 (defmacro make-general-send (o msg args &optional s super sclassname)
+  (declare (ignorable sclassname))
   `(let ((vargs nil))
      (with-ns-exceptions-as-errors
       ;; Ensure that MSG is a string
       (multiple-value-setq (msg args vargs) (%parse-message (cons ,msg ,args)))
-      (check-type ,msg string)
-      ;; If a vararg exists, make sure that the message can accept it
-      (when (and vargs (not (variable-arity-message-p msg)))
-	(error "Message ~S cannot accept a variable number of arguments" msg))
-      ;; Lookup method
-      (let* ((class ,(if sclassname 
-			 `(find-objc-class ,sclassname)  
-		       `(objc-class-of ,o)))
-	     (sel (get-selector ,msg))
-	     (m (get-method class sel)))
-	;; Check arg count
-	(check-method-arg-count m ,args)
-	;; Get method type signature
-	(let* ((mtsig (compute-method-type-signature m))
-	       (argtypes (rest mtsig))
-	       (result-type (first mtsig))
-	       (argspecs1 (convert-to-argspecs argtypes result-type ,args t))
-	       (argspecs (append (butlast argspecs1) vargs (last argspecs1)))
-	       (result-spec (first (last argspecs))))
-	  ;; Call method
-	  (if (requires-stret-p result-spec)
+      (check-type ,msg string)          ; What else could it be ?
+      (let* ((message-info (get-objc-message-info ,msg))
+             (message-accepts-varargs
+              (getf (objc-message-info-flags message-info)
+                                    :accepts-varargs)))
+        ;; If a vararg exists, make sure that the message can accept it
+        (when (and vargs (not message-accepts-varargs))
+          (error "Message ~S cannot accept a variable number of arguments" msg))
+        ;; Lookup method signature.  We can do a runtime type dispatch
+        ;; on the receiver (if there's any ambiguity) even if we're doing
+        ;; some flavor of SEND-SUPER, since the next method must have
+        ;; the same type signature as the receiver.
+        (let* ((method-info (%lookup-objc-method-info message-info ,o))
+               (sel (get-selector ,msg)))
+          ;; Check arg count
+          (unless (= (length ,args) (objc-message-info-req-args message-info))
+            (error "Message ~S requires ~a ~d args, but ~d were provided."
+                   (if vargs "at least" "exactly")
+                   (objc-message-info-req-args message-info)
+                   (length args)))
+          ;; Get method type signature
+          (let* ((mtsig (objc-method-info-signature method-info))
+                 (argtypes (rest mtsig))
+                 (result-type (first mtsig))
+                 (argspecs1 (convert-to-argspecs argtypes result-type ,args t))
+                 (argspecs (append (butlast argspecs1) vargs (last argspecs1)))
+                 (result-spec (first (last argspecs))))
+            ;; Yes, we're doing all of this at runtime.  Don't even get
+            ;; me started on %FF-CALL.
+            ;; Call method
+            (if (requires-stret-p result-spec)
 	      ,(if (null s)
 		   ;; STRET required but not provided
 		   `(error "The message ~S must be sent using SEND/STRET" ,msg)
-		 ;; STRET required and provided
-		 (if (null super)
+                   ;; STRET required and provided
+                   (if (null super)
 		     ;; Regular stret send, invoke objc_msgSend_stret 
 		     `(progn
-			(apply #'%ff-call
-			       (%reference-external-entry-point 
-				(load-time-value 
-				 (external "_objc_msgSend_stret")))
-			       :address ,s
-			       :address ,o
-			       :address sel
-			       (progn (setf (car (last argspecs)) :void) argspecs))
-			,s)
-		   ;; Stret send to super, invoke objc_msgSendSuper_stret
-		   `(progn 
-		      (apply #'%ff-call
-			     (%reference-external-entry-point 
-			      (load-time-value 
-			       (external "_objc_msgSendSuper_stret")))
-			     :address ,s
-			     :address ,super
-			     :address sel
-			     (progn (setf (car (last argspecs)) :void) argspecs)))))
-	    ,(if (null s)
-		 ;; STRET not required and not provided
-		 (if (null super)
+                       (apply #'%ff-call
+                        (%reference-external-entry-point 
+                         (load-time-value 
+                          (external "_objc_msgSend_stret")))
+                        :address ,s
+                        :address ,o
+                        :address sel
+                        (progn (setf (car (last argspecs)) :void) argspecs))
+                       ,s)
+                     ;; Stret send to super, invoke objc_msgSendSuper_stret
+                     `(progn 
+                       (apply #'%ff-call
+                        (%reference-external-entry-point 
+                         (load-time-value 
+                          (external "_objc_msgSendSuper_stret")))
+                        :address ,s
+                        :address ,super
+                        :address sel
+                        (progn (setf (car (last argspecs)) :void) argspecs)))))
+              ,(if (null s)
+                   ;; STRET not required and not provided
+                   (if (null super)
 		     ;; Regular send, invoke objc_msgSend
 		     `(let ((r (apply #'%ff-call
 				      (%reference-external-entry-point 
@@ -1217,24 +927,22 @@
 				      :address ,o
 				      :address sel
 				      argspecs)))
-			(if (and (eq result-type :char)
-				 (not (returns-boolean-exception-p msg)))
-			    (coerce-from-bool r)
-			  r))
+                       (if (eq result-type :<BOOL>)
+                         (coerce-from-bool r)
+                         r))
 		  ;;; Send to super, invoke objc_msgSendSuper
-		   `(let ((r (apply #'%ff-call
-				    (%reference-external-entry-point 
-				     (load-time-value 
-				      (external "_objc_msgSendSuper")))
-				    :address ,super
-				    :address sel
-				    argspecs)))
-		      (if (and (eq result-type :char)
-			       (not (returns-boolean-exception-p msg)))
-			  (coerce-from-bool r)
-			r)))
-	       ;; STRET not required but provided
-	       `(error "The message ~S must be sent using SEND" msg))))))))
+                     `(let ((r (apply #'%ff-call
+                                      (%reference-external-entry-point 
+                                       (load-time-value 
+                                        (external "_objc_msgSendSuper")))
+                                      :address ,super
+                                      :address sel
+                                      argspecs)))
+                       (if (eq result-type :<BOOL>)
+                         (coerce-from-bool r)
+                         r)))
+                   ;; STRET not required but provided
+                   `(error "The message ~S must be sent using SEND" msg)))))))))
 
 (defun %send (o msg &rest args)
   (declare (optimize (speed 3)) (dynamic-extent args))
@@ -1261,6 +969,7 @@
            (send (find-objc-class cname) 'alloc)
            (lisp-to-objc-init ks)
            vs)))
+
 
 
 ;;; Provide the BRIDGE module
