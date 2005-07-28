@@ -641,6 +641,7 @@
 ;;; arguments are aligned on word boundaries.
 #+poweropen-target
 (progn
+  #+ppc32-target
 (defun %ff-call (entry &rest specs-and-vals)
   (declare (dynamic-extent specs-and-vals))
   (let* ((len (length specs-and-vals))
@@ -743,6 +744,7 @@
             (:signed-byte (%get-signed-byte buf 3))
             (:unsigned-byte (%get-unsigned-byte buf 3)))))))
 
+#+ppc32-target
 (defppclapfunction %%ff-call ((monitor-exception-ports 12)
 			      (reload-sizes 8)
 			      (reload-offsets 4)
