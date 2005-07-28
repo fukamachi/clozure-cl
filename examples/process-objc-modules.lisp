@@ -211,11 +211,6 @@ ignored."
 
 
                         
-#|
-(note-all-library-methods #'(lambda (method class)
-			      (declare (ignore class))
-			      (update-type-signatures-for-method method)))
-|#
 
 )
 (provide "PROCESS-OBJC-MODULES") 
