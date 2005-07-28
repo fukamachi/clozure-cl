@@ -690,27 +690,6 @@ argument lisp string."
 (defmacro declare-objc-class (name super-name)
   `(%ensure-class-declaration ',name ',super-name))
 
-#+apple-objc
-(progn
-  (declare-objc-class "NSCFString" "NSString")
-  (declare-objc-class "NSCFArray" "NSArray")
-  (declare-objc-class "NSCFDictionary" "NSDictionary")
-  (declare-objc-class "NSPlaceholderMutableArray" "NSMutableArray")
-  (declare-objc-class "NSPlaceholderArray" "NSArray")
-  (declare-objc-class "NSPlaceholderMutableDictionary" "NSMutableDictionary")
-  (declare-objc-class "NSPlaceholderDictionary" "NSDictionary")
-  (declare-objc-class "NSPlaceholderMutableSet" "NSMutableSet")
-  (declare-objc-class "NSPlaceholderSet" "NSSet")
-  (declare-objc-class "NSPlaceholderMutableString" "NSMutableString")
-  (declare-objc-class "NSPlaceholderString" "NSString")
-  (declare-objc-class "NSPlaceholderNumber" "NSNumber")
-  (declare-objc-class "NSPlaceholderValue" "NSValue")
-  (declare-objc-class "NSConcreteFileHandle" "NSFileHandle")
-  (declare-objc-class "NSConcreteData" "NSData")
-  (declare-objc-class "NSConcreteMutableData" "NSMutableData")
-  (declare-objc-class "NSConcreteAttributedString" "NSAttributedString"))
-
-
 ;;; Intern NSConstantString instances.
 (defvar *objc-constant-strings* (make-hash-table :test #'equal))
 
@@ -1375,6 +1354,11 @@ argument lisp string."
                                 id))
                   (%setf-macptr super (pref super :objc_class.super_class))))))))))
 
+(defun objc-class-or-private-class-id (classptr)
+  (or (objc-class-id classptr)
+      (objc-private-class-id classptr)))
+
+
 (defun %objc-instance-class-index (p)
   #+apple-objc
   (if (or (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
@@ -1407,9 +1391,6 @@ argument lisp string."
 
        
 
-;;; Stub until BRIDGE is loaded
-(defun update-type-signatures-for-method (m c &optional flag)
-  (declare (ignore m c flag)))
 
 
 ;;; If the class contains an mlist that contains a method that
@@ -1436,7 +1417,6 @@ argument lisp string."
 		    (pref method :objc_method.method_types)
 		    (make-cstring typestring)
 		    (pref method :objc_method.method_imp) imp)
-              (update-type-signatures-for-method method classptr t)
 	      (return mlist)))
 	  (do* ((n (pref mlist :objc_method_list.method_count))
 		(i 0 (1+ i))
@@ -1477,8 +1457,7 @@ argument lisp string."
 			 :void)
 	  (external-call "__objc_update_dispatch_table_for_class"
 			 :address classptr
-			 :void))
-	(update-type-signatures-for-method (%inc-ptr method 0) classptr t)))))
+			 :void))))))
 
 (defvar *lisp-objc-methods* (make-hash-table :test #'eq))
 
