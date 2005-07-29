@@ -1286,7 +1286,6 @@ are no Forms, OR returns NIL."
 (defsetf %get-unsigned-long %set-long)
 (defsetf %get-full-long %set-long)
 (defsetf %get-point %set-long)
-(defsetf %get-string %set-string)
 (defsetf %get-ptr %set-ptr)
 (defsetf %get-double-float %set-double-float)
 (defsetf %get-single-float %set-single-float)
@@ -1561,9 +1560,6 @@ are no Forms, OR returns NIL."
 
 (defmacro with-cstrs (speclist &body body)
    (with-specs-aux 'with-cstr speclist body))
-
-
-
 
 
 (defun with-specs-aux (name spec-list body)
