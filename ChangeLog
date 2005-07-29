@@ -1,3 +1,17 @@
+2005-07-29 03:03  gb
+
+	* level-1/l1-utils.lisp: Define %SET-CSTRING; make it the SETF
+	inverse of %GET-CSTRING.
+	
+	Restore %PUT-CSTRING (used by UFFI); implement it in terms of (SETF
+	(%GET-CSTRING ...) ...)
+
+2005-07-29 03:02  gb
+
+	* lib/macros.lisp: Don't do (DEFSETF %GET-STRING %SET-STRING);
+	%GET-STRING is only defined in "ccl:lib;pascal-strings.lisp", and a
+	SETF function for it is defined in that file.
+
 2005-07-28 07:48  gb
 
 	* lib/db-io.lisp: OBJC-MESSAGE-INFO structure has "ambiguous
