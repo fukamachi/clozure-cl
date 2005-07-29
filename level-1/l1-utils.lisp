@@ -1030,48 +1030,35 @@ vector
   (do* ((i 0 (1+ i)))
        ((zerop (the fixnum (%get-byte ptr i))) i)
     (declare (fixnum i))))
-						 
-  
-; Single float is sign, 8 bits of exponent, 23 bits of mantissa
-; Double float is sign, 11 bits of exponent, 52 bits of mantissa
-#|
-(defun %single-float-ptr->double-float-ptr (single double)
-  (let* ((hi (%get-word single))
-         (low (%get-word single 2))
-         (negative (logbitp 16 hi))
-         (expt (logand #xff (the fixnum (ash hi -7))))
-         (normalized-expt (- expt #x7f))
-         (double-expt (+ normalized-expt #x3ff))
-         (double-expt-with-sign
-          (if negative 
-            (the fixnum (+ (ash 1 11) double-expt))
-            double-expt))
-         (mantissa (+ low (the fixnum (logand hi #x7f))))
-         (word0 (+ (the fixnum (ash double-expt-with-sign 4))
-                   (the fixnum (ash mantissa -19))))
-         (word1 (logand (the fixnum (ash mantissa -3)) #xffff))
-         (word2 (ash (the fixnum (logand mantissa 7)) 13)))
-    (declare (fixnum hi low expt normalized-expt double-expt
-                     double-expt-with-sign mantissa word0 word1 word2))
-    (setf (%get-word double) word0
-          (%get-word double 2) word1
-          (%get-word double 4) word2
-          (%get-word double 6) 0)
-    double))
-|#
+
+
+(defun %set-cstring (ptr string)
+  (let* ((len (length string)))
+    (cond ((typep string 'simple-string)
+           (%copy-ivector-to-ptr string 0 ptr 0 len))
+          ((typep string 'string)
+                  (multiple-value-bind (data offset)
+                      (array-data-and-offset string)
+                    (%copy-ivector-to-ptr data offset ptr 0 len)))
+          (t (report-bad-arg string 'string)))
+    (setf (%get-byte ptr len) 0)
+    string))
+
+(defsetf %get-cstring %set-cstring)
+
+;;; Deprecated, but used by UFFI.
+(defun %put-cstring (ptr str &optional (offset 0))
+  (setf (%get-cstring (%inc-ptr ptr offset)) str)
+  ;; 0 is the traditional, not-very-useful return value ...
+  0)
 
 
 
 
 
 
-
-
-
-
-
-;Returns a simple string and adjusted start and end, such that
-; 0<= start <= end <= (length simple-string).
+;;; Returns a simple string and adjusted start and end, such that
+;;; 0<= start <= end <= (length simple-string).
 (defun get-sstring (str &optional (start 0) (end (length (require-type str 'string))))
   (multiple-value-bind (sstr offset) (array-data-and-offset (string str))
     (setq start (+ start offset) end (+ end offset))
@@ -1122,45 +1109,12 @@ vector
 
 
 
-; If this returns non-nil, safe to do %rplaca of %cdr to update.
+;;; If this returns non-nil, safe to do %rplaca of %cdr to update.
 (defun pl-search (plist key)
   (unless (plistp plist)
     (report-bad-arg plist '(satisfies plistp)))
   (%pl-search plist key))
 
-
-
-
-
-
-
-(defun position (item sequence &rest ignored-keys)
-  (declare (ignore ignored-keys)
-           (dynamic-extent ignored-keys))
-  (xposition item sequence))
-
-(defun xposition (item sequence)
-  (if (listp sequence)
-    (do* ((list sequence (%cdr list))
-          (count 0 (1+ count)))
-         ((endp list) nil)
-      (when (eql (car list) item) (return count)))
-    (dotimes (i (length sequence))
-      (declare (fixnum i))
-      (when (eql (aref sequence i) item) (return i)))))
-
-(defun position-positional-test-key (item sequence test key)
-  (declare (ignore test key))
-  (xposition item sequence))
-
-(defun delete (item list &rest ignored-keys)
-  (declare (ignore ignored-keys)
-           (dynamic-extent ignored-keys)
-           (inline delete))
-  (if list
-      (if (eq item (car list))
-          (delete item (%cdr list))
-          (%rplacd list (delete item (%cdr list))))))
 
 (defun rassoc (item alist &key (test #'eql test-p) test-not (key #'identity))
   (declare (list alist))
