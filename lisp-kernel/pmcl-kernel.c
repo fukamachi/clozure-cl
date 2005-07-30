@@ -863,7 +863,7 @@ default_image_name(char *orig)
   char *copy = (char *) malloc(len);
 
   if (copy) {
-    strcat(copy, orig);
+    strcpy(copy, orig);
     strcat(copy, ".image");
   }
   return copy;
