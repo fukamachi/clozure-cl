@@ -651,8 +651,7 @@
     (declare (fixnum n))
     (dovector (x (pkgtab-table pkgtab) n)
        (when (symbolp x)
-         (incf n
-               (setq n (%i+ n 1)))))))
+         (incf n)))))
 
 
 (defun %resize-package (pkg)
@@ -729,122 +728,52 @@
         (set-documentation pkg t doc))
       pkg)))
 
-;;; The guts of with-package-iterator
-(defun %start-with-package-iterator (p)
-  (let ((pkgs (pkg-iter.pkgs p)))
-    (if (listp pkgs)
-      (every #'pkg-arg pkgs)
-      (pkg-arg pkgs)))
-  (%pkg-iter-next-package p))
+(defun %setup-pkg-iter-state (pkg-list types)
+  (collect ((steps))
+    (flet ((cons-pkg-iter-step (package type table &optional shadowed)
+             (steps (vector package type table shadowed nil nil))))
+      (let* ((pkgs (if (listp pkg-list)
+                     (mapcar #'pkg-arg pkg-list)
+                     (list (pkg-arg pkg-list)))))
+        (dolist (pkg pkgs)
+          (dolist (type types)
+            (case type
+              (:internal (cons-pkg-iter-step pkg type (pkg.itab pkg)))
+              (:external (cons-pkg-iter-step pkg type (pkg.etab pkg)))
+              (:inherited
+               (let* ((shadowed (pkg.shadowed pkg))
+                      (used (pkg.used pkg)))
+                 (dolist (u used)
+                   (cons-pkg-iter-step pkg type (pkg.etab u) shadowed)))))))))
+    (vector nil (steps))))
 
-(defun %pkg-iter-next-package (p)
-  (setf (pkg-iter.state p) #'%pkg-iter-next-package)
-  (let ((pkgs (pkg-iter.pkgs p))
-        (types (pkg-iter.types p))
-        pkg)
-    (declare (fixnum types))
-    (when pkgs
-      (if (listp pkgs)
-        (setq pkg (pop pkgs))
-        (setq pkg pkgs
-              pkgs nil))
-      (setf (pkg-iter.pkg p) (setq pkg (pkg-arg pkg))
-            (pkg-iter.pkgs p) pkgs)
-      (when pkg
-        (cond ((logbitp $pkg-iter-external types) (%start-pkg-iter-externals p))
-              ((logbitp $pkg-iter-internal types) (%start-pkg-iter-internals p))
-              ((logbitp $pkg-iter-inherited types) (%start-pkg-iter-inherited p)))))))
-
-(defun %start-pkg-iter-externals (p)
-  (let ((tbl (car (uvref (pkg-iter.pkg p) pkg.etab))))
-    (setf (pkg-iter.state p) #'%get-pkg-iter-external
-          (pkg-iter.tbl p) tbl
-          (pkg-iter.index p) (length tbl)))
-  (%get-pkg-iter-external p))
-
-(defun %start-pkg-iter-internals (p)
-  (let ((tbl (car (uvref (pkg-iter.pkg p) pkg.itab))))
-    (setf (pkg-iter.state p) #'%get-pkg-iter-internal
-          (pkg-iter.tbl p) tbl
-          (pkg-iter.index p) (length tbl)))
-  (%get-pkg-iter-internal p))
-
-(defun %start-pkg-iter-inherited (p)
-  (let* ((pkgs (uvref (pkg-iter.pkg p) pkg.used))
-         (pkg (pop pkgs))
-         tbl)
-    (if pkg
-      (progn
-        (setf (pkg-iter.state p) #'%get-pkg-iter-inherited
-              (pkg-iter.used p) pkgs
-              (pkg-iter.tbl p) (setq tbl (car (uvref pkg pkg.etab)))
-              (pkg-iter.index p) (length tbl))
-        (%get-pkg-iter-inherited p))
-      (setf (pkg-iter.state p) nil))))
-
-(defun %next-pkg-iter-symbol (tbl index)
-  (declare (fixnum index))
-  (let (sym found)
+(defun %pkg-iter-next (state)
+  (flet ((get-step ()
+           (let* ((step (pkg-iter.step state)))
+             (loop
+               (if (and step (> (pkg-iter-step.index step) 0))
+                 (return step))
+               (when (setq step (pop (pkg-iter.remaining-steps state)))
+                 (setf (pkg-iter.step state) step)
+                 (setf (pkg-iter-step.index step)
+                       (length (setf (pkg-iter-step.vector step)
+                                     (pkgtab-table  (pkg-iter-step.table step))))))
+               (unless step
+                 (return))))))
     (loop
-      (when (<= index 0)
-        (return nil))
-      (multiple-value-setq (sym found) (%htab-symbol tbl (decf index)))
-      (when found
-        (return (values sym index))))))
+      (let* ((step (get-step)))
+        (when (null step) (return))
+        (multiple-value-bind (symbol found)
+            (%htab-symbol (pkg-iter-step.vector step)
+                          (decf (pkg-iter-step.index step)))
+          (when (and found
+                     (not (member symbol (pkg-iter-step.shadowed step)
+                                  :test #'string=)))
+            (return (values t
+                            symbol
+                            (pkg-iter-step.type step)
+                            (pkg-iter-step.pkg step)))))))))
 
-(defun %get-pkg-iter-external (p)
-  (multiple-value-bind (sym index) 
-                       (%next-pkg-iter-symbol
-                        (pkg-iter.tbl p) (pkg-iter.index p))
-    (if index
-      (progn
-        (setf (pkg-iter.index p) index)
-        (values t sym :external (pkg-iter.pkg p)))
-      (let ((types (pkg-iter.types p)))
-        (declare (fixnum types))
-        (cond ((logbitp $pkg-iter-internal types) (%start-pkg-iter-internals p))
-              ((logbitp $pkg-iter-inherited types) (%start-pkg-iter-inherited p))
-              (t (%pkg-iter-next-package p)))))))
-
-(defun %get-pkg-iter-internal (p)
-  (multiple-value-bind (sym index) 
-                       (%next-pkg-iter-symbol
-                        (pkg-iter.tbl p) (pkg-iter.index p))
-    (if index
-      (progn
-        (setf (pkg-iter.index p) index)
-        (values t sym :internal (pkg-iter.pkg p)))
-      (let ((types (pkg-iter.types p)))
-        (declare (fixnum types))
-        (cond ((logbitp $pkg-iter-inherited types) (%start-pkg-iter-inherited p))
-              (t (%pkg-iter-next-package p)))))))
-
-(defun %get-pkg-iter-inherited (p)
-  (let (pkg)
-    (multiple-value-bind (sym index) 
-                         (%next-pkg-iter-symbol (pkg-iter.tbl p) (pkg-iter.index p))
-      (if index
-        (progn
-          (setf (pkg-iter.index p) index
-                pkg (pkg-iter.pkg p))
-          ; Note: this will be slow if there are a lot of shadowed symbols.
-          ; The alternative is find-symbol, which is much slower in the normal
-          ; case of few shadowed symbols.
-          (if (and (pkg.shadowed pkg)
-                   (%name-present-in-package-p (symbol-name sym) pkg))
-            (%get-pkg-iter-inherited p)
-            (values t sym :inherited pkg)))
-        (progn
-          (let ((pkgs (pkg-iter.used p))
-                tbl)
-            (if pkgs
-              (progn
-                (setf pkg (pop pkgs)
-                      (pkg-iter.used p) pkgs
-                      (pkg-iter.tbl p) (setq tbl (car (uvref pkg pkg.etab)))
-                      (pkg-iter.index p) (length tbl))
-                (%get-pkg-iter-inherited p))
-              (%pkg-iter-next-package p))))))))
 
 ;;; For do-symbols and with-package-iterator
 ;;; string must be a simple string
