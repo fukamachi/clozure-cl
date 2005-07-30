@@ -23,7 +23,9 @@
 (defun toplevel-loop ()
   (loop
     (if (eq (catch :toplevel 
-              (read-loop :break-level 0)) $xstkover)
+              (read-loop :break-level 0
+                         :input-stream *standard-input*
+                         :output-stream *standard-output* )) $xstkover)
       (format t "~&;[Stacks reset due to overflow.]")
       (when (eq *current-process* *initial-process*)
         (toplevel)))))
@@ -51,7 +53,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
 (define-toplevel-command
     :global kill (p) "Kill process whose name or ID matches <p>"
     (let* ((proc (find-process p)))
-      (if p
+      (if proc
 	(process-kill proc))))
 
 (define-toplevel-command 
@@ -153,11 +155,11 @@ whose name or ID matches <p>, or to any process if <p> is null"
 		       t)))
 	  (return t))))))
 
-;This is the part common to toplevel loop and inner break loops.
+;;; This is the part common to toplevel loop and inner break loops.
 (defun read-loop (&key (break-level *break-level*)
 		       (prompt-function #'(lambda (stream) (print-listener-prompt stream t)))
-		       (input-stream *terminal-io*)
-		       (output-stream *terminal-io*))
+		       (input-stream *standard-input*)
+		       (output-stream *standard-output*))
   (let* ((*break-level* break-level)
          (*last-break-level* break-level)
          *loading-file-source-file*
@@ -181,7 +183,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
                   (if (eq form eof-value)
                     (if (eof-transient-p (stream-device input-stream :input))
                       (progn
-                        (stream-clear-input *terminal-io*)
+                        (stream-clear-input input-stream)
                         (abort-break))
                       (quit))
                     (or (check-toplevel-command form)
@@ -201,12 +203,12 @@ whose name or ID matches <p>, or to any process if <p> is null"
         (abort-break () 
                      (unless (eq break-level 0)
                        (abort))))
-      (clear-input *terminal-io*)
-      (format *terminal-io* "~%"))))
+      (clear-input input-stream)
+      (format output-stream "~%"))))
 
 
 
-;Read a form from *terminal-io*.
+;;; Read a form from the specified stream.
 (defun toplevel-read (&key (input-stream *standard-input*)
 			   (output-stream *standard-output*)
 			   (prompt-function #'print-listener-prompt)
@@ -239,15 +241,16 @@ whose name or ID matches <p>, or to any process if <p> is null"
     (dolist (val values) (write val) (terpri))))
 
 (defun print-listener-prompt (stream &optional (force t))
-  (when (or force (neq *break-level* *last-break-level*))
-    (let* ((*listener-indent* nil))
-      (fresh-line stream)            
-      (if (%izerop *break-level*)
-        (%write-string "?" stream)
-        (format stream "~s >" *break-level*)))        
-    (write-string " " stream)        
-    (setq *last-break-level* *break-level*))
-      (force-output stream))
+  (unless *quiet-flag*
+    (when (or force (neq *break-level* *last-break-level*))
+      (let* ((*listener-indent* nil))
+        (fresh-line stream)            
+        (if (%izerop *break-level*)
+          (%write-string "?" stream)
+          (format stream "~s >" *break-level*)))        
+      (write-string " " stream)        
+      (setq *last-break-level* *break-level*)))
+    (force-output stream))
 
 
 ;;; Fairly crude default error-handlingbehavior, and a fairly crude mechanism
@@ -455,7 +458,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
                 (progn
                   (application-ui-operation *application*
                                             :enter-backtrace-context context)
-                  (read-loop :break-level (1+ *break-level*)))
+                  (read-loop :break-level (1+ *break-level*)
+                             :input-stream *debug-io*
+                             :output-stream *debug-io*))
              (application-ui-operation *application* :exit-backtrace-context
                                        context))))
       (setf (interrupt-level) level))))
