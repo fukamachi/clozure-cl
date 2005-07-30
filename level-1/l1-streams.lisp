@@ -2109,7 +2109,7 @@
     (loop
       (when (fd-input-available-p fd 0)
         (return t))
-      (let* ((now (get-tick-count)))
+      (let* ((now (if ticks (get-tick-count))))
         (if (and wait-end (>= now wait-end))
           (return))
         (fd-input-available-p fd (if ticks (- wait-end now)))))))
@@ -2124,14 +2124,14 @@
 
 
   
-;; Use this when it's possible that the fd might be in
-;; a non-blocking state.  Body must return a negative of
-;; the os error number on failure.
-;; The use of READ-FROM-STRING below is certainly ugly, but macros
-;; that expand into reader-macros don't generally trigger the reader-macro's
-;; side-effects.  (Besides, the reader-macro might return a different
-;; value when the macro function is expanded than it did when the macro
-;; function was defined; this can happen during cross-compilation.)
+;;; Use this when it's possible that the fd might be in
+;;; a non-blocking state.  Body must return a negative of
+;;; the os error number on failure.
+;;; The use of READ-FROM-STRING below is certainly ugly, but macros
+;;; that expand into reader-macros don't generally trigger the reader-macro's
+;;; side-effects.  (Besides, the reader-macro might return a different
+;;; value when the macro function is expanded than it did when the macro
+;;; function was defined; this can happen during cross-compilation.)
 (defmacro with-eagain (fd direction &body body)
   (let* ((res (gensym))
 	 (eagain (symbol-value (read-from-string "#$EAGAIN"))))
