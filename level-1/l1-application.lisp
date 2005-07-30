@@ -209,7 +209,15 @@ Default version returns OpenMCL version info."
 	   :help-string "set lisp-heap-gc-threshold to <n>"
 	   :keyword :gc-threshold
 	   :may-take-operand t
-	   :allow-multiple nil)))))
+	   :allow-multiple nil)
+          (make-command-line-argument
+           :option-char #\Q
+           :long-name "quiet"
+           :help-string "if --batch, also suppress printing of heralds, prompts"
+           :keyword :quiet
+           :may-take-operand nil
+           :allow-multiple nil)
+          ))))
 
 (defparameter *application*
   (make-instance 'lisp-development-system))
@@ -226,6 +234,8 @@ Default version returns OpenMCL version info."
 		 #$EX_USAGE
 		 (summarize-option-syntax a))
     (setq *load-lisp-init-file* (not (assoc :noinit options))
+          *quiet-flag* (if *batch-flag*
+                         (not (null (assoc :quiet options))))
 	  *lisp-startup-parameters*
 	  (mapcan #'(lambda (x)
 		      (and (member (car x) '(:load :eval :gc-threshold)) (list x)))
