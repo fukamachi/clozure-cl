@@ -2191,9 +2191,6 @@ are no Forms, OR returns NIL."
 	  ',documentation)))))
 
 
-(defmacro %cons-pkg-iter (pkgs types)
-  `(vector ,pkgs ,types #'%start-with-package-iterator
-           nil nil nil nil))
 
 (defmacro with-package-iterator ((mname package-list first-type &rest other-types)
                                  &body body)
@@ -2202,18 +2199,13 @@ are no Forms, OR returns NIL."
    one by one, from the packages in PACKAGE-LIST. SYMBOL-TYPES may be
    any of :INHERITED :EXTERNAL :INTERNAL."
   (setq mname (require-type mname 'symbol))
-  (let ((state (make-symbol "WITH-PACKAGE-ITERATOR_STATE"))
-        (types 0))
+  (let ((state (make-symbol "WITH-PACKAGE-ITERATOR_STATE")))
     (declare (fixnum types))
     (dolist (type (push first-type other-types))
-      (case type
-        (:external (setq types (bitset $pkg-iter-external types)))
-        (:internal (setq types (bitset $pkg-iter-internal types)))
-        (:inherited (setq types (bitset $pkg-iter-inherited types)))
-        (t (%badarg type '(member :internal :external :inherited)))))
-    `(let ((,state (%cons-pkg-iter ,package-list ',types)))
-       (declare (dynamic-extent ,state))
-       (macrolet ((,mname () `(funcall (%svref ,',state #.pkg-iter.state) ,',state)))
+      (ecase type
+        ((:external :internal :inherited))))
+    `(let ((,state (%setup-pkg-iter-state ,package-list ',other-types)))
+       (macrolet ((,mname () `(%pkg-iter-next ,',state)))
          ,@body))))
 
 ; Does NOT evaluate the constructor, but DOES evaluate the destructor & initializer
