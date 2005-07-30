@@ -599,18 +599,18 @@
 ;; state for with-package-iterator
 ;;
 (def-accessors %svref
-  pkg-iter.pkgs                         ; remaining packages to iterate over
-  pkg-iter.types                        ; types user wants
-  pkg-iter.state                        ; nil :internal, :external, or :inherited
-  pkg-iter.pkg                          ; current pkg
-  pkg-iter.used                         ; remaining used package when state is :inherited
-  pkg-iter.tbl                          ; current pkg.itab or pkg.etab
-  pkg-iter.index)                       ; index in table
+  pkg-iter-step.pkg                     ; package
+  pkg-iter-step.type                    ; keyword
+  pkg-iter-step.table
+  pkg-iter-step.shadowed
+  pkg-iter-step.vector
+  pkg-iter-step.index)
 
-;;; Bits for pkg-iter.types
-(defconstant $pkg-iter-external 0)
-(defconstant $pkg-iter-internal 1)
-(defconstant $pkg-iter-inherited 2)
+(def-accessors %svref
+  pkg-iter.step                         ; current step
+  pkg-iter.remaining-steps              ; steps to be processed
+)
+
 
 ;;;;;;;;;;;;;
 
