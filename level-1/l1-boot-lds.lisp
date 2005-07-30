@@ -55,7 +55,7 @@
 
 (defun listener-function ()
   (progn
-    (unless *inhibit-greeting* 
+    (unless (or *inhibit-greeting* *quiet-flag*)
       (format t "~&Welcome to ~A ~A!~%"
 	      (lisp-implementation-type)
 	      (lisp-implementation-version)))
