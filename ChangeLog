@@ -1,3 +1,16 @@
+2005-07-29 23:21  gb
+
+	* lib/macros.lisp: New definition of WITH-PACKAGE-ITERATOR.
+
+2005-07-29 23:20  gb
+
+	* level-1/l1-symhash.lisp: New runtime support for
+	WITH-PACKAGE-ITERATOR.
+
+2005-07-29 23:20  gb
+
+	* library/lispequ.lisp: New stuff for WITH-PACKAGE-ITERATOR.
+
 2005-07-29 21:16  gb
 
 	* level-1/l1-streams.lisp: PROCESS-INPUT-WAIT: don't compute tick
