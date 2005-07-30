@@ -66,6 +66,7 @@
 
 
 (defloadvar *batch-flag* (not (eql (%get-kernel-global 'ppc::batch-flag) 0)))
+(defloadvar *quiet-flag* nil)
 (defvar *terminal-input* ())
 (defvar *terminal-output* ())
 (defvar *stdin* ())
@@ -121,7 +122,7 @@
   (setq *query-io* (make-synonym-stream '*terminal-io*))
   (setq *debug-io* *query-io*)
   (setq *trace-output* *standard-output*)
-  (push *terminal-output* *auto-flush-streams*)
+  (push *stdout* *auto-flush-streams*)
   (setf (input-stream-shared-resource *terminal-input*)
 	(make-shared-resource "Shared Terminal Input")))
 
