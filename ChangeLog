@@ -1,3 +1,21 @@
+2005-07-31 16:55  bryan
+
+	* lib/macros.lisp: check-type: (if string string) === string
+
+2005-07-31 16:50  bryan
+
+	* lib/macros.lisp, level-1/l1-error-system.lisp: check-type: if
+	string not specified, don't replace it with typespec in call to
+	ensure-value-of-type.  ensure-value-of-type: remove init-form from
+	&optional typename.
+
+2005-07-31 16:35  bryan
+
+	* level-1/l1-error-system.lisp: ensure-value-of-type: if typename
+	is specified, create a new format string that uses it instead of
+	binding it to the type-error condition's :expected-type.  the spec
+	says that :expected-type must be a typespec.
+
 2005-07-29 23:21  gb
 
 	* lib/macros.lisp: New definition of WITH-PACKAGE-ITERATOR.
