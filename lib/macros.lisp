@@ -2637,7 +2637,7 @@ are no Forms, OR returns NIL."
             ,place 
             ',typespec 
             ',place 
-            ,(if string string)))
+            ,string))
      nil))
 
 (defmacro with-hash-table-iterator ((mname hash-table) &body body &environment env)
