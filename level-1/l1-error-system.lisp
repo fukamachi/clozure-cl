@@ -897,7 +897,10 @@
     (unless (typep value typespec)
       (let ((condition (make-condition 'type-error 
                                        :datum value
-                                       :expected-type typename)))
+                                       :expected-type typespec)))
+        (if typename
+            (setf (slot-value condition 'format-control)
+                  (format nil "value ~~S is not ~A (~~S)." typename)))
         (restart-case (%error condition nil (%get-frame-ptr))
           (store-value (newval)
                        :report (lambda (s)
