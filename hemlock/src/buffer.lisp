@@ -386,12 +386,18 @@
   the recursive edit to be aborted."
   (invoke-hook hemlock::enter-recursive-edit-hook)
   (multiple-value-bind (flag args)
-		       (let ((*in-a-recursive-edit* t))
+		       (let ((*in-a-recursive-edit* t)
+                             (doc (buffer-document *current-buffer*)))
 			 (catch 'leave-recursive-edit
-			   (if handle-abort
-			       (loop (catch 'editor-top-level-catcher
-				       (%command-loop)))
-			       (%command-loop))))
+                           (unwind-protect
+                                (progn
+                                  (when doc (document-end-editing doc))
+                                  (if handle-abort
+                                    (loop (catch 'editor-top-level-catcher
+                                            (%command-loop)))
+                                    (%command-loop)))
+                             (when doc (document-begin-editing doc)))))
+                             
     (case flag
       (:abort (apply #'editor-error args))
       (:exit (values-list args))
