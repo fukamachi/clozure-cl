@@ -734,7 +734,7 @@
   (srdi. imm3 imm4 6)
   (clrldi imm4 imm4 (- 64 6))
   (bl @get-dispatch)
-  (cmpwi cr1 imm4 0)
+  (cmpdi cr1 imm4 0)                    ; at most low 6 bits set in imm4
   (mflr loc-pc)
   (ld temp0 op vsp)
   (add loc-pc loc-pc temp0)
@@ -748,7 +748,7 @@
   (ldx imm2 b2 imm0)
   (bctrl)
   (stdx imm1 result imm0)
-  (addi imm0 imm0 4)
+  (addi imm0 imm0 8)
   @testd
   (bne cr0 @nextd)
   (beq cr1 @done)
