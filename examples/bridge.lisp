@@ -707,14 +707,12 @@
               ;; STRET not required and not provided, use send
               (if (null super)
                 ;; Regular send
-                (if (and (eq rspec :signed-byte)
-                         (not (returns-boolean-exception-p msg)))
+                (if (eq rspec :<BOOL>)
                   `(coerce-from-bool
                     (objc-message-send ,o ,(cadr sel) ,@argspecs))
                   `(objc-message-send ,o ,(cadr sel) ,@argspecs))
                 ;; Super send
-                (if (and (eq rspec :signed-byte)
-                         (not (returns-boolean-exception-p msg)))
+                (if (eq rspec :<BOOL>)
                   `(coerce-from-bool
                     (objc-message-send-super ,super ,(cadr sel) ,@argspecs))
                   `(objc-message-send-super ,super ,(cadr sel) ,@argspecs)))
