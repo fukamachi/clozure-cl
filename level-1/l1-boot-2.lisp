@@ -74,14 +74,11 @@
 (defvar *stderr* ())
 
 ;;; The hard parts here have to do with setting up *TERMINAL-IO*.
-;;; If file descriptors 0 and 1 denote the same TTY, that's
-;;; pretty easy: we make an echoing-two-way stream in that case.
-;;; If we're being run under ILISP, fds 0 and 1 may be pipes
-;;; (depending on whether the IPC package (comint) uses pipes
-;;; or ptys.  It's not entirely clear whether or not we can
-;;; reliably tell that these pipes are peers.
-;;; When we're run as a subprocess, we can probably open /dev/tty,
-;;; but that doesn't mean that we can read from and write to it.
+;;; Note that opening /dev/tty can fail, and that failure would
+;;; be reported as a negative return value from FD-OPEN.
+;;; It's pretty important that nothing signals an error here,
+;;; since there may not be any valid streams to write an error
+;;; message to.
 
 (def-ccl-pointers fd-streams ()
   (setq *stdin*	(make-fd-stream 0
@@ -91,7 +88,8 @@
 
   (setq *stderr* (make-fd-stream 2 :direction :output))
   (if *batch-flag*
-    (let* ((tty-fd (fd-open "/dev/tty" #$O_RDWR))
+    (let* ((tty-fd (let* ((fd (fd-open "/dev/tty" #$O_RDWR)))
+                     (if (>= fd 0) fd)))
            (can-use-tty (and tty-fd (eql (tcgetpgrp tty-fd) (getpid)))))
       (if can-use-tty
         (setq
