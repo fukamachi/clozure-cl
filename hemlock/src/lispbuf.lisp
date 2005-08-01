@@ -781,7 +781,6 @@
 	       :help "Expression to evaluate to get function to use as filter."))
 	 (fun (in-lisp (eval exp)))
 	 (region (current-region)))
-    (check-region-query-size region)
     (let* ((start (copy-mark (region-start region) :left-inserting))
 	   (end (copy-mark (region-end region) :left-inserting))
 	   (region (region start end))

@@ -109,7 +109,6 @@
 	 (end (copy-mark (region-end region) :left-inserting)))
     (let* ((region (region start end))
 	   (undo-region (copy-region region)))
-      (check-region-query-size region)
       (filter-region function region)
       (make-region-undo :twiddle name region undo-region))))
 
