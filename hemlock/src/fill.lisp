@@ -191,7 +191,6 @@
 	 (prefix (value fill-prefix))
 	 (column (if p (abs p) (value fill-column))))
     (check-fill-prefix prefix column (current-point))
-    (check-region-query-size region)
     (fill-region-by-paragraphs region prefix column)))
 
 
