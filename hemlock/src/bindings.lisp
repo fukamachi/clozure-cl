@@ -126,7 +126,6 @@
 (bind-key "Mark Whole Buffer" #k"control-x h")
 (bind-key "Set/Pop Mark" #k"control-@")
 (bind-key "Set/Pop Mark" #k"control-space")
-(bind-key "Pop and Goto Mark" #k"meta-space")
 (bind-key "Pop and Goto Mark" #k"meta-@")
 (bind-key "Pop Mark" #k"control-meta-space") ;#k"control-meta-@" = "Mark Form".
 (bind-key "Kill Region" #k"control-w")
@@ -434,7 +433,7 @@
 (bind-key "Delete Indentation" #k"control-meta-^")
 (bind-key "Delete Horizontal Space" #k"meta-\\")
 (bind-key "Delete Blank Lines" #k"control-x control-o" :global)
-(bind-key "Just One Space" #k"meta-\|")
+(bind-key "Just One Space" #k"meta-space")
 (bind-key "Back to Indentation" #k"meta-m")
 (bind-key "Back to Indentation" #k"control-meta-m")
 (bind-key "Indent Rigidly" #k"control-x tab")
