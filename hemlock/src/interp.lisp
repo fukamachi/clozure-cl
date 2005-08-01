@@ -465,10 +465,15 @@
                           (unless (eq *current-buffer* *echo-area-buffer*)
 			    (clear-echo-area))
                           (catch 'command-loop-catcher
-                            (dolist (c t-bindings)
-                              (funcall *invoke-hook* c *prefix-argument*))
-                            (funcall *invoke-hook* res *prefix-argument*)
-                            (setf punt nil))
+                            (let* ((doc (buffer-document *current-buffer*)))
+                              (unwind-protect
+                                   (progn
+                                     (when doc (hi::document-begin-editing doc))
+                                     (dolist (c t-bindings)
+                                       (funcall *invoke-hook* c *prefix-argument*))
+                                     (funcall *invoke-hook* res *prefix-argument*)
+                                     (setf punt nil))
+                                (when doc (hi::document-end-editing doc)))))
                           (when punt (invoke-hook hemlock::command-abort-hook)))
                         (if *command-type-set*
                           (setq *command-type-set* nil)
