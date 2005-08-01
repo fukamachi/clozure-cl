@@ -1,3 +1,11 @@
+2005-08-01 14:01  bryan
+
+	* level-1/l1-typesys.lisp: ctype-of-number: consider the type of
+	imagpart of complex numbers when determining type.
+	
+	? (type-of #c(1 1/2)) (COMPLEX (RATIONAL 1/2 1))  ; not (COMPLEX
+	(INTEGER 1/2 1))
+
 2005-08-01 04:55  gb
 
 	* hemlock/src/searchcoms.lisp: Allow redisplay when getting key
