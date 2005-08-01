@@ -57,7 +57,6 @@
    #:set-region-bounds
    #:count-lines
    #:count-characters
-   #:check-region-query-size
    #:current-buffer
    #:current-point
    #:current-mark
@@ -646,8 +645,11 @@
 
 
 ;; $Log$
-;; Revision 1.1  2003/10/19 08:57:16  gb
-;; Initial revision
+;; Revision 1.2  2005/08/01 10:54:17  gb
+;; Don't export CHECK-REGION-QUERY-SIZE.
+;;
+;; Revision 1.1.1.1  2003/10/19 08:57:16  gb
+;; recovered 0.14 sources
 ;;
 ;; Revision 1.1.2.1  2003/08/10 19:11:33  gb
 ;; New files, imported from upstream CVS as of 03/08/09.
