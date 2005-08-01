@@ -175,23 +175,30 @@
 ;;;
 (defun %i-search (string point trailer direction failure)
   (do* ((curr-point (copy-mark point :temporary))
-	(curr-trailer (copy-mark trailer :temporary)))
+        (curr-trailer (copy-mark trailer :temporary))
+        (doc (hi::buffer-document
+              (hi::line-%buffer (hi::mark-line point)))))
        (nil)
-    (let ((next-key-event (get-key-event *editor-input* t)))
+    (let ((next-key-event
+           (unwind-protect
+                (progn
+                  (hi::document-end-editing doc)
+                  (get-key-event *editor-input* t))
+             (hi::document-begin-editing doc))))
       (case (%i-search-char-eval next-key-event string point trailer
-				 direction failure)
-	(:cancel
-	 (%i-search-echo-refresh string direction failure)
-	 (unless (zerop (length string))
-	   (i-search-pattern string direction)))
-	(:return-cancel
-	 (unless (zerop (length string)) (return :cancel))
-	 (beep))
-	(:control-g
-	 (when failure (return :control-g))
-	 (%i-search-echo-refresh string direction nil)
-	 (unless (zerop (length string))
-	   (i-search-pattern string direction))))
+                                 direction failure)
+        (:cancel
+         (%i-search-echo-refresh string direction failure)
+         (unless (zerop (length string))
+           (i-search-pattern string direction)))
+        (:return-cancel
+         (unless (zerop (length string)) (return :cancel))
+         (beep))
+        (:control-g
+         (when failure (return :control-g))
+         (%i-search-echo-refresh string direction nil)
+         (unless (zerop (length string))
+           (i-search-pattern string direction))))
       (move-mark point curr-point)
       (move-mark trailer curr-trailer))))
 
