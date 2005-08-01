@@ -1191,9 +1191,7 @@
 ;;; will work.  This is done undoably with save1, save2, buf-region, and
 ;;; undo-region.
 ;;;
-(defun lisp-indent-region (region &optional (undo-text "Lisp region indenting"))
-  (check-region-query-size region)
-  (let* ((start (region-start region))
+(defun lisp-indent-region (region &optional (undo-text "Lisp region indenting"))  (let* ((start (region-start region))
          (end (region-end region))
          (buffer (hi::line-%buffer (mark-line start))))
     (with-mark ((m1 start)
