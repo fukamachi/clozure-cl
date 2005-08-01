@@ -1,3 +1,7 @@
+2005-07-31 23:09  bryan
+
+	* tools/asdf.lisp: sync latest version (1.87) from cclan.
+
 2005-07-31 16:55  bryan
 
 	* lib/macros.lisp: check-type: (if string string) === string
