@@ -1,3 +1,79 @@
+2005-08-01 04:55  gb
+
+	* hemlock/src/searchcoms.lisp: Allow redisplay when getting key
+	events during search commands.
+
+2005-08-01 04:54  gb
+
+	* hemlock/src/package.lisp: Don't export CHECK-REGION-QUERY-SIZE.
+
+2005-08-01 04:52  gb
+
+	* hemlock/src/bindings.lisp: Try to ensure that Meta-Space runs
+	"Just One Space".
+
+2005-08-01 04:52  gb
+
+	* hemlock/src/buffer.lisp: First stab at balancing
+	BEGIN/END-EDITING operations around recursive edits.  May still be
+	wrong.
+
+2005-08-01 04:50  gb
+
+	* hemlock/src/fill.lisp: Don't call CHECK-REGION-QUERY-SIZE.
+
+2005-08-01 04:50  gb
+
+	* hemlock/src/interp.lisp: Wrap BEGIN-EDITING/END-EDITING around
+	command processing.
+	
+	The good news is that this suppresses display after every buffer
+	modification.
+	
+	The bad news is that some extended/recursive commands have to do
+	hairy things to allow redisplay to happen.  (The hair mostly has to
+	do with closing the outer BEGIN-EDITING and re-opening it to keep
+	things balanced; sometimes this needs to happen when reading
+	characters from the event queue, since some types of redisplay
+	happen then.)
+	
+	Summary: less hysterical redisplay code, but it may still be
+	suppressed too much; some things that don't really modify the
+	buffer may wrap a MODIFYING-BUFFER around a sequence of lower-
+	level operations, and this may cause the buffer to be marked as
+	modified even when nothing changes.
+
+2005-08-01 04:44  gb
+
+	* hemlock/src/: morecoms.lisp, lispbuf.lisp: Dont do
+	CHECK-REGION-QUERY-SIZE (I think that that's actually the real name
+	...).
+
+2005-08-01 04:43  gb
+
+	* hemlock/src/listener.lisp: Dont do CHECK-REGION-SIZE-QUERY in the
+	"Filter Region" command.
+
+2005-08-01 04:43  gb
+
+	* hemlock/src/lispmode.lisp: Dont do CHECK-REGION-SIZE-QUERY before
+	indenting a region.
+
+2005-08-01 04:40  gb
+
+	* examples/webkit.lisp: Has been edited with the Cocoa/Hemlock
+	editor a lot; indentation differences.
+
+2005-08-01 04:40  gb
+
+	* examples/bridge.lisp: In BUILD-CALL (which might be currently
+	unused), recognize :<BOOL> directly.
+
+2005-08-01 04:38  gb
+
+	* level-0/PPC/ppc-array.lisp: PPC64 %SIMPLE-BIT-BOOLE - advance by
+	8 bytes (not 4) in loop.
+
 2005-07-31 23:09  bryan
 
 	* tools/asdf.lisp: sync latest version (1.87) from cclan.
