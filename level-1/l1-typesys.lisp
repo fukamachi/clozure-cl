@@ -3615,7 +3615,11 @@
 	      (values :complex (min num imag) (max num imag)))
 	    (values :real num num))
       (make-numeric-ctype :class (etypecase num
-				   (integer 'integer)
+				   (integer (if (complexp x)
+                                                (if (integerp (imagpart x))
+                                                    'integer
+                                                    'rational)
+                                                'integer))
 				   (rational 'rational)
 				   (float 'float))
 			  :format (and (floatp num)
