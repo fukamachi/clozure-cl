@@ -160,7 +160,7 @@
         (let* ((dispfun (cdr (assq subchar (cdr info)))))     ; <== WAS char
           (if dispfun
               (funcall dispfun stream subchar numarg)
-              (%err-disp $XNORDISP subchar char)))))))
+              (signal-reader-error stream "Undefined character ~S in a ~S dispatch macro." subchar char)))))))
 
 ;;; This -really- gets initialized later in the file
 (defvar %initial-readtable%
