@@ -1,3 +1,9 @@
+2005-08-02 01:53  bryan
+
+	* level-1/l1-streams.lisp: file-length: switch to typecase and
+	explicitly throw the type-error so we can specify the expected-type
+	as file-stream.
+
 2005-08-01 22:33  bryan
 
 	* level-1/l1-reader.lisp: readtable-case, setf (readtable-case):
