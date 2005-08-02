@@ -399,6 +399,8 @@ terminate the list"
 	     (report-bad-arg end `(integer 0 (,length))))
 	    ((< start 0)
 	     (report-bad-arg start `(integer 0)))
+            ((< end 0)
+             (report-bad-arg end `(integer 0 (,length))))
 	    ((> start end)
 	     (report-bad-arg start `(integer 0 ,end)))
 	    (t end)))))
