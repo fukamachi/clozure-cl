@@ -274,12 +274,16 @@
     t))
 
 (defun readtable-case (readtable)
+  (unless (istruct-typep readtable 'readtable)
+    (report-bad-arg readtable 'readtable))
   (let* ((case (rdtab.case (readtable-arg readtable))))
     (if (symbolp case)
       case
       (%car (rassoc case (readtable-case-keywords) :test #'eq)))))
 
 (defun %set-readtable-case (readtable case)
+  (unless (istruct-typep readtable 'readtable)
+    (report-bad-arg readtable 'readtable))
   (check-type case (member :upcase :downcase :preserve :invert))
   (setf (rdtab.case (readtable-arg readtable)) case))
   
