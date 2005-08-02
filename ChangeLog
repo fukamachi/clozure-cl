@@ -1,3 +1,13 @@
+2005-08-01 20:53  bryan
+
+	* level-1/l1-error-system.lisp: make-condition: arg is a
+	type-specifier, so allow both things like 'arithmetic-error and
+	(find-class 'arithmetic-error).
+
+2005-08-01 20:35  gb
+
+	* level-1/version.lisp: bump.
+
 2005-08-01 17:14  gb
 
 	* level-1/l1-boot-2.lisp: When setting up standard fd-streams,
