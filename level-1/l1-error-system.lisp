@@ -558,13 +558,14 @@
         ((symbolp thing) (apply #'make-condition thing args))
         (t (make-condition type :format-control thing :format-arguments args))))
 
-(defun make-condition (name &rest init-list &aux class)
+(defun make-condition (name &rest init-list)
   "Make an instance of a condition object using the specified initargs."
   (declare (dynamic-extent init-list))
-  (if (and (setq class (find-class name nil))
-           (condition-p (class-prototype class)))
-    (apply #'make-instance class init-list)
-    (error "~S is not a defined condition type name" name)))
+  (let ((class (or (and (symbolp name) (find-class name nil))
+                   name)))
+    (if (condition-p (class-prototype class))
+        (apply #'make-instance class init-list)
+        (error "~S is not a defined condition type name" name))))
 
 (defmethod print-object ((c condition) stream)
   (if *print-escape* 
