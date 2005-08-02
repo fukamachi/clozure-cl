@@ -1,3 +1,8 @@
+2005-08-02 13:59  bryan
+
+	* level-1/l1-clos-boot.lisp: find-method: canonicalize specializers
+	before comparison.
+
 2005-08-02 12:14  bryan
 
 	* level-1/sysutils.lisp: (setf macro-function): since the spec
