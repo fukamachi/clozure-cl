@@ -367,7 +367,7 @@
            (min 0)
            (max (length cfstring-sections-vector)))
       (do* ()
-           ((>= min max))
+           ((> min max))
         (let* ((mid (ash (+ min max) -1))
                (pair (svref cfstring-sections-vector mid))
                (low (car pair))
