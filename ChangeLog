@@ -1,3 +1,9 @@
+2005-08-01 21:33  bryan
+
+	* level-1/l1-aprims.lisp: check-sequence-bounds: report-bad-arg if
+	(< end 0).  the (> start end) clause would catch this, but we want
+	to report end not start in the error message.
+
 2005-08-01 20:53  bryan
 
 	* level-1/l1-error-system.lisp: make-condition: arg is a
