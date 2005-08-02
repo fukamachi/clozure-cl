@@ -1201,8 +1201,7 @@
       (parse-over-block (mark-line m1) (mark-line m2)))
     (hi::check-buffer-modification buffer start)
     (hi::check-buffer-modification buffer end)
-    (hi::modifying-buffer buffer
-       (let* ((first-line (mark-line start))
+    (let* ((first-line (mark-line start))
               (last-line (mark-line end))
               (prev (line-previous first-line))
               (prev-line-info
@@ -1220,7 +1219,7 @@
                (parse-lisp-line-info bol line-info prev-line-info)
                (setq prev-line-info line-info))
              (when (eq line last-line) (return nil))))
-         (make-region-undo :twiddle undo-text buf-region undo-region)))))
+         (make-region-undo :twiddle undo-text buf-region undo-region))))
 
 ;;; INDENT-FOR-LISP -- Internal.
 ;;;
