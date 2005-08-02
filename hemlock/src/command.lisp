@@ -203,6 +203,12 @@
       *target-column*
       (setq *target-column* (mark-column mark))))
 
+(defhvar "Next Line Inserts Newlines"
+    "If true, causes the \"Next Line\" command to insert newlines when
+     moving past the end of the buffer."
+  :value nil)
+
+
 (defcommand "Next Line" (p)
   "Moves the point to the next line.
    With prefix argument, moves the point that many lines down (or up if
@@ -211,16 +217,17 @@
   (let* ((point (current-point))
 	 (target (set-target-column point)))
     (unless (line-offset point (or p 1))
-      (cond ((not p)
-	     (when (same-line-p point (buffer-end-mark (current-buffer)))
-	       (line-end point))
-	     (insert-character point #\newline))
-	    ((minusp p)
-	     (buffer-start point)
-	     (editor-error "No previous line."))
-	    (t
-	     (buffer-end point)
-	     (when p (editor-error "No next line.")))))
+      (when (value next-line-inserts-newlines)
+        (cond ((not p)
+               (when (same-line-p point (buffer-end-mark (current-buffer)))
+                 (line-end point))
+               (insert-character point #\newline))
+              ((minusp p)
+               (buffer-start point)
+               (editor-error "No previous line."))
+              (t
+               (buffer-end point)
+               (when p (editor-error "No next line."))))))
     (unless (move-to-column point target) (line-end point))
     (setf (last-command-type) :line-motion)))
 
