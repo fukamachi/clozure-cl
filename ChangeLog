@@ -1,3 +1,8 @@
+2005-08-02 14:40  bryan
+
+	* level-1/l1-reader.lisp: read-dispatch: signal a reader-error
+	instead of just calling it a reader-error in the error message.
+
 2005-08-02 13:59  bryan
 
 	* level-1/l1-clos-boot.lisp: find-method: canonicalize specializers
