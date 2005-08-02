@@ -2192,7 +2192,7 @@ to replace that class with ~s" name old-class new-class)
 	    (q (%method-qualifiers m))
 	    s)
 	(when (equal q method-qualifiers)
-	  (dolist (spec specializers
+	  (dolist (spec (canonicalize-specializers specializers)
 		   (if (null ss)
 		     (return-from find-method m)
 		     (err)))
