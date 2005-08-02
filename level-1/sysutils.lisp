@@ -402,8 +402,7 @@
   (if (special-operator-p name)
     (error "Can not redefine a special-form: ~S ." name))
   (when (and (fboundp name) (not (macro-function name)))
-    (cerror "Redefine function ~S as a macro."
-            "The function ~S is being redefined as a macro." name))
+    (warn "The function ~S is being redefined as a macro." name))
   (redefine-kernel-function name)
   (fmakunbound name)
   (%macro-have name macro-fun)
