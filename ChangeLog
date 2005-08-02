@@ -1,3 +1,12 @@
+2005-08-02 12:14  bryan
+
+	* level-1/sysutils.lisp: (setf macro-function): since the spec
+	explicitly notes that a symbol with a previous function definition
+	will be overwritten, change the cerror to a warn.
+	
+	like *ignore-extra-close-parenthesis*, there should probably be
+	some variables that let users change clobbering behavior.
+
 2005-08-02 07:47  gb
 
 	* examples/objc-runtime.lisp: Fencepost in CFSTR binary search.
