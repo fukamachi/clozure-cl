@@ -1,3 +1,18 @@
+2005-08-02 07:47  gb
+
+	* examples/objc-runtime.lisp: Fencepost in CFSTR binary search.
+
+2005-08-02 07:47  gb
+
+	* hemlock/src/lispmode.lisp: Don't do MODIFYING-BUFFER around
+	indentation (was an attempt to defer redisplay.)
+
+2005-08-02 07:46  gb
+
+	* hemlock/src/command.lisp: The "Next Line" command doesn't insert
+	newlines at the end of the buffer by default; there's a global
+	Hemlock variable that controls this behavior.
+
 2005-08-02 01:53  bryan
 
 	* level-1/l1-streams.lisp: file-length: switch to typecase and
