@@ -2451,7 +2451,7 @@
   (%probe-file-x (native-translated-namestring path)))
 
 (defun file-length (stream)
-  (etypecase stream
+  (typecase stream
     ;; Don't use an OR type here
     (file-stream (stream-length stream))
     (synonym-stream (file-length
@@ -2459,7 +2459,8 @@
     (broadcast-stream (let* ((last (last-broadcast-stream stream)))
 			(if last
 			  (file-length last)
-			  0)))))
+			  0)))
+    (otherwise (report-bad-arg stream 'file-stream))))
   
 (defun file-position (stream &optional position)
   (when position
