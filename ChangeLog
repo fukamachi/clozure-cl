@@ -1,3 +1,8 @@
+2005-08-01 22:33  bryan
+
+	* level-1/l1-reader.lisp: readtable-case, setf (readtable-case):
+	arg must be a readtable.
+
 2005-08-01 21:33  bryan
 
 	* level-1/l1-aprims.lisp: check-sequence-bounds: report-bad-arg if
