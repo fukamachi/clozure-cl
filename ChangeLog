@@ -1,3 +1,12 @@
+2005-08-03 01:39  bryan
+
+	* level-1/version.lisp: bump.
+
+2005-08-03 01:36  bryan
+
+	* lib/format.lisp: format-fix-aux: skip leading or trailing 0 when
+	number (and sign if @F) would fit the specified width perfectly.
+
 2005-08-02 20:40  bryan
 
 	* lib/pprint.lisp: pprint-tab: only do something if *print-pretty*
