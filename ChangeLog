@@ -1,3 +1,9 @@
+2005-08-03 04:10  gb
+
+	* level-1/l1-error-system.lisp: SIMPLE-STREAM-ERROR's :report
+	method prints the result of applying FORMAT to the control string
+	and arguments, rather than just printing the control string.
+
 2005-08-03 03:05  gb
 
 	* examples/cocoa-editor.lisp: Try to get "revert" working ...
