@@ -348,7 +348,10 @@
 (define-condition simple-stream-error (stream-error simple-condition) () 
   (:report (lambda (c s) 
              (format s "Error on ~s : ~&~a" (stream-error-stream c) 
-                     (simple-condition-format-control c)))))
+                     (apply #'format
+                            nil
+                            (simple-condition-format-control c)
+                            (simple-condition-format-arguments c))))))
 
 
 (define-condition modify-read-only-buffer (error) ()
