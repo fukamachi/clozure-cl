@@ -8,6 +8,12 @@
   (require "HEMLOCK"))
 
 (eval-when (:compile-toplevel :execute)
+  ;; :ALL-IN-COCOA-THREAD selects code that does all rendering
+  ;; in the Cocoa event thread.
+  ;; Something else that could be conditionalized (and might
+  ;; be similarly named) would force all Hemlock commands -
+  ;; as well as rendering and event handling - to happen in
+  ;; the Cocoa thread.
   (pushnew :all-in-cocoa-thread *features*)
   (use-interface-dir :cocoa))
 
@@ -464,13 +470,17 @@
   #+debug
   (#_NSLog #@"begin-editing")
   (incf (slot-value self 'edit-count))
+  #+debug
+  (#_NSLog #@"after beginEditing edit-count now = %d" :int (slot-value self 'edit-count))
   (send-super 'begin-editing))
 
 (define-objc-method ((:void end-editing) hemlock-text-storage)
   #+debug
   (#_NSLog #@"end-editing")
   (send-super 'end-editing)
-  (decf (slot-value self 'edit-count)))
+  (decf (slot-value self 'edit-count))
+  #+debug
+  (#_NSLog #@"after endEditing edit-count now = %d" :int (slot-value self 'edit-count)))
 
 ;;; Return true iff we're inside a "beginEditing/endEditing" pair
 (define-objc-method ((:<BOOL> editing-in-progress) hemlock-text-storage)
@@ -754,6 +764,11 @@
 (defmethod text-view-buffer ((self hemlock-text-view))
   (buffer-cache-buffer (hemlock-buffer-string-cache (send (send self 'text-storage) 'string))))
 
+(define-objc-method ((:void :set-string s)
+                     hemlock-textstorage-text-view)
+  (#_NSLog #@"hemlock-text-view %@ string set to %@" :id self :id s)
+  (send-super :set-string s))
+
 (define-objc-method (((:struct :_<NSR>ange r)
                       :selection-range-for-proposed-range (:<NSR>ange proposed)
                       :granularity (:<NSS>election<G>ranularity g))
@@ -848,12 +863,16 @@
 			    :affinity (:<NSS>election<A>ffinity affinity)
 			    :still-selecting (:<BOOL> still-selecting))
 		     hemlock-text-view)
-    #+debug
+  #+debug 
   (#_NSLog #@"Set selected range called: location = %d, length = %d, affinity = %d, still-selecting = %d"
            :int (pref r :<NSR>ange.location)
            :int (pref r :<NSR>ange.length)
            :<NSS>election<A>ffinity affinity
            :<BOOL> (if still-selecting #$YES #$NO))
+  #+debug
+  (#_NSLog #@"text view string = %@, textstorage string = %@"
+           :id (send self 'string)
+           :id (send (send self 'text-storage) 'string))
   (unless (send (send self 'text-storage) 'editing-in-progress)
     (let* ((d (hemlock-buffer-string-cache (send self 'string)))
            (buffer (buffer-cache-buffer d))
@@ -1381,7 +1400,7 @@
          (hi::*input-transcript* nil)
 	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
          (hemlock::*target-column* 0)
-         (hemlock::*last-comment-start* 0)
+         (hemlock::*last-comment-start* " ")
          (hemlock::*last-search-string* ())
          (hemlock::*last-search-pattern*
             (hemlock::new-search-pattern :string-insensitive :forward "Foo"))
@@ -1521,11 +1540,12 @@
   
 (defun nsstring-to-buffer (nsstring buffer)
   (let* ((document (hi::buffer-document buffer))
-	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+         (region (hi::buffer-region buffer)))
     (setf (hi::buffer-document buffer) nil)
     (unwind-protect
 	 (progn
-	   (hi::delete-region (hi::buffer-region buffer))
+	   (hi::delete-region region)
 	   (hi::modifying-buffer buffer)
 	   (hi::with-mark ((mark (hi::buffer-point buffer) :left-inserting))
              (setf (hi::buffer-external-format buffer)
@@ -1533,6 +1553,7 @@
 )
 	   (setf (hi::buffer-modified buffer) nil)
 	   (hi::buffer-start (hi::buffer-point buffer))
+           (hi::renumber-region region)
 	   buffer)
       (setf (hi::buffer-document buffer) document)))
 
@@ -1551,7 +1572,9 @@
       (setf (hi::buffer-external-format buffer) external-format))
     buffer))
     
-         
+
+
+
 (setq hi::*beep-function* #'(lambda (stream)
 			      (declare (ignore stream))
 			      (#_NSBeep)))
@@ -1600,6 +1623,9 @@
         (@selector "beginEditing")
         :with-object (%null-ptr)
         :wait-until-done t))
+
+(defun document-edit-level (document)
+  (slot-value (slot-value document 'textstorage) 'edit-count))
 
 
 
@@ -1832,6 +1858,52 @@
     (unless (%null-ptr-p doc)
       (setf (slot-value doc 'textstorage) ts
             (hi::buffer-document buffer) doc))))
+
+(define-objc-method ((:<BOOL> :revert-to-saved-from-file filename
+                              :of-type filetype)
+                     hemlock-editor-document)
+  (declare (ignore filetype))
+  #+debug
+  (#_NSLog #@"revert to saved from file %@ of type %@"
+           :id filename :id filetype)
+  (let* ((data (make-objc-instance 'ns:ns-data
+                                   :with-contents-of-file filename))
+         (nsstring (make-objc-instance 'ns:ns-string
+				     :with-data data
+				     :encoding #$NSASCIIStringEncoding))
+         (buffer (hemlock-document-buffer self))
+         (old-length (hemlock-buffer-length buffer))
+         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+         (textstorage (slot-value self 'textstorage))
+         (point (hi::buffer-point buffer))
+         (pointpos (mark-absolute-position point)))
+    (send textstorage 'begin-editing)
+    (send textstorage
+          :edited #$NSTextStorageEditedCharacters
+          :range (ns-make-range 0 old-length)
+          :change-in-length (- old-length))
+    (nsstring-to-buffer nsstring buffer)
+    (let* ((newlen (hemlock-buffer-length buffer)))
+      (send textstorage
+            :edited #$NSTextStorageEditedAttributes
+            :range (ns-make-range 0 0)
+            :change-in-length newlen)
+      (send textstorage
+            :edited #$NSTextStorageEditedCharacters
+            :range (ns-make-range 0 newlen)
+            :change-in-length 0)
+      (let* ((ts-string (send textstorage 'string))
+             (display (hemlock-buffer-string-cache ts-string)))
+        (reset-buffer-cache display) 
+        (update-line-cache-for-index display 0)
+        (move-hemlock-mark-to-absolute-position point
+                                                display
+                                                (min newlen pointpos)))
+      (send textstorage 'end-editing))
+    (hi::document-set-point-position self)
+    (setf (hi::buffer-modified buffer) nil)
+    (hi::queue-buffer-change buffer)
+    t))
          
             
   
@@ -1988,15 +2060,9 @@
   (make-editor-style-map))
 
 (defun hi::scroll-window (textpane n)
-  (let* ((textview (text-pane-text-view textpane)))
-    (unless (%null-ptr-p textview)
-      (let* ((selector (if (>= n 0 )
-                         (@selector "pageDown:")
-                         (@selector "pageUp:"))))
-        (send textview
-              :perform-selector-on-main-thread selector
-              :with-object (%null-ptr)
-              :wait-until-done t)))))
+  (declare (ignore textpane))
+  (let* ((point (hi::current-point)))
+    (or (hi::line-offset point (if (and n (< n 0)) -24 24) 0))))
 
 (defmethod hemlock::center-text-pane ((pane text-pane))
   (send (text-pane-text-view pane)
