@@ -1,3 +1,18 @@
+2005-08-03 03:05  gb
+
+	* examples/cocoa-editor.lisp: Try to get "revert" working ...
+
+2005-08-03 03:04  gb
+
+	* examples/bridge.lisp: Force all things that need to have the
+	class in an OBJC-METHOD-INFO structure to go through the function
+	GET-OBJC-METHOD-INFO-CLASS to do so; make sure that that function
+	handles metaclasses correctly (the failure to do so was causing
+	(SEND x 'name) to fail.)
+	
+	Remove redundant subclasses when generating CASE/COND forms for
+	SEND; prefer COND to use of union types.
+
 2005-08-03 01:39  bryan
 
 	* level-1/version.lisp: bump.
