@@ -1,3 +1,12 @@
+2005-08-02 19:21  bryan
+
+	* level-1/l1-reader.lisp: set-syntax-from-char: certain characters
+	become invalid if from-char is a constituent.  see 2.1.4.2 and
+	figure 2.8.
+	
+	if one of those illegal characters tries to act as a constituent
+	character, signal a reader-error.
+
 2005-08-02 14:40  bryan
 
 	* level-1/l1-reader.lisp: read-dispatch: signal a reader-error
