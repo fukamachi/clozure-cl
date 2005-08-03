@@ -234,7 +234,11 @@
            (push (cons to-char new-tree) (rdtab.alist to-readtable)))
          (if old-to-info
            (setf (rdtab.alist to-readtable) (delq old-to-info (rdtab.alist to-readtable)))))
-       (setf (uvref (rdtab.ttab to-readtable) (char-code to-char)) from-attr))
+       (if (and (= from-attr $cht_cnst)
+                (member to-char '(#\Newline #\Linefeed #\Page #\Return
+                                  #\Space #\Tab #\Backspace #\Rubout)))
+           (setf (uvref (rdtab.ttab to-readtable) (char-code to-char)) $cht_ill)
+           (setf (uvref (rdtab.ttab to-readtable) (char-code to-char)) from-attr)))
       t)))
 
 (defun get-macro-character (char &optional readtable)
@@ -543,7 +547,7 @@
               (stream-unread-char stream char))
             (return ))
           (if (= attr $cht_ill)
-              (%err-disp $XILLCHR char)
+              (signal-reader-error stream "Illegal character ~S." char)
               (if (= attr $cht_sesc)
                   (setq nondots t 
                         escapes (add-note-escape-pos (%read-char-no-eof stream) token escapes))
@@ -654,7 +658,8 @@
          (attrtab (rdtab.ttab readtable)))
     (let* ((attr (%character-attribute firstchar attrtab)))
       (declare (fixnum attr))
-      (if (= attr $cht_ill) (%err-disp $XILLCHR firstchar))
+      (if (= attr $cht_ill)
+          (signal-reader-error stream "Illegal character ~S." firstchar))
       (let* ((vals (multiple-value-list 
                     (if (not (logbitp $cht_macbit attr))
                       (%parse-token stream firstchar dot-ok)
