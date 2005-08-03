@@ -2106,11 +2106,11 @@
   (setq stream (decode-stream-arg stream))
   (when (not (memq kind '(:line :section :line-relative :section-relative)))
     (error "Invalid KIND argument ~A to PPRINT-TAB" kind))
-  (cond ((xp-structure-p stream)
-         (pprint-tab+ kind colnum colinc stream))
-        ((typep stream 'xp-stream)
-         (pprint-tab+ kind colnum colinc (slot-value stream 'xp-structure)))
-        (t (pprint-tab-not-pretty stream colnum colinc (eq kind :section-relative))))
+  (when *print-pretty*
+    (cond ((xp-structure-p stream)
+           (pprint-tab+ kind colnum colinc stream))
+          ((typep stream 'xp-stream)
+           (pprint-tab+ kind colnum colinc (slot-value stream 'xp-structure)))))
   nil)
 
 ;                        ---- COMPILED FORMAT ----
