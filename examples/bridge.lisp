@@ -459,19 +459,7 @@
       (car methods)
       (or 
        (dolist (method methods)
-         (let* ((mclass (or (objc-method-info-class-pointer method)
-                            (setf (objc-method-info-class-pointer method)
-                                  (let* ((c (lookup-objc-class (objc-method-info-class-name method))))
-                                    (if c
-                                      (let* ((meta
-                                              (getf (objc-method-info-flags method) :class)))
-                                        (if meta
-                                          (let* ((id (objc-metaclass-id c)))
-                                            (if id
-                                              (id->objc-metaclass id)))
-                                          (let* ((id (objc-class-id c)))
-                                            (if id
-                                              (id->objc-class id)))))))))))
+         (let* ((mclass (get-objc-method-info-class method)))
            (if (typep o mclass)
              (return method))))
        (error "Can't determine ObjC method type signature for message ~s, object ~s" (objc-message-info-message-name m) o)))))
@@ -632,19 +620,9 @@
                             (get-objc-class-from-declaration (declared-type o env)))))
               (if class
                 (dolist (m methods)
-                  (let* ((mclass (or (objc-method-info-class-pointer m)
-                                     (setf (objc-method-info-class-pointer m)
-                                           (let* ((c (lookup-objc-class (objc-method-info-class-name m))))
-                                             (if c
-                                               (let* ((meta
-                                                       (getf (objc-method-info-flags m) :class)))
-                                                 (if meta
-                                                   (let* ((id (objc-metaclass-id c)))
-                                                     (if id
-                                                       (id->objc-metaclass id)))
-                                                   (let* ((id (objc-class-id c)))
-                                                     (if id
-                                                       (id->objc-class id)))))))))))
+                  (let* ((mclass (or (get-objc-method-info-class m)
+                                     (error "Can't find ObjC class named ~s"
+                                            (objc-method-info-class-name m)))))
                     (when (and class (subtypep class mclass))
                       (return (setq method m))))))))
           (if method
@@ -732,7 +710,27 @@
                             (eq :struct (foreign-record-type-kind target-to))
                             (eq :objc_class (foreign-record-type-name target-to))))))))))
 
-
+(defun unique-objc-classes-in-method-info-list (method-info-list)
+  (if (cdr method-info-list)                     ; if more than 1 class
+    (flet ((subclass-of-some-other-class (c)
+             (let* ((c-class (get-objc-method-info-class c)))
+               (dolist (other method-info-list)
+                 (unless (eq other c)
+                   (when (subtypep c-class (get-objc-method-info-class other))
+                   (return t)))))))
+      (remove-if #'subclass-of-some-other-class method-info-list))
+    method-info-list))
+  
+(defun get-objc-method-info-class (method-info)
+  (or (objc-method-info-class-pointer method-info)
+      (setf (objc-method-info-class-pointer method-info)
+            (let* ((c (lookup-objc-class (objc-method-info-class-name method-info) nil)))
+              (when c
+                (let* ((meta-p (getf (objc-method-info-flags method-info) :class)))
+                  (if meta-p
+                    (with-macptrs ((m (pref c :objc_class.isa)))
+                      (canonicalize-registered-metaclass m))
+                    (canonicalize-registered-class c))))))))
 
 ;;; Generate some sort of CASE or COND to handle an ambiguous message
 ;;; send (where the signature of the FF-CALL depends on the type of the
@@ -749,19 +747,7 @@
                         s
                         super)
   (flet ((method-class-name (m)
-           (let* ((mclass (or (objc-method-info-class-pointer m)
-                                     (setf (objc-method-info-class-pointer m)
-                                           (let* ((c (lookup-objc-class (objc-method-info-class-name m))))
-                                             (if c
-                                               (let* ((meta
-                                                       (getf (objc-method-info-flags m) :class)))
-                                                 (if meta
-                                                   (let* ((id (objc-metaclass-id c)))
-                                                     (if id
-                                                       (id->objc-metaclass id)))
-                                                   (let* ((id (objc-class-id c)))
-                                                     (if id
-                                                       (id->objc-class id)))))))))))
+           (let* ((mclass (get-objc-method-info-class m)))
              (unless mclass
                (error "Can't find class with ObjC name ~s"
                       (objc-method-info-class-name m)))
@@ -773,11 +759,15 @@
                        ,(build-internal-call-from-method-info
                          (caar methods) args vargs receiver msg s super))))
         (clauses `(,(if (cdar methods)
-                        `(or ,@(mapcar #'method-class-name (car methods)))
-                        (method-class-name (caar methods)))
+                        `(or ,@(mapcar #'(lambda (m)
+                                           `(typep ,receiver
+                                             ',(method-class-name m)))
+                                       (unique-objc-classes-in-method-info-list
+                                        (car methods))))
+                        `(typep ,receiver ',(method-class-name (caar methods))))
                    ,(build-internal-call-from-method-info
                      (caar methods) args vargs receiver msg s super))))
-      `(typecase ,receiver
+      `(cond
         ,@(clauses)))))
 
 (defun build-ambiguous-send-form (message-info args vargs o msg svarforms sinitforms s super)
