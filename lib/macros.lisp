@@ -2672,15 +2672,16 @@ are no Forms, OR returns NIL."
     (warn "prefix ~S and per-line-prefix ~S cannot both be specified ~
            in PPRINT-LOGICAL-BLOCK")
     (setq per-line-prefix nil))
-  `(maybe-initiate-xp-printing
-     #'(lambda (,stream-symbol)
-	 (let ((+l ,list)
-	       (+p ,(or prefix per-line-prefix ""))
-	       (+s ,suffix))
-	   (pprint-logical-block+
-	     (,stream-symbol +l +p +s ,(not (null per-line-prefix)) T nil)
-	     ,@ body nil)))
-     (decode-stream-arg ,stream-symbol)))
+  `(let ((*logical-block-p* t))
+     (maybe-initiate-xp-printing
+      #'(lambda (,stream-symbol)
+          (let ((+l ,list)
+                (+p ,(or prefix per-line-prefix ""))
+                (+s ,suffix))
+            (pprint-logical-block+
+                (,stream-symbol +l +p +s ,(not (null per-line-prefix)) T nil)
+              ,@ body nil)))
+      (decode-stream-arg ,stream-symbol))))
 
 
 ;Assumes var and args must be variables.  Other arguments must be literals or variables.

@@ -1261,26 +1261,28 @@
       (:section (setq indented? T))
       (:line-relative (setq relative? T))
       (:section-relative (setq indented? T relative? T)))
-    (let* ((current
-	     (if (not indented?) (LP<-BP xp)
-		 (%i- (TP<-BP xp) (section-start xp))))
-	   (new
-	     (if (zerop colinc)
-		 (if relative? (+ current colnum) (max colnum current))
-		 (cond (relative?
-			(* colinc (floor (+ current colnum colinc -1) colinc)))
-		       ((> colnum current) colnum)
-		       (T (+ colnum
-			     (* colinc
-				(floor (+ current (- colnum) colinc) colinc)))))))
-	   (length (- new current)))
-      (declare (fixnum current new length))
-      (when (plusp length)
-	(if (xp-char-mode xp) (handle-char-mode xp #\space))
-	(let ((end (%i+ (xp-buffer-ptr xp) length)))
-	  (xp-check-size (xp-buffer xp) end #.buffer-min-size #.buffer-entry-size)
-	  (fill (xp-buffer xp) #\space :start (xp-buffer-ptr xp) :end end)
-	  (setf (xp-buffer-ptr xp) end))))))
+    (when (or (not indented?)
+              (and *print-pretty* *logical-block-p*))
+      (let* ((current
+              (if (not indented?) (LP<-BP xp)
+                  (%i- (TP<-BP xp) (section-start xp))))
+             (new
+              (if (zerop colinc)
+                  (if relative? (+ current colnum) (max colnum current))
+                  (cond (relative?
+                         (* colinc (floor (+ current colnum colinc -1) colinc)))
+                        ((> colnum current) colnum)
+                        (T (+ colnum
+                              (* colinc
+                                 (floor (+ current (- colnum) colinc) colinc)))))))
+             (length (- new current)))
+        (declare (fixnum current new length))
+        (when (plusp length)
+          (if (xp-char-mode xp) (handle-char-mode xp #\space))
+          (let ((end (%i+ (xp-buffer-ptr xp) length)))
+            (xp-check-size (xp-buffer xp) end #.buffer-min-size #.buffer-entry-size)
+            (fill (xp-buffer xp) #\space :start (xp-buffer-ptr xp) :end end)
+            (setf (xp-buffer-ptr xp) end)))))))
 
 ;note following is smallest number >= x that is a multiple of colinc
 ;  (* colinc (floor (+ x (1- colinc)) colinc))
@@ -1290,12 +1292,12 @@
   (let ((queue (xp-queue xp))
         (qright (xp-qright xp)))
     (declare (fixnum qright))
-    (do ((ptr (xp-qleft xp) (Qnext ptr)))    ;find sections we are ending
-        ((not (< ptr qright)))	;all but last
+    (do ((ptr (xp-qleft xp) (Qnext ptr))) ;find sections we are ending
+        ((not (< ptr qright)))            ;all but last
       (declare (fixnum ptr))
       (when (and (null (xpq-end queue ptr))
-	         (not (%i> (xp-depth-in-blocks xp) (xpq-depth queue ptr)))
-	         (memq (xpq-type queue ptr) '(:newline :start-block)))
+                 (not (%i> (xp-depth-in-blocks xp) (xpq-depth queue ptr)))
+                 (memq (xpq-type queue ptr) '(:newline :start-block)))
         (setf (xpq-end queue ptr) (- qright ptr))))
     (setf (section-start xp) (TP<-BP xp))
     (when (and (memq kind '(:fresh :unconditional)) (xp-char-mode xp))
@@ -1344,7 +1346,8 @@
         (pop-block-stack xp)))) ;)
 
 (defun pprint-indent+ (kind n xp)
-  (enqueue xp :ind kind n))
+  (when (and *print-pretty* *logical-block-p*)
+    (enqueue xp :ind kind n)))
 
 ; The next function scans the queue looking for things it can do.
 ;it keeps outputting things until the queue is empty, or it finds
@@ -2061,15 +2064,16 @@
    blanks that immediately precede the conditional newline are ommitted
    from the output and indentation is introduced at the beginning of the
    next line. (See PPRINT-INDENT.)"
-  (setq stream (decode-stream-arg stream))
-  (when (not (memq kind '(:linear :miser :fill :mandatory)))
-    (error "Invalid KIND argument ~A to PPRINT-NEWLINE" kind))
-  (cond ((xp-structure-p stream)
-         (pprint-newline+ kind stream))
-        ((typep stream 'xp-stream)
-         (pprint-newline+ kind (slot-value stream 'xp-structure)))
-        (t (pp-newline stream kind)))
-  nil)
+    (when (and *print-pretty* *logical-block-p*)    
+      (setq stream (decode-stream-arg stream))
+      (when (not (memq kind '(:linear :miser :fill :mandatory)))
+        (error "Invalid KIND argument ~A to PPRINT-NEWLINE" kind))
+      (cond ((xp-structure-p stream)
+             (pprint-newline+ kind stream))
+            ((typep stream 'xp-stream)
+             (pprint-newline+ kind (slot-value stream 'xp-structure)))
+            (t (pp-newline stream kind))))
+    nil)
 
 (defun pprint-indent (relative-to n &optional (stream *standard-output*))
   "Specify the indentation to use in the current logical block if STREAM
@@ -2106,7 +2110,8 @@
   (setq stream (decode-stream-arg stream))
   (when (not (memq kind '(:line :section :line-relative :section-relative)))
     (error "Invalid KIND argument ~A to PPRINT-TAB" kind))
-  (when *print-pretty*
+
+  (when (and *print-pretty* *logical-block-p*)
     (cond ((xp-structure-p stream)
            (pprint-tab+ kind colnum colinc stream))
           ((typep stream 'xp-stream)
@@ -2861,11 +2866,12 @@
 ;The pretty-printing directives. "_IW<:>"
 
 (def-format-handler #\_ (start end) (declare (ignore end))
-  (multiple-value-bind (colon atsign) (parse-params start nil)
-    `(pprint-newline+ ,(cond ((and colon atsign) :mandatory)
-			     (colon :fill)
-			     (atsign :miser)
-			     (T :linear)) XP)))
+  (when (and *print-pretty* *logical-block-p*)                    
+    (multiple-value-bind (colon atsign) (parse-params start nil)
+      `(pprint-newline+ ,(cond ((and colon atsign) :mandatory)
+                               (colon :fill)
+                               (atsign :miser)
+                               (T :linear)) XP))))
 
 (def-format-handler #\I (start end) (declare (ignore end))
   (multiple-value-bind (colon atsign params)

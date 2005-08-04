@@ -368,6 +368,7 @@
 ;;; POP-FORMAT-ARG also defined in l1-format
 
 ; in l1-format
+(defvar *logical-block-p* nil)
 (defvar *logical-block-xp* nil)
 (defun pop-format-arg (&aux (args *format-arguments*)(xp *logical-block-xp*))
   (when xp
@@ -420,13 +421,17 @@
 (defformat #\T format-tab (stream colon atsign &rest parms)
   (declare (dynamic-extent parms))
   (with-format-parameters parms ((colnum 1) (colinc 1))
-    (cond ((or (typep stream 'xp-stream)(xp-structure-p stream))
-           (let ((which
-                  (if colon
-                    (if atsign :section-relative :section)
-                    (if atsign :line-relative :line))))
-             (pprint-tab which colnum colinc stream)))
-          (t (pprint-tab-not-pretty stream colnum colinc atsign)))))
+    (cond ((or (typep stream 'xp-stream) (xp-structure-p stream))
+           (let ((kind (if colon
+                           (if atsign :section-relative :section)
+                           (if atsign :line-relative :line))))
+             (cond ((xp-structure-p stream)
+                    (pprint-tab+ kind colnum colinc stream))
+                   ((typep stream 'xp-stream)
+                    (pprint-tab+ kind colnum colinc
+                                 (slot-value stream 'xp-structure))))))
+          ((not colon)
+           (pprint-tab-not-pretty stream colnum colinc atsign)))))
 
 (defun pprint-tab-not-pretty (stream colnum colinc &optional atsign)
   (let* ((position (column stream))
@@ -964,7 +969,8 @@
                       (setq *format-arguments* nil))))
             (*format-control-string* body-string)
             (*format-top-level* (and atsign *format-top-level*)))
-        (let ((xp-struct (cond ((xp-structure-p stream) stream)
+        (let ((*logical-block-p* t)
+              (xp-struct (cond ((xp-structure-p stream) stream)
                                ((typep stream 'xp-stream)
                                 (slot-value stream 'xp-structure)))))
           ; lets avoid unnecessary closures
