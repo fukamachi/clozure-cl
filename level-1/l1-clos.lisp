@@ -1573,6 +1573,8 @@ governs whether DEFCLASS makes that distinction or not.")
 (defmethod reinitialize-instance ((slotd slot-definition) &key &allow-other-keys)
   (error "Can't reinitialize ~s" slotd))
 
+(defmethod (setf generic-function-name) (new-name (gf generic-function))
+  (reinitialize-instance gf :name new-name))
 
 ;;; Are we CLOS yet ?
 
