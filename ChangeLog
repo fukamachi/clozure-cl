@@ -1,3 +1,21 @@
+2005-08-04 15:12  bryan
+
+	* level-1/l1-format.lisp, lib/format.lisp: ansi section 22.3.5.2
+	cleanup -
+	
+	format-find-command: ~:T is not allowed within justification format
+	directives.
+	
+	pprint directives (~I, ~W, ~_, ~:T) are not allowed to coexist in
+	the same format control string as a justification directive
+	(~<...~>) that uses ~:;.
+	
+	*format-pprint* will be T whenever a pprint directive has been
+	seen.
+	
+	*format-justification-semi* will be T whenever a ~<..~:;..~> has
+	been seen.
+
 2005-08-04 05:24  gb
 
 	* level-1/version.lisp: Bump again (mostly so that the date matches
