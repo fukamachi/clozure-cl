@@ -1,3 +1,15 @@
+2005-08-04 05:24  gb
+
+	* level-1/version.lisp: Bump again (mostly so that the date matches
+	binaries.)
+
+2005-08-04 05:23  gb
+
+	* level-1/l1-clos.lisp: Make sure that (SETF GENERIC-FUNCTION-NAME)
+	is implemented, and that it calls REINITIALIZE-INSTANCE to change
+	the slot's value.  (This was caught by Pascal Costanza's
+	mop-features tests.)
+
 2005-08-04 02:35  bryan
 
 	* level-1/version.lisp: bump.
