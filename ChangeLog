@@ -1,3 +1,44 @@
+2005-08-04 02:35  bryan
+
+	* level-1/version.lisp: bump.
+
+2005-08-04 02:31  bryan
+
+	* lib/: format.lisp, macros.lisp, pprint.lisp: changes to recognize
+	a "pretty printing stream" and act accordingly.
+	
+	a pretty printing stream is created with pprint-logical-block or
+	the ~<...~:> format directive.
+	
+	*logical-block-p* will be T if we are inside a logical block.
+	
+	pprint-logical-block, format-logical-block: set *logical-block-p*
+	to T.
+	
+	~_ (conditional newline), pprint-newline, pprint-indent+,
+	pprint-tab: do nothing if not *print-pretty* or not a pretty
+	printing stream.
+	
+	pprint-tab+; do nothing only if ~:T and not *print-pretty* or not a
+	pretty printing stream.
+	
+	~T format parameter only behaves like pprint-tab when ~:T.  change
+	~T handler to skip pprint-tab and call straight to pprint-tab+.
+	
+	notes --
+	
+	to test for a pretty printing stream, it's not enough to just check
+	whether we have an xp-stream or xp-structure.  the other existing
+	symbols like *current-level* or *logical-block-xp* were not
+	consistently non-nil with a pretty printing stream.
+	
+	changes to pprint-xxx+ functions affect both the cl symbol
+	pprint-xxx and its corresponding format handler.
+	
+	pprint-newline+ had to be left alone since it is used by other code
+	that handles justification.  instead i pulled changes out a level
+	to pprint-newline and the ~_ handler.
+
 2005-08-03 04:10  gb
 
 	* level-1/l1-error-system.lisp: SIMPLE-STREAM-ERROR's :report
