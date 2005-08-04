@@ -37,10 +37,16 @@
   "Arguments to the current call of FORMAT")
 
 (defvar *format-original-arguments* ()
- "Saved arglist from top-level FORMAT call for ~* and ~@*")
+  "Saved arglist from top-level FORMAT call for ~* and ~@*")
 
 (defvar *format-stream-stack* ()
   "A stack of string streams for collecting FORMAT output")
+
+(defvar *format-pprint* nil
+  "Has a pprint format directive (~W ~I ~_ ~:T) been seen?")
+
+(defvar *format-justification-semi* nil
+  "Has a ~<...~:;...~> been seen?")
 
 ; prevent circle checking rest args. Really EVIL when dynamic-extent
 (defvar *format-top-level* nil)
@@ -300,7 +306,9 @@
                            (parse-format-operation get-params)
         (when (memq command command-list)
           (return (values start tilde parms colon atsign command)))
-        (when (and evil-commands (memq command  '(#\w #\_ #\i #\W #\I)))
+        (when (and evil-commands
+                   (or (memq command  '(#\w #\_ #\i #\W #\I))
+                       (and colon (memq command '(#\t #\T)))))
           (format-error "Illegal in this context"))
         (case command
           (#\{ (format-nextchar)(format-find-command '(#\})))
@@ -327,7 +335,9 @@
 		       (require-type stream 'stream)))     
 	(if (functionp control-string)
 	  (apply control-string stream format-arguments)
-	  (let ((*format-control-string* (ensure-simple-string control-string)))          
+	  (let ((*format-control-string* (ensure-simple-string control-string))
+                (*format-pprint* nil)
+                (*format-justification-semi* nil))
 	    (cond
 	      ;; Try to avoid pprint overhead in this case.
 	      ((not (position #\~ control-string))
@@ -388,6 +398,9 @@
 ;;; 
 
 (defformat #\W format-write (stream colon atsign)
+  (if *format-justification-semi*
+      (format-error "~~W illegal in this context"))
+  (setq *format-pprint* t)
   (let ((arg (pop-format-arg)))
     (cond (atsign
        (let ((*print-level* nil)
@@ -404,10 +417,16 @@
 (defformat #\I format-indent (stream colon atsign &rest parms)
   (declare (dynamic-extent parms))
   (declare (ignore atsign))
+  (if *format-justification-semi*
+      (format-error "~~I illegal in this context"))
+  (setq *format-pprint* t)
   (with-format-parameters parms ((n 0))
     (pprint-indent (if colon :current :block) n stream)))
 
 (defformat #\_ format-conditional-newline (stream colon atsign)
+  (if *format-justification-semi*
+      (format-error "~~_ illegal in this context"))
+  (setq *format-pprint* t)
   (let ((option
          (cond (atsign
                 (cond (colon  :mandatory)
@@ -420,6 +439,10 @@
 
 (defformat #\T format-tab (stream colon atsign &rest parms)
   (declare (dynamic-extent parms))
+  (when colon
+      (if *format-justification-semi*
+          (format-error "~~:T illegal in this context"))
+      (setq *format-pprint* t))
   (with-format-parameters parms ((colnum 1) (colinc 1))
     (cond ((or (typep stream 'xp-stream) (xp-structure-p stream))
            (let ((kind (if colon
@@ -904,6 +927,9 @@
                                          (make-pad-segs (- width numchars) padsegs)
                                          (if atsign () '(0))))))
                   (when special-arg
+                    (if *format-pprint*
+                        (format-error "Justification illegal in this context."))
+                    (setq *format-justification-semi* t)
                     (with-format-parameters special-parms ((spare 0)
                                                            (linel (stream-line-length stream)))
                       

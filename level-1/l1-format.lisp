@@ -42,7 +42,10 @@
                     *format-arguments*            ;For pop-format-arg
                     *format-control-string*       ;For ~?, ~{
                     *format-index*
-                    *format-length*))
+                    *format-length*
+                    *format-pprint*               ;~I,~W,~_,~:T seen?
+                    *format-justification-semi*   ;~<..~:;..~> seen?
+            ))
 
 (defun pop-format-arg (&aux (args *format-arguments*))
   (if (null args)
