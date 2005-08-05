@@ -1,3 +1,45 @@
+2005-08-05 17:18  gb
+
+	* lisp-kernel/linux64/Makefile: Dont' pass in lisp version stuff
+	anymore.
+	
+	Disable -O2, to make debugging easier.
+
+2005-08-05 17:17  gb
+
+	* lisp-kernel/linux64/elf64ppc.x: Change the subrpims jump table
+	origin to #x5000 by moving the image base to #x4000.
+
+2005-08-05 17:16  gb
+
+	* level-1/ppc-trap-support.lisp: Don't error out, but the
+	LinuxPPC64 execption frame stuff is likely to be very different
+	from its 32-bit counterpart.
+
+2005-08-05 17:15  gb
+
+	* level-1/l1-sockets.lisp: Conditionalize socketcalls for #+(and
+	linuxppc-target ppc64-target).	May need to also conditionalizer
+	their callers in some cases.
+
+2005-08-05 17:14  gb
+
+	* headers64/libc/C/populate.sh: Process ifaddrs.h
+
+2005-08-05 17:14  gb
+
+	* binppc/.cvsignore, l1-pfsls/.cvsignore: Ignore *.p64fsl
+
+2005-08-05 17:14  gb
+
+	* .cvsignore: Ignore ppc-boot*
+
+2005-08-05 17:00  bryan
+
+	* level-1/l1-io.lisp: fix a *print-length* corner case -- printing
+	(A B . C) at *print-length* 2 should print as (A B . C) and not (A
+	B . ...)
+
 2005-08-05 16:01  bryan
 
 	* level-1/l1-io.lisp: write-an-array: no need for "..." when
