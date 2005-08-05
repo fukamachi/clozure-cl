@@ -94,6 +94,16 @@
 	      (pfe.trace-p pfe)))))
 
 
+(defun %callback-function (pointer)
+  (with-lock-grabbed (*callback-lock*)
+    (let* ((index (dotimes (i (length %pascal-functions%))
+                    (when (eql (pfe.routine-descriptor (svref %pascal-functions% i)) pointer)
+                      (return i)))))
+      (when index
+        (let* ((entry (svref %pascal-functions% index)))
+          (pfe.lisp-function entry))))))
+
+  
 (defun %delete-pascal-function (pointer)
   (with-lock-grabbed (*callback-lock*)
     (let* ((index (dotimes (i (length %pascal-functions%))
