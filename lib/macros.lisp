@@ -2273,7 +2273,13 @@ are no Forms, OR returns NIL."
   (define-callback name arglist body env))
 
 (defmacro %get-single-float-from-double-ptr (ptr offset)
-  `(%double-float->short-float (%get-double-float ,ptr ,offset)))
+  (target-arch-case
+   (:ppc32
+    `(%double-float->short-float (%get-double-float ,ptr ,offset)
+      (%alloc-misc 1 ppc32::subtag-single-float)))
+   (:ppc64
+    `(%double-float->short-float (%get-double-float ,ptr ,offset)))
+      ))
 
 (defvar *trace-print-functions* nil)
 (defun %trace-print-arg (stream arg val type)
@@ -2547,7 +2553,7 @@ are no Forms, OR returns NIL."
                   (declare (ignorable ,result))
                   ,@(progn
 		     (when (eq return-type :single-float)
-		       (setq result `(float ,result 0.0d0)))
+		       (setq result `(float ,result 0.0f0)))
 		     nil)
                   (when trace-after
                     (when *trace-print-hook* 
