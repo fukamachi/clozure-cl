@@ -56,9 +56,7 @@
 
   (defmacro with-xp-registers-and-gpr-offset ((xp register-number) (registers offset) &body body)
     (let* ((regform  #+linuxppc-target
-                     (target-arch-case
-                      (:ppc32 `(pref ,xp :ucontext.uc_mcontext.regs))
-                      (:ppc64 fix-this))
+                     `(pref ,xp :ucontext.uc_mcontext.regs)
                      #+darwinppc-target
                      (target-arch-case
                       (:ppc32 `(pref ,xp :ucontext.uc_mcontext.ss))
