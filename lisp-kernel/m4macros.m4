@@ -43,7 +43,9 @@ ifdef([LINUX],[define([SYSstabs],[ELFstabs])
 	       define([LocalLabelPrefix],[.L])
 	       define([StartTextLabel],[.Ltext0])
 	       define([EndTextLabel],[.Letext])
-	       define([EABI],[])])
+               ifdef([PPC64],[
+               define([POWEROPENABI],[])],[
+	       define([EABI],[])])])
 
 /*
   Names exported to (or imported from) C may need leading underscores.
