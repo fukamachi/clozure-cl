@@ -361,8 +361,10 @@
 )
 
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
-  (when (null table) (setq table *IPD*))
-  (let* ((new-conses-with-cars
+  (let* ((table (if (null table)
+                    *IPD*
+                    (require-type table '(or nil pprint-dispatch-table))))
+         (new-conses-with-cars
            (make-hash-table :test #'eq
 	     :size (max (hash-table-count (conses-with-cars table)) 32)))
 	 (new-structures
