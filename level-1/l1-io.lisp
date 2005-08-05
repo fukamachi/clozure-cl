@@ -1164,8 +1164,6 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                  (declare (type fixnum i) (type fixnum l))
                  (cond ((eql i length)
                         (return))
-                       ((eql l 0)
-                        (%write-string "..." stream))
                        (t
                         (stream-write-char stream (if (eql (bit array i) 0) #\0 #\1)))))
                t))
