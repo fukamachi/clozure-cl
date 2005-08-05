@@ -2066,10 +2066,11 @@
    blanks that immediately precede the conditional newline are ommitted
    from the output and indentation is introduced at the beginning of the
    next line. (See PPRINT-INDENT.)"
+    (when (not (memq kind '(:linear :miser :fill :mandatory)))
+      (signal-type-error kind '(member :linear :miser :fill :mandatory) 
+                         "Invalid KIND argument ~A to PPRINT-NEWLINE"))
     (when (and *print-pretty* *logical-block-p*)    
       (setq stream (decode-stream-arg stream))
-      (when (not (memq kind '(:linear :miser :fill :mandatory)))
-        (error "Invalid KIND argument ~A to PPRINT-NEWLINE" kind))
       (cond ((xp-structure-p stream)
              (pprint-newline+ kind stream))
             ((typep stream 'xp-stream)
