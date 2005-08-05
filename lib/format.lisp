@@ -378,7 +378,6 @@
 ;;; POP-FORMAT-ARG also defined in l1-format
 
 ; in l1-format
-(defvar *logical-block-p* nil)
 (defvar *logical-block-xp* nil)
 (defun pop-format-arg (&aux (args *format-arguments*)(xp *logical-block-xp*))
   (when xp

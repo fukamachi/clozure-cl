@@ -297,6 +297,8 @@
       (zl:setq-standard-value scl:*print-pretty-printer* 'gprint:print-object)))
   T)
 
+(defvar *logical-block-p* nil
+  "True if currently inside a logical block.")
 
 (defvar *locating-circularities* nil
   "Integer if making a first pass over things to identify circularities.
