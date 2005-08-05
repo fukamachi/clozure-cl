@@ -891,6 +891,11 @@
     (+ width (* colinc (ceiling (- mincol width) colinc)))
     width))
 
+(defun format-justification-round-columns (width mincol colinc)
+  (if (< width mincol)
+    mincol
+    (+ mincol (* colinc (ceiling (- width mincol) colinc)))))
+
 (defformat #\< format-justification (stream colon atsign &rest parms)
   (declare (dynamic-extent parms))
   (multiple-value-bind (start tilde eparms ecolon eatsign)
@@ -915,32 +920,33 @@
           (format-nextchar)
           (multiple-value-bind (special-arg special-parms segments numsegs numchars)
                                (format-get-segments)
-            (if (null segments) () ;Not clear what to do...
-                (let* ((padsegs (+ (if (or colon (= numsegs 1)) 1 0)
-                                   (1- numsegs)
-                                   (if atsign 1 0)))
-                       (width (format-round-columns (+ numchars (* minpad padsegs))
-                                                    mincol colinc))
-                       (spaces (if (and atsign (not colon) (= numsegs 1)) ;dirty but works
+            (when (= numsegs 1) (setq minpad 0))
+            (when segments
+              (let* ((padsegs (+ (if (or colon (= numsegs 1)) 1 0)
+                                 (1- numsegs)
+                                 (if atsign 1 0)))
+                     (width (format-justification-round-columns (+ numchars (* minpad padsegs))
+                                                  mincol colinc))
+                     (spaces (if (and atsign (not colon) (= numsegs 1)) ;dirty but works
                                  (list 0 (- width numchars))
                                  (append (if (or colon (= numsegs 1)) () '(0))
                                          (make-pad-segs (- width numchars) padsegs)
                                          (if atsign () '(0))))))
-                  (when special-arg
-                    (if *format-pprint*
-                        (format-error "Justification illegal in this context."))
-                    (setq *format-justification-semi* t)
-                    (with-format-parameters special-parms ((spare 0)
-                                                           (linel (stream-line-length stream)))
+                (when special-arg
+                  (if *format-pprint*
+                      (format-error "Justification illegal in this context."))
+                  (setq *format-justification-semi* t)
+                  (with-format-parameters special-parms ((spare 0)
+                                                         (linel (stream-line-length stream)))
                       
-                      (let ((pos (column stream)))
-                        (when (> (+ pos width spare) linel)
-                          (stream-write-entire-string stream special-arg)))))
-                  (do ((segs segments (cdr segs))
-                       (spcs spaces (cdr spcs)))
-                      ((null segs) (dotimes (i (car spcs)) (write-char padchar stream)))
-                    (dotimes (i (car spcs)) (write-char padchar stream))
-                    (stream-write-entire-string stream (car segs)))))))))))
+                    (let ((pos (column stream)))
+                      (when (> (+ pos width spare) linel)
+                        (stream-write-entire-string stream special-arg)))))
+                (do ((segs segments (cdr segs))
+                     (spcs spaces (cdr spcs)))
+                    ((null segs) (dotimes (i (car spcs)) (write-char padchar stream)))
+                  (dotimes (i (car spcs)) (write-char padchar stream))
+                  (stream-write-entire-string stream (car segs)))))))))))
 
 
 (defun format-logical-block (stream colon atsign end-atsign start end &rest parms)
