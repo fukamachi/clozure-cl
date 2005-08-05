@@ -16,6 +16,10 @@
 */
 
 define([rcontext],[r2])
+	
+        __ifdef([LINUX])
+define([rTOC],[r2])
+        __endif        
         
 nbits_in_word = 64
 nbits_in_byte = 8
