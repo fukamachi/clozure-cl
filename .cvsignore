@@ -1,6 +1,6 @@
 *CCL*
 *ccl*
-*boot
+ppc-boot*
 *.pfsl
 *.p64fsl
 *.dfsl
