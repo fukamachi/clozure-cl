@@ -2665,8 +2665,9 @@ are no Forms, OR returns NIL."
 
 (eval-when (compile load eval)
 (defmacro pprint-logical-block ((stream-symbol list
-				 &key (prefix nil) (per-line-prefix nil)
-				      (suffix ""))
+				 &key (prefix "" prefixp)
+                                      (per-line-prefix "" per-line-prefix-p)
+				      (suffix "" suffixp))
 				&body body)
   (cond ((eq stream-symbol nil) (setq stream-symbol '*standard-output*))
 	((eq stream-symbol T) (setq stream-symbol '*terminal-io*)))
@@ -2674,7 +2675,7 @@ are no Forms, OR returns NIL."
     (warn "STREAM-SYMBOL arg ~S to PPRINT-LOGICAL-BLOCK is not a bindable symbol"
 	  stream-symbol)
     (setq stream-symbol '*standard-output*))
-  (when (and prefix per-line-prefix)
+  (when (and prefixp per-line-prefix-p)
     (warn "prefix ~S and per-line-prefix ~S cannot both be specified ~
            in PPRINT-LOGICAL-BLOCK")
     (setq per-line-prefix nil))
@@ -2682,10 +2683,13 @@ are no Forms, OR returns NIL."
      (maybe-initiate-xp-printing
       #'(lambda (,stream-symbol)
           (let ((+l ,list)
-                (+p ,(or prefix per-line-prefix ""))
-                (+s ,suffix))
+                (+p (or (and ,prefixp
+                             (require-type ,prefix 'string))
+                        (and ,per-line-prefix-p
+                             (require-type ,per-line-prefix 'string))))
+                (+s (require-type ,suffix 'string)))
             (pprint-logical-block+
-                (,stream-symbol +l +p +s ,(not (null per-line-prefix)) T nil)
+                (,stream-symbol +l +p +s ,per-line-prefix-p T nil)
               ,@ body nil)))
       (decode-stream-arg ,stream-symbol))))
 
