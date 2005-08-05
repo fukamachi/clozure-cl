@@ -53,6 +53,7 @@ h-to-ffi.sh /usr/include/gnu/stubs.h
 h-to-ffi.sh /usr/include/grp.h
 h-to-ffi.sh /usr/include/iconv.h
 h-to-ffi.sh /usr/include/ieee754.h
+h-to-ffi.sh /usr/include/ifaddrs.h
 h-to-ffi.sh /usr/include/inttypes.h
 h-to-ffi.sh /usr/include/langinfo.h
 h-to-ffi.sh /usr/include/lastlog.h
