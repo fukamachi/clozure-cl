@@ -1,3 +1,13 @@
+2005-08-04 18:53  bryan
+
+	* lib/format.lisp: 
+	format-justification: ignore minpad when there is only one segment.
+	
+	format-justification: algorithm for determining width is different
+	than the one used for ~A, ~S.
+	
+	format-justification-round-columns: new function.
+
 2005-08-04 15:12  bryan
 
 	* level-1/l1-format.lisp, lib/format.lisp: ansi section 22.3.5.2
