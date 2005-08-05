@@ -1,3 +1,10 @@
+2005-08-05 12:49  bryan
+
+	* lib/macros.lisp: 
+	pprint-logical-block:	- error if both :prefix and
+	:per-line-prefix specified.    - typecheck :prefix,
+	:per-line-prefix, and :suffix as 'string.
+
 2005-08-05 01:11  bryan
 
 	* lib/pprint.lisp: 
