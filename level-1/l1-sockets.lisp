@@ -923,11 +923,19 @@ conditions, based on the state of the arguments."
   #+darwinppc-target
   (syscall syscalls::socket domain type protocol)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
     (setf (%get-long params 0) domain
           (%get-long params 4) type
           (%get-long params 8) protocol)
-    (syscall syscalls::socketcall 1 params)))
+    (syscall syscalls::socketcall 1 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+    (setf (%%get-unsigned-longlong params 0) domain
+          (%%get-unsigned-longlong params 8) type
+          (%%get-unsigned-longlong params 16) protocol)
+    (syscall syscalls::socketcall 1 params))
+  )
 
 (defun init-unix-sockaddr (addr path)
   (macrolet ((sockaddr_un-path-len ()
@@ -964,98 +972,164 @@ conditions, based on the state of the arguments."
     (setf (pref sockaddr :sockaddr_in.sin_len) addrlen)
     (syscall syscalls::bind sockfd sockaddr addrlen))
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
     (setf (%get-long params 0) sockfd
           (%get-ptr params 4) sockaddr
           (%get-long params 8) addrlen)
+    (syscall syscalls::socketcall 2 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+          (%get-ptr params 8) sockaddr
+          (%%get-unsigned-longlong params 16) addrlen)
     (syscall syscalls::socketcall 2 params)))
 
 (defun c_connect (sockfd addr len)
   #+darwinppc-target
   (syscall syscalls::connect sockfd addr len)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
      (setf (%get-long params 0) sockfd
            (%get-ptr params 4) addr
            (%get-long params 8) len)
+     (syscall syscalls::socketcall 3 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+     (setf (%%get-unsigned-longlong params 0) sockfd
+           (%get-ptr params 8) addr
+           (%%get-unsigned-longlong params 16) len)
      (syscall syscalls::socketcall 3 params)))
 
 (defun c_listen (sockfd backlog)
   #+darwinppc-target
   (syscall syscalls::listen sockfd backlog)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 8))
      (setf (%get-long params 0) sockfd
            (%get-long params 4) backlog)
+     (syscall syscalls::socketcall 4 params))
+  #+ppc64-target
+  (%stack-block ((params 16))
+     (setf (%%get-unsigned-longlong params 0) sockfd
+           (%%get-unsigned-longlong params 8) backlog)
      (syscall syscalls::socketcall 4 params)))
 
 (defun c_accept (sockfd addrp addrlenp)
   #+darwinppc-target
   (syscall syscalls::accept sockfd addrp addrlenp)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
     (setf (%get-long params 0) sockfd
           (%get-ptr params 4) addrp
           (%get-ptr params 8) addrlenp)
+    (syscall syscalls::socketcall 5 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+          (%get-ptr params 8) addrp
+          (%get-ptr params 16) addrlenp)
     (syscall syscalls::socketcall 5 params)))
 
 (defun c_getsockname (sockfd addrp addrlenp)
   #+darwinppc-target
   (syscall syscalls::getsockname sockfd addrp addrlenp)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
     (setf (%get-long params 0) sockfd
           (%get-ptr params 4) addrp
           (%get-ptr params 8) addrlenp)
+    (syscall syscalls::socketcall 6 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+          (%get-ptr params 8) addrp
+          (%get-ptr params 16) addrlenp)
     (syscall syscalls::socketcall 6 params)))
 
 (defun c_getpeername (sockfd addrp addrlenp)
   #+darwinppc-target
   (syscall syscalls::getpeername sockfd addrp addrlenp)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
     (setf (%get-long params 0) sockfd
           (%get-ptr params 4) addrp
           (%get-ptr params 8) addrlenp)
+    (syscall syscalls::socketcall 7 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+          (%get-ptr params 8) addrp
+          (%get-ptr params 16) addrlenp)
     (syscall syscalls::socketcall 7 params)))
 
 (defun c_socketpair (domain type protocol socketsptr)
   #+darwinppc-target
   (syscall syscalls::socketpair domain type protocol socketsptr)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 16))
     (setf (%get-long params 0) domain
           (%get-long params 4) type
           (%get-long params 8) protocol
           (%get-ptr params 12) socketsptr)
+    (syscall syscalls::socketcall 8 params))
+  #+ppc64-target
+    (%stack-block ((params 32))
+    (setf (%%get-unsigned-longlong params 0) domain
+          (%%get-unsigned-longlong params 8) type
+          (%%get-unsigned-longlong params 16) protocol
+          (%get-ptr params 24) socketsptr)
     (syscall syscalls::socketcall 8 params)))
 
 (defun c_send (sockfd msgptr len flags)
   #+darwinppc-target
   (syscall syscalls::sendto sockfd msgptr len flags (%null-ptr) 0)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 16))
     (setf (%get-long params 0) sockfd
 	  (%get-ptr params  4) msgptr
 	  (%get-long params 8) len
 	  (%get-long params 12) flags)
+    (syscall syscalls::socketcall 9 params))
+  #+ppc64-target
+  (%stack-block ((params 32))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+	  (%get-ptr params  8) msgptr
+	  (%%get-unsigned-longlong params 16) len
+	  (%%get-unsigned-longlong params 24) flags)
     (syscall syscalls::socketcall 9 params)))
 
 (defun c_recv (sockfd bufptr len flags)
   #+darwinppc-target
   (syscall syscalls::recvfrom sockfd bufptr len flags (%null-ptr) (%null-ptr))
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 16))
     (setf (%get-long params 0) sockfd
 	  (%get-ptr params  4) bufptr
 	  (%get-long params 8) len
 	  (%get-long params 12) flags)
+    (syscall syscalls::socketcall 10 params))
+  #+ppc64-target
+  (%stack-block ((params 32))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+	  (%get-ptr params  8) bufptr
+	  (%%get-unsigned-longlong params 16) len
+	  (%%get-unsigned-longlong params 24) flags)
     (syscall syscalls::socketcall 10 params)))
 
 (defun c_sendto (sockfd msgptr len flags addrp addrlen)
   #+darwinppc-target
   (syscall syscalls::sendto sockfd msgptr len flags addrp addrlen)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 24))
     (setf (%get-long params 0) sockfd
 	  (%get-ptr params  4) msgptr
@@ -1063,12 +1137,22 @@ conditions, based on the state of the arguments."
 	  (%get-long params 12) flags
 	  (%get-ptr params  16) addrp
 	  (%get-long params 20) addrlen)
+    (syscall syscalls::socketcall 11 params))
+  #+ppc64-target
+  (%stack-block ((params 48))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+	  (%get-ptr params  8) msgptr
+	  (%%get-unsigned-longlong params 16) len
+	  (%%get-unsigned-longlong params 24) flags
+	  (%get-ptr params  32) addrp
+	  (%%get-unsigned-longlong params 40) addrlen)
     (syscall syscalls::socketcall 11 params)))
 
 (defun c_recvfrom (sockfd bufptr len flags addrp addrlenp)
   #+darwinppc-target
   (syscall syscalls::recvfrom sockfd bufptr len flags addrp addrlenp)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 24))
     (setf (%get-long params 0) sockfd
 	  (%get-ptr params  4) bufptr
@@ -1076,59 +1160,106 @@ conditions, based on the state of the arguments."
 	  (%get-long params 12) flags
 	  (%get-ptr params  16) addrp
 	  (%get-ptr params  20) addrlenp)
+    (syscall syscalls::socketcall 12 params))
+  #+ppc64-target
+  (%stack-block ((params 48))
+    (setf (%get-long params 0) sockfd
+	  (%get-ptr params  8) bufptr
+	  (%get-long params 16) len
+	  (%get-long params 24) flags
+	  (%get-ptr params  32) addrp
+	  (%get-ptr params  40) addrlenp)
     (syscall syscalls::socketcall 12 params)))
 
 (defun c_shutdown (sockfd how)
   #+darwinppc-target
   (syscall syscalls::shutdown sockfd how)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 8))
     (setf (%get-long params 0) sockfd
 	  (%get-long params 4) how)
+    (syscall syscalls::socketcall 13 params))
+  #+ppc64-target
+  (%stack-block ((params 16))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+	  (%%get-unsigned-longlong params 8) how)
     (syscall syscalls::socketcall 13 params)))
 
 (defun c_setsockopt (sockfd level optname optvalp optlen)
   #+darwinppc-target
   (syscall syscalls::setsockopt sockfd level optname optvalp optlen)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 20))
     (setf (%get-long params 0) sockfd
           (%get-long params 4) level
           (%get-long params 8) optname
           (%get-ptr params 12) optvalp
           (%get-long params 16) optlen)
+    (syscall syscalls::socketcall 14 params))
+  #+ppc64-target
+  (%stack-block ((params 40))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+          (%%get-unsigned-longlong params 8) level
+          (%%get-unsigned-longlong params 16) optname
+          (%get-ptr params 24) optvalp
+          (%%get-unsigned-longlong params 32) optlen)
     (syscall syscalls::socketcall 14 params)))
 
 (defun c_getsockopt (sockfd level optname optvalp optlenp)
   #+darwinppc-target
   (syscall syscalls::getsockopt sockfd level optname optvalp optlenp)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 20))
     (setf (%get-long params 0) sockfd
           (%get-long params 4) level
           (%get-long params 8) optname
           (%get-ptr params 12) optvalp
           (%get-ptr params 16) optlenp)
+    (syscall syscalls::socketcall 15 params))
+  #+ppc64-target
+  (%stack-block ((params 40))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+          (%%get-unsigned-longlong params 8) level
+          (%%get-unsigned-longlong params 16) optname
+          (%get-ptr params 24) optvalp
+          (%get-ptr params 32) optlenp)
     (syscall syscalls::socketcall 15 params)))
 
 (defun c_sendmsg (sockfd msghdrp flags)
   #+darwinppc-target
   (syscall syscalls::sendmsg sockfd msghdrp flags)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
     (setf (%get-long params 0) sockfd
 	  (%get-ptr params 4) msghdrp
 	  (%get-long params 8) flags)
+    (syscall syscalls::socketcall 16 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+	  (%get-ptr params 8) msghdrp
+	  (%%get-unsigned-longlong params 16) flags)
     (syscall syscalls::socketcall 16 params)))
 
 (defun c_recvmsg (sockfd msghdrp flags)
   #+darwinppc-target
   (syscall syscalls::recvmsg sockfd msghdrp flags)
   #+linuxppc-target
+  #+ppc32-target
   (%stack-block ((params 12))
     (setf (%get-long params 0) sockfd
 	  (%get-ptr params 4) msghdrp
 	  (%get-long params 8) flags)
+    (syscall syscalls::socketcall 17 params))
+  #+ppc64-target
+  (%stack-block ((params 24))
+    (setf (%%get-unsigned-longlong params 0) sockfd
+	  (%get-ptr params 8) msghdrp
+	  (%%get-unsigned-longlong params 16) flags)
     (syscall syscalls::socketcall 17 params)))
 
 ;;; Return a list of currently configured interfaces, a la ifconfig.
