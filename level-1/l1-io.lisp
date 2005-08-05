@@ -408,7 +408,9 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
         (t
          (write-internal stream (%car object) level nil)
          ;;>> must do a tail-call!!
-         (write-internal-1 stream (%cdr object) level (%i- list-kludge 1)))))
+         (write-internal-1 stream (%cdr object) level (if (consp (%cdr object))
+                                                          (%i- list-kludge 1)
+                                                          list-kludge)))))
 
 (defmethod print-object ((object t) stream)
   (let ((level (%current-write-level% stream))   ; what an abortion.  This should be an ARGUMENT!
