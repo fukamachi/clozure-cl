@@ -1,3 +1,10 @@
+2005-08-04 22:56  bryan
+
+	* lib/format.lisp: last one for 22.3.5.2 compliance?
+	
+	logical-block directives not allowed inside justification
+	directives.
+
 2005-08-04 21:57  bryan
 
 	* lib/format.lisp: more 22.3.5.2 cleanup..
