@@ -1,3 +1,8 @@
+2005-08-05 16:01  bryan
+
+	* level-1/l1-io.lisp: write-an-array: no need for "..." when
+	printing bit-vectors at any length.
+
 2005-08-05 13:23  bryan
 
 	* lib/pprint.lisp: 
