@@ -128,7 +128,11 @@ typedef struct area_list {
 #define CS_OVERFLOW_FORCE_LIMIT ((natural)(-(sizeof(lisp_frame))))
 
 #ifdef LINUX
+#ifdef PPC64
+#define IMAGE_BASE_ADDRESS 0x100000000L
+#else
 #define IMAGE_BASE_ADDRESS 0x31000000
+#endif
 #endif
 #ifdef DARWIN
 #ifdef PPC64
