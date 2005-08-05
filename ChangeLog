@@ -1,3 +1,9 @@
+2005-08-04 21:57  bryan
+
+	* lib/format.lisp: more 22.3.5.2 cleanup..
+	
+	logical-block directives can not co-exist with ~<..~:;..~>.
+
 2005-08-04 20:39  bryan
 
 	* lib/: format.lisp, pprint.lisp: move *logical-block-p* defvar
