@@ -43,7 +43,7 @@
   "A stack of string streams for collecting FORMAT output")
 
 (defvar *format-pprint* nil
-  "Has a pprint format directive (~W ~I ~_ ~:T) been seen?")
+  "Has a pprint format directive (~W ~I ~_ ~:T) or logical-block directive been seen?")
 
 (defvar *format-justification-semi* nil
   "Has a ~<...~:;...~> been seen?")
@@ -961,6 +961,9 @@
                  (cond ((eq *format-index* start)
                         (return t))
                        (t (return nil))))))))
+    (if *format-justification-semi*
+      (format-error "~<...~:> illegal in this context."))
+    (setq *format-pprint* t)
     (let ((format-string *format-control-string*)
           (prefix "")
           (suffix "")
