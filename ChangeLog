@@ -1,3 +1,9 @@
+2005-08-05 13:23  bryan
+
+	* lib/pprint.lisp: 
+	copy-pprint-dispatch: check arg, if specified, is either a
+	pprint-dispatch-table or nil.
+
 2005-08-05 12:49  bryan
 
 	* lib/macros.lisp: 
