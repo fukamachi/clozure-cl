@@ -1,3 +1,8 @@
+2005-08-04 20:39  bryan
+
+	* lib/: format.lisp, pprint.lisp: move *logical-block-p* defvar
+	from format.lisp to pprint.lisp since it gets built first.
+
 2005-08-04 18:53  bryan
 
 	* lib/format.lisp: 
