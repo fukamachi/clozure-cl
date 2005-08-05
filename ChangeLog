@@ -1,3 +1,27 @@
+2005-08-05 01:11  bryan
+
+	* lib/pprint.lisp: 
+	pprint-newline: check type of arg all the time, not just when
+	pretty printing.  if not '(member :linear :miser :fill :mandatory),
+	signal a type-error.
+
+2005-08-05 00:53  gb
+
+	* lib/macros.lisp: %GET-SINGLE-FLOAT-FROM-DOUBLE-PTR has to cons up
+	a SINGLE-FLOAT object on PPC32.
+
+2005-08-05 00:52  gb
+
+	* level-1/l1-callbacks.lisp: (%CALLBACK-FUNCTION pointer) looks up
+	and returns the function on the lisp side of the callback whose
+	foreign side is "pointer".
+
+2005-08-05 00:31  bryan
+
+	* lib/format.lisp: 
+	format-logical-block: if colon modifier, prefix and suffix default
+	to open and close parentheses instead of null string.
+
 2005-08-04 22:56  bryan
 
 	* lib/format.lisp: last one for 22.3.5.2 compliance?
