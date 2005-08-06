@@ -1,3 +1,32 @@
+2005-08-05 17:24  gb
+
+	* lisp-kernel/area.h: Use the same IMAGE_BASE_ADDRESS on LinuxPPC64
+	as on DarwinPPC64.
+
+2005-08-05 17:24  gb
+
+	* lisp-kernel/subprims.s: Replace a few tests for DARWIN with tests
+	for POWEROPENABI.
+
+2005-08-05 17:23  gb
+
+	* lisp-kernel/m4macros.m4: LinuxPPC64 uses (yet another variant of)
+	the PowerOpen ABI, so define POWEROPENABI (and not EABI) when LINUX
+	and PPC64 are both defined.
+	
+	(Lots of assembler source uses e.g. __ifdef([DARWIN]) when it's
+	really just concerned about the type of foreign stack frame to
+	create; this needs to be carefully reviewed.)
+
+2005-08-05 17:21  gb
+
+	* lisp-kernel/constants64.s: r2 is rTOC when in C code on
+	LinuxPPC64.  (it'd always be the same value for all threads, so we
+	can keep it in a global.)
+	
+	(Could assume that LinuxPPC64 implies TLS-based libc, and make the
+	TCR be a __thread variable.)
+
 2005-08-05 17:18  gb
 
 	* lisp-kernel/linux64/Makefile: Dont' pass in lisp version stuff
