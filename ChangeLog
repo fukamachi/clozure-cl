@@ -1,3 +1,9 @@
+2005-08-06 00:54  bryan
+
+	* lib/sequences.lisp: if coerce fails when dealing with vectors,
+	signal a type-error with an expected-type of '(vector ,element-type
+	,length) instead of '(vector ,length).
+
 2005-08-05 22:23  bryan
 
 	* level-1/l1-reader.lisp: correct a comment that said
