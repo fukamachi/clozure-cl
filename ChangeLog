@@ -1,3 +1,9 @@
+2005-08-06 13:10  bryan
+
+	* lib/pprint.lisp: if *pretty-print*, (funcall (formatter ...) ...)
+	wouldn't return the unused args to the caller. 
+	maybe-initiate-xp-printing and xp-print were the culprits.
+
 2005-08-06 11:01  bryan
 
 	* level-1/l1-reader.lisp: #\Backspace and #\Rubout should have
