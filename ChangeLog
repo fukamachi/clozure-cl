@@ -1,3 +1,8 @@
+2005-08-06 11:01  bryan
+
+	* level-1/l1-reader.lisp: #\Backspace and #\Rubout should have
+	invalid constituent traits.
+
 2005-08-06 00:54  bryan
 
 	* lib/sequences.lisp: if coerce fails when dealing with vectors,
