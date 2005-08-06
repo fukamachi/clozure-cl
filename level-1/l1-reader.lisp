@@ -521,7 +521,7 @@
             (%kernel-restart $XNOPKG (subseq string 0 colonpos)))))
     *package*))
 
-;;; Returns 3 values: reversed list of escaped character positions,
+;;; Returns 4 values: reversed list of escaped character positions,
 ;;; explicit package (if unescaped ":" or "::") or nil, t iff any
 ;;; non-dot, non-escaped chars in token, and t if either no explicit
 ;;; package or "::"
