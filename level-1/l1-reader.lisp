@@ -173,6 +173,8 @@
     (uvset ttab (char-code #\\) $cht_sesc)
     (uvset ttab (char-code #\|) $cht_mesc)
     (uvset ttab (char-code #\#) $cht_ntmac)
+    (uvset ttab (char-code #\Backspace) $cht_ill)
+    (uvset ttab (char-code #\Rubout) $cht_ill)
     (%istruct 'readtable ttab macs case)))
 
 (setq *readtable* %initial-readtable%)
