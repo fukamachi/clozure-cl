@@ -1596,34 +1596,31 @@
   (if (xp-structure-p stream) (apply fn stream args)
       (if #-ccl-2 nil #+ccl-2 (typep stream 'xp-stream)
           (apply fn (slot-value stream 'xp-structure) args)
-          (let (;(*abbreviation-happened* nil)
-	        (*locating-circularities* (if *print-circle* 0 nil))
+          (let ((*locating-circularities* (if *print-circle* 0 nil))
 	        (*circularity-hash-table*
-	         (if *print-circle* (get-circularity-hash-table) nil))
-	        ;(*parents* (when (not *print-shared*) (list nil)))
-	        )
-	    (xp-print fn (decode-stream-arg stream) args)
-	    (if *circularity-hash-table*
-	      (free-circularity-hash-table *circularity-hash-table*))
+	         (if *print-circle* (get-circularity-hash-table) nil)))
+	    (prog1 (xp-print fn (decode-stream-arg stream) args)
+              (if *circularity-hash-table*
+                  (free-circularity-hash-table *circularity-hash-table*)))
             #-ccl-2
 	    (when *abbreviation-happened* 
 	      (setq *last-abbreviated-printing*
-		    (eval ; this is insane
+		    (eval               ; this is insane
 		     `(function
 		       (lambda (&optional (stream ',stream))
-		         (let ((*package* ',*package*))                           
-			   (apply #'maybe-initiate-xp-printing
-				  ',fn stream
-				  ',(copy-list args))))))))
+                        (let ((*package* ',*package*))                           
+                          (apply #'maybe-initiate-xp-printing
+                                 ',fn stream
+                                 ',(copy-list args))))))))
 	    ))))
 
 #-symbolics
 (defun xp-print (fn stream args)
   (flet ((do-it (fn stream args)
-           (do-xp-printing fn stream args)
-           (when *locating-circularities*
-             (setq *locating-circularities* nil)
-             (do-xp-printing fn stream args))))           
+           (prog1 (do-xp-printing fn stream args)
+             (when *locating-circularities*
+               (setq *locating-circularities* nil)
+               (do-xp-printing fn stream args)))))
     (cond (*print-readably*
            (let* ((*print-level* nil)
                   (*print-length* nil)
