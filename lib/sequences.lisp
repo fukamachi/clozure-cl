@@ -804,7 +804,7 @@
           (let ((length (array-ctype-length type)))
             (if (and length (neq length (length object)))
               (report-bad-arg (make-array length :element-type element-type)
-                              `(vector ,(length object))))
+                              `(vector ,element-type ,(length object))))
             (coerce-to-uarray object (element-type-subtype element-type) t))))
        ((csubtypep type (specifier-type 'array))
         (let* ((dims (array-ctype-dimensions type)))
