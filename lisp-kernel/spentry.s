@@ -3276,7 +3276,7 @@ _spentry(add_values)
 /* two args: callback-index, args-ptr (a macptr pointing to the args on the stack) */
 _spentry(poweropen_callback)
         __ifdef([rTOC])
-         __(mr 11,rTOC)
+         __(mr r11,rTOC)
         __endif
 	/* Save C argument registers */
 	__(str(r3,c_frame.param0(sp)))
