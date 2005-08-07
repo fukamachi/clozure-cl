@@ -1367,16 +1367,18 @@ are no Forms, OR returns NIL."
 (defmacro with-output-to-string ((var &optional string &key (element-type 'base-char element-type-p))
                                  &body body 
                                  &environment env)
-  (multiple-value-bind (forms decls) (parse-body body env nil)
-    `(let ((,var ,(if string
-                    `(%make-string-output-stream ,string)
-                    `(make-string-output-stream :element-type ,(if element-type-p element-type `'base-char)))))
-       ,@decls
-       (unwind-protect
-         (progn
-           ,@forms
-           ,@(if string () `((get-output-stream-string ,var))))
-         (close ,var)))))
+  (let ((e-type (gensym "e-type")))
+    (multiple-value-bind (forms decls) (parse-body body env nil)
+      `(let* ((,e-type ,(if element-type-p element-type `'base-char))
+              (,var (if ,string
+                        (%make-string-output-stream ,string)
+                        (make-string-output-stream :element-type ,e-type))))
+         ,@decls
+         (unwind-protect
+              (progn
+                ,@forms
+                ,@(if string () `((get-output-stream-string ,var))))
+           (close ,var))))))
 
 (defmacro with-output-to-truncating-string-stream ((var len) &body body
 						   &environment env)
