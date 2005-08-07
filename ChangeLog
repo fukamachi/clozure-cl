@@ -1,3 +1,9 @@
+2005-08-06 20:14  bryan
+
+	* level-1/l1-io.lisp: princ shouldn't rebind *print-circle*.  ~A
+	format directive was calling princ which in turn was rebinding
+	*print-circle*.
+
 2005-08-06 13:10  bryan
 
 	* lib/pprint.lisp: if *pretty-print*, (funcall (formatter ...) ...)
