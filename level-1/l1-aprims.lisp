@@ -833,7 +833,7 @@ terminate the list"
   (do ((plist place (cddr plist)))
       ((null plist) (values nil nil nil))
     (cond ((atom (cdr plist))
-	   (report-bad-arg place '(satisfies plistp)))
+	   (report-bad-arg place '(satisfies proper-list-p)))
 	  ((memq (car plist) indicator-list) ;memq defined in kernel
 	   (return (values (car plist) (cadr plist) plist))))))
 
