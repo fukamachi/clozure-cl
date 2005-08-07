@@ -1,3 +1,10 @@
+2005-08-06 23:06  bryan
+
+	* lib/macros.lisp: 
+	with-output-to-string: element-type needs to be evaluated
+	regardless of use.  pull it into the let and defer which function
+	to call to make the output stream until runtime.
+
 2005-08-06 22:02  bryan
 
 	* lib/macros.lisp: 
