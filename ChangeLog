@@ -1,3 +1,27 @@
+2005-08-07 11:29  gb
+
+	* lisp-kernel/spentry.s: Say "r11" instead of just "11", since
+	doing otherwise would lead to harder stuff.
+
+2005-08-07 11:27  gb
+
+	* lisp-kernel/m4macros.m4: Define rTOC when defining other platform
+	dependencies.
+
+2005-08-07 11:27  gb
+
+	* lisp-kernel/constants64.s: "conditional" definition of rTOC
+	didn't work; do it another way, elsewhere.
+
+2005-08-07 11:26  gb
+
+	* level-1/l1-sockets.lisp: Honestly intend to read the #+/#-
+	section one of these days.
+
+2005-08-07 11:25  gb
+
+	* level-0/PPC/ppc-def.lisp: Fix reference to old subprim names.
+
 2005-08-07 10:58  gb
 
 	* lisp-kernel/linux/.gdbinit: Start to provide 64/32-bit versions
