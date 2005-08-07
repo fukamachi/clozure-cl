@@ -29,15 +29,15 @@
     ;; will do any necessary cache-flushing.)  The idea may be
     ;; incorrect: if we pass an address that's not mapped anymore,
     ;; could we fault ?
-    (stru sp (- (+ #+linuxppc-target ppc32::eabi-c-frame.minsize
-		   #+darwinppc-target target::c-frame.minsize target::lisp-frame.size)) sp)	; make an FFI frame.
+    (stru sp (- (+ #+eabi-target ppc32::eabi-c-frame.minsize
+		   #+poweropen-target target::c-frame.minsize target::lisp-frame.size)) sp)	; make an FFI frame.
     (la imm0 target::misc-data-offset codev)
     (slri len len 2)
-    (str imm0 #+linuxppc-target ppc32::eabi-c-frame.param0 #+darwinppc-target target::c-frame.param0  sp)
-    (str len #+linuxppc-target ppc32::eabi-c-frame.param1 #+darwinppc-target target::c-frame.param1 sp)
+    (str imm0 #+eabi-target ppc32::eabi-c-frame.param0 #+poweropen-target target::c-frame.param0  sp)
+    (str len #+eabi-target ppc32::eabi-c-frame.param1 #+poweropen-target target::c-frame.param1 sp)
     (ref-global imm3 kernel-imports)
     (ldr arg_z target::kernel-import-MakeDataExecutable imm3)
-    (bla #+linuxppc-target .SPeabi-ff-call #+darwinppc-target .SPffcall)
+    (bla #+eabi-target .SPeabi-ff-call #+poweropen-target .SPffcall)
     (li arg_z nil)
     (restore-full-lisp-context)
     (blr)))
@@ -341,6 +341,7 @@
 ;;; FF-call, in LAP.
 #+eabi-target
 (progn
+  #+ppc32-target
 (defppclapfunction %%ff-call ((fploads 8)
                               (single-offset 4)
                               (double-offset 0)
@@ -471,7 +472,7 @@
   (li arg_z ppc32::nil-value)
   (blr))
   
-
+#+ppc32-target
 (defun %ff-call (entry &rest specs-and-vals)
   (declare (dynamic-extent specs-and-vals))
   (let* ((len (length specs-and-vals))
