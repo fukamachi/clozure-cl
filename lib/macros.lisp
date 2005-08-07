@@ -1110,13 +1110,15 @@ are no Forms, OR returns NIL."
   (multiple-value-bind (body decls) (parse-body body env nil)
     (let* ((ftemp (gensym))
            (vtemp (gensym))
+           (ptemp (gensym))
            (result (do-syms-result var resultform)))
       `(block nil
-        (let* ((,var nil))
+        (let* ((,var nil)
+               (,ptemp ,pkg-spec))
           ,@decls
            (flet ((,ftemp (,vtemp) (declare (debugging-function-name nil)) (setq ,var ,vtemp) (tagbody ,@body)))
              (declare (dynamic-extent #',ftemp))
-             (,iteration-function ,pkg-spec #',ftemp))
+             (,iteration-function ,ptemp #',ftemp))
            ,@(when result `(,result)))))))
 
 (defmacro do-symbols ((var &optional pkg result) &body body &environment env)
