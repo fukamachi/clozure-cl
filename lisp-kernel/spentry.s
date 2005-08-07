@@ -1246,7 +1246,7 @@ badkeys:
   the ABIs, but everything that happens after is the same.
 */
         
-_spentry(ffcall)
+_spentry(poweropen_ffcall)
 	__(mflr loc_pc)
 	__(vpush_saveregs())		/* Now we can use save0-save7 to point to stacks */
 	__(mr save0,rcontext)	/* or address globals. */
@@ -1275,7 +1275,12 @@ _spentry(ffcall)
 	__(mtfsf 0xff,fp_zero)	/* zero foreign fpscr */
 	__(li r4,TCR_STATE_FOREIGN)
 	__(str(r4,tcr.valence(rcontext)))
-	__(li rcontext,0)
+        __ifdef([rTOC])
+         __(ld rTOC,8(arg_z))
+         __(ld arg_z,0(arg_z))
+        __else
+	 __(li rcontext,0)
+        __endif
 	__(mtctr arg_z)
 	__(ldr(r3,c_frame.param0(sp)))
 	__(ldr(r4,c_frame.param1(sp)))
@@ -1291,7 +1296,7 @@ _spentry(ffcall)
 	__(bctrl)
 	__(b FF_call_return_common)
 
-_spentry(ffcalladdress)
+_spentry(unused)
         __(b _SPbreakpoint)
 	
 /* Signal an error synchronously, via %ERR-DISP. */
@@ -1344,7 +1349,7 @@ _spentry(stack_cons_rest_arg)
 	__(b _SPheap_cons_rest_arg)
 
 
-_spentry(callbackX)        
+_spentry(poweropen_callbackX)        
 	/* Save C argument registers */
 	__(str(r3,c_frame.param0(sp)))
 	__(str(r4,c_frame.param1(sp)))
@@ -2336,7 +2341,7 @@ _spentry(misc_alloc)
         
 /* almost exactly as above, but "swap exception handling info"
    on exit and return */
-_spentry(ffcallX)
+_spentry(poweropen_ffcallX)
 	__(mflr loc_pc)
 	__(vpush_saveregs())		/* Now we can use save0-save7 to point to stacks */
 	__(mr save0,rcontext)	/* or address globals. */
@@ -3269,7 +3274,10 @@ _spentry(add_values)
 /* On entry, R11->callback-index */
 /* Restore lisp context, then funcall #'%pascal-functions% with */
 /* two args: callback-index, args-ptr (a macptr pointing to the args on the stack) */
-_spentry(callback)
+_spentry(poweropen_callback)
+        __ifdef([rTOC])
+         __(mr 11,rTOC)
+        __endif
 	/* Save C argument registers */
 	__(str(r3,c_frame.param0(sp)))
 	__(str(r4,c_frame.param1(sp)))
@@ -3336,6 +3344,10 @@ _spentry(callback)
 
 	/* Recover lisp thread context. Have to call C code to do so. */
 	__(ref_global(r12,get_tcr))
+        __ifdef([rTOC])
+         __(ld rTOC,8(r12))
+         __(ld r12,0(r12))
+        __endif
 	__(mtctr r12)
         __(li r3,1)
 	__(stru(sp,-(stack_align(c_frame.minsiz))(sp)))
@@ -3611,7 +3623,7 @@ _spentry(lexpr_entry)
   and to non-zero otherwise.  (This only matters on an error return.)
 */
         
-_spentry(darwin_syscall)
+_spentry(poweropen_syscall)
 	__(mflr loc_pc)
 	__(vpush_saveregs())
 	__(ldr(imm1,0(sp)))
@@ -3643,8 +3655,12 @@ _spentry(darwin_syscall)
 	__(ldr(r10,c_frame.param7(sp)))
 	__(unbox_fixnum(r0,arg_z))
 	__(sc)
-	__(b 1f)
-	__(b 9f)
+        __ifdef([LINUX])
+         __(bns+ 9f)
+        __else
+	 __(b 1f)
+	 __(b 9f)
+        __endif
 1:
         __ifdef([PPC64])
          __(neg r3,r3)
@@ -4528,7 +4544,7 @@ _spentry(eabi_callback)
 	A system call can clobber any or all of r9-r12, so we need
 	to save and restore allocptr, allocbase, and tsp.
 	*/
-_spentry(syscall)
+_spentry(eabi_syscall)
 /*
 	We're entered with an eabi_c_frame on the C stack.  There's a
 	lisp_frame reserved underneath it; we'll link it in in a minute.
