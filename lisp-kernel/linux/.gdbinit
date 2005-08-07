@@ -1,29 +1,31 @@
 directory lisp-kernel
 
-define lisp_string
+define header32
+x/x $arg0-6
+end
+
+define header64
+x/x $arg0-12
+end
+
+define lisp_string32
 x/s ($arg0-2)
 end
 
-define pname
+define lisp_string64
+x/s (($arg0)-4)
+end
+
+define pname32
 lisp_string (*($arg0-2))
 end
 
-# show entrypoint of function
-define entry
-if ((($arg0&7)!=6)||((*(char*)$arg0-3)!=0x2a)) then
-printf "Not a function - 0x~08x", $arg0
-else
-x/i 
+# GDB's expression parser seems to have difficulty
+# with this unless the temporary is used.
+define pname64
+set $temp=*((long *)((long)($arg0-4)))
+lisp_string64 $temp
 end
-end
-
-handle SIGILL pass nostop noprint
-handle SIGSEGV pass nostop noprint
-handle SIGBUS pass nostop noprint
-handle SIGFPE pass nostop noprint
-handle SIG41 pass nostop noprint
-handle SIG42 pass nostop noprint
-handle SIGPWR pass nostop noprint
 
 define ada 
  p *all_areas->succ
@@ -33,12 +35,20 @@ define _TCR
  p/x *(TCR *) $arg0
 end
 
-define tcr
+define tcr32
+ _TCR $r13
+end
+
+define tcr64
  _TCR $r2
 end
 
-define regs
+define regs32
  p/x *(((struct pt_regs **)$arg0)[12])
+end
+
+define regs64
+ p/x * (((ExceptionInformation *)$arg0)->uc_mcontext.regs)
 end
 
 define xpGPR
@@ -62,5 +72,13 @@ handle SIGALRM pass
 end
 
 break Bug
+
+handle SIGILL pass nostop noprint
+handle SIGSEGV pass nostop noprint
+handle SIGBUS pass nostop noprint
+handle SIGFPE pass nostop noprint
+handle SIG41 pass nostop noprint
+handle SIG42 pass nostop noprint
+handle SIGPWR pass nostop noprint
 
 display/i $pc
