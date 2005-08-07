@@ -22,6 +22,7 @@
 
 ;;; This is machine-dependent (it conses up a piece of "trampoline" code
 ;;; which calls a subprim in the lisp kernel.)
+#-(and linux poweropen-target)
 (defun make-callback-trampoline (index &optional monitor-exception-ports)
   (declare (ignorable monitor-exception-ports))
   (macrolet ((ppc-lap-word (instruction-form)
@@ -31,8 +32,8 @@
 	     #.(subprim-name->offset '.SPeabi-callback)
 	     #-eabi-target
 	     (if monitor-exception-ports
-	       #.(subprim-name->offset '.SPcallbackX)
-	       #.(subprim-name->offset '.SPcallback)))
+	       #.(subprim-name->offset '.SPpoweropen-callbackX)
+	       #.(subprim-name->offset '.SPpoweropen-callback)))
            (p (malloc 12)))
       (setf (%get-long p 0) (logior (ldb (byte 8 16) index)
                                     (ppc-lap-word (lis 11 ??)))   ; unboxed index
@@ -46,3 +47,17 @@
                :unsigned-fullword 12
                :void)
       p)))
+
+;;; In the 64-bit LinuxPPC ABI, functions are "transfer vectors":
+;;; two-word vectors that contain the entry point in the first word
+;;; and a pointer to the global variables ("table of contents", or
+;;; TOC) the function references in the second word.  We can use the
+;;; TOC word in the transfer vector to store the callback index.
+#+(and linux poweropen-target)
+(defun make-callback-trampoline (index &optional monitor-exception-ports)
+  (declare (ignorable monitor-exception-ports))
+  (let* ((p (malloc 16)))
+    (setf (%%get-unsigned-longlong p 0) .SPpoweropen-callback
+          (%%get-unsigned-longlong p 8) index)
+    p))
+
