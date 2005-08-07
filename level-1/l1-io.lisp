@@ -1714,8 +1714,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
   "Output an aesthetic but not necessarily READable printed representation
   of OBJECT on the specified STREAM."
   (let ((*print-escape* nil)
-        (*print-readably* nil)
-        (*print-circle* nil))
+        (*print-readably* nil))
     (write-1 object stream)))
 
 (defun print (object &optional stream)
