@@ -379,7 +379,7 @@ commit_pages(void *start, size_t len)
     for (i = 0; i < 3; i++) {
       addr = mmap(start, 
 		  len, 
-		  PROT_READ | PROT_WRITE,
+		  PROT_READ | PROT_WRITE | PROT_EXEC,
 		  MAP_PRIVATE | MAP_FIXED | MAP_ANON,
 		  -1,
 		  0);
@@ -430,7 +430,7 @@ extend_readonly_area(unsigned more)
     new_end = (BytePtr)(align_to_power_of_2(a->active+more,12));
     if (mmap(new_start,
              new_end-new_start,
-             PROT_READ | PROT_WRITE,
+             PROT_READ | PROT_WRITE | PROT_EXEC,
              MAP_PRIVATE | MAP_ANON | MAP_FIXED,
              -1,
              0) != new_start) {
