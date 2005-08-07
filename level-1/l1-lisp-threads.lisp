@@ -461,7 +461,9 @@
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
       #+linuxppc-target
-      (let* ((pthread (%get-unsigned-long tcrp target::tcr.osid)))
+      (let* ((pthread (#+ppc32-target %get-unsigned-long
+                       #+ppc64-target %%get-unsigned-longlong
+                                      tcrp target::tcr.osid)))
 	(unless (zerop pthread) pthread))
       #-linuxppc-target
       (let* ((pthread (%get-ptr tcrp target::tcr.osid)))
@@ -472,18 +474,24 @@
 ;;; the pid of the clone()d process; on Darwin, it returns a Mach
 ;;; thread.  On some (near)future version of Linux, the concept
 ;;; may not apply.
+;;; The future is here: on Linux systems using NPTL, this returns
+;;; exactly the same thing that (getpid) does.
+;;; This should probably be retired; even if it does something
+;;; interesting, is the value it returns useful ?
 
 (defun lisp-thread-native-thread (thread)
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      (%get-unsigned-long tcrp target::tcr.native-thread-id))))
+      (#+ppc32-target %get-unsigned-long
+       #+ppc64-target %%get-unsigned-longlong tcrp target::tcr.native-thread-id))))
 
 (defun lisp-thread-suspend-count (thread)
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      (%get-unsigned-long tcrp target::tcr.suspend-count))))
+      (#+ppc32-target %get-unsigned-long
+       #+ppc64-target %%get-unsigned-longlong tcrp target::tcr.suspend-count))))
 
 (defun tcr-clear-preset-state (tcr)
   (let* ((flags (%fixnum-ref tcr target::tcr.flags)))
