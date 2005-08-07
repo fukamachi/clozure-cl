@@ -101,10 +101,15 @@ typedef u_int32_t opcode, *pc;
   of GLIBC_VERSION/GLIBC_MINOR , but the discrepancy exists
   in various flavors of glibc 2.3.)
 */
+#ifdef PPC64
+#define XP_PTREGS(x) ((x)->uc_mcontext.regs)
+#define xpGPRvector(x) ((natural *)(XP_PTREGS(x)))
+#else
 #define XP_PTREGS(x) (((struct pt_regs **)(x))[12])
 #define xpGPRvector(x) (XP_PTREGS(x)->gpr)
+#endif
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
-#define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (UInt32)(new)
+#define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
 #define xpPC(x) (*((pc*)(&(XP_PTREGS(x)->nip))))
 #define set_xpPC(x,new) (xpPC(x) = (pc)(new))
 #define xpLR(x) (*((pc*)(&(XP_PTREGS(x)->link))))
@@ -118,6 +123,7 @@ typedef u_int32_t opcode, *pc;
 #define xpFPSCR(x) (XP_PTREGS(x)->gpr[PT_FPSCR])
 #define xpFPRvector(x) ((double *)(&(XP_PTREGS(x)->gpr[PT_FPR0])))
 #define xpFPR(x,fprno) (xpFPRvector(x)[fprno])
+
 /* 
    Work around a Darwin G5 bug (present in OSX 10.2.7, 10.2.8, and later
    versions.  See below for details.
