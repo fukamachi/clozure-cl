@@ -1,3 +1,13 @@
+2005-08-07 00:39  bryan
+
+	* level-1/l1-aprims.lisp: 
+	get-properties: use '(satisfies proper-list-p) instead of
+	'(satisfies plistp).  plistp will throw a type-error if not a
+	proper list.
+	
+	all occurrences of plistp (there aren't many) should probably use
+	proper-list-p instead.
+
 2005-08-06 23:06  bryan
 
 	* lib/macros.lisp: 
