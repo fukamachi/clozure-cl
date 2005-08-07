@@ -1,3 +1,9 @@
+2005-08-06 22:02  bryan
+
+	* lib/macros.lisp: 
+	expand-package-iteration-macro: pull pkg-spec into the surrounding
+	let* in case its evaluation has an interesting side effect.
+
 2005-08-06 20:14  bryan
 
 	* level-1/l1-io.lisp: princ shouldn't rebind *print-circle*.  ~A
