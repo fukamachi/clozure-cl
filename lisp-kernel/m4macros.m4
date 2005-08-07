@@ -29,7 +29,7 @@ define([BSDstabs],[1])
 define([ELFstabs],[2])
 undefine([EABI])
 undefine([POWEROPENABI])
-
+undefine([rTOC])
 
 ifdef([DARWIN],[define([SYSstabs],[BSDstabs])
                 define([CNamesNeedUnderscores],[])
@@ -44,7 +44,8 @@ ifdef([LINUX],[define([SYSstabs],[ELFstabs])
 	       define([StartTextLabel],[.Ltext0])
 	       define([EndTextLabel],[.Letext])
                ifdef([PPC64],[
-               define([POWEROPENABI],[])],[
+               define([POWEROPENABI],[])
+               define([rTOC],[r2])], [
 	       define([EABI],[])])])
 
 /*
