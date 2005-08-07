@@ -138,18 +138,29 @@
       ;;; and the offset of the #$DT_SONAME string in that string
       ;;; table.
       (loop
-	  (case (pref dynamic-entries :<E>lf32_<D>yn.d_tag)
+	  (case #+ppc32-target (pref dynamic-entries :<E>lf32_<D>yn.d_tag)
+                #+ppc64-target (pref dynamic-entries :<E>lf64_<D>yn.d_tag)
 	    (#. #$DT_NULL (return))
 	    (#. #$DT_SONAME
-		(setq soname-offset (pref dynamic-entries
-					  :<E>lf32_<D>yn.d_un.d_val)))
+		(setq soname-offset
+                      #+ppc32-target (pref dynamic-entries
+                                           :<E>lf32_<D>yn.d_un.d_val)
+                      #+ppc64-target (pref dynamic-entries
+                                           :<E>lf64_<D>yn.d_un.d_val)))
 	    (#. #$DT_STRTAB
 		(%setf-macptr dyn-strings
+                              #+ppc32-target
 			      (pref dynamic-entries
-				    :<E>lf32_<D>yn.d_un.d_ptr))))
+				    :<E>lf32_<D>yn.d_un.d_ptr)
+                              #+ppc64-target
+                              (pref dynamic-entries
+				    :<E>lf64_<D>yn.d_un.d_ptr))))
 	  (%setf-macptr dynamic-entries
 			(%inc-ptr dynamic-entries
-				  (record-length :<E>lf32_<D>yn))))
+                                  #+ppc32-target
+				  (record-length :<E>lf32_<D>yn)
+                                  #+ppc64-target
+                                  (record-length :<E>lf64_<D>yn))))
       (if (and soname-offset
 	       (not (%null-ptr-p dyn-strings)))
 	(%inc-ptr dyn-strings soname-offset)
