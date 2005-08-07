@@ -7416,7 +7416,7 @@
               nextarg)))
         (incf nextarg)))
     (ppc2-form seg ppc::arg_z nil idx)
-    (! syscall) 
+    (! eabi-syscall) 
     (ppc2-close-undo)
     (when vreg
       (if (eq resultspec :void)
@@ -7572,8 +7572,8 @@
     (ppc2-poweropen-foreign-args seg argspecs argvals)
     (ppc2-form seg ppc::arg_z nil idx)
     (if (eq resultspec :signed-doubleword)
-      (! darwin-syscall-s64)
-      (! darwin-syscall))
+      (! poweropen-syscall-s64)
+      (! poweropen-syscall))
     (ppc2-close-undo)
     (ppc2-poweropen-foreign-return seg vreg xfer resultspec)))
 

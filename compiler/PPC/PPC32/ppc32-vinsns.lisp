@@ -3390,7 +3390,7 @@
 
 (define-ppc32-subprim-jump-vinsn (progvrestore) .SPsvar-progvrestore)
 
-(define-ppc32-subprim-call-vinsn (syscall) .SPsyscall)
+(define-ppc32-subprim-call-vinsn (eabi-syscall) .SPeabi-syscall)
 
 (define-ppc32-subprim-call-vinsn (newblocktag) .SPnewblocktag)
 
@@ -3408,21 +3408,21 @@
 
 (define-ppc32-subprim-call-vinsn (makes64) .SPmakes64)
 
-(define-ppc32-vinsn (darwin-syscall :call :subprim-call) (()
+(define-ppc32-vinsn (poweropen-syscall :call :subprim-call) (()
                                                           ())
   (stw ppc::rzero ppc32::c-frame.crsave ppc::sp)
-  (bla .SPdarwin-syscall))
+  (bla .SPpoweropen-syscall))
 
-(define-ppc32-vinsn (darwin-syscall-s64 :call :subprim-call) (()
+(define-ppc32-vinsn (poweropen-syscall-s64 :call :subprim-call) (()
                                                               ())
   (stw ppc::sp ppc32::c-frame.crsave ppc::sp)
-  (bla .SPdarwin-syscall))
+  (bla .SPpoweropen-syscall))
 
 (define-ppc32-subprim-call-vinsn (eabi-ff-call) .SPeabi-ff-call)
 
-(define-ppc32-subprim-call-vinsn (poweropen-ff-call) .SPffcall)
+(define-ppc32-subprim-call-vinsn (poweropen-ff-call) .SPpoweropen-ffcall)
 
-(define-ppc32-subprim-call-vinsn (poweropen-ff-callX) .SPffcallX)
+(define-ppc32-subprim-call-vinsn (poweropen-ff-callX) .SPpoweropen-ffcallX)
 
 
 
