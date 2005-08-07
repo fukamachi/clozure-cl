@@ -1280,6 +1280,14 @@
               (stream-set-column out (1+ (the fixnum cur)))))))
       ch)))
 
+(defmethod stream-read-line ((s echoing-two-way-stream))
+  (let* ((out (two-way-stream-output-stream s)))
+    (multiple-value-bind (string eof)
+        (call-next-method)
+      (unless eof
+        (stream-set-column out 0))
+      (values string eof))))
+
 (defun make-echoing-two-way-stream (in out)
   (make-instance 'echoing-two-way-stream :input-stream in :output-stream out))
 
