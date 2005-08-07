@@ -2141,15 +2141,20 @@
    characters."
   (declare (dynamic-extent arguments))
   (with-terminal-input
+      (clear-input *terminal-io*)
       (loop
-	  (when format-string
-	    (fresh-line *query-io*)
-	    (apply 'format *query-io* format-string arguments))
-	  (princ " (y or n)  " *query-io*)
+        (when format-string
+          (fresh-line *query-io*)
+          (apply 'format *query-io* format-string arguments))
+        (princ " (y or n)  " *query-io*)
 	(setq response (read-char *query-io*))
+        (when (peek-char #\NewLine *query-io* nil)
+          (unread-char #\NewLine *query-io*)
+          (read-char *query-io*))
+        (clear-input *terminal-io*)
 	(if (char-equal response #\y) (return t))
 	(if (char-equal response #\n) (return nil))
-	(format *query-io* "~A" #\Bell))))
+	(format *query-io* "Please answer y or n."))))
 
 (defun yes-or-no-p (&optional format-string &rest arguments &aux response)
   "YES-OR-NO-P is similar to Y-OR-N-P, except that it clears the
@@ -2158,13 +2163,16 @@
   (declare (dynamic-extent arguments))
   (with-terminal-input
       (loop
-	  (when format-string
-	    (fresh-line *query-io*)
-	    (apply 'format *query-io* format-string arguments))
-	  (princ " (yes or no)  " *query-io*)
-	(setq response (read-line *query-io*))
+        (when format-string
+          (fresh-line *query-io*)
+          (apply 'format *query-io* format-string arguments))
+        (princ " (yes or no)  " *query-io*)
+        (format t "~A" #\Bell)
+        (setq response (read-line *query-io*))
+        (clear-input *query-io*)
 	(when response
 	  (setq response (string-trim wsp response))
 	  (if (string-equal response "yes") (return t))
-	  (if (string-equal response "no") (return nil))))))
+	  (if (string-equal response "no") (return nil))
+          (format *query-io* "Please answer yes or no.")))))
 
