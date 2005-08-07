@@ -1072,7 +1072,9 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 (defun write-perverted-string (string stream end type)
   ; type :invert :upcase :downcase :capitalize or :studly
   (declare (fixnum end))
-  (let* ((pool *pname-buffer*)
+  (let* ((readtable *readtable*)
+         (readcase (readtable-case readtable))
+         (pool *pname-buffer*)
          (outbuf-ptr -1)
          (outbuf (pool.data pool))
          (word-start t)
@@ -1108,10 +1110,15 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                   (setq c (char-upcase c)))
                  (:downcase
                   (setq c (char-downcase c)))
-                 (:capitalize (setq c (if word-start 
-                                        (progn (setq word-start nil)
-                                               (char-upcase c))
-                                        (char-downcase c))))))
+                 (:capitalize (setq c (cond (word-start
+                                             (setq word-start nil)
+                                             (if (eq readcase :upcase)
+                                                 c
+                                                 (char-upcase c)))
+                                            (t
+                                             (if (eq readcase :upcase)
+                                                 (char-downcase c)
+                                                 c)))))))
               ((digit-char-p c)(setq word-start nil))
               (t (setq word-start t)))
         (setf (schar outbuf (incf outbuf-ptr)) c)))
