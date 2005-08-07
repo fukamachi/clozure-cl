@@ -37,7 +37,7 @@
     (str len #+eabi-target ppc32::eabi-c-frame.param1 #+poweropen-target target::c-frame.param1 sp)
     (ref-global imm3 kernel-imports)
     (ldr arg_z target::kernel-import-MakeDataExecutable imm3)
-    (bla #+eabi-target .SPeabi-ff-call #+poweropen-target .SPffcall)
+    (bla #+eabi-target .SPeabi-ff-call #+poweropen-target .SPpoweropen-ffcall)
     (li arg_z nil)
     (restore-full-lisp-context)
     (blr)))
@@ -920,10 +920,10 @@
   @loaded
   (vpush buf)
   (bne cr1 @callX)
-  (bla .SPffcall)
+  (bla .SPpoweropen-ffcall)
   (b @called)
   @callX
-  (bla .SPffcallX)
+  (bla .SPpoweropen-ffcallX)
   @called
   (vpop buf)
   (macptr-ptr imm2 buf)
