@@ -230,6 +230,9 @@ _exportfn(C(start_lisp))
         __endif
 	__(mtlr r0)
 	__(ldr(sp,0(sp)))
+         __ifdef([rTOC])
+          __(ld rTOC,c_frame.savetoc(sp))
+         __endif
 	__(blr)
 
 _exportfn(_SPsp_end)
