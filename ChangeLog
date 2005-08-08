@@ -1,3 +1,9 @@
+2005-08-08 00:43  bryan
+
+	* lib/pprint.lisp: 
+	set-indentation-prefix: truncate new-position since fractional ems
+	aren't currently supported.
+
 2005-08-07 23:23  bryan
 
 	* level-1/l1-io.lisp: 
