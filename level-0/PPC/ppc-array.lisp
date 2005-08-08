@@ -472,10 +472,13 @@
     @hard-8-bit
     @hard-16-bit
     (let ((newv save4)
-          (outi save5))
+          (outi save5)
+          (oldlen save6))
       (vpush save4)
       (vpush save5)
+      (vpush save6)
       (mr newv arg_z)
+      (sub oldlen oldsize start-offset)
       (li outi 0)
       @hard-loop
       (mr arg_y oldv)
@@ -485,10 +488,11 @@
       (mr arg_y outi)
       (bla .SPmisc-set)
       (la outi '1 outi)
-      (cmpw cr0 outi oldsize)
+      (cmpw cr0 outi oldlen)
       (la start-offset '1 start-offset)
       (bne @hard-loop)
       (mr arg_z newv)
+      (vpop save6)
       (vpop save5)
       (vpop save4)
       (b @done))))
