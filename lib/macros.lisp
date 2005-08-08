@@ -1919,9 +1919,9 @@ are no Forms, OR returns NIL."
 
 
 
-; A powerful way of defining REPORT-CONDITION...
-; Do they really expect that each condition type has a unique method on PRINT-OBJECT
-; which tests *print-escape* ?  Scary if so ...
+;;; A powerful way of defining REPORT-CONDITION...
+;;; Do they really expect that each condition type has a unique method on PRINT-OBJECT
+;;; which tests *print-escape* ?  Scary if so ...
 
 (defmacro define-condition (name (&rest supers) &optional ((&rest slots)) &body options)
   "DEFINE-CONDITION Name (Parent-Type*) (Slot-Spec*) Option*
@@ -2305,8 +2305,8 @@ are no Forms, OR returns NIL."
 (defun define-callback (name args body env)
   (let* ((stack-word (gensym))
          (stack-ptr (gensym))
-         #+darwinppc-target (fp-arg-regs (gensym))
-         #+darwinppc-target (fp-arg-num 0)
+         #+poweropen-target (fp-arg-regs (gensym))
+         #+poweropen-target (fp-arg-num 0)
          (arg-names ())
          (arg-types ())
 	 (trace-args ())
@@ -2585,7 +2585,7 @@ are no Forms, OR returns NIL."
         `(handler-case ,body
           (,condition-name (,cond) (,error-return-function ,cond ,stack-ptr (%inc-ptr ,stack-ptr ,error-delta)))))
       body)))
-  
+
 
 (defmacro errchk (form)
   (let* ((res (gensym)))
