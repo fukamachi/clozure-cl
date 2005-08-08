@@ -206,7 +206,7 @@
       (%get-ptr regs machine-state-offset))))
 
 (defconstant lr-offset-in-register-context
-  #+linuxppc-target (ash #$PT_LNK 2)
+  #+linuxppc-target (ash #$PT_LNK target::word-shift)
   #+(and darwinppc-target ppc32-target)
   (+ (get-field-offset :mcontext.ss)
      (get-field-offset :ppc_thread_state.lr))
@@ -215,7 +215,7 @@
      (get-field-offset :ppc_thread_state64.lr)))
 
 (defconstant pc-offset-in-register-context
-  #+linuxppc-target (ash #$PT_NIP 2)
+  #+linuxppc-target (ash #$PT_NIP target::word-shift)
   #+(and darwinppc-target ppc32-target)
   (+ (get-field-offset :mcontext.ss)
      (get-field-offset :ppc_thread_state.srr0))
@@ -223,27 +223,27 @@
   (+ (get-field-offset :mcontext64.ss)
      (get-field-offset :ppc_thread_state64.srr0)))
 
-; When a trap happens, we may have not yet created control
-; stack frames for the functions containing PC & LR.
-; If that is the case, we add fake-stack-frame's to *fake-stack-frames*
-; There are 4 cases:
-;
-; PC in FN
-;   Push 1 stack frame: PC/FN
-;   This might miss one recursive call, but it won't miss any variables
-; PC in NFN
-;   Push 2 stack frames:
-;   1) PC/NFN/VSP
-;   2) LR/FN/VSP
-;   This might think some of NFN's variables are part of FN's stack frame,
-;   but that's the best we can do.
-; LR in FN
-;   Push 1 stack frame: LR/FN
-; None of the above
-;   Push no new stack frames
-;
-; The backtrace support functions in "ccl:l1;ppc-stack-groups.lisp" know how
-; to find the fake stack frames and handle them as arguments.
+;;; When a trap happens, we may have not yet created control
+;;; stack frames for the functions containing PC & LR.
+;;; If that is the case, we add fake-stack-frame's to *fake-stack-frames*
+;;; There are 4 cases:
+;;;
+;;; PC in FN
+;;;   Push 1 stack frame: PC/FN
+;;;   This might miss one recursive call, but it won't miss any variables
+;;; PC in NFN
+;;;   Push 2 stack frames:
+;;;   1) PC/NFN/VSP
+;;;   2) LR/FN/VSP
+;;;   This might think some of NFN's variables are part of FN's stack frame,
+;;;   but that's the best we can do.
+;;; LR in FN
+;;;   Push 1 stack frame: LR/FN
+;;; None of the above
+;;;   Push no new stack frames
+;;;
+;;; The backtrace support functions in "ccl:l1;l1-lisp-threads.lisp" know how
+;;; to find the fake stack frames and handle them as arguments.
 (defun funcall-with-xp-stack-frames (xp trap-function thunk)
   (cond ((null trap-function)
          ; Maybe inside a subprim from a lisp function
@@ -286,19 +286,19 @@
 
 
 
-;; Enter here from handle-trap in "lisp-exceptions.c".
-;; xp is a pointer to an ExceptionInformationPowerPC record.
-;; the-trap is the trap instruction that got us here.
-;; fn-reg is either fn, nfn or 0. If it is fn or nfn, then
-;; the trap occcurred in that register's code vector.
-;; If it is 0, then the trap occurred somewhere else.
-;; pc-index is either the index in fn-reg's code vector
-;; or, if fn-reg is 0, the address of the PC at the trap instruction.
-;; This code parallels the trap decoding code in
-;; "lisp-exceptions.c" that runs if (symbol-value 'cmain)
-;; is not a macptr.
-;; Some of these could probably call %err-disp instead of error,
-;; but I was too lazy to look them up.
+;;; Enter here from handle-trap in "lisp-exceptions.c".
+;;; xp is a pointer to an ExceptionInformationPowerPC record.
+;;; the-trap is the trap instruction that got us here.
+;;; fn-reg is either fn, nfn or 0. If it is fn or nfn, then
+;;; the trap occcurred in that register's code vector.
+;;; If it is 0, then the trap occurred somewhere else.
+;;; pc-index is either the index in fn-reg's code vector
+;;; or, if fn-reg is 0, the address of the PC at the trap instruction.
+;;; This code parallels the trap decoding code in
+;;; "lisp-exceptions.c" that runs if (symbol-value 'cmain)
+;;; is not a macptr.
+;;; Some of these could probably call %err-disp instead of error,
+;;; but I was too lazy to look them up.
 
 #+ppc32-target
 (defcallback xcmain (:without-interrupts t
