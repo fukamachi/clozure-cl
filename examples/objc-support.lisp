@@ -66,9 +66,10 @@
 ;;; the _setjmp.h header file in the Darwin LibC source.
 
 (defconstant JMP-lr #x54 "link register (return address) offset in jmp_buf")
-(defconstant JMP-ctr #x5c "count register jmp_buf offset")
+#|(defconstant JMP-ctr #x5c "count register jmp_buf offset")|#
 (defconstant JMP-sp 0 "stack pointer offset in jmp_buf")
 (defconstant JMP-r13 8 "offset of r13 (which we clobber) in jmp_buf")
+(defconstant JMP-r14 12 "offset of r14 (which we also clobber) in jmp_buf")
 
 ;;; A malloc'ed pointer to two words of machine code.  The first
 ;;; instruction (rather obviously) copies r13 to r4.  A C function
@@ -84,14 +85,15 @@
                                        ,instruction-form)))
                            0) 0)))
   (defloadvar *setjmp-catch-lr-code*
-      (let* ((p (malloc 8)))
-        (setf (%get-unsigned-long p 0) (ppc-lap-word (mr 4 13))
-              (%get-unsigned-long p 4) (ppc-lap-word (bctr)))
+      (let* ((p (malloc 12)))
+        (setf (%get-unsigned-long p 0) (ppc-lap-word (mtctr 14))
+              (%get-unsigned-long p 4) (ppc-lap-word (mr 4 13))
+              (%get-unsigned-long p 8) (ppc-lap-word (bctr)))
         ;;; Force this code out of the data cache and into memory, so
         ;;; that it'll get loaded into the icache.
         (ff-call (%kernel-import #.target::kernel-import-makedataexecutable) 
                  :address p 
-                 :unsigned-fullword 8
+                 :unsigned-fullword 12
                  :void)
         p)))
 
@@ -111,7 +113,7 @@
   (%set-object jmp-buf JMP-sp c-frame)
   (%set-object jmp-buf JMP-r13 catch-frame)
   (setf (%get-ptr jmp-buf JMP-lr) *setjmp-catch-lr-code*
-        (%get-ptr jmp-buf JMP-ctr) throw-to-catch-frame)
+        (%get-ptr jmp-buf JMP-r14) throw-to-catch-frame)
   t)
 
 )
