@@ -1504,9 +1504,8 @@
         (setf (section-start-line xp) (xp-line-no xp))))))
 
 (defun set-indentation-prefix (xp new-position)
-  (declare (fixnum new-position))
-  (let ((new-ind (max (non-blank-prefix-ptr xp) new-position)))
-    (declare (fixnum max new-position))
+  (let ((new-ind (max (non-blank-prefix-ptr xp) (truncate new-position))))
+    (declare (fixnum new-ind))
     (setf (prefix-ptr xp) (initial-prefix-ptr xp))
     (xp-check-size (xp-prefix xp) new-ind #.prefix-min-size #.prefix-entry-size)
     (when (%i> new-ind (prefix-ptr xp))
