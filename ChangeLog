@@ -1,3 +1,9 @@
+2005-08-07 17:29  bryan
+
+	* level-1/l1-io.lisp: 
+	write-perverted-string: the :capitalize case (har har) requires
+	slightly different behavior if the readtable case is :downcase.
+
 2005-08-07 11:29  gb
 
 	* lisp-kernel/spentry.s: Say "r11" instead of just "11", since
