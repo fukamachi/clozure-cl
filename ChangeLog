@@ -1,3 +1,8 @@
+2005-08-07 23:23  bryan
+
+	* level-1/l1-io.lisp: 
+	(print-object standard-object ..): add *print-level* check.
+
 2005-08-07 17:29  bryan
 
 	* level-1/l1-io.lisp: 
