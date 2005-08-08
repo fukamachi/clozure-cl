@@ -1,3 +1,12 @@
+2005-08-08 17:04  gb
+
+	* examples/objc-support.lisp: Don't assume that the CTR gets saved
+	in a jmp_buf (it appears not to be under Tiger, which causes the
+	whole %associate-jmp-buf-with-catch-frame hack to fail.) Instead,
+	set r14 in the jmp_buf to THROW-TO-CATCH-FRAME's address, and add
+	an extra instruction to *SETJMP-CATCH-LR-CODE* to copy r14 to the
+	CTR.
+
 2005-08-08 05:45  gb
 
 	* lisp-kernel/linux/.gdbinit: Ignore SIG40.
