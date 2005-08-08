@@ -1250,15 +1250,15 @@
 		    (if (<= nbits 64)
 		      `(#\l)
 		      '(#\?)))))))))))
-    ((:struct :union) #+linuxppc-target `(#\a)
-     #+darwinppc-target (if return-value-p `(#\a)
+    ((:struct :union) #+eabi-target `(#\a)
+     #+poweropen-target (if return-value-p `(#\a)
 			  `(#\r ,@(encode-name (ffi-struct-reference (cadr spec))))))
     (:typedef
      (let* ((typedef (cadr spec))
 	    (type (ffi-typedef-type typedef)))
        (if (or return-value-p
 	       (not (member (car type) '(:struct :union)))
-	       #+linuxppc-target t)
+	       #+eabi-target t)
 	 (encode-ffi-arg-type type)
 	 `(#\t ,@(encode-name (ffi-typedef-name typedef))))))
     (:pointer
