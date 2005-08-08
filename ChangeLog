@@ -1,3 +1,65 @@
+2005-08-08 05:45  gb
+
+	* lisp-kernel/linux/.gdbinit: Ignore SIG40.
+
+2005-08-08 05:45  gb
+
+	* lisp-kernel/thread_manager.c: Linux thread stack size stuff wants
+	parameters to be of natural word size.
+
+2005-08-08 05:44  gb
+
+	* lib/macros.lisp: Conditionalize on EABI/POWEROPEN ABI, not
+	Linux/Darwin in DEFINE-CALLBACK, too.
+
+2005-08-08 05:44  gb
+
+	* lib/db-io.lisp: Conditionalize on EABI/POWEROPEN ABI, not
+	Linux/Darwin.
+
+2005-08-08 05:43  gb
+
+	* level-1/ppc-trap-support.lisp: Fix a few LinuxPPC64 constants.
+	Can do callbacks now, but may still be bugs.
+
+2005-08-08 05:42  gb
+
+	* level-1/ppc-callback-support.lisp: Fix type: #+LINUX-PPC-TARGET,
+	not #+LINUX.
+
+2005-08-08 05:42  gb
+
+	* level-0/PPC/ppc-float.lisp: %GET-FP-ARG-REGS is
+	#+POWEROPEN-TARGET, not #+DARWINPPC-TARGET.
+	
+	Add a %LOAD-FP-ARG-REGS, for runtim %FF-CALL implementation.
+
+2005-08-08 05:40  gb
+
+	* level-0/PPC/ppc-array.lisp: Handle part of the hard case in
+	32-bit %EXTEND-VECTOR.	I think that this was causing a 32-bit
+	VECTOR-PUSH-EXTEND test to fail, but VECTOR-PUSH-EXTEND can't
+	always use %EXTEND-VECTOR, anyway.
+
+2005-08-08 05:39  gb
+
+	* level-0/l0-init.lisp: Add :POWEROPEN-TARGET to *FEATURES* if it
+	was there at compile-time (e.g., if it was on
+	BACKEND-TARGET-SPECIFIC-FEATURES of the target backend.)
+
+2005-08-08 05:37  gb
+
+	* level-0/l0-array.lisp: Define %UVECTOR-REPLACE, intended to
+	handle REPLACE when both args are vectors of the same element type.
+	
+	Fix a few fenceposts/bugs in VECTOR-PUSH-EXTEND: if old vector size
+	is 0, ensure that new vector size is non-zero (4, arbitrarily.) 
+	When explicitly displaced, we may not be displaced to the entire
+	vector, so using %EXTEND-VECTOR to do the copying can't work (use
+	%UVECTOR-REPLACE instead.)  After extending, the vector is no
+	longer explicitly displaced, so clear the bit that claims that it
+	is.
+
 2005-08-08 00:43  bryan
 
 	* lib/pprint.lisp: 
