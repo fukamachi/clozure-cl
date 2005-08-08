@@ -288,6 +288,85 @@
               (uvref data (the fixnum (+ fill offset))) elt)
         fill))))
 
+;;; Implement some of the guts of REPLACE, where the source and target
+;;; sequence have the same type (and we might be able to BLT things
+;;; around more quickly because of that.)
+;;; Both TARGET and SOURCE are (SIMPLE-ARRAY (*) *), and all of the
+;;; indices are fixnums and in bounds.
+(defun %uvector-replace (target target-start source source-start n typecode)
+  (declare (fixnum target-start n source-start n typecode)
+           (optimize (speed 3) (safety 0)))
+  (ecase typecode
+    (#.target::subtag-simple-vector
+     (if (and (eq source target)
+              (> target-start source-start))
+       (do* ((i 0 (1+ i))
+             (source-pos (1- (the fixnum (+ source-start n)))
+                         (1- source-pos))
+             (target-pos (1- (the fixnum (+ target-start n)))
+                         (1- target-pos)))
+            ((= i n))
+         (declare (fixnum i source-pos target-pos))
+         (setf (svref target target-pos) (svref source source-pos)))
+       (dotimes (i n)
+         (setf (svref target target-start) (svref source source-start))
+         (incf target-start)
+         (incf source-start))))
+    (#.target::subtag-bit-vector
+     (if (and (eq source target)
+              (> target-start source-start))
+       (do* ((i 0 (1+ i))
+             (source-pos (1- (the fixnum (+ source-start n)))
+                         (1- source-pos))
+             (target-pos (1- (the fixnum (+ target-start n)))
+                         (1- target-pos)))
+            ((= i n))
+         (declare (fixnum i source-pos target-pos))
+         (setf (sbit target target-pos) (sbit source source-pos)))
+       (dotimes (i n)
+         (setf (sbit target target-start) (sbit source source-start))
+         (incf target-start)
+         (incf source-start))))
+    ;; All other cases can be handled with %COPY-IVECTOR-TO-IVECTOR,
+    ;; which knows how to handle overlap
+    ((#.target::subtag-s8-vector
+      #.target::subtag-u8-vector
+      #.target::subtag-simple-base-string)
+     (%copy-ivector-to-ivector source
+                               source-start
+                               target
+                               target-start
+                               n))
+    ((#.target::subtag-s16-vector
+      #.target::subtag-u16-vector)
+     (%copy-ivector-to-ivector source
+                               (the fixnum (* source-start 2))
+                               target
+                               (the fixnum (* target-start 2))
+                               (the fixnum (* n 2))))
+    ((#.target::subtag-s32-vector
+      #.target::subtag-u32-vector)
+     (%copy-ivector-to-ivector source
+                               (the fixnum (* source-start 4))
+                               target
+                               (the fixnum (* target-start 4))
+                               (the fixnum (* n 4))))
+    ((#.target::subtag-double-float-vector
+      #+ppc64-target ppc64::subtag-s64-vector
+      #+ppc64-target ppc64::subtag-u64-vector)
+     (%copy-ivector-to-ivector source
+                               (the fixnum
+                                 (+ (the fixnum (- target::misc-dfloat-offset
+                                                   target::misc-data-offset))
+                                    (the fixnum (* source-start 8))))
+                               target
+                               (the fixnum
+                                 (+ (the fixnum (- target::misc-dfloat-offset
+                                                   target::misc-data-offset))
+                                    (the fixnum (* target-start 8))))
+                               (the fixnum (* n 8)))))
+  target)
+
 (defun vector-push-extend (elt vector &optional (extension nil extp))
   (when extp
     (unless (and (typep extension 'fixnum)
@@ -299,15 +378,21 @@
     (multiple-value-bind (data offset) (%array-header-data-and-offset vector)
       (declare (fixnum offset))
       (if (= fill len)
-        (progn
-          (unless (logbitp $arh_adjp_bit (the fixnum (%svref vector target::arrayH.flags-cell)))
+        (let* ((flags (%svref vector target::arrayH.flags-cell)))
+          (declare (fixnum flags))
+          (unless (logbitp $arh_adjp_bit flags)
             (%err-disp $XMALADJUST vector))
-          (let* ((new-size (+ len (the fixnum (or extension
-                                                  (the fixnum (1+ (ash (the fixnum len) -1)))))))
-                 (new-vector (%extend-vector offset data new-size)))
+          (let* ((new-size (max
+                            (+ len (the fixnum (or extension
+                                                  (the fixnum (1+ (ash (the fixnum len) -1))))))
+                            4))
+                 (typecode (typecode data))
+                 (new-vector (%alloc-misc new-size typecode)))
+            (%uvector-replace new-vector 0 data offset fill typecode)
             (setf (%svref vector target::vectorH.data-vector-cell) new-vector
                   (%svref vector target::vectorH.displacement-cell) 0
                   (%svref vector target::vectorH.physsize-cell) new-size
+                  (%svref vector target::vectorH.flags-cell) (bitclr $arh_exp_disp_bit flags)
                   (uvref new-vector fill) elt)))
         (setf (uvref data (the fixnum (+ offset fill))) elt))
       (setf (%svref vector target::vectorH.logsize-cell) (the fixnum (1+ fill))))
