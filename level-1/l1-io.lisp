@@ -694,18 +694,19 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 ;;;; ----------------------------------------------------------------------
 ;;;; CLOSsage
 
-;;>> Doesn't do *print-level* truncation
 (defmethod print-object ((instance standard-object) stream)
-  (print-unreadable-object (instance stream :identity t)
-    (let* ((class (class-of instance))
-           (class-name (class-name class)))
-      (cond ((not (and (symbolp class-name)
-                       (eq class (find-class class-name))))
-             (%write-string "An instance of" stream)
-             (pp-space stream)
-             (print-object class stream))
-            (t
-             (write-a-symbol class-name stream))))))
+  (if (%i<= %current-write-level% 0)    ; *print-level* truncation
+      (stream-write-entire-string stream "#")
+      (print-unreadable-object (instance stream :identity t)
+        (let* ((class (class-of instance))
+               (class-name (class-name class)))
+          (cond ((not (and (symbolp class-name)
+                           (eq class (find-class class-name))))
+                 (%write-string "An instance of" stream)
+                 (pp-space stream)
+                 (print-object class stream))
+                (t
+                 (write-a-symbol class-name stream)))))))
 
 (defmethod print-object ((method standard-method) stream)
   (print-method method stream (%class.name (class-of method))))
