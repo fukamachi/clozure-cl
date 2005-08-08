@@ -156,11 +156,11 @@ wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
 #ifdef LINUX
   struct timespec q;
   gettimeofday((struct timeval *)&q, NULL);
-  q.tv_nsec *= 1000;
+  q.tv_nsec *= 1000L;
 
   q.tv_nsec += nanos;
-  if (q.tv_nsec >= 1000000000) {
-    q.tv_nsec -= 1000000000;
+  if (q.tv_nsec >= 1000000000L) {
+    q.tv_nsec -= 1000000000L;
     seconds += 1;
   }
   q.tv_sec += seconds;
@@ -299,7 +299,7 @@ thread_signal_setup()
 */
   
 void
-os_get_stack_bounds(LispObj q,void **base, unsigned *size)
+os_get_stack_bounds(LispObj q,void **base, natural *size)
 {
   pthread_t p = (pthread_t)ptr_from_lispobj(q);
 #ifdef DARWIN
@@ -311,7 +311,7 @@ os_get_stack_bounds(LispObj q,void **base, unsigned *size)
   
   pthread_getattr_np(p,&attr);
   pthread_attr_getstack(&attr, base, size);
-  *(unsigned *)base += *size;
+  *(natural *)base += *size;
 #endif
 }
 
@@ -559,7 +559,7 @@ current_native_thread_id()
 }
 
 void
-thread_init_tcr(TCR *tcr, void *stack_base, unsigned stack_size)
+thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
 {
   area *a, *register_cstack_holding_area_lock(BytePtr, unsigned);
 
@@ -594,7 +594,7 @@ void
 register_thread_tcr(TCR *tcr)
 {
   void *stack_base;
-  unsigned stack_size;
+  natural stack_size;
 
   os_get_stack_bounds(current_thread_osid(),&stack_base, &stack_size);
   thread_init_tcr(tcr, stack_base, stack_size);
