@@ -51,7 +51,7 @@
     #+darwinppc-target :darwinppc-host
     #+darwinppc-target :darwin
     #+darwinppp-target :darwin-target
-    #+darwinppc-target :poweropen-target
+    #+poweropen-target :poweropen-target
     #+ppc64-target :64-bit-target
     #+ppc64-target :64-bit-host
     #+ppc32-target :32-bit-target
