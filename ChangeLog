@@ -1,3 +1,15 @@
+2005-08-09 12:18  bryan
+
+	* level-1/version.lisp: bump after fix for ~F bug.
+
+2005-08-09 12:15  bryan
+
+	* lib/format.lisp: 
+	revert part of changes made in v1.14.
+	
+	format-fixed-aux: don't forget to write #\0 after decimal point and
+	significant digits.
+
 2005-08-09 05:59  gb
 
 	* level-1/l1-sockets.lisp: Use (record-length :linger) instead of 8
