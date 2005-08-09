@@ -439,7 +439,7 @@ conditions, based on the state of the arguments."
 	  (setf (pref plinger :linger.l_onoff) (if linger 1 0)
 		(pref plinger :linger.l_linger) (or linger 0))
 	  (socket-call socket "setsockopt"
-		       (c_setsockopt fd #$SOL_SOCKET #$SO_LINGER plinger 8)))
+		       (c_setsockopt fd #$SOL_SOCKET #$SO_LINGER plinger (record-length :linger))))
     (when (eq address-family :internet)
       (when nodelay
 	(int-setsockopt fd
