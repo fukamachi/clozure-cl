@@ -1,3 +1,20 @@
+2005-08-09 05:59  gb
+
+	* level-1/l1-sockets.lisp: Use (record-length :linger) instead of 8
+	when setting the #$SO_LINGER socket option.
+
+2005-08-09 05:27  gb
+
+	* level-0/l0-cfm-support.lisp: On (32-and-64-bit) Linux, link_map
+	entries (used to find shared libraries) may have their
+	:link_map.l_addr fields set to NULL; this caused
+	INIT-SHARED-LIBRARIES to think that all libraries were mapped to
+	the same address (0).
+	
+	In %SHLIB-FROM-MAP-ENTRY, use #_dladdr to find the library base
+	address that contains the library's dynamic section if the
+	link_map.l_addr field is NULL.
+
 2005-08-08 20:44  bryan
 
 	* level-1/l1-io.lisp: 
