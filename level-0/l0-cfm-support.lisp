@@ -181,6 +181,15 @@
 
 (defun shlib-from-map-entry (m)
   (let* ((base (%int-to-ptr (pref m :link_map.l_addr))))
+    ;; On relatively modern Linux systems, this is often NULL.
+    ;; I'm not sure what (SELinux ?  Pre-binding ?  Something else ?)
+    ;; counts as being "relatively modern" in this case.
+    ;; The link-map's l_ld field is a pointer to the .so's dynamic
+    ;; section, and #_dladdr seems to recognize that as being an
+    ;; address within the library and returns a reasonable "base address".
+    (when (%null-ptr-p base)
+      (let* ((addr (%library-base-containing-address (pref m :link_map.l_ld))))
+        (if addr (setq base addr))))
     (or (let* ((existing-lib (shared-library-at base)))
 	  (when (and existing-lib (null (shlib.map existing-lib)))
 	    (setf (shlib.map existing-lib) m
@@ -225,6 +234,7 @@
 	     :void)))
   
 (defun init-shared-libraries ()
+  (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
   (when (null *shared-libraries*)
     (%walk-shared-libraries #'shlib-from-map-entry)
     (dolist (l *shared-libraries*)
@@ -436,9 +446,8 @@
 #+linux-target
 (progn
 (defvar *dladdr-entry*)
-(setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
 
-(defun shlib-containing-address (address &optional name)
+(defun %library-base-containing-address (address)
   (declare (ignore name))
   (rletZ ((info :<D>l_info))
     (let* ((status (ff-call *dladdr-entry*
@@ -446,7 +455,13 @@
                             :address info :signed-fullword)))
       (declare (integer status))
       (unless (zerop status)
-        (shared-library-at (pref info :<D>l_info.dli_fbase))))))
+        (pref info :<D>l_info.dli_fbase)))))
+  
+(defun shlib-containing-address (address &optional name)
+  (declare (ignore name))
+  (let* ((base (%library-base-containing-address address)))
+    (if base
+      (shared-library-at base))))
 
 
 (defun shlib-containing-entry (entry &optional name)
