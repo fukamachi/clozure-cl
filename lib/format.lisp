@@ -1862,6 +1862,8 @@
                             (write-char #\0 stream)))))
                   (t (unless zsuppress (write-char #\0 stream))
                      (write-char #\. stream)
+                     (dotimes (i (- before-pt))	 
+                       (write-char #\0 stream))
                      (stream-write-entire-string stream str)
                      (dotimes (i (+ d after-pt)) 
                       (write-char #\0 stream))))))))))
