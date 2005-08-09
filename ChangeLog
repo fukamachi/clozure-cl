@@ -1,3 +1,9 @@
+2005-08-08 18:01  bryan
+
+	* level-1/l1-numbers.lisp: 
+	new-numtoken: if token is a float, ignore *read-base* and read it
+	in base 10.
+
 2005-08-08 17:04  gb
 
 	* examples/objc-support.lisp: Don't assume that the CTR gets saved
