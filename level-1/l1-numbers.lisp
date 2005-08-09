@@ -67,15 +67,16 @@
               ; seen a decimal digit above base.
               (setq dgt t)))
            (t (when (>= c (char-code #\a))(setq c (- c 32)))
+              ;; don't care about *read-base* if float
               (cond ((or (< c (char-code #\A))(> c hic))
-                     (when (and (not dec)(eq radix 10)  ; floats make no sense in other bases I hope?
-                                (neq i nstart) ; need some digits first
-                                (memq c '#.(list (char-code #\E)(char-code #\F)(char-code #\D)
-                                                 (char-code #\L)(char-code #\S))))
+                     (when (and (neq i nstart) ; need some digits first
+                                (memq c '#.(list (char-code #\E)(char-code #\F)
+                                                 (char-code #\D)(char-code #\L)
+                                                 (char-code #\S))))
                        (return-from new-numtoken (parse-float string len start)))
-                      (return-from new-numtoken nil))
-                     (t ; seen a "digit" in base that ain't decimal
-                      (setq dec t)))))))
+                     (return-from new-numtoken nil))
+                    (t     ; seen a "digit" in base that ain't decimal
+                     (setq dec t)))))))
       (when (and dot (or (and (neq nstart start)(eq len 2))
                          (eq len 1)))  ;. +. or -.
         (return-from new-numtoken nil))
