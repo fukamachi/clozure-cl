@@ -345,7 +345,8 @@
                                (the fixnum (* target-start 2))
                                (the fixnum (* n 2))))
     ((#.target::subtag-s32-vector
-      #.target::subtag-u32-vector)
+      #.target::subtag-u32-vector
+      #.target::subtag-single-float-vector)
      (%copy-ivector-to-ivector source
                                (the fixnum (* source-start 4))
                                target
