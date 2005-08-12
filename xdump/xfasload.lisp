@@ -1329,11 +1329,16 @@
             (setf (xload-symbol-plist symaddr) (xload-make-cons keyaddr keyval))))))))
 
 (defun xload-set-documentation (symaddr indicator doc)
-  (push (xload-save-list
-         (list symaddr
-               (xload-copy-symbol indicator)
-               doc))
-        *xload-cold-load-documentation*))
+  ;; Should maybe check further that it's a string
+  ;; and it would hurt for whatever processes *xload-cold-load-documentation*
+  ;; to do some checking there as well.
+  (when (= (the fixnum (logand doc *xload-target-fulltagmask*))
+           *xload-target-fulltag-misc*)
+    (push (xload-save-list
+           (list symaddr
+                 (xload-copy-symbol indicator)
+                 doc))
+          *xload-cold-load-documentation*)))
 
 
 
