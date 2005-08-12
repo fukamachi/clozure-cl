@@ -380,9 +380,12 @@
     (let* ((info (gethash thing %documentation))
 	   (pair (assoc doc-id info)))
       (if doc
-	(if pair
-	  (setf (cdr pair) doc)
-	  (setf (gethash thing %documentation) (cons (cons doc-id doc) info)))
+        (progn
+          (unless (typep doc 'string)
+            (report-bad-arg doc 'string))
+          (if pair
+            (setf (cdr pair) doc)
+            (setf (gethash thing %documentation) (cons (cons doc-id doc) info))))
 	(when pair
 	  (if (setq info (nremove pair info))
 	    (setf (gethash thing %documentation) info)
