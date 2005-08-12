@@ -1,3 +1,30 @@
+2005-08-12 05:16  gb
+
+	* xdump/xfasload.lisp: Be a little more careful in
+	XLOAD-SET-DOCUMENTATION; only call SET-DOCUMENTATION if the
+	argument might be a string.
+
+2005-08-12 05:14  gb
+
+	* tools/asdf.lisp: Skip the second (more global) check for
+	duplicate component names, per a suggestion from Christophe Rhodes
+	on #lisp.  This may help to ensure that McCLIM builds.
+
+2005-08-12 05:13  gb
+
+	* lib/defstruct-macros.lisp: SD accessors use SVREF, not %SVREF. 
+	(Not sure what the bug is, but this change may help to catch it
+	earlier.)
+
+2005-08-12 05:12  gb
+
+	* level-1/version.lisp: bump.
+
+2005-08-12 05:12  gb
+
+	* level-0/l0-misc.lisp: %PUT-DOCUMENTATION: if "doc" is non-null,
+	ensure that it's a string.
+
 2005-08-11 21:20  gb
 
 	* level-0/l0-array.lisp: Needed to say #. before 64-bit vector type
