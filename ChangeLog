@@ -1,3 +1,8 @@
+2005-08-11 21:20  gb
+
+	* level-0/l0-array.lisp: Needed to say #. before 64-bit vector type
+	names in %UVECTOR-REPLACE.
+
 2005-08-11 09:12  gb
 
 	* level-0/l0-array.lisp: handle single-float case in
