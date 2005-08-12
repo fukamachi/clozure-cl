@@ -974,6 +974,7 @@ Returns the new tree (which probably shares structure with the old one)"
 		      do (push (component-name c) *serial-depends-on*))))
 
 	;; check for duplicate names
+        #+check-for-global-duplicates
 	(let ((name-hash (make-hash-table :test #'equalp)))
 	  (loop for c in (module-components ret)
 		do
