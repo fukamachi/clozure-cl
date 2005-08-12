@@ -353,8 +353,8 @@
                                (the fixnum (* target-start 4))
                                (the fixnum (* n 4))))
     ((#.target::subtag-double-float-vector
-      #+ppc64-target ppc64::subtag-s64-vector
-      #+ppc64-target ppc64::subtag-u64-vector)
+      #+ppc64-target #.ppc64::subtag-s64-vector
+      #+ppc64-target #.ppc64::subtag-u64-vector)
      (%copy-ivector-to-ivector source
                                (the fixnum
                                  (+ (the fixnum (- target::misc-dfloat-offset
