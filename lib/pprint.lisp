@@ -1504,7 +1504,7 @@
         (setf (section-start-line xp) (xp-line-no xp))))))
 
 (defun set-indentation-prefix (xp new-position)
-  (let ((new-ind (max (non-blank-prefix-ptr xp) (truncate new-position))))
+  (let ((new-ind (max (non-blank-prefix-ptr xp) new-position)))
     (declare (fixnum new-ind))
     (setf (prefix-ptr xp) (initial-prefix-ptr xp))
     (xp-check-size (xp-prefix xp) new-ind #.prefix-min-size #.prefix-entry-size)
@@ -2090,9 +2090,9 @@
   (when (not (memq relative-to '(:block :current)))
     (error "Invalid KIND argument ~A to PPRINT-INDENT" relative-to))
   (cond ((xp-structure-p stream)
-         (pprint-indent+ relative-to n stream))
+         (pprint-indent+ relative-to (truncate n) stream))
         ((typep stream 'xp-stream)
-         (pprint-indent+ relative-to n (slot-value stream 'xp-structure)))
+         (pprint-indent+ relative-to (truncate n) (slot-value stream 'xp-structure)))
         (t nil)) ; ???(break)))
   nil)
 
