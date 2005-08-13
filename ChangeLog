@@ -1,3 +1,46 @@
+2005-08-13 09:53  gb
+
+	* library/chud-metering.lisp: Check that we've got at least CHUD
+	4.1.
+	
+	A version of CHUD 4.2.x gets installed via XCode 2.1; that version
+	doesn't seem to be usable.
+	
+	Versions of CHUD 4.2.x that're distributed on Apple's Performance
+	Tools site seem to work better.
+
+2005-08-13 09:51  gb
+
+	* level-1/l1-dcode.lisp: Define and use DCODE-TOO-FEW-ARGS.
+	
+	%%NTH-ARG-DCODE was checking the argument count incorrectly; this
+	could have something random to have been used (in the &lexpr case)
+	in dispatching.
+	
+	Note that this detects -some- cases of missing args to a GF, but
+	generic functions that use %%NTH-ARG-DCODE (at least) don't do
+	rigorous number-of- arg checking on entry; cases like:
+	
+	(add-method 6)
+	
+	still generate a NO-APPLICABLE-METHOD without noticing that an
+	argument's missing.
+	
+	(-maybe- partly fixable in the short term).
+
+2005-08-13 09:44  gb
+
+	* level-1/l1-error-system.lisp: Make the REPORT method for
+	wrong-number-of-arguments errors mention the function (which isn't
+	always the same as what's reported as "while executing ...".)
+
+2005-08-13 09:43  gb
+
+	* level-1/l1-clos-boot.lisp: Defvar *SIMPLE-ARRAY-CLASS* (not a
+	toplevel form, so the compiler may warn the fist time this is
+	compiled.)  CLASS-OF returns that class for simple multidimensional
+	arrays (but see CLHS.)
+
 2005-08-13 01:10  bryan
 
 	* level-1/l1-io.lisp: 
