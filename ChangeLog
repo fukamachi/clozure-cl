@@ -1,3 +1,9 @@
+2005-08-13 10:38  bryan
+
+	* lib/pprint.lisp: 
+	pprint-indent: truncate the arg here instead of later in
+	set-indentation-prefix.
+
 2005-08-13 09:53  gb
 
 	* library/chud-metering.lisp: Check that we've got at least CHUD
