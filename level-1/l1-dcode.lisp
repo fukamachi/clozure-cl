@@ -735,10 +735,16 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         (%apply-lexpr-tail-wise method args))
       (apply method args))))
 
+(defun dcode-too-few-args (arg-count cm-or-gf)
+  (error (make-condition 'too-few-arguments
+                         :nargs arg-count
+                         :fn (combined-method-gf cm-or-gf))))
 
-; arg passed is dispatch table -  add a slot to it containing gf? - later
-; or pass the gf instead of the dispatch table 
-; (means adding another constant to gf to contain the dispatch table- above is clearer)
+
+;;; arg passed is dispatch table - add a slot to it containing gf? -
+;;; later or pass the gf instead of the dispatch table (means adding
+;;; another constant to gf to contain the dispatch table- above is
+;;; clearer)
 
 (defun %%1st-arg-dcode (dt  args)
   ;(declare (dynamic-extent args))
@@ -747,13 +753,13 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (if (neq 0 args-len) 
         (let ((method (%find-1st-arg-combined-method dt (%lexpr-ref args args-len 0))))
 	  (%apply-lexpr-tail-wise method args))
-        (signal-program-error "0 args to ~s" (%gf-dispatch-table-gf dt))))
+        (dcode-too-few-args 0 (%gf-dispatch-table-gf dt))))
     (let* ()  ; happens if traced
-      (when (null args) (signal-program-error "0 args to ~s" (%gf-dispatch-table-gf dt)))
+      (when (null args) (dcode-too-few-args 0 (%gf-dispatch-table-gf dt)))
       (let ((method (%find-1st-arg-combined-method dt (%car args))))
         (apply method args)))))
 
-; oh damn this screws up trace and advise big time - fixed we think
+
 (defun %%one-arg-dcode (dt  arg)
   (let ((method (%find-1st-arg-combined-method dt arg)))
     (funcall method arg)))
@@ -763,15 +769,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (let ((method (%find-1st-arg-combined-method dt arg1)))
     (funcall method arg1 arg2)))
 
-#|
-; two args - specialized on second - worth the trouble? maybe not since most are writers anyway
-; we have 43 callers of nth-arg-dcode out of 1100 gf's
-; I think we have only one multimethod = convert-scrap
-(defun %%2nd-two-arg-dcode (dt arg1 arg2)
-  (let ((method (%find-2nd-arg-combined-method dt arg1 arg2)))
-    (funcall method arg1 arg2)))
-|#
-
 
 
 ;  arg is dispatch-table and argnum is in the dispatch table
@@ -780,14 +777,14 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (if (listp args)
     (let* ((args-len (list-length args))
            (argnum (%gf-dispatch-table-argnum dt)))
-      (declare (fixnum args-len arg-num))
-      (when (or (zerop args-len) (< args-len argnum)) (signal-program-error "Too few args ~s to ~s." args-len (%gf-dispatch-table-gf dt)))
+      (declare (fixnum args-len argnum))
+      (when (>= argnum args-len) (dcode-too-few-args args-len (%gf-dispatch-table-gf dt)))
       (let ((method (%find-nth-arg-combined-method dt (nth argnum args) args)))
         (apply method args)))
     (let* ((args-len (%lexpr-count args))
            (argnum (%gf-dispatch-table-argnum dt)))
-      (declare (fixnum args-len arg-num))
-      (when (or (zerop args-len) (< args-len argnum)) (signal-program-error "Too few args ~s to ~s." args-len (%gf-dispatch-table-gf dt)))
+      (declare (fixnum args-len argnum))
+      (when (>= argnum args-len) (dcode-too-few-args args-len (%gf-dispatch-table-gf dt)))
       (let ((method (%find-nth-arg-combined-method dt (%lexpr-ref args args-len argnum) args)))
 	(%apply-lexpr-tail-wise method args)))))
 
@@ -1279,13 +1276,14 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                        (%gf-precedence-list real-gf))))
        (make-no-applicable-method-function real-gf))))
 
-
-
 (defun nth-or-gf-error (n l gf)
-  (dotimes (i n) (declare (fixnum i)) (setf l (cdr l)))
-  (if (null l)
-    (nth-arg-dcode-too-few-args gf))
-  (car l))
+  (declare (fixnum l))
+  (do* ((i 0 (1+ i))
+        (l l (cdr l)))
+       ((null l) (dcode-too-few-args i gf))
+    (declare (fixnum i))
+    (if (= i n)
+      (return (car l)))))
 
 (defun contains-non-t-specializer? (specializer-list)
   (dolist (s specializer-list nil)
