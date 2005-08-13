@@ -1,3 +1,8 @@
+2005-08-13 01:10  bryan
+
+	* level-1/l1-io.lisp: 
+	write-a-structure: change *print-length* handling.
+
 2005-08-12 22:49  bryan
 
 	* level-1/l1-io.lisp: 
