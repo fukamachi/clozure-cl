@@ -60,9 +60,28 @@ is NIL, USER-HOMEDIR-PATHNAME is used instead.")
 (defun chud-is-initialized ()
   (not (eql (#_chudIsInitialized) 0)))
 
+(defparameter *chud-supported-major-version* 4)
+(defparameter *chud-supported-minor-version* 1)
+
+;; Don't know if it makes sense to worry about max supported versions
+;; as well.
+
+(defun chud-check-version ()
+  (let* ((version (#_chudFrameworkVersion))
+         (major (ldb (byte 8 24) version))
+         (minor (ldb (byte 8 12) version)))
+    (or (and (>= major *chud-supported-major-version*)
+             (>= minor *chud-supported-minor-version*))
+        (warn "The installed CHUD framework is version ~d.~d.  ~
+The minimum version supported by this interface is ~d.~d."
+              major minor *chud-supported-major-version*
+              *chud-supported-minor-version*))))
+    
+
 (defun initialize-chud ()
   (or (chud-is-initialized)
-      (chud-check-error (#_chudInitialize) "initializing CHUD")))
+      (and (check-chud-version)
+           (chud-check-error (#_chudInitialize) "initializing CHUD"))))
 
 (defun acquired-remote-access ()
   (eql #$true (#_chudIsRemoteAccessAcquired)))
