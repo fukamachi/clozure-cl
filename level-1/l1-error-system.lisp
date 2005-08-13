@@ -203,12 +203,14 @@
 	(min-max-actual-args fn nargs-provided)
       (if (not min)
 	(progn
-	  (format s "Function called with too ~a arguments. " (if too-many
-								"many"
-								"few")))
+	  (format s "Function ~s called with too ~a arguments. "
+                  fn
+                  (if too-many
+                    "many"
+                    "few")))
 	(if too-many
-	  (format s "Too many arguments in function call: ~d provided, at most ~d accepted. " scaled-nargs max)
-	  (format s "Too few arguments in function call: ~d provided, at least ~d required. "  scaled-nargs min))))))
+	  (format s "Too many arguments in call to ~s: ~d provided, at most ~d accepted. " fn scaled-nargs max)
+	  (format s "Too few arguments in call to ~s: ~d provided, at least ~d required. " fn  scaled-nargs min))))))
 
 
 
