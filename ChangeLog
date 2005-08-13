@@ -1,3 +1,9 @@
+2005-08-12 22:49  bryan
+
+	* level-1/l1-io.lisp: 
+	print-object, write-a-structure: structures with no slots are
+	considered to have no components, so ignore *print-level*.
+
 2005-08-12 05:16  gb
 
 	* xdump/xfasload.lisp: Be a little more careful in
