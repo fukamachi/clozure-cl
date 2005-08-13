@@ -201,7 +201,9 @@
   (when (typep name 'method)
      (setq qualifiers (%method-qualifiers name)
            specializers (mapcar #'(lambda (s)
-                                    (if (consp s) s (class-name s)))
+                                    (if (typep s 'class)
+                                      (class-name s)
+                                      s))
                                 (%method-specializers name))
            the-method name
            name (%method-name name)
