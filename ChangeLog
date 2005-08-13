@@ -1,3 +1,10 @@
+2005-08-13 14:09  bryan
+
+	* level-1/l1-files.lisp: 
+	%load: allow loading from string-input-streams.  load-from-stream
+	already supported it, but the path to get there was littered with
+	file-stream traps.
+
 2005-08-13 12:05  bryan
 
 	* level-1/l1-error-system.lisp: 
