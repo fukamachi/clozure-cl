@@ -362,7 +362,7 @@
              (format s "Cannot modify a read-only buffer"))))
 
 (define-condition file-error (error)
-  ((pathname :initarg :pathname :reader file-error-pathname)
+  ((pathname :initarg :pathname :initform "<unspecified>" :reader file-error-pathname)
    (error-type :initarg :error-type :initform "File error on file ~S"))
   (:report (lambda (c s)
               (format s (slot-value c 'error-type) 
