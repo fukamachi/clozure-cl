@@ -1673,8 +1673,8 @@ to replace that class with ~s" name old-class new-class)
 
 (make-built-in-class 'svar)
 (defvar *vector-class* (make-built-in-class 'vector *array-class* (find-class 'sequence)))
-(make-built-in-class 'simple-array *array-class*)
-(make-built-in-class 'simple-1d-array *vector-class* (find-class 'simple-array))
+(defvar *simple-array-class* (make-built-in-class 'simple-array *array-class*))
+(make-built-in-class 'simple-1d-array *vector-class* *simple-array-class*)
 
 ;Maybe should do *float-array-class* etc?
 ;Also, should straighten out the simple-n-dim-array mess...
@@ -1984,7 +1984,12 @@ to replace that class with ~s" name old-class new-class)
       (map-subtag target::subtag-package package)
       (map-subtag target::subtag-simple-vector simple-vector)
       (map-subtag target::subtag-slot-vector slot-vector))
-    (setf (%svref v target::subtag-arrayH) *array-class*)
+    (setf (%svref v target::subtag-arrayH)
+          #'(lambda (x)
+              (if (logbitp $arh_simple_bit
+                           (the fixnum (%svref x target::arrayH.flags-cell)))
+                *simple-array-class*
+                *array-class*)))
     ;; These need to be special-cased:
     (setf (%svref v target::subtag-macptr) #'foreign-class-of)
     (setf (%svref v target::subtag-character)
