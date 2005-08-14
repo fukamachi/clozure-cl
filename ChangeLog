@@ -1,3 +1,12 @@
+2005-08-13 17:25  gb
+
+	* lib/source-files.lisp: CCL::EDIT-DEFINITION-P didn't know that
+	all of a method's specializers were specializers, so it sometimes
+	called CLASS-NAME on an EQL-SPECIALIZER.
+	
+	SLIME calls CCL::EDIT-DEFINITION-P, but I'm not really sure that
+	that's a good idea.
+
 2005-08-13 14:09  bryan
 
 	* level-1/l1-files.lisp: 
