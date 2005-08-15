@@ -1,3 +1,30 @@
+2005-08-15 13:00  gb
+
+	* compiler/PPC/ppc2.lisp: Reformat a comment; one down, a few
+	thousand more to go ...
+
+2005-08-15 12:58  gb
+
+	* lisp-kernel/: darwin/Makefile, darwin64/Makefile: Enable -O2, at
+	least until the next time something needs to be debugged.
+
+2005-08-15 12:58  gb
+
+	* lisp-kernel/spentry.s: Write barrier things check to see if bit
+	is set before entering the (expensive) interlocked load/store loop.
+	 (Old objects that're destructively modified are often modified
+	multiple times.)
+
+2005-08-15 12:55  gb
+
+	* level-0/l0-symbol.lisp: Bum %PL-SEARCH a little.
+
+2005-08-15 12:54  gb
+
+	* compiler/: nx0.lisp, nx1.lisp, nxenv.lisp, optimizers.lisp:
+	(very) approximate loop-weighting for VAR refrences.  Bad, but
+	seems to win more often than it loses.
+
 2005-08-15 06:38  gb
 
 	* library/chud-metering.lisp: Fix typo in version check.
