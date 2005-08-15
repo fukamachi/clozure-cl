@@ -1739,7 +1739,7 @@ are no Forms, OR returns NIL."
                    (:documentation
                     `(:documentation ',(cadr option)))
                    (t
-                    (list `',option-name `',(cdr option))))))
+                    (signal-program-error "Invalid class option: " option-name)))))
              (canonicalize-slot-spec (slot)
                (if (null slot) (signal-program-error "Illegal slot NIL"))
                (if (not (listp slot)) (setq slot (list slot)))
