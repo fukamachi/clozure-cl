@@ -589,8 +589,9 @@
   (declare (cons x y))
   (> (the fixnum (cdr x)) (the fixnum (cdr y))))
 
-;;; Return an unordered list of "varsets": each var in a varset can be assigned a register
-;;; and all vars in a varset can be assigned the same register (e.g., no scope conflicts.)
+;;; Return an unordered list of "varsets": each var in a varset can be
+;;; assigned a register and all vars in a varset can be assigned the
+;;; same register (e.g., no scope conflicts.)
 
 (defun ppc2-partition-vars (vars)
   (labels ((var-weight (var)
