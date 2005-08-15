@@ -66,7 +66,7 @@ is NIL, USER-HOMEDIR-PATHNAME is used instead.")
 ;; Don't know if it makes sense to worry about max supported versions
 ;; as well.
 
-(defun chud-check-version ()
+(defun check-chud-version ()
   (let* ((version (#_chudFrameworkVersion))
          (major (ldb (byte 8 24) version))
          (minor (ldb (byte 8 12) version)))
