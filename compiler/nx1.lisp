@@ -1116,7 +1116,8 @@
           (nx-error "Illegal form in TAGBODY: ~S." form))))
     (dolist (tag (setq newtags (nreverse newtags)))
       (push tag *nx-tags*))
-    (let* ((body nil))
+    (let* ((body nil)
+           (*nx-loop-nesting-level* (1+ *nx-loop-nesting-level*)))
       (dolist (form args (setq body (nreverse body)))
         (push 
          (if (atom form)

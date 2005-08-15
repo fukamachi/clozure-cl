@@ -355,6 +355,19 @@
   (or (eq-eql-call item list keys 'assq 'asseql env)
       call))
 
+
+(define-compiler-macro caar (form)
+  `(car (car ,form)))
+
+(define-compiler-macro cadr (form)
+  `(car (cdr ,form)))
+
+(define-compiler-macro cdar (form)
+  `(cdr (car ,form)))
+
+(define-compiler-macro cddr (form)
+  `(cdr (cdr ,form)))
+
 (define-compiler-macro caaar (form)
   `(car (caar ,form)))
 
@@ -378,6 +391,54 @@
 
 (define-compiler-macro cdddr (form)
   `(cdr (cddr ,form)))
+
+(define-compiler-macro caaaar (form)
+  `(car (caaar ,form)))
+  
+(define-compiler-macro caaadr (form)
+  `(car (caadr ,form)))
+
+(define-compiler-macro caadar (form)
+  `(car (cadar ,form)))
+
+(define-compiler-macro caaddr (form)
+  `(car (caddr ,form)))
+
+(define-compiler-macro cadaar (form)
+  `(car (cdaar ,form)))
+
+(define-compiler-macro cadadr (form)
+  `(car (cdadr ,form)))
+
+(define-compiler-macro caddar (form)
+  `(car (cddar ,form)))
+
+(define-compiler-macro cadddr (form)
+  `(car (cdddr ,form)))
+
+(define-compiler-macro cdaaar (form)
+  `(cdr (caaar ,form)))
+  
+(define-compiler-macro cdaadr (form)
+  `(cdr (caadr ,form)))
+
+(define-compiler-macro cdadar (form)
+  `(cdr (cadar ,form)))
+
+(define-compiler-macro cdaddr (form)
+  `(cdr (caddr ,form)))
+
+(define-compiler-macro cddaar (form)
+  `(cdr (cdaar ,form)))
+
+(define-compiler-macro cddadr (form)
+  `(cdr (cdadr ,form)))
+
+(define-compiler-macro cdddar (form)
+  `(cdr (cddar ,form)))
+
+(define-compiler-macro cddddr (form)
+  `(cdr (cdddr ,form)))
 
 
 
