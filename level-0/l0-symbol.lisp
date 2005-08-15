@@ -76,10 +76,16 @@
     plist))
 
 
-(defun %pl-search (ok-plist key)
-  (do* ((l ok-plist (cdr (the list (cdr l)))))
-       ((or (null l) (eq (car l) key)) l)
-    (declare (list l))))
+(defun %pl-search (l key)
+  (declare (list l) (optimize (speed 3)))
+  (loop
+    (if (eq (car l) key)
+      (return)
+      (if l
+        (setq l (cdr (the list (cdr l))))
+        (return))))
+  l)
+
 
 (defun symbol-plist (sym)
   "Return SYMBOL's property list."
