@@ -52,7 +52,7 @@ M4FLAGS = -DDARWIN
 ASFLAGS = -force_cpusubtype_ALL
 CDEFINES = -DDARWIN $(BROKEN_PREPROCESSOR_WORKAROUND)
 CDEBUG = -g
-COPT = #-O2
+COPT = -O2
 
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
