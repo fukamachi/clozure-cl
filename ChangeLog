@@ -1,3 +1,7 @@
+2005-08-15 06:38  gb
+
+	* library/chud-metering.lisp: Fix typo in version check.
+
 2005-08-13 17:25  gb
 
 	* lib/source-files.lisp: CCL::EDIT-DEFINITION-P didn't know that
