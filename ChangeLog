@@ -1,3 +1,8 @@
+2005-08-15 14:00  bryan
+
+	* lib/macros.lisp: 
+	defclass: signal a program-error if invalid class option seen.
+
 2005-08-15 13:00  gb
 
 	* compiler/PPC/ppc2.lisp: Reformat a comment; one down, a few
