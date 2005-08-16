@@ -1,3 +1,17 @@
+2005-08-16 11:16  gb
+
+	* level-1/version.lisp: bump.
+
+2005-08-16 11:13  gb
+
+	* compiler/: nx0.lisp, nxenv.lisp: Use (expt 4 n) instead of (ash 4
+	n), which isn't the same thing ...
+
+2005-08-16 11:11  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: ALLOC-C-FRAME: ensure
+	32-byte alignment on PPC64.
+
 2005-08-16 07:35  gb
 
 	* lisp-kernel/spentry.s: Remove gratuitous "ldr
