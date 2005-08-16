@@ -1,3 +1,14 @@
+2005-08-15 20:01  bryan
+
+	* level-1/version.lisp: 
+	bump.
+
+2005-08-15 19:59  bryan
+
+	* lib/macros.lisp: 
+	defclass: prefer MOP over ANSI behaivor.  class options are
+	canonicalized and passed to ensure-class.
+
 2005-08-15 19:15  bryan
 
 	* level-1/version.lisp: 
