@@ -1,3 +1,9 @@
+2005-08-16 13:45  bryan
+
+	* lib/setf.lisp: 
+	remf: according to 5.1.3, the indicator needs to be evaluated
+	before the reading the "old value" of place.
+
 2005-08-16 11:16  gb
 
 	* level-1/version.lisp: bump.
