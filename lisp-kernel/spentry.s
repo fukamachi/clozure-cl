@@ -4542,7 +4542,6 @@ _spentry(eabi_callback)
 	__(ldr(r5,varargs_eabi_c_frame.backlink(sp)))
 	__(str(r5,varargs_eabi_c_frame.old_backlink(sp)))
 	__(la sp,varargs_eabi_c_frame.old_backlink(sp))
-	__(ldr(r2,tcr.native_thread_info(rcontext)))
 	__(blr)
 	
 /*
