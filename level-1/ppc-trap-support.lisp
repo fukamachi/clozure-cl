@@ -315,17 +315,7 @@
   (let ((fn (unless (eql fn-reg 0) (xp-gpr-lisp xp fn-reg))))
     (with-xp-stack-frames (xp fn frame-ptr)
       (if (eql the-trap (ppc-lap-word (twgti nargs 0)))
-        (unwind-protect
-          (progn
-            ;(setq *interrupt-level* 0)
-            (cmain))
-	  (let* ((catch-top (%catch-top (%current-tcr)))
-		 (csp (catch-frame-sp catch-top))
-		 (vsp (%%frame-savevsp csp))
-		 (topword (%fixnum-ref vsp)))
-	    (declare (fixnum topword))
-	    (unless (>= topword 0)
-	      (setf (%fixnum-ref vsp) 0))))
+        (cmain)
         (with-error-reentry-detection
           (let ((pc-index (if (eql fn-reg 0) pc-or-index (%ptr-to-int pc-or-index)))
                 instr ra temp rs condition)
@@ -552,17 +542,7 @@
   (let ((fn (unless (eql fn-reg 0) (xp-gpr-lisp xp fn-reg))))
     (with-xp-stack-frames (xp fn frame-ptr)
       (if (eql the-trap (ppc-lap-word (tdgti nargs 0)))
-        (unwind-protect
-          (progn
-            ;(setq *interrupt-level* 0)
-            (cmain))
-	  (let* ((catch-top (%catch-top (%current-tcr)))
-		 (csp (catch-frame-sp catch-top))
-		 (vsp (%%frame-savevsp csp))
-		 (topword (%fixnum-ref vsp)))
-	    (declare (fixnum topword))
-	    (unless (>= topword 0)
-	      (setf (%fixnum-ref vsp) 0))))
+        (cmain)
         (with-error-reentry-detection
           (let ((pc-index (if (eql fn-reg 0) pc-or-index (%ptr-to-int pc-or-index)))
                 instr ra temp rs condition)
