@@ -226,7 +226,7 @@
 						      ',keyword)))
 			       (var-init `(if ,spvar
 					   (getf ,rest-arg-name ',keyword)
-					   ',initform)))
+					   ,initform)))
 			  (unless first-keyword-init
 			    (setq first-keyword-init sp-init))
 			  (if (listp variable)
