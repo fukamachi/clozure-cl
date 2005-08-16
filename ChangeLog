@@ -1,3 +1,28 @@
+2005-08-16 07:18  gb
+
+	* level-1/ppc-trap-support.lisp: In xcmain callback (both of them),
+	get rid of code which gratuitously smacks a 0 into the top word of
+	the value stack in the current catch frame in response to an
+	interrupt trap (trgti nargs, 0).  (I -think- that this had
+	something to do with reenabling interrupts in a long-forgotten
+	cooperative scheduler.)
+	
+	It's possible that until recent changes to register allocation, the
+	top word on the vstack at this point was either (a) always
+	non-negative and therefore immune to getting smacked around or (b)
+	something not very important.
+	
+	On Linux32, this was currently a pointer to a saved special
+	binding, (happened to look negative because of where that stack was
+	allocated) and setting it to 0 caused a crash as the binding stack
+	was unwound.
+
+2005-08-16 07:10  gb
+
+	* level-1/l1-boot-lds.lisp: In STARTUP-CCL, use LOAD-FILE
+	(establishing a restart) instead of just calling LOAD directly when
+	processing a --load command-line option.
+
 2005-08-15 20:01  bryan
 
 	* level-1/version.lisp: 
