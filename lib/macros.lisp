@@ -1738,10 +1738,8 @@ are no Forms, OR returns NIL."
                     `(:metaclass  ',(cadr option)))
                    (:documentation
                     `(:documentation ',(cadr option)))
-                   (:primary-p          ; list local class options here, so..
-                    (list `',option-name `',(cdr option)))
-                   (t                   ; we can signal program-error here.
-                    (signal-program-error "Illegal class option: ~S" option-name)))))
+                   (t
+                     (list `',option-name `',(cdr option))))))
              (canonicalize-slot-spec (slot)
                (if (null slot) (signal-program-error "Illegal slot NIL"))
                (if (not (listp slot)) (setq slot (list slot)))
