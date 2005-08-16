@@ -593,7 +593,7 @@
   (let* ((bits (nx-var-bits var))
          (scaled-by (if (%ilogbitp $vbitignoreunused bits)
                       by
-                      (ash 4 *nx-loop-nesting-level*)))
+                      (expt 4 *nx-loop-nesting-level*)))
          (new (%i+ (%ilsr 8 (%ilogand2 $vsetqmask bits)) scaled-by)))
     (if (%i> new 255) (setq new 255))
     (setq bits (nx-set-var-bits var (%ilogior (%ilogand (%ilognot $vsetqmask) bits) (%ilsl 8 new))))
