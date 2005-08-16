@@ -1,3 +1,14 @@
+2005-08-15 18:14  bryan
+
+	* lib/level-2.lisp: 
+	%destructure-lambda-lisp: make sure default-initial-value is
+	properly quoted in getf form.
+
+2005-08-15 17:40  bryan
+
+	* lib/macros.lisp: 
+	defclass: revert previous commit.
+
 2005-08-15 14:00  bryan
 
 	* lib/macros.lisp: 
