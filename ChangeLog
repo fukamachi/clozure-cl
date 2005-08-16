@@ -1,3 +1,10 @@
+2005-08-16 07:35  gb
+
+	* lisp-kernel/spentry.s: Remove gratuitous "ldr
+	r2,tcr.native_thread_info(rcontext)" from _SPeabi_callback epilog:
+	on linuxppc32 (the only platform that uses _SPeabi_callback), we
+	should be keeping our hands off of r2 at all times, anyway.
+
 2005-08-16 07:18  gb
 
 	* level-1/ppc-trap-support.lisp: In xcmain callback (both of them),
