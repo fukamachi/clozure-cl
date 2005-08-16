@@ -50,7 +50,7 @@
 		 (set-lisp-heap-gc-threshold n)
 		 (use-lisp-heap-gc-threshold))))
 	    (:eval (eval-string param))
-	    (:load (load param))))))))
+	    (:load (load-file param))))))))
 
 
 (defun listener-function ()
