@@ -1862,7 +1862,7 @@
 
 ;;; Somewhere, deep inside the "OS_X_PPC_RuntimeConventions.pdf"
 ;;; document, they bother to document the fact that SP should
-;;; maintain 16-byte alignment on OSX.  (The example prologue
+;;; maintain 32-byte alignment on OSX.  (The example prologue
 ;;; code in that document incorrectly assumes 8-byte alignment.
 ;;; Or something.  It's wrong in a number of other ways.)
 ;;; The caller always has to reserve a 24-byte linkage area
@@ -1873,17 +1873,17 @@
   ;; frame (for the kernel) underneath it.
   ;; Zero the c-frame's savelr field, not that the GC cares ..
   ((:pred <= n-c-args 10)
-   (stdu ppc::sp (- (+ 32 ppc64::c-frame.size ppc64::lisp-frame.size)) ppc::sp))
+   (stdu ppc::sp (- (+ 16 ppc64::c-frame.size ppc64::lisp-frame.size)) ppc::sp))
   ((:pred > n-c-args 10)
    ;; A normal C frame has room for 10 args (when padded out to
-   ;; 16-byte alignment. Add enough double words to accomodate the
+   ;; 32-byte alignment. Add enough double words to accomodate the
    ;; remaining args, in multiples of 4.
    (stdu ppc::sp (:apply - (:apply +
-                                   8
+                                   16
                                    (+ ppc64::c-frame.size ppc64::lisp-frame.size)
                                    (:apply ash
                                            (:apply logand
-                                                   (lognot 4)
+                                                   (lognot 7)
                                                    (:apply
                                                     +
                                                     7
