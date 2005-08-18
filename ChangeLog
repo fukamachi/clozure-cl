@@ -1,3 +1,18 @@
+2005-08-18 01:14  bryan
+
+	* level-1/version.lisp: bump.
+
+2005-08-18 01:13  bryan
+
+	* lib/pprint.lisp: 
+	specifier-fn: convert to cond.
+	
+	convert-body: don't call copy-tree.
+	
+	copy-tree breaks pprint dispatch table entries with eql type
+	specifiers.  for example this form:   (let ((obj '(foo bar)))	 
+	(set-pprint-dispatch (list* 'eql (list obj)) ...))
+
 2005-08-16 13:45  bryan
 
 	* lib/setf.lisp: 
