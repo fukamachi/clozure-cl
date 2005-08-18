@@ -536,12 +536,13 @@
     (compiled-function compiled-function-p) (common commonp)))
 
  ; lets make fewer things fns that compile at load time, esp anything we do - really none should
-(defun specifier-fn (spec) 
-  (if (and (consp spec)(eq (car spec) 'satisfies)(symbolp (cadr spec)))
-    (cadr spec)
-    (if (and (symbolp spec)(type-predicate spec))  ; ccl specific
-      (type-predicate spec)
-      `(lambda (x) ,(convert-body spec)))))
+(defun specifier-fn (spec)
+  (cond  ((and (consp spec) (eq (car spec) 'satisfies) (symbolp (cadr spec)))
+          (cadr spec))
+         ((and (symbolp spec) (type-predicate spec)) ; ccl specific
+          (type-predicate spec))
+         (t
+          `(lambda (x) ,(convert-body spec)))))
 
 (defun convert-body (spec)
   (cond ((atom spec) `(typep x ',spec))
@@ -557,7 +558,7 @@
 				     ,(convert-body (caddr spec)))))))
 	((eq (car spec) 'satisfies)
 	 `(funcall (function ,(cadr spec)) x))
-	(T `(typep x ',(copy-tree spec)))))
+	(T `(typep x ',spec))))
 
 ;               ---- XP STRUCTURES, AND THE INTERNAL ALGORITHM ----
 
