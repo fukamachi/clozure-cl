@@ -943,7 +943,9 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
   (declare (type simple-string name) (stream stream)
            (optimize (speed 3)(safety 0)))
   (let* ((readtable *readtable*)
-         (readcase (readtable-case readtable))
+         (readcase (readtable-case (if *print-readably*
+                                       %initial-readtable%
+                                       readtable)))
          (escape? (or *print-readably* *print-escape*)))
       (flet ((slashify? (char)
                (declare (type character char))
@@ -981,6 +983,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                      (type fixnum slash-count last-slash-pos))                
             (when escape?
               (when (or (%izerop len)
+                        ;; if more than a few \, just use |...|
                         (and (not (memq readcase '(:invert :preserve))) ; these never slashify alpha-p
                              (let ((m (max (floor len 4) 2)))
                                (dotimes (i (the fixnum len) nil)
@@ -990,17 +993,16 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                                    (when (or (eql slash-count m)
                                              (eq i (1+ last-slash-pos)))
                                      (return t))
-                                   (setq last-slash-pos i))))))
-                (return-from alice  ; if several slashified
-                  (write-escaped-string name stream #\|)))
-              (when (or ;; could be read as a number -- is there no simpler way?
-                     (%parse-number-token name 0 len *print-base*)
-                     ;; commonlisp doesn't like symbols consisting entirely of .'s
-                     (dotimes (i len t)
-                       (declare (fixnum i))
-                       (unless (eql (schar name i) #\.)
-                         (return nil))))
-                (stream-write-char stream #\\)))
+                                   (setq last-slash-pos i)))))
+                        ;; or could be read as a number
+                        (%parse-number-token name 0 len *print-base*)
+                        ;; or symbol consisting entirely of .'s
+                        (dotimes (i len t)
+                          (declare (fixnum i))
+                          (unless (eql (schar name i) #\.)
+                            (return nil))))
+                (return-from alice
+                  (write-escaped-string name stream #\|))))
             (case readcase
               (:preserve (return-from alice  (write-string name stream :start  0 :end len)))
               (:invert (return-from alice
