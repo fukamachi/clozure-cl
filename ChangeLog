@@ -1,3 +1,9 @@
+2005-08-19 16:24  bryan
+
+	* lib/numbers.lisp: 
+	print-object (random-state t): cl:random-state was renamed to
+	ccl::initialize-random-state.
+
 2005-08-19 15:44  bryan
 
 	* level-1/l1-io.lisp: 
