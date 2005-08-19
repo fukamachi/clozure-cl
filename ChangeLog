@@ -1,3 +1,12 @@
+2005-08-19 15:44  bryan
+
+	* level-1/l1-io.lisp: 
+	write-pname: if *print-readably*, use the readtable-case of the
+	"standard readtable".
+	
+	write-pname: if symbol could be read as a number, don't bother
+	slashify-ing.  just write it escaped in |..|.
+
 2005-08-18 01:14  bryan
 
 	* level-1/version.lisp: bump.
