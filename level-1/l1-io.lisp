@@ -1138,6 +1138,16 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 ;; *print-simple-vector*
 ;; *print-simple-bit-vector*
 ;; *print-string-length*
+
+(defun array-readably-printable-p (array)
+  (let ((dims (array-dimensions array)))
+    (and (eq (array-element-type array) t)
+         (let ((zero (position 0 dims))
+               (number (position 0 dims
+                                 :test (complement #'eql)
+                                 :from-end t)))
+           (or (null zero) (null number) (> zero number))))))
+
 (defun write-an-array (array stream level)
   (declare (type array array) (type stream stream) (type fixnum level))
   (let* ((rank (array-rank array))
@@ -1160,27 +1170,20 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (unless
       (cond (string?
              nil)
-            ((and print-array bit-vector?)
-             (when (or print-array
-                       (and simple?
-                            (%i<= length
-                                  (max 26 (get-*print-frob*
-                                           '*print-simple-bit-vector*
-                                           ;; there's no reason not to print
-                                           ;;  short bit-vectors -- #*0101010
-                                           ;;  is shorter than #<array ...>
-                                           0
-                                           most-positive-fixnum)))))
-               (stream-write-char stream #\#) (stream-write-char stream #\*)
-               (do ((i 0 (%i+ i 1))
-                    (l print-length (%i- l 1)))
-                   (nil)
-                 (declare (type fixnum i) (type fixnum l))
-                 (cond ((eql i length)
-                        (return))
-                       (t
-                        (stream-write-char stream (if (eql (bit array i) 0) #\0 #\1)))))
-               t))
+            ((and bit-vector? print-array)
+             (stream-write-char stream #\#) (stream-write-char stream #\*)
+             (do ((i 0 (%i+ i 1))
+                  (l print-length (%i- l 1)))
+                 (nil)
+               (declare (type fixnum i) (type fixnum l))
+               (cond ((eql i length)
+                      (return))
+                     (t
+                      (stream-write-char stream (if (eql (bit array i) 0) #\0 #\1)))))
+             t)
+            ((and *print-readably*
+                  (not (array-readably-printable-p array)))
+             nil)
             ((and *print-pretty* print-array)
              (let ((*current-level* (if (and *print-level* (not *print-readably*))
                                       (- *print-level* level)
