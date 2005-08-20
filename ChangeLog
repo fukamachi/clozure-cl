@@ -1,3 +1,15 @@
+2005-08-20 15:30  bryan
+
+	* compiler/PPC/ppc-lap.lisp: 
+	use "CCL" instead of :ccl in in-package form.
+
+2005-08-20 15:27  bryan
+
+	* xdump/hashenv.lisp, compiler/lambda-list.lisp,
+	compiler/nx-base-app.lisp, compiler/nx.lisp, compiler/nx0.lisp,
+	compiler/nxenv.lisp, compiler/optimizers.lisp: 
+	add (in-package "CCL") forms.
+
 2005-08-20 15:08  bryan
 
 	* level-1/version.lisp: 
