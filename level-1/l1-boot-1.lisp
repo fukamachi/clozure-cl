@@ -14,9 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;; L1-boot.lisp
 
+(in-package "CCL")
 
 (defparameter *gensym-counter* 0 "counter for generating unique GENSYM symbols")
 

@@ -17,7 +17,7 @@
 
 ; l1-boot-lds.lisp
 
-(in-package :ccl)
+(in-package "CCL")
 
 
 

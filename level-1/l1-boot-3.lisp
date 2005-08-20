@@ -17,6 +17,7 @@
 ;; l1-boot-3.lisp
 ;; Third part of l1-boot
 
+(in-package "CCL")
 
 (catch :toplevel
     (or (find-package "COMMON-LISP-USER")

@@ -18,7 +18,7 @@
 ;;;
 ;;; Support for PPC callbacks
 
-
+(in-package "CCL")
 
 ;;; This is machine-dependent (it conses up a piece of "trampoline" code
 ;;; which calls a subprim in the lisp kernel.)

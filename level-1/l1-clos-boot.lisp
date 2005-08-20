@@ -20,7 +20,7 @@
 ; l1-clos-boot.lisp
 
 
-(in-package :ccl)
+(in-package "CCL")
 
 ;;; Early accessors.  These functions eventually all get replaced with
 ;;; generic functions with "real", official names.

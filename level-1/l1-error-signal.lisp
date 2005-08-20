@@ -14,10 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
-
-
+(in-package "CCL")
 
 (defun %kernel-restart (error-type &rest args)
   (%kernel-restart-internal error-type args (%get-frame-ptr)))

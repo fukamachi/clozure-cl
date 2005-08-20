@@ -17,7 +17,7 @@
 
 ;; sysutils.lisp - things which have outgrown l1-utils
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (:execute :compile-toplevel)
   (require 'level-2)

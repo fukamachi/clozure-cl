@@ -14,9 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;;; READ and related functions.
 
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   (defconstant readtable-case-keywords '((:upcase . 1) (:downcase . 2) (:preserve . 0)

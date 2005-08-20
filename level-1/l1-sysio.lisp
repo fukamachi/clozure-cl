@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 (defstruct (file-ioblock (:include ioblock))
   (octet-pos 0 :type fixnum)		; current io position in octets
   (fileeof 0 :type fixnum)		; file length in elements

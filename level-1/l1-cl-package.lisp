@@ -16,6 +16,8 @@
 
 ; l1-cl-package.lisp
 
+(in-package "CCL")
+
 
 (eval-when (:compile-toplevel :execute)
   (defconstant %lisp-symbols%  

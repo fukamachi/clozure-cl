@@ -21,7 +21,7 @@
 ;-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 ;ANSI CL logical pathnames
 
-(in-package :ccl)
+(in-package "CCL")
 
 (defloadvar *heap-image-name*
     (let* ((p (%null-ptr)))

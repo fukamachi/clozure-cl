@@ -14,14 +14,11 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   (require "NUMBER-MACROS")
- 
 )
-
-
 
 (defun %parse-number-token (string &optional start end radix)
   (if end (require-type end 'fixnum)(setq end (length string)))

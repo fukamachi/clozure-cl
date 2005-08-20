@@ -14,9 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;; This is a hacked-up version of the CMU CL type system.
 
+(in-package "CCL")
 
 
 

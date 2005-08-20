@@ -14,12 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
 ; L1-utils.lisp
 
-
-#+allow-in-package
 (in-package "CCL")
 
 ;The following forms (up thru defn of %DEFUN) must come before any DEFUN's.

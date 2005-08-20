@@ -18,6 +18,7 @@
 
 ;;; At this point in the load sequence, the handful of extant basic classes
 ;;; exist only in skeletal form (without direct or effective slot-definitions.)
+
 (in-package "CCL")
 
 (defun extract-slotds-with-allocation (allocation slotds)

@@ -16,6 +16,8 @@
 
 ;;; l1-callbacks.lisp
 
+(in-package "CCL")
+
 (defglobal *callback-lock* (make-lock))
 
 

@@ -14,11 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ; Level-1.lisp
 
-
-
+(in-package "CCL")
 
 (macrolet ((l1-load (name)
 	     (let* ((namestring

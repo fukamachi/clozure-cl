@@ -17,7 +17,7 @@
 ;;; Support for PPC traps, this includes the event-poll trap
 ;;; and all the trxxx traps for type checks & arg count checks.
 
-
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   (require "NUMBER-MACROS")

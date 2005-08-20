@@ -17,7 +17,7 @@
 ;; l1-boot-2.lisp
 ;; Second part of l1-boot
 
-
+(in-package "CCL")
 
 (macrolet ((l1-load (name)
 	     (let* ((namestring

@@ -14,15 +14,13 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
 ;; L1-format.lisp
 ;
 ; This file contains the definition for SUB-FORMAT, the dispatching part
 ; of FORMAT. It also contains an interim definition for FORMAT and a few
 ; incompletely implemented directives.
 
-
+(in-package "CCL")
 
 (eval-when (eval compile #-bccl load)  ;Load-time as well so CCL can use it.
   (defmacro defformat (char name &rest def)

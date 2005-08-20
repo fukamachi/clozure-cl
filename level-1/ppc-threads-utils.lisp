@@ -20,7 +20,7 @@
 
 ; low-level support for PPC threads and stack-backtrace printing
 
-(in-package :ccl)
+(in-package "CCL")
 
 
 ;;; Sure would be nice to have &optional in defppclapfunction arglists

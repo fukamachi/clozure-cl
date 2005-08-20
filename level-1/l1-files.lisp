@@ -17,6 +17,8 @@
 
 ;; L1-files.lisp - Object oriented file stuff
 
+(in-package "CCL")
+
 (defconstant $paramErr -50)   ; put this with the rest when we find the rest
 
 (defconstant pathname-case-type '(member :common :local :studly))

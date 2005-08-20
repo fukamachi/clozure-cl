@@ -16,6 +16,8 @@
 
 ;;; Low-level list sorting routines.  Used by CLOS and SORT.
 
+(in-package "CCL")
+
 (eval-when (:compile-toplevel :execute)
 
 (defmacro apply-key (key value)

@@ -17,7 +17,7 @@
 ;; L1-aprims.lisp
 
 
-(in-package :ccl)
+(in-package "CCL")
 
 
 (let* ((standard-initial-bindings ())
