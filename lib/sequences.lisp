@@ -16,7 +16,6 @@
 
 (in-package "CCL")
 
-
 ;;
 ;; utility functions
 ;;

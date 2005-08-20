@@ -14,15 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
-(in-package :ccl)
-
-
-
+(in-package "CCL")
 
 (require 'systems)
-
 
 ; Interim PPC support
 ; sequences is here since l1-typesys REQUIREs it

@@ -14,8 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-(in-package :ccl)
+(in-package "CCL")
 
 ; Defstruct.lisp
 

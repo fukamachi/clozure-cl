@@ -14,12 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
-
 ;; Level-2.lisp
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (eval compile)
   (require "LEVEL-2")

@@ -21,7 +21,7 @@
 
 ; This needs to be compiled after everything is loaded.
 
-(in-package :ccl)
+(in-package "CCL")
 
 ; *def-accessor-types* is used by the inspector to name slots in uvectors
 (dolist (cell '#.*def-accessor-types*)

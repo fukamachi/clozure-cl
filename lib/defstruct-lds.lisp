@@ -14,11 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
 ; defstruct-lds.lisp
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (eval compile)
   (require 'defstruct-macros)

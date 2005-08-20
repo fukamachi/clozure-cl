@@ -14,7 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 (in-package "CCL")
 
 ;; :lib:nfcomp.lisp - New fasl compiler.

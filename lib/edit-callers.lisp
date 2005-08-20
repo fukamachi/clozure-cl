@@ -16,9 +16,7 @@
 
 ; edit-callers.lisp
 
-
-
-(in-package :ccl)
+(in-package "CCL")
 
 (defun global-function-p (random &optional name)
   (let* ((thing random)

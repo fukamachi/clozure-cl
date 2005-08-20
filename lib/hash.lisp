@@ -192,7 +192,7 @@
 ;;                               the nhash.vector.finalization-alist using cons cells
 ;;                               from nhash.vector.free-alist
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (:execute :compile-toplevel :load-toplevel)
   

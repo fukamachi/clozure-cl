@@ -14,6 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
 (defmacro print-db (&rest forms &aux)
   `(multiple-value-prog1

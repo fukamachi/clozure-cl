@@ -14,7 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
+(in-package "CCL")
 
 ; module-name      binary                          (source . files-depends-on)
 ; -----------      ------                          ---------------------------

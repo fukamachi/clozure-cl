@@ -14,7 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;;; Sort
 
 ;;; sorts a sequence destructively using a predicate which must be a
@@ -25,6 +24,8 @@
 ;;;  given.
 
 ;;; Sort dispatches to type specific sorting routines.
+
+(in-package "CCL")
 
 (defun sort (sequence predicate &key key)
   "Returns SEQUENCE, which has been modified to be in order.

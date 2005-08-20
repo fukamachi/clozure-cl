@@ -14,12 +14,10 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
 ;;; backtrace-lds.lisp
 ;;; low-level support for stack-backtrace dialog (Lisp Development System)
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (eval compile #-bccl load)
   (require 'streams))

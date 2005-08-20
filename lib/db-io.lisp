@@ -35,6 +35,7 @@
 ;;; that this code is self-contained (doesn't depend on any Unix database
 ;;; library) should make it easier to port to other platforms.
 
+(in-package "CCL")
 
 (defparameter *interface-abi-version* 1)
 

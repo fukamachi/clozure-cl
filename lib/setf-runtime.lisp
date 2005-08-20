@@ -17,9 +17,7 @@
 ;
 ; setf-runtime.lisp - runtime support for setf expressions
 
-
 (in-package "CCL")
-
 
 (defun set-cadr (list new-value)
   (set-car (cdr list) new-value))

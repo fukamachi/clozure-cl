@@ -14,12 +14,10 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;;; Functions to implement FORMAT.
 ;;;
 
 (in-package "CCL")
-
 
 ;;; Special variables local to FORMAT
 ;;; why do these have top-level bindings ????? - seems wrong or at least unnecessary

@@ -14,14 +14,10 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
 ;;; backtrace.lisp
 ;;; low-level support for stack-backtrace printing
 
-(in-package :ccl)
-
-
+(in-package "CCL")
 
 ;;; This PRINTS the call history on *DEBUG-IO*.  It's more dangerous
 ;;; (because of stack consing) to actually return it.

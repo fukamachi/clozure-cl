@@ -14,9 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
-#+allow-in-package
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)

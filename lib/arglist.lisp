@@ -14,12 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
-(in-package :ccl)
-
-
-
+(in-package "CCL")
 
 ; Returns two values: the arglist & it's functions binding.
 ; If the second arg is NIL, there was no function binding.

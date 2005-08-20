@@ -14,10 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;; Apropos.lisp
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (:execute :compile-toplevel)
    (require :level-2)

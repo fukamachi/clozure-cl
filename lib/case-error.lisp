@@ -14,7 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 (in-package "CCL")
 
 ;I wanted a read that would not error even when given a #<

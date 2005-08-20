@@ -21,6 +21,7 @@ a;;;   Opensourced MCL is distributed in the hope that it will be useful,
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
 ;(setq *save-local-symbols* t)
 

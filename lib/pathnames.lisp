@@ -15,11 +15,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;;pathnames.lisp Pathnames for Coral Common LISP
 (in-package "CCL")
-
-
 
 (eval-when (eval compile)
   (require 'level-2)

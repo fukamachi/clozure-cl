@@ -14,9 +14,10 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ; streams.lisp
 ;;;General io-functions
+
+(in-package "CCL")
 
 (eval-when (:execute :compile-toplevel)
   (require :level-2)

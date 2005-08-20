@@ -16,7 +16,7 @@
 
 ;;; Macros (and functions/constants used at macroexpand-time) ONLY.
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (eval compile)
   (require "LEVEL-2")

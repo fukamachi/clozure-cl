@@ -14,6 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
 
 (defconstant $numppcsaveregs 8)
 (defconstant $numppcargregs 3)

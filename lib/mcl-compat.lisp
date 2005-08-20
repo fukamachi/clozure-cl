@@ -14,7 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 (in-package "CCL")
 
 ;;; mcl-compat.lisp - (some) backwards-compatibility with traditional MCL

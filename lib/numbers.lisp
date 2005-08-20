@@ -14,7 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;; Lib;numbers.lisp - Lisp arithmetic code.
 
 (in-package "CCL")

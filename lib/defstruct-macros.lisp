@@ -17,7 +17,7 @@
 ; This file is needed to compile DEFSTRUCT and anything accessing defstruct
 ; data structures.
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (:execute :compile-toplevel)
   (require "LISPEQU"))

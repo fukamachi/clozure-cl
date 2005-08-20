@@ -16,7 +16,7 @@
 
 ; Dumplisp.lisp
 
-(in-package :ccl)
+(in-package "CCL")
 
 (defvar *save-exit-functions* nil 
   "List of (0-arg)functions to call before saving memory image")

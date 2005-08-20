@@ -55,7 +55,7 @@
 ; METHOD-COMBINATION-OPERATOR
 ; METHOD-COMBINATION-IDENTITY-WITH-ONE-ARGUMENT
 
-(in-package :ccl)
+(in-package "CCL")
 
 (defclass method-combination (metaobject)
   ((name :reader method-combination-name :initarg :name)

@@ -18,6 +18,7 @@
 ;; Load this into a PPCCL to make it into an MCL-PPC for shipping
 ;; Sort of.
 
+(in-package "CCL")
 
 (defun %reset-outermost-binding (symbol value)
   (let* ((svar (find-svar symbol)))

@@ -15,13 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 ;; chars.lisp
 
-
-(in-package :ccl)
-
-
-
-
-        
+(in-package "CCL")
 
 ; If object is a character, it is returned.  If it is an integer, its INT-CHAR
 ; is returned. If it is a string of length 1, then the sole element of the

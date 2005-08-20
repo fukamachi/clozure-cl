@@ -120,10 +120,7 @@
 ;;; add defmethod-like for guess what
 ;;;  nuke *abbreviation-happened*
 
-
 
-
-
 (in-package "CCL")
 
 #-ccl-2
