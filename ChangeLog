@@ -1,3 +1,39 @@
+2005-08-20 14:06  bryan
+
+	* library/loop.lisp: 
+	remove all reader-conditionalized code for non-openmcl platforms.
+
+2005-08-20 13:38  bryan
+
+	* level-1/: l1-aprims.lisp, l1-boot-1.lisp, l1-boot-2.lisp,
+	l1-boot-3.lisp, l1-boot-lds.lisp, l1-callbacks.lisp,
+	l1-cl-package.lisp, l1-clos-boot.lisp, l1-clos.lisp, l1-dcode.lisp,
+	l1-error-signal.lisp, l1-events.lisp, l1-files.lisp,
+	l1-format.lisp, l1-init.lisp, l1-io.lisp, l1-numbers.lisp,
+	l1-pathnames.lisp, l1-reader.lisp, l1-sort.lisp, l1-streams.lisp,
+	l1-symhash.lisp, l1-sysio.lisp, l1-typesys.lisp, l1-utils.lisp,
+	level-1.lisp, linux-files.lisp, ppc-callback-support.lisp,
+	ppc-threads-utils.lisp, ppc-trap-support.lisp, runtime.lisp,
+	sysutils.lisp, version.lisp: 
+	add (in-package "CCL") forms.
+
+2005-08-20 13:26  bryan
+
+	* lib/: apropos.lisp, arglist.lisp, arrays-fry.lisp,
+	backtrace-lds.lisp, backtrace.lisp, case-error.lisp,
+	ccl-export-syms.lisp, chars.lisp, compile-ccl.lisp, db-io.lisp,
+	defstruct-lds.lisp, defstruct-macros.lisp, defstruct.lisp,
+	distrib-inits.lisp, dumplisp.lisp, edit-callers.lisp,
+	encapsulate.lisp, format.lisp, hash.lisp, level-2.lisp,
+	macros.lisp, mcl-compat.lisp, method-combination.lisp, misc.lisp,
+	nfcomp.lisp, number-case-macro.lisp, number-macros.lisp,
+	numbers.lisp, pathnames.lisp, ppc-init-ccl.lisp, ppcenv.lisp,
+	pprint.lisp, prepare-mcl-environment.lisp, print-db.lisp,
+	sequences.lisp, setf-runtime.lisp, setf.lisp, sort.lisp,
+	source-files.lisp, sparcenv.lisp, streams.lisp, systems.lisp,
+	time.lisp: 
+	add (in-package "CCL") forms.
+
 2005-08-20 13:08  bryan
 
 	* library/: darwin-syscalls.lisp, linux-syscalls.lisp,
