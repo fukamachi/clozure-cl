@@ -14,20 +14,15 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
 ;; LispEqu.lisp
 
-(in-package :ccl)
-
-
-
+(in-package "CCL")
 
 (defconstant $flags_Normal 0)
 (defconstant $flags_DisposeRecursiveLock 1)
 (defconstant $flags_DisposPtr 2)
 (defconstant $flags_DisposeRwlock 3)
 (defconstant $flags_DisposeSemaphore 4)
-
 
 (defconstant $system-lock-type-recursive 0)
 (defconstant $system-lock-type-rwlock 1)

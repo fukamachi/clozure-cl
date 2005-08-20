@@ -107,7 +107,7 @@ nil;  otherwise return true.
 
 |#
 
-(in-package :ccl)
+(in-package "CCL")
 
 (provide "MACPTR-TERMINATION")
 

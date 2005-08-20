@@ -17,8 +17,7 @@
 ; lisp-package.lisp
 ; Define a lisp package that attempts to behave like CLTL-1.
 
-(cl:in-package :ccl)
-
+(in-package "CCL")
 
 (defpackage "LISP"
   (:use )

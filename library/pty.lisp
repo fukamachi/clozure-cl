@@ -13,9 +13,10 @@
 ;;;
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
-(in-package "CCL")
 
 ;;; (very) preliminary support for dealing with TTYs (and PTYs).
+
+(in-package "CCL")
 
 ;;; Open a (connected) pair of pty file descriptors, such that anything
 ;;; written to one can be read from the other.

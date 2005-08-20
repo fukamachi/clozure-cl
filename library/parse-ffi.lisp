@@ -14,8 +14,6 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-
-
 (in-package "CCL")
 
 (defvar *parse-ffi-target-ftd* *target-ftd*)

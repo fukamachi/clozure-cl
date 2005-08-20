@@ -39,7 +39,7 @@
 ;; Modification History
 ;;
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
   (require 'sysequ))
