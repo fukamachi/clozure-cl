@@ -16,7 +16,7 @@
 
 
 
-(in-package :ccl)
+(in-package "CCL")
 
 ;; :compiler:nx0.lisp - part of the compiler
 

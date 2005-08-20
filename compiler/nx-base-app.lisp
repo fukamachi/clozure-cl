@@ -17,7 +17,7 @@
 
 ; Loaded instead of compiler for standalone applications.
 
-(in-package :ccl)
+(in-package "CCL")
 
 ;(require 'numbers)
 (require 'sort)

@@ -13,7 +13,10 @@
 ;;;
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
+
 ; Optimizers.lisp - compiler optimizers
+
+(in-package "CCL")
 
 (eval-when (eval compile)
   (require'backquote)

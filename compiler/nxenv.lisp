@@ -18,7 +18,7 @@
 ; Compile-time environment for the compiler.
 
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (:execute :compile-toplevel)
   (require'backquote)

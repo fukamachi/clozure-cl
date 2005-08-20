@@ -15,7 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
-(in-package :ccl)
+(in-package "CCL")
 
 
 ;;; Compiler functions needed elsewhere
