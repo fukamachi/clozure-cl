@@ -1,3 +1,13 @@
+2005-08-20 15:08  bryan
+
+	* level-1/version.lisp: 
+	bump.
+
+2005-08-20 15:05  bryan
+
+	* lib/pprint.lisp: 
+	remove all reader-conditionalized code for non-openmcl platforms.
+
 2005-08-20 14:06  bryan
 
 	* library/loop.lisp: 
