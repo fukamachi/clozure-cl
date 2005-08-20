@@ -1,3 +1,12 @@
+2005-08-20 01:08  bryan
+
+	* level-1/version.lisp: bump.
+
+2005-08-20 01:06  bryan
+
+	* level-1/l1-reader.lisp: 
+	read-list: make sure the first form read isn't a dot.
+
 2005-08-19 19:17  bryan
 
 	* level-1/version.lisp: bump.
