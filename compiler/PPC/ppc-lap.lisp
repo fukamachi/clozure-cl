@@ -15,7 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
-(in-package :ccl)
+(in-package "CCL")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "PPC32-ARCH")
