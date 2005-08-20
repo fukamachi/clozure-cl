@@ -711,18 +711,25 @@
     (declare (dynamic-extent dot-ok head)
              (list head tail))
     (if nodots (setq dot-ok nil))
-    (loop
-      (multiple-value-bind (form form-p) (%read-list-expression stream dot-ok termch)
-        (if (not form-p) (return))
-        (if (and dot-ok (eq form dot-ok))            ; just read a dot
-          (if (and tail
-                   (multiple-value-bind (lastform lastform-p) (%read-list-expression stream nil termch)
-                     (and lastform-p
-                          (progn (rplacd tail lastform) 
-                                 (not (nth-value 1 (%read-list-expression stream nil termch)))))))
-            (return)
+    (multiple-value-bind (firstform firstform-p)
+        (%read-list-expression stream dot-ok termch)
+      (when firstform-p
+        (if (and dot-ok (eq firstform dot-ok))       ; just read a dot
             (signal-reader-error stream "Dot context error."))
-           (rplacd tail (setq tail (cons form nil))))))
+        (rplacd tail (setq tail (cons firstform nil)))
+        (loop
+          (multiple-value-bind (nextform nextform-p)
+              (%read-list-expression stream dot-ok termch)
+            (if (not nextform-p) (return))
+            (if (and dot-ok (eq nextform dot-ok))    ; just read a dot
+                (if (multiple-value-bind (lastform lastform-p)
+                        (%read-list-expression stream nil termch)
+                      (and lastform-p
+                           (progn (rplacd tail lastform) 
+                                  (not (nth-value 1 (%read-list-expression stream nil termch))))))
+                    (return)
+                    (signal-reader-error stream "Dot context error."))
+                (rplacd tail (setq tail (cons nextform nil))))))))
     (cdr head)))
 
 #|
