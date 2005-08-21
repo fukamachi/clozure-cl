@@ -17,7 +17,7 @@ x/s (($arg0)-4)
 end
 
 define pname32
-lisp_string (*($arg0-2))
+lisp_string32 (*($arg0-2))
 end
 
 # GDB's expression parser seems to have difficulty
@@ -59,17 +59,48 @@ define xpPC
  p/x ((ExceptionInformation *)$arg0)->uc_mcontext.regs->nip
 end
 
-define hook-stop
-handle SIGALRM nopass
+define lisp_string
+ if $ppc64
+  lisp_string64 $arg0
+ else
+  lisp_string32 $arg0
+ end
 end
-     
-define hook-run
-handle SIGALRM pass
+
+define pname
+ if $ppc64
+  pname64 $arg0
+ else
+  pname32 $arg0
+ end
 end
-     
-define hook-continue
-handle SIGALRM pass
+
+define tcr
+ if $ppc64
+  tcr64
+ else
+  tcr32
+ end
 end
+
+define regs
+ if $ppc64
+  regs64 $arg0
+ else
+  regs32 $arg0
+ end
+end
+
+define xpGPR
+ if $ppc64
+  xpGPR64 $arg0 $arg1
+ else
+  xpGPR32 $arg0 $arg1
+ end
+end
+
+set $ppc64=0
+
 
 break Bug
 
