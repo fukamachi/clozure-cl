@@ -188,7 +188,7 @@
     (if (and (= typecode target::subtag-vectorH)
              (logbitp $arh_fill_bit (the fixnum (%svref array target::vectorH.flags-cell))))
       (%svref array target::vectorH.logsize-cell)
-      (report-bad-arg array '(satisfies array-has-fill-pointer-p)))))
+      (report-bad-arg array '(and array (satisfies array-has-fill-pointer-p))))))
 
 (defun set-fill-pointer (array value)
   (let* ((typecode (typecode array)))
