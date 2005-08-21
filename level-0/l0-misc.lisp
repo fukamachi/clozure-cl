@@ -431,44 +431,51 @@
   (ff-call (%kernel-import target::kernel-import-resume-other-threads)
            :void))
 
-(defun %lock-recursive-lock (lock)
+(defun %lock-recursive-lock (lock &optional flag)
   (with-macptrs ((p)
 		 (owner (%get-ptr lock target::lockptr.owner))
 		 (signal (%get-ptr lock target::lockptr.signal)))
     (%setf-macptr-to-object p (%current-tcr))
-    (if (eql p owner)
-      (incf #+ppc32-target
-            (%get-unsigned-long lock ppc32::lockptr.count)
-            #+ppc64-target
-            (%%get-unsigned-longlong lock ppc64::lockptr.count))
-      (loop
-	(when (eql 1 (%atomic-incf-ptr lock))
-	  (setf (%get-ptr lock target::lockptr.owner) p
-                #+ppc32-target
-		(%get-unsigned-long lock ppc32::lockptr.count)
-                #+ppc64-target
-                (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
-	  (return t))
-	(%timed-wait-on-semaphore-ptr signal 1 0)))))
+    (loop
+      (without-interrupts
+       (when (eql p owner)
+         (incf #+ppc32-target
+               (%get-unsigned-long lock ppc32::lockptr.count)
+               #+ppc64-target
+               (%%get-unsigned-longlong lock ppc64::lockptr.count))
+         (when flag
+           (rplaca flag t))
+         (return t))
+       (when (eql 1 (%atomic-incf-ptr lock))
+         (setf (%get-ptr lock target::lockptr.owner) p
+               #+ppc32-target
+               (%get-unsigned-long lock ppc32::lockptr.count)
+               #+ppc64-target
+               (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
+         (if flag
+           (rplaca flag t))
+         (return t)))
+      (%timed-wait-on-semaphore-ptr signal 0 0 "waiting for lock"))))
 
 (defun %try-recursive-lock (lock)
   (with-macptrs ((p)
 		 (owner (%get-ptr lock target::lockptr.owner)))
     (%setf-macptr-to-object p (%current-tcr))
-    (cond ((eql p owner)
-	   (incf #+ppc32-target
-		(%get-unsigned-long lock ppc32::lockptr.count)
-                #+ppc64-target
-                (%%get-unsigned-longlong lock ppc64::lockptr.count))
-	   t)
-	  ((eql 0 (%ptr-store-conditional lock 0 1))
-	   (setf (%get-ptr lock target::lockptr.owner) p
-                 #+ppc32-target
-		(%get-unsigned-long lock ppc32::lockptr.count)
-                #+ppc64-target
-                (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
-	   t)
-	  (t nil))))
+    (without-interrupts
+     (cond ((eql p owner)
+            (incf #+ppc32-target
+                  (%get-unsigned-long lock ppc32::lockptr.count)
+                  #+ppc64-target
+                  (%%get-unsigned-longlong lock ppc64::lockptr.count))
+            t)
+           ((eql 0 (%ptr-store-conditional lock 0 1))
+            (setf (%get-ptr lock target::lockptr.owner) p
+                  #+ppc32-target
+                  (%get-unsigned-long lock ppc32::lockptr.count)
+                  #+ppc64-target
+                  (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
+            t)
+           (t nil)))))
 
 
 (defun %unlock-recursive-lock (lock)
@@ -478,20 +485,28 @@
     (%setf-macptr-to-object p (%current-tcr))
     (unless (eql p owner)
       (error 'not-lock-owner :lock lock))
-    (when (eql 0 (decf (the fixnum #+ppc32-target
-                            (%get-unsigned-long lock ppc32::lockptr.count)
-                            #+ppc64-target
-                            (%%get-unsigned-longlong lock ppc64::lockptr.count))))
-      (setf (%get-ptr lock target::lockptr.owner) (%null-ptr))
-      (let* ((pending (1- (the fixnum (%atomic-swap-ptr lock 0)))))
-	(declare (fixnum pending))
-	(with-macptrs ((waiting (%inc-ptr lock target::lockptr.waiting)))
-	  (%atomic-incf-ptr-by waiting pending)
-	  (when (>= (the fixnum (%atomic-decf-ptr-if-positive waiting)) 0)
-	    (%signal-semaphore-ptr signal)))))
+    (without-interrupts
+     (when (eql 0 (decf (the fixnum
+                          #+ppc32-target
+                          (%get-unsigned-long lock ppc32::lockptr.count)
+                          #+ppc64-target
+                          (%%get-unsigned-longlong lock ppc64::lockptr.count))))
+       (setf (%get-ptr lock target::lockptr.owner) (%null-ptr))
+       (let* ((pending (1- (the fixnum (%atomic-swap-ptr lock 0)))))
+         (declare (fixnum pending))
+         (with-macptrs ((waiting (%inc-ptr lock target::lockptr.waiting)))
+           (%atomic-incf-ptr-by waiting pending)
+           (when (>= (the fixnum (%atomic-decf-ptr-if-positive waiting)) 0)
+             (%signal-semaphore-ptr signal))))))
     nil))
 
 
+(defun %%lock-owner (lock)
+  "Intended for debugging only; ownership may change while this code
+   is running."
+  (let* ((tcr (%get-object (recursive-lock-ptr lock) target::lockptr.owner)))
+    (unless (zerop tcr)
+      (tcr->process tcr))))
 
  
   
