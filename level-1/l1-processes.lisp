@@ -384,20 +384,18 @@
 (defun try-lock (lock)
   (%try-recursive-lock (recursive-lock-ptr lock)))
 
+
+
 (defun process-wait (whostate function &rest args)
   (declare (dynamic-extent args))
   (or (apply function args)
-      (let* ((p *current-process*)
-             (old-whostate (process-whostate p)))
-        (unwind-protect
-             (progn
-               (setf (%process-whostate p) whostate)
-               (loop
-                 (when (apply function args)
-                   (return))
-		   ;; Sleep for a tick
-		   (%nanosleep 0 *ns-per-tick*)))
-          (setf (%process-whostate p) old-whostate)))))
+      (with-process-whostate (whostate)
+        (loop
+          (when (apply function args)
+            (return))
+          ;; Sleep for a tick
+          (%nanosleep 0 *ns-per-tick*)))))
+
 
 
 (defun process-wait-with-timeout (whostate time function &rest args)
