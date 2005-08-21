@@ -235,7 +235,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 (defun toplevel-print (values)
   (setq /// // // / / values)
-  (setq *** ** ** * * (if (neq (%car values) (%unbound-marker-8)) (%car values)))
+  (unless (eq (car values) (%unbound-marker))
+    (setq *** ** ** * *  (%car values)))
   (when values
     (fresh-line)
     (dolist (val values) (write val) (terpri))))
