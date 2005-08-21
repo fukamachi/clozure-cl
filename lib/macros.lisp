@@ -2936,15 +2936,26 @@ are no Forms, OR returns NIL."
 	(%restore-terminal-input ,got-it)))))
 
 
-
-
+(defmacro with-process-whostate ((whostate) &body body)
+  (let* ((p (gensym))
+         (old-whostate (gensym)))
+    `(let* ((,p *current-process*)
+            (,old-whostate (process-whostate ,p)))
+      (unwind-protect
+           (progn
+             (setf (%process-whostate ,p) ,whostate)
+             ,@body)
+        (setf (%process-whostate ,p) ,old-whostate)))))
 
 (defmacro %with-recursive-lock-ptr ((lockptr) &body body)
-  `(unwind-protect
-    (progn
-      (%lock-recursive-lock ,lockptr)
-      ,@body)
-    (%unlock-recursive-lock ,lockptr)))
+  (let* ((locked (gensym)))
+    `(let ((,locked (cons nil nil)))
+      (declare (dynamic-extent ,locked))
+      (unwind-protect
+           (progn
+             (%lock-recursive-lock ,lockptr ,locked )
+             ,@body)
+        (when (car ,locked) (%unlock-recursive-lock ,lockptr))))))
 
 (defmacro %with-recursive-lock-ptr-maybe ((lockptr) &body body)
   `(when (%try-recursive-lock ,lockptr)
