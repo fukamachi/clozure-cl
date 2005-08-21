@@ -177,7 +177,7 @@
 ; Build & return list of all labels that are targets of conditional branches.
 (defun ppc-lap-conditional-branch-targets ()
   (let* ((branch-target-labels ()))
-    (dolist (lab *lap-labels* branch-target-labels)
+    (do-lap-labels (lab branch-target-labels)
       (dolist (insn (lap-label-refs lab))
         (when (ppc-lap-conditional-branch-p insn)
           (push lab branch-target-labels))))))
@@ -190,8 +190,7 @@
       (if (typep node 'lap-label)
         (if delete-labels-p (remove-dll-node node))
         (incf pc 4)))
-    #+ppc32-target
-    (if (>= pc (ash 1 20)) (compiler-function-overflow))
+    ;; Don't bother checking code-vector size yet.
     pc))
 
 ;;; The function's big enough that we might have generated conditional
@@ -216,16 +215,16 @@
             (setq done nil)))))))
 
 (defun ppc-lap-do-labels ()
-  (dolist (lab *lap-labels*)
+  (do-lap-labels (lab)
     (if (and (lap-label-refs lab) (not (lap-label-emitted-p lab)))
       (error "Label ~S was referenced but never defined. " 
              (lap-label-name lab)))
-    ; Repeatedly iterate through label's refs, until none of them is the preceding
-    ; instruction.  This eliminates
-    ; (b @next)
-    ;@next
-    ;
-    ; but can probably be fooled by hairier nonsense.
+    ;; Repeatedly iterate through label's refs, until none of them is
+    ;; the preceding instruction.  This eliminates
+    ;; (b @next)
+    ;;@next
+    ;;
+    ;; but can probably be fooled by hairier nonsense.
     (loop
       (when (dolist (ref (lap-label-refs lab) t)
               (when (eq lab (lap-instruction-succ ref))
@@ -233,18 +232,18 @@
                 (setf (lap-label-refs lab) (delete ref (lap-label-refs lab)))
                 (return)))
         (return))))
-  ; Assign pc to emitted labels, splice them out of the list.
+  ;; Assign pc to emitted labels, splice them out of the list.
   
   (if (> (the fixnum (dll-header-length *lap-instructions*)) 8191)
-    ; -Might- have some conditional branches that are too long.
-    ; Definitely don't  otherwise, so only bother to check in this case
+    ;; -Might- have some conditional branches that are too long.
+    ;; Definitely don't  otherwise, so only bother to check in this case
     (ppc-lap-remove-long-branches)
     (ppc-lap-assign-addresses t)))
 
 ; Replace each label with the difference between the label's address
 ; and the referencing instruction's address.
 (defun ppc-lap-resolve-labels ()
-  (dolist (label *lap-labels*)
+  (do-lap-labels (label)
     (let* ((label-address (lap-label-address label)))
       (declare (fixnum label-address))          ; had BETTER be ...
       (dolist (insn (lap-label-refs label))
@@ -325,7 +324,7 @@
           (out-byte code-vector pos (char-code (schar pname i)))
           (incf pos))))))
 
-(defun ppc-lap-generate-code (name maxpc bits &optional (traceback t))
+(defun ppc-lap-generate-code (name maxpc bits &optional (traceback nil))
   (declare (fixnum maxpc))
   (let* ((target-backend *target-backend*)
          (cross-compiling (not (eq *host-backend* target-backend)))
@@ -335,10 +334,8 @@
 				    (setq traceback (symbol-name name)))))
          (prefix (arch::target-code-vector-prefix (backend-target-arch *target-backend*)))
          (prefix-size (length prefix))
-	 (code-vector (%alloc-misc (+ (ash maxpc -2) traceback-size prefix-size)
-				   (if cross-compiling
-				     target::subtag-xcode-vector
-				     target::subtag-code-vector)))
+         (code-vector-size (+ (ash maxpc -2) traceback-size prefix-size))
+
          (constants-size (+ 3 (length *ppc-lap-constants*)))
          (constants-vector (%alloc-misc
                             constants-size
@@ -347,28 +344,35 @@
 			      target::subtag-function)))
          (i prefix-size))
     (declare (fixnum i constants-size))
-    (dotimes (j prefix-size)
-      (setf (uvref code-vector j) (pop prefix)))
-    (ppc-lap-resolve-labels)            ; all operands fully evaluated now.
-    (do-dll-nodes (insn *lap-instructions*)
-      (ppc-lap-generate-instruction code-vector i insn)
-      (incf i))
-    (unless (eql 0 traceback-size)
-      (add-traceback-table code-vector i traceback))
-    (dolist (immpair *ppc-lap-constants*)
-      (let* ((imm (car immpair))
-             (k (cdr immpair)))
-        (declare (fixnum k))
-        (setf (uvref constants-vector
-                     (ash
-                      (- k (arch::target-misc-data-offset (backend-target-arch target-backend)))
-                      (- (arch::target-word-shift (backend-target-arch target-backend)))))
-              imm)))
-    (setf (uvref constants-vector (1- constants-size)) bits       ; lfun-bits
-          (uvref constants-vector (- constants-size 2)) name
-          (uvref constants-vector 0) code-vector)
-    #+ppc-target (%make-code-executable code-vector)
-    constants-vector))
+    #+ppc32-target
+    (if (>= code-vector-size (ash 1 19)) (compiler-function-overflow))
+    (let* ((code-vector (%alloc-misc
+                         code-vector-size
+                         (if cross-compiling
+                           target::subtag-xcode-vector
+                           target::subtag-code-vector))))
+      (dotimes (j prefix-size)
+        (setf (uvref code-vector j) (pop prefix)))
+      (ppc-lap-resolve-labels)          ; all operands fully evaluated now.
+      (do-dll-nodes (insn *lap-instructions*)
+        (ppc-lap-generate-instruction code-vector i insn)
+        (incf i))
+      (unless (eql 0 traceback-size)
+        (add-traceback-table code-vector i traceback))
+      (dolist (immpair *ppc-lap-constants*)
+        (let* ((imm (car immpair))
+               (k (cdr immpair)))
+          (declare (fixnum k))
+          (setf (uvref constants-vector
+                       (ash
+                        (- k (arch::target-misc-data-offset (backend-target-arch target-backend)))
+                        (- (arch::target-word-shift (backend-target-arch target-backend)))))
+                imm)))
+      (setf (uvref constants-vector (1- constants-size)) bits ; lfun-bits
+            (uvref constants-vector (- constants-size 2)) name
+            (uvref constants-vector 0) code-vector)
+      #+ppc-target (%make-code-executable code-vector)
+      constants-vector)))
 
 (defun ppc-lap-pseudo-op (form)
   (case (car form)

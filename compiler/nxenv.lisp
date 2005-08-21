@@ -72,7 +72,7 @@
   policy.allow-constant-substitution
   policy.misc)
 
-(defconstant $vbitareg 16)   ; Would prefer an address register, if possible.
+(defconstant $vbittemporary 16)    ; a compiler temporary
 (defconstant $vbitreg 17)          ; really wants to live in a register.
 (defconstant $vbitnoreg 18)        ; something inhibits register allocation
 (defconstant $vbitdynamicextent 19)
@@ -591,7 +591,7 @@
 
 (defun nx-adjust-setq-count (var &optional (by 1) catchp)
   (let* ((bits (nx-var-bits var))
-         (scaled-by (if (%ilogbitp $vbitignoreunused bits)
+         (scaled-by (if (%ilogbitp $vbittemporary bits)
                       by
                       (expt 4 *nx-loop-nesting-level*)))
          (new (%i+ (%ilsr 8 (%ilogand2 $vsetqmask bits)) scaled-by)))

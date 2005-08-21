@@ -237,17 +237,17 @@
   (append-dll-node (aref *backend-labels* labelnum) seg)
   labelnum)
 
-(defconstant $backend-compound-branch-target-bit 28)
+(defconstant $backend-compound-branch-target-bit 18)
 (defconstant $backend-compound-branch-target-mask (ash 1 $backend-compound-branch-target-bit))
 
-(defconstant $backend-mvpass-bit 29)
-(defconstant $backend-mvpass-mask (ash -1 $backend-mvpass-bit))
+(defconstant $backend-mvpass-bit 19)
+(defconstant $backend-mvpass-mask (ash 1 $backend-mvpass-bit))
 
-(defconstant $backend-return (- (ash 1 14) 1))
-(defconstant $backend-mvpass (- (ash 1 14) 2))
+(defconstant $backend-return (- (ash 1 18) 1))
+(defconstant $backend-mvpass (- (ash 1 18) 2))
 
-(defconstant $backend-compound-branch-false-byte (byte 14 0))
-(defconstant $backend-compound-branch-true-byte (byte 14 14))
+(defconstant $backend-compound-branch-false-byte (byte 18 0))
+(defconstant $backend-compound-branch-true-byte (byte 18 20))
 
 
 (defun backend-get-next-label ()

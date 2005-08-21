@@ -511,22 +511,25 @@
 	   (traceback-size (traceback-fullwords traceback-string))
            (prefix (arch::target-code-vector-prefix (backend-target-arch *target-backend*)))
            (prefix-size (length prefix))
-           (code-vector (%alloc-misc (+ traceback-size (ash maxpc -2) prefix-size)
+           (code-vector-size (+ traceback-size (ash maxpc -2) prefix-size)))
+      #+ppc32-target
+      (if (>= code-vector-size (ash 1 19)) (compiler-function-overflow))
+      (let* ((code-vector (%alloc-misc code-vector-size
                                      (if cross-compiling
                                        target::subtag-xcode-vector
                                        target::subtag-code-vector)))
-           (i prefix-size))
-      (dotimes (i prefix-size)
-        (setf (uvref code-vector i) (pop prefix)))
-      (ppc-lap-resolve-labels)
-      (do-dll-nodes (insn *lap-instructions*)
-        (ppc-lap-generate-instruction code-vector i insn)
-        (incf i))
-      (unless (eql 0 traceback-size)
-        (add-traceback-table code-vector i traceback-string))
-      (setf (uvref function 0) code-vector)
-      (%make-code-executable code-vector)
-      function)))
+             (i prefix-size))
+        (dotimes (i prefix-size)
+          (setf (uvref code-vector i) (pop prefix)))
+        (ppc-lap-resolve-labels)
+        (do-dll-nodes (insn *lap-instructions*)
+          (ppc-lap-generate-instruction code-vector i insn)
+          (incf i))
+        (unless (eql 0 traceback-size)
+          (add-traceback-table code-vector i traceback-string))
+        (setf (uvref function 0) code-vector)
+        (%make-code-executable code-vector)
+        function))))
       
     
 (defun ppc2-make-stack (size &optional (subtype target::subtag-s16-vector))
@@ -1084,7 +1087,7 @@
 
 (defun ppc2-mvpass (seg form &optional xfer)
   (with-ppc-local-vinsn-macros (seg)
-    (ppc2-form seg  ($ ppc::arg_z) (%ilogior2 (or xfer 0) $backend-mvpass-mask) form)))
+    (ppc2-form seg  ($ ppc::arg_z) (logior (or xfer 0) $backend-mvpass-mask) form)))
 
 (defun ppc2-adjust-vstack (delta)
   (ppc2-set-vstack (%i+ *ppc2-vstack* delta)))
@@ -2147,7 +2150,7 @@
             (ppc2-vpush-register seg (ppc2-one-untargeted-reg-form seg fn ppc::arg_z))
             (setq fn (ppc2-vloc-ea vstack)))
           (ppc2-invoke-fn seg fn (ppc2-arglist seg arglist) spread-p xfer)
-          (if (and (%ilogbitp $backend-mvpass-bit xfer)
+          (if (and (logbitp $backend-mvpass-bit xfer)
                    (not simple-case))
             (progn
               (! save-values)
@@ -2159,9 +2162,9 @@
           (ppc2-set-vstack vstack)
           (setq *ppc2-top-vstack-lcell* top)
           (setq *ppc2-cstack* cstack)
-          (when (or (%ilogbitp $backend-mvpass-bit xfer) (not mv-p))
+          (when (or (logbitp $backend-mvpass-bit xfer) (not mv-p))
             (<- ppc::arg_z)
-            (ppc2-branch seg (%ilogand2 (%ilognot $backend-mvpass-mask) xfer) vreg))))
+            (ppc2-branch seg (logand (lognot $backend-mvpass-mask) xfer) vreg))))
       nil)))
 
 (defun ppc2-restore-full-lisp-context (seg)
@@ -2856,7 +2859,7 @@
          (old-stack (ppc2-encode-stack)))
     (with-ppc-local-vinsn-macros (seg)
       (ppc2-open-undo $undomvexpect)
-      (ppc2-undo-body seg nil (%ilogior2 $backend-mvpass-mask lab) form old-stack)
+      (ppc2-undo-body seg nil (logior $backend-mvpass-mask lab) form old-stack)
       (@ lab))))
 
 (defun ppc2-afunc-lfun-ref (afunc)
@@ -4323,8 +4326,8 @@
          (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*))
     (with-ppc-local-vinsn-macros (seg)
       (setq xfer (or xfer 0))
-      (when (%ilogbitp $backend-mvpass-bit xfer) ;(ppc2-mvpass-p cd)
-        (setq xfer (%ilogand (%ilognot $backend-mvpass-mask) xfer))
+      (when (logbitp $backend-mvpass-bit xfer) ;(ppc2-mvpass-p cd)
+        (setq xfer (logand (lognot $backend-mvpass-mask) xfer))
         (unless *ppc2-returning-values*
           (ppc2-vpush-register seg ppc::arg_z)
           (ppc2-set-nargs seg 1)))
@@ -4363,8 +4366,8 @@
 
 (defun ppc2-cd-merge (cd label)
   (setq cd (or cd 0))
-  (let ((mvpass (%ilogbitp $backend-mvpass-bit cd)))
-    (if (neq 0 (%ilogand2 (%ilognot $backend-mvpass-mask) cd))
+  (let ((mvpass (logbitp $backend-mvpass-bit cd)))
+    (if (neq 0 (logand (lognot $backend-mvpass-mask) cd))
       (if (ppc2-cd-compound-p cd)
         (ppc2-make-compound-cd
          (ppc2-cd-merge (ppc2-cd-true cd) label)
@@ -4372,14 +4375,14 @@
          mvpass)
         cd)
       (if mvpass 
-        (%ilogior2 $backend-mvpass-mask label)
+        (logior $backend-mvpass-mask label)
         label))))
 
 (defun ppc2-mvpass-p (xfer)
-  (if xfer (or (%ilogbitp $backend-mvpass-bit xfer) (eq xfer $backend-mvpass))))
+  (if xfer (or (logbitp $backend-mvpass-bit xfer) (eq xfer $backend-mvpass))))
 
 (defun ppc2-cd-compound-p (xfer)
-  (if xfer (%ilogbitp $backend-compound-branch-target-bit xfer)))
+  (if xfer (logbitp $backend-compound-branch-target-bit xfer)))
 
 (defun ppc2-cd-true (xfer)
  (if (ppc2-cd-compound-p xfer)
@@ -4844,16 +4847,22 @@
 (defun ppc2-expand-vinsn (vinsn)
   (let* ((template (vinsn-template vinsn))
          (vp (vinsn-variable-parts vinsn))
-         (nvp (vinsn-template-nvp template)))
+         (nvp (vinsn-template-nvp template))
+         (unique-labels ()))
     (declare (fixnum nvp))
     (dotimes (i nvp)
       (let* ((val (svref vp i)))
         (when (typep val 'lreg)
           (setf (svref vp i) (lreg-value val)))))                       
     (dolist (name (vinsn-template-local-labels template))
-      (make-lap-label name))
+      (let* ((unique (cons name nil)))
+        (push unique unique-labels)
+        (make-lap-label unique)))
     (labels ((parse-operand-form (valform)
-               (cond ((atom valform) valform)
+               (cond ((typep valform 'keyword)
+                      (or (assq valform unique-labels)
+                          (error "unknown vinsn label ~s" valform)))
+                     ((atom valform) valform)
                      ((atom (cdr valform)) (svref vp (car valform)))
                      (t (let* ((op-vals (cdr valform))
                                (parsed-ops (make-list (length op-vals)))
@@ -4892,7 +4901,7 @@
                  (t (error "Unknown predicate: ~s" f))))
              (expand-form (f)
                (if (keywordp f)
-                 (emit-lap-label f)
+                 (emit-lap-label (assq f unique-labels))
                  (if (atom f)
                    (error "Invalid form in vinsn body: ~s" f)
                    (if (atom (car f))
@@ -5517,7 +5526,7 @@
       (@ end-of-block)
       (if compound
         (<- dest))
-      (ppc2-branch seg (%ilogand (%ilognot $backend-mvpass-mask) (or xfer 0)) vreg))))
+      (ppc2-branch seg (logand (lognot $backend-mvpass-mask) (or xfer 0)) vreg))))
 
 (defppc2 ppc2-%izerop %izerop (seg vreg xfer cc form)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
@@ -5857,7 +5866,7 @@
             (if true-cleanup-label
               (progn
                 (ppc2-open-undo $undomvexpect)
-                (ppc2-form seg vreg (%ilogior2 $backend-mvpass-mask true-cleanup-label) true))
+                (ppc2-form seg vreg (logior $backend-mvpass-mask true-cleanup-label) true))
               (ppc2-form seg vreg (if need-else (ppc2-cd-merge xfer endlabel) xfer) true)))
           (setq true-stack (ppc2-encode-stack))
           (setq *ppc2-cstack* cstack)

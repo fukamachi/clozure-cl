@@ -310,7 +310,9 @@ function to the indicated name is true.")
 
 (defun nx-new-temp-var (pending &optional (pname "COMPILER-VAR"))
   (let ((var (nx-new-var pending (make-symbol pname))))
-    (nx-set-var-bits var (%ilogior (%ilsl $vbitignoreunused 1) (nx-var-bits var)))
+    (nx-set-var-bits var (%ilogior (%ilsl $vbitignoreunused 1)
+                                   (%ilsl $vbittemporary 1)
+                                   (nx-var-bits var)))
     var))
 
 (defun nx-new-vdecl (pending name class &optional info)
@@ -1036,12 +1038,9 @@ Or something. Right? ~s ~s" var varbits))
                                  (%i- varbits varcount)))
               (nx-set-var-bits
                boundto
-               (%ilogior (%ilogand
-                           (ash 1 $vbitareg)
-                           (%ilogior varbits boundtobits))
                  (%i+ (%i- boundtobits boundtocount)
                       (%ilogand $vrefmask
-                        (%i+ (%i- boundtocount 1) varcount))))))))))
+                                (%i+ (%i- boundtocount 1) varcount)))))))))
 
 (defun nx1-compile-lambda (name lambda-form &optional
                                  (p (make-afunc))
@@ -1942,7 +1941,7 @@ Or something. Right? ~s ~s" var varbits))
 
 (defun nx-adjust-ref-count (var)
   (let* ((bits (nx-var-bits var))
-         (temp-p (%ilogbitp $vbitignoreunused bits))
+         (temp-p (%ilogbitp $vbittemporary bits))
          (by (if temp-p 1 (expt  4 *nx-loop-nesting-level*)))
          (new (%imin (%i+ (%ilogand2 $vrefmask bits) by) 255)))
     (nx-set-var-bits var (%ilogior (%ilogand (%ilognot $vrefmask) bits) new))
