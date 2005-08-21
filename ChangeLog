@@ -1,3 +1,16 @@
+2005-08-20 21:07  gb
+
+	* level-1/version.lisp: 050820b.  New binaries soon.
+
+2005-08-20 20:47  gb
+
+	* compiler/: backend.lisp, nx0.lisp, nxenv.lisp, risc-lap.lisp,
+	PPC/ppc-lap.lisp, PPC/ppc2.lisp: Several changes to enable larger
+	functions/code-vectors and to allow more labels in LAP and the
+	compiler.
+	
+	Some of this is tricky to bootstrap; new binaries soon.
+
 2005-08-20 19:54  bryan
 
 	* level-0/l0-array.lisp: 
