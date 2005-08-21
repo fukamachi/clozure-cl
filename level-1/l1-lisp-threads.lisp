@@ -413,12 +413,13 @@
 
 (defun thread-handle-interrupts ()
   (let* ((thread *current-lisp-thread*))
-    (loop
-      (let* ((f (with-lock-grabbed ((lisp-thread.interrupt-lock thread))
-                  (pop (lisp-thread.interrupt-functions thread)))))
-        (if f
-          (apply (car f) (cdr f))
-          (return))))))
+    (with-process-whostate ("Active")
+      (loop
+        (let* ((f (with-lock-grabbed ((lisp-thread.interrupt-lock thread))
+                    (pop (lisp-thread.interrupt-functions thread)))))
+          (if f
+            (apply (car f) (cdr f))
+            (return)))))))
 
 
 	
