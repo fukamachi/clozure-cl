@@ -1,3 +1,56 @@
+2005-08-21 16:57  gb
+
+	* lisp-kernel/linux/.gdbinit: Try to parameterize more for
+	ppc32/ppc64.
+
+2005-08-21 16:57  gb
+
+	* lib/macros.lisp: Add WITH-PROCESS-WHOSTATE, to make
+	saving/restoring a process's WHOSTATE a little easier.
+	
+	%WITH-RECURSIVE-LOCK-PTR uses the new %LOCK-RECURSIVE-LOCK to
+	better ensure that the lock is unlocked if and only if it was
+	successfully locked.
+
+2005-08-21 16:54  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-08-21 16:54  gb
+
+	* level-1/linux-files.lisp: %TIMED-WAIT-ON-SEMAPHORE-POINTER takes
+	an optional WHOSTATE argument.
+
+2005-08-21 16:53  gb
+
+	* level-1/l1-readloop-lds.lisp: Try harder to keep an
+	(%UNBOUND-MARKER) as the primary return value to TOPLEVEL-PRINT
+	from making *, **, *** unbound.
+
+2005-08-21 16:50  gb
+
+	* level-1/l1-processes.lisp: PROCESS-WAIT uses
+	WITH-PROCESS-WHOSTATE.
+
+2005-08-21 16:49  gb
+
+	* level-1/l1-lisp-threads.lisp: THREAD-HANDLE-INTERRUPTS resets the
+	process-whostate to "Active", using the new WITH-PROCESS-WHOSTATE
+	macro.
+
+2005-08-21 16:48  gb
+
+	* level-0/l0-misc.lisp: Try to ensure that things that change the
+	state of a recursive lock do so atomically, make
+	%LOCK-RECURSIVE-LOCK take an extra CONS (optional for
+	bootstrapping), which can be used to reliably indicate success.
+	
+	Add a %%LOCK-OWNER function for debugging.
+	
+	Note that there are some related changes in higher-level code;
+	while bootstrapping, build ppc-boot and a new image before
+	recompiling the higher-level parts of this.
+
 2005-08-21 02:28  gb
 
 	* lib/sparcenv.lisp: no SPARC
