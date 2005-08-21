@@ -46,8 +46,9 @@
 		 :unsigned nanoseconds
 		 :signed))))
 
-(defun %timed-wait-on-semaphore-ptr (s seconds nanoseconds)
-  (process-wait "semaphore wait" #'%wait-on-semaphore-ptr s seconds nanoseconds))
+(defun %timed-wait-on-semaphore-ptr (s seconds nanoseconds &optional
+                                       (whostate "semaphore wait"))
+  (process-wait whostate #'%wait-on-semaphore-ptr s seconds nanoseconds))
   
 (defun wait-on-semaphore (s)
   (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0))
