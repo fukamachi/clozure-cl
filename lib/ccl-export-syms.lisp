@@ -539,6 +539,8 @@
      ;;
      set-user-environment
      set-development-environment
+     *resident-editor-hook*
+     cpu-count
      ;;
      compile-ccl
      xcompile-ccl
