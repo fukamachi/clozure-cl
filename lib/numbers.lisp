@@ -290,12 +290,13 @@
 
 
 (defmethod print-object ((rs random-state) stream)
-  (let ((shift (%i- 16 target::fixnum-shift)))
+  (let ((shift (- (- 16 target::fixnum-shift))))
     (format stream "#.(~S ~S ~S)"   ;>> #.GAG!!!
             'ccl::initialize-random-state
-            (%ilsr shift (%svref rs 1))
-            (%ilsr shift (%svref rs 2))))
-  )
+            (ash (%svref rs 1) shift)
+            (ash (%svref rs 2) shift))))
+
+
 
 (defun float-radix (float)
   "Return (as an integer) the radix b of its floating-point argument."
