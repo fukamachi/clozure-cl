@@ -432,12 +432,12 @@
 
 (defun get-appkit-version ()
   #+apple-objc
-  #?NSAppKitVersionNumber
+  #&NSAppKitVersionNumber
   #+gnu-objc
   (get-foundation-version))
 
 (defun get-foundation-version ()
-  #?NSFoundationVersionNumber
+  #&NSFoundationVersionNumber
   #+gnu-objc (%get-cstring (foreign-symbol-address "gnustep_base_version")))
 
 (defparameter *appkit-library-version-number* (get-appkit-version))
@@ -1717,7 +1717,7 @@ argument lisp string."
 #+apple-objc
 (progn
 (defloadvar *original-deallocate-hook*
-        #?_dealloc)
+        #&_dealloc)
 
 (defcallback deallocate-nsobject (:address obj :int)
   (unless (%null-ptr-p obj)
@@ -1725,7 +1725,7 @@ argument lisp string."
   (ff-call *original-deallocate-hook* :address obj :int))
 
 (defun install-lisp-deallocate-hook ()
-  (setf #?_dealloc deallocate-nsobject))
+  (setf #&_dealloc deallocate-nsobject))
 
 #+later
 (def-ccl-pointers install-deallocate-hook ()
@@ -1733,7 +1733,7 @@ argument lisp string."
 
 (defun uninstall-lisp-deallocate-hook ()
   (clrhash *objc-object-slot-vectors*)
-  (setf #?_dealloc *original-deallocate-hook*))
+  (setf #&_dealloc *original-deallocate-hook*))
 
 (pushnew #'uninstall-lisp-deallocate-hook *save-exit-functions* :test #'eq
          :key #'function-name)

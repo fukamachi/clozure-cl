@@ -363,18 +363,18 @@
     (send dict 'retain)
     (send dict
 	  :set-object (create-paragraph-style font line-break-mode)
-	  :for-key #?NSParagraphStyleAttributeName)
-    (send dict :set-object font :for-key #?NSFontAttributeName)
+	  :for-key #&NSParagraphStyleAttributeName)
+    (send dict :set-object font :for-key #&NSFontAttributeName)
     (when color
-      (send dict :set-object color :for-key #?NSForegroundColorAttributeName))
+      (send dict :set-object color :for-key #&NSForegroundColorAttributeName))
     (when stroke-width
       (send dict :set-object (make-objc-instance 'ns:ns-number
                                                 :with-float (float stroke-width))
-            :for-key #?NSStrokeWidthAttributeName))
+            :for-key #&NSStrokeWidthAttributeName))
     (when obliqueness
       (send dict :set-object (make-objc-instance 'ns:ns-number
                                                 :with-float (float obliqueness))
-            :for-key #?NSObliquenessAttributeName))
+            :for-key #&NSObliquenessAttributeName))
     dict))
 
 
