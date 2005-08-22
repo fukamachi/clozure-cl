@@ -1178,7 +1178,14 @@ a host-structure or string."
 	     (equal type (pathname-type *.fasl-pathname*)))
 	(dolist (b *known-backends*)
 	  (when (equal type (pathname-type (backend-target-fasl-pathname b)))
-	    (return t))))))
+	    (return t)))
+        (ignore-errors
+          (with-open-file (f pathname
+                             :direction :input
+                             :element-type '(unsigned-byte 8))
+            ;; Assume that (potential) FASL files start with #xFF,
+            ;; and that source files don't.
+            (eql (read-byte f nil nil) #xff))))))
 
 (defun provide (module)
   "Adds a new module name to *MODULES* indicating that it has been loaded.
