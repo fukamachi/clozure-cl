@@ -1,3 +1,8 @@
+2005-08-22 13:40  bryan
+
+	* lib/nfcomp.lisp: 
+	%compile-file: set *compile-file-truename* to (truename src).
+
 2005-08-22 04:13  gb
 
 	* lib/nfcomp.lisp: Wrap a HANDLER-BIND around compile-time
