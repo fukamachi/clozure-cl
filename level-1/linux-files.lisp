@@ -991,3 +991,46 @@
       (when (eq proc (shared-resource-request-process node))
 	(return t)))))
 
+(defparameter *resident-editor-hook* nil
+  "If non-NIL, should be a function that takes an optional argument
+   (like ED) and invokes a \"resident\" editor.")
+
+(defun ed (&optional arg)
+  (if *resident-editor-hook*
+    (funcall *resident-editor-hook* arg)
+    (error "This implementation doesn't provide a resident editor.")))
+
+(defun running-under-emacs-p ()
+  (not (null (getenv "EMACS"))))
+
+(defloadvar *cpu-count* nil)
+
+(defun cpu-count ()
+  (or *cpu-count*
+      (setq *cpu-count*
+            #+darwinppc-target
+            (rlet ((info :host_basic_info)
+                   (count :mach_msg_type_number_t #$HOST_BASIC_INFO_COUNT))
+              (if (eql #$KERN_SUCCESS (#_host_info (#_mach_host_self)
+                                                   #$HOST_BASIC_INFO
+                                                   info
+                                                   count))
+                (pref info :host_basic_info.max_cpus)
+                1))
+            #+linuxppc-target
+            (or
+             (ignore-errors
+               (with-open-file (p "/proc/cpuinfo")
+                 (let* ((ncpu 0)
+                        (match "processor")
+                        (matchlen (length match)))
+                   (do* ((line (read-line p nil nil) (read-line p nil nil)))
+                        ((null line) ncpu)
+                     (let* ((line-length (length line)))
+                       (when (and
+                              (> line-length matchlen)
+                              (string= "processor" line
+                                       :end2 matchlen)
+                              (whitespacep (schar line matchlen)))
+                         (incf ncpu)))))))
+             1))))
