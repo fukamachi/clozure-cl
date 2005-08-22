@@ -881,6 +881,7 @@ c)" t)
  #'read-eval)
 
 ;;; This has been deprecated.  Why not nuke it ?
+#-ansi-cl
 (set-dispatch-macro-character
  #\#
  #\,
