@@ -1,3 +1,41 @@
+2005-08-22 04:13  gb
+
+	* lib/nfcomp.lisp: Wrap a HANDLER-BIND around compile-time
+	evaluation, in case either compile-time evaluation or the
+	compilation which implements part of it signals a warning that
+	might be considered to have been "detected by the compiler".
+	
+	Another reasonable interpretation would seem to be that warnings
+	that occur in that situation and are not detected by the compiler
+	don't affect COMPILE-FILE's return value.
+
+2005-08-22 04:08  gb
+
+	* level-1/l1-reader.lisp: Disable #, which was removed from ANSI CL
+	a long time ago.
+
+2005-08-22 04:07  gb
+
+	* level-0/PPC/ppc-numbers.lisp: #+ppc64 %NEXT-RANDOM-SEED accounts
+	for el-bizarro shifting.
+
+2005-08-22 04:05  gb
+
+	* examples/: cocoa-listener.lisp, cocoa-window.lisp,
+	objc-runtime.lisp: Use #& instead of #?, which is deprecated (the
+	implementation shouldn't define #?).
+
+2005-08-22 04:05  gb
+
+	* lib/db-io.lisp: The #? reader macro is supposed to be reserved
+	for the user.  Use #& for foreign variable lookup, and make #? an
+	alias to it (for backward compatibility, for a while.)
+
+2005-08-22 04:03  gb
+
+	* lib/numbers.lisp: RANDOM-STATE's PRINT-OBJECT method uses ASH
+	instead of CCL::%ILSR.
+
 2005-08-21 16:57  gb
 
 	* lisp-kernel/linux/.gdbinit: Try to parameterize more for
