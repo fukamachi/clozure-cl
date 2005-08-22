@@ -798,8 +798,8 @@
     fv))
 
 (set-dispatch-macro-character 
- #\# #\?
- (qlfun |#?-reader| (stream char arg)
+ #\# #\&
+ (qlfun |#&-reader| (stream char arg)
    (declare (ignore char arg))
    (let* ((package (find-package (ftd-interface-package-name *target-ftd*)))
           (sym
@@ -812,6 +812,10 @@
                                        (fv.type fv)
                                        0
                                        nil))))))
+
+;;; For backward compatibility: the implementation really shouldn't define
+;;; #?.  Nuke this in a future release.
+(set-dispatch-macro-character #\# #\? (get-dispatch-macro-character #\# #\&))
               
 
 (defstruct objc-message-info
