@@ -225,9 +225,21 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun %compile-time-eval (form env)
   (let* ((*target-backend* *host-backend*))
-    (funcall (compile-named-function
-              `(lambda () ,form) nil env nil nil
-              *compile-time-evaluation-policy*))))
+    ;; The HANDLER-BIND here is supposed to note WARNINGs that're
+    ;; signaled during (eval-when (:compile-toplevel) processing; this
+    ;; in turn is supposed to satisfy a pedantic interpretation of the
+    ;; spec's requirement that COMPILE-FILE's second and third return
+    ;; values reflect (all) conditions "detected by the compiler."
+    ;; (It's kind of sad that CL language design is influenced so
+    ;; strongly by the views of pedants these days.)
+    (handler-bind ((warning (lambda (c)
+                              (setq *fasl-warnings-signalled-p* t)
+                              (unless (typep c 'style-warning)
+                                (setq *fasl-non-style-warnings-signalled-p* t))
+                              (signal c))))
+      (funcall (compile-named-function
+                `(lambda () ,form) nil env nil nil
+                *compile-time-evaluation-policy*)))))
 
 
 ;;; No methods by default, not even for structures.  This really sux.
