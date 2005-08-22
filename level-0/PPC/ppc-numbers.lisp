@@ -372,11 +372,13 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 
 #+ppc64-target
 (defun %next-random-seed (state)
-  (let* ((seed (logior (%svref state 1) (%svref state 2))))
+  (let* ((seed (dpb (ldb (byte 16 13) (%svref state 1))
+                    (byte 16 16)
+                    (ldb (byte 16 13) (%svref state 2)))))
     (multiple-value-bind (seed-low seed-high) (%multiply seed (* 2 48271))
       (setq seed (logand #xffffffff (+ seed-low seed-high)))
-      (setf (%svref state 1) (logand seed #xffff0000)
-            (%svref state 2) (logand seed #x0000ffff))
+      (setf (%svref state 1) (ash (ldb (byte 16 16) seed) 13)
+            (%svref state 2) (ash (ldb (byte 16 0) seed) 13))
       (dpb (ldb (byte 8 0) seed-low) (byte 8 8) (ldb (byte 8 3) seed-high)))))
 
 
