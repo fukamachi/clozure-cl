@@ -1029,7 +1029,7 @@
                      (let* ((line-length (length line)))
                        (when (and
                               (> line-length matchlen)
-                              (string= "processor" line
+                              (string= match line
                                        :end2 matchlen)
                               (whitespacep (schar line matchlen)))
                          (incf ncpu)))))))
