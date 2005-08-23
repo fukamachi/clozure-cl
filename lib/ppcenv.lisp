@@ -89,16 +89,5 @@
 
 (defconstant $undo-ppc-c-frame 16)
 
-(defconstant $ppc-compound-branch-target-bit 28)
-(defconstant $ppc-compound-branch-target-mask (ash 1 $ppc-compound-branch-target-bit))
-
-(defconstant $ppc-mvpass-bit 29)
-(defconstant $ppc-mvpass-mask (ash -1 $ppc-mvpass-bit))
-
-(defconstant $ppc-return (- (ash 1 14) 1))
-(defconstant $ppc-mvpass (- (ash 1 14) 2))
-
-(defconstant $ppc-compound-branch-false-byte (byte 14 0))
-(defconstant $ppc-compound-branch-true-byte (byte 14 14))
 
 (ccl::provide "PPCENV")
