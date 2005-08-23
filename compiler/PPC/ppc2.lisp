@@ -4441,9 +4441,11 @@
                 (^))
               (dotimes (i numundo) (ppc2-close-undo)))
             (progn
-              ; There are some cases where storing thru ppc::arg_z can be avoided (stores to vlocs, specials,
-              ; etc.) and some other case where it can't ($test, $vpush.)  The case of a null vd can
-              ; certainly avoid it; the check of numundo is to keep $acc boxed in case of nthrow.
+              ;; There are some cases where storing thru ppc::arg_z
+              ;; can be avoided (stores to vlocs, specials, etc.) and
+              ;; some other case where it can't ($test, $vpush.)  The
+              ;; case of a null vd can certainly avoid it; the check
+              ;; of numundo is to keep $acc boxed in case of nthrow.
               (ppc2-form  seg (if (or vreg (not (%izerop numundo))) ppc::arg_z) nil body)
               (ppc2-unwind-set seg xfer old-stack)
               (when vreg (<- ppc::arg_z))
@@ -4713,7 +4715,9 @@
                      (setq numnthrow (%i+ numnthrow 1) lastcatch n))
                     ((eql $undostkblk reason)
                      (throw-through-numnthrow-catch-frames)
-                     (incf numnlispareas))))
+                     (incf numnlispareas))
+                    ((eql $undo-ppc-c-frame reason)
+                     (! discard-c-frame))))
             (throw-through-numnthrow-catch-frames)
             (setq i lastcatch)
             (while (%i> i dest)
@@ -7844,23 +7848,6 @@
   (ppc2-use-operator (%nx1-operator cons) seg vreg xfer car cdr))
 
 
-
-         
-(defppc2 ppc2-%vreflet %vreflet (seg vreg xfer vars vals body p2decls)
-  (let* ((old-stack (ppc2-encode-stack)))
-    (with-ppc-p2-declarations p2decls
-      (dolist (var vars)
-        (ppc2-vpush-register 
-         seg 
-         (ppc2-one-untargeted-reg-form seg (pop vals) ppc::arg_z))
-        (with-node-temps () (ptr)
-          (! macptr->stack ptr ($ ppc::vsp))
-          (ppc2-open-undo $undostkblk)
-          (ppc2-seq-bind-var seg var ptr)))
-      (ppc2-undo-body seg vreg xfer body old-stack)
-      (dolist (var vars) (ppc2-close-var seg var)))))
-
-
 ;;; Under MacsBug 5.3 (and some others ?), this'll do a low-level user
 ;;; break.  If the debugger doesn't recognize the trap instruction,
 ;;; you'll have to manually advance the PC past it.  "arg" winds up in the
@@ -8092,6 +8079,15 @@
     ((:darwinppc32 :darwinppc64 :linuxppc64) (! alloc-c-frame 0)))
   (ppc2-open-undo $undo-ppc-c-frame)
   (ppc2-undo-body seg vreg xfer body old-stack))
+
+(defppc2 ppc2-with-variable-c-frame with-variable-c-frame (seg vreg xfer size body &aux
+                                                               (old-stack (ppc2-encode-stack)))
+  (let* ((reg (ppc2-one-untargeted-reg-form seg size ppc::arg_z)))
+    (ecase (backend-name *target-backend*)
+      (:linuxppc32 (! alloc-variable-eabi-c-frame reg))
+      ((:darwinppc32 :darwinppc64 :linuxppc64) (! alloc-variable-c-frame reg)))
+    (ppc2-open-undo $undo-ppc-c-frame)
+    (ppc2-undo-body seg vreg xfer body old-stack)))
 
 ;------
 
