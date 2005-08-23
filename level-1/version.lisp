@@ -16,20 +16,20 @@
 
 (in-package "CCL")
 
-(defparameter *openmcl-major-version* 0)
-(defparameter *openmcl-minor-version* 14)
-(defparameter *openmcl-revision* 4)
-(defparameter *openmcl-suffix* "pre-050821a")
+(defparameter *openmcl-major-version* 1)
+(defparameter *openmcl-minor-version* 0)
+(defparameter *openmcl-revision* 0)
+(defparameter *openmcl-suffix* "pre-050823a")
 (defparameter *openmcl-dev-level*
-  #+ppc64-target "Alpha" #-ppc64-target "Beta")
+  #+ppc64-target "Beta" #-ppc64-target nil)
 
-(defparameter *openmcl-version* (format nil "(~A: ~~A) ~d.~d~@[.~d~]~@[-~a~]"
-                                        *openmcl-dev-level*
+(defparameter *openmcl-version* (format nil "~d.~d~@[.~d~]~@[-~a~] (~@[~A: ~]~~A)"
 					*openmcl-major-version*
 					*openmcl-minor-version*
 					(unless (zerop *openmcl-revision*)
 					  *openmcl-revision*)
-					*openmcl-suffix*))
+					*openmcl-suffix*
+                                        *openmcl-dev-level*))
 
 
 ; end
