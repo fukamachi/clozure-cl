@@ -321,13 +321,14 @@
 	       symbol-macrolet
 ; These are implementation-specific special forms :
 	       nfunction
-	       %vreflet ppc-lap-function sparc-lap-function fbind))
+	       ppc-lap-function fbind
+               with-c-frame with-variable-c-frame))
   (%macro-have sym sym))
 
   
 (defun %macro (named-fn &optional doc &aux arglist)
-  ; "doc" is either a string or a list of the form :
-  ; (doc-string-or-nil . (body-pos-or-nil . arglist-or-nil))
+  ;; "doc" is either a string or a list of the form :
+  ;; (doc-string-or-nil . (body-pos-or-nil . arglist-or-nil))
   (if (listp doc)
     (setq arglist (cddr doc)
           doc (car doc)))
