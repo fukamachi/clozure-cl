@@ -1,3 +1,21 @@
+2005-08-22 18:12  gb
+
+	* level-1/linux-files.lisp: Tweak Linux CPU-COUNT.
+
+2005-08-22 17:59  gb
+
+	* level-1/linux-files.lisp: Provide a minimal definition of ED; use
+	*RESIDENT-EDITOR-HOOK* to provide a real definition if/when a
+	resident editor is available.
+	
+	Define CPU-COUNT, which returns ... the number of CPUs (1 or more)
+	available.
+
+2005-08-22 17:56  gb
+
+	* lib/ccl-export-syms.lisp: Export *RESIDENT-EDITOR-HOOK* and
+	CPU-COUNT.
+
 2005-08-22 16:19  gb
 
 	* level-1/l1-files.lisp: FASL-FILE-P thinks that files that start
