@@ -1,3 +1,12 @@
+2005-08-22 19:07  gb
+
+	* lib/numbers.lisp: The seed values in a RANDOM-STATE can have
+	their sign bits set on PPC32, so the PRINT-OBJECT method uses LDB
+	to access the signigicant parts of those values.
+	
+	(Next bug: rewrite this stuff completely; it's not a very good
+	random number generator.)
+
 2005-08-22 18:12  gb
 
 	* level-1/linux-files.lisp: Tweak Linux CPU-COUNT.
