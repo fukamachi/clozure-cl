@@ -1852,9 +1852,6 @@
                                    ((n-c-args :u16const)))
   ;; Always reserve space for at least 8 args and space for a lisp
   ;; frame (for the kernel) underneath it.
-  ;; Do a stack-probe ...  Or maybe not
-  ;;(lwz ppc::nargs (ppc32::kernel-global cs-overflow-limit) ppc32::rnil)
-  ;;(twllt ppc::sp ppc::nargs)
   ;; Zero the c-frame's savelr field, not that the GC cares ..
   ((:pred <= n-c-args 10)
    (stwu ppc::sp (- (+ 8 ppc32::c-frame.size ppc32::lisp-frame.size)) ppc::sp))
@@ -1874,6 +1871,25 @@
                                                     (:apply - n-c-args 10)))
                                            2)))
          ppc::sp))
+  (stw ppc::rzero ppc32::c-frame.savelr ppc::sp))
+
+(define-ppc32-vinsn alloc-variable-c-frame (()
+                                            ((n-c-args :lisp))
+                                            ((crf :crf)
+                                             (size :s32)))
+  (cmpwi crf n-c-args (ash 10 ppc32::fixnumshift))
+  (subi size n-c-args (ash 10 ppc32::fixnumshift))
+  (bgt :variable)
+  ;; Always reserve space for at least 8 args and space for a lisp
+  ;; frame (for the kernel) underneath it.
+  (stwu ppc::sp (- (+ 8 ppc32::c-frame.size ppc32::lisp-frame.size)) ppc::sp)
+  (b :done)
+  :variable
+  (addi size size (+  (+ 8 ppc32::c-frame.size ppc32::lisp-frame.size) (ash 3 ppc32::fixnumshift)))
+  (clrrwi size size 3)
+  (neg size size)
+  (stwux ppc::sp ppc::sp size)
+  :done
   (stw ppc::rzero ppc32::c-frame.savelr ppc::sp))
 
 (define-ppc32-vinsn alloc-eabi-c-frame (()

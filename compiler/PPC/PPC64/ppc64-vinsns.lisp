@@ -1892,6 +1892,26 @@
          ppc::sp))
   (std ppc::rzero ppc64::c-frame.savelr ppc::sp))
 
+
+(define-ppc64-vinsn alloc-variable-c-frame (()
+                                            ((n-c-args :lisp))
+                                            ((crf :crf)
+                                             (size :s64)))
+  (cmpdi crf n-c-args (ash 10 ppc64::fixnumshift))
+  (subi size n-c-args (ash 10 ppc64::fixnumshift))
+  (bgt :variable)
+  ;; Always reserve space for at least 8 args and space for a lisp
+  ;; frame (for the kernel) underneath it.
+  (stdu ppc::sp (- (+ 16 ppc64::c-frame.size ppc64::lisp-frame.size)) ppc::sp)
+  (b :done)
+  :variable
+  (addi size size (+  (+ 16 ppc64::c-frame.size ppc64::lisp-frame.size) (ash 3 ppc64::fixnumshift)))
+  (clrrdi size size 4)
+  (neg size size)
+  (stdux ppc::sp ppc::sp size)
+  :done
+  (stw ppc::rzero ppc32::c-frame.savelr ppc::sp))
+
 ;;; We should rarely have to do this.  It's easier to just generate code
 ;;; to do the memory reference than it would be to keep track of the size
 ;;; of each frame.
