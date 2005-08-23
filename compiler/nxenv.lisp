@@ -283,7 +283,7 @@
      (set-cdr . #.(logior operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (rplaca . #.(logior operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (rplacd . #.(logior operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
-     (%vreflet . 0)
+     (with-variable-c-frame . #.(logior operator-acode-list-mask operator-assignment-free-mask operator-side-effect-free-mask))
      (uvref . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (uvset . #.(logior operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (%temp-cons . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
@@ -384,7 +384,7 @@
      (disable-interrupts . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
 
      (%interrupt-poll  . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
-     (with-c-frame . #.(logior operator-acode-list-mask operator-assignment-free-mask operator-side-effect-free-mask))
+     (with-c-frame . #.(logior operator-acode-list-mask operator-assignment-free-mask operator-side-effect-free-mask))    
      (%current-frame-ptr . 0)
      (%slot-ref . 0)
      (%illegal-marker . #.operator-single-valued-mask)

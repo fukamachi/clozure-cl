@@ -110,6 +110,12 @@
               (nx1-form `(let* ((,var (%current-frame-ptr)))
                           ,@body))))
 
+(defnx1 nx1-with-variable-c-frame with-variable-c-frame (size var &body body)
+  (make-acode (%nx1-operator with-variable-c-frame)
+              (nx1-form size)
+              (nx1-form `(let* ((,var (%current-frame-ptr)))
+                          ,@body))))
+
 
 (defun nx1-progn-body (args)
   (if (null (cdr args))
@@ -1836,7 +1842,7 @@
         (dolist (var vars)
           (nx-check-var-usage var))))))
 
-(defnx1 nx1-let* (let* %vreflet) (varspecs &body forms)
+(defnx1 nx1-let* (let*) (varspecs &body forms)
   (let* ((vars nil)
          (vals nil)
          (val nil)
