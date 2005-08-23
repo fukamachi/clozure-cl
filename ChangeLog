@@ -1,3 +1,48 @@
+2005-08-23 06:39  gb
+
+	* compiler/: nx1.lisp, nxenv.lisp: WITH-VARIABLE-C-FRAME.
+	
+	Lose %VREFLET.
+
+2005-08-23 06:39  gb
+
+	* compiler/PPC/ppc2.lisp: WITH-VARIABLE-C-FRAME.
+	
+	PPC2-NLEXIT discards C frames.
+
+2005-08-23 06:37  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	ALLOC-VARIABLE-C-FRAME vinsns.
+
+2005-08-23 06:37  gb
+
+	* level-1/l1-numbers.lisp: INITIALIZE-RANDOM-STATE uses ASH instead
+	of CCL::%ILSL; note that ASH takes args in the opposite order from
+	%ILSL.
+
+2005-08-23 06:35  gb
+
+	* level-1/l1-utils.lisp: Update the list of
+	implementation-dependent special operators: drop %VREFLET and
+	SPARC-LAP-FUNCTION (!), add WITH-C-FRAME and WITH-VARIABLE-C-FRAME.
+
+2005-08-23 06:34  gb
+
+	* level-1/version.lisp: Change major version to 1, minor version to
+	0.  Change format of *OPENMCL-VERSION* format string (move version
+	number before release level, ~A for platform.) "Upgrade" ppc32 to
+	release level, ppc64 to beta.
+
+2005-08-23 06:32  gb
+
+	* lib/compile-ccl.lisp: Ensure that (COMPILE-CCL) updates NXENV
+	before compiling the rest of the compiler.
+
+2005-08-23 06:31  gb
+
+	* lib/ppcenv.lisp: Remove some unused constants.
+
 2005-08-22 19:07  gb
 
 	* lib/numbers.lisp: The seed values in a RANDOM-STATE can have
