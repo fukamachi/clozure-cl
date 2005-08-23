@@ -290,11 +290,11 @@
 
 
 (defmethod print-object ((rs random-state) stream)
-  (let ((shift (- (- 16 target::fixnum-shift))))
+  (let* ((byte (byte 16 (- 16 target::fixnum-shift))))
     (format stream "#.(~S ~S ~S)"   ;>> #.GAG!!!
             'ccl::initialize-random-state
-            (ash (%svref rs 1) shift)
-            (ash (%svref rs 2) shift))))
+            (ldb byte (%svref rs 1))
+            (ldb byte (%svref rs 2)))))
 
 
 
