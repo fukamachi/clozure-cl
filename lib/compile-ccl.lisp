@@ -69,7 +69,7 @@
 
 
 ;; Not too OS-specific.
-(defparameter *ppc-xdev-modules* '(ppc-lapmacros nxenv ))
+(defparameter *ppc-xdev-modules* '(ppc-lapmacros ))
 (defun target-xdev-modules (&optional (target
 				       (backend-target-arch-name
 					*host-backend*)))
@@ -250,7 +250,7 @@
 )
 
 (defun compile-ccl (&optional force-compile)
-  (compile-modules 'nxenv force-compile)
+  (update-modules 'nxenv force-compile)
   (update-modules *compiler-modules* force-compile)
   (update-modules (target-compiler-modules) force-compile)
   (update-modules (target-xdev-modules) force-compile)
