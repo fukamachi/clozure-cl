@@ -319,9 +319,52 @@ are running on, or NIL if we can't find any useful information."
 (documentation 'foo 'obscure)
 (setf (documentation 'foo 'structure) "the structure is solid")
 (documentation 'foo 'function)
-|#
+||#
+
+;;
+
+(defparameter *report-time-function* nil
+  "If non-NULL, should be a function which accepts the following
+   keyword arguments:
+   :FORM              the form that was executed
+   :RESULTS           a list of all values returned by the execution of FORM
+   :ELAPSED-TIME      total elapsed (real) time, in milliseconds
+   :USER-TIME         elapsed user time, in milliseconds
+   :SYSTEM-TIME       elapsed system time, in milliseconds
+   :GC-TIME           total real time spent in the GC, in milliseconds
+   :BYTES-ALLOCATED   total bytes allocated
+   :MINOR-PAGE-FAULTS minor page faults
+   :MAJOR-PAGE-FAULTS major page faults
+   :SWAPS             swaps")
 
 
+(defun standard-report-time (&key form results elapsed-time user-time
+                                  system-time gc-time bytes-allocated
+                                  minor-page-faults major-page-faults
+                                  swaps)
+  (let* ((s *trace-output*)
+         (other-process-time (- elapsed-time (+ user-time system-time))))
+    (format s "~&~S took ~:D milliseconds (~,3F seconds) to run."
+            form elapsed-time (/ elapsed-time internal-time-units-per-second))
+    (format s "~&Of that, ~:D milliseconds (~,3F seconds) were spent in user mode" user-time (/ user-time internal-time-units-per-second))
+    (format s "~&         ~:D milliseconds (~,3F seconds) were spent in system mode" system-time (/ system-time internal-time-units-per-second))
+    (when (> other-process-time 0)
+      (format s "~%         ~:D milliseconds (~,3F seconds) were spent executing other OS processes."
+              other-process-time (/ other-process-time internal-time-units-per-second)))
+    (unless (eql gc-time 0)
+      (format s
+              "~%~:D milliseconds (~,3F seconds) was spent in GC."
+              gc-time (/ gc-time internal-time-units-per-second)))
+    (unless (eql 0 bytes-allocated)
+      (format s "~% ~:D bytes of memory allocated." bytes-allocated))
+    (when (or (> minor-page-faults 0)
+              (> major-page-faults 0)
+              (> swaps 0))
+      (format s
+              "~% ~:D minor page faults, ~:D major page faults, ~:D swaps."
+              minor-page-faults major-page-faults swaps))
+    (format s "~&")
+    (values-list results)))
 
 (defun report-time (form thunk)
   (flet ((integer-size-in-bytes (i)
@@ -336,10 +379,10 @@ are running on, or NIL if we can't find any useful information."
 	     (initial-consed (total-bytes-allocated))           
 	     (initial-overhead (integer-size-in-bytes initial-consed)))
 	(%%rusage start)
-	(multiple-value-prog1 (funcall thunk)
+	(let* ((results (multiple-value-list (funcall thunk))))
+          (declare (dynamic-extent results))
 	  (%%rusage stop)	  
-	  (let* ((s *trace-output*)
-		 (new-consed (total-bytes-allocated))		     
+	  (let* ((new-consed (total-bytes-allocated))		     
 		 (bytes-consed
 		  (- new-consed (+ initial-overhead initial-consed)))
 		 (elapsed-real-time
@@ -357,34 +400,24 @@ are running on, or NIL if we can't find any useful information."
 				   (pref stop :rusage.ru_stime)
 				   (pref start :rusage.ru_stime))
 		    (timeval->milliseconds timediff)))
-		 (elapsed-run-time (+ elapsed-user-time elapsed-system-time))
-		 (elapsed-mf-time (- elapsed-real-time elapsed-run-time))
 		 (elapsed-minor (- (pref stop :rusage.ru_minflt)
 				   (pref start :rusage.ru_minflt)))
 		 (elapsed-major (- (pref stop :rusage.ru_majflt)
 				   (pref start :rusage.ru_majflt)))
 		 (elapsed-swaps (- (pref stop :rusage.ru_nswap)
 				   (pref start :rusage.ru_nswap))))
-	    (format s "~&~S took ~:D milliseconds (~,3F seconds) to run."
-		    form elapsed-real-time (/ elapsed-real-time internal-time-units-per-second))
-	    (format s "~&Of that, ~:D milliseconds (~,3F seconds) were spent in user mode" elapsed-user-time (/ elapsed-user-time internal-time-units-per-second))
-	    (format s "~&         ~:D milliseconds (~,3F seconds) were spent in system mode" elapsed-system-time (/ elapsed-system-time internal-time-units-per-second))
-	    (when (> elapsed-mf-time 0)
-	      (format s "~%         ~:D milliseconds (~,3F seconds) were spent executing other OS processes."
-		      elapsed-mf-time (/ elapsed-mf-time internal-time-units-per-second)))
-	    (unless (eql elapsed-gc-time 0)
-	      (format s
-		      "~%~:D milliseconds (~,3F seconds) was spent in GC."
-		      elapsed-gc-time (/ elapsed-gc-time internal-time-units-per-second)))
-	    (unless (eql 0 bytes-consed)
-	      (format s "~% ~:D bytes of memory allocated." bytes-consed))
-	    (when (or (> elapsed-minor 0)
-		      (> elapsed-major 0)
-		      (> elapsed-swaps 0))
-	      (format s
-		      "~% ~:D minor page faults, ~:D major page faults, ~:D swaps."
-		      elapsed-minor elapsed-major elapsed-swaps)
-	      (format s "~&"))))))))
+            (funcall (or *report-time-function*
+                         #'standard-report-time)
+                     :form form
+                     :results results
+                     :elapsed-time elapsed-real-time
+                     :user-time elapsed-user-time
+                     :system-time elapsed-system-time
+                     :gc-time elapsed-gc-time
+                     :bytes-allocated bytes-consed
+                     :minor-page-faults elapsed-minor
+                     :major-page-faults elapsed-major
+                     :swaps elapsed-swaps)))))))
 
 ;(rm:heading 2 "Other Environment Inquiries")
 
