@@ -1,3 +1,9 @@
+2005-08-24 14:21  gb
+
+	* level-0/l0-hash.lisp: Restore some of the "locked additions"
+	handling in GETHASH, since I probably haven't thought about the
+	implications of removing it carefully enough.
+
 2005-08-24 14:19  gb
 
 	* lisp-kernel/gc.c: Fix handling of populations in recursive case
