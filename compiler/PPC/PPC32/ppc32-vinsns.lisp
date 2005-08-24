@@ -1894,14 +1894,15 @@
 
 (define-ppc32-vinsn alloc-eabi-c-frame (()
                                         ((n-c-args :u16const)))
-                                        ; Always reserve space for at least 8 args and space for a lisp
-                                        ; frame (for the kernel) underneath it.  Store NIL inthe c-frame's
-                                        ; savelr field, so that the kernel doesn't mistake this for a lisp
-                                        ; frame.
+  ;; Always reserve space for at least 8 args and space for a lisp
+  ;; frame (for the kernel) underneath it.  Store NIL inthe c-frame's
+  ;; savelr field, so that the kernel doesn't mistake this for a lisp
+  ;; frame.
   ((:pred <= n-c-args 8)
    (stwu ppc::sp (- (+ ppc32::eabi-c-frame.size ppc32::lisp-frame.size)) ppc::sp))
   ((:pred > n-c-args 8)
-                                        ; A normal C frame has room for 8 args. Add enough double words to accomodate the remaining args
+   ;; A normal C frame has room for 8 args. Add enough double words to
+   ;; accomodate the remaining args
    (stwu ppc::sp (:apply - (:apply + 
                                    (+ ppc32::eabi-c-frame.size ppc32::lisp-frame.size)
                                    (:apply ash
@@ -1913,6 +1914,27 @@
                                            2)))
          ppc::sp))
   (stw ppc::sp ppc32::eabi-c-frame.savelr ppc::sp))
+
+(define-ppc32-vinsn alloc-variable-eabi-c-frame (()
+                                                 ((n-c-args :lisp))
+                                                 ((crf :crf)
+                                                  (size :s32)))
+  (cmpwi crf n-c-args (ash 8 ppc32::fixnumshift))
+  (subi size n-c-args (ash 8 ppc32::fixnumshift))
+  (bgt :variable)
+  ;; Always reserve space for at least 8 args and space for a lisp
+  ;; frame (for the kernel) underneath it.
+  (stwu ppc::sp (- (+ ppc32::eabi-c-frame.size ppc32::lisp-frame.size)) ppc::sp)
+  (b :done)
+  :variable
+  (addi size size (+  (+ ppc32::eabi-c-frame.size ppc32::lisp-frame.size) (ash 1 ppc32::fixnumshift)))
+  (clrrwi size size 2)
+  (neg size size)
+  (stwux ppc::sp ppc::sp size)
+  :done
+  (stw ppc::rzero ppc32::c-frame.savelr ppc::sp))
+
+
 
 ;;; We should rarely have to do this.  It's easier to just generate code
 ;;; to do the memory reference than it would be to keep track of the size
