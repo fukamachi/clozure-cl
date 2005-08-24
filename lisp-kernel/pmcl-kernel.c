@@ -807,8 +807,6 @@ register_sigint_handler()
 }
 
 
-extern BytePtr
-current_stack_pointer(void);
 
 BytePtr
 initial_stack_bottom()
@@ -1198,7 +1196,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   long resp;
   BytePtr stack_end;
   area *a;
-  BytePtr stack_base, current_sp = current_stack_pointer();
+  BytePtr stack_base, current_sp = (BytePtr) current_stack_pointer();
   TCR *tcr;
   int i;
 
