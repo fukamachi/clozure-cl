@@ -1,3 +1,38 @@
+2005-08-24 01:41  gb
+
+	* lisp-kernel/pmcl-kernel.c: current_stack_pointer() already
+	prototyped, inlined; need to cast to BytePtr.
+
+2005-08-24 01:40  gb
+
+	* lisp-kernel/lisp-exceptions.c: current_stack_pointer() already
+	prototyped, inlined.
+
+2005-08-24 01:39  gb
+
+	* lisp-kernel/gc.c: Make rmark() recursive, if there's enough stack
+	space.	(Falls back to	Deutch-Waite-Schorr pointer inversion if
+	there isn't enough stack space.)
+
+2005-08-24 01:38  gb
+
+	* lisp-kernel/bits.h: Prototype for inlined
+	current_stack_pointer().  (Prototyped to return a "natural"; some
+	previous uses prototyped to return a "BytePtr".)
+
+2005-08-24 01:37  gb
+
+	* lib/ccl-export-syms.lisp: Export *REPORT-TIME-FUNCTION*.
+
+2005-08-24 01:36  gb
+
+	* lib/misc.lisp: Add *REPORT-TIME-FUNCTION*, which allows
+	customization of the presentation of TIME's output.
+
+2005-08-24 01:35  gb
+
+	* release-notes.txt: New file.
+
 2005-08-23 20:03  gb
 
 	* level-0/PPC/ppc-def.lisp: Still more indentation problems.
