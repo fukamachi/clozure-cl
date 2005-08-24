@@ -1,3 +1,13 @@
+2005-08-23 20:03  gb
+
+	* level-0/PPC/ppc-def.lisp: Still more indentation problems.
+
+2005-08-23 19:52  gb
+
+	* level-0/PPC/ppc-def.lisp: Some of the work that needed to be done
+	on 64-bit %FF-CALL involved indenting properly.  Basic cases now
+	seem to work.
+
 2005-08-23 19:11  gb
 
 	* level-0/PPC/ppc-def.lisp: First cut of ppc64 %FF-CALL.  Needs
