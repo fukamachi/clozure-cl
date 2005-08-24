@@ -939,6 +939,17 @@
 
 #+ppc64-target
 (progn
+  ;;; There are a few funky, non-obvious things going on here.
+  ;;; The main %FF-CALL function uses WITH-VARIABLE-C-FRAME;
+  ;;; the compiler will generate code to pop that frame off
+  ;;; of the C/control stack, but the subprim that implements
+  ;;; %ff-call has already popped it off.  To put things back
+  ;;; in balance, the LAP function %%FF-RESULT pushes an
+  ;;; extra frame on the cstack.
+  ;;; %FF-CALL calls %%FF-RESULT to box the result, which may
+  ;;; be in r3/imm0 or in fp1.  It's critical that the call
+  ;;; to %%FF-RESULT not be compiled as "multiple-value returning",
+  ;;; since the MV machinery may clobber IMM0.
   (defppclapfunction %%ff-result ((spec arg_z))
     (stdu sp -160 sp)
     (ld arg_y ':void nfn)
@@ -990,86 +1001,93 @@
     @signed-doubleword
     (ba .SPmakes64))
 
+  ;;; This is just here so that we can jump to a subprim from lisp.
   (defppclapfunction %do-ff-call ((monitor arg_y) (entry arg_z))
     (cmpdi monitor nil)
     (beqa .SPpoweropen-ffcall)
     (ba .SPpoweropen-ffcallx))
   
-(defun %ff-call (entry &rest specs-and-vals)
-  (declare (dynamic-extent specs-and-vals))
-  (let* ((len (length specs-and-vals))
-	 (total-words 0)
-	 (monitor (eq (car specs-and-vals) :monitor-exception-ports)))
-    (declare (fixnum len total-words))
-    (when monitor
-      (decf len)
-      (setq specs-and-vals (cdr specs-and-vals)))
+  (defun %ff-call (entry &rest specs-and-vals)
+    (declare (dynamic-extent specs-and-vals))
+    (let* ((len (length specs-and-vals))
+           (total-words 0)
+           (monitor (eq (car specs-and-vals) :monitor-exception-ports)))
+      (declare (fixnum len total-words))
+      (when monitor
+        (decf len)
+        (setq specs-and-vals (cdr specs-and-vals)))
       (let* ((result-spec (or (car (last specs-and-vals)) :void))
              (nargs (ash (the fixnum (1- len)) -1)))
         (declare (fixnum nargs))
-        (do* ((i 0 (1+ i))
-              (specs specs-and-vals (cddr specs))
-              (spec (car specs) (car specs)))
-             ((= i nargs))
-          (declare (fixnum i))
-          (case spec
-            ((:address :unsigned-doubleword :signed-doubleword
-                       :single-float :double-float
-                       :signed-fullword :unsigned-fullword
-                       :signed-halfword :unsigned-halfword
-                       :signed-byte :unsigned-byte)
-             (incf total-words))
-            (t (if (typep spec 'unsigned-byte)
-                 (incf total-words spec)
-                 (error "unknown arg spec ~s" spec))))
-          (%stack-block ((fp-args (* 13 8)))
-            (with-variable-c-frame
-                total-words frame
-                (with-macptrs ((argptr))
-                  (%setf-macptr-to-object argptr frame)
-                  (let* ((offset ppc64::c-frame.param0)
-                         (n-fp-args 0))
-                    (do* ((i 0 (1+ i))
-                          (specs specs-and-vals (cddr specs))
-                          (spec (car specs) (car specs))
-                          (val (cadr specs) (cadr specs)))
-                         ((= i nargs))
-                      (declare (fixnum i))
-                      (case spec
-                        (:address (setf (%get-ptr argptr offset) val)
-                                  (incf offset 8))
-                        ((:signed-doubleword :signed-fullword :signed-halfword
-                                             :signed-byte)
-                                             
-                         (setf (%%get-signed-longlong argptr offset) val)
-                         (incf offset 8))
-                        ((:unsigned-doubleword :unsigned-fullword :unsigned-halfword
-                                               :unsigned-byte)
-                         (setf (%%get-unsigned-longlong argptr offset) val)
-                         (incf offset 8))
-                        (:double-float
-                         (setf (%get-double-float argptr offset) val)
-                         (setf (%get-double-float fp-args (* n-fp-args 8)) val)
-                         (incf n-fp-args)
-                         (incf offset 8))
-                        (:single-float
-                         (setf (%get-single-float argptr offset) val)
-                         (setf (%get-double-float fp-args (* n-fp-args 8))
-                               (%double-float val))
-                         (incf n-fp-args)
-                         (incf offset 8))
-                        (t
-                         (let* ((p 0))
-                           (dotimes (i spec)
-                             (setf (%get-ptr argptr offset) (%get-ptr val p))
-                             (incf p 8)
-                             (incf offset 8))))))
-                    (%load-fp-arg-regs n-fp-args fp-args)
-                    (%do-ff-call monitor entry)
-                    (%%ff-result result-spec)))))))))
-                  
-
-  
+        (ecase result-spec
+          ((:address :unsigned-doubleword :signed-doubleword
+                     :single-float :double-float
+                     :signed-fullword :unsigned-fullword
+                     :signed-halfword :unsigned-halfword
+                     :signed-byte :unsigned-byte
+                     :void)
+           (do* ((i 0 (1+ i))
+                 (specs specs-and-vals (cddr specs))
+                 (spec (car specs) (car specs)))
+                ((= i nargs))
+             (declare (fixnum i))
+             (case spec
+               ((:address :unsigned-doubleword :signed-doubleword
+                          :single-float :double-float
+                          :signed-fullword :unsigned-fullword
+                          :signed-halfword :unsigned-halfword
+                          :signed-byte :unsigned-byte)
+                (incf total-words))
+               (t (if (typep spec 'unsigned-byte)
+                    (incf total-words spec)
+                    (error "unknown arg spec ~s" spec)))))
+           (%stack-block ((fp-args (* 13 8)))
+             (with-variable-c-frame
+                 total-words frame
+                 (with-macptrs ((argptr))
+                   (%setf-macptr-to-object argptr frame)
+                   (let* ((offset ppc64::c-frame.param0)
+                          (n-fp-args 0))
+                     (declare (fixnum offset n-fp-args))
+                     (do* ((i 0 (1+ i))
+                           (specs specs-and-vals (cddr specs))
+                           (spec (car specs) (car specs))
+                           (val (cadr specs) (cadr specs)))
+                          ((= i nargs))
+                       (declare (fixnum i))
+                       (case spec
+                         (:address (setf (%get-ptr argptr offset) val)
+                                   (incf offset 8))
+                         ((:signed-doubleword :signed-fullword :signed-halfword
+                                              :signed-byte)
+                          
+                          (setf (%%get-signed-longlong argptr offset) val)
+                          (incf offset 8))
+                         ((:unsigned-doubleword :unsigned-fullword :unsigned-halfword
+                                                :unsigned-byte)
+                          (setf (%%get-unsigned-longlong argptr offset) val)
+                          (incf offset 8))
+                         (:double-float
+                          (setf (%get-double-float argptr offset) val)
+                          (setf (%get-double-float fp-args (* n-fp-args 8)) val)
+                          (incf n-fp-args)
+                          (incf offset 8))
+                         (:single-float
+                          (setf (%get-single-float argptr offset) val)
+                          (setf (%get-double-float fp-args (* n-fp-args 8))
+                                (%double-float val))
+                          (incf n-fp-args)
+                          (incf offset 8))
+                         (t
+                          (let* ((p 0))
+                            (declare (fixnum p))
+                            (dotimes (i (the fixnum spec))
+                              (setf (%get-ptr argptr offset) (%get-ptr val p))
+                              (incf p 8)
+                              (incf offset 8))))))
+                     (%load-fp-arg-regs n-fp-args fp-args)
+                     (%do-ff-call monitor entry)
+                     (values (%%ff-result result-spec)))))))))))
 
   )
 
