@@ -853,6 +853,28 @@
 	 (return-from gethash
 	   (values (nhash.vector.cache-value vector)
 		   t)))
+       (let ()
+	 (when (and (eq 0 (nhash.lock hash)) ; sat added
+		    (nhash.locked-additions hash))
+	   (add-locked-additions hash))
+	 (when (nhash.locked-additions hash)
+	   (let ((cell (nhash-locked-additions-cell key hash)))         
+	     (declare (type list cell))
+	     (when cell
+	       (let ((value (cdr cell)))
+		 (return-from gethash
+		   (if (eq value (%unbound-marker))
+		     (values default nil)
+		     (values value t))))))))
+       (let ((lock (nhash.lock hash)))
+	 (declare (fixnum lock))
+	 (when (or (logbitp $nhash-rehashing-bit lock)
+                   ;;(logbitp $nhash-growing-bit lock)
+		   (and (neq 0 (nhash.lock hash)) ;(logbitp $nhash-growing-bit lock) ; << 7/96
+                        ;; if lock is 0, hash-probe will rehash it for us, else won't
+			(%needs-rehashing-p hash)))
+	   (return-from gethash
+	     (gethash-woi key hash default))))
        (progn				;without-interrupts ; already woi
 	 (multiple-value-bind (foundp value index) (%hash-probe hash key nil)
 	   (if foundp
