@@ -845,8 +845,6 @@ impurify_from_xp(ExceptionInformation *xp)
   return gc_like_from_xp(xp, impurify);
 }
 
-extern BytePtr
-current_stack_pointer(void);
 
 void
 protect_area(protected_area_ptr p)
