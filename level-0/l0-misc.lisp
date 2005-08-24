@@ -259,8 +259,7 @@
              (%stack-space))
            (unless (eq verbose :default)
              (setq stack-used-by-thread (%stack-space-by-lisp-thread))))))
-    (format t "~&There are at least ~:D bytes of memory available. ~%"
-            freebytes)
+    (format t "~&Approximately ~:D bytes of memory can be allocated ~%before the next full GC is triggered. ~%" freebytes)
     (when verbose
       (flet ((k (n) (round n 1024)))
         (princ "
