@@ -112,6 +112,21 @@ void ior_bits(bitvector,bitvector,natural);
     BITWvar = (*BITPvar << BITIDXvar) >> BITIDXvar; }
 
 #ifdef __GNUC__
+static __inline__ natural
+current_stack_pointer(void) __attribute__((always_inline));
+
+static __inline__ natural
+current_stack_pointer(void)
+{
+  register natural _sp __asm__("r1");
+  return _sp;
+}
+#else
+natural
+current_stack_pointer(void);
+#endif
+
+#ifdef __GNUC__
 static __inline__ unsigned
 count_leading_zeros(natural w) __attribute__((always_inline));
 
