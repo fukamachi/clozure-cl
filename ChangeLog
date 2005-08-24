@@ -1,3 +1,13 @@
+2005-08-23 19:11  gb
+
+	* level-0/PPC/ppc-def.lisp: First cut of ppc64 %FF-CALL.  Needs
+	more work.
+
+2005-08-23 19:10  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp:
+	ALLOC-VARIABLE-EABI-C-FRAME.
+
 2005-08-23 06:39  gb
 
 	* compiler/: nx1.lisp, nxenv.lisp: WITH-VARIABLE-C-FRAME.
