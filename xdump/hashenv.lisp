@@ -113,8 +113,14 @@
 ;;; The rehash-lock is exclusive.  It must be held by any thread that
 ;;; might want to rehash the hash table (after GC.)
 (defmacro with-rehash-lock ((hash) &body body)
+  (declare (ignorable hash))
+#+actually-use-rehash-lock  
   `(with-lock-grabbed ((nhash.rehash-lock ,hash))
-    ,@body))
+    ,@body)
+#-actually-use-rehash-lock
+  `(progn
+    ,@body)
+  )
 
 ;;; There can (in general) be multiple simultaneous readers (GETHASH, etc)
 ;;; of a hash table; write access requires exlusivity.
