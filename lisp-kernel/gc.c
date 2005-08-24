@@ -812,6 +812,9 @@ mark_pc_root(LispObj pc)
 #define RMARK_PREV_CAR fulltag_nil
 #endif
 
+natural
+GCstack_limit = 0;
+
 
 /*
   This wants to be in assembler even more than "mark_root" does.
@@ -838,7 +841,84 @@ rmark(LispObj n)
     return;
   }
   *bitsp = (bits | mask);
-  {
+
+  if (current_stack_pointer() > GCstack_limit) {
+    if (tag_n == fulltag_cons) {
+      rmark(deref(n,1));
+      rmark(deref(n,0));
+    } else {
+      LispObj *base = (LispObj *) ptr_from_lispobj(untag(n));
+      natural
+        header = *((natural *) base),
+        subtag = header_subtag(header),
+        element_count = header_element_count(header),
+        total_size_in_bytes,
+        suffix_dnodes;
+      tag_n = fulltag_of(header);
+#ifdef PPC64
+    if ((nodeheader_tag_p(tag_n)) ||
+        (tag_n == ivector_class_64_bit)) {
+      total_size_in_bytes = 8 + (element_count<<3);
+    } else if (tag_n == ivector_class_8_bit) {
+      total_size_in_bytes = 8 + element_count;
+    } else if (tag_n == ivector_class_32_bit) {
+      total_size_in_bytes = 8 + (element_count<<2);
+    } else {
+      /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+      if (subtag == subtag_bit_vector) {
+        total_size_in_bytes = 8 + ((element_count+7)>>3);
+      } else {
+        total_size_in_bytes = 8 + (element_count<<1);
+      }
+    }
+#else
+      if ((tag_n == fulltag_nodeheader) ||
+          (subtag <= max_32_bit_ivector_subtag)) {
+        total_size_in_bytes = 4 + (element_count<<2);
+      } else if (subtag <= max_8_bit_ivector_subtag) {
+        total_size_in_bytes = 4 + element_count;
+      } else if (subtag <= max_16_bit_ivector_subtag) {
+        total_size_in_bytes = 4 + (element_count<<1);
+      } else if (subtag == subtag_double_float_vector) {
+        total_size_in_bytes = 8 + (element_count<<3);
+      } else {
+        total_size_in_bytes = 4 + ((element_count+7)>>3);
+      }
+#endif
+      suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
+
+      if (suffix_dnodes) {
+        set_n_bits(GCmarkbits, dnode+1, suffix_dnodes);
+      }
+
+      if (!nodeheader_tag_p(tag_n)) return;
+
+      if (subtag == subtag_hash_vector) {
+        /* Splice onto weakvll, then return */
+        ((hash_table_vector_header *) base)->cache_key = undefined;
+        ((hash_table_vector_header *) base)->cache_value = lisp_nil;
+        deref(ptr_to_lispobj(base),1) = GCweakvll;
+        GCweakvll = n;
+        return;
+      }
+
+      if (subtag == subtag_pool) {
+        deref(n, 1) = lisp_nil;
+      }
+
+      if (subtag == subtag_weak) {
+        natural weak_type = (natural) base[2];
+        if (weak_type >> population_termination_bit)
+          element_count -= 2;
+        else
+        element_count -= 1;
+      }
+      while (element_count) {
+        rmark(deref(n,element_count));
+        element_count--;
+      }
+    }
+  } else {
     LispObj prev = undefined;
     LispObj this = n, next;
     /*
@@ -2564,6 +2644,7 @@ Boolean just_purified_p = false;
 
 #define get_time(when) gettimeofday(&when, NULL)
 
+
 void 
 gc(TCR *tcr)
 {
@@ -2577,6 +2658,12 @@ gc(TCR *tcr)
     itabvec = 0;
   BytePtr oldfree = a->active;
   TCR *other_tcr;
+  
+  if ((natural) (tcr->cs_limit) == CS_OVERFLOW_FORCE_LIMIT) {
+    GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
+  } else {
+    GCstack_limit = (natural)(tcr->cs_limit)+(natural)4096;
+  }
 
   get_time(start);
   lisp_global(IN_GC) = (1<<fixnumshift);
