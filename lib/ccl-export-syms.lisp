@@ -541,6 +541,7 @@
      set-development-environment
      *resident-editor-hook*
      cpu-count
+     *report-time-function*
      ;;
      compile-ccl
      xcompile-ccl
