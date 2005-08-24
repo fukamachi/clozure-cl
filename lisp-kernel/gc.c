@@ -917,6 +917,12 @@ rmark(LispObj n)
         rmark(deref(n,element_count));
         element_count--;
       }
+
+    if (subtag == subtag_weak) {
+      deref(n, 1) = GCweakvll;
+      GCweakvll = n;
+    }
+
     }
   } else {
     LispObj prev = undefined;
