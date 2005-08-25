@@ -80,7 +80,7 @@ lock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr, struct timespec *waitfor)
       m->count = 1;
       break;
     }
-    SEM_WAIT(m->signal);
+    SEM_WAIT_FOREVER(m->signal);
   }
   return 0;
 }
@@ -150,52 +150,66 @@ recursive_lock_trylock(RECURSIVE_LOCK m, TCR *tcr, int *was_free)
   return EBUSY;
 }
 
+void
+sem_wait_forever(SEMAPHORE s)
+{
+  int status;
+
+  do {
+    status = SEM_WAIT(s);
+  } while (status != 0);
+}
+
 int
 wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
 {
 #ifdef LINUX
+  int status;
+
   struct timespec q;
   gettimeofday((struct timeval *)&q, NULL);
   q.tv_nsec *= 1000L;
-
+    
   q.tv_nsec += nanos;
   if (q.tv_nsec >= 1000000000L) {
     q.tv_nsec -= 1000000000L;
     seconds += 1;
   }
   q.tv_sec += seconds;
-  return SEM_TIMEDWAIT(s, &q);
+  status = SEM_TIMEDWAIT(s, &q);
+  if (status == 0) {
+    return status;
+  }
+  return errno;
+
 #endif
-#ifdef DARWIN
+#ifdef DARWIN  
   mach_timespec_t q = {seconds, nanos};
-  do {
-    clock_t start = clock();
-
-    int status = SEM_TIMEDWAIT(s, q);
-    clock_t finish = clock();
-
-    if (status == KERN_ABORTED) {
-      clock_t elapsed = (finish - start);
-
-      int elapsed_seconds = elapsed/CLOCKS_PER_SEC;
-      int elapsed_nanos = (elapsed - (elapsed_seconds * CLOCKS_PER_SEC)) * 1000000000/CLOCKS_PER_SEC;
-
-      seconds = seconds - elapsed_seconds - (elapsed_nanos/1000000000);
-      if (nanos  > 0) {
-	nanos = 1000000000 - elapsed_nanos;
-      }
-
-      if ((seconds <= 0) && (nanos <= 0)) {
-	return KERN_OPERATION_TIMED_OUT;
-      }
-
-      q.tv_sec = seconds;
-      q.tv_nsec = nanos;
-    } else {
-      return status;
+  clock_t start = clock();
+  int status = SEM_TIMEDWAIT(s, q);
+  clock_t finish = clock();
+  
+  if (status == KERN_ABORTED) {
+    clock_t elapsed = (finish - start);
+      
+    int elapsed_seconds = elapsed/CLOCKS_PER_SEC;
+    int elapsed_nanos = (elapsed - (elapsed_seconds * CLOCKS_PER_SEC)) * 1000000000/CLOCKS_PER_SEC;
+      
+    seconds = seconds - elapsed_seconds - (elapsed_nanos/1000000000);
+    if (nanos  > 0) {
+      nanos = 1000000000 - elapsed_nanos;
     }
-  } while (1==1);
-  // Possible limit on number of retries? 
+      
+    if ((seconds <= 0) && (nanos <= 0)) {
+      return ETIMEDOUT;
+    }
+  }
+  switch (status) {
+  case 0: return 0;
+  case KERN_OPERATION_TIMED_OUT: return ETIMEDOUT;
+  case KERN_ABORTED: return EINTR;
+  default: return EINVAL;
+  }
 
 #endif
 }
@@ -671,7 +685,7 @@ lisp_thread_entry(void *param)
   SEM_RAISE(activation->created);
   do {
     SEM_RAISE(tcr->reset_completion);
-    SEM_WAIT(tcr->activate);
+    SEM_WAIT_FOREVER(tcr->activate);
     /* Now go run some lisp code */
     start_lisp(TCR_TO_TSD(tcr),0);
   } while (tcr->flags & (1<<TCR_FLAG_BIT_AWAITING_PRESET));
@@ -823,7 +837,7 @@ suspend_tcr(TCR *tcr)
       }
 #endif
     if (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_suspend_signal) == 0) {
-      SEM_WAIT(tcr->suspend);
+      SEM_WAIT_FOREVER(tcr->suspend);
     } else {
       /* A problem using pthread_kill.  On Darwin, this can happen
 	 if the thread has had its signal mask surgically removed
