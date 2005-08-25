@@ -428,8 +428,8 @@
   (let ((shift (%i- 16 target::fixnum-shift)))
     (gvector :istruct
              'random-state
-             (ash seed-1 shift)
-             (ash seed-2 shift))))
+             (%ilsl shift seed-1)
+             (%ilsl shift seed-2))))
 
 
 (defparameter *random-state* (initialize-random-state #xFBF1 9))
