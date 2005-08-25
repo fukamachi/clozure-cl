@@ -1325,11 +1325,7 @@ PMCL_exception_handler(int xnum,
       status = handle_trap(xp, instruction, program_counter);
     }
   } else if (xnum == SIGNAL_FOR_PROCESS_INTERRUPT) {
-    tcr->interrupt_level = (-1 << fixnumshift);
-    tcr->interrupt_pending = 0;
     callback_for_trap(nrs_CMAIN.vcell, xp, 0, TRI_instruction(TO_GT,nargs,0),0, 0);
-    tcr->interrupt_level = 0;
-    tcr->interrupt_pending = 0;
     status = 0;
   }
 
@@ -1647,18 +1643,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
 
     if ((fulltag_of(cmain) == fulltag_misc) &&
         (header_subtag(header_of(cmain)) == subtag_macptr)) {
-      /* cmain is a macptr, we can call back to lisp */
-      if (the_trap == TRI_instruction(TO_GT,nargs,0)) {
-        /* Disable interrupts if we're about to process one */
-        event_poll_p = true;    /* remember to turn interrupts back on */
-	tcr->interrupt_level = (-1 << fixnumshift);
-	tcr->interrupt_pending = 0;
-      }
       callback_for_trap(cmain, xp,  where, (natural) the_trap,  0, 0);
-      if (event_poll_p) {
-	tcr->interrupt_level = 0;
-	tcr->interrupt_pending = 0;
-      }
       adjust_exception_pc(xp, 4);
       return(noErr);
     }
