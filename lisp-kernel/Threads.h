@@ -54,6 +54,10 @@ typedef semaphore_t SEMAPHORE;
 #define SEM_TIMEDWAIT(s,t) semaphore_timedwait((SEMAPHORE)(natural)s,t)
 #endif
 
+void sem_wait_forever(SEMAPHORE s);
+
+#define SEM_WAIT_FOREVER(s) sem_wait_forever((SEMAPHORE)s)
+
 typedef struct
 {
   signed_natural avail;
