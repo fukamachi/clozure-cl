@@ -38,24 +38,44 @@
     (semaphore-value (require-type s 'semaphore))))
 
 (defun %wait-on-semaphore-ptr (s seconds nanoseconds)
-   (zerop
-    (the fixnum (ff-call
+   (let* ((status (ff-call
 		 (%kernel-import target::kernel-import-wait-on-semaphore)
 		 :address s
 		 :unsigned seconds
 		 :unsigned nanoseconds
-		 :signed))))
+		 :signed)))
+     (declare (fixnum status))
+     (values (zerop status) status)))
 
 (defun %timed-wait-on-semaphore-ptr (s seconds nanoseconds &optional
                                        (whostate "semaphore wait"))
   (process-wait whostate #'%wait-on-semaphore-ptr s seconds nanoseconds))
   
 (defun wait-on-semaphore (s)
-  (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0))
+  (%timed-wait-on-semaphore-ptr (semaphore-value s) 0 0)
+  t)
 
 (defun timed-wait-on-semaphore (s duration)
   (multiple-value-bind (secs nanos) (nanoseconds duration)
-    (%wait-on-semaphore-ptr (semaphore-value s) secs nanos)))
+    (let* ((now (get-internal-real-time))
+           (stop (+ now
+                    (* secs 1000)
+                    (ceiling nanos 1000000))))
+      (loop
+        (multiple-value-bind (success err)
+            (%wait-on-semaphore-ptr (semaphore-value s) secs nanos)
+          (when success
+            (return t))
+          (when (or (not (eql err #$EINTR))
+                    (>= (setq now (get-internal-run-time)) stop))
+            (return nil))
+          (unless (zerop duration)
+            (let* ((diff (- stop now)))
+              (multiple-value-bind (remaining-seconds remaining-millis)
+                  (floor diff 1000)
+                (setq secs remaining-seconds
+                      nanos (* remaining-millis 1000000))))))))))
+
 
 (defun %signal-semaphore-ptr (p)
   (ff-call
