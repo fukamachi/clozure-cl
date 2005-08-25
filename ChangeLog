@@ -1,3 +1,8 @@
+2005-08-25 00:20  gb
+
+	* level-0/l0-misc.lisp: Wait for lock's semaphore in one-second
+	intervals.
+
 2005-08-24 14:21  gb
 
 	* level-0/l0-hash.lisp: Restore some of the "locked additions"
