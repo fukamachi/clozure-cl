@@ -46,9 +46,11 @@
 ;;; ARGS is a list of the args supplied to the function
 ;;; TYPES is a list of the types of the args.
 ;;; NAMES is a list of the names of the args.
-;;;       TYPES & NAMES will hae entries only for closed-over, required, & optional args.
-;;; COUNT is the number of known-correct elements of ARGS, or T if they're all correct.
-;;;       ARGS will be filled with NIL up to the number of required args to lfun
+;;; TYPES & NAMES will hae entries only for closed-over,
+;;;       required, & optional args.
+;;; COUNT is the number of known-correct elements of ARGS, or T if
+;;;       they're all correct.
+;;; ARGS will be filled with NIL up to the number of required args to lfun
 ;;; NCLOSED is the number of closed-over values that are in the prefix of ARGS
 ;;;       If COUNT < NCLOSED, it is not safe to restart the function.
 (defun frame-supplied-args (frame lfun pc child context)
