@@ -1,3 +1,43 @@
+2005-08-25 00:27  gb
+
+	* lisp-kernel/lisp-exceptions.c: Don't play with interrupt level
+	before callbacks; callbacks can do so themselves.
+
+2005-08-25 00:26  gb
+
+	* lisp-kernel/thread_manager.c: Don't loop if SEM_WAIT_WITH_TIMEOUT
+	gets interrupted; return to lisp code (so that the interrupt can be
+	serviced) and let lisp code decide whether or not to retry.
+
+2005-08-25 00:25  gb
+
+	* lisp-kernel/Threads.h: Define SEM_WAIT_FOREVER, for kernel
+	routines that should just restart a SEM_WAIT() call.
+
+2005-08-25 00:24  gb
+
+	* lib/backtrace-lds.lisp: Format a comment better.
+
+2005-08-25 00:23  gb
+
+	* level-1/linux-files.lisp: Semaphore waiting functions assume that
+	%wait-on-semaphore-pointer returns a second value (a POSIX-style
+	error number).
+	
+	Handle retries because of #$EINTR in lisp code (don't loop
+	uninterruptibly in the kernel.)
+
+2005-08-25 00:22  gb
+
+	* level-1/l1-readloop-lds.lisp: Ensure that interrups are enabled
+	around a break loop.
+
+2005-08-25 00:21  gb
+
+	* level-1/l1-numbers.lisp: Arrgh.  INITIALIZE-RANDOM-STATE uses
+	%ILSL to shift, since ASH produces an arithmetically correct
+	bignum, and we don't want that.
+
 2005-08-25 00:20  gb
 
 	* level-0/l0-misc.lisp: Wait for lock's semaphore in one-second
