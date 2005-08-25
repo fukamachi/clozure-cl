@@ -409,9 +409,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
 (defvar %last-continue% nil)
 (defun break-loop (condition frame-pointer)
   "Never returns"
-  (when (and (%i< (interrupt-level) 0) (not *break-loop-when-uninterruptable*))
-    (abort))
-  (let* ((%handlers% (last %handlers%))		; firewall
+  (let* ((%handlers% (last %handlers%)) ; firewall
          (*break-frame* frame-pointer)
          (*break-condition* condition)
          (*compiling-file* nil)
@@ -421,50 +419,48 @@ whose name or ID matches <p>, or to any process if <p> is null"
          (%last-continue% continue)
          (*standard-input* *debug-io*)
          (*standard-output* *debug-io*)
-         (level (interrupt-level))
          (*signal-printing-errors* nil)
          (*read-suppress* nil)
          (*print-readably* nil))
-    (unwind-protect
-         (let* ((context (new-backtrace-info nil
-                                      frame-pointer
-                                      (if *backtrace-contexts*
-                                        (or (child-frame
-                                             (bt.youngest (car *backtrace-contexts*))
-                                             nil)
-                                            (last-frame-ptr))
-                                        (last-frame-ptr))
-                                      (%current-tcr)
-                                      condition
-                                      (%current-frame-ptr)
-                                      *fake-stack-frames*
-                                      (db-link)
-                                      (1+ *break-level*)))
-                (*backtrace-contexts* (cons context *backtrace-contexts*)))
-	 (with-toplevel-commands :break
-           (if *continuablep*
-             (let* ((*print-circle* *error-print-circle*)
+    (let* ((context (new-backtrace-info nil
+                                        frame-pointer
+                                        (if *backtrace-contexts*
+                                          (or (child-frame
+                                               (bt.youngest (car *backtrace-contexts*))
+                                               nil)
+                                              (last-frame-ptr))
+                                          (last-frame-ptr))
+                                        (%current-tcr)
+                                        condition
+                                        (%current-frame-ptr)
+                                        *fake-stack-frames*
+                                        (db-link)
+                                        (1+ *break-level*)))
+           (*backtrace-contexts* (cons context *backtrace-contexts*)))
+      (with-toplevel-commands :break
+        (if *continuablep*
+          (let* ((*print-circle* *error-print-circle*)
 					;(*print-pretty* nil)
-                    (*print-array* nil))
-               (format t "~&> Type :GO to continue, :POP to abort.")
-               (format t "~&> If continued: ~A~%" continue))
-             (format t "~&> Type :POP to abort.~%"))
-           (format t "~&Type :? for other options.")
-           (terpri)
-           (force-output)
+                 (*print-array* nil))
+            (format t "~&> Type :GO to continue, :POP to abort.")
+            (format t "~&> If continued: ~A~%" continue))
+          (format t "~&> Type :POP to abort.~%"))
+        (format t "~&Type :? for other options.")
+        (terpri)
+        (force-output)
 
-           (clear-input *debug-io*)
-           (setq *error-reentry-count* 0) ; succesfully reported error
-           (unwind-protect
-                (progn
-                  (application-ui-operation *application*
-                                            :enter-backtrace-context context)
-                  (read-loop :break-level (1+ *break-level*)
-                             :input-stream *debug-io*
-                             :output-stream *debug-io*))
-             (application-ui-operation *application* :exit-backtrace-context
-                                       context))))
-      (setf (interrupt-level) level))))
+        (clear-input *debug-io*)
+        (setq *error-reentry-count* 0)  ; succesfully reported error
+        (ignoring-without-interrupts
+         (unwind-protect
+              (progn
+                (application-ui-operation *application*
+                                          :enter-backtrace-context context)
+                (read-loop :break-level (1+ *break-level*)
+                           :input-stream *debug-io*
+                           :output-stream *debug-io*))
+           (application-ui-operation *application* :exit-backtrace-context
+                                     context)))))))
 
 
 
