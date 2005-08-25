@@ -454,7 +454,7 @@
          (if flag
            (rplaca flag t))
          (return t)))
-      (%timed-wait-on-semaphore-ptr signal 0 0 "waiting for lock"))))
+      (%timed-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
 
 (defun %try-recursive-lock (lock)
   (with-macptrs ((p)
