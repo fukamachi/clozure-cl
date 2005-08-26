@@ -1643,6 +1643,12 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
 
     if ((fulltag_of(cmain) == fulltag_misc) &&
         (header_subtag(header_of(cmain)) == subtag_macptr)) {
+      if (the_trap == TRI_instruction(TO_GT,nargs,0)) {
+        /* reset interrup_level, interrupt_pending */
+        tcr->interrupt_level = 0;
+        tcr->interrupt_pending = 0;
+      }
+      
       callback_for_trap(cmain, xp,  where, (natural) the_trap,  0, 0);
       adjust_exception_pc(xp, 4);
       return(noErr);
