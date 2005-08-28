@@ -2661,11 +2661,13 @@ are no Forms, OR returns NIL."
     (multiple-value-bind (body decls) (parse-body body env)
       `(let ((,state (vector nil nil ,hash-table nil nil)))
 	(declare (dynamic-extent ,state))
-	(unwind-protect
-	     (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
-	       (start-hash-table-iterator ,state)
-	       (locally ,@decls ,@body))
-	  (finish-hash-table-iterator ,state))))))
+        (with-exclusive-hash-lock (,hash-table)
+          (without-gcing
+           (unwind-protect
+                (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
+                  (start-hash-table-iterator ,state)
+                  (locally ,@decls ,@body))
+             (finish-hash-table-iterator ,state))))))))
 
 (eval-when (compile load eval)
 (defmacro pprint-logical-block ((stream-symbol list
