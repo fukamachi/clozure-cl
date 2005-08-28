@@ -688,8 +688,8 @@
 (defun puthash (key hash default &optional (value default))
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
-  (without-gcing
-   (with-exclusive-hash-lock (hash)
+  (with-exclusive-hash-lock (hash)
+    (without-gcing
      (when (and (eq 0 (nhash.lock hash))
                 (%needs-rehashing-p hash))
        (%rehash hash))
@@ -845,14 +845,14 @@
    value and T as multiple values, or returns DEFAULT and NIL if there is no
    such entry. Entries can be added using SETF."
   (unless (hash-table-p hash)
-    (setq hash (require-type hash 'hash-table)))  
-  (without-gcing
+    (report-bad-arg hash 'hash-table))  
    (with-exclusive-hash-lock (hash)
-     (let* ((vector (nhash.vector hash)))
-       (when (eq key (nhash.vector.cache-key vector))
-	 (return-from gethash
-	   (values (nhash.vector.cache-value vector)
-		   t)))
+     (without-gcing
+      (let* ((vector (nhash.vector hash)))
+        (when (eq key (nhash.vector.cache-key vector))
+          (return-from gethash
+            (values (nhash.vector.cache-value vector)
+                    t)))
        (let ()
 	 (when (and (eq 0 (nhash.lock hash)) ; sat added
 		    (nhash.locked-additions hash))
@@ -893,9 +893,9 @@
    was such an entry, or NIL if not."
   (unless (hash-table-p hash)
     (setq hash (require-type hash 'hash-table)))
-  (without-gcing
    (with-exclusive-hash-lock (hash)
-     (when (and (eq 0 (nhash.lock hash))
+     (without-gcing
+        (when (and (eq 0 (nhash.lock hash))
                 (%needs-rehashing-p hash))
        (%rehash hash))
      (let* ((index nil)
