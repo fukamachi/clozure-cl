@@ -2258,10 +2258,17 @@ typedef struct {
 
 */
 
+#ifdef PPC64
+#define	C_REDZONE_LEN		320
+#define	C_STK_ALIGN             32
+#else
+#else
 #define	C_REDZONE_LEN		224
-#define	C_STK_ALIGN			16
+#define	C_STK_ALIGN		16
+#endif
 #define C_PARAMSAVE_LEN		64
 #define	C_LINKAGE_LEN		48
+
 #define TRUNC_DOWN(a,b,c)  (((((natural)a)-(b))/(c)) * (c))
 #include <mach/mach.h>
 #include <mach/mach_error.h>
