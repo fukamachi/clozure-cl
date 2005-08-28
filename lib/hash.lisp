@@ -335,37 +335,16 @@
        (error "Too many mappers ~s of hash table ~S" lock hash))
      (setq vector (nhash.vector hash))
      (setf (hti.vector state) vector)
-     #|
-     ; this isnt right - in case the mapper is modifying the table. 
-     ; if rehashing - copy the vector and iterate on the copy - actually copy the whole darn thing
-     (if (neq 0 (%ilogand lock $nhash.lock-while-rehashing))
-       (without-interrupts
-        ;(print 'copying-to-map)
-        (let* ((vector (copy-uvector vector))
-               (new-hash (%cons-hash-table (nhash.rehashF hash)
-                                           (nhash.keytransf hash)
-                                           (nhash.compareF hash)
-                                           vector
-                                           (nhash.grow-threshold hash)
-                                           (nhash.rehash-ratio hash)
-                                           (nhash.rehash-size hash))))
-          (setf (hti.vector state) vector)
-          (setf (hti.hash-table state) new-hash)
-          (setq hash new-hash)
-          (setf (hti.lock hash) 0)
-          (setq lock 0)))
-       (setf (hti.vector state) vector))
-     |# 
      (setf (nhash.lock hash) (1+ lock))
      (setf (hti.index state) (nhash.vector-size vector)))))
  
-; this is as fast as the lappy version
+;;; this is as fast as the lappy version
 
 (defun do-hash-table-iteration (state)
   (let ((vector (hti.vector state))
         (index (hti.index state))
         key value)
-    (declare (optimize (speed 3) (safety 0))) ; what if its big  and empty?
+    (declare (optimize (speed 3) (safety 0)))
     (if (setf (hti.index state)
               (if index
                 (loop
