@@ -2643,7 +2643,7 @@
                                    ((crf :crf)
                                     (temp :lisp)))
   (clrldi dest val (- ppc64::nbits-in-word ppc64::ntagbits))
-  (cmpdi crf dest ppc64::tag-misc)
+  (cmpdi crf dest ppc64::fulltag-misc)
   (li dest -1)
   (bne crf :done)
   (lbz dest ppc64::misc-subtag-offset val)
