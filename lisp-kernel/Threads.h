@@ -56,7 +56,13 @@ typedef semaphore_t SEMAPHORE;
 
 void sem_wait_forever(SEMAPHORE s);
 
+#ifdef LINUX
 #define SEM_WAIT_FOREVER(s) sem_wait_forever((SEMAPHORE)s)
+#endif
+
+#ifdef DARWIN
+#define SEM_WAIT_FOREVER(s) sem_wait_forever((SEMAPHORE)(natural)s)
+#endif
 
 typedef struct
 {
