@@ -1,3 +1,8 @@
+2005-08-27 21:26  gb
+
+	* lisp-kernel/Threads.h: Conditionalize SEM_WAIT_FOREVER for Darwin
+	(especially Darwin64).
+
 2005-08-26 04:41  gb
 
 	* lisp-kernel/lisp-exceptions.c: Something's got to reset
