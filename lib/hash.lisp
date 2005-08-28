@@ -195,28 +195,6 @@
 
 (eval-when (:execute :compile-toplevel :load-toplevel)
   
-  (def-accessors (hash-table) %svref
-    nil                                 ; 'HASH-TABLE
-    nhash.rehashF                       ; function: rehashes if necessary
-    nhash.keytransF                     ; transform key into (values primary addressp)
-    nhash.compareF                      ; comparison function: 0 -> eq, -1 ->eql, else function
-    nhash.rehash-bits                   ; bitset (array (unsigned-byte 32)) for rehash
-    nhash.vector                        ; N <key,value> pairs; n relatively prime to & larger than all secondary keys
-    nhash.lock                          ; fixnum: bits for grow and rehash
-    nhash.count                         ; Number of entries
-    nhash.locked-additions              ; Alist to look in when table locked & not otherwise found
-    nhash.fixnum                        ; (a5 $fwdnum)
-    nhash.gc-count                      ; (a5 $relocnum) - incremented by full gc, growzone.
-    nhash.grow-threshold                ; Max # entries before grow
-    nhash.rehash-ratio                  ; inverted rehash-threshold
-    nhash.rehash-size			; rehash-size from user
-    nhash.puthash-count                 ; number of times table has been rehashed or grown
-    nhash.exclusion-lock                ; read-write lock for access
-    nhash.rehash-lock                   ; exclusive lock for rehash
-    nhash.map-count                     ; fixnum: counts pending maphashes
-    nhash.address-based                 ; hashes based on address
-    )
-  
   ; It's wired in to the code that the length of this vector is 8 and
   ; that its largest element is < 30
   (defconstant secondary-keys #(3 5 7 11 13 17 19 23))
