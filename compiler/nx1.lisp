@@ -49,6 +49,14 @@
      (nx1-form offset)
      (nx1-form newval))))
 
+(defnx1 nx1-istruct-typep ((istruct-typep)) (&whole whole thing type &environment env)
+  (if (and (quoted-form-p type) (symbolp (cadr type)))
+    (make-acode (%nx1-operator istruct-typep)
+                (nx1-immediate :eq)
+                (nx1-form thing)
+                (nx1-form type))
+    (nx1-treat-as-call whole)))
+
 (defnx1 nx1-make-list make-list (&whole whole size &rest keys &environment env)
   (if (and keys 
              (or 

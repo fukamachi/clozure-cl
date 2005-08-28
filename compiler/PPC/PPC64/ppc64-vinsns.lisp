@@ -2636,6 +2636,22 @@
 				    ((src :imm)))
   (clrldi dest src (- ppc64::nbits-in-word ppc64::num-subtag-bits)))
 
+;;; Set dest (of type :s64!) to 0 iff VAL is an istruct of type TYPE
+(define-ppc64-vinsn istruct-typep (((dest :s64))
+                                   ((val :lisp)
+                                    (type :lisp))
+                                   ((crf :crf)
+                                    (temp :lisp)))
+  (clrldi dest val (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf dest ppc64::tag-misc)
+  (li dest -1)
+  (bne crf :done)
+  (lbz dest ppc64::misc-subtag-offset val)
+  (cmpdi crf dest ppc64::subtag-istruct)
+  (bne crf :done)
+  (ld temp ppc64::misc-data-offset val)
+  (subf dest type temp)
+  :done)
                              
 ;;; Boundp, fboundp stuff.
 (define-ppc64-vinsn (svar-ref-symbol-value :call :subprim-call)

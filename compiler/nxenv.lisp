@@ -306,7 +306,7 @@
      (dtagp . #.operator-cc-invertable-mask)
      (with-stack-double-floats . 0)
      (short-float . #.operator-single-valued-mask)
-     (struct-typep . 0)
+     (istruct-typep . #.(logior operator-single-valued-mask operator-assignment-free-mask operator-acode-subforms-mask operator-side-effect-free-mask operator-cc-invertable-mask))
      (%ilogxor2 . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (%err-disp . 0)
      (%quo2 . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))

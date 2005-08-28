@@ -5464,6 +5464,14 @@
 (defppc2 ppc2-struct-set struct-set (seg vreg xfer struct offset value)
   (ppc2-misc-node-set seg vreg xfer struct offset value (ppc2-lookup-target-uvector-subtag :struct)))
 
+(defppc2 ppc2-istruct-typep istruct-typep (seg vreg xfer cc form type)
+  (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
+    (multiple-value-bind (r1 r2) (ppc2-two-untargeted-reg-forms seg form ppc::arg_y type ppc::arg_z)
+      (with-imm-target  () (target :signed-natural)
+        (! istruct-typep target r1 r2)
+        (ppc2-test-reg-%izerop seg vreg xfer target cr-bit true-p 0)))))
+
+
 (defppc2 ppc2-ppc-lisptag ppc-lisptag (seg vreg xfer node)
   (if (null vreg)
     (ppc2-form seg vreg xfer node)

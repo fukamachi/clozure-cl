@@ -2686,7 +2686,24 @@
                                     ((src :imm)))
   (rlwinm dest src 0 (1+ (- ppc32::least-significant-bit ppc32::charcode-shift)) (1- (- ppc32::nbits-in-word (+ ppc32::charcode-shift 8)))))
 
-                             
+;;; Set dest (of type :s32!) to 0 iff VAL is an istruct of type TYPE
+(define-ppc32-vinsn istruct-typep (((dest :s32))
+                                   ((val :lisp)
+                                    (type :lisp))
+                                   ((crf :crf)
+                                    (temp :lisp)))
+  (clrlwi dest val (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf dest ppc32::tag-misc)
+  (li dest -1)
+  (bne crf :done)
+  (lbz dest ppc32::misc-subtag-offset val)
+  (cmpwi crf dest ppc32::subtag-istruct)
+  (bne crf :done)
+  (lwz temp ppc32::misc-data-offset val)
+  (subf dest type temp)
+  :done)
+  
+  
 ;; Boundp, fboundp stuff.
 (define-ppc32-vinsn (svar-ref-symbol-value :call :subprim-call)
     (((val :lisp))
