@@ -1514,7 +1514,8 @@
                       (mapcar #'(lambda (d)
                                   (sort (directory d) #'string< :key #'namestring))
                               wild-subdirs))
-               (sort (directory wild-root) #'string< :key #'namestring)))))))
+               (sort (directory wild-root) #'string< :key #'namestring)))
+       (format t "~&;Wrote bootstrapping image: ~s" (truename *xload-image-file-name*))))))
 
 (defun cross-xload-level-0 (target &optional (recompile t))
   (with-cross-compilation-target (target)
