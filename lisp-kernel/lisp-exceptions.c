@@ -2262,7 +2262,6 @@ typedef struct {
 #define	C_REDZONE_LEN		320
 #define	C_STK_ALIGN             32
 #else
-#else
 #define	C_REDZONE_LEN		224
 #define	C_STK_ALIGN		16
 #endif
