@@ -129,12 +129,3 @@
   `(with-read-lock ((nhash.exclusion-lock ,hash))
     ,@body))
 
-(defmacro with-hash-write-lock ((hash) &body body)
-  `(with-write-lock ((nhash.exclusion-lock ,hash))
-    ,@body))
-
-;;; To ... er, um, ... expedite implementation, we lock the hash
-;;; table exclusively whenever touching it.  For now.
-
-(defmacro with-exclusive-hash-lock ((hash) &body body)
-  `(with-hash-write-lock (,hash) ,@body))
