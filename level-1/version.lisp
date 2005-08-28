@@ -19,7 +19,7 @@
 (defparameter *openmcl-major-version* 1)
 (defparameter *openmcl-minor-version* 0)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "pre-050828a")
+(defparameter *openmcl-suffix* "pre-050828b")
 (defparameter *openmcl-dev-level*
   #+ppc64-target "Beta" #-ppc64-target nil)
 
