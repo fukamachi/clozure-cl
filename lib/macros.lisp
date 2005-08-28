@@ -2667,11 +2667,13 @@ are no Forms, OR returns NIL."
    invocation, returns one or three values. The first value tells whether
    any objects remain in the hash table. When the first value is non-NIL,
    the second and third values are the key and the value of the next object."
-  (let ((state (gensym)))
+  (let ((state (gensym))
+        (htab (gensym)))
     (multiple-value-bind (body decls) (parse-body body env)
-      `(let ((,state (vector nil nil ,hash-table nil nil)))
+      `(let* ((,htab ,hash-table)
+              (,state (vector nil nil ,htab nil nil)))
 	(declare (dynamic-extent ,state))
-        (with-exclusive-hash-lock (,hash-table)
+        (with-exclusive-hash-lock (,htab)
           (without-gcing
            (unwind-protect
                 (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
