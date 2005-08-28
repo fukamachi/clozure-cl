@@ -242,7 +242,7 @@ The minimum version supported by this interface is ~d.~d."
 (defun chud-cleanup ()
   (when (chud-is-initialized)
     (when (acquired-remote-access)
-      (release-remote-access))
+      (ignore-errors (release-remote-access)))
     (#_chudCleanup))
   (cleanup-spatch-files))
   
