@@ -2650,6 +2650,16 @@ are no Forms, OR returns NIL."
             ,string))
      nil))
 
+(defmacro with-hash-write-lock ((hash) &body body)
+  `(with-write-lock ((nhash.exclusion-lock ,hash))
+    ,@body))
+
+;;; To ... er, um, ... expedite implementation, we lock the hash
+;;; table exclusively whenever touching it.  For now.
+
+(defmacro with-exclusive-hash-lock ((hash) &body body)
+  `(with-hash-write-lock (,hash) ,@body))
+
 (defmacro with-hash-table-iterator ((mname hash-table) &body body &environment env)
   "WITH-HASH-TABLE-ITERATOR ((function hash-table) &body body)
    provides a method of manually looping over the elements of a hash-table.
