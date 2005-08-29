@@ -1,3 +1,14 @@
+2005-08-28 22:19  gb
+
+	* xdump/xfasload.lisp: Optionally suppress messages about cold-load
+	functions and their addresses.
+
+2005-08-28 22:18  gb
+
+	* lisp-kernel/darwin/Makefile: Base the choice of -lgcc vs.
+	-lSystemStubs on the GCC version, not the availability of
+	-lSystemStubs.
+
 2005-08-28 17:22  gb
 
 	* xdump/xfasload.lisp: TARGET-XLOAD-LEVEL-0 prints a message
