@@ -32,6 +32,7 @@ gccdir = $(shell $(CC) -v 2>&1 | grep "specs from" | sed -e 's/.*from //' -e 's|
 ifneq ($(gccdir),)
 gccversion:=$(notdir $(gccdir))
 oldgcc:=$(shell expr $(gccversion) "<" "3.3")
+pregcc4:=$(shell expr $(gccversion) "<" "4.0")
 ifeq ($(oldgcc),1)
 BROKEN_PREPROCESSOR_WORKAROUND = -traditional-cpp
 endif
@@ -88,14 +89,13 @@ all:	../../dppccl
 OSEARLYLIBS = -lcrt1.o
 OSLATELIBS = -lSystem
 
-# If the linker can find an absolute path to -lSystemStubs, use
-# -lSystemStubs; otherwise, just use libgcc.a
-SYSTEMSTUBSPATH = $(shell $(CC) --print-file-name=libSystemStubs.a)
-SYSTEMSTUBSABSOLUTE = $(shell expr $(SYSTEMSTUBSPATH) : "^/*")
-ifeq ($(SYSTEMSTUBSABSOLUTE),1)
-OSMIDDLELIBS = -lSystemStubs
-else
+# gcc 4.0 and later want to use -lSystemStubs for many of the
+# runtime support functions that were in -lgcc in previous
+# versions.  'pregcc4' may have been set above.
+ifeq ($(pregcc4),1)
 OSMIDDLELIBS = -lgcc
+else
+OSMIDDLELIBS = -lSystemStubs
 endif
 
 OSLIBS = $(OSEARLYLIBS) $(OSMIDDLELIBS) $(OSLATELIBS)
