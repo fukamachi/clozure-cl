@@ -34,6 +34,8 @@
 
 ;;; I'm not sure that there's a better way to do this.
 
+(defparameter *xload-show-cold-load-functions* nil "Set to T when debugging")
+
 (defparameter *xload-target-nil* nil)
 (defparameter *xload-target-fixnumshift* nil)
 (defparameter *xload-target-fulltag-cons* nil)
@@ -952,8 +954,9 @@
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))
           (xload-save-list (setq *xload-cold-load-functions*
                                 (nreverse *xload-cold-load-functions*))))
-    (format t "~&cold-load-functions list:")
-    (xload-show-list (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*)))
+    (when *xload-show-cold-load-functions*
+      (format t "~&cold-load-functions list:")
+      (xload-show-list (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))))
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-documentation*))
           (xload-save-list (setq *xload-cold-load-documentation*
                                  (nreverse *xload-cold-load-documentation*))))
@@ -985,7 +988,8 @@
   (let* ((fun (%fasl-expr-preserve-epush s)))
     (when (faslstate.faslepush s)
       (error "Can't call function for value : ~s" fun))
-    (format t "~& cold-load function: #x~x" fun)
+    (when *xload-show-cold-load-functions*
+      (format t "~& cold-load function: #x~x" fun))
     (push fun *xload-cold-load-functions*)))
 
 (xload-copy-faslop $fasl-globals)        ; what the hell did this ever do ?
