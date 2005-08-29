@@ -1,3 +1,8 @@
+2005-08-28 17:22  gb
+
+	* xdump/xfasload.lisp: TARGET-XLOAD-LEVEL-0 prints a message
+	reminding us of the bootstrapping image's name and location.
+
 2005-08-28 17:13  gb
 
 	* level-1/version.lisp: Bump.
