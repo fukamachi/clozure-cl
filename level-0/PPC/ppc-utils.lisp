@@ -501,6 +501,10 @@
 
 
 (defppclapfunction egc ((arg arg_z))
+  "Enable the EGC if arg is non-nil, disables the EGC otherwise. Return
+the previous enabled status. Although this function is thread-safe (in
+the sense that calls to it are serialized), it doesn't make a whole lot
+of sense to be turning the EGC on and off from multiple threads ..."
   (check-nargs 1)
   (subi imm1 arg nil)
   (li imm0 32)
@@ -531,12 +535,18 @@
   (blr))
 
 (defppclapfunction lisp-heap-gc-threshold ()
+  "Return the value of the kernel variable that specifies the amount
+of free space to leave in the heap after full GC."
   (check-nargs 0)
   (li imm0 16)
   (trlgei allocptr 0)
   (blr))
 
 (defppclapfunction set-lisp-heap-gc-threshold ((new arg_z))
+  "Set the value of the kernel variable that specifies the amount of free
+space to leave in the heap after full GC to new-value, which should be a
+non-negative fixnum. Returns the value of that kernel variable (which may
+be somewhat larger than what was specified)."
   (check-nargs 1)
   (li imm0 17)
   (unbox-fixnum imm1 arg_z)
@@ -544,6 +554,8 @@
   (blr))
 
 (defppclapfunction use-lisp-heap-gc-threshold ()
+  "Try to grow or shrink lisp's heap space, so that the free space is
+(approximately) equal to the current heap threshold. Return NIL"
   (check-nargs 0)
   (li imm0 18)
   (trlgei allocptr 0)

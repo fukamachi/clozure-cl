@@ -937,6 +937,9 @@ terminate the list"
 
 
 (defun gc-retain-pages (arg)
+  "Try to influence the GC to retain/recycle the pages allocated between
+GCs if arg is true, and to release them otherwise. This is generally a
+gtradeoff between paging and other VM considerations."
   (setq *gc-event-status-bits*
         (if arg
           (bitset $gc-retain-pages-bit *gc-event-status-bits*)
@@ -944,19 +947,29 @@ terminate the list"
   (not (null arg)))
 
 (defun gc-retaining-pages ()
+  "Return T if the GC tries to retain pages between full GCs and NIL if
+it's trying to release them to improve VM paging performance."
   (logbitp $gc-retain-pages-bit *gc-event-status-bits*))  
 
 
 
 (defun egc-active-p ()
+  "Return T if the EGC was active at the time of the call, NIL otherwise.
+Since this is generally a volatile piece of information, it's not clear
+whether this function serves a useful purpose when native threads are
+involved."
   (and (egc-enabled-p)
        (not (eql 0 (%get-kernel-global 'oldest-ephemeral)))))
 
 ; this IS effectively a passive way of inquiring about enabled status.
 (defun egc-enabled-p ()
+  "Return T if the EGC was enabled at the time of the call, NIL otherwise."
   (not (eql 0 (%fixnum-ref (%active-dynamic-area) target::area.older))))
 
 (defun egc-configuration ()
+  "Return as multiple values the sizes in kilobytes of the thresholds
+associated with the youngest ephemeral generation, the middle ephemeral
+generation, and the oldest ephemeral generation."
   (let* ((ta (%get-kernel-global 'tenured-area))
          (g2 (%fixnum-ref ta target::area.younger))
          (g1 (%fixnum-ref g2 target::area.younger))
@@ -967,6 +980,10 @@ terminate the list"
 
 
 (defun configure-egc (e0size e1size e2size)
+  "If the EGC is currently disabled, put the indicated threshold sizes in
+effect and returns T, otherwise, returns NIL. (The provided threshold sizes
+are rounded up to a multiple of 64Kbytes in OpenMCL 0.14 and to a multiple
+of 32KBytes in earlier versions.)"
   (unless (egc-active-p)
     (setq e2size (logand (lognot #xffff) (+ #xffff (ash (require-type e2size '(unsigned-byte 18)) 10)))
           e1size (logand (lognot #xffff) (+ #xffff (ash (require-type e1size '(unsigned-byte 18)) 10)))
