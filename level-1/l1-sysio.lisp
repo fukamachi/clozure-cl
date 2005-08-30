@@ -73,7 +73,14 @@
 		    (translate-cr-to-lf ioblock)
 		    (return :macos)))))))))
 
-(defvar *default-external-format* :unix)
+(defvar *default-external-format* :unix
+  "The value of this variable is used when :EXTERNAL-FORMAT is unspecified
+or specified as :DEFAULT. It can meaningfully be given any of the values
+:UNIX, :MACOS, or :INFERRED, each of which is interpreted as described above.
+
+Because there's some risk that unsolicited newline translation could have
+undesirable consequences, the initial value of this variable in OpenMCL
+is :UNIX.")
 
 (defparameter *external-format-translations*
   '((:unix nil nil)

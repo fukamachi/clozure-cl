@@ -111,6 +111,8 @@ atomically decremented, or until a timeout expires."
     
     
 (defun current-directory-name ()
+  "Look up the current working directory of the OpenMCL process; unless
+it has been changed, this is the directory OpenMCL was started in."
   (flet ((try-getting-dirname (bufsize)
 	   (%stack-block ((buf bufsize))
 	     (let* ((len (%os-getcwd buf bufsize)))
@@ -149,6 +151,8 @@ atomically decremented, or until a timeout expires."
     (syscall syscalls::mkdir name mode))))
 
 (defun getenv (key)
+  "Look up the value of the environment variable named by name, in the
+OS environment."
   (with-cstrs ((key (string key)))
     (let* ((env-ptr (%null-ptr)))
       (declare (dynamic-extent env-ptr))
@@ -158,14 +162,22 @@ atomically decremented, or until a timeout expires."
   )
 
 (defun setenv (key value &optional (overwrite t))
+  "Set the value of the environment variable named by name, in the OS
+environment. If there is no such environment variable, create it."
   (with-cstrs ((ckey key)
 	       (cvalue value))
     (#_setenv ckey cvalue (if overwrite 1 0))))
 
 (defun setuid (uid)
+  "Attempt to change the current user ID (both real and effective);
+fails unless the OpenMCL process has super-user privileges or the ID
+given is that of the current user."
   (syscall syscalls::setuid uid))
 
 (defun setgid (uid)
+  "Attempt to change the current group ID (both real and effective);
+fails unless the OpenMCL process has super-user privileges or the ID
+given is that of a group to which the current user belongs."
   (syscall syscalls::setgid uid))
   
 
@@ -389,12 +401,17 @@ atomically decremented, or until a timeout expires."
   (#_tcgetpgrp fd))
 
 (defun getpid ()
+  "Return the ID of the OpenMCL OS process."
   (syscall syscalls::getpid))
 
 (defun getuid ()
+  "Return the (real) user ID of the current user."
   (syscall syscalls::getuid))
 
 (defun get-user-home-dir (userid)
+  "Look up and return the defined home directory of the user identified
+by uid. This value comes from the OS user database, not from the $HOME
+environment variable. Returns NIL if there is no user with the ID uid."
   (with-macptrs ((pw (#_getpwuid userid)))
     (unless (%null-ptr-p pw)
       (without-interrupts
@@ -405,6 +422,13 @@ atomically decremented, or until a timeout expires."
     (syscall syscalls::unlink n)))
 
 (defun os-command (string)
+  "Invoke the Posix function system(), which invokes the user's default
+system shell (such as sh or tcsh) as a new process, and has that shell
+execute command-line.
+
+If the shell was able to find the command specified in command-line, then
+exit-code is the exit code of that command. If not, it is the exit code
+of the shell itself."
   (with-cstrs ((s string))
     (#_system s)))
 

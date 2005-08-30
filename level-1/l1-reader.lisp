@@ -758,7 +758,13 @@ c)" t)
 
 (defparameter *alternate-line-terminator*
     #+darwinppc-target #\Return
-    #-darwinppc-target nil)
+    #-darwinppc-target nil
+    "This variable is currently only used by the standard reader macro
+function for #\; (single-line comments); that function reads successive
+characters until EOF, a #\NewLine is read, or a character EQL to the value
+of *alternate-line-terminator* is read. In OpenMCL for Darwin, the value
+of this variable is initially #\Return ; in OpenMCL for LinuxPPC, it's
+initially NIL.")
 	     
 (set-macro-character
  #\;
