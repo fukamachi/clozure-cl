@@ -106,9 +106,10 @@
   (declare (ignore stream))
   80)
 
-(defun write-byte (integer stream)
-  (stream-write-byte stream integer)
-  integer)
+(defun write-byte (byte stream)
+  "Write one byte, BYTE, to STREAM."
+  (stream-write-byte stream byte)
+  byte)
 
 
 ;;;General stream functions

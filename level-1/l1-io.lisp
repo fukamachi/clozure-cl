@@ -41,20 +41,26 @@
   (let* ((stream (designated-input-stream stream)))
     (stream-listen stream)))
 
-(defun fresh-line (&optional (stream *standard-output*))
-  (stream-fresh-line (real-print-stream stream)))
+(defun fresh-line (&optional (output-stream *standard-output*))
+  "Output #\Newline only if the OUTPUT-STREAM is not already at the
+start of a line.  Return T if #\Newline needed."
+  (stream-fresh-line (real-print-stream output-stream)))
 
 
-(defun clear-input (&optional stream)
-  (stream-clear-input (designated-input-stream stream))
+(defun clear-input (&optional input-stream)
+  "Clear any available input from INPUT-STREAM."
+  (stream-clear-input (designated-input-stream input-stream))
   nil)
 
 (defun write-char (char &optional (output-stream nil))
+  "Output CHAR to OUTPUT-STREAM."
   (stream-write-char (real-print-stream output-stream) char)
   char)
 
 (defun write-string (string &optional output-stream &key (start 0 start-p)
 			    (end nil end-p))
+  "Write the characters of the subsequence of STRING bounded by START
+and END to OUTPUT-STREAM."
   (if (and (not start-p) (not end-p))
     (stream-write-string (real-print-stream output-stream) string)
     (stream-write-string (real-print-stream output-stream) string start end))
@@ -62,6 +68,8 @@
 
 (defun write-line (string &optional output-stream
                           &key (start 0) (end (length string)))
+  "Write the characters of the subsequence of STRING bounded by START
+and END to OUTPUT-STREAM then output a #\Newline at end."
   (let ((stream (real-print-stream output-stream)))
     (write-string string stream :start start :end end)
     (terpri stream)

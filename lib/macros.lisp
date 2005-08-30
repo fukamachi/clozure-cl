@@ -1367,6 +1367,10 @@ are no Forms, OR returns NIL."
 (defmacro with-output-to-string ((var &optional string &key (element-type 'base-char element-type-p))
                                  &body body 
                                  &environment env)
+  "Create a character output stream, perform a series of operations that
+may send results to this stream, and then close the stream.  BODY is
+executed as an implicit progn with VAR bound to an output string stream.
+All output to that string stream is saved in a string."
   (let ((e-type (gensym "e-type")))
     (multiple-value-bind (forms decls) (parse-body body env nil)
       `(let* ((,e-type ,(if element-type-p element-type `'base-char))
@@ -2780,6 +2784,11 @@ defcallback returns the callback pointer, e.g., the value of name."
          ,@body))))
 
 (defmacro with-slots (slot-entries instance-form &body body)
+  "Establish a lexical environment for referring to the slots in the
+instance named by the given slot-names as though they were variables.
+Within such a context the value of the slot can be specified by using
+its slot name, as if it were a lexically bound variable. Both setf and
+setq can be used to set the value of the slot."
   (let ((instance (gensym)) var slot-name bindings)
     (dolist (slot-entry slot-entries)
       (cond ((symbolp slot-entry)
