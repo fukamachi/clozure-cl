@@ -1,3 +1,15 @@
+2005-08-30 01:11  bryan
+
+	* level-0/l0-cfm-support.lisp, level-0/PPC/ppc-def.lisp,
+	level-1/l1-lisp-threads.lisp, level-1/linux-files.lisp,
+	lib/foreign-types.lisp, lib/macros.lisp: add doc strings for the
+	foreign-function-interface dictionary.
+
+2005-08-30 00:20  bryan
+
+	* level-1/linux-files.lisp: add doc strings for external-program
+	dictionary.
+
 2005-08-30 00:06  bryan
 
 	* level-1/l1-sockets.lisp: add doc strings for sockets dictionary.
