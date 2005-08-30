@@ -1,3 +1,12 @@
+2005-08-30 01:31  bryan
+
+	* level-1/version.lisp: bump.
+
+2005-08-30 01:26  bryan
+
+	* level-1/: l1-reader.lisp, l1-sysio.lisp, linux-files.lisp: add
+	doc strings for operating-system dictionary
+
 2005-08-30 01:11  bryan
 
 	* level-0/l0-cfm-support.lisp, level-0/PPC/ppc-def.lisp,
