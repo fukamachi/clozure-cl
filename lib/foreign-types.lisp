@@ -99,11 +99,26 @@
 	(append-dll-node d (ftd-dirlist ftd)))))
 
 (defun use-interface-dir (name &optional (ftd *target-ftd*))
+  "Tell OpenMCL to add the interface directory denoted by dir-id to the
+list of interface directories which it consults for foreign type and
+function information. Arrange that that directory is searched before any
+others.
+
+Note that use-interface-dir merely adds an entry to a search list. If the
+named directory doesn't exist in the file system or doesn't contain a set
+of database files, a runtime error may occur when OpenMCL tries to open some
+database file in that directory, and it will try to open such a database
+file whenever it needs to find any foreign type or function information.
+unuse-interface-dir may come in handy in that case."
   (let* ((d (ensure-interface-dir name ftd)))
     (move-dll-nodes d (ftd-dirlist ftd))
     d))
 
 (defun unuse-interface-dir (name &optional (ftd *target-ftd*))
+  "Tell OpenMCL to remove the interface directory denoted by dir-id from
+the list of interface directories which are consulted for foreign type
+and function information. Returns T if the directory was on the search
+list, NIL otherwise."
   (let* ((d (find-interface-dir name ftd)))
     (when d
       (remove-dll-node d)
@@ -429,6 +444,17 @@
 
 
 (defmacro def-foreign-type (name type)
+  "If name is non-NIL, define name to be an alias for the foreign type
+specified by foreign-type-spec. If foreign-type-spec is a named structure
+or union type, additionally defines that structure or union type.
+
+If name is NIL, foreign-type-spec must be a named foreign struct or union
+definition, in which case the foreign structure or union definition is put
+in effect.
+
+Note that there are two separate namespaces for foreign type names, one for
+the names of ordinary types and one for the names of structs and unions.
+Which one name refers to depends on foreign-type-spec in the obvious manner."
   (with-auxiliary-foreign-types
     (let ((foreign-type (parse-foreign-type type)))
       `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -1232,13 +1258,32 @@
 
 
 (defmacro external (name)
+  "If there is already an EXTERNAL-ENTRY-POINT for the symbol named by name,
+find it and return it. If not, create one and return it.
+
+Try to resolve the entry point to a memory address, and identify the
+containing library.
+
+Be aware that under Darwin, external functions which are callable from C
+have underscores prepended to their names, as in '_fopen'."
   `(load-eep ,name))
 
 (defmacro external-call (name &rest args)
+  "Call the foreign function at the address obtained by resolving the
+external-entry-point associated with name, passing the values of each arg
+as a foreign argument of type indicated by the corresponding
+arg-type-specifier. Returns the foreign function result (coerced to a
+Lisp object of type indicated by result-type-specifier), or NIL if
+result-type-specifer is :VOID or NIL"
   `(ff-call (%reference-external-entry-point
 	     (load-time-value (external ,name))) ,@args))
 
 (defmacro ff-call (entry &rest args)
+  "Call the foreign function at address entrypoint passing the values of
+each arg as a foreign argument of type indicated by the corresponding
+arg-type-specifier. Returns the foreign function result (coerced to a
+Lisp object of type indicated by result-type-specifier), or NIL if
+result-type-specifer is :VOID or NIL"
   (let* ((monitor (eq (car args) :monitor-exception-ports)))
     (when monitor
       (setq args (cdr args)))

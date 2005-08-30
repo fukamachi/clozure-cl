@@ -1172,6 +1172,13 @@ termination-function object
 (defvar *enable-automatic-termination* t)
 
 (defun terminate-when-unreachable (object &optional (function 'terminate))
+  "The termination mechanism is a way to have the garbage collector run a
+function right before an object is about to become garbage. It is very
+similar to the finalization mechanism which Java has. It is not standard
+Common Lisp, although other Lisp implementations have similar features.
+It is useful when there is some sort of special cleanup, deallocation,
+or releasing of resources which needs to happen when a certain object is
+no longer being used."
   (let ((new-cell (list (cons object function)))
         (population *termination-population*))
     (without-interrupts

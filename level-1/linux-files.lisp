@@ -421,6 +421,10 @@ atomically decremented, or until a timeout expires."
 ;;; Kind of has something to do with files, and doesn't work in level-0.
 #+linuxppc-target
 (defun close-shared-library (lib &key (completely t))
+  "If completely is T, set the reference count of library to 0. Otherwise,
+decrements it by 1. In either case, if the reference count becomes 0,
+close-shared-library frees all memory resources consumed library and causes
+any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
   (let* ((lib (if (typep lib 'string)
 		(or (shared-library-with-name lib)
 		    (error "Shared library ~s not found." lib))
@@ -445,6 +449,10 @@ atomically decremented, or until a timeout expires."
 #+darwinppc-target
 ;; completely specifies whether to remove it totally from our list
 (defun close-shared-library (lib &key (completely nil))
+  "If completely is T, set the reference count of library to 0. Otherwise,
+decrements it by 1. In either case, if the reference count becomes 0,
+close-shared-library frees all memory resources consumed library and causes
+any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
   (let* ((lib (if (typep lib 'string)
 		  (or (shared-library-with-name lib)
 		      (error "Shared library ~s not found." lib))

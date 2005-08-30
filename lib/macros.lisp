@@ -2278,6 +2278,18 @@ the lock held."
             (%apply-lexpr-with-method-context ,m ,f ,as))) ,magic ,function ,args)))
 
 (defmacro defcallback (name arglist &body body &environment env)
+  "Proclaim name to be a special variable; sets its value to a MACPTR which,
+when called by foreign code, calls a lisp function which expects foreign
+arguments of the specified types and which returns a foreign value of the
+specified result type. Any argument variables which correspond to foreign
+arguments of type :ADDRESS are bound to stack-allocated MACPTRs.
+
+If name is already a callback function pointer, its value is not changed;
+instead, it's arranged that an updated version of the lisp callback function
+will be called. This feature allows for callback functions to be redefined
+incrementally, just like Lisp functions are.
+
+defcallback returns the callback pointer, e.g., the value of name."
   (define-callback name arglist body env))
 
 (defmacro %get-single-float-from-double-ptr (ptr offset)
@@ -2860,6 +2872,11 @@ the lock held."
     *standard-input*))
 
 (defmacro pref (pointer accessor)
+  "Reference an instance of a foreign type (or a component of a foreign
+type) accessible via ptr.
+
+Expand into code which references the indicated scalar type or component,
+or returns a pointer to a composite type."
   (let* ((*target-ftd* (backend-target-foreign-type-data *target-backend*)))
     (destructuring-bind (type-name &rest accessors) (decompose-record-accessor accessor)
       (%foreign-access-form pointer (%foreign-type-or-record type-name) 0 accessors))))
@@ -2870,12 +2887,23 @@ the lock held."
   `(pref ,pointer ,accessor))
 
 (defmacro rlet (spec &body body)
+  "Execute body in an environment in which each var is bound to a MACPTR
+encapsulating the address of a stack-allocated foreign memory block,
+allocated and initialized from typespec and initforms as per make-record.
+Return whatever value(s) body returns."
   (let* ((*target-ftd* (backend-target-foreign-type-data *target-backend*)))
     `(%stack-block ,(rlet-sizes spec)
       ,@(rlet-inits spec)
       ,@body)))
 
-(defmacro rletZ (spec &body body)
+(defmacro rletz (spec &body body)
+  "Execute body in an environment in which each var is bound to a MACPTR
+encapuslating the address of a stack-allocated foreign memory block,
+allocated and initialized from typespec and initforms as per make-record.
+Return whatever value(s) body returns.
+
+Unlike rlet, record fields that aren't explicitly initialized are set
+to binary 0."
   (let* ((*target-ftd* (backend-target-foreign-type-data *target-backend*)))
     `(%stack-block ,(rlet-sizes spec t)
       ,@(rlet-inits spec)
@@ -2933,6 +2961,10 @@ the lock held."
   (%foreign-type-or-record-size recname :bytes))
 
 (defmacro make-record (record-name &rest initforms)
+  "Expand into code which allocates and initalizes an instance of the type
+denoted by typespec, on the foreign heap. The record is allocated using the
+C function malloc, and the user of make-record must explicitly call the C
+function free to deallocate the record, when it is no longer needed."
   (let* ((ftype (%foreign-type-or-record record-name))
          (bits (ensure-foreign-type-bits ftype))
 	 (bytes (if bits

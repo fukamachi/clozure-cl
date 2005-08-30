@@ -264,6 +264,11 @@
                      
 
 (defun open-shared-library (name)
+  "If the library denoted by name can be loaded by the operating system,
+return an object of type SHLIB that describes the library; if the library
+is already open, increment a reference count. If the library can't be
+loaded, signal a SIMPLE-ERROR which contains an often-cryptic message from
+the operating system."
   (let* ((link-map  (with-cstrs ((name name))
                       (ff-call
 		       (%kernel-import target::kernel-import-GetSharedLibrary)
@@ -335,6 +340,11 @@
 
 
 (defun open-shared-library (name)
+  "If the library denoted by name can be loaded by the operating system,
+return an object of type SHLIB that describes the library; if the library
+is already open, increment a reference count. If the library can't be
+loaded, signal a SIMPLE-ERROR which contains an often-cryptic message from
+the operating system."
   (rlet ((type :signed))
     (let ((result (with-cstrs ((cname name))
 		    (ff-call (%kernel-import target::kernel-import-GetSharedLibrary)
@@ -431,6 +441,8 @@
 ;;; invalid.
 
 (defun foreign-symbol-entry (name &optional (handle *rtld-default*))
+  "Try to resolve the address of the foreign symbol name. If successful,
+return a fixnum representation of that address, else return NIL."
   (with-cstrs ((n name))
     (with-macptrs (addr)      
       (%setf-macptr addr
@@ -571,6 +583,8 @@
 
 
 (defun foreign-symbol-address (name &optional (map *rtld-default*))
+  "Try to resolve the address of the foreign symbol name. If successful,
+return that address encapsulated in a MACPTR, else returns NIL."
   (with-cstrs ((n name))
     (let* ((addr (ff-call (%kernel-import target::kernel-import-FindSymbol) :address map :address n :address)))
       (unless (%null-ptr-p addr)

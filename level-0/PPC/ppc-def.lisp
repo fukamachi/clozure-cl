@@ -472,6 +472,11 @@
     (blr))
   
   (defun %ff-call (entry &rest specs-and-vals)
+    "Call the foreign function at address entrypoint passing the values of
+each arg as a foreign argument of type indicated by the corresponding
+arg-type-keyword. Returns the foreign function result (coerced to a Lisp
+object of type indicated by result-type-keyword), or NIL if
+result-type-keyword is :VOID or NIL"
     (declare (dynamic-extent specs-and-vals))
     (let* ((len (length specs-and-vals))
            (other-offset 8)
