@@ -107,6 +107,8 @@
   (make-lock nil))
 
 (defun make-lock (&optional name)
+  "Create and return a lock object, which can be used for synchronization
+between threads."
   (gvector :lock (%make-recursive-lock-ptr) 'recursive-lock 0 name))
 
 (defun lock-name (lock)
@@ -121,6 +123,8 @@
 
 
 (defun make-read-write-lock ()
+  "Create and return a read-write lock, which can be used for
+synchronization between threads."
   (gvector :lock 0 'read-write-lock 0 nil))
 
 
@@ -136,6 +140,8 @@
 	p)))))
 
 (defun make-semaphore ()
+  "Create and return a semaphore, which can be used for synchronization
+between threads."
   (%istruct 'semaphore (%make-semaphore-ptr)))
   
 

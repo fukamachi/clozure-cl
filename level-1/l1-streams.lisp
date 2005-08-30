@@ -2115,6 +2115,7 @@
                                  :unsigned-fullword)))))
 
 (defun process-input-wait (fd &optional ticks)
+  "Wait until input is available on a given file-descriptor."
   (let* ((wait-end (if ticks (+ (get-tick-count) ticks))))
     (loop
       (when (fd-input-available-p fd 0)
@@ -2127,6 +2128,7 @@
 
 
 (defun process-output-wait (fd)
+  "Wait until output is possible on a given file descriptor."
   (loop
     (when (fd-ready-for-output-p fd 0)
       (return t))

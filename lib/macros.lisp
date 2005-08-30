@@ -2017,6 +2017,8 @@ are no Forms, OR returns NIL."
     (%interrupt-poll)))
 
 (defmacro without-interrupts (&body body)
+  "Evaluate its body in an environment in which process-interrupt
+requests are deferred."
   (let* ((level (gensym)))
     `(let* ((,level (disable-lisp-interrupts)))
       (restoring-interrupt-level ,level ,@body))))
@@ -2234,6 +2236,8 @@ are no Forms, OR returns NIL."
 (defmacro with-lock-grabbed ((lock &optional
                                    (whostate "Lock"))
                              &body body)
+  "Wait until a given lock can be obtained, then evaluate its body with
+the lock held."
   (declare (ignore whostate))
   `(with-recursive-lock (,lock) ,@body))
 
@@ -2943,6 +2947,7 @@ are no Forms, OR returns NIL."
       ,p)))
 
 (defmacro with-terminal-input (&body body)
+  "Execute body in an environment with exclusive read access to the terminal."
   (let* ((got-it (gensym)))
     `(let* ((,got-it (%request-terminal-input)))
       (unwind-protect
@@ -2988,6 +2993,8 @@ are no Forms, OR returns NIL."
       (%with-recursive-lock-ptr-maybe (,p) ,@body))))
 
 (defmacro with-read-lock ((lock) &body body)
+  "Wait until a given lock is available for read-only access, then evaluate
+its body with the lock held."
   (let* ((p (gensym)))
     `(let* ((,p ,lock))
       (unwind-protect
@@ -2998,6 +3005,8 @@ are no Forms, OR returns NIL."
 
 
 (defmacro with-write-lock ((lock) &body body)
+  "Wait until the given lock is available for write access, then execute
+its body with the lock held."
   (let* ((p (gensym)))
     `(let* ((,p ,lock))
       (unwind-protect

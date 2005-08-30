@@ -32,6 +32,7 @@
       (setq all-processes (delete p all-processes))
       t))
   (defun all-processes ()
+    "Obtain a fresh list of all known Lisp threads."
     (with-lock-grabbed (all-processes-lock)
       (copy-list all-processes)))
   (defun shutdown-processes ()
@@ -145,6 +146,7 @@
                           (initial-bindings ())
 			  (use-standard-initial-bindings t)
                           (class (find-class 'process)))
+  "Create and return a new process."
   (declare (ignore flavor))
   (let* ((p (make-instance
 	     class
@@ -171,7 +173,8 @@
       p))
 
 
-(defvar *current-process* *initial-process*)
+(defvar *current-process* *initial-process*
+  "Bound in each process, to that process itself.")
 
 (defglobal *interactive-abort-process* *initial-process*)
 
@@ -192,6 +195,7 @@
   
 
 (defun process-whostate (p)
+  "Return a string which describes the status of a specified process."
   (if (process-exhausted-p p)
     "Exhausted"
     (%process-whostate p)))
@@ -224,6 +228,7 @@
 
 
 (defun process-enable (p &optional (wait 1))
+  "Begin executing the initial function of a specified process."
   (setq p (require-type p 'process))
   (not-in-current-process p 'process-enable)
   (unless (car (process-initial-form p))
@@ -239,29 +244,32 @@
 
 
 (defun process-resume (p)
+  "Resume a specified process which had previously been suspended
+by process-suspend."
   (setq p (require-type p 'process))
   (%resume-tcr (process-tcr p)))
 
 (defun process-suspend (p)
+  "Suspend a specified process."
   (setq p (require-type p 'process))
   (%suspend-tcr (process-tcr p)))
 
 (defun process-suspend-count (p)
+  "Return the number of currently-pending suspensions applicable to
+a given process."
   (setq p (require-type p 'process))
   (let* ((thread (process-thread p)))
     (if thread
       (lisp-thread-suspend-count thread))))
 
-
-
 (defun process-active-p (p)
   (setq p (require-type p 'process))
   (and (eql 0 (process-suspend-count p))
        (not (process-exhausted-p p))))
-
   
 ;;; Used by process-run-function
 (defun process-preset (process function &rest args)
+  "Set the initial function and arguments of a specified process."
   (let* ((p (require-type process 'process))
          (f (require-type function 'function))
          (initial-form (process-initial-form p)))
@@ -376,17 +384,22 @@
 
 
 (defun grab-lock (lock)
+  "Wait until a given lock can be obtained, then obtain it."
   (%lock-recursive-lock (recursive-lock-ptr lock)))
 
 (defun release-lock (lock)
+  "Relinquish ownership of a given lock."
   (%unlock-recursive-lock (recursive-lock-ptr lock)))
 
 (defun try-lock (lock)
+  "Obtain the given lock, but only if it is not necessary to wait for it."
   (%try-recursive-lock (recursive-lock-ptr lock)))
 
 
 
 (defun process-wait (whostate function &rest args)
+  "Causes the current lisp process (thread) to wait for a given
+predicate to return true."
   (declare (dynamic-extent args))
   (or (apply function args)
       (with-process-whostate (whostate)
@@ -399,6 +412,8 @@
 
 
 (defun process-wait-with-timeout (whostate time function &rest args)
+  "Cause the current thread to wait for a given predicate to return true,
+or for a timeout to expire."
   (declare (dynamic-extent args))
   (cond ((null time)  (apply #'process-wait whostate function args) t)
         (t (let* ((win nil)
@@ -413,6 +428,8 @@
 
 
 (defmethod process-interrupt ((process process) function &rest args)
+  "Arrange for the target process to invoke a specified function at
+some point in the near future, and then return to what it was doing."
   (let* ((p (require-type process 'process)))
     (if (eq p *current-process*)
       (apply function args)
@@ -430,6 +447,7 @@
 
 ;;; This one is in the Symbolics documentation
 (defun process-allow-schedule ()
+  "Used for cooperative multitasking; probably never necessary."
   (yield))
 
 
@@ -438,6 +456,7 @@
   (process-splice process))
 
 (defun process-run-function (name-or-keywords function &rest args)
+  "Create a process, preset it, and enable it."
   (if (listp name-or-keywords)
     (%process-run-function name-or-keywords function args)
     (let ((keywords (list :name name-or-keywords)))
@@ -468,6 +487,7 @@
       process)))
 
 (defmethod process-reset ((process process) &optional kill)
+  "Cause a specified process to cleanly exit from any ongoing computation."
   (setq process (require-type process 'process))
   (unless (memq kill '(nil :kill :shutdown))
     (setq kill (require-type kill '(member nil :kill :shutdown))))
@@ -496,9 +516,13 @@
 
 
 (defmethod process-kill ((process process))
+  "Cause a specified process to cleanly exit from any ongoing
+computation, and then exit."
   (process-reset process  :kill))
 
 (defun process-abort (process &optional condition)
+  "Cause a specified process to process an abort condition, as if it
+had invoked abort."
   (process-interrupt process
                      #'(lambda ()
                          (abort condition))))

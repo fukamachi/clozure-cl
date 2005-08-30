@@ -52,10 +52,14 @@
   (process-wait whostate #'%wait-on-semaphore-ptr s seconds nanoseconds))
   
 (defun wait-on-semaphore (s)
+  "Wait until the given semaphore has a positive count which can be
+atomically decremented."
   (%timed-wait-on-semaphore-ptr (semaphore-value s) 0 0)
   t)
 
 (defun timed-wait-on-semaphore (s duration)
+  "Wait until the given semaphore has a postive count which can be
+atomically decremented, or until a timeout expires."
   (multiple-value-bind (secs nanos) (nanoseconds duration)
     (let* ((now (get-internal-real-time))
            (stop (+ now
@@ -84,6 +88,7 @@
    :signed-fullword))
 
 (defun signal-semaphore (s)
+  "Atomically increment the count of a given semaphore."
   (%signal-semaphore-ptr (semaphore-value s)))
 
 (defun %os-getcwd (buf bufsize)
