@@ -117,6 +117,11 @@
 
 
 (defmacro with-open-stream ((var stream) &body body &aux (svar (gensym)))
+  "Perform a series of operations on stream, return a value, and then
+close the stream.  VAR is bound to the value of STREAM, and then BODY is
+executed as an implicit progn. STREAM is automatically closed on exit
+from with-open-stream, no matter whether the exit is normal or abnormal.
+The stream has dynamic extent; its extent ends when the form is exited."
   `(let (,svar)
      (unwind-protect
        (let ((,var (setq ,svar ,stream)))

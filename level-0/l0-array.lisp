@@ -369,6 +369,10 @@
   target)
 
 (defun vector-push-extend (elt vector &optional (extension nil extp))
+  "Attempt to set the element of VECTOR designated by its fill pointer
+to ELT, and increment the fill pointer by one. If the fill pointer is
+too large, VECTOR is extended using adjust-array.  EXTENSION is the
+minimum number of elements to add if it must be extended."
   (when extp
     (unless (and (typep extension 'fixnum)
                  (> (the fixnum extension) 0))

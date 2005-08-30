@@ -1348,6 +1348,13 @@ are no Forms, OR returns NIL."
       ,@body))
 
 (defmacro with-input-from-string ((var string &key index start end) &body forms &environment env)
+  "Create an input string stream, provide an opportunity to perform
+operations on the stream (returning zero or more values), and then close
+the string stream.
+
+STRING is evaluated first, and VAR is bound to a character input string
+stream that supplies characters from the subsequence of the resulting
+string bounded by start and end. BODY is executed as an implicit progn."
   (multiple-value-bind (forms decls) (parse-body forms env nil)
     `(let ((,var
 	    ,(cond ((null end)
@@ -1397,6 +1404,9 @@ All output to that string stream is saved in a string."
 	(close ,var)))))
 
 (defmacro with-open-file ((var . args) &body body &aux (stream (gensym))(done (gensym)))
+  "Use open to create a file stream to file named by filespec. Filespec is
+the name of the file to be opened. Options are used as keyword arguments
+to open."
   `(let (,stream ,done)
      (unwind-protect
        (multiple-value-prog1
@@ -2806,6 +2816,10 @@ setq can be used to set the value of the slot."
          ,@body))))
 
 (defmacro with-accessors (slot-entries instance-form &body body)
+  "Create a lexical environment in which the slots specified by slot-entry
+are lexically available through their accessors as if they were variables.
+The appropriate accessors are invoked to access the slots specified by
+slot-entry. Both setf and setq can be used to set the value of the slot."
   (let ((instance (gensym)) var reader bindings)
     (dolist (slot-entry slot-entries)
       (cond ((and (listp slot-entry) (cdr slot-entry) (null (cddr slot-entry))
