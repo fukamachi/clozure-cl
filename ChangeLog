@@ -1,3 +1,13 @@
+2005-08-30 00:06  bryan
+
+	* level-1/l1-sockets.lisp: add doc strings for sockets dictionary.
+
+2005-08-29 23:24  bryan
+
+	* level-0/l0-aprims.lisp, level-1/l1-processes.lisp,
+	level-1/l1-streams.lisp, level-1/linux-files.lisp, lib/macros.lisp:
+	add doc strings for the threads dictionary.
+
 2005-08-28 22:19  gb
 
 	* xdump/xfasload.lisp: Optionally suppress messages about cold-load
