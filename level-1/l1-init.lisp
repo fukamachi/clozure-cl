@@ -175,7 +175,10 @@
   "the radix that Lisp reads numbers in")
 
 
-(defparameter *warn-if-redefine-kernel* nil)
+(defparameter *warn-if-redefine-kernel* nil
+  "When true, attempts to redefine (via DEFUN or DEFMETHOD) functions and
+methods that are marked as being predefined signal continuable errors.")
+
 (defvar *next-screen-context-lines* 2 "Number of lines to show of old screen
   after a scroll-up or scroll-down.")
 

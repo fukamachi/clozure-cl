@@ -55,9 +55,13 @@
     (setq *LEVEL-1-LOADED* t))
 
 (defun altivec-available-p ()
+  "Return non-NIL if AltiVec is available."
   (not (eql (%get-kernel-global 'ppc::altivec-present) 0)))
 
-(defloadvar *altivec-available* (altivec-available-p))
+(defloadvar *altivec-available* (altivec-available-p)
+  "This variable is intitialized each time an OpenMCL session starts based
+on information provided by the lisp kernel. Its value is true if AltiVec is
+present and false otherwise. This variable shouldn't be set by user code.")
 
        
 (defglobal *auto-flush-streams* ())

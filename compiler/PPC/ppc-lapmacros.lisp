@@ -756,7 +756,11 @@
 
 (defparameter *altivec-lapmacros-maintain-vrsave-p*
   #-eabi-target t
-  #+eabi-target nil)
+  #+eabi-target nil
+  "Control the expansion of certain lap macros. Initialized to NIL on
+LinuxPPC; initialized to T on platforms (such as MacOS X/Darwin) that
+require that the VRSAVE SPR contain a bitmask of active vector registers
+at all times.")
 
 (defun %vr-register-mask (reglist)
   (let* ((mask 0))
@@ -894,6 +898,14 @@
 
 
 (defppclapmacro with-altivec-registers (reglist &body body)
+  "Specify the set of AltiVec registers used in body. If
+*altivec-lapmacros-maintain-vrsave-p* is true when the macro is expanded,
+generates code to save the VRSAVE SPR and updates VRSAVE to incude a
+bitmask generated from the specified register list. Generates code which
+saves any non-volatile vector registers which appear in the register list,
+executes body, and restores the saved non-volatile vector registers (and,
+if *altivec-lapmacros-maintain-vrsave-p* is true, restores VRSAVE as well.
+Uses the IMM0 register (r3) as a temporary."
   `(%with-altivec-registers () ,reglist ,@body))
 
 
@@ -920,6 +932,12 @@
 ;;; as it needs to reference the buffer.
 
 (defppclapmacro with-vector-buffer (base n &body body)
+  "Generate code which allocates a 16-byte aligned buffer large enough
+to contain N vector registers; the GPR base points to the lowest address
+of this buffer. After processing body, the buffer will be deallocated.
+The body should preserve the value of base as long as it needs to
+reference the buffer. It's intended that base be used as a base register
+in stvx and lvx instructions within the body."
   `(progn
     (allocate-vector-buffer ,base ,n)
     (progn

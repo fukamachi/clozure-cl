@@ -47,6 +47,11 @@
   (make-all-methods-non-kernel))
 
 (defun set-user-environment (&optional (freeze-definitions nil))
+  "Arrange that the outermost special bindings of *PACKAGE* and
+*WARN-IF-REDEFINE-KERNEL* restore values of the CL-USER package and T
+respectively. If the optional argument is true, marks all globally
+defined functions and methods as being predefined (this is a fairly
+expensive operation.)"
   (when freeze-definitions
     (freeze-current-definitions))
   ;; enable redefine-kernel-function's error checking
@@ -55,6 +60,11 @@
   (%reset-outermost-binding '*package* (find-package "CL-USER")))
 
 (defun set-development-environment (&optional (thaw-definitions nil))
+  "Arrange that the outermost special bindings of *PACKAGE* and
+*WARN-IF-REDEFINE-KERNEL* restore values of the CCL package and NIL
+respectively. If the optional argument is true, mark all globally
+defined functions and methods as being not predefined (this is a
+fairly expensive operation.)"
   (when thaw-definitions
     (thaw-current-definitions))
   ;; enable redefine-kernel-function's error checking
