@@ -1,3 +1,8 @@
+2005-08-30 13:59  bryan
+
+	* level-1/l1-io.lisp, lib/macros.lisp, lib/streams.lisp: add more
+	doc strings.
+
 2005-08-30 10:26  bryan
 
 	* compiler/PPC/ppc-lapmacros.lisp, level-1/l1-boot-2.lisp,
