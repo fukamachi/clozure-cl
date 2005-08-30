@@ -1,3 +1,8 @@
+2005-08-30 14:24  bryan
+
+	* level-0/l0-array.lisp, lib/macros.lisp, lib/streams.lisp: add doc
+	strings
+
 2005-08-30 13:59  bryan
 
 	* level-1/l1-io.lisp, lib/macros.lisp, lib/streams.lisp: add more
