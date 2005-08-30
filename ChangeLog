@@ -1,3 +1,9 @@
+2005-08-30 10:26  bryan
+
+	* compiler/PPC/ppc-lapmacros.lisp, level-1/l1-boot-2.lisp,
+	level-1/l1-init.lisp, lib/prepare-mcl-environment.lisp: add doc
+	strings to development-mode dictionary.
+
 2005-08-30 09:52  bryan
 
 	* level-0/PPC/ppc-utils.lisp, level-1/l1-aprims.lisp: add doc
