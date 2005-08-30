@@ -222,6 +222,8 @@ conditions, based on the state of the arguments."
 (defmacro with-open-socket ((var . args) &body body
 			    &aux (socket (make-symbol "socket"))
 			         (done (make-symbol "done")))
+  "Execute body with var bound to the result of applying make-socket to
+make-socket-args. The socket gets closed on exit."
   `(let (,socket ,done)
      (unwind-protect
 	 (multiple-value-prog1
@@ -230,25 +232,33 @@ conditions, based on the state of the arguments."
 	   (setq ,done t))
        (when ,socket (close ,socket :abort (not ,done))))))
 
+(defgeneric socket-address-family (socket)
+  (:documentation "Return :internet or :file, as appropriate."))
+
 (defclass ip-socket (socket)
   ())
 
-(defmethod SOCKET-ADDRESS-FAMILY ((socket ip-socket)) :internet)
+(defmethod socket-address-family ((socket ip-socket)) :internet)
 
 (defclass file-socket (socket)
   ())
 
-(defmethod SOCKET-ADDRESS-FAMILY ((socket file-socket)) :file)
+(defmethod socket-address-family ((socket file-socket)) :file)
 
 (defclass tcp-socket (ip-socket)
   ())
 
-(defmethod SOCKET-TYPE ((socket tcp-socket)) :stream)
+(defgeneric socket-type (socket)
+  (:documentation
+   "Return :stream for tcp-stream and listener-socket, and :datagram
+for udp-socket."))
+
+(defmethod socket-type ((socket tcp-socket)) :stream)
 
 (defclass stream-file-socket (file-socket)
   ())
 
-(defmethod SOCKET-TYPE ((socket stream-file-socket)) :stream)
+(defmethod socket-type ((socket stream-file-socket)) :stream)
 
 
 ;; An active TCP socket is an honest-to-goodness stream.
@@ -257,9 +267,19 @@ conditions, based on the state of the arguments."
 				 buffered-character-io-stream-mixin)
   ())
 
-(defmethod SOCKET-CONNECT ((stream tcp-stream)) :active)
+(defgeneric socket-connect (stream)
+  (:documentation
+   "Return :active for tcp-stream, :passive for listener-socket, and NIL
+for udp-socket"))
 
-(defmethod SOCKET-FORMAT ((stream tcp-stream))
+(defmethod socket-connect ((stream tcp-stream)) :active)
+
+(defgeneric socket-format (stream)
+  (:documentation
+   "Return the socket format as specified by the :format argument to
+make-socket."))
+
+(defmethod socket-format ((stream tcp-stream))
   (if (eq (stream-element-type stream) 'character)
     :text
     ;; Should distinguish between :binary and :bivalent, but hardly
@@ -291,10 +311,15 @@ conditions, based on the state of the arguments."
   ((device :initarg :device :accessor socket-device)
    (keys :initarg :keys :reader socket-keys)))
 
-(defmethod SOCKET-FORMAT ((socket unconnected-socket))
+(defmethod socket-format ((socket unconnected-socket))
   (or (getf (socket-keys socket) :format) :text))
 
-(defmethod CLOSE ((socket unconnected-socket) &key abort)
+(defgeneric close (socket &key abort)
+  (:documentation
+   "The close generic function can be applied to sockets. It releases the
+operating system resources associated with the socket."))
+
+(defmethod close ((socket unconnected-socket) &key abort)
   (declare (ignore abort))
   (when (socket-device socket)
     (fd-close (socket-device socket))
@@ -322,11 +347,20 @@ conditions, based on the state of the arguments."
 ;; A udp socket just sends and receives packets.
 (defclass udp-socket (ip-socket unconnected-socket) ())
 
-(defmethod SOCKET-TYPE ((stream udp-socket)) :datagram)
-(defmethod SOCKET-CONNECT ((stream udp-socket)) nil)
+(defmethod socket-type ((stream udp-socket)) :datagram)
+(defmethod socket-connect ((stream udp-socket)) nil)
+
+(defgeneric socket-os-fd (socket)
+  (:documentation
+   "Return the native OS's representation of the socket, or NIL if the
+socket is closed. On Unix, this is the Unix 'file descriptor', a small
+non-negative integer. Note that it is rather dangerous to mess around
+with tcp-stream fd's, as there is all sorts of buffering and asynchronous
+I/O going on above the OS level. listener-socket and udp-socket fd's are
+safer to mess with directly as there is less magic going on."))
 
 ;; Returns nil for closed stream...
-(defmethod SOCKET-OS-FD ((socket socket))
+(defmethod socket-os-fd ((socket socket))
   (socket-device socket))
 
 ;; Returns nil for closed stream
@@ -387,23 +421,39 @@ conditions, based on the state of the arguments."
 		  ((< err 0) (socket-error socket "getpeername" err))
 		  (t (path-from-unix-address addr)))))))
 
-(defmethod LOCAL-PORT ((socket socket))
+(defgeneric local-port (socket)
+  (:documentation "Return the local port number."))
+
+(defmethod local-port ((socket socket))
   (local-socket-info (socket-device socket) :port socket))
 
-(defmethod LOCAL-HOST ((socket socket))
+(defgeneric local-host (socket)
+  (:documentation
+   "Return 32-bit unsigned IP address of the local host."))
+
+(defmethod local-host ((socket socket))
   (local-socket-info (socket-device socket) :host socket))
 
-(defmethod LOCAL-FILENAME ((socket socket))
+(defmethod local-filename ((socket socket))
   (local-socket-filename socket))
 
+(defgeneric remote-host (socket)
+  (:documentation
+   "Return the 32-bit unsigned IP address of the remote host, or NIL if
+the socket is not connected."))
+
 ;; Returns NIL if socket is not connected
-(defmethod REMOTE-HOST ((socket socket))
+(defmethod remote-host ((socket socket))
   (remote-socket-info socket :host))
 
-(defmethod REMOTE-PORT ((socket socket))
+(defgeneric remote-port (socket)
+  (:documentation
+   "Return the remote port number, or NIL if the socket is not connected."))
+
+(defmethod remote-port ((socket socket))
   (remote-socket-info socket :port))
 
-(defmethod REMOTE-FILENAME ((socket socket))
+(defmethod remote-filename ((socket socket))
   (remote-socket-filename socket))
   
 (defun set-socket-options (fd-or-socket &key 
@@ -482,7 +532,7 @@ conditions, based on the state of the arguments."
     ((nil :stream) (apply #'make-stream-file-socket keys))
     (:datagram (apply #'make-datagram-file-socket keys))))
 
-(defun MAKE-SOCKET (&rest keys
+(defun make-socket (&rest keys
 		    &key address-family
 		    ;; List all keys here just for error checking...
 		    ;; &allow-other-keys
@@ -490,6 +540,7 @@ conditions, based on the state of the arguments."
 		    keepalive reuse-address nodelay broadcast linger
 		    local-port local-host backlog class out-of-band-inline
 		    local-filename remote-filename)
+  "Create and return a new socket."
   (declare (dynamic-extent keys))
   (declare (ignore type connect remote-host remote-port eol format
 		   keepalive reuse-address nodelay broadcast linger
@@ -667,10 +718,20 @@ conditions, based on the state of the arguments."
       (when (>= fd 0)
 	(fd-close fd)))))
 
-(defmethod ACCEPT-CONNECTION ((socket listener-socket) &key (wait t))
+(defgeneric accept-connection (socket &key wait)
+  (:documentation
+  "Extract the first connection on the queue of pending connections,
+accept it (i.e. complete the connection startup protocol) and return a new
+tcp-stream or file-socket-stream representing the newly established
+connection.  The tcp stream inherits any properties of the listener socket
+that are relevant (e.g. :keepalive, :nodelay, etc.) The original listener
+socket continues to be open listening for more connections, so you can call
+accept-connection on it again."))
+
+(defmethod accept-connection ((socket listener-socket) &key (wait t))
   (accept-socket-connection socket wait #'make-tcp-stream))
 
-(defmethod ACCEPT-CONNECTION ((socket file-listener-socket) &key (wait t))
+(defmethod accept-connection ((socket file-listener-socket) &key (wait t))
   (accept-socket-connection socket wait #'make-file-socket-stream))
 
 (defun verify-socket-buffer (buf offset size)
@@ -690,8 +751,9 @@ conditions, based on the state of the arguments."
 			       (array (signed-byte 8))))))
   (values buf offset))
 
-(defmethod SEND-TO ((socket udp-socket) msg size
+(defmethod send-to ((socket udp-socket) msg size
 		    &key remote-host remote-port offset)
+  "Send a UDP packet over a socket."
   (let ((fd (socket-device socket)))
     (multiple-value-setq (msg offset) (verify-socket-buffer msg offset size))
     (unless remote-host
@@ -712,7 +774,13 @@ conditions, based on the state of the arguments."
 	  (with-eagain fd :output
 	    (c_sendto fd bufptr size 0 sockaddr (record-length :sockaddr_in))))))))
 
-(defmethod RECEIVE-FROM ((socket udp-socket) size &key buffer extract offset)
+(defmethod receive-from ((socket udp-socket) size &key buffer extract offset)
+  "Read a UDP packet from a socket. If no packets are available, wait for
+a packet to arrive. Returns four values:
+  The buffer with the data
+  The number of bytes read
+  The 32-bit unsigned IP address of the sender of the data
+  The port number of the sender of the data."
   (let ((fd (socket-device socket))
 	(vec-offset offset)
 	(vec buffer)
@@ -750,7 +818,12 @@ conditions, based on the state of the arguments."
 	      (ntohl (pref sockaddr :sockaddr_in.sin_addr.s_addr))
 	      (ntohs (pref sockaddr :sockaddr_in.sin_port))))))
 
-(defmethod SHUTDOWN (socket &key direction)
+(defgeneric shutdown (socket &key direction)
+  (:documentation
+   "Shut down part of a bidirectional connection. This is useful if e.g.
+you need to read responses after sending an end-of-file signal."))
+
+(defmethod shutdown (socket &key direction)
   ;; TODO: should we ignore ENOTCONN error?  (at least make sure it
   ;; is a distinct, catchable error type).
   (let ((fd (socket-device socket)))
@@ -768,7 +841,8 @@ conditions, based on the state of the arguments."
 	(symbol (_getservbyname (string-downcase (symbol-name port)) proto)))
       (socket-error nil "getservbyname" (- #$ENOENT))))
 
-(defun LOOKUP-PORT (port proto)
+(defun lookup-port (port proto)
+  "Find the port number for the specified port and protocol."
   (if (fixnump port)
     port
     (#+ppc-target progn #-ppc-target #_ntohs (port-as-inet-port port proto))))
@@ -785,17 +859,22 @@ conditions, based on the state of the arguments."
 		      (socket-error nil "gethostbyname" err t)))))))
 
 
-(defun DOTTED-TO-IPADDR (name &key (errorp t))
+(defun dotted-to-ipaddr (name &key (errorp t))
+  "Convert a dotted-string representation of a host address to a 32-bit
+unsigned IP address."
   (let ((addr (_inet_aton name)))
     (if addr (ntohl addr)
       (and errorp (error "Invalid dotted address ~s" name)))))
     
-(defun LOOKUP-HOSTNAME (host)
+(defun lookup-hostname (host)
+  "Convert a host spec in any of the acceptable formats into a 32-bit
+unsigned IP address."
   (if (typep host 'integer)
     host
     (ntohl (host-as-inet-host host))))
 
-(defun IPADDR-TO-DOTTED (addr &key values)
+(defun ipaddr-to-dotted (addr &key values)
+  "Convert a 32-bit unsigned IP address into octets."
   (if values
       (values (ldb (byte 8 24) addr)
 	      (ldb (byte 8 16) addr)
@@ -803,7 +882,8 @@ conditions, based on the state of the arguments."
 	      (ldb (byte 8  0) addr))
     (_inet_ntoa (htonl addr))))
 
-(defun IPADDR-TO-HOSTNAME (ipaddr &key ignore-cache)
+(defun ipaddr-to-hostname (ipaddr &key ignore-cache)
+  "Convert a 32-bit unsigned IP address into a host name string."
   (declare (ignore ignore-cache))
   (multiple-value-bind (name err) (c_gethostbyaddr (htonl ipaddr))
     (or name (socket-error nil "gethostbyaddr" err t))))
