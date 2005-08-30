@@ -752,6 +752,7 @@ atomically decremented, or until a timeout expires."
 			    output (if-output-exists :error)
 			    (error :output) (if-error-exists :error)
 			    status-hook)
+  "Invoke an external program as an OS subprocess of lisp."
   (declare (ignore pty))
   (unless (every #'(lambda (a) (typep a 'simple-string)) args)
     (error "Program args must all be simple strings : ~s" args))
@@ -887,27 +888,40 @@ atomically decremented, or until a timeout expires."
 			 t))))))
 
 (defun external-process-status (proc)
+  "Return information about whether an OS subprocess is running; or, if
+not, why not; and what its result code was if it completed."
   (require-type proc 'external-process)
   (values (external-process-%status proc)
 	  (external-process-%exit-code proc)))
 
 (defun external-process-input-stream (proc)
+  "Return the lisp stream which is used to write input to a given OS
+subprocess, if it has one."
   (require-type proc 'external-process)
   (external-process-input proc))
 
 (defun external-process-output-stream (proc)
+  "Return the lisp stream which is used to read output from a given OS
+subprocess, if there is one."
   (require-type proc 'external-process)
   (external-process-output proc))
 
 (defun external-process-error-stream (proc)
+  "Return the stream which is used to read error output from a given OS
+subprocess, if it has one."
   (require-type proc 'external-process)
   (external-process-error proc))
 
 (defun external-process-id (proc)
+  "Return the process id of an OS subprocess, a positive integer which
+identifies it."
   (require-type proc 'external-process)
   (external-process-pid proc))
   
 (defun signal-external-process (proc signal)
+  "Send the specified signal to the specified external process.  (Typically,
+it would only be useful to call this function if the EXTERNAL-PROCESS was
+created with :WAIT NIL.) Return T if successful; signal an error otherwise."
   (require-type proc 'external-process)
   (let* ((pid (external-process-pid proc))
 	 (error (syscall syscalls::kill pid signal)))
