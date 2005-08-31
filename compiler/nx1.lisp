@@ -750,7 +750,7 @@
                         (arch::target-array-type-name-from-ctype-function
                          (backend-target-arch *target-backend*))
                         array-type)))
-    (if type-keyword
+    (if (and simple-1d-array-p type-keyword)
       (make-acode (%nx1-operator %typed-uvref) 
                   (nx1-immediate type-keyword)
                   (nx1-form arr)
@@ -806,7 +806,7 @@
                         (arch::target-array-type-name-from-ctype-function
                          (backend-target-arch *target-backend*))
                         array-type)))
-         (if type-keyword
+         (if (and type-keyword simple-1d-array-p)
              (make-acode (%nx1-operator %typed-uvset) 
                          (nx1-immediate type-keyword)
                          (nx1-form arr)
