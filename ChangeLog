@@ -1,3 +1,21 @@
+2005-08-30 21:00  gb
+
+	* level-1/linux-files.lisp: It shouldn't matter too much, but the
+	newly documented WAIT-ON-SEMAPHORE uses an internal timeout of 1
+	second (vice 0 seconds.)
+
+2005-08-30 20:59  gb
+
+	* lisp-kernel/thread_manager.c: On older versions of LINUX,
+	sem_timedwait() may not return error status correctly (see
+	<http://carcino.gen.nz/tech/linux/glibc_sem_timedwait_errors.php>);
+	code here was recently changed to assume that errors were always
+	returned in errno.
+	
+	Assume that errno is only set correctly if the return value is
+	negative; this seems to fix at least some problems with SLIME,
+	OpenMCL, and old Linux C libraries.
+
 2005-08-30 14:24  bryan
 
 	* level-0/l0-array.lisp, lib/macros.lisp, lib/streams.lisp: add doc
