@@ -177,11 +177,10 @@ wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
   }
   q.tv_sec += seconds;
   status = SEM_TIMEDWAIT(s, &q);
-  if (status == 0) {
-    return status;
+  if (status < 0) {
+    return errno;
   }
-  return errno;
-
+  return status;
 #endif
 #ifdef DARWIN  
   mach_timespec_t q = {seconds, nanos};
