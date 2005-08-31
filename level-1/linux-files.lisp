@@ -54,7 +54,7 @@
 (defun wait-on-semaphore (s)
   "Wait until the given semaphore has a positive count which can be
 atomically decremented."
-  (%timed-wait-on-semaphore-ptr (semaphore-value s) 0 0)
+  (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0)
   t)
 
 (defun timed-wait-on-semaphore (s duration)
