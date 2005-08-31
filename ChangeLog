@@ -1,3 +1,8 @@
+2005-08-31 15:36  gb
+
+	* compiler/nx1.lisp: NX1-1D-VSET, NX1-1D-VREF: only transform into
+	a typed uvref if the array's declared/known to be simple.
+
 2005-08-30 21:00  gb
 
 	* level-1/linux-files.lisp: It shouldn't matter too much, but the
