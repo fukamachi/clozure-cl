@@ -1,3 +1,28 @@
+2005-09-01 07:28  gb
+
+	* lisp-kernel/spentry.s: be more careful about restoring saveregs
+	after ff-call, syscall: set to zero, change tcr valence back to
+	lisp, -then- vpop_saveregs.
+	
+	eabi_syscall wasn't saving/restoring NVRs at all; even though
+	they're preserved across syscalls, we need to have their values
+	somewhere that the GC can see them in case GC occurs while current
+	thread is blocked in syscall.  (Doing GC in Slime is one way to
+	trigger this, since a few threads are blocked in syscall.)  This
+	doesn't seem to have been newly introduced, but NVRs may be more
+	likely to contain relocatable lisp values when syscalls are entered
+	because of register allocation changes.
+	
+	There was also a Linux-specific change that did a "stw" into
+	tcr.valence; that wants to use the "str" macro for PPC64.
+	
+	These changes haven't yet been tested under Darwin; they -look-
+	right, but beware.
+
+2005-09-01 07:20  gb
+
+	* lisp-kernel/gc.c: Indentation changes only.
+
 2005-08-31 15:36  gb
 
 	* compiler/nx1.lisp: NX1-1D-VSET, NX1-1D-VREF: only transform into
