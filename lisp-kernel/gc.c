@@ -815,7 +815,6 @@ mark_pc_root(LispObj pc)
 natural
 GCstack_limit = 0;
 
-
 /*
   This wants to be in assembler even more than "mark_root" does.
   For now, it does link-inversion: hard as that is to express in C,
@@ -856,21 +855,21 @@ rmark(LispObj n)
         suffix_dnodes;
       tag_n = fulltag_of(header);
 #ifdef PPC64
-    if ((nodeheader_tag_p(tag_n)) ||
-        (tag_n == ivector_class_64_bit)) {
-      total_size_in_bytes = 8 + (element_count<<3);
-    } else if (tag_n == ivector_class_8_bit) {
-      total_size_in_bytes = 8 + element_count;
-    } else if (tag_n == ivector_class_32_bit) {
-      total_size_in_bytes = 8 + (element_count<<2);
-    } else {
-      /* ivector_class_other_bit contains 16-bit arrays & bitvector */
-      if (subtag == subtag_bit_vector) {
-        total_size_in_bytes = 8 + ((element_count+7)>>3);
+      if ((nodeheader_tag_p(tag_n)) ||
+          (tag_n == ivector_class_64_bit)) {
+        total_size_in_bytes = 8 + (element_count<<3);
+      } else if (tag_n == ivector_class_8_bit) {
+        total_size_in_bytes = 8 + element_count;
+      } else if (tag_n == ivector_class_32_bit) {
+        total_size_in_bytes = 8 + (element_count<<2);
       } else {
-        total_size_in_bytes = 8 + (element_count<<1);
+        /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+        if (subtag == subtag_bit_vector) {
+          total_size_in_bytes = 8 + ((element_count+7)>>3);
+        } else {
+          total_size_in_bytes = 8 + (element_count<<1);
+        }
       }
-    }
 #else
       if ((tag_n == fulltag_nodeheader) ||
           (subtag <= max_32_bit_ivector_subtag)) {
@@ -911,17 +910,17 @@ rmark(LispObj n)
         if (weak_type >> population_termination_bit)
           element_count -= 2;
         else
-        element_count -= 1;
+          element_count -= 1;
       }
       while (element_count) {
         rmark(deref(n,element_count));
         element_count--;
       }
 
-    if (subtag == subtag_weak) {
-      deref(n, 1) = GCweakvll;
-      GCweakvll = n;
-    }
+      if (subtag == subtag_weak) {
+        deref(n, 1) = GCweakvll;
+        GCweakvll = n;
+      }
 
     }
   } else {
@@ -936,7 +935,7 @@ rmark(LispObj n)
       (4) Backed all the way up to the object that got us here.
       
       This is all encoded in the fulltag of the "prev" pointer.
-      */
+    */
 
     if (tag_n == fulltag_cons) goto MarkCons;
     goto MarkVector;
@@ -1019,21 +1018,21 @@ rmark(LispObj n)
       tag_n = fulltag_of(header);
 
 #ifdef PPC64
-    if ((nodeheader_tag_p(tag_n)) ||
-        (tag_n == ivector_class_64_bit)) {
-      total_size_in_bytes = 8 + (element_count<<3);
-    } else if (tag_n == ivector_class_8_bit) {
-      total_size_in_bytes = 8 + element_count;
-    } else if (tag_n == ivector_class_32_bit) {
-      total_size_in_bytes = 8 + (element_count<<2);
-    } else {
-      /* ivector_class_other_bit contains 16-bit arrays & bitvector */
-      if (subtag == subtag_bit_vector) {
-        total_size_in_bytes = 8 + ((element_count+7)>>3);
+      if ((nodeheader_tag_p(tag_n)) ||
+          (tag_n == ivector_class_64_bit)) {
+        total_size_in_bytes = 8 + (element_count<<3);
+      } else if (tag_n == ivector_class_8_bit) {
+        total_size_in_bytes = 8 + element_count;
+      } else if (tag_n == ivector_class_32_bit) {
+        total_size_in_bytes = 8 + (element_count<<2);
       } else {
-        total_size_in_bytes = 8 + (element_count<<1);
+        /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+        if (subtag == subtag_bit_vector) {
+          total_size_in_bytes = 8 + ((element_count+7)>>3);
+        } else {
+          total_size_in_bytes = 8 + (element_count<<1);
+        }
       }
-    }
 #else
       if ((tag_n == fulltag_nodeheader) ||
           (subtag <= max_32_bit_ivector_subtag)) {
@@ -1074,7 +1073,7 @@ rmark(LispObj n)
         if (weak_type >> population_termination_bit)
           element_count -= 2;
         else
-        element_count -= 1;
+          element_count -= 1;
       }
 
       this = untag(this) + ((element_count+1) << node_shift);
