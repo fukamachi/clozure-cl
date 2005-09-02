@@ -190,9 +190,25 @@
     (timeval->milliseconds (%add-timevals total 
 					  (pref usage :rusage.ru_utime) 
 					  (pref usage :rusage.ru_stime)))))
+
+(defloadvar *internal-real-time-session-seconds* nil)
+
 (defun get-internal-real-time ()
   "Return the real time in the internal time format. (See
   INTERNAL-TIME-UNITS-PER-SECOND.) This is useful for finding elapsed time."
   (rlet ((tv :timeval))
     (#_gettimeofday tv (%null-ptr))
-    (timeval->milliseconds tv)))
+    (let* ((micros (truncate (the fixnum (pref tv :timeval.tv_usec)) 1000))
+           (initial *internal-real-time-session-seconds*))
+      (if initial
+        (locally
+            (declare (type (unsigned-byte 32) initial))
+          (+ (* 1000 (the (unsigned-byte 32)
+                       (- (the (unsigned-byte 32) (pref tv :timeval.tv_sec))
+                          initial))) micros))
+        (progn
+          (setq *internal-real-time-session-seconds*
+                (pref tv :timeval.tv_sec))
+          micros)))))
+
+      
