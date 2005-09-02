@@ -611,7 +611,11 @@
                   (signal-reader-error stream "Dot context error."))
               (signal-reader-error stream "Illegal symbol syntax."))
             ; Something other than a buffer full of dots.  Thank god.
-            (let* ((num (if (null escapes) (%token-to-number tb (%validate-radix *read-base*)))))
+            (let* ((num (if (null escapes)
+                            (handler-case
+                                (%token-to-number tb (%validate-radix *read-base*))
+                              (arithmetic-error (c)
+                                (signal-reader-error stream "Impossible number.  Original error: ~S" c))))))
               (if (and num (not explicit-package))
                 num
                 (if (and (zerop len) (null escapes))
