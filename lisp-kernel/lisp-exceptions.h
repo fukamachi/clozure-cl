@@ -296,7 +296,7 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 /* Main opcode + TO field of a D form instruction */
 #define OPTO(x,to) (OP(x) | (((to) & 0x1f) << 21))
 #define OPTO_MASK (OP_MASK | TO_MASK)
-#define OPTORA(x,to,ra) (OPTO(x,to) | ((ra) << 16))
+#define OPTORA(x,to,ra) (OPTO(x,to) | RA(ra))
 #define OPTORA_MASK (OP_TO_MASK | RA_MASK)
 
 
@@ -456,6 +456,14 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #else
 /* stw tsp,tsp_frame.type(tsp) */
 #define MARK_TSP_FRAME_INSTRUCTION 0x918c0004
+#endif
+
+#ifdef PPC64
+#define INIT_CATCH_FRAME_INSTRUCTION (0xf8000000 | RA(nargs))
+#define INIT_CATCH_FRAME_MASK (OP_MASK | RA_MASK)
+#else
+#define INIT_CATCH_FRAME_INSTRUCTION (0x90000000 | RA(nargs))
+#define INIT_CATCH_FRAME_MASK (OP_MASK | RA_MASK)
 #endif
 
 void Bug(ExceptionInformationPowerPC *, const char *format_string, ...);
