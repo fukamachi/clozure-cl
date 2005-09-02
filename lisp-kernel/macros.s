@@ -573,32 +573,30 @@ define([mkcatch],[
 	sub loc_pc,loc_pc,imm1
 	la loc_pc,4(loc_pc)	/* skip over the forward branch */
 	mtlr loc_pc
-	TSP_Alloc_Fixed_Boxed(catch_frame.size)
-	la imm1,tsp_frame.data_offset+fulltag_misc(tsp)
-	str(arg_z,catch_frame.catch_tag(imm1))
-	str(imm0,catch_frame.link(imm1))
-	str(imm2,catch_frame.mvflag(imm1))
-	ldr(imm0,tcr.db_link(rcontext))
-	str(sp,catch_frame.csp(imm1))
-	lwi(imm2,(catch_frame.element_count<<num_subtag_bits)|subtag_catch_frame)
-	str(imm0,catch_frame.db_link(imm1))
-        __ifdef([PPC64])
-         __(std first_nvr,catch_frame.regs+0*8(imm1))
-         __(std second_nvr,catch_frame.regs+1*8(imm1))
-         __(std third_nvr,catch_frame.regs+2*8(imm1))
-         __(std fourth_nvr,catch_frame.regs+3*8(imm1))
-         __(std fifth_nvr,catch_frame.regs+4*8(imm1))
-         __(std sixth_nvr,catch_frame.regs+5*8(imm1))
-         __(std seventh_nvr,catch_frame.regs+6*8(imm1))
-         __(std eighth_nvr,catch_frame.regs+7*8(imm1))        
-        __else
- 	 stmw first_nvr,catch_frame.regs(imm1)
-        __endif
-	str(imm2,catch_frame.header(imm1))
-	ldr(imm0,tcr.xframe(rcontext))
-	str(imm0,catch_frame.xframe(imm1))
-	str(rzero,catch_frame.tsp_segment(imm1))
-	str(imm1,tcr.catch_top(rcontext))
+	lwi(imm4,(catch_frame.element_count<<num_subtag_bits)|subtag_catch_frame)
+	ldr(imm3,tcr.xframe(rcontext))
+	ldr(imm1,tcr.db_link(rcontext))
+	TSP_Alloc_Fixed_Unboxed(catch_frame.size)
+	la nargs,tsp_frame.data_offset+fulltag_misc(tsp)
+        str(imm4,catch_frame.header(nargs))
+	str(arg_z,catch_frame.catch_tag(nargs))
+	str(imm0,catch_frame.link(nargs))
+	str(imm2,catch_frame.mvflag(nargs))
+	str(sp,catch_frame.csp(nargs))
+	str(imm1,catch_frame.db_link(nargs))
+        str(first_nvr,catch_frame.regs+0*node_size(nargs))
+        str(second_nvr,catch_frame.regs+1*node_size(nargs))
+        str(third_nvr,catch_frame.regs+2*node_size(nargs))
+        str(fourth_nvr,catch_frame.regs+3*node_size(nargs))
+        str(fifth_nvr,catch_frame.regs+4*node_size(nargs))
+        str(sixth_nvr,catch_frame.regs+5*node_size(nargs))
+        str(seventh_nvr,catch_frame.regs+6*node_size(nargs))
+        str(eighth_nvr,catch_frame.regs+7*node_size(nargs))
+	str(imm3,catch_frame.xframe(nargs))
+	str(rzero,catch_frame.tsp_segment(nargs))
+	Set_TSP_Frame_Boxed()
+	str(nargs,tcr.catch_top(rcontext))
+        li nargs,0
 	blr
 ])	
 
@@ -754,6 +752,9 @@ define([TSP_Alloc_Fixed_Boxed],[
 	TSP_Alloc_Fixed_Unboxed_Zeroed($1)
 	Set_TSP_Frame_Boxed()
 ])
+
+
+        
 	
 /*
   This assumes that the backpointer points  to the first byte beyond
