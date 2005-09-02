@@ -1,3 +1,29 @@
+2005-09-02 04:06  gb
+
+	* lib/time.lisp: GET-INTERNAL-REAL-TIME basically tracks elapsed
+	time since the first time it's called in a session, is more likely
+	to return fixnums after that first call.
+
+2005-09-02 04:05  gb
+
+	* lisp-kernel/lisp-exceptions.c: pc_luser_xp(): allow catch_frame
+	initialization to be interrupted, do the right thing if it is.
+
+2005-09-02 04:04  gb
+
+	* lisp-kernel/lisp-exceptions.h: Recognize instructions
+	(str(rX,nnn(nargs))) used to initialize catch frames.
+
+2005-09-02 04:03  gb
+
+	* lisp-kernel/macros.s: Try to make catch/unwind-protect frames
+	faster: allocate on the tstack in an unboxed frame, use NARGS as a
+	base register, set each field individually and in order, then
+	change the tstack frame to 'boxed'.
+	
+	pc_luser_xp() recognizes stores relative to nargs and zeroes out
+	any partially initialized fields in the catch frame.
+
 2005-09-02 00:49  bryan
 
 	* level-1/version.lisp: bump.
