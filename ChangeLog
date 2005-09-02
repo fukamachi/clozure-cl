@@ -1,3 +1,11 @@
+2005-09-01 22:33  bryan
+
+	* level-1/l1-reader.lisp: the reader gets first dibs on arithmetic
+	errors.
+	
+	signal a reader-error when an "impossible number" is read.  also
+	display the (more informative) original error.
+
 2005-09-01 07:28  gb
 
 	* lisp-kernel/spentry.s: be more careful about restoring saveregs
