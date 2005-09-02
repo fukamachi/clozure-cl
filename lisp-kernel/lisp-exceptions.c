@@ -2014,7 +2014,20 @@ pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
         }
       }
     }
+    return;
   }
+
+  if ((instr & INIT_CATCH_FRAME_MASK) == INIT_CATCH_FRAME_INSTRUCTION) {
+    LispObj *frame = ptr_from_lispobj(untag(xpGPR(xp, nargs)));
+    int idx = ((int)((short)(D_field(instr))+fulltag_misc))>>fixnumshift;
+
+    for (;idx < sizeof(catch_frame)/sizeof(LispObj); idx++) {
+      deref(frame,idx) = 0;
+    }
+    ((LispObj *)(xpGPR(xp, tsp)))[1] = 0;
+    return;
+  }
+
 #ifndef PC64
   if ((major_opcode_p(instr, 47)) && /* 47 = stmw */
       (RA_field(instr) == vsp)) {
