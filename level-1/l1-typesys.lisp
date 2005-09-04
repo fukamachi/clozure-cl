@@ -2249,16 +2249,45 @@
 
 (def-type-translator complex (&optional spec)
   (if (eq spec '*)
-    (make-numeric-ctype :complexp :complex)
-    (let ((type (specifier-type spec)))
-	(unless (numeric-ctype-p type)
-	  (error "Component type for Complex is not numeric: ~S." spec))
-	(when (eq (numeric-ctype-complexp type) :complex)
-	  (error "Component type for Complex is complex: ~S." spec))      
-	(let ((res (copy-uvector type)))
-	  (setf (numeric-ctype-complexp res) :complex)
-          (setf (numeric-ctype-predicate res) nil) ; << 
-	  res))))
+      (make-numeric-ctype :complexp :complex)
+      (labels ((not-numeric ()
+                 (error "Component type for Complex is not numeric: ~S." spec))
+               (not-real ()
+                 (error "Component type for Complex is not a subtype of real: ~S." spec))
+               (complex1 (component-type)
+                 (unless (numeric-ctype-p component-type)
+                   (not-numeric))
+                 (when (eq (numeric-ctype-complexp component-type) :complex)
+                   (not-real))
+                 (let ((res (copy-uvector component-type)))
+                   (setf (numeric-ctype-complexp res) :complex)
+                   (setf (numeric-ctype-predicate res) nil) ; <<
+                   res))
+               (do-complex (ctype)
+                 (cond
+                   ((eq ctype *empty-type*) *empty-type*)
+                   ((eq ctype *universal-type*) (not-real))
+                   ((numeric-ctype-p ctype) (complex1 ctype))
+                   ((union-ctype-p ctype)
+                    (apply #'type-union
+                           (mapcar #'do-complex (union-ctype-types ctype))))
+                   ((member-ctype-p ctype)
+                    (apply #'type-union
+                           (mapcar (lambda (x) (do-complex (ctype-of x)))
+                                   (member-ctype-members ctype))))
+                   ((and (intersection-ctype-p ctype)
+                         ;; just enough to handle simple types like RATIO.
+                         (let ((numbers (remove-if-not
+                                         #'numeric-ctype-p
+                                         (intersection-ctype-types ctype))))
+                           (and (car numbers)
+                                (null (cdr numbers))
+                                (eq (numeric-ctype-complexp (car numbers)) :real)
+                                (complex1 (car numbers))))))
+                   (t                   ; punt on harder stuff for now
+                    (not-real)))))
+        (let ((ctype (specifier-type spec)))
+          (do-complex ctype)))))
 
 ;;; Check-Bound  --  Internal
 ;;;
