@@ -1,3 +1,17 @@
+2005-09-05 07:55  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-09-05 07:55  gb
+
+	* level-0/l0-hash.lisp: In REMHASH: if the key being removed
+	happens to also be in the cache, set the vector entry to
+	DELETED-HASH-KEY-MARKER.
+
+2005-09-05 07:53  gb
+
+	* lisp-kernel/constants64.h: Define slot_unbound for ppc64.
+
 2005-09-05 01:34  gb
 
 	* lisp-kernel/image.h: Bump ABI_VERSION_*, for hash-table related
