@@ -73,9 +73,9 @@
 
 (defun apply (function arg &rest args)
   "Apply FUNCTION to a list of arguments produced by evaluating ARGUMENTS in
-  the manner of LIST*. That is, a list is made of the values of all but the
-  last argument, appended to the value of the last argument, which must be a
-  list."
+   the manner of LIST*. That is, a list is made of the values of all but the
+   last argument, appended to the value of the last argument, which must be a
+   list."
   (declare (dynamic-extent args))
   (cond ((null args)
 	 (apply function arg))
@@ -88,16 +88,16 @@
 		 (apply function arg args))))))
 
 
-; This is not fast, but it gets the functionality that
-; Wood and possibly other code depend on.
+;;; This is not fast, but it gets the functionality that
+;;; Wood and possibly other code depend on.
 (defun applyv (function arg &rest other-args)
   (declare (dynamic-extent other-args))
   (let* ((other-args (cons arg other-args))
-         (last-arg (car (last other-args)))
-         (last-arg-length (length last-arg))
-         (butlast-args (nbutlast other-args))
-         (rest-args (make-list last-arg-length))
-         (rest-args-tail rest-args))
+	 (last-arg (car (last other-args)))
+	 (last-arg-length (length last-arg))
+	 (butlast-args (nbutlast other-args))
+	 (rest-args (make-list last-arg-length))
+	 (rest-args-tail rest-args))
     (declare (dynamic-extent other-args rest-args))
     (dotimes (i last-arg-length)
       (setf (car rest-args-tail) (aref last-arg i))
@@ -182,16 +182,16 @@ terminate the list"
   "Performs the cdr function n times on a list."
   (if (and (typep index 'fixnum)
 	   (>= (the fixnum index) 0))
-    (locally (declare (fixnum index))
-      (dotimes (i index list)
-	(when (null (setq list (cdr list))) (return))))
-    (progn
-      (unless (typep index 'unsigned-byte)
-	(report-bad-arg index 'unsigned-byte))
-      (do* ((n index (- n most-positive-fixnum)))
-	   ((typep n 'fixnum) (nthcdr n list))
-	(unless (setq list (nthcdr most-positive-fixnum list))
-	  (return))))))
+      (locally (declare (fixnum index))
+	(dotimes (i index list)
+	  (when (null (setq list (cdr list))) (return))))
+      (progn
+	(unless (typep index 'unsigned-byte)
+	  (report-bad-arg index 'unsigned-byte))
+	(do* ((n index (- n most-positive-fixnum)))
+	     ((typep n 'fixnum) (nthcdr n list))
+	  (unless (setq list (nthcdr most-positive-fixnum list))
+	    (return))))))
 
 
 (defun nth (index list)
@@ -268,13 +268,13 @@ terminate the list"
       ; What other kinds of function names do we care to support ?
       (values nil nil))))
 
-; Why isn't this somewhere else ?
+;;; Why isn't this somewhere else ?
 (defun ensure-valid-function-name (name)
   (multiple-value-bind (valid-p nm) (valid-function-name-p name)
     (if valid-p nm (error "Invalid function name ~s." name))))
 
 
-; Returns index if char appears in string, else nil.
+;;; Returns index if char appears in string, else nil.
 
 (defun %str-member (char string &optional start end)
   (let* ((base-string-p (typep string 'simple-base-string)))
@@ -291,7 +291,7 @@ terminate the list"
 
 
 
-; Returns index of elt in vector, or nil if it's not there.
+;;; Returns index of elt in vector, or nil if it's not there.
 (defun %vector-member (elt vector)
   (unless (typep vector 'simple-vector)
     (report-bad-arg vector 'simple-vector))
@@ -301,12 +301,12 @@ terminate the list"
 (defun logical-pathname-p (thing) (istruct-typep thing 'logical-pathname))
 
 (progn
-; It's back ...
+;;; It's back ...
 (defun list-nreverse (list)
   (nreconc list nil))
 
-; We probably want to make this smarter so that less boxing
-; (and bignum/double-float consing!) takes place.
+;;; We probably want to make this smarter so that less boxing
+;;; (and bignum/double-float consing!) takes place.
 
 (defun vector-nreverse (v)
   (let* ((len (length v))
