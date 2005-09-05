@@ -548,9 +548,17 @@ space to leave in the heap after full GC to new-value, which should be a
 non-negative fixnum. Returns the value of that kernel variable (which may
 be somewhat larger than what was specified)."
   (check-nargs 1)
+  (extract-lisptag imm1 new)
   (li imm0 17)
+  (cmpri imm1 target::tag-fixnum)
+  (cmpri cr1 arg_z 0)
   (unbox-fixnum imm1 arg_z)
+  (bne cr0 @bad)
+  (blt cr1 @bad)
   (trlgei allocptr 0)
+  (blr)
+  @bad
+  (li arg_z nil)
   (blr))
 
 (defppclapfunction use-lisp-heap-gc-threshold ()
