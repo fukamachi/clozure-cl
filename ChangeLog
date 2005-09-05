@@ -1,3 +1,12 @@
+2005-09-05 01:34  gb
+
+	* lisp-kernel/image.h: Bump ABI_VERSION_*, for hash-table related
+	changes.
+
+2005-09-05 01:33  gb
+
+	* xdump/heap-image.lisp: Bump *image-abi-version*.
+
 2005-09-05 01:10  gb
 
 	* level-0/l0-hash.lisp: Lots of changes.
