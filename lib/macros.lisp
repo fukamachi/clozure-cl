@@ -2568,7 +2568,7 @@ defcallback returns the callback pointer, e.g., the value of name."
                     (:print
                      (let ,lets
                        (trace-tab)
-                       (format *trace-output* "CALLING ~A sp=~X~%" ',name ,stack-ptr)
+                       (format *trace-output* "CALLING ~A ~%" ',name)
                        ,@(let (result)
                               (dolist (l trace-args)
                                 (push '(trace-tab) result)
