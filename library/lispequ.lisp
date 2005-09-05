@@ -1220,8 +1220,10 @@
     nhash.puthash-count                 ; number of times table has been rehashed or grown
     nhash.exclusion-lock                ; read-write lock for access
     nhash.rehash-lock                   ; exclusive lock for rehash
-    nhash.map-count                     ; fixnum: counts pending maphashes
+    nhash.iterator                      ; current hash-table iterator
     nhash.address-based                 ; hashes based on address
+    nhash.find                          ; function: find vector-index
+    nhash.find-new                      ; function: find vector-index on put
     )
 
 (provide "LISPEQU")
