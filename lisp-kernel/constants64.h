@@ -156,6 +156,7 @@
 #define unbound unbound_marker
 #define subtag_slot_unbound SUBTAG(fulltag_imm_3,1)
 #define slot_unbound_marker subtag_slot_unbound
+#define slot_unbound slot_unbound_marker
 #define subtag_illegal SUBTAG(fulltag_imm_3,2)
 #define illegal_marker subtag_illegal
 #define subtag_no_thread_local_binding SUBTAG(fulltag_imm_3,3)
