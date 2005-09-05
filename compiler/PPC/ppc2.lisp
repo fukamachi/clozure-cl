@@ -2895,23 +2895,16 @@
 
 
 
-
 ;;; There are other cases involving constants that are worth exploiting.
 (defun ppc2-compare (seg vreg xfer i j cr-bit true-p)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
-    (let* ((jconstant (acode-fixnum-form-p j))
-           (js16 (target-arch-case
-                  (:ppc32 (typep jconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))
-                  (:ppc64 (typep jconstant '(signed-byte  #.(- 16 ppc64::fixnumshift))))))
-           (iconstant (acode-fixnum-form-p i))
-           (is16 (target-arch-case
-                  (:ppc32 (typep iconstant '(signed-byte  #.(- 16 ppc32::fixnumshift))))
-                  (:ppc64 (typep jconstant '(signed-byte  #.(- 16 ppc64::fixnumshift))))))
+    (let* ((js16 (acode-s16-constant-p j))
+           (is16 (acode-s16-constant-p i))
            (boolean (backend-crf-p vreg)))
       (if (and boolean (or js16 is16))
         (let* ((reg (ppc2-one-untargeted-reg-form seg (if js16 i j) ppc::arg_z)))
-          (! compare-signed-s16const vreg reg (ash (if js16 jconstant iconstant) *ppc2-target-fixnum-shift*))
-          (unless (or js16 (eq cr-bit ppc::ppc-eq-bit)) 
+          (! compare-signed-s16const vreg reg (or js16 is16))
+          (unless (or js16 (eq cr-bit ppc::ppc-eq-bit))
             (setq cr-bit (- 1 cr-bit)))
           (^ cr-bit true-p))
         (if (and (eq cr-bit ppc::ppc-eq-bit) 
@@ -2926,7 +2919,7 @@
             ppc::arg_z) 
            cr-bit 
            true-p 
-           (ash (if js16 jconstant iconstant) *ppc2-target-fixnum-shift*))
+           (or js16 is16))
           (multiple-value-bind (ireg jreg) (ppc2-two-untargeted-reg-forms seg i ppc::arg_y j ppc::arg_z)
             (ppc2-compare-registers seg vreg xfer ireg jreg cr-bit true-p)))))))
 
@@ -6158,8 +6151,12 @@
       (let* ((old-top *ppc2-top-vstack-lcell*)
              (lcells (progn (ppc2-reserve-vstack-lcells n) (ppc2-collect-lcells :reserved old-top))))
         (dolist (var vars)
-          (ppc2-bind-var seg var vloc (pop lcells))
-          (setq vloc (%i+ vloc *ppc2-target-node-size*))))
+          (let* ((lcell (pop lcells))
+                 (reg (ppc2-assign-register-var var)))
+            (if reg
+              (ppc2-init-regvar seg var reg (ppc2-vloc-ea vloc))
+              (ppc2-bind-var seg var vloc lcell))          
+            (setq vloc (%i+ vloc *ppc2-target-node-size*)))))
       (ppc2-undo-body seg vreg xfer body old-stack)
       (dolist (var vars)
         (ppc2-close-var seg var)))))
