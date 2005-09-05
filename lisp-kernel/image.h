@@ -184,6 +184,6 @@ typedef struct compressed_node {
 } compressed_node;
 
 
-#define ABI_VERSION_MIN 1001
-#define ABI_VERSION_CURRENT 1001
-#define ABI_VERSION_MAX 1001
+#define ABI_VERSION_MIN 1002
+#define ABI_VERSION_CURRENT 1002
+#define ABI_VERSION_MAX 1002
