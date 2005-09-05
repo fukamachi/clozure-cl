@@ -2701,15 +2701,14 @@ defcallback returns the callback pointer, e.g., the value of name."
         (htab (gensym)))
     (multiple-value-bind (body decls) (parse-body body env)
       `(let* ((,htab ,hash-table)
-              (,state (vector nil nil ,htab nil nil)))
+              (,state (vector nil nil nil
+                              nil nil)))
 	(declare (dynamic-extent ,state))
-        (with-exclusive-hash-lock (,htab)
-          (without-gcing
-           (unwind-protect
-                (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
-                  (start-hash-table-iterator ,state)
-                  (locally ,@decls ,@body))
-             (finish-hash-table-iterator ,state))))))))
+        (unwind-protect
+             (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
+               (start-hash-table-iterator ,htab ,state)
+               (locally ,@decls ,@body))
+          (finish-hash-table-iterator ,state))))))
 
 (eval-when (compile load eval)
 (defmacro pprint-logical-block ((stream-symbol list

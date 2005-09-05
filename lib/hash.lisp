@@ -193,12 +193,6 @@
 
 (in-package "CCL")
 
-(eval-when (:execute :compile-toplevel :load-toplevel)
-  
-  ; It's wired in to the code that the length of this vector is 8 and
-  ; that its largest element is < 30
-  (defconstant secondary-keys #(3 5 7 11 13 17 19 23))
-  )
 
 (eval-when (:compile-toplevel :execute)
   (require "HASHENV" "ccl:xdump;hashenv"))
@@ -285,36 +279,23 @@
 ;;
 
 
-(defun start-hash-table-iterator (state)
-  (let ((hash (hti.hash-table state))
-        lock vector)
+(defun start-hash-table-iterator (hash state)
+  (let (vector)
     (unless (hash-table-p hash)
       (setf (hti.hash-table state) nil)         ; for finish-hash-table-iterator
-      (report-bad-arg hash 'hash-table))    
-    ; if rehash or grow in progress - hang out till its done 
-    (when (neq 0 (%ilogand (nhash.lock hash)  $nhash.lock-grow-or-rehash))
-      (process-wait "Wait rehash done" 
-                    #'(lambda (hash)
-                        (eq 0 (%ilogand (nhash.lock hash)  $nhash.lock-grow-or-rehash)))
-                    hash) 
-     ;(print 'waited)
-      )
+      (report-bad-arg hash 'hash-table))
+
     (without-interrupts
-     ; paranoia - maybe a rehash started between success of wait function and now
-     (when (neq 0 (%ilogand (nhash.lock hash)  $nhash.lock-grow-or-rehash)) ; 7/96
-       ; hasnt happened so far
-       ;(incf n1)
-       (return-from start-hash-table-iterator (start-hash-table-iterator state))) 
-     (setf (hti.lock state) (setq lock (nhash.lock hash))
-           (hti.locked-additions state) (nhash.locked-additions hash))     
-     (when (eq $nhash.lock-map-count-mask 
-               (%ilogand lock $nhash.lock-map-count-mask))
-       ; is this check silly?
-       (error "Too many mappers ~s of hash table ~S" lock hash))
+     (setf (hti.hash-table state) hash)
+     (write-lock-rwlock (nhash.exclusion-lock hash))
+     (%lock-gc-lock)
      (setq vector (nhash.vector hash))
      (setf (hti.vector state) vector)
-     (setf (nhash.lock hash) (1+ lock))
-     (setf (hti.index state) (nhash.vector-size vector)))))
+     (setf (hti.index state) (nhash.vector-size vector))
+     (setf (hti.prev-iterator state) (nhash.iterator hash)
+           (nhash.iterator hash) state)
+     (when (%needs-rehashing-p hash)
+       (%rehash hash)))))
  
 ;;; this is as fast as the lappy version
 
@@ -332,40 +313,27 @@
                     (let* ((vector-index (index->vector-index index)))
                       (declare (fixnum vector-index))
                       (setq key (%svref vector vector-index))
-                      (when (neq key (%unbound-marker-8))
+                      (unless (eq key (%unbound-marker))
                         (setq value (%svref vector (the fixnum (1+ vector-index))))
                         (return index)))))))
-      (let ((hash (hti.hash-table state)))
-        (if (and (hti.locked-additions state)
-                 (nhash-locked-additions-cell key hash nil (hti.locked-additions state)))
-          (do-hash-table-iteration state)
-          (progn
-            (setf (nhash.vector.cache-idx (setq vector (nhash.vector hash))) index
-                  (nhash.vector.cache-key vector) key
-                  (nhash.vector.cache-value vector) value)
-            (values t key value))))
-      (loop
-        (let ((cell (pop (hti.locked-additions state))))
-          (declare (list cell))
-          (if cell
-            (unless (eq (cdr cell) (%unbound-marker-8))
-              (return (values t (car cell) (cdr cell))))
-            (return nil)))))))
+      (let* ((hash (hti.hash-table state)))
+        (setf (nhash.vector.cache-idx (setq vector (nhash.vector hash))) index
+              (nhash.vector.cache-key vector) key
+              (nhash.vector.cache-value vector) value)
+        (values t key value)))))
 
 (defun finish-hash-table-iterator (state)
   (without-interrupts
    (let ((hash (hti.hash-table state)))
      (when hash
-       (let* ((lock  (hti.lock state))
-              (hlock (nhash.lock hash)))         
-         (when lock ; unless we never started  ; 7/96
-           (when (eq 0 (logand hlock #xffff))
-             (error "Hash-table-iterator is confused. hlock ~s hit.lock ~s" hlock lock))
-           (setf (nhash.lock hash) (decf hlock))
-           (setf
-            (hti.index state)  nil
-            (hti.vector state) nil
-            (hti.lock state)   nil)))))))
+       (unlock-rwlock (nhash.exclusion-lock hash))
+       (%unlock-gc-lock)
+       (when (eq state (nhash.iterator hash))
+         (setf (nhash.iterator hash) (hti.prev-iterator state)))
+       (setf
+        (hti.index state)  nil
+        (hti.vector state) nil
+        (hti.lock state)   nil)))))
 
 (defun maphash (function hash-table)
   "For each entry in HASH-TABLE, call the designated two-argument function
