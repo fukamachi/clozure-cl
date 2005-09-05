@@ -1,3 +1,23 @@
+2005-09-05 14:02  bryan
+
+	* level-1/l1-sysio.lisp: 
+	(defclass file-stream): rename original-name slot to
+	actual-filename.
+	
+	stream-original-name, (setf stream-original-name): renamed to
+	stream-actual-filename, (setf stream-actual-filename).
+	
+	make-file-stream, close: use renamed functions.
+	
+	make-file-stream: if filename is relative, use (full-pathname
+	filename).  we don't call full-pathname if the filename is absolute
+	to avoid clobbering a logical-pathname with its non-logical
+	counterpart.  (maybe full-pathname should do that for us?)
+	
+	make-file-stream, close: use ccl::unix-rename instead of
+	cl:rename-file to avoid merge-pathnames issues when filename has no
+	type.
+
 2005-09-05 07:55  gb
 
 	* level-1/version.lisp: Bump.
