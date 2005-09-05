@@ -73,7 +73,7 @@ SPINC =	lisp.s m4macros.m4 constants.s macros.s errors.s uuo.s constants32.s
 
 CHEADERS = area.h bits.h constants.h lisp-errors.h gc.h lisp.h \
 	lisp-exceptions.h lisp_globals.h macros.h memprotect.h image.h \
-	Threads.h lisptypes.h
+	Threads.h lisptypes.h constants32.h
 
 # Subprims linked into the kernel ?
 # Yes:
