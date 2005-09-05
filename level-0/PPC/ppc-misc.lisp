@@ -519,17 +519,17 @@
   (addi arg_z arg_z '1)
   (strcx. arg_z rzero imm0)
   (bne @again)
-  (isync)
+;;  (isync)
   (blr))
 
 (defppclapfunction %unlock-gc-lock ()
+;;  (sync)
   (li imm0 (+ target::nil-value (target::kernel-global gc-inhibit-count)))
   @again
   (lrarx arg_z rzero imm0)
   (subi arg_z arg_z '1)
   (strcx. arg_z rzero imm0)
   (bne @again)
-  (isync)
   (blr))
 
 ;;; Return true iff we were able to increment a non-negative
