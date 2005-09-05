@@ -1,3 +1,53 @@
+2005-09-05 01:10  gb
+
+	* level-0/l0-hash.lisp: Lots of changes.
+	
+	This code hasn't really supported any kind of concurrent access in
+	a long time, so a lot of things (nhash.lock,
+	nhash.locked-additions) have been adding some combination of
+	clutter/overhead here.
+	
+	Inline a lot more, use more aggressive OPTIMIZE declarations.
+	
+	Try to avoid UNWIND-PROTECT overhead associated with locking and
+	unlocking, disabling interrupts, inhibiting GC: wait for/grab the
+	lock early, disable interrupts while doing so, assume that
+	unlocking happens (without need to use UNWIND-PROTECT) because code
+	is uninterruptible.
+	
+	Try to enforce restrictions on (SETF GETHASH)/REMHASH behavior
+	while mapping is in effect.  (Needs work.)
+	
+	Represent keys in deleted key/value pairs as SLOT-UNBOUND-MARKERs,
+	so that we can tell whether an entry is empty or deleted with a
+	single memory reference.
+	
+	Try to avoid excessive generality by using specialized lookup
+	functions (at least for EQ/EQL tables).  Might want to define these
+	via MACROLET'ed code, since there's a lot of redundancy here; see
+	%HASH-PROBE (which also tries to specialize the redundancy.
+
+2005-09-05 00:23  gb
+
+	* lisp-kernel/gc.c: Don't invalidate cached hash_table key/value
+	pairs here; let lisp code do it if/when it notices that rehashing
+	is necessary.
+	
+	When deleting a (weak) pair, use slot_unbound (rather than unbound)
+	to mark the key as having been deleted.
+
+2005-09-05 00:21  gb
+
+	* lisp-kernel/constants32.h: Define slot_unbound,
+	slot_unbound_marker.
+
+2005-09-05 00:20  gb
+
+	* lib/macros.lisp: WITH-HASH-TABLE-ITERATOR: assume that locking,
+	GC inhibition happen inside START-HASH-TABLE-ITERATION and
+	STOP-HASH-TABLE-ITERATION; don't expand into code which does these
+	things explicitly.
+
 2005-09-05 00:19  gb
 
 	* level-0/PPC/ppc-utils.lisp: SET-LISP-HEAP-GC-THRESHOLD does
