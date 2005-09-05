@@ -447,6 +447,27 @@ function to the indicated name is true.")
     (if (eq (acode-operator x) (%nx1-operator fixnum)) 
       (cadr x))))
 
+(defun acode-s16-constant-p (x)
+  (setq x (acode-unwrapped-form x))
+  (if (acode-p x)
+    (let* ((op (acode-operator x)))
+      (if (eql op (%nx1-operator fixnum))
+        (let* ((val (cadr x)))
+          (if (target-arch-case
+               (:ppc32 (typep val '(signed-byte #.(- 16 ppc32::fixnumshift))))
+               (:ppc64 (typep val '(signed-byte #.(- 16 ppc64::fixnumshift)))))
+            (ash val (target-arch-case
+                      (:ppc32 ppc32::fixnumshift)
+                      (:ppc64 ppc64::fixnumshift)))))
+        (if (eql op (%nx1-operator %unbound-marker))
+          (target-arch-case
+           (:ppc32 ppc32::unbound-marker)
+           (:ppc64 ppc64::unbound-marker))
+          (if (eql op (%nx1-operator %slot-unbound-marker))
+            (target-arch-case
+             (:ppc32 ppc32::slot-unbound-marker)
+             (:ppc64 ppc64::slot-unbound-marker))))))))
+
 (defun acode-fixnum-type-p (form trust-decls)
   (or (acode-fixnum-form-p form)
       (and trust-decls
