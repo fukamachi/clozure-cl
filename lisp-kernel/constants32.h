@@ -301,6 +301,8 @@ typedef struct catch_frame {
 #define undefined unbound
 #define unbound_marker unbound
 #define subtag_character SUBTAG(fulltag_imm, 9)
+#define slot_unbound SUBTAG(fulltag_imm, 10)
+#define slot_unbound_marker slot_unbound
 #define no_thread_local_binding_marker SUBTAG(fulltag_imm,30)
 
 /* 
