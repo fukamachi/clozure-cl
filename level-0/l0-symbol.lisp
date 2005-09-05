@@ -237,10 +237,13 @@
 (defun %symbol-binding-address (sym)
   (%svar-binding-address (ensure-svar sym)))
 
+(defvar *interrupt-level* -1)
+
 (let* ((svar-lock (make-lock))
        (svar-hash (make-hash-table :test #'eq :weak t))
        (svar-idx-map (make-hash-table :test #'eq :weak :value))
-       (svar-index 0))
+       (fixed-svar-symbols '(*interrupt-level*))
+       (svar-index (length fixed-svar-symbols)))
   (defun %set-svar-hash (hash)
     (unless svar-hash
       (setq svar-hash hash)))
@@ -259,7 +262,14 @@
 	  (remhash idx svar-idx-map)
           (setf (%svref svar target::svar.idx-cell) 0))
         (if (zerop idx)
-	  (let* ((new-idx (incf svar-index)))
+	  (let* ((new-idx
+                  (or (do* ((i 1 (1+ i))
+                            (fixed-syms fixed-svar-symbols (cdr fixed-syms)))
+                           ((null fixed-syms))
+                        (declare (fixnum i))
+                        (when (eq (car fixed-syms) sym)
+                          (return i)))
+                      (incf svar-index))))
 	    (setf (%svref svar target::svar.idx-cell) new-idx)
 	    (setf (gethash new-idx svar-idx-map) svar))))
       svar))
