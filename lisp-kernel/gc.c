@@ -652,8 +652,13 @@ mark_root(LispObj n)
 
     if (nodeheader_tag_p(tag_n)) {
       if (subtag == subtag_hash_vector) {
+        /* Don't invalidate the cache here.  It should get
+           invalidated on the lisp side, if/when we know
+           that rehashing is necessary. */
+#if 0
         ((hash_table_vector_header *) base)->cache_key = undefined;
         ((hash_table_vector_header *) base)->cache_value = lisp_nil;
+#endif
         deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = n;
         return;
@@ -894,8 +899,12 @@ rmark(LispObj n)
 
       if (subtag == subtag_hash_vector) {
         /* Splice onto weakvll, then return */
+        /* Don't invalidate the cache here; that should happen on
+           the lisp side of things if anything moves */
+#if 0
         ((hash_table_vector_header *) base)->cache_key = undefined;
         ((hash_table_vector_header *) base)->cache_value = lisp_nil;
+#endif
         deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = n;
         return;
@@ -1057,8 +1066,10 @@ rmark(LispObj n)
 
       if (subtag == subtag_hash_vector) {
         /* Splice onto weakvll, then climb */
+#if 0
         ((hash_table_vector_header *) base)->cache_key = undefined;
         ((hash_table_vector_header *) base)->cache_value = lisp_nil;
+#endif
         deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = this;
         goto Climb;
@@ -1307,8 +1318,10 @@ mark_simple_area_range(LispObj *start, LispObj *end)
       natural size = (element_count+1 + 1) & ~1;
 
       if (subtag == subtag_hash_vector) {
+#if 0
         ((hash_table_vector_header *) start)->cache_key = undefined;
         ((hash_table_vector_header *) start)->cache_value = lisp_nil;
+#endif
         start[1] = GCweakvll;
         GCweakvll = (LispObj) (((natural) start) + fulltag_misc);
       } else {
@@ -1554,7 +1567,7 @@ reaphashv(LispObj hashv)
       dnode = gc_area_dnode(weakelement);
       if ((dnode < GCndnodes_in_area) && 
           ! ref_bit(markbits, dnode)) {
-        pairp[0] = undefined;
+        pairp[0] = slot_unbound;
         pairp[1] = lisp_nil;
         hashp->weak_deletions_count += (1<<fixnumshift);
       }
@@ -2920,14 +2933,14 @@ gc(TCR *tcr)
     tenure_to_area(to);
   }
 
+  resize_dynamic_heap(a->active,
+		      (GCephemeral_low == 0) ? lisp_heap_gc_threshold : 0);
+
   /*
     If the EGC is enabled: If there's no room for the youngest
     generation, untenure everything.  If this was a full GC and
     there's now room for the youngest generation, tenure everything.
-     */
-  resize_dynamic_heap(a->active,
-		      (GCephemeral_low == 0) ? lisp_heap_gc_threshold : 0);
-
+  */
   if (a->older != NULL) {
     natural nfree = (a->high - a->active);
 
