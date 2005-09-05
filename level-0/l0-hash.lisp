@@ -684,10 +684,10 @@
     (let* ((vector (nhash.vector hash)))
       (if (eq key (nhash.vector.cache-key vector))
         (progn
-          (setf (nhash.vector.cache-key vector) (%unbound-marker)
+          (setf (nhash.vector.cache-key vector) free-hash-key-marker
                 (nhash.vector.cache-value vector) nil)
           (let ((vidx (index->vector-index (nhash.vector.cache-idx vector))))
-            (setf (%svref vector vidx) (%unbound-marker))
+            (setf (%svref vector vidx) deleted-hash-key-marker)
             (setf (%svref vector (the fixnum (1+ vidx))) nil))
           (incf (the fixnum (nhash.vector.deleted-count vector)))
           (decf (the fixnum (nhash.count hash)))
@@ -1234,8 +1234,8 @@
                              (newvalue (%svref vector (1+ found-vector-index))))
                         (when first ; or (eq last-index index) ?
                           (setq first nil)
-                          (setf (%svref vector vector-index) (%unbound-marker))
-                          (setf (%svref vector (the fixnum (1+ vector-index))) (%unbound-marker)))
+                          (setf (%svref vector vector-index) free-hash-key-marker)
+                          (setf (%svref vector (the fixnum (1+ vector-index))) free-hash-key-marker))
                         (%set-hash-table-vector-key vector found-vector-index key)
                         (setf (%svref vector (the fixnum (1+ found-vector-index))) value)                       
                         (when (or (eq newkey free-hash-key-marker)
