@@ -18,7 +18,13 @@
 
 (eval-when (:compile-toplevel :execute)
 
-; undistinguished values of nhash.lock
+;;; It's wired in to the code that the length of this vector is 8 and
+;;; that its largest element is < 30
+(defconstant secondary-keys #(3 5 7 11 13 17 19 23))
+(defconstant secondary-keys-*-2 #(6 10 14 22 26 34 38 46))
+
+
+;;; undistinguished values of nhash.lock
 (defconstant $nhash.lock-while-growing #x10000)
 (defconstant $nhash.lock-while-rehashing #x20000)
 (defconstant $nhash.lock-grow-or-rehash #x30000)
@@ -107,7 +113,7 @@
   hti.vector
   hti.hash-table
   hti.lock
-  hti.locked-additions)
+  hti.prev-iterator)
 
 
 ;;; The rehash-lock is exclusive.  It must be held by any thread that
