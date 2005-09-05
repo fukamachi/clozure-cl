@@ -1,3 +1,82 @@
+2005-09-05 00:19  gb
+
+	* level-0/PPC/ppc-utils.lisp: SET-LISP-HEAP-GC-THRESHOLD does
+	nothing (and returns NIL) if its argument isn't a non-negative
+	fixnum.
+
+2005-09-05 00:18  gb
+
+	* level-0/PPC/ppc-misc.lisp: Don't do any SYNCing or ISYNCing
+	before or after %LOCK-GC-LOCK and %UNLOCK-GC-LOCK.  (This needs to
+	be tested on MP systems, which is one reason for checking this code
+	in now.)
+
+2005-09-05 00:16  gb
+
+	* lib/hash.lisp: WITH-HASH-TABLE-ITERATOR: assume that locking, GC
+	inhibition happen inside START-HASH-TABLE-ITERATION and
+	STOP-HASH-TABLE-ITERATION; don't expand into code which does these
+	things explicitly.
+
+2005-09-05 00:15  gb
+
+	* library/lispequ.lisp: replace unused NHASH.MAP-COUNT with
+	NHASH.ITERATOR.  Add NHASH.FIND and NHASH.FIND-NEW function slots
+	to NHASH accessors.
+
+2005-09-05 00:13  gb
+
+	* lisp-kernel/darwin/Makefile: CHEADERS includes constants32.h.
+
+2005-09-05 00:12  gb
+
+	* xdump/hashenv.lisp: secondary-keys-*-2 holds double values of the
+	secondary-keys primes.
+	
+	Hash-table-iterators don't track "locked-additions", but do keep
+	track of the previous iterator (for recursive calls.)
+
+2005-09-04 23:56  gb
+
+	* level-1/l1-aprims.lisp: Reformat some comments.
+
+2005-09-04 23:53  gb
+
+	* level-0/l0-symbol.lisp: Define *INTERRUPT-LEVEL* and try to
+	guarantee that it's the first svar.  (This is intended to allow
+	WITHOUT-INTERRUPTS to be defined as (mostly) a special binding of
+	*INTERRUPT-LEVEL*, since special binding is cheaper than
+	UNWIND-PROTECT, but doing that sanely may take a while.)
+
+2005-09-04 23:50  gb
+
+	* level-0/l0-misc.lisp: WRITE-LOCK-RWLOCK-DISABLE-INTERRUPTS: does
+	WRITE-LOCK-RWLOCK and disables interrupts in one operation. 
+	(Interrupts are enabled if it has to spin waiting for the lock.)
+
+2005-09-04 23:48  gb
+
+	* compiler/PPC/ppc2.lisp: Use ACODE-S16-CONSTANT-P to recognize
+	unbound/slot-unbound markers as 16-bit constants.
+
+2005-09-04 23:47  gb
+
+	* compiler/nxenv.lisp: Be more careful about asserting that things
+	that can have side-effects have the SIDE-EFFECT-FREE attribute.
+
+2005-09-04 23:45  gb
+
+	* compiler/nx0.lisp: ACODE-16-BIT-CONSTANT-P recognizes
+	unbound/slot-unbound markers, as well as fixnum constants whose
+	boxed representation is (SIGNED-BYTE 16).
+
+2005-09-04 23:39  gb
+
+	* lib/macros.lisp: Don't try to reference STACK-PTR when tracing in
+	DEFCALLBACK-BODY; it may never have been bound.  (Should probably
+	try to separate the traced case from the non-traced case better in
+	all of this.)
+
 2005-09-04 17:44  bryan
 
 	* level-1/l1-typesys.lisp: (def-type-translator complex ...)
