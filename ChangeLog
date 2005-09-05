@@ -1,3 +1,15 @@
+2005-09-04 17:44  bryan
+
+	* level-1/l1-typesys.lisp: (def-type-translator complex ...)
+	
+	ratio and bignums aren't properly handled because they are
+	represented by intersection and union ctypes.  teach it just enough
+	to deal with them and other simple variants.  more work (and
+	understanding on my part) will be needed to handle more complex
+	(har har) types.
+	
+	ported from sbcl 0.9.4.23.
+
 2005-09-02 04:06  gb
 
 	* lib/time.lisp: GET-INTERNAL-REAL-TIME basically tracks elapsed
