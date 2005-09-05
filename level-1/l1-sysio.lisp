@@ -277,7 +277,7 @@ is :UNIX.")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass file-stream (fd-stream)
     ((filename :initform nil :initarg :filename :accessor file-stream-filename)
-     (original-name :initform nil :initarg :original-name)
+     (actual-filename :initform nil :initarg :actual-filename)
      (external-format :initform :default :initarg :external-format
 		      :accessor file-stream-external-format)))
   
@@ -285,14 +285,14 @@ is :UNIX.")
 (defmethod stream-filename ((s file-stream))
   (file-stream-filename s))
 
-(defmethod stream-original-name ((s file-stream))
-  (slot-value s 'original-name))
+(defmethod stream-actual-filename ((s file-stream))
+  (slot-value s 'actual-filename))
 
 (defmethod (setf stream-filename) (new (s file-stream))
   (setf (file-stream-filename s) new))
 
-(defmethod (setf stream-original-name) (new (s file-stream))
-  (setf (slot-value s 'original-name) new))
+(defmethod (setf stream-actual-filename) (new (s file-stream))
+  (setf (slot-value s 'actual-filename) new))
 
 (defmethod print-object ((s file-stream) out)
   (print-unreadable-object (s out :type t :identity t)
@@ -471,14 +471,14 @@ is :UNIX.")
   (when (open-stream-p s)
     (let* ((ioblock (stream-ioblock s))
 	   (filename (stream-filename s))
-	   (original-name (stream-original-name s)))
-      (when original-name
+	   (actual-filename (stream-actual-filename s)))
+      (when actual-filename
 	(if abort
 	  (progn
 	    (setf (ioblock-dirty ioblock) nil)
 	    (fd-stream-close s ioblock)
-	    (rename-file original-name filename :if-exists :overwrite))
-	  (delete-file original-name)))
+	    (unix-rename (namestring actual-filename) (probe-file-x filename)))
+	  (delete-file actual-filename)))
       (setq *open-file-streams* (nremove s *open-file-streams*))
       (call-next-method))))
 
@@ -509,7 +509,11 @@ is :UNIX.")
 			 external-format)
 
   (let* ((temp-name nil)
-	 (pathname (pathname filename)))
+         (dir (pathname-directory filename))
+         (filename (if (eq (car dir) :relative)
+                       (full-pathname filename)
+                       filename))
+         (pathname (pathname filename))) 
     (block open
       (if (or (memq element-type '(:default character base-char))
 	      (subtypep element-type 'character))
@@ -547,7 +551,7 @@ is :UNIX.")
 		   (when (eq if-exists :supersede)
 		     (let ((truename (native-to-pathname native-truename)))
 		       (setq temp-name (gen-file-name truename))
-		       (rename-file truename temp-name :if-exists :overwrite)
+		       (unix-rename native-truename (namestring temp-name))
 		       (%create-file native-truename))))))
 	      (return-from open nil)))
 	  (if (setq filename (if-does-not-exist if-does-not-exist filename))
@@ -608,7 +612,7 @@ is :UNIX.")
                                :external-format real-external-format))
                      (ioblock (stream-ioblock fstream)))
                 (setf (stream-filename fstream) (namestring pathname)
-                      (stream-original-name fstream) temp-name)
+                      (stream-actual-filename fstream) temp-name)
                 (setf (file-ioblock-fileeof ioblock)
                       (ioblock-octets-to-elements ioblock (fd-size fd)))
                 (if infer
