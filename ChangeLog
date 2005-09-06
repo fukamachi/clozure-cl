@@ -1,3 +1,22 @@
+2005-09-05 18:55  gb
+
+	* level-1/version.lisp: "b" is for "better ..."
+
+2005-09-05 18:46  gb
+
+	* level-0/l0-hash.lisp: hash-find functions: FIRST-DELETED-INDEX is
+	always a fixnum or NIL, never T.  Return FIRST-DELETED-INDEX if a
+	secondary probe finds a free entry and FIRST-DELETED-INDEX is
+	non-nil.  (Always return an index.)
+	
+	(In some cases, we were returning T instead of an index from a
+	probe functions.   Some callers errored trying to do (1+ T), some
+	callers had aggressive fixnum/optimize declarations that caused 1
+	to be added to T and the result used to access the hash vector.
+	
+	It's OK if the declarations are aggressive, unless they're wrong,
+	of course.
+
 2005-09-05 14:02  bryan
 
 	* level-1/l1-sysio.lisp: 
