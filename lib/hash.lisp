@@ -281,6 +281,7 @@
         (keytransF (nhash.keytransF hash))
         (compareF (nhash.compareF hash))
         (vector (nhash.vector hash))
+        (private (if (nhash.owner hash) '(%current-tcr)))
         (count (nhash.count hash)))
     (flet ((convert (f)
              (if (or (fixnump f) (symbolp f))
@@ -288,7 +289,7 @@
                `(symbol-function ',(function-name f)))))
       (values
        `(%cons-hash-table
-         nil nil nil nil ,(nhash.grow-threshold hash) ,(nhash.rehash-ratio hash) ,(nhash.rehash-size hash) ,(nhash.address-based hash) nil nil )
+         nil nil nil nil ,(nhash.grow-threshold hash) ,(nhash.rehash-ratio hash) ,(nhash.rehash-size hash) ,(nhash.address-based hash) nil nil ,private)
        `(%initialize-hash-table ,hash ',rehashF ,(convert keytransF) ,(convert compareF)
                                 ',vector ,count)))))
 
@@ -324,12 +325,17 @@
   (setq hash-table (require-type hash-table 'hash-table))
   (without-interrupts
    (let* ((lock (nhash.exclusion-lock hash-table)))
-     (write-lock-rwlock lock)
+     (if lock
+       (write-lock-rwlock lock)
+       (progn
+         (unless (eq (nhash.owner hash-table) (%current-tcr))
+           (error "Current process doesn't own hash-table ~s" hash-table))))
      (push hash-table *fcomp-locked-hash-tables*))))
 
 (defun fasl-unlock-hash-tables ()
   (dolist (h *fcomp-locked-hash-tables*)
-    (unlock-rwlock (nhash.exclusion-lock h))))
+    (let* ((lock (nhash.exclusion-lock h)))
+      (if lock (unlock-rwlock lock)))))
 
 
 
