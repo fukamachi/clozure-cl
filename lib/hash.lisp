@@ -46,11 +46,10 @@
 ;; MAKE-HASH-TABLE is extended to accept a :HASH-FUNCTION keyword arg which
 ;; defaults for the 4 Common Lisp defined :TEST's.  Also, any fbound symbol can
 ;; be used for the :TEST argument.  The HASH-FUNCTION is a function of one
-;; argument, the key, which returns one, two, or three values:
+;; argument, the key, which returns one or two values:
 ;;
 ;; 1) HASH-CODE
 ;; 2) ADDRESSP
-;; 3) EPHEMERAL-P
 ;;
 ;; The HASH-CODE can be any object.  If it is a relocateable object (not a
 ;; fixnum, short float, or immediate) then ADDRESSP will default to :KEY
@@ -63,29 +62,20 @@
 ;; the HASH-CODE.  Otherwise, it is assumed that the address of a
 ;; component of the key was used to compute the HASH-CODE.
 ;;
-;; If EPHEMERAL-P is returned and is NIL, the hashing code assumes that none
-;; of the objects whose addresses were used in calculating the
-;; HASH-CODE were ephemeral.  E.g. the table will not need to be rehashed
-;; after an ephemeral GC.  If the hash function returns one or two values,
-;; and the value returned or defaulted for ADDRESSP is :KEY, then
-;; EPHEMERAL-P will be true iff the KEY is not in tenured space.
 ;;
 ;;
 ;; Some (proposed) functions for using in user hashing functions:
 ;;
 ;; (HASH-CODE object)
 ;;
-;; returns three values:
+;; returns two values:
 ;;
 ;; 1) HASH-CODE
 ;; 2) ADDRESSP
-;; 3) EPHEMERAL-P
 ;;
 ;; HASH-CODE is the object transformed into a fixnum by changing its tag
 ;; bits to a fixnum's tag.  ADDRESSP is true if the object was
-;; relocateable.  EPHEMERAL-P is true if ADDRESSP was true and the object
-;; is not in tenured space.
-;;
+;; relocateable. ;;
 ;;
 ;; (FIXNUM-ADD o1 o2)
 ;; Combines two objects additively and returns a fixnum.
@@ -104,50 +94,12 @@
 ;;
 ;; Implementation details.
 ;;
-;; Hash table vectors have a header that the garbage collector knows about
-;; followed by alternating keys and values.  Empty or deleted slots are
-;; denoted by a key of $undefined.  Empty slots have a value of $undefined.
-;; Deleted slots have a value of NIL.
+;; Hash table vectors have a header that the garbage collector knows
+;; about followed by alternating keys and values.  Empty slots have a
+;; key of (%UNBOUND-MARKER), deleted slots are denoted by a key of
+;; (%SLOT-UNBOUND-MARKER).
 ;;
-;; The nhash.lock slot is used to control access to the nhash.vector.
-;; 0  means no one is mapping
-;; >0 means MAPHASH or WITH-HASH-TABLE-ITERATOR is mapping.
-;;    If PUTHASH needs to grow the table it must do it via the
-;;    nhash.locked-additions alist.
-;; -1 means the table is being grown.  GETHASH can probe normally but
-;;    PUTHASH & REMHASH need to make their modifications on the
-;;    nhash.locked-additions alist.
-;; -2 means the table is being rehashed.  GETHASH must do linear search,
-;;    and PUTHASH & REMHASH must use the nhash.locked-additions alist.
-;;
-;; changed to count of mappers in low 16  + bit for grow and bit for rehash
-;; if nhash.lock is 0 nobody is mapping or rehashing or growing
-;; in which case puthash and gethash and remhash act normally
-;; maphash and WITH-HASH-TABLE-ITERATOR
-;;  if rehashing, process-wait for rehash to be finished then proceed normally
-;;   otherwise increment map-count, map and decrement map-count when done.
-;;   (won't quite work if growing - if we are modifying the hash entries the mods will
-;;     happen in the old vector which will then be replaced by the new vector)
-;;  so wait on growing too.
-;; puthash
-;;  if growing or rehashing, add to locked additions alist
-;;  if nhash.lock not zero and needs rehashing add to locked-additions alist.
-;;  if lock not zero and wants to grow add to locked-additions alist.
-;; gethash
-;;   if mapping be normal
-;;   if rehashing - go without interrupts and do linear scan
-;;   if growing - if needs rehash go without interrupts and do linear scan
-;;			if not needs rehashing do normal
-;; rehash
-;;   dont do it if lock not 0
-;; remhash
-;;   if growing or rehashing use locked-additions list
-;;    else be normal.
-;; grow 
-;;   may do rehash instead if enough deleted entries and map count is zero 
-;; 
-;;
-;; Five bits in the nhash.vector.flags fixnum interact with the garbage
+;; Four bits in the nhash.vector.flags fixnum interact with the garbage
 ;; collector.  This description uses the symbols that represent bit numbers
 ;; in a fixnum.  $nhash_xxx_bit has a corresponding $nhash_lap_xxx_bit which
 ;; gives the byte offset of the bit for LAP code.  The two bytes in
@@ -155,7 +107,7 @@
 ;; $nhash.vector-track-keys-byte offsets from the tagged vector.
 ;; The 32 bits of the fixnum at nhash.vector.flags look like:
 ;;
-;;     TKEC0000 00000000 WVF00000 00000000
+;;     TK0C0000 00000000 WVF00000 00000000
 ;;
 ;;
 ;; $nhash_track_keys_bit         "T" in the diagram above
@@ -169,10 +121,6 @@
 ;;                               indicate that any GC will require a rehash.
 ;;                               GC never clears this bit, but may set it if
 ;;                               $nhash_track_keys_bit is set.
-;; $nhash_ephemeral_bit          "E" in the diagram above
-;;                               Ignored by GC.  Set to indicate that an
-;;                               ephemeral address was used to calculate one
-;;                               or more of the hash codes.
 ;; $nhash_component_address_bit  "C" in the diagram above.
 ;;                               Ignored by GC.  Set to indicate that the
 ;;                               address of a component of a key was used. 
@@ -207,15 +155,13 @@
 
 (defmethod print-object ((table hash-table) stream)
   (print-unreadable-object (table stream :type t :identity t)
-    (format stream "~S ~S size ~D/~D~:[ Locked ~x~]"
+    (format stream "~S ~S size ~D/~D"
             ':test (hash-table-test table)
             (hash-table-count table)
-            (hash-table-size table)
-            (eql (nhash.lock table) 0) (nhash.lock table))))
+            (hash-table-size table))))
 
 
-; Of course, the lisp version of this would be too slow ...
-; NFCOMP doesn't dump SETF functions.
+;;; Of course, the lisp version of this would be too slow ...
 (defun hash-table-finalization-list (hash-table)
   (unless (hash-table-p hash-table)
     (report-bad-arg hash-table 'hash-table))
@@ -249,27 +195,9 @@
         :value
         :key))))
 
-; value should be nil, :key or :value
-(defun (setf hash-table-weak-p) (value hash)
-  (unless (hash-table-p hash)
-    (setq hash (require-type hash 'hash-table)))
-  (without-interrupts                   ; while we've got flags in our hand
-   (let* ((vector (nhash.vector hash))
-          (flags (nhash.vector.flags vector)))
-     (ecase value
-       (:key
-        (unless (eq (hash-table-test hash) 'eq)
-          (error "Only EQ hash tables can be weak on key"))
-        (setf (nhash.vector.flags vector)
-              (bitset $nhash_weak_bit
-                      (bitclr $nhash_weak_value_bit flags))))
-       (:value
-        (setf (nhash.vector.flags vector)
-              (bitset $nhash_weak_bit
-                      (bitset $nhash_weak_value_bit flags))))
-       ((nil)
-        (setf (nhash.vector.flags vector) (bitclr $nhash_weak_bit flags))))))
-  value)
+;;; It would be pretty complicated to offer a way of doing (SETF
+;;; HASH-TABLE-WEAK-P) after the hash-table's been created, and
+;;; it's not clear that that'd be incredibly useful.
 
 
 
@@ -313,7 +241,8 @@
                     (let* ((vector-index (index->vector-index index)))
                       (declare (fixnum vector-index))
                       (setq key (%svref vector vector-index))
-                      (unless (eq key (%unbound-marker))
+                      (unless (or (eq key (%unbound-marker))
+                                  (eq key (%slot-unbound-marker)))
                         (setq value (%svref vector (the fixnum (1+ vector-index))))
                         (return index)))))))
       (let* ((hash (hti.hash-table state)))
@@ -352,30 +281,37 @@
         (keytransF (nhash.keytransF hash))
         (compareF (nhash.compareF hash))
         (vector (nhash.vector hash))
-        (count (nhash.count hash))
-        (locked-additions (nhash.locked-additions hash)))
+        (count (nhash.count hash)))
     (flet ((convert (f)
              (if (or (fixnump f) (symbolp f))
                `',f
                `(symbol-function ',(function-name f)))))
       (values
        `(%cons-hash-table
-         nil nil nil nil ,(nhash.grow-threshold hash) ,(nhash.rehash-ratio hash) ,(nhash.rehash-size hash) ,(nhash.address-based hash))
+         nil nil nil nil ,(nhash.grow-threshold hash) ,(nhash.rehash-ratio hash) ,(nhash.rehash-size hash) ,(nhash.address-based hash) nil nil )
        `(%initialize-hash-table ,hash ',rehashF ,(convert keytransF) ,(convert compareF)
-                                ',vector ,count ',locked-additions)))))
+                                ',vector ,count)))))
 
 (defun needs-rehashing (hash)
   (%set-needs-rehashing hash))
 
-(defun %initialize-hash-table (hash rehashF keytransF compareF vector count locked-additions)
+(defun %initialize-hash-table (hash rehashF keytransF compareF vector count)
   (setf (nhash.rehashF hash) (symbol-function rehashF)
         (nhash.keytransF hash) keytransF
         (nhash.compareF hash) compareF
         (nhash.vector hash) vector
-        (nhash.count hash) count
-        (nhash.locked-additions hash) locked-additions)
-  (unless (eq rehashF '%no-rehash)
-    (%set-needs-rehashing hash)))
+        (nhash.count hash) count)
+  (setf (nhash.find hash)
+        (case comparef
+          (0 #'eq-hash-find)
+          (-1 #'eql-hash-find)
+          (t #'(lambda (hash key) (%hash-probe hash key nil))))
+        (nhash.find-new hash)
+        (case comparef
+          (0 #'eq-hash-find-for-put)
+          (-1 #'eql-hash-find-for-put)
+          (t #'(lambda (hash key) (%hash-probe hash key t)))))
+  (%set-needs-rehashing hash))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -383,20 +319,19 @@
 ;; Support for locking hash tables while fasdumping
 ;;
 
-;; This needs to be updated for processes - OK?
-;; is it ok if its being rehashed or growing?
+
 (defun fasl-lock-hash-table (hash-table)
   (setq hash-table (require-type hash-table 'hash-table))
   (without-interrupts
-   (let ((hlock (nhash.lock hash-table)))
-     (push (cons hash-table hlock) *fcomp-locked-hash-tables*) ; cons not needed
-     (when  (eq $nhash.lock-map-count-mask (logand hlock $nhash.lock-map-count-mask))
-       (error "Too many mappers of ~S" hash-table))
-     (setf (nhash.lock hash-table) (1+ hlock)))))
+   (let* ((lock (nhash.exclusion-lock hash-table)))
+     (write-lock-rwlock lock)
+     (push hash-table *fcomp-locked-hash-tables*))))
 
 (defun fasl-unlock-hash-tables ()
-  (dolist (hash-table.lock *fcomp-locked-hash-tables*)
-    (decf (nhash.lock (car hash-table.lock)))))
+  (dolist (h *fcomp-locked-hash-tables*)
+    (unlock-rwlock (nhash.exclusion-lock h))))
+
+
 
 	      
 
