@@ -650,11 +650,9 @@
         (if (eq key (nhash.vector.cache-key vector))
           (setq foundp t
                 value (nhash.vector.cache-value vector))
-          (let* ((vector-index #+old
-                   (%hash-probe hash key t)
-                   #-old
-                   (funcall (nhash.find-new hash) hash key))
+          (let* ((vector-index (funcall (nhash.find hash) hash key))
                  (vector-key (%svref vector vector-index)))
+            (declare (fixnum vector-index))
             (if (setq foundp (and (not (eq vector-key free-hash-key-marker))
                                   (not (eq vector-key deleted-hash-key-marker))))
               (setf value (%svref vector (the fixnum (1+ vector-index)))
@@ -692,8 +690,9 @@
           (incf (the fixnum (nhash.vector.deleted-count vector)))
           (decf (the fixnum (nhash.count hash)))
           (setq foundp t))
-        (let* ((vector-index (%hash-probe hash key nil))
+        (let* ((vector-index (funcall (nhash.find hash) hash key))
                (vector-key (%svref vector vector-index)))
+          (declare (fixnum vector-index))
           (when (setq foundp (and (not (eq vector-key free-hash-key-marker))
                                   (not (eq vector-key deleted-hash-key-marker))))
             ;; always clear the cache cause I'm too lazy to call the
@@ -975,9 +974,11 @@
                        `(progn
                           (setq vector-index (index->vector-index index)
                                 table-key (%svref vector vector-index))
-                          (cond ((or (,@predicate key table-key)
-                                     (eq table-key free-hash-key-marker))
+                          (cond ((,@predicate key table-key)
                                  (return-it vector-index))
+                                ((eq table-key free-hash-key-marker)
+                                 (return-it (or first-deleted-index
+                                                vector-index)))
                                 ((and (null first-deleted-index)
                                       (eq table-key deleted-hash-key-marker))
                                    (setq first-deleted-index vector-index))))))
@@ -1033,7 +1034,8 @@
       (let* ((secondary-hash (%svref secondary-keys-*-2
                                      (logand 7 hash-code)))
              (initial-index vector-index)             
-             (first-deleted-index (eq table-key deleted-hash-key-marker)))
+             (first-deleted-index (if (eq table-key deleted-hash-key-marker)
+                                    vector-index)))
         (declare (fixnum secondary-hash initial-index))
         (loop
           (incf vector-index secondary-hash)
@@ -1042,12 +1044,13 @@
           (setq table-key (%svref vector vector-index))
           (when (= vector-index initial-index)
             (return first-deleted-index))
-          (if (or (eq table-key key)
-                  (eq table-key free-hash-key-marker))
+          (if (eq table-key key)
             (return vector-index)
-            (if (and (null first-deleted-index)
-                     (eq table-key deleted-hash-key-marker))
-              (setq first-deleted-index vector-index))))))))
+            (if (eq table-key free-hash-key-marker)
+              (return (or first-deleted-index vector-index))
+              (if (and (null first-deleted-index)
+                       (eq table-key deleted-hash-key-marker))
+                (setq first-deleted-index vector-index)))))))))
 
 ;;; As above, but note whether the key is in some way address-based
 ;;; and update the hash-vector's flags word if so.
@@ -1085,7 +1088,8 @@
       (let* ((secondary-hash (%svref secondary-keys-*-2
                                      (logand 7 hash-code)))
              (initial-index vector-index)             
-             (first-deleted-index (eq table-key deleted-hash-key-marker)))
+             (first-deleted-index (if (eq table-key deleted-hash-key-marker)
+                                    vector-index)))
         (declare (fixnum secondary-hash initial-index))
         (loop
           (incf vector-index secondary-hash)
@@ -1094,12 +1098,13 @@
           (setq table-key (%svref vector vector-index))
           (when (= vector-index initial-index)
             (return first-deleted-index))
-          (if (or (eq table-key key)
-                  (eq table-key free-hash-key-marker))
+          (if (eq table-key key)
             (return vector-index)
-            (if (and (null first-deleted-index)
-                     (eq table-key deleted-hash-key-marker))
-              (setq first-deleted-index vector-index))))))))
+            (if (eq table-key free-hash-key-marker)
+              (return (or first-deleted-index vector-index))
+              (if (and (null first-deleted-index)
+                       (eq table-key deleted-hash-key-marker))
+                (setq first-deleted-index vector-index)))))))))
 
 (defun eql-hash-find (hash key)
   (declare (optimize (speed 3) (safety 0)))
@@ -1118,7 +1123,8 @@
         (let* ((secondary-hash (%svref secondary-keys-*-2
                                        (logand 7 hash-code)))
                (initial-index vector-index)
-               (first-deleted-index (eq table-key deleted-hash-key-marker)))
+               (first-deleted-index (if (eq table-key deleted-hash-key-marker)
+                                      vector-index)))
           (declare (fixnum secondary-hash initial-index))
           (loop
             (incf vector-index secondary-hash)
@@ -1127,12 +1133,13 @@
             (setq table-key (%svref vector vector-index))
             (when (= vector-index initial-index)
               (return first-deleted-index))
-            (if (or (eql table-key key)
-                    (eq table-key free-hash-key-marker))
-              (return vector-index)
+          (if (eql table-key key)
+            (return vector-index)
+            (if (eq table-key free-hash-key-marker)
+              (return (or first-deleted-index vector-index))
               (if (and (null first-deleted-index)
                        (eq table-key deleted-hash-key-marker))
-                (setq first-deleted-index vector-index)))))))
+                (setq first-deleted-index vector-index))))))))
     (eq-hash-find hash key)))
 
 (defun eql-hash-find-for-put (hash key)
@@ -1152,7 +1159,8 @@
         (let* ((secondary-hash (%svref secondary-keys-*-2
                                        (logand 7 hash-code)))
                (initial-index vector-index)
-               (first-deleted-index (eq table-key deleted-hash-key-marker)))
+               (first-deleted-index (if (eq table-key deleted-hash-key-marker)
+                                      vector-index)))
           (declare (fixnum secondary-hash initial-index))
           (loop
             (incf vector-index secondary-hash)
@@ -1162,12 +1170,13 @@
             (when (= vector-index initial-index)
               (return (or first-deleted-index
                           (error "Bug: no deleted entries in table"))))
-            (if (or (eql table-key key)
-                    (eq table-key free-hash-key-marker))
+            (if (eql table-key key)
               (return vector-index)
-              (if (and (null first-deleted-index)
-                       (eq table-key deleted-hash-key-marker))
-                (setq first-deleted-index vector-index)))))))
+              (if (eq table-key free-hash-key-marker)
+                (return (or first-deleted-index vector-index))
+                (if (and (null first-deleted-index)
+                         (eq table-key deleted-hash-key-marker))
+                  (setq first-deleted-index vector-index))))))))
     (eq-hash-find-for-put hash key)))
 
 ;;; Rehash.  Caller should have exclusive access to the hash table
