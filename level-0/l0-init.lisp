@@ -58,6 +58,7 @@
     #+ppc32-target :32-bit-host
     #+ppc-target :big-endian-target
     #+ppc-target :big-endian-host
+    :openmcl-private-hash-tables
     )
   "a list of symbols that describe features provided by the
    implementation")
