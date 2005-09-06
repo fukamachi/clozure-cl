@@ -89,6 +89,7 @@ typedef unsigned char qnode;
 #endif
 
 
+#define GC_TRAP_FUNCTION_IMMEDIATE_GC (-1)
 #define GC_TRAP_FUNCTION_GC 0
 #define GC_TRAP_FUNCTION_PURIFY 1
 #define GC_TRAP_FUNCTION_IMPURIFY 2
