@@ -511,25 +511,42 @@
   (isync)
   (blr))
 
-;;; Atomically increment the gc-inhibit-count kernel-global
+;;; Atomically increment or decrement the gc-inhibit-count kernel-global
+;;; (It's decremented if it's currently negative, incremented otherwise.)
 (defppclapfunction %lock-gc-lock ()
   (li imm0 (+ target::nil-value (target::kernel-global gc-inhibit-count)))
   @again
-  (lrarx arg_z rzero imm0)
-  (addi arg_z arg_z '1)
+  (lrarx arg_y rzero imm0)
+  (cmpri cr1 arg_y 0)
+  (addi arg_z arg_y '1)
+  (bge cr1 @store)
+  (subi arg_z arg_y '1)
+  @store
   (strcx. arg_z rzero imm0)
   (bne @again)
 ;;  (isync)
   (blr))
 
+;;; Atomically decrement or increment the gc-inhibit-count kernel-global
+;;; (It's incremented if it's currently negative, incremented otherwise.)
+;;; If it's incremented from -1 to 0, try to GC (maybe just a little.)
 (defppclapfunction %unlock-gc-lock ()
 ;;  (sync)
   (li imm0 (+ target::nil-value (target::kernel-global gc-inhibit-count)))
   @again
-  (lrarx arg_z rzero imm0)
-  (subi arg_z arg_z '1)
+  (lrarx arg_y rzero imm0)
+  (cmpri cr1 arg_y -1)
+  (subi arg_z arg_y '1)
+  (bgt cr1 @store)
+  (addi arg_z arg_y '1)
+  @store
   (strcx. arg_z rzero imm0)
   (bne @again)
+  (bnelr cr1)
+  ;; The GC tried to run while it was inhibited.  Unless something else
+  ;; has just inhibited it, it should be possible to GC now.
+  (li imm0 -1)
+  (trlgei allocptr 0)
   (blr))
 
 ;;; Return true iff we were able to increment a non-negative
