@@ -1211,9 +1211,9 @@
     nhash.vector                        ; N <key,value> pairs; n relatively prime to & larger than all secondary keys
     nhash.lock                          ; fixnum: bits for grow and rehash
     nhash.count                         ; Number of entries
-    nhash.locked-additions              ; Alist to look in when table locked & not otherwise found
-    nhash.fixnum                        ; (a5 $fwdnum)
-    nhash.gc-count                      ; (a5 $relocnum) - incremented by full gc, growzone.
+    nhash.owner                         ; tcr of "owning" thread, else NIL.
+    nhash.fixnum                        ; fwdnum kernel-global
+    nhash.gc-count                      ; gc-count kernel-global
     nhash.grow-threshold                ; Max # entries before grow
     nhash.rehash-ratio                  ; inverted rehash-threshold
     nhash.rehash-size			; rehash-size from user
