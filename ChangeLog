@@ -1,3 +1,53 @@
+2005-09-06 06:00  gb
+
+	* lisp-kernel/lisp-exceptions.c: Handle
+	GC_TRAP_FUNCTION_IMMEDIATE_GC, by trying to invoke the GC ...
+	immediately.  Should maybe try to determine if it's necessary,
+	since there are race conditions.
+
+2005-09-06 05:58  gb
+
+	* lisp-kernel/gc.h: Define GC_TRAP_FUNCTION_IMMEDIATE_GC.
+
+2005-09-06 05:57  gb
+
+	* level-0/l0-hash.lisp: MAKE-HASH-TABLE ... :SHARED NIL creates a
+	hash table that's effectively always locked by the calling thread;
+	creation, GET/PUT/REMHASH use new locking primitives.
+	
+	Simplify PUTHASH a little; don't maintain NHASH.PUTHASH-COUNT,
+	handle the replace/free/overwrite-deleted-entry cases separately.
+
+2005-09-06 05:52  gb
+
+	* level-0/PPC/ppc-misc.lisp: %LOCK-GC-LOCK either increments or
+	decrements the gc inhibition lock.  %UNLOCK-GC-LOCK does the
+	inverse, and tries to invoke the GC if it increments from -1 to 0.
+	
+	(The idea is that if the GC tries to run when the inhibition value
+	is non-zero, the GC will ensure that that non-zero value is
+	negative.  That doesn't work yet; it's easy, but it's another case
+	where the kernel and image need to be synched.)
+
+2005-09-06 05:48  gb
+
+	* lib/hash.lisp: MAKE-LOAD-FORM for HASH-TABLEs handles "private"
+	(thread-owned) hash-tables.  (Since we can't exactly dump a thread,
+	they become owned by whatever thread loads them.)
+	
+	FASL locking/unlocking of hash tables handles the thread-owned
+	cases.
+
+2005-09-06 05:46  gb
+
+	* library/lispequ.lisp: Replace unused NHASH.LOCKED-ADDITIONS cell
+	with NHASH.OWNER.
+
+2005-09-06 05:44  gb
+
+	* level-0/l0-init.lisp: Add :OPENMCL-PRIVATE-HASH-TABLES to
+	*FEATURES*.
+
 2005-09-05 23:54  bryan
 
 	* lib/setf.lisp: 
