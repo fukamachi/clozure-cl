@@ -525,6 +525,12 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
 
   default:
     update_bytes_allocated(tcr, (void *) ptr_from_lispobj(xpGPR(xp, allocptr)));
+
+    if (selector == GC_TRAP_FUNCTION_IMMEDIATE_GC) {
+      gc_from_xp(xp);
+      break;
+    }
+    
     if (egc_was_enabled) {
       egc_control(false, (BytePtr) a->active);
     }
