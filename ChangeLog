@@ -1,3 +1,11 @@
+2005-09-05 19:45  gb
+
+	* lib/hash.lisp: Update MAKE-LOAD-FORM, fasl-related locking for
+	the new order (and/or for native threads, which happened a few
+	years ago, depending on your point of view.)
+	
+	Try to remove outright lies from the comments.
+
 2005-09-05 18:55  gb
 
 	* level-1/version.lisp: "b" is for "better ..."
