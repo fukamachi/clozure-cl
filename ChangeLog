@@ -1,3 +1,10 @@
+2005-09-05 23:54  bryan
+
+	* lib/setf.lisp: 
+	decf: define as separate macro to honor order of arg evaluation per
+	ansi 5.1.3.  (a similar macro is needed for incf, but it breaks
+	bootstrapping.)
+
 2005-09-05 19:45  gb
 
 	* lib/hash.lisp: Update MAKE-LOAD-FORM, fasl-related locking for
