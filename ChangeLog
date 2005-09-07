@@ -1,3 +1,16 @@
+2005-09-07 02:00  bryan
+
+	* level-1/version.lisp: bump.
+
+2005-09-07 01:51  bryan
+
+	* level-1/l1-typesys.lisp: 
+	type-intersection of numeric types with same numeric lower bound
+	(one exclusive, one not) would return a more inclusive type.
+	
+	type-intersection '(short-float (0.0)) '(short-float 0.0) =>  
+	'(short-float (0.0))   ;; not '(short-float 0.0)
+
 2005-09-06 17:15  gb
 
 	* level-1/version.lisp: Bump.
