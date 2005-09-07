@@ -2125,13 +2125,13 @@
 ;;;
 (defmacro numeric-bound-test* (x y closed open)
   `(cond ((not ,y) t)
-	   ((not ,x) t)
-	   ((consp ,x)
-	    (if (consp ,y)
+         ((not ,x) t)
+         ((consp ,x)
+          (if (consp ,y)
 	      (,open (car ,x) (car ,y))
 	      (,open (car ,x) ,y)))
-	   (t
-	    (if (consp ,y)
+         (t
+          (if (consp ,y)
 	      (,open ,x (car ,y))
 	      (,closed ,x ,y)))))
 
@@ -2492,13 +2492,13 @@
 				  class format t)
 	     (round-numeric-bound (numeric-ctype-low type2)
 				  class format t)
-	     >= > nil)
+	     > >= nil)
        :high (numeric-bound-max
 	      (round-numeric-bound (numeric-ctype-high type1)
 				   class format nil)
 	      (round-numeric-bound (numeric-ctype-high type2)
 				   class format nil)
-	      <= < nil)))
+	      < <= nil)))
     *empty-type*))
 
 ;;; Float-Format-Max  --  Interface
