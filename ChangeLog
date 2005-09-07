@@ -1,3 +1,11 @@
+2005-09-07 14:18  bryan
+
+	* level-1/l1-typesys.lisp: 
+	number :simple-union should also check the case when a rational
+	type is adjacent to an integer type.  (patch ported from SBCL)
+	
+	union (integer 0 0) (rational (0)) ==> (rational 0)
+
 2005-09-07 12:33  bryan
 
 	* level-1/l1-typesys.lisp: 
