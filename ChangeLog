@@ -1,3 +1,10 @@
+2005-09-07 12:33  bryan
+
+	* level-1/l1-typesys.lisp: 
+	CONS :simple-union type-method should do a little more work for
+	"harder to compute" CONS types especially involving negation. 
+	(patch corresponds to SBCL src/code/late-type.lisp v1.100)
+
 2005-09-07 06:15  gb
 
 	* release-notes.txt: First stab at enumerating new features for
