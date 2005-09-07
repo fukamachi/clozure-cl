@@ -1,3 +1,8 @@
+2005-09-07 06:15  gb
+
+	* release-notes.txt: First stab at enumerating new features for
+	1.0.
+
 2005-09-07 02:00  bryan
 
 	* level-1/version.lisp: bump.
