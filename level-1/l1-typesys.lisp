@@ -3199,25 +3199,42 @@
   (let ((car-type1 (cons-ctype-car-ctype type1))
 	(car-type2 (cons-ctype-car-ctype type2))
 	(cdr-type1 (cons-ctype-cdr-ctype type1))
-	(cdr-type2 (cons-ctype-cdr-ctype type2)))
-    (macrolet ((frob-car (car1 car2 cdr1 cdr2)
+	(cdr-type2 (cons-ctype-cdr-ctype type2))
+        (car-not1)
+        (car-not2))
+    (macrolet ((frob-car (car1 car2 cdr1 cdr2
+                          &optional (not1 nil not1p))
 		 `(type-union
 		   (make-cons-ctype ,car1 (type-union ,cdr1 ,cdr2))
 		   (make-cons-ctype
-		    (type-intersection ,car2
-		     (specifier-type
-		      `(not ,(type-specifier ,car1))))
+		    (type-intersection
+                     ,car2
+                     ,(if not1p
+                          not1
+                          `(specifier-type
+                            `(not ,(type-specifier ,car1))))) 
 		    ,cdr2))))
       (cond ((type= car-type1 car-type2)
 	     (make-cons-ctype car-type1
-			     (type-union cdr-type1 cdr-type2)))
+                              (type-union cdr-type1 cdr-type2)))
 	    ((type= cdr-type1 cdr-type2)
 	     (make-cons-ctype (type-union car-type1 car-type2)
 			      cdr-type1))
 	    ((csubtypep car-type1 car-type2)
 	     (frob-car car-type1 car-type2 cdr-type1 cdr-type2))
 	    ((csubtypep car-type2 car-type1)
-	     (frob-car car-type2 car-type1 cdr-type2 cdr-type1))))))
+	     (frob-car car-type2 car-type1 cdr-type2 cdr-type1))
+            ;; more general case of the above, but harder to compute
+            ((progn
+               (setf car-not1 (specifier-type
+                               `(not ,(type-specifier car-type1))))
+               (not (csubtypep car-type2 car-not1)))
+             (frob-car car-type1 car-type2 cdr-type1 cdr-type2 car-not1))
+            ((progn
+               (setf car-not2 (specifier-type
+                               `(not ,(type-specifier car-type2))))
+               (not (csubtypep car-type1 car-not2)))
+             (frob-car car-type2 car-type1 cdr-type2 cdr-type1 car-not2))))))
 	    
 (define-type-method (cons :simple-intersection) (type1 type2)
   (declare (type cons-type type1 type2))
