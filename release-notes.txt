@@ -4,10 +4,104 @@
 
 
 Interface Database issues:
+  The content and format of the interface database (.cdb) files has
+  changed; new .cdb files can't be used with older releases, and
+  old .cdb files are incompatible with this release.  The newer
+  files encode ObjC class and method information, and also encode
+  accurate information about record field offsets.
+
+  The interface database files are included in the "-all" archives
+  for each platform; they're also available separately:
+  
 
 
 New Features:
+  OpenMCL now runs in 64-bit mode on G5-based systems under OSX10.4;
+  a port to 64-bit LinuxPPC will hopefully be available soon.  See
+  "64-bit notes" below for more details.
 
+  Functions defined via DEFCALLBACK can now be traced (thanks to Alex
+  Crain).
+
+  The Cocoa bridge now derives information about ObjC classes and methods
+  from the interface files; this should make applications which use it
+  less sensitive to minor changes in OS releases.   
+
+  Lisp slots in ObjC objects that're allocated by foreign code can now
+  be initialized (thanks to Alex Crain.)
+
+  The function CCL:CURRENT-DIRECTORY returns the pathname of the
+  current directory; (SETF (CCL:CURRENT-DIRECTORY) #p"/some/other/path")
+  can be used to change directories.
+
+  OpenMCL's ephemeral garbage collector uses a new scheme to detect
+  cases where "old" objects are destructively modified to reference
+  "new" ones; this seems to avoid some of the performance anomalies
+  associated with the old scheme.
+
+  The documentation strings that Bryan O'Connor added in version
+  0.14.3 should now all be accessible to the DOCUMENTATION function
+  (bootstrapping issues had prevented those doc strings defined  early
+  in the cold load from being remembered.)  In addition (thanks to
+  Bryan), most exported and documented CCL package functions now
+  have doc strings.
+
+  LOAD now tries to load any file whose first byte is #xFF as a FASL
+  file (regardless of the file's extension.)  OpenMCL's FASL files
+  start with an #xFF byte on all platforms.  Note that this means
+  that it's not possible to load source files whose first character
+  is (CHAR-CODE #xFF); that wouldn't be -likely- to be too useful
+  currently, anyway.
+
+  On 32-bit PPC, the upper limit on the number of machine instructions
+  in a compiled function was raised from 256K to 512K (there are obscure,
+  GC-related reasons for this limit.)
+
+  Source files that were implicitly in the CCL package but were missing
+  (IN-PACKAGE "CCL") forms now have those forms (again, thanks to Bryan
+  O'Connor); this may help text editors to establish the buffer's package
+  correctly when visiting the file.
+
+  Lisp image files now contain version information; the lisp kernel
+  is built with information about the range of image versions with
+  which it's compatible.
+
+  If both the traditional -b/--batch command-line argument and a new
+  -Q/--quiet argument are specified, printing of the "Welcome ..."
+  banner and of listener prompts is suppressed.
+
+  The functionality of the #? reader macro (used to reference foreign
+  variables) has been reassigned to #&.  #? is still supported, but
+  that support will be dropped in a future release (ANSI CL specifies
+  that #? is explicitly reserved for the user and therefore shouldn't
+  be used by the implementation.)
+
+  There's an initial version of an interface to Apple's CHUD
+  performance-metering tools, distributed in "ccl:library;chud-metering.lisp".
+  See "ccl:library;chud-metering.txt" for usage instructions and notes.
+
+  CLASS-OF now returns the same class as does (FIND-CLASS 'SIMPLE-ARRAY)
+  for multi-dimensional arrays that are also SIMPLE-ARRAYs.  (It was
+  previously returning the equivalent of (FIND-CLASS 'ARRAY); the new
+  behavior may be more useful, but portable code shouldn't necessarily
+  assume that there -is- a BUILT-IN-CLASS for SIMPLE-ARRAY.)
+
+  The function CCL:WAIT-ON-SEMAPHORE now consistently returns T.
+  (The documentation has described its return value incorrectly;
+  it used to return T if the semaphore could be decremented without
+  waiting and NIL if it had to wait, but if WAIT-ON-SEMAPHORE returned
+  at all, the semaphore had been successfully decremented and a positive
+  return value seems more intuitive.
+
+  Hash tables have traditionally been locked on access (by GETHASH,
+  etc.); this allows them to be accessed and modified in a thread-safe
+  way, but locking locking incurs some overhead (perhaps on the order
+  of 10%, depending.)  A new :SHARED keyword argument to
+  MAKE-HASH-TABLE allows some control over this behavior; specifying
+  :SHARED NIL in a call to MAKE-HASH-TABLE has the effect of making
+  the hash table permanantly locked by the calling thread.  The
+  keyword :OPENMCL-PRIVATE-HASH-TABLES has been added to *FEATURES* to
+  indicate the presence of this functionality.
 
 Bug Fixes:
 
