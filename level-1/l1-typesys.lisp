@@ -2227,22 +2227,64 @@
 	       (class2 (numeric-ctype-class type2))
 	       (format2 (numeric-ctype-format type2))
 	       (complexp2 (numeric-ctype-complexp type2)))
-	   (when (and (eq class1 class2)
-		      (eq format1 format2)
-		      (eq complexp1 complexp2)
-		      (or (numeric-types-intersect type1 type2)
-			  (numeric-types-adjacent type1 type2)
-			  (numeric-types-adjacent type2 type1)))
-	       (make-numeric-ctype
-	        :class class1
-	        :format format1
-	        :complexp complexp1
-	        :low (numeric-bound-max (numeric-ctype-low type1)
-					(numeric-ctype-low type2)
-					<= < t)
-	        :high (numeric-bound-max (numeric-ctype-high type1)
-					 (numeric-ctype-high type2)
-					 >= > t)))))))
+	   (cond
+             ((and (eq class1 class2)
+                   (eq format1 format2)
+                   (eq complexp1 complexp2)
+                   (or (numeric-types-intersect type1 type2)
+                       (numeric-types-adjacent type1 type2)
+                       (numeric-types-adjacent type2 type1)))
+              (make-numeric-ctype
+               :class class1
+               :format format1
+               :complexp complexp1
+               :low (numeric-bound-max (numeric-ctype-low type1)
+                                       (numeric-ctype-low type2)
+                                       <= < t)
+               :high (numeric-bound-max (numeric-ctype-high type1)
+                                        (numeric-ctype-high type2)
+                                        >= > t)))
+             ;; FIXME: These two clauses are almost identical, and the
+             ;; consequents are in fact identical in every respect.
+             ((and (eq class1 'rational)
+                   (eq class2 'integer)
+                   (eq format1 format2)
+                   (eq complexp1 complexp2)
+                   (integerp (numeric-ctype-low type2))
+                   (integerp (numeric-ctype-high type2))
+                   (= (numeric-ctype-low type2) (numeric-ctype-high type2))
+                   (or (numeric-types-adjacent type1 type2)
+                       (numeric-types-adjacent type2 type1)))
+              (make-numeric-ctype
+               :class 'rational
+               :format format1
+               :complexp complexp1
+               :low (numeric-bound-max (numeric-ctype-low type1)
+                                       (numeric-ctype-low type2)
+                                       <= < t)
+               :high (numeric-bound-max (numeric-ctype-high type1)
+                                        (numeric-ctype-high type2)
+                                        >= > t)))
+             ((and (eq class1 'integer)
+                   (eq class2 'rational)
+                   (eq format1 format2)
+                   (eq complexp1 complexp2)
+                   (integerp (numeric-ctype-low type1))
+                   (integerp (numeric-ctype-high type1))
+                   (= (numeric-ctype-low type1) (numeric-ctype-high type1))
+                   (or (numeric-types-adjacent type1 type2)
+                       (numeric-types-adjacent type2 type1)))
+              (make-numeric-ctype
+               :class 'rational
+               :format format1
+               :complexp complexp1
+               :low (numeric-bound-max (numeric-ctype-low type1)
+                                       (numeric-ctype-low type2)
+                                       <= < t)
+               :high (numeric-bound-max (numeric-ctype-high type1)
+                                        (numeric-ctype-high type2)
+                                        >= > t)))
+             (t nil))))))
 
 (setf (info-type-kind 'number) :primitive
       (info-type-builtin 'number) (make-numeric-ctype :complexp nil))
