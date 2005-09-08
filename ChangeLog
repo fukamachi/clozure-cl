@@ -1,3 +1,12 @@
+2005-09-07 18:38  bryan
+
+	* level-1/l1-typesys.lisp: 
+	array :simple-intersection type-method tries to be more smarter
+	about element-types.  (patch ported from SBCL)
+	
+	specialized-element-type of (array nil) is now nil (as opposed to
+	bit).
+
 2005-09-07 14:18  bryan
 
 	* level-1/l1-typesys.lisp: 
