@@ -1097,9 +1097,6 @@
 	     (eq type1 *empty-type*)
 	     (eq type2 *wild-type*))
 	 (values t t))
-	((or (eq type1 *wild-type*)
-	     (eq type2 *empty-type*))
-	 (values nil t))
 	(t
 	 (invoke-type-method :simple-subtypep :complex-subtypep-arg2
 			     type1 type2
