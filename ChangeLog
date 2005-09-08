@@ -1,3 +1,7 @@
+2005-09-08 02:12  bryan
+
+	* level-1/version.lisp: bump.
+
 2005-09-07 20:47  bryan
 
 	* level-1/l1-typesys.lisp: 
