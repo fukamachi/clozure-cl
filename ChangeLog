@@ -1,3 +1,10 @@
+2005-09-08 13:39  bryan
+
+	* level-1/l1-typesys.lisp: 
+	csubtypep: we shouldn't answer definitively about all cases when
+	type1 is *wild-type* or type2 is *empty-type*.	don't special case
+	and let invoke-type-method deal with them.
+
 2005-09-08 03:46  gb
 
 	* level-1/l1-error-system.lisp: APPLICABLE-RESTART-P: don't bother
