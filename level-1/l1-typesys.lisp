@@ -2760,21 +2760,24 @@
   (declare (type array-ctype type1 type2))
   (if (array-types-intersect type1 type2)
     (let ((dims1 (array-ctype-dimensions type1))
-	    (dims2 (array-ctype-dimensions type2))
-	    (complexp1 (array-ctype-complexp type1))
-	    (complexp2 (array-ctype-complexp type2))
-	    (eltype1 (array-ctype-element-type type1))
-	    (eltype2 (array-ctype-element-type type2)))
-	(specialize-array-type
-	  (make-array-ctype
-	   :dimensions (cond ((eq dims1 '*) dims2)
-			     ((eq dims2 '*) dims1)
-			     (t
-			      (mapcar #'(lambda (x y) (if (eq x '*) y x))
-				      dims1 dims2)))
-	   :complexp (if (eq complexp1 :maybe) complexp2 complexp1)
-	   :element-type (if (eq eltype1 *wild-type*) eltype2 eltype1))))
-    *empty-type*))
+          (dims2 (array-ctype-dimensions type2))
+          (complexp1 (array-ctype-complexp type1))
+          (complexp2 (array-ctype-complexp type2))
+          (eltype1 (array-ctype-element-type type1))
+          (eltype2 (array-ctype-element-type type2)))
+      (specialize-array-type
+       (make-array-ctype
+        :dimensions (cond ((eq dims1 '*) dims2)
+                          ((eq dims2 '*) dims1)
+                          (t
+                           (mapcar #'(lambda (x y) (if (eq x '*) y x))
+                                   dims1 dims2)))
+        :complexp (if (eq complexp1 :maybe) complexp2 complexp1)
+        :element-type (cond
+                        ((eq eltype1 *wild-type*) eltype2)
+                        ((eq eltype2 *wild-type*) eltype1)
+                        (t (type-intersection eltype1 eltype2))))))
+      *empty-type*))
 
 ;;; Check-Array-Dimensions  --  Internal
 ;;;
@@ -2816,7 +2819,7 @@
 
 ;;; Order matters here.
 (defparameter specialized-array-element-types
-  '(bit (unsigned-byte 8) (signed-byte 8) (unsigned-byte 16)
+  '(nil bit (unsigned-byte 8) (signed-byte 8) (unsigned-byte 16)
     (signed-byte 16) (unsigned-byte 32) (signed-byte 32)
     #+ppc64-target (unsigned-byte 64)
     #+ppc64-target (signed-byte 64)
@@ -2826,10 +2829,10 @@
   (let ((eltype (array-ctype-element-type type)))
     
     (setf (array-ctype-specialized-element-type type)
-	    (if (eq eltype *wild-type*)
+          (if (eq eltype *wild-type*)
 	      *wild-type*
 	      (dolist (stype-name specialized-array-element-types
-				        (specifier-type 't))
+                       *universal-type*)
 		(let ((stype (specifier-type stype-name)))
 		  (when (csubtypep eltype stype)
 		    (return stype))))))
