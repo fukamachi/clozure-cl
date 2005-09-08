@@ -2861,7 +2861,7 @@
 	      (list *ctype-of-single-float-0* *ctype-of-double-float-0*)
 	      (list *ctype-of-single-float-0*))
 	    (if doublep
-	      (list *ctype-of-single-float-0*)))))
+	      (list *ctype-of-double-float-0*)))))
     (if union-types
       (progn
 	(if singlep
