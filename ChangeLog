@@ -1,3 +1,16 @@
+2005-09-08 03:46  gb
+
+	* level-1/l1-error-system.lisp: APPLICABLE-RESTART-P: don't bother
+	searching for null conditions (shouldn't have found any, in any
+	case.)
+	
+	FIND-RESTART and COMPUTE-RESTARTS call APPLICABLE-RESTART-P to
+	invoke any restart test function even when condtion is NIL.
+	
+	INVOKE-RESTART-INTERACTIVELY defined in terms of FIND-RESTART,
+	INVOKE-RESTART (just so that there'd be less to go wrong if the
+	internals of %ACTIVE-RESTART change.)
+
 2005-09-08 02:12  bryan
 
 	* level-1/version.lisp: bump.
