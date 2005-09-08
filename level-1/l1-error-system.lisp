@@ -464,7 +464,7 @@
   (%restart-name (require-type restart 'restart)))
 
 (defun applicable-restart-p (restart condition)
-  (let* ((pair (assq restart *condition-restarts*))
+  (let* ((pair (if condition (assq restart *condition-restarts*)))
          (test (%restart-test restart)))
     (and (or (null pair) (eq (%cdr pair) condition))
          (or (null test) (funcall test condition)))))
@@ -475,23 +475,21 @@
    specified, then only restarts associated with CONDITION (or with no
    condition) will be returned."
   (dolist (cluster %restarts% (nreverse restarts))
-    (if (null condition)
-      (setq restarts (nreconc (copy-list cluster) restarts))
-      (dolist (restart cluster)
-        (when (applicable-restart-p restart condition)
-          (push restart restarts))))))
+    (dolist (restart cluster)
+      (when (applicable-restart-p restart condition)
+        (push restart restarts)))))
 
 (defun find-restart (name &optional condition)
-  "Return the first restart named NAME. If NAME names a restart, the restart
-   is returned if it is currently active. If no such restart is found, NIL is
-   returned. It is an error to supply NIL as a name. If CONDITION is specified
-   and not NIL, then only restarts associated with that condition (or with no
-   condition) will be returned."
+  "Return the first active restart named NAME. If NAME names a
+   restart, the restart is returned if it is currently active. If no such
+   restart is found, NIL is returned. It is an error to supply NIL as a
+   name. If CONDITION is specified and not NIL, then only restarts
+   associated with that condition (or with no condition) will be
+   returned."
   (dolist (cluster %restarts%)
     (dolist (restart cluster)
       (when (and (or (eq restart name) (eq (restart-name restart) name))
-                 (or (null condition)
-                     (applicable-restart-p restart condition)))
+                 (applicable-restart-p restart condition))
 	(return-from find-restart restart)))))
 
 (defun %active-restart (name)
@@ -528,20 +526,12 @@
   "Calls the function associated with the given restart, prompting for any
    necessary arguments. If the argument restart is not a restart or a
    currently active non-NIL restart name, then a CONTROL-ERROR is signalled."
-  (multiple-value-bind (restart tag) (%active-restart restart)
+  (let* ((restart (find-restart restart)))
     (format *error-output* "~&Invoking restart: ~a~&" restart)
     (let* ((argfn (%restart-interactive restart))
-           (values (when argfn (funcall argfn)))
-           (fn (%restart-action restart)))
-      (cond ((null fn)                  ; simple restart
-             (unless (null values) (%err-disp $xtminps))
-             (throw tag (values nil T)))
-            ((fixnump fn)               ; restart case
-             (throw tag (cons fn values)))
-            ((functionp fn)		; restart bind
-	     (apply fn values))		
-	    (t				; with-simple-restart
-	     (throw tag (values nil t)))))))   
+           (values (when argfn (funcall argfn))))
+      (apply #'invoke-restart restart values))))
+
 
 
 (defun maybe-invoke-restart (restart value condition)
