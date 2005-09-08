@@ -1,3 +1,9 @@
+2005-09-07 20:47  bryan
+
+	* level-1/l1-typesys.lisp: 
+	make-member-ctype: if doublep and not singlep, use
+	*ctype-of-double-float-0*.
+
 2005-09-07 18:38  bryan
 
 	* level-1/l1-typesys.lisp: 
