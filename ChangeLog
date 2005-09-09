@@ -1,3 +1,28 @@
+2005-09-08 22:43  gb
+
+	* level-0/l0-hash.lisp: In PUTHASH, increment (nhash.count hash)
+	when overwriting a deleted entry.
+	
+	Clobber cached value too when starting to DO-REHASH.
+	
+	When DO-REHASH encounters a deleted entry, change it to free; among
+	other things, this keeps it from getting counted more than once,
+	and doing that could cause the nhash.vector.deleted-count to go
+	negative.
+	
+	(This seems to be what was causing problems with the weak hash
+	tables that're used to map symbols to SVAR objects used by the
+	special variable binding mechanism: otherwise unreferenced keys
+	(symbols) had their entries removed by the GC; DO-REHASH saw the
+	deleted entries when the hash table was rehashed after GC and
+	counted them multiple times, causing the deleted count to go
+	negative and the hash-table's size to be miscalcuated.	It'd
+	eventually become completely full, which isn't ever supposed to
+	happen, and the failure involves a SEGFAULT.)
+	
+	I believe this was causing the problems that Bryan reported
+	encountering while compiling SBCL.
+
 2005-09-08 13:39  bryan
 
 	* level-1/l1-typesys.lisp: 
