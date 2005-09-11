@@ -198,7 +198,7 @@
   (let* ((symptr (%symbol->symptr name))
          (bits (%svref symptr target::symbol.flags-cell))
          (svar (unless (or (logbitp $sym_vbit_global bits)
-                           (logbitp $sym_vbit_constant bits))
+                           (logbitp $sym_vbit_const bits))
                  (%find-svar symptr))))
     (declare (fixnum bits))
     (if svar
@@ -209,7 +209,7 @@
   (let* ((symptr (%symbol->symptr name))
          (bits (%svref symptr target::symbol.flags-cell))
          (svar (unless (or (logbitp $sym_vbit_global bits)
-                           (logbitp $sym_vbit_constant bits))
+                           (logbitp $sym_vbit_const bits))
                  (%find-svar symptr))))
     (declare (fixnum bits))
     (if svar
