@@ -153,14 +153,14 @@
   (and (symbolp sym)
        (%ilogbitp $sym_vbit_const (%symbol-bits sym))))
 
-;;; This leaves the SPECIAL and INDIRECT bits alone, clears the others.
+;;; This leaves the SPECIAL bit alone, clears the others.
 (defun makunbound (sym)
   "Make SYMBOL unbound, removing any value it may currently have."
   (if (and *warn-if-redefine-kernel*
            (constant-symbol-p sym))
     (cerror "Make ~S be unbound anyway."
             "~S is a constant; making it unbound might be a bad idea." sym))
-  (%symbol-bits sym (the fixnum (logand (logior #xff00 (ash 1 $sym_bit_special) (ash 1 $sym_vbit_bound))
+  (%symbol-bits sym (the fixnum (logand (logior #xff00 (ash 1 $sym_bit_special))
                                         (the fixnum (%symbol-bits sym)))))
   (%set-sym-value sym (%unbound-marker))
   sym)
@@ -195,11 +195,27 @@
     bits))
 
 (defun %sym-value (name)
-  (%svar-sym-value (%ensure-svar (%symbol->symptr name))))
+  (let* ((symptr (%symbol->symptr name))
+         (bits (%svref symptr target::symbol.flags-cell))
+         (svar (unless (or (logbitp $sym_vbit_global bits)
+                           (logbitp $sym_vbit_constant bits))
+                 (%find-svar symptr))))
+    (declare (fixnum bits))
+    (if svar
+      (%svar-sym-value svar)
+      (%svref symptr target::symbol.vcell-cell))))
 
 (defun %set-sym-value (name val)
-  (%svar-set-sym-value (%ensure-svar (%symbol->symptr name)) val))
-
+  (let* ((symptr (%symbol->symptr name))
+         (bits (%svref symptr target::symbol.flags-cell))
+         (svar (unless (or (logbitp $sym_vbit_global bits)
+                           (logbitp $sym_vbit_constant bits))
+                 (%find-svar symptr))))
+    (declare (fixnum bits))
+    (if svar
+      (%svar-set-sym-value svar val)
+      (setf (%svref symptr target::symbol.vcell-cell) val))))
+    
 (defun %sym-global-value (name)
   (%svref (%symbol->symptr name) target::symbol.vcell-cell))
 
@@ -237,16 +253,18 @@
 (defun %symbol-binding-address (sym)
   (%svar-binding-address (ensure-svar sym)))
 
-(defvar *interrupt-level* -1)
+;;(defvar *interrupt-level* -1)
 
 (let* ((svar-lock (make-lock))
        (svar-hash (make-hash-table :test #'eq :weak t))
        (svar-idx-map (make-hash-table :test #'eq :weak :value))
-       (fixed-svar-symbols '(*interrupt-level*))
+       (fixed-svar-symbols '())
        (svar-index (length fixed-svar-symbols)))
   (defun %set-svar-hash (hash)
     (unless svar-hash
       (setq svar-hash hash)))
+  (defun %svar-hash ()
+    svar-hash)
   (defun %find-svar (symptr)
     (gethash symptr svar-hash))
   (defun find-svar (sym)
