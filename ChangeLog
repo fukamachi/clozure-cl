@@ -1,3 +1,30 @@
+2005-09-10 21:47  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-09-10 21:36  gb
+
+	* level-0/l0-symbol.lisp: Fix other typos.
+
+2005-09-10 21:34  gb
+
+	* level-1/l1-readloop.lisp: Fix typo.
+
+2005-09-10 21:30  gb
+
+	* level-1/l1-readloop.lisp: CCL::TOPLEVEL isn't too well-defined
+	outside of the initial process; let it do PROCESS-RESET in that
+	case.
+
+2005-09-10 21:27  gb
+
+	* level-0/l0-symbol.lisp: %SYM-VALUE, %SET-SYM-VALUE: don't create
+	an SVAR; only call %FIND-SVAR if not constant/global.
+	
+	The idea of pre-allocating a reserved svar-idx for
+	*INTERRUPT-LEVEL* doesn't work too well, since nothing references
+	that svar (and since the hash table's weak).  Post-1.0.
+
 2005-09-08 22:43  gb
 
 	* level-0/l0-hash.lisp: In PUTHASH, increment (nhash.count hash)
