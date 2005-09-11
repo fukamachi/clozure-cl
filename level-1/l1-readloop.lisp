@@ -68,11 +68,11 @@
   `(throw :cancel ,value))
 
 (defun toplevel ()
-  (throw :toplevel nil))
+  (let* ((cp *current-process*))
+    (if (eq cp *initial-process*)
+      (throw :toplevel nil)
+      (process-reset *cp*))))
 
-
-(defun cancel ()
- (throw :cancel :cancel))
 
 ;;; It's not clear that this is the right behavior, but aborting CURRENT-PROCESS -
 ;;; when no one's sure just what CURRENT-PROCESS is - doesn't seem right either.
