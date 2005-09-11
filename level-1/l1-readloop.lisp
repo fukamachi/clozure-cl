@@ -71,7 +71,7 @@
   (let* ((cp *current-process*))
     (if (eq cp *initial-process*)
       (throw :toplevel nil)
-      (process-reset *cp*))))
+      (process-reset cp))))
 
 
 ;;; It's not clear that this is the right behavior, but aborting CURRENT-PROCESS -
