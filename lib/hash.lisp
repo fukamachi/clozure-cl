@@ -306,12 +306,12 @@
         (case comparef
           (0 #'eq-hash-find)
           (-1 #'eql-hash-find)
-          (t #'(lambda (hash key) (%hash-probe hash key nil))))
+          (t #'general-hash-find))
         (nhash.find-new hash)
         (case comparef
           (0 #'eq-hash-find-for-put)
           (-1 #'eql-hash-find-for-put)
-          (t #'(lambda (hash key) (%hash-probe hash key t)))))
+          (t #'general-hash-find-for-put)))
   (%set-needs-rehashing hash))
 
 
