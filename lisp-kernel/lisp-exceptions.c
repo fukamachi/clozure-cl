@@ -774,9 +774,14 @@ gc_like_from_xp(ExceptionInformation *xp, int(*fun)(TCR *))
   TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext)), *other_tcr;
   ExceptionInformation* other_xp;
   int result;
+  signed_natural inhibit;
 
   suspend_other_threads();
-  if (lisp_global(GC_INHIBIT_COUNT) != 0) {
+  inhibit = (signed_natural)(lisp_global(GC_INHIBIT_COUNT));
+  if (inhibit != 0) {
+    if (inhibit > 0) {
+      lisp_global(GC_INHIBIT_COUNT) = (LispObj)(-inhibit);
+    }
     resume_other_threads();
     return 0;
   }
