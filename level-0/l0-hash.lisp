@@ -219,7 +219,7 @@
       (logbitp $nhash_key_moved_bit flags)
       ;; GC is not tracking key movement
       (if (logbitp $nhash_component_address_bit flags)
-        (not (eql (gc-count) (nhash.gc-count hash)))))))
+        (not (eql (the fixnum (gc-count)) (the fixnum (nhash.gc-count hash))))))))
 
 (defun %set-does-not-need-rehashing (hash)
   (get-fwdnum hash)
@@ -493,12 +493,12 @@ before doing so.")
           (case test
             (0 #'eq-hash-find)
             (-1 #'eql-hash-find)
-            (t #'(lambda (hash key) (%hash-probe hash key nil)))))
+            (t #'general-hash-find)))
          (find-put-function
           (case test
             (0 #'eq-hash-find-for-put)
             (-1 #'eql-hash-find-for-put)
-            (t #'(lambda (hash key) (%hash-probe hash key t))))))
+            (t #'general-hash-find-for-put))))
     (setq hash-function
           (if hash-function
             (require-type hash-function 'symbol)
@@ -695,6 +695,20 @@ before doing so.")
     (%lock-gc-lock)
     (when (%needs-rehashing-p hash)
       (%rehash hash))
+    (do* ((iterator (nhash.iterator hash) (hti.prev-iterator iterator)))
+         ((null iterator))
+      (let* ((vector (hti.vector iterator))
+             (index (index->vector-index (hti.index iterator)))
+             (test (hash-table-test hash)))
+        (declare (fixnum index))
+        (when (and (< index (the fixnum (uvsize vector)))
+                   (not (funcall test (%svref vector index) key)))
+          (unlock-hash-table hash)
+          (%unlock-gc-lock)
+          (restore-interrupt-level interrupt-level)
+          (%interrupt-poll)
+          (error "Can't remove key ~s during iteration on hash-table ~s"
+                 key hash))))
     (let* ((vector (nhash.vector hash)))
       (if (eq key (nhash.vector.cache-key vector))
         (progn
@@ -741,19 +755,20 @@ before doing so.")
       (%lock-gc-lock)
       (when (%needs-rehashing-p hash)
         (%rehash hash))
-      (let* ((iterator (nhash.iterator hash)))
-        (when iterator
-          (let* ((iindex (hti.index iterator)))
-            (when iindex
-              (let* ((vector (nhash.vector hash))
-                     (index (index->vector-index iindex)))
-                (declare (fixnum index))
-                (when (and (< index (the fixnum (uvsize vector)))
-                           (eq (%svref vector index) key))
-                  (return-from protected
-                    (setf (%svref vector (the fixnum (1+ index))) value))))))
-          (error "Can't replace value of key ~s during hash-table iteration"
-                 key)))
+      (do* ((iterator (nhash.iterator hash) (hti.prev-iterator iterator)))
+           ((null iterator))
+        (let* ((vector (hti.vector iterator))
+               (index (index->vector-index (hti.index iterator)))
+               (test (hash-table-test hash)))
+          (declare (fixnum index))
+          (when (and (< index (the fixnum (uvsize vector)))
+                     (not (funcall test (%svref vector index) key)))
+            (unlock-hash-table hash)
+            (%unlock-gc-lock)
+            (restore-interrupt-level interrupt-level)
+            (%interrupt-poll)
+            (error "Can't add key ~s during iteration on hash-table ~s"
+                   key hash))))
       (let ((vector (nhash.vector  hash)))     
         (when (eq key (nhash.vector.cache-key vector))
           (let* ((idx (nhash.vector.cache-idx vector)))
@@ -838,10 +853,8 @@ before doing so.")
       (declare (fixnum old-total-size flags flags-sans-weak weak-flags))    
       ; well we knew lock was 0 when we called this - is it still 0?
       (when (> (nhash.vector.deleted-count old-vector) 0)
-        ; There are enough deleted entries. Rehash to get rid of them
-        (progn ;without-interrupts ; needed when egc - why??? - no mo 
-          (%rehash hash)
-          )        
+        ;; There are enough deleted entries. Rehash to get rid of them
+        (%rehash hash)
         (return-from grow-hash-table))
       (multiple-value-bind (size total-size)
                            (compute-hash-size 
@@ -866,21 +879,15 @@ before doing so.")
                     (vector-index (index->vector-index 0) (+ vector-index 2)))
                    ((>= index old-total-size))
                 (declare (fixnum index vector-index))
-                ; somebody messed with it - shouldnt happen cause we locked it
-                (when (or (eq 0 (nhash.lock hash))
-                          (neq old-vector (nhash.vector hash))
-                          (neq old-size (nhash.count hash)))
-                  (cerror "try again" "lock is 0 in grow ~s" index)
-                  (return-from grow-hash-table (grow-hash-table hash )))
                 
-                (without-interrupts
                  (let ((key (%svref old-vector vector-index)))
-                   (unless (eq key (%unbound-marker))
+                   (unless (or (eq key free-hash-key-marker)
+                               (eq key deleted-hash-key-marker))
                      (let* ((new-index (%growhash-probe vector hash key))
                             (new-vector-index (index->vector-index new-index)))
                        (setf (%svref vector new-vector-index) key)
                        (setf (%svref vector (the fixnum (1+ new-vector-index)))
-                             (%svref old-vector (the fixnum (1+ vector-index)))))))))
+                             (%svref old-vector (the fixnum (1+ vector-index))))))))
               (without-interrupts  ; trying this ???
                (setf (nhash.vector.finalization-alist vector)
                      (nhash.vector.finalization-alist old-vector)
@@ -955,6 +962,12 @@ before doing so.")
 (defun %am-growing (hash)
   (declare (optimize (speed 3) (safety 0)))
   (%maybe-rehash hash))
+
+(defun general-hash-find (hash key)
+  (%hash-probe hash key nil))
+
+(defun general-hash-find-for-put (hash key)
+  (%hash-probe hash key t))
 
 ;;; returns a single value:
 ;;;   index - the index in the vector for key (where it was or where
@@ -1190,7 +1203,6 @@ before doing so.")
 (defun %rehash (hash)
   (let* ((vector (nhash.vector hash))
          (flags (nhash.vector.flags vector))         )
-    (setf (nhash.vector.cache-key vector)(%unbound-marker))
     (setf (nhash.vector.flags vector)
           (logand flags $nhash-clear-key-bits-mask))
     (do-rehash hash)))
