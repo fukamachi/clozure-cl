@@ -357,9 +357,13 @@ save_application(unsigned fd)
   ACTUAL_IMAGE_BASE(&fh) = image_base;
   fh.nsections = 3;
   fh.abi_version=ABI_VERSION_CURRENT;
+#ifdef PPC64
+  fh.section_data_offset = 0;
+#else
   for (i = 0; i < sizeof(fh.pad)/sizeof(fh.pad[0]); i++) {
     fh.pad[i] = 0;
   }
+#endif
 #ifdef PPC64
   fh.flags = 1;
 #endif
