@@ -145,7 +145,7 @@ SECTIONS
   .jcr            : { KEEP (*(.jcr)) }
   .data.rel.ro : { *(.data.rel.ro.local) *(.data.rel.ro*) }
   .dynamic        : { *(.dynamic) }
-  . = DATA_SEGMENT_RELRO_END (0, .);
+/*  . = DATA_SEGMENT_RELRO_END (0, .); */
   .data           :
   {
     *(.data .data.* .gnu.linkonce.d.*)
