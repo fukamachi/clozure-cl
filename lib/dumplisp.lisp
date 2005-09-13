@@ -45,14 +45,14 @@
                          &key toplevel-function
 			 init-file
                          error-handler application-class
-			 clear-clos-caches compress
+			 clear-clos-caches
                          (purify t)
                          impurify
 			 (mode #o666)
 			 prepend-kernel
 			 )
   (declare (ignore toplevel-function error-handler application-class
-                   resources clear-clos-caches compress init-file impurify
+                   resources clear-clos-caches init-file impurify
 		   mode prepend-kernel))
   (let* ((ip *initial-process*)
 	 (cp *current-process*))
@@ -73,7 +73,6 @@
                                             toplevel-function  ;???? 
                                             error-handler ; meaningless unless application-class or *application* not lisp-development..
                                             application-class
-                                            compress
 					    (mode #o666)
                                             (purify t)
                                             (impurify nil)
@@ -100,8 +99,7 @@
 					    :mode mode
 					    :prepend-kernel prepend-kernel)))
                 #'(lambda () (%save-application fd
-                                                (logior (if compress 4 0)
-                                                        (if impurify 2 0)
+                                                (logior (if impurify 2 0)
                                                         (if purify 1 0)))))
               toplevel-function))
 
