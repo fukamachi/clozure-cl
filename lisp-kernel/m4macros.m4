@@ -151,6 +151,11 @@ $1:
 define([_exportfn],[
 	.globl $1
 	_startfn($1)
+ifdef([PPC64],[
+ifdef([LINUX],[
+        .global [.]$1
+[.]$1:
+])])
 # __line__
 ])
 
