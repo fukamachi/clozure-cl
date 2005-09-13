@@ -56,12 +56,14 @@ typedef struct {
   unsigned nsections;
   unsigned abi_version;
 #ifdef PPC64
-  unsigned pad[2];
-  unsigned flags;
+  signed_natural section_data_offset; /* signed offset from end of
+                                         section headers to first
+                                         section's data.  May be zero. */
+  unsigned flags; 
   natural canonical_image_base_64;
   natural actual_image_base_64;
-#else
-  unsigned pad[7];
+#else 
+  unsigned pad[7]; 
 #endif
 } openmcl_image_file_header;
 
