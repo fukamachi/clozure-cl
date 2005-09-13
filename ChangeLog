@@ -1,3 +1,60 @@
+2005-09-13 16:15  gb
+
+	* lisp-kernel/: image.h, image.c: Split section_data_offset in
+	half, to deal with alignment issues.
+
+2005-09-13 16:01  gb
+
+	* lisp-kernel/lisp-exceptions.c: If gc is inhibited on entry,
+	ensure that GC_INHIBIT_COUNT looks negative.  (%UNLOCK-GC-LOCK
+	should increment it in this case, and do a gc trap if it goes from
+	-1 to 0.)
+
+2005-09-13 15:59  gb
+
+	* lisp-kernel/image.c: On ppc64, zero (for now)
+	fh.section_data_offset; zeroing "pad" array only happens on ppc32.
+
+2005-09-13 15:58  gb
+
+	* lisp-kernel/image.h: Fix newly-introduced typo.
+
+2005-09-13 15:53  gb
+
+	* lisp-kernel/asmutils.s: Move the "strange reference to exp()"
+	from current_stack_pointer() - which is probably inlined - to
+	flush_cache_lines().  Make it a data reference, and make it
+	word-size dependent.
+
+2005-09-13 15:50  gb
+
+	* lisp-kernel/m4macros.m4: exportfn generates and exports .foo as
+	well as foo when #+(and LINUX PPC64).
+
+2005-09-13 15:48  gb
+
+	* lisp-kernel/linux64/elf64ppc.x: Some older toolchains don't
+	recognize DATA_SEGMENT_RELPRO_END (and, frankly, neither do I.) 
+	Comment out the reference, and see if it's important on platforms
+	that -do- reference it.
+
+2005-09-13 15:36  gb
+
+	* lib/hash.lisp: If reloading a hash table from a fasl file, use
+	the GENERAL-HASH-FIND[-FOR-PUT] functions instead of anonymous
+	lambdas.
+
+2005-09-13 15:33  gb
+
+	* lisp-kernel/gc.h: No compression in SAVE-APPLICATION, so lose
+	GC_TRAP_FLAG_COMPRESS.
+
+2005-09-13 15:31  gb
+
+	* lisp-kernel/lisp-exceptions.c, lisp-kernel/image.h,
+	lisp-kernel/image.c, lib/dumplisp.lisp: No compression in
+	SAVE-APPLICATION.
+
 2005-09-12 21:14  gb
 
 	* level-0/l0-hash.lisp: In %NEEDS-REHASHING: both (GC-COUNT) and
