@@ -1,3 +1,26 @@
+2005-09-12 21:14  gb
+
+	* level-0/l0-hash.lisp: In %NEEDS-REHASHING: both (GC-COUNT) and
+	(NHASH.GC-COUNT hash) are fixnums.
+	
+	When creating a hash table, use new GENERAL-HASH-FIND and
+	GENERAL-HASH-FIND-FOR-PUT, rather than anonymous lambdas, for the
+	non-EQ/non-EQL cases.
+	
+	PUTHASH's iteration check looks at all pending iterators, uses
+	hash-table-test to compare keys.  REMHASH wasn't checking.  (Sorry,
+	I thought that I'd checked this in already.)
+	
+	In %GROW-HASH-TABLE, remove a PROGN and a comment; remove "can't
+	happen" check of nhash.lock, which should be mostly unused.  Only
+	process a key from the vector if it's neither FREE-HASH-KEY-MARKER
+	nor DELETED-HASH-KEY-MARKER (code was just checking for (EQ KEY
+	(%UNBOUND-MARKER)), where (%UNBOUND-MARKER) ==
+	FREE-HASH-KEY-MARKER.)	This *might* cause keys to become lost
+	(leading to duplicate key errors), or might not.
+	
+	%REHASH doesn't clear cache key, since DO-REHASH always clears it.
+
 2005-09-10 21:47  gb
 
 	* level-1/version.lisp: Bump.
