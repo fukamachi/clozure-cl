@@ -358,7 +358,8 @@ save_application(unsigned fd)
   fh.nsections = 3;
   fh.abi_version=ABI_VERSION_CURRENT;
 #ifdef PPC64
-  fh.section_data_offset = 0;
+  fh.section_data_offset_high = 0;
+  fh.section_data_offset_low = 0;
 #else
   for (i = 0; i < sizeof(fh.pad)/sizeof(fh.pad[0]); i++) {
     fh.pad[i] = 0;
