@@ -53,18 +53,24 @@ _exportfn(C(flush_cache_lines))
         __(sync)
 	__(isync)
 	__(blr)
-_endfn
-
-_exportfn(C(current_stack_pointer))
-	__(mr r3,sp)
-	__(blr)
 /* The strange reference to "exp" is supposed to force the kernel to
    load libm, so lisp code can use it.   Under Darwin, the functionality
    of libm is contained in libsystem, along with libc & everything else.
 */
         __ifndef([DARWIN])
-	__(b exp)
+        .data
+        __ifdef([PPC64])
+        .quad exp
+        __else
+        .long exp
         __endif
+        .text        
+        __endif
+_endfn
+
+_exportfn(C(current_stack_pointer))
+	__(mr r3,sp)
+	__(blr)
 _endfn
 	
 _exportfn(C(count_leading_zeros))
