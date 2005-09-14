@@ -219,11 +219,18 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
     int i, nsections = h->nsections;
     openmcl_image_section_header sections[nsections], *sect=sections;
     LispObj bias = image_base - ACTUAL_IMAGE_BASE(h);
+#ifdef PPC64
+    signed_natural section_data_delta = 
+      ((signed_natural)(h->section_data_offset_high) << 32L) | h->section_data_offset_low;
+#endif
 
     if (read (fd, sections, nsections*sizeof(openmcl_image_section_header)) !=
 	nsections * sizeof(openmcl_image_section_header)) {
       return 0;
     }
+#ifdef PPC64
+    lseek(fd, section_data_delta, SEEK_CUR);
+#endif
     for (i = 0; i < nsections; i++, sect++) {
       load_image_section(fd, sect);
       a = sect->area;
@@ -322,7 +329,30 @@ write_area_pages(int fd, area *a)
   return 0;
 }
   
-    
+
+int
+write_file_and_section_headers(int fd, 
+                               openmcl_image_file_header *file_header,
+                               openmcl_image_section_header* section_headers,
+                               int nsections,
+                               off_t *header_pos)
+{
+  *header_pos = seek_to_next_page(fd);
+
+  if (lseek (fd, *header_pos, SEEK_SET) < 0) {
+    return errno;
+  }
+  if (write(fd, file_header, sizeof(*file_header)) != sizeof(*file_header)) {
+    return errno;
+  }
+  if (write(fd, section_headers, sizeof(section_headers[0])*nsections)
+      != (sizeof(section_headers[0]) *nsections)) {
+    return errno;
+  }
+  return 0;
+}
+  
+  
 OSErr
 save_application(unsigned fd)
 {
@@ -330,8 +360,12 @@ save_application(unsigned fd)
   openmcl_image_section_header sections[3];
   openmcl_image_file_trailer trailer;
   area *areas[3], *a;
-  int i;
-  off_t header_pos, eof_pos;;
+  int i, err;
+  off_t header_pos, eof_pos;
+#ifdef PPC64
+  off_t image_data_pos;
+  signed_natural section_data_delta;
+#endif
 
   areas[2] = active_dynamic_area;
   for (a = active_dynamic_area->succ; a != all_areas; a = a->succ) {
@@ -368,17 +402,15 @@ save_application(unsigned fd)
 #ifdef PPC64
   fh.flags = 1;
 #endif
-  header_pos = seek_to_next_page(fd);
 
-  if (lseek (fd, header_pos, SEEK_SET) < 0) {
-    return errno;
+#ifdef PPC64
+  image_data_pos = seek_to_next_page(fd);
+#else
+  err = write_file_and_section_headers(fd, &fh, sections, 3, &header_pos);
+  if (err) {
+    return err;
   }
-  if (write(fd, &fh, sizeof(fh)) != sizeof(fh)) {
-    return errno;
-  }
-  if (write(fd, &sections, sizeof(sections)) != sizeof(sections)) {
-    return errno;
-  }
+#endif
 
   /*
     Coerce macptrs to dead_macptrs.
@@ -420,6 +452,19 @@ save_application(unsigned fd)
       }
     }
   }
+
+#ifdef PPC64
+  seek_to_next_page(fd);
+  section_data_delta = -((lseek(fd,0,SEEK_CUR)+sizeof(fh)+sizeof(sections)) -
+                         image_data_pos);
+  fh.section_data_offset_high = (int)(section_data_delta>>32L);
+  fh.section_data_offset_low = (unsigned)section_data_delta;
+  err =  write_file_and_section_headers(fd, &fh, sections, 3, &header_pos);
+  if (err) {
+    return err;
+  }  
+#endif
+
   trailer.sig0 = IMAGE_SIG0;
   trailer.sig1 = IMAGE_SIG1;
   trailer.sig2 = IMAGE_SIG2;
