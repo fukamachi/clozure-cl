@@ -383,18 +383,31 @@ a given process."
       (type-predicate 'read-write-lock) 'read-write-lock-p)
 
 
-(defun grab-lock (lock)
+(defun grab-lock (lock &optional flag)
   "Wait until a given lock can be obtained, then obtain it."
-  (%lock-recursive-lock (recursive-lock-ptr lock)))
+  (%lock-recursive-lock (recursive-lock-ptr lock) flag))
 
 (defun release-lock (lock)
   "Relinquish ownership of a given lock."
   (%unlock-recursive-lock (recursive-lock-ptr lock)))
 
-(defun try-lock (lock)
+(defun try-lock (lock &optional flag)
   "Obtain the given lock, but only if it is not necessary to wait for it."
-  (%try-recursive-lock (recursive-lock-ptr lock)))
+  (%try-recursive-lock (recursive-lock-ptr lock) flag))
 
+(defun lock-acquisition-status (thing)
+  (if (istruct-typep thing 'lock-acquisition)
+    (lock-acquisition.status thing)
+    (report-bad-arg thing 'lock-acquisition)))
+
+(defun clear-lock-acquisition-status (thing)
+  (if (istruct-typep thing 'lock-acquistion)
+    (setf (lock-acquisition.status thing) nil)
+    (report-bad-arg thing 'lock-acquistion)))
+
+(defmethod print-object ((l lock-acquisition) stream)
+  (print-unreadable-object (l stream :type t :identity t)
+    (format stream "[status = ~s]" (lock-acquisition-status l))))
 
 
 (defun process-wait (whostate function &rest args)
