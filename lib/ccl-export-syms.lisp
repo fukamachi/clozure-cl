@@ -414,6 +414,11 @@
      read-write-lock
      lock-not-owner
 
+     lock-acquisition-status
+     clear-lock-acquisition-status
+     lock-acquisition
+     make-lock-acquisition
+     
      make-read-write-lock
      with-read-lock
      with-write-lock
