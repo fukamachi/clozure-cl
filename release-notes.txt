@@ -103,5 +103,9 @@ New Features:
   keyword :OPENMCL-PRIVATE-HASH-TABLES has been added to *FEATURES* to
   indicate the presence of this functionality.
 
+  The function CCL:CPU-COUNT returns the number of available
+  processors (1 in a uniprocessor system, >1 in a multiprocessor
+  system.)
+
 Bug Fixes:
 
