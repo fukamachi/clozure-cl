@@ -1226,6 +1226,14 @@
     nhash.find-new                      ; function: find vector-index on put
     )
 
+(def-accessors (lock-acquisition) %svref
+  nil                                   ; lock-status
+  lock-acquisition.status
+  )
+
+(defmacro make-lock-acquisition ()
+  `(%istruct 'lock-acquisition nil))
+
 (provide "LISPEQU")
 
 ;;; End of lispequ.lisp
