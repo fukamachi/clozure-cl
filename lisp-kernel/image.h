@@ -59,7 +59,7 @@ typedef struct {
   int section_data_offset_high; /* signed offset from end of
                                          section headers to first
                                          section's data.  May be zero. */
-  int section_data_offset_low;
+  unsigned section_data_offset_low;
   unsigned flags; 
   natural canonical_image_base_64;
   natural actual_image_base_64;
@@ -88,5 +88,5 @@ load_openmcl_image(int, openmcl_image_file_header*);
 
 
 #define ABI_VERSION_MIN 1002
-#define ABI_VERSION_CURRENT 1002
-#define ABI_VERSION_MAX 1002
+#define ABI_VERSION_CURRENT 1003
+#define ABI_VERSION_MAX 1003
