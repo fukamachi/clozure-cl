@@ -435,6 +435,11 @@
 		 (owner (%get-ptr lock target::lockptr.owner))
 		 (signal (%get-ptr lock target::lockptr.signal)))
     (%setf-macptr-to-object p (%current-tcr))
+    (if (istruct-typep flag 'lock-acquisition)
+      (setf (lock-acquisition.status flag) nil)
+      (if (consp flag)
+        (rplaca flag nil)
+        (if flag (report-bad-arg flag '(or lock-acquisition cons)))))
     (loop
       (without-interrupts
        (when (eql p owner)
@@ -443,7 +448,9 @@
                #+ppc64-target
                (%%get-unsigned-longlong lock ppc64::lockptr.count))
          (when flag
-           (rplaca flag t))
+           (if (consp flag)
+             (rplaca flag t)
+             (setf (lock-acquisition.status flag) t)))
          (return t))
        (when (eql 1 (%atomic-incf-ptr lock))
          (setf (%get-ptr lock target::lockptr.owner) p
@@ -452,20 +459,27 @@
                #+ppc64-target
                (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
          (if flag
-           (rplaca flag t))
+           (if (consp flag)
+             (rplaca flag t)
+             (setf (lock-acquisition.status flag) t)))
          (return t)))
       (%timed-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
 
-(defun %try-recursive-lock (lock)
+(defun %try-recursive-lock (lock &optional flag)
   (with-macptrs ((p)
 		 (owner (%get-ptr lock target::lockptr.owner)))
     (%setf-macptr-to-object p (%current-tcr))
+    (if flag
+      (if (istruct-typep flag 'lock-acquisition)
+        (setf (lock-acquisition.status flag) nil)
+        (report-bad-arg flag 'lock-acquisition)))
     (without-interrupts
      (cond ((eql p owner)
             (incf #+ppc32-target
                   (%get-unsigned-long lock ppc32::lockptr.count)
                   #+ppc64-target
                   (%%get-unsigned-longlong lock ppc64::lockptr.count))
+            (if flag (setf (lock-acquisition.status flag) t))
             t)
            ((eql 0 (%ptr-store-conditional lock 0 1))
             (setf (%get-ptr lock target::lockptr.owner) p
@@ -473,6 +487,7 @@
                   (%get-unsigned-long lock ppc32::lockptr.count)
                   #+ppc64-target
                   (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
+            (if flag (setf (lock-acquisition.status flag) t))
             t)
            (t nil)))))
 
