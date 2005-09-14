@@ -1,3 +1,41 @@
+2005-09-13 22:37  gb
+
+	* level-1/version.lisp: Bump; call it a "test" release.
+
+2005-09-13 22:36  gb
+
+	* xdump/heap-image.lisp: ABI-VERSION 1003.
+
+2005-09-13 22:30  gb
+
+	* lib/macros.lisp: %WITH-RECURSIVE-LOCK-PTR uses a
+	LOCK-ACQUISITION.
+
+2005-09-13 22:29  gb
+
+	* level-1/l1-processes.lisp: Locking primitives accept optional
+	LOCK-ACQUISITION objects.
+	
+	Accesors (get, clear) for LOCK-ACQUISITION objects; PRINT-OBJECT
+	method.
+
+2005-09-13 22:27  gb
+
+	* level-0/l0-misc.lisp: Accept and update a LOCK-ACQUISITION object
+	when locking (or trying to).
+
+2005-09-13 22:26  gb
+
+	* level-0/l0-hash.lisp: PUTHASH: don't complain about mapping
+	conflicts unless we try to remove something and it's not at the
+	current iteration index.
+
+2005-09-13 22:20  gb
+
+	* lib/ccl-export-syms.lisp: Export LOCK-ACQUISITION,
+	MAKE-LOCK-ACQUISITION, LOCK-ACQUISITION-STATUS, and
+	CLEAR-LOCK-ACQUISITION-STATUS.
+
 2005-09-13 21:12  gb
 
 	* library/lispequ.lisp: Accessor, constructor for LOCK-ACQUISITION.
