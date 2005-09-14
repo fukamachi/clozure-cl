@@ -1,3 +1,19 @@
+2005-09-13 19:32  gb
+
+	* lisp-kernel/image.c: On PPC64, save_application() writes the
+	image and section headers after writing the section contents,
+	maintains the offset from the end of those headers to the start of
+	section data in the (split) 64-bit section_data_offset field(s) of
+	the header.  (This should allow very large sections to be written;
+	the offset from the trailer at the end of the file to the header
+	has to fit in 32 bits, and - if the header preceded the section
+	data - would have constained the entire image to about 2GB.)
+
+2005-09-13 19:28  gb
+
+	* lisp-kernel/image.h: high half of PPC64 section_data_offset field
+	is signed, low half unsigned.
+
 2005-09-13 16:15  gb
 
 	* lisp-kernel/: image.h, image.c: Split section_data_offset in
