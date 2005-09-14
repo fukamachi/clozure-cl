@@ -1,3 +1,15 @@
+2005-09-13 21:12  gb
+
+	* library/lispequ.lisp: Accessor, constructor for LOCK-ACQUISITION.
+
+2005-09-13 21:11  gb
+
+	* level-1/l1-clos-boot.lisp: BUILT-IN-CLASS for LOCK-ACQUISITION.
+
+2005-09-13 21:08  gb
+
+	* release-notes.txt: Mention CPU-COUNT.
+
 2005-09-13 19:32  gb
 
 	* lisp-kernel/image.c: On PPC64, save_application() writes the
