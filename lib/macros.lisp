@@ -3022,19 +3022,20 @@ function free to deallocate the record, when it is no longer needed."
 
 (defmacro %with-recursive-lock-ptr ((lockptr) &body body)
   (let* ((locked (gensym)))
-    `(let ((,locked (cons nil nil)))
+    `(let ((,locked (make-lock-acquisition)))
       (declare (dynamic-extent ,locked))
       (unwind-protect
            (progn
              (%lock-recursive-lock ,lockptr ,locked )
              ,@body)
-        (when (car ,locked) (%unlock-recursive-lock ,lockptr))))))
+        (when (lock-acquisition.status ,locked) (%unlock-recursive-lock ,lockptr))))))
 
 (defmacro %with-recursive-lock-ptr-maybe ((lockptr) &body body)
   `(when (%try-recursive-lock ,lockptr)
     (unwind-protect
 	 (progn ,@body)
       (%unlock-recursive-lock ,lockptr))))
+
 
 (defmacro with-recursive-lock ((lock) &body body)
   (let* ((p (gensym)))
