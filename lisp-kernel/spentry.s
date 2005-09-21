@@ -484,6 +484,7 @@ C(egc_set_hash_key):
         __(strcx(imm1,imm2,imm0))
         __(bne- 1b)
         __(isync)
+2:              
         __(ref_global(imm1,heap_start))
         __(sub imm0,arg_x,imm1)
         __(srri(imm0,imm0,dnode_shift))
