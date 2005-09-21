@@ -1,3 +1,9 @@
+2005-09-21 02:57  gb
+
+	* lisp-kernel/spentry.s: In _SPset_hash_key, ensure that a local
+	label "2" is defined (so that "(bne 2f)" branches to the right
+	place.)
+
 2005-09-13 22:37  gb
 
 	* level-1/version.lisp: Bump; call it a "test" release.
