@@ -215,7 +215,7 @@
 
     (without-interrupts
      (setf (hti.hash-table state) hash)
-     (write-lock-rwlock (nhash.exclusion-lock hash))
+     (lock-hash-table hash)
      (%lock-gc-lock)
      (setq vector (nhash.vector hash))
      (setf (hti.vector state) vector)
@@ -255,7 +255,8 @@
   (without-interrupts
    (let ((hash (hti.hash-table state)))
      (when hash
-       (unlock-rwlock (nhash.exclusion-lock hash))
+       (setf (hti.hash-table state) nil)
+       (unlock-hash-table hash)
        (%unlock-gc-lock)
        (when (eq state (nhash.iterator hash))
          (setf (nhash.iterator hash) (hti.prev-iterator state)))
