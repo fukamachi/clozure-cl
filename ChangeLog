@@ -1,3 +1,11 @@
+2005-09-22 22:39  gb
+
+	* level-1/version.lisp: Bump, 1.0-rc1.
+
+2005-09-22 22:39  gb
+
+	* lib/setf.lisp: Back out of change to DECF, 'til after 1.0.
+
 2005-09-21 04:37  gb
 
 	* lib/hash.lisp: START-HASH-TABLE-ITERATOR: use LOCK-HASH-TABLE
