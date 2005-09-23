@@ -308,6 +308,11 @@
   "The first argument is some location holding a number.  This number is
 incremented by the second argument, DELTA, which defaults to 1.")
 
+(define-modify-macro decf (&optional (delta 1)) -
+  "The first argument is some location holding a number.  This number is
+decremented by the second argument, DELTA, which defaults to 1.")
+
+#|
 (defmacro decf (place &optional (delta 1) &environment env)
   "The first argument is some location holding a number.  This number is
 decremented by the second argument, DELTA, which defaults to 1."
@@ -318,6 +323,7 @@ decremented by the second argument, DELTA, which defaults to 1."
               (,d ,delta)
                 (,(car newval) (- ,getter ,d)))
          ,setter))))
+|#
   
 (defmacro psetf (&whole call &rest pairs &environment env)  ;same structure as psetq
   "This is to SETF as PSETQ is to SETQ. Args are alternating place
