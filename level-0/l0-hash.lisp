@@ -522,7 +522,7 @@ before doing so.")
                     (%cons-nhash-vector total-size flags)
                     size rehash-threshold rehash-size address-based
                     find-function find-put-function
-                    (unless shared (%current-tcr)))))
+                    (unless shared *current-process*))))
         (setf (nhash.vector.hash (nhash.vector hash)) hash)
         hash))))
 
@@ -641,7 +641,7 @@ before doing so.")
   (let* ((lock (nhash.exclusion-lock hash)))
     (if lock
       (write-lock-rwlock-disable-interrupts lock)
-      (progn (unless (eq (nhash.owner hash) (%current-tcr))
+      (progn (unless (eq (nhash.owner hash) *current-process*)
                (error "Not owner of hash table ~s" hash))
              (disable-lisp-interrupts )))))
 

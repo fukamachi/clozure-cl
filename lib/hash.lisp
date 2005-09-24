@@ -282,7 +282,7 @@
         (keytransF (nhash.keytransF hash))
         (compareF (nhash.compareF hash))
         (vector (nhash.vector hash))
-        (private (if (nhash.owner hash) '(%current-tcr)))
+        (private (if (nhash.owner hash) '*current-process*))
         (count (nhash.count hash)))
     (flet ((convert (f)
              (if (or (fixnump f) (symbolp f))
@@ -329,7 +329,7 @@
      (if lock
        (write-lock-rwlock lock)
        (progn
-         (unless (eq (nhash.owner hash-table) (%current-tcr))
+         (unless (eq (nhash.owner hash-table) *current-process*)
            (error "Current process doesn't own hash-table ~s" hash-table))))
      (push hash-table *fcomp-locked-hash-tables*))))
 
