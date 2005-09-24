@@ -655,10 +655,12 @@ mark_root(LispObj n)
         /* Don't invalidate the cache here.  It should get
            invalidated on the lisp side, if/when we know
            that rehashing is necessary. */
-#if 0
-        ((hash_table_vector_header *) base)->cache_key = undefined;
-        ((hash_table_vector_header *) base)->cache_value = lisp_nil;
-#endif
+        LispObj flags = ((hash_table_vector_header *) base)->flags;
+
+        if (flags & nhash_weak_mask) {
+          ((hash_table_vector_header *) base)->cache_key = undefined;
+          ((hash_table_vector_header *) base)->cache_value = lisp_nil;
+        }
         deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = n;
         return;
@@ -899,12 +901,19 @@ rmark(LispObj n)
 
       if (subtag == subtag_hash_vector) {
         /* Splice onto weakvll, then return */
-        /* Don't invalidate the cache here; that should happen on
-           the lisp side of things if anything moves */
-#if 0
-        ((hash_table_vector_header *) base)->cache_key = undefined;
-        ((hash_table_vector_header *) base)->cache_value = lisp_nil;
-#endif
+        /* In general, there's no reason to invalidate the cached
+           key/value pair here.  However, if the hash table's weak,
+           we don't want to retain an otherwise unreferenced key
+           or value simply because they're referenced from the
+           cache.  Clear the cached entries iff the hash table's
+           weak in some sense.
+        */
+        LispObj flags = ((hash_table_vector_header *) base)->flags;
+
+        if (flags & nhash_weak_mask) {
+          ((hash_table_vector_header *) base)->cache_key = undefined;
+          ((hash_table_vector_header *) base)->cache_value = lisp_nil;
+        }
         deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = n;
         return;
@@ -1066,10 +1075,13 @@ rmark(LispObj n)
 
       if (subtag == subtag_hash_vector) {
         /* Splice onto weakvll, then climb */
-#if 0
-        ((hash_table_vector_header *) base)->cache_key = undefined;
-        ((hash_table_vector_header *) base)->cache_value = lisp_nil;
-#endif
+        LispObj flags = ((hash_table_vector_header *) base)->flags;
+
+        if (flags & nhash_weak_mask) {
+          ((hash_table_vector_header *) base)->cache_key = undefined;
+          ((hash_table_vector_header *) base)->cache_value = lisp_nil;
+        }
+
         deref(ptr_to_lispobj(base),1) = GCweakvll;
         GCweakvll = this;
         goto Climb;
@@ -1318,10 +1330,13 @@ mark_simple_area_range(LispObj *start, LispObj *end)
       natural size = (element_count+1 + 1) & ~1;
 
       if (subtag == subtag_hash_vector) {
-#if 0
-        ((hash_table_vector_header *) start)->cache_key = undefined;
-        ((hash_table_vector_header *) start)->cache_value = lisp_nil;
-#endif
+        LispObj flags = ((hash_table_vector_header *) start)->flags;
+
+        if (flags & nhash_weak_mask) {
+          ((hash_table_vector_header *) start)->cache_key = undefined;
+          ((hash_table_vector_header *) start)->cache_value = lisp_nil;
+        }
+
         start[1] = GCweakvll;
         GCweakvll = (LispObj) (((natural) start) + fulltag_misc);
       } else {
