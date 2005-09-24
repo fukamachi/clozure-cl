@@ -1,3 +1,17 @@
+2005-09-24 05:03  gb
+
+	* lisp-kernel/gc.c: Clear hash-table-vector caches if the
+	hash-table is weak (on key or value.)
+	
+	Could be smarter about this (e.g., treat them as weak references),
+	but don't want things to stay around just because they're
+	referenced from the cache.
+
+2005-09-24 04:43  gb
+
+	* lisp-kernel/plbt.c: #include <stdint.h>, so that this compiles
+	under Jaguar.
+
 2005-09-22 22:39  gb
 
 	* level-1/version.lisp: Bump, 1.0-rc1.
