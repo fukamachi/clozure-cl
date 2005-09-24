@@ -23,6 +23,7 @@
 #ifdef DARWIN
 #ifndef PPC64
 #undef undefined
+#include <stdint.h>
 #include <mach-o/dyld.h>
 #include <mach-o/nlist.h>
 
