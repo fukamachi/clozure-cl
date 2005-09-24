@@ -1,3 +1,17 @@
+2005-09-24 16:05  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-09-24 15:53  gb
+
+	* lisp-kernel/image.h: Bump ABI_VERSION_MIN.
+
+2005-09-24 15:52  gb
+
+	* level-0/l0-hash.lisp, lib/hash.lisp: Thread-private hash tables
+	store/check *CURRENT-PROCESS* instead of (%CURRENT-TCR), since TCRs
+	get recycled.
+
 2005-09-24 05:03  gb
 
 	* lisp-kernel/gc.c: Clear hash-table-vector caches if the
