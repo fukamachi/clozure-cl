@@ -2586,8 +2586,9 @@ defcallback returns the callback pointer, e.g., the value of name."
                 (let ((,result (progn ,@body)))
                   (declare (ignorable ,result))
                   ,@(progn
+                     ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
 		     (when (eq return-type :single-float)
-		       (setq result `(float ,result 0.0f0)))
+		       (setq result `(float ,result 0.0d0)))
 		     nil)
                   (when trace-after
                     (when *trace-print-hook* 
@@ -2607,8 +2608,7 @@ defcallback returns the callback pointer, e.g., the value of name."
                                    (:address '%get-ptr)
                                    (:signed-doubleword '%%get-signed-longlong)
                                    (:unsigned-doubleword '%%get-unsigned-longlong)
-                                   (:double-float '%get-double-float)
-                                   (:single-float '%get-single-float)
+                                   ((:double-float :single-float) '%get-double-float)
                                    (t '%get-long)) ,stack-ptr ,offset) ,result))))))))
     (if error-return
       (let* ((cond (gensym)))
