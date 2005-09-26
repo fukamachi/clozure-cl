@@ -1,3 +1,10 @@
+2005-09-26 08:57  gb
+
+	* lib/macros.lisp: In DEFCALLBACK-BODY, coerce SINGLE-FLOAT result
+	to DOUBLE-FLOAT, store in argument area via (SETF
+	(%GET-DOUBLE-FLOAT ,stack-ptr ,offset)).  (E.g., un-break what got
+	broken a month or so ago.)
+
 2005-09-24 16:05  gb
 
 	* level-1/version.lisp: Bump.
