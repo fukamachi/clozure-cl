@@ -27,7 +27,10 @@
    #+(and asdf (or :win32 :mswindows))
    #:sysdef-source-dir-search
    #:uninstall
-   #:install))
+   #:install
+   ;; proxy authentication
+   #:*proxy-user*
+   #:*proxy-passwd*))
 
 (defpackage :asdf-install-customize
   (:use "CL" "ASDF-INSTALL"))

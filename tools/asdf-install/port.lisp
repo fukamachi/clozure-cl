@@ -20,7 +20,7 @@
   #+:allegro (sys:getenv name)
   #+:lispworks (lw:environment-variable name)
   #+:clisp (ext:getenv name)
-  #+:mcl (ccl::getenv name))
+  #+(or :mcl :openmcl) (ccl::getenv name))
 
 #-:digitool
 (defun system-namestring (pathname)

@@ -57,6 +57,8 @@ Lisp implementation.
   <ol>
     <li><a href="#*gnu-tar-program*">Special variable <code>*GNU-TAR-PROGRAM*</code></a>
     <li><a href="#*proxy*">Special variable <code>*PROXY*</code></a>
+    <li><a href="#*proxy-user*">Special variable <code>*PROXY-USER*</code></a>
+    <li><a href="#*proxy-passwd*">Special variable <code>*PROXY-PASSWD*</code></a>
     <li><a href="#*cclan-mirror*">Special variable <code>*CCLAN-MIRROR*</code></a>
     <li><a href="#*verify-gpg-signatures*">Special variable <code>*VERIFY-GPG-SIGNATURES*</code></a>
     <li><a href="#*safe-url-prefixes*">Special variable <code>*SAFE-URL-PREFIXES*</code></a>
@@ -139,11 +141,11 @@ href="mailto:edi@agharta.de">provide patches</a> to make ASDF-INSTALL
 available on more platforms.
 <p>
 The original ASDF-INSTALL is distributed with SBCL. The
-&quot;portable&quot; version, while still being tested, is currently
+&quot;portable&quot; version is
 available from <a
-href="http://weitz.de/files/asdf-install.tar.gz">http://weitz.de/files/asdf-install.tar.gz</a>. It
-will probably be moved to another place like <a
-href="http://www.cliki.net/cclan">CCLAN</a> once it's deemed stable enough.
+href="http://weitz.de/files/asdf-install.tar.gz">http://weitz.de/files/asdf-install.tar.gz</a> and also
+from <a
+href="http://www.cliki.net/cclan">CCLAN</a>.
 
 <br>&nbsp;<br><h3><a class=none name="pre">Prerequisites</a></h3>
 
@@ -159,11 +161,10 @@ href="#*verify-gpg-signatures*">below</a> - but it is recommended if
 you want to be reasonable sure that you're not installing arbitrary
 malicious code.)
 
-<p>
-<font><em>Update:</em></font> Beginning with version 0.14.1
-ASDF-INSTALL is already included with the OpenMCL distribution so
-OpenMCL basically behaves like SBCL in the following sections. See the
-OpenMCL docs for details.
+<p> <font><em>Update:</em></font> Beginning with version 0.14.1
+ASDF-INSTALL is already included with the OpenMCL distribution.  Also,
+AllegroCL 7.0 and higher include ASDF (but not ASDF-INSTALL.) See
+below for details.
 
 <p>
 <font><em>Note:</em></font> For MCL you must start
@@ -192,7 +193,7 @@ be, on Windows this is not the case. Read the docs of your Lisp.
 
 <h4><a class=none name="install-asdf">Installing ASDF</a></h4>
 
-(<a href="#load-asdf">Skip</a> this section if you use SBCL or AllegroCL 7.0 or higher.) <a
+(<a href="#load-asdf">Skip</a> this section if you use SBCL or OpenMCL or AllegroCL 7.0 or higher.) <a
 href="http://weitz.de/files/asdf.lisp">Download</a> ASDF and put the
 file <code>asdf.lisp</code> in a place where you want it to
 stay. Change into this directory and, from your Lisp, issue the
@@ -228,6 +229,7 @@ case you'll use interpreted code.
 fully ANSI-compliant. You can download a compiled version (which
 should work with all operating systems supported by CLISP) from <a
 href="http://weitz.de/files/asdf.fas">http://weitz.de/files/asdf.fas</a>.
+Newer versions (like&nbsp;2.33.2) <em>can</em> compile ASDF, though.
 
 <h4><a class=none name="load-asdf">Loading ASDF automatically</a></h4>
 
@@ -263,9 +265,9 @@ list</a>. Our use of the <em>read-time conditional</em> <a
 href="http://www.lispworks.com/reference/HyperSpec/Body/02_dhr.htm">Sharpsign
 Minus</a> thus makes sure that ASDF isn't loaded a second time if it's
 already there. (So you can safely save and use an image with ASDF
-pre-loaded without changing your image file.)
+pre-loaded without changing your init file.)
 <p>
-If you're using SBCL or AllegroCL 7.0 or higher <em>don't</em> add the line from above but use
+If you're using SBCL or OpenMCL or AllegroCL 7.0 or higher <em>don't</em> add the line from above but use
 
 <pre>
 (require :asdf)
@@ -297,6 +299,7 @@ path to your home directory because not all Lisps support the tilde
 notation.) We will call the directory you've chosen your <a class=none
 name=registry><em>registry</em></a> from now on.
 
+
 <p>
 
 <em>Note:</em> It is important that you add a <em>directory</em> here,
@@ -318,7 +321,7 @@ deal with this as ASDF-INSTALL will do that for you.
 putting something like
 
 <pre>
-alias lispworks="usr/local/lib/LispWorksPersonal/lispworks-personal-4300 -init ~/.lispworks"
+alias lispworks="/usr/local/lib/LispWorksPersonal/lispworks-personal-4300 -init ~/.lispworks"
 </pre>
 
 into your <code>~/.bashrc</code> file.
@@ -344,6 +347,12 @@ cd /path/to/your/registry/
 ln -s /path/where/you/unpacked/asdf-install/asdf-install.asd .
 </pre>
 
+<p>For OpenMCL you don't have to download ASDF-INSTALL because it's
+already there - it's in <code>/path/to/ccl/tools/asdf-install/</code>
+where <code>/path/to/ccl/</code> is the directory where you installed
+OpenMCL.  You have to provide the symlink, though.
+
+<p>
 Now start your Lisp and issue the following command:
 
 <pre>
@@ -799,6 +808,11 @@ value of the environment variable <code>$http_proxy</code> (if it's
 set) prior to loading <code>~/.asdf-install</code>. Set this to a
 non-<code>NIL</code> value if you need to go through an http proxy.
 
+<h4><a class=none name="*proxy-user*">Special variable <code>*PROXY-USER*</code></a></h4>
+<h4><a class=none name="*proxy-passwd*">Special variable <code>*PROXY-PASSWD*</code></a></h4>
+
+Use these variables if your <a href="#*proxy*">proxy</a> requires authentication.
+
 <h4><a class=none name="*cclan-mirror*">Special variable <code>*CCLAN-MIRROR*</code></a></h4>
 
 This variable is set to
@@ -987,8 +1001,12 @@ what it is about to remove before you confirm.
 <br>&nbsp;<br><h3><a class=none name="changelog">Changelog</a></h3>
 
 <table border=0>
-<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-12-29</td><td>Added COPYRIGHT file to distribution.</td></tr>
-<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-09-13</td><td>Added information about AllegroCL 7.0 and OpenMCL 0.14.1.</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2005-09-27</td><td>Small change for compatibility with future OpenMCL versions (thanks to Bryan O'Connor)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2005-07-14</td><td>Updated note about CLISP (thanks to Henri Lenzi)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2005-06-01</td><td>Added proxy authentication code (thanks to Sean Ross)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2005-02-16</td><td>More OpenMCL details (thanks to Jim Thompson)</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-12-29</td><td>Added COPYRIGHT file to distribution</td></tr>
+<tr><td colspan=2 valign=top style='white-space:nowrap'>2004-09-13</td><td>Added information about AllegroCL 7.0 and OpenMCL 0.14.1</td></tr>
 <tr><td colspan=2 valign=top style='white-space:nowrap'>2004-09-08</td><td>Fixed typo in <code>GET-ENV-VAR</code> and added special variable <code>*GNU-TAR-PROGRAM*</code> (both thanks to Raymond Toy)</td></tr>
 <tr><td colspan=2 valign=top style='white-space:nowrap'>2004-05-20</td><td>Changed hyphens to underlines in names of environment variables (thanks to Robert P. Goldman)</td></tr>
 <tr><td colspan=2 valign=top style='white-space:nowrap'>2004-05-19</td><td>Mentioned Alex Mizrahi's notes, added version number for MK:DEFSYSTEM in docs and SPLIT-SEQUENCE dependency in ASDF system definition (thanks to Robert P. Goldman and Robert Lehr)</td></tr>
@@ -1006,7 +1024,7 @@ what it is about to remove before you confirm.
 
 <br>&nbsp;<br><h3><a class=none name="copyright">Copyright</a></h3>
 
-Copyright (c) 2004 <a HREF="http://www.weitz.de/">Dr. Edmund Weitz</a>.  All rights reserved.
+Copyright (c) 2004-2005 <a HREF="http://www.weitz.de/">Dr. Edmund Weitz</a>.  All rights reserved.
 
 <br>&nbsp;<br><h3><a class=none name="license">License</a></h3>
 
