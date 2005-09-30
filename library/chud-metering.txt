@@ -80,13 +80,17 @@ and ensure that the code that you want to profile is defined.
     (if (zerop n)
       1
       (* n (fact (1- n)))))
+FACT
+? (defun fact-n-m-times (m n)
+    (dotimes (i m)
+      (fact n)))
+FACT-N-M-TIMES
 
 Then run something with metering enabled:
 
-? (CHUD:METER (dotimes (i 1000) (fact 1000)))
+? (CHUD:METER (fact-n-m-times 1000 1000))
 
-The first time that CHUD:METER is invoked in a lisp 
-session, it'll:
+The first time that CHUD:METER is invoked in a lisp session, it'll:
 
 1. Ensure that Shark is running
 
@@ -96,6 +100,7 @@ session, it'll:
 3. Write a Shark "spatch" file to the user's home 
    directory (which is where we configure Shark to look 
    for such files back in the "Prerequisites" section.)
+   See also CHUD:*SPATCH-DIRECTORY-PATH*.
 
 4. Try to ensure that Shark is running in "remote" mode. 
    (I don't know of any way in which this can be ensured 
@@ -143,6 +148,33 @@ get them back in synch again.
 
 Despite these limitations, it's probably fair to say that this is way,
 way better than nothing.
+
+ Reference
+
+(CHUD:METER form &key (duration 0) (frequency 1))  [Macro]
+
+Ensures that access to the "remote sampling facility" (Shark, usually)
+has been acquired, ensure that code vectors have been purified and
+that an spatch file for the current process is writen to the directory
+named by CHUD:*SPATCH-DIRECTORY-PATH* (or the user's home directory),
+and starts and stops the sampling facility around execution of <form>.
+Returns whatever values execution of <form> returns.
+
+Arguments
+  <form>        an arbitrary lisp expression
+  <frequency>   sampling frequency in milliseconds
+  <duration>    total number of sampling intervals, 0 implies "infinite".
+
+It seems that the <frequency> and <duration> arguments have no effect;
+the sampling frequency and duration can be set via Shark's "configuration
+editor" dialog.
+
+CHUD:*SPATCH-DIRECTORY-PATH*  [Special Variable]
+
+If non-NIL, should be a pathname whose directory component matches the
+"Patch FIles" search path in Shark's Preferences.  When this variable
+is NIL, USER-HOMEDIR-PATHNAME is used instead.
+
 
  Acknowledgments
 
