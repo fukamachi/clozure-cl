@@ -401,9 +401,9 @@ a given process."
     (report-bad-arg thing 'lock-acquisition)))
 
 (defun clear-lock-acquisition-status (thing)
-  (if (istruct-typep thing 'lock-acquistion)
+  (if (istruct-typep thing 'lock-acquisition)
     (setf (lock-acquisition.status thing) nil)
-    (report-bad-arg thing 'lock-acquistion)))
+    (report-bad-arg thing 'lock-acquisition)))
 
 (defmethod print-object ((l lock-acquisition) stream)
   (print-unreadable-object (l stream :type t :identity t)
