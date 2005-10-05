@@ -1,3 +1,7 @@
+2005-10-05 12:17  gb
+
+	* level-1/l1-processes.lisp: Fix typo.
+
 2005-09-30 12:51  gb
 
 	* library/chud-metering.txt: Flesh out a bit more.
