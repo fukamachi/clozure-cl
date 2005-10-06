@@ -1,3 +1,13 @@
+2005-10-06 12:53  gb
+
+	* level-1/version.lisp: Bump: "post-051006".
+
+2005-10-06 12:27  gb
+
+	* lib/macros.lisp: DEFCALLBACK-BODY: ppc64 changes: store all (64
+	of 'em) bits of an integer return value. Store float return values
+	2 natural words (16 bytes) into the argument area.
+
 2005-10-05 12:17  gb
 
 	* level-1/l1-processes.lisp: Fix typo.
