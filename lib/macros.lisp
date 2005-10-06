@@ -2539,7 +2539,10 @@ defcallback returns the callback pointer, e.g., the value of name."
 (defun defcallback-body (name stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta trace-args trace-result-type #+poweropen-target fp-arg-ptr)
   (let* ((result (gensym))
          (offset (case return-type
-                   ((:single-float :double-float) 8)
+                   ((:single-float :double-float)
+                    #+ppc32-target 8
+                    #+ppc64-target 16
+                    )
                    (t 0)))
          (condition-name (if (atom error-return) 'error (car error-return)))
          (error-return-function (if (atom error-return) error-return (cadr error-return)))
@@ -2609,7 +2612,8 @@ defcallback returns the callback pointer, e.g., the value of name."
                                    (:signed-doubleword '%%get-signed-longlong)
                                    (:unsigned-doubleword '%%get-unsigned-longlong)
                                    ((:double-float :single-float) '%get-double-float)
-                                   (t '%get-long)) ,stack-ptr ,offset) ,result))))))))
+                                   (t #+ppc32-target '%get-long
+                                      #+ppc64-target '%%get-signed-longlong)) ,stack-ptr ,offset) ,result))))))))
     (if error-return
       (let* ((cond (gensym)))
         `(handler-case ,body
