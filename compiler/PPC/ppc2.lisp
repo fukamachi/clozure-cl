@@ -3724,6 +3724,11 @@
           (setq absptr nil))
         (and offval (%i> (integer-length offval) 15) (setq offval nil))
         (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
+        (target-arch-case
+         (:ppc32 (progn))
+         (:ppc64 (progn
+                   (and offval (logtest 3 offval) (setq offval nil))
+                   (and absptr (logtest 3 absptr) (setq absptr nil)))))
         (if absptr
           (multiple-value-bind (address node) (address-and-node-regs)
             (! mem-set-c-address address ppc::rzero absptr)
@@ -3869,6 +3874,11 @@
             (setq absptr nil))
           (and offval (%i> (integer-length offval) 15) (setq offval nil))
           (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
+          (target-arch-case
+           (:ppc32 (progn))
+           (:ppc64 (when (eql size 8)
+                     (and offval (logtest 3 offval) (setq offval nil))
+                     (and absptr (logtest 3 absptr) (setq absptr nil)))))
           (if absptr
             (if intval
               (with-imm-target () (val-target :s32)
@@ -6463,6 +6473,11 @@
              (setq absptr nil))
            (and offval (%i> (integer-length offval) 15) (setq offval nil))
            (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
+           (target-arch-case
+            (:ppc32 (progn))
+            (:ppc64 (progn
+                      (and offval (logtest 3 offval) (setq offval nil))
+                      (and absptr (logtest 3 absptr) (setq absptr nil)))))
            (if absptr
              (! mem-ref-c-natural dest ppc::rzero absptr)
              (if offval
@@ -6547,6 +6562,11 @@
              (setq absptr nil))
            (and offval (%i> (integer-length offval) 15) (setq offval nil))
            (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
+           (target-arch-case
+            (:ppc32 (progn))
+            (:ppc64 (when (or fixnump (eql size 8) (and (eql size 8) signed))
+                      (and offval (logtest 3 offval) (setq offval nil))
+                      (and absptr (logtest 3 absptr) (setq absptr nil))))) 
            (cond
              (fixnump
               (with-imm-target () (dest :signed-natural)
