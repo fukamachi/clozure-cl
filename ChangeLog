@@ -1,3 +1,17 @@
+2005-10-15 16:14  gb
+
+	* compiler/PPC/ppc2.lisp: On PPC64, 64-bit memory accesses
+	(accesses to signed/unsigned 64-bit integers or to pointers) with a
+	constant 16-bit offset can only use LD/STD if the low 2 bits of
+	that offset are 0.  Something like:
+	
+	(%get-ptr p 3)
+	
+	would have elicited a warning from the assembler that it's clearing
+	those low 2 bits for you; that's maybe better than generating the
+	wrong instruction, but it doesn't lead to "the pointer 3 bytes from
+	p" being returned, either ...
+
 2005-10-06 12:53  gb
 
 	* level-1/version.lisp: Bump: "post-051006".
