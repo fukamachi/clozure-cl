@@ -702,14 +702,20 @@ xNewThread(natural control_stack_size,
   LOCK(lisp_global(AREA_LOCK),current);
   activation.tcr = new_tcr(value_stack_size, temp_stack_size);
   UNLOCK(lisp_global(AREA_LOCK),current);
-  activation.created = new_semaphore(0);
-  create_system_thread(control_stack_size +(CSTACK_HARDPROT+CSTACK_SOFTPROT), 
-		       NULL, 
-		       lisp_thread_entry,
-		       (void *) &activation);
-
-  SEM_WAIT(activation.created);	/* Wait until thread's entered its initial function */
-  destroy_semaphore(&activation.created);
+  if (activation.tcr) {
+    activation.created = new_semaphore(0);
+    if (create_system_thread(control_stack_size +(CSTACK_HARDPROT+CSTACK_SOFTPROT), 
+                             NULL, 
+                             lisp_thread_entry,
+                             (void *) &activation)) {
+      
+      SEM_WAIT_FOREVER(activation.created);	/* Wait until thread's entered its initial function */
+    } else {
+      activation.tcr->shutdown_count = 1;
+      shutdown_thread_tcr(TCR_TO_TSD(activation.tcr));
+    }
+    destroy_semaphore(&activation.created);
+  }
   return TCR_TO_TSD(activation.tcr);
 }
 
