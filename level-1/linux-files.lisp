@@ -37,24 +37,31 @@
     (semaphore.value s)
     (semaphore-value (require-type s 'semaphore))))
 
-(defun %wait-on-semaphore-ptr (s seconds nanoseconds)
+(defun %wait-on-semaphore-ptr (s seconds nanoseconds &optional flag)
+  (if flag
+    (if (istruct-typep flag 'semaphore-notification)
+      (setf (semaphore-notification.status flag) nil)
+      (report-bad-arg flag 'semaphore-notification)))
+  (without-interrupts
    (let* ((status (ff-call
-		 (%kernel-import target::kernel-import-wait-on-semaphore)
-		 :address s
-		 :unsigned seconds
-		 :unsigned nanoseconds
-		 :signed)))
+                   (%kernel-import target::kernel-import-wait-on-semaphore)
+                   :address s
+                   :unsigned seconds
+                   :unsigned nanoseconds
+                   :signed))
+          (result (zerop status)))     
      (declare (fixnum status))
-     (values (zerop status) status)))
+     (when flag (setf (semaphore-notification.status flag) result))
+     (values result status))))
 
 (defun %timed-wait-on-semaphore-ptr (s seconds nanoseconds &optional
-                                       (whostate "semaphore wait"))
-  (process-wait whostate #'%wait-on-semaphore-ptr s seconds nanoseconds))
+                                       (whostate "semaphore wait") flag)
+  (process-wait whostate #'%wait-on-semaphore-ptr s seconds nanoseconds flag))
   
-(defun wait-on-semaphore (s)
+(defun wait-on-semaphore (s &optional flag)
   "Wait until the given semaphore has a positive count which can be
 atomically decremented."
-  (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0)
+  (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0 "semaphore wait" flag)
   t)
 
 (defun timed-wait-on-semaphore (s duration)
