@@ -1227,12 +1227,20 @@
     )
 
 (def-accessors (lock-acquisition) %svref
-  nil                                   ; lock-status
+  nil                                   ; 'lock-acquisition
   lock-acquisition.status
   )
 
 (defmacro make-lock-acquisition ()
   `(%istruct 'lock-acquisition nil))
+
+(def-accessors (semaphore-notification) %svref
+  nil                                   ; 'semaphore-notification
+  semaphore-notification.status
+  )
+
+(defmacro make-semaphore-notification ()
+  `(%istruct 'semaphore-notification nil))
 
 (provide "LISPEQU")
 
