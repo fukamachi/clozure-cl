@@ -420,8 +420,7 @@
 				     ;; return to the reset state
 				     (%process-reset nil)))
 	 (thread-enable thread 0)
-         t))))
-  nil)
+         t)))))
 
 (defun thread-handle-interrupts ()
   (let* ((thread *current-lisp-thread*))
