@@ -1603,6 +1603,7 @@ to replace that class with ~s" name old-class new-class)
 (defvar *read-write-lock-class* (make-built-in-class 'read-write-lock *lock-class*))
 
 (make-built-in-class 'lock-acquisition *istruct-class*)
+(make-built-in-class 'semaphore-notification *istruct-class*)
 
 (make-built-in-class 'slot-id *istruct-class*)
 (make-built-in-class 'value-cell)
