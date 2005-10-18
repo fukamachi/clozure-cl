@@ -1,3 +1,50 @@
+2005-10-17 22:52  gb
+
+	* lisp-kernel/thread_manager.c: In xNewThread, try to detect
+	stack/thread initialization failures.  SEM_WAIT_FOREVER for new
+	thread activation.
+
+2005-10-17 22:51  gb
+
+	* lisp-kernel/lisp-exceptions.c: Don't maintain
+	tcr.suspend_total_on_exception_entry.
+
+2005-10-17 22:50  gb
+
+	* library/lispequ.lisp: SEMAPHORE-NOTIFICATION stuff.
+
+2005-10-17 22:49  gb
+
+	* lib/ccl-export-syms.lisp: PROCESS-KILL-ISSUED,
+	SEMAPHORE-NOTIFICATION-STATUS, CLEAR-SEMAPHORE-NOTIFICATION-STATUS,
+	SEMAPHORE-NOTIFICATION, MAKE-SEMAPHORE-NOTIFICATION.
+
+2005-10-17 22:47  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-10-17 22:46  gb
+
+	* level-1/linux-files.lisp: WAIT-ON-SEMAPHORE can accept a
+	SEMAPHORE-NOTIFICATION object and set its status atomically.
+
+2005-10-17 22:46  gb
+
+	* level-1/l1-processes.lisp: SEMAPHORE-NOTIFICATION stuff. 
+	PROCESS-INTERRIPT returns T on success.  Add PROCESS-KILL-ISSUED
+	and SETF of it; make PROCESS-KILL set PROCESS-KILL-ISSUED.
+
+2005-10-17 22:37  gb
+
+	* level-1/l1-lisp-threads.lisp: INIT-THREAD-FROM-TCR, NEW-TCR:
+	maybe no TCR, maybe no stack areas if out of memory/ out of thread
+	resources.  THREAD-INTERRUPT returns T if a thread exists and a
+	signal is successfully delivered.
+
+2005-10-17 22:35  gb
+
+	* level-1/l1-clos-boot.lisp: SEMAPHORE-NOTIFICATION objects.
+
 2005-10-15 16:14  gb
 
 	* compiler/PPC/ppc2.lisp: On PPC64, 64-bit memory accesses
