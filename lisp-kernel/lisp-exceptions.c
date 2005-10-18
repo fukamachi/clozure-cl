@@ -1308,23 +1308,7 @@ PMCL_exception_handler(int xnum,
     status = handle_alloc_trap(xp, tcr);
   } else if ((xnum == SIGSEGV) ||
 	     (xnum == SIGBUS)) {
-    if (tcr->suspend_total != 
-        tcr->suspend_total_on_exception_entry) {
-      /*
-        This thread's been suspended since the exception occurred
-        (possibly by the GC); that makes it hard to do anything
-        meaningful about protection violations - there's no guarantee
-        that the addess in question is still protected, the object
-        being written to may have moved, etc.  Retry the instuction.
-        If it faults again, hopefully it'll eventually do so in an
-        environment where this handler runs without having been
-        suspended.  Note that a pending write to tenured space hasn't
-        happened yet.
-      */
-      status = 0;
-    } else {
-      status = handle_protection_violation(xp, info);
-    }
+    status = handle_protection_violation(xp, info);
   } else if (xnum == SIGFPE) {
     status = handle_sigfpe(xp, tcr);
   } else if ((xnum == SIGILL) || (xnum == SIGTRAP)) {
@@ -1759,8 +1743,6 @@ prepare_to_wait_for_exception_lock(TCR *tcr,
   int old_valence = tcr->valence;
 
   tcr->pending_exception_context = context;
-  tcr->suspend_total_on_exception_entry =
-    tcr->suspend_total;
   tcr->valence = TCR_STATE_EXCEPTION_WAIT;
 
   ALLOW_EXCEPTIONS(context);
@@ -2489,8 +2471,6 @@ setup_signal_frame(mach_port_t thread,
   lss->uc_onstack = 0;
   lss->uc_sigmask = (sigset_t) 0;
   tcr->pending_exception_context = lss;
-  tcr->suspend_total_on_exception_entry =
-    tcr->suspend_total;
   tcr->valence = TCR_STATE_EXCEPTION_WAIT;
   
 
