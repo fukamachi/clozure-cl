@@ -403,6 +403,7 @@
      process-wait
      process-wait-with-timeout
      process-allow-schedule
+     process-kill-issued
      
      make-lock
      lock-name
@@ -418,6 +419,11 @@
      clear-lock-acquisition-status
      lock-acquisition
      make-lock-acquisition
+
+     semaphore-notification-status
+     clear-semaphore-notification-status
+     semaphore-notification
+     make-semaphore-notification
      
      make-read-write-lock
      with-read-lock
