@@ -409,6 +409,19 @@ a given process."
   (print-unreadable-object (l stream :type t :identity t)
     (format stream "[status = ~s]" (lock-acquisition-status l))))
 
+(defun semaphore-notification-status (thing)
+  (if (istruct-typep thing 'semaphore-notification)
+    (semaphore-notification.status thing)
+    (report-bad-arg thing 'semaphore-notification)))
+
+(defun clear-semaphore-notification-status (thing)
+  (if (istruct-typep thing 'semaphore-notification)
+    (setf (semaphore-notification.status thing) nil)
+    (report-bad-arg thing 'semaphore-notification)))
+
+(defmethod print-object ((l semaphore-notification) stream)
+  (print-unreadable-object (l stream :type t :identity t)
+    (format stream "[status = ~s]" (semaphore-notification-status l))))
 
 (defun process-wait (whostate function &rest args)
   "Causes the current lisp process (thread) to wait for a given
@@ -445,16 +458,14 @@ or for a timeout to expire."
 some point in the near future, and then return to what it was doing."
   (let* ((p (require-type process 'process)))
     (if (eq p *current-process*)
-      (apply function args)
-       (let* ((thread (process-thread p)))
-         (when (thread-exhausted-p thread)
-           (error "process-interrupt run on exhausted ~s" p))
-         (progn
-	   (thread-interrupt
-	    thread
-	    process
-            #'apply
-	    function args))))))
+      (progn
+        (apply function args)
+        t)
+      (thread-interrupt
+       (process-thread p)
+       process
+       #'apply
+       function args))))
 
 
 
@@ -528,10 +539,12 @@ some point in the near future, and then return to what it was doing."
     (toplevel)))
 
 
+
 (defmethod process-kill ((process process))
   "Cause a specified process to cleanly exit from any ongoing
 computation, and then exit."
-  (process-reset process  :kill))
+  (and (process-interrupt process #'%process-reset :kill)
+       (setf (process-kill-issued process) t)))
 
 (defun process-abort (process &optional condition)
   "Cause a specified process to process an abort condition, as if it
@@ -545,6 +558,11 @@ had invoked abort."
   (process-reset process)
   (process-enable process))
 
+(defmethod process-kill-issued ((process process))
+  (cdr (process-splice process)))
+
+(defmethod (setf process-kill-issued) (val (process process))
+  (setf (cdr (process-splice process)) val))
 
 (defun tcr->process (tcr)
   (dolist (p (all-processes))
