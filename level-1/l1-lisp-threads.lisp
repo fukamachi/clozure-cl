@@ -243,15 +243,22 @@
 	(cleanup-thread-tcr thread tcr))))
 
 (defun init-thread-from-tcr (tcr thread)
-  (setf (lisp-thread.tcr thread) tcr
-	(lisp-thread.cs-size thread)
-	(%stack-area-usable-size (%fixnum-ref tcr target::tcr.cs-area))
-	(lisp-thread.vs-size thread)
-	(%stack-area-usable-size (%fixnum-ref tcr target::tcr.vs-area))
-	(lisp-thread.ts-size thread)
-	(%stack-area-usable-size (%fixnum-ref tcr target::tcr.ts-area))
-	(lisp-thread.startup-function thread)
-	(thread-make-startup-function thread tcr))
+  (let* ((cs-area (%fixnum-ref tcr target::tcr.cs-area))
+         (vs-area (%fixnum-ref tcr target::tcr.vs-area))
+         (ts-area (%fixnum-ref tcr target::tcr.ts-area)))
+    (when (or (zerop cs-area)
+              (zerop vs-area)
+              (zerop ts-area))
+      (error "Can't allocate new thread"))
+    (setf (lisp-thread.tcr thread) tcr
+          (lisp-thread.cs-size thread)
+          (%stack-area-usable-size cs-area)
+          (lisp-thread.vs-size thread)
+          (%stack-area-usable-size vs-area)
+          (lisp-thread.ts-size thread)
+          (%stack-area-usable-size ts-area)
+          (lisp-thread.startup-function thread)
+          (thread-make-startup-function thread tcr)))
   thread)
 
 (defun new-lisp-thread-from-tcr (tcr name)
@@ -309,13 +316,17 @@
                  (get-field-offset :xframe-list.this))))
 
 (defun new-tcr (cs-size vs-size ts-size)
-  (macptr->fixnum
-   (ff-call
-    (%kernel-import target::kernel-import-newthread)
-     :unsigned-fullword cs-size
-     :unsigned-fullword vs-size
-     :unsigned-fullword ts-size
-     :address)))
+  (let* ((tcr (macptr->fixnum
+               (ff-call
+                (%kernel-import target::kernel-import-newthread)
+                :unsigned-fullword cs-size
+                :unsigned-fullword vs-size
+                :unsigned-fullword ts-size
+                :address))))
+    (declare (fixum tcr))
+    (if (zerop tcr)
+      (error "Can't create thread")
+      tcr)))
 
 (defun new-thread (name cstack-size vstack-size tstack-size)
   (new-lisp-thread-from-tcr (new-tcr cstack-size vstack-size tstack-size) name))
@@ -394,7 +405,7 @@
 	   (when pthread
 	     (push (cons function args)
 		   (lisp-thread.interrupt-functions thread))
-	     (#_pthread_kill pthread (%get-kernel-global 'ppc::interrupt-signal))))))
+	     (eql 0 (#_pthread_kill pthread (%get-kernel-global 'ppc::interrupt-signal)))))))
       (:reset
        ;; Preset the thread with a function that'll return to the :reset
        ;; state
@@ -408,7 +419,8 @@
 				     ;; If function returns normally,
 				     ;; return to the reset state
 				     (%process-reset nil)))
-	 (thread-enable thread 0)))))
+	 (thread-enable thread 0)
+         t))))
   nil)
 
 (defun thread-handle-interrupts ()
