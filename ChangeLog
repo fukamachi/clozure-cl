@@ -1,3 +1,8 @@
+2005-10-18 17:03  gb
+
+	* level-1/l1-lisp-threads.lisp: THREAD-INTERRUPT: checked in
+	unsaved buffer, bad version always returned NIL.
+
 2005-10-17 22:52  gb
 
 	* lisp-kernel/thread_manager.c: In xNewThread, try to detect
