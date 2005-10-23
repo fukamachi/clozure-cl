@@ -65,7 +65,6 @@
 (defconstant REGMEM-FIELD-HAS-REG #x3) ; always = #x3
 (defconstant REGMEM-FIELD-HAS-MEM (lognot REGMEM-FIELD-HAS-REG))
 
-(defconstant None #xffff) ; If no extension-opcode is possible.
 
 ;;; cpu feature flags
 (defconstant Cpu086 #x1) ; Any old cpu will do  0 does the same
@@ -416,8 +415,6 @@
   operand-types
 )
 
-(defvar *x86-intstruction-template-lists*
-  (make-hash-table :test #'equalp))
 
 (defconstant RegRex #x1) ; Extended register.
 (defconstant RegRex64 #x2) ; Extended 8 bit register.
@@ -1756,49 +1753,105 @@
     ("xstore" () (#x000fa7c0) (:cpu686 :cpupadlock) (:nosuf :isstring))
     ))
 
-(defparameter *x86-instruction-templates* ())
+(defun x86-template-data-excluding-cpu-flags (&rest excluded-flags)
+  (ccl::collect ((data))
+    (dolist (whole *x86-instruction-template-data*)
+      (destructuring-bind (name
+                           operand-types
+                           (base-opcode &optional extension-opcode)
+                           cpuflags
+                           opcode-modifier) whole
+        (declare (ignore name operand-types base-opcode extension-opcode
+                         opcode-modifier))
+        (when (dolist (flag excluded-flags t)
+                (when (if (atom cpuflags)
+                          (eq flag cpuflags)
+                          (member flag cpuflags))
+                  (return nil)))
+          (data whole))))
+    (data)))
+  
+
+      
+(defparameter *x86-32-instruction-template-lists*
+  (make-hash-table :test #'equalp))
+
+
+(defparameter *x86-64-instruction-template-lists*
+  (make-hash-table :test #'equalp))
+
+
+(defparameter *x86-32-instruction-templates* ())
+(defparameter *x86-64-instruction-templates* ())
+
+
 
 (defun initialize-x86-instruction-templates ()
-  (clrhash *x86-intstruction-template-lists*)
-  (let* ((templates *x86-instruction-template-data*)
-         (n (length templates)))
-    (setq *x86-instruction-templates* (make-array n))
-    (dotimes (i n)
-      (let* ((whole (pop templates)))
-        (destructuring-bind (name
-                             operand-types
-                             (base-opcode &optional extension-opcode)
-                             cpuflags
-                             opcode-modifier) whole
-          (let* ((operand-count (length operand-types))
-                 (modifier (or (%encode-opcode-modifier opcode-modifier)
-                               (error "Bad opcode modifier ~s in ~s" opcode-modifier whole)))
-                 (encoded-types (mapcar #'(lambda (type)
-                                            (or (%encode-operand-type type)
-                                                (error "Bad operand type ~s in ~w"
-                                                       type whole)))
-                                        operand-types))
-                 (encoded-cpu-flags (or (%encode-cpu-flags cpuflags)
-                                        (error "Bad CPU flags ~s in ~s" cpuflags whole)))
-                 (template (make-x86-instruction-template
-                            :name name
-                            :index i
-                            :operands operand-count
-                            :base-opcode base-opcode
-                            :extension-opcode extension-opcode
-                            :cpu-flags encoded-cpu-flags
-                            :opcode-modifier modifier
-                            :operand-types encoded-types)))
-            (setf (svref *x86-instruction-templates* i) template)
-            (push template (gethash name *x86-intstruction-template-lists*))))))))
+    (flet ((setup-templates-hash (hash templates)
+             (let* ((n (length templates))
+                    (vector (make-array n)))
+               (declare (fixnum n))
+               (clrhash hash)
+               (dotimes (i n vector)
+                 (let* ((whole (pop templates)))
+                   (destructuring-bind (name
+                                        operand-types
+                                        (base-opcode &optional extension-opcode)
+                                        cpuflags
+                                        opcode-modifier) whole
+                     (let* ((operand-count (length operand-types))
+                            (modifier (or (%encode-opcode-modifier opcode-modifier)
+                                          (error "Bad opcode modifier ~s in ~s" opcode-modifier whole)))
+                            (encoded-types (mapcar #'(lambda (type)
+                                                       (or (%encode-operand-type type)
+                                                           (error "Bad operand type ~s in ~w"
+                                                                  type whole)))
+                                                   operand-types))
+                            (encoded-cpu-flags (or (%encode-cpu-flags cpuflags)
+                                                   (error "Bad CPU flags ~s in ~s" cpuflags whole)))
+                            (template (make-x86-instruction-template
+                                       :name name
+                                       :index i
+                                       :operands operand-count
+                                       :base-opcode base-opcode
+                                       :extension-opcode extension-opcode
+                                       :cpu-flags encoded-cpu-flags
+                                       :opcode-modifier modifier
+                                       :operand-types encoded-types)))
+                       (setf (svref vector i) template)
+                       (push template (gethash name hash)))))))))
+      (setq *x86-32-instruction-templates*
+            (setup-templates-hash
+             *x86-32-instruction-template-lists*
+             (x86-template-data-excluding-cpu-flags :cpu64))
+            *x86-64-instruction-templates*
+            (setup-templates-hash
+             *x86-64-instruction-template-lists*
+             (x86-template-data-excluding-cpu-flags :cpuno64)))
+      t))
 
+(defparameter *x86-instruction-template-lists* ())
+(defparameter *x86-instruction-templates* ())
+
+(defun setup-x86-assembler (&optional (cpu :x86-64))
+  (initialize-x86-instruction-templates)
+  (ecase cpu
+    (:x86-32 (setq *x86-instruction-template-lists*
+                   *x86-32-instruction-template-lists*
+                   *x86-instruction-templates*
+                   *x86-32-instruction-templates*))
+    (:x86-64 (setq *x86-instruction-template-lists*
+                   *x86-64-instruction-template-lists*
+                   *x86-instruction-templates*
+                   *x86-64-instruction-templates*)))
+  t)
 
 (defun get-x86-instruction-templates-and-suffix (name)
-  (let* ((templates (gethash name *x86-intstruction-template-lists*)))
+  (let* ((s (string name))
+         (templates (gethash s *x86-instruction-template-lists*)))
     (if templates
       (values templates nil)
-      (let* ((s (string name))
-             (n (length s))
+      (let* ((n (length s))
              (m (1- n))
              (suffix nil))
         (declare (fixnum m n))
@@ -1816,7 +1869,6 @@
                           
 
 
-(defconstant MAX-MNEM-SIZE 16) ; For parsing insn mnemonics from input.
 
 ;;; 386 register table.
 
@@ -2514,7 +2566,6 @@
                    :reg-flags 0
                    :reg-num 7)))
 
-(defconstant MAX-REG-NAME-SIZE 8) ; For parsing register names from input.
 
 ;;; Segment stuff.
 (defvar *cs-segment-register* (make-seg-entry :seg-name "cs" :seg-prefix #x23))
@@ -2524,4 +2575,41 @@
 (defvar *fs-segment-register* (make-seg-entry :seg-name "fs" :seg-prefix #x64))
 (defvar *gs-segment-register* (make-seg-entry :seg-name "gs" :seg-prefix #x65))
 
+;;; We may need some sort of local aliasing/nicknaming mechanism in LAP.
+(defvar *x86-registers* (make-hash-table :test #'equalp))
+
+(defun init-x86-registers ()
+  (flet ((hash-registers (vector)
+           (dotimes (i (length vector))
+             (let* ((entry (svref vector i)))
+               (setf (gethash (reg-entry-reg-name entry) *x86-registers*)
+                     entry)))))
+    (hash-registers *x86-regtab*)
+    (hash-registers *x86-float-regs*)))
+
+(init-x86-registers)
+
+
+(defstruct x86-operand )
+
+(defstruct (x86-immediate-operand (:include x86-operand))
+  value
+  size-in-bits
+  signed-p)
+
+(defstruct (x86-register-operand (:include x86-operand))
+  entry                                 ;the reg-entry
+)
+
+(defstruct (x86-memory-operand (:include x86-operand))
+  ;; Any of these fields can be null.  Some of them -
+  ;; like a segment register or scale factor by itself -
+  ;; make no sense.
+  seg                                   ; a segment register
+  disp                                  ; a signed displacement added to index
+  disp-size                             ; size (in bits) of displacement
+  index                                 ; a GPR
+  base                                  ; another GPR
+  scale                                 ; scale factor, multiplied with base
+  )
 
