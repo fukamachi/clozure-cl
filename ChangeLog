@@ -1,3 +1,13 @@
+2005-10-23 01:42  gb
+
+	* lisp-kernel/: constants64.h, constants64.s: New symbol slots on
+	ppc64, too.
+
+2005-10-23 01:41  gb
+
+	* level-0/nfasload.lisp: Remove the crude bootstrapping hack (at
+	least the most recent one ...)
+
 2005-10-22 23:49  gb
 
 	* xdump/xfasload.lisp: Start new symbol stuff.	More to be done
