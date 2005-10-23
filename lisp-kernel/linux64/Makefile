@@ -42,11 +42,11 @@ COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
 KERNELOBJ= $(COBJ) asmutils.o  imports.o
 
-SPINC =	lisp.s m4macros.m4 constants.s macros.s errors.s uuo.s
+SPINC =	lisp.s m4macros.m4 constants.s macros.s errors.s uuo.s constants64.s
 
 CHEADERS = area.h bits.h constants.h lisp-errors.h gc.h lisp.h \
 	lisp-exceptions.h lisp_globals.h macros.h memprotect.h image.h \
-	Threads.h
+	Threads.h constants64.h
 
 # Subprims linked into the kernel ?
 # Yes:
