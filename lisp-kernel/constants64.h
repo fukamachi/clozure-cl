@@ -188,8 +188,10 @@ typedef struct lispsymbol {
   LispObj pname;
   LispObj vcell;
   LispObj fcell;
-  LispObj package_plist;
+  LispObj package_predicate;
   LispObj flags;
+  LispObj plist;
+  LispObj binding_index;
 } lispsymbol;
 
 typedef struct ratio {

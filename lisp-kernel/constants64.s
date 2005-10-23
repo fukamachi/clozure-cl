@@ -226,8 +226,10 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	 _node(pname)
 	 _node(vcell)
 	 _node(fcell)
-	 _node(package_plist)
+	 _node(package_predicate)
 	 _node(flags)
+         _node(plist)
+         _node(binding_index)
 	_endstructf
 
 	_structf(catch_frame)
