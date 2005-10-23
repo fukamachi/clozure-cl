@@ -184,8 +184,10 @@
                 (ensure-simple-string name) ; pname
                 (%unbound-marker)       ; value cell
                 %unbound-function%      ; function cell
-                nil                     ; package&plist
-                0))                     ; flags
+                nil                     ; package&predicate
+                0                       ; flags
+                nil                     ; plist
+                0))                       ; binding-index
 
 (defun %symbol-bits (sym &optional new)
   (let* ((p (%symbol->symptr sym))
