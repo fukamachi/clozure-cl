@@ -181,7 +181,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
                                    :prompt-function prompt-function
                                    :eof-value eof-value)
                   (if (eq form eof-value)
-                    (if (eof-transient-p (stream-device input-stream :input))
+                    (if (and (not *batch-flag*)
+                             (eof-transient-p (stream-device input-stream :input)))
                       (progn
                         (stream-clear-input input-stream)
                         (abort-break))
