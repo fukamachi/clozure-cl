@@ -931,8 +931,6 @@
 ;;; if the %fasload call fails, the lisp should exit (instead of
 ;;; repeating the process endlessly ...
 
-(eval-when (:compile-toplevel)
-  (warn "Remember to remove horrible bootstrapping hack here"))
 
 (defvar %toplevel-function%
   #'(lambda ()
@@ -940,8 +938,6 @@
                         *xload-cold-load-documentation*
                         *xload-startup-file*))
       (%set-tcr-toplevel-function (%current-tcr) nil) ; should get reset by l1-boot.
-      ;; Don't ask.
-      (setq *ALL-METERED-FUNCTIONS* %CLOSURE-CODE%)
       ;; Need to make %ALL-PACKAGES-LOCK% early, so that we can casually
       ;; do SET-PACKAGE in cold load functions.
       (setq %all-packages-lock% (make-read-write-lock))
