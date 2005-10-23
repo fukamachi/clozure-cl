@@ -2853,8 +2853,9 @@ gc(TCR *tcr)
           if (FBOUNDP(rawsym) ||
               BOUNDP(rawsym) ||
               (rawsym->flags != 0) || /* SPECIAL, etc. */
-              ((rawsym->package_plist != pkg) &&
-               (rawsym->package_plist != lisp_nil))) {
+              (rawsym->plist != lisp_nil) ||
+              ((rawsym->package_predicate != pkg) &&
+               (rawsym->package_predicate != lisp_nil))) {
             mark_root(sym);
           }
         }
