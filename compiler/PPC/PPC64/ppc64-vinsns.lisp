@@ -3279,6 +3279,20 @@
   (ori dest ppc::rzero (:apply logior (:apply ash code 8) ppc64::subtag-character)))
 
 
+(define-ppc64-vinsn %symbol->symptr (((dest :lisp))
+                                     ((src :lisp))
+                                     ((tag :u8)
+                                      (crf0 :crf)))
+  (clrldi tag src (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf0 tag ppc64::fulltag-misc)
+  (bne crf0 :do-trap)
+  (lbz tag ppc64::misc-subtag-offset src)
+  :do-trap
+  (tdnei tag ppc64::subtag-symbol)
+  ((:not (:pred =
+                (:apply %hard-regspec-value dest)
+                (:apply %hard-regspec-value src)))
+   (mr dest src)))
 
 ;;; Subprim calls.  Done this way for the benefit of VINSN-OPTIMIZE.
 (defmacro define-ppc64-subprim-call-vinsn ((name &rest other-attrs) spno)

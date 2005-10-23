@@ -388,6 +388,7 @@
      (%current-frame-ptr . 0)
      (%slot-ref . 0)
      (%illegal-marker . #.operator-single-valued-mask)
+     (%symbol->symptr . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      )))
 
 (defmacro %nx1-operator (sym)

@@ -3287,6 +3287,27 @@
   (lis dest code)
   (ori dest dest ppc32::subtag-character))
 
+(define-ppc32-vinsn %symbol->symptr (((dest :lisp))
+                                     ((src :lisp))
+                                     ((tag :u8)
+                                      (crf0 :crf)
+                                      (crf1 :crf)))
+  (clrlwi tag src (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf0 src ppc32::nil-value)
+  (cmpwi crf1 tag ppc32::tag-misc)
+  (beq crf0 :nilsym)
+  (bne crf1 :do-trap)
+  (lbz tag ppc32::misc-subtag-offset src)
+  :do-trap
+  (twnei tag ppc32::subtag-symbol)
+  ((:not (:pred =
+                (:apply %hard-regspec-value dest)
+                (:apply %hard-regspec-value src)))
+   (mr dest src))
+  (b :done)
+  :nilsym
+  (li dest (+ ppc32::nilsym-offset ppc32::nil-value))
+  :done)
 
 ;;; Subprim calls.  Done this way for the benefit of VINSN-OPTIMIZE.
 (defmacro define-ppc32-subprim-call-vinsn ((name &rest other-attrs) spno)
@@ -3446,10 +3467,6 @@
 (define-ppc32-subprim-jump-vinsn (progvrestore) .SPsvar-progvrestore)
 
 (define-ppc32-subprim-call-vinsn (eabi-syscall) .SPeabi-syscall)
-
-(define-ppc32-subprim-call-vinsn (newblocktag) .SPnewblocktag)
-
-(define-ppc32-subprim-call-vinsn (newgotag) .SPnewgotag)
 
 (define-ppc32-subprim-call-vinsn (misc-ref) .SPmisc-ref)
 

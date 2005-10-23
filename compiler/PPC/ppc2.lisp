@@ -4106,6 +4106,7 @@
           (! character->fixnum target src)))
       (^))))
   
+
 (defun ppc2-reference-list (seg vreg xfer listform safe refcdr)
   (if (ppc2-form-typep listform 'list)
     (setq safe nil))                    ; May also have been passed as NIL.
@@ -8113,6 +8114,12 @@
       ((:darwinppc32 :darwinppc64 :linuxppc64) (! alloc-variable-c-frame reg)))
     (ppc2-open-undo $undo-ppc-c-frame)
     (ppc2-undo-body seg vreg xfer body old-stack)))
+
+(defppc2 ppc2-%symbol->symptr %symbol->symptr (seg vreg xfer sym)
+  (let* ((src (ppc2-one-untargeted-reg-form seg sym ppc::arg_z)))
+    (ensuring-node-target (target vreg)
+      (! %symbol->symptr target src))
+    (^)))
 
 ;------
 

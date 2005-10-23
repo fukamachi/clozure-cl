@@ -130,7 +130,8 @@
     (nx1-form (%car args))
     (make-acode (%nx1-operator progn) (nx1-formlist args))))
 
-(defnx1 nx1-unaryop ((%word-to-int) (uvsize)  (%reference-external-entry-point))
+(defnx1 nx1-unaryop ((%word-to-int) (uvsize)  (%reference-external-entry-point)
+                     (%symbol->symptr))
         (arg)
   (make-acode
    (%nx1-default-operator) (nx1-form arg)))
