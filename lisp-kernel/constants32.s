@@ -251,8 +251,10 @@ max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
 	 _node(pname)
 	 _node(vcell)
 	 _node(fcell)
-	 _node(package_plist)
+	 _node(package_predicate)
 	 _node(flags)
+         _node(plist)
+         _node(binding_index)
 	_endstructf
 
 	_structf(catch_frame)
