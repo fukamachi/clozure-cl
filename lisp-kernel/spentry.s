@@ -658,36 +658,10 @@ _spentry(mkstackv)
 
 /* Is it worth trying to avoid (postpone) consing here ? */
 _spentry(newblocktag)
-        __(li imm1,lisp_globals.block_tag_counter)
-1:              
-        __(lrarx(imm0,0,imm1))
-	__(addi imm0,imm0,1<<num_subtag_bits)
-	__(cmpri(imm0,0))
-	__(ori arg_z,imm0,subtag_block_tag)
-	__(beq- local_label(cons_nil_nil))
-        __(strcx(imm0,0,imm1))
-        __(bne- 1b)
-        __(isync)
-	__(blr)
+1:      __(b 1b)
 	
 _spentry(newgotag)
-        __(li imm1,lisp_globals.go_tag_counter)
-1:      __(lrarx(imm0,0,imm1))
-	__(addi imm0,imm0,1<<num_subtag_bits)
-	__(cmpri(imm0,0))
-	__(ori arg_z,imm0,subtag_go_tag)
-	__(beq- local_label(cons_nil_nil))
-        __(strcx(imm0,0,imm1))
-        __(bne- 1b)
-        __(isync)
-	__(blr)
-local_label(cons_nil_nil):
-        __(li imm2,RESERVATION_DISCHARGE)
-        __(strcx(imm2,0,imm2))
-	__(li imm0,nil_value)
-	__(Cons(arg_z,imm0,imm0))
-	__(blr)
-
+1:      __(b 1b)
 	
 /* Allocate a miscobj on the temp stack.  (Push a frame on the tsp and 
    heap-cons the object if there's no room on the tstack.) */
