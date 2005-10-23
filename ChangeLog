@@ -1,3 +1,24 @@
+2005-10-22 18:17  gb
+
+	* lib/macros.lisp: Add
+	UNWIND-PROTECT-DISABLE-INTERRUPTS-DURING-CLEANUP, at least for the
+	time being ...
+
+2005-10-22 18:15  gb
+
+	* level-1/l1-readloop-lds.lisp: An EOF in the REPL isn't
+	"transient" if --batch is in effect.
+
+2005-10-22 18:15  gb
+
+	* compiler/X86/x86-asm.lisp: Still a ways from reality, but a
+	little closer.
+
+2005-10-22 18:14  gb
+
+	* compiler/PPC/ppc-arch.lisp: go-tag-counter & block-tag counter
+	have been obsolete for a few years.
+
 2005-10-18 17:03  gb
 
 	* level-1/l1-lisp-threads.lisp: THREAD-INTERRUPT: checked in
