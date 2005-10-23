@@ -60,21 +60,14 @@
 
 ;;; The type-checking done on the "plist" arg shouldn't be removed.
 (defun set-symbol-plist (sym plist)
-  (let* ((pp (%symbol-package-plist sym))
-         (newpp pp))
-    (let* ((len (list-length plist)))
-      (unless (and len (evenp len))
-        (error "Bad plist: ~s" plist)))
-    (if (atom pp)
-      (setq newpp (cons pp plist))
-      (let* ((bits (%symbol-bits sym)))
-        (declare (fixnum bits))
-        (if (logbitp $sym_vbit_typeppred bits)
-          (setf (cdr (cdr pp)) plist)
-          (setf (cdr pp) plist))))
-    (%set-symbol-package-plist sym newpp)
-    plist))
+  (let* ((len (list-length plist)))
+    (unless (and len (evenp len))
+      (error "Bad plist: ~s" plist)))
+  (setf (%svref (%symbol->symptr sym) target::symbol.plist-cell) plist))
 
+
+(eval-when (:compile-toplevel :execute)
+  (declaim (inline %pl-search)))
 
 (defun %pl-search (l key)
   (declare (list l) (optimize (speed 3)))
@@ -89,50 +82,42 @@
 
 (defun symbol-plist (sym)
   "Return SYMBOL's property list."
-  (let* ((pp (%symbol-package-plist sym)))
-    (if (consp pp)
-      (let* ((bits (%symbol-bits sym)))
-        (declare (fixnum bits))
-        (if (logbitp $sym_vbit_typeppred bits)
-          (cddr pp)
-          (cdr pp))))))
+  (%svref (%symbol->symptr sym) target::symbol.plist-cell))
 
 
 (defun get (sym key &optional default)
   "Look on the property list of SYMBOL for the specified INDICATOR. If this
   is found, return the associated value, else return DEFAULT."
-  (let* ((tail (%pl-search (symbol-plist sym) key)))
+  (let* ((tail (%pl-search (%svref (%symbol->symptr sym) target::symbol.plist-cell) key)))
     (if tail (%cadr tail) default)))
 
 (defun put (sym key value)
-  (let* ((plist (symbol-plist sym))
+  (let* ((symptr (%symbol->symptr sym))
+         (plist (%svref symptr target::symbol.plist-cell))
          (tail (%pl-search plist key)))
     (if tail 
       (%rplaca (%cdr tail) value)
-      (set-symbol-plist sym (cons key (cons value plist))))
+      (setf (%svref symptr target::symbol.plist-cell) (cons key (cons value plist))))
     value))
 
-;;; This is how things have traditionally been defined: if %sym_vbit_typeppred 
-;;; is set in the symbol's %SYMBOL-BITS, it's assumed that it's safe to
-;;; take the %CADR of the %SYMBOL-PACKAGE-PLIST.
+
 (defun get-type-predicate (name)
-  (let* ((bits (%symbol-bits name)))
-    (declare (fixnum bits))
-    (if (logbitp $sym_vbit_typeppred bits)
-      (%cadr (%symbol-package-plist name)))))
+  (let* ((symptr (%symbol->symptr name))
+         (pp (%svref symptr target::symbol.package-predicate-cell)))
+    (if (consp pp)
+      (%cdr pp))))
+
 
 (defun set-type-predicate (name function)
   (let* ((bits (%symbol-bits name))
-         (spp (%symbol-package-plist name)))
+         (symptr (%symbol->symptr name))
+         (spp (%svref symptr target::symbol.package-predicate-cell)))
     (declare (fixnum bits))
     (if (logbitp $sym_vbit_typeppred bits)
-      (%rplaca (%cdr (%symbol-package-plist name)) function)
+      (%rplacd spp function)
       (progn
         (%symbol-bits name (the fixnum (bitset $sym_vbit_typeppred bits)))
-        (if (atom spp)
-          (%set-symbol-package-plist name (cons spp (cons function nil)))
-          (%rplacd spp (cons function (cdr spp))))))
-    function))
+        (setf (%svref symptr target::symbol.package-predicate-cell) (cons spp function))))))
 
 (defun symbol-value (sym)
   "Return SYMBOL's current bound value."
@@ -171,7 +156,7 @@
 
 (defun symbol-package (sym)
   "Return the package SYMBOL was interned in, or NIL if none."
-  (let* ((pp (%symbol-package-plist sym)))
+  (let* ((pp (%svref (%symbol->symptr sym) target::symbol.package-predicate-cell)))
     (if (consp pp) (car pp) pp)))
 
 (defun boundp (sym)
@@ -224,11 +209,7 @@
 (defun %set-sym-global-value (name val)
   (setf (%svref (%symbol->symptr name) target::symbol.vcell-cell) val))
 
-(defun %symbol-package-plist (sym)
-  (%svref (%symbol->symptr sym) target::symbol.package-plist-cell))
 
-(defun %set-symbol-package-plist (sym new)
-  (setf (%svref (%symbol->symptr sym) target::symbol.package-plist-cell) new))
 
 
 

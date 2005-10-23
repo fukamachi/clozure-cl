@@ -883,10 +883,12 @@
 
 (defun %set-symbol-package (symbol package-or-nil)
   (declare (optimize (speed 3) (safety 0)))
-  (let* ((old-pp (%symbol-package-plist symbol)))
+  (let* ((symptr (%symbol->symptr symbol))
+         (old-pp (%svref symptr target::symbol.package-predicate-cell)))
     (if (consp old-pp)
       (setf (car old-pp) package-or-nil)
-      (%set-symbol-package-plist symbol package-or-nil))))
+      (setf (%svref symptr target::symbol.package-predicate-cell) package-or-nil))))
+
 
 (let* ((force-export-packages (list *keyword-package*)))
   (defun force-export-packages ()
@@ -898,13 +900,14 @@
 
 
 (defun %insert-symbol (symbol package internal-idx external-idx &optional force-export)
-  (let* ((package-plist (%symbol-package-plist symbol))
+  (let* ((symptr (%symbol->symptr symbol))
+         (package-predicate (%svref symptr target::symbol.package-predicate-cell))
          (keyword-package (eq package *keyword-package*)))
     ;; Set home package
-    (if package-plist
-      (if (listp package-plist)
-        (unless (%car package-plist) (%rplaca package-plist package)))
-      (%set-symbol-package-plist symbol package))
+    (if package-predicate
+      (if (listp package-predicate)
+        (unless (%car package-predicate) (%rplaca package-predicate package)))
+      (setf (%svref symptr target::symbol.package-predicate-cell) package))
     (if (or force-export (memq package (force-export-packages)))
       (progn
         (%htab-add-symbol symbol (pkg.etab package) external-idx)

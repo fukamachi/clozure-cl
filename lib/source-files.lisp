@@ -24,11 +24,7 @@
                            (let ((f (get s 'bootstrapping-source-files)))
                              (when f
                                (setf (gethash s a) f)
-                               (remprop s 'bootstrapping-source-files)
-			       (unless (symbol-plist s)
-				 (let* ((p (%symbol-package-plist s)))
-				   (when (and (consp p) (null (cdr p)))
-				     (%set-symbol-package-plist s (car p))))))))
+                               (remprop s 'bootstrapping-source-files))))
                          a))
 
 (%fhave '%source-files (qlfun %source-files (name)
