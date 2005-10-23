@@ -2048,6 +2048,13 @@ requests are deferred."
 	      ,@body)
 	 (setf (interrupt-level) ,level)))))
 
+(defmacro unwind-protect-disable-interrupts-during-cleanup (protected-form &body cleanup-forms)
+  `(without-interrupts
+    (unwind-protect
+         (ignoring-without-interrupts ,protected-form)
+      ,@cleanup-forms)))
+
+
 (defmacro error-ignoring-without-interrupts (format-string &rest format-args)
   `(ignoring-without-interrupts
     (error ,format-string ,@format-args)))
