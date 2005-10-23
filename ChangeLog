@@ -1,3 +1,13 @@
+2005-10-22 18:58  gb
+
+	* lisp-kernel/spentry.s: newblocktag/newgotag have been obsolete
+	for a few years now.
+
+2005-10-22 18:57  gb
+
+	* lisp-kernel/: constants.s, lisp_globals.h: A little kernel-global
+	cleanup.
+
 2005-10-22 18:17  gb
 
 	* lib/macros.lisp: Add
