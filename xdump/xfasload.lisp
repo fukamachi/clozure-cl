@@ -498,6 +498,7 @@
     (setf (xload-%svref sym target::symbol.vcell-cell) *xload-target-unbound-marker*)
     (setf (xload-%svref sym target::symbol.package-plist-cell) package-address)
     (setf (xload-%svref sym target::symbol.fcell-cell) (%xload-unbound-function%))
+    (setf (xload-%svref sym target::symbol.plist-cell) *xload-target-nil*)
     ;;(break "Made symbol at #x~x (#x~x)" cell-addr offset)
     sym))
 
