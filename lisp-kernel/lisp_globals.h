@@ -25,15 +25,15 @@ extern LispObj lisp_nil;
 #define INTERRUPT_SIGNAL  (-3)  /* signal to use for PROCESS-INTERRUPT */
 #define KERNEL_IMPORTS (-4)	/* some things we need to have imported for us. */
 #define TCR_LOCK (-5)		/* lock on the TCR queue */
-#define EMULATOR_REGISTERS (-6)	/* Where the 68K registers are kept. */
-#define APPMAIN (-7)		/* application's (c-runtime) main() function */
+#define SAVETOC (-6)	        /* Saved TOC register, for some platforms */
+#define SAVER13 (-7)		/* Saved (global) r13, on some platforms */
 #define SUBPRIMS_BASE (-8)	/* where the dynamic subprims wound up */
 #define RET1VALN (-9)		/* magic multiple-values return address */
 #define TCR_KEY (-10)     	/* tsd key for per-thread tcr */
 #define AREA_LOCK (-11)       /* all_areas lock */
 #define EXCEPTION_LOCK (-12)	/* serialize exception handling */
-#define GO_TAG_COUNTER (-13)
-#define BLOCK_TAG_COUNTER (-14)
+#define BAD_GO_TAG_COUNTER (-13)
+#define BAD_BLOCK_TAG_COUNTER (-14)
 #define INTFLAG (-15)
 #define GC_INHIBIT_COUNT (-16)
 #define REFBITS (-17)

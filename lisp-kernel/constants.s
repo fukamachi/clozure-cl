@@ -224,15 +224,15 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	 _node(refbits) 		/* EGC refbits */
 	 _node(gc_inhibit_count)
 	 _node(intflag) 		/* sigint pending */
-	 _node(block_tag_counter) 	/* counter for (immediate) block tag */
-	 _node(go_tag_counter) 		/* counter for (immediate) go tag */
+	 _node(BAD_block_tag_counter) 	/* counter for (immediate) block tag */
+	 _node(BAD_go_tag_counter) 		
 	 _node(exception_lock)
 	 _node(area_lock)
 	 _node(tcr_key) 		/* tsd key for per-thread tcr */
 	 _node(ret1val_addr) 		/* address of "dynamic" subprims magic values return addr */
 	 _node(subprims_base) 		/* address of dynamic subprims jump table */
-	 _node(appmain)			/* probably don]t really need this */
-	 _node(emulator_registers) 	/* where the 68K emulator stores the  emulated regs */
+	 _node(saveR13)			/* probably don]t really need this */
+	 _node(saveTOC)                 /* where the 68K emulator stores the  emulated regs */
 	 _node(tcr_lock)		/* this thread]s exception frame chain */
 	 _node(kernel_imports) 		/* some things we need imported for us */
 	 _node(interrupt_signal)	/* signal used by PROCESS-INTERRUPT */
@@ -240,5 +240,3 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	 _node(get_tcr) 		/* address of get_tcr() */	
 	_ends
 	
-lisp_globals.saveTOC = lisp_globals.emulator_registers
-lisp_globals.saveR13 = lisp_globals.appmain
