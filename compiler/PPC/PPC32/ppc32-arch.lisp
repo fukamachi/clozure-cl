@@ -338,9 +338,14 @@
   pname
   vcell
   fcell
-  package-plist
+  package-predicate
   flags
+  plist
+  binding-index
 )
+
+(defconstant symbol.package-plist symbol.package-predicate)
+(defconstant symbol.package-plist-cell symbol.package-predicate-cell)
 
 
 (defconstant nilsym-offset (+ t-offset symbol.size))
