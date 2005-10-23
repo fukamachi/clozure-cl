@@ -234,10 +234,10 @@
     subprims-base                       ; start of dynamic subprims jump table
     ret1valaddr                         ; magic multiple-values return address.
     tcr-key                             ; tsd key for thread's tcr
-    area-lock                         ; serialize access to gc
+    area-lock                           ; serialize access to gc
     exception-lock			; serialize exception handling
-    go-tag-counter        		; counter for (immediate) go tag
-    block-tag-counter                   ; counter for (immediate) block tag
+    BAD-go-tag-counter        		; counter for (immediate) go tag
+    BAD-block-tag-counter               ; counter for (immediate) block tag
     intflag				; interrupt-pending flag
     gc-inhibit-count                    ; for gc locking
     refbits                             ; oldspace refbits
