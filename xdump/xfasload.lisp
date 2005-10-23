@@ -496,7 +496,7 @@
             *xload-target-nil*
             pname-address))
     (setf (xload-%svref sym target::symbol.vcell-cell) *xload-target-unbound-marker*)
-    (setf (xload-%svref sym target::symbol.package-plist-cell) package-address)
+    (setf (xload-%svref sym target::symbol.package-predicate-cell) package-address)
     (setf (xload-%svref sym target::symbol.fcell-cell) (%xload-unbound-function%))
     (setf (xload-%svref sym target::symbol.plist-cell) *xload-target-nil*)
     ;;(break "Made symbol at #x~x (#x~x)" cell-addr offset)
@@ -676,13 +676,12 @@
     (error "Not a symbol: #x~x" addr)))
 
 (defun (setf xload-symbol-plist) (new addr)
-  (let* ((package-plist (xload-%svref addr target::symbol.package-plist-cell)))
-    (if (xload-target-consp package-plist)
+  (let* ((plist (xload-%svref addr target::symbol.plist-cell)))
+    (if (xload-target-consp plist)
       (let* ((str (xload-get-string (xload-%svref addr target::symbol.pname-cell))))
-        (break "str = ~s" str)
-        (warn "Symbol at #x~x: plist already set." addr))
-      (setf (xload-%svref addr target::symbol.package-plist-cell)
-            (xload-make-cons package-plist new)))
+        (warn "Symbol at #x~x (~a): plist already set." addr str))
+      (setf (xload-%svref addr target::symbol.plist-cell)
+            new))
     new))
       
   
