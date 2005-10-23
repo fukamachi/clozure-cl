@@ -1,3 +1,57 @@
+2005-10-22 23:49  gb
+
+	* xdump/xfasload.lisp: Start new symbol stuff.	More to be done
+	here.
+
+2005-10-22 23:49  gb
+
+	* xdump/heap-image.lisp: ABI version change.
+
+2005-10-22 23:49  gb
+
+	* lisp-kernel/linux/Makefile: Depend on constants32.?
+
+2005-10-22 23:49  gb
+
+	* lisp-kernel/ppc_print.c: Symbol package isn't where it used to
+	be.
+
+2005-10-22 23:48  gb
+
+	* lisp-kernel/image.h: New "abi" version, for symbol size/format
+	changes.
+
+2005-10-22 23:47  gb
+
+	* lisp-kernel/gc.c: Anticipate the symbol-package/plist breakup.
+
+2005-10-22 23:46  gb
+
+	* level-0/nfasload.lisp: Add a very ugly bootstrapping hack, and a
+	warning reminding that it should be removed.
+
+2005-10-22 23:45  gb
+
+	* level-0/l0-symbol.lisp: Initialize new symbol slots in
+	MAKE-SYMBOL.
+
+2005-10-22 23:45  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp, lisp-kernel/constants32.h,
+	lisp-kernel/constants32.s: New symbol slots.
+
+2005-10-22 23:44  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Add a couple of new fields to
+	symbols; this is intended to help get rid of svar objects for
+	thread-specific special bindings, and to make accessing a symbol's
+	plist a little faster/simpler.
+	
+	Changing the size of a symbol introduces some bootstrapping issues;
+	the bleeding-edge sources may not build until that bootstrapping
+	process is complete (on all platforms); there will be new binaries
+	then (probably sometime on October 23.)
+
 2005-10-22 18:58  gb
 
 	* lisp-kernel/spentry.s: newblocktag/newgotag have been obsolete
