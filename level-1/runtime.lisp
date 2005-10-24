@@ -148,11 +148,7 @@
 (set-periodic-task-interval 1)
 
 (do-all-symbols (s)
-  (setf (symbol-plist s) nil)
-  (let* ((pp (%symbol-package-plist s)))
-    (when (and (consp pp) (null (cdr pp)))
-      (%set-symbol-package-plist s (car pp))))
-  )
+  (setf (symbol-plist s) nil))
 
 (progn (%set-toplevel #'toplevel-loop) (save-application "RUNTIME"))
 
