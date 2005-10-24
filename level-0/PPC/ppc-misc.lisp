@@ -730,8 +730,8 @@
   (lwz imm0 12 vsp)                     ; db-link
   (lwz imm1 target::tcr.db-link target::rcontext)
   (cmp cr0 imm0 imm1)
-  (beq cr0 @restore-regs)               ; .SPsvar-unbind-to expects there to be something to do
-  (bla .SPsvar-unbind-to)
+  (beq cr0 @restore-regs)               ; .SPunbind-to expects there to be something to do
+  (bla .SPunbind-to)
 
 @restore-regs
   ; restore the saved registers from srv
