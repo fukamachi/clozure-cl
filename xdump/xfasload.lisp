@@ -35,7 +35,8 @@
 ;;; I'm not sure that there's a better way to do this.
 
 (defparameter *xload-show-cold-load-functions* nil "Set to T when debugging")
-
+(defparameter *xload-special-binding-indices* nil)
+(defparameter *xload-next-special-binding-index* 0)
 (defparameter *xload-target-nil* nil)
 (defparameter *xload-target-fixnumshift* nil)
 (defparameter *xload-target-fulltag-cons* nil)
@@ -1042,33 +1043,57 @@
           (%get-unsigned-word n 6) (%fasl-read-word s))
     (%epushval s (xload-integer (%%get-signed-longlong n 0) 2))))
 
-(defun %xload-fasl-vmake-symbol (s)
-  (%epushval s (xload-make-symbol (%xload-fasl-vreadstr s))))
+(defun xload-ensure-binding-index (symbol-address)
+  (or (gethash symbol-address *xload-special-binding-indices*)
+      (let* ((idx (incf *xload-next-special-binding-index*)))
+        (setf (xload-%svref symbol-address target::svar.symbol-cell)
+              (ash idx *xload-target-fixnumshift*))
+        (setf (gethash symbol-address *xload-special-binding-indices*) idx))))
+
+(defun %xload-fasl-vmake-symbol (s &optional idx)
+  (let* ((sym (xload-make-symbol (%xload-fasl-vreadstr s))))
+    (when idx
+      (xload-ensure-binding-index sym))
+    (%epushval s sym)))
+
+
 
 (defxloadfaslop $fasl-vmksym (s)
   (%xload-fasl-vmake-symbol s))
 
-(defun %xload-fasl-vintern (s package)
+(defxloadfaslop $fasl-vmksym-special (s)
+  (%xload-fasl-vmake-symbol s t))
+
+(defun %xload-fasl-vintern (s package &optional idx)
   (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
     (without-interrupts
      (multiple-value-bind (cursym access internal external) (%find-symbol str len package)
        (unless access
          (unless new-p (setq str (%fasl-copystr str len)))
          (setq cursym (%add-symbol str package internal external)))
-       ; cursym now exists in the load-time world; make sure that it exists
-       ; (and is properly "interned" in the world we're making as well)
-       (%epushval s (xload-copy-symbol cursym))))))
+       ;; cursym now exists in the load-time world; make sure that it exists
+       ;; (and is properly "interned" in the world we're making as well)
+       (let* ((symaddr (xload-copy-symbol cursym)))
+         (when idx
+           (xload-ensure-binding-index symaddr))
+         (%epushval s symaddr))))))
 
 
 (defxloadfaslop $fasl-vintern (s)
   (%xload-fasl-vintern s *package*))
 
+(defxloadfaslop $fasl-vintern-special (s)
+  (%xload-fasl-vintern s *package* t))
 
 (defxloadfaslop $fasl-vpkg-intern (s)
   (let* ((addr (%fasl-expr-preserve-epush  s))
          (pkg (xload-addr->package addr)))
     (%xload-fasl-vintern s pkg)))
 
+(defxloadfaslop $fasl-vpkg-intern-special (s)
+  (let* ((addr (%fasl-expr-preserve-epush  s))
+         (pkg (xload-addr->package addr)))
+    (%xload-fasl-vintern s pkg t)))
 
 (defun %xload-fasl-vpackage (s)
   (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
@@ -1498,6 +1523,9 @@
        (target-Xcompile-level-0 target (eq recompile :force)))
      (setup-xload-target-parameters)
      (let* ((*load-verbose* t)
+            (*xload-special-binding-indices*
+             (make-hash-table :test #'eql))
+            (*xload-next-special-binding-index* 0)
 	    (compiler-backend (find-backend
 			       (backend-xload-info-compiler-target-name
 				*xload-target-backend*)))

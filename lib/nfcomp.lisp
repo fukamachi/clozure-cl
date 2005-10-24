@@ -1441,20 +1441,27 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fasl-dump-symbol (sym)
   (let* ((pkg (symbol-package sym))
-         (name (symbol-name sym)))
+         (name (symbol-name sym))
+         (idx (let* ((i (%svref (%symbol->symptr sym) target::symbol.binding-index-cell)))
+                (declare (fixnum i))
+                (unless (zerop i) i))))
     (cond ((null pkg) 
            (progn 
-             (fasl-out-opcode $fasl-vmksym sym)
+             (fasl-out-opcode (if idx $fasl-vmksym-special $fasl-vmksym) sym)
              (fasl-out-vstring name)))
           (*fasdump-epush*
            (progn
-             (fasl-out-byte (fasl-epush-op $fasl-vpkg-intern))
+             (fasl-out-byte (fasl-epush-op (if idx
+                                             $fasl-vpkg-intern-special
+                                             $fasl-vpkg-intern)))
              (fasl-dump-form pkg)
              (fasl-dump-epush sym)
              (fasl-out-vstring name)))
           (t
            (progn
-             (fasl-out-byte $fasl-vpkg-intern)
+             (fasl-out-byte (if idx
+                              $fasl-vpkg-intern-special
+                              $fasl-vpkg-intern))
              (fasl-dump-form pkg)
              (fasl-out-vstring name))))))
 

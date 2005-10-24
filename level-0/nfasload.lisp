@@ -170,15 +170,17 @@
     val))
 
 
-(defun %fasl-vmake-symbol (s)
+(defun %fasl-vmake-symbol (s &optional idx)
   (declare (fixnum subtype))
   (let* ((n (%fasl-read-count s))
          (str (make-string n :element-type 'base-char)))
     (declare (fixnum n))
     (%fasl-read-n-bytes s str 0 n)
-    (%epushval s (make-symbol str))))
+    (let* ((sym (make-symbol str)))
+      (when idx (ensure-binding-index sym))
+      (%epushval s sym))))
 
-(defun %fasl-vintern (s package)
+(defun %fasl-vintern (s package &optional binding-index)
   (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
     (with-package-lock (package)
       (multiple-value-bind (symbol access internal-offset external-offset)
@@ -186,6 +188,8 @@
         (unless access
           (unless new-p (setq str (%fasl-copystr str len)))
           (setq symbol (%add-symbol str package internal-offset external-offset)))
+        (when binding-index
+          (ensure-binding-index symbol))
         (%epushval s symbol)))))
 
 (defun find-package (name)
@@ -345,6 +349,9 @@
 (deffaslop $fasl-vintern (s)
   (%fasl-vintern s *package*))
 
+(deffaslop $fasl-vintern-special (s)
+  (%fasl-vintern s *package* t))
+
 
 (deffaslop $fasl-vpkg-intern (s)
   (let* ((pkg (%fasl-expr-preserve-epush s)))
@@ -352,6 +359,11 @@
     (setq pkg (pkg-arg pkg))
     (%fasl-vintern s pkg)))
 
+(deffaslop $fasl-vpkg-intern-special (s)
+  (let* ((pkg (%fasl-expr-preserve-epush s)))
+    #+paranoia
+    (setq pkg (pkg-arg pkg))
+    (%fasl-vintern s pkg t)))
 
 (deffaslop $fasl-vpkg (s)
   (%fasl-vpackage s))

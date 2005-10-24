@@ -125,7 +125,10 @@
 (defconstant $fasl-vector-header 55)    ;<count> Make a vector header
 (defconstant $fasl-array-header 56)     ;<count> Make an array header.
 (defconstant $fasl-s32 57)              ;<4bytes> Make a (SIGNED-BYTE 32)
+(defconstant $fasl-vintern-special 58)  ;<vstring> Intern in current pkg, ensure that it has a special binding index
 (defconstant $fasl-s64 59)              ;<8bytes> Make a (SIGNED-BYTE 64)
+(defconstant $fasl-vpkg-intern-special 60) ;<pkg:expr><vstring> Make a sym in pkg, ensure that it has a special binding index
+(defconstant $fasl-vmksym-special 61)      ;<vstring> Make an uninterned symbol, ensure special binding index
 
 ; <string> means <size><size bytes>
 ; <size> means either <n:byte> with n<#xFF, or <FF><n:word> with n<#xFFFF or
