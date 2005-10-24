@@ -2835,14 +2835,14 @@
                                   ())
   (mr dest ppc32::rcontext))
 
-(define-ppc32-vinsn (svar-dpayback :call :subprim-call) (()
-                                                         ((n :s16const))
-                                                         ((temp (:u32 #.ppc::imm0))))
+(define-ppc32-vinsn (dpayback :call :subprim-call) (()
+                                                    ((n :s16const))
+                                                    ((temp (:u32 #.ppc::imm0))))
   ((:pred > n 1)
    (li temp n)
-   (bla .SPsvar-unbind-n))
+   (bla .SPunbind-n))
   ((:pred = n 1)
-   (bla .SPsvar-unbind)))
+   (bla .SPunbind)))
 
 (define-ppc32-vinsn zero-double-float-register 
     (((dest :double-float))
@@ -3464,7 +3464,7 @@
 
 (define-ppc32-subprim-call-vinsn (progvsave) .SPsvar-progvsave)
 
-(define-ppc32-subprim-jump-vinsn (progvrestore) .SPsvar-progvrestore)
+(define-ppc32-subprim-jump-vinsn (progvrestore) .SPprogvrestore)
 
 (define-ppc32-subprim-call-vinsn (eabi-syscall) .SPeabi-syscall)
 
