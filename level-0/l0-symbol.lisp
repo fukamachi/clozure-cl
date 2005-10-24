@@ -236,8 +236,60 @@
 (defun %symbol-binding-address (sym)
   (%svar-binding-address (ensure-svar sym)))
 
-;;(defvar *interrupt-level* -1)
+(defun symbol-binding-index (sym)
+  (%svref (%symbol->symptr sym) target::symbol.binding-index-cell))
 
+(defvar *interrupt-level* -1)
+
+;;; Special binding indices, and the inverse mapping between indices
+;;; and symbols
+(let* ((binding-index-lock (make-lock))
+       (binding-index-reverse-map (make-hash-table :test #'eq :weak :value))
+       (fixed-binding-index-symbols () #| '(*interrupt-level*)|#)
+       (next-binding-index (length fixed-binding-index-symbols)))
+  (defun next-binding-index () (1+ next-binding-index))
+  (defun ensure-binding-index (sym)
+    (with-lock-grabbed (binding-index-lock)
+      (let* ((symptr (%symbol->symptr sym))
+             (idx (%svref symptr target::symbol.binding-index-cell))
+             (bits (%symbol-bits sym)))
+        (declare (fixnum idx bits))
+        (if (or (logbitp $sym_vbit_global bits)
+                (logbitp $sym_vbit_const bits))
+          (unless (zerop idx)
+            (remhash idx binding-index-reverse-map)
+            (setf (%svref symptr target::symbol.binding-index-cell) 0))
+          (if (zerop idx)
+            (let* ((new-idx
+                    (or (do* ((i 1 (1+ i))
+                              (fixed-syms fixed-binding-index-symbols
+                                          (cdr fixed-syms)))
+                             ((null fixed-syms))
+                          (declare (fixnum i))
+                          (when (eq (car fixed-syms) sym)
+                            (return i)))
+                        (incf next-binding-index))))
+              (setf (%svref symptr target::symbol.binding-index-cell) new-idx)
+              (setf (gethash new-idx binding-index-reverse-map) sym))))
+        sym)))
+  ;; Mostly here until we wean ourselves from svars.
+  (defun assign-binding-index (sym new-idx)
+    (with-lock-grabbed (binding-index-lock)
+      (setf (%svref sym target::symbol.binding-index-cell) new-idx)
+      (setf (gethash new-idx binding-index-reverse-map) sym)))
+  (defun binding-index-symbol (idx)
+    (with-lock-grabbed (binding-index-lock)
+      (gethash idx binding-index-reverse-map)))
+  (defun cold-load-binding-index (sym)
+    ;; Index may have been assigned via xloader.  Update
+    ;; reverse map
+    (with-lock-grabbed (binding-index-lock)
+      (let* ((idx (%svref sym target::symbol.binding-index-cell)))
+        (declare (fixnum idx))
+        (unless (zerop idx)
+          (setf (gethash idx binding-index-reverse-map) sym))))))
+
+       
 (let* ((svar-lock (make-lock))
        (svar-hash (make-hash-table :test #'eq :weak t))
        (svar-idx-map (make-hash-table :test #'eq :weak :value))
@@ -272,7 +324,8 @@
                           (return i)))
                       (incf svar-index))))
 	    (setf (%svref svar target::svar.idx-cell) new-idx)
-	    (setf (gethash new-idx svar-idx-map) svar))))
+	    (setf (gethash new-idx svar-idx-map) svar)
+            (assign-binding-index sym new-idx))))
       svar))
   (defun %ensure-svar (symptr)
     (with-lock-grabbed (svar-lock)
