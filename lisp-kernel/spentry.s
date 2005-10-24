@@ -119,7 +119,7 @@ local_label(_throw_all_values):
 	__(cmpri(cr1,imm4,0))
 	__(la tsp,-((tsp_frame.fixed_overhead+fulltag_misc))(imm3))
 	__(beq cr0,local_label(_throw_dont_unbind))
-        __(bl _SPsvar_unbind_to)
+        __(bl _SPunbind_to)
 local_label(_throw_dont_unbind):
 	__(add imm0,vsp,nargs)
 	__(cmpri(cr0,nargs,0))
@@ -176,7 +176,7 @@ local_label(_nthrowv_nextframe):
 	__(ldr(sp,catch_frame.csp(temp0)))
 	__(beq cr0,local_label(_nthrowv_dont_unbind))
 	__(mflr loc_pc)
-        __(bl _SPsvar_unbind_to)
+        __(bl _SPunbind_to)
 	__(mtlr loc_pc)
 local_label(_nthrowv_dont_unbind):
 	__(beq cr7,local_label(_nthrowv_do_unwind))
@@ -280,7 +280,7 @@ local_label(_nthrow1v_nextframe):
 	__(ldr(sp,catch_frame.csp(temp0)))
 	__(beq cr0,local_label(_nthrow1v_dont_unbind))
 	 __(mflr loc_pc)
-         __(bl _SPsvar_unbind_to)
+         __(bl _SPunbind_to)
 	 __(mtlr loc_pc)
 local_label(_nthrow1v_dont_unbind):
 	__(beq cr7,local_label(_nthrow1v_do_unwind))
@@ -329,16 +329,101 @@ local_label(_nthrow1v_do_unwind):
 	__(b local_label(_nthrow1v_nextframe))
 
 
+/* This never affects the symbol's vcell */
+/* Non-null symbol in arg_y, new value in arg_z */        
+_spentry(bind)
+        __(ldr(imm3,symbol.binding_index(arg_y)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(beq 9f)
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(arg_z,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:
+        __(mr arg_z,arg_y)
+        __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
 
-_spentry(req_stack_restv_arg)
+/* arg_z = symbol: bind it to its current value */        
+_spentry(bind_self)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(cmpri(cr1,temp1,no_thread_local_binding_marker))
+        __(beq 9f)
+        __(mr temp0,temp1)
+        __(bne cr1,1f)
+        __(ldr(temp0,symbol.vcell(arg_z)))
+1:              
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(temp0,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:      __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
+
+/* Bind symbol in arg_z to NIL */               
+_spentry(bind_nil)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(beq- 9f)
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(li imm0,nil_value)
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(imm0,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:      __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
+
        
-_spentry(stack_cons_restv_arg)
+/* Bind symbol in arg_z to its current value ;  trap if symbol is unbound */
+_spentry(bind_self_boundp_check)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(beq 9f)              /* no real tlb index */
+        __(cmpri(temp1,no_thread_local_binding_marker))
+        __(mr temp0,temp1)
+        __(bne 1f)
+        __(ldr(temp0,symbol.vcell(arg_z)))
+1:      __(treqi(temp0,unbound_marker))       
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(temp0,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:      __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
 
-_spentry(stack_restv_arg)
-       
-
-_spentry(vspreadargz)
-        __(nop)
 
         .globl C(egc_write_barrier_start)
 C(egc_write_barrier_start):
@@ -656,12 +741,89 @@ _spentry(mkstackv)
 	
         
 
-/* Is it worth trying to avoid (postpone) consing here ? */
-_spentry(newblocktag)
-1:      __(b 1b)
+_spentry(setqsym)
+	__(ldr(imm0,symbol.flags(arg_y)))
+	__(andi. imm0,imm0,sym_vbit_const_mask)
+	__(beq _SPspecset)
+	__(mr arg_z,arg_y)
+	__(lwi(arg_y,XCONST))
+	__(set_nargs(2))
+	__(b _SPksignalerr)
+
+
 	
-_spentry(newgotag)
-1:      __(b 1b)
+_spentry(progvsave)
+	/* Error if arg_z isn't a proper list.  That's unlikely,
+	   but it's better to check now than to crash later.
+	*/
+	__(cmpri(arg_z,nil_value))
+	__(mr arg_x,arg_z)	/* fast */
+	__(mr temp1,arg_z)	/* slow */
+	__(beq 9f)		/* Null list is proper */
+0:	
+	__(trap_unless_list(arg_x,imm0))
+	__(_cdr(temp2,arg_x))	/* (null (cdr fast)) ? */
+	__(cmpri(cr3,temp2,nil_value))
+	__(trap_unless_list(temp2,imm0,cr0))
+	__(_cdr(arg_x,temp2))
+	__(beq cr3,9f)
+	__(_cdr(temp1,temp1))
+	__(cmpr(arg_x,temp1))
+	__(bne 0b)
+	__(lwi(arg_y,XIMPROPERLIST))
+	__(set_nargs(2))
+	__(b _SPksignalerr)
+9:	/* Whew */	
+	
+        /* Next, determine the length of arg_y.  We */
+        /* know that it's a proper list. */
+	__(li imm0,-node_size)
+	__(mr arg_x,arg_y)
+1:
+	__(cmpri(cr0,arg_x,nil_value))
+	__(la imm0,node_size(imm0))
+	__(_cdr(arg_x,arg_x))
+	__(bne 1b)
+	/* imm0 is now (boxed) triplet count. */
+	/* Determine word count, add 1 (to align), and make room. */
+	/* if count is 0, make an empty tsp frame and exit */
+	__(cmpri(cr0,imm0,0))
+	__(add imm1,imm0,imm0)
+	__(add imm1,imm1,imm0)
+        __(dnode_align(imm1,imm1,node_size))
+	__(bne+ cr0,2f)
+	 __(TSP_Alloc_Fixed_Boxed(2*node_size))
+	 __(blr)
+2:
+	__(la imm1,tsp_frame.fixed_overhead(imm1))	/* tsp header */
+	__(TSP_Alloc_Var_Boxed_nz(imm1,imm2))
+	__(str(imm0,tsp_frame.data_offset(tsp)))
+	__(ldr(imm2,tsp_frame.backlink(tsp)))
+	__(mr arg_x,arg_y)
+	__(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm3,tcr.tlb_limit(rcontext)))
+3:
+        __(cmpri(cr1,arg_z,nil_value))
+	__(_car(temp0,arg_x))
+        __(ldr(imm0,symbol.binding_index(temp0)))
+	__(_cdr(arg_x,arg_x))
+        __(trlle(imm3,imm0))
+        __(ldr(imm4,tcr.tlb_pointer(rcontext))) /* Need to reload after trap */
+        __(ldrx(temp3,imm4,imm0))
+	__(cmpri(cr0,arg_x,nil_value))
+        __(li temp2,unbound_marker)
+        __(beq cr1,4f)
+	__(_car(temp2,arg_z))
+	__(_cdr(arg_z,arg_z))
+4:      __(push(temp3,imm2))
+	__(push(imm0,imm2))
+	__(push(imm1,imm2))
+        __(strx(temp2,imm4,imm0))
+	__(mr imm1,imm2)
+	__(bne cr0,3b)
+	__(str(imm2,tcr.db_link(rcontext)))
+	__(blr)
+
 	
 /* Allocate a miscobj on the temp stack.  (Push a frame on the tsp and 
    heap-cons the object if there's no room on the tstack.) */
@@ -3469,17 +3631,8 @@ _spentry(stack_misc_alloc_init)
 	__(jump_fname())
 
 	
-/*
-   Restore the special bindings from the top of the tstack, 
-   leaving the tstack frame allocated. 
-   Note that there might be 0 saved bindings, in which case 
-   do nothing. 
-   Note also that this is -only- called from an unwind-protect 
-   cleanup form, and that .SPnthrowXXX is keeping one or more 
-   values in a frame on top of the tstack. 
-*/
 	
-_spentry(progvrestore)
+_spentry(UNUSED_1)
 
 _spentry(callbuiltin)
 	__(ref_nrs_value(fname,builtin_functions))
@@ -4895,11 +5048,51 @@ _spentry(makes128)
          __(twgei r0,r0)
         __endif        
                         
-_spentry(heap_restv_arg)
+/* on entry: arg_z = symbol.  On exit, arg_z = value (possibly
+	unbound_marker), arg_y = symbol, imm3 = symbol.binding-index */
+_spentry(specref)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpr(imm3,imm0))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(mr arg_y,arg_z)
+        __(bge 1f)
+        __(ldrx(arg_z,imm2,imm3))
+        __(cmpri(arg_z,no_thread_local_binding_marker))
+        __(bnelr)
+1:     	__(ldr(arg_z,symbol.vcell(arg_y)))
+        __(blr)
 
-_spentry(req_heap_restv_arg)
 
-_spentry(heap_cons_restv_arg)
+_spentry(specrefcheck)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpr(imm3,imm0))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(mr arg_y,arg_z)
+        __(bge 1f)
+        __(ldrx(arg_z,imm2,imm3))
+        __(cmpri(arg_z,no_thread_local_binding_marker))
+        __(bne 2f)
+1:     	__(ldr(arg_z,symbol.vcell(arg_y)))
+2:      __(treqi(arg_z,unbound_marker))
+        __(blr)
+	
+/* arg_y = svar for special symbol, arg_z = new value. */        
+_spentry(specset)
+        __(ldr(imm3,symbol.binding_index(arg_y)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(cmpr(imm3,imm0))
+        __(bge 1f)
+        __(ldrx(temp1,imm2,imm3))
+        __(cmpri(temp1,no_thread_local_binding_marker))
+        __(beq 1f)
+        __(strx(arg_z,imm2,imm3))
+        __(blr)
+1:     	__(mr arg_x,arg_y)
+        __(li arg_y,symbol.vcell-misc_data_offset)
+        __(b _SPgvset)
 
 	/* Restore current thread's interrupt level to arg_z,
 	   noting whether the tcr's interrupt_pending flag was set. */
@@ -5089,7 +5282,6 @@ _spentry(svar_specrefcheck)
 
 /* This never affects the symbol's vcell */
 _spentry(svar_bind)
-0:              
         __(ldr(imm3,svar.idx(temp0)))
         __(ldr(imm0,tcr.tlb_limit(rcontext)))
         __(cmpri(imm3,0))
@@ -5185,7 +5377,7 @@ _spentry(svar_bind_self_boundp_check)
         __(set_nargs(2))
         __(b _SPksignalerr)
 
-_spentry(svar_unbind)
+_spentry(unbind)
         __(ldr(imm1,tcr.db_link(rcontext)))
         __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
         __(ldr(imm3,binding.sym(imm1)))
@@ -5195,7 +5387,7 @@ _spentry(svar_unbind)
         __(str(imm1,tcr.db_link(rcontext)))
         __(blr)
 
-_spentry(svar_unbind_n)
+_spentry(unbind_n)
         __(ldr(imm1,tcr.db_link(rcontext)))
         __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
 1:      __(subi imm0,imm0,1)
@@ -5211,7 +5403,7 @@ _spentry(svar_unbind_n)
  /*
    Clobbers imm1,imm2,imm5,arg_x, arg_y
 */
-_spentry(svar_unbind_to)
+_spentry(unbind_to)
         __(ldr(imm1,tcr.db_link(rcontext)))
         __(ldr(imm2,tcr.tlb_pointer(rcontext)))
 1:      __(ldr(imm5,binding.sym(imm1)))
@@ -5322,13 +5514,23 @@ _spentry(svar_progvsave)
 	__(bne cr0,3b)
 	__(str(imm2,tcr.db_link(rcontext)))
 	__(blr)
-                
-_spentry(svar_progvrestore)
+
+/*
+   Restore the special bindings from the top of the tstack, 
+   leaving the tstack frame allocated. 
+   Note that there might be 0 saved bindings, in which case 
+   do nothing. 
+   Note also that this is -only- called from an unwind-protect 
+   cleanup form, and that .SPnthrowXXX is keeping one or more 
+   values in a frame on top of the tstack. 
+*/
+                        
+_spentry(progvrestore)
 	__(ldr(imm0,tsp_frame.backlink(tsp)))	/* ignore .SPnthrowXXX values frame */
 	__(ldr(imm0,tsp_frame.data_offset(imm0)))
 	__(cmpri(cr0,imm0,0))
 	__(unbox_fixnum(imm0,imm0))
-	__(bne+ cr0,_SPsvar_unbind_n)
+	__(bne+ cr0,_SPunbind_n)
 	__(blr)
                         
 /*  EOF, basically */
