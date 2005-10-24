@@ -4763,7 +4763,7 @@
 (defun ppc2-dpayback (seg n)
   (declare (fixnum n))
   (with-ppc-local-vinsn-macros (seg)
-    (! svar-dpayback n)))
+    (! dpayback n)))
 
 (defun ppc2-spread-lambda-list (seg listform whole req opt rest keys 
                                     &optional enclosing-ea cdr-p)
