@@ -1,3 +1,13 @@
+2005-10-25 00:51  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp, level-0/l0-pred.lisp,
+	level-0/l0-symbol.lisp, level-0/nfasload.lisp,
+	level-1/l1-clos-boot.lisp, level-1/l1-io.lisp,
+	level-1/l1-lisp-threads.lisp, lib/nfcomp.lisp, xdump/faslenv.lisp,
+	xdump/xfasload.lisp: Remove SVAR type/class.  Use
+	BINDING-INDEX-SYMBOL instead of INDEX-SVAR.
+
 2005-10-24 23:49  gb
 
 	* lib/prepare-mcl-environment.lisp: Don't use svars in
