@@ -53,7 +53,8 @@
              (dolist (s l t) 
                (unless (and (symbolp s)
                             (not (constant-symbol-p s))
-                            (not (logbitp $sym_vbit_global (the fixnum (%symbol-bits s)))))
+                            (not (logbitp $sym_vbit_global (the fixnum (%symbol-bits s))))
+                            (ensure-binding-index s))
                  (return nil))))
       l
       (error "~s is not a proper list of bindable symbols~@[ of length < ~s~]." l max-length))))
@@ -182,36 +183,16 @@
     bits))
 
 (defun %sym-value (name)
-  (let* ((symptr (%symbol->symptr name))
-         (bits (%svref symptr target::symbol.flags-cell))
-         (svar (unless (or (logbitp $sym_vbit_global bits)
-                           (logbitp $sym_vbit_const bits))
-                 (%find-svar symptr))))
-    (declare (fixnum bits))
-    (if svar
-      (%svar-sym-value svar)
-      (%svref symptr target::symbol.vcell-cell))))
+  (%symptr-value (%symbol->symptr name)))
 
 (defun %set-sym-value (name val)
-  (let* ((symptr (%symbol->symptr name))
-         (bits (%svref symptr target::symbol.flags-cell))
-         (svar (unless (or (logbitp $sym_vbit_global bits)
-                           (logbitp $sym_vbit_const bits))
-                 (%find-svar symptr))))
-    (declare (fixnum bits))
-    (if svar
-      (%svar-set-sym-value svar val)
-      (setf (%svref symptr target::symbol.vcell-cell) val))))
+  (%set-symptr-value (%symbol->symptr name) val))
     
 (defun %sym-global-value (name)
   (%svref (%symbol->symptr name) target::symbol.vcell-cell))
 
 (defun %set-sym-global-value (name val)
   (setf (%svref (%symbol->symptr name) target::symbol.vcell-cell) val))
-
-
-
-
 
 (defun symbol-name (sym)
   "Return SYMBOL's name as a string."
@@ -234,7 +215,7 @@
         (if (functionp fun) fun)))))
 
 (defun %symbol-binding-address (sym)
-  (%svar-binding-address (ensure-svar sym)))
+  (%symptr-binding-address (%symbol->symptr sym)))
 
 (defun symbol-binding-index (sym)
   (%svref (%symbol->symptr sym) target::symbol.binding-index-cell))
@@ -245,8 +226,10 @@
 ;;; and symbols
 (let* ((binding-index-lock (make-lock))
        (binding-index-reverse-map (make-hash-table :test #'eq :weak :value))
-       (fixed-binding-index-symbols () #| '(*interrupt-level*)|#)
-       (next-binding-index (length fixed-binding-index-symbols)))
+       (next-binding-index 0)
+       (svar-hash (make-hash-table :test #'eq :weak t))
+       (svar-idx-map (make-hash-table :test #'eq :weak :value)))
+  (defun %set-binding-index (val) (setq next-binding-index val))
   (defun next-binding-index () (1+ next-binding-index))
   (defun ensure-binding-index (sym)
     (with-lock-grabbed (binding-index-lock)
@@ -260,15 +243,7 @@
             (remhash idx binding-index-reverse-map)
             (setf (%svref symptr target::symbol.binding-index-cell) 0))
           (if (zerop idx)
-            (let* ((new-idx
-                    (or (do* ((i 1 (1+ i))
-                              (fixed-syms fixed-binding-index-symbols
-                                          (cdr fixed-syms)))
-                             ((null fixed-syms))
-                          (declare (fixnum i))
-                          (when (eq (car fixed-syms) sym)
-                            (return i)))
-                        (incf next-binding-index))))
+            (let* ((new-idx (incf next-binding-index)))
               (setf (%svref symptr target::symbol.binding-index-cell) new-idx)
               (setf (gethash new-idx binding-index-reverse-map) sym))))
         sym)))
@@ -287,24 +262,13 @@
       (let* ((idx (%svref sym target::symbol.binding-index-cell)))
         (declare (fixnum idx))
         (unless (zerop idx)
-          (setf (gethash idx binding-index-reverse-map) sym))))))
-
-       
-(let* ((svar-lock (make-lock))
-       (svar-hash (make-hash-table :test #'eq :weak t))
-       (svar-idx-map (make-hash-table :test #'eq :weak :value))
-       (fixed-svar-symbols '())
-       (svar-index (length fixed-svar-symbols)))
-  (defun %set-svar-hash (hash)
-    (unless svar-hash
-      (setq svar-hash hash)))
-  (defun %svar-hash ()
-    svar-hash)
+          (setf (gethash idx binding-index-reverse-map) sym)))))
   (defun %find-svar (symptr)
     (gethash symptr svar-hash))
   (defun find-svar (sym)
     (%find-svar (%symbol->symptr sym)))
   (defun ensure-svar-idx (svar)
+    (declare (ignorable new))
     (let* ((sym (%svref svar target::svar.symbol-cell))
            (idx (%svref svar target::svar.idx-cell))
            (bits (%symbol-bits sym)))
@@ -316,19 +280,15 @@
           (setf (%svref svar target::svar.idx-cell) 0))
         (if (zerop idx)
 	  (let* ((new-idx
-                  (or (do* ((i 1 (1+ i))
-                            (fixed-syms fixed-svar-symbols (cdr fixed-syms)))
-                           ((null fixed-syms))
-                        (declare (fixnum i))
-                        (when (eq (car fixed-syms) sym)
-                          (return i)))
-                      (incf svar-index))))
+                  (or (let* ((idx (symbol-binding-index sym)))
+                        (unless (eql 0 idx) idx))
+                      (incf next-binding-index))))
 	    (setf (%svref svar target::svar.idx-cell) new-idx)
 	    (setf (gethash new-idx svar-idx-map) svar)
             (assign-binding-index sym new-idx))))
       svar))
   (defun %ensure-svar (symptr)
-    (with-lock-grabbed (svar-lock)
+    (with-lock-grabbed (binding-index-lock)
       (let* ((found (%find-svar symptr))
              (svar (or found
                        (setf (gethash symptr svar-hash)
@@ -336,14 +296,13 @@
         (ensure-svar-idx svar))))
   (defun ensure-svar (sym)
     (%ensure-svar (%symbol->symptr sym)))
+  (defun index-svar (idx) (gethash idx svar-idx-map))
   (defun cold-load-svar (svar)
-    (with-lock-grabbed (svar-lock)
+    (with-lock-grabbed (binding-index-lock)
       (let* ((symptr (%symbol->symptr (%svref svar target::svar.symbol-cell))))
         (setf (gethash symptr svar-hash) svar)
         (setf (%svref svar target::svar.idx-cell) 0)
-        (ensure-svar-idx svar))))
-  (defun svar-index ()
-    svar-index)
-  (defun index-svar (index)
-    (gethash index svar-idx-map))
-  )
+        (ensure-svar-idx svar)))))
+
+       
+
