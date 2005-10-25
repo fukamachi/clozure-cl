@@ -36,7 +36,11 @@
 
 (defparameter *xload-show-cold-load-functions* nil "Set to T when debugging")
 (defparameter *xload-special-binding-indices* nil)
-(defparameter *xload-next-special-binding-index* 0)
+(defparameter *xload-reserved-special-binding-index-symbols*
+  '(*interrupt-level*))
+
+(defparameter *xload-next-special-binding-index* (length *xload-reserved-special-binding-index-symbols*))
+
 (defparameter *xload-target-nil* nil)
 (defparameter *xload-target-fixnumshift* nil)
 (defparameter *xload-target-fulltag-cons* nil)
@@ -311,6 +315,7 @@
 (defparameter *xload-readonly-space* nil)
 (defparameter *xload-static-space* nil)
 (defparameter *xload-symbols* nil)
+(defparameter *xload-symbol-addresses* nil)
 (defparameter *xload-package-alist* nil)         ; maps real package to clone
 (defparameter *xload-aliased-package-addresses* nil)     ; cloned package to address
 (defparameter *xload-cold-load-functions* nil)
@@ -326,8 +331,14 @@
 (defun xload-lookup-symbol (sym)
   (gethash (%symbol->symptr sym) *xload-symbols*))
 
+(defun xload-lookup-symbol-address (addr)
+  (gethash addr *xload-symbol-addresses*))
+
 (defun (setf xload-lookup-symbol) (addr sym)
   (setf (gethash (%symbol->symptr sym) *xload-symbols*) addr))
+
+(defun (setf xload-lookup-symbol-address) (sym addr)
+  (setf (gethash addr *xload-symbol-addresses*) sym))
 
 (defun xload-lookup-address (address)
   (dolist (space *xload-spaces* (error "Address #x~8,'0x not found in defined address spaces ." address))
@@ -712,6 +723,7 @@
         (if (and (constantp symbol)
                  (eq (symbol-value symbol) symbol))
           (setf (xload-symbol-value addr) addr))
+        (setf (xload-lookup-symbol-address addr) symbol)
         (setf (xload-lookup-symbol symbol) addr))))
 
 
@@ -886,6 +898,7 @@
 
 (defun xfasload (output-file &rest pathnames)
   (let* ((*xload-symbols* (make-hash-table :test #'eq))
+         (*xload-symbol-addresses* (make-hash-table :test #'eql))
          (*xload-spaces* nil)
          (*xload-readonly-space* (init-xload-space *xload-readonly-space-address* *xload-readonly-space-size* ppc::area-readonly))
          (*xload-dynamic-space* (init-xload-space *xload-dynamic-space-address* *xload-dynamic-space-size* ppc::area-dynamic))
@@ -959,7 +972,8 @@
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-documentation*))
           (xload-save-list (setq *xload-cold-load-documentation*
                                  (nreverse *xload-cold-load-documentation*))))
-                              
+    (dolist (s *xload-reserved-special-binding-index-symbols*)
+      (xload-ensure-binding-index (xload-copy-symbol s)))
     (xload-finalize-packages)
     (xload-dump-image output-file *xload-image-base-address*)))
 
@@ -1041,12 +1055,20 @@
           (%get-unsigned-word n 6) (%fasl-read-word s))
     (%epushval s (xload-integer (%%get-signed-longlong n 0) 2))))
 
+(defun xload-set-binding-address (symbol-address idx)
+  (setf (xload-%svref symbol-address target::symbol.binding-index-cell)
+        (ash idx *xload-target-fixnumshift*))
+  (setf (gethash symbol-address *xload-special-binding-indices*) idx))
+
 (defun xload-ensure-binding-index (symbol-address)
   (or (gethash symbol-address *xload-special-binding-indices*)
-      (let* ((idx (incf *xload-next-special-binding-index*)))
-        (setf (xload-%svref symbol-address target::symbol.binding-index-cell)
-              (ash idx *xload-target-fixnumshift*))
-        (setf (gethash symbol-address *xload-special-binding-indices*) idx))))
+      (let* ((sym (xload-lookup-symbol-address symbol-address))
+             (pos (position sym *xload-reserved-special-binding-index-symbols*)))
+        (xload-set-binding-address
+         symbol-address
+         (if pos
+           (1+ pos)
+           (incf *xload-next-special-binding-index*))))))
 
 (defun %xload-fasl-vmake-symbol (s &optional idx)
   (let* ((sym (xload-make-symbol (%xload-fasl-vreadstr s))))
