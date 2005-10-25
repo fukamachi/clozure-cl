@@ -70,7 +70,7 @@
 (defconstant $fasl-noop 0)              ;<nada:zilch>.  
 (defconstant $fasl-s32-vector 1)        ;<count> Make a (SIMPLE-ARRAY (SIGNED-BYTE 32) <count>)
 (defconstant $fasl-code-vector 2)       ;<count> words of code
-(defconstant $fasl-svar 3)              ;<expr> Make SVAR for special symbol
+;;;(defconstant $fasl-svar 3)              ;<expr> Make SVAR for special symbol
 (defconstant $fasl-lfuncall 4)          ;<lfun:expr> funcall the lfun.
 (defconstant $fasl-globals 5)           ;<expr> global symbols vector
 (defconstant $fasl-char 6)              ;<char:byte> Make a char

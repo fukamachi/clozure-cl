@@ -224,7 +224,7 @@
 (define-node-subtag istruct 16)
 (define-node-subtag value-cell 17)
 (define-node-subtag xfunction 18)       ; Function for cross-development
-(define-node-subtag svar 19)
+;;;(define-node-subtag svar 19)
 (defconstant max-non-array-node-subtag (logior (ash 19 ntagbits) fulltag-nodeheader))
 
 (define-subtag character fulltag-imm 9)
@@ -380,10 +380,6 @@
 
 (define-fixedsized-object value-cell
   value)
-
-(define-fixedsized-object svar
-  symbol
-  idx)
 
 ;;; The kernel uses these (rather generically named) structures
 ;;; to keep track of various memory regions it (or the lisp) is
@@ -653,7 +649,6 @@
     (:instance . ,subtag-instance )
     (:lock . ,subtag-lock )
     (:slot-vector . ,subtag-slot-vector)
-    (:svar . ,subtag-svar)
     (:simple-string . ,subtag-simple-base-string )
     (:bit-vector . ,subtag-bit-vector )
     (:signed-8-bit-vector . ,subtag-s8-vector )
@@ -749,7 +744,7 @@
                                            :catch-frame :structure :istruct
                                            :pool :population :hash-vector
                                            :package :value-cell :instance
-                                           :lock :slot-vector :svar
+                                           :lock :slot-vector
                                            :simple-vector)
                           :1-bit-ivector-types '(:bit-vector)
                           :8-bit-ivector-types '(:signed-8-bit-vector

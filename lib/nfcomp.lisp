@@ -1231,7 +1231,6 @@ Will differ from *compiling-file* during an INCLUDE")
     (package (fasl-dump-package exp))
     (function (fasl-dump-function exp))
     (xfunction (fasl-dump-function exp))
-    (svar (fasl-dump-svar exp))
     (code-vector (fasl-dump-codevector exp))
     (xcode-vector (fasl-dump-codevector exp))
     (simple-vector (fasl-dump-gvector exp $fasl-t-vector))
@@ -1347,9 +1346,7 @@ Will differ from *compiling-file* during an INCLUDE")
     (dotimes (i n)
       (fasl-dump-form (%svref f i)))))
 
-(defun fasl-dump-svar (s)
-  (fasl-out-opcode $fasl-svar s)
-  (fasl-dump-form (%svref s target::svar.symbol-cell)))
+
 
 (defun fasl-dump-codevector (c)
   (if (and (not (eq *fasl-backend* *host-backend*))

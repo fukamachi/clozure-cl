@@ -940,10 +940,7 @@
                (if db-link-p
                  (values (+ 2 arg-vsp)
                          :saved-special
-			 (let* ((svar (index-svar (%fixnum-ref (1+ arg-vsp)))))
-			   (if svar
-			     (%svref svar target::svar.symbol-cell)
-			     nil)))
+                         (binding-index-symbol (%fixnum-ref (1+ arg-vsp))))
                  (multiple-value-bind (type name) (find-local-name phys-cell lfun pc)
                    (values arg-vsp type name))))))
           (incf phys-cell)

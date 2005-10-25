@@ -1577,11 +1577,6 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 			  (eql-specializer-object spec)
 			  "<unbound>"))))
 
-(defmethod print-object ((svar svar) stream)
-  (print-unreadable-object (svar stream :identity t :type t)
-    (format stream "~s ~s"
-            (%svref svar target::svar.symbol-cell)
-            (%svref svar target::svar.idx-cell))))
 
 (defmethod print-object ((slot-id slot-id) stream)
   (print-unreadable-object (slot-id stream :identity t :type t)

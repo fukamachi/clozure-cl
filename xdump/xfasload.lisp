@@ -257,7 +257,6 @@
 (defparameter *xload-image-file* nil)
 (defvar *xload-image-file-name*)
 (defvar *xload-startup-file*)
-(defvar *xload-svar-alist* nil)
 
 
 (defstruct xload-space
@@ -896,7 +895,6 @@
          (*xload-cold-load-functions* nil)
          (*xload-cold-load-documentation* nil)
          (*xload-loading-file-source-file* nil)
-         (*xload-svar-alist* nil)
          (*xload-aliased-package-addresses* nil))
     (target-arch-case
      (:ppc32
@@ -1300,21 +1298,7 @@
           (xload-%svref c target::complex.imagpart-cell) (%fasl-expr s))
     (setf (faslstate.faslval s) c)))
 
-;;; About all that we do with svars is to canonicalize them.
-(defxloadfaslop $fasl-svar (s)
-  (let* ((epush (faslstate.faslepush s))
-         (ecount (faslstate.faslecnt s)))
-    (when epush
-      (%epushval s 0))
-    (let* ((sym (%fasl-expr s))
-           (vector (cdr (assq sym *xload-svar-alist*))))
-      (unless vector
-        (setq vector (xload-make-gvector :svar target::svar.element-count))
-        (setf (xload-%svref vector target::svar.symbol-cell) sym)
-        (push (cons sym vector) *xload-svar-alist*))
-      (when epush
-        (setf (svref (faslstate.faslevec s) ecount) vector))
-      (setf (faslstate.faslval s) vector))))
+
 
 (defxloadfaslop $fasl-t-vector (s)
   (xfasl-read-gvector s (xload-target-subtype :simple-vector)))

@@ -374,7 +374,7 @@
     internal-structure                  ; 16
     value-cell                          ; 17
     xfunction                           ; 18
-    svar                                ; 19
+    bogus                               ; 19
     array-header                        ; 20
     vector-header                       ; 21
     simple-vector                       ; 22
@@ -578,7 +578,7 @@
       bogus
       bogus
       bogus
-      svar
+      bogus
       bogus
       bogus
       bogus

@@ -241,7 +241,6 @@
 (define-subtag pool fulltag-nodeheader-1 4)
 (define-subtag weak fulltag-nodeheader-1 5)
 (define-subtag package fulltag-nodeheader-1 6)
-(define-subtag svar fulltag-nodeheader-1 7)
 (define-subtag slot-vector fulltag-nodeheader-2 0)
 (define-subtag instance fulltag-nodeheader-2 1)
 (define-subtag struct fulltag-nodeheader-2  2)
@@ -451,9 +450,6 @@
 (define-fixedsized-object value-cell
   value)
 
-(define-fixedsized-object svar
-  symbol
-  idx)
 
 ;;; The kernel uses these (rather generically named) structures
 ;;; to keep track of various memory regions it (or the lisp) is
@@ -703,7 +699,6 @@
     (:instance . ,subtag-instance )
     (:lock . ,subtag-lock )
     (:slot-vector . ,subtag-slot-vector)
-    (:svar . ,subtag-svar)
     (:simple-string . ,subtag-simple-base-string )
     (:bit-vector . ,subtag-bit-vector )
     (:signed-8-bit-vector . ,subtag-s8-vector )
@@ -811,7 +806,7 @@
                                            :catch-frame :structure :istruct
                                            :pool :population :hash-vector
                                            :package :value-cell :instance
-                                           :lock :slot-vector :svar
+                                           :lock :slot-vector
                                            :simple-vector)
                           :1-bit-ivector-types '(:bit-vector)
                           :8-bit-ivector-types '(:signed-8-bit-vector

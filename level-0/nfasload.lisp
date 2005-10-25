@@ -538,16 +538,6 @@
 (deffaslop $fasl-array-header (s)
   (fasl-read-gvector s target::subtag-arrayH))
 
-(deffaslop $fasl-svar (s)
-  (let* ((epush (faslstate.faslepush s))
-         (ecount (faslstate.faslecnt s)))
-    (when epush
-      (%epushval s 0))
-    (let* ((sym (%fasl-expr s))
-           (vector (ensure-svar sym)))
-      (when epush
-        (setf (svref (faslstate.faslevec s) ecount) vector))
-      (setf (faslstate.faslval s) vector))))
 
 (deffaslop $fasl-defun (s)
   (%cant-epush s)
@@ -969,13 +959,10 @@
         (%map-areas #'(lambda (s)
                         (when (= (typecode s) target::subtag-symbol)
                           (let* ((idx (symbol-binding-index s)))
+                            (when (> idx 0)
+                              (cold-load-binding-index s))
                             (when (> idx max)
                               (setq max idx))))))
         (%set-binding-index max))
-      (%map-areas #'(lambda (o)
-                      (when (eql (typecode o) target::subtag-svar)
-                        (cold-load-svar o)))
-                  ppc::area-dynamic
-                  ppc::area-dynamic)
       (%fasload *xload-startup-file*)))
 
