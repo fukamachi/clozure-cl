@@ -1,3 +1,20 @@
+2005-10-24 23:04  gb
+
+	* level-0/l0-symbol.lisp: No more SVAR-CHECK-SYMBOL-LIST.
+
+2005-10-24 22:52  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	PROGVSAVE vinsn uses non-svar subprim.
+
+2005-10-24 22:51  gb
+
+	* compiler/subprims.lisp: Was out of synch with spjump.s.
+
+2005-10-24 22:51  gb
+
+	* compiler/nx1.lisp: Don't use svars in PROGV.
+
 2005-10-24 22:10  gb
 
 	* xdump/xfasload.lisp: When setting xload binding addresses, set
