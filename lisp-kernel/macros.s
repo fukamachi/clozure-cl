@@ -814,7 +814,8 @@ define([TSP_Alloc_Var_Boxed_nz],[
 
 define([check_pending_interrupt],[
 	new_macro_labels()
-	ldr(nargs,tcr.interrupt_level(rcontext))
+        ldr(nargs,tcr.tlb_pointer(rcontext))
+	ldr(nargs,INTERRUPT_LEVEL_BINDING_INDEX(nargs))
 	cmpri(ifelse($1,[],[cr0],$1),nargs,0)
 	blt ifelse($1,[],[cr0],$1),macro_label(done)
 	bgt ifelse($1,[],[cr0],$1),macro_label(trap)

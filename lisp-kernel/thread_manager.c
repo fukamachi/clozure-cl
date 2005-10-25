@@ -496,15 +496,14 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
   tcr->ts_area = a;
   tcr->save_tsp = (LispObj *) a->active;
   tcr->valence = TCR_STATE_FOREIGN;
-  tcr->interrupt_level = (-1<<fixnum_shift);
   tcr->lisp_fpscr.words.l = 0xd0;
   tcr->save_allocbase = tcr->save_allocptr = (void *) VOID_ALLOCPTR;
-  tcr->tlb_limit = 8192;
+  tcr->tlb_limit = 2048<<fixnumshift;
   tcr->tlb_pointer = (LispObj *)malloc(tcr->tlb_limit);
-  for (i = 0; i < (8192/sizeof(LispObj)); i++) {
+  for (i = 0; i < 2048; i++) {
     tcr->tlb_pointer[i] = (LispObj) no_thread_local_binding_marker;
   }
-  tcr->tlb_pointer[INTERRUPT_LEVEL_BINDING_INDEX] = (LispObj) (-1<<fixnum_shift);
+  TCR_INTERRUPT_LEVEL(tcr) = (LispObj) (-1<<fixnum_shift);
   tcr->shutdown_count = PTHREAD_DESTRUCTOR_ITERATIONS;
   return tcr;
 }

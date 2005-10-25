@@ -1373,7 +1373,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
   tcr->prev = tcr->next = tcr;
   lisp_global(TCR_LOCK) = ptr_to_lispobj(new_recursive_lock());
   lisp_global(INTERRUPT_SIGNAL) = (LispObj) box_fixnum(SIGNAL_FOR_PROCESS_INTERRUPT);
-  tcr->interrupt_level = (-1<<fixnumshift);
   tcr->vs_area->active -= node_size;
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;
   nrs_TOPLFUNC.vcell = lisp_nil;

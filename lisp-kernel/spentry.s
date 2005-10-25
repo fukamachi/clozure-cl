@@ -5106,8 +5106,9 @@ _spentry(restoreintlevel)
 	__(li nargs,fixnum_one)
 	__(trgti(nargs,0))
 	__(blr)
-1:	
-	__(str(arg_z,tcr.interrupt_level(rcontext)))
+1:
+        __(ldr(nargs,tcr.tlb_pointer(rcontext)))
+	__(str(arg_z,INTERRUPT_LEVEL_BINDING_INDEX(nargs)))
 	__(blr)
 
 /*

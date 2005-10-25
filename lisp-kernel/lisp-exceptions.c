@@ -1640,7 +1640,7 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
         (header_subtag(header_of(cmain)) == subtag_macptr)) {
       if (the_trap == TRI_instruction(TO_GT,nargs,0)) {
         /* reset interrup_level, interrupt_pending */
-        tcr->interrupt_level = 0;
+        TCR_INTERRUPT_LEVEL(tcr) = 0;
         tcr->interrupt_pending = 0;
       }
       
@@ -1779,7 +1779,7 @@ unlock_exception_lock_in_handler(TCR *tcr)
 void
 raise_pending_interrupt(TCR *tcr)
 {
-  if (tcr->interrupt_level > 0) {
+  if (TCR_INTERRUPT_LEVEL(tcr) > 0) {
     pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), SIGNAL_FOR_PROCESS_INTERRUPT);
   }
 }
@@ -2040,7 +2040,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
   TCR *tcr = get_interrupt_tcr(false);
   if (tcr) {
-    if (tcr->interrupt_level < 0) {
+    if (TCR_INTERRUPT_LEVEL(tcr) < 0) {
       tcr->interrupt_pending = 1 << fixnumshift;
     } else {
       LispObj cmain = nrs_CMAIN.vcell;
@@ -2054,7 +2054,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	   of which isn't reentrant.)
 	*/
 	if (tcr->valence != TCR_STATE_LISP) {
-	  tcr->interrupt_level = (1 << fixnumshift);
+	  TCR_INTERRUPT_LEVEL(tcr) = (1 << fixnumshift);
 	} else {
 	  xframe_list xframe_link;
 	  int old_valence;

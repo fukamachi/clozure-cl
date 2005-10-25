@@ -574,7 +574,7 @@ TCR_BIAS = 0
 	 _node(cs_limit)	/* cstack overflow limit */
 	 _node(bytes_consed_high)
 	 _node(bytes_consed_low)
-	 _node(interrupt_level)
+	 _node(OLDinterrupt_level)
 	 _node(interrupt_pending)
 	 _node(xframe)		/* per-thread exception frame list */
 	 _node(errno_loc)	/* per-thread  errno location */
@@ -676,3 +676,4 @@ define([RESERVATION_DISCHARGE],0x1004)
 
 lisp_globals_limit = 0x2010
         
+INTERRUPT_LEVEL_BINDING_INDEX = fixnumone
