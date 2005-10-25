@@ -908,7 +908,11 @@
          (*xload-cold-load-functions* nil)
          (*xload-cold-load-documentation* nil)
          (*xload-loading-file-source-file* nil)
-         (*xload-aliased-package-addresses* nil))
+         (*xload-aliased-package-addresses* nil)
+         (*xload-special-binding-indices*
+          (make-hash-table :test #'eql))
+         (*xload-next-special-binding-index*
+          (length *xload-reserved-special-binding-index-symbols*)))
     (target-arch-case
      (:ppc32
       (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
@@ -917,7 +921,7 @@
       (xload-make-cons 0 *xload-target-nil* *xload-static-space*))
      (:ppc64
       (xload-make-ivector *xload-static-space* ppc64::subtag-u64-vector
-                         (1- (/ 4096 8)))))
+                          (1- (/ 4096 8)))))
     ;; Create %unbound-function% and the package objects in dynamic space,
     ;; then fill in the nilreg-relative symbols in static space.
     ;; Then start consing ..
@@ -937,7 +941,7 @@
 			   :preserve-constantness t
 			   :space *xload-static-space*)
 	(when val-p (xload-set sym val))))
-    ; This could be a little less ... procedural.
+                                        ; This could be a little less ... procedural.
     (xload-set '*package* (xload-package->addr *ccl-package*))
     (xload-set '*keyword-package* (xload-package->addr *keyword-package*))
     (xload-set '%all-packages% (xload-save-list (mapcar #'cdr *xload-aliased-package-addresses*)))
@@ -959,13 +963,13 @@
     (xload-copy-symbol '*xload-startup-file*)
     (xload-fasload pathnames)
     (xload-set '*xload-startup-file*
-              (xload-save-string *xload-startup-file*))
+               (xload-save-string *xload-startup-file*))
     (let* ((toplevel (xload-symbol-value (xload-lookup-symbol '%toplevel-function%))))      
       (when (= toplevel *xload-target-unbound-marker*)
 	(warn "~S not set in loading ~S ." '%toplevel-function pathnames)))
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))
           (xload-save-list (setq *xload-cold-load-functions*
-                                (nreverse *xload-cold-load-functions*))))
+                                 (nreverse *xload-cold-load-functions*))))
     (when *xload-show-cold-load-functions*
       (format t "~&cold-load-functions list:")
       (xload-show-list (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))))
@@ -975,6 +979,11 @@
     (dolist (s *xload-reserved-special-binding-index-symbols*)
       (xload-ensure-binding-index (xload-copy-symbol s)))
     (xload-finalize-packages)
+    #+debug
+    (maphash #'(lambda (addr idx)
+                 (format t "~&~d: ~s" idx
+                         (xload-lookup-symbol-address addr)))
+             *xload-special-binding-indices*)
     (xload-dump-image output-file *xload-image-base-address*)))
 
 (defun xload-dump-image (output-file heap-start)
@@ -1529,9 +1538,6 @@
        (target-Xcompile-level-0 target (eq recompile :force)))
      (setup-xload-target-parameters)
      (let* ((*load-verbose* t)
-            (*xload-special-binding-indices*
-             (make-hash-table :test #'eql))
-            (*xload-next-special-binding-index* 0)
 	    (compiler-backend (find-backend
 			       (backend-xload-info-compiler-target-name
 				*xload-target-backend*)))
