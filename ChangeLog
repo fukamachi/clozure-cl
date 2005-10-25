@@ -1,3 +1,8 @@
+2005-10-25 11:02  gb
+
+	* xdump/xfasload.lisp: Arrgh.  (Duplicate binding index #1,
+	sometimes.)
+
 2005-10-25 05:03  gb
 
 	* compiler/PPC/ppc-lapmacros.lisp,
