@@ -1,3 +1,14 @@
+2005-10-24 23:49  gb
+
+	* lib/prepare-mcl-environment.lisp: Don't use svars in
+	%RESET-OUTERMOST-BINDING (which looks wrong, btw.)
+
+2005-10-24 23:47  gb
+
+	* compiler/PPC/: ppc2.lisp, PPC32/ppc32-vinsns.lisp,
+	PPC64/ppc64-vinsns.lisp: Don't use svars in binding, special
+	reference/assignment.
+
 2005-10-24 23:04  gb
 
 	* level-0/l0-symbol.lisp: No more SVAR-CHECK-SYMBOL-LIST.
