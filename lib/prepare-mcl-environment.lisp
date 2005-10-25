@@ -21,13 +21,12 @@
 (in-package "CCL")
 
 (defun %reset-outermost-binding (symbol value)
-  (let* ((svar (find-svar symbol)))
-    (when svar
-      (let* ((idx (%svref svar target::svar.idx-cell)))
-        (do-db-links (db var)
-          (when (eq var idx)
-            (setf (%fixnum-ref db (* 2 target::node-size)) value))))))
-  (setf (uvref symbol target::symbol.vcell-cell) value))
+  (let* ((idx (%svref symbol target::symbol.binding-index-cell)))
+    (if (> idx 0)
+      (do-db-links (db var)
+        (when (eq var idx)
+          (setf (%fixnum-ref db (* 2 target::node-size)) value)))
+      (setf (uvref symbol target::symbol.vcell-cell) value))))
 
 (defun freeze-current-definitions ()
   ;; Set the frozen bits so that redefine-kernel-function
