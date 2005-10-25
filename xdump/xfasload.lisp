@@ -1046,7 +1046,7 @@
 (defun xload-ensure-binding-index (symbol-address)
   (or (gethash symbol-address *xload-special-binding-indices*)
       (let* ((idx (incf *xload-next-special-binding-index*)))
-        (setf (xload-%svref symbol-address target::svar.symbol-cell)
+        (setf (xload-%svref symbol-address target::symbol.binding-index-cell)
               (ash idx *xload-target-fixnumshift*))
         (setf (gethash symbol-address *xload-special-binding-indices*) idx))))
 
