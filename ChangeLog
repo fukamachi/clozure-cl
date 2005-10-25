@@ -1,3 +1,14 @@
+2005-10-25 05:03  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp,
+	compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp,
+	compiler/PPC/PPC64/ppc64-vinsns.lisp, level-0/PPC/ppc-misc.lisp:
+	replace references to tcr.interrupt level with (effectively)
+	thread-specific binding of CCL::*INTERRUPT-LEVEL* on the lisp side,
+	as well.
+
 2005-10-25 03:40  gb
 
 	* lisp-kernel/: constants32.h, constants32.s, constants64.h,
