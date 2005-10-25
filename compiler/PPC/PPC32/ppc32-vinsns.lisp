@@ -3462,7 +3462,7 @@
 
 (define-ppc32-subprim-call-vinsn (mkunwind) .SPmkunwind)
 
-(define-ppc32-subprim-call-vinsn (progvsave) .SPsvar-progvsave)
+(define-ppc32-subprim-call-vinsn (progvsave) .SPprogvsave)
 
 (define-ppc32-subprim-jump-vinsn (progvrestore) .SPprogvrestore)
 

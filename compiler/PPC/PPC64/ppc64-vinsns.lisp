@@ -3447,7 +3447,7 @@
 
 (define-ppc64-subprim-call-vinsn (mkunwind) .SPmkunwind)
 
-(define-ppc64-subprim-call-vinsn (progvsave) .SPsvar-progvsave)
+(define-ppc64-subprim-call-vinsn (progvsave) .SPprogvsave)
 
 (define-ppc64-subprim-jump-vinsn (progvrestore) .SPprogvrestore)
 
