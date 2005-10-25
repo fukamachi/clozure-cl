@@ -81,3 +81,5 @@
 #define dnode_shift node_shift+1
 
 #endif
+
+#define INTERRUPT_LEVEL_BINDING_INDEX (1)
