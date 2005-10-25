@@ -1,3 +1,29 @@
+2005-10-24 22:10  gb
+
+	* xdump/xfasload.lisp: When setting xload binding addresses, set
+	symbol.binding-index cell (not svar.idx-cell ...)
+
+2005-10-24 22:07  gb
+
+	* level-0/PPC/ppc-symbol.lisp, level-1/l1-lisp-threads.lisp,
+	level-1/ppc-threads-utils.lisp: Don't use svars at runtime.
+
+2005-10-24 22:06  gb
+
+	* level-0/nfasload.lisp: Keep track of binding indices assigned in
+	the cold load.	(Could do this another way ...)
+
+2005-10-24 22:05  gb
+
+	* level-0/l0-symbol.lisp: CHECK-SYMBOL-LIST (used in PROGV) calls
+	ENSURE-BINDING-INDEX.
+	
+	Don't use svars in %SYM-VALUE, etc.
+	
+	Keep binding indices and svar indices in synch.
+	
+	Add SYMBOL-BINDING-INDEX accessor, for debugging.
+
 2005-10-24 07:00  gb
 
 	* level-1/runtime.lisp: No need to clean up symbol.package-plist,
