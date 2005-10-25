@@ -801,7 +801,7 @@
 
 
 (defun %resize-htab (htab)
-  (declare (optimize (speed 3) (safety 0)))  
+  (declare (optimize (speed 3) (safety 0)))
   (without-interrupts
    (let* ((old-vector (htvec htab))
           (old-len (length old-vector)))
@@ -953,6 +953,7 @@
                         *xload-cold-load-documentation*
                         *xload-startup-file*))
       (%set-tcr-toplevel-function (%current-tcr) nil) ; should get reset by l1-boot.
+
       ;; Need to make %ALL-PACKAGES-LOCK% early, so that we can casually
       ;; do SET-PACKAGE in cold load functions.
       (setq %all-packages-lock% (make-read-write-lock))
@@ -964,6 +965,13 @@
       (dolist (f (prog1 *xload-cold-load-documentation* (setq *xload-cold-load-documentation* nil)))
         (apply 'set-documentation f))
       ;; Can't bind any specials until this happens
+      (let* ((max 0))
+        (%map-areas #'(lambda (s)
+                        (when (= (typecode s) target::subtag-symbol)
+                          (let* ((idx (symbol-binding-index s)))
+                            (when (> idx max)
+                              (setq max idx))))))
+        (%set-binding-index max))
       (%map-areas #'(lambda (o)
                       (when (eql (typecode o) target::subtag-svar)
                         (cold-load-svar o)))
