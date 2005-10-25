@@ -1770,10 +1770,17 @@
   (bla spno))
 
 (define-ppc64-vinsn event-poll (()
-				())
+				()
+                                ((crf :crf)))
   (ld ppc::nargs ppc64::tcr.tlb-pointer ppc64::rcontext)
   (ld ppc::nargs ppc64::interrupt-level-binding-index ppc::nargs)
-  (tdgti ppc::nargs 0))
+  (cmpdi crf ppc::nargs 0)
+  (blt crf :done)
+  (bgt crf :trap)
+  (ld ppc::nargs ppc64::tcr.interrupt-pending ppc64::rcontext)
+  :trap
+  (tdgti ppc::nargs 0)
+  :done)
 
                          
 ;;; Unconditional (pc-relative) branch
