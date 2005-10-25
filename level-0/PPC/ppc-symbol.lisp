@@ -86,16 +86,14 @@
   (trap-unless-typecode= symptr target::subtag-symbol imm0)
   (blr))
 
-(defppclapfunction %svar-sym-value ((svar arg_z))
-  (mr temp0 svar)
-  (ba .SPsvar-specref))
+(defppclapfunction %symptr-value ((symptr arg_z))
+  (ba .SPspecref))
 
-(defppclapfunction %svar-set-sym-value ((svar arg_y) (val arg_z))
-  (mr temp0 svar)
-  (ba .SPsvar-specset))
+(defppclapfunction %set-symptr-value ((symptr arg_y) (val arg_z))
+  (ba .SPspecset))
 
-(defppclapfunction %svar-binding-address ((svar arg_z))
-  (ldr imm3 target::svar.idx svar)
+(defppclapfunction %symptr-binding-address ((symptr arg_z))
+  (ldr imm3 target::symbol.binding-index symptr)
   (ldr imm2 target::tcr.tlb-limit target::rcontext)
   (ldr imm4 target::tcr.tlb-pointer target::rcontext)
   (cmplr imm3 imm2)
@@ -110,7 +108,6 @@
   (la temp0 '2 vsp)
   (ba .SPvalues)
   @sym
-  (ldr arg_z target::svar.symbol svar)
   (li arg_y '#.target::symbol.vcell)
   (vpush arg_z)
   (vpush arg_y)
@@ -118,8 +115,8 @@
   (la temp0 '2 vsp)
   (ba .SPvalues))
 
-(defppclapfunction %tcr-binding-location ((tcr arg_y) (svar arg_z))
-  (ldr imm3 target::svar.idx svar)
+(defppclapfunction %tcr-binding-location ((tcr arg_y) (sym arg_z))
+  (ldr imm3 target::symbol.binding-index sym)
   (ldr imm2 target::tcr.tlb-limit tcr)
   (ldr imm4 target::tcr.tlb-pointer tcr)
   (li arg_z nil)

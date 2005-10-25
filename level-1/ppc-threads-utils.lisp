@@ -159,8 +159,8 @@
     (declare (fixnum bsp))
     ;; Um, this is a little more complicated now that we use
     ;; thread-local shallow binding
-    (flet ((save-binding (new-value svar prev)
-             (let* ((idx (%svref svar target::svar.idx-cell))
+    (flet ((save-binding (new-value sym prev)
+             (let* ((idx (%svref sym target::symbol.binding-index-cell))
                     (byte-idx (ash idx target::fixnum-shift))
                     (binding-vector (%fixnum-ref (%current-tcr) target::tcr.tlb-pointer))
                     (old-value (%fixnum-ref  binding-vector byte-idx)))
@@ -169,10 +169,10 @@
 		   (%fixnum-ref bsp (ash -2 target::word-shift)) idx
 		   (%fixnum-ref bsp (ash -3 target::word-shift)) prev
 		   bsp (- bsp 3)))))
-      (save-binding nil (ensure-svar '*current-lisp-thread*) 0)
-      (save-binding nil (ensure-svar '*current-process*) bsp)
+      (save-binding nil '*current-lisp-thread* 0)
+      (save-binding nil '*current-process* bsp)
       (dolist (pair initial-bindings)
-	(save-binding (funcall (cdr pair)) (ensure-svar (car pair)) bsp))
+	(save-binding (funcall (cdr pair)) (car pair) bsp))
       (setf (%fixnum-ref (%current-tcr) target::tcr.db-link) bsp)
       ;; Ensure that pending unwind-protects (for WITHOUT-INTERRUPTS
       ;; on the callback) don't try to unwind the binding stack beyond

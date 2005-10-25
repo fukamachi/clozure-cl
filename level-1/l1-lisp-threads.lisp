@@ -530,30 +530,28 @@
 
 
 (defun symbol-value-in-tcr (sym tcr)
-  (let* ((svar (ensure-svar sym)))
-    (if (eq tcr (%current-tcr))
-      (%svar-sym-value svar)
-      (unwind-protect
-           (progn
-             (%suspend-tcr tcr)
-             (let* ((loc (%tcr-binding-location tcr svar)))
-               (if loc
-                 (%fixnum-ref loc)
-                 (%sym-global-value sym))))
-        (%resume-tcr tcr)))))
+  (if (eq tcr (%current-tcr))
+    (%sym-value sym)
+    (unwind-protect
+         (progn
+           (%suspend-tcr tcr)
+           (let* ((loc (%tcr-binding-location tcr sym)))
+             (if loc
+               (%fixnum-ref loc)
+               (%sym-global-value sym))))
+      (%resume-tcr tcr))))
 
 (defun (setf symbol-value-in-tcr) (value sym tcr)
-  (let* ((svar (ensure-svar sym)))
-    (if (eq tcr (%current-tcr))
-      (%svar-set-sym-value svar value)
-      (unwind-protect
-           (progn
-             (%suspend-tcr tcr)
-             (let* ((loc (%tcr-binding-location tcr svar)))
-               (if loc
-                 (setf (%fixnum-ref loc) value)
-                 (%set-sym-global-value sym value))))
-        (%resume-tcr tcr)))))
+  (if (eq tcr (%current-tcr))
+    (%set-sym-value sym value)
+    (unwind-protect
+         (progn
+           (%suspend-tcr tcr)
+           (let* ((loc (%tcr-binding-location tcr sym)))
+             (if loc
+               (setf (%fixnum-ref loc) value)
+               (%set-sym-global-value sym value))))
+      (%resume-tcr tcr))))
 
 ;;; Backtrace support
 ;;;
