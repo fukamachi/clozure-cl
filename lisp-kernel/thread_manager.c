@@ -504,6 +504,7 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
   for (i = 0; i < (8192/sizeof(LispObj)); i++) {
     tcr->tlb_pointer[i] = (LispObj) no_thread_local_binding_marker;
   }
+  tcr->tlb_pointer[INTERRUPT_LEVEL_BINDING_INDEX] = (LispObj) (-1<<fixnum_shift);
   tcr->shutdown_count = PTHREAD_DESTRUCTOR_ITERATIONS;
   return tcr;
 }
