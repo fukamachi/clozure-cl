@@ -1,3 +1,29 @@
+2005-10-25 03:03  gb
+
+	* lib/nfcomp.lisp, xdump/faslenv.lisp: Finish bumping FASL version.
+
+2005-10-25 02:44  gb
+
+	* lisp-kernel/thread_manager.c: tlb[INTERRUPT_LEVEL_BINDING_INDEX]
+	== fixnum -1 in each new tcr.
+
+2005-10-25 02:42  gb
+
+	* lisp-kernel/constants.h: INTERRUPT_LEVEL_BINDING_INDEX ==
+	(symbol-binding-index ccl::*interrupt-level*).
+	
+	(This means that the end of this bootstrapping cycle is in sight;
+	perhaps after some food ...)
+
+2005-10-25 02:39  gb
+
+	* level-1/l1-readloop.lisp: QUIT needs to force-output on
+	ccl::*stdout*, as many people have mentioned.
+
+2005-10-25 02:38  gb
+
+	* xdump/xfasload.lisp: Reserved binding index scheme, finally.
+
 2005-10-25 00:51  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp,
