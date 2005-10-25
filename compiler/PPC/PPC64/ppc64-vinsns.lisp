@@ -2654,21 +2654,21 @@
   :done)
                              
 ;;; Boundp, fboundp stuff.
-(define-ppc64-vinsn (svar-ref-symbol-value :call :subprim-call)
+(define-ppc64-vinsn (ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
-  (bla .SPsvar-specrefcheck))
+  (bla .SPspecrefcheck))
 
-(define-ppc64-vinsn (%svar-ref-symbol-value :call :subprim-call)
+(define-ppc64-vinsn (%ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
-  (bla .SPsvar-specref))
+  (bla .SPspecref))
 
-(define-ppc64-vinsn (svar-setq-special :call :subprim-call)
+(define-ppc64-vinsn (setq-special :call :subprim-call)
     (()
      ((sym :lisp)
       (val :lisp)))
-  (bla .SPsvar-specset))
+  (bla .SPspecset))
 
 
 (define-ppc64-vinsn symbol-function (((val :lisp))
@@ -3369,13 +3369,13 @@
 
 (define-ppc64-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init)
 
-(define-ppc64-subprim-call-vinsn (svar-bind-nil)  .SPsvar-bind-nil)
+(define-ppc64-subprim-call-vinsn (bind-nil)  .SPbind-nil)
 
-(define-ppc64-subprim-call-vinsn (svar-bind-self)  .SPsvar-bind-self)
+(define-ppc64-subprim-call-vinsn (bind-self)  .SPbind-self)
 
-(define-ppc64-subprim-call-vinsn (svar-bind-self-boundp-check)  .SPsvar-bind-self-boundp-check)
+(define-ppc64-subprim-call-vinsn (bind-self-boundp-check)  .SPbind-self-boundp-check)
 
-(define-ppc64-subprim-call-vinsn (svar-bind)  .SPsvar-bind)
+(define-ppc64-subprim-call-vinsn (bind)  .SPbind)
 
 (define-ppc64-subprim-jump-vinsn (nvalret :jumpLR) .SPnvalret)
 
@@ -3437,7 +3437,7 @@
 
 (define-ppc64-subprim-call-vinsn (mkcatch1v) .SPmkcatch1v)
 
-(define-ppc64-subprim-call-vinsn (setqsym) .SPsvar-setqsym)
+(define-ppc64-subprim-call-vinsn (setqsym) .SPsetqsym)
 
 (define-ppc64-subprim-call-vinsn (ksignalerr) .SPksignalerr)
 
@@ -3452,10 +3452,6 @@
 (define-ppc64-subprim-jump-vinsn (progvrestore) .SPprogvrestore)
 
 (define-ppc64-subprim-call-vinsn (eabi-syscall) .SPeabi-syscall)
-
-(define-ppc64-subprim-call-vinsn (newblocktag) .SPnewblocktag)
-
-(define-ppc64-subprim-call-vinsn (newgotag) .SPnewgotag)
 
 (define-ppc64-subprim-call-vinsn (misc-ref) .SPmisc-ref)
 

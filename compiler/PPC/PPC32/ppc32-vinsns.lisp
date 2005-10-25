@@ -2705,21 +2705,21 @@
   
   
 ;; Boundp, fboundp stuff.
-(define-ppc32-vinsn (svar-ref-symbol-value :call :subprim-call)
+(define-ppc32-vinsn (ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
-  (bla .SPsvar-specrefcheck))
+  (bla .SPspecrefcheck))
 
-(define-ppc32-vinsn (%svar-ref-symbol-value :call :subprim-call)
+(define-ppc32-vinsn (%ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
-  (bla .SPsvar-specref))
+  (bla .SPspecref))
 
-(define-ppc32-vinsn (svar-setq-special :call :subprim-call)
+(define-ppc32-vinsn (setq-special :call :subprim-call)
     (()
      ((sym :lisp)
       (val :lisp)))
-  (bla .SPsvar-specset))
+  (bla .SPspecset))
 
 
 (define-ppc32-vinsn symbol-function (((val :lisp))
@@ -3384,13 +3384,13 @@
 
 (define-ppc32-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init)
 
-(define-ppc32-subprim-call-vinsn (svar-bind-nil)  .SPsvar-bind-nil)
+(define-ppc32-subprim-call-vinsn (bind-nil)  .SPbind-nil)
 
-(define-ppc32-subprim-call-vinsn (svar-bind-self)  .SPsvar-bind-self)
+(define-ppc32-subprim-call-vinsn (bind-self)  .SPbind-self)
 
-(define-ppc32-subprim-call-vinsn (svar-bind-self-boundp-check)  .SPsvar-bind-self-boundp-check)
+(define-ppc32-subprim-call-vinsn (bind-self-boundp-check)  .SPbind-self-boundp-check)
 
-(define-ppc32-subprim-call-vinsn (svar-bind)  .SPsvar-bind)
+(define-ppc32-subprim-call-vinsn (bind)  .SPbind)
 
 (define-ppc32-subprim-jump-vinsn (nvalret :jumpLR) .SPnvalret)
 
@@ -3452,7 +3452,7 @@
 
 (define-ppc32-subprim-call-vinsn (mkcatch1v) .SPmkcatch1v)
 
-(define-ppc32-subprim-call-vinsn (setqsym) .SPsvar-setqsym)
+(define-ppc32-subprim-call-vinsn (setqsym) .SPsetqsym)
 
 (define-ppc32-subprim-call-vinsn (ksignalerr) .SPksignalerr)
 

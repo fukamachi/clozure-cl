@@ -362,9 +362,9 @@
             (return (values nil nil))))))))
     
 
-(defun ppc2-svars-for-vcells (vcells)
+(defun ppc2-ensure-binding-indices-for-vcells (vcells)
   (dolist (cell vcells)
-    (rplaca cell (ensure-svar (car cell))))
+    (ensure-binding-index (car cell)))
   vcells)
 
 (defun ppc2-compile (afunc &optional lambda-form *ppc2-record-symbols*)
@@ -430,7 +430,7 @@
            (*ppc2-need-nargs* t)
            (fname (afunc-name afunc))
            (*ppc2-entry-vsp-saved-p* nil)
-           (*ppc2-vcells* (ppc2-svars-for-vcells (afunc-vcells afunc)))
+           (*ppc2-vcells* (ppc2-ensure-binding-indices-for-vcells (afunc-vcells afunc)))
            (*ppc2-fcells* (afunc-fcells afunc))
            *ppc2-recorded-symbols*)
       (set-fill-pointer
@@ -2413,14 +2413,13 @@
         (push new *ppc2-fcells*)
         new)))
 
-(defun ppc2-symbol-value-svar (sym)
+(defun ppc2-symbol-value-cell (sym)
   (setq sym (require-type sym 'symbol))
-  (or (dolist (cell *ppc2-vcells*)
-        (when (eq sym (%svref (car cell) target::svar.symbol-cell))
-          (return cell)))
-      (let ((new (list (ensure-svar sym))))
+  (or (assq sym *ppc2-vcells*)
+      (let ((new (list sym)))
         (push new *ppc2-vcells*)
         new)))
+
 
 (defun ppc2-symbol-locative-p (imm)
   (and (consp imm)
@@ -3623,18 +3622,18 @@
                                      (eq (cadr value) sym)))))
       (if (or nil-p self-p)
         (progn
-          (ppc2-store-immediate seg (ppc2-symbol-value-svar sym) ppc::temp0)
+          (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) ppc::arg_z)
           (if nil-p
-            (! svar-bind-nil)
+            (! bind-nil)
             (if (or *ppc2-reckless* (eq (acode-operator value) (%nx1-operator special-ref)))
-              (! svar-bind-self)
-              (! svar-bind-self-boundp-check))))
+              (! bind-self)
+              (! bind-self-boundp-check))))
         (progn
           (if ea-p 
             (ppc2-store-ea seg value ppc::arg_z)
             (ppc2-one-targeted-reg-form seg value ($ ppc::arg_z)))
-          (ppc2-store-immediate seg (ppc2-symbol-value-svar sym) ($ ppc::temp0))
-          (! svar-bind)))
+          (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) ($ ppc::arg_y))
+          (! bind)))
       (ppc2-open-undo $undospecial)
       (ppc2-new-vstack-lcell :special-value *ppc2-target-lcell-size* 0 sym)
       (ppc2-new-vstack-lcell :special *ppc2-target-lcell-size* (ash 1 $vbitspecial) sym)
@@ -4086,12 +4085,12 @@
 (defun ppc2-ref-symbol-value (seg vreg xfer sym check-boundp)  
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (when vreg
-      (let* ((src ($ ppc::temp0))
+      (let* ((src ($ ppc::arg_z))
              (dest ($ ppc::arg_z)))
-        (ppc2-store-immediate seg (ppc2-symbol-value-svar sym) src)
+        (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) src)
         (if check-boundp
-          (! svar-ref-symbol-value dest src)
-          (! %svar-ref-symbol-value dest src))
+          (! ref-symbol-value dest src)
+          (! %ref-symbol-value dest src))
         (<- dest)))
     (^)))
 
@@ -5502,11 +5501,11 @@
       (^))))
 
 (defppc2 ppc2-setq-special setq-special (seg vreg xfer sym val)
-  (let* ((symreg ($ ppc::temp0))
+  (let* ((symreg ($ ppc::arg_y))
          (valreg ($ ppc::arg_z)))
     (ppc2-one-targeted-reg-form seg val valreg)
-    (ppc2-store-immediate seg (ppc2-symbol-value-svar sym) symreg)
-    (! svar-setq-special symreg valreg)
+    (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) symreg)
+    (! setq-special symreg valreg)
     (<- valreg))
   (^))
 
@@ -7196,10 +7195,10 @@
 
 
 (defppc2 ppc2-setq-free setq-free (seg vreg xfer sym val)
-  (let* ((rsym ($ ppc::temp0))
+  (let* ((rsym ($ ppc::arg_y))
          (rval ($ ppc::arg_z)))
     (ppc2-one-targeted-reg-form seg val rval)
-    (ppc2-immediate seg rsym nil (ppc2-symbol-value-svar sym))
+    (ppc2-immediate seg rsym nil (ppc2-symbol-value-cell sym))
     (! setqsym)
     (<- rval)
     (^)))
