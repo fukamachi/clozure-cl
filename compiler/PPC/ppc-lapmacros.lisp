@@ -227,11 +227,13 @@
   (target-arch-case
    (:ppc32
     '(progn
-      (lwz nargs ppc32::tcr.interrupt-level ppc32::rcontext)
+      (lwz nargs ppc32::tcr.tlb-pointer ppc32::rcontext)
+      (lwz nargs ppc32::interrupt-level-binding-index nargs)
       (twgti nargs 0)))
    (:ppc64
     '(progn     
-      (ld nargs ppc64::tcr.interrupt-level ppc32::rcontext)
+      (ld nargs ppc64::tcr.tlb-pointer ppc64::rcontext)
+      (ld nargs ppc64::interrupt-level-binding-index nargs)
       (tdgti nargs 0)))))
     
 

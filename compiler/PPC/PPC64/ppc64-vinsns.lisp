@@ -1771,7 +1771,8 @@
 
 (define-ppc64-vinsn event-poll (()
 				())
-  (ld ppc::nargs ppc64::tcr.interrupt-level ppc64::rcontext)
+  (ld ppc::nargs ppc64::tcr.tlb-pointer ppc64::rcontext)
+  (ld ppc::nargs ppc64::interrupt-level-binding-index ppc::nargs)
   (tdgti ppc::nargs 0))
 
                          
@@ -3268,10 +3269,12 @@
 
 (define-ppc64-vinsn disable-interrupts (((dest :lisp))
 					()
-					((temp :imm)))
+					((temp :imm)
+                                         (temp2 :imm)))
+  (ld temp2 ppc64::tcr.tlb-pointer ppc64::rcontext)
   (li temp -8)
-  (ld dest ppc64::tcr.interrupt-level ppc64::rcontext)
-  (std temp ppc64::tcr.interrupt-level ppc64::rcontext))
+  (ld dest ppc64::interrupt-level-binding-index temp2)
+  (std temp ppc64::interrupt-level-binding-index temp2))
 
 (define-ppc64-vinsn load-character-constant (((dest :lisp))
                                              ((code :u8const))

@@ -406,19 +406,22 @@
   (ba .SPpopj))
 
 (defppclapfunction interrupt-level ()
-  (ldr arg_z target::tcr.interrupt-level target::rcontext)
+  (ldr arg_z target::tcr.tlb-pointer target::rcontext)
+  (ldr arg_z target::interrupt-level-binding-index arg_z)
   (blr))
 
 
 (defppclapfunction disable-lisp-interrupts ()
   (li imm0 '-1)
-  (ldr arg_z target::tcr.interrupt-level target::rcontext)
-  (str imm0 target::tcr.interrupt-level target::rcontext)
+  (ldr imm1 target::tcr.tlb-pointer target::rcontext)
+  (ldr arg_z target::interrupt-level-binding-index imm1)
+  (str imm0 target::interrupt-level-binding-index imm1)
   (blr))
 
 (defppclapfunction set-interrupt-level ((new arg_z))
+  (ldr imm1 target::tcr.tlb-pointer target::rcontext)
   (trap-unless-lisptag= new target::tag-fixnum imm0)
-  (str new target::tcr.interrupt-level target::rcontext)
+  (str new target::interrupt-level-binding-index imm1)
   (blr))
 
 ;;; If we're restoring the interrupt level to 0 and an interrupt
@@ -426,20 +429,17 @@
 (defppclapfunction restore-interrupt-level ((old arg_z))
   (cmpri :cr1 old 0)
   (ldr imm0 target::tcr.interrupt-pending target::rcontext)
+  (ldr imm1 target::tcr.tlb-pointer target::rcontext)
   (cmpri :cr0 imm0 0)
   (bne :cr1 @store)
   (beq :cr0 @store)
   (str rzero target::tcr.interrupt-pending target::rcontext)
   (li old '1)
   @store
-  (str old target::tcr.interrupt-level target::rcontext)
+  (str old target::interrupt-level-binding-index imm1)
   (blr))
 
-(defppclapfunction %interrupt-poll ()
-  (check-nargs 0)
-  (event-poll)
-  (li arg_z nil)
-  (blr))
+
 
 (defppclapfunction %current-tcr ()
   (mr arg_z target::rcontext)

@@ -506,7 +506,7 @@
   ts-area				; tstack area pointer 
   cs-limit				; cstack overflow limit
   total-bytes-allocated-high
-  interrupt-level			; fixnum
+  OLDinterrupt-level			; fixnum
   interrupt-pending			; fixnum
   xframe				; exception frame linked list
   errno-loc				; thread-private, maybe
@@ -534,6 +534,8 @@
   tlb-pointer
   shutdown-count
 )
+
+(defconstant interrupt-level-binding-index (ash 1 fixnumshift))
 
 (defconstant tcr.lisp-fpscr-low (+ tcr.lisp-fpscr-high 4))
 (defconstant tcr.total-bytes-allocated-low (+ tcr.total-bytes-allocated-high 4))

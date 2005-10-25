@@ -1767,7 +1767,8 @@
 
 (define-ppc32-vinsn event-poll (()
                                 ())
-  (lwz ppc::nargs ppc32::tcr.interrupt-level ppc32::rcontext)
+  (lwz ppc::nargs ppc32::tcr.tlb-pointer ppc32::rcontext)
+  (lwz ppc::nargs ppc32::interrupt-level-binding-index ppc::nargs)
   (twgti ppc::nargs 0))
 
                          
@@ -3277,10 +3278,12 @@
 
 (define-ppc32-vinsn disable-interrupts (((dest :lisp))
                                         ()
-                                        ((temp :imm)))
+                                        ((temp :imm)
+                                         (temp2 :imm)))
+  (lwz temp2 ppc32::tcr.tlb-pointer ppc32::rcontext)
   (li temp -4)
-  (lwz dest ppc32::tcr.interrupt-level ppc32::rcontext)
-  (stw temp ppc32::tcr.interrupt-level ppc32::rcontext))
+  (lwz dest ppc32::interrupt-level-binding-index temp2)
+  (stw temp ppc32::interrupt-level-binding-index temp2))
 
 (define-ppc32-vinsn load-character-constant (((dest :lisp))
                                              ((code :u8const)))

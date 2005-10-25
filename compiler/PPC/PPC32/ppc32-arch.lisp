@@ -435,7 +435,7 @@
   cs-limit				; cstack overflow limit
   total-bytes-allocated-high
   total-bytes-allocated-low
-  interrupt-level			; fixnum
+  OLDinterrupt-level			; fixnum
   interrupt-pending			; fixnum
   xframe				; exception frame linked list
   errno-loc				; thread-private, maybe
@@ -462,6 +462,8 @@
   tlb-limit
   tlb-pointer
 )
+
+(defconstant interrupt-level-binding-index (ash 1 fixnumshift))
 
 (define-storage-layout lockptr 0
   avail
