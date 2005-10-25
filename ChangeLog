@@ -1,3 +1,12 @@
+2005-10-25 03:40  gb
+
+	* lisp-kernel/: constants32.h, constants32.s, constants64.h,
+	constants64.s, lisp-exceptions.c, macros.h, macros.s,
+	pmcl-kernel.c, spentry.s, thread_manager.c: deprecate (and stop
+	using, at least in the kernel) tcr.interrupt_level; use
+	tcr->tlb_pointer[INTERRUPT_LEVEL_BINDING_INDEX] instead (which just
+	happens to be the dynamic value of CCL::*INTERRUPT-LEVEL*.)
+
 2005-10-25 03:03  gb
 
 	* lib/nfcomp.lisp, xdump/faslenv.lisp: Finish bumping FASL version.
