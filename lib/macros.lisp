@@ -2036,7 +2036,11 @@ requests are deferred."
   `(let* ((*interrupt-level* -1))
     ,@body))
 
-
+(defmacro with-interrupts-enabled (&body body)
+  "Evaluate its body in an environment in which process-interrupt
+has immediate effect."
+  `(let* ((*interrupt-level* 0))
+    ,@body))
 
 ;;; undoes the effect of one enclosing without-interrupts during execution of body.
 (defmacro ignoring-without-interrupts (&body body)

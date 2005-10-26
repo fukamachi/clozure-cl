@@ -78,6 +78,7 @@
      type-specifier-p
      displaced-array-p
      without-interrupts
+     with-interrupts-enabled
      true
      false
      neq
