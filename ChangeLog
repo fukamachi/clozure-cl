@@ -1,3 +1,20 @@
+2005-10-26 14:51  gb
+
+	* lisp-kernel/spentry.s: Maintain tcr.unwinding during nthrow.
+
+2005-10-26 14:50  gb
+
+	* lisp-kernel/lisp-exceptions.c: interrupt_handler() : defer
+	interrupts if tcr.unwinding is set.
+
+2005-10-26 14:49  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp, lisp-kernel/constants32.h,
+	lisp-kernel/constants32.s, lisp-kernel/constants64.h,
+	lisp-kernel/constants64.s: Replace the (unused)
+	tcr.suspend-total-on-exception-entry field with tcr.unwinding.
+
 2005-10-26 13:59  gb
 
 	* compiler/PPC/ppc2.lisp: References to *INTERRUPT-LEVEL* are
