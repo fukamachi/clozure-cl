@@ -1778,6 +1778,12 @@
   (tdgti ppc::nargs 0)
   :done)
 
+(define-ppc32-vinsn ref-interrupt-level (((dest :imm))
+                                         ()
+                                         ((temp :address)))
+  (lwz temp ppc32::tcr.tlb-pointer ppc32::rcontext)
+  (lwz dest ppc32::INTERRUPT-LEVEL-BINDING-INDEX temp))
+
                          
 ;;; Unconditional (pc-relative) branch
 (define-ppc32-vinsn (jump :jump) (()
@@ -3506,6 +3512,13 @@
 
 (define-ppc32-subprim-call-vinsn (poweropen-ff-callX) .SPpoweropen-ffcallX)
 
+(define-ppc32-subprim-call-vinsn (bind-interrupt-level-0) .SPbind-interrupt-level-0)
+
+(define-ppc32-subprim-call-vinsn (bind-interrupt-level-m1) .SPbind-interrupt-level-m1)
+
+(define-ppc32-subprim-call-vinsn (bind-interrupt-level) .SPbind-interrupt-level)
+
+(define-ppc32-subprim-call-vinsn (unbind-interrupt-level) .SPunbind-interrupt-level)
 
 
 ;;; In case ppc32::*ppc-opcodes* was changed since this file was compiled.

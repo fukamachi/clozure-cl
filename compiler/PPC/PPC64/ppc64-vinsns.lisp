@@ -1782,6 +1782,11 @@
   (tdgti ppc::nargs 0)
   :done)
 
+(define-ppc64-vinsn ref-interrupt-level (((dest :imm))
+                                         ()
+                                         ((temp :address)))
+  (lwz temp ppc64::tcr.tlb-pointer ppc64::rcontext)
+  (lwz dest ppc64::INTERRUPT-LEVEL-BINDING-INDEX temp))
                          
 ;;; Unconditional (pc-relative) branch
 (define-ppc64-vinsn (jump :jump)
@@ -1918,7 +1923,7 @@
   (neg size size)
   (stdux ppc::sp ppc::sp size)
   :done
-  (stw ppc::rzero ppc32::c-frame.savelr ppc::sp))
+  (stw ppc::rzero ppc64::c-frame.savelr ppc::sp))
 
 ;;; We should rarely have to do this.  It's easier to just generate code
 ;;; to do the memory reference than it would be to keep track of the size
@@ -3491,6 +3496,13 @@
 
 (define-ppc64-subprim-call-vinsn (poweropen-ff-callX) .SPpoweropen-ffcallX)
 
+(define-ppc64-subprim-call-vinsn (bind-interrupt-level-0) .SPbind-interrupt-level-0)
+
+(define-ppc64-subprim-call-vinsn (bind-interrupt-level-m1) .SPbind-interrupt-level-m1)
+
+(define-ppc64-subprim-call-vinsn (bind-interrupt-level) .SPbind-interrupt-level)
+
+(define-ppc64-subprim-call-vinsn (unbind-interrupt-level) .SPunbind-interrupt-level)
 
 
 ;;; In case ppc64::*ppc-opcodes* was changed since this file was compiled.
