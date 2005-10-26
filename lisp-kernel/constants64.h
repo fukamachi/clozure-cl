@@ -118,7 +118,6 @@
 #define subtag_pool SUBTAG(fulltag_nodeheader_1,4)
 #define subtag_weak SUBTAG(fulltag_nodeheader_1,5)
 #define subtag_package SUBTAG(fulltag_nodeheader_1,6)
-#define subtag_svar SUBTAG(fulltag_nodeheader_1,7)
 
 #define subtag_slot_vector SUBTAG(fulltag_nodeheader_2,0)
 #define subtag_instance SUBTAG(fulltag_nodeheader_2,1)

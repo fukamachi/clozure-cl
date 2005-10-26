@@ -229,7 +229,6 @@ max_non_array_imm_subtag = (19<<ntagbits)|fulltag_immheader
 	define_node_subtag(istruct,16)
 	define_node_subtag(value_cell,17)
         define_node_subtag(xfunction,18)
-        define_node_subtag(svar,19)
 max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
 	
 /* The objects themselves look something like this: */
@@ -282,10 +281,6 @@ max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
 	 _node(flags)
 	_endstructf	
 	
-        _structf(svar)          /* shallow-bound special-variable info */
-         _node(symbol)
-         _node(idx)
-        _endstructf
         
 	_struct(c_frame,0)	/* PowerOpen ABI C stack frame */
 	 _node(backlink)

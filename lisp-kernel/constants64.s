@@ -132,7 +132,6 @@ define_subtag(hash_vector,fulltag_nodeheader_1,3)
 define_subtag(pool,fulltag_nodeheader_1,4)
 define_subtag(weak,fulltag_nodeheader_1,5)
 define_subtag(package,fulltag_nodeheader_1,6)
-define_subtag(svar,fulltag_nodeheader_1,7)
         
 define_subtag(slot_vector,fulltag_nodeheader_2,0)
 define_subtag(instance,fulltag_nodeheader_2,1)
@@ -252,10 +251,6 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	 _node(flags)
 	_endstructf	
 	
-        _structf(svar)          /* shallow-bound special-variable info */
-         _node(symbol)
-         _node(idx)
-        _endstructf
         
 	_struct(c_frame,0)	/* PowerOpen ABI C stack frame */
 	 _node(backlink)
