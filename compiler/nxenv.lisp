@@ -490,7 +490,7 @@
 (defconstant $undovalues 1) ; flush pending multiple values
 (defconstant $undostkblk 2) ; discard "variable stack block"
 (defconstant $undospecial 3) ; restore dynamic binding
-(defconstant $undonotail 4) ; inhibit tail recursion
+(defconstant $undointerruptlevel 4) ; restore dynamic binding of *interrupt-level*
 (defconstant $undomvexpect 5) ; stop expecting values
 (defconstant $undoregs 6)   ; allocated regs when dynamic extent var bound.
 
