@@ -66,5 +66,5 @@
 #define named_function_name(f) (deref(f,-1+header_element_count(header_of(f))))
 
 #define TCR_INTERRUPT_LEVEL(tcr) \
-  ((tcr)->tlb_pointer[INTERRUPT_LEVEL_BINDING_INDEX])
+  (((signed_natural *)((tcr)->tlb_pointer))[INTERRUPT_LEVEL_BINDING_INDEX])
 #endif
