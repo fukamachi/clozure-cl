@@ -3620,21 +3620,32 @@
                                       (eq (acode-operator value) (%nx1-operator bound-special-ref))
                                       (eq (acode-operator value) (%nx1-operator special-ref)))
                                      (eq (cadr value) sym)))))
-      (if (or nil-p self-p)
-        (progn
-          (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) ppc::arg_z)
-          (if nil-p
-            (! bind-nil)
-            (if (or *ppc2-reckless* (eq (acode-operator value) (%nx1-operator special-ref)))
-              (! bind-self)
-              (! bind-self-boundp-check))))
-        (progn
-          (if ea-p 
-            (ppc2-store-ea seg value ppc::arg_z)
-            (ppc2-one-targeted-reg-form seg value ($ ppc::arg_z)))
-          (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) ($ ppc::arg_y))
-          (! bind)))
-      (ppc2-open-undo $undospecial)
+      (cond ((eq sym '*interrupt-level*)
+             (let* ((fixval (acode-fixnum-form-p value)))
+               (cond ((eql fixval 0) (! bind-interrupt-level-0))
+                     ((eql fixval -1) (! bind-interrupt-level-m1))
+                     (t
+                      (if ea-p 
+                        (ppc2-store-ea seg value ppc::arg_z)
+                        (ppc2-one-targeted-reg-form seg value ($ ppc::arg_z)))
+                      (! bind-interrupt-level))))
+             (ppc2-open-undo $undointerruptlevel))
+            (t
+             (if (or nil-p self-p)
+               (progn
+                 (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) ppc::arg_z)
+                 (if nil-p
+                   (! bind-nil)
+                   (if (or *ppc2-reckless* (eq (acode-operator value) (%nx1-operator special-ref)))
+                     (! bind-self)
+                     (! bind-self-boundp-check))))
+               (progn
+                 (if ea-p 
+                   (ppc2-store-ea seg value ppc::arg_z)
+                   (ppc2-one-targeted-reg-form seg value ($ ppc::arg_z)))
+                 (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) ($ ppc::arg_y))
+                 (! bind)))
+             (ppc2-open-undo $undospecial)))
       (ppc2-new-vstack-lcell :special-value *ppc2-target-lcell-size* 0 sym)
       (ppc2-new-vstack-lcell :special *ppc2-target-lcell-size* (ash 1 $vbitspecial) sym)
       (ppc2-new-vstack-lcell :special-link *ppc2-target-lcell-size* 0 sym)
@@ -4690,12 +4701,11 @@
          (i nil)
          (returning (eq xfer $backend-return))
          (junk1 nil)
-         (nspecs 0)
+         (unbind ())
          (dest (%i- n nlevels))
          (retval *ppc2-returning-values*)
          reason)
     (declare (ignorable junk1))
-    (declare (fixnum nspecs))
     (with-ppc-local-vinsn-macros (seg)
       (when (neq 0 nlevels)
         (let* ((numnlispareas 0))
@@ -4725,10 +4735,11 @@
             (setq i lastcatch)
             (while (%i> i dest)
               (let ((reason (aref *ppc2-undo-because* (setq i (%i- i 1)))))
-                (if (eq reason $undospecial)
-                  (setq nspecs (%i+ nspecs 1)))))
-            (if (> nspecs 0)
-              (ppc2-dpayback seg nspecs))
+                (if (or (eql reason $undospecial)
+                        (eql reason $undointerruptlevel))
+                  (push reason unbind))))
+            (if unbind
+              (ppc2-dpayback-list seg (nreverse unbind)))
             (when (and (neq lastcatch dest)
                        (%i>
                         vstack
@@ -4759,10 +4770,22 @@
 
 
 ;;; Restore the N most recent dynamic bindings.
-(defun ppc2-dpayback (seg n)
-  (declare (fixnum n))
+
+
+(defun ppc2-dpayback-list (seg reasons)
   (with-ppc-local-vinsn-macros (seg)
-    (! dpayback n)))
+    (let* ((n 0))
+      (declare (fixnum n))
+      (dolist (r reasons (if (> n 0) (! dpayback n)))
+        (if (eql r $undospecial)
+          (incf n)
+          (if (eql r $undointerruptlevel)
+            (progn
+              (when (> n 0)
+                (! dpayback n)
+                (setq n 0))
+              (! unbind-interrupt-level))
+            (nx-error "unknown payback token ~s" r)))))))
 
 (defun ppc2-spread-lambda-list (seg listform whole req opt rest keys 
                                     &optional enclosing-ea cdr-p)
