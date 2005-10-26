@@ -4096,13 +4096,16 @@
 (defun ppc2-ref-symbol-value (seg vreg xfer sym check-boundp)  
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (when vreg
-      (let* ((src ($ ppc::arg_z))
-             (dest ($ ppc::arg_z)))
-        (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) src)
-        (if check-boundp
-          (! ref-symbol-value dest src)
-          (! %ref-symbol-value dest src))
-        (<- dest)))
+      (if (eq sym '*interrupt-level*)
+        (ensuring-node-target (target vreg)
+          (! ref-interrupt-level target))
+        (let* ((src ($ ppc::arg_z))
+               (dest ($ ppc::arg_z)))
+          (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) src)
+          (if check-boundp
+            (! ref-symbol-value dest src)
+            (! %ref-symbol-value dest src))
+          (<- dest))))
     (^)))
 
 ;;; Should be less eager to box result
@@ -4769,9 +4772,8 @@
         vstack))))
 
 
-;;; Restore the N most recent dynamic bindings.
-
-
+;;; Restore the most recent dynamic bindings.  Bindings
+;;; of *INTERRUPT-LEVEL* get special treatment.
 (defun ppc2-dpayback-list (seg reasons)
   (with-ppc-local-vinsn-macros (seg)
     (let* ((n 0))
@@ -7267,7 +7269,10 @@
 (defppc2 ppc2-unwind-protect unwind-protect (seg vreg xfer protected-form cleanup-form)
   (let* ((cleanup-label (backend-get-next-label))
          (protform-label (backend-get-next-label))
-         (old-stack (ppc2-encode-stack)))
+         (old-stack (ppc2-encode-stack))
+         (yreg ($ ppc::arg_y)))
+    (! ref-interrupt-level yreg)
+    (ppc2-dbind seg (make-acode (%nx1-operator fixnum) -1) '*interrupt-level*)
     (! mkunwind)
     (! non-barrier-jump (aref *backend-labels* cleanup-label))
     (-> protform-label)
@@ -7286,9 +7291,10 @@
       (ppc2-form seg nil nil cleanup-form)
       (ppc2-close-undo)
       (! restore-cleanup-context)
-      (! jump-return-pc)) ; rts
+      (! jump-return-pc)) ; blr
     (ppc2-open-undo)
     (@ protform-label)
+    (ppc2-dbind seg yreg '*interrupt-level*)
     (ppc2-undo-body seg vreg xfer protected-form old-stack)))
 
 (defppc2 ppc2-progv progv (seg vreg xfer symbols values body)
@@ -7417,32 +7423,6 @@
         (^)))))
 
 
-(defppc2 ppc2-without-interrupts without-interrupts (seg vreg xfer oldlevel body)
-  (let* ((cleanup-label (backend-get-next-label))
-         (protform-label (backend-get-next-label))
-         (old-stack (ppc2-encode-stack)))
-    (! mkunwind)
-    (! non-barrier-jump (aref *backend-labels* cleanup-label))
-    (-> protform-label)
-    (@ cleanup-label)
-    (let* ((*ppc2-vstack* *ppc2-vstack*)
-           (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
-           (*ppc2-cstack* (%i+ *ppc2-cstack* (target-arch-case
-                                              (:ppc32 ppc32::lisp-frame.size)
-                                              (:ppc64 ppc64::lisp-frame.size)))))
-      (ppc2-open-undo $undostkblk)      ; tsp frame created by nthrow.
-      (let* ((level-reg ($ ppc::arg_z)))
-        (ppc2-one-targeted-reg-form seg oldlevel level-reg)
-        (ppc2-close-undo)
-        (! restore-interrupt-level)))
-    (ppc2-open-undo)
-    (@ protform-label)
-    (ppc2-undo-body seg vreg xfer body old-stack)))
-
-(defppc2 ppc2-disable-interrupts disable-interrupts (seg vreg xfer)
-  (ensuring-node-target (target vreg)
-    (! disable-interrupts target))
-  (^))
 
 (defppc2 ppc2-multiple-value-call multiple-value-call (seg vreg xfer fn arglist)
   (ppc2-mvcall seg vreg xfer fn arglist))
