@@ -113,7 +113,9 @@
                          (kill-lisp-pointers)
                          (%set-toplevel
                           #'(lambda ()
-                              (%set-toplevel toplevel-function)
+                              (%set-toplevel #'(lambda ()
+                                                 (setf (interrupt-level) 0)
+                                                 (funcall toplevel-function)))
                               (restore-lisp-pointers)))   ; do startup stuff
                          (funcall save-function)))
       (toplevel)))
