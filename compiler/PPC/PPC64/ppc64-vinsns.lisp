@@ -1784,9 +1784,9 @@
 
 (define-ppc64-vinsn ref-interrupt-level (((dest :imm))
                                          ()
-                                         ((temp :address)))
-  (lwz temp ppc64::tcr.tlb-pointer ppc64::rcontext)
-  (lwz dest ppc64::INTERRUPT-LEVEL-BINDING-INDEX temp))
+                                         ((temp :u64)))
+  (ld temp ppc64::tcr.tlb-pointer ppc64::rcontext)
+  (ld dest ppc64::INTERRUPT-LEVEL-BINDING-INDEX temp))
                          
 ;;; Unconditional (pc-relative) branch
 (define-ppc64-vinsn (jump :jump)
