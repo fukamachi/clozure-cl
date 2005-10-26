@@ -75,7 +75,8 @@
 (defun get (sym key &optional default)
   "Look on the property list of SYMBOL for the specified INDICATOR. If this
   is found, return the associated value, else return DEFAULT."
-  (let* ((tail (%pl-search (%svref (%symbol->symptr sym) target::symbol.plist-cell) key)))
+  (let* ((tail (%pl-search
+                (%svref (%symbol->symptr sym) target::symbol.plist-cell) key)))
     (if tail (%cadr tail) default)))
 
 (defun put (sym key value)
