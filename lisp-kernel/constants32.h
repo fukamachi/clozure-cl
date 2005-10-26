@@ -456,7 +456,7 @@ typedef struct tcr {
   void *resume;			/* resumption semaphore */
   int flags;
   ExceptionInformation *gc_context;
-  int suspend_total;
+  void *termination_semaphore;
   int unwinding;
   unsigned tlb_limit;
   LispObj *tlb_pointer;

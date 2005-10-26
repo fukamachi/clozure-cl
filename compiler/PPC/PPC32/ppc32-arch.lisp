@@ -457,7 +457,7 @@
   resume				; sempahore for resumption notify
   flags					; foreign, being reset, ...
   gc-context
-  suspend-total
+  termination-semaphore
   unwinding
   tlb-limit
   tlb-pointer

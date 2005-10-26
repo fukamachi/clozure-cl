@@ -262,7 +262,6 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
     sigset_t wait_for;
 
     tcr->suspend_context = context;
-    tcr->suspend_total++;
     sigfillset(&wait_for);
     SEM_RAISE(tcr->suspend);
     sigdelset(&wait_for, thread_resume_signal);
@@ -514,7 +513,7 @@ shutdown_thread_tcr(void *arg)
   TCR *tcr = TCR_FROM_TSD(arg);
 
   area *vs, *ts, *cs;
-
+  void *termination_semaphore;
   
   if (--(tcr->shutdown_count) == 0) {
     if (tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN)) {
@@ -552,7 +551,12 @@ shutdown_thread_tcr(void *arg)
     tcr->tlb_pointer = NULL;
     tcr->tlb_limit = 0;
     tcr->osid = 0;
+    termination_semaphore = tcr->termination_semaphore;
+    tcr->termination_semaphore = NULL;
     UNLOCK(lisp_global(AREA_LOCK),tcr);
+    if (termination_semaphore) {
+      SEM_RAISE(termination_semaphore);
+    }
   } else {
     tsd_set(lisp_global(TCR_KEY), TCR_TO_TSD(tcr));
   }
@@ -835,7 +839,7 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-#ifdef DARWIN_but_there_are_problems_here
+#ifdef DARWIN
       if (mach_suspend_tcr(tcr)) {
 	tcr->flags |= TCR_FLAG_BIT_ALT_SUSPEND;
 	return true;

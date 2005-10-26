@@ -591,7 +591,7 @@ TCR_BIAS = 0
 	 _node(resume)		/* sempahore for resumption notify */
 	 _node(flags)      
 	 _node(gc_context)
-         _node(suspend_total)
+         _node(termination_semaphore)
          _node(unwinding)
          _node(tlb_limit)
          _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer */

@@ -419,7 +419,7 @@
 				     ;; If function returns normally,
 				     ;; return to the reset state
 				     (%process-reset nil)))
-	 (thread-enable thread 0)
+	 (thread-enable thread (process-termination-semaphore process) 0)
          t)))))
 
 (defun thread-handle-interrupts ()
@@ -438,7 +438,7 @@
   (setf (lisp-thread.initial-function.args thread)
 	(cons function args)))
 
-(defun thread-enable (thread &optional (timeout most-positive-fixnum))
+(defun thread-enable (thread activation-semaphore &optional (timeout most-positive-fixnum))
   (let* ((tcr (or (lisp-thread.tcr thread) (new-tcr-for-thread thread))))
     (multiple-value-bind (seconds nanos) (nanoseconds timeout)
       (with-macptrs (s)
@@ -447,7 +447,7 @@
 	  (%set-tcr-toplevel-function
 	   tcr
 	   (lisp-thread.startup-function thread))
-	  (%activate-tcr tcr)
+	  (%activate-tcr tcr activation-semaphore)
 	  thread)))))
 			      
 
@@ -517,11 +517,16 @@
     (setf (%fixnum-ref tcr target::tcr.flags)
 	  (bitset arch::tcr-flag-bit-awaiting-preset flags))))  
 
-(defun %activate-tcr (tcr)
+(defun %activate-tcr (tcr termination-semaphore)
   (if (and tcr (not (eql 0 tcr)))
-    (with-macptrs (s)
-      (%setf-macptr-to-object s (%fixnum-ref tcr target::tcr.activate))
+    (with-macptrs (tcrp s)
+      (%setf-macptr-to-object tcrp tcr)
+      (%setf-macptr s (%get-ptr tcrp target::tcr.activate))
       (unless (%null-ptr-p s)
+        (setf (%get-ptr tcrp target::tcr.termination-semaphore)
+              (if termination-semaphore
+                (semaphore-value termination-semaphore)
+                (%null-ptr)))
 	(%signal-semaphore-ptr s)
 	t))))
                          

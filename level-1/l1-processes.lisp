@@ -120,7 +120,10 @@
      (creation-time :initform (get-tick-count) :reader process-creation-time)
      (total-run-time :initform nil :accessor %process-total-run-time)
      (ui-object :initform (application-ui-object *application*)
-                :accessor process-ui-object))
+                :accessor process-ui-object)
+     (termination-semaphore :initform nil :initarg :termination-semaphore
+                            :accessor process-termination-semaphore
+                            :type (or null semaphore)))
   
   (:primary-p t))
 
@@ -145,7 +148,8 @@
                           (tstack-size *default-temp-stack-size*)
                           (initial-bindings ())
 			  (use-standard-initial-bindings t)
-                          (class (find-class 'process)))
+                          (class (find-class 'process))
+                          (termination-semaphore ()))
   "Create and return a new process."
   (declare (ignore flavor))
   (let* ((p (make-instance
@@ -158,7 +162,8 @@
 	     :initial-bindings (append (if use-standard-initial-bindings
 					 (standard-initial-bindings))
 				       (wrap-initial-bindings
-					initial-bindings)))))
+					initial-bindings))
+             :termination-semaphore termination-semaphore)))
     (add-to-all-processes p)
     (setf (car (process-splice p)) p)
     p))
@@ -235,13 +240,23 @@
     (error "Process ~s has not been preset.  Use PROCESS-PRESET to preset the process." p))
   (let* ((thread (process-thread p)))
     (do* ((total-wait wait (+ total-wait wait)))
-	 ((thread-enable thread wait)
+	 ((thread-enable thread (process-termination-semaphore p) wait)
 	  (setf (%process-whostate p) "Active")
 	  p)
       (cerror "Keep trying."
 	      "Unable to enable process ~s; have been trying for ~s seconds."
 	      p total-wait))))
 
+
+(defmethod (setf process-termination-semaphore) :after (new (p process))
+  (with-macptrs (tcrp)
+    (%setf-macptr-to-object tcrp (process-tcr p))
+    (unless (%null-ptr-p tcrp)
+      (setf (%get-ptr tcrp target::tcr.termination-semaphore)
+            (if new
+              (semaphore-value new)
+              (%null-ptr))))
+    new))
 
 (defun process-resume (p)
   "Resume a specified process which had previously been suspended
@@ -495,7 +510,8 @@ some point in the near future, and then return to what it was doing."
 			    (tstack-size *default-temp-stack-size*)
 			    (initial-bindings ())
                             (persistent nil)
-			    (use-standard-initial-bindings t))
+			    (use-standard-initial-bindings t)
+                            (termination-semaphore nil))
                       keywords
     (setq priority (require-type priority 'fixnum))
     (let* ((process (make-process name
@@ -505,7 +521,8 @@ some point in the near future, and then return to what it was doing."
 				  :tstack-size tstack-size
                                   :persistent persistent
 				  :use-standard-initial-bindings use-standard-initial-bindings
-				  :initial-bindings initial-bindings)))
+				  :initial-bindings initial-bindings
+                                  :termination-semaphore termination-semaphore)))
       (process-preset process #'(lambda () (apply function args)))
       (process-enable process)
       process)))

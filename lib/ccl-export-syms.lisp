@@ -405,6 +405,7 @@
      process-wait-with-timeout
      process-allow-schedule
      process-kill-issued
+     process-termination-semaphore
      
      make-lock
      lock-name
