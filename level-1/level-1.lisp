@@ -68,6 +68,8 @@
   (provide "CHARS")
   (provide "LISTS")
   (provide "DLL-NODE")
+  (l1-load "l1-typesys")
+  (l1-load "sysutils")
   (l1-load "ppc-threads-utils")
   (l1-load "l1-lisp-threads")
   (l1-load "l1-application")

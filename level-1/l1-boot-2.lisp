@@ -46,8 +46,6 @@
 
 
 (catch :toplevel
-    (l1-load "l1-typesys")
-    (l1-load "sysutils")
     #+ppc-target
     (l1-load "ppc-error-signal")
     (l1-load "l1-error-signal")
