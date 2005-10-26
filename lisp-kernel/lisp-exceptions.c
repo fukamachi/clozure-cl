@@ -2052,8 +2052,11 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	   It's tricky to do that if we're executing
 	   foreign code (especially Linuxthreads code, much
 	   of which isn't reentrant.)
+           If we're unwinding the stack, we also want to defer
+           the interrupt.
 	*/
-	if (tcr->valence != TCR_STATE_LISP) {
+	if ((tcr->valence != TCR_STATE_LISP) ||
+            (tcr->unwinding != 0)) {
 	  TCR_INTERRUPT_LEVEL(tcr) = (1 << fixnumshift);
 	} else {
 	  xframe_list xframe_link;
