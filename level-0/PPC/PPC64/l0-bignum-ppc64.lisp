@@ -450,11 +450,11 @@
 				    (the fixnum (+ ws n)))))
 	     (let* ((ww (- (the fixnum (mpn-sub-n ws p ws n)))))
 	       (declare (fixnum ww))
-	       (incf ww (mpn-add-n ws (the fixnum (+ p n)) ws n))
-	       (incf ww (mpn-add-n (the fixnum (+ p n2))
-				   (the fixnum (+ p n2))
-				   ws
-				   n))
+	       (setq ww (+ ww (mpn-add-n ws (the fixnum (+ p n)) ws n)))
+	       (setq ww (+ ww (mpn-add-n (the fixnum (+ p n2))
+                                         (the fixnum (+ p n2))
+                                         ws
+                                         n)))
 	       (mpn-incr-u (the fixnum (+ p (the fixnum (+ n2 n)))) ww)))))))
 
 ;;; Karatsuba subroutine: multiply A and B, store result at P, use WS
@@ -622,11 +622,11 @@
 			  (mpn-add-n ws p ws n)
 			  (- (the fixnum (mpn-sub-n ws p ws n))))))
 	       (declare (fixnum ww))
-	       (incf ww (mpn-add-n ws (the fixnum (+ p n)) ws n))
-	       (incf ww (mpn-add-n (the fixnum (+ p n2))
-				   (the fixnum (+ p n2))
-				   ws
-				   n))
+	       (setq ww (+ ww (mpn-add-n ws (the fixnum (+ p n)) ws n)))
+	       (setq ww (+ ww (mpn-add-n (the fixnum (+ p n2))
+                                         (the fixnum (+ p n2))
+                                         ws
+                                         n)))
 	       (mpn-incr-u (the fixnum (+ p (the fixnum (+ n2 n)))) ww)))))))
 
 ;;; Square UP, of length UN.  I wonder if a Karatsuba multiply might be
