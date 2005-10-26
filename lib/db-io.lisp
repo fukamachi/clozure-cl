@@ -44,7 +44,7 @@
     (let* ((h 5381))
       (declare (fixnum h))
       (dotimes (i len (logand h ppc32::target-most-positive-fixnum))
-	(incf h (the fixnum (logand ppc32::target-most-positive-fixnum (ash h 5))))
+	(setq h (+ h (the fixnum (logand ppc32::target-most-positive-fixnum (ash h 5)))))
 	(setq h (logxor (the (unsigned-byte 8) (%get-unsigned-byte buf i)) h)))))
 
 (defconstant cdbm-hplist 1000)
