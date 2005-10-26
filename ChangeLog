@@ -1,3 +1,15 @@
+2005-10-26 03:09  gb
+
+	* lisp-kernel/spjump.s, compiler/subprims.lisp: Remove svar
+	subprims; identify unused subprims; add support for binding/
+	unbinding *interrupt-level* and associated polling for pending
+	interrupts.
+
+2005-10-26 03:05  gb
+
+	* lisp-kernel/: constants32.s, constants64.h, constants64.s,
+	spentry.s: Disavow all knowledge of svars.
+
 2005-10-25 11:23  gb
 
 	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
