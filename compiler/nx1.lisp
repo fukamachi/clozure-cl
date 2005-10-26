@@ -991,13 +991,9 @@
     (let* ((*nx-lexical-environment* (new-lexical-environment temp)))
       (nx1-progn-body body))))
 
-(defnx1 nx1-disable-interrupts (disable-lisp-interrupts) ()
-  (make-acode (%nx1-operator disable-interrupts)))
 
-(defnx1 nx1-restoring-interrupt-level restoring-interrupt-level (var &body body)
-  (make-acode (%nx1-operator without-interrupts)
-	      (nx1-form var)
-	      (nx1-catch-body body)))
+
+
 			  
 
 (defnx1 nx1-apply ((apply)) (&whole call fn arg &rest args &aux (orig args) (spread-p t))
