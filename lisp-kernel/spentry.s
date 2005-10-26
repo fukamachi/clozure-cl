@@ -160,13 +160,15 @@ local_label(_throw_tag_not_found):
 
 /* This takes N multiple values atop the vstack. */
 _spentry(nthrowvalues)
+        __(li imm1,1)
 	__(mr imm4,imm0)
+        __(str(imm1,tcr.unwinding(rcontext)))
 local_label(_nthrowv_nextframe):
 	__(subi imm4,imm4,fixnum_one)
 	__(cmpri(cr1,imm4,0))
 	__(ldr(temp0,tcr.catch_top(rcontext)))
 	__(ldr(imm1,tcr.db_link(rcontext)))
-	__(bltlr cr1)
+	__(blt cr1,local_label(_nthrowv_done))
 	__(ldr(imm0,catch_frame.db_link(temp0)))
 	__(ldr(imm3,catch_frame.link(temp0)))
 	__(cmpr(cr0,imm0,imm1))
@@ -238,8 +240,14 @@ local_label(_nthrowv_tpushtest):
 	__(bne local_label(_nthrowv_tpushloop))
 	__(stru(imm4,node_size(imm0)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
+        /* Interrupts should be disabled here (we're calling and returning
+           from the cleanup form.  Clear the tcr.unwinding flag, so that
+           interrupts can be taken if they're enabled in the cleanup form. */
+        __(str(rzero,tcr.unwinding(rcontext)))        
 	__(bctrl)
+        __(li imm1,1)
 	__(la imm0,tsp_frame.data_offset(tsp))
+        __(str(imm1,tcr.unwinding(rcontext)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(discard_lisp_frame())
@@ -257,20 +265,30 @@ local_label(_nthrowv_tpoptest):
 	__(ldr(imm4,node_size(imm0)))
 	__(unlink(tsp))
 	__(b local_label(_nthrowv_nextframe))
-
+local_label(_nthrowv_done):
+        __(str(rzero,tcr.unwinding(rcontext)))
+        /* Poll for a deferred interrupt.  That clobbers nargs (which we've
+          just expended a lot of effort to preserve), so expend a little
+          more effort. */
+        __(mr imm4,nargs)
+        __(check_pending_interrupt())
+        __(mr nargs,imm4)
+        __(blr)
 
 /* This is a (slight) optimization.  When running an unwind-protect, */
 /* save the single value and the throw count in the tstack frame. */
 /* Note that this takes a single value in arg_z. */
 _spentry(nthrow1value)
+        __(li imm1,1)
 	__(mr imm4,imm0)
+        __(str(imm1,tcr.unwinding(rcontext)))
 local_label(_nthrow1v_nextframe):
 	__(subi imm4,imm4,fixnum_one)
 	__(cmpri(cr1,imm4,0))
 	__(ldr(temp0,tcr.catch_top(rcontext)))
 	__(ldr(imm1,tcr.db_link(rcontext)))
 	__(set_nargs(1))
-	__(bltlr cr1)
+	__(blt cr1,local_label(_nthrow1v_done))
 	__(ldr(imm3,catch_frame.link(temp0)))
 	__(ldr(imm0,catch_frame.db_link(temp0)))
 	__(cmpr(cr0,imm0,imm1))
@@ -318,8 +336,11 @@ local_label(_nthrow1v_do_unwind):
 	__(str(arg_z,tsp_frame.data_offset(tsp)))
 	__(str(imm4,tsp_frame.data_offset+node_size(tsp)))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
+        __(str(rzero,tcr.unwinding(rcontext)))
 	__(bctrl)
+        __(li imm1,1)
 	__(ldr(arg_z,tsp_frame.data_offset(tsp)))
+        __(str(imm1,tcr.unwinding(rcontext)))
 	__(ldr(imm4,tsp_frame.data_offset+node_size(tsp)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
@@ -327,7 +348,12 @@ local_label(_nthrow1v_do_unwind):
 	__(mtlr loc_pc)
 	__(unlink(tsp))
 	__(b local_label(_nthrow1v_nextframe))
-
+local_label(_nthrow1v_done):
+        __(str(rzero,tcr.unwinding(rcontext)))
+        /* nargs has an undefined value here, so we can clobber it while
+           polling for a deferred interrupt */
+        __(check_pending_interrupt())
+        __(blr)
 
 /* This never affects the symbol's vcell */
 /* Non-null symbol in arg_y, new value in arg_z */        
