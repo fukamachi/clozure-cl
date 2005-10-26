@@ -2033,26 +2033,16 @@ to open."
 (defmacro without-interrupts (&body body)
   "Evaluate its body in an environment in which process-interrupt
 requests are deferred."
-  (let* ((level (gensym)))
-    `(let* ((,level (disable-lisp-interrupts)))
-      (restoring-interrupt-level ,level ,@body))))
+  `(let* ((*interrupt-level* -1))
+    ,@body))
 
 
-;; undoes the effect of one enclosing without-interrupts during execution of body.
+
+;;; undoes the effect of one enclosing without-interrupts during execution of body.
 (defmacro ignoring-without-interrupts (&body body)
-  (let* ((level (gensym)))
-    `(let ((,level (interrupt-level)))
-       (unwind-protect
-	    (progn
-	      (setf (interrupt-level) 0)
-	      ,@body)
-	 (setf (interrupt-level) ,level)))))
+  `(let* ((*interrupt-level* 0))
+    ,@body))
 
-(defmacro unwind-protect-disable-interrupts-during-cleanup (protected-form &body cleanup-forms)
-  `(without-interrupts
-    (unwind-protect
-         (ignoring-without-interrupts ,protected-form)
-      ,@cleanup-forms)))
 
 
 (defmacro error-ignoring-without-interrupts (format-string &rest format-args)
