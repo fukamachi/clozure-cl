@@ -1780,7 +1780,7 @@
 
 (define-ppc32-vinsn ref-interrupt-level (((dest :imm))
                                          ()
-                                         ((temp :address)))
+                                         ((temp :u32)))
   (lwz temp ppc32::tcr.tlb-pointer ppc32::rcontext)
   (lwz dest ppc32::INTERRUPT-LEVEL-BINDING-INDEX temp))
 
