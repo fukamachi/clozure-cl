@@ -529,7 +529,7 @@
   flags					; foreign, being reset, ...
   gc-context
   suspend-total
-  suspend-total-on-exception-entry
+  unwinding
   tlb-limit
   tlb-pointer
   shutdown-count

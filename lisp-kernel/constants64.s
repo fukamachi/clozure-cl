@@ -562,7 +562,7 @@ TCR_BIAS = 0
 	 _word(flags)      
 	 _node(gc_context)
          _node(suspend_total)
-         _node(suspend_total_on_exception_entry)
+         _node(unwinding)
          _node(tlb_limit)
          _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer */
 	 _node(shutdown_count)

@@ -436,7 +436,7 @@ typedef struct tcr {
   int32_t flags;
   ExceptionInformation* gc_context;
   signed_natural suspend_total;
-  signed_natural suspend_total_on_exception_entry;
+  signed_natural unwinding;
   natural tlb_limit;
   LispObj* tlb_pointer;
   natural shutdown_count;
