@@ -6,7 +6,7 @@ OpenMCL 1.1-pre-051027
 
   One user-visible aspect of this is that UNWIND-PROTECT cleanup forms
   are run with interrupts disabled (the protected form is run with
-  interrupts enabled if they were enabled on entry to the UNWIND-PROTECT.
+  interrupts enabled if they were enabled on entry to the UNWIND-PROTECT.)
   This means that something like:
 
   (unwind-protect
@@ -32,7 +32,7 @@ OpenMCL 1.1-pre-051027
   a little while ago, QUIT didn't work because the initial process
   was running with interrupts disabled.)
 
- - PROCESS-TERMINATION-SEMAPHORE
+- PROCESS-TERMINATION-SEMAPHORE
   MAKE-PROCESS and PROCESS-RUN-FUNCTION accept a :TERMINATION-SEMAPHORE
   argument; processes have a PROCESS-TERMINATION-SEMAPHORE accessor
   method.  If the argument is specified and non-null, its value should
@@ -59,17 +59,17 @@ OpenMCL 1.1-pre-051027
     (wait-on-semaphore s))
 
   The calling thread will wait for (roughly) 10 seconds (until the
-  "sleepy" thread has had its nap and signals its terminatin semaphore.)
+  "sleepy" thread has had its nap and signals its termination semaphore.)
 
 - A change that was introduced prior to 0.14.3 led to strange, usually
-  fatal and crashes (usually an unhandled bus error, occasionally a cryptic
+  fatal crashes (usually an unhandled bus error, occasionally a cryptic
   "can't find active area" message and a trip to the kernel debugger)
   under Darwin.  This was caused by an attempt to use certain Mach
-  primitives to suspend and resume threads (the way that those primitives
-  were used, Mach exception messages were sometimes sent twice if the
-  first send was interrupted, and the second send occurred after the
-  exception had already been handled (because the first send was
-  recieved but not replied to ...)
+  primitives to suspend and resume threads (the way that those
+  primitives were used, Mach exception messages were sometimes sent
+  twice if the first send was interrupted, and the second send occurred
+  after the exception had already been handled (because the first send
+  was recieved but not replied to ...)
 
   1.0 backed out of this change, and used signal handling primitives
   (instead of Mach primitives) to suspend and resume threads.  I -think-
