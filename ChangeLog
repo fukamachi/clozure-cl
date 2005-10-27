@@ -1,3 +1,9 @@
+2005-10-26 18:40  gb
+
+	* release-notes.txt: Some notes; hopefully, maintaining this file
+	between releases will make it easier/quicker to prepare real
+	release notes.
+
 2005-10-26 17:52  gb
 
 	* level-0/PPC/: PPC32/l0-bignum-ppc32.lisp,
