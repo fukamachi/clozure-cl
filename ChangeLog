@@ -1,3 +1,11 @@
+2005-10-27 01:18  gb
+
+	* level-1/version.lisp: Bump; claim to be a "pre-1.1" release.
+
+2005-10-27 01:17  gb
+
+	* release-notes.txt: Fix some typos.
+
 2005-10-27 00:19  gb
 
 	* lib/setf.lisp: DEFINE-MODIFY-MACRO: don't try to special-case
