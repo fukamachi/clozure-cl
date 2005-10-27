@@ -1,3 +1,28 @@
+2005-10-26 17:52  gb
+
+	* level-0/PPC/: PPC32/l0-bignum-ppc32.lisp,
+	PPC64/l0-bignum-ppc64.lisp: maybe questionable INCF/fixnum stuff
+
+2005-10-26 17:43  gb
+
+	* lib/db-io.lisp: avoid INCF/fixnum-arithmetic-sleaze issues in
+	CDB-HASH.
+
+2005-10-26 17:35  gb
+
+	* level-1/: l1-boot-2.lisp, level-1.lisp: Load l1-typesys &
+	sysutils earlier, to make more of the type system available.
+
+2005-10-26 17:32  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp, lib/ccl-export-syms.lisp,
+	lisp-kernel/constants32.h, lisp-kernel/constants32.s,
+	lisp-kernel/constants64.h, lisp-kernel/constants64.s,
+	lisp-kernel/lisp-exceptions.c, lisp-kernel/thread_manager.c,
+	level-1/l1-lisp-threads.lisp, level-1/l1-processes.lisp:
+	PROCESS-TERMINATION-SEMAPHORE stuff.
+
 2005-10-26 14:51  gb
 
 	* lisp-kernel/spentry.s: Maintain tcr.unwinding during nthrow.
