@@ -287,9 +287,7 @@
     (setq other-args (nreverse other-args))
       `(defmacro ,name (,reference ,@lambda-list &environment ,env)
          ,doc-string
-         (if (symbolp (setq ,reference (%symbol-macroexpand ,reference ,env)))
-           (list 'setq ,reference (list* ',function ,reference ,@other-args . ,(list rest-arg)))
-            (multiple-value-bind (dummies vals newval setter getter)
+         (multiple-value-bind (dummies vals newval setter getter)
                                 (get-setf-method ,reference ,env)
              (do ((d dummies (cdr d))
                   (v vals (cdr v))
@@ -302,28 +300,39 @@
                             `(list ',function getter ,@other-args)))
                    let-list)
                   `(let* ,(nreverse let-list)
-                     ,setter))))))))
+                     ,setter)))))))
 
-(define-modify-macro incf (&optional (delta 1)) +
+(defmacro incf (place &optional (delta 1) &environment env)
   "The first argument is some location holding a number.  This number is
-incremented by the second argument, DELTA, which defaults to 1.")
+incremented by the second argument, DELTA, which defaults to 1."
+  (if (and (symbolp (setq place (%symbol-macroexpand place env)))
+           (or (constantp delta)
+               (and (symbolp delta)
+                    (not (nth-value 1 (%symbol-macroexpand delta env))))))
+    `(setq ,place (+ ,place ,delta))
+    (multiple-value-bind (dummies vals newval setter getter)
+        (get-setf-method place env)
+      (let ((d (gensym)))
+        `(let* (,@(mapcar #'list dummies vals)
+                (,d ,delta)
+                (,(car newval) (+ ,getter ,d)))
+          ,setter)))))
 
-(define-modify-macro decf (&optional (delta 1)) -
-  "The first argument is some location holding a number.  This number is
-decremented by the second argument, DELTA, which defaults to 1.")
-
-#|
 (defmacro decf (place &optional (delta 1) &environment env)
   "The first argument is some location holding a number.  This number is
 decremented by the second argument, DELTA, which defaults to 1."
-  (multiple-value-bind (dummies vals newval setter getter)
-      (get-setf-method place env)
-    (let ((d (gensym)))
-      `(let* (,@(mapcar #'list dummies vals)
-              (,d ,delta)
+  (if (and (symbolp (setq place (%symbol-macroexpand place env)))
+           (or (constantp delta)
+               (and (symbolp delta)
+                    (not (nth-value 1 (%symbol-macroexpand delta env))))))
+    `(setq ,place (- ,place ,delta))
+    (multiple-value-bind (dummies vals newval setter getter)
+        (get-setf-method place env)
+      (let ((d (gensym)))
+        `(let* (,@(mapcar #'list dummies vals)
+                (,d ,delta)
                 (,(car newval) (- ,getter ,d)))
-         ,setter))))
-|#
+          ,setter)))))
   
 (defmacro psetf (&whole call &rest pairs &environment env)  ;same structure as psetq
   "This is to SETF as PSETQ is to SETQ. Args are alternating place
