@@ -152,3 +152,44 @@ OpenMCL 1.1-pre-051027
   right time.)  If you don't fall into either of these categories,
   you probably won't notice any difference ...
 
+- 64-bit Linux support
+
+  There's a 64-bit LinuxPPC heap image and some rudimentary (libc-only)
+  64-bit Linux interfaces in the testing directory.
+
+  (Unlike 64-bit Darwin, 64-bit Linux distributions typically provide
+  64-bit versions of "all" standard libraries; I haven't gotten around
+  to building 64-bit gnome/gtk/X11/... interfaces yet, but wouldn't
+  expect there to be a problem.)
+
+  The 64-bit Linux OpenMCL seems to basically work, but ... OpenMCL
+  likes to map its kernel into low addresses (around #x5000); this
+  allows compiled lisp code to use conditional branches to "short"
+  (16-bit) absolute addresses.  Newer Linux kernels provide a
+  "vdso" shared library that's intended to simply communication
+  between the OS kernel and userspace libraries and programs; when
+  a program is mapped at "non-standard" addresses, the vdso gets
+  mapped at address 0.
+
+  I don't fully understand the imlications of this (beyond the fact that
+  indirecting through a NULL pointer will access bits and pieces
+  of the vdso instead of segfaulting.)  As far as I know, this is
+  seen as a minor bug in the Linux kernel, and I -think- that I've
+  seen kernel ChangeLog entries that indicate that the problem's been
+  fixed in the relatively recent past (and will likely start to
+  make it into Linux distributions in the near future.)
+
+  That said - and seeing a library at address 0 certainly makes me a
+  little nervous - the LinuxPPC64 port seems to work at least as
+  well as the DarwinPPC64 port does (i.e., there may be word-size
+  or other bugs lurking around or hiding in plain sight, but it's
+  not usually easy to encounter them.)
+
+- As documented (and as hasn't been true in a long time), EOF
+  from *STANDARD-INPUT* terminates the REPL when the --batch argument
+  is in effect (even if *STANDARD-INPUT* is a tty.)
+
+- QUIT does a FRESH-LINE on and FORCE-OUTPUT to the standard output
+  stream (people had reported that output wasn't always flushed
+  when --batch or --eval was used; 1.0 was better about this than
+  previous versions were, but it still wasn't reliable.)
