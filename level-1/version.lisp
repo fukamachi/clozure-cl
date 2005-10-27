@@ -17,9 +17,9 @@
 (in-package "CCL")
 
 (defparameter *openmcl-major-version* 1)
-(defparameter *openmcl-minor-version* 0)
+(defparameter *openmcl-minor-version* 1)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "post-051017")
+(defparameter *openmcl-suffix* "pre-051027")
 (defparameter *openmcl-dev-level*
   #+ppc64-target "Beta" #-ppc64-target nil)
 
