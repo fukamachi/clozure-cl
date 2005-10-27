@@ -1,111 +1,154 @@
-;;; Eventually, we'll try to get in the habit of updating this file
-;;; whenever bugs are fixed or new features are added.  For now, it'll
-;;; have to be after the fact.
+OpenMCL 1.1-pre-051027
 
+- A lot of internal changes in the way that special bindings, UNWIND-PROTECT,
+  and WITHOUT-INTERRUPTS are implemented (and in how they interact with
+  each other.
 
-Interface Database issues:
-  The content and format of the interface database (.cdb) files has
-  changed; new .cdb files can't be used with older releases, and
-  old .cdb files are incompatible with this release.  The newer
-  files encode ObjC class and method information, and also encode
-  accurate information about record field offsets.
+  One user-visible aspect of this is that UNWIND-PROTECT cleanup forms
+  are run with interrupts disabled (the protected form is run with
+  interrupts enabled if they were enabled on entry to the UNWIND-PROTECT.
+  This means that something like:
 
-  The interface database files are included in the "-all" archives
-  for each platform; they're also available separately:
-  
+  (unwind-protect
+      nil
+    (loop))
 
+  will loop uninterruptibly.
 
-New Features:
-  OpenMCL now runs in 64-bit mode on G5-based systems under OSX10.4;
-  a port to 64-bit LinuxPPC will hopefully be available soon.  See
-  "64-bit notes" below for more details.
+- CCL:WITH-INTERRUPTS-ENABLED &body body executes the body with interrupts
+  enabled.  The example above could be rewritten as:
 
-  Functions defined via DEFCALLBACK can now be traced (thanks to Alex
-  Crain).
+  (unwind-protect
+      nil
+    (with-interrupts-enabled (loop)))
 
-  The Cocoa bridge now derives information about ObjC classes and methods
-  from the interface files; this should make applications which use it
-  less sensitive to minor changes in OS releases.   
+  and the loop would be interruptible.
 
-  Lisp slots in ObjC objects that're allocated by foreign code can now
-  be initialized (thanks to Alex Crain.)
+  These changes introduce binary incompatibility (the FASL version changed,
+  as did an internal version number that tries to keep the kernel and
+  heap image in synch.)
 
-  The function CCL:CURRENT-DIRECTORY returns the pathname of the
-  current directory; (SETF (CCL:CURRENT-DIRECTORY) #p"/some/other/path")
-  can be used to change directories.
+  Things basically work, but there may be lingering bugs (e.g., as of
+  a little while ago, QUIT didn't work because the initial process
+  was running with interrupts disabled.)
 
-  OpenMCL's ephemeral garbage collector uses a new scheme to detect
-  cases where "old" objects are destructively modified to reference
-  "new" ones; this seems to avoid some of the performance anomalies
-  associated with the old scheme.
+ - PROCESS-TERMINATION-SEMAPHORE
+  MAKE-PROCESS and PROCESS-RUN-FUNCTION accept a :TERMINATION-SEMAPHORE
+  argument; processes have a PROCESS-TERMINATION-SEMAPHORE accessor
+  method.  If the argument is specified and non-null, its value should
+  of type SEMAPHORE.
 
-  The documentation strings that Bryan O'Connor added in version
-  0.14.3 should now all be accessible to the DOCUMENTATION function
-  (bootstrapping issues had prevented those doc strings defined  early
-  in the cold load from being remembered.)  In addition (thanks to
-  Bryan), most exported and documented CCL package functions now
-  have doc strings.
+  If a process dies by any means after it's been successfully enabled
+  and it has a non-null termination semaphore "at the time of its death", 
+  that semaphore will be signaled just before the underlying OS thread
+  is destroyed.
 
-  LOAD now tries to load any file whose first byte is #xFF as a FASL
-  file (regardless of the file's extension.)  OpenMCL's FASL files
-  start with an #xFF byte on all platforms.  Note that this means
-  that it's not possible to load source files whose first character
-  is (CHAR-CODE #xFF); that wouldn't be -likely- to be too useful
-  currently, anyway.
+  SETF can be used with PROCESS-TERMINATION-SEMAPHORE to change or
+  clear a the termination semaphore of a process.  If the target
+  process is not the current process when this happens, it's possible
+  that the process could die before the SETF takes effect; this
+  possibility must be addressed at the application level (i.e., the
+  implementation doesn't try to synchronize the calling thread and
+  the target in any way.
 
-  On 32-bit PPC, the upper limit on the number of machine instructions
-  in a compiled function was raised from 256K to 512K (there are obscure,
-  GC-related reasons for this limit.)
+  A simple example:
 
-  Source files that were implicitly in the CCL package but were missing
-  (IN-PACKAGE "CCL") forms now have those forms (again, thanks to Bryan
-  O'Connor); this may help text editors to establish the buffer's package
-  correctly when visiting the file.
+  (let* ((s (make-semaphore)))
+    (process-run-function `(:name "sleepy" :termination-semaphore ,s)
+                           #'(lambda () (sleep 10)))
+    (wait-on-semaphore s))
 
-  Lisp image files now contain version information; the lisp kernel
-  is built with information about the range of image versions with
-  which it's compatible.
+  The calling thread will wait for (roughly) 10 seconds (until the
+  "sleepy" thread has had its nap and signals its terminatin semaphore.)
 
-  If both the traditional -b/--batch command-line argument and a new
-  -Q/--quiet argument are specified, printing of the "Welcome ..."
-  banner and of listener prompts is suppressed.
+- A change that was introduced prior to 0.14.3 led to strange, usually
+  fatal and crashes (usually an unhandled bus error, occasionally a cryptic
+  "can't find active area" message and a trip to the kernel debugger)
+  under Darwin.  This was caused by an attempt to use certain Mach
+  primitives to suspend and resume threads (the way that those primitives
+  were used, Mach exception messages were sometimes sent twice if the
+  first send was interrupted, and the second send occurred after the
+  exception had already been handled (because the first send was
+  recieved but not replied to ...)
 
-  The functionality of the #? reader macro (used to reference foreign
-  variables) has been reassigned to #&.  #? is still supported, but
-  that support will be dropped in a future release (ANSI CL specifies
-  that #? is explicitly reserved for the user and therefore shouldn't
-  be used by the implementation.)
+  1.0 backed out of this change, and used signal handling primitives
+  (instead of Mach primitives) to suspend and resume threads.  I -think-
+  that I understand the issue with the Mach primitives 
+  (#_thread_abort_safely isn't necessary and caused the duplicate
+  exception messages to be sent) and have tried to revert to using
+  the Mach thread suspension mechanisms.  (If unhandled bus errors -
+  that exit to the shell - or cryptic "can't find active area" messages
+  reappear, this experiment will be shown to be a failure.)
 
-  There's an initial version of an interface to Apple's CHUD
-  performance-metering tools, distributed in "ccl:library;chud-metering.lisp".
-  See "ccl:library;chud-metering.txt" for usage instructions and notes.
+  There are some obscure but good reasons for favoring the Mach
+  primiitves, so it'd be good to know if the problem with using them
+  has indeed been identified.
 
-  CLASS-OF now returns the same class as does (FIND-CLASS 'SIMPLE-ARRAY)
-  for multi-dimensional arrays that are also SIMPLE-ARRAYs.  (It was
-  previously returning the equivalent of (FIND-CLASS 'ARRAY); the new
-  behavior may be more useful, but portable code shouldn't necessarily
-  assume that there -is- a BUILT-IN-CLASS for SIMPLE-ARRAY.)
+  (The test case involves bad luck and bad timing: two or more
+  threads having pending exceptions at the same time and the thread
+  whose exception is handled first tries to suspend the others, typically
+  on behalf of the GC.  It was possible to run stress tests for many
+  hours in 0.14.3 without encountering the bug, and possible to
+  encounter it under seemingly light loads.)
 
-  The function CCL:WAIT-ON-SEMAPHORE now consistently returns T.
-  (The documentation has described its return value incorrectly;
-  it used to return T if the semaphore could be decremented without
-  waiting and NIL if it had to wait, but if WAIT-ON-SEMAPHORE returned
-  at all, the semaphore had been successfully decremented and a positive
-  return value seems more intuitive.
+- INCF and DECF argument order and fixnum arithmetic.
 
-  Hash tables have traditionally been locked on access (by GETHASH,
-  etc.); this allows them to be accessed and modified in a thread-safe
-  way, but locking locking incurs some overhead (perhaps on the order
-  of 10%, depending.)  A new :SHARED keyword argument to
-  MAKE-HASH-TABLE allows some control over this behavior; specifying
-  :SHARED NIL in a call to MAKE-HASH-TABLE has the effect of making
-  the hash table permanantly locked by the calling thread.  The
-  keyword :OPENMCL-PRIVATE-HASH-TABLES has been added to *FEATURES* to
-  indicate the presence of this functionality.
+  Bryan fixed some ANSI test failures related to the order in which INCF
+  and DECF evaluate their args.  (One example is:
 
-  The function CCL:CPU-COUNT returns the number of available
-  processors (1 in a uniprocessor system, >1 in a multiprocessor
-  system.)
+  (let* ((x 3))
+    (incf x (setq x 5)))
 
-Bug Fixes:
+  where the correct answer is 10, not 8.)  We both found that fixing
+  some cases involving INCF caused some OpenMCL code to compile
+  incorrectly and were nervous about introducing these changes fairly
+  late in the development cycle, so we backed out of them prior to
+  the 1.0 code freeze.
+
+  The reasons for the miscompiled code have to do with how the
+  compiler interprets fixnum declarations under typical optimization
+  settings.  If A and B are both declared to be FIXNUMS, then
+  the expression
+
+  (setq a (+ a b))
+
+  will usually compile to a simple ADD instruction (with no overflow
+  checking); if A and B are fixnums, the result will be a fixnum,
+  though if an undetected overflow occurred in the addition, the
+  result might be missing a significant bit.
+
+  There was code in OpenMCL that assumed that
+
+  (incf a b)
+
+  was exactly the same as
+
+  (setq a (+ a b))
+
+  and in fact that was true under the old (incorrect) definition of
+  INCF.  The new definition introduced some temporary bindings:
+
+  (let* ((...)
+         (#:temp (+ a b))
+         (...))
+     (setq a #:temp))
+
+  In this case, the addition was allowed to generate an overflow
+  (no type declaration on #:temp), and the SETQ quietly violated
+  a type declaration (assigning a non-FIXNUM value to A), leading
+  to further problems.
+
+  So far, I found a couple of cases of this in the OpenMCL sources.
+  (FWIW, both functions were originally transliterated from C code
+  and were trying to mimic C's silent overflow behavior.)
+
+  Moral: if you have code that assumes that INCF or DECF expand
+  into simple assignments and are trying to exploit the ways that
+  those assignments interact with type declarations, you may
+  want to review those assumptions.  If you write code that has
+  side effects in the DELTA arguments of INCF or DECF rorms,
+  you'll (hopefully) be pleased to see that Bryan's changes 
+  allow these side-effects to be handled correctly (at the
+  right time.)  If you don't fall into either of these categories,
+  you probably won't notice any difference ...
 
