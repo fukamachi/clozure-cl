@@ -1,3 +1,14 @@
+2005-10-27 00:19  gb
+
+	* lib/setf.lisp: DEFINE-MODIFY-MACRO: don't try to special-case
+	"place" being a simple (non-symbol-macro) symbol and expand into
+	SETQ, since we don't know anything about side-effects in other
+	arguments in the lambda list.
+	
+	INCF & DECF: -do- special case simple symbols as places, if the
+	delta is also either a constant or a simple symbol; do the more
+	general expansion otherwise (Bryan's code.)
+
 2005-10-26 18:40  gb
 
 	* release-notes.txt: Some notes; hopefully, maintaining this file
