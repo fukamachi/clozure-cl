@@ -1,3 +1,8 @@
+2005-10-28 05:17  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Don't use 64-bit
+	instructions (tdgti) in a 32-bit lisp.
+
 2005-10-27 02:22  gb
 
 	* release-notes.txt: Say something about LinuxPPC64 and about some
