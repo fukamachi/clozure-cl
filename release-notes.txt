@@ -193,3 +193,15 @@ OpenMCL 1.1-pre-051027
   stream (people had reported that output wasn't always flushed
   when --batch or --eval was used; 1.0 was better about this than
   previous versions were, but it still wasn't reliable.)
+
+OpenMCL 1.1-pre-051028
+I had been doing development on G5s, and hadn't noticed that the
+32-bit lisp had been using a 64-bit instruction.  (I'm a little
+confused about how that could have worked; perhaps the 64-bit
+instruction gets emulated by the OS, or perhaps my model of
+whether 64-bit instructions can be executed in 32-bit mode
+is simply incorrect.)
+
+In any case, the 32-bit images produced yesterday don't run on
+G4s (or presumably G3s or older systems.)  Ooops.  New images.
+
