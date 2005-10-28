@@ -2418,6 +2418,7 @@
   (or (assq sym *ppc2-vcells*)
       (let ((new (list sym)))
         (push new *ppc2-vcells*)
+        (ensure-binding-index sym)
         new)))
 
 
