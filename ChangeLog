@@ -1,3 +1,8 @@
+2005-10-28 06:33  gb
+
+	* compiler/PPC/ppc2.lisp: PPC2-SYMBOL-VALUE-CELL calls
+	ENSURE-BINDING-INDEX.
+
 2005-10-28 05:23  gb
 
 	* level-1/version.lisp: Bump.
