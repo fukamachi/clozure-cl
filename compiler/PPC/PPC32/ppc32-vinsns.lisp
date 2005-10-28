@@ -1775,7 +1775,7 @@
   (bgt crf :trap)
   (lwz ppc::nargs ppc32::tcr.interrupt-pending ppc32::rcontext)
   :trap
-  (tdgti ppc::nargs 0)
+  (twgti ppc::nargs 0)
   :done)
 
 (define-ppc32-vinsn ref-interrupt-level (((dest :imm))
