@@ -1,3 +1,12 @@
+2005-10-28 05:23  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-10-28 05:23  gb
+
+	* release-notes.txt: Yesterday's images didn't work on ppc32 on
+	non-G5s.
+
 2005-10-28 05:17  gb
 
 	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Don't use 64-bit
