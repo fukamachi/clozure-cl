@@ -205,3 +205,10 @@ is simply incorrect.)
 In any case, the 32-bit images produced yesterday don't run on
 G4s (or presumably G3s or older systems.)  Ooops.  New images.
 
+OpenMCL 1.1-pre-051029
+ A function used by both SET-USER-ENVIRONMENT
+and SET-DEVELOPMENT-ENVIRONMENT wasn't properly changing saved bindings
+of *PACKAGE*; the last few 1.1-pre releases have come up in the CCL
+package, as a result.  Ooops again; new images, again.
+
+
