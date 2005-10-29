@@ -26,12 +26,11 @@
 ; #+:COMMON-LISP = not MacLisp, not Scheme...
 ; #+:CCL = this particular lisp implementation
 (defparameter *features*
-  '(:ccl :ccl-2 :ccl-3 :ccl-4
-    :coral 
-    :common-lisp :mcl
+  '(:common-lisp
     :openmcl
-    :ansi-cl :processes
+    :ansi-cl
     :unix
+    ;; Threads and MOP stuff is pretty redundant.
     :openmcl-native-threads
     :openmcl-partial-mop
     :mcl-common-mop-subset
