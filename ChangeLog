@@ -1,3 +1,25 @@
+2005-10-29 14:40  gb
+
+	* release-notes.txt: Confess to the day's problems ...
+
+2005-10-29 14:39  gb
+
+	* level-1/version.lisp: Bump.
+
+2005-10-29 14:39  gb
+
+	* lib/prepare-mcl-environment.lisp: Fix %RESTORE-OUTERMOST-BINDING.
+
+2005-10-29 14:39  gb
+
+	* compiler/optimizers.lisp: The ASH compiler macro made 32-bit
+	assumptions and doesn't do anything that the compiler doesn't do by
+	itself.
+	
+	The LSH compiler macro made those same assumptions.  LSH isn't
+	really used enough to justify having a compiler macro, much less a
+	buggy one ...
+
 2005-10-28 06:33  gb
 
 	* compiler/PPC/ppc2.lisp: PPC2-SYMBOL-VALUE-CELL calls
