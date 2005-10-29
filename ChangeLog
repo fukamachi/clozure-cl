@@ -1,3 +1,17 @@
+2005-10-29 15:58  gb
+
+	* level-1/version.lisp: Bump to 051029b.
+
+2005-10-29 15:57  gb
+
+	* level-0/l0-init.lisp: Remove :CCL*, :MCL, etc from *FEATURES*.
+
+2005-10-29 15:57  gb
+
+	* level-0/l0-hash.lisp: Change order of tests in %HASH-PROBE, so
+	that test functions other than EQUAL/EQUALP don't have to compare
+	keys to missing/deleted tokens.
+
 2005-10-29 14:40  gb
 
 	* release-notes.txt: Confess to the day's problems ...
