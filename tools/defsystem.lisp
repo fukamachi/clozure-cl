@@ -835,7 +835,7 @@
 ;;; ********************************
 ;;; Let's be smart about CLtL2 compatible Lisps:
 (eval-when (compile load eval)
-  #+(or (and allegro-version>= (version>= 4 0)) :mcl :sbcl)
+  #+(or (and allegro-version>= (version>= 4 0)) :mcl :openmcl :sbcl)
   (pushnew :cltl2 *features*))
 
 ;;; ********************************
@@ -864,6 +864,7 @@
 #-(or :CMU
       :vms
       :mcl
+      :openmcl
       :lispworks
       :clisp
       :gcl
@@ -3909,7 +3910,7 @@ the system definition, if provided."
 			 #+:lispworks 'system:::require
 			 #+(and :excl :allegro-v4.0) 'cltl1:require))
 
-  (let (#+:CCL (ccl:*warn-if-redefine-kernel* nil))
+  (let (#+(or :CCL :openmcl) (ccl:*warn-if-redefine-kernel* nil))
     ;; Note that lots of lisps barf if we redefine a function from
     ;; the LISP package. So what we do is define a macro with an
     ;; unused name, and use (setf macro-function) to redefine
@@ -3936,7 +3937,7 @@ the system definition, if provided."
 (unless *old-require*
   (setf *old-require*
 	(symbol-function
-	 #-(or (and :excl :allegro-v4.0) :mcl :sbcl :lispworks) 'lisp:require
+	 #-(or (and :excl :allegro-v4.0) :mcl :openmcl :sbcl :lispworks) 'lisp:require
 	 #+(and :excl :allegro-v4.0) 'cltl1:require
 	 #+:sbcl 'cl:require
 	 #+:lispworks3.1 'common-lisp::require
@@ -3946,11 +3947,11 @@ the system definition, if provided."
 	 ))
 
   (unless *dont-redefine-require*
-    (let (#+(or :mcl (and :CCL (not :lispworks)))
+    (let (#+(or :mcl :openmcl (and :CCL (not :lispworks)))
 	  (ccl:*warn-if-redefine-kernel* nil))
       #-(or (and allegro-version>= (version>= 4 1)) :lispworks)
       (setf (symbol-function
-	     #-(or (and :excl :allegro-v4.0) :mcl :sbcl :lispworks) 'lisp:require
+	     #-(or (and :excl :allegro-v4.0) :mcl :openmcl :sbcl :lispworks) 'lisp:require
 	     #+(and :excl :allegro-v4.0) 'cltl1:require
 	     #+:lispworks3.1 'common-lisp::require
 	     #+:sbcl 'cl:require
