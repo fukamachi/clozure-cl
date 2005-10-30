@@ -1,3 +1,8 @@
+2005-10-30 00:28  gb
+
+	* tools/defsystem.lisp: Lots of conditionalization assumed that
+	:MCL implies :OPENMCL.
+
 2005-10-29 15:58  gb
 
 	* level-1/version.lisp: Bump to 051029b.
