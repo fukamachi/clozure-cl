@@ -839,7 +839,7 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-#ifdef DARWIN
+#ifdef DARWIN_but_this_still_fails_sometimes
       if (mach_suspend_tcr(tcr)) {
 	tcr->flags |= TCR_FLAG_BIT_ALT_SUSPEND;
 	return true;
