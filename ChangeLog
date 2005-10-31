@@ -1,3 +1,8 @@
+2005-10-30 17:58  gb
+
+	* lisp-kernel/thread_manager.c: Reason to suspect that
+	mach_suspend_tcr is still unreliable.
+
 2005-10-30 00:28  gb
 
 	* tools/defsystem.lisp: Lots of conditionalization assumed that
