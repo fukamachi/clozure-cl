@@ -1,3 +1,9 @@
+2005-11-04 11:34  gb
+
+	* level-0/PPC/ppc-misc.lisp: In #+ppc32 version of
+	%%SET-SIGNED-LONGLONG, trap if the pointer's not a
+	PPC32::SUBTAG-MACPTR (not a PPC64::SUBTAG-MACPTR).  Sheesh.
+
 2005-10-30 17:58  gb
 
 	* lisp-kernel/thread_manager.c: Reason to suspect that
