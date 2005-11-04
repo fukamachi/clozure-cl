@@ -384,7 +384,7 @@
 					    (offset arg_y)
 					    (val arg_z))
   (save-lisp-context)
-  (trap-unless-typecode= ptr ppc64::subtag-macptr)
+  (trap-unless-typecode= ptr ppc32::subtag-macptr)
   (bla .SPgets64)
   (macptr-ptr imm2 ptr)
   (unbox-fixnum imm3 offset)
