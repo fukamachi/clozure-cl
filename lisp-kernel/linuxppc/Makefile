@@ -21,8 +21,8 @@ RM = /bin/rm
 AS = as
 M4 = m4
 ASFLAGS = -mregnames -mppc32 -maltivec
-M4FLAGS = -DLINUX
-CDEFINES = -DLINUX -D_REENTRANT
+M4FLAGS = -DLINUX -DPPC
+CDEFINES = -DLINUX -DPPC -D_REENTRANT
 CDEBUG = -g
 COPT = -O2
 

@@ -49,9 +49,9 @@ LD = ld
 LDFLAGS = -arch ppc -dynamic  -o $@ -e start -seg1addr 0x00004000 -sectalign __TEXT __text 0x1000 -pagezero_size 0x4000
 AS = as
 M4 = gm4
-M4FLAGS = -DDARWIN
+M4FLAGS = -DDARWIN -DPPC
 ASFLAGS = -force_cpusubtype_ALL
-CDEFINES = -DDARWIN $(BROKEN_PREPROCESSOR_WORKAROUND)
+CDEFINES = -DDARWIN -DPPC  $(BROKEN_PREPROCESSOR_WORKAROUND)
 CDEBUG = -g
 COPT = -O2
 
