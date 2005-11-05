@@ -1,3 +1,38 @@
+2005-11-05 09:18  gb
+
+	* lisp-kernel/: darwinppc64/Makefile, linuxppc/Makefile: Define PPC
+	(via -DPPC) explicitly.
+
+2005-11-05 09:15  gb
+
+	* lisp-kernel/darwinppc/Makefile: Define PPC (via -DPPC)
+	explicitly.
+
+2005-11-05 08:44  gb
+
+	* lisp-kernel/: static-linuxppc/.cvsignore,
+	static-linuxppc/Makefile, static-linuxppc/staticlib.c,
+	static-linux/.cvsignore, static-linux/Makefile,
+	static-linux/staticlib.c: directory rename
+
+2005-11-05 08:39  gb
+
+	* lisp-kernel/: linuxppc64/.cvsignore, linuxppc64/Makefile,
+	linuxppc64/elf64ppc.x, linux64/.cvsignore, linux64/Makefile,
+	linux64/elf64ppc.x: directory rename
+
+2005-11-05 08:30  gb
+
+	* lisp-kernel/: linuxppc/elf32ppclinux.x, linuxppc/Makefile,
+	linuxppc/.gdbinit, linuxppc/.cvsignore, linux/.cvsignore,
+	linux/.gdbinit, linux/Makefile, linux/elf32ppclinux.x: directory
+	rename
+
+2005-11-05 08:20  gb
+
+	* lisp-kernel/: darwinppc64/Makefile, darwinppc64/.cvsignore,
+	darwin64/.cvsignore, darwin64/Makefile: directory renaming
+
 2005-11-05 08:14  gb
 
 	* lisp-kernel/darwin/: .cvsignore, .gdb_history, .gdbinit: finish
