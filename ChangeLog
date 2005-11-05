@@ -1,7 +1,12 @@
+2005-11-05 09:22  gb
+
+	* lisp-kernel/static-linuxppc/Makefile: Define PPC (via -DPPC)
+	explicitly.
+
 2005-11-05 09:18  gb
 
-	* lisp-kernel/: darwinppc64/Makefile, linuxppc/Makefile: Define PPC
-	(via -DPPC) explicitly.
+	* lisp-kernel/: darwinppc64/Makefile, linuxppc/Makefile,
+	linuxppc64/Makefile: Define PPC (via -DPPC) explicitly.
 
 2005-11-05 09:15  gb
 
