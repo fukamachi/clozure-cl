@@ -34,24 +34,23 @@
             (subprimitive-info-offset s))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-(defparameter *subprims-shift* 2)
-(defparameter *next-subprim-offset* (ash 5 12) )
+(defparameter *ppc-subprims-shift* 2)
+(defparameter *next-ppc-subprim-offset* (ash 5 12) )
 )
 
 ; For now, nothing's nailed down and we don't say anything about
 ; registers clobbered.
 (macrolet ((defppcsubprim (name)
-	       (let* ((offset *next-subprim-offset*)
+	       (let* ((offset *next-ppc-subprim-offset*)
 		      (info (make-subprimitive-info :name name
 						    :offset offset)))
-		 (incf *next-subprim-offset* 4)
+		 (incf *next-ppc-subprim-offset* (ash 1 *ppc-subprims-shift*))
 		 `(progn
 		   (undefine-constant ',name)
                    (makunbound ',name)
 		   (defconstant ,name ,offset)
 		   ,info))))
-  (setq *next-subprim-offset* (ash 1 14))
-  (defparameter *subprims*
+  (defparameter *ppc-subprims*
     (vector
      (defppcsubprim .SPjmpsym)
      (defppcsubprim .SPjmpnfn)
@@ -209,11 +208,11 @@
      )))
 
 (defun subprim-name->offset (name)
-  (let* ((sprec (find name *subprims* 
+  (let* ((sprec (find name *ppc-subprims* 
                       :test #'string-equal 
                       :key #'subprimitive-info-name)))
     (if sprec
       (subprimitive-info-offset sprec)
       (error "subprim named ~s not found." name))))
 
-(ccl::provide "SUBPRIMS")
+(provide "SUBPRIMS")

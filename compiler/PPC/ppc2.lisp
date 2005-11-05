@@ -4960,7 +4960,7 @@
     (destructuring-bind ((low . high) . base) cell
       (if (and (>= idx low)
                (< idx high))
-        (return (+ base (ash (- idx low) *subprims-shift*)))))))
+        (return (+ base (ash (- idx low) *ppc-subprims-shift*)))))))
 
 (defun ppc2-fixed-call-builtin (seg vreg xfer name subprim)
   (with-ppc-local-vinsn-macros (seg vreg xfer)

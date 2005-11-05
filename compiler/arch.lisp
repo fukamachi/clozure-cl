@@ -204,6 +204,10 @@
   (package-name ())
   (t-offset ())
   (array-data-size-function ())
-  (numeric-type-name-to-typecode-function ()))
+  (numeric-type-name-to-typecode-function ())
+  (subprims-base ())
+  (subprims-shift ())
+  (subprims-table ())
+  (primitive->subprims ()))
 
 (ccl::provide "ARCH")
