@@ -475,13 +475,12 @@
 	(unless (splay-tree-get class-map c)
 	  (%set-pointer-to-objc-class-address (objc-class-id-foreign-name i) c)
 	  ;; If the class is valid and the metaclass is still a
-	  ;; dead pointer, revive the metaclass 
+	  ;; unmapped, set the metaclass pointer's address and map it.
 	  (unless (%null-ptr-p c)
 	    (splay-tree-put class-map c i)
 	    (unless (splay-tree-get metaclass-map m)
-	      (when (%null-ptr-p m)
-		(%setf-macptr m (pref c #+apple-objc :objc_class.isa
-				      #+gnu-objc :objc_class.class_pointer)))
+              (%setf-macptr m (pref c #+apple-objc :objc_class.isa
+				      #+gnu-objc :objc_class.class_pointer))
 	      (splay-tree-put metaclass-map m meta-id))))))
     ;; Second pass: install class objects for user-defined classes,
     ;; assuming the superclasses are already "revived".  If the
