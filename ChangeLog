@@ -1,3 +1,26 @@
+2005-11-05 08:14  gb
+
+	* lisp-kernel/darwin/: .cvsignore, .gdb_history, .gdbinit: finish
+	rename darwin -> darwinppc
+
+2005-11-05 08:11  gb
+
+	* lisp-kernel/darwinppc/: .gdbinit, .cvsignore: more directory
+	renaming
+
+2005-11-05 08:07  gb
+
+	* lisp-kernel/darwin/: Makefile, retain: rename darwin directory to
+	darwinppc
+
+2005-11-05 08:05  gb
+
+	* lisp-kernel/darwinppc/retain: Awkward CVS directory rename
+
+2005-11-05 08:05  gb
+
+	* lisp-kernel/darwinppc/Makefile: Awkward CVS directory rename.
+
 2005-11-04 11:34  gb
 
 	* level-0/PPC/ppc-misc.lisp: In #+ppc32 version of
