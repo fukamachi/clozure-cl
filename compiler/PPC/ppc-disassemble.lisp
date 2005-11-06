@@ -301,7 +301,7 @@
 			(let* ((cr (ppc-disassemble-cr val operand)))
 			  (when cr (setf (cadr tail) cr)))
 			(if (logbitp ppc::$ppc-operand-absolute flags)
-			  (let* ((info (find val *ppc-subprims* :key #'subprimitive-info-offset)))
+			  (let* ((info (find val ppc::*ppc-subprims* :key #'subprimitive-info-offset)))
 			    (when info (setf (cadr tail) (subprimitive-info-name info))))
 			  (if (logbitp ppc::$ppc-operand-fpr flags)
 			    (setf (cadr tail) (ppc-fpr val))

@@ -627,7 +627,7 @@
 
 (defun ppc-subprimitive-address (x)
   (if (and x (or (symbolp x) (stringp x)))
-    (let* ((info (find x *ppc-subprims* :test #'string-equal :key #'subprimitive-info-name)))
+    (let* ((info (find x ppc::*ppc-subprims* :test #'string-equal :key #'subprimitive-info-name)))
       (when info (return-from ppc-subprimitive-address
                    (subprimitive-info-offset info)))))
   (ppc-lap-evaluated-expression x))
