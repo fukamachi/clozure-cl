@@ -1,3 +1,8 @@
+2005-11-06 12:21  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile: Fix other
+	reference to asmutils.o in Makefiles.
+
 2005-11-06 12:19  gb
 
 	* lisp-kernel/: linuxppc/Makefile, linuxppc64/Makefile,
