@@ -277,7 +277,7 @@
            (ppc2-copy-register seg ppc::arg_z valreg)
            (ppc2-stack-to-register seg ea ppc::arg_x)
            (ppc2-copy-register seg ppc::arg_y ppc::rzero)
-           (! call-subprim-3 ppc::arg_z .SPgvset ppc::arg_x ppc::arg_y ppc::arg_z))
+           (! call-subprim-3 ppc::arg_z (subprim-name->offset '.SPgvset) ppc::arg_x ppc::arg_y ppc::arg_z))
           ((memory-spec-p ea)    ; vstack slot
            (ppc2-register-to-stack seg valreg ea))
           (t
@@ -1268,7 +1268,7 @@
       (let* ((arg_z ($ ppc::arg_z))
              (imm0 ($ ppc::imm0 :mode :s32)))
         (ppc2-copy-register seg imm0 s32-src)
-        (! call-subprim .SPmakes32)
+        (! call-subprim (subprim-name->offset '.SPmakes32))
         (ppc2-copy-register seg node-dest arg_z)))))
 
 (defun ppc2-box-s64 (seg node-dest s64-src)
@@ -1280,7 +1280,7 @@
       (let* ((arg_z ($ ppc::arg_z))
              (imm0 ($ ppc::imm0 :mode :s64)))
         (ppc2-copy-register seg imm0 s64-src)
-        (! call-subprim .SPmakes64)
+        (! call-subprim (subprim-name->offset '.SPmakes64))
         (ppc2-copy-register seg node-dest arg_z)))))
 
 (defun ppc2-box-u32 (seg node-dest u32-src)
@@ -1292,7 +1292,7 @@
       (let* ((arg_z ($ ppc::arg_z))
              (imm0 ($ ppc::imm0 :mode :u32)))
         (ppc2-copy-register seg imm0 u32-src)
-        (! call-subprim .SPmakeu32)
+        (! call-subprim (subprim-name->offset '.SPmakeu32))
         (ppc2-copy-register seg node-dest arg_z)))))
 
 (defun ppc2-box-u64 (seg node-dest u64-src)
@@ -1304,7 +1304,7 @@
       (let* ((arg_z ($ ppc::arg_z))
              (imm0 ($ ppc::imm0 :mode :u64)))
         (ppc2-copy-register seg imm0 u64-src)
-        (! call-subprim .SPmakeu64)
+        (! call-subprim (subprim-name->offset '.SPmakeu64))
         (ppc2-copy-register seg node-dest arg_z)))))
 
 
@@ -4177,7 +4177,7 @@
           (! trap-unless-typecode= src safe))
         (! trap-unless-fixnum unscaled-idx)
         (! check-misc-bound unscaled-idx src))
-      (! call-subprim-3 val-reg .SPgvset src unscaled-idx val-reg)
+      (! call-subprim-3 val-reg (subprim-name->offset '.SPgvset) src unscaled-idx val-reg)
       (<- val-reg)
       (^))))
 
@@ -4274,8 +4274,8 @@
       (when safe
         (! trap-unless-cons ptr-vreg))
       (if setcdr
-        (! call-subprim-2 ($ ppc::arg_z) .SPrplacd ptr-vreg val-vreg)
-        (! call-subprim-2 ($ ppc::arg_z) .SPrplaca ptr-vreg val-vreg))
+        (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPrplacd) ptr-vreg val-vreg)
+        (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPrplaca) ptr-vreg val-vreg))
       (if returnptr
         (<- ptr-vreg)
         (<- val-vreg))
@@ -4953,14 +4953,16 @@
 
 
 
-(defparameter *ppc2-builtin-subprims* '(((0 . 23) . #..SPbuiltin-plus)))
 
 (defun ppc2-builtin-index-subprim (idx)
-  (dolist (cell *ppc2-builtin-subprims*)
-    (destructuring-bind ((low . high) . base) cell
-      (if (and (>= idx low)
-               (< idx high))
-        (return (+ base (ash (- idx low) *ppc-subprims-shift*)))))))
+  (let* ((arch (backend-target-arch *target-backend*))
+         (table (arch::target-primitive->subprims  arch))
+         (shift (arch::target-subprims-shift arch)))
+    (dolist (cell table)
+      (destructuring-bind ((low . high) . base) cell
+        (if (and (>= idx low)
+                 (< idx high))
+          (return (+ base (ash (- idx low) shift))))))))
 
 (defun ppc2-fixed-call-builtin (seg vreg xfer name subprim)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
@@ -4983,17 +4985,17 @@
 (defun ppc2-unary-builtin (seg vreg xfer name form)
   (with-ppc-local-vinsn-macros (seg)
     (ppc2-one-targeted-reg-form seg form ($ ppc::arg_z))
-    (ppc2-fixed-call-builtin seg vreg xfer name .SPcallbuiltin1)))
+    (ppc2-fixed-call-builtin seg vreg xfer name (subprim-name->offset '.SPcallbuiltin1))))
 
 (defun ppc2-binary-builtin (seg vreg xfer name form1 form2)
   (with-ppc-local-vinsn-macros (seg)
     (ppc2-two-targeted-reg-forms seg form1 ($ ppc::arg_y) form2 ($ ppc::arg_z))
-    (ppc2-fixed-call-builtin seg vreg xfer name .SPcallbuiltin2)))
+    (ppc2-fixed-call-builtin seg vreg xfer name (subprim-name->offset '.SPcallbuiltin2))))
 
 (defun ppc2-ternary-builtin (seg vreg xfer name form1 form2 form3)
   (with-ppc-local-vinsn-macros (seg)
     (ppc2-three-targeted-reg-forms seg form1 ($ ppc::arg_x) form2 ($ ppc::arg_y) form3 ($ ppc::arg_z))
-    (ppc2-fixed-call-builtin seg vreg xfer name .SPcallbuiltin3)))
+    (ppc2-fixed-call-builtin seg vreg xfer name (subprim-name->offset '.SPcallbuiltin3))))
 
 
 (eval-when (:compile-toplevel :execute :load-toplevel)
@@ -5832,17 +5834,17 @@
          (subprim
           (or idx-subprim
               (case nargs
-                (0 .SPcallbuiltin0)
-                (1 .SPcallbuiltin1)
-                (2 .SPcallbuiltin2)
-                (3 .SPcallbuiltin3)
-                (t .SPcallbuiltin)))))
+                (0 (subprim-name->offset '.SPcallbuiltin0))
+                (1 (subprim-name->offset '.SPcallbuiltin1))
+                (2 (subprim-name->offset '.SPcallbuiltin2))
+                (3 (subprim-name->offset '.SPcallbuiltin3))
+                (t (subprim-name->offset '.SPcallbuiltin))))))
     (when tail-p
       (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count*)
       (ppc2-restore-full-lisp-context seg))
     (unless idx-subprim
       (! lri ppc::imm0 (ash idx *ppc2-target-fixnum-shift*))
-      (when (eql subprim .SPcallbuiltin)
+      (when (eql subprim (subprim-name->offset '.SPcallbuiltin))
         (ppc2-set-nargs seg nargs)))
     (if tail-p
       (! jump-subprim subprim)
