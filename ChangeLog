@@ -1,3 +1,57 @@
+2005-11-05 18:40  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp:
+	Define subprimitive stuff in the backend.
+
+2005-11-05 18:39  gb
+
+	* compiler/PPC/ppc2.lisp: Subprim names aren't constant anymore, so
+	look them up at (compiler) runtime in the backend.
+	
+	Map between the names of builtin functions and the subprimitives
+	that implement them via the backed.
+
+2005-11-05 18:37  gb
+
+	* compiler/PPC/ppc-lap.lisp: *PPC-SUBPRIMS* is in the "PPC"
+	package.
+
+2005-11-05 18:33  gb
+
+	* compiler/PPC/ppc-disassemble.lisp: *PPC-SUBPRIMS* is in the "PPC"
+	package.
+
+2005-11-05 18:33  gb
+
+	* compiler/PPC/ppc-arch.lisp: PPC subprim defs (common to ppc32 and
+	ppc64) moved here.
+
+2005-11-05 18:32  gb
+
+	* compiler/vinsn.lisp: Subprim names aren't constants anymore, so
+	look them up when parsing vinsn templates.
+
+2005-11-05 18:31  gb
+
+	* compiler/subprims.lisp: Subprim defs are architecture and/or
+	backend-specific.
+
+2005-11-05 18:31  gb
+
+	* compiler/arch.lisp: PROVIDE's been back in the CL package for the
+	last decade or so.
+
+2005-11-05 18:30  gb
+
+	* level-1/version.lisp: Bump to 051105.
+
+2005-11-05 18:30  gb
+
+	* level-1/l1-boot-2.lisp: Change the load order (subprims before
+	arch stuff) a little.  Load the target ppc??-arch explicitly,
+	though some circular REQUIRES will load both ppc32-arch and
+	ppc64-arch, currently.
+
 2005-11-05 16:23  gb
 
 	* compiler/: arch.lisp, subprims.lisp, PPC/ppc-disassemble.lisp,
