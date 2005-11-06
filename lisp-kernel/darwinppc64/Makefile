@@ -64,7 +64,7 @@ COPT = -O2
 	$(CC) -c $< -m64 $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -o $@
 
 SPOBJ = ppc-spjump.o ppc-spentry.o  ppc-subprims.o 
-ASMOBJ = asmutils.o imports.o
+ASMOBJ = ppc-asmutils.o imports.o
 
 COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 	thread_manager.o lisp-debug.o image.o

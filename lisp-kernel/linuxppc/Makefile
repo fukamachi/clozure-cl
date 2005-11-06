@@ -45,7 +45,7 @@ A32 = $(shell ($(AS) --help -v 2>&1 | grep -q -e "-a32") && /bin/echo "-a32")
 	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) $(PPC32) -o $@
 
 SPOBJ = pad.o ppc-spjump.o ppc-spentry.o ppc-subprims.o
-ASMOBJ = asmutils.o imports.o
+ASMOBJ = ppc-asmutils.o imports.o
 
 COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 	image.o thread_manager.o lisp-debug.o 

@@ -34,7 +34,7 @@ COPT = #-O2
 	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) -m64 -o $@
 
 SPOBJ = pad.o ppc-spjump.o ppc-spentry.o ppc-subprims.o
-ASMOBJ = asmutils.o imports.o
+ASMOBJ = ppc-asmutils.o imports.o
 
 COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 	image.o thread_manager.o lisp-debug.o 
