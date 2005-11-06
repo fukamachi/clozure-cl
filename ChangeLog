@@ -1,3 +1,17 @@
+2005-11-05 19:34  gb
+
+	* lib/compile-ccl.lisp: Try to get XCOMPILE-CCL back in synch.
+
+2005-11-05 19:34  gb
+
+	* level-1/ppc-callback-support.lisp: Subprim name not constant in
+	linuxppc64 MAKE-CALLBACK-TRAMPOLINE.
+	
+	(Conditionalize this a little more explicitly, though #+(and
+	linux-target poweropen-target) is pretty much the same as #+(and
+	linuxppc-target poweropen-target), since nothing else would use
+	poweropen conventions.)
+
 2005-11-05 18:40  gb
 
 	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp:
