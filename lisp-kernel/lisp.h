@@ -21,7 +21,9 @@
 
 #include "lisptypes.h"
 
-#include "constants.h"
+#ifdef PPC
+#include "ppc-constants.h"
+#endif
 #include "macros.h"
 
 

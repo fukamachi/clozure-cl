@@ -20,7 +20,9 @@
 
 
 #include "lisptypes.h"
-#include "constants.h"
+#ifdef PPC
+#include "ppc-constants.h"
+#endif
 #include <signal.h>
 #include <ucontext.h>
 
