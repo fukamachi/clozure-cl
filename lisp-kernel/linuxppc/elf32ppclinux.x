@@ -12,9 +12,9 @@ SECTIONS
   .pad : { pad.o(.text) }
   .subprims ALIGN(0x1000)    :  
   {
-   spjump.o(.text)
-   spentry.o(.text)   
-   subprims.o(.text)
+   ppc-spjump.o(.text)
+   ppc-spentry.o(.text)   
+   ppc-subprims.o(.text)
   }
   /* Read-only sections, merged into text segment: */
 /*  . = 0x10000000; */
