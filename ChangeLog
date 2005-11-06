@@ -1,3 +1,8 @@
+2005-11-05 21:18  gb
+
+	* lisp-kernel/: ppc-constants.h, constants32.h, constants64.h:
+	rename
+
 2005-11-05 19:34  gb
 
 	* lib/compile-ccl.lisp: Try to get XCOMPILE-CCL back in synch.
