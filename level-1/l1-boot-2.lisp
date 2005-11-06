@@ -144,8 +144,11 @@ present and false otherwise. This variable shouldn't be set by user code.")
       (bin-load-provide "HASH" "hash")
       (bin-load-provide "DLL-NODE" "dll-node")
       
-      #+ppc-target
+      (bin-load-provide "SUBPRIMS" "subprims")
+      #+ppc32-target
       (bin-load-provide "PPC32-ARCH" "ppc32-arch")
+      #+ppc64-target
+      (bin-load-provide "PPC64-ARCH" "ppc64-arch")
       (bin-load-provide "VREG" "vreg")
       
       #+ppc-target
@@ -153,7 +156,6 @@ present and false otherwise. This variable shouldn't be set by user code.")
       
       (bin-load-provide "VINSN" "vinsn")
       (bin-load-provide "REG" "reg")
-      (bin-load-provide "SUBPRIMS" "subprims")
       
       #+ppc-target
       (bin-load-provide "PPC-LAP" "ppc-lap")
