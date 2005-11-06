@@ -315,15 +315,19 @@
   (compile-modules *ppc-compiler-modules* force-compile))
 
 (defun ppc-xcompile-ccl (&optional force)
-  (compile-compiler force) ; ??
-  ;(compile-modules *ppc-xdev-modules* force)
-  ; These won't compile correctly unless they're loaded 
-  (update-modules *ppc-xload-modules* force)
-  (compile-modules (target-level-1-modules :ppc32) force)
-  (compile-modules (target-lib-modules :ppc32)  force)
-  (compile-modules *aux-modules* force)
-  (compile-modules *code-modules* force)
-  )
+  (compile-modules 'nxenv force)
+  (compile-modules *compiler-modules* force)
+  (compile-modules (target-compiler-modules) force)
+  (compile-modules (target-xdev-modules) force)
+  (compile-modules (target-xload-modules) force)
+  (let* ((env-modules (target-env-modules))
+	 (other-lib (target-other-lib-modules)))
+    (compile-modules env-modules force)
+    (compile-modules (target-level-1-modules) force)
+    (compile-modules other-lib force)
+    (compile-modules *code-modules* force))
+  (compile-modules *aux-modules* force))
+  
 
 (defun target-xcompile-ccl (target &optional force)
   (let* ((backend (or (find-backend target) *target-backend*))
