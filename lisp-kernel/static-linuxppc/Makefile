@@ -53,7 +53,7 @@ COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 	image.o thread_manager.o lisp-debug.o 
 
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
-KERNELOBJ= $(COBJ) asmutils.o  imports.o
+KERNELOBJ= $(COBJ) ppc-asmutils.o  imports.o
 STATICOBJ= staticlib.o
 
 SPINC =	lisp.s m4macros.m4 ppc-constants.s macros.s errors.s uuo.s ppc-constants32.s
