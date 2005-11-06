@@ -1,3 +1,23 @@
+2005-11-06 12:19  gb
+
+	* lisp-kernel/: linuxppc/Makefile, linuxppc64/Makefile,
+	static-linuxppc/Makefile: Fix other reference to "asmutils.o" in
+	Makefiles.
+
+2005-11-06 12:07  gb
+
+	* lisp-kernel/imports.s: Use .quad on X8664 as well.
+
+2005-11-06 12:06  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile,
+	linuxppc/Makefile, linuxppc64/Makefile, static-linuxppc/Makefile:
+	Reference ppc-asmutils.[so] in PPC makefiles.
+
+2005-11-06 12:01  gb
+
+	* lisp-kernel/: ppc-asmutils.s, asmutils.s: renamed
+
 2005-11-06 00:11  gb
 
 	* lisp-kernel/linuxx8664/: Makefile, elf_x86_64.x: artist's
