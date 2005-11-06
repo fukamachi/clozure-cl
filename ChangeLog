@@ -1,3 +1,25 @@
+2005-11-06 00:11  gb
+
+	* lisp-kernel/linuxx8664/: Makefile, elf_x86_64.x: artist's
+	conception; still lots of PPC-specific code, still no
+	x86-64-specific code ...
+
+2005-11-06 00:04  gb
+
+	* lisp-kernel/: linuxppc/Makefile, linuxppc/elf32ppclinux.x,
+	linuxppc64/Makefile, linuxppc64/elf64ppc.x,
+	static-linuxppc/Makefile: Update for platform-dependent SPOBJ.
+
+2005-11-05 23:59  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile: Rename
+	SPOBJ in Darwin makefiles.
+
+2005-11-05 23:48  gb
+
+	* lisp-kernel/: ppc-subprims.s, ppc-spentry.s, ppc-spjump.s,
+	spentry.s, spjump.s, subprims.s: rename
+
 2005-11-05 21:54  gb
 
 	* lisp-kernel/: linuxppc/Makefile, linuxppc64/Makefile,
