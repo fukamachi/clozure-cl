@@ -1,3 +1,13 @@
+2005-11-05 16:23  gb
+
+	* compiler/: arch.lisp, subprims.lisp, PPC/ppc-disassemble.lisp,
+	PPC/ppc-lap.lisp, PPC/ppc2.lisp: Start to isolate PPC subprims.
+
+2005-11-05 16:20  gb
+
+	* examples/objc-runtime.lisp: REVIVE-OBJC-CLASSES: don't be so dumb
+	about reviving metaclass pointers (addresses may change.)
+
 2005-11-05 09:22  gb
 
 	* lisp-kernel/static-linuxppc/Makefile: Define PPC (via -DPPC)
