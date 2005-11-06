@@ -22,7 +22,7 @@
 
 ;;; This is machine-dependent (it conses up a piece of "trampoline" code
 ;;; which calls a subprim in the lisp kernel.)
-#-(and linux-target poweropen-target)
+#-(and linuxppc-target poweropen-target)
 (defun make-callback-trampoline (index &optional monitor-exception-ports)
   (declare (ignorable monitor-exception-ports))
   (macrolet ((ppc-lap-word (instruction-form)
@@ -53,11 +53,11 @@
 ;;; and a pointer to the global variables ("table of contents", or
 ;;; TOC) the function references in the second word.  We can use the
 ;;; TOC word in the transfer vector to store the callback index.
-#+(and linux-target poweropen-target)
+#+(and linuxppc-target poweropen-target)
 (defun make-callback-trampoline (index &optional monitor-exception-ports)
   (declare (ignorable monitor-exception-ports))
   (let* ((p (malloc 16)))
-    (setf (%%get-unsigned-longlong p 0) .SPpoweropen-callback
+    (setf (%%get-unsigned-longlong p 0) #.(subprim-name->offset '.SPpoweropen-callback)
           (%%get-unsigned-longlong p 8) index)
     p))
 
