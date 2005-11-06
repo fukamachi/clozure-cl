@@ -376,7 +376,10 @@
           (flet ((find-name (n)
                    (let* ((pair (assoc n name-alist :test #'eq)))
                      (declare (list pair))
-                     (if pair (cdr pair) (error "Unknown name ~s" n)))))
+                     (if pair
+                       (cdr pair)
+                       (or (subprim-name->offset n backend)
+                           (error "Unknown name ~s" n))))))
             (labels ((simplify-operand (op)
                        (if (atom op)
                          (if (typep op 'fixnum)
