@@ -210,4 +210,4 @@
   (subprims-table ())
   (primitive->subprims ()))
 
-(ccl::provide "ARCH")
+(provide "ARCH")
