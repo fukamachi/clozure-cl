@@ -49,13 +49,13 @@ CHEADERS = area.h bits.h x86-constants.h lisp-errors.h gc.h lisp.h \
 
 
 KSPOBJ = $(SPOBJ)
-all:	../../xppccl64
+all:	../../lx86cl64
 
 
 OSLIBS = -ldl -lm -lpthread
 
 
-../../xppccl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
+../../lx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
 	$(CC) -m64 $(CDEBUG)  -Wl,--export-dynamic  -o $@ -T ./elf_x86_64.x $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
 
 
@@ -66,10 +66,10 @@ $(DEBUGOBJ): $(CHEADERS) lispdcmd.h
 
 
 cclean:
-	$(RM) -f $(KERNELOBJ) $(DEBUGOBJ) ../../xppccl64
+	$(RM) -f $(KERNELOBJ) $(DEBUGOBJ) ../../lx86cl64
 
 clean:	cclean
 	$(RM) -f $(SPOBJ)
 
-strip:	../../xppccl64
-	strip -g ../../xppccl64
+strip:	../../lx86cl64
+	strip -g ../../lx86cl64
