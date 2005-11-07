@@ -1,3 +1,38 @@
+2005-11-06 19:48  gb
+
+	* lisp-kernel/linuxx8664/Makefile: x86-asmutils64.o
+
+2005-11-06 19:47  gb
+
+	* lisp-kernel/x86-asmutils64.s: New file.  If there's ever a 32-bit
+	version, it'd likely be substantially different.  (This is
+	certainly different from the PPC version.)
+
+2005-11-06 19:46  gb
+
+	* lisp-kernel/: x86-constants.h, x86-constants.s,
+	x86-constants64.h, x86-constants64.s: New files; mostly empty, for
+	now.
+
+2005-11-06 19:39  gb
+
+	* lisp-kernel/m4macros.m4: Tweak _emit_ELF_source_line_stab: use
+	(m4 macro) __func_name instead of (as-defined) func_start; invert
+	order of label and .stabn.
+	
+	This seems to generate good line number information on linuxx8664;
+	need to check linuxppc, linuxppc64 as well.
+
+2005-11-06 19:29  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile,
+	linuxppc/Makefile, linuxppc64/Makefile, static-linuxppc/Makefile:
+	Depend on ppc-macros.s, not macros.s.
+
+2005-11-06 19:27  gb
+
+	* lisp-kernel/lisp.s: Conditionally include for PPC, so far.
+
 2005-11-06 19:16  gb
 
 	* lisp-kernel/: ppc-macros.s, macros.s: renamed
