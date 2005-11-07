@@ -20,4 +20,8 @@
          include(ppc-macros.s)
 	 include(uuo.s)
         ])
+	ifdef([X86],[
+         include(x86-constants.s)
+         include(x86-macros.s)
+	])
 
