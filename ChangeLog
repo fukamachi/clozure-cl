@@ -1,3 +1,7 @@
+2005-11-06 19:16  gb
+
+	* lisp-kernel/: ppc-macros.s, macros.s: renamed
+
 2005-11-06 12:21  gb
 
 	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile: Fix other
