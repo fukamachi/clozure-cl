@@ -1,3 +1,13 @@
+2005-11-06 20:27  gb
+
+	* lisp-kernel/linuxx8664/: Makefile, elf_x86_64.x: 64-bit specific
+	subprims files, since the 32-bit and 64-bit X86 are too dissimilar.
+
+2005-11-06 20:26  gb
+
+	* lisp-kernel/: x86-macros.s, x86-spentry64.s, x86-spjump64.s,
+	x86-subprims64.s: More new, empty files.
+
 2005-11-06 19:48  gb
 
 	* lisp-kernel/linuxx8664/Makefile: x86-asmutils64.o
