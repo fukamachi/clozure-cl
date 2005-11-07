@@ -13,9 +13,9 @@ SECTIONS
   .pad : { pad.o(.text) }
   .subprims ALIGN(0x1000)    :  
   {
-    x86-spjump.o(.text)
-    x86-spentry.o(.text)
-    x86-subprims.o(.text)
+    x86-spjump64.o(.text)
+    x86-spentry64.o(.text)
+    x86-subprims64.o(.text)
   }
   .interp         : { *(.interp) }
   .hash           : { *(.hash) }

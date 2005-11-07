@@ -31,7 +31,7 @@ COPT = #-O2
 .c.o:
 	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) -m64 -o $@
 
-SPOBJ = pad.o x86-spjump.o x86-spentry.o x86-subprims.o
+SPOBJ = pad.o x86-spjump64.o x86-spentry64.o x86-subprims64.o
 ASMOBJ = x86-asmutils64.o imports.o
 
 COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
@@ -40,7 +40,7 @@ COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
 KERNELOBJ= $(COBJ) x86-asmutils64.o  imports.o
 
-SPINC =	lisp.s m4macros.m4 x86-constants.s macros.s errors.s uuo.s \
+SPINC =	lisp.s m4macros.m4 x86-constants.s x86-macros.s errors.s uuo.s \
 	x86-constants64.s
 
 CHEADERS = area.h bits.h x86-constants.h lisp-errors.h gc.h lisp.h \
