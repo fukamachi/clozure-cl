@@ -72,7 +72,7 @@ COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
 KERNELOBJ= imports.o $(COBJ) ppc-asmutils.o 
 
-SPINC =	lisp.s m4macros.m4 ppc-constants.s macros.s errors.s uuo.s \
+SPINC =	lisp.s m4macros.m4 ppc-constants.s ppc-macros.s errors.s uuo.s \
 	ppc-constants64.s
 
 CHEADERS = area.h bits.h ppc-constants.h lisp-errors.h gc.h lisp.h \

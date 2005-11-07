@@ -56,7 +56,7 @@ DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
 KERNELOBJ= $(COBJ) ppc-asmutils.o  imports.o
 STATICOBJ= staticlib.o
 
-SPINC =	lisp.s m4macros.m4 ppc-constants.s macros.s errors.s uuo.s ppc-constants32.s
+SPINC =	lisp.s m4macros.m4 ppc-constants.s ppc-macros.s errors.s uuo.s ppc-constants32.s
 
 CHEADERS = area.h bits.h ppc-constants.h lisp-errors.h gc.h lisp.h \
 	lisp-exceptions.h lisp_globals.h macros.h memprotect.h image.h \
