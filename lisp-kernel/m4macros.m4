@@ -75,9 +75,11 @@ define([WEAK],[ifdef([HaveWeakSymbols],[
 
 define([_emit_ELF_source_line_stab],[
   define([_linecounter_],incr(_linecounter_))
+	.stabn 68,0,$1,[.LM]_linecounter_[-]__func_name
 [.LM]_linecounter_:
-	.stabn 68,0,$1,[.LM]_linecounter_[-]func_start
 ])
+
+
 
 define([emit_source_line_stab],[
 	ifelse(eval(SYSstabs),eval(BSDstabs),
@@ -101,7 +103,7 @@ define([HI],[ifdef([DARWIN],[hi16($1)],[$1@hi])])
 /*
   Note that m4 macros that could be expanded in the .text segment
   need to advertise the current line number after they have finished
-  expanding.  That shouldn]t be too onerous, if only because there
+  expanding.  That shouldn't be too onerous, if only because there
   should not be too many of them.
 */
 
@@ -171,7 +173,7 @@ LocalLabelPrefix[]__func_name[999]:
 
 /* _struct(name,start_offset)
    This just generates a bunch of assembler equates; m4
-   doesn]t remember much of it ... */
+   doesn't remember much of it ... */
 define([_struct], [define([__struct_name],$1)
  define([_struct_org_name], _$1_org) 
  define([_struct_base_name], _$1_base)
