@@ -32,13 +32,13 @@ COPT = #-O2
 	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) -m64 -o $@
 
 SPOBJ = pad.o x86-spjump.o x86-spentry.o x86-subprims.o
-ASMOBJ = asmutils.o imports.o
+ASMOBJ = x86-asmutils64.o imports.o
 
 COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
 	image.o thread_manager.o lisp-debug.o 
 
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
-KERNELOBJ= $(COBJ) asmutils.o  imports.o
+KERNELOBJ= $(COBJ) x86-asmutils64.o  imports.o
 
 SPINC =	lisp.s m4macros.m4 x86-constants.s macros.s errors.s uuo.s \
 	x86-constants64.s
