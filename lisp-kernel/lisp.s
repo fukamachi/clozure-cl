@@ -15,9 +15,9 @@
 */
 
 	include(m4macros.m4)
-        __ifdef([PPC])
-	include(ppc-constants.s)
-        __endif
-	include(macros.s)
-	include(uuo.s)
+        ifdef([PPC],[
+         include(ppc-constants.s)
+         include(ppc-macros.s)
+	 include(uuo.s)
+        ])
 
