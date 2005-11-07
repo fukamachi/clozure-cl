@@ -1,3 +1,22 @@
+2005-11-07 01:15  gb
+
+	* lisp-kernel/x86-constants64.s: I might believe the register
+	assignments here - at least provisionally - but the tagging will
+	need work.  (It's mostly pasted from ppc-constants64.s; the good
+	news is that x86-64 isn't as constrained as ppc64 is.) Need to fit
+	tagged return addresses into the scheme in some way that doesn't
+	conflict with other primary tags.  4/12 ? Hybrid function objects ?
+	Etc.  Needs some thought.
+
+2005-11-07 00:27  gb
+
+	* lisp-kernel/lisp.s: Conditionally include x86 headers.
+
+2005-11-07 00:24  gb
+
+	* lisp-kernel/linuxx8664/Makefile: Hmm.  x86 executables probably
+	shouldn't have "ppc" in their names.  Make up something else.
+
 2005-11-06 20:27  gb
 
 	* lisp-kernel/linuxx8664/: Makefile, elf_x86_64.x: 64-bit specific
