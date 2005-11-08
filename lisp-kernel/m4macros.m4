@@ -178,7 +178,14 @@ define([_struct], [define([__struct_name],$1)
  define([_struct_org_name], _$1_org) 
  define([_struct_base_name], _$1_base)
 	.set _struct_org_name,$2
-	.set _struct_base_name,_struct_org_name])
+	.set _struct_base_name,_struct_org_name
+ ifelse($3,[],[
+  undefine([_struct_fixed_size_name])
+  ],[
+  define([_struct_fixed_size_name], _$1_fixed_size)
+	.set _struct_fixed_size_name,$3
+  ])
+])
 
 define([_struct_pad],[
 	.set _struct_org_name,_struct_org_name + $1
@@ -196,8 +203,11 @@ define([_word], [_field($1, 4)])
 define([_dword],[_field($1, 8)])
 define([_node], [_field($1, node_size)])
 
-define([_ends],[
+define([_ends],[ifdef([_struct_fixed_size_name],[
+	.set  __struct_name[.size],_struct_fixed_size_name
+	],[
 	.set  __struct_name[.size], _struct_org_name-_struct_base_name
+	])
 ])
 
 /* 
