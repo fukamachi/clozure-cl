@@ -18,7 +18,7 @@
         ifdef([PPC],[
          include(ppc-constants.s)
          include(ppc-macros.s)
-	 include(uuo.s)
+	 include(ppc-uuo.s)
         ])
 	ifdef([X86],[
          include(x86-constants.s)
