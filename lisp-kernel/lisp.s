@@ -23,5 +23,6 @@
 	ifdef([X86],[
          include(x86-constants.s)
          include(x86-macros.s)
+	 include(x86-uuo.s)
 	])
 
