@@ -825,3 +825,6 @@ macro_label(trap):
 macro_label(done):
 ])
 
+/* $1 = ndigits.  Assumes 4-byte digits */        
+define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
+        
