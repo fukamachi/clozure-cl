@@ -1,3 +1,19 @@
+2005-11-08 15:53  gb
+
+	* lisp-kernel/ppc-spentry.s: Use aligned_bignum_size() macro when
+	allocating fixed-size bignums.	(Some of the hardwired constants
+	replaced by use of that macro may have been a bit too large,
+	especially on PPC64.) Try to ensure that there's a one-to-one
+	correspondence between the header used and the allocated size
+	(e.g., in ppc32 _SPmakeu64, don't assume that 2-digit and 3-digit
+	bignums have the same physical size.)
+
+2005-11-08 15:47  gb
+
+	* lisp-kernel/ppc-macros.s: Hey! PPC changes! Define
+	aligned_bignum_size macro, which returns the size in bytes needed
+	for an N-digit bignum (including header and alignment padding.)
+
 2005-11-08 04:46  gb
 
 	* lisp-kernel/x86-spentry64.s: Start to actually write some code;
