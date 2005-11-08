@@ -1,3 +1,39 @@
+2005-11-08 04:46  gb
+
+	* lisp-kernel/x86-spentry64.s: Start to actually write some code;
+	still need more infrastructure.  On a 1 to 10 complexity scale,
+	.SPbuiltin_plus is probably a 5 or 6; will need to be careful about
+	register usage when consing bignums ('cause there aren't enough
+	registers.  Stop me if you've heard this one.)
+
+2005-11-08 04:43  gb
+
+	* lisp-kernel/: x86-constants.s, x86-constants64.s, x86-macros.s:
+	Flesh out a bit.  x86_64 tagging still needs to be fixed.
+
+2005-11-08 04:40  gb
+
+	* lisp-kernel/lisp.s: Include x86_uuo.s on X86.
+
+2005-11-08 04:39  gb
+
+	* lisp-kernel/x86-uuo.s: Just getting started ...
+
+2005-11-08 04:38  gb
+
+	* lisp-kernel/m4macros.m4: Allow struct sizes to be implicitly
+	padded.  (Should maybe check if that's negative padding.)
+
+2005-11-08 04:28  gb
+
+	* lisp-kernel/: lisp.s, darwinppc/Makefile, darwinppc64/Makefile,
+	linuxppc/Makefile, static-linuxppc/Makefile: Rename "uuo.s" to
+	"ppc-uuo.s".
+
+2005-11-08 04:25  gb
+
+	* lisp-kernel/: ppc-uuo.s, uuo.s: rename
+
 2005-11-07 01:15  gb
 
 	* lisp-kernel/x86-constants64.s: I might believe the register
