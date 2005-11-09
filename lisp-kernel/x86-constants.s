@@ -14,6 +14,31 @@
    http://opensource.franz.com/preamble.html
 */
 
+/* Indices in %builtin-functions% */
+_builtin_plus = 0	/* +-2 */
+_builtin_minus = 1	/* --2 */
+_builtin_times = 2	/* *-2 */
+_builtin_div = 3	/* /-2 */
+_builtin_eq = 4		/* =-2 */
+_builtin_ne = 5		/* /-2 */
+_builtin_gt = 6		/* >-2 */
+_builtin_ge = 7		/* >=-2 */
+_builtin_lt = 8		/* <-2 */
+_builtin_le = 9		/* <=-2 */
+_builtin_eql = 10	/* eql */
+_builtin_length = 11	/* length */
+_builtin_seqtype = 12	/* sequence-type */
+_builtin_assq = 13	/* assq */
+_builtin_memq = 14	/* memq */
+_builtin_logbitp = 15	/* logbitp */
+_builtin_logior = 16	/* logior-2 */
+_builtin_logand = 17	/* logand-2 */
+_builtin_ash = 18	/* ash */
+_builtin_negate = 19	/* %negate */
+_builtin_logxor = 20	/* logxor-2 */
+_builtin_aref1 = 21	/* %aref1 */
+_builtin_aset1 = 22	/* %aset1 */
+	
 
 ifdef([X8664],[
 	include(x86-constants64.s)
