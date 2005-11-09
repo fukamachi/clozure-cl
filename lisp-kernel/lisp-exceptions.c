@@ -1801,6 +1801,12 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *contex
 {
   xframe_list xframe_link;
   int old_valence;
+#ifdef DARWIN
+  extern Boolean running_under_rosetta;
+  if (running_under_rosetta) {
+    fprintf(stderr, "signal handler called\n");
+  }
+#endif
 #ifdef LINUX
 
   tcr = (TCR *) get_interrupt_tcr(false);
@@ -2125,16 +2131,28 @@ install_signal_handler(int signo, __sighandler_t handler)
 void
 install_pmcl_exception_handlers()
 {
-#ifndef DARWIN
-  extern int no_sigtrap;
-  install_signal_handler(SIGILL, (__sighandler_t)signal_handler);
-  if (no_sigtrap != 1) {
-    install_signal_handler(SIGTRAP, (__sighandler_t)signal_handler);
-  }
-  install_signal_handler(SIGBUS,  (__sighandler_t)signal_handler);
-  install_signal_handler(SIGSEGV, (__sighandler_t)signal_handler);
-  install_signal_handler(SIGFPE, (__sighandler_t)signal_handler);
+#ifdef DARWIN
+  extern Boolean use_mach_exception_handling;
 #endif
+
+  Boolean install_signal_handlers_for_exceptions =
+#ifdef DARWIN
+    !use_mach_exception_handling
+#else
+    true
+#endif
+    ;
+  if (install_signal_handlers_for_exceptions) {
+    extern int no_sigtrap;
+    install_signal_handler(SIGILL, (__sighandler_t)signal_handler);
+    if (no_sigtrap != 1) {
+      install_signal_handler(SIGTRAP, (__sighandler_t)signal_handler);
+    }
+    install_signal_handler(SIGBUS,  (__sighandler_t)signal_handler);
+    install_signal_handler(SIGSEGV, (__sighandler_t)signal_handler);
+    install_signal_handler(SIGFPE, (__sighandler_t)signal_handler);
+  }
+  
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
 			 (__sighandler_t)interrupt_handler);
   signal(SIGPIPE, SIG_IGN);
@@ -2859,13 +2877,16 @@ void
 darwin_exception_cleanup(TCR *tcr)
 {
   void *fxs = tcr->native_thread_info;
+  extern Boolean use_mach_exception_handling;
 
   if (fxs) {
     tcr->native_thread_info = NULL;
     free(fxs);
   }
-  mach_port_deallocate(mach_task_self(),TCR_TO_EXCEPTION_PORT(tcr));
-  mach_port_destroy(mach_task_self(),TCR_TO_EXCEPTION_PORT(tcr));
+  if (use_mach_exception_handling) {
+    mach_port_deallocate(mach_task_self(),TCR_TO_EXCEPTION_PORT(tcr));
+    mach_port_destroy(mach_task_self(),TCR_TO_EXCEPTION_PORT(tcr));
+  }
 }
 
 

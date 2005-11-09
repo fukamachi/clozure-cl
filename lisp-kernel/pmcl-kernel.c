@@ -1174,6 +1174,12 @@ remap_spjump()
 #endif
 #endif
 
+#ifdef DARWIN
+#ifdef PPC
+Boolean running_under_rosetta = false;
+#endif
+Boolean use_mach_exception_handling = true;
+#endif
 
 void
 check_os_version(char *progname)
@@ -1185,6 +1191,18 @@ check_os_version(char *progname)
     fprintf(stderr, "\n%s requires %s version %s or later; the current version is %s.\n", progname, uts.sysname, min_os_version, uts.release);
     exit(1);
   }
+#ifdef PPC
+#ifdef DARWIN
+  {
+    char *hosttype = getenv("HOSTTYPE");
+    if (hosttype && !strncmp("intel", hosttype, 5)) {
+      running_under_rosetta = true;
+      use_mach_exception_handling = false;
+      reserved_area_size = 1U << 30;
+    }
+  }
+#endif
+#endif
 }
   
 main(int argc, char *argv[], char *envp[], void *aux)

@@ -427,6 +427,7 @@ allocate_tcr()
 {
   TCR *tcr, *chain = NULL, *next;
 #ifdef DARWIN
+  extern Boolean use_mach_exception_handling;
   kern_return_t kret;
   mach_port_t 
     thread_exception_port,
@@ -442,10 +443,15 @@ allocate_tcr()
       continue;
     }
 #endif
-    thread_exception_port = (mach_port_t)((natural)tcr);
-    kret = mach_port_allocate_name(task_self,
-                                   MACH_PORT_RIGHT_RECEIVE,
-                                   thread_exception_port);
+    if (use_mach_exception_handling) {
+      thread_exception_port = (mach_port_t)((natural)tcr);
+      kret = mach_port_allocate_name(task_self,
+                                     MACH_PORT_RIGHT_RECEIVE,
+                                     thread_exception_port);
+    } else {
+      kret = KERN_SUCCESS;
+    }
+
     if (kret != KERN_SUCCESS) {
       tcr->next = chain;
       chain = tcr;
@@ -595,7 +601,10 @@ thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
   tcr->errno_loc = &errno;
   tsd_set(lisp_global(TCR_KEY), TCR_TO_TSD(tcr));
 #ifdef DARWIN
-  darwin_exception_init(tcr);
+  extern Boolean use_mach_exception_handling;
+  if (use_mach_exception_handling) {
+    darwin_exception_init(tcr);
+  }
 #endif
 #ifdef LINUX
   linux_exception_init(tcr);
