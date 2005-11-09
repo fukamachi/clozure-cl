@@ -1,3 +1,15 @@
+2005-11-09 01:24  gb
+
+	* lisp-kernel/: lisp-exceptions.c, pmcl-kernel.c, thread_manager.c:
+	Detect (in a simple-minded, easily-fooled way ...) if the PPC
+	version is running on something that doesn't appear to be a PPC.  
+	Limit the amount of reserved heap memory in that case (since an
+	emulator seems to be in our way ...).  Disable Mach exception
+	handling (using POSIX signals instead) if we believe that we're
+	running emulated.  File bugs with Apple, because emulated POSIX
+	signal handling's taken a step backward in that emulated
+	environment.  Not surprising.
+
 2005-11-08 19:43  gb
 
 	* lisp-kernel/x86-constants64.s: Flip %imm1 and %temp2: making
