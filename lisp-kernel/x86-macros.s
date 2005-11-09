@@ -14,18 +14,32 @@
    http://opensource.franz.com/preamble.html
 */
 
-
+/* to be consistent with PPC:
+   - if an operation involves a register and memory, the
+	register parameter precedes the memory parameter,
+	regardless of the direction of transfer.
+   - if an operation involves two registers, the destination
+	precedes the source
+*/
 define([ref_global],[
-	mov lisp_globals.$1,$2
+	mov lisp_globals.$2,$1
 ])
 
 define([set_global],[
 	mov $1,lisp_globals.$2
 ])
-						
+
+define([ref_nrs_value],[
+	mov nrs.$2+symbol.vcell,$1
+])
+	
+define([set_nrs_value],[
+	mov $1,nrs.$2+symbol.vcell
+])
+							
 define([unbox_fixnum],[
-	mov $1,$2
-	sar [$]fixnumshift,$2
+	mov $2,$1
+	sar [$]fixnumshift,$1
 ])
 
 define([save_node_regs],[
@@ -91,12 +105,14 @@ define([Cons],[
 	sub $cons.size+fulltag_cons,%rcontext:tcr.save_allocptr
 	mov %rcontext:tcr.save_allocptr,%allocptr
 	cmp %allocptr,%rcontext:tcr.save_allocbase
-	jgt macro_label(no_trap)
+	jg macro_label(no_trap)
 	uuo2_alloc_cons()
 macro_label(no_trap):	
 	mov $3,cons.cdr(%allocptr)
 	mov $2,cons.car(%allocptr)
-	mov %allocptr,$1
+	ifelse($1,[],[],[
+	 mov %allocptr,$1
+	])
 	andq $~fulltagmask,%rcontext:tcr.save_allocptr
 ])
 
@@ -106,14 +122,16 @@ macro_label(no_trap):
 define([Misc_Alloc],[
 	new_macro_labels()
 	leaq -fulltag_misc(%imm1),%imm1
-	sub $imm1,%rcontext:tcr.save_allocptr
+	sub %imm1,%rcontext:tcr.save_allocptr
 	mov %rcontext:tcr.save_allocptr,%allocptr
 	cmp %allocptr,%rcontext:tcr.save_allocbase
-	jgt macro_label(no_trap)
+	jg macro_label(no_trap)
 	uuo2_alloc_variable()
 macro_label(no_trap):	
 	movq %imm0,misc_header_offset(%allocptr)
-	movq %allocptr,$1
+	ifelse($1,[],[],[
+	 mov %allocptr,$1
+	])
 	andq $~fulltagmask,%rcontext:tcr.save_allocptr
 ])
 	
@@ -121,3 +139,24 @@ define([Misc_Alloc_Fixed],[
 	movq $2,%imm1
 	Misc_Alloc($1)
 ])					
+
+define([vrefr],[
+	mov misc_data_offset+($3<<word_shift)($2),$1
+])	
+
+define([jump_nfn],[
+	jmp *%nfn
+])
+			
+define([jump_fname],[
+	mov symbol.fcell(%fname),%nfn
+	jump_nfn()
+])	
+	
+define([set_nargs],[
+	movl $1<<fixnumshift,%nargs
+])
+
+/* $1 = ndigits.  Assumes 4-byte digits */        
+define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
+	
