@@ -1,3 +1,34 @@
+2005-11-08 19:43  gb
+
+	* lisp-kernel/x86-constants64.s: Flip %imm1 and %temp2: making
+	%imm1 an alias for %rdx simplifies integer multiplication (which
+	clobbers %rdx on this piece-o-crap.)
+	
+	Remove inconcistencies from tag assignments (so things assemble);
+	still need to do a -real- tag assignment pass.
+
+2005-11-08 19:41  gb
+
+	* lisp-kernel/x86-constants.s: Add _builtin_function indices.
+
+2005-11-08 19:40  gb
+
+	* lisp-kernel/x86-macros.s: Try to make arg order of macros
+	consistent with PPC (destination precedes source, registers precede
+	memory operands, etc.)
+	
+	Some additions and fixes.
+
+2005-11-08 19:38  gb
+
+	* lisp-kernel/x86-spentry64.s: The little bit that's there
+	assembles and looks reasonable.
+
+2005-11-08 19:37  gb
+
+	* lisp-kernel/linuxx8664/Makefile: Depend on x86-uuo.s (since
+	"uuo.s" is -so- 11/07.)
+
 2005-11-08 15:53  gb
 
 	* lisp-kernel/ppc-spentry.s: Use aligned_bignum_size() macro when
