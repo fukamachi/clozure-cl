@@ -31,10 +31,10 @@ define([temp1],[rcx])
 	define([temp1_d],[ecx])
 	define([temp1_w],[cx])
 	define([temp1_b],[cl])
-define([temp2],[rdx])
-	define([temp2_d],[edx])
-	define([temp2_w],[dx])
-	define([temp2_b],[dl])
+define([imm1],[rdx])
+	define([imm1_d],[edx])
+	define([imm1_w],[dx])
+	define([imm1_b],[dl])
 define([fn],[rsi])
 	define([fn_d],[esi])
 	define([fn_w],[si])
@@ -63,10 +63,10 @@ define([save2],[r12])
 	define([save2_d],[r12d])
 	define([save2_w],[r12w])
 	define([save2_b],[r12b])	
-define([imm1],[r13])		/* some addressing restrictions */
-	define([imm1_d],[r13d])
-	define([imm1_w],[r13w])
-	define([imm1_b],[r13b])		
+define([temp2],[r13])		/* some addressing restrictions */
+	define([temp2_d],[r13d])
+	define([temp2_w],[r13w])
+	define([temp2_b],[r13b])		
 define([save1],[r14])
 	define([save1_d],[r14d])
 	define([save1_w],[r14w])
@@ -78,7 +78,10 @@ define([save0],[r15])
 
 /* The TCR can be accessed relative to %fs */
 define([rcontext],[fs])
-			
+define([fname],[temp0])
+define([next_method_context],[temp1])
+define([nargs],[temp2_d])
+						
 define([ra0],[fn])	
 define([ra1],[nfn])
 
@@ -92,20 +95,20 @@ define([Iarg_y],[1])
 define([Iarg_x],[2])
 define([Isave3],[3])
 define([Isave2],[4])
-define([Iimm1],[5])
+define([Itemp2],[5])
 define([Isave1],[6])
 define([Isave0],[7])
 define([Infn],[8])
 define([Ifn],[9])
 define([Irbp],[10])
 define([Itemp0],[11])
-define([Itemp2],[12])
+define([Iimm1],[12])
 define([Iimm0],[13])
 define([Itemp1],[14])
 define([Isp],[15])
 define([Iip],[16])
 define([Iflags],[17])
-])				
+])
 
 nbits_in_word = 64
 nbits_in_byte = 8
@@ -247,19 +250,17 @@ misc_dfloat_offset = misc_data_offset		/* double-floats are doubleword-aligned *
 
 define_subtag(single_float,fulltag_imm_0,0)
 
-define_subtag(go_tag,fulltag_imm_1,0)
-define_subtag(block_tag,fulltag_imm_1,1)
 
-define_subtag(character,fulltag_imm_1,0)
+define_subtag(character,fulltag_imm_2,0)
                 	
-define_subtag(unbound,fulltag_imm_3,0)
+define_subtag(unbound,fulltag_imm_2,1)
 unbound_marker = subtag_unbound
 undefined = unbound_marker
-define_subtag(slot_unbound,fulltag_imm_3,1)
+define_subtag(slot_unbound,fulltag_imm_2,2)
 slot_unbound_marker = subtag_slot_unbound
-define_subtag(illegal,fulltag_imm_3,2)
+define_subtag(illegal,fulltag_imm_2,3)
 illegal_marker = subtag_illegal
-define_subtag(no_thread_local_binding,fulltag_imm_3,3)
+define_subtag(no_thread_local_binding,fulltag_imm_2,4)
 no_thread_local_binding_marker = subtag_no_thread_local_binding        
 
 	
