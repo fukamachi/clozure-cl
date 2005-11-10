@@ -1,3 +1,7 @@
+2005-11-10 00:15  gb
+
+	* library/sharp-comma.lisp: Provide #, as a loadable extension.
+
 2005-11-09 01:24  gb
 
 	* lisp-kernel/: lisp-exceptions.c, pmcl-kernel.c, thread_manager.c:
