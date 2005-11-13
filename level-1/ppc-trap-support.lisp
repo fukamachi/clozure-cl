@@ -146,7 +146,10 @@
     
 (defun xp-fpscr-info (xp)
   (let* ((fpscr #+linuxppc-target (%get-unsigned-long (pref xp :ucontext.uc_mcontext.regs) (ash #$PT_FPSCR 2))
-		#+darwinppc-target (pref xp :ucontext.uc_mcontext.fs.fpscr)))
+		#+(and darwinppc-target ppc32-target)
+                (pref xp :ucontext.uc_mcontext.fs.fpscr)
+                #+(and darwinppc-target ppc64-target)
+                (pref xp :ucontext64.uc_mcontext64.fs.fpscr)))
     (values (ldb (byte 24 8) fpscr) (ldb (byte 8 0) fpscr))))
 
 #+linuxppc-target
@@ -155,7 +158,10 @@
 
 #+darwinppc-target
 (defun xp-double-float (xp fpr)
-  (%get-double-float (pref xp :ucontext.uc_mcontext.fs) (ash fpr 3)))
+  (%get-double-float
+     #+ppc32-target (pref xp :ucontext.uc_mcontext.fs)
+     #+ppc64-target (pref xp :ucontext64.uc_mcontext64.fs)
+     (ash fpr 3)))
 
 
 (defparameter *trap-lookup-tries* 5)
