@@ -1,3 +1,7 @@
+2005-11-12 20:35  gb
+
+	* lisp-kernel/sigcontext.h: nuke this
+
 2005-11-12 18:17  gb
 
 	* lisp-kernel/x86-constants64.s: Tagging: complete, maybe usable.
