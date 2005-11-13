@@ -1,3 +1,41 @@
+2005-11-12 17:09  gb
+
+	* lib/backquote.lisp: Conditionalize-out (rather than comment-out)
+	Steele's public-domain backquote implementation.  It'd probably be
+	worth switching to this (it's clearer and seems to work better);
+	that might require some changes in the printer/pretty-printer to
+	provide equivalent support, and probably requires some testing.
+
+2005-11-12 17:06  gb
+
+	* level-1/l1-io.lisp, lib/numbers.lisp: Dan Corkill's patch to
+	allow readable printing of NaN's and infinities.  (Bits of this
+	were tweaked to require changes to GET-FPU-MODE; rebuild ppc-boot
+	and build an image - or mouse on the new GET-FPU-MODE - before
+	compiling these changes.
+
+2005-11-12 17:02  gb
+
+	* level-1/ppc-trap-support.lisp: The Darwin PPC64 versions of
+	XP-DOUBLE-FLOAT and XP-FPSCR-INFO were looking at a 32-bit machine
+	context (and therefore returning garbage); the operands to
+	arithmetic errors were usually reported incorrectly.
+	
+	Not yet sure of Linux PPC64.
+
+2005-11-12 17:00  gb
+
+	* level-0/PPC/ppc-float.lisp: GET-FPU-MODE takes an optional
+	argument; if it's provided, it returns information about that
+	attribute only.
+	
+	SET-FPU-MODE returns an unspecified non-NIL value, rather than
+	calling GET-FPU-MODE with no arguments.
+	
+	Bootstrapping note: some higher-level code to be checked in depends
+	on this incompatible change to GET-FPU-MODE.  Do (xload-level-0)
+	and create a new image before compiling those higher-level sources.
+
 2005-11-10 00:15  gb
 
 	* library/sharp-comma.lisp: Provide #, as a loadable extension.
