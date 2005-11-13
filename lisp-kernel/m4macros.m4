@@ -213,12 +213,12 @@ define([_ends],[ifdef([_struct_fixed_size_name],[
 /* 
    Lisp fixed-size objects always have a 1-word header
    and are always accessed from a "fulltag_misc"-tagged pointer.
-   We also want to define STRUCT_NAME.element-count for each
+   We also want to define STRUCT_NAME.element_count for each
    such object.
 */
 
 define([_structf],[
-	_struct($1,-misc_bias)
+	_struct($1,ifelse($2,[],-misc_bias,$2))
         _node(header)
 ])
 
