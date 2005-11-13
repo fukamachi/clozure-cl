@@ -160,3 +160,30 @@ define([set_nargs],[
 /* $1 = ndigits.  Assumes 4-byte digits */        
 define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
 	
+
+define([_car],[
+	mov $1,cons.car($2)
+])	
+
+define([tra],[
+	.p2align 3
+	ifelse($2,[],[
+	.long $1-$2
+	],[
+	.long 0
+	])
+$1:
+])
+				
+define([do_funcall],[
+	new_macro_labels()
+	lea macro_label(bad)(%rip),%nfn
+	movb %temp0_b,%temp0_b
+	andb $fulltagmask,%temp0_b
+	cmpb $fulltag_symbol,%temp0_b
+	/* %fname == %temp0 */
+	cmoveq symbol.fcell(%fname),%nfn
+	cmovg %temp0,%nfn
+	jmp *nfn
+	tra(macro_label(bad))
+])
