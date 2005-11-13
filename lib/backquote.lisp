@@ -16,7 +16,8 @@
 
 (in-package "CCL")
 
-#|
+#+nil
+(progn
 ;;; Common Lisp backquote implementation, written in Common Lisp.
 ;;; Author: Guy L. Steele Jr.     Date: 27 December 1985
 ;;; Texted under Symbolics Common Lisp and Lucid Common Lisp.
@@ -258,7 +259,7 @@
          (list *bq-quote* (append (cadr item) (cadr result))))
         ((or (null result) (equal result *bq-quote-nil*))
          (if (bq-splicing-frob item) (list op item) item))
-        ((and (consp result) (eq (car result) iop))
+        ((and (consp result) (eq (car result) op))
          (list* (car result) item (cdr result)))
         (t (list op item result))))
 
@@ -302,13 +303,15 @@
          (cons 'cons (maptree #'bq-remove-tokens (cdr x))))
         (t (maptree #'bq-remove-tokens x))))
 
-|#
+)
 
+#-nil
+(progn
 (declaim (special *|`,|* *|`,.|* *|`,@|*))
 
-;Backquote reads in as a call to the BACKQUOTE-EXPANDER macro.
-;This makes it a little obscure to look at raw, but makes it possible for
-;the pretty-printer to print things read in with backquote.
+;;;Backquote reads in as a call to the BACKQUOTE-EXPANDER macro.
+;;;This makes it a little obscure to look at raw, but makes it possible for
+;;;the pretty-printer to print things read in with backquote.
 
 (defvar *backquote-expand* t "If non-NIL, expand at read-time")
 
@@ -385,6 +388,6 @@
             (t
              (untyi char stream)
              (cons (%car stack) (read stream t nil t))))))))
-
+)
 
 (provide 'backquote)
