@@ -1,3 +1,31 @@
+2005-11-12 18:17  gb
+
+	* lisp-kernel/x86-constants64.s: Tagging: complete, maybe usable.
+
+2005-11-12 18:16  gb
+
+	* lisp-kernel/x86-macros.s: A few more things, mostly just to check
+	syntax.
+
+2005-11-12 18:14  gb
+
+	* lisp-kernel/x86-spentry64.s: Fix typo, tighten up a bit
+	(cmov...).
+
+2005-11-12 18:13  gb
+
+	* lisp-kernel/m4macros.m4: _structf macro takes an optional
+	displacement arg (defaults to -misc_bias).
+
+2005-11-12 18:09  gb
+
+	* lisp-kernel/linuxppc64/Makefile: update ppc-uuo.s dependency
+
+2005-11-12 17:44  gb
+
+	* lisp-kernel/ppc-spentry.s: Fix (several-days-old) typo in ppc64
+	code.
+
 2005-11-12 17:09  gb
 
 	* lib/backquote.lisp: Conditionalize-out (rather than comment-out)
