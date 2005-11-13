@@ -489,14 +489,23 @@
 (defvar *rounding-mode-alist*
   '((:nearest . 0) (:zero . 1) (:positive . 2) (:negative . 3)))
 
-(defun get-fpu-mode ()
+(defun get-fpu-mode (&optional (mode nil mode-p))
   (let* ((flags (%get-fpscr-control)))
-    `(:rounding-mode ,(car (nth (logand flags 3) *rounding-mode-alist*))
-                     :overflow ,(logbitp 6 flags)
-                     :underflow ,(logbitp 5 flags)
-                     :division-by-zero ,(logbitp 4 flags)
-                     :invalid ,(logbitp 7 flags)
-                     :inexact ,(logbitp 2 flags))))
+    (declare (type (unsigned-byte 8) flags))
+    (if mode-p
+      (ecase mode
+        (:rounding-mode (car (nth (logand flags 3) *rounding-mode-alist*)))
+        (:overflow (logbitp (- 31 ppc::fpscr-oe-bit) flags))
+        (:underflow (logbitp (- 31 ppc::fpscr-ue-bit) flags))
+        (:division-by-zero (logbitp (- 31 ppc::fpscr-ze-bit) flags))
+        (:invalid (logbitp (- 31 ppc::fpscr-ve-bit) flags))
+        (:inexact (logbitp (- 31 ppc::fpscr-xe-bit) flags)))
+      `(:rounding-mode ,(car (nth (logand flags 3) *rounding-mode-alist*))
+        :overflow ,(logbitp (- 31 ppc::fpscr-oe-bit) flags)
+        :underflow ,(logbitp (- 31 ppc::fpscr-ue-bit) flags)
+        :division-by-zero ,(logbitp (- 31 ppc::fpscr-ze-bit) flags)
+        :invalid ,(logbitp (- 31 ppc::fpscr-ve-bit) flags)
+        :inexact ,(logbitp (- 31 ppc::fpscr-xe-bit) flags)))))
 
 ;;; did we document this?
 (defun set-fpu-mode (&key (rounding-mode :nearest rounding-p)
@@ -506,22 +515,31 @@
                           (invalid t invalid-p)
                           (inexact t inexact-p))
   (let* ((mask (logior (if rounding-p #x03 #x00)
-                       (if invalid-p #x80 #x00)
-                       (if overflow-p #x40 #x00)
-                       (if underflow-p #x20 #x00)
-                       (if zero-p #x10 #x00)
-                       (if inexact-p #x08 #x00)))
+                       (if invalid-p
+                         (ash 1 (- 31 ppc::fpscr-ve-bit))
+                         #x00)
+                       (if overflow-p
+                         (ash 1 (- 31 ppc::fpscr-oe-bit))
+                         #x00)
+                       (if underflow-p
+                         (ash 1 (- 31 ppc::fpscr-ue-bit))
+                         #x00)
+                       (if zero-p
+                         (ash 1 (- 31 ppc::fpscr-ze-bit))
+                         #x00)
+                       (if inexact-p
+                         (ash 1 (- 31 ppc::fpscr-xe-bit))
+                         #x00)))
          (new (logior (or (cdr (assoc rounding-mode *rounding-mode-alist*))
                           (error "Unknown rounding mode: ~s" rounding-mode))
-                      (if invalid #x80 0)
-                      (if overflow #x40 0)
-                      (if underflow #x20 0)
-                      (if division-by-zero #x10 0)
-                      (if inexact #x08 0))))
+                      (if invalid (ash 1 (- 31 ppc::fpscr-ve-bit)) 0)
+                      (if overflow (ash 1 (- 31 ppc::fpscr-oe-bit)) 0)
+                      (if underflow (ash 1 (- 31 ppc::fpscr-ue-bit))  0)
+                      (if division-by-zero (ash 1 (- 31 ppc::fpscr-ze-bit)) 0)
+                      (if inexact (ash 1 (- 31 ppc::fpscr-xe-bit)) 0))))
     (declare (type (unsigned-byte 8) new mask))
     (%set-fpscr-control (logior (logand new mask)
-                                (logandc2 (%get-fpscr-control) mask)))
-    (get-fpu-mode)))
+                                (logandc2 (%get-fpscr-control) mask)))))
 
 
 ;;; Copy a single float pointed at by the macptr in single
