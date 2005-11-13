@@ -623,22 +623,32 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
         (double-float (typep float 'double-float))
         (t (typep float *read-default-float-format*))))
 
-; maybe should be more specific
-#+ppc-target 
+
+#+ppc-target
 (defun print-a-nan (float stream)
-  (stream-write-entire-string stream (if (infinity-p float)
-                                       "#<INFINITY "
-                                       "#<NaN "))
-  ; print it with invalid-operation disabled
-  (if (typep float 'single-float)
-    (stream-write-char stream #\>)
-    (let ((flags (%get-fpscr-control)))
-      (unwind-protect
-	   (progn (%set-fpscr-control (logand (lognot (ash 1 (- 31 ppc::fpscr-ve-bit))) flags))
-		  (print-a-float float stream nil t)
-		  (stream-write-char stream #\>))
-	(%set-fpscr-status 0) ; why do we need this? status bits get set in any case? 
-	(%set-fpscr-control flags)))))
+  (if (infinity-p float)
+      (output-float-infinity float stream)
+      (output-float-nan float stream)))
+
+(defun output-float-infinity (x stream)
+  (declare (float x) (stream stream))
+  (format stream "~:[-~;~]1~c++0"
+	  (plusp x)
+	  (if (typep x *read-default-float-format*)
+	      #\E
+	      (typecase x
+		(double-float #\D)
+		(single-float #\S)))))
+
+(defun output-float-nan (x stream)
+  (declare (float x) (stream stream))
+  (format stream "1~c+-0 #| not-a-number |#"
+	  (if (typep x *read-default-float-format*)
+	      #\E
+	      (etypecase x
+		(double-float #\D)
+		(single-float #\S)))))
+
              
 ;; nanning => recursive from print-a-nan - don't check again
 (defun print-a-float (float stream &optional exp-p nanning)
@@ -855,7 +865,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                t)))
           ((and (boundp head)
                 (eq (symbol-value head) *backquote-hack*))
-           ;",foo" = (#:|,| . foo)
+           ;;",foo" = (#:|,| . foo)
            (stream-write-char stream #\,)
            (let* ((n (symbol-name head))
                   (l (length n)))

@@ -24,7 +24,26 @@
  (declaim (ftype function %single-float-atanh %single-float-acosh
                  %single-float-asinh %single-float-tanh
                  %single-float-cosh %single-float-sinh)))
-                 
+
+(defconstant double-float-positive-infinity
+  #.(let* ((division-by-zero (get-fpu-mode  :division-by-zero)))
+      (declare (notinline /))
+      (unwind-protect
+           (progn
+             (ccl:set-fpu-mode :division-by-zero nil)
+             (/ 0d0))
+	(ccl:set-fpu-mode :division-by-zero division-by-zero))))
+
+(defconstant double-float-negative-infinity
+  #.(let* ((division-by-zero (get-fpu-mode  :division-by-zero)))
+      (declare (notinline /))
+      (unwind-protect
+           (progn
+             (ccl:set-fpu-mode :division-by-zero nil)
+             (/ -0d0))
+	(ccl:set-fpu-mode :division-by-zero division-by-zero))))
+
+
 
 (defun parse-float (str len off)  
   ; we cant assume this really is a float but dont call with eg s1 or e1
@@ -59,21 +78,48 @@
     (when (null type)
       (setq type *read-default-float-format*))
     (when (> len done)
-      (let ((eexp nil) (esign 1) c)
+      (let ((eexp nil) (inf nil) (nan nil) (esign 1) c (xsign-n -1))
         (do ((n (%i+ off done 1) (1+ n))
              (first t nil))
             ((>= n (+ off len)))
           (declare (fixnum n))
           (setq c (%schar str n))
           (cond ((and first (or (eq c #\+)(eq c #\-)))
-                 (when (eq c #\-)(setq esign -1)))
+                 (when (eq c #\-)(setq esign -1))
+		 (setq xsign-n (1+ n)))
+		((and (= n xsign-n)
+		      (or (eq c #\+)(eq c #\-)))
+                 (if (eq c #\-)
+		     (setq nan t)
+		     (setq inf t)))
                 ((setq c (digit-char-p c))
                  (setq eexp (+ c (* (or eexp 0) 10))))
                 (t (return-from parse-float nil))))
-        (when (not eexp)(return-from parse-float nil))
-        (setq expt (%i+ expt (* esign eexp)))))
+        (cond 
+	 (inf 
+	  (return-from parse-float
+	    (coerce (if (minusp sign)
+			double-float-negative-infinity
+			double-float-positive-infinity)
+		    type)))
+	 (nan 
+	  (return-from parse-float
+            (let* ((invalid (ccl:get-fpu-mode :invalid)))
+	    (unwind-protect
+		(progn
+		  (ccl:set-fpu-mode :invalid nil)
+		  (coerce
+		   ;; we could also have used a double-float-nan
+		   ;; variable binding here:
+		   (+ double-float-positive-infinity
+		      double-float-positive-infinity)
+		   type))
+	      (ccl:set-fpu-mode :invalid invalid)))))
+	 (expt (setq expt (%i+ expt (* esign eexp))))
+	 (t (return-from parse-float nil)))))
     ; if ppc read s as double vs error
     (fide sign integer expt (subtypep type 'short-float))))
+
 
 ;; an interesting test case: 1.448997445238699
 ;; The correct result is 6525704354437805 x 2^-52
