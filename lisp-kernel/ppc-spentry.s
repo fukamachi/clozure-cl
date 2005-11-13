@@ -4930,7 +4930,7 @@ _spentry(makeu64)
 	 __(blr)
 2:
 	 __(li imm2,three_digit_bignum_header)
-	 __(Misc_Alloc_Fixed(arg_z,aligned_bignum_size(3)))
+	 __(Misc_Alloc_Fixed(arg_z,imm2,aligned_bignum_size(3)))
 	 __(str(imm1,misc_data_offset(arg_z)))
 	 __(blr)
         __else        
