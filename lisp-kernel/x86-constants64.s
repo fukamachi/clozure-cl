@@ -136,139 +136,123 @@ fixnum_one = fixnumone
 fixnum1 = fixnumone
 
 
-lowtagmask = ((1<<nlowtagbits)-1)
-lowtag_mask = lowtagmask
-
-lowtag_primary = 0
-lowtag_imm = 1
-lowtag_immheader = 2
-lowtag_nodeheader = 3
-
 tag_fixnum = 0
+tag_imm_0 = 1		/* subtag_single_float ONLY */
+tag_imm_1 = 2		/* subtag_character, internal markers */
+tag_list = 3		/* subtag_cons or NIL */
+tag_tra = 4		/* tagged return_address */
+tag_misc = 5		/* random uvector */
+tag_symbol = 6	        /* non-null symbol */
+tag_function = 7	/* function entry point */
 
 fulltag_even_fixnum = 0
-fulltag_imm_0 = 1
-fulltag_immheader_0 = 2
-fulltag_nodeheader_0 = 3
-fulltag_cons = 4
-fulltag_tra_0 = 5		/* tagged return address */
-fulltag_immheader_1 = 6
-fulltag_nodeheader_1 = 7
+fulltag_imm_0 = 1		/* subtag_single_float (ONLY) */
+fulltag_imm_1 = 2		/* subtag_character (mostly) */
+fulltag_cons = 3
+fulltag_tra_0 = 4		/* tagged return address */
+fulltag_nodeheader_0 = 5
+fulltag_nodeheader_1 = 6
+fulltag_immheader_0 = 7	
 fulltag_odd_fixnum = 8
-fulltag_imm_2 = 9
+fulltag_immheader_1 = 9
 fulltag_immheader_2 = 10
-fulltag_nodeheader_2 = 11
-fulltag_misc = 12
-fulltag_tra_1 = 13
-fulltag_immheader_3 = 14
-fulltag_nodeheader_3 = 15
+fulltag_nil = 11
+fulltag_tra_1 = 12
+fulltag_misc = 13
+fulltag_symbol = 14
+fulltag_function = 15
 
 define([define_subtag],[
 subtag_$1 = ($2 | ($3 << ntagbits))
 ])
 	
-cl_array_subtag_mask = 0x80
-define([define_cl_array_subtag],[
-define_subtag($1,(cl_array_subtag_mask|$2),$3)
-])
 
-define_cl_array_subtag(arrayH,fulltag_nodeheader_1,0)
-define_cl_array_subtag(vectorH,fulltag_nodeheader_2,0)
-define_cl_array_subtag(simple_vector,fulltag_nodeheader_3,0)
+define_subtag(arrayH,fulltag_nodeheader_1,0)
+define_subtag(vectorH,fulltag_nodeheader_1,1)
+define_subtag(simple_vector,fulltag_nodeheader_1,0)
 min_vector_subtag = subtag_vectorH
 min_array_subtag = subtag_arrayH
         
 	
-ivector_class_64_bit = fulltag_immheader_3
-ivector_class_32_bit = fulltag_immheader_2
-ivector_class_other_bit = fulltag_immheader_1
-ivector_class_8_bit = fulltag_immheader_0
+ivector_class_64_bit = fulltag_immheader_2
+ivector_class_32_bit = fulltag_immheader_1
+ivector_class_other_bit = fulltag_immheader_0
 
-define_cl_array_subtag(s64_vector,ivector_class_64_bit,1)
-define_cl_array_subtag(u64_vector,ivector_class_64_bit,2)
-define_cl_array_subtag(double_float_vector,ivector_class_64_bit,4)
-define_cl_array_subtag(s32_vector,ivector_class_32_bit,1)
-define_cl_array_subtag(u32_vector,ivector_class_32_bit,2)
-define_cl_array_subtag(single_float_vector,ivector_class_32_bit,3)
-define_cl_array_subtag(s16_vector,ivector_class_other_bit,1)
-define_cl_array_subtag(u16_vector,ivector_class_other_bit,2)
-define_cl_array_subtag(bit_vector,ivector_class_other_bit,7)
-define_cl_array_subtag(s8_vector,ivector_class_8_bit,1)
-define_cl_array_subtag(u8_vector,ivector_class_8_bit,2)
-define_cl_array_subtag(simple_base_string,ivector_class_8_bit,5)
+define_subtag(s64_vector,ivector_class_64_bit,13)
+define_subtag(u64_vector,ivector_class_64_bit,14)
+define_subtag(double_float_vector,ivector_class_64_bit,15)
+define_subtag(s32_vector,ivector_class_32_bit,13)
+define_subtag(u32_vector,ivector_class_32_bit,14)
+define_subtag(single_float_vector,ivector_class_32_bit,15)
+define_subtag(s16_vector,ivector_class_other_bit,10)
+define_subtag(u16_vector,ivector_class_other_bit,11)
+define_subtag(bit_vector,ivector_class_other_bit,12)
+define_subtag(s8_vector,ivector_class_other_bit,13)
+define_subtag(u8_vector,ivector_class_other_bit,14)
+define_subtag(simple_base_string,ivector_class_other_bit,15)
 
 /* There's some room for expansion in non-array ivector space. */
-define_subtag(macptr,ivector_class_64_bit,1)
-define_subtag(dead_macptr,ivector_class_64_bit,2)
-define_subtag(code_vector,ivector_class_32_bit,0)
-define_subtag(xcode_vector,ivector_class_32_bit,1)
-define_subtag(bignum,ivector_class_32_bit,2)
+define_subtag(macptr,ivector_class_64_bit,0)
+define_subtag(dead_macptr,ivector_class_64_bit,1)
+define_subtag(bignum,ivector_class_32_bit,0)
+define_subtag(code_vector,ivector_class_32_bit,1)
+define_subtag(xcode_vector,ivector_class_32_bit,2)
 define_subtag(double_float,ivector_class_32_bit,3)
 
-					
-
-
         
-/*        
- Size doesn't matter for non-CL-array gvectors; I can't think of a good
- reason to classify them in any particular way.  Let's put funcallable
- things in the first slice by themselves, though it's not clear that
- that helps FUNCALL much.
-*/        
-gvector_funcallable = fulltag_nodeheader_0
+/* Note the difference between (e.g) fulltag_function - which
+   defines what the low 4 bytes of a function pointer look like -
+   and subtag_function - which describes what the subtag byte
+   in a function header looks like.  (Likewise for fulltag_symbol
+   and subtag_symbol)
+*/		
+define_subtag(function,fulltag_nodeheader_0,0)
+define_subtag(symbol,fulltag_nodeheader_0,1)
+define_subtag(catch_frame,fulltag_nodeheader_0,2)
+define_subtag(lisp_thread,fulltag_nodeheader_0,3)
+define_subtag(lock,fulltag_nodeheader_0,4)
+define_subtag(hash_vector,fulltag_nodeheader_0,5)
+define_subtag(pool,fulltag_nodeheader_0,4)
+define_subtag(weak,fulltag_nodeheader_0,5)
+define_subtag(package,fulltag_nodeheader_0,6)
+define_subtag(slot_vector,fulltag_nodeheader_0,7)
+
+define_subtag(ratio,fulltag_nodeheader_1,0)
+define_subtag(complex,fulltag_nodeheader_1,1)
+define_subtag(instance,fulltag_nodeheader_1,2)
+define_subtag(struct,fulltag_nodeheader_1,3)
+define_subtag(istruct,fulltag_nodeheader_1,4)
+define_subtag(value_cell,fulltag_nodeheader_1,5)
+define_subtag(xfunction,fulltag_nodeheader_1,6)
 	
-define_subtag(function,gvector_funcallable,0)
-define_subtag(symbol,gvector_funcallable,1)
-define_subtag(catch_frame,fulltag_nodeheader_1,0)
-define_subtag(lisp_thread,fulltag_nodeheader_1,1)
-define_subtag(lock,fulltag_nodeheader_1,2)
-define_subtag(hash_vector,fulltag_nodeheader_1,3)
-define_subtag(pool,fulltag_nodeheader_1,4)
-define_subtag(weak,fulltag_nodeheader_1,5)
-define_subtag(package,fulltag_nodeheader_1,6)
-        
-define_subtag(slot_vector,fulltag_nodeheader_2,0)
-define_subtag(instance,fulltag_nodeheader_2,1)
-define_subtag(struct,fulltag_nodeheader_2,2)
-define_subtag(istruct,fulltag_nodeheader_2,3)
-define_subtag(value_cell,fulltag_nodeheader_2,4)
-define_subtag(xfunction,fulltag_nodeheader_2,5)
-	
-define_subtag(ratio,fulltag_nodeheader_3,0)
-define_subtag(complex,fulltag_nodeheader_3,1)
 			
-nil_value = (0x2000+fulltag_misc+symbol.size)
-t_value = (0x2000+fulltag_misc)	
+nil_value = (0x2000+fulltag_nil)
+t_value = (0x2020+fulltag_misc)
 misc_bias = fulltag_misc
 cons_bias = fulltag_cons
-define([t_offset],-symbol.size)
+define([t_offset],(t_value-nil_value))
 	
 misc_header_offset = -fulltag_misc
 misc_data_offset = misc_header_offset+node_size /* first word of data */ 
-misc_subtag_offset = misc_data_offset-1       /* low byte of header */
+misc_subtag_offset = misc_header_offset       /* low byte of header */
 misc_dfloat_offset = misc_data_offset		/* double-floats are doubleword-aligned */
 
 define_subtag(single_float,fulltag_imm_0,0)
 
 
-define_subtag(character,fulltag_imm_2,0)
+define_subtag(character,fulltag_imm_1,0)
                 	
-define_subtag(unbound,fulltag_imm_2,1)
+define_subtag(unbound,fulltag_imm_1,1)
 unbound_marker = subtag_unbound
 undefined = unbound_marker
-define_subtag(slot_unbound,fulltag_imm_2,2)
+define_subtag(slot_unbound,fulltag_imm_1,2)
 slot_unbound_marker = subtag_slot_unbound
-define_subtag(illegal,fulltag_imm_2,3)
+define_subtag(illegal,fulltag_imm_1,3)
 illegal_marker = subtag_illegal
-define_subtag(no_thread_local_binding,fulltag_imm_2,4)
+define_subtag(no_thread_local_binding,fulltag_imm_1,4)
 no_thread_local_binding_marker = subtag_no_thread_local_binding        
 
 	
-max_64_bit_constant_index = ((0x7fff + misc_dfloat_offset)>>3)
-max_32_bit_constant_index = ((0x7fff + misc_data_offset)>>2)
-max_16_bit_constant_index = ((0x7fff + misc_data_offset)>>1)
-max_8_bit_constant_index = (0x7fff + misc_data_offset)
-max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 
 
 	
@@ -313,7 +297,7 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 
 
 
-	_structf(symbol)
+	_structf(symbol,-fulltag_symbol)
 	 _node(pname)
 	 _node(vcell)
 	 _node(fcell)
@@ -668,7 +652,6 @@ TCR_BIAS = -512
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
 TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)	
 
-nil_value = 0x2000+symbol.size+fulltag_misc
 	
 
 lisp_globals_limit = 0x2000
