@@ -118,7 +118,12 @@ current_stack_pointer(void) __attribute__((always_inline));
 static __inline__ natural
 current_stack_pointer(void)
 {
+#ifdef PPC
   register natural _sp __asm__("r1");
+#endif
+#ifdef X8664
+  register natural _sp __asm__("%rsp");
+#endif
   return _sp;
 }
 #else
@@ -133,13 +138,12 @@ count_leading_zeros(natural w) __attribute__((always_inline));
 static __inline__ unsigned
 count_leading_zeros(natural w)
 {
-  unsigned lz;
-#ifdef PPC64
-  __asm__  ("cntlzd %0,%1" : "=r" (lz) : "r" (w));
+#ifdef WORD_SIZE64
+  return builtin_clzll(w);  
 #else
-  __asm__  ("cntlzw %0,%1" : "=r" (lz) : "r" (w));
+  return builtin_clz(w);  
 #endif
-  return lz;
+
 }
 #else
 unsigned

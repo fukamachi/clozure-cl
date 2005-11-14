@@ -41,10 +41,10 @@ extern protected_area_ptr AllProtectedAreas;
 protected_area_ptr find_protected_area(BytePtr);
 
 OSStatus
-lisp_Debugger(ExceptionInformationPowerPC *, int, char *, ...);
+lisp_Debugger(ExceptionInformation *, int, char *, ...);
 
 OSStatus
-handle_protection_violation(ExceptionInformationPowerPC *, siginfo_t *);
+handle_protection_violation(ExceptionInformation *, siginfo_t *);
 
 protected_area_ptr 
 new_protected_area(BytePtr, BytePtr, lisp_protection_kind, natural, Boolean);
@@ -63,7 +63,7 @@ Boolean
 resize_dynamic_heap(BytePtr, natural);
 
 OSStatus
-PMCL_exception_handler(int, ExceptionInformationPowerPC *, TCR *, siginfo_t *);
+PMCL_exception_handler(int, ExceptionInformation *, TCR *, siginfo_t *);
 
 TCR*
 get_tcr(Boolean);
@@ -195,7 +195,7 @@ typedef u_int32_t opcode, *pc;
 #endif
 
 OSStatus
-handle_uuo(ExceptionInformationPowerPC *, opcode, pc);
+handle_uuo(ExceptionInformation *, opcode, pc);
 
 
 /* 
@@ -210,22 +210,22 @@ is_conditional_trap(opcode);
 #define TRAP_LOOKUP_TRIES 5   /* # instrs to scan before trap instr */
 
 void
-callback_for_trap (LispObj, ExceptionInformationPowerPC *, pc, natural, natural, natural);
+callback_for_trap (LispObj, ExceptionInformation *, pc, natural, natural, natural);
 
 natural
 register_codevector_contains_pc (natural, pc);
 
 void
-callback_to_lisp (LispObj, ExceptionInformationPowerPC *, natural, natural, natural, natural, natural);
+callback_to_lisp (LispObj, ExceptionInformation *, natural, natural, natural, natural, natural);
 
 OSStatus
-handle_trap(ExceptionInformationPowerPC *, opcode, pc);
+handle_trap(ExceptionInformation *, opcode, pc);
 
 unsigned
 scan_for_instr( unsigned, unsigned, pc );
 
 size_t
-exception_fn_name( ExceptionInformationPowerPC *, int, char *, size_t );
+exception_fn_name( ExceptionInformation *, int, char *, size_t );
 
 size_t
 symbol_name( unsigned, char *, size_t );
@@ -243,25 +243,25 @@ non_fatal_error( char * );
 #define UUO_ZERO_FPSCR (25)
 
 OSStatus
-box_signed_integer(ExceptionInformationPowerPC *, unsigned, unsigned);
+box_signed_integer(ExceptionInformation *, unsigned, unsigned);
 
 OSStatus
-box_unsigned_integer(ExceptionInformationPowerPC *, unsigned, unsigned);
+box_unsigned_integer(ExceptionInformation *, unsigned, unsigned);
 
 OSStatus
-fix_fixnum_overflow(ExceptionInformationPowerPC *, unsigned, unsigned);
+fix_fixnum_overflow(ExceptionInformation *, unsigned, unsigned);
 
 OSStatus
-add_fixnums(ExceptionInformationPowerPC *, unsigned, unsigned, unsigned);
+add_fixnums(ExceptionInformation *, unsigned, unsigned, unsigned);
 
 OSStatus
-sub_fixnums(ExceptionInformationPowerPC *, unsigned, unsigned, unsigned);
+sub_fixnums(ExceptionInformation *, unsigned, unsigned, unsigned);
 
 OSStatus
-handle_error(ExceptionInformationPowerPC *, unsigned, unsigned, unsigned, pc);
+handle_error(ExceptionInformation *, unsigned, unsigned, unsigned, pc);
 
 void
-adjust_exception_pc(ExceptionInformationPowerPC *, int);
+adjust_exception_pc(ExceptionInformation *, int);
 
 
 /* PPC instructions */
@@ -466,10 +466,10 @@ adjust_exception_pc(ExceptionInformationPowerPC *, int);
 #define INIT_CATCH_FRAME_MASK (OP_MASK | RA_MASK)
 #endif
 
-void Bug(ExceptionInformationPowerPC *, const char *format_string, ...);
-int gc_from_xp(ExceptionInformationPowerPC *);
-int purify_from_xp(ExceptionInformationPowerPC *);
-int impurify_from_xp(ExceptionInformationPowerPC *);
+void Bug(ExceptionInformation *, const char *format_string, ...);
+int gc_from_xp(ExceptionInformation *);
+int purify_from_xp(ExceptionInformation *);
+int impurify_from_xp(ExceptionInformation *);
 
 typedef char* vector_buf;
 
@@ -518,7 +518,9 @@ deallocate(Ptr);
 
 
 #ifdef LINUX
+#ifdef PPC
 register void *current_r2 __asm__("r2");
+#endif
 #endif
 
 #endif

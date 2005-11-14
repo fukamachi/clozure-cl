@@ -48,17 +48,27 @@
 /* Likewise. */
 #define FBOUNDP(sym) ((((lispsymbol *)(sym))->fcell) != nrs_UDF.vcell)
 
+#ifdef PPC
 #ifdef PPC64
 #define nodeheader_tag_p(tag) (((tag) & lowtag_mask) == lowtag_nodeheader)
-#else
-#define nodeheader_tag_p(tag) (tag == fulltag_nodeheader)
-#endif
-
-#ifdef PPC64
 #define immheader_tag_p(tag) (((tag) & lowtag_mask) == lowtag_immheader)
 #else
+#define nodeheader_tag_p(tag) (tag == fulltag_nodeheader)
 #define immheader_tag_p(tag) (tag == fulltag_immheader)
 #endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+#define nodeheader_tag_p(tag) ((1<<(tag)) & ((1<<fulltag_nodeheader_0) || \
+					     (1<<fulltag_nodeheader_1)))
+#define immheader_tag_p(tag) ((1<<(tag)) &  ((1<<fulltag_immheader_0) || \
+					     (1<<fulltag_immheader_1) || \
+					     (1<<fulltag_immheader_2)))
+#endif
+#endif
+
+
 
 /* lfuns */
 #define lfun_bits(f) (deref(f,header_element_count(header_of(f))))

@@ -167,9 +167,9 @@ subtag_$1 = ($2 | ($3 << ntagbits))
 ])
 	
 
-define_subtag(arrayH,fulltag_nodeheader_1,0)
-define_subtag(vectorH,fulltag_nodeheader_1,1)
-define_subtag(simple_vector,fulltag_nodeheader_1,0)
+define_subtag(arrayH,fulltag_nodeheader_1,8)
+define_subtag(vectorH,fulltag_nodeheader_0,9)
+define_subtag(simple_vector,fulltag_nodeheader_1,9)
 min_vector_subtag = subtag_vectorH
 min_array_subtag = subtag_arrayH
         
@@ -181,9 +181,11 @@ ivector_class_other_bit = fulltag_immheader_0
 define_subtag(s64_vector,ivector_class_64_bit,13)
 define_subtag(u64_vector,ivector_class_64_bit,14)
 define_subtag(double_float_vector,ivector_class_64_bit,15)
+	
 define_subtag(s32_vector,ivector_class_32_bit,13)
 define_subtag(u32_vector,ivector_class_32_bit,14)
 define_subtag(single_float_vector,ivector_class_32_bit,15)
+	
 define_subtag(s16_vector,ivector_class_other_bit,10)
 define_subtag(u16_vector,ivector_class_other_bit,11)
 define_subtag(bit_vector,ivector_class_other_bit,12)
@@ -209,13 +211,12 @@ define_subtag(double_float,ivector_class_32_bit,3)
 define_subtag(function,fulltag_nodeheader_0,0)
 define_subtag(symbol,fulltag_nodeheader_0,1)
 define_subtag(catch_frame,fulltag_nodeheader_0,2)
-define_subtag(lisp_thread,fulltag_nodeheader_0,3)
-define_subtag(lock,fulltag_nodeheader_0,4)
-define_subtag(hash_vector,fulltag_nodeheader_0,5)
+define_subtag(hash_vector,fulltag_nodeheader_0,3)
 define_subtag(pool,fulltag_nodeheader_0,4)
 define_subtag(weak,fulltag_nodeheader_0,5)
 define_subtag(package,fulltag_nodeheader_0,6)
 define_subtag(slot_vector,fulltag_nodeheader_0,7)
+define_subtag(lisp_thread,fulltag_nodeheader_0,8)
 
 define_subtag(ratio,fulltag_nodeheader_1,0)
 define_subtag(complex,fulltag_nodeheader_1,1)
@@ -224,10 +225,11 @@ define_subtag(struct,fulltag_nodeheader_1,3)
 define_subtag(istruct,fulltag_nodeheader_1,4)
 define_subtag(value_cell,fulltag_nodeheader_1,5)
 define_subtag(xfunction,fulltag_nodeheader_1,6)
+define_subtag(lock,fulltag_nodeheader_1,7)
 	
 			
 nil_value = (0x2000+fulltag_nil)
-t_value = (0x2020+fulltag_misc)
+t_value = (0x2020+fulltag_symbol)
 misc_bias = fulltag_misc
 cons_bias = fulltag_cons
 define([t_offset],(t_value-nil_value))
@@ -401,140 +403,140 @@ no_thread_local_binding_marker = subtag_no_thread_local_binding
 /* Nilreg-relative globals.  Talking the assembler into doing something reasonable here */
 /* is surprisingly hard. */
 
-symbol_extra = symbol.size-fulltag_misc
+symbol_extra = symbol.size-fulltag_symbol
 
 	
 	_struct(nrs,0x2000)
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(tsym)
 	 _struct_pad(symbol_extra)	/* t  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(nil)
 	 _struct_pad(symbol_extra)	/* nil  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(errdisp)
 	 _struct_pad(symbol_extra)	/* %err-disp  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(cmain)
 	 _struct_pad(symbol_extra)	/* cmain  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(eval)
 	 _struct_pad(symbol_extra)	/* eval  */
  
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(appevalfn)
 	 _struct_pad(symbol_extra)	/* apply-evaluated-function  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(error)
 	 _struct_pad(symbol_extra)	/* error  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(defun)
 	 _struct_pad(symbol_extra)	/* %defun  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(defvar)
 	 _struct_pad(symbol_extra)	/* %defvar  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(defconstant)
 	 _struct_pad(symbol_extra)	/* %defconstant  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(macrosym)
 	 _struct_pad(symbol_extra)	/* %macro  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(kernelrestart)
 	 _struct_pad(symbol_extra)	/* %kernel-restart  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(package)
 	 _struct_pad(symbol_extra)	/* *package*  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(total_bytes_freed)		/* *total-bytes-freed* */
 	 _struct_pad(symbol_extra)
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(kallowotherkeys)
 	 _struct_pad(symbol_extra)	/* allow-other-keys  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(toplcatch)
 	 _struct_pad(symbol_extra)	/* %toplevel-catch%  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(toplfunc)
 	 _struct_pad(symbol_extra)	/* %toplevel-function%  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(callbacks)
 	 _struct_pad(symbol_extra)	/* %pascal-functions%  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(allmeteredfuns)
 	 _struct_pad(symbol_extra)	/* *all-metered-functions*  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(total_gc_microseconds)		/* *total-gc-microseconds* */
 	 _struct_pad(symbol_extra)
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(builtin_functions)		/* %builtin-functions% */
 	 _struct_pad(symbol_extra)                
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(udf)
 	 _struct_pad(symbol_extra)	/* %unbound-function%  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(init_misc)
 	 _struct_pad(symbol_extra)	/* %init-misc */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(macro_code)
 	 _struct_pad(symbol_extra)	/* %macro-code% */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(closure_code)
 	 _struct_pad(symbol_extra)      /* %closure-code% */
 
-       	 _struct_pad(fulltag_misc)
+       	 _struct_pad(fulltag_symbol)
 	 _struct_label(new_gcable_ptr) /* %new-gcable-ptr */
 	 _struct_pad(symbol_extra)
 	
-       	 _struct_pad(fulltag_misc)
+       	 _struct_pad(fulltag_symbol)
 	 _struct_label(gc_event_status_bits)
 	 _struct_pad(symbol_extra)	/* *gc-event-status-bits*  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(post_gc_hook)
 	 _struct_pad(symbol_extra)	/* *post-gc-hook*  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(handlers)
 	 _struct_pad(symbol_extra)	/* %handlers%  */
 
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(all_packages)
 	 _struct_pad(symbol_extra)	/* %all-packages%  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(keyword_package)
 	 _struct_pad(symbol_extra)	/* *keyword-package*  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(finalization_alist)
 	 _struct_pad(symbol_extra)	/* %finalization-alist%  */
 
-	 _struct_pad(fulltag_misc)
+	 _struct_pad(fulltag_symbol)
 	 _struct_label(foreign_thread_control)
 	 _struct_pad(symbol_extra)	/* %foreign-thread-control  */
 

@@ -55,11 +55,13 @@
    place and/or persuade <asm/cputable> to lighten up a bit.
 */
 
+#ifdef PPC
 #ifndef PPC64
 #include <asm/cputable.h>
 #endif
 #ifndef PPC_FEATURE_HAS_ALTIVEC
 #define PPC_FEATURE_HAS_ALTIVEC 0x10000000
+#endif
 #endif
 #endif
 
@@ -1241,7 +1243,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
 	case AT_HWCAP:
 	  hwcap = av->a_un.a_val;
+#ifdef PPC
 	  altivec_present = ((hwcap & PPC_FEATURE_HAS_ALTIVEC) != 0);
+#endif
 	  break;
 
 	case AT_NULL:

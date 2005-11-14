@@ -59,7 +59,7 @@ struct protected_area {
 
 /* Various functions that try to respond to a protection violation */
 typedef 
-  OSStatus (protection_handler)(ExceptionInformationPowerPC *, protected_area_ptr, BytePtr);
+  OSStatus (protection_handler)(ExceptionInformation *, protected_area_ptr, BytePtr);
 
 protection_handler 
   do_spurious_wp_fault,
@@ -72,7 +72,7 @@ protection_handler
 extern protection_handler
   *protection_handlers[];
 
-OSStatus do_memo_reset(ExceptionInformationPowerPC *, TCR *, BytePtr);
+OSStatus do_memo_reset(ExceptionInformation *, TCR *, BytePtr);
 
 void
 exception_cleanup(void);

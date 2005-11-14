@@ -24,6 +24,9 @@
 #ifdef PPC
 #include "ppc-constants.h"
 #endif
+#ifdef X86
+#include "x86-constants.h"
+#endif
 #include "macros.h"
 
 

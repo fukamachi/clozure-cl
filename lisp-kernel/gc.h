@@ -57,7 +57,7 @@ LispObj calculate_relocation();
 LispObj locative_forwarding_address(LispObj);
 LispObj node_forwarding_address(LispObj);
 void forward_range(LispObj *, LispObj *);
-void note_memoized_references(ExceptionInformationPowerPC *,LogicalAddress, LogicalAddress, BytePtr *, BytePtr *);
+void note_memoized_references(ExceptionInformation *,LogicalAddress, LogicalAddress, BytePtr *, BytePtr *);
 void gc(TCR *);
 int  purify(TCR *);
 int impurify(TCR *);

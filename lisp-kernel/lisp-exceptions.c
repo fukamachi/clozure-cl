@@ -39,7 +39,7 @@
 #endif
 
 /* a distinguished UUO at a distinguished address */
-extern void pseudo_sigreturn(ExceptionInformationPowerPC *);
+extern void pseudo_sigreturn(ExceptionInformation *);
 #endif
 
 
@@ -1737,8 +1737,7 @@ handle_error(ExceptionInformation *xp, unsigned errnum, unsigned rb, unsigned co
    to GC before this thread is able to sieze the exception lock.)
 */
 int
-prepare_to_wait_for_exception_lock(TCR *tcr, 
-				   ExceptionInformationPowerPC *context)
+prepare_to_wait_for_exception_lock(TCR *tcr, ExceptionInformation *context)
 {
   int old_valence = tcr->valence;
 
@@ -1751,7 +1750,7 @@ prepare_to_wait_for_exception_lock(TCR *tcr,
 
 void
 wait_for_exception_lock_in_handler(TCR *tcr, 
-				   ExceptionInformationPowerPC *context,
+				   ExceptionInformation *context,
 				   xframe_list *xf)
 {
 
@@ -1797,7 +1796,7 @@ exit_signal_handler(TCR *tcr, int old_valence)
 
 
 void
-signal_handler(int signum, siginfo_t *info, ExceptionInformationPowerPC  *context, TCR *tcr)
+signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
 {
   xframe_list xframe_link;
   int old_valence;
@@ -1871,7 +1870,7 @@ extern pc
   egc_rplacd;
 
 void
-pc_luser_xp(ExceptionInformationPowerPC *xp, TCR *tcr)
+pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
 {
   pc program_counter = xpPC(xp);
   opcode instr = *program_counter;

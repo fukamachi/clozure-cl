@@ -18,7 +18,15 @@
 #define __lisptypes__
 
 #include <sys/types.h>
+#undef WORD_SIZE64
 #ifdef PPC64
+#define WORD_SIZE64 1
+#endif
+#ifdef X8664
+#define WORD_SIZE64 1
+#endif
+
+#ifdef WORD_SIZE64
 typedef u_int64_t LispObj;
 typedef u_int64_t natural;
 typedef int64_t signed_natural;
@@ -30,23 +38,15 @@ typedef int32_t signed_natural;
 typedef u_int32_t unsigned_of_pointer_size;
 #endif
 
-#ifdef PPC64
-#ifdef DARWIN
-typedef struct ucontext64 ExceptionInformation, ExceptionInformationPowerPC;
-#else
-typedef struct ucontext ExceptionInformation, ExceptionInformationPowerPC;
-#endif
-#else
-typedef struct ucontext ExceptionInformation, ExceptionInformationPowerPC;
-#endif
 
-#ifdef DARWIN
-#ifdef PPC64
+#if defined(DARWIN) && defined(WORD_SIZE64)
+typedef struct ucontext64 ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
 #else
+typedef struct ucontext ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext
 #endif
-#endif
+
 
 
 typedef int OSStatus, OSErr;

@@ -596,7 +596,11 @@ thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
     tcr->cs_limit = (LispObj)ptr_to_lispobj(a->softlimit);
   }
 #ifdef LINUX
+#ifdef PPC
+#ifndef PPC64
   tcr->native_thread_info = current_r2;
+#endif
+#endif
 #endif
   tcr->errno_loc = &errno;
   tsd_set(lisp_global(TCR_KEY), TCR_TO_TSD(tcr));

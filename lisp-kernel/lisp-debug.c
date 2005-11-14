@@ -38,7 +38,7 @@ typedef enum {
   debug_kill
 } debug_command_return;
 
-typedef debug_command_return (*debug_command) (ExceptionInformationPowerPC *, int);
+typedef debug_command_return (*debug_command) (ExceptionInformation *, int);
 
 #define DEBUG_COMMAND_FLAG_REQUIRE_XP 1 /* function  */
 #define DEBUG_COMMAND_FLAG_AUX_REGNO  (2 | DEBUG_COMMAND_FLAG_REQUIRE_XP)
@@ -87,7 +87,7 @@ readc()
 }
 
 void
-show_lisp_register(ExceptionInformationPowerPC *xp, char *label, int r)
+show_lisp_register(ExceptionInformation *xp, char *label, int r)
 {
 
   LispObj val = xpGPR(xp, r);
@@ -97,7 +97,7 @@ show_lisp_register(ExceptionInformationPowerPC *xp, char *label, int r)
 
 
 void
-describe_memfault(ExceptionInformationPowerPC *xp)
+describe_memfault(ExceptionInformation *xp)
 {
   void *addr = (void *)xpDAR(xp);
   natural dsisr = xpDSISR(xp);
@@ -110,7 +110,7 @@ describe_memfault(ExceptionInformationPowerPC *xp)
 
 
 void
-describe_illegal(ExceptionInformationPowerPC *xp)
+describe_illegal(ExceptionInformation *xp)
 {
   pc where = xpPC(xp);
   opcode the_uuo = *where, instr2;
@@ -151,7 +151,7 @@ describe_illegal(ExceptionInformationPowerPC *xp)
 }
 
 void
-describe_trap(ExceptionInformationPowerPC *xp)
+describe_trap(ExceptionInformation *xp)
 {
   pc where = xpPC(xp);
   opcode the_trap = *where, instr;
@@ -312,7 +312,7 @@ describe_trap(ExceptionInformationPowerPC *xp)
 }
 
 debug_command_return
-debug_lisp_registers(ExceptionInformationPowerPC *xp, int arg)
+debug_lisp_registers(ExceptionInformation *xp, int arg)
 {
   TCR *xpcontext = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
 
@@ -343,14 +343,14 @@ debug_lisp_registers(ExceptionInformationPowerPC *xp, int arg)
 }
 
 debug_command_return
-debug_advance_pc(ExceptionInformationPowerPC *xp, int arg)
+debug_advance_pc(ExceptionInformation *xp, int arg)
 {
   adjust_exception_pc(xp,4);
   return debug_continue;
 }
 
 debug_command_return
-debug_identify_exception(ExceptionInformationPowerPC *xp, int arg)
+debug_identify_exception(ExceptionInformation *xp, int arg)
 {
   pc program_counter = xpPC(xp);
   opcode instruction = 0;
@@ -429,7 +429,7 @@ debug_get_u5_value(char *prompt)
 }
 
 debug_command_return
-debug_show_symbol(ExceptionInformationPowerPC *xp, int arg)
+debug_show_symbol(ExceptionInformation *xp, int arg)
 {
   char *pname = debug_get_string_value("symbol name");
   
@@ -442,7 +442,7 @@ debug_show_symbol(ExceptionInformationPowerPC *xp, int arg)
       
 
 debug_command_return
-debug_set_gpr(ExceptionInformationPowerPC *xp, int arg)
+debug_set_gpr(ExceptionInformation *xp, int arg)
 {
   char buf[32];
   unsigned val;
@@ -455,7 +455,7 @@ debug_set_gpr(ExceptionInformationPowerPC *xp, int arg)
 
 
 debug_command_return
-debug_show_registers(ExceptionInformationPowerPC *xp, int arg)
+debug_show_registers(ExceptionInformation *xp, int arg)
 {
   int a, b, c, d, i;
 
@@ -491,7 +491,7 @@ debug_show_registers(ExceptionInformationPowerPC *xp, int arg)
 }
 
 debug_command_return
-debug_show_fpu(ExceptionInformationPowerPC *xp, int arg)
+debug_show_fpu(ExceptionInformation *xp, int arg)
 {
   double *dp, d;
   int *np, n, i;
@@ -507,22 +507,22 @@ debug_show_fpu(ExceptionInformationPowerPC *xp, int arg)
 }
 
 debug_command_return
-debug_kill_process(ExceptionInformationPowerPC *xp, int arg) {
+debug_kill_process(ExceptionInformation *xp, int arg) {
   return debug_kill;
 }
 
 debug_command_return
-debug_win(ExceptionInformationPowerPC *xp, int arg) {
+debug_win(ExceptionInformation *xp, int arg) {
   return debug_exit_success;
 }
 
 debug_command_return
-debug_lose(ExceptionInformationPowerPC *xp, int arg) {
+debug_lose(ExceptionInformation *xp, int arg) {
   return debug_exit_fail;
 }
 
 debug_command_return
-debug_help(ExceptionInformationPowerPC *xp, int arg) {
+debug_help(ExceptionInformation *xp, int arg) {
   debug_command_entry *entry;
 
   for (entry = debug_command_entries; entry->f; entry++) {
@@ -538,11 +538,11 @@ debug_help(ExceptionInformationPowerPC *xp, int arg) {
   
 
 debug_command_return
-debug_backtrace(ExceptionInformationPowerPC *xp, int arg)
+debug_backtrace(ExceptionInformation *xp, int arg)
 {
   extern LispObj current_stack_pointer();
   extern void plbt_sp(LispObj);
-  extern void plbt(ExceptionInformationPowerPC *);
+  extern void plbt(ExceptionInformation *);
 
   if (xp) {
     plbt(xp);
@@ -553,7 +553,7 @@ debug_backtrace(ExceptionInformationPowerPC *xp, int arg)
 }
 
 debug_command_return
-debug_thread_reset(ExceptionInformationPowerPC *xp, int arg)
+debug_thread_reset(ExceptionInformation *xp, int arg)
 {
   reset_lisp_process(xp);
   return debug_exit_success;
@@ -641,7 +641,7 @@ debug_command_entry debug_command_entries[] =
 };
 
 debug_command_return
-apply_debug_command(ExceptionInformationPowerPC *xp, int c, int why) 
+apply_debug_command(ExceptionInformation *xp, int c, int why) 
 {
   if (c == EOF) {
     return debug_kill;
@@ -673,7 +673,7 @@ apply_debug_command(ExceptionInformationPowerPC *xp, int c, int why)
   }
 }
 
-debug_identify_function(ExceptionInformationPowerPC *xp) 
+debug_identify_function(ExceptionInformation *xp) 
 {
   if (xp) {
     if (active_tcr_p((TCR *)(ptr_from_lispobj(xpGPR(xp, rcontext))))) {
@@ -696,7 +696,7 @@ debug_identify_function(ExceptionInformationPowerPC *xp)
 extern pid_t main_thread_pid;
 
 OSStatus
-lisp_Debugger(ExceptionInformationPowerPC *xp, int why, char *message, ...)
+lisp_Debugger(ExceptionInformation *xp, int why, char *message, ...)
 {
   va_list args;
   debug_command_return state = debug_continue;

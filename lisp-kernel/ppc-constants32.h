@@ -311,7 +311,7 @@ typedef struct catch_frame {
   All exception frames in a thread are linked together 
   */
 typedef struct xframe_list {
-  ExceptionInformationPowerPC *curr;
+  ExceptionInformation *curr;
   struct xframe_list *prev;
 } xframe_list;
 
