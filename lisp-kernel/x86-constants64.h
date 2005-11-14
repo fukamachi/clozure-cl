@@ -70,7 +70,7 @@
 #define fulltag_cons 3L
 #define fulltag_tra_0 4L
 #define fulltag_nodeheader_0 5L
-#define fulltag_nodeheader_1 7L
+#define fulltag_nodeheader_1 6L
 #define fulltag_immheader_0 7L
 #define fulltag_odd_fixnum 8L
 #define fulltag_immheader_1 9L
@@ -83,8 +83,8 @@
 
 #define SUBTAG(tag,subtag) ((tag) | ((subtag) << ntagbits))
 #define subtag_arrayH SUBTAG(fulltag_nodeheader_1,8L)
-#define subtag_vectorH _SUBTAG(fulltag_nodeheader_0,9L)
-#define subtag_simple_vector _SUBTAG(fulltag_nodeheader_1,9L)
+#define subtag_vectorH SUBTAG(fulltag_nodeheader_0,9L)
+#define subtag_simple_vector SUBTAG(fulltag_nodeheader_1,9L)
 #define min_vector_subtag subtag_vectorH	
 
 #define ivector_class_64_bit fulltag_immheader_2
@@ -92,21 +92,21 @@
 #define ivector_class_other_bit fulltag_immheader_0
 
 
-#define subtag_s64_vector _SUBTAG(ivector_class_64_bit,13L)
-#define subtag_u64_vector _SUBTAG(ivector_class_64_bit,14L)
-#define subtag_double_float_vector _SUBTAG(ivector_class_64_bit,15L)
+#define subtag_s64_vector SUBTAG(ivector_class_64_bit,13L)
+#define subtag_u64_vector SUBTAG(ivector_class_64_bit,14L)
+#define subtag_double_float_vector SUBTAG(ivector_class_64_bit,15L)
 
-#define subtag_s32_vector _SUBTAG(ivector_class_32_bit,13L)
-#define subtag_u32_vector _SUBTAG(ivector_class_32_bit,14L)
-#define subtag_single_float_vector _SUBTAG(ivector_class_32_bit,15L)
+#define subtag_s32_vector SUBTAG(ivector_class_32_bit,13L)
+#define subtag_u32_vector SUBTAG(ivector_class_32_bit,14L)
+#define subtag_single_float_vector SUBTAG(ivector_class_32_bit,15L)
 
-#define subtag_s16_vector _SUBTAG(ivector_class_other_bit,10L)
-#define subtag_u16_vector _SUBTAG(ivector_class_other_bit,11L)
-#define subtag_bit_vector _SUBTAG(ivector_class_other_bit,12L)
-#define subtag_s8_vector _SUBTAG(ivector_class_other_bit,13L)
-#define subtag_u8_vector _SUBTAG(ivector_class_other_bit,14L)
-#define subtag_simple_base_string _SUBTAG(ivector_class_other_bit,15L)
-
+#define subtag_s16_vector SUBTAG(ivector_class_other_bit,10L)
+#define subtag_u16_vector SUBTAG(ivector_class_other_bit,11L)
+#define subtag_simple_base_string SUBTAG(ivector_class_other_bit,12L)
+#define subtag_s8_vector SUBTAG(ivector_class_other_bit,13L)
+#define subtag_u8_vector SUBTAG(ivector_class_other_bit,14L)
+#define subtag_bit_vector SUBTAG(ivector_class_other_bit,15L)
+#define min_8_bit_ivector_subtag subtag_simple_base_string
 
 /* There's some room for expansion in non-array ivector space. */
 #define subtag_macptr SUBTAG(ivector_class_64_bit,0)

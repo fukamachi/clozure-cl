@@ -188,10 +188,11 @@ define_subtag(single_float_vector,ivector_class_32_bit,15)
 	
 define_subtag(s16_vector,ivector_class_other_bit,10)
 define_subtag(u16_vector,ivector_class_other_bit,11)
-define_subtag(bit_vector,ivector_class_other_bit,12)
+define_subtag(simple_base_string,ivector_class_other_bit,12)
 define_subtag(s8_vector,ivector_class_other_bit,13)
 define_subtag(u8_vector,ivector_class_other_bit,14)
-define_subtag(simple_base_string,ivector_class_other_bit,15)
+define_subtag(bit_vector,ivector_class_other_bit,15)
+
 
 /* There's some room for expansion in non-array ivector space. */
 define_subtag(macptr,ivector_class_64_bit,0)
