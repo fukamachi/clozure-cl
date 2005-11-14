@@ -1,3 +1,38 @@
+2005-11-14 02:10  gb
+
+	* lisp-kernel/lisp-debug.c: Start to make all debugger commands and
+	lisp_Debugger() take a (possibly null) siginfo_t argument. 
+	Probably won't compile cleanly (yet).
+
+2005-11-14 02:09  gb
+
+	* lisp-kernel/gc.c: Some X86[64] changes, mostly to the way that
+	exception frames are accessed and in the ways that ivector sizes
+	are determined.
+	
+	This compiles without warnings on X8664, but there need to be some
+	(significant) semantic changes in the ways that the marker
+	(especially the DWS marker) treats new types (TRAs, new
+	symbol/function pointers.)
+
+2005-11-14 02:03  gb
+
+	* lisp-kernel/lisp-exceptions.h: Split into platform-dependent
+	subfiles.
+
+2005-11-14 02:03  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s: Fix typos,
+	design flaws ...
+
+2005-11-14 02:01  gb
+
+	* lisp-kernel/: ppc-exceptions.h, x86-exceptions.h: New files.
+
+2005-11-14 02:00  gb
+
+	* lisp-kernel/area.h: x86 variant of CS_OVERFLOW_FORCE_LIMIT
+
 2005-11-13 20:35  gb
 
 	* lisp-kernel/bits.h: Intrinsics are named __builtin_clz,
