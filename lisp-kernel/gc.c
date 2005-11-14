@@ -200,6 +200,8 @@ check_node(LispObj n)
   switch (tag) {
   case fulltag_even_fixnum:
   case fulltag_odd_fixnum:
+
+#ifdef PPC
 #ifdef PPC64
   case fulltag_imm_0:
   case fulltag_imm_1:
@@ -207,6 +209,15 @@ check_node(LispObj n)
   case fulltag_imm_3:
 #else
   case fulltag_imm:
+#endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+  case fulltag_imm_0:
+  case fulltag_imm_1:
+#else
+#endif
 #endif
     return;
 
@@ -218,6 +229,7 @@ check_node(LispObj n)
     return;
 #endif
 
+#ifdef PPC
 #ifdef PPC64
   case fulltag_nodeheader_0: 
   case fulltag_nodeheader_1: 
@@ -230,6 +242,18 @@ check_node(LispObj n)
 #else
   case fulltag_nodeheader:
   case fulltag_immheader:
+#endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+  case fulltag_nodeheader_0: 
+  case fulltag_nodeheader_1: 
+  case fulltag_immheader_0: 
+  case fulltag_immheader_1: 
+  case fulltag_immheader_2: 
+#else
+#endif
 #endif
     Bug(NULL, "Header not expected : 0x%lx", n);
     return;
@@ -614,6 +638,7 @@ mark_root(LispObj n)
 
     tag_n = fulltag_of(header);
 
+#ifdef PPC
 #ifdef PPC64
     if ((nodeheader_tag_p(tag_n)) ||
         (tag_n == ivector_class_64_bit)) {
@@ -644,6 +669,29 @@ mark_root(LispObj n)
       total_size_in_bytes = 4 + ((element_count+7)>>3);
     }
 #endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+    if ((nodeheader_tag_p(tag_n)) ||
+        (tag_n == ivector_class_64_bit)) {
+      total_size_in_bytes = 8 + (element_count<<3);
+    } else if (tag_n == ivector_class_32_bit) {
+      total_size_in_bytes = 8 + (element_count<<2);
+    } else {
+      /* ivector_class_other_bit contains 8, 16-bit arrays & bitvector */
+      if (subtag == subtag_bit_vector) {
+        total_size_in_bytes = 8 + ((element_count+7)>>3);
+      } else if (subtag >= min_8_bit_ivector_subtag) {
+	total_size_in_bytes = 8 + element_count;
+      } else {
+        total_size_in_bytes = 8 + (element_count<<1);
+      }
+    }
+#else
+#endif
+#endif
+
     suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift) -1;
 
     if (suffix_dnodes) {
@@ -811,12 +859,22 @@ mark_pc_root(LispObj pc)
 }
 #endif
 
+#ifdef PPC
 #ifdef PPC64
 #define RMARK_PREV_ROOT fulltag_imm_3
 #define RMARK_PREV_CAR fulltag_misc
 #else
 #define RMARK_PREV_ROOT fulltag_imm
 #define RMARK_PREV_CAR fulltag_nil
+#endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+#define RMARK_PREV_ROOT fulltag_immheader_0
+#define RMARK_PREV_CAR fulltag_immheader_1
+#else
+#endif
 #endif
 
 natural
@@ -861,6 +919,7 @@ rmark(LispObj n)
         total_size_in_bytes,
         suffix_dnodes;
       tag_n = fulltag_of(header);
+#ifdef PPC
 #ifdef PPC64
       if ((nodeheader_tag_p(tag_n)) ||
           (tag_n == ivector_class_64_bit)) {
@@ -890,6 +949,28 @@ rmark(LispObj n)
       } else {
         total_size_in_bytes = 4 + ((element_count+7)>>3);
       }
+#endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+      if ((nodeheader_tag_p(tag_n)) ||
+          (tag_n == ivector_class_64_bit)) {
+        total_size_in_bytes = 8 + (element_count<<3);
+      } else if (tag_n == ivector_class_32_bit) {
+        total_size_in_bytes = 8 + (element_count<<2);
+      } else {
+        /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+        if (subtag == subtag_bit_vector) {
+          total_size_in_bytes = 8 + ((element_count+7)>>3);
+	} else if (subtag >= min_8_bit_ivector_subtag) {
+	  total_size_in_bytes = 8 + element_count;
+        } else {
+          total_size_in_bytes = 8 + (element_count<<1);
+        }
+      }
+#else
+#endif
 #endif
       suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
 
@@ -1035,6 +1116,7 @@ rmark(LispObj n)
 
       tag_n = fulltag_of(header);
 
+#ifdef PPC
 #ifdef PPC64
       if ((nodeheader_tag_p(tag_n)) ||
           (tag_n == ivector_class_64_bit)) {
@@ -1064,6 +1146,28 @@ rmark(LispObj n)
       } else {
         total_size_in_bytes = 4 + ((element_count+7)>>3);
       }
+#endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+      if ((nodeheader_tag_p(tag_n)) ||
+          (tag_n == ivector_class_64_bit)) {
+        total_size_in_bytes = 8 + (element_count<<3);
+      } else if (tag_n == ivector_class_32_bit) {
+        total_size_in_bytes = 8 + (element_count<<2);
+      } else {
+        /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+        if (subtag == subtag_bit_vector) {
+          total_size_in_bytes = 8 + ((element_count+7)>>3);
+	} else if (subtag >= min_8_bit_ivector_subtag) {
+	  total_size_in_bytes = 8 + element_count;
+        } else {
+          total_size_in_bytes = 8 + (element_count<<1);
+        }
+      }
+#else
+#endif
 #endif
       suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
 
@@ -1143,6 +1247,7 @@ skip_over_ivector(natural start, LispObj header)
     subtag = header_subtag(header),
     nbytes;
 
+#ifdef PPC
 #ifdef PPC64
   switch (fulltag_of(header)) {
   case ivector_class_64_bit:
@@ -1177,6 +1282,32 @@ skip_over_ivector(natural start, LispObj header)
   }
   return ptr_from_lispobj(start+(~7 & (nbytes + 4 + 7)));
 #endif
+#endif
+
+#ifdef PPC
+#ifdef PPC64
+  switch (fulltag_of(header)) {
+  case ivector_class_64_bit:
+    nbytes = element_count << 3;
+    break;
+  case ivector_class_32_bit:
+    nbytes = element_count << 2;
+    break;
+  case ivector_class_other_bit:
+  default:
+    if (subtag == subtag_bit_vector) {
+      nbytes = (element_count+7)>>3;
+    } else if (subtag >= min_8_bit_ivector_subtag) {
+      nbytes = element_count;
+    } else {
+      nbytes = element_count << 1;
+    }
+  }
+  return ptr_from_lispobj(start+(~15 & (nbytes + 8 + 15)));
+#else
+#endif
+#endif
+
 }
 
 
@@ -1412,6 +1543,7 @@ mark_vstack_area(area *a)
   mark_simple_area_range(start, end);
 }
 
+#ifdef PPC
 /*
   Mark lisp frames on the control stack.
   Ignore emulator frames (odd backpointer) and C frames (size != 4).
@@ -1446,7 +1578,7 @@ mark_cstack_area(area *a)
     }
   }
 }
-
+#endif
 
 void
 reapweakv(LispObj weakv)
@@ -1798,9 +1930,9 @@ void
 mark_xp(ExceptionInformation *xp)
 {
   natural *regs = (natural *) xpGPRvector(xp);
+
+#ifdef PPC
   int r;
-
-
   /* registers >= fn should be tagged and marked as roots.
      the PC, LR, loc_pc, and CTR should be treated as "pc_locatives".
 
@@ -1821,7 +1953,26 @@ mark_xp(ExceptionInformation *xp)
   mark_pc_root(ptr_to_lispobj(xpPC(xp)));
   mark_pc_root(ptr_to_lispobj(xpLR(xp)));
   mark_pc_root(ptr_to_lispobj(xpCTR(xp)));
+#endif /* PPC */
 
+#ifdef X86
+#ifdef X8664
+  mark_root(regs[Iarg_z]);
+  mark_root(regs[Iarg_y]);
+  mark_root(regs[Iarg_x]);
+  mark_root(regs[Isave3]);
+  mark_root(regs[Isave2]);
+  mark_root(regs[Isave1]);
+  mark_root(regs[Isave0]);
+  mark_root(regs[Infn]);
+  mark_root(regs[Ifn]);
+  mark_root(regs[Itemp0]);
+  mark_root(regs[Itemp1]);
+  /* If the IP isn't pointing into a marked function,
+     we're in big trouble.  Check for that here ? */
+#else
+#endif
+#endif
 }
 void
 mark_tcr_tlb(TCR *tcr)
@@ -2139,11 +2290,12 @@ locative_forwarding_address(LispObj obj)
   int tag_n = fulltag_of(obj);
   natural dnode;
 
+
+#ifdef PPC
   /* Locatives can be tagged as conses, "fulltag_misc"
      objects, or as fixnums.  Immediates, headers, and nil
      shouldn't be "forwarded".  Nil never will be, but it
      doesn't hurt to check ... */
-
 #ifdef PPC64
   if ((tag_n & lowtag_mask) != lowtag_primary) {
     return obj;
@@ -2156,7 +2308,15 @@ locative_forwarding_address(LispObj obj)
     return obj;
   }
 #endif
+#endif
 
+#ifdef X86
+#ifdef X8664
+  /* If we're dealing with a saved RIP value, it can be tagged
+     arbitrarily.  */
+#else
+#endif
+#endif
   dnode = gc_area_dnode(obj);
 
   if ((dnode >= GCndnodes_in_area) ||
@@ -2398,6 +2558,7 @@ forward_vstack_area(area *a)
   forward_range(p, q);
 }
 
+#ifdef PPC
 void
 forward_cstack_area(area *a)
 {
@@ -2422,10 +2583,14 @@ forward_cstack_area(area *a)
   }
 }
 
+#endif
+
 void
 forward_xp(ExceptionInformation *xp)
 {
   natural *regs = (natural *) xpGPRvector(xp);
+
+#ifdef PPC
   int r;
 
   /* registers >= fn should be tagged and forwarded as roots.
@@ -2441,6 +2606,25 @@ forward_xp(ExceptionInformation *xp)
   update_locref((LispObj*) (&(xpPC(xp))));
   update_locref((LispObj*) (&(xpLR(xp))));
   update_locref((LispObj*) (&(xpCTR(xp))));
+#endif
+
+#ifdef X86
+#ifdef X8664
+  update_noderef(&(regs[Iarg_z]));
+  update_noderef(&(regs[Iarg_y]));
+  update_noderef(&(regs[Iarg_x]));
+  update_noderef(&(regs[Isave3]));
+  update_noderef(&(regs[Isave2]));
+  update_noderef(&(regs[Isave1]));
+  update_noderef(&(regs[Isave0]));
+  update_noderef(&(regs[Infn]));
+  update_noderef(&(regs[Ifn]));
+  update_noderef(&(regs[Itemp0]));
+  update_noderef(&(regs[Itemp1]));
+  update_locref(&(regs[Iip]));
+#else
+#endif
+#endif
 }
 
 void
@@ -2584,6 +2768,8 @@ compact_dynamic_heap()
           *dest++ = *src++;
           elements = header_element_count(node);
           tag = header_subtag(node);
+
+#ifdef PPC
 #ifdef PPC64
           switch(fulltag_of(tag)) {
           case ivector_class_64_bit:
@@ -2620,6 +2806,32 @@ compact_dynamic_heap()
           } else {
             imm_dnodes = elements+1;
           }
+#endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+          switch(fulltag_of(tag)) {
+          case ivector_class_64_bit:
+            imm_dnodes = ((elements+1)+1)>>1;
+            break;
+          case ivector_class_32_bit:
+            if (tag == subtag_code_vector) {
+              GCrelocated_code_vector = true;
+            }
+            imm_dnodes = (((elements+2)+3)>>2);
+            break;
+          case ivector_class_other_bit:
+            if (tag == subtag_bit_vector) {
+              imm_dnodes = (((elements+64)+127)>>7);
+	    } else if (tag >= min_8_bit_ivector_subtag) {
+	      imm_dnodes = (((elements+8)+15)>>4);
+            } else {
+              imm_dnodes = (((elements+4)+7)>>3);
+            }
+          }
+#else
+#endif
 #endif
           dnode += imm_dnodes;
           while (--imm_dnodes) {
@@ -2791,7 +3003,9 @@ gc(TCR *tcr)
         break;
 
       case AREA_CSTACK:
+#ifdef PPC
         mark_cstack_area(next_area);
+#endif
         break;
 
       case AREA_STATIC:
@@ -2923,7 +3137,9 @@ gc(TCR *tcr)
         break;
 
       case AREA_CSTACK:
+#ifdef PPC
         forward_cstack_area(next_area);
+#endif
         break;
 
       case AREA_STATIC:
@@ -3038,6 +3254,7 @@ unboxed_bytes_in_range(LispObj *start, LispObj *end)
       } else {
         subtag = header_subtag(header);
 
+#ifdef PPC
 #ifdef PPC64
         switch(fulltag_of(header)) {
         case ivector_class_64_bit:
@@ -3069,6 +3286,30 @@ unboxed_bytes_in_range(LispObj *start, LispObj *end)
         } else {
           bytes = 4 + ((elements+7)>>3);
         }
+#endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+        switch(fulltag_of(header)) {
+        case ivector_class_64_bit:
+          bytes = 8 + (elements<<3);
+          break;
+        case ivector_class_32_bit:
+          bytes = 8 + (elements<<2);
+          break;
+        case ivector_class_other_bit:
+        default:
+          if (subtag == subtag_bit_vector) {
+            bytes = 8 + ((elements+7)>>3);
+	  } else if (subtag >= min_8_bit_ivector_subtag) {
+	    bytes = 8 + elements;
+          } else {
+            bytes = 8 + (elements<<1);
+          }
+        }
+#else
+#endif
 #endif
         bytes = (bytes+dnode_size-1) & ~(dnode_size-1);
         total += bytes;
@@ -3295,6 +3536,7 @@ purify_vstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
   purify_range(p, q, low, high, to, what);
 }
 
+#ifdef PPC
 void
 purify_cstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
 {
@@ -3316,11 +3558,14 @@ purify_cstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
     }
   }
 }
+#endif
 
 void
 purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int what)
 {
   unsigned long *regs = (unsigned long *) xpGPRvector(xp);
+
+#ifdef PPC
   int r;
 
   /* registers >= fn should be treated as roots.
@@ -3336,6 +3581,25 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
   purify_locref((LispObj*) (&(xpPC(xp))), low, high, to, what);
   purify_locref((LispObj*) (&(xpLR(xp))), low, high, to, what);
   purify_locref((LispObj*) (&(xpCTR(xp))), low, high, to, what);
+#endif
+
+#ifdef X86
+#ifdef X8664
+  purify_noderef(&(regs[Iarg_z]), low, high, to, what);
+  purify_noderef(&(regs[Iarg_y]), low, high, to, what);
+  purify_noderef(&(regs[Iarg_x]), low, high, to, what);
+  purify_noderef(&(regs[Isave3]), low, high, to, what);
+  purify_noderef(&(regs[Isave2]), low, high, to, what);
+  purify_noderef(&(regs[Isave1]), low, high, to, what);
+  purify_noderef(&(regs[Isave0]), low, high, to, what);
+  purify_noderef(&(regs[Infn]), low, high, to, what);
+  purify_noderef(&(regs[Ifn]), low, high, to, what);
+  purify_noderef(&(regs[Itemp0]), low, high, to, what);
+  purify_noderef(&(regs[Itemp1]), low, high, to, what);
+  purify_locref(&(regs[Iip]), low, high, to, what);
+#else
+#endif
+#endif
 }
 
 void
@@ -3381,7 +3645,9 @@ purify_areas(BytePtr low, BytePtr high, area *target, int what)
       break;
       
     case AREA_CSTACK:
+#ifdef PPC
       purify_cstack_area(next_area, low, high, target, what);
+#endif
       break;
       
     case AREA_STATIC:
@@ -3529,6 +3795,7 @@ impurify_noderef(LispObj *p, LispObj low, LispObj high, int delta)
 }
   
 
+#ifdef PPC
 void
 impurify_cstack_area(area *a, LispObj low, LispObj high, int delta)
 {
@@ -3550,13 +3817,15 @@ impurify_cstack_area(area *a, LispObj low, LispObj high, int delta)
     }
   }
 }
+#endif
 
 void
 impurify_xp(ExceptionInformation *xp, LispObj low, LispObj high, int delta)
 {
   natural *regs = (natural *) xpGPRvector(xp);
-  int r;
 
+#ifdef PPC
+  int r;
   /* registers >= fn should be treated as roots.
      The PC, LR, loc_pc, and CTR should be treated as "locatives".
    */
@@ -3570,7 +3839,25 @@ impurify_xp(ExceptionInformation *xp, LispObj low, LispObj high, int delta)
   impurify_locref((LispObj*) (&(xpPC(xp))), low, high, delta);
   impurify_locref((LispObj*) (&(xpLR(xp))), low, high, delta);
   impurify_locref((LispObj*) (&(xpCTR(xp))), low, high, delta);
+#endif
 
+#ifdef X86
+#ifdef X8664
+  impurify_noderef(&(regs[Iarg_z]), low, high, delta);
+  impurify_noderef(&(regs[Iarg_y]), low, high, delta);
+  impurify_noderef(&(regs[Iarg_x]), low, high, delta);
+  impurify_noderef(&(regs[Isave3]), low, high, delta);
+  impurify_noderef(&(regs[Isave2]), low, high, delta);
+  impurify_noderef(&(regs[Isave1]), low, high, delta);
+  impurify_noderef(&(regs[Isave0]), low, high, delta);
+  impurify_noderef(&(regs[Infn]), low, high, delta);
+  impurify_noderef(&(regs[Ifn]), low, high, delta);
+  impurify_noderef(&(regs[Itemp0]), low, high, delta);
+  impurify_noderef(&(regs[Itemp1]), low, high, delta);
+  impurify_locref(&(regs[Iip]), low, high, delta);
+#else
+#endif
+#endif
 }
 
 
