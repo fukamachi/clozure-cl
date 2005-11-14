@@ -1,3 +1,15 @@
+2005-11-14 03:25  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile,
+	linuxppc/Makefile, linuxppc64/Makefile, static-linuxppc/Makefile:
+	CHEADERS include ppc-exceptions.h
+
+2005-11-14 03:21  gb
+
+	* lisp-kernel/: lisp-debug.c, lisp-exceptions.c, lisp-exceptions.h,
+	ppc-exceptions.h: siginfo_t debugging stuff.  Only likely to be
+	useful on Linux, or if signal-based exception handling's used.
+
 2005-11-14 02:10  gb
 
 	* lisp-kernel/lisp-debug.c: Start to make all debugger commands and
