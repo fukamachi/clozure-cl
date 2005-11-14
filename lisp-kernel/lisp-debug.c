@@ -38,7 +38,9 @@ typedef enum {
   debug_kill
 } debug_command_return;
 
-typedef debug_command_return (*debug_command) (ExceptionInformation *, int);
+typedef debug_command_return (*debug_command) (ExceptionInformation *,
+					       siginfo_t *,
+					       int);
 
 #define DEBUG_COMMAND_FLAG_REQUIRE_XP 1 /* function  */
 #define DEBUG_COMMAND_FLAG_AUX_REGNO  (2 | DEBUG_COMMAND_FLAG_REQUIRE_XP)
@@ -429,7 +431,7 @@ debug_get_u5_value(char *prompt)
 }
 
 debug_command_return
-debug_show_symbol(ExceptionInformation *xp, int arg)
+debug_show_symbol(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   char *pname = debug_get_string_value("symbol name");
   
@@ -442,7 +444,7 @@ debug_show_symbol(ExceptionInformation *xp, int arg)
       
 
 debug_command_return
-debug_set_gpr(ExceptionInformation *xp, int arg)
+debug_set_gpr(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   char buf[32];
   unsigned val;
@@ -455,7 +457,7 @@ debug_set_gpr(ExceptionInformation *xp, int arg)
 
 
 debug_command_return
-debug_show_registers(ExceptionInformation *xp, int arg)
+debug_show_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   int a, b, c, d, i;
 
@@ -491,7 +493,7 @@ debug_show_registers(ExceptionInformation *xp, int arg)
 }
 
 debug_command_return
-debug_show_fpu(ExceptionInformation *xp, int arg)
+debug_show_fpu(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   double *dp, d;
   int *np, n, i;
@@ -507,22 +509,22 @@ debug_show_fpu(ExceptionInformation *xp, int arg)
 }
 
 debug_command_return
-debug_kill_process(ExceptionInformation *xp, int arg) {
+debug_kill_process(ExceptionInformation *xp, siginfo_t *info, int arg) {
   return debug_kill;
 }
 
 debug_command_return
-debug_win(ExceptionInformation *xp, int arg) {
+debug_win(ExceptionInformation *xp, siginfo_t *info, int arg) {
   return debug_exit_success;
 }
 
 debug_command_return
-debug_lose(ExceptionInformation *xp, int arg) {
+debug_lose(ExceptionInformation *xp, siginfo_t *info, int arg) {
   return debug_exit_fail;
 }
 
 debug_command_return
-debug_help(ExceptionInformation *xp, int arg) {
+debug_help(ExceptionInformation *xp, siginfo_t *info, int arg) {
   debug_command_entry *entry;
 
   for (entry = debug_command_entries; entry->f; entry++) {
@@ -538,7 +540,7 @@ debug_help(ExceptionInformation *xp, int arg) {
   
 
 debug_command_return
-debug_backtrace(ExceptionInformation *xp, int arg)
+debug_backtrace(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   extern LispObj current_stack_pointer();
   extern void plbt_sp(LispObj);
@@ -553,7 +555,7 @@ debug_backtrace(ExceptionInformation *xp, int arg)
 }
 
 debug_command_return
-debug_thread_reset(ExceptionInformation *xp, int arg)
+debug_thread_reset(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   reset_lisp_process(xp);
   return debug_exit_success;
@@ -641,7 +643,7 @@ debug_command_entry debug_command_entries[] =
 };
 
 debug_command_return
-apply_debug_command(ExceptionInformation *xp, int c, int why) 
+apply_debug_command(ExceptionInformation *xp, int c, sigingo_t *info, int why) 
 {
   if (c == EOF) {
     return debug_kill;
@@ -664,7 +666,7 @@ apply_debug_command(ExceptionInformation *xp, int c, int why)
 	  if (entry->flags & DEBUG_COMMAND_FLAG_EXCEPTION_REASON_ARG) {
 	    arg = why;
 	  }
-	  return (f)(xp, arg);
+	  return (f)(xp, info, arg);
 	}
 	break;
       }
@@ -696,7 +698,11 @@ debug_identify_function(ExceptionInformation *xp)
 extern pid_t main_thread_pid;
 
 OSStatus
-lisp_Debugger(ExceptionInformation *xp, int why, char *message, ...)
+lisp_Debugger(ExceptionInformation *xp, 
+	      siginfo_t *info, 
+	      int why, 
+	      char *message, 
+	      ...)
 {
   va_list args;
   debug_command_return state = debug_continue;
@@ -714,9 +720,9 @@ lisp_Debugger(ExceptionInformation *xp, int why, char *message, ...)
   }
   if (xp) {
     if (why > debug_entry_exception) {
-      debug_identify_exception(xp, why);
+      debug_identify_exception(xp, info, why);
     }
-    debug_identify_function(xp);
+    debug_identify_function(xp, info);
   }
   fprintf(stderr, "? for help\n");
   while (state == debug_continue) {
