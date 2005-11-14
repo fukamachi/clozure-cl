@@ -146,7 +146,7 @@ void
 callback_to_lisp (LispObj, ExceptionInformation *, natural, natural, natural, natural, natural);
 
 OSStatus
-handle_trap(ExceptionInformation *, opcode, pc);
+handle_trap(ExceptionInformation *, opcode, pc, siginfo_t *);
 
 unsigned
 scan_for_instr( unsigned, unsigned, pc );

@@ -41,7 +41,7 @@ extern protected_area_ptr AllProtectedAreas;
 protected_area_ptr find_protected_area(BytePtr);
 
 OSStatus
-lisp_Debugger(ExceptionInformation *, int, char *, ...);
+lisp_Debugger(ExceptionInformation *, siginfo_t *, int, char *, ...);
 
 OSStatus
 handle_protection_violation(ExceptionInformation *, siginfo_t *);

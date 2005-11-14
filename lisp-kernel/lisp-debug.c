@@ -99,7 +99,7 @@ show_lisp_register(ExceptionInformation *xp, char *label, int r)
 
 
 void
-describe_memfault(ExceptionInformation *xp)
+describe_memfault(ExceptionInformation *xp, siginfo_t *info)
 {
   void *addr = (void *)xpDAR(xp);
   natural dsisr = xpDSISR(xp);
@@ -314,7 +314,7 @@ describe_trap(ExceptionInformation *xp)
 }
 
 debug_command_return
-debug_lisp_registers(ExceptionInformation *xp, int arg)
+debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   TCR *xpcontext = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
 
@@ -345,14 +345,14 @@ debug_lisp_registers(ExceptionInformation *xp, int arg)
 }
 
 debug_command_return
-debug_advance_pc(ExceptionInformation *xp, int arg)
+debug_advance_pc(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   adjust_exception_pc(xp,4);
   return debug_continue;
 }
 
 debug_command_return
-debug_identify_exception(ExceptionInformation *xp, int arg)
+debug_identify_exception(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   pc program_counter = xpPC(xp);
   opcode instruction = 0;
@@ -370,7 +370,7 @@ debug_identify_exception(ExceptionInformation *xp, int arg)
     break;
   case SIGSEGV:
   case SIGBUS:
-    describe_memfault(xp);
+    describe_memfault(xp, info);
     break;
   default:
     break;
@@ -643,7 +643,7 @@ debug_command_entry debug_command_entries[] =
 };
 
 debug_command_return
-apply_debug_command(ExceptionInformation *xp, int c, sigingo_t *info, int why) 
+apply_debug_command(ExceptionInformation *xp, int c, siginfo_t *info, int why) 
 {
   if (c == EOF) {
     return debug_kill;
@@ -675,7 +675,7 @@ apply_debug_command(ExceptionInformation *xp, int c, sigingo_t *info, int why)
   }
 }
 
-debug_identify_function(ExceptionInformation *xp) 
+debug_identify_function(ExceptionInformation *xp, siginfo_t *info) 
 {
   if (xp) {
     if (active_tcr_p((TCR *)(ptr_from_lispobj(xpGPR(xp, rcontext))))) {
@@ -727,7 +727,7 @@ lisp_Debugger(ExceptionInformation *xp,
   fprintf(stderr, "? for help\n");
   while (state == debug_continue) {
     fprintf(stderr, "[%d] OpenMCL kernel debugger: ", main_thread_pid);
-    state = apply_debug_command(xp, readc(), why);
+    state = apply_debug_command(xp, readc(), info, why);
   }
   switch (state) {
   case debug_exit_success:

@@ -1317,7 +1317,7 @@ PMCL_exception_handler(int xnum,
     } else if (IS_UUO(instruction)) {
       status = handle_uuo(xp, instruction, program_counter);
     } else if (is_conditional_trap(instruction)) {
-      status = handle_trap(xp, instruction, program_counter);
+      status = handle_trap(xp, instruction, program_counter, info);
     }
   } else if (xnum == SIGNAL_FOR_PROCESS_INTERRUPT) {
     callback_for_trap(nrs_CMAIN.vcell, xp, 0, TRI_instruction(TO_GT,nargs,0),0, 0);
@@ -1529,7 +1529,7 @@ allocate_no_stack (natural size)
    otherwise report cause and function name to console.
    Returns noErr if exception handled OK */
 OSStatus
-handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
+handle_trap(ExceptionInformation *xp, opcode the_trap, pc where, siginfo_t *info)
 {
   unsigned  instr, err_arg1 = 0, err_arg2 = 0, err_arg3 = 0;
   int       ra, rs, fn_reg = 0;
@@ -1616,12 +1616,12 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where)
       if (message == NULL) {
 	message = "Lisp Breakpoint";
       }
-      lisp_Debugger(xp, debug_entry_dbg, message);
+      lisp_Debugger(xp, info, debug_entry_dbg, message);
       return noErr;
     }
     if (the_trap == QUIET_LISP_BREAK_INSTRUCTION) {
       adjust_exception_pc(xp,4);
-      lisp_Debugger(xp, debug_entry_dbg, "Lisp Breakpoint");
+      lisp_Debugger(xp, info, debug_entry_dbg, "Lisp Breakpoint");
       return noErr;
     }
     /*
@@ -1824,7 +1824,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info))) {
     char msg[512];
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
-    if (lisp_Debugger(context, signum, msg)) {
+    if (lisp_Debugger(context, info, signum, msg)) {
       (tcr->flags |= TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     }
   }
@@ -2187,7 +2187,7 @@ Bug(ExceptionInformation *xp, const char *format, ...)
   va_start(args, format);
   vsnprintf(s, sizeof(s),format, args);
   va_end(args);
-  lisp_Debugger(NULL, debug_entry_bug, s);
+  lisp_Debugger(NULL, NULL, debug_entry_bug, s);
 
 }
 
