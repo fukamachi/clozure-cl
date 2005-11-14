@@ -46,7 +46,7 @@ SPINC =	lisp.s m4macros.m4 ppc-constants.s ppc-macros.s errors.s ppc-uuo.s ppc-c
 
 CHEADERS = area.h bits.h ppc-constants.h lisp-errors.h gc.h lisp.h \
 	lisp-exceptions.h lisp_globals.h macros.h memprotect.h image.h \
-	Threads.h ppc-constants64.h
+	Threads.h ppc-constants64.h ppc-exceptions.h
 
 # Subprims linked into the kernel ?
 # Yes:
