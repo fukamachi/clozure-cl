@@ -139,9 +139,9 @@ static __inline__ unsigned
 count_leading_zeros(natural w)
 {
 #ifdef WORD_SIZE64
-  return builtin_clzll(w);  
+  return __builtin_clzll(w);  
 #else
-  return builtin_clz(w);  
+  return __builtin_clz(w);  
 #endif
 
 }
