@@ -1,3 +1,18 @@
+2005-11-13 20:35  gb
+
+	* lisp-kernel/bits.h: Intrinsics are named __builtin_clz,
+	__builtin_clzll.
+
+2005-11-13 20:30  gb
+
+	* lisp-kernel/: bits.h, gc.h, lisp-debug.c, lisp-exceptions.c,
+	lisp-exceptions.h, lisp.h, lisp_globals.h, lisptypes.h, macros.h,
+	memprotect.h, pmcl-kernel.c, ppc-constants32.h, ppc-constants64.h,
+	thread_manager.c, x86-constants.h, x86-constants64.h,
+	x86-constants64.s: Lots-o-changes, so some things are closer to
+	compiling on x86-64.  MAY HAVE BROKEN PPC/PPC64 COMPILATION; need
+	to check changes in to check that.
+
 2005-11-13 17:50  gb
 
 	* level-1/version.lisp: Bump.
