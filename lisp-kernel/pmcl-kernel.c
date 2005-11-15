@@ -1206,12 +1206,47 @@ check_os_version(char *progname)
 #endif
 #endif
 }
+
+#ifdef X86
+/*
+  This should determine the cache block size.  It should also
+  probably complain if we don't have (at least) SSE2.
+*/
+extern int cpuid(int, int*, int*, int*);
+
+#define X86_FEATURE_CMOV    (1<<15)
+#define X86_FEATURE_CLFLUSH (1<<19)
+#define X86_FEATURE_MMX     (1<<23)
+#define X86_FEATURE_SSE     (1<<25)
+#define X86_FEATURE_SSE2    (1<<26)
+
+#define X86_REQUIRED_FEATURES (X86_FEATURE_CMOV|X86_FEATURE_CLFLUSH|X86_FEATURE_MMX|X86_FEATURE_SSE|X86_FEATURE_SSE2)
+
+Boolean
+check_x86_cpu()
+{
+  int eax, ebx, ecx, edx;
+  
+  eax = cpuid(0, &ebx, &ecx, &edx);
+
+  if (eax >= 1) {
+    eax = cpuid(1, &ebx, &ecx, &edx);
+    cache_block_size = (eax & 0xff00) >> 5;
+    if ((X86_REQUIRED_FEATURES & edx) == X86_REQUIRED_FEATURES) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
   
 main(int argc, char *argv[], char *envp[], void *aux)
 {
-  extern  set_fpscr(unsigned);
+  extern int page_size;
 
+#ifdef PPC
   extern int altivec_present;
+#endif
   extern LispObj load_image(char *);
   long resp;
   BytePtr stack_end;
@@ -1222,6 +1257,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   check_os_version(argv[0]);
   real_executable_name = determine_executable_name(argv[0]);
+  page_size = getpagesize();
 
 #ifdef DARWIN
 #ifdef PPC64
@@ -1229,6 +1265,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
 #endif
 #endif
 
+#ifdef PPC
 #ifdef LINUX
   {
     ElfW(auxv_t) *av = aux;
@@ -1243,9 +1280,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
 	case AT_HWCAP:
 	  hwcap = av->a_un.a_val;
-#ifdef PPC
 	  altivec_present = ((hwcap & PPC_FEATURE_HAS_ALTIVEC) != 0);
-#endif
 	  break;
 
 	case AT_NULL:
@@ -1278,6 +1313,14 @@ main(int argc, char *argv[], char *envp[], void *aux)
 	altivec_present = value;
       }
     }
+  }
+#endif
+#endif
+
+#ifdef X86
+  if (!check_x86_cpu()) {
+    fprintf(stderr, "CPU doesn't support required features\n");
+    exit(1);
   }
 #endif
 
@@ -1388,7 +1431,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
   enable_fp_exceptions();
   register_sigint_handler();
 
+#ifdef PPC
   lisp_global(ALTIVEC_PRESENT) = altivec_present << fixnumshift;
+#endif
 #if STATIC
   lisp_global(STATICALLY_LINKED) = 1 << fixnumshift;
 #endif
