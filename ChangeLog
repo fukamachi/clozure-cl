@@ -1,3 +1,44 @@
+2005-11-14 23:15  gb
+
+	* lisp-kernel/x86-exceptions.c: New (mostly empty) file.
+
+2005-11-14 23:12  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile,
+	linuxppc/Makefile, linuxppc64/Makefile, static-linuxppc/Makefile:
+	PPC makefiles: rename lisp-exceptions.o to ppc-exceptions.o
+
+2005-11-14 23:06  gb
+
+	* lisp-kernel/lisp-exceptions.c: renamed
+
+2005-11-14 23:05  gb
+
+	* lisp-kernel/ppc-exceptions.c: rename
+
+2005-11-14 23:04  gb
+
+	* lisp-kernel/gc.c: More cut-and-paste mishaps.
+
+2005-11-14 22:59  gb
+
+	* lisp-kernel/gc.c: Fix (hopefully ...) botched PPC
+	conditionalization.
+
+2005-11-14 22:56  gb
+
+	* lisp-kernel/: gc.c, gc.h, lisp-debug.c, x86-exceptions.h: Some
+	X86 conditionalization.
+
+2005-11-14 22:56  gb
+
+	* lisp-kernel/linuxx8664/Makefile: Replace ppc_print.o with
+	x86_print.o in DEBUGOBJ.
+
+2005-11-14 22:55  gb
+
+	* lisp-kernel/x86_print.c: New file.
+
 2005-11-14 03:25  gb
 
 	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile,
