@@ -1314,8 +1314,8 @@ skip_over_ivector(natural start, LispObj header)
 #endif
 #endif
 
-#ifdef PPC
-#ifdef PPC64
+#ifdef X86
+#ifdef X8664
   switch (fulltag_of(header)) {
   case ivector_class_64_bit:
     nbytes = element_count << 3;
