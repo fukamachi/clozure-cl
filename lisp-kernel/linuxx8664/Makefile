@@ -20,7 +20,7 @@ AS = as
 M4 = m4
 ASFLAGS = --64
 M4FLAGS = -DLINUX -DX86 -DX8664
-CDEFINES = -DLINUX -D_REENTRANT -DX86 -DX8664
+CDEFINES = -DLINUX -D_REENTRANT -DX86 -DX8664 -D_GNU_SOURCE
 CDEBUG = -g
 COPT = #-O2
 
@@ -34,10 +34,10 @@ COPT = #-O2
 SPOBJ = pad.o x86-spjump64.o x86-spentry64.o x86-subprims64.o
 ASMOBJ = x86-asmutils64.o imports.o
 
-COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
-	image.o thread_manager.o lisp-debug.o 
+COBJ  = pmcl-kernel.o gc.o bits.o  x86-exceptions.o \
+	image.o thread_manager.o lisp-debug.o memory.o
 
-DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o x86_print.o
+DEBUGOBJ = lispdcmd.o plprint.o plsym.o xlbt.o x86_print.o
 KERNELOBJ= $(COBJ) x86-asmutils64.o  imports.o
 
 SPINC =	lisp.s m4macros.m4 x86-constants.s x86-macros.s errors.s x86-uuo.s \
