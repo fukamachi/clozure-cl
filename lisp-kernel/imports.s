@@ -63,8 +63,8 @@ import_ptrs_start:
 	defimport(usage_exit)
 	defimport(save_fp_context)
 	defimport(restore_fp_context)
-	defimport(put_altivec_registers)
-	defimport(get_altivec_registers)
+	defimport(put_vector_registers)
+	defimport(get_vector_registers)
         defimport(new_semaphore)
 	defimport(wait_on_semaphore)
 	defimport(signal_semaphore)
@@ -89,12 +89,14 @@ import_ptrs_start:
 C(import_ptrs_base):
 	PTR(import_ptrs_start)
 
+	__ifdef([PPC])
         __ifdef([LINUX])
         __ifndef([PPC64])
         .globl __trampoline_setup
 	.long  __trampoline_setup
         __endif
         __endif
+	__endif
 
 
 
