@@ -13,3 +13,10 @@
    The LLGPL is also available online at
    http://opensource.franz.com/preamble.html
 */
+
+	include(lisp.s)
+	_beginfile
+	
+_exportfn(C(start_lisp))
+_endfn
+		

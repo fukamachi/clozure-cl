@@ -262,4 +262,13 @@ _endsubp(builtin_memq)
 
 _spentry(builtin_logbitp)
 _endsubp(builtin_logbitp)
+
+	.globl C(nvalret)			
+C(nvalret):	
+
+_exportfn(C(ret1valn))
+_endfn
+
+	.globl C(popj)
+C(popj):
 			
