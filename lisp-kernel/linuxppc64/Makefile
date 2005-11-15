@@ -36,7 +36,7 @@ COPT = #-O2
 SPOBJ = pad.o ppc-spjump.o ppc-spentry.o ppc-subprims.o
 ASMOBJ = ppc-asmutils.o imports.o
 
-COBJ  = pmcl-kernel.o gc.o bits.o  lisp-exceptions.o \
+COBJ  = pmcl-kernel.o gc.o bits.o  ppc-exceptions.o \
 	image.o thread_manager.o lisp-debug.o 
 
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o plbt.o ppc_print.o
