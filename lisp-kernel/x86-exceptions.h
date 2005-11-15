@@ -14,13 +14,14 @@
    http://opensource.franz.com/preamble.html
 */
 
+typedef u_int8_t opcode, *pc;
 
 #ifdef LINUX
 #ifdef X8664
-#define xpGPRvector(x) ((natural *)(&((x)->uc_mcontext)))
+#define xpGPRvector(x) ((natural *)(&((x)->uc_mcontext.gregs)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
-#define xpPC(x) ((pc)(((struct sigcontext *)(&((x)->uc_mcontext)))->rip))
+#define xpPC(x) xpGPR(x,REG_RIP)
 #endif
 #endif
 
