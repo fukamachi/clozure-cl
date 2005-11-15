@@ -18,15 +18,17 @@
 #define __lisptypes__
 
 #include <sys/types.h>
-#undef WORD_SIZE64
+#define WORD_SIZE 32
 #ifdef PPC64
-#define WORD_SIZE64 1
+#undef WORD_SIZE
+#define WORD_SIZE 64
 #endif
 #ifdef X8664
-#define WORD_SIZE64 1
+#undef WORD_SIZE
+#define WORD_SIZE 64
 #endif
 
-#ifdef WORD_SIZE64
+#if WORD_SIZE == 64
 typedef u_int64_t LispObj;
 typedef u_int64_t natural;
 typedef int64_t signed_natural;
@@ -39,7 +41,7 @@ typedef u_int32_t unsigned_of_pointer_size;
 #endif
 
 
-#if defined(DARWIN) && defined(WORD_SIZE64)
+#if defined(DARWIN) && (WORD_SIZE == 64)
 typedef struct ucontext64 ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
 #else
