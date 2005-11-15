@@ -1,3 +1,46 @@
+2005-11-15 02:20  gb
+
+	* lisp-kernel/: x86-spentry64.s, x86-subprims64.s: Define a few
+	externally referenced things.  (Still a ways from being able to put
+	code there, but the symbols need to be exported so that the kernel
+	can link on x86-64 Linux.
+
+2005-11-15 02:18  gb
+
+	* lisp-kernel/linuxx8664/Makefile: Depend on xlbt.o, not plbt.o
+
+2005-11-15 02:18  gb
+
+	* lisp-kernel/xlbt.c: Implement the kernel debugger's backtrace
+	API, such as it is.  (Still need to determine what the lisp stack
+	looks like - and how it relates to the foreign stack - before any
+	of this could work.)
+
+2005-11-15 02:16  gb
+
+	* lisp-kernel/lisp-exceptions.h: #define WORD_SIZE as 32 or 64,
+	depending on preprocessor definitions.	Stop using #ifdef
+	WORD_SIZE64, here and elsewhere.  Note that there are probably
+	still many things that are conditionalized on
+	
+	#ifdef PPC64
+	
+	when they're really concerned about 64/32-bit issues.  (I've caught
+	a few cases, but I'm sure that many still remain.)
+
+2005-11-15 02:14  gb
+
+	* lisp-kernel/memory.c: New file: functions related to memory
+	allocation/zeroing/mapping/protecting/etc.  (Most of this came from
+	the old lisp-exceptions.c, but there are fairly generic
+	memory-handling functions in other files that could reasonably
+	migrate here.)
+	
+	Note that stuff having to do with lisp memory allocation (trapping
+	into the kernel when the current thread's pool is too small, etc.)
+	involves a lot of platform-dependent trap decoding and probably
+	doesn't belong in this file.
+
 2005-11-14 23:15  gb
 
 	* lisp-kernel/x86-exceptions.c: New (mostly empty) file.
