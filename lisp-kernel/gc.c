@@ -627,6 +627,15 @@ mark_root(LispObj n)
     rmark(c->cdr);
     return;
   }
+#ifdef X86
+#ifdef X8664
+  if ((tag_n == fulltag_tra_0) ||
+      (tag_n == fulltag_tra_1)) {
+    n = n - (((int *)n)[-1]);
+  }
+#else
+#endif
+#endif
   {
     LispObj *base = (LispObj *) ptr_from_lispobj(untag(n));
     natural
@@ -635,7 +644,9 @@ mark_root(LispObj n)
       element_count = header_element_count(header),
       total_size_in_bytes,      /* including 4/8-byte header */
       suffix_dnodes;
-
+#ifdef X86
+    natural prefix_nodes = 0;
+#endif
     tag_n = fulltag_of(header);
 
 #ifdef PPC
@@ -727,7 +738,17 @@ mark_root(LispObj n)
         }
       }
 
+#ifdef X86
+      if (subtag == subtag_function) {
+	prefix_nodes = (natural) ((int) deref(base,1));
+      }
+#endif
       base += (1+element_count);
+
+#ifdef X86
+      element_count -= prefix_nodes;
+#endif
+
       while(element_count--) {
         rmark(*--base);
       }
@@ -782,6 +803,7 @@ mark_ephemeral_root(LispObj n)
    value 'CODE' whic precedes the code-vector's first instruction)
    and mark the entire code-vector.
 */
+#ifdef PPC
 void
 mark_pc_root(LispObj xpc)
 {
@@ -858,6 +880,7 @@ mark_pc_root(LispObj pc)
   }
 }
 #endif
+#endif
 
 #ifdef PPC
 #ifdef PPC64
@@ -879,6 +902,14 @@ mark_pc_root(LispObj pc)
 
 natural
 GCstack_limit = 0;
+
+#ifdef X86
+#ifdef X8664
+#warning The recursive marker - especially the link-inverting DWS marker
+#warning may need lots of X8664 changes
+#else
+#endif
+#endif
 
 /*
   This wants to be in assembler even more than "mark_root" does.
@@ -3421,6 +3452,7 @@ copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int 
 void
 purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
 {
+#ifdef PPC
   LispObj
     loc = *locaddr,
     *headerP;
@@ -3471,6 +3503,13 @@ purify_locref(LispObj *locaddr, BytePtr low, BytePtr high, area *to, int what)
 #endif
     }
   }
+#endif
+#ifdef X86
+#ifdef X8664
+#warning Figure out what purify_locref needs to do, if anything, on X8664
+#else
+#endif
+#endif
 }
 
 void

@@ -101,6 +101,7 @@ show_lisp_register(ExceptionInformation *xp, char *label, int r)
 void
 describe_memfault(ExceptionInformation *xp, siginfo_t *info)
 {
+#ifdef PPC
   void *addr = (void *)xpDAR(xp);
   natural dsisr = xpDSISR(xp);
 
@@ -108,11 +109,12 @@ describe_memfault(ExceptionInformation *xp, siginfo_t *info)
 	  dsisr & (1<<25) ? "Write" : "Read",
 	  dsisr & (1<<27) ? "protected" : "unmapped",
 	  addr);
+#endif
 }
 
-
+#ifdef PPC
 void
-describe_illegal(ExceptionInformation *xp)
+describe_ppc_illegal(ExceptionInformation *xp)
 {
   pc where = xpPC(xp);
   opcode the_uuo = *where, instr2;
@@ -151,9 +153,11 @@ describe_illegal(ExceptionInformation *xp)
             the_uuo, where);
   }
 }
+#endif
 
+#ifdef PPC
 void
-describe_trap(ExceptionInformation *xp)
+describe_ppc_trap(ExceptionInformation *xp)
 {
   pc where = xpPC(xp);
   opcode the_trap = *where, instr;
@@ -312,10 +316,12 @@ describe_trap(ExceptionInformation *xp)
 
 
 }
+#endif
 
 debug_command_return
 debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
+#ifdef PPC
   TCR *xpcontext = (TCR *)ptr_from_lispobj(xpGPR(xp, rcontext));
 
   fprintf(stderr, "rcontext = 0x%lX ", xpcontext);
@@ -341,6 +347,8 @@ debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
     show_lisp_register(xp, "save6", save6);
     show_lisp_register(xp, "save7", save7);
   }
+#endif
+
   return debug_continue;
 }
 
@@ -354,6 +362,7 @@ debug_advance_pc(ExceptionInformation *xp, siginfo_t *info, int arg)
 debug_command_return
 debug_identify_exception(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
+#ifdef PPC
   pc program_counter = xpPC(xp);
   opcode instruction = 0;
 
@@ -363,9 +372,9 @@ debug_identify_exception(ExceptionInformation *xp, siginfo_t *info, int arg)
     instruction = *program_counter;
     if (major_opcode_p(instruction, major_opcode_TRI) ||
 	X_opcode_p(instruction,major_opcode_X31,minor_opcode_TR)) {
-      describe_trap(xp);
+      describe_ppc_trap(xp);
     } else {
-      describe_illegal(xp);
+      describe_ppc_illegal(xp);
     }
     break;
   case SIGSEGV:
@@ -375,6 +384,7 @@ debug_identify_exception(ExceptionInformation *xp, siginfo_t *info, int arg)
   default:
     break;
   }
+#endif
   return debug_continue;
 }
 
@@ -436,7 +446,7 @@ debug_show_symbol(ExceptionInformation *xp, siginfo_t *info, int arg)
   char *pname = debug_get_string_value("symbol name");
   
   if (pname != NULL) {
-    plsym(sp, pname);
+    plsym(xp, pname);
   }
   return debug_continue;
 }
@@ -497,7 +507,7 @@ debug_show_fpu(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   double *dp, d;
   int *np, n, i;
-
+#ifdef PPC
   dp = xpFPRvector(xp);
   np = (int *) dp;
   
@@ -505,6 +515,7 @@ debug_show_fpu(ExceptionInformation *xp, siginfo_t *info, int arg)
     fprintf(stderr, "f%02d : 0x%08X%08X (%f)\n", i,  *np++, *np++, *dp++);
   }
   fprintf(stderr, "FPSCR = %08X\n", xpFPSCR(xp));
+#endif
   return debug_continue;
 }
 
@@ -677,6 +688,7 @@ apply_debug_command(ExceptionInformation *xp, int c, siginfo_t *info, int why)
 
 debug_identify_function(ExceptionInformation *xp, siginfo_t *info) 
 {
+#ifdef PPC
   if (xp) {
     if (active_tcr_p((TCR *)(ptr_from_lispobj(xpGPR(xp, rcontext))))) {
       LispObj f = xpGPR(xp, fn), codev;
@@ -693,6 +705,7 @@ debug_identify_function(ExceptionInformation *xp, siginfo_t *info)
       fprintf(stderr, " In foreign code at address 0x%08lx\n", xpPC(xp));
     }
   }
+#endif
 }
 
 extern pid_t main_thread_pid;

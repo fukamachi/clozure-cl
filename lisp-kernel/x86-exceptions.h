@@ -20,6 +20,13 @@
 #define xpGPRvector(x) ((natural *)(&((x)->uc_mcontext)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
-#define xpPC(x) ((x)->uc_mcontext.rip)
+#define xpPC(x) ((pc)(((struct sigcontext *)(&((x)->uc_mcontext)))->rip))
 #endif
+#endif
+
+#ifdef DARWIN
+#define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
+#endif
+#ifdef LINUX
+#define SIGNAL_FOR_PROCESS_INTERRUPT SIGPWR
 #endif

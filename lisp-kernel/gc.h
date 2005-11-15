@@ -23,8 +23,9 @@
 #include "memprotect.h"
 
 
-#define is_node_fulltag(f)  ((1<<(f))&((1<<fulltag_cons)|(1<<fulltag_misc)))
 
+#ifdef PPC
+#define is_node_fulltag(f)  ((1<<(f))&((1<<fulltag_cons)|(1<<fulltag_misc)))
 #ifdef PPC64
 #define PPC64_CODE_VECTOR_PREFIX (('C'<< 24) | ('O' << 16) | ('D' << 8) | 'E')
 #else
@@ -37,6 +38,20 @@
 
 #define code_header_mask ((0x3f<<26) | subtag_code_vector)
 #endif
+#endif
+
+#ifdef X86
+#ifdef X8664
+#define is_node_fulltag(f)  ((1<<(f))&((1<<fulltag_cons)    | \
+				       (1<<fulltag_tra_0)   | \
+				       (1<<fulltag_tra_1)   | \
+				       (1<<fulltag_misc)    | \
+				       (1<<fulltag_symbol)  | \
+				       (1<<fulltag_function)))
+#else
+#endif
+#endif
+
 
 extern BytePtr HeapHighWaterMark; /* highest zeroed dynamic address  */
 extern LispObj GCarealow;
@@ -66,7 +81,7 @@ Boolean egc_control(Boolean, BytePtr);
 Boolean free_segments_zero_filled_by_OS;
 
 /* an type representing 1/4 of a natural word */
-#ifdef PPC64
+#ifdef WORD_SIZE64
 typedef unsigned short qnode;
 #else
 typedef unsigned char qnode;
