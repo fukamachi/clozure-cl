@@ -2119,7 +2119,7 @@ reap_gcable_ptrs()
 
 
 
-#ifdef PPC64
+#if  WORD_SIZE == 64
 unsigned short *_one_bits = NULL;
 
 unsigned short
@@ -3623,17 +3623,17 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
 
 #ifdef X86
 #ifdef X8664
-  purify_noderef(&(regs[Iarg_z]), low, high, to, what);
-  purify_noderef(&(regs[Iarg_y]), low, high, to, what);
-  purify_noderef(&(regs[Iarg_x]), low, high, to, what);
-  purify_noderef(&(regs[Isave3]), low, high, to, what);
-  purify_noderef(&(regs[Isave2]), low, high, to, what);
-  purify_noderef(&(regs[Isave1]), low, high, to, what);
-  purify_noderef(&(regs[Isave0]), low, high, to, what);
-  purify_noderef(&(regs[Infn]), low, high, to, what);
-  purify_noderef(&(regs[Ifn]), low, high, to, what);
-  purify_noderef(&(regs[Itemp0]), low, high, to, what);
-  purify_noderef(&(regs[Itemp1]), low, high, to, what);
+  copy_ivector_reference(&(regs[Iarg_z]), low, high, to, what);
+  copy_ivector_reference(&(regs[Iarg_y]), low, high, to, what);
+  copy_ivector_reference(&(regs[Iarg_x]), low, high, to, what);
+  copy_ivector_reference(&(regs[Isave3]), low, high, to, what);
+  copy_ivector_reference(&(regs[Isave2]), low, high, to, what);
+  copy_ivector_reference(&(regs[Isave1]), low, high, to, what);
+  copy_ivector_reference(&(regs[Isave0]), low, high, to, what);
+  copy_ivector_reference(&(regs[Infn]), low, high, to, what);
+  copy_ivector_reference(&(regs[Ifn]), low, high, to, what);
+  copy_ivector_reference(&(regs[Itemp0]), low, high, to, what);
+  copy_ivector_reference(&(regs[Itemp1]), low, high, to, what);
   purify_locref(&(regs[Iip]), low, high, to, what);
 #else
 #endif
@@ -4001,7 +4001,9 @@ impurify_areas(LispObj low, LispObj high, int delta)
       break;
       
     case AREA_CSTACK:
+#ifdef PPC
       impurify_cstack_area(next_area, low, high, delta);
+#endif
       break;
       
     case AREA_STATIC:
