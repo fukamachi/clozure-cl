@@ -1,3 +1,70 @@
+2005-11-15 02:48  gb
+
+	* lisp-kernel/memory.c: #include <sys/mman.h> unconditionally.
+
+2005-11-15 02:32  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile,
+	linuxppc/Makefile, linuxppc64/Makefile, static-linuxppc/Makefile:
+	Depend on memory.o
+
+2005-11-15 02:30  gb
+
+	* lisp-kernel/: x86-exceptions.c, x86-exceptions.h: Stubs for x86
+	exception stuff.
+
+2005-11-15 02:29  gb
+
+	* lisp-kernel/: ppc-exceptions.c, ppc-exceptions.h: Migrate some
+	stuff elsewhere; conditionalize a bit more.
+
+2005-11-15 02:28  gb
+
+	* lisp-kernel/pmcl-kernel.c: Use CPUID to check x86 features,
+	determine cache_block_size, etc.
+
+2005-11-15 02:27  gb
+
+	* lisp-kernel/: ppc-asmutils.s, x86-asmutils64.s:
+	get/put_vector_registers.  Probably unused; referenced from the
+	kernel imports table.
+
+2005-11-15 02:25  gb
+
+	* lisp-kernel/gc.c: Conditionalize for x86, WORD_SIZE.
+
+2005-11-15 02:24  gb
+
+	* lisp-kernel/lisp-debug.c: Move some code here from the (old)
+	lisp-exceptions.c.
+
+2005-11-15 02:24  gb
+
+	* lisp-kernel/lisptypes.h: #define WORD_SIZE as 32 or 64, depending
+	on preprocessor definitions.  Stop using #ifdef WORD_SIZE64, here
+	and elsewhere.	Note that there are probably still many things that
+	are conditionalized on
+	
+	#ifdef PPC64
+	
+	when they're really concerned about 64/32-bit issues.  (I've caught
+	a few cases, but I'm sure that many still remain.)
+
+2005-11-15 02:23  gb
+
+	* lisp-kernel/imports.s: Expect get/put_vector_registers (not
+	necessarily AltiVec.  (I don't think that this is called from Lisp
+	code anymore.)
+
+2005-11-15 02:21  gb
+
+	* lisp-kernel/: bits.h, image.c, image.h: Use WORD_SIZE value to
+	conditionalize.
+
+2005-11-15 02:20  gb
+
+	* lisp-kernel/area.h: Define IMAGE_BASE_ADDRESS for x86-64 Linux.
+
 2005-11-15 02:20  gb
 
 	* lisp-kernel/: x86-spentry64.s, x86-subprims64.s: Define a few
