@@ -13,10 +13,16 @@
    The LLGPL is also available online at
    http://opensource.franz.com/preamble.html
 */
+#define UUO_MASK 0xfc00000f
 
 #define IS_UUO(i) (((i) & UUO_MASK) == 0xb)
 /* If an instruction is a UUO, the minor opcode is in bits 21:27 */
 #define UUO_MINOR(u) (((u) >> 4) & 0x7f)
+
+typedef u_int32_t opcode, *pc;
+
+OSStatus
+handle_uuo(ExceptionInformation *, opcode, pc);
 
 
 
@@ -364,6 +370,8 @@ scan_for_instr( unsigned, unsigned, pc );
 #define INIT_CATCH_FRAME_MASK (OP_MASK | RA_MASK)
 #endif
 
+OSStatus
+handle_error(ExceptionInformation *, unsigned, unsigned, unsigned, pc);
 
 typedef char* vector_buf;
 
@@ -399,5 +407,14 @@ typedef union {
 register void *current_r2 __asm__("r2");
 #endif
 
+
+#ifdef PPC64
+#define codevec_hdr_p(value) ((value) == (('C'<<24)|('O'<<16)|('D'<<8)|'E'))
+#else
+/* top 6 bits will be zero, subtag will be subtag_code_vector */
+#define CV_HDR_MASK     (OP_MASK | subtagmask)
+#define CV_HDR_VALUE    subtag_code_vector
+#define codevec_hdr_p(value)	(((value) & CV_HDR_MASK) == CV_HDR_VALUE)
+#endif
 
 

@@ -1,3 +1,4 @@
+
 /*
    Copyright (C) 1994-2001 Digitool, Inc
    This file is part of OpenMCL.  
@@ -91,98 +92,13 @@ extern natural lisp_heap_gc_threshold;
 extern Boolean grow_dynamic_area(natural);
 
 
-#ifdef PPC64
-#define codevec_hdr_p(value) ((value) == (('C'<<24)|('O'<<16)|('D'<<8)|'E'))
-#else
-/* top 6 bits will be zero, subtag will be subtag_code_vector */
-#define CV_HDR_MASK     (OP_MASK | subtagmask)
-#define CV_HDR_VALUE    subtag_code_vector
-#define codevec_hdr_p(value)	(((value) & CV_HDR_MASK) == CV_HDR_VALUE)
-#endif
 
-
-void
-allocation_failure(Boolean pointerp, natural size)
-{
-  char buf[64];
-  sprintf(buf, "Can't allocate %s of size %d bytes.", pointerp ? "pointer" : "handle", size);
-  Fatal(":   Kernel memory allocation failure.  ", buf);
-}
-
-void
-fatal_oserr(StringPtr param, OSErr err)
-{
-  char buf[64];
-  sprintf(buf," - operating system error %d.", err);
-  Fatal(param, buf);
-}
-
-
-Ptr
-allocate(natural size)
-{
-  return (Ptr) malloc(size);
-}
-
-void
-deallocate(Ptr p)
-{
-  free((void *)p);
-}
-
-Ptr
-zalloc(natural size)
-{
-  Ptr p = allocate(size);
-  if (p != NULL) {
-    memset(p, 0, size);
-  }
-  return p;
-}
-
-int
-ProtectMemory(LogicalAddress addr, int nbytes)
-{
-  int status = mprotect(addr, nbytes, PROT_READ | PROT_EXEC);
-  
-  if (status) {
-    status = errno;
-    Bug(NULL, "couldn't protect %d bytes at %x, errno = %d", nbytes, addr, status);
-  }
-  return status;
-}
-
-int
-UnProtectMemory(LogicalAddress addr, int nbytes)
-{
-  return mprotect(addr, nbytes, PROT_READ|PROT_WRITE|PROT_EXEC);
-}
-
-void
-unprotect_area(protected_area_ptr p)
-{
-  BytePtr start = p->start;
-  natural nprot = p->nprot;
-  
-  if (nprot) {
-    UnProtectMemory(start, nprot);
-    p->nprot = 0;
-  }
-}
 
 
 
 int
 page_size = 4096;
 
-extern void
-zero_cache_lines(BytePtr, size_t, size_t);
-
-void
-zero_page(BytePtr start)
-{
-  zero_cache_lines(start, (page_size/cache_block_size), cache_block_size);
-}
 
 
 
@@ -309,50 +225,6 @@ finish_allocating_uvector(ExceptionInformation *xp)
   }
 }
 
-
-
-/*
-  This doesn't GC; it returns true if it made enough room, false
-  otherwise.
-  If "extend" is true, it can try to extend the dynamic area to
-  satisfy the request.
-*/
-
-Boolean
-new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tcr)
-{
-  area *a;
-  natural newlimit, oldlimit;
-
-
-  a  = active_dynamic_area;
-  oldlimit = (natural) a->active;
-  newlimit = (align_to_power_of_2(oldlimit, log2_heap_segment_size) +
-	      align_to_power_of_2(need, log2_heap_segment_size));
-  if (newlimit > (natural) (a->high)) {
-    if (extend) {
-      if (! resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold)) {
-        return false;
-      }
-    } else {
-      return false;
-    }
-  }
-  a->active = (BytePtr) newlimit;
-  tcr->last_allocptr = (void *)newlimit;
-  xpGPR(xp,allocptr) = (LispObj) newlimit;
-  xpGPR(xp,allocbase) = (LispObj) oldlimit;
-
-#ifdef PPC64x
-  bzero((BytePtr)oldlimit,align_to_power_of_2(oldlimit, 12)-oldlimit);
-  HeapHighWaterMark = (BytePtr)align_to_power_of_2(oldlimit, 12);
-#endif
-  while (HeapHighWaterMark < (BytePtr)newlimit) {
-    zero_page(HeapHighWaterMark);
-    HeapHighWaterMark+=page_size;
-  }
-  return true;
-}
 
 Boolean
 allocate_object(ExceptionInformation *xp,
@@ -572,27 +444,6 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
 }
 
 
-protected_area_ptr
-AllProtectedAreas = NULL;
-
-/* 
-  This does a linear search.  Areas aren't created all that often;
-  if there get to be very many of them, some sort of tree search
-  might be justified.
-*/
-
-protected_area_ptr
-find_protected_area(BytePtr addr)
-{
-  protected_area* p;
-  
-  for(p = AllProtectedAreas; p; p=p->next) {
-    if ((p->start <= addr) && (p->end > addr)) {
-      return p;
-    }
-  }
-  return NULL;
-}
 
 void
 signal_stack_soft_overflow(ExceptionInformation *xp, unsigned reg)
@@ -667,52 +518,49 @@ reset_lisp_process(ExceptionInformation *xp)
 
   start_lisp(tcr, 1);
 }
-  
 
-/* 
-   Grow or shrink the dynamic area.  Or maybe not.
-   Whether or not the end of (mapped space in) the heap changes,
-   ensure that everything between the freeptr and the heap end
-   is mapped and read/write.  (It'll incidentally be zeroed.)
+/*
+  This doesn't GC; it returns true if it made enough room, false
+  otherwise.
+  If "extend" is true, it can try to extend the dynamic area to
+  satisfy the request.
 */
-Boolean
-resize_dynamic_heap(BytePtr newfree, 
-		    natural free_space_size)
-{
-  natural protbytes, zerobytes;
-  area *a = active_dynamic_area;
-  BytePtr newlimit, protptr, zptr;
-  
-  /* 
-     Zero the region between the new freepointer and the end of the
-     containing segment.
-  */
-  zptr = (BytePtr) align_to_power_of_2(newfree,log2_heap_segment_size);
-  zerobytes = zptr-newfree;
-  HeapHighWaterMark = zptr;
 
-  while (zerobytes >= page_size) {
-    zptr -= page_size;
-    zerobytes -= page_size;
-    zero_page(zptr);
-  }
-  
-  if (zerobytes) {
-    bzero(newfree, zerobytes);
-  }
-  if (free_space_size) {
-    BytePtr lowptr = a->active;
-    newlimit = lowptr + align_to_power_of_2(newfree-lowptr+free_space_size,
-					    log2_heap_segment_size);
-    if (newlimit > a->high) {
-      return grow_dynamic_area(newlimit-a->high);
-    } else if ((HeapHighWaterMark + free_space_size) < a->high) {
-      shrink_dynamic_area(a->high-newlimit);
-      return true;
+Boolean
+new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tcr)
+{
+  area *a;
+  natural newlimit, oldlimit;
+
+
+  a  = active_dynamic_area;
+  oldlimit = (natural) a->active;
+  newlimit = (align_to_power_of_2(oldlimit, log2_heap_segment_size) +
+	      align_to_power_of_2(need, log2_heap_segment_size));
+  if (newlimit > (natural) (a->high)) {
+    if (extend) {
+      if (! resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold)) {
+        return false;
+      }
+    } else {
+      return false;
     }
   }
-}
+  a->active = (BytePtr) newlimit;
+  tcr->last_allocptr = (void *)newlimit;
+  xpGPR(xp,allocptr) = (LispObj) newlimit;
+  xpGPR(xp,allocbase) = (LispObj) oldlimit;
 
+#ifdef PPC64x
+  bzero((BytePtr)oldlimit,align_to_power_of_2(oldlimit, 12)-oldlimit);
+  HeapHighWaterMark = (BytePtr)align_to_power_of_2(oldlimit, 12);
+#endif
+  while (HeapHighWaterMark < (BytePtr)newlimit) {
+    zero_page(HeapHighWaterMark);
+    HeapHighWaterMark+=page_size;
+  }
+  return true;
+}
 
  
 void
@@ -857,17 +705,6 @@ impurify_from_xp(ExceptionInformation *xp)
 }
 
 
-void
-protect_area(protected_area_ptr p)
-{
-  BytePtr start = p->start;
-  natural n = p->protsize;
-
-  if (n && ! p->nprot) {
-    ProtectMemory(start, n);
-    p->nprot = n;
-  }
-}
 
 
 
@@ -974,53 +811,6 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
 }
 
 
-protected_area_ptr
-new_protected_area(BytePtr start, BytePtr end, lisp_protection_kind reason, natural protsize, Boolean now)
-{
-  protected_area_ptr p = (protected_area_ptr) allocate(sizeof(protected_area));
-  
-  if (p == NULL) return NULL;
-  p->protsize = protsize;
-  p->nprot = 0;
-  p->start = start;
-  p->end = end;
-  p->why = reason;
-  p->next = AllProtectedAreas;
-
-  AllProtectedAreas = p;
-  if (now) {
-    protect_area(p);
-  }
-  
-  return p;
-}
-
-/*
-  Un-protect the first nbytes bytes in specified area.
-  Note that this may cause the area to be empty.
-*/
-void
-unprotect_area_prefix(protected_area_ptr area, size_t delta)
-{
-  unprotect_area(area);
-  area->start += delta;
-  if ((area->start + area->protsize) <= area->end) {
-    protect_area(area);
-  }
-}
-
-
-/*
-  Extend the protected area, causing the preceding nbytes bytes
-  to be included and protected.
-*/
-void
-protect_area_prefix(protected_area_ptr area, size_t delta)
-{
-  unprotect_area(area);
-  area->start -= delta;
-  protect_area(area);
-}
 
 
 
@@ -2178,24 +1968,6 @@ exception_init()
 }
 
 
-void
-Bug(ExceptionInformation *xp, const char *format, ...)
-{
-  va_list args;
-  char s[512];
- 
-  va_start(args, format);
-  vsnprintf(s, sizeof(s),format, args);
-  va_end(args);
-  lisp_Debugger(NULL, NULL, debug_entry_bug, s);
-
-}
-
-void
-lisp_bug(char *string)
-{
-  Bug(NULL, "Bug in OpenMCL system code:\n%s", string);
-}
 
 
 
