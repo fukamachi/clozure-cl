@@ -790,7 +790,7 @@ mark_ephemeral_root(LispObj n)
   return false;                 /* Not a heap pointer or not ephemeral */
 }
   
-
+#ifdef PPC
 #ifdef PPC64
 /* Any register (srr0, the lr or ctr) or stack location that
    we're calling this on should have its low 2 bits clear; it'll
@@ -803,7 +803,6 @@ mark_ephemeral_root(LispObj n)
    value 'CODE' whic precedes the code-vector's first instruction)
    and mark the entire code-vector.
 */
-#ifdef PPC
 void
 mark_pc_root(LispObj xpc)
 {
@@ -836,7 +835,7 @@ mark_pc_root(LispObj xpc)
     }
   }
 }
-#else
+#else /* PPC64 */
 /*
   Some objects (saved LRs on the control stack, the LR, PC, and CTR
   in exception frames) may be tagged as fixnums but are really
@@ -879,8 +878,8 @@ mark_pc_root(LispObj pc)
     }
   }
 }
-#endif
-#endif
+#endif /* PPC64 */
+#endif /* PPC */
 
 #ifdef PPC
 #ifdef PPC64
