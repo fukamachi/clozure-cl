@@ -471,6 +471,7 @@ debug_show_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   int a, b, c, d, i;
 
+#ifdef PPC
 #ifdef PPC64
   for (a = 0, b = 16; a < 16; a++, b++) {
     fprintf(stderr,"r%02d = 0x%016lX    r%02d = 0x%016lX\n",
@@ -498,6 +499,7 @@ debug_show_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 	  xpPC(xp), xpLR(xp), xpCTR(xp), xpCCR(xp));
   fprintf(stderr, "XER = 0x%08X  MSR = 0x%08X  DAR = 0x%08X  DSISR = 0x%08X\n",
 	  xpXER(xp), xpMSR(xp), xpDAR(xp), xpDSISR(xp));
+#endif
 #endif
   return debug_continue;
 }
@@ -756,5 +758,23 @@ lisp_Debugger(ExceptionInformation *xp,
   case debug_kill:
     terminate_lisp();
   }
+}
+
+void
+Bug(ExceptionInformation *xp, const char *format, ...)
+{
+  va_list args;
+  char s[512];
+ 
+  va_start(args, format);
+  vsnprintf(s, sizeof(s),format, args);
+  va_end(args);
+  lisp_Debugger(NULL, NULL, debug_entry_bug, s);
+
+}
+void
+lisp_bug(char *string)
+{
+  Bug(NULL, "Bug in OpenMCL system code:\n%s", string);
 }
 
