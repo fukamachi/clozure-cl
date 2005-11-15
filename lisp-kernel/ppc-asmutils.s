@@ -256,7 +256,7 @@ _endfn
 	in r3.  If the buffer's non-NULL, it's aligned and big enough,
 	and Altivec is present.
 */
-_exportfn(C(put_altivec_registers))
+_exportfn(C(put_vector_registers))
 	__(cmpri(r3,0))
 	__(li r4,0)
 	__(beqlr)
@@ -331,7 +331,7 @@ _exportfn(C(put_altivec_registers))
 	__(blr)
 _endfn
 
-_exportfn(C(get_altivec_registers))
+_exportfn(C(get_vector_registers))
 	__(cmpri(r3,0))
 	__(li r4,32*16)
 	__(beqlr)

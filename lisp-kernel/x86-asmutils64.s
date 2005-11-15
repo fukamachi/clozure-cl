@@ -115,5 +115,11 @@ _exportfn(C(cpuid))
 	__(movl %ecx,(%rsi))
 	__(ret)
 _endfn
-		
+
+_exportfn(C(get_vector_registers))
+_endfn
+
+_exportfn(C(put_vector_registers))
+_endfn				
+			
 	_endfile
