@@ -83,12 +83,6 @@ exception_cleanup(void);
 void
 exception_init();
 
-typedef u_int32_t opcode, *pc;
-
-OSStatus
-handle_uuo(ExceptionInformation *, opcode, pc);
-
-#define UUO_MASK 0xfc00000f
 
 #define debug_entry_exception 0
 #define debug_entry_bug -1
@@ -123,8 +117,6 @@ int gc_from_xp(ExceptionInformation *);
 int purify_from_xp(ExceptionInformation *);
 int impurify_from_xp(ExceptionInformation *);
 
-OSStatus
-handle_error(ExceptionInformation *, unsigned, unsigned, unsigned, pc);
 
 void
 adjust_exception_pc(ExceptionInformation *, int);
@@ -144,6 +136,7 @@ exception_fn_name( ExceptionInformation *, int, char *, size_t );
 #ifdef X86
 #include "x86-exceptions.h"
 #endif
+
 
 #endif /* __lisp_exceptions_h__ */
 
