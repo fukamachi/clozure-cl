@@ -138,7 +138,7 @@ count_leading_zeros(natural w) __attribute__((always_inline));
 static __inline__ unsigned
 count_leading_zeros(natural w)
 {
-#ifdef WORD_SIZE64
+#if WORD_SIZE == 64
   return __builtin_clzll(w);  
 #else
   return __builtin_clz(w);  

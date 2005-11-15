@@ -55,7 +55,7 @@ typedef struct {
   unsigned actual_image_base_32;	/* Hopefully the same */
   unsigned nsections;
   unsigned abi_version;
-#ifdef PPC64
+#if WORD_SIZE == 64
   int section_data_offset_high; /* signed offset from end of
                                          section headers to first
                                          section's data.  May be zero. */
@@ -68,7 +68,7 @@ typedef struct {
 #endif
 } openmcl_image_file_header;
 
-#ifdef PPC64
+#if WORD_SIZE == 64
 #define ACTUAL_IMAGE_BASE(header) ((header)->actual_image_base_64)
 #define CANONICAL_IMAGE_BASE(header) ((header)->canonical_image_base_64)
 #else

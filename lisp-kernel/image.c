@@ -391,7 +391,7 @@ save_application(unsigned fd)
   ACTUAL_IMAGE_BASE(&fh) = image_base;
   fh.nsections = 3;
   fh.abi_version=ABI_VERSION_CURRENT;
-#ifdef PPC64
+#if WORD_SIZE == 64
   fh.section_data_offset_high = 0;
   fh.section_data_offset_low = 0;
 #else
@@ -399,7 +399,7 @@ save_application(unsigned fd)
     fh.pad[i] = 0;
   }
 #endif
-#ifdef PPC64
+#if WORD_SIZE == 64
   fh.flags = 1;
 #endif
 
