@@ -26,10 +26,12 @@
 #include <stdio.h>
 #ifdef LINUX
 #include <strings.h>
-#include <sys/mman.h>
 #include <fpu_control.h>
 #include <linux/prctl.h>
 #endif
+
+
+#include <sys/mman.h>
 
 void
 allocation_failure(Boolean pointerp, natural size)
