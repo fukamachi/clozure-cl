@@ -1,3 +1,19 @@
+2005-11-17 03:15  gb
+
+	* compiler/X86/x86-asm.lisp: Macros to encode symbolic attributes.
+
+2005-11-17 03:15  gb
+
+	* compiler/X86/x86-lap.lisp: Will probably overlap RISC-LAP a lot,
+	but needs to be different (variable-length instructions, alignment,
+	etc.)  Maybe merge later.
+
+2005-11-17 03:13  gb
+
+	* level-1/l1-clos-boot.lisp: CLASS-PROTOTYPE method for
+	STRUCTURE-CLASS: don't try to call default constructor, since it
+	may not exist ...
+
 2005-11-15 02:48  gb
 
 	* lisp-kernel/memory.c: #include <sys/mman.h> unconditionally.
