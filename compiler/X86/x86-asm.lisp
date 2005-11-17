@@ -240,22 +240,27 @@
     (:floatdr . ,FloatDR)))
 
 
-;;; This returns NIL if the modifier can't be encoded.
-;;; That's an error, but the caller can provide better
-;;; error context.
-(defun %encode-opcode-modifier (mod)
+;;; By default, this returns NIL if the modifier can't be encoded.
+;;; That's an error, but the caller can provide better error context.
+(defun %encode-opcode-modifier (mod &optional errorp)
   (flet ((encode-atomic-opcode-modifier (m)
            (if m
              (cdr (assoc m *opcode-modifier-names*))
              0)))
-    (if (atom mod)
-      (encode-atomic-opcode-modifier mod)
-      (let* ((k 0))
-        (dolist (m mod k)
-          (let* ((k0 (encode-atomic-opcode-modifier m)))
-            (if k0
-              (setq k (logior k0 k))
-              (return))))))))
+    (or
+     (if (atom mod)
+       (encode-atomic-opcode-modifier mod)
+       (let* ((k 0))
+         (dolist (m mod k)
+           (let* ((k0 (encode-atomic-opcode-modifier m)))
+             (if k0
+               (setq k (logior k0 k))
+               (return))))))
+     (if errorp (error "Unknown x86 opcode modifier: ~s" mod)))))
+
+(defmacro encode-opcode-modifier (&rest mod)
+  (%encode-opcode-modifier mod t))
+
 
 ;;; operand-types[i] bits
 ;;; register
@@ -373,20 +378,24 @@
     (:ByteMem . ,ByteMem)
   ))
 
-(defun %encode-operand-type (optype)
+(defun %encode-operand-type (optype &optional errorp)
   (flet ((encode-atomic-operand-type (op)
            (if op
              (cdr (assoc op *x86-operand-type-names* :test #'eq))
              0)))
-    (if (atom optype)
-      (encode-atomic-operand-type optype)
-      (let* ((k 0))
-        (dolist (op optype k)
-          (let* ((k0 (encode-atomic-operand-type op)))
-            (if k0
-              (setq k (logior k k0))
-              (return))))))))
+    (or
+     (if (atom optype)
+       (encode-atomic-operand-type optype)
+       (let* ((k 0))
+         (dolist (op optype k)
+           (let* ((k0 (encode-atomic-operand-type op)))
+             (if k0
+               (setq k (logior k k0))
+               (return))))))
+     (if errorp (error "Unknown x86 operand type ~s" optype)))))
 
+(defmacro encode-operand-type (&rest op)
+  (%encode-operand-type op t))
 
 (defstruct x86-instruction-template
   ;; instruction name sans width suffix ("mov" for movl insns)
@@ -2590,7 +2599,8 @@
 (init-x86-registers)
 
 
-(defstruct x86-operand )
+(defstruct x86-operand
+  (type ))
 
 (defstruct (x86-immediate-operand (:include x86-operand))
   value
