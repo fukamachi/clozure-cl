@@ -1590,25 +1590,23 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
 {
   xframe_list xframe_link;
   int old_valence;
-#ifdef DARWIN
-  extern Boolean running_under_rosetta;
+
   if (running_under_rosetta) {
-    fprintf(stderr, "signal handler called\n");
+    fprintf(stderr, "signal handler: signal = %d, pc = 0x%08x\n", signum, xpPC(context));
   }
-#endif
-#ifdef LINUX
-
-  tcr = (TCR *) get_interrupt_tcr(false);
+  if (!use_mach_exception_handling) {
+    
+    tcr = (TCR *) get_interrupt_tcr(false);
   
-  /* The signal handler's entered with all signals (notably the
-     thread_suspend signal) blocked.  Don't allow any other signals
-     (notably the thread_suspend signal) to preempt us until we've
-     set the TCR's xframe slot to include the current exception
-     context.
-  */
-
-  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
-#endif
+    /* The signal handler's entered with all signals (notably the
+       thread_suspend signal) blocked.  Don't allow any other signals
+       (notably the thread_suspend signal) to preempt us until we've
+       set the TCR's xframe slot to include the current exception
+       context.
+    */
+    
+    old_valence = prepare_to_wait_for_exception_lock(tcr, context);
+  }
   
   wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info))) {
@@ -1627,10 +1625,10 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
      be updated.  (That's only of concern if it happens before we
      can return to the kernel/to the Mach exception handler).
   */
-#ifdef LINUX
-  exit_signal_handler(tcr, old_valence);
-  raise_pending_interrupt(tcr);
-#endif
+  if (!use_mach_exception_handling) {
+    exit_signal_handler(tcr, old_valence);
+    raise_pending_interrupt(tcr);
+  }
 }
 
 /*
