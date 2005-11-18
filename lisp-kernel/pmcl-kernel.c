@@ -19,6 +19,7 @@
     a conflict (actually I think the problem is in "constants.h")
 */
 #include <mach-o/dyld.h>
+
 #endif
 #include "lisp.h"
 #include "lisp_globals.h"
@@ -74,6 +75,16 @@
 #include <mach/message.h>
 #include <mach/vm_region.h>
 #include <sys/sysctl.h>
+
+Boolean running_under_rosetta = false;
+Boolean use_mach_exception_handling = 
+#ifdef DARWIN
+  true
+#else
+  false
+#endif
+;
+
 #ifdef PPC64
 /* Assume that if the OS is new enough to support PPC64, it has
    a reasonable dlfcn.h
@@ -1176,13 +1187,6 @@ remap_spjump()
 #endif
 #endif
 
-#ifdef DARWIN
-#ifdef PPC
-Boolean running_under_rosetta = false;
-#endif
-Boolean use_mach_exception_handling = true;
-#endif
-
 void
 check_os_version(char *progname)
 {
@@ -1349,6 +1353,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
     exit(-1);
   }
   gc_init();
+
   set_nil(load_image(image_name));
   lisp_global(AREA_LOCK) = ptr_to_lispobj(area_lock);
 
@@ -1472,6 +1477,13 @@ xMakeDataExecutable(void *start, unsigned long nbytes)
   
   base = (ustart) & ~(cache_block_size-1);
   end = (ustart + nbytes + cache_block_size - 1) & ~(cache_block_size-1);
+  if (running_under_rosetta) {
+    /* We probably need to flush something's cache even if running
+       under Rosetta, but (a) this is agonizingly slow and (b) we're
+       dying before we get to the point where this would matter.
+    */
+    return;
+  }
   flush_cache_lines(base, (end-base)/cache_block_size, cache_block_size);
 }
 
