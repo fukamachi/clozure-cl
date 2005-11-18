@@ -29,7 +29,8 @@
 #endif
 #include "macros.h"
 
-
+Boolean use_mach_exception_handling;
+Boolean running_under_rosetta;
 
 static inline unsigned long
 _align_to_power_of_2(unsigned long n, unsigned power)
