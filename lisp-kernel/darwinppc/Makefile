@@ -50,7 +50,7 @@ LDFLAGS = -arch ppc -dynamic  -o $@ -e start -seg1addr 0x00004000 -sectalign __T
 AS = as
 M4 = gm4
 M4FLAGS = -DDARWIN -DPPC
-ASFLAGS = -force_cpusubtype_ALL
+ASFLAGS = -arch ppc -force_cpusubtype_ALL
 CDEFINES = -DDARWIN -DPPC  $(BROKEN_PREPROCESSOR_WORKAROUND)
 CDEBUG = -g
 COPT = -O2
@@ -58,7 +58,7 @@ COPT = -O2
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
 .c.o:
-	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -o $@
+	$(CC) -c -arch ppc $< $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -o $@
 
 SPOBJ = ppc-spjump.o ppc-spentry.o  ppc-subprims.o 
 ASMOBJ = ppc-asmutils.o imports.o
