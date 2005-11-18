@@ -1,3 +1,43 @@
+2005-11-18 04:05  gb
+
+	* lisp-kernel/darwinppc/Makefile: Pass -arch ppc explicitly to cc
+	and as, since that may not be the default.
+
+2005-11-18 04:04  gb
+
+	* lisp-kernel/ppc-exceptions.c: Some #if LINUX conditionalization
+	changed to runtime test of the global variable
+	'use_mach_exception_handling'.
+	
+	(On Darwin, use_mach_exception_handling is set false when
+	running_under_rosetta is true.	Mach exception handling may be less
+	likely to work in that case; signal handling currently doesn't work
+	either ...)
+
+2005-11-18 04:01  gb
+
+	* lisp-kernel/pmcl-kernel.c: Static initialization of
+	'running_under_rosetta' and 'use_mach_exception_handling' happens
+	on both Linux and Darwin, though neither of these things should
+	ever be true on Linux.
+	
+	Cache flushing seems to be unbelievably slow when
+	running_under_rosetta is set; don't do it for now, since the first
+	call to xMakeDataExecutable() tries to invalidate stuff that was
+	probably never in the cache and we die before we get to a
+	subsequent call.
+
+2005-11-18 03:55  gb
+
+	* lisp-kernel/lisp.h: Declare running_under_rosetta and
+	use_mach_exception_handling globally and unconditionally.  (This
+	makes it a little more convenient to check their valus at runtime,
+	even though neither could be true under Linux.	(Right now, one of
+	the primary reasons for checking running_under_rosetta is to be
+	able to insert fprintf's that show how screwed up things are, and I
+	don't want to have to surround those tests with additional
+	#ifdefs.)
+
 2005-11-17 03:15  gb
 
 	* compiler/X86/x86-asm.lisp: Macros to encode symbolic attributes.
