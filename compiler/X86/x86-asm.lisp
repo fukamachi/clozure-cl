@@ -60,6 +60,7 @@
 (defconstant SHORT-MNEM-SUFFIX #\s)
 (defconstant LONG-MNEM-SUFFIX #\l)
 (defconstant QWORD-MNEM-SUFFIX #\q)
+(defconstant LONG-DOUBLE-MNEM-SUFFIX #\x)
 
 ;;; modrm.mode = REGMEM-FIELD-HAS-REG when a register is in there
 (defconstant REGMEM-FIELD-HAS-REG #x3) ; always = #x3
@@ -209,6 +210,12 @@
     (:size32 . ,Size32)
     (:size64 . ,Size64)
     (:ignoresize . ,IgnoreSize)
+    (:no-bsuf . ,No-bsuf)
+    (:no-wsuf . ,No-wsuf)
+    (:no-lsuf . ,No-lsuf)
+    (:no-ssuf . ,No-ssuf)
+    (:no-qsuf . ,No-qsuf)
+    (:no-xsuf . ,No-xsuf)
     (:defaultsize . ,DefaultSize)
     (:fwait . ,FWait)
     (:isstring . ,IsString)
@@ -1811,11 +1818,12 @@
                      (let* ((operand-count (length operand-types))
                             (modifier (or (%encode-opcode-modifier opcode-modifier)
                                           (error "Bad opcode modifier ~s in ~s" opcode-modifier whole)))
-                            (encoded-types (mapcar #'(lambda (type)
-                                                       (or (%encode-operand-type type)
-                                                           (error "Bad operand type ~s in ~w"
-                                                                  type whole)))
-                                                   operand-types))
+                            (encoded-types (apply #'vector
+                                                  (mapcar #'(lambda (type)
+                                                              (or (%encode-operand-type type)
+                                                                  (error "Bad operand type ~s in ~w"
+                                                                         type whole)))
+                                                          operand-types)))
                             (encoded-cpu-flags (or (%encode-cpu-flags cpuflags)
                                                    (error "Bad CPU flags ~s in ~s" cpuflags whole)))
                             (template (make-x86-instruction-template
@@ -1855,6 +1863,8 @@
                    *x86-64-instruction-templates*)))
   t)
 
+(setup-x86-assembler :x86-64)
+
 (defun get-x86-instruction-templates-and-suffix (name)
   (let* ((s (string name))
          (templates (gethash s *x86-instruction-template-lists*)))
@@ -1871,10 +1881,10 @@
           (let* ((sub (make-string m)))
             (declare (dynamic-extent sub))
             (replace sub s :end1 m)
-            (if (setq templates (gethash sub *x86-intstruction-template-lists*))
+            (if (setq templates (gethash sub *x86-instruction-template-lists*))
               (values templates suffix)
-              (values nil nil)))
-          (values nil nil))))))
+              (error "Unknown instruction: ~s" name)))
+          (error "Unknown instruction: ~s" name))))))
                           
 
 
@@ -2603,23 +2613,30 @@
   (type ))
 
 (defstruct (x86-immediate-operand (:include x86-operand))
-  value
-  size-in-bits
-  signed-p)
+  ;; The "value" of an immediate operand may be an expression (that we
+  ;; have to do some sort of delayed evaluation on.)  It could just be
+  ;; a lisp form (that we call EVAL on), but there might be scoping or
+  ;; similar issues in that case.
+  value)
 
 (defstruct (x86-register-operand (:include x86-operand))
   entry                                 ;the reg-entry
 )
 
 (defstruct (x86-memory-operand (:include x86-operand))
-  ;; Any of these fields can be null.  Some of them -
-  ;; like a segment register or scale factor by itself -
-  ;; make no sense.
+  ;; Any of these fields can be null.  Some combinations of fields -
+  ;; like a segment register or scale factor by itself - make no
+  ;; sense.
   seg                                   ; a segment register
-  disp                                  ; a signed displacement added to index
-  disp-size                             ; size (in bits) of displacement
-  index                                 ; a GPR
-  base                                  ; another GPR
-  scale                                 ; scale factor, multiplied with base
+  disp                                  ; a signed displacement added to base
+  base                                  ; a GPR
+  index                                 ; another GPR
+  scale                                 ; scale factor, multiplied with index
   )
+
+(defmethod unparse-operand ((x x86-register-operand))
+  `(% ,(reg-entry-reg-name (x86-register-operand-entry x))))
+
+(defmethod unparse-operand ((x x86-immediate-operand))
+  `($ ,(x86-immediate-operand-value x)))
 
