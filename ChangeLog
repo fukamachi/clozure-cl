@@ -1,3 +1,13 @@
+2005-11-20 06:42  gb
+
+	* compiler/X86/: x86-asm.lisp, x86-lap.lisp: Getting closer; can
+	parse some forms of x86 instructions and operands and do some
+	amount of sanity checking.
+	
+	Still need to work out memory/displaced-only operands, deal with
+	labels, deal with expressions (might want something like a closure/
+	suspension/future, might not), code-generation, etc.
+
 2005-11-18 04:05  gb
 
 	* lisp-kernel/darwinppc/Makefile: Pass -arch ppc explicitly to cc
