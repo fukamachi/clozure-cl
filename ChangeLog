@@ -1,3 +1,7 @@
+2005-11-21 10:20  gb
+
+	* compiler/PPC/ppc-lap.lisp: Comment formatting.
+
 2005-11-20 06:42  gb
 
 	* compiler/X86/: x86-asm.lisp, x86-lap.lisp: Getting closer; can
