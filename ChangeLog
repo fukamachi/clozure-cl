@@ -1,6 +1,7 @@
 2005-11-21 10:20  gb
 
-	* compiler/PPC/ppc-lap.lisp: Comment formatting.
+	* compiler/PPC/ppc-lap.lisp, lib/sequences.lisp: Comment
+	formatting.
 
 2005-11-20 06:42  gb
 
