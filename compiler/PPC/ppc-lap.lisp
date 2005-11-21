@@ -240,8 +240,8 @@
     (ppc-lap-remove-long-branches)
     (ppc-lap-assign-addresses t)))
 
-; Replace each label with the difference between the label's address
-; and the referencing instruction's address.
+;;; Replace each label with the difference between the label's address
+;;; and the referencing instruction's address.
 (defun ppc-lap-resolve-labels ()
   (do-lap-labels (label)
     (let* ((label-address (lap-label-address label)))

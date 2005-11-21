@@ -978,8 +978,8 @@
     (nreverse temp)
     temp))
 
-; Modified to clear the elements between the old and new fill pointers
-; so they won't hold on to garbage.
+;;; Modified to clear the elements between the old and new fill pointers
+;;; so they won't hold on to garbage.
 (defun vector-delete (item vector test test-not key start end inc count
                            &aux (length (length vector)) pos fill val)
   (setq key (adjust-key key))
@@ -1123,7 +1123,7 @@
                   key)
      (if (array-has-fill-pointer-p sequence)
        (vector-delete item sequence test test-not key start end (if from-end -1 1) count)
-       (simple-vector-delete item  ; well shucks why not callee decide
+       (simple-vector-delete item
                             sequence
                              test test-not key start end (if from-end -1 1) count)))))
 
