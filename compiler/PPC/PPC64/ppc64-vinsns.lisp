@@ -44,14 +44,14 @@
   (srdi dest idx 1)
   (addi dest dest ppc64::misc-data-offset))
 
-(define-ppc64-vinsn scale-16bit-misc-index (((dest :u32))
+(define-ppc64-vinsn scale-16bit-misc-index (((dest :u64))
 					    ((idx :imm)	; A fixnum
 					     )
 					    ())
   (srdi dest idx 2)
   (addi dest dest ppc64::misc-data-offset))
 
-(define-ppc64-vinsn scale-8bit-misc-index (((dest :u32))
+(define-ppc64-vinsn scale-8bit-misc-index (((dest :u64))
 					   ((idx :imm) ; A fixnum
 					    )
 					   ())
