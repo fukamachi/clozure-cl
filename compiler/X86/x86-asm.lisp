@@ -133,118 +133,123 @@
          
 
 ;;; opcode-modifier bits:
-(defconstant W #x1) ; set if operands can be words or dwords  encoded the canonical way
-(defconstant D #x2) ; D = 0 if Reg --> Regmem  D = 1 if Regmem --> Reg:    MUST BE #x2
-(defconstant Modrm #x4)
-(defconstant FloatR #x8) ; src/dest swap for floats:   MUST BE #x8
-(defconstant ShortForm #x10) ; register is in low 3 bits of opcode
-(defconstant FloatMF #x20) ; FP insn memory format bit  sized by #x4
-(defconstant Jump #x40) ; special case for jump insns.
-(defconstant JumpDword #x80) ; call and jump
-(defconstant JumpByte #x100) ; loop and jecxz
-(defconstant JumpInterSegment #x200) ; special case for intersegment leaps/calls
-(defconstant FloatD #x400) ; direction for float insns:  MUST BE #x400
-(defconstant Seg2ShortForm #x800) ; encoding of load segment reg insns
-(defconstant Seg3ShortForm #x1000) ; fs/gs segment register insns.
-(defconstant Size16 #x2000) ; needs size prefix if in 32-bit mode
-(defconstant Size32 #x4000) ; needs size prefix if in 16-bit mode
-(defconstant Size64 #x8000) ; needs size prefix if in 16-bit mode
-(defconstant IgnoreSize #x10000) ; instruction ignores operand size prefix
-(defconstant DefaultSize #x20000) ; default insn size depends on mode
-(defconstant No-bSuf #x40000) ; b suffix on instruction illegal
-(defconstant No-wSuf #x80000) ; w suffix on instruction illegal
-(defconstant No-lSuf #x100000) ; l suffix on instruction illegal
-(defconstant No-sSuf #x200000) ; s suffix on instruction illegal
-(defconstant No-qSuf #x400000) ; q suffix on instruction illegal
-(defconstant No-xSuf #x800000) ; x suffix on instruction illegal
-(defconstant FWait #x1000000) ; instruction needs FWAIT
-(defconstant IsString #x2000000) ; quick test for string instructions
-(defconstant regKludge #x4000000) ; fake an extra reg operand for clr  imul
-(defconstant IsPrefix #x8000000) ; opcode is a prefix
-(defconstant ImmExt #x10000000) ; instruction has extension in 8 bit imm
-(defconstant NoRex64 #x20000000) ; instruction don't need Rex64 prefix.
-(defconstant Rex64 #x40000000) ; instruction require Rex64 prefix.
-(defconstant Ugh #x80000000) ; deprecated fp insn  gets a warning
+(defconstant opcode-modifier-W #x1) ; set if operands can be words or dwords  encoded the canonical way
+(defconstant opcode-modifier-D #x2) ; D = 0 if Reg --> Regmem  D = 1 if Regmem --> Reg:    MUST BE #x2
+(defconstant opcode-modifier-Modrm #x4)
+(defconstant opcode-modifier-FloatR #x8) ; src/dest swap for floats:   MUST BE #x8
+(defconstant opcode-modifier-ShortForm #x10) ; register is in low 3 bits of opcode
+(defconstant opcode-modifier-FloatMF #x20) ; FP insn memory format bit  sized by #x4
+(defconstant opcode-modifier-Jump #x40) ; special case for jump insns.
+(defconstant opcode-modifier-JumpDword #x80) ; call and jump
+(defconstant opcode-modifier-JumpByte #x100) ; loop and jecxz
+(defconstant opcode-modifier-JumpInterSegment #x200) ; special case for intersegment leaps/calls
+(defconstant opcode-modifier-FloatD #x400) ; direction for float insns:  MUST BE #x400
+(defconstant opcode-modifier-Seg2ShortForm #x800) ; encoding of load segment reg insns
+(defconstant opcode-modifier-Seg3ShortForm #x1000) ; fs/gs segment register insns.
+(defconstant opcode-modifier-Size16 #x2000) ; needs size prefix if in 32-bit mode
+(defconstant opcode-modifier-Size32 #x4000) ; needs size prefix if in 16-bit mode
+(defconstant opcode-modifier-Size64 #x8000) ; needs size prefix if in 16-bit mode
+(defconstant opcode-modifier-IgnoreSize #x10000) ; instruction ignores operand size prefix
+(defconstant opcode-modifier-DefaultSize #x20000) ; default insn size depends on mode
+(defconstant opcode-modifier-No-bSuf #x40000) ; b suffix on instruction illegal
+(defconstant opcode-modifier-No-wSuf #x80000) ; w suffix on instruction illegal
+(defconstant opcode-modifier-No-lSuf #x100000) ; l suffix on instruction illegal
+(defconstant opcode-modifier-No-sSuf #x200000) ; s suffix on instruction illegal
+(defconstant opcode-modifier-No-qSuf #x400000) ; q suffix on instruction illegal
+(defconstant opcode-modifier-No-xSuf #x800000) ; x suffix on instruction illegal
+(defconstant opcode-modifier-FWait #x1000000) ; instruction needs FWAIT
+(defconstant opcode-modifier-IsString #x2000000) ; quick test for string instructions
+(defconstant opcode-modifier-regKludge #x4000000) ; fake an extra reg operand for clr  imul
+(defconstant opcode-modifier-IsPrefix #x8000000) ; opcode is a prefix
+(defconstant opcode-modifier-ImmExt #x10000000) ; instruction has extension in 8 bit imm
+(defconstant opcode-modifier-NoRex64 #x20000000) ; instruction don't need Rex64 prefix.
+(defconstant opcode-modifier-Rex64 #x40000000) ; instruction require Rex64 prefix.
+(defconstant opcode-modifier-Ugh #x80000000) ; deprecated fp insn  gets a warning
 
 
-(defconstant NoSuf (logior No-bSuf No-wSuf No-lSuf No-sSuf No-xSuf No-qSuf))
-(defconstant b-Suf (logior No-wSuf No-lSuf No-sSuf No-xSuf No-qSuf))
-(defconstant w-Suf (logior No-bSuf No-lSuf No-sSuf No-xSuf No-qSuf))
-(defconstant l-Suf (logior No-bSuf No-wSuf No-sSuf No-xSuf No-qSuf))
-(defconstant q-Suf (logior No-bSuf No-wSuf No-sSuf No-lSuf No-xSuf))
-(defconstant x-Suf (logior No-bSuf No-wSuf No-sSuf No-lSuf No-qSuf))
-(defconstant bw-Suf (logior No-lSuf No-sSuf No-xSuf No-qSuf))
-(defconstant bl-Suf (logior No-wSuf No-sSuf No-xSuf No-qSuf))
-(defconstant wl-Suf (logior No-bSuf No-sSuf No-xSuf No-qSuf))
-(defconstant wlq-Suf (logior No-bSuf No-sSuf No-xSuf))
-(defconstant lq-Suf (logior No-bSuf No-wSuf No-sSuf No-xSuf))
-(defconstant wq-Suf (logior No-bSuf No-lSuf No-sSuf No-xSuf))
-(defconstant sl-Suf (logior No-bSuf No-wSuf No-xSuf No-qSuf))
-(defconstant bwl-Suf (logior No-sSuf No-xSuf No-qSuf))
-(defconstant bwlq-Suf (logior No-sSuf No-xSuf))
-(defconstant FP NoSuf)
-(defconstant l-FP l-Suf)
-(defconstant q-FP (logior q-Suf NoRex64))
-(defconstant x-FP (logior x-Suf FloatMF))
-(defconstant sl-FP (logior sl-Suf FloatMF))
+(defconstant opcode-modifier-NoSuf (logior opcode-modifier-No-bSuf
+                                           opcode-modifier-No-wSuf
+                                           opcode-modifier-No-lSuf
+                                           opcode-modifier-No-sSuf
+                                           opcode-modifier-No-xSuf
+                                           opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-b-Suf (logior opcode-modifier-No-wSuf opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-w-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-l-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-q-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-lSuf opcode-modifier-No-xSuf))
+(defconstant opcode-modifier-x-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-lSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-bw-Suf (logior opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-bl-Suf (logior opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-wl-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-wlq-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
+(defconstant opcode-modifier-lq-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
+(defconstant opcode-modifier-wq-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
+(defconstant opcode-modifier-sl-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-bwl-Suf (logior opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
+(defconstant opcode-modifier-bwlq-Suf (logior opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
+(defconstant opcode-modifier-FP opcode-modifier-NoSuf)
+(defconstant opcode-modifier-l-FP opcode-modifier-l-Suf)
+(defconstant opcode-modifier-q-FP (logior opcode-modifier-q-Suf opcode-modifier-NoRex64))
+(defconstant opcode-modifier-x-FP (logior opcode-modifier-x-Suf opcode-modifier-FloatMF))
+(defconstant opcode-modifier-sl-FP (logior opcode-modifier-sl-Suf opcode-modifier-FloatMF))
 ;;; Someone forgot that the FloatR bit reverses the operation when not
 ;;; equal to the FloatD bit.  ie. Changing only FloatD results in the
 ;;; destination being swapped *and* the direction being reversed.
-(defconstant FloatDR FloatD)
+(defconstant opcode-modifier-FloatDR opcode-modifier-FloatD)
 
 (defparameter *opcode-modifier-names*
-  `((:w . ,W)
-    (:d . ,D)
-    (:modrm . ,Modrm)
-    (:shortform . ,ShortForm)
-    (:floatr . ,FloatR)
-    (:floatmf . ,FloatMF)
-    (:jump . ,Jump)
-    (:jumpdword . ,JumpDword)
-    (:jumpbyte . ,JumpByte)
-    (:jumpintersegment . ,JumpInterSegment)
-    (:floatd . ,FloatD)
-    (:seg2shortform . ,Seg2ShortForm)
-    (:seg3shortform . ,Seg3ShortForm)
-    (:size16 . ,Size16)
-    (:size32 . ,Size32)
-    (:size64 . ,Size64)
-    (:ignoresize . ,IgnoreSize)
-    (:no-bsuf . ,No-bsuf)
-    (:no-wsuf . ,No-wsuf)
-    (:no-lsuf . ,No-lsuf)
-    (:no-ssuf . ,No-ssuf)
-    (:no-qsuf . ,No-qsuf)
-    (:no-xsuf . ,No-xsuf)
-    (:defaultsize . ,DefaultSize)
-    (:fwait . ,FWait)
-    (:isstring . ,IsString)
-    (:regkludge . ,regKludge)
-    (:isprefix . ,IsPrefix)
-    (:immext . ,ImmExt)
-    (:norex64 . ,NoRex64)
-    (:rex64 . ,Rex64)
-    (:ugh . ,Ugh)
-    (:nosuf . ,NoSuf)
-    (:b-suf . ,b-Suf)
-    (:w-suf . ,w-Suf)
-    (:l-suf . ,l-Suf)
-    (:q-suf . ,q-Suf)
-    (:x-suf . ,x-suf)
-    (:wl-suf . ,wl-Suf)
-    (:wlq-suf . ,wlq-Suf)
-    (:lq-suf . ,lq-Suf)
-    (:wq-suf . ,wq-Suf)
-    (:sl-suf . ,sl-Suf)
-    (:bwl-suf . ,bwl-Suf)
-    (:bwlq-suf . ,bwlq-Suf)
-    (:fp . ,FP)
-    (:l-fp . ,l-FP)
-    (:q-fp . ,q-FP)
-    (:x-fp . ,x-FP)
-    (:sl-fp . ,sl-FP)
-    (:floatd . ,FloatD)
-    (:floatdr . ,FloatDR)))
+  `((:w . ,opcode-modifier-W)
+    (:d . ,opcode-modifier-D)
+    (:modrm . ,opcode-modifier-Modrm)
+    (:shortform . ,opcode-modifier-ShortForm)
+    (:floatr . ,opcode-modifier-FloatR)
+    (:floatmf . ,opcode-modifier-FloatMF)
+    (:jump . ,opcode-modifier-Jump)
+    (:jumpdword . ,opcode-modifier-JumpDword)
+    (:jumpbyte . ,opcode-modifier-JumpByte)
+    (:jumpintersegment . ,opcode-modifier-JumpInterSegment)
+    (:floatd . ,opcode-modifier-FloatD)
+    (:seg2shortform . ,opcode-modifier-Seg2ShortForm)
+    (:seg3shortform . ,opcode-modifier-Seg3ShortForm)
+    (:size16 . ,opcode-modifier-Size16)
+    (:size32 . ,opcode-modifier-Size32)
+    (:size64 . ,opcode-modifier-Size64)
+    (:ignoresize . ,opcode-modifier-IgnoreSize)
+    (:no-bsuf . ,opcode-modifier-No-bsuf)
+    (:no-wsuf . ,opcode-modifier-No-wsuf)
+    (:no-lsuf . ,opcode-modifier-No-lsuf)
+    (:no-ssuf . ,opcode-modifier-No-ssuf)
+    (:no-qsuf . ,opcode-modifier-No-qsuf)
+    (:no-xsuf . ,opcode-modifier-No-xsuf)
+    (:defaultsize . ,opcode-modifier-DefaultSize)
+    (:fwait . ,opcode-modifier-FWait)
+    (:isstring . ,opcode-modifier-IsString)
+    (:regkludge . ,opcode-modifier-regKludge)
+    (:isprefix . ,opcode-modifier-IsPrefix)
+    (:immext . ,opcode-modifier-ImmExt)
+    (:norex64 . ,opcode-modifier-NoRex64)
+    (:rex64 . ,opcode-modifier-Rex64)
+    (:ugh . ,opcode-modifier-Ugh)
+    (:nosuf . ,opcode-modifier-NoSuf)
+    (:b-suf . ,opcode-modifier-b-Suf)
+    (:w-suf . ,opcode-modifier-w-Suf)
+    (:l-suf . ,opcode-modifier-l-Suf)
+    (:q-suf . ,opcode-modifier-q-Suf)
+    (:x-suf . ,opcode-modifier-x-suf)
+    (:wl-suf . ,opcode-modifier-wl-Suf)
+    (:wlq-suf . ,opcode-modifier-wlq-Suf)
+    (:lq-suf . ,opcode-modifier-lq-Suf)
+    (:wq-suf . ,opcode-modifier-wq-Suf)
+    (:sl-suf . ,opcode-modifier-sl-Suf)
+    (:bwl-suf . ,opcode-modifier-bwl-Suf)
+    (:bwlq-suf . ,opcode-modifier-bwlq-Suf)
+    (:fp . ,opcode-modifier-FP)
+    (:l-fp . ,opcode-modifier-l-FP)
+    (:q-fp . ,opcode-modifier-q-FP)
+    (:x-fp . ,opcode-modifier-x-FP)
+    (:sl-fp . ,opcode-modifier-sl-FP)
+    (:floatd . ,opcode-modifier-FloatD)
+    (:floatdr . ,opcode-modifier-FloatDR)))
 
 
 ;;; By default, this returns NIL if the modifier can't be encoded.
@@ -271,118 +276,118 @@
 
 ;;; operand-types[i] bits
 ;;; register
-(defconstant Reg8 #x1) ; 8 bit reg
-(defconstant Reg16 #x2) ; 16 bit reg
-(defconstant Reg32 #x4) ; 32 bit reg
-(defconstant Reg64 #x8) ; 64 bit reg
+(defconstant operand-type-Reg8 #x1) ; 8 bit reg
+(defconstant operand-type-Reg16 #x2) ; 16 bit reg
+(defconstant operand-type-Reg32 #x4) ; 32 bit reg
+(defconstant operand-type-Reg64 #x8) ; 64 bit reg
 ;;; immediate
-(defconstant Imm8 #x10) ; 8 bit immediate
-(defconstant Imm8S #x20) ; 8 bit immediate sign extended
-(defconstant Imm16 #x40) ; 16 bit immediate
-(defconstant Imm32 #x80) ; 32 bit immediate
-(defconstant Imm32S #x100) ; 32 bit immediate sign extended
-(defconstant Imm64 #x200) ; 64 bit immediate
-(defconstant Imm1 #x400) ; 1 bit immediate
+(defconstant operand-type-Imm8 #x10) ; 8 bit immediate
+(defconstant operand-type-Imm8S #x20) ; 8 bit immediate sign extended
+(defconstant operand-type-Imm16 #x40) ; 16 bit immediate
+(defconstant operand-type-Imm32 #x80) ; 32 bit immediate
+(defconstant operand-type-Imm32S #x100) ; 32 bit immediate sign extended
+(defconstant operand-type-Imm64 #x200) ; 64 bit immediate
+(defconstant operand-type-Imm1 #x400) ; 1 bit immediate
 ;;; memory
-(defconstant BaseIndex #x800)
+(defconstant operand-type-BaseIndex #x800)
 ;;; Disp8 16 32 are used in different ways  depending on the
 ;;; instruction.  For jumps  they specify the size of the PC relative
 ;;; displacement  for baseindex type instructions  they specify the
 ;;; size of the offset relative to the base register  and for memory
 ;;; offset instructions such as `mov 1234 %al' they specify the size of
 ;;; the offset relative to the segment base.
-(defconstant Disp8 #x1000) ; 8 bit displacement
-(defconstant Disp16 #x2000) ; 16 bit displacement
-(defconstant Disp32 #x4000) ; 32 bit displacement
-(defconstant Disp32S #x8000) ; 32 bit signed displacement
-(defconstant Disp64 #x10000) ; 64 bit displacement
+(defconstant operand-type-Disp8 #x1000) ; 8 bit displacement
+(defconstant operand-type-Disp16 #x2000) ; 16 bit displacement
+(defconstant operand-type-Disp32 #x4000) ; 32 bit displacement
+(defconstant operand-type-Disp32S #x8000) ; 32 bit signed displacement
+(defconstant operand-type-Disp64 #x10000) ; 64 bit displacement
 ;;; specials
-(defconstant InOutPortReg #x20000) ; register to hold in/out port addr = dx
-(defconstant ShiftCount #x40000) ; register to hold shift cound = cl
-(defconstant Control #x80000) ; Control register
-(defconstant Debug #x100000) ; Debug register
-(defconstant Test #x200000) ; Test register
-(defconstant FloatReg #x400000) ; Float register
-(defconstant FloatAcc #x800000) ; Float stack top %st(0)
-(defconstant SReg2 #x1000000) ; 2 bit segment register
-(defconstant SReg3 #x2000000) ; 3 bit segment register
-(defconstant Acc #x4000000) ; Accumulator %al or %ax or %eax
-(defconstant JumpAbsolute #x8000000)
-(defconstant RegMMX #x10000000) ; MMX register
-(defconstant RegXMM #x20000000) ; XMM registers in PIII
-(defconstant EsSeg #x40000000) ; String insn operand with fixed es segment
+(defconstant operand-type-InOutPortReg #x20000) ; register to hold in/out port addr = dx
+(defconstant operand-type-ShiftCount #x40000) ; register to hold shift cound = cl
+(defconstant operand-type-Control #x80000) ; Control register
+(defconstant operand-type-Debug #x100000) ; Debug register
+(defconstant operand-type-Test #x200000) ; Test register
+(defconstant operand-type-FloatReg #x400000) ; Float register
+(defconstant operand-type-FloatAcc #x800000) ; Float stack top %st(0)
+(defconstant operand-type-SReg2 #x1000000) ; 2 bit segment register
+(defconstant operand-type-SReg3 #x2000000) ; 3 bit segment register
+(defconstant operand-type-Acc #x4000000) ; Accumulator %al or %ax or %eax
+(defconstant operand-type-JumpAbsolute #x8000000)
+(defconstant operand-type-RegMMX #x10000000) ; MMX register
+(defconstant operand-type-RegXMM #x20000000) ; XMM registers in PIII
+(defconstant operand-type-EsSeg #x40000000) ; String insn operand with fixed es segment
 
 ;;; InvMem is for instructions with a modrm byte that only allow a
 ;;; general register encoding in the i.tm.mode and i.tm.regmem fields
 ;;; eg. control reg moves.  They really ought to support a memory form
 ;;; but don't  so we add an InvMem flag to the register operand to
 ;;; indicate that it should be encoded in the i.tm.regmem field.
-(defconstant InvMem #x80000000)
+(defconstant operand-type-InvMem #x80000000)
 
-(defconstant Reg (logior Reg8 Reg16 Reg32 Reg64)) ; gen'l register
-(defconstant WordReg (logior Reg16 Reg32 Reg64))
-(defconstant ImplicitRegister (logior InOutPortReg ShiftCount Acc FloatAcc))
-(defconstant Imm (logior Imm8 Imm8S Imm16 Imm32S Imm32 Imm64)) ; gen'l immediate
-(defconstant EncImm (logior Imm8 Imm16 Imm32 Imm32S)) ; Encodable gen'l immediate
-(defconstant Disp (logior Disp8 Disp16 Disp32 Disp32S Disp64)) ; General displacement
-(defconstant AnyMem (logior Disp8 Disp16 Disp32 Disp32S BaseIndex InvMem)) ; General memory
+(defconstant operand-type-Reg (logior operand-type-Reg8 operand-type-Reg16 operand-type-Reg32 operand-type-Reg64)) ; gen'l register
+(defconstant operand-type-WordReg (logior operand-type-Reg16 operand-type-Reg32 operand-type-Reg64))
+(defconstant operand-type-ImplicitRegister (logior operand-type-InOutPortReg operand-type-ShiftCount operand-type-Acc operand-type-FloatAcc))
+(defconstant operand-type-Imm (logior operand-type-Imm8 operand-type-Imm8S operand-type-Imm16 operand-type-Imm32S operand-type-Imm32 operand-type-Imm64)) ; gen'l immediate
+(defconstant operand-type-EncImm (logior operand-type-Imm8 operand-type-Imm16 operand-type-Imm32 operand-type-Imm32S)) ; Encodable gen'l immediate
+(defconstant operand-type-Disp (logior operand-type-Disp8 operand-type-Disp16 operand-type-Disp32 operand-type-Disp32S operand-type-Disp64)) ; General displacement
+(defconstant operand-type-AnyMem (logior operand-type-Disp8 operand-type-Disp16 operand-type-Disp32 operand-type-Disp32S operand-type-BaseIndex operand-type-InvMem)) ; General memory
 ;;; The following aliases are defined because the opcode table
 ;;; carefully specifies the allowed memory types for each instruction.
 ;;; At the moment we can only tell a memory reference size by the
 ;;; instruction suffix  so there's not much point in defining Mem8
 ;;; Mem16  Mem32 and Mem64 opcode modifiers - We might as well just use
 ;;; the suffix directly to check memory operands.
-(defconstant LLongMem AnyMem) ; 64 bits (or more)
-(defconstant LongMem AnyMem) ; 32 bit memory ref
-(defconstant ShortMem AnyMem) ; 16 bit memory ref
-(defconstant WordMem AnyMem) ; 16 or 32 bit memory ref
-(defconstant ByteMem AnyMem) ; 8 bit memory ref
+(defconstant operand-type-LLongMem operand-type-AnyMem); 64 bits (or more)
+(defconstant operand-type-LongMem  operand-type-AnyMem) ; 32 bit memory ref
+(defconstant operand-type-ShortMem operand-type-AnyMem) ; 16 bit memory ref
+(defconstant operand-type-WordMem operand-type-AnyMem) ; 16 or 32 bit memory ref
+(defconstant operand-type-ByteMem operand-type-AnyMem) ; 8 bit memory ref
 
 (defparameter *x86-operand-type-names*
-  `((:Reg8 . ,Reg8)
-    (:Reg16 . ,Reg16)
-    (:Reg32 . ,Reg32)
-    (:Reg64 . ,Reg64)
-    (:Imm8 . ,Imm8)
-    (:Imm8S . ,Imm8S)
-    (:Imm16 . ,Imm16)
-    (:Imm32 . ,Imm32)
-    (:Imm32S . ,Imm32S)
-    (:Imm64 . ,Imm64)
-    (:Imm1 . ,Imm1)
-    (:BaseIndex . ,BaseIndex)
-    (:Disp8 . ,Disp8)
-    (:Disp16 . ,Disp16)
-    (:Disp32 . ,Disp32)
-    (:Disp32S . ,Disp32S)
-    (:Disp64 . ,Disp64)
-    (:InOutPortReg . ,InOutPortReg)
-    (:ShiftCount . ,ShiftCount)
-    (:Control . ,Control)
-    (:Debug . ,Debug)
-    (:Test . ,Test)
-    (:FloatReg . ,FloatReg)
-    (:FloatAcc . ,FloatAcc)
-    (:SReg2 . ,SReg2)
-    (:SReg3 . ,SReg3)
-    (:Acc . ,Acc)
-    (:JumpAbsolute . ,JumpAbsolute)
-    (:RegMMX . ,RegMMX)
-    (:RegXMM . ,RegXMM)
-    (:EsSeg . ,EsSeg)
-    (:InvMem . ,InvMem)
-    (:Reg . ,Reg)
-    (:WordReg . ,WordReg)
-    (:ImplicitRegister . ,ImplicitRegister)
-    (:Imm . ,Imm)
-    (:EncImm . ,EncImm)
-    (:Disp . ,Disp)
-    (:AnyMem . ,AnyMem)
-    (:LLongMem . ,LLongMem)
-    (:LongMem . ,LongMem)
-    (:ShortMem . ,ShortMem)
-    (:WordMem . ,WordMem)
-    (:ByteMem . ,ByteMem)
+  `((:Reg8 . ,operand-type-Reg8)
+    (:Reg16 . ,operand-type-Reg16)
+    (:Reg32 . ,operand-type-Reg32)
+    (:Reg64 . ,operand-type-Reg64)
+    (:Imm8 . ,operand-type-Imm8)
+    (:Imm8S . ,operand-type-Imm8S)
+    (:Imm16 . ,operand-type-Imm16)
+    (:Imm32 . ,operand-type-Imm32)
+    (:Imm32S . ,operand-type-Imm32S)
+    (:Imm64 . ,operand-type-Imm64)
+    (:Imm1 . ,operand-type-Imm1)
+    (:BaseIndex . ,operand-type-BaseIndex)
+    (:Disp8 . ,operand-type-Disp8)
+    (:Disp16 . ,operand-type-Disp16)
+    (:Disp32 . ,operand-type-Disp32)
+    (:Disp32S . ,operand-type-Disp32S)
+    (:Disp64 . ,operand-type-Disp64)
+    (:InOutPortReg . ,operand-type-InOutPortReg)
+    (:ShiftCount . ,operand-type-ShiftCount)
+    (:Control . ,operand-type-Control)
+    (:Debug . ,operand-type-Debug)
+    (:Test . ,operand-type-Test)
+    (:FloatReg . ,operand-type-FloatReg)
+    (:FloatAcc . ,operand-type-FloatAcc)
+    (:SReg2 . ,operand-type-SReg2)
+    (:SReg3 . ,operand-type-SReg3)
+    (:Acc . ,operand-type-Acc)
+    (:JumpAbsolute . ,operand-type-JumpAbsolute)
+    (:RegMMX . ,operand-type-RegMMX)
+    (:RegXMM . ,operand-type-RegXMM)
+    (:EsSeg . ,operand-type-EsSeg)
+    (:InvMem . ,operand-type-InvMem)
+    (:Reg . ,operand-type-Reg)
+    (:WordReg . ,operand-type-WordReg)
+    (:ImplicitRegister . ,operand-type-ImplicitRegister)
+    (:Imm . ,operand-type-Imm)
+    (:EncImm . ,operand-type-EncImm)
+    (:Disp . ,operand-type-Disp)
+    (:AnyMem . ,operand-type-AnyMem)
+    (:LLongMem . ,operand-type-LLongMem)
+    (:LongMem . ,operand-type-LongMem)
+    (:ShortMem . ,operand-type-ShortMem)
+    (:WordMem . ,operand-type-WordMem)
+    (:ByteMem . ,operand-type-ByteMem)
   ))
 
 (defun %encode-operand-type (optype &optional errorp)
@@ -440,7 +445,9 @@
   reg-name
   reg-type
   reg-flags
-  reg-num
+  reg-num                               ; for encoding in instruction fields
+  ordinal64                             ; canonical, ordinal register number
+  ordinal32
 )
 
 (defstruct seg-entry
@@ -1899,653 +1906,653 @@
   (vector
    ;; Make %st first as we test for it.
    (make-reg-entry :reg-name "st"
-                   :reg-type (logior FloatReg floatacc)
+                   :reg-type (encode-operand-type :FloatReg :floatacc)
                    :reg-flags 0
                    :reg-num 0 )
    ;; 8 bit regs
    (make-reg-entry :reg-name "al"
-                   :reg-type (logior Reg8 Acc)
+                   :reg-type (encode-operand-type :Reg8 :Acc)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "cl"
-                   :reg-type (logior Reg8 ShiftCount)
+                   :reg-type (encode-operand-type :Reg8 :ShiftCount)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "dl"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "bl"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "ah"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "ch"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "dh"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "bh"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "axl"
-                   :reg-type (logior Reg8 Acc)
+                   :reg-type (encode-operand-type :Reg8 :Acc)
                    :reg-flags RegRex64
                    :reg-num 0 ) ; Must be in the "al + 8" slot.
    (make-reg-entry :reg-name "cxl"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags RegRex64
                    :reg-num 1)
    (make-reg-entry :reg-name "dxl"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags RegRex64
                    :reg-num 2)
    (make-reg-entry :reg-name "bxl"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags RegRex64
                    :reg-num 3)
    (make-reg-entry :reg-name "spl"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags RegRex64
                    :reg-num 4)
    (make-reg-entry :reg-name "bpl"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags RegRex64
                    :reg-num 5)
    (make-reg-entry :reg-name "sil"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags RegRex64
                    :reg-num 6)
    (make-reg-entry :reg-name "dil"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags RegRex64
                    :reg-num 7)
    (make-reg-entry :reg-name "r8b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 1)
    (make-reg-entry :reg-name "r10b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 2)
    (make-reg-entry :reg-name "r11b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 3)
    (make-reg-entry :reg-name "r12b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 4)
    (make-reg-entry :reg-name "r13b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 5)
    (make-reg-entry :reg-name "r14b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 6)
    (make-reg-entry :reg-name "r15b"
-                   :reg-type Reg8
+                   :reg-type (encode-operand-type :Reg8)
                    :reg-flags (logior RegRex64 RegRex)
                    :reg-num 7)
    ;; 16 bit regs
    (make-reg-entry :reg-name "ax"
-                   :reg-type (logior Reg16 Acc)
+                   :reg-type (encode-operand-type :Reg16 :Acc)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "cx"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "dx"
-                   :reg-type (logior Reg16 InOutPortReg)
+                   :reg-type (encode-operand-type :Reg16 :InOutPortReg)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "bx"
-                   :reg-type (logior Reg16 BaseIndex)
+                   :reg-type (encode-operand-type :Reg16 :BaseIndex)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "sp"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "bp"
-                   :reg-type (logior Reg16 BaseIndex)
+                   :reg-type (encode-operand-type :Reg16 :BaseIndex)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "si"
-                   :reg-type (logior Reg16 BaseIndex)
+                   :reg-type (encode-operand-type :Reg16 :BaseIndex)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "di"
-                   :reg-type (logior Reg16 BaseIndex)
+                   :reg-type (encode-operand-type :Reg16 :BaseIndex)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "r8w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 1)
    (make-reg-entry :reg-name "r10w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 2)
    (make-reg-entry :reg-name "r11w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 3)
    (make-reg-entry :reg-name "r12w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 4)
    (make-reg-entry :reg-name "r13w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 5)
    (make-reg-entry :reg-name "r14w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 6)
    (make-reg-entry :reg-name "r15w"
-                   :reg-type Reg16
+                   :reg-type (encode-operand-type :Reg16)
                    :reg-flags RegRex
                    :reg-num 7)
         ; 32 bit regs
    (make-reg-entry :reg-name "eax"
-                   :reg-type (logior Reg32 BaseIndex Acc)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex :Acc)
                    :reg-flags 0
                    :reg-num 0 ) ; Must be in ax + 16 slot.
    (make-reg-entry :reg-name "ecx"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "edx"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "ebx"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "esp"
-                   :reg-type Reg32
+                   :reg-type (encode-operand-type :Reg32)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "ebp"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "esi"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "edi"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "r8d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 1)
    (make-reg-entry :reg-name "r10d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 2)
    (make-reg-entry :reg-name "r11d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 3)
    (make-reg-entry :reg-name "r12d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 4)
    (make-reg-entry :reg-name "r13d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 5)
    (make-reg-entry :reg-name "r14d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 6)
    (make-reg-entry :reg-name "r15d"
-                   :reg-type (logior Reg32 BaseIndex)
+                   :reg-type (encode-operand-type :Reg32 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 7)
    (make-reg-entry :reg-name "rax"
-                   :reg-type (logior Reg64 BaseIndex Acc)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex :Acc)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "rcx"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "rdx"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "rbx"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "rsp"
-                   :reg-type Reg64
+                   :reg-type (encode-operand-type :Reg64)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "rbp"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "rsi"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "rdi"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "r8"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 1)
    (make-reg-entry :reg-name "r10"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 2)
    (make-reg-entry :reg-name "r11"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 3)
    (make-reg-entry :reg-name "r12"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 4)
    (make-reg-entry :reg-name "r13"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 5)
    (make-reg-entry :reg-name "r14"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 6)
    (make-reg-entry :reg-name "r15"
-                   :reg-type (logior Reg64 BaseIndex)
+                   :reg-type (encode-operand-type :Reg64 :BaseIndex)
                    :reg-flags RegRex
                    :reg-num 7)
         ; Segment registers.
    (make-reg-entry :reg-name "es"
-                   :reg-type SReg2
+                   :reg-type (encode-operand-type :SReg2)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "cs"
-                   :reg-type SReg2
+                   :reg-type (encode-operand-type :SReg2)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "ss"
-                   :reg-type SReg2
+                   :reg-type (encode-operand-type :SReg2)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "ds"
-                   :reg-type SReg2
+                   :reg-type (encode-operand-type :SReg2)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "fs"
-                   :reg-type SReg3
+                   :reg-type (encode-operand-type :SReg3)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "gs"
-                   :reg-type SReg3
+                   :reg-type (encode-operand-type :SReg3)
                    :reg-flags 0
                    :reg-num 5)
    ;; Control registers.
    (make-reg-entry :reg-name "cr0"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "cr1"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "cr2"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "cr3"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "cr4"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "cr5"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "cr6"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "cr7"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "cr8"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 0 )
    (make-reg-entry :reg-name "cr9"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 1)
    (make-reg-entry :reg-name "cr10"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 2)
    (make-reg-entry :reg-name "cr11"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 3)
    (make-reg-entry :reg-name "cr12"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 4)
    (make-reg-entry :reg-name "cr13"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 5)
    (make-reg-entry :reg-name "cr14"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 6)
    (make-reg-entry :reg-name "cr15"
-                   :reg-type Control
+                   :reg-type (encode-operand-type :Control)
                    :reg-flags RegRex
                    :reg-num 7)
    ;; Debug registers.
    (make-reg-entry :reg-name "db0"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "db1"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "db2"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "db3"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "db4"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "db5"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "db6"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "db7"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "db8"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 0 )
    (make-reg-entry :reg-name "db9"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 1)
    (make-reg-entry :reg-name "db10"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 2)
    (make-reg-entry :reg-name "db11"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 3)
    (make-reg-entry :reg-name "db12"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 4)
    (make-reg-entry :reg-name "db13"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 5)
    (make-reg-entry :reg-name "db14"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 6)
    (make-reg-entry :reg-name "db15"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 7)
    (make-reg-entry :reg-name "dr0"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "dr1"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "dr2"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "dr3"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "dr4"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "dr5"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "dr6"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "dr7"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "dr8"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 0 )
    (make-reg-entry :reg-name "dr9"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 1)
    (make-reg-entry :reg-name "dr10"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 2)
    (make-reg-entry :reg-name "dr11"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 3)
    (make-reg-entry :reg-name "dr12"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 4)
    (make-reg-entry :reg-name "dr13"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 5)
    (make-reg-entry :reg-name "dr14"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 6)
    (make-reg-entry :reg-name "dr15"
-                   :reg-type Debug
+                   :reg-type (encode-operand-type :Debug)
                    :reg-flags RegRex
                    :reg-num 7)
    ;; Test registers.
    (make-reg-entry :reg-name "tr0"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "tr1"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "tr2"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "tr3"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "tr4"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "tr5"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "tr6"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "tr7"
-                   :reg-type Test
+                   :reg-type (encode-operand-type :Test)
                    :reg-flags 0
                    :reg-num 7)
    ;; MMX and simd registers.
    (make-reg-entry :reg-name "mm0"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "mm1"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "mm2"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "mm3"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "mm4"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "mm5"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "mm6"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "mm7"
-                   :reg-type RegMMX
+                   :reg-type (encode-operand-type :RegMMX)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "xmm0"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 0 )
    (make-reg-entry :reg-name "xmm1"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "xmm2"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "xmm3"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "xmm4"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "xmm5"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "xmm6"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "xmm7"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags 0
                    :reg-num 7)
    (make-reg-entry :reg-name "xmm8"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 0 )
    (make-reg-entry :reg-name "xmm9"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 1)
    (make-reg-entry :reg-name "xmm10"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 2)
    (make-reg-entry :reg-name "xmm11"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 3)
    (make-reg-entry :reg-name "xmm12"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 4)
    (make-reg-entry :reg-name "xmm13"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 5)
    (make-reg-entry :reg-name "xmm14"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 6)
    (make-reg-entry :reg-name "xmm15"
-                   :reg-type RegXMM
+                   :reg-type (encode-operand-type :RegXMM)
                    :reg-flags RegRex
                    :reg-num 7)
    ;; No type will make this register rejected for all purposes except
    ;; for addressing. This saves creating one extra type for RIP.
    (make-reg-entry :reg-name "rip"
-                   :reg-type BaseIndex
+                   :reg-type (encode-operand-type :BaseIndex)
                    :reg-flags 0
                    :reg-num 0 )
    ))
@@ -2553,35 +2560,35 @@
 (defvar *x86-float-regs*
   (vector
    (make-reg-entry :reg-name "st[0]"
-                   :reg-type (logior FloatReg FloatAcc)
+                   :reg-type (encode-operand-type :FloatReg :FloatAcc)
                    :reg-flags 0
                    :reg-num 0)
    (make-reg-entry :reg-name "st[1]"
-                   :reg-type FloatReg
+                   :reg-type (encode-operand-type :FloatReg)
                    :reg-flags 0
                    :reg-num 1)
    (make-reg-entry :reg-name "st[2]"
-                   :reg-type FloatReg
+                   :reg-type (encode-operand-type :FloatReg)
                    :reg-flags 0
                    :reg-num 2)
    (make-reg-entry :reg-name "st[3]"
-                   :reg-type FloatReg
+                   :reg-type (encode-operand-type :FloatReg)
                    :reg-flags 0
                    :reg-num 3)
    (make-reg-entry :reg-name "st[4]"
-                   :reg-type FloatReg
+                   :reg-type (encode-operand-type :FloatReg)
                    :reg-flags 0
                    :reg-num 4)
    (make-reg-entry :reg-name "st[5]"
-                   :reg-type FloatReg
+                   :reg-type (encode-operand-type :FloatReg)
                    :reg-flags 0
                    :reg-num 5)
    (make-reg-entry :reg-name "st[6]"
-                   :reg-type FloatReg
+                   :reg-type (encode-operand-type :FloatReg)
                    :reg-flags 0
                    :reg-num 6)
    (make-reg-entry :reg-name "st[7]"
-                   :reg-type FloatReg
+                   :reg-type (encode-operand-type :FloatReg)
                    :reg-flags 0
                    :reg-num 7)))
 
@@ -2623,6 +2630,10 @@
   entry                                 ;the reg-entry
 )
 
+(defstruct (x86-label-operand (:include x86-operand))
+  label)
+
+
 (defstruct (x86-memory-operand (:include x86-operand))
   ;; Any of these fields can be null.  Some combinations of fields -
   ;; like a segment register or scale factor by itself - make no
@@ -2640,3 +2651,127 @@
 (defmethod unparse-operand ((x x86-immediate-operand))
   `($ ,(x86-immediate-operand-value x)))
 
+(defmethod unparse-operand ((x x86-label-operand))
+  `(> ,(x86-lap-label-name (x86-label-operand-label x))))
+
+(macrolet ((register-operand (name)
+             (let* ((r (gethash name *x86-registers*)))
+                      (unless r (error "unknown register ~s" name))
+                      (make-x86-register-operand :type (logandc2 (reg-entry-reg-type r)
+                                                                 (encode-operand-type :baseIndex))
+                                                 :entry r))))
+  (defparameter *x8664-register-operands*
+      (vector
+       ;; 64-bit general-purpose registers
+       (register-operand "rax")
+       (register-operand "rcx")
+       (register-operand "rdx")
+       (register-operand "rbx")
+       (register-operand "rsp")
+       (register-operand "rbp")
+       (register-operand "rsi")
+       (register-operand "rdi")
+       (register-operand "r8")
+       (register-operand "r9")
+       (register-operand "r10")
+       (register-operand "r11")
+       (register-operand "r12")
+       (register-operand "r13")
+       (register-operand "r14")
+       (register-operand "r15")
+       ;; 32-bit registers
+       (register-operand "eax")
+       (register-operand "ecx")
+       (register-operand "edx")
+       (register-operand "ebx")
+       (register-operand "esp")
+       (register-operand "ebp")
+       (register-operand "esi")
+       (register-operand "edi")
+       (register-operand "r8d")
+       (register-operand "r9d")
+       (register-operand "r10d")
+       (register-operand "r11d")
+       (register-operand "r12d")
+       (register-operand "r13d")
+       (register-operand "r14d")
+       (register-operand "r15d")
+       ;; 16-bit-registers
+       (register-operand "ax")
+       (register-operand "cx")
+       (register-operand "dx")
+       (register-operand "bx")
+       (register-operand "sp")
+       (register-operand "bp")
+       (register-operand "si")
+       (register-operand "di")
+       (register-operand "r8w")
+       (register-operand "r9w")
+       (register-operand "r10w")
+       (register-operand "r11w")
+       (register-operand "r12w")
+       (register-operand "r13w")
+       (register-operand "r14w")
+       (register-operand "r15w")
+       ;; 8-bit registers
+       (register-operand "al")
+       (register-operand "cl")
+       (register-operand "dl")
+       (register-operand "bl")
+       (register-operand "spl")
+       (register-operand "bpl")
+       (register-operand "sil")
+       (register-operand "dil")
+       (register-operand "r8b")
+       (register-operand "r9b")
+       (register-operand "r10b")
+       (register-operand "r11b")
+       (register-operand "r12b")
+       (register-operand "r13b")
+       (register-operand "r14b")
+       (register-operand "r15b"))))
+
+(dotimes (i (length *x8664-register-operands*))
+  (let* ((op (svref *x8664-register-operands* i)))
+    (when op
+      (let* ((entry (x86-register-operand-entry op)))
+        (setf (reg-entry-ordinal64 entry) i)))))
+
+(defconstant x86-64-bit-register #x00)
+(defconstant x86-32-bit-register #x10)
+(defconstant x86-16-bit-register #x20)
+(defconstant x86-8-bit-register #x30)
+
+(defun gpr-ordinal (r)
+  (or
+   (etypecase r
+     ((mod 64) r)
+     ((or string symbol)
+      (let* ((entry (gethash r *x86-registers*)))
+        (if entry
+          (reg-entry-ordinal64 entry))))
+     (reg-entry (reg-entry-ordinal64 r))
+     (x86-register-operand
+      (reg-entry-ordinal64 (x86-register-operand-entry r))))
+   (error "Can't determine register ordinal of ~s" r)))
+
+
+(defun x86-reg8 (r)
+  (svref *x8664-register-operands* (dpb (gpr-ordinal r)
+                                        (byte 4 0)
+                                        x86-8-bit-register)))
+
+(defun x86-reg16 (r)
+  (svref *x8664-register-operands* (dpb (gpr-ordinal r)
+                                        (byte 4 0)
+                                        x86-16-bit-register)))
+
+(defun x86-reg32 (r)
+  (svref *x8664-register-operands* (dpb (gpr-ordinal r)
+                                        (byte 4 0)
+                                        x86-32-bit-register)))       
+
+(defun x86-reg64 (r)
+  (svref *x8664-register-operands* (dpb (gpr-ordinal r)
+                                        (byte 4 0)
+                                        x86-64-bit-register)))

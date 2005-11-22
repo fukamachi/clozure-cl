@@ -57,17 +57,54 @@
   (defstruct (x86-lap-note-end (:include x86-lap-note)))
     
   (defstruct (x86-lap-label (:include x86-instruction-element)
-                            (:constructor %%make-lap-label (name)))
+                            (:constructor %%make-x86-lap-label (name)))
     name
     refs))
 
-(defun make-x86-lap-instruction (template parsed-operands suffix)
-  (%make-x86-lap-instruction
-   :template template
-   :parsed-operands parsed-operands
-   :base-opcode (x86-instruction-template-base-opcode template)
-   :extension-opcode (x86-instruction-template-extension-opcode template)
-   :suffix suffix))
+(defmethod print-object ((i x86-lap-instruction) stream)
+  (let* ((template (x86-lap-instruction-template i))
+         (operands (x86-lap-instruction-parsed-operands i)))
+    (print-unreadable-object (i stream :type t)
+      (when template
+        (format stream "~a" (x86-instruction-template-name template))
+        (let* ((suffix (x86-lap-instruction-suffix i)))
+          (when suffix
+            (format stream "[~c]" suffix)))
+        (dotimes (i (length operands))
+          (format stream " ~a" (unparse-operand (svref operands i))))))))
+
+(defmethod print-object ((l x86-lap-label) stream)
+  (print-unreadable-object (l stream :type t)
+    (format stream "~a" (x86-lap-label-name l))))
+
+;;; Labels
+
+(defun make-x86-lap-label (name)
+  (%%make-x86-lap-label name))
+
+(defun find-x86-lap-label (name)
+  (if (typep *x86-lap-labels* 'hash-table)
+    (gethash name *x86-lap-labels*)
+    (car (member name *x86-lap-labels* :test #'eq :key #'x86-lap-label-name))))
+
+;;; A label can only be emitted once.  Once it's been emitted, its pred/succ
+;;; slots will be non-nil.
+
+(defun x86-lap-label-emitted-p (lab)
+  (not (null (x86-lap-label-pred lab))))
+
+(defun emit-x86-lap-label (name)
+  (let* ((lab (find-x86-lap-label name)))
+    (if  lab 
+      (when (x86-lap-label-emitted-p lab)
+        (error "Label ~s: multiply defined." name))
+      (setq lab (make-x86-lap-label name)))
+    (ccl::append-dll-node lab *x86-lap-instructions*)))
+
+(defun make-x86-lap-instruction ()
+  ;; Might want to us a freelisting scheme: these things become
+  ;; garbage quickly.
+  (%make-x86-lap-instruction))
 
 ;;; Some instructions may be "span-dependent", e.g., come in
 ;;; different sizes depending on some attribute of their
@@ -119,33 +156,48 @@
                                  :entry r)
       (error "Unknown X86 register ~s" regname))))
 
+(defun parse-x86-label-reference (instruction name)
+  (let* ((lab (or (find-x86-lap-label name)
+                  (make-x86-lap-label name))))
+    (push instruction (x86-lap-label-refs lab))
+    (make-x86-label-operand :type (encode-operand-type :disp)
+                            :label lab)))
+  
 
 ;;; Operand syntax:
-;;; atom -> labelref
+;;; (@ x) -> labelref
 ;;; (% x) -> register
 ;;; ($ x) -> immediate
 ;;; (* x) -> x with :jumpabsolute attribute
 ;;; t -> probably memory, try to parse it that way.
-(defun parse-x86-operand (form)
+(defun parse-x86-operand (instruction form)
   (if (consp form)
     (let* ((head (car form)))
-      (if (and (symbolp head)
-               (consp (cdr form))
-               (null (cddr form)))
+      (if (symbolp head)
         (cond ((string= head '$)
-               (make-x86-immediate-operand :type (encode-operand-type :imm64)
-                                           :value (cadr form)))
+               (destructuring-bind (immval) (cdr form)
+                 (make-x86-immediate-operand :type (encode-operand-type :imm64)
+                                             :value immval)))
               ((string= head '%)
-               (parse-x86-register-operand (cadr form)))
+               (destructuring-bind (reg) (cdr form)
+                 (parse-x86-register-operand reg)))
               ((string= head '*)
-               (let* ((op (parse-x86-operand (cadr form))))
-                 (setf (x86-operand-type op)
-                       (logior (encode-operand-type :jumpabsolute)
-                               (x86-operand-type op)))
-                 op))
-              (t (parse-x86-memory-operand form)))
-        (parse-x86-memory-operand form)))
-    (parse-x86-label-reference form)))
+               (destructuring-bind (subop) (cdr form)
+                 (let* ((op (parse-x86-operand subop)))
+                   (setf (x86-operand-type op)
+                         (logior (encode-operand-type :jumpabsolute)
+                                 (x86-operand-type op)))
+                   op)))
+              ((string= head '@)
+               (parse-x86-memory-operand instruction (cdr form)))
+              ((string= head '>)
+               (destructuring-bind (lab) (cadr form)
+                 (parse-x86-label-reference instruction lab)))
+              (t (error "unknown X86 operand: ~s" form)))
+        (error "unknown X86 operand: ~s" form)))
+    ;; Treat an atom as a displacement, which is itself a
+    ;; form of memory operand
+    (parse-x86-memory-operand instruction `(,form))))
 
 ;;; This basically finds a syntactically matching template.
 ;;; There can still be lots of semantic errors, e.g., "movq %eax, %di"
@@ -418,51 +470,77 @@
               (logxor (x86-lap-instruction-base-opcode instruction) 4))))
     instruction))
 
-
+(defun init-x86-lap-instruction (instruction template parsed-operands suffix)
+  (setf (x86-lap-instruction-template instruction) template
+        (x86-lap-instruction-parsed-operands instruction) parsed-operands
+        (x86-lap-instruction-base-opcode instruction) (x86-instruction-template-base-opcode template)
+        (x86-lap-instruction-extension-opcode instruction) (x86-instruction-template-extension-opcode template)
+        (x86-lap-instruction-suffix instruction) suffix)
+  instruction)
 
 ;;; FORM is a list; its car doesn't name a macro or pseudo op.
 ;;; If we can find a matching instruction template, create a
 ;;; (skeletal) x86-lap-instruction with that template and these
 ;;; operands.
 (defun parse-x86-instruction (form)
-  (labels
-      ((parse-x86-instruction-aux (subform explicit-prefixes expecting-string)
-         (if (null subform)
-           (error "No non-prefix X86 instruction in ~s" form)
-           (destructuring-bind (mnemonic &rest operands) subform
-             (multiple-value-bind (templates suffix)
-                 (get-x86-instruction-templates-and-suffix mnemonic)
-               (let* ((t0 (car templates))
-                      (t0-modifier (x86-instruction-template-opcode-modifier t0)))
-                 (if (logtest t0-modifier
-                              (encode-opcode-modifier :isprefix))
-                   (let* ((prefix (x86-instruction-template-base-opcode t0)))
-                     (parse-x86-instruction-aux
-                      operands
-                      (cons prefix explicit-prefixes)
-                      (or expecting-string
-                          (if (or (eql prefix repe-prefix-opcode)
-                                  (eql prefix repne-prefix-opcode))
-                            (x86-instruction-template-name t0)))))
+  (let* ((instruction (make-x86-lap-instruction)))
+    (labels
+        ((parse-x86-instruction-aux (subform expecting-string)
+           (if (null subform)
+             (error "No non-prefix X86 instruction in ~s" form)
+             (destructuring-bind (mnemonic &rest operands) subform
+               (multiple-value-bind (templates suffix)
+                   (get-x86-instruction-templates-and-suffix mnemonic)
+                 (let* ((t0 (car templates))
+                        (t0-modifier (x86-instruction-template-opcode-modifier t0)))
+                   (if (logtest t0-modifier
+                                (encode-opcode-modifier :isprefix))
+                     (let* ((prefix (x86-instruction-template-base-opcode t0)))
+                       (add-prefix instruction prefix)
+                       (parse-x86-instruction-aux
+                        operands
+                        (or expecting-string
+                            (if (or (eql prefix repe-prefix-opcode)
+                                    (eql prefix repne-prefix-opcode))
+                              (x86-instruction-template-name t0)))))
                                                     
-                   (let* ((parsed-operands (if operands
-                                             (map 'vector #'parse-x86-operand operands))))
-                     (when (and expecting-string
-                                (not (logtest
-                                      (x86-instruction-template-opcode-modifier
-                                       (car templates))
-                                      (encode-opcode-modifier :isstring))))
-                       (error "Expecting string instruction after ~s in ~s"
-                              expecting-string form))
-                     (dolist (template templates (error "Operands or suffix invalid in ~s" form))
-                       (when (match-template template parsed-operands suffix)
-                         (let* ((instruction (make-x86-lap-instruction template parsed-operands suffix)))
-                           (dolist (prefix explicit-prefixes)
-                             (add-prefix instruction prefix))
+                     (let* ((parsed-operands (if operands
+                                               (map
+                                                'vector
+                                                #'(lambda (f)
+                                                    (parse-x86-operand
+                                                     instruction f))
+                                                operands))))
+                       (when (and expecting-string
+                                  (not (logtest
+                                        (x86-instruction-template-opcode-modifier
+                                         (car templates))
+                                        (encode-opcode-modifier :isstring))))
+                         (error "Expecting string instruction after ~s in ~s"
+                                expecting-string form))
+                       (dolist (template templates (error "Operands or suffix invalid in ~s" form))
+                         (when (match-template template parsed-operands suffix)
+                           (init-x86-lap-instruction instruction template parsed-operands suffix)
                            (check-suffix instruction form)
-                           (return instruction))))))))))))
-    (parse-x86-instruction-aux form nil nil)))
+                           (return instruction)))))))))))
+      (parse-x86-instruction-aux form nil))))
 
-                             
-                  
-    
+
+(defun x86-lap-form (form)
+  (if (atom form)
+    (emit-x86-lap-label form)
+    (if (eq (car form) 'progn)
+      (dolist (f (cdr form))
+        (x86-lap-form f))
+      (let* ((instruction (parse-x86-instruction form)))
+        (ccl::append-dll-node instruction *x86-lap-instructions*)))))
+
+;;; For testing.
+(defun x86-lap (forms)
+  (let* ((*x86-lap-instructions* (ccl::make-dll-header))
+         (*x86-lap-labels* ()))
+    (dolist (f forms)
+      (x86-lap-form f))
+    (ccl::do-dll-nodes (i *x86-lap-instructions*)
+      (format t "~&~s" i))))
+
