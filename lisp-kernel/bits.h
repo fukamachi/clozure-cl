@@ -138,20 +138,36 @@ count_leading_zeros(natural w) __attribute__((always_inline));
 static __inline__ unsigned
 count_leading_zeros(natural w)
 {
+#if __GNUC__ >= 4
 #if WORD_SIZE == 64
   return __builtin_clzll(w);  
 #else
   return __builtin_clz(w);  
 #endif
-
-}
+#else /* __GNUC__ < 4 */
+  unsigned lz;
+#ifdef PPC
+#ifdef PPC64
+  __asm__  ("cntlzd %0,%1" : "=r" (lz) : "r" (w));
 #else
+  __asm__  ("cntlzw %0,%1" : "=r" (lz) : "r" (w));
+#endif
+#endif /* PPC */
+#ifdef X86
+#ifdef X8664
+  __asm__ ("bsrq %0,%1" : "=r" (lz) : "r" (w));
+  __asm__ ("xorq $63,%0" : "=r" (lz));
+#else
+  __asm__ ("bsrl %0,%1" : "=r" (lz) : "r" (w));
+  __asm__ ("xorl $31,%0" : "=r" (lz));
+#endif 
+#endif
+  return lz;
+#endif
+}
+#else /* not __GNUC__ */
 unsigned
 count_leading_zeros(natural);
 #endif
-
-
-
-
                                         
 #endif /* __bits_h__ */
