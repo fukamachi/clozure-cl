@@ -1,3 +1,8 @@
+2005-11-28 10:05  gb
+
+	* lisp-kernel/bits.h: Conditionalize count_leading_zeros for GCC
+	versions < 4.0.
+
 2005-11-21 19:59  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Noted a couple of cases
