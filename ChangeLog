@@ -1,3 +1,11 @@
+2005-11-28 11:00  gb
+
+	* lisp-kernel/bits.h: Change arg order in x86 inline asm for
+	count_leading_zeros.  Can't easily test this.
+	
+	(Note that there are all kinds of potential endianness issues in GC
+	bitvector/bit-counting stuff.)
+
 2005-11-28 10:05  gb
 
 	* lisp-kernel/bits.h: Conditionalize count_leading_zeros for GCC
