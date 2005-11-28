@@ -155,10 +155,10 @@ count_leading_zeros(natural w)
 #endif /* PPC */
 #ifdef X86
 #ifdef X8664
-  __asm__ ("bsrq %0,%1" : "=r" (lz) : "r" (w));
+  __asm__ ("bsrq %1,%0" : "=r" (lz) : "r" (w));
   __asm__ ("xorq $63,%0" : "=r" (lz));
 #else
-  __asm__ ("bsrl %0,%1" : "=r" (lz) : "r" (w));
+  __asm__ ("bsrl %1,%0" : "=r" (lz) : "r" (w));
   __asm__ ("xorl $31,%0" : "=r" (lz));
 #endif 
 #endif
