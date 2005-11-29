@@ -87,6 +87,11 @@
     (gethash name *x86-lap-labels*)
     (car (member name *x86-lap-labels* :test #'eq :key #'x86-lap-label-name))))
 
+(defun find-or-create-x86-lap-label (name)
+  (or (find-x86-lap-label name)
+      (make-x86-lap-label name)))
+
+
 ;;; A label can only be emitted once.  Once it's been emitted, its pred/succ
 ;;; slots will be non-nil.
 
@@ -156,20 +161,209 @@
                                  :entry r)
       (error "Unknown X86 register ~s" regname))))
 
+;;; It may seem strange to have an expression language in a lisp-based
+;;; assembler, since lisp is itself a fairly reasonable expression
+;;; language and EVAL is (in this context, at least) an adequate evaluation
+;;; mechanism.  This may indeed be overkill, but there are reasons for
+;;; wanting something beyond EVAL.
+;;; This assumes that any expression that doesn't involve label addresses
+;;; will always evaluate to the same value (in "the same" execution context).
+;;; Expressions that do involve label references might only be evaluable
+;;; after all labels are defined, and the value of such an expression may
+;;; change (as label addresses are adjusted.)
+
+;;; A "label address expression" looks like (^ lab), syntactically.  Tree-walk
+;;; FORM, and return T if it contains a label address expression.
+
+(defun label-address-expression-p (form)
+  (and (consp form)
+       (symbolp (car form))
+       (string= (car form) "^")
+       (consp (cdr form))
+       (null (cddr form))))
+
+(defun contains-label-address-expression (form)
+  (cond ((label-address-expression-p form) t)
+        ((atom form) nil)
+        (t (dolist (sub (cdr form))
+              (when (contains-label-address-expression sub)
+                (return t))))))
+
+(defstruct expression
+  )
+
+
+(defstruct (label-expression (:include expression))
+  label)
+
+
+;;; Represents a constant
+(defstruct (constant-expression (:include expression))
+  value)
+
+;;; Also support 0, 1, 2, and many args, where at least one of those args
+;;; is or contains a label reference.
+(defstruct (application-expression (:include expression))
+  operator)
+
+
+(defstruct (unary-expression (:include application-expression))
+  operand)
+
+
+(defstruct (binary-expression (:include application-expression))
+  operand0
+  operand1)
+
+(defstruct (n-ary-expression (:include application-expression))
+  operands)
+
+;;; Looks like a job for DEFMETHOD.
+(defun expression-value (exp)
+  (etypecase exp
+    (constant-expression (constant-expression-value exp))
+    (label-expression (x86-lap-label-address (label-expression-label exp)))
+    (unary-expression (funcall (unary-expression-operator exp)
+                               (expression-value (unary-expression-operand exp))))
+    (binary-expression (funcall (binary-expression-operator exp) 
+                                (expression-value (binary-expression-operand0 exp))
+                                (expression-value (binary-expression-operand1 exp))))
+    (n-ary-expression (apply (n-ary-expression-operator exp)
+                             (mapcar #'expression-value (n-ary-expression-operands exp))))))
+
+(defun parse-expression (form)
+  (if (label-address-expression-p form)
+    (make-label-expression :label (find-or-create-x86-lap-label (cadr form)))
+    (if (contains-label-address-expression form)
+      (destructuring-bind (op &rest args) form
+        (case (length args)
+          (1 (make-unary-expression :operator op :operand (parse-expression (car args))))
+          (2 (make-binary-expression :operator op :operand0 (parse-expression (car args))
+                                     :operand1 (parse-expression (cadr args))))
+          (t (make-n-ary-expression :operator op :operands (mapcar #'parse-expression args)))))
+      (multiple-value-bind (value condition)
+          (eval form)
+        (if condition
+          (error "~a signaled during assembly-time evaluation of form ~s" condition form)
+          (make-constant-expression :value value))))))
+
+
+`
+(defun parse-x86-register-operand (regname)
+  (let* ((r (lookup-x86-register regname)))
+    (if r
+      (make-x86-register-operand :type (logandc2 (reg-entry-reg-type r)
+                                                 (encode-operand-type :baseIndex))
+                                 :entry r)
+      (error "Unknown X86 register ~s" regname))))
+
 (defun parse-x86-label-reference (instruction name)
   (let* ((lab (or (find-x86-lap-label name)
                   (make-x86-lap-label name))))
     (push instruction (x86-lap-label-refs lab))
     (make-x86-label-operand :type (encode-operand-type :disp)
                             :label lab)))
-  
+
+(defun check-base-and-index-regs (instruction base index)
+  (let* ((regxx (if (and (x86-lap-instruction-prefixes instruction)
+                         (not (zerop (aref (x86-lap-instruction-prefixes instruction) addr-prefix))))
+                  (encode-operand-type :reg32)
+                  (encode-operand-type :reg64))))
+    (if (or (and base
+                 (not (logtest (reg-entry-reg-type base) regxx))
+                 (or (not (eql (reg-entry-reg-type base)
+                               (encode-operand-type :baseindex)))
+                     index))
+            (and index
+                 (not (eql (logior regxx (encode-operand-type :baseindex))
+                           (logand (reg-entry-reg-type index)
+                                   (logior regxx
+                                           (encode-operand-type :baseindex)))))))
+      (if base
+        (if index
+          (error "Invalid base/index registers ~s/~s" base index)
+          (error "Invalid base register ~s" base))
+        (error "Invalid index register ~s" index)))))
+
+
+;;; Syntax is:
+;;; ([seg] [disp] [base] [index] [scale])
+;;; A [seg] by itself isn't too meaningful; the same is true
+;;; of a few other combinations.
+(defun parse-x86-memory-operand (instruction form)
+  (flet ((register-operand-p (form)
+           (and (consp form)
+                (symbolp (car form))
+                (string= (car form) '%)
+                (destructuring-bind (regname) (cdr form)
+                  (or (lookup-x86-register regname)
+                      (error "Unknown register ~s" regname))))))
+  (let* ((seg nil)
+         (disp nil)
+         (base nil)
+         (index nil)
+         (scale nil))
+    (do* ((f form (cdr f)))
+         ((null f)
+          (if (or disp base index)
+            (progn
+              (check-base-and-index-regs instruction base index)
+              (make-x86-memory-operand 
+               :type (if (or base index)
+                       (encode-operand-type :baseindex)
+                       (encode-operand-type :disp))
+               :seg seg
+               :disp disp
+               :base base
+               :index index
+               :scale scale))
+            (error "No displacement, base,  or index in ~s" form)))
+      (let* ((head (car f))
+             (r (register-operand-p head)))
+        (if r
+          (if (logtest (reg-entry-reg-type r)
+                       (encode-operand-type :sreg2 :sreg3))
+            ;; A segment register - if present - must be first
+            (if (eq f form)
+              (setq seg head)
+              (error "Segment register ~s not valid in ~s" form))
+            ;; Some other register.  Assume base if this is the
+            ;; first gpr.  If we find only one gpr and a significant
+            ;; scale factor, make that single gpr be the index.
+            (if base
+              (if index
+                (error "Extra register ~s in memory address ~s" head form)
+                (setq index r))
+              (setq base r)))
+          ;; Not a register, so head is either a displacement or
+          ;; a scale factor.
+          (if (and (null (cdr f))
+                   (or disp base index))
+            (let* ((exp (parse-expression head))
+                   (val (if (typep exp 'constant-expression)
+                          (expression-value exp))))
+              (case val
+                ((1 2 4 8)
+                 (if (and base (not index))
+                   (setq index base base nil))
+                 (setq scale val))
+                (t
+                 (error "Invalid scale factor ~s in ~s" head form))))
+            (if (not (or disp base index))
+              (setq disp (parse-expression head))
+              (error "~& not expected in ~s" head form)))))))))
+
+            
+          
+
 
 ;;; Operand syntax:
-;;; (@ x) -> labelref
+;;; (^ x) -> labelref
 ;;; (% x) -> register
 ;;; ($ x) -> immediate
 ;;; (* x) -> x with :jumpabsolute attribute
-;;; t -> probably memory, try to parse it that way.
+;;; (@ x) -> memory operand
+;;; x -> shorthand for (@ x)
 (defun parse-x86-operand (instruction form)
   (if (consp form)
     (let* ((head (car form)))
@@ -177,7 +371,7 @@
         (cond ((string= head '$)
                (destructuring-bind (immval) (cdr form)
                  (make-x86-immediate-operand :type (encode-operand-type :imm64)
-                                             :value immval)))
+                                             :value (parse-expression immval))))
               ((string= head '%)
                (destructuring-bind (reg) (cdr form)
                  (parse-x86-register-operand reg)))
@@ -190,7 +384,7 @@
                    op)))
               ((string= head '@)
                (parse-x86-memory-operand instruction (cdr form)))
-              ((string= head '>)
+              ((string= head '^)
                (destructuring-bind (lab) (cadr form)
                  (parse-x86-label-reference instruction lab)))
               (t (error "unknown X86 operand: ~s" form)))
@@ -542,5 +736,6 @@
     (dolist (f forms)
       (x86-lap-form f))
     (ccl::do-dll-nodes (i *x86-lap-instructions*)
-      (format t "~&~s" i))))
+      (format t "~&~s" i))
+    *x86-lap-instructions*))
 
