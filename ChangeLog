@@ -1,3 +1,31 @@
+2005-11-29 00:49  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: A little bit more, but
+	still just an artist's conception.
+	
+	Note that we may need to do some sort of "expression" stuff with
+	vinsn parameters as well.
+
+2005-11-29 00:46  gb
+
+	* compiler/X86/x86-lap.lisp: "expression" stuff, mostly so that we
+	can do partial evaluation of expressions involving (relative) label
+	addresses.
+	
+	Memory-operand parsing.
+
+2005-11-29 00:44  gb
+
+	* compiler/X86/x86-asm.lisp: PC-relative jumps that come in more
+	than one size: default to the "large" (32-bit) displacement
+	version, since (a) this'll always be correct, if sometimes
+	inefficient and (b) it may be easier to shorten branches than to
+	lengthen them.
+	
+	Label refs now start with circumflex.
+	
+	Unparse memory operands.
+
 2005-11-28 11:00  gb
 
 	* lisp-kernel/bits.h: Change arg order in x86 inline asm for
