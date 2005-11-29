@@ -48,10 +48,37 @@
 				     ((v :lisp)
 				      (idx :u32const)) ; sic
 				     ())
-  (ld dest (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) v))
+  (movq (@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (% v)) (% dest)))
 
 (define-x8664-vinsn misc-ref-c-s64  (((dest :s64))
 				     ((v :lisp)
 				      (idx :u32const)) ; sic
 				     ())
-  (ld dest (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) v))
+  (movq (@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (% v)) (% dest)))
+
+
+(define-x8664-vinsn misc-set-u64 (()
+                                  ((val :u64)
+                                   (v :lisp)
+                                   (scaled-idx :u64)))
+  (movq (% val) (@ (% v) (% scaled-idx))))
+
+(define-x8664-vinsn misc-set-c-u64 (()
+				    ((val :u64)
+				     (v :lisp)
+				     (idx :u32const)))
+  (movq (% val) (@  idx (% v))))
+
+(define-x8664-vinsn misc-set-s64 (()
+                                  ((val :s64)
+                                   (v :lisp)
+                                   (scaled-idx :imm)))
+  (movq (% val) (@ x8664::misc-data-offset  (% v) (% scaled-idx))))
+
+
+(define-x8664-vinsn misc-set-c-s64 (()
+				    ((val :s64)
+				     (v :lisp)
+				     (idx :u32const)))
+  (movq (% val) (@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (% v))))
+
