@@ -68,28 +68,28 @@
 
 
 ;;; cpu feature flags
-(defconstant Cpu086 #x1) ; Any old cpu will do  0 does the same
-(defconstant Cpu186 #x2) ; i186 or better required
-(defconstant Cpu286 #x4) ; i286 or better required
-(defconstant Cpu386 #x8) ; i386 or better required
-(defconstant Cpu486 #x10) ; i486 or better required
-(defconstant Cpu586 #x20) ; i585 or better required
-(defconstant Cpu686 #x40) ; i686 or better required
-(defconstant CpuP4 #x80) ; Pentium4 or better required
-(defconstant CpuK6 #x100) ; AMD K6 or better required
-(defconstant CpuAthlon #x200) ; AMD Athlon or better required
-(defconstant CpuSledgehammer #x400) ; Sledgehammer or better required
-(defconstant CpuMMX #x800) ; MMX support required
-(defconstant CpuMMX2 #x1000) ; extended MMX support (with SSE or 3DNow!Ext) required
-(defconstant CpuSSE #x2000) ; Streaming SIMD extensions required
-(defconstant CpuSSE2 #x4000) ; Streaming SIMD extensions 2 required
-(defconstant Cpu3dnow #x8000) ; 3dnow! support required
-(defconstant Cpu3dnowA #x10000) ; 3dnow!Extensions support required
-(defconstant CpuPNI #x20000) ; Prescott New Instructions required
-(defconstant CpuPadLock #x40000) ; VIA PadLock required
+(defconstant Cpu086 #x1)                ; Any old cpu will do  0 does the same
+(defconstant Cpu186 #x2)                ; i186 or better required
+(defconstant Cpu286 #x4)                ; i286 or better required
+(defconstant Cpu386 #x8)                ; i386 or better required
+(defconstant Cpu486 #x10)               ; i486 or better required
+(defconstant Cpu586 #x20)               ; i585 or better required
+(defconstant Cpu686 #x40)               ; i686 or better required
+(defconstant CpuP4 #x80)                ; Pentium4 or better required
+(defconstant CpuK6 #x100)               ; AMD K6 or better required
+(defconstant CpuAthlon #x200)           ; AMD Athlon or better required
+(defconstant CpuSledgehammer #x400)     ; Sledgehammer or better required
+(defconstant CpuMMX #x800)              ; MMX support required
+(defconstant CpuMMX2 #x1000)            ; extended MMX support (with SSE or 3DNow!Ext) required
+(defconstant CpuSSE #x2000)             ; Streaming SIMD extensions required
+(defconstant CpuSSE2 #x4000)            ; Streaming SIMD extensions 2 required
+(defconstant Cpu3dnow #x8000)           ; 3dnow! support required
+(defconstant Cpu3dnowA #x10000)         ; 3dnow!Extensions support required
+(defconstant CpuPNI #x20000)            ; Prescott New Instructions required
+(defconstant CpuPadLock #x40000)        ; VIA PadLock required
 ;;; These flags are set by gas depending on the flag-code.
-(defconstant Cpu64 #x4000000) ; 64bit support required
-(defconstant CpuNo64 #x8000000) ; Not supported in the 64bit mode
+(defconstant Cpu64 #x4000000)           ; 64bit support required
+(defconstant CpuNo64 #x8000000)         ; Not supported in the 64bit mode
 ;;; The default value for unknown CPUs - enable all features to avoid problems.
 (defconstant CpuUnknownFlags (logior Cpu086 Cpu186 Cpu286 Cpu386 Cpu486 Cpu586 Cpu686 CpuP4 CpuSledgehammer CpuMMX CpuMMX2 CpuSSE CpuSSE2 CpuPNI Cpu3dnow Cpu3dnowA CpuK6 CpuAthlon CpuPadLock))
 
@@ -508,7 +508,7 @@
 
 (defconstant MOV-AX-DISP32 #xa0)
 (defconstant POP-SEG-SHORT #x07)
-(defconstant JUMP-PC-RELATIVE #xeb)
+(defconstant JUMP-PC-RELATIVE #xe9)
 (defconstant INT-OPCODE  #xcd)
 (defconstant INT3-OPCODE #xcc)
 (defconstant FWAIT-OPCODE #x9b)
@@ -839,7 +839,7 @@
     ("lcall" ((:wordmem :jumpabsolute)) (#xff 3) :cpu086 (:wl-suf :modrm :defaultsize))
 
 
-    ("jmp" (:disp) (#xeb) :cpu086 (:nosuf :jump))
+    ("jmp" (:disp) (#xe9) :cpu086 (:nosuf :jump))
     ("jmp" ((:wordreg :wordmem :jumpabsolute)) (#xff 4) :cpuno64 (:wl-suf :modrm))
     ("jmp" ((:reg16 :reg64 :shortmem :llongmem :jumpabsolute)) (#xff 4) :cpu64 (:wq-suf :modrm :norex64))
     ;; Intel Syntax.
@@ -861,36 +861,36 @@
     ("leave" () (#xc9) :cpu64 (:wq-suf :defaultsize :norex64))
 
     ;; Conditional jumps.
-    ("jo" (:disp) (#x70) :cpu086 (:nosuf :jump))
-    ("jno" (:disp) (#x71) :cpu086 (:nosuf :jump))
-    ("jb" (:disp) (#x72) :cpu086 (:nosuf :jump))
-    ("jc" (:disp) (#x72) :cpu086 (:nosuf :jump))
-    ("jnae" (:disp) (#x72) :cpu086 (:nosuf :jump))
-    ("jnb" (:disp) (#x73) :cpu086 (:nosuf :jump))
-    ("jnc" (:disp) (#x73) :cpu086 (:nosuf :jump))
-    ("jae" (:disp) (#x73) :cpu086 (:nosuf :jump))
-    ("je" (:disp) (#x74) :cpu086 (:nosuf :jump))
-    ("jz" (:disp) (#x74) :cpu086 (:nosuf :jump))
-    ("jne" (:disp) (#x75) :cpu086 (:nosuf :jump))
-    ("jnz" (:disp) (#x75) :cpu086 (:nosuf :jump))
-    ("jbe" (:disp) (#x76) :cpu086 (:nosuf :jump))
-    ("jna" (:disp) (#x76) :cpu086 (:nosuf :jump))
-    ("jnbe" (:disp) (#x77) :cpu086 (:nosuf :jump))
-    ("ja" (:disp) (#x77) :cpu086 (:nosuf :jump))
-    ("js" (:disp) (#x78) :cpu086 (:nosuf :jump))
-    ("jns" (:disp) (#x79) :cpu086 (:nosuf :jump))
-    ("jp" (:disp) (#x7a) :cpu086 (:nosuf :jump))
-    ("jpe" (:disp) (#x7a) :cpu086 (:nosuf :jump))
-    ("jnp" (:disp) (#x7b) :cpu086 (:nosuf :jump))
-    ("jpo" (:disp) (#x7b) :cpu086 (:nosuf :jump))
-    ("jl" (:disp) (#x7c) :cpu086 (:nosuf :jump))
-    ("jnge" (:disp) (#x7c) :cpu086 (:nosuf :jump))
-    ("jnl" (:disp) (#x7d) :cpu086 (:nosuf :jump))
-    ("jge" (:disp) (#x7d) :cpu086 (:nosuf :jump))
-    ("jle" (:disp) (#x7e) :cpu086 (:nosuf :jump))
-    ("jng" (:disp) (#x7e) :cpu086 (:nosuf :jump))
-    ("jnle" (:disp) (#x7f) :cpu086 (:nosuf :jump))
-    ("jg" (:disp) (#x7f) :cpu086 (:nosuf :jump))
+    ("jo" (:disp) (#x0f80) :cpu086 (:nosuf :jump))
+    ("jno" (:disp) (#x0f81) :cpu086 (:nosuf :jump))
+    ("jb" (:disp) (#x0f82) :cpu086 (:nosuf :jump))
+    ("jc" (:disp) (#x0f82) :cpu086 (:nosuf :jump))
+    ("jnae" (:disp) (#x0f82) :cpu086 (:nosuf :jump))
+    ("jnb" (:disp) (#x0f83) :cpu086 (:nosuf :jump))
+    ("jnc" (:disp) (#x0f83) :cpu086 (:nosuf :jump))
+    ("jae" (:disp) (#x0f83) :cpu086 (:nosuf :jump))
+    ("je" (:disp) (#x0f84) :cpu086 (:nosuf :jump))
+    ("jz" (:disp) (#x0f84) :cpu086 (:nosuf :jump))
+    ("jne" (:disp) (#x0f85) :cpu086 (:nosuf :jump))
+    ("jnz" (:disp) (#x0f85) :cpu086 (:nosuf :jump))
+    ("jbe" (:disp) (#x0f86) :cpu086 (:nosuf :jump))
+    ("jna" (:disp) (#x0f86) :cpu086 (:nosuf :jump))
+    ("jnbe" (:disp) (#x0f87) :cpu086 (:nosuf :jump))
+    ("ja" (:disp) (#x0f87) :cpu086 (:nosuf :jump))
+    ("js" (:disp) (#x0f88) :cpu086 (:nosuf :jump))
+    ("jns" (:disp) (#x0f89) :cpu086 (:nosuf :jump))
+    ("jp" (:disp) (#x0f8a) :cpu086 (:nosuf :jump))
+    ("jpe" (:disp) (#x0f8a) :cpu086 (:nosuf :jump))
+    ("jnp" (:disp) (#x0f8b) :cpu086 (:nosuf :jump))
+    ("jpo" (:disp) (#x0f8b) :cpu086 (:nosuf :jump))
+    ("jl" (:disp) (#x0f8c) :cpu086 (:nosuf :jump))
+    ("jnge" (:disp) (#x0f8c) :cpu086 (:nosuf :jump))
+    ("jnl" (:disp) (#x0f8d) :cpu086 (:nosuf :jump))
+    ("jge" (:disp) (#x0f8d) :cpu086 (:nosuf :jump))
+    ("jle" (:disp) (#x0f8e) :cpu086 (:nosuf :jump))
+    ("jng" (:disp) (#x0f8e) :cpu086 (:nosuf :jump))
+    ("jnle" (:disp) (#x0f8f) :cpu086 (:nosuf :jump))
+    ("jg" (:disp) (#x0f8f) :cpu086 (:nosuf :jump))
 
     ;; jcxz vs. jecxz is chosen on the basis of the address size prefix.
     ("jcxz" (:disp) (#xe3) :cpuno64 (:nosuf :jumpbyte :size16))
@@ -2652,7 +2652,17 @@
   `($ ,(x86-immediate-operand-value x)))
 
 (defmethod unparse-operand ((x x86-label-operand))
-  `(> ,(x86-lap-label-name (x86-label-operand-label x))))
+  `(^ ,(x86-lap-label-name (x86-label-operand-label x))))
+
+(defmethod unparse-operand ((x x86-memory-operand))
+  (ccl::collect ((subforms))
+    (flet ((maybe (f) (if f (subforms f))))
+      (maybe (x86-memory-operand-seg x))
+      (maybe (x86-memory-operand-disp x))
+      (maybe (x86-memory-operand-base x))
+      (maybe (x86-memory-operand-index x))
+      (maybe (x86-memory-operand-scale x)))
+  `(@ ,@(subforms))))
 
 (macrolet ((register-operand (name)
              (let* ((r (gethash name *x86-registers*)))
