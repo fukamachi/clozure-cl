@@ -1,3 +1,20 @@
+2005-12-04 05:45  gb
+
+	* release-notes.txt: Update a little.
+
+2005-12-04 05:42  gb
+
+	* level-1/version.lisp: Time to bump.
+
+2005-12-04 05:28  gb
+
+	* level-1/ppc-threads-utils.lisp: In %FOREIGN-THREAD-INITIALIZE,
+	don't assume that we're entered with no bindings in effect (the
+	callback trampolines now bind a few specials, mostly having to do
+	with tracing.)	Likewise, any catch/unwind-protect frames that were
+	made with no bindings should be fixed to point to the end of the
+	phony binding chain that this function initializes.
+
 2005-12-04 05:14  gb
 
 	* lisp-kernel/gc.h: WORD_SIZE64 is never defined; WORD_SIZE is
