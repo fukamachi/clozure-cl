@@ -77,7 +77,7 @@ typedef struct
 
 int lock_recursive_lock(RECURSIVE_LOCK, TCR *, struct timespec *);
 int unlock_recursive_lock(RECURSIVE_LOCK, TCR *);
-RECURSIVE_LOCK new_recursive_lock();
+RECURSIVE_LOCK new_recursive_lock(void);
 void destroy_recursive_lock(RECURSIVE_LOCK);
 int recursive_lock_trylock(RECURSIVE_LOCK, TCR *, int *);
 
@@ -85,8 +85,8 @@ int recursive_lock_trylock(RECURSIVE_LOCK, TCR *, int *);
 #define UNLOCK(m, t) unlock_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(m), (TCR *)t)
 
 /* Hmm.  This doesn't look like the MacOS Thread Manager ... */
-LispObj current_thread_osid();
-void *current_native_thread_id();
+LispObj current_thread_osid(void);
+void *current_native_thread_id(void);
 void *new_semaphore(int);
 void destroy_semaphore(void**);
 void tsd_set(LispObj, void *);
@@ -104,12 +104,9 @@ LispObj create_system_thread(size_t stack_size,
 			     void* param);
 
 TCR *get_tcr(Boolean);
-TCR *get_interrupt_tcr();
+TCR *get_interrupt_tcr(Boolean);
 Boolean suspend_tcr(TCR *);
 Boolean resume_tcr(TCR *);
-
-pthread_mutex_t *
-create_simple_mutex();
 
 typedef struct _rwquentry 
 {
@@ -135,7 +132,7 @@ typedef struct
 #define RWLOCK_WRITER(rw) rw->head.tcr
 #define RWLOCK_WRITE_COUNT(rw) rw->head.count
 
-rwlock * rwlock_new();
+rwlock * rwlock_new(void);
 int rwlock_destroy(rwlock *);
 int rwlock_rlock(rwlock *, TCR *, struct timespec *);
 int rwlock_wlock(rwlock *, TCR *, struct timespec *);
