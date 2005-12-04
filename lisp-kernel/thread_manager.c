@@ -854,7 +854,7 @@ suspend_tcr(TCR *tcr)
   if (suspend_count == 1) {
 #ifdef DARWIN_but_this_still_fails_sometimes
       if (mach_suspend_tcr(tcr)) {
-	tcr->flags |= TCR_FLAG_BIT_ALT_SUSPEND;
+	tcr->flags |= (1<<TCR_FLAG_BIT_ALT_SUSPEND);
 	return true;
       }
 #endif
@@ -869,7 +869,7 @@ suspend_tcr(TCR *tcr)
       */
 #ifdef DARWIN
       if (mach_suspend_tcr(tcr)) {
-	tcr->flags |= TCR_FLAG_BIT_ALT_SUSPEND;
+	tcr->flags |= (1<<TCR_FLAG_BIT_ALT_SUSPEND);
 	return true;
       }
 #endif
@@ -900,8 +900,8 @@ resume_tcr(TCR *tcr)
   int suspend_count = atomic_decf(&(tcr->suspend_count));
   if (suspend_count == 0) {
 #ifdef DARWIN
-    if (tcr->flags & TCR_FLAG_BIT_ALT_SUSPEND) {
-      tcr->flags &= ~TCR_FLAG_BIT_ALT_SUSPEND;
+    if (tcr->flags & (1<<TCR_FLAG_BIT_ALT_SUSPEND)) {
+      tcr->flags &= ~(1<<TCR_FLAG_BIT_ALT_SUSPEND);
       mach_resume_tcr(tcr);
       return true;
     }
