@@ -1,3 +1,37 @@
+2005-12-04 05:14  gb
+
+	* lisp-kernel/gc.h: WORD_SIZE64 is never defined; WORD_SIZE is
+	defined, and may have the value 64.  (This was screwing up the
+	64-bit definition of the qnode type, and this screwing up 64-bit
+	GC.)
+
+2005-12-04 05:13  gb
+
+	* lisp-kernel/lisp-exceptions.h: Provide ANSI-style prototype for
+	install_pmcl_exception_handlers().
+
+2005-12-04 05:12  gb
+
+	* lisp-kernel/: x86-constants.h, ppc-constants.h: Fix definition of
+	TCR_FLAG_BIT_PROPAGATE_EXCEPTION.
+
+2005-12-04 05:12  gb
+
+	* lisp-kernel/thread_manager.c: Don't set/test
+	TCR_FLAG_BIT_ALT_SUSPEND, do set/test
+	(1<<TCR_FLAG_BIT_ALT_SUSPEND).
+
+2005-12-04 05:10  gb
+
+	* lisp-kernel/ppc-exceptions.c: Don't set/test
+	TCR_FLAG_BIT_PROPAGATE_EXCEPTION, do set/test
+	(1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION).
+
+2005-12-04 05:07  gb
+
+	* lisp-kernel/Threads.h: Provide more complete prototypes in some
+	cases.
+
 2005-11-29 00:49  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: A little bit more, but
