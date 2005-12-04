@@ -212,3 +212,10 @@ of *PACKAGE*; the last few 1.1-pre releases have come up in the CCL
 package, as a result.  Ooops again; new images, again.
 
 
+OpenMCL 1.1-pre-051204
+Not a lot of user-visible changes, but the changes that're there
+are a little hard to bootstrap.
+Note that new kernel build directories (darwinppc, darwinppc64,
+linuxppc, linuxppc64, ...) repace the old versions that don't
+have "ppc" in their names.  CVS may not prune the old directories,
+especially if they contain files (.o, random junk).
