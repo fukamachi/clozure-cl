@@ -81,7 +81,7 @@ Boolean egc_control(Boolean, BytePtr);
 Boolean free_segments_zero_filled_by_OS;
 
 /* an type representing 1/4 of a natural word */
-#ifdef WORD_SIZE64
+#if WORD_SIZE == 64
 typedef unsigned short qnode;
 #else
 typedef unsigned char qnode;
