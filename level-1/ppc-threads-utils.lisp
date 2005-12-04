@@ -1,22 +1,18 @@
-;;;-*-Mode: LISP; Package: ccl -*-
+;;;-*- Mode: Lisp; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
-;;;   This file is part of Opensourced MCL.
+;;;   This file is part of OpenMCL.  
 ;;;
-;;;   Opensourced MCL is free software; you can redistribute it and/or
-;;;   modify it under the terms of the GNU Lesser General Public
-;;;   License as published by the Free Software Foundation; either
-;;;   version 2.1 of the License, or (at your option) any later version.
+;;;   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+;;;   License , known as the LLGPL and distributed with OpenMCL as the
+;;;   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+;;;   which is distributed with OpenMCL as the file "LGPL".  Where these
+;;;   conflict, the preamble takes precedence.  
 ;;;
-;;;   Opensourced MCL is distributed in the hope that it will be useful,
-;;;   but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;;   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;;   Lesser General Public License for more details.
+;;;   OpenMCL is referenced in the preamble as the "LIBRARY."
 ;;;
-;;;   You should have received a copy of the GNU Lesser General Public
-;;;   License along with this library; if not, write to the Free Software
-;;;   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-;;;
+;;;   The LLGPL is also available online at
+;;;   http://opensource.franz.com/preamble.html
 
 ; low-level support for PPC threads and stack-backtrace printing
 
@@ -173,13 +169,30 @@
       (save-binding nil '*current-process* bsp)
       (dolist (pair initial-bindings)
 	(save-binding (funcall (cdr pair)) (car pair) bsp))
-      (setf (%fixnum-ref (%current-tcr) target::tcr.db-link) bsp)
+      ;; These may (or may not) be the most recent special bindings.
+      ;; If they are, just set the current tcr's db-link to point
+      ;; to BSP; if not, "append" them to the end of the current
+      ;; linked list.
+      (let* ((current-db-link (%fixnum-ref (%current-tcr) target::tcr.db-link)))
+        (declare (fixnum current-db-link))
+        (if (zerop current-db-link)
+          (setf (%fixnum-ref (%current-tcr) target::tcr.db-link) bsp)
+          (do* ((binding current-db-link)
+                (next (%fixnum-ref binding 0)
+                      (%fixnum-ref binding 0)))
+               ()
+            (if (zerop next)
+              (return (setf (%fixnum-ref binding 0) bsp))
+              (setq binding next)))))
       ;; Ensure that pending unwind-protects (for WITHOUT-INTERRUPTS
       ;; on the callback) don't try to unwind the binding stack beyond
       ;; where it was just set.
-      (let* ((top-catch (%fixnum-ref (%current-tcr) target::tcr.catch-top)))
-        (unless (eql 0 top-catch)
-          (setf (%fixnum-ref top-catch target::catch-frame.db-link) bsp)))))
+      (do* ((catch (%fixnum-ref (%current-tcr) target::tcr.catch-top)
+                   (%fixnum-ref catch target::catch-frame.link)))
+           ((zerop catch))
+        (declare (fixnum catch))
+        (when (eql 0 (%fixnum-ref catch target::catch-frame.db-link))
+          (setf (%fixnum-ref catch target::catch-frame.db-link) bsp)))))
   (let* ((thread (new-lisp-thread-from-tcr (%current-tcr) "foreign")))
     (setq *current-lisp-thread* thread
 	  *current-process*
