@@ -1613,7 +1613,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
     char msg[512];
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
     if (lisp_Debugger(context, info, signum, msg)) {
-      (tcr->flags |= TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
+      (tcr->flags |= (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION));
     }
   }
 
@@ -2419,8 +2419,8 @@ catch_exception_raise(mach_port_t exception_port,
     }
     return thread_set_fp_exceptions_enabled(thread, false);
   }
-  if (tcr->flags & TCR_FLAG_BIT_PROPAGATE_EXCEPTION) {
-    tcr->flags &= ~TCR_FLAG_BIT_PROPAGATE_EXCEPTION;
+  if (tcr->flags & (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION)) {
+    tcr->flags &= ~(1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     return 17;
   }
   switch (exception) {
