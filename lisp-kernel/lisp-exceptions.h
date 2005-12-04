@@ -72,7 +72,7 @@ ErrAction
 error_action( void );
 
 void
-install_pmcl_exception_handlers();
+install_pmcl_exception_handlers(void);
 
 void
 unprotect_all_areas(void);
