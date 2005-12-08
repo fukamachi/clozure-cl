@@ -150,6 +150,60 @@
   (setf (ldb x86-lap-instruction-flag-synthetic-bit x) (if new 1 0))
   new)
 
+(defstruct code-fragment
+  (buffer (make-array 256 :element-type '(unsigned-byte 8)))
+  (start 0)
+  (current 0))
+
+(defun code-fragment-push-byte (code-fragment byte)
+  (let* ((buffer (code-fragment-buffer code-fragment))
+         (current (code-fragment-current code-fragment)))
+    (declare (fixnum current))
+    (if (< current (length buffer))
+      (setf (aref buffer current) byte
+            (code-fragment-current code-fragment) (the fixnum (1+ current)))
+      (let* ((start (code-fragment-start code-fragment))
+             (n (- current start))
+             (new (make-array 256 :element-type '(unsigned-byte 8))))
+        (declare (fixnum start n))
+        (dotimes (i n)
+          (setf (aref new i) (aref buffer start))
+          (incf start))
+        (setf (aref new n) byte
+              (code-fragment-buffer code-fragment) new
+              (code-fragment-start code-fragment) 0
+              (code-fragment-current code-fragment) (the fixnum (1+ n)))))
+    byte))
+
+(defun code-fragment-push-16 (code-fragment halfword)
+  (code-fragment-push-byte code-fragment (ldb (byte 8 0) halfword))
+  (code-fragment-push-byte code-fragment (ldb (byte 8 8) halfword))
+  halfword)
+
+(defun code-fragment-push-32 (code-fragment word)
+  (code-fragment-push-16 code-fragment (ldb (byte 16 0) word))
+  (code-fragment-push-16 code-fragment (ldb (byte 16 16) word))
+  word)
+
+(defun code-fragment-push-64 (code-fragment doubleword)
+  (code-fragment-push-32 code-fragment (ldb (byte 32 0) doubleword))
+  (code-fragment-push-32 code-fragment (ldb (byte 32 32) doubleword))
+  doubleword)
+
+(defun code-fragment-finish (code-fragment instruction)
+  (let* ((start (code-fragment-start code-fragment))
+         (current (code-fragment-current code-fragment))
+         (buffer (code-fragment-buffer code-fragment))
+         (size (- current start)))
+    (declare (fixnum start current size))
+    (setf (code-fragment-start code-fragment) current
+          (x86-lap-instruction-buffer instruction) buffer
+          (x86-lap-instruction-buffer-offset instruction) start
+          (x86-lap-instruction-size instruction) size)
+    size))
+
+
+
 (defun lookup-x86-register (regname)
   (gethash (string regname) *x86-registers*))
 
@@ -231,6 +285,14 @@
     (n-ary-expression (apply (n-ary-expression-operator exp)
                              (mapcar #'expression-value (n-ary-expression-operands exp))))))
 
+;;; Expression might contain unresolved labels.  Return 0 if so (even
+;;; if everything -could- be resolved.)
+(defun early-expression-value (expression)
+  (etypecase expression
+    (constant-expression (constant-expression-value expression))
+    (expression 0)))
+
+
 (defun parse-expression (form)
   (if (label-address-expression-p form)
     (make-label-expression :label (find-or-create-x86-lap-label (cadr form)))
@@ -261,7 +323,7 @@
   (let* ((lab (or (find-x86-lap-label name)
                   (make-x86-lap-label name))))
     (push instruction (x86-lap-label-refs lab))
-    (make-x86-label-operand :type (encode-operand-type :disp)
+    (make-x86-label-operand :type (encode-operand-type :label)
                             :label lab)))
 
 (defun check-base-and-index-regs (instruction base index)
@@ -355,7 +417,15 @@
 
             
           
+(defun encode-immediate-type (val)
+  (typecase val
+    (null (encode-operand-type :imm32))
+    ((signed-byte 8) (encode-operand-type :imm8 :imm8s))
+    ((signed-byte 32) (encode-operand-type :imm32 :imm32s))
+    (t (encode-operand-type :imm64))))
 
+     
+    
 
 ;;; Operand syntax:
 ;;; (^ x) -> labelref
@@ -370,8 +440,11 @@
       (if (symbolp head)
         (cond ((string= head '$)
                (destructuring-bind (immval) (cdr form)
-                 (make-x86-immediate-operand :type (encode-operand-type :imm64)
-                                             :value (parse-expression immval))))
+                 (let* ((expr (parse-expression immval))
+                        (value (early-expression-value  expr))
+                        (type (encode-immediate-type value)))
+                 (make-x86-immediate-operand :type type
+                                             :value expr))))
               ((string= head '%)
                (destructuring-bind (reg) (cdr form)
                  (parse-x86-register-operand reg)))
@@ -385,7 +458,7 @@
               ((string= head '@)
                (parse-x86-memory-operand instruction (cdr form)))
               ((string= head '^)
-               (destructuring-bind (lab) (cadr form)
+               (destructuring-bind (lab) (cdr form)
                  (parse-x86-label-reference instruction lab)))
               (t (error "unknown X86 operand: ~s" form)))
         (error "unknown X86 operand: ~s" form)))
@@ -719,22 +792,154 @@
                            (return instruction)))))))))))
       (parse-x86-instruction-aux form nil))))
 
+#|
+(defun build-rm-byte (insn)
+  (let* ((rm (make-modrm-byte))
+         (operands (x86-lap-instruction-parsed-operands insn))
+         (num-reg-operands (count-if #'x86-register-operand-p operands)))
+    (setf (x86-lap-instruction-rm insn) rm)
+    (if (= num-reg-operands 2)
+      (let* ((op0 (svref operands 0))
+             (type0 (x86-operand-type op0))
+             (src (if (logtest type0 (encode-operand-type :reg :regmmx :regxmm
+                                                         :sreg2 :sreg3
+                                                         :control :debug :test))
+                    0
+                    1))
+             (srcreg (x86-register-operand-entry (svref operands src)))
+             (dest (1+ src))
+             (destreg (x86-register-operand-entry (svref operands dest))))
+        (setf (modrm-byte-mode rm) 3)
+        
+        ;; One of the register operands will be encoded in the rm-reg
+        ;; field, the other in the combined rm-mode and rm-regmem
+        ;; fields.  If no form of this instruction supports a memory
+        ;; destination operand, then we assume the source operand may
+        ;; sometimes be a memory operand and so we need to store the
+        ;; destination in the rm-reg field.
+        (if (not (logtest (svref (x86-instruction-template-operand-types template) dest)
+                          (encode-operand-type :AnyMem)))
+          (progn
+            (setf (modrm-byte-reg rm) (reg-entry-reg-num destreg)
+                  (modrm-byte-regmem rm) (reg-entry-reg-num srcreg))
+            (when (logtest RegRex (reg-entry-reg-flags destreg))
+              (setf (x86-lap-instruction-rex insn)
+                    (logior rex-extx
+                            (or (x86-lap-instruction-rex insn) 0))))
+            (when (logtest RegRex (reg-entry-reg-flags srcreg))
+              (setf (x86-lap-instruction-rex insn)
+                    (logior rex-extz
+                            (or (x86-lap-instruction-rex insn) 0)))))
+          (progn
+            (setf (modrm-byte-reg rm) (reg-entry-reg-num srcreg)
+                  (modrm-byte-regmem rm) (reg-entry-reg-num destreg))
+            (when (logtest RegRex (reg-entry-reg-flags destreg))
+              (setf (x86-lap-instruction-rex insn)
+                    (logior rex-extz
+                            (or (x86-lap-instruction-rex insn) 0))))
+            (when (logtest RegRex (reg-entry-reg-flags srcreg))
+              (setf (x86-lap-instruction-rex insn)
+                    (logior rex-extx
+                            (or (x86-lap-instruction-rex insn) 0)))))))
+      ;; Not exactly 2 register operands.
+      (let* ((memop (dotimes (i (length operands))
+                      (let* ((op (svref operands i)))
+                        (when (logtest (encode-operand-type :AnyMem)
+                                       (x86-operand-type op))
+                          (return op))))))
+        (if memop
+          (let* ((fake-zero-displacement nil)
+                 (sib (make-sib-byte)))
+            (setf (x86-lap-instruction-sib insn) sib)
+            (cond ((null (x86-memory-operand-base memop))
+                   (setf (modrm-byte-mode rm) 0)
+                   (unless (x86-memory-operand-disp memop)
+                     (setq fake-zero-displacement t))
+                   (if (null (x86-memory-operand-index memop))
+                     (progn
+                       (setf (modrm-byte-regmem rm) escape-to-two-byte-addressing
+                             (sib-byte-base sib) no-base-register
+                             (sib-byte-index sib) no-index)
+                       (let* ((prefixes (x86-lap-instruction-prefixes insn)))
+                           (setf (x86-memory-operand-type memop)
+                                 (if (and prefixes
+                                          (not (eql 0 (aref prefixes addr-prefix))))
+                                   (encode-operand-type :disp32)
+                                   (encode-operand-type :disp32s)))))
+                     ;; Index, but no base reg.
+                     (let* ((index-reg (x86-register-operand-entry
+                                        (x86-memory-operand-index memop))))
+                       (setf (sib-byte-index sib) (reg-entry-reg-num index-reg)
+                             (sib-byte-base sib) no-base-register
+                             (sib-byte-scale sib) (or (x86-memory-operand-scale memop) 1)
+                             (modrm-byte-regmem rm) escape-to-two-byte-addressing
+                             (x86-memory-operand-type memop) (logior (encode-operand-type :disp32s) (logandc2 (x86-memory-operand-type memop) (encode-operand-type :disp))))
+                       (if (logtest (reg-entry-reg-flags index-reg) RegRex)
+                         (setf (x86-lap-instruction-rex insn)
+                               (logior (or (x86-lap-instruction-rex insn) 0)
+                                       rex-exty))))))
+                  ;; 64-bit RIP-relative addressing, detected by the
+                  ;; fact that the base register has the :baseindex
+                  ;; operand type only
+                  ((= (x86-register-operand-type
+                       (x86-memory-operand-base memop))
+                      (encode-operand-type :baseIndex))
+                       
+            
+                              
+            
+            
+                  
+     
+    
+)
 
-(defun x86-lap-form (form)
+|#
+                  
+(defun x86-generate-instruction-code (frag insn)
+  (let* ((template (x86-lap-instruction-template insn))
+         (operands (x86-lap-instruction-parsed-operands insn)))
+    (when (logtest (encode-opcode-modifier :modrm)
+                   (x86-instruction-template-opcode-modifier template))
+      (build-rm-byte insn))
+    (when (and (= (x86-lap-instruction-base-opcode insn) int-opcode)
+                  (= 1 (length operands))
+                  (let* ((op0 (svref operands 0)))
+                    (and (typep op0 'x86-immediate-operand)
+                         (eql 3 (early-expression-value
+                                 (x86-immediate-operand-value op0))))))
+      (setf operands nil
+            (x86-lap-instruction-parsed-operands insn) nil
+            (x86-lap-instruction-base-opcode insn) int3-opcode))
+    (if (logtest (x86-instruction-template-opcode-modifier template)
+                 (encode-opcode-modifier :rex64))
+      (setf (x86-lap-instruction-rex insn)
+            (logior (or (x86-lap-instruction-rex insn) 0)
+                    rex-mode64)))
+    (if (x86-lap-instruction-rex insn)
+      (add-prefix insn (logior (x86-lap-instruction-rex insn) rex-prefix)))
+    (code-fragment-finish frag insn)))
+
+(defun x86-lap-form (form frag addr)
   (if (atom form)
-    (emit-x86-lap-label form)
+    (let* ((lab (emit-x86-lap-label form)))
+      (setf (x86-lap-label-address lab) addr))
     (if (eq (car form) 'progn)
       (dolist (f (cdr form))
-        (x86-lap-form f))
+        (setq addr (x86-lap-form f frag addr)))
       (let* ((instruction (parse-x86-instruction form)))
-        (ccl::append-dll-node instruction *x86-lap-instructions*)))))
+        (ccl::append-dll-node instruction *x86-lap-instructions*)
+        (setf (x86-lap-instruction-address instruction) addr)
+        (incf addr (x86-generate-instruction-code frag instruction))))))
 
 ;;; For testing.
 (defun x86-lap (forms)
   (let* ((*x86-lap-instructions* (ccl::make-dll-header))
-         (*x86-lap-labels* ()))
+         (*x86-lap-labels* ())
+         (frag (make-code-fragment))
+         (addr 0))
     (dolist (f forms)
-      (x86-lap-form f))
+      (setq addr (x86-lap-form f frag addr)))
     (ccl::do-dll-nodes (i *x86-lap-instructions*)
       (format t "~&~s" i))
     *x86-lap-instructions*))
