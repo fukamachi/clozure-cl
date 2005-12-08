@@ -323,6 +323,7 @@
 ;;; but don't  so we add an InvMem flag to the register operand to
 ;;; indicate that it should be encoded in the i.tm.regmem field.
 (defconstant operand-type-InvMem #x80000000)
+(defconstant operand-type-Label #x100000000)
 
 (defconstant operand-type-Reg (logior operand-type-Reg8 operand-type-Reg16 operand-type-Reg32 operand-type-Reg64)) ; gen'l register
 (defconstant operand-type-WordReg (logior operand-type-Reg16 operand-type-Reg32 operand-type-Reg64))
@@ -388,6 +389,7 @@
     (:ShortMem . ,operand-type-ShortMem)
     (:WordMem . ,operand-type-WordMem)
     (:ByteMem . ,operand-type-ByteMem)
+    (:Label . ,operand-type-Label)
   ))
 
 (defun %encode-operand-type (optype &optional errorp)
@@ -838,8 +840,9 @@
     ("lcall" (:imm16 (:imm16 :imm32)) (#x9a) :cpuno64 (:wl-suf :jumpintersegment :defaultsize))
     ("lcall" ((:wordmem :jumpabsolute)) (#xff 3) :cpu086 (:wl-suf :modrm :defaultsize))
 
-
-    ("jmp" (:disp) (#xe9) :cpu086 (:nosuf :jump))
+    ;; JMP rel32 = #xe9 disp32.  That can be shortened to
+    ;; JMP rel8 =  #xeb disp8.
+    ("jmp" (:label) (#xe9) :cpu086 (:nosuf :jump))
     ("jmp" ((:wordreg :wordmem :jumpabsolute)) (#xff 4) :cpuno64 (:wl-suf :modrm))
     ("jmp" ((:reg16 :reg64 :shortmem :llongmem :jumpabsolute)) (#xff 4) :cpu64 (:wq-suf :modrm :norex64))
     ;; Intel Syntax.
@@ -861,57 +864,59 @@
     ("leave" () (#xc9) :cpu64 (:wq-suf :defaultsize :norex64))
 
     ;; Conditional jumps.
-    ("jo" (:disp) (#x0f80) :cpu086 (:nosuf :jump))
-    ("jno" (:disp) (#x0f81) :cpu086 (:nosuf :jump))
-    ("jb" (:disp) (#x0f82) :cpu086 (:nosuf :jump))
-    ("jc" (:disp) (#x0f82) :cpu086 (:nosuf :jump))
-    ("jnae" (:disp) (#x0f82) :cpu086 (:nosuf :jump))
-    ("jnb" (:disp) (#x0f83) :cpu086 (:nosuf :jump))
-    ("jnc" (:disp) (#x0f83) :cpu086 (:nosuf :jump))
-    ("jae" (:disp) (#x0f83) :cpu086 (:nosuf :jump))
-    ("je" (:disp) (#x0f84) :cpu086 (:nosuf :jump))
-    ("jz" (:disp) (#x0f84) :cpu086 (:nosuf :jump))
-    ("jne" (:disp) (#x0f85) :cpu086 (:nosuf :jump))
-    ("jnz" (:disp) (#x0f85) :cpu086 (:nosuf :jump))
-    ("jbe" (:disp) (#x0f86) :cpu086 (:nosuf :jump))
-    ("jna" (:disp) (#x0f86) :cpu086 (:nosuf :jump))
-    ("jnbe" (:disp) (#x0f87) :cpu086 (:nosuf :jump))
-    ("ja" (:disp) (#x0f87) :cpu086 (:nosuf :jump))
-    ("js" (:disp) (#x0f88) :cpu086 (:nosuf :jump))
-    ("jns" (:disp) (#x0f89) :cpu086 (:nosuf :jump))
-    ("jp" (:disp) (#x0f8a) :cpu086 (:nosuf :jump))
-    ("jpe" (:disp) (#x0f8a) :cpu086 (:nosuf :jump))
-    ("jnp" (:disp) (#x0f8b) :cpu086 (:nosuf :jump))
-    ("jpo" (:disp) (#x0f8b) :cpu086 (:nosuf :jump))
-    ("jl" (:disp) (#x0f8c) :cpu086 (:nosuf :jump))
-    ("jnge" (:disp) (#x0f8c) :cpu086 (:nosuf :jump))
-    ("jnl" (:disp) (#x0f8d) :cpu086 (:nosuf :jump))
-    ("jge" (:disp) (#x0f8d) :cpu086 (:nosuf :jump))
-    ("jle" (:disp) (#x0f8e) :cpu086 (:nosuf :jump))
-    ("jng" (:disp) (#x0f8e) :cpu086 (:nosuf :jump))
-    ("jnle" (:disp) (#x0f8f) :cpu086 (:nosuf :jump))
-    ("jg" (:disp) (#x0f8f) :cpu086 (:nosuf :jump))
+    ;; The 32-bit form - #x0f8? disp32 - can be shortened to
+    ;;                   #x7? disp8
+    ("jo" (:label) (#x0f80) :cpu086 (:nosuf :jump))
+    ("jno" (:label) (#x0f81) :cpu086 (:nosuf :jump))
+    ("jb" (:label) (#x0f82) :cpu086 (:nosuf :jump))
+    ("jc" (:label) (#x0f82) :cpu086 (:nosuf :jump))
+    ("jnae" (:label) (#x0f82) :cpu086 (:nosuf :jump))
+    ("jnb" (:label) (#x0f83) :cpu086 (:nosuf :jump))
+    ("jnc" (:label) (#x0f83) :cpu086 (:nosuf :jump))
+    ("jae" (:label) (#x0f83) :cpu086 (:nosuf :jump))
+    ("je" (:label) (#x0f84) :cpu086 (:nosuf :jump))
+    ("jz" (:label) (#x0f84) :cpu086 (:nosuf :jump))
+    ("jne" (:label) (#x0f85) :cpu086 (:nosuf :jump))
+    ("jnz" (:label) (#x0f85) :cpu086 (:nosuf :jump))
+    ("jbe" (:label) (#x0f86) :cpu086 (:nosuf :jump))
+    ("jna" (:label) (#x0f86) :cpu086 (:nosuf :jump))
+    ("jnbe" (:label) (#x0f87) :cpu086 (:nosuf :jump))
+    ("ja" (:label) (#x0f87) :cpu086 (:nosuf :jump))
+    ("js" (:label) (#x0f88) :cpu086 (:nosuf :jump))
+    ("jns" (:label) (#x0f89) :cpu086 (:nosuf :jump))
+    ("jp" (:label) (#x0f8a) :cpu086 (:nosuf :jump))
+    ("jpe" (:label) (#x0f8a) :cpu086 (:nosuf :jump))
+    ("jnp" (:label) (#x0f8b) :cpu086 (:nosuf :jump))
+    ("jpo" (:label) (#x0f8b) :cpu086 (:nosuf :jump))
+    ("jl" (:label) (#x0f8c) :cpu086 (:nosuf :jump))
+    ("jnge" (:label) (#x0f8c) :cpu086 (:nosuf :jump))
+    ("jnl" (:label) (#x0f8d) :cpu086 (:nosuf :jump))
+    ("jge" (:label) (#x0f8d) :cpu086 (:nosuf :jump))
+    ("jle" (:label) (#x0f8e) :cpu086 (:nosuf :jump))
+    ("jng" (:label) (#x0f8e) :cpu086 (:nosuf :jump))
+    ("jnle" (:label) (#x0f8f) :cpu086 (:nosuf :jump))
+    ("jg" (:label) (#x0f8f) :cpu086 (:nosuf :jump))
 
     ;; jcxz vs. jecxz is chosen on the basis of the address size prefix.
-    ("jcxz" (:disp) (#xe3) :cpuno64 (:nosuf :jumpbyte :size16))
-    ("jecxz" (:disp) (#xe3) :cpuno64 (:nosuf :jumpbyte :size32))
-    ("jecxz" (:disp) (#x67e3) :cpu64 (:nosuf :jumpbyte :size32))
-    ("jrcxz" (:disp) (#xe3) :cpu64 (:nosuf :jumpbyte :size64 :norex64))
+    ("jcxz" (:label) (#xe3) :cpuno64 (:nosuf :jumpbyte :size16))
+    ("jecxz" (:label) (#xe3) :cpuno64 (:nosuf :jumpbyte :size32))
+    ("jecxz" (:label) (#x67e3) :cpu64 (:nosuf :jumpbyte :size32))
+    ("jrcxz" (:label) (#xe3) :cpu64 (:nosuf :jumpbyte :size64 :norex64))
 
     ;; The loop instructions also use the address size prefix to select
     ;; %cx rather than %ecx for the loop count so the `w' form of these
     ;; instructions emit an address size prefix rather than a data size
     ;; prefix.
-    ("loop" (:disp) (#xe2) :cpuno64 (:wl-suf :jumpbyte))
-    ("loop" (:disp) (#xe2) :cpu64 (:lq-suf :jumpbyte :norex64))
-    ("loopz" (:disp) (#xe1) :cpuno64 (:wl-suf :jumpbyte))
-    ("loopz" (:disp) (#xe1) :cpu64 (:lq-suf :jumpbyte :norex64))
-    ("loope" (:disp) (#xe1) :cpuno64 (:wl-suf :jumpbyte))
-    ("loope" (:disp) (#xe1) :cpu64 (:lq-suf :jumpbyte :norex64))
-    ("loopnz" (:disp) (#xe0) :cpuno64 (:wl-suf :jumpbyte))
-    ("loopnz" (:disp) (#xe0) :cpu64 (:lq-suf :jumpbyte :norex64))
-    ("loopne" (:disp) (#xe0) :cpuno64 (:wl-suf :jumpbyte))
-    ("loopne" (:disp) (#xe0) :cpu64 (:lq-suf :jumpbyte :norex64))
+    ("loop" (:label) (#xe2) :cpuno64 (:wl-suf :jumpbyte))
+    ("loop" (:label) (#xe2) :cpu64 (:lq-suf :jumpbyte :norex64))
+    ("loopz" (:label) (#xe1) :cpuno64 (:wl-suf :jumpbyte))
+    ("loopz" (:label) (#xe1) :cpu64 (:lq-suf :jumpbyte :norex64))
+    ("loope" (:label) (#xe1) :cpuno64 (:wl-suf :jumpbyte))
+    ("loope" (:label) (#xe1) :cpu64 (:lq-suf :jumpbyte :norex64))
+    ("loopnz" (:label) (#xe0) :cpuno64 (:wl-suf :jumpbyte))
+    ("loopnz" (:label) (#xe0) :cpu64 (:lq-suf :jumpbyte :norex64))
+    ("loopne" (:label) (#xe0) :cpuno64 (:wl-suf :jumpbyte))
+    ("loopne" (:label) (#xe0) :cpu64 (:lq-suf :jumpbyte :norex64))
 
     ;; Set byte on flag instructions.
     ("seto" ((:reg8 :bytemem)) (#x0f90 0) :cpu386 (:b-suf :modrm))
