@@ -1,3 +1,13 @@
+2005-12-07 23:22  gb
+
+	* compiler/X86/x86-lap.lisp: Start to think about code generation:
+	code fragments, etc.  Some things (modrm-byte/sib-byte generation)
+	still unfinished (commented out), but want to get this checked in.
+
+2005-12-07 23:21  gb
+
+	* compiler/X86/x86-asm.lisp: Define and use :label operand type.
+
 2005-12-04 05:45  gb
 
 	* release-notes.txt: Update a little.
