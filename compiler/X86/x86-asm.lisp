@@ -18,80 +18,80 @@
 
 (in-package "X86")
 
-(defconstant MAX-OPERANDS 3) ; max operands per insn
-(defconstant MAX-IMMEDIATE-OPERANDS 2) ; max immediates per insn (lcall  ljmp)
-(defconstant MAX-MEMORY-OPERANDS 2) ; max memory refs per insn (string ops)
+(defconstant +MAX-OPERANDS+ 3) ; max operands per insn
+(defconstant +MAX-IMMEDIATE-OPERANDS+ 2) ; max immediates per insn (lcall  ljmp)
+(defconstant +MAX-MEMORY-OPERANDS+ 2) ; max memory refs per insn (string ops)
 
 ;;; Prefixes will be emitted in the order defined below.
 ;;; WAIT-PREFIX must be the first prefix since FWAIT is really is an
 ;;; instruction  and so must come before any prefixes.
 
-(defconstant WAIT-PREFIX 0)
-(defconstant LOCKREP-PREFIX 1)
-(defconstant ADDR-PREFIX 2)
-(defconstant DATA-PREFIX 3)
-(defconstant SEG-PREFIX 4)
-(defconstant REX-PREFIX 5) ; must come last.
-(defconstant MAX-PREFIXES 6) ; max prefixes per opcode
+(defconstant +WAIT-PREFIX+ 0)
+(defconstant +LOCKREP-PREFIX+ 1)
+(defconstant +ADDR-PREFIX+ 2)
+(defconstant +DATA-PREFIX+ 3)
+(defconstant +SEG-PREFIX+ 4)
+(defconstant +REX-PREFIX+ 5) ; must come last.
+(defconstant +MAX-PREFIXES+ 6) ; max prefixes per opcode
 
 ;;; we define the syntax here (modulo base index scale syntax)
-(defconstant REGISTER-PREFIX #\%)
-(defconstant IMMEDIATE-PREFIX #\$)
-(defconstant ABSOLUTE-PREFIX #\*)
+(defconstant +REGISTER-PREFIX+ #\%)
+(defconstant +IMMEDIATE-PREFIX+ #\$)
+(defconstant +ABSOLUTE-PREFIX+ #\*)
 
-(defconstant TWO-BYTE-OPCODE-ESCAPE #x0f)
-(defconstant NOP-OPCODE #x90)
+(defconstant +TWO-BYTE-OPCODE-ESCAPE+ #x0f)
+(defconstant +NOP-OPCODE+ #x90)
 
 ;;; register numbers
-(defconstant EBP-REG-NUM 5)
-(defconstant ESP-REG-NUM 4)
+(defconstant +EBP-REG-NUM+ 5)
+(defconstant +ESP-REG-NUM+ 4)
 
 ;;; modrm-byte.regmem for twobyte escape
-(defconstant ESCAPE-TO-TWO-BYTE-ADDRESSING ESP-REG-NUM)
+(defconstant +ESCAPE-TO-TWO-BYTE-ADDRESSING+ +ESP-REG-NUM+)
 ;;; index-base-byte.index for no index register addressing
-(defconstant NO-INDEX-REGISTER ESP-REG-NUM)
+(defconstant +NO-INDEX-REGISTER+ +ESP-REG-NUM+)
 ;;; index-base-byte.base for no base register addressing
-(defconstant NO-BASE-REGISTER EBP-REG-NUM)
-(defconstant NO-BASE-REGISTER-16 6)
+(defconstant +NO-BASE-REGISTER+ +EBP-REG-NUM+)
+(defconstant +NO-BASE-REGISTER-16+ 6)
 
 ;;; these are the instruction mnemonic suffixes.
-(defconstant WORD-MNEM-SUFFIX #\w)
-(defconstant BYTE-MNEM-SUFFIX #\b)
-(defconstant SHORT-MNEM-SUFFIX #\s)
-(defconstant LONG-MNEM-SUFFIX #\l)
-(defconstant QWORD-MNEM-SUFFIX #\q)
-(defconstant LONG-DOUBLE-MNEM-SUFFIX #\x)
+(defconstant +WORD-MNEM-SUFFIX+ #\w)
+(defconstant +BYTE-MNEM-SUFFIX+ #\b)
+(defconstant +SHORT-MNEM-SUFFIX+ #\s)
+(defconstant +LONG-MNEM-SUFFIX+ #\l)
+(defconstant +QWORD-MNEM-SUFFIX+ #\q)
+(defconstant +LONG-DOUBLE-MNEM-SUFFIX+ #\x)
 
 ;;; modrm.mode = REGMEM-FIELD-HAS-REG when a register is in there
-(defconstant REGMEM-FIELD-HAS-REG #x3) ; always = #x3
-(defconstant REGMEM-FIELD-HAS-MEM (lognot REGMEM-FIELD-HAS-REG))
+(defconstant +REGMEM-FIELD-HAS-REG+ #x3) ; always = #x3
+(defconstant +REGMEM-FIELD-HAS-MEM+ (lognot +REGMEM-FIELD-HAS-REG+))
 
 
 ;;; cpu feature flags
-(defconstant Cpu086 #x1)                ; Any old cpu will do  0 does the same
-(defconstant Cpu186 #x2)                ; i186 or better required
-(defconstant Cpu286 #x4)                ; i286 or better required
-(defconstant Cpu386 #x8)                ; i386 or better required
-(defconstant Cpu486 #x10)               ; i486 or better required
-(defconstant Cpu586 #x20)               ; i585 or better required
-(defconstant Cpu686 #x40)               ; i686 or better required
-(defconstant CpuP4 #x80)                ; Pentium4 or better required
-(defconstant CpuK6 #x100)               ; AMD K6 or better required
-(defconstant CpuAthlon #x200)           ; AMD Athlon or better required
-(defconstant CpuSledgehammer #x400)     ; Sledgehammer or better required
-(defconstant CpuMMX #x800)              ; MMX support required
-(defconstant CpuMMX2 #x1000)            ; extended MMX support (with SSE or 3DNow!Ext) required
-(defconstant CpuSSE #x2000)             ; Streaming SIMD extensions required
-(defconstant CpuSSE2 #x4000)            ; Streaming SIMD extensions 2 required
-(defconstant Cpu3dnow #x8000)           ; 3dnow! support required
-(defconstant Cpu3dnowA #x10000)         ; 3dnow!Extensions support required
-(defconstant CpuPNI #x20000)            ; Prescott New Instructions required
-(defconstant CpuPadLock #x40000)        ; VIA PadLock required
+(defconstant +Cpu086+ #x1)                ; Any old cpu will do  0 does the same
+(defconstant +Cpu186+ #x2)                ; i186 or better required
+(defconstant +Cpu286+ #x4)                ; i286 or better required
+(defconstant +Cpu386+ #x8)                ; i386 or better required
+(defconstant +Cpu486+ #x10)               ; i486 or better required
+(defconstant +Cpu586+ #x20)               ; i585 or better required
+(defconstant +Cpu686+ #x40)               ; i686 or better required
+(defconstant +CpuP4+ #x80)                ; Pentium4 or better required
+(defconstant +CpuK6+ #x100)               ; AMD K6 or better required
+(defconstant +CpuAthlon+ #x200)           ; AMD Athlon or better required
+(defconstant +CpuSledgehammer+ #x400)     ; Sledgehammer or better required
+(defconstant +CpuMMX+ #x800)              ; MMX support required
+(defconstant +CpuMMX2+ #x1000)            ; extended MMX support (with SSE or 3DNow!Ext) required
+(defconstant +CpuSSE+ #x2000)             ; Streaming SIMD extensions required
+(defconstant +CpuSSE2+ #x4000)            ; Streaming SIMD extensions 2 required
+(defconstant +Cpu3dnow+ #x8000)           ; 3dnow! support required
+(defconstant +Cpu3dnowA+ #x10000)         ; 3dnow!Extensions support required
+(defconstant +CpuPNI+ #x20000)            ; Prescott New Instructions required
+(defconstant +CpuPadLock+ #x40000)        ; VIA PadLock required
 ;;; These flags are set by gas depending on the flag-code.
-(defconstant Cpu64 #x4000000)           ; 64bit support required
-(defconstant CpuNo64 #x8000000)         ; Not supported in the 64bit mode
+(defconstant +Cpu64+ #x4000000)           ; 64bit support required
+(defconstant +CpuNo64+ #x8000000)         ; Not supported in the 64bit mode
 ;;; The default value for unknown CPUs - enable all features to avoid problems.
-(defconstant CpuUnknownFlags (logior Cpu086 Cpu186 Cpu286 Cpu386 Cpu486 Cpu586 Cpu686 CpuP4 CpuSledgehammer CpuMMX CpuMMX2 CpuSSE CpuSSE2 CpuPNI Cpu3dnow Cpu3dnowA CpuK6 CpuAthlon CpuPadLock))
+(defconstant +CpuUnknownFlags+ (logior +Cpu086+ +Cpu186+ +Cpu286+ +Cpu386+ +Cpu486+ +Cpu586+ +Cpu686+ +CpuP4+ +CpuSledgehammer+ +CpuMMX+ +CpuMMX2+ +CpuSSE+ +CpuSSE2+ +CpuPNI+ +Cpu3dnow+ +Cpu3dnowA+ +CpuK6+ +CpuAthlon+ +CpuPadLock+))
 
 (defparameter *cpu-feature-names*
   `((:Cpu086 . #x1) ; Any old cpu will do  0 does the same
@@ -133,123 +133,123 @@
          
 
 ;;; opcode-modifier bits:
-(defconstant opcode-modifier-W #x1) ; set if operands can be words or dwords  encoded the canonical way
-(defconstant opcode-modifier-D #x2) ; D = 0 if Reg --> Regmem  D = 1 if Regmem --> Reg:    MUST BE #x2
-(defconstant opcode-modifier-Modrm #x4)
-(defconstant opcode-modifier-FloatR #x8) ; src/dest swap for floats:   MUST BE #x8
-(defconstant opcode-modifier-ShortForm #x10) ; register is in low 3 bits of opcode
-(defconstant opcode-modifier-FloatMF #x20) ; FP insn memory format bit  sized by #x4
-(defconstant opcode-modifier-Jump #x40) ; special case for jump insns.
-(defconstant opcode-modifier-JumpDword #x80) ; call and jump
-(defconstant opcode-modifier-JumpByte #x100) ; loop and jecxz
-(defconstant opcode-modifier-JumpInterSegment #x200) ; special case for intersegment leaps/calls
-(defconstant opcode-modifier-FloatD #x400) ; direction for float insns:  MUST BE #x400
-(defconstant opcode-modifier-Seg2ShortForm #x800) ; encoding of load segment reg insns
-(defconstant opcode-modifier-Seg3ShortForm #x1000) ; fs/gs segment register insns.
-(defconstant opcode-modifier-Size16 #x2000) ; needs size prefix if in 32-bit mode
-(defconstant opcode-modifier-Size32 #x4000) ; needs size prefix if in 16-bit mode
-(defconstant opcode-modifier-Size64 #x8000) ; needs size prefix if in 16-bit mode
-(defconstant opcode-modifier-IgnoreSize #x10000) ; instruction ignores operand size prefix
-(defconstant opcode-modifier-DefaultSize #x20000) ; default insn size depends on mode
-(defconstant opcode-modifier-No-bSuf #x40000) ; b suffix on instruction illegal
-(defconstant opcode-modifier-No-wSuf #x80000) ; w suffix on instruction illegal
-(defconstant opcode-modifier-No-lSuf #x100000) ; l suffix on instruction illegal
-(defconstant opcode-modifier-No-sSuf #x200000) ; s suffix on instruction illegal
-(defconstant opcode-modifier-No-qSuf #x400000) ; q suffix on instruction illegal
-(defconstant opcode-modifier-No-xSuf #x800000) ; x suffix on instruction illegal
-(defconstant opcode-modifier-FWait #x1000000) ; instruction needs FWAIT
-(defconstant opcode-modifier-IsString #x2000000) ; quick test for string instructions
-(defconstant opcode-modifier-regKludge #x4000000) ; fake an extra reg operand for clr  imul
-(defconstant opcode-modifier-IsPrefix #x8000000) ; opcode is a prefix
-(defconstant opcode-modifier-ImmExt #x10000000) ; instruction has extension in 8 bit imm
-(defconstant opcode-modifier-NoRex64 #x20000000) ; instruction don't need Rex64 prefix.
-(defconstant opcode-modifier-Rex64 #x40000000) ; instruction require Rex64 prefix.
-(defconstant opcode-modifier-Ugh #x80000000) ; deprecated fp insn  gets a warning
+(defconstant +opcode-modifier-W+ #x1) ; set if operands can be words or dwords  encoded the canonical way
+(defconstant +opcode-modifier-D+ #x2) ; D = 0 if Reg --> Regmem  D = 1 if Regmem --> Reg:    MUST BE #x2
+(defconstant +opcode-modifier-Modrm+ #x4)
+(defconstant +opcode-modifier-FloatR+ #x8) ; src/dest swap for floats:   MUST BE #x8
+(defconstant +opcode-modifier-ShortForm+ #x10) ; register is in low 3 bits of opcode
+(defconstant +opcode-modifier-FloatMF+ #x20) ; FP insn memory format bit  sized by #x4
+(defconstant +opcode-modifier-Jump+ #x40) ; special case for jump insns.
+(defconstant +opcode-modifier-JumpDword+ #x80) ; call and jump
+(defconstant +opcode-modifier-JumpByte+ #x100) ; loop and jecxz
+(defconstant +opcode-modifier-JumpInterSegment+ #x200) ; special case for intersegment leaps/calls
+(defconstant +opcode-modifier-FloatD+ #x400) ; direction for float insns:  MUST BE #x400
+(defconstant +opcode-modifier-Seg2ShortForm+ #x800) ; encoding of load segment reg insns
+(defconstant +opcode-modifier-Seg3ShortForm+ #x1000) ; fs/gs segment register insns.
+(defconstant +opcode-modifier-Size16+ #x2000) ; needs size prefix if in 32-bit mode
+(defconstant +opcode-modifier-Size32+ #x4000) ; needs size prefix if in 16-bit mode
+(defconstant +opcode-modifier-Size64+ #x8000) ; needs size prefix if in 16-bit mode
+(defconstant +opcode-modifier-IgnoreSize+ #x10000) ; instruction ignores operand size prefix
+(defconstant +opcode-modifier-DefaultSize+ #x20000) ; default insn size depends on mode
+(defconstant +opcode-modifier-No-bSuf+ #x40000) ; b suffix on instruction illegal
+(defconstant +opcode-modifier-No-wSuf+ #x80000) ; w suffix on instruction illegal
+(defconstant +opcode-modifier-No-lSuf+ #x100000) ; l suffix on instruction illegal
+(defconstant +opcode-modifier-No-sSuf+ #x200000) ; s suffix on instruction illegal
+(defconstant +opcode-modifier-No-qSuf+ #x400000) ; q suffix on instruction illegal
+(defconstant +opcode-modifier-No-xSuf+ #x800000) ; x suffix on instruction illegal
+(defconstant +opcode-modifier-FWait+ #x1000000) ; instruction needs FWAIT
+(defconstant +opcode-modifier-IsString+ #x2000000) ; quick test for string instructions
+(defconstant +opcode-modifier-regKludge+ #x4000000) ; fake an extra reg operand for clr  imul
+(defconstant +opcode-modifier-IsPrefix+ #x8000000) ; opcode is a prefix
+(defconstant +opcode-modifier-ImmExt+ #x10000000) ; instruction has extension in 8 bit imm
+(defconstant +opcode-modifier-NoRex64+ #x20000000) ; instruction don't need Rex64 prefix.
+(defconstant +opcode-modifier-Rex64+ #x40000000) ; instruction require Rex64 prefix.
+(defconstant +opcode-modifier-Ugh+ #x80000000) ; deprecated fp insn  gets a warning
 
 
-(defconstant opcode-modifier-NoSuf (logior opcode-modifier-No-bSuf
-                                           opcode-modifier-No-wSuf
-                                           opcode-modifier-No-lSuf
-                                           opcode-modifier-No-sSuf
-                                           opcode-modifier-No-xSuf
-                                           opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-b-Suf (logior opcode-modifier-No-wSuf opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-w-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-l-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-q-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-lSuf opcode-modifier-No-xSuf))
-(defconstant opcode-modifier-x-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-lSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-bw-Suf (logior opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-bl-Suf (logior opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-wl-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-wlq-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
-(defconstant opcode-modifier-lq-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
-(defconstant opcode-modifier-wq-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-lSuf opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
-(defconstant opcode-modifier-sl-Suf (logior opcode-modifier-No-bSuf opcode-modifier-No-wSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-bwl-Suf (logior opcode-modifier-No-sSuf opcode-modifier-No-xSuf opcode-modifier-No-qSuf))
-(defconstant opcode-modifier-bwlq-Suf (logior opcode-modifier-No-sSuf opcode-modifier-No-xSuf))
-(defconstant opcode-modifier-FP opcode-modifier-NoSuf)
-(defconstant opcode-modifier-l-FP opcode-modifier-l-Suf)
-(defconstant opcode-modifier-q-FP (logior opcode-modifier-q-Suf opcode-modifier-NoRex64))
-(defconstant opcode-modifier-x-FP (logior opcode-modifier-x-Suf opcode-modifier-FloatMF))
-(defconstant opcode-modifier-sl-FP (logior opcode-modifier-sl-Suf opcode-modifier-FloatMF))
+(defconstant +opcode-modifier-NoSuf+ (logior +opcode-modifier-No-bSuf+
+                                             +opcode-modifier-No-wSuf+
+                                             +opcode-modifier-No-lSuf+
+                                             +opcode-modifier-No-sSuf+
+                                             +opcode-modifier-No-xSuf+
+                                             +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-b-Suf+ (logior +opcode-modifier-No-wSuf+ +opcode-modifier-No-lSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-w-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-lSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-l-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-wSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-q-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-wSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-lSuf+ +opcode-modifier-No-xSuf+))
+(defconstant +opcode-modifier-x-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-wSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-lSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-bw-Suf+ (logior +opcode-modifier-No-lSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-bl-Suf+ (logior +opcode-modifier-No-wSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-wl-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-wlq-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+))
+(defconstant +opcode-modifier-lq-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-wSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+))
+(defconstant +opcode-modifier-wq-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-lSuf+ +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+))
+(defconstant +opcode-modifier-sl-Suf+ (logior +opcode-modifier-No-bSuf+ +opcode-modifier-No-wSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-bwl-Suf+ (logior +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+ +opcode-modifier-No-qSuf+))
+(defconstant +opcode-modifier-bwlq-Suf+ (logior +opcode-modifier-No-sSuf+ +opcode-modifier-No-xSuf+))
+(defconstant +opcode-modifier-FP+ +opcode-modifier-NoSuf+)
+(defconstant +opcode-modifier-l-FP+ +opcode-modifier-l-Suf+)
+(defconstant +opcode-modifier-q-FP+ (logior +opcode-modifier-q-Suf+ +opcode-modifier-NoRex64+))
+(defconstant +opcode-modifier-x-FP+ (logior +opcode-modifier-x-Suf+ +opcode-modifier-FloatMF+))
+(defconstant +opcode-modifier-sl-FP+ (logior +opcode-modifier-sl-Suf+ +opcode-modifier-FloatMF+))
 ;;; Someone forgot that the FloatR bit reverses the operation when not
 ;;; equal to the FloatD bit.  ie. Changing only FloatD results in the
 ;;; destination being swapped *and* the direction being reversed.
-(defconstant opcode-modifier-FloatDR opcode-modifier-FloatD)
+(defconstant +opcode-modifier-FloatDR+ +opcode-modifier-FloatD+)
 
 (defparameter *opcode-modifier-names*
-  `((:w . ,opcode-modifier-W)
-    (:d . ,opcode-modifier-D)
-    (:modrm . ,opcode-modifier-Modrm)
-    (:shortform . ,opcode-modifier-ShortForm)
-    (:floatr . ,opcode-modifier-FloatR)
-    (:floatmf . ,opcode-modifier-FloatMF)
-    (:jump . ,opcode-modifier-Jump)
-    (:jumpdword . ,opcode-modifier-JumpDword)
-    (:jumpbyte . ,opcode-modifier-JumpByte)
-    (:jumpintersegment . ,opcode-modifier-JumpInterSegment)
-    (:floatd . ,opcode-modifier-FloatD)
-    (:seg2shortform . ,opcode-modifier-Seg2ShortForm)
-    (:seg3shortform . ,opcode-modifier-Seg3ShortForm)
-    (:size16 . ,opcode-modifier-Size16)
-    (:size32 . ,opcode-modifier-Size32)
-    (:size64 . ,opcode-modifier-Size64)
-    (:ignoresize . ,opcode-modifier-IgnoreSize)
-    (:no-bsuf . ,opcode-modifier-No-bsuf)
-    (:no-wsuf . ,opcode-modifier-No-wsuf)
-    (:no-lsuf . ,opcode-modifier-No-lsuf)
-    (:no-ssuf . ,opcode-modifier-No-ssuf)
-    (:no-qsuf . ,opcode-modifier-No-qsuf)
-    (:no-xsuf . ,opcode-modifier-No-xsuf)
-    (:defaultsize . ,opcode-modifier-DefaultSize)
-    (:fwait . ,opcode-modifier-FWait)
-    (:isstring . ,opcode-modifier-IsString)
-    (:regkludge . ,opcode-modifier-regKludge)
-    (:isprefix . ,opcode-modifier-IsPrefix)
-    (:immext . ,opcode-modifier-ImmExt)
-    (:norex64 . ,opcode-modifier-NoRex64)
-    (:rex64 . ,opcode-modifier-Rex64)
-    (:ugh . ,opcode-modifier-Ugh)
-    (:nosuf . ,opcode-modifier-NoSuf)
-    (:b-suf . ,opcode-modifier-b-Suf)
-    (:w-suf . ,opcode-modifier-w-Suf)
-    (:l-suf . ,opcode-modifier-l-Suf)
-    (:q-suf . ,opcode-modifier-q-Suf)
-    (:x-suf . ,opcode-modifier-x-suf)
-    (:wl-suf . ,opcode-modifier-wl-Suf)
-    (:wlq-suf . ,opcode-modifier-wlq-Suf)
-    (:lq-suf . ,opcode-modifier-lq-Suf)
-    (:wq-suf . ,opcode-modifier-wq-Suf)
-    (:sl-suf . ,opcode-modifier-sl-Suf)
-    (:bwl-suf . ,opcode-modifier-bwl-Suf)
-    (:bwlq-suf . ,opcode-modifier-bwlq-Suf)
-    (:fp . ,opcode-modifier-FP)
-    (:l-fp . ,opcode-modifier-l-FP)
-    (:q-fp . ,opcode-modifier-q-FP)
-    (:x-fp . ,opcode-modifier-x-FP)
-    (:sl-fp . ,opcode-modifier-sl-FP)
-    (:floatd . ,opcode-modifier-FloatD)
-    (:floatdr . ,opcode-modifier-FloatDR)))
+  `((:w . ,+opcode-modifier-W+)
+    (:d . ,+opcode-modifier-D+)
+    (:modrm . ,+opcode-modifier-Modrm+)
+    (:shortform . ,+opcode-modifier-ShortForm+)
+    (:floatr . ,+opcode-modifier-FloatR+)
+    (:floatmf . ,+opcode-modifier-FloatMF+)
+    (:jump . ,+opcode-modifier-Jump+)
+    (:jumpdword . ,+opcode-modifier-JumpDword+)
+    (:jumpbyte . ,+opcode-modifier-JumpByte+)
+    (:jumpintersegment . ,+opcode-modifier-JumpInterSegment+)
+    (:floatd . ,+opcode-modifier-FloatD+)
+    (:seg2shortform . ,+opcode-modifier-Seg2ShortForm+)
+    (:seg3shortform . ,+opcode-modifier-Seg3ShortForm+)
+    (:size16 . ,+opcode-modifier-Size16+)
+    (:size32 . ,+opcode-modifier-Size32+)
+    (:size64 . ,+opcode-modifier-Size64+)
+    (:ignoresize . ,+opcode-modifier-IgnoreSize+)
+    (:no-bsuf . ,+opcode-modifier-No-bsuf+)
+    (:no-wsuf . ,+opcode-modifier-No-wsuf+)
+    (:no-lsuf . ,+opcode-modifier-No-lsuf+)
+    (:no-ssuf . ,+opcode-modifier-No-ssuf+)
+    (:no-qsuf . ,+opcode-modifier-No-qsuf+)
+    (:no-xsuf . ,+opcode-modifier-No-xsuf+)
+    (:defaultsize . ,+opcode-modifier-DefaultSize+)
+    (:fwait . ,+opcode-modifier-FWait+)
+    (:isstring . ,+opcode-modifier-IsString+)
+    (:regkludge . ,+opcode-modifier-regKludge+)
+    (:isprefix . ,+opcode-modifier-IsPrefix+)
+    (:immext . ,+opcode-modifier-ImmExt+)
+    (:norex64 . ,+opcode-modifier-NoRex64+)
+    (:rex64 . ,+opcode-modifier-Rex64+)
+    (:ugh . ,+opcode-modifier-Ugh+)
+    (:nosuf . ,+opcode-modifier-NoSuf+)
+    (:b-suf . ,+opcode-modifier-b-Suf+)
+    (:w-suf . ,+opcode-modifier-w-Suf+)
+    (:l-suf . ,+opcode-modifier-l-Suf+)
+    (:q-suf . ,+opcode-modifier-q-Suf+)
+    (:x-suf . ,+opcode-modifier-x-suf+)
+    (:wl-suf . ,+opcode-modifier-wl-Suf+)
+    (:wlq-suf . ,+opcode-modifier-wlq-Suf+)
+    (:lq-suf . ,+opcode-modifier-lq-Suf+)
+    (:wq-suf . ,+opcode-modifier-wq-Suf+)
+    (:sl-suf . ,+opcode-modifier-sl-Suf+)
+    (:bwl-suf . ,+opcode-modifier-bwl-Suf+)
+    (:bwlq-suf . ,+opcode-modifier-bwlq-Suf+)
+    (:fp . ,+opcode-modifier-FP+)
+    (:l-fp . ,+opcode-modifier-l-FP+)
+    (:q-fp . ,+opcode-modifier-q-FP+)
+    (:x-fp . ,+opcode-modifier-x-FP+)
+    (:sl-fp . ,+opcode-modifier-sl-FP+)
+    (:floatd . ,+opcode-modifier-FloatD+)
+    (:floatdr . ,+opcode-modifier-FloatDR+)))
 
 
 ;;; By default, this returns NIL if the modifier can't be encoded.
@@ -276,120 +276,120 @@
 
 ;;; operand-types[i] bits
 ;;; register
-(defconstant operand-type-Reg8 #x1) ; 8 bit reg
-(defconstant operand-type-Reg16 #x2) ; 16 bit reg
-(defconstant operand-type-Reg32 #x4) ; 32 bit reg
-(defconstant operand-type-Reg64 #x8) ; 64 bit reg
+(defconstant +operand-type-Reg8+ #x1) ; 8 bit reg
+(defconstant +operand-type-Reg16+ #x2) ; 16 bit reg
+(defconstant +operand-type-Reg32+ #x4) ; 32 bit reg
+(defconstant +operand-type-Reg64+ #x8) ; 64 bit reg
 ;;; immediate
-(defconstant operand-type-Imm8 #x10) ; 8 bit immediate
-(defconstant operand-type-Imm8S #x20) ; 8 bit immediate sign extended
-(defconstant operand-type-Imm16 #x40) ; 16 bit immediate
-(defconstant operand-type-Imm32 #x80) ; 32 bit immediate
-(defconstant operand-type-Imm32S #x100) ; 32 bit immediate sign extended
-(defconstant operand-type-Imm64 #x200) ; 64 bit immediate
-(defconstant operand-type-Imm1 #x400) ; 1 bit immediate
+(defconstant +operand-type-Imm8+ #x10) ; 8 bit immediate
+(defconstant +operand-type-Imm8S+ #x20) ; 8 bit immediate sign extended
+(defconstant +operand-type-Imm16+ #x40) ; 16 bit immediate
+(defconstant +operand-type-Imm32+ #x80) ; 32 bit immediate
+(defconstant +operand-type-Imm32S+ #x100) ; 32 bit immediate sign extended
+(defconstant +operand-type-Imm64+ #x200) ; 64 bit immediate
+(defconstant +operand-type-Imm1+ #x400) ; 1 bit immediate
 ;;; memory
-(defconstant operand-type-BaseIndex #x800)
+(defconstant +operand-type-BaseIndex+ #x800)
 ;;; Disp8 16 32 are used in different ways  depending on the
 ;;; instruction.  For jumps  they specify the size of the PC relative
 ;;; displacement  for baseindex type instructions  they specify the
 ;;; size of the offset relative to the base register  and for memory
 ;;; offset instructions such as `mov 1234 %al' they specify the size of
 ;;; the offset relative to the segment base.
-(defconstant operand-type-Disp8 #x1000) ; 8 bit displacement
-(defconstant operand-type-Disp16 #x2000) ; 16 bit displacement
-(defconstant operand-type-Disp32 #x4000) ; 32 bit displacement
-(defconstant operand-type-Disp32S #x8000) ; 32 bit signed displacement
-(defconstant operand-type-Disp64 #x10000) ; 64 bit displacement
+(defconstant +operand-type-Disp8+ #x1000) ; 8 bit displacement
+(defconstant +operand-type-Disp16+ #x2000) ; 16 bit displacement
+(defconstant +operand-type-Disp32+ #x4000) ; 32 bit displacement
+(defconstant +operand-type-Disp32S+ #x8000) ; 32 bit signed displacement
+(defconstant +operand-type-Disp64+ #x10000) ; 64 bit displacement
 ;;; specials
-(defconstant operand-type-InOutPortReg #x20000) ; register to hold in/out port addr = dx
-(defconstant operand-type-ShiftCount #x40000) ; register to hold shift cound = cl
-(defconstant operand-type-Control #x80000) ; Control register
-(defconstant operand-type-Debug #x100000) ; Debug register
-(defconstant operand-type-Test #x200000) ; Test register
-(defconstant operand-type-FloatReg #x400000) ; Float register
-(defconstant operand-type-FloatAcc #x800000) ; Float stack top %st(0)
-(defconstant operand-type-SReg2 #x1000000) ; 2 bit segment register
-(defconstant operand-type-SReg3 #x2000000) ; 3 bit segment register
-(defconstant operand-type-Acc #x4000000) ; Accumulator %al or %ax or %eax
-(defconstant operand-type-JumpAbsolute #x8000000)
-(defconstant operand-type-RegMMX #x10000000) ; MMX register
-(defconstant operand-type-RegXMM #x20000000) ; XMM registers in PIII
-(defconstant operand-type-EsSeg #x40000000) ; String insn operand with fixed es segment
+(defconstant +operand-type-InOutPortReg+ #x20000) ; register to hold in/out port addr = dx
+(defconstant +operand-type-ShiftCount+ #x40000) ; register to hold shift cound = cl
+(defconstant +operand-type-Control+ #x80000) ; Control register
+(defconstant +operand-type-Debug+ #x100000) ; Debug register
+(defconstant +operand-type-Test+ #x200000) ; Test register
+(defconstant +operand-type-FloatReg+ #x400000) ; Float register
+(defconstant +operand-type-FloatAcc+ #x800000) ; Float stack top %st(0)
+(defconstant +operand-type-SReg2+ #x1000000) ; 2 bit segment register
+(defconstant +operand-type-SReg3+ #x2000000) ; 3 bit segment register
+(defconstant +operand-type-Acc+ #x4000000) ; Accumulator %al or %ax or %eax
+(defconstant +operand-type-JumpAbsolute+ #x8000000)
+(defconstant +operand-type-RegMMX+ #x10000000) ; MMX register
+(defconstant +operand-type-RegXMM+ #x20000000) ; XMM registers in PIII
+(defconstant +operand-type-EsSeg+ #x40000000) ; String insn operand with fixed es segment
 
 ;;; InvMem is for instructions with a modrm byte that only allow a
 ;;; general register encoding in the i.tm.mode and i.tm.regmem fields
 ;;; eg. control reg moves.  They really ought to support a memory form
 ;;; but don't  so we add an InvMem flag to the register operand to
 ;;; indicate that it should be encoded in the i.tm.regmem field.
-(defconstant operand-type-InvMem #x80000000)
-(defconstant operand-type-Label #x100000000)
+(defconstant +operand-type-InvMem+ #x80000000)
+(defconstant +operand-type-Label+ #x100000000)
 
-(defconstant operand-type-Reg (logior operand-type-Reg8 operand-type-Reg16 operand-type-Reg32 operand-type-Reg64)) ; gen'l register
-(defconstant operand-type-WordReg (logior operand-type-Reg16 operand-type-Reg32 operand-type-Reg64))
-(defconstant operand-type-ImplicitRegister (logior operand-type-InOutPortReg operand-type-ShiftCount operand-type-Acc operand-type-FloatAcc))
-(defconstant operand-type-Imm (logior operand-type-Imm8 operand-type-Imm8S operand-type-Imm16 operand-type-Imm32S operand-type-Imm32 operand-type-Imm64)) ; gen'l immediate
-(defconstant operand-type-EncImm (logior operand-type-Imm8 operand-type-Imm16 operand-type-Imm32 operand-type-Imm32S)) ; Encodable gen'l immediate
-(defconstant operand-type-Disp (logior operand-type-Disp8 operand-type-Disp16 operand-type-Disp32 operand-type-Disp32S operand-type-Disp64)) ; General displacement
-(defconstant operand-type-AnyMem (logior operand-type-Disp8 operand-type-Disp16 operand-type-Disp32 operand-type-Disp32S operand-type-BaseIndex operand-type-InvMem)) ; General memory
+(defconstant +operand-type-Reg+ (logior +operand-type-Reg8+ +operand-type-Reg16+ +operand-type-Reg32+ +operand-type-Reg64+)) ; gen'l register
+(defconstant +operand-type-WordReg+ (logior +operand-type-Reg16+ +operand-type-Reg32+ +operand-type-Reg64+))
+(defconstant +operand-type-ImplicitRegister+ (logior +operand-type-InOutPortReg+ +operand-type-ShiftCount+ +operand-type-Acc+ +operand-type-FloatAcc+))
+(defconstant +operand-type-Imm+ (logior +operand-type-Imm8+ +operand-type-Imm8S+ +operand-type-Imm16+ +operand-type-Imm32S+ +operand-type-Imm32+ +operand-type-Imm64+)) ; gen'l immediate
+(defconstant +operand-type-EncImm+ (logior +operand-type-Imm8+ +operand-type-Imm16+ +operand-type-Imm32+ +operand-type-Imm32S+)) ; Encodable gen'l immediate
+(defconstant +operand-type-Disp+ (logior +operand-type-Disp8+ +operand-type-Disp16+ +operand-type-Disp32+ +operand-type-Disp32S+ +operand-type-Disp64+)) ; General displacement
+(defconstant +operand-type-AnyMem+ (logior +operand-type-Disp8+ +operand-type-Disp16+ +operand-type-Disp32+ +operand-type-Disp32S+ +operand-type-BaseIndex+ +operand-type-InvMem+)) ; General memory
 ;;; The following aliases are defined because the opcode table
 ;;; carefully specifies the allowed memory types for each instruction.
 ;;; At the moment we can only tell a memory reference size by the
 ;;; instruction suffix  so there's not much point in defining Mem8
 ;;; Mem16  Mem32 and Mem64 opcode modifiers - We might as well just use
 ;;; the suffix directly to check memory operands.
-(defconstant operand-type-LLongMem operand-type-AnyMem); 64 bits (or more)
-(defconstant operand-type-LongMem  operand-type-AnyMem) ; 32 bit memory ref
-(defconstant operand-type-ShortMem operand-type-AnyMem) ; 16 bit memory ref
-(defconstant operand-type-WordMem operand-type-AnyMem) ; 16 or 32 bit memory ref
-(defconstant operand-type-ByteMem operand-type-AnyMem) ; 8 bit memory ref
+(defconstant +operand-type-LLongMem+ +operand-type-AnyMem+); 64 bits (or more)
+(defconstant +operand-type-LongMem+  +operand-type-AnyMem+) ; 32 bit memory ref
+(defconstant +operand-type-ShortMem+ +operand-type-AnyMem+) ; 16 bit memory ref
+(defconstant +operand-type-WordMem+ +operand-type-AnyMem+) ; 16 or 32 bit memory ref
+(defconstant +operand-type-ByteMem+ +operand-type-AnyMem+) ; 8 bit memory ref
 
 (defparameter *x86-operand-type-names*
-  `((:Reg8 . ,operand-type-Reg8)
-    (:Reg16 . ,operand-type-Reg16)
-    (:Reg32 . ,operand-type-Reg32)
-    (:Reg64 . ,operand-type-Reg64)
-    (:Imm8 . ,operand-type-Imm8)
-    (:Imm8S . ,operand-type-Imm8S)
-    (:Imm16 . ,operand-type-Imm16)
-    (:Imm32 . ,operand-type-Imm32)
-    (:Imm32S . ,operand-type-Imm32S)
-    (:Imm64 . ,operand-type-Imm64)
-    (:Imm1 . ,operand-type-Imm1)
-    (:BaseIndex . ,operand-type-BaseIndex)
-    (:Disp8 . ,operand-type-Disp8)
-    (:Disp16 . ,operand-type-Disp16)
-    (:Disp32 . ,operand-type-Disp32)
-    (:Disp32S . ,operand-type-Disp32S)
-    (:Disp64 . ,operand-type-Disp64)
-    (:InOutPortReg . ,operand-type-InOutPortReg)
-    (:ShiftCount . ,operand-type-ShiftCount)
-    (:Control . ,operand-type-Control)
-    (:Debug . ,operand-type-Debug)
-    (:Test . ,operand-type-Test)
-    (:FloatReg . ,operand-type-FloatReg)
-    (:FloatAcc . ,operand-type-FloatAcc)
-    (:SReg2 . ,operand-type-SReg2)
-    (:SReg3 . ,operand-type-SReg3)
-    (:Acc . ,operand-type-Acc)
-    (:JumpAbsolute . ,operand-type-JumpAbsolute)
-    (:RegMMX . ,operand-type-RegMMX)
-    (:RegXMM . ,operand-type-RegXMM)
-    (:EsSeg . ,operand-type-EsSeg)
-    (:InvMem . ,operand-type-InvMem)
-    (:Reg . ,operand-type-Reg)
-    (:WordReg . ,operand-type-WordReg)
-    (:ImplicitRegister . ,operand-type-ImplicitRegister)
-    (:Imm . ,operand-type-Imm)
-    (:EncImm . ,operand-type-EncImm)
-    (:Disp . ,operand-type-Disp)
-    (:AnyMem . ,operand-type-AnyMem)
-    (:LLongMem . ,operand-type-LLongMem)
-    (:LongMem . ,operand-type-LongMem)
-    (:ShortMem . ,operand-type-ShortMem)
-    (:WordMem . ,operand-type-WordMem)
-    (:ByteMem . ,operand-type-ByteMem)
-    (:Label . ,operand-type-Label)
+  `((:Reg8 . ,+operand-type-Reg8+)
+    (:Reg16 . ,+operand-type-Reg16+)
+    (:Reg32 . ,+operand-type-Reg32+)
+    (:Reg64 . ,+operand-type-Reg64+)
+    (:Imm8 . ,+operand-type-Imm8+)
+    (:Imm8S . ,+operand-type-Imm8S+)
+    (:Imm16 . ,+operand-type-Imm16+)
+    (:Imm32 . ,+operand-type-Imm32+)
+    (:Imm32S . ,+operand-type-Imm32S+)
+    (:Imm64 . ,+operand-type-Imm64+)
+    (:Imm1 . ,+operand-type-Imm1+)
+    (:BaseIndex . ,+operand-type-BaseIndex+)
+    (:Disp8 . ,+operand-type-Disp8+)
+    (:Disp16 . ,+operand-type-Disp16+)
+    (:Disp32 . ,+operand-type-Disp32+)
+    (:Disp32S . ,+operand-type-Disp32S+)
+    (:Disp64 . ,+operand-type-Disp64+)
+    (:InOutPortReg . ,+operand-type-InOutPortReg+)
+    (:ShiftCount . ,+operand-type-ShiftCount+)
+    (:Control . ,+operand-type-Control+)
+    (:Debug . ,+operand-type-Debug+)
+    (:Test . ,+operand-type-Test+)
+    (:FloatReg . ,+operand-type-FloatReg+)
+    (:FloatAcc . ,+operand-type-FloatAcc+)
+    (:SReg2 . ,+operand-type-SReg2+)
+    (:SReg3 . ,+operand-type-SReg3+)
+    (:Acc . ,+operand-type-Acc+)
+    (:JumpAbsolute . ,+operand-type-JumpAbsolute+)
+    (:RegMMX . ,+operand-type-RegMMX+)
+    (:RegXMM . ,+operand-type-RegXMM+)
+    (:EsSeg . ,+operand-type-EsSeg+)
+    (:InvMem . ,+operand-type-InvMem+)
+    (:Reg . ,+operand-type-Reg+)
+    (:WordReg . ,+operand-type-WordReg+)
+    (:ImplicitRegister . ,+operand-type-ImplicitRegister+)
+    (:Imm . ,+operand-type-Imm+)
+    (:EncImm . ,+operand-type-EncImm+)
+    (:Disp . ,+operand-type-Disp+)
+    (:AnyMem . ,+operand-type-AnyMem+)
+    (:LLongMem . ,+operand-type-LLongMem+)
+    (:LongMem . ,+operand-type-LongMem+)
+    (:ShortMem . ,+operand-type-ShortMem+)
+    (:WordMem . ,+operand-type-WordMem+)
+    (:ByteMem . ,+operand-type-ByteMem+)
+    (:Label . ,+operand-type-Label+)
   ))
 
 (defun %encode-operand-type (optype &optional errorp)
@@ -439,8 +439,8 @@
 )
 
 
-(defconstant RegRex #x1) ; Extended register.
-(defconstant RegRex64 #x2) ; Extended 8 bit register.
+(defconstant +RegRex+ #x1) ; Extended register.
+(defconstant +RegRex64+ #x2) ; Extended 8 bit register.
 
 ;;; these are for register name --> number & type hash lookup
 (defstruct reg-entry
@@ -466,16 +466,16 @@
 
 ;;; x86-64 extension prefix.
 ;; typedef int rex-byte
-(defconstant REX-OPCODE #x40)
+(defconstant +REX-OPCODE+ #x40)
 
 ;;; Indicates 64 bit operand size.
-(defconstant REX-MODE64 8)
+(defconstant +REX-MODE64+ 8)
 ;;; High extension to reg field of modrm byte.
-(defconstant REX-EXTX 4)
+(defconstant +REX-EXTX+ 4)
 ;;; High extension to SIB index field.
-(defconstant REX-EXTY 2)
+(defconstant +REX-EXTY+ 2)
 ;;; High extension to base field of modrm or SIB  or reg field of opcode.
-(defconstant REX-EXTZ 1)
+(defconstant +REX-EXTZ+ 1)
 
 ;;; 386 opcode byte to code indirect addressing.
 (defstruct sib-byte
@@ -508,23 +508,23 @@
 ;;;
 ;;; The affected opcode map is dceX  dcfX  deeX  defX.
 
-(defconstant MOV-AX-DISP32 #xa0)
-(defconstant POP-SEG-SHORT #x07)
-(defconstant JUMP-PC-RELATIVE #xe9)
-(defconstant INT-OPCODE  #xcd)
-(defconstant INT3-OPCODE #xcc)
-(defconstant FWAIT-OPCODE #x9b)
-(defconstant ADDR-PREFIX-OPCODE #x67)
-(defconstant DATA-PREFIX-OPCODE #x66)
-(defconstant LOCK-PREFIX-OPCODE #xf0)
-(defconstant CS-PREFIX-OPCODE #x2e)
-(defconstant DS-PREFIX-OPCODE #x3e)
-(defconstant ES-PREFIX-OPCODE #x26)
-(defconstant FS-PREFIX-OPCODE #x64)
-(defconstant GS-PREFIX-OPCODE #x65)
-(defconstant SS-PREFIX-OPCODE #x36)
-(defconstant REPNE-PREFIX-OPCODE #xf2)
-(defconstant REPE-PREFIX-OPCODE  #xf3)
+(defconstant +MOV-AX-DISP32+ #xa0)
+(defconstant +POP-SEG-SHORT+ #x07)
+(defconstant +JUMP-PC-RELATIVE+ #xe9)
+(defconstant +INT-OPCODE+  #xcd)
+(defconstant +INT3-OPCODE+ #xcc)
+(defconstant +FWAIT-OPCODE+ #x9b)
+(defconstant +ADDR-PREFIX-OPCODE+ #x67)
+(defconstant +DATA-PREFIX-OPCODE+ #x66)
+(defconstant +LOCK-PREFIX-OPCODE+ #xf0)
+(defconstant +CS-PREFIX-OPCODE+ #x2e)
+(defconstant +DS-PREFIX-OPCODE+ #x3e)
+(defconstant +ES-PREFIX-OPCODE+ #x26)
+(defconstant +FS-PREFIX-OPCODE+ #x64)
+(defconstant +GS-PREFIX-OPCODE+ #x65)
+(defconstant +SS-PREFIX-OPCODE+ #x36)
+(defconstant +REPNE-PREFIX-OPCODE+ #xf2)
+(defconstant +REPE-PREFIX-OPCODE+  #xf3)
 
 
 (defparameter *x86-instruction-template-data*
@@ -532,8 +532,10 @@
     ;; Move instructions.
     ;; In the 64bit mode the short form mov immediate is redefined to have
     ;; 64bit displacement value.
-    ("mov" ((:disp16 :disp32) :acc) (#xa0) :cpuno64 (:bwl-suf :d :w))
-    ("mov" (:reg (:reg :anymem)) (#x88) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("mov" ((:disp16 :disp32) :acc) (#xa0) :cpuno64 (:bwl-suf :w))
+    ("mov" (:acc (:disp16 :disp32)) (#xa2) :cpuno64 (:bwl-suf :w))
+    ("mov" (:reg (:reg :anymem)) (#x88) :cpu086 (:bwlq-suf :w :modrm))
+    ("mov" ((:reg :anymem) :reg) (#x8a) :cpu086 (:bwlq-suf :w :modrm))
     ;; In the 64bit mode the short form mov immediate is redefined to have
     ;; 64bit displacement value.
     ("mov" (:encimm (:reg8 :reg16 :reg32)) (#xb0) :cpu086 (:bwl-suf :w :shortform))
@@ -554,12 +556,18 @@
     ("mov" ((:wordreg :wordmem) :sreg3) (#x8e) :cpu386 (:wl-suf :modrm :ignoresize))
     ;; Move to/from control debug registers. In the 16 or 32bit modes
     ;; they are 32bit. In the 64bit mode they are 64bit.
-    ("mov" (:control (:reg32 :invmem)) (#x0f20) (:cpu386 :cpuno64) (:l-suf :d :modrm :ignoresize))
-    ("mov" (:control (:reg64 :invmem)) (#x0f20) :cpu64 (:q-suf :d :modrm :ignoresize :norex64))
-    ("mov" (:debug (:reg32 :invmem)) (#x0f21) (:cpu386 :cpuno64) (:l-suf :d :modrm :ignoresize))
-    ("mov" (:debug (:reg64 :invmem)) (#x0f21) :cpu64 (:q-suf :d :modrm :ignoresize :norex64))
-    ("mov" (:test (:reg32 :invmem)) (#x0f24) (:cpu386 :cpuno64) (:l-suf :d :modrm :ignoresize))
-    ("movabs" (:disp64 :acc) (#xa0) :cpu64 (:bwlq-suf :d :w))
+    ("mov" (:control (:reg32 :invmem)) (#x0f20) (:cpu386 :cpuno64) (:l-suf :modrm :ignoresize))
+    ("mov" ((:reg32 :invmem) :control) (#x0f22) (:cpu386 :cpuno64) (:l-suf :modrm :ignoresize))
+    ("mov" (:control (:reg64 :invmem)) (#x0f20) :cpu64 (:q-suf :modrm :ignoresize :norex64))
+    ("mov" ((:reg64 :invmem) :control) (#x0f22) :cpu64 (:q-suf :modrm :ignoresize :norex64))
+    ("mov" (:debug (:reg32 :invmem)) (#x0f21) (:cpu386 :cpuno64) (:l-suf :modrm :ignoresize))
+    ("mov" ((:reg32 :invmem) :debug) (#x0f23) (:cpu386 :cpuno64) (:l-suf :modrm :ignoresize))
+    ("mov" (:debug (:reg64 :invmem)) (#x0f21) :cpu64 (:q-suf :modrm :ignoresize :norex64))
+    ("mov" ((:reg64 :invmem) :debug) (#x0f23) :cpu64 (:q-suf :modrm :ignoresize :norex64))
+    ("mov" (:test (:reg32 :invmem)) (#x0f24) (:cpu386 :cpuno64) (:l-suf :modrm :ignoresize))
+    ("mov" ((:reg32 :invmem) :test) (#x0f26) (:cpu386 :cpuno64) (:l-suf :modrm :ignoresize))
+    ("movabs" (:disp64 :acc) (#xa0) :cpu64 (:bwlq-suf :w))
+    ("movabs" (:acc :disp64) (#xa2) :cpu64 (:bwlq-suf :w))
     ("movabs" (:imm64 :reg64) (#xb0) :cpu64 (:q-suf :w :shortform))
 
     ;; Move with sign extend.  "movsbl" & "movsbw" must not be unified
@@ -678,7 +686,8 @@
     ("sti" () (#xfb) :cpu086 :nosuf)
 
     ;; Arithmetic.
-    ("add" (:reg (:reg :anymem)) (#x00) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("add" (:reg (:reg :anymem)) (#x00) :cpu086 (:bwlq-suf :w :modrm))
+    ("add" ((:reg :anymem) :reg) (#x02) :cpu086 (:bwlq-suf :w :modrm))
     ("add" (:imm8s (:wordreg :wordmem)) (#x83 0) :cpu086 (:wlq-suf :modrm))
     ("add" (:encimm :acc) (#x04) :cpu086 (:bwlq-suf :w))
     ("add" (:encimm (:reg :anymem)) (#x80 0) :cpu086 (:bwlq-suf :w :modrm))
@@ -686,7 +695,8 @@
     ("inc" (:wordreg) (#x40) :cpuno64 (:wl-suf :shortform))
     ("inc" ((:reg :anymem)) (#xfe 0) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("sub" (:reg (:reg :anymem)) (#x28) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("sub" (:reg (:reg :anymem)) (#x28) :cpu086 (:bwlq-suf :w :modrm))
+    ("sub" ((:reg :anymem) :reg) (#x2a) :cpu086 (:bwlq-suf :w :modrm))
     ("sub" (:imm8s (:wordreg :wordmem)) (#x83 5) :cpu086 (:wlq-suf :modrm))
     ("sub" (:encimm :acc) (#x2c) :cpu086 (:bwlq-suf :w))
     ("sub" (:encimm (:reg :anymem)) (#x80 5) :cpu086 (:bwlq-suf :w :modrm))
@@ -694,12 +704,14 @@
     ("dec" (:wordreg) (#x48) :cpuno64 (:wl-suf :shortform))
     ("dec" ((:reg :anymem)) (#xfe 1) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("sbb" (:reg (:reg :anymem)) (#x18) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("sbb" (:reg (:reg :anymem)) (#x18) :cpu086 (:bwlq-suf :w :modrm))
+    ("sbb" ((:reg :anymem) :reg) (#x1a) :cpu086 (:bwlq-suf :w :modrm))
     ("sbb" (:imm8s (:wordreg :wordmem)) (#x83 3) :cpu086 (:wlq-suf :modrm))
     ("sbb" (:encimm :acc) (#x1c) :cpu086 (:bwlq-suf :w))
     ("sbb" (:encimm (:reg :anymem)) (#x80 3) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("cmp" (:reg (:reg :anymem)) (#x38) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("cmp" (:reg (:reg :anymem)) (#x38) :cpu086 (:bwlq-suf :w :modrm))
+    ("cmp" ((:reg :anymem) :reg) (#x3a) :cpu086 (:bwlq-suf :w :modrm))
     ("cmp" (:imm8s (:wordreg :wordmem)) (#x83 7) :cpu086 (:wlq-suf :modrm))
     ("cmp" (:encimm :acc) (#x3c) :cpu086 (:bwlq-suf :w))
     ("cmp" (:encimm (:reg :anymem)) (#x80 7) :cpu086 (:bwlq-suf :w :modrm))
@@ -709,17 +721,20 @@
     ("test" (:encimm :acc) (#xa8) :cpu086 (:bwlq-suf :w))
     ("test" (:encimm (:reg :anymem)) (#xf6 0) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("and" (:reg (:reg :anymem)) (#x20) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("and" (:reg (:reg :anymem)) (#x20) :cpu086 (:bwlq-suf :w :modrm))
+    ("and" ((:reg :anymem) :reg) (#x22) :cpu086 (:bwlq-suf :w :modrm))
     ("and" (:imm8s (:wordreg :wordmem)) (#x83 4) :cpu086 (:wlq-suf :modrm))
     ("and" (:encimm :acc) (#x24) :cpu086 (:bwlq-suf :w))
     ("and" (:encimm (:reg :anymem)) (#x80 4) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("or" (:reg (:reg :anymem)) (#x08) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("or" (:reg (:reg :anymem)) (#x08) :cpu086 (:bwlq-suf :w :modrm))
+    ("or" ((:reg :anymem) :reg) (#x0a) :cpu086 (:bwlq-suf :w :modrm))
     ("or" (:imm8s (:wordreg :wordmem)) (#x83 1) :cpu086 (:wlq-suf :modrm))
     ("or" (:encimm :acc) (#x0c) :cpu086 (:bwlq-suf :w))
     ("or" (:encimm (:reg :anymem)) (#x80 1) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("xor" (:reg (:reg :anymem)) (#x30) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("xor" (:reg (:reg :anymem)) (#x30) :cpu086 (:bwlq-suf :w :modrm))
+    ("xor" ((:reg :anymem) :reg) (#x32) :cpu086 (:bwlq-suf :w :modrm))
     ("xor" (:imm8s (:wordreg :wordmem)) (#x83 6) :cpu086 (:wlq-suf :modrm))
     ("xor" (:encimm :acc) (#x34) :cpu086 (:bwlq-suf :w))
     ("xor" (:encimm (:reg :anymem)) (#x80 6) :cpu086 (:bwlq-suf :w :modrm))
@@ -727,7 +742,8 @@
     ;; clr with 1 operand is really xor with 2 operands.
     ("clr" (:reg) (#x30) :cpu086 (:bwlq-suf :w :modrm :regkludge))
 
-    ("adc" (:reg (:reg :anymem)) (#x10) :cpu086 (:bwlq-suf :d :w :modrm))
+    ("adc" (:reg (:reg :anymem)) (#x10) :cpu086 (:bwlq-suf :w :modrm))
+    ("adc" ((:reg :anymem) :reg) (#x12) :cpu086 (:bwlq-suf :w :modrm))
     ("adc" (:imm8s (:wordreg :wordmem)) (#x83 2) :cpu086 (:wlq-suf :modrm))
     ("adc" (:encimm :acc) (#x14) :cpu086 (:bwlq-suf :w))
     ("adc" (:encimm (:reg :anymem)) (#x80 2) :cpu086 (:bwlq-suf :w :modrm))
@@ -1398,13 +1414,16 @@
     ("movq" (:regmmx (:regmmx :longmem)) (#x0f7f) :cpummx (:nosuf :ignoresize :modrm))
     ("movq" ((:regxmm :llongmem) :regxmm) (#xf30f7e) :cpusse2 (:nosuf :ignoresize :modrm))
     ("movq" (:regxmm (:regxmm :llongmem)) (#x660fd6) :cpusse2 (:nosuf :ignoresize :modrm))
-    ("movq" (:reg64 (:reg64 :anymem)) (#x88) :cpu64 (:nosuf :d :w :modrm :size64))
+    ("movq" (:reg64 (:reg64 :anymem)) (#x88) :cpu64 (:nosuf :w :modrm :size64))
+    ("movq" ((:reg64 :anymem) :reg64) (#x8a) :cpu64 (:nosuf :w :modrm :size64))
     ("movq" (:imm32s (:reg64 :wordmem)) (#xc6 0) :cpu64 (:nosuf :w :modrm :size64))
     ("movq" (:imm64 :reg64) (#xb0) :cpu64 (:nosuf :w :shortform :size64))
     ;; Move to/from control debug registers. In the 16 or 32bit modes
     ;; they are 32bit. In the 64bit mode they are 64bit.
-    ("movq" (:control (:reg64 :invmem)) (#x0f20) :cpu64 (:nosuf :d :modrm :ignoresize :norex64 :size64))
-    ("movq" (:debug (:reg64 :invmem)) (#x0f21) :cpu64 (:nosuf :d :modrm :ignoresize :norex64 :size64))
+    ("movq" (:control (:reg64 :invmem)) (#x0f20) :cpu64 (:nosuf :modrm :ignoresize :norex64 :size64))
+    ("movq" ((:reg64 :invmem) :control) (#x0f22) :cpu64 (:nosuf :modrm :ignoresize :norex64 :size64))
+    ("movq" (:debug (:reg64 :invmem)) (#x0f21) :cpu64 (:nosuf :modrm :ignoresize :norex64 :size64))
+    ("movq" ((:reg64 :invmem) :debug) (#x0f23) :cpu64 (:nosuf :modrm :ignoresize :norex64 :size64))
     ;; Real MMX instructions.
     ("packssdw" ((:regmmx :longmem) :regmmx) (#x0f6b) :cpummx (:nosuf :ignoresize :modrm))
     ("packssdw" ((:regxmm :llongmem) :regxmm) (#x660f6b) :cpusse2 (:nosuf :ignoresize :modrm))
@@ -1903,9 +1922,9 @@
 
 ;;; 386 register table.
 
-(defconstant REGNAM-AL 1) ; Entry in i386-regtab.
-(defconstant REGNAM-AX 25)
-(defconstant REGNAM-EAX 41)
+(defconstant +REGNAM-AL+ 1) ; Entry in i386-regtab.
+(defconstant +REGNAM-AX+ 25)
+(defconstant +REGNAM-EAX+ 41)
 
 (defvar *x86-regtab*
   (vector
@@ -1949,67 +1968,67 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "axl"
                    :reg-type (encode-operand-type :Reg8 :Acc)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 0 ) ; Must be in the "al + 8" slot.
    (make-reg-entry :reg-name "cxl"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 1)
    (make-reg-entry :reg-name "dxl"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 2)
    (make-reg-entry :reg-name "bxl"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 3)
    (make-reg-entry :reg-name "spl"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 4)
    (make-reg-entry :reg-name "bpl"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 5)
    (make-reg-entry :reg-name "sil"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 6)
    (make-reg-entry :reg-name "dil"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags RegRex64
+                   :reg-flags +RegRex64+
                    :reg-num 7)
    (make-reg-entry :reg-name "r8b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 1)
    (make-reg-entry :reg-name "r10b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 2)
    (make-reg-entry :reg-name "r11b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 3)
    (make-reg-entry :reg-name "r12b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 4)
    (make-reg-entry :reg-name "r13b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 5)
    (make-reg-entry :reg-name "r14b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 6)
    (make-reg-entry :reg-name "r15b"
                    :reg-type (encode-operand-type :Reg8)
-                   :reg-flags (logior RegRex64 RegRex)
+                   :reg-flags (logior +RegRex64+ +RegRex+)
                    :reg-num 7)
    ;; 16 bit regs
    (make-reg-entry :reg-name "ax"
@@ -2046,35 +2065,35 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "r8w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 1)
    (make-reg-entry :reg-name "r10w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 2)
    (make-reg-entry :reg-name "r11w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 3)
    (make-reg-entry :reg-name "r12w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 4)
    (make-reg-entry :reg-name "r13w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 5)
    (make-reg-entry :reg-name "r14w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 6)
    (make-reg-entry :reg-name "r15w"
                    :reg-type (encode-operand-type :Reg16)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 7)
         ; 32 bit regs
    (make-reg-entry :reg-name "eax"
@@ -2111,35 +2130,35 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "r8d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 1)
    (make-reg-entry :reg-name "r10d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 2)
    (make-reg-entry :reg-name "r11d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 3)
    (make-reg-entry :reg-name "r12d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 4)
    (make-reg-entry :reg-name "r13d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 5)
    (make-reg-entry :reg-name "r14d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 6)
    (make-reg-entry :reg-name "r15d"
                    :reg-type (encode-operand-type :Reg32 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 7)
    (make-reg-entry :reg-name "rax"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex :Acc)
@@ -2175,35 +2194,35 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "r8"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 0 )
    (make-reg-entry :reg-name "r9"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 1)
    (make-reg-entry :reg-name "r10"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 2)
    (make-reg-entry :reg-name "r11"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 3)
    (make-reg-entry :reg-name "r12"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 4)
    (make-reg-entry :reg-name "r13"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 5)
    (make-reg-entry :reg-name "r14"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 6)
    (make-reg-entry :reg-name "r15"
                    :reg-type (encode-operand-type :Reg64 :BaseIndex)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 7)
         ; Segment registers.
    (make-reg-entry :reg-name "es"
@@ -2265,35 +2284,35 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "cr8"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 0 )
    (make-reg-entry :reg-name "cr9"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 1)
    (make-reg-entry :reg-name "cr10"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 2)
    (make-reg-entry :reg-name "cr11"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 3)
    (make-reg-entry :reg-name "cr12"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 4)
    (make-reg-entry :reg-name "cr13"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 5)
    (make-reg-entry :reg-name "cr14"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 6)
    (make-reg-entry :reg-name "cr15"
                    :reg-type (encode-operand-type :Control)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 7)
    ;; Debug registers.
    (make-reg-entry :reg-name "db0"
@@ -2330,35 +2349,35 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "db8"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 0 )
    (make-reg-entry :reg-name "db9"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 1)
    (make-reg-entry :reg-name "db10"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 2)
    (make-reg-entry :reg-name "db11"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 3)
    (make-reg-entry :reg-name "db12"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 4)
    (make-reg-entry :reg-name "db13"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 5)
    (make-reg-entry :reg-name "db14"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 6)
    (make-reg-entry :reg-name "db15"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 7)
    (make-reg-entry :reg-name "dr0"
                    :reg-type (encode-operand-type :Debug)
@@ -2394,35 +2413,35 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "dr8"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 0 )
    (make-reg-entry :reg-name "dr9"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 1)
    (make-reg-entry :reg-name "dr10"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 2)
    (make-reg-entry :reg-name "dr11"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 3)
    (make-reg-entry :reg-name "dr12"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 4)
    (make-reg-entry :reg-name "dr13"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 5)
    (make-reg-entry :reg-name "dr14"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 6)
    (make-reg-entry :reg-name "dr15"
                    :reg-type (encode-operand-type :Debug)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 7)
    ;; Test registers.
    (make-reg-entry :reg-name "tr0"
@@ -2524,35 +2543,35 @@
                    :reg-num 7)
    (make-reg-entry :reg-name "xmm8"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 0 )
    (make-reg-entry :reg-name "xmm9"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 1)
    (make-reg-entry :reg-name "xmm10"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 2)
    (make-reg-entry :reg-name "xmm11"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 3)
    (make-reg-entry :reg-name "xmm12"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 4)
    (make-reg-entry :reg-name "xmm13"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 5)
    (make-reg-entry :reg-name "xmm14"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 6)
    (make-reg-entry :reg-name "xmm15"
                    :reg-type (encode-operand-type :RegXMM)
-                   :reg-flags RegRex
+                   :reg-flags +RegRex+
                    :reg-num 7)
    ;; No type will make this register rejected for all purposes except
    ;; for addressing. This saves creating one extra type for RIP.
@@ -2752,10 +2771,10 @@
       (let* ((entry (x86-register-operand-entry op)))
         (setf (reg-entry-ordinal64 entry) i)))))
 
-(defconstant x86-64-bit-register #x00)
-(defconstant x86-32-bit-register #x10)
-(defconstant x86-16-bit-register #x20)
-(defconstant x86-8-bit-register #x30)
+(defconstant +x86-64-bit-register+ #x00)
+(defconstant +x86-32-bit-register+ #x10)
+(defconstant +x86-16-bit-register+ #x20)
+(defconstant +x86-8-bit-register+ #x30)
 
 (defun gpr-ordinal (r)
   (or
@@ -2774,19 +2793,19 @@
 (defun x86-reg8 (r)
   (svref *x8664-register-operands* (dpb (gpr-ordinal r)
                                         (byte 4 0)
-                                        x86-8-bit-register)))
+                                        +x86-8-bit-register+)))
 
 (defun x86-reg16 (r)
   (svref *x8664-register-operands* (dpb (gpr-ordinal r)
                                         (byte 4 0)
-                                        x86-16-bit-register)))
+                                        +x86-16-bit-register+)))
 
 (defun x86-reg32 (r)
   (svref *x8664-register-operands* (dpb (gpr-ordinal r)
                                         (byte 4 0)
-                                        x86-32-bit-register)))       
+                                        +x86-32-bit-register+)))       
 
 (defun x86-reg64 (r)
   (svref *x8664-register-operands* (dpb (gpr-ordinal r)
                                         (byte 4 0)
-                                        x86-64-bit-register)))
+                                        +x86-64-bit-register+)))
