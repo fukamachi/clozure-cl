@@ -1,3 +1,11 @@
+2005-12-10 00:49  gb
+
+	* compiler/X86/x86-lap.lisp: Constants delimited by +.
+	
+	Code emission starting to work; need scheme for span-dependent
+	instructions (including relative displacements in memory operands),
+	forcing alignment, etc.
+
 2005-12-09 23:51  gb
 
 	* compiler/X86/x86-asm.lisp: Constants delimited by +.	Get rid of
