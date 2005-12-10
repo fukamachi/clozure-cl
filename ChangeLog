@@ -1,3 +1,10 @@
+2005-12-09 23:51  gb
+
+	* compiler/X86/x86-asm.lisp: Constants delimited by +.	Get rid of
+	the :D modifier; define some templates redundantly (two-arg
+	instructions that can take (reg, memory | reg) or (memory | reg,
+	reg)).
+
 2005-12-07 23:22  gb
 
 	* compiler/X86/x86-lap.lisp: Start to think about code generation:
