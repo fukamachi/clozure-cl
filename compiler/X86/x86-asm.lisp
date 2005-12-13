@@ -534,8 +534,8 @@
     ;; 64bit displacement value.
     ("mov" ((:disp16 :disp32) :acc) (#xa0) :cpuno64 (:bwl-suf :w))
     ("mov" (:acc (:disp16 :disp32)) (#xa2) :cpuno64 (:bwl-suf :w))
-    ("mov" (:reg (:reg :anymem)) (#x88) :cpu086 (:bwlq-suf :w :modrm))
     ("mov" ((:reg :anymem) :reg) (#x8a) :cpu086 (:bwlq-suf :w :modrm))
+    ("mov" (:reg (:reg :anymem)) (#x88) :cpu086 (:bwlq-suf :w :modrm))
     ;; In the 64bit mode the short form mov immediate is redefined to have
     ;; 64bit displacement value.
     ("mov" (:encimm (:reg8 :reg16 :reg32)) (#xb0) :cpu086 (:bwl-suf :w :shortform))
@@ -645,8 +645,8 @@
     ("xchg" ((:reg16 :reg64) :acc) (#x90) :cpu64 (:wq-suf :shortform))
     ("xchg" (:acc (:reg16 :reg64)) (#x90) :cpu64 (:wq-suf :shortform))
 
+    ("xchg" ((:reg :anymem) :reg) (#x88) :cpu086 (:bwlq-suf :w :modrm))
     ("xchg" (:reg (:reg :anymem)) (#x86) :cpu086 (:bwlq-suf :w :modrm))
-    ("xchg" ((:reg :anymem) :reg) (#x86) :cpu086 (:bwlq-suf :w :modrm))
 
     ;; In/out from ports.
     ;; XXX should reject %rax
@@ -686,8 +686,8 @@
     ("sti" () (#xfb) :cpu086 :nosuf)
 
     ;; Arithmetic.
-    ("add" (:reg (:reg :anymem)) (#x00) :cpu086 (:bwlq-suf :w :modrm))
     ("add" ((:reg :anymem) :reg) (#x02) :cpu086 (:bwlq-suf :w :modrm))
+    ("add" (:reg (:reg :anymem)) (#x00) :cpu086 (:bwlq-suf :w :modrm))
     ("add" (:imm8s (:wordreg :wordmem)) (#x83 0) :cpu086 (:wlq-suf :modrm))
     ("add" (:encimm :acc) (#x04) :cpu086 (:bwlq-suf :w))
     ("add" (:encimm (:reg :anymem)) (#x80 0) :cpu086 (:bwlq-suf :w :modrm))
@@ -695,8 +695,8 @@
     ("inc" (:wordreg) (#x40) :cpuno64 (:wl-suf :shortform))
     ("inc" ((:reg :anymem)) (#xfe 0) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("sub" (:reg (:reg :anymem)) (#x28) :cpu086 (:bwlq-suf :w :modrm))
     ("sub" ((:reg :anymem) :reg) (#x2a) :cpu086 (:bwlq-suf :w :modrm))
+    ("sub" (:reg (:reg :anymem)) (#x28) :cpu086 (:bwlq-suf :w :modrm))
     ("sub" (:imm8s (:wordreg :wordmem)) (#x83 5) :cpu086 (:wlq-suf :modrm))
     ("sub" (:encimm :acc) (#x2c) :cpu086 (:bwlq-suf :w))
     ("sub" (:encimm (:reg :anymem)) (#x80 5) :cpu086 (:bwlq-suf :w :modrm))
@@ -704,37 +704,37 @@
     ("dec" (:wordreg) (#x48) :cpuno64 (:wl-suf :shortform))
     ("dec" ((:reg :anymem)) (#xfe 1) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("sbb" (:reg (:reg :anymem)) (#x18) :cpu086 (:bwlq-suf :w :modrm))
     ("sbb" ((:reg :anymem) :reg) (#x1a) :cpu086 (:bwlq-suf :w :modrm))
+    ("sbb" (:reg (:reg :anymem)) (#x18) :cpu086 (:bwlq-suf :w :modrm))
     ("sbb" (:imm8s (:wordreg :wordmem)) (#x83 3) :cpu086 (:wlq-suf :modrm))
     ("sbb" (:encimm :acc) (#x1c) :cpu086 (:bwlq-suf :w))
     ("sbb" (:encimm (:reg :anymem)) (#x80 3) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("cmp" (:reg (:reg :anymem)) (#x38) :cpu086 (:bwlq-suf :w :modrm))
     ("cmp" ((:reg :anymem) :reg) (#x3a) :cpu086 (:bwlq-suf :w :modrm))
+    ("cmp" (:reg (:reg :anymem)) (#x38) :cpu086 (:bwlq-suf :w :modrm))
     ("cmp" (:imm8s (:wordreg :wordmem)) (#x83 7) :cpu086 (:wlq-suf :modrm))
     ("cmp" (:encimm :acc) (#x3c) :cpu086 (:bwlq-suf :w))
     ("cmp" (:encimm (:reg :anymem)) (#x80 7) :cpu086 (:bwlq-suf :w :modrm))
 
+    ("test" (:reg (:reg :anymem)) (#x86) :cpu086 (:bwlq-suf :w :modrm))
     ("test" ((:reg :anymem) :reg) (#x84) :cpu086 (:bwlq-suf :w :modrm))
-    ("test" (:reg (:reg :anymem)) (#x84) :cpu086 (:bwlq-suf :w :modrm))
     ("test" (:encimm :acc) (#xa8) :cpu086 (:bwlq-suf :w))
     ("test" (:encimm (:reg :anymem)) (#xf6 0) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("and" (:reg (:reg :anymem)) (#x20) :cpu086 (:bwlq-suf :w :modrm))
     ("and" ((:reg :anymem) :reg) (#x22) :cpu086 (:bwlq-suf :w :modrm))
+    ("and" (:reg (:reg :anymem)) (#x20) :cpu086 (:bwlq-suf :w :modrm))
     ("and" (:imm8s (:wordreg :wordmem)) (#x83 4) :cpu086 (:wlq-suf :modrm))
     ("and" (:encimm :acc) (#x24) :cpu086 (:bwlq-suf :w))
     ("and" (:encimm (:reg :anymem)) (#x80 4) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("or" (:reg (:reg :anymem)) (#x08) :cpu086 (:bwlq-suf :w :modrm))
     ("or" ((:reg :anymem) :reg) (#x0a) :cpu086 (:bwlq-suf :w :modrm))
+    ("or" (:reg (:reg :anymem)) (#x08) :cpu086 (:bwlq-suf :w :modrm))
     ("or" (:imm8s (:wordreg :wordmem)) (#x83 1) :cpu086 (:wlq-suf :modrm))
     ("or" (:encimm :acc) (#x0c) :cpu086 (:bwlq-suf :w))
     ("or" (:encimm (:reg :anymem)) (#x80 1) :cpu086 (:bwlq-suf :w :modrm))
 
-    ("xor" (:reg (:reg :anymem)) (#x30) :cpu086 (:bwlq-suf :w :modrm))
     ("xor" ((:reg :anymem) :reg) (#x32) :cpu086 (:bwlq-suf :w :modrm))
+    ("xor" (:reg (:reg :anymem)) (#x30) :cpu086 (:bwlq-suf :w :modrm))
     ("xor" (:imm8s (:wordreg :wordmem)) (#x83 6) :cpu086 (:wlq-suf :modrm))
     ("xor" (:encimm :acc) (#x34) :cpu086 (:bwlq-suf :w))
     ("xor" (:encimm (:reg :anymem)) (#x80 6) :cpu086 (:bwlq-suf :w :modrm))
@@ -742,8 +742,8 @@
     ;; clr with 1 operand is really xor with 2 operands.
     ("clr" (:reg) (#x30) :cpu086 (:bwlq-suf :w :modrm :regkludge))
 
-    ("adc" (:reg (:reg :anymem)) (#x10) :cpu086 (:bwlq-suf :w :modrm))
     ("adc" ((:reg :anymem) :reg) (#x12) :cpu086 (:bwlq-suf :w :modrm))
+    ("adc" (:reg (:reg :anymem)) (#x10) :cpu086 (:bwlq-suf :w :modrm))
     ("adc" (:imm8s (:wordreg :wordmem)) (#x83 2) :cpu086 (:wlq-suf :modrm))
     ("adc" (:encimm :acc) (#x14) :cpu086 (:bwlq-suf :w))
     ("adc" (:encimm (:reg :anymem)) (#x80 2) :cpu086 (:bwlq-suf :w :modrm))
@@ -858,7 +858,7 @@
 
     ;; JMP rel32 = #xe9 disp32.  That can be shortened to
     ;; JMP rel8 =  #xeb disp8.
-    ("jmp" (:label) (#xe9) :cpu086 (:nosuf :jump))
+    ("jmp" (:label) (#xeb) :cpu086 (:nosuf :jump))
     ("jmp" ((:wordreg :wordmem :jumpabsolute)) (#xff 4) :cpuno64 (:wl-suf :modrm))
     ("jmp" ((:reg16 :reg64 :shortmem :llongmem :jumpabsolute)) (#xff 4) :cpu64 (:wq-suf :modrm :norex64))
     ;; Intel Syntax.
@@ -882,36 +882,36 @@
     ;; Conditional jumps.
     ;; The 32-bit form - #x0f8? disp32 - can be shortened to
     ;;                   #x7? disp8
-    ("jo" (:label) (#x0f80) :cpu086 (:nosuf :jump))
-    ("jno" (:label) (#x0f81) :cpu086 (:nosuf :jump))
-    ("jb" (:label) (#x0f82) :cpu086 (:nosuf :jump))
-    ("jc" (:label) (#x0f82) :cpu086 (:nosuf :jump))
-    ("jnae" (:label) (#x0f82) :cpu086 (:nosuf :jump))
-    ("jnb" (:label) (#x0f83) :cpu086 (:nosuf :jump))
-    ("jnc" (:label) (#x0f83) :cpu086 (:nosuf :jump))
-    ("jae" (:label) (#x0f83) :cpu086 (:nosuf :jump))
-    ("je" (:label) (#x0f84) :cpu086 (:nosuf :jump))
-    ("jz" (:label) (#x0f84) :cpu086 (:nosuf :jump))
-    ("jne" (:label) (#x0f85) :cpu086 (:nosuf :jump))
-    ("jnz" (:label) (#x0f85) :cpu086 (:nosuf :jump))
-    ("jbe" (:label) (#x0f86) :cpu086 (:nosuf :jump))
-    ("jna" (:label) (#x0f86) :cpu086 (:nosuf :jump))
-    ("jnbe" (:label) (#x0f87) :cpu086 (:nosuf :jump))
-    ("ja" (:label) (#x0f87) :cpu086 (:nosuf :jump))
-    ("js" (:label) (#x0f88) :cpu086 (:nosuf :jump))
-    ("jns" (:label) (#x0f89) :cpu086 (:nosuf :jump))
-    ("jp" (:label) (#x0f8a) :cpu086 (:nosuf :jump))
-    ("jpe" (:label) (#x0f8a) :cpu086 (:nosuf :jump))
-    ("jnp" (:label) (#x0f8b) :cpu086 (:nosuf :jump))
-    ("jpo" (:label) (#x0f8b) :cpu086 (:nosuf :jump))
-    ("jl" (:label) (#x0f8c) :cpu086 (:nosuf :jump))
-    ("jnge" (:label) (#x0f8c) :cpu086 (:nosuf :jump))
-    ("jnl" (:label) (#x0f8d) :cpu086 (:nosuf :jump))
-    ("jge" (:label) (#x0f8d) :cpu086 (:nosuf :jump))
-    ("jle" (:label) (#x0f8e) :cpu086 (:nosuf :jump))
-    ("jng" (:label) (#x0f8e) :cpu086 (:nosuf :jump))
-    ("jnle" (:label) (#x0f8f) :cpu086 (:nosuf :jump))
-    ("jg" (:label) (#x0f8f) :cpu086 (:nosuf :jump))
+    ("jo" (:label) (#x70) :cpu086 (:nosuf :jump))
+    ("jno" (:label) (#x71) :cpu086 (:nosuf :jump))
+    ("jb" (:label) (#x72) :cpu086 (:nosuf :jump))
+    ("jc" (:label) (#x72) :cpu086 (:nosuf :jump))
+    ("jnae" (:label) (#x72) :cpu086 (:nosuf :jump))
+    ("jnb" (:label) (#x73) :cpu086 (:nosuf :jump))
+    ("jnc" (:label) (#x73) :cpu086 (:nosuf :jump))
+    ("jae" (:label) (#x73) :cpu086 (:nosuf :jump))
+    ("je" (:label) (#x74) :cpu086 (:nosuf :jump))
+    ("jz" (:label) (#x74) :cpu086 (:nosuf :jump))
+    ("jne" (:label) (#x75) :cpu086 (:nosuf :jump))
+    ("jnz" (:label) (#x75) :cpu086 (:nosuf :jump))
+    ("jbe" (:label) (#x76) :cpu086 (:nosuf :jump))
+    ("jna" (:label) (#x76) :cpu086 (:nosuf :jump))
+    ("jnbe" (:label) (#x77) :cpu086 (:nosuf :jump))
+    ("ja" (:label) (#x77) :cpu086 (:nosuf :jump))
+    ("js" (:label) (#x78) :cpu086 (:nosuf :jump))
+    ("jns" (:label) (#x79) :cpu086 (:nosuf :jump))
+    ("jp" (:label) (#x7a) :cpu086 (:nosuf :jump))
+    ("jpe" (:label) (#x7a) :cpu086 (:nosuf :jump))
+    ("jnp" (:label) (#x7b) :cpu086 (:nosuf :jump))
+    ("jpo" (:label) (#x7b) :cpu086 (:nosuf :jump))
+    ("jl" (:label) (#x7c) :cpu086 (:nosuf :jump))
+    ("jnge" (:label) (#x7c) :cpu086 (:nosuf :jump))
+    ("jnl" (:label) (#x7d) :cpu086 (:nosuf :jump))
+    ("jge" (:label) (#x7d) :cpu086 (:nosuf :jump))
+    ("jle" (:label) (#x7e) :cpu086 (:nosuf :jump))
+    ("jng" (:label) (#x7e) :cpu086 (:nosuf :jump))
+    ("jnle" (:label) (#x7f) :cpu086 (:nosuf :jump))
+    ("jg" (:label) (#x7f) :cpu086 (:nosuf :jump))
 
     ;; jcxz vs. jecxz is chosen on the basis of the address size prefix.
     ("jcxz" (:label) (#xe3) :cpuno64 (:nosuf :jumpbyte :size16))
@@ -2624,6 +2624,15 @@
 (defvar *es-segment-register* (make-seg-entry :seg-name "es" :seg-prefix #x26))
 (defvar *fs-segment-register* (make-seg-entry :seg-name "fs" :seg-prefix #x64))
 (defvar *gs-segment-register* (make-seg-entry :seg-name "gs" :seg-prefix #x65))
+
+(defvar *x86-seg-entries*
+  (vector *es-segment-register*
+          *cs-segment-register*
+          *ss-segment-register*
+          *ds-segment-register*
+          *fs-segment-register*
+          *gs-segment-register*))
+
 
 ;;; We may need some sort of local aliasing/nicknaming mechanism in LAP.
 (defvar *x86-registers* (make-hash-table :test #'equalp))
