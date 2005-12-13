@@ -1,3 +1,43 @@
+2005-12-13 01:37  gb
+
+	* compiler/X86/x86-lap.lisp: New scheme for dealing with
+	alignment/span-dependent instructions (looks suspiciously like
+	GAS's).
+	
+	Lots of other changes and fixes, handle :ALIGN pseudoop (and :TRA,
+	for tagged return addresses), and :long/:byte etc.
+	
+	A simple test case:
+	
+	? (load "ccl:compiler;X86;x86-lap")
+	
+	? (x86::x86-lap '((xchg (% rdi) (% rsi)) (lea (@ (- (^ foo) #xf) (%
+	rsi)) (% rsi))			 (jmp (* (% rdi))) (:tra foo)))
+	
+	should generate output that looks like:
+	
+	 frag at #x8
+	04 00 00 00 00 00 00 00 48 87 FE 48 8D B6 15 00 00 00 FF E7 CC CC
+	CC CC  frag at #x20 EB FF FF FF CC CC CC CC  frag at #x28
+	
+	which seems correct.
+	
+	Still need to size immediates and emit them, and need
+	syntax/support for lisp constants.
+
+2005-12-13 01:20  gb
+
+	* compiler/X86/x86-asm.lisp: Invert the order of templates that
+	used to use the :D bit, to match the order that GAS encounters
+	them.  (There are multiple ways to encode instructions that take a
+	(register or memory address/register) and also (register/register
+	or memory address) when both args are registers.)
+	
+	Revert to using short branches and short conditional branches, for
+	new span-dependent-instruction scheme.
+	
+	Vector of seg-entries, ordered by reg-num.
+
 2005-12-10 00:49  gb
 
 	* compiler/X86/x86-lap.lisp: Constants delimited by +.
