@@ -24,6 +24,7 @@
 
 (defvar *x86-lap-labels* ())
 (defvar *x86-lap-instructions* ())
+(defvar *x86-lap-constants* ())
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "DLL-NODE"))
@@ -46,8 +47,6 @@
     rex                                 ;the (64-bit) rex prefix
     rm                                  ;a modrm-byte structure (or NIL)
     sib                                 ;a sib-byte structure (or NIL)
-    buffer                              ;a (simple-array (unsigned-byte 8) (*))
-    buffer-offset                       ;offset in that buffer
     )
 
   (defstruct (x86-lap-note (:include x86-instruction-element))
@@ -57,10 +56,11 @@
   (defstruct (x86-lap-note-begin (:include x86-lap-note)))
   (defstruct (x86-lap-note-end (:include x86-lap-note)))
     
-  (defstruct (x86-lap-label (:include x86-instruction-element)
-                            (:constructor %%make-x86-lap-label (name)))
+  (defstruct (x86-lap-label (:constructor %%make-x86-lap-label (name)))
     name
-    refs))
+    frag
+    offset
+    ))
 
 (defmethod print-object ((i x86-lap-instruction) stream)
   (let* ((template (x86-lap-instruction-template i))
@@ -81,7 +81,16 @@
 ;;; Labels
 
 (defun make-x86-lap-label (name)
-  (%%make-x86-lap-label name))
+  (let* ((lab (%%make-x86-lap-label name)))
+    (if (typep *x86-lap-labels* 'hash-table)
+      (setf (gethash name *x86-lap-labels*) lab)
+      (progn
+        (push lab *x86-lap-labels*)
+        (if (> (length *x86-lap-labels*) 255)
+          (let* ((hash (make-hash-table :size 512 :test #'eq)))
+            (dolist (l *x86-lap-labels* (setq *x86-lap-labels* hash))
+              (setf (gethash (x86-lap-label-name l) hash) l))))))
+    lab))
 
 (defun find-x86-lap-label (name)
   (if (typep *x86-lap-labels* 'hash-table)
@@ -97,15 +106,15 @@
 ;;; slots will be non-nil.
 
 (defun x86-lap-label-emitted-p (lab)
-  (not (null (x86-lap-label-pred lab))))
+  (not (null (x86-lap-label-frag lab))))
 
-(defun emit-x86-lap-label (name)
-  (let* ((lab (find-x86-lap-label name)))
-    (if  lab 
-      (when (x86-lap-label-emitted-p lab)
-        (error "Label ~s: multiply defined." name))
-      (setq lab (make-x86-lap-label name)))
-    (ccl::append-dll-node lab *x86-lap-instructions*)))
+(defun emit-x86-lap-label (frag-list name)
+  (let* ((lab (find-or-create-x86-lap-label name)))
+    (when (x86-lap-label-emitted-p lab)
+      (error "Label ~s: multiply defined." name))
+    (setf (x86-lap-label-frag lab) (frag-list-current frag-list)
+          (x86-lap-label-offset lab) (frag-list-position frag-list))
+    lab))
 
 (defun make-x86-lap-instruction ()
   ;; Might want to us a freelisting scheme: these things become
@@ -151,60 +160,130 @@
   (setf (ldb x86-lap-instruction-flag-synthetic-bit x) (if new 1 0))
   new)
 
-(defstruct code-fragment
-  (buffer (make-array 256 :element-type '(unsigned-byte 8)))
-  (start 0)
-  (current 0))
 
-(defun code-fragment-position (frag)
-  (- (code-fragment-current frag) (code-fragment-start frag)))
+(defstruct reloc
+  type                                  ; a keyword
+  arg                                   ; a label-operand or an expression, etc.
+  frag                                  ; the (redundant) containing frag
+  pos                                   ; octet position withing frag
+  )
 
-(defun code-fragment-push-byte (code-fragment byte)
-  (let* ((buffer (code-fragment-buffer code-fragment))
-         (current (code-fragment-current code-fragment)))
-    (declare (fixnum current))
-    (if (< current (length buffer))
-      (setf (aref buffer current) byte
-            (code-fragment-current code-fragment) (the fixnum (1+ current)))
-      (let* ((start (code-fragment-start code-fragment))
-             (n (- current start))
-             (new (make-array 256 :element-type '(unsigned-byte 8))))
-        (declare (fixnum start n))
-        (dotimes (i n)
-          (setf (aref new i) (aref buffer start))
-          (incf start))
-        (setf (aref new n) byte
-              (code-fragment-buffer code-fragment) new
-              (code-fragment-start code-fragment) 0
-              (code-fragment-current code-fragment) (the fixnum (1+ n)))))
-    byte))
+(defstruct (frag (:include ccl::dll-node))
+  address
+  last-address                          ; address may change during relax
+  type                                  ; nil, or (:TYPE &rest args)
+  relocs                                ; relocations against this frag
+  relax-marker                          ; boolean, flipped during relax
+  code-buffer                           ; may be nil, or adjustable vector
+  )
 
-(defun code-fragment-push-16 (code-fragment halfword)
-  (code-fragment-push-byte code-fragment (ldb (byte 8 0) halfword))
-  (code-fragment-push-byte code-fragment (ldb (byte 8 8) halfword))
-  halfword)
+(defstruct (frag-list (:include ccl::dll-header)))
 
-(defun code-fragment-push-32 (code-fragment word)
-  (code-fragment-push-16 code-fragment (ldb (byte 16 0) word))
-  (code-fragment-push-16 code-fragment (ldb (byte 16 16) word))
-  word)
+;;; ccl::dll-header-last is unit-time
+(defun frag-list-current (frag-list)
+  (ccl::dll-header-last frag-list))
 
-(defun code-fragment-push-64 (code-fragment doubleword)
-  (code-fragment-push-32 code-fragment (ldb (byte 32 0) doubleword))
-  (code-fragment-push-32 code-fragment (ldb (byte 32 32) doubleword))
-  doubleword)
+;;; Add a new (empty) frag to the end of FRAG-LIST and make the new frag
+;;; current
+(defun new-frag (frag-list)
+  (ccl::append-dll-node (make-frag) frag-list))
 
-(defun code-fragment-finish (code-fragment instruction)
-  (let* ((start (code-fragment-start code-fragment))
-         (current (code-fragment-current code-fragment))
-         (buffer (code-fragment-buffer code-fragment))
-         (size (- current start)))
-    (declare (fixnum start current size))
-    (setf (code-fragment-start code-fragment) current
-          (x86-lap-instruction-buffer instruction) buffer
-          (x86-lap-instruction-buffer-offset instruction) start
-          (x86-lap-instruction-size instruction) size)
-    size))
+;;; Make a frag list, and make an empty frag be its current frag.
+(defun make-frag-list ()
+  (let* ((header (ccl::make-dll-header)))         
+    (new-frag header)
+    header))
+
+(defun frag-list-current-frag-size (frag-list)
+  (length (frag-code-buffer (frag-list-current frag-list))))
+
+
+;;; Push 1, 2, 4, or 8 bytes onto the frag-list's current-frag's buffer.
+;;; (If pushing more than one byte, do so in little-endian order.)
+(defun frag-list-push-byte (frag-list b)
+  (let* ((frag (frag-list-current frag-list))
+         (buf (or (frag-code-buffer frag)
+                  (setf (frag-code-buffer frag)
+                        (make-array 32 :element-type '(unsigned-byte 8)
+                                    :fill-pointer 0
+                                    :adjustable t)))))
+    (vector-push-extend b buf)
+    b))
+
+(defun frag-list-push-16 (frag-list w)
+  (let* ((frag (frag-list-current frag-list))
+         (buf (or (frag-code-buffer frag)
+                  (setf (frag-code-buffer frag)
+                        (make-array 32 :element-type '(unsigned-byte 8)
+                                    :fill-pointer 0
+                                    :adjustable t)))))
+    (vector-push-extend (ldb (byte 8 0) w) buf)
+    (vector-push-extend (ldb (byte 8 8) w) buf)
+    w))
+
+(defun frag-list-push-32 (frag-list w)
+  (let* ((frag (frag-list-current frag-list))
+         (buf (or (frag-code-buffer frag)
+                  (setf (frag-code-buffer frag)
+                        (make-array 32 :element-type '(unsigned-byte 8)
+                                    :fill-pointer 0
+                                    :adjustable t)))))
+    (vector-push-extend (ldb (byte 8 0) w) buf)
+    (vector-push-extend (ldb (byte 8 8) w) buf)
+    (vector-push-extend (ldb (byte 8 16) w) buf)
+    (vector-push-extend (ldb (byte 8 24) w) buf)
+    w))
+
+(defun frag-list-push-64 (frag-list w)
+  (let* ((frag (frag-list-current frag-list))
+         (buf (or (frag-code-buffer frag)
+                  (setf (frag-code-buffer frag)
+                        (make-array 32 :element-type '(unsigned-byte 8)
+                                    :fill-pointer 0
+                                    :adjustable t)))))
+    (vector-push-extend (ldb (byte 8 0) w) buf)
+    (vector-push-extend (ldb (byte 8 8) w) buf)
+    (vector-push-extend (ldb (byte 8 16) w) buf)
+    (vector-push-extend (ldb (byte 8 24) w) buf)
+    (vector-push-extend (ldb (byte 8 32) w) buf)
+    (vector-push-extend (ldb (byte 8 40) w) buf)
+    (vector-push-extend (ldb (byte 8 48) w) buf)
+    (vector-push-extend (ldb (byte 8 56) w) buf)
+    w))
+
+;;; Returns the length of the current frag
+(defun frag-list-position (frag-list)
+  (length (frag-code-buffer (frag-list-current frag-list))))
+
+
+;;; Finish the current frag, marking it as containing a PC-relative
+;;; branch to the indicated label, with a one-byte opcode and
+;;; one byte of displacement.
+(defun finish-frag-for-branch (frag-list opcode label-ref)
+  (let* ((frag (frag-list-current frag-list)))
+    (frag-list-push-byte frag-list opcode)
+    (let* ((pos (frag-list-position frag-list))
+           (reloc (make-reloc :type :branch8
+                              :arg label-ref
+                              :pos pos)))
+      (push reloc (frag-relocs frag))
+      (frag-list-push-byte frag-list 0)
+      (setf (frag-type frag) (list (if (eql opcode #xeb)
+                                     :assumed-short-branch
+                                     :assumed-short-conditional-branch)
+                                   label-ref
+                                   pos
+                                   reloc))
+      (new-frag frag-list))))
+
+;;; Mark the current frag as -ending- with an align directive.
+;;; p2align is the power of 2 at which code in the next frag
+;;; should be aligned.
+;;; Start a new frag.
+(defun finish-frag-for-align (frag-list p2align)
+  (let* ((frag (frag-list-current frag-list)))
+    (setf (frag-type frag) (list :align p2align))
+    (new-frag frag-list)))
 
 (defun lookup-x86-register (regname)
   (gethash (string regname) *x86-registers*))
@@ -287,6 +366,12 @@
     (constant-expression (constant-expression-value expression))
     (expression nil)))
 
+(defun x86-lap-label-address (lab)
+  (let* ((frag (or (x86-lap-label-frag lab)
+                   (error "Label ~s was referenced but not defined"
+                          (x86-lap-label-name lab)))))
+    (+ (frag-address frag)
+       (x86-lap-label-offset lab))))
 
 (defun parse-expression (form)
   (if (label-address-expression-p form)
@@ -312,10 +397,8 @@
                                  :entry r)
       (error "Unknown X86 register ~s" regname))))
 
-(defun parse-x86-label-reference (instruction name)
-  (let* ((lab (or (find-x86-lap-label name)
-                  (make-x86-lap-label name))))
-    (push instruction (x86-lap-label-refs lab))
+(defun parse-x86-label-reference (name)
+  (let* ((lab (find-or-create-x86-lap-label name)))
     (make-x86-label-operand :type (encode-operand-type :label)
                             :label lab)))
 
@@ -366,9 +449,9 @@
               (make-x86-memory-operand 
                :type (if (or base index)
                        (if disp
-                         (encode-operand-type :disp :baseindex)
+                         (encode-operand-type :disp64 :disp32 :disp32S :baseindex)
                          (encode-operand-type :baseindex))
-                       (encode-operand-type :disp))
+                       (encode-operand-type :disp64 :disp32 :disp32S))
                :seg seg
                :disp disp
                :base base
@@ -382,7 +465,7 @@
                        (encode-operand-type :sreg2 :sreg3))
             ;; A segment register - if present - must be first
             (if (eq f form)
-              (setq seg head)
+              (setq seg (svref *x86-seg-entries* (reg-entry-reg-num r))) 
               (error "Segment register ~s not valid in ~s" form))
             ;; Some other register.  Assume base if this is the
             ;; first gpr.  If we find only one gpr and a significant
@@ -445,7 +528,7 @@
                  (parse-x86-register-operand reg)))
               ((string= head '*)
                (destructuring-bind (subop) (cdr form)
-                 (let* ((op (parse-x86-operand subop)))
+                 (let* ((op (parse-x86-operand instruction subop)))
                    (setf (x86-operand-type op)
                          (logior (encode-operand-type :jumpabsolute)
                                  (x86-operand-type op)))
@@ -454,7 +537,7 @@
                (parse-x86-memory-operand instruction (cdr form)))
               ((string= head '^)
                (destructuring-bind (lab) (cdr form)
-                 (parse-x86-label-reference instruction lab)))
+                 (parse-x86-label-reference lab)))
               (t (error "unknown X86 operand: ~s" form)))
         (error "unknown X86 operand: ~s" form)))
     ;; Treat an atom as a displacement, which is itself a
@@ -740,6 +823,8 @@
         (x86-lap-instruction-suffix instruction) suffix)
   instruction)
 
+(defun optimize-immediates (instruction)
+  
 ;;; FORM is a list; its car doesn't name a macro or pseudo op.
 ;;; If we can find a matching instruction template, create a
 ;;; (skeletal) x86-lap-instruction with that template and these
@@ -803,8 +888,8 @@
       (let* ((op0 (svref operands 0))
              (type0 (x86-operand-type op0))
              (src (if (logtest type0 (encode-operand-type :reg :regmmx :regxmm
-                                                         :sreg2 :sreg3
-                                                         :control :debug :test))
+                                                          :sreg2 :sreg3
+                                                          :control :debug :test))
                     0
                     1))
              (srcreg (x86-register-operand-entry (svref operands src)))
@@ -861,13 +946,14 @@
                      (progn
                        (setf (modrm-byte-regmem rm) +escape-to-two-byte-addressing+
                              (sib-byte-base sib) +no-base-register+
-                             (sib-byte-index sib) +no-index-register+)
+                             (sib-byte-index sib) +no-index-register+
+                             (sib-byte-scale sib) 0)
                        (let* ((prefixes (x86-lap-instruction-prefixes insn)))
-                           (setf (x86-memory-operand-type memop)
-                                 (if (and prefixes
-                                          (not (eql 0 (aref prefixes +addr-prefix+))))
-                                   (encode-operand-type :disp32)
-                                   (encode-operand-type :disp32s)))))
+                         (setf (x86-memory-operand-type memop)
+                               (if (and prefixes
+                                        (not (eql 0 (aref prefixes +addr-prefix+))))
+                                 (encode-operand-type :disp32)
+                                 (encode-operand-type :disp32s)))))
                      ;; Index, but no base reg.
                      (let* ((index-reg (x86-memory-operand-index memop)))
                        (setf (sib-byte-index sib) (reg-entry-reg-num index-reg)
@@ -897,7 +983,8 @@
                    (when (logtest (x86-memory-operand-type memop)
                                   (encode-operand-type :disp))
                      (setf (x86-memory-operand-type memop)
-                           (logior (encode-operand-type :disp8)
+                           (logior (logand (x86-memory-operand-type memop)
+                                           (encode-operand-type :disp8))
                                    (let* ((prefixes (x86-lap-instruction-prefixes insn)))
                                      (if (and prefixes
                                               (not (eql 0 (aref prefixes +addr-prefix+))))
@@ -934,41 +1021,41 @@
                                         +regrex+)
                            (setf (x86-lap-instruction-rex insn)
                                  (logior +rex-exty+
-                                         (or (x86-lap-instruction-rex insn) 0))))))
-                     (when fake-zero-displacement
-                       (setf (x86-memory-operand-disp memop)
-                             (make-constant-expression :value 0)
-                             (x86-operand-type memop)
-                             (logior (x86-operand-type memop) (encode-operand-type :disp8) ))))))
-            (setf (modrm-byte-mode rm) (mode-from-disp-size (x86-memory-operand-type memop)))))
-          (let* ((regop (dotimes (i (length operands))
-                          (let* ((op (svref operands i)))
-                            (when (logtest (encode-operand-type :Reg :RegMMX
-                                                                :RegXMM
-                                                                :SReg2 :SReg3
-                                                                :Control :Debug
-                                                                :Test)
-                                           (x86-operand-type op))
+                                         (or (x86-lap-instruction-rex insn) 0)))))))))
+            (setf (modrm-byte-mode rm) (mode-from-disp-size (x86-memory-operand-type memop)))
+            (when fake-zero-displacement
+              (setf (x86-memory-operand-disp memop)
+                    (make-constant-expression :value 0)
+                    (x86-operand-type memop)
+                    (logior (x86-operand-type memop) (encode-operand-type :disp8) )))))
+        (let* ((regop (dotimes (i (length operands))
+                        (let* ((op (svref operands i)))
+                          (when (logtest (encode-operand-type :Reg :RegMMX
+                                                              :RegXMM
+                                                              :SReg2 :SReg3
+                                                              :Control :Debug
+                                                              :Test)
+                                         (x86-operand-type op))
                             (return op)))))
-                 (regentry (if regop (x86-register-operand-entry regop))))
-            (when regop
-              (cond ((x86-lap-instruction-extension-opcode insn)
-                     (setf (modrm-byte-regmem rm) (reg-entry-reg-num regentry))
-                     (when (logtest (reg-entry-reg-flags regentry) +RegRex+)
-                       (setf (x86-lap-instruction-rex insn)
-                             (logior +rex-extz+
-                                     (or (x86-lap-instruction-rex insn) 0)))))
-                    (t
-                     (setf (modrm-byte-reg rm) (reg-entry-reg-num regentry))
-                     (when (logtest (reg-entry-reg-flags regentry) +RegRex+)
-                       (setf (x86-lap-instruction-rex insn)
-                             (logior +rex-extx+
-                                     (or (x86-lap-instruction-rex insn) 0))))))
-              (unless memop
-                (setf (modrm-byte-mode rm) +regmem-field-has-reg+))))
-          (let* ((extop (x86-lap-instruction-extension-opcode insn)))
-            (when extop
-              (setf (modrm-byte-reg rm) extop)))))
+               (regentry (if regop (x86-register-operand-entry regop))))
+          (when regop
+            (cond ((x86-lap-instruction-extension-opcode insn)
+                   (setf (modrm-byte-regmem rm) (reg-entry-reg-num regentry))
+                   (when (logtest (reg-entry-reg-flags regentry) +RegRex+)
+                     (setf (x86-lap-instruction-rex insn)
+                           (logior +rex-extz+
+                                   (or (x86-lap-instruction-rex insn) 0)))))
+                  (t
+                   (setf (modrm-byte-reg rm) (reg-entry-reg-num regentry))
+                   (when (logtest (reg-entry-reg-flags regentry) +RegRex+)
+                     (setf (x86-lap-instruction-rex insn)
+                           (logior +rex-extx+
+                                   (or (x86-lap-instruction-rex insn) 0))))))
+            (unless memop
+              (setf (modrm-byte-mode rm) +regmem-field-has-reg+))))))
+    (let* ((extop (x86-lap-instruction-extension-opcode insn)))
+      (when extop
+        (setf (modrm-byte-reg rm) extop)))
     default-seg))
               
 
@@ -989,20 +1076,42 @@
                    (typep val '(signed-byte 8)))
             (setf (x86-operand-type op)
                   (logior (x86-operand-type op) (encode-operand-type :disp8)))))))))
-          
-(defun x86-generate-instruction-code (frag insn)
+
+(defun x86-output-branch (frag-list insn)
+  (let* ((prefixes (x86-lap-instruction-prefixes insn)))
+    (flet ((maybe-output-prefix (index val)
+             (when prefixes
+               (let* ((c (aref prefixes index)))
+                 (unless (zerop c)
+                   (frag-list-push-byte frag-list (or val c)))))))
+      (maybe-output-prefix +DATA-PREFIX+ +data-prefix-opcode+)
+      (when (and prefixes (or (= (aref prefixes +seg-prefix+)
+                                 +cs-prefix-opcode+)
+                              (= (aref prefixes +seg-prefix+)
+                                 +ds-prefix-opcode+)))
+        (maybe-output-prefix +seg-prefix+ nil))
+      (maybe-output-prefix +rex-prefix+ nil)
+      (finish-frag-for-branch frag-list
+                              (x86-lap-instruction-base-opcode insn)
+                              (svref (x86-lap-instruction-parsed-operands insn)
+                                     0)))))
+
+  
+(defun x86-generate-instruction-code (frag-list insn)
   (let* ((template (x86-lap-instruction-template insn))
-         (operands (x86-lap-instruction-parsed-operands insn)))
+         (operands (x86-lap-instruction-parsed-operands insn))
+         (opcode-modifier (x86-instruction-template-opcode-modifier template))
+         (default-seg nil))
     (optimize-displacements operands)
     (when (logtest (encode-opcode-modifier :modrm)
                    (x86-instruction-template-opcode-modifier template))
-      (build-rm-byte insn))
+      (setq default-seg (build-rm-byte insn)))
     (when (and (= (x86-lap-instruction-base-opcode insn) +int-opcode+)
-                  (= 1 (length operands))
-                  (let* ((op0 (svref operands 0)))
-                    (and (typep op0 'x86-immediate-operand)
-                         (eql 3 (early-expression-value
-                                 (x86-immediate-operand-value op0))))))
+               (= 1 (length operands))
+               (let* ((op0 (svref operands 0)))
+                 (and (typep op0 'x86-immediate-operand)
+                      (eql 3 (early-expression-value
+                              (x86-immediate-operand-value op0))))))
       (setf operands nil
             (x86-lap-instruction-parsed-operands insn) nil
             (x86-lap-instruction-base-opcode insn) +int3-opcode+))
@@ -1011,77 +1120,301 @@
       (setf (x86-lap-instruction-rex insn)
             (logior (or (x86-lap-instruction-rex insn) 0)
                     +rex-mode64+)))
+    (let* ((explicit-seg (dotimes (i (length operands))
+                           (let* ((op (svref operands i)))
+                             (when (typep op 'x86-memory-operand)
+                               (let* ((seg (x86-memory-operand-seg op)))
+                                 (if seg (return seg))))))))
+      (if (and explicit-seg (not (eq explicit-seg default-seg)))
+        (add-prefix insn (seg-entry-seg-prefix explicit-seg))))
     (if (x86-lap-instruction-rex insn)
       (add-prefix insn (logior (x86-lap-instruction-rex insn) +rex-opcode+)))
-    (let* ((base-opcode (x86-lap-instruction-base-opcode insn)))
-      (declare (fixnum base-opcode))
-      (when (logtest base-opcode #xff0000)
-        (add-prefix insn (ldb (byte 8 16) base-opcode)))
-      (let* ((prefixes (x86-lap-instruction-prefixes insn)))
-        (dotimes (i (length prefixes))
-          (let* ((b (aref prefixes i)))
-            (declare (type (unsigned-byte 8) b))
-            (unless (zerop b)
-              (code-fragment-push-byte frag b)))))
-      (when (logtest base-opcode #xff00)
-        (code-fragment-push-byte frag (ldb (byte 8 8) base-opcode)))
-      (code-fragment-push-byte frag (ldb (byte 8 0) base-opcode)))
-    (let* ((modrm (x86-lap-instruction-rm insn)))
-      (when modrm
-        (code-fragment-push-byte frag
-                                 (dpb (modrm-byte-mode modrm)
-                                      (byte 2 6)
-                                      (dpb (modrm-byte-reg modrm)
-                                           (byte 3 3)
-                                           (ldb (byte 3 0)
-                                                (modrm-byte-regmem modrm)))))
-        (let* ((sib (x86-lap-instruction-sib insn)))
-          (when (and (= (modrm-byte-regmem modrm) +escape-to-two-byte-addressing+)
-                     (not (= (modrm-byte-mode modrm) 3))
-                     sib)
-            (code-fragment-push-byte frag
-                                     (dpb (sib-byte-scale sib)
-                                          (byte 2 6)
-                                          (dpb (sib-byte-index sib)
-                                               (byte 3 3)
-                                               (ldb (byte 3 0)
-                                                    (sib-byte-base sib)))))))))
-    (dotimes (i (length operands))
-      (let* ((op (svref operands i))
-             (optype (x86-operand-type op)))
-        (when (logtest optype (encode-operand-type :disp))
-          (let* ((disp (x86-memory-operand-disp op))
-                 (val (early-expression-value disp)))
-            (if (null val)
-              (code-fragment-push-32 frag 0)
-              (if (logtest optype (encode-operand-type :disp8))
-                (code-fragment-push-byte frag (logand val #xff))
-                (if (logtest optype (encode-operand-type :disp64))
-                  (code-fragment-push-64 frag val)
-                  (code-fragment-push-32 frag val))))))))
-    (code-fragment-finish frag insn)))
+    (let* ((prefixes (x86-lap-instruction-prefixes insn)))
+      (cond
+        ((logtest (encode-opcode-modifier :jump) opcode-modifier)
+         ;; a variable-length pc-relative branch, possibly preceded
+         ;; by prefixes (used for branch prediction, mostly.)
+         (x86-output-branch frag-list insn))
+          (t
+           (let* ((base-opcode (x86-lap-instruction-base-opcode insn)))
+             (declare (fixnum base-opcode))
+             (when (logtest base-opcode #xff0000)
+               (add-prefix insn (ldb (byte 8 16) base-opcode)))
+             (dotimes (i (length prefixes))
+               (let* ((b (aref prefixes i)))
+                 (declare (type (unsigned-byte 8) b))
+                 (unless (zerop b)
+                   (frag-list-push-byte frag-list b))))
+             (when (logtest base-opcode #xff00)
+               (frag-list-push-byte frag-list (ldb (byte 8 8) base-opcode)))
+             (frag-list-push-byte frag-list (ldb (byte 8 0) base-opcode)))
+           (let* ((modrm (x86-lap-instruction-rm insn)))
+             (when modrm
+               (frag-list-push-byte frag-list
+                                    (dpb (modrm-byte-mode modrm)
+                                         (byte 2 6)
+                                         (dpb (modrm-byte-reg modrm)
+                                              (byte 3 3)
+                                              (ldb (byte 3 0)
+                                                   (modrm-byte-regmem modrm)))))
+               (let* ((sib (x86-lap-instruction-sib insn)))
+                 (when (and (= (modrm-byte-regmem modrm) +escape-to-two-byte-addressing+)
+                            (not (= (modrm-byte-mode modrm) 3))
+                            sib)
+                   (frag-list-push-byte frag-list
+                                        (dpb (sib-byte-scale sib)
+                                             (byte 2 6)
+                                             (dpb (sib-byte-index sib)
+                                                  (byte 3 3)
+                                                  (ldb (byte 3 0)
+                                                       (sib-byte-base sib)))))))))
+           (dotimes (i (length operands))
+             (let* ((op (svref operands i))
+                    (optype (x86-operand-type op)))
+               (when (logtest optype (encode-operand-type :disp))
+                 (let* ((disp (x86-memory-operand-disp op))
+                        (val (early-expression-value disp)))
+                   (if (null val)
+                     ;; We can do better job here, but (for now)
+                     ;; generate a 32-bit relocation
+                     (let* ((frag (frag-list-current frag-list))
+                            (pos (frag-list-position frag-list)))
+                       (push (make-reloc :type :expr32
+                                         :arg disp
+                                         :frag frag
+                                         :pos pos)
+                             (frag-relocs frag))
+                       (frag-list-push-32 frag-list 0))
+                     (if (logtest optype (encode-operand-type :disp8))
+                       (frag-list-push-byte frag-list (logand val #xff))
+                       (if (logtest optype (encode-operand-type :disp64))
+                         (frag-list-push-64 frag-list val)
+                         (frag-list-push-32 frag-list val))))))))
+           ;; Emit immediate operand(s).
+           )))))
 
-(defun x86-lap-form (form frag addr)
+(defun x86-lap-directive (frag-list directive arg)
+  (if (eq directive :tra)
+    (progn
+      (finish-frag-for-align frag-list 3)
+      (x86-lap-directive frag-list :long `(- 15 (^ ,arg)))
+      (x86-lap-form arg frag-list))
+    (let* ((exp (parse-expression arg))
+           (constantp (constant-expression-p exp)))
+      (if constantp
+        (let* ((val (expression-value exp)))
+          (ecase directive
+            (:byte (frag-list-push-byte frag-list val))
+            (:short (frag-list-push-16 frag-list val))
+            (:long (frag-list-push-32 frag-list val))
+            (:quad (frag-list-push-64 frag-list val))
+            (:align (finish-frag-for-align frag-list val))))
+        (let* ((pos (frag-list-position frag-list))
+               (frag (frag-list-current frag-list))
+               (reloctype nil))
+          (ecase directive
+            (:byte (frag-list-push-byte frag-list 0)
+                   (setq reloctype :expr8))
+            (:short (frag-list-push-16 frag-list 0)
+                    (setq reloctype :expr16))
+            (:long (frag-list-push-32 frag-list 0)
+                   (setq reloctype :expr32))
+            (:quad (frag-list-push-64 frag-list 0)
+                   (setq reloctype :expr64))
+            (:align (error ":align expression ~s not constant" arg)))
+          (when reloctype
+            (push
+             (make-reloc :type reloctype
+                         :arg exp
+                         :pos pos
+                         :frag frag)
+             (frag-relocs frag)))))
+      nil)))
+                       
+         
+
+(defun x86-lap-form (form frag-list)
   (if (atom form)
-    (let* ((lab (emit-x86-lap-label form)))
-      (setf (x86-lap-label-address lab) addr))
+    (emit-x86-lap-label frag-list form)
     (if (eq (car form) 'progn)
       (dolist (f (cdr form))
-        (setq addr (x86-lap-form f frag addr)))
-      (let* ((instruction (parse-x86-instruction form)))
-        (ccl::append-dll-node instruction *x86-lap-instructions*)
-        (setf (x86-lap-instruction-address instruction) addr)
-        (incf addr (x86-generate-instruction-code frag instruction))))))
+        (x86-lap-form f frag-list))
+      (if (typep (car form) 'keyword)
+        (destructuring-bind (op arg) form
+          (x86-lap-directive frag-list op arg))
+        (let* ((instruction (parse-x86-instruction form)))
+          (ccl::append-dll-node instruction *x86-lap-instructions*)
+          (x86-generate-instruction-code frag-list instruction))))))
 
+(defun relax-frag-list (frag-list)
+  ;; First, assign tentative addresses to all frags, assuming that
+  ;; span-dependent instructions have short displacements.
+  (let* ((address 8))
+    (declare (fixnum address))
+    (ccl::do-dll-nodes (frag frag-list)
+      (setf (frag-address frag) address)
+      (incf address (length (frag-code-buffer frag)))
+      (case (car (frag-type frag))
+        (:align
+         (let* ((bits (cadr (frag-type frag)))
+                (mask (1- (ash 1 bits))))
+           (setq address (logandc2 (+ address mask) mask))))
+        ((:assumed-short-branch :assumed-short-conditional-branch)))))
+  ;; Repeatedly "stretch" frags containing span-dependent instructions
+  ;; until nothing's stretched.  It may take several iterations to
+  ;; converge; is convergence guaranteed ?
+  (loop
+    (let* ((stretch 0)                    ;cumulative growth in frag sizes
+           (stretched nil))               ;any change on this pass ?
+      (ccl::do-dll-nodes (frag frag-list)
+        (let* ((growth 0)
+               (fragtype (frag-type frag))
+               (was-address (frag-address frag))
+               (address (incf (frag-address frag) stretch)))
+          (setf (frag-relax-marker frag) (not (frag-relax-marker frag)))
+          (case (car fragtype)
+            (:align
+             (let* ((bits (cadr fragtype))
+                    (mask (1- (ash 1 bits)))
+                    (oldoff (logandc2 (+ was-address mask) mask))
+                    (newoff (logandc2 (+ address mask) mask)))
+               (setq growth (- newoff oldoff))))
+            ;; If we discover - on any iteration - that a short
+            ;; branch doesn't fit, we change the type (and the reloc)
+            ;; destructively to a wide branch indicator and will
+            ;; never change our minds about that, so we only have
+            ;; to look here at conditional branches that may still
+            ;; be able to use a 1-byte displacement.
+            ((:assumed-short-branch :assumed-short-conditional-branch)
+             (destructuring-bind (label-op pos reloc) (cdr (frag-type frag))
+               (declare (fixnum pos))
+               (let* ((label (x86-label-operand-label label-op))
+                      (label-frag (or (x86-lap-label-frag label)
+                                      (progn (describe label)
+                                             (error "Label ~s was referenced but not defined" (x86-lap-label-name label)))))
+                      (label-address (+ (frag-address label-frag)
+                                        (x86-lap-label-offset label)))
+                      (branch-pos (+ address (1+ pos)))
+                      (buffer (frag-code-buffer frag))
+                      (diff (- branch-pos label-address)))
+                 (unless (typep diff '(signed-byte 8))
+                   (cond ((eq (car fragtype) :assumed-short-branch)
+                          ;; replace the opcode byte
+                          (setf (aref buffer (the fixnum (1- pos)))
+                                      +jump-pc-relative+)
+                          (vector-push-extend 0 buffer)
+                          (vector-push-extend 0 buffer)
+                          (vector-push-extend 0 buffer)
+                          (setf (reloc-type reloc) :branch32)
+                          (setf (car fragtype) :long-branch)
+                          (setq growth 3))
+                         (t
+                          ;; Conditional branch: must change
+                          ;; 1-byte opcode to 2 bytes, add 4-byte
+                          ;; displacement
+                          (let* ((old-opcode (aref buffer (1- pos))))
+                            (setf (aref buffer (1- pos)) #x0f
+                                  (aref buffer pos) (+ old-opcode #x10))
+                            (vector-push-extend 0 buffer)
+                            (vector-push-extend 0 buffer)
+                            (vector-push-extend 0 buffer)
+                            (vector-push-extend 0 buffer)
+                            (setf (reloc-type reloc) :branch32
+                                  (reloc-pos reloc) (1+ pos))
+                            (setf (car fragtype) :long-conditional-branch
+                                  (caddr fragtype) (1+ pos))
+                            (setq growth 4)))))))))
+          (unless (eql 0 growth)
+            (incf stretch growth)
+            (setq stretched t))))
+      (unless stretched (return)))))
+
+(defun apply-relocs (frag-list)
+  (flet ((emit-byte (buffer pos b)
+           (setf (aref buffer pos) b)))
+    (flet ((emit-short (buffer pos s)
+             (setf (aref buffer pos) (ldb (byte 8 0) s)
+                   (aref buffer (1+ pos)) (ldb (byte 8 8) s))))
+      (flet ((emit-long (buffer pos l)
+               (emit-short buffer pos (ldb (byte 16 0) l))
+               (emit-short buffer (+ pos 2) (ldb (byte 16 16) l))))
+        (flet ((emit-quad (buffer pos q)
+                 (emit-long buffer pos (ldb (byte 32 0) q))
+                 (emit-long buffer (+ pos 4) (ldb (byte 32 32) q))))
+          (ccl::do-dll-nodes (frag frag-list)
+            (let* ((buffer (frag-code-buffer frag))
+                   (address (frag-address frag)))
+              (dolist (reloc (frag-relocs frag))
+                (let* ((pos (reloc-pos reloc))
+                       (arg (reloc-arg reloc)))
+                  (ecase (reloc-type reloc)
+                    (:branch8 (let* ((label (x86-label-operand-label arg))
+                                     (target (+ (frag-address (x86-lap-label-frag label))
+                                                (x86-lap-label-offset label)))
+                                     (refpos (+ address (1+ pos))))
+                                (emit-byte buffer pos (- target refpos))))
+                    (:branch32 (let* ((label (x86-label-operand-label arg))
+                                     (target (+ (frag-address (x86-lap-label-frag label))
+                                                (x86-lap-label-offset label)))
+                                     (refpos (+ address pos 4)))
+                                (emit-long buffer pos (- target refpos))))
+                    (:expr8 (emit-byte buffer pos  (expression-value arg)))
+                    (:expr16 (emit-short buffer pos (expression-value arg)))
+                    (:expr32 (emit-long buffer pos (expression-value arg)))
+                    (:expr64 (emit-quad buffer pos (expression-value arg)))))))))))))
+                             
+
+(defun fill-for-alignment (frag-list)
+  (ccl::do-dll-nodes (frag frag-list)
+    (let* ((next (ccl::dll-node-succ frag)))
+      (unless (eq next frag-list)
+        (let* ((addr (frag-address frag))
+               (buffer (frag-code-buffer frag))
+               (nextaddr (frag-address next))
+               (pad (- nextaddr (+ addr (length buffer)))))
+          (unless (eql 0 pad)
+            (setq buffer (or buffer (setf (frag-code-buffer frag)
+                                          (make-array pad
+                                                      :element-type '(unsigned-byte 8)
+                                                      :fill-pointer 0))))
+            (dotimes (i pad) (vector-push-extend #xcc buffer))))))))
+
+(defun show-frag-bytes (frag-list)
+  (ccl::do-dll-nodes (frag frag-list)
+    (let* ((buffer (frag-code-buffer frag)))
+      (format t "~& frag at #x~x" (frag-address frag))
+      (dotimes (i (length buffer))
+        (unless (logtest 15 i)
+          (format t "~&"))
+        (format t "~2,'0x " (aref buffer i))))))
+
+          
+                
+                 
+      
 ;;; For testing.
 (defun x86-lap (forms)
   (let* ((*x86-lap-instructions* (ccl::make-dll-header))
          (*x86-lap-labels* ())
-         (frag (make-code-fragment))
-         (addr 0))
+         (*x86-lap-constants* ())
+         (end-code-tag (gensym))
+         (frag-list (make-frag-list)))
+    (make-x86-lap-label end-code-tag)
+    (x86-lap-directive frag-list :long `(ash (- (^ ,end-code-tag ) 8) -3))
+    (x86-lap-directive frag-list :short 0)
+    (x86-lap-directive frag-list :short 0)
     (dolist (f forms)
-      (setq addr (x86-lap-form f frag addr)))
+      (x86-lap-form f frag-list))
+    (x86-lap-directive frag-list :align 3)
+    (emit-x86-lap-label frag-list end-code-tag)
+    (dolist (c *x86-lap-constants*)
+      (emit-x86-lap-label frag-list (cdr c))
+      (x86-lap-directive frag-list :quad 0))
+    (relax-frag-list frag-list)
+    (apply-relocs frag-list)
+    (fill-for-alignment frag-list)
     (ccl::do-dll-nodes (i *x86-lap-instructions*)
       (format t "~&~s" i))
-    *x86-lap-instructions*))
+    (show-frag-bytes frag-list)
+    frag-list))
 
