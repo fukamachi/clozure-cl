@@ -296,9 +296,12 @@ a given process."
     (%process-preset-internal process)))
 
 (defun %process-preset-internal (process)
-   (let ((initial-form (process-initial-form process))
-         (thread (process-thread process)))
+   (let* ((initial-form (process-initial-form process))
+         (thread (process-thread process))
+         (tcr (process-tcr process))
+         (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
      (declare (type cons initial-form))
+     (setf (%fixnum-ref cs-area target::area.owner) (process-serial-number process))     
      (thread-preset
       thread
       #'(lambda (process initial-form)
