@@ -1,3 +1,60 @@
+2005-12-14 01:16  gb
+
+	* level-0/l0-init.lisp: Add :clozure to features (Hey! Marketing!)
+	
+	Other changes to *features*.
+
+2005-12-14 01:15  gb
+
+	* lisp-kernel/x86-constants64.s: use _l suffix for 32-bit regs.
+	
+	nargs is 16 bits wide, not 32.
+	
+	Fix comment in tag_list definition.
+	
+	TCR contains linear_end field as well as linear field.
+
+2005-12-14 01:12  gb
+
+	* lisp-kernel/plbt.c: Try to identify the thread associated with
+	each stack.
+
+2005-12-14 01:11  gb
+
+	* level-1/linux-files.lisp: WAIT-ON-SEMAPHORE takes WHOSTATE arg.
+
+2005-12-14 01:10  gb
+
+	* compiler/X86/x86-lap.lisp: Lots-o-changes.  Move to the CCL
+	package.
+
+2005-12-14 01:10  gb
+
+	* compiler/X86/x86-asm.lisp: Lots-o-changes.
+
+2005-12-14 01:09  gb
+
+	* compiler/X86/x86-arch.lisp: Kernel globals and
+	nil-relative-symbols.
+
+2005-12-14 01:08  gb
+
+	* level-1/l1-processes.lisp: Copy process PSN to CS-AREA.OWNER of
+	TCR, so that kernel backtrace can identify stacks by PSN.
+
+2005-12-14 01:06  gb
+
+	* compiler/X86/: X8664/x8664-arch.lisp, x86-lapmacros.lisp: gotta
+	start somewhere.
+
+2005-12-14 01:04  gb
+
+	* compiler/PPC/: ppc-arch.lisp, PPC64/ppc64-arch.lisp: Comment.
+
+2005-12-14 01:04  gb
+
+	* compiler/backend.lisp: Indentation.
+
 2005-12-13 01:37  gb
 
 	* compiler/X86/x86-lap.lisp: New scheme for dealing with
