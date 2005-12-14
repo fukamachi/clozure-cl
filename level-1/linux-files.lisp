@@ -58,10 +58,10 @@
                                        (whostate "semaphore wait") flag)
   (process-wait whostate #'%wait-on-semaphore-ptr s seconds nanoseconds flag))
   
-(defun wait-on-semaphore (s &optional flag)
+(defun wait-on-semaphore (s &optional flag (whostate "semaphore wait"))
   "Wait until the given semaphore has a positive count which can be
 atomically decremented."
-  (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0 "semaphore wait" flag)
+  (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0 whostate flag)
   t)
 
 (defun timed-wait-on-semaphore (s duration)
