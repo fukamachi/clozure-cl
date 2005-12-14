@@ -20,59 +20,59 @@
    do some unboxed arithmetic. */
 
 define([imm0],[rax]) 
-	define([imm0_d],[eax])
+	define([imm0_l],[eax])
 	define([imm0_w],[ax])
 	define([imm0_b],[al])
 define([temp0],[rbx])
-	define([temp0_d],[ebx])
+	define([temp0_l],[ebx])
 	define([temp0_w],[bx])
 	define([temp0_b],[bl])
 define([temp1],[rcx])
-	define([temp1_d],[ecx])
+	define([temp1_l],[ecx])
 	define([temp1_w],[cx])
 	define([temp1_b],[cl])
 define([imm1],[rdx])
-	define([imm1_d],[edx])
+	define([imm1_l],[edx])
 	define([imm1_w],[dx])
 	define([imm1_b],[dl])
 define([fn],[rsi])
-	define([fn_d],[esi])
+	define([fn_l],[esi])
 	define([fn_w],[si])
 	define([fn_b],[sil])
 define([nfn],[rdi])
-	define([nfn_d],[edi])
+	define([nfn_l],[edi])
 	define([nfn_w],[di])
 	define([nfn_b],[dil])
 define([arg_z],[r8])
-	define([arg_z_d],[r8d])
+	define([arg_z_l],[r8d])
 	define([arg_z_w],[r8w])
 	define([arg_z_b],[r8b])
 define([arg_y],[r9])
-	define([arg_y_d],[r9d])
+	define([arg_y_l],[r9d])
 	define([arg_y_w],[r9w])
 	define([arg_y_b],[r9b])
 define([arg_x],[r10])
-	define([arg_x_d],[r10d])
+	define([arg_x_l],[r10d])
 	define([arg_x_w],[r10w])
 	define([arg_x_b],[r10b])	
 define([save3],[r11])		
-	define([save3_d],[r11d])
+	define([save3_l],[r11d])
 	define([save3_w],[r11w])
 	define([save3_b],[r11b])	
 define([save2],[r12])
-	define([save2_d],[r12d])
+	define([save2_l],[r12d])
 	define([save2_w],[r12w])
 	define([save2_b],[r12b])	
 define([temp2],[r13])		/* some addressing restrictions */
-	define([temp2_d],[r13d])
+	define([temp2_l],[r13d])
 	define([temp2_w],[r13w])
 	define([temp2_b],[r13b])		
 define([save1],[r14])
-	define([save1_d],[r14d])
+	define([save1_l],[r14d])
 	define([save1_w],[r14w])
 	define([save1_b],[r14b])	
 define([save0],[r15])
-	define([save0_d],[r15d])
+	define([save0_l],[r15d])
 	define([save0_w],[r15w])
 	define([save0_b],[r15b])	
 
@@ -80,7 +80,7 @@ define([save0],[r15])
 define([rcontext],[fs])
 define([fname],[temp0])
 define([next_method_context],[temp1])
-define([nargs],[temp2_d])
+define([nargs],[temp2_w])
 						
 define([ra0],[fn])	
 define([ra1],[nfn])
@@ -139,7 +139,7 @@ fixnum1 = fixnumone
 tag_fixnum = 0
 tag_imm_0 = 1		/* subtag_single_float ONLY */
 tag_imm_1 = 2		/* subtag_character, internal markers */
-tag_list = 3		/* subtag_cons or NIL */
+tag_list = 3		/* fulltag_cons or NIL */
 tag_tra = 4		/* tagged return_address */
 tag_misc = 5		/* random uvector */
 tag_symbol = 6	        /* non-null symbol */
@@ -606,6 +606,7 @@ TCR_BIAS = -512
 	 _node(prev)		/* in doubly-linked list */
 	 _node(next)		/* in doubly-linked list */
 	 _node(linear)		/* our linear (non-segment-based) address. */
+         _node(linear_end)      /* linear, - TCR_BIAS */
          _node(single_float_convert) /* xxxf0 */
 	 _word(lisp_fpscr)	/* lisp thread's fpscr (in low word) */
 	 _word(lisp_fpscr_low)
