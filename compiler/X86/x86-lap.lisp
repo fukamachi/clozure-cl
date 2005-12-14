@@ -14,27 +14,18 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 (require "X86-ASM" "ccl:compiler;X86;x86-asm")
-
-(in-package "X86")
-
-;;; Intentionally very similar to RISC-LAP, but with some extensions
-;;; to deal with alignment and with variable-length and/or span-
-;;; dependent instructions.
-
-(defvar *x86-lap-labels* ())
-(defvar *x86-lap-instructions* ())
-(defvar *x86-lap-constants* ())
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "DLL-NODE"))
 
 
 (eval-when (:execute :load-toplevel)
-  (defstruct (x86-instruction-element (:include ccl::dll-node))
-    address)
 
-  (defstruct (x86-lap-instruction (:include x86-instruction-element)
+
+  (defstruct (x86-lap-instruction (:include ccl::dll-node)
                                   (:constructor %make-x86-lap-instruction))
     template
     parsed-operands                     ;NIL, or a 1, 2, or 3-element vector
@@ -49,7 +40,7 @@
     sib                                 ;a sib-byte structure (or NIL)
     )
 
-  (defstruct (x86-lap-note (:include x86-instruction-element))
+  (defstruct (x86-lap-note (:include ccl::dll-node))
     peer
     id)
 
@@ -62,17 +53,53 @@
     offset
     ))
 
+
+;;; Intentionally very similar to RISC-LAP, but with some extensions
+;;; to deal with alignment and with variable-length and/or span-
+;;; dependent instructions.
+
+(defvar *x86-lap-labels* ())
+(defvar *x86-lap-instructions* ())
+(defvar *x86-lap-constants* ())
+(defvar *x86-lap-macros* (make-hash-table :test #'equalp))
+
+
+(defun x86-lap-macro-function (name)
+  (gethash (string name) #|(backend-lap-macros *ppc-backend*)|#
+           *x86-lap-macros*))
+
+(defun (setf x86-lap-macro-function) (def name)
+  (let* ((s (string name)))
+    (when (gethash s x86::*x86-instruction-template-lists*)
+      (error "~s already defines an x86 instruction . " name))
+    (setf (gethash s *x86-lap-macros* #|(backend-lap-macros *ppc-backend*)|#) def)))
+
+(defmacro defx86lapmacro (name arglist &body body)
+  `(progn
+     (setf (x86-lap-macro-function ',name)
+           (nfunction (x86-lap-macro ,name) ,(ccl::parse-macro name arglist body)))
+     (record-source-file ',name 'x86-lap)
+     ',name))
+
+(defun x86-lap-macroexpand-1 (form)
+  (unless (and (consp form) (atom (car form)))
+    (values form nil))
+  (let* ((expander (x86-lap-macro-function (car form))))
+    (if expander
+      (values (funcall expander form nil) t)
+      (values form nil))))
+
 (defmethod print-object ((i x86-lap-instruction) stream)
   (let* ((template (x86-lap-instruction-template i))
          (operands (x86-lap-instruction-parsed-operands i)))
     (print-unreadable-object (i stream :type t)
       (when template
-        (format stream "~a" (x86-instruction-template-name template))
+        (format stream "~a" (x86::x86-instruction-template-name template))
         (let* ((suffix (x86-lap-instruction-suffix i)))
           (when suffix
             (format stream "[~c]" suffix)))
         (dotimes (i (length operands))
-          (format stream " ~a" (unparse-operand (svref operands i))))))))
+          (format stream " ~a" (x86::unparse-operand (svref operands i))))))))
 
 (defmethod print-object ((l x86-lap-label) stream)
   (print-unreadable-object (l stream :type t)
@@ -285,8 +312,20 @@
     (setf (frag-type frag) (list :align p2align))
     (new-frag frag-list)))
 
-(defun lookup-x86-register (regname)
-  (gethash (string regname) *x86-registers*))
+(defun lookup-x86-register (regname designator)
+  (let* ((r (gethash (string regname) x86::*x86-registers*)))
+    (when r
+      (if (eq designator :%)
+        r
+        (let* ((regtype (x86::reg-entry-reg-type r)))
+          (unless (logtest regtype (x86::encode-operand-type :reg8 :reg16 :reg32 :reg64))
+            (error "Designator ~a can't be used with register ~a"
+                   designator (x86::reg-entry-reg-name r)))
+          (case designator
+            (:%b (x86::x86-reg8 r))
+            (:%w (x86::x86-reg16 r))
+            (:%l (x86::x86-reg32 r))
+            (:%q (x86::x86-reg64 r))))))))
 
 
 ;;; It may seem strange to have an expression language in a lisp-based
@@ -389,39 +428,49 @@
           (error "~a signaled during assembly-time evaluation of form ~s" condition form)
           (make-constant-expression :value value))))))
 
-(defun parse-x86-register-operand (regname)
-  (let* ((r (lookup-x86-register regname)))
+(defun parse-x86-register-operand (regname designator)
+  (let* ((r (lookup-x86-register regname designator)))
     (if r
-      (make-x86-register-operand :type (logandc2 (reg-entry-reg-type r)
-                                                 (encode-operand-type :baseIndex))
+      (x86::make-x86-register-operand :type (logandc2 (x86::reg-entry-reg-type r)
+                                                      (x86::encode-operand-type :baseIndex))
                                  :entry r)
       (error "Unknown X86 register ~s" regname))))
 
 (defun parse-x86-label-reference (name)
   (let* ((lab (find-or-create-x86-lap-label name)))
-    (make-x86-label-operand :type (encode-operand-type :label)
-                            :label lab)))
+    (x86::make-x86-label-operand :type (x86::encode-operand-type :label)
+                                 :label lab)))
 
 (defun check-base-and-index-regs (instruction base index)
   (let* ((regxx (if (and (x86-lap-instruction-prefixes instruction)
-                         (not (zerop (aref (x86-lap-instruction-prefixes instruction) +addr-prefix+))))
-                  (encode-operand-type :reg32)
-                  (encode-operand-type :reg64))))
+                         (not (zerop (aref (x86-lap-instruction-prefixes instruction) x86::+addr-prefix+))))
+                  (x86::encode-operand-type :reg32)
+                  (x86::encode-operand-type :reg64))))
     (if (or (and base
-                 (not (logtest (reg-entry-reg-type base) regxx))
-                 (or (not (eql (reg-entry-reg-type base)
-                               (encode-operand-type :baseindex)))
+                 (not (logtest (x86::reg-entry-reg-type base) regxx))
+                 (or (not (eql (x86::reg-entry-reg-type base)
+                               (x86::encode-operand-type :baseindex)))
                      index))
             (and index
-                 (not (eql (logior regxx (encode-operand-type :baseindex))
-                           (logand (reg-entry-reg-type index)
+                 (not (eql (logior regxx (x86::encode-operand-type :baseindex))
+                           (logand (x86::reg-entry-reg-type index)
                                    (logior regxx
-                                           (encode-operand-type :baseindex)))))))
+                                           (x86::encode-operand-type :baseindex)))))))
       (if base
         (if index
           (error "Invalid base/index registers ~s/~s" base index)
           (error "Invalid base register ~s" base))
         (error "Invalid index register ~s" index)))))
+
+(defun x86-register-designator (form)
+  (when (and (consp form)
+             (symbolp (car form)))
+    (let* ((sym (car form)))
+      (cond ((string= sym '%) :%)
+            ((string= sym '%b) :%b)
+            ((string= sym '%w) :%w)
+            ((string= sym '%l) :%l)
+            ((string= sym '%q) :%q)))))
 
 
 ;;; Syntax is:
@@ -430,12 +479,11 @@
 ;;; of a few other combinations.
 (defun parse-x86-memory-operand (instruction form)
   (flet ((register-operand-p (form)
-           (and (consp form)
-                (symbolp (car form))
-                (string= (car form) '%)
-                (destructuring-bind (regname) (cdr form)
-                  (or (lookup-x86-register regname)
-                      (error "Unknown register ~s" regname))))))
+           (let* ((designator (x86-register-designator form)))
+             (when designator
+               (destructuring-bind (regname) (cdr form)
+                 (or (lookup-x86-register regname designator)
+                     (error "Unknown register ~s" regname)))))))
   (let* ((seg nil)
          (disp nil)
          (base nil)
@@ -446,12 +494,12 @@
           (if (or disp base index)
             (progn
               (check-base-and-index-regs instruction base index)
-              (make-x86-memory-operand 
+              (x86::make-x86-memory-operand 
                :type (if (or base index)
                        (if disp
-                         (encode-operand-type :disp64 :disp32 :disp32S :baseindex)
-                         (encode-operand-type :baseindex))
-                       (encode-operand-type :disp64 :disp32 :disp32S))
+                         (x86::encode-operand-type :disp64 :disp32 :disp32S :baseindex)
+                         (x86::encode-operand-type :baseindex))
+                       (x86::encode-operand-type :disp64 :disp32 :disp32S))
                :seg seg
                :disp disp
                :base base
@@ -461,11 +509,11 @@
       (let* ((head (car f))
              (r (register-operand-p head)))
         (if r
-          (if (logtest (reg-entry-reg-type r)
-                       (encode-operand-type :sreg2 :sreg3))
+          (if (logtest (x86::reg-entry-reg-type r)
+                       (x86::encode-operand-type :sreg2 :sreg3))
             ;; A segment register - if present - must be first
             (if (eq f form)
-              (setq seg (svref *x86-seg-entries* (reg-entry-reg-num r))) 
+              (setq seg (svref x86::*x86-seg-entries* (x86::reg-entry-reg-num r))) 
               (error "Segment register ~s not valid in ~s" form))
             ;; Some other register.  Assume base if this is the
             ;; first gpr.  If we find only one gpr and a significant
@@ -497,10 +545,10 @@
           
 (defun encode-immediate-type (val)
   (typecase val
-    (null (encode-operand-type :imm32))
-    ((signed-byte 8) (encode-operand-type :imm8 :imm8s))
-    ((signed-byte 32) (encode-operand-type :imm32 :imm32s))
-    (t (encode-operand-type :imm64))))
+    (null (x86::encode-operand-type :imm32))
+    ((signed-byte 8) (x86::encode-operand-type :imm8 :imm8s))
+    ((signed-byte 32) (x86::encode-operand-type :imm32 :imm32s))
+    (t (x86::encode-operand-type :imm64))))
 
      
     
@@ -514,24 +562,25 @@
 ;;; x -> shorthand for (@ x)
 (defun parse-x86-operand (instruction form)
   (if (consp form)
-    (let* ((head (car form)))
+    (let* ((head (car form))
+           (designator nil))
       (if (symbolp head)
         (cond ((string= head '$)
                (destructuring-bind (immval) (cdr form)
                  (let* ((expr (parse-expression immval))
                         (value (early-expression-value  expr))
                         (type (encode-immediate-type value)))
-                 (make-x86-immediate-operand :type type
+                 (x86::make-x86-immediate-operand :type type
                                              :value expr))))
-              ((string= head '%)
+              ((setq designator (x86-register-designator form))
                (destructuring-bind (reg) (cdr form)
-                 (parse-x86-register-operand reg)))
+                 (parse-x86-register-operand reg designator)))
               ((string= head '*)
                (destructuring-bind (subop) (cdr form)
                  (let* ((op (parse-x86-operand instruction subop)))
-                   (setf (x86-operand-type op)
-                         (logior (encode-operand-type :jumpabsolute)
-                                 (x86-operand-type op)))
+                   (setf (x86::x86-operand-type op)
+                         (logior (x86::encode-operand-type :jumpabsolute)
+                                 (x86::x86-operand-type op)))
                    op)))
               ((string= head '@)
                (parse-x86-memory-operand instruction (cdr form)))
@@ -550,45 +599,45 @@
 (defun match-template (template parsed-operands suffix)
   (flet ((match (overlap given)
            (and
-            (not (zerop (logandc2 overlap (encode-operand-type :jumpabsolute))))
-            (= (logand given (encode-operand-type :baseindex :jumpabsolute))
-               (logand overlap (encode-operand-type :baseindex :jumpabsolute)))))
+            (not (zerop (logandc2 overlap (x86::encode-operand-type :jumpabsolute))))
+            (= (logand given (x86::encode-operand-type :baseindex :jumpabsolute))
+               (logand overlap (x86::encode-operand-type :baseindex :jumpabsolute)))))
          (consistent-register-match (m0 g0 t0 m1 g1 t1)
-           (let* ((g0&reg (logand g0 (encode-operand-type :reg)))
-                  (g1&reg (logand g1 (encode-operand-type :reg))))
+           (let* ((g0&reg (logand g0 (x86::encode-operand-type :reg)))
+                  (g1&reg (logand g1 (x86::encode-operand-type :reg))))
              (or (zerop g0&reg)
                  (zerop g1&reg)
                  (= g0&reg g1&reg)
                  (not
                   (logtest
-                   (if (logtest m0 (encode-operand-type :acc))
-                     (encode-operand-type :reg)
+                   (if (logtest m0 (x86::encode-operand-type :acc))
+                     (x86::encode-operand-type :reg)
                      t0)
-                   (if (logtest m1 (encode-operand-type :acc))
-                     (encode-operand-type :reg)
+                   (if (logtest m1 (x86::encode-operand-type :acc))
+                     (x86::encode-operand-type :reg)
                      t1)))))))
     (let* ((nops (length parsed-operands))
-           (type0 (if (> nops 0) (x86-operand-type (svref parsed-operands 0))))
-           (type1 (if (> nops 1) (x86-operand-type (svref parsed-operands 1))))
-           (type2 (if (> nops 2) (x86-operand-type (svref parsed-operands 2)))))
+           (type0 (if (> nops 0) (x86::x86-operand-type (svref parsed-operands 0))))
+           (type1 (if (> nops 1) (x86::x86-operand-type (svref parsed-operands 1))))
+           (type2 (if (> nops 2) (x86::x86-operand-type (svref parsed-operands 2)))))
       (declare (fixnum nops))
       (let* ((suffix-check
               (case suffix
-                (#\b (encode-opcode-modifier :no-bsuf))
-                (#\w (encode-opcode-modifier :no-wsuf))
-                (#\s (encode-opcode-modifier :no-ssuf))
-                (#\l (encode-opcode-modifier :no-lsuf))
-                (#\q (encode-opcode-modifier :no-qsuf))
-                (#\x (encode-opcode-modifier :no-xsuf))
+                (#\b (x86::encode-opcode-modifier :no-bsuf))
+                (#\w (x86::encode-opcode-modifier :no-wsuf))
+                (#\s (x86::encode-opcode-modifier :no-ssuf))
+                (#\l (x86::encode-opcode-modifier :no-lsuf))
+                (#\q (x86::encode-opcode-modifier :no-qsuf))
+                (#\x (x86::encode-opcode-modifier :no-xsuf))
                 (t 0))))
         (when (= nops
-                 (the fixnum (x86-instruction-template-operands template)))
+                 (the fixnum (x86::x86-instruction-template-operands template)))
           (unless (logtest
-                   (x86-instruction-template-opcode-modifier template)
+                   (x86::x86-instruction-template-opcode-modifier template)
                    suffix-check)
             (or (zerop nops)
                 (let* ((template-types
-                      (x86-instruction-template-operand-types template))
+                      (x86::x86-instruction-template-operand-types template))
                      (template-type0 (svref template-types 0))
                      (overlap0
                       (logand type0 template-type0))
@@ -626,25 +675,25 @@
   (let* ((ret 1)
          (prefixes (or (x86-lap-instruction-prefixes instruction)
                        (setf (x86-lap-instruction-prefixes instruction)
-                             (make-array +max-prefixes+
+                             (make-array x86::+max-prefixes+
                                          :element-type '(unsigned-byte 8)
                                          :initial-element 0))))
          (q 
-          (if (and (>= prefix +rex-opcode+)
-                   (< prefix (+ +rex-opcode+ 16)))
-            +rex-prefix+
+          (if (and (>= prefix x86::+rex-opcode+)
+                   (< prefix (+ x86::+rex-opcode+ 16)))
+            x86::+rex-prefix+
             (ecase prefix
-              ((#.+cs-prefix-opcode+ #.+ds-prefix-opcode+ #.+es-prefix-opcode+
-                                     #.+fs-prefix-opcode+ #.+gs-prefix-opcode+
-                                     #.+ss-prefix-opcode+)
-               +seg-prefix+)
-              ((#.+repne-prefix-opcode+ #.+repe-prefix-opcode+)
+              ((#.x86::+cs-prefix-opcode+ #.x86::+ds-prefix-opcode+ #.x86::+es-prefix-opcode+
+                                     #.x86::+fs-prefix-opcode+ #.x86::+gs-prefix-opcode+
+                                     #.x86::+ss-prefix-opcode+)
+               x86::+seg-prefix+)
+              ((#.x86::+repne-prefix-opcode+ #.x86::+repe-prefix-opcode+)
                (setq ret 2)
-               +lockrep-prefix+)
-              (#.+lock-prefix-opcode+ +lockrep-prefix+)
-              (#.+fwait-opcode+ +wait-prefix+)
-              (#.+addr-prefix-opcode+ +addr-prefix+)
-              (#.+data-prefix-opcode+ +data-prefix+)))))
+               x86::+lockrep-prefix+)
+              (#.x86::+lock-prefix-opcode+ x86::+lockrep-prefix+)
+              (#.x86::+fwait-opcode+ x86::+wait-prefix+)
+              (#.x86::+addr-prefix-opcode+ x86::+addr-prefix+)
+              (#.x86::+data-prefix-opcode+ x86::+data-prefix+)))))
     (declare (type (simple-array (unsiged-byte 8) (*)) prefixes)
              (fixnum q))
     (unless (zerop (aref prefixes q))
@@ -658,9 +707,9 @@
          (op (svref parsed-operands i))
          (template (x86-lap-instruction-template instruction)))
     (error "register %~a not allowed with ~a~c"
-           (reg-entry-reg-name
-            (x86-register-operand-entry op))
-           (x86-instruction-template-name template)
+           (x86::reg-entry-reg-name
+            (x86::x86-register-operand-entry op))
+           (x86::x86-instruction-template-name template)
            (x86-lap-instruction-suffix instruction))))
     
 ;;; Not sure whether inoutportreg needs special handling, but it's
@@ -669,82 +718,82 @@
   (let* ((parsed-operands (x86-lap-instruction-parsed-operands instruction)))
     (dotimes (i (length parsed-operands))
       (let* ((op (svref parsed-operands i))
-             (optype (x86-operand-type op)))
-        (unless (logtest optype (encode-operand-type :reg8))
+             (optype (x86::x86-operand-type op)))
+        (unless (logtest optype (x86::encode-operand-type :reg8))
           (when (logtest optype
-                         (encode-operand-type :reg :regmmx :regxmm :sreg2 :sreg3 :control :debug :test :floatreg :floatacc))
+                         (x86::encode-operand-type :reg :regmmx :regxmm :sreg2 :sreg3 :control :debug :test :floatreg :floatacc))
             (bad-register-operand-for-suffix instruction i)))))))
 
 (defun check-long-reg (instruction)
   (let* ((parsed-operands (x86-lap-instruction-parsed-operands instruction))
          (template (x86-lap-instruction-template instruction))
-         (template-types (x86-instruction-template-operand-types template)))
+         (template-types (x86::x86-instruction-template-operand-types template)))
     (dotimes (i (length parsed-operands))
       (let* ((op (svref parsed-operands i))
-             (optype (x86-operand-type op))
+             (optype (x86::x86-operand-type op))
              (template-type (svref template-types i)))
         ;; Reject 8-bit registers, except where the template requres
         ;; them (e.g., movzb)
-        (if (or (and (logtest optype (encode-operand-type :reg8))
-                     (logtest template-type (encode-operand-type :reg16 :reg32 :acc)))
-                (and (logtest optype (encode-operand-type :reg16))
-                     (logtest template-type (encode-operand-type :reg32 :acc)))
-                (and (logtest optype (encode-operand-type :reg64))
-                     (logtest template-type (encode-operand-type :reg32 :acc))))
+        (if (or (and (logtest optype (x86::encode-operand-type :reg8))
+                     (logtest template-type (x86::encode-operand-type :reg16 :reg32 :acc)))
+                (and (logtest optype (x86::encode-operand-type :reg16))
+                     (logtest template-type (x86::encode-operand-type :reg32 :acc)))
+                (and (logtest optype (x86::encode-operand-type :reg64))
+                     (logtest template-type (x86::encode-operand-type :reg32 :acc))))
           (bad-register-operand-for-suffix instruction i))))))
 
 (defun check-qword-reg (instruction)
   (let* ((parsed-operands (x86-lap-instruction-parsed-operands instruction))
          (template (x86-lap-instruction-template instruction))
-         (template-types (x86-instruction-template-operand-types template)))
+         (template-types (x86::x86-instruction-template-operand-types template)))
     (dotimes (i (length parsed-operands))
       (let* ((op (svref parsed-operands i))
-             (optype (x86-operand-type op))
+             (optype (x86::x86-operand-type op))
              (template-type (svref template-types i)))
         ;; Reject 8-bit registers, except where the template requres
         ;; them (e.g., movzb)
-        (if (or (and (logtest optype (encode-operand-type :reg8))
-                     (logtest template-type (encode-operand-type :reg16 :reg32 :acc)))
+        (if (or (and (logtest optype (x86::encode-operand-type :reg8))
+                     (logtest template-type (x86::encode-operand-type :reg16 :reg32 :acc)))
                 (and (or
-                      (logtest optype (encode-operand-type :reg16))
-                      (logtest optype (encode-operand-type :reg32)))
-                     (logtest template-type (encode-operand-type :reg32 :acc))))
+                      (logtest optype (x86::encode-operand-type :reg16))
+                      (logtest optype (x86::encode-operand-type :reg32)))
+                     (logtest template-type (x86::encode-operand-type :reg32 :acc))))
           (bad-register-operand-for-suffix instruction i))))))
 
 (defun check-word-reg (instruction)
   (let* ((parsed-operands (x86-lap-instruction-parsed-operands instruction))
          (template (x86-lap-instruction-template instruction))
-         (template-types (x86-instruction-template-operand-types template)))
+         (template-types (x86::x86-instruction-template-operand-types template)))
     (dotimes (i (length parsed-operands))
       (let* ((op (svref parsed-operands i))
-             (optype (x86-operand-type op))
+             (optype (x86::x86-operand-type op))
              (template-type (svref template-types i)))
         ;; Reject 8-bit registers, except where the template requres
         ;; them (e.g., movzb)
-        (if (or (and (logtest optype (encode-operand-type :reg8))
-                     (logtest template-type (encode-operand-type :reg16 :reg32 :acc)))
-                (and (logtest optype (encode-operand-type :reg32))
-                     (logtest template-type (encode-operand-type :reg16 :acc))))
+        (if (or (and (logtest optype (x86::encode-operand-type :reg8))
+                     (logtest template-type (x86::encode-operand-type :reg16 :reg32 :acc)))
+                (and (logtest optype (x86::encode-operand-type :reg32))
+                     (logtest template-type (x86::encode-operand-type :reg16 :acc))))
           (bad-register-operand-for-suffix instruction i))))))
   
 (defun check-suffix (instruction form)
   (let* ((template (x86-lap-instruction-template instruction))
          (parsed-operands (x86-lap-instruction-parsed-operands instruction))
          (suffix (x86-lap-instruction-suffix instruction))
-         (template-modifier (x86-instruction-template-opcode-modifier template))
+         (template-modifier (x86::x86-instruction-template-opcode-modifier template))
          (has-register-operands (dotimes (i (length parsed-operands))
-                                  (if (logtest (encode-operand-type :reg)
-                                               (x86-operand-type
+                                  (if (logtest (x86::encode-operand-type :reg)
+                                               (x86::x86-operand-type
                                                 (svref parsed-operands i)))
                                     (return t)))))
     (cond ((logtest template-modifier
-                    (encode-opcode-modifier :size16 :size32 :size64))
-           (cond ((logtest template-modifier (encode-opcode-modifier :size16))
-                  (setq suffix +word-mnem-suffix+))
-                 ((logtest template-modifier (encode-opcode-modifier :size32))
-                  (setq suffix +long-mnem-suffix+))
-                 ((logtest template-modifier (encode-opcode-modifier :size64))
-                  (setq suffix +qword-mnem-suffix+))))
+                    (x86::encode-opcode-modifier :size16 :size32 :size64))
+           (cond ((logtest template-modifier (x86::encode-opcode-modifier :size16))
+                  (setq suffix x86::+word-mnem-suffix+))
+                 ((logtest template-modifier (x86::encode-opcode-modifier :size32))
+                  (setq suffix x86::+long-mnem-suffix+))
+                 ((logtest template-modifier (x86::encode-opcode-modifier :size64))
+                  (setq suffix x86::+qword-mnem-suffix+))))
           (has-register-operands
            ;; If there's no explicit suffix, try to derive it from the
            ;; type of the last (destination) register operand.
@@ -752,65 +801,65 @@
                   (do* ((i (1- (length parsed-operands)) (1- i)))
                        ((< i 0))
                     (declare (fixnum i))
-                    (let* ((type-i (x86-operand-type (svref parsed-operands i)))
-                           (tm-type-i (svref (x86-instruction-template-operand-types template) i)))
-                      (when (and (logtest type-i (encode-operand-type :reg))
+                    (let* ((type-i (x86::x86-operand-type (svref parsed-operands i)))
+                           (tm-type-i (svref (x86::x86-instruction-template-operand-types template) i)))
+                      (when (and (logtest type-i (x86::encode-operand-type :reg))
                                (not (logtest tm-type-i
-                                             (encode-operand-type :inoutportreg))))
+                                             (x86::encode-operand-type :inoutportreg))))
                         (setq
                          suffix
-                         (cond ((logtest type-i (encode-operand-type :reg8))
-                                +byte-mnem-suffix+)
-                               ((logtest type-i (encode-operand-type :reg16))
-                                +word-mnem-suffix+)
-                               ((logtest type-i (encode-operand-type :reg64))
-                                +qword-mnem-suffix+)
-                               (t +long-mnem-suffix+)))
+                         (cond ((logtest type-i (x86::encode-operand-type :reg8))
+                                x86::+byte-mnem-suffix+)
+                               ((logtest type-i (x86::encode-operand-type :reg16))
+                                x86::+word-mnem-suffix+)
+                               ((logtest type-i (x86::encode-operand-type :reg64))
+                                x86::+qword-mnem-suffix+)
+                               (t x86::+long-mnem-suffix+)))
                         (return)))))
-                 ((eql suffix +byte-mnem-suffix+)
+                 ((eql suffix x86::+byte-mnem-suffix+)
                   (check-byte-reg instruction))
-                 ((eql suffix +long-mnem-suffix+)
+                 ((eql suffix x86::+long-mnem-suffix+)
                   (check-long-reg instruction))
-                 ((eql suffix +qword-mnem-suffix+)
+                 ((eql suffix x86::+qword-mnem-suffix+)
                   (check-qword-reg instruction))
-                 ((eql suffix +word-mnem-suffix+)
+                 ((eql suffix x86::+word-mnem-suffix+)
                   (check-word-reg instruction)))))
     (unless (setf (x86-lap-instruction-suffix instruction) suffix)
-      (if (logtest template-modifier (encode-opcode-modifier :w))
+      (if (logtest template-modifier (x86::encode-opcode-modifier :w))
         (error "No mnemonic suffix specified and can't determine instruction size from operands in ~s" form)))
     ;; Change the opcode based on the operand size given by suffix. We
     ;; don't need to change things for byte insns.
-    (when (and suffix (not (eql suffix +byte-mnem-suffix+)))
-      (when (logtest template-modifier (encode-opcode-modifier :w))
+    (when (and suffix (not (eql suffix x86::+byte-mnem-suffix+)))
+      (when (logtest template-modifier (x86::encode-opcode-modifier :w))
         (setf (x86-lap-instruction-base-opcode instruction)
               (logior (x86-lap-instruction-base-opcode instruction)
-                      (if (logtest template-modifier (encode-opcode-modifier :shortform))
+                      (if (logtest template-modifier (x86::encode-opcode-modifier :shortform))
                         8
                         1))))
     
       ;; Now select between word & dword operations via the operand
       ;; size prefix, except for instructions that will ignore this
       ;; prefix anyway. 
-      (if (and (not (eql suffix +qword-mnem-suffix+))
-               (not (eql suffix +long-double-mnem-suffix+))
+      (if (and (not (eql suffix x86::+qword-mnem-suffix+))
+               (not (eql suffix x86::+long-double-mnem-suffix+))
                (not (logtest template-modifier
-                             (encode-opcode-modifier :ignoresize :floatmf)))
-               (or (not (eql suffix +long-mnem-suffix+))
-                   (logtest template-modifier (encode-opcode-modifier :jumpbyte))))
+                             (x86::encode-opcode-modifier :ignoresize :floatmf)))
+               (or (not (eql suffix x86::+long-mnem-suffix+))
+                   (logtest template-modifier (x86::encode-opcode-modifier :jumpbyte))))
         (add-prefix instruction
                     (if (logtest template-modifier
-                                 (encode-opcode-modifier :jumpbyte))
-                      +data-prefix-opcode+
-                      +addr-prefix-opcode+)))
+                                 (x86::encode-opcode-modifier :jumpbyte))
+                      x86::+addr-prefix-opcode+
+                      x86::+data-prefix-opcode+)))
       ;; Set mode64 if appropriate.
-      (if (and (eql suffix +qword-mnem-suffix+)
-               (not (logtest template-modifier (encode-opcode-modifier :norex64))))
+      (if (and (eql suffix x86::+qword-mnem-suffix+)
+               (not (logtest template-modifier (x86::encode-opcode-modifier :norex64))))
         (setf (x86-lap-instruction-rex instruction)
               (logior (or (x86-lap-instruction-rex instruction) 0)
-                      +rex-mode64+)))
+                      x86::+rex-mode64+)))
       ;; Size floating-point instruction
-      (if (and (eql suffix +long-mnem-suffix+)
-               (logtest template-modifier (encode-opcode-modifier :floatmf)))
+      (if (and (eql suffix x86::+long-mnem-suffix+)
+               (logtest template-modifier (x86::encode-opcode-modifier :floatmf)))
         (setf (x86-lap-instruction-base-opcode instruction)
               (logxor (x86-lap-instruction-base-opcode instruction) 4))))
     instruction))
@@ -818,84 +867,170 @@
 (defun init-x86-lap-instruction (instruction template parsed-operands suffix)
   (setf (x86-lap-instruction-template instruction) template
         (x86-lap-instruction-parsed-operands instruction) parsed-operands
-        (x86-lap-instruction-base-opcode instruction) (x86-instruction-template-base-opcode template)
-        (x86-lap-instruction-extension-opcode instruction) (x86-instruction-template-extension-opcode template)
+        (x86-lap-instruction-base-opcode instruction) (x86::x86-instruction-template-base-opcode template)
+        (x86-lap-instruction-extension-opcode instruction) (x86::x86-instruction-template-extension-opcode template)
         (x86-lap-instruction-suffix instruction) suffix)
   instruction)
 
-(defun optimize-immediates (instruction)
+(defun reset-x86-instruction (i)
+  (setf (x86-lap-instruction-template i) nil
+        (x86-lap-instruction-parsed-operands i) nil
+        (x86-lap-instruction-flags i) nil
+        (x86-lap-instruction-base-opcode i) nil
+        (x86-lap-instruction-extension-opcode i) nil
+        (x86-lap-instruction-prefixes i) nil
+        (x86-lap-instruction-nprefixes i) 0
+        (x86-lap-instruction-rex i) nil
+        (x86-lap-instruction-rm i) nil
+        (x86-lap-instruction-sib i) nil)
+  i)
+
+(defun smallest-imm-type (val)
+  (if (eql val 1)
+    (x86::encode-operand-type :Imm1 :Imm8 :Imm8S :Imm16 :Imm32 :Imm32S :Imm64)
+    (typecase val
+      ((signed-byte 8)
+       (x86::encode-operand-type :Imm8S :imm8 :Imm16 :Imm32 :Imm32S :Imm64))
+      ((unsigned-byte 8)
+       (x86::encode-operand-type  :imm8 :Imm16 :Imm32 :Imm32S :Imm64))
+      ((signed-byte 16)
+       (x86::encode-operand-type  :Imm16 :Imm32 :Imm32S :Imm64))
+      ((unsigned-byte 16)
+       (x86::encode-operand-type  :Imm16 :Imm32 :Imm32S :Imm64))
+      ((signed-byte 32)
+       (x86::encode-operand-type :Imm32 :Imm32S :Imm64))
+      ((unsigned-byte 32)
+       (x86::encode-operand-type :Imm32 :Imm64))
+      (t (x86::encode-operand-type :Imm64)))))
+       
+  
+(defun x86-optimize-imm (operands suffix)
+  (unless suffix
+    ;; See if we can determine an implied suffix from operands.
+    (do* ((i (1- (length operands)) (1- i)))
+         ((< i 0))
+      (declare (fixnum i))
+      (let* ((op (svref operands i))
+             (optype (x86::x86-operand-type op)))
+        (when (logtest op (x86::encode-operand-type :reg))
+          (cond ((logtest optype (x86::encode-operand-type :reg8))
+                 (setq suffix #\b))
+                ((logtest optype (x86::encode-operand-type :reg16))
+                 (setq suffix #\w))
+                ((logtest optype (x86::encode-operand-type :reg32))
+                 (setq suffix #\l))
+                ((logtest optype (x86::encode-operand-type :reg64))
+                 (setq suffix #\q)))
+          (return)))))
+  (dotimes (i (length operands))
+    (let* ((op (svref operands i))
+           (optype (x86::x86-operand-type op)))
+      (when (logtest optype (x86::encode-operand-type :imm))
+        (let* ((val (x86::x86-immediate-operand-value op)))
+          (cond ((typep val 'constant-expression)
+                 (case suffix
+                   (#\l (setf (x86::x86-operand-type op)
+                              (logior optype (x86::encode-operand-type
+                                              :imm32 :imm64))))
+                   (#\w (setf (x86::x86-operand-type op)
+                              (logior optype (x86::encode-operand-type
+                                              :imm16 :imm32S  :imm32 :imm64))))
+                   (#\b (setf (x86::x86-operand-type op)
+                              (logior optype (x86::encode-operand-type
+                                              :imm8 :imm16 :imm32S  :imm32 :imm64)))))
+                 (setf (x86::x86-operand-type op)
+                       (logior (x86::x86-operand-type op)
+                               (smallest-imm-type (expression-value val))))
+                 (when (eql suffix #\q)
+                   (setf (x86::x86-operand-type op)
+                         (logandc2 (x86::x86-operand-type op)
+                                   (x86::encode-operand-type :imm32)))))
+                (t ; immediate value not constant
+                 (case suffix
+                   (#\q (setf (x86::x86-operand-type op)
+                              (logior optype
+                                      (x86::encode-operand-type :imm64 :imm32S))))
+                   (#\l (setf (x86::x86-operand-type op)
+                              (logior optype
+                                      (x86::encode-operand-type :imm32))))
+                   (#\w (setf (x86::x86-operand-type op)
+                              (logior optype
+                                      (x86::encode-operand-type :imm16))))
+                   (#\b  (setf (x86::x86-operand-type op)
+                              (logior optype
+                                      (x86::encode-operand-type :imm8))))))))))))
   
 ;;; FORM is a list; its car doesn't name a macro or pseudo op.
 ;;; If we can find a matching instruction template, create a
 ;;; (skeletal) x86-lap-instruction with that template and these
 ;;; operands.
-(defun parse-x86-instruction (form)
-  (let* ((instruction (make-x86-lap-instruction)))
-    (labels
-        ((parse-x86-instruction-aux (subform expecting-string)
-           (if (null subform)
-             (error "No non-prefix X86 instruction in ~s" form)
-             (destructuring-bind (mnemonic &rest operands) subform
-               (multiple-value-bind (templates suffix)
-                   (get-x86-instruction-templates-and-suffix mnemonic)
-                 (let* ((t0 (car templates))
-                        (t0-modifier (x86-instruction-template-opcode-modifier t0)))
-                   (if (logtest t0-modifier
-                                (encode-opcode-modifier :isprefix))
-                     (let* ((prefix (x86-instruction-template-base-opcode t0)))
-                       (add-prefix instruction prefix)
-                       (parse-x86-instruction-aux
-                        operands
-                        (or expecting-string
-                            (if (or (eql prefix +repe-prefix-opcode+)
-                                    (eql prefix +repne-prefix-opcode+))
-                              (x86-instruction-template-name t0)))))
+(defun parse-x86-instruction (form instruction)
+  (labels
+      ((parse-x86-instruction-aux (subform expecting-string)
+         (if (null subform)
+           (error "No non-prefix X86 instruction in ~s" form)
+           (destructuring-bind (mnemonic &rest operands) subform
+             (multiple-value-bind (templates suffix)
+                 (x86::get-x86-instruction-templates-and-suffix mnemonic)
+               (let* ((t0 (car templates))
+                      (t0-modifier (x86::x86-instruction-template-opcode-modifier t0)))
+                 (if (logtest t0-modifier
+                              (x86::encode-opcode-modifier :isprefix))
+                   (let* ((prefix (x86::x86-instruction-template-base-opcode t0)))
+                     (add-prefix instruction prefix)
+                     (parse-x86-instruction-aux
+                      operands
+                      (or expecting-string
+                          (if (or (eql prefix x86::+repe-prefix-opcode+)
+                                  (eql prefix x86::+repne-prefix-opcode+))
+                            (x86::x86-instruction-template-name t0)))))
                                                     
-                     (let* ((parsed-operands (if operands
-                                               (map
-                                                'vector
-                                                #'(lambda (f)
-                                                    (parse-x86-operand
-                                                     instruction f))
-                                                operands))))
-                       (when (and expecting-string
-                                  (not (logtest
-                                        (x86-instruction-template-opcode-modifier
-                                         (car templates))
-                                        (encode-opcode-modifier :isstring))))
-                         (error "Expecting string instruction after ~s in ~s"
-                                expecting-string form))
-                       (dolist (template templates (error "Operands or suffix invalid in ~s" form))
-                         (when (match-template template parsed-operands suffix)
-                           (init-x86-lap-instruction instruction template parsed-operands suffix)
-                           (check-suffix instruction form)
-                           (return instruction)))))))))))
-      (parse-x86-instruction-aux form nil))))
+                   (let* ((parsed-operands (if operands
+                                             (map
+                                              'vector
+                                              #'(lambda (f)
+                                                  (parse-x86-operand
+                                                   instruction f))
+                                              operands))))
+                     (when (and expecting-string
+                                (not (logtest
+                                      (x86::x86-instruction-template-opcode-modifier
+                                       (car templates))
+                                      (x86::encode-opcode-modifier :isstring))))
+                       (error "Expecting string instruction after ~s in ~s"
+                              expecting-string form))
+                     (x86-optimize-imm parsed-operands suffix)
+                     (dolist (template templates (error "Operands or suffix invalid in ~s" form))
+                       (when (match-template template parsed-operands suffix)
+                         (init-x86-lap-instruction instruction template parsed-operands suffix)
+                         (check-suffix instruction form)
+                         (return instruction)))))))))))
+    (parse-x86-instruction-aux form nil)))
 
 (defun mode-from-disp-size (type)
-  (cond ((logtest type (encode-operand-type :disp8)) 1)
-        ((logtest type (encode-operand-type :disp16 :disp32 :disp32S)) 2)
+  (cond ((logtest type (x86::encode-operand-type :disp8)) 1)
+        ((logtest type (x86::encode-operand-type :disp16 :disp32 :disp32S)) 2)
         (t 0)))
   
 (defun build-rm-byte (insn)
-  (let* ((rm (make-modrm-byte))
+  (let* ((rm (x86::make-modrm-byte))
          (default-seg nil)
          (template (x86-lap-instruction-template insn))
          (operands (x86-lap-instruction-parsed-operands insn))
-         (num-reg-operands (count-if #'x86-register-operand-p operands)))
+         (num-reg-operands (count-if #'x86::x86-register-operand-p operands)))
     (setf (x86-lap-instruction-rm insn) rm)
     (if (= num-reg-operands 2)
       (let* ((op0 (svref operands 0))
-             (type0 (x86-operand-type op0))
-             (src (if (logtest type0 (encode-operand-type :reg :regmmx :regxmm
+             (type0 (x86::x86-operand-type op0))
+             (src (if (logtest type0 (x86::encode-operand-type :reg :regmmx :regxmm
                                                           :sreg2 :sreg3
                                                           :control :debug :test))
                     0
                     1))
-             (srcreg (x86-register-operand-entry (svref operands src)))
+             (srcreg (x86::x86-register-operand-entry (svref operands src)))
              (dest (1+ src))
-             (destreg (x86-register-operand-entry (svref operands dest))))
-        (setf (modrm-byte-mode rm) 3)
+             (destreg (x86::x86-register-operand-entry (svref operands dest))))
+        (setf (x86::modrm-byte-mode rm) 3)
         
         ;; One of the register operands will be encoded in the rm-reg
         ;; field, the other in the combined rm-mode and rm-regmem
@@ -903,179 +1038,179 @@
         ;; destination operand, then we assume the source operand may
         ;; sometimes be a memory operand and so we need to store the
         ;; destination in the rm-reg field.
-        (if (not (logtest (svref (x86-instruction-template-operand-types template) dest)
-                          (encode-operand-type :AnyMem)))
+        (if (not (logtest (svref (x86::x86-instruction-template-operand-types template) dest)
+                          (x86::encode-operand-type :AnyMem)))
           (progn
-            (setf (modrm-byte-reg rm) (reg-entry-reg-num destreg)
-                  (modrm-byte-regmem rm) (reg-entry-reg-num srcreg))
-            (when (logtest +RegRex+ (reg-entry-reg-flags destreg))
+            (setf (x86::modrm-byte-reg rm) (x86::reg-entry-reg-num destreg)
+                  (x86::modrm-byte-regmem rm) (x86::reg-entry-reg-num srcreg))
+            (when (logtest x86::+RegRex+ (x86::reg-entry-reg-flags destreg))
               (setf (x86-lap-instruction-rex insn)
-                    (logior +rex-extx+
+                    (logior x86::+rex-extx+
                             (or (x86-lap-instruction-rex insn) 0))))
-            (when (logtest +RegRex+ (reg-entry-reg-flags srcreg))
+            (when (logtest x86::+RegRex+ (x86::reg-entry-reg-flags srcreg))
               (setf (x86-lap-instruction-rex insn)
-                    (logior +rex-extz+
+                    (logior x86::+rex-extz+
                             (or (x86-lap-instruction-rex insn) 0)))))
           (progn
-            (setf (modrm-byte-reg rm) (reg-entry-reg-num srcreg)
-                  (modrm-byte-regmem rm) (reg-entry-reg-num destreg))
-            (when (logtest +RegRex+ (reg-entry-reg-flags destreg))
+            (setf (x86::modrm-byte-reg rm) (x86::reg-entry-reg-num srcreg)
+                  (x86::modrm-byte-regmem rm) (x86::reg-entry-reg-num destreg))
+            (when (logtest x86::+RegRex+ (x86::reg-entry-reg-flags destreg))
               (setf (x86-lap-instruction-rex insn)
-                    (logior +rex-extz+
+                    (logior x86::+rex-extz+
                             (or (x86-lap-instruction-rex insn) 0))))
-            (when (logtest +RegRex+ (reg-entry-reg-flags srcreg))
+            (when (logtest x86::+RegRex+ (x86::reg-entry-reg-flags srcreg))
               (setf (x86-lap-instruction-rex insn)
-                    (logior +rex-extx+
+                    (logior x86::+rex-extx+
                             (or (x86-lap-instruction-rex insn) 0)))))))
       ;; Not exactly 2 register operands.
       (let* ((memop (dotimes (i (length operands))
                       (let* ((op (svref operands i)))
-                        (when (logtest (encode-operand-type :AnyMem)
-                                       (x86-operand-type op))
+                        (when (logtest (x86::encode-operand-type :AnyMem)
+                                       (x86::x86-operand-type op))
                           (return op))))))
         (when memop
-          (setq default-seg *ds-segment-register*)
+          (setq default-seg x86::*ds-segment-register*)
           (let* ((fake-zero-displacement nil)
-                 (sib (make-sib-byte)))
+                 (sib (x86::make-sib-byte)))
             (setf (x86-lap-instruction-sib insn) sib)
-            (cond ((null (x86-memory-operand-base memop))
-                   (setf (modrm-byte-mode rm) 0)
-                   (unless (x86-memory-operand-disp memop)
+            (cond ((null (x86::x86-memory-operand-base memop))
+                   (setf (x86::modrm-byte-mode rm) 0)
+                   (unless (x86::x86-memory-operand-disp memop)
                      (setq fake-zero-displacement t))
-                   (if (null (x86-memory-operand-index memop))
+                   (if (null (x86::x86-memory-operand-index memop))
                      (progn
-                       (setf (modrm-byte-regmem rm) +escape-to-two-byte-addressing+
-                             (sib-byte-base sib) +no-base-register+
-                             (sib-byte-index sib) +no-index-register+
-                             (sib-byte-scale sib) 0)
+                       (setf (x86::modrm-byte-regmem rm) x86::+escape-to-two-byte-addressing+
+                             (x86::sib-byte-base sib) x86::+no-base-register+
+                             (x86::sib-byte-index sib) x86::+no-index-register+
+                             (x86::sib-byte-scale sib) 0)
                        (let* ((prefixes (x86-lap-instruction-prefixes insn)))
-                         (setf (x86-memory-operand-type memop)
+                         (setf (x86::x86-memory-operand-type memop)
                                (if (and prefixes
-                                        (not (eql 0 (aref prefixes +addr-prefix+))))
-                                 (encode-operand-type :disp32)
-                                 (encode-operand-type :disp32s)))))
+                                        (not (eql 0 (aref prefixes x86::+addr-prefix+))))
+                                 (x86::encode-operand-type :disp32)
+                                 (x86::encode-operand-type :disp32s)))))
                      ;; Index, but no base reg.
-                     (let* ((index-reg (x86-memory-operand-index memop)))
-                       (setf (sib-byte-index sib) (reg-entry-reg-num index-reg)
-                             (sib-byte-base sib) +no-base-register+
-                             (sib-byte-scale sib) (or (x86-memory-operand-scale memop) 0)
-                             (modrm-byte-regmem rm) +escape-to-two-byte-addressing+
-                             (x86-memory-operand-type memop) (logior (encode-operand-type :disp32s) (logandc2 (x86-memory-operand-type memop) (encode-operand-type :disp))))
-                       (if (logtest (reg-entry-reg-flags index-reg) +RegRex+)
+                     (let* ((index-reg (x86::x86-memory-operand-index memop)))
+                       (setf (x86::sib-byte-index sib) (x86::reg-entry-reg-num index-reg)
+                             (x86::sib-byte-base sib) x86::+no-base-register+
+                             (x86::sib-byte-scale sib) (or (x86::x86-memory-operand-scale memop) 0)
+                             (x86::modrm-byte-regmem rm) x86::+escape-to-two-byte-addressing+
+                             (x86::x86-memory-operand-type memop) (logior (x86::encode-operand-type :disp32s) (logandc2 (x86::x86-memory-operand-type memop) (x86::encode-operand-type :disp))))
+                       (if (logtest (x86::reg-entry-reg-flags index-reg) x86::+RegRex+)
                          (setf (x86-lap-instruction-rex insn)
                                (logior (or (x86-lap-instruction-rex insn) 0)
-                                       +rex-exty+))))))
+                                       x86::+rex-exty+))))))
                   ;; 64-bit RIP-relative addressing, detected by the
                   ;; fact that the base register has the :baseindex
                   ;; operand type only
-                  ((= (reg-entry-reg-type
-                       (x86-memory-operand-base memop))
-                      (encode-operand-type :baseIndex))
-                   (setf (modrm-byte-regmem rm) +no-base-register+)
-                   (setf (x86-memory-operand-type memop)
-                         (logior (encode-operand-type :disp32s)
-                                 (logandc2 (x86-memory-operand-type memop)
-                                           (encode-operand-type :disp))))
-                   (unless (x86-memory-operand-disp memop)
+                  ((= (x86::reg-entry-reg-type
+                       (x86::x86-memory-operand-base memop))
+                      (x86::encode-operand-type :baseIndex))
+                   (setf (x86::modrm-byte-regmem rm) x86::+no-base-register+)
+                   (setf (x86::x86-memory-operand-type memop)
+                         (logior (x86::encode-operand-type :disp32s)
+                                 (logandc2 (x86::x86-memory-operand-type memop)
+                                           (x86::encode-operand-type :disp))))
+                   (unless (x86::x86-memory-operand-disp memop)
                      (setq fake-zero-displacement t)))
                   (t
                    ;; "real" base register
-                   (when (logtest (x86-memory-operand-type memop)
-                                  (encode-operand-type :disp))
-                     (setf (x86-memory-operand-type memop)
-                           (logior (logand (x86-memory-operand-type memop)
-                                           (encode-operand-type :disp8))
+                   (when (logtest (x86::x86-memory-operand-type memop)
+                                  (x86::encode-operand-type :disp))
+                     (setf (x86::x86-memory-operand-type memop)
+                           (logior (logand (x86::x86-memory-operand-type memop)
+                                           (x86::encode-operand-type :disp8))
                                    (let* ((prefixes (x86-lap-instruction-prefixes insn)))
                                      (if (and prefixes
-                                              (not (eql 0 (aref prefixes +addr-prefix+))))
-                                       (encode-operand-type :disp32)
-                                       (encode-operand-type :disp32s))))))
-                   (let* ((basereg (x86-memory-operand-base memop))
-                          (baseregnum (reg-entry-reg-num basereg)))
-                     (setf (modrm-byte-regmem rm) baseregnum)
-                     (when (logtest (reg-entry-reg-flags basereg) +RegRex+)
+                                              (not (eql 0 (aref prefixes x86::+addr-prefix+))))
+                                       (x86::encode-operand-type :disp32)
+                                       (x86::encode-operand-type :disp32s))))))
+                   (let* ((basereg (x86::x86-memory-operand-base memop))
+                          (baseregnum (x86::reg-entry-reg-num basereg)))
+                     (setf (x86::modrm-byte-regmem rm) baseregnum)
+                     (when (logtest (x86::reg-entry-reg-flags basereg) x86::+RegRex+)
                        (setf (x86-lap-instruction-rex insn)
-                             (logior +Rex-extz+
+                             (logior x86::+Rex-extz+
                                      (or (x86-lap-instruction-rex insn) 0))))
-                     (setf (sib-byte-base sib) baseregnum)
-                     (cond ((= (logand baseregnum 7) +ebp-reg-num+)
-                            (unless (x86-memory-operand-disp memop)
+                     (setf (x86::sib-byte-base sib) baseregnum)
+                     (cond ((= (logand baseregnum 7) x86::+ebp-reg-num+)
+                            (unless (x86::x86-memory-operand-disp memop)
                               (setq fake-zero-displacement t
-                                    default-seg *ss-segment-register*)
-                              (setf (x86-memory-operand-type memop)
-                                    (logior (x86-memory-operand-type memop)
-                                            (encode-operand-type :disp8)))))
-                           ((= baseregnum +esp-reg-num+)
-                            (setq default-seg *ss-segment-register*)))
-                     (setf (sib-byte-scale sib)
-                           (or (or (x86-memory-operand-scale memop) 0)))
-                     (if (null (x86-memory-operand-index memop))
+                                    default-seg x86::*ss-segment-register*)
+                              (setf (x86::x86-memory-operand-type memop)
+                                    (logior (x86::x86-memory-operand-type memop)
+                                            (x86::encode-operand-type :disp8)))))
+                           ((= baseregnum x86::+esp-reg-num+)
+                            (setq default-seg x86::*ss-segment-register*)))
+                     (setf (x86::sib-byte-scale sib)
+                           (or (or (x86::x86-memory-operand-scale memop) 0)))
+                     (if (null (x86::x86-memory-operand-index memop))
                        (progn
-                         (setf (sib-byte-index sib) +no-index-register+)
-                         (when (x86-memory-operand-scale memop)
-                           (setf (modrm-byte-regmem rm) +escape-to-two-byte-addressing+)))
+                         (setf (x86::sib-byte-index sib) x86::+no-index-register+)
+                         (when (x86::x86-memory-operand-scale memop)
+                           (setf (x86::modrm-byte-regmem rm) x86::+escape-to-two-byte-addressing+)))
                        (progn
-                         (setf (sib-byte-index sib) (reg-entry-reg-num (x86-memory-operand-index memop))
-                               (modrm-byte-regmem rm) +escape-to-two-byte-addressing+)
-                         (when (logtest (reg-entry-reg-flags (x86-memory-operand-index memop))
-                                        +regrex+)
+                         (setf (x86::sib-byte-index sib) (x86::reg-entry-reg-num (x86::x86-memory-operand-index memop))
+                               (x86::modrm-byte-regmem rm) x86::+escape-to-two-byte-addressing+)
+                         (when (logtest (x86::reg-entry-reg-flags (x86::x86-memory-operand-index memop))
+                                        x86::+regrex+)
                            (setf (x86-lap-instruction-rex insn)
-                                 (logior +rex-exty+
+                                 (logior x86::+rex-exty+
                                          (or (x86-lap-instruction-rex insn) 0)))))))))
-            (setf (modrm-byte-mode rm) (mode-from-disp-size (x86-memory-operand-type memop)))
+            (setf (x86::modrm-byte-mode rm) (mode-from-disp-size (x86::x86-memory-operand-type memop)))
             (when fake-zero-displacement
-              (setf (x86-memory-operand-disp memop)
+              (setf (x86::x86-memory-operand-disp memop)
                     (make-constant-expression :value 0)
-                    (x86-operand-type memop)
-                    (logior (x86-operand-type memop) (encode-operand-type :disp8) )))))
+                    (x86::x86-operand-type memop)
+                    (logior (x86::x86-operand-type memop) (x86::encode-operand-type :disp8) )))))
         (let* ((regop (dotimes (i (length operands))
                         (let* ((op (svref operands i)))
-                          (when (logtest (encode-operand-type :Reg :RegMMX
+                          (when (logtest (x86::encode-operand-type :Reg :RegMMX
                                                               :RegXMM
                                                               :SReg2 :SReg3
                                                               :Control :Debug
                                                               :Test)
-                                         (x86-operand-type op))
+                                         (x86::x86-operand-type op))
                             (return op)))))
-               (regentry (if regop (x86-register-operand-entry regop))))
+               (regentry (if regop (x86::x86-register-operand-entry regop))))
           (when regop
             (cond ((x86-lap-instruction-extension-opcode insn)
-                   (setf (modrm-byte-regmem rm) (reg-entry-reg-num regentry))
-                   (when (logtest (reg-entry-reg-flags regentry) +RegRex+)
+                   (setf (x86::modrm-byte-regmem rm) (x86::reg-entry-reg-num regentry))
+                   (when (logtest (x86::reg-entry-reg-flags regentry) x86::+RegRex+)
                      (setf (x86-lap-instruction-rex insn)
-                           (logior +rex-extz+
+                           (logior x86::+rex-extz+
                                    (or (x86-lap-instruction-rex insn) 0)))))
                   (t
-                   (setf (modrm-byte-reg rm) (reg-entry-reg-num regentry))
-                   (when (logtest (reg-entry-reg-flags regentry) +RegRex+)
+                   (setf (x86::modrm-byte-reg rm) (x86::reg-entry-reg-num regentry))
+                   (when (logtest (x86::reg-entry-reg-flags regentry) x86::+RegRex+)
                      (setf (x86-lap-instruction-rex insn)
-                           (logior +rex-extx+
+                           (logior x86::+rex-extx+
                                    (or (x86-lap-instruction-rex insn) 0))))))
             (unless memop
-              (setf (modrm-byte-mode rm) +regmem-field-has-reg+))))))
+              (setf (x86::modrm-byte-mode rm) x86::+regmem-field-has-reg+))))))
     (let* ((extop (x86-lap-instruction-extension-opcode insn)))
       (when extop
-        (setf (modrm-byte-reg rm) extop)))
+        (setf (x86::modrm-byte-reg rm) extop)))
     default-seg))
               
 
 (defun optimize-displacements (operands)
   (dotimes (i (length operands))
     (let* ((op (svref operands i)))
-      (when (typep op 'x86-memory-operand)
-        (let* ((disp (x86-memory-operand-disp op))
+      (when (typep op 'x86::x86-memory-operand)
+        (let* ((disp (x86::x86-memory-operand-disp op))
                (val (early-expression-value disp)))
           (if (typep val '(signed-byte 32))
-            (setf (x86-operand-type op)
-                  (logior (x86-operand-type op) (encode-operand-type :disp32s))))
+            (setf (x86::x86-operand-type op)
+                  (logior (x86::x86-operand-type op) (x86::encode-operand-type :disp32s))))
           (if (typep val '(unsigned-byte 32))
-            (setf (x86-operand-type op)
-                  (logior (x86-operand-type op) (encode-operand-type :disp32))))
-          (if (and (logtest (x86-operand-type op)
-                            (encode-operand-type :disp32 :disp32S :disp16))
+            (setf (x86::x86-operand-type op)
+                  (logior (x86::x86-operand-type op) (x86::encode-operand-type :disp32))))
+          (if (and (logtest (x86::x86-operand-type op)
+                            (x86::encode-operand-type :disp32 :disp32S :disp16))
                    (typep val '(signed-byte 8)))
-            (setf (x86-operand-type op)
-                  (logior (x86-operand-type op) (encode-operand-type :disp8)))))))))
+            (setf (x86::x86-operand-type op)
+                  (logior (x86::x86-operand-type op) (x86::encode-operand-type :disp8)))))))))
 
 (defun x86-output-branch (frag-list insn)
   (let* ((prefixes (x86-lap-instruction-prefixes insn)))
@@ -1084,54 +1219,54 @@
                (let* ((c (aref prefixes index)))
                  (unless (zerop c)
                    (frag-list-push-byte frag-list (or val c)))))))
-      (maybe-output-prefix +DATA-PREFIX+ +data-prefix-opcode+)
-      (when (and prefixes (or (= (aref prefixes +seg-prefix+)
-                                 +cs-prefix-opcode+)
-                              (= (aref prefixes +seg-prefix+)
-                                 +ds-prefix-opcode+)))
-        (maybe-output-prefix +seg-prefix+ nil))
-      (maybe-output-prefix +rex-prefix+ nil)
+      (maybe-output-prefix x86::+DATA-PREFIX+ x86::+data-prefix-opcode+)
+      (when (and prefixes (or (= (aref prefixes x86::+seg-prefix+)
+                                 x86::+cs-prefix-opcode+)
+                              (= (aref prefixes x86::+seg-prefix+)
+                                 x86::+ds-prefix-opcode+)))
+        (maybe-output-prefix x86::+seg-prefix+ nil))
+      (maybe-output-prefix x86::+rex-prefix+ nil)
       (finish-frag-for-branch frag-list
                               (x86-lap-instruction-base-opcode insn)
                               (svref (x86-lap-instruction-parsed-operands insn)
                                      0)))))
 
-  
+
 (defun x86-generate-instruction-code (frag-list insn)
   (let* ((template (x86-lap-instruction-template insn))
          (operands (x86-lap-instruction-parsed-operands insn))
-         (opcode-modifier (x86-instruction-template-opcode-modifier template))
+         (opcode-modifier (x86::x86-instruction-template-opcode-modifier template))
          (default-seg nil))
     (optimize-displacements operands)
-    (when (logtest (encode-opcode-modifier :modrm)
-                   (x86-instruction-template-opcode-modifier template))
+    (when (logtest (x86::encode-opcode-modifier :modrm)
+                   (x86::x86-instruction-template-opcode-modifier template))
       (setq default-seg (build-rm-byte insn)))
-    (when (and (= (x86-lap-instruction-base-opcode insn) +int-opcode+)
+    (when (and (= (x86-lap-instruction-base-opcode insn) x86::+int-opcode+)
                (= 1 (length operands))
                (let* ((op0 (svref operands 0)))
-                 (and (typep op0 'x86-immediate-operand)
+                 (and (typep op0 'x86::x86-immediate-operand)
                       (eql 3 (early-expression-value
-                              (x86-immediate-operand-value op0))))))
+                              (x86::x86-immediate-operand-value op0))))))
       (setf operands nil
             (x86-lap-instruction-parsed-operands insn) nil
-            (x86-lap-instruction-base-opcode insn) +int3-opcode+))
-    (if (logtest (x86-instruction-template-opcode-modifier template)
-                 (encode-opcode-modifier :rex64))
+            (x86-lap-instruction-base-opcode insn) x86::+int3-opcode+))
+    (if (logtest (x86::x86-instruction-template-opcode-modifier template)
+                 (x86::encode-opcode-modifier :rex64))
       (setf (x86-lap-instruction-rex insn)
             (logior (or (x86-lap-instruction-rex insn) 0)
-                    +rex-mode64+)))
+                    x86::+rex-mode64+)))
     (let* ((explicit-seg (dotimes (i (length operands))
                            (let* ((op (svref operands i)))
-                             (when (typep op 'x86-memory-operand)
-                               (let* ((seg (x86-memory-operand-seg op)))
+                             (when (typep op 'x86::x86-memory-operand)
+                               (let* ((seg (x86::x86-memory-operand-seg op)))
                                  (if seg (return seg))))))))
       (if (and explicit-seg (not (eq explicit-seg default-seg)))
-        (add-prefix insn (seg-entry-seg-prefix explicit-seg))))
+        (add-prefix insn (x86::seg-entry-seg-prefix explicit-seg))))
     (if (x86-lap-instruction-rex insn)
-      (add-prefix insn (logior (x86-lap-instruction-rex insn) +rex-opcode+)))
+      (add-prefix insn (logior (x86-lap-instruction-rex insn) x86::+rex-opcode+)))
     (let* ((prefixes (x86-lap-instruction-prefixes insn)))
       (cond
-        ((logtest (encode-opcode-modifier :jump) opcode-modifier)
+        ((logtest (x86::encode-opcode-modifier :jump) opcode-modifier)
          ;; a variable-length pc-relative branch, possibly preceded
          ;; by prefixes (used for branch prediction, mostly.)
          (x86-output-branch frag-list insn))
@@ -1151,28 +1286,28 @@
            (let* ((modrm (x86-lap-instruction-rm insn)))
              (when modrm
                (frag-list-push-byte frag-list
-                                    (dpb (modrm-byte-mode modrm)
+                                    (dpb (x86::modrm-byte-mode modrm)
                                          (byte 2 6)
-                                         (dpb (modrm-byte-reg modrm)
+                                         (dpb (x86::modrm-byte-reg modrm)
                                               (byte 3 3)
                                               (ldb (byte 3 0)
-                                                   (modrm-byte-regmem modrm)))))
+                                                   (x86::modrm-byte-regmem modrm)))))
                (let* ((sib (x86-lap-instruction-sib insn)))
-                 (when (and (= (modrm-byte-regmem modrm) +escape-to-two-byte-addressing+)
-                            (not (= (modrm-byte-mode modrm) 3))
+                 (when (and (= (x86::modrm-byte-regmem modrm) x86::+escape-to-two-byte-addressing+)
+                            (not (= (x86::modrm-byte-mode modrm) 3))
                             sib)
                    (frag-list-push-byte frag-list
-                                        (dpb (sib-byte-scale sib)
+                                        (dpb (x86::sib-byte-scale sib)
                                              (byte 2 6)
-                                             (dpb (sib-byte-index sib)
+                                             (dpb (x86::sib-byte-index sib)
                                                   (byte 3 3)
                                                   (ldb (byte 3 0)
-                                                       (sib-byte-base sib)))))))))
+                                                       (x86::sib-byte-base sib)))))))))
            (dotimes (i (length operands))
              (let* ((op (svref operands i))
-                    (optype (x86-operand-type op)))
-               (when (logtest optype (encode-operand-type :disp))
-                 (let* ((disp (x86-memory-operand-disp op))
+                    (optype (x86::x86-operand-type op)))
+               (when (logtest optype (x86::encode-operand-type :disp))
+                 (let* ((disp (x86::x86-memory-operand-disp op))
                         (val (early-expression-value disp)))
                    (if (null val)
                      ;; We can do better job here, but (for now)
@@ -1185,20 +1320,53 @@
                                          :pos pos)
                              (frag-relocs frag))
                        (frag-list-push-32 frag-list 0))
-                     (if (logtest optype (encode-operand-type :disp8))
+                     (if (logtest optype (x86::encode-operand-type :disp8))
                        (frag-list-push-byte frag-list (logand val #xff))
-                       (if (logtest optype (encode-operand-type :disp64))
+                       (if (logtest optype (x86::encode-operand-type :disp64))
                          (frag-list-push-64 frag-list val)
                          (frag-list-push-32 frag-list val))))))))
            ;; Emit immediate operand(s).
-           )))))
+           (dotimes (i (length operands))
+             (let* ((op (svref operands i))
+                    (optype (x86::x86-operand-type op)))
+               (when (logtest optype (x86::encode-operand-type :imm))
+                 (let* ((expr (x86::x86-immediate-operand-value op))
+                        (val (early-expression-value expr)))
+                   (if (null val)
+                    (let* ((frag (frag-list-current frag-list))
+                            (pos (frag-list-position frag-list))
+                            (size 4)
+                            (reloctype :expr32))
+                       (when (logtest optype
+                                    (x86::encode-operand-type
+                                     :imm8 :imm8S :imm16 :imm64))
+                         (setq size 2 reloctype :expr16)
+                         (if (logtest optype (x86::encode-operand-type
+                                              :imm8 :imm8s))
+                           (setq size 1 reloctype :expr8)
+                           (if (logtest optype (x86::encode-operand-type :imm64))
+                             (setq size 8 reloctype :expr64))))
+                       (push (make-reloc :type reloctype
+                                         :arg expr
+                                         :frag frag
+                                         :pos pos)
+                             (frag-relocs frag))
+                       (dotimes (b size)
+                         (frag-list-push-byte frag-list 0)))
+                     (if (logtest optype (x86::encode-operand-type :imm8 :imm8s))
+                       (frag-list-push-byte frag-list (logand val #xff))
+                       (if (logtest optype (x86::encode-operand-type :imm16))
+                         (frag-list-push-16 frag-list (logand val #xffff))
+                         (if (logtest optype (x86::encode-operand-type :disp64))
+                           (frag-list-push-64 frag-list val)
+                           (frag-list-push-32 frag-list val))))))))))))))
 
 (defun x86-lap-directive (frag-list directive arg)
   (if (eq directive :tra)
     (progn
       (finish-frag-for-align frag-list 3)
       (x86-lap-directive frag-list :long `(- 15 (^ ,arg)))
-      (x86-lap-form arg frag-list))
+      (emit-x86-lap-label frag-list arg))
     (let* ((exp (parse-expression arg))
            (constantp (constant-expression-p exp)))
       (if constantp
@@ -1233,18 +1401,25 @@
                        
          
 
-(defun x86-lap-form (form frag-list)
-  (if (atom form)
+(defun x86-lap-form (form frag-list instruction)
+  (if (and form (symbolp form))
     (emit-x86-lap-label frag-list form)
-    (if (eq (car form) 'progn)
-      (dolist (f (cdr form))
-        (x86-lap-form f frag-list))
-      (if (typep (car form) 'keyword)
-        (destructuring-bind (op arg) form
-          (x86-lap-directive frag-list op arg))
-        (let* ((instruction (parse-x86-instruction form)))
-          (ccl::append-dll-node instruction *x86-lap-instructions*)
-          (x86-generate-instruction-code frag-list instruction))))))
+    (if (or (atom form) (not (symbolp (car form))))
+      (error "Unknown X86-LAP form ~s ." form)
+      (multiple-value-bind (expansion expanded)
+          (x86-lap-macroexpand-1 form)
+        (if expanded
+          (x86-lap-form expansion frag-list instruction)
+          (if (eq (car form) 'progn)
+            (dolist (f (cdr form))
+              (x86-lap-form f frag-list instruction))
+            (if (typep (car form) 'keyword)
+              (destructuring-bind (op arg) form
+                (x86-lap-directive frag-list op arg))
+              (progn
+                (reset-x86-instruction instruction)
+                (parse-x86-instruction form instruction)
+                (x86-generate-instruction-code frag-list instruction)))))))))
 
 (defun relax-frag-list (frag-list)
   ;; First, assign tentative addresses to all frags, assuming that
@@ -1288,7 +1463,7 @@
             ((:assumed-short-branch :assumed-short-conditional-branch)
              (destructuring-bind (label-op pos reloc) (cdr (frag-type frag))
                (declare (fixnum pos))
-               (let* ((label (x86-label-operand-label label-op))
+               (let* ((label (x86::x86-label-operand-label label-op))
                       (label-frag (or (x86-lap-label-frag label)
                                       (progn (describe label)
                                              (error "Label ~s was referenced but not defined" (x86-lap-label-name label)))))
@@ -1301,7 +1476,7 @@
                    (cond ((eq (car fragtype) :assumed-short-branch)
                           ;; replace the opcode byte
                           (setf (aref buffer (the fixnum (1- pos)))
-                                      +jump-pc-relative+)
+                                      x86::+jump-pc-relative+)
                           (vector-push-extend 0 buffer)
                           (vector-push-extend 0 buffer)
                           (vector-push-extend 0 buffer)
@@ -1348,12 +1523,12 @@
                 (let* ((pos (reloc-pos reloc))
                        (arg (reloc-arg reloc)))
                   (ecase (reloc-type reloc)
-                    (:branch8 (let* ((label (x86-label-operand-label arg))
+                    (:branch8 (let* ((label (x86::x86-label-operand-label arg))
                                      (target (+ (frag-address (x86-lap-label-frag label))
                                                 (x86-lap-label-offset label)))
                                      (refpos (+ address (1+ pos))))
                                 (emit-byte buffer pos (- target refpos))))
-                    (:branch32 (let* ((label (x86-label-operand-label arg))
+                    (:branch32 (let* ((label (x86::x86-label-operand-label arg))
                                      (target (+ (frag-address (x86-lap-label-frag label))
                                                 (x86-lap-label-offset label)))
                                      (refpos (+ address pos 4)))
@@ -1398,13 +1573,14 @@
          (*x86-lap-labels* ())
          (*x86-lap-constants* ())
          (end-code-tag (gensym))
+         (instruction (make-x86-lap-instruction))
          (frag-list (make-frag-list)))
     (make-x86-lap-label end-code-tag)
     (x86-lap-directive frag-list :long `(ash (- (^ ,end-code-tag ) 8) -3))
     (x86-lap-directive frag-list :short 0)
     (x86-lap-directive frag-list :short 0)
     (dolist (f forms)
-      (x86-lap-form f frag-list))
+      (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
     (emit-x86-lap-label frag-list end-code-tag)
     (dolist (c *x86-lap-constants*)
