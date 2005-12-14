@@ -28,6 +28,7 @@
 (defparameter *features*
   '(:common-lisp
     :openmcl
+    :clozure
     :ansi-cl
     :unix
     ;; Threads and MOP stuff is pretty redundant.
@@ -35,6 +36,8 @@
     :openmcl-partial-mop
     :mcl-common-mop-subset
     :openmcl-mop-2
+    ;; Thread-private hash-tables were introduced in version 1.0
+    :openmcl-private-hash-tables
     #+eabi-target :eabi-target
     #+ppc-target :powerpc
     #+ppc-target :ppc-target
@@ -46,18 +49,25 @@
     #+linux-target :linux-host
     #+linux-target :linux-target
     #+linuxppc-target :linuxppc-target
+    #+linuxppc-target :linuxppc-host
+    #+linuxx86-target :linuxx86-target
     #+darwinppc-target :darwinppc-target
     #+darwinppc-target :darwinppc-host
     #+darwinppc-target :darwin
-    #+darwinppp-target :darwin-target
+    #+darwinppc-target :darwin-target
     #+poweropen-target :poweropen-target
     #+ppc64-target :64-bit-target
     #+ppc64-target :64-bit-host
+    #+x8664-target :64-bit-target
+    #+x8664-target :64-bit-host
     #+ppc32-target :32-bit-target
     #+ppc32-target :32-bit-host
+    #+x8632-target :32-bit-target
+    #+x8632-target :32-bit-host
     #+ppc-target :big-endian-target
     #+ppc-target :big-endian-host
-    :openmcl-private-hash-tables
+    #+x86-target :little-endian-target
+    #+x86-target :little-endian-host
     )
   "a list of symbols that describe features provided by the
    implementation")
