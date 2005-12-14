@@ -275,8 +275,8 @@
     initial-tcr                         ; initial thread's context record
     ))
 
-; The order here matches "ccl:pmcl;lisp_globals.h" and the nrs record
-; in "ccl:pmcl;constants.s".
+;;; The order here matches "ccl:lisp-kernel;lisp_globals.h" and the nrs record
+;;; in "ccl:lisp-kernel;constants.s".
 (defparameter *ppc-nilreg-relative-symbols*
   '(t
     nil

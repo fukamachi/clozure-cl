@@ -618,9 +618,10 @@
       (- (+ symbol.size fulltag-misc (* (1+ pos) word-size-in-bytes)))
       (error "Unknown kernel global : ~s ." sym))))
 
-; The kernel imports things that are defined in various other libraries for us.
-; The objects in question are generally fixnum-tagged; the entries in the
-; "kernel-imports" vector are 8 bytes apart.
+;;; The kernel imports things that are defined in various other
+;;; libraries for us.  The objects in question are generally
+;;; fixnum-tagged; the entries in the "kernel-imports" vector are 8
+;;; bytes apart.
 (ccl::defenum (:prefix "KERNEL-IMPORT-" :start 0 :step word-size-in-bytes)
   fd-setsize-bytes
   do-fd-set
