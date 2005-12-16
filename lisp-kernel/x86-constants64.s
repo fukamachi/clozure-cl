@@ -606,8 +606,7 @@ TCR_BIAS = -512
 	 _node(prev)		/* in doubly-linked list */
 	 _node(next)		/* in doubly-linked list */
 	 _node(linear)		/* our linear (non-segment-based) address. */
-         _node(linear_end)      /* linear, - TCR_BIAS */
-         _node(single_float_convert) /* xxxf0 */
+         _node(linear_end)      /* linear, + TCR_BIAS */
 	 _word(lisp_fpscr)	/* lisp thread's fpscr (in low word) */
 	 _word(lisp_fpscr_low)
 	 _node(db_link)		/* special binding chain head */
@@ -619,8 +618,8 @@ TCR_BIAS = -512
 	 _node(vs_area)		/* vstack area pointer */
 	 _node(ts_area)		/* tstack area pointer */
 	 _node(cs_limit)	/* cstack overflow limit */
-	 _word(bytes_consed_high)
 	 _word(bytes_consed_low)
+	 _word(bytes_consed_high)
 	 _node(OLDinterrupt_level)
 	 _node(interrupt_pending)
 	 _node(xframe)		/* per-thread exception frame list */
@@ -651,7 +650,7 @@ TCR_BIAS = -512
 	 _node(shutdown_count)
 	_ends
 
-	
+
 	
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
 TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)	

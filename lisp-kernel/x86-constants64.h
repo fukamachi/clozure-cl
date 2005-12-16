@@ -376,10 +376,7 @@ typedef struct tcr {
   struct tcr* next;
   struct tcr* prev;
   struct tcr* linear;
-  struct {
-    float f;
-    u_int32_t tag;
-  } single_float_convert;
+  void *linear_end;
   union {
     double d;
     struct {u_int32_t h, l;} words;
