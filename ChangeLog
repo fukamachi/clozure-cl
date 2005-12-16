@@ -1,3 +1,44 @@
+2005-12-16 02:15  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s: Some changes
+	to the TCR.
+
+2005-12-16 01:48  gb
+
+	* lib/x8664env.lisp: New file; might be more-or-less right.  (Might
+	want to make some of the bitmasks a bit smaller.)
+
+2005-12-16 01:39  gb
+
+	* level-0/X86/: x86-array.lisp, x86-float.lisp: Mostly just copied
+	from PPC versions; just to exercise X86 LAP/LAPMACROS for now.
+
+2005-12-16 01:37  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Registers can be referenced
+	via small integer as well as by name.
+
+2005-12-16 01:37  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: First draft, may not even
+	compile yet.
+
+2005-12-16 01:36  gb
+
+	* compiler/X86/x86-lapmacros.lisp: More lap macros.
+
+2005-12-16 01:35  gb
+
+	* compiler/X86/x86-lap.lisp: Enough stuff to support cross-compiled
+	DEFX86LAPFUNCTION.
+
+2005-12-16 01:35  gb
+
+	* compiler/X86/x86-asm.lisp: Start defining some UUOs (int n,
+	n=192-255).
+	
+	Define more registers in *x8664-register-entries*.
+
 2005-12-14 01:16  gb
 
 	* level-0/l0-init.lisp: Add :clozure to features (Hey! Marketing!)
