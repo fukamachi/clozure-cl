@@ -21,13 +21,127 @@
 
 (in-package "X8664")
 
+;;; define integer constants which map to
+;;; indices in the X86::*X8664-REGISTER-ENTRIES* array.
+(ccl::defenum ()
+  rax
+  rcx
+  rdx
+  rbx
+  rsp
+  rbp
+  rsi
+  rdi
+  r8
+  r9
+  r10
+  r11
+  r12
+  r13
+  r14
+  r15
+  ;; 32-bit registers
+  eax
+  ecx
+  edx
+  ebx
+  esp
+  ebp
+  esi
+  edi
+  r8d
+  r9d
+  r10d
+  r11d
+  r12d
+  r13d
+  r14d
+  r15d
+  ;; 16-bit-registers
+  ax
+  cx
+  dx
+  bx
+  sp
+  bp
+  si
+  di
+  r8w
+  r9w
+  r10w
+  r11w
+  r12w
+  r13w
+  r14w
+  r15w
+  ;; 8-bit registers
+  al
+  cl
+  dl
+  bl
+  spl
+  bpl
+  sil
+  dil
+  r8b
+  r9b
+  r10b
+  r11b
+  r12b
+  r13b
+  r14b
+  r15b
+       ;;; xmm registers
+  xmm0
+  xmm1
+  xmm2
+  xmm3
+  xmm4
+  xmm5
+  xmm6
+  xmm7
+  xmm8
+  xmm9
+  xmm10
+  xmm11
+  xmm12
+  xmm13
+  xmm14
+  xmm15
+  ;; MMX registers
+  mm0
+  mm1
+  mm2
+  mm3
+  mm4
+  mm5
+  mm6
+  mm7
+  ;; x87 FP regs.  May or may not be useful.
+  st[0]
+  st[1]
+  st[2]
+  st[3]
+  st[4]
+  st[5]
+  st[6]
+  st[7]
+  ;; Segment registers
+  cs
+  ds
+  ss
+  es
+  fs
+  gs
+  )
+
 (defmacro defx86reg (alias known)
   (let* ((known-entry (gensym)))
     `(let* ((,known-entry (gethash ,(string known) x86::*x86-registers*)))
       (unless ,known-entry
         (error "register ~a not defined" ',known))
       (setf (gethash ,(string alias) x86::*x86-registers*) ,known-entry)
-      ',alias)))
+      (defconstant ,alias ,known))))
 
 (defx86reg imm0 rax)
 (defx86reg imm0.l eax)
@@ -99,17 +213,38 @@
 (defx86reg save0.w r15w)
 (defx86reg save0.b r15b)
 
+;;; Use xmm regs for floating-point.  (They can also hold integer values.)
+(defx86reg fp0 xmm0)
+(defx86reg fp1 xmm1)
+(defx86reg fp2 xmm2)
+(defx86reg fp3 xmm3)
+(defx86reg fp4 xmm4)
+(defx86reg fp5 xmm5)
+(defx86reg fp6 xmm6)
+(defx86reg fp7 xmm7)
+(defx86reg fp8 xmm8)
+(defx86reg fp9 xmm9)
+(defx86reg fp10 xmm10)
+(defx86reg fp11 xmm11)
+(defx86reg fp12 xmm12)
+(defx86reg fp13 xmm13)
+(defx86reg fp14 xmm14)
+(defx86reg fp15 xmm15)
+
+
 ;;; Using %fs to access the TCR may be Linux-specific.
 (defx86reg rcontext fs)
 (defx86reg fname temp0)
 (defx86reg next-method-context temp1)
 (defx86reg nargs temp2.w)
 
-(defx86reg ra0 fn)
-(defx86reg ra1 nfn)
+(defx86reg ra0 nfn)
+(defx86reg ra1 fn)
 
 (defx86reg allocptr temp0)
 
+
+    
 (defconstant nbits-in-word 64)
 (defconstant nbits-in-byte 8)
 (defconstant ntagbits 4)
@@ -458,7 +593,6 @@
   next					; in doubly-linked list
   linear
   linear-end
-  single-float-convert			; per-thread scratch space.
   lisp-fpscr-high
   db-link				; special binding chain head 
   catch-top				; top catch frame 
