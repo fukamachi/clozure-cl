@@ -313,7 +313,19 @@
     (new-frag frag-list)))
 
 (defun lookup-x86-register (regname designator)
-  (let* ((r (gethash (string regname) x86::*x86-registers*)))
+  (let* ((r (typecase regname
+              (symbol (or (gethash (string regname) x86::*x86-registers*)
+                          (and (boundp regname)
+                               (let* ((val (symbol-value regname)))
+                                 (and (typep val 'fixnum)
+                                      (>= val 0)
+                                      (< val (length x86::*x8664-register-entries*))
+                                      (svref x86::*x8664-register-entries* val))))))
+              (fixnum (if (and (typep regname 'fixnum)
+                                      (>= regname 0)
+                                      (< regname (length x86::*x8664-register-entries*)))
+                        (svref x86::*x8664-register-entries* regname))))))
+                               
     (when r
       (if (eq designator :%)
         r
@@ -326,6 +338,18 @@
             (:%w (x86::x86-reg16 r))
             (:%l (x86::x86-reg32 r))
             (:%q (x86::x86-reg64 r))))))))
+
+(defun x86-register-ordinal-or-expression (form)
+  (let* ((r (if (typep form 'symbol)
+              (lookup-x86-register form :%))))
+    (if r
+      (x86::reg-entry-ordinal64 r)
+      (multiple-value-bind (val condition)
+          (ignore-errors (eval form))
+        (if condition
+          (error "Condition ~a signaled during assembly-time evalation of ~s."
+                 condition form)
+          val)))))
 
 
 ;;; It may seem strange to have an expression language in a lisp-based
@@ -413,6 +437,18 @@
        (x86-lap-label-offset lab))))
 
 (defun parse-expression (form)
+  (when (quoted-form-p form)
+    (let* ((val (cadr form)))
+      (if (typep val 'fixnum)
+        (setq form (ash val 3 #|x8664::fixnumshift|#))
+        (let* ((constant-label (or (cdr (assoc val *x86-lap-constants*
+                                               :test #'eq))
+                                   (let* ((label (make-x86-lap-label
+                                                  (gensym)))
+                                          (pair (cons val label)))
+                                     (push pair *x86-lap-constants*)
+                                     label))))
+          (setq form `(- (^ ,(x86-lap-label-name constant-label)) (^ @entry)))))))
   (if (label-address-expression-p form)
     (make-label-expression :label (find-or-create-x86-lap-label (cadr form)))
     (if (contains-label-address-expression form)
@@ -534,21 +570,12 @@
                 ((1 2 4 8)
                  (if (and base (not index))
                    (setq index base base nil))
-                 (setq scale (1- (integer-length scale))))
+                 (setq scale (1- (integer-length val))))
                 (t
                  (error "Invalid scale factor ~s in ~s" head form))))
             (if (not (or disp base index))
               (setq disp (parse-expression head))
               (error "~& not expected in ~s" head form)))))))))
-
-            
-          
-(defun encode-immediate-type (val)
-  (typecase val
-    (null (x86::encode-operand-type :imm32))
-    ((signed-byte 8) (x86::encode-operand-type :imm8 :imm8s))
-    ((signed-byte 32) (x86::encode-operand-type :imm32 :imm32s))
-    (t (x86::encode-operand-type :imm64))))
 
      
     
@@ -567,10 +594,8 @@
       (if (symbolp head)
         (cond ((string= head '$)
                (destructuring-bind (immval) (cdr form)
-                 (let* ((expr (parse-expression immval))
-                        (value (early-expression-value  expr))
-                        (type (encode-immediate-type value)))
-                 (x86::make-x86-immediate-operand :type type
+                 (let* ((expr (parse-expression immval)))
+                   (x86::make-x86-immediate-operand :type (x86::encode-operand-type :imm64)
                                              :value expr))))
               ((setq designator (x86-register-designator form))
                (destructuring-bind (reg) (cdr form)
@@ -903,7 +928,85 @@
        (x86::encode-operand-type :Imm32 :Imm64))
       (t (x86::encode-operand-type :Imm64)))))
        
-  
+(defun x86-finalize-operand-types (inst)
+  (let* ((template (x86-lap-instruction-template inst))
+         (operands (x86-lap-instruction-parsed-operands inst))
+         (suffix (x86-lap-instruction-suffix inst))
+         (template-types (x86::x86-instruction-template-operand-types
+                          template))
+         (prefixes (x86-lap-instruction-prefixes inst))
+         (noperands (length operands)))
+    (declare (fixnum noperands))
+    (when (> noperands 0)
+      (let* ((op0 (svref operands 0))
+             (op-type0 (x86::x86-operand-type op0))
+             (template-type0 (svref template-types 0))
+             (overlap0 (logand op-type0 template-type0)))
+        (when (and (logtest overlap0 (x86::encode-operand-type
+                                      :imm8 :imm8s :imm16 :imm32 :imm32s :imm64))
+                   (not (eql (logcount overlap0) 1)))
+          (if suffix
+            (setq overlap0
+                  (logand overlap0
+                          (case suffix
+                            (#\b (x86::encode-operand-type :imm8 :imm8s))
+                            (#\w (x86::encode-operand-type :imm16))
+                            (#\q (x86::encode-operand-type :imm64 :imm32s))
+                            (t (x86::encode-operand-type :imm32)))))
+            (if (or (= overlap0 (x86::encode-operand-type :imm16 :imm32S :imm32))
+                    (= overlap0 (x86::encode-operand-type :imm16 :imm32))
+                    (= overlap0 (x86::encode-operand-type :imm16 :imm32S)))
+              (setq overlap0 (if (and prefixes (not (eql (aref prefixes
+                                                               x86::+data-prefix+)
+                                                         0)))
+                               (x86::encode-operand-type :imm16)
+                               (x86::encode-operand-type :imm32s)))))
+          (unless (= (logcount overlap0) 1)
+            (error "Can't determine size of immediate operand in ~s"
+                   inst)))
+        ;; Do this regardless of whether or not op was immediate
+        (setf (x86::x86-operand-type op0) overlap0))
+      (when (> noperands 1)
+        (let* ((op1 (svref operands 1))
+               (op-type1 (x86::x86-operand-type op1))
+               (template-type1 (svref template-types 1))
+               (overlap1 (logand op-type1 template-type1)))
+          (when (and (logtest overlap1 (x86::encode-operand-type
+                                        :imm8 :imm8s :imm16 :imm32 :imm32s :imm64))
+                     (not (eql (logcount overlap1) 1)))
+            (if suffix
+              (setq overlap1
+                    (logand overlap1
+                            (case suffix
+                              (#\b (x86::encode-operand-type :imm8 :imm8s))
+                              (#\w (x86::encode-operand-type :imm16))
+                              (#\q (x86::encode-operand-type :imm64 :imm32s))
+                              (t (x86::encode-operand-type :imm32)))))
+              (if (or (= overlap1 (x86::encode-operand-type :imm16 :imm32S :imm32))
+                      (= overlap1 (x86::encode-operand-type :imm16 :imm32))
+                      (= overlap1 (x86::encode-operand-type :imm16 :imm32S)))
+                (setq overlap1 (if (and prefixes (not (eql (aref prefixes
+                                                                 x86::+data-prefix+)
+                                                           0)))
+                                 (x86::encode-operand-type :imm16)
+                                 (x86::encode-operand-type :imm32s)))))
+            (unless (= (logcount overlap1) 1)
+              (error "Can't determine size of immediate operand in ~s"
+                     inst)))
+          (setf (x86::x86-operand-type op1) overlap1))
+        (when (= noperands 3)
+          (let* ((op2 (svref operands 2))
+                 (op-type2 (x86::x86-operand-type op2))
+                 (template-type2 (svref template-types 2)))
+            ;; third operand can't be an immediate
+            (setf (x86::x86-operand-type op2)
+                  (logand op-type2 template-type2))))))))
+        
+          
+          
+          
+        
+    
 (defun x86-optimize-imm (operands suffix)
   (unless suffix
     ;; See if we can determine an implied suffix from operands.
@@ -912,7 +1015,7 @@
       (declare (fixnum i))
       (let* ((op (svref operands i))
              (optype (x86::x86-operand-type op)))
-        (when (logtest op (x86::encode-operand-type :reg))
+        (when (logtest optype (x86::encode-operand-type :reg))
           (cond ((logtest optype (x86::encode-operand-type :reg8))
                  (setq suffix #\b))
                 ((logtest optype (x86::encode-operand-type :reg16))
@@ -1004,6 +1107,7 @@
                        (when (match-template template parsed-operands suffix)
                          (init-x86-lap-instruction instruction template parsed-operands suffix)
                          (check-suffix instruction form)
+                         (x86-finalize-operand-types instruction)
                          (return instruction)))))))))))
     (parse-x86-instruction-aux form nil)))
 
@@ -1011,7 +1115,23 @@
   (cond ((logtest type (x86::encode-operand-type :disp8)) 1)
         ((logtest type (x86::encode-operand-type :disp16 :disp32 :disp32S)) 2)
         (t 0)))
-  
+
+(defun x86-process-instruction-shortform (instruction)
+  (let* ((operands (x86-lap-instruction-parsed-operands instruction))
+         (op0 (svref operands 0))
+         (op1 (svref operands 1))
+         (reg (if (logtest (x86::encode-operand-type :reg)
+                           (x86::x86-operand-type op0))
+                (x86::x86-register-operand-entry op0)
+                (x86::x86-register-operand-entry op1))))
+    (setf (x86-lap-instruction-base-opcode instruction)
+          (logior (x86-lap-instruction-base-opcode instruction)
+                  (x86::reg-entry-reg-num reg)))
+    (when (logtest (x86::reg-entry-reg-flags reg) x86::+regrex+)
+      (setf (x86-lap-instruction-rex instruction)
+            (logior (or (x86-lap-instruction-rex instruction) 0)
+                    x86::+rex-extz+)))))
+
 (defun build-rm-byte (insn)
   (let* ((rm (x86::make-modrm-byte))
          (default-seg nil)
@@ -1199,7 +1319,7 @@
     (let* ((op (svref operands i)))
       (when (typep op 'x86::x86-memory-operand)
         (let* ((disp (x86::x86-memory-operand-disp op))
-               (val (early-expression-value disp)))
+               (val (if disp (early-expression-value disp))))
           (if (typep val '(signed-byte 32))
             (setf (x86::x86-operand-type op)
                   (logior (x86::x86-operand-type op) (x86::encode-operand-type :disp32s))))
@@ -1238,8 +1358,9 @@
          (opcode-modifier (x86::x86-instruction-template-opcode-modifier template))
          (default-seg nil))
     (optimize-displacements operands)
-    (when (logtest (x86::encode-opcode-modifier :modrm)
-                   (x86::x86-instruction-template-opcode-modifier template))
+    (when (logtest (x86::encode-opcode-modifier :shortform) opcode-modifier)
+      (x86-process-instruction-shortform insn))
+    (when (logtest (x86::encode-opcode-modifier :modrm) opcode-modifier)
       (setq default-seg (build-rm-byte insn)))
     (when (and (= (x86-lap-instruction-base-opcode insn) x86::+int-opcode+)
                (= 1 (length operands))
@@ -1357,7 +1478,7 @@
                        (frag-list-push-byte frag-list (logand val #xff))
                        (if (logtest optype (x86::encode-operand-type :imm16))
                          (frag-list-push-16 frag-list (logand val #xffff))
-                         (if (logtest optype (x86::encode-operand-type :disp64))
+                         (if (logtest optype (x86::encode-operand-type :imm64))
                            (frag-list-push-64 frag-list val)
                            (frag-list-push-32 frag-list val))))))))))))))
 
@@ -1410,16 +1531,21 @@
           (x86-lap-macroexpand-1 form)
         (if expanded
           (x86-lap-form expansion frag-list instruction)
-          (if (eq (car form) 'progn)
-            (dolist (f (cdr form))
-              (x86-lap-form f frag-list instruction))
-            (if (typep (car form) 'keyword)
+          (if (typep (car form) 'keyword)
               (destructuring-bind (op arg) form
                 (x86-lap-directive frag-list op arg))
+            (case (car form)
               (progn
-                (reset-x86-instruction instruction)
-                (parse-x86-instruction form instruction)
-                (x86-generate-instruction-code frag-list instruction)))))))))
+                (dolist (f (cdr form))
+                  (x86-lap-form f frag-list instruction)))
+              (let
+                  (destructuring-bind (equates &body body)
+                      (cdr form)
+                  (x86-lap-equate-form equates frag-list instruction body)))
+              (t
+               (reset-x86-instruction instruction)
+               (parse-x86-instruction form instruction)
+               (x86-generate-instruction-code frag-list instruction)))))))))
 
 (defun relax-frag-list (frag-list)
   ;; First, assign tentative addresses to all frags, assuming that
@@ -1563,12 +1689,61 @@
           (format t "~&"))
         (format t "~2,'0x " (aref buffer i))))))
 
-          
+(defun x86-lap-equate-form (eqlist fraglist instruction  body) 
+  (let* ((symbols (mapcar #'(lambda (x)
+                              (let* ((name (car x)))
+                                (or
+                                 (and name 
+                                      (symbolp name)
+                                      (not (constant-symbol-p name))
+                                      name)
+                                 (error 
+                                  "~S is not a bindable symbol name ." name))))
+                          eqlist))
+         (values (mapcar #'(lambda (x) (x86-register-ordinal-or-expression
+                                        (cadr x)))
+                         eqlist)))
+    (progv symbols values
+      (dolist (form body)
+        (x86-lap-form form fraglist instruction)))))          
                 
-                 
+#-x86-target
+(defun cross-create-x86-function (name frag-list constants bits)
+  (let* ((constants-vector (%alloc-misc (+ (length constants)
+                                           (if name 3 2))
+                                        target::subtag-xfunction)))
+    (unless name (setq bits (logior bits (ash -1 $lfbits-noname-bit))))
+    (let* ((last (1- (uvsize constants-vector))))
+      (declare (fixnum last))
+      (setf (uvref constants-vector last) bits)
+      (when name
+        (setf (uvref constants-vector (decf last)) name))
+      (dolist (c constants)
+        (setf (uvref constants-vector (decf last)) c))
+      (let* ((nbytes 0))
+        (do-dll-nodes (frag frag-list)
+          (incf nbytes (length (frag-code-buffer frag))))
+        (let* ((code-vector (make-array nbytes
+                                        :element-type '(unsigned-byte 8)))
+               (target-offset 0))
+          (declare (fixnum target-offset))
+          (setf (uvref constants-vector 0) code-vector)
+          (do-dll-nodes (frag frag-list)
+            (let* ((buffer (frag-code-buffer frag))
+                   (length (length buffer)))
+              (declare (fixnum length))
+              (when buffer
+                (multiple-value-bind (data offset)
+                    (array-data-and-offset buffer)
+                  (%copy-ivector-to-ivector data
+                                            offset
+                                            code-vector
+                                            target-offset
+                                            length)
+                  (incf target-offset length)))))
+          constants-vector)))))
       
-;;; For testing.
-(defun x86-lap (forms)
+(defun %define-x86-lap-function (name forms function-creator &optional (bits 0))
   (let* ((*x86-lap-instructions* (ccl::make-dll-header))
          (*x86-lap-labels* ())
          (*x86-lap-constants* ())
@@ -1576,9 +1751,11 @@
          (instruction (make-x86-lap-instruction))
          (frag-list (make-frag-list)))
     (make-x86-lap-label end-code-tag)
+    (make-x86-lap-label '@entry)    
     (x86-lap-directive frag-list :long `(ash (- (^ ,end-code-tag ) 8) -3))
     (x86-lap-directive frag-list :short 0)
     (x86-lap-directive frag-list :short 0)
+    (emit-x86-lap-label frag-list '@entry)
     (dolist (f forms)
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
@@ -1586,11 +1763,31 @@
     (dolist (c *x86-lap-constants*)
       (emit-x86-lap-label frag-list (cdr c))
       (x86-lap-directive frag-list :quad 0))
+    (when name
+      (x86-lap-directive frag-list :quad 0))
+    ;; room for lfun-bits
+    (x86-lap-directive frag-list :quad 0)
     (relax-frag-list frag-list)
     (apply-relocs frag-list)
     (fill-for-alignment frag-list)
-    (ccl::do-dll-nodes (i *x86-lap-instructions*)
-      (format t "~&~s" i))
-    (show-frag-bytes frag-list)
-    frag-list))
+    (funcall function-creator name frag-list (mapcar #'car *x86-lap-constants*) bits)))
 
+
+(defmacro defx86lapfunction (&environment env name arglist &body body
+                             &aux doc)
+  (if (not (endp body))
+      (and (stringp (car body))
+           (cdr body)
+           (setq doc (car body))
+           (setq body (cdr body))))
+  `(progn
+     (eval-when (:compile-toplevel)
+       (note-function-info ',name t ,env))
+     #-x86-target
+     (progn
+       (eval-when (:load-toplevel)
+         (%defun (nfunction ,name (lambda (&lap 0) (x86-lap-function ,name ,arglist ,@body))) ,doc))
+       (eval-when (:execute)
+         (%define-x86-lap-function ',name '((let ,arglist ,@body)) #'cross-create-x86-function)))
+     #+x86-target	; just shorthand for defun
+     (%defun (nfunction ,name (lambda (&lap 0) (x86-lap-function ,name ,arglist ,@body))) ,doc)))
