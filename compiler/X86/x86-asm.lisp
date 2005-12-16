@@ -1020,6 +1020,13 @@
     ;; i386sl i486sl later 486 and Pentium.
     ("rsm" () (#x0faa) :cpu386 :nosuf)
 
+    ;; UUOs, which are basically just INT instructions with operands
+    ;; in the range #xc0-#xff
+    ;; Those in the range #xc0-#xcf take no (pseudo-)operands
+    ("uuo-error-too-few-args" () (#xcdc0) :cpu086 :nosuf)
+    ("uuo-error-too-many-args" () (#xcdc1) :cpu086 :nosuf)
+    ("uuo-error-wrong-number-of-args" () (#xcdc2) :cpu086 :nosuf)
+    
     ("bound" (:wordreg :wordmem) (#x62) (:cpu186 :cpuno64) (:wl-suf :modrm))
 
     ("hlt" () (#xf4) :cpu086 :nosuf)
@@ -2769,7 +2776,50 @@
        (register-entry "r12b")
        (register-entry "r13b")
        (register-entry "r14b")
-       (register-entry "r15b"))))
+       (register-entry "r15b")
+       ;;; xmm registers
+       (register-entry "xmm0")
+       (register-entry "xmm1")
+       (register-entry "xmm2")
+       (register-entry "xmm3")
+       (register-entry "xmm4")
+       (register-entry "xmm5")
+       (register-entry "xmm6")
+       (register-entry "xmm7")
+       (register-entry "xmm8")
+       (register-entry "xmm9")
+       (register-entry "xmm10")
+       (register-entry "xmm11")
+       (register-entry "xmm12")
+       (register-entry "xmm13")
+       (register-entry "xmm14")
+       (register-entry "xmm15")
+       ;; MMX registers
+       (register-entry "mm0")
+       (register-entry "mm1")
+       (register-entry "mm2")
+       (register-entry "mm3")
+       (register-entry "mm4")
+       (register-entry "mm5")
+       (register-entry "mm6")
+       (register-entry "mm7")
+       ;; x87 FP regs.  May or may not be useful.
+       (register-entry "st[0]")
+       (register-entry "st[1]")
+       (register-entry "st[2]")
+       (register-entry "st[3]")
+       (register-entry "st[4]")
+       (register-entry "st[5]")
+       (register-entry "st[6]")
+       (register-entry "st[7]")
+       ;; Our friends, the segment registers
+       (register-entry "cs")
+       (register-entry "ds")
+       (register-entry "ss")
+       (register-entry "es")
+       (register-entry "fs")
+       (register-entry "gs")
+       )))
 
 (dotimes (i (length *x8664-register-entries*))
   (let* ((entry (svref *x8664-register-entries* i)))
