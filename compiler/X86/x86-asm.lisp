@@ -2830,6 +2830,14 @@
 (defconstant +x86-32-bit-register+ #x10)
 (defconstant +x86-16-bit-register+ #x20)
 (defconstant +x86-8-bit-register+ #x30)
+(defconstant +x86-segment-register-offset+ #x60)
+
+(defun x86-segment-register (i)
+  (if (and (typep i 'unsigned-byte)
+           (< i 6))
+    (svref *x8664-register-entries* (+ +x86-segment-register-offset+ i))))
+
+    
 
 (defun gpr-ordinal (r)
   (or
