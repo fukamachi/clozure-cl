@@ -321,6 +321,7 @@
                                       (>= val 0)
                                       (< val (length x86::*x8664-register-entries*))
                                       (svref x86::*x8664-register-entries* val))))))
+              (string (gethash regname x86::*x86-registers*))
               (fixnum (if (and (typep regname 'fixnum)
                                       (>= regname 0)
                                       (< regname (length x86::*x8664-register-entries*)))
