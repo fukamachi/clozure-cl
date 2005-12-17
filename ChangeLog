@@ -1,3 +1,22 @@
+2005-12-17 02:50  gb
+
+	* compiler/X86/x86-disassemble.lisp: Not quite finished, but not
+	-too- far away.
+
+2005-12-17 02:49  gb
+
+	* compiler/X86/x86-backend.lisp: Cloned the PPC version and renamed
+	a few things; needs thought/work.
+
+2005-12-17 02:46  gb
+
+	* compiler/X86/x86-asm.lisp: X86-SEGMENT-REGISTER.
+
+2005-12-17 02:45  gb
+
+	* compiler/X86/x86-lap.lisp: LOOKUP-X86-REGISTER accepts strings
+	(again.)
+
 2005-12-16 02:15  gb
 
 	* lisp-kernel/: x86-constants64.h, x86-constants64.s: Some changes
