@@ -79,6 +79,6 @@
 (define-x8664-vinsn misc-set-c-s64 (()
 				    ((val :s64)
 				     (v :lisp)
-				     (idx :u32const)))
+				     (idx :s32const)))
   (movq (% val) (@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (% v))))
 
