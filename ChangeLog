@@ -1,3 +1,17 @@
+2005-12-20 03:25  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Fix a typo.
+
+2005-12-20 03:24  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Maintain symbolic register
+	names, for disassembler.
+
+2005-12-20 03:24  gb
+
+	* compiler/X86/: x86-asm.lisp, x86-disassemble.lisp, x86-lap.lisp,
+	x86-lapmacros.lisp: New! Improved! Almost usable!
+
 2005-12-17 02:50  gb
 
 	* compiler/X86/x86-disassemble.lisp: Not quite finished, but not
