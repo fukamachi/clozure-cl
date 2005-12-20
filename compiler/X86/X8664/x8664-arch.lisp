@@ -21,6 +21,10 @@
 
 (in-package "X8664")
 
+(defparameter *x8664-symbolic-register-names*
+  (make-hash-table :test #'eq)
+  "For the disassembler, mostly")
+
 ;;; define integer constants which map to
 ;;; indices in the X86::*X8664-REGISTER-ENTRIES* array.
 (ccl::defenum ()
@@ -141,6 +145,9 @@
       (unless ,known-entry
         (error "register ~a not defined" ',known))
       (setf (gethash ,(string alias) x86::*x86-registers*) ,known-entry)
+      (unless (gethash ,known-entry *x8664-symbolic-register-names*)
+        (setf (gethash ,known-entry *x8664-symbolic-register-names*)
+              (string-downcase ,(string alias))))
       (defconstant ,alias ,known))))
 
 (defx86reg imm0 rax)
