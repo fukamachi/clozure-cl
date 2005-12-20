@@ -381,54 +381,54 @@
               (when (contains-label-address-expression sub)
                 (return t))))))
 
-(defstruct expression
+(defstruct x86-lap-expression
   )
 
 
-(defstruct (label-expression (:include expression))
+(defstruct (label-x86-lap-expression (:include x86-lap-expression))
   label)
 
 
 ;;; Represents a constant
-(defstruct (constant-expression (:include expression))
+(defstruct (constant-x86-lap-expression (:include x86-lap-expression))
   value)
 
 ;;; Also support 0, 1, 2, and many args, where at least one of those args
 ;;; is or contains a label reference.
-(defstruct (application-expression (:include expression))
+(defstruct (application-x86-lap-expression (:include x86-lap-expression))
   operator)
 
 
-(defstruct (unary-expression (:include application-expression))
+(defstruct (unary-x86-lap-expression (:include application-x86-lap-expression))
   operand)
 
 
-(defstruct (binary-expression (:include application-expression))
+(defstruct (binary-x86-lap-expression (:include application-x86-lap-expression))
   operand0
   operand1)
 
-(defstruct (n-ary-expression (:include application-expression))
+(defstruct (n-ary-x86-lap-expression (:include application-x86-lap-expression))
   operands)
 
 ;;; Looks like a job for DEFMETHOD.
-(defun expression-value (exp)
+(defun x86-lap-expression-value (exp)
   (etypecase exp
-    (constant-expression (constant-expression-value exp))
-    (label-expression (x86-lap-label-address (label-expression-label exp)))
-    (unary-expression (funcall (unary-expression-operator exp)
-                               (expression-value (unary-expression-operand exp))))
-    (binary-expression (funcall (binary-expression-operator exp) 
-                                (expression-value (binary-expression-operand0 exp))
-                                (expression-value (binary-expression-operand1 exp))))
-    (n-ary-expression (apply (n-ary-expression-operator exp)
-                             (mapcar #'expression-value (n-ary-expression-operands exp))))))
+    (constant-x86-lap-expression (constant-x86-lap-expression-value exp))
+    (label-x86-lap-expression (x86-lap-label-address (label-x86-lap-expression-label exp)))
+    (unary-x86-lap-expression (funcall (unary-x86-lap-expression-operator exp)
+                                       (x86-lap-expression-value (unary-x86-lap-expression-operand exp))))
+    (binary-x86-lap-expression (funcall (binary-x86-lap-expression-operator exp) 
+                                        (x86-lap-expression-value (binary-x86-lap-expression-operand0 exp))
+                                        (x86-lap-expression-value (binary-x86-lap-expression-operand1 exp))))
+    (n-ary-x86-lap-expression (apply (n-ary-x86-lap-expression-operator exp)
+                                     (mapcar #'x86-lap-expression-value (n-ary-x86-lap-expression-operands exp))))))
 
 ;;; Expression might contain unresolved labels.  Return nil if so (even
 ;;; if everything -could- be resolved.)
-(defun early-expression-value (expression)
+(defun early-x86-lap-expression-value (expression)
   (etypecase expression
-    (constant-expression (constant-expression-value expression))
-    (expression nil)))
+    (constant-x86-lap-expression (constant-x86-lap-expression-value expression))
+    (x86-lap-expression nil)))
 
 (defun x86-lap-label-address (lab)
   (let* ((frag (or (x86-lap-label-frag lab)
@@ -437,7 +437,7 @@
     (+ (frag-address frag)
        (x86-lap-label-offset lab))))
 
-(defun parse-expression (form)
+(defun parse-x86-lap-expression (form)
   (when (quoted-form-p form)
     (let* ((val (cadr form)))
       (if (typep val 'fixnum)
@@ -451,19 +451,19 @@
                                      label))))
           (setq form `(- (^ ,(x86-lap-label-name constant-label)) (^ @entry)))))))
   (if (label-address-expression-p form)
-    (make-label-expression :label (find-or-create-x86-lap-label (cadr form)))
+    (make-label-x86-lap-expression :label (find-or-create-x86-lap-label (cadr form)))
     (if (contains-label-address-expression form)
       (destructuring-bind (op &rest args) form
         (case (length args)
-          (1 (make-unary-expression :operator op :operand (parse-expression (car args))))
-          (2 (make-binary-expression :operator op :operand0 (parse-expression (car args))
-                                     :operand1 (parse-expression (cadr args))))
-          (t (make-n-ary-expression :operator op :operands (mapcar #'parse-expression args)))))
+          (1 (make-unary-x86-lap-expression :operator op :operand (parse-x86-lap-expression (car args))))
+          (2 (make-binary-x86-lap-expression :operator op :operand0 (parse-x86-lap-expression (car args))
+                                     :operand1 (parse-x86-lap-expression (cadr args))))
+          (t (make-n-ary-x86-lap-expression :operator op :operands (mapcar #'parse-x86-lap-expression args)))))
       (multiple-value-bind (value condition)
           (eval form)
         (if condition
           (error "~a signaled during assembly-time evaluation of form ~s" condition form)
-          (make-constant-expression :value value))))))
+          (make-constant-x86-lap-expression :value value))))))
 
 (defun parse-x86-register-operand (regname designator)
   (let* ((r (lookup-x86-register regname designator)))
@@ -564,9 +564,9 @@
           ;; a scale factor.
           (if (and (null (cdr f))
                    (or disp base index))
-            (let* ((exp (parse-expression head))
-                   (val (if (typep exp 'constant-expression)
-                          (expression-value exp))))
+            (let* ((exp (parse-x86-lap-expression head))
+                   (val (if (typep exp 'constant-x86-lap-expression)
+                          (x86-lap-expression-value exp))))
               (case val
                 ((1 2 4 8)
                  (if (and base (not index))
@@ -575,7 +575,7 @@
                 (t
                  (error "Invalid scale factor ~s in ~s" head form))))
             (if (not (or disp base index))
-              (setq disp (parse-expression head))
+              (setq disp (parse-x86-lap-expression head))
               (error "~& not expected in ~s" head form)))))))))
 
      
@@ -595,7 +595,7 @@
       (if (symbolp head)
         (cond ((string= head '$)
                (destructuring-bind (immval) (cdr form)
-                 (let* ((expr (parse-expression immval)))
+                 (let* ((expr (parse-x86-lap-expression immval)))
                    (x86::make-x86-immediate-operand :type (x86::encode-operand-type :imm64)
                                              :value expr))))
               ((setq designator (x86-register-designator form))
@@ -1031,7 +1031,7 @@
            (optype (x86::x86-operand-type op)))
       (when (logtest optype (x86::encode-operand-type :imm))
         (let* ((val (x86::x86-immediate-operand-value op)))
-          (cond ((typep val 'constant-expression)
+          (cond ((typep val 'constant-x86-lap-expression)
                  (case suffix
                    (#\l (setf (x86::x86-operand-type op)
                               (logior optype (x86::encode-operand-type
@@ -1044,7 +1044,7 @@
                                               :imm8 :imm16 :imm32S  :imm32 :imm64)))))
                  (setf (x86::x86-operand-type op)
                        (logior (x86::x86-operand-type op)
-                               (smallest-imm-type (expression-value val))))
+                               (smallest-imm-type (x86-lap-expression-value val))))
                  (when (eql suffix #\q)
                    (setf (x86::x86-operand-type op)
                          (logandc2 (x86::x86-operand-type op)
@@ -1078,6 +1078,15 @@
                  (x86::get-x86-instruction-templates-and-suffix mnemonic)
                (let* ((t0 (car templates))
                       (t0-modifier (x86::x86-instruction-template-opcode-modifier t0)))
+                 (when (or (eql suffix #\+)
+                           (eql suffix #\-))
+                   (if (logtest t0-modifier
+                                  (x86::encode-opcode-modifier :jump :jumpbyte))
+                     (if (eql suffix #\+)
+                       (add-prefix instruction x86::+ds-prefix-opcode+)
+                       (add-prefix instruction x86::+cs-prefix-opcode+))
+                     (error "Instruction suffix ~c invalid. " suffix))
+                   (setq suffix nil))
                  (if (logtest t0-modifier
                               (x86::encode-opcode-modifier :isprefix))
                    (let* ((prefix (x86::x86-instruction-template-base-opcode t0)))
@@ -1120,11 +1129,11 @@
 (defun x86-process-instruction-shortform (instruction)
   (let* ((operands (x86-lap-instruction-parsed-operands instruction))
          (op0 (svref operands 0))
-         (op1 (svref operands 1))
          (reg (if (logtest (x86::encode-operand-type :reg)
                            (x86::x86-operand-type op0))
                 (x86::x86-register-operand-entry op0)
-                (x86::x86-register-operand-entry op1))))
+                (let* ((op1 (svref operands 1)))
+                  (x86::x86-register-operand-entry op1)))))
     (setf (x86-lap-instruction-base-opcode instruction)
           (logior (x86-lap-instruction-base-opcode instruction)
                   (x86::reg-entry-reg-num reg)))
@@ -1277,11 +1286,11 @@
                                         x86::+regrex+)
                            (setf (x86-lap-instruction-rex insn)
                                  (logior x86::+rex-exty+
-                                         (or (x86-lap-instruction-rex insn) 0)))))))))
-            (setf (x86::modrm-byte-mode rm) (mode-from-disp-size (x86::x86-memory-operand-type memop)))
+                                         (or (x86-lap-instruction-rex insn) 0))))))
+                     (setf (x86::modrm-byte-mode rm) (mode-from-disp-size (x86::x86-memory-operand-type memop))))))
             (when fake-zero-displacement
               (setf (x86::x86-memory-operand-disp memop)
-                    (make-constant-expression :value 0)
+                    (make-constant-x86-lap-expression :value 0)
                     (x86::x86-operand-type memop)
                     (logior (x86::x86-operand-type memop) (x86::encode-operand-type :disp8) )))))
         (let* ((regop (dotimes (i (length operands))
@@ -1320,7 +1329,7 @@
     (let* ((op (svref operands i)))
       (when (typep op 'x86::x86-memory-operand)
         (let* ((disp (x86::x86-memory-operand-disp op))
-               (val (if disp (early-expression-value disp))))
+               (val (if disp (early-x86-lap-expression-value disp))))
           (if (typep val '(signed-byte 32))
             (setf (x86::x86-operand-type op)
                   (logior (x86::x86-operand-type op) (x86::encode-operand-type :disp32s))))
@@ -1367,7 +1376,7 @@
                (= 1 (length operands))
                (let* ((op0 (svref operands 0)))
                  (and (typep op0 'x86::x86-immediate-operand)
-                      (eql 3 (early-expression-value
+                      (eql 3 (early-x86-lap-expression-value
                               (x86::x86-immediate-operand-value op0))))))
       (setf operands nil
             (x86-lap-instruction-parsed-operands insn) nil
@@ -1396,7 +1405,8 @@
            (let* ((base-opcode (x86-lap-instruction-base-opcode insn)))
              (declare (fixnum base-opcode))
              (when (logtest base-opcode #xff0000)
-               (add-prefix insn (ldb (byte 8 16) base-opcode)))
+               (add-prefix insn (ldb (byte 8 16) base-opcode))
+               (setq prefixes (x86-lap-instruction-prefixes insn)))
              (dotimes (i (length prefixes))
                (let* ((b (aref prefixes i)))
                  (declare (type (unsigned-byte 8) b))
@@ -1430,7 +1440,7 @@
                     (optype (x86::x86-operand-type op)))
                (when (logtest optype (x86::encode-operand-type :disp))
                  (let* ((disp (x86::x86-memory-operand-disp op))
-                        (val (early-expression-value disp)))
+                        (val (early-x86-lap-expression-value disp)))
                    (if (null val)
                      ;; We can do better job here, but (for now)
                      ;; generate a 32-bit relocation
@@ -1453,7 +1463,7 @@
                     (optype (x86::x86-operand-type op)))
                (when (logtest optype (x86::encode-operand-type :imm))
                  (let* ((expr (x86::x86-immediate-operand-value op))
-                        (val (early-expression-value expr)))
+                        (val (early-x86-lap-expression-value expr)))
                    (if (null val)
                     (let* ((frag (frag-list-current frag-list))
                             (pos (frag-list-position frag-list))
@@ -1489,10 +1499,10 @@
       (finish-frag-for-align frag-list 3)
       (x86-lap-directive frag-list :long `(- 15 (^ ,arg)))
       (emit-x86-lap-label frag-list arg))
-    (let* ((exp (parse-expression arg))
-           (constantp (constant-expression-p exp)))
+    (let* ((exp (parse-x86-lap-expression arg))
+           (constantp (constant-x86-lap-expression-p exp)))
       (if constantp
-        (let* ((val (expression-value exp)))
+        (let* ((val (x86-lap-expression-value exp)))
           (ecase directive
             (:byte (frag-list-push-byte frag-list val))
             (:short (frag-list-push-16 frag-list val))
@@ -1591,11 +1601,7 @@
              (destructuring-bind (label-op pos reloc) (cdr (frag-type frag))
                (declare (fixnum pos))
                (let* ((label (x86::x86-label-operand-label label-op))
-                      (label-frag (or (x86-lap-label-frag label)
-                                      (progn (describe label)
-                                             (error "Label ~s was referenced but not defined" (x86-lap-label-name label)))))
-                      (label-address (+ (frag-address label-frag)
-                                        (x86-lap-label-offset label)))
+                      (label-address (x86-lap-label-address label))
                       (branch-pos (+ address (1+ pos)))
                       (buffer (frag-code-buffer frag))
                       (diff (- branch-pos label-address)))
@@ -1651,19 +1657,17 @@
                        (arg (reloc-arg reloc)))
                   (ecase (reloc-type reloc)
                     (:branch8 (let* ((label (x86::x86-label-operand-label arg))
-                                     (target (+ (frag-address (x86-lap-label-frag label))
-                                                (x86-lap-label-offset label)))
+                                     (target (x86-lap-label-address label))
                                      (refpos (+ address (1+ pos))))
                                 (emit-byte buffer pos (- target refpos))))
                     (:branch32 (let* ((label (x86::x86-label-operand-label arg))
-                                     (target (+ (frag-address (x86-lap-label-frag label))
-                                                (x86-lap-label-offset label)))
+                                     (target (x86-lap-label-address label))
                                      (refpos (+ address pos 4)))
                                 (emit-long buffer pos (- target refpos))))
-                    (:expr8 (emit-byte buffer pos  (expression-value arg)))
-                    (:expr16 (emit-short buffer pos (expression-value arg)))
-                    (:expr32 (emit-long buffer pos (expression-value arg)))
-                    (:expr64 (emit-quad buffer pos (expression-value arg)))))))))))))
+                    (:expr8 (emit-byte buffer pos  (x86-lap-expression-value arg)))
+                    (:expr16 (emit-short buffer pos (x86-lap-expression-value arg)))
+                    (:expr32 (emit-long buffer pos (x86-lap-expression-value arg)))
+                    (:expr64 (emit-quad buffer pos (x86-lap-expression-value  arg)))))))))))))
                              
 
 (defun fill-for-alignment (frag-list)
@@ -1755,14 +1759,14 @@
     (make-x86-lap-label '@entry)    
     (x86-lap-directive frag-list :long `(ash (- (^ ,end-code-tag ) 8) -3))
     (x86-lap-directive frag-list :short 0)
-    (x86-lap-directive frag-list :short 0)
+    (x86-lap-directive frag-list :byte 0)
     (emit-x86-lap-label frag-list '@entry)
     (dolist (f forms)
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
     (emit-x86-lap-label frag-list end-code-tag)
     (dolist (c *x86-lap-constants*)
-      (emit-x86-lap-label frag-list (cdr c))
+      (emit-x86-lap-label frag-list (x86-lap-label-name (cdr c)))
       (x86-lap-directive frag-list :quad 0))
     (when name
       (x86-lap-directive frag-list :quad 0))
@@ -1771,6 +1775,7 @@
     (relax-frag-list frag-list)
     (apply-relocs frag-list)
     (fill-for-alignment frag-list)
+    ;;(show-frag-bytes frag-list)
     (funcall function-creator name frag-list (mapcar #'car *x86-lap-constants*) bits)))
 
 

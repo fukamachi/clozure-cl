@@ -25,30 +25,30 @@
     (if (= max min)
       `(progn
         (cmpw ($ ',min) (% nargs))
-        (je (^ ,ok))
+        (je+ (^ ,ok))
         (uuo-error-wrong-number-of-args)
         ,ok)
       (if (null max)
         (unless (zerop min)
           `(progn
             (cmpw ($ ',min) (% nargs))
-            (jae (^ ,ok))
+            (jae+ (^ ,ok))
             (uuo-error-too-few-args)
             ,ok))
         (if (zerop min)
           `(progn
             (cmpw ($ ',max) (% nargs))
-            (jb (^ ,ok))
+            (jb+ (^ ,ok))
             (uuo-error-too-many-args)
             ,ok)
           (let* ((sofar (gensym)))
             `(progn
               (cmpw ($ ',min) (% nargs))
-              (jae (^ ,sofar))
+              (jae+ (^ ,sofar))
               (uuo-error-too-few-args)
               ,sofar
               (cmpw ($ ',max) (% nargs))
-              (jb ( ^ ,ok))
+              (jb+ ( ^ ,ok))
               (uuo-error-too-many-args)
               ,ok)))))))
 
@@ -61,7 +61,8 @@
     (xchg (% fn) (% nfn))
     (pushq (% nfn))
     (pushq (% rbp))
-    (movq (% rsp) (% rbp))
+    (movq (% rsp) (% rbp))))
+
 
 (defx86lapmacro extract-lisptag (node dest)
   `(progn
@@ -106,6 +107,14 @@
     (movd (% ,src) (% ,node))           ; dest now tagged as a fixnum
     (movb ($ x8664::subtag-single-float) (%b ,node)) ; fix that
     ))
+
+(defx86lapmacro get-double-float (src fpreg)
+  `(movsd (@ x8664::double-float.value (% ,src)) (% ,fpreg)))
+
+(defx86lapmacro put-double-float (fpreg dest)
+  `(movsd (% ,fpreg) (@ x8664::double-float.value (% ,dest))))
+  
+
   
 (defx86lapmacro getvheader (src dest)
   `(movq (@ x8664::misc-header-offset (% ,src)) (% ,dest)))

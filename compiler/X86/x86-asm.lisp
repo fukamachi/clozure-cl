@@ -1913,7 +1913,7 @@
         (declare (fixnum m n))
         (if (and (> m 0)
                  (position (setq suffix (char-downcase (schar s m)))
-                           "bwlqx"
+                           "bwlqx+-"
                            :test #'char=))
           (let* ((sub (make-string m)))
             (declare (dynamic-extent sub))
@@ -2700,7 +2700,9 @@
       (maybe (x86-memory-operand-disp x))
       (maybe (x86-memory-operand-base x))
       (maybe (x86-memory-operand-index x))
-      (maybe (x86-memory-operand-scale x)))
+      (let* ((scale (x86-memory-operand-scale x)))
+        (if (and scale (not (eql scale 0)))
+          (subforms (ash 1 scale)))))
   `(@ ,@(subforms))))
 
 (macrolet ((register-entry (name)
@@ -2830,6 +2832,9 @@
 (defconstant +x86-32-bit-register+ #x10)
 (defconstant +x86-16-bit-register+ #x20)
 (defconstant +x86-8-bit-register+ #x30)
+(defconstant +x86-xmm-register-offset+ #x40)
+(defconstant +x86-mmx-register-offset+ #x50)
+(defconstant +x86-fpu-register-offset+ #x58)
 (defconstant +x86-segment-register-offset+ #x60)
 
 (defun x86-segment-register (i)
@@ -2837,6 +2842,13 @@
            (< i 6))
     (svref *x8664-register-entries* (+ +x86-segment-register-offset+ i))))
 
+(defun x86-xmm-register (i)
+  (if (typep i '(mod 16))
+    (svref *x8664-register-entries* (+ +x86-xmm-register-offset+ i))))
+
+(defun x86-mmx-register (i)
+  (if (typep i '(mod 8))
+    (svref *x8664-register-entries* (+ +x86-mmx-register-offset+ i))))
     
 
 (defun gpr-ordinal (r)
