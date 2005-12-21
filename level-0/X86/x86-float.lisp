@@ -48,25 +48,18 @@
   (blr))
 
 
+;;; Maybe we should trap - or something - on NaNs.
 (defx86lapfunction %%double-float-abs! ((n arg_y)(val arg_z))
   (get-double-float n fp1)
   (fabs fp1 fp1)
   (put-double-float fp1 val)
   (blr))
 
-#+ppc32-target
-(defx86lapfunction %%short-float-abs! ((n arg_y) (val arg_z))
-  (get-single-float fp1 n)
-  (fabs fp0 fp1)
-  (put-single-float fp0 val)
-  (blr))
 
-#+ppc64-target
 (defx86lapfunction %short-float-abs ((n arg_z))
-  (get-single-float fp1 n)
-  (fabs fp0 fp1)
-  (put-single-float fp0 arg_z)
-  (blr))
+  (xchg (% nfn) (% fn))
+  (btr (% 63) n)
+  (jmp (* (% nfn))))
 
 
 
@@ -224,9 +217,11 @@
     (blr)))
 
 (defx86lapfunction %copy-double-float ((f1 arg_y) (f2 arg_z))
-  (lfd fp0 target::double-float.value f1)
-  (stfd fp0 target::double-float.value f2)
-  (blr))
+  (xchg (% nfn) (% fn))
+  (get-double-float f1 fp1)
+  (put-double-float fp1 f2)
+  (jmp (* (% nfn))))
+
                    
 
 #+ppc32-target
@@ -577,8 +572,8 @@
 (defx86lapfunction %double-float-sign ((n arg_z))
   (xchg (% fn) (% nfn))
   (movl (@ x8664::double-float.val-high (% n)) (% imm0.l))
-  (testl (% imm0.l) (%imm0.l))
-  (movl ($ x8664::t-value) (% immm0.l))
+  (testl (% imm0.l) (% imm0.l))
+  (movl ($ x8664::t-value) (% imm0.l))
   (movl ($ x8664::nil-value) (% arg_z.l))
   (cmovlq (% imm0) (% arg_z))
   (jmp (* (% ra0))))
