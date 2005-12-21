@@ -153,8 +153,8 @@
         (setq *available-backend-imm-temps* (bitclr bit mask))
         (return (set-regspec-mode bit (gpr-mode-name-value mode-name)))))))
 
-;; Condition-register fields are PPC-specific, but we might as well have
-;; a portable interface to them.
+;;; Condition-register fields are PPC-specific, but we might as well have
+;;; a portable interface to them.
 
 (defun use-crf-temp (n)
   (declare (fixnum n))
@@ -257,10 +257,10 @@
       (vector-push-extend (make-vinsn-label lnum) *backend-labels*))))
 
 
-; Loop through all labels in *backend-labels*; if the label
-; has been emitted, remove it from vinsns and return it to
-; the *vinsn-label-freelist*. 
-; "vinsns" should then contain nothing but ... vinsns
+;;; Loop through all labels in *backend-labels*; if the label has been
+;;; emitted, remove it from vinsns and return it to the
+;;; *vinsn-label-freelist*.  "vinsns" should then contain nothing but
+;;; ... vinsns
 
 (defun backend-remove-labels ()
   (let* ((labels *backend-labels*)
@@ -283,7 +283,7 @@
 (defun backend-merge-labels (from-lab to-lab)
   (let* ((to-refs (vinsn-label-refs to-lab)))
     (when to-refs
-      ; Make all extant refs to TO-LAB refer to FROM-LAB
+      ;; Make all extant refs to TO-LAB refer to FROM-LAB
       (setf (vinsn-label-refs to-lab) nil)
       (dolist (vinsn to-refs)
         (push vinsn (vinsn-label-refs from-lab))
@@ -292,10 +292,11 @@
           (dotimes (i (the fixnum (length vp)))
             (when (eq to-lab (svref vp i))
               (setf (svref vp i) from-lab))))))))
-; For now, the register-spec must be 
-; a) non-nil
-; c) of an expected class.
-; Return the class and value.
+
+;;; For now, the register-spec must be 
+;;; a) non-nil
+;;; c) of an expected class.
+;;; Return the class and value.
 (defun regspec-class-and-value (regspec expected)
   (declare (fixnum expected))
   (let* ((class (hard-regspec-class regspec)))
@@ -337,7 +338,7 @@
 
 
 
-; Choose an immediate register (for targeting), but don't "reserve" it.
+;;; Choose an immediate register (for targeting), but don't "reserve" it.
 (defmacro with-imm-target ((&rest reserved) spec &body body)
   (let* ((name (if (atom spec) spec (car spec)))
          (mode-name (if (atom spec) :natural (cadr spec))))
