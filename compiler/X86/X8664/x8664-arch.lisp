@@ -21,6 +21,7 @@
 
 (in-package "X8664")
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
 (defparameter *x8664-symbolic-register-names*
   (make-hash-table :test #'eq)
   "For the disassembler, mostly")
@@ -308,6 +309,7 @@
 (defconstant fulltag-symbol 14)
 (defconstant fulltag-function 15)
 
+
 (defmacro define-subtag (name tag value)
   `(defconstant ,(ccl::form-symbol "SUBTAG-" name) (logior ,tag (ash ,value ntagbits))))
 
@@ -404,6 +406,7 @@
 (defconstant max-8-bit-constant-index (+ #x7fffffff x8664::misc-data-offset))
 (defconstant max-1-bit-constant-index (ash (+ #x7fffffff x8664::misc-data-offset) 5))
 
+)
 (defmacro define-storage-layout (name origin &rest cells)
   `(progn
     (ccl::defenum (:start ,origin :step 8)
@@ -593,7 +596,9 @@
   protsize                              ; number of bytes to protect
   why)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
 (defconstant tcr-bias 512)
+)
 
 (define-storage-layout tcr (- tcr-bias)
   prev					; in doubly-linked list 
@@ -843,6 +848,8 @@
 (defparameter *x8664-subprims-shift* 3)
 (defparameter *x8664-subprims-base* (ash 5 12) )
 )
+
+(declaim (special *x8664-subprims*))
 
 ;;; For now, nothing's nailed down and we don't say anything about
 ;;; registers clobbered.

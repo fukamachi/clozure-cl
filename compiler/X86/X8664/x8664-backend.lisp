@@ -29,11 +29,11 @@
 (defvar *known-x8664-backends* ())
 
 
-#+linuxx86-target
+#+(or linuxx86-target (not x86-target))
 (defvar *linuxx8664-backend*
-  (make-backend :lookup-opcode #'lookup-x86-opcode
-		:lookup-macro #'x86::x86-macro-function
-		:lap-opcodes x86::*x86-opcodes*
+  (make-backend #| :lookup-opcode #'lookup-x86-opcode |#
+                #| :lookup-macro #'x86::x86-macro-function |#
+                #| :lap-opcodes x86::*x86-opcodes* |#
 		:p2-dispatch *x862-specials*
 		:p2-vinsn-templates *x8664-vinsn-templates*
 		:p2-template-hash-name '*x8664-vinsn-templates*
@@ -52,9 +52,9 @@
 
 #+darwinx86-target
 (defvar *darwinx8664-backend*
-  (make-backend :lookup-opcode #'lookup-x86-opcode
-		:lookup-macro #'x86::x86-macro-function
-		:lap-opcodes x86::*x86-opcodes*
+  (make-backend #| :lookup-opcode #'lookup-x86-opcode |#
+		#| :lookup-macro #'x86::x86-macro-function |#
+		#| :lap-opcodes x86::*x86-opcodes* |#
 		:p2-dispatch *x862-specials*
 		:p2-vinsn-templates *x8664-vinsn-templates*
 		:p2-template-hash-name '*x8664-vinsn-templates*
@@ -69,7 +69,7 @@
 		:target-foreign-type-data nil
                 :target-arch x8664::*x8664-target-arch*))
 
-#+linuxx86-target
+#+(or linuxx86-target (not x86-target))
 (pushnew *linuxx8664-backend* *known-x8664-backends* :key #'backend-name)
 
 
@@ -80,7 +80,7 @@
 
 (defun fixup-x8664-backend ()
   (dolist (b *known-x8664-backends*)
-    (setf (backend-lap-opcodes b) x86::*x86-opcodes*
+    (setf #| (backend-lap-opcodes b) x86::*x86-opcodes* |#
 	  (backend-p2-dispatch b) *x862-specials*
 	  (backend-p2-vinsn-templates b)  *x8664-vinsn-templates*)
     (or (backend-lap-macros b) (setf (backend-lap-macros b)
@@ -92,27 +92,28 @@
 
 #+x8664-target
 (setq *host-backend* *x8664-backend* *target-backend* *x8664-backend*)
+
 #-x8664-target
 (unless (backend-target-foreign-type-data *x8664-backend*)
   (let* ((ftd (make-ftd
                :interface-db-directory
-               #+darwinx86-target "ccl:darwin-headers64;"
-               #+linuxx86-target "ccl:headers64;"
+               #+darwinx86-target "ccl:darwin-x86-headers64;"
+               #+(or linuxx86-target (not x86-target)) "ccl:x86-headers64;"
                :interface-package-name
-               #+darwinx86-target "DARWIN64"
-               #+linuxx86-target "LINUX64"
+               #+darwinx86-target "X86-DARWIN64"
+               #+(or linuxx86-target (not x86-target)) "X86-LINUX64"
                :attributes
                #+darwinx86-target
                '(:signed-char t
                  :struct-by-value t
                  :prepend-underscores t
                  :bits-per-word  64)
-               #+linuxx86-target
+               #+(or linuxx86-target (not x86-target))
                '(:bits-per-word  64))))
     (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)
     (setf (backend-target-foreign-type-data *x8664-backend*) ftd)))
-  
+
 (pushnew *x8664-backend* *known-backends* :key #'backend-name)
 
 #+x8664-target
