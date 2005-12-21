@@ -1,3 +1,7 @@
+2005-12-21 07:36  gb
+
+	* x86-headers64/libc/C/: .cvsignore, populate.sh: new files
+
 2005-12-21 07:01  gb
 
 	* level-0/X86/x86-float.lisp: A few small changes, mostly to see if
