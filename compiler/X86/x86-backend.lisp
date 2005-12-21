@@ -34,11 +34,14 @@
 
 (defparameter *x86-backend*
   #+x8632-target *x8632-backend*
-  #+x8664-target *x8664-backend*)
+  #+x8664-target *x8664-backend*
+  #-x86-target nil)
 
 	      
 (defun fixup-x86-backend (&rest args)
   #+x8632-target (apply #'fixup-x8632-backend args)
-  #+x8664-target (apply #'fixup-x8664-backend args))
+  #+x8664-target (apply #'fixup-x8664-backend args)
+  #-x86-target (declare (ignore args))
+  )
 
-  
+(provide "X86-BACKEND")
