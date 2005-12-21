@@ -89,17 +89,6 @@
       (values (funcall expander form nil) t)
       (values form nil))))
 
-(defmethod print-object ((i x86-lap-instruction) stream)
-  (let* ((template (x86-lap-instruction-template i))
-         (operands (x86-lap-instruction-parsed-operands i)))
-    (print-unreadable-object (i stream :type t)
-      (when template
-        (format stream "~a" (x86::x86-instruction-template-name template))
-        (let* ((suffix (x86-lap-instruction-suffix i)))
-          (when suffix
-            (format stream "[~c]" suffix)))
-        (dotimes (i (length operands))
-          (format stream " ~a" (x86::unparse-operand (svref operands i))))))))
 
 (defmethod print-object ((l x86-lap-label) stream)
   (print-unreadable-object (l stream :type t)
