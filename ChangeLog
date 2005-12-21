@@ -1,3 +1,40 @@
+2005-12-21 07:01  gb
+
+	* level-0/X86/x86-float.lisp: A few small changes, mostly to see if
+	they'll disassemble.
+
+2005-12-21 06:58  gb
+
+	* compiler/X86/x86-asm.lisp: Lose UNPARSE-OPERAND methods. 
+	EVAL-WHEN cleanup.
+
+2005-12-21 06:57  gb
+
+	* compiler/X86/x86-backend.lisp: Don't assume an x86-target.
+
+2005-12-21 06:57  gb
+
+	* compiler/X86/x86-lap.lisp: Lose the PRINT-OBJECT method, now that
+	there's a mostly-working disassembler.
+
+2005-12-21 06:55  gb
+
+	* compiler/X86/X8664/: x8664-backend.lisp, x8664-arch.lisp: use
+	EVAL-WHEN, so it at least compiles ...
+
+2005-12-21 06:53  gb
+
+	* lib/: systems.lisp, compile-ccl.lisp: Some X86 stuff.
+
+2005-12-21 06:52  gb
+
+	* compiler/backend.lisp: Compulsive comment formatting.
+
+2005-12-21 06:52  gb
+
+	* compiler/PPC/ppc-backend.lisp: *PPC-BACKEND* is nil if not on a
+	PPC.
+
 2005-12-20 03:25  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: Fix a typo.
