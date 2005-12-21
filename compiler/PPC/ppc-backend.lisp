@@ -34,7 +34,10 @@
 
 (defparameter *ppc-backend*
   #+ppc32-target *ppc32-backend*
-  #+ppc64-target *ppc64-backend*)
+  #+ppc64-target *ppc64-backend*
+  #-(or ppc32-target ppc64-target)
+  nil)
+
 
 	      
 (defun fixup-ppc-backend (&rest args)
