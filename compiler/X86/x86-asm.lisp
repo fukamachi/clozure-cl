@@ -14,7 +14,9 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-(require "X86-ARCH" "ccl:compiler;X86;x86-arch")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+(require "X86-ARCH")
+)
 
 (in-package "X86")
 
@@ -344,6 +346,8 @@
 (defconstant +operand-type-WordMem+ +operand-type-AnyMem+) ; 16 or 32 bit memory ref
 (defconstant +operand-type-ByteMem+ +operand-type-AnyMem+) ; 8 bit memory ref
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+
 (defparameter *x86-operand-type-names*
   `((:Reg8 . ,+operand-type-Reg8+)
     (:Reg16 . ,+operand-type-Reg16+)
@@ -407,6 +411,7 @@
                (setq k (logior k k0))
                (return))))))
      (if errorp (error "Unknown x86 operand type ~s" optype)))))
+)
 
 (defmacro encode-operand-type (&rest op)
   (%encode-operand-type op t))
@@ -442,6 +447,7 @@
 (defconstant +RegRex+ #x1) ; Extended register.
 (defconstant +RegRex64+ #x2) ; Extended 8 bit register.
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
 ;;; these are for register name --> number & type hash lookup
 (defstruct reg-entry
   reg-name
@@ -452,11 +458,16 @@
   ordinal32
 )
 
+(defmethod make-load-form ((r reg-entry) &optional env)
+  (declare (ignore env))
+  (make-load-form-saving-slots r))
+
 (defstruct seg-entry
   seg-name
   seg-prefix
 )
 
+)
 ;;; 386 operand encoding bytes:  see 386 book for details of this.
 (defstruct modrm-byte
   regmem ; codes register or memory operand
@@ -1928,6 +1939,8 @@
 
 ;;; 386 register table.
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+
 (defconstant +REGNAM-AL+ 1) ; Entry in i386-regtab.
 (defconstant +REGNAM-AX+ 25)
 (defconstant +REGNAM-EAX+ 41)
@@ -2654,6 +2667,8 @@
 
 (init-x86-registers)
 
+)
+
 
 (defstruct x86-operand
   (type ))
@@ -2684,26 +2699,6 @@
   scale                                 ; scale factor, multiplied with index
   )
 
-(defmethod unparse-operand ((x x86-register-operand))
-  `(% ,(reg-entry-reg-name (x86-register-operand-entry x))))
-
-(defmethod unparse-operand ((x x86-immediate-operand))
-  `($ ,(x86-immediate-operand-value x)))
-
-(defmethod unparse-operand ((x x86-label-operand))
-  `(^ ,(ccl::x86-lap-label-name (x86-label-operand-label x))))
-
-(defmethod unparse-operand ((x x86-memory-operand))
-  (ccl::collect ((subforms))
-    (flet ((maybe (f) (if f (subforms f))))
-      (maybe (x86-memory-operand-seg x))
-      (maybe (x86-memory-operand-disp x))
-      (maybe (x86-memory-operand-base x))
-      (maybe (x86-memory-operand-index x))
-      (let* ((scale (x86-memory-operand-scale x)))
-        (if (and scale (not (eql scale 0)))
-          (subforms (ash 1 scale)))))
-  `(@ ,@(subforms))))
 
 (macrolet ((register-entry (name)
              (let* ((r (gethash name *x86-registers*)))
