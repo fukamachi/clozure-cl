@@ -43,14 +43,25 @@
 
 
 (defparameter *ppc-compiler-modules*
-      '(ppc32-arch
-        ppc64-arch
-	ppc-arch
-        ppcenv
-        ppc-asm
-        ppc-lap
-	ppc-backend
+  '(ppc32-arch
+    ppc64-arch
+    ppc-arch
+    ppcenv
+    ppc-asm
+    ppc-lap
+    ppc-backend
 ))
+
+(defparameter *x86-compiler-modules*
+  '(#| ppc32-arch |#                    ; not yet
+    x8664-arch
+    x86-arch
+    x86env
+    x86-asm
+    x86-lap
+    x86-backend
+    )
+  )
 
 (defparameter *ppc32-compiler-backend-modules*
   '(ppc32-backend ppc32-vinsns))
@@ -62,19 +73,32 @@
   '(ppc2))
 
 
+(defparameter *x8632-compiler-backend-modules*
+  '(x8632-backend x8632-vinsns))
+
+(defparameter *x8664-compiler-backend-modules*
+  '(x8664-backend x8664-vinsns))
+
+(defparameter *x86-compiler-backend-modules*
+  '(x862))
+
+
 
 
 (defparameter *ppc-xload-modules* '(xppcfasload xfasload heap-image ))
 
 
 
-;; Not too OS-specific.
+;;; Not too OS-specific.
 (defparameter *ppc-xdev-modules* '(ppc-lapmacros ))
+(defparameter *x86-xdev-modules* '(x86-lapmacros ))
+
 (defun target-xdev-modules (&optional (target
 				       (backend-target-arch-name
 					*host-backend*)))
   (case target
-    ((:ppc32 :ppc64) *ppc-xdev-modules*)))
+    ((:ppc32 :ppc64) *ppc-xdev-modules*)
+    ((:x8632 :x8664) *x86-xdev-modules*)))
 
 (defun target-xload-modules (&optional (target
 					(backend-target-arch-name *host-backend*)))
@@ -87,13 +111,13 @@
 
 
 (defparameter *env-modules*
-      '(hash backquote lispequ  level-2 macros
-        defstruct-macros lists chars setf setf-runtime
-        defstruct defstruct-lds 
-	foreign-types
-	db-io
-	nfcomp
-	))
+  '(hash backquote lispequ  level-2 macros
+    defstruct-macros lists chars setf setf-runtime
+    defstruct defstruct-lds 
+    foreign-types
+    db-io
+    nfcomp
+    ))
 
 (defun target-env-modules (&optional (target
 				      (backend-target-arch-name
@@ -113,10 +137,10 @@
                     *ppc-compiler-backend-modules*))))
 
 (defparameter *other-lib-modules*
-      '(streams pathnames backtrace
-        apropos
-        numbers 
-        dumplisp   source-files))
+  '(streams pathnames backtrace
+    apropos
+    numbers 
+    dumplisp   source-files))
 
 (defun target-other-lib-modules (&optional (target
 					    (backend-target-arch-name
