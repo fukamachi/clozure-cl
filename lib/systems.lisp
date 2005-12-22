@@ -109,7 +109,7 @@
     (x8664-arch       "ccl:bin;x8664-arch"       ("ccl:compiler;X86;X8664;x8664-arch.lisp"))
     (arch             "ccl:bin;arch"             ("ccl:compiler;arch.lisp"))
     (ppcenv           "ccl:bin;ppcenv"           ("ccl:lib;ppcenv.lisp"))
-    (x86env           "ccl:bin;x86env"           ("ccl:lib;x86env.lisp"))
+    (x8664env         "ccl:bin;x8664env"         ("ccl:lib;x8664env.lisp"))
     (vreg             "ccl:bin;vreg"             ("ccl:compiler;vreg.lisp"))
     (ppc-asm          "ccl:bin;ppc-asm"          ("ccl:compiler;PPC;ppc-asm.lisp"))
     (x86-asm          "ccl:bin;x86-asm"          ("ccl:compiler;X86;x86-asm.lisp"))

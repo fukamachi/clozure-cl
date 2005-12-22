@@ -53,12 +53,11 @@
 ))
 
 (defparameter *x86-compiler-modules*
-  '(#| ppc32-arch |#                    ; not yet
-    x8664-arch
-    x86-arch
-    x86env
+  '(x86-arch
     x86-asm
     x86-lap
+    x8664-arch
+    x8664env
     x86-backend
     )
   )
