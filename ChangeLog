@@ -1,3 +1,27 @@
+2005-12-22 10:13  gb
+
+	* compiler/X86/x86-asm.lisp: Start trying to separate x86-64 from
+	x86-32 stuff, a little.
+
+2005-12-22 10:12  gb
+
+	* compiler/X86/: X8664/x8664-arch.lisp, x86-disassemble.lisp:
+	"symbolic registers" map standard reg names (not x86-reg-entrys) to
+	lisp reg names.
+
+2005-12-22 10:11  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Tweak target features,
+	target-arch id.
+
+2005-12-22 10:10  gb
+
+	* lib/: compile-ccl.lisp, systems.lisp: Update a little more.
+
+2005-12-22 10:09  gb
+
+	* x86-headers64/libc/.cvsignore: new
+
 2005-12-21 07:36  gb
 
 	* x86-headers64/libc/C/: .cvsignore, populate.sh: new files
