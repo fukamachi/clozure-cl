@@ -1,3 +1,7 @@
+2005-12-22 10:34  gb
+
+	* compiler/X86/x86-asm.lisp: Being compilable is good.
+
 2005-12-22 10:13  gb
 
 	* compiler/X86/x86-asm.lisp: Start trying to separate x86-64 from
