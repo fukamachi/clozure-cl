@@ -19,6 +19,10 @@
 
 (in-package "CCL")
 
+(defparameter *backtrace-show-internal-frames* nil)
+(defparameter *backtrace-print-level* 2)
+(defparameter *backtrace-print-length* 5)
+
 ;;; This PRINTS the call history on *DEBUG-IO*.  It's more dangerous
 ;;; (because of stack consing) to actually return it.
                                
@@ -45,15 +49,46 @@
           (nth-value-in-frame p i context lfun pc vsp parent-vsp)
         (format t "~&  ~D " i)
         (when name (format t "~s" name))
-        (format t ": ~s" var)
+        (let* ((*print-length* *backtrace-print-length*)
+               (*print-level* *backtrace-print-level*))
+          (format t ": ~s" var))
         (when type (format t " (~S)" type)))))
   (terpri)
   (terpri))
 
+
+(defun backtrace-call-arguments (context cfp lfun pc)
+  (collect ((call))
+    (let* ((name (function-name lfun)))
+      (if (function-is-current-definition? lfun)
+        (call name)
+        (progn
+          (call 'funcall)
+          (call `(function ,(concatenate 'string "#<" (%lfun-name-string lfun) ">")))))
+      (multiple-value-bind (req opt restp keys)
+          (function-args lfun)
+        (when (or (not (eql 0 req)) (not (eql 0 opt)) restp keys)
+          (let* ((arglist (arglist-from-map lfun)))
+            (if (null arglist)
+              (call "???")
+              (progn
+                (dotimes (i req)
+                  (let* ((val (argument-value context cfp lfun pc (pop arglist))))
+                    (if (eq val (%unbound-marker))
+                      (call "?")
+                      (call (let* ((*print-length* *backtrace-print-length*)
+                                   (*print-level* *backtrace-print-level*))
+                              (format nil "~s" val))))))
+                (if (or restp keys (not (eql opt 0)))
+                  (call "[...]"))
+                ))))))
+    (call)))
+
+
 (defun %print-call-history-internal (context start-frame detailed-p
-					 &optional (count most-positive-fixnum))
+                                             &optional (count most-positive-fixnum))
   (let ((*standard-output* *debug-io*)
-        (*print-circle* *error-print-circle*))
+        (*print-circle* nil))
     (do* ((p start-frame (parent-frame p context))
           (frame-number 0 (1+ frame-number))
           (q (last-frame-ptr context)))
@@ -61,16 +96,18 @@
               (>= frame-number count))
           (values))
       (declare (fixnum frame-number frames-shown))
-      (progn
+      (when (or (not (catch-csp-p p context))
+                *backtrace-show-internal-frames*)
         (multiple-value-bind (lfun pc) (cfp-lfun p)
-          (unless (and (typep detailed-p 'fixnum)
-                       (not (= (the fixnum detailed-p) frame-number)))
-            (format t "~&(~x) : ~D ~S ~d"
-                    (index->address p) frame-number
-                    (if lfun (%lfun-name-string lfun))
-                    pc)
-            (when detailed-p
-              (%show-stack-frame p context lfun pc))))))))
+          (when (or lfun *backtrace-show-internal-frames*)
+            (unless (and (typep detailed-p 'fixnum)
+                         (not (= (the fixnum detailed-p) frame-number)))
+              (format t "~&(~x) : ~D ~a ~d"
+                      (index->address p) frame-number
+                      (if lfun (backtrace-call-arguments context p lfun pc))
+                      pc)
+              (when detailed-p
+                (%show-stack-frame p context lfun pc)))))))))
 
 
 (defun %access-lisp-data (vstack-index)
@@ -138,6 +175,67 @@
                           (%i>= pc (uvref ptrs (%i+ j 1)))
                           (%i< pc (uvref ptrs (%i+ j 2)))
                           (return (aref syms i))))))))))))))
+
+(defun argument-value (context cfp lfun pc name)
+  (declare (fixnum pc))
+  (let* ((info (function-symbol-map lfun))
+         (unavailable (%unbound-marker)))
+    (if (null info)
+      unavailable
+      (let* ((names (car info))
+             (addrs (cdr info)))
+        (do* ((nname (1- (length names)) (1- nname))
+              (naddr (- (length addrs) 3) (- naddr 3)))
+             ((or (< nname 0) (< naddr 0)) unavailable)
+          (declare (fixnum nname naddr))
+          (when (eq (svref names nname) name)
+            (let* ((value
+                    (let* ((addr (svref addrs naddr))
+                           (startpc (svref addrs (the fixnum (1+ naddr))))
+                           (endpc (svref addrs (the fixnum (+ naddr 2)))))
+                      (declare (fixnum addr startpc endpc))
+                      (if (or (< pc startpc)
+                              (>= pc endpc))
+                        unavailable
+                        (if (= #o77 (ldb (byte 6 0) addr))
+                          (raw-frame-ref cfp context (ash addr (- (+ target::word-shift 6)))
+                                         unavailable)
+                          (find-register-argument-value context cfp addr unavailable))))))
+              (if (typep value 'value-cell)
+                (setq value (uvref value 0)))
+              (if (self-evaluating-p value)
+                (return value)
+                (return (list 'quote value))))))))))
+
+(defun register-number->saved-register-index (regno)
+  #+ppc-target (- regno ppc::save7)
+  #-ppc-target (NYI))
+
+(defun raw-frame-ref (cfp context index bad)
+  (multiple-value-bind (vfp parent-vfp)
+      (vsp-limits cfp context)
+      (if (< index (- parent-vfp vfp))
+        (%fixnum-ref (- parent-vfp 1 index))
+        bad)))
+  
+(defun find-register-argument-value (context cfp regval bad)
+  (let* ((last-catch (last-catch-since cfp context))
+         (index (register-number->saved-register-index regval)))
+    (or
+     (do* ((child (child-frame cfp context)
+                  (child-frame child context)))
+          ((null child))
+       (multiple-value-bind (lfun pc)
+           (cfp-lfun child)
+         (when lfun
+           (multiple-value-bind (mask where)
+               (registers-used-by lfun pc)
+             (when (if mask (logbitp index mask))
+               (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+               (return (raw-frame-ref child context where bad)))))))
+     (get-register-value nil last-catch index))))
+    
+      
 
 (defun function-args (lfun)
   "Returns 9 values, as follows:
@@ -215,32 +313,32 @@
 ;;;      (perhaps because the "at-pc" argument wasn't specified.
 
 
-;; If the last instruction in a code vector is an
-;; LWZ instruction (of the form "(LWZ rx s16 ry)"),
-;; then 
-;;   this function uses registers RX-R31.  Note that this leaves
-;;    us 2 extra bits, since we're only encoding 3 bits worth of
-;;    register info.
-;;   RX is saved nearest the top of the vstack
-;;   s16 is the offset from the saved-vsp to the address at which
-;;    RX was saved; this is a negative value whose low two bits
-;;    are ignored
-;;   (logior (ash (logand s16 3) 5) rY) is the pc at which
-;;   the registers were saved (a fullword code-vector index).
-;; This scheme lets us encode any "simple" register usage, where
-;; the registers were saved once, saved somewhere within the first 
-;; 128 instructions in the code vector, and nothing interesting (to
-;; backtrace) happens after the registers have been restored.
-;; If the compiler ever gets cleverer about this, we'll have to use
-;; some other scheme (perhaps a STW instruction, preceded by branches).
-;;
-;; Note that the "last instruction" really means "last instruction
-;; before any traceback table"; we should be able to truncate the code
-;; vector (probably by copying it) to strip off the traceback table
-;; without losing this information.
-;; Note also that the disassembler would probably ordinarily want to
-;; hide this last instruction ...
-;;   
+;;; If the last instruction in a code vector is an
+;;; LWZ instruction (of the form "(LWZ rx s16 ry)"),
+;;; then 
+;;;   this function uses registers RX-R31.  Note that this leaves
+;;;    us 2 extra bits, since we're only encoding 3 bits worth of
+;;;    register info.
+;;;   RX is saved nearest the top of the vstack
+;;;   s16 is the offset from the saved-vsp to the address at which
+;;;    RX was saved; this is a negative value whose low two bits
+;;;    are ignored
+;;;   (logior (ash (logand s16 3) 5) rY) is the pc at which
+;;;   the registers were saved (a fullword code-vector index).
+;;; This scheme lets us encode any "simple" register usage, where
+;;; the registers were saved once, saved somewhere within the first 
+;;; 128 instructions in the code vector, and nothing interesting (to
+;;; backtrace) happens after the registers have been restored.
+;;; If the compiler ever gets cleverer about this, we'll have to use
+;;; some other scheme (perhaps a STW instruction, preceded by branches).
+;;;
+;;; Note that the "last instruction" really means "last instruction
+;;; before any traceback table"; we should be able to truncate the code
+;;; vector (probably by copying it) to strip off the traceback table
+;;; without losing this information.
+;;; Note also that the disassembler would probably ordinarily want to
+;;; hide this last instruction ...
+;;;   
 
 #+ppc32-target
 (defun registers-used-by (lfun &optional at-pc)
