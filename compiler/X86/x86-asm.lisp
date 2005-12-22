@@ -419,8 +419,7 @@
 (defstruct x86-instruction-template
   ;; instruction name sans width suffix ("mov" for movl insns)
   name
-  ;; a small integer: an index into the *x86-instruction-templates* vector
-  (index 0)
+  (opcodes nil)                         ; simplified instruction forms
   ;; how many operands
   operands
   ;; base-opcode is the fundamental opcode byte without optional prefix(es).
@@ -1771,6 +1770,7 @@
 
     ;; AMD 3DNow! instructions.
 
+    #|
     ("prefetch" (:bytemem) (#x0f0d 0) :cpu3dnow (:nosuf :ignoresize :modrm))
     ("prefetchw" (:bytemem) (#x0f0d 1) :cpu3dnow (:nosuf :ignoresize :modrm))
     ("femms" () (#x0f0e) :cpu3dnow :nosuf)
@@ -1798,7 +1798,7 @@
     ("pi2fw" ((:regmmx :longmem) :regmmx) (#x0f0f #x0c) :cpu3dnowa(:nosuf :ignoresize :modrm :immext))
     ("pmulhrw" ((:regmmx :longmem) :regmmx) (#x0f0f #xb7) :cpu3dnow (:nosuf :ignoresize :modrm :immext))
     ("pswapd" ((:regmmx :longmem) :regmmx) (#x0f0f #xbb) :cpu3dnowa(:nosuf :ignoresize :modrm :immext))
-
+    |#
     ;; AMD extensions.
     ("syscall" () (#x0f05) :cpuk6 :nosuf)
     ("sysret" () (#x0f07) :cpuk6 (:lq-suf :defaultsize))
@@ -1806,6 +1806,7 @@
     ("rdtscp" () (#x0f01 #xf9) :cpusledgehammer (:nosuf :immext))
 
     ;; VIA PadLock extensions.
+    #|
     ("xstorerng" () (#x000fa7c0) (:cpu686 :cpupadlock) (:nosuf :isstring))
     ("xcryptecb" () (#xf30fa7c8) (:cpu686 :cpupadlock) (:nosuf :isstring))
     ("xcryptcbc" () (#xf30fa7d0) (:cpu686 :cpupadlock) (:nosuf :isstring))
@@ -1816,6 +1817,7 @@
     ("xsha256" () (#xf30fa6d0) (:cpu686 :cpupadlock) (:nosuf :isstring))
     ;; Alias for xstorerng.
     ("xstore" () (#x000fa7c0) (:cpu686 :cpupadlock) (:nosuf :isstring))
+    |#
     ))
 
 (defun x86-template-data-excluding-cpu-flags (&rest excluded-flags)
@@ -1845,70 +1847,60 @@
   (make-hash-table :test #'equalp))
 
 
-(defparameter *x86-32-instruction-templates* ())
-(defparameter *x86-64-instruction-templates* ())
 
 
 
 (defun initialize-x86-instruction-templates ()
-    (flet ((setup-templates-hash (hash templates)
-             (let* ((n (length templates))
-                    (vector (make-array n)))
-               (declare (fixnum n))
-               (clrhash hash)
-               (dotimes (i n vector)
-                 (let* ((whole (pop templates)))
-                   (destructuring-bind (name
-                                        operand-types
-                                        (base-opcode &optional extension-opcode)
-                                        cpuflags
-                                        opcode-modifier) whole
-                     (let* ((operand-count (length operand-types))
-                            (modifier (or (%encode-opcode-modifier opcode-modifier)
-                                          (error "Bad opcode modifier ~s in ~s" opcode-modifier whole)))
-                            (encoded-types (apply #'vector
-                                                  (mapcar #'(lambda (type)
-                                                              (or (%encode-operand-type type)
-                                                                  (error "Bad operand type ~s in ~w"
-                                                                         type whole)))
-                                                          operand-types)))
-                            (encoded-cpu-flags (or (%encode-cpu-flags cpuflags)
-                                                   (error "Bad CPU flags ~s in ~s" cpuflags whole)))
-                            (template (make-x86-instruction-template
-                                       :name name
-                                       :index i
-                                       :operands operand-count
-                                       :base-opcode base-opcode
-                                       :extension-opcode extension-opcode
-                                       :cpu-flags encoded-cpu-flags
-                                       :opcode-modifier modifier
-                                       :operand-types encoded-types)))
-                       (setf (svref vector i) template)
-                       (push template (gethash name hash)))))))))
-      (setq *x86-32-instruction-templates*
-            (setup-templates-hash
-             *x86-32-instruction-template-lists*
-             (x86-template-data-excluding-cpu-flags :cpu64))
-            *x86-64-instruction-templates*
-            (setup-templates-hash
-             *x86-64-instruction-template-lists*
-             (x86-template-data-excluding-cpu-flags :cpuno64)))
-      t))
+  (flet ((setup-templates-hash (hash templates)
+           (clrhash hash)
+           (dolist (whole templates)
+             (destructuring-bind (name
+                                  operand-types
+                                  (base-opcode &optional extension-opcode)
+                                  cpuflags
+                                  opcode-modifier) whole
+               (let* ((operand-count (length operand-types))
+                      (modifier (or (%encode-opcode-modifier opcode-modifier)
+                                    (error "Bad opcode modifier ~s in ~s" opcode-modifier whole)))
+                      (encoded-types (apply #'vector
+                                            (mapcar #'(lambda (type)
+                                                        (or (%encode-operand-type type)
+                                                            (error "Bad operand type ~s in ~w"
+                                                                   type whole)))
+                                                    operand-types)))
+                      (encoded-cpu-flags (or (%encode-cpu-flags cpuflags)
+                                             (error "Bad CPU flags ~s in ~s" cpuflags whole)))
+                      (template (make-x86-instruction-template
+                                 :name name
+                                 :operands operand-count
+                                 :base-opcode base-opcode
+                                 :extension-opcode extension-opcode
+                                 :cpu-flags encoded-cpu-flags
+                                 :opcode-modifier modifier
+                                 :operand-types encoded-types)))
+                 (push template (gethash name hash)))))))
+    (setup-templates-hash
+     *x86-32-instruction-template-lists*
+     (x86-template-data-excluding-cpu-flags :cpu64))
+    (setup-templates-hash
+     *x86-64-instruction-template-lists*
+     (x86-template-data-excluding-cpu-flags :cpuno64))
+    t))
 
 (defparameter *x86-instruction-template-lists* ())
-(defparameter *x86-instruction-templates* ())
+(defvar *x8632-registers* (make-hash-table :test #'equalp))
+(defvar *x8664-registers* (make-hash-table :test #'equalp))
+(defvar *x86-registers* nil)
 
 (defun setup-x86-assembler (&optional (cpu :x86-64))
   (initialize-x86-instruction-templates)
   (ecase cpu
     (:x86-32 (setq *x86-instruction-template-lists*
                    *x86-32-instruction-template-lists*
-                   *x86-instruction-templates*
-                   *x86-32-instruction-templates*))
+                   *x86-registers* *x8632-registers*))
     (:x86-64 (setq *x86-instruction-template-lists*
                    *x86-64-instruction-template-lists*
-                   *x86-instruction-templates*
-                   *x86-64-instruction-templates*)))
+                   *x86-registers* *x8664-registers*)))
   t)
 
 (setup-x86-assembler :x86-64)
@@ -2653,17 +2645,18 @@
           *gs-segment-register*))
 
 
-;;; We may need some sort of local aliasing/nicknaming mechanism in LAP.
-(defvar *x86-registers* (make-hash-table :test #'equalp))
 
 (defun init-x86-registers ()
-  (flet ((hash-registers (vector)
+  (flet ((hash-registers (vector hash 64p)
            (dotimes (i (length vector))
              (let* ((entry (svref vector i)))
-               (setf (gethash (reg-entry-reg-name entry) *x86-registers*)
-                     entry)))))
-    (hash-registers *x86-regtab*)
-    (hash-registers *x86-float-regs*)))
+               (if (or 64p (not (logtest (reg-entry-reg-flags entry) +regrex+)))
+                 (setf (gethash (reg-entry-reg-name entry) hash)
+                       entry))))))
+    (hash-registers *x86-regtab* *x8632-registers* nil)
+    (hash-registers *x86-float-regs* *x8632-registers* nil)
+    (hash-registers *x86-regtab* *x8664-registers* t)
+    (hash-registers *x86-float-regs* *x8664-registers* t)))
 
 (init-x86-registers)
 
