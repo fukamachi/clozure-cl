@@ -39,9 +39,10 @@
 		:p2-template-hash-name '*x8664-vinsn-templates*
 		:p2-compile 'x862-compile
 		:target-specific-features
-		'(:x86 :x86-target :linux-target :linuxx86-target :x8664-target)
+		'(:x8664 :x86-target :linux-target :linuxx86-target :x8664-target
+                  :little-endian-target)
 		:target-fasl-pathname (make-pathname :type "lx64fsl")
-		:target-architecture (logior 1 64)
+		:target-architecture (logior 5 64)
 		:target-os :linuxx86
 		:name :linuxx8664
 		:target-arch-name :x8664
@@ -60,9 +61,10 @@
 		:p2-template-hash-name '*x8664-vinsn-templates*
 		:p2-compile 'x862-compile
 		:target-specific-features
-		'(:powerpc :x86-target :darwin-target :darwinx86-target :x8664-target)
+		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
+                  :little-endian-target)
 		:target-fasl-pathname (make-pathname :type "d64fsl")
-		:target-architecture (logior 3 64)
+		:target-architecture (logior 7 64)
 		:target-os :darwinx86
 		:name :darwinx8664
 		:target-arch-name :x8664
