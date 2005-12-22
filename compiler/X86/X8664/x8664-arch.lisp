@@ -23,7 +23,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 (defparameter *x8664-symbolic-register-names*
-  (make-hash-table :test #'eq)
+  (make-hash-table :test #'equal)
   "For the disassembler, mostly")
 
 ;;; define integer constants which map to
@@ -146,8 +146,8 @@
       (unless ,known-entry
         (error "register ~a not defined" ',known))
       (setf (gethash ,(string alias) x86::*x86-registers*) ,known-entry)
-      (unless (gethash ,known-entry *x8664-symbolic-register-names*)
-        (setf (gethash ,known-entry *x8664-symbolic-register-names*)
+      (unless (gethash ,(string-downcase (string known)) *x8664-symbolic-register-names*)
+        (setf (gethash ,(string-downcase (string known)) *x8664-symbolic-register-names*)
               (string-downcase ,(string alias))))
       (defconstant ,alias ,known))))
 

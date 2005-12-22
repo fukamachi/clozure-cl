@@ -2211,7 +2211,7 @@
         (setf (x86-di-mnemonic instruction) (subseq string-buffer 0))))
   ok))
 
-(defparameter *x86-dissassemble-always-print-suffix+ nil)
+(defparameter *x86-dissassemble-always-print-suffix* nil)
 
 (defun x86-dis-do-float (ds instruction floatop sizeflag)
   (declare (ignore floatop sizeflag))
@@ -2281,7 +2281,7 @@
 (defun x86-disassemble-instruction (ds labeled)
   (let* ((addr (x86-ds-code-pointer ds))
          (sizeflag (logior +aflag+ +dflag+
-                           (if *x86-dissassemble-always-print-suffix+
+                           (if *x86-dissassemble-always-print-suffix*
                              +suffix-always+
                              0)))
          (instruction (make-x86-disassembled-instruction :address addr
@@ -2469,9 +2469,10 @@
                                     ds)
   (let* ((r (x86::x86-register-operand-entry op))
          (symbolic-names (x86-ds-symbolic-names ds))
+         (reg-name (x86::reg-entry-reg-name r))
          (name (or (if symbolic-names
-                     (gethash r symbolic-names))
-                   (x86::reg-entry-reg-name r))))
+                     (gethash reg-name symbolic-names))
+                     reg-name)))
     `(% ,name)))
 
 (defmethod unparse-x86-lap-operand ((op x86::x86-immediate-operand)
