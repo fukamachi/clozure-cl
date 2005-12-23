@@ -1,3 +1,12 @@
+2005-12-22 16:58  gb
+
+	* lib/backtrace.lisp: Try to show something that looks like a
+	function call (with required arguments and an indication of other
+	arguments) in backtrace.
+	
+	Use *BACKTRACE-PRINT-LEVEL* and *BACKTRACE-PRINT-LENGTH* to
+	constrain printing of arguments and frame contents.
+
 2005-12-22 10:34  gb
 
 	* compiler/X86/x86-asm.lisp: Being compilable is good.
