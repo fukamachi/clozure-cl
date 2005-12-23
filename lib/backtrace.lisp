@@ -235,7 +235,35 @@
                (return (raw-frame-ref child context where bad)))))))
      (get-register-value nil last-catch index))))
     
-      
+
+(defun dbg-form (frame-number)
+  (when *break-frame*
+    (let* ((cfp (nth-raw-frame frame-number *break-frame* nil)))
+      (if (and cfp (not (catch-csp-p cfp nil)))
+        (multiple-value-bind (function pc)
+            (cfp-lfun cfp)
+          (if (and function
+                   (function-is-current-definition? function))
+            (block %cfp-form
+              (collect ((form))
+                (multiple-value-bind (nreq nopt restp keys allow-other-keys
+                                           optinit lexprp ncells nclosed)
+                    (function-args function)
+                  (declare (ignore ncells))
+                  (unless (or lexprp restp (> 0 nclosed) (> 0 nopt) keys allow-other-keys
+                              optinit)
+                    (let* ((name (function-name function))
+                           (arglist (arglist-from-map function)))
+                      (when (and arglist name (symbolp name))
+                        (form name)
+                        (dotimes (i nreq)
+                          (let* ((val (argument-value nil cfp function pc (pop arglist))))
+                            (if (closed-over-value-p val)
+                              (setq val (%svref val target::value-cell.value-cell)))
+                            (if (eq val (%unbound-marker))
+                              (return-from %cfp-form nil))
+                            (form val)))))))
+                (form)))))))))
 
 (defun function-args (lfun)
   "Returns 9 values, as follows:

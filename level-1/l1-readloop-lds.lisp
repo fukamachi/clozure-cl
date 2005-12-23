@@ -135,6 +135,27 @@ whose name or ID matches <p>, or to any process if <p> is null"
     (if frame-sp
       (toplevel-print (list (nth-value-in-frame frame-sp n nil))))))
 
+(define-toplevel-command :break form (frame-number)
+   "Return a form which looks like the call which established the stack frame identified by <frame-number>.  This is only well-defined in certain cases: when the function is globally named and not a lexical closure and when it was compiled with *SAVE-LOCAL-SYMBOLS* in effect."
+   (let* ((form (dbg-form frame-number)))
+     (when form
+       (toplevel-print (list form)))))
+
+;;; Ordinarily, form follows function.
+(define-toplevel-command :break function (frame-number)
+  "Returns the function invoked in backtrace frame <frame-number>.  This may be useful for, e.g., disassembly"
+  (let* ((cfp (nth-raw-frame frame-number *break-frame* nil)))
+    (when (and cfp (not (catch-csp-p cfp nil)))
+      (let* ((function (cfp-lfun cfp)))
+        (when function
+          (toplevel-print (list function)))))))
+  
+
+
+          
+
+  
+
 (defun %use-toplevel-commands (group-name)
   ;; Push the whole group
   (pushnew (assoc group-name *defined-toplevel-commands*)

@@ -46,6 +46,10 @@
      throw-cancel
      *backtrace-on-break*
      print-call-history
+     dbg-form
+     *backtrace-print-level*
+     *backtrace-print-length*
+     *backtrace-show-internal-frames*
      compiler-macroexpand
      compiler-macroexpand-1
      uncompile-function
