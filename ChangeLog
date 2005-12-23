@@ -1,3 +1,9 @@
+2005-12-23 14:49  gb
+
+	* lib/backtrace.lisp, level-1/l1-readloop-lds.lisp,
+	lib/ccl-export-syms.lisp: Add :form and :function backtrace
+	commands.
+
 2005-12-22 16:58  gb
 
 	* lib/backtrace.lisp: Try to show something that looks like a
