@@ -1,3 +1,8 @@
+2005-12-23 18:23  gb
+
+	* level-1/l1-readloop-lds.lisp: Output of :FORM observes
+	*BACKTRACE-PRINT-LEVEL* and *BACKTRACE-PRINT-LENGTH*.
+
 2005-12-23 14:49  gb
 
 	* lib/backtrace.lisp, level-1/l1-readloop-lds.lisp,
