@@ -139,7 +139,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
    "Return a form which looks like the call which established the stack frame identified by <frame-number>.  This is only well-defined in certain cases: when the function is globally named and not a lexical closure and when it was compiled with *SAVE-LOCAL-SYMBOLS* in effect."
    (let* ((form (dbg-form frame-number)))
      (when form
-       (toplevel-print (list form)))))
+       (let* ((*print-level* *backtrace-print-level*)
+              (*print-length* *backtrace-print-length*))
+         (toplevel-print (list form))))))
 
 ;;; Ordinarily, form follows function.
 (define-toplevel-command :break function (frame-number)
