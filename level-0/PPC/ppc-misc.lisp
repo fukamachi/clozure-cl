@@ -545,7 +545,7 @@
   (bnelr cr1)
   ;; The GC tried to run while it was inhibited.  Unless something else
   ;; has just inhibited it, it should be possible to GC now.
-  (li imm0 -1)
+  (li imm0 arch::gc-trap-function-immediate-gc)
   (trlgei allocptr 0)
   (blr))
 
@@ -868,7 +868,7 @@
   
 (defppclapfunction %%save-application ((flags arg_y) (fd arg_z))
   (unbox-fixnum imm0 flags)
-  (ori imm0 imm0 8)
+  (ori imm0 imm0 arch::gc-trap-function-save-application)
   (unbox-fixnum imm1 fd)
   (trlgei allocptr 0)
   (blr))
