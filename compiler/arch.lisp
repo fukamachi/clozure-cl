@@ -210,4 +210,19 @@
   (subprims-table ())
   (primitive->subprims ()))
 
+
+;;; GC related operations
+(defconstant gc-trap-function-immediate-gc -1)
+(defconstant gc-trap-function-gc 0)
+(defconstant gc-trap-function-purify 1)
+(defconstant gc-trap-function-impurify 2)
+(defconstant gc-trap-function-save-application 8)
+(defconstant gc-trap-function-get-lisp-heap-threshold 16)
+(defconstant gc-trap-function-set-lisp-heap-threshold 17)
+(defconstant gc-trap-function-use-lisp-heap-threshold 18)
+(defconstant gc-trap-function-egc-control 32)
+(defconstant gc-trap-function-configure-egc 64)
+(defconstant gc-trap-function-set-hons-area-size 128)
+
+
 (provide "ARCH")
