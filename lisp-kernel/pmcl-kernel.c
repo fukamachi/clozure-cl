@@ -181,7 +181,7 @@ allocate_lisp_stack(unsigned useable,
     return NULL;
   }
   if (h_p) *h_p = h;
-  base = (BytePtr) align_to_power_of_2( h, 12);
+  base = (BytePtr) align_to_power_of_2( h, log2_page_size);
   hardlimit = (BytePtr) (base+hardsize);
   softlimit = hardlimit+softsize;
 
@@ -321,13 +321,22 @@ unsigned unsigned_max(unsigned x, unsigned y)
 #endif
 
 #ifdef LINUX
+#ifdef PPC64
+#define MAXIMUM_MAPPABLE_MEMORY (128L<<30L)
+#else
 #define MAXIMUM_MAPPABLE_MEMORY (1U<<30)
+#endif
 #endif
 
 natural
 reserved_area_size = MAXIMUM_MAPPABLE_MEMORY;
 
-area *nilreg_area=NULL, *tenured_area=NULL, *g2_area=NULL, *g1_area=NULL;
+area 
+  *nilreg_area=NULL,
+  *tenured_area=NULL, 
+  *g2_area=NULL, 
+  *g1_area=NULL;
+
 area *all_areas=NULL;
 int cache_block_size=32;
 
@@ -435,12 +444,12 @@ extend_readonly_area(unsigned more)
     if ((a->active + more) > a->high) {
       return NULL;
     }
-    mask = ((unsigned long)a->active) & 4095;
+    mask = ((unsigned long)a->active) & (page_size-1);
     if (mask) {
-      UnProtectMemory(a->active-mask, 4096);
+      UnProtectMemory(a->active-mask, page_size);
     }
-    new_start = (BytePtr)(align_to_power_of_2(a->active,12));
-    new_end = (BytePtr)(align_to_power_of_2(a->active+more,12));
+    new_start = (BytePtr)(align_to_power_of_2(a->active,log2_page_size));
+    new_end = (BytePtr)(align_to_power_of_2(a->active+more,log2_page_size));
     if (mmap(new_start,
              new_end-new_start,
              PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -1377,10 +1386,12 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   lisp_global(HOST_PLATFORM) = (LispObj)
     (
+#ifdef PPC
 #ifdef PPC64
      64
 #else
      0
+#endif
 #endif
      |
 #ifdef LINUX
@@ -1420,6 +1431,8 @@ main(int argc, char *argv[], char *envp[], void *aux)
     g2_area->older = tenured_area;
     tenured_area->younger = g2_area;
     tenured_area->refbits = a->markbits;
+    tenured_area->static_dnodes = a->static_dnodes;
+    a->static_dnodes = 0;
     lisp_global(TENURED_AREA) = ptr_to_lispobj(tenured_area);
     lisp_global(REFBITS) = ptr_to_lispobj(tenured_area->refbits);
     g2_area->threshold = G2_AREA_THRESHOLD;
