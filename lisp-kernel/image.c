@@ -73,7 +73,7 @@ off_t
 seek_to_next_page(int fd)
 {
   off_t pos = lseek(fd, 0, SEEK_CUR);
-  pos = align_to_power_of_2(pos, 12);
+  pos = align_to_power_of_2(pos, log2_page_size);
   return lseek(fd, pos, SEEK_SET);
 }
   
