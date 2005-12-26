@@ -466,7 +466,7 @@
   hardlimit                             ; another one
   code                                  ; an area-code; see below
   markbits                              ; bit vector for GC
-  ndwords                               ; "active" size of dynamic area or stack
+  ndnodes                               ; "active" size of dynamic area or stack
   older                                 ; in EGC sense
   younger                               ; also for EGC
   h                                     ; Handle or null pointer
@@ -476,6 +476,8 @@
   refbits                               ; bitvector for intergenerational refernces
   threshold                             ; for egc
   gc-count                              ; generational gc count.
+  static-dnodes                         ; for honsing. etc
+  statuc-used                           ; bitvector
 )
 
 
