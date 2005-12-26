@@ -642,7 +642,7 @@ Ptr
 create_stack(int size)
 {
   Ptr p;
-  size=align_to_power_of_2(size, 12);
+  size=align_to_power_of_2(size, log2_page_size);
   p = (Ptr) mmap(NULL,
 		     (size_t)size,
 		     PROT_READ | PROT_WRITE | PROT_EXEC,
