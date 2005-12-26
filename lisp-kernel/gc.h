@@ -54,9 +54,9 @@
 
 
 extern BytePtr HeapHighWaterMark; /* highest zeroed dynamic address  */
-extern LispObj GCarealow;
-extern natural GCndnodes_in_area;
-extern bitvector GCmarkbits;
+extern LispObj GCarealow, GCareadynamiclow;
+extern natural GCndnodes_in_area, GCndynamic_dnodes_in_area;
+extern bitvector GCmarkbits, GCdynamic_markbits;
 LispObj *global_reloctab, *GCrelocptr;
 LispObj GCfirstunmarked;
 
@@ -73,9 +73,10 @@ LispObj locative_forwarding_address(LispObj);
 LispObj node_forwarding_address(LispObj);
 void forward_range(LispObj *, LispObj *);
 void note_memoized_references(ExceptionInformation *,LogicalAddress, LogicalAddress, BytePtr *, BytePtr *);
-void gc(TCR *);
-int  purify(TCR *);
-int impurify(TCR *);
+void gc(TCR *, signed_natural);
+int  purify(TCR *, signed_natural);
+int impurify(TCR *, signed_natural);
+int change_hons_area_size(TCR *, signed_natural);
 void delete_protected_area(protected_area_ptr);
 Boolean egc_control(Boolean, BytePtr);
 Boolean free_segments_zero_filled_by_OS;
@@ -90,6 +91,7 @@ typedef unsigned char qnode;
 
 #define area_dnode(w,low) ((natural)(((ptr_to_lispobj(w)) - ptr_to_lispobj(low))>>dnode_shift))
 #define gc_area_dnode(w)  area_dnode(w,GCarealow)
+#define gc_dynamic_area_dnode(w) area_dnode(w,GCareadynamiclow)
 
 #ifdef PPC64
 #define forward_marker subtag_forward_marker
@@ -115,5 +117,5 @@ typedef unsigned char qnode;
 #define GC_TRAP_FUNCTION_USE_LISP_HEAP_THRESHOLD 18
 #define GC_TRAP_FUNCTION_EGC_CONTROL 32
 #define GC_TRAP_FUNCTION_CONFIGURE_EGC 64
-
+#define GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE 128
 #endif                          /* __GC_H__ */
