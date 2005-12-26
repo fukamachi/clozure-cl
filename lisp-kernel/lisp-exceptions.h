@@ -113,9 +113,10 @@ void
 non_fatal_error( char * );
 
 void Bug(ExceptionInformation *, const char *format_string, ...);
-int gc_from_xp(ExceptionInformation *);
-int purify_from_xp(ExceptionInformation *);
-int impurify_from_xp(ExceptionInformation *);
+int gc_from_xp(ExceptionInformation *, signed_natural);
+int purify_from_xp(ExceptionInformation *, signed_natural);
+int impurify_from_xp(ExceptionInformation *, signed_natural);
+int change_hons_area_size_from_xp(ExceptionInformation *, signed_natural);
 
 
 void
