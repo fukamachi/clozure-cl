@@ -29,10 +29,8 @@ typedef enum {
   AREA_VSTACK = 2<<fixnumshift, /* A value stack.  The GC sees it as being doubleword-aligned */
   AREA_TSTACK = 3<<fixnumshift, /* A temp stack.  It -is- doubleword-aligned */
   AREA_READONLY = 4<<fixnumshift, /* A (cfm) read-only section. */
-  AREA_STATICLIB = 5<fixnumshift, /* A static section in a shared library.  May
-                                     contain pointers to other static sections, but
-                                     not to any dynamic areas */
-  AREA_STATIC = 6<<fixnumshift, /* A (cfm or other) static section: contains
+  AREA_MANAGED_STATIC = 5<fixnumshift, /* A resizable static area */
+  AREA_STATIC = 6<<fixnumshift, /* A  static section: contains
                                  roots, but not GCed */
   AREA_DYNAMIC = 7<<fixnumshift /* A heap. Only one such area is "the heap."*/
 } area_code;
@@ -73,6 +71,8 @@ typedef struct area {
   natural threshold;            /* egc threshold (boxed "fullword
                                    count") or 0 */
   LispObj gccount;              /* boxed generation GC count. */
+  natural static_dnodes;        /* for hash consing, maybe other things. */
+  natural *static_used;         /* bitvector */
 } area;
 
 
