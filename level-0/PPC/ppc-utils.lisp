@@ -494,7 +494,7 @@
 
 (defppclapfunction gc ()
   (check-nargs 0)
-  (li imm0 0)
+  (li imm0 arch::gc-trap-function-gc)
   (trlgei allocptr 0)
   (li arg_z target::nil-value)
   (blr))
@@ -507,7 +507,7 @@ the sense that calls to it are serialized), it doesn't make a whole lot
 of sense to be turning the EGC on and off from multiple threads ..."
   (check-nargs 1)
   (subi imm1 arg nil)
-  (li imm0 32)
+  (li imm0 arch::gc-trap-function-egc-control)
   (trlgei allocptr 0)
   (blr))
 
@@ -517,19 +517,19 @@ of sense to be turning the EGC on and off from multiple threads ..."
 				   (e1size arg_y)
 				   (e2size arg_z))
   (check-nargs 3)
-  (li imm0 64)
+  (li imm0 arch::gc-trap-function-configure-egc)
   (trlgei allocptr 0)
   (blr))
 
 (defppclapfunction purify ()
-  (li imm0 1)
+  (li imm0 arch::gc-trap-function-purify)
   (trlgei allocptr 0)
   (li arg_z nil)
   (blr))
 
 
 (defppclapfunction impurify ()
-  (li imm0 2)
+  (li imm0 arch::gc-trap-function-impurify)
   (trlgei allocptr 0)
   (li arg_z nil)
   (blr))
@@ -538,9 +538,12 @@ of sense to be turning the EGC on and off from multiple threads ..."
   "Return the value of the kernel variable that specifies the amount
 of free space to leave in the heap after full GC."
   (check-nargs 0)
-  (li imm0 16)
+  (li imm0 arch::gc-trap-function-get-lisp-heap-threshold)
   (trlgei allocptr 0)
-  (blr))
+  #+ppc32-target
+  (ba .SPmakeu32)
+  #+ppc64-target
+  (ba .SPmakeu64))
 
 (defppclapfunction set-lisp-heap-gc-threshold ((new arg_z))
   "Set the value of the kernel variable that specifies the amount of free
@@ -548,27 +551,46 @@ space to leave in the heap after full GC to new-value, which should be a
 non-negative fixnum. Returns the value of that kernel variable (which may
 be somewhat larger than what was specified)."
   (check-nargs 1)
-  (extract-lisptag imm1 new)
-  (li imm0 17)
-  (cmpri imm1 target::tag-fixnum)
-  (cmpri cr1 arg_z 0)
-  (unbox-fixnum imm1 arg_z)
-  (bne cr0 @bad)
-  (blt cr1 @bad)
+  (mflr loc-pc)
+  #+ppc32-target
+  (bla .SPgetu32)
+  #+ppc64-target
+  (bla .SPgetu64)
+  (mtlr loc-pc)
+  (mr imm1 imm0)
+  (li imm0 arch::gc-trap-function-set-lisp-heap-threshold)
   (trlgei allocptr 0)
-  (blr)
-  @bad
+  #+ppc32-target
+  (ba .SPmakeu32)
+  #+ppc64-target
+  (ba .SPmakeu64))
+
+
+(defppclapfunction use-lisp-heap-gc-threshold ()
+  "Try to grow or shrink lisp's heap space, so that the free space is(approximately) equal to the current heap threshold. Return NIL"
+  (check-nargs 0) 
+  (li imm0 arch::gc-trap-function-use-lisp-heap-threshold)
+  (trlgei allocptr 0)
   (li arg_z nil)
   (blr))
 
-(defppclapfunction use-lisp-heap-gc-threshold ()
-  "Try to grow or shrink lisp's heap space, so that the free space is
-(approximately) equal to the current heap threshold. Return NIL"
-  (check-nargs 0)
-  (li imm0 18)
+
+(defppclapfunction set-hons-area-size ((npairs arg_z))
+  (check-nargs 1)
+  (mflr loc-pc)
+  #+ppc32-target
+  (bla .SPgetu32)
+  #+ppc64-target
+  (bla .SPgetu64)
+  (mtlr loc-pc)
+  (mr imm1 imm0)
+  (li imm0 arch::gc-trap-function-set-hons-area-size)
   (trlgei allocptr 0)
-  (li arg_z nil)
-  (blr))
+  #+ppc32-target
+  (ba .SPmakeu32)
+  #+ppc64-target
+  (ba .SPmakeu64))
+  
 
 
 ;;; offset is a fixnum, one of the target::kernel-import-xxx constants.
