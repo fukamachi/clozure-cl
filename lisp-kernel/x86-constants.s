@@ -84,7 +84,7 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	 _node(gc_inhibit_count)
 	 _node(intflag) 		/* sigint pending */
 	 _node(BAD_block_tag_counter) 	/* counter for (immediate) block tag */
-	 _node(BAD_go_tag_counter) 		
+	 _node(deleted_static_pairs) 		
 	 _node(exception_lock)
 	 _node(area_lock)
 	 _node(tcr_key) 		/* tsd key for per-thread tcr */

@@ -32,7 +32,7 @@ extern LispObj lisp_nil;
 #define TCR_KEY (-10)     	/* tsd key for per-thread tcr */
 #define AREA_LOCK (-11)       /* all_areas lock */
 #define EXCEPTION_LOCK (-12)	/* serialize exception handling */
-#define BAD_GO_TAG_COUNTER (-13)
+#define DELETED_STATIC_PAIRS (-13) /* for hash-consing */
 #define BAD_BLOCK_TAG_COUNTER (-14)
 #define INTFLAG (-15)
 #define GC_INHIBIT_COUNT (-16)
