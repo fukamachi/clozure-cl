@@ -99,6 +99,10 @@ extern Boolean grow_dynamic_area(natural);
 int
 page_size = 4096;
 
+int
+log2_page_size = 12;
+
+
 
 
 
@@ -237,7 +241,7 @@ allocate_object(ExceptionInformation *xp,
   /* Maybe do an EGC */
   if (a->older && lisp_global(OLDEST_EPHEMERAL)) {
     if (((a->active)-(a->low)) >= a->threshold) {
-      gc_from_xp(xp);
+      gc_from_xp(xp, 0L);
     }
   }
 
@@ -255,7 +259,7 @@ allocate_object(ExceptionInformation *xp,
   */
   if ((lisp_global(HEAP_END)-lisp_global(HEAP_START)) > bytes_needed) {
     untenure_from_area(tenured_area); /* force a full GC */
-    gc_from_xp(xp);
+    gc_from_xp(xp, 0L);
   }
   
   /* Try again, growing the heap if necessary */
@@ -371,7 +375,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
     break;
 
   case GC_TRAP_FUNCTION_SET_LISP_HEAP_THRESHOLD:
-    if (((int) arg) > 0) {
+    if (((signed_natural) arg) > 0) {
       lisp_heap_gc_threshold = 
         align_to_power_of_2((arg-1) +
                             (heap_segment_size - 1),
@@ -379,7 +383,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
     }
     /* fall through */
   case GC_TRAP_FUNCTION_GET_LISP_HEAP_THRESHOLD:
-    xpGPR(xp, arg_z) = box_fixnum(lisp_heap_gc_threshold);
+    xpGPR(xp, imm0) = lisp_heap_gc_threshold;
     break;
 
   case GC_TRAP_FUNCTION_USE_LISP_HEAP_THRESHOLD:
@@ -392,30 +396,30 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
         tenure_to_area(tenured_area);
       }
     }
-    xpGPR(xp, arg_z) = box_fixnum(lisp_heap_gc_threshold);
+    xpGPR(xp, imm0) = lisp_heap_gc_threshold;
     break;
 
   default:
     update_bytes_allocated(tcr, (void *) ptr_from_lispobj(xpGPR(xp, allocptr)));
 
     if (selector == GC_TRAP_FUNCTION_IMMEDIATE_GC) {
-      gc_from_xp(xp);
+      gc_from_xp(xp, 0L);
       break;
     }
     
     if (egc_was_enabled) {
       egc_control(false, (BytePtr) a->active);
     }
-    gc_from_xp(xp);
+    gc_from_xp(xp, 0L);
     if (selector > GC_TRAP_FUNCTION_GC) {
       if (selector & GC_TRAP_FUNCTION_IMPURIFY) {
-        impurify_from_xp(xp);
+        impurify_from_xp(xp, 0L);
         /*        nrs_GC_EVENT_STATUS_BITS.vcell |= gc_integrity_check_bit; */
-        gc_from_xp(xp);
+        gc_from_xp(xp, 0L);
       }
       if (selector & GC_TRAP_FUNCTION_PURIFY) {
-        purify_from_xp(xp);
-        gc_from_xp(xp);
+        purify_from_xp(xp, 0L);
+        gc_from_xp(xp, 0L);
       }
       if (selector & GC_TRAP_FUNCTION_SAVE_APPLICATION) {
         OSErr err;
@@ -429,6 +433,13 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
           exit(0);
         }
         fatal_oserr(": save_application", err);
+      }
+      if (selector == GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE) {
+        signed_natural 
+          delta_dnodes = ((signed_natural) arg) - 
+          ((signed_natural) tenured_area->static_dnodes);
+        change_hons_area_size_from_xp(xp, delta_dnodes*dnode_size);
+        xpGPR(xp, imm0) = tenured_area->static_dnodes;
       }
     }
     
@@ -551,10 +562,6 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
   xpGPR(xp,allocptr) = (LispObj) newlimit;
   xpGPR(xp,allocbase) = (LispObj) oldlimit;
 
-#ifdef PPC64x
-  bzero((BytePtr)oldlimit,align_to_power_of_2(oldlimit, 12)-oldlimit);
-  HeapHighWaterMark = (BytePtr)align_to_power_of_2(oldlimit, 12);
-#endif
   while (HeapHighWaterMark < (BytePtr)newlimit) {
     zero_page(HeapHighWaterMark);
     HeapHighWaterMark+=page_size;
@@ -617,7 +624,9 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
    function returned */
 
 int
-gc_like_from_xp(ExceptionInformation *xp, int(*fun)(TCR *))
+gc_like_from_xp(ExceptionInformation *xp, 
+                int(*fun)(TCR *, signed_natural), 
+                signed_natural param)
 {
   TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext)), *other_tcr;
   ExceptionInformation* other_xp;
@@ -656,7 +665,7 @@ gc_like_from_xp(ExceptionInformation *xp, int(*fun)(TCR *))
     
 
 
-  result = fun(tcr);
+  result = fun(tcr, param);
 
   resume_other_threads();
 
@@ -668,7 +677,7 @@ gc_like_from_xp(ExceptionInformation *xp, int(*fun)(TCR *))
 /* Returns #bytes freed by invoking GC */
 
 int
-gc_from_tcr(TCR *tcr)
+gc_from_tcr(TCR *tcr, signed_natural param)
 {
   area *a;
   BytePtr oldfree, newfree;
@@ -677,33 +686,38 @@ gc_from_tcr(TCR *tcr)
   a = active_dynamic_area;
   oldend = a->high;
   oldfree = a->active;
-  gc(tcr);
+  gc(tcr, param);
   newfree = a->active;
   newend = a->high;
   return ((oldfree-newfree)+(newend-oldend));
 }
 
 int
-gc_from_xp(ExceptionInformation *xp)
+gc_from_xp(ExceptionInformation *xp, signed_natural param)
 {
-  int status = gc_like_from_xp(xp, gc_from_tcr);
+  int status = gc_like_from_xp(xp, gc_from_tcr, param);
 
   freeGCptrs();
   return status;
 }
 
 int
-purify_from_xp(ExceptionInformation *xp)
+purify_from_xp(ExceptionInformation *xp, signed_natural param)
 {
-  return gc_like_from_xp(xp, purify);
+  return gc_like_from_xp(xp, purify, param);
 }
 
 int
-impurify_from_xp(ExceptionInformation *xp)
+impurify_from_xp(ExceptionInformation *xp, signed_natural param)
 {
-  return gc_like_from_xp(xp, impurify);
+  return gc_like_from_xp(xp, impurify, param);
 }
 
+int
+change_hons_area_size_from_xp(ExceptionInformation *xp, signed_natural delta_in_bytes)
+{
+  return gc_like_from_xp(xp, change_hons_area_size, delta_in_bytes);
+}
 
 
 
