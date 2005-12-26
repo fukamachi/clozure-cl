@@ -37,7 +37,7 @@
     tcr-key                             ; tsd key for thread's tcr
     area-lock                           ; serialize access to gc
     exception-lock			; serialize exception handling
-    BAD-go-tag-counter        		; counter for (immediate) go tag
+    deleted-static-pairs                ; hash-consing
     BAD-block-tag-counter               ; counter for (immediate) block tag
     intflag				; interrupt-pending flag
     gc-inhibit-count                    ; for gc locking
@@ -114,6 +114,22 @@
     ccl::%foreign-thread-control
     ))
 
+(ccl::defenum (:prefix "AREA-")
+  void                                  ; list header
+  cstack                                ; a control stack
+  vstack                                ; a value stack
+  tstack                                ; (dynamic-extent) temp stack
+  readonly                              ; readonly section
+  managed-static                        ; growable static area
+  static                                ; static data in application
+  dynamic                               ; dynmaic (heap) data in application
+)
+
+;;; areas are sorted such that (in the "succ" direction) codes are >=.
+;;; If you think that you're looking for a stack (instead of a heap), look
+;;; in the "pred" direction from the all-areas header.
+(defconstant max-stack-area-code area-tstack)
+(defconstant min-heap-area-code area-readonly)
 
 
 (provide "X86-ARCH")
