@@ -21,6 +21,7 @@
 #define rcontext 2
 
 #define nbits_in_word 64L
+#define log2_nbits_in_word 6L
 #define nbits_in_byte 8L
 #define ntagbits 4L
 #define nlisptagbits 3L

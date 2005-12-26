@@ -20,6 +20,7 @@
 #define rcontext 13
 
 #define nbits_in_word 32
+#define log2_nbits_in_word 5
 #define nbits_in_byte 8
 #define ntagbits 3	/* But only 2 are significant to lisp */
 #define nlisptagbits 2
