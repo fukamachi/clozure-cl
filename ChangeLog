@@ -1,3 +1,8 @@
+2005-12-26 03:37  gb
+
+	* lisp-kernel/: linuxppc/Makefile, linuxppc64/Makefile,
+	static-linuxppc/Makefile: -D_GNU_SOURCE
+
 2005-12-26 01:18  gb
 
 	* lisp-kernel/gc.c: Lots of stuff of allocating hons area &
