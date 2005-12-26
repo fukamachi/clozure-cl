@@ -1,3 +1,104 @@
+2005-12-26 01:18  gb
+
+	* lisp-kernel/gc.c: Lots of stuff of allocating hons area &
+	adjusting other addresses.  Tenured_area (and aliases) may now have
+	static prefix, so be careful when relocating/forwarding (and use
+	new "dynamic" GC pointers.)
+
+2005-12-26 01:16  gb
+
+	* lisp-kernel/gc.h: More GC variables, for relocation of dynamic
+	dnodes only.
+	
+	Extra param on some GC-like functions.
+	
+	Add GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE
+
+2005-12-26 01:15  gb
+
+	* lisp-kernel/image.c: say "log2_page_size", not "12".
+
+2005-12-26 01:14  gb
+
+	* lisp-kernel/lisp-exceptions.h: gc_like_from_xp functions take an
+	extra signed_natural parameter.
+
+2005-12-26 01:13  gb
+
+	* lisp-kernel/lisp.h: Declare page_size, log2_page_size.
+
+2005-12-26 01:12  gb
+
+	* lisp-kernel/pmcl-kernel.c: use "log2_page_size" instead of "12".
+	
+	Ahem.  Map lots-o-memory on linuxppc64, too.
+
+2005-12-26 01:11  gb
+
+	* lisp-kernel/: ppc-constants.s, lisp_globals.h: bad_go_tag_counter
+	is now "deleted_static_pairs".
+
+2005-12-26 01:09  gb
+
+	* lisp-kernel/: ppc-constants64.h, ppc-constants32.h: define
+	log2_nbits_in_word.
+
+2005-12-26 01:09  gb
+
+	* lisp-kernel/ppc-exceptions.c: define page_size, log2_page_size.
+
+2005-12-26 01:08  gb
+
+	* lisp-kernel/thread_manager.c: use "log2_page_size" instead of
+	"12".
+
+2005-12-26 01:08  gb
+
+	* lisp-kernel/x86-constants.s: bad_go_tag_counter is now
+	"deleted_static_pairs".
+
+2005-12-26 01:07  gb
+
+	* lisp-kernel/area.h: Use new name for "managed static" areas.	New
+	static_dnodes, static_used fields in areas.
+
+2005-12-26 01:06  gb
+
+	* level-1/l1-lisp-threads.lisp: Use new name for "managed static"
+	areas.
+
+2005-12-26 01:05  gb
+
+	* level-0/PPC/ppc-utils.lisp: Use symbolic constants for gc traps. 
+	Defin SET-CONS-AREA-SIZE.
+
+2005-12-26 01:05  gb
+
+	* level-0/PPC/ppc-misc.lisp: Use symbolic constants for gc traps.
+
+2005-12-26 01:04  gb
+
+	* compiler/X86/x86-arch.lisp: bad-go-tag-counter ->
+	deleted-static-pairs, use "managed-static" area coded instead of
+	"staticlib".  (Define area codes, which were missing.)
+
+2005-12-26 01:02  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp: area
+	struct: it's been "dnodes" (not "dwords") for a while now.  Add
+	static-dnodes, static-used fields.
+
+2005-12-26 01:01  gb
+
+	* compiler/PPC/ppc-arch.lisp: bad-go-tag-counter ->
+	deleted-static-pairs, use "managed-static" area coded instead of
+	"staticlib"
+
+2005-12-26 00:54  gb
+
+	* compiler/arch.lisp: Define GC trap function constants, including
+	new GC-TRAP-FUNCTION-SET-HONS-AREA-SIZE.
+
 2005-12-23 18:23  gb
 
 	* level-1/l1-readloop-lds.lisp: Output of :FORM observes
