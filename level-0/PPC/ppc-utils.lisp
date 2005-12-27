@@ -575,21 +575,7 @@ be somewhat larger than what was specified)."
   (blr))
 
 
-(defppclapfunction set-hons-area-size ((npairs arg_z))
-  (check-nargs 1)
-  (mflr loc-pc)
-  #+ppc32-target
-  (bla .SPgetu32)
-  #+ppc64-target
-  (bla .SPgetu64)
-  (mtlr loc-pc)
-  (mr imm1 imm0)
-  (li imm0 arch::gc-trap-function-set-hons-area-size)
-  (trlgei allocptr 0)
-  #+ppc32-target
-  (ba .SPmakeu32)
-  #+ppc64-target
-  (ba .SPmakeu64))
+
   
 
 
