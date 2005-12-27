@@ -50,6 +50,11 @@
 (defconstant word-shift 3)
 (defconstant word-size-in-bytes 8)
 (defconstant node-size word-size-in-bytes)
+(defconstant dnode-size 16)
+(defconstant dnode-align-bits 4)
+(defconstant dnode-shift dnode-align-bits)
+(defconstant bitmap-shift 6)
+
 (defconstant target-most-negative-fixnum (ash -1 (1- (- nbits-in-word nfixnumtagbits))))
 (defconstant target-most-positive-fixnum (1- (ash 1 (1- (- nbits-in-word nfixnumtagbits)))))
 (defmacro define-subtag (name tag value)
@@ -477,7 +482,7 @@
   threshold                             ; for egc
   gc-count                              ; generational gc count.
   static-dnodes                         ; for honsing. etc
-  statuc-used                           ; bitvector
+  static-used                           ; bitvector
 )
 
 

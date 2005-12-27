@@ -80,6 +80,11 @@
 (defconstant word-shift 2)
 (defconstant word-size-in-bytes 4)
 (defconstant node-size 4)
+(defconstant dnode-size 8)
+(defconstant dnode-align-bits 3)
+(defconstant dnode-shift dnode-align-bits)
+(defconstant bitmap-shift 5)
+
 (defconstant target-most-negative-fixnum (ash -1 (1- (- nbits-in-word nfixnumtagbits))))
 (defconstant target-most-positive-fixnum (1- (ash 1 (1- (- nbits-in-word nfixnumtagbits)))))
 
