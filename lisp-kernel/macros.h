@@ -36,8 +36,8 @@
 #define header_element_count(h) ((h) >> num_subtag_bits)
 #define make_header(subtag,element_count) ((subtag)|((element_count)<<num_subtag_bits))
 
-#define unbox_fixnum(x) ((int)(((int)(x))>>fixnum_shift))
-#define box_fixnum(x) ((x)<<fixnum_shift)
+#define unbox_fixnum(x) ((signed_natural)(((signed_natural)(x))>>fixnum_shift))
+#define box_fixnum(x) ((LispObj)((signed_natural)(x)<<fixnum_shift))
 
 #define car(x) (((cons *)ptr_from_lispobj(untag(x)))->car)
 #define cdr(x) (((cons *)ptr_from_lispobj(untag(x)))->cdr)
