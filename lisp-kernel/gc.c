@@ -374,6 +374,14 @@ check_all_areas()
   }
 }
 
+natural
+static_dnodes_for_area(area *a)
+{
+  if (a->older == NULL) {
+    return tenured_area->static_dnodes;
+  }
+  return 0;
+}
 
 /*
   Make everything "younger" than the start of the target area
@@ -415,8 +423,6 @@ tenure_to_area(area *target)
 
   a->low = curfree;
   a->ndnodes = area_dnode(a->high, curfree);
-  a->static_dnodes = 0;
-  a->static_used = NULL;
 
   new_markbits = refbits + ((new_tenured_dnodes + (nbits_in_word-1)) >> bitmap_shift);
   
@@ -463,8 +469,6 @@ untenure_from_area(area *from)
       /* Everything's in the dynamic area */
       lisp_global(OLDEST_EPHEMERAL) = 0;
       lisp_global(OLDSPACE_DNODE_COUNT) = 0;
-      a->static_dnodes = from->static_dnodes;
-      a->static_used = from->static_used;
 
     }
   }
@@ -2697,18 +2701,21 @@ void
 forward_and_resolve_static_references(area *a)
 {
   natural 
-    nstatic = a->static_dnodes,
+    nstatic = static_dnodes_for_area(a),
     nstatic_bitmap_words = nstatic >> bitmap_shift;
   if (nstatic != 0) {
     /* exploit the fact that a cons is the same size as a dnode. */
     cons *pagelet_start = (cons *) a->low, *work;
     bitvector markbits = GCmarkbits, 
-      usedbits = a->static_used;
+      usedbits = tenured_area->static_used;
     natural marked, used, used_but_not_marked, ndeleted = 0, i;
 
     while (nstatic_bitmap_words--) {
       marked = *markbits++;
-      used = *usedbits++;
+      used = *usedbits;
+      if (marked != used) {
+        *usedbits = marked;
+      }
       used |= marked;
       used_but_not_marked = used & ~marked;
 
@@ -2731,6 +2738,7 @@ forward_and_resolve_static_references(area *a)
           ndeleted++;
         }
       }
+      usedbits++;
       pagelet_start += nbits_in_word;
     }
     lisp_global(DELETED_STATIC_PAIRS) += box_fixnum(ndeleted);
@@ -2980,6 +2988,7 @@ gc(TCR *tcr, signed_natural param)
     itabvec = 0;
   BytePtr oldfree = a->active;
   TCR *other_tcr;
+  natural static_dnodes;
   
   if ((natural) (tcr->cs_limit) == CS_OVERFLOW_FORCE_LIMIT) {
     GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
@@ -3031,12 +3040,12 @@ gc(TCR *tcr, signed_natural param)
   if (from) {
     untenure_from_area(from);
   }
-      
+  static_dnodes = static_dnodes_for_area(a);
   GCmarkbits = a->markbits;
   GCarealow = ptr_to_lispobj(a->low);
-  GCareadynamiclow = GCarealow+(a->static_dnodes << dnode_shift);
+  GCareadynamiclow = GCarealow+(static_dnodes << dnode_shift);
   GCndnodes_in_area = gc_area_dnode(oldfree);
-  GCndynamic_dnodes_in_area = GCndnodes_in_area-a->static_dnodes;
+  GCndynamic_dnodes_in_area = GCndnodes_in_area-static_dnodes;
   GCdynamic_markbits = 
     GCmarkbits + ((GCndnodes_in_area-GCndynamic_dnodes_in_area)>>bitmap_shift);
 
@@ -3238,9 +3247,10 @@ gc(TCR *tcr, signed_natural param)
   
   if (GCephemeral_low) {
     forward_memoized_area(tenured_area, area_dnode(a->low, tenured_area->low));
+  } else {
+    /* Full GC, need to process static space */
+    forward_and_resolve_static_references(a);
   }
-  
-  forward_and_resolve_static_references(a);
   
   a->active = (BytePtr) ptr_from_lispobj(compact_dynamic_heap());
   if (to) {
@@ -4155,7 +4165,7 @@ adjust_pointers_in_xp(ExceptionInformation *xp,
 
 #ifdef X86
 #ifdef X8664
-#warn fix this
+#warning fix this
 #endif
 #endif
 }
@@ -4308,6 +4318,43 @@ adjust_gcable_ptrs(LispObj base, LispObj limit, signed_natural delta)
     
 
 void
+adjust_pointers_in_dynamic_area(area *a, 
+                                LispObj base, 
+                                LispObj limit,
+                                signed_natural delta)
+{
+  natural 
+    nstatic = static_dnodes_for_area(a),
+    nstatic_bitmap_words = nstatic >> bitmap_shift;
+  LispObj 
+    *low = (LispObj *) (a->low),
+    *active = (LispObj *) (a->active),
+    *dynamic_low = low + (2 * nstatic);
+
+  adjust_pointers_in_range(dynamic_low, active, base, limit, delta);
+
+  if (nstatic && (nstatic <= a->ndnodes)) {
+    cons *pagelet_start = (cons *) a->low, *work;
+    bitvector usedbits = tenured_area->static_used;
+    natural used, i;
+    
+    while (nstatic_bitmap_words--) {
+      used = *usedbits++;
+
+      while (used) {
+        i = count_leading_zeros(used);
+        used &= ~(BIT0_MASK >> i);
+        work = pagelet_start+i;
+        adjust_noderef(&(work->cdr), base, limit, delta);
+        adjust_noderef(&(work->car), base, limit, delta);
+      }
+      pagelet_start += nbits_in_word;
+    }
+  }
+}
+
+    
+void
 adjust_all_pointers(LispObj base, LispObj limit, signed_natural delta)
 {
   area *next_area;
@@ -4339,16 +4386,7 @@ adjust_all_pointers(LispObj base, LispObj limit, signed_natural delta)
       break;
 
     case AREA_DYNAMIC:
-      adjust_pointers_in_range((LispObj *) (next_area->low),
-                               (LispObj *) (next_area->active),
-                               base,
-                               limit,
-                               delta);
-      if (next_area->older) {
-        next_area->low += delta;
-      }
-      next_area->active += delta;
-      next_area->high += delta;
+      adjust_pointers_in_dynamic_area(next_area, base, limit, delta);
       break;
     }
   }
@@ -4356,18 +4394,57 @@ adjust_all_pointers(LispObj base, LispObj limit, signed_natural delta)
   adjust_gcable_ptrs(base, limit, delta);
 }
 
+#ifdef DARWIN
+#define MREMAP_MAYMOVE 1
+
+void *
+darwin_mremap(void *old_address, 
+              size_t old_size, 
+              size_t new_size, 
+              unsigned long flags)
+{
+  void *end = (void *) ((char *)old_address+old_size);
+
+  if (old_size == new_size) {
+    return old_address;
+  }
+  if (new_size < old_size) {
+    munmap(end, old_size-new_size);
+    return old_address;
+  }
+  {
+    void * new_address = mmap(NULL,
+                              new_size,
+                              PROT_READ|PROT_WRITE,
+                              MAP_PRIVATE | MAP_ANON,
+                              -1,
+                              0);
+    if (new_address !=  MAP_FAILED) {
+      vm_copy(mach_task_self(),
+              old_address,
+              old_size,
+              new_address);
+      munmap(old_address, old_size);
+    }
+    return new_address;
+  }
+}
+
+#define mremap darwin_mremap
+#endif
+
 Boolean
-grow_used_vector(area *a, natural new_dnodes, bitvector *newbits)
+grow_used_vector(natural new_dnodes, bitvector *newbits)
 {
   natural
-    old_dnodes = a->static_dnodes,
+    old_dnodes = tenured_area->static_dnodes,
     old_page_aligned_size =
     (align_to_power_of_2((align_to_power_of_2(old_dnodes, log2_nbits_in_word)>>3),
                          log2_page_size)),
     new_page_aligned_size =
     (align_to_power_of_2((align_to_power_of_2(new_dnodes, log2_nbits_in_word)>>3),
                          log2_page_size));
-  bitvector old_used = a->static_used, new_used = NULL;
+  bitvector old_used = tenured_area->static_used, new_used = NULL;
 
   if (old_page_aligned_size == new_page_aligned_size) {
     *newbits = old_used;
@@ -4392,7 +4469,6 @@ grow_used_vector(area *a, natural new_dnodes, bitvector *newbits)
   /* Have to try to remap the old bitmap.  That's implementation-dependent,
      and (naturally) Mach sucks, but no one understands how.
   */
-#ifdef LINUX
   new_used = mremap(old_used, 
                     old_page_aligned_size, 
                     new_page_aligned_size, 
@@ -4403,10 +4479,6 @@ grow_used_vector(area *a, natural new_dnodes, bitvector *newbits)
   }
   *newbits = new_used;
   return true;
-#endif
-#ifdef DARWIN
-#warn Mach sucks, but no one understands how
-#endif
 }
 
   
@@ -4417,7 +4489,7 @@ grow_hons_area(signed_natural delta_in_bytes)
   area *ada = active_dynamic_area;
   natural 
     delta_in_dnodes = delta_in_bytes >> dnode_shift,
-    current_static_dnodes = ada->static_dnodes,
+    current_static_dnodes = tenured_area->static_dnodes,
     new_static_dnodes;
     
   delta_in_dnodes = align_to_power_of_2(delta_in_dnodes,log2_nbits_in_word);
@@ -4425,24 +4497,22 @@ grow_hons_area(signed_natural delta_in_bytes)
   delta_in_bytes = delta_in_dnodes << dnode_shift;
   if (grow_dynamic_area((natural) delta_in_bytes)) {
     LispObj 
-      base = (LispObj) (ada->low + (ada->static_dnodes*dnode_size)),
+      base = (LispObj) (ada->low + (current_static_dnodes*dnode_size)),
       oldactive = (LispObj) ada->active,
       limit = area_dnode(oldactive, base);
-    if (!grow_used_vector(ada, new_static_dnodes, &new_used)) {
+    if (!grow_used_vector(new_static_dnodes, &new_used)) {
       shrink_dynamic_area(delta_in_bytes);
       return -1;
     }
     tenured_area->static_used =  new_used;
-    /* This has to adjust the low, active, and high pointers of
-       all dynamic areas (as well as adjusting the values found
-       in those and other areas */
     adjust_all_pointers(base, limit, delta_in_bytes);
     memmove((void *)(base+delta_in_bytes),(void *)base,oldactive-base);
-    tenured_area->ndnodes = area_dnode(tenured_area->high, tenured_area->low);
+    ada->ndnodes = area_dnode(ada->high, ada->low);
+    ada->active += delta_in_bytes;
     {
       LispObj *p;
       natural i;
-      for (p = (LispObj *)(tenured_area->low + (tenured_area->static_dnodes << dnode_shift)), i = 0;
+      for (p = (LispObj *)(tenured_area->low + (current_static_dnodes << dnode_shift)), i = 0;
            i< delta_in_dnodes;
            i++ ) {
         *p++ = undefined;
