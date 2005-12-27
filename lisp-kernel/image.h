@@ -45,7 +45,7 @@ typedef struct {
   unsigned long code;
   area *area;
   unsigned long memory_size;
-  unsigned long disk_size;
+  unsigned long static_dnodes;
 } openmcl_image_section_header;
 
 typedef struct {
