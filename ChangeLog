@@ -1,3 +1,31 @@
+2005-12-27 05:29  gb
+
+	* level-1/version.lisp: Bumped (yesterday ...).
+
+2005-12-27 05:28  gb
+
+	* level-0/PPC/ppc-utils.lisp: hons-size stuff moved to HASH-CONS.
+
+2005-12-27 05:26  gb
+
+	* compiler/X86/x862.lisp: Absolutely wrong and useless, but at
+	least it's checked in.
+
+2005-12-27 05:25  gb
+
+	* level-0/l0-hash.lisp: Use the 32-bit ROTATE-HASH-CODE on PPC64,
+	for now.
+
+2005-12-27 05:25  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp:
+	Constants for bitvector operations.
+
+2005-12-27 05:20  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: Bitvector stuff (used exactly
+	once.)
+
 2005-12-27 05:19  gb
 
 	* compiler/PPC/ppc-arch.lisp: Reformat a comment.
