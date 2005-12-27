@@ -646,7 +646,7 @@ functions are called."
     `(lambda (,@(if (and method-p (neq when :after))
                   `(&method ,saved-method-var))
               &rest arglist)
-       (declare (dynamic-extent arglist))
+      ;(declare (dynamic-extent arglist))
        (let ()
          ,(ecase
             when
@@ -659,7 +659,7 @@ functions are called."
             (:after         
              `(block nil
                 (let ((values (multiple-value-list (apply (function ,def) arglist))))
-                  (declare (dynamic-extent values))
+                  ;(declare (dynamic-extent values))
                   ,stuff
                   (return (values-list values)))))
             (:around
