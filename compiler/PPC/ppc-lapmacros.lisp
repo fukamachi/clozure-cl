@@ -175,6 +175,10 @@
    (:ppc32 `(slwi ,@args))
    (:ppc64 `(sldi ,@args))))
 
+(defppclapmacro srr (&rest args)
+  (target-arch-case
+   (:ppc32 `(srw ,@args))
+   (:ppc64 `(srd ,@args))))
 
 (defppclapmacro bkpt ()
   `(tweq rzero rzero))
@@ -988,7 +992,51 @@ in stvx and lvx instructions within the body."
       (lfd ,freg -8 sp)
       (fcfid ,freg ,freg)))))
 
+;;; Set the most significant bit in DEST, clear all other bits.
+(defppclapmacro load-highbit (dest)
+  (target-arch-case
+   (:ppc32
+    `(lis ,dest #x8000))
+   (:ppc64
+    `(progn
+      (lis ,dest #x8000)
+      (sldi ,dest ,dest 32)))))
 
+(defppclapmacro extract-bit-shift-count (dest src)
+  (target-arch-case
+   (:ppc32 `(clrlwi ,dest ,src (- 32 ppc32::bitmap-shift)))
+   (:ppc64 `(clrldi ,dest ,src (- 64 ppc64::bitmap-shift)))))
+
+;;; "index" is the result of subtracting a base address from some
+;;; possibly tagged pointer.  "bitwords" is the address of the first
+;;; word of an (untagged) bitvector.
+(defppclapmacro set-bit-at-index (bitwords index &optional (mask ppc::imm3) (count ppc::imm4) (was ppc::imm1))
+  (let* ((done (gensym))
+         (again (gensym)))
+    `(progn
+      (load-highbit ,mask)
+      (srri ,index ,index ,(target-arch-case
+                            (:ppc32 ppc32::dnode-shift)
+                            (:ppc64 ppc64::dnode-shift)))
+      (extract-bit-shift-count ,count ,index)
+      (srr ,mask ,mask ,count)
+      (srri ,index ,index ,(target-arch-case
+                            (:ppc32 ppc32::bitmap-shift)
+                            (:ppc64 ppc64::bitmap-shift)))
+      (slri ,index ,index  ,(target-arch-case
+                            (:ppc32 ppc32::word-shift)
+                            (:ppc64 ppc64::word-shift)))
+      (ldrx ,was ,bitwords ,index)
+      (and. ,was ,was ,mask)
+      (bne ,done)
+      ,again
+      (lrarx ,was ,bitwords ,index)
+      (or ,was ,was ,mask)
+      (strcx. ,was ,bitwords ,index)
+      (bne ,again)
+      ,done)))
+       
+                                           
 
 (provide "PPC-LAPMACROS")
 
