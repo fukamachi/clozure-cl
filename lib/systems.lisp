@@ -57,7 +57,6 @@
                                                   "ccl:lib;fredenv.lisp"))
     (l1-events        "ccl:l1f;l1-events"        ("ccl:l1;l1-events.lisp"))
     (ppc-trap-support "ccl:l1f;ppc-trap-support" ("ccl:l1;ppc-trap-support.lisp"))
-    (sparc-trap-support "ccl:l1f;sparc-trap-support" ("ccl:l1;sparc-trap-support.lisp"))
     (l1-highlevel-events
      "ccl:l1f;l1-highlevel-events"
      ("ccl:l1;l1-highlevel-events.lisp"))
@@ -67,7 +66,6 @@
     (l1-reader        "ccl:l1f;l1-reader"        ("ccl:l1;l1-reader.lisp"))
     (l1-error-system  "ccl:l1f;l1-error-system"  ("ccl:l1;l1-error-system.lisp"))
     (ppc-error-signal "ccl:l1f;ppc-error-signal" ("ccl:l1;ppc-error-signal.lisp"))
-    (sparc-error-signal "ccl:l1f;sparc-error-signal" ("ccl:l1;sparc-error-signal.lisp"))
     (l1-error-signal  "ccl:l1f;l1-error-signal"  ("ccl:l1;l1-error-signal.lisp"))
     (appgen-defs      "ccl:lib;appgen-defs"      ("ccl:lib;appgen-defs.lisp"))
     (l1-base-app      "ccl:l1f;l1-base-app"      ("ccl:l1;l1-base-app.lisp"
@@ -77,7 +75,6 @@
     (l1-aprims        "ccl:l1f;l1-aprims"        ("ccl:l1;l1-aprims.lisp"))
     (l1-callbacks     "ccl:l1f;l1-callbacks"    ("ccl:l1;l1-callbacks.lisp"))
     (ppc-callback-support "ccl:l1f;ppc-callback-support" ("ccl:l1;ppc-callback-support.lisp"))
-    (sparc-callback-support "ccl:l1f;sparc-callback-support" ("ccl:l1;sparc-callback-support.lisp"))			     
     (l1-sysio         "ccl:l1f;l1-sysio"         ("ccl:l1;l1-sysio.lisp"))
     (l1-symhash       "ccl:l1f;l1-symhash"       ("ccl:l1;l1-symhash.lisp"))
     (l1-pathnames     "ccl:l1f;l1-pathnames"     ("ccl:l1;l1-pathnames.lisp"))
@@ -189,6 +186,7 @@
     (arglist          "ccl:bin;arglist"          ("ccl:lib;arglist.lisp"))
 
     (edit-callers	   "ccl:bin;edit-callers"   ("ccl:lib;edit-callers.lisp"))
+    (hash-cons        "ccl:library;hash-cons"    ("ccl:library;hash-cons.lisp"))
 ; (step             "ccl:bin;step"           ("ccl:lib;step.lisp"))
     (ccl-export-syms  "ccl:bin;ccl-export-syms"  ("ccl:lib;ccl-export-syms.lisp"))
     (systems          "ccl:bin;systems"        ("ccl:lib;systems.lisp"))

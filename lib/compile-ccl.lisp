@@ -175,6 +175,7 @@
 	mcl-compat
 	arglist
 	edit-callers
+        hash-cons
         describe
 	asdf
 	defsystem
