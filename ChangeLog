@@ -1,3 +1,52 @@
+2005-12-27 05:19  gb
+
+	* compiler/PPC/ppc-arch.lisp: Reformat a comment.
+
+2005-12-27 05:18  gb
+
+	* library/hash-cons.lisp: New file.
+
+2005-12-27 05:17  gb
+
+	* lib/compile-ccl.lisp, lib/systems.lisp, level-1/l1-boot-2.lisp:
+	Add HASH-CONS.
+
+2005-12-27 05:17  gb
+
+	* lisp-kernel/image.c: Don't use disk_size field of section header.
+
+2005-12-27 05:16  gb
+
+	* lisp-kernel/image.h: replace "disk_size" field in section header
+	with "static_dnodes".
+
+2005-12-27 05:15  gb
+
+	* lisp-kernel/gc.c: Keep static_dnodes, static_used in tenured_area
+	(never active), use static_dnodes_for_area().
+	
+	forward_and_resolve_static_references(): only call (paraoia) if not
+	EGC.  Retain usedbits set from markbits.
+	
+	adjust_pointers_in_dynamic_area(): handles static dnodes if
+	necessary.
+	
+	adjust_all_pointers: don't adjust area start/end, since
+	grow_dynamic_area() does all that.  Caller adjusts active area
+	active field.
+	
+	Add an mremap() for Darwin.
+
+2005-12-27 04:57  gb
+
+	* lisp-kernel/pmcl-kernel.c: hardlimit field is unused on heap
+	areas.
+
+2005-12-27 04:56  gb
+
+	* lisp-kernel/macros.h: box_fixnum, unbox_fixnum:  signed_natural,
+	not int.
+
 2005-12-26 03:37  gb
 
 	* lisp-kernel/: linuxppc/Makefile, linuxppc64/Makefile,
