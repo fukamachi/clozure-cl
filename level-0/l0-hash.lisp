@@ -248,7 +248,7 @@
                           (logand (1- (ash 1 (- 8 3))) fixnum))))))
 
 
-#+ppc32-target
+#+(or ppc32-target ppc64-target)
 (defun rotate-hash-code (fixnum)
   (declare (fixnum fixnum))
   (let* ((low-3 (logand 7 fixnum))
@@ -259,7 +259,7 @@
     (the fixnum (+ low-3-in-high-3
                    (the fixnum (logxor low-3*64K but-low-3))))))
 
-#+ppc64-target
+#+(and nil ppc64-target)
 (defun rotate-hash-code (fixnum)
   (declare (fixnum fixnum))
   (logior (logand #xffff (the fixnum (ash fixnum -16)))
