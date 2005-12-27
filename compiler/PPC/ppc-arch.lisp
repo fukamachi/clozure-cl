@@ -218,11 +218,11 @@
   so
 )
 
-; Kernel globals are allocated "below" nil.  This list (used to map symbolic names to
-; rnil-relative offsets) must (of course) exactly match the kernel's notion of where 
-; things are.
-; The order here matches "ccl:pmcl;lisp_globals.h" & the lisp_globals record
-; in "ccl:pmcl;constants.s"
+;;; Kernel globals are allocated "below" nil.  This list (used to map
+;;; symbolic names to rnil-relative offsets) must (of course) exactly
+;;; match the kernel's notion of where things are.
+;;; The order here matches "ccl:lisp-kernel;lisp_globals.h" & the
+;;; lisp_globals record in "ccl:lisp-kernel;*constants*.s"
 (defparameter *ppc-kernel-globals*
   '(get-tcr				; callback to obtain (real) tcr
     tcr-count
