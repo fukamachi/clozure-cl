@@ -687,7 +687,6 @@ allocate_dynamic_area(natural initsize)
   a->h = start;
   a->softprot = NULL;
   a->hardprot = NULL;
-  a->hardlimit = end;
   ensure_gc_structures_writable();
   return a;
 }
@@ -713,7 +712,6 @@ grow_dynamic_area(natural delta)
 
   a->high += delta;
   a->ndnodes = area_dnode(a->high, a->low);
-  a->hardlimit = a->high;
   lisp_global(HEAP_END) += delta;
   ensure_gc_structures_writable();
   return true;
