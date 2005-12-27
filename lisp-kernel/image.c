@@ -144,7 +144,6 @@ load_image_section(int fd, openmcl_image_section_header *sect)
   off_t
     pos = seek_to_next_page(fd);
   int 
-    disk_size = sect->disk_size, 
     mem_size = sect->memory_size;
   void *addr;
   area *a;
@@ -152,7 +151,7 @@ load_image_section(int fd, openmcl_image_section_header *sect)
   switch(sect->code) {
   case AREA_READONLY:
     addr = mmap(pure_space_active,
-		disk_size,
+		align_to_power_of_2(mem_size,log2_page_size),
 		PROT_READ | PROT_EXEC,
 		MAP_PRIVATE | MAP_FIXED,
 		fd,
@@ -168,7 +167,7 @@ load_image_section(int fd, openmcl_image_section_header *sect)
 
   case AREA_STATIC:
     addr = mmap(static_space_active,
-		disk_size,
+		align_to_power_of_2(mem_size,log2_page_size),
 		PROT_READ | PROT_WRITE | PROT_EXEC,
 		MAP_PRIVATE | MAP_FIXED,
 		fd,
@@ -184,21 +183,16 @@ load_image_section(int fd, openmcl_image_section_header *sect)
 
   case AREA_DYNAMIC:
     a = allocate_dynamic_area(mem_size);
-    if (disk_size == mem_size) {
-      addr = mmap(a->low,
-		  disk_size,
-		  PROT_READ | PROT_WRITE | PROT_EXEC,
-		  MAP_PRIVATE | MAP_FIXED,
-		  fd,
-		  pos);
-      if (addr != a->low) {
-	return;
-      }
-    } else {
-      if (read (fd, a->low+(mem_size-disk_size), disk_size) != disk_size) {
-	return;
-      }
+    addr = mmap(a->low,
+		align_to_power_of_2(mem_size,log2_page_size),
+                PROT_READ | PROT_WRITE | PROT_EXEC,
+                MAP_PRIVATE | MAP_FIXED,
+                fd,
+                pos);
+    if (addr != a->low) {
+      return;
     }
+
     sect->area = a;
     
     break;
@@ -207,7 +201,7 @@ load_image_section(int fd, openmcl_image_section_header *sect)
     return;
     
   }
-  lseek(fd, pos+disk_size, SEEK_SET);
+  lseek(fd, pos+mem_size, SEEK_SET);
 }
     
 LispObj
@@ -380,7 +374,6 @@ save_application(unsigned fd)
     sections[i].code = a->code;
     sections[i].area = NULL;
     sections[i].memory_size  = a->active - a->low;
-    sections[i].disk_size = sections[i].memory_size;
   }
   fh.sig0 = IMAGE_SIG0;
   fh.sig1 = IMAGE_SIG1;
@@ -436,7 +429,7 @@ save_application(unsigned fd)
     natural n;
     a = areas[i];
     seek_to_next_page(fd);
-    n = sections[i].disk_size;
+    n = sections[i].memory_size;
     if (a->code == AREA_READONLY) {
       /* 
 	 Darwin seems to have problems writing the readonly area for
