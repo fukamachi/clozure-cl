@@ -356,7 +356,7 @@ Will differ from *compiling-file* during an INCLUDE")
          (*fcomp-output-list* nil)
          (*fcomp-indentation* 0)
          (*fcomp-last-compile-print* (cons nil (cons nil nil))))
-    (push (list $fasl-arch (backend-target-architecture *fasl-backend*)) *fcomp-output-list*)
+    (push (list $fasl-platform (backend-target-platform *fasl-backend*)) *fcomp-output-list*)
     (fcomp-read-loop filename orig-file env :not-compile-time)
     (nreverse *fcomp-output-list*)))
 
