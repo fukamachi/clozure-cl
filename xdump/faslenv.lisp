@@ -90,7 +90,7 @@
 (defconstant $fasl-function 20)         ;<count> Make function
 (defconstant $fasl-vstr 21)             ;<vstring> Make a string
 (defconstant $fasl-vmksym 22)           ;<vstring> Make an uninterned symbol
-(defconstant $fasl-arch 23)             ;<n:byte> Ensure that file's loadable on arch n.
+(defconstant $fasl-platform 23)         ;<n:byte> Ensure that file's loadable on platform n.
 (defconstant $fasl-vetab-alloc 24)      ;<count:count> Make a new expression table
                                         ; with count slots.  Current etab gets lost.
 (defconstant $fasl-veref 25)            ;<index:count> Get the value from an etab slot.

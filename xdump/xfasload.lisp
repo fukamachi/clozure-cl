@@ -1169,15 +1169,15 @@
     (%epushval s val)))
 
 
-(defxloadfaslop $fasl-arch (s)
+(defxloadfaslop $fasl-platform (s)
   (%cant-epush s)
-  (let* ((arch (%fasl-expr s))
+  (let* ((platform (%fasl-expr s))
 	 (backend-name (backend-xload-info-compiler-target-name
 				 *xload-target-backend*))
 	 (backend (find-backend backend-name)))
-    (declare (fixnum arch))
-    (unless (= arch (ash (backend-target-architecture backend)
-			 *xload-target-fixnumshift*))
+    (declare (fixnum platform))
+    (unless (= platform (ash (backend-target-platform backend)
+                             *xload-target-fixnumshift*))
       (error "Not a ~A fasl file : ~s" backend-name (faslstate.faslfname s)))))
 
 
