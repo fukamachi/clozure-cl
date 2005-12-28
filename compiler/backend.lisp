@@ -18,6 +18,20 @@
 (eval-when (:compile-toplevel :execute)
   (require "ARCH"))
 
+(defconstant platform-word-size-mask 64)
+(defconstant platform-os-mask 7)
+(defconstant platform-cpu-mask (logandc2 (1- platform-word-size-mask)
+                                         platform-os-mask))
+(defconstant platform-word-size-32 0)
+(defconstant platform-word-size-64 64)
+(defconstant platform-cpu-ppc (ash 0 3))
+(defconstant platform-cpu-sparc (ash 1 3))
+(defconstant platform-cpu-x86 (ash 2 3))
+(defconstant platform-os-vxworks 0)
+(defconstant platform-os-linux 1)
+(defconstant platform-os-solaris 2)
+(defconstant platform-os-darwin 3)
+
 (defstruct backend
   (name :a :type keyword)
   (num-arg-regs 3 :type fixnum)    ; number of args passed in registers
@@ -32,7 +46,7 @@
   (p2-template-hash-name 'bogus :type symbol)
   (target-specific-features () :type list)
   (target-fasl-pathname "" :type (or string pathname))
-  (target-architecture 0 :type fixnum)
+  (target-platform 0 :type fixnum)
   (target-os ())
   (target-arch-name nil :type symbol)
   (target-foreign-type-data nil :type (or null foreign-type-data))
