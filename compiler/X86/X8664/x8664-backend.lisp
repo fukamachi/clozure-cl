@@ -42,7 +42,9 @@
 		'(:x8664 :x86-target :linux-target :linuxx86-target :x8664-target
                   :little-endian-target)
 		:target-fasl-pathname (make-pathname :type "lx64fsl")
-		:target-architecture (logior 5 64)
+		:target-platform (logior platform-cpu-x86
+                                         platform-os-linux
+                                         platform-word-size-64)
 		:target-os :linuxx86
 		:name :linuxx8664
 		:target-arch-name :x8664
@@ -64,7 +66,9 @@
 		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
                   :little-endian-target)
 		:target-fasl-pathname (make-pathname :type "d64fsl")
-		:target-architecture (logior 7 64)
+		:target-platform (logior platform-cpu-x86
+                                         platform-os-darwin
+                                         platform-word-size-64)
 		:target-os :darwinx86
 		:name :darwinx8664
 		:target-arch-name :x8664

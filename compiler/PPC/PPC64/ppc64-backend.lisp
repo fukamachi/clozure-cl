@@ -41,7 +41,9 @@
 		:target-specific-features
 		'(:powerpc :ppc-target :poweropen-target :linux-target :linuxppc-target :ppc64-target)
 		:target-fasl-pathname (make-pathname :type "p64fsl")
-		:target-architecture (logior 1 64)
+		:target-platform (logior platform-cpu-ppc
+                                         platform-os-linux
+                                         platform-word-size-64)
 		:target-os :linuxppc
 		:name :linuxppc64
 		:target-arch-name :ppc64
@@ -62,7 +64,9 @@
 		:target-specific-features
 		'(:powerpc :ppc-target :darwin-target :darwinppc-target :ppc64-target)
 		:target-fasl-pathname (make-pathname :type "d64fsl")
-		:target-architecture (logior 3 64)
+		:target-platform (logior platform-cpu-ppc
+                                         platform-os-darwin
+                                         platform-word-size-64)
 		:target-os :darwinppc
 		:name :darwinppc64
 		:target-arch-name :ppc64

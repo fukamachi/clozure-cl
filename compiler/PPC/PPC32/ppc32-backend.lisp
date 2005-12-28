@@ -47,7 +47,9 @@
 		:target-specific-features
 		'(:powerpc :ppc-target :eabi-target :linux-target :linuxppc-target :ppc32-target)
 		:target-fasl-pathname (make-pathname :type "pfsl")
-		:target-architecture 1
+		:target-platform (logior platform-word-size-32
+                                             platform-cpu-ppc
+                                             platform-os-linux)
 		:target-os :linuxppc
 		:name :linuxppc32
 		:target-arch-name :ppc32
@@ -67,7 +69,9 @@
 		:target-specific-features
 		'(:powerpc :ppc-target :darwin-target :darwinppc-target :ppc32-target)
 		:target-fasl-pathname (make-pathname :type "dfsl")
-		:target-architecture 3
+		:target-platform (logior platform-word-size-32
+                                             platform-cpu-ppc
+                                             platform-os-darwin)
 		:target-os :darwinppc
 		:name :darwinppc32
 		:target-arch-name :ppc32
