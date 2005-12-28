@@ -56,3 +56,40 @@ LispObj start_lisp(TCR*, LispObj);
 
 #include "kernel-globals.h"
 #endif
+
+#define PLATFORM_WORD_SIZE_32 0
+#define PLATFORM_WORD_SIZE_64 64
+#define PLATFORM_CPU_PPC (0<<3)
+#define PLATFORM_CPU_SPARC (1<<3)
+#define PLATFORM_CPU_X86 (2<<3)
+#define PLATFORM_OS_VXWORKS 0
+#define PLATFORM_OS_LINUX 1
+#define PLATFORM_OS_SOLARIS 2
+#define PLATFORM_OS_DARWIN 3
+
+#ifdef LINUX
+#define PLATFORM_OS PLATFORM_OS_LINUX
+#endif
+
+#ifdef DARWIN
+#define PLATFORM_OS PLATFORM_OS_DARWIN
+#endif
+
+#ifdef PPC
+#define PLATFORM_CPU PLATFORM_CPU_PPC
+#endif
+
+#ifdef X86
+#define PLATFORM_CPU PLATFORM_CPU_X86
+#endif
+
+#if (WORD_SIZE == 32)
+#define PLATFORM_WORD_SIZE PLATFORM_WORD_SIZE_32
+#endif
+
+#if (WORD_SIZE == 64)
+#define PLATFORM_WORD_SIZE PLATFORM_WORD_SIZE_64
+#endif
+
+#define PLATFORM (PLATFORM_OS|PLATFORM_CPU|PLATFORM_WORD_SIZE)
+
