@@ -1,3 +1,8 @@
+2005-12-28 09:49  gb
+
+	* xdump/heap-image.lisp: Don't set the (was disk-size, now
+	static-dnodes) field of section header to non-zero value.
+
 2005-12-27 14:19  gb
 
 	* lib/encapsulate.lisp: ADVISE-GLOBAL-DEF: don't generate
