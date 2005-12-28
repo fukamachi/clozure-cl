@@ -262,27 +262,13 @@
   (setf (faslstate.faslevec s) (make-array (the fixnum (%fasl-read-count s)))
         (faslstate.faslecnt s) 0))
 
-(deffaslop $fasl-arch (s)
+(deffaslop $fasl-platform (s)
   (%cant-epush s)
-  (let* ((arch (%fasl-expr s)))
-    (declare (fixnum arch))
-    #+linuxppc-target
-    (progn
-      #+ppc32-target
-      (unless (= arch 1)
-        (error "Not a LinuxPPC32 fasl file : ~s" (faslstate.faslfname s)))
-      #+ppc64-target
-      (unless (= arch (logior 64 1))
-        (error "Not a LinuxPPC64 fasl file : ~s" (faslstate.faslfname s))))
-    #+darwinppc-target
-    (progn
-      #+ppc32-target
-      (unless (= arch 3)
-        (error "Not a DarwinPPC32 fasl file : ~s" (faslstate.faslfname s)))
-      #+ppc64-target
-      (unless (= arch (logior 64 3))
-        (error "Not a DarwinPPC64 fasl file : ~s" (faslstate.faslfname s))))
-    ))
+  (let* ((platform (%fasl-expr s))
+         (host-platform (%get-kernel-global 'host-platform)))
+    (declare (fixnum platform host-platform))
+    (unless (= platform host-platform)
+      (error "Not a native fasl file : ~s" (faslstate.faslfname s)))))
 
 
 (deffaslop $fasl-veref (s)
