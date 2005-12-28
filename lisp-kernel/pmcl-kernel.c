@@ -1382,26 +1382,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(GET_TCR) = (LispObj) get_tcr;
   *(double *) &(lisp_global(DOUBLE_FLOAT_ONE)) = (double) 1.0;
 
-  lisp_global(HOST_PLATFORM) = (LispObj)
-    (
-#ifdef PPC
-#ifdef PPC64
-     64
-#else
-     0
-#endif
-#endif
-     |
-#ifdef LINUX
-     1
-#endif
-#ifdef DARWIN
-     3
-#endif
-     )
-    /* We'll get a syntax error here if nothing's defined. */
-    << fixnumshift;
-
+  lisp_global(HOST_PLATFORM) = (LispObj) PLATFORM << fixnumshift;
 
   lisp_global(BATCH_FLAG) = (batch_flag << fixnumshift);
 
