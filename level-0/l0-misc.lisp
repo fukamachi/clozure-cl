@@ -119,7 +119,7 @@
 	  (when (object-in-application-heap-p active)
 	    (if (eql code ppc::area-dynamic)
 	      (incf dynamic bytes)
-	      (if (eql code ppc::area-staticlib)
+	      (if (eql code ppc::area-managed-static)
 		(incf library bytes)
 		(incf static bytes))))))
     (values dynamic static library)))

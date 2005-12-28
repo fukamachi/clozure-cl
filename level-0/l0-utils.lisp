@@ -48,7 +48,7 @@
 (defun %map-lfuns (f)
   (let* ((filter #'(lambda (obj) (when (functionp obj) (funcall f obj)))))
     (declare (dynamic-extent filter))
-    (%map-areas filter ppc::area-dynamic ppc::area-staticlib)))
+    (%map-areas filter ppc::area-dynamic ppc::area-managed-static)))
 
 
 (defun ensure-simple-string (s)
