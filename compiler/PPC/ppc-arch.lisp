@@ -1,4 +1,4 @@
-;;;-*- Mode: Lisp; Package: (PPC32 :use CL) -*-
+;;;-*- Mode: Lisp; Package: (PPC :use CL) -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
