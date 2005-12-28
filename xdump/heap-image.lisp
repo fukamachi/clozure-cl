@@ -51,7 +51,7 @@
 	     (:code :unsigned-long)
 	     (:area (:* t))
 	     (:memory-size :unsigned-long)
-	     (:disk-size :unsigned-long)))
+	     (:static-dnodes :unsigned-long)))
 |#
 
 (defparameter *image-section-size* ())
@@ -86,7 +86,7 @@
 			   (+ 4095 (file-position f)))))
 
 
-(defparameter *image-abi-version* 1004)
+(defparameter *image-abi-version* 1005)
 
 (defun write-image-file (pathname image-base spaces &optional (abi-version *image-abi-version*))
   (target-setup-image-header-sizes)
@@ -114,11 +114,14 @@
       (image-write-fullword abi-version f)
       (target-arch-case
        (:ppc32
-        (dotimes (i 7) (image-write-fullword 0 f)))
+        (dotimes (i 2) (image-write-fullword 0 f))
+        
+        (image-write-fullword (backend-target-platform *target-backend*) f)
+        (dotimes (i 4) (image-write-fullword 0 f)))
        (:ppc64
         (image-write-fullword 0 f)
         (image-write-fullword 0 f)
-        (image-write-fullword 1 f)
+        (image-write-fullword (backend-target-platform *target-backend*) f)
         (image-write-doubleword *xload-image-base-address* f)
         (image-write-doubleword image-base f)))
       (dolist (sect spaces)
