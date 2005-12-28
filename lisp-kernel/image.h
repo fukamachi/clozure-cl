@@ -64,7 +64,9 @@ typedef struct {
   natural canonical_image_base_64;
   natural actual_image_base_64;
 #else 
-  unsigned pad[7]; 
+  unsigned pad0[2]; 
+  unsigned flags;
+  unsigned pad1[4];
 #endif
 } openmcl_image_file_header;
 
@@ -88,5 +90,5 @@ load_openmcl_image(int, openmcl_image_file_header*);
 
 
 #define ABI_VERSION_MIN 1004
-#define ABI_VERSION_CURRENT 1004
-#define ABI_VERSION_MAX 1004
+#define ABI_VERSION_CURRENT 1005
+#define ABI_VERSION_MAX 1005

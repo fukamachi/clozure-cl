@@ -88,7 +88,7 @@ find_openmcl_image_file_header(int fd, openmcl_image_file_header *header)
   openmcl_image_file_trailer trailer;
   int disp;
   off_t pos;
-  unsigned version;
+  unsigned version, flags;
 
   pos = lseek(fd, 0, SEEK_END);
   if (pos < 0) {
@@ -133,6 +133,11 @@ find_openmcl_image_file_header(int fd, openmcl_image_file_header *header)
   if (version > ABI_VERSION_MAX) {
     fprintf(stderr, "Heap image is too new for this kernel.\n");
     return false;
+  }
+  flags = header->flags;
+  if (flags != PLATFORM) {
+    fprintf(stderr, "Heap image was saved for another platform");
+    /* return false; */
   }
   return true;
 }
@@ -388,13 +393,10 @@ save_application(unsigned fd)
   fh.section_data_offset_high = 0;
   fh.section_data_offset_low = 0;
 #else
-  for (i = 0; i < sizeof(fh.pad)/sizeof(fh.pad[0]); i++) {
-    fh.pad[i] = 0;
-  }
+  fh.pad0[0] = fh.pad0[1] = 0;
+  fh.pad1[0] = fh.pad1[1] = fh.pad1[2] = fh.pad1[3] = 0;
 #endif
-#if WORD_SIZE == 64
-  fh.flags = 1;
-#endif
+  fh.flags = PLATFORM;
 
 #ifdef PPC64
   image_data_pos = seek_to_next_page(fd);
