@@ -128,7 +128,7 @@
 	(image-write-natural 0 f)
 	(let* ((size (xload-space-lowptr sect)))
 	  (image-write-natural size f)
-	  (image-write-natural size f)))
+	  (image-write-natural 0 f)))   ; static dnodes.
       (dolist (sect spaces)
 	(image-align-output-position f)
 	(stream-write-ivector f
