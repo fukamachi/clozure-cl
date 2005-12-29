@@ -1,3 +1,33 @@
+2005-12-29 04:48  gb
+
+	* lisp-kernel/gc.c: Deal with shrinking the hons area.
+
+2005-12-29 04:48  gb
+
+	* lisp-kernel/ppc-exceptions.c: Handle cleanup of each tcr's
+	gc_context in gc_like_from_xp, not in the GC proper.
+
+2005-12-29 04:47  gb
+
+	* lisp-kernel/pmcl-kernel.c: shrink_dynamic_area by a natural, not
+	just an unsigned.  When creating the tenured area, move the
+	static_used bitvector there from the active dynamic area.
+
+2005-12-29 04:45  gb
+
+	* lisp-kernel/image.c: Deal with the hons-space bitmap (saved in
+	the image, after the dynamic section contents).
+	
+	It's an error if we're on the wrong platform.
+
+2005-12-29 04:36  gb
+
+	* lisp-kernel/image.h: Bump ABI_VERSION_MIN.
+
+2005-12-29 04:34  gb
+
+	* level-0/l0-misc.lisp: %USEDBYTES and ROOM account for hons space.
+
 2005-12-28 16:34  gb
 
 	* xdump/heap-image.lisp: write (target) platform info to header. 
