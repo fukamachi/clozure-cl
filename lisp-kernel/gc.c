@@ -3287,11 +3287,6 @@ gc(TCR *tcr, signed_natural param)
     check_all_areas();
   }
 
-  other_tcr = tcr;
-  do {
-    other_tcr->gc_context = NULL;
-    other_tcr = other_tcr->next;
-  } while (other_tcr != tcr);
   
   lisp_global(IN_GC) = 0;
 
@@ -4142,6 +4137,24 @@ adjust_noderef(LispObj *loc, LispObj base, LispObj limit, signed_natural delta)
   }
 }
 
+/* 
+   If *loc is a tagged pointer into the address range denoted by BASE and LIMIT,
+   nuke it (set it to NIL.)
+*/
+void
+nuke_noderef(LispObj *loc, LispObj base, LispObj limit)
+{
+  LispObj p = *loc;
+  int tag_n = fulltag_of(p);
+
+  if (is_node_fulltag(tag_n)) {
+    if (area_dnode(p, base) < limit) {
+      *loc = lisp_nil;
+    }
+  }
+}
+
+
 void
 adjust_pointers_in_xp(ExceptionInformation *xp, 
                       LispObj base, 
@@ -4161,6 +4174,28 @@ adjust_pointers_in_xp(ExceptionInformation *xp,
   adjust_locref((LispObj*) (&(xpPC(xp))), base, limit, delta);
   adjust_locref((LispObj*) (&(xpLR(xp))), base, limit, delta);
   adjust_locref((LispObj*) (&(xpCTR(xp))), base, limit, delta);
+#endif
+
+#ifdef X86
+#ifdef X8664
+#warning fix this
+#endif
+#endif
+}
+
+void
+nuke_pointers_in_xp(ExceptionInformation *xp, 
+                      LispObj base, 
+                      LispObj limit) 
+{
+  natural *regs = (natural *) xpGPRvector(xp);
+#ifdef PPC
+  int r;
+  for (r = fn; r < 32; r++) {
+    nuke_noderef((LispObj *) (&(regs[r])),
+                   base,
+                   limit);
+  }
 #endif
 
 #ifdef X86
@@ -4211,6 +4246,39 @@ adjust_pointers_in_range(LispObj *range_start,
 }
 
 void
+nuke_pointers_in_range(LispObj *range_start,
+                         LispObj *range_end,
+                         LispObj base,
+                         LispObj limit)
+{
+  LispObj *p = range_start, node, new;
+  int tag_n;
+  natural nwords;
+
+  while (p < range_end) {
+    node = *p;
+    tag_n = fulltag_of(node);
+    if (immheader_tag_p(tag_n)) {
+      p = (LispObj *) skip_over_ivector((natural) p, node);
+    } else if (nodeheader_tag_p(tag_n)) {
+      nwords = header_element_count(node);
+      nwords += (1 - (nwords&1));
+      p++;
+      while (nwords--) {
+        nuke_noderef(p, base, limit);
+        p++;
+      }
+    } else {
+      /* just a cons */
+      nuke_noderef(p, base, limit);
+      p++;
+      nuke_noderef(p, base, limit);
+      p++;
+    }
+  }
+}
+
+void
 adjust_pointers_in_tstack_area(area *a,
                                LispObj base,
                                LispObj limit,
@@ -4235,6 +4303,29 @@ adjust_pointers_in_tstack_area(area *a,
 }
 
 void
+nuke_pointers_in_tstack_area(area *a,
+                             LispObj base,
+                             LispObj limit)
+{
+  LispObj
+    *current,
+    *next,
+    *start = (LispObj *) a->active,
+    *end = start,
+    *area_limit = (LispObj *) (a->high);
+
+  for (current = start;
+       end != area_limit;
+       current = next) {
+    next = ptr_from_lispobj(*current);
+    end = ((next >= start) && (next < area_limit)) ? next : area_limit;
+    if (current[1] == 0) {
+      nuke_pointers_in_range(current+2, end, base, limit);
+    }
+  }
+}
+
+void
 adjust_pointers_in_vstack_area(area *a,
                                LispObj base,
                                LispObj limit,
@@ -4249,6 +4340,22 @@ adjust_pointers_in_vstack_area(area *a,
     p++;
   }
   adjust_pointers_in_range(p, q, base, limit, delta);
+}
+
+void
+nuke_pointers_in_vstack_area(area *a,
+                             LispObj base,
+                             LispObj limit)
+{
+  LispObj
+    *p = (LispObj *) a->active,
+    *q = (LispObj *) a->high;
+
+  if (((natural)p) & sizeof(natural)) {
+    nuke_noderef(p, base, limit);
+    p++;
+  }
+  nuke_pointers_in_range(p, q, base, limit);
 }
 
 #ifdef PPC
@@ -4276,6 +4383,27 @@ adjust_pointers_in_cstack_area(area *a,
   }
 }
 
+void
+nuke_pointers_in_cstack_area(area *a,
+                               LispObj base,
+                               LispObj limit)
+{
+  BytePtr
+    current,
+    next,
+    area_limit = a->high,
+    low = a->low;
+
+  for (current = a->active; (current >= low) && (current < area_limit); current = next) {
+    next = *((BytePtr *)current);
+    if (next == NULL) break;
+    if (((next - current) == sizeof(lisp_frame)) &&
+	(((((lisp_frame *)current)->savefn) == 0) ||
+	 (fulltag_of(((lisp_frame *)current)->savefn) == fulltag_misc))) {
+      nuke_noderef(&((lisp_frame *) current)->savefn, base, limit);
+    }
+  }
+}
 #endif
 
 
@@ -4286,8 +4414,13 @@ adjust_pointers_in_tcrs(TCR *current, LispObj base, LispObj limit, signed_natura
   TCR *tcr = current;
   xframe_list *xframes;
   LispObj *tlb_start, *tlb_end;
+  ExceptionInformation *xp;
 
   do {
+    xp = tcr->gc_context;
+    if (xp) {
+      adjust_pointers_in_xp(xp, base, limit, delta);
+    }
     for (xframes = (xframe_list *) tcr->xframe;
          xframes;
          xframes = xframes->prev) {
@@ -4303,6 +4436,32 @@ adjust_pointers_in_tcrs(TCR *current, LispObj base, LispObj limit, signed_natura
 }
 
 void
+nuke_pointers_in_tcrs(TCR *current, LispObj base, LispObj limit)
+{
+  TCR *tcr = current;
+  xframe_list *xframes;
+  LispObj *tlb_start, *tlb_end;
+  ExceptionInformation *xp;
+
+  do {
+    xp = tcr->gc_context;
+    if (xp) {
+      nuke_pointers_in_xp(xp, base, limit);
+    }
+    for (xframes = (xframe_list *) tcr->xframe;
+         xframes;
+         xframes = xframes->prev) {
+      nuke_pointers_in_xp(xframes->curr, base, limit);
+    }
+    nuke_pointers_in_range(tcr->tlb_pointer,
+                           (LispObj *) ((BytePtr)tcr->tlb_pointer+tcr->tlb_limit),
+                           base,
+                           limit);
+    tcr = tcr->next;
+  } while (tcr != current);
+}
+
+void
 adjust_gcable_ptrs(LispObj base, LispObj limit, signed_natural delta)
 {
   /* These need to be special-cased, because xmacptrs are immediate
@@ -4312,6 +4471,10 @@ adjust_gcable_ptrs(LispObj base, LispObj limit, signed_natural delta)
 
   while ((next = *prev) != (LispObj)NULL) {
     adjust_noderef(prev, base, limit, delta);
+    if (delta < 0) {
+      /* Assume that we've already moved things */
+      next = *prev;
+    }
     prev = &(((xmacptr *)ptr_from_lispobj(untag(next)))->link);
   }
 }
@@ -4347,6 +4510,41 @@ adjust_pointers_in_dynamic_area(area *a,
         work = pagelet_start+i;
         adjust_noderef(&(work->cdr), base, limit, delta);
         adjust_noderef(&(work->car), base, limit, delta);
+      }
+      pagelet_start += nbits_in_word;
+    }
+  }
+}
+
+void
+nuke_pointers_in_dynamic_area(area *a, 
+                              LispObj base, 
+                              LispObj limit)
+{
+  natural 
+    nstatic = static_dnodes_for_area(a),
+    nstatic_bitmap_words = nstatic >> bitmap_shift;
+  LispObj 
+    *low = (LispObj *) (a->low),
+    *active = (LispObj *) (a->active),
+    *dynamic_low = low + (2 * nstatic);
+
+  nuke_pointers_in_range(dynamic_low, active, base, limit);
+
+  if (nstatic && (nstatic <= a->ndnodes)) {
+    cons *pagelet_start = (cons *) a->low, *work;
+    bitvector usedbits = tenured_area->static_used;
+    natural used, i;
+    
+    while (nstatic_bitmap_words--) {
+      used = *usedbits++;
+
+      while (used) {
+        i = count_leading_zeros(used);
+        used &= ~(BIT0_MASK >> i);
+        work = pagelet_start+i;
+        nuke_noderef(&(work->cdr), base, limit);
+        nuke_noderef(&(work->car), base, limit);
       }
       pagelet_start += nbits_in_word;
     }
@@ -4394,6 +4592,44 @@ adjust_all_pointers(LispObj base, LispObj limit, signed_natural delta)
   adjust_gcable_ptrs(base, limit, delta);
 }
 
+void
+nuke_all_pointers(LispObj base, LispObj limit)
+{
+  area *next_area;
+  area_code code;
+
+  for (next_area = active_dynamic_area; 
+       (code = next_area->code) != AREA_VOID;
+       next_area = next_area->succ) {
+    switch (code) {
+    case AREA_TSTACK:
+      nuke_pointers_in_tstack_area(next_area, base, limit);
+      break;
+      
+    case AREA_VSTACK:
+      nuke_pointers_in_vstack_area(next_area, base, limit);
+      break;
+
+    case AREA_CSTACK:
+      nuke_pointers_in_cstack_area(next_area, base, limit);
+      break;
+
+    case AREA_STATIC:
+    case AREA_MANAGED_STATIC:
+      nuke_pointers_in_range((LispObj *) (next_area->low),
+                               (LispObj *) (next_area->active),
+                               base,
+                               limit);
+      break;
+
+    case AREA_DYNAMIC:
+      nuke_pointers_in_dynamic_area(next_area, base, limit);
+      break;
+    }
+  }
+  nuke_pointers_in_tcrs(get_tcr(false), base, limit);
+}
+
 #ifdef DARWIN
 #define MREMAP_MAYMOVE 1
 
@@ -4434,7 +4670,7 @@ darwin_mremap(void *old_address,
 #endif
 
 Boolean
-grow_used_vector(natural new_dnodes, bitvector *newbits)
+resize_used_bitvector(natural new_dnodes, bitvector *newbits)
 {
   natural
     old_dnodes = tenured_area->static_dnodes,
@@ -4466,6 +4702,12 @@ grow_used_vector(natural new_dnodes, bitvector *newbits)
       return true;
     }
   }
+  if (new_page_aligned_size == 0) {
+    munmap(old_used, old_page_aligned_size);
+    *newbits = NULL;
+    return true;
+  }
+    
   /* Have to try to remap the old bitmap.  That's implementation-dependent,
      and (naturally) Mach sucks, but no one understands how.
   */
@@ -4500,11 +4742,11 @@ grow_hons_area(signed_natural delta_in_bytes)
       base = (LispObj) (ada->low + (current_static_dnodes*dnode_size)),
       oldactive = (LispObj) ada->active,
       limit = area_dnode(oldactive, base);
-    if (!grow_used_vector(new_static_dnodes, &new_used)) {
+    if (!resize_used_bitvector(new_static_dnodes, &new_used)) {
       shrink_dynamic_area(delta_in_bytes);
       return -1;
     }
-    tenured_area->static_used =  new_used;
+    tenured_area->static_used = new_used;
     adjust_all_pointers(base, limit, delta_in_bytes);
     memmove((void *)(base+delta_in_bytes),(void *)base,oldactive-base);
     ada->ndnodes = area_dnode(ada->high, ada->low);
@@ -4531,6 +4773,41 @@ grow_hons_area(signed_natural delta_in_bytes)
 int 
 shrink_hons_area(signed_natural delta_in_bytes)
 {
+  area *ada = active_dynamic_area;
+  signed_natural 
+    delta_in_dnodes = delta_in_bytes >> dnode_shift;
+  natural 
+    current_static_dnodes = tenured_area->static_dnodes,
+    new_static_dnodes;
+  LispObj base, limit, oldactive;
+  bitvector newbits;
+
+    
+  delta_in_dnodes = -align_to_power_of_2(-delta_in_dnodes,log2_nbits_in_word);
+  new_static_dnodes = current_static_dnodes+delta_in_dnodes;
+  delta_in_bytes = delta_in_dnodes << dnode_shift;
+  oldactive = (LispObj) (ada->active);
+
+  resize_used_bitvector(new_static_dnodes, &newbits);
+  tenured_area->static_used = newbits; /* redundant */
+  memmove(ada->low+(new_static_dnodes << dnode_shift),
+          ada->low+(current_static_dnodes << dnode_shift),
+          oldactive-(natural)(ada->low+(current_static_dnodes << dnode_shift)));
+  tenured_area->static_dnodes = new_static_dnodes;
+  ada->active -= delta_in_bytes;
+  shrink_dynamic_area(-delta_in_bytes);
+
+  base = (LispObj) (tenured_area->low + (new_static_dnodes << dnode_shift));
+  limit = area_dnode(tenured_area->low + (current_static_dnodes << dnode_shift), base);
+  nuke_all_pointers(base, limit);
+  base = (LispObj) (tenured_area->low + (current_static_dnodes << dnode_shift));
+  limit = area_dnode(oldactive, base);
+  adjust_all_pointers(base, limit, delta_in_bytes);
+  xMakeDataExecutable(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift),
+                      ada->active-(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift)));
+
+
+
   return 0;
 }
 
@@ -4539,8 +4816,10 @@ change_hons_area_size(TCR *tcr, signed_natural delta_in_bytes)
 {
   if (delta_in_bytes > 0) {
     return grow_hons_area(delta_in_bytes);
-  } else {
+  }
+  if (delta_in_bytes < 0) {
     return shrink_hons_area(delta_in_bytes);
   }
+  return 0;
 }
 
