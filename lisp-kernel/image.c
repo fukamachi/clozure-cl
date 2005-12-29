@@ -137,7 +137,7 @@ find_openmcl_image_file_header(int fd, openmcl_image_file_header *header)
   flags = header->flags;
   if (flags != PLATFORM) {
     fprintf(stderr, "Heap image was saved for another platform");
-    /* return false; */
+    return false;
   }
   return true;
 }
@@ -147,12 +147,13 @@ load_image_section(int fd, openmcl_image_section_header *sect)
 {
   extern area* allocate_dynamic_area(unsigned);
   off_t
-    pos = seek_to_next_page(fd);
+    pos = seek_to_next_page(fd), advance;
   int 
     mem_size = sect->memory_size;
   void *addr;
   area *a;
 
+  advance = mem_size;
   switch(sect->code) {
   case AREA_READONLY:
     addr = mmap(pure_space_active,
@@ -167,7 +168,7 @@ load_image_section(int fd, openmcl_image_section_header *sect)
     a = new_area(pure_space_active, pure_space_limit, AREA_READONLY);
     pure_space_active += mem_size;
     a->active = pure_space_active;
-    sect->area = a;
+    sect->area = a;      
     break;
 
   case AREA_STATIC:
@@ -198,15 +199,33 @@ load_image_section(int fd, openmcl_image_section_header *sect)
       return;
     }
 
+    a->static_dnodes = sect->static_dnodes;
+    if (a->static_dnodes) {
+      natural pages_size = (align_to_power_of_2((align_to_power_of_2(a->static_dnodes, 
+                                                                     log2_nbits_in_word)>>3),
+                                                log2_page_size));
+      lseek(fd,pos+mem_size, SEEK_SET);
+      pos = seek_to_next_page(fd);
+      addr = mmap(NULL,
+                  pages_size,
+                  PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE,
+                  fd,
+                  pos);
+      if (addr == MAP_FAILED) {
+        return;
+      }
+      a->static_used = addr;
+      advance = pages_size;
+    }
     sect->area = a;
-    
     break;
 
   default:
     return;
     
   }
-  lseek(fd, pos+mem_size, SEEK_SET);
+  lseek(fd, pos+advance, SEEK_SET);
 }
     
 LispObj
@@ -281,7 +300,7 @@ prepare_to_write_dynamic_space()
 {
   area *a = active_dynamic_area;
   LispObj 
-    *start = (LispObj *)(a->low),
+    *start = (LispObj *)(a->low + (tenured_area->static_dnodes << dnode_shift)),
     *end = (LispObj *) (a->active),
     x1;
   int tag, subtag, element_count;
@@ -361,7 +380,7 @@ save_application(unsigned fd)
   area *areas[3], *a;
   int i, err;
   off_t header_pos, eof_pos;
-#ifdef PPC64
+#if WORD_SIZE == 64
   off_t image_data_pos;
   signed_natural section_data_delta;
 #endif
@@ -379,6 +398,11 @@ save_application(unsigned fd)
     sections[i].code = a->code;
     sections[i].area = NULL;
     sections[i].memory_size  = a->active - a->low;
+    if (a == active_dynamic_area) {
+      sections[i].static_dnodes = tenured_area->static_dnodes;
+    } else {
+      sections[i].static_dnodes = 0;
+    }
   }
   fh.sig0 = IMAGE_SIG0;
   fh.sig1 = IMAGE_SIG1;
@@ -398,7 +422,7 @@ save_application(unsigned fd)
 #endif
   fh.flags = PLATFORM;
 
-#ifdef PPC64
+#if WORD_SIZE == 64
   image_data_pos = seek_to_next_page(fd);
 #else
   err = write_file_and_section_headers(fd, &fh, sections, 3, &header_pos);
@@ -428,10 +452,11 @@ save_application(unsigned fd)
   }
 
   for (i = 0; i < 3; i++) {
-    natural n;
+    natural n, nstatic;
     a = areas[i];
     seek_to_next_page(fd);
     n = sections[i].memory_size;
+    nstatic = sections[i].static_dnodes;
     if (a->code == AREA_READONLY) {
       /* 
 	 Darwin seems to have problems writing the readonly area for
@@ -445,10 +470,21 @@ save_application(unsigned fd)
       if (write(fd, a->low, n) != n) {
 	return errno;
       }
+      if (nstatic) {
+        /* Need to write the static_used bitmap */
+        natural static_used_size_in_bytes =
+          (align_to_power_of_2((align_to_power_of_2(nstatic, log2_nbits_in_word)>>3),
+                               log2_page_size));
+        seek_to_next_page(fd);
+        if (write(fd, tenured_area->static_used, static_used_size_in_bytes) 
+            != static_used_size_in_bytes) {
+          return errno;
+        }
+      }
     }
   }
 
-#ifdef PPC64
+#if WORD_SIZE == 64
   seek_to_next_page(fd);
   section_data_delta = -((lseek(fd,0,SEEK_CUR)+sizeof(fh)+sizeof(sections)) -
                          image_data_pos);
