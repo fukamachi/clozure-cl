@@ -122,7 +122,9 @@
 	      (if (eql code ppc::area-managed-static)
 		(incf library bytes)
 		(incf static bytes))))))
-    (values dynamic static library)))
+      (let* ((hons-size (ash (hons-space-size) target::dnode-shift)))
+        (decf dynamic hons-size)
+        (values dynamic static library hons-size))))
 
 
 
@@ -240,6 +242,7 @@
          (usedbytes nil)
          (static-used nil)
          (staticlib-used nil)
+         (hons-space-size nil)
          (lispheap nil)
          (reserved nil)
          (static nil)
@@ -251,10 +254,11 @@
         (without-gcing
          (setq freebytes (%freebytes))
          (when verbose
-           (multiple-value-setq (usedbytes static-used staticlib-used) (%usedbytes))
+           (multiple-value-setq (usedbytes static-used staticlib-used hons-space-size)
+             (%usedbytes))
            (setq lispheap (+ freebytes usedbytes)
                  reserved (%reservedbytes)
-                 static (+ static-used staticlib-used))
+                 static (+ static-used staticlib-used hons-space-size))
            (multiple-value-setq (stack-total stack-used stack-free)
              (%stack-space))
            (unless (eq verbose :default)
@@ -276,6 +280,9 @@
                 static (k static)
                 0 0
                 static (k static))
+        (when hons-space-size
+          (format t "~&~,3f MB of static memory reserved for hash consing."
+                  (/ hons-space-size (float (ash 1 20)))))
         (format t "~&~,3f MB reserved for heap expansion."
                 (/ reserved (float (ash 1 20))))
         (unless (eq verbose :default)
