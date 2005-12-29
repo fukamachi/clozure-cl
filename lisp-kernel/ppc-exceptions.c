@@ -435,8 +435,9 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
         fatal_oserr(": save_application", err);
       }
       if (selector == GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE) {
+        LispObj aligned_arg = align_to_power_of_2(arg, log2_nbits_in_word);
         signed_natural 
-          delta_dnodes = ((signed_natural) arg) - 
+          delta_dnodes = ((signed_natural) aligned_arg) - 
           ((signed_natural) tenured_area->static_dnodes);
         change_hons_area_size_from_xp(xp, delta_dnodes*dnode_size);
         xpGPR(xp, imm0) = tenured_area->static_dnodes;
@@ -666,6 +667,12 @@ gc_like_from_xp(ExceptionInformation *xp,
 
 
   result = fun(tcr, param);
+
+  other_tcr = tcr;
+  do {
+    other_tcr->gc_context = NULL;
+    other_tcr = other_tcr->next;
+  } while (other_tcr != tcr);
 
   resume_other_threads();
 
