@@ -723,7 +723,7 @@ grow_dynamic_area(natural delta)
   existed ...)
 */
 Boolean
-shrink_dynamic_area(unsigned delta)
+shrink_dynamic_area(natural delta)
 {
   area *a = active_dynamic_area, *reserved = reserved_area;
   
@@ -1412,6 +1412,8 @@ main(int argc, char *argv[], char *envp[], void *aux)
     tenured_area->refbits = a->markbits;
     tenured_area->static_dnodes = a->static_dnodes;
     a->static_dnodes = 0;
+    tenured_area->static_used = a->static_used;
+    a->static_used = 0;
     lisp_global(TENURED_AREA) = ptr_to_lispobj(tenured_area);
     lisp_global(REFBITS) = ptr_to_lispobj(tenured_area->refbits);
     g2_area->threshold = G2_AREA_THRESHOLD;
