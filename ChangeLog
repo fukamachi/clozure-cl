@@ -1,3 +1,64 @@
+2005-12-28 16:34  gb
+
+	* xdump/heap-image.lisp: write (target) platform info to header. 
+	TODO: endianness of host/target, page size assumptions.
+
+2005-12-28 16:31  gb
+
+	* xdump/: faslenv.lisp, xfasload.lisp: rename $fasl-arch to
+	$fasl-platform.
+
+2005-12-28 16:31  gb
+
+	* lisp-kernel/: image.c, image.h: bump max/current abi version, min
+	to soon follow.  store target "platform" in header.flags,
+	regardless of word size.  check flags when loading; should be fatal
+	error after bootstrapping.
+
+2005-12-28 16:29  gb
+
+	* lisp-kernel/pmcl-kernel.c: use new PLATFORM constants to set
+	kernel_global(HOST_PLATFORM).
+
+2005-12-28 16:29  gb
+
+	* lisp-kernel/lisp.h: New PLATFORM constants.
+
+2005-12-28 16:28  gb
+
+	* lib/nfcomp.lisp: $fasl-arch -> $fasl-platform, get it from
+	backend-target-platform.
+
+2005-12-28 16:28  gb
+
+	* level-1/version.lisp: Bump; new binaries soon.
+
+2005-12-28 16:27  gb
+
+	* level-0/nfasload.lisp: Rename $fasl-arch to $fasl-platform.
+
+2005-12-28 16:27  gb
+
+	* level-0/: l0-misc.lisp, l0-utils.lisp: Referring to
+	area-staticlib is soooo 2005, but these constants don't need to be
+	in the ppc package in 2006.
+
+2005-12-28 16:26  gb
+
+	* compiler/: PPC/PPC32/ppc32-backend.lisp,
+	PPC/PPC64/ppc64-backend.lisp, X86/X8664/x8664-backend.lisp:
+	backend-target-architecture -> backend-target-platform; use new
+	constants.
+
+2005-12-28 16:25  gb
+
+	* compiler/PPC/ppc-arch.lisp: Fix package in attribute line.
+
+2005-12-28 16:24  gb
+
+	* compiler/backend.lisp: Platform constants;
+	backend-target-architecture -> backend-target-platform.
+
 2005-12-28 09:49  gb
 
 	* xdump/heap-image.lisp: Don't set the (was disk-size, now
