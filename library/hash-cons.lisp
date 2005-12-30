@@ -276,7 +276,7 @@
 (defun openmcl-hons:hons-space-cons (index new-car new-cdr)
   "Return a CONS cell with the specified NEW-CAR and NEW-CDR,
    allocated at the INDEXth pair in hons space."
-  (let* ((hons (hons-from-index index)))
+  (let* ((hons (openmcl-hons:hons-from-index index)))
     (setf (car hons) new-car
           (cdr hons) new-cdr)
     hons))
