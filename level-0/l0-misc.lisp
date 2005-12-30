@@ -122,7 +122,7 @@
 	      (if (eql code ppc::area-managed-static)
 		(incf library bytes)
 		(incf static bytes))))))
-      (let* ((hons-size (ash (hons-space-size) target::dnode-shift)))
+      (let* ((hons-size (ash (openmcl-hons:hons-space-size) target::dnode-shift)))
         (decf dynamic hons-size)
         (values dynamic static library hons-size))))
 
