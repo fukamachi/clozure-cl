@@ -1,3 +1,7 @@
+2005-12-29 19:44  gb
+
+	* level-1/l1-readloop.lisp: Make :Q  work again.
+
 2005-12-29 04:48  gb
 
 	* lisp-kernel/gc.c: Deal with shrinking the hons area.
