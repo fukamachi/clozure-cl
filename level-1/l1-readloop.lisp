@@ -67,11 +67,10 @@
 (defmacro throw-cancel (&optional value)
   `(throw :cancel ,value))
 
+;;; Throwing like this works in listeners and in the initial process.
+;;; Can't easily tell if a process is a listener.  Should be able to.
 (defun toplevel ()
-  (let* ((cp *current-process*))
-    (if (eq cp *initial-process*)
-      (throw :toplevel nil)
-      (process-reset cp))))
+  (throw :toplevel nil))
 
 
 ;;; It's not clear that this is the right behavior, but aborting CURRENT-PROCESS -
