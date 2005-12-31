@@ -136,7 +136,7 @@ find_openmcl_image_file_header(int fd, openmcl_image_file_header *header)
   }
   flags = header->flags;
   if (flags != PLATFORM) {
-    fprintf(stderr, "Heap image was saved for another platform");
+    fprintf(stderr, "Heap image was saved for another platform.\n");
     return false;
   }
   return true;
@@ -438,13 +438,15 @@ save_application(unsigned fd)
   prepare_to_write_dynamic_space(active_dynamic_area);
 
   /*
-    lisp_global(GC_NUM) and lisp_global(FWDNUM) are persistent.
+    lisp_global(GC_NUM) and lisp_global(FWDNUM) are persistent,
+    as is DELETED_STATIC_PAIRS.
     Nothing else is even meaningful at this point.
   */
   for (i = MIN_KERNEL_GLOBAL; i < 0; i++) {
     switch (i) {
     case FWDNUM:
     case GC_NUM:
+    case DELETED_STATIC_PAIRS:
       break;
     default:
       lisp_global(i) = 0;
