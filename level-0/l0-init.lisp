@@ -38,6 +38,10 @@
     :openmcl-mop-2
     ;; Thread-private hash-tables were introduced in version 1.0
     :openmcl-private-hash-tables
+    ;; Hash-consing support (special primitives for allocating
+    ;; and managing statically allocated CONS cells) will be
+    ;; added in 1.1
+    :openmcl-hash-consing
     #+eabi-target :eabi-target
     #+ppc-target :powerpc
     #+ppc-target :ppc-target
