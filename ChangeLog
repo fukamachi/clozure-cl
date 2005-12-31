@@ -1,3 +1,12 @@
+2005-12-31 04:12  gb
+
+	* doc/INFO/.cvsignore: new file
+
+2005-12-31 03:37  gb
+
+	* lib/: ccl-export-syms.lisp, compile-ccl.lisp: Rename
+	"rebuild-openmcl" to "rebuild-ccl" and export it.
+
 2005-12-31 03:08  gb
 
 	* lib/compile-ccl.lisp: :linuxppc64 standard-boot-image-name is
