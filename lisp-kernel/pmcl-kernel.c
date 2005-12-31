@@ -392,6 +392,22 @@ uncommit_pages(void *start, size_t len)
 }
 
 Boolean
+touch_all_pages(void *start, size_t len)
+{
+  extern Boolean touch_page(void *);
+  char *p = (char *)start;
+
+  while (len) {
+    if (!touch_page(p)) {
+      return false;
+    }
+    len -= page_size;
+    p += page_size;
+  }
+  return true;
+}
+
+Boolean
 commit_pages(void *start, size_t len)
 {
   if (len != 0) {
@@ -405,9 +421,19 @@ commit_pages(void *start, size_t len)
 		  MAP_PRIVATE | MAP_FIXED | MAP_ANON,
 		  -1,
 		  0);
-      if (addr  == start) {
-        HeapHighWaterMark = ((BytePtr)start) + len;
-	return true;
+      if (addr == start) {
+        if (touch_all_pages(start, len)) {
+          HeapHighWaterMark = ((BytePtr)start) + len;
+          return true;
+        }
+        else {
+          mmap(start,
+               len,
+               PROT_NONE,
+               MAP_PRIVATE | MAP_FIXED | MAP_ANON,
+               -1,
+               0);
+        }
       }
     }
     return false;
