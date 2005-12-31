@@ -1,3 +1,30 @@
+2005-12-31 12:04  gb
+
+	* lisp-kernel/pmcl-kernel.c: Don't touch pages when committing
+	them.
+
+2005-12-31 12:04  gb
+
+	* lisp-kernel/gc.c: Don't write to new hons cells in
+	grow_hons_area(); let application code fault pages in.
+
+2005-12-31 12:03  gb
+
+	* library/hash-cons.lisp: Don't use "free markers", but do lookup
+	indices in the bitmap.
+
+2005-12-31 12:02  gb
+
+	* level-0/l0-init.lisp: add :OPENMCL-HASH-CONSING to *FEATURES*.
+
+2005-12-31 12:01  gb
+
+	* examples/hons-example.lisp: New file.
+
+2005-12-31 12:01  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: Add TEST-BIT-AT-INDEX.
+
 2005-12-31 07:35  gb
 
 	* lisp-kernel/ppc-exceptions.c: Handle faults in touch_page(), by
