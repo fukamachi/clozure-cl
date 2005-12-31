@@ -409,12 +409,6 @@ commit_pages(void *start, size_t len)
         HeapHighWaterMark = ((BytePtr)start) + len;
 	return true;
       }
-      err = errno;
-      Bug(NULL, "mmap failure returned 0x%lx, attempt %d: %s\n",
-	  addr,
-	  i,
-	  strerror(err));
-      sleep(5);
     }
     return false;
   }
@@ -647,7 +641,7 @@ ensure_gc_structures_writable()
 {
   natural 
     ndnodes = area_dnode(lisp_global(HEAP_END),lisp_global(HEAP_START)),
-    npages = (lisp_global(HEAP_END)-lisp_global(HEAP_START)) >> 12,
+    npages = (lisp_global(HEAP_END)-lisp_global(HEAP_START)) >> log2_page_size,
     markbits_size = (3*sizeof(LispObj))+((ndnodes+7)>>3),
     reloctab_size = (sizeof(LispObj)*(((ndnodes+((1<<bitmap_shift)-1))>>bitmap_shift)+1));
   BytePtr 
@@ -689,7 +683,7 @@ allocate_dynamic_area(natural initsize)
   a->hardprot = NULL;
   ensure_gc_structures_writable();
   return a;
-}
+ }
 
 
 Boolean
@@ -740,72 +734,6 @@ shrink_dynamic_area(natural delta)
 }
 
 
-/* 
- interrupt-level is >= 0 when interrupts are enabled and < 0
- during without-interrupts. Normally, it is 0. When this timer
- goes off, it sets it to 1 if it's 0, or if it's negative,
- walks up the special binding list looking for a previous
- value of 0 to set to 1. 
-*/
-
-  
-
-
-
-typedef struct {
-  int total_hits;
-  int lisp_hits;
-  int active;
-  int interval;
-} metering_info;
-
-metering_info
-lisp_metering =
-{
-  0, 
-  0, 
-  0, 
-  0
-  };
-
-void
-metering_proc(int signum, struct sigcontext *context)
-{
-  lisp_metering.total_hits++;
-#ifndef DARWIN
-#ifdef BAD_IDEA
-  if (xpGPR(context,rnil) == lisp_nil) {
-    unsigned current_lisp = lisp_metering.lisp_hits, element;
-    LispObj 
-      rpc = (LispObj) xpPC(context),
-      rfn = xpGPR(context, fn),
-      rnfn = xpGPR(context, nfn),
-      reg,
-      v =  nrs_ALLMETEREDFUNS.vcell;
-
-    if (area_containing((BytePtr)rfn) == NULL) {
-      rfn = (LispObj) 0;
-    }
-    if (area_containing((BytePtr)rnfn) == NULL) {
-      rnfn = (LispObj) 0;
-    }
-
-    if (tag_of(rpc) == tag_fixnum) {
-      if (register_codevector_contains_pc(rfn, rpc)) {
-	reg = rfn;
-      } else if (register_codevector_contains_pc(rnfn, rpc)) {
-	reg = rnfn;
-      } else {
-	reg = rpc;
-      }
-      element = current_lisp % lisp_metering.active;
-      lisp_metering.lisp_hits++;
-      deref(v,element+1) = reg; /* NOT memoized */
-    }
-  }
-#endif
-#endif
-}
 
 void
 sigint_handler (int signum, siginfo_t *info, ExceptionInformation *context)
@@ -817,7 +745,6 @@ sigint_handler (int signum, siginfo_t *info, ExceptionInformation *context)
   DarwinSigReturn(context);
 #endif
 }
-
 
 
 void
@@ -1378,7 +1305,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(ARGV) = ptr_to_lispobj(argv);
   lisp_global(KERNEL_IMPORTS) = (LispObj)import_ptrs_base;
 
-  lisp_global(METERING_INFO) = (LispObj) &lisp_metering;
   lisp_global(GET_TCR) = (LispObj) get_tcr;
   *(double *) &(lisp_global(DOUBLE_FLOAT_ONE)) = (double) 1.0;
 
