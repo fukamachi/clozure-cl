@@ -4732,6 +4732,7 @@ grow_hons_area(signed_natural delta_in_bytes)
     ada->ndnodes = area_dnode(ada->high, ada->low);
     ada->active += delta_in_bytes;
     {
+#if 0
       LispObj *p;
       natural i;
       for (p = (LispObj *)(tenured_area->low + (current_static_dnodes << dnode_shift)), i = 0;
@@ -4740,6 +4741,7 @@ grow_hons_area(signed_natural delta_in_bytes)
         *p++ = undefined;
         *p++ = undefined;
       }
+#endif
       tenured_area->static_dnodes += delta_in_dnodes;
       xMakeDataExecutable(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift),
                           ada->active-(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift)));
