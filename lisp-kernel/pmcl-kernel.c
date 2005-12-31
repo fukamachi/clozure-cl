@@ -391,9 +391,12 @@ uncommit_pages(void *start, size_t len)
   }
 }
 
+#define TOUCH_PAGES_ON_COMMIT 0
+
 Boolean
 touch_all_pages(void *start, size_t len)
 {
+#if TOUCH_PAGES_ON_COMMIT
   extern Boolean touch_page(void *);
   char *p = (char *)start;
 
@@ -404,6 +407,7 @@ touch_all_pages(void *start, size_t len)
     len -= page_size;
     p += page_size;
   }
+#endif
   return true;
 }
 
