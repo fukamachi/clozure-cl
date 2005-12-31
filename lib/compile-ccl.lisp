@@ -407,7 +407,7 @@
     (:darwinppc32 "ppc-boot.image")
     (:linuxppc32 "ppc-boot")
     (:darwinppc64 "ppc-boot64.image")
-    (:linuxppc64 "ppc64-boot")))
+    (:linuxppc64 "ppc-boot64")))
 
 (defun standard-kernel-name (&optional (target (backend-name *host-backend*)))
   (ecase target
