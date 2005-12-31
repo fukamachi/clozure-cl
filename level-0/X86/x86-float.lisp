@@ -50,10 +50,11 @@
 
 ;;; Maybe we should trap - or something - on NaNs.
 (defx86lapfunction %%double-float-abs! ((n arg_y)(val arg_z))
-  (get-double-float n fp1)
-  (fabs fp1 fp1)
-  (put-double-float fp1 val)
-  (blr))
+  (xchg (% nfn) (% fn))
+  (mov (@ x8664::double-float.value (% n)) (% imm0))
+  (btr ($ 63) (% imm0))
+  (mov (% imm0) (@ x8664::double-float.value (% val)))
+  (jmp (* (% nfn))))
 
 
 (defx86lapfunction %short-float-abs ((n arg_z))
