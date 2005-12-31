@@ -810,6 +810,14 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
   protected_area_ptr area;
   protection_handler *handler;
   TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
+  extern Boolean touch_page(void *);
+  extern void touch_page_end(void);
+
+  if (xpPC(xp) == (pc)touch_page) {
+    xpGPR(xp,imm0) = 0;
+    xpPC(xp) = (pc)touch_page_end;
+    return 0;
+  }
 
   if (! is_write_fault(xp, info)) {
     return -1;
