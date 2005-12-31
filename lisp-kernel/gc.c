@@ -4774,20 +4774,22 @@ shrink_hons_area(signed_natural delta_in_bytes)
           ada->low+(current_static_dnodes << dnode_shift),
           oldactive-(natural)(ada->low+(current_static_dnodes << dnode_shift)));
   tenured_area->static_dnodes = new_static_dnodes;
-  ada->active -= delta_in_bytes;
+  ada->active -= -delta_in_bytes; /* delta_in_bytes is negative */
   shrink_dynamic_area(-delta_in_bytes);
 
-  base = (LispObj) (tenured_area->low + (new_static_dnodes << dnode_shift));
-  limit = area_dnode(tenured_area->low + (current_static_dnodes << dnode_shift), base);
+  base = (LispObj) (tenured_area->low + 
+                    (new_static_dnodes << dnode_shift));
+  limit = area_dnode(tenured_area->low + 
+                     (current_static_dnodes << dnode_shift), base);
   nuke_all_pointers(base, limit);
-  base = (LispObj) (tenured_area->low + (current_static_dnodes << dnode_shift));
+
+  base = (LispObj) (tenured_area->low + 
+                    (current_static_dnodes << dnode_shift));
   limit = area_dnode(oldactive, base);
   adjust_all_pointers(base, limit, delta_in_bytes);
+
   xMakeDataExecutable(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift),
                       ada->active-(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift)));
-
-
-
   return 0;
 }
 
