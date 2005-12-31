@@ -21,7 +21,7 @@
 (defpackage "OPENMCL-HONS"
   (:use "CL")
   (:nicknames "HONS")
-  (:export "HONS-SPACE-FREE-MARKER" "HONS-SPACE-DELETED-MARKER"
+  (:export "HONS-INDEX-USED-P" "HONS-SPACE-DELETED-MARKER"
            "HONS-SPACE-SIZE" "HONSP" "HONS-FROM-INDEX"
            "HONS-SPACE-REF-CAR" "HONS-SPACE-REF-CDR"
            "HONS-SPACE-CONS" "DELETED-HONS-COUNT" "INVALID-HONS-INDEX"
@@ -30,14 +30,6 @@
 
 ;;; At this level. the API is basically:
 ;;;
-;;; (OPENMCL-HONS:HONS-SPACE-FREE-MARKER)
-;;; Returns a constant value which is used to indicate a
-;;; "free" cell in a HONS hash table.  (This value happens
-;;; to be the same value that OpenMCL uses to denote unbound
-;;; special variables, so setting a special variable to
-;;; the value returned by (HONS-SPACE-FREE) will be roughly
-;;; equivalent to calling MAKUNBOUND on that special variable.)
-;;; This value generally prints as #<Unbound>.
 ;;;
 ;;; (OPENMCL-HONS:HONS-SPACE-DELETED-MARKER)
 ;;; Returns another constant value used to indicate a
@@ -89,6 +81,13 @@
 ;;;         (cdr x) <new-cdr>)
 ;;;   x)
 ;;;
+;;; (OPENMCL-HONS:HONS-SPACE-INDEX-USED-P <index>)
+;;; If <index> is a valid index, returns a Lisp boolean indicating
+;;; whether or not
+;;; (a) OPENMCL-HONS:HONS-FROM-INDEX has been called on it
+;;; and (b) the GC has not marked the index as being deleted
+;;; are both true.
+
 ;;; (OPENMCL-HONS:DELETED-HONS-COUNT)
 ;;; Returns the total number of pairs in hons space that the GC has deleted
 ;;; (because they were unreachable); a "deleted" pair has its CAR and CDR
@@ -106,10 +105,6 @@
              (format s "Invalid HONS index ~s ."
                      (openmcl-hons:invalid-hons-index-index c)))))
 
-
-(defun openmcl-hons:hons-space-free-marker ()
-  "Returns the value used to indicate free HONS cells."
-  (%unbound-marker))
 
 (defun openmcl-hons:hons-space-deleted-marker ()
   "Returns the value used to indicate deleted HONS cells."
@@ -211,10 +206,46 @@
   (ba .SPpopj))
 
 #+ppc-target
+(defppclapfunction openmcl-hons:hons-index-used-p ((index arg_z))
+  "If INDEX is a fixnum between 0 (inclusive) and the current hons space size
+   (exclusive), return a boolean indicating whether the pair is used.
+   Otherwise, signal an error."
+  (check-nargs 1)
+  (extract-lisptag imm0 index)
+  (cmpri cr0 index 0)
+  (cmpri cr1 imm0 target::tag-fixnum)
+  (ref-global imm0 tenured-area)
+  (unbox-fixnum imm1 arg_z)
+  (ldr imm2 target::area.static-dnodes imm0)
+  (bne cr1 @bad)
+  (cmpr cr2 imm1 imm2)
+  (blt cr0 @bad)
+  (ldr imm2 target::area.static-used imm0)
+  (ldr imm0 target::area.low imm0)
+  (bge cr2 @bad)
+  (add arg_z index index)
+  (add arg_z imm0 arg_z)
+  (la arg_z target::fulltag-cons arg_z)
+  (sub imm0 arg_z imm0)
+  (test-bit-at-index imm2 imm0)
+  (li arg_z nil)
+  (beqlr)
+  (li arg_z t)
+  (blr)
+  @bad
+  (save-lisp-context)
+  (load-constant arg_x openmcl-hons:invalid-hons-index)
+  (load-constant arg_y :index)
+  (set-nargs 3)
+  (load-constant fname error)
+  (bla .SPjmpsym)
+  (ba .SPpopj))
+
+#+ppc-target
 (defppclapfunction openmcl-hons:hons-space-ref-car ((index arg_z))
   "If INDEX is in bounds (non-negative and less than the current hons-space size),
    return the CAR of the pair at that index.  The return value could be any
-   lisp object, or either (HONS-SPACE-FREE-MARKER) or (HONS-SPACE-DELETED-MARKER).
+   lisp object, or (HONS-SPACE-DELETED-MARKER).
    If INDEX is not in bounds, an error is signaled."
   (check-nargs 1)
   (extract-lisptag imm0 index)
