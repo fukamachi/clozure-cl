@@ -1035,7 +1035,25 @@ in stvx and lvx instructions within the body."
       (strcx. ,was ,bitwords ,index)
       (bne ,again)
       ,done)))
-       
+
+;;; Like SET-BIT-AT-INDEX, but sets CR0[EQ] iff the index'th bit
+;;; is set.
+(defppclapmacro test-bit-at-index (bitwords index &optional (mask ppc::imm3) (count ppc::imm4) (was ppc::imm1))
+  `(progn
+    (load-highbit ,mask)
+    (srri ,index ,index ,(target-arch-case
+                          (:ppc32 ppc32::dnode-shift)
+                          (:ppc64 ppc64::dnode-shift)))
+    (extract-bit-shift-count ,count ,index)
+    (srr ,mask ,mask ,count)
+    (srri ,index ,index ,(target-arch-case
+                          (:ppc32 ppc32::bitmap-shift)
+                          (:ppc64 ppc64::bitmap-shift)))
+    (slri ,index ,index  ,(target-arch-case
+                           (:ppc32 ppc32::word-shift)
+                           (:ppc64 ppc64::word-shift)))
+    (ldrx ,was ,bitwords ,index)
+    (and. ,mask ,was ,mask)))
                                            
 
 (provide "PPC-LAPMACROS")
