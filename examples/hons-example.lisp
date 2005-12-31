@@ -134,28 +134,19 @@ Returns (VALUES HONS INDEX) if a match is found, (VALUES NIL INDEX) otherwise."
     (declare (fixnum start end size idx))
     (if (>= idx end)
       (decf idx size))
-    (let* ((hcar (openmcl-hons:hons-space-ref-car idx))
-           (hcdr (openmcl-hons:hons-space-ref-cdr idx)))
-      (cond ((and (eql car hcar)
-                  (eql cdr hcdr))
-             (let* ((hons (openmcl-hons:hons-from-index idx)))
-               ;; This rplaca/rplacd business may seem
-               ;; redundant, but it may be necessary
-               ;; for GC reasons: the GC may have deleted
-               ;; the pair at idx while we were looking at
-               ;; it.
-               (rplaca hons hcar)
-               (rplacd hons hcdr)
-               (return
-                 (values hons idx))))
-            ((not (openmcl-hons:hons-index-used-p idx))
-             (if (eq hcar (openmcl-hons:hons-space-deleted-marker))
-               (unless first-deleted-index
-                 (setq first-deleted-index idx))
-               (return (values nil (or first-deleted-index idx)))))
-            #|(t (let* ((*print-length* 5))
-                 (format t "~& collision: (~s . ~s) with (~s .~s)"
-                         car cdr hcar hcdr)))|#))))
+    (if (not (openmcl-hons:hons-index-used-p idx))
+      (if (eq (openmcl-hons:hons-space-ref-car idx)
+              (openmcl-hons:hons-space-deleted-marker))
+        (unless first-deleted-index
+          (setq first-deleted-index idx))
+        (return (values nil (or first-deleted-index idx))))
+      (let* ((hons (openmcl-hons:hons-from-index idx))
+             (hcar (car hons))
+             (hcdr (cdr hons)))
+        (when (and (eql car hcar)
+                   (eql cdr hcdr))
+          (return
+            (values hons idx)))))))
 
 ;;; These values are entirely arbitrary.
 
