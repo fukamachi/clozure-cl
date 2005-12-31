@@ -563,6 +563,7 @@
      compile-ccl
      xcompile-ccl
      xload-level-0
+     rebuild-ccl
      ) "CCL"
    )
   )

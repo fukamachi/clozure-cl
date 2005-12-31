@@ -430,7 +430,7 @@
     (:darwinppc64 "darwinppc64")
     (:linuxppc64 "linuxppc64")))
 
-(defun rebuild-openmcl (&key kernel force reload exit)
+(defun rebuild-ccl (&key kernel force reload exit)
   (let* ((cd (current-directory)))
     (unwind-protect
          (progn
