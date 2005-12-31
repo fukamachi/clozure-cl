@@ -1,3 +1,67 @@
+2005-12-31 03:08  gb
+
+	* lib/compile-ccl.lisp: :linuxppc64 standard-boot-image-name is
+	ppc-boot64, not ppc64-boot.
+
+2005-12-31 02:55  gb
+
+	* lisp-kernel/pmcl-kernel.c: Lose the (old) metering_control.
+
+2005-12-31 02:54  gb
+
+	* lisp-kernel/imports.s: Don't reference metering_control.
+
+2005-12-31 02:37  gb
+
+	* lisp-kernel/gc.c: when shrinking HONS area, remember that
+	delta_in_bytes is negative.
+
+2005-12-31 02:37  gb
+
+	* lisp-kernel/pmcl-kernel.c: Lose old metering stuff.  Don't enter
+	debugger on mmap failure in grow_dynamic_area
+
+2005-12-31 02:35  gb
+
+	* lisp-kernel/image.c: Add a newline to an error message.  Retain
+	DELETED_STATIC_PAIRS in saved images.
+
+2005-12-31 02:34  gb
+
+	* lib/compile-ccl.lisp: Experimental REBUILD-CCL function.
+
+2005-12-31 02:33  gb
+
+	* level-0/X86/x86-float.lisp: double-float-abs!.  Not sure what to
+	do about NaNs, etc.
+
+2005-12-31 02:32  gb
+
+	* level-1/version.lisp: Keep bumping.
+
+2005-12-31 02:32  gb
+
+	* level-0/PPC/ppc-pred.lisp: Try to bum the 32-bit EQUAL a bit. 
+	The ppc64 version needs work, too.
+
+2005-12-31 02:30  gb
+
+	* lisp-kernel/x86-macros.s: nargs is a 16-bit register on x86.
+
+2005-12-31 02:30  gb
+
+	* lisp-kernel/x86-constants64.h: define log2_nbits_in_word for
+	x8664.
+
+2005-12-31 02:29  gb
+
+	* lisp-kernel/gc.c: AREA_CSTACK is uninteresting to GC on x86.	no
+	"nukable" pointers (to HONS space) in AREA_CSTACK on ppc, either.
+
+2005-12-31 02:28  gb
+
+	* .cvsignore: Ignore *x86cl*.
+
 2005-12-30 02:11  gb
 
 	* level-0/l0-misc.lisp: hons-area-size is now in openmcl-hons.
