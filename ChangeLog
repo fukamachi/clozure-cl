@@ -1,3 +1,17 @@
+2005-12-31 07:35  gb
+
+	* lisp-kernel/ppc-exceptions.c: Handle faults in touch_page(), by
+	forcing it to return false.
+
+2005-12-31 07:34  gb
+
+	* lisp-kernel/pmcl-kernel.c: try to touch_all_pages() after
+	committing memory, to defeat overcommit.
+
+2005-12-31 07:26  gb
+
+	* lisp-kernel/: ppc-asmutils.s, x86-asmutils64.s: touch_page.
+
 2005-12-31 04:12  gb
 
 	* doc/INFO/.cvsignore: new file
