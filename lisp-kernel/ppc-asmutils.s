@@ -68,6 +68,16 @@ _exportfn(C(flush_cache_lines))
         __endif
 _endfn
 
+_exportfn(C(touch_page))
+        __(str(r3,0(r3)))
+        __(li r4,0)
+        __(str(r4,0(r3)))
+        __(li r3,1) /* can't assume that low 32 bits of r3 are non-zero */
+        .globl C(touch_page_end)
+C(touch_page_end):
+        __(blr)
+_endfn
+                                
 _exportfn(C(current_stack_pointer))
 	__(mr r3,sp)
 	__(blr)

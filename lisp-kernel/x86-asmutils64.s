@@ -36,7 +36,15 @@ _exportfn(C(current_stack_pointer))
 	__(movq %rsp,%rax)
 	__(ret)
 _endfn
-	
+
+_exportfn(C(touch_page))
+        __(movq %rdi,(%rdi))
+        __(movq $0,(%rdi))
+        __(movl $1,%eax)
+        .globl C(touch_page_end)
+C(touch_page_end)
+        __(ret)
+                        
 _exportfn(C(count_leading_zeros))
 	__(bsrq %rdi,%rax)
 	__(xorq $63,%rax)
