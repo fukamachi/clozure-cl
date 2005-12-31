@@ -1513,45 +1513,6 @@ xGetSharedLibrary(char *path, int *resultType)
 
 
 
-
-int
-metering_control(int interval)
-{
-#ifdef DARWIN
-  return -1;
-#else
-  if (interval) {
-    if (! lisp_metering.active) {
-      LispObj amf = nrs_ALLMETEREDFUNS.vcell;
-      if (fulltag_of(amf) == fulltag_misc) {
-        unsigned header = header_of(amf);
-
-        if (header_subtag(header) == subtag_simple_vector) {
-
-          lisp_metering.interval = interval;
-          lisp_metering.total_hits = 0;
-          lisp_metering.lisp_hits = 0;
-          lisp_metering.active = header_element_count(header);
-          return 0;
-        }
-      }
-    }
-    return -1;
-  }  else {
-    if (lisp_metering.active) {
-      lisp_metering.active = 0;
-      return 0;
-    } else {
-      return -1;
-    }
-  }
-#endif
-}
-
-
-
-
-
 int
 fd_setsize_bytes()
 {
