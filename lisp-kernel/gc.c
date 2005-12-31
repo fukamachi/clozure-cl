@@ -4382,28 +4382,6 @@ adjust_pointers_in_cstack_area(area *a,
     }
   }
 }
-
-void
-nuke_pointers_in_cstack_area(area *a,
-                               LispObj base,
-                               LispObj limit)
-{
-  BytePtr
-    current,
-    next,
-    area_limit = a->high,
-    low = a->low;
-
-  for (current = a->active; (current >= low) && (current < area_limit); current = next) {
-    next = *((BytePtr *)current);
-    if (next == NULL) break;
-    if (((next - current) == sizeof(lisp_frame)) &&
-	(((((lisp_frame *)current)->savefn) == 0) ||
-	 (fulltag_of(((lisp_frame *)current)->savefn) == fulltag_misc))) {
-      nuke_noderef(&((lisp_frame *) current)->savefn, base, limit);
-    }
-  }
-}
 #endif
 
 
@@ -4571,7 +4549,9 @@ adjust_all_pointers(LispObj base, LispObj limit, signed_natural delta)
       break;
 
     case AREA_CSTACK:
+#ifndef X86
       adjust_pointers_in_cstack_area(next_area, base, limit, delta);
+#endif
       break;
 
     case AREA_STATIC:
@@ -4611,7 +4591,7 @@ nuke_all_pointers(LispObj base, LispObj limit)
       break;
 
     case AREA_CSTACK:
-      nuke_pointers_in_cstack_area(next_area, base, limit);
+      /* There aren't any "nukable" pointers in a cstack area */
       break;
 
     case AREA_STATIC:
