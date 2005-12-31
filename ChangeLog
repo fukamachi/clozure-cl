@@ -1,3 +1,8 @@
+2005-12-31 13:34  gb
+
+	* examples/hons-example.lisp: Don't write back "for obscure GC
+	reasons".
+
 2005-12-31 12:04  gb
 
 	* lisp-kernel/pmcl-kernel.c: Don't touch pages when committing
