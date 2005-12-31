@@ -52,7 +52,7 @@ import_ptrs_start:
 	defimport(allocate_vstack_holding_area_lock)
 	defimport(register_cstack_holding_area_lock)
 	defimport(condemn_area_chain)
-	defimport(metering_control)
+	defimport(lisp_bug)
 	defimport(restore_soft_stack_limit)
 	defimport(lisp_egc_control)
 	defimport(lisp_bug)
