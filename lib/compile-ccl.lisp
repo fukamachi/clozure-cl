@@ -402,3 +402,86 @@
 (defun target-xcompile-level-1 (target &optional force)
   (target-compile-modules (target-level-1-modules target) target force))
 
+(defun standard-boot-image-name (&optional (target (backend-name *host-backend*)))
+  (ecase target
+    (:darwinppc32 "ppc-boot.image")
+    (:linuxppc32 "ppc-boot")
+    (:darwinppc64 "ppc-boot64.image")
+    (:linuxppc64 "ppc64-boot")))
+
+(defun standard-kernel-name (&optional (target (backend-name *host-backend*)))
+  (ecase target
+    (:darwinppc32 "dppccl")
+    (:linuxppc32 "ppccl")
+    (:darwinppc64 "dppccl64")
+    (:linuxppc64 "ppccl64")))
+
+(defun standard-image-name (&optional (target (backend-name *host-backend*)))
+  (ecase target
+    (:darwinppc32 "dppccl.image")
+    (:linuxppc32 "PPCCL")
+    (:darwinppc64 "dppccl64.image")
+    (:linuxppc64 "PPCCL64")))
+
+(defun kernel-build-directory (&optional (target (backend-name *host-backend*)))
+  (ecase target
+    (:darwinppc32 "darwinppc")
+    (:linuxppc32 "linuxppc")
+    (:darwinppc64 "darwinppc64")
+    (:linuxppc64 "linuxppc64")))
+
+(defun rebuild-openmcl (&key kernel force reload exit)
+  (let* ((cd (current-directory)))
+    (unwind-protect
+         (progn
+           (setf (current-directory) "ccl:")
+           (when kernel
+             (when force
+               ;; Do a "make -k clean".
+               (run-program "make"
+                            (list "-k"
+                                  "-C"
+                                  (format nil "lisp-kernel/~a"
+                                          (kernel-build-directory))
+                                  "clean")))
+             (with-output-to-string (s)
+               (multiple-value-bind
+                   (status exit-code)
+                   (external-process-status 
+                    (run-program "make"
+                                 (list "-k" "-C"
+                                       (format nil "lisp-kernel/~a"
+                                               (kernel-build-directory)))
+                                 :output s
+                                 :error s))
+                 (unless (and (eq :exited status) (zerop exit-code))
+                   (error "Error(s) during kernel compilation.~%~a"
+                          (get-output-stream-string s))))))
+           (compile-ccl (not (null force)))
+           (if force (xload-level-0 :force) (xload-level-0))
+           (when reload
+             (with-input-from-string (cmd (format nil
+                                                  "(save-application ~s)"
+                                                  (standard-image-name)))
+               (with-output-to-string (output)
+                 (multiple-value-bind (status exit-code)
+                     (external-process-status
+                      (run-program
+                       (format nil "./~a" (standard-kernel-name))
+                       (list (standard-boot-image-name))
+                       :input cmd
+                       :output output
+                       :error output))
+                   (if (and (eq status :exited)
+                            (eql exit-code 0))
+                     (format t "~&;Wrote heap image: ~s"
+                             (truename (format nil "ccl:~a"
+                                               (standard-image-name))))
+                     (error "Errors (~s ~s) reloading boot image:~&~a"
+                            status exit-code
+                            (get-output-stream-string output)))))))
+           (when exit
+             (quit)))
+      (setf (current-directory) cd))))
+                                                  
+               
