@@ -154,7 +154,7 @@ define([jump_fname],[
 ])	
 	
 define([set_nargs],[
-	movl $1<<fixnumshift,%nargs
+	movw $1<<fixnumshift,%nargs
 ])
 
 /* $1 = ndigits.  Assumes 4-byte digits */        
