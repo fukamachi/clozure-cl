@@ -3778,7 +3778,8 @@ purify(TCR *tcr, signed_natural param)
   BytePtr new_pure_start;
 
 
-  max_pure_size = unboxed_bytes_in_range((LispObj *)a->low, (LispObj *) a->active);
+  max_pure_size = unboxed_bytes_in_range((LispObj *)(a->low + (static_dnodes_for_area(a) << dnode_shift)), 
+                                         (LispObj *) a->active);
   new_pure_area = extend_readonly_area(max_pure_size);
   if (new_pure_area) {
     new_pure_start = new_pure_area->active;
@@ -4732,7 +4733,7 @@ grow_hons_area(signed_natural delta_in_bytes)
     ada->ndnodes = area_dnode(ada->high, ada->low);
     ada->active += delta_in_bytes;
     {
-#if 0
+#if 1
       LispObj *p;
       natural i;
       for (p = (LispObj *)(tenured_area->low + (current_static_dnodes << dnode_shift)), i = 0;
@@ -4741,6 +4742,9 @@ grow_hons_area(signed_natural delta_in_bytes)
         *p++ = undefined;
         *p++ = undefined;
       }
+#else
+      bzero((tenured_area->low + (current_static_dnodes << dnode_shift)),
+            delta_in_bytes);
 #endif
       tenured_area->static_dnodes += delta_in_dnodes;
       xMakeDataExecutable(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift),
