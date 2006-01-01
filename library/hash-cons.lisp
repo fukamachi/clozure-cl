@@ -22,6 +22,7 @@
   (:use "CL")
   (:nicknames "HONS")
   (:export "HONS-INDEX-USED-P" "HONS-SPACE-DELETED-MARKER"
+           "HONS-SPACE-FREE-MARKER"
            "HONS-SPACE-SIZE" "HONSP" "HONS-FROM-INDEX"
            "HONS-SPACE-REF-CAR" "HONS-SPACE-REF-CDR"
            "HONS-SPACE-CONS" "DELETED-HONS-COUNT" "INVALID-HONS-INDEX"
@@ -31,7 +32,7 @@
 ;;; At this level. the API is basically:
 ;;;
 ;;;
-;;; (OPENMCL-HONS:HONS-SPACE-DELETED-MARKER)
+;;; (OPENMCL-HONS:HONS-SPACE-DELETED-MARKER) [MACRO]
 ;;; Returns another constant value used to indicate a
 ;;; "deleted" cell in a HONS hash table; the CAR and CDR of
 ;;; a pair are set to this value by the GC if the HONS which
@@ -41,6 +42,16 @@
 ;;; is roughly equivalent to calling SLOT-MAKUNBOUND.  This
 ;;; value prints as #<Slot-Unbound>.
 ;;;
+;;; (OPENMCL-HONS:HONS-SPACE-FREE-MARKER) [MACRO]
+;;; Returns another constant value used to indicate a
+;;; "free" cell in a HONS hash table; the CAR and CDR of
+;;; a pair are initially set to this value by the GC if the HONS which
+;;; addresses that pair becomes garbage.  This value is used
+;;; in OpenMCL to denote unbound special variabls
+;;; setting a special variable to this value
+;;; is roughly equivalent to calling MAKUNBOUND.  This
+;;; value prints as #<Unbound>.
+
 ;;; (OPENCL-HONS:HONS-SPACE-SIZE)
 ;;; Returns a non-negative integer denoting the number of
 ;;; statically allocated pairs reserved for hash consing.
@@ -106,9 +117,13 @@
                      (openmcl-hons:invalid-hons-index-index c)))))
 
 
-(defun openmcl-hons:hons-space-deleted-marker ()
+(defmacro openmcl-hons:hons-space-deleted-marker ()
   "Returns the value used to indicate deleted HONS cells."
   (%slot-unbound-marker))
+
+(defmacro openmcl-hons:hons-space-free-marker ()
+  "Returns the value used to indicate free HONS cells."
+  (%unbound-marker))
 
 (defun (setf openmcl-hons:hons-space-size) (npairs)
   "Argument NPAIRS should be a non-negative fixnum.  Tries to grow or
