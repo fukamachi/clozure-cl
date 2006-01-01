@@ -106,10 +106,11 @@
             (the fixnum
               (etypecase thing
                 (cons (let* ((idx (openmcl-hons::honsp thing)))
-                        (if idx
-                          (ccl::%%eqlhash idx)
+                        (or idx
+                            ;(ccl::%%eqlhash idx)
                           (error "~s is not HONSP." thing))))
-                ((or fixnum bignum single-float double-float)
+                (fixnum thing)
+                ((or bignum single-float double-float)
                  (ccl::%%eqlhash thing))
                 (null (ccl::%%eqlhash thing))
                 (symbol (let* ((string (symbol-name thing)))
@@ -118,13 +119,13 @@
                 ((complex rational) (ccl::%%eqlhash thing))))
             most-positive-fixnum)))
   (the fixnum
-    (logxor (the fixnum (hash-for-honsing car))
+    (logior (the fixnum (hash-for-honsing car))
             (the fixnum (hash-for-honsing cdr))))))
 
 (defun hons-table-get (ht hash car cdr)
   "Tries to find a HONS with matching (EQL) CAR and CDR in the hash table HT.
-Returns (VALUES HONS INDEX) if a match is found, (VALUES NIL INDEX) otherwise."
-  (declare (fixnum hash))
+Returns a CONS if a match is found, a fixnum index otherwise."
+  (declare (fixnum hash) (optimize (speed 3)))
   (do* ((size (hons-table-size ht))
         (start (hons-table-start-index ht))
         (end (+ start size))
@@ -134,19 +135,17 @@ Returns (VALUES HONS INDEX) if a match is found, (VALUES NIL INDEX) otherwise."
     (declare (fixnum start end size idx))
     (if (>= idx end)
       (decf idx size))
-    (if (not (openmcl-hons:hons-index-used-p idx))
-      (if (eq (openmcl-hons:hons-space-ref-car idx)
-              (openmcl-hons:hons-space-deleted-marker))
-        (unless first-deleted-index
-          (setq first-deleted-index idx))
-        (return (values nil (or first-deleted-index idx))))
-      (let* ((hons (openmcl-hons:hons-from-index idx))
-             (hcar (car hons))
-             (hcdr (cdr hons)))
-        (when (and (eql car hcar)
-                   (eql cdr hcdr))
-          (return
-            (values hons idx)))))))
+    (let* ((hcar (openmcl-hons:hons-space-ref-car idx))
+           (hcdr (openmcl-hons:hons-space-ref-cdr idx))
+           (used (openmcl-hons:hons-index-used-p idx)))
+      (cond ((and (eql hcar car) (eql hcdr cdr) used)
+             (return (openmcl-hons:hons-from-index idx)))
+            ((not used)
+             (if (eq car (openmcl-hons:hons-space-deleted-marker))
+               (unless first-deleted-index
+                 (setq first-deleted-index idx))
+               (return (or first-deleted-index idx))))))))
+
 
 ;;; These values are entirely arbitrary.
 
@@ -168,10 +167,15 @@ Returns (VALUES HONS INDEX) if a match is found, (VALUES NIL INDEX) otherwise."
     (if (not active-table)
       (setq active-table
             (make-hons-table *initial-hons-table-size*)))
-    (or (multiple-value-setq (h active-idx)
-          (hons-table-get active-table hash car cdr))
+    (or (progn
+          (setq h (hons-table-get active-table hash car cdr))
+          (if (consp h)
+            h
+            (progn
+              (setq active-idx h)
+              nil)))
         (dolist (table tables)
-          (when (setq h (hons-table-get table hash car cdr))
+          (when (typep (setq h (hons-table-get table hash car cdr)) 'cons)
             (return h)))
         (when (< (hons-table-used active-table)
                  (hons-table-max active-table))
