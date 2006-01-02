@@ -1,3 +1,11 @@
+2006-01-01 20:23  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-01-01 20:20  gb
+
+	* examples/hons-example.lisp: More changes.  Enough for now.
+
 2006-01-01 20:04  gb
 
 	* lisp-kernel/gc.c: Init hons space to #<Unbound>, don't make this
