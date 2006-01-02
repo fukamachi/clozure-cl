@@ -1,3 +1,7 @@
+2006-01-01 17:28  gb
+
+	* lisp-kernel/ppc-spentry.s: No cmpd here.
+
 2006-01-01 16:59  gb
 
 	* library/hash-cons.lisp: Correct last comment: real change was
