@@ -19,12 +19,7 @@
 ;;; A sample HONS (hash-consing) implementation, based on the
 ;;; primitives defined in "ccl:library;hash-cons.lisp".
 
-#|
-;;; In this sample implementation, hash lookup just does linear probing.
-;;; There are other approaches that sometimes work better, in which
-;;; case making the hons table size a prime number may be desirable.
-
-(defun largest-prime-less-than (n)
+(defun largest-prime-less-than-or-equal-to (n)
   (flet ((primep (n)
            (or (eql n 1)
                (eql n 2)
@@ -36,7 +31,6 @@
                           (return nil))))))))
            (do* ((m (if (oddp n) (- n 2) (- n 1)) (- m 2)))
                 ((primep m) m))))
-|#
 
 
 ;;; A "hons-table" just represents a range of indices in a
@@ -78,6 +72,7 @@
 (defun make-hons-table (size &optional (max-full-ratio
                                         *hons-table-max-full-ratio*))
   (check-type size (and fixnum unsigned-byte))
+  (setq size (largest-prime-less-than-or-equal-to size))
   (let* ((current (openmcl-hons:hons-space-size))
          (new (setf (openmcl-hons:hons-space-size)
                     (+ current (the fixnum size)))))
@@ -101,15 +96,20 @@
 ;;; a HONS table is application dependent, but it's reasonable
 ;;; to insist that all CONSes are HONSes.
 (defun hash-pair-for-honsing (car cdr)
+  ;; This often calls CCL::%%EQLHASH, which is (as one might
+  ;; assume) a primitive used with EQL hash tables.  It tries
+  ;; to "scramble the bits" a little, so that "related" keys
+  ;; (like numerically adjacent integers) hash to unrelated
+  ;; values.
   (flet ((hash-for-honsing (thing)
            (logand
             (the fixnum
               (etypecase thing
                 (cons (let* ((idx (openmcl-hons::honsp thing)))
-                        (or idx
-                            ;(ccl::%%eqlhash idx)
+                        (if idx
+                          (ccl::%%eqlhash idx)
                           (error "~s is not HONSP." thing))))
-                (fixnum thing)
+                (fixnum (ccl::%%eqlhash thing))
                 ((or bignum single-float double-float)
                  (ccl::%%eqlhash thing))
                 (null (ccl::%%eqlhash thing))
@@ -118,9 +118,11 @@
                 (string (ccl::string-hash thing 0 (length thing)))
                 ((complex rational) (ccl::%%eqlhash thing))))
             most-positive-fixnum)))
-  (the fixnum
-    (logior (the fixnum (hash-for-honsing car))
-            (the fixnum (hash-for-honsing cdr))))))
+    (or (let* ((honsp (openmcl-hons:honsp cdr)))
+          (if honsp (the fixnum (1+ (the fixnum honsp)))))
+        (the fixnum
+          (logxor (the fixnum (hash-for-honsing car))
+                  (the fixnum (hash-for-honsing cdr)))))))
 
 (defun hons-table-get (ht hash car cdr)
   "Tries to find a HONS with matching (EQL) CAR and CDR in the hash table HT.
@@ -129,16 +131,16 @@ Returns a CONS if a match is found, a fixnum index otherwise."
   (do* ((size (hons-table-size ht))
         (start (hons-table-start-index ht))
         (end (+ start size))
-        (idx (+ start (the fixnum (ccl::fast-mod hash size))) (1+ idx))
+        (idx (+ start (the fixnum (ccl::fast-mod hash size))) (+ idx 113))
         (first-deleted-index nil))
        ()
     (declare (fixnum start end size idx))
     (if (>= idx end)
       (decf idx size))
-    (let* ((hcar (openmcl-hons:hons-space-ref-car idx))
-           (hcdr (openmcl-hons:hons-space-ref-cdr idx))
-           (used (openmcl-hons:hons-index-used-p idx)))
-      (cond ((and (eql hcar car) (eql hcdr cdr) used)
+    (let* ((used (openmcl-hons:hons-index-used-p idx))
+           (hcar (openmcl-hons:hons-space-ref-car idx))
+           (hcdr (openmcl-hons:hons-space-ref-cdr idx)))
+      (cond ((and used (eql hcar car) (eql hcdr cdr))
              (return (openmcl-hons:hons-from-index idx)))
             ((not used)
              (if (eq car (openmcl-hons:hons-space-deleted-marker))
