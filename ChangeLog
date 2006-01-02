@@ -1,3 +1,31 @@
+2006-01-01 16:59  gb
+
+	* library/hash-cons.lisp: Correct last comment: real change was
+	revival of HONS-FREE-MARKER; it and HONS-DELETED-MARKER are macros.
+
+2006-01-01 16:58  gb
+
+	* examples/hons-example.lisp: Changed, yet again.  Some
+	intentionally bad hashing here.
+
+2006-01-01 16:56  gb
+
+	* lisp-kernel/ppc-spentry.s: _SPbuiltin_eql: as far as it goes,
+	doesn't have to be conditionalized for ppc32/ppc64.  Should really
+	do it all here; the only (slightly) hard cases are ratio & complex.
+
+2006-01-01 16:54  gb
+
+	* lisp-kernel/gc.c: bzero new static dnodes in grow_hons_area.
+	
+	Skip over them when counting immediate bytes before purify.  (Need
+	to do more skipping in purify/impurify.)
+
+2006-01-01 16:52  gb
+
+	* library/hash-cons.lisp: Changed, yet again.  Some intentionally
+	bad hashing here.
+
 2005-12-31 13:34  gb
 
 	* examples/hons-example.lisp: Don't write back "for obscure GC
