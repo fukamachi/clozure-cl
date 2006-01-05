@@ -189,3 +189,19 @@
     (unbox-fixnum (% ,int) (% ,temp))
     (cvtsi2ssq (% ,temp) (% ,double))))
 
+;;; Frames, function entry and exit.
+
+;;; no frame to deal with.
+(defx86lapmacro simple-function-entry ()
+  `(xchg (% nfn) (% fn)))
+
+;;; Caller pushed zeros to reserve space for stack frame before
+;;; pushing args.  We have to discard it before returning.
+(defx86lapmacro discard-reserved-frame ()
+  `(add ($ '2) (% rsp)))
+
+;;; Return to caller.  (% NFN) should contain a tagged return
+;;; address inside the caller's (% FN).
+(defx86lapmacro single-value-return ()
+  `(jmp (* (% nfn))))
+
