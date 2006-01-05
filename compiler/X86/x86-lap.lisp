@@ -70,7 +70,7 @@
 
 (defun (setf x86-lap-macro-function) (def name)
   (let* ((s (string name)))
-    (when (gethash s x86::*x86-instruction-template-lists*)
+    (when (gethash s x86::*x86-opcode-template-lists*)
       (error "~s already defines an x86 instruction . " name))
     (setf (gethash s *x86-lap-macros* #|(backend-lap-macros *ppc-backend*)|#) def)))
 
@@ -611,7 +611,7 @@
 ;;; This basically finds a syntactically matching template.
 ;;; There can still be lots of semantic errors, e.g., "movq %eax, %di"
 ;;; has both operands the wrong size.
-(defun match-template (template parsed-operands suffix)
+(defun match-template (template parsed-operands)
   (flet ((match (overlap given)
            (and
             (not (zerop (logandc2 overlap (x86::encode-operand-type :jumpabsolute))))
@@ -636,54 +636,41 @@
            (type1 (if (> nops 1) (x86::x86-operand-type (svref parsed-operands 1))))
            (type2 (if (> nops 2) (x86::x86-operand-type (svref parsed-operands 2)))))
       (declare (fixnum nops))
-      (let* ((suffix-check
-              (case suffix
-                (#\b (x86::encode-opcode-modifier :no-bsuf))
-                (#\w (x86::encode-opcode-modifier :no-wsuf))
-                (#\s (x86::encode-opcode-modifier :no-ssuf))
-                (#\l (x86::encode-opcode-modifier :no-lsuf))
-                (#\q (x86::encode-opcode-modifier :no-qsuf))
-                (#\x (x86::encode-opcode-modifier :no-xsuf))
-                (t 0))))
-        (when (= nops
-                 (the fixnum (x86::x86-instruction-template-operands template)))
-          (unless (logtest
-                   (x86::x86-instruction-template-opcode-modifier template)
-                   suffix-check)
-            (or (zerop nops)
-                (let* ((template-types
-                      (x86::x86-instruction-template-operand-types template))
-                     (template-type0 (svref template-types 0))
+      (let* ((template-types
+              (x86::x86-opcode-template-operand-types template)))
+        (when (= nops (the fixnum (length template-types)))
+          (or (zerop nops)
+              (let* ((template-type0 (svref template-types 0))
                      (overlap0
                       (logand type0 template-type0))
                      (match0 (match overlap0 type0)))
-                  (if match0
-                    (or (= nops 1)
-                        ;; 2 or 3 operands.
-                        (let* ((template-type1 (svref template-types 1))
-                               (overlap1 (logand type1 template-type1))
-                               (match1 (match overlap1 type1)))
-                          (if (and
-                               match1
-                               (consistent-register-match
-                                overlap0
-                                type0
-                                template-type0
-                                overlap1
-                                type1
-                                template-type1))
-                            (or (= nops 2)
-                                ;; 3 operands
-                                (let* ((template-type2 (svref template-types 2))
-                                       (overlap2 (logand type2 template-type2)))
-                                  (and (match overlap2 type2)
-                                           (consistent-register-match
-                                            overlap1
+                (if match0
+                  (or (= nops 1)
+                      ;; 2 or 3 operands.
+                      (let* ((template-type1 (svref template-types 1))
+                             (overlap1 (logand type1 template-type1))
+                             (match1 (match overlap1 type1)))
+                        (if (and
+                             match1
+                             (consistent-register-match
+                              overlap0
+                              type0
+                              template-type0
+                              overlap1
+                              type1
+                              template-type1))
+                          (or (= nops 2)
+                              ;; 3 operands
+                              (let* ((template-type2 (svref template-types 2))
+                                     (overlap2 (logand type2 template-type2)))
+                                (and (match overlap2 type2)
+                                     (consistent-register-match
+                                      overlap1
                                       type1
                                       template-type1
                                       overlap2
                                       type2
-                                      template-type2))))))))))))))))
+                                      template-type2)))))))))))))))
 
 (defun add-prefix (instruction prefix)
   (declare (fixnum prefix))
@@ -879,25 +866,27 @@
               (logxor (x86-lap-instruction-base-opcode instruction) 4))))
     instruction))
 
-(defun init-x86-lap-instruction (instruction template parsed-operands suffix)
-  (setf (x86-lap-instruction-template instruction) template
-        (x86-lap-instruction-parsed-operands instruction) parsed-operands
-        (x86-lap-instruction-base-opcode instruction) (x86::x86-instruction-template-base-opcode template)
-        (x86-lap-instruction-extension-opcode instruction) (x86::x86-instruction-template-extension-opcode template)
-        (x86-lap-instruction-suffix instruction) suffix)
-  instruction)
+(defun init-x86-instruction (insert-functions instruction template parsed-operands)
+  (setf (x86::x86-instruction-opcode-template instruction) template
+        (x86::x86-instruction-base-opcode instruction) (x86::x86-opcode-template-base-opcode template)
+        (x86::x86-instruction-modrm-byte instruction) (x86::x86-opcode-template-modrm-byte template)
+        (x86::x86-instruction-rex-prefix instruction) (x86::x86-opcode-template-rex-prefix template))
+  (let* ((insert-classes (x86::x86-opcode-template-operand-classes template)))
+    (dotimes (i (length parsed-operands) instruction)
+      (funcall (svref insert-functions (svref insert-classes i))
+               instruction
+               (svref parsed-operands i)))))
 
 (defun reset-x86-instruction (i)
-  (setf (x86-lap-instruction-template i) nil
-        (x86-lap-instruction-parsed-operands i) nil
-        (x86-lap-instruction-flags i) nil
-        (x86-lap-instruction-base-opcode i) nil
-        (x86-lap-instruction-extension-opcode i) nil
-        (x86-lap-instruction-prefixes i) nil
-        (x86-lap-instruction-nprefixes i) 0
-        (x86-lap-instruction-rex i) nil
-        (x86-lap-instruction-rm i) nil
-        (x86-lap-instruction-sib i) nil)
+  (setf (x86::x86-instruction-opcode-template i) nil
+        (x86::x86-instruction-base-opcode i) nil
+        (x86::x86-instruction-rex-prefix i) nil
+        (x86::x86-instruction-modrm-byte i) nil
+        (x86::x86-instruction-sib-byte i) nil
+        (x86::x86-instruction-seg-prefix i) nil
+        (x86::x86-instruction-disp i) nil
+        (x86::x86-instruction-imm i) nil
+        (x86::x86-instruction-extra i) nil)
   i)
 
 (defun smallest-imm-type (val)
