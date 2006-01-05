@@ -29,38 +29,43 @@
 ;;; lo result - 4 lo bits of hi arg: 28 lo bits of lo arg
 ;;; no error checks, no tweaks, no nuthin 
 
+;;; sign is -1, 1, maybe zero
 
 
 
-#+ppc64-target
+#+x8664-target
 (defx86lapfunction %make-float-from-fixnums ((float 8)(hi 0) (lo arg_x) (exp arg_y) (sign arg_z))
-  (rlwinm imm0 sign 0 0 0)  ; just leave sign bit 
-  (rlwimi imm0 exp (- 20 ppc64::fixnumshift)  1 11) ;  exp left 20 right 2 keep 11 bits
-  (ld imm1 hi vsp)
-  (srawi imm1 imm1 ppc64::fixnumshift)   ; fold into below? nah keep for later
-  (rlwimi imm0 imm1 (- 32 4) 12 31)   ; right 4 - keep  20 - stuff into hi result
-  (rlwinm imm1 imm1 28 0 3)  ; hi goes left 28 - keep 4 hi bits
-  (rlwimi imm1 lo (- 32 ppc64::fixnumshift) 4 31) ; stuff in 28 bits of lo
-  (ld temp0 float vsp)         ; the float
-  (stw imm0 ppc64::double-float.value temp0)
-  (stw imm1 ppc64::double-float.val-low temp0)
-  (la vsp '2 vsp)
-  (blr))
+  (enter-function)
+  (mov (% sign) (% imm1))
+  (sar ($ 63) (% imm1))
+  (shl ($ 63) (% imm1))
+  (pop (% imm0))                        ;hi
+  (shl ($ (- 28 x8664::fixnumshift)) (% imm0))
+  (or (% imm0) (% imm1))
+  (unbox-fixnum lo imm0)
+  (or (% imm0) (% imm1))
+  (mov (% exp) (% imm0))
+  (shl ($ (- ieee-double-float-exponent-offset x8664::fixnumshift)) (% imm0))
+  (or (% imm0) (% imm1))
+  (pop (% arg_z))
+  (mov (% imm1) (@ x8664::double-float.value (% arg_z)))
+  (discard-reserved-frame)                  ; discard empty frame
+  (single-value-return))
 
 
 ;;; Maybe we should trap - or something - on NaNs.
 (defx86lapfunction %%double-float-abs! ((n arg_y)(val arg_z))
-  (xchg (% nfn) (% fn))
+  (simple-function-entry)
   (mov (@ x8664::double-float.value (% n)) (% imm0))
   (btr ($ 63) (% imm0))
   (mov (% imm0) (@ x8664::double-float.value (% val)))
-  (jmp (* (% nfn))))
+  (single-value-return))
 
 
 (defx86lapfunction %short-float-abs ((n arg_z))
-  (xchg (% nfn) (% fn))
+  (simple-function-entry)
   (btr (% 63) n)
-  (jmp (* (% nfn))))
+  (single-value-return))
 
 
 
@@ -218,20 +223,20 @@
     (blr)))
 
 (defx86lapfunction %copy-double-float ((f1 arg_y) (f2 arg_z))
-  (xchg (% nfn) (% fn))
+  (simple-function-entry)
   (get-double-float f1 fp1)
   (put-double-float fp1 f2)
-  (jmp (* (% nfn))))
+  (single-value-return))
 
                    
 
-#+ppc32-target
+#+x8632-target
 (defx86lapfunction %copy-short-float ((f1 arg_y) (f2 arg_z))
   (lfs fp0 ppc32::single-float.value f1)
   (stfs fp0 ppc32::single-float.value f2)
   (blr))
 
-#+ppc32-target
+#+x8632-target
 (defx86lapfunction %double-float-exp ((n arg_z))
   (lwz imm1 target::double-float.value n)
   (rlwinm arg_z imm1 (- 32 (- 20 target::fixnumshift)) 19  29) ; right 20 left 2 = right 18 = left 14
@@ -239,7 +244,7 @@
 
 
 
-#+ppc32-target
+#+x8632-target
 (defx86lapfunction set-%double-float-exp ((float arg_y) (exp arg_z))
   (lwz imm1 target::double-float.value float)
   (rlwimi imm1 exp (- 20 target::fixnumshift) 1 11)
@@ -248,7 +253,7 @@
 
 
 
-#+ppc32-target
+#+x8632-target
 (defx86lapfunction %short-float-exp ((n arg_z))
   (lwz imm1 ppc32::single-float.value n)
   (rlwinm arg_z imm1 (- 32 (- 23 ppc32::fixnumshift)) 22 29)
@@ -256,7 +261,7 @@
 
 
 
-#+ppc32-target
+#+x8632-target
 (defx86lapfunction set-%short-float-exp ((float arg_y) (exp arg_z))
   (lwz imm1 ppc32::single-float.value float)
   (rlwimi imm1 exp (- 23 ppc32::fixnumshift) 1 8)
@@ -265,11 +270,13 @@
 
   
 (defx86lapfunction %short-float->double-float ((src arg_y) (result arg_z))
-  (get-single-float fp0 src)
-  (put-double-float fp0 result)
-  (blr))
+  (simple-function-entry)
+  (get-single-float (% fp1) src)
+  (cvtss2sd (% fp1) (% fp1))
+  (put-double-float (% fp1) result)
+  (single-value-return))
 
-#+ppc32-target
+#+x8632-target
 (defx86lapfunction %double-float->short-float ((src arg_y) (result arg_z))
   (clear-fpu-exceptions)
   (get-double-float fp0 src)
@@ -546,18 +553,17 @@
   (stfs fp1 0 imm0)
   (blr))
 
-
+#+x866-target
 (defx86lapfunction host-single-float-from-unsigned-byte-32 ((u32 arg_z))
-  (xchg (% fn) (% ra0))
+  (simple-function-entry)
   (shl ($ (- 32 x8664::fixnumshift)) (% arg_z))
   (movb ($ x8664::subtag-single-float) (% arg_z.b))
-  (jmp (* (% ra0))))
-
+  (single-value-return))
 
 (defx86lapfunction single-float-bits ((f arg_z))
-  (xchg (% fn) (% ra0))
+  (simple-function-entry)
   (shr ($ (- 32 x8664::fixnumshift)) (% f))
-  (jmp (* (% ra0))))
+  (single-value-return))
 
 (defun double-float-bits (f)
   (values (uvref f target::double-float.val-high-cell)
@@ -570,83 +576,23 @@
     f))
 
 ;;; Return T if n is negative, else NIL.
+#+x8664-target
 (defx86lapfunction %double-float-sign ((n arg_z))
-  (xchg (% fn) (% nfn))
+  (simple-function-entry)
   (movl (@ x8664::double-float.val-high (% n)) (% imm0.l))
   (testl (% imm0.l) (% imm0.l))
   (movl ($ x8664::t-value) (% imm0.l))
   (movl ($ x8664::nil-value) (% arg_z.l))
   (cmovlq (% imm0) (% arg_z))
-  (jmp (* (% ra0))))
+  (single-value-return))
 
+#+x8664-target
 (defx86lapfunction %short-float-sign ((n arg_z))
-  #+ppc32-target (lwz imm0 ppc32::single-float.value n)
-  #+ppc64-target (srdi imm0 n 32)
-  (cmpwi imm0 0)
-  (li arg_z nil)
-  (bgelr)
-  (li arg_z t)
-  (blr))
+  (simple-function-entry)
+  (testq (% n) (% n))
+  (movl ($ x8664::t-value) (% imm0.l))
+  (movl ($ x8664::nil-value) (% arg_z.l))
+  (cmovlq (% imm0) (% arg_z))
+  (single-value-return))
   
 
-#+poweropen-target
-(defx86lapfunction %get-fp-arg-regs ((ptr arg_z))
-  (macptr-ptr imm0 ptr)
-  (stfd fp1 0 imm0)
-  (stfd fp2 8 imm0)
-  (stfd fp3 16 imm0)
-  (stfd fp4 24 imm0)
-  (stfd fp5 32 imm0)
-  (stfd fp6 40 imm0)
-  (stfd fp7 48 imm0)
-  (stfd fp8 56 imm0)
-  (stfd fp9 64 imm0)
-  (stfd fp10 72 imm0)
-  (stfd fp11 80 imm0)
-  (stfd fp12 88 imm0)
-  (stfd fp13 96 imm0)
-  (blr))
-
-#+poweropen-target
-(defx86lapfunction %load-fp-arg-regs ((n arg_y) (ptr arg_z))
-  (cmpdi cr0 n '0)
-  (cmpdi cr1 n '1)
-  (cmpdi cr2 n '2)
-  (cmpdi cr3 n '3)
-  (cmpdi cr4 n '4)
-  (cmpdi cr5 n '5)
-  (cmpdi cr6 n '6)
-  (cmpdi cr7 n '7)
-  (beqlr cr0)
-  (macptr-ptr imm0 ptr)
-  (cmpdi cr0 n '8)
-  (lfd fp1 0 imm0)
-  (beqlr cr1)
-  (cmpdi cr1 n '9)
-  (lfd fp2 8 imm0)
-  (beqlr cr2)
-  (cmpdi cr2 n '10)
-  (lfd fp3 16 imm0)
-  (beqlr cr3)
-  (cmpdi cr3 n '11)
-  (lfd fp4 24 imm0)
-  (beqlr cr4)
-  (cmpdi cr4 n '12)
-  (lfd fp5 32 imm0)
-  (beqlr cr5)
-  (lfd fp6 40 imm0)
-  (beqlr cr6)
-  (lfd fp7 48 imm0)
-  (beqlr cr7)
-  (lfd fp8 56 imm0)
-  (beqlr cr0)
-  (lfd fp9 64 imm0)
-  (beqlr cr1)
-  (lfd fp10 72 imm0)
-  (beqlr cr2)
-  (lfd fp11 80 imm0)
-  (beqlr cr3)
-  (lfd fp12 88 imm0)
-  (beqlr cr4)
-  (lfd fp13 96 imm0)
-  (blr))
