@@ -989,14 +989,14 @@
       (float-sign y single-float-half-pi))
     (%single-float-atan2 y x)))
 
-#+ppc64-target
+#+(or ppc64-target x8664-target)
 (defun %short-float-exp (n)
   (let* ((bits (single-float-bits n)))
     (declare (type (unsigned-byte 32) bits))
     (ldb (byte IEEE-single-float-exponent-width IEEE-single-float-exponent-offset) bits)))
 
 
-#+ppc64-target
+#+(or ppc64-target x8664-target)
 (defun set-%short-float-exp (float exp)
   (host-single-float-from-unsigned-byte-32
    (dpb exp
