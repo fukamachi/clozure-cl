@@ -1,3 +1,40 @@
+2006-01-05 07:55  gb
+
+	* library/lispequ.lisp: Remove 68k-MCL comment.
+
+2006-01-05 07:54  gb
+
+	* compiler/X86/: x86-asm.lisp, x86-lap.lisp: Start moving away from
+	high-level "instruction templates" and towards more detailed
+	"opcode templates".  The latter are intended to make it easier to
+	generate code from (e.g.) the compiler.
+	
+	(This is currently about half there.  The assembler doesn't work at
+	the moment, and the "opcode templates" are missing some things that
+	might be used in compiled/lap code and their definitions may
+	contain typos. It's worth doing, in that it'll allow the compiler
+	to generate machine code while bypassing much of the old
+	implementation's parse- time side effects and special-cases.)
+
+2006-01-05 07:48  gb
+
+	* compiler/X86/x86-lapmacros.lisp: Some stuff for entering/leaving
+	functions.
+
+2006-01-05 07:47  gb
+
+	* level-1/l1-reader.lisp: %unreadable: don't assume that STREAM is
+	referenced in format-string arg.
+
+2006-01-05 07:46  gb
+
+	* level-0/l0-float.lisp: A little  conditionalization.
+
+2006-01-05 07:46  gb
+
+	* level-0/X86/x86-float.lisp: A little more code and
+	conditionalization.
+
 2006-01-01 20:23  gb
 
 	* level-1/version.lisp: Bump.
