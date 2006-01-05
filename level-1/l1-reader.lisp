@@ -988,7 +988,7 @@ initially NIL.")
                           (decf level))))))))
 
 (defun %unreadable (stream description)
-  (signal-reader-error stream "~S encountered." stream description))
+  (signal-reader-error stream "~S encountered." description))
 
 (set-dispatch-macro-character
  #\#
