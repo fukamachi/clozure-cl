@@ -835,8 +835,7 @@
   random.seed-1
   random.seed-2)
 
-;;; IEEE-floating-point constants.  Note that 68K MCL SHORT-FLOATs aren't IEEE SINGLE-FLOATS;
-;;; some bits are stolen from the exponent of an IEEE single and used for tagging.
+;;; IEEE-floating-point constants.
 
 (defconstant IEEE-single-float-bias 126)
 (defconstant IEEE-single-float-exponent-offset 23)
