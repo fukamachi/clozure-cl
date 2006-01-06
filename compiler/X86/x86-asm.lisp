@@ -596,6 +596,10 @@
   (or (x86-instruction-rex-prefix instruction)
       (error "Bug: no REX prefix in ~s" instruction)))
 
+
+(defun insert-nothing (instruction operand)
+  (declare (ignore instruction operand)))
+
 ;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.reg
 ;;; field.  If the register requires REX addressing, set the REX.R bit
 ;;; in the instruction's rex-prefix.  If either the modrm or rex-prefix
@@ -605,13 +609,24 @@
 (defun insert-modrm-reg (instruction operand)
   (let* ((entry (x86-register-operand-entry operand))
          (reg-num (reg-entry-reg-num entry))
-         (need-rex.r (logtest +regrex64+ (reg-entry-reg-flags entry))))
+         (need-rex.r (logtest +regrex+ (reg-entry-reg-flags entry))))
     (setf (x86-instruction-modrm-byte instruction)
           (dpb reg-num (byte 3 3)
                (need-modrm-byte instruction)))
     (when need-rex.r
       (setf (x86-instruction-rex-prefix instruction)
-            (logior 8 (need-rex-prefix instruction))))))
+            (logior 4 (need-rex-prefix instruction))))))
+
+(defun insert-opcode-reg (instruction operand)
+  (let* ((entry (x86-register-operand-entry operand))
+         (reg-num (reg-entry-reg-num entry))
+         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
+    (setf (x86-instruction-base-opcode instruction)
+          (dpb reg-num (byte 3 0)
+               (x86-instruction-base-opcode instruction)))
+    (when need-rex.b
+      (setf (x86-instruction-rex-prefix instruction)
+            (logior 1 (need-rex-prefix instruction))))))
 
 ;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.rm
 ;;; field.  If the register requires REX addressing, set the REX.B bit
@@ -622,12 +637,136 @@
 (defun insert-modrm-rm (instruction operand)
   (let* ((entry (x86-register-operand-entry operand))
          (reg-num (reg-entry-reg-num entry))
-         (need-rex.b (logtest +regrex64+ (reg-entry-reg-flags entry))))
+         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
     (setf (x86-instruction-modrm-byte instruction)
           (dpb reg-num (byte 3 0) (need-modrm-byte instruction)))
     (when need-rex.b
       (setf (x86-instruction-rex-prefix instruction)
             (logior 1 (need-rex-prefix instruction))))))
+
+(defun insert-imm32s (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm32s))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm32 (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm32))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm16 (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm16))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm8 (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm8))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm8s (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm8s))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm8-for-int (instruction operand)
+  (let* ((expr (x86-immediate-operand-value operand))
+         (value (ccl::early-x86-lap-expression-value expr)))
+    (if (eql value 3)
+      (setf (x86-instruction-base-opcode instruction)
+            +int3-opcode+)
+      (insert-imm8 instruction operand))))
+
+(defun insert-label (instruction operand)
+  (setf (x86-instruction-extra instruction) operand))
+
+
+(defconstant modrm-mod-byte (byte 2 6))
+(defconstant modrm-reg-byte (byte 3 3))
+(defconstant modrm-rm-byte (byte 3 0))
+
+(defconstant sib-scale-byte (byte 2 6))
+(defconstant sib-index-byte (byte 3 3))
+(defconstant sib-base-byte (byte 3 0))
+
+(defun mode-from-disp-size (type)
+  (cond ((logtest type (x86::encode-operand-type :disp8)) 1)
+        ((logtest type (x86::encode-operand-type :disp16 :disp32 :disp32S)) 2)
+        (t 0)))
+
+(defvar *lap-constant-0-expression*)
+
+(defun insert-memory (instruction operand)
+  (let* ((explicit-seg (x86-memory-operand-seg operand))
+         (disp (x86-memory-operand-disp operand))
+         (base (x86-memory-operand-base operand))
+         (index (x86-memory-operand-index operand))
+         (scale (x86-memory-operand-scale operand))
+         (rm-byte (x86-instruction-modrm-byte instruction))
+         (sib 0)
+         (default-seg *ds-segment-register*)
+         (memtype (x86-memory-operand-type operand)))
+    (cond ((null base)
+           (setf (ldb modrm-mod-byte rm-byte) 0
+                 (ldb modrm-rm-byte rm-byte) +escape-to-two-byte-addressing+
+                 (ldb sib-base-byte sib) +no-base-register+
+                 memtype (encode-operand-type :disp32s))
+           (cond ((null index)
+                  ;; Just a displacement.
+                  (setf (ldb sib-index-byte sib) +no-index-register+))
+                 (t
+                  ;; No base, but index
+                  (let* ((index-reg (reg-entry-reg-num index)))
+                    (setf (ldb sib-index-byte sib) index-reg
+                          (ldb sib-scale-byte sib) (or scale 0))
+                    (when (logtest (reg-entry-reg-flags index) +RegRex+)
+                      (setf (x86-instruction-rex-prefix instruction)
+                            (logior 1 (need-rex-prefix instruction))))))))
+          ((= (reg-entry-reg-type base) (encode-operand-type :baseIndex))
+           ;; RIP-relative.  Need a displacement if we don't already
+           ;; have one.
+           (setf (ldb modrm-rm-byte rm-byte) +no-base-register+)
+           (setq memtype
+                 (logior (encode-operand-type :disp32s)
+                         (logandc2 memtype (encode-operand-type :disp)))))
+          (t
+           ;; have a real base register (not just %rip).  Maybe an
+           ;; index register, too.
+           (let* ((baseregnum (reg-entry-reg-num base)))
+             (setf (ldb modrm-rm-byte rm-byte) baseregnum)
+             (when (logtest (reg-entry-reg-flags base) +RegRex+)
+               (setf (x86-instruction-rex-prefix instruction)
+                     (logior 1 (need-rex-prefix instruction))))
+             (setf (ldb sib-base-byte sib) baseregnum)
+             (cond ((= (logand baseregnum 7) +ebp-reg-num+)
+                    (setq default-seg *ss-segment-register*)
+                    (unless disp
+                      (setf memtype (logior memtype (encode-operand-type :disp8)))))
+                   ((= baseregnum x86::+esp-reg-num+)
+                    (setq default-seg x86::*ss-segment-register*)))
+             (setf (ldb sib-scale-byte sib) (or scale 0))
+             (if (null index)
+               (setf (ldb sib-index-byte sib) +no-index-register+)
+               (progn
+                 (setf (ldb sib-index-byte sib)
+                       (reg-entry-reg-flags index))
+                 (when (logtest (reg-entry-reg-flags index) +RegRex+)
+                   (setf (x86-instruction-rex-prefix instruction)
+                         (logior +rex-exty+
+                                 (need-rex-prefix instruction)))))))
+               (setf (ldb modrm-mod-byte rm-byte) (mode-from-disp-size memtype))))
+    (setf (x86-instruction-modrm-byte instruction) rm-byte)
+    (when (= (ldb modrm-rm-byte rm-byte) +escape-to-two-byte-addressing+)
+      (setf (x86-instruction-sib-byte instruction) sib))
+    (when (logtest memtype (encode-operand-type :disp))
+      (unless disp (setq disp *lap-constant-0-expression*))
+      (setf (x86-instruction-disp instruction) disp
+            (x86-instruction-extra instruction) memtype))
+    (when (and explicit-seg
+               (not (eq explicit-seg default-seg)))
+      (setf (x86-instruction-seg-prefix instruction)
+            (seg-entry-seg-prefix explicit-seg)))))
+    
 
 
 
@@ -792,15 +931,15 @@
    (def-x8664-opcode andq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
      #x21 #x00 #x48)
    (def-x8664-opcode andq ((:imm8s :insert-imm8s) (:reg64 :insert-modrm-rm))
-     #x83 #o300 #x48)
+     #x83 #o340 #x48)
    (def-x8664-opcode andq ((:imm32s :insert-imm32s) ((:reg64 :acc) :insert-nothing))
      #x25 nil #x48)
    (def-x8664-opcode andq ((:imm32s :insert-imm32s) (:reg64 :insert-modrm-rm))
      #x81 #o300 #x48)
    (def-x8664-opcode andq ((:imm8s :insert-imm8s) (:anymem :insert-memory))
-     #x83 #o000 #x48)
+     #x83 #o040 #x48)
    (def-x8664-opcode andq ((:imm32s :insert-imm32s) (:anymem :insert-memory))
-     #x81 #o000 #x48)
+     #x81 #o040 #x48)
 
    (def-x8664-opcode andl ((:reg32 :insert-modrm-reg) (:reg32 :insert-modrm-rm))
      #x21 #o300 #x00)
@@ -809,15 +948,15 @@
    (def-x8664-opcode andl ((:reg32 :insert-modrm-reg) (:anymem :insert-memory))
      #x21 #x00 #x00)
    (def-x8664-opcode andl ((:imm8s :insert-imm8s) (:reg32 :insert-modrm-rm))
-     #x83 #o300 #x00)
+     #x83 #o340 #x00)
    (def-x8664-opcode andl ((:imm32s :insert-imm32s) ((:reg32 :acc) :insert-nothing))
      #x25 nil nil)
    (def-x8664-opcode andl ((:imm32s :insert-imm32s) (:reg32 :insert-modrm-rm))
-     #x81 #o300 #x00)
+     #x81 #o340 #x00)
    (def-x8664-opcode andl ((:imm8s :insert-imm8s) (:anymem :insert-memory))
-     #x83 #o000 #x00)
+     #x83 #o040 #x00)
    (def-x8664-opcode andl ((:imm32s :insert-imm32s) (:anymem :insert-memory))
-     #x81 #o000 #x00)
+     #x81 #o040 #x00)
 
    (def-x8664-opcode andw ((:reg16 :insert-modrm-reg) (:reg16 :insert-modrm-rm))
      #x21 #o300 #x00 #x66)
@@ -826,28 +965,28 @@
    (def-x8664-opcode andw ((:reg16 :insert-modrm-reg) (:anymem :insert-memory))
      #x21 #x00 #x00 #x66)
    (def-x8664-opcode andw ((:imm8s :insert-imm8s) (:reg16 :insert-modrm-rm))
-     #x83 #o300 #x00 #x66)
+     #x83 #o340 #x00 #x66)
    (def-x8664-opcode andw ((:imm16 :insert-imm16) ((:reg16 :acc) :insert-nothing))
      #x25 nil nil #x66)
    (def-x8664-opcode andw ((:imm16 :insert-imm16) (:reg16 :insert-modrm-rm))
-     #x81 #o300 #x00 #x66)
+     #x81 #o340 #x00 #x66)
    (def-x8664-opcode andw ((:imm8s :insert-imm8s) (:anymem :insert-memory))
-     #x83 #o000 #x00 #x66)
+     #x83 #o040 #x00 #x66)
    (def-x8664-opcode andw ((:imm16 :insert-imm16) (:anymem :insert-memory))
-     #x81 #o000 #x00 #x66)
+     #x81 #o040 #x00 #x66)
 
    (def-x8664-opcode andb ((:reg8 :insert-modrm-reg) (:reg8 :insert-modrm-rm))
      #x20 #o300 #x00)
    (def-x8664-opcode andb ((:anymem :insert-memory) (:reg8 :insert-modrm-reg))
      #x22 #o000 #x00)
    (def-x8664-opcode andb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
-     #x20 #x00 #x00)
+     #x20 #o000 #x00)
    (def-x8664-opcode andb ((:imm8 :insert-imm8) ((:reg8 :acc) :insert-nothing))
      #x24 nil nil)
    (def-x8664-opcode andb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
-     #x80 #o300 #x00)
+     #x80 #o340 #x00)
    (def-x8664-opcode andb ((:imm8 :insert-imm8) (:anymem :insert-memory))
-     #x80 #o000 #x00)
+     #x80 #o040 #x00)
 
    ;; bsf
    (def-x8664-opcode bsfq ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
@@ -1496,131 +1635,131 @@
      #xcd nil nil)
 
    ;; Jcc.  Generate the short form here; maybe relax later.
-   (def-x8664-opcode jcc ((:imm8 :insert-cc) (:label :insert-label))
+   (def-x8664-opcode (jcc :jump) ((:imm8 :insert-cc) (:label :insert-label))
      #x70 nil nil)
-   (def-x8664-opcode jcc+ ((:imm8 :insert-cc) (:label :insert-label))
+   (def-x8664-opcode (jcc+ :jump) ((:imm8 :insert-cc) (:label :insert-label))
      #x70 nil nil #x3e)
-   (def-x8664-opcode jcc- ((:imm8 :insert-cc) (:label :insert-label))
+   (def-x8664-opcode (jcc- :jump) ((:imm8 :insert-cc) (:label :insert-label))
      #x70 nil nil #x2e)
 
-   (def-x8664-opcode jo ((:label :insert-label))
+   (def-x8664-opcode (jo :jump) ((:label :insert-label))
      #x70 nil nil)
-   (def-x8664-opcode jo+ ((:label :insert-label))
+   (def-x8664-opcode (jo+ :jump) ((:label :insert-label))
      #x70 nil nil #x3e)
-   (def-x8664-opcode jo- ((:label :insert-label))
+   (def-x8664-opcode (jo- :jump) ((:label :insert-label))
      #x70 nil nil #x2e)
-   (def-x8664-opcode jno ((:label :insert-label))
+   (def-x8664-opcode (jno :jump) ((:label :insert-label))
      #x71 nil nil)
-   (def-x8664-opcode jno+ ((:label :insert-label))
+   (def-x8664-opcode (jno+ :jump) ((:label :insert-label))
      #x71 nil nil #x3e)
-   (def-x8664-opcode jno- ((:label :insert-label))
+   (def-x8664-opcode (jno- :jump) ((:label :insert-label))
      #x71 nil nil #x2e)
-   (def-x8664-opcode jb ((:label :insert-label))
+   (def-x8664-opcode (jb :jump) ((:label :insert-label))
      #x72 nil nil)
-   (def-x8664-opcode jb+ ((:label :insert-label))
+   (def-x8664-opcode (jb+ :jump) ((:label :insert-label))
      #x72 nil nil #x3e)
-   (def-x8664-opcode jb- ((:label :insert-label))
+   (def-x8664-opcode (jb- :jump) ((:label :insert-label))
      #x72 nil nil #x2e)
-   (def-x8664-opcode jae ((:label :insert-label))
+   (def-x8664-opcode (jae :jump) ((:label :insert-label))
      #x73 nil nil)
-   (def-x8664-opcode jae+ ((:label :insert-label))
+   (def-x8664-opcode (jae+ :jump) ((:label :insert-label))
      #x73 nil nil #x3e)
-   (def-x8664-opcode jae- ((:label :insert-label))
+   (def-x8664-opcode (jae- :jump) ((:label :insert-label))
      #x73 nil nil #x2e)
-   (def-x8664-opcode je ((:label :insert-label))
+   (def-x8664-opcode (je :jump) ((:label :insert-label))
      #x74 nil nil)
-   (def-x8664-opcode je+ ((:label :insert-label))
+   (def-x8664-opcode (je+ :jump) ((:label :insert-label))
      #x74 nil nil #x3e)
-   (def-x8664-opcode je- ((:label :insert-label))
+   (def-x8664-opcode (je- :jump) ((:label :insert-label))
      #x74 nil nil #x2e)
-   (def-x8664-opcode jz ((:label :insert-label))
+   (def-x8664-opcode (jz :jump) ((:label :insert-label))
      #x74 nil nil)
-   (def-x8664-opcode jz+ ((:label :insert-label))
+   (def-x8664-opcode (jz+ :jump) ((:label :insert-label))
      #x74 nil nil #x3e)
-   (def-x8664-opcode jz- ((:label :insert-label))
+   (def-x8664-opcode (jz- :jump) ((:label :insert-label))
      #x74 nil nil #x2e)
-   (def-x8664-opcode jne ((:label :insert-label))
+   (def-x8664-opcode (jne :jump) ((:label :insert-label))
      #x75 nil nil)
-   (def-x8664-opcode jne+ ((:label :insert-label))
+   (def-x8664-opcode (jne+ :jump) ((:label :insert-label))
      #x75 nil nil #x3e)
-   (def-x8664-opcode jne- ((:label :insert-label))
+   (def-x8664-opcode (jne- :jump) ((:label :insert-label))
      #x75 nil nil #x2e)
-   (def-x8664-opcode jnz ((:label :insert-label))
+   (def-x8664-opcode (jnz :jump) ((:label :insert-label))
      #x75 nil nil)
-   (def-x8664-opcode jnz+ ((:label :insert-label))
+   (def-x8664-opcode (jnz+ :jump) ((:label :insert-label))
      #x75 nil nil #x3e)
-   (def-x8664-opcode jnz- ((:label :insert-label))
+   (def-x8664-opcode (jnz- :jump) ((:label :insert-label))
      #x75 nil nil #x2e)
-   (def-x8664-opcode jbe ((:label :insert-label))
+   (def-x8664-opcode (jbe :jump) ((:label :insert-label))
      #x76 nil nil)
-   (def-x8664-opcode jbe+ ((:label :insert-label))
+   (def-x8664-opcode (jbe+ :jump) ((:label :insert-label))
      #x76 nil nil #x3e)
-   (def-x8664-opcode jbe- ((:label :insert-label))
+   (def-x8664-opcode (jbe- :jump) ((:label :insert-label))
      #x76 nil nil #x2e)
-   (def-x8664-opcode ja ((:label :insert-label))
+   (def-x8664-opcode (ja :jump) ((:label :insert-label))
      #x77 nil nil)
-   (def-x8664-opcode ja+ ((:label :insert-label))
+   (def-x8664-opcode (ja+ :jump) ((:label :insert-label))
      #x77 nil nil #x3e)
-   (def-x8664-opcode ja- ((:label :insert-label))
+   (def-x8664-opcode (ja- :jump) ((:label :insert-label))
      #x77 nil nil #x2e)
-   (def-x8664-opcode js ((:label :insert-label))
+   (def-x8664-opcode (js :jump) ((:label :insert-label))
      #x78 nil nil)
-   (def-x8664-opcode js+ ((:label :insert-label))
+   (def-x8664-opcode (js+ :jump) ((:label :insert-label))
      #x78 nil nil #x3e)
-   (def-x8664-opcode js- ((:label :insert-label))
+   (def-x8664-opcode (js- :jump) ((:label :insert-label))
      #x78 nil nil #x2e)
-   (def-x8664-opcode jns ((:label :insert-label))
+   (def-x8664-opcode (jns :jump) ((:label :insert-label))
      #x79 nil nil)
-   (def-x8664-opcode jns+ ((:label :insert-label))
+   (def-x8664-opcode (jns+ :jump) ((:label :insert-label))
      #x79 nil nil #x3e)
-   (def-x8664-opcode jns- ((:label :insert-label))
+   (def-x8664-opcode (jns- :jump) ((:label :insert-label))
      #x79 nil nil #x2e)
-   (def-x8664-opcode jpe ((:label :insert-label))
+   (def-x8664-opcode (jpe :jump) ((:label :insert-label))
      #x7a nil nil)
-   (def-x8664-opcode jpe+ ((:label :insert-label))
+   (def-x8664-opcode (jpe+ :jump) ((:label :insert-label))
      #x7a nil nil #x3e)
-   (def-x8664-opcode jpe- ((:label :insert-label))
+   (def-x8664-opcode (jpe- :jump) ((:label :insert-label))
      #x7a nil nil #x2e)
-   (def-x8664-opcode jpo ((:label :insert-label))
+   (def-x8664-opcode (jpo :jump) ((:label :insert-label))
      #x7b nil nil)
-   (def-x8664-opcode jpo+ ((:label :insert-label))
+   (def-x8664-opcode (jpo+ :jump) ((:label :insert-label))
      #x7b nil nil #x3e)
-   (def-x8664-opcode jpo- ((:label :insert-label))
+   (def-x8664-opcode (jpo- :jump) ((:label :insert-label))
      #x7b nil nil #x2e)
-   (def-x8664-opcode jl ((:label :insert-label))
+   (def-x8664-opcode (jl :jump) ((:label :insert-label))
      #x7c nil nil)
-   (def-x8664-opcode jl+ ((:label :insert-label))
+   (def-x8664-opcode (jl+ :jump) ((:label :insert-label))
      #x7c nil nil #x3e)
-   (def-x8664-opcode jl- ((:label :insert-label))
+   (def-x8664-opcode (jl- :jump) ((:label :insert-label))
      #x7c nil nil #x2e)
-   (def-x8664-opcode jge ((:label :insert-label))
+   (def-x8664-opcode (jge :jump) ((:label :insert-label))
      #x7d nil nil)
-   (def-x8664-opcode jge+ ((:label :insert-label))
+   (def-x8664-opcode (jge+ :jump) ((:label :insert-label))
      #x7d nil nil #x3e)
-   (def-x8664-opcode jge- ((:label :insert-label))
+   (def-x8664-opcode (jge- :jump) ((:label :insert-label))
      #x7d nil nil #x2e)
-   (def-x8664-opcode jle ((:label :insert-label))
+   (def-x8664-opcode (jle :jump) ((:label :insert-label))
      #x7e nil nil)
-   (def-x8664-opcode jle+ ((:label :insert-label))
+   (def-x8664-opcode (jle+ :jump) ((:label :insert-label))
      #x7e nil nil #x3e)
-   (def-x8664-opcode jle- ((:label :insert-label))
+   (def-x8664-opcode (jle- :jump) ((:label :insert-label))
      #x7e nil nil #x2e)
-   (def-x8664-opcode jg ((:label :insert-label))
+   (def-x8664-opcode (jg :jump) ((:label :insert-label))
      #x7f nil nil)
-   (def-x8664-opcode jg+ ((:label :insert-label))
+   (def-x8664-opcode (jg+ :jump) ((:label :insert-label))
      #x7f nil nil #x3e)
-   (def-x8664-opcode jg- ((:label :insert-label))
+   (def-x8664-opcode (jg- :jump) ((:label :insert-label))
      #x7f nil nil #x2e)
 
    ;; jmp .  Translating the 8-bit pc-relative version to the 32-bit
    ;;        pc-relative version happens during relaxation.
-   (def-x8664-opcode jmp ((:label :insert-label))
-     #x7f nil nil)
+   (def-x8664-opcode (jmp :jump) ((:label :insert-label))
+     #xeb nil nil)
 
-   (def-x8664-opcode jmpq ((:reg64 :insert-modrm-rm))
-     #xff #o240 #x0)
+   (def-x8664-opcode jmp (((:reg64 :jumpabsolute) :insert-modrm-rm))
+     #xff #o340 #x0)
 
-   (def-x8664-opcode jmpq ((:anymem :insert-memory))
+   (def-x8664-opcode jmp (((:anymem :jumpabsolute) :insert-memory))
      #xff #o040 #x0)
 
    ;; lea
@@ -1668,19 +1807,7 @@
      #xe0 nil nil)
 
    ;; mov, including the MMX/XMM variants.
-   (def-x8664-opcode movq ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
-     #x89 #o300 #x48)
-   (def-x8664-opcode movq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
-     #x8b #o0 #x48)
-   (def-x8664-opcode movq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
-     #x89 #o0 #x48)
-   (def-x8664-opcode movq ((:imm32s :insert-imm32s) (:reg64 :insert-modrm-rm))
-     #xc7 #o300 #x48)
-   (def-x8664-opcode movq ((:imm32s :insert-imm32s) (:anymem :insert-memory))
-     #xc7 #o000 #x48)
-   (def-x8664-opcode movq ((:imm64 :insert-imm64) (:reg64 :insert-opcode-reg))
-     #xb8 nil #x48)
-   (def-x8664-opcode movq ((:regmmx :insert-mmx-reg) (:regmmx :insert-mmx-rm))
+      (def-x8664-opcode movq ((:regmmx :insert-mmx-reg) (:regmmx :insert-mmx-rm))
      #x0f6f #o300 0)
    (def-x8664-opcode movq ((:regmmx :insert-mmx-reg) (:anymem :insert-memory))
      #x0f7f #o0 0)
@@ -1693,27 +1820,41 @@
    (def-x8664-opcode movq ((:regxmm :insert-xmm-reg) (:anymem :insert-memory))
      #x0fd6 #o000 0 #x66)
 
+   (def-x8664-opcode movq ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
+     #x89 #o300 #x48)
+   (def-x8664-opcode movq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
+     #x8b #o0 #x48)
+   (def-x8664-opcode movq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
+     #x89 #o0 #x48)
+   (def-x8664-opcode movq ((:imm32s :insert-imm32s) (:reg64 :insert-modrm-reg))
+     #xc7 #o300 #x48)
+   (def-x8664-opcode movq ((:imm32s :insert-imm32s) (:anymem :insert-memory))
+     #xc7 #o000 #x48)
+   (def-x8664-opcode movq ((:imm64 :insert-imm64) (:reg64 :insert-opcode-reg))
+     #xb8 nil #x48)
+
    (def-x8664-opcode movl ((:reg32 :insert-modrm-reg) (:reg32 :insert-modrm-rm))
-     #x89 #o300 0)
+     #x89 #o300 #x00)
    (def-x8664-opcode movl ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
-     #x8b #o0 0)
+     #x8b #o0 #x00)
    (def-x8664-opcode movl ((:reg32 :insert-modrm-reg) (:anymem :insert-memory))
-     #x89 #o0 0)
-   (def-x8664-opcode movl ((:imm32s :insert-imm32s) (:reg32 :insert-modrm-rm))
-     #xc7 #o300 0)
+     #x89 #o0 #x00)
+   (def-x8664-opcode movl ((:imm32s :insert-imm32s) (:reg32 :insert-modrm-reg))
+     #xc7 #o300 #x00)
    (def-x8664-opcode movl ((:imm32s :insert-imm32s) (:anymem :insert-memory))
-     #xc7 #o000 0)
+     #xc7 #o000 #x00)
+
 
    (def-x8664-opcode movw ((:reg16 :insert-modrm-reg) (:reg16 :insert-modrm-rm))
-     #x89 #o300 0 #x66)
+     #x89 #o300 #x00 #x66)
    (def-x8664-opcode movw ((:anymem :insert-memory) (:reg16 :insert-modrm-reg))
-     #x8b #o0 0 #x66)
+     #x8b #o0 #x00  #x66)
    (def-x8664-opcode movw ((:reg16 :insert-modrm-reg) (:anymem :insert-memory))
-     #x89 #o0 0 #x66)
-   (def-x8664-opcode movw ((:imm16 :insert-imm16) (:reg16  :insert-modrm-rm))
-     #xc7 #o300 0 #x66)
+     #x89 #o0 #x00 #x66)
+   (def-x8664-opcode movw ((:imm16 :insert-imm16) (:reg16 :insert-modrm-reg))
+     #xc7 #o300 #x00 #x66)
    (def-x8664-opcode movw ((:imm16 :insert-imm16) (:anymem :insert-memory))
-     #xc7 #o000 0 #x66)
+     #xc7 #o000 #x00 #x66)
 
    (def-x8664-opcode movb ((:reg8 :insert-modrm-reg) (:reg8 :insert-modrm-rm))
      #x88 #o300 0)
@@ -1721,8 +1862,8 @@
      #x8a #o0 0)
    (def-x8664-opcode movb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
      #x88 #o0 0)
-   (def-x8664-opcode movb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
-     #xc6 #o300 0)
+   (def-x8664-opcode movb ((:imm8s :insert-imm8s) (:reg8 :insert-opcode-reg))
+     #xb0 nil nil)
    (def-x8664-opcode movb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #xc6 #o000 0)
   
@@ -2866,15 +3007,14 @@
     
       
 (defparameter *x86-32-opcode-template-lists*
-  (make-hash-table :test #'equal))
+  (make-hash-table :test #'equalp))
 
 
 (defparameter *x86-64-opcode-template-lists*
-  (make-hash-table :test #'equal))
+  (make-hash-table :test #'equalp))
 
 
 (defun initialize-x86-opcode-templates ()
-
   (flet ((setup-templates-hash (hash templates)
            (clrhash hash)
            (do* ((i (1- (length templates)) (1- i)))
@@ -2898,23 +3038,53 @@
 (defvar *x8664-registers* (make-hash-table :test #'equalp))
 (defvar *x86-registers* nil)
 
+(defparameter *x86-32-operand-insert-functions*
+  #(tbd))
+
+(defparameter *x86-64-operand-insert-functions*
+  #(insert-nothing
+    insert-modrm-reg
+    insert-modrm-rm
+    insert-memory
+    insert-opcode-reg
+    insert-cc
+    insert-label
+    insert-imm8-for-int
+    insert-extra
+    insert-imm8
+    insert-imm8s
+    insert-imm16
+    insert-imm32s
+    insert-imm32
+    insert-imm64
+    insert-mmx-reg
+    insert-mmx-rm
+    insert-xmm-reg
+    insert-xmm-rm))
+
+(defvar *x86-operand-insert-functions* ())
 
 (defun setup-x86-assembler (&optional (cpu :x86-64))
   (initialize-x86-opcode-templates)
   (ecase cpu
-    (:x86-32 (setq *x86-instruction-opcode-lists*
-                   *x86-32-instruction-opcode-lists*
-                   *x86-registers* *x8632-registers*))
-    (:x86-64 (setq *x86-instruction-opcode-lists*
-                   *x86-64-instruction-opcode-lists*
-                   *x86-registers* *x8664-registers*)))
+    (:x86-32 (setq *x86-opcode-template-lists*
+                   *x86-32-opcode-template-lists*
+                   *x86-registers* *x8632-registers*
+                   *x86-operand-insert-functions*
+                   *x86-32-operand-insert-functions*
+                   ))
+    (:x86-64 (setq *x86-opcode-template-lists*
+                   *x86-64-opcode-template-lists*
+                   *x86-registers* *x8664-registers*
+                   *x86-operand-insert-functions*
+                   *x86-64-operand-insert-functions*)))
   t)
 
 (setup-x86-assembler :x86-64)
 
 
-(defun get-x86-opcode-templates (name)
-  (gethash (string name) *x86-instruction-opcode-lists*))
+
+
                           
 
 
@@ -3636,6 +3806,8 @@
 
 
 
+
+
 (defun init-x86-registers ()
   (flet ((hash-registers (vector hash 64p)
            (dotimes (i (length vector))
@@ -3866,25 +4038,6 @@
                                         +x86-64-bit-register+)))
 
 
-(defparameter *x8664-operand-insert-functions*
-  #(insert-nothing
-    insert-modrm-reg
-    insert-modrm-rm
-    insert-memory
-    insert-opcode-reg
-    insert-cc
-    insert-label
-    insert-imm8-for-int
-    insert-extra
-    insert-imm8
-    insert-imm8s
-    insert-imm16
-    insert-imm32s
-    insert-imm32
-    insert-imm64
-    insert-mmx-reg
-    insert-mmx-rm
-    insert-xmm-reg
-    insert-xmm-rm))
+
 
 (provide "X86-ASM")
