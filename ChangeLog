@@ -1,3 +1,23 @@
+2006-01-06 08:32  gb
+
+	* compiler/X86/x86-asm.lisp: More of the new scheme.  Still need to
+	flesh out the opcode descriptions (mostly SSE* stuff and other
+	newer instructions.)
+	
+	Should try to sanity check agains old (GAS) template data. 
+	Somehow.
+
+2006-01-06 08:30  gb
+
+	* compiler/X86/x86-lap.lisp: Still some leftover code from the old
+	scheme, but what's there of the new scheme seems to work.
+
+2006-01-06 08:29  gb
+
+	* compiler/X86/x86-disassemble.lisp: Some bug fixes: op-imreg
+	-really- isn't op-reg, sign-extend when getting a signed-byte 32
+	...
+
 2006-01-05 07:55  gb
 
 	* library/lispequ.lisp: Remove 68k-MCL comment.
