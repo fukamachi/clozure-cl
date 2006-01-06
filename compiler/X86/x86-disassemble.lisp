@@ -96,7 +96,7 @@
 
 (defun x86-ds-next-s32 (ds)
   (let* ((low (x86-ds-next-u16 ds))
-         (high (x86-ds-next-u16 ds)))
+         (high (x86-ds-next-s16 ds)))
     (declare (type (unsigned-byte 16) low)
              (type (signed-byte 16) high))
     (logior (the fixnum (ash high 16)) low)))
@@ -558,14 +558,9 @@
                           ;; prefix.
                           (used-rex ds 0)
                           (x86::x86-reg8 (- code +al-reg+)))
-                         ((and (>= code +rax-reg+)
-                               (<= code +rdi-reg+)
-                               (x86-ds-mode-64 ds))
-                          (x86::x86-reg64 (- code +rax-reg+)))
-                         ((progn
-                            (setq code (+ code (- +eax-reg+ +rax-reg+)))
-                            (and (>= code +eax-reg+)
-                                 (<= code +edi-reg+)))
+
+                         ((and (>= code +eax-reg+)
+                                 (<= code +edi-reg+))
                           (used-rex ds +rex-mode64+)
                           (used-prefix ds +prefix-data+)
                           (if (logtest (x86-ds-rex ds) +rex-mode64+)
@@ -2211,7 +2206,7 @@
         (setf (x86-di-mnemonic instruction) (subseq string-buffer 0))))
   ok))
 
-(defparameter *x86-dissassemble-always-print-suffix* nil)
+(defparameter *x86-dissassemble-always-print-suffix* t)
 
 (defun x86-dis-do-float (ds instruction floatop sizeflag)
   (declare (ignore floatop sizeflag))
