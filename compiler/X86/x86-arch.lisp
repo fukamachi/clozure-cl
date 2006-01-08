@@ -131,5 +131,34 @@
 (defconstant max-stack-area-code area-tstack)
 (defconstant min-heap-area-code area-readonly)
 
+;;; mxcsr bits.  (Unlike the convention used on the PPC, bit 0 is the
+;;; least significant bit of the containing byte/word.)
+
+(ccl::defenum (:prefix "MXCSR-" :suffix "-BIT")
+  ie                                    ;invalid exception
+  de                                    ;denormal exception
+  ze                                    ;divide-by-zero exception
+  oe                                    ;overflow exception
+  ue                                    ;underflow exception
+  pe                                    ;precision exception
+  daz                                   ;denorms-are-zeros (not-IEEE)
+  im                                    ;invalid masked
+  dm                                    ;denormals masked
+  zm                                    ;divide-by-zero masked
+  om                                    ;overflow masked
+  um                                    ;underflow masked
+  pm                                    ;precision masked
+  rc0                                   ;rounding control bit 0
+  rc1                                   ;rounding control bit 1
+  fz                                    ;flush-to-zero (not-IEEE)
+)
+
+(defconstant mxcsr-status-byte (byte 6 0))
+(defconstant mxcsr-control-bit-shift 7)
+(defconstant mxcsr-control-byte (byte 6 mxcsr-control-bit-shift))
+(defconstant mxcsr-control-and-rounding-byte (byte 8 mxcsr-control-bit-shift))
+
+(defconstant mxcsr-write-mask (dpb -1 mxcsr-status-byte
+                                   (dpb -1 mxcsr-control-and-rounding-byte 0)))
 
 (provide "X86-ARCH")
