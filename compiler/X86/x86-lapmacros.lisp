@@ -31,43 +31,33 @@
     (if (= max min)
       `(progn
         (rcmp (% nargs) ($ ',min))
-        (je.pt (^ ,ok))
+        (je.pt ,ok)
         (uuo-error-wrong-number-of-args)
         ,ok)
       (if (null max)
         (unless (zerop min)
           `(progn
             (rcmp (% nargs) ($ ',min))
-            (jae.pt (^ ,ok))
+            (jae.pt  ,ok)
             (uuo-error-too-few-args)
             ,ok))
         (if (zerop min)
           `(progn
             (rcmp (% nargs) ($ ',max))
-            (jb.pt (^ ,ok))
+            (jb.pt  ,ok)
             (uuo-error-too-many-args)
             ,ok)
           (let* ((sofar (gensym)))
             `(progn
               (rcmp (% nargs) ($ ',min))
-              (jae.pt (^ ,sofar))
+              (jae.pt  ,sofar)
               (uuo-error-too-few-args)
               ,sofar
               (rcmp (% nargs) ($ ',max))
-              (jb.pt ( ^ ,ok))
+              (jb.pt  ,ok)
               (uuo-error-too-many-args)
               ,ok)))))))
 
-
-(defx86lapmacro save-pc ()
-  `(xchg (% fn) (% nfn)))
-    
-(defx86lapmacro save-lisp-context ()
-  `(progn
-    (xchg (% fn) (% nfn))
-    (pushq (% nfn))
-    (pushq (% rbp))
-    (movq (% rsp) (% rbp))))
 
 
 (defx86lapmacro extract-lisptag (node dest)
@@ -218,3 +208,25 @@
 (defx86lapmacro single-value-return ()
   `(jmp (* (% nfn))))
 
+(defx86lapmacro recover-fn-from-nfn (here)
+  `(leaq (@ (- (^ @entry) (^ ,here)) (% nfn)) (% fn)))
+
+;;; Using *x8664-backend* here is wrong but expedient.
+(defun x86-subprim-offset (name)
+  (let* ((info (find name (arch::target-subprims-table (backend-target-arch *x8664-backend*)) :test #'string-equal :key #'subprimitive-info-name))
+         (offset (when info 
+                   (subprimitive-info-offset info))))
+    (or offset      
+      (error "Unknown subprim: ~s" name))))
+
+(defx86lapmacro jmp-subprim (name)
+  `(jmp (* (@ ,(x86-subprim-offset name)))))
+
+(defx86lapmacro call-subprim (name)
+  (let* ((label (gensym)))
+    `(progn
+      (leaq (@ (- (^ ,label) (^ @entry)) (% fn)) (% nfn))
+      (jmp-subprim ,name)
+      (:tra ,label)
+      (recover-fn-from-nfn ,label))))
+     

@@ -498,12 +498,11 @@
     
 
 ;;; Operand syntax:
-;;; (^ x) -> labelref
 ;;; (% x) -> register
 ;;; ($ x) -> immediate
 ;;; (* x) -> x with :jumpabsolute attribute
 ;;; (@ x) -> memory operand
-;;; x -> shorthand for (@ x)
+;;; x -> labelref
 (defun parse-x86-operand (form)
   (if (consp form)
     (let* ((head (car form))
@@ -530,14 +529,10 @@
                    op)))
               ((string= head '@)
                (parse-x86-memory-operand  (cdr form)))
-              ((string= head '^)
-               (destructuring-bind (lab) (cdr form)
-                 (parse-x86-label-reference lab)))
               (t (error "unknown X86 operand: ~s" form)))
         (error "unknown X86 operand: ~s" form)))
-    ;; Treat an atom as a displacement, which is itself a
-    ;; form of memory operand
-    (parse-x86-memory-operand `(,form))))
+    ;; Treat an atom as a label.
+      (parse-x86-label-reference form)))
 
 ;;; This basically finds a syntactically matching template.
 (defun match-template (template parsed-operands)
@@ -1303,7 +1298,7 @@
 
 (defun apply-relocs (frag-list)
   (flet ((emit-byte (buffer pos b)
-           (setf (aref buffer pos) b)))
+           (setf (aref buffer pos) (logand b #xff))))
     (flet ((emit-short (buffer pos s)
              (setf (aref buffer pos) (ldb (byte 8 0) s)
                    (aref buffer (1+ pos)) (ldb (byte 8 8) s))))
