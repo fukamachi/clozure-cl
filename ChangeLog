@@ -1,3 +1,33 @@
+2006-01-07 20:08  gb
+
+	* level-0/X86/x86-float.lisp: No ppc code.  (No 32-bit x86 code,
+	either; will need some, eventually.)
+
+2006-01-07 20:07  gb
+
+	* level-0/l0-float.lisp: conditionalize on target word size, which
+	is what most/all of the #+ppc32-target/#+ppc64-target stuff was
+	concerned with.  (In turn, the word size is trying to say "are
+	SINGLE-FLOATs immediate ?" and "do we have to drop into lap to deal
+	with 32-bit words efficiently ?")
+
+2006-01-07 20:05  gb
+
+	* compiler/X86/x86-lapmacros.lisp: rcmp, to prevent (or delay the
+	onset of) madness.
+	
+	Use .pt and .pn for static branch prediction.
+	
+	Add int-to-single.
+
+2006-01-07 20:03  gb
+
+	* compiler/X86/x86-asm.lisp: Flesh out some more, fix some bugs.
+
+2006-01-07 20:03  gb
+
+	* compiler/X86/x86-arch.lisp: Define MXCSR stuff.
+
 2006-01-06 08:32  gb
 
 	* compiler/X86/x86-asm.lisp: More of the new scheme.  Still need to
