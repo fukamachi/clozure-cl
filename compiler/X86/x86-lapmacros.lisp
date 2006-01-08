@@ -14,6 +14,12 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+;;; Comparisons make more sense if arg order is "dest, src", instead
+;;; of the gas/ATT arg order.
+
+(defx86lapmacro rcmp (src dest)
+  `(cmp ,dest ,src))
+
 
 (defx86lapmacro set-nargs (n)
   (if (eql n 0)
@@ -24,31 +30,31 @@
   (let* ((ok (gensym)))
     (if (= max min)
       `(progn
-        (cmpw ($ ',min) (% nargs))
-        (je+ (^ ,ok))
+        (rcmp (% nargs) ($ ',min))
+        (je.pt (^ ,ok))
         (uuo-error-wrong-number-of-args)
         ,ok)
       (if (null max)
         (unless (zerop min)
           `(progn
-            (cmpw ($ ',min) (% nargs))
-            (jae+ (^ ,ok))
+            (rcmp (% nargs) ($ ',min))
+            (jae.pt (^ ,ok))
             (uuo-error-too-few-args)
             ,ok))
         (if (zerop min)
           `(progn
-            (cmpw ($ ',max) (% nargs))
-            (jb+ (^ ,ok))
+            (rcmp (% nargs) ($ ',max))
+            (jb.pt (^ ,ok))
             (uuo-error-too-many-args)
             ,ok)
           (let* ((sofar (gensym)))
             `(progn
-              (cmpw ($ ',min) (% nargs))
-              (jae+ (^ ,sofar))
+              (rcmp (% nargs) ($ ',min))
+              (jae.pt (^ ,sofar))
               (uuo-error-too-few-args)
               ,sofar
-              (cmpw ($ ',max) (% nargs))
-              (jb+ ( ^ ,ok))
+              (rcmp (% nargs) ($ ',max))
+              (jb.pt ( ^ ,ok))
               (uuo-error-too-many-args)
               ,ok)))))))
 
@@ -83,7 +89,7 @@
   ;;; the #xff00 byte.
   `(progn
     (extract-lisptag ,node ,dest)
-    (cmpb ($ x8664::tag-misc) (%b ,dest))
+    (rcmp (%b ,dest) ($ x8664::tag-misc))
     (cmovew (@  x8664::misc-subtag-offset (%q ,node)) (%w ,dest))))
 
 (defx86lapmacro unbox-fixnum (src dest)
@@ -94,19 +100,21 @@
 (defx86lapmacro box-fixnum (src dest)
   `(lea (@ (% ,src) 8) (% ,dest)))
 
-;;; stores the 32-bit value in low 32 bits of xmm reg dest
+;;; stores the 32-bit value in low 32 bits of xmm reg dest.
+;;; It seems to be faster to go through memory than it would
+;;; be to use MOVD and PSRLQ.
 (defx86lapmacro get-single-float (node dest)
   `(progn
-    (movd (% ,node) (% ,dest))          ; value now in bits 32:63 of dest
-    (psrlq ($ 32) (% ,dest))))          ; one way to get value to bits 0:31
+    (pushq (% ,node))
+    (movss (@ 4 (% rsp)) (% ,dest))
+    (addq ($ 8) (% rsp))))
 
-;;; Note that this modifies src.
+
 (defx86lapmacro put-single-float (src node)
   `(progn
-    (psllq ($ 32) (% ,src))
-    (movd (% ,src) (% ,node))           ; dest now tagged as a fixnum
-    (movb ($ x8664::subtag-single-float) (%b ,node)) ; fix that
-    ))
+    (pushq ($ x8664::subtag-single-float))
+    (movss (% ,src) (@ 4 (% rsp)))
+    (popq (% ,node))))
 
 (defx86lapmacro get-double-float (src fpreg)
   `(movsd (@ x8664::double-float.value (% ,src)) (% ,fpreg)))
@@ -153,6 +161,11 @@
   `(progn
     (unbox-fixnum (% ,int) (% ,temp))
     (cvtsi2sdq (% ,temp) (% ,double))))
+
+(defx86lapmacro int-to-single (int temp single)
+  `(progn
+    (unbox-fixnum (% ,int) (% ,temp))
+    (cvtsi2siq (% ,temp) (% ,single))))
 
 (defx86lapmacro ref-global (global reg)
   `(movq (@ (+ x8664::nil-value ,(x8664::%kernel-global global))) (% ,reg)))
