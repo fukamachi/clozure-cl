@@ -36,11 +36,11 @@
     the-float))
 
 
-#+ppc32-target
+#+32-bit-target
 (defun make-short-float-from-fixnums (significand biased-exp sign &optional result)
   (%make-short-float-from-fixnums (or result (%make-sfloat)) significand biased-exp sign))
 
-#+ppc64-target
+#+64-bit-target
 (defun make-short-float-from-fixnums (significand biased-exp sign)
   (declare (fixnum significand biased-exp sign))
   (host-single-float-from-unsigned-byte-32
@@ -88,7 +88,7 @@
     n 
     (%%double-float-abs! n (%make-dfloat))))
 
-#+ppc32-target
+#+32-bit-target
 (defun %short-float-abs (n)
   (if (not (%short-float-sign n))
     n 
@@ -111,13 +111,13 @@
                          (eq #x1000000 hi)
                          (eq 0 lo))))
     (short-float
-     #+ppc32-target
+     #+32-bit-target
      (multiple-value-bind (high low)(%sfloat-hwords n)
                   (let*  ((mantissa (%ilogior2 low (%ilsl 16 (%ilogand2 high #x007F))))
                           (exp (%ilsr 7 (%ilogand2 high #x7F80))))
                     (and (eq exp 255)
                          (eq 0 mantissa))))
-     #+ppc64-target
+     #+64-bit-target
      (let* ((bits (single-float-bits n))
             (exp (ldb (byte IEEE-single-float-exponent-width
                             IEEE-single-float-exponent-offset)
@@ -129,7 +129,7 @@
        (and (= exp 255)
             (zerop mantissa))))))
 
-#+ppc32-target
+#+32-bit-target
 (defun fixnum-decode-short-float (float)
   (multiple-value-bind (high low)(%sfloat-hwords float)
     (let*  ((mantissa (%ilogior2 low (%ilsl 16 (%ilogand2 high #x007F))))
@@ -137,7 +137,7 @@
       (if (and (neq exp 0)(neq exp 255))(setq mantissa (%ilogior mantissa #x800000)))
       (values mantissa exp (%ilsr 15 high)))))
 
-#+ppc64-target
+#+64-bit-target
 (defun fixnum-decode-short-float (float)
   (let* ((bits (single-float-bits float)))
     (declare (fixnum bits))
@@ -155,7 +155,7 @@
                   
                    
 
-#+ppc32-target
+#+32-bit-target
 (defun integer-decode-double-float (n)
   (multiple-value-bind (hi lo exp sign)(%integer-decode-double-float n)
     ; is only 53 bits and positive so should be easy
@@ -172,7 +172,7 @@
         (if (< hi #x1000000) (%normalize-bignum big))
         (values big exp sign)))))
 
-#+ppc64-target
+#+64-bit-target
 (defun integer-decode-double-float (n)
   (multiple-value-bind (hi lo exp sign)(%integer-decode-double-float n)
     (setq exp (- exp (if (< hi #x1000000) 
@@ -182,7 +182,7 @@
     
 
 ;;; actually only called when magnitude bigger than a fixnum
-#+ppc32-target
+#+32-bit-target
 (defun %truncate-double-float (n)
   (multiple-value-bind (hi lo exp sign)(%integer-decode-double-float n)
     (if (< exp (1+ IEEE-double-float-bias)) ; this is false in practice
@@ -197,7 +197,7 @@
             (let ((poo (logior (ash hi 28) lo)))
               (ash (- poo) exp))))))))
 
-#+ppc64-target
+#+64-bit-target
 (defun %truncate-double-float (n)
   (multiple-value-bind (mantissa exp sign) (integer-decode-float n)
     (* sign (ash mantissa exp))))
@@ -244,26 +244,26 @@
        (if (eq 0 old-exp)
          (if  (%short-float-zerop n)
            (values 0.0s0 0 sign)
-           #+ppc32-target
+           #+32-bit-target
            (let* ((val (%make-sfloat))
                   (zeros (sfloat-significand-zeros n)))
              (%copy-short-float n val)
              (%%scale-sfloat! n (+ 2 IEEE-single-float-bias zeros) val) ; get it normalized
              (set-%short-float-exp val IEEE-single-float-bias)      ; then bash exponent
              (values val (- old-exp zeros IEEE-single-float-bias) sign ))
-           #+ppc64-target
+           #+64-bit-target
            (let* ((zeros (sfloat-significand-zeros n))
                   (val (%%scale-sfloat n (+ 2 IEEE-single-float-bias zeros))))
              (values (set-%short-float-exp val IEEE-single-float-bias)
                      (- old-exp zeros IEEE-single-float-bias) sign )))
          (if (> old-exp IEEE-single-float-normal-exponent-max)
            (error "Can't decode NAN or infinity ~s" n)
-           #+ppc32-target
+           #+32-bit-target
            (let ((val (%make-sfloat)))
              (%copy-short-float n val)
              (set-%short-float-exp val IEEE-single-float-bias)
              (values val (- old-exp IEEE-single-float-bias) sign))
-           #+ppc64-target
+           #+64-bit-target
            (values (set-%short-float-exp n IEEE-single-float-bias)
                    (- old-exp IEEE-single-float-bias) sign)))))))
 
@@ -304,10 +304,10 @@
        (if (eq 0 float-exp) ; already denormalized?
          (if (%short-float-zerop float)
            float
-           #+ppc32-target
+           #+32-bit-target
            (let ((result (%make-sfloat)))
              (%%scale-sfloat! float (+ (1+ IEEE-single-float-bias) int) result))
-           #+ppc64-target
+           #+64-bit-target
            (%%scale-sfloat float (+ (1+ IEEE-single-float-bias) int)))
          (if (<= new-exp 0)  ; maybe going denormalized        
            (if (<= new-exp (- IEEE-single-float-digits))
@@ -315,25 +315,25 @@
              ;; result is fn of current fpu-mode (error "Can't scale
              ;; ~s by ~s." float int) ; should signal something
              0.0s0
-             #+ppc32-target
+             #+32-bit-target
              (let ((result (%make-sfloat)))
                (%copy-short-float float result)
                (set-%short-float-exp result 1) ; scale by float-exp -1
                (%%scale-sfloat! result (+ IEEE-single-float-bias (+ float-exp int)) result)              
                result)
-             #+ppc64-target
+             #+64-bit-target
              (%%scale-sfloat (set-%short-float-exp float 1)
                              (+ IEEE-single-float-bias (+ float-exp int))))
            (if (> new-exp IEEE-single-float-normal-exponent-max) 
              (error (make-condition 'floating-point-overflow
                                     :operation 'scale-float
                                     :operands (list float int)))
-             #+ppc32-target
+             #+32-bit-target
              (let ((new-float (%make-sfloat)))
                (%copy-short-float float new-float)
                (set-%short-float-exp new-float new-exp)
                new-float)
-             #+ppc64-target
+             #+64-bit-target
              (set-%short-float-exp float new-exp))))))))
 
 (defun %copy-float (f)
@@ -341,7 +341,7 @@
   (cond ((double-float-p f) (%copy-double-float f (%make-dfloat)))
         ((macptrp f)
          (let ((float (%make-dfloat)))
-           (%copy-ptr-to-ivector f 0 float (* 4 ppc32::double-float.value-cell) 8)
+           (%copy-ptr-to-ivector f 0 float (* 4 target::double-float.value-cell) 8)
            float))
         (t (error "Ilegal arg ~s to %copy-float" f))))
 
@@ -429,7 +429,7 @@
                    (float-rat-neg-exp num den (if minusp -1 1) result)))))))))))
 
 
-#+ppc32-target
+#+32-bit-target
 (defun %short-float-ratio (number &optional result)
   (if (not result)(setq result (%make-sfloat)))
   (let* ((num (%numerator number))
@@ -437,7 +437,7 @@
     ;; dont error if result is floatable when either top or bottom is
     ;; not.  maybe do usual first, catching error
     (if (not (or (bignump num)(bignump den)))
-      (ppc32::with-stack-short-floats ((fnum num)
+      (target::with-stack-short-floats ((fnum num)
 				       (fden den))       
         (%short-float/-2! fnum fden result))
       (let* ((numlen (integer-length num))
@@ -448,7 +448,7 @@
                  (<= denlen IEEE-single-float-bias)
                  #|(not (minusp exp))|# 
                  (<= (abs exp) IEEE-single-float-mantissa-width))
-          (ppc32::with-stack-short-floats ((fnum num)
+          (target::with-stack-short-floats ((fnum num)
 					   (fden den))
             (%short-float/-2! fnum fden result))
           (if (> exp IEEE-single-float-mantissa-width)
@@ -478,7 +478,7 @@
               (progn  
                 (float-rat-neg-exp num den (if minusp -1 1) result t)))))))))
 
-#+ppc64-target
+#+64-bit-target
 (defun %short-float-ratio (number)
   (let* ((num (%numerator number))
          (den (%denominator number)))
@@ -524,7 +524,7 @@
                 (float-rat-neg-exp num den (if minusp -1 1) nil t)))))))))
 
 
-#+ppc32-target
+#+32-bit-target
 (defun %short-float (number &optional result)
   (number-case number
     (short-float
@@ -538,7 +538,7 @@
     (ratio
      (%short-float-ratio number result))))
 
-#+ppc64-target
+#+64-bit-target
 (defun %short-float (number)
   (number-case number
     (short-float number)
@@ -607,7 +607,7 @@
       (declare (dynamic-extent #'doit))
       (with-one-negated-bignum-buffer big doit))))
 
-#+ppc32-target
+#+32-bit-target
 (defun %bignum-sfloat (big &optional result)  
   (let* ((minusp (bignum-minusp big)))
     (flet 
@@ -632,7 +632,7 @@
       (with-one-negated-bignum-buffer big doit))))
 
 
-#+ppc64-target
+#+64-bit-target
 (defun %bignum-sfloat (big)  
   (let* ((minusp (bignum-minusp big)))
     (flet 
@@ -668,13 +668,13 @@
       (%int-to-dfloat fix result))))
 
 
-#+ppc32-target
+#+32-bit-target
 (defun %fixnum-sfloat (fix &optional result)
   (if (eq 0 fix)
     (if result (%copy-short-float 0.0s0 result) 0.0s0)
     (%int-to-sfloat! fix (or result (%make-sfloat)))))
 
-#+ppc64-target
+#+64-bit-target
 (defun %fixnum-sfloat (fix)
   (if (eq 0 fix)
     0.0s0
@@ -690,10 +690,10 @@
                (* (cos r) (sinh i))))
     (if (typep x 'double-float)
       (%double-float-sin! x (%make-dfloat))
-      #+ppc32-target
-      (ppc32::with-stack-short-floats ((sx x))
+      #+32-bit-target
+      (target::with-stack-short-floats ((sx x))
         (%single-float-sin! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-sin (%short-float x)))))
 
 (defun cos (x)
@@ -705,10 +705,10 @@
                (* (sin r) (sinh i))))
     (if (typep x 'double-float)
       (%double-float-cos! x (%make-dfloat))
-      #+ppc32-target
-      (ppc32::with-stack-short-floats ((sx x))
+      #+32-bit-target
+      (target::with-stack-short-floats ((sx x))
         (%single-float-cos! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-cos (%short-float x)))))
 
 (defun tan (x)
@@ -717,10 +717,10 @@
     (/ (sin x) (cos x))
     (if (typep x 'double-float)
       (%double-float-tan! x (%make-dfloat))
-      #+ppc32-target
-      (ppc32::with-stack-short-floats ((sx x))
+      #+32-bit-target
+      (target::with-stack-short-floats ((sx x))
         (%single-float-tan! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-tan (%short-float x))
       )))
 
@@ -735,11 +735,11 @@
       (with-stack-double-floats ((dy y)
                                  (dx x))
         (%df-atan2 dy dx))
-      #+ppc32-target
-      (ppc32::with-stack-short-floats ((sy y)
+      #+32-bit-target
+      (target::with-stack-short-floats ((sy y)
                                 (sx x))
         (%sf-atan2! sy sx))
-      #+ppc64-target
+      #+64-bit-target
       (%sf-atan2 (%short-float y) (%short-float x)))
     (if (typep y 'complex)
       (let* ((iy (* (sqrt -1) y)))
@@ -747,10 +747,10 @@
                 #c(0 2)))
       (if (typep y 'double-float)
         (%double-float-atan! y (%make-dfloat))
-        #+ppc32-target
-        (ppc32::with-stack-short-floats ((sy y))
+        #+32-bit-target
+        (target::with-stack-short-floats ((sy y))
           (%single-float-atan! sy (%make-sfloat)))
-        #+ppc64-target
+        #+64-bit-target
         (%single-float-atan (%short-float y))
         ))))
 
@@ -788,13 +788,13 @@
          (complex (%double-float-log! (%%double-float-abs! dx dx) (%make-dfloat)) pi)
          (%double-float-log! dx (%make-dfloat)))))
     (t
-     #+ppc32-target
-     (ppc32::with-stack-short-floats ((sx x))
+     #+32-bit-target
+     (target::with-stack-short-floats ((sx x))
        (if (minusp x)
          (complex (%single-float-log! (%%short-float-abs! sx sx) (%make-sfloat))
                   #.(coerce pi 'short-float))
          (%single-float-log! sx (%make-sfloat))))
-     #+ppc64-target
+     #+64-bit-target
      (if (minusp x)
        (complex (%single-float-log (%short-float-abs (%short-float x))) #.(coerce pi 'single-float))
        (%single-float-log (%short-float x)))
@@ -808,10 +808,10 @@
     (complex (* (exp (realpart x)) (cis (imagpart x))))
     (double-float (%double-float-exp! x (%make-dfloat)))
     (t
-     #+ppc32-target
-     (ppc32::with-stack-short-floats ((sx x))
+     #+32-bit-target
+     (target::with-stack-short-floats ((sx x))
        (%single-float-exp! sx (%make-sfloat)))
-     #+ppc64-target
+     #+64-bit-target
      (%single-float-exp (%short-float x)))))
 
 
@@ -829,11 +829,11 @@
            (with-stack-double-floats ((b1 b)
                                       (e1 e))
              (%double-float-expt! b1 e1 (%make-dfloat)))
-           #+ppc32-target
-           (ppc32::with-stack-short-floats ((b1 b)
+           #+32-bit-target
+           (target::with-stack-short-floats ((b1 b)
                                      (e1 e))
              (%single-float-expt! b1 e1 (%make-sfloat)))
-           #+ppc64-target
+           #+64-bit-target
            (%single-float-expt (%short-float b) (%short-float e))
            ))
         (t (exp (* e (log b))))))
@@ -856,10 +856,10 @@
                           (* (setq b (isqrt d)) b)))))
          (/ a b))          
         (t
-         #+ppc32-target
-         (ppc32::with-stack-short-floats ((f1))
-             (fsqrt (%short-float x f1)))
-         #+ppc64-target
+         #+32-bit-target
+         (target::with-stack-short-floats ((f1))
+           (fsqrt (%short-float x f1)))
+         #+64-bit-target
          (fsqrt (%short-float x)))))
 
 
@@ -883,7 +883,7 @@
 			 (sqrt (- 1.0d0 (the double-float (* x x)))))))
 	   (complex (phase temp) (- (log (abs temp))))))))
     ((short-float rational)
-     #+ppc32-target
+     #+32-bit-target
      (let* ((x1 (%make-sfloat)))
        (declare (dynamic-extent x1))
        (if (and (realp x) 
@@ -894,7 +894,7 @@
 	   (setq x (+ (complex (- (imagpart x)) (realpart x))
 		      (sqrt (- 1 (* x x)))))
 	   (complex (phase x) (- (log (abs x)))))))
-     #+ppc64-target
+     #+64-bit-target
      (if (and (realp x) 
               (<= -1.0s0 (setq x (%short-float x)))
               (<= x 1.0s0))
@@ -931,15 +931,15 @@
 	 (%double-float-acos! x (%make-dfloat))
 	 (- double-float-half-pi (asin x)))))
     ((short-float rational)
-     #+ppc32-target
-     (ppc32::with-stack-short-floats ((sx x))
+     #+32-bit-target
+     (target::with-stack-short-floats ((sx x))
 	(locally
 	    (declare (type short-float sx))
 	  (if (and (<= -1.0s0 sx)
 		   (<= sx 1.0s0))
 	    (%single-float-acos! sx (%make-sfloat))
 	    (- single-float-half-pi (asin sx)))))
-     #+ppc64-target
+     #+64-bit-target
      (let* ((sx (%short-float x)))
        (declare (type short-float sx))
        (if (and (<= -1.0s0 sx)
@@ -953,9 +953,9 @@
   (etypecase x
     (double-float (%double-float-sqrt! x (%make-dfloat)))
     (single-float
-     #+ppc32-target
+     #+32-bit-target
      (%single-float-sqrt! x (%make-sfloat))
-     #+ppc64-target
+     #+64-bit-target
      (%single-float-sqrt x))))
 
 
@@ -969,7 +969,7 @@
       (float-sign y double-float-half-pi))
     (%double-float-atan2! y x (or result (%make-dfloat)))))
 
-#+ppc32-target
+#+32-bit-target
 (defun %sf-atan2! (y x &optional result)
   (if (zerop x)
     (if (zerop y)
@@ -979,7 +979,7 @@
       (float-sign y single-float-half-pi))
     (%single-float-atan2! y x (or result (%make-sfloat)))))
 
-#+ppc64-target
+#+64-bit-target
 (defun %sf-atan2 (y x)
   (if (zerop x)
     (if (zerop y)
@@ -989,14 +989,14 @@
       (float-sign y single-float-half-pi))
     (%single-float-atan2 y x)))
 
-#+(or ppc64-target x8664-target)
+#+64-bit-target
 (defun %short-float-exp (n)
   (let* ((bits (single-float-bits n)))
     (declare (type (unsigned-byte 32) bits))
     (ldb (byte IEEE-single-float-exponent-width IEEE-single-float-exponent-offset) bits)))
 
 
-#+(or ppc64-target x8664-target)
+#+64-bit-target
 (defun set-%short-float-exp (float exp)
   (host-single-float-from-unsigned-byte-32
    (dpb exp
@@ -1004,7 +1004,7 @@
               IEEE-single-float-exponent-offset)
         (the (unsigned-byte 32) (single-float-bits float)))))
 
-#+ppc64-target
+#+64-bit-target
 (defun %%scale-sfloat (float int)
   (* (the single-float float)
      (the single-float (host-single-float-from-unsigned-byte-32
@@ -1013,14 +1013,14 @@
                                    IEEE-single-float-exponent-offset)
                              0)))))
 
-#+ppc64-target
+#+64-bit-target
 (defun %double-float-exp (n)
   (let* ((highword (double-float-bits n)))
     (declare (fixnum highword))
     (logand (1- (ash 1 IEEE-double-float-exponent-width))
             (ash highword (- (- IEEE-double-float-exponent-offset 32))))))
 
-#+ppc64-target
+#+64-bit-target
 (defun set-%double-float-exp (float exp)
   (let* ((highword (double-float-bits float)))
     (declare (fixnum highword))
@@ -1031,7 +1031,7 @@
                highword))
     exp))
 
-#+ppc64-target
+#+64-bit-target
 (defun %integer-decode-double-float (f)
   (multiple-value-bind (hiword loword) (double-float-bits f)
     (declare (type (unsigned-byte 32) hiword loword))
