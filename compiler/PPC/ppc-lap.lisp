@@ -633,12 +633,12 @@
   (ppc-lap-evaluated-expression x))
 
 
-; We've checked that the number of operand values match the number expected
-; (and have set "fake" operand values to 0.)
-; Labels - and some constructs that might someday do arithmetic on them -
-; are about the only class of forward references we need to deal with.  This whole
-; two-pass scheme seems overly general, but if/when we ever do instruction scheduling
-; it'll probably make it simpler.
+;;; We've checked that the number of operand values match the number
+;;; expected (and have set "fake" operand values to 0.)  Labels - and
+;;; some constructs that might someday do arithmetic on them - are
+;;; about the only class of forward references we need to deal with.
+;;; This whole two-pass scheme seems overly general, but if/when we
+;;; ever do instruction scheduling it'll probably make it simpler.
 (defun ppc-emit-lap-instruction (opcode opvals)
   (let* ((operands (arch::opcode-operands opcode))
          (parsed-values (alloc-lap-operand-vector))
