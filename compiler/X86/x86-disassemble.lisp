@@ -2127,7 +2127,7 @@
                              (setf (x86-ds-used-prefixes ds)
                                    (logior (x86-ds-used-prefixes ds)
                                            ds-or-cs))
-                             (if ds-only #\+ #\-))))
+                             (if ds-only ".pt" ".pn"))))
                     (#\J #\l)
                     (#\L (if (logtest sizeflag +suffix-always+) #\l))
                     (#\N (if (logtest prefixes +prefix-fwait+)
@@ -2202,7 +2202,11 @@
                            #\w
                            #\b))))
                     (t c))))
-            (if b (vector-push-extend b string-buffer))))
+            (if b
+              (if (typep b 'character)
+                (vector-push-extend b string-buffer)
+                (dotimes (i (length b))
+                  (vector-push-extend (schar b i) string-buffer))))))
         (setf (x86-di-mnemonic instruction) (subseq string-buffer 0))))
   ok))
 
@@ -2480,8 +2484,8 @@
   (let* ((addr (x86::x86-label-operand-label op))
          (entrypoint (x86-ds-entry-point ds)))
     (if (eql addr entrypoint)
-      `(^ "@entry")
-      `(^ ,(format nil "L~d" (- addr entrypoint))))))
+      "@entry"
+      (format nil "L~d" (- addr entrypoint)))))
 
 
     
