@@ -771,7 +771,8 @@
                (setf (ldb sib-index-byte sib) +no-index-register+)
                (progn
                  (setf (ldb sib-index-byte sib)
-                       (reg-entry-reg-flags index))
+                       (reg-entry-reg-num index)
+                       (ldb modrm-rm-byte rm-byte) +escape-to-two-byte-addressing+)
                  (when (logtest (reg-entry-reg-flags index) +RegRex+)
                    (setf (x86-instruction-rex-prefix instruction)
                          (logior +rex-exty+
@@ -1938,9 +1939,9 @@
    (def-x8664-opcode movswq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
      #x0fbf #o000 #x48)
    (def-x8664-opcode movslq ((:reg32 :insert-modrm-rm) (:reg64 :insert-modrm-reg))
-     #x64 #o300 #x48)
+     #x63 #o300 #x48)
    (def-x8664-opcode movslq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
-     #x64 #o000 #x48)
+     #x63 #o000 #x48)
 
    ;; zero-extending MOVs
    (def-x8664-opcode movzbl ((:reg8 :insert-modrm-rm) (:reg32 :insert-modrm-reg))
@@ -1966,24 +1967,24 @@
 
    ;; mul
    (def-x8664-opcode mulq ((:reg64 :insert-modrm-rm))
-     #xf7 #o300 #x48)
+     #xf7 #o340 #x48)
    (def-x8664-opcode mulq ((:anymem :insert-memory))
-     #xf7 #o000 #x48)
+     #xf7 #o040 #x48)
 
    (def-x8664-opcode mull ((:reg32 :insert-modrm-rm))
-     #xf7 #o300 #x00)
+     #xf7 #o340 #x00)
    (def-x8664-opcode mull ((:anymem :insert-memory))
-     #xf7 #o000 #x00)
+     #xf7 #o040 #x00)
 
    (def-x8664-opcode mulw ((:reg16 :insert-modrm-rm))
-     #xf7 #o300 #x00 #x66)
+     #xf7 #o340 #x00 #x66)
    (def-x8664-opcode mulw ((:anymem :insert-memory))
-     #xf7 #o000 #x00 #x66)
+     #xf7 #o040 #x00 #x66)
 
    (def-x8664-opcode mulb ((:reg8 :insert-modrm-rm))
-     #xf6 #o300 #x00)
+     #xf6 #o340 #x00)
    (def-x8664-opcode mull ((:anymem :insert-memory))
-     #xf6 #o000 #x00)
+     #xf6 #o040 #x00)
 
    ;; neg
    (def-x8664-opcode negq ((:reg64 :insert-modrm-rm))
