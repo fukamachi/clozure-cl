@@ -1094,7 +1094,7 @@
    (make-x86-dis nil nil +use-groups+ nil 5)
    (make-x86-dis nil nil +use-groups+ nil 6)
    (make-x86-dis nil nil +use-groups+ nil 7)
-   (make-x86-dis nil nil +use-groups+ nil 5)
+   (make-x86-dis nil nil +use-groups+ nil 8)
    (make-x86-dis '(("aam" . "(bad)")) 'op-si +b-mode+)
    (make-x86-dis '(("aad" . "(bad)")) 'op-si +b-mode+)
    (make-x86-dis "(bad)")
@@ -1973,11 +1973,8 @@
 (defparameter *x86-64-table*
     (vector
      (vector
-      (make-x86-dis "(bad)")
-      (make-x86-dis "(bad)"))
-     (vector
       (make-x86-dis "arpl" 'op-e +w-mode+ 'op-g +w-mode+)
-      (make-x86-dis "movsq" 'op-g +v-mode+ 'op-e +d-mode+))))
+      (make-x86-dis "movslq" 'op-g +v-mode+ 'op-e +d-mode+))))
 
 
 (defun prefix-name (ds b sizeflag)
@@ -2402,8 +2399,8 @@
                                          index))))
                       ((= bytemode1 +x86-64-special+)
                        (setq dp (svref (svref *x86-64-table*
-                                              (if (x86-ds-mode-64 ds) 1 0))
-                                       (x86-dis-bytemode2 dp))))
+                                              (x86-dis-bytemode2 dp))
+                                       (if (x86-ds-mode-64 ds) 1 0))))
                     (t (error "Disassembly error")))))
           (when (x86-putop ds (x86-dis-mnemonic dp) sizeflag instruction)
             (let* ((operands ())
