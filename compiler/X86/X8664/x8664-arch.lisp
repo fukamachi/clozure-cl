@@ -169,7 +169,7 @@
 (defx86reg imm1 rdx)
 (defx86reg imm1.l edx)
 (defx86reg imm1.w dx)
-(defx86reg imm1.b dx)
+(defx86reg imm1.b dl)
 
 (defx86reg fn rsi)
 (defx86reg fn.l esi)
@@ -527,6 +527,9 @@
   plist
   binding-index
 )
+
+(defconstant nilsym-offset (+ t-offset symbol.size))
+
 
 (define-fixedsized-object vectorH ()
   logsize                               ; fillpointer if it has one, physsize otherwise
