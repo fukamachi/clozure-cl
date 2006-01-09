@@ -468,25 +468,23 @@
 
 
 ;;; argument is a vector header or an array header.  Or else.
-(defppclapfunction %array-header-data-and-offset ((a arg_z))
+(defx86lapfunction %array-header-data-and-offset ((a arg_z))
   (let ((offset arg_y)
-        (disp arg_x)
         (temp temp0))
-    (li offset 0)
-    (mr temp a)
+    (movl ($ '0) (%l offset))
+    (movq (% a) (% temp))
     @loop
-    (ldr a target::arrayH.data-vector temp)
-    (lbz imm0 target::misc-subtag-offset a)
-    (cmpri cr0 imm0 target::subtag-vectorH)
-    (ldr disp target::arrayH.displacement temp)
-    (mr temp a)
-    (add offset offset disp)
-    (ble cr0 @loop)
-    (vpush a)
-    (vpush offset)
+    (movq (@ target::arrayH.data-vector (% temp)) (% a))
+    (extract-subtag a imm0)
+    (addq (@ target::arrayH.displacement (% temp)) (% offset))
+    (rcmp (% imm0) ($ target::subtag-vectorH))
+    (movq (% a) (% temp))
+    (jle (^ @loop))
+    (push (% a))
+    (push (% offset))
     (set-nargs 2)
-    (la temp0 (* 2 (ash 1 target::word-shift)) vsp)
-    (ba .SPvalues)))
+    (lea (@ '2 (% rsp)) (% temp0))
+    (jmp-subprim  .SPvalues)))
 
 
 ;;; If the bit-arrays are all simple-bit-vectorp, we can do the operations
