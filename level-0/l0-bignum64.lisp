@@ -17,7 +17,6 @@
 (in-package "CCL")
 
 #+64-bit-target
-(progn                                  ; the whole enchilada
 (eval-when (:compile-toplevel :execute)
   (require "ARCH")
   (require "NUMBER-MACROS")
@@ -129,8 +128,8 @@
   )
 
 
-
-
+#+ppc64-target
+(progn
 
 ;;; Extract the length of the bignum.
 ;;; 

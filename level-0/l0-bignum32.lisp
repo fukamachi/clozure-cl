@@ -16,9 +16,8 @@
 
 (in-package "CCL")
 
-#+32-bit-target                         ; the whole shebang
-(progn
 
+#+32-bit-target                         ; the whole shebang
 (eval-when (:compile-toplevel :execute)
   (require "ARCH")
   (require "NUMBER-MACROS")
@@ -127,7 +126,8 @@
 
 
 
-
+#+32-bit-target
+(progn
 ;;; Extract the length of the bignum.
 ;;; 
 (defun %bignum-length (bignum)
