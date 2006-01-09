@@ -384,6 +384,13 @@
                                      (push pair *x86-lap-constants*)
                                      label))))
           (setq form `(- (^ ,(x86-lap-label-name constant-label)) (^ @entry)))))))
+  (if (null form)
+    (setq form (arch::target-nil-value (backend-target-arch *target-backend*)))
+      (if (eq form t)
+        (setq form
+              (+ (arch::target-nil-value (backend-target-arch *target-backend*))
+                 (arch::target-t-offset  (backend-target-arch *target-backend*))))))
+
   (if (label-address-expression-p form)
     (make-label-x86-lap-expression :label (find-or-create-x86-lap-label (cadr form)))
     (if (contains-label-address-expression form)
@@ -532,69 +539,9 @@
               (t (error "unknown X86 operand: ~s" form)))
         (error "unknown X86 operand: ~s" form)))
     ;; Treat an atom as a label.
-      (parse-x86-label-reference form)))
+    (parse-x86-label-reference form)))
 
-;;; This basically finds a syntactically matching template.
-(defun match-template (template parsed-operands)
-  (flet ((match (overlap given)
-           (and
-            (not (zerop (logandc2 overlap (x86::encode-operand-type :jumpabsolute))))
-            (= (logand given (x86::encode-operand-type :baseindex :jumpabsolute))
-               (logand overlap (x86::encode-operand-type :baseindex :jumpabsolute)))))
-         (consistent-register-match (m0 g0 t0 m1 g1 t1)
-           (let* ((g0&reg (logand g0 (x86::encode-operand-type :reg)))
-                  (g1&reg (logand g1 (x86::encode-operand-type :reg))))
-             (or (zerop g0&reg)
-                 (zerop g1&reg)
-                 (= g0&reg g1&reg)
-                 (not
-                  (logtest
-                   (if (logtest m0 (x86::encode-operand-type :acc))
-                     (x86::encode-operand-type :reg)
-                     t0)
-                   (if (logtest m1 (x86::encode-operand-type :acc))
-                     (x86::encode-operand-type :reg)
-                     t1)))))))
-    (let* ((nops (length parsed-operands))
-           (type0 (if (> nops 0) (x86::x86-operand-type (pop parsed-operands))))
-           (type1 (if (> nops 1) (x86::x86-operand-type (pop parsed-operands))))
-           (type2 (if (> nops 2) (x86::x86-operand-type (pop parsed-operands)))))
-      (declare (fixnum nops))
-      (let* ((template-types
-              (x86::x86-opcode-template-operand-types template)))
-        (when (= nops (the fixnum (length template-types)))
-          (or (zerop nops)
-              (let* ((template-type0 (svref template-types 0))
-                     (overlap0
-                      (logand type0 template-type0))
-                     (match0 (match overlap0 type0)))
-                (if match0
-                  (or (= nops 1)
-                      ;; 2 or 3 operands.
-                      (let* ((template-type1 (svref template-types 1))
-                             (overlap1 (logand type1 template-type1))
-                             (match1 (match overlap1 type1)))
-                        (if (and
-                             match1
-                             (consistent-register-match
-                              overlap0
-                              type0
-                              template-type0
-                              overlap1
-                              type1
-                              template-type1))
-                          (or (= nops 2)
-                              ;; 3 operands
-                              (let* ((template-type2 (svref template-types 2))
-                                     (overlap2 (logand type2 template-type2)))
-                                (and (match overlap2 type2)
-                                     (consistent-register-match
-                                      overlap1
-                                      type1
-                                      template-type1
-                                      overlap2
-                                      type2
-                                      template-type2)))))))))))))))
+
 
 
 
@@ -640,85 +587,6 @@
        (x86::encode-operand-type :Imm32 :Imm64))
       (t (x86::encode-operand-type :Imm64)))))
 
-#+no
-(defun x86-finalize-operand-types (inst)
-  (let* ((template (x86-lap-instruction-template inst))
-         (operands (x86-lap-instruction-parsed-operands inst))
-         (suffix (x86-lap-instruction-suffix inst))
-         (template-types (x86::x86-instruction-template-operand-types
-                          template))
-         (prefixes (x86-lap-instruction-prefixes inst))
-         (noperands (length operands)))
-    (declare (fixnum noperands))
-    (when (> noperands 0)
-      (let* ((op0 (svref operands 0))
-             (op-type0 (x86::x86-operand-type op0))
-             (template-type0 (svref template-types 0))
-             (overlap0 (logand op-type0 template-type0)))
-        (when (and (logtest overlap0 (x86::encode-operand-type
-                                      :imm8 :imm8s :imm16 :imm32 :imm32s :imm64))
-                   (not (eql (logcount overlap0) 1)))
-          (if suffix
-            (setq overlap0
-                  (logand overlap0
-                          (case suffix
-                            (#\b (x86::encode-operand-type :imm8 :imm8s))
-                            (#\w (x86::encode-operand-type :imm16))
-                            (#\q (x86::encode-operand-type :imm64 :imm32s))
-                            (t (x86::encode-operand-type :imm32)))))
-            (if (or (= overlap0 (x86::encode-operand-type :imm16 :imm32S :imm32))
-                    (= overlap0 (x86::encode-operand-type :imm16 :imm32))
-                    (= overlap0 (x86::encode-operand-type :imm16 :imm32S)))
-              (setq overlap0 (if (and prefixes (not (eql (aref prefixes
-                                                               x86::+data-prefix+)
-                                                         0)))
-                               (x86::encode-operand-type :imm16)
-                               (x86::encode-operand-type :imm32s)))))
-          (unless (= (logcount overlap0) 1)
-            (error "Can't determine size of immediate operand in ~s"
-                   inst)))
-        ;; Do this regardless of whether or not op was immediate
-        (setf (x86::x86-operand-type op0) overlap0))
-      (when (> noperands 1)
-        (let* ((op1 (svref operands 1))
-               (op-type1 (x86::x86-operand-type op1))
-               (template-type1 (svref template-types 1))
-               (overlap1 (logand op-type1 template-type1)))
-          (when (and (logtest overlap1 (x86::encode-operand-type
-                                        :imm8 :imm8s :imm16 :imm32 :imm32s :imm64))
-                     (not (eql (logcount overlap1) 1)))
-            (if suffix
-              (setq overlap1
-                    (logand overlap1
-                            (case suffix
-                              (#\b (x86::encode-operand-type :imm8 :imm8s))
-                              (#\w (x86::encode-operand-type :imm16))
-                              (#\q (x86::encode-operand-type :imm64 :imm32s))
-                              (t (x86::encode-operand-type :imm32)))))
-              (if (or (= overlap1 (x86::encode-operand-type :imm16 :imm32S :imm32))
-                      (= overlap1 (x86::encode-operand-type :imm16 :imm32))
-                      (= overlap1 (x86::encode-operand-type :imm16 :imm32S)))
-                (setq overlap1 (if (and prefixes (not (eql (aref prefixes
-                                                                 x86::+data-prefix+)
-                                                           0)))
-                                 (x86::encode-operand-type :imm16)
-                                 (x86::encode-operand-type :imm32s)))))
-            (unless (= (logcount overlap1) 1)
-              (error "Can't determine size of immediate operand in ~s"
-                     inst)))
-          (setf (x86::x86-operand-type op1) overlap1))
-        (when (= noperands 3)
-          (let* ((op2 (svref operands 2))
-                 (op-type2 (x86::x86-operand-type op2))
-                 (template-type2 (svref template-types 2)))
-            ;; third operand can't be an immediate
-            (setf (x86::x86-operand-type op2)
-                  (logand op-type2 template-type2))))))))
-        
-          
-          
-          
-        
     
 (defun x86-optimize-imm (operands suffix)
   (unless suffix
@@ -823,13 +691,14 @@
 (defun parse-x86-instruction (form instruction)
     (let* ((templates (or
                        (get-x86-opcode-templates form)
-                       (error "Unknown X86 instruction ~s" form))))
+                       (error "Unknown X86 instruction ~s" form)))
+           (operands (cdr form)))
       (let* ((parsed-operands (if operands
                                 (mapcar #'parse-x86-operand operands))))
 
         ;; (x86-optimize-imm parsed-operands suffix)
         (dolist (template templates (error "Operands or suffix invalid in ~s" form))
-          (when (match-template template parsed-operands)
+          (when (x86::match-template template parsed-operands)
             (init-x86-instruction instruction template parsed-operands)
             ;(check-suffix instruction form)
             ;(x86-finalize-operand-types instruction)
