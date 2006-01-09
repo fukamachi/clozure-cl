@@ -110,7 +110,7 @@
 (defx86lapmacro unbox-fixnum (src dest)
   `(progn
     (mov (% ,src) (% ,dest))
-    (shr ($ x8664::fixnumshift) (% ,dest))))
+    (sar ($ x8664::fixnumshift) (% ,dest))))
 
 (defx86lapmacro box-fixnum (src dest)
   `(lea (@ (% ,src) 8) (% ,dest)))
@@ -219,7 +219,9 @@
 
 ;;; Frames, function entry and exit.
 
-;;; no frame to deal with.
+;;; no frame to deal with.  (Even if there -is- a frame, we need to
+;;; do this on function entry, but if there's no frame we don't
+;;; need to do much else.)
 (defx86lapmacro simple-function-entry ()
   `(xchg (% nfn) (% fn)))
 
