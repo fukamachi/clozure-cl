@@ -1,3 +1,29 @@
+2006-01-09 00:40  gb
+
+	* level-0/X86/x86-array.lisp: Still some PPC code here.
+
+2006-01-09 00:37  gb
+
+	* level-0/X86/x86-symbol.lisp: No PPC code.  No x8632 code, either.
+
+2006-01-09 00:36  gb
+
+	* compiler/X86/x86-lapmacros.lisp: Some conditional traps. 
+	CMP-TO-NIL for x8664 (where NIL has its own tag.)
+
+2006-01-09 00:33  gb
+
+	* compiler/X86/x86-lap.lisp: Try to handle NIL, T in expressions. 
+	Move template-matching to x86-asm (and therefore x86::).
+
+2006-01-09 00:31  gb
+
+	* compiler/X86/x86-disassemble.lisp: Handle UUOs.
+
+2006-01-09 00:31  gb
+
+	* compiler/X86/x86-asm.lisp: More bug fixes.
+
 2006-01-08 02:46  gb
 
 	* level-0/X86/x86-hash.lisp: New file.	No PPC or X8632 code here.
