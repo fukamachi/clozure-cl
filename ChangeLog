@@ -1,3 +1,40 @@
+2006-01-09 05:46  gb
+
+	* compiler/X86/x86-disassemble.lisp: Fixes: register-based shifts
+	(#xd3 with different /n in the modrm byte) had the wrong table
+	index.
+	
+	x8664-special (basically, movslq) table and handling of it was
+	wrong.
+
+2006-01-09 05:44  gb
+
+	* compiler/X86/x86-asm.lisp: Fix handling of index, scale when base
+	register present in INSERT-MEMORY.
+	
+	More fixes to opcode templates, including movslq and mul.
+
+2006-01-09 05:41  gb
+
+	* level-0/: l0-bignum32.lisp, l0-bignum64.lisp: Fix EVAL-WHEN
+	stuff.
+
+2006-01-09 05:29  gb
+
+	* level-0/l0-bignum32.lisp: common for 32-bit targets
+
+2006-01-09 05:27  gb
+
+	* level-0/PPC/PPC32/l0-bignum-ppc32.lisp: moved and renamed
+
+2006-01-09 05:24  gb
+
+	* level-0/l0-bignum64.lisp: common for 64-bit targets
+
+2006-01-09 05:22  gb
+
+	* level-0/PPC/PPC64/l0-bignum-ppc64.lisp: renamed and moved
+
 2006-01-09 05:01  gb
 
 	* level-0/X86/X8664/x8664-bignum.lisp: new file
