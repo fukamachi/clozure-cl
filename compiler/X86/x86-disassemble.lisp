@@ -284,6 +284,7 @@
 (defconstant +USE-GROUPS+ 2)
 (defconstant +USE-PREFIX-USER-TABLE+ 3)
 (defconstant +X86-64-SPECIAL+ 4)
+(defconstant +UUOCODE+ 5)
 
 (defconstant +REX-MODE64+ 8)
 (defconstant +REX-EXTX+ 4)
@@ -1086,7 +1087,7 @@
    (make-x86-dis "lretP" 'op-i +w-mode+)
    (make-x86-dis "lretP")
    (make-x86-dis "int3")
-   (make-x86-dis "int" 'op-i +b-mode+)
+   (make-x86-dis nil nil +uuocode+)
    (make-x86-dis '(("into" . "(bad)")))
    (make-x86-dis "iretP")
    ;; #xd0
@@ -2218,6 +2219,29 @@
   (setf (x86-di-mnemonic instruction) "x87-fpu-op")
   (x86-ds-skip ds))
 
+(defun x86-dis-do-uuo (ds instruction intop sizeflag)
+  (declare (type (unsigned-byte 8) intop)
+           (ignore sizeflag))
+  (if (or (< intop #xc0) (>= intop #xe0))
+    (setf (x86-di-mnemonic instruction) "int"
+          (x86-di-op0 instruction)
+          (x86::make-x86-immediate-operand :value (parse-x86-lap-expression intop)))
+    (if (< intop #xd0)
+      (setf (x86-di-mnemonic instruction)
+            (case intop
+              (#xc0 "uuo-error-two-few-args")
+              (#xc1 "uuo-error-two-many-args")
+              (#xc2 "uuo-error-wrong-number-of-args")
+              (t "unknown-UUO")))
+      (if (< intop #xe0)
+        (setf (x86-di-mnemonic instruction)
+              "uuo-error-reg-not-type"
+              (x86-di-op0 instruction)
+              (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))
+              (x86-di-op1 instruction)
+              (x86::make-x86-immediate-operand :value (parse-x86-lap-expression (x86-ds-next-u8 ds))))))))
+
+
 
 (defun x86-dis-analyze-operands (ds instruction flag)
   ;; If instruction is adding a positive displacement to the FN
@@ -2350,33 +2374,36 @@
       (if (and (null (x86-dis-mnemonic dp))
                (eql (x86-dis-bytemode1 dp) +floatcode+))
         (x86-dis-do-float ds instruction primary-opcode sizeflag)
-        (progn
-          (when (null (x86-dis-mnemonic dp))
-            (let* ((bytemode1 (x86-dis-bytemode1 dp)))
-              (declare (fixnum bytemode1))
-              (cond ((= bytemode1 +use-groups+)
-                     (setq dp (svref (svref *grps* (x86-dis-bytemode2 dp))
-                                     (x86-ds-reg ds))))
-                    ((= bytemode1 +use-prefix-user-table+)
-                     (let* ((index 0))
-                       (used-prefix ds +prefix-repz+)
-                       (if (logtest prefixes +prefix-repz+)
-                         (setq index 1)
-                         (progn
-                           (used-prefix ds +prefix-data+)
-                           (if (logtest prefixes +prefix-data+)
-                             (setq index 2)
-                             (progn
-                               (used-prefix ds +prefix-repnz+)
-                               (if (logtest prefixes +prefix-repnz+)
-                                 (setq index 3))))))
-                       (setq dp (svref (svref *prefix-user-table*
-                                              (x86-dis-bytemode2 dp))
-                                       index))))
-                    ((= bytemode1 +x86-64-special+)
-                     (setq dp (svref (svref *x86-64-table*
-                                            (if (x86-ds-mode-64 ds) 1 0))
-                                     (x86-dis-bytemode2 dp))))
+        (if (and (null (x86-dis-mnemonic dp))
+                 (eql (x86-dis-bytemode1 dp) +uuocode+))
+          (x86-dis-do-uuo ds instruction (x86-ds-next-u8 ds) sizeflag)
+          (progn
+            (when (null (x86-dis-mnemonic dp))
+              (let* ((bytemode1 (x86-dis-bytemode1 dp)))
+                (declare (fixnum bytemode1))
+                (cond ((= bytemode1 +use-groups+)
+                       (setq dp (svref (svref *grps* (x86-dis-bytemode2 dp))
+                                       (x86-ds-reg ds))))
+                      ((= bytemode1 +use-prefix-user-table+)
+                       (let* ((index 0))
+                         (used-prefix ds +prefix-repz+)
+                         (if (logtest prefixes +prefix-repz+)
+                           (setq index 1)
+                           (progn
+                             (used-prefix ds +prefix-data+)
+                             (if (logtest prefixes +prefix-data+)
+                               (setq index 2)
+                               (progn
+                                 (used-prefix ds +prefix-repnz+)
+                                 (if (logtest prefixes +prefix-repnz+)
+                                   (setq index 3))))))
+                         (setq dp (svref (svref *prefix-user-table*
+                                                (x86-dis-bytemode2 dp))
+                                         index))))
+                      ((= bytemode1 +x86-64-special+)
+                       (setq dp (svref (svref *x86-64-table*
+                                              (if (x86-ds-mode-64 ds) 1 0))
+                                       (x86-dis-bytemode2 dp))))
                     (t (error "Disassembly error")))))
           (when (x86-putop ds (x86-dis-mnemonic dp) sizeflag instruction)
             (let* ((operands ())
@@ -2404,7 +2431,7 @@
                       (x86-di-op0 instruction) (pop operands))
                 (setf (x86-di-op0 instruction) (pop operands)
                       (x86-di-op1 instruction) (pop operands)
-                      (x86-di-op2 instruction) (pop operands)))))))
+                      (x86-di-op2 instruction) (pop operands))))))))
       (values (x86-dis-analyze-operands ds instruction (x86-dis-flags dp))
               (eq (x86-dis-flags dp) :jump)))))
 
