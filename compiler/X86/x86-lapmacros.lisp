@@ -71,7 +71,7 @@
     (andb (%b ,node) (%b ,dest))))
 
 (defx86lapmacro extract-subtag (node dest)
-  `(movb (@ x8664::misc-subtag-offset (%q ,node)) (%b ,dest)))
+  `(movb (@ x8664::misc-subtag-offset (% ,node)) (%b ,dest)))
 
 (defx86lapmacro extract-typecode (node dest)
   ;;; In general, these things are only defined to affect the low
@@ -80,7 +80,32 @@
   `(progn
     (extract-lisptag ,node ,dest)
     (rcmp (%b ,dest) ($ x8664::tag-misc))
-    (cmovew (@  x8664::misc-subtag-offset (%q ,node)) (%w ,dest))))
+    (cmovew (@  x8664::misc-subtag-offset (% ,node)) (%w ,dest))))
+
+(defx86lapmacro trap-unless-typecode= (node tag &optional (immreg 'imm0))
+  (let* ((ok (gensym)))
+    `(progn
+      (extract-typecode ,node ,immreg)
+      (cmpb ($ ,tag) (%b ,immreg))
+      (je.pt ,ok)
+      (uuo-error-reg-not-type (% ,node) ($ ,tag))
+      ,ok)))
+
+(defx86lapmacro trap-unless-fulltag= (node tag &optional (immreg 'imm0))
+  (let* ((ok (gensym)))
+    `(progn
+      (extract-fulltag ,node ,immreg)
+      (cmpb ($ ,tag) (%b ,immreg))
+      (je.pt ,ok)
+      (uuo-error-reg-not-type (% ,node) ($ ,tag))
+      ,ok)))
+
+;;; On x8664, NIL has its own tag, so no other lisp object can
+;;; have the same low byte as NIL.  (That probably won't be
+;;; true on x8632.)
+(defx86lapmacro cmp-reg-to-nil (reg)
+  `(cmpb ($ (logand #xff x8664::nil-value)) (%b ,reg)))
+
 
 (defx86lapmacro unbox-fixnum (src dest)
   `(progn
