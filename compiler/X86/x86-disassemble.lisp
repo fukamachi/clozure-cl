@@ -2229,6 +2229,7 @@
               (#xc0 "uuo-error-two-few-args")
               (#xc1 "uuo-error-two-many-args")
               (#xc2 "uuo-error-wrong-number-of-args")
+              (#xc3 "uuo-stack-overflow")
               (t "unknown-UUO")))
       (if (< intop #xe0)
         (setf (x86-di-mnemonic instruction)
@@ -2292,7 +2293,7 @@
          (when (and disp (> disp 0) (is-fn op1))
            (let* ((label-ea (+ entry-ea disp)))
                  (when (< label-ea (x86-ds-code-limit ds))
-                   (setf (x86::x86-immediate-operand-value op0)
+                   (setf (x86::x86-memory-operand-disp op0)
                          (parse-x86-lap-expression
                           `(- (^ ,label-ea) (^ ,entry-ea))))
                    (push label-ea (x86-ds-pending-labels ds))))))))))
