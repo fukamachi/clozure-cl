@@ -199,6 +199,7 @@
 ;;; destination being swapped *and* the direction being reversed.
 (defconstant +opcode-modifier-FloatDR+ +opcode-modifier-FloatD+)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
 (defparameter *opcode-modifier-names*
   `((:w . ,+opcode-modifier-W+)
     (:d . ,+opcode-modifier-D+)
@@ -272,6 +273,7 @@
                (return))))))
      (if errorp (error "Unknown x86 opcode modifier: ~s" mod)))))
 
+)
 (defmacro encode-opcode-modifier (&rest mod)
   (%encode-opcode-modifier mod t))
 
@@ -527,6 +529,7 @@
   )
 
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
 (defun parse-x86-opcode-operand-types (types&classes)
   (ccl::collect ((types))
     (dolist (t&c types&classes (apply #'vector (types)))
@@ -535,7 +538,7 @@
         (types (%encode-operand-type type t))))))
 
 
-(eval-when (:compile-toplevel :execute)
+
 (defparameter *x86-operand-insert-function-keywords*
     '(:insert-nothing
       :insert-modrm-reg
@@ -557,7 +560,6 @@
       :insert-mmx-rm
       :insert-xmm-reg
       :insert-xmm-rm))
-)
 
 (defun parse-x86-opcode-operand-classes (types&classes)
   (ccl::collect ((classes))
@@ -576,7 +578,7 @@
     0
     (%encode-opcode-modifier (cdr name&flags))))
 
-
+)
 
 ;;; Any instruction with no operands.
 (defstruct x86-instruction
@@ -600,107 +602,6 @@
       (error "Bug: no REX prefix in ~s" instruction)))
 
 
-(defun insert-nothing (instruction operand)
-  (declare (ignore instruction operand)))
-
-;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.reg
-;;; field.  If the register requires REX addressing, set the REX.R bit
-;;; in the instruction's rex-prefix.  If either the modrm or rex-prefix
-;;; fields of the instruction are NIL, we're very confused; check for
-;;; that explicitly until this code matures a bit.
-
-(defun insert-modrm-reg (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
-         (need-rex.r (logtest +regrex+ (reg-entry-reg-flags entry))))
-    (setf (x86-instruction-modrm-byte instruction)
-          (dpb reg-num (byte 3 3)
-               (need-modrm-byte instruction)))
-    (when need-rex.r
-      (setf (x86-instruction-rex-prefix instruction)
-            (logior +rex-extx+ (need-rex-prefix instruction))))))
-
-(defun insert-xmm-reg (instruction operand)
-  (insert-modrm-reg instruction operand))
-
-(defun insert-xmm-rm (instruction operand)
-  (insert-modrm-rm instruction operand))
-
-(defun insert-opcode-reg (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
-         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
-    (setf (x86-instruction-base-opcode instruction)
-          (dpb reg-num (byte 3 0)
-               (x86-instruction-base-opcode instruction)))
-    (when need-rex.b
-      (setf (x86-instruction-rex-prefix instruction)
-            (logior +rex-extz+ (need-rex-prefix instruction))))))
-
-;;; Insert a 4-bit register number in the low 4 bits of the opcode.
-;;; (This is only used in synthetic instructions, like some UUOs.)
-(defun insert-opcode-reg4 (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
-         (xreg-num (logior reg-num
-                           (if (logtest +regrex+ (reg-entry-reg-flags entry))
-                             #x08
-                             #x00))))
-    (setf (x86-instruction-base-opcode instruction)
-          (dpb xreg-num (byte 4 0)
-               (x86-instruction-base-opcode instruction)))))
-
-;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.rm
-;;; field.  If the register requires REX addressing, set the REX.B bit
-;;; in the instruction's rex-prefix.  If either the modrm or rex-prefix
-;;; fields of the instruction are NIL, we're very confused; check for
-;;; that explicitly until this code matures a bit.
-
-(defun insert-modrm-rm (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
-         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
-    (setf (x86-instruction-modrm-byte instruction)
-          (dpb reg-num (byte 3 0) (need-modrm-byte instruction)))
-    (when need-rex.b
-      (setf (x86-instruction-rex-prefix instruction)
-            (logior +rex-extz+ (need-rex-prefix instruction))))))
-
-(defun insert-imm32s (instruction operand)
-  (setf (x86-immediate-operand-type operand)
-        (encode-operand-type :imm32s))
-  (setf (x86-instruction-imm instruction) operand))
-
-(defun insert-imm32 (instruction operand)
-  (setf (x86-immediate-operand-type operand)
-        (encode-operand-type :imm32))
-  (setf (x86-instruction-imm instruction) operand))
-
-(defun insert-imm16 (instruction operand)
-  (setf (x86-immediate-operand-type operand)
-        (encode-operand-type :imm16))
-  (setf (x86-instruction-imm instruction) operand))
-
-(defun insert-imm8 (instruction operand)
-  (setf (x86-immediate-operand-type operand)
-        (encode-operand-type :imm8))
-  (setf (x86-instruction-imm instruction) operand))
-
-(defun insert-imm8s (instruction operand)
-  (setf (x86-immediate-operand-type operand)
-        (encode-operand-type :imm8s))
-  (setf (x86-instruction-imm instruction) operand))
-
-(defun insert-imm8-for-int (instruction operand)
-  (let* ((expr (x86-immediate-operand-value operand))
-         (value (ccl::early-x86-lap-expression-value expr)))
-    (if (eql value 3)
-      (setf (x86-instruction-base-opcode instruction)
-            +int3-opcode+)
-      (insert-imm8 instruction operand))))
-
-(defun insert-label (instruction operand)
-  (setf (x86-instruction-extra instruction) operand))
 
 
 (defconstant modrm-mod-byte (byte 2 6))
@@ -719,6 +620,7 @@
 (defvar *lap-constant-0-expression*)
 
 (defun insert-memory (instruction operand)
+  (declare (special *ds-segment-register* *ss-segment-register*)) ;fwd refs
   (let* ((explicit-seg (x86-memory-operand-seg operand))
          (disp (x86-memory-operand-disp operand))
          (base (x86-memory-operand-base operand))
@@ -3311,6 +3213,8 @@
      #xcdc1 nil nil)
    (def-x8664-opcode uuo-error-wrong-number-of-args ()
      #xcdc2 nil nil)
+   (def-x8664-opcode uuo-stack-overflow ()
+     #xcdc3 nil nil)
 
    (def-x8664-opcode uuo-error-reg-not-type ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdd0 nil 0)
@@ -4172,6 +4076,108 @@
   scale                                 ; scale factor, multiplied with index
   )
 
+
+(defun insert-nothing (instruction operand)
+  (declare (ignore instruction operand)))
+
+;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.reg
+;;; field.  If the register requires REX addressing, set the REX.R bit
+;;; in the instruction's rex-prefix.  If either the modrm or rex-prefix
+;;; fields of the instruction are NIL, we're very confused; check for
+;;; that explicitly until this code matures a bit.
+
+(defun insert-modrm-reg (instruction operand)
+  (let* ((entry (x86-register-operand-entry operand))
+         (reg-num (reg-entry-reg-num entry))
+         (need-rex.r (logtest +regrex+ (reg-entry-reg-flags entry))))
+    (setf (x86-instruction-modrm-byte instruction)
+          (dpb reg-num (byte 3 3)
+               (need-modrm-byte instruction)))
+    (when need-rex.r
+      (setf (x86-instruction-rex-prefix instruction)
+            (logior +rex-extx+ (need-rex-prefix instruction))))))
+
+(defun insert-xmm-reg (instruction operand)
+  (insert-modrm-reg instruction operand))
+
+(defun insert-xmm-rm (instruction operand)
+  (insert-modrm-rm instruction operand))
+
+(defun insert-opcode-reg (instruction operand)
+  (let* ((entry (x86-register-operand-entry operand))
+         (reg-num (reg-entry-reg-num entry))
+         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
+    (setf (x86-instruction-base-opcode instruction)
+          (dpb reg-num (byte 3 0)
+               (x86-instruction-base-opcode instruction)))
+    (when need-rex.b
+      (setf (x86-instruction-rex-prefix instruction)
+            (logior +rex-extz+ (need-rex-prefix instruction))))))
+
+;;; Insert a 4-bit register number in the low 4 bits of the opcode.
+;;; (This is only used in synthetic instructions, like some UUOs.)
+(defun insert-opcode-reg4 (instruction operand)
+  (let* ((entry (x86-register-operand-entry operand))
+         (reg-num (reg-entry-reg-num entry))
+         (xreg-num (logior reg-num
+                           (if (logtest +regrex+ (reg-entry-reg-flags entry))
+                             #x08
+                             #x00))))
+    (setf (x86-instruction-base-opcode instruction)
+          (dpb xreg-num (byte 4 0)
+               (x86-instruction-base-opcode instruction)))))
+
+;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.rm
+;;; field.  If the register requires REX addressing, set the REX.B bit
+;;; in the instruction's rex-prefix.  If either the modrm or rex-prefix
+;;; fields of the instruction are NIL, we're very confused; check for
+;;; that explicitly until this code matures a bit.
+
+(defun insert-modrm-rm (instruction operand)
+  (let* ((entry (x86-register-operand-entry operand))
+         (reg-num (reg-entry-reg-num entry))
+         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
+    (setf (x86-instruction-modrm-byte instruction)
+          (dpb reg-num (byte 3 0) (need-modrm-byte instruction)))
+    (when need-rex.b
+      (setf (x86-instruction-rex-prefix instruction)
+            (logior +rex-extz+ (need-rex-prefix instruction))))))
+
+(defun insert-imm32s (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm32s))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm32 (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm32))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm16 (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm16))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm8 (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm8))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm8s (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm8s))
+  (setf (x86-instruction-imm instruction) operand))
+
+(defun insert-imm8-for-int (instruction operand)
+  (let* ((expr (x86-immediate-operand-value operand))
+         (value (ccl::early-x86-lap-expression-value expr)))
+    (if (eql value 3)
+      (setf (x86-instruction-base-opcode instruction)
+            +int3-opcode+)
+      (insert-imm8 instruction operand))))
+
+(defun insert-label (instruction operand)
+  (setf (x86-instruction-extra instruction) operand))
 
 (defparameter *x8664-register-entries*
   (flet ((register-entry (name)
