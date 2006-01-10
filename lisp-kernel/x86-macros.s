@@ -183,7 +183,7 @@ define([do_funcall],[
 	cmpb $fulltag_symbol,%temp0_b
 	/* %fname == %temp0 */
 	cmoveq symbol.fcell(%fname),%nfn
-	cmovg %temp0,%nfn
+	cmovgq %temp0,%nfn
 	jmp *nfn
 	tra(macro_label(bad))
 ])
