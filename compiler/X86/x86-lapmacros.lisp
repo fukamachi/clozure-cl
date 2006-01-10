@@ -225,6 +225,19 @@
 (defx86lapmacro simple-function-entry ()
   `(xchg (% nfn) (% fn)))
 
+;;; Simple frame, since the caller didn't reserve space for it.
+(defx86lapmacro save-simple-frame ()
+  `(progn
+    (pushq (% nfn))
+    (pushq (% rbp))
+    (movq (% rsp) (% rbp))))
+
+(defx86lapmacro restore-simple-frame ()
+  `(progn
+    (leave)
+    (popq (% nfn))))
+
+
 ;;; Caller pushed zeros to reserve space for stack frame before
 ;;; pushing args.  We have to discard it before returning.
 (defx86lapmacro discard-reserved-frame ()
@@ -257,3 +270,49 @@
       (:tra ,label)
       (recover-fn-from-nfn ,label))))
      
+(defx86lapmacro %car (src dest)
+  `(movq (@ x8664::cons.car (% ,src)) (% ,dest)))
+
+(defx86lapmacro %cdr (src dest)
+  `(movq (@ x8664::cons.cdr (% ,src)) (% ,dest)))
+
+(defx86lapmacro stack-probe ()
+  (let* ((ok (gensym)))
+    `(progn
+      (rcmp (% rsp) (@ (% rcontext) x8664::tcr.cs-limit))
+      (jae.pt ,ok)
+      (uuo-stack-overflow)
+      ,ok)))
+
+(defx86lapmacro load-constant (constant dest &optional (fn 'fn))
+  `(movq (@ ',constant (% ,fn)) (% ,dest)))
+
+;;; call symbol named NAME, setting nargs to NARGS.  Do the TRA
+;;; hair.   Args should already be in arg regs, and we expect
+;;; to return a single value.
+(defx86lapmacro call-symbol (name nargs)
+  (let* ((return (gensym)))
+    `(progn
+      (load-constant ,name fname)
+      (set-nargs ,nargs)
+      (movq (@ x8664::symbol.fcell (% fname)) (% nfn))
+      (lea (@ (- (^ ,return) (^ @entry)) (% fn)) (% fn))
+      (jmp (* (% nfn)))
+      (:tra ,return)
+      (recover-fn-from-nfn ,return))))
+
+;;; tail call the function named by NAME with nargs NARGS.  %NFN is
+;;; the TRA to the caller, which will be in %FN on entry to the
+;;; callee.  For the couple of instructions where neither %NFN or
+;;; %FN point to the current function, ensure that %XFN does; this
+;;; is necessary to prevent the current function from being GCed
+;;; halfway through those couple of instructions.
+(defx86lapmacro jump-symbol (name nargs)
+  `(progn
+    (load-constant ,name fname)
+    (movq (% fn) (% xfn))
+    (movq (% nfn) (% fn))
+    (movq (@ x8664::symbol.fcell (% fname)) (% nfn))
+    (set-nargs ,nargs)
+    (jmp (* (% nfn)))))
+
