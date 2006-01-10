@@ -242,9 +242,25 @@
 
 ;;; Using %fs to access the TCR may be Linux-specific.
 (defx86reg rcontext fs)
+
+;;; NEXT-METHOD-CONTEXT is passed from gf-dispatch code to the method
+;;; functions that it funcalls.  FNAME is only meaningful when calling
+;;; globally named functions through the function cell of a symbol.
+;;; It appears that they're never live at the same time.
+;;; (We can also consider passing next-method context on the stack.)
+;;; Using a boxed register for nargs is intended to keep both imm0
+;;; and imm1 free on function entry, to help with processing &optional/&key.
 (defx86reg fname temp0)
-(defx86reg next-method-context temp1)
+(defx86reg next-method-context temp0)
 (defx86reg nargs temp2.w)
+;;; We rely one at least one of %nfn/%fn pointing to the current function
+;;; (or to a TRA that references the function) at all times.  When we
+;;; tail call something, we want %FN to point to our caller's TRA and
+;;; %NFN to point to the new function.  Unless we go out of line to
+;;; do tail calls, we need some register not involved in the calling
+;;; sequence to hold the current function, since it might get GCed otherwise.
+;;; (The odds of this happening are low, but non-zero.)
+(defx86reg xfn temp1)
 
 (defx86reg ra0 nfn)
 (defx86reg ra1 fn)
