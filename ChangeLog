@@ -1,3 +1,39 @@
+2006-01-10 05:57  gb
+
+	* compiler/X86/x86-lapmacros.lisp: more stack-frame stuff,
+	%car/%cdr, constant refs, call/jump-symbol.
+
+2006-01-10 05:50  gb
+
+	* compiler/X86/x86-asm.lisp: Use EVAL-WHEN, reorder things so that
+	it compiles (still a warning or two, maybe.)
+	
+	Add UUO-STACK-OVERFLOW.
+
+2006-01-10 05:50  gb
+
+	* level-0/X86/: x86-clos.lisp, x86-def.lisp, x86-io.lisp,
+	x86-misc.lisp, x86-numbers.lisp, x86-utils.lisp: initial checkin
+
+2006-01-10 05:46  gb
+
+	* compiler/X86/x86-disassemble.lisp: Recognize uuo-stack-overflow.
+	
+	When finding pc-relative refs in operands, the constant ref is a
+	memory operand, not an immediate operand.
+
+2006-01-10 05:38  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Rename a few registers.
+
+2006-01-10 05:37  gb
+
+	* level-0/X86/x86-pred.lisp: x8664 LAP.
+
+2006-01-10 05:37  gb
+
+	* lisp-kernel/x86-macros.s: Add a 'q' suffix.
+
 2006-01-09 05:46  gb
 
 	* compiler/X86/x86-disassemble.lisp: Fixes: register-based shifts
