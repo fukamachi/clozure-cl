@@ -21,174 +21,125 @@
 
 
 (defx86lapfunction %fixnum-signum ((number arg_z))
-  (cmpri :cr0 number '0)
-  (li arg_z '0)
-  (beqlr :cr0)
-  (li arg_z '1)               ; assume positive
-  (bgtlr :cr0)
-  (li arg_z '-1)
+  (simple-function-entry)
+  (movq ($ '-1) (% arg_x))
+  (movq ($ '1) (% arg_y))
+  (testq (% number) (% number))
+  (cmovsq (% arg_x) (% arg_z))
+  (cmovnsq (% arg_y) (% arg_z))
   (single-value-return))
 
 ;;; see %logcount (ppc-bignum.lisp)
 (defx86lapfunction %ilogcount ((number arg_z))
-  (let ((arg imm0)
-        (shift imm1)
-        (temp imm2))
-    (unbox-fixnum arg number)
-    (mr. shift arg)
-    (li arg_z 0)
-    (b @test)
+  (let ((shift imm0)
+        (temp imm1))
+    (unbox-fixnum number shift)
+    (xorq (% arg_z) (% arg_z))
+    (testq (% shift) (% shift))
+    (jmp @test)
     @next
-    (la temp -1 shift)
-    (and. shift shift temp)
-    (la arg_z '1 arg_z)
+    (lea (@ -1 (% shift)) (% temp))
+    (and (% temp) (% shift))            ; sets flags
+    (lea (@ '1 (% arg_z)) (% arg_z))    ; doesn't set flags
     @test
-    (bne @next)
+    (jne @next)
     (single-value-return)))
 
 (defx86lapfunction %iash ((number arg_y) (count arg_z))
-  (unbox-fixnum imm1 count)
-  (unbox-fixnum imm0 number)
-  (neg. imm2 imm1)
-  (blt @left)
-  (srar imm0 imm0 imm2)
-  (box-fixnum arg_z imm0)
+  (unbox-fixnum count imm1)
+  (unbox-fixnum number imm0)
+  (xorq (% rcx) (% rcx))                ;rcx = temp1
+  (testq (% count) (% count))
+  (jge @left)
+  (subb (% imm1.b) (% cl))
+  (sar (% cl) (% imm0))
+  (xorb (% cl) (% cl))
+  (box-fixnum imm0 arg_z)
   (single-value-return)
   @left
-  (slr arg_z number imm1)
+  (movb (% imm1.b) (% cl))
+  (shl (% cl) (% arg_z))
+  (xorb (% cl) (% cl))
   (single-value-return))
 
 (defparameter *double-float-zero* 0.0d0)
 (defparameter *short-float-zero* 0.0s0)
 
 
-
-
-
-(defx86lapfunction %fixnum-intlen ((number arg_z))  
-  (unbox-fixnum imm0 arg_z)
-  (cntlzd. imm1 imm0)
-  (bne @nonneg)
-  (not imm1 imm0)
-  (cntlzd imm1 imm1)
-  @nonneg
-  (subfic imm1 imm1 64)
-  (box-fixnum arg_z imm1)
-  (single-value-return))
-
-
-(defx86lapfunction %double-float-negate! ((src arg_y) (res arg_z))
-  (get-double-float fp0 src)
-  (fneg fp1 fp0)
-  (put-double-float fp1 res)
-  (single-value-return))
-
-
-;;; Non-destructive.
-(defx86lapfunction %short-float-negate ((src arg_z))
-  (get-single-float fp0 src)
-  (fneg fp1 fp0)
-  (put-single-float fp1 arg_z)
+(defx86lapfunction %fixnum-intlen ((number arg_z))
+  (simple-function-entry)
+  (unbox-fixnum arg_z imm0)
+  (movq (% imm0) (% imm1))
+  (notq (% imm1))
+  (testq (% imm0) (% imm0))
+  (cmovsq (% imm1) (% imm0))
+  (bsrq (% imm0) (% imm0))
+  (box-fixnum imm0 arg_z)
   (single-value-return))
 
 
 ;;; Caller guarantees that result fits in a fixnum.
 
 (defx86lapfunction %truncate-double-float->fixnum ((arg arg_z))
-  (get-double-float fp0 arg)
-  (fctidz fp0 fp0)
-  (stdu tsp -32 tsp)
-  (std tsp 8 tsp)
-  (stfd fp0 16 tsp)
-  (ld imm0 16 tsp)
-  (la tsp 32 tsp)
-  (box-fixnum arg_z imm0)  
+  (simple-function-entry)
+  (get-double-float fp1 arg)
+  (cvttsd2si fp1 imm0)
+  (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 
 (defx86lapfunction %truncate-short-float->fixnum ((arg arg_z))
-  (get-single-float fp0 arg)
-  (fctidz fp0 fp0)
-  (stdu tsp -32 tsp)
-  (std tsp 8 tsp)
-  (stfd fp0 16 tsp)
-  (ld imm0 16 tsp)
-  (la tsp 32 tsp)
-  (box-fixnum arg_z imm0)  
+  (simple-function-entry)
+  (get-single-float arg fp1)
+  (cvttss2si fp1 imm0)
+  (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 ;;; DOES round to even
 
 (defx86lapfunction %round-nearest-double-float->fixnum ((arg arg_z))
-  (get-double-float fp0 arg)
-  (fctid fp0 fp0)
-  (stdu tsp -32 tsp)
-  (std tsp 8 tsp)
-  (stfd fp0 16 tsp)
-  (ld imm0 16 tsp)
-  (la tsp 32 tsp)
-  (box-fixnum arg_z imm0)  
+  (simple-function-entry)
+  (get-double-float fp1 arg)
+  (cvtsd2si fp1 imm0)
+  (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 
 (defx86lapfunction %round-nearest-short-float->fixnum ((arg arg_z))
-  (get-single-float fp0 arg)
-  (fctid fp0 fp0)
-  (stdu tsp -32 tsp)
-  (std tsp 8 tsp)
-  (stfd fp0 16 tsp)
-  (ld imm0 16 tsp)
-  (la tsp 32 tsp)
-  (box-fixnum arg_z imm0)  
+  (simple-function-entry)
+  (get-double-float fp1 arg)
+  (cvtss2si fp1 imm0)
+  (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 
-
-
-
+;;; We'll get a SIGFPE if divisor is 0.  We need a 3rd imm reg here.
 (defx86lapfunction %fixnum-truncate ((dividend arg_y) (divisor arg_z))
-  (let ((unboxed-quotient imm0)
-        (unboxed-dividend imm1)
-        (unboxed-divisor imm2)
-        (unboxed-product imm3)
-        (product temp0)
-        (boxed-quotient temp1)
-        (remainder temp2))
-    (unbox-fixnum unboxed-dividend dividend)
-    (unbox-fixnum unboxed-divisor divisor)
-    (divdo. unboxed-quotient unboxed-dividend unboxed-divisor)          ; set OV if divisor = 0
-    (box-fixnum boxed-quotient unboxed-quotient)
-    (mulld unboxed-product unboxed-quotient unboxed-divisor)
-    (bns+ @ok)
-    (mtxer rzero)
-    (save-lisp-context)
-    (set-nargs 3)
-    (load-constant arg_x 'truncate)
-    (call-symbol divide-by-zero-error)
-    @not-0
-    @ok
-    (subf imm0 unboxed-product unboxed-dividend)
-    (vpush boxed-quotient)
-    (box-fixnum remainder imm0)
-    (vpush remainder)
-    (set-nargs 2)
-    (la temp0 '2 vsp)
-    (ba .SPvalues)))
-
+  (simple-function-entry)
+  (unbox-fixnum dividend imm0)
+  (cqto)                                ; imm1 := sign_extend(imm0)
+  (movq (% rbp) (% mm0))
+  (unbox-fixnum divisor rbp)
+  (idivq %rbp)
+  (movq (% mm0) (% rbp))
+  (movq (% rsp) (% temp0))
+  (box-fixnum imm1 arg_y)
+  (pushq (% arg_y))
+  (box-fixnum imm0 arg_z)
+  (pushq (% arg_z))
+  (set-nargs 2)
+  (jump-subprim .SPvalues))
 
 (defx86lapfunction called-for-mv-p ()
-  (ref-global imm0 ret1valaddr)
-  (ldr imm1 target::lisp-frame.savelr sp)
-  (eq->boolean arg_z imm0 imm1 imm0)
+  (simple-function-entry)
+  (ref-global ret1valaddr imm0)
+  (movq (@ x8664::lisp-frame.return-address (% rbp)) %imm1)
+  (cmpq (% imm0) (% imm1))
+  (movq ($ t) (% imm0))
+  (movq ($ nil) (% arg_z))
+  (cmoveq (% imm0) (% arg_z))
   (single-value-return))
   
-
-
-
-
-
-
-
 #|
 Date: Mon, 3 Feb 1997 10:04:08 -0500
 To: info-mcl@digitool.com, wineberg@franz.scs.carleton.ca
@@ -245,6 +196,10 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 
 ;;; n1 and n2 must be positive (esp non zero)
 
+(eval-when (:compile-toplevel)
+  (warn "Fix %fixnum-gcd"))
+#+not-ready
+
 (defx86lapfunction %fixnum-gcd ((n1 arg_y)(n2 arg_z))
   (let ((temp imm0)
 	(u imm1)
@@ -292,4 +247,4 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 
 
 
-; End of ppc-numbers.lisp
+;;; End of x86-numbers.lisp
