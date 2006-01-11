@@ -579,6 +579,10 @@
   value)
 
 
+(define-storage-layout lisp-frame 0
+  backptr
+  return-address)
+
 ;;; The kernel uses these (rather generically named) structures
 ;;; to keep track of various memory regions it (or the lisp) is
 ;;; interested in.
