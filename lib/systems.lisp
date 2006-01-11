@@ -131,7 +131,7 @@
     (ppc-lapmacros    "ccl:bin;ppc-lapmacros"    ("ccl:compiler;PPC;ppc-lapmacros.lisp"))
     (x86-lapmacros    "ccl:bin;x86-lapmacros"    ("ccl:compiler;X86;x86-lapmacros.lisp"))
     (ppc-disassemble  "ccl:bin;ppc-disassemble"  ("ccl:compiler;PPC;ppc-disassemble.lisp"))
-    (x86-disassemble  "ccl:bin;x86-disassemble"  ("ccl:compiler;X86;x86-disassemble"))
+    (x86-disassemble  "ccl:bin;x86-disassemble"  ("ccl:compiler;X86;x86-disassemble.lisp"))
     (xfasload         "ccl:xdump;xfasload"       ("ccl:xdump;xfasload.lisp"))
     (xppcfasload      "ccl:xdump;xppcfasload"    ("ccl:xdump;xppcfasload.lisp"))
     (heap-image       "ccl:xdump;heap-image"     ("ccl:xdump;heap-image.lisp"))
