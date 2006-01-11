@@ -1,3 +1,46 @@
+2006-01-10 20:37  gb
+
+	* compiler/X86/x86-asm.lisp: testq matches :reg64 not :reg32. 
+	Imagine that.
+
+2006-01-10 20:36  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Define (minimal) lisp-frame.
+
+2006-01-10 20:36  gb
+
+	* level-0/X86/x86-numbers.lisp: Moved some float stuff from
+	x86-numbers to x86-float.  Get most of this translated (except for
+	%FIXNUM-GCD.)
+
+2006-01-10 20:35  gb
+
+	* level-0/X86/x86-float.lisp: Moved some float stuff from
+	x86-numbers to x86-float.
+
+2006-01-10 20:35  gb
+
+	* level-0/PPC/: ppc-float.lisp, ppc-numbers.lisp: Moved some float
+	stuff from ppc-numbers to ppc-float.
+
+2006-01-10 20:34  gb
+
+	* level-0/X86/: x86-clos.lisp, x86-def.lisp: Moved some trampoline
+	stuff from x86-def to x86-clos.
+
+2006-01-10 20:33  gb
+
+	* level-0/PPC/: ppc-clos.lisp, ppc-def.lisp: Moved some trampoline
+	stuff from ppc-def to ppc-clos.
+
+2006-01-10 20:32  gb
+
+	* lib/systems.lisp: x86-disassemble: source needed extension.
+
+2006-01-10 20:32  gb
+
+	* lib/compile-ccl.lisp: Indentation in NEEDS-COMPILE-P.
+
 2006-01-10 05:57  gb
 
 	* compiler/X86/x86-lapmacros.lisp: more stack-frame stuff,
