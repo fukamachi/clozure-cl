@@ -68,6 +68,22 @@
   (single-value-return))
 
 
+(defx86lapfunction %double-float-negate! ((src arg_y) (res arg_z))
+  (get-double-float src fp1)
+  (movsd fp0 fp2)
+  (subsd fp1 fp2)
+  (put-double-float fp2 res)
+  (single-value-return))
+
+
+(defx86lapfunction %short-float-negate ((src arg_z))
+  (simple-function-entry)
+  (get-single-float src fp1)
+  (movss fp0 fp2)
+  (subss fp1 fp2)
+  (put-single-float fp2 arg_z)
+  (single-value-return))
+
 
 
 (defx86lapfunction dfloat-significand-zeros ((dfloat arg_z))
