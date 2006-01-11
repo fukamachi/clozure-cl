@@ -2725,11 +2725,11 @@
      #x0f0f nil nil)
 
    ;; test
-   (def-x8664-opcode testq ((:reg32 :insert-modrm-reg) (:reg32 :insert-modrm-rm))
+   (def-x8664-opcode testq ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
      #x85 #o300 #x48)
-   (def-x8664-opcode testq ((:reg32 :insert-modrm-reg) (:anymem :insert-memory))
+   (def-x8664-opcode testq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
      #x85 #o000 #x48)
-   (def-x8664-opcode testq ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
+   (def-x8664-opcode testq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
      #x87 #o000 #x48)
    (def-x8664-opcode testq ((:imm32s :insert-imm32s) (:acc :insert-nothing))
      #xa9 nil #x48)
