@@ -245,13 +245,16 @@
 
 (defun needs-compile-p (fasl sources force-compile)
   (if fasl
-    (if (eq force-compile t) t
-        (if (not (probe-file fasl)) t
-            (let ((fasldate (file-write-date fasl)))
-              (if (if (integerp force-compile) (> force-compile fasldate)) t
-                  (dolist (source sources nil)
-                    (if (> (file-write-date source) fasldate)
-                      (return t)))))))))
+    (if (eq force-compile t)
+      t
+      (if (not (probe-file fasl))
+        t
+        (let ((fasldate (file-write-date fasl)))
+          (if (if (integerp force-compile) (> force-compile fasldate))
+            t
+            (dolist (source sources nil)
+              (if (> (file-write-date source) fasldate)
+                (return t)))))))))
 
 
 
