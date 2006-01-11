@@ -102,26 +102,6 @@
   (blr))
 
 
-(defppclapfunction %double-float-negate! ((src arg_y) (res arg_z))
-  (get-double-float fp0 src)
-  (fneg fp1 fp0)
-  (put-double-float fp1 res)
-  (blr))
-
-#+ppc32-target
-(defppclapfunction %short-float-negate! ((src arg_y) (res arg_z))
-  (get-single-float fp0 src)
-  (fneg fp1 fp0)
-  (put-single-float fp1 res)
-  (blr))
-
-#+ppc64-target
-;;; Non-destructive.
-(defppclapfunction %short-float-negate ((src arg_z))
-  (get-single-float fp0 src)
-  (fneg fp1 fp0)
-  (put-single-float fp1 arg_z)
-  (blr))
 
 
 ;;; Caller guarantees that result fits in a fixnum.
