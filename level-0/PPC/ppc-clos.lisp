@@ -235,3 +235,45 @@
   (bla .SPrestorecontext)
   (mtlr loc-pc)
   (ba .SPjmpsym))
+
+;;; is a winner - saves ~15%
+(defppclapfunction gag-one-arg ((arg arg_z))
+  (check-nargs 1)  
+  (svref arg_y gf.dispatch-table nfn) ; mention dt first
+  (set-nargs 2)
+  (svref nfn gf.dcode nfn)
+  (ldr temp0 target::misc-data-offset nfn)
+  (mtctr temp0)
+  (bctr))
+
+
+(defppclapfunction gag-two-arg ((arg0 arg_y) (arg1 arg_z))
+  (check-nargs 2)  
+  (svref arg_x gf.dispatch-table nfn) ; mention dt first
+  (set-nargs 3)
+  (svref nfn gf.dcode nfn)
+  (ldr temp0 target::misc-data-offset nfn)
+  (mtctr temp0)
+  (bctr))
+
+(defparameter *cm-proto*
+  (nfunction
+   gag
+   (lambda (&lap &lexpr args)
+     (ppc-lap-function 
+      gag 
+      ()
+      (mflr loc-pc)
+      (vpush-argregs)
+      (vpush nargs)
+      (add imm0 vsp nargs)
+      (la imm0 target::node-size imm0)                  ; caller's vsp
+      (bla .SPlexpr-entry)
+      (mtlr loc-pc)                     ; return to kernel
+      (mr arg_z vsp)                    ; lexpr
+      (svref arg_y combined-method.thing nfn) ; thing
+      (set-nargs 2)
+      (svref nfn combined-method.dcode nfn) ; dcode function
+      (ldr temp0 target::misc-data-offset nfn)
+      (mtctr temp0)
+      (bctr)))))
