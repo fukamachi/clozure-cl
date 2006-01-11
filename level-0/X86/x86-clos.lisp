@@ -22,7 +22,7 @@
 ;;; This just maps a SLOT-ID to a SLOT-DEFINITION or NIL.
 ;;; The map is a vector of (UNSIGNED-BYTE 8); this should
 ;;; be used when there are less than 255 slots in the class.
-(defppclapfunction %small-map-slot-id-lookup ((slot-id arg_z))
+(defx86lapfunction %small-map-slot-id-lookup ((slot-id arg_z))
   (ldr temp1 'map nfn)
   (svref arg_x slot-id.index slot-id)
   (getvheader imm0 temp1)
@@ -41,7 +41,7 @@
   (blr))
 
 ;;; The same idea, only the map is a vector of (UNSIGNED-BYTE 32).
-(defppclapfunction %large-map-slot-id-lookup ((slot-id arg_z))
+(defx86lapfunction %large-map-slot-id-lookup ((slot-id arg_z))
   (ldr temp1 'map nfn)
   (svref arg_x slot-id.index slot-id)
   (getvheader imm0 temp1)
@@ -64,7 +64,7 @@
   (ldrx arg_z temp0 imm1)
   (blr))
 
-(defppclapfunction %small-slot-id-value ((instance arg_y) (slot-id arg_z))
+(defx86lapfunction %small-slot-id-value ((instance arg_y) (slot-id arg_z))
   (ldr temp1 'map nfn)
   (svref arg_x slot-id.index slot-id)
   (getvheader imm0 temp1)
@@ -94,7 +94,7 @@
   (mtctr temp0)
   (bctr))
 
-(defppclapfunction %large-slot-id-value ((instance arg_y) (slot-id arg_z))
+(defx86lapfunction %large-slot-id-value ((instance arg_y) (slot-id arg_z))
   (ldr temp1 'map nfn)
   (svref arg_x slot-id.index slot-id)
   (getvheader imm0 temp1)
@@ -129,7 +129,7 @@
   (mtctr temp0)
   (bctr))
   
-(defppclapfunction %small-set-slot-id-value ((instance arg_x)
+(defx86lapfunction %small-set-slot-id-value ((instance arg_x)
                                              (slot-id arg_y)
                                              (new-value arg_z))
   (ldr temp1 'map nfn)
@@ -162,7 +162,7 @@
   (mtctr temp0)
   (bctr))
 
-(defppclapfunction %large-set-slot-id-value ((instance arg_x)
+(defx86lapfunction %large-set-slot-id-value ((instance arg_x)
                                              (slot-id arg_y)
                                              (new-value arg_z))
   (ldr temp1 'map nfn)
@@ -216,14 +216,14 @@
       (mtctr temp0)
       (bctr)))))
 
-(defppclapfunction funcallable-trampoline ()
+(defx86lapfunction funcallable-trampoline ()
   (svref nfn gf.dcode nfn)
   (svref temp0 0 nfn)
   (mtctr temp0)
   (bctr))
 
 
-(defppclapfunction unset-fin-trampoline ()
+(defx86lapfunction unset-fin-trampoline ()
   (mflr loc-pc)
   (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
   (vpop arg_z)                          ; whoops, didn't really want to
@@ -235,3 +235,47 @@
   (bla .SPrestorecontext)
   (mtlr loc-pc)
   (ba .SPjmpsym))
+
+
+;;; is a winner - saves ~15%
+(defx86lapfunction gag-one-arg ((arg arg_z))
+  (check-nargs 1)  
+  (svref arg_y gf.dispatch-table nfn) ; mention dt first
+  (set-nargs 2)
+  (svref nfn gf.dcode nfn)
+  (ldr temp0 target::misc-data-offset nfn)
+  (mtctr temp0)
+  (bctr))
+
+
+(defx86lapfunction gag-two-arg ((arg0 arg_y) (arg1 arg_z))
+  (check-nargs 2)  
+  (svref arg_x gf.dispatch-table nfn) ; mention dt first
+  (set-nargs 3)
+  (svref nfn gf.dcode nfn)
+  (ldr temp0 target::misc-data-offset nfn)
+  (mtctr temp0)
+  (bctr))
+
+(defparameter *cm-proto*
+  (nfunction
+   gag
+   (lambda (&lap &lexpr args)
+     (ppc-lap-function 
+      gag 
+      ()
+      (mflr loc-pc)
+      (vpush-argregs)
+      (vpush nargs)
+      (add imm0 vsp nargs)
+      (la imm0 target::node-size imm0)                  ; caller's vsp
+      (bla .SPlexpr-entry)
+      (mtlr loc-pc)                     ; return to kernel
+      (mr arg_z vsp)                    ; lexpr
+      (svref arg_y combined-method.thing nfn) ; thing
+      (set-nargs 2)
+      (svref nfn combined-method.dcode nfn) ; dcode function
+      (ldr temp0 target::misc-data-offset nfn)
+      (mtctr temp0)
+      (bctr)))))
+
