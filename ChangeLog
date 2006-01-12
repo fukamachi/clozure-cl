@@ -1,3 +1,46 @@
+2006-01-12 01:19  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Change the calling sequence:
+	no %nfn, new %ra0.
+
+2006-01-12 01:18  gb
+
+	* compiler/X86/: x86-lap.lisp, x86-lapmacros.lisp,
+	x86-disassemble.lisp: No explicit "@entry" label; ^-expressions
+	implicitly reference it.
+
+2006-01-12 01:16  gb
+
+	* compiler/X86/x86-asm.lisp: More bug fixes.
+
+2006-01-12 01:12  gb
+
+	* compiler/PPC/: PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-backend.lisp: Use DEFINE-PPC-VINSN to define vinsns.
+
+2006-01-12 01:11  gb
+
+	* compiler/PPC/ppc-backend.lisp: Define a DEFINE-VINSN function for
+	PPC backends here.
+
+2006-01-12 01:10  gb
+
+	* compiler/vinsn.lisp: Pass all args to the backend's define-vinsn
+	function, including the backend
+
+2006-01-12 00:55  gb
+
+	* compiler/PPC/ppc-asm.lisp: Remove ancient commented-out code.
+
+2006-01-12 00:55  gb
+
+	* compiler/vinsn.lisp: %DEFINE-VINSN uses the backend's
+	define-vinsn function.
+
+2006-01-12 00:54  gb
+
+	* compiler/backend.lisp: BACKENDs now have a DEFINE-VINSN slot.
+
 2006-01-10 20:37  gb
 
 	* compiler/X86/x86-asm.lisp: testq matches :reg64 not :reg32. 
