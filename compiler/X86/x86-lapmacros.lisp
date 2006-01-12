@@ -20,6 +20,8 @@
 (defx86lapmacro rcmp (src dest)
   `(cmp ,dest ,src))
 
+(defx86lapmacro clrq (reg)
+  `(xorq (% ,reg) (% ,reg)))
 
 (defx86lapmacro set-nargs (n)
   (if (eql n 0)
@@ -100,6 +102,15 @@
       (uuo-error-reg-not-type (% ,node) ($ ,tag))
       ,ok)))
 
+(defx86lapmacro trap-unless-lisptag= (node tag &optional (immreg 'imm0))
+  (let* ((ok (gensym)))
+    `(progn
+      (extract-lisptag ,node ,immreg)
+      (cmpb ($ ,tag) (%b ,immreg))
+      (je.pt ,ok)
+      (uuo-error-reg-not-type (% ,node) ($ ,tag))
+      ,ok)))
+
 ;;; On x8664, NIL has its own tag, so no other lisp object can
 ;;; have the same low byte as NIL.  (That probably won't be
 ;;; true on x8632.)
@@ -174,13 +185,13 @@
 
 (defx86lapmacro int-to-double (int temp double)
   `(progn
-    (unbox-fixnum (% ,int) (% ,temp))
+    (unbox-fixnum  ,int ,temp)
     (cvtsi2sdq (% ,temp) (% ,double))))
 
 (defx86lapmacro int-to-single (int temp single)
   `(progn
-    (unbox-fixnum (% ,int) (% ,temp))
-    (cvtsi2siq (% ,temp) (% ,single))))
+    (unbox-fixnum ,int ,temp)
+    (cvtsi2sdq (% ,temp) (% ,single))))
 
 (defx86lapmacro ref-global (global reg)
   `(movq (@ (+ x8664::nil-value ,(x8664::%kernel-global global))) (% ,reg)))
@@ -219,23 +230,18 @@
 
 ;;; Frames, function entry and exit.
 
-;;; no frame to deal with.  (Even if there -is- a frame, we need to
-;;; do this on function entry, but if there's no frame we don't
-;;; need to do much else.)
-(defx86lapmacro simple-function-entry ()
-  `(xchg (% nfn) (% fn)))
 
 ;;; Simple frame, since the caller didn't reserve space for it.
 (defx86lapmacro save-simple-frame ()
   `(progn
-    (pushq (% nfn))
+    (pushq (% ra0))
     (pushq (% rbp))
     (movq (% rsp) (% rbp))))
 
 (defx86lapmacro restore-simple-frame ()
   `(progn
     (leave)
-    (popq (% nfn))))
+    (popq (% ra0))))
 
 
 ;;; Caller pushed zeros to reserve space for stack frame before
@@ -243,13 +249,13 @@
 (defx86lapmacro discard-reserved-frame ()
   `(add ($ '2) (% rsp)))
 
-;;; Return to caller.  (% NFN) should contain a tagged return
+;;; Return to caller.  (% RA0) should contain a tagged return
 ;;; address inside the caller's (% FN).
 (defx86lapmacro single-value-return ()
-  `(jmp (* (% nfn))))
+  `(jmp (* (% ra0))))
 
-(defx86lapmacro recover-fn-from-nfn (here)
-  `(leaq (@ (- (^ @entry) (^ ,here)) (% nfn)) (% fn)))
+(defx86lapmacro recover-fn-from-ra0 (here)
+  `(leaq (@ (- (^ ,here)) (% ra0)) (% fn)))
 
 ;;; Using *x8664-backend* here is wrong but expedient.
 (defun x86-subprim-offset (name)
@@ -265,10 +271,10 @@
 (defx86lapmacro call-subprim (name)
   (let* ((label (gensym)))
     `(progn
-      (leaq (@ (- (^ ,label) (^ @entry)) (% fn)) (% nfn))
+      (leaq (@ (^ ,label) (% fn)) (% ra0))
       (jmp-subprim ,name)
       (:tra ,label)
-      (recover-fn-from-nfn ,label))))
+      (recover-fn-from-ra0 ,label))))
      
 (defx86lapmacro %car (src dest)
   `(movq (@ x8664::cons.car (% ,src)) (% ,dest)))
@@ -295,15 +301,15 @@
     `(progn
       (load-constant ,name fname)
       (set-nargs ,nargs)
-      (movq (@ x8664::symbol.fcell (% fname)) (% nfn))
-      (lea (@ (- (^ ,return) (^ @entry)) (% fn)) (% fn))
-      (jmp (* (% nfn)))
+      (lea (@ (^ ,return) (% fn)) (% ra0))
+      (movq (@ x8664::symbol.fcell (% fname)) (% fn))
+      (jmp (* (% fn)))
       (:tra ,return)
-      (recover-fn-from-nfn ,return))))
+      (recover-fn-from-ra0 ,return))))
 
-;;; tail call the function named by NAME with nargs NARGS.  %NFN is
+;;; tail call the function named by NAME with nargs NARGS.  %RA0 is
 ;;; the TRA to the caller, which will be in %FN on entry to the
-;;; callee.  For the couple of instructions where neither %NFN or
+;;; callee.  For the couple of instructions where neither %RA0 or
 ;;; %FN point to the current function, ensure that %XFN does; this
 ;;; is necessary to prevent the current function from being GCed
 ;;; halfway through those couple of instructions.
@@ -311,8 +317,7 @@
   `(progn
     (load-constant ,name fname)
     (movq (% fn) (% xfn))
-    (movq (% nfn) (% fn))
-    (movq (@ x8664::symbol.fcell (% fname)) (% nfn))
+    (movq (@ x8664::symbol.fcell (% fname)) (% fn))
     (set-nargs ,nargs)
-    (jmp (* (% nfn)))))
+    (jmp (* (% fn)))))
 

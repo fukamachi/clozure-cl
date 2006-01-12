@@ -44,6 +44,7 @@
 
 (defvar *x86-lap-labels* ())
 (defvar *x86-lap-constants* ())
+(defparameter *x86-lap-entry-offset* 15)
 (defvar *x86-lap-macros* (make-hash-table :test #'equalp))
 
 
@@ -55,7 +56,7 @@
   (let* ((s (string name)))
     (when (gethash s x86::*x86-opcode-template-lists*)
       (error "~s already defines an x86 instruction . " name))
-    (setf (gethash s *x86-lap-macros* #|(backend-lap-macros *ppc-backend*)|#) def)))
+    (setf (gethash s *x86-lap-macros* #|(backend-lap-macros *x86-backend*)|#) def)))
 
 (defmacro defx86lapmacro (name arglist &body body)
   `(progn
@@ -348,7 +349,7 @@
 (defun x86-lap-expression-value (exp)
   (etypecase exp
     (constant-x86-lap-expression (constant-x86-lap-expression-value exp))
-    (label-x86-lap-expression (x86-lap-label-address (label-x86-lap-expression-label exp)))
+    (label-x86-lap-expression (- (x86-lap-label-address (label-x86-lap-expression-label exp)) *x86-lap-entry-offset*))
     (unary-x86-lap-expression (funcall (unary-x86-lap-expression-operator exp)
                                        (x86-lap-expression-value (unary-x86-lap-expression-operand exp))))
     (binary-x86-lap-expression (funcall (binary-x86-lap-expression-operator exp) 
@@ -383,7 +384,7 @@
                                           (pair (cons val label)))
                                      (push pair *x86-lap-constants*)
                                      label))))
-          (setq form `(- (^ ,(x86-lap-label-name constant-label)) (^ @entry)))))))
+          (setq form `(^ ,(x86-lap-label-name constant-label)))))))
   (if (null form)
     (setq form (arch::target-nil-value (backend-target-arch *target-backend*)))
       (if (eq form t)
@@ -896,10 +897,10 @@
       (if value
         (if (typep value '(signed-byte 8))
           (x86::encode-operand-type :disp8 :disp32 :disp32s :disp64)
-          (if (typep value '(unsigned-byte 32))
-            (x86::encode-operand-type :disp32 :disp64)
-            (if (typep value '(signed-byte 32))
-              (x86::encode-operand-type :disp32s :disp64)
+          (if (typep value '(signed-byte 32))
+            (x86::encode-operand-type :disp32s :disp64)
+            (if (typep value '(unsigned-byte 32))
+              (x86::encode-operand-type :disp32 :disp64)
               (x86::encode-operand-type :disp64))))
         (x86::encode-operand-type :disp32s :disp64)))
     0))
@@ -983,9 +984,9 @@
                      (frag-list-push-32 frag-list 0))
                    (if (logtest optype (x86::encode-operand-type :disp8))
                      (frag-list-push-byte frag-list (logand val #xff))
-                     (if (logtest optype (x86::encode-operand-type :disp64))
-                       (frag-list-push-64 frag-list val)
-                       (frag-list-push-32 frag-list val)))))))
+                     (if (logtest optype (x86::encode-operand-type :disp32 :disp32s))
+                       (frag-list-push-32 frag-list val)
+                       (frag-list-push-64 frag-list val)))))))
            ;; Emit immediate operand(s).
            (let* ((op (x86::x86-instruction-imm insn)))
              (when op
@@ -1177,7 +1178,7 @@
         (flet ((emit-quad (buffer pos q)
                  (emit-long buffer pos (ldb (byte 32 0) q))
                  (emit-long buffer (+ pos 4) (ldb (byte 32 32) q))))
-          (ccl::do-dll-nodes (frag frag-list)
+          (do-dll-nodes (frag frag-list)
             (let* ((buffer (frag-code-buffer frag))
                    (address (frag-address frag)))
               (dolist (reloc (frag-relocs frag))
@@ -1283,11 +1284,10 @@
          (instruction (x86::make-x86-instruction))
          (frag-list (make-frag-list)))
     (make-x86-lap-label end-code-tag)
-    (make-x86-lap-label '@entry)    
-    (x86-lap-directive frag-list :long `(ash (- (^ ,end-code-tag ) 8) -3))
+    (x86-lap-directive frag-list :long `(ash (+ (- (^ ,end-code-tag ) 8)
+                                              *x86-lap-entry-offset*) -3))
     (x86-lap-directive frag-list :short 0)
     (x86-lap-directive frag-list :byte 0)
-    (emit-x86-lap-label frag-list '@entry)
     (dolist (f forms)
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)

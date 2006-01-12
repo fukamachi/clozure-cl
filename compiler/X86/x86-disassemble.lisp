@@ -2230,6 +2230,7 @@
               (#xc1 "uuo-error-two-many-args")
               (#xc2 "uuo-error-wrong-number-of-args")
               (#xc3 "uuo-stack-overflow")
+              (#xc4 "uuo-gc-trap")
               (t "unknown-UUO")))
       (if (< intop #xe0)
         (setf (x86-di-mnemonic instruction)
@@ -2256,6 +2257,12 @@
                  (eq entry (if (x86-ds-mode-64 ds)
                              (x86::x86-reg64 6)
                              (x86::x86-reg32 6))))))
+           (is-ra0 (thing)
+             (if (typep thing 'x86::x86-register-operand)
+               (let* ((entry (x86::x86-register-operand-entry thing)))
+                 (eq entry (if (x86-ds-mode-64 ds)
+                             (x86::x86-reg64 7)
+                             (x86::x86-reg32 7))))))
            (is-constant-imm (thing)
              (and (typep thing 'x86::x86-immediate-operand)
                   (early-x86-lap-expression-value
@@ -2277,7 +2284,7 @@
                  (when (< label-ea (x86-ds-code-limit ds))
                    (setf (x86::x86-immediate-operand-value op0)
                          (parse-x86-lap-expression
-                          `(- (^ ,label-ea) (^ ,entry-ea))))
+                          `(^ ,label-ea)))
                    (push label-ea (x86-ds-pending-labels ds)))))))
           ((:subi32 :subi64)
            (let* ((imm (is-constant-imm op0)))
@@ -2286,16 +2293,16 @@
                  (when (< label-ea (x86-ds-code-limit ds))
                    (setf (x86::x86-immediate-operand-value op0)
                          (parse-x86-lap-expression
-                          `(- (^ ,label-ea) (^ ,entry-ea))))
+                          `(^ ,label-ea)))
                (push label-ea (x86-ds-pending-labels ds)))))))
       (:lea
        (let* ((disp (is-fn-ea op0)))
-         (when (and disp (> disp 0) (is-fn op1))
+         (when (and disp (> disp 0) (is-ra0 op1))
            (let* ((label-ea (+ entry-ea disp)))
-                 (when (< label-ea (x86-ds-code-limit ds))
+             (when (< label-ea (x86-ds-code-limit ds))
                    (setf (x86::x86-memory-operand-disp op0)
                          (parse-x86-lap-expression
-                          `(- (^ ,label-ea) (^ ,entry-ea))))
+                          `(^ ,label-ea)))
                    (push label-ea (x86-ds-pending-labels ds))))))))))
     instruction))
 
@@ -2466,9 +2473,7 @@
          (name (x86-lap-label-name label))
          (entry (x86-ds-entry-point ds)))
     `(^ , (if (typep name 'fixnum)
-            (if (eql name entry)
-              "@entry"
-              (format nil "L~d" (- name entry)))
+            (format nil "L~d" (- name entry))
             name))))
 
 (defmethod unparse-x86-lap-expression ((exp unary-x86-lap-expression)
@@ -2508,9 +2513,7 @@
                                     ds)
   (let* ((addr (x86::x86-label-operand-label op))
          (entrypoint (x86-ds-entry-point ds)))
-    (if (eql addr entrypoint)
-      "@entry"
-      (format nil "L~d" (- addr entrypoint)))))
+    (format nil "L~d" (- addr entrypoint))))
 
 
     
@@ -2561,24 +2564,29 @@
 
     
     
-(defun x86-print-disassembled-instruction (ds instruction)
-  (when (x86-di-labeled instruction)
-    (let* ((addr (x86-di-address instruction))
-           (entry (x86-ds-entry-point ds)))
-      (if (= addr entry)
-        (format t "~&@entry~&")
-        (format t "~&L~d~&" (- addr entry)))))
-  (format t "~&  (~a" (x86-di-mnemonic instruction))
-  (let* ((op0 (x86-di-op0 instruction))
-         (op1 (x86-di-op1 instruction))
-         (op2 (x86-di-op2 instruction)))
-    (when op0
-      (format t " ~a" (unparse-x86-lap-operand op0 ds))
-      (when op1
-        (format t " ~a" (unparse-x86-lap-operand op1 ds))
-        (when op2
-          (format t " ~a" (unparse-x86-lap-operand op2 ds))))))
-  (format t ")~%"))
+(defun x86-print-disassembled-instruction (ds instruction seq)
+  (let* ((addr (x86-di-address instruction))
+         (entry (x86-ds-entry-point ds)))
+    (when (x86-di-labeled instruction)
+      (format t "~&L~d~&" (- addr entry))
+      (setq seq 0))
+    (dolist (p (x86-di-prefixes instruction))
+      (format t "~&  (~a)~%" p))
+    (format t "~&  (~a" (x86-di-mnemonic instruction))
+    (let* ((op0 (x86-di-op0 instruction))
+           (op1 (x86-di-op1 instruction))
+           (op2 (x86-di-op2 instruction)))
+      (when op0
+        (format t " ~a" (unparse-x86-lap-operand op0 ds))
+        (when op1
+          (format t " ~a" (unparse-x86-lap-operand op1 ds))
+          (when op2
+            (format t " ~a" (unparse-x86-lap-operand op2 ds))))))
+    (format t ")")
+    (when (oddp seq)
+      (format t "~40t;[~d]" (- addr entry)))
+    (format t "~%")
+    (1+ seq)))
 
 
 (defun x8664-disassemble-xfunction (xfunction &optional (symbolic-names
@@ -2600,9 +2608,10 @@
       (let* ((lab (pop (x86-ds-pending-labels ds))))
         (or (x86-dis-find-label lab blocks)
             (x86-disassemble-new-block ds lab))))
-    (do-dll-nodes (block blocks)
-      (do-dll-nodes (instruction (x86-dis-block-instructions block))
-        (x86-print-disassembled-instruction ds instruction)))))
+    (let* ((seq 0))
+      (do-dll-nodes (block blocks)
+        (do-dll-nodes (instruction (x86-dis-block-instructions block))
+          (setq seq (x86-print-disassembled-instruction ds instruction seq)))))))
 
                        
 
