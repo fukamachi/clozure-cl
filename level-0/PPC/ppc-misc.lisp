@@ -285,7 +285,7 @@
 (defppclapfunction %heap-bytes-allocated ()
   (ld imm2 target::tcr.last-allocptr ppc64::rcontext)
   (cmpri cr1 imm2 0)
-  (cmpri allocptr -8)			;void_allocptr
+  (cmpri allocptr -16)			;void_allocptr
   (ld imm0 target::tcr.total-bytes-allocated-high ppc64::rcontext)
   (sub imm2 imm2 allocptr)
   (beq cr1 @go)
