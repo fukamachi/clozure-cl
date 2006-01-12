@@ -51,7 +51,8 @@
   (target-arch-name nil :type symbol)
   (target-foreign-type-data nil :type (or null foreign-type-data))
   (lap-macros nil)
-  (target-arch nil))
+  (target-arch nil)
+  (define-vinsn nil))
 
 (defmethod print-object ((b backend) s)
   (print-unreadable-object (b s :type t :identity t)
