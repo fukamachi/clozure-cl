@@ -40,6 +40,7 @@
   (make-backend :lookup-opcode #'lookup-ppc-opcode
 		:lookup-macro #'ppc::ppc-macro-function
 		:lap-opcodes ppc::*ppc-opcodes*
+                :define-vinsn 'define-ppc-vinsn
 		:p2-dispatch *ppc2-specials*
 		:p2-vinsn-templates *ppc32-vinsn-templates*
 		:p2-template-hash-name '*ppc32-vinsn-templates*
@@ -62,6 +63,7 @@
   (make-backend :lookup-opcode #'lookup-ppc-opcode
 		:lookup-macro #'ppc::ppc-macro-function
 		:lap-opcodes ppc::*ppc-opcodes*
+                :define-vinsn 'define-ppc-vinsn                
 		:p2-dispatch *ppc2-specials*
 		:p2-vinsn-templates *ppc32-vinsn-templates*
 		:p2-template-hash-name '*ppc32-vinsn-templates*
