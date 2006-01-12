@@ -5476,7 +5476,7 @@
           (! negate-fixnum-overflow-inline target src)
           (progn
             (! negate-fixnum-overflow-ool src)
-            (<- ($ ppc::arg_z))))))
+            (ppc2-copy-register seg target ($ ppc::arg_z))))))
     (^)))
 
 (defppc2 ppc2-%%ineg %%ineg (seg vreg xfer n)
@@ -6038,7 +6038,7 @@
                (! fixnum-add-overflow-inline target r1 r2)
                (progn
                  (! fixnum-add-overflow-ool r1 r2)
-                 (<- ($ ppc::arg_z)))))
+                 (ppc2-copy-register seg target ($ ppc::arg_z)))))
            (^)))
         (t                              
          ;; There isn't any "addi" that checks for overflow, which is
@@ -6096,7 +6096,7 @@
                    (! fixnum-sub-overflow-inline target r1 r2)
                    (progn
                      (! fixnum-sub-overflow-ool r1 r2)
-                     (<- ($ ppc::arg_z)))))
+                     (ppc2-copy-register seg target ($ ppc::arg_z)))))
               (^)))
            ((and v1 (<= (integer-length v1) (- 15 *ppc2-target-fixnum-shift*)))
             (ensuring-node-target (target vreg)
@@ -7545,10 +7545,11 @@
                (decf nextarg))
              (with-imm-target ()
                (valreg :natural)
-               (if longval
-                 (ppc2-lri seg valreg longval)
-                 (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec))
-               (! set-c-arg valreg nextarg)))))
+               (let* ((reg valreg))
+                 (if longval
+                   (ppc2-lri seg valreg longval)
+                   (setq reg (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec)))
+                 (! set-c-arg reg nextarg))))))
         (incf nextarg)))
     (do* ((fpreg ppc::fp1 (1+ fpreg))
           (reloads (nreverse fp-loads) (cdr reloads)))
