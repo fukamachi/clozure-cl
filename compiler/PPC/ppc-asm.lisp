@@ -2427,43 +2427,4 @@
 (defun ccl::lookup-ppc-opcode (name)
   (gethash (string name) ppc::*ppc-opcode-numbers*))
 
-#|
-(defun find-ppc-opcode (i)
-  (let* ((op (major-opcode i))
-         (k (svref *ppc-opcode-indices* op)))
-    (declare (type (unsigned-byte 12) k)
-             (type (unsigned-byte 6) op))
-    (unless (= k -1)
-      (dotimes (j (svref *ppc-opcode-counts* op))
-        (declare (type (unsigned-byte 10) j))
-        (let* ((code (svref *ppc-opcodes* (+ k j))))
-          (if (= (logand (arch::opcode-mask code) i)
-                 (arch::opcode-opcode code))
-            (if (dolist (op (arch::opcode-operands code) t)
-                  (let* ((xfun (arch::operand-extract-function op)))
-                    (unless (or (null xfun)
-                                (funcall xfun i))
-                      (return nil))))
-              (return code))))))))
-
-(defun ppc-disasm-1 (i)
-  (let* ((opcode (find-ppc-opcode i)))
-    (if (null opcode)
-      `(".long" ,i)
-      (let* ((vals ()))
-        (dolist (operand (arch::opcode-operands opcode))
-          (unless (logbitp arch::operand-fake (arch::operand-flags operand))
-            (let* ((extract-fn (arch::operand-extract-function operand)))
-              (push (if extract-fn
-                      (funcall extract-fn i)
-                      (extract-default operand i))
-                    vals))))
-        `(,opcode ,@(nreverse vals))))))
-      
-|#
-#|
-(ppc-disasm-1 (instr li 2 0))
-(ppc-disasm-1 (instr clrlslwi 11 12 29 2))
-(ppc-disasm-1 (instr mr 3 4))
-|#
 (provide "PPC-ASM")
