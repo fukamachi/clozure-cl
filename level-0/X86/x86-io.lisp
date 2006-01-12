@@ -20,12 +20,12 @@
 
 ;;; not very smart yet
 
-(defppclapfunction %get-errno ()
-  (ldr imm1 target::tcr.errno-loc target::rcontext)
-  (lwz imm0 0 imm1)
-  (stw rzero 0 imm1)
-  (neg imm0 imm0)
-  (box-fixnum arg_z imm0)
-  (blr))
+(defx86lapfunction %get-errno ()
+  (movq (@ (% rcontext) x8664::tcr.errno-loc) (% imm1))
+  (movslq (@ (% imm1)) (% imm0))
+  (movss (% fp0) (@ (% imm1)))
+  (negq (% imm0))
+  (box-fixnum imm0 arg_z)
+  (single-value-return))
 
 ; end

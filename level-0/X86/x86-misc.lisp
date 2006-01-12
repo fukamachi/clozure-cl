@@ -14,7 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-;;; level-0;ppc;ppc-misc.lisp
+;;; level-0;x86;x86-misc.lisp
 
 
 (in-package "CCL")
@@ -26,7 +26,7 @@
 ;;; a byte at a time.
 ;;; Does no arg checking of any kind.  Really.
 
-(defppclapfunction %copy-ptr-to-ivector ((src (* 1 target::node-size) )
+(defx86lapfunction %copy-ptr-to-ivector ((src (* 1 x8664::node-size) )
                                          (src-byte-offset 0) 
                                          (dest arg_x)
                                          (dest-byte-offset arg_y)
@@ -43,7 +43,7 @@
     (ldr src-byteptr src-byte-offset vsp)
     (unbox-fixnum src-byteptr src-byteptr)
     (unbox-fixnum dest-byteptr dest-byte-offset)
-    (la dest-byteptr target::misc-data-offset dest-byteptr)
+    (la dest-byteptr x8664::misc-data-offset dest-byteptr)
     (b @test)
     @loop
     (subi nbytes nbytes '1)
@@ -56,9 +56,9 @@
     (bne cr0 @loop)
     (mr arg_z dest)
     (la vsp '2 vsp)
-    (blr)))
+    (single-value-return)))
 
-(defppclapfunction %copy-ivector-to-ptr ((src (* 1 target::node-size))
+(defx86lapfunction %copy-ivector-to-ptr ((src (* 1 x8664::node-size))
                                          (src-byte-offset 0) 
                                          (dest arg_x)
                                          (dest-byte-offset arg_y)
@@ -67,9 +67,9 @@
   (cmpri cr0 nbytes 0)
   (ldr imm0 src-byte-offset vsp)
   (unbox-fixnum imm0 imm0)
-  (la imm0 target::misc-data-offset imm0)
+  (la imm0 x8664::misc-data-offset imm0)
   (unbox-fixnum imm2 dest-byte-offset)
-  (ldr imm1 target::macptr.address dest)
+  (ldr imm1 x8664::macptr.address dest)
   (b @test)
   @loop
   (subi nbytes nbytes '1)
@@ -82,10 +82,10 @@
   (bne cr0 @loop)
   (mr arg_z dest)
   (la vsp '2 vsp)
-  (blr))
+  (single-value-return))
 
-#+ppc32-target
-(defppclapfunction %copy-ivector-to-ivector ((src 4) 
+#+x8632-target
+(defx86lapfunction %copy-ivector-to-ivector ((src 4) 
                                              (src-byte-offset 0) 
                                              (dest arg_x)
                                              (dest-byte-offset arg_y)
@@ -93,17 +93,17 @@
   (lwz temp0 src vsp)
   (cmpwi cr0 nbytes 0)
   (cmpw cr2 temp0 dest)   ; source and dest same?
-  (rlwinm imm3 nbytes 0 (- 30 target::fixnum-shift) 31)  
+  (rlwinm imm3 nbytes 0 (- 30 x8664::fixnum-shift) 31)  
   (lwz imm0 src-byte-offset vsp)
-  (rlwinm imm1 imm0 0 (- 30 target::fixnum-shift) 31)
+  (rlwinm imm1 imm0 0 (- 30 x8664::fixnum-shift) 31)
   (or imm3 imm3 imm1)
   (unbox-fixnum imm0 imm0)
-  (la imm0 target::misc-data-offset imm0)
+  (la imm0 x8664::misc-data-offset imm0)
   (unbox-fixnum imm2 dest-byte-offset)
   (rlwimi imm1 imm2 0 30 31)
   (or imm3 imm3 imm1)
   (cmpwi cr1 imm3 0)  ; is everybody multiple of 4?
-  (la imm2 target::misc-data-offset imm2)
+  (la imm2 x8664::misc-data-offset imm2)
   (beq cr2 @SisD)   ; source and dest same
   @fwd
   (beq :cr1 @wtest)
@@ -120,7 +120,7 @@
   (bne cr0 @loop)
   (mr arg_z dest)
   (la vsp 8 vsp)
-  (blr)
+  (single-value-return)
 
   @words      ; source and dest different - words 
   (subi nbytes nbytes '4)  
@@ -134,7 +134,7 @@
   @done
   (mr arg_z dest)
   (la vsp 8 vsp)
-  (blr)
+  (single-value-return)
 
   @SisD
   (cmpw cr2 imm0 imm2) ; cmp src and dest
@@ -159,8 +159,8 @@
   (bne cr0 @loop2)
   (b @done))
 
-#+ppc64-target
-(defppclapfunction %copy-ivector-to-ivector ((src-offset 8) 
+#+x8664-target
+(defx86lapfunction %copy-ivector-to-ivector ((src-offset 8) 
                                              (src-byte-offset-offset 0) 
                                              (dest arg_x)
                                              (dest-byte-offset arg_y)
@@ -176,8 +176,8 @@
     (cmpdi cr2 src-byte-offset dest-byte-offset)
     (unbox-fixnum src-byte-offset src-byte-offset)
     (unbox-fixnum imm1 dest-byte-offset)
-    (la imm0 target::misc-data-offset src-byte-offset)
-    (la imm1 target::misc-data-offset imm1)
+    (la imm0 x8664::misc-data-offset src-byte-offset)
+    (la imm1 x8664::misc-data-offset imm1)
     (bne cr1 @test)
     ;; Maybe overlap, or maybe nothing to do.
     (beq cr2 @done)                       ; same vectors, same offsets
@@ -194,7 +194,7 @@
     (bge @loop)
     @done
     (mr arg_z dest)
-    (blr)
+    (single-value-return)
     @back
     ;; nbytes was predecremented above
     (unbox-fixnum imm2 nbytes)
@@ -211,10 +211,10 @@
     @back-test
     (bge @back-loop)
     (mr arg_z dest)
-    (blr)))
+    (single-value-return)))
   
 
-(defppclapfunction %copy-gvector-to-gvector ((src (* 1 target::node-size))
+(defx86lapfunction %copy-gvector-to-gvector ((src (* 1 x8664::node-size))
 					     (src-element 0)
 					     (dest arg_x)
 					     (dest-element arg_y)
@@ -226,8 +226,8 @@
   (la vsp '2 vsp)
   (cmpr cr1 temp0 dest)
   (cmpri cr2 src-element dest-element)
-  (la imm0 target::misc-data-offset imm0)
-  (la imm1 target::misc-data-offset dest-element)
+  (la imm0 x8664::misc-data-offset imm0)
+  (la imm1 x8664::misc-data-offset dest-element)
   (bne cr1 @test)
   ;; Maybe overlap, or maybe nothing to do.
   (beq cr2 @done)                       ; same vectors, same offsets
@@ -244,7 +244,7 @@
   (bge @loop)
   @done
   (mr arg_z dest)
-  (blr)
+  (single-value-return)
   @back
   ;; We decremented NELEMENTS by 1 above.
   (add imm1 nelements imm1)
@@ -260,19 +260,19 @@
   @back-test
   (bge @back-loop)
   (mr arg_z dest)
-  (blr))
+  (single-value-return))
   
   
 
 
 
-#+ppc32-target
-(defppclapfunction %heap-bytes-allocated ()
-  (lwz imm2 target::tcr.last-allocptr ppc32::rcontext)
+#+x8632-target
+(defx86lapfunction %heap-bytes-allocated ()
+  (lwz imm2 x8664::tcr.last-allocptr x8632::rcontext)
   (cmpwi cr1 imm2 0)
   (cmpwi allocptr -8)			;void_allocptr
-  (lwz imm0 target::tcr.total-bytes-allocated-high ppc32::rcontext)
-  (lwz imm1 target::tcr.total-bytes-allocated-low ppc32::rcontext)
+  (lwz imm0 x8664::tcr.total-bytes-allocated-high x8632::rcontext)
+  (lwz imm1 x8664::tcr.total-bytes-allocated-low x8632::rcontext)
   (sub imm2 imm2 allocptr)
   (beq cr1 @go)
   (beq @go)
@@ -281,208 +281,163 @@
   @go
   (ba .SPmakeu64))
 
-#+ppc64-target
-(defppclapfunction %heap-bytes-allocated ()
-  (ld imm2 target::tcr.last-allocptr ppc64::rcontext)
-  (cmpri cr1 imm2 0)
-  (cmpri allocptr -8)			;void_allocptr
-  (ld imm0 target::tcr.total-bytes-allocated-high ppc64::rcontext)
-  (sub imm2 imm2 allocptr)
-  (beq cr1 @go)
-  (beq @go)
-  (add imm0 imm0 imm2)
+
+(defx86lapfunction %heap-bytes-allocated ()
+  (movq (@ (% rcontext) x8664::tcr.last-allocptr) (% temp0))
+  (movq (@ (% rcontext) x8664::tcr.save-allocptr) (% temp1))
+  (movq (@ (% rcontext) x8664::tcr.total-bytes-allocated) (% imm0))
+  (movq (% temp0) (% temp2))
+  (subq (% temp1) (% temp0))
+  (testq (% temp2) (% temp2))
+  (jz @go)
+  (add (% temp0) (% imm0))
   @go
-  (ba .SPmakeu64))
+  (jump-subprim .SPmakeu64))
 
 
-(defppclapfunction values ()
+(defx86lapfunction values ()
   (vpush-argregs)
   (add temp0 nargs vsp)
   (ba .SPvalues))
 
-;; It would be nice if (%setf-macptr macptr (ash (the fixnum value) ash::fixnumshift))
-;; would do this inline.
-#+ppc-target
-(defppclapfunction %setf-macptr-to-object ((macptr arg_y) (object arg_z))
+;;; It would be nice if (%setf-macptr macptr (ash (the fixnum value)
+;;; ash::fixnumshift)) would do this inline.
+
+(defx86lapfunction %setf-macptr-to-object ((macptr arg_y) (object arg_z))
   (check-nargs 2)
-  (trap-unless-typecode= arg_y target::subtag-macptr)
-  (str arg_z target::macptr.address arg_y)
-  (blr))
+  (trap-unless-typecode= arg_y x8664::subtag-macptr)
+  (movq (% arg_z) (@ x8664::macptr.address (% arg_y)))
+  (single-value-return))
 
-(defppclapfunction %fixnum-from-macptr ((macptr arg_z))
+(defx86lapfunction %fixnum-from-macptr ((macptr arg_z))
   (check-nargs 1)
-  (trap-unless-typecode= arg_z target::subtag-macptr)
-  (ldr imm0 target::macptr.address arg_z)
-  (trap-unless-lisptag= imm0 target::tag-fixnum imm1)
-  (mr arg_z imm0)
-  (blr))
+  (trap-unless-typecode= arg_z x8664::subtag-macptr)
+  (movq (@ x8664::macptr.address (% arg_z)) (% imm0))
+  (trap-unless-lisptag= imm0 x8664::tag-fixnum imm1)
+  (movq (% imm0) (% arg_z))
+  (single-value-return))
 
-#+ppc32-target
-(defppclapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
-  (macptr-ptr imm1 ptr)
-  (unbox-fixnum imm2 offset)
-  (add imm2 imm2 imm1)
-  (lwz imm0 0 imm2)
-  (lwz imm1 4 imm2)
-  (ba .SPmakeu64))
 
-#+ppc64-target
-(defppclapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr ppc64::subtag-macptr)
-  (macptr-ptr imm1 ptr)
-  (unbox-fixnum imm2 offset)
-  (ldx imm0 imm2 imm1)
-  (ba .SPmakeu64))
+(defx86lapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
+  (trap-unless-typecode= ptr x8664::subtag-macptr)
+  (macptr-ptr ptr imm1)
+  (unbox-fixnum imm0 offset)
+  (movq (@ (% imm1) (% imm0)) (% imm0))
+  (jmp-subprim .SPmakeu64))
 
-#+ppc32-target
-(defppclapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
-  (macptr-ptr imm1 ptr)
-  (unbox-fixnum imm2 offset)
-  (add imm2 imm2 imm1)
-  (lwz imm0 0 imm2)
-  (lwz imm1 4 imm2)
-  (ba .SPmakes64))
 
-#+ppc64-target
-(defppclapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
-  (trap-unless-typecode= ptr ppc64::subtag-macptr)
-  (macptr-ptr imm1 ptr)
-  (unbox-fixnum imm2 offset)
-  (ldx imm0 imm2 imm1)
-  (ba .SPmakes64))
+(defx86lapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
+  (trap-unless-typecode= ptr x8664::subtag-macptr)
+  (macptr-ptr ptr imm1)
+  (unbox-fixnum imm0 offset)
+  (movq (@ (% imm1) (% imm0)) (% imm0))
+  (jmp-subprim .SPmakes64))
 
-#+ppc32-target
-(defppclapfunction %%set-unsigned-longlong ((ptr arg_x)
-					      (offset arg_y)
-					      (val arg_z))
-  (save-lisp-context)
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
-  (bla .SPgetu64)
-  (macptr-ptr imm2 ptr)
-  (unbox-fixnum imm3 offset)
-  (add imm2 imm3 imm2)
-  (stw imm0 0 imm2)
-  (stw imm1 4 imm2)
-  (ba .SPpopj))
 
-#+ppc64-target
-(defppclapfunction %%set-unsigned-longlong ((ptr arg_x)
+
+
+(defx86lapfunction %%set-unsigned-longlong ((ptr arg_x)
                                             (offset arg_y)
                                             (val arg_z))
   (save-lisp-context)
-  (trap-unless-typecode= ptr ppc64::subtag-macptr)
+  (trap-unless-typecode= ptr x8664::subtag-macptr)
   (bla .SPgetu64)
   (macptr-ptr imm2 ptr)
   (unbox-fixnum imm3 offset)
   (stdx imm0 imm3 imm2)
   (ba .SPpopj))
 
-#+ppc32-target
-(defppclapfunction %%set-signed-longlong ((ptr arg_x)
-					    (offset arg_y)
-					    (val arg_z))
-  (save-lisp-context)
-  (trap-unless-typecode= ptr ppc32::subtag-macptr)
-  (bla .SPgets64)
-  (macptr-ptr imm2 ptr)
-  (unbox-fixnum imm3 offset)
-  (add imm2 imm3 imm2)
-  (stw imm0 0 imm2)
-  (stw imm1 4 imm2)
-  (ba .SPpopj))
 
-#+ppc64-target
-(defppclapfunction %%set-signed-longlong ((ptr arg_x)
+#+x8664-target
+(defx86lapfunction %%set-signed-longlong ((ptr arg_x)
                                           (offset arg_y)
                                           (val arg_z))
   (save-lisp-context)
-  (trap-unless-typecode= ptr target::subtag-macptr)
+  (trap-unless-typecode= ptr x8664::subtag-macptr)
   (bla .SPgets64)
   (macptr-ptr imm2 ptr)
   (unbox-fixnum imm3 offset)
   (stdx imm0 imm3 imm2)
   (ba .SPpopj))
 
-(defppclapfunction interrupt-level ()
-  (ldr arg_z target::tcr.tlb-pointer target::rcontext)
-  (ldr arg_z target::interrupt-level-binding-index arg_z)
-  (blr))
+(defx86lapfunction interrupt-level ()
+  (ldr arg_z x8664::tcr.tlb-pointer x8664::rcontext)
+  (ldr arg_z x8664::interrupt-level-binding-index arg_z)
+  (single-value-return))
 
 
-(defppclapfunction disable-lisp-interrupts ()
+(defx86lapfunction disable-lisp-interrupts ()
   (li imm0 '-1)
-  (ldr imm1 target::tcr.tlb-pointer target::rcontext)
-  (ldr arg_z target::interrupt-level-binding-index imm1)
-  (str imm0 target::interrupt-level-binding-index imm1)
-  (blr))
+  (ldr imm1 x8664::tcr.tlb-pointer x8664::rcontext)
+  (ldr arg_z x8664::interrupt-level-binding-index imm1)
+  (str imm0 x8664::interrupt-level-binding-index imm1)
+  (single-value-return))
 
-(defppclapfunction set-interrupt-level ((new arg_z))
-  (ldr imm1 target::tcr.tlb-pointer target::rcontext)
-  (trap-unless-lisptag= new target::tag-fixnum imm0)
-  (str new target::interrupt-level-binding-index imm1)
-  (blr))
+(defx86lapfunction set-interrupt-level ((new arg_z))
+  (ldr imm1 x8664::tcr.tlb-pointer x8664::rcontext)
+  (trap-unless-lisptag= new x8664::tag-fixnum imm0)
+  (str new x8664::interrupt-level-binding-index imm1)
+  (single-value-return))
 
 ;;; If we're restoring the interrupt level to 0 and an interrupt
 ;;; was pending, restore the level to 1 and zero the pending status.
-(defppclapfunction restore-interrupt-level ((old arg_z))
+(defx86lapfunction restore-interrupt-level ((old arg_z))
   (cmpri :cr1 old 0)
-  (ldr imm0 target::tcr.interrupt-pending target::rcontext)
-  (ldr imm1 target::tcr.tlb-pointer target::rcontext)
+  (ldr imm0 x8664::tcr.interrupt-pending x8664::rcontext)
+  (ldr imm1 x8664::tcr.tlb-pointer x8664::rcontext)
   (cmpri :cr0 imm0 0)
   (bne :cr1 @store)
   (beq :cr0 @store)
-  (str rzero target::tcr.interrupt-pending target::rcontext)
+  (str rzero x8664::tcr.interrupt-pending x8664::rcontext)
   (li old '1)
   @store
-  (str old target::interrupt-level-binding-index imm1)
-  (blr))
+  (str old x8664::interrupt-level-binding-index imm1)
+  (single-value-return))
 
 
 
-(defppclapfunction %current-tcr ()
-  (mr arg_z target::rcontext)
-  (blr))
+(defx86lapfunction %current-tcr ()
+  (movq (@ (% rcontext) x8664::tcr.linear-end) (% arg_z))
+  (single-value-return))
 
-(defppclapfunction %tcr-toplevel-function ((tcr arg_z))
+(defx86lapfunction %tcr-toplevel-function ((tcr arg_z))
   (check-nargs 1)
-  (cmpr tcr target::rcontext)
+  (cmpr tcr x8664::rcontext)
   (mr imm0 vsp)
-  (ldr temp0 target::tcr.vs-area tcr)
-  (ldr imm1 target::area.high temp0)
+  (ldr temp0 x8664::tcr.vs-area tcr)
+  (ldr imm1 x8664::area.high temp0)
   (beq @room)
-  (ldr imm0 target::area.active temp0)
+  (ldr imm0 x8664::area.active temp0)
   @room
   (cmpr imm1 imm0)
   (li arg_z nil)
   (beqlr)
-  (ldr arg_z (- target::node-size) imm1)
-  (blr))
+  (ldr arg_z (- x8664::node-size) imm1)
+  (single-value-return))
 
-(defppclapfunction %set-tcr-toplevel-function ((tcr arg_y) (fun arg_z))
+(defx86lapfunction %set-tcr-toplevel-function ((tcr arg_y) (fun arg_z))
   (check-nargs 2)
-  (cmpr tcr target::rcontext)
+  (cmpr tcr x8664::rcontext)
   (mr imm0 vsp)
-  (ldr temp0 target::tcr.vs-area tcr)
-  (ldr imm1 target::area.high temp0)
+  (ldr temp0 x8664::tcr.vs-area tcr)
+  (ldr imm1 x8664::area.high temp0)
   (beq @check-room)
-  (ldr imm0 target::area.active temp0)
+  (ldr imm0 x8664::area.active temp0)
   @check-room
   (cmpr imm1 imm0)
   (push rzero imm1)
   (bne @have-room)
-  (str imm1 target::area.active temp0)
-  (str imm1 target::tcr.save-vsp tcr)
+  (str imm1 x8664::area.active temp0)
+  (str imm1 x8664::tcr.save-vsp tcr)
   @have-room
   (str fun 0 imm1)
-  (blr))
+  (single-value-return))
 
 ;;; This needs to be done out-of-line, to handle EGC memoization.
-(defppclapfunction %store-node-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
+(defx86lapfunction %store-node-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
   (ba .SPstore-node-conditional))
 
-(defppclapfunction %store-immediate-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
+(defx86lapfunction %store-immediate-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
   (vpop temp0)
   (unbox-fixnum imm0 temp0)
   (let ((current temp1))
@@ -493,46 +448,44 @@
     (strcx. new object imm0)
     (bne @again)
     (isync)
-    (li arg_z (+ target::t-offset target::nil-value))
-    (blr)
+    (li arg_z (+ x8664::t-offset x8664::nil-value))
+    (single-value-return)
     @lose
-    (li imm0 target::reservation-discharge)
+    (li imm0 x8664::reservation-discharge)
     (strcx. rzero rzero imm0)
     (li arg_z nil)
-    (blr)))
+    (single-value-return)))
 
-(defppclapfunction set-%gcable-macptrs% ((ptr target::arg_z))
-  (li imm0 (+ target::nil-value (target::kernel-global gcable-pointers)))
+(defx86lapfunction set-%gcable-macptrs% ((ptr x8664::arg_z))
+  (li imm0 (+ x8664::nil-value (x8664::kernel-global gcable-pointers)))
   @again
   (lrarx arg_y rzero imm0)
-  (str arg_y target::xmacptr.link ptr)
+  (str arg_y x8664::xmacptr.link ptr)
   (strcx. ptr rzero imm0)
   (bne @again)
   (isync)
-  (blr))
+  (single-value-return))
 
 ;;; Atomically increment or decrement the gc-inhibit-count kernel-global
 ;;; (It's decremented if it's currently negative, incremented otherwise.)
-(defppclapfunction %lock-gc-lock ()
-  (li imm0 (+ target::nil-value (target::kernel-global gc-inhibit-count)))
+(defx86lapfunction %lock-gc-lock ()
   @again
-  (lrarx arg_y rzero imm0)
-  (cmpri cr1 arg_y 0)
-  (addi arg_z arg_y '1)
-  (bge cr1 @store)
-  (subi arg_z arg_y '1)
-  @store
-  (strcx. arg_z rzero imm0)
-  (bne @again)
-;;  (isync)
-  (blr))
+  (movq (@ (+ x8664::nil-value (x8664::kernel-global gc-inhibit-count))) (% rax))
+  (lea (@ '-1 (% rax)) (% temp0))
+  (lea (@ '1 (% rax)) (% arg_z))
+  (testq (% rax) (% rax))
+  (cmovsq (% temp0) (% arg_z))
+  (lock)
+  (cmpxchgq (% temp1) (@ (+ x8664::nil-value (x8664::kernel-global gc-inhibit-count))))
+  (jnz @again)
+  (single-value-return))
 
 ;;; Atomically decrement or increment the gc-inhibit-count kernel-global
 ;;; (It's incremented if it's currently negative, incremented otherwise.)
 ;;; If it's incremented from -1 to 0, try to GC (maybe just a little.)
-(defppclapfunction %unlock-gc-lock ()
+(defx86lapfunction %unlock-gc-lock ()
 ;;  (sync)
-  (li imm0 (+ target::nil-value (target::kernel-global gc-inhibit-count)))
+  (li imm0 (+ x8664::nil-value (x8664::kernel-global gc-inhibit-count)))
   @again
   (lrarx arg_y rzero imm0)
   (cmpri cr1 arg_y -1)
@@ -545,15 +498,15 @@
   (bnelr cr1)
   ;; The GC tried to run while it was inhibited.  Unless something else
   ;; has just inhibited it, it should be possible to GC now.
-  (li imm0 arch::gc-trap-function-immediate-gc)
-  (trlgei allocptr 0)
-  (blr))
+  (mov ($ arch::gc-trap-function-immediate-gc) (% imm0))
+  (uuo-gc-trap)
+  (single-value-return))
 
 ;;; Return true iff we were able to increment a non-negative
 ;;; lock._value
-(defppclapfunction %try-read-lock-rwlock ((lock arg_z))
+(defx86lapfunction %try-read-lock-rwlock ((lock arg_z))
   (check-nargs 1)
-  (li imm1 target::lock._value)
+  (li imm1 x8664::lock._value)
   @try
   (lrarx imm0 lock imm1)
   (cmpri imm0 0)
@@ -562,19 +515,19 @@
   (strcx. imm0 lock imm1)
   (bne @try)                            ; lost reservation, try again
   (isync)
-  (blr)                                 ; return the lock
+  (single-value-return)                                 ; return the lock
 @fail
-  (li imm0 target::reservation-discharge)
+  (li imm0 x8664::reservation-discharge)
   (strcx. rzero rzero imm0)
   (li arg_z nil)
-  (blr))
+  (single-value-return))
 
 
 
-(defppclapfunction unlock-rwlock ((lock arg_z))
-  (ldr imm2 target::lock._value lock)
+(defx86lapfunction unlock-rwlock ((lock arg_z))
+  (ldr imm2 x8664::lock._value lock)
   (cmpri imm2 0)
-  (li imm1 target::lock._value)
+  (li imm1 x8664::lock._value)
   (ble @unlock-write)
   @unlock-read
   (lrarx imm0 lock imm1)
@@ -582,26 +535,26 @@
   (strcx. imm0 lock imm1)
   (bne @unlock-read)
   (isync)
-  (blr)
+  (single-value-return)
   @unlock-write
   ;;; If we aren't the writer, return NIL.
   ;;; If we are and the value's about to go to 0, clear the writer field.
-  (ldr imm0 target::lock.writer lock)
-  (cmpr imm0 target::rcontext)
+  (ldr imm0 x8664::lock.writer lock)
+  (cmpr imm0 x8664::rcontext)
   (ldrx imm0 lock imm1)
   (cmpri cr1 imm0 '-1)
   (addi imm0 imm0 '1)
   (bne @fail)
   (bne cr1 @noclear)
-  (str rzero target::lock.writer lock)
+  (str rzero x8664::lock.writer lock)
   @noclear
-  (str imm0 target::lock._value lock)
-  (blr)
+  (str imm0 x8664::lock._value lock)
+  (single-value-return)
   @fail
   (li arg_z nil)
-  (blr))
+  (single-value-return))
 
-(defppclapfunction %atomic-incf-node ((by arg_x) (node arg_y) (disp arg_z))
+(defx86lapfunction %atomic-incf-node ((by arg_x) (node arg_y) (disp arg_z))
   (check-nargs 3)
   (unbox-fixnum imm1 disp)
   @again
@@ -610,75 +563,81 @@
   (strcx. arg_z node imm1)
   (bne- @again)
   (isync)
-  (blr))
+  (single-value-return))
 
-(defppclapfunction %atomic-incf-ptr ((ptr arg_z))
-  (macptr-ptr imm1 ptr)
+(defx86lapfunction %atomic-incf-ptr ((ptr arg_z))
+  (macptr-ptr ptr imm1)
+  (movq (% rbp) (% temp0))
   @again
-  (lrarx imm0 0 imm1)
-  (addi imm0 imm0 1)
-  (strcx. imm0 0 imm1)
-  (bne @again)
-  (isync)
-  (box-fixnum arg_z imm0)
-  (blr))
+  (movq (@ (% imm1)) (% rax))
+  (lea (@ 1 (% rax)) (% rbp))
+  (lock)
+  (cmpxchgq (% rbp) (@ (% imm1)))
+  (jnz @again)
+  (box-fixnum rbp arg_z)
+  (movq (% temp0) (% rbp))
+  (single-value-return))
 
-(defppclapfunction %atomic-incf-ptr-by ((ptr arg_y) (by arg_z))
-  (macptr-ptr imm1 ptr)
+(defx86lapfunction %atomic-incf-ptr-by ((ptr arg_y) (by arg_z))
+  (macptr-ptr ptr imm1)
+  (movq (% rbp) (% temp0))
   (unbox-fixnum imm2 by)
   @again
-  (lrarx imm0 0 imm1)
-  (add imm0 imm0 imm2)
-  (strcx. imm0 0 imm1)
-  (bne @again)
-  (isync)
-  (box-fixnum arg_z imm0)
-  (blr))
+  (movq (@ (% imm1)) (% rax))
+  (unbox-fixnum by rbp)
+  (add (% rax) (% rbp))
+  (lock)
+  (cmpxchgq %rbp (@ (% imm1)))
+  (jnz @again)
+  (box-fixnum rbp arg_z)
+  (movq (% temp0) (% rbp))
+  (single-value-return))
 
-(defppclapfunction %atomic-decf-ptr ((ptr arg_z))
-  (macptr-ptr imm1 ptr)
-  @again
-  (lrarx imm0 0 imm1)
-  (subi imm0 imm0 1)
-  (strcx. imm0 0 imm1)
-  (bne @again)
-  (isync)
-  (box-fixnum arg_z imm0)
-  (blr))
 
-(defppclapfunction %atomic-decf-ptr-if-positive ((ptr arg_z))
-  (macptr-ptr imm1 ptr)
+(defx86lapfunction %atomic-decf-ptr ((ptr arg_z))
+  (macptr-ptr ptr imm1)
+  (movq (% rbp) (% temp0))
   @again
-  (lrarx imm0 0 imm1)
-  (cmpri cr1 imm0 0)
-  (subi imm0 imm0 1)
-  (beq @done)
-  (strcx. imm0 0 imm1)
-  (bne @again)
-  (isync)
-  (box-fixnum arg_z imm0)
-  (blr)
+  (movq (@ (% imm1)) (% rax))
+  (lea (@ -1 (% rax)) (% rbp))
+  (lock)
+  (cmpxchgq (% rbp) (@ (% imm1)))
+  (jnz @again)
+  (box-fixnum rbp arg_z)
+  (movq (% temp0) (% rbp))
+  (single-value-return))
+
+(defx86lapfunction %atomic-decf-ptr-if-positive ((ptr arg_z))
+  (macptr-ptr ptr imm1)
+  (movq (% rbp) (% temp0))
+  @again
+  (movq (@ (% imm1)) (% rax))
+  (testq (% rax) (% rax))
+  (lea (@ -1 (% rax)) (% rbp))
+  (jz @done)
+  (lock)
+  (cmpxchgq (% rbp) (@ (% imm1)))
+  (jnz @again)
+  (box-fixnum rbp arg_z)
+  (movq (% temp0) (% rbp))
+  (single-value-return)
   @done
-  (li imm1 target::reservation-discharge)
-  (box-fixnum arg_z imm0)
-  (strcx. rzero rzero imm1)
-  (blr))
+  (movq (% temp0) (% rbp))
+  (box-fixnum rax arg_z)
+  (single-value-return))
 
-(defppclapfunction %atomic-swap-ptr ((ptr arg_y) (newval arg_z))
-  (sync)
-  (macptr-ptr imm1 ptr)
-  (unbox-fixnum imm2 arg_z)
-  @again
-  (lrarx imm0 0 imm1)
-  (strcx. imm2 0 imm1)
-  (bne @again)
-  (isync)
-  (box-fixnum arg_z imm0)
-  (blr))
+
+(defx86lapfunction %atomic-swap-ptr ((ptr arg_y) (newval arg_z))
+  (macptr-ptr arg_y imm1)
+  (unbox-fixnum newval imm0)
+  (lock)
+  (xchgq (% imm0) (@ (% imm1)))
+  (box-fixnum imm0 arg_z)
+  (single-value-return))
 
 ;;; Try to store the fixnum NEWVAL at PTR, if and only if the old value
 ;;; was equal to OLDVAL.  Return the old value
-(defppclapfunction %ptr-store-conditional ((ptr arg_x) (expected-oldval arg_y) (newval arg_z))
+(defx86lapfunction %ptr-store-conditional ((ptr arg_x) (expected-oldval arg_y) (newval arg_z))
   (macptr-ptr imm0 ptr)
   (unbox-fixnum imm1 expected-oldval)
   (unbox-fixnum imm2 newval)
@@ -690,21 +649,21 @@
   (bne- @again)
   (isync)
   (box-fixnum arg_z imm3)
-  (blr)
+  (single-value-return)
   @done
-  (li imm0 target::reservation-discharge)
+  (li imm0 x8664::reservation-discharge)
   (box-fixnum arg_z imm3)
   (strcx. rzero 0 imm0)
-  (blr))
+  (single-value-return))
 
 
-(defppclapfunction %macptr->dead-macptr ((macptr arg_z))
+(defx86lapfunction %macptr->dead-macptr ((macptr arg_z))
   (check-nargs 1)
-  (li imm0 target::subtag-dead-macptr)
-  (stb imm0 target::misc-subtag-offset macptr)
-  (blr))
+  (movb ($ x8664::subtag-dead-macptr) (@ x8664::misc-subtag-offset (% macptr)))
+  (single-value-return))
 
-(defppclapfunction %%apply-in-frame ((catch-count imm0) (srv temp0) (tsp-count imm0) (db-link imm0)
+#+are-you-kidding
+(defx86lapfunction %%apply-in-frame ((catch-count imm0) (srv temp0) (tsp-count imm0) (db-link imm0)
                                      (parent arg_x) (function arg_y) (arglist arg_z))
   (check-nargs 7)
 
@@ -728,7 +687,7 @@
 
   ; Pop dynamic bindings until we get to db-link
   (lwz imm0 12 vsp)                     ; db-link
-  (lwz imm1 target::tcr.db-link target::rcontext)
+  (lwz imm1 x8664::tcr.db-link x8664::rcontext)
   (cmp cr0 imm0 imm1)
   (beq cr0 @restore-regs)               ; .SPunbind-to expects there to be something to do
   (bla .SPunbind-to)
@@ -738,42 +697,42 @@
   (lwz srv 20 vsp)
 @get0
   (svref imm0 1 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @get1)
   (lwz save0 0 imm0)
 @get1
   (svref imm0 2 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @get2)
   (lwz save1 0 imm0)
 @get2
   (svref imm0 3 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @get3)
   (lwz save2 0 imm0)
 @get3
   (svref imm0 4 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @get4)
   (lwz save3 0 imm0)
 @get4
   (svref imm0 5 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @get5)
   (lwz save4 0 imm0)
 @get5
   (svref imm0 6 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @get6)
   (lwz save5 0 imm0)
 @get6
   (svref imm0 7 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @get7)
   (lwz save6 0 imm0)
 @get7
   (svref imm0 8 srv)
-  (cmpwi cr0 imm0 target::nil-value)
+  (cmpwi cr0 imm0 x8664::nil-value)
   (beq @got)
   (lwz save7 0 imm0)
 @got
@@ -782,19 +741,19 @@
   (vpop temp0)                          ; function
   (vpop parent)                         ; parent
   (extract-lisptag imm0 parent)
-  (cmpi cr0 imm0 target::tag-fixnum)
+  (cmpi cr0 imm0 x8664::tag-fixnum)
   (if (:cr0 :ne)
     ; Parent is a fake-stack-frame. Make it real
     (progn
       (svref sp %fake-stack-frame.sp parent)
-      (stwu sp (- target::lisp-frame.size) sp)
+      (stwu sp (- x8664::lisp-frame.size) sp)
       (svref fn %fake-stack-frame.fn parent)
-      (stw fn target::lisp-frame.savefn sp)
+      (stw fn x8664::lisp-frame.savefn sp)
       (svref temp1 %fake-stack-frame.vsp parent)
-      (stw temp1 target::lisp-frame.savevsp sp)
+      (stw temp1 x8664::lisp-frame.savevsp sp)
       (svref temp1 %fake-stack-frame.lr parent)
       (extract-lisptag imm0 temp1)
-      (cmpi cr0 imm0 target::tag-fixnum)
+      (cmpi cr0 imm0 x8664::tag-fixnum)
       (if (:cr0 :ne)
         ;; must be a macptr encoding the actual link register
         (macptr-ptr loc-pc temp1)
@@ -803,103 +762,32 @@
           (svref temp2 0 fn)        ; function vector
           (unbox-fixnum temp1 temp1)
           (add loc-pc temp2 temp1)))
-      (stw loc-pc target::lisp-frame.savelr sp))
+      (stw loc-pc x8664::lisp-frame.savelr sp))
     ;; Parent is a real stack frame
     (mr sp parent))
   (set-nargs 0)
   (bla .SPspreadargz)
   (ba .SPtfuncallgen))
 
-#+ppc32-target
-;;; Easiest to do this in lap, to avoid consing bignums and/or 
-;;; multiple-value hair.
-;;; Bang through code-vector until the end or a 0 (traceback table
-;;; header) is found.  Return high-half, low-half of last instruction
-;;; and index where found.
-(defppclapfunction %code-vector-last-instruction ((cv arg_z))
-  (let ((previ imm0)
-        (nexti imm1)
-        (idx imm2)
-        (offset imm3)
-        (len imm4))
-    (vector-length len cv len)
-    (li idx 0)
-    (cmpw cr0 idx len)
-    (li offset target::misc-data-offset)
-    (li nexti 0)
-    (b @test)
-    @loop
-    (mr previ nexti)
-    (lwzx nexti cv offset)
-    (cmpwi cr1 nexti 0)
-    (addi idx idx '1)
-    (cmpw cr0 idx len)
-    (addi offset offset '1)
-    (beq cr1 @done)
-    @test
-    (bne cr0 @loop)
-    (mr previ nexti)
-    @done
-    (digit-h temp0 previ)
-    (digit-l temp1 previ)
-    (subi idx idx '1)
-    (vpush temp0)
-    (vpush temp1)
-    (vpush idx)
-    (set-nargs 3)
-    (la temp0 '3 vsp)
-    (ba .SPvalues)))
 
-#+ppc64-target
-(defun %code-vector-last-instruction (cv)
-  (do* ((i 1 (1+ i))
-        (instr nil)
-        (n (uvsize cv)))
-       ((= i n) instr)
-    (declare (fixnum i n))
-    (let* ((next (uvref cv i)))
-      (declare (type (unsigned-byte 32) next))
-      (if (zerop next)
-        (return instr)
-        (setq instr next)))))
-
-        
 
   
-(defppclapfunction %%save-application ((flags arg_y) (fd arg_z))
-  (unbox-fixnum imm0 flags)
-  (ori imm0 imm0 arch::gc-trap-function-save-application)
-  (unbox-fixnum imm1 fd)
-  (trlgei allocptr 0)
-  (blr))
+(defx86lapfunction %%save-application ((flags arg_y) (fd arg_z))
+  (unbox-fixnum flags imm0)
+  (orq ($ arch::gc-trap-function-save-application) (% imm0))
+  (unbox-fixnum fd imm1)
+  (uuo-gc-trap)
+  (single-value-return))
 
-(defppclapfunction %metering-info ((ptr arg_z))
-  (ref-global imm0 metering-info)
-  (stw imm0 target::macptr.address ptr)
-  (blr))
 
-(defppclapfunction %misc-address-fixnum ((misc-object arg_z))
+
+(defx86lapfunction %misc-address-fixnum ((misc-object arg_z))
   (check-nargs 1)
-  (la arg_z target::misc-data-offset misc-object)
-  (blr))
+  (lea (@ x8664::misc-data-offset (% misc-object)) (% arg_z))
+  (single-value-return))
 
 
-#+ppc32-target
-(defppclapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
-  (check-nargs 3)
-  (macptr-ptr imm1 ptr) ; address in macptr
-  (addi imm0 imm1 9)     ; 2 for delta + 7 for alignment
-  (clrrwi imm0 imm0 3)   ; Clear low three bits to align
-  (subf imm1 imm1 imm0)  ; imm1 = delta
-  (sth imm1 -2 imm0)     ; save delta halfword
-  (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
-  (rlwimi imm1 len (- target::num-subtag-bits target::fixnum-shift) 0 (- 31 target::num-subtag-bits))
-  (stw imm1 0 imm0)       ; store subtype & length
-  (addi arg_z imm0 target::fulltag-misc) ; tag it, return it
-  (blr))
-
-#+ppc64-target
-(defppclapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
+(defx86lapfunction fudge-heap-pointer ((ptr arg_x) (subtype arg_y) (len arg_z))
   (check-nargs 3)
   (macptr-ptr imm1 ptr) ; address in macptr
   (addi imm0 imm1 17)     ; 2 for delta + 15 for alignment
@@ -907,75 +795,53 @@
   (subf imm1 imm1 imm0)  ; imm1 = delta
   (sth imm1 -2 imm0)     ; save delta halfword
   (unbox-fixnum imm1 subtype)  ; subtype at low end of imm1
-  (sldi imm2 len (- target::num-subtag-bits target::fixnum-shift))
+  (sldi imm2 len (- x8664::num-subtag-bits x8664::fixnum-shift))
   (or imm1 imm2 imm1)
   (std imm1 0 imm0)       ; store subtype & length
-  (addi arg_z imm0 target::fulltag-misc) ; tag it, return it
-  (blr))
+  (addi arg_z imm0 x8664::fulltag-misc) ; tag it, return it
+  (single-value-return))
 
-(defppclapfunction %%make-disposable ((ptr arg_y) (vector arg_z))
+(defx86lapfunction %%make-disposable ((ptr arg_y) (vector arg_z))
   (check-nargs 2)
-  (subi imm0 vector target::fulltag-misc) ; imm0 is addr = vect less tag
-  (lhz imm1 -2 imm0)   ; get delta
-  (sub imm0 imm0 imm1)  ; vector addr (less tag)  - delta is orig addr
-  (str imm0 target::macptr.address ptr) 
-  (blr))
-
-#+ppc32-target
-(defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
-  ;; put address of vect data in macptr.  For all vector types
-  ;; other than DOUBLE-FLOAT (or vectors thereof), the first byte
-  ;; of data is at PPC32::MISC-DATA-OFFSET; for the double-float
-  ;; types, it's at PPC32::MISC-DFLOAT-OFFSET.
-  (extract-subtag imm0 vect)
-  (cmpwi cr0 imm0 ppc32::subtag-double-float-vector)
-  (cmpwi cr1 imm0 ppc32::subtag-double-float)
-  (addi temp0 vect ppc32::misc-data-offset)
-  (beq cr0 @dfloat)
-  (beq cr1 @dfloat)
-  (stw temp0 ppc32::macptr.address arg_z)
-  (blr)
-  @dfloat
-  (addi temp0 vect ppc32::misc-dfloat-offset)
-  (stw temp0 ppc32::macptr.address arg_z)
-  (blr))
-
-#+ppc64-target
-(defppclapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
-  (la imm0 ppc64::misc-data-offset vect)
-  (std imm0 ppc64::macptr.address ptr)
-  (blr))
-
-(defppclapfunction get-saved-register-values ()
-  (vpush save0)
-  (vpush save1)
-  (vpush save2)
-  (vpush save3)
-  (vpush save4)
-  (vpush save5)
-  (vpush save6)
-  (vpush save7)
-  (la temp0 (* 8 target::node-size) vsp)
-  (set-nargs 8)
-  (ba .SPvalues))
+  (lea (@ (- x8664::fulltag-misc) (% vector)) (% imm0)) ; imm0 is addr = vect less tag
+  (movzwq (@ -2 (% imm0)) (% imm1))     ; get delta
+  (subq (% imm1) (% imm0))              ; vector addr (less tag)  - delta is orig addr
+  (movq (% imm0) (@ x8664::macptr.address (% ptr)))
+  (single-value-return))
 
 
-(defppclapfunction %current-db-link ()
-  (ldr arg_z target::tcr.db-link target::rcontext)
-  (blr))
+(defx86lapfunction %vect-data-to-macptr ((vect arg_y) (ptr arg_z))
+  (lea (@ x8664::misc-data-offset (% vect)) (% imm0))
+  (movq (% imm0) (@ x8664::macptr.address (% ptr)))
+  (single-value-return))
 
-(defppclapfunction %no-thread-local-binding-marker ()
-  (li arg_z target::subtag-no-thread-local-binding)
-  (blr))
+(defx86lapfunction get-saved-register-values ()
+  (movq (% rsp) (% temp0))
+  (push (% save0))
+  (push (% save1))
+  (push (% save2))
+  (push (% save3))
+  (set-nargs 4)
+  (jump-subprim .SPvalues))
 
 
-(defppclapfunction break-event-pending-p ()
-  (ref-global arg_z target::intflag)
-  (set-global rzero target::intflag)
-  (cmpri arg_z 0)
-  (li arg_z nil)
-  (beqlr)
-  (la arg_z target::t-offset arg_z)
-  (blr))
+(defx86lapfunction %current-db-link ()
+  (movq (@ (% rcontext) x8664::tcr.db-link) (% arg_z))
+  (single-value-return))
 
-; end of ppc-misc.lisp
+(defx86lapfunction %no-thread-local-binding-marker ()
+  (movq ($ x8664::subtag-no-thread-local-binding) (% arg_z))
+  (single-value-return))
+
+
+(defx86lapfunction break-event-pending-p ()
+  (xorq (% imm0) (% imm0))
+  (ref-global x8664::intflag arg_z)
+  (set-global imm0 x8664::intflag)
+  (movq ($ t) (% imm0))
+  (testq (% arg_z) (% arg_z))
+  (movq ($ nil) (% arg_z))
+  (cmovneq (% imm0) (% arg_z))
+  (single-value-return))
+
+; end of x86-misc.lisp

@@ -21,7 +21,6 @@
 
 
 (defx86lapfunction %fixnum-signum ((number arg_z))
-  (simple-function-entry)
   (movq ($ '-1) (% arg_x))
   (movq ($ '1) (% arg_y))
   (testq (% number) (% number))
@@ -67,7 +66,6 @@
 
 
 (defx86lapfunction %fixnum-intlen ((number arg_z))
-  (simple-function-entry)
   (unbox-fixnum arg_z imm0)
   (movq (% imm0) (% imm1))
   (notq (% imm1))
@@ -81,59 +79,53 @@
 ;;; Caller guarantees that result fits in a fixnum.
 
 (defx86lapfunction %truncate-double-float->fixnum ((arg arg_z))
-  (simple-function-entry)
-  (get-double-float fp1 arg)
-  (cvttsd2si fp1 imm0)
+  (get-double-float arg fp1)
+  (cvttsd2si (% fp1) (% imm0))
   (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 
 (defx86lapfunction %truncate-short-float->fixnum ((arg arg_z))
-  (simple-function-entry)
   (get-single-float arg fp1)
-  (cvttss2si fp1 imm0)
+  (cvttss2si (% fp1) (% imm0))
   (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 ;;; DOES round to even
 
 (defx86lapfunction %round-nearest-double-float->fixnum ((arg arg_z))
-  (simple-function-entry)
-  (get-double-float fp1 arg)
-  (cvtsd2si fp1 imm0)
+  (get-double-float arg fp1)
+  (cvtsd2si (% fp1) (% imm0))
   (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 
 (defx86lapfunction %round-nearest-short-float->fixnum ((arg arg_z))
-  (simple-function-entry)
-  (get-double-float fp1 arg)
-  (cvtss2si fp1 imm0)
+  (get-double-float arg fp1)
+  (cvtss2si (% fp1) (% imm0))
   (box-fixnum imm0 arg_z)  
   (single-value-return))
 
 
 ;;; We'll get a SIGFPE if divisor is 0.  We need a 3rd imm reg here.
 (defx86lapfunction %fixnum-truncate ((dividend arg_y) (divisor arg_z))
-  (simple-function-entry)
   (unbox-fixnum dividend imm0)
   (cqto)                                ; imm1 := sign_extend(imm0)
-  (movq (% rbp) (% mm0))
+  (pushq (% rbp))
   (unbox-fixnum divisor rbp)
-  (idivq %rbp)
-  (movq (% mm0) (% rbp))
+  (idivq (% rbp))
+  (popq (% rbp))
   (movq (% rsp) (% temp0))
   (box-fixnum imm1 arg_y)
   (pushq (% arg_y))
   (box-fixnum imm0 arg_z)
   (pushq (% arg_z))
   (set-nargs 2)
-  (jump-subprim .SPvalues))
+  (jmp-subprim .SPvalues))
 
 (defx86lapfunction called-for-mv-p ()
-  (simple-function-entry)
   (ref-global ret1valaddr imm0)
-  (movq (@ x8664::lisp-frame.return-address (% rbp)) %imm1)
+  (movq (@ x8664::lisp-frame.return-address (% rbp)) (% imm1))
   (cmpq (% imm0) (% imm1))
   (movq ($ t) (% imm0))
   (movq ($ nil) (% arg_z))
@@ -199,7 +191,6 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 (eval-when (:compile-toplevel)
   (warn "Fix %fixnum-gcd"))
 #+not-ready
-
 (defx86lapfunction %fixnum-gcd ((n1 arg_y)(n2 arg_z))
   (let ((temp imm0)
 	(u imm1)

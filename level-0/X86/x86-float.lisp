@@ -33,9 +33,7 @@
 
 
 
-#+x8664-target
 (defx86lapfunction %make-float-from-fixnums ((float 8)(hi 0) (lo arg_x) (exp arg_y) (sign arg_z))
-  (enter-function)
   (mov (% sign) (% imm1))
   (sar ($ 63) (% imm1))
   (shl ($ 63) (% imm1))
@@ -55,7 +53,6 @@
 
 ;;; Maybe we should trap - or something - on NaNs.
 (defx86lapfunction %%double-float-abs! ((n arg_y)(val arg_z))
-  (simple-function-entry)
   (mov (@ x8664::double-float.value (% n)) (% imm0))
   (btr ($ 63) (% imm0))
   (mov (% imm0) (@ x8664::double-float.value (% val)))
@@ -63,31 +60,28 @@
 
 
 (defx86lapfunction %short-float-abs ((n arg_z))
-  (simple-function-entry)
-  (btr (% 63) n)
+  (btr ($ 63) (% n))
   (single-value-return))
 
 
 (defx86lapfunction %double-float-negate! ((src arg_y) (res arg_z))
   (get-double-float src fp1)
-  (movsd fp0 fp2)
-  (subsd fp1 fp2)
+  (movsd (% fp0) (% fp2))
+  (subsd (% fp1) (% fp2))
   (put-double-float fp2 res)
   (single-value-return))
 
 
 (defx86lapfunction %short-float-negate ((src arg_z))
-  (simple-function-entry)
   (get-single-float src fp1)
-  (movss fp0 fp2)
-  (subss fp1 fp2)
+  (movss (% fp0) (% fp2))
+  (subss (% fp1) (% fp2))
   (put-single-float fp2 arg_z)
   (single-value-return))
 
 
 
 (defx86lapfunction dfloat-significand-zeros ((dfloat arg_z))
-  (simple-function-entry)
   (movq (@ target::double-float.value (% dfloat)) (% imm1))
   (shl ($ (1+ IEEE-double-float-exponent-width)) (% imm1))
   (bsrq (% imm1) (% imm0))
@@ -100,7 +94,6 @@
 ;;; bit as significant, so bash the argument into a fixnum
 ;;; first.
 (defx86lapfunction sfloat-significand-zeros ((sfloat arg_z))
-  (simple-function-entry)
   (xorb (%b sfloat) (%b sfloat))
   (shl ($ (1+ IEEE-single-float-exponent-width)) (% sfloat))
   (bsrq (% imm1) (% imm0))
@@ -109,7 +102,6 @@
   (single-value-return))
 
 (defx86lapfunction %%scale-dfloat! ((float arg_x)(int arg_y)(result arg_z))
-  (simple-function-entry)
   (unbox-fixnum int imm0)
   (get-double-float float fp1)
   (shl ($ IEEE-double-float-exponent-offset) (% imm0))
@@ -119,7 +111,6 @@
   (single-value-return))
 
 (defx86lapfunction %%scale-sfloat! ((float arg_y)(int arg_z))
-  (simple-function-entry)
   (unbox-fixnum int imm0)
   (shl ($ IEEE-double-float-exponent-offset) (% imm0))
   (movd (% imm0) (% fp2))
@@ -129,34 +120,29 @@
   (single-value-return))
 
 (defx86lapfunction %copy-double-float ((f1 arg_y) (f2 arg_z))
-  (simple-function-entry)
   (get-double-float f1 fp1)
   (put-double-float fp1 f2)
   (single-value-return))
 
 (defx86lapfunction %short-float->double-float ((src arg_y) (result arg_z))
-  (simple-function-entry)
-  (get-single-float (% fp1) src)
+  (get-single-float src fp1)
   (cvtss2sd (% fp1) (% fp1))
-  (put-double-float (% fp1) result)
+  (put-double-float fp1 result)
   (single-value-return))
 
 (defx86lapfunction %double-float->short-float ((src arg_z))
-  (simple-function-entry)
-  (get-double-float fp1 src)
+  (get-double-float src fp1)
   (cvtsd2ss (% fp1) (% fp1))
   (put-single-float fp1 arg_z)
   (single-value-return))
 
 (defx86lapfunction %int-to-sfloat ((int arg_z))
-  (simple-function-entry)
   (int-to-single int imm0 fp1)
   (put-single-float fp1 arg_z)
   (single-value-return))
   
 
 (defx86lapfunction %int-to-dfloat ((int arg_y) (dfloat arg_z))
-  (simple-function-entry)
   (int-to-double int imm0 fp1)
   (put-double-float fp1 arg_z)
   (single-value-return))
@@ -170,7 +156,6 @@
 
 ;;; Return the MXCSR as a fixnum
 (defx86lapfunction %get-mxcsr ()
-  (simple-function-entry)
   (pushq ($ '0))
   (ldmxcsr (@ 4 (% rsp)))
   (pop (% arg_z))
@@ -181,7 +166,6 @@
 ;;; on the safe side, mask the arg with X86::MXCSR-WRITE-MASK,
 ;;; so that only known control and status bits are written to.
 (defx86lapfunction %set-mxcsr ((val arg_z))
-  (simple-function-entry)
   (mov (% val) (% temp0))
   (andl ($ x86::mxcsr-write-mask) (%l temp0))
   (shl ($ (- 32 x8664::fixnumshift)) (% temp0))
@@ -211,7 +195,6 @@
 
 ;;; Return the MXCSR value in effect after the last ff-call.
 (defx86lapfunction %get-post-ffi-mxcsr ()
-  (simple-function-entry)
   (xor (% arg_z) (% arg_z))
   (movl (@ (% rcontext) x8664::tcr.ffi-exception) (%l imm0))
   (movl (%l arg_z) (@ (% rcontext) x8664::tcr.ffi-exception))
@@ -305,11 +288,11 @@
 
 ;;; Don't we already have about 20 versions of this ?
 (defx86lapfunction %double-float-from-macptr! ((ptr arg_x) (byte-offset arg_y) (dest arg_z))
-  (ldr imm0 target::macptr.address ptr)
-  (unbox-fixnum imm1 byte-offset)
-  (lfdx fp1 imm0 imm1)
+  (macptr-ptr ptr imm0)
+  (unbox-fixnum byte-offset imm1)
+  (movsd (@ (% imm0) (% imm1)) (% fp1))
   (put-double-float fp1 dest)
-  (blr))
+  (single-value-return))
 
 
 (defvar *rounding-mode-alist*
@@ -406,39 +389,39 @@
 
 (defx86lapfunction %single-float-ptr->double-float-ptr ((single arg_y) (double arg_z))
   (check-nargs 2)
-  (macptr-ptr imm0 single)
-  (lfs fp0 0 imm0)
-  (macptr-ptr imm0 double)
-  (stfd fp0 0 imm0)
-  (blr))
+  (macptr-ptr single imm0)
+  (movss (@ (% imm0)) (% fp1))
+  (cvtss2sd (% fp1) (% fp1))
+  (macptr-ptr double imm0)
+  (movsd (% fp1) (@ (% imm0)))
+  (single-value-return))
 
 ;;; Copy a double float pointed at by the macptr in double
 ;;; to a single float pointed at by the macptr in single.
 (defx86lapfunction %double-float-ptr->single-float-ptr ((double arg_y) (single arg_z))
   (check-nargs 2)
-  (macptr-ptr imm0 double)
-  (lfd fp0 0 imm0)
-  (macptr-ptr imm0 single)
-  (stfs fp0 0 imm0)
-  (blr))
+  (macptr-ptr double imm0)
+  (movsd (@ (% imm0)) (% fp1))
+  (cvtsd2ss (% fp1) (% fp1))
+  (macptr-ptr single imm0)
+  (movss (% fp0) (@ (% imm0)))
+  (single-value-return))
 
 
 (defx86lapfunction %set-ieee-single-float-from-double ((src arg_y) (macptr arg_z))
   (check-nargs 2)
-  (macptr-ptr imm0 macptr)
-  (get-double-float fp1 src)
-  (stfs fp1 0 imm0)
-  (blr))
+  (macptr-ptr macptr imm0)
+  (get-double-float src fp1)
+  (cvtsd2ss (% fp1) (% fp1))
+  (movss (% fp1) (@ (% imm0)))
+  (single-value-return))
 
-#+x866-target
 (defx86lapfunction host-single-float-from-unsigned-byte-32 ((u32 arg_z))
-  (simple-function-entry)
   (shl ($ (- 32 x8664::fixnumshift)) (% arg_z))
   (movb ($ x8664::subtag-single-float) (% arg_z.b))
   (single-value-return))
 
 (defx86lapfunction single-float-bits ((f arg_z))
-  (simple-function-entry)
   (shr ($ (- 32 x8664::fixnumshift)) (% f))
   (single-value-return))
 
@@ -453,9 +436,7 @@
     f))
 
 ;;; Return T if n is negative, else NIL.
-#+x8664-target
 (defx86lapfunction %double-float-sign ((n arg_z))
-  (simple-function-entry)
   (movl (@ x8664::double-float.val-high (% n)) (% imm0.l))
   (testl (% imm0.l) (% imm0.l))
   (movl ($ x8664::t-value) (% imm0.l))
@@ -463,9 +444,8 @@
   (cmovlq (% imm0) (% arg_z))
   (single-value-return))
 
-#+x8664-target
+
 (defx86lapfunction %short-float-sign ((n arg_z))
-  (simple-function-entry)
   (testq (% n) (% n))
   (movl ($ x8664::t-value) (% imm0.l))
   (movl ($ x8664::nil-value) (% arg_z.l))
@@ -473,3 +453,4 @@
   (single-value-return))
   
 
+;;; end of x86-float.lisp

@@ -22,7 +22,6 @@
 ;;; extension of the low word), truncate the bignum in place (the
 ;;; trailing words should already be zeroed.
 (defx86lapfunction %fixnum-to-bignum-set ((bignum arg_y) (fixnum arg_z))
-  (simple-function-entry)
   (movq (% fixnum) (% arg_x))
   (shl ($ (- 32 x8664::fixnumshift)) (% arg_x))
   (sar ($ (- 32 x8664::fixnumshift)) (% arg_x))
@@ -42,7 +41,6 @@
 ;;; Add the 32-bit "prev" digit and the 32-bit carry-in digit to that 64-bit
 ;;; result; return the halves as (VALUES high low).
 (defx86lapfunction %multiply-and-add4 ((x 0) (y arg_x) (prev arg_y) (carry-in arg_z))
-  (simple-function-entry)
   (let ((unboxed-x imm0)
         (unboxed-y imm1)
         (unboxed-prev imm0)
@@ -72,7 +70,6 @@
     (jmp-subprim .SPvalues)))
 
 (defx86lapfunction %multiply-and-add3 ((x arg_x) (y arg_y) (carry-in arg_z))
-  (simple-function-entry)
   (let ((unboxed-x imm0)
         (unboxed-y imm1)
         (unboxed-carry-in imm0)
@@ -109,18 +106,17 @@
 ;;; being "temporarily unboxed" by mucking with some bits in the
 ;;; TCR.
 (defx86lapfunction %floor ((num-high arg_x) (num-low arg_y) (divisor arg_z))
-  (simple-function-entry)
   (let ((unboxed-high imm1)
         (unboxed-low imm0)
         (unboxed-divisor ebp)
         (unboxed-quo imm0)
         (unboxed-rem imm1))
-    (movq (% rbp) (% mm0))
-    (unbox-fixnum divisor %rbp)
+    (pushq (% rbp))
+    (unbox-fixnum divisor rbp)
     (unbox-fixnum num-high unboxed-high)
     (unbox-fixnum num-low unboxed-low)
     (divl (% ebp))
-    (movq (% mm0) (% rbp))
+    (popq (% rbp))
     (box-fixnum unboxed-quo arg_y)
     (box-fixnum unboxed-rem arg_z)
     (movq (% rsp) (% temp0))
@@ -132,7 +128,6 @@
 ;;; Multiply two (UNSIGNED-BYTE 32) arguments, return the high and
 ;;; low halves of the 64-bit result
 (defx86lapfunction %multiply ((x arg_y) (y arg_z))
-  (simple-function-entry)
   (let ((unboxed-x imm0)
         (unboxed-y imm1)
         (unboxed-high imm1)
@@ -151,7 +146,6 @@
 ;;; Any words in the "tail" of the bignum should have been
 ;;; zeroed by the caller.
 (defx86lapfunction %set-bignum-length ((newlen arg_y) (bignum arg_z))
-  (simple-function-entry)
   (movq (% newlen) (% imm0))
   (shl ($ (- x8664::num-subtag-bits x8664::fixnumshift)) (% imm0))
   (movb ($ x8664::subtag-bignum) (%b imm0))
@@ -161,7 +155,6 @@
 ;;; Count the sign bits in the most significant digit of bignum;
 ;;; return fixnum count.
 (defx86lapfunction %bignum-sign-bits ((bignum arg_z))
-  (simple-function-entry)
   (vector-size bignum imm0 imm0)
   (movl (@ (- x8664::misc-data-offset 4) (% bignum) (% imm0) 4) (%l imm0))
   (movl (% imm0.l) (% imm1.l))
@@ -176,7 +169,6 @@
   (single-value-return))
 
 (defx86lapfunction %signed-bignum-ref ((bignum arg_y) (index arg_z))
-  (simple-function-entry)
   (unbox-fixnum index imm0)
   (movslq (@ x8664::misc-data-offset (% bignum) (% imm0) 4) (% imm0))
   (box-fixnum imm0 arg_z)
@@ -188,7 +180,6 @@
 ;;; and the two words of the bignum can be represented in a fixnum,
 ;;; return that fixnum; else return nil.
 (defx86lapfunction %maybe-fixnum-from-one-or-two-digit-bignum ((bignum arg_z))
-  (simple-function-entry)
   (getvheader bignum imm1)
   (cmpq ($ x8664::one-digit-bignum-header) (% imm1))
   (je @one)
@@ -196,8 +187,8 @@
   (jne @no)
   (movq (@ x8664::misc-data-offset (% bignum)) (% imm0))
   (box-fixnum imm0 arg_z)
-  (unbox-fixnum arg imm1_z)
-  (cmpq (%imm0) (% imm1))
+  (unbox-fixnum arg_z imm1)
+  (cmpq (% imm0) (% imm1))
   (je @done)
   @no
   (movq ($ nil) (% arg_z))
@@ -212,7 +203,6 @@
 ;;; Make sure that the rest of %rcx is 0, to keep the GC happy.
 ;;; %rcx == temp1
 (defx86lapfunction %digit-logical-shift-right ((digit arg_y) (count arg_z))
-  (simple-function-entry)
   (unbox-fixnum digit imm0)
   (unbox-fixnum count imm1)
   (xorq (% temp1) (% temp1))
@@ -223,7 +213,6 @@
   (single-value-return))
 
 (defx86lapfunction %ashr ((digit arg_y) (count arg_z))
-  (simple-function-entry)
   (unbox-fixnum digit imm0)
   (unbox-fixnum count imm1)
   (xorq (% temp1) (% temp1))
@@ -234,7 +223,6 @@
   (single-value-return))
 
 (defx86lapfunction %ashl ((digit arg_y) (count arg_z))
-  (simple-function-entry)
   (unbox-fixnum digit imm0)
   (unbox-fixnum count imm1)
   (xorq (% temp1) (% temp1))
@@ -245,7 +233,6 @@
   (single-value-return))
 
 (defx86lapfunction macptr->fixnum ((ptr arg_z))
-  (simple-function-entry)
   (macptr-ptr arg_z ptr)
   (single-value-return))
 

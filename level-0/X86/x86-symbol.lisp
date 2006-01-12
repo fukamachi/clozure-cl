@@ -26,7 +26,6 @@
 ;;; isn't a true symbol, but that NILSYM is.
 (defx86lapfunction %function ((sym arg_z))
   (check-nargs 1)
-  (simple-function-entry)
   (let ((symaddr temp0))
     (movq ($ (+ x8664::nil-value x8664::nilsym-offset)) (% symaddr))
     (cmp-reg-to-nil sym)
@@ -42,7 +41,6 @@
 ;;; (This is mostly done to perform typechecking and to
 ;;; allow lisp code to use %SVREF, etc.)
 (defx86lapfunction %symbol->symptr ((sym arg_z))
-  (simple-function-entry)
   (let ((symaddr temp0))
     (movq ($ (+ x8664::nil-value x8664::nilsym-offset)) (% symaddr))
     (cmp-reg-to-nil sym)
@@ -55,7 +53,6 @@
 ;;; Traps unless symptr is a symbol-vector; returns NIL if symptr
 ;;; is NILSYM's symbol-vector, else the underlying symbol
 (defx86lapfunction %symptr->symbol ((symptr arg_z))
-  (simple-function-entry)
   (trap-unless-typecode= symptr x8664::subtag-symbol)
   (leaq (@ (- x8664::fulltag-symbol x8664::fulltag-misc) (% symptr)) (% arg_z))
   (movl ($ nil) (% imm0.l))
@@ -64,12 +61,10 @@
   (single-value-return))
 
 (defx86lapfunction %symptr-value ((symptr arg_z))
-  (simple-function-entry)
   (addq ($ (- x8664::fulltag-symbol x8664::fulltag-misc)) (% symptr))
   (jmp-subprim .SPspecref))
 
 (defx86lapfunction %set-symptr-value ((symptr arg_y) (val arg_z))
-  (simple-function-entry)
   (addq ($ (- x8664::fulltag-symbol x8664::fulltag-misc)) (% symptr))
   (jmp-subprim .SPspecset))
 
@@ -78,7 +73,6 @@
 ;;; it doesn't really matter whether that thing is a symbol
 ;;; or a symbol vector if there isn't a binding in the TCR.
 (defx86lapfunction %symptr-binding-address ((symptr arg_z))
-  (simple-function-entry)
   (movq (@ x8664::symbol.binding-index (% symptr)) (% arg_y))
   (rcmp (% arg_y) (@ (% rcontext) x8664::tcr.tlb-limit))
   (movq (@ (% rcontext) x8664::tcr.tlb-pointer) (% arg_x))
@@ -99,7 +93,6 @@
   (jmp-subprim .SPvalues))
 
 (defx86lapfunction %tcr-binding-location ((tcr arg_y) (sym arg_z))
-  (simple-function-entry)
   (movq (@ x8664::symbol.binding-index (% sym)) (% arg_x))
   (movl ($ nil) (% arg_z.l))
   (rcmp (% arg_x) (@ x8664::tcr.tlb-limit (% tcr)))
@@ -115,7 +108,6 @@
 
   
 (defx86lapfunction %pname-hash ((str arg_y) (len arg_z))
-  (simple-function-entry)
   (let ((accum imm0)
         (offset imm1))
     (xorq (% offset) (% offset))

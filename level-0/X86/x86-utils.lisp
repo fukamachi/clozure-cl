@@ -17,33 +17,15 @@
 
 (in-package "CCL")
 
-#+ppc32-target
-(defppclapfunction %address-of ((arg arg_z))
+(defx86lapfunction %address-of ((arg arg_z))
   ;; %address-of a fixnum is a fixnum, just for spite.
   ;; %address-of anything else is the address of that thing as an integer.
-  (clrlwi. imm0 arg (- 32 ppc32::nlisptagbits))
-  (beqlr cr0)
-  (mr imm0 arg_z)
-  ;; set cr0_eq if result fits in a fixnum
-  (clrrwi. imm1 imm0 (- ppc32::least-significant-bit ppc32::nfixnumtagbits))
-  (box-fixnum arg_z imm0)               ; assume it did
-  (beqlr+ cr0)                          ; else arg_z tagged ok, but missing bits
-  (ba .SPmakeu32)         ; put all bits in bignum.
-)
-
-#+ppc64-target
-(defppclapfunction %address-of ((arg arg_z))
-  ;; %address-of a fixnum is a fixnum, just for spite.
-  ;; %address-of anything else is the address of that thing as an integer.
-  (clrldi. imm0 arg (- 64 ppc64::nlisptagbits))
-  (beqlr cr0)
-  (mr imm0 arg_z)
-  ;; set cr0_eq if result fits in a fixnum
-  (clrrdi. imm1 imm0 (- ppc64::least-significant-bit ppc64::nfixnumtagbits))
-  (box-fixnum arg_z imm0)               ; assume it did
-  (beqlr+ cr0)                          ; else arg_z tagged ok, but missing bits
-  (ba .SPmakeu64)         ; put all bits in bignum.
-)
+  (testb ($ x8664::fixnummask) (%b arg))
+  (je @done)
+  (movq (% arg) (% imm0)
+  (jump-subprim .SPmakeu64)
+  @done
+  (single-value-return))
 
 ;;; "areas" are fixnum-tagged and, for the most part, so are their
 ;;; contents.
@@ -56,59 +38,55 @@
 
 
 
-(defppclapfunction %normalize-areas ()
-  (let ((address imm0)
-        (temp imm2))
+(defx86lapfunction %normalize-areas ()
+  (let ((address temp0)
+        (temp temp1))
 
     ; update active pointer for tsp area.
-    (ldr address target::tcr.ts-area target::rcontext)
-    (str tsp target::area.active address)
+    (movq (@ (% rcontext) x8664::tcr.ts-area) (% address))
+    (movq (@ (% rcontext) x8664::tcr.save-tsp) (% temp))
+    (movq (% temp) (@ x8664::area.active (@ address)))
     
     ;; Update active pointer for vsp area.
-    (ldr address target::tcr.vs-area target::rcontext)
-    (str vsp target::area.active address)
-    
-    ; Update active pointer for SP area
-    (ldr arg_z target::tcr.cs-area target::rcontext)
-    (str sp target::area.active arg_z)
+    (movq (@ (% rcontext) x8664::tcr.vs-area) (% address))
+    (movq (@ rsp) (@ x8664::area.active (% address)))
 
+    (ref-global all-areas arg_z)
+    (movq (@ x8664::area.succ (% arg_z)) (% arg_z))
 
-    (ref-global arg_z all-areas)
-    (ldr arg_z target::area.succ arg_z)
+    (single-value-return)))
 
-    (blr)))
-
-(defppclapfunction %active-dynamic-area ()
-  (ref-global arg_z all-areas)
-  (ldr arg_z target::area.succ arg_z)
-  (blr))
+(defx86lapfunction %active-dynamic-area ()
+  (ref-global all-areas arg_z)
+  (movq (@ x8664::area.succ (% arg_z)) (% arg_z))
+  (single-value-return))
 
   
-(defppclapfunction %object-in-stack-area-p ((object arg_y) (area arg_z))
-  (ldr imm0 target::area.active area)
+(defx86lapfunction %object-in-stack-area-p ((object arg_y) (area arg_z))
+  (movq (@ x8664::area.active (% area)) (% imm0))
+  (movq (@ x8664::area.high (% area)) (% imm1))
+  (rcmp (% object) (% imm0))
+  (movq ($ nil) (% arg_z))
+  (movq ($ t) (% imm0))
+  (jb @done)
+  (rcmp (% object) (% imm1))
+  (cmovbq (% imm0) (% arg_z))
+  @done
+  (single-value-return))
+
+(defx86lapfunction %object-in-heap-area-p ((object arg_y) (area arg_z))
+  (ldr imm0 x8664::area.low area)
   (cmplr cr0 object imm0)
-  (ldr imm1 target::area.high area)
+  (ldr imm1 x8664::area.active area)
   (cmplr cr1 object imm1)
   (li arg_z nil)
   (bltlr cr0)
   (bgelr cr1)
-  (la arg_z target::t-offset arg_z)
-  (blr))
-
-(defppclapfunction %object-in-heap-area-p ((object arg_y) (area arg_z))
-  (ldr imm0 target::area.low area)
-  (cmplr cr0 object imm0)
-  (ldr imm1 target::area.active area)
-  (cmplr cr1 object imm1)
-  (li arg_z nil)
-  (bltlr cr0)
-  (bgelr cr1)
-  (la arg_z target::t-offset arg_z)
-  (blr))
+  (la arg_z x8664::t-offset arg_z)
+  (single-value-return))
 
 
-#+ppc32-target
-(defppclapfunction walk-static-area ((a arg_y) (f arg_z))
+(defx86lapfunction walk-static-area ((a arg_y) (f arg_z))
   (let ((fun save0)
         (obj save1)
         (limit save2)
@@ -118,77 +96,6 @@
         (bytes imm3)
         (elements imm0))
     (save-lisp-context)
-    (:regsave limit 0)
-    (vpush fun)
-    (vpush obj)
-    (vpush limit)
-    (mr fun f)
-    (lwz limit ppc32::area.active a)
-    (lwz obj ppc32::area.low a)
-    (b @test)
-    @loop
-    (lwz header 0 obj)
-    (extract-fulltag tag header)
-    (cmpwi cr0 tag ppc32::fulltag-immheader)
-    (cmpwi cr1 tag ppc32::fulltag-nodeheader)
-    (beq cr0 @misc)
-    (beq cr1 @misc)
-    (la arg_z ppc32::fulltag-cons obj)
-    (set-nargs 1)
-    (mr temp0 fun)
-    (bla .SPFuncall)
-    (la obj ppc32::cons.size obj)
-    (b @test)
-    @misc
-    (la arg_z ppc32::fulltag-misc obj)
-    (set-nargs 1)
-    (mr temp0 fun)
-    (bla .SPFuncall)
-    (lwz header 0 obj)
-    (extract-fulltag tag header)
-    (cmpwi cr1 tag ppc32::fulltag-nodeheader)
-    (clrlwi subtag header (- 32 ppc32::num-subtag-bits))
-    (cmpwi cr2 subtag ppc32::max-32-bit-ivector-subtag)
-    (cmpwi cr3 subtag ppc32::max-8-bit-ivector-subtag)
-    (cmpwi cr4 subtag ppc32::max-16-bit-ivector-subtag)
-    (cmpwi cr5 subtag ppc32::subtag-double-float-vector)
-    (header-size elements header)
-    (slwi bytes elements 2)
-    (beq cr1 @bump)
-    (ble cr2 @bump)
-    (mr bytes elements)
-    (ble cr3 @bump)
-    (slwi bytes elements 1)
-    (ble cr4 @bump)
-    (slwi bytes elements 3)
-    (beq cr5 @bump)
-    (la elements 7 elements)
-    (srwi bytes elements 3)
-    @bump
-    (la bytes (+ 4 7) bytes)
-    (clrrwi bytes bytes 3)
-    (add obj obj bytes)
-    @test
-    (cmplw :cr0 obj limit)
-    (blt cr0 @loop)
-    (vpop limit)
-    (vpop obj)
-    (vpop fun)
-    (restore-full-lisp-context)
-    (blr)))
-
-#+ppc64-target
-(defppclapfunction walk-static-area ((a arg_y) (f arg_z))
-  (let ((fun save0)
-        (obj save1)
-        (limit save2)
-        (header imm0)
-        (tag imm1)
-        (subtag imm2)
-        (bytes imm3)
-        (elements imm0))
-    (save-lisp-context)
-    (:regsave limit 0)
     (vpush fun)
     (vpush obj)
     (vpush limit)
@@ -246,7 +153,7 @@
     (vpop obj)
     (vpop fun)
     (restore-full-lisp-context)
-    (blr)))
+    (single-value-return)))
 
 ;;; This walks the active "dynamic" area.  Objects might be moving around
 ;;; while we're doing this, so we have to be a lot more careful than we 
@@ -265,96 +172,9 @@
 ;;; This, of course, assumes that any GC we're doing does in-place compaction
 ;;; (or at least preserves the relative order of objects in the heap.)
 
-#+ppc32-target
-(defppclapfunction %walk-dynamic-area ((a arg_y) (f arg_z))
-  (let ((fun save0)
-        (obj save1)
-        (sentinel save2)
-        (header imm0)
-        (tag imm1)
-        (subtag imm2)
-        (bytes imm3)
-        (elements imm4))
-    (save-lisp-context)
-    (:regsave sentinel 0)
-    (vpush fun)
-    (vpush obj)
-    (vpush sentinel)
-    (ref-global imm0 tenured-area)
-    (cmpwi cr0 imm0 0)
-    (li allocbase #xfff8)
-    (la allocptr (- ppc32::fulltag-cons ppc32::cons.size) allocptr)
-    (twllt allocptr allocbase)
-    (mr sentinel allocptr)
-    (clrrwi allocptr allocptr ppc32::ntagbits)
-    (mr fun f)
-    (if :ne
-      (mr a imm0))    
-    (lwz imm5 ppc32::area.low a)
-    @loop
-    (lwz header 0 imm5)
-    (extract-fulltag tag header)
-    (cmpwi cr0 tag ppc32::fulltag-immheader)
-    (cmpwi cr1 tag ppc32::fulltag-nodeheader)
-    (beq cr0 @misc)
-    (beq cr1 @misc)
-    (la obj ppc32::fulltag-cons imm5)
-    (cmpw cr0 obj sentinel)
-    (mr arg_z obj)
-    (set-nargs 1)
-    (mr temp0 fun)
-    (beq cr0 @done)
-    (bla .SPfuncall)
-    (la imm5 (- ppc32::cons.size ppc32::fulltag-cons) obj)
-    (b @loop)
-    @misc
-    (la obj ppc32::fulltag-misc imm5)
-    (mr arg_z obj)
-    (set-nargs 1)
-    (mr temp0 fun)
-    (bla .SPFuncall)
-    (getvheader header obj)
-    (extract-fulltag tag header)
-    (cmpwi cr1 tag ppc32::fulltag-nodeheader)
-    (cmpwi cr7 tag ppc32::fulltag-immheader)
-    (clrlwi subtag header (- 32 ppc32::num-subtag-bits))
-    (cmpwi cr2 subtag ppc32::max-32-bit-ivector-subtag)
-    (cmpwi cr3 subtag ppc32::max-8-bit-ivector-subtag)
-    (cmpwi cr4 subtag ppc32::max-16-bit-ivector-subtag)
-    (cmpwi cr5 subtag ppc32::subtag-double-float-vector)
-    (header-size elements header)
-    (slwi bytes elements 2)
-    (beq cr1 @bump)
-    (if (:cr7 :ne)
-      (twle 0 0))
-    (ble cr2 @bump)
-    (mr bytes elements)
-    (ble cr3 @bump)
-    (slwi bytes elements 1)
-    (ble cr4 @bump)
-    (slwi bytes elements 3)
-    (beq cr5 @bump)
-    (la elements 7 elements)
-    (srwi bytes elements 3)
-    @bump
-    (la bytes (+ 4 7) bytes)
-    (clrrwi bytes bytes 3)
-    (subi imm5 obj ppc32::fulltag-misc)
-    (add imm5 imm5 bytes)
-    (cmpw cr0 imm5  sentinel)
-    (blt cr0 @loop)
-    (uuo_interr 0 0)
-    (b @loop)
-    @done
-    (li arg_z nil)
-    (vpop sentinel)
-    (vpop obj)
-    (vpop fun)
-    (restore-full-lisp-context)
-    (blr)))
 
-#+ppc64-target
-(defppclapfunction %walk-dynamic-area ((a arg_y) (f arg_z))
+
+(defx86lapfunction %walk-dynamic-area ((a arg_y) (f arg_z))
   (let ((fun save0)
         (obj save1)
         (sentinel save2)
@@ -436,7 +256,7 @@
     (vpop obj)
     (vpop fun)
     (restore-full-lisp-context)
-    (blr)))
+    (single-value-return)))
 
 (defun walk-dynamic-area (area func)
   (with-other-threads-suspended
@@ -444,35 +264,35 @@
 
 
 
-(defppclapfunction %class-of-instance ((i arg_z))
+(defx86lapfunction %class-of-instance ((i arg_z))
   (svref arg_z instance.class-wrapper i)
   (svref arg_z %wrapper-class arg_z)
-  (blr))
+  (single-value-return))
 
-(defppclapfunction class-of ((x arg_z))
+(defx86lapfunction class-of ((x arg_z))
   (check-nargs 1)
   (extract-fulltag imm0 x)
-  (cmpri imm0 target::fulltag-misc)
+  (cmpri imm0 x8664::fulltag-misc)
   (beq @misc)
   (extract-lowbyte imm0 x)
   (b @done)
   @misc
   (extract-subtag imm0 x)
   @done
-  (slri imm0 imm0 target::word-shift)
+  (slri imm0 imm0 x8664::word-shift)
   (ldr temp1 '*class-table* nfn)
-  (addi imm0 imm0 target::misc-data-offset)
-  (ldr temp1 target::symbol.vcell temp1)
+  (addi imm0 imm0 x8664::misc-data-offset)
+  (ldr temp1 x8664::symbol.vcell temp1)
   (ldrx temp0 temp1 imm0) ; get entry from table
   (cmpri cr0 temp0 nil)
   (beq @bad)
   ;; functionp?
   (extract-typecode imm1 temp0)
-  (cmpri imm1 target::subtag-function)
+  (cmpri imm1 x8664::subtag-function)
   (bne @ret)  ; not function - return entry
   ;; else jump to the fn
   (mr nfn temp0)
-  (ldr temp0 target::misc-data-offset temp0)
+  (ldr temp0 x8664::misc-data-offset temp0)
   (SET-NARGS 1)
   (mtctr temp0)
   (bctr)
@@ -481,71 +301,76 @@
   (ba .spjmpsym)
   @ret
   (mr arg_z temp0)  ; return frob from table
-  (blr))
+  (single-value-return))
 
-(defppclapfunction full-gccount ()
-  (ref-global arg_z tenured-area)
-  (cmpri cr0 arg_z 0)
-  (if :eq
-    (ref-global arg_z gc-count)
-    (ldr arg_z target::area.gc-count arg_z))
-  (blr))
+(defx86lapfunction full-gccount ()
+  (ref-global tenured-area arg_z)
+  (testq (% arg_z) (% arg_z))
+  (cmoveq (@ (+ x8664::nil-value (x8664::%kernel-global 'gc-count))) (% arg_z))
+  (cmovneq (@ x8664::area.gc-count (% arg_z)) (% arg_z))
+  (single-value-return))
 
 
-(defppclapfunction gc ()
+(defx86lapfunction gc ()
   (check-nargs 0)
-  (li imm0 arch::gc-trap-function-gc)
-  (trlgei allocptr 0)
-  (li arg_z target::nil-value)
-  (blr))
+  (movq ($ arch::gc-trap-function-gc) (% imm0))
+  (uuo-gc-trap)
+  (movq ($ nil) (% arg_z)
+  (single-value-return))
 
 
-(defppclapfunction egc ((arg arg_z))
+(defx86lapfunction egc ((arg arg_z))
   "Enable the EGC if arg is non-nil, disables the EGC otherwise. Return
 the previous enabled status. Although this function is thread-safe (in
 the sense that calls to it are serialized), it doesn't make a whole lot
 of sense to be turning the EGC on and off from multiple threads ..."
   (check-nargs 1)
-  (subi imm1 arg nil)
-  (li imm0 arch::gc-trap-function-egc-control)
-  (trlgei allocptr 0)
-  (blr))
+  (clrq imm1)
+  (cmp-reg-to-nil arg)
+  (setne (% imm1.b))
+  (movq ($ arch::gc-trap-function-egc-control) (% imm0))
+  (uuo-gc-trap)
+  (single-value-return))
 
 
 
-(defppclapfunction %configure-egc ((e0size arg_x)
+
+(defx86lapfunction %configure-egc ((e0size arg_x)
 				   (e1size arg_y)
 				   (e2size arg_z))
   (check-nargs 3)
-  (li imm0 arch::gc-trap-function-configure-egc)
-  (trlgei allocptr 0)
-  (blr))
+  (movq ($ arch::gc-trap-function-configure-egc) (% imm0))
+  (uuo-gc-trap)
+  (single-value-return))
 
-(defppclapfunction purify ()
-  (li imm0 arch::gc-trap-function-purify)
-  (trlgei allocptr 0)
-  (li arg_z nil)
-  (blr))
+(defx86lapfunction purify ()
+  (check-nargs 0)
+  (movq ($ arch::gc-trap-function-purify) (% imm0))
+  (uuo-gc-trap)
+  (movq ($ nil) (% arg_z))
+  (single-value-return))
 
 
-(defppclapfunction impurify ()
-  (li imm0 arch::gc-trap-function-impurify)
-  (trlgei allocptr 0)
-  (li arg_z nil)
-  (blr))
+(defx86lapfunction impurify ()
+  (check-nargs 0)
+  (movq ($ arch::gc-trap-function-impurify) (% imm0))
+  (uuo-gc-trap)
+  (movq ($ nil) (% arg_z))
+  (single-value-return))
 
-(defppclapfunction lisp-heap-gc-threshold ()
+
+(defx86lapfunction lisp-heap-gc-threshold ()
   "Return the value of the kernel variable that specifies the amount
 of free space to leave in the heap after full GC."
   (check-nargs 0)
-  (li imm0 arch::gc-trap-function-get-lisp-heap-threshold)
-  (trlgei allocptr 0)
-  #+ppc32-target
-  (ba .SPmakeu32)
-  #+ppc64-target
-  (ba .SPmakeu64))
+  (movq ($ arch::gc-trap-function-get-lisp-heap-threshold) (% imm0))
+  (uuo-gc-trap)
+  #+x8632-target
+  (jump-subprim .SPmakeu32)
+  #+x8664-target
+  (jump-subprim .SPmakeu64))
 
-(defppclapfunction set-lisp-heap-gc-threshold ((new arg_z))
+(defx86lapfunction set-lisp-heap-gc-threshold ((new arg_z))
   "Set the value of the kernel variable that specifies the amount of free
 space to leave in the heap after full GC to new-value, which should be a
 non-negative fixnum. Returns the value of that kernel variable (which may
@@ -566,64 +391,64 @@ be somewhat larger than what was specified)."
   (ba .SPmakeu64))
 
 
-(defppclapfunction use-lisp-heap-gc-threshold ()
+(defx86lapfunction use-lisp-heap-gc-threshold ()
   "Try to grow or shrink lisp's heap space, so that the free space is(approximately) equal to the current heap threshold. Return NIL"
   (check-nargs 0) 
   (li imm0 arch::gc-trap-function-use-lisp-heap-threshold)
   (trlgei allocptr 0)
   (li arg_z nil)
-  (blr))
+  (single-value-return))
 
 
 
   
 
 
-;;; offset is a fixnum, one of the target::kernel-import-xxx constants.
+;;; offset is a fixnum, one of the x8664::kernel-import-xxx constants.
 ;;; Returns that kernel import, a fixnum.
-(defppclapfunction %kernel-import ((offset arg_z))
+(defx86lapfunction %kernel-import ((offset arg_z))
   (ref-global imm0 kernel-imports)
   (unbox-fixnum imm1 arg_z)
   (ldrx arg_z imm0 imm1)
-  (blr))
+  (single-value-return))
 
-(defppclapfunction %get-unboxed-ptr ((macptr arg_z))
+(defx86lapfunction %get-unboxed-ptr ((macptr arg_z))
   (macptr-ptr imm0 arg_z)
   (ldr arg_z 0 imm0)
-  (blr))
+  (single-value-return))
 
 
-(defppclapfunction %revive-macptr ((p arg_z))
-  (li imm0 target::subtag-macptr)
-  (stb imm0 target::misc-subtag-offset p)
-  (blr))
+(defx86lapfunction %revive-macptr ((p arg_z))
+  (li imm0 x8664::subtag-macptr)
+  (stb imm0 x8664::misc-subtag-offset p)
+  (single-value-return))
 
-(defppclapfunction %macptr-type ((p arg_z))
+(defx86lapfunction %macptr-type ((p arg_z))
   (check-nargs 1)
-  (trap-unless-typecode= p target::subtag-macptr)
-  (svref imm0 target::macptr.type-cell p)
+  (trap-unless-typecode= p x8664::subtag-macptr)
+  (svref imm0 x8664::macptr.type-cell p)
   (box-fixnum arg_z imm0)
-  (blr))
+  (single-value-return))
   
-(defppclapfunction %macptr-domain ((p arg_z))
+(defx86lapfunction %macptr-domain ((p arg_z))
   (check-nargs 1)
-  (trap-unless-typecode= p target::subtag-macptr)
-  (svref imm0 target::macptr.domain-cell p)
+  (trap-unless-typecode= p x8664::subtag-macptr)
+  (svref imm0 x8664::macptr.domain-cell p)
   (box-fixnum arg_z imm0)
-  (blr))
+  (single-value-return))
 
-(defppclapfunction %set-macptr-type ((p arg_y) (new arg_z))
+(defx86lapfunction %set-macptr-type ((p arg_y) (new arg_z))
   (check-nargs 2)
   (unbox-fixnum imm1 new)
-  (trap-unless-typecode= p target::subtag-macptr)
-  (svset imm1 target::macptr.type-cell p)
-  (blr))
+  (trap-unless-typecode= p x8664::subtag-macptr)
+  (svset imm1 x8664::macptr.type-cell p)
+  (single-value-return))
 
-(defppclapfunction %set-macptr-domain ((p arg_y) (new arg_z))
+(defx86lapfunction %set-macptr-domain ((p arg_y) (new arg_z))
   (check-nargs 2)
   (unbox-fixnum imm1 new)
-  (trap-unless-typecode= p target::subtag-macptr)
-  (svset imm1 target::macptr.domain-cell p)
-  (blr))
+  (trap-unless-typecode= p x8664::subtag-macptr)
+  (svset imm1 x8664::macptr.domain-cell p)
+  (single-value-return))
 
 ; end

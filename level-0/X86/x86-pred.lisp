@@ -24,7 +24,6 @@
   "Return T if OBJ1 and OBJ2 represent the same object, otherwise NIL."
   (check-nargs 2)
   @top
-  (simple-function-entry)
   @tail
   (cmpq (% x) (% y))
   (je @win)
@@ -73,11 +72,10 @@
   (pushq (@ x8664::ratio.denom (% y)))
   (movq (@ x8664::ratio.numer (% x)) (% x))       ; aka complex.realpart
   (movq (@ x8664::ratio.numer (% y)) (% y))       ; aka complex.realpart
-  (movq (% fn) (% nfn))
-  (lea (@ (- (^ @back) (^ @entry)) (% fn)) (% fn))
+  (lea (@ (^ @back) (% fn)) (% ra0))
   (jmp @top)
   (:tra @back)
-  (recover-fn-from-nfn @back)
+  (recover-fn-from-ra0 @back)
   (cmp-reg-to-nil arg_z)
   (pop (% y))
   (pop (% x))
@@ -111,7 +109,6 @@
   EQ to be EQUAL.  Pathnames are EQUAL if their components are."
   (check-nargs 2)
   @top
-  (simple-function-entry)
   @tail
   (cmpq (% x) (% y))
   (je @win)
@@ -146,11 +143,10 @@
   (stack-probe)
   (movq (% temp0) (% x))
   (movq (% temp1) (% y))
-  (movq (% fn) (% nfn))
-  (lea (@ (- (^ @back) (^ @entry)) (% fn)) (% fn))
+  (lea (@ (^ @back) (% fn)) (% ra0))
   (jmp @top)
   (:tra @back)
-  (recover-fn-from-nfn @back)
+  (recover-fn-from-ra0 @back)
   (cmp-reg-to-nil arg_z)
   (pop (% y))
   (pop (% x))
