@@ -176,10 +176,10 @@
 (defx86reg fn.w si)
 (defx86reg fn.b sil)
 
-(defx86reg nfn rdi)
-(defx86reg nfn.l edi)
-(defx86reg nfn.w di)
-(defx86reg nfn.b dil)
+(defx86reg ra0 rdi)
+(defx86reg ra0.l edi)
+(defx86reg ra0.w di)
+(defx86reg ra0.b dil)
 
 (defx86reg arg_z r8)
 (defx86reg arg_z.l r8d)
@@ -253,16 +253,15 @@
 (defx86reg fname temp0)
 (defx86reg next-method-context temp0)
 (defx86reg nargs temp2.w)
-;;; We rely one at least one of %nfn/%fn pointing to the current function
+;;; We rely one at least one of %ra0/%fn pointing to the current function
 ;;; (or to a TRA that references the function) at all times.  When we
-;;; tail call something, we want %FN to point to our caller's TRA and
-;;; %NFN to point to the new function.  Unless we go out of line to
+;;; tail call something, we want %RA0 to point to our caller's TRA and
+;;; %FN to point to the new function.  Unless we go out of line to
 ;;; do tail calls, we need some register not involved in the calling
 ;;; sequence to hold the current function, since it might get GCed otherwise.
 ;;; (The odds of this happening are low, but non-zero.)
 (defx86reg xfn temp1)
 
-(defx86reg ra0 nfn)
 (defx86reg ra1 fn)
 
 (defx86reg allocptr temp0)
@@ -632,12 +631,12 @@
   db-link				; special binding chain head 
   catch-top				; top catch frame 
   save-vsp				; VSP when in foreign code 
-  save-tsp				; TSP when in foreign code 
+  save-tsp				; TSP, at all times
   cs-area				; cstack area pointer 
   vs-area				; vstack area pointer 
   ts-area				; tstack area pointer 
   cs-limit				; cstack overflow limit
-  total-bytes-allocated-high
+  total-bytes-allocated
   OLDinterrupt-level			; fixnum
   interrupt-pending			; fixnum
   xframe				; exception frame linked list
