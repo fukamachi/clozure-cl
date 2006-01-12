@@ -304,6 +304,7 @@
 
 (defun %define-vinsn (backend vinsn-name results args temps body)
   (funcall (backend-define-vinsn backend)
+           backend
            vinsn-name
            results
            args
