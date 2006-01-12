@@ -1,3 +1,44 @@
+2006-01-12 01:33  gb
+
+	* compiler/PPC/ppc-backend.lisp: Fix DEFINE-PPC-VINSN.
+
+2006-01-12 01:32  gb
+
+	* level-1/version.lisp: Bump again.  Maybe a little difficult to
+	bootstrap; new binaries soon if so.
+
+2006-01-12 01:25  gb
+
+	* level-1/version.lisp: Bump.  Maybe a little difficult to
+	bootstrap; new binaries soon if so.
+
+2006-01-12 01:25  gb
+
+	* level-0/X86/: x86-float.lisp, x86-hash.lisp, x86-io.lisp,
+	x86-misc.lisp, x86-numbers.lisp, x86-pred.lisp, x86-symbol.lisp,
+	x86-utils.lisp, X8664/x8664-bignum.lisp: Most (if not all) things
+	that have been translated to x8664 assembler assemble (and,
+	according to the dissassembler, do so correctly.)
+	
+	Maybe about 80% coverage; still a few hard cases.
+
+2006-01-12 01:23  gb
+
+	* level-0/PPC/ppc-misc.lisp: VOID-ALLOCPTR looks like -16 on PPC64.
+
+2006-01-12 01:22  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Reference new stub vinsn
+	functions.
+
+2006-01-12 01:21  gb
+
+	* compiler/X86/x86-backend.lisp: Stub vinsn functions.
+
+2006-01-12 01:21  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: DEFINE-X8664-VINSN.
+
 2006-01-12 01:19  gb
 
 	* compiler/X86/X8664/x8664-arch.lisp: Change the calling sequence:
