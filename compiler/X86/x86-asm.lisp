@@ -3051,43 +3051,43 @@
    
    ;;; cvtsd2si.  This does rounding (as opposed to truncation).
    (def-x8664-opcode cvtsd2siq ((:regxmm :insert-xmm-rm) (:reg64 :insert-modrm-reg))
-     #x0f2d #x300 #x48)
+     #x0f2d #o300 #x48 #xf2)
    (def-x8664-opcode cvtsd2siq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
-     #x0f2d #x000 #x48)
+     #x0f2d #o000 #x48 #xf2)
    (def-x8664-opcode cvtsd2sil ((:regxmm :insert-xmm-rm) (:reg32 :insert-modrm-reg))
-     #x0f2d #x300 #x00)
+     #x0f2d #o300 #x00 #xf2)
    (def-x8664-opcode cvtsd2sil ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
-     #x0f2d #x000 #x00)
+     #x0f2d #o000 #x00 #xf2)
 
    ;;; cvtss2si.  This does rounding (as opposed to truncation).
    (def-x8664-opcode cvtss2siq ((:regxmm :insert-xmm-rm) (:reg64 :insert-modrm-reg))
-     #x0f2d #x300 #x48 #xf3)
+     #x0f2d #o300 #x48 #xf3)
    (def-x8664-opcode cvtss2siq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
-     #x0f2d #x000 #x48 #xf3)
+     #x0f2d #o000 #x48 #xf3)
    (def-x8664-opcode cvtss2sil ((:regxmm :insert-xmm-rm) (:reg32 :insert-modrm-reg))
-     #x0f2d #x300 #x00 #xf3)
+     #x0f2d #o300 #x00 #xf3)
    (def-x8664-opcode cvtss2sil ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
-     #x0f2d #x000 #x00 #xf3)
+     #x0f2d #o000 #x00 #xf3)
    
    ;;; cvttsd2si.  This does truncation (as opposed to rounding).
    (def-x8664-opcode cvttsd2siq ((:regxmm :insert-xmm-rm) (:reg64 :insert-modrm-reg))
-     #x0f2c #x300 #x48)
+     #x0f2c #o300 #x48 #xf2)
    (def-x8664-opcode cvttsd2siq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
-     #x0f2c #x000 #x48)
+     #x0f2c #o000 #x48 #xf2)
    (def-x8664-opcode cvttsd2sil ((:regxmm :insert-xmm-rm) (:reg32 :insert-modrm-reg))
-     #x0f2c #x300 #x00)
+     #x0f2c #o300 #x00 #xf2)
    (def-x8664-opcode cvtsd2sil ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
-     #x0f2c #x000 #x00)
+     #x0f2c #o000 #x00 #xf2)
 
    ;;; cvtss2si.  This does rounding (as opposed to truncation).
    (def-x8664-opcode cvttss2siq ((:regxmm :insert-xmm-rm) (:reg64 :insert-modrm-reg))
-     #x0f2c #x300 #x48 #xf3)
+     #x0f2c #o300 #x48 #xf3)
    (def-x8664-opcode cvttss2siq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
-     #x0f2c #x000 #x48 #xf3)
+     #x0f2c #o000 #x48 #xf3)
    (def-x8664-opcode cvttss2sil ((:regxmm :insert-xmm-rm) (:reg32 :insert-modrm-reg))
-     #x0f2d #x300 #x00 #xf3)
+     #x0f2d #o300 #x00 #xf3)
    (def-x8664-opcode cvttss2sil ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
-     #x0f2c #x000 #x00 #xf3)
+     #x0f2c #o000 #x00 #xf3)
 
    ;; cvtsi2sd
    (def-x8664-opcode cvtsi2sdq ((:reg64 :insert-modrm-rm) (:regxmm :insert-xmm-reg))
@@ -3216,6 +3216,9 @@
    (def-x8664-opcode uuo-stack-overflow ()
      #xcdc3 nil nil)
 
+   (def-x8664-opcode uuo-gc-trap ()
+     #xcdc4 nil nil)
+   
    (def-x8664-opcode uuo-error-reg-not-type ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdd0 nil 0)
 
@@ -4423,5 +4426,8 @@
                                       overlap2
                                       type2
                                       template-type2)))))))))))))))
+
+
+
 
 (provide "X86-ASM")
