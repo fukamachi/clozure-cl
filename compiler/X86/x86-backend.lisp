@@ -1,4 +1,4 @@
-;;;-*- Mode: Lisp; Package: (PPC32 :use CL) -*-
+;;;-*- Mode: Lisp; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 2005, Clozure Associates
 ;;;   This file is part of OpenMCL.  
@@ -26,6 +26,14 @@
     (let* ((v (make-array newsize :initial-element nil)))
       (dotimes (i oldsize (setq *x862-specials* v))
         (setf (svref v i) (svref old i))))))
+
+(defun lookup-x86-opcode (form)
+  (declare (ignore form))
+  nil)
+
+(defun define-x86-vinsn (backend vinsn-name results args temps body)
+  (declare (ignore backend vinsn-name results args temps body)))
+
 
 #+x8632-target
 (require "X8632-BACKEND")
