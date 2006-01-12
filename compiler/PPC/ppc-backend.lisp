@@ -165,8 +165,7 @@
                                (if (keywordp opname)
                                  form
                                  (let* ((name (string opname))
-                                        (opnum (or (funcall opcode-lookup name)
-                                                   (funcall opcode-lookup form))))
+                                        (opnum (funcall opcode-lookup name)))
                                    (if (and (not opnum) opcode-expander)
                                      (let* ((expander (funcall opcode-expander name)))
                                        (if expander
