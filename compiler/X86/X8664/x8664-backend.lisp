@@ -31,9 +31,10 @@
 
 #+(or linuxx86-target (not x86-target))
 (defvar *linuxx8664-backend*
-  (make-backend #| :lookup-opcode #'lookup-x86-opcode |#
-                #| :lookup-macro #'x86::x86-macro-function |#
-                #| :lap-opcodes x86::*x86-opcodes* |#
+  (make-backend :lookup-opcode 'lookup-x86-opcode
+                :lookup-macro #'false
+                :lap-opcodes x86::*x8664-opcode-templates*
+                :define-vinsn 'define-x86-vinsn
 		:p2-dispatch *x862-specials*
 		:p2-vinsn-templates *x8664-vinsn-templates*
 		:p2-template-hash-name '*x8664-vinsn-templates*
@@ -55,9 +56,10 @@
 
 #+darwinx86-target
 (defvar *darwinx8664-backend*
-  (make-backend #| :lookup-opcode #'lookup-x86-opcode |#
-		#| :lookup-macro #'x86::x86-macro-function |#
-		#| :lap-opcodes x86::*x86-opcodes* |#
+  (make-backend :lookup-opcode #'lookup-x86-opcode
+		:lookup-macro #'false
+                :lap-opcodes x86::*x8664-opcode-templates*
+                :define-vinsn 'define-x86-vinsn
 		:p2-dispatch *x862-specials*
 		:p2-vinsn-templates *x8664-vinsn-templates*
 		:p2-template-hash-name '*x8664-vinsn-templates*
