@@ -15,6 +15,8 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
+(defmacro define-x8664-vinsn (vinsn-name (results args &optional temps) &body body)
+  (%define-vinsn *x8664-backend* vinsn-name results args temps body))
 
 (define-x8664-vinsn scale-node-misc-index (((dest :u64))
                                            ((idx :imm)	; A fixnum
