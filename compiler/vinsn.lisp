@@ -301,193 +301,18 @@
       (dolist (a attribute-list attr)
         (setq attr (logior attr (the fixnum (attribute-weight a))))))))
 
-; This defines a template.  All expressions in the body must be evaluable at macroexpansion time.
-
 
 (defun %define-vinsn (backend vinsn-name results args temps body)
-  (let* ((opcode-vector (backend-lap-opcodes backend))
-	 (opcode-lookup (backend-lookup-opcode backend))
-	 (opcode-expander (backend-lookup-macro backend))
-	 (backend-name (backend-name backend))
-         (arch-name (backend-target-arch-name backend))
-	 (template-hash (backend-p2-template-hash-name backend))
-	 (name-list ())
-	 (attrs 0)
-         (nhybrids 0)
-         (local-labels ())
-         (referenced-labels ())
-	 (source-indicator (form-symbol arch-name "-VINSN"))
-         (opcode-alist ()))
-    (flet ((valid-spec-name (x)
-	     (or (and (consp x) 
-		      (consp (cdr x)) 
-		      (null (cddr x)) 
-		      (atom (car x))
-		      (or (assoc (cadr x) *vreg-specifier-constant-constraints* :test #'eq)
-			  (assoc (cadr x) *spec-class-storage-class-alist* :test #'eq)
-			  (eq (cadr x) :label)
-			  (and (consp (cadr x))
-			       (or 
-				(assoc (caadr x) *vreg-specifier-constant-constraints* :test #'eq)
-				(assoc (caadr x) *spec-class-storage-class-alist* :test #'eq))))
-		      (car x))
-		 (error "Invalid vreg spec: ~s" x)))
-           (add-spec-name (vname) 
-             (if (member vname name-list :test #'eq)
-               (error "Duplicate name ~s in vinsn ~s" vname vinsn-name)
-               (push vname name-list))))
-      (declare (dynamic-extent valid-spec-name add-spec-name))
-      (when (consp vinsn-name)
-        (setq attrs (encode-vinsn-attributes (cdr vinsn-name))
-              vinsn-name (car vinsn-name)))
-      (unless (and (symbolp vinsn-name) (eq *CCL-PACKAGE* (symbol-package vinsn-name)))
-        (setq vinsn-name (intern (string vinsn-name) *CCL-PACKAGE*)))
-      (dolist (n (append args temps))
-        (add-spec-name (valid-spec-name n)))
-      (dolist (form body)
-        (if (atom form)
-          (add-spec-name form)))
-      (setq name-list (nreverse name-list))
-      ; We now know that "args" is an alist; we don't know if "results" is.
-      ; First, make sure that there are no duplicate result names (and validate "results".)
-      (do* ((res results tail)
-            (tail (cdr res) (cdr tail)))
-           ((null res))
-        (let* ((name (valid-spec-name (car res))))
-          (if (assoc name tail :test #'eq)
-            (error "Duplicate result name ~s in ~s." name results))))
-      (let* ((non-hybrid-results ()) 
-             (match-args args))
-        (dolist (res results)
-          (let* ((res-name (car res)))
-            (if (not (assoc res-name args :test #'eq))
-              (if (not (= nhybrids 0))
-                (error "result ~s should also name an argument. " res-name)
-                (push res-name non-hybrid-results))
-              (if (eq res-name (caar match-args))
-                (setf nhybrids (1+ nhybrids)
-                      match-args (cdr match-args))
-                (error "~S - hybrid results should appear in same order as arguments." res-name)))))
-        (dolist (name non-hybrid-results)
-          (add-spec-name name)))
-      (let* ((k -1))
-        (declare (fixnum k))
-        (let* ((name-alist (mapcar #'(lambda (n) (cons n (list (incf k)))) name-list)))
-          (flet ((find-name (n)
-                   (let* ((pair (assoc n name-alist :test #'eq)))
-                     (declare (list pair))
-                     (if pair
-                       (cdr pair)
-                       (or (subprim-name->offset n backend)
-                           (error "Unknown name ~s" n))))))
-            (labels ((simplify-operand (op)
-                       (if (atom op)
-                         (if (typep op 'fixnum)
-                           op
-                           (if (constantp op)
-                             (progn
-                               (if (keywordp op)
-                                 (pushnew op referenced-labels))
-                               (eval op))
-                             (find-name op)))
-                         (if (eq (car op) :apply)
-                           `(,(cadr op) ,@(mapcar #'simplify-operand (cddr op)))
-                            (simplify-operand (eval op))))))    ; Handler-case this?         
-              (labels ((simplify-constraint (guard)
-                         ;; A constraint is one of
-                         ;; (:eq|:lt|:gt vreg-name constant)       ; "value" of vreg relop constant
-                         ;; (:pred <function-name> <operand>*  ; <function-name> unquoted,
-                         ;;      each <operand> is a vreg-name or constant expression.
-                         ;; (:type vreg-name typeval)      ; vreg is of "type" typeval
-                         ;; (:not <constraint>)            ;  constraint is false
-                         ;; (:and <constraint> ...)        ;  conjuntion
-                         ;; (:or <constraint> ...)         ;  disjunction
-                         ;; There's no "else"; we'll see how ugly it is without one.
-                         (destructuring-bind (guardname &rest others) guard
-                           (ecase guardname
-                             (:not 
-                              (destructuring-bind (negation) others
-                                `(:not ,(simplify-constraint negation))))
-                             (:pred
-                              (destructuring-bind (predicate &rest operands) others
-                                `(:pred ,predicate ,@(mapcar #'simplify-operand operands))))
-                             ((:eq :lt :gt :type)
-                              (destructuring-bind (vreg constant) others
-                                (unless (constantp constant)
-                                  (error "~S : not constant in constraint ~s ." constant guard))
-                                `(,guardname ,(find-name vreg) ,(eval constant))))
-                             ((:or :and)
-                              (unless others (error "Missing constraint list in ~s ." guard))
-                              `(,guardname ,(mapcar #'simplify-constraint others))))))
-                       (simplify-form (form)
-                         (if (atom form)
-                           (progn 
-                             (if (keywordp form) (push form local-labels) )
-                             form)
-                           (destructuring-bind (&whole w opname &rest opvals) form
-                             (if (consp opname)         ; A constraint, we presume ...
-                               (cons (simplify-constraint opname)
-                                     (mapcar #'simplify-form opvals))
-                               (if (keywordp opname)
-                                 form
-                                 (let* ((name (string opname))
-                                        (opnum (funcall opcode-lookup name)))
-                                   (if (not opnum)
-                                     (let* ((expander (funcall opcode-expander name)))
-                                       (if expander
-                                         (simplify-form (funcall expander form nil))
-                                         (error "Unknown ~A instruction in ~s" backend-name form)))
-                                     (let* ((opcode (if (< -1 opnum (length opcode-vector))
-                                                      (svref opcode-vector opnum)
-                                                      (error "~& Invalid ~A opcode: ~s" backend-name name)))
-                                            (opvals (mapcar #'simplify-operand opvals)))
-                                       (setf (assq opnum opcode-alist) name)
-                                       (let* ((operands (arch::opcode-vinsn-operands opcode))
-                                              (nmin (arch::opcode-min-vinsn-args opcode))
-                                              (nmax (arch::opcode-max-vinsn-args opcode))
-                                              (nhave (length opvals)))
-                                         (declare (fixnum nreq nhave))
-                                         (if (= nhave nmax)
-                                           `(,opnum ,@opvals)
-                                           (if (> nhave nmax)
-                                             (error "Too many operands in ~s (~a accepts at most ~d)"
-                                                    (cdr w) name nmax)
-                                             (if (= nhave nmin)
-                                               (let* ((newops ()))
-                                                 (dolist (op operands `(,opnum ,@(nreverse newops)))
-                                                   (let* ((flags (arch::operand-flags op)))
-                                                     (unless (logbitp arch::operand-fake flags)
-                                                       (push (if (logbitp arch::operand-optional flags)
-                                                               0
-                                                               (pop opvals))
-                                                             newops)))))
-                                               (error "Too few operands in ~s : (~a requires at least ~d)"
-                                                      (cdr w) name nmin))))))))))))))
-                 (let* ((template (make-vinsn-template :name vinsn-name
-                                                      :result-vreg-specs results
-                                                      :argument-vreg-specs args
-                                                      :temp-vreg-specs temps
-                                                      :nhybrids nhybrids
-                                                       :results&args (append results (nthcdr nhybrids args))
-                                                      :nvp (- (+ (length results) (length args) (length temps))
-                                                              nhybrids)
-                                                      :body (prog1 (mapcar #'simplify-form body)
-                                                              (dolist (ref referenced-labels)
-                                                                (unless (memq ref local-labels)
-                                                                  (error 
-                                                                   "local-label ~S was referenced but ~
-                                                                    never defined in VINSN-TEMPLATE definition for ~s"
-                                                                   ref vinsn-name))))
-                                                      :local-labels local-labels
-                                                      :attributes attrs
-                                                      :opcode-alist opcode-alist)))
-                  
-                  `(progn
-                     (set-vinsn-template ',vinsn-name ,template ,template-hash)
-                     (record-source-file ',vinsn-name ',source-indicator)
-                     ',vinsn-name))))))))))
+  (funcall (backend-define-vinsn backend)
+           vinsn-name
+           results
+           args
+           temps
+           body))
 
-; Fix the opnum's in the vinsn-template-body to agree with the backend's opcode hash table.
+
+;; Fix the opnum's in the vinsn-template-body to agree with the
+;; backend's opcode hash table.
 (defun fixup-vinsn-template (orig-template opcode-hash)
   (let ((template (cdr orig-template)))
     (when template
@@ -527,7 +352,7 @@
                (fixup-vinsn-template template opcode-hash-table))
            templates))
                                        
-; Could probably split this up and do some arg checking at macroexpand time.
+;;; Could probably split this up and do some arg checking at macroexpand time.
 (defun match-template-vregs (template vinsn supplied-vregs)
   (declare (list supplied-vregs))
   (let* ((nsupp (length supplied-vregs))
@@ -568,8 +393,8 @@
         (pushnew vinsn (lreg-defs lreg))
         (pushnew vinsn (lreg-refs lreg))))))
 
-; "spec" is (<name> <class>).  *** Why name ? ***
-;  <class> is keyword or (<keyword> <val>)
+;;; "spec" is (<name> <class>).
+;;;  <class> is keyword or (<keyword> <val>)
 (defun allocate-temporary-vreg (spec)
   (setq spec (cadr spec))
   (let* ((class (if (atom spec) spec (car spec)))
@@ -659,7 +484,6 @@
 
 ;;; Flow-graph nodes (FGNs)
 
-
 (defstruct (fgn (:include dll-header))
   (id 0 :type unsigned-byte)
   (inedges ())                          ; list of nodes which reference this node
@@ -668,11 +492,10 @@
 
 
 
-; FGNs which don't terminate with an "external jump"
-; (jump-return-pc/jump-subprim, etc) jump to their
-; successor, either explicitly or by falling through.
-; We can introduce or remove jumps when linearizing
-; the program.
+;;; FGNs which don't terminate with an "external jump"
+;;; (jump-return-pc/jump-subprim, etc) jump to their successor, either
+;;; explicitly or by falling through.  We can introduce or remove
+;;; jumps when linearizing the program.
 (defstruct (jumpnode (:include fgn)
 		     (:constructor %make-jumpnode (id)))
   (outedge)                             ; the FGN we jump/fall in to.
@@ -681,9 +504,9 @@
 (defun make-jumpnode (id)
   (init-dll-header (%make-jumpnode id)))
     
-; A node that ends in a conditional branch, followed
-; by an implicit or explicit jump.  Keep track of
-; the conditional branch and the node it targets.
+;;; A node that ends in a conditional branch, followed by an implicit
+;;; or explicit jump.  Keep track of the conditional branch and the
+;;; node it targets.
 (defstruct (condnode (:include jumpnode)
 		     (:constructor %make-condnode (id)))
   (condbranch)                          ; the :branch vinsn
@@ -693,8 +516,8 @@
 (defun make-condnode (id)
   (init-dll-header (%make-condnode id)))
 	  
-; A node that terminates with a return
-; i.e., a jump-return-pc or jump-subprim.
+;;; A node that terminates with a return i.e., a jump-return-pc or
+;;; jump-subprim.
 (defstruct (returnnode (:include fgn)
 		       (:constructor %make-returnnode (id)))
 )
@@ -722,11 +545,11 @@
 (defmacro vinsn-attribute-= (vinsn &rest attrs)
   `(%vinsn-attribute-= ,vinsn ,(encode-vinsn-attributes attrs)))
 
-; Ensure that conditional branches that aren't followed
-; by jumps are followed by (jump lab-next) @lab-next.
-; Ensure that JUMPs and JUMPLRs are followed by labels.
-; It's easiest to do this by walking backwards.
-; When we're all done, labels will mark the start of each block.
+;;; Ensure that conditional branches that aren't followed by jumps are
+;;; followed by (jump lab-next) @lab-next.  Ensure that JUMPs and
+;;; JUMPLRs are followed by labels.  It's easiest to do this by
+;;; walking backwards.  When we're all done, labels will mark the
+;;; start of each block.
 
 (defun normalize-vinsns (header)
   (do* ((prevtype :label currtype)
@@ -818,9 +641,9 @@
 
 
 (defun optimize-vinsns (header)
-  ; Delete unreferenced labels that the compiler might
-  ; have emitted.  Subsequent operations may cause
-  ; other labels to become unreferenced.
+  ;; Delete unreferenced labels that the compiler might have emitted.
+  ;; Subsequent operations may cause other labels to become
+  ;; unreferenced.
   (let* ((labels (collect ((labs)) 
                    (do-dll-nodes (v header)
                      (when (vinsn-label-p v) (labs v)))
