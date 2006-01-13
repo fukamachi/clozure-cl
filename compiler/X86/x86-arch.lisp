@@ -161,4 +161,24 @@
 (defconstant mxcsr-write-mask (dpb -1 mxcsr-status-byte
                                    (dpb -1 mxcsr-control-and-rounding-byte 0)))
 
+;;; Condition bitfields, used in jcc, cmovcc, setcc.
+(defconstant x86-o-bits #x0)
+(defconstant x86-no-bit #x1)
+(defconstant x86-b-bits #x2)
+(defconstant x86-ae-bits #x3)
+(defconstant x86-e-bits #x4)
+(defconstant x86-ne-bits #x5)
+(defconstant x86-be-bits #x6)
+(defconstant x86-a-bits #x7)
+(defconstant x86-s-bits #x8)
+(defconstant x86-ns-bits #x9)
+(defconstant x86-pe-bits #xa)
+(defconstant x86-po-bits #xb)
+(defconstant x86-l-bits #xc)
+(defconstant x86-ge-bits #xd)
+(defconstant x86-le-bits #xe)
+(defconstant x86-g-bits #xf)
+
+
+
 (provide "X86-ARCH")
