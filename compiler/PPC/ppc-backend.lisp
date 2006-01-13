@@ -118,12 +118,13 @@
                              (find-name op)))
                          (if (eq (car op) :apply)
                            `(,(cadr op) ,@(mapcar #'simplify-operand (cddr op)))
-                            (simplify-operand (eval op))))))    ; Handler-case this?         
+                           (simplify-operand (eval op)))))) ; Handler-case this?         
               (labels ((simplify-constraint (guard)
                          ;; A constraint is one of
 
-                         ;; (:eq|:lt|:gt vreg-name constant) ; "value"
-                         ;; of vreg relop constant
+                         ;; (:eq|:lt|:gt vreg-name constant)
+
+                         ;; value" of vreg relop constant
 
                          ;; (:pred <function-name> <operand>* ;
                          ;; <function-name> unquoted, each <operand>
@@ -159,7 +160,7 @@
                              (if (keywordp form) (push form local-labels) )
                              form)
                            (destructuring-bind (&whole w opname &rest opvals) form
-                             (if (consp opname)         ; A constraint, we presume ...
+                             (if (consp opname) ; A constraint, we presume ...
                                (cons (simplify-constraint opname)
                                      (mapcar #'simplify-form opvals))
                                (if (keywordp opname)
@@ -197,29 +198,25 @@
                                                              newops)))))
                                                (error "Too few operands in ~s : (~a requires at least ~d)"
                                                       (cdr w) name nmin))))))))))))))
-                 (let* ((template (make-vinsn-template :name vinsn-name
-                                                      :result-vreg-specs results
-                                                      :argument-vreg-specs args
-                                                      :temp-vreg-specs temps
-                                                      :nhybrids nhybrids
-                                                       :results&args (append results (nthcdr nhybrids args))
-                                                      :nvp (- (+ (length results) (length args) (length temps))
-                                                              nhybrids)
-                                                      :body (prog1 (mapcar #'simplify-form body)
-                                                              (dolist (ref referenced-labels)
-                                                                (unless (memq ref local-labels)
-                                                                  (error 
-                                                                   "local-label ~S was referenced but ~
-                                                                    never defined in VINSN-TEMPLATE definition for ~s"
-                                                                   ref vinsn-name))))
-                                                      :local-labels local-labels
-                                                      :attributes attrs
-                                                      :opcode-alist opcode-alist)))
-                  
-                  `(progn
-                     (set-vinsn-template ',vinsn-name ,template ,template-hash)
-                     (record-source-file ',vinsn-name ',source-indicator)
-                     ',vinsn-name))))))))))
+                (let* ((template (make-vinsn-template
+                                  :name vinsn-name
+                                  :result-vreg-specs results
+                                  :argument-vreg-specs args
+                                  :temp-vreg-specs temps
+                                  :nhybrids nhybrids
+                                  :results&args (append results (nthcdr nhybrids args))
+                                  :nvp (- (+ (length results) (length args) (length temps))
+                                          nhybrids)
+                                  :body (prog1 (mapcar #'simplify-form body)
+                                          (dolist (ref referenced-labels)
+                                            (unless (memq ref local-labels)
+                                              (error 
+                                               "local-label ~S was referenced butnever defined in VINSN-TEMPLATE definition for ~s" ref vinsn-name))))
+                                  :local-labels local-labels :attributes attrs :opcode-alist
+                                  opcode-alist)))
+                  `(progn (set-vinsn-template ',vinsn-name ,template
+                           ,template-hash) (record-source-file ',vinsn-name ',source-indicator)
+                    ',vinsn-name))))))))))
 
 #+ppc32-target
 (require "PPC32-BACKEND")
