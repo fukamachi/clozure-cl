@@ -16,7 +16,7 @@
 
 (eval-when (:compile-toplevel :execute)
   (require "NXENV")
-  (require "X86ENV"))
+  (require "X8664ENV"))
 
 (eval-when (:load-toplevel :execute :compile-toplevel)
   (require "X86-BACKEND"))
@@ -30,6 +30,8 @@
 (defparameter *x862-target-fixnum-shift* 0)
 (defparameter *x862-target-node-shift* 0)
 (defparameter *x862-target-bits-in-word* 0)
+(defparameter *x862-target-num-arg-regs* 0)
+(defparameter *x862-target-num-save-regs* 0)
 
 
 (defun x862-lookup-target-uvector-subtag (name)
@@ -173,7 +175,7 @@
 (defvar *x862-record-symbols* nil)
 (defvar *x862-recorded-symbols* nil)
 
-(defvar *x862-result-reg* x86::arg_z)
+(defvar *x862-result-reg* x8664::arg_z)
 
 
 
@@ -274,10 +276,10 @@
     (cond ((typep ea 'lreg)
             (x862-copy-register seg ea valreg))
           ((addrspec-vcell-p ea)     ; closed-over vcell
-           (x862-copy-register seg x86::arg_z valreg)
-           (x862-stack-to-register seg ea x86::arg_x)
-           (x862-copy-register seg x86::arg_y x86::rzero)
-           (! call-subprim-3 x86::arg_z (subprim-name->offset '.SPgvset) x86::arg_x x86::arg_y x86::arg_z))
+           (x862-copy-register seg x8664::arg_z valreg)
+           (x862-stack-to-register seg ea x8664::arg_x)
+           (! clr-register x8664::arg_y)
+           (! call-subprim-3 x8664::arg_z (subprim-name->offset '.SPgvset) x8664::arg_x x8664::arg_y x8664::arg_z))
           ((memory-spec-p ea)    ; vstack slot
            (x862-register-to-stack seg valreg ea))
           (t
@@ -294,11 +296,11 @@
                               (ash 1 $vbitcloseddownward))
                       (the fixnum (nx-var-bits var))))
       (let* ((ea (var-ea var))
-             (arg ($ x86::arg_z))
-             (result ($ x86::arg_z)))
+             (arg ($ x8664::arg_z))
+             (result ($ x8664::arg_z)))
         (x862-do-lexical-reference seg arg ea)
         (x862-set-nargs seg 1)
-        (! ref-constant ($ x86::fname) (backend-immediate-index (x862-symbol-entry-locative '%cons-magic-next-method-arg)))
+        (! ref-constant ($ x8664::fname) (backend-immediate-index (x862-symbol-entry-locative '%cons-magic-next-method-arg)))
         (! call-known-symbol arg)
         (x862-do-lexical-setq seg nil ea result)))))
 
@@ -318,12 +320,12 @@
 
 (defun condition-to-x86-cr-bit (cond)
   (case cond
-    (:EQ (values x86::x86-eq-bit t))
-    (:NE (values x86::x86-eq-bit nil))
-    (:GT (values x86::x86-gt-bit t))
-    (:LE (values x86::x86-gt-bit nil))
-    (:LT (values x86::x86-lt-bit t))
-    (:GE (values x86::x86-lt-bit nil))))
+    (:EQ (values x86::x86-e-bits t))
+    (:NE (values x86::x86-e-bits nil))
+    (:GT (values x86::x86-le-bits nil))
+    (:LE (values x86::x86-le-bits t))
+    (:LT (values x86::x86-l-bits t))
+    (:GE (values x86::x86-l-bits nil))))
 
 ;;; Generate the start and end bits for a RLWINM instruction that
 ;;; would be equivalent to to LOGANDing the constant with some value.
@@ -388,6 +390,8 @@
            (*x862-register-restore-ea* nil)
            (*x862-vstack* 0)
            (*x862-cstack* 0)
+           (*x862-target-num-arg-regs* (target-arch-case (:x8664  $numx8664argregs)))
+           (*x862-target-num-save-regs* (target-arch-case (:x8664  $numx8664saveregs)) 
 	   (*x862-target-lcell-size* (arch::target-lisp-node-size (backend-target-arch *target-backend*)))
            (*x862-target-fixnum-shift* (arch::target-fixnum-shift (backend-target-arch *target-backend*)))
            (*x862-target-node-shift* (arch::target-word-shift  (backend-target-arch *target-backend*)))
@@ -398,15 +402,15 @@
            (*x862-bottom-vstack-lcell* (x862-new-vstack-lcell :bottom 0 0 nil))
            (*x862-var-cells* nil)
            (*backend-vinsns* (backend-p2-vinsn-templates *target-backend*))
-           (*backend-node-regs* x86-node-regs)
-           (*backend-node-temps* x86-temp-node-regs)
-           (*available-backend-node-temps* x86-temp-node-regs)
-           (*backend-imm-temps* x86-imm-regs)
-           (*available-backend-imm-temps* x86-imm-regs)
+           (*backend-node-regs* (target-arch-case (:x8664 x8664-node-regs)))
+           (*backend-node-temps* (target-arch-case (:x8664 x8664-temp-node-regs)))
+           (*available-backend-node-temps* (target-arch-case (:x8664 x8664-temp-node-regs)))
+           (*backend-imm-temps* (target-arch-case (:x8664 x8664-imm-regs)))
+           (*available-backend-imm-temps* (target-arch-case (:x8664 x8664-imm-regs)))
            (*backend-crf-temps* x86-cr-fields)
            (*available-backend-crf-temps* x86-cr-fields)
-           (*backend-fp-temps* x86-temp-fp-regs)
-           (*available-backend-fp-temps* x86-temp-fp-regs)
+           (*backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
+           (*available-backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
            (bits 0)
            (*logical-register-counter* -1)
            (*backend-all-lregs* ())
@@ -671,9 +675,9 @@
         (if (>= (the fixnum (cdr c)) 3) (push c maybe)))
       (do* ((things (%sort-list-no-key maybe #'%x862-bigger-cdr-than) (cdr things))
             (n 0 (1+ n))
-            (regno x86::save0 (1- regno))
+            (regno x8664::save0 (1- regno))
             (constant-alist ()))
-           ((or (null things) (= n $numx86saveregs))
+           ((or (null things) (= n *x862-target-num-save-regs*))
             (dolist (cell fcells) (%rplacd cell nil))
             (dolist (cell vcells) (%rplacd cell nil))
             (values n constant-alist))
@@ -701,7 +705,7 @@
 	(! save-nvrs-individually (- 32 n))
 	(! save-nvrs (- 32 n))))
     (dotimes (i n)
-      (x862-new-vstack-lcell :regsave *x862-target-lcell-size* 0 (- x86::save0 i)))
+      (x862-new-vstack-lcell :regsave *x862-target-lcell-size* 0 (- x8664::save0 i)))
     (incf *x862-vstack* (the fixnum (* n *x862-target-node-size*)))
     (setq *x862-register-restore-ea* *x862-vstack*
           *x862-register-restore-count* n)))
@@ -718,7 +722,7 @@
 
 (defun x862-restore-nvrs (seg ea nregs &optional from-fp)
   (when (null from-fp)
-    (setq from-fp x86::vsp))
+    (setq from-fp x8664::vsp))
   (when (and ea nregs)
     (with-x86-local-vinsn-macros (seg)
       (let* ((first (- 32 nregs)))
@@ -794,16 +798,16 @@
              (lcell (pop lcells))
              (splcell (pop splcells))
              (reg (x862-assign-register-var var))
-             (sp-reg ($ x86::arg_z))
+             (sp-reg ($ x8664::arg_z))
              (regloadedlabel (if reg (backend-get-next-label))))
         (unless (nx-null initform)
           (x862-stack-to-register seg (x862-vloc-ea spvloc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
             (with-crf-target () crf
-              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg  x86::x86-eq-bit t))
+              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg  x86::x86-e-bits t))
             (if reg
               (x862-form seg reg regloadedlabel initform)
-              (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x86::arg_z)) (x862-vloc-ea vloc)))
+              (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x8664::arg_z)) (x862-vloc-ea vloc)))
             (@ skipinitlabel)))
         (if reg
           (progn
@@ -827,16 +831,16 @@
              (regloadedlabel (if reg (backend-get-next-label)))
              (var-lcell (pop lcells))
              (sp-lcell (pop lcells))
-             (sp-reg ($ x86::arg_z))
+             (sp-reg ($ x8664::arg_z))
              (sploc (%i+ vloc *x862-target-node-size*)))
         (unless (nx-null initform)
           (x862-stack-to-register seg (x862-vloc-ea sploc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
             (with-crf-target () crf
-              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg  x86::x86-eq-bit t))
+              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg  x86::x86-e-bits t))
             (if reg
               (x862-form seg reg regloadedlabel initform)
-              (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x86::arg_z)) (x862-vloc-ea vloc)))
+              (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x8664::arg_z)) (x862-vloc-ea vloc)))
             (@ skipinitlabel)))
         (if reg
           (progn
@@ -873,11 +877,11 @@
            (reg-vars ()))
       (declare (type (unsigned-byte 16) nargs))
       (! save-lr)
-      (if (<= nargs $numx86argregs)       ; caller didn't vpush anything
+      (if (<= nargs *x862-target-num-arg-regs*)       ; caller didn't vpush anything
         (if *x862-open-code-inline*
           (! save-lisp-context-vsp)
           (! save-lisp-context-vsp-ool))
-        (let* ((offset (* (the fixnum (- nargs $numx86argregs)) *x862-target-node-size*)))
+        (let* ((offset (* (the fixnum (- nargs *x862-target-num-arg-regs*)) *x862-target-node-size*)))
           (declare (fixnum offset))
           (if *x862-open-code-inline*
             (! save-lisp-context-offset offset)
@@ -888,11 +892,11 @@
           (dotimes (i nstackargs)
             (x862-new-vstack-lcell :reserved *x862-target-lcell-size* 0 nil))
           (if (>= nargs 3)
-            (push (x862-vpush-arg-register seg ($ x86::arg_x) xvar) reg-vars))
+            (push (x862-vpush-arg-register seg ($ x8664::arg_x) xvar) reg-vars))
           (if (>= nargs 2)
-            (push (x862-vpush-arg-register seg ($ x86::arg_y) yvar) reg-vars))
+            (push (x862-vpush-arg-register seg ($ x8664::arg_y) yvar) reg-vars))
           (if (>= nargs 1)
-            (push (x862-vpush-arg-register seg ($ x86::arg_z) zvar) reg-vars))))
+            (push (x862-vpush-arg-register seg ($ x8664::arg_z) zvar) reg-vars))))
       reg-vars)))
 
 ;;; Just required args.
@@ -949,14 +953,14 @@
              (spvar (pop spvars))
              (spvloc (%i+ vloc *x862-target-node-size*))
              (var-lcell (pop lcells))
-             (sp-reg ($ x86::arg_z))
+             (sp-reg ($ x8664::arg_z))
              (sp-lcell (pop lcells)))
         (unless (nx-null initform)
           (x862-stack-to-register seg (x862-vloc-ea spvloc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
             (with-crf-target () crf
-              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg x86::x86-eq-bit t))
-            (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x86::arg_z)) (x862-vloc-ea vloc))
+              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg x86::x86-e-bits t))
+            (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x8664::arg_z)) (x862-vloc-ea vloc))
             (@ skipinitlabel)))
         (x862-bind-structured-var seg var vloc var-lcell context)
         (when spvar
@@ -973,14 +977,14 @@
              (initform (pop keyinits))
              (sploc (%i+ vloc *x862-target-node-size*))
              (var-lcell (pop lcells))
-             (sp-reg ($ x86::arg_z))
+             (sp-reg ($ x8664::arg_z))
              (sp-lcell (pop lcells)))
         (unless (nx-null initform)
           (x862-stack-to-register seg (x862-vloc-ea sploc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
             (with-crf-target () crf
-              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg x86::x86-eq-bit t))
-            (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x86::arg_z)) (x862-vloc-ea vloc))
+              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg x86::x86-e-bits t))
+            (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x8664::arg_z)) (x862-vloc-ea vloc))
             (@ skipinitlabel)))
         (x862-bind-structured-var seg var vloc var-lcell context)
         (when spvar
@@ -1088,7 +1092,7 @@
 
 (defun x862-mvpass (seg form &optional xfer)
   (with-x86-local-vinsn-macros (seg)
-    (x862-form seg  ($ x86::arg_z) (logior (or xfer 0) $backend-mvpass-mask) form)))
+    (x862-form seg  ($ x8664::arg_z) (logior (or xfer 0) $backend-mvpass-mask) form)))
 
 (defun x862-adjust-vstack (delta)
   (x862-set-vstack (%i+ *x862-vstack* delta)))
@@ -1178,12 +1182,8 @@
             (multiple-value-bind (high low) (x862-double-float-bits form)
               (declare (integer high low))
               (with-imm-temps () ((highreg :u32) (lowreg :u32))
-                (if (zerop high)
-                  (setq highreg ($ x86::rzero))
-                  (! lri highreg high))
-                (if (zerop low)
-                  (setq lowreg ($ x86::rzero))
-                  (! lri lowreg low))
+                (! lri highreg high)
+                (! lri lowreg low)
                 (! load-double-float-constant vreg highreg lowreg)))))
         (if (and (typep form '(unsigned-byte 32))
                  (= (hard-regspec-class vreg) hard-reg-class-gpr)
@@ -1196,7 +1196,7 @@
              (! load-character-constant target (char-code form))
              (x862-store-immediate seg form target)))))
       (if (and (listp form) *load-time-eval-token* (eq (car form) *load-time-eval-token*))
-        (x862-store-immediate seg form ($ x86::temp0))))
+        (x862-store-immediate seg form ($ x8664::temp0))))
     (^)))
 
 (defun x862-register-constant-p (form)
@@ -1212,12 +1212,7 @@
         (x862-copy-register seg dest reg)
         (let* ((idx (backend-immediate-index imm)))
           (target-arch-case
-           (:x8632
-            (if (< idx 8192)
-              (! ref-constant dest idx)
-              (with-imm-target () (idxreg :s32)
-                (x862-lri seg idxreg (+ x8632::misc-data-offset (ash (1+ idx) 2)))
-                (! ref-indexed-constant dest idxreg))))
+           
            (:x8664
             (if (< idx 4096)
               (! ref-constant dest idx)
@@ -1263,11 +1258,11 @@
 (defun x862-box-s32 (seg node-dest s32-src)
   (with-x86-local-vinsn-macros (seg)
     (if (target-arch-case
-         (:x8632 *x862-open-code-inline*)
+         
          (:x8664 t))
       (! s32->integer node-dest s32-src)
-      (let* ((arg_z ($ x86::arg_z))
-             (imm0 ($ x86::imm0 :mode :s32)))
+      (let* ((arg_z ($ x8664::arg_z))
+             (imm0 ($ x8664::imm0 :mode :s32)))
         (x862-copy-register seg imm0 s32-src)
         (! call-subprim (subprim-name->offset '.SPmakes32))
         (x862-copy-register seg node-dest arg_z)))))
@@ -1275,11 +1270,11 @@
 (defun x862-box-s64 (seg node-dest s64-src)
   (with-x86-local-vinsn-macros (seg)
     (if (target-arch-case
-         (:x8632 (error "Bug!"))
+         
          (:x8664 *x862-open-code-inline*))
       (! s64->integer node-dest s64-src)
-      (let* ((arg_z ($ x86::arg_z))
-             (imm0 ($ x86::imm0 :mode :s64)))
+      (let* ((arg_z ($ x8664::arg_z))
+             (imm0 ($ x8664::imm0 :mode :s64)))
         (x862-copy-register seg imm0 s64-src)
         (! call-subprim (subprim-name->offset '.SPmakes64))
         (x862-copy-register seg node-dest arg_z)))))
@@ -1287,11 +1282,11 @@
 (defun x862-box-u32 (seg node-dest u32-src)
   (with-x86-local-vinsn-macros (seg)
     (if (target-arch-case
-         (:x8632 *x862-open-code-inline*)
+         
          (:x8664 t))
       (! u32->integer node-dest u32-src)
-      (let* ((arg_z ($ x86::arg_z))
-             (imm0 ($ x86::imm0 :mode :u32)))
+      (let* ((arg_z ($ x8664::arg_z))
+             (imm0 ($ x8664::imm0 :mode :u32)))
         (x862-copy-register seg imm0 u32-src)
         (! call-subprim (subprim-name->offset '.SPmakeu32))
         (x862-copy-register seg node-dest arg_z)))))
@@ -1299,11 +1294,11 @@
 (defun x862-box-u64 (seg node-dest u64-src)
   (with-x86-local-vinsn-macros (seg)
     (if (target-arch-case
-         (:x8632 (error "Bug!"))
+         
          (:x8664 *x862-open-code-inline*))
       (! u64->integer node-dest u64-src)
-      (let* ((arg_z ($ x86::arg_z))
-             (imm0 ($ x86::imm0 :mode :u64)))
+      (let* ((arg_z ($ x8664::arg_z))
+             (imm0 ($ x8664::imm0 :mode :u64)))
         (x862-copy-register seg imm0 u64-src)
         (! call-subprim (subprim-name->offset '.SPmakeu64))
         (x862-copy-register seg node-dest arg_z)))))
@@ -1344,11 +1339,7 @@
                        (eq type-keyword :single-float-vector))
                 (x862-sf-vref seg vreg xfer vector index safe)
                 (if (target-arch-case
-                     (:x8632
-                      (and (= vreg-mode hard-reg-class-gpr-mode-u32)
-                           is-32-bit
-                           (not (or (eq type-keyword :signed-32-bit-vector)
-                                    (eq type-keyword :single-float-vector)))))
+                     
                      (:x8664
                       (and (= vreg-mode hard-reg-class-gpr-mode-u64)
                            is-64-bit
@@ -1363,8 +1354,8 @@
                         (target vreg)
                       (if (or safe (not index-known-fixnum))
                         (multiple-value-setq (src unscaled-idx)
-                          (x862-two-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z))
-                        (setq src (x862-one-untargeted-reg-form seg vector x86::arg_z)))
+                          (x862-two-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z))
+                        (setq src (x862-one-untargeted-reg-form seg vector x8664::arg_z)))
                       (when safe
                         (if (typep safe 'fixnum)
                           (! trap-unless-typecode= src safe))
@@ -1491,8 +1482,8 @@
            (unscaled-idx))
       (if (or safe (not index-known-fixnum))
         (multiple-value-setq (src unscaled-idx)
-          (x862-two-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z))
-        (setq src (x862-one-untargeted-reg-form seg vector x86::arg_z)))
+          (x862-two-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z))
+        (setq src (x862-one-untargeted-reg-form seg vector x8664::arg_z)))
       (when safe
         (if (typep safe 'fixnum)
           (! trap-unless-typecode= src safe))
@@ -1527,12 +1518,12 @@
       (progn
         (if constidx
           (multiple-value-setq (src target)
-            (x862-two-targeted-reg-forms seg array ($ x86::arg_z) new target))
+            (x862-two-targeted-reg-forms seg array ($ x8664::arg_z) new target))
           (multiple-value-setq (src unscaled-i unscaled-j target)
             (x862-four-untargeted-reg-forms seg
-                                            array ($ x86::arg_x)
-                                            i ($ x86::arg_y)
-                                            j ($ x86::arg_z)
+                                            array ($ x8664::arg_x)
+                                            i ($ x8664::arg_y)
+                                            j ($ x8664::arg_z)
                                             new target)))
         (when safe      
           (when (typep safe 'fixnum)
@@ -1597,12 +1588,12 @@
                  (< j-known-fixnum dim1)
                  (+ (* i-known-fixnum dim1) j-known-fixnum))))
       (if constidx
-        (setq src (x862-one-targeted-reg-form seg array ($ x86::arg_z)))
+        (setq src (x862-one-targeted-reg-form seg array ($ x8664::arg_z)))
         (multiple-value-setq (src unscaled-i unscaled-j)
           (x862-three-untargeted-reg-forms seg
-                                           array x86::arg_x
-                                           i x86::arg_y
-                                           j x86::arg_z)))
+                                           array x8664::arg_x
+                                           i x8664::arg_y
+                                           j x8664::arg_z)))
       (when safe        
         (when (typep safe 'fixnum)
           (! trap-unless-array-header src)
@@ -1659,8 +1650,8 @@
            (unscaled-idx))
       (if (or safe (not index-known-fixnum))
         (multiple-value-setq (src unscaled-idx)
-          (x862-two-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z))
-        (setq src (x862-one-untargeted-reg-form seg vector x86::arg_z)))
+          (x862-two-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z))
+        (setq src (x862-one-untargeted-reg-form seg vector x8664::arg_z)))
       (when safe
         (if (typep safe 'fixnum)
           (! trap-unless-typecode= src safe))
@@ -1680,13 +1671,12 @@
 (defun x862-natural-vref (seg vreg xfer vector index safe)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (let* ((index-known-fixnum (acode-fixnum-form-p index))
-           (arch (backend-target-arch *target-backend*))
            (src)
            (unscaled-idx))
       (if (or safe (not index-known-fixnum))
         (multiple-value-setq (src unscaled-idx)
-          (x862-two-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z))
-        (setq src (x862-one-untargeted-reg-form seg vector x86::arg_z)))
+          (x862-two-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z))
+        (setq src (x862-one-untargeted-reg-form seg vector x8664::arg_z)))
       (when safe
         (if (typep safe 'fixnum)
           (! trap-unless-typecode= src safe))
@@ -1694,14 +1684,7 @@
           (! trap-unless-fixnum unscaled-idx))
         (! check-misc-bound unscaled-idx src))
       (target-arch-case
-       (:x8632
-        (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
-          (! misc-ref-c-u32 vreg src index-known-fixnum)
-          (with-imm-temps () (idx-reg)
-            (if index-known-fixnum
-              (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 2)))
-              (! scale-32bit-misc-index idx-reg unscaled-idx))
-            (! misc-ref-u32 vreg src idx-reg))))
+       
        (:x8664
         (if (and index-known-fixnum (<= index-known-fixnum x8664::max-64-bit-constant-index))
           (! misc-ref-c-u64 vreg src index-known-fixnum)
@@ -1721,9 +1704,9 @@
       (with-imm-target () (target :natural)
         (if (or safe (not index-known-fixnum))
           (multiple-value-setq (src unscaled-idx target)
-            (x862-three-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z value (or vreg target)))
+            (x862-three-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z value (or vreg target)))
           (multiple-value-setq (src target)
-            (x862-two-untargeted-reg-forms seg vector x86::arg_y value (or vreg target))))
+            (x862-two-untargeted-reg-forms seg vector x8664::arg_y value (or vreg target))))
         (when safe
           (with-imm-temps (target) ()   ; Don't use target in type/bounds check
             (if (typep safe 'fixnum)
@@ -1732,15 +1715,7 @@
               (! trap-unless-fixnum unscaled-idx))
             (! check-misc-bound unscaled-idx src)))
         (target-arch-case
-         (:x8632
-          (if (and index-known-fixnum
-                   (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
-            (! misc-set-c-u32 target src index-known-fixnum)
-            (with-imm-temps (target) (idx-reg)
-              (if index-known-fixnum
-                (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 2)))
-                (! scale-32bit-misc-index idx-reg unscaled-idx))
-              (! misc-set-u32 target src idx-reg))))
+         
          (:x8664
           (if (and index-known-fixnum
                    (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
@@ -1802,8 +1777,7 @@
                    (or (null vreg) (eql vreg-class hard-reg-class-fpr)))
             (x862-sf-vset seg vreg xfer vector index value safe)
             (if (target-arch-case
-                 (:x8632 (and (eq type-keyword :unsigned-32-bit-vector)
-                              (or (null vreg) (eql vreg-mode hard-reg-class-gpr-mode-u32))))
+                 
                  (:x8664 (and (eq type-keyword :unsigned-64-bit-vector)
                               (or (null vreg) (eql vreg-mode hard-reg-class-gpr-mode-u64)))))
               (x862-natural-vset seg vreg xfer vector index value safe)
@@ -1818,13 +1792,13 @@
                   (if (or safe (not index-known-fixnum))
                     (if need-val-reg
                       (multiple-value-setq (src unscaled-idx val-reg)
-                        (x862-three-untargeted-reg-forms seg vector x86::arg_x index x86::arg_y value x86::arg_z))
+                        (x862-three-untargeted-reg-forms seg vector x8664::arg_x index x8664::arg_y value x8664::arg_z))
                       (multiple-value-setq (src unscaled-idx)
-                        (x862-two-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z)))
+                        (x862-two-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z)))
                     (if need-val-reg
                       (multiple-value-setq (src val-reg)
-                        (x862-two-untargeted-reg-forms seg vector x86::arg_y value x86::arg_z))
-                      (setq src (x862-one-untargeted-reg-form seg vector x86::arg_z))))
+                        (x862-two-untargeted-reg-forms seg vector x8664::arg_y value x8664::arg_z))
+                      (setq src (x862-one-untargeted-reg-form seg vector x8664::arg_z))))
                   (when safe
                     (if (typep safe 'fixnum)
                       (! trap-unless-typecode= src safe))
@@ -1998,9 +1972,9 @@
       (with-fp-target () fp-val
         (if (or safe (not index-known-fixnum))
           (multiple-value-setq (src unscaled-idx fp-val)
-            (x862-three-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z value (or vreg fp-val)))
+            (x862-three-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z value (or vreg fp-val)))
           (multiple-value-setq (src fp-val)
-            (x862-two-untargeted-reg-forms seg vector x86::arg_z value (or vreg fp-val))))
+            (x862-two-untargeted-reg-forms seg vector x8664::arg_z value (or vreg fp-val))))
         (when safe
             (if (typep safe 'fixnum)
               (! trap-unless-typecode= src safe))
@@ -2027,9 +2001,9 @@
       (with-fp-target () (fp-val :single-float)
         (if (or safe (not index-known-fixnum))
           (multiple-value-setq (src unscaled-idx fp-val)
-            (x862-three-untargeted-reg-forms seg vector x86::arg_y index x86::arg_z value (or vreg fp-val)))
+            (x862-three-untargeted-reg-forms seg vector x8664::arg_y index x8664::arg_z value (or vreg fp-val)))
           (multiple-value-setq (src fp-val)
-            (x862-two-untargeted-reg-forms seg vector x86::arg_z value (or vreg fp-val))))
+            (x862-two-untargeted-reg-forms seg vector x8664::arg_z value (or vreg fp-val))))
         (when safe
             (if (typep safe 'fixnum)
               (! trap-unless-typecode= src safe))
@@ -2090,10 +2064,10 @@
                     (return
                      (make-acode op 
                                  fn-form 
-                                 (if (<= (length arglist) $numx86argregs)
+                                 (if (<= (length arglist) *x862-target-num-arg-regs*)
                                    (list nil (reverse arglist))
-                                   (list (butlast arglist $numx86argregs)
-                                         (reverse (last arglist $numx86argregs))))
+                                   (list (butlast arglist *x862-target-num-arg-regs*)
+                                         (reverse (last arglist *x862-target-num-arg-regs*))))
                                  nil)))
                   (return nil))))
             (if (eq op (%nx1-operator local-block))
@@ -2112,9 +2086,9 @@
           (setq spread-p nil)
           (let* ((nargs (length stack-args)))
             (declare (fixnum nargs))
-            (if (<= nargs $numx86argregs)
+            (if (<= nargs *x862-target-num-arg-regs*)
               (setq arglist (list nil (reverse stack-args)))
-              (setq arglist (list (butlast stack-args $numx86argregs) (reverse (last stack-args $numx86argregs)))))))))
+              (setq arglist (list (butlast stack-args *x862-target-num-arg-regs*) (reverse (last stack-args *x862-target-num-arg-regs*)))))))))
     (let* ((lexref (x862-lexical-reference-p fn))
            (simple-case (or (fixnump fn)
                             (typep fn 'lreg)
@@ -2148,7 +2122,7 @@
           (let ((*x862-returning-values* t)) (x862-do-return seg)))
         (let* ((mv-p (x862-mv-p xfer)))
           (unless simple-case
-            (x862-vpush-register seg (x862-one-untargeted-reg-form seg fn x86::arg_z))
+            (x862-vpush-register seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
             (setq fn (x862-vloc-ea vstack)))
           (x862-invoke-fn seg fn (x862-arglist seg arglist) spread-p xfer)
           (if (and (logbitp $backend-mvpass-bit xfer)
@@ -2164,7 +2138,7 @@
           (setq *x862-top-vstack-lcell* top)
           (setq *x862-cstack* cstack)
           (when (or (logbitp $backend-mvpass-bit xfer) (not mv-p))
-            (<- x86::arg_z)
+            (<- x8664::arg_z)
             (x862-branch seg (logand (lognot $backend-mvpass-mask) xfer) vreg))))
       nil)))
 
@@ -2188,7 +2162,7 @@
     (if *x862-open-code-inline*
       (if jump-p
         (! jump-known-symbol)
-        (! call-known-symbol x86::arg_z))
+        (! call-known-symbol x8664::arg_z))
       (if jump-p
         (! jump-known-symbol-ool)
         (! call-known-symbol-ool)))))
@@ -2210,7 +2184,7 @@
                        (eq (acode-operator f-op) (%nx1-operator simple-function))))
            (expression-p (or (typep fn 'lreg) (and (fixnump fn) (not label-p))))
            (callable (or symp lfunp label-p))
-           (destreg (if symp ($ x86::fname) (if lfunp ($ x86::nfn) (unless label-p ($ x86::temp0))))))
+           (destreg (if symp ($ x8664::fname) (if lfunp ($ x8664::nfn) (unless label-p ($ x8664::temp0))))))
       (when expression-p
         ;Have to do this before spread args, since might be vsp-relative.
         (if nargs
@@ -2230,27 +2204,27 @@
             (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count*)
             (when *x862-register-restore-count*
               (with-imm-temps () (vsp0)
-                (! fixnum-add vsp0 x86::vsp x86::nargs)
+                (! fixnum-add vsp0 x8664::vsp x8664::nargs)
                 (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count* vsp0))))))
        (if spread-p
          (progn
            (x862-set-nargs seg (%i- nargs 1))
            (when (and tail-p *x862-register-restore-count*)
-             (! copy-gpr x86::temp1 x86::vsp))          ; .SPspread-lexpr-z & .SPspreadargz preserve temp1
+             (! copy-gpr x8664::temp1 x8664::vsp))          ; .SPspread-lexpr-z & .SPspreadargz preserve temp1
            (if (eq spread-p 0)
              (! spread-lexpr)
              (! spread-list))
            (when (and tail-p *x862-register-restore-count*)
-             (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count* x86::temp1)))
+             (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count* x8664::temp1)))
         (if nargs
           (x862-set-nargs seg nargs) 
           (! pop-argument-registers)))
       (if callable
         (if (not tail-p)
           (if (x862-mvpass-p xfer)
-            (let* ((call-reg (if symp ($ x86::fname) ($ x86::temp0))))
+            (let* ((call-reg (if symp ($ x8664::fname) ($ x8664::temp0))))
               (if label-p
-                (x862-copy-register seg call-reg ($ x86::fn))
+                (x862-copy-register seg call-reg ($ x8664::fn))
                 (if a-reg
                   (x862-copy-register seg call-reg  a-reg)
                   (x862-store-immediate seg func call-reg)))
@@ -2260,7 +2234,7 @@
             (progn 
               (if label-p
                 (progn
-                  (x862-copy-register seg ($ x86::nfn) ($  x86::fn))
+                  (x862-copy-register seg ($ x8664::nfn) ($  x8664::fn))
                   (! call-label (aref *backend-labels* 1)))
                 (progn
                   (if a-reg
@@ -2271,10 +2245,10 @@
                     (! call-known-function))))))
           (progn
             (x862-unwind-stack seg xfer 0 0 #x7fffff)
-            (if (and (not spread-p) nargs (%i<= nargs $numx86argregs))
+            (if (and (not spread-p) nargs (%i<= nargs *x862-target-num-arg-regs*))
               (progn
                 (if label-p
-                  (x862-copy-register seg x86::nfn x86::fn))
+                  (x862-copy-register seg x8664::nfn x8664::fn))
                 (unless (or label-p a-reg) (x862-store-immediate seg func destreg))
                 (x862-restore-full-lisp-context seg)
                 (if label-p
@@ -2285,13 +2259,13 @@
                       (! jump-known-function)))))
               (progn
                 (if label-p
-                  (x862-copy-register seg x86::nfn x86::fn)
+                  (x862-copy-register seg x8664::nfn x8664::fn)
                   (unless a-reg (x862-store-immediate seg func destreg)))
                 (cond ((or spread-p (null nargs))
                        (if symp
                          (! tail-call-sym-gen)
                          (! tail-call-fn-gen)))
-                      ((%i> nargs $numx86argregs)
+                      ((%i> nargs *x862-target-num-arg-regs*)
                        (if symp
                          (! tail-call-sym-slide)
                          (! tail-call-fn-slide)))
@@ -2311,7 +2285,7 @@
               (! funcall))                  
             (cond ((or (null nargs) spread-p)
                    (! tail-funcall-gen))
-                  ((%i> nargs $numx86argregs)
+                  ((%i> nargs *x862-target-num-arg-regs*)
                    (! tail-funcall-slide))
                   (t
                    (! tail-funcall-vsp)))))))
@@ -2354,7 +2328,7 @@
              cellno))
       (let* ((inherited-vars (afunc-inherited-vars afunc))
              (arch (backend-target-arch *target-backend*))
-             (dest ($ x86::arg_z))
+             (dest ($ x8664::arg_z))
              (vsize (+ (length inherited-vars) 
                        2                ; %closure-code%, afunc
                        2)))             ; name, lfun-bits
@@ -2363,19 +2337,19 @@
           (progn
             (let* ((*x862-vstack* *x862-vstack*)
                    (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
-              (x862-lri seg x86::arg_x (ash (x862-lookup-target-uvector-subtag :function) *x862-target-fixnum-shift*))
-              (! %closure-code% x86::arg_y)
-              (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x86::arg_z)
-              (x862-vpush-register-arg seg x86::arg_x)
-              (x862-vpush-register-arg seg x86::arg_y)
-              (x862-vpush-register-arg seg x86::arg_z)
+              (x862-lri seg x8664::arg_x (ash (x862-lookup-target-uvector-subtag :function) *x862-target-fixnum-shift*))
+              (! %closure-code% x8664::arg_y)
+              (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::arg_z)
+              (x862-vpush-register-arg seg x8664::arg_x)
+              (x862-vpush-register-arg seg x8664::arg_y)
+              (x862-vpush-register-arg seg x8664::arg_z)
               ;; Could be smarter about memory traffic here.
               (dolist (v inherited-vars)
-                (x862-vpush-register-arg seg (var-to-reg v x86::arg_z)))
-              (! load-nil x86::arg_z)
-              (x862-vpush-register-arg seg x86::arg_z)
-              (x862-lri seg x86::arg_z (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
-              (x862-vpush-register-arg seg x86::arg_z)
+                (x862-vpush-register-arg seg (var-to-reg v x8664::arg_z)))
+              (! load-nil x8664::arg_z)
+              (x862-vpush-register-arg seg x8664::arg_z)
+              (x862-lri seg x8664::arg_z (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
+              (x862-vpush-register-arg seg x8664::arg_z)
               (x862-set-nargs seg (1+ vsize)) ; account for subtag
               (! make-stack-gvector))
             (x862-open-undo $undostkblk))
@@ -2383,25 +2357,25 @@
             (declare (fixnum cell))
             (progn
               (x862-lri seg
-                        x86::imm0
+                        x8664::imm0
                         (arch::make-vheader vsize (x862-lookup-target-uvector-subtag :function)))
-              (! %alloc-misc-fixed dest x86::imm0 (ash vsize (arch::target-word-shift arch)))
+              (! %alloc-misc-fixed dest x8664::imm0 (ash vsize (arch::target-word-shift arch)))
               )       
-            (! %closure-code% x86::arg_x)
-            (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x86::arg_y)
-            (with-node-temps (x86::arg_z) (t0 t1 t2 t3)
-              (do* ((ccode x86::arg_x nil)
-                    (func x86::arg_y nil))
+            (! %closure-code% x8664::arg_x)
+            (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::arg_y)
+            (with-node-temps (x8664::arg_z) (t0 t1 t2 t3)
+              (do* ((ccode x8664::arg_x nil)
+                    (func x8664::arg_y nil))
                    ((null inherited-vars))
                 (let* ((t0r (or ccode (if inherited-vars (var-to-reg (pop inherited-vars) t0))))
                        (t1r (or func (if inherited-vars (var-to-reg (pop inherited-vars) t1))))
                        (t2r (if inherited-vars (var-to-reg (pop inherited-vars) t2)))
                        (t3r (if inherited-vars (var-to-reg (pop inherited-vars) t3))))
                   (setq cell (set-some-cells dest cell t0r t1r t2r t3r)))))
-            (x862-lri seg x86::arg_y (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
-            (! load-nil x86::arg_x)
-            (! misc-set-c-node x86::arg_x dest cell)
-            (! misc-set-c-node x86::arg_y dest (1+ cell))))
+            (x862-lri seg x8664::arg_y (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
+            (! load-nil x8664::arg_x)
+            (! misc-set-c-node x8664::arg_x dest cell)
+            (! misc-set-c-node x8664::arg_y dest (1+ cell))))
         dest))))
         
 (defun x862-symbol-entry-locative (sym)
@@ -2472,7 +2446,7 @@
            (n nregs))
       (declare (fixnum n))
       (dolist (arg stkargs)
-        (let* ((reg (x862-one-untargeted-reg-form seg arg x86::arg_z)))
+        (let* ((reg (x862-one-untargeted-reg-form seg arg x8664::arg_z)))
           (x862-vpush-register-arg seg reg)
           (incf n)))
       (when revregargs
@@ -2480,10 +2454,10 @@
                (yform (%cadr revregargs))
                (xform (%caddr revregargs)))
           (if (eq 3 nregs)
-            (x862-three-targeted-reg-forms seg xform ($ x86::arg_x) yform ($ x86::arg_y) zform ($ x86::arg_z))
+            (x862-three-targeted-reg-forms seg xform ($ x8664::arg_x) yform ($ x8664::arg_y) zform ($ x8664::arg_z))
             (if (eq 2 nregs)
-              (x862-two-targeted-reg-forms seg yform ($ x86::arg_y) zform ($ x86::arg_z))
-              (x862-one-targeted-reg-form seg zform ($ x86::arg_z))))))
+              (x862-two-targeted-reg-forms seg yform ($ x8664::arg_y) zform ($ x8664::arg_z))
+              (x862-one-targeted-reg-form seg zform ($ x8664::arg_z))))))
       n)))
 
 (defun x862-arglist (seg args)
@@ -2509,15 +2483,13 @@
     (with-x86-local-vinsn-macros (seg)
       (let* ((value (x862-long-constant-p form)))
         (if value
-          (if (eql value 0)
-            (make-wired-lreg x86::rzero :mode modeval)
-            (progn
-              (unless (typep immreg 'lreg)
-                (setq immreg (make-unwired-lreg immreg :mode modeval)))
-              (x862-lri seg immreg value)
-              immreg))
+          (progn
+            (unless (typep immreg 'lreg)
+              (setq immreg (make-unwired-lreg immreg :mode modeval)))
+            (x862-lri seg immreg value)
+            immreg)
           (progn 
-            (x862-one-targeted-reg-form seg form (make-wired-lreg x86::imm0 :mode modeval))))))))
+            (x862-one-targeted-reg-form seg form (make-wired-lreg x8664::imm0 :mode modeval))))))))
 
 
 (defun x862-macptr-arg-to-reg (seg form address-reg)  
@@ -2552,18 +2524,16 @@
               (progn
                 (! load-nil suggested)
                 suggested)
-              (if (eql 0 (acode-fixnum-form-p form))
-                ($ x86::rzero)
-                (if (and (acode-p form) 
-                         (eq (acode-operator form) (%nx1-operator immediate)) 
-                         (setq reg (x862-register-constant-p (cadr form))))
-                  reg
-                  (if (and (acode-p form)
-                           (eq (acode-operator form) (%nx1-operator %current-tcr)))
-                    (target-arch-case
-                     (:x8632 ($ x8632::rcontext))
-                     (:x8664 ($ x8664::rcontext)))
-                    (x862-one-untargeted-lreg-form seg form suggested)))))))
+              (if (and (acode-p form) 
+                       (eq (acode-operator form) (%nx1-operator immediate)) 
+                       (setq reg (x862-register-constant-p (cadr form))))
+                reg
+                (if (and (acode-p form)
+                         (eq (acode-operator form) (%nx1-operator %current-tcr)))
+                  (target-arch-case
+                   
+                   (:x8664 ($ x8664::rcontext)))
+                  (x862-one-untargeted-lreg-form seg form suggested))))))
         (x862-one-untargeted-lreg-form seg form suggested)))))
              
 
@@ -2609,11 +2579,11 @@
            (mode (get-regspec-mode reg)))
       (declare (fixnum class mode))
       (cond ((= class hard-reg-class-fpr)
-             (make-wired-lreg x86::fp1 :class class :mode mode))
+             (make-wired-lreg x8664::fp1 :class class :mode mode))
             ((= class hard-reg-class-gpr)
              (if (= mode hard-reg-class-gpr-mode-node)
-               ($ x86::arg_z)
-               (make-wired-lreg x86::imm0 :mode mode)))
+               ($ x8664::arg_z)
+               (make-wired-lreg x8664::imm0 :mode mode)))
             (t (error "Unknown register class for reg ~s" reg))))))
 
 ;;; The compiler often generates superfluous pushes & pops.  Try to
@@ -2849,7 +2819,7 @@
     (if (>= value 0)
       (! lri reg value)
       (target-arch-case
-       (:x8632 (! lri reg (logand value #xffffffff)))
+       
        (:x8664 (! lri reg (logand value #xffffffffffffffff)))))))
 
 
@@ -2869,7 +2839,7 @@
    (progn (pushnew afunc (afunc-fwd-refs *x862-cur-afunc*) :test #'eq)
           afunc)))
 
-(defun x862-augment-arglist (afunc arglist &optional (maxregs $numx86argregs))
+(defun x862-augment-arglist (afunc arglist &optional (maxregs *x862-target-num-arg-regs*))
   (let ((inherited-args (afunc-inherited-vars afunc)))
     (when inherited-args
       (let* ((current-afunc *x862-cur-afunc*)
@@ -2903,12 +2873,12 @@
            (is16 (acode-s16-constant-p i))
            (boolean (backend-crf-p vreg)))
       (if (and boolean (or js16 is16))
-        (let* ((reg (x862-one-untargeted-reg-form seg (if js16 i j) x86::arg_z)))
+        (let* ((reg (x862-one-untargeted-reg-form seg (if js16 i j) x8664::arg_z)))
           (! compare-signed-s16const vreg reg (or js16 is16))
-          (unless (or js16 (eq cr-bit x86::x86-eq-bit))
+          (unless (or js16 (eq cr-bit x86::x86-e-bits))
             (setq cr-bit (- 1 cr-bit)))
           (^ cr-bit true-p))
-        (if (and (eq cr-bit x86::x86-eq-bit) 
+        (if (and (eq cr-bit x86::x86-e-bits) 
                  (or js16 is16))
           (x862-test-reg-%izerop 
            seg 
@@ -2917,11 +2887,11 @@
            (x862-one-untargeted-reg-form 
             seg 
             (if js16 i j) 
-            x86::arg_z) 
+            x8664::arg_z) 
            cr-bit 
            true-p 
            (or js16 is16))
-          (multiple-value-bind (ireg jreg) (x862-two-untargeted-reg-forms seg i x86::arg_y j x86::arg_z)
+          (multiple-value-bind (ireg jreg) (x862-two-untargeted-reg-forms seg i x8664::arg_y j x8664::arg_z)
             (x862-compare-registers seg vreg xfer ireg jreg cr-bit true-p)))))))
 
 (defun x862-natural-compare (seg vreg xfer i j cr-bit true-p)
@@ -2936,7 +2906,7 @@
             () (reg :natural)
             (x862-one-targeted-reg-form seg (if ju16 i j) reg)
             (! compare-unsigned-u16const vreg reg (if ju16 jconstant iconstant))
-            (unless (or ju16 (eq cr-bit x86::x86-eq-bit)) 
+            (unless (or ju16 (eq cr-bit x86::x86-e-bits)) 
               (setq cr-bit (- 1 cr-bit)))
             (^ cr-bit true-p))
         (with-imm-target ()
@@ -2955,19 +2925,19 @@
          (! compare-logical dest ireg jreg)
          (^ cr-bit true-p))
        (with-imm-temps () ((b31-reg :natural))
-         (ecase cr-bit
-           (#. x86::x86-eq-bit 
-            (if true-p
-              (! eq->bit31 b31-reg ireg jreg)
-              (! ne->bit31 b31-reg ireg jreg)))
-           (#. x86::x86-lt-bit
-            (if true-p
-              (! ltu->bit31 b31-reg ireg jreg)
-              (! geu->bit31 b31-reg ireg jreg)))
-           (#. x86::x86-gt-bit
-            (if true-p
-              (! gtu->bit31 b31-reg ireg jreg)
-              (! leu->bit31 b31-reg ireg jreg))))
+         (cond ((eq cr-bit x86::x86-e-bits)
+                (if true-p
+                  (! eq->bit31 b31-reg ireg jreg)
+                  (! ne->bit31 b31-reg ireg jreg)))
+               ((eq cr-bit x86::x86-l-bits)
+                (if true-p
+                  (! ltu->bit31 b31-reg ireg jreg)
+                  (! geu->bit31 b31-reg ireg jreg)))
+               ((eq cr-bit  x86::x86-g-bits)
+                (if true-p
+                  (! gtu->bit31 b31-reg ireg jreg)
+                  (! leu->bit31 b31-reg ireg jreg)))
+               (t (error "Bug")))
          (ensuring-node-target (target dest)
            (! lowbit->truth target b31-reg))
          (^)))
@@ -2982,16 +2952,16 @@
          (! compare dest ireg jreg)
          (^ cr-bit true-p))
        (with-imm-temps () ((b31-reg :natural))
-         (ecase cr-bit
-           (#. x86::x86-eq-bit 
+         (cond
+           ((eq cr-bit x86::x86-e-bits)
             (if true-p
               (! eq->bit31 b31-reg ireg jreg)
               (! ne->bit31 b31-reg ireg jreg)))
-           (#. x86::x86-lt-bit
+           ((eq cr-bit  x86::x86-l-bits)
             (if true-p
               (! lt->bit31 b31-reg ireg jreg)
               (! ge->bit31 b31-reg ireg jreg)))
-           (#. x86::x86-gt-bit
+           ((eq cr-bit x86::x86-g-bits)
             (if true-p
               (! gt->bit31 b31-reg ireg jreg)
               (! le->bit31 b31-reg ireg jreg))))
@@ -3009,11 +2979,11 @@
          (! compare-to-nil dest ireg)
          (^ cr-bit true-p))
        (with-imm-temps () ((b31-reg :natural))
-         (ecase cr-bit
-           (#. x86::x86-eq-bit 
-            (if true-p
-              (! eqnil->bit31 b31-reg ireg)
-              (! nenil->bit31 b31-reg ireg))))
+         (if (eql cr-bit x86::x86-e-bits)
+           (if true-p
+             (! eqnil->bit31 b31-reg ireg)
+             (! nenil->bit31 b31-reg ireg))
+           (error "Bug!"))
          (ensuring-node-target (target dest)
            (! lowbit->truth target b31-reg))
          (^)))
@@ -3047,7 +3017,7 @@
     t))
 
 (defun x862-test-%izerop (seg vreg xfer form cr-bit true-p)
-  (x862-test-reg-%izerop seg vreg xfer (x862-one-untargeted-reg-form seg form x86::arg_z) cr-bit true-p 0))
+  (x862-test-reg-%izerop seg vreg xfer (x862-one-untargeted-reg-form seg form x8664::arg_z) cr-bit true-p 0))
 
 (defun x862-test-reg-%izerop (seg vreg xfer reg cr-bit true-p  zero)
   (declare (fixnum reg zero))
@@ -3061,16 +3031,16 @@
        (if (zerop zero)
          (setq scaled reg)
          (! subtract-constant scaled reg zero))
-       (ecase cr-bit
-         (#. x86::x86-eq-bit 
+       (cond
+         ((eql cr-bit x86::x86-e-bits)
           (if true-p
             (! eq0->bit31 b31-reg scaled)
             (! ne0->bit31 b31-reg scaled)))
-         (#. x86::x86-lt-bit
+         ((eql cr-bit x86::x86-l-bits)
           (if true-p
             (! lt0->bit31 b31-reg scaled)
             (! ge0->bit31 b31-reg scaled)))
-         (#. x86::x86-gt-bit
+         ((eql cr-bit x86::x86-g-bits)
           (if true-p
             (! gt0->bit31 b31-reg scaled)
             (! le0->bit31 b31-reg scaled))))
@@ -3116,8 +3086,7 @@
              (src-mode (if src (get-regspec-mode src)))
              (dest-mode (get-regspec-mode dest))
              (dest-crf (backend-ea-physical-reg dest hard-reg-class-crf)))
-        (if (and dest-gpr (eql dest-gpr x86::rzero))
-          (break "Bad destination register: ~s" dest-gpr))
+
         (if (null src)
           (if dest-gpr
             (! load-nil dest-gpr)
@@ -3127,231 +3096,128 @@
             ;; "Copying" a GPR to a CR field means comparing it to rnil
             (! compare-to-nil dest src)
             (if (and dest-gpr src-gpr)
-              (if (eql src-gpr x86::rzero)        
-                ;; Rzero always contains 0, so we can
-                ;; save ourselves some trouble.
-                ;; This assumes that (LI dest-gpr 0) is easier
-                ;; on the register-renaming pipeline nonsense than
-                ;; (MR dest-gpr rzero) would be.
-                (! lri dest-gpr 0)
-                ;; This is the "GPR <- GPR" case.  There are
-                ;; word-size dependencies, but there's also
-                ;; lots of redundancy here.
-                (target-arch-case
-                 (:x8632
-                  (case dest-mode
-                    (#.hard-reg-class-gpr-mode-node ; boxed result.
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (unless (eql  dest-gpr src-gpr)
-                          (! copy-gpr dest src)))
-                       (#.hard-reg-class-gpr-mode-u32
-                        (x862-box-u32 seg dest src))
-                       (#.hard-reg-class-gpr-mode-s32
-                        (x862-box-s32 seg dest src))
-                       (#.hard-reg-class-gpr-mode-u16
-                        (! u16->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-s16
-                        (! s16->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-u8
-                        (! u8->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-s8
-                        (! s8->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-address
-                        (! macptr->heap dest src))))
-                    ((#.hard-reg-class-gpr-mode-u32
-                      #.hard-reg-class-gpr-mode-address)
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (let* ((src-type (get-node-regspec-type-modes src)))
-                          (declare (fixnum src-type))
-                          (case dest-mode
-                            (#.hard-reg-class-gpr-mode-u32
-                             (! unbox-u32 dest src))
-                            (#.hard-reg-class-gpr-mode-address
-                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
-                               (! trap-unless-macptr src))
-                             (! deref-macptr dest src)))))
-                       ((#.hard-reg-class-gpr-mode-u32
-                         #.hard-reg-class-gpr-mode-s32
-                         #.hard-reg-class-gpr-mode-address)
-                        (unless (eql  dest-gpr src-gpr)
-                          (! copy-gpr dest src)))
-                       ((#.hard-reg-class-gpr-mode-u16
-                         #.hard-reg-class-gpr-mode-s16)
-                        (! u16->u32 dest src))
-                       ((#.hard-reg-class-gpr-mode-u8
-                         #.hard-reg-class-gpr-mode-s8)
-                        (! u8->u32 dest src))))
-                    (#.hard-reg-class-gpr-mode-s32
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-s32 dest src))
-                       ((#.hard-reg-class-gpr-mode-u32
-                         #.hard-reg-class-gpr-mode-s32
-                         #.hard-reg-class-gpr-mode-address)
-                        (unless (eql  dest-gpr src-gpr)
-                          (! copy-gpr dest src)))
-                       (#.hard-reg-class-gpr-mode-u16
-                        (! u16->u32 dest src))                 
-                       (#.hard-reg-class-gpr-mode-s16
-                        (! s16->s32 dest src))
-                       (#.hard-reg-class-gpr-mode-u8
-                        (! u8->u32 dest src))
-                       (#.hard-reg-class-gpr-mode-s8
-                        (! s8->s32 dest src))))
-                    (#.hard-reg-class-gpr-mode-u16
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-u16 dest src))
-                       ((#.hard-reg-class-gpr-mode-u8
-                         #.hard-reg-class-gpr-mode-s8)
-                        (! u8->u32 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))
-                    (#.hard-reg-class-gpr-mode-s16
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-s16 dest src))
-                       (#.hard-reg-class-gpr-mode-s8
-                        (! s8->s32 dest src))
-                       (#.hard-reg-class-gpr-mode-u8
-                        (! u8->u32 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))
-                    (#.hard-reg-class-gpr-mode-u8
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-u8 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))
-                    (#.hard-reg-class-gpr-mode-s8
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-s8 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))))
-                 (:x8664
-                  (case dest-mode
-                    (#.hard-reg-class-gpr-mode-node ; boxed result.
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (unless (eql  dest-gpr src-gpr)
-                          (! copy-gpr dest src)))
-                       (#.hard-reg-class-gpr-mode-u64
-                        (x862-box-u64 seg dest src))
-                       (#.hard-reg-class-gpr-mode-s64
-                        (x862-box-s64 seg dest src))
-                       (#.hard-reg-class-gpr-mode-u32
-                        (x862-box-u32 seg dest src))
-                       (#.hard-reg-class-gpr-mode-s32
-                        (x862-box-s32 seg dest src))
-                       (#.hard-reg-class-gpr-mode-u16
-                        (! u16->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-s16
-                        (! s16->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-u8
-                        (! u8->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-s8
-                        (! s8->fixnum dest src))
-                       (#.hard-reg-class-gpr-mode-address
-                        (! macptr->heap dest src))))
-                    ((#.hard-reg-class-gpr-mode-u64
-                      #.hard-reg-class-gpr-mode-address)
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (let* ((src-type (get-node-regspec-type-modes src)))
-                          (declare (fixnum src-type))
-                          (case dest-mode
-                            (#.hard-reg-class-gpr-mode-u64
-                             (! unbox-u64 dest src))
-                            (#.hard-reg-class-gpr-mode-address
-                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
-                               (! trap-unless-macptr src))
-                             (! deref-macptr dest src)))))
-                       ((#.hard-reg-class-gpr-mode-u64
-                         #.hard-reg-class-gpr-mode-s64
-                         #.hard-reg-class-gpr-mode-address)
-                        (unless (eql  dest-gpr src-gpr)
-                          (! copy-gpr dest src)))
-                       ((#.hard-reg-class-gpr-mode-u16
-                         #.hard-reg-class-gpr-mode-s16)
-                        (! u16->u32 dest src))
-                       ((#.hard-reg-class-gpr-mode-u8
-                         #.hard-reg-class-gpr-mode-s8)
-                        (! u8->u32 dest src))))
-                    (#.hard-reg-class-gpr-mode-s32
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-s32 dest src))
-                       ((#.hard-reg-class-gpr-mode-u32
-                         #.hard-reg-class-gpr-mode-s32
-                         #.hard-reg-class-gpr-mode-address)
-                        (unless (eql  dest-gpr src-gpr)
-                          (! copy-gpr dest src)))
-                       (#.hard-reg-class-gpr-mode-u16
-                        (! u16->u32 dest src))                 
-                       (#.hard-reg-class-gpr-mode-s16
-                        (! s16->s32 dest src))
-                       (#.hard-reg-class-gpr-mode-u8
-                        (! u8->u32 dest src))
-                       (#.hard-reg-class-gpr-mode-s8
-                        (! s8->s32 dest src))))
-                    (#.hard-reg-class-gpr-mode-u32
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-u32 dest src))
-                       ((#.hard-reg-class-gpr-mode-u32
-                         #.hard-reg-class-gpr-mode-s32)
-                        (unless (eql  dest-gpr src-gpr)
-                          (! copy-gpr dest src)))
-                       (#.hard-reg-class-gpr-mode-u16
-                        (! u16->u32 dest src))                 
-                       (#.hard-reg-class-gpr-mode-s16
-                        (! s16->s32 dest src))
-                       (#.hard-reg-class-gpr-mode-u8
-                        (! u8->u32 dest src))
-                       (#.hard-reg-class-gpr-mode-s8
-                        (! s8->s32 dest src))))
-                    (#.hard-reg-class-gpr-mode-u16
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-u16 dest src))
-                       ((#.hard-reg-class-gpr-mode-u8
-                         #.hard-reg-class-gpr-mode-s8)
-                        (! u8->u32 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))
-                    (#.hard-reg-class-gpr-mode-s16
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-s16 dest src))
-                       (#.hard-reg-class-gpr-mode-s8
-                        (! s8->s32 dest src))
-                       (#.hard-reg-class-gpr-mode-u8
-                        (! u8->u32 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))
-                    (#.hard-reg-class-gpr-mode-u8
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-u8 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))
-                    (#.hard-reg-class-gpr-mode-s8
-                     (case src-mode
-                       (#.hard-reg-class-gpr-mode-node
-                        (! unbox-s8 dest src))
-                       (t
-                        (unless (eql dest-gpr src-gpr)
-                          (! copy-gpr dest src)))))))))
+              ;; This is the "GPR <- GPR" case.  There are
+              ;; word-size dependencies, but there's also
+              ;; lots of redundancy here.
+              (target-arch-case
+               
+               (:x8664
+                (case dest-mode
+                  (#.hard-reg-class-gpr-mode-node ; boxed result.
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (unless (eql  dest-gpr src-gpr)
+                        (! copy-gpr dest src)))
+                     (#.hard-reg-class-gpr-mode-u64
+                      (x862-box-u64 seg dest src))
+                     (#.hard-reg-class-gpr-mode-s64
+                      (x862-box-s64 seg dest src))
+                     (#.hard-reg-class-gpr-mode-u32
+                      (x862-box-u32 seg dest src))
+                     (#.hard-reg-class-gpr-mode-s32
+                      (x862-box-s32 seg dest src))
+                     (#.hard-reg-class-gpr-mode-u16
+                      (! u16->fixnum dest src))
+                     (#.hard-reg-class-gpr-mode-s16
+                      (! s16->fixnum dest src))
+                     (#.hard-reg-class-gpr-mode-u8
+                      (! u8->fixnum dest src))
+                     (#.hard-reg-class-gpr-mode-s8
+                      (! s8->fixnum dest src))
+                     (#.hard-reg-class-gpr-mode-address
+                      (! macptr->heap dest src))))
+                  ((#.hard-reg-class-gpr-mode-u64
+                    #.hard-reg-class-gpr-mode-address)
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (let* ((src-type (get-node-regspec-type-modes src)))
+                        (declare (fixnum src-type))
+                        (case dest-mode
+                          (#.hard-reg-class-gpr-mode-u64
+                           (! unbox-u64 dest src))
+                          (#.hard-reg-class-gpr-mode-address
+                           (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                             (! trap-unless-macptr src))
+                           (! deref-macptr dest src)))))
+                     ((#.hard-reg-class-gpr-mode-u64
+                       #.hard-reg-class-gpr-mode-s64
+                       #.hard-reg-class-gpr-mode-address)
+                      (unless (eql  dest-gpr src-gpr)
+                        (! copy-gpr dest src)))
+                     ((#.hard-reg-class-gpr-mode-u16
+                       #.hard-reg-class-gpr-mode-s16)
+                      (! u16->u32 dest src))
+                     ((#.hard-reg-class-gpr-mode-u8
+                       #.hard-reg-class-gpr-mode-s8)
+                      (! u8->u32 dest src))))
+                  (#.hard-reg-class-gpr-mode-s32
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (! unbox-s32 dest src))
+                     ((#.hard-reg-class-gpr-mode-u32
+                       #.hard-reg-class-gpr-mode-s32
+                       #.hard-reg-class-gpr-mode-address)
+                      (unless (eql  dest-gpr src-gpr)
+                        (! copy-gpr dest src)))
+                     (#.hard-reg-class-gpr-mode-u16
+                      (! u16->u32 dest src))                 
+                     (#.hard-reg-class-gpr-mode-s16
+                      (! s16->s32 dest src))
+                     (#.hard-reg-class-gpr-mode-u8
+                      (! u8->u32 dest src))
+                     (#.hard-reg-class-gpr-mode-s8
+                      (! s8->s32 dest src))))
+                  (#.hard-reg-class-gpr-mode-u32
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (! unbox-u32 dest src))
+                     ((#.hard-reg-class-gpr-mode-u32
+                       #.hard-reg-class-gpr-mode-s32)
+                      (unless (eql  dest-gpr src-gpr)
+                        (! copy-gpr dest src)))
+                     (#.hard-reg-class-gpr-mode-u16
+                      (! u16->u32 dest src))                 
+                     (#.hard-reg-class-gpr-mode-s16
+                      (! s16->s32 dest src))
+                     (#.hard-reg-class-gpr-mode-u8
+                      (! u8->u32 dest src))
+                     (#.hard-reg-class-gpr-mode-s8
+                      (! s8->s32 dest src))))
+                  (#.hard-reg-class-gpr-mode-u16
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (! unbox-u16 dest src))
+                     ((#.hard-reg-class-gpr-mode-u8
+                       #.hard-reg-class-gpr-mode-s8)
+                      (! u8->u32 dest src))
+                     (t
+                      (unless (eql dest-gpr src-gpr)
+                        (! copy-gpr dest src)))))
+                  (#.hard-reg-class-gpr-mode-s16
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (! unbox-s16 dest src))
+                     (#.hard-reg-class-gpr-mode-s8
+                      (! s8->s32 dest src))
+                     (#.hard-reg-class-gpr-mode-u8
+                      (! u8->u32 dest src))
+                     (t
+                      (unless (eql dest-gpr src-gpr)
+                        (! copy-gpr dest src)))))
+                  (#.hard-reg-class-gpr-mode-u8
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (! unbox-u8 dest src))
+                     (t
+                      (unless (eql dest-gpr src-gpr)
+                        (! copy-gpr dest src)))))
+                  (#.hard-reg-class-gpr-mode-s8
+                   (case src-mode
+                     (#.hard-reg-class-gpr-mode-node
+                      (! unbox-s8 dest src))
+                     (t
+                      (unless (eql dest-gpr src-gpr)
+                        (! copy-gpr dest src))))))))
               (if src-gpr
                 (if dest-fpr
                   (progn
@@ -3405,7 +3271,7 @@
                  (x862-set-nargs seg (x862-formlist seg (%cadr val) nil))
                  (x862-open-undo $undostkblk curstack)
                  (! stack-cons-list))
-               (setq val x86::arg_z))
+               (setq val x8664::arg_z))
               ((eq op (%nx1-operator list*))
                (let* ((arglist (%cadr val)))                   
                  (let* ((*x862-vstack* *x862-vstack*)
@@ -3415,16 +3281,16 @@
                    (x862-set-nargs seg (length (%car arglist)))
                    (! stack-cons-list*)
                    (x862-open-undo $undostkblk curstack))
-                 (setq val x86::arg_z)))
+                 (setq val x8664::arg_z)))
               ((eq op (%nx1-operator multiple-value-list))
                (x862-multiple-value-body seg (%cadr val))
                (x862-open-undo $undostkblk curstack)
                (! stack-cons-list)
-               (setq val x86::arg_z))
+               (setq val x8664::arg_z))
               ((eq op (%nx1-operator cons))
-               (let* ((y ($ x86::arg_y))
-                      (z ($ x86::arg_z))
-                      (result ($ x86::arg_z)))
+               (let* ((y ($ x8664::arg_y))
+                      (z ($ x8664::arg_z))
+                      (result ($ x8664::arg_z)))
                  (x862-two-targeted-reg-forms seg (%cadr val) y (%caddr val) z)
                  (x862-open-undo $undostkblk )
                  (! make-tsp-cons result y z) 
@@ -3440,7 +3306,7 @@
                (let ((clear-form (caddr val)))
                  (if (nx-constant-form-p clear-form)
                    (progn 
-                     (x862-one-targeted-reg-form seg (%cadr val) ($ x86::arg_z))
+                     (x862-one-targeted-reg-form seg (%cadr val) ($ x8664::arg_z))
                      (x862-open-undo $undostkblk)
                      (if (nx-null clear-form)
                        (! make-stack-block)
@@ -3448,50 +3314,50 @@
                    (with-crf-target () crf
                      (let ((stack-block-0-label (backend-get-next-label))
                            (done-label (backend-get-next-label))
-                           (rval ($ x86::arg_z))
-                           (rclear ($ x86::arg_y)))
+                           (rval ($ x8664::arg_z))
+                           (rclear ($ x8664::arg_y)))
                        (x862-two-targeted-reg-forms seg (%cadr val) rval clear-form rclear)
                        (! compare-to-nil crf rclear)
-                       (! cbranch-false (aref *backend-labels* stack-block-0-label) crf x86::x86-eq-bit)
+                       (! cbranch-false (aref *backend-labels* stack-block-0-label) crf x86::x86-e-bits)
                        (! make-stack-block)
                        (-> done-label)
                        (@ stack-block-0-label)
                        (! make-stack-block0)
                        (@ done-label)))))
-               (setq val ($ x86::arg_z)))
+               (setq val ($ x8664::arg_z)))
               ((eq op (%nx1-operator make-list))
-               (x862-two-targeted-reg-forms seg (%cadr val) ($ x86::arg_y) (%caddr val) ($ x86::arg_z))
+               (x862-two-targeted-reg-forms seg (%cadr val) ($ x8664::arg_y) (%caddr val) ($ x8664::arg_z))
                (x862-open-undo $undostkblk curstack)
                (! make-stack-list)
-               (setq val x86::arg_z))       
+               (setq val x8664::arg_z))       
               ((eq (%car val) (%nx1-operator vector))
                (let* ((*x862-vstack* *x862-vstack*)
                       (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
                  (x862-set-nargs seg (x862-formlist seg (%cadr val) nil))
                  (! make-stack-vector))
                (x862-open-undo $undostkblk)
-               (setq val x86::arg_z))
-              ((eq op (%nx1-operator %x86-gvector))
+               (setq val x8664::arg_z))
+              ((eq op (%nx1-operator %gvector))
                (let* ((*x862-vstack* *x862-vstack*)
                       (*x862-top-vstack-lcell* *x862-top-vstack-lcell*)
                       (arglist (%cadr val)))
                  (x862-set-nargs seg (x862-formlist seg (append (car arglist) (reverse (cadr arglist))) nil))
                  (! make-stack-gvector))
                (x862-open-undo $undostkblk)
-               (setq val x86::arg_z)) 
+               (setq val x8664::arg_z)) 
               ((eq op (%nx1-operator closed-function)) 
                (setq val (x862-make-closure seg (cadr val) t))) ; can't error
               ((eq op (%nx1-operator %make-uvector))
                (destructuring-bind (element-count subtag &optional (init 0 init-p)) (%cdr val)
                  (if init-p
                    (progn
-                     (x862-three-targeted-reg-forms seg element-count ($ x86::arg_x) subtag ($ x86::arg_y) init ($ x86::arg_z))
+                     (x862-three-targeted-reg-forms seg element-count ($ x8664::arg_x) subtag ($ x8664::arg_y) init ($ x8664::arg_z))
                      (! stack-misc-alloc-init))
                    (progn
-                     (x862-two-targeted-reg-forms seg element-count ($ x86::arg_y)  subtag ($ x86::arg_z))
+                     (x862-two-targeted-reg-forms seg element-count ($ x8664::arg_y)  subtag ($ x8664::arg_z))
                      (! stack-misc-alloc)))
                  (x862-open-undo $undostkblk)
-                 (setq val ($ x86::arg_z))))))))
+                 (setq val ($ x8664::arg_z))))))))
   val)
 
 (defun x862-addrspec-to-reg (seg addrspec reg)
@@ -3540,7 +3406,7 @@
                         (x862-vpush-register seg val :node var bits)))
                     (if reg
                       (x862-one-targeted-reg-form seg val reg)
-                      (x862-vpush-register seg (x862-one-untargeted-reg-form seg val x86::arg_z) :node var bits)))
+                      (x862-vpush-register seg (x862-one-untargeted-reg-form seg val x8664::arg_z) :node var bits)))
                   (x862-set-var-ea seg var (or reg (x862-vloc-ea vloc closed-p)))
                   (if reg
                     (x862-note-var-cell var reg)
@@ -3628,14 +3494,14 @@
                      ((eql fixval -1) (! bind-interrupt-level-m1))
                      (t
                       (if ea-p 
-                        (x862-store-ea seg value x86::arg_z)
-                        (x862-one-targeted-reg-form seg value ($ x86::arg_z)))
+                        (x862-store-ea seg value x8664::arg_z)
+                        (x862-one-targeted-reg-form seg value ($ x8664::arg_z)))
                       (! bind-interrupt-level))))
              (x862-open-undo $undointerruptlevel))
             (t
              (if (or nil-p self-p)
                (progn
-                 (x862-store-immediate seg (x862-symbol-value-cell sym) x86::arg_z)
+                 (x862-store-immediate seg (x862-symbol-value-cell sym) x8664::arg_z)
                  (if nil-p
                    (! bind-nil)
                    (if (or *x862-reckless* (eq (acode-operator value) (%nx1-operator special-ref)))
@@ -3643,9 +3509,9 @@
                      (! bind-self-boundp-check))))
                (progn
                  (if ea-p 
-                   (x862-store-ea seg value x86::arg_z)
-                   (x862-one-targeted-reg-form seg value ($ x86::arg_z)))
-                 (x862-store-immediate seg (x862-symbol-value-cell sym) ($ x86::arg_y))
+                   (x862-store-ea seg value x8664::arg_z)
+                   (x862-one-targeted-reg-form seg value ($ x8664::arg_z)))
+                 (x862-store-immediate seg (x862-symbol-value-cell sym) ($ x8664::arg_y))
                  (! bind)))
              (x862-open-undo $undospecial)))
       (x862-new-vstack-lcell :special-value *x862-target-lcell-size* 0 sym)
@@ -3681,21 +3547,21 @@
 (defun x862-store-macptr (seg vreg address-reg)
   (with-x86-local-vinsn-macros (seg vreg)
     (when (x862-for-value-p vreg)
-      (if (logbitp vreg x86-imm-regs)
+      (if (logbitp vreg *backend-imm-temps*)
         (<- address-reg)
         (! macptr->heap vreg address-reg)))))
 
 (defun x862-store-signed-longword (seg vreg imm-reg)
   (with-x86-local-vinsn-macros (seg vreg)
     (when (x862-for-value-p vreg)
-      (if (logbitp vreg x86-imm-regs)
+      (if (logbitp vreg *backend-imm-temps*)
         (<- imm-reg)
         (x862-box-s32 seg vreg imm-reg)))))
 
 (defun x862-store-signed-halfword (seg vreg imm-reg)
   (with-x86-local-vinsn-macros (seg vreg)
     (when (x862-for-value-p vreg)
-      (if (logbitp vreg x86-imm-regs)
+      (if (logbitp vreg *backend-imm-temps*)
         (<- imm-reg)
         (! s16->fixnum vreg imm-reg)))))
 
@@ -3703,7 +3569,7 @@
 (defun x862-store-unsigned-halfword (seg vreg imm-reg)
   (with-x86-local-vinsn-macros (seg vreg)
     (when (x862-for-value-p vreg)
-      (if (logbitp vreg x86-imm-regs)
+      (if (logbitp vreg *backend-imm-temps*)
         (<- imm-reg)
         (! u16->fixnum vreg imm-reg)))))
 
@@ -3720,30 +3586,25 @@
       (flet ((address-and-node-regs ()
                (if for-value
                  (progn
-                   (x862-one-targeted-reg-form seg val ($ x86::arg_z))
-                   (if (eq intval 0)
-                     (values x86::rzero x86::arg_z)
-                     (progn
+                   (x862-one-targeted-reg-form seg val ($ x8664::arg_z))
+                   (progn
                        (if intval
-                         (x862-lri seg x86::imm0 intval)
-                         (! deref-macptr x86::imm0 x86::arg_z))
-                       (values x86::imm0 x86::arg_z))))
-                 (if (eq intval 0)
-                   (values x86::rzero nil)
-                   (values (x862-macptr-arg-to-reg seg val ($ x86::imm0 :mode :address)) nil)))))
+                         (x862-lri seg x8664::imm0 intval)
+                         (! deref-macptr x8664::imm0 x8664::arg_z))
+                       (values x8664::imm0 x8664::arg_z)))
+                 (values (x862-macptr-arg-to-reg seg val ($ x8664::imm0 :mode :address)) nil))))
         (if (and absptr offval)
           (setq absptr (+ absptr offval) offval 0)
           (setq absptr nil))
-        (and offval (%i> (integer-length offval) 15) (setq offval nil))
-        (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
+        (and offval (%i> (integer-length offval) 31) (setq offval nil))
+        (and absptr (%i> (integer-length absptr) 31) (setq absptr nil))
         (target-arch-case
-         (:x8632 (progn))
          (:x8664 (progn
                    (and offval (logtest 3 offval) (setq offval nil))
                    (and absptr (logtest 3 absptr) (setq absptr nil)))))
         (if absptr
           (multiple-value-bind (address node) (address-and-node-regs)
-            (! mem-set-c-address address x86::rzero absptr)
+            (! mem-set-c-absoulte-address address absptr)
             (if for-value
               (<- node)))
           ;; No absolute ptr (which is presumably a rare case anyway.)
@@ -3753,9 +3614,7 @@
               (x862-one-targeted-reg-form seg ptr ptr-reg)
               (if intval
                 (with-imm-target (ptr-reg) (val-target :address)
-                  (if (eql intval 0)
-                    (setq val-target x86::rzero)
-                    (x862-lri seg val-target intval))
+                  (x862-lri seg val-target intval)
                   (! mem-set-c-address val-target ptr-reg offval)
                   (if for-value
                     (<- (set-regspec-mode val-target (gpr-mode-name-value :address)))))
@@ -3785,9 +3644,7 @@
                     (with-imm-target (ptr-reg) (off-reg :signed-natural)
                       (x862-lri seg off-reg constant-offset)
                       (with-imm-target (ptr-reg off-reg) (val-reg :address)
-                        (if (eql intval 0)
-                          (setq val-reg x86::rzero)
-                          (x862-lri seg val-reg intval))
+                        (x862-lri seg val-reg intval)
                         (setq xptr-reg ptr-reg
                               xoff-reg off-reg
                               xval-reg val-reg))))
@@ -3800,11 +3657,9 @@
                       (! temp-push-unboxed-word ptr-reg)
                       (x862-open-undo $undostkblk))
                     (with-imm-target () (off-reg :signed-natural)
-                      (! fixnum->signed-natural off-reg (x862-one-targeted-reg-form seg offset ($ x86::arg_z)))
+                      (! fixnum->signed-natural off-reg (x862-one-targeted-reg-form seg offset ($ x8664::arg_z)))
                       (with-imm-target (off-reg) (val-reg :signed-natural)
-                        (if (eql intval 0)
-                          (setq val-reg x86::rzero)
-                          (x862-lri seg val-reg intval))
+                        (x862-lri seg val-reg intval)
                         (with-imm-target (off-reg val-reg) (ptr-reg :address)
                           (! temp-pop-unboxed-word ptr-reg)
                           (x862-close-undo)
@@ -3818,15 +3673,15 @@
                   (x862-open-undo $undostkblk)
                   (progn
                     (if (not constant-offset)
-                      (x862-vpush-register seg (x862-one-untargeted-reg-form seg offset x86::arg_z)))
+                      (x862-vpush-register seg (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
                     (multiple-value-bind (address node) (address-and-node-regs)
                       (with-imm-target (address) (off-reg :s32)
                                        (if constant-offset
                                          (x862-lri seg off-reg constant-offset)
-                                         (with-node-temps (x86::arg_z) (temp)
+                                         (with-node-temps (x8664::arg_z) (temp)
                                            (x862-vpop-register seg temp)
                                            (! fixnum->signed-natural off-reg temp)))
-                                       (with-imm-target (x86::imm0 off-reg) (ptr-reg :address)
+                                       (with-imm-target (x8664::imm0 off-reg) (ptr-reg :address)
                                                         (! temp-pop-unboxed-word ptr-reg)
                                                         (x862-close-undo)
                             (setq xptr-reg ptr-reg
@@ -3871,34 +3726,32 @@
              (for-value (x862-for-value-p vreg)))
         (declare (fixnum size))
         (flet ((val-to-argz-and-imm0 ()
-                 (x862-one-targeted-reg-form seg val ($ x86::arg_z))
+                 (x862-one-targeted-reg-form seg val ($ x8664::arg_z))
                  (if (eq size 8)
                    (if signed
                      (! gets64)
                      (! getu64))
                    (if (and (eq size 4)
                             (target-arch-case
-                             (:x8632 t)
+                             
                              (:x8664 nil)))
                      (! getxlong)
-                     (! fixnum->signed-natural x86::imm0 x86::arg_z)))))
+                     (! fixnum->signed-natural x8664::imm0 x8664::arg_z)))))
           (if (and absptr offval)
             (setq absptr (+ absptr offval) offval 0)
             (setq absptr nil))
-          (and offval (%i> (integer-length offval) 15) (setq offval nil))
-          (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
+          (and offval (%i> (integer-length offval) 31) (setq offval nil))
+          (and absptr (%i> (integer-length absptr) 31) (setq absptr nil))
           (target-arch-case
-           (:x8632 (progn))
+           
            (:x8664 (when (eql size 8)
                      (and offval (logtest 3 offval) (setq offval nil))
                      (and absptr (logtest 3 absptr) (setq absptr nil)))))
           (if absptr
             (if intval
               (with-imm-target () (val-target :s32)
-                (if (eql intval 0)
-                  (setq val-target x86::rzero)
-                  (x862-lri seg val-target intval))
-                (x862-memory-store-displaced seg val-target x86::rzero absptr size)
+                (x862-lri seg val-target intval)
+                (x862-memory-store-displaced seg val-target nil absptr size)
                 (if for-value
                   (<- (set-regspec-mode 
                        val-target 
@@ -3910,8 +3763,8 @@
                           (1 (if signed :s8 :u8))))))))
               (progn
                 (val-to-argz-and-imm0)
-                (x862-memory-store-displaced seg x86::imm0 x86::rzero absptr size)
-                (<- x86::arg_z)))
+                (x862-memory-store-displaced seg x8664::imm0 nil absptr size)
+                (<- x8664::arg_z)))
             ;; No absolute ptr (which is presumably a rare case anyway.)
             (if offval
               ;; Easier: need one less register than in the general case.
@@ -3919,9 +3772,7 @@
                 (x862-one-targeted-reg-form seg ptr ptr-reg)
                 (if intval
                   (with-imm-target (ptr-reg) (val-target :s32)                    
-                    (if (eql intval 0)
-                      (setq val-target x86::rzero)
-                      (x862-lri seg val-target intval))
+                    (x862-lri seg val-target intval)
                     (x862-memory-store-displaced seg val-target ptr-reg offval size)
                     (if for-value
                       (<- (set-regspec-mode 
@@ -3936,12 +3787,12 @@
                     (! temp-push-unboxed-word ptr-reg)
                     (x862-open-undo $undostkblk)
                     (val-to-argz-and-imm0)                  
-                    (with-imm-target (x86::imm0) (ptr-reg :address)
+                    (with-imm-target (x8664::imm0) (ptr-reg :address)
                       (! temp-pop-unboxed-word ptr-reg)
                       (x862-close-undo)
-                      (x862-memory-store-displaced seg x86::imm0 ptr-reg offval size)                    
+                      (x862-memory-store-displaced seg x8664::imm0 ptr-reg offval size)                    
                       (if for-value
-                        (<- x86::arg_z))))))
+                        (<- x8664::arg_z))))))
               ;; No (16-bit) constant offset.  Might still have a 32-bit constant offset;
               ;; might have a constant value.  Might not.  Might not.
               ;; Easiest to special-case the constant-value case first ...
@@ -3957,9 +3808,7 @@
                       (with-imm-target (ptr-reg) (off-reg :s32)
                         (x862-lri seg off-reg constant-offset)
                         (with-imm-target (ptr-reg off-reg) (val-reg :s32)
-                          (if (eql intval 0)
-                            (setq val-reg x86::rzero)
-                            (x862-lri seg val-reg intval))
+                          (x862-lri seg val-reg intval)
                           (setq xptr-reg ptr-reg
                                 xoff-reg off-reg
                                 xval-reg val-reg))))
@@ -3971,11 +3820,9 @@
                         (! temp-push-unboxed-word ptr-reg)
                         (x862-open-undo $undostkblk))
                       (with-imm-target () (off-reg :s32)
-                        (! fixnum->signed-natural off-reg (x862-one-targeted-reg-form seg offset ($ x86::arg_z)))
+                        (! fixnum->signed-natural off-reg (x862-one-targeted-reg-form seg offset ($ x8664::arg_z)))
                         (with-imm-target (off-reg) (val-reg :s32)
-                          (if (eql intval 0)
-                            (setq val-reg x86::rzero)
-                            (x862-lri seg val-reg intval))
+                          (x862-lri seg val-reg intval)
                           (with-imm-target (off-reg val-reg) (ptr-reg :address)
                             (! temp-pop-unboxed-word ptr-reg)
                             (x862-close-undo)
@@ -3989,25 +3836,25 @@
                     (x862-open-undo $undostkblk)
                     (progn
                         (if (not constant-offset)
-                          (x862-vpush-register seg (x862-one-untargeted-reg-form seg offset x86::arg_z)))
+                          (x862-vpush-register seg (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
                         (val-to-argz-and-imm0)
-                        (with-imm-target (x86::imm0) (off-reg :signed-natural)
+                        (with-imm-target (x8664::imm0) (off-reg :signed-natural)
                           (if constant-offset
                             (x862-lri seg off-reg constant-offset)
-                            (with-node-temps (x86::arg_z) (temp)
+                            (with-node-temps (x8664::arg_z) (temp)
                               (x862-vpop-register seg temp)
                               (! fixnum->signed-natural off-reg temp)))
-                          (with-imm-target (x86::imm0 off-reg) (ptr-reg :address)
+                          (with-imm-target (x8664::imm0 off-reg) (ptr-reg :address)
                             (! temp-pop-unboxed-word ptr-reg)
                             (x862-close-undo)
                             (setq xptr-reg ptr-reg
                                   xoff-reg off-reg
-                                  xval-reg x86::imm0
+                                  xval-reg x8664::imm0
                                   node-arg_z t))))))
                 (x862-memory-store-indexed seg xval-reg xptr-reg xoff-reg size)
                 (when for-value
                   (if node-arg_z
-                    (<- x86::arg_z)
+                    (<- x8664::arg_z)
                     (<- (set-regspec-mode 
                          xval-reg
                          (gpr-mode-name-value
@@ -4102,8 +3949,8 @@
       (if (eq sym '*interrupt-level*)
         (ensuring-node-target (target vreg)
           (! ref-interrupt-level target))
-        (let* ((src ($ x86::arg_z))
-               (dest ($ x86::arg_z)))
+        (let* ((src ($ x8664::arg_z))
+               (dest ($ x8664::arg_z)))
           (x862-store-immediate seg (x862-symbol-value-cell sym) src)
           (if check-boundp
             (! ref-symbol-value dest src)
@@ -4114,7 +3961,7 @@
 ;;; Should be less eager to box result
 (defun x862-extract-charcode (seg vreg xfer char safe)
   (with-x86-local-vinsn-macros (seg vreg xfer)
-    (let* ((src (x862-one-untargeted-reg-form seg char x86::arg_z)))
+    (let* ((src (x862-one-untargeted-reg-form seg char x8664::arg_z)))
       (when safe
         (! trap-unless-character src))
       (if vreg
@@ -4127,7 +3974,7 @@
   (if (x862-form-typep listform 'list)
     (setq safe nil))                    ; May also have been passed as NIL.
   (with-x86-local-vinsn-macros (seg vreg xfer)
-    (let* ((src (x862-one-untargeted-reg-form seg listform x86::arg_z)))
+    (let* ((src (x862-one-untargeted-reg-form seg listform x8664::arg_z)))
       (when safe
         (! trap-unless-list src))
       (if vreg
@@ -4150,8 +3997,8 @@
            (src nil))
       (if (or safe (not index-known-fixnum))
         (multiple-value-setq (src unscaled-idx)
-          (x862-two-untargeted-reg-forms seg miscobj x86::arg_y index x86::arg_z))
-        (setq src (x862-one-untargeted-reg-form seg miscobj x86::arg_z)))
+          (x862-two-untargeted-reg-forms seg miscobj x8664::arg_y index x8664::arg_z))
+        (setq src (x862-one-untargeted-reg-form seg miscobj x8664::arg_z)))
       (when safe
         (if (typep safe 'fixnum)
           (! trap-unless-typecode= src safe))
@@ -4163,7 +4010,7 @@
           (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
             (progn
               (! misc-ref-c-node target src index-known-fixnum))
-            (let* ((idx-reg x86::imm0))
+            (let* ((idx-reg x8664::imm0))
               (if index-known-fixnum
                 (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum *x862-target-node-shift*)))
                 (! scale-node-misc-index idx-reg unscaled-idx))
@@ -4173,7 +4020,7 @@
 (defun x862-misc-node-set (seg vreg xfer miscobj index value safe)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (multiple-value-bind (src unscaled-idx val-reg)
-        (x862-three-targeted-reg-forms seg miscobj ($ x86::arg_x) index ($ x86::arg_y) value ($ x86::arg_z))
+        (x862-three-targeted-reg-forms seg miscobj ($ x8664::arg_x) index ($ x8664::arg_y) value ($ x8664::arg_z))
       (when safe
         (if (typep safe 'fixnum)
           (! trap-unless-typecode= src safe))
@@ -4221,8 +4068,8 @@
         (declare (fixnum n nntriv))
         (cond ( (or *x862-open-code-inline* (> nntriv 3))
                (x862-formlist seg initforms nil)
-               (x862-lri seg x86::imm0 header)
-               (! %x86-gvector vreg x86::imm0 (ash n (arch::target-word-shift arch))))
+               (x862-lri seg x8664::imm0 header)
+               (! %x86-gvector vreg x8664::imm0 (ash n (arch::target-word-shift arch))))
               (t
                (let* ((pending ())
                       (vstack *x862-vstack*))
@@ -4232,10 +4079,10 @@
                      (push form pending)
                      (progn
                        (push nil pending)
-                       (x862-vpush-register seg (x862-one-untargeted-reg-form seg form x86::arg_z)))))
-                 (x862-lri seg x86::imm0 header)
+                       (x862-vpush-register seg (x862-one-untargeted-reg-form seg form x8664::arg_z)))))
+                 (x862-lri seg x8664::imm0 header)
                  (ensuring-node-target (target vreg)
-                   (! %alloc-misc-fixed target x86::imm0 (ash n (arch::target-word-shift arch)))
+                   (! %alloc-misc-fixed target x8664::imm0 (ash n (arch::target-word-shift arch)))
                    (with-node-temps (target) (nodetemp)
                      (do* ((forms pending (cdr forms))
                            (index (1- n) (1- index))
@@ -4272,12 +4119,12 @@
   (if (x862-form-typep ptrform 'cons)
     (setq safe nil))                    ; May also have been passed as NIL.
   (with-x86-local-vinsn-macros (seg vreg xfer)
-    (multiple-value-bind (ptr-vreg val-vreg) (x862-two-targeted-reg-forms seg ptrform ($ x86::arg_y) valform ($ x86::arg_z))
+    (multiple-value-bind (ptr-vreg val-vreg) (x862-two-targeted-reg-forms seg ptrform ($ x8664::arg_y) valform ($ x8664::arg_z))
       (when safe
         (! trap-unless-cons ptr-vreg))
       (if setcdr
-        (! call-subprim-2 ($ x86::arg_z) (subprim-name->offset '.SPrplacd) ptr-vreg val-vreg)
-        (! call-subprim-2 ($ x86::arg_z) (subprim-name->offset '.SPrplaca) ptr-vreg val-vreg))
+        (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPrplacd) ptr-vreg val-vreg)
+        (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPrplaca) ptr-vreg val-vreg))
       (if returnptr
         (<- ptr-vreg)
         (<- val-vreg))
@@ -4349,7 +4196,7 @@
       (when (logbitp $backend-mvpass-bit xfer) ;(x862-mvpass-p cd)
         (setq xfer (logand (lognot $backend-mvpass-mask) xfer))
         (unless *x862-returning-values*
-          (x862-vpush-register seg x86::arg_z)
+          (x862-vpush-register seg x8664::arg_z)
           (x862-set-nargs seg 1)))
       (if (neq 0 xfer)
         (if (eq xfer $backend-return)    ;; xfer : RETURN ==> popj
@@ -4367,7 +4214,7 @@
                    (nnret (neq $backend-return nbranch))
                    (tlabel (if (and tnret tn0) (aref *backend-labels* tbranch)))
                    (nlabel (if (and nnret nn0) (aref *backend-labels* nbranch))))
-              (unless cr-bit (setq cr-bit x86::x86-eq-bit))
+              (unless cr-bit (setq cr-bit x86::x86-e-bits))
               (if (and tn0 tnret nn0 nnret)
                 (progn
                   (! cbranch-true tlabel crf cr-bit )    ;; (label# /  label#)
@@ -4461,14 +4308,14 @@
                 (^))
               (dotimes (i numundo) (x862-close-undo)))
             (progn
-              ;; There are some cases where storing thru x86::arg_z
+              ;; There are some cases where storing thru x8664::arg_z
               ;; can be avoided (stores to vlocs, specials, etc.) and
               ;; some other case where it can't ($test, $vpush.)  The
               ;; case of a null vd can certainly avoid it; the check
               ;; of numundo is to keep $acc boxed in case of nthrow.
-              (x862-form  seg (if (or vreg (not (%izerop numundo))) x86::arg_z) nil body)
+              (x862-form  seg (if (or vreg (not (%izerop numundo))) x8664::arg_z) nil body)
               (x862-unwind-set seg xfer old-stack)
-              (when vreg (<- x86::arg_z))
+              (when vreg (<- x8664::arg_z))
               (^))))))))
 
 
@@ -4528,7 +4375,7 @@
                  (push (cons vstack label) *x862-valret-labels*)
                  (when mask
                    (with-imm-temps () (vsp0)
-                     (! fixnum-add vsp0 x86::vsp x86::nargs)
+                     (! fixnum-add vsp0 x8664::vsp x8664::nargs)
                      (x862-restore-nvrs seg ea mask vsp0)))
                  (! nvalret)))
           (if (null mask)
@@ -4566,7 +4413,7 @@
           (if (null arglist)
             (x862-call-fn seg vreg xfer fn arglist nil)
             (progn
-              (x862-vpush-register seg (x862-one-untargeted-reg-form seg fn x86::arg_z))
+              (x862-vpush-register seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
               (x862-multiple-value-body seg (pop arglist))
               (when arglist
                 (x862-open-undo $undostkblk)
@@ -4577,8 +4424,8 @@
                 (x862-set-nargs seg 0)
                 (! recover-values)
                 (x862-close-undo))
-              (! lisp-word-ref x86::temp0 x86::vsp x86::nargs)
-              (x862-invoke-fn seg x86::temp0 nil nil xfer)))
+              (! lisp-word-ref x8664::temp0 x8664::vsp x8664::nargs)
+              (x862-invoke-fn seg x8664::temp0 nil nil xfer)))
           (unless recursive-p
             (if mv-p
               (unless (eq xfer $backend-return)
@@ -4587,7 +4434,7 @@
               (progn 
                 (x862-adjust-vstack (- *x862-target-node-size*)) ; discard function
                 (! vstack-discard 1)
-                (<- x86::arg_z)
+                (<- x8664::arg_z)
                 (^)))))))))
 
 
@@ -4723,7 +4570,7 @@
                      (! discard-temp-frame)))
                  (throw-through-numnthrow-catch-frames ()
                    (when (neq 0 numnthrow)
-                     (x862-lri seg x86::imm0 (ash numnthrow *x862-target-fixnum-shift*))
+                     (x862-lri seg x8664::imm0 (ash numnthrow *x862-target-fixnum-shift*))
                      (if retval
                        (! nthrowvalues)
                        (! nthrow1value))
@@ -4758,7 +4605,7 @@
                 (let ((vdiff (%i- vstack target-vstack)))
                   (if retval
                     (progn
-                      (x862-lri seg x86::imm0 vdiff)
+                      (x862-lri seg x8664::imm0 vdiff)
                       (! slide-values))
                     (! adjust-vsp vdiff)))))
             (setq numnlispareas 0)
@@ -4802,7 +4649,7 @@
            (numreq (length req))
            (vtotal numreq)
            (old-top *x862-top-vstack-lcell*)
-           (listreg ($ x86::temp3))
+           (listreg ($ x8664::temp3))
            (doadlword (dpb nkeys (byte 8 16) (dpb numopt (byte 8 8) (dpb numreq (byte 8 0) 0 )))))
       (declare (fixnum numopt nkeys numreq vtotal doadlword))
       (when (or (> numreq 255) (> numopt 255) (> nkeys 255))
@@ -4817,7 +4664,7 @@
         (incf  vtotal (%ilsl 1 nkeys))
         (if (%car keys)                 ; &allow-other-keys
           (setq doadlword (%ilogior doadlword (ash #x80000000 -5))))
-        (x862-store-immediate seg (%car (%cdr (%cdr (%cdr (%cdr keys))))) x86::temp2))
+        (x862-store-immediate seg (%car (%cdr (%cdr (%cdr (%cdr keys))))) x8664::temp2))
       (when opt
         (setq vtotal (%i+ vtotal numopt))
         (when (x862-hard-opt-p opt)
@@ -4831,7 +4678,7 @@
         (! macro-bind)
         (if enclosing-ea
           (progn
-            (x862-store-ea seg enclosing-ea x86::arg_z)
+            (x862-store-ea seg enclosing-ea x8664::arg_z)
             (! destructuring-bind-inner))
           (! destructuring-bind)))
       (x862-set-vstack (%i+ *x862-vstack* (* *x862-target-node-size* vtotal)))
@@ -4917,7 +4764,7 @@
                  (dolist (op operands)
                    (rplaca tail (parse-operand-form op))
                    (setq tail (cdr tail)))
-                 (x86-emit-lap-instruction (svref x86::*x86-opcodes* (car f)) 
+                 (x86-emit-lap-instruction (svref x8664::*x86-opcodes* (car f)) 
                                            head)))
              (eval-predicate (f)
                (case (car f)
@@ -4978,27 +4825,27 @@
         (x862-restore-full-lisp-context seg))
       (if idx-subprim
         (setq subprim idx-subprim)
-        (! lri ($ x86::imm0) (ash index *x862-target-fixnum-shift*)))
+        (! lri ($ x8664::imm0) (ash index *x862-target-fixnum-shift*)))
       (if tail-p
         (! jump-subprim subprim)
         (progn
           (! call-subprim subprim)
-          (<- ($ x86::arg_z))
+          (<- ($ x8664::arg_z))
           (^))))))
 
 (defun x862-unary-builtin (seg vreg xfer name form)
   (with-x86-local-vinsn-macros (seg)
-    (x862-one-targeted-reg-form seg form ($ x86::arg_z))
+    (x862-one-targeted-reg-form seg form ($ x8664::arg_z))
     (x862-fixed-call-builtin seg vreg xfer name (subprim-name->offset '.SPcallbuiltin1))))
 
 (defun x862-binary-builtin (seg vreg xfer name form1 form2)
   (with-x86-local-vinsn-macros (seg)
-    (x862-two-targeted-reg-forms seg form1 ($ x86::arg_y) form2 ($ x86::arg_z))
+    (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z))
     (x862-fixed-call-builtin seg vreg xfer name (subprim-name->offset '.SPcallbuiltin2))))
 
 (defun x862-ternary-builtin (seg vreg xfer name form1 form2 form3)
   (with-x86-local-vinsn-macros (seg)
-    (x862-three-targeted-reg-forms seg form1 ($ x86::arg_x) form2 ($ x86::arg_y) form3 ($ x86::arg_z))
+    (x862-three-targeted-reg-forms seg form1 ($ x8664::arg_x) form2 ($ x8664::arg_y) form3 ($ x8664::arg_z))
     (x862-fixed-call-builtin seg vreg xfer name (subprim-name->offset '.SPcallbuiltin3))))
 
 
@@ -5062,7 +4909,7 @@
           (if (not (or opt rest keys))
             (setq arg-regs (x862-req-nargs-entry seg rev-fixed))
             (if (and (not (or hardopt rest keys))
-                     (<= num-opt $numx86argregs))
+                     (<= num-opt *x862-target-num-arg-regs*))
               (setq arg-regs (x862-simple-opt-entry seg rev-opt rev-fixed))
               (progn
                 ;; If the minumum acceptable number of args is
@@ -5091,11 +4938,11 @@
                     (declare (fixnum flags nkeys nprev))
                     (dotimes (i (the fixnum (+ nkeys nkeys)))
                       (x862-new-vstack-lcell :reserved *x862-target-lcell-size* 0 nil))
-                    (! misc-ref-c-node x86::temp3 x86::nfn (1+ (backend-immediate-index keyvect)))
-                    (x862-lri seg x86::imm2 (ash flags *x862-target-fixnum-shift*))
-                    (x862-lri seg x86::imm3 (ash nkeys *x862-target-fixnum-shift*))
+                    (! misc-ref-c-node x8664::temp3 x8664::nfn (1+ (backend-immediate-index keyvect)))
+                    (x862-lri seg x8664::imm2 (ash flags *x862-target-fixnum-shift*))
+                    (x862-lri seg x8664::imm3 (ash nkeys *x862-target-fixnum-shift*))
                     (unless (= nprev 0)
-                      (x862-lri seg x86::imm0 (ash nprev *x862-target-fixnum-shift*)))
+                      (x862-lri seg x8664::imm0 (ash nprev *x862-target-fixnum-shift*)))
                     (if (= 0 nprev)
                       (! simple-keywords)
                       (if (= 0 num-opt)
@@ -5115,7 +4962,7 @@
                              (simple (and (not keys) (= 0 nprev))))
                         (declare (fixnum nprev))
                         (unless simple
-                          (x862-lri seg x86::imm0 (ash nprev *x862-target-fixnum-shift*)))
+                          (x862-lri seg x8664::imm0 (ash nprev *x862-target-fixnum-shift*)))
                         (if stack-consed-rest
                           (if simple
                             (! stack-rest-arg)
@@ -5131,7 +4978,7 @@
                       (x862-reserve-vstack-lcells 1))))
                 (when hardopt
                   (x862-reserve-vstack-lcells num-opt)
-                  (x862-lri seg x86::imm0 (ash num-opt *x862-target-fixnum-shift*))
+                  (x862-lri seg x8664::imm0 (ash num-opt *x862-target-fixnum-shift*))
 
                   ;; .SPopt-supplied-p wants nargs to contain the
                   ;; actual arg-count minus the number of "fixed"
@@ -5167,7 +5014,7 @@
                 (rplacd constant reg)
                 (! ref-constant reg (backend-immediate-index (car constant))))))
           (when method-var
-            (x862-seq-bind-var seg method-var x86::next-method-context))
+            (x862-seq-bind-var seg method-var x8664::next-method-context))
           ;; If any arguments are still in arg_x, arg_y, arg_z, that's
           ;; because they weren't vpushed in a "simple" entry case and
           ;; belong in some NVR.  Put them in their NVRs, so that we
@@ -5176,7 +5023,7 @@
           ;; argument registers.
           (when arg-regs
             (do* ((vars arg-regs (cdr vars))
-                  (arg-reg-num x86::arg_z (1- arg-reg-num)))
+                  (arg-reg-num x8664::arg_z (1- arg-reg-num)))
                  ((null vars))
               (declare (list vars) (fixnum arg-reg-num))
               (let* ((var (car vars)))
@@ -5256,14 +5103,14 @@
              (first (pop forms)))
         (x862-push-register seg 
                             (if (or node-p crf-p)
-                              (x862-one-untargeted-reg-form seg first x86::arg_z)
+                              (x862-one-untargeted-reg-form seg first x8664::arg_z)
                               (x862-one-targeted-reg-form seg first vreg)))
         (dolist (form forms)
           (x862-form seg nil nil form))
         (if crf-p
           (progn
-            (x862-vpop-register seg x86::arg_z)
-            (<- x86::arg_z))
+            (x862-vpop-register seg x8664::arg_z)
+            (<- x8664::arg_z))
           (x862-pop-register seg vreg))
         (^)))))
 
@@ -5277,9 +5124,9 @@
   (x862-ref-symbol-value seg vreg xfer sym t))
 
 (defx862 x862-%slot-ref %slot-ref (seg vreg xfer instance idx)
-  (ensuring-node-target (target (or vreg ($ x86::arg_z)))
+  (ensuring-node-target (target (or vreg ($ x8664::arg_z)))
     (multiple-value-bind (v i)
-        (x862-two-untargeted-reg-forms seg instance x86::arg_y idx x86::arg_z)
+        (x862-two-untargeted-reg-forms seg instance x8664::arg_y idx x8664::arg_z)
       (unless *x862-reckless*
         (! check-misc-bound i v))
       (with-node-temps (v) (temp)
@@ -5316,12 +5163,12 @@
 (defx862 x862-consp consp (seg vreg xfer cc form)
   (if (null vreg)
     (x862-form seg vreg xfer form)
-    (let* ((tagreg x86::imm0))
+    (let* ((tagreg x8664::imm0))
       (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-        (! extract-fulltag tagreg (x862-one-untargeted-reg-form seg form x86::arg_z))
+        (! extract-fulltag tagreg (x862-one-untargeted-reg-form seg form x8664::arg_z))
         (x862-test-reg-%izerop seg vreg xfer tagreg cr-bit true-p
                                (target-arch-case
-                                (:x8632 x8632::fulltag-cons)
+                                
                                 (:x8664 x8664::fulltag-cons)))))))
       
 (defx862 x862-cons cons (seg vreg xfer y z)
@@ -5329,7 +5176,7 @@
     (progn
       (x862-form seg nil nil y)
       (x862-form seg nil xfer z))
-    (multiple-value-bind (yreg zreg) (x862-two-untargeted-reg-forms seg y x86::arg_y z x86::arg_z)
+    (multiple-value-bind (yreg zreg) (x862-two-untargeted-reg-forms seg y x8664::arg_y z x8664::arg_z)
       (ensuring-node-target (target vreg)
         (! cons target yreg zreg))
       (^))))
@@ -5371,7 +5218,7 @@
                                      (x862-lookup-target-uvector-subtag
                                       :simple-vector) arglist))
 
-(defx862 x862-%x86-gvector %x86-gvector (seg vreg xfer arglist)
+(defx862 x862-%gvector %gvector (seg vreg xfer arglist)
   (let* ((all-on-stack (append (car arglist) (reverse (cadr arglist))))
          (subtag-form (car all-on-stack))
          (subtag (acode-fixnum-form-p subtag-form)))
@@ -5383,7 +5230,7 @@
                  (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
             (x862-set-nargs seg (x862-formlist seg all-on-stack nil))
             (! gvector))
-          (<- x86::arg_z)
+          (<- x8664::arg_z)
           (^))
         (x862-allocate-initialized-gvector seg vreg xfer subtag (cdr all-on-stack))))))
 
@@ -5405,13 +5252,13 @@
            (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
            (otherform (if (or high low) (if fix1 form2 form1))))
       (if otherform
-        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x86::arg_z)))
+        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x8664::arg_z)))
           (when vreg
             (ensuring-node-target (target vreg) 
               (if high
                 (! logior-high target other-reg high)
                 (! logior-low target other-reg low)))))
-        (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x86::arg_y form2 x86::arg_z)
+        (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
           (if vreg (ensuring-node-target (target vreg) (! %logior2 target r1 r2)))))   
       (^))))
 
@@ -5430,7 +5277,7 @@
            (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
            (otherform (if (or high low) (if fix1 form2 form1))))
       (if otherform
-        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x86::arg_z)))
+        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x8664::arg_z)))
           (when vreg
             (ensuring-node-target (target vreg) 
               (if high
@@ -5439,7 +5286,7 @@
         (if (and fixval (= fixlen (logcount fixval)))
           (let* ((nbits (- *x862-target-bits-in-word*
                            (1+ (+ *x862-target-fixnum-shift* fixlen))))
-                 (otherreg (x862-one-untargeted-reg-form seg (if fix1 form2 form1) x86::arg_z)))
+                 (otherreg (x862-one-untargeted-reg-form seg (if fix1 form2 form1) x8664::arg_z)))
             
             (if vreg (ensuring-node-target (target vreg)
                        (if (> fixval 0)
@@ -5447,7 +5294,7 @@
                          (! clear-right target otherreg (+ fixlen
                                                            *x862-target-fixnum-shift*))))))
           
-          (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x86::arg_y form2 x86::arg_z)
+          (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
             (if vreg (ensuring-node-target (target vreg) (! %logand2 target r1 r2))))))
       (^))))
 
@@ -5462,29 +5309,29 @@
            (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
            (otherform (if (or high low) (if fix1 form2 form1))))
       (if otherform
-        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x86::arg_z)))
+        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x8664::arg_z)))
           (when vreg
             (ensuring-node-target (target vreg) 
               (if high
                 (! logxor-high target other-reg high)
                 (! logxor-low target other-reg low)))))
-        (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x86::arg_y form2 x86::arg_z)
+        (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
           (if vreg (ensuring-node-target (target vreg) (! %logxor2 vreg r1 r2)))))
       (^))))
 
 (defx862 x862-%ineg %ineg (seg vreg xfer n)
-  (let* ((src (x862-one-untargeted-reg-form seg n x86::arg_z)))
+  (let* ((src (x862-one-untargeted-reg-form seg n x8664::arg_z)))
     (when vreg
       (ensuring-node-target (target vreg)
         (if *x862-open-code-inline*
           (! negate-fixnum-overflow-inline target src)
           (progn
             (! negate-fixnum-overflow-ool src)
-            (<- ($ x86::arg_z))))))
+            (x862-copy-register seg target ($ x8664::arg_z))))))
     (^)))
 
 (defx862 x862-%%ineg %%ineg (seg vreg xfer n)
-  (let* ((src (x862-one-untargeted-reg-form seg n x86::arg_z)))
+  (let* ((src (x862-one-untargeted-reg-form seg n x8664::arg_z)))
     (when vreg
       (ensuring-node-target (target vreg) 
         (! negate-fixnum-no-ovf target src)))
@@ -5501,40 +5348,40 @@
 
 (defx862 x862-istruct-typep istruct-typep (seg vreg xfer cc form type)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-    (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form x86::arg_y type x86::arg_z)
+    (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form x8664::arg_y type x8664::arg_z)
       (with-imm-target  () (target :signed-natural)
         (! istruct-typep target r1 r2)
         (x862-test-reg-%izerop seg vreg xfer target cr-bit true-p 0)))))
 
 
-(defx862 x862-x86-lisptag x86-lisptag (seg vreg xfer node)
+(defx862 x8626-lisptag lisptag (seg vreg xfer node)
   (if (null vreg)
     (x862-form seg vreg xfer node)
     (progn
       (ensuring-node-target (target vreg) 
-        (! extract-tag-fixnum target (x862-one-untargeted-reg-form seg node x86::arg_z)))
+        (! extract-tag-fixnum target (x862-one-untargeted-reg-form seg node x8664::arg_z)))
       (^))))
 
-(defx862 x862-x86-fulltag x86-fulltag (seg vreg xfer node)
+(defx862 x862-fulltag fulltag (seg vreg xfer node)
   (if (null vreg)
     (x862-form seg vreg xfer node)
     (progn
       (ensuring-node-target (target vreg) 
-        (! extract-fulltag-fixnum target (x862-one-untargeted-reg-form seg node x86::arg_z)))
+        (! extract-fulltag-fixnum target (x862-one-untargeted-reg-form seg node x8664::arg_z)))
       (^))))
 
-(defx862 x862-x86-typecode x86-typecode (seg vreg xfer node)
+(defx862 x862-typecode typecode (seg vreg xfer node)
   (if (null vreg)
     (x862-form seg vreg xfer node)
-    (let* ((reg (x862-one-untargeted-reg-form seg node (if (eq (hard-regspec-value vreg) x86::arg_z) 
-                                                         x86::arg_y x86::arg_z))))
+    (let* ((reg (x862-one-untargeted-reg-form seg node (if (eq (hard-regspec-value vreg) x8664::arg_z) 
+                                                         x8664::arg_y x8664::arg_z))))
       (ensuring-node-target (target vreg) 
         (! extract-typecode-fixnum target reg ))
       (^))))
 
 (defx862 x862-setq-special setq-special (seg vreg xfer sym val)
-  (let* ((symreg ($ x86::arg_y))
-         (valreg ($ x86::arg_z)))
+  (let* ((symreg ($ x8664::arg_y))
+         (valreg ($ x8664::arg_z)))
     (x862-one-targeted-reg-form seg val valreg)
     (x862-store-immediate seg (x862-symbol-value-cell sym) symreg)
     (! setq-special symreg valreg)
@@ -5561,7 +5408,7 @@
          (need-label (if xfer (or compound mvpass-p) t))
          end-of-block
          last-cd
-         (dest (if (backend-crf-p vreg) x86::arg_z vreg)))
+         (dest (if (backend-crf-p vreg) x8664::arg_z vreg)))
     (if need-label
       (setq end-of-block (backend-get-next-label)))
     (setq last-cd (if need-label (%ilogior2 (if mvpass-p $backend-mvpass-mask 0) end-of-block) xfer))
@@ -5581,7 +5428,7 @@
 
 
 (defx862 x862-uvsize uvsize (seg vreg xfer v)
-  (let* ((misc-reg (x862-one-untargeted-reg-form seg v x86::arg_z)))
+  (let* ((misc-reg (x862-one-untargeted-reg-form seg v x8664::arg_z)))
     (unless *x862-reckless* (! trap-unless-uvector misc-reg))
     (if vreg 
       (ensuring-node-target (target vreg)
@@ -5594,19 +5441,19 @@
       (x862-form seg nil nil form1)
       (x862-form seg nil xfer form2))
     (let* ((const (acode-fixnum-form-p form1))
-           (max (target-arch-case (:x8632 31) (:x8664 63))))
+           (max (target-arch-case  (:x8664 63))))
       (ensuring-node-target (target vreg)
         (if const
-          (let* ((src (x862-one-untargeted-reg-form seg form2 x86::arg_z)))
+          (let* ((src (x862-one-untargeted-reg-form seg form2 x8664::arg_z)))
             (if (<= const max)
               (! %ilsl-c target const src)
               (!  lri target 0)))
-          (multiple-value-bind (count src) (x862-two-untargeted-reg-forms seg form1 x86::arg_y form2 x86::arg_z)
+          (multiple-value-bind (count src) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
             (! %ilsl target count src))))
       (^))))
 
 (defx862 x862-endp endp (seg vreg xfer cc form)
-  (let* ((formreg (x862-one-untargeted-reg-form seg form x86::arg_z)))
+  (let* ((formreg (x862-one-untargeted-reg-form seg form x8664::arg_z)))
     (! trap-unless-list formreg)
     (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
       (x862-compare-register-to-nil seg vreg xfer formreg  cr-bit true-p))))
@@ -5618,12 +5465,12 @@
     (x862-form seg nil xfer c)
     (progn
       (ensuring-node-target (target vreg)
-        (! fixnum->char target (x862-one-untargeted-reg-form seg c x86::arg_z)))
+        (! fixnum->char target (x862-one-untargeted-reg-form seg c x8664::arg_z)))
       (^))))
 
 (defx862 x862-%schar %schar (seg vreg xfer str idx)
   (multiple-value-bind (src unscaled-idx)
-                       (x862-two-untargeted-reg-forms seg str x86::arg_y idx x86::arg_z)
+                       (x862-two-untargeted-reg-forms seg str x8664::arg_y idx x8664::arg_z)
     (if vreg
       (ensuring-node-target (target vreg)
         (! %schar target src unscaled-idx)))
@@ -5632,24 +5479,24 @@
 (defx862 x862-%set-schar %set-schar (seg vreg xfer str idx char)
   (multiple-value-bind (src unscaled-idx char)
                        (x862-three-untargeted-reg-forms seg
-                                                        str x86::arg_x
-                                                        idx x86::arg_y
-                                                        char x86::arg_z)
+                                                        str x8664::arg_x
+                                                        idx x8664::arg_y
+                                                        char x8664::arg_z)
     (! %set-schar  src unscaled-idx char)
     (when vreg (<- char)) 
     (^)))
 
 (defx862 x862-%set-scharcode %set-scharcode (seg vreg xfer str idx char)
   (multiple-value-bind (src unscaled-idx char)
-                       (x862-three-untargeted-reg-forms seg str x86::arg_x idx x86::arg_y
-                                                        char x86::arg_z)
+                       (x862-three-untargeted-reg-forms seg str x8664::arg_x idx x8664::arg_y
+                                                        char x8664::arg_z)
     (! %set-scharcode  src unscaled-idx char)
     (when vreg (<- char)) 
     (^)))
 
 (defx862 x862-%scharcode %scharcode (seg vreg xfer str idx)
   (multiple-value-bind (src unscaled-idx)
-                       (x862-two-untargeted-reg-forms seg str x86::arg_y idx x86::arg_z)
+                       (x862-two-untargeted-reg-forms seg str x8664::arg_y idx x8664::arg_z)
     (if vreg
       (ensuring-node-target (target vreg)
         (! %scharcode target src unscaled-idx)))
@@ -5658,7 +5505,7 @@
       
 
 (defx862 x862-code-char code-char (seg vreg xfer c)
-  (let* ((reg (x862-one-untargeted-reg-form seg c x86::arg_z)))
+  (let* ((reg (x862-one-untargeted-reg-form seg c x8664::arg_z)))
     (! require-u8 reg)                 ; Typecheck even if result unused.
     (if vreg
       (ensuring-node-target (target vreg)
@@ -5680,14 +5527,14 @@
     (x862-form seg nil xfer form)
     (progn
       (ensuring-node-target (target vreg)
-        (! sign-extend-halfword target (x862-one-untargeted-reg-form seg form x86::arg_z)))
+        (! sign-extend-halfword target (x862-one-untargeted-reg-form seg form x8664::arg_z)))
       (^))))
 
 (defx862 x862-multiple-value-list multiple-value-list (seg vreg xfer form)
   (x862-multiple-value-body seg form)
   (! list)
   (when vreg
-    (<- x86::arg_z))
+    (<- x8664::arg_z))
   (^))
 
 (defx862 x862-immform immediate (seg vreg xfer form)
@@ -5720,7 +5567,7 @@
     (let* ((valreg (x862-one-untargeted-reg-form seg form (if (and (register-spec-p ea) 
                                                                    (or (null vreg) (eq ea vreg)))
                                                             ea
-                                                            x86::arg_z))))
+                                                            x8664::arg_z))))
       (x862-do-lexical-setq seg vreg ea valreg))
     (^)))
 
@@ -5751,7 +5598,7 @@
     (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
       (let* ((fixbit (acode-fixnum-form-p bitnum)))
         (if fixbit
-          (let* ((reg (x862-one-untargeted-reg-form seg form x86::arg_z))
+          (let* ((reg (x862-one-untargeted-reg-form seg form x8664::arg_z))
                  (x86-bit (- (1- *x862-target-bits-in-word*) (max (min (+ fixbit *x862-target-fixnum-shift*) (1- *x862-target-bits-in-word*)) *x862-target-fixnum-shift*))))
             (with-imm-temps () (bitreg)
               (! extract-constant-x86-bit bitreg reg x86-bit)
@@ -5766,7 +5613,7 @@
                  (ensuring-node-target (target dest)
                    (! lowbit->truth target bitreg))
                  (^)))))
-          (multiple-value-bind (rbit rform) (x862-two-untargeted-reg-forms seg bitnum x86::arg_y form x86::arg_z)
+          (multiple-value-bind (rbit rform) (x862-two-untargeted-reg-forms seg bitnum x8664::arg_y form x8664::arg_z)
              (with-imm-temps () (bitreg)
                (! extract-variable-non-insane-bit bitreg rform rbit)
                (regspec-crf-gpr-case 
@@ -5782,15 +5629,15 @@
                  (^))))))))))
 
 (defx862 x862-uvref uvref (seg vreg xfer vector index)
-  (x862-two-targeted-reg-forms seg vector ($ x86::arg_y) index ($ x86::arg_z))
+  (x862-two-targeted-reg-forms seg vector ($ x8664::arg_y) index ($ x8664::arg_z))
   (! misc-ref)
-  (<- ($ x86::arg_z))
+  (<- ($ x8664::arg_z))
   (^))
 
 (defx862 x862-uvset uvset (seg vreg xfer vector index value)
-  (x862-three-targeted-reg-forms seg vector ($ x86::arg_x) index ($ x86::arg_y) value ($ x86::arg_z))
+  (x862-three-targeted-reg-forms seg vector ($ x8664::arg_x) index ($ x8664::arg_y) value ($ x8664::arg_z))
   (! misc-set)
-  (<- ($ x86::arg_z))
+  (<- ($ x8664::arg_z))
   (^))
 
 (defx862 x862-%decls-body %decls-body (seg vreg xfer form p2decls)
@@ -5821,18 +5668,18 @@
   (x862-call-fn seg vreg xfer fn arglist spread-p))
 
 (defx862 x862-self-call self-call (seg vreg xfer arglist &optional spread-p)
-  (setq arglist (x862-augment-arglist *x862-cur-afunc* arglist (if spread-p 1 $numx86argregs)))
+  (setq arglist (x862-augment-arglist *x862-cur-afunc* arglist (if spread-p 1 *x862-target-num-arg-regs*)))
   (x862-call-fn seg vreg xfer -1 arglist spread-p))
 
 
 (defx862 x862-lexical-function-call lexical-function-call (seg vreg xfer afunc arglist &optional spread-p)
   (x862-call-fn seg vreg xfer (list (%nx1-operator simple-function) afunc)
-                (x862-augment-arglist afunc arglist (if spread-p 1 $numx86argregs))
+                (x862-augment-arglist afunc arglist (if spread-p 1 *x862-target-num-arg-regs*))
                 spread-p))
 
 (defx862 x862-builtin-call builtin-call (seg vreg xfer index arglist)
   (let* ((nargs (x862-arglist seg arglist))
-         (tail-p (and (x862-tailcallok xfer) (<= nargs $numx86argregs)))
+         (tail-p (and (x862-tailcallok xfer) (<= nargs *x862-target-num-arg-regs*)))
          (idx (acode-fixnum-form-p index))
          (idx-subprim (x862-builtin-index-subprim idx))
          (subprim
@@ -5847,14 +5694,14 @@
       (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count*)
       (x862-restore-full-lisp-context seg))
     (unless idx-subprim
-      (! lri x86::imm0 (ash idx *x862-target-fixnum-shift*))
+      (! lri x8664::imm0 (ash idx *x862-target-fixnum-shift*))
       (when (eql subprim (subprim-name->offset '.SPcallbuiltin))
         (x862-set-nargs seg nargs)))
     (if tail-p
       (! jump-subprim subprim)
       (progn
         (! call-subprim subprim)
-        (<- x86::arg_z)
+        (<- x8664::arg_z)
         (^)))))
       
 
@@ -5883,7 +5730,7 @@
       (if (eq 0 xfer) 
         (setq xfer nil))
       (if both-single-valued            ; it's implied that we're returning
-        (let* ((result x86::arg_z))
+        (let* ((result x8664::arg_z))
           (let ((merge-else-branch-label (if (nx-null false) (x862-find-nilret-label))))
             (x862-conditional-form seg (x862-make-compound-cd 0 falselabel) testform)
             (x862-form seg result endlabel true)
@@ -5954,12 +5801,12 @@
          (tag2 (backend-get-next-label))
          (vstack *x862-vstack*)
          (cstack *x862-cstack*)
-         (dest (if (backend-crf-p vreg) vreg (if vreg x86::arg_z (available-crf-temp *available-backend-crf-temps*))))
+         (dest (if (backend-crf-p vreg) vreg (if vreg x8664::arg_z (available-crf-temp *available-backend-crf-temps*))))
          (cd1 (x862-make-compound-cd 
-               (if (eq dest x86::arg_z) tag1 (x862-cd-merge (x862-cd-true xfer) tag1)) 0)))
+               (if (eq dest x8664::arg_z) tag1 (x862-cd-merge (x862-cd-true xfer) tag1)) 0)))
     (while (cdr forms)
-      (x862-form seg dest (if (eq dest x86::arg_z) nil cd1) (car forms))
-      (when (eq dest x86::arg_z)
+      (x862-form seg dest (if (eq dest x8664::arg_z) nil cd1) (car forms))
+      (when (eq dest x8664::arg_z)
         (with-crf-target () val-crf
           (x862-copy-register seg val-crf dest)
           (x862-branch seg cd1 val-crf)))
@@ -5967,11 +5814,11 @@
     (if mvpass
       (progn (x862-multiple-value-body seg (car forms)) 
              (let* ((*x862-returning-values* t)) (x862-branch seg (x862-cd-merge xfer tag2) vreg)))
-      (x862-form seg  vreg (if (eq dest x86::arg_z) (x862-cd-merge xfer tag2) xfer) (car forms)))
+      (x862-form seg  vreg (if (eq dest x8664::arg_z) (x862-cd-merge xfer tag2) xfer) (car forms)))
     (setq *x862-vstack* vstack *x862-cstack* cstack)
     (@ tag1)
-    (when (eq dest x86::arg_z)
-      (<- x86::arg_z)
+    (when (eq dest x8664::arg_z)
+      (<- x8664::arg_z)
       (^))
     (@ tag2)))
 
@@ -5987,7 +5834,7 @@
            (nargs (x862-formlist seg arglist nil)))
       (x862-set-nargs seg nargs)
       (! list)
-      (<- x86::arg_z)))
+      (<- x8664::arg_z)))
   (^))
 
 (defx862 x862-list* list* (seg vreg xfer arglist)
@@ -6001,7 +5848,7 @@
       (when (> nargs 1)
         (x862-set-nargs seg (1- nargs))
         (! list*))
-      (<- x86::arg_z)))
+      (<- x8664::arg_z)))
   (^))
 
 (defx862 x862-minus1 minus1 (seg vreg xfer form)
@@ -6036,13 +5883,13 @@
          (x862-form seg nil nil form1) 
          (x862-form seg nil xfer form2))
         (overflow
-         (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x86::arg_y form2 x86::arg_z)
+         (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
            (ensuring-node-target (target vreg)
              (if *x862-open-code-inline*
                (! fixnum-add-overflow-inline target r1 r2)
                (progn
                  (! fixnum-add-overflow-ool r1 r2)
-                 (<- ($ x86::arg_z)))))
+                 (x862-copy-register seg target ($ x8664::arg_z)))))
            (^)))
         (t                              
          ;; There isn't any "addi" that checks for overflow, which is
@@ -6061,7 +5908,7 @@
              (x862-lri seg vreg (ash (+ fix1 fix2) *x862-target-fixnum-shift*))
              (if other
                (let* ((constant (ash (or fix1 fix2) *x862-target-fixnum-shift*))
-                      (reg (x862-one-untargeted-reg-form seg other x86::arg_z))
+                      (reg (x862-one-untargeted-reg-form seg other x8664::arg_z))
                       (high (ldb (byte 16 16) constant))
                       (low (ldb (byte 16 0) constant)))
                  (declare (fixnum high low))
@@ -6075,7 +5922,7 @@
                          (<- temp))
                        (ensuring-node-target (target vreg)
                          (! add-immediate target reg high low))))))
-               (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x86::arg_y form2 x86::arg_z)
+               (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
                  (ensuring-node-target (target vreg)
                    (! fixnum-add target r1 r2)))))
            (^)))))
@@ -6094,20 +5941,20 @@
             (x862-form seg nil nil num1)
             (x862-form seg nil xfer num2))
            (overflow
-            (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x86::arg_y num2 x86::arg_z)
+            (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x8664::arg_y num2 x8664::arg_z)
                (ensuring-node-target (target vreg)
                  (if *x862-open-code-inline*
                    (! fixnum-sub-overflow-inline target r1 r2)
                    (progn
                      (! fixnum-sub-overflow-ool r1 r2)
-                     (<- ($ x86::arg_z)))))
+                     (x862-copy-register seg target ($ x8664::arg_z)))))
               (^)))
            ((and v1 (<= (integer-length v1) (- 15 *x862-target-fixnum-shift*)))
             (ensuring-node-target (target vreg)
-              (! fixnum-sub-from-constant target v1 (x862-one-untargeted-reg-form seg num2 x86::arg_z)))
+              (! fixnum-sub-from-constant target v1 (x862-one-untargeted-reg-form seg num2 x8664::arg_z)))
             (^))
            (t
-            (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x86::arg_y num2 x86::arg_z)
+            (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x8664::arg_y num2 x8664::arg_z)
               (ensuring-node-target (target vreg)
                 (! fixnum-sub target r1 r2))
               (^)))))))))
@@ -6123,8 +5970,8 @@
       (if (and fix1 fix2)
         (x862-lri seg vreg (ash (* fix1 fix2) *x862-target-fixnum-shift*))
         (if other
-          (! multiply-immediate vreg (x862-one-untargeted-reg-form seg other x86::arg_z) (or fix1 fix2))
-          (multiple-value-bind (rx ry) (x862-two-untargeted-reg-forms seg num1 x86::arg_y num2 x86::arg_z)
+          (! multiply-immediate vreg (x862-one-untargeted-reg-form seg other x8664::arg_z) (or fix1 fix2))
+          (multiple-value-bind (rx ry) (x862-two-untargeted-reg-forms seg num1 x8664::arg_y num2 x8664::arg_z)
             (ensuring-node-target (target vreg)
               (! multiply-fixnums target rx ry)))))
       (^))))
@@ -6132,13 +5979,13 @@
 (defx862 x862-nth-value nth-value (seg vreg xfer n form)
   (let* ((*x862-vstack* *x862-vstack*)
          (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
-    (let* ((nreg (x862-one-untargeted-reg-form seg n x86::arg_z)))
+    (let* ((nreg (x862-one-untargeted-reg-form seg n x8664::arg_z)))
       (unless (acode-fixnum-form-p n)
         (! trap-unless-fixnum nreg))
       (x862-vpush-register seg nreg))
      (x862-multiple-value-body seg form) ; sets nargs
-    (! nth-value x86::arg_z))
-  (<- x86::arg_z)
+    (! nth-value x8664::arg_z))
+  (<- x8664::arg_z)
   (^))
 
 (defx862 x862-values values (seg vreg xfer forms)
@@ -6165,10 +6012,10 @@
 (defun x862-char-p (seg vreg xfer cc form)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-      (! mask-base-char x86::imm0 (x862-one-untargeted-reg-form seg form x86::arg_z))
-      (x862-test-reg-%izerop seg vreg xfer x86::imm0 cr-bit true-p
+      (! mask-base-char x8664::imm0 (x862-one-untargeted-reg-form seg form x8664::arg_z))
+      (x862-test-reg-%izerop seg vreg xfer x8664::imm0 cr-bit true-p
                              (target-arch-case
-                              (:x8632 x8632::subtag-character)
+                              
                               (:x8664 x8664::subtag-character))))))
 
 
@@ -6187,7 +6034,7 @@
          (old-stack (x862-encode-stack)))
     (with-x86-p2-declarations p2decls
       (x862-multiple-value-body seg valform)
-      (x862-lri seg x86::imm0 nbytes)
+      (x862-lri seg x8664::imm0 nbytes)
       (! fitvals)
       (x862-set-vstack (%i+ vloc nbytes))
       (let* ((old-top *x862-top-vstack-lcell*)
@@ -6239,7 +6086,7 @@
    seg 
    vreg 
    xfer
-   (x862-one-untargeted-reg-form seg form x86::arg_z) 
+   (x862-one-untargeted-reg-form seg form x8664::arg_z) 
    cr-bit
    true-p)))
 
@@ -6264,13 +6111,13 @@
         (progn
           (if initval
             (progn
-              (x862-three-targeted-reg-forms seg element-count ($ x86::arg_x) st ($ x86::arg_y) initval ($ x86::arg_z))
+              (x862-three-targeted-reg-forms seg element-count ($ x8664::arg_x) st ($ x8664::arg_y) initval ($ x8664::arg_z))
               (! misc-alloc-init)
-              (<- ($ x86::arg_z)))
+              (<- ($ x8664::arg_z)))
             (progn
-              (x862-two-targeted-reg-forms seg element-count ($ x86::arg_y) st ($ x86::arg_z))
+              (x862-two-targeted-reg-forms seg element-count ($ x8664::arg_y) st ($ x8664::arg_z))
               (! misc-alloc)
-              (<- ($ x86::arg_z))))))
+              (<- ($ x8664::arg_z))))))
         (^))))
 
 (defx862 x862-%iasr %iasr (seg vreg xfer form1 form2)
@@ -6279,13 +6126,13 @@
       (x862-form seg nil nil form1)
       (x862-form seg vreg xfer form2))
     (let* ((count (acode-fixnum-form-p form1))
-           (max (target-arch-case (:x8632 31) (:x8664 63))))
+           (max (target-arch-case  (:x8664 63))))
       (declare (fixnum max))
       (ensuring-node-target (target vreg)
         (if count
           (! %iasr-c target (if (> count max) max count)
-             (x862-one-untargeted-reg-form seg form2 x86::arg_z))
-          (multiple-value-bind (cnt src) (x862-two-targeted-reg-forms seg form1 ($ x86::arg_y) form2 ($ x86::arg_z))
+             (x862-one-untargeted-reg-form seg form2 x8664::arg_z))
+          (multiple-value-bind (cnt src) (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z))
             (! %iasr target cnt src))))
       (^))))
 
@@ -6297,11 +6144,11 @@
     (let* ((count (acode-fixnum-form-p form1)))
       (ensuring-node-target (target vreg)
         (if count
-          (let ((src (x862-one-untargeted-reg-form seg form2 ($ x86::arg_z))))
+          (let ((src (x862-one-untargeted-reg-form seg form2 ($ x8664::arg_z))))
             (if (<= count 31)
               (! %ilsr-c target count src)
               (!  lri target 0)))
-          (multiple-value-bind (cnt src) (x862-two-targeted-reg-forms seg form1 ($ x86::arg_y) form2 ($ x86::arg_z))
+          (multiple-value-bind (cnt src) (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z))
             (! %ilsr target cnt src))))
       (^))))
 
@@ -6391,8 +6238,8 @@
                  (with-imm-target (ptrreg) (offsetreg :s32)
                    (x862-two-targeted-reg-forms seg
                                                 ptr ptrreg
-                                                offset ($ x86::arg_z))
-                   (! fixnum->signed-natural offsetreg x86::arg_z)
+                                                offset ($ x8664::arg_z))
+                   (! fixnum->signed-natural offsetreg x8664::arg_z)
                    (if double-p
                      (! mem-ref-double-float fp-reg ptrreg offsetreg)
                      (! mem-ref-single-float fp-reg ptrreg offsetreg)))))
@@ -6437,18 +6284,18 @@
                          seg
                          (x862-one-untargeted-reg-form seg
                                                        offset
-                                                       x86::arg_z))
+                                                       x8664::arg_z))
                         (x862-one-targeted-reg-form seg newval fp-reg)
-                        (x862-pop-register seg x86::arg_z)
+                        (x862-pop-register seg x8664::arg_z)
                         (x862-pop-register seg ptr-reg)
-                        (! fixnum->signed-natural offset-reg x86::arg_z)
+                        (! fixnum->signed-natural offset-reg x8664::arg_z)
                         (if double-p
                           (! mem-set-double-float fp-reg ptr-reg offset-reg)
                           (! mem-set-single-float fp-reg ptr-reg offset-reg)))))
                (<- fp-reg))
               (t
                (cond (immoffset
-                      (let* ((rnew ($ x86::arg_z)))
+                      (let* ((rnew ($ x8664::arg_z)))
                         (x862-push-register
                          seg
                          (x862-one-untargeted-reg-form seg
@@ -6462,8 +6309,8 @@
                             (! mem-set-c-double-float fp-reg ptr-reg fixoffset)
                             (! mem-set-c-single-float fp-reg ptr-reg fixoffset)))))
                      (t
-                      (let* ((roffset ($ x86::arg_y))
-                             (rnew ($ x86::arg_z)))
+                      (let* ((roffset ($ x8664::arg_y))
+                             (rnew ($ x8664::arg_z)))
                         (x862-push-register
                          seg
                          (x862-one-untargeted-reg-form
@@ -6480,7 +6327,7 @@
                         (if double-p
                           (! mem-set-double-float fp-reg ptr-reg offset-reg)
                           (! mem-set-single-float fp-reg ptr-reg offset-reg))))))
-               (<- x86::arg_z)))
+               (<- x8664::arg_z)))
         (^)))))
 
 (defx862 x862-%set-double-float %set-double-float (seg vreg xfer ptr offset newval)
@@ -6506,26 +6353,26 @@
            (and offval (%i> (integer-length offval) 15) (setq offval nil))
            (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
            (target-arch-case
-            (:x8632 (progn))
+            
             (:x8664 (progn
                       (and offval (logtest 3 offval) (setq offval nil))
                       (and absptr (logtest 3 absptr) (setq absptr nil)))))
            (if absptr
-             (! mem-ref-c-natural dest x86::rzero absptr)
+             (! mem-ref-c-abolute-natural dest absptr)
              (if offval
-               (let* ((src (x862-macptr-arg-to-reg seg ptr ($ x86::imm0 :mode :address))))
+               (let* ((src (x862-macptr-arg-to-reg seg ptr ($ x8664::imm0 :mode :address))))
                  (! mem-ref-c-natural dest src offval))
-               (let* ((src (x862-macptr-arg-to-reg seg ptr ($ x86::imm0 :mode :address))))
+               (let* ((src (x862-macptr-arg-to-reg seg ptr ($ x8664::imm0 :mode :address))))
                  (if triv-p
                    (with-imm-temps (src) (x)
                      (if (acode-fixnum-form-p offset)
                        (x862-lri seg x (acode-fixnum-form-p offset))
-                       (! fixnum->signed-natural x (x862-one-untargeted-reg-form seg offset x86::arg_z)))
+                       (! fixnum->signed-natural x (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
                      (! mem-ref-natural dest src x))
                    (progn
                      (! temp-push-unboxed-word src)
                      (x862-open-undo $undostkblk)
-                     (let* ((oreg (x862-one-untargeted-reg-form seg offset x86::arg_z)))
+                     (let* ((oreg (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
                        (with-imm-temps () (src x)
                          (! temp-pop-unboxed-word src)
                          (x862-close-undo)
@@ -6561,7 +6408,7 @@
             (unless triv-p
               (! temp-push-unboxed-word src-reg)
               (x862-open-undo $undostkblk))
-            (setq offset-reg (x862-one-untargeted-reg-form seg offset x86::arg_z))
+            (setq offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z))
             (unless triv-p
               (! temp-pop-unboxed-word src-reg)
               (x862-close-undo))
@@ -6592,10 +6439,10 @@
            (if (and absptr offval) 
              (setq absptr (+ absptr offval) offval 0)
              (setq absptr nil))
-           (and offval (%i> (integer-length offval) 15) (setq offval nil))
-           (and absptr (%i> (integer-length absptr) 15) (setq absptr nil))
+           (and offval (%i> (integer-length offval) 31) (setq offval nil))
+           (and absptr (%i> (integer-length absptr) 31) (setq absptr nil))
            (target-arch-case
-            (:x8632 (progn))
+            
             (:x8664 (when (or fixnump (eql size 8) (and (eql size 8) signed))
                       (and offval (logtest 3 offval) (setq offval nil))
                       (and absptr (logtest 3 absptr) (setq absptr nil))))) 
@@ -6605,13 +6452,13 @@
                 (cond
                   (absptr                              
                    (target-arch-case
-                    (:x8632 (! mem-ref-c-fullword dest x86::rzero absptr))
-                    (:x8664 (! mem-ref-c-doubleword dest x86::rzero absptr))))
+                    
+                    (:x8664 (! mem-ref-c-absolute-doubleword dest  absptr))))
                   (offval
                     (with-imm-target () (src-reg :address)
                       (x862-one-targeted-reg-form seg ptr src-reg)
                       (target-arch-case
-                       (:x8632 (! mem-ref-c-fullword dest src-reg offval))
+                       
                        (:x8664 (! mem-ref-c-doubleword dest src-reg offval)))))
                   (t
                    (with-imm-target () (src-reg :address)
@@ -6620,15 +6467,15 @@
                        (if triv-p
                          (if (acode-fixnum-form-p offset)
                            (x862-lri seg offset-reg (acode-fixnum-form-p offset))
-                           (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x86::arg_z)))
+                           (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
                          (progn
                            (! temp-push-unboxed-word src-reg)
                            (x862-open-undo $undostkblk)
-                           (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x86::arg_z))
+                           (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z))
                            (! temp-pop-unboxed-word src-reg)
                            (x862-close-undo)))
                        (target-arch-case
-                        (:x8632 (! mem-ref-fullword dest src-reg offset-reg))
+                        
                         (:x8664 (! mem-ref-doubleword dest src-reg offset-reg)))))))
                 (if (node-reg-p vreg)
                   (! box-fixnum vreg dest)
@@ -6638,10 +6485,10 @@
                (cond
                  (absptr
                   (case size
-                    (8 (! mem-ref-c-signed-doubleword dest x86::rzero absptr))
-                    (4 (! mem-ref-c-signed-fullword dest x86::rzero absptr))
-                    (2 (! mem-ref-c-s16 dest x86::rzero absptr))
-                    (1 (! mem-ref-c-s8 dest x86::rzero absptr))))
+                    (8 (! mem-ref-c-absolute-signed-doubleword dest absptr))
+                    (4 (! mem-ref-c-absolute-signed-fullword dest  absptr))
+                    (2 (! mem-ref-c-absolute-s16 dest absptr))
+                    (1 (! mem-ref-c-absolute-s8 dest absptr))))
                  (offval
                   (with-imm-target (dest) (src-reg :address)
                    (x862-one-targeted-reg-form seg ptr src-reg)
@@ -6657,11 +6504,11 @@
                      (if triv-p
                        (if (acode-fixnum-form-p offset)
                          (x862-lri seg offset-reg (acode-fixnum-form-p offset))
-                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x86::arg_z)))
+                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
                        (progn
                          (! temp-push-unboxed-word src-reg)
                          (x862-open-undo $undostkblk)
-                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x86::arg_z))
+                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z))
                          (! temp-pop-unboxed-word src-reg)
                          (x862-close-undo)))
                   (case size
@@ -6673,8 +6520,7 @@
                  (case size
                    ((1 2) (! box-fixnum vreg dest))
                    (4 (target-arch-case
-                       (:x8632
-                        (<- dest))
+                       
                        (:x8664 (! box-fixnum vreg dest))))
                    (8 (<- dest)))
                  (<- dest))))
@@ -6683,10 +6529,10 @@
                (cond
                  (absptr
                   (case size
-                    (8 (! mem-ref-c-doubleword dest x86::rzero absptr))
-                    (4 (! mem-ref-c-fullword dest x86::rzero absptr))
-                    (2 (! mem-ref-c-u16 dest x86::rzero absptr))
-                    (1 (! mem-ref-c-u8 dest x86::rzero absptr))))
+                    (8 (! mem-ref-c-absolute-doubleword dest absptr))
+                    (4 (! mem-ref-c-absoute-fullword dest absptr))
+                    (2 (! mem-ref-c-absolute-u16 dest absptr))
+                    (1 (! mem-ref-c-absolute-u8 dest absptr))))
                  (offval
                   (with-imm-target (dest) (src-reg :address)
                     (x862-one-targeted-reg-form seg ptr src-reg)
@@ -6702,11 +6548,11 @@
                      (if triv-p
                        (if (acode-fixnum-form-p offset)
                          (x862-lri seg offset-reg (acode-fixnum-form-p offset))
-                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x86::arg_z)))
+                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
                        (progn
                          (! temp-push-unboxed-word src-reg)
                          (x862-open-undo $undostkblk)
-                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x86::arg_z))
+                         (! fixnum->signed-natural offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z))
                          (! temp-pop-unboxed-word src-reg)
                          (x862-close-undo)))
                   (case size
@@ -6746,7 +6592,7 @@
                    (progn
                      (%rplaca pair (x862-vloc-ea *x862-vstack*))
                      (x862-vpush-register seg val :reserved))
-                 (x862-vpush-register seg (x862-one-untargeted-reg-form seg val x86::arg_z) :reserved))
+                 (x862-vpush-register seg (x862-one-untargeted-reg-form seg val x8664::arg_z) :reserved))
                  (%rplacd pair *x862-top-vstack-lcell*)))
               (t (x862-seq-bind-var seg var val)
                  (%rplaca valcopy nil)))
@@ -6763,7 +6609,7 @@
 
 (defx862 x862-closed-function closed-function (seg vreg xfer afunc)
   (x862-make-closure seg afunc nil)
-  (when vreg (<- x86::arg_z))
+  (when vreg (<- x8664::arg_z))
   (^))
 
 (defx862 x862-flet flet (seg vreg xfer vars afuncs body p2decls)
@@ -6802,15 +6648,15 @@
             (x862-seq-bind-var seg var (nx1-afunc-ref (pop real-funcs))))
           (dolist (ref fwd-refs)
             (let ((ea (var-ea (pop ref))))
-              (x862-addrspec-to-reg seg ea x86::temp0)
+              (x862-addrspec-to-reg seg ea x8664::temp0)
               (dolist (r ref)
                 (let* ((v-ea (var-ea (cdr r))))
                   (let* ((val-reg (if (eq v-ea ea)
-                                    x86::temp0
+                                    x8664::temp0
                                     (progn
-                                      (x862-addrspec-to-reg seg v-ea x86::temp1)
-                                      x86::temp1))))
-                    (! misc-set-c-node val-reg x86::temp0 (car r)))))))
+                                      (x862-addrspec-to-reg seg v-ea x8664::temp1)
+                                      x8664::temp1))))
+                    (! misc-set-c-node val-reg x8664::temp0 (car r)))))))
           (x862-undo-body seg vreg xfer body old-stack)
           (dolist (var real-vars)
             (x862-close-var seg var)))))))
@@ -6857,12 +6703,12 @@
           (progn
             (x862-form 
              seg
-             (if need-break (if dest-vd x86::arg_z) dest-vd) 
+             (if need-break (if dest-vd x8664::arg_z) dest-vd) 
              (if need-break nil dest-cd)
              value)
             (when need-break
               (x862-unwind-set seg dest-cd dest-stack)
-              (when dest-vd (x862-copy-register seg dest-vd x86::arg_z))
+              (when dest-vd (x862-copy-register seg dest-vd x8664::arg_z))
               (x862-branch seg dest-cd dest-vd))))))
     (x862-unreachable-store)))
 
@@ -6878,15 +6724,15 @@
            (x862-form seg nil nil base)
            (x862-form seg nil xfer offset))
           ((target-arch-case
-            (:x8632 (typep fixoffset '(signed-byte 14)))
+            
             (:x8664 (typep fixoffset '(signed-byte 13))))
            (ensuring-node-target (target vreg)
              (! lisp-word-ref-c target 
-                (x862-one-untargeted-reg-form seg base x86::arg_z) 
+                (x862-one-untargeted-reg-form seg base x8664::arg_z) 
                 (ash fixoffset *x862-target-fixnum-shift*)))
            (^))
           (t (multiple-value-bind (breg oreg)
-                                  (x862-two-untargeted-reg-forms seg base x86::arg_y offset x86::arg_z)
+                                  (x862-two-untargeted-reg-forms seg base x8664::arg_y offset x8664::arg_z)
                (ensuring-node-target (target vreg)
                  (! lisp-word-ref target breg oreg))
                (^))))))
@@ -6899,11 +6745,11 @@
           ((typep fixoffset '(signed-byte 16))
            (ensuring-node-target (target vreg)
              (! lisp-word-ref-c target 
-                (x862-one-untargeted-reg-form seg base x86::arg_z) 
+                (x862-one-untargeted-reg-form seg base x8664::arg_z) 
                 fixoffset))
            (^))
           (t (multiple-value-bind (breg oreg)
-                                  (x862-two-untargeted-reg-forms seg base x86::arg_y offset x86::arg_z)
+                                  (x862-two-untargeted-reg-forms seg base x8664::arg_y offset x8664::arg_z)
                (with-imm-target () (otemp :s32)
                  (! fixnum->signed-natural otemp oreg)
                  (ensuring-node-target (target vreg)
@@ -6918,12 +6764,12 @@
           ((typep fixoffset '(signed-byte 16))
            (with-imm-target () (val :natural)
              (! lisp-word-ref-c val
-                (x862-one-untargeted-reg-form seg base x86::arg_z) 
+                (x862-one-untargeted-reg-form seg base x8664::arg_z) 
                 fixoffset)
              (<- val))
            (^))
           (t (multiple-value-bind (breg oreg)
-		 (x862-two-untargeted-reg-forms seg base x86::arg_y offset x86::arg_z)
+		 (x862-two-untargeted-reg-forms seg base x8664::arg_y offset x8664::arg_z)
                (with-imm-target () (otemp :s32)
                  (! fixnum->signed-natural otemp oreg)
                  (with-imm-target () (val :natural)
@@ -6933,19 +6779,19 @@
 
 (defx862 x862-int>0-p int>0-p (seg vreg xfer cc form)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-    (x862-one-targeted-reg-form seg form ($ x86::arg_z))
+    (x862-one-targeted-reg-form seg form ($ x8664::arg_z))
     (! integer-sign)
-    (x862-test-reg-%izerop seg vreg xfer x86::imm0 cr-bit true-p 0)))
+    (x862-test-reg-%izerop seg vreg xfer x8664::imm0 cr-bit true-p 0)))
 
 
 (defx862 x862-throw throw (seg vreg xfer tag valform )
   (declare (ignorable vreg xfer))
   (let* ((*x862-vstack* *x862-vstack*)
          (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
-    (x862-vpush-register seg (x862-one-untargeted-reg-form seg tag x86::arg_z))
+    (x862-vpush-register seg (x862-one-untargeted-reg-form seg tag x8664::arg_z))
     (if (x862-trivial-p valform)
       (progn
-        (x862-vpush-register seg (x862-one-untargeted-reg-form seg valform x86::arg_z))
+        (x862-vpush-register seg (x862-one-untargeted-reg-form seg valform x8664::arg_z))
         (x862-set-nargs seg 1))
       (x862-multiple-value-body seg valform))
     (! throw)))
@@ -6960,7 +6806,7 @@
 (defx862 x862-catch catch (seg vreg xfer tag valform)
   (let* ((tag-label (backend-get-next-label))
          (mv-pass (x862-mv-p xfer)))
-    (x862-one-targeted-reg-form seg tag ($ x86::arg_z))
+    (x862-one-targeted-reg-form seg tag ($ x8664::arg_z))
     (if mv-pass
       (! mkcatchmv)
       (! mkcatch1v))
@@ -6968,14 +6814,14 @@
     (x862-open-undo)
     (if mv-pass
       (x862-multiple-value-body seg valform)  
-      (x862-one-targeted-reg-form seg valform ($ x86::arg_z)))
-    (x862-lri seg x86::imm0 (ash 1 *x862-target-fixnum-shift*))
+      (x862-one-targeted-reg-form seg valform ($ x8664::arg_z)))
+    (x862-lri seg x8664::imm0 (ash 1 *x862-target-fixnum-shift*))
     (if mv-pass
       (! nthrowvalues)
       (! nthrow1value))
     (x862-close-undo)
     (@ tag-label)
-    (unless mv-pass (if vreg (<- x86::arg_z)))
+    (unless mv-pass (if vreg (<- x8664::arg_z)))
     (let* ((*x862-returning-values* mv-pass)) ; nlexit keeps values on stack
       (^))))
 
@@ -7041,9 +6887,9 @@
     (if type-keyword
       (x862-vref seg vreg xfer type-keyword uvector index (unless *x862-reckless* (x862-lookup-target-uvector-subtag type-keyword)))
       (progn
-        (x862-three-targeted-reg-forms seg subtag ($ x86::arg_x) uvector ($ x86::arg_y) index ($ x86::arg_z))
+        (x862-three-targeted-reg-forms seg subtag ($ x8664::arg_x) uvector ($ x8664::arg_y) index ($ x8664::arg_z))
         (! subtag-misc-ref)
-        (when vreg (<- ($ x86::arg_z)))
+        (when vreg (<- ($ x8664::arg_z)))
         (^)) )))
 
 (defx862 x862-%typed-uvset %typed-uvset (seg vreg xfer subtag uvector index newval)
@@ -7056,11 +6902,11 @@
       (x862-vset seg vreg xfer type-keyword uvector index newval (unless *x862-reckless* (x862-lookup-target-uvector-subtag type-keyword)))
       (progn
         ;; Could always do a four-targeted-reg-forms ...
-        (x862-vpush-register seg (x862-one-untargeted-reg-form seg subtag x86::arg_z))
-        (x862-three-targeted-reg-forms seg uvector ($ x86::arg_x) index ($ x86::arg_y) newval ($ x86::arg_z))
-        (x862-vpop-register seg ($ x86::temp0))
+        (x862-vpush-register seg (x862-one-untargeted-reg-form seg subtag x8664::arg_z))
+        (x862-three-targeted-reg-forms seg uvector ($ x8664::arg_x) index ($ x8664::arg_y) newval ($ x8664::arg_z))
+        (x862-vpop-register seg ($ x8664::temp0))
         (! subtag-misc-set)
-        (when vreg (<- ($ x86::arg_z)))
+        (when vreg (<- ($ x8664::arg_z)))
         (^)))))
 
 (defx862 x862-%macptrptr% %macptrptr% (seg vreg xfer form)
@@ -7091,7 +6937,7 @@
   (if (null vreg)
     (x862-form seg nil xfer form)
     (progn
-      (unless (logbitp (hard-regspec-value vreg) x86-imm-regs)
+      (unless (logbitp (hard-regspec-value vreg) *backend-imm-temps*)
         (error "I give up.  When will I get this right ?"))
       (let* ((natural-reg (x862-one-targeted-reg-form seg 
                                                       form
@@ -7103,7 +6949,7 @@
 (defx862 x862-%function %function (seg vreg xfer sym)
   (when vreg
     (let* ((symreg (x862-one-untargeted-reg-form seg (make-acode (%nx1-operator immediate)
-                                                                 (x862-symbol-entry-locative sym)) x86::arg_z)))
+                                                                 (x862-symbol-entry-locative sym)) x8664::arg_z)))
       (with-node-temps (vreg symreg) (val)
         (! symbol-function val symreg)
         (<- val))))
@@ -7113,7 +6959,7 @@
   (when vreg       
     (ensuring-node-target (target vreg)
       (x862-lri seg target (target-arch-case
-                            (:x8632 x8632::unbound-marker)
+                            
                             (:x8664 x8664::unbound-marker)))))
   (^))
 
@@ -7121,7 +6967,7 @@
   (when vreg    
     (ensuring-node-target (target vreg)
       (x862-lri seg target (target-arch-case
-                            (:x8632 x8632::slot-unbound-marker)
+                            
                             (:x8664 x8664::slot-unbound-marker)))))
   (^))
 
@@ -7129,7 +6975,7 @@
   (when vreg    
     (ensuring-node-target (target vreg)
       (x862-lri seg target (target-arch-case
-                            (:x8632 x8632::illegal-marker)
+                            
                             (:x8664 x8664::illegal-marker)))))
   (^))
 
@@ -7158,7 +7004,7 @@
               (! stack-cons-list)
               (x862-open-undo $undostkblk))
             (! list))
-          (x862-vpush-register seg x86::arg_z)
+          (x862-vpush-register seg x8664::arg_z)
           (x862-set-vstack (%i+ restloc *x862-target-node-size*)))
         (when rest (x862-bind-var seg rest restloc))
         (destructuring-bind (vars inits) auxen
@@ -7181,7 +7027,7 @@
         (let* ((val-reg (x862-one-untargeted-reg-form 
                          seg 
                          val 
-                         (if (eq vreg x86::arg_z) x86::arg_y x86::arg_z))))
+                         (if (eq vreg x8664::arg_z) x8664::arg_y x8664::arg_z))))
           (! ,vinsn val-reg)
           (when vreg (<- val-reg))
           (^)))))
@@ -7196,8 +7042,8 @@
   (def-x862-require x862-require-symbol require-symbol))
 
 (defx862 x862-%badarg2 %badarg2 (seg vreg xfer badthing goodthing)
-  (x862-two-targeted-reg-forms seg badthing ($ x86::arg_y) goodthing ($ x86::arg_z))
-  (x862-lri seg ($ x86::arg_x) (ash $XWRONGTYPE *x862-target-fixnum-shift*))
+  (x862-two-targeted-reg-forms seg badthing ($ x8664::arg_y) goodthing ($ x8664::arg_z))
+  (x862-lri seg ($ x8664::arg_x) (ash $XWRONGTYPE *x862-target-fixnum-shift*))
   (x862-set-nargs seg 3)
   (! ksignalerr)
   (<- nil)
@@ -7228,8 +7074,8 @@
 
 
 (defx862 x862-setq-free setq-free (seg vreg xfer sym val)
-  (let* ((rsym ($ x86::arg_y))
-         (rval ($ x86::arg_z)))
+  (let* ((rsym ($ x8664::arg_y))
+         (rval ($ x8664::arg_z)))
     (x862-one-targeted-reg-form seg val rval)
     (x862-immediate seg rsym nil (x862-symbol-value-cell sym))
     (! setqsym)
@@ -7237,21 +7083,21 @@
     (^)))
 
 (defx862 x862-%setf-macptr %setf-macptr (seg vreg xfer x y)
-  (x862-vpush-register seg (x862-one-untargeted-reg-form seg x x86::arg_z))
+  (x862-vpush-register seg (x862-one-untargeted-reg-form seg x x8664::arg_z))
   (with-imm-target () (src-reg :address)
     (x862-one-targeted-reg-form seg y src-reg)
-    (x862-vpop-register seg x86::arg_z)
+    (x862-vpop-register seg x8664::arg_z)
     (unless (or *x862-reckless* (x862-form-typep x 'macptr))
       (with-imm-temps (src-reg) ()
-        (! trap-unless-macptr x86::arg_z)))
-    (! set-macptr-address src-reg x86::arg_z)
-    (<- x86::arg_z)
+        (! trap-unless-macptr x8664::arg_z)))
+    (! set-macptr-address src-reg x8664::arg_z)
+    (<- x8664::arg_z)
     (^)))
 
 (defx862 x862-%setf-double-float %setf-double-float (seg vref xfer fnode fval)
-  (x862-vpush-register seg (x862-one-untargeted-reg-form seg fnode x86::arg_z))
-  (let* ((target ($ x86::fp1 :class :fpr :mode :double-float))
-         (node ($ x86::arg_z)))
+  (x862-vpush-register seg (x862-one-untargeted-reg-form seg fnode x8664::arg_z))
+  (let* ((target ($ x8664::fp1 :class :fpr :mode :double-float))
+         (node ($ x8664::arg_z)))
     (x862-one-targeted-reg-form seg fval target)
     (x862-vpop-register seg node)
     (unless (or *x862-reckless* (x862-form-typep fnode 'double-float))
@@ -7261,9 +7107,9 @@
     (^)))
 
 (defx862 x862-%setf-short-float %setf-short-float (seg vreg xfer fnode fval)
-  (x862-vpush-register seg (x862-one-untargeted-reg-form seg fnode x86::arg_z))
-  (let* ((target ($ x86::fp1 :class :fpr :mode :single-float))
-         (freg ($ x86::arg_z)))
+  (x862-vpush-register seg (x862-one-untargeted-reg-form seg fnode x8664::arg_z))
+  (let* ((target ($ x8664::fp1 :class :fpr :mode :single-float))
+         (freg ($ x8664::arg_z)))
     (x862-one-targeted-reg-form seg fval target)
     (x862-vpop-register seg freg)
     (unless (or *x862-reckless* (x862-form-typep fnode 'short-float))
@@ -7278,7 +7124,7 @@
   (let* ((cleanup-label (backend-get-next-label))
          (protform-label (backend-get-next-label))
          (old-stack (x862-encode-stack))
-         (yreg ($ x86::arg_y)))
+         (yreg ($ x8664::arg_y)))
     (! ref-interrupt-level yreg)
     (x862-dbind seg (make-acode (%nx1-operator fixnum) -1) '*interrupt-level*)
     (! mkunwind)
@@ -7288,13 +7134,13 @@
     (let* ((*x862-vstack* *x862-vstack*)
            (*x862-top-vstack-lcell* *x862-top-vstack-lcell*)
            (*x862-cstack* (%i+ *x862-cstack* (target-arch-case
-                                              (:x8632 x8632::lisp-frame.size)
+                                              
                                               (:x8664 x8664::lisp-frame.size)))))
       (x862-open-undo $undostkblk)      ; tsp frame created by nthrow.
       (! save-cleanup-context)
       (setq *x862-cstack* (%i+ *x862-cstack*
                                (target-arch-case
-                                (:x8632 x8632::lisp-frame.size)
+                                
                                 (:x8664 x8664::lisp-frame.size))))       ; the frame we just pushed
       (x862-form seg nil nil cleanup-form)
       (x862-close-undo)
@@ -7309,7 +7155,7 @@
   (let* ((cleanup-label (backend-get-next-label))
          (protform-label (backend-get-next-label))
          (old-stack (x862-encode-stack)))
-    (x862-two-targeted-reg-forms seg symbols ($ x86::arg_y) values ($ x86::arg_z))
+    (x862-two-targeted-reg-forms seg symbols ($ x8664::arg_y) values ($ x8664::arg_z))
     (! progvsave)
     (x862-open-undo $undostkblk)
     (! mkunwind)
@@ -7377,7 +7223,7 @@
               (unless triv-val
                 (! temp-push-unboxed-word src)
                 (x862-open-undo $undostkblk))
-              (let* ((target (x862-one-untargeted-reg-form seg newval x86::arg_z)))
+              (let* ((target (x862-one-untargeted-reg-form seg newval x8664::arg_z)))
                 (unless triv-val
                   (! temp-pop-unboxed-word src)
                   (x862-close-undo))
@@ -7388,7 +7234,7 @@
             (! temp-push-unboxed-word src)
             (x862-open-undo $undostkblk))
           (multiple-value-bind (idx-reg val-reg)
-              (x862-two-untargeted-reg-forms seg offset x86::arg_y newval x86::arg_z)
+              (x862-two-untargeted-reg-forms seg offset x8664::arg_y newval x8664::arg_z)
             (unless (and triv-val triv-offset)
               (! temp-pop-unboxed-word src)
               (x862-close-undo ))
@@ -7469,13 +7315,13 @@
                 (x862-unboxed-integer-arg-to-reg seg valform valreg spec))
               nextarg)))
         (incf nextarg)))
-    (x862-form seg x86::arg_z nil idx)
+    (x862-form seg x8664::arg_z nil idx)
     (! eabi-syscall) 
     (x862-close-undo)
     (when vreg
       (if (eq resultspec :void)
         (<- nil)
-        (<- (set-regspec-mode x86::imm0 (gpr-mode-name-value
+        (<- (set-regspec-mode x8664::imm0 (gpr-mode-name-value
                                          (case resultspec
                                            (:address :address)
                                            (:signed-byte :s8)
@@ -7505,24 +7351,22 @@
              (absptr (acode-absolute-ptr-p valform)))
         (case spec
           ((:signed-doubleword :unsigned-doubleword)
-           (x862-one-targeted-reg-form seg valform ($ x86::arg_z))
+           (x862-one-targeted-reg-form seg valform ($ x8664::arg_z))
            (if (eq spec :signed-doubleword)
              (! gets64)
              (! getu64))
-           (! set-c-arg ($ x86::imm0) nextarg)
+           (! set-c-arg ($ x8664::imm0) nextarg)
            (target-arch-case
-            (:x8632
-             (incf nextarg)
-             (! set-c-arg ($ x86::imm1) nextarg))
+            
             (:x8664)))
           (:double-float
-           (let* ((df ($ x86::fp1 :class :fpr :mode :double-float)))
+           (let* ((df ($ x8664::fp1 :class :fpr :mode :double-float)))
              (x862-one-targeted-reg-form seg valform df)
              (! set-double-c-arg df nextarg)            
              (push (cons :double-float nextarg) fp-loads)
              (incf nextarg)))
           (:single-float
-           (let* ((sf ($ x86::fp1 :class :fpr :mode :single-float)))
+           (let* ((sf ($ x8664::fp1 :class :fpr :mode :single-float)))
              (x862-one-targeted-reg-form seg valform sf)
              (! set-single-c-arg sf nextarg)
              (push (cons :single-float nextarg) fp-loads)))
@@ -7541,8 +7385,7 @@
                  (with-imm-temps (ptr) (r)
                    (dotimes (i spec)
                      (target-arch-case
-                      (:x8632
-                       (! mem-ref-c-fullword r ptr (ash i x8632::word-shift)))
+                      
                       (:x8664
                        (! mem-ref-c-doubleword r ptr (ash i x8664::word-shift))))
                      (! set-c-arg r nextarg)
@@ -7555,9 +7398,9 @@
                  (x862-unboxed-integer-arg-to-reg seg valform valreg spec))
                (! set-c-arg valreg nextarg)))))
         (incf nextarg)))
-    (do* ((fpreg x86::fp1 (1+ fpreg))
+    (do* ((fpreg x8664::fp1 (1+ fpreg))
           (reloads (nreverse fp-loads) (cdr reloads)))
-         ((or (null reloads) (= fpreg x86::fp14)))
+         ((or (null reloads) (= fpreg x8664::fp14)))
       (declare (list reloads) (fixnum fpreg))
       (let* ((reload (car reloads))
              (size (car reload))
@@ -7571,21 +7414,21 @@
     (when vreg
       (cond ((eq resultspec :void) (<- nil))
             ((eq resultspec :double-float)
-             (<- ($ x86::fp1 :class :fpr :mode :double-float)))
+             (<- ($ x8664::fp1 :class :fpr :mode :double-float)))
             ((eq resultspec :single-float)
-             (<- ($ x86::fp1 :class :fpr :mode :single-float)))
+             (<- ($ x8664::fp1 :class :fpr :mode :single-float)))
             ((eq resultspec :unsigned-doubleword)
              (ensuring-node-target
               (target vreg)
               (! makeu64)
-              (<- ($ x86::arg_z))))
+              (<- ($ x8664::arg_z))))
             ((eq resultspec :signed-doubleword)
              (ensuring-node-target
               (target vreg)
               (! makes64)
-              (<- ($ x86::arg_z))))
+              (<- ($ x8664::arg_z))))
             (t
-             (<- (make-wired-lreg x86::imm0
+             (<- (make-wired-lreg x8664::imm0
                                   :mode
                                   (gpr-mode-name-value
                                    (case resultspec
@@ -7624,7 +7467,7 @@
                              argspecs)))))
     (x862-open-undo $undo-x86-c-frame)
     (x862-poweropen-foreign-args seg argspecs argvals)
-    (x862-form seg x86::arg_z nil idx)
+    (x862-form seg x8664::arg_z nil idx)
     (if (eq resultspec :signed-doubleword)
       (! poweropen-syscall-s64)
       (! poweropen-syscall))
@@ -7694,7 +7537,7 @@
                     (the fixnum (1+ (the fixnum (+ single-float-offset nsingle-floats))))))
       (setq ngpr-args 0 nfpr-args 0)
       (x862-open-undo $undo-x86-c-frame)
-      (x862-vpush-register seg (x862-one-untargeted-reg-form seg address x86::arg_z))
+      (x862-vpush-register seg (x862-one-untargeted-reg-form seg address x8664::arg_z))
       ;; Evaluate each form into the C frame, according to the
       ;; matching argspec.  Remember type and arg offset of any FP
       ;; args, since FP regs will have to be loaded later.
@@ -7707,7 +7550,7 @@
                (absptr (acode-absolute-ptr-p valform)))
           (case spec
             (:double-float
-             (let* ((df ($ x86::fp1 :class :fpr :mode :double-float)))
+             (let* ((df ($ x8664::fp1 :class :fpr :mode :double-float)))
                (incf nfpr-args)
                (x862-one-targeted-reg-form seg valform df )
                (cond ((<= nfpr-args 8)
@@ -7719,7 +7562,7 @@
                       (! set-double-eabi-c-arg df other-offset)
                       (incf other-offset 2)))))
             (:single-float
-             (let* ((sf ($ x86::fp1 :class :fpr :mode :single-float)))
+             (let* ((sf ($ x8664::fp1 :class :fpr :mode :single-float)))
                (incf nfpr-args)
                (x862-one-targeted-reg-form
                 seg valform sf)
@@ -7732,7 +7575,7 @@
                       (! set-double-eabi-c-arg sf other-offset)
                       (incf other-offset 2)))))
             ((:signed-doubleword :unsigned-doubleword)
-             (x862-one-targeted-reg-form seg valform ($ x86::arg_z))
+             (x862-one-targeted-reg-form seg valform ($ x8664::arg_z))
              (if (eq spec :signed-doubleword)
                (! gets64)
                (! getu64))
@@ -7742,16 +7585,16 @@
              (if (oddp gpr-offset)
                (incf gpr-offset))
              (cond ((<= ngpr-args 8)
-                    (! set-eabi-c-arg ($ x86::imm0) gpr-offset)
+                    (! set-eabi-c-arg ($ x8664::imm0) gpr-offset)
                     (incf gpr-offset)
-                    (! set-eabi-c-arg ($ x86::imm1) gpr-offset)
+                    (! set-eabi-c-arg ($ x8664::imm1) gpr-offset)
                     (incf gpr-offset))
                    (t
                     (if (oddp other-offset)
                       (incf other-offset))
-                    (! set-eabi-c-arg ($ x86::imm0) other-offset)
+                    (! set-eabi-c-arg ($ x8664::imm0) other-offset)
                     (incf other-offset)
-                    (! set-eabi-c-arg ($ x86::imm1) other-offset)
+                    (! set-eabi-c-arg ($ x8664::imm1) other-offset)
                     (incf other-offset))))
             (:address
              (with-imm-target () (ptr :address)
@@ -7775,9 +7618,9 @@
                         (t
                          (! set-eabi-c-arg reg other-offset)
                          (incf other-offset)))))))))
-      (do* ((fpreg x86::fp1 (1+ fpreg))
+      (do* ((fpreg x8664::fp1 (1+ fpreg))
             (reloads (nreverse fp-loads) (cdr reloads)))
-           ((or (null reloads) (= fpreg x86::fp14)))
+           ((or (null reloads) (= fpreg x8664::fp14)))
         (declare (list reloads) (fixnum fpreg))
         (let* ((reload (car reloads))
                (size (car reload))
@@ -7785,25 +7628,25 @@
           (if (eq size :double-float)
             (! reload-double-eabi-c-arg ($ fpreg :class :fpr :mode :double-float) from)
             (! reload-single-eabi-c-arg ($ fpreg :class :fpr :mode :single-float) from))))
-      (x862-vpop-register seg ($ x86::arg_z))
+      (x862-vpop-register seg ($ x8664::arg_z))
       (! eabi-ff-call) 
       (x862-close-undo)
       (when vreg
         (cond ((eq resultspec :void) (<- nil))
               ((eq resultspec :double-float)
-               (<- ($  x86::fp1 :class :fpr :mode :double-float)))
+               (<- ($  x8664::fp1 :class :fpr :mode :double-float)))
               ((eq resultspec :single-float)
-               (<- ($ x86::fp1 :class :fpr :mode :single-float)))
+               (<- ($ x8664::fp1 :class :fpr :mode :single-float)))
               ((eq resultspec :unsigned-doubleword)
                (ensuring-node-target (target vreg)
                  (! makeu64)
-                 (<- ($ x86::arg_z))))
+                 (<- ($ x8664::arg_z))))
               ((eq resultspec :signed-doubleword)
                (ensuring-node-target (target vreg)
                  (! makes64)
-                 (<- ($ x86::arg_z))))
+                 (<- ($ x8664::arg_z))))
               (t
-               (<- (make-wired-lreg x86::imm0
+               (<- (make-wired-lreg x8664::imm0
                                     :mode
                                     (gpr-mode-name-value
                                      (case resultspec
@@ -7839,9 +7682,9 @@
                                            :signed-doubleword)))
                              argspecs)))))
     (x862-open-undo $undo-x86-c-frame)
-    (x862-vpush-register seg (x862-one-untargeted-reg-form seg address x86::arg_z))
+    (x862-vpush-register seg (x862-one-untargeted-reg-form seg address x8664::arg_z))
     (x862-poweropen-foreign-args seg argspecs argvals)
-    (x862-vpop-register seg x86::arg_z)
+    (x862-vpop-register seg x8664::arg_z)
     (if monitor-exception-ports
       (! poweropen-ff-callX)
       (! poweropen-ff-call))
@@ -7849,21 +7692,21 @@
     (when vreg
       (cond ((eq resultspec :void) (<- nil))
             ((eq resultspec :double-float)
-             (<- (make-hard-fp-reg x86::fp1 hard-reg-class-fpr-mode-double)))
+             (<- (make-hard-fp-reg x8664::fp1 hard-reg-class-fpr-mode-double)))
             ((eq resultspec :single-float)
-             (<- (make-hard-fp-reg x86::fp1 hard-reg-class-fpr-mode-single)))
+             (<- (make-hard-fp-reg x8664::fp1 hard-reg-class-fpr-mode-single)))
             ((eq resultspec :unsigned-doubleword)
              (ensuring-node-target
               (target vreg)
               (! makeu64)
-              (<- x86::arg_z)))
+              (<- x8664::arg_z)))
             ((eq resultspec :signed-doubleword)
              (ensuring-node-target
               (target vreg)
               (! makes64)
-              (<- x86::arg_z)))
+              (<- x8664::arg_z)))
             (t
-             (<- (set-regspec-mode x86::imm0 (gpr-mode-name-value
+             (<- (set-regspec-mode x8664::imm0 (gpr-mode-name-value
                                               (case resultspec
                                                 (:address :address)
                                                 (:signed-byte :s8)
@@ -7891,15 +7734,15 @@
 ;;; the %debug-trap construct.
 
 (defx862 x862-%debug-trap %debug-trap (seg vreg xfer arg)
-  (x862-one-targeted-reg-form seg arg ($ x86::arg_z))
+  (x862-one-targeted-reg-form seg arg ($ x8664::arg_z))
   (! %debug-trap)
-  (<- ($ x86::arg_z))
+  (<- ($ x8664::arg_z))
   (^))
 
 (defx862 x862-%reference-external-entry-point %reference-external-entry-point
   (seg vreg xfer arg)
   (ensuring-node-target (target vreg)
-    (let* ((reg (if (eq (hard-regspec-value target) x86::arg_z) ($ x86::arg_y) ($ x86::arg_z))))
+    (let* ((reg (if (eq (hard-regspec-value target) x8664::arg_z) ($ x8664::arg_y) ($ x8664::arg_z))))
       (x862-one-targeted-reg-form seg arg reg)
       (! eep.address target reg))
     (^)))
@@ -8067,7 +7910,7 @@
         (setq symreg (or (x862-register-constant-p sym)
                          (x862-store-immediate seg sym symreg)))
         (! node-slot-ref target symreg (target-arch-case
-                                        (:x8632 x8632::symbol.vcell-cell)
+                                        
                                         (:x8664 x8664::symbol.vcell-cell))))))
   (^))
 
@@ -8078,7 +7921,7 @@
                       (make-acode (%nx1-operator immediate) sym)
                       (make-acode (%nx1-operator fixnum)
                                   (target-arch-case
-                                   (:x8632 x8632::symbol.vcell-cell)
+                                   
                                    (:x8664 x8664::symbol.vcell-cell)))
                       val
                       nil))
@@ -8087,7 +7930,7 @@
   (cond ((x862-tailcallok xfer)
 	 (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count*)
 	 (x862-restore-full-lisp-context seg)
-	 (! %current-frame-ptr ($ x86::arg_z))
+	 (! %current-frame-ptr ($ x8664::arg_z))
 	 (! jump-return-pc))
 	(t
 	 (when vreg
@@ -8118,7 +7961,7 @@
 
 (defx862 x862-with-variable-c-frame with-variable-c-frame (seg vreg xfer size body &aux
                                                                (old-stack (x862-encode-stack)))
-  (let* ((reg (x862-one-untargeted-reg-form seg size x86::arg_z)))
+  (let* ((reg (x862-one-untargeted-reg-form seg size x8664::arg_z)))
     (ecase (backend-name *target-backend*)
       (:linuxx8632 (! alloc-variable-eabi-c-frame reg))
       ((:darwinx8632 :darwinx8664 :linuxx8664) (! alloc-variable-c-frame reg)))
@@ -8126,7 +7969,7 @@
     (x862-undo-body seg vreg xfer body old-stack)))
 
 (defx862 x862-%symbol->symptr %symbol->symptr (seg vreg xfer sym)
-  (let* ((src (x862-one-untargeted-reg-form seg sym x86::arg_z)))
+  (let* ((src (x862-one-untargeted-reg-form seg sym x8664::arg_z)))
     (ensuring-node-target (target vreg)
       (! %symbol->symptr target src))
     (^)))
