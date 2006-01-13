@@ -56,7 +56,7 @@
 
 #+darwinx86-target
 (defvar *darwinx8664-backend*
-  (make-backend :lookup-opcode #'lookup-x86-opcode
+  (make-backend :lookup-opcode 'lookup-x86-opcode
 		:lookup-macro #'false
                 :lap-opcodes x86::*x8664-opcode-templates*
                 :define-vinsn 'define-x86-vinsn
