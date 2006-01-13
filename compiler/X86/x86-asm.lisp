@@ -841,11 +841,11 @@
      #x02 #o000 #x00)
    (def-x8664-opcode addb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
      #x00 #x00 #x00)
-   (def-x8664-opcode addb ((:imm8 :insert-imm8) (:acc :insert-nothing))
+   (def-x8664-opcode addb ((:imm8s :insert-imm8s) (:acc :insert-nothing))
      #x04 nil nil)
-   (def-x8664-opcode addb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode addb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o300 #x00)
-   (def-x8664-opcode addb ((:imm8 :insert-imm8) (:anymem :insert-memory))
+   (def-x8664-opcode addb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #x80 #o000 #x00)
 
    ;; and
@@ -906,11 +906,11 @@
      #x22 #o000 #x00)
    (def-x8664-opcode andb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
      #x20 #o000 #x00)
-   (def-x8664-opcode andb ((:imm8 :insert-imm8) (:acc :insert-nothing))
+   (def-x8664-opcode andb ((:imm8s :insert-imm8s) (:acc :insert-nothing))
      #x24 nil nil)
-   (def-x8664-opcode andb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode andb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o340 #x00)
-   (def-x8664-opcode andb ((:imm8 :insert-imm8) (:anymem :insert-memory))
+   (def-x8664-opcode andb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #x80 #o040 #x00)
 
    ;; bsf
@@ -1381,13 +1381,11 @@
      #x3a #o000 #x00)
    (def-x8664-opcode cmpb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
      #x38 #x00 #x00)
-   (def-x8664-opcode cmpb ((:imm8 :insert-imm8) (:acc :insert-nothing))
+   (def-x8664-opcode cmpb ((:imm8s :insert-imm8s) (:acc :insert-nothing))
      #x3c nil nil)
-   (def-x8664-opcode cmpb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode cmpb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o370 #x00)
-   (def-x8664-opcode cmpb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
-     #x80 #o370 #x00)
-   (def-x8664-opcode cmpb ((:imm8 :insert-imm8) (:anymem :insert-memory))
+   (def-x8664-opcode cmpb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #x80 #o070 #x00)
 
    ;; cmps
@@ -1989,13 +1987,13 @@
      #x0a #o000 #x00)
    (def-x8664-opcode orb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
      #x08 #x00 #x00)
-   (def-x8664-opcode orb ((:imm8 :insert-imm8) (:acc :insert-nothing))
+   (def-x8664-opcode orb ((:imm8s :insert-imm8s) (:acc :insert-nothing))
      #x0c nil nil)
-   (def-x8664-opcode orb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode orb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o310 #x00)
-   (def-x8664-opcode orb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode orb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o310 #x00)
-   (def-x8664-opcode orb ((:imm8 :insert-imm8) (:anymem :insert-memory))
+   (def-x8664-opcode orb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #x80 #o010 #x00)
 
    ;; pop
@@ -2375,11 +2373,11 @@
      #x18 #x00 #x00)
    (def-x8664-opcode sbbb ((:imm8 :insert-imm8) (:acc :insert-nothing))
      #x1c nil nil)
-   (def-x8664-opcode sbbb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode sbbb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o330 #x00)
-   (def-x8664-opcode sbbb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode sbbb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o330 #x00)
-   (def-x8664-opcode sbbb ((:imm8 :insert-imm8) (:anymem :insert-memory))
+   (def-x8664-opcode sbbb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #x80 #o030 #x00)
 
    ;; scas
@@ -2711,13 +2709,13 @@
      #x2a #o000 #x00)
    (def-x8664-opcode subb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
      #x2a #x00 #x00)
-   (def-x8664-opcode subb ((:imm8 :insert-imm8) (:acc :insert-nothing))
+   (def-x8664-opcode subb ((:imm8s :insert-imm8s) (:acc :insert-nothing))
      #x2c nil nil)
-   (def-x8664-opcode subb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode subb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o350 #x00)
-   (def-x8664-opcode subb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode subb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o350 #x00)
-   (def-x8664-opcode subb ((:imm8 :insert-imm8) (:anymem :insert-memory))
+   (def-x8664-opcode subb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #x80 #o050 #x00)
 
    ;; syscall
@@ -2903,13 +2901,13 @@
      #x32 #o000 #x00)
    (def-x8664-opcode xorb ((:reg8 :insert-modrm-reg) (:anymem :insert-memory))
      #x30 #x00 #x00)
-   (def-x8664-opcode xorb ((:imm8 :insert-imm8) (:acc :insert-nothing))
+   (def-x8664-opcode xorb ((:imm8s :insert-imm8s) (:acc :insert-nothing))
      #x34 nil nil)
-   (def-x8664-opcode xorb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode xorb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o360 #x00)
-   (def-x8664-opcode xorb ((:imm8 :insert-imm8) (:reg8 :insert-modrm-rm))
+   (def-x8664-opcode xorb ((:imm8s :insert-imm8s) (:reg8 :insert-modrm-rm))
      #x80 #o360 #x00)
-   (def-x8664-opcode xorb ((:imm8 :insert-imm8) (:anymem :insert-memory))
+   (def-x8664-opcode xorb ((:imm8s :insert-imm8s) (:anymem :insert-memory))
      #x80 #o060 #x00)
 
    ;; fxsave
@@ -4366,7 +4364,7 @@
 
 ;;; This returns true if the template's operand types "match" the
 ;;; types of the actual operands.
-(defun match-template (template parsed-operands)
+(defun match-template-types (template type0 type1 type2)
   (flet ((match (overlap given)
            (and
             (not (zerop (logandc2 overlap (encode-operand-type :jumpabsolute))))
@@ -4386,10 +4384,7 @@
                    (if (logtest m1 (encode-operand-type :acc))
                      (encode-operand-type :reg)
                      t1)))))))
-    (let* ((nops (length parsed-operands))
-           (type0 (if (> nops 0) (x86-operand-type (pop parsed-operands))))
-           (type1 (if (> nops 1) (x86-operand-type (pop parsed-operands))))
-           (type2 (if (> nops 2) (x86-operand-type (car parsed-operands)))))
+    (let* ((nops (if type2 3 (if type1 2 (if type0 1 0)))))
       (declare (fixnum nops))
       (let* ((template-types
               (x86-opcode-template-operand-types template)))
@@ -4426,7 +4421,9 @@
                                       overlap2
                                       type2
                                       template-type2)))))))))))))))
-
+  
+(defun match-template (template parsed-operands)
+  (apply #'match-template-types template (mapcar #'x86-operand-type parsed-operands)))
 
 
 
