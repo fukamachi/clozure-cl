@@ -23,26 +23,26 @@
                                             )
                                            ())
   ;; There's generally no reason to do this.
-  (movq (% idx) (% dest)))
+  (movq (:%q idx) (:%q dest)))
 
 (define-x8664-vinsn scale-32bit-misc-index (((dest :u64))
 					    ((idx :imm)	; A fixnum
 					     )
 					    ())
-  (movq (% idx) (% dest))
-  (shrq ($ 1) (% dest)))
+  (movq (:%q idx) (:%q dest))
+  (shrq (:$1 1) (:%q dest)))
 
 
 (define-x8664-vinsn misc-ref-u64  (((dest :u64))
                                   ((v :lisp)
                                    (scaled-idx :imm)))
-  (movq (@ x8664::misc-data-offset (% v) (% scaled-idx)) (%dest)))
+  (movq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
 
 
 (define-x8664-vinsn misc-ref-s64  (((dest :s64))
                                   ((v :lisp)
                                    (scaled-idx :imm)))
-  (movq (@ x8664::misc-data-offset (% v) (% scaled-idx)) (%dest)))
+  (movq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
 
 
 
@@ -50,37 +50,48 @@
 				     ((v :lisp)
 				      (idx :u32const)) ; sic
 				     ())
-  (movq (@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (% v)) (% dest)))
+  (movq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (% v)) (% dest)))
 
 (define-x8664-vinsn misc-ref-c-s64  (((dest :s64))
 				     ((v :lisp)
 				      (idx :u32const)) ; sic
 				     ())
-  (movq (@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (% v)) (% dest)))
+  (movq (@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%q dest)))
 
 
 (define-x8664-vinsn misc-set-u64 (()
                                   ((val :u64)
                                    (v :lisp)
                                    (scaled-idx :u64)))
-  (movq (% val) (@ (% v) (% scaled-idx))))
+  (movq (:%q val) (:@ (:%q v) (:%q scaled-idx))))
 
 (define-x8664-vinsn misc-set-c-u64 (()
 				    ((val :u64)
 				     (v :lisp)
 				     (idx :u32const)))
-  (movq (% val) (@  idx (% v))))
+  (movq (:%q val) (:@ idx (:%q v))))
 
 (define-x8664-vinsn misc-set-s64 (()
                                   ((val :s64)
                                    (v :lisp)
                                    (scaled-idx :imm)))
-  (movq (% val) (@ x8664::misc-data-offset  (% v) (% scaled-idx))))
+  (movq (:%q val) (:@ x8664::misc-data-offset  (:%q v) (:%q scaled-idx))))
 
 
 (define-x8664-vinsn misc-set-c-s64 (()
 				    ((val :s64)
 				     (v :lisp)
 				     (idx :s32const)))
-  (movq (% val) (@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (% v))))
+  (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
 
+
+(define-x8664-vinsn compare-to-nil (((crf :crf))
+                                    ((arg0 t)))
+  (cmpb (:$b #.(logand x8664::nil-value #xff)) (:%b arg0)))
+
+                                    
+  
+(define-x8664-vinsn (jump :jump)
+    (()
+     ((label :label)))
+  (jmp label))
