@@ -3470,7 +3470,7 @@
                  (! make-stack-vector))
                (ppc2-open-undo $undostkblk)
                (setq val ppc::arg_z))
-              ((eq op (%nx1-operator %ppc-gvector))
+              ((eq op (%nx1-operator %gvector))
                (let* ((*ppc2-vstack* *ppc2-vstack*)
                       (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
                       (arglist (%cadr val)))
@@ -5367,7 +5367,7 @@
                                      (ppc2-lookup-target-uvector-subtag
                                       :simple-vector) arglist))
 
-(defppc2 ppc2-%ppc-gvector %ppc-gvector (seg vreg xfer arglist)
+(defppc2 ppc2-%gvector %gvector (seg vreg xfer arglist)
   (let* ((all-on-stack (append (car arglist) (reverse (cadr arglist))))
          (subtag-form (car all-on-stack))
          (subtag (acode-fixnum-form-p subtag-form)))
@@ -5503,7 +5503,7 @@
         (ppc2-test-reg-%izerop seg vreg xfer target cr-bit true-p 0)))))
 
 
-(defppc2 ppc2-ppc-lisptag ppc-lisptag (seg vreg xfer node)
+(defppc2 ppc2-lisptag lisptag (seg vreg xfer node)
   (if (null vreg)
     (ppc2-form seg vreg xfer node)
     (progn
@@ -5511,7 +5511,7 @@
         (! extract-tag-fixnum target (ppc2-one-untargeted-reg-form seg node ppc::arg_z)))
       (^))))
 
-(defppc2 ppc2-ppc-fulltag ppc-fulltag (seg vreg xfer node)
+(defppc2 ppc2-fulltag fulltag (seg vreg xfer node)
   (if (null vreg)
     (ppc2-form seg vreg xfer node)
     (progn
@@ -5519,7 +5519,7 @@
         (! extract-fulltag-fixnum target (ppc2-one-untargeted-reg-form seg node ppc::arg_z)))
       (^))))
 
-(defppc2 ppc2-ppc-typecode ppc-typecode (seg vreg xfer node)
+(defppc2 ppc2-typecode typecode (seg vreg xfer node)
   (if (null vreg)
     (ppc2-form seg vreg xfer node)
     (let* ((reg (ppc2-one-untargeted-reg-form seg node (if (eq (hard-regspec-value vreg) ppc::arg_z) 
