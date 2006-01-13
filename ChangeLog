@@ -1,3 +1,50 @@
+2006-01-13 09:19  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Don't use #', since the
+	functions are moving targets.
+
+2006-01-13 09:18  gb
+
+	* compiler/X86/x862.lisp: Well, it compiles (with lots of warnings)
+	and needs some work ...
+
+2006-01-13 09:17  gb
+
+	* compiler/X86/x86-lap.lisp: Define and use MATCH-TEMPLATE-TYPE.
+
+2006-01-13 09:16  gb
+
+	* compiler/X86/x86-disassemble.lisp: Don't automatically label the
+	first instruction (it gets labeled on backward branch.)
+
+2006-01-13 09:15  gb
+
+	* compiler/X86/x86-backend.lisp: First cut at some vinsn-defining
+	things.
+
+2006-01-13 09:14  gb
+
+	* compiler/X86/x86-asm.lisp: some alu ops want :imm8s for 8-bit
+	immediates, not :imm8.
+
+2006-01-13 09:14  gb
+
+	* compiler/X86/x86-arch.lisp: condition-code constants.
+
+2006-01-13 09:13  gb
+
+	* compiler/PPC/ppc2.lisp: Use renamed operators.
+
+2006-01-13 09:13  gb
+
+	* compiler/PPC/ppc-backend.lisp: Fix some typos, I think ..
+
+2006-01-13 09:12  gb
+
+	* compiler/: nx1.lisp, nxenv.lisp: Rename some operators that had
+	PPC in their names to distinguish themselves from the 68K versions,
+	10-12 years ago.
+
 2006-01-12 11:30  gb
 
 	* compiler/PPC/ppc2.lisp: ppc2-%i+,%i-,%ineg: when oveflow checking
