@@ -78,7 +78,7 @@
 
 
 
-(defconstant $undo-x8664-c-frame 16)
+(defconstant $undo-x86-c-frame 16)
 
 
 (ccl::provide "X8664ENV")
