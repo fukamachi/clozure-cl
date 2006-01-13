@@ -1,3 +1,17 @@
+2006-01-13 09:22  gb
+
+	* lib/x8664env.lisp: $undo-x86-c-frame.
+
+2006-01-13 09:21  gb
+
+	* lib/systems.lisp: Add x862.
+
+2006-01-13 09:21  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: New syntax, where operand
+	types are heavily qualified (the idea here is to make it possible
+	to match opcodes exactly at %define-vinsn time.)
+
 2006-01-13 09:19  gb
 
 	* compiler/X86/X8664/x8664-backend.lisp: Don't use #', since the
