@@ -695,11 +695,15 @@
                        (error "Unknown X86 instruction ~s" form)))
            (operands (cdr form)))
       (let* ((parsed-operands (if operands
-                                (mapcar #'parse-x86-operand operands))))
+                                (mapcar #'parse-x86-operand operands)))
+             (operand-types (mapcar #'x86::x86-operand-type parsed-operands))
+             (type0 (pop operand-types))
+             (type1 (pop operand-types))
+             (type2 (car operand-types)))
 
         ;; (x86-optimize-imm parsed-operands suffix)
         (dolist (template templates (error "Operands or suffix invalid in ~s" form))
-          (when (x86::match-template template parsed-operands)
+          (when (x86::match-template-types template type0 type1 type2)
             (init-x86-instruction instruction template parsed-operands)
             ;(check-suffix instruction form)
             ;(x86-finalize-operand-types instruction)
