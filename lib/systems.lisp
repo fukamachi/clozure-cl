@@ -127,6 +127,7 @@
     (x8664-backend    "ccl:bin;x8664-backend"    ("ccl:compiler;X86;X8664;x8664-backend.lisp"))
     (x86-backend      "ccl:bin;x86-backend"      ("ccl:compiler;X86;x86-backend.lisp"))
     (ppc2             "ccl:bin;ppc2"             ("ccl:compiler;PPC;ppc2.lisp"))
+    (x862             "ccl:bin;x862"             ("ccl:compiler;X86;x862.lisp"))
 
     (ppc-lapmacros    "ccl:bin;ppc-lapmacros"    ("ccl:compiler;PPC;ppc-lapmacros.lisp"))
     (x86-lapmacros    "ccl:bin;x86-lapmacros"    ("ccl:compiler;X86;x86-lapmacros.lisp"))
