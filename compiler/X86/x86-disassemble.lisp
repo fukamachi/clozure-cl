@@ -2447,7 +2447,7 @@
                     (return (x86-dis-block-start-address b)))))
          (block (make-x86-dis-block :start-address addr))
          (instructions (x86-dis-block-instructions block))
-         (labeled t))
+         (labeled (not (eql addr (x86-ds-entry-point ds)))))
     (loop
       (multiple-value-bind (instruction stop)
           (x86-disassemble-instruction ds labeled)
