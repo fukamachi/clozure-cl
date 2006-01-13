@@ -148,9 +148,9 @@
   (arg)
   (let* ((operator
 	  (case *nx-sfname*
-	    ((typecode) (%nx1-operator ppc-typecode))
-	    ((lisptag) (%nx1-operator ppc-lisptag))
-	    (( fulltag) (%nx1-operator ppc-fulltag)))))
+	    ((typecode) (%nx1-operator typecode))
+	    ((lisptag) (%nx1-operator lisptag))
+	    (( fulltag) (%nx1-operator fulltag)))))
     (make-acode
      operator (nx1-form arg))))
         
@@ -713,7 +713,7 @@
 
 
 (defnx1 nx1-%gvector ( (%gvector)) (&rest args)
-  (make-acode (%nx1-operator %ppc-gvector) (nx1-arglist args)))
+  (make-acode (%nx1-operator %gvector) (nx1-arglist args)))
 
 (defnx1 nx1-quote quote (form)
   (nx1-immediate form))
@@ -1823,17 +1823,17 @@
 
 
 
-(defnx1 nx1-ppc-lap-function (ppc-lap-function) (name bindings &body body)
+(defnx1 nx1-lap-function (ppc-lap-function) (name bindings &body body)
   (require "PPC-LAP" "ccl:compiler;ppc;ppc-lap")
   (setf (afunc-lfun *nx-current-function*) 
         (%define-ppc-lap-function name `((let ,bindings ,@body))
                                   (dpb (length bindings) $lfbits-numreq 0))))
 
-(defnx1 nx1-sparc-lap-function (sparc-lap-function) (name bindings &body body)
-  (declare (ftype (function (t t t t)) %define-sparc-lap-function))
+(defnx1 nx1-x86-lap-function (x86-lap-function) (name bindings &body body)
+  (declare (ftype (function (t t t t)) %define-x86-lap-function))
   (require "SPARC-LAP")
   (setf (afunc-lfun *nx-current-function*) 
-        (%define-sparc-lap-function name `((let ,bindings ,@body))
+        (%define-x86-lap-function name `((let ,bindings ,@body))
 				    (dpb (length bindings) $lfbits-numreq 0))))
 
 
