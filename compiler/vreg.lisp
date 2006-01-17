@@ -219,7 +219,7 @@
     (:s8const . ,(specifier-type '(signed-byte 8)))
     (:s16const . ,(specifier-type '(signed-byte 16)))
     (:s32const . ,(specifier-type '(signed-byte 32)))
-    (:s64-const . ,(specifier-type '(signed-byte 64)))
+    (:s64const . ,(specifier-type '(signed-byte 64)))
     (:lcell . ,(specifier-type 'lcell))))
 
 (defun match-vreg-value (vreg value)
