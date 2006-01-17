@@ -1,3 +1,30 @@
+2006-01-17 02:56  gb
+
+	* level-1/version.lisp: Bump; new binaries soon.
+
+2006-01-17 02:55  gb
+
+	* compiler/: nx0.lisp, nx1.lisp: Start to use alternatives to
+	TARGET-ARCH-CASE.
+
+2006-01-17 02:54  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp: A little more.
+
+2006-01-17 02:54  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: set the new fields (unbound/slot-unbound
+	tokens)
+
+2006-01-17 02:29  gb
+
+	* lib/macros.lisp: target-word-size-case
+
+2006-01-17 02:28  gb
+
+	* compiler/arch.lisp: Add some fields to target-arch structure.
+
 2006-01-17 00:26  gb
 
 	* compiler/X86/x86-asm.lisp: Split things up to simplify vinsn
