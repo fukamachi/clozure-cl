@@ -35,6 +35,16 @@
     name
     frag
     offset
+    )
+
+  (defstruct (frag (:include ccl::dll-node))
+    address
+    last-address                        ; address may change during relax
+    type                                ; nil, or (:TYPE &rest args)
+    relocs                              ; relocations against this frag
+    relax-marker                        ; boolean, flipped during relax
+    code-buffer                         ; may be nil, or adjustable vector
+    labels                              ; labels defined in this frag
     ))
 
 
@@ -102,18 +112,20 @@
       (make-x86-lap-label name)))
 
 
-;;; A label can only be emitted once.  Once it's been emitted, its pred/succ
-;;; slots will be non-nil.
+;;; A label can only be emitted once.  Once it's been emitted, its frag
+;;; slot will be non-nil.
 
 (defun x86-lap-label-emitted-p (lab)
   (not (null (x86-lap-label-frag lab))))
 
 (defun emit-x86-lap-label (frag-list name)
-  (let* ((lab (find-or-create-x86-lap-label name)))
+  (let* ((lab (find-or-create-x86-lap-label name))
+         (current (frag-list-current frag-list)))
     (when (x86-lap-label-emitted-p lab)
       (error "Label ~s: multiply defined." name))
-    (setf (x86-lap-label-frag lab) (frag-list-current frag-list)
+    (setf (x86-lap-label-frag lab) current
           (x86-lap-label-offset lab) (frag-list-position frag-list))
+    (push lab (frag-labels current))
     lab))
 
 
@@ -127,14 +139,7 @@
   pos                                   ; octet position withing frag
   )
 
-(defstruct (frag (:include ccl::dll-node))
-  address
-  last-address                          ; address may change during relax
-  type                                  ; nil, or (:TYPE &rest args)
-  relocs                                ; relocations against this frag
-  relax-marker                          ; boolean, flipped during relax
-  code-buffer                           ; may be nil, or adjustable vector
-  )
+
 
 (defstruct (frag-list (:include ccl::dll-header)))
 
@@ -218,19 +223,19 @@
 ;;; Finish the current frag, marking it as containing a PC-relative
 ;;; branch to the indicated label, with a one-byte opcode and
 ;;; one byte of displacement.
-(defun finish-frag-for-branch (frag-list opcode label-ref)
+(defun finish-frag-for-branch (frag-list opcode label)
   (let* ((frag (frag-list-current frag-list)))
     (frag-list-push-byte frag-list opcode)
     (let* ((pos (frag-list-position frag-list))
            (reloc (make-reloc :type :branch8
-                              :arg label-ref
+                              :arg label
                               :pos pos)))
       (push reloc (frag-relocs frag))
       (frag-list-push-byte frag-list 0)
       (setf (frag-type frag) (list (if (eql opcode #xeb)
                                      :assumed-short-branch
                                      :assumed-short-conditional-branch)
-                                   label-ref
+                                   label
                                    pos
                                    reloc))
       (new-frag frag-list))))
@@ -296,18 +301,18 @@
 ;;; after all labels are defined, and the value of such an expression may
 ;;; change (as label addresses are adjusted.)
 
-;;; A "label address expression" looks like (^ lab), syntactically.  Tree-walk
+;;; A "label address expression" looks like (:^ lab), syntactically.  Tree-walk
 ;;; FORM, and return T if it contains a label address expression.
 
 (defun label-address-expression-p (form)
   (and (consp form)
-       (symbolp (car form))
-       (string= (car form) "^")
+       (eq (car form) :^)
        (consp (cdr form))
        (null (cddr form))))
 
 (defun contains-label-address-expression (form)
   (cond ((label-address-expression-p form) t)
+        ((typep form 'application-x86-lap-expression) t)
         ((atom form) nil)
         (t (dolist (sub (cdr form))
               (when (contains-label-address-expression sub)
@@ -373,39 +378,51 @@
        (x86-lap-label-offset lab))))
 
 (defun parse-x86-lap-expression (form)
-  (when (quoted-form-p form)
-    (let* ((val (cadr form)))
-      (if (typep val 'fixnum)
-        (setq form (ash val 3 #|x8664::fixnumshift|#))
-        (let* ((constant-label (or (cdr (assoc val *x86-lap-constants*
-                                               :test #'eq))
-                                   (let* ((label (make-x86-lap-label
-                                                  (gensym)))
-                                          (pair (cons val label)))
-                                     (push pair *x86-lap-constants*)
-                                     label))))
-          (setq form `(^ ,(x86-lap-label-name constant-label)))))))
-  (if (null form)
-    (setq form (arch::target-nil-value (backend-target-arch *target-backend*)))
-      (if (eq form t)
-        (setq form
-              (+ (arch::target-nil-value (backend-target-arch *target-backend*))
-                 (arch::target-t-offset  (backend-target-arch *target-backend*))))))
-
-  (if (label-address-expression-p form)
-    (make-label-x86-lap-expression :label (find-or-create-x86-lap-label (cadr form)))
-    (if (contains-label-address-expression form)
-      (destructuring-bind (op &rest args) form
-        (case (length args)
-          (1 (make-unary-x86-lap-expression :operator op :operand (parse-x86-lap-expression (car args))))
-          (2 (make-binary-x86-lap-expression :operator op :operand0 (parse-x86-lap-expression (car args))
-                                     :operand1 (parse-x86-lap-expression (cadr args))))
-          (t (make-n-ary-x86-lap-expression :operator op :operands (mapcar #'parse-x86-lap-expression args)))))
-      (multiple-value-bind (value condition)
-          (eval form)
-        (if condition
-          (error "~a signaled during assembly-time evaluation of form ~s" condition form)
-          (make-constant-x86-lap-expression :value value))))))
+  (if (typep form 'x86-lap-expression)
+    form
+    (progn
+      (when (quoted-form-p form)
+        (let* ((val (cadr form)))
+          (if (typep val 'fixnum)
+            (setq form (ash val 3 #|x8664::fixnumshift|#))
+            (let* ((constant-label (or (cdr (assoc val *x86-lap-constants*
+                                                   :test #'eq))
+                                       (let* ((label (make-x86-lap-label
+                                                      (gensym)))
+                                              (pair (cons val label)))
+                                         (push pair *x86-lap-constants*)
+                                         label))))
+              (setq form `(:^ ,(x86-lap-label-name constant-label)))))))
+      (if (null form)
+        (setq form (arch::target-nil-value (backend-target-arch *target-backend*)))
+        (if (eq form t)
+          (setq form
+                (+ (arch::target-nil-value (backend-target-arch *target-backend*))
+                   (arch::target-t-offset  (backend-target-arch *target-backend*))))))
+      
+      (if (label-address-expression-p form)
+        (make-label-x86-lap-expression :label (find-or-create-x86-lap-label (cadr form)))
+        (if (contains-label-address-expression form)
+          (destructuring-bind (op &rest args) form
+            (case (length args)
+              (1 (make-unary-x86-lap-expression :operator op :operand (parse-x86-lap-expression (car args))))
+              (2 (make-binary-x86-lap-expression :operator op :operand0 (parse-x86-lap-expression (car args))
+                                                 :operand1 (parse-x86-lap-expression (cadr args))))
+              (t (make-n-ary-x86-lap-expression :operator op :operands (mapcar #'parse-x86-lap-expression args)))))
+          (multiple-value-bind (value condition)
+              (ignore-errors
+                (eval (if (atom form)
+                        form
+                        (cons (car form)
+                            (mapcar #'(lambda (x)
+                                        (if (typep x 'constant-x86-lap-expression)
+                                          (constant-x86-lap-expression-value
+                                           x)
+                                          x))
+                                    (cdr form))))))
+            (if condition
+              (error "~a signaled during assembly-time evaluation of form ~s" condition form)
+              (make-constant-x86-lap-expression :value value))))))))
 
 (defun parse-x86-register-operand (regname designator)
   (let* ((r (lookup-x86-register regname designator)))
@@ -508,7 +525,6 @@
 ;;; Operand syntax:
 ;;; (% x) -> register
 ;;; ($ x) -> immediate
-;;; (* x) -> x with :jumpabsolute attribute
 ;;; (@ x) -> memory operand
 ;;; x -> labelref
 (defun parse-x86-operand (form)
@@ -528,13 +544,6 @@
               ((setq designator (x86-register-designator form))
                (destructuring-bind (reg) (cdr form)
                  (parse-x86-register-operand reg designator)))
-              ((string= head '*)
-               (destructuring-bind (subop) (cdr form)
-                 (let* ((op (parse-x86-operand subop)))
-                   (setf (x86::x86-operand-type op)
-                         (logior (x86::encode-operand-type :jumpabsolute)
-                                 (x86::x86-operand-type op)))
-                   op)))
               ((string= head '@)
                (parse-x86-memory-operand  (cdr form)))
               (t (error "unknown X86 operand: ~s" form)))
@@ -545,12 +554,22 @@
 
 
 
+;;; Initialize some fields in the instruction from the template;
+;;; set other fields (which depend on operand values) to NIL.
+(defun set-x86-instruction-template (i template)
+  (setf (x86::x86-instruction-opcode-template i) template
+        (x86::x86-instruction-base-opcode i) (x86::x86-opcode-template-base-opcode template)
+        (x86::x86-instruction-modrm-byte i) (x86::x86-opcode-template-modrm-byte template)
+        (x86::x86-instruction-rex-prefix i) (x86::x86-opcode-template-rex-prefix template)
+        (x86::x86-instruction-sib-byte i) nil
+        (x86::x86-instruction-seg-prefix i) nil
+        (x86::x86-instruction-disp i) nil
+        (x86::x86-instruction-imm i) nil
+        (x86::x86-instruction-extra i) nil))
+
 
 (defun init-x86-instruction (instruction template parsed-operands)
-  (setf (x86::x86-instruction-opcode-template instruction) template
-        (x86::x86-instruction-base-opcode instruction) (x86::x86-opcode-template-base-opcode template)
-        (x86::x86-instruction-modrm-byte instruction) (x86::x86-opcode-template-modrm-byte template)
-        (x86::x86-instruction-rex-prefix instruction) (x86::x86-opcode-template-rex-prefix template))
+  (set-x86-instruction-template instruction template)
   (let* ((insert-classes (x86::x86-opcode-template-operand-classes template))
          (insert-functions x86::*x86-operand-insert-functions*))
     (dotimes (i (length parsed-operands) instruction)
@@ -558,17 +577,7 @@
                instruction
                (pop parsed-operands)))))
 
-(defun reset-x86-instruction (i)
-  (setf (x86::x86-instruction-opcode-template i) nil
-        (x86::x86-instruction-base-opcode i) nil
-        (x86::x86-instruction-rex-prefix i) nil
-        (x86::x86-instruction-modrm-byte i) nil
-        (x86::x86-instruction-sib-byte i) nil
-        (x86::x86-instruction-seg-prefix i) nil
-        (x86::x86-instruction-disp i) nil
-        (x86::x86-instruction-imm i) nil
-        (x86::x86-instruction-extra i) nil)
-  i)
+
 
 (defun smallest-imm-type (val)
   (if (eql val 1)
@@ -1030,7 +1039,7 @@
   (if (eq directive :tra)
     (progn
       (finish-frag-for-align frag-list 3)
-      (x86-lap-directive frag-list :long `(- 15 (^ ,arg)))
+      (x86-lap-directive frag-list :long `(- (:^ ,arg)))
       (emit-x86-lap-label frag-list arg))
     (let* ((exp (parse-x86-lap-expression arg))
            (constantp (constant-x86-lap-expression-p exp)))
@@ -1087,30 +1096,59 @@
                       (cdr form)
                     (x86-lap-equate-form equates frag-list instruction body)))
               (t
-               (reset-x86-instruction instruction)
                (parse-x86-instruction form instruction)
                (x86-generate-instruction-code frag-list instruction)))))))))
 
 (defun relax-frag-list (frag-list)
   ;; First, assign tentative addresses to all frags, assuming that
   ;; span-dependent instructions have short displacements.
-  (let* ((address 8))
-    (declare (fixnum address))
-    (ccl::do-dll-nodes (frag frag-list)
-      (setf (frag-address frag) address)
-      (incf address (length (frag-code-buffer frag)))
-      (case (car (frag-type frag))
-        (:align
-         (let* ((bits (cadr (frag-type frag)))
-                (mask (1- (ash 1 bits))))
-           (setq address (logandc2 (+ address mask) mask))))
-        ((:assumed-short-branch :assumed-short-conditional-branch)))))
+  ;; While doing that, find branches to the next instruction and
+  ;; remove them.  In some cases, that'll cause the containing
+  ;; frag to become empty; that could introduce branches to the
+  ;; next instruction, so we repeat this process until we can
+  ;; make it all the way through the frag-list.
+  (loop
+    (let* ((address 8))
+      (declare (fixnum address))
+      (when (ccl::do-dll-nodes (frag frag-list t)
+              (setf (frag-address frag) address)
+              (incf address (length (frag-code-buffer frag)))
+              (case (car (frag-type frag))
+                (:align
+                 (let* ((bits (cadr (frag-type frag)))
+                        (mask (1- (ash 1 bits))))
+                   (setq address (logandc2 (+ address mask) mask))))
+                ((:assumed-short-branch :assumed-short-conditional-branch)
+                 (destructuring-bind (label pos reloc) (cdr (frag-type frag))
+                   (let* ((next (frag-succ frag)))
+                     (when (and (eq (x86-lap-label-frag label) next)
+                                (eql (x86-lap-label-offset label) 0))
+                       ;; Delete the reloc associated with this branch.
+                       (setf (frag-relocs frag)
+                             (delete reloc (frag-relocs frag)))
+                       ;; This will be a "normal" frag
+                       (setf (frag-type frag) nil)
+                       ;; Remove the (short) branch, and remove the frag
+                       ;; if it becomes empty.  If the frag does become
+                       ;; empty, migrate any labels to the next frag.
+                       (when (zerop (setf (fill-pointer (frag-code-buffer frag))
+                                        (1- pos)))
+                         (do* ((labels (frag-labels frag))
+                               (next-labels (frag-labels next)))
+                              ((null labels))
+                           (let* ((lab (pop labels)))
+                             (setf (x86-lap-label-frag lab) next
+                                   (x86-lap-label-offset lab) 0)
+                             (push lab next-labels)))
+                         (remove-dll-node frag))
+                       (return nil)))))))
+        (return))))
   ;; Repeatedly "stretch" frags containing span-dependent instructions
   ;; until nothing's stretched.  It may take several iterations to
   ;; converge; is convergence guaranteed ?
   (loop
-    (let* ((stretch 0)                    ;cumulative growth in frag sizes
-           (stretched nil))               ;any change on this pass ?
+    (let* ((stretch 0)                  ;cumulative growth in frag sizes
+           (stretched nil))             ;any change on this pass ?
       (ccl::do-dll-nodes (frag frag-list)
         (let* ((growth 0)
                (fragtype (frag-type frag))
@@ -1131,10 +1169,9 @@
             ;; to look here at conditional branches that may still
             ;; be able to use a 1-byte displacement.
             ((:assumed-short-branch :assumed-short-conditional-branch)
-             (destructuring-bind (label-op pos reloc) (cdr (frag-type frag))
+             (destructuring-bind (label pos reloc) (cdr (frag-type frag))
                (declare (fixnum pos))
-               (let* ((label (x86::x86-label-operand-label label-op))
-                      (label-address (x86-lap-label-address label))
+               (let* ((label-address (x86-lap-label-address label))
                       (branch-pos (+ address (1+ pos)))
                       (buffer (frag-code-buffer frag))
                       (diff (- branch-pos label-address)))
@@ -1142,7 +1179,7 @@
                    (cond ((eq (car fragtype) :assumed-short-branch)
                           ;; replace the opcode byte
                           (setf (aref buffer (the fixnum (1- pos)))
-                                      x86::+jump-pc-relative+)
+                                x86::+jump-pc-relative+)
                           (vector-push-extend 0 buffer)
                           (vector-push-extend 0 buffer)
                           (vector-push-extend 0 buffer)
@@ -1189,12 +1226,10 @@
                 (let* ((pos (reloc-pos reloc))
                        (arg (reloc-arg reloc)))
                   (ecase (reloc-type reloc)
-                    (:branch8 (let* ((label (x86::x86-label-operand-label arg))
-                                     (target (x86-lap-label-address label))
+                    (:branch8 (let* ((target (x86-lap-label-address arg))
                                      (refpos (+ address (1+ pos))))
                                 (emit-byte buffer pos (- target refpos))))
-                    (:branch32 (let* ((label (x86::x86-label-operand-label arg))
-                                     (target (x86-lap-label-address label))
+                    (:branch32 (let* ((target (x86-lap-label-address arg))
                                      (refpos (+ address pos 4)))
                                 (emit-long buffer pos (- target refpos))))
                     (:expr8 (emit-byte buffer pos  (x86-lap-expression-value arg)))
@@ -1246,18 +1281,22 @@
         (x86-lap-form form fraglist instruction)))))          
                 
 #-x86-target
-(defun cross-create-x86-function (name frag-list constants bits)
+(defun cross-create-x86-function (name frag-list constants bits debug-info)
   (let* ((constants-vector (%alloc-misc (+ (length constants)
-                                           (if name 3 2))
+                                           (+ 2
+                                              (if name 1 0)
+                                              (if debug-info 1 0)))
                                         target::subtag-xfunction)))
     (unless name (setq bits (logior bits (ash -1 $lfbits-noname-bit))))
     (let* ((last (1- (uvsize constants-vector))))
       (declare (fixnum last))
       (setf (uvref constants-vector last) bits)
-      (when name
+      (when (or name debug-info)
         (setf (uvref constants-vector (decf last)) name))
+      (when debug-info
+        (setf (uvref constants-vector (decf last)) debug-info))
       (dolist (c constants)
-        (setf (uvref constants-vector (decf last)) c))
+        (setf (uvref constants-vector (decf last)) (car c)))
       (let* ((nbytes 0))
         (do-dll-nodes (frag frag-list)
           (incf nbytes (length (frag-code-buffer frag))))
@@ -1288,7 +1327,7 @@
          (instruction (x86::make-x86-instruction))
          (frag-list (make-frag-list)))
     (make-x86-lap-label end-code-tag)
-    (x86-lap-directive frag-list :long `(ash (+ (- (^ ,end-code-tag ) 8)
+    (x86-lap-directive frag-list :long `(ash (+ (- (:^ ,end-code-tag ) 8)
                                               *x86-lap-entry-offset*) -3))
     (x86-lap-directive frag-list :short 0)
     (x86-lap-directive frag-list :byte 0)
@@ -1307,7 +1346,7 @@
     (apply-relocs frag-list)
     (fill-for-alignment frag-list)
     ;;(show-frag-bytes frag-list)
-    (funcall function-creator name frag-list (mapcar #'car *x86-lap-constants*) bits)))
+    (funcall function-creator name frag-list *x86-lap-constants* bits nil)))
 
 
 (defmacro defx86lapfunction (&environment env name arglist &body body
