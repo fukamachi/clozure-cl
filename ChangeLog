@@ -1,3 +1,30 @@
+2006-01-17 04:04  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: Use the new slots for type info.
+
+2006-01-17 03:45  gb
+
+	* compiler/nx1.lisp: Lose target-arch-case.
+
+2006-01-17 03:44  gb
+
+	* compiler/nx0.lisp: Backend vector type stuff here; lose
+	target-arch-case.
+
+2006-01-17 03:43  gb
+
+	* compiler/arch.lisp: More slots for arch-specific type info.
+
+2006-01-17 03:42  gb
+
+	* compiler/backend.lisp: Can use target-word-size-case here.
+
+2006-01-17 03:41  gb
+
+	* compiler/: PPC/ppc2.lisp, X86/x862.lisp: Move vector typecode
+	stuff to frontend and rename it.
+
 2006-01-17 02:56  gb
 
 	* level-1/version.lisp: Bump; new binaries soon.
