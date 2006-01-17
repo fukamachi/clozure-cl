@@ -1100,4 +1100,15 @@
                           :subprims-table x8664::*x8664-subprims*
                           :primitive->subprims `(((0 . 23) . ,(ccl::%subprim-name->offset '.SPbuiltin-plus x8664::*x8664-subprims*)))
                           :unbound-marker-value unbound-marker
-                          :slot-unbound-marker-value slot-unbound-marker))
+                          :slot-unbound-marker-value slot-unbound-marker
+                          :fixnum-tag tag-fixnum
+                          :single-float-tag subtag-single-float
+                          :single-float-tag-is-subtag nil
+                          :double-float-tag subtag-double-float
+                          :cons-tag fulltag-cons
+                          :null-tag fulltag-nil
+                          :symbol-tag fulltag-symbol
+                          :symbol-tag-is-subtag nil
+                          :function-tag fulltag-function
+                          :function-tag-is-subtag nil
+                          ))

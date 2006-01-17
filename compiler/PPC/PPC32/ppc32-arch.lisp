@@ -786,7 +786,18 @@
                           :subprims-table ppc::*ppc-subprims*
                           :primitive->subprims `(((0 . 23) . ,(ccl::%subprim-name->offset '.SPbuiltin-plus ppc::*ppc-subprims*)))
                           :unbound-marker-value unbound-marker
-                          :slot-unbound-marker-value slot-unbound-marker))
+                          :slot-unbound-marker-value slot-unbound-marker
+                          :fixnum-tag tag-fixnum
+                          :single-float-tag subtag-single-float
+                          :single-float-tag-is-subtag t
+                          :double-float-tag subtag-double-float
+                          :cons-tag fulltag-cons
+                          :null-tag fulltag-nil
+                          :symbol-tag subtag-symbol
+                          :symbol-tag-is-subtag t
+                          :function-tag subtag-function
+                          :function-tag-is-subtag t
+                          ))
                           
                           
 (provide "PPC32-ARCH")
