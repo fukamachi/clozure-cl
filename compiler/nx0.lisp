@@ -453,12 +453,12 @@ function to the indicated name is true.")
     (let* ((op (acode-operator x)))
       (if (eql op (%nx1-operator fixnum))
         (let* ((val (cadr x)))
-          (if (target-arch-case
-               (:ppc32 (typep val '(signed-byte #.(- 16 ppc32::fixnumshift))))
-               (:ppc64 (typep val '(signed-byte #.(- 16 ppc64::fixnumshift)))))
-            (ash val (target-arch-case
-                      (:ppc32 ppc32::fixnumshift)
-                      (:ppc64 ppc64::fixnumshift)))))
+          (if (target-word-size-case
+               (32 (typep val '(signed-byte #.(- 16 2))))
+               (64 (typep val '(signed-byte #.(- 16 3)))))
+            (ash val (target-word-size-case
+                      (32 2)
+                      (64 3)))))
         (if (eql op (%nx1-operator %unbound-marker))
           (target-arch-case
            (:ppc32 ppc32::unbound-marker)
@@ -1435,9 +1435,9 @@ Or something. Right? ~s ~s" var varbits))
     (let* ((val (if (or (eq (acode-operator form) (%nx1-operator fixnum))
 			(eq (acode-operator form) (%nx1-operator immediate)))
 		  (cadr form))))
-      (target-arch-case
-       (:ppc32 (and (typep val '(unsigned-byte 32)) val))
-       (:ppc64 (and (typep val '(unsigned-byte 64)) val))))))
+      (target-word-size-case
+       (32 (and (typep val '(unsigned-byte 32)) val))
+       (64 (and (typep val '(unsigned-byte 64)) val))))))
 
 (defun nx-u32-constant-p (form)
   (setq form (nx-untyped-form form))
@@ -2066,33 +2066,33 @@ Or something. Right? ~s ~s" var varbits))
 
 (defun nx-binary-fixnum-op-p (form1 form2 env &optional ignore-result-type)
   (and
-   (target-arch-case
-    (:ppc32 (nx-form-typep form1 '(signed-byte 30) env))
-    (:ppc64 (nx-form-typep form1 '(signed-byte 61) env)))
-   (target-arch-case
-    (:ppc32 (nx-form-typep form2 '(signed-byte 30) env))
-    (:ppc64 (nx-form-typep form2 '(signed-byte 61) env)))
+   (target-word-size-case
+    (32 (nx-form-typep form1 '(signed-byte 30) env))
+    (64 (nx-form-typep form1 '(signed-byte 61) env)))
+   (target-word-size-case
+    (32 (nx-form-typep form2 '(signed-byte 30) env))
+    (64 (nx-form-typep form2 '(signed-byte 61) env)))
    (or ignore-result-type
         (and (nx-trust-declarations env)
-                (target-arch-case
-                 (:ppc32 (subtypep *nx-form-type* '(signed-byte 30)))
-                 (:ppc64 (subtypep *nx-form-type* '(signed-byte 61))))))))
+                (target-word-size-case
+                 (32 (subtypep *nx-form-type* '(signed-byte 30)))
+                 (64 (subtypep *nx-form-type* '(signed-byte 61))))))))
 
 
 (defun nx-binary-natural-op-p (form1 form2 env &optional (ignore-result-type t))
   (and
-   (target-arch-case
-    (:ppc32
+   (target-word-size-case
+    (32
      (and (nx-form-typep form1 '(unsigned-byte 32)  env)
-         (nx-form-typep form2 '(unsigned-byte 32)  env)))
-    (:ppc64
+          (nx-form-typep form2 '(unsigned-byte 32)  env)))
+    (64
      (and (nx-form-typep form1 '(unsigned-byte 64)  env)
           (nx-form-typep form2 '(unsigned-byte 64)  env))))
    (or ignore-result-type
        (and (nx-trust-declarations env)
-            (target-arch-case
-             (:ppc32 (subtypep *nx-form-type* '(unsigned-byte 32)))
-             (:ppc64 (subtypep *nx-form-type* '(unsigned-byte 64))))))))
+            (target-word-size-case
+             (32 (subtypep *nx-form-type* '(unsigned-byte 32)))
+             (64 (subtypep *nx-form-type* '(unsigned-byte 64))))))))
 
     
 

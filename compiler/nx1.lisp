@@ -223,8 +223,8 @@
 
 (defnx1 nx1-logbitp ((logbitp)) (&whole w bitnum int &environment env)
   (if (and (nx-form-typep bitnum
-                          (target-arch-case (:ppc32 '(integer 0 29))
-                                            (:ppc64 '(integer 0 60))) env)
+                          (target-word-size-case (32 '(integer 0 29))
+                                                 (64 '(integer 0 60))) env)
            (nx-form-typep int 'fixnum env))
     (nx1-cc-binaryop (%nx1-operator %ilogbitp) :ne bitnum int)
     (make-acode (%nx1-operator logbitp) (nx1-form bitnum) (nx1-form int))))
@@ -500,7 +500,7 @@
       (let* ((fixadd (make-acode (%nx1-operator %i+) f1 f2))
              (small-enough (target-arch-case
                             (:ppc32 '(signed-byte 28))
-                            (:ppc64 '(signed-byte 59)))))
+                            ((:ppc64 :x8664) '(signed-byte 59)))))
         (if (or (and (nx-acode-form-typep f1 small-enough env)
                      (nx-acode-form-typep f2 small-enough env))
                 (nx-binary-fixnum-op-p num1 num2 env nil))
