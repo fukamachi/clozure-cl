@@ -3389,3 +3389,8 @@ to be at least partially steppable."
 (defmacro target-os-case (&rest clauses)
   `(ecase (backend-target-os *target-backend*)
     ,@clauses))
+
+(defmacro target-word-size-case (&rest clauses)
+  `(ecase (arch::target-nbits-in-word (backend-target-arch *target-backend*))
+    ,@clauses))
+
