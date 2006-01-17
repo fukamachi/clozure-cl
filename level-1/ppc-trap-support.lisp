@@ -141,7 +141,7 @@
                  args
                  (let ((vsp (xp-gpr-macptr xp ppc::vsp)))
                    (dotimes (i (- nargs 3))
-                     (push (%get-object vsp (* i 4)) args))
+                     (push (%get-object vsp (* i target::node-size)) args))
                    args)))))))
     
 (defun xp-fpscr-info (xp)
