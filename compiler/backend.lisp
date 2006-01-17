@@ -84,14 +84,14 @@
 (defun gpr-mode-name-value (name)
   (if (eq name :natural)
     (setq name
-          (target-arch-case
-           (:ppc32 :u32)
-           (:ppc64 :u64)))
+          (target-word-size-case
+           (32 :u32)
+           (64 :u64)))
     (if (eq name :signed-natural)
       (setq name
-          (target-arch-case
-           (:ppc32 :s32)
-           (:ppc64 :s64)))))
+          (target-word-size-case
+           (32 :s32)
+           (64 :s64)))))
   (or (cdr (assq name *mode-name-value-alist*))
       (error "Unknown gpr mode name: ~s" name)))
 
