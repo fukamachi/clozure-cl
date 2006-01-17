@@ -328,10 +328,7 @@
              (zerop (x86-ds-rex ds)))
     (setf (x86-ds-rex ds) #x48))
   (let* ((op (op-e ds bytemode sizeflag)))
-     (setf (x86::x86-operand-type op)
-                         (logior (x86::encode-operand-type :jumpabsolute)
-                                 (or (x86::x86-operand-type op) 0)))
-                   op))
+     op))
 
 
 (defun op-e (ds bytemode sizeflag)
@@ -2217,13 +2214,12 @@
   (x86-ds-skip ds))
 
 (defun x86-dis-do-uuo (ds instruction intop sizeflag)
-  (declare (type (unsigned-byte 8) intop)
-           (ignore sizeflag))
-  (if (or (< intop #xc0) (>= intop #xe0))
+  (declare (type (unsigned-byte 8) intop))
+  (if (< intop #xc0)
     (setf (x86-di-mnemonic instruction) "int"
           (x86-di-op0 instruction)
           (x86::make-x86-immediate-operand :value (parse-x86-lap-expression intop)))
-    (if (< intop #xd0)
+    (if (< intop #xc8)
       (setf (x86-di-mnemonic instruction)
             (case intop
               (#xc0 "uuo-error-two-few-args")
@@ -2232,13 +2228,37 @@
               (#xc3 "uuo-stack-overflow")
               (#xc4 "uuo-gc-trap")
               (t "unknown-UUO")))
-      (if (< intop #xe0)
-        (setf (x86-di-mnemonic instruction)
-              "uuo-error-reg-not-type"
-              (x86-di-op0 instruction)
-              (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))
-              (x86-di-op1 instruction)
-              (x86::make-x86-immediate-operand :value (parse-x86-lap-expression (x86-ds-next-u8 ds))))))))
+      (if (< intop #xd0)
+        (let* ((modrm-byte (x86-ds-peek-u8 ds)))
+          (declare (type (unsigned-byte 8) modrm-byte))
+          (setf (x86-ds-mod ds) (ldb (byte 2 6) modrm-byte)
+                (x86-ds-reg ds) (ldb (byte 3 3) modrm-byte)
+                (x86-ds-rm ds) (ldb (byte 3 0) modrm-byte))
+          (setf (x86-di-op0 instruction)
+                (op-g ds +v-mode+ sizeflag)
+                (x86-di-op1 instruction)
+                (op-e ds +v-mode+ sizeflag)
+                (x86-di-mnemonic instruction)
+                (case intop
+                  (#xc8 "uuo-error-vector-bounds")
+                  (t "unknown-UUO"))))
+        (if (< intop #xe0)
+          (setf (x86-di-mnemonic instruction)
+                "uuo-error-reg-not-type"
+                (x86-di-op0 instruction)
+                (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))
+                (x86-di-op1 instruction)
+                (x86::make-x86-immediate-operand :value (parse-x86-lap-expression (x86-ds-next-u8 ds))))
+          (if (< intop #xf0)
+            (setf (x86-di-mnemonic instruction)
+                  "uuo-error-reg-not-list"
+                  (x86-di-op0 instruction)
+                  (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%)))
+            (setf (x86-di-mnemonic instruction)
+                  "uuo-error-reg-not-fixnum"
+                  (x86-di-op0 instruction)
+                  (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%)))
+            ))))))
 
 
 
@@ -2284,7 +2304,7 @@
                  (when (< label-ea (x86-ds-code-limit ds))
                    (setf (x86::x86-immediate-operand-value op0)
                          (parse-x86-lap-expression
-                          `(^ ,label-ea)))
+                          `(:^ ,label-ea)))
                    (push label-ea (x86-ds-pending-labels ds)))))))
           ((:subi32 :subi64)
            (let* ((imm (is-constant-imm op0)))
@@ -2293,7 +2313,7 @@
                  (when (< label-ea (x86-ds-code-limit ds))
                    (setf (x86::x86-immediate-operand-value op0)
                          (parse-x86-lap-expression
-                          `(^ ,label-ea)))
+                          `(:^ ,label-ea)))
                (push label-ea (x86-ds-pending-labels ds)))))))
       (:lea
        (let* ((disp (is-fn-ea op0)))
@@ -2302,7 +2322,7 @@
              (when (< label-ea (x86-ds-code-limit ds))
                    (setf (x86::x86-memory-operand-disp op0)
                          (parse-x86-lap-expression
-                          `(^ ,label-ea)))
+                          `(:^ ,label-ea)))
                    (push label-ea (x86-ds-pending-labels ds))))))))))
     instruction))
 
@@ -2472,7 +2492,7 @@
   (let* ((label (label-x86-lap-expression-label exp))
          (name (x86-lap-label-name label))
          (entry (x86-ds-entry-point ds)))
-    `(^ , (if (typep name 'fixnum)
+    `(":^" , (if (typep name 'fixnum)
             (format nil "L~d" (- name entry))
             name))))
 
