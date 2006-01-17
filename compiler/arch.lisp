@@ -210,7 +210,18 @@
   (subprims-table ())
   (primitive->subprims ())
   (unbound-marker-value ())
-  (slot-unbound-marker-value ()))
+  (slot-unbound-marker-value ())
+  (fixnum-tag 0)
+  (single-float-tag nil)
+  (single-float-tag-is-subtag nil)
+  (double-float-tag nil)
+  (cons-tag nil)
+  (null-tag nil)
+  (symbol-tag nil)
+  (symbol-tag-is-subtag nil)
+  (function-tag nil)
+  (function-tag-is-subtag nil))
+  
 
 
 ;;; GC related operations
