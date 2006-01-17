@@ -474,11 +474,11 @@
   (make-acode (%nx1-operator %setf-double-float) (nx1-form double-node) (nx1-form double-val)))
 
 (defnx1 nx1-%setf-short-float ((%setf-short-float) (%setf-single-float)) (short-node short-val)
-  (target-arch-case
-   (:ppc32
+  (target-word-size-case
+   (32
     (make-acode (%nx1-operator %setf-short-float) (nx1-form short-node) (nx1-form short-val)))
-   (:ppc64
-    (error "%SETF-SHORT-FLOAT makes no sense on PPC64."))))
+   (64
+    (error "%SETF-SHORT-FLOAT makes no sense on 64-bit platforms."))))
 
    
 (defnx1 nx1-%inc-ptr ((%inc-ptr)) (ptr &optional (increment 1))
@@ -498,9 +498,9 @@
          (f2 (nx1-form num2)))
     (if (nx-binary-fixnum-op-p num1 num2 env t)
       (let* ((fixadd (make-acode (%nx1-operator %i+) f1 f2))
-             (small-enough (target-arch-case
-                            (:ppc32 '(signed-byte 28))
-                            ((:ppc64 :x8664) '(signed-byte 59)))))
+             (small-enough (target-word-size-case
+                            (32 '(signed-byte 28))
+                            (64 '(signed-byte 59)))))
         (if (or (and (nx-acode-form-typep f1 small-enough env)
                      (nx-acode-form-typep f2 small-enough env))
                 (nx-binary-fixnum-op-p num1 num2 env nil))
@@ -514,11 +514,9 @@
           (nx1-form `(%short-float+-2 ,num1 ,num2))
 	  (if (nx-binary-natural-op-p num1 num2 env nil)
 	    (make-acode (%nx1-operator typed-form)
-                        (target-arch-case
-                         (:ppc32
-                          '(unsigned-byte 32))
-                         (:ppc64
-                          '(unsigned-byte 64)))
+                        (target-word-size-case
+                         (32 '(unsigned-byte 32))
+                         (64 '(unsigned-byte 64)))
 			(make-acode (%nx1-operator %natural+) f1 f2))
 	    (make-acode (%nx1-operator typed-form) 'number 
 			(make-acode (%nx1-operator add2) f1 f2))))))))
@@ -559,9 +557,9 @@
     (let* ((f0 (nx1-form num0))
 	   (f1 (nx1-form num1))
 	   (fixsub (make-acode (%nx1-operator %i-) f0 f1))
-	   (small-enough (target-arch-case
-                          (:ppc32 '(signed-byte 28))
-                          (:ppc64 '(signed-byte 59)))))
+	   (small-enough (target-word-size-case
+                          (32 '(signed-byte 28))
+                          (64 '(signed-byte 59)))))
       (if (or (and (nx-acode-form-typep f0 small-enough env)
 		   (nx-acode-form-typep f1 small-enough env))
               (nx-binary-fixnum-op-p num0 num1 env nil))
@@ -1541,9 +1539,9 @@
 
 (defnx1 nx1-set-64-xxx ((%%set-unsigned-longlong) (%%set-signed-longlong)) 
         (&whole w ptr offset newval &aux (op *nx-sfname*))
-  (target-arch-case
-   (:ppc32 (nx1-treat-as-call w))
-   (:ppc64
+  (target-word-size-case
+   (32 (nx1-treat-as-call w))
+   (64
     (make-acode
      (%nx1-operator %immediate-set-xxx)
      (case op
@@ -1565,9 +1563,9 @@
 
 (defnx1 nx1-get-64-xxx ((%%get-unsigned-longlong) (%%get-signed-longlong))
   (&whole w ptrform offsetform)
-  (target-arch-case
-   (:ppc32 (nx1-treat-as-call w))
-   (:ppc64
+  (target-word-size-case
+   (32 (nx1-treat-as-call w))
+   (64
     (let* ((flagbits (case *nx-sfname*
                        (%%get-unsigned-longlong 8)
                        (%%get-signed-longlong (logior 32 8))))
@@ -1919,13 +1917,13 @@
               (nx1-form offset)))
 
 (defnx1 nx1-ash (ash) (&whole call &environment env num amt)
-  (let* ((unsigned-natural-type (target-arch-case
-                                 (:ppc32 '(unsigned-byte 32))
-                                 (:ppc64 '(unsigned-byte 64))))
-         (max (target-arch-case (:ppc32 32) (:ppc64 64)))
-         (maxbits (target-arch-case
-                   (:ppc32 29)
-                   (:ppc64 60))))
+  (let* ((unsigned-natural-type (target-word-size-case
+                                 (32 '(unsigned-byte 32))
+                                 (64 '(unsigned-byte 64))))
+         (max (target-word-size-case (32 32) (64 64)))
+         (maxbits (target-word-size-case
+                   (32 29)
+                   (64 60))))
     (cond ((eq amt 0) (nx1-form `(require-type ,num 'integer) env))
           ((and (fixnump amt)
                 (< amt 0))
