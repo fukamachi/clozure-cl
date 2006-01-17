@@ -113,7 +113,7 @@
     (vinsn            "ccl:bin;vinsn"            ("ccl:compiler;vinsn.lisp"))
     (ppc32-vinsns     "ccl:bin;ppc32-vinsns"     ("ccl:compiler;PPC;PPC32;ppc32-vinsns.lisp"))
     (ppc64-vinsns     "ccl:bin;ppc64-vinsns"     ("ccl:compiler;PPC;PPC64;ppc64-vinsns.lisp"))
-    (ppc-reg          "ccl:bin;ppc-reg"          ("ccl:compiler;PPC;ppc-reg.lisp"))
+    (x8664-vinsns     "ccl:bin;x8664-vinsns"     ("ccl:compiler;X86;X8664;x8664-vinsns.lisp"))
     (reg              "ccl:bin;reg"              ("ccl:compiler;reg.lisp"))
     (subprims         "ccl:bin;subprims"         ("ccl:compiler;subprims.lisp"))
     (risc-lap         "ccl:bin;risc-lap"         ("ccl:compiler;risc-lap.lisp"))
