@@ -1,3 +1,35 @@
+2006-01-17 00:19  gb
+
+	* level-0/X86/x86-pred.lisp: typo in EQL.
+
+2006-01-17 00:18  gb
+
+	* lib/compile-ccl.lisp: x86/x8664 compiler stuff.
+
+2006-01-17 00:18  gb
+
+	* lib/systems.lisp: add x8664-vinsns.  ppc-reg was renamed long
+	ago.
+
+2006-01-17 00:17  gb
+
+	* lib/x8664env.lisp: Exactly one cr field.
+
+2006-01-17 00:16  gb
+
+	* level-1/ppc-trap-support.lisp: Use target::node-size (not 4!) in
+	xp-argument-list.
+
+2006-01-17 00:16  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: node-size =
+	word-size-in-bytes
+
+2006-01-17 00:15  gb
+
+	* compiler/vreg.lisp: rename s64-const -> s64const, since it's used
+	now.
+
 2006-01-13 09:22  gb
 
 	* lib/x8664env.lisp: $undo-x86-c-frame.
