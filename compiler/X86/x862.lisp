@@ -78,7 +78,7 @@
                   (-> (,label-var)
                     `(! jump (aref *backend-labels* ,,label-var)))
                   (^ (&rest branch-args)
-                    `(x862-branch ,',segvar ,',xfer-var ,',vreg-var ,@branch-args))
+                    `(x862-branch ,',segvar ,',xfer-var ,@branch-args))
                   (? (&key (class :gpr)
                           (mode :lisp))
                    (let* ((class-val
@@ -136,6 +136,7 @@
 (defvar *x862-valid-register-annotations* 0)
 (defvar *x862-register-annotation-types* nil)
 (defvar *x862-register-ea-annotations* nil)
+(defvar *x862-constant-alist* nil)
 
 (defparameter *x862-tail-call-aliases*
   ()
@@ -186,13 +187,18 @@
  
 
 
-;;; Before any defx862's, make the *x862-specials* vector.
 
 (defvar *x862-all-lcells* ())
 
 
 
+(defun x86-immediate-label (imm)
+  (or (cdr (assoc imm *x862-constant-alist* :test #'eq))
+      (let* ((lab (aref *backend-labels* (backend-get-next-label))))
+        (push (cons imm lab) *x862-constant-alist*)
+        lab)))
 
+  
      
 (defun x862-free-lcells ()
   (without-interrupts 
@@ -300,7 +306,7 @@
              (result ($ x8664::arg_z)))
         (x862-do-lexical-reference seg arg ea)
         (x862-set-nargs seg 1)
-        (! ref-constant ($ x8664::fname) (backend-immediate-index (x862-symbol-entry-locative '%cons-magic-next-method-arg)))
+        (! ref-constant ($ x8664::fname) (x86-immediate-label (x862-symbol-entry-locative '%cons-magic-next-method-arg)))
         (! call-known-symbol arg)
         (x862-do-lexical-setq seg nil ea result)))))
 
@@ -388,10 +394,11 @@
            (*x862-valid-register-annotations* 0)
            (*x862-register-ea-annotations* (x862-make-stack 16))
            (*x862-register-restore-ea* nil)
+           (*x862-constant-alist* nil)
            (*x862-vstack* 0)
            (*x862-cstack* 0)
            (*x862-target-num-arg-regs* (target-arch-case (:x8664  $numx8664argregs)))
-           (*x862-target-num-save-regs* (target-arch-case (:x8664  $numx8664saveregs)) 
+           (*x862-target-num-save-regs* (target-arch-case (:x8664  $numx8664saveregs)))
 	   (*x862-target-lcell-size* (arch::target-lisp-node-size (backend-target-arch *target-backend*)))
            (*x862-target-fixnum-shift* (arch::target-fixnum-shift (backend-target-arch *target-backend*)))
            (*x862-target-node-shift* (arch::target-word-shift  (backend-target-arch *target-backend*)))
@@ -407,8 +414,8 @@
            (*available-backend-node-temps* (target-arch-case (:x8664 x8664-temp-node-regs)))
            (*backend-imm-temps* (target-arch-case (:x8664 x8664-imm-regs)))
            (*available-backend-imm-temps* (target-arch-case (:x8664 x8664-imm-regs)))
-           (*backend-crf-temps* x86-cr-fields)
-           (*available-backend-crf-temps* x86-cr-fields)
+           (*backend-crf-temps* (target-arch-case (:x8664 x8664-cr-fields)))
+           (*available-backend-crf-temps* (target-arch-case (:x8664 x8664-cr-fields)))
            (*backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
            (*available-backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
            (bits 0)
@@ -422,7 +429,6 @@
            (*backend-labels* (x862-make-stack 64 target::subtag-simple-vector))
            (*x862-undo-stack* (x862-make-stack 64  target::subtag-simple-vector))
            (*x862-undo-because* (x862-make-stack 64))
-           (*backend-immediates* (x862-make-stack 64  target::subtag-simple-vector))
            (*x862-entry-label* nil)
            (*x862-tail-label* nil)
            (*x862-inhibit-register-allocation* nil)
@@ -443,16 +449,17 @@
         *x862-undo-stack*
         (set-fill-pointer 
          *x862-undo-because*
-         (set-fill-pointer
-          *backend-immediates* 0))))
+         0)))
       (backend-get-next-label)          ; start @ label 1, 0 is confused with NIL in compound cd
       (with-dll-node-freelist (vinsns *vinsn-freelist*)
         (unwind-protect
              (progn
                (setq bits (x862-form vinsns (make-wired-lreg *x862-result-reg*) $backend-return (afunc-acode afunc)))
-               (dotimes (i (length *backend-immediates*))
-                 (let ((imm (aref *backend-immediates* i)))
-                   (when (x862-symbol-locative-p imm) (aset *backend-immediates* i (car imm)))))
+               (do* ((constants *x862-constant-alist* (cdr constants)))
+                    ((null constants))
+                 (let* ((imm (caar constants)))
+                   (when (x862-symbol-locative-p imm)
+                     (setf (caar constants) (car imm)))))
                (optimize-vinsns vinsns)
                (when (logbitp x862-debug-vinsns-bit *x862-debug-mask*)
                  (format t "~% vinsns for ~s (after generation)" (afunc-name afunc))
@@ -460,23 +467,42 @@
                  (format t "~%~%"))
             
             
-               (with-dll-node-freelist (*lap-instructions* *lap-instruction-freelist*)
-                 (let* ((*lap-labels* nil))
-                   (x862-expand-vinsns vinsns) 
-                   (if (logbitp $fbitnonnullenv (the fixnum (afunc-bits afunc)))
-                     (setq bits (+ bits (ash 1 $lfbits-nonnullenv-bit))))
-                   (let* ((function-debugging-info (afunc-lfun-info afunc)))
-                     (when (or function-debugging-info lambda-form *x862-record-symbols*)
-                       (if lambda-form (setq function-debugging-info 
-                                             (list* 'function-lambda-expression lambda-form function-debugging-info)))
-                       (if *x862-record-symbols*
-                         (setq function-debugging-info (nconc (list 'function-symbol-map *x862-recorded-symbols*)
-                                                              function-debugging-info)))
-                       (setq bits (logior (ash 1 $lfbits-symmap-bit) bits))
-                       (backend-new-immediate function-debugging-info)))
-                   (if (or fname lambda-form *x862-recorded-symbols*)
-                     (backend-new-immediate fname)
-                     (setq bits (logior (ash -1 $lfbits-noname-bit) bits)))                                     
+               (let* ((*x86-lap-labels* nil)
+                      (instruction (x86::make-x86-instruction))
+                      (frag-list (make-frag-list))
+                      (end-code-tag (gensym))
+                      debug-info)
+                 (make-x86-lap-label end-code-tag)
+                 (x86-lap-directive frag-list :long `(ash (+ (- (:^ ,end-code-tag ) 8)
+                                                           *x86-lap-entry-offset*) -3))
+                 (x86-lap-directive frag-list :short 0)
+                 (x86-lap-directive frag-list :byte 0)
+
+                 (x862-expand-vinsns vinsns frag-list instruction)
+                 (x86-lap-directive frag-list :align 3)
+                 (emit-x86-lap-label frag-list end-code-tag)
+                 (dolist (c *x862-constant-alist*)
+                   (let* ((vinsn-label (cdr c)))
+                     (or (vinsn-label-info vinsn-label)
+                                         (setf (vinsn-label-info vinsn-label)
+                                               (find-or-create-x86-lap-label
+                                                vinsn-label)))
+                     (emit-x86-lap-label frag-list vinsn-label)
+                     (x86-lap-directive frag-list :quad 0)))
+                 
+                 (if (logbitp $fbitnonnullenv (the fixnum (afunc-bits afunc)))
+                   (setq bits (+ bits (ash 1 $lfbits-nonnullenv-bit))))
+                 (let* ((function-debugging-info (afunc-lfun-info afunc)))
+                   (when (or function-debugging-info lambda-form *x862-record-symbols*)
+                     (if lambda-form (setq function-debugging-info 
+                                           (list* 'function-lambda-expression lambda-form function-debugging-info)))
+                     (if *x862-record-symbols*
+                       (setq function-debugging-info (nconc (list 'function-symbol-map *x862-recorded-symbols*)
+                                                            function-debugging-info)))
+                     (setq bits (logior (ash 1 $lfbits-symmap-bit) bits))
+                     (setq debug-info function-debugging-info)))
+                   (unless (or fname lambda-form *x862-recorded-symbols*)
+                     (setq bits (logior (ash -1 $lfbits-noname-bit) bits))) 
                    (unless (afunc-parent afunc)
                      (x862-fixup-fwd-refs afunc))
                    (setf (afunc-all-vars afunc) nil)
@@ -485,55 +511,27 @@
                                            (vinsn-label-info (vinsn-note-label *x862-compiler-register-save-label*))))
                           (regsave-reg (if regsave-label (- 32 *x862-register-restore-count*)))
                           (regsave-addr (if regsave-label (- *x862-register-restore-ea*))))
+                     (declare (ignorable regsave-label regsave-reg regsave-addr))
+                     (when debug-info
+                       (x86-lap-directive frag-list :quad 0))
+                     (when (or fname debug-info)
+                       (x86-lap-directive frag-list :quad 0))
+                     (x86-lap-directive frag-list :quad 0)
+                     (relax-frag-list frag-list)
+                     (apply-relocs frag-list)
+                     (fill-for-alignment frag-list)
                      (setf (afunc-lfun afunc)
-                           (x862-xmake-function
-                            *lap-instructions*
-                            *lap-labels*
-                            *backend-immediates*
+                           (cross-create-x86-function
+                            fname
+                            frag-list
+                            *x862-constant-alist*
                             bits
-                            regsave-label
-                            regsave-reg
-                            regsave-addr
-                            (if (and fname (symbolp fname)) (symbol-name fname)))))
-                   (x862-digest-symbols))))
+                            debug-info)))
+                   (x862-digest-symbols)))
           (backend-remove-labels))))
     afunc))
 
-(defun x862-xmake-function (codeheader labels imms bits *x86-lap-regsave-label* *x86-lap-regsave-reg* *x86-lap-regsave-addr* &optional traceback-string)
-  (let* ((*lap-instructions* codeheader)
-         (*lap-labels* labels)
-         (cross-compiling (not (eq *host-backend* *target-backend*)))
-         (numimms (length imms))
-         (function (%alloc-misc (+ numimms 2)
-                                (if cross-compiling
-                                  target::subtag-xfunction
-                                  target::subtag-function))))
-    (dotimes (i numimms)
-      (setf (uvref function (1+ i)) (aref imms i)))
-    (setf (uvref function (+ numimms 1)) bits)
-    (let* ((maxpc (x86-lap-encode-regsave-info (x86-lap-do-labels)))
-	   (traceback-size (traceback-fullwords traceback-string))
-           (prefix (arch::target-code-vector-prefix (backend-target-arch *target-backend*)))
-           (prefix-size (length prefix))
-           (code-vector-size (+ traceback-size (ash maxpc -2) prefix-size)))
-      #+x8632-target
-      (if (>= code-vector-size (ash 1 19)) (compiler-function-overflow))
-      (let* ((code-vector (%alloc-misc code-vector-size
-                                     (if cross-compiling
-                                       target::subtag-xcode-vector
-                                       target::subtag-code-vector)))
-             (i prefix-size))
-        (dotimes (i prefix-size)
-          (setf (uvref code-vector i) (pop prefix)))
-        (x86-lap-resolve-labels)
-        (do-dll-nodes (insn *lap-instructions*)
-          (x86-lap-generate-instruction code-vector i insn)
-          (incf i))
-        (unless (eql 0 traceback-size)
-          (add-traceback-table code-vector i traceback-string))
-        (setf (uvref function 0) code-vector)
-        (%make-code-executable code-vector)
-        function))))
+
       
     
 (defun x862-make-stack (size &optional (subtype target::subtag-s16-vector))
@@ -570,7 +568,7 @@
                  (let* ((label (vinsn-note-label note))
                         (lap-label (if label (vinsn-label-info label))))
                    (if lap-label
-                     (lap-label-address lap-label)
+                     (x86-lap-label-address lap-label)
                      (error "Missing or bad ~s label: ~s" 
                        (if start-p 'start 'end) sym)))))
           (destructuring-bind (var sym startlab endlab) info
@@ -722,7 +720,7 @@
 
 (defun x862-restore-nvrs (seg ea nregs &optional from-fp)
   (when (null from-fp)
-    (setq from-fp x8664::vsp))
+    (setq from-fp x8664::rsp))
   (when (and ea nregs)
     (with-x86-local-vinsn-macros (seg)
       (let* ((first (- 32 nregs)))
@@ -876,16 +874,11 @@
     (let* ((nargs (length revargs))
            (reg-vars ()))
       (declare (type (unsigned-byte 16) nargs))
-      (! save-lr)
       (if (<= nargs *x862-target-num-arg-regs*)       ; caller didn't vpush anything
-        (if *x862-open-code-inline*
-          (! save-lisp-context-vsp)
-          (! save-lisp-context-vsp-ool))
+        (! save-lisp-context-no-stack-args)
         (let* ((offset (* (the fixnum (- nargs *x862-target-num-arg-regs*)) *x862-target-node-size*)))
           (declare (fixnum offset))
-          (if *x862-open-code-inline*
-            (! save-lisp-context-offset offset)
-            (! save-lisp-context-offset-ool offset))))
+          (! save-lisp-context-offset offset)))
       (destructuring-bind (&optional zvar yvar xvar &rest stack-args) revargs
         (let* ((nstackargs (length stack-args)))
           (x862-set-vstack (* nstackargs *x862-target-node-size*))
@@ -1010,7 +1003,7 @@
           (if (and (null vreg)
                    (%ilogbitp operator-acode-subforms-bit op)
                    (%ilogbitp operator-assignment-free-bit op))
-            (dolist (f (%cdr form) (x862-branch seg xfer nil))
+            (dolist (f (%cdr form) (x862-branch seg xfer))
               (x862-form seg nil nil f ))
             (apply fn seg vreg xfer (%cdr form)))
           (error "x862-form ? ~s" form))))))
@@ -1078,14 +1071,14 @@
     (if (x862-for-value-p vreg)
       (ensuring-node-target (target vreg)
         (! load-nil target)))
-    (x862-branch seg (x862-cd-false xfer) vreg)))
+    (x862-branch seg (x862-cd-false xfer))))
 
 (defun x862-t (seg vreg xfer)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (if (x862-for-value-p vreg)
       (ensuring-node-target (target vreg)
         (! load-t target)))
-    (x862-branch seg (x862-cd-true xfer) vreg)))
+    (x862-branch seg (x862-cd-true xfer))))
 
 (defun x862-for-value-p (vreg)
   (and vreg (not (backend-crf-p vreg))))
@@ -1210,15 +1203,8 @@
     (let* ((reg (x862-register-constant-p imm)))
       (if reg
         (x862-copy-register seg dest reg)
-        (let* ((idx (backend-immediate-index imm)))
-          (target-arch-case
-           
-           (:x8664
-            (if (< idx 4096)
-              (! ref-constant dest idx)
-              (with-imm-target () (idxreg :s64)
-                (x862-lri seg idxreg (+ x8664::misc-data-offset (ash (1+ idx) 3)))
-                (! ref-indexed-constant dest idxreg)))))))
+        (let* ((lab (x86-immediate-label imm)))
+          (! ref-constant dest lab)))
       dest)))
 
 
@@ -2139,33 +2125,18 @@
           (setq *x862-cstack* cstack)
           (when (or (logbitp $backend-mvpass-bit xfer) (not mv-p))
             (<- x8664::arg_z)
-            (x862-branch seg (logand (lognot $backend-mvpass-mask) xfer) vreg))))
+            (x862-branch seg (logand (lognot $backend-mvpass-mask) xfer)))))
       nil)))
 
 (defun x862-restore-full-lisp-context (seg)
   (with-x86-local-vinsn-macros (seg)
-    (if *x862-open-code-inline*
-      (! restore-full-lisp-context)
-      (! restore-full-lisp-context-ool))))
+    (! restore-full-lisp-context)))
 
 (defun x862-call-symbol (seg jump-p)
-  ;; fname contains a symbol; we can either call it via
-  ;; a call to .SPjmpsym or expand the instructions inline.
-  ;; Since the branches are unconditional, the call doesn't
-  ;; cost much, but doing the instructions inline would give
-  ;; an instruction scheduler some opportunities to improve
-  ;; performance, so this isn't a strict time/speed tradeoff.
-  ;; This should probably dispatch on something other than
-  ;; *x862-open-code-inline*, since that does imply a time/speed
-  ;; tradeoff.
   (with-x86-local-vinsn-macros (seg)
-    (if *x862-open-code-inline*
-      (if jump-p
-        (! jump-known-symbol)
-        (! call-known-symbol x8664::arg_z))
-      (if jump-p
-        (! jump-known-symbol-ool)
-        (! call-known-symbol-ool)))))
+    (if jump-p
+      (! jump-known-symbol)
+      (! call-known-symbol x8664::arg_z))))
 
 ;;; Nargs = nil -> multiple-value case.
 (defun x862-invoke-fn (seg fn nargs spread-p xfer)
@@ -3995,7 +3966,7 @@
            (arch (backend-target-arch *target-backend*))
            (unscaled-idx nil)
            (src nil))
-      (if (or safe (not index-known-fixnum))
+      (if (or safe (not (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))))
         (multiple-value-setq (src unscaled-idx)
           (x862-two-untargeted-reg-forms seg miscobj x8664::arg_y index x8664::arg_z))
         (setq src (x862-one-untargeted-reg-form seg miscobj x8664::arg_z)))
@@ -4010,12 +3981,8 @@
           (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
             (progn
               (! misc-ref-c-node target src index-known-fixnum))
-            (let* ((idx-reg x8664::imm0))
-              (if index-known-fixnum
-                (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum *x862-target-node-shift*)))
-                (! scale-node-misc-index idx-reg unscaled-idx))
-              (! misc-ref-node target src idx-reg)))))
-      (^))))
+            (! misc-ref-node target src unscaled-idx))))
+o      (^))))
 
 (defun x862-misc-node-set (seg vreg xfer miscobj index value safe)
   (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -4181,14 +4148,14 @@
 (defun x862-conditional-form (seg xfer form)
   (let* ((uwf (acode-unwrapped-form form)))
     (if (nx-null uwf)
-      (x862-branch seg (x862-cd-false xfer) nil)
+      (x862-branch seg (x862-cd-false xfer))
       (if (x86-constant-form-p uwf)
-        (x862-branch seg (x862-cd-true xfer) nil)
+        (x862-branch seg (x862-cd-true xfer))
         (with-crf-target () crf
           (x862-form seg crf xfer form))))))
 
       
-(defun x862-branch (seg xfer crf &optional cr-bit true-p)
+(defun x862-branch (seg xfer &optional cr-bit true-p)
   (let* ((*x862-vstack* *x862-vstack*)
          (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
     (with-x86-local-vinsn-macros (seg)
@@ -4217,17 +4184,17 @@
               (unless cr-bit (setq cr-bit x86::x86-e-bits))
               (if (and tn0 tnret nn0 nnret)
                 (progn
-                  (! cbranch-true tlabel crf cr-bit )    ;; (label# /  label#)
+                  (! cbranch-true tlabel cr-bit )    ;; (label# /  label#)
                   (-> nbranch)))
                 (if (and nnret tnret)
                   (if nn0
-                    (! cbranch-false nlabel crf cr-bit)
-                    (! cbranch-true tlabel crf cr-bit))
+                    (! cbranch-false nlabel cr-bit)
+                    (! cbranch-true tlabel cr-bit))
                   (let* ((aux-label (backend-get-next-label))
                          (auxl (aref *backend-labels* aux-label)))
                     (if tn0
-                      (! cbranch-true auxl crf cr-bit)
-                      (! cbranch-false auxl crf cr-bit))
+                      (! cbranch-true auxl cr-bit)
+                      (! cbranch-false auxl cr-bit))
                     (x862-do-return seg)
                     (@ aux-label))))))))))
 
@@ -4693,21 +4660,126 @@
 (defun x862-mv-p (cd)
   (or (eq cd $backend-return) (x862-mvpass-p cd)))
 
-(defun x862-expand-note (note)
+(defun x862-expand-note (frag-list note)
   (let* ((lab (vinsn-note-label note)))
     (case (vinsn-note-class note)
       ((:regsave :begin-variable-scope :end-variable-scope)
-       (setf (vinsn-label-info lab) (emit-lap-label lab))))))
+       (setf (vinsn-label-info lab) (emit-x86-lap-label frag-list lab))))))
 
-(defun x862-expand-vinsns (header)
+(defun x86-emit-instruction-from-vinsn (opcode-template
+                                        form
+                                        frag-list
+                                        instruction)
+  (declare (ignorable frag-list))
+  ;(format t "~&~a" (cons (x86::x86-opcode-template-mnemonic opcode-template)
+  ;form))
+  (set-x86-instruction-template instruction opcode-template)
+  (let* ((operand-classes (x86::x86-opcode-template-operand-classes
+                           opcode-template))
+         (register-table (target-arch-case
+                          (:x8664 x86::*x8664-register-entries*))))
+    (dotimes (i (length operand-classes))
+      (let* ((operand (pop form))
+             (insert-function (svref operand-classes i))
+             (insert-keyword (svref x86::*x86-operand-insert-function-keywords*
+                                    insert-function)))
+        #+nil(format t "~& insert-function = ~s, operand = ~s"
+                insert-keyword
+                operand)
+        (ecase insert-keyword
+          (:insert-nothing )
+          ((:insert-modrm-reg :insert-xmm-reg)
+           (x86::insert-modrm-reg-entry instruction
+                                        (svref register-table operand)))
+          ((:insert-modrm-rm :insert-xmm-rm)
+           (x86::insert-modrm-rm-entry instruction
+                                       (svref register-table operand)))
+          (:insert-memory
+           (destructuring-bind (seg disp base index scale) operand
+             (when seg (setq seg (svref register-table seg)))
+             ;; Optimize things like this later; almost all
+             ;; displacements will be constants at this point.
+             (when disp  (setq disp (parse-x86-lap-expression disp)))
+             (when base (setq base (svref register-table base)))
+             (when index (setq index (svref register-table index)))
+             (when scale (setq scale (1- (integer-length scale))))
+             (x86::insert-memory-operand-values
+              instruction
+              seg
+              disp
+              base
+              index
+              scale
+              (if (or base index)
+                (if disp
+                  (logior (optimize-displacement-type disp)
+                          (x86::encode-operand-type  :baseindex))
+                  (x86::encode-operand-type :baseindex))
+                (optimize-displacement-type disp)))))          
+          (:insert-opcode-reg
+           (x86::insert-opcode-reg-entry instruction
+                                         (svref register-table operand)))
+          (:insert-opcode-reg4
+           (x86::insert-opcode-reg4-entry instruction
+                                         (svref register-table operand)))
+          (:insert-cc
+           (setf (ldb (byte 4 0)
+                      (x86::x86-instruction-base-opcode instruction))
+                 (x86-lap-expression-value operand)))
+          (:insert-label
+           (setf (x86::x86-instruction-extra instruction)
+                 (find-or-create-x86-lap-label operand)))
+          (:insert-imm8-for-int
+           )
+          (:insert-extra
+           )
+          (:insert-imm8
+           (setf (x86::x86-instruction-imm instruction)
+                 (x86::make-x86-immediate-operand
+                  :type (x86::encode-operand-type :imm8)
+                  :value (parse-x86-lap-expression operand))))
+          (:insert-imm8s
+           (setf (x86::x86-instruction-imm instruction)
+                 (x86::make-x86-immediate-operand
+                  :type (x86::encode-operand-type :imm8s)
+                  :value (parse-x86-lap-expression operand))))
+          (:insert-imm16
+           (setf (x86::x86-instruction-imm instruction)
+                 (x86::make-x86-immediate-operand
+                  :type (x86::encode-operand-type :imm16)
+                  :value (parse-x86-lap-expression operand))))
+          (:insert-imm32s
+           (setf (x86::x86-instruction-imm instruction)
+                 (x86::make-x86-immediate-operand
+                  :type (x86::encode-operand-type :imm32s)
+                  :value (parse-x86-lap-expression operand))))
+          (:insert-imm32
+           (setf (x86::x86-instruction-imm instruction)
+                 (x86::make-x86-immediate-operand
+                  :type (x86::encode-operand-type :imm32)
+                  :value (parse-x86-lap-expression operand))))
+          (:insert-imm64
+           (setf (x86::x86-instruction-imm instruction)
+                 (x86::make-x86-immediate-operand
+                  :type (x86::encode-operand-type :imm64)
+                  :value (parse-x86-lap-expression operand))))
+          (:insert-mmx-reg
+           )
+          (:insert-mmx-rm
+           ))))
+    (x86-generate-instruction-code frag-list instruction)
+    ))
+          
+    
+(defun x862-expand-vinsns (header frag-list instruction)
   (do-dll-nodes (v header)
     (if (%vinsn-label-p v)
       (let* ((id (vinsn-label-id v)))
         (if (typep id 'fixnum)
           (when (or t (vinsn-label-refs v))
-            (setf (vinsn-label-info v) (emit-lap-label v)))
-          (x862-expand-note id)))
-      (x862-expand-vinsn v)))
+            (setf (vinsn-label-info v) (emit-x86-lap-label frag-list v)))
+          (x862-expand-note frag-list id)))
+      (x862-expand-vinsn v frag-list instruction)))
   ;;; This doesn't have too much to do with anything else that's
   ;;; going on here, but it needs to happen before the lregs
   ;;; are freed.  There really shouldn't be such a thing as a
@@ -4728,7 +4800,7 @@
 ;;; For now, we replace lregs in the operand vector with their values
 ;;; on entry, but it might be reasonable to make PARSE-OPERAND-FORM
 ;;; deal with lregs ...
-(defun x862-expand-vinsn (vinsn)
+(defun x862-expand-vinsn (vinsn frag-list instruction)
   (let* ((template (vinsn-template vinsn))
          (vp (vinsn-variable-parts vinsn))
          (nvp (vinsn-template-nvp template))
@@ -4745,15 +4817,20 @@
     (labels ((parse-operand-form (valform)
                (cond ((typep valform 'keyword)
                       (or (assq valform unique-labels)
-                          (error "unknown vinsn label ~s" valform)))
+                          (error
+                           "unknown vinsn label ~s" valform)))
                      ((atom valform) valform)
                      ((atom (cdr valform)) (svref vp (car valform)))
+                     ((eq (car valform) :@)
+                      (mapcar #'parse-operand-form (cdr valform)))
+                     ((eq (car valform) :^)
+                      (list :^ (parse-operand-form (cadr valform))))
                      (t (let* ((op-vals (cdr valform))
                                (parsed-ops (make-list (length op-vals)))
                                (tail parsed-ops))
                           (declare (dynamic-extent parsed-ops)
                                    (cons parsed-ops tail))
-                          (dolist (op op-vals (apply (car valform) parsed-ops))
+                          (dolist (op op-vals (parse-x86-lap-expression (cons (car valform) parsed-ops)))
                             (setq tail (cdr (rplaca tail (parse-operand-form op)))))))))
              (expand-insn-form (f)
                (let* ((operands (cdr f))
@@ -4764,8 +4841,12 @@
                  (dolist (op operands)
                    (rplaca tail (parse-operand-form op))
                    (setq tail (cdr tail)))
-                 (x86-emit-lap-instruction (svref x8664::*x86-opcodes* (car f)) 
-                                           head)))
+                 (x86-emit-instruction-from-vinsn
+                  (svref (target-arch-case
+                          (:x8664 x86::*x8664-opcode-templates*)) (car f))
+                  head
+                  frag-list
+                  instruction)))
              (eval-predicate (f)
                (case (car f)
                  (:pred (let* ((op-vals (cddr f))
@@ -4783,18 +4864,62 @@
                          (unless (eval-predicate pred)
                            (return nil))))
                  (t (error "Unknown predicate: ~s" f))))
+             (expand-pseudo-op (f)
+               (destructuring-bind (directive arg) f
+                 (setq arg (parse-operand-form arg))
+                 (if (eq directive :tra)
+                   (progn
+                     (finish-frag-for-align frag-list (target-arch-case
+                                                       (:x8664 3)))
+                     (expand-pseudo-op `(:long (- ,(target-arch-case
+                                                    (:x8664 3))
+                                                (^ ,arg))))
+                     (emit-x86-lap-label frag-list arg))
+                   (let* ((exp (parse-x86-lap-expression arg))
+                          (constantp (constant-x86-lap-expression-p exp)))
+                     (if constantp
+                       (let* ((val (x86-lap-expression-value exp)))
+                         (ecase directive
+                           (:byte (frag-list-push-byte frag-list val))
+                           (:short (frag-list-push-16 frag-list val))
+                           (:long (frag-list-push-32 frag-list val))
+                           (:quad (frag-list-push-64 frag-list val))
+                           (:align (finish-frag-for-align frag-list val))))
+                       (let* ((pos (frag-list-position frag-list))
+                              (frag (frag-list-current frag-list))
+                              (reloctype nil))
+                         (ecase directive
+                           (:byte (frag-list-push-byte frag-list 0)
+                                  (setq reloctype :expr8))
+                           (:short (frag-list-push-16 frag-list 0)
+                                   (setq reloctype :expr16))
+                           (:long (frag-list-push-32 frag-list 0)
+                                  (setq reloctype :expr32))
+                           (:quad (frag-list-push-64 frag-list 0)
+                                  (setq reloctype :expr64))
+                           (:align (error ":align expression ~s not constant" arg)))
+                         (when reloctype
+                           (push
+                            (make-reloc :type reloctype
+                                        :arg exp
+                                        :pos pos
+                                        :frag frag)
+                            (frag-relocs frag)))))))))
+                   
              (expand-form (f)
                (if (keywordp f)
-                 (emit-lap-label (assq f unique-labels))
+                 (emit-x86-lap-label frag-list (assq f unique-labels))
                  (if (atom f)
                    (error "Invalid form in vinsn body: ~s" f)
                    (if (atom (car f))
-                     (expand-insn-form f)
+                     (if (keywordp (car f))
+                       (expand-pseudo-op f)
+                       (expand-insn-form f))
                      (if (eval-predicate (car f))
                        (dolist (subform (cdr f))
                          (expand-form subform))))))))
       (declare (dynamic-extent #'expand-form #'parse-operand-form #'expand-insn-form #'eval-predicate))
-      ;(format t "~& vinsn = ~s" vinsn)
+                                        ;(format t "~& vinsn = ~s" vinsn)
       (dolist (form (vinsn-template-body template))
         (expand-form form ))
       (setf (vinsn-variable-parts vinsn) nil)
@@ -4921,9 +5046,7 @@
                   (! check-min-nargs num-fixed))
                 (unless (or rest keys)
                   (! check-max-nargs (+ num-fixed num-opt)))
-                ;; Going to have to call one or more subprims.  First save
-                ;; the LR in LOC-PC.
-                (! save-lr)
+                (! build-or-init-frame)
                 ;; If there were &optional args, initialize their values
                 ;; to NIL.  All of the argregs get vpushed as a result of this.
                 (when opt
@@ -4938,7 +5061,7 @@
                     (declare (fixnum flags nkeys nprev))
                     (dotimes (i (the fixnum (+ nkeys nkeys)))
                       (x862-new-vstack-lcell :reserved *x862-target-lcell-size* 0 nil))
-                    (! misc-ref-c-node x8664::temp3 x8664::nfn (1+ (backend-immediate-index keyvect)))
+                    (! ref-constant x8664::temp3 (x86-immediate-label keyvect))
                     (x862-lri seg x8664::imm2 (ash flags *x862-target-fixnum-shift*))
                     (x862-lri seg x8664::imm3 (ash nkeys *x862-target-fixnum-shift*))
                     (unless (= nprev 0)
@@ -5012,7 +5135,7 @@
                      (reg (cdr pair)))
                 (declare (cons constant))
                 (rplacd constant reg)
-                (! ref-constant reg (backend-immediate-index (car constant))))))
+                (! ref-constant reg (x86-immediate-label (car constant))))))
           (when method-var
             (x862-seq-bind-var seg method-var x8664::next-method-context))
           ;; If any arguments are still in arg_x, arg_y, arg_z, that's
@@ -5420,7 +5543,7 @@
       (@ end-of-block)
       (if compound
         (<- dest))
-      (x862-branch seg (logand (lognot $backend-mvpass-mask) (or xfer 0)) vreg))))
+      (x862-branch seg (logand (lognot $backend-mvpass-mask) (or xfer 0))))))
 
 (defx862 x862-%izerop %izerop (seg vreg xfer cc form)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
@@ -5584,7 +5707,7 @@
         (if (= class hard-reg-class-crf)
           (progn
             ;(break "Would have clobbered a GPR!")
-            (x862-branch seg (x862-cd-true xfer) nil))
+            (x862-branch seg (x862-cd-true xfer)))
           (progn
             (ensuring-node-target (target vreg)
               (x862-absolute-natural seg target nil (ash value *x862-target-fixnum-shift*)))
@@ -5782,7 +5905,7 @@
               (@ true-cleanup-label))
             (let* ((*x862-returning-values* :pass))
               (x862-nlexit seg xfer 1)
-              (x862-branch seg (if (and xfer (neq xfer $backend-mvpass-mask)) xfer (if (not same-stack-effects) endlabel)) vreg))
+              (x862-branch seg (if (and xfer (neq xfer $backend-mvpass-mask)) xfer (if (not same-stack-effects) endlabel))))
             (unless same-stack-effects
               (@ true-cleanup-label)
               (multiple-value-setq (true *x862-cstack* *x862-vstack* *x862-top-vstack-lcell*)
@@ -5809,11 +5932,11 @@
       (when (eq dest x8664::arg_z)
         (with-crf-target () val-crf
           (x862-copy-register seg val-crf dest)
-          (x862-branch seg cd1 val-crf)))
+          (x862-branch seg cd1)))
       (setq forms (%cdr forms)))
     (if mvpass
       (progn (x862-multiple-value-body seg (car forms)) 
-             (let* ((*x862-returning-values* t)) (x862-branch seg (x862-cd-merge xfer tag2) vreg)))
+             (let* ((*x862-returning-values* t)) (x862-branch seg (x862-cd-merge xfer tag2))))
       (x862-form seg  vreg (if (eq dest x8664::arg_z) (x862-cd-merge xfer tag2) xfer) (car forms)))
     (setq *x862-vstack* vstack *x862-cstack* cstack)
     (@ tag1)
@@ -6699,7 +6822,7 @@
             (x862-multiple-value-body seg value)
             (let* ((*x862-returning-values* :pass))
               (x862-nlexit seg dest-cd (%i- *x862-undo-count* (x862-encoding-undo-count dest-stack)))
-              (x862-branch seg dest-cd vreg)))
+              (x862-branch seg dest-cd)))
           (progn
             (x862-form 
              seg
@@ -6709,7 +6832,7 @@
             (when need-break
               (x862-unwind-set seg dest-cd dest-stack)
               (when dest-vd (x862-copy-register seg dest-vd x8664::arg_z))
-              (x862-branch seg dest-cd dest-vd))))))
+              (x862-branch seg dest-cd))))))
     (x862-unreachable-store)))
 
 (defx862 x862-inherited-arg inherited-arg (seg vreg xfer arg)
@@ -7988,3 +8111,27 @@
 
 
 )
+
+#-x86-target
+(defun x8664-xcompile-lambda (target def &key show-vinsns (symbolic-names t))
+  (let* ((*x862-debug-mask* (if show-vinsns
+                              (ash 1 x862-debug-vinsns-bit)
+                              0))
+         (backend (find-backend target))
+         (*target-ftd* (if backend
+                         (backend-target-foreign-type-data backend)
+                         *target-ftd*)))
+    (multiple-value-bind (xlfun warnings)
+        (compile-named-function def nil
+                                nil
+                                nil
+                                nil
+                                nil
+                                nil
+                                target)
+      (signal-or-defer-warnings warnings nil)
+      (format t "~%~%")
+      (apply #'x8664-disassemble-xfunction
+             xlfun
+             (unless symbolic-names (list nil)))
+      xlfun)))
