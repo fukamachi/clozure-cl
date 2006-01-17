@@ -540,26 +540,26 @@
 
 
 (defparameter *x86-operand-insert-function-keywords*
-    '(:insert-nothing
-      :insert-modrm-reg
-      :insert-modrm-rm
-      :insert-memory
-      :insert-opcode-reg
-      :insert-opcode-reg4
-      :insert-cc
-      :insert-label
-      :insert-imm8-for-int
-      :insert-extra
-      :insert-imm8
-      :insert-imm8s
-      :insert-imm16
-      :insert-imm32s
-      :insert-imm32
-      :insert-imm64
-      :insert-mmx-reg
-      :insert-mmx-rm
-      :insert-xmm-reg
-      :insert-xmm-rm))
+  #(:insert-nothing
+    :insert-modrm-reg
+    :insert-modrm-rm
+    :insert-memory
+    :insert-opcode-reg
+    :insert-opcode-reg4
+    :insert-cc
+    :insert-label
+    :insert-imm8-for-int
+    :insert-extra
+    :insert-imm8
+    :insert-imm8s
+    :insert-imm16
+    :insert-imm32s
+    :insert-imm32
+    :insert-imm64
+    :insert-mmx-reg
+    :insert-mmx-rm
+    :insert-xmm-reg
+    :insert-xmm-rm))
 
 (defun parse-x86-opcode-operand-classes (types&classes)
   (ccl::collect ((classes))
@@ -619,17 +619,17 @@
 
 (defvar *lap-constant-0-expression*)
 
-(defun insert-memory (instruction operand)
+(defun insert-memory-operand-values (instruction
+                                     explicit-seg
+                                     disp
+                                     base
+                                     index
+                                     scale
+                                     memtype)
   (declare (special *ds-segment-register* *ss-segment-register*)) ;fwd refs
-  (let* ((explicit-seg (x86-memory-operand-seg operand))
-         (disp (x86-memory-operand-disp operand))
-         (base (x86-memory-operand-base operand))
-         (index (x86-memory-operand-index operand))
-         (scale (x86-memory-operand-scale operand))
-         (rm-byte (x86-instruction-modrm-byte instruction))
+  (let* ((rm-byte (x86-instruction-modrm-byte instruction))
          (sib 0)
-         (default-seg *ds-segment-register*)
-         (memtype (x86-memory-operand-type operand)))
+         (default-seg *ds-segment-register*))
     (cond ((null base)
            (setf (ldb modrm-mod-byte rm-byte) 0
                  (ldb modrm-rm-byte rm-byte) +escape-to-two-byte-addressing+
@@ -691,12 +691,15 @@
                (not (eq explicit-seg default-seg)))
       (setf (x86-instruction-seg-prefix instruction)
             (seg-entry-seg-prefix explicit-seg)))))
-    
 
-
-
-
-      
+(defun insert-memory (instruction operand)
+  (insert-memory-operand-values instruction
+                                (x86-memory-operand-seg operand)
+                                (x86-memory-operand-disp operand)
+                                (x86-memory-operand-base operand)
+                                (x86-memory-operand-index operand)
+                                (x86-memory-operand-scale operand)
+                                (x86-memory-operand-type operand)))
 
          
 (defmacro def-x8664-opcode (name&flags types-and-classes base-opcode
@@ -1679,10 +1682,10 @@
    (def-x8664-opcode (jmp :jump) ((:label :insert-label))
      #xeb nil nil)
 
-   (def-x8664-opcode jmp (((:reg64 :jumpabsolute) :insert-modrm-rm))
+   (def-x8664-opcode jmp ((:reg64 :insert-modrm-rm))
      #xff #o340 #x0)
 
-   (def-x8664-opcode jmp (((:anymem :jumpabsolute) :insert-memory))
+   (def-x8664-opcode jmp ((:anymem :insert-memory))
      #xff #o040 #x0)
 
    ;; lea
@@ -3205,9 +3208,9 @@
      #x0fae #o030 nil)
 
    ;; UUOs.  Expect lots more, some of which may take pseudo-operands.
-   (def-x8664-opcode uuo-error-two-few-args ()
+   (def-x8664-opcode uuo-error-too-few-args ()
      #xcdc0 nil nil)
-   (def-x8664-opcode uuo-error-two-many-args ()
+   (def-x8664-opcode uuo-error-too-many-args ()
      #xcdc1 nil nil)
    (def-x8664-opcode uuo-error-wrong-number-of-args ()
      #xcdc2 nil nil)
@@ -3216,9 +3219,16 @@
 
    (def-x8664-opcode uuo-gc-trap ()
      #xcdc4 nil nil)
+
+   (def-x8664-opcode uuo-error-vector-bounds ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
+     #xcdc8 #o300 #x48)
    
    (def-x8664-opcode uuo-error-reg-not-type ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdd0 nil 0)
+   (def-x8664-opcode uuo-error-reg-not-list ((:reg64 :insert-opcode-reg4))
+     #xcde0 nil 0)
+   (def-x8664-opcode uuo-error-reg-not-fixnum ((:reg64 :insert-opcode-reg4))
+     #xcdf0 nil 0)
 
    ))
 
@@ -4087,9 +4097,8 @@
 ;;; fields of the instruction are NIL, we're very confused; check for
 ;;; that explicitly until this code matures a bit.
 
-(defun insert-modrm-reg (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
+(defun insert-modrm-reg-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry))
          (need-rex.r (logtest +regrex+ (reg-entry-reg-flags entry))))
     (setf (x86-instruction-modrm-byte instruction)
           (dpb reg-num (byte 3 3)
@@ -4098,15 +4107,18 @@
       (setf (x86-instruction-rex-prefix instruction)
             (logior +rex-extx+ (need-rex-prefix instruction))))))
 
+(defun insert-modrm-reg (instruction operand)
+  (insert-modrm-reg-entry instruction (x86-register-operand-entry operand)))
+
+
 (defun insert-xmm-reg (instruction operand)
   (insert-modrm-reg instruction operand))
 
 (defun insert-xmm-rm (instruction operand)
   (insert-modrm-rm instruction operand))
 
-(defun insert-opcode-reg (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
+(defun insert-opcode-reg-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry))
          (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
     (setf (x86-instruction-base-opcode instruction)
           (dpb reg-num (byte 3 0)
@@ -4115,11 +4127,14 @@
       (setf (x86-instruction-rex-prefix instruction)
             (logior +rex-extz+ (need-rex-prefix instruction))))))
 
+(defun insert-opcode-reg (instruction operand)
+  (insert-opcode-reg-entry instruction (x86-register-operand-entry operand)))
+
 ;;; Insert a 4-bit register number in the low 4 bits of the opcode.
 ;;; (This is only used in synthetic instructions, like some UUOs.)
-(defun insert-opcode-reg4 (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
+
+(defun insert-opcode-reg4-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry))
          (xreg-num (logior reg-num
                            (if (logtest +regrex+ (reg-entry-reg-flags entry))
                              #x08
@@ -4128,21 +4143,26 @@
           (dpb xreg-num (byte 4 0)
                (x86-instruction-base-opcode instruction)))))
 
+(defun insert-opcode-reg4 (instruction operand)
+  (insert-opcode-reg4-entry instruction (x86-register-operand-entry operand)))
+
 ;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.rm
 ;;; field.  If the register requires REX addressing, set the REX.B bit
 ;;; in the instruction's rex-prefix.  If either the modrm or rex-prefix
 ;;; fields of the instruction are NIL, we're very confused; check for
 ;;; that explicitly until this code matures a bit.
 
-(defun insert-modrm-rm (instruction operand)
-  (let* ((entry (x86-register-operand-entry operand))
-         (reg-num (reg-entry-reg-num entry))
+(defun insert-modrm-rm-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry))
          (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
     (setf (x86-instruction-modrm-byte instruction)
           (dpb reg-num (byte 3 0) (need-modrm-byte instruction)))
     (when need-rex.b
       (setf (x86-instruction-rex-prefix instruction)
             (logior +rex-extz+ (need-rex-prefix instruction))))))
+
+(defun insert-modrm-rm (instruction operand)
+  (insert-modrm-rm-entry instruction (x86-register-operand-entry operand)))
 
 (defun insert-imm32s (instruction operand)
   (setf (x86-immediate-operand-type operand)
@@ -4178,7 +4198,8 @@
       (insert-imm8 instruction operand))))
 
 (defun insert-label (instruction operand)
-  (setf (x86-instruction-extra instruction) operand))
+  (setf (x86-instruction-extra instruction)
+        (x86::x86-label-operand-label operand)))
 
 (defparameter *x8664-register-entries*
   (flet ((register-entry (name)
