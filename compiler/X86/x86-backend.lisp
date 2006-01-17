@@ -158,9 +158,14 @@
                                  (pushnew op referenced-labels))
                                (eval op))
                              (find-name op)))
-                         (if (eq (car op) :apply)
-                           `(,(cadr op) ,@(mapcar #'simplify-operand (cddr op)))
-                           (simplify-operand (eval op))))) ; Handler-case this?
+                         (if (eq (car op) :^)
+                           (list :^ (simplify-simple-operand (cadr op)))
+                           (if (eq (car op) :apply)
+                             `(,(cadr op) ,@(mapcar #'simplify-operand (cddr op)))
+                             (if (member (car op)
+                                         '(:tra :align :byte :word :long :quad))
+                               `(,(car op) ,(simplify-operand (cadr op)))
+                               (simplify-operand (eval op))))))) ; Handler-case this?
                      (simplify-memory-operand (op)
                        ;; This happens to be the only place that
                        ;; we allow segment registers.
@@ -179,7 +184,7 @@
                                     (setq seg (simplify-operand (cadr head)))
                                     (error "Bad :%seg in ~s" op)))
                                  ((:%q :% :%l)
-                                  (let* ((r (simplify-operand (cadr head))))
+                                  (let* ((r (simplify-operand head)))
                                     (if base
                                       (if index
                                         (error "Extra register ~s in ~s"
@@ -189,24 +194,34 @@
                                  (t
                                   (if (and (null (cdr form))
                                            (or disp base index))
-                                    (setq scale (simplify-operand head))
+                                    (progn
+                                      (setq scale (simplify-simple-operand head))
+                                      (if (and base (not index))
+                                        (setq index base base nil)))
                                     (if (not (or disp base index))
-                                      (setq disp (simplify-operand head))
+                                      (setq disp (simplify-simple-operand head))
                                       (error "~s not expected in ~s"  op)))))
                                (if (and (null (cdr form))
                                         (or disp base index))
-                                 (setq scale (simplify-operand head))
+                                 (progn
+                                   (setq scale (simplify-simple-operand head))
+                                   (if (and base (not index))
+                                     (setq index base base nil)))
                                  (if (not (or disp base index))
-                                   (setq disp (simplify-operand head))
+                                   (setq disp (simplify-simple-operand head))
                                    (error "~s not expected in ~s"  op))))))))
                      (simplify-operand (op)
-                       (cons (x86-encode-vinsn-operand-type op backend)
-                             (cond ((atom op)
-                                    (simplify-simple-operand op))
-                                   ((eq (car op) :@)
-                                    (simplify-memory-operand (cdr op)))
-                                   (t
-                                    (simplify-simple-operand (cadr op)))))))
+                       (cond ((atom op)
+                              (simplify-simple-operand op))
+                             ((eq (car op) :@)
+                              (cons :@
+                                    (simplify-memory-operand (cdr op))))
+                             ((member (car op)
+                                      '(:% :%q :%l :%w :%b :$ :$1 :$b :$ub :$w :$l
+                                        :$ul :$q))
+                              (simplify-simple-operand (cadr op)))
+                             (t
+                              (simplify-simple-operand op)))))
               (labels ((simplify-constraint (guard)
                          ;; A constraint is one of
 
