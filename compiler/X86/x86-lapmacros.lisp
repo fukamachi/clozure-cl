@@ -252,10 +252,10 @@
 ;;; Return to caller.  (% RA0) should contain a tagged return
 ;;; address inside the caller's (% FN).
 (defx86lapmacro single-value-return ()
-  `(jmp (* (% ra0))))
+  `(jmp (% ra0)))
 
 (defx86lapmacro recover-fn-from-ra0 (here)
-  `(leaq (@ (- (^ ,here)) (% ra0)) (% fn)))
+  `(leaq (@ (- (:^ ,here)) (% ra0)) (% fn)))
 
 ;;; Using *x8664-backend* here is wrong but expedient.
 (defun x86-subprim-offset (name)
@@ -271,7 +271,7 @@
 (defx86lapmacro call-subprim (name)
   (let* ((label (gensym)))
     `(progn
-      (leaq (@ (^ ,label) (% fn)) (% ra0))
+      (leaq (@ (:^ ,label) (% fn)) (% ra0))
       (jmp-subprim ,name)
       (:tra ,label)
       (recover-fn-from-ra0 ,label))))
@@ -301,23 +301,23 @@
     `(progn
       (load-constant ,name fname)
       (set-nargs ,nargs)
-      (lea (@ (^ ,return) (% fn)) (% ra0))
+      (lea (@ (:^ ,return) (% fn)) (% ra0))
       (movq (@ x8664::symbol.fcell (% fname)) (% fn))
       (jmp (* (% fn)))
       (:tra ,return)
       (recover-fn-from-ra0 ,return))))
 
-;;; tail call the function named by NAME with nargs NARGS.  %RA0 is
-;;; the TRA to the caller, which will be in %FN on entry to the
-;;; callee.  For the couple of instructions where neither %RA0 or
-;;; %FN point to the current function, ensure that %XFN does; this
-;;; is necessary to prevent the current function from being GCed
-;;; halfway through those couple of instructions.
+;;;  tail call the function named by NAME with nargs NARGS.  %FN is
+;;;  the caller, which will be in %FN on entry to the callee.  For the
+;;;  couple of instructions where neither %RA0 or %FN point to the
+;;;  current function, ensure that %XFN does; this is necessary to
+;;;  prevent the current function from being GCed halfway through
+;;;  those couple of instructions.
 (defx86lapmacro jump-symbol (name nargs)
   `(progn
     (load-constant ,name fname)
     (movq (% fn) (% xfn))
     (movq (@ x8664::symbol.fcell (% fname)) (% fn))
     (set-nargs ,nargs)
-    (jmp (* (% fn)))))
+    (jmp (% fn))))
 
