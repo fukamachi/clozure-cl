@@ -784,7 +784,9 @@
                           :subprims-base ppc::*ppc-subprims-base*
                           :subprims-shift ppc::*ppc-subprims-shift*
                           :subprims-table ppc::*ppc-subprims*
-                          :primitive->subprims `(((0 . 23) . ,(ccl::%subprim-name->offset '.SPbuiltin-plus ppc::*ppc-subprims*)))))
+                          :primitive->subprims `(((0 . 23) . ,(ccl::%subprim-name->offset '.SPbuiltin-plus ppc::*ppc-subprims*)))
+                          :unbound-marker-value unbound-marker
+                          :slot-unbound-marker-value slot-unbound-marker))
                           
                           
 (provide "PPC32-ARCH")

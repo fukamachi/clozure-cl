@@ -1098,4 +1098,6 @@
                           :subprims-base x8664::*x8664-subprims-base*
                           :subprims-shift x8664::*x8664-subprims-shift*
                           :subprims-table x8664::*x8664-subprims*
-                          :primitive->subprims `(((0 . 23) . ,(ccl::%subprim-name->offset '.SPbuiltin-plus x8664::*x8664-subprims*)))))
+                          :primitive->subprims `(((0 . 23) . ,(ccl::%subprim-name->offset '.SPbuiltin-plus x8664::*x8664-subprims*)))
+                          :unbound-marker-value unbound-marker
+                          :slot-unbound-marker-value slot-unbound-marker))
