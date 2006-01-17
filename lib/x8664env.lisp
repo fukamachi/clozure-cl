@@ -76,7 +76,7 @@
                                
 
 
-
+(defconstant x8664-cr-fields (make-mask 0))
 
 (defconstant $undo-x86-c-frame 16)
 
