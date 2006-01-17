@@ -68,8 +68,14 @@
 (defparameter *ppc64-compiler-backend-modules*
   '(ppc64-backend ppc64-vinsns))
 
+(defparameter *x8664-compiler-backend-modules*
+  '(x8664-backend x8664-vinsns))
+
 (defparameter *ppc-compiler-backend-modules*
   '(ppc2))
+
+(defparameter *x86-compiler-backend-modules*
+  '(x862))
 
 
 (defparameter *x8632-compiler-backend-modules*
@@ -133,7 +139,10 @@
                     *ppc-compiler-backend-modules*))
     (:ppc64 (append *ppc-compiler-modules*
                     *ppc64-compiler-backend-modules*
-                    *ppc-compiler-backend-modules*))))
+                    *ppc-compiler-backend-modules*))
+    (:x8664 (append *x86-compiler-modules*
+                    *x8664-compiler-backend-modules*
+                    *x86-compiler-backend-modules*))))
 
 (defparameter *other-lib-modules*
   '(streams pathnames backtrace
