@@ -208,7 +208,9 @@
   (subprims-base ())
   (subprims-shift ())
   (subprims-table ())
-  (primitive->subprims ()))
+  (primitive->subprims ())
+  (unbound-marker-value ())
+  (slot-unbound-marker-value ()))
 
 
 ;;; GC related operations
