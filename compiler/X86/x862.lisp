@@ -34,15 +34,7 @@
 (defparameter *x862-target-num-save-regs* 0)
 
 
-(defun x862-lookup-target-uvector-subtag (name)
-  (or (cdr (assoc name (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
-      (nx-error "Type ~s not supported on target ~s"
-                name (backend-target-arch-name *target-backend*))))
 
-(defun x862-target-uvector-subtag-name (subtag)
-  (or (car (rassoc subtag (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
-      (nx-error "Subtag ~s not native on target ~s"
-                subtag (backend-target-arch-name *target-backend*))))
   
 (defun x862-immediate-operand (x)
   (if (eq (acode-operator x) (%nx1-operator immediate))
@@ -2308,7 +2300,7 @@
           (progn
             (let* ((*x862-vstack* *x862-vstack*)
                    (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
-              (x862-lri seg x8664::arg_x (ash (x862-lookup-target-uvector-subtag :function) *x862-target-fixnum-shift*))
+              (x862-lri seg x8664::arg_x (ash (nx-lookup-target-uvector-subtag :function) *x862-target-fixnum-shift*))
               (! %closure-code% x8664::arg_y)
               (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::arg_z)
               (x862-vpush-register-arg seg x8664::arg_x)
@@ -2329,7 +2321,7 @@
             (progn
               (x862-lri seg
                         x8664::imm0
-                        (arch::make-vheader vsize (x862-lookup-target-uvector-subtag :function)))
+                        (arch::make-vheader vsize (nx-lookup-target-uvector-subtag :function)))
               (! %alloc-misc-fixed dest x8664::imm0 (ash vsize (arch::target-word-shift arch)))
               )       
             (! %closure-code% x8664::arg_x)
@@ -5263,19 +5255,19 @@ o      (^))))
   (x862-misc-node-ref seg vreg xfer vector index nil))
 
 (defx862 x862-svref svref (seg vreg xfer vector index)
-  (x862-misc-node-ref seg vreg xfer vector index (unless *x862-reckless* (x862-lookup-target-uvector-subtag :simple-vector))))
+  (x862-misc-node-ref seg vreg xfer vector index (unless *x862-reckless* (nx-lookup-target-uvector-subtag :simple-vector))))
 
 ;;; It'd be nice if this didn't box the result.  Worse things happen ...
 ;;;  Once there's a robust mechanism, adding a CHARCODE storage class shouldn't be hard.
 (defx862 x862-%sbchar %sbchar (seg vreg xfer string index)
-  (x862-vref seg vreg xfer :simple-string string index (unless *x862-reckless* (x862-lookup-target-uvector-subtag :simple-string))))
+  (x862-vref seg vreg xfer :simple-string string index (unless *x862-reckless* (nx-lookup-target-uvector-subtag :simple-string))))
 
 
 (defx862 x862-%svset %svset (seg vreg xfer vector index value)
   (x862-misc-node-set seg vreg xfer vector index value nil))
 
 (defx862 x862-svset svset (seg vreg xfer vector index value)
-   (x862-misc-node-set seg vreg xfer vector index value (x862-lookup-target-uvector-subtag :simple-vector)))
+   (x862-misc-node-set seg vreg xfer vector index value (nx-lookup-target-uvector-subtag :simple-vector)))
 
 (defx862 x862-typed-form typed-form (seg vreg xfer typespec form)
   (declare (ignore typespec)) ; Boy, do we ever !
@@ -5340,7 +5332,7 @@ o      (^))))
 
 (defx862 x862-vector vector (seg vreg xfer arglist)
   (x862-allocate-initialized-gvector seg vreg xfer
-                                     (x862-lookup-target-uvector-subtag
+                                     (nx-lookup-target-uvector-subtag
                                       :simple-vector) arglist))
 
 (defx862 x862-%gvector %gvector (seg vreg xfer arglist)
@@ -5466,10 +5458,10 @@ o      (^))))
   (x862-char-p seg vreg xfer cc form))
 
 (defx862 x862-struct-ref struct-ref (seg vreg xfer struct offset)
-  (x862-misc-node-ref seg vreg xfer struct offset (x862-lookup-target-uvector-subtag :struct)))
+  (x862-misc-node-ref seg vreg xfer struct offset (nx-lookup-target-uvector-subtag :struct)))
 
 (defx862 x862-struct-set struct-set (seg vreg xfer struct offset value)
-  (x862-misc-node-set seg vreg xfer struct offset value (x862-lookup-target-uvector-subtag :struct)))
+  (x862-misc-node-set seg vreg xfer struct offset value (nx-lookup-target-uvector-subtag :struct)))
 
 (defx862 x862-istruct-typep istruct-typep (seg vreg xfer cc form type)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
@@ -6962,7 +6954,7 @@ o      (^))))
       (x862-form seg nil nil i)
       (x862-form seg nil xfer j)))
   (let* ((type-keyword (x862-immediate-operand typename))
-         (fixtype (x862-lookup-target-uvector-subtag type-keyword ))
+         (fixtype (nx-lookup-target-uvector-subtag type-keyword ))
          (safe (unless *x862-reckless* fixtype))
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
@@ -6984,7 +6976,7 @@ o      (^))))
       (t (error "Bug: shouldn't have tried to open-code %AREF2 call.")))))
 
 (defx862 x862-%aset2 aset2 (seg vreg xfer typename arr i j new &optional dim0 dim1)
-  (let* ((fixtype (x862-lookup-target-uvector-subtag typename ))
+  (let* ((fixtype (nx-lookup-target-uvector-subtag typename ))
          (safe (unless *x862-reckless* fixtype))
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
@@ -7007,10 +6999,10 @@ o      (^))))
   (let* ((type-keyword
           (let* ((fixtype (acode-fixnum-form-p subtag)))
             (if fixtype
-              (x862-target-uvector-subtag-name fixtype)
+              (nx-target-uvector-subtag-name fixtype)
               (x862-immediate-operand subtag)))))
     (if type-keyword
-      (x862-vref seg vreg xfer type-keyword uvector index (unless *x862-reckless* (x862-lookup-target-uvector-subtag type-keyword)))
+      (x862-vref seg vreg xfer type-keyword uvector index (unless *x862-reckless* (nx-lookup-target-uvector-subtag type-keyword)))
       (progn
         (x862-three-targeted-reg-forms seg subtag ($ x8664::arg_x) uvector ($ x8664::arg_y) index ($ x8664::arg_z))
         (! subtag-misc-ref)
@@ -7021,10 +7013,10 @@ o      (^))))
   (let* ((type-keyword
           (let* ((fixtype (acode-fixnum-form-p subtag)))
             (if fixtype
-              (x862-target-uvector-subtag-name fixtype)
+              (nx-target-uvector-subtag-name fixtype)
               (x862-immediate-operand subtag)))))
     (if type-keyword
-      (x862-vset seg vreg xfer type-keyword uvector index newval (unless *x862-reckless* (x862-lookup-target-uvector-subtag type-keyword)))
+      (x862-vset seg vreg xfer type-keyword uvector index newval (unless *x862-reckless* (nx-lookup-target-uvector-subtag type-keyword)))
       (progn
         ;; Could always do a four-targeted-reg-forms ...
         (x862-vpush-register seg (x862-one-untargeted-reg-form seg subtag x8664::arg_z))
@@ -7183,7 +7175,7 @@ o      (^))))
    string 
    index
    value 
-   (unless *x862-reckless* (x862-lookup-target-uvector-subtag :simple-string))))
+   (unless *x862-reckless* (nx-lookup-target-uvector-subtag :simple-string))))
 
 
 ;;; If we didn't use this for stack consing, turn it into a call.  Ugh.

@@ -32,15 +32,7 @@
 (defparameter *ppc2-target-bits-in-word* 0)
 
 
-(defun ppc2-lookup-target-uvector-subtag (name)
-  (or (cdr (assoc name (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
-      (nx-error "Type ~s not supported on target ~s"
-                name (backend-target-arch-name *target-backend*))))
 
-(defun ppc2-target-uvector-subtag-name (subtag)
-  (or (car (rassoc subtag (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
-      (nx-error "Subtag ~s not native on target ~s"
-                subtag (backend-target-arch-name *target-backend*))))
   
 (defun ppc2-immediate-operand (x)
   (if (eq (acode-operator x) (%nx1-operator immediate))
@@ -2362,7 +2354,7 @@
           (progn
             (let* ((*ppc2-vstack* *ppc2-vstack*)
                    (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*))
-              (ppc2-lri seg ppc::arg_x (ash (ppc2-lookup-target-uvector-subtag :function) *ppc2-target-fixnum-shift*))
+              (ppc2-lri seg ppc::arg_x (ash (nx-lookup-target-uvector-subtag :function) *ppc2-target-fixnum-shift*))
               (! %closure-code% ppc::arg_y)
               (ppc2-store-immediate seg (ppc2-afunc-lfun-ref afunc) ppc::arg_z)
               (ppc2-vpush-register-arg seg ppc::arg_x)
@@ -2383,7 +2375,7 @@
             (progn
               (ppc2-lri seg
                         ppc::imm0
-                        (arch::make-vheader vsize (ppc2-lookup-target-uvector-subtag :function)))
+                        (arch::make-vheader vsize (nx-lookup-target-uvector-subtag :function)))
               (! %alloc-misc-fixed dest ppc::imm0 (ash vsize (arch::target-word-shift arch)))
               )       
             (! %closure-code% ppc::arg_x)
@@ -5287,19 +5279,19 @@
   (ppc2-misc-node-ref seg vreg xfer vector index nil))
 
 (defppc2 ppc2-svref svref (seg vreg xfer vector index)
-  (ppc2-misc-node-ref seg vreg xfer vector index (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag :simple-vector))))
+  (ppc2-misc-node-ref seg vreg xfer vector index (unless *ppc2-reckless* (nx-lookup-target-uvector-subtag :simple-vector))))
 
 ;;; It'd be nice if this didn't box the result.  Worse things happen ...
 ;;;  Once there's a robust mechanism, adding a CHARCODE storage class shouldn't be hard.
 (defppc2 ppc2-%sbchar %sbchar (seg vreg xfer string index)
-  (ppc2-vref seg vreg xfer :simple-string string index (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag :simple-string))))
+  (ppc2-vref seg vreg xfer :simple-string string index (unless *ppc2-reckless* (nx-lookup-target-uvector-subtag :simple-string))))
 
 
 (defppc2 ppc2-%svset %svset (seg vreg xfer vector index value)
   (ppc2-misc-node-set seg vreg xfer vector index value nil))
 
 (defppc2 ppc2-svset svset (seg vreg xfer vector index value)
-   (ppc2-misc-node-set seg vreg xfer vector index value (ppc2-lookup-target-uvector-subtag :simple-vector)))
+   (ppc2-misc-node-set seg vreg xfer vector index value (nx-lookup-target-uvector-subtag :simple-vector)))
 
 (defppc2 ppc2-typed-form typed-form (seg vreg xfer typespec form)
   (declare (ignore typespec)) ; Boy, do we ever !
@@ -5364,7 +5356,7 @@
 
 (defppc2 ppc2-vector vector (seg vreg xfer arglist)
   (ppc2-allocate-initialized-gvector seg vreg xfer
-                                     (ppc2-lookup-target-uvector-subtag
+                                     (nx-lookup-target-uvector-subtag
                                       :simple-vector) arglist))
 
 (defppc2 ppc2-%gvector %gvector (seg vreg xfer arglist)
@@ -5490,10 +5482,10 @@
   (ppc2-char-p seg vreg xfer cc form))
 
 (defppc2 ppc2-struct-ref struct-ref (seg vreg xfer struct offset)
-  (ppc2-misc-node-ref seg vreg xfer struct offset (ppc2-lookup-target-uvector-subtag :struct)))
+  (ppc2-misc-node-ref seg vreg xfer struct offset (nx-lookup-target-uvector-subtag :struct)))
 
 (defppc2 ppc2-struct-set struct-set (seg vreg xfer struct offset value)
-  (ppc2-misc-node-set seg vreg xfer struct offset value (ppc2-lookup-target-uvector-subtag :struct)))
+  (ppc2-misc-node-set seg vreg xfer struct offset value (nx-lookup-target-uvector-subtag :struct)))
 
 (defppc2 ppc2-istruct-typep istruct-typep (seg vreg xfer cc form type)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
@@ -6987,7 +6979,7 @@
       (ppc2-form seg nil nil i)
       (ppc2-form seg nil xfer j)))
   (let* ((type-keyword (ppc2-immediate-operand typename))
-         (fixtype (ppc2-lookup-target-uvector-subtag type-keyword ))
+         (fixtype (nx-lookup-target-uvector-subtag type-keyword ))
          (safe (unless *ppc2-reckless* fixtype))
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
@@ -7009,7 +7001,7 @@
       (t (error "Bug: shouldn't have tried to open-code %AREF2 call.")))))
 
 (defppc2 ppc2-%aset2 aset2 (seg vreg xfer typename arr i j new &optional dim0 dim1)
-  (let* ((fixtype (ppc2-lookup-target-uvector-subtag typename ))
+  (let* ((fixtype (nx-lookup-target-uvector-subtag typename ))
          (safe (unless *ppc2-reckless* fixtype))
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
@@ -7032,10 +7024,10 @@
   (let* ((type-keyword
           (let* ((fixtype (acode-fixnum-form-p subtag)))
             (if fixtype
-              (ppc2-target-uvector-subtag-name fixtype)
+              (nx-target-uvector-subtag-name fixtype)
               (ppc2-immediate-operand subtag)))))
     (if type-keyword
-      (ppc2-vref seg vreg xfer type-keyword uvector index (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag type-keyword)))
+      (ppc2-vref seg vreg xfer type-keyword uvector index (unless *ppc2-reckless* (nx-lookup-target-uvector-subtag type-keyword)))
       (progn
         (ppc2-three-targeted-reg-forms seg subtag ($ ppc::arg_x) uvector ($ ppc::arg_y) index ($ ppc::arg_z))
         (! subtag-misc-ref)
@@ -7046,10 +7038,10 @@
   (let* ((type-keyword
           (let* ((fixtype (acode-fixnum-form-p subtag)))
             (if fixtype
-              (ppc2-target-uvector-subtag-name fixtype)
+              (nx-target-uvector-subtag-name fixtype)
               (ppc2-immediate-operand subtag)))))
     (if type-keyword
-      (ppc2-vset seg vreg xfer type-keyword uvector index newval (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag type-keyword)))
+      (ppc2-vset seg vreg xfer type-keyword uvector index newval (unless *ppc2-reckless* (nx-lookup-target-uvector-subtag type-keyword)))
       (progn                            ; Could always do a four-targeted-reg-forms ...
         (ppc2-vpush-register seg (ppc2-one-untargeted-reg-form seg subtag ppc::arg_z))
         (ppc2-three-targeted-reg-forms seg uvector ($ ppc::arg_x) index ($ ppc::arg_y) newval ($ ppc::arg_z))
@@ -7207,7 +7199,7 @@
    string 
    index
    value 
-   (unless *ppc2-reckless* (ppc2-lookup-target-uvector-subtag :simple-string))))
+   (unless *ppc2-reckless* (nx-lookup-target-uvector-subtag :simple-string))))
 
 
 ;;; If we didn't use this for stack consing, turn it into a call.  Ugh.
