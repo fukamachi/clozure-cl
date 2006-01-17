@@ -447,6 +447,16 @@ function to the indicated name is true.")
     (if (eq (acode-operator x) (%nx1-operator fixnum)) 
       (cadr x))))
 
+(defun nx-lookup-target-uvector-subtag (name)
+  (or (cdr (assoc name (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
+      (nx-error "Type ~s not supported on target ~s"
+                name (backend-target-arch-name *target-backend*))))
+
+(defun nx-target-uvector-subtag-name (subtag)
+  (or (car (rassoc subtag (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
+      (nx-error "Subtag ~s not native on target ~s"
+                subtag (backend-target-arch-name *target-backend*))))
+
 (defun acode-s16-constant-p (x)
   (setq x (acode-unwrapped-form x))
   (if (acode-p x)
@@ -460,13 +470,11 @@ function to the indicated name is true.")
                       (32 2)
                       (64 3)))))
         (if (eql op (%nx1-operator %unbound-marker))
-          (target-arch-case
-           (:ppc32 ppc32::unbound-marker)
-           (:ppc64 ppc64::unbound-marker))
+          (arch::target-unbound-marker-value
+           (backend-target-arch *target-backend*))
           (if (eql op (%nx1-operator %slot-unbound-marker))
-            (target-arch-case
-             (:ppc32 ppc32::slot-unbound-marker)
-             (:ppc64 ppc64::slot-unbound-marker))))))))
+            (arch::target-slot-unbound-marker-value
+             (backend-target-arch *target-backend*))))))))
 
 (defun acode-fixnum-type-p (form trust-decls)
   (or (acode-fixnum-form-p form)
