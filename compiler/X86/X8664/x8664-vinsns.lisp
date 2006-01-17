@@ -334,3 +334,13 @@
   (leaq (:@ (:%q src) x8664::fixnumone) (:%q dest))
   (shlq (:$ub (- x8664::charcode-shift x8664::fixnum-shift)) (:%q dest))
   (movb (:$b x8664::subtag-character) (:%b dest)))
+
+
+(define-x8664-vinsn (load-nil :constant-ref) (((dest t))
+					      ())
+  (movq (:$l x8664::nil-value) (:%q dest)))
+
+
+(define-x8664-vinsn (load-t :constant-ref) (((dest t))
+					    ())
+  (movq (:$l x8664::t-value) (:%q dest)))

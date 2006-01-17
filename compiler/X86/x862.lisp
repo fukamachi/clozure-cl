@@ -4723,6 +4723,8 @@ o      (^))))
            (x86::insert-opcode-reg4-entry instruction
                                          (svref register-table operand)))
           (:insert-cc
+           (unless (typep operand 'x86-lap-expression)
+             (setq operand (parse-x86-lap-expression operand)))
            (setf (ldb (byte 4 0)
                       (x86::x86-instruction-base-opcode instruction))
                  (x86-lap-expression-value operand)))
