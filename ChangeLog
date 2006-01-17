@@ -1,3 +1,38 @@
+2006-01-17 00:26  gb
+
+	* compiler/X86/x86-asm.lisp: Split things up to simplify vinsn
+	expansion.
+
+2006-01-17 00:25  gb
+
+	* compiler/X86/x86-backend.lisp: Vinsn template parsing.
+
+2006-01-17 00:25  gb
+
+	* compiler/X86/x86-disassemble.lisp: Recognize more uuos, syntax
+	changes.
+
+2006-01-17 00:25  gb
+
+	* compiler/X86/x86-lap.lisp: Split some thing up for
+	vinsn-expansion.  Nuke branches to next instruction, which the
+	compiler casually generates.
+
+2006-01-17 00:22  gb
+
+	* compiler/X86/x86-lapmacros.lisp: No "absolute" jump syntax (*
+	ea).  Use :^ in label-offset expressions.
+
+2006-01-17 00:21  gb
+
+	* compiler/X86/x862.lisp: Still several compilation warnings, but
+	some things work.
+
+2006-01-17 00:21  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Start to flesh out.  Note
+	use of (keyword) "overqualifiers" (tm).
+
 2006-01-17 00:19  gb
 
 	* level-0/X86/x86-pred.lisp: typo in EQL.
