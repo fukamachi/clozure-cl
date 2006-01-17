@@ -38,7 +38,7 @@
   (cmpb ($ x8664::subtag-macptr) (% imm0.b))
   (je @macptr)                          ; will need to check %imm1.b
   (cmpq (% imm0) (% imm1))
-  (je @lose)
+  (jne @lose)
   (cmpb ($ x8664::subtag-bignum) (% imm0.b))
   (je @bignum)
   (cmpb ($ x8664::subtag-double-float) (% imm0.b))
@@ -62,9 +62,6 @@
   @win
   (movq ($ t) (% arg_z))
   (single-value-return)
-  (macptr-ptr x imm0)
-  (macptr-ptr y imm1)
-  (jmp @test)
   @ratio
   @complex
   (save-simple-frame)
