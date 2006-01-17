@@ -1440,94 +1440,106 @@
 
 (define-compiler-macro arrayp (arg)
   `(>= (the fixnum (typecode ,arg))
-    ,(target-arch-case
-      (:ppc32 ppc32::subtag-arrayH)
-      (:ppc64 ppc64::subtag-arrayH))))
+    ,(nx-lookup-target-uvector-subtag :array-header)))
 
 (define-compiler-macro vectorp (arg)
   `(>= (the fixnum (typecode ,arg))
-    ,(target-arch-case
-      (:ppc32 ppc32::subtag-vectorH)
-      (:ppc64 ppc64::subtag-vectorH))))
+    ,(nx-lookup-target-uvector-subtag :vector-header)))
+
 
 
 (define-compiler-macro fixnump (arg)
-  `(eql (lisptag ,arg) ,(target-arch-case
-                         (:ppc32 ppc32::tag-fixnum)
-                         (:ppc64 ppc64::tag-fixnum))))
+  (let* ((fixnum-tag
+          (arch::target-fixnum-tag (backend-target-arch *target-backend*))))
+    `(eql (lisptag ,arg) ,fixnum-tag)))
 
 (define-compiler-macro float (&whole w number &optional other)
   (declare (ignore number other))
   w)
 
 (define-compiler-macro double-float-p (n)
-  `(eql (typecode ,n)
-    ,(target-arch-case (:ppc32 ppc32::subtag-double-float)
-                       (:ppc64 ppc64::subtag-double-float))))
+  (let* ((tag (arch::target-double-float-tag (backend-target-arch *target-backend*))))
+    `(eql (typecode ,n) ,tag)))
 
 
 (define-compiler-macro short-float-p (n)
-  `(eql (typecode ,n) ,(target-arch-case (:ppc32 ppc32::subtag-single-float)
-                                         (:ppc64 ppc64::subtag-single-float))))
+  (let* ((arch (backend-target-arch *target-backend*))
+         (tag (arch::target-single-float-tag arch))
+         (op (if (arch::target-single-float-tag-is-subtag arch)
+               'typecode
+               'fulltag)))
+    `(eql (,op ,n) ,tag)))
 
 
 (define-compiler-macro floatp (n)
-  (let* ((typecode (make-symbol "TYPECODE")))
+  (let* ((typecode (make-symbol "TYPECODE"))
+         (arch (backend-target-arch *target-backend*))
+         (single (arch::target-single-float-tag arch))
+         (double (arch::target-double-float-tag arch)))
     `(let* ((,typecode (typecode ,n)))
        (declare (fixnum ,typecode))
-       (or (= ,typecode ,(target-arch-case (:ppc32 ppc32::subtag-double-float)
-                                           (:ppc64 ppc64::subtag-double-float)))
-           (= ,typecode ,(target-arch-case (:ppc32 ppc32::subtag-single-float)
-                                           (:ppc64 ppc64::subtag-single-float)))))))
+       (or (= ,typecode ,single)
+           (= ,typecode ,double)))))
 
 (define-compiler-macro functionp (n)
-  `(eql (typecode ,n) ,(target-arch-case (:ppc32 ppc32::subtag-function)
-                                         (:ppc64 ppc64::subtag-function))))
+  (let* ((arch (backend-target-arch *target-backend*))
+         (tag (arch::target-function-tag arch))
+         (op (if (arch::target-function-tag-is-subtag arch)
+               'typecode
+               'fulltag)))
+    `(eql (,op  ,n) ,tag)))
 
 (define-compiler-macro symbolp (s)
-  (target-arch-case
-   (:ppc32 (let* ((sym (gensym)))
-             `(let* ((,sym ,s))
-               (if ,sym (eql (typecode ,sym) ppc32::subtag-symbol) t))))
-   (:ppc64 `(eql (typecode ,s) ppc64::subtag-symbol))))
-           
+  (let* ((arch (backend-target-arch *target-backend*))
+         (symtag (arch::target-symbol-tag arch))
+         (op (if (arch::target-symbol-tag-is-subtag arch)
+               'typecode
+               'fulltag))
+         (niltag (arch::target-null-tag arch)))
+    (if (eql niltag symtag)
+      `(eql (,op ,s) ,symtag)
+      (let* ((sym (gensym)))
+        `(let* ((,sym ,s))
+          (if ,sym (eql (,op ,sym) ,symtag) t))))))
+
+;;; If NIL isn't tagged as a symbol, assume that LISPTAG only looks
+;;; at bits that NIL shares with a cons.
 (define-compiler-macro listp (n)
-  (target-arch-case
-   (:ppc32 `(eql (lisptag ,n) #.ppc32::tag-list))
-   (:ppc64 (let ((nvar (gensym)))
-             `(let* ((,nvar ,n))
-               (if ,nvar (consp ,nvar) t))))))
+  (let* ((arch (backend-target-arch *target-backend*))
+         (cons-tag (arch::target-cons-tag arch))
+         (nil-tag  (arch::target-null-tag arch))
+         (symbol-tag (arch::target-symbol-tag arch)))
+    (if (= nil-tag symbol-tag)
+      (let* ((nvar (gensym)))
+        `(let* ((,nvar ,n))
+          (if ,nvar (consp ,nvar) t)))
+      `(eql (lisptag ,n) ,cons-tag))))
 
 (define-compiler-macro consp (n)
-  `(eql (fulltag ,n) ,(target-arch-case (:ppc32 ppc32::fulltag-cons)
-                                        (:ppc64 ppc64::fulltag-cons))))
+  (let* ((cons-tag (arch::target-cons-tag (backend-target-arch *target-backend*))))
+  `(eql (fulltag ,n) ,cons-tag)))
 
 (define-compiler-macro bignump (n)
-  `(eql (typecode ,n) ,(target-arch-case (:ppc32 ppc32::subtag-bignum)
-                                         (:ppc64 ppc64::subtag-bignum))))
+  `(eql (typecode ,n) ,(nx-lookup-target-uvector-subtag :bignum)))
 
 (define-compiler-macro ratiop (n)
-  `(eql (typecode ,n) ,(target-arch-case
-                        (:ppc32 ppc32::subtag-ratio)
-                        (:ppc64 ppc64::subtag-ratio))))
+  `(eql (typecode ,n) ,(nx-lookup-target-uvector-subtag :ratio)))
 
 (define-compiler-macro complexp (n)
-  `(eql (typecode ,n) ,(target-arch-case
-                        (:ppc32 ppc32::subtag-complex)
-                        (:ppc64 ppc64::subtag-complex))))
+  `(eql (typecode ,n) ,(nx-lookup-target-uvector-subtag :complex)))
 
 
 (define-compiler-macro aref (&whole call a &rest subscripts &environment env)
-    (let* ((ctype (if (nx-form-typep a 'array env)
-		      (specifier-type (nx-form-type a env))))
-	   (type (if ctype (type-specifier (array-ctype-specialized-element-type ctype))))
-	   (useful (unless (or (eq type *) (eq type t))
-		     type)))  
-  (if (= 2 (length subscripts))
-    (setq call `(%aref2 ,a ,(car subscripts) ,(cadr subscripts))))
-  (if useful
-    `(the ,useful ,call)
-    call)))
+  (let* ((ctype (if (nx-form-typep a 'array env)
+                  (specifier-type (nx-form-type a env))))
+         (type (if ctype (type-specifier (array-ctype-specialized-element-type ctype))))
+         (useful (unless (or (eq type *) (eq type t))
+                   type)))  
+    (if (= 2 (length subscripts))
+      (setq call `(%aref2 ,a ,(car subscripts) ,(cadr subscripts))))
+    (if useful
+      `(the ,useful ,call)
+      call)))
 
 
 (define-compiler-macro aset (&whole call a &rest subs&val)
@@ -1567,9 +1579,7 @@
     call))
 
 (define-compiler-macro simple-base-string-p (thing)
-  `(= (the fixnum (typecode ,thing)) ,(target-arch-case
-                                       (:ppc32 ppc32::subtag-simple-base-string)
-                                       (:ppc64 ppc64::subtag-simple-base-string))))
+  `(= (the fixnum (typecode ,thing)) ,(nx-lookup-target-uvector-subtag :simple-string)))
 
 (define-compiler-macro simple-string-p (thing)
   `(simple-base-string-p ,thing))
@@ -1579,21 +1589,18 @@
 
 
 (define-compiler-macro lockp (lock)
-  (target-arch-case
-   (:ppc32 `(eq ppc32::subtag-lock (typecode ,lock)))
-   (:ppc64 `(eq ppc64::subtag-lock (typecode ,lock)))))
+  (let* ((tag (nx-lookup-target-uvector-subtag :simple-string)))
+    `(eq ,tag (typecode ,lock))))
 
-(define-compiler-macro integerp (thing)
-  (let* ((typecode (gensym)))
-    (target-arch-case
-     (:ppc32 `(let* ((,typecode (typecode ,thing)))
-               (declare (fixnum ,typecode))
-               (or (= ,typecode ppc32::tag-fixnum)
-                (= ,typecode ppc32::subtag-bignum))))
-     (:ppc64 `(let* ((,typecode (typecode ,thing)))
-               (declare (fixnum ,typecode))
-               (or (= ,typecode ppc64::tag-fixnum)
-                (= ,typecode ppc64::subtag-bignum)))))))
+
+(define-compiler-macro integerp (thing)  
+  (let* ((typecode (gensym))
+         (fixnum-tag (arch::target-fixnum-tag (backend-target-arch *target-backend*)))
+         (bignum-tag (nx-lookup-target-uvector-subtag :bignum)))
+    `(let* ((,typecode (typecode ,thing)))
+      (declare (fixnum ,typecode))
+      (or (= ,typecode ,fixnum-tag)
+       (= ,typecode ,bignum-tag)))))
        
 (define-compiler-macro %composite-pointer-ref (size pointer offset)
   (if (constantp size)
