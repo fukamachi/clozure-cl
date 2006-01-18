@@ -42,7 +42,7 @@ _exportfn(C(touch_page))
         __(movq $0,(%rdi))
         __(movl $1,%eax)
         .globl C(touch_page_end)
-C(touch_page_end)
+C(touch_page_end):	
         __(ret)
                         
 _exportfn(C(count_leading_zeros))
