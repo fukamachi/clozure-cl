@@ -1,3 +1,7 @@
+2006-01-18 13:07  gb
+
+	* lisp-kernel/x86-asmutils64.s: Add missing colon after label.
+
 2006-01-18 04:43  gb
 
 	* lisp-kernel/: x86-constants64.s, x86-macros.s, x86-uuo.s: some
