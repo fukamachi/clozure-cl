@@ -102,18 +102,22 @@ define([restore_node_regs],[
 */	
 define([Cons],[
 	new_macro_labels()
+/* The instructions where tcr.save_allocptr is tagged are difficult
+   to interrupt; the interrupting code has to recognize and possibly
+   emulate the instructions in between */
 	sub $cons.size+fulltag_cons,%rcontext:tcr.save_allocptr
 	mov %rcontext:tcr.save_allocptr,%allocptr
 	cmp %allocptr,%rcontext:tcr.save_allocbase
 	jg macro_label(no_trap)
-	uuo2_alloc_cons()
+	uuo_alloc()
 macro_label(no_trap):	
+	andb $~fulltagmask,%rcontext:tcr.save_allocptr
+/* Easy to interrupt now that tcr.save_allocptr isn't tagged as a cons */ 
 	mov $3,cons.cdr(%allocptr)
 	mov $2,cons.car(%allocptr)
 	ifelse($1,[],[],[
 	 mov %allocptr,$1
 	])
-	andq $~fulltagmask,%rcontext:tcr.save_allocptr
 ])
 
 /* The header has to be in %imm0, and the physical size in bytes has
@@ -121,18 +125,22 @@ macro_label(no_trap):
 
 define([Misc_Alloc],[
 	new_macro_labels()
-	leaq -fulltag_misc(%imm1),%imm1
-	sub %imm1,%rcontext:tcr.save_allocptr
-	mov %rcontext:tcr.save_allocptr,%allocptr
-	cmp %allocptr,%rcontext:tcr.save_allocbase
+	subq $fulltag_misc,%imm1
+/* Here Be Monsters: we have to treat some/all of this instruction 
+   sequence atomically, as soon as tcr.save_allocptr becomes tagged.
+*/                
+	subq %imm1,%rcontext:tcr.save_allocptr
+	movq %rcontext:tcr.save_allocptr,%allocptr
+	cmpq %allocptr,%rcontext:tcr.save_allocbase
 	jg macro_label(no_trap)
-	uuo2_alloc_variable()
+	uuo_alloc()
 macro_label(no_trap):	
 	movq %imm0,misc_header_offset(%allocptr)
+	andb $~fulltagmask,%rcontext:tcr.save_allocptr
+/* Now that tcr.save_allocptr is untagged, it's easier to be interrupted */
 	ifelse($1,[],[],[
 	 mov %allocptr,$1
 	])
-	andq $~fulltagmask,%rcontext:tcr.save_allocptr
 ])
 	
 define([Misc_Alloc_Fixed],[

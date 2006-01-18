@@ -25,11 +25,12 @@
 define([uuo2],[
 	ud2b ; .byte $1
 ])
-	
-define([uuo2_alloc_cons],[
-	uuo2(uuo2_alloc_cons_function)
+
+/* If we're allocating a CONS, the tcr's save_allocptr slot will be
+   tagged as a cons.  Otherwise, it'll be tagged as fulltag_misc,
+   and we have to look at the immediate registers to determine what's
+   being allocated. */
+define([uuo_alloc],[
+        int 0xc4
 ])
 				
-define([uuo2_alloc_variable],[
-	uuo2(uuo2_alloc_variable_function)
-])
