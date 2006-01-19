@@ -1,3 +1,8 @@
+2006-01-18 23:20  gb
+
+	* compiler/backend.lisp: A few horribly-named macros for register
+	targeting, handling u8-targeted primitives (for tag checking.)
+
 2006-01-18 20:29  gb
 
 	* lisp-kernel/: x86-macros.s, x86-uuo.s: Register renumbering.	New
