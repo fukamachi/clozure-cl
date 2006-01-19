@@ -95,6 +95,7 @@
                 ((setq c (digit-char-p c))
                  (setq eexp (+ c (* (or eexp 0) 10))))
                 (t (return-from parse-float nil))))
+        (when (not eexp)(return-from parse-float nil))
         (cond 
 	 (inf 
 	  (return-from parse-float
