@@ -1,3 +1,56 @@
+2006-01-18 23:31  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: More stuff works.
+
+2006-01-18 23:30  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Swap arg_z and temp0, on the
+	theory that references to it may be able to avoid REX prefixes
+	sometimes.
+
+2006-01-18 23:29  gb
+
+	* compiler/X86/x862.lisp: Get some more stuff working.
+
+2006-01-18 23:29  gb
+
+	* compiler/X86/x86-lapmacros.lisp: Use new UUOs for type - er for
+	tag checking.
+
+2006-01-18 23:28  gb
+
+	* compiler/X86/x86-lap.lisp: Get LAP constants in the right order. 
+	Indentation fixes, other subtle changes too hard to recognize.
+
+2006-01-18 23:27  gb
+
+	* compiler/X86/x86-disassemble.lisp: Recognize new UUOs; print
+	suffixes more often.
+
+2006-01-18 23:26  gb
+
+	* compiler/X86/x86-asm.lisp: Several fixes, still more uuos.
+
+2006-01-18 23:25  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Fix a constraint.
+
+2006-01-18 23:24  gb
+
+	* compiler/PPC/ppc2.lisp: Use TARGET-WORD-SIZE-CASE, 'cause that's
+	what we're testing for,
+
+2006-01-18 23:23  gb
+
+	* compiler/vinsn.lisp: Introduce a :sets-cc vinsn attribute, which
+	might (or might not) help to avoid some extra testing of condition
+	codes.
+
+2006-01-18 23:22  gb
+
+	* compiler/nx0.lisp: Recognize s32 constants.  (Note that this is
+	for comparisons, and includes some non-fixnum cases.)
+
 2006-01-18 23:20  gb
 
 	* compiler/backend.lisp: A few horribly-named macros for register
