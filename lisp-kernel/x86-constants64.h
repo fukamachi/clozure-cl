@@ -16,7 +16,7 @@
 
 /* Define indices of the GPRs in the mcontext component of a ucontext */
 #ifdef LINUX 
-#define Iarg_z 0
+#define Itemp0 0
 #define Iarg_y 1
 #define Iarg_x 2
 #define Isave3 3
@@ -24,10 +24,10 @@
 #define Itemp2 5
 #define Isave1 6
 #define Isave0 7
-#define Infn 8
+#define Ira0 8
 #define Ifn 9
 #define Irbp 10
-#define Itemp0 11
+#define Iarg_z 11
 #define Iimm1 12
 #define Iimm0 13
 #define Itemp1 14
