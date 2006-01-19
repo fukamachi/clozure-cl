@@ -351,6 +351,19 @@
            ,crf-form
            ,gpr-form)))))
 
+;;; The NODE case may need to use ENSURING-NODE-TARGET.
+(defmacro unboxed-other-case ((regspec &rest mode-names)
+                              unboxed-case other-case)
+  `(if (and ,regspec
+        (= (hard-regspec-class ,regspec) hard-reg-class-gpr)
+        (logbitp  (get-regspec-mode ,regspec)
+         (logior ,@(mapcar #'(lambda (x) (ash 1 (gpr-mode-name-value x)))
+                           mode-names))))
+    ,unboxed-case
+    ,other-case))
+    ,
+
+
 
 
 ;;; Choose an immediate register (for targeting), but don't "reserve" it.
@@ -367,6 +380,17 @@
 					 reserved))))
 		     ',mode-name))))
        ,@body)))
+
+(defmacro with-node-target ((&rest reserved) name &body body)
+  `(let* ((,name (make-unwired-lreg
+                  (available-node-temp
+                   (logand
+                    *available-backend-node-temps* 
+                    (lognot (logior ,@(mapcar
+                                       #'(lambda (r)
+                                           `(ash 1 (hard-regspec-value ,r)))
+                                       reserved))))))))
+    ,@body))
 
 
 
