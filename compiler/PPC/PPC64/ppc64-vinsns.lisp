@@ -2918,7 +2918,7 @@
 
 (define-ppc64-vinsn save-lisp-context-offset (()
 					      ((nbytes-vpushed :u16const))
-					      ((imm :u32)))
+					      ((imm :u64)))
   (la imm nbytes-vpushed ppc::vsp)
   (stdu ppc::sp (- ppc64::lisp-frame.size) ppc::sp)
   (std ppc::fn ppc64::lisp-frame.savefn ppc::sp)
@@ -3260,7 +3260,7 @@
    (xori dest x low)))
 
 (define-ppc64-vinsn %natural-logand (((dest :u64))
-				 ((x :u64) (y :u64)))
+                                     ((x :u64) (y :u64)))
   (and dest x y))
 
 (define-ppc64-vinsn %natural-logand-high-c (((dest :u64))
