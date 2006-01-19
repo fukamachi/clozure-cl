@@ -258,7 +258,8 @@
     :outgoing-argument			; e.g., pushed as an argument, not to avoid clobbering
     :xref				; makes some label externally visible
     :jump-unknown			; Jumps, but we don't know where ...
-    :constant-ref					 
+    :constant-ref
+    :sets-cc                            ; vinsn sets condition codes based on result
     ))
 
 (defparameter *nvp-max* 10 "size of *vinsn-varparts* freelist elements")
