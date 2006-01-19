@@ -210,6 +210,16 @@
   (pushq (:%q x8664::rbp))
   (movq (:%q x8664::rsp) (:%q x8664::rbp)))
 
+
+(define-x8664-vinsn save-lisp-context-offset (()
+					      ((nbytes-vpushed :s32const))
+					      ((temp :u64)))
+  (leaq (:@ nbytes-vpushed (:%q x8664::rsp)) (:%q temp))
+  (movq (:%q x8664::rbp) (:@ (:%q temp)))
+  (movq (:%q temp) (:%q x8664::rbp))
+  (movq (:% x8664::ra0) (:@ 8 (:%q x8664::rbp))))
+
+
 (define-x8664-vinsn (vpush-register :push :node :vsp)
     (()
      ((reg :lisp)))
@@ -284,12 +294,16 @@
 
 (define-x8664-vinsn trap-unless-fixnum (()
                                         ((object :lisp))
-                                        ((tag :u8)))
-  (movb (:$b x8664::tagmask) (:%b tag))
-  (andb (:%b object) (:%b tag))
+                                        ())
+  (testb (:$b x8664::tagmask) (:%b object))
   (je.pt :ok)
   (uuo-error-reg-not-fixnum (:%q object))
   :ok)
+
+(define-x8664-vinsn set-flags-from-lisptag (()
+                                            ((reg :lisp)))
+  (testb (:$b x8664::tagmask) (:%b reg)))
+                                            
 
 (define-x8664-vinsn trap-unless-typecode= (()
 					   ((object :lisp)
@@ -301,7 +315,7 @@
   (cmovew (:@ x8664::misc-subtag-offset (:%q object)) (:%w tag))
   (cmpb (:$b tagval) (:%b tag))
   (je.pt :ok)
-  (uuo-error-reg-not-type (:%q object) (:$ub tagval))
+  (uuo-error-reg-not-tag (:%q object) (:$ub tagval))
   :ok)
 
 
@@ -344,3 +358,128 @@
 (define-x8664-vinsn (load-t :constant-ref) (((dest t))
 					    ())
   (movq (:$l x8664::t-value) (:%q dest)))
+
+
+(define-x8664-vinsn extract-tag (((tag :u8))
+                                 ((object :lisp)))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag)))
+
+(define-x8664-vinsn extract-tag-fixnum (((tag :imm))
+					((object :lisp)))
+  (leal (:@ (:%q object) 8) (:%l tag))
+  (andl (:$b (ash x8664::tagmask x8664::fixnumshift)) (:%l tag)))
+
+(define-x8664-vinsn extract-fulltag (((tag :u8))
+                                 ((object :lisp)))
+  (movb (:$b x8664::fulltagmask) (:%b tag))
+  (andb (:%b object) (:%b tag)))
+
+(define-x8664-vinsn extract-fulltag-fixnum (((tag :imm))
+                                            ((object :lisp)))
+  (leal (:@ (:%q object) 8) (:%l tag))
+  (andl (:$b (ash x8664::fulltagmask x8664::fixnumshift)) (:%l tag)))
+
+(define-x8664-vinsn extract-typecode (((tag :u8))
+                                      ((object :lisp)))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q object)) (:%w tag)))
+
+(define-x8664-vinsn extract-typecode-fixnum (((tag :imm))
+                                             ((object :lisp))
+                                             ((temp :u8)))
+  (movb (:$b x8664::tagmask) (:%b temp))
+  (andb (:%b object) (:%b temp))
+  (cmpb (:$b x8664::tag-misc) (:%b temp))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q object)) (:%w temp))
+  (movzbl (:%b temp) (:%l temp))
+  (leal (:@ (:%q temp) 8) (:%l tag)))
+
+
+(define-x8664-vinsn compare-reg-to-zero (()
+                                         ((reg :imm)))
+  (testq (:%q reg) (:%q reg)))
+
+(define-x8664-vinsn compare-u8-reg-to-zero (()
+                                            ((reg :u8)))
+  (testb (:%b reg) (:%b reg)))
+
+(define-x8664-vinsn cr-bit->boolean (((dest :lisp))
+                                     ((crbit :u8const))
+                                     ((temp :u32)))
+  (setcc (:$ub crbit) (:%b temp))
+  (andl (:$b x8664::t-offset) (:%l temp))
+  (leaq (:@ x8664::nil-value (:%q temp)) (:%q dest)))
+
+#+no                                    ; this is larger than using setcc
+(define-x8664-vinsn cr-bit->boolean (((dest :lisp))
+                                     ((crbit :u8const))
+                                     ((temp :u32)))
+  (movl (:$l x8664::t-value) (:%l temp))
+  (leaq (:@ (- x8664::t-offset) (:%q temp)) (:%q dest))
+  (cmovccq (:$ub crbit) (:%q  temp) (:%q dest)))
+
+(define-x8664-vinsn compare-s32-constant (()
+                                            ((val :imm)
+                                             (const :s32const)))
+  ((:or  (:pred < const 128) (:pred > const 127))
+   (cmpq (:$l const) (:%q val)))
+  ((:not (:or  (:pred < const 128) (:pred > const 127)))
+   (cmpq (:$b const) (:%q val))))
+
+(define-x8664-vinsn compare-u8-constant (()
+                                         ((val :u8)
+                                          (const :u8const)))
+  ((:pred logbitp 7 const)
+   (movzbl (:%b val) (:%l val))
+   (cmpw (:$w const) (:%w val)))
+  ((:not (:pred logbitp 7 const))
+   (cmpb (:$b const) (:%b val))))
+
+
+(define-x8664-vinsn cons (((dest :lisp))
+                          ((car :lisp)
+                           (cdr :lisp)))
+  (subq (:$b (- x8664::cons.size x8664::fulltag-cons)) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr) (:%q x8664::allocptr))
+  (cmpq (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocbase) (:%q x8664::allocptr))
+  (jg :no-trap)
+  (uuo-alloc)
+  :no-trap
+  (andb (:$b (lognot x8664::fulltagmask)) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
+  (movq (:%q car) (:@ x8664::cons.car (:%q x8664::allocptr)))
+  (movq (:%q cdr) (:@ x8664::cons.cdr (:%q x8664::allocptr)))
+  (movq (:%q x8664::allocptr) (:%q dest)))
+
+(define-x8664-vinsn unbox-u8 (((dest :u8))
+			      ((src :lisp)))
+  (movq (:$l (ash #xff x8664::fixnumshift)) (:%q dest))
+  (andq (:% src) (:% dest))
+  (je.pt :ok)
+  (uuo-error-reg-not-type (:%q src) (:$ub arch::error-object-not-unsigned-byte-8))
+  :ok
+  (movq (:%q src) (:%q dest))
+  (shrq (:$ub x8664::fixnumshift) (:%q dest)))
+
+
+(define-x8664-vinsn (jump-subprim :jumpLR) (()
+					    ((spno :s32const)))
+  (jmp (:@ spno)))
+
+
+(define-x8664-vinsn fixnum-subtract-from (((dest t)
+                                           (y t))
+                                          ((y t)
+                                           (x t)))
+  (subq (:%q y) (:%q x)))
+
+(define-x8664-vinsn %logand-c (((dest t)
+                                (val t))
+                               ((val t)
+                                (const :s32const)))
+  ((:and (:pred >= const -128) (:pred <= const 127))
+   (andq (:$b const) (:%q val)))
+  ((:not (:and (:pred >= const -128) (:pred <= const 127)))
+   (andq (:$l const) (:%q val))))
