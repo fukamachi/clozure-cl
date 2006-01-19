@@ -31,6 +31,6 @@ define([uuo2],[
    and we have to look at the immediate registers to determine what's
    being allocated. */
 define([uuo_alloc],[
-        int 0xc4
+	int [$]0xc4
 ])
 				

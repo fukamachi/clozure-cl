@@ -53,7 +53,7 @@ define([save_node_regs],[
 	push %save1
 	push %save2
 	push %save3
-	push %nfn
+	push %ra0
 	push %fn
 ])
 
@@ -62,7 +62,7 @@ define([save_node_regs],[
 		
 define([zero_node_regs],[
 	xor %fn,%fn
-	mov %fn,%nfn
+	mov %fn,%ra0
 	mov %fn,%save3
 	mov %fn,%save2
 	mov %fn,%save1
@@ -76,7 +76,7 @@ define([zero_node_regs],[
 ])	
 define([restore_node_regs],[
 	pop %fn
-	pop %nfn
+	pop %ra0
 	pop %save3
 	pop %save2
 	pop %save1
@@ -152,13 +152,13 @@ define([vrefr],[
 	mov misc_data_offset+($3<<word_shift)($2),$1
 ])	
 
-define([jump_nfn],[
-	jmp *%nfn
+define([jump_fn],[
+	jmp *%fn
 ])
 			
 define([jump_fname],[
-	mov symbol.fcell(%fname),%nfn
-	jump_nfn()
+	mov symbol.fcell(%fname),%fn
+	jump_fn()
 ])	
 	
 define([set_nargs],[
@@ -185,13 +185,13 @@ $1:
 				
 define([do_funcall],[
 	new_macro_labels()
-	lea macro_label(bad)(%rip),%nfn
+	lea macro_label(bad)(%rip),%fn
 	movb %temp0_b,%temp0_b
 	andb $fulltagmask,%temp0_b
 	cmpb $fulltag_symbol,%temp0_b
 	/* %fname == %temp0 */
-	cmoveq symbol.fcell(%fname),%nfn
-	cmovgq %temp0,%nfn
-	jmp *nfn
+	cmoveq symbol.fcell(%fname),%fn
+	cmovgq %temp0,%fn
+	jmp *fn
 	tra(macro_label(bad))
 ])
