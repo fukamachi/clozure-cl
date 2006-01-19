@@ -476,6 +476,25 @@ function to the indicated name is true.")
             (arch::target-slot-unbound-marker-value
              (backend-target-arch *target-backend*))))))))
 
+(defun acode-s32-constant-p (x)
+  (setq x (acode-unwrapped-form x))
+  (if (acode-p x)
+    (let* ((op (acode-operator x)))
+      (if (eql op (%nx1-operator fixnum))
+        (let* ((val (cadr x)))
+          (if (target-word-size-case
+               (32 (typep val '(signed-byte #.(- 32 2))))
+               (64 (typep val '(signed-byte #.(- 32 3)))))
+            (ash val (target-word-size-case
+                      (32 2)
+                      (64 3)))))
+        (if (eql op (%nx1-operator %unbound-marker))
+          (arch::target-unbound-marker-value
+           (backend-target-arch *target-backend*))
+          (if (eql op (%nx1-operator %slot-unbound-marker))
+            (arch::target-slot-unbound-marker-value
+             (backend-target-arch *target-backend*))))))))
+
 (defun acode-fixnum-type-p (form trust-decls)
   (or (acode-fixnum-form-p form)
       (and trust-decls
