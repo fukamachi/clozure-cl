@@ -90,7 +90,7 @@
       (extract-typecode ,node ,immreg)
       (cmpb ($ ,tag) (%b ,immreg))
       (je.pt ,ok)
-      (uuo-error-reg-not-type (% ,node) ($ ,tag))
+      (uuo-error-reg-not-tag (% ,node) ($ ,tag))
       ,ok)))
 
 (defx86lapmacro trap-unless-fulltag= (node tag &optional (immreg 'imm0))
@@ -99,7 +99,7 @@
       (extract-fulltag ,node ,immreg)
       (cmpb ($ ,tag) (%b ,immreg))
       (je.pt ,ok)
-      (uuo-error-reg-not-type (% ,node) ($ ,tag))
+      (uuo-error-reg-not-tag (% ,node) ($ ,tag))
       ,ok)))
 
 (defx86lapmacro trap-unless-lisptag= (node tag &optional (immreg 'imm0))
@@ -108,7 +108,7 @@
       (extract-lisptag ,node ,immreg)
       (cmpb ($ ,tag) (%b ,immreg))
       (je.pt ,ok)
-      (uuo-error-reg-not-type (% ,node) ($ ,tag))
+      (uuo-error-reg-not-tag (% ,node) ($ ,tag))
       ,ok)))
 
 ;;; On x8664, NIL has its own tag, so no other lisp object can
