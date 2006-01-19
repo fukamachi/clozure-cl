@@ -1,3 +1,15 @@
+2006-01-18 20:29  gb
+
+	* lisp-kernel/: x86-macros.s, x86-uuo.s: Register renumbering.	New
+	consing/uuo scheme.  (Looked at other strategies, including a
+	spin-lock on a global heap with yield()ing.  The per-thread memory
+	pool scheme seems to win.  Big.  So we have to know how to
+	interrupt it.)
+
+2006-01-18 20:26  gb
+
+	* lisp-kernel/x86-constants64.h: Register renumbering.
+
 2006-01-18 13:07  gb
 
 	* lisp-kernel/x86-asmutils64.s: Add missing colon after label.
