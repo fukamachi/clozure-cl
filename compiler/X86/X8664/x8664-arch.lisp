@@ -156,10 +156,10 @@
 (defx86reg imm0.w ax)
 (defx86reg imm0.b al)
 
-(defx86reg temp0 rbx)
-(defx86reg temp0.l ebx)
-(defx86reg temp0.w bx)
-(defx86reg temp0.b bl)
+(defx86reg arg_z rbx)
+(defx86reg arg_z.l ebx)
+(defx86reg arg_z.w bx)
+(defx86reg arg_z.b bl)
 
 (defx86reg temp1 rcx)
 (defx86reg temp1.l ecx)
@@ -181,10 +181,10 @@
 (defx86reg ra0.w di)
 (defx86reg ra0.b dil)
 
-(defx86reg arg_z r8)
-(defx86reg arg_z.l r8d)
-(defx86reg arg_z.w r8w)
-(defx86reg arg_z.b r8b)
+(defx86reg temp0 r8)
+(defx86reg temp0.l r8d)
+(defx86reg temp0.w r8w)
+(defx86reg temp0.b r8b)
 
 (defx86reg arg_y r9)
 (defx86reg arg_y.l r9d)
