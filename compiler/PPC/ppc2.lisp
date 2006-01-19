@@ -3128,8 +3128,8 @@
                 ;; This is the "GPR <- GPR" case.  There are
                 ;; word-size dependencies, but there's also
                 ;; lots of redundancy here.
-                (target-arch-case
-                 (:ppc32
+                (target-word-size-case
+                 (32
                   (case dest-mode
                     (#.hard-reg-class-gpr-mode-node ; boxed result.
                      (case src-mode
@@ -3226,7 +3226,7 @@
                        (t
                         (unless (eql dest-gpr src-gpr)
                           (! copy-gpr dest src)))))))
-                 (:ppc64
+                 (64
                   (case dest-mode
                     (#.hard-reg-class-gpr-mode-node ; boxed result.
                      (case src-mode
