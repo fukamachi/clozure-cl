@@ -955,85 +955,85 @@
     (let* ((explicit-seg-prefix (x86::x86-instruction-seg-prefix insn)))
       (when explicit-seg-prefix
         (push explicit-seg-prefix prefixes)))
-      (cond
-        ((logtest (x86::encode-opcode-modifier :jump) opcode-modifier)
-         ;; a variable-length pc-relative branch, possibly preceded
-         ;; by prefixes (used for branch prediction, mostly.)
-         (x86-output-branch frag-list insn))
-          (t
-           (let* ((base-opcode (x86::x86-instruction-base-opcode insn)))
-             (declare (fixnum base-opcode))
-             (dolist (b prefixes)
-               (frag-list-push-byte frag-list b))
-             (let* ((rex-bits (logand #xf
-                                      (or (x86::x86-instruction-rex-prefix insn)
-                                          0))))
-               (declare (fixnum rex-bits))
-               (unless (= 0 rex-bits)
-                 (frag-list-push-byte frag-list (logior #x40 rex-bits))))
-             (when (logtest base-opcode #xff00)
-               (frag-list-push-byte frag-list (ldb (byte 8 8) base-opcode)))
-             (frag-list-push-byte frag-list (ldb (byte 8 0) base-opcode)))
-           (let* ((modrm (x86::x86-instruction-modrm-byte insn)))
-             (when modrm
-               (frag-list-push-byte frag-list modrm)
-               (let* ((sib (x86::x86-instruction-sib-byte insn)))
-                 (when sib
-                   (frag-list-push-byte frag-list sib)))))
-           (let* ((disp (x86::x86-instruction-disp insn)))
-             (when disp
-               (let* ((optype (x86::x86-instruction-extra insn))
-                      (val (early-x86-lap-expression-value disp)))
-                 (if (null val)
-                   ;; We can do better job here, but (for now)
-                   ;; generate a 32-bit relocation
-                   (let* ((frag (frag-list-current frag-list))
-                          (pos (frag-list-position frag-list)))
-                     (push (make-reloc :type :expr32
-                                       :arg disp
-                                       :frag frag
-                                       :pos pos)
-                           (frag-relocs frag))
-                     (frag-list-push-32 frag-list 0))
-                   (if (logtest optype (x86::encode-operand-type :disp8))
-                     (frag-list-push-byte frag-list (logand val #xff))
-                     (if (logtest optype (x86::encode-operand-type :disp32 :disp32s))
-                       (frag-list-push-32 frag-list val)
-                       (frag-list-push-64 frag-list val)))))))
-           ;; Emit immediate operand(s).
-           (let* ((op (x86::x86-instruction-imm insn)))
-             (when op
-               (let* ((optype (x86::x86-operand-type op))
-                      (expr (x86::x86-immediate-operand-value op))
-                      (val (early-x86-lap-expression-value expr)))
-                 (if (null val)
-                   (let* ((frag (frag-list-current frag-list))
-                          (pos (frag-list-position frag-list))
-                          (size 4)
-                          (reloctype :expr32))
-                     (when (logtest optype
-                                    (x86::encode-operand-type
-                                     :imm8 :imm8S :imm16 :imm64))
-                       (setq size 2 reloctype :expr16)
-                       (if (logtest optype (x86::encode-operand-type
-                                            :imm8 :imm8s))
-                         (setq size 1 reloctype :expr8)
-                         (if (logtest optype (x86::encode-operand-type :imm64))
-                           (setq size 8 reloctype :expr64))))
-                     (push (make-reloc :type reloctype
-                                       :arg expr
-                                       :frag frag
-                                       :pos pos)
-                           (frag-relocs frag))
-                     (dotimes (b size)
-                       (frag-list-push-byte frag-list 0)))
-                   (if (logtest optype (x86::encode-operand-type :imm8 :imm8s))
-                     (frag-list-push-byte frag-list (logand val #xff))
-                     (if (logtest optype (x86::encode-operand-type :imm16))
-                       (frag-list-push-16 frag-list (logand val #xffff))
-                       (if (logtest optype (x86::encode-operand-type :imm64))
-                         (frag-list-push-64 frag-list val)
-                         (frag-list-push-32 frag-list val))))))))))))
+    (cond
+      ((logtest (x86::encode-opcode-modifier :jump) opcode-modifier)
+       ;; a variable-length pc-relative branch, possibly preceded
+       ;; by prefixes (used for branch prediction, mostly.)
+       (x86-output-branch frag-list insn))
+      (t
+       (let* ((base-opcode (x86::x86-instruction-base-opcode insn)))
+         (declare (fixnum base-opcode))
+         (dolist (b prefixes)
+           (frag-list-push-byte frag-list b))
+         (let* ((rex-bits (logand #xf
+                                  (or (x86::x86-instruction-rex-prefix insn)
+                                      0))))
+           (declare (fixnum rex-bits))
+           (unless (= 0 rex-bits)
+             (frag-list-push-byte frag-list (logior #x40 rex-bits))))
+         (when (logtest base-opcode #xff00)
+           (frag-list-push-byte frag-list (ldb (byte 8 8) base-opcode)))
+         (frag-list-push-byte frag-list (ldb (byte 8 0) base-opcode)))
+       (let* ((modrm (x86::x86-instruction-modrm-byte insn)))
+         (when modrm
+           (frag-list-push-byte frag-list modrm)
+           (let* ((sib (x86::x86-instruction-sib-byte insn)))
+             (when sib
+               (frag-list-push-byte frag-list sib)))))
+       (let* ((disp (x86::x86-instruction-disp insn)))
+         (when disp
+           (let* ((optype (x86::x86-instruction-extra insn))
+                  (val (early-x86-lap-expression-value disp)))
+             (if (null val)
+               ;; We can do better job here, but (for now)
+               ;; generate a 32-bit relocation
+               (let* ((frag (frag-list-current frag-list))
+                      (pos (frag-list-position frag-list)))
+                 (push (make-reloc :type :expr32
+                                   :arg disp
+                                   :frag frag
+                                   :pos pos)
+                       (frag-relocs frag))
+                 (frag-list-push-32 frag-list 0))
+               (if (logtest optype (x86::encode-operand-type :disp8))
+                 (frag-list-push-byte frag-list (logand val #xff))
+                 (if (logtest optype (x86::encode-operand-type :disp32 :disp32s))
+                   (frag-list-push-32 frag-list val)
+                   (frag-list-push-64 frag-list val)))))))
+       ;; Emit immediate operand(s).
+       (let* ((op (x86::x86-instruction-imm insn)))
+         (when op
+           (let* ((optype (x86::x86-operand-type op))
+                  (expr (x86::x86-immediate-operand-value op))
+                  (val (early-x86-lap-expression-value expr)))
+             (if (null val)
+               (let* ((frag (frag-list-current frag-list))
+                      (pos (frag-list-position frag-list))
+                      (size 4)
+                      (reloctype :expr32))
+                 (when (logtest optype
+                                (x86::encode-operand-type
+                                 :imm8 :imm8S :imm16 :imm64))
+                   (setq size 2 reloctype :expr16)
+                   (if (logtest optype (x86::encode-operand-type
+                                        :imm8 :imm8s))
+                     (setq size 1 reloctype :expr8)
+                     (if (logtest optype (x86::encode-operand-type :imm64))
+                       (setq size 8 reloctype :expr64))))
+                 (push (make-reloc :type reloctype
+                                   :arg expr
+                                   :frag frag
+                                   :pos pos)
+                       (frag-relocs frag))
+                 (dotimes (b size)
+                   (frag-list-push-byte frag-list 0)))
+               (if (logtest optype (x86::encode-operand-type :imm8 :imm8s))
+                 (frag-list-push-byte frag-list (logand val #xff))
+                 (if (logtest optype (x86::encode-operand-type :imm16))
+                   (frag-list-push-16 frag-list (logand val #xffff))
+                   (if (logtest optype (x86::encode-operand-type :imm64))
+                     (frag-list-push-64 frag-list val)
+                     (frag-list-push-32 frag-list val))))))))))))
 
 (defun x86-lap-directive (frag-list directive arg)
   (if (eq directive :tra)
@@ -1335,7 +1335,7 @@
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
     (emit-x86-lap-label frag-list end-code-tag)
-    (dolist (c *x86-lap-constants*)
+    (dolist (c (reverse *x86-lap-constants*))
       (emit-x86-lap-label frag-list (x86-lap-label-name (cdr c)))
       (x86-lap-directive frag-list :quad 0))
     (when name
