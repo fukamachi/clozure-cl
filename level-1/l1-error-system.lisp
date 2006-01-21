@@ -589,15 +589,15 @@
 (defun %last-fn-on-stack (&optional (number 0) (s (%get-frame-ptr)))
   (let* ((fn nil))
     (let ((p s))
-      (tagbody
-        (dotimes (i number)
-          (declare (fixnum i))
-          (unless (setq p (parent-frame p nil))
-            (go done)))
-        (if  p
-          (setq fn (cfp-lfun p)))
-        done))
-    fn))
+      (dotimes (i number)
+        (declare (fixnum i))
+        (unless (setq p (parent-frame p nil))
+          (return)))
+      (do* ((i number (1+ i)))
+           ((null p))
+        (if (setq fn (cfp-lfun p))
+          (return (values fn i))
+          (setq p (parent-frame p nil)))))))
  
 (defun %err-fn-name (lfun)
   "given an lfun returns the name or the string \"Unknown\""
@@ -605,10 +605,11 @@
      (or lfun "Unknown")))
 
 (defun %real-err-fn-name (error-pointer)
-  (let ((name (%err-fn-name (%last-fn-on-stack 0 error-pointer))))
-    (if (memq name '(event-dispatch call-check-regs))
-      (%err-fn-name (%last-fn-on-stack 1 error-pointer))
-      name)))
+  (multiple-value-bind (fn p) (%last-fn-on-stack 0 error-pointer)
+    (let ((name (%err-fn-name fn)))
+      (if (and (memq name '( call-check-regs)) p)
+        (%err-fn-name (%last-fn-on-stack (1+ p) error-pointer))
+        name))))
 
 
 ;; Some simple restarts for simple error conditions.  Callable from the kernel.
