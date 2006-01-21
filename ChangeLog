@@ -1,3 +1,11 @@
+2006-01-21 11:48  gb
+
+	* examples/hons-example.lisp: Fix
+	LARGEST-PRIME-LESS-THAN-OR-EQUAL-TO in the case where the arg is a
+	prime.
+	
+	In HONS, don't wander around looking for new honses in old tables.
+
 2006-01-20 18:57  gb
 
 	* level-1/version.lisp: bump.
