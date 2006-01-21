@@ -746,7 +746,10 @@
     (cerror (format nil
 		    "Remove ~d method~:p from the generic-function and change its lambda list."
 		    (length (%gf-methods gf)))
-	    "Incompatible lambda list in ~S for ~S" method gf)
+	    "Lambda list of method ~S ~%~
+is incompatible with that of the generic function ~S.~%~
+Method's lambda-list : ~s~%~
+Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-method-lambda-list (%method-lambda-list method)) (generic-function-lambda-list gf))
     (loop
       (let ((methods (%gf-methods gf)))
         (if methods
