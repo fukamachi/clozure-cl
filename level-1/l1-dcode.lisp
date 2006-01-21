@@ -67,6 +67,16 @@
     (not (and (logbitp $lfbits-aok-bit bits)
 	      (not (logbitp $lfbits-keys-bit bits))))))
 
+;;; Derive a GF lambda list from the method's lambda list.
+(defun flatten-method-lambda-list (lambda-list)
+  (collect ((ll))
+    (dolist (x lambda-list (ll))
+      (if (atom x)
+        (if (eq x '&aux)
+          (return (ll))
+          (ll x))
+        (ll (car x))))))
+          
 (defun %maybe-compute-gf-lambda-list (gf method)
   (let* ((gf-ll (sgf.%lambda-list gf)))
     (if (eq gf-ll :unspecified)
@@ -79,7 +89,7 @@
                (nconc (ldiff method-lambda-list (cdr method-has-&key))
                       (if method-has-&allow-other-keys
                         '(&allow-other-keys)))
-               method-lambda-list)))
+               (flatten-method-lambda-list method-lambda-list))))
       gf-ll)))
              
              
