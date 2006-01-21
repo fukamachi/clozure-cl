@@ -101,7 +101,7 @@
   (process-interrupt p
 		     #'(lambda ()
 			 (ignoring-without-interrupts 
-			  (break)
+			  (%break-in-frame *fake-stack-frames* "interrupt signal")
 			  (clear-input *terminal-io*)))))
 
 
