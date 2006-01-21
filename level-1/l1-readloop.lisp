@@ -160,13 +160,6 @@
     ))
 
 
-(defun error-header (kind)
-  (let ((pname (process-name *current-process*)))
-    (if (and pname (not (string-equal pname *main-listener-process-name*)))
-      (format nil "~A in process ~A(~d)" kind pname
-	      (process-serial-number *current-process*))
-      (format nil "~A" kind))))
-
 (defun signal (condition &rest args)
   "Invokes the signal facility on a condition formed from DATUM and
    ARGUMENTS. If the condition is not handled, NIL is returned. If
