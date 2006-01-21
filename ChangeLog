@@ -1,3 +1,46 @@
+2006-01-20 18:57  gb
+
+	* level-1/version.lisp: bump.
+
+2006-01-20 18:56  gb
+
+	* level-1/l1-readloop.lisp: No more ERROR-HEADER.
+
+2006-01-20 18:50  gb
+
+	* level-1/l1-readloop-lds.lisp: Don't use ERROR-HEADER, since error
+	messages are now formatted differently.
+
+2006-01-20 18:49  gb
+
+	* level-1/l1-init.lisp: *MAIN-LISTENER-PROCESS-NAME* hasn't been
+	correct in years, isn't used now.
+
+2006-01-20 18:48  gb
+
+	* level-1/l1-events.lisp: Call %break-in-frame in response to a
+	keyboard interrupt.
+
+2006-01-20 18:47  gb
+
+	* level-1/l1-error-system.lisp: Some stack-walking changes, so
+	error message contexts are often more meaningful.
+
+2006-01-20 18:45  gb
+
+	* level-1/l1-dcode.lisp: Define FLATTEN-METHOD-LAMBDA-LIST, which
+	removes initforms from the lambda list (making it more suitable for
+	use as a gf lambda list).
+
+2006-01-20 18:43  gb
+
+	* level-1/l1-clos-boot.lisp: Change error reporting in
+	CHECK-DEFMETHOD-CONGRUENCY.
+
+2006-01-20 18:41  gb
+
+	* compiler/backend.lisp: Lose extra comma.
+
 2006-01-19 13:13  gb
 
 	* lib/numbers.lisp: Check for null expt in PARSE-FLOAT.
