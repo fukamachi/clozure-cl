@@ -29,8 +29,10 @@
                            ((> i max) t)
                         (when (zerop (mod n i))
                           (return nil))))))))
-           (do* ((m (if (oddp n) (- n 2) (- n 1)) (- m 2)))
-                ((primep m) m))))
+    (if (primep n)
+      n
+      (do* ((m (if (oddp n) (- n 2) (- n 1)) (- m 2)))
+           ((primep m) m)))))
 
 
 ;;; A "hons-table" just represents a range of indices in a
@@ -131,7 +133,7 @@ Returns a CONS if a match is found, a fixnum index otherwise."
   (do* ((size (hons-table-size ht))
         (start (hons-table-start-index ht))
         (end (+ start size))
-        (idx (+ start (the fixnum (ccl::fast-mod hash size))) (+ idx 113))
+        (idx (+ start (the fixnum (ccl::fast-mod hash size))) (+ idx (ash size -2)))
         (first-deleted-index nil))
        ()
     (declare (fixnum start end size idx))
@@ -176,16 +178,22 @@ Returns a CONS if a match is found, a fixnum index otherwise."
             (progn
               (setq active-idx h)
               nil)))
-        (dolist (table tables)
-          (when (typep (setq h (hons-table-get table hash car cdr)) 'cons)
-            (return h)))
+        (let* ((cdr-is-hons (openmcl-hons:honsp cdr)))
+          (dolist (table tables)
+            (when (and cdr-is-hons
+                       (>= cdr-is-hons (hons-table-end-index table)))
+              (return))
+            (when (typep (setq h (hons-table-get table hash car cdr)) 'cons)
+              (return h))))
         (when (< (hons-table-used active-table)
                  (hons-table-max active-table))
           (incf (hons-table-used active-table))
           (openmcl-hons:hons-space-cons active-idx car cdr))
         (progn
-          (make-hons-table *secondary-hons-table-size*)
-          (hons car cdr)))))
+          (let* ((new (make-hons-table *secondary-hons-table-size*))
+                 (new-idx (hons-table-get new hash car cdr)))
+            (incf (hons-table-used new))
+            (openmcl-hons:hons-space-cons new-idx car cdr))))))
 
 
 ;;; Some utilities.
