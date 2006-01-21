@@ -311,7 +311,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
       (let ((hook *debugger-hook*)
             (*debugger-hook* nil))
         (funcall hook condition hook)))
-    (%break-message (error-header "Error") condition error-pointer)
+    (%break-message "Error" condition error-pointer)
     (with-terminal-input
       (let* ((s *error-output*))
 	(dolist (bogusness bogus-globals)
@@ -325,14 +325,17 @@ whose name or ID matches <p>, or to any process if <p> is null"
 	(break-loop condition error-pointer)
 	(abort)))))
 
-(defun break (&optional string &rest args &aux (fp (%get-frame-ptr)))
+(defun break (&optional string &rest args)
   "Print a message and invoke the debugger without allowing any possibility
    of condition handling occurring."
+  (apply #'%break-in-frame (%get-frame-ptr) string args))
+
+(defun %break-in-frame (fp &optional string &rest args)
   (flet ((do-break-loop ()
            (let ((c (make-condition 'simple-condition
                                     :format-control (or string "")
                                     :format-arguments args)))
-             (cbreak-loop (error-header "Break") "Return from BREAK." c fp))))
+             (cbreak-loop "Break" "Return from BREAK." c fp))))
     (cond ((%i> (interrupt-level) -1)
            (do-break-loop))
           (*break-loop-when-uninterruptable*
@@ -344,6 +347,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
 		    (do-break-loop))
 	       (setf (interrupt-level) interrupt-level))))
           (t (format *error-output* "Break while interrupt-level less than zero; ignored.")))))
+
 
 (defun invoke-debugger (condition &aux (fp (%get-frame-ptr)))
   "Enter the debugger."
@@ -376,10 +380,11 @@ whose name or ID matches <p>, or to any process if <p> is null"
     (report-condition condition s)
     (if (not (and (typep condition 'simple-program-error)
                   (simple-program-error-context condition)))
-      (format *error-output* "~&~A~%~A While executing: ~S~%"
+      (format *error-output* "~&~A~%~A While executing: ~S"
               (get-output-stream-string s) prefixchar (%real-err-fn-name error-pointer))
-      (format *error-output* "~&~A~%"
+      (format *error-output* "~&~A"
               (get-output-stream-string s)))
+    (format *error-output* ", in process ~a(~d).~%" (process-name *current-process*) (process-serial-number *current-process*))
   (force-output *error-output*)))
 					; returns NIL
 
