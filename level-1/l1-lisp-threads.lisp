@@ -561,14 +561,11 @@
 ;;; Backtrace support
 ;;;
 
-; Linked list of fake stack frames.
-; %frame-backlink looks here
+;;; Linked list of fake stack frames.
+;;; %frame-backlink looks here
 (def-standard-initial-binding *fake-stack-frames* nil)
-
-
   
-(defmacro %cons-fake-stack-frame (&optional sp next-sp fn lr vsp link)
-  `(%istruct 'fake-stack-frame ,sp ,next-sp ,fn ,lr ,vsp ,link))
+
 
 
 
