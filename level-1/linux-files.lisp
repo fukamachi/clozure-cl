@@ -64,7 +64,7 @@ atomically decremented."
   (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0 whostate flag)
   t)
 
-(defun timed-wait-on-semaphore (s duration)
+(defun timed-wait-on-semaphore (s duration &optional notification)
   "Wait until the given semaphore has a postive count which can be
 atomically decremented, or until a timeout expires."
   (multiple-value-bind (secs nanos) (nanoseconds duration)
@@ -74,11 +74,11 @@ atomically decremented, or until a timeout expires."
                     (ceiling nanos 1000000))))
       (loop
         (multiple-value-bind (success err)
-            (%wait-on-semaphore-ptr (semaphore-value s) secs nanos)
+            (%wait-on-semaphore-ptr (semaphore-value s) secs nanos notification)
           (when success
             (return t))
           (when (or (not (eql err #$EINTR))
-                    (>= (setq now (get-internal-run-time)) stop))
+                    (>= (setq now (get-internal-real-time)) stop))
             (return nil))
           (unless (zerop duration)
             (let* ((diff (- stop now)))
