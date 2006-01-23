@@ -1794,9 +1794,9 @@
      #xc6 #o000 0)
   
    ;; movd
-   (def-x8664-opcode movd ((:reg64 :insert-modrm-reg) (:regmmx :insert-mmx-rm))
+   (def-x8664-opcode movd ((:reg64 :insert-modrm-rm) (:regmmx :insert-mmx-reg))
      #x0f6e #o300 #x48)
-   (def-x8664-opcode movd ((:reg32 :insert-modrm-reg) (:regmmx :insert-mmx-rm))
+   (def-x8664-opcode movd ((:reg32 :insert-modrm-rm) (:regmmx :insert-mmx-reg))
      #x0f6e #o300 0)
    (def-x8664-opcode movd ((:anymem :insert-memory) (:regmmx :insert-mmx-reg))
      #x0f6e #o000 0)
@@ -1807,9 +1807,9 @@
    (def-x8664-opcode movd ((:regmmx :insert-mmx-reg) (:anymem :insert-memory))
      #x0f7e #o000 #x0)
 
-   (def-x8664-opcode movd ((:reg64 :insert-modrm-reg) (:regxmm :insert-xmm-rm))
+   (def-x8664-opcode movd ((:reg64 :insert-modrm-rm) (:regxmm :insert-xmm-reg))
      #x0f6e #o300 #x48 #x66)
-   (def-x8664-opcode movd ((:reg32 :insert-modrm-reg) (:regxmm :insert-xmm-rm))
+   (def-x8664-opcode movd ((:reg32 :insert-modrm-rm) (:regxmm :insert-xmm-reg))
      #x0f6e #o300 0 #x66)
    (def-x8664-opcode movd ((:anymem :insert-memory) (:regxmm :insert-xmm-reg))
      #x0f6e #o000 0 #x66)
@@ -4114,9 +4114,19 @@
       (setf (x86-instruction-rex-prefix instruction)
             (logior +rex-extx+ (need-rex-prefix instruction))))))
 
+
+
 (defun insert-modrm-reg (instruction operand)
   (insert-modrm-reg-entry instruction (x86-register-operand-entry operand)))
 
+(defun insert-mmx-reg-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry)))
+    (setf (x86-instruction-modrm-byte instruction)
+          (dpb reg-num (byte 3 3)
+               (need-modrm-byte instruction)))))
+
+(defun insert-mmx-reg (instruction operand)
+  (insert-mmx-reg-entry instruction (x86-register-operand-entry operand)))
 
 (defun insert-xmm-reg (instruction operand)
   (insert-modrm-reg instruction operand))
@@ -4170,6 +4180,14 @@
 
 (defun insert-modrm-rm (instruction operand)
   (insert-modrm-rm-entry instruction (x86-register-operand-entry operand)))
+
+(defun insert-mmx-rm-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry)))
+    (setf (x86-instruction-modrm-byte instruction)
+          (dpb reg-num (byte 3 0) (need-modrm-byte instruction)))))
+
+(defun insert-mmx-rm (instruction operand)
+  (insert-mmx-rm-entry instruction (x86-register-operand-entry operand)))
 
 (defun insert-imm32s (instruction operand)
   (setf (x86-immediate-operand-type operand)
