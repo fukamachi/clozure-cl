@@ -324,11 +324,9 @@
   (x86-dis-make-reg-operand (svref x86::*x86-float-regs* (x86-ds-rm ds))))
 
 (defun op-indire (ds bytemode sizeflag)
-  (when (and (zerop (x86-ds-prefixes ds))
-             (zerop (x86-ds-rex ds)))
-    (setf (x86-ds-rex ds) #x48))
-  (let* ((op (op-e ds bytemode sizeflag)))
-     op))
+  (when (zerop (x86-ds-prefixes ds))
+    (setf (x86-ds-rex ds) (logior #x48 (x86-ds-rex ds))))
+  (op-e ds bytemode sizeflag))
 
 
 (defun op-e (ds bytemode sizeflag)
@@ -1642,7 +1640,7 @@
     (make-x86-dis "callT" 'op-indire +v-mode+)
     (make-x86-dis "JcallT" 'op-indire +f-mode+)
     (make-x86-dis '("jmpT" . :jump) 'op-indire +v-mode+)
-    (make-x86-dis '("JjmpT" . :jump) 'indire +f-mode+)
+    (make-x86-dis '("JjmpT" . :jump) 'op-indire +f-mode+)
     (make-x86-dis "pushU" 'op-e +v-mode+)
     (make-x86-dis "(bad)"))
    ;; GRP6
@@ -2283,18 +2281,23 @@
              (if (typep thing 'x86::x86-register-operand)
                (let* ((entry (x86::x86-register-operand-entry thing)))
                  (eq entry (if (x86-ds-mode-64 ds)
-                             (x86::x86-reg64 6)
+                             (x86::x86-reg64 13)
                              (x86::x86-reg32 6))))))
            (is-ra0 (thing)
              (if (typep thing 'x86::x86-register-operand)
                (let* ((entry (x86::x86-register-operand-entry thing)))
                  (eq entry (if (x86-ds-mode-64 ds)
-                             (x86::x86-reg64 7)
+                             (x86::x86-reg64 10)
                              (x86::x86-reg32 7))))))
            (is-constant-imm (thing)
              (and (typep thing 'x86::x86-immediate-operand)
                   (early-x86-lap-expression-value
-                   (x86::x86-immediate-operand-value thing)))))
+                   (x86::x86-immediate-operand-value thing))))
+           (is-disp-only (thing)
+             (and (typep thing 'x86::x86-memory-operand)
+                  (null (x86::x86-memory-operand-base thing))
+                  (null (x86::x86-memory-operand-index thing))
+                  (x86::x86-memory-operand-disp thing))))
       (flet ((is-fn-ea (thing)
                (and (typep thing 'x86::x86-memory-operand)
                     (is-fn (x86::x86-memory-operand-base thing))
@@ -2302,36 +2305,41 @@
                     (let* ((scale (x86::x86-memory-operand-scale thing)))
                       (or (null scale) (eql 0 scale)))
                     (let* ((disp (x86::x86-memory-operand-disp thing)))
+                      (and disp (early-x86-lap-expression-value disp)))))
+             (is-ra0-ea (thing)
+               (and (typep thing 'x86::x86-memory-operand)
+                    (is-ra0 (x86::x86-memory-operand-base thing))
+                    (null (x86::x86-memory-operand-index thing))
+                    (let* ((scale (x86::x86-memory-operand-scale thing)))
+                      (or (null scale) (eql 0 scale)))
+                    (let* ((disp (x86::x86-memory-operand-disp thing)))
                       (and disp (early-x86-lap-expression-value disp))))))
         (case flag
           ;; Should also check alignment here, and check
-          ((:addi32 :addi64)
-           (let* ((imm (is-constant-imm op0)))
-             (when (and imm (> imm 0) (is-fn op1))
-               (let* ((label-ea (+ entry-ea imm)))
+          
+          (:lea
+           (let* ((disp ))
+             (when (or (and (setq disp (is-fn-ea op0)) (> disp 0) (is-ra0 op1))
+                       (and (setq disp (is-ra0-ea op0)) (< disp 0) (is-fn op1)))
+               (let* ((label-ea (+ entry-ea (abs disp))))
                  (when (< label-ea (x86-ds-code-limit ds))
-                   (setf (x86::x86-immediate-operand-value op0)
-                         (parse-x86-lap-expression
-                          `(:^ ,label-ea)))
-                   (push label-ea (x86-ds-pending-labels ds)))))))
-          ((:subi32 :subi64)
-           (let* ((imm (is-constant-imm op0)))
-             (when (and imm (< imm 0) (is-fn op1))
-               (let* ((label-ea (+ entry-ea (- imm))))
-                 (when (< label-ea (x86-ds-code-limit ds))
-                   (setf (x86::x86-immediate-operand-value op0)
-                         (parse-x86-lap-expression
-                          `(:^ ,label-ea)))
-               (push label-ea (x86-ds-pending-labels ds)))))))
-      (:lea
-       (let* ((disp (is-fn-ea op0)))
-         (when (and disp (> disp 0) (is-ra0 op1))
-           (let* ((label-ea (+ entry-ea disp)))
-             (when (< label-ea (x86-ds-code-limit ds))
                    (setf (x86::x86-memory-operand-disp op0)
                          (parse-x86-lap-expression
-                          `(:^ ,label-ea)))
-                   (push label-ea (x86-ds-pending-labels ds))))))))))
+                          (if (< disp 0)
+                            `(- (:^ ,label-ea))
+                            `(:^ ,label-ea))))
+                   (push label-ea (x86-ds-pending-labels ds)))))))
+          (:jump
+           (let* ((disp (is-disp-only op0)))
+             (when disp
+               (let* ((info (find (early-x86-lap-expression-value disp)
+                                  x8664::*x8664-subprims*
+                                  :key #'subprimitive-info-offset)))
+                 (when info (setf (x86::x86-memory-operand-disp op0)
+                                  (make-constant-x86-lap-expression 
+                                   :value (subprimitive-info-name info))))))))
+
+          )))
     instruction))
 
 (defun x86-disassemble-instruction (ds labeled)
@@ -2555,7 +2563,7 @@
     (if (and base
              (eq (x86::x86-register-operand-entry base)
                  (if (x86-ds-mode-64 ds)
-                   (x86::x86-reg64 6)
+                   (x86::x86-reg64 13)
                    (x86::x86-reg32 6)))
              (null index)
              (or (eql scale 0) (null scale))
