@@ -19,6 +19,10 @@
 
 (in-package "CCL")
 
+#-ppc-target
+(eval-when (:compile-toplevel)
+  (warn "A lot of this is PPC-specific.  Conditionalize, or split up somehow."))
+
 (defparameter *backtrace-show-internal-frames* nil)
 (defparameter *backtrace-print-level* 2)
 (defparameter *backtrace-print-length* 5)
@@ -225,14 +229,16 @@
      (do* ((child (child-frame cfp context)
                   (child-frame child context)))
           ((null child))
-       (multiple-value-bind (lfun pc)
-           (cfp-lfun child)
-         (when lfun
-           (multiple-value-bind (mask where)
-               (registers-used-by lfun pc)
-             (when (if mask (logbitp index mask))
-               (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
-               (return (raw-frame-ref child context where bad)))))))
+       (if (fake-stack-frame-p child)
+         (return (xp-gpr-lisp (%fake-stack-frame.xp child) regval))
+         (multiple-value-bind (lfun pc)
+             (cfp-lfun child)
+           (when lfun
+             (multiple-value-bind (mask where)
+                 (registers-used-by lfun pc)
+               (when (if mask (logbitp index mask))
+                 (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+                 (return (raw-frame-ref child context where bad))))))))
      (get-register-value nil last-catch index))))
     
 
