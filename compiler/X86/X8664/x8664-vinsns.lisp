@@ -73,10 +73,16 @@
 
 (define-x8664-vinsn misc-ref-c-s64  (((dest :s64))
 				     ((v :lisp)
-				      (idx :u32const)) ; sic
+				      (idx :s32const)) ; sic
 				     ())
   (movq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%q dest)))
 
+
+(define-x8664-vinsn misc-ref-c-u8  (((dest :u64))
+				     ((v :lisp)
+				      (idx :s32const)) ; sic
+				     ())
+  (movzbq (:@ (:apply + x8664::misc-data-offset idx) (:%q v)) (:%q dest)))
 
 (define-x8664-vinsn misc-set-u64 (()
                                   ((val :u64)
@@ -228,7 +234,7 @@
 (define-x8664-vinsn vframe-load (((dest :lisp))
 				 ((frame-offset :u16const)
 				  (cur-vsp :u16const)))
-  (movq (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp))        (:%q dest)))
+  (movq (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp)) (:%q dest)))
 
 (define-x8664-vinsn (popj :lispcontext :pop :csp :lrRestore :jumpLR)
     (() 
@@ -273,7 +279,7 @@
                                          ((intval :s64const))
                                          ())
   ((:pred = intval 0)
-   (xorq (:%q dest) (:%q dest)))
+   (xorl (:%l dest) (:%l dest)))
   ((:and (:pred /= intval 0)
          (:pred >= intval  -2147483648)
          (:pred <= intval 2147483647))
@@ -352,12 +358,12 @@
 
 (define-x8664-vinsn (load-nil :constant-ref) (((dest t))
 					      ())
-  (movq (:$l x8664::nil-value) (:%q dest)))
+  (movl (:$l x8664::nil-value) (:%l dest)))
 
 
 (define-x8664-vinsn (load-t :constant-ref) (((dest t))
 					    ())
-  (movq (:$l x8664::t-value) (:%q dest)))
+  (movl(:$l x8664::t-value) (:%l dest)))
 
 
 (define-x8664-vinsn extract-tag (((tag :u8))
@@ -483,3 +489,162 @@
    (andq (:$b const) (:%q val)))
   ((:not (:and (:pred >= const -128) (:pred <= const 127)))
    (andq (:$l const) (:%q val))))
+
+(define-x8664-vinsn character->fixnum (((dest :lisp))
+				       ((src :lisp))
+				       ())
+  ((:not (:pred =
+                (:apply %hard-regspec-value dest)
+                (:apply %hard-regspec-value src)))
+   (movq (:%q src) (:%q dest)))
+  (shrq (:$ub (- x8664::charcode-shift x8664::fixnumshift)) (:%q dest)))
+
+(define-x8664-vinsn compare (()
+                             ((x t)
+                              (y t)))
+  (cmpq (:%q y) (:%q x)))
+
+(define-x8664-vinsn negate-fixnum (((val :lisp))
+                                   ((val :imm)))
+  (negq (:% val)))
+
+(define-x8664-vinsn fix-fixnum-overflow (((val :lisp))
+                                         ((val :lisp))
+                                         ((unboxed (:s64 #.x8664::imm1))
+                                          (header (:u64 #.x8664::imm0))
+                                          (freeptr (:lisp #.x8664::allocptr))))
+  (jno.pt :done)
+  (movq (:%q val) (:%q unboxed))
+  (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
+  (movq (:$q #xffff000000000000) (:%q header))
+  (xorq (:%q header) (:%q unboxed))
+  (movd (:%q unboxed) (:%mmx x8664::mmx0))
+  (movq (:$l x8664::two-digit-bignum-header) (:%q header))
+  (movq (:$l (- 16 x8664::fulltag-misc)) (:%q unboxed))
+  (subq (:%q x8664::imm1) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr) (:%q freeptr))
+  (cmpq (:%q freeptr) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocbase))
+  (jg :no-trap)
+  (uuo-alloc)
+  :no-trap
+  (movq (:%q header) (:@ x8664::misc-header-offset (:%q freeptr)))
+  (andb (:$b (lognot x8664::fulltagmask)) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
+  (movq (:%mmx x8664::mmx0) (:@ x8664::misc-data-offset (:%q freeptr)))
+  ((:not (:pred = freeptr
+                (:apply %hard-regspec-value val)))
+   (movq (:%q freeptr) (:%q val)))
+  :done)
+
+(define-x8664-vinsn fix-fixnum-overflow-ool (((val :lisp))
+                                             ((val :lisp))
+                                             ((unboxed (:s64 #.x8664::imm1))
+                                              (header (:u64 #.x8664::imm0))
+                                              (freeptr (:lisp #.x8664::allocptr))))
+  (jno.pt :done)
+  ((:not (:pred = x8664::arg_z
+                (:apply %hard-regspec-value val)))
+   (movq (:%q val) (:%q x8664::arg_z)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPfix-overflow))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  ;; We don't lose FN while consing the bignum.
+  ((:not (:pred = x8664::arg_z
+                (:apply %hard-regspec-value val)))
+   (movq (:%q x8664::arg_z) (:%q val)))
+  :done)
+
+(define-x8664-vinsn add-constant (((dest :imm))
+                                  ((dest :imm)
+                                   (const :s32const)))
+  ((:and (:pred >= const -128) (:pred <= const 127))
+   (addq (:$b const) (:%q dest)))
+  ((:not (:and (:pred >= const -128) (:pred <= const 127)))
+   (addq (:$l const) (:%q dest))))
+
+(define-x8664-vinsn add-constant3 (((dest :imm))
+                                   ((src :imm)
+                                    (const :s32const)))
+  ((:pred = (:apply %hard-regspec-value dest)
+          (:apply %hard-regspec-value src))
+   ((:and (:pred >= const -128) (:pred <= const 127))
+    (addq (:$b const) (:%q dest)))
+   ((:not (:and (:pred >= const -128) (:pred <= const 127)))
+    (addq (:$l const) (:%q dest))))
+  ((:not (:pred = (:apply %hard-regspec-value dest)
+                (:apply %hard-regspec-value src)))
+   (leaq (:@ const (:%q src)) (:%q dest))))
+
+  
+
+(define-x8664-vinsn fixnum-add2  (((dest :imm))
+                                  ((dest :imm)
+                                   (other :imm)))
+  (addq (:%q other) (:%q dest)))
+
+(define-x8664-vinsn fixnum-add3 (((dest :imm))
+                                 ((x :imm)
+                                  (y :imm)))
+  ((:pred =
+          (:apply %hard-regspec-value x)
+          (:apply %hard-regspec-value dest))
+   (addq (:%q y) (:%q dest)))
+  ((:not (:pred =
+                (:apply %hard-regspec-value x)
+                (:apply %hard-regspec-value dest)))
+   ((:pred =
+           (:apply %hard-regspec-value y)
+           (:apply %hard-regspec-value dest))
+    (addq (:%q x) (:%q dest)))
+   ((:not (:pred =
+                 (:apply %hard-regspec-value y)
+                 (:apply %hard-regspec-value dest)))
+    (leaq (:@ (:%q x) (:%q y)) (:%q dest)))))
+   
+(define-x8664-vinsn copy-gpr (((dest t))
+			      ((src t)))
+  ((:not (:pred =
+                (:apply %hard-regspec-value dest)
+                (:apply %hard-regspec-value src)))
+   (movq (:%q src) (:%q dest))))
+
+(define-x8664-vinsn (vpop-register :pop :node :vsp)
+    (((dest :lisp))
+     ())
+  (popq (:%q dest)))
+
+
+;;; If nothing's been pushed by the caller, we need to "reserve a stack frame"
+;;; here.
+(define-x8664-vinsn ensure-reserved-frame (()
+                                           ())
+  (cmpw (:$w (* 3 x8664::node-size)) (:%w x8664::nargs))
+  (jbe :no-reserve)
+  (pushq (:$b 0))
+  (pushq (:$b 0))
+  :no-reserve)
+
+                                           
+(define-x8664-vinsn (vpush-argregs :push :node :vsp) (()
+                                                      ())
+  (testw (:%w x8664::nargs) (:%w x8664::nargs))
+  (jz :done)
+  (cmpw (:$w (* 2 x8664::node-size)) (:%w x8664::nargs))
+  (jl :one)
+  (je :two)
+  (pushq (:%q x8664::arg_x))
+  :two
+  (pushq (:%q x8664::arg_y))
+  :one
+  (pushq (:%q x8664::arg_z))
+  :done)
+
+(define-x8664-vinsn (call-label :call) (()
+					((label :label)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp label)
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn)))
