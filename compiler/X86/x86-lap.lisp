@@ -1099,6 +1099,10 @@
                (parse-x86-instruction form instruction)
                (x86-generate-instruction-code frag-list instruction)))))))))
 
+(defun relax-align (address bits)
+  (let* ((mask (1- (ash 1 bits))))
+    (- (logandc2 (+ address mask) mask) address)))
+
 (defun relax-frag-list (frag-list)
   ;; First, assign tentative addresses to all frags, assuming that
   ;; span-dependent instructions have short displacements.
@@ -1110,14 +1114,12 @@
   (loop
     (let* ((address 8))
       (declare (fixnum address))
-      (when (ccl::do-dll-nodes (frag frag-list t)
+      (when (do-dll-nodes (frag frag-list t)
               (setf (frag-address frag) address)
               (incf address (length (frag-code-buffer frag)))
               (case (car (frag-type frag))
                 (:align
-                 (let* ((bits (cadr (frag-type frag)))
-                        (mask (1- (ash 1 bits))))
-                   (setq address (logandc2 (+ address mask) mask))))
+                 (incf address (relax-align address (cadr (frag-type frag)))))
                 ((:assumed-short-branch :assumed-short-conditional-branch)
                  (destructuring-bind (label pos reloc) (cdr (frag-type frag))
                    (let* ((next (frag-succ frag)))
@@ -1149,7 +1151,7 @@
   (loop
     (let* ((stretch 0)                  ;cumulative growth in frag sizes
            (stretched nil))             ;any change on this pass ?
-      (ccl::do-dll-nodes (frag frag-list)
+      (do-dll-nodes (frag frag-list)
         (let* ((growth 0)
                (fragtype (frag-type frag))
                (was-address (frag-address frag))
@@ -1158,9 +1160,8 @@
           (case (car fragtype)
             (:align
              (let* ((bits (cadr fragtype))
-                    (mask (1- (ash 1 bits)))
-                    (oldoff (logandc2 (+ was-address mask) mask))
-                    (newoff (logandc2 (+ address mask) mask)))
+                    (oldoff (relax-align was-address bits))
+                    (newoff (relax-align address bits)))
                (setq growth (- newoff oldoff))))
             ;; If we discover - on any iteration - that a short
             ;; branch doesn't fit, we change the type (and the reloc)
