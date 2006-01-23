@@ -22,6 +22,9 @@
 (eval-when (:compile-toplevel :execute)
   (require "NUMBER-MACROS")
 
+  (defmacro %cons-fake-stack-frame (&optional sp next-sp fn lr vsp xp link)
+    `(%istruct 'fake-stack-frame ,sp ,next-sp ,fn ,lr ,vsp ,xp ,link))
+  
   (defparameter *ppc-instruction-fields*
     `((:opcode . ,(byte 6 26))
       (:rt . ,(byte 5 21))
@@ -259,7 +262,7 @@
            (if (fixnump lr)
              (let* ((sp (xp-gpr-lisp xp ppc::sp))
                     (vsp (xp-gpr-lisp xp ppc::vsp))
-                    (frame (%cons-fake-stack-frame sp sp fn lr vsp *fake-stack-frames*))
+                    (frame (%cons-fake-stack-frame sp sp fn lr vsp xp *fake-stack-frames*))
                     (*fake-stack-frames* frame))
                (declare (dynamic-extent frame))
                (funcall thunk frame))
@@ -270,7 +273,7 @@
                 (lr (return-address-offset
                      xp fn pc-offset-in-register-context))
                 (vsp (xp-gpr-lisp xp ppc::vsp))
-                (frame (%cons-fake-stack-frame sp sp fn lr vsp *fake-stack-frames*))
+                (frame (%cons-fake-stack-frame sp sp fn lr vsp xp *fake-stack-frames*))
                 (*fake-stack-frames* frame))
            (declare (dynamic-extent frame))
            (funcall thunk frame)))
@@ -280,11 +283,11 @@
                 (lr (return-address-offset
                      xp fn lr-offset-in-register-context))
                 (vsp (xp-gpr-lisp xp ppc::vsp))
-                (lr-frame (%cons-fake-stack-frame sp sp fn lr vsp))
+                (lr-frame (%cons-fake-stack-frame sp sp fn lr vsp xp))
                 (pc-fn trap-function)
                 (pc-lr (return-address-offset
                         xp pc-fn pc-offset-in-register-context))
-                (pc-frame (%cons-fake-stack-frame sp lr-frame pc-fn pc-lr vsp *fake-stack-frames*))
+                (pc-frame (%cons-fake-stack-frame sp lr-frame pc-fn pc-lr vsp xp *fake-stack-frames*))
                 (*fake-stack-frames* pc-frame))
            (declare (dynamic-extent lr-frame pc-frame))
            (funcall thunk pc-frame)))
