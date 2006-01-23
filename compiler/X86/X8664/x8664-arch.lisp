@@ -156,45 +156,47 @@
 (defx86reg imm0.w ax)
 (defx86reg imm0.b al)
 
-(defx86reg arg_z rbx)
-(defx86reg arg_z.l ebx)
-(defx86reg arg_z.w bx)
-(defx86reg arg_z.b bl)
+(defx86reg temp0 rbx)
+(defx86reg temp0.l ebx)
+(defx86reg temp0.w bx)
+(defx86reg temp0.b bl)
 
-(defx86reg temp1 rcx)
-(defx86reg temp1.l ecx)
-(defx86reg temp1.w cx)
-(defx86reg temp1.b cl)
+(defx86reg temp2 rcx)
+(defx86reg temp2.l ecx)
+(defx86reg nargs cx)
+(defx86reg temp2.w cx)
+(defx86reg shift cl)
+(defx86reg temp2.b cl)
 
 (defx86reg imm1 rdx)
 (defx86reg imm1.l edx)
 (defx86reg imm1.w dx)
 (defx86reg imm1.b dl)
 
-(defx86reg fn rsi)
-(defx86reg fn.l esi)
-(defx86reg fn.w si)
-(defx86reg fn.b sil)
+(defx86reg arg_z rsi)
+(defx86reg arg_z.l esi)
+(defx86reg arg_z.w si)
+(defx86reg arg_z.b sil)
 
-(defx86reg ra0 rdi)
-(defx86reg ra0.l edi)
-(defx86reg ra0.w di)
-(defx86reg ra0.b dil)
+(defx86reg arg_y rdi)
+(defx86reg arg_y.l edi)
+(defx86reg arg_y.w di)
+(defx86reg arg_y.b dil)
 
-(defx86reg temp0 r8)
-(defx86reg temp0.l r8d)
-(defx86reg temp0.w r8w)
-(defx86reg temp0.b r8b)
+(defx86reg arg_x r8)
+(defx86reg arg_x.l r8d)
+(defx86reg arg_x.w r8w)
+(defx86reg arg_x.b r8b)
 
-(defx86reg arg_y r9)
-(defx86reg arg_y.l r9d)
-(defx86reg arg_y.w r9w)
-(defx86reg arg_y.b r9b)
+(defx86reg temp1 r9)
+(defx86reg temp1.l r9d)
+(defx86reg temp1.w r9w)
+(defx86reg temp1.b r9b)
 
-(defx86reg arg_x r10)
-(defx86reg arg_x.l r10d)
-(defx86reg arg_x.w r10w)
-(defx86reg arg_x.b r10b)
+(defx86reg ra0 r10)
+(defx86reg ra0.l r10d)
+(defx86reg ra0.w r10w)
+(defx86reg ra0.b r10b)
 
 (defx86reg save3 r11)
 (defx86reg save3.l r11d)
@@ -206,10 +208,10 @@
 (defx86reg save2.w r12w)
 (defx86reg save2.b r12b)
 
-(defx86reg temp2 r13)
-(defx86reg temp2.l r13d)
-(defx86reg temp2.w r13w)
-(defx86reg temp2.b r13b)
+(defx86reg fn r13)
+(defx86reg fn.l r13d)
+(defx86reg fn.w r13w)
+(defx86reg fn.b r13b)
 
 (defx86reg save1 r14)
 (defx86reg save1.l r14d)
@@ -239,6 +241,16 @@
 (defx86reg fp14 xmm14)
 (defx86reg fp15 xmm15)
 
+;;; There are only 8 mmx registers, and they overlap the x87 FPU.
+(defx86reg mmx0 mm0)
+(defx86reg mmx1 mm1)
+(defx86reg mmx2 mm2)
+(defx86reg mmx3 mm3)
+(defx86reg mmx4 mm4)
+(defx86reg mmx5 mm5)
+(defx86reg mmx6 mm6)
+(defx86reg mmx7 mm7)
+
 
 ;;; Using %fs to access the TCR may be Linux-specific.
 (defx86reg rcontext fs)
@@ -252,7 +264,6 @@
 ;;; and imm1 free on function entry, to help with processing &optional/&key.
 (defx86reg fname temp0)
 (defx86reg next-method-context temp0)
-(defx86reg nargs temp2.w)
 ;;; We rely one at least one of %ra0/%fn pointing to the current function
 ;;; (or to a TRA that references the function) at all times.  When we
 ;;; tail call something, we want %RA0 to point to our caller's TRA and
