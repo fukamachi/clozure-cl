@@ -39,6 +39,8 @@
         (:%l (x86::encode-operand-type :reg32))
         (:%w (x86::encode-operand-type :reg16))
         (:%b (x86::encode-operand-type :reg8))
+        (:%xmm (x86::encode-operand-type :regxmm))
+        (:%mmx (x86::encode-operand-type :regmmx))
         (:@ (x86::encode-operand-type :anymem))
         (:$1 (x86::encode-operand-type :imm1) )
         (:$b (x86::encode-operand-type :imm8s ))
@@ -218,7 +220,7 @@
                                     (simplify-memory-operand (cdr op))))
                              ((member (car op)
                                       '(:% :%q :%l :%w :%b :$ :$1 :$b :$ub :$w :$l
-                                        :$ul :$q))
+                                        :$ul :$q :%mmx :%xmm))
                               (simplify-simple-operand (cadr op)))
                              (t
                               (simplify-simple-operand op)))))
