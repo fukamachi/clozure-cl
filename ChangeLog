@@ -1,3 +1,16 @@
+2006-01-23 01:20  gb
+
+	* lib/backtrace.lisp: Warn that much of this is PPC-specific.
+	
+	When looking for a saved register value, look in the xp of any
+	fake-stack-frame we encounter.
+
+2006-01-23 01:18  gb
+
+	* library/lispequ.lisp: Add %fake-stack-frame-xp.  (This causes
+	some constants/accessors to be redefined; (COMPILE-CCL T) - and
+	continuing through redefinitions - is suggested.)
+
 2006-01-21 11:48  gb
 
 	* examples/hons-example.lisp: Fix
