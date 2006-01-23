@@ -1,3 +1,60 @@
+2006-01-23 01:53  gb
+
+	* level-1/version.lisp: bump.
+
+2006-01-23 01:31  gb
+
+	* compiler/X86/x86-asm.lisp: Insert :%mmx registers.  Insert them
+	in the right place in MOVD/MOVQ.
+
+2006-01-23 01:30  gb
+
+	* compiler/X86/x86-backend.lisp: Recognize :%mmx, :%xmm registers.
+
+2006-01-23 01:29  gb
+
+	* compiler/X86/x86-disassemble.lisp: New (hard-wired) registers to
+	recognize.  op-indire: we're 64-bit.
+
+2006-01-23 01:28  gb
+
+	* compiler/X86/x86-lap.lisp: Relaxation of :ALIGN frags : get diff
+	right.
+
+2006-01-23 01:27  gb
+
+	* compiler/X86/x862.lisp: More stuff works.  Need a less-ugly way
+	of dealing with the fact that x8864 save regs, x8664 arg regs
+	aren't assigned contiguous identifiers.
+
+2006-01-23 01:26  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Make a few symbolic register
+	names more canonical.
+
+2006-01-23 01:25  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Fixnum addition, overflow
+	handling, etc.
+
+2006-01-23 01:24  gb
+
+	* level-1/l1-lisp-threads.lisp: Move %CONS-FAKE-STACK-FRAME
+	elsewhere.
+
+2006-01-23 01:22  gb
+
+	* level-1/linux-files.lisp: TIMED-WAIT-ON-SEMAPHORE: use
+	GET-INTERNAL-REAL-TIME, accept an optional semaphore-notification.
+
+2006-01-23 01:21  gb
+
+	* level-1/ppc-trap-support.lisp: Move the %CONS-FAKE-STACK-FRAME
+	macro here.
+	
+	When consing up a fake stack from from an exception context, stick
+	the context in the frame's (new) xp slot.
+
 2006-01-23 01:20  gb
 
 	* lib/backtrace.lisp: Warn that much of this is PPC-specific.
