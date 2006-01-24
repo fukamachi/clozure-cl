@@ -194,7 +194,7 @@
     n)
 
 (defun available-fp-temp (mask &optional (mode-name :double-float))
-  (dotimes (bit 32 (error "Bug: ran out of node fp registers."))
+  (dotimes (bit (integer-length mask) (error "Bug: ran out of node fp registers."))
     (when (logbitp bit mask)
       (let* ((mode (if (eq mode-name :double-float) 
                      hard-reg-class-fpr-mode-double
