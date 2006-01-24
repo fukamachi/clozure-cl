@@ -57,10 +57,10 @@
 ; of the primitive non-node types.  This information can help some of 
 ; the functions that copy between GPRs of different "mode" elide some
 ; type-checking.
-(defparameter regspec-hard-reg-type-class-byte (byte 3 5))
-(defparameter regspec-hard-reg-type-value-byte (byte 5 0))
-(defparameter regspec-hard-reg-type-mode-byte (byte 4 8))
-(defparameter regspec-hard-reg-type-type-byte (byte 8 12))
+(defparameter regspec-hard-reg-type-value-byte (byte 8 0))
+(defparameter regspec-hard-reg-type-class-byte (byte 3 8))
+(defparameter regspec-hard-reg-type-mode-byte (byte 4 11))
+(defparameter regspec-hard-reg-type-type-byte (byte 8 15))
 
 (defconstant hard-reg-class-gpr 0)
 (defconstant hard-reg-class-fpr 1)
