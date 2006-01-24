@@ -1,3 +1,16 @@
+2006-01-24 02:13  gb
+
+	* compiler/reg.lisp: Make some bitfields used in fixnums which
+	(sometimes) describe physical machine registers variables.  This is
+	a little tricky to bootstrap; making them variables (instead of
+	constants) is a step towards making it easier to change their
+	values without fouling up the running compiler.  (They'll change
+	back to constants after the "value" bitfield gets wide enough to
+	accomodate interesting architectures.  Not sure about the Itanium,
+	but x8664 needs more bits for byte/word/long/quad reg variants and
+	for mmx/xmm/x87/seg registers, and making this field wider seems
+	better than other alternatives.)
+
 2006-01-24 01:04  gb
 
 	* compiler/X86/X8664/x8664-arch.lisp: Constants for single-float
