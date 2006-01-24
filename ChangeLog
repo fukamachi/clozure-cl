@@ -1,3 +1,7 @@
+2006-01-24 02:32  gb
+
+	* compiler/reg.lisp: Change the values of those parameters.
+
 2006-01-24 02:13  gb
 
 	* compiler/reg.lisp: Make some bitfields used in fixnums which
