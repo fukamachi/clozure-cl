@@ -1,3 +1,19 @@
+2006-01-24 13:18  gb
+
+	* compiler/X86/x862.lisp: A few float-related (and 2-address vs
+	3-address -related) changes.
+
+2006-01-24 13:17  gb
+
+	* compiler/X86/x86-lapmacros.lisp: Go through
+	tcr.single-float-convert when boxing/unboxing immediate
+	SINGLE-FLOATs.
+
+2006-01-24 13:17  gb
+
+	* compiler/backend.lisp: AVAILABLE-FP-TEMP: don't assume 32 bits in
+	"available" mask.
+
 2006-01-24 02:32  gb
 
 	* compiler/reg.lisp: Change the values of those parameters.
