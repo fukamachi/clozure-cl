@@ -176,10 +176,9 @@
   "This function causes execution to be suspended for N seconds. N may
   be any non-negative, non-complex number."
   (when (minusp seconds) (report-bad-arg seconds '(real 0 *)))
-  (let* ((tps *ticks-per-second*)
-	 (npt *ns-per-tick*)
-	 (ticks (ceiling (* seconds tps))))
-    (%nanosleep (floor ticks tps) (* npt (mod ticks tps)))))
+  (multiple-value-bind (secs nanos)
+      (nanoseconds seconds)
+    (%nanosleep secs nanos)))
 
 (defun get-internal-run-time ()
   "Return the run time in the internal time format. (See
