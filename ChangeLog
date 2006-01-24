@@ -1,3 +1,9 @@
+2006-01-24 01:04  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Constants for single-float
+	tags. single-float-convert in the tcr, so we don't have to push and
+	pop so much.
+
 2006-01-23 01:53  gb
 
 	* level-1/version.lisp: bump.
