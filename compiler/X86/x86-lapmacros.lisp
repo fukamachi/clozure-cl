@@ -131,16 +131,14 @@
 ;;; be to use MOVD and PSRLQ.
 (defx86lapmacro get-single-float (node dest)
   `(progn
-    (pushq (% ,node))
-    (movss (@ 4 (% rsp)) (% ,dest))
-    (addq ($ 8) (% rsp))))
+    (movq (% ,node) (@ (% rcontext) x8664::tcr.single-float-convert))
+    (movss (@ (% rcontext) x8664::tcr.single-float-convert.value) (% ,dest))))
 
 
 (defx86lapmacro put-single-float (src node)
   `(progn
-    (pushq ($ x8664::subtag-single-float))
-    (movss (% ,src) (@ 4 (% rsp)))
-    (popq (% ,node))))
+    (movss (% ,src) (@ (% rcontext) x8664::tcr.single-float-convert.value))
+    (movq (@ (% rcontext) x8664::tcr.single-float-convert) (% ,node))))
 
 (defx86lapmacro get-double-float (src fpreg)
   `(movsd (@ x8664::double-float.value (% ,src)) (% ,fpreg)))
