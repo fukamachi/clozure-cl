@@ -73,8 +73,8 @@
                                :signed-fullword)))
           (if (and (< result 0)
                    (eql (%get-errno) (- #$EINTR))
-                   (not (or (eql (pref bptr :timespec.tv_sec) 0)
-                            (eql (pref bptr :timespec.tv_nsec) 0))))
+                   (not (and (eql (pref bptr :timespec.tv_sec) 0)
+                             (eql (pref bptr :timespec.tv_nsec) 0))))
 		(psetq aptr bptr bptr aptr)
 		(return)))))))
 
