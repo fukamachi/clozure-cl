@@ -318,6 +318,8 @@
 (defconstant tag-symbol 6)              ;non-null symbol
 (defconstant tag-function 7)            ;function entry point
 
+(defconstant tag-single-float tag-imm-0)
+
 ;;; 4-bit "fulltag" values
 (defconstant fulltag-even-fixnum 0)
 (defconstant fulltag-imm-0 1)           ;subtag-single-float ONLY
@@ -336,6 +338,7 @@
 (defconstant fulltag-symbol 14)
 (defconstant fulltag-function 15)
 
+(defconstant fulltag-single-float fulltag-imm-0)
 
 (defmacro define-subtag (name tag value)
   `(defconstant ,(ccl::form-symbol "SUBTAG-" name) (logior ,tag (ash ,value ntagbits))))
@@ -637,6 +640,7 @@
 (define-storage-layout tcr (- tcr-bias)
   prev					; in doubly-linked list 
   next					; in doubly-linked list
+  single-float-convert                  ; faster to box/unbox through memory
   linear
   linear-end
   lisp-fpscr-high
@@ -677,6 +681,9 @@
   tlb-pointer
   shutdown-count
 )
+
+(defconstant tcr.single-float-convert.value (+ 4 tcr.single-float-convert))
+
 
 (defconstant interrupt-level-binding-index (ash 1 fixnumshift))
 
