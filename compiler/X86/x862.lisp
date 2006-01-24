@@ -393,7 +393,7 @@
            (*available-backend-imm-temps* (target-arch-case (:x8664 x8664-imm-regs)))
            (*backend-crf-temps* (target-arch-case (:x8664 x8664-cr-fields)))
            (*available-backend-crf-temps* (target-arch-case (:x8664 x8664-cr-fields)))
-           (*backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
+          (*backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
            (*available-backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
            (bits 0)
            (*logical-register-counter* -1)
@@ -6330,7 +6330,8 @@
            (with-fp-target (r1) (r2 :single-float)
              (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg f0 r1 f1 r2)
                (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
-		 (! ,vinsn vreg r1 r2)
+                 (progn
+                   (! ,vinsn vreg r1 r2))
                  (with-fp-target (r1 r2) (result :single-float)
                    (! ,vinsn result r1 r2)
                    (ensuring-node-target (target vreg)
