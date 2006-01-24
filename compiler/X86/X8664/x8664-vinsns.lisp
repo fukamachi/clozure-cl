@@ -298,6 +298,16 @@
   (uuo-error-reg-not-list (:%q object))
   :ok)
 
+(define-x8664-vinsn trap-unless-single-float (()
+                                              ((object :lisp))
+                                              ((tag :u8)))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-single-float) (:%b tag))
+  (je.pt :ok)
+  (uuo-error-reg-not-tag (:%q object) (:$ub x8664::tag-single-float))
+  :ok)
+
 (define-x8664-vinsn trap-unless-fixnum (()
                                         ((object :lisp))
                                         ())
@@ -648,3 +658,77 @@
   (:long (:^ :back))
   :back
   (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn)))
+
+(define-x8664-vinsn double-float-compare (()
+					  ((arg0 :double-float)
+					   (arg1 :double-float)))
+  (comisd (:%xmm arg1) (:%xmm arg0)))
+              
+
+(define-x8664-vinsn double-float+-2 (((result :double-float))
+				     ((result :double-float)
+				      (x :double-float)))
+  (addsd (:%xmm x) (:%xmm result)))
+
+(define-x8664-vinsn double-float--2 (((result :double-float))
+				     ((result :double-float)
+				      (x :double-float)))
+  (subsd (:%xmm x) (:%xmm result)))
+
+(define-x8664-vinsn double-float*-2 (((result :double-float))
+				     ((result :double-float)
+				      (x :double-float)))
+  (mulsd (:%xmm x) (:%xmm result)))
+
+(define-x8664-vinsn double-float/-2 (((result :double-float))
+				     ((x :double-float)
+				      (y :double-float)))
+  (divsd (:%xmm x) (:%xmm result)))
+
+(define-x8664-vinsn single-float+-2 (((result :single-float))
+				     ((x :single-float)
+				      (y :single-float)))
+  ((:pred =
+          (:apply %hard-regspec-value result)
+          (:apply %hard-regspec-value x))
+   (addss (:%xmm y) (:%xmm result)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value x)))
+         (:pred =
+                (:apply %hard-regspec-value result)
+                (:apply %hard-regspec-value y)))
+   (addss (:%xmm x) (:%xmm result)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value x)))
+         (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value y))))
+   (movss (:%xmm x) (:%xmm result))
+   (addss (:%xmm x) (:%xmm result))))
+
+(define-x8664-vinsn single-float--2 (((result :single-float))
+				     ((x :single-float)
+				      (y :single-float)))
+  (subss (:%xmm x) (:%xmm result)))
+
+(define-x8664-vinsn single-float*-2 (((result :single-float))
+				     ((result :single-float)
+				      (x :single-float)))
+  (divss (:%xmm x) (:%xmm result)))
+
+(define-x8664-vinsn single-float/-2 (((result :single-float))
+				     ((result :single-float)
+				      (x :single-float)))
+  (divss (:%xmm x) (:%xmm result)))
+
+(define-x8664-vinsn get-single (((result :single-float))
+                                ((source :lisp)))
+  (movq (:%q source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert))
+  (movss (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value) (:%xmm result)))
+
+(define-x8664-vinsn single->node (((result :lisp))
+                                  ((source :single-float)))
+  (movss (:%xmm source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert) (:%q result)))
