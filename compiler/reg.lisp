@@ -57,10 +57,10 @@
 ; of the primitive non-node types.  This information can help some of 
 ; the functions that copy between GPRs of different "mode" elide some
 ; type-checking.
-(defconstant regspec-hard-reg-type-class-byte (byte 3 5))
-(defconstant regspec-hard-reg-type-value-byte (byte 5 0))
-(defconstant regspec-hard-reg-type-mode-byte (byte 4 8))
-(defconstant regspec-hard-reg-type-type-byte (byte 8 12))
+(defparameter regspec-hard-reg-type-class-byte (byte 3 5))
+(defparameter regspec-hard-reg-type-value-byte (byte 5 0))
+(defparameter regspec-hard-reg-type-mode-byte (byte 4 8))
+(defparameter regspec-hard-reg-type-type-byte (byte 8 12))
 
 (defconstant hard-reg-class-gpr 0)
 (defconstant hard-reg-class-fpr 1)
@@ -192,10 +192,10 @@
 (defmacro make-hard-crf-reg (crf)
   `(dpb hard-reg-class-crf regspec-hard-reg-type-class-byte (the fixnum ,crf)))
   
-(defmacro make-hard-fp-reg (regnum &optional (mode #.hard-reg-class-fpr-mode-double))
+(defmacro make-hard-fp-reg (regnum &optional (mode hard-reg-class-fpr-mode-double))
   `(dpb (the fixnum ,mode) 
-        #.regspec-hard-reg-type-mode-byte 
-        (dpb #.hard-reg-class-fpr #.regspec-hard-reg-type-class-byte (the fixnum ,regnum))))
+        regspec-hard-reg-type-mode-byte 
+        (dpb hard-reg-class-fpr regspec-hard-reg-type-class-byte (the fixnum ,regnum))))
   
 ;;; "Memory specs" have bit 28 set.  Since bit 28 is the sign bit in 68K MCL,
 ;;; we have to be a little careful when creating them to ensure that the result
