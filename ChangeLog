@@ -1,3 +1,17 @@
+2006-01-24 13:24  gb
+
+	* level-1/l1-lisp-threads.lisp: In %nanosleep, check if -both-
+	remaining seconds/remaining nanos are 0, not -either-.
+
+2006-01-24 13:22  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Some FP stuff.
+
+2006-01-24 13:20  gb
+
+	* lib/time.lisp: Kinder, gentler seconds-to-nanoseconds conversion
+	in SLEEP.
+
 2006-01-24 13:18  gb
 
 	* compiler/X86/x862.lisp: A few float-related (and 2-address vs
