@@ -601,6 +601,7 @@ thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
 #ifdef LINUX
   linux_exception_init(tcr);
 #endif
+  tcr->log2_allocation_quantum = unbox_fixnum(lisp_global(DEFAULT_ALLOCATION_QUANTUM));
 }
 
 /*
