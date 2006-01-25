@@ -1,3 +1,18 @@
+2006-01-25 03:15  gb
+
+	* lisp-kernel/linuxppc/elf32ppclinux.x: Don't use SIZEOF_HEADERS,
+	since this seems to cause confusion with ld 2.16.91/gcc 4.1.0 on
+	FC5.  Define _SDA_BASE_, since some versions of crt1.o reference
+	it.  (We don't use a small data area, so it'd be nice if crt1.o
+	stopped referencing it. Perhaps there's an option that controls the
+	C runtime startup file ?)
+
+2006-01-25 03:10  gb
+
+	* lisp-kernel/pad.s: Add an instruction (a NOP) here.  This seems
+	to be necessary to force alignment to work correctly when the
+	linker script omits SIZEOF_HEADERS.
+
 2006-01-24 17:45  gb
 
 	* level-1/linux-files.lisp, lisp-kernel/thread_manager.c: Several
