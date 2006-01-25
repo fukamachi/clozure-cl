@@ -161,8 +161,9 @@ sem_wait_forever(SEMAPHORE s)
 }
 
 int
-wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
+wait_on_semaphore(SEMAPHORE s, int seconds, int millis)
 {
+  int nanos = (millis % 1000) * 1000000;
 #ifdef LINUX
   int status;
 
@@ -184,25 +185,9 @@ wait_on_semaphore(SEMAPHORE s, int seconds, int nanos)
 #endif
 #ifdef DARWIN  
   mach_timespec_t q = {seconds, nanos};
-  clock_t start = clock();
   int status = SEM_TIMEDWAIT(s, q);
-  clock_t finish = clock();
+
   
-  if (status == KERN_ABORTED) {
-    clock_t elapsed = (finish - start);
-      
-    int elapsed_seconds = elapsed/CLOCKS_PER_SEC;
-    int elapsed_nanos = (elapsed - (elapsed_seconds * CLOCKS_PER_SEC)) * 1000000000/CLOCKS_PER_SEC;
-      
-    seconds = seconds - elapsed_seconds - (elapsed_nanos/1000000000);
-    if (nanos  > 0) {
-      nanos = 1000000000 - elapsed_nanos;
-    }
-      
-    if ((seconds <= 0) && (nanos <= 0)) {
-      return ETIMEDOUT;
-    }
-  }
   switch (status) {
   case 0: return 0;
   case KERN_OPERATION_TIMED_OUT: return ETIMEDOUT;
@@ -265,10 +250,13 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
     sigfillset(&wait_for);
     SEM_RAISE(tcr->suspend);
     sigdelset(&wait_for, thread_resume_signal);
+#if 1
+    sigsuspend(&wait_for);
+#else
     do {
       sigsuspend(&wait_for);
     } while (tcr->suspend_context);
-  
+#endif  
   } else {
     tcr->suspend_context = NULL;
   }
@@ -897,7 +885,7 @@ lisp_suspend_tcr(TCR *tcr)
 Boolean
 resume_tcr(TCR *tcr)
 {
-  int suspend_count = atomic_decf(&(tcr->suspend_count));
+  int suspend_count = atomic_decf(&(tcr->suspend_count)), err;
   if (suspend_count == 0) {
 #ifdef DARWIN
     if (tcr->flags & (1<<TCR_FLAG_BIT_ALT_SUSPEND)) {
@@ -906,7 +894,9 @@ resume_tcr(TCR *tcr)
       return true;
     }
 #endif
-    pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_resume_signal);
+    if ((err = (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_resume_signal))) != 0) {
+      Bug(NULL, "pthread_kill returned %d on thread #x%x", err, tcr->osid);
+    }
     return true;
   }
   return false;
@@ -984,7 +974,9 @@ resume_other_threads()
 {
   TCR *current = get_tcr(true), *other;
   for (other = current->next; other != current; other = other->next) {
-    resume_tcr(other);
+    if ((other->osid != 0)) {
+      resume_tcr(other);
+    }
   }
   free_freed_tcrs();
   UNLOCK(lisp_global(AREA_LOCK), current);

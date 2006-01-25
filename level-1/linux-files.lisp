@@ -24,20 +24,33 @@
 
 
 (defun nanoseconds (n)
-  (check-type n (real 0 #xffffffff))
+  (unless (and (typep n 'fixnum)
+               (>= (the fixnum n) 0))
+    (check-type n (real 0 #xffffffff)))
   (multiple-value-bind (q r)
       (floor n)
     (if (zerop r)
       (setq r 0)
       (setq r (floor (* r 1000000000))))
     (values q r)))
-  
+
+(defun milliseconds (n)
+  (unless (and (typep n 'fixnum)
+               (>= (the fixnum n) 0))
+    (check-type n (real 0 #xffffffff)))
+  (multiple-value-bind (q r)
+      (floor n)
+    (if (zerop r)
+      (setq r 0)
+      (setq r (floor (* r 1000))))
+    (values q r)))
+
 (defun semaphore-value (s)
   (if (istruct-typep s 'semaphore)
     (semaphore.value s)
     (semaphore-value (require-type s 'semaphore))))
 
-(defun %wait-on-semaphore-ptr (s seconds nanoseconds &optional flag)
+(defun %wait-on-semaphore-ptr (s seconds milliseconds &optional flag)
   (if flag
     (if (istruct-typep flag 'semaphore-notification)
       (setf (semaphore-notification.status flag) nil)
@@ -47,16 +60,16 @@
                    (%kernel-import target::kernel-import-wait-on-semaphore)
                    :address s
                    :unsigned seconds
-                   :unsigned nanoseconds
+                   :unsigned milliseconds
                    :signed))
           (result (zerop status)))     
      (declare (fixnum status))
      (when flag (setf (semaphore-notification.status flag) result))
      (values result status))))
 
-(defun %timed-wait-on-semaphore-ptr (s seconds nanoseconds &optional
+(defun %timed-wait-on-semaphore-ptr (s seconds milliseconds &optional
                                        (whostate "semaphore wait") flag)
-  (process-wait whostate #'%wait-on-semaphore-ptr s seconds nanoseconds flag))
+  (process-wait whostate #'%wait-on-semaphore-ptr s seconds milliseconds flag))
   
 (defun wait-on-semaphore (s &optional flag (whostate "semaphore wait"))
   "Wait until the given semaphore has a positive count which can be
@@ -67,14 +80,15 @@ atomically decremented."
 (defun timed-wait-on-semaphore (s duration &optional notification)
   "Wait until the given semaphore has a postive count which can be
 atomically decremented, or until a timeout expires."
-  (multiple-value-bind (secs nanos) (nanoseconds duration)
+  (multiple-value-bind (secs millis) (milliseconds duration)
     (let* ((now (get-internal-real-time))
            (stop (+ now
                     (* secs 1000)
-                    (ceiling nanos 1000000))))
+                    millis)))
       (loop
         (multiple-value-bind (success err)
-            (%wait-on-semaphore-ptr (semaphore-value s) secs nanos notification)
+            (progn
+              (%wait-on-semaphore-ptr (semaphore-value s) secs millis notification))
           (when success
             (return t))
           (when (or (not (eql err #$EINTR))
@@ -85,7 +99,7 @@ atomically decremented, or until a timeout expires."
               (multiple-value-bind (remaining-seconds remaining-millis)
                   (floor diff 1000)
                 (setq secs remaining-seconds
-                      nanos (* remaining-millis 1000000))))))))))
+                      millis remaining-millis)))))))))
 
 
 (defun %signal-semaphore-ptr (p)
