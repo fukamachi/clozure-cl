@@ -1,3 +1,19 @@
+2006-01-24 17:45  gb
+
+	* level-1/linux-files.lisp, lisp-kernel/thread_manager.c: Several
+	changes, not all of them finished.   Make the primitive which does
+	timed semaphore waits use milliseconds (not nanoseconds),  and do
+	the multiplication in the kernel.
+
+2006-01-24 17:43  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: A few more things.
+
+2006-01-24 17:43  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Don't (canonically) call
+	temp0.b "shift".
+
 2006-01-24 13:24  gb
 
 	* level-1/l1-lisp-threads.lisp: In %nanosleep, check if -both-
