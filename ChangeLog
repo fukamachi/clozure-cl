@@ -1,3 +1,40 @@
+2006-01-25 15:16  gb
+
+	* level-1/: l1-lisp-threads.lisp, l1-processes.lisp: Start to
+	maintain per-process allocation quantum. Still more work to do
+	here.
+
+2006-01-25 15:14  gb
+
+	* lisp-kernel/thread_manager.c: initialize tcr's
+	log2_allocation_quantum from
+	lisp_global(DEFAULT_ALLOCATION_QUANTUM)
+
+2006-01-25 15:12  gb
+
+	* lisp-kernel/pmcl-kernel.c: set
+	lisp_global(DEFAULT_ALLOCATION_QUANTUM)
+
+2006-01-25 15:11  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp,
+	compiler/X86/X8664/x8664-arch.lisp, lisp-kernel/ppc-constants32.h,
+	lisp-kernel/ppc-constants32.s, lisp-kernel/ppc-constants64.h,
+	lisp-kernel/ppc-constants64.s, lisp-kernel/x86-constants64.h,
+	lisp-kernel/x86-constants64.s: OLDinterrupt-level ->
+	log2-allocation-quantum.
+
+2006-01-25 15:10  gb
+
+	* compiler/PPC/ppc-arch.lisp, compiler/X86/x86-arch.lisp,
+	lisp-kernel/lisp_globals.h: OLDinterrupt-level ->
+	default-allocation-quantum.
+
+2006-01-25 15:09  gb
+
+	* compiler/reg.lisp: Constants again.
+
 2006-01-25 03:15  gb
 
 	* lisp-kernel/linuxppc/elf32ppclinux.x: Don't use SIZEOF_HEADERS,
