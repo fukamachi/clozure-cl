@@ -261,6 +261,9 @@
           (thread-make-startup-function thread tcr)))
   thread)
 
+(defun default-allocation-quantum ()
+  (ash 1 (%get-kernel-global 'default-allocation-quantum)))
+
 (defun new-lisp-thread-from-tcr (tcr name)
   (let* ((thread (%cons-lisp-thread name tcr)))    
     (init-thread-from-tcr tcr thread)
@@ -419,7 +422,7 @@
 				     ;; If function returns normally,
 				     ;; return to the reset state
 				     (%process-reset nil)))
-	 (thread-enable thread (process-termination-semaphore process) 0)
+	 (thread-enable thread (process-termination-semaphore process) (1- (integer-length (process-allocation-quantum process))) 0)
          t)))))
 
 (defun thread-handle-interrupts ()
@@ -438,7 +441,7 @@
   (setf (lisp-thread.initial-function.args thread)
 	(cons function args)))
 
-(defun thread-enable (thread activation-semaphore &optional (timeout most-positive-fixnum))
+(defun thread-enable (thread activation-semaphore allocation-quantum &optional (timeout most-positive-fixnum))
   (let* ((tcr (or (lisp-thread.tcr thread) (new-tcr-for-thread thread))))
     (multiple-value-bind (seconds nanos) (nanoseconds timeout)
       (with-macptrs (s)
@@ -447,7 +450,7 @@
 	  (%set-tcr-toplevel-function
 	   tcr
 	   (lisp-thread.startup-function thread))
-	  (%activate-tcr tcr activation-semaphore)
+	  (%activate-tcr tcr activation-semaphore allocation-quantum)
 	  thread)))))
 			      
 
@@ -472,12 +475,12 @@
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      #+linuxppc-target
-      (let* ((pthread (#+ppc32-target %get-unsigned-long
-                       #+ppc64-target %%get-unsigned-longlong
-                                      tcrp target::tcr.osid)))
+      #+linux-target
+      (let* ((pthread (#+32-bit-target %get-unsigned-long
+                       #+64-bit-target %%get-unsigned-longlong
+                       tcrp target::tcr.osid)))
 	(unless (zerop pthread) pthread))
-      #-linuxppc-target
+      #+darwin-target
       (let* ((pthread (%get-ptr tcrp target::tcr.osid)))
 	(unless (%null-ptr-p pthread) pthread)))))
                          
@@ -495,15 +498,15 @@
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      (#+ppc32-target %get-unsigned-long
-       #+ppc64-target %%get-unsigned-longlong tcrp target::tcr.native-thread-id))))
+      (#+32-bit-target %get-unsigned-long
+       #+64-bit-target %%get-unsigned-longlong tcrp target::tcr.native-thread-id))))
 
 (defun lisp-thread-suspend-count (thread)
   (with-macptrs (tcrp)
     (%setf-macptr-to-object tcrp (lisp-thread.tcr thread))
     (unless (%null-ptr-p tcrp)
-      (#+ppc32-target %get-unsigned-long
-       #+ppc64-target %%get-unsigned-longlong tcrp target::tcr.suspend-count))))
+      (#+32-bit-target %get-unsigned-long
+       #+64-bit-target %%get-unsigned-longlong tcrp target::tcr.suspend-count))))
 
 (defun tcr-clear-preset-state (tcr)
   (let* ((flags (%fixnum-ref tcr target::tcr.flags)))
@@ -517,12 +520,16 @@
     (setf (%fixnum-ref tcr target::tcr.flags)
 	  (bitset arch::tcr-flag-bit-awaiting-preset flags))))  
 
-(defun %activate-tcr (tcr termination-semaphore)
+(defun %activate-tcr (tcr termination-semaphore allocation-quantum)
   (if (and tcr (not (eql 0 tcr)))
     (with-macptrs (tcrp s)
       (%setf-macptr-to-object tcrp tcr)
       (%setf-macptr s (%get-ptr tcrp target::tcr.activate))
       (unless (%null-ptr-p s)
+        (setf (#+64-bit-target %%get-unsigned-longlong
+               #+32-bit-target %get-unsigned-long
+                               tcrp target::tcr.log2-allocation-quantum)
+              (or allocation-quantum (default-allocation-quantum)))
         (setf (%get-ptr tcrp target::tcr.termination-semaphore)
               (if termination-semaphore
                 (semaphore-value termination-semaphore)
@@ -712,7 +719,7 @@
 (defun index->address (p)
   (when (fake-stack-frame-p p)
     (setq p (%fake-stack-frame.sp p)))
-  (ldb (byte #+ppc32-target 32 #+ppc64-target 64 0)  (ash p target::fixnumshift)))
+  (ldb (byte #+32-bit-target 32 #+64-bit-target 64 0)  (ash p target::fixnumshift)))
 
 ; This returns the current head of the db-link chain.
 (defun db-link (&optional context)
@@ -843,15 +850,15 @@
       (incf cur-vsp))
     count))
 
-; stack consed value cells are one of two forms:
-;
-; nil             ; n-4
-; header          ; n = even address (multiple of 8)
-; value           ; n+4
-;
-; header          ; n = even address (multiple of 8)
-; value           ; n+4
-; nil             ; n+8
+;;; stack consed value cells are one of two forms:
+;;;
+;;; nil             ; n-4
+;;; header          ; n = even address (multiple of 8)
+;;; value           ; n+4
+;;;
+;;; header          ; n = even address (multiple of 8)
+;;; value           ; n+4
+;;; nil             ; n+8
 
 (defun in-stack-consed-value-cell-p (arg-vsp vsp parent-vsp)
   (declare (fixnum arg-vsp vsp parent-vsp))
@@ -864,9 +871,9 @@
           (and (< next-vsp parent-vsp)
                (%value-cell-header-at-p next-vsp))))))
 
-; Return two values: the vsp of p and the vsp of p's "parent" frame.
-; The "parent" frame vsp might actually be the end of p's segment,
-; if the real "parent" frame vsp is in another segment.
+;;; Return two values: the vsp of p and the vsp of p's "parent" frame.
+;;; The "parent" frame vsp might actually be the end of p's segment,
+;;; if the real "parent" frame vsp is in another segment.
 (defun vsp-limits (p context)
   (let* ((vsp (%frame-savevsp p))
          parent)

@@ -102,6 +102,11 @@
                              (constantly valform))))))
           alist))
 
+(defun valid-allocation-quantum-p (x)
+  (and (>= x target::cons.size)
+       (<= x (default-allocation-quantum))
+       (= (logcount x) 1)))
+
   
 (let* ((psn -1))
   (defun %new-psn () (incf psn)))
@@ -123,7 +128,11 @@
                 :accessor process-ui-object)
      (termination-semaphore :initform nil :initarg :termination-semaphore
                             :accessor process-termination-semaphore
-                            :type (or null semaphore)))
+                            :type (or null semaphore))
+     (allocation-quantum :initform (default-allocation-quantum)
+                         :initarg :allocation-quantum
+                         :reader process-allocation-quantum
+                         :type (satisfies valid-allocation-quantum-p)))
   
   (:primary-p t))
 
@@ -240,7 +249,7 @@
     (error "Process ~s has not been preset.  Use PROCESS-PRESET to preset the process." p))
   (let* ((thread (process-thread p)))
     (do* ((total-wait wait (+ total-wait wait)))
-	 ((thread-enable thread (process-termination-semaphore p) wait)
+	 ((thread-enable thread (process-termination-semaphore p) (1- (integer-length (process-allocation-quantum p)))  wait)
 	  (setf (%process-whostate p) "Active")
 	  p)
       (cerror "Keep trying."
