@@ -165,8 +165,8 @@
 (defx86reg temp2.l ecx)
 (defx86reg nargs cx)
 (defx86reg temp2.w cx)
-(defx86reg shift cl)
 (defx86reg temp2.b cl)
+(defx86reg shift cl)
 
 (defx86reg imm1 rdx)
 (defx86reg imm1.l edx)
