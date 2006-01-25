@@ -376,12 +376,13 @@ typedef struct doh_block {
 typedef struct tcr {
   struct tcr* next;
   struct tcr* prev;
+  natural single_float_convert;
   struct tcr* linear;
   void *linear_end;
   union {
     double d;
-    struct {u_int32_t h, l;} words;
-  } lisp_fpscr;			/* lisp thread's fpscr (in low word) */
+    struct {u_int32_t l, h;} words;
+  } lisp_fpscr;			/* lisp thread's FP status word */
   special_binding* db_link;	/* special binding chain head */
   LispObj catch_top;		/* top catch frame */
   LispObj* save_vsp;  /* VSP when in foreign code */
@@ -391,7 +392,7 @@ typedef struct tcr {
   struct area* ts_area; /* tstack area pointer */
   LispObj cs_limit;		/* stack overflow limit */
   natural bytes_allocated;
-  signed_natural OLDinterrupt_level;      /* UNUSED */
+  natural log2_allocation_quantum;      /* for per-thread consing */
   signed_natural interrupt_pending;	/* pending interrupt flag */
   xframe_list* xframe; /* exception-frame linked list */
   int* errno_loc;		/* per-thread (?) errno location */

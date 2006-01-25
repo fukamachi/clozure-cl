@@ -442,7 +442,7 @@
   cs-limit				; cstack overflow limit
   total-bytes-allocated-high
   total-bytes-allocated-low
-  OLDinterrupt-level			; fixnum
+  log2-allocation-quantum		; unboxed
   interrupt-pending			; fixnum
   xframe				; exception frame linked list
   errno-loc				; thread-private, maybe

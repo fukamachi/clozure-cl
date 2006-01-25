@@ -413,7 +413,7 @@ typedef struct tcr {
   struct area* ts_area; /* tstack area pointer */
   LispObj cs_limit;		/* stack overflow limit */
   natural bytes_allocated;
-  signed_natural OLDinterrupt_level;      /* UNUSED */
+  natural log2_allocation_quantum;      /* for per-tread consing */
   signed_natural interrupt_pending;	/* pending interrupt flag */
   xframe_list* xframe; /* exception-frame linked list */
   int* errno_loc;		/* per-thread (?) errno location */

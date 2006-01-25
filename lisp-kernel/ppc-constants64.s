@@ -538,7 +538,7 @@ TCR_BIAS = 0
 	 _node(cs_limit)	/* cstack overflow limit */
 	 _word(bytes_consed_high)
 	 _word(bytes_consed_low)
-	 _node(OLDinterrupt_level)
+	 _node(log2_allocation_quantum)
 	 _node(interrupt_pending)
 	 _node(xframe)		/* per-thread exception frame list */
 	 _node(errno_loc)	/* per-thread  errno location */
