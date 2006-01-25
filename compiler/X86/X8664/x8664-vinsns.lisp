@@ -728,7 +728,16 @@
   (movq (:%q source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert))
   (movss (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value) (:%xmm result)))
 
+(define-x8664-vinsn get-double (((result :double-float))
+                                ((source :lisp)))
+  (movsd (:@  x8664::double-float.value (:%q source)) (:%xmm result)))
+
 (define-x8664-vinsn single->node (((result :lisp))
                                   ((source :single-float)))
   (movss (:%xmm source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert) (:%q result)))
+
+(define-x8664-vinsn u8->fixnum (((result :imm)) 
+				((val :u8)) 
+				())
+  (leaq (:@ (:%q val) 8) (:%q result)))
