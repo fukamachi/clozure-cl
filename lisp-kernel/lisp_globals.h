@@ -33,7 +33,7 @@ extern LispObj lisp_nil;
 #define AREA_LOCK (-11)       /* all_areas lock */
 #define EXCEPTION_LOCK (-12)	/* serialize exception handling */
 #define DELETED_STATIC_PAIRS (-13) /* for hash-consing */
-#define BAD_BLOCK_TAG_COUNTER (-14)
+#define DEFAULT_ALLOCATION_QUANTUM (-14)
 #define INTFLAG (-15)
 #define GC_INHIBIT_COUNT (-16)
 #define REFBITS (-17)

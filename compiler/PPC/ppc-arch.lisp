@@ -237,7 +237,7 @@
     area-lock                           ; serialize access to gc
     exception-lock			; serialize exception handling
     deleted-static-pairs                ; for hash-consing
-    BAD-block-tag-counter               ; counter for (immediate) block tag
+    default-allocation-quantum          ; log2_heap_segment_size, as a fixnum.
     intflag				; interrupt-pending flag
     gc-inhibit-count                    ; for gc locking
     refbits                             ; oldspace refbits
