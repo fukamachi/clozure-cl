@@ -1326,6 +1326,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(LEXPR_RETURN) = (LispObj)&nvalret;
   lisp_global(LEXPR_RETURN1V) = (LispObj)&popj;
   lisp_global(ALL_AREAS) = ptr_to_lispobj(all_areas);
+  lisp_global(DEFAULT_ALLOCATION_QUANTUM) = log2_heap_segment_size << fixnumshift;
 
   exception_init();
 
