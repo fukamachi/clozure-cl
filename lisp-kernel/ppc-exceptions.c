@@ -543,12 +543,12 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
 {
   area *a;
   natural newlimit, oldlimit;
-
+  natural log2_allocation_quantum = tcr->log2_allocation_quantum;
 
   a  = active_dynamic_area;
   oldlimit = (natural) a->active;
-  newlimit = (align_to_power_of_2(oldlimit, log2_heap_segment_size) +
-	      align_to_power_of_2(need, log2_heap_segment_size));
+  newlimit = (align_to_power_of_2(oldlimit, log2_allocation_quantum) +
+	      align_to_power_of_2(need, log2_allocation_quantum));
   if (newlimit > (natural) (a->high)) {
     if (extend) {
       if (! resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold)) {
