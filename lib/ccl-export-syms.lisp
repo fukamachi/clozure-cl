@@ -410,6 +410,11 @@
      process-allow-schedule
      process-kill-issued
      process-termination-semaphore
+     process-allocation-quantum
+     default-allocation-quantum
+     current-process-allocation-quantum
+
+     *HOST-PAGE-SIZE*
      
      make-lock
      lock-name
