@@ -89,6 +89,6 @@ load_openmcl_image(int, openmcl_image_file_header*);
 
 
 
-#define ABI_VERSION_MIN 1005
-#define ABI_VERSION_CURRENT 1005
-#define ABI_VERSION_MAX 1005
+#define ABI_VERSION_MIN 1006
+#define ABI_VERSION_CURRENT 1006
+#define ABI_VERSION_MAX 1006
