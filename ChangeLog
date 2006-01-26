@@ -1,3 +1,45 @@
+2006-01-25 18:13  gb
+
+	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump kernel abi
+	version.
+
+2006-01-25 18:13  gb
+
+	* lib/compile-ccl.lisp: Progress messages around kernel build.
+
+2006-01-25 18:03  gb
+
+	* xdump/faslenv.lisp: Finish bumping fasl version.
+
+2006-01-25 17:57  gb
+
+	* lib/nfcomp.lisp: Next step in bumping FASL version.
+
+2006-01-25 17:52  gb
+
+	* xdump/faslenv.lisp: Start bumping fasl version.
+
+2006-01-25 17:45  gb
+
+	* lib/ccl-export-syms.lisp: export allocation-quantum stuff.
+
+2006-01-25 17:45  gb
+
+	* lisp-kernel/ppc-exceptions.c: new_heap_segment tries to use
+	per-thread allocation quantum.
+
+2006-01-25 17:44  gb
+
+	* level-1/l1-processes.lisp: Some more allocation-quantum stuff.
+
+2006-01-25 17:44  gb
+
+	* lib/macros.lisp: %get-natural, %get-signed-natural.
+
+2006-01-25 17:43  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-01-25 15:16  gb
 
 	* level-1/: l1-lisp-threads.lisp, l1-processes.lisp: Start to
