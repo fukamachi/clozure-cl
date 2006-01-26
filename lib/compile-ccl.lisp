@@ -448,6 +448,7 @@
          (progn
            (setf (current-directory) "ccl:")
            (when kernel
+             (format t "~&;Building lisp-kernel")
              (when force
                ;; Do a "make -k clean".
                (run-program "make"
@@ -466,7 +467,8 @@
                                                (kernel-build-directory)))
                                  :output s
                                  :error s))
-                 (unless (and (eq :exited status) (zerop exit-code))
+                 (if (and (eq :exited status) (zerop exit-code))
+                   (format t "~&;Kernel built successfully.")
                    (error "Error(s) during kernel compilation.~%~a"
                           (get-output-stream-string s))))))
            (compile-ccl (not (null force)))
