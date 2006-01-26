@@ -3394,3 +3394,18 @@ to be at least partially steppable."
   `(ecase (arch::target-nbits-in-word (backend-target-arch *target-backend*))
     ,@clauses))
 
+(defmacro %get-natural (&body body)
+  "A free copy of the next OpenMCL release to anyone who remembers Flakey Foont"
+  (target-word-size-case
+   (32 `(%get-unsigned-long ,@body))
+   (64 `(%%get-unsigned-longlong ,@body))))
+
+(defmacro %get-signed-natural (&body body)
+  "And that's my final offer."
+  (target-word-size-case
+   (32 `(%get-signed-long ,@body))
+   (64 `(%%get-signed-longlong ,@body))))
+
+
+
+   
