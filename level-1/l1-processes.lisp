@@ -102,8 +102,10 @@
                              (constantly valform))))))
           alist))
 
+(defloadvar *host-page-size* (#_getpagesize))
+
 (defun valid-allocation-quantum-p (x)
-  (and (>= x target::cons.size)
+  (and (>= x *host-page-size*)
        (<= x (default-allocation-quantum))
        (= (logcount x) 1)))
 
@@ -158,7 +160,8 @@
                           (initial-bindings ())
 			  (use-standard-initial-bindings t)
                           (class (find-class 'process))
-                          (termination-semaphore ()))
+                          (termination-semaphore ())
+                          (allocation-quantum (default-allocation-quantum)))
   "Create and return a new process."
   (declare (ignore flavor))
   (let* ((p (make-instance
@@ -172,7 +175,8 @@
 					 (standard-initial-bindings))
 				       (wrap-initial-bindings
 					initial-bindings))
-             :termination-semaphore termination-semaphore)))
+             :termination-semaphore termination-semaphore
+             :allocation-quantum allocation-quantum)))
     (add-to-all-processes p)
     (setf (car (process-splice p)) p)
     p))
@@ -523,7 +527,8 @@ some point in the near future, and then return to what it was doing."
 			    (initial-bindings ())
                             (persistent nil)
 			    (use-standard-initial-bindings t)
-                            (termination-semaphore nil))
+                            (termination-semaphore nil)
+                            (allocation-quantum (default-allocation-quantum)))
                       keywords
     (setq priority (require-type priority 'fixnum))
     (let* ((process (make-process name
@@ -534,7 +539,8 @@ some point in the near future, and then return to what it was doing."
                                   :persistent persistent
 				  :use-standard-initial-bindings use-standard-initial-bindings
 				  :initial-bindings initial-bindings
-                                  :termination-semaphore termination-semaphore)))
+                                  :termination-semaphore termination-semaphore
+                                  :allocation-quantum allocation-quantum)))
       (process-preset process #'(lambda () (apply function args)))
       (process-enable process)
       process)))
@@ -597,6 +603,19 @@ had invoked abort."
   (dolist (p (all-processes))
     (when (eq tcr (process-tcr p))
       (return p))))
+
+(defun current-process-allocation-quantum ()
+  (process-allocation-quantum *current-process*))
+
+(defun (setf current-process-allocation-quantum) (new)
+  (if (valid-allocation-quantum-p new)
+    (with-macptrs (tcrp)
+      (%setf-macptr-to-object tcrp (%current-tcr))
+      (setf (slot-value *current-process* 'allocation-quantum) new
+            (%get-natural tcrp target::tcr.log2-allocation-quantum)
+            (1- (integer-length new)))
+      new)
+    (report-bad-arg new '(satisfies valid-allocation-quantum-p))))
 
 
 (def-standard-initial-binding *backtrace-contexts* nil)
