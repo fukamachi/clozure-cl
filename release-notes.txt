@@ -1,3 +1,77 @@
+OpenMCL 1.1-pre-060125
+
+- FASL version changed; delete old FASL (.dfsl, .pfsl, .dfsl64, .pfsl64) files
+ 
+- "kernel ABI version" changed; build a new lisp kernel before trying to load/use
+   060125 images.
+
+-  Changes: (see also ChangeLog)
+
+   New variable:
+
+   CCL:*HOST-PAGE-SIZE*
+
+   Initialized on application startup to contain the MMU/OS page size in bytes.
+   This is 4K on PPC platforms (and likely on most? all? x86 platforms).
+
+   New functions:
+
+   CCL:DEFAULT-ALLOCATION-QUANTUM
+
+   Returns an integer, the value of which is used by the lisp kernel when
+   mapping heap memory from the OS.  Mapping requests are usually made in
+   multiples of this value.  
+
+   This value is read-only; currently, it's 64KB on 32-bit platforms and
+   128KB on 64-bit platforms.
+
+
+   CCL:PROCESS-ALLOCATION-QUANTUM p
+
+   Returns the (per-thread) allocation quantum of the process P.  By default,
+   this is the same value as that returned by CCL:DEFAULT-ALLOCATION-QUANTUM,
+   but lower values can be specified on a per-process basis (see below.)
+
+   This value is read-only.
+
+   CCL:CURRENT-PROCESS-ALLOCATION-QUANTUM
+
+   Equivalent to (CCL:PROCESS-ALLOCATION-QUANTUM *CURRENT-PROCESS*),
+   but can be used with SETF to change the current processes's
+   allocation quantum to a value which is between *HOST-PAGE-SIZE* and
+   (DEFAULT-ALLOCATION-QUANTUM), inclusive, and which is a power of 2.
+
+
+   Changes to existing functions:
+
+   Both PROCESS-RUN-FUNCTION and MAKE-PROCESS accept an :ALLOCATION-QUANTUM
+   &key argument, which defaults to the value returned by (DEFAULT-ALLOCATION-QUANTUM).
+   If provided, the value of the argument should should satisfy the same
+   constraints that (SETF (CURRENT-PROCESS-ALLOCATION-QUANTUM) is subject to.
+
+Discussion
+
+In general, larger per-thread allocation quanta are appropriate for programs
+where a relatively small number of threads need to allocate memory frequently
+and small per-thread quanta are appropriate for larger numbers of threads
+that are expected to do small, infrequent memory allocations.
+
+The worst-case scenarios would involve a large number of threads doing
+incidental memory allocation with large quanta (that wastes memory and may
+trigger the GC too frequently) or a small number of threads doing frequent
+memory allocation with small quanta (since such threads could be expected
+to fill up their small per-thread memory allocations quickly and frequently
+and would waste time frequently allocating more small chunks.)
+
+All of these values interact with the GC and EGC thresholds; the ability
+to exercise some control over how much per-threads memory is allocated
+at a time can help to ensure that those interactions are appropriate.
+When these mechanisms are insufficient, applications should consider the
+use of available mechanisms for adjusting GC and EGC thresholds.
+
+
+
+
 OpenMCL 1.1-pre-051027
 
 - A lot of internal changes in the way that special bindings, UNWIND-PROTECT,
