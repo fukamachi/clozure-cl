@@ -1,3 +1,14 @@
+2006-01-25 18:53  gb
+
+	* lib/compile-ccl.lisp: Ellipses to indicate that kernel build may
+	take a little while, and delay after successful build to increase
+	the chance that the message reporting success is seen before it
+	scrolls off.
+
+2006-01-25 18:51  gb
+
+	* release-notes.txt: Update, describing (some) recent changes.
+
 2006-01-25 18:13  gb
 
 	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump kernel abi
