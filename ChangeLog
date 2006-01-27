@@ -1,3 +1,35 @@
+2006-01-26 23:40  gb
+
+	* lisp-kernel/gc.c: Compile on x8664.
+
+2006-01-26 23:40  gb
+
+	* lisp-kernel/ppc-spentry.s: Use subi. in SPfitvals; no need for
+	subic.
+
+2006-01-26 23:39  gb
+
+	* lisp-kernel/x86-constants64.h: Use symbolic (GNU_SOURCE) names
+	for register indices.
+
+2006-01-26 23:38  gb
+
+	* lisp-kernel/x86-constants64.s: Lisp_frame, nargs extensions.
+
+2006-01-26 23:37  gb
+
+	* lisp-kernel/x86-macros.s: Change arg order in macros, to match
+	LAP.  Some fixes in do_funcall; need to update UUO defs.
+
+2006-01-26 23:36  gb
+
+	* lisp-kernel/x86-spentry64.s: Macro arg order, some multiple-value
+	stuff, stub out unused things.
+
+2006-01-26 23:35  gb
+
+	* lisp-kernel/x86-spjump64.s: Flesh this out.
+
 2006-01-26 17:30  gb
 
 	* level-0/l0-hash.lisp: Didn't I check this in already ?  Fix
