@@ -22,7 +22,7 @@
 	precedes the source
 */
 define([ref_global],[
-	mov lisp_globals.$2,$1
+	mov lisp_globals.$1,$2
 ])
 
 define([set_global],[
@@ -30,7 +30,7 @@ define([set_global],[
 ])
 
 define([ref_nrs_value],[
-	mov nrs.$2+symbol.vcell,$1
+	mov nrs.$1+symbol.vcell,$2
 ])
 	
 define([set_nrs_value],[
@@ -38,8 +38,8 @@ define([set_nrs_value],[
 ])
 							
 define([unbox_fixnum],[
-	mov $2,$1
-	sar [$]fixnumshift,$1
+	mov $1,$2
+	sar [$]fixnumshift,$2
 ])
 
 define([save_node_regs],[
@@ -162,7 +162,7 @@ define([jump_fname],[
 ])	
 	
 define([set_nargs],[
-	movw $1<<fixnumshift,%nargs
+	movw [$]$1<<fixnumshift,%nargs
 ])
 
 /* $1 = ndigits.  Assumes 4-byte digits */        
@@ -170,7 +170,7 @@ define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1)
 	
 
 define([_car],[
-	mov $1,cons.car($2)
+	mov cons.car($1),$2
 ])	
 
 define([tra],[
@@ -186,9 +186,9 @@ $1:
 define([do_funcall],[
 	new_macro_labels()
 	lea macro_label(bad)(%rip),%fn
-	movb %temp0_b,%temp0_b
-	andb $fulltagmask,%temp0_b
-	cmpb $fulltag_symbol,%temp0_b
+	movb %temp0_b,%imm0_b
+	andb $fulltagmask,%imm0_b
+	cmpb $fulltag_symbol,%imm0_b
 	/* %fname == %temp0 */
 	cmoveq symbol.fcell(%fname),%fn
 	cmovgq %temp0,%fn
