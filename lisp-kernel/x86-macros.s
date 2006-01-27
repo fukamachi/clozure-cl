@@ -194,4 +194,37 @@ define([do_funcall],[
 	cmovgq %temp0,%fn
 	jmp *fn
 	tra(macro_label(bad))
+        uuo_alloc_not_callable()
 ])
+
+define([getvheader],[
+        movq misc_header_offset($1),$2
+])
+
+/* "Size" is unboxed element-count.  $1 (header) and $2 (dest) should
+    both be immediate registers */
+define([header_size],[
+        movq $1,$2
+        shr $num_subtag_bits,$2
+])
+
+/* $2 (length)" is fixnum element-count. */
+define([header_length],[
+        movq $~255,$2
+        andq $1,$2
+        shr $num_subtag_bits-fixnumshift,$2
+])
+
+/* $1 = vector, $2 = header, $3 = dest */
+define([vector_size],[                                 
+        getvheader($1,$2)
+        header_size($2,$3)
+])
+
+/* $1 = vector, $2 = dest */
+define([vector_length],[                                 
+        movq $~255,$2
+        andq misc_header_offset($1),$2
+        shr $num_subtag_bits-fixnumshift,$2
+])
+                
