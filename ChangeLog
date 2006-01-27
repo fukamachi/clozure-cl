@@ -1,3 +1,19 @@
+2006-01-27 02:48  gb
+
+	* lisp-kernel/x86-uuo.s: Start to define some of what's in LAP.
+
+2006-01-27 02:47  gb
+
+	* lisp-kernel/x86-spentry64.s: call_closure.
+
+2006-01-27 02:47  gb
+
+	* lisp-kernel/x86-macros.s: Flesh out some more.
+
+2006-01-27 02:47  gb
+
+	* lisp-kernel/x86-constants64.s: Add nargregs.
+
 2006-01-26 23:40  gb
 
 	* lisp-kernel/gc.c: Compile on x8664.
