@@ -81,6 +81,8 @@ define([rcontext],[fs])
 define([fname],[temp0])
 define([next_method_context],[temp1])
 define([nargs],[temp2_w])
+define([nargs_q],[temp2])
+define([nargs_l],[temp2_l])	
 						
 define([ra1],[fn])	
 
@@ -363,9 +365,7 @@ no_thread_local_binding_marker = subtag_no_thread_local_binding
         	
 	_struct(lisp_frame,0)
 	 _node(backlink) 
-	 _node(savefn)	
-	 _node(savelr)	
-	 _node(savevsp)	
+	 _node(savera0)	
 	_ends
 
 	_struct(vector,-fulltag_misc)
