@@ -563,7 +563,8 @@ before doing so.")
    itself."
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
-  (with-exclusive-hash-lock (hash)
+  (without-interrupts
+   (lock-hash-table hash)
    (let* ((vector (nhash.vector hash))
           (size (nhash.vector-size vector))
           (count (+ size size))
@@ -584,6 +585,7 @@ before doing so.")
            (nhash.vector.deleted-count vector) 0
            (nhash.vector.flags vector) (logand $nhash_weak_flags_mask
                                                (nhash.vector.flags vector))))
+   (unlock-hash-table hash)
    hash))
 
 (defun index->vector-index (index)
