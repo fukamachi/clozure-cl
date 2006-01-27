@@ -445,7 +445,7 @@ _endsubp(poweropen_callbackX)
 /* Prepend all but the first three (2 words of code, inner fn) and last two */
 /* (function name, lfbits) elements of %fn to the "arglist". */
 _spentry(call_closure)
-        __(subq $subtag_function-subtag_misc,%fn)
+        __(subq $fulltag_function-fulltag_misc,%fn)
         __(header_length(%fn,%imm0))
        	__(movzwl %nargs,%nargs_l)
         __(subq $5<<fixnumshift,%imm0)  /* imm0 = inherited arg count */
@@ -508,7 +508,7 @@ local_label(no_insert_no_frame):
 	/* if exactly nargregs, vpush remaining inherited vars. */
         __(cmpw $nargregs<<fixnumshift,%nargs)
         __(movl $3<<fixnumshift,%imm1_l) /* skip code, new fn */
-        __(leaq $3<<fixnumshift(%imm0),%temp0)
+        __(leaq 3<<fixnumshift(%imm0),%temp0)
         __(jnz local_label(set_regs))
 local_label(vpush_remaining):  
         __(push misc_data_offset(%fn,%imm1))
