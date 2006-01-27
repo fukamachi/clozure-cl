@@ -2003,7 +2003,7 @@ mark_xp(ExceptionInformation *xp)
   mark_root(regs[Isave2]);
   mark_root(regs[Isave1]);
   mark_root(regs[Isave0]);
-  mark_root(regs[Infn]);
+  mark_root(regs[Ira0]);
   mark_root(regs[Ifn]);
   mark_root(regs[Itemp0]);
   mark_root(regs[Itemp1]);
@@ -2654,7 +2654,7 @@ forward_xp(ExceptionInformation *xp)
   update_noderef(&(regs[Isave2]));
   update_noderef(&(regs[Isave1]));
   update_noderef(&(regs[Isave0]));
-  update_noderef(&(regs[Infn]));
+  update_noderef(&(regs[Ira0]));
   update_noderef(&(regs[Ifn]));
   update_noderef(&(regs[Itemp0]));
   update_noderef(&(regs[Itemp1]));
@@ -3687,7 +3687,7 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
   copy_ivector_reference(&(regs[Isave2]), low, high, to, what);
   copy_ivector_reference(&(regs[Isave1]), low, high, to, what);
   copy_ivector_reference(&(regs[Isave0]), low, high, to, what);
-  copy_ivector_reference(&(regs[Infn]), low, high, to, what);
+  copy_ivector_reference(&(regs[Ira0]), low, high, to, what);
   copy_ivector_reference(&(regs[Ifn]), low, high, to, what);
   copy_ivector_reference(&(regs[Itemp0]), low, high, to, what);
   copy_ivector_reference(&(regs[Itemp1]), low, high, to, what);
@@ -3946,7 +3946,7 @@ impurify_xp(ExceptionInformation *xp, LispObj low, LispObj high, int delta)
   impurify_noderef(&(regs[Isave2]), low, high, delta);
   impurify_noderef(&(regs[Isave1]), low, high, delta);
   impurify_noderef(&(regs[Isave0]), low, high, delta);
-  impurify_noderef(&(regs[Infn]), low, high, delta);
+  impurify_noderef(&(regs[Ira0]), low, high, delta);
   impurify_noderef(&(regs[Ifn]), low, high, delta);
   impurify_noderef(&(regs[Itemp0]), low, high, delta);
   impurify_noderef(&(regs[Itemp1]), low, high, delta);
