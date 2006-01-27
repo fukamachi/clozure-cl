@@ -14,23 +14,37 @@
    http://opensource.franz.com/preamble.html
 */
 
-/* ud2b instructions can be followed by a single byte, which
-   requests some functionality from the kernel uuo handler.
-   ud2a instructions are used to signal errors;  they're
-   generally going to be followed by a variable number of
-   bytes which contain additional information about the
-   error context.
-*/
-		
-define([uuo2],[
-	ud2b ; .byte $1
+
+define([uuo_error_too_few_args],[
+        int [$]0xc0
 ])
 
+define([uuo_error_too_many_args],[
+        int [$]0xc1
+])
+
+define([uuo_error_wrong_number_of_args],[
+        int [$]0xc2
+])
+
+define([uuo_error_stack_overflow],[
+        int [$]0xc3
+])
+
+define([uuo_error_gc_trap],[
+        int [$]0xc4
+])                        
+        
+                                        
 /* If we're allocating a CONS, the tcr's save_allocptr slot will be
    tagged as a cons.  Otherwise, it'll be tagged as fulltag_misc,
    and we have to look at the immediate registers to determine what's
    being allocated. */
 define([uuo_alloc],[
-	int [$]0xc4
+	int [$]0xc5
 ])
 				
+define([uuo_alloc_not_callable],[
+        int [$]0xc6
+])
+                
