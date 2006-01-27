@@ -442,7 +442,115 @@ _endsubp(stack_cons_rest_arg)
 _spentry(poweropen_callbackX)
 _endsubp(poweropen_callbackX)
 
+/* Prepend all but the first three (2 words of code, inner fn) and last two */
+/* (function name, lfbits) elements of %fn to the "arglist". */
 _spentry(call_closure)
+        __(subq $subtag_function-subtag_misc,%fn)
+        __(header_length(%fn,%imm0))
+       	__(movzwl %nargs,%nargs_l)
+        __(subq $5<<fixnumshift,%imm0)  /* imm0 = inherited arg count */
+        __(cmpw $nargregs<<fixnumshift,%nargs)
+        __(jna,pt local_label(no_insert))
+	
+	/* Some arguments have already been pushed.  Push imm0's worth */
+	/* of NILs, copy those arguments that have already been vpushed from */
+	/* the old TOS to the new, then insert all of the inerited args */
+	/* and go to the function. */
+        __(movq %imm0,%imm1)
+local_label(push_nil_loop):     
+        __(push $nil_value)
+        __(sub $fixnumone,%imm1)
+        __(jne local_label(push_nil_loop))
+        /* Need to use arg regs as temporaries here.  */
+        __(movq %rsp,%temp0)
+        __(push %arg_z)
+        __(push %arg_y)
+        __(push %arg_x)
+        __(lea (%rsp,%imm0),%arg_x)
+        __(lea -nargregs<<fixnumshift(%nargs_q),%arg_y)
+local_label(copy_already_loop): 
+        __(movq (%arg_x),%arg_z)
+        __(addq $fixnumone,%arg_x)
+        __(movq %arg_z,(%temp0))
+        __(addq $fixnumone,%temp0)
+        __(subq $fixnumone,%arg_y)
+        __(jne local_label(copy_already_loop))
+
+        __(movl $3<<fixnumshift,%imm1_l) /* skip code, new fn */
+local_label(insert_loop):               
+        __(movq misc_data_offset(%fn,%imm1),%arg_z)
+        __(addq $node_size,%imm1)
+        __(addw $fixnum_one,%nargs)
+        __(subq $node_size,%arg_x)
+        __(movq %arg_z,(%arg_x))
+        __(subq $fixnum_one,%imm0)
+        __(jne local_label(insert_loop))
+
+        /* Recover the argument registers, pushed earlier */
+        __(pop %arg_x)
+        __(pop %arg_y)
+        __(pop %arg_z)
+        __(jmp local_label(go))
+
+        /* Here if nothing was pushed by the caller.  If we're
+           going to push anything, we have to reserve a stack
+           frame first. (We'll need to push something if the
+           sum of %nargs and %imm0 is greater than nargregs */
+local_label(no_insert): 
+        __(lea (%nargs_q,%imm0),%imm1)
+        __(cmpq $nargregs<<fixnumshift,%imm1)
+        __(jna local_label(no_insert_no_frame))
+        /* Reserve space for a stack frame */
+        __(push $0)
+        __(push $0)
+local_label(no_insert_no_frame):        
+	/* nargregs or fewer args were already vpushed. */
+	/* if exactly nargregs, vpush remaining inherited vars. */
+        __(cmpw $nargregs<<fixnumshift,%nargs)
+        __(movl $3<<fixnumshift,%imm1_l) /* skip code, new fn */
+        __(leaq $3<<fixnumshift(%imm0),%temp0)
+        __(jnz local_label(set_regs))
+local_label(vpush_remaining):  
+        __(push misc_data_offset(%fn,%imm1))
+        __(addq $node_size,%imm1)
+        __(addw $fixnumone,%nargs)
+        __(subq $node_size,%imm0)
+        __(jnz local_label(vpush_remaining))
+        __(jmp local_label(go))
+local_label(set_regs):
+	/* if nargs was > 1 (and we know that it was < 3), it must have */
+	/* been 2.  Set arg_x, then vpush the remaining args. */
+        __(cmpw $fixnumone,%nargs)
+        __(jle local_label(set_y_z))
+local_label(set_arg_x): 
+        __(subq $node_size,%temp0)
+        __(movq misc_data_offset(%fn,%temp0),%arg_x)
+        __(addw $fixnumone,%nargs)
+        __(subq $fixnumone,%imm0)
+        __(jne local_label(vpush_remaining))
+        __(jmp local_label(go))
+	/* Maybe set arg_y or arg_z, preceding args */
+local_label(set_y_z):
+        __(jne local_label(set_arg_z))
+	/* Set arg_y, maybe arg_x, preceding args */
+local_label(set_arg_y): 
+        __(subq $node_size,%temp0)
+        __(movq misc_data_offset(%fn,%temp0),%arg_y)
+        __(addw $fixnumone,%nargs)
+        __(subq $fixnum_one,%imm0)
+        __(jnz local_label(set_arg_x))
+        __(jmp local_label(go))
+local_label(set_arg_z): 
+        __(subq $node_size,%temp0)
+        __(movq misc_data_offset(%fn,%temp0),%arg_z)
+        __(addw $fixnumone,%nargs)
+        __(subq $fixnum_one,%imm0)
+        __(jne local_label(set_arg_y))
+        
+local_label(go):        
+        __(movq misc_data_offset+(2*node_size)(%fn),%fn)
+        __(jmp *%fn)                
+        
 _endsubp(call_closure)
 
 _spentry(getxlong)
