@@ -116,6 +116,8 @@ fixnumone = (1<<fixnumshift)
 fixnum_one = fixnumone
 fixnum1 = fixnumone
 
+nargregs = 3
+                
 
 tag_fixnum = 0
 tag_imm_0 = 1		/* subtag_single_float ONLY */
