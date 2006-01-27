@@ -1,3 +1,7 @@
+2006-01-27 04:01  gb
+
+	* lisp-kernel/x86-spentry64.s: Compile on x8664.
+
 2006-01-27 02:48  gb
 
 	* lisp-kernel/x86-uuo.s: Start to define some of what's in LAP.
