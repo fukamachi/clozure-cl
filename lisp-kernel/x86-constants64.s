@@ -88,7 +88,9 @@ define([ra1],[fn])
 
 
 define([allocptr],[temp0])		
-	
+define([tsp],[mm7])
+define([next_tsp],[mm6])
+		
 		
 
 nbits_in_word = 64
