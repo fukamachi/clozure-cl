@@ -44,7 +44,27 @@ define([uuo_alloc],[
 	int [$]0xc5
 ])
 				
-define([uuo_alloc_not_callable],[
+define([uuo_error_not_callable],[
         int [$]0xc6
 ])
-                
+
+
+define([xuuo],[
+	ud2a
+	.byte $1
+])
+	
+define([tlb_too_small],[
+	xuuo(1)
+])
+
+/* the "6" below is the current encoding of arg_z (= rsi).
+   Signal an UNBOUND-VARIABLE error by claiming that arg_z
+   doesn't have the tag unbound_marker, which is otherwise
+   a meaningless claim.
+*/	
+define([arg_z_unbound],[
+	int [$]0xb0|6
+	.byte unbound_marker
+])	
+								
