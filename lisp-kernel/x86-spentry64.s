@@ -966,27 +966,119 @@ _endsubp(unused_5)
 _spentry(unused_6)
 _endsubp(unused_6)
 
-_spentry(unbind_interrupt_level)
-_endsubp(unbind_interrupt_level)
-
 _spentry(unbind)
+	__(movq %rcontext:tcr.db_link,%imm1)
+	__(movq %rcontext:tcr.tlb_pointer,%arg_x)
+	__(movq binding.sym(%imm1),%temp1)
+	__(movq binding.val(%imm1),%arg_y)
+	__(movq binding.link(%imm1),%imm1)
+	__(movq %arg_y,(%arg_x,%temp1))
+	__(movq %imm1,%rcontext:tcr.db_link)
+	__(jmp *%ra0)	
 _endsubp(unbind)
 
 _spentry(unbind_n)
+	__(movq %rcontext:tcr.db_link,%imm1)
+	__(movq %rcontext:tcr.tlb_pointer,%arg_x)
+1:		
+	__(movq binding.sym(%imm1),%temp1)
+	__(movq binding.val(%imm1),%arg_y)
+	__(movq binding.link(%imm1),%imm1)
+	__(movq %arg_y,(%arg_x,%temp1))
+	__(subq $1,%imm0)
+	__(jne 1b)
+	__(movq %imm1,%rcontext:tcr.db_link)
+	__(jmp *%ra0)	
 _endsubp(unbind_n)
 
 _spentry(unbind_to)
+	__(movq %rcontext:tcr.db_link,%imm1)
+	__(movq %rcontext:tcr.tlb_pointer,%arg_x)
+1:		
+	__(movq binding.sym(%imm1),%temp1)
+	__(movq binding.val(%imm1),%arg_y)
+	__(movq binding.link(%imm1),%imm1)
+	__(movq %arg_y,(%arg_x,%temp1))
+	__(cmpq %imm1,%imm0)
+	__(jne 1b)
+	__(movq %imm1,%rcontext:tcr.db_link)
+	__(jmp *%ra0)	
 _endsubp(unbind_to)
 
+
+/* Bind CCL::*INTERRUPT-LEVEL* to 0.  If its value had been negative, check 
+   for pending interrupts after doing so. */
+	
+_spentry(bind_interrupt_level_0)
+	__(movq %rcontext:tcr.tlb_pointer,%temp1)
+	__(cmpq $0,INTERRUPT_LEVEL_BINDING_INDEX(%temp1))
+	__(push INTERRUPT_LEVEL_BINDING_INDEX(%temp1))
+	__(push $INTERRUPT_LEVEL_BINDING_INDEX)
+	__(push %rcontext:tcr.db_link)
+	__(movq $0,INTERRUPT_LEVEL_BINDING_INDEX(%temp1))
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(js,pn 1f)
+0:	__(jmp *%ra0)
+	/* Interrupt level was negative; interrupt may be pending */
+1:	__(cmpq $0,%rcontext:tcr.interrupt_pending)
+	__(movq $0,%rcontext:tcr.interrupt_pending)
+	__(je 0b)
+	__(interrupt_now())
+	__(jmp *%ra0)
+_endsubp(bind_interrupt_level_0)
+	
+
+/* Bind CCL::*INTERRUPT-LEVEL* to the fixnum -1.  (This has the effect
+   of disabling interrupts.) */
+
 _spentry(bind_interrupt_level_m1)
+	__(movq %rcontext:tcr.tlb_pointer,%temp1)
+	__(push INTERRUPT_LEVEL_BINDING_INDEX(%temp1))
+	__(push $INTERRUPT_LEVEL_BINDING_INDEX)
+	__(push %rcontext:tcr.db_link)
+	__(movq $-1<<fixnumshift,INTERRUPT_LEVEL_BINDING_INDEX(%temp1))
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
 _endsubp(bind_interrupt_level_m1)
 
+/* Bind CCL::*INTERRUPT-LEVEL* to the value in arg_z.  If that value's 0,
+   do what _SPbind_interrupt_level_0 does */
 _spentry(bind_interrupt_level)
+	__(testq %arg_z,%arg_z)
+	__(movq %rcontext:tcr.tlb_pointer,%temp1)
+	__(jz _SPbind_interrupt_level_0)
+	__(push INTERRUPT_LEVEL_BINDING_INDEX(%temp1))
+	__(push $INTERRUPT_LEVEL_BINDING_INDEX)
+	__(push %rcontext:tcr.db_link)
+	__(movq %arg_z,INTERRUPT_LEVEL_BINDING_INDEX(%temp1))
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
 _endsubp(bind_interrupt_level)
 
-_spentry(bind_interrupt_level_0)
-_endsubp(bind_interrupt_level_0)
+/* Unbind CCL::*INTERRUPT-LEVEL*.  If the value changes from negative to
+   non-negative, check for pending interrupts.  */
+	
+_spentry(unbind_interrupt_level)
+	__(movq %rcontext:tcr.db_link,%imm1)
+	__(movq %rcontext:tcr.tlb_pointer,%arg_x)
+	__(movq INTERRUPT_LEVEL_BINDING_INDEX(%arg_x),%imm0)
+	__(testq %imm0,%imm0)
+	__(movq binding.val(%imm1),%temp0)
+	__(movq binding.link(%imm1),%imm1)
+	__(movq %temp0,INTERRUPT_LEVEL_BINDING_INDEX(%arg_x))
+ 	__(movq %imm1,%rcontext:tcr.db_link)
+	__(js,pn 1f)
+0:	__(jmp *%ra0)
+1:	__(testq %temp0,%temp0)
+	__(js 0b)
+	__(cmpq $0,%rcontext:tcr.interrupt_pending)
+	__(movq $0,%rcontext:tcr.interrupt_pending)
+	__(je 0b)
+	__(interrupt_now())
+	__(jmp *%ra0)	
+_endsubp(unbind_interrupt_level)
 
+	
 _spentry(progvrestore)
 _endsubp(progvrestore)
 	
