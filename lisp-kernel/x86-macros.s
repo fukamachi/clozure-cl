@@ -14,13 +14,9 @@
    http://opensource.franz.com/preamble.html
 */
 
-/* to be consistent with PPC:
-   - if an operation involves a register and memory, the
-	register parameter precedes the memory parameter,
-	regardless of the direction of transfer.
-   - if an operation involves two registers, the destination
-	precedes the source
-*/
+/* Try to make macros follow GAS/ATT conventions, were source precedes
+ destination. */
+		
 define([ref_global],[
 	mov lisp_globals.$1,$2
 ])
