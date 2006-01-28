@@ -2233,6 +2233,7 @@
                  (#xc3 "uuo-stack-overflow")
                  (#xc4 "uuo-gc-trap")
                  (#xc5 "uuo-alloc")
+                 (#xc6 "uuo-error-not-callable")
                  (t "unknown-UUO"))))
         ((< intop #xd0)
          (let* ((modrm-byte (x86-ds-peek-u8 ds)))
@@ -2319,7 +2320,7 @@
           
           (:lea
            (let* ((disp ))
-             (when (or (and (setq disp (is-fn-ea op0)) (> disp 0) (is-ra0 op1))
+             (when (or (and (setq disp (is-fn-ea op0)) (> disp 0))
                        (and (setq disp (is-ra0-ea op0)) (< disp 0) (is-fn op1)))
                (let* ((label-ea (+ entry-ea (abs disp))))
                  (when (< label-ea (x86-ds-code-limit ds))
@@ -2349,7 +2350,8 @@
                              +suffix-always+
                              0)))
          (instruction (make-x86-disassembled-instruction :address addr
-                                                         :labeled labeled)))
+                                                         :labeled labeled))
+         (stop nil))
     (setf (x86-ds-insn-start ds) addr
           (x86-ds-current-instruction ds) instruction)
     (scan-prefixes ds instruction)
@@ -2417,7 +2419,9 @@
         (x86-dis-do-float ds instruction primary-opcode sizeflag)
         (if (and (null (x86-dis-mnemonic dp))
                  (eql (x86-dis-bytemode1 dp) +uuocode+))
-          (x86-dis-do-uuo ds instruction (x86-ds-next-u8 ds) sizeflag)
+          (progn
+            (x86-dis-do-uuo ds instruction (x86-ds-next-u8 ds) sizeflag)
+            (setq stop t))
           (progn
             (when (null (x86-dis-mnemonic dp))
               (let* ((bytemode1 (x86-dis-bytemode1 dp)))
@@ -2474,7 +2478,7 @@
                       (x86-di-op1 instruction) (pop operands)
                       (x86-di-op2 instruction) (pop operands))))))))
       (values (x86-dis-analyze-operands ds instruction (x86-dis-flags dp))
-              (eq (x86-dis-flags dp) :jump)))))
+              (or stop (eq (x86-dis-flags dp) :jump))))))
 
 (defun x86-disassemble-new-block (ds addr)
   (setf (x86-ds-code-pointer ds) addr)
