@@ -1,3 +1,55 @@
+2006-01-27 20:05  gb
+
+	* lisp-kernel/: ppc-spentry.s, ppc-spffi.s, linuxppc/Makefile,
+	linuxppc/elf32ppclinux.x, linuxppc64/Makefile,
+	linuxppc64/elf64ppc.x: Split out ffi subprims to ppc-spffi.s
+
+2006-01-27 19:49  gb
+
+	* lisp-kernel/: ppc-spbind.s, ppc-spentry.s, darwinppc/Makefile,
+	darwinppc64/Makefile, linuxppc/Makefile, linuxppc/elf32ppclinux.x,
+	linuxppc64/Makefile, linuxppc64/elf64ppc.x: Move binding-related
+	subprims to ppc-spbind.o
+
+2006-01-27 19:48  gb
+
+	* lisp-kernel/ppc-spbuiltin.s: Add a comment.
+
+2006-01-27 19:33  gb
+
+	* lisp-kernel/: darwinppc64/Makefile, darwinppc/Makefile,
+	linuxppc/Makefile, linuxppc/elf32ppclinux.x, linuxppc64/Makefile,
+	linuxppc64/elf64ppc.x: ppc-spbuiltin.o
+
+2006-01-27 19:32  gb
+
+	* lisp-kernel/ppc-spentry.s: Oh, now I remember: there is no
+	"subi.", which explains the use of "subic.".
+
+2006-01-27 19:28  gb
+
+	* lisp-kernel/: ppc-macros.s, ppc-spbuiltin.s, ppc-spentry.s: Start
+	to split up ppc-spentry.s into several smaller files.  Will need
+	makefile changes as well; won't compile cleanly for a while.
+
+2006-01-27 19:27  gb
+
+	* lisp-kernel/x86-uuo.s: xuuo, other small changes.
+
+2006-01-27 19:27  gb
+
+	* lisp-kernel/x86-spentry64.s: Binding stuff.  Will soon split up
+	this file and PPC equivalent.
+
+2006-01-27 19:26  gb
+
+	* lisp-kernel/x86-macros.s: Cons arg order.  More
+	changes/reorganization to come.
+
+2006-01-27 19:25  gb
+
+	* lisp-kernel/x86-constants64.s: Get registers consistent, again.
+
 2006-01-27 04:01  gb
 
 	* lisp-kernel/x86-spentry64.s: Compile on x8664.
