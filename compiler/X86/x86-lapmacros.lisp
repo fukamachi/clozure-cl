@@ -176,10 +176,11 @@
     (getvheader ,vector ,vheader)
     (header-size ,vheader ,dest)))
 
-(defx86lapmacro vector-length (vector vheader dest)
+(defx86lapmacro vector-length (vector dest)
   `(progn
-    (getvheader ,vector ,vheader)
-    (header-length ,vheader ,dest)))  
+    (movq ($ (lognot 255)) (% ,dest))
+    (andq (@ x8664::misc-header-offset (% ,vector)) (% ,dest))
+    (shr ($ (- x8664::num-subtag-bits x8664::fixnumshift)) (% ,dest))))  
 
 (defx86lapmacro int-to-double (int temp double)
   `(progn
@@ -264,7 +265,7 @@
       (error "Unknown subprim: ~s" name))))
 
 (defx86lapmacro jmp-subprim (name)
-  `(jmp (* (@ ,(x86-subprim-offset name)))))
+  `(jmp (@ ,(x86-subprim-offset name))))
 
 (defx86lapmacro call-subprim (name)
   (let* ((label (gensym)))
