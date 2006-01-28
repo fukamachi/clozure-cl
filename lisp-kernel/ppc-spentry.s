@@ -1000,7 +1000,7 @@ _spentry(fitvals)
 	__(sub vsp,vsp,imm0)
 	__(blr)
 1:
-	__(subi. imm0,imm0,node_size)
+	__(subic. imm0,imm0,node_size)
 	__(vpush(imm1))
 	__(addi nargs,nargs,node_size)
 2:
