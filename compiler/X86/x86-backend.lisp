@@ -268,7 +268,10 @@
                                (cons (simplify-constraint opname)
                                      (mapcar #'simplify-form opvals))
                                (if (keywordp opname)
-                                 form
+                                 (progn
+                                   (list opname
+                                         (simplify-operand (car opvals)))
+                                   )
                                  (let* ((name (string opname)))
                                    (multiple-value-bind (opnum types)
                                        (funcall opcode-lookup form backend)
