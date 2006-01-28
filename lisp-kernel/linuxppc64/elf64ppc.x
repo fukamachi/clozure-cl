@@ -15,9 +15,6 @@ SECTIONS
   {
    ppc-spjump.o(.text)
    ppc-spentry.o(.text)
-   ppc-spbuiltin.o(.text)
-   ppc-spbind.o(.text)
-   ppc-spffi.o(.text)
    ppc-subprims.o(.text)
   }
   .interp         : { *(.interp) }
