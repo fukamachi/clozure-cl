@@ -14,7 +14,8 @@ SECTIONS
   .subprims ALIGN(0x1000)    :  
   {
    ppc-spjump.o(.text)
-   ppc-spentry.o(.text)   
+   ppc-spentry.o(.text)
+   ppc-spbuiltin.o(.text)
    ppc-subprims.o(.text)
   }
   .interp         : { *(.interp) }

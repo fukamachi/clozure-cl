@@ -15,6 +15,7 @@ SECTIONS
   {
    ppc-spjump.o(.text)
    ppc-spentry.o(.text)   
+   ppc-spbuiltin.o(.text)
    ppc-subprims.o(.text)
   }
   /* Read-only sections, merged into text segment: */
