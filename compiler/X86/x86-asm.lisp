@@ -1733,7 +1733,7 @@
      #xe0 nil nil)
 
    ;; mov, including the MMX/XMM variants.
-   (def-x8664-opcode movq ((:regmmx :insert-mmx-reg) (:regmmx :insert-mmx-rm))
+   (def-x8664-opcode movq ((:regmmx :insert-mmx-rm) (:regmmx :insert-mmx-reg))
      #x0f6f #o300 0)
    (def-x8664-opcode movq ((:regmmx :insert-mmx-reg) (:anymem :insert-memory))
      #x0f7f #o0 0)
@@ -2973,6 +2973,14 @@
    (def-x8664-opcode subss ((:regxmm :insert-xmm-rm) (:regxmm :insert-xmm-reg))
      #x0f5c #o300 #x0 #xf3)
 
+   ;; movapd
+   (def-x8664-opcode movapd ((:regxmm :insert-xmm-rm) (:regxmm :insert-xmm-reg))
+     #x0f28 #o300 #x0 #x66)
+   (def-x8664-opcode movapd ((:anymem :insert-memory) (:regxmm :insert-xmm-reg))
+     #x0f28 #o000 #x0 #x66)
+   (def-x8664-opcode movapd ((:regxmm :insert-xmm-reg) (:anymem :insert-memory))
+     #x0f29 #o000 #x0 #x66)
+   
    ;; mulsd
    (def-x8664-opcode mulsd ((:anymem :insert-memory) (:regxmm :insert-xmm-reg))
      #x0f59 #o000 #x0 #xf2)
@@ -3226,9 +3234,12 @@
      #xcdc4 nil nil)
    (def-x8664-opcode uuo-alloc ()
      #xcdc5 nil nil)
+   (def-x8664-opcode uuo-error-not-callable ()
+     #xcdc6 nil nil)
 
    (def-x8664-opcode uuo-error-vector-bounds ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
      #xcdc8 #o300 #x48)
+
    
    (def-x8664-opcode uuo-error-reg-not-tag ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdd0 nil 0)
