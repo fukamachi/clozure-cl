@@ -69,6 +69,8 @@
                     `(x862-copy-register ,',segvar ,',vreg-var ,,retvreg-var))
                   (@  (,labelnum-var)
                     `(backend-gen-label ,',segvar ,,labelnum-var))
+                  (@= (,labelnum-var)
+                    `(x862-emit-aligned-label ,',segvar ,,labelnum-var))
                   (-> (,label-var)
                     `(! jump (aref *backend-labels* ,,label-var)))
                   (^ (&rest branch-args)
@@ -1056,7 +1058,11 @@
 (defun x862-check-fixnum-overflow (seg target)
   (with-x86-local-vinsn-macros (seg)
     (if *x862-open-code-inline*
-      (! fix-fixnum-overflow target)
+      (let* ((no-overflow (backend-get-next-label)))
+        (! set-bigits-and-header-for-fixnum-overflow target (aref *backend-labels* no-overflow))
+        (! %allocate-uvector target)
+        (! set-bigits-after-fixnum-overflow target)
+        (@ no-overflow))
       (! fix-fixnum-overflow-ool target))))
 
 (defun x862-nil (seg vreg xfer)
@@ -2099,11 +2105,14 @@
           (x862-set-vstack (%i+ (if simple-case 0 *x862-target-node-size*) vstack))
           (setq  *x862-cstack* cstack)
           (let ((*x862-returning-values* t)) (x862-do-return seg)))
-        (let* ((mv-p (x862-mv-p xfer)))
+        (let* ((mv-p (x862-mv-p xfer))
+               (mv-return-label (if (and mv-p
+                                         (not (x862-tailcallok xfer)))
+                                  (backend-get-next-label))))
           (unless simple-case
             (x862-vpush-register seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
             (setq fn (x862-vloc-ea vstack)))
-          (x862-invoke-fn seg fn (x862-arglist seg arglist) spread-p xfer)
+          (x862-invoke-fn seg fn (x862-arglist seg arglist mv-return-label) spread-p xfer mv-return-label)
           (if (and (logbitp $backend-mvpass-bit xfer)
                    (not simple-case))
             (progn
@@ -2125,6 +2134,12 @@
   (with-x86-local-vinsn-macros (seg)
     (! restore-full-lisp-context)))
 
+(defun x862-emit-aligned-label (seg labelnum)
+  (with-x86-local-vinsn-macros (seg)
+    (! emit-aligned-label (aref *backend-labels* labelnum))
+    (@ labelnum)))
+
+  
 (defun x862-call-symbol (seg jump-p)
   (with-x86-local-vinsn-macros (seg)
     (if jump-p
@@ -2132,7 +2147,7 @@
       (! call-known-symbol x8664::arg_z))))
 
 ;;; Nargs = nil -> multiple-value case.
-(defun x862-invoke-fn (seg fn nargs spread-p xfer)
+(defun x862-invoke-fn (seg fn nargs spread-p xfer &optional mvpass-label)
   (with-x86-local-vinsn-macros (seg)
     (let* ((f-op (acode-unwrapped-form fn))
            (immp (and (consp f-op)
@@ -2148,7 +2163,7 @@
                        (eq (acode-operator f-op) (%nx1-operator simple-function))))
            (expression-p (or (typep fn 'lreg) (and (fixnump fn) (not label-p))))
            (callable (or symp lfunp label-p))
-           (destreg (if symp ($ x8664::fname) (if lfunp ($ x8664::fn) (unless label-p ($ x8664::temp0))))))
+           (destreg (if symp ($ x8664::fname) (unless label-p ($ x8664::temp0)))))
       (when expression-p
         ;;Have to do this before spread args, since might be vsp-relative.
         (if nargs
@@ -2181,6 +2196,7 @@
         (if (not tail-p)
           (if (x862-mvpass-p xfer)
             (let* ((call-reg (if symp ($ x8664::fname) ($ x8664::temp0))))
+              (unless mvpass-label (error "bug: no label for mvpass"))
               (if label-p
                 (x862-copy-register seg call-reg ($ x8664::fn))
                 (if a-reg
@@ -2188,7 +2204,8 @@
                   (x862-store-immediate seg func call-reg)))
               (if symp
                 (! pass-multiple-values-symbol)
-                (! pass-multiple-values)))
+                (! pass-multiple-values))
+              (@= mvpass-label))
             (progn 
               (if label-p
                 (progn
@@ -2235,7 +2252,8 @@
             (x862-one-targeted-reg-form seg fn destreg))
           (if (not tail-p)
             (if (x862-mvpass-p xfer)
-              (! pass-multiple-values)
+              (progn (! pass-multiple-values)
+                     (@= mvpass-label))
               (! funcall))                  
             (cond ((or (null nargs) spread-p)
                    (! tail-funcall-gen))
@@ -2284,52 +2302,39 @@
              (arch (backend-target-arch *target-backend*))
              (dest ($ x8664::arg_z))
              (vsize (+ (length inherited-vars) 
-                       2                ; %closure-code%, afunc
+                       3                ; %closure-code%, afunc
                        2)))             ; name, lfun-bits
         (declare (list inherited-vars))
-        (if downward-p
-          (progn
-            (let* ((*x862-vstack* *x862-vstack*)
-                   (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
-              (x862-lri seg x8664::arg_x (ash (nx-lookup-target-uvector-subtag :function) *x862-target-fixnum-shift*))
-              (! %closure-code% x8664::arg_y)
-              (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::arg_z)
-              (x862-vpush-register-arg seg x8664::arg_x)
-              (x862-vpush-register-arg seg x8664::arg_y)
-              (x862-vpush-register-arg seg x8664::arg_z)
-              ;; Could be smarter about memory traffic here.
-              (dolist (v inherited-vars)
-                (x862-vpush-register-arg seg (var-to-reg v x8664::arg_z)))
-              (! load-nil x8664::arg_z)
-              (x862-vpush-register-arg seg x8664::arg_z)
-              (x862-lri seg x8664::arg_z (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
-              (x862-vpush-register-arg seg x8664::arg_z)
-              (x862-set-nargs seg (1+ vsize)) ; account for subtag
-              (! make-stack-gvector))
-            (x862-open-undo $undostkblk))
-          (let* ((cell 0))
-            (declare (fixnum cell))
+        (let* ((cell 0))
+          (declare (fixnum cell))
+          (if downward-p
+            (progn
+              (! make-fixed-stack-vector
+                 dest
+                 (ash (logandc2 (+ vsize 2) 1) (arch::target-word-shift arch))
+                 (arch::make-vheader vsize (nx-lookup-target-uvector-subtag :function)))
+              (x862-open-undo $undostkblk))
             (progn
               (x862-lri seg
                         x8664::imm0
                         (arch::make-vheader vsize (nx-lookup-target-uvector-subtag :function)))
-              (! %alloc-misc-fixed dest x8664::imm0 (ash vsize (arch::target-word-shift arch)))
-              )       
-            (! %closure-code% x8664::arg_x)
-            (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::arg_y)
-            (with-node-temps (x8664::arg_z) (t0 t1 t2 t3)
-              (do* ((ccode x8664::arg_x nil)
-                    (func x8664::arg_y nil))
-                   ((null inherited-vars))
-                (let* ((t0r (or ccode (if inherited-vars (var-to-reg (pop inherited-vars) t0))))
-                       (t1r (or func (if inherited-vars (var-to-reg (pop inherited-vars) t1))))
-                       (t2r (if inherited-vars (var-to-reg (pop inherited-vars) t2)))
-                       (t3r (if inherited-vars (var-to-reg (pop inherited-vars) t3))))
-                  (setq cell (set-some-cells dest cell t0r t1r t2r t3r)))))
-            (x862-lri seg x8664::arg_y (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
-            (! load-nil x8664::arg_x)
-            (! misc-set-c-node x8664::arg_x dest cell)
-            (! misc-set-c-node x8664::arg_y dest (1+ cell))))
+              (x862-lri seg x8664::imm1 (- (ash (logandc2 (+ vsize 2) 1) (arch::target-word-shift arch)) (target-arch-case  (:x8664 x8664::fulltag-misc))))
+              (! %allocate-uvector dest)))
+          (! init-closure x8664::arg_z)
+          (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::arg_x)
+          (with-node-temps (x8664::arg_z) (t0 t1 t2 t3)
+            (do* ((func x8664::arg_x nil))
+                 ((null inherited-vars))
+              (let* ((t0r (or func (if inherited-vars (var-to-reg (pop inherited-vars) t0))))
+                     (t1r (if inherited-vars (var-to-reg (pop inherited-vars) t1)))
+                     (t2r (if inherited-vars (var-to-reg (pop inherited-vars) t2)))
+                     (t3r (if inherited-vars (var-to-reg (pop inherited-vars) t3))))
+                (setq cell (set-some-cells dest cell t0r t1r t2r t3r)))))
+          (x862-lri seg x8664::arg_y (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
+          (! load-nil x8664::arg_x)
+          (! misc-set-c-node x8664::arg_x dest cell)
+          (! misc-set-c-node x8664::arg_y dest (1+ cell)))
+        (! finalize-closure dest)
         dest))))
         
 (defun x862-symbol-entry-locative (sym)
@@ -2414,8 +2419,15 @@
               (x862-one-targeted-reg-form seg zform ($ x8664::arg_z))))))
       n)))
 
-(defun x862-arglist (seg args)
-  (x862-formlist seg (car args) (cadr args)))
+(defun x862-arglist (seg args &optional mv-label)
+  (with-x86-local-vinsn-macros (seg)
+    (when mv-label
+      (! start-mv-call (aref *backend-labels* mv-label))
+      (setq *x862-vstack* (+  *x862-vstack* *x862-target-node-size*)))
+    (when (car args)
+      (! reserve-outgoing-frame)
+      (setq *x862-vstack* (+  *x862-vstack* (* 2 *x862-target-node-size*))))
+    (x862-formlist seg (car args) (cadr args))))
 
 
 
@@ -4042,8 +4054,9 @@
                        (push nil pending)
                        (x862-vpush-register seg (x862-one-untargeted-reg-form seg form x8664::arg_z)))))
                  (x862-lri seg x8664::imm0 header)
+                 (x862-lri seg x8664::imm1 (- (ash (logandc2 (+ n 2) 1) (arch::target-word-shift arch)) (target-arch-case  (:x8664 x8664::fulltag-misc))))
                  (ensuring-node-target (target vreg)
-                   (! %alloc-misc-fixed target x8664::imm0 (ash n (arch::target-word-shift arch)))
+                   (! %allocate-uvector target)
                    (with-node-temps (target) (nodetemp)
                      (do* ((forms pending (cdr forms))
                            (index (1- n) (1- index))
@@ -4182,9 +4195,7 @@
                   (-> nbranch)))
                 (if (and nnret tnret)
                   (if nn0
-                    (progn
-                      (format t "~& emitting cbranch-false, cr-bit = ~s" cr-bit)
-                    (! cbranch-false nlabel cr-bit) )
+                    (! cbranch-false nlabel cr-bit)
                     (! cbranch-true tlabel cr-bit))
                   (let* ((aux-label (backend-get-next-label))
                          (auxl (aref *backend-labels* aux-label)))
@@ -4338,10 +4349,7 @@
                 (t
                  (@ (setq label (backend-get-next-label)))
                  (push (cons vstack label) *x862-valret-labels*)
-                 (when mask
-                   (with-imm-temps () (vsp0)
-                     (! fixnum-add vsp0 x8664::vsp x8664::nargs)
-                     (x862-restore-nvrs seg ea mask vsp0)))
+                 (x862-restore-nvrs seg ea mask nil)
                  (! nvalret)))
           (if (null mask)
             (if *x862-open-code-inline*
@@ -4389,7 +4397,7 @@
                 (x862-set-nargs seg 0)
                 (! recover-values)
                 (x862-close-undo))
-              (! lisp-word-ref x8664::temp0 x8664::vsp x8664::nargs)
+              (! lisp-word-ref x8664::temp0 x8664::rsp x8664::nargs)
               (x862-invoke-fn seg x8664::temp0 nil nil xfer)))
           (unless recursive-p
             (if mv-p
@@ -4535,10 +4543,13 @@
                      (! discard-temp-frame)))
                  (throw-through-numnthrow-catch-frames ()
                    (when (neq 0 numnthrow)
-                     (x862-lri seg x8664::imm0 (ash numnthrow *x862-target-fixnum-shift*))
-                     (if retval
-                       (! nthrowvalues)
-                       (! nthrow1value))
+                     (let* ((tag-label (backend-get-next-label))
+                            (tag-label-value (aref *backend-labels* tag-label)))
+                       (x862-lri seg x8664::imm0 (ash numnthrow *x862-target-fixnum-shift*))
+                       (if retval
+                         (! nthrowvalues tag-label-value)
+                         (! nthrow1value tag-label-value))
+                       (@= tag-label))
                      (setq numnthrow 0)
                      (multiple-value-setq (junk1 cstack vstack)
                        (x862-decode-stack (aref *x862-undo-stack* lastcatch))))))
@@ -4874,44 +4885,36 @@
              (expand-pseudo-op (f)
                (destructuring-bind (directive arg) f
                  (setq arg (parse-operand-form arg))
-                 (if (eq directive :tra)
-                   (progn
-                     (finish-frag-for-align frag-list (target-arch-case
-                                                       (:x8664 3)))
-                     (expand-pseudo-op `(:long (- ,(target-arch-case
-                                                    (:x8664 3))
-                                                (^ ,arg))))
-                     (emit-x86-lap-label frag-list arg))
-                   (let* ((exp (parse-x86-lap-expression arg))
-                          (constantp (constant-x86-lap-expression-p exp)))
-                     (if constantp
-                       (let* ((val (x86-lap-expression-value exp)))
-                         (ecase directive
-                           (:byte (frag-list-push-byte frag-list val))
-                           (:short (frag-list-push-16 frag-list val))
-                           (:long (frag-list-push-32 frag-list val))
-                           (:quad (frag-list-push-64 frag-list val))
-                           (:align (finish-frag-for-align frag-list val))))
-                       (let* ((pos (frag-list-position frag-list))
-                              (frag (frag-list-current frag-list))
-                              (reloctype nil))
-                         (ecase directive
-                           (:byte (frag-list-push-byte frag-list 0)
-                                  (setq reloctype :expr8))
-                           (:short (frag-list-push-16 frag-list 0)
-                                   (setq reloctype :expr16))
-                           (:long (frag-list-push-32 frag-list 0)
-                                  (setq reloctype :expr32))
-                           (:quad (frag-list-push-64 frag-list 0)
-                                  (setq reloctype :expr64))
-                           (:align (error ":align expression ~s not constant" arg)))
-                         (when reloctype
-                           (push
-                            (make-reloc :type reloctype
-                                        :arg exp
-                                        :pos pos
-                                        :frag frag)
-                            (frag-relocs frag)))))))))
+                 (let* ((exp (parse-x86-lap-expression arg))
+                        (constantp (constant-x86-lap-expression-p exp)))
+                   (if constantp
+                     (let* ((val (x86-lap-expression-value exp)))
+                       (ecase directive
+                         (:byte (frag-list-push-byte frag-list val))
+                         (:short (frag-list-push-16 frag-list val))
+                         (:long (frag-list-push-32 frag-list val))
+                         (:quad (frag-list-push-64 frag-list val))
+                         (:align (finish-frag-for-align frag-list val))))
+                     (let* ((pos (frag-list-position frag-list))
+                            (frag (frag-list-current frag-list))
+                            (reloctype nil))
+                       (ecase directive
+                         (:byte (frag-list-push-byte frag-list 0)
+                                (setq reloctype :expr8))
+                         (:short (frag-list-push-16 frag-list 0)
+                                 (setq reloctype :expr16))
+                         (:long (frag-list-push-32 frag-list 0)
+                                (setq reloctype :expr32))
+                         (:quad (frag-list-push-64 frag-list 0)
+                                (setq reloctype :expr64))
+                         (:align (error ":align expression ~s not constant" arg)))
+                       (when reloctype
+                         (push
+                          (make-reloc :type reloctype
+                                      :arg exp
+                                      :pos pos
+                                      :frag frag)
+                          (frag-relocs frag))))))))
                    
              (expand-form (f)
                (if (keywordp f)
@@ -5504,7 +5507,6 @@
                                                               x8664::arg_y x8664::arg_z))))
            (ensuring-node-target (target vreg) 
              (! extract-typecode-fixnum target reg ))))
-      (format t "~& made it")
       (^))))
 
 (defx862 x862-setq-special setq-special (seg vreg xfer sym val)
@@ -6161,8 +6163,7 @@
          (old-stack (x862-encode-stack)))
     (with-x86-p2-declarations p2decls
       (x862-multiple-value-body seg valform)
-      (x862-lri seg x8664::imm0 nbytes)
-      (! fitvals)
+      (! fitvals n)
       (x862-set-vstack (%i+ vloc nbytes))
       (let* ((old-top *x862-top-vstack-lcell*)
              (lcells (progn (x862-reserve-vstack-lcells n) (x862-collect-lcells :reserved old-top))))
@@ -6933,22 +6934,22 @@
 ;;; Use a vinsn other than JUMP to reference the label.
 (defx862 x862-catch catch (seg vreg xfer tag valform)
   (let* ((tag-label (backend-get-next-label))
+         (tag-label-value (aref *backend-labels* tag-label))
          (mv-pass (x862-mv-p xfer)))
     (x862-one-targeted-reg-form seg tag ($ x8664::arg_z))
     (if mv-pass
-      (! mkcatchmv)
-      (! mkcatch1v))
-    (! non-barrier-jump (aref *backend-labels* tag-label))
+      (! mkcatchmv tag-label-value)
+      (! mkcatch1v tag-label-value))
     (x862-open-undo)
     (if mv-pass
       (x862-multiple-value-body seg valform)  
       (x862-one-targeted-reg-form seg valform ($ x8664::arg_z)))
     (x862-lri seg x8664::imm0 (ash 1 *x862-target-fixnum-shift*))
     (if mv-pass
-      (! nthrowvalues)
-      (! nthrow1value))
+      (! nthrowvalues tag-label-value)
+      (! nthrow1value tag-label-value))
     (x862-close-undo)
-    (@ tag-label)
+    (@= tag-label)
     (unless mv-pass (if vreg (<- x8664::arg_z)))
     (let* ((*x862-returning-values* mv-pass)) ; nlexit keeps values on stack
       (^))))
@@ -7255,27 +7256,20 @@
          (yreg ($ x8664::arg_y)))
     (! ref-interrupt-level yreg)
     (x862-dbind seg (make-acode (%nx1-operator fixnum) -1) '*interrupt-level*)
-    (! mkunwind)
-    (! non-barrier-jump (aref *backend-labels* cleanup-label))
-    (-> protform-label)
-    (@ cleanup-label)
+    (! mkunwind (aref *backend-labels* protform-label)
+       (aref *backend-labels* cleanup-label))
+    (@= cleanup-label)
     (let* ((*x862-vstack* *x862-vstack*)
-           (*x862-top-vstack-lcell* *x862-top-vstack-lcell*)
-           (*x862-cstack* (%i+ *x862-cstack* (target-arch-case
-                                              
-                                              (:x8664 x8664::lisp-frame.size)))))
+           (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
       (x862-open-undo $undostkblk)      ; tsp frame created by nthrow.
       (! save-cleanup-context)
-      (setq *x862-cstack* (%i+ *x862-cstack*
-                               (target-arch-case
-                                
-                                (:x8664 x8664::lisp-frame.size))))       ; the frame we just pushed
+       ; the frame we just pushed
       (x862-form seg nil nil cleanup-form)
       (x862-close-undo)
       (! restore-cleanup-context)
       (! jump-return-pc)) ; blr
     (x862-open-undo)
-    (@ protform-label)
+    (@=  protform-label)
     (x862-dbind seg yreg '*interrupt-level*)
     (x862-undo-body seg vreg xfer protected-form old-stack)))
 
@@ -8142,3 +8136,5 @@
                xlfun
                (unless symbolic-names (list nil))))
       xlfun)))
+
+
