@@ -1,3 +1,21 @@
+2006-01-27 20:52  gb
+
+	* lisp-kernel/: linuxppc64/Makefile, linuxppc64/elf64ppc.x,
+	linuxppc/Makefile, linuxppc/elf32ppclinux.x: Only about an hour was
+	wasted, but it somehow seems longer.
+
+2006-01-27 20:39  gb
+
+	* lisp-kernel/: ppc-macros.s, ppc-spbind.s, ppc-spbuiltin.s,
+	ppc-spentry.s, ppc-spffi.s, darwinppc/Makefile,
+	darwinppc64/Makefile: Splitting ppc-spentry.s into several smaller
+	files files wasn't a bad idea, but the fact that Apple's 64-bit
+	linker is badly broken (can't handle branches to external symbols,
+	has difficulty with forward references, etc.) makes it impractical.
+	
+	(Yes,  bugs in Apple's 64-bit linker have been reported, many
+	months ago.)
+
 2006-01-27 20:05  gb
 
 	* lisp-kernel/: ppc-spentry.s, ppc-spffi.s, linuxppc/Makefile,
