@@ -1,3 +1,60 @@
+2006-01-28 02:52  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Some consing,
+	stack-consing, multiple-value things.  Try to limit the number of
+	vinsns that actually do heap allocation, to make pc-lusering
+	simpler (or possible ...).  Assume that tsp & next-tsp are in
+	registers. (MMX registers, but beggars can't be choosers.)
+
+2006-01-28 02:49  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Don't enumerate/give pet
+	names to MMX registers.  TCR changes.
+
+2006-01-28 02:38  gb
+
+	* compiler/X86/x862.lisp: More stuff works; still need to do: -
+	unwind-protect cleanup context stuff - hairy lambda-list stuff -
+	more consing, especially stack-consing - ffi - lots of "simple"
+	primitives, memory reference stuff.
+
+2006-01-28 02:35  gb
+
+	* compiler/X86/x86-lapmacros.lisp: No more * for indirect jmp
+	(there's enough syntax already, without that.) VECTOR-LENGTH: use 2
+	args, more carefully.
+
+2006-01-28 02:34  gb
+
+	* compiler/X86/x86-disassemble.lisp: Stop block on UUO.  Handle
+	more label-arithmetic cases, new UUO.
+
+2006-01-28 02:33  gb
+
+	* compiler/X86/x86-backend.lisp: Simplify pseudo-op operands, too.
+
+2006-01-28 02:33  gb
+
+	* compiler/X86/x86-asm.lisp: Fix mmx->mmx MOVQ.  Add MOVAPD, a few
+	more UUOs.
+
+2006-01-28 02:31  gb
+
+	* lisp-kernel/x86-spentry64.s: More binding stuff: unbinding,
+	*interrupt-level* binding.
+
+2006-01-28 02:30  gb
+
+	* lisp-kernel/x86-macros.s: Arg order comment.
+
+2006-01-28 02:29  gb
+
+	* lisp-kernel/x86-constants64.s: tsp, next_tsp in MMX regs.
+
+2006-01-28 02:29  gb
+
+	* lisp-kernel/x86-uuo.s: interrupt_now()
+
 2006-01-27 20:52  gb
 
 	* lisp-kernel/: linuxppc64/Makefile, linuxppc64/elf64ppc.x,
