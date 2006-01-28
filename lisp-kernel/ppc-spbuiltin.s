@@ -15,7 +15,9 @@
 
 */
 
-	
+/* Subprimitives that (a) sometimes try to handle simple cases of and (b)
+   call out to known, common, "builtin" functions */
+        	
 	include(lisp.s)
 	_beginfile
 	
