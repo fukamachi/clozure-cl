@@ -242,14 +242,8 @@
 (defx86reg fp15 xmm15)
 
 ;;; There are only 8 mmx registers, and they overlap the x87 FPU.
-(defx86reg mmx0 mm0)
-(defx86reg mmx1 mm1)
-(defx86reg mmx2 mm2)
-(defx86reg mmx3 mm3)
-(defx86reg mmx4 mm4)
-(defx86reg mmx5 mm5)
-(defx86reg mmx6 mm6)
-(defx86reg mmx7 mm7)
+(defx86reg tsp mm7)
+(defx86reg next-tsp mm6)
 
 
 ;;; Using %fs to access the TCR may be Linux-specific.
@@ -276,7 +270,6 @@
 (defx86reg ra1 fn)
 
 (defx86reg allocptr temp0)
-
 
     
 (defconstant nbits-in-word 64)
@@ -646,8 +639,9 @@
   lisp-fpscr-high
   db-link				; special binding chain head 
   catch-top				; top catch frame 
-  save-vsp				; VSP when in foreign code 
+  save-vsp				; SP when in foreign code 
   save-tsp				; TSP, at all times
+  foreign-sp                            ; SP when in lisp code
   cs-area				; cstack area pointer 
   vs-area				; vstack area pointer 
   ts-area				; tstack area pointer 
