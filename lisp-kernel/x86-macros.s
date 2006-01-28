@@ -99,7 +99,8 @@ define([restore_node_regs],[
    %allocptr = %temp0 as a freepointer; when consing, %temp0 can't
    contain a live value.)
    Making a CONS cell is a little simpler than making a uvector.
-*/	
+*/
+/* $1=new_car,$2=new_cdr,$3=dest */
 define([Cons],[
 	new_macro_labels()
 /* The instructions where tcr.save_allocptr is tagged are difficult
@@ -113,9 +114,9 @@ define([Cons],[
 macro_label(no_trap):	
 	andb $~fulltagmask,%rcontext:tcr.save_allocptr
 /* Easy to interrupt now that tcr.save_allocptr isn't tagged as a cons */ 
-	mov $3,cons.cdr(%allocptr)
-	mov $2,cons.car(%allocptr)
-	ifelse($1,[],[],[
+	mov $2,cons.cdr(%allocptr)
+	mov $1,cons.car(%allocptr)
+	ifelse($3,[],[],[
 	 mov %allocptr,$1
 	])
 ])
