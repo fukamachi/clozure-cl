@@ -60,7 +60,7 @@ COPT = -O2
 .c.o:
 	$(CC) -c -arch ppc $< $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -o $@
 
-SPOBJ = ppc-spjump.o ppc-spentry.o  ppc-spbuiltin.o ppc-subprims.o 
+SPOBJ = ppc-spjump.o ppc-spentry.o  ppc-spbuiltin.o ppc-spbind.o ppc-subprims.o 
 ASMOBJ = ppc-asmutils.o imports.o
 
 COBJ  = pmcl-kernel.o gc.o bits.o  ppc-exceptions.o \
