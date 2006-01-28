@@ -337,28 +337,131 @@ _endsubp(nthrowvalues)
 _spentry(nthrow1value)
 _endsubp(nthrow1value)
 
+/* This never affects the symbol's vcell */
+/* Non-null symbol in arg_y, new value in arg_z */        
+	
 _spentry(bind)
+	__(movq symbol.binding_index(%arg_y),%temp0)
+	__(cmpq %rcontext:tcr.tlb_limit,%temp0)
+	__(jb,pt 0f)
+	__(tlb_too_small())
+0:	__(testq %temp0,%temp0)
+	__(jz 9f)
+	__(movq %rcontext:tcr.tlb_pointer,%temp1)
+	__(push (%temp1,%temp0))
+	__(push %temp0)
+	__(push %rcontext:tcr.db_link)
+	__(movq %arg_z,(%temp1,%temp0))
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
+9:	
+	__(movq %arg_y,%arg_z)
+	__(movq $XSYMNOBIND,%arg_y)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)	
 _endsubp(bind)
 
+/* arg_z = symbol: bind it to its current value */        
 _spentry(bind_self)
+	__(movq symbol.binding_index(%arg_y),%temp0)
+	__(cmpq %rcontext:tcr.tlb_limit,%temp0)
+	__(jb,pt 0f)
+	__(tlb_too_small())
+0:	__(testq %temp0,%temp0)
+	__(jz 9f)
+	__(movq %rcontext:tcr.tlb_pointer,%temp1)
+	__(cmpb $no_thread_local_binding_marker,(%temp0,%temp1))
+	__(jz 2f)
+	__(push (%temp1,%temp0))
+	__(push %temp0)
+	__(push %rcontext:tcr.db_link)
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
+2:	__(movq symbol.vcell(%arg_z),%arg_y)
+	__(push (%temp1,%temp0))
+	__(push %temp0)
+	__(push %rcontext:tcr.db_link)
+	__(movq %arg_y,(%temp1,%temp0))
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
+9:	__(movq $XSYMNOBIND,%arg_y)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
 _endsubp(bind_self)
 
 _spentry(bind_nil)
+	__(movq symbol.binding_index(%arg_y),%temp0)
+	__(cmpq %rcontext:tcr.tlb_limit,%temp0)
+	__(jb,pt 0f)
+	__(tlb_too_small())
+0:	__(testq %temp0,%temp0)
+	__(jz 9f)
+	__(movq %rcontext:tcr.tlb_pointer,%temp1)
+	__(push (%temp1,%temp0))
+	__(push %temp0)
+	__(push %rcontext:tcr.db_link)
+	__(movq $nil_value,(%temp0,%temp1))
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
+9:	__(movq $XSYMNOBIND,%arg_y)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
 _endsubp(bind_nil)
 
 _spentry(bind_self_boundp_check)
+	__(movq symbol.binding_index(%arg_y),%temp0)
+	__(cmpq %rcontext:tcr.tlb_limit,%temp0)
+	__(jb,pt 0f)
+	__(tlb_too_small())
+0:	__(testq %temp0,%temp0)
+	__(jz 9f)
+	__(movq %rcontext:tcr.tlb_pointer,%temp1)
+	__(cmpb $no_thread_local_binding_marker,(%temp1,%temp0))
+	__(je 2f)
+	__(cmpb $unbound_marker,(%temp1,%temp0))
+	__(je 8f)
+	__(push (%temp1,%temp0))
+	__(push %temp0)
+	__(push %rcontext:tcr.db_link)
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
+2:	__(movq symbol.vcell(%arg_z),%arg_y)
+	__(cmpb $unbound_marker,%arg_y_b)
+	__(jz 8f)
+	__(push (%temp1,%temp0))
+	__(push %temp0)
+	__(push %rcontext:tcr.db_link)
+	__(movq %arg_y,(%temp1,%temp0))
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
+8:	__(arg_z_unbound())
+	
+9:	__(movq $XSYMNOBIND,%arg_y)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
 _endsubp(bind_self_boundp_check)
 
-_spentry(rplaca)
-_endsubp(rplaca)
-
-_spentry(rplacd)
-_endsubp(rplacd)
-
 _spentry(conslist)
+	__(movl $nil_value,%arg_z_l)
+	__(testw %nargs,%nargs)
+	__(jmp 2f)
+1:	__(pop %arg_y)
+	__(Cons(%arg_y,%arg_z,%arg_z))
+	__(subw $node_size,%nargs)
+2:	__(jnz 1b)
+	__(jmp *%ra0)		
 _endsubp(conslist)
 
+/* do list*: last arg in arg_z, all others pushed, nargs set to #args pushed.*/
+/* Cons, one cons cell at at time.  Maybe optimize this later. */
 _spentry(conslist_star)
+	__(testw %nargs,%nargs)
+	__(jmp 2f)
+1:	__(pop %arg_y)
+	__(Cons(%arg_y,%arg_z,%arg_z))
+	__(subw $node_size,%nargs)
+2:	__(jnz 1b)
+	__(jmp *%ra0)		
 _endsubp(conslist_star)
 
 _spentry(stkconslist)
@@ -372,7 +475,77 @@ _endsubp(mkstackv)
 
 _spentry(subtag_misc_ref)
 _endsubp(subtag_misc_ref)
+	
+        .globl C(egc_write_barrier_start)
+C(egc_write_barrier_start):
+/*
+   The function pc_luser_xp() - which is used to ensure that suspended threads
+   are suspended in a GC-safe way - has to treat these subprims (which implement
+   the EGC write-barrier) specially.  Specifically, a store that might introduce
+   an intergenerational reference (a young pointer stored in an old object) has
+   to "memoize" that reference by setting a bit in the global "refbits" bitmap.
+   This has to happen atomically, and has to happen atomically wrt GC.
 
+   Note that updating a word in a bitmap is itself not atomic, unless we use
+   interlocked loads and stores.
+*/
+
+/*
+  For RPLACA and RPLACD, things are fairly simple: regardless of where we are
+  in the function, we can do the store (even if it's already been done) and
+  calculate whether or not we need to set the bit out-of-line.  (Actually
+  setting the bit needs to be done atomically, unless we're sure that other
+  threads are suspended.)
+  We can unconditionally set the suspended thread's RIP to its RA0.
+*/
+	
+_spentry(rplaca)
+        .globl C(egc_rplaca)
+C(egc_rplaca):          
+_endsubp(rplaca)
+
+_spentry(rplacd)
+        .globl C(egc_rplacd)
+C(egc_rplacd):          
+_endsubp(rplacd)
+
+/*
+  Storing into a gvector can be handled the same way as storing into a CONS.
+*/
+
+_spentry(gvset)
+        .globl C(egc_gvset)
+C(egc_gvset):
+_endsubp(gvset)
+
+/* This is a special case of storing into a gvector: if we need to memoize the store,
+   record the address of the hash-table vector in the refmap, as well.
+*/        
+
+_spentry(set_hash_key)
+        .globl C(egc_set_hash_key)
+C(egc_set_hash_key):  
+_endsubp(set_hash_key)
+
+/*
+  This is a little trickier: the first instruction clears the EQ bit in CR0; the only
+  way that it can get set is if the conditional store succeeds.  So:
+  a) if we're interrupted on the first instruction, or if we're interrupted on a subsequent
+     instruction but CR0[EQ] is clear, the condtional store hasn't succeeded yet.  We don't
+     have to adjust the PC in this case; when the thread's resumed, the conditional store
+     will be (re-)attempted and will eventually either succeed or fail.
+  b) if the CR0[EQ] bit is set (on some instruction other than the first), the handler can
+     decide if/how to handle memoization.  The handler should set the PC to the LR, and
+     set arg_z to T.
+*/
+
+_spentry(store_node_conditional)
+        .globl C(egc_store_node_conditional)
+C(egc_store_node_conditional):  
+       .globl C(egc_write_barrier_end)
+C(egc_write_barrier_end):
+_endsubp(store_node_conditional)
+				
 _spentry(setqsym)
 _endsubp(setqsym)
 
@@ -619,8 +792,6 @@ _endsubp(misc_alloc)
 _spentry(poweropen_ffcallX)
 _endsubp(poweropen_ffcallX)
 
-_spentry(gvset)
-_endsubp(gvset)
 
 _spentry(macro_bind)
 _endsubp(macro_bind)
@@ -646,8 +817,6 @@ _endsubp(subtag_misc_set)
 _spentry(spread_lexprz)
 _endsubp(spread_lexprz)
 
-_spentry(store_node_conditional)
-_endsubp(store_node_conditional)
 
 _spentry(reset)
 _endsubp(reset)
@@ -670,8 +839,6 @@ _endsubp(misc_alloc_init)
 _spentry(stack_misc_alloc_init)
 _endsubp(stack_misc_alloc_init)
 
-_spentry(set_hash_key)
-_endsubp(set_hash_key)
 
 _spentry(unused_1)
 _endsubp(unused_1)
