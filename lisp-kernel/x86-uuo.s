@@ -58,6 +58,10 @@ define([tlb_too_small],[
 	xuuo(1)
 ])
 
+define([interrupt_now],[
+	xuuo(2)
+])		
+
 /* the "6" below is the current encoding of arg_z (= rsi).
    Signal an UNBOUND-VARIABLE error by claiming that arg_z
    doesn't have the tag unbound_marker, which is otherwise
@@ -67,4 +71,5 @@ define([arg_z_unbound],[
 	int [$]0xb0|6
 	.byte unbound_marker
 ])	
-								
+
+									
