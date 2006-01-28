@@ -109,6 +109,13 @@
 				     (idx :s32const)))
   (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
 
+
+(define-x8664-vinsn misc-set-c-node (()
+				    ((val :lisp)
+				     (v :lisp)
+				     (idx :s32const)))
+  (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
+
 (define-x8664-vinsn (call-known-symbol :call) (((result (:lisp x8664::arg_z)))
 					       ())
   (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
@@ -235,6 +242,12 @@
 				 ((frame-offset :u16const)
 				  (cur-vsp :u16const)))
   (movq (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp)) (:%q dest)))
+
+(define-x8664-vinsn vframe-store (()
+				 ((src :lisp)
+                                  (frame-offset :u16const)
+				  (cur-vsp :u16const)))
+  (movq (:%q src) (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp))))
 
 (define-x8664-vinsn (popj :lispcontext :pop :csp :lrRestore :jumpLR)
     (() 
@@ -484,6 +497,14 @@
 					    ((spno :s32const)))
   (jmp (:@ spno)))
 
+(define-x8664-vinsn call-subprim (()
+                                  ((spno :s32const)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ spno))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn)))
 
 (define-x8664-vinsn fixnum-subtract-from (((dest t)
                                            (y t))
@@ -518,6 +539,45 @@
                                    ((val :imm)))
   (negq (:% val)))
 
+(define-x8664-vinsn set-bigits-and-header-for-fixnum-overflow
+    (()
+     ((val :lisp)
+      (no-overflow
+       :label))
+     ((header (:u64 #.x8664::imm0))
+      (scaled-size (:u64 #.x8664::imm0))))
+  (jno.pt no-overflow)
+  (movq (:%q val) (:%q scaled-size))
+  (sarq (:$ub x8664::fixnumshift) (:%q scaled-size))
+  (movq (:$q #xffff000000000000) (:%q header))
+  (xorq (:%q header) (:%q scaled-size))
+  (movd (:%q scaled-size) (:%mmx x8664::mm0))
+  (movq (:$l x8664::two-digit-bignum-header) (:%q header))
+  (movq (:$l (- 16 x8664::fulltag-misc)) (:%q scaled-size)))
+
+(define-x8664-vinsn %allocate-uvector (((dest :lisp))
+                                       ()
+                                       ((unboxed (:s64 #.x8664::imm1))
+                                        (header (:u64 #.x8664::imm0))
+                                        (freeptr (:lisp #.x8664::allocptr))))
+  (subq (:%q x8664::imm1) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr) (:%q freeptr))
+  (cmpq (:%q freeptr) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocbase))
+  (jg :no-trap)
+  (uuo-alloc)
+  :no-trap
+  (movq (:%q header) (:@ x8664::misc-header-offset (:%q freeptr)))
+  (andb (:$b (lognot x8664::fulltagmask)) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
+  ((:not (:pred = freeptr
+                (:apply %hard-regspec-value dest)))
+   (movq (:%q freeptr) (:%q dest))))
+
+(define-x8664-vinsn set-bigits-after-fixnum-overflow (()
+                                                      ((bignum :lisp)))
+  (movq (:%mmx x8664::mm0) (:@ x8664::misc-data-offset (:%q bignum))))
+  
+                                                       
+  
 (define-x8664-vinsn fix-fixnum-overflow (((val :lisp))
                                          ((val :lisp))
                                          ((unboxed (:s64 #.x8664::imm1))
@@ -528,7 +588,7 @@
   (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
   (movq (:$q #xffff000000000000) (:%q header))
   (xorq (:%q header) (:%q unboxed))
-  (movd (:%q unboxed) (:%mmx x8664::mmx0))
+  (movd (:%q unboxed) (:%mmx x8664::mm0))
   (movq (:$l x8664::two-digit-bignum-header) (:%q header))
   (movq (:$l (- 16 x8664::fulltag-misc)) (:%q unboxed))
   (subq (:%q x8664::imm1) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
@@ -539,7 +599,7 @@
   :no-trap
   (movq (:%q header) (:@ x8664::misc-header-offset (:%q freeptr)))
   (andb (:$b (lognot x8664::fulltagmask)) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
-  (movq (:%mmx x8664::mmx0) (:@ x8664::misc-data-offset (:%q freeptr)))
+  (movq (:%mmx x8664::mm0) (:@ x8664::misc-data-offset (:%q freeptr)))
   ((:not (:pred = freeptr
                 (:apply %hard-regspec-value val)))
    (movq (:%q freeptr) (:%q val)))
@@ -548,8 +608,7 @@
 (define-x8664-vinsn fix-fixnum-overflow-ool (((val :lisp))
                                              ((val :lisp))
                                              ((unboxed (:s64 #.x8664::imm1))
-                                              (header (:u64 #.x8664::imm0))
-                                              (freeptr (:lisp #.x8664::allocptr))))
+                                              (header (:u64 #.x8664::imm0))))
   (jno.pt :done)
   ((:not (:pred = x8664::arg_z
                 (:apply %hard-regspec-value val)))
@@ -741,3 +800,270 @@
 				((val :u8)) 
 				())
   (leaq (:@ (:%q val) 8) (:%q result)))
+
+(define-x8664-vinsn fitvals (()
+                             ((n :u16const))
+                             ((imm :u16)))
+  ((:pred = n 0)
+   (xorq (:%q imm) (:%q imm)))
+  ((:not (:pred = n 0))
+   (movw (:$w (:apply ash n x8664::fixnumshift)) (:%w imm)))
+  (subw (:%w x8664::nargs) (:%w imm))
+  (jae :push-more)
+  (subq (:%q imm) (:%q x8664::rsp))
+  (jmp :done)
+  :push-loop
+  (pushq (:$l x8664::nil-value))
+  (addw (:$b x8664::node-size) (:%w x8664::nargs))
+  (subw (:$b x8664::node-size) (:%w imm))
+  :push-more
+  (jne :push-loop)
+  :done)
+  
+(define-x8664-vinsn (nvalret :jumpLR) (()
+                                       ())
+  
+  (jmp (:@ .SPnvalret)))
+
+
+(define-x8664-vinsn lisp-word-ref (((dest t))
+				   ((base t)
+				    (offset t)))
+  (movq (:@ (:%q base) (:%q offset)) (:%q  dest)))
+
+
+(define-x8664-vinsn start-mv-call (()
+                                   ((label :label)))
+  (leaq (:@ (:^ label) (:%q x8664::fn)) (:%q x8664::ra0))
+  (pushq (:%q x8664::ra0)))
+
+
+(define-x8664-vinsn emit-aligned-label (()
+                                        ((label :label)))
+  (:align 3)
+  (:long (:^ label)))
+
+(define-x8664-vinsn pass-multiple-values-symbol (()
+                                                 ())
+  (movq (:@ x8664::symbol.fcell (:% x8664::fname)) (:%q x8664::fn))
+  (movq (:@ (+ x8664::nil-value (x8664::%kernel-global 'x86::ret1valaddr)))
+        (:%q x8664::ra0))
+  (jmp (:%q x8664::fn)))
+
+;;; It'd be good to have a variant that deals with a known function
+;;; as well as this. 
+(define-x8664-vinsn pass-multiple-values (()
+                                          ()
+                                          ((tag :u8)))
+  (movb (:%b x8664::temp0) (:%b tag))
+  (andb (:$b x8664::fulltagmask) (:%b tag))
+  (cmpb (:$b x8664::fulltag-symbol) (:%b tag))
+  (leaq (:@ (:^ :bad) (:%q x8664::fn)) (:%q x8664::fn))
+  (cmoveq (:@ x8664::symbol.fcell (:%q x8664::fname)) (:%q x8664::fn))
+  (cmovgq (:%q x8664::temp0) (:%q x8664::fn))
+  (jmp (:%q x8664::fn))
+  (:align 3)
+  (:long (:^ :bad))
+  :bad
+  ;; If we don't do this (and leave %fn as a TRA into itself), reporting
+  ;; the error is likely a little harder.  Tough.
+  ;; (leaq (@ (:apply - (:^ :bad)) (:%q x8664::rn)) (:%q x8664::fn))
+  (uuo-error-not-callable))
+
+
+
+(define-x8664-vinsn reserve-outgoing-frame (()
+                                            ())
+  (pushq (:$b 0))
+  (pushq (:$b 0)))
+
+
+(define-x8664-vinsn (call-known-function :call) (()
+						 ())
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (movq (:%q x8664::temp0) (:%q x8664::fn))
+  (jmp (:%q x8664::fn))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn)))
+
+(define-x8664-vinsn (jump-known-function :jumplr) (()
+                                                   ())
+  (Movq (:%q x8664::fn) (:%q x8664::xfn))
+  (movq (:%q x8664::temp0)  (:%q x8664::fn))
+  (jmp (:%q x8664::fn)))
+
+(define-x8664-vinsn list (()
+                          ())
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPconslist))
+  (:align 3)
+  (:long (:^ :back))
+  :back)
+
+
+(define-x8664-vinsn make-tsp-cons (((dest :lisp))
+				   ((car :lisp) (cdr :lisp))
+				   ((tempa :imm)
+                                    (tempb :imm)))
+  (movd (:%mmx x8664::tsp) (:%q tempa))
+  (movq (:%q tempa) (:%q tempb))
+  (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q tempb))
+  (movd (:%q tempb) (:%mmx x8664::next-tsp))
+  (movapd (:%xmm x8664::fp0) (:@ -32 (:%q tempa)))
+  (movapd (:%xmm x8664::fp0) (:@ -16 (:%q tempa)))
+  (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
+  (movq (:%q tempa) (:@ (:%q tempb)))
+  (movq (:%q car) (:@ (+ x8664::dnode-size x8664::cons.car) (:%q tempb)))
+  (movq (:%q cdr) (:@ (+ x8664::dnode-size x8664::cons.cdr) (:%q tempb)))
+  (leaq (:@ (+ x8664::dnode-size x8664::fulltag-cons) (:%q tempb)) (:%q dest)))
+
+(define-x8664-vinsn make-fixed-stack-gvector (((dest :lisp))
+                                              ((aligned-size :u32const)
+                                               (header :s32const))
+                                              ((tempa :imm)
+                                               (tempb :imm)))
+  (movd (:%mmx x8664::tsp) (:%q tempa))
+  (movq (:%q tempa) (:%q tempb))
+  ((:and (:pred >= aligned-size -128) (:pred <= aligned-size 127))
+   (subq (:$b (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
+  ((:not (:and (:pred >= aligned-size -128) (:pred <= aligned-size 127)))
+   (subq (:$l (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
+  (movd (:%q tempb) (:%mmx x8664::next-tsp))
+  :loop
+  (movapd (:%xmm x8664::fp0) (:@ -16 (:%q tempa)))
+  (subq (:$b 16) (:%q tempa))
+  (cmpq (:%q tempa) (:%q tempb))
+  (jnz :loop)
+  ((:and (:pred >= aligned-size -128) (:pred <= aligned-size 127))
+   (addq (:$b (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
+  ((:not (:and (:pred >= aligned-size -128) (:pred <= aligned-size 127)))
+   (addq (:$l (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
+  (movd (:%q tempb) (:%mmx  x8664::tsp))
+  (movq (:%q tempa) (:@ (:%q tempb)))
+  (movl (:$l header) (:@ x8664::dnode-size (:%q tempb)))
+  (leaq (:@ (+ x8664::dnode-size x8664::misc-data-offset) (:%q tempb)) (:%q dest)))
+
+
+(define-x8664-vinsn discard-temp-frame (()
+					()
+                                        ((temp :imm)))
+  (movd (:%mmx x8664::tsp) (:%q temp))
+  (movd (:@ (:%q temp)) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp)))
+
+  
+(define-x8664-vinsn vstack-discard (()
+				    ((nwords :u32const)))
+  ((:not (:pred = nwords 0))
+   (leaq (:@ (:apply ash nwords x8664::word-shift) (:%q x8664::rsp)) (:%q x8664::rsp))))
+
+
+(defmacro define-x8664-subprim-call-vinsn ((name &rest other-attrs) spno &optional (recover-fn nil))
+  `(define-x8664-vinsn (,name :call :subprim-call ,@other-attrs) (() ())
+    (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+    (jmp (:@ ,spno))
+    (:align 3)
+    (:long (:^ :back))
+    :back
+    ,@(if recover-fn
+          `((leaq (:@ (:apply - (:^ :back)) (:%q x8664::ra0)) (:%q x8664::fn))))))
+
+(define-x8664-vinsn (nthrowvalues :call :subprim-call) (()
+                                                        ((lab :label)))
+  (leaq (:@ (:^ lab) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPnthrowvalues)))
+
+(define-x8664-vinsn (nthrow1value :call :subprim-call) (()
+                                                        ((lab :label)))
+  (leaq (:@ (:^ lab) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPnthrow1value)))
+
+
+(define-x8664-subprim-call-vinsn (bind-interrupt-level-0) .SPbind-interrupt-level-0)
+
+(define-x8664-subprim-call-vinsn (bind-interrupt-level-m1) .SPbind-interrupt-level-m1)
+
+(define-x8664-subprim-call-vinsn (bind-interrupt-level) .SPbind-interrupt-level)
+
+(define-x8664-subprim-call-vinsn (unbind-interrupt-level) .SPunbind-interrupt-level)
+
+(define-x8664-vinsn (jump-return-pc :jumpLR)
+    (()
+     ())
+  (jmp (:%q x8664::ra0)))
+
+(define-x8664-vinsn (mkcatchmv :call :subprim-call) (()
+                                                     ((lab :label)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (leaq (:@ (:^ lab)  (:%q x8664::fn)) (:%q x8664::xfn))
+  (jmp (:@ .SPmkcatchmv))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:%q x8664::ra0)) (:%q x8664::fn)))
+
+(define-x8664-vinsn (mkcatch1v :call :subprim-call) (()
+                                                     ((lab :label)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (leaq (:@ (:^ lab)  (:%q x8664::fn)) (:%q x8664::xfn))
+  (jmp (:@ .SPmkcatch1v))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:%q x8664::ra0)) (:%q x8664::fn)))
+
+(define-x8664-vinsn (mkunwind :call :subprim-call) (()
+                                                     ((protform-lab :label)
+                                                      (cleanup-lab :label)))
+  (leaq (:@ (:^ protform-lab) (:%q x8664::fn)) (:%q x8664::ra0))
+  (leaq (:@ (:^ cleanup-lab)  (:%q x8664::fn)) (:%q x8664::xfn))
+  (jmp (:@ .SPmkunwind)))
+
+
+(define-x8664-subprim-call-vinsn (gvector) .SPgvector)
+
+
+(define-x8664-vinsn init-closure (()
+                                  ((closure :lisp)))
+  (movb (:$b 2) (:@ x8664::misc-data-offset (:%q closure))) ; code word count
+  (movb (:$b -1) (:@ (+ x8664::misc-data-offset 7) (:%q closure))) ; 1st byte of jmp
+  (movl (:$l (:apply logior #x2524 (:apply ash .SPcall-closure 16))) (:@ (+ x8664::misc-data-offset 8) (:%q closure)))) ; rest of jmp instruction, subprim address
+
+(define-x8664-vinsn finalize-closure (((closure :lisp))
+                                      ((closure :lisp)))
+  (addq (:$b (- x8664::fulltag-function x8664::fulltag-misc)) (:%q closure)))
+
+
+(define-x8664-vinsn (ref-symbol-value :call :subprim-call)
+    (((val :lisp))
+     ((sym (:lisp (:ne val)))))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPspecrefcheck))
+  (:align 3)
+  (:long (:^ :back))
+  :back)
+
+(define-x8664-vinsn (%ref-symbol-value :call :subprim-call)
+    (((val :lisp))
+     ((sym (:lisp (:ne val)))))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPspecref))
+  (:align 3)
+  (:long (:^ :back))
+  :back)
+
+(define-x8664-vinsn ref-interrupt-level (((dest :imm))
+                                         ()
+                                         ((temp :u64)))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.tlb-pointer) (:%q temp))
+  (movq (:@ x8664::INTERRUPT-LEVEL-BINDING-INDEX (:%q temp)) (:%q dest)))
+
+(define-x8664-vinsn save-cleanup-context (()
+                                          ())
+  )
+
+(define-x8664-vinsn restore-cleanup-context (()
+                                          ())
+  )
