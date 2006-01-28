@@ -828,15 +828,5 @@ macro_label(done):
 /* $1 = ndigits.  Assumes 4-byte digits */        
 define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
 
-define([_spentry],[ifdef([__func_name],[_endfn],[])
-	_exportfn(_SP$1)
-	.line  __line__
-])
-
-             
-define([_endsubp],[
-	_endfn(_SP$1)
-# __line__
-])
 
 	        

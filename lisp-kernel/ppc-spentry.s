@@ -21,9 +21,26 @@
         .align 2
 	
 local_label(start):	
+define([_spentry],[ifdef([__func_name],[_endfn],[])
+	_exportfn(_SP$1)
+	.line  __line__
+])
+
+             
+define([_endsubp],[
+	_endfn(_SP$1)
+# __line__
+])
+
 
                 	
                
+define([jump_builtin],[
+	ref_nrs_value(fname,builtin_functions)
+	set_nargs($2)
+	vrefr(fname,fname,$1)
+	jump_fname()
+])
 	
 _spentry(jmpsym)
 	__(jump_fname())
@@ -337,10 +354,105 @@ local_label(_nthrow1v_done):
            polling for a deferred interrupt */
         __(check_pending_interrupt())
         __(blr)
-	
+
+/* This never affects the symbol's vcell */
+/* Non-null symbol in arg_y, new value in arg_z */        
+_spentry(bind)
+        __(ldr(imm3,symbol.binding_index(arg_y)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(beq 9f)
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(arg_z,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:
+        __(mr arg_z,arg_y)
+        __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
+
+/* arg_z = symbol: bind it to its current value */        
+_spentry(bind_self)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(cmpri(cr1,temp1,no_thread_local_binding_marker))
+        __(beq 9f)
+        __(mr temp0,temp1)
+        __(bne cr1,1f)
+        __(ldr(temp0,symbol.vcell(arg_z)))
+1:              
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(temp0,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:      __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
+
+/* Bind symbol in arg_z to NIL */               
+_spentry(bind_nil)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(beq- 9f)
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(li imm0,nil_value)
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(imm0,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:      __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
+
+       
+/* Bind symbol in arg_z to its current value ;  trap if symbol is unbound */
+_spentry(bind_self_boundp_check)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpri(imm3,0))
+        __(trlle(imm0,imm3))           /* tlb too small */
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(ldrx(temp1,imm2,imm3))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(beq 9f)              /* no real tlb index */
+        __(cmpri(temp1,no_thread_local_binding_marker))
+        __(mr temp0,temp1)
+        __(bne 1f)
+        __(ldr(temp0,symbol.vcell(arg_z)))
+1:      __(treqi(temp0,unbound_marker))       
+        __(vpush(temp1))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(strx(temp0,imm2,imm3))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+9:      __(lwi(arg_y,XSYMNOBIND))
+        __(set_nargs(2))
+        __(b _SPksignalerr)
+
+
         .globl C(egc_write_barrier_start)
 C(egc_write_barrier_start):
-
 
 /*
    The function pc_luser_xp() - which is used to ensure that suspended threads
@@ -1297,6 +1409,71 @@ badkeys:
 	__(set_nargs(2))
 	__(b _SPksignalerr)
 
+/*
+  A PowerOpen ff-call.  arg_z is either a fixnum (word-aligned entrypoint)
+  or a macptr (whose address had better be word-aligned as well.)  A
+  PowerOpen stack frame is on top of the stack; 4 additional words (to
+  be used a a lisp frame) sit under the C frame.
+
+  Since we probably can't deal with FP exceptions in foreign code, we
+  disable them in the FPSCR, then check on return to see if any previously
+  enabled FP exceptions occurred.
+
+  As it turns out, we can share a lot of code with the eabi version of
+  ff-call.  Some things that happen up to the point of call differ between
+  the ABIs, but everything that happens after is the same.
+*/
+        
+_spentry(poweropen_ffcall)
+	__(mflr loc_pc)
+	__(vpush_saveregs())		/* Now we can use save0-save7 to point to stacks */
+	__(mr save0,rcontext)	/* or address globals. */
+	__(extract_typecode(imm0,arg_z))
+	__(cmpri(cr7,imm0,subtag_macptr))
+	__(ldr(save1,0(sp)))	/* bottom of reserved lisp frame */
+	__(la save2,-lisp_frame.size(save1))	/* top of lisp frame*/
+        __(zero_doublewords save2,0,lisp_frame.size)
+	__(str(save1,lisp_frame.backlink(save2)))
+	__(str(save2,c_frame.backlink(sp)))
+	__(str(fn,lisp_frame.savefn(save2)))
+	__(str(loc_pc,lisp_frame.savelr(save2)))
+	__(str(vsp,lisp_frame.savevsp(save2)))
+       	__(bne cr7,1f)
+	__(ldr(arg_z,macptr.address(arg_z)))
+1:
+	__(ldr(save3,tcr.cs_area(rcontext)))
+	__(str(save2,area.active(save3)))
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(rzero,tcr.ffi_exception(rcontext)))
+	__(mffs f0)
+	__(stfd f0,tcr.lisp_fpscr(rcontext))	/* remember lisp's fpscr */
+	__(mtfsf 0xff,fp_zero)	/* zero foreign fpscr */
+	__(li r4,TCR_STATE_FOREIGN)
+	__(str(r4,tcr.valence(rcontext)))
+        __ifdef([rTOC])
+         __(ld rTOC,8(arg_z))
+         __(ld arg_z,0(arg_z))
+        __else
+	 __(li rcontext,0)
+        __endif
+	__(mtctr arg_z)
+	__(ldr(r3,c_frame.param0(sp)))
+	__(ldr(r4,c_frame.param1(sp)))
+	__(ldr(r5,c_frame.param2(sp)))
+	__(ldr(r6,c_frame.param3(sp)))
+	__(ldr(r7,c_frame.param4(sp)))
+	__(ldr(r8,c_frame.param5(sp)))
+	__(ldr(r9,c_frame.param6(sp)))
+	__(ldr(r10,c_frame.param7(sp)))
+	/* Darwin is allegedly very picky about what register points
+	   to the function on entry. */
+	__(mr r12,arg_z)
+	__(bctrl)
+	__(b FF_call_return_common)
+
 	
 /* Signal an error synchronously, via %ERR-DISP. */
 /* If %ERR-DISP isn't fbound, it'd be nice to print a message */
@@ -1348,6 +1525,172 @@ _spentry(stack_cons_rest_arg)
 	__(b _SPheap_cons_rest_arg)
 
 
+_spentry(poweropen_callbackX)        
+	/* Save C argument registers */
+	__(str(r3,c_frame.param0(sp)))
+	__(str(r4,c_frame.param1(sp)))
+	__(str(r5,c_frame.param2(sp)))
+	__(str(r6,c_frame.param3(sp)))
+	__(str(r7,c_frame.param4(sp)))
+	__(str(r8,c_frame.param5(sp)))
+	__(str(r9,c_frame.param6(sp)))
+	__(str(r10,c_frame.param7(sp)))
+	__(mflr imm3)
+	__(str(imm3,c_frame.savelr(sp)))
+	__(mfcr imm0)
+	__(str(imm0,c_frame.crsave(sp)))
+
+	/* Save the non-volatile registers on the sp stack */
+	/* This is a non-standard stack frame, but noone will ever see it, */
+        /* so it doesn't matter. It will look like more of the stack frame pushed below. */
+	__(stru(sp,-(stack_align(c_reg_save.size))(sp)))
+        __(str(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+        __(str(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+        __(str(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+        __(str(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+        __(str(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+        __(str(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+        __(str(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+        __(str(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+        __(str(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+        __(str(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+        __(str(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+        __(str(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+        __(str(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+        __(str(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+        __(str(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+        __(str(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+        __(str(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+        __(str(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+        __(str(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
+	__(check_stack_alignment(r0))
+	__(mffs f0)
+	__(stfd f0,c_reg_save.save_fp_zero(sp))
+	__(ldr(r31,c_reg_save.save_fp_zero+4(sp)))	/* recover FPSCR image */
+	__(str(r31,c_reg_save.save_fpscr(sp)))
+	__(lwi(r30,0x43300000))
+	__(lwi(r31,0x80000000))
+	__(stw r30,c_reg_save.save_fp_zero(sp))
+	__(stw r31,c_reg_save.save_fp_zero+4(sp))
+	__(stfd fp_s32conv,c_reg_save.save_fps32conv(sp))
+	__(lfd fp_s32conv,c_reg_save.save_fp_zero(sp))
+	__(stfd fp_zero,c_reg_save.save_fp_zero(sp))
+	__(lfs fp_zero,lisp_globals.short_float_zero(0))	/* ensure that fp_zero contains 0.0 */
+
+/* Restore rest of Lisp context. */
+/* Could spread out the memory references here to gain a little speed */
+
+	__(li loc_pc,0)
+	__(li fn,0)                     /* subprim, not a lisp function */
+	__(li temp3,0)
+	__(li temp2,0)
+	__(li temp1,0)
+	__(li temp0,0)
+	__(li arg_x,0)
+	__(box_fixnum(arg_y,r11))	/* callback-index */
+	__(la arg_z,stack_align(c_reg_save.size)+c_frame.param0(sp))	/* parameters (tagged as a fixnum) */
+
+	/* Recover lisp thread context. Have to call C code to do so. */
+	__(ref_global(r12,get_tcr))
+	__(mtctr r12)
+        __(li r3,1)
+	__(stru(sp,-(stack_align(c_frame.minsiz))(sp)))
+	__(bctrl)
+	__(la rcontext,TCR_BIAS(r3))
+	/* re-establish lisp exception handling */
+	__(ref_global(r12,lisp_return_hook))
+	__(mtctr r12)
+	__(bctrl)
+	__(la sp,(stack_align(c_frame.minsiz))(sp))
+
+	__(ldr(vsp,tcr.save_vsp(rcontext)))
+	__(ldr(tsp,tcr.save_tsp(rcontext)))		
+	__(li rzero,0)
+	__(mtxer rzero) /* lisp wants the overflow bit clear */
+        __(mtctr rzero)
+	__(li imm0,TCR_STATE_LISP)
+	__(li save0,0)
+	__(li save1,0)
+	__(li save2,0)
+	__(li save3,0)
+	__(li save4,0)
+	__(li save5,0)
+	__(li save6,0)
+	__(li save7,0)
+	__(lfd f0,tcr.lisp_fpscr(rcontext))
+	__(mtfsf 0xff,f0)
+	__(li allocptr,0)
+	__(li allocbase,0)
+	__(str(imm0,tcr.valence(rcontext)))
+	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
+	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+	
+	/* load nargs and callback to the lisp */
+	__(set_nargs(2))
+	__(ldr(imm2,tcr.cs_area(rcontext)))
+	__(ldr(imm4,area.active(imm2)))
+	__(stru(imm4,-lisp_frame.size(sp)))
+	__(str(imm3,lisp_frame.savelr(sp)))
+	__(str(vsp,lisp_frame.savevsp(sp)))	/* for stack overflow code */
+	__(li fname,nrs.callbacks)	/* %pascal-functions% */
+	__(call_fname)
+	__(ldr(imm2,lisp_frame.backlink(sp)))
+	__(ldr(imm3,tcr.cs_area(rcontext)))
+	__(str(imm2,area.active(imm3)))
+	__(discard_lisp_frame())
+	/* save_vsp will be restored from ff_call's stack frame, but */
+	/* I included it here for consistency. */
+	/* save_tsp is set below after we exit Lisp context. */
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+
+	__(li imm1,TCR_STATE_FOREIGN)
+	__(str(imm1,tcr.valence(rcontext)))
+	__(mr r3,rcontext)
+	__(ldr(r4,tcr.foreign_exception_status(rcontext)))
+	__(cmpri(r4,0))
+	/* Restore the non-volatile registers & fpscr */
+	__(lfd fp_zero,c_reg_save.save_fp_zero(sp))
+	__(ldr(r31,c_reg_save.save_fpscr(sp)))
+	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
+	__(lfd f0,c_reg_save.save_fp_zero(sp))
+	__(mtfsf 0xff,f0)
+	__(ldr(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+	__(ldr(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+	__(ldr(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+	__(ldr(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+	__(ldr(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+	__(ldr(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+	__(ldr(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+	__(ldr(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+	__(ldr(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+	__(ldr(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+	__(ldr(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+	__(ldr(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+	__(ldr(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+	__(ldr(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+	__(ldr(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+	__(ldr(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+	__(ldr(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+	__(ldr(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+	__(ldr(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
+	__(lfd fp_s32conv,c_reg_save.save_fps32conv(sp))
+	__(beq 9f)
+	__(ref_global(r12,lisp_exit_hook))
+	__(mtctr r12)
+	__(bctrl)
+9:
+	__(ldr(sp,0(sp)))
+	__(ldr(r3,c_frame.param0(sp)))
+	__(ldr(r4,c_frame.param1(sp)))
+        __(lfd f1,c_frame.param2(sp))
+	__(ldr(r5,c_frame.savelr(sp)))
+	__(mtlr r5)
+	__(ldr(r5,c_frame.crsave(sp)))
+	__(mtcr r5)
+	__(blr)
 	
 /* Prepend all but the first two (closure code, fn) and last two */
 /* (function name, lfbits) elements of nfn to the "arglist". */
@@ -1880,6 +2223,12 @@ _spentry(subtag_misc_ref)
 	__(unbox_fixnum(imm1,arg_x))
         __(b local_label(misc_ref_common))
 
+_spentry(builtin_aref1)
+	__(extract_typecode(imm0,arg_y))
+	__(cmpri(cr0,imm0,min_vector_subtag))
+	__(box_fixnum(arg_x,imm0))
+	__(bgt cr0,_SPsubtag_misc_ref)
+	__(jump_builtin(_builtin_aref1,2))
         	
 	
 /* Make a cons cell on the vstack.  Always push 3 words, 'cause we're  
@@ -2166,6 +2515,71 @@ _spentry(misc_alloc)
 	 __(uuo_interr(error_object_not_unsigned_byte_24,arg_y))
         __endif
         
+/* almost exactly as above, but "swap exception handling info"
+   on exit and return */
+_spentry(poweropen_ffcallX)
+	__(mflr loc_pc)
+	__(vpush_saveregs())		/* Now we can use save0-save7 to point to stacks */
+	__(mr save0,rcontext)	/* or address globals. */
+	__(extract_typecode(imm0,arg_z))
+	__(cmpri(cr7,imm0,subtag_macptr))
+	__(ldr(save1,c_frame.backlink(sp)))	/* bottom of reserved lisp frame */
+	__(la save2,-lisp_frame.size(save1))	/* top of lisp frame*/
+        __(zero_doublewords save2,0,lisp_frame.size)
+	__(str(save1,lisp_frame.backlink(save2)))
+	__(str(save2,c_frame.backlink(sp)))
+	__(str(fn,lisp_frame.savefn(save2)))
+	__(str(loc_pc,lisp_frame.savelr(save2)))
+	__(str(vsp,lisp_frame.savevsp(save2)))
+	__(bne cr7,1f)
+	__(ldr(arg_z,macptr.address(arg_z)))
+1:
+	__(ldr(save3,tcr.cs_area(rcontext)))
+	__(str(save2,area.active(save3)))
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(rzero,tcr.ffi_exception(rcontext)))
+	__(mffs f0)
+	__(stfd f0,tcr.lisp_fpscr(rcontext))	/* remember lisp's fpscr */
+	__(mtfsf 0xff,fp_zero)	/* zero foreign fpscr */
+	__(ldr(r3,tcr.foreign_exception_status(rcontext)))
+	__(cmpri(r3,0))
+	__(ref_global(r12,lisp_exit_hook))
+	__(mtctr r12)
+	__(beq+ 1f)
+	__(stru(sp,-(stack_align(c_frame.minsiz))(sp)))
+	__(bctrl)
+	__(la sp,(stack_align(c_frame.minsiz))(sp))
+1:	
+	__(li rcontext,0)
+	__(mtctr arg_z)
+	__(ldr(r3,c_frame.param0(sp)))
+	__(ldr(r4,c_frame.param1(sp)))
+	__(ldr(r5,c_frame.param2(sp)))
+	__(ldr(r6,c_frame.param3(sp)))
+	__(ldr(r7,c_frame.param4(sp)))
+	__(ldr(r8,c_frame.param5(sp)))
+	__(ldr(r9,c_frame.param6(sp)))
+	__(ldr(r10,c_frame.param7(sp)))
+	/* Darwin is allegedly very picky about what register points
+	   to the function on entry. */
+	__(mr r12,arg_z)
+	__(bctrl)
+	__(ref_global(r12,lisp_return_hook))
+	__(mtctr r12)
+	__(str(r3,c_frame.param0(sp)))
+	__(str(r4,c_frame.param1(sp)))
+	__(stfd f1,c_frame.param2(sp))
+	__(stru(sp,-(stack_align(c_frame.minsiz))(sp)))
+	__(mr r3,save0)
+	__(bctrl)
+	__(la sp,(stack_align(c_frame.minsiz))(sp))
+	__(ldr(r3,c_frame.param0(sp)))
+	__(ldr(r4,c_frame.param1(sp)))
+	__(lfd f1,c_frame.param2(sp))
+	__(b FF_call_return_common)	
         
 
 
@@ -3033,6 +3447,170 @@ _spentry(add_values)
 	__(bne cr0,local_label(save_values_to_tsp))
 	__(blr)
         
+/* On entry, R11->callback-index */
+/* Restore lisp context, then funcall #'%pascal-functions% with */
+/* two args: callback-index, args-ptr (a macptr pointing to the args on the stack) */
+_spentry(poweropen_callback)
+        __ifdef([rTOC])
+         __(mr r11,rTOC)
+        __endif
+	/* Save C argument registers */
+	__(str(r3,c_frame.param0(sp)))
+	__(str(r4,c_frame.param1(sp)))
+	__(str(r5,c_frame.param2(sp)))
+	__(str(r6,c_frame.param3(sp)))
+	__(str(r7,c_frame.param4(sp)))
+	__(str(r8,c_frame.param5(sp)))
+	__(str(r9,c_frame.param6(sp)))
+	__(str(r10,c_frame.param7(sp)))
+	__(mflr imm3)
+	__(str(imm3,c_frame.savelr(sp)))
+	__(mfcr imm0)
+	__(str(imm0,c_frame.crsave(sp)))
+
+	/* Save the non-volatile registers on the sp stack */
+	/* This is a non-standard stack frame, but noone will ever see it, */
+        /* so it doesn't matter. It will look like more of the stack frame pushed below. */
+	__(stru(sp,-(stack_align(c_reg_save.size))(sp)))
+        __(str(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+        __(str(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+        __(str(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+        __(str(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+        __(str(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+        __(str(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+        __(str(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+        __(str(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+        __(str(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+        __(str(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+        __(str(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+        __(str(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+        __(str(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+        __(str(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+        __(str(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+        __(str(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+        __(str(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+        __(str(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+        __(str(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
+	__(check_stack_alignment(r0))
+	__(mffs f0)
+	__(stfd f0,c_reg_save.save_fp_zero(sp))
+	__(lwz r31,c_reg_save.save_fp_zero+4(sp))	/* recover FPSCR image */
+	__(stw r31,c_reg_save.save_fpscr(sp))
+	__(lwi(r30,0x43300000))
+	__(lwi(r31,0x80000000))
+	__(stw r30,c_reg_save.save_fp_zero(sp))
+	__(stw r31,c_reg_save.save_fp_zero+4(sp))
+	__(stfd fp_s32conv,c_reg_save.save_fps32conv(sp))
+	__(lfd fp_s32conv,c_reg_save.save_fp_zero(sp))
+	__(stfd fp_zero,c_reg_save.save_fp_zero(sp))
+	__(lfs fp_zero,lisp_globals.short_float_zero(0))	/* ensure that fp_zero contains 0.0 */
+
+/* Restore rest of Lisp context. */
+/* Could spread out the memory references here to gain a little speed */
+
+	__(li loc_pc,0)
+	__(li fn,0)                     /* subprim, not a lisp function */
+	__(li temp3,0)
+	__(li temp2,0)
+	__(li temp1,0)
+	__(li temp0,0)
+	__(li arg_x,0)
+	__(box_fixnum(arg_y,r11))	/* callback-index */
+	__(la arg_z,stack_align(c_reg_save.size)+c_frame.param0(sp))	/* parameters (tagged as a fixnum) */
+
+	/* Recover lisp thread context. Have to call C code to do so. */
+	__(ref_global(r12,get_tcr))
+        __ifdef([rTOC])
+         __(ld rTOC,8(r12))
+         __(ld r12,0(r12))
+        __endif
+	__(mtctr r12)
+        __(li r3,1)
+	__(stru(sp,-(stack_align(c_frame.minsiz))(sp)))
+	__(bctrl)
+	__(la rcontext,TCR_BIAS(r3))
+	__(la sp,(stack_align(c_frame.minsiz))(sp))
+
+	__(ldr(vsp,tcr.save_vsp(rcontext)))
+	__(ldr(tsp,tcr.save_tsp(rcontext)))		
+	__(li rzero,0)
+	__(li imm0,TCR_STATE_LISP)
+	__(mtxer rzero) /* lisp wants the overflow bit being clear */
+        __(mtctr rzero)
+	__(li save0,0)
+	__(li save1,0)
+	__(li save2,0)
+	__(li save3,0)
+	__(li save4,0)
+	__(li save5,0)
+	__(li save6,0)
+	__(li save7,0)
+	__(lfd f0,tcr.lisp_fpscr(rcontext))
+	__(mtfsf 0xff,f0)
+	__(li allocbase,0)
+	__(li allocptr,0)	
+	__(str(imm0,tcr.valence(rcontext)))
+	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
+	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+
+	/* load nargs and callback to the lisp */
+	__(set_nargs(2))
+	__(ldr(imm2,tcr.cs_area(rcontext)))
+	__(ldr(imm4,area.active(imm2)))
+	__(stru(imm4,-lisp_frame.size(sp)))
+	__(str(imm3,lisp_frame.savelr(sp)))
+	__(str(vsp,lisp_frame.savevsp(sp)))	/* for stack overflow code */
+	__(li fname,nrs.callbacks)	/* %pascal-functions% */
+	__(call_fname)
+	__(ldr(imm2,lisp_frame.backlink(sp)))
+	__(ldr(imm3,tcr.cs_area(rcontext)))
+	__(str(imm2,area.active(imm3)))
+	__(discard_lisp_frame())
+	/* save_vsp will be restored from ff_call's stack frame, but */
+	/* I included it here for consistency. */
+	/* save_tsp is set below after we exit Lisp context. */
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	/* Exit lisp context */
+	__(li imm1,TCR_STATE_FOREIGN)
+	__(str(imm1,tcr.valence(rcontext)))
+	/* Restore the non-volatile registers & fpscr */
+	__(lfd fp_zero,c_reg_save.save_fp_zero(sp))
+	__(lwz r31,c_reg_save.save_fpscr(sp))
+	__(stw r31,c_reg_save.save_fp_zero+4(sp))
+	__(lfd f0,c_reg_save.save_fp_zero(sp))
+	__(mtfsf 0xff,f0)
+	__(ldr(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+	__(ldr(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+	__(ldr(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+	__(ldr(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+	__(ldr(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+	__(ldr(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+	__(ldr(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+	__(ldr(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+	__(ldr(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+	__(ldr(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+	__(ldr(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+	__(ldr(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+	__(ldr(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+	__(ldr(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+	__(ldr(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+	__(ldr(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+	__(ldr(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+	__(ldr(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+	__(ldr(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
+	__(lfd fp_s32conv,c_reg_save.save_fps32conv(sp))
+	__(ldr(sp,0(sp)))
+	__(ldr(r3,c_frame.param0(sp)))
+	__(ldr(r4,c_frame.param1(sp)))
+        __(lfd f1,c_frame.param2(sp))
+	__(ldr(r5,c_frame.savelr(sp)))
+	__(mtlr r5)
+	__(ldr(r5,c_frame.crsave(sp)))
+	__(mtcr r5)
+	__(blr)
         
 /* Like misc_alloc (a LOT like it, since it does most of the work), but takes */
 /* an initial-value arg in arg_z, element_count in arg_x, subtag in arg_y. */
@@ -3077,6 +3655,44 @@ _spentry(stack_misc_alloc_init)
 	__(jump_fname())
 
 	
+_spentry(callbuiltin)
+	__(ref_nrs_value(fname,builtin_functions))
+	__(la imm0,misc_data_offset(imm0))
+	__(ldrx(fname,fname,imm0))
+	__(jump_fname())
+
+/* the value of the nilreg-relative symbol %builtin-functions% should be */
+/* a vector of symbols.  Call the symbol indexed by imm0 (boxed) and */
+/* return a single value. */
+
+_spentry(callbuiltin0)
+	__(set_nargs(0))
+	__(ref_nrs_value(fname,builtin_functions))
+	__(la imm0,misc_data_offset(imm0))
+	__(ldrx(fname,fname,imm0))
+	__(jump_fname())
+
+_spentry(callbuiltin1)
+	__(ref_nrs_value(fname,builtin_functions))
+	__(set_nargs(1))
+	__(la imm0,misc_data_offset(imm0))
+	__(ldrx(fname,fname,imm0))
+	__(jump_fname())
+
+_spentry(callbuiltin2)
+	__(set_nargs(2))
+	__(ref_nrs_value(fname,builtin_functions))
+	__(la imm0,misc_data_offset(imm0))
+	__(ldrx(fname,fname,imm0))
+	__(jump_fname())
+
+
+_spentry(callbuiltin3)
+	__(set_nargs(3))
+	__(ref_nrs_value(fname,builtin_functions))
+	__(la imm0,misc_data_offset(imm0))
+	__(ldrx(fname,fname,imm0))
+	__(jump_fname())
 	
 
 _spentry(popj)
@@ -3153,15 +3769,1038 @@ _spentry(lexpr_entry)
 	__(li fn,0)
 	__(blr)
 
+/*
+  Do a system call in Darwin.  The stack is set up much as it would be
+  for a PowerOpen ABI ff-call:	register parameters are in the stack
+  frame, and there are 4 extra words at the bottom of the frame that
+  we can carve a lisp frame out of.
+
+  System call return conventions are a little funky in Darwin: if "@sc"
+  is the address of the "sc" instruction, errors return to @sc+4 and
+  non-error cases return to @sc+8.  Error values are returned as
+  positive values in r3; this is true even if the system call returns
+  a doubleword (64-bit) result.  Since r3 would ordinarily contain
+  the high half of a doubleword result, this has to be special-cased.
+
+  The caller should set the c_frame.crsave field of the stack frame
+  to 0 if the result is to be interpreted as anything but a doubleword
+  and to non-zero otherwise.  (This only matters on an error return.)
+*/
+        
+_spentry(poweropen_syscall)
+	__(mflr loc_pc)
+	__(vpush_saveregs())
+	__(ldr(imm1,0(sp)))
+	__(la imm2,-lisp_frame.size(imm1))
+        __(zero_doublewords imm2,0,lisp_frame.size)
+	__(str(imm1,lisp_frame.backlink(imm2)))
+	__(str(imm2,c_frame.backlink(sp)))
+	__(str(fn,lisp_frame.savefn(imm2)))
+	__(str(loc_pc,lisp_frame.savelr(imm2)))
+	__(str(vsp,lisp_frame.savevsp(imm2)))
+	__(ldr(imm3,tcr.cs_area(rcontext)))
+	__(str(imm2,area.active(imm3)))
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(rzero,tcr.ffi_exception(rcontext)))
+	__(mr save0,rcontext)
+	__(li r3,TCR_STATE_FOREIGN)
+	__(str(r3,tcr.valence(rcontext)))
+	__(li rcontext,0)
+	__(ldr(r3,c_frame.param0(sp)))
+	__(ldr(r4,c_frame.param1(sp)))
+	__(ldr(r5,c_frame.param2(sp)))
+	__(ldr(r6,c_frame.param3(sp)))
+	__(ldr(r7,c_frame.param4(sp)))
+	__(ldr(r8,c_frame.param5(sp)))
+	__(ldr(r9,c_frame.param6(sp)))
+	__(ldr(r10,c_frame.param7(sp)))
+	__(unbox_fixnum(r0,arg_z))
+	__(sc)
+        __ifdef([LINUX])
+         __(bns+ 9f)
+        __else
+	 __(b 1f)
+	 __(b 9f)
+        __endif
+1:
+        __ifdef([PPC64])
+         __(neg r3,r3)
+        __else
+	 __(ldr(imm2,c_frame.crsave(sp)))
+	 __(cmpri(cr0,imm2,0))
+	 __(bne cr0,2f)
+	 /* 32-bit result */
+	 __(neg r3,r3)
+	 __(b 9f)
+2:
+	 /* 64-bit result */
+	 __(neg r4,r3)
+	 __(li r3,-1)
+        __endif
+9:
+	__(mr imm2,save0)	/* recover context */
+	__(ldr(sp,c_frame.backlink(sp)))
+	__(li imm4,TCR_STATE_LISP)
+	__(li rzero,0)
+	__(li loc_pc,0)
+	__(li arg_x,nil_value)
+	__(li arg_y,nil_value)
+	__(li arg_z,nil_value)
+	__(li temp0,nil_value)
+	__(li temp1,nil_value)
+	__(li temp2,nil_value)
+	__(li temp3,nil_value)
+	__(li fn,nil_value)
+	__(mr rcontext,imm2)
+	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
+	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+	__(ldr(tsp,tcr.save_tsp(rcontext)))
+        __(li save0,0)
+        __(li save1,0)
+        __(li save2,0)
+        __(li save3,0)
+        __(li save4,0)
+        __(li save5,0)
+        __(li save6,0)
+        __(li save7,0)        
+	__(str(imm4,tcr.valence(rcontext)))
+	__(vpop_saveregs)
+	__(ldr(loc_pc,lisp_frame.savelr(sp)))
+	__(mtlr loc_pc)
+	__(ldr(fn,lisp_frame.savefn(sp)))
+	__(discard_lisp_frame)
+        __(mtxer rzero)
+	__(check_pending_interrupt([cr1]))
+	__(blr)
         
         
+_spentry(builtin_plus)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(addo. arg_z,arg_y,arg_z)
+	__(bnslr+)
+	__(mtxer rzero)
+	__(unbox_fixnum(imm1,arg_z))
+        __ifdef([PPC64])
+	 __(li imm0,two_digit_bignum_header)
+         __(rotldi imm1,imm1,32)
+	 __(xoris imm1,imm1,0xe000)
+	 __(Misc_Alloc_Fixed(arg_z,imm0,aligned_bignum_size(2)))
+	 __(str(imm1,misc_data_offset(arg_z)))
+        __else
+	 __(li imm0,one_digit_bignum_header)
+	 __(xoris imm1,imm1,0xc000)
+	 __(Misc_Alloc_Fixed(arg_z,imm0,aligned_bignum_size(1)))
+	 __(str(imm1,misc_data_offset(arg_z)))
+        __endif
+	__(blr)
+1:
+	__(jump_builtin(_builtin_plus,2))
+_spentry(builtin_minus)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(subo. arg_z,arg_y,arg_z)
+	__(bnslr+)
+	__(mtxer rzero)
+	__(unbox_fixnum(imm1,arg_z))
+        __ifdef([PPC64])
+	 __(li imm0,two_digit_bignum_header)
+         __(rotldi imm1,imm1,32)
+	 __(xoris imm1,imm1,0xe000)
+	 __(Misc_Alloc_Fixed(arg_z,imm0,aligned_bignum_size(2)))
+	 __(str(imm1,misc_data_offset(arg_z)))
+        __else
+	 __(li imm0,one_digit_bignum_header)
+	 __(xoris imm1,imm1,0xc000)
+	 __(Misc_Alloc_Fixed(arg_z,imm0,aligned_bignum_size(1)))
+	 __(str(imm1,misc_data_offset(arg_z)))
+        __endif
+	__(blr)
+1:
+	__(jump_builtin(_builtin_minus,2))
+_spentry(builtin_times)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(unbox_fixnum(imm2,arg_y))
+	__(bne cr0,1f)
+        __(bne cr1,1f)
+        __ifdef([PPC64])
+         __(mulldo. imm3,arg_z,imm2)
+         __(bso 2f)
+         __(mr arg_z,imm3)
+         __(blr)
+	 /* Args are fixnums; result can't be */
+2:	 __(mtxer rzero)
+	 __(unbox_fixnum(imm3,arg_z))
+	 __(mulld imm1,imm3,imm2) /* imm1 = low  64 bits */
+	 __(mulhd imm0,imm3,imm2) /* imm0 = high 64 bits */
+	 __(b _SPmakes128)
+        __else
+	 __(mullwo. imm3,arg_z,imm2)
+	 __(bso 2f)		/*  SO set if result would overflow a fixnum */
+	 __(mr arg_z,imm3)
+	 __(blr)
+	 /* Args are fixnums; result can't be */
+2:	 __(mtxer rzero)
+	 __(unbox_fixnum(imm3,arg_z))
+	 __(mullw imm1,imm3,imm2) /* imm1 = low  32 bits */
+	 __(mulhw imm0,imm3,imm2) /* imm0 = high 32 bits */
+	 __(b _SPmakes64)
+        __endif
+
+1:	__(jump_builtin(_builtin_times,2))
+
+_spentry(builtin_div)
+	__(jump_builtin(_builtin_div,2))
+
+_spentry(builtin_eq)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(cmpr(cr2,arg_y,arg_z))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(li arg_z,nil_value)
+	__(bnelr cr2)
+	__(li arg_z,t_value)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_eq,2))
+
+_spentry(builtin_ne)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(cmpr(cr2,arg_y,arg_z))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(li arg_z,nil_value)
+	__(beqlr cr2)
+	__(li arg_z,t_value)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_ne,2))
+
+_spentry(builtin_gt)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(cmpr(cr2,arg_y,arg_z))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(li arg_z,nil_value)
+	__(bnglr cr2)
+	__(li arg_z,t_value)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_gt,2))
+
+_spentry(builtin_ge)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(cmpr(cr2,arg_y,arg_z))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(li arg_z,nil_value)
+	__(bltlr cr2)
+	__(li arg_z,t_value)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_ge,2))
+
+_spentry(builtin_lt)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(cmpr(cr2,arg_y,arg_z))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(li arg_z,nil_value)
+	__(bnllr cr2)
+	__(li arg_z,t_value)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_lt,2))
+
+_spentry(builtin_le)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(cmpr(cr2,arg_y,arg_z))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(li arg_z,nil_value)
+	__(bgtlr cr2)
+	__(li arg_z,t_value)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_le,2))
+
+
+_spentry(builtin_eql)
+        __(cmpr(cr1,arg_y,arg_z))
+        __(extract_fulltag(imm2,arg_y))
+        __(extract_fulltag(imm3,arg_z))
+        __(beq cr1,1f)
+        __(cmpri(cr1,imm2,fulltag_misc))
+        __(cmpri(cr0,imm3,fulltag_misc))
+        __(bne cr1,2f)
+        __(extract_subtag(imm0,arg_y))
+        __(bne cr0,2f)
+        __(extract_subtag(imm1,arg_z))
+        __(cmpr(cr0,imm0,imm1))
+        __(bne cr0,2f)
+	__(jump_builtin(_builtin_eql,2))
+1:	__(li arg_z,t_value)
+	__(blr)
+2:	__(li arg_z,nil_value)
+	__(blr)
+        
+_spentry(builtin_length)
+        __(cmpri(cr1,arg_z,nil_value))
+	__(extract_typecode(imm0,arg_z))
+	__(cmpri(cr0,imm0,min_vector_subtag))
+        __(beq cr1,1f)
+        __ifdef([PPC64])
+         __(cmpdi cr2,imm0,fulltag_cons)
+        __else
+	 __(cmpwi cr2,imm0,tag_list)
+        __endif
+	__(beq- cr0,2f)
+	__(blt- cr0,3f)
+	/* (simple-array * (*)) */
+	__(vector_length(arg_z,arg_z,imm0))
+	__(blr)
+1:      __(li arg_z,0)
+        __(blr)
+2:
+	__(ldr(arg_z,vectorH.logsize(arg_z)))
+	__(blr)        
+3:	__(bne cr2,8f)
+	__(li temp2,-1<<fixnum_shift)
+	__(mr temp0,arg_z)	/* fast pointer */
+	__(mr temp1,arg_z)	/* slow pointer */
+        __ifdef([PPC64])
+4:       __(extract_fulltag(imm0,temp0))
+         __(cmpdi cr7,temp0,nil_value)
+         __(cmpdi cr1,imm0,fulltag_cons)
+         __(addi temp2,temp2,fixnum_one)
+         __(beq cr7,9f)
+         __(andi. imm0,temp2,1<<fixnum_shift)
+         __(bne cr1,8f)
+         __(extract_fulltag(imm1,temp1))
+         __(_cdr(temp0,temp0))
+         __(cmpdi cr1,imm1,fulltag_cons)
+	 __(beq cr0,4b)
+	 __(bne cr1,8f)
+	 __(_cdr(temp1,temp1))
+	 __(cmpd cr0,temp0,temp1)
+	 __(bne cr0,4b)
+        __else
+4:	 __(extract_lisptag(imm0,temp0))
+	 __(cmpri(cr7,temp0,nil_value))
+	 __(cmpri(cr1,imm0,tag_list))
+	 __(addi temp2,temp2,fixnum_one)
+	 __(beq cr7,9f)
+	 __(andi. imm0,temp2,1<<fixnum_shift)
+	 __(bne cr1,8f)
+	 __(extract_lisptag(imm1,temp1))	
+	 __(_cdr(temp0,temp0))
+	 __(cmpri(cr1,imm1,tag_list))
+	 __(beq cr0,4b)
+	 __(bne cr1,8f)
+	 __(_cdr(temp1,temp1))
+	 __(cmpr(cr0,temp0,temp1))
+	 __(bne cr0,4b)
+        __endif
+8:	
+	__(jump_builtin(_builtin_length,1))
+9:	
+	__(mr arg_z,temp2)
+	__(blr)
+        
+_spentry(builtin_seqtype)
+        __ifdef([PPC64])
+         __(cmpdi cr2,arg_z,nil_value)
+         __(extract_typecode(imm0,arg_z))
+         __(beq cr2,1f)
+	 __(cmpri(cr0,imm0,fulltag_cons))
+        __else
+	 __(extract_typecode(imm0,arg_z))
+ 	 __(cmpri(cr0,imm0,tag_list))
+        __endif
+	__(cmpri(cr1,imm0,min_vector_subtag))
+	__(beq cr0,1f)
+	__(blt- cr1,2f)
+	__(li arg_z,nil_value)
+	__(blr)
+1:	__(li arg_z,t_value)
+	__(blr)
+2:
+	__(jump_builtin(_builtin_seqtype,1))
+        
+_spentry(builtin_assq)
+	__(cmpri(arg_z,nil_value))
+	__(beqlr)
+1:	__(trap_unless_list(arg_z,imm0))
+	__(_car(arg_x,arg_z))
+	__(_cdr(arg_z,arg_z))
+	__(cmpri(cr2,arg_x,nil_value))
+	__(cmpri(cr1,arg_z,nil_value))
+	__(beq cr2,2f)
+	__(trap_unless_list(arg_x,imm0))
+	__(_car(temp0,arg_x))
+	__(cmpr(temp0,arg_y))
+	__(bne cr0,2f)
+	__(mr arg_z,arg_x)
+	__(blr)
+2:	__(bne cr1,1b)
+	__(blr)
+
+_spentry(builtin_memq)
+	__(cmpri(cr1,arg_z,nil_value))
+	__(b 2f)
+1:	__(trap_unless_list(arg_z,imm0))
+	__(_car(arg_x,arg_z))
+	__(_cdr(temp0,arg_z))
+	__(cmpr(arg_x,arg_y))
+	__(cmpri(cr1,temp0,nil_value))
+	__(beqlr)
+	__(mr arg_z,temp0)
+2:	__(bne cr1,1b)
+	__(blr)
+
+        __ifdef([PPC64])
+logbitp_max_bit = 61
+        __else
+logbitp_max_bit = 30
+        __endif
+        
+_spentry(builtin_logbitp)
+	/* Call out unless both fixnums,0 <=  arg_y < logbitp_max_bit */
+        __(cmplri(cr2,arg_y,logbitp_max_bit<<fixnum_shift))
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(unbox_fixnum(imm0,arg_y))
+	__(subfic imm0,imm0,logbitp_max_bit)
+        __ifdef([PPC64])
+         __(rldcl imm0,arg_z,imm0,63)
+         __(mulli imm0,imm0,t_offset)
+        __else
+  	 __(rlwnm imm0,arg_z,imm0,31,31)
+	 __(rlwimi imm0,imm0,4,27,27)
+        __endif
+	__(bnl cr2,1f)
+	__(bne cr0,1f)
+        __(bne cr1,1f)
+	__(addi arg_z,imm0,nil_value)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_logbitp,2))
+
+_spentry(builtin_logior)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(or arg_z,arg_y,arg_z)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_logior,2))
+
+_spentry(builtin_logand)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(and arg_z,arg_y,arg_z)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_logand,2))
+	
+_spentry(builtin_ash)
+        __ifdef([PPC64])
+	 __(cmpdi cr1,arg_z,0)
+         __(extract_lisptag(imm0,arg_y))
+         __(extract_lisptag(imm1,arg_z))
+         __(cmpdi cr0,imm0,tag_fixnum)
+         __(cmpdi cr3,imm1,tag_fixnum)
+	 __(cmpdi cr2,arg_z,-(63<<3))	/* !! 3 =  fixnumshift */
+	 __(bne- cr0,9f)
+         __(bne- cr3,9f)
+	 __(bne cr1,0f)
+	 __(mr arg_z,arg_y)	/* (ash n 0) => n */
+	 __(blr)
+0:		
+	 __(unbox_fixnum(imm1,arg_y))
+	 __(unbox_fixnum(imm0,arg_z))
+	 __(bgt cr1,2f)
+	 /* (ash n -count) => fixnum */
+	 __(neg imm2,imm0)
+	 __(bgt cr2,1f)
+	 __(li imm2,63)
+1:	
+	 __(srad imm0,imm1,imm2)
+	 __(box_fixnum(arg_z,imm0))
+	 __(blr)
+	 /* Integer-length of arg_y/imm1 to imm2 */
+2:		
+	 __(cntlzd. imm2,imm1)
+	 __(bne 3f)		/* cr0[eq] set if negative */
+	 __(not imm2,imm1)
+	 __(cntlzd imm2,imm2)
+3:
+	 __(subfic imm2,imm2,64)
+	 __(add imm2,imm2,imm0)	 /* imm2 <- integer-length(imm1) + count */
+	 __(cmpdi cr1,imm2,63-fixnumshift)
+	 __(cmpdi cr2,imm0,64)
+	 __(sld imm2,imm1,imm0)
+	 __(bgt cr1,6f)
+	 __(box_fixnum(arg_z,imm2))
+	 __(blr)	
+6:
+	 __(bgt cr2,9f)
+	 __(bne cr2,7f)
+	 /* Shift left by 64 bits exactly */
+	 __(mr imm0,imm1)
+	 __(li imm1,0)
+	 __(beq _SPmakes128)
+	 __(b _SPmakeu128)
+7:
+	 /* Shift left by fewer than 64 bits, result not a fixnum */
+	 __(subfic imm0,imm0,64)
+	 __(beq 8f)
+	 __(srd imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakeu128)
+8:	
+	 __(srad imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakes128)
+        __else
+	 __(cmpri(cr1,arg_z,0))
+         __(extract_lisptag(imm0,arg_y))
+         __(extract_lisptag(imm1,arg_z))
+         __(cmpri(cr0,imm0,tag_fixnum))
+         __(cmpri(cr3,imm1,tag_fixnum))
+	 __(cmpri(cr2,arg_z,-(29<<2)))	/* !! 2 =  fixnumshift */
+	 __(bne- cr0,9f)
+         __(bne- cr3,9f)
+	 __(bne cr1,0f)
+	 __(mr arg_z,arg_y)	/* (ash n 0) => n */
+	 __(blr)
+0:		
+	 __(unbox_fixnum(imm1,arg_y))
+	 __(unbox_fixnum(imm0,arg_z))
+	 __(bgt cr1,2f)
+	 /* (ash n -count) => fixnum */
+	 __(neg imm2,imm0)
+	 __(bgt cr2,1f)
+	 __(li imm2,31)
+1:	
+	 __(sraw imm0,imm1,imm2)
+	 __(box_fixnum(arg_z,imm0))
+	 __(blr)
+	 /* Integer-length of arg_y/imm1 to imm2 */
+2:		
+	 __(cntlzw. imm2,imm1)
+	 __(bne 3f)		/* cr0[eq] set if negative */
+	 __(not imm2,imm1)
+	 __(cntlzw imm2,imm2)
+3:
+	 __(subfic imm2,imm2,32)
+	 __(add imm2,imm2,imm0)	 /* imm2 <- integer-length(imm1) + count */
+	 __(cmpri(cr1,imm2,31-fixnumshift))
+	 __(cmpri(cr2,imm0,32))
+	 __(slw imm2,imm1,imm0)
+	 __(bgt cr1,6f)
+	 __(box_fixnum(arg_z,imm2))
+	 __(blr)	
+6:
+	 __(bgt cr2,9f)
+	 __(bne cr2,7f)
+	 /* Shift left by 32 bits exactly */
+	 __(mr imm0,imm1)
+	 __(li imm1,0)
+	 __(beq _SPmakes64)
+	 __(b _SPmakeu64)
+7:
+	 /* Shift left by fewer than 32 bits, result not a fixnum */
+	 __(subfic imm0,imm0,32)
+	 __(beq 8f)
+	 __(srw imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakeu64)
+8:	
+	 __(sraw imm0,imm1,imm0)
+	 __(mr imm1,imm2)
+	 __(b _SPmakes64)
+        __endif
+9:		
+	__(jump_builtin(_builtin_ash,2))
+
+_spentry(builtin_negate)
+	__(extract_lisptag_(imm0,arg_z))
+	__(bne- cr0,1f)
+	__(nego. arg_z,arg_z)
+	__(bnslr+)
+	__(mtxer rzero)
+	__(unbox_fixnum(imm1,arg_z))
+        __ifdef([PPC64])
+	 __(li imm0,two_digit_bignum_header)
+         __(rotldi imm1,imm1,32)
+	 __(xoris imm1,imm1,0xe000)
+	 __(Misc_Alloc_Fixed(arg_z,imm0,aligned_bignum_size(2)))
+	 __(str(imm1,misc_data_offset(arg_z)))
+        __else
+	 __(li imm0,one_digit_bignum_header)
+	 __(xoris imm1,imm1,0xc000)
+	 __(Misc_Alloc_Fixed(arg_z,imm0,aligned_bignum_size(1)))
+	 __(str(imm1,misc_data_offset(arg_z)))
+        __endif
+	__(blr)
+1:
+	__(jump_builtin(_builtin_negate,1))
+
+_spentry(builtin_logxor)
+        __(extract_lisptag(imm0,arg_y))
+        __(extract_lisptag(imm1,arg_z))
+        __(cmpri(cr0,imm0,tag_fixnum))
+        __(cmpri(cr1,imm1,tag_fixnum))
+	__(bne- cr0,1f)
+        __(bne- cr1,1f)
+	__(xor arg_z,arg_y,arg_z)
+	__(blr)
+1:
+	__(jump_builtin(_builtin_logxor,2))
+
+
+
+        
+_spentry(builtin_aset1)
+	__(extract_typecode(imm0,arg_x))
+	__(cmpri(cr0,imm0,min_vector_subtag))
+	__(box_fixnum(temp0,imm0))
+	__(bgt cr0,1f)
+	__(jump_builtin(_builtin_aset1,3))
+1:
+	__(b _SPsubtag_misc_set)
+
 /* Enter the debugger */
 _spentry(breakpoint)
 	__(li r3,0)
 	__(tw 28,sp,sp)	/* 28 = lt|gt|eq (assembler bug for the latter) */
 	__(blr)		/* if handler didn't */
 
+/*
+	We're entered with an eabi_c_frame on the C stack.  There's a
+	lisp_frame reserved underneath it; we'll link it in in a minute.
+	Load the outgoing GPR arguments from eabi_c_frame.param[0-7],
+	then shrink the eabi_c_frame.
+*/
+	
+_spentry(eabi_ff_call)
+	__(mflr loc_pc)
+	__(str(sp,eabi_c_frame.savelr(sp)))
+	__(vpush_saveregs())		/* Now we can use save0-save7 to point to stacks */
+	__(mr save0,rcontext)	/* or address globals. */
+	__(extract_typecode(imm0,arg_z))
+	__(cmpri(imm0,subtag_macptr))
+	__(ldr(save1,0(sp)))	/* bottom of reserved lisp frame */
+	__(la save2,-lisp_frame.size(save1))	/* top of lisp frame*/
+        __(zero_doublewords save2,0,lisp_frame.size)
+	__(str(save1,lisp_frame.backlink(save2)))
+	__(str(save2,c_frame.backlink(sp)))
+	__(str(fn,lisp_frame.savefn(save2)))
+	__(str(loc_pc,lisp_frame.savelr(save2)))
+	__(str(vsp,lisp_frame.savevsp(save2)))
+	__(bne 1f)
+	__(ldr(arg_z,macptr.address(arg_z)))
+1:
+	__(ldr(save3,tcr.cs_area(rcontext)))
+	__(str(save2,area.active(save3)))
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(mtctr arg_z)
+	__(str(rzero,tcr.ffi_exception(rcontext)))
+	__(mffs f0)
+	__(stfd f0,tcr.lisp_fpscr(rcontext))	/* remember lisp's fpscr */
+	__(mtfsf 0xff,fp_zero)	/* zero foreign fpscr */
+	__(li imm1,TCR_STATE_FOREIGN)
+	__(str(imm1,tcr.valence(rcontext)))
+	__(ldr(r2,tcr.native_thread_info(rcontext)))
+	__(ldr(r13,lisp_globals.saveR13(0)))
+	__(ldr(r3,eabi_c_frame.param0(sp)))
+	__(ldr(r4,eabi_c_frame.param1(sp)))
+	__(ldr(r5,eabi_c_frame.param2(sp)))
+	__(ldr(r6,eabi_c_frame.param3(sp)))
+	__(ldr(r7,eabi_c_frame.param4(sp)))
+	__(ldr(r8,eabi_c_frame.param5(sp)))
+	__(ldr(r9,eabi_c_frame.param6(sp)))
+	__(ldr(r10,eabi_c_frame.param7(sp)))
+	__(la save1,eabi_c_frame.minsiz-eabi_c_frame.param0(sp))
+	__(str(rzero,eabi_c_frame.savelr(save1)))
+	__(str(save2,eabi_c_frame.backlink(save1)))
+	__(mr sp,save1)
+	/* If we're calling a varargs C function, it'll want to
+	know whether or not we've passed any args in FP regs.
+	Better to say that we did (and force callee to save FP
+	arg regs on entry) than to say that we didn't and get
+	garbage results */
+	__(crset 6)
+	__(bctrl)
+        _endsubp(eabi_ff_call)
+	
+        _startfn(FF_call_return_common)
+	/* C should have preserved save0 (= rcontext) for us. */
+	__(ldr(sp,0(sp)))
+	__(mr imm2,save0)
+	__(ldr(vsp,lisp_frame.savevsp(sp)))
+	__(li rzero,0)
+	__(mr loc_pc,rzero)
+	__(li arg_x,nil_value)
+	__(li arg_y,nil_value)
+	__(li arg_z,nil_value)
+	__(li temp0,nil_value)
+	__(li temp1,nil_value)
+	__(li temp2,nil_value)
+	__(li temp3,nil_value)
+	__(li fn,nil_value)
+	__(mr rcontext,imm2)
+	__(li imm2,TCR_STATE_LISP)
+	__(ldr(tsp,tcr.save_tsp(rcontext)))
+        __(li save0,0)
+        __(li save1,0)
+        __(li save2,0)
+        __(li save3,0)
+        __(li save4,0)
+        __(li save5,0)
+        __(li save6,0)
+        __(li save7,0)        
+	__(str(imm2,tcr.valence(rcontext)))	
+	__(vpop_saveregs())
+	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
+	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+	__(ldr(loc_pc,lisp_frame.savelr(sp)))
+	__(mtlr loc_pc)
+	__(ldr(fn,lisp_frame.savefn(sp)))
+	__(mffs f0)
+	__(stfd f0,8(sp))
+	__(lwz imm3,12(sp))	/* imm3 = FPSCR after call */
+        __(clrrwi imm2,imm3,8)
+	__(discard_lisp_frame())
+	__(str(imm2,tcr.ffi_exception(rcontext)))
+	__(lfd f0,tcr.lisp_fpscr(rcontext))
+	__(mtfsf 0xff,f0)
+	__(check_pending_interrupt([cr1]))
+        __(mtxer rzero)
+        __(mtctr rzero)
+	__(blr)
         
+/* 
+	This gets called with R11 holding the unboxed callback index.
+*/
+_spentry(eabi_callback)
+	/* First, we extend the C frame so that it has room for
+	incoming arg regs. */
+	__(ldr(r0,eabi_c_frame.backlink(sp)))
+	__(stru(r0,eabi_c_frame.param0-varargs_eabi_c_frame.incoming_stack_args(sp)))
+	__(mflr r0)
+	__(str(r0,varargs_eabi_c_frame.savelr(sp)))
+	__(str(r3,varargs_eabi_c_frame.gp_save+(0*4)(sp)))
+	__(str(r4,varargs_eabi_c_frame.gp_save+(1*4)(sp)))
+	__(str(r5,varargs_eabi_c_frame.gp_save+(2*4)(sp)))
+	__(str(r6,varargs_eabi_c_frame.gp_save+(3*4)(sp)))
+	__(str(r7,varargs_eabi_c_frame.gp_save+(4*4)(sp)))
+	__(str(r8,varargs_eabi_c_frame.gp_save+(5*4)(sp)))
+	__(str(r9,varargs_eabi_c_frame.gp_save+(6*4)(sp)))
+	__(str(r10,varargs_eabi_c_frame.gp_save+(7*4)(sp)))
+	/* Could check the appropriate CR bit and skip saving FP regs here */
+	__(stfd f1,varargs_eabi_c_frame.fp_save+(0*8)(sp))
+	__(stfd f2,varargs_eabi_c_frame.fp_save+(1*8)(sp))
+	__(stfd f3,varargs_eabi_c_frame.fp_save+(2*8)(sp))
+	__(stfd f4,varargs_eabi_c_frame.fp_save+(3*8)(sp))
+	__(stfd f5,varargs_eabi_c_frame.fp_save+(4*8)(sp))
+	__(stfd f6,varargs_eabi_c_frame.fp_save+(5*8)(sp))
+	__(stfd f7,varargs_eabi_c_frame.fp_save+(6*8)(sp))
+	__(stfd f8,varargs_eabi_c_frame.fp_save+(7*8)(sp))
+	__(la r0,varargs_eabi_c_frame.incoming_stack_args(sp))
+	__(str(r0,varargs_eabi_c_frame.overflow_arg_area(sp)))
+	__(la r0,varargs_eabi_c_frame.regsave(sp))
+	__(str(r0,varargs_eabi_c_frame.reg_save_area(sp)))
+	__(li r0,0)
+	__(str(r0,varargs_eabi_c_frame.flags(sp)))
+
+	/* Save the non-volatile registers on the sp stack */
+	/* This is a non-standard stack frame, but noone will ever see it, */
+        /* so it doesn't matter. It will look like more of the stack frame pushed below. */
+	__(stru(sp,-(c_reg_save.size)(sp)))
+        __(str(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+        __(str(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+        __(str(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+        __(str(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+        __(str(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+        __(str(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+        __(str(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+        __(str(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+        __(str(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+        __(str(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+        __(str(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+        __(str(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+        __(str(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+        __(str(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+        __(str(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+        __(str(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+        __(str(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+        __(str(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+        __(str(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
+	__(mffs f0)
+	__(stfd f0,c_reg_save.save_fp_zero(sp))
+	__(ldr(r31,c_reg_save.save_fp_zero+4(sp)))	/* recover FPSCR image */
+	__(str(r31,c_reg_save.save_fpscr(sp)))
+	__(lwi(r30,0x43300000))
+	__(lwi(r31,0x80000000))
+	__(str(r30,c_reg_save.save_fp_zero(sp)))
+	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
+	__(stfd fp_s32conv,c_reg_save.save_fps32conv(sp))
+	__(lfd fp_s32conv,c_reg_save.save_fp_zero(sp))
+	__(stfd fp_zero,c_reg_save.save_fp_zero(sp))
+	__(lfs fp_zero,lisp_globals.short_float_zero(0))	/* ensure that fp_zero contains 0.0 */
+
+	
+/* Restore rest of Lisp context. */
+/* Could spread out the memory references here to gain a little speed */
+	__(li loc_pc,0)
+	__(li fn,0)                     /* subprim, not a lisp function */
+	__(li temp3,0)
+	__(li temp2,0)
+	__(li temp1,0)
+	__(li temp0,0)
+	__(li arg_x,0)
+	__(box_fixnum(arg_y,r11))	/* callback-index */
+	__(la arg_z,c_reg_save.size+varargs_eabi_c_frame.gp_save(sp))	/* parameters (tagged as a fixnum) */
+
+	/* Recover lisp thread context. Have to call C code to do so. */
+	__(ref_global(r12,get_tcr))
+	__(mtctr r12)
+        __(li r3,1)
+	__(stru(sp,-(stack_align(eabi_c_frame.minsiz))(sp)))
+	__(bctrl)
+	__(la sp,(stack_align(eabi_c_frame.minsiz))(sp))
+	__(la rcontext,TCR_BIAS(r3))
+	__(li allocptr,0)
+	__(li allocbase,0)
+	__(ldr(vsp,tcr.save_vsp(rcontext)))
+	__(ldr(tsp,tcr.save_tsp(rcontext)))		
+	__(li rzero,0)
+	__(mtxer rzero) /* lisp wants the overflow bit clear */
+	__(li imm0,TCR_STATE_LISP)
+	__(li save0,0)
+	__(li save1,0)
+	__(li save2,0)
+	__(li save3,0)
+	__(li save4,0)
+	__(li save5,0)
+	__(li save6,0)
+	__(li save7,0)
+        __(mtctr rzero)
+	__(str(imm0,tcr.valence(rcontext)))
+	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
+	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+	__(lfd f0,tcr.lisp_fpscr(rcontext))
+	__(mtfsf 0xff,f0)
+
+	/* load nargs and callback to the lisp */
+	__(set_nargs(2))
+	__(ldr(imm2,tcr.cs_area(rcontext)))
+	__(ldr(imm4,area.active(imm2)))
+	__(stru(imm4,-lisp_frame.size(sp)))
+	__(str(imm3,lisp_frame.savelr(sp)))
+	__(str(vsp,lisp_frame.savevsp(sp)))	/* for stack overflow code */
+	__(li fname,nrs.callbacks)	/* %pascal-functions% */
+	__(call_fname)
+	__(ldr(imm2,lisp_frame.backlink(sp)))
+	__(ldr(imm3,tcr.cs_area(rcontext)))
+	__(str(imm2,area.active(imm3)))
+	__(discard_lisp_frame())
+	/* save_vsp will be restored from ff_call's stack frame, but */
+	/* I included it here for consistency. */
+	/* save_tsp is set below after we exit Lisp context. */
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	/* Exit lisp context */
+	/* This is not necessary yet, but will be once we can be interrupted */
+	__(li imm1,TCR_STATE_FOREIGN)
+	__(str(imm1,tcr.valence(rcontext)))
+	/* Restore the non-volatile registers & fpscr */
+	__(lfd fp_zero,c_reg_save.save_fp_zero(sp))
+	__(ldr(r31,c_reg_save.save_fpscr(sp)))
+	__(str(r31,c_reg_save.save_fp_zero+4(sp)))
+	__(lfd f0,c_reg_save.save_fp_zero(sp))
+	__(mtfsf 0xff,f0)
+	__(ldr(r13,c_reg_save.save_gprs+(0*node_size)(sp)))
+	__(ldr(r14,c_reg_save.save_gprs+(1*node_size)(sp)))
+	__(ldr(r15,c_reg_save.save_gprs+(2*node_size)(sp)))
+	__(ldr(r16,c_reg_save.save_gprs+(3*node_size)(sp)))
+	__(ldr(r17,c_reg_save.save_gprs+(4*node_size)(sp)))
+	__(ldr(r18,c_reg_save.save_gprs+(5*node_size)(sp)))
+	__(ldr(r19,c_reg_save.save_gprs+(6*node_size)(sp)))
+	__(ldr(r20,c_reg_save.save_gprs+(7*node_size)(sp)))
+	__(ldr(r21,c_reg_save.save_gprs+(8*node_size)(sp)))
+	__(ldr(r22,c_reg_save.save_gprs+(9*node_size)(sp)))
+	__(ldr(r23,c_reg_save.save_gprs+(10*node_size)(sp)))
+	__(ldr(r24,c_reg_save.save_gprs+(11*node_size)(sp)))
+	__(ldr(r25,c_reg_save.save_gprs+(12*node_size)(sp)))
+	__(ldr(r26,c_reg_save.save_gprs+(13*node_size)(sp)))
+	__(ldr(r27,c_reg_save.save_gprs+(14*node_size)(sp)))
+	__(ldr(r28,c_reg_save.save_gprs+(15*node_size)(sp)))
+	__(ldr(r29,c_reg_save.save_gprs+(16*node_size)(sp)))
+	__(ldr(r30,c_reg_save.save_gprs+(17*node_size)(sp)))
+	__(ldr(r31,c_reg_save.save_gprs+(18*node_size)(sp)))
+	__(lfd fp_s32conv,c_reg_save.save_fps32conv(sp))
+	__(ldr(sp,0(sp)))
+
+	__(ldr(r3,varargs_eabi_c_frame.gp_save+(0*4)(sp)))
+	__(ldr(r4,varargs_eabi_c_frame.gp_save+(1*4)(sp)))
+	__(lfd f1,varargs_eabi_c_frame.gp_save+(2*4)(sp))
+	__(ldr(r5,varargs_eabi_c_frame.savelr(sp)))
+	__(str(r5,varargs_eabi_c_frame.old_savelr(sp)))
+	__(mtlr r5)
+	__(ldr(r5,varargs_eabi_c_frame.backlink(sp)))
+	__(str(r5,varargs_eabi_c_frame.old_backlink(sp)))
+	__(la sp,varargs_eabi_c_frame.old_backlink(sp))
+	__(blr)
+	
+/*
+	Do a linux system call:	 the system call index is (boxed)
+	in arg_z, and other arguments are in an eabi_c_frame on
+	the C stack.  As is the case with an eabi_ff_call, there's
+	a lisp frame reserved underneath the eabi_c_frame.
+
+	This is a little simpler than eabi_ff_call, because we
+	can assume that there are no synchronous callbacks to
+	lisp (that might cause a GC.)  It's also simpler for the
+	caller, since we return error status atomically.
+
+	A system call can clobber any or all of r9-r12, so we need
+	to save and restore allocptr, allocbase, and tsp.
+	*/
+_spentry(eabi_syscall)
+/*
+	We're entered with an eabi_c_frame on the C stack.  There's a
+	lisp_frame reserved underneath it; we'll link it in in a minute.
+	Load the outgoing GPR arguments from eabi_c_frame.param[0-7],
+	then shrink the eabi_c_frame.
+*/
+	__(mflr loc_pc)
+        __(vpush_saveregs())
+	__(str(sp,eabi_c_frame.savelr(sp)))
+	__(li arg_x,nil_value)
+	__(mr temp0,rcontext)
+	__(ldr(temp1,c_frame.backlink(sp)))	/* bottom of reserved lisp frame */
+	__(la temp2,-lisp_frame.size(temp1))	/* top of lisp frame */
+        __(zero_doublewords temp2,0,lisp_frame.size)
+	__(str(temp1,lisp_frame.backlink(temp2)))
+	__(str(temp2,c_frame.backlink(sp)))
+	__(str(fn,lisp_frame.savefn(temp2)))
+	__(str(loc_pc,lisp_frame.savelr(temp2)))
+	__(str(vsp,lisp_frame.savevsp(temp2)))
+	__(ldr(temp3,tcr.cs_area(rcontext)))
+	__(str(temp2,area.active(temp3)))
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(rzero,tcr.ffi_exception(rcontext)))
+	__(li imm1,TCR_STATE_FOREIGN)
+	__(str(imm1,tcr.valence(rcontext)))
+	__(ldr(r13,lisp_globals.saveR13(0)))
+	__(ldr(r3,eabi_c_frame.param0(sp)))
+	__(ldr(r4,eabi_c_frame.param1(sp)))
+	__(ldr(r5,eabi_c_frame.param2(sp)))
+	__(ldr(r6,eabi_c_frame.param3(sp)))
+	__(ldr(r7,eabi_c_frame.param4(sp)))
+	__(ldr(r8,eabi_c_frame.param5(sp)))
+	__(ldr(r9,eabi_c_frame.param6(sp)))
+	__(ldr(r10,eabi_c_frame.param7(sp)))
+	__(la temp1,eabi_c_frame.minsiz-eabi_c_frame.param0(sp))
+	__(str(rzero,eabi_c_frame.savelr(temp1)))
+	__(str(temp2,eabi_c_frame.backlink(temp1)))
+	__(mr sp,temp1)
+	__(unbox_fixnum(r0,arg_z))
+	__(sc)
+	__(nop)
+	/* C should have preserved temp0 (= rcontext) for us. */
+	__(ldr(sp,0(sp)))
+	__(mr imm2,temp0)
+	__(ldr(vsp,lisp_frame.savevsp(sp)))
+	__(li rzero,0)
+	__(mr loc_pc,rzero)
+	__(mr fn,rzero)
+	__(li arg_x,nil_value)
+	__(li arg_y,nil_value)
+	__(li arg_z,nil_value)
+	__(li temp0,nil_value)
+	__(li temp1,nil_value)
+	__(li temp2,nil_value)
+	__(li temp3,nil_value)
+	__(li fn,nil_value)
+        
+	__(li imm3,TCR_STATE_LISP)
+	__(mr rcontext,imm2)
+        __(li save0,0)
+        __(li save1,0)
+        __(li save2,0)
+        __(li save3,0)
+        __(li save4,0)
+        __(li save5,0)
+        __(li save6,0)
+        __(li save7,0)        
+	__(str(imm3,tcr.valence(rcontext)))
+	__(vpop_saveregs)
+	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
+	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+	__(ldr(tsp,tcr.save_tsp(rcontext)))
+	__(ldr(loc_pc,lisp_frame.savelr(sp)))
+	__(mtlr loc_pc)
+	__(ldr(fn,lisp_frame.savefn(sp)))
+	__(discard_lisp_frame())
+	__(bns 1f)
+	__(neg r3,r3)
+1:      
+	__(check_pending_interrupt([cr1]))                
+	__(mtxer rzero)
+	__(blr)
         
 /* arg_z should be of type (UNSIGNED-BYTE 64); 
    On PPC32, return high 32 bits in imm0, low 32 bits in imm1
@@ -3425,6 +5064,53 @@ _spentry(makes128)
         __else
          __(twgei r0,r0)
         __endif        
+                        
+/* on entry: arg_z = symbol.  On exit, arg_z = value (possibly
+	unbound_marker), arg_y = symbol, imm3 = symbol.binding-index */
+_spentry(specref)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpr(imm3,imm0))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(mr arg_y,arg_z)
+        __(bge 1f)
+        __(ldrx(arg_z,imm2,imm3))
+        __(cmpri(arg_z,no_thread_local_binding_marker))
+        __(bnelr)
+1:     	__(ldr(arg_z,symbol.vcell(arg_y)))
+        __(blr)
+
+
+_spentry(specrefcheck)
+        __(ldr(imm3,symbol.binding_index(arg_z)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(cmpr(imm3,imm0))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(mr arg_y,arg_z)
+        __(bge 1f)
+        __(ldrx(arg_z,imm2,imm3))
+        __(cmpri(arg_z,no_thread_local_binding_marker))
+        __(bne 2f)
+1:     	__(ldr(arg_z,symbol.vcell(arg_y)))
+2:      __(treqi(arg_z,unbound_marker))
+        __(blr)
+	
+/* arg_y = special symbol, arg_z = new value. */        
+_spentry(specset)
+        __(ldr(imm3,symbol.binding_index(arg_y)))
+        __(ldr(imm0,tcr.tlb_limit(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(cmpr(imm3,imm0))
+        __(bge 1f)
+        __(ldrx(temp1,imm2,imm3))
+        __(cmpri(temp1,no_thread_local_binding_marker))
+        __(beq 1f)
+        __(strx(arg_z,imm2,imm3))
+        __(blr)
+1:     	__(mr arg_x,arg_y)
+        __(li arg_y,symbol.vcell-misc_data_offset)
+        __(b _SPgvset)
+
 	/* Restore current thread's interrupt level to arg_z,
 	   noting whether the tcr's interrupt_pending flag was set. */
 _spentry(restoreintlevel)
@@ -3584,6 +5270,138 @@ _spentry(mvpasssym)
 
 
 
+_spentry(unbind)
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
+        __(ldr(imm3,binding.sym(imm1)))
+        __(ldr(temp1,binding.val(imm1)))
+        __(ldr(imm1,binding.link(imm1)))
+        __(strx(temp1,imm2,imm3))
+        __(str(imm1,tcr.db_link(rcontext)))
+        __(blr)
+
+_spentry(unbind_n)
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
+1:      __(subi imm0,imm0,1)
+        __(ldr(imm3,binding.sym(imm1)))
+        __(ldr(temp1,binding.val(imm1)))
+        __(cmpri(imm0,0))
+        __(ldr(imm1,binding.link(imm1)))
+        __(strx(temp1,imm2,imm3))
+        __(bne 1b)
+        __(str(imm1,tcr.db_link(rcontext)))
+        __(blr)
+
+ /*
+   Clobbers imm1,imm2,imm5,arg_x, arg_y
+*/
+_spentry(unbind_to)
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+1:      __(ldr(imm5,binding.sym(imm1)))
+        __(ldr(arg_y,binding.val(imm1)))
+        __(ldr(imm1,binding.link(imm1)))
+        __(cmpr(imm0,imm1))
+        __(strx(arg_y,imm2,imm5))
+        __(bne 1b)
+        __(str(imm1,tcr.db_link(rcontext)))
+        __(blr)
+	
+
+
+/*
+   Restore the special bindings from the top of the tstack, 
+   leaving the tstack frame allocated. 
+   Note that there might be 0 saved bindings, in which case 
+   do nothing. 
+   Note also that this is -only- called from an unwind-protect 
+   cleanup form, and that .SPnthrowXXX is keeping one or more 
+   values in a frame on top of the tstack. 
+*/
+                        
+_spentry(progvrestore)
+	__(ldr(imm0,tsp_frame.backlink(tsp)))	/* ignore .SPnthrowXXX values frame */
+	__(ldr(imm0,tsp_frame.data_offset(imm0)))
+	__(cmpri(cr0,imm0,0))
+	__(unbox_fixnum(imm0,imm0))
+	__(bne+ cr0,_SPunbind_n)
+	__(blr)
+
+/* Bind CCL::*INTERRUPT-LEVEL* to 0.  If its value had been negative, check 
+   for pending interrupts after doing so.  "nargs" can be freely used for an
+   interrupt trap in this context. */
+_spentry(bind_interrupt_level_0)
+        __(ldr(imm4,tcr.tlb_pointer(rcontext)))
+        __(ldr(temp0,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(cmpri(temp0,0))
+        __(li imm3,INTERRUPT_LEVEL_BINDING_INDEX)
+        __(vpush(temp0))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(str(rzero,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(beqlr)
+        __(mr nargs,temp0)
+        __(bgt 1f)
+        __(ldr(nargs,tcr.interrupt_pending(rcontext)))
+1:      __(trgti(nargs,0))        
+        __(blr)
+
+/* Bind CCL::*INTERRUPT-LEVEL* to the fixnum -1.  (This has the effect
+   of disabling interrupts.) */
+_spentry(bind_interrupt_level_m1)
+        __(li imm2,-fixnumone)
+        __(li imm3,INTERRUPT_LEVEL_BINDING_INDEX)
+        __(ldr(imm4,tcr.tlb_pointer(rcontext)))
+        __(ldr(temp0,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(vpush(temp0))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(str(imm2,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+
+        
+/* Bind CCL::*INTERRUPT-LEVEL* to the value in arg_z.  If that value's 0,
+   do what _SPbind_interrupt_level_0 does */
+_spentry(bind_interrupt_level)
+        __(cmpri(arg_z,0))
+        __(li imm3,INTERRUPT_LEVEL_BINDING_INDEX)
+        __(ldr(imm4,tcr.tlb_pointer(rcontext)))
+        __(ldr(temp0,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(beq _SPbind_interrupt_level_0)
+        __(vpush(temp0))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(str(arg_z,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(str(vsp,tcr.db_link(rcontext)))
+        __(blr)
+
+/* Unbind CCL::*INTERRUPT-LEVEL*.  If the value changes from negative to
+   non-negative, check for pending interrupts.  This is often called in
+   a context where nargs is significant, so save and restore nargs around
+   any interrupt polling */
+        
+_spentry(unbind_interrupt_level)        
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(ldr(temp1,INTERRUPT_LEVEL_BINDING_INDEX(imm2)))
+        __(cmpri(cr1,temp1,0))
+        __(ldr(temp1,binding.val(imm1)))
+        __(ldr(imm1,binding.link(imm1)))
+        __(cmpri(cr0,temp1,0))
+        __(str(temp1,INTERRUPT_LEVEL_BINDING_INDEX(imm2)))
+        __(str(imm1,tcr.db_link(rcontext)))
+        __(bgelr cr1)
+        __(bltlr cr0)
+        __(mr imm2,nargs)
+        __(check_pending_interrupt([cr1]))
+        __(mr nargs,imm2)
+        __(blr)
 
 /* Trap into the kernel debugger if any unused subprim is called */                
 _spentry(unused_0)
