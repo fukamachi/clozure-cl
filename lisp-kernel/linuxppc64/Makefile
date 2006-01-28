@@ -33,7 +33,8 @@ COPT = #-O2
 .c.o:
 	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) -m64 -o $@
 
-SPOBJ = pad.o ppc-spjump.o ppc-spentry.o ppc-spbuiltin.o ppc-spbind.o ppc-subprims.o
+SPOBJ = pad.o ppc-spjump.o ppc-spentry.o ppc-spbuiltin.o ppc-spbind.o ppc-spffi.o \
+	ppc-subprims.o
 ASMOBJ = ppc-asmutils.o imports.o
 
 COBJ  = pmcl-kernel.o gc.o bits.o  ppc-exceptions.o \
