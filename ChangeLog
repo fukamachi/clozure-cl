@@ -1,3 +1,9 @@
+2006-01-28 15:37  gb
+
+	* lisp-kernel/: x86-constants64.s, x86-macros.s, x86-spentry64.s:
+	Check in some stuff that's not ready yet; HW problems on x86-64
+	box.
+
 2006-01-28 02:52  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: Some consing,
