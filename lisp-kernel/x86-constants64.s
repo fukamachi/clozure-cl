@@ -91,7 +91,7 @@ define([allocptr],[temp0])
 define([tsp],[mm7])
 define([next_tsp],[mm6])
 		
-		
+define([fp0],[xmm0])		
 
 nbits_in_word = 64
 nbits_in_byte = 8
@@ -119,6 +119,7 @@ fixnum_one = fixnumone
 fixnum1 = fixnumone
 
 nargregs = 3
+nsaveregs = 4	
                 
 
 tag_fixnum = 0
@@ -299,11 +300,16 @@ no_thread_local_binding_marker = subtag_no_thread_local_binding
 	 _node(catch_tag)	/* #<unbound> -> unwind-protect, else catch */
 	 _node(link)		/* backpointer to previous catch frame */
 	 _node(mvflag)		/* 0 if single-valued catch, fixnum 1 otherwise */
-	 _node(csp)		/* pointer to lisp_frame on csp */
+	 _node(vsp)		/* saved lisp sp */
+	 _node(rbp)		/* saved lisp rbp */
+	 _node(foreign_sp)      /* necessary ? */ 
 	 _node(db_link)		/* head of special-binding chain */
-	 _field(regs,8*node_size)	/* save7-save0 */
+	 _node(_save3)
+	 _node(_save2)
+	 _node(_save1)
+	 _node(_save0)
 	 _node(xframe)		/* exception frame chain */
-	 _node(tsp_segment)	/* maybe someday; padding for now */
+	 _node(pc)		/* TRA of catch exit or cleanup form */
 	_endstructf
 
 

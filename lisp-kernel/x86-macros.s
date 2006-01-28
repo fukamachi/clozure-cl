@@ -85,6 +85,59 @@ define([restore_node_regs],[
 	pop %arg_z
 ])	
 
+/*
+  Zero $3 bytes worth of dnodes, starting at offset $2 relative
+  to the base register $1.
+*/
+
+define([zero_dnodes],[
+	ifelse(eval($3),"0",
+	[],
+	[
+	movapd %fp0,$2($1)
+	zero_dnodes($1,$2+16,$3-16)
+	]
+)])	
+
+/* Allocate $1+dnode_size zeroed bytes on the tstack, using $2 as a temp
+   reg. */
+define([TSP_Alloc_Fixed],[
+	movd %tsp,$2
+	sub $1+16,$2
+	movd $2,%new_tsp
+	zero_dnodes($2,0,eval(($1+16)>>4))
+	movq %tsp,0($2)
+	movq %new_tsp,%tsp
+])
+
+define([Allocate_Catch_Frame],[
+	TSP_Alloc_Fixed(catch_frame.size+8,$1)
+	addq $16+fulltag_misc,$1
+])
+
+/* %arg_z = tag,  %xfn = pc, $1 = mvflag */	
+define([Make_Catch],[
+	Allocate_Catch_Frame(%temp2)
+	movq %rcontext:tcr.catch_top,%imm0
+	movq %rcontext:tcr.db_link,%imm1
+	movq %rcontext:tcr.foreign_sp,%temp0
+	movq %arg_z,catch_frame.catch_tag(%temp2)
+	movq %imm0,catch_frame.link(%temp2)
+	movq [$]$1,catch_frame.mvflag(%temp2)
+	movq %rcontext:tcr.xframe,%imm0
+	movq %rsp,catch_frame.vsp(%temp2)
+	movq %rbp,catch_frame.rsp(%temp2)
+	movq %temp0,catch_frame.foreign_sp(%temp2)
+	movq %imm1,catch_frame.db_link(%temp2)
+	movq %save3,catch_frame._save3(%temp2)
+	movq %save2,catch_frame._save2(%temp2)
+	movq %save1,catch_frame._save1(%temp2)
+	movq %save0,catch_frame._save0(%temp2)
+	movq %imm0,catch_frame.xframe(%temp2)
+	movq %xfn,catch_frame.pc(%temp2)
+])	
+	
+	
 /* Consing can get interrupted (either by PROCESS-INTERRUPT or by GC
    activity in some other thread; if it's interrupted, the interrupting
    process needs to be able to determine what's going on well enough

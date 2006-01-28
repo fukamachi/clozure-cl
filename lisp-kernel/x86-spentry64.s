@@ -320,12 +320,19 @@ _spentry(funcall)
 _endsubp(funcall)
 
 _spentry(mkcatch1v)
+	Make_Catch(0)
+	jmp *%ra0
 _endsubp(mkcatch1v)
 
 _spentry(mkunwind)
+	movq $undefined,%arg_z
+	Make_Catch(fixnumone)
+	jmp *%ra0
 _endsubp(mkunwind)
 
 _spentry(mkcatchmv)
+	Make_Catch(fixnumone)
+	jmp *%ra0
 _endsubp(mkcatchmv)
 
 _spentry(throw)
