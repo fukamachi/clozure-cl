@@ -167,6 +167,21 @@ define([tsp],[mm7])
 define([next_tsp],[mm6])
 		
 define([fp0],[xmm0])		
+define([fp1],[xmm1])		
+define([fp2],[xmm2])		
+define([fp3],[xmm3])		
+define([fp4],[xmm4])		
+define([fp5],[xmm5])		
+define([fp6],[xmm6])		
+define([fp7],[xmm7])		
+define([fp8],[xmm8])		
+define([fp9],[xmm9])		
+define([fp10],[xmm10])		
+define([fp11],[xmm11])		
+define([fp12],[xmm12])		
+define([fp13],[xmm13])		
+define([fp14],[xmm14])		
+define([fp15],[xmm15])		
 
 nbits_in_word = 64
 nbits_in_byte = 8

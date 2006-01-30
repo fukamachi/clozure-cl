@@ -38,6 +38,10 @@ define([unbox_fixnum],[
 	sar [$]fixnumshift,$2
 ])
 
+define([box_fixnum],[
+	leaq (,$1,1<<fixnumshift),$2
+])	
+
 define([save_node_regs],[
 	push %arg_z
 	push %arg_y

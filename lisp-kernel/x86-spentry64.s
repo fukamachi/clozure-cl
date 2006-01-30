@@ -41,53 +41,14 @@ define([jump_builtin],[
 _startfn(C(fix_one_bit_overflow))
 	__(movq $two_digit_bignum_header,%imm0)
 	__(Misc_Alloc_Fixed([],aligned_bignum_size(2)))
-	__(unbox_fixnum(%imm0,%arg_z))
+	__(unbox_fixnum(%arg_z,%imm0))
 	__(mov %temp0,%arg_z)
 	__(xorq overflow_mask(%rip),%imm0)
 	__(movq %imm0,misc_data_offset(%arg_z))
 	__(jmp *%ra0)	
 overflow_mask: 	.quad 0xe000000000000000
 _endfn
-
-/* %imm1:%imm0 constitute a signed integer, almost certainly a bignum.
-   Make a lisp integer out of those 128 bits .. */
-_startfn(C(makes128))
-/* We're likely to have to make a bignum out of the integer in %imm1 and
-   %imm0. We'll need to use %imm0 and %imm1 to cons the bignum, and
-   will need to do some arithmetic (determining significant bigits)
-   on %imm0 and %imm1 in order to know how large that bignum needs to be.
-   Cache %imm0 and %imm1 in %xmm0 and %xmm1. */
-   
-	__(movd %imm0,%xmm0)
-	__(movd %imm1,%xmm1)
 	
-/* If %imm1 is just a sign extension of %imm0, make a 64-bit signed integer. */
-	
-	__(sarq $63,%imm0) 
-	__(cmpq %imm0,%imm1)
-	__(movd %xmm0,%imm0)
-	__(je _SPmakes64)
-	
-/* Otherwise, if the high 32 bits of %imm1 are a sign-extension of the
-   low 32 bits of %imm1, make a 32-digit bignum.  If the upper 32 bits
-   of %imm1 are significant, make a 4 digit bignum */
-	__(movq %imm1,%imm0)
-	__(shlq $32,%imm0)
-	__(sarq $32,%imm0)
-	__(cmpq %imm0,%imm1)
-	__(jz 3f)
-	__(mov $four_digit_bignum_header,%imm0)
-	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(4)))
-	__(movq %xmm0,misc_data_offset(%arg_z))
-	__(movq %xmm1,misc_data_offset+8(%arg_z))
-	__(jmp *%ra0)
-3:	__(mov $three_digit_bignum_header,%imm0)
-	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(3)))
-	__(movq %mm0,misc_data_offset(%arg_z))
-	__(movd %mm1,misc_data_offset+8(%arg_z))
-	__(jmp *%ra0)
-_endfn
-
 /* Make a lisp integer (fixnum or two-digit bignum) from the signed
    64-bit value in %imm0.  Shift left 3 bits - a bit at a time, via 
    addition - and check for overlow after each add, since the overflow
@@ -110,228 +71,194 @@ _spentry(makes64)
 	__(jmp *%ra0)
 _endsubp(makes64)	
 				
-/* %arg_z <- %arg_y + %arg_z.  Do the fixnum case - including overflow -
-  inline.  Call out otherwise. */
-_spentry(builtin_plus)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(addq %arg_y,%arg_z)
-	__(jo C(fix_one_bit_overflow))
-	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_plus,2))
-_endsubp(builtin_plus)
+
+/* %imm1:%imm0 constitute a signed integer, almost certainly a bignum.
+   Make a lisp integer out of those 128 bits .. */
+_startfn(C(makes128))
+/* We're likely to have to make a bignum out of the integer in %imm1 and
+   %imm0. We'll need to use %imm0 and %imm1 to cons the bignum, and
+   will need to do some arithmetic (determining significant bigits)
+   on %imm0 and %imm1 in order to know how large that bignum needs to be.
+   Cache %imm0 and %imm1 in %mm0 and %mm1. */
+   
+	__(movd %imm0,%mm0)
+	__(movd %imm1,%mm1)
 	
-
-/* %arg_z <- %arg_z - %arg_y.  Do the fixnum case - including overflow -
-  inline.  Call out otherwise. */
-_spentry(builtin_minus)			
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(subq %arg_y,%arg_z)
-	__(jo C(fix_one_bit_overflow))
-	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_minus,2))
-_endsubp(builtin_minus)
-
-/* %arg_z <- %arg_z * %arg_y.  Do the fixnum case - including overflow -
-  inline.  Call out otherwise. */
-_spentry(builtin_times)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 2f)
-	__(unbox_fixnum(%imm0,%arg_z))
-	/* 128-bit fixnum result in %imm1:%imm0. Overflow set if %imm1
-	   is significant */
-	__(imul %arg_y)
-	__(jo 1f)
-	__(mov %imm0,%arg_z)
-	__(jmp *%ra0)
-1:	__(unbox_fixnum(%imm0,%arg_z))
-	__(unbox_fixnum(%imm1,%arg_y))
-	__(imul %imm1)
-	__(jmp C(makes128))
-2:	__(jump_builtin(_builtin_times,2))
-_endsubp(builtin_times)
-
-_spentry(builtin_div)
-	__(jump_builtin(_builtin_div,2))
-
-/* %arg_z <- (= %arg_y %arg_z).	*/
-_spentry(builtin_eq)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(rcmpq(%arg_z,%arg_y))
-	__(condition_to_boolean(e,%imm0,%arg_z))
-	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_eq,2))
-_endsubp(builtin_eq)
+/* If %imm1 is just a sign extension of %imm0, make a 64-bit signed integer. */
 	
-/* %arg_z <- (/= %arg_y %arg_z).	*/
-_spentry(builtin_ne)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(rcmpq(%arg_z,%arg_y))
-	__(condition_to_boolean(ne,%imm0,%arg_z))
-	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_ne,2))
-_endsubp(builtin_ne)
+	__(sarq $63,%imm0) 
+	__(cmpq %imm0,%imm1)
+	__(movd %mm0,%imm0)
+	__(je _SPmakes64)
 	
-/* %arg_z <- (> %arg_y %arg_z).	*/
-_spentry(builtin_gt)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(rcmpq(%arg_y,%arg_z))
-	__(condition_to_boolean(g,%imm0,%arg_z))
+/* Otherwise, if the high 32 bits of %imm1 are a sign-extension of the
+   low 32 bits of %imm1, make a 3-digit bignum.  If the upper 32 bits
+   of %imm1 are significant, make a 4 digit bignum */
+	__(movq %imm1,%imm0)
+	__(shlq $32,%imm0)
+	__(sarq $32,%imm0)
+	__(cmpq %imm0,%imm1)
+	__(jz 3f)
+	__(mov $four_digit_bignum_header,%imm0)
+	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(4)))
+	__(movq %mm0,misc_data_offset(%arg_z))
+	__(movq %mm1,misc_data_offset+8(%arg_z))
 	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_gt,2))
-_endsubp(builtin_gt)
+3:	__(mov $three_digit_bignum_header,%imm0)
+	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(3)))
+	__(movq %mm0,misc_data_offset(%arg_z))
+	__(movd %mm1,misc_data_offset+8(%arg_z))
+	__(jmp *%ra0)
+_endfn
 
-/* %arg_z <- (>= %arg_y %arg_z).	*/
-_spentry(builtin_ge)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(rcmpq(%arg_y,%arg_z))
-	__(condition_to_boolean(ge,%imm0,%arg_z))
-	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_ge,2))
-_endsubp(builtin_ge)
+/* %imm1:%imm0 constitute an unsigned integer, almost certainly a bignum.
+   Make a lisp integer out of those 128 bits .. */
+_startfn(C(makeu128))
+/* We're likely to have to make a bignum out of the integer in %imm1 and
+   %imm0. We'll need to use %imm0 and %imm1 to cons the bignum, and
+   will need to do some arithmetic (determining significant bigits)
+   on %imm0 and %imm1 in order to know how large that bignum needs to be.
+   Cache %imm0 and %imm1 in %mm0 and %mm1. */
+
+/* If the high word is 0, make an unsigned-byte 64 ... */	
+	__(testq %imm1,%imm1)
+	__(jz _SPmakeu64)
 	
-/* %arg_z <- (< %arg_y %arg_z).	*/
-_spentry(builtin_lt)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(rcmpq(%arg_y,%arg_z))
-	__(condition_to_boolean(l,%imm0,%arg_z))
+	__(movd %imm0,%mm0)
+	__(movd %imm1,%mm1)
+
+	__(js 5f)		/* Sign bit set in %imm1. Need 5 digits */
+	__(bsrq %imm1,%imm0)
+	__(rcmpb(%imm0_b,$31))
+	__(jae 4f)		/* Some high bits in %imm1.  Need 4 digits */
+	__(testl %imm1_l,%imm1_l)
+	__(movd %mm0,%imm0)
+	__(jz _SPmakeu64)
+	/* Need 3 digits */
+	__(movq $three_digit_bignum_header,%imm0)
+	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(3)))
+	__(movq %mm0,misc_data_offset(%arg_z))
+	__(movd %mm1,misc_data_offset+8(%arg_z))
 	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_lt,2))
-_endsubp(builtin_lt)
+4:	__(movq $four_digit_bignum_header,%imm0)
+	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(4)))
+	__(jmp 6f)
+5:	__(movq $five_digit_bignum_header,%imm0)
+	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(5)))
+6:	__(movq %mm0,misc_data_offset(%arg_z))
+	__(movq %mm0,misc_data_offset+8(%arg_z))
+	__(jmpq *%ra0)
+_endfn
 
-/* %arg_z <- (<= %arg_y %arg_z). */
-_spentry(builtin_le)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jne 1f)
-	__(rcmpq(%arg_y,%arg_z))
-	__(condition_to_boolean(le,%imm0,%arg_z))
+/* %imm1.b = subtag, %arg_y = uvector, %arg_z = index.
+   Bounds/type-checking done in caller */	
+_startfn(C(misc_ref_common))
+	__(extract_fulltag(%imm1,%imm0))
+	__(cmpb $ivector_class_64_bit,%imm0_b)
+	__(je local_label(misc_ref_64))
+	__(cmpb $ivector_class_32_bit,%imm0_b)
+	__(je local_label(misc_ref_32))
+	__(cmpb $ivector_class_other_bit,%imm0_b)
+	__(je local_label(misc_ref_other))
+	/* Node vector.  Functions are funny: the first  N words
+	   are treated as (UNSIGNED-BYTE 64), where N is the low
+	   32 bits of the first word. */
+	__(cmpb $subtag_function,%imm1_b)
+	__(jne local_label(misc_ref_node))
+	__(movl misc_data_offset(%arg_y),%imm0_l)
+	__(shl $fixnumshift,%imm0)
+	__(rcmpq(%arg_z,%imm0))
+	__(jl local_label(misc_ref_u64))
+local_label(misc_ref_node):
+	__(movq misc_data_offset(%arg_y,%arg_z),%arg_z)
 	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_le,2))
-_endsubp(builtin_le)
-
-_spentry(builtin_eql)
-	__(cmpq %arg_y,%arg_z)
-	__(je 1f)
-	/* Not EQ.  Could only possibly be EQL if both are fulltag-misc
-	   and both have the same subtag */
-	__(extract_lisptag(%arg_y,%imm0))
-	__(extract_lisptag(%arg_z,%imm1))
-	__(cmpb $fulltag_misc,%imm0_b)
-	__(jne 2f)
-	__(cmpb %imm0_b,%imm1_b)
-	__(jne 2f)
-	__(extract_subtag(%arg_y,%imm0_b))
-	__(extract_subtag(%arg_z,%imm1_b))
-	__(cmpb %imm0_b,%imm1_b)
-	__(jne 2f)
-	__(jump_builtin(_builtin_eql,2))
-1:	__(movl $t_value,%arg_z_l)
+local_label(misc_ref_u64):
+	__(movq misc_data_offset(%arg_y,%arg_z),%imm0)
+	__(jmp _SPmakeu64)
+local_label(misc_ref_double_float_vector):
+	__(movsd misc_data_offset(%arg_y,%arg_z),%fp1)
+	__(movq $double_float_header,%imm0)
+	__(Misc_Alloc_Fixed(%arg_z,double_float.size))
+	__(movsd %fp1,double_float.value(%arg_z))
 	__(jmp *%ra0)
-2:	__(movl $nil_value,%arg_z_l)
-	__(jmp *%ra0)	
-_endsubp(builtin_eql)
-
-_spentry(builtin_length)
-	
-_endsubp(builtin_length)
-
-_spentry(builtin_seqtype)
-_endsubp(builtin_seqtype)
-
-_spentry(builtin_assq)
-	__(cmpb $fulltag_nil,%arg_z_b)
-	__(jz 5f)
-1:	__(movb $tagmask,%imm0_b)
-	__(andb %arg_z_b,%imm0_b)
-	__(cmpb $tag_list,%imm0_b)
-	__(jz,pt 2f)
-	__(uuo_error_reg_not_list(Rarg_z))
-2:	__(_car(%arg_z,%arg_x))
-	__(_cdr(%arg_z,%arg_z))
-	__(cmpb $fulltag_nil,%arg_x_b)
-	__(jz 4f)
-	__(movb $tagmask,%imm0_b)
-	__(andb %arg_x_b,%imm0_b)
-	__(cmpb $tag_list,%imm0_b)
-	__(jz,pt 3f)
-	__(uuo_error_reg_not_list(Rarg_x))
-3:	__(_car(%arg_x,%temp0))
-	__(cmpq %temp0,%arg_y)
-	__(jnz 4f)
-	__(movq %arg_x,%arg_z)
+local_label(misc_ref_64):
+	__(cmpb $subtag_double_float_vector,%imm1_b)
+	__(je local_label(misc_ref_double_float_vector))
+	__(cmpb $subtag_s64_vector,%imm0_b)
+	__(jne local_label(misc_ref_u64))
+local_label(misc_ref_s64):	
+	__(movq misc_data_offset(%arg_y,%arg_z),%imm0)
+	__(jmp _SPmakes64)
+local_label(misc_ref_u32):
+	__(movl misc_data_offset(%arg_y,%imm0),%imm0_l)
+	__(box_fixnum(%imm0,%arg_z))
 	__(jmp *%ra0)
-4:	__(cmpb $fulltag_nil,%arg_z_b)
-5:	__(jnz 1b)
+local_label(misc_ref_s32):
+	__(movslq misc_data_offset(%arg_y,%imm0),%imm0)
+	__(box_fixnum(%imm0,%arg_z))
+	__(jmp *%ra0)
+local_label(misc_ref_32):
+	__(movq %arg_z,%imm0)
+	__(shr $1,%imm0)
+	__(cmpb $subtag_s32_vector,%imm1_b)
+	__(je local_label(misc_ref_s32))
+	__(cmpb $subtag_single_float_vector,%imm1_b)
+	__(jne local_label(misc_ref_u32))
+local_label(misc_ref_single_float_vector):
+	__(movsd misc_data_offset(%arg_y,%imm0),%fp1)
+	__(movd %fp1,%imm0_l)
+	__(shl $32,%imm0)
+	__(lea subtag_single_float(%imm0),%arg_z)
+	__(jmp *%ra0)
+local_label(misc_ref_other):
+	__(cmpb $subtag_u16_vector,%imm1_b)
+	__(jle local_label(misc_ref_16))
+	__(cmpb $subtag_bit_vector,%imm1_b)
+	__(jz local_label(misc_ref_bit_vector))
+	/* 8-bit case:	string, u8, s8 */
+	__(movq %arg_z,%imm0)
+	__(shr $3,%imm0)
+	__(cmpb $subtag_s8_vector,%imm1_b)
+	__(je local_label(misc_ref_s8))
+	__(jl local_label(misc_ref_string))
+local_label(misc_ref_u8):
+	__(movzbl misc_data_offset(%arg_y,%imm0),%imm0_l)
+	__(box_fixnum(%imm0,%arg_z))
+	__(jmp *%ra0)
+local_label(misc_ref_s8):	
+	__(movsbq misc_data_offset(%arg_y,%imm0),%imm0)
+	__(box_fixnum(%imm0,%arg_z))
+	__(jmp *%ra0)
+local_label(misc_ref_string):
+	__(movzbl misc_data_offset(%arg_y,%imm0),%imm0_l)
+	__(shlq $charcode_shift,%imm0)
+	__(leaq subtag_character(%imm0),%arg_z)
+	__(jmp *%ra0)
+local_label(misc_ref_16):
+	__(movq %arg_z,%imm0)
+	__(shrq $2,%imm0)
+	__(cmpb $subtag_s16_vector,%imm1_b)
+	__(je local_label(misc_ref_s16))
+local_label(misc_ref_u16):	
+	__(movzwl misc_data_offset(%arg_y,%imm0),%imm0_l)
+	__(box_fixnum(%imm0,%arg_z))
+	__(jmp *%ra0)
+local_label(misc_ref_s16):	
+	__(movswq misc_data_offset(%arg_y,%imm0),%imm0)
+	__(box_fixnum(%imm0,%arg_z))
+	__(jmp *%ra0)
+local_label(misc_ref_bit_vector):
+	__(unbox_fixnum(%arg_z,%imm0))
+	__(movl $63,%imm1_l)
+	__(andb %imm0_b,%imm1_b)
+	__(shrq $6,%imm0)
+	__(btq %imm1,misc_data_offset(%arg_y,%imm0,8))
+	__(setc %imm0_b)
+	__(andl $fixnum_one,%imm0_l)
+	__(movq %imm0,%arg_z)
 	__(jmp *%ra0)			
-_endsubp(builtin_assq)	
-
-_spentry(builtin_memq)
-	__(cmpb $fulltag_nil,%arg_z_b)
-	__(jmp 3f)
-1:	__(movb $tagmask,%imm0_b)
-	__(andb %arg_z_b,%imm0_b)
-	__(cmpb $tag_list,%imm0_b)
-	__(jz,pt 2f)
-	__(uuo_error_reg_not_list(Rarg_z))
-2:	__(_car(%arg_z,%arg_x))
-	__(_cdr(%arg_z,%temp0))
-	__(cmpq %arg_x,%arg_y)
-	__(jz 4f)
-	__(cmpb $fulltag_nil,%temp0_b)
-	__(movq %temp0,%arg_z)
-3:	__(jnz 1b)
-4:	__(jmp *%ra0)				
-_endsubp(builtin_memq)
-
-        __ifdef([X8664])
-logbitp_max_bit = 61
-        __else
-logbitp_max_bit = 30
-        __endif
-	
-_spentry(builtin_logbitp)
-	__(movb %arg_z_b,%imm0_b)
-	__(orb %arg_y_b,%imm0_b)
-	__(testb $fixnummask,%imm0_b)
-	__(jnz 1f)
-	__(cmpq $logbitp_max_bit<<fixnumshift,%arg_y)
-	__(ja 1f)
-	__(unbox_fixnum(%arg_y,%imm0))
-	__(addb $fixnumshift,%imm0_b)
-	__(bt %imm0,%arg_z)
-	__(condition_to_boolean(b,%imm0,%arg_z))
-/*	
-	__(setb %imm0_b)
-	__(andb $t_offset,%imm0_b)
-	__(lea nil_value(%imm0),%arg_z)
-*/	
-	__(jmp *%ra0)
-1:	__(jump_builtin(_builtin_logbitp,2))
-_endsubp(builtin_logbitp)
+_endfn(C(misc_ref_common))
+				
 
 /* ret1valn returns "1 multiple value" when a called function does not */
 /* return multiple values.  Its presence on the stack (as a return address) */
@@ -957,26 +884,6 @@ _endsubp(lexpr_entry)
 _spentry(poweropen_syscall)
 _endsubp(poweropen_syscall)
 
-_spentry(builtin_logior)
-_endsubp(builtin_logior)
-
-_spentry(builtin_logand)
-_endsubp(builtin_logand)
-
-_spentry(builtin_ash)
-_endsubp(builtin_ash)
-
-_spentry(builtin_negate)
-_endsubp(builtin_negate)
-
-_spentry(builtin_logxor)
-_endsubp(builtin_logxor)
-
-_spentry(builtin_aref1)
-_endsubp(builtin_aref1)
-
-_spentry(builtin_aset1)
-_endsubp(builtin_aset1)
 
 _spentry(breakpoint)
 _endsubp(breakpoint)
@@ -1161,3 +1068,385 @@ _spentry(progvrestore)
 _endsubp(progvrestore)
 	
 
+/* %arg_z <- %arg_y + %arg_z.  Do the fixnum case - including overflow -
+  inline.  Call out otherwise. */
+_spentry(builtin_plus)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(addq %arg_y,%arg_z)
+	__(jo,pn C(fix_one_bit_overflow))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_plus,2))
+_endsubp(builtin_plus)
+	
+
+/* %arg_z <- %arg_z - %arg_y.  Do the fixnum case - including overflow -
+  inline.  Call out otherwise. */
+_spentry(builtin_minus)			
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(subq %arg_y,%arg_z)
+	__(jo,pn C(fix_one_bit_overflow))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_minus,2))
+_endsubp(builtin_minus)
+
+/* %arg_z <- %arg_z * %arg_y.  Do the fixnum case - including overflow -
+  inline.  Call out otherwise. */
+_spentry(builtin_times)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 2f)
+	__(unbox_fixnum(%arg_z,%imm0))
+	/* 128-bit fixnum result in %imm1:%imm0. Overflow set if %imm1
+	   is significant */
+	__(imul %arg_y)
+	__(jo 1f)
+	__(mov %imm0,%arg_z)
+	__(jmp *%ra0)
+1:	__(unbox_fixnum(%arg_z,%imm0))
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(imul %imm1)
+	__(jmp C(makes128))
+2:	__(jump_builtin(_builtin_times,2))
+_endsubp(builtin_times)
+
+_spentry(builtin_div)
+	__(jump_builtin(_builtin_div,2))
+
+/* %arg_z <- (= %arg_y %arg_z).	*/
+_spentry(builtin_eq)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(rcmpq(%arg_z,%arg_y))
+	__(condition_to_boolean(e,%imm0,%arg_z))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_eq,2))
+_endsubp(builtin_eq)
+	
+/* %arg_z <- (/= %arg_y %arg_z).	*/
+_spentry(builtin_ne)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(rcmpq(%arg_z,%arg_y))
+	__(condition_to_boolean(ne,%imm0,%arg_z))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_ne,2))
+_endsubp(builtin_ne)
+	
+/* %arg_z <- (> %arg_y %arg_z).	*/
+_spentry(builtin_gt)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(rcmpq(%arg_y,%arg_z))
+	__(condition_to_boolean(g,%imm0,%arg_z))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_gt,2))
+_endsubp(builtin_gt)
+
+/* %arg_z <- (>= %arg_y %arg_z).	*/
+_spentry(builtin_ge)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(rcmpq(%arg_y,%arg_z))
+	__(condition_to_boolean(ge,%imm0,%arg_z))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_ge,2))
+_endsubp(builtin_ge)
+	
+/* %arg_z <- (< %arg_y %arg_z).	*/
+_spentry(builtin_lt)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(rcmpq(%arg_y,%arg_z))
+	__(condition_to_boolean(l,%imm0,%arg_z))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_lt,2))
+_endsubp(builtin_lt)
+
+/* %arg_z <- (<= %arg_y %arg_z). */
+_spentry(builtin_le)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(rcmpq(%arg_y,%arg_z))
+	__(condition_to_boolean(le,%imm0,%arg_z))
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_le,2))
+_endsubp(builtin_le)
+
+_spentry(builtin_eql)
+	__(cmpq %arg_y,%arg_z)
+	__(je 1f)
+	/* Not EQ.  Could only possibly be EQL if both are fulltag-misc
+	   and both have the same subtag */
+	__(extract_lisptag(%arg_y,%imm0))
+	__(extract_lisptag(%arg_z,%imm1))
+	__(cmpb $fulltag_misc,%imm0_b)
+	__(jne 2f)
+	__(cmpb %imm0_b,%imm1_b)
+	__(jne 2f)
+	__(extract_subtag(%arg_y,%imm0_b))
+	__(extract_subtag(%arg_z,%imm1_b))
+	__(cmpb %imm0_b,%imm1_b)
+	__(jne 2f)
+	__(jump_builtin(_builtin_eql,2))
+1:	__(movl $t_value,%arg_z_l)
+	__(jmp *%ra0)
+2:	__(movl $nil_value,%arg_z_l)
+	__(jmp *%ra0)	
+_endsubp(builtin_eql)
+
+_spentry(builtin_length)
+	__(extract_lisptag(%arg_z,%imm0))
+	__(cmpb $tag_list,%imm0_b)
+	__(jz 2f)
+	__(cmpb $tag_misc,%imm0_b)
+	__(jnz 8f)
+	__(extract_subtag(%arg_z,%imm0_b))
+	__(rcmpb(%imm0_b,$min_vector_subtag))
+	__(jb 8f)
+	__(je 1f)
+	/* (simple-array * (*)) */
+	__(movq %arg_z,%arg_y)
+	__(vector_length(%arg_y,%arg_z))
+	__(jmp *%ra0)
+1:	/* vector header */
+	__(movq vectorH.logsize(%arg_z),%arg_z)
+	__(jmp *%ra0)
+2:	/* list.  Maybe null, maybe dotted or circular. */
+	__(movq $-fixnumone,%temp2)
+	__(movq %arg_z,%temp0)	/* fast pointer */
+	__(movq %arg_z,%temp1)  /* slow pointer */
+3:	__(extract_lisptag(%temp0,%imm0))	
+	__(cmpb $fulltag_nil,%temp0_b)
+	__(addq $fixnumone,%temp2)
+	__(je 9f)
+	__(cmpb $tag_list,%imm0_b)
+	__(je 8f)
+	__(extract_lisptag(%temp1,%imm1))
+	__(testb $fixnumone,%temp2_b)
+	__(_cdr(%temp0,%temp0))
+	__(je 3b)
+	__(cmpb $tag_list,%imm1_b)
+	__(jne 8f)
+	__(_cdr(%temp1,%temp1))
+	__(cmpq %temp0,%temp1)
+	__(jne 3b)
+8:	
+	__(jump_builtin(_builtin_length,1))
+9:	
+	__(movq %temp2,%arg_z)
+	__(jmp *%ra0)		
+_endsubp(builtin_length)
+
+	
+_spentry(builtin_seqtype)
+	__(extract_lisptag(%arg_z,%imm0))
+	__(cmpb $tag_list,%imm0_b)
+	__(jz 1f)
+	__(cmpb $tag_misc,%imm0_b)
+	__(cmovew misc_subtag_offset(%arg_z),%imm0_w)
+	__(jne 2f)
+	__(rcmpb(%imm0_b,$min_vector_subtag))
+	__(jb 2f)
+	__(movl $nil_value,%arg_z_l)
+	__(jmp *%ra0)
+1:	__(movl $t_value,%arg_z_l)
+	__(jmp *%ra0)
+2:	
+	__(jump_builtin(_builtin_seqtype,1))
+_endsubp(builtin_seqtype)
+
+_spentry(builtin_assq)
+	__(cmpb $fulltag_nil,%arg_z_b)
+	__(jz 5f)
+1:	__(movb $tagmask,%imm0_b)
+	__(andb %arg_z_b,%imm0_b)
+	__(cmpb $tag_list,%imm0_b)
+	__(jz,pt 2f)
+	__(uuo_error_reg_not_list(Rarg_z))
+2:	__(_car(%arg_z,%arg_x))
+	__(_cdr(%arg_z,%arg_z))
+	__(cmpb $fulltag_nil,%arg_x_b)
+	__(jz 4f)
+	__(movb $tagmask,%imm0_b)
+	__(andb %arg_x_b,%imm0_b)
+	__(cmpb $tag_list,%imm0_b)
+	__(jz,pt 3f)
+	__(uuo_error_reg_not_list(Rarg_x))
+3:	__(_car(%arg_x,%temp0))
+	__(cmpq %temp0,%arg_y)
+	__(jnz 4f)
+	__(movq %arg_x,%arg_z)
+	__(jmp *%ra0)
+4:	__(cmpb $fulltag_nil,%arg_z_b)
+5:	__(jnz 1b)
+	__(jmp *%ra0)			
+_endsubp(builtin_assq)	
+
+_spentry(builtin_memq)
+	__(cmpb $fulltag_nil,%arg_z_b)
+	__(jmp 3f)
+1:	__(movb $tagmask,%imm0_b)
+	__(andb %arg_z_b,%imm0_b)
+	__(cmpb $tag_list,%imm0_b)
+	__(jz,pt 2f)
+	__(uuo_error_reg_not_list(Rarg_z))
+2:	__(_car(%arg_z,%arg_x))
+	__(_cdr(%arg_z,%temp0))
+	__(cmpq %arg_x,%arg_y)
+	__(jz 4f)
+	__(cmpb $fulltag_nil,%temp0_b)
+	__(movq %temp0,%arg_z)
+3:	__(jnz 1b)
+4:	__(jmp *%ra0)				
+_endsubp(builtin_memq)
+
+        __ifdef([X8664])
+logbitp_max_bit = 61
+        __else
+logbitp_max_bit = 30
+        __endif
+	
+_spentry(builtin_logbitp)
+	__(movb %arg_z_b,%imm0_b)
+	__(orb %arg_y_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jnz 1f)
+	__(cmpq $logbitp_max_bit<<fixnumshift,%arg_y)
+	__(ja 1f)
+	__(unbox_fixnum(%arg_y,%imm0))
+	__(addb $fixnumshift,%imm0_b)
+	__(bt %imm0,%arg_z)
+	__(condition_to_boolean(b,%imm0,%arg_z))
+/*	
+	__(setb %imm0_b)
+	__(andb $t_offset,%imm0_b)
+	__(lea nil_value(%imm0),%arg_z)
+*/	
+	__(jmp *%ra0)
+1:	__(jump_builtin(_builtin_logbitp,2))
+_endsubp(builtin_logbitp)
+
+_spentry(builtin_logior)
+	__(movb %arg_y_b,%imm0_b)
+	__(orb %arg_z_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(orq %arg_y,%arg_z)
+	__(jmp *%ra0)
+1:	
+	__(jump_builtin(_builtin_logior,2))
+		
+_endsubp(builtin_logior)
+
+_spentry(builtin_logand)
+	__(movb %arg_y_b,%imm0_b)
+	__(orb %arg_z_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(andq %arg_y,%arg_z)
+	__(jmp *%ra0)
+1:		
+	__(jump_builtin(_builtin_logand,2))
+_endsubp(builtin_logand)
+
+_spentry(builtin_negate)
+	__(testb $fixnummask,%arg_z_b)
+	__(jne 1f)
+	__(negq %arg_z)
+	__(jo,pn C(fix_one_bit_overflow))
+	__(jmp *%ra0)
+1:		
+	__(jump_builtin(_builtin_negate,1))	
+_endsubp(builtin_negate)
+
+_spentry(builtin_logxor)
+	__(movb %arg_y_b,%imm0_b)
+	__(orb %arg_z_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 1f)
+	__(xorq %arg_y,%arg_z)
+	__(jmp *%ra0)
+1:		
+	__(jump_builtin(_builtin_logand,2))
+_endsubp(builtin_logxor)
+
+_spentry(builtin_aref1)
+_endsubp(builtin_aref1)
+
+_spentry(builtin_aset1)
+_endsubp(builtin_aset1)
+
+/* We have to be a little careful here	%cl has to be used for
+   the (unboxed) shift count in all variable-length shifts, and
+   %temp2 = %rcx.  Zero all but the low 8 (or 6) bits of %rcx,
+   so that the shift count doesn't confuse the GC.
+*/
+_spentry(builtin_ash)
+	__(movb %arg_y_b,%imm0_b)
+	__(orb %arg_z_b,%imm0_b)
+	__(testb $fixnummask,%imm0_b)
+	__(jne 9f)
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(unbox_fixnum(%arg_z,%imm0))
+	/* Z flag set if zero ASH shift count */
+	__(jnz 1f)
+	__(movq %arg_y,%arg_z)	/* shift by 0 */
+	__(jmp *%ra0)
+1:	__(jns 3f)
+	__(rcmpq(%imm0,$-63))
+	__(jg 2f)
+	__(sar $63,%imm1)
+	__(box_fixnum(%imm1,%arg_z))
+	__(jmp *%ra0)
+2:	/* Right-shift by small fixnum */
+	__(negb %imm0_b)
+	__(movzbl %imm0_b,%ecx)
+	__(sar %cl,%imm1)
+	__(xorl %ecx,%ecx)
+	__(box_fixnum(%imm1,%arg_z))
+	__(jmp *%ra0)
+3:    /* Left shift by fixnum. We cant shift by more than 63 bits, though
+	shifting by 64 is actually easy. */
+	__(rcmpq(%imm0,$64))
+	__(jg 9f)
+	__(jne 4f)
+	/* left-shift by 64-bits exactly */
+	__(xorl %imm0_l,%imm0_l)
+	__(jmp C(makes128))
+4:	/* left-shift by 1..63 bits.  Safe to move shift count to %rcx/%cl */
+	__(movzbl %imm0_b,%ecx)	 /* zero-extending mov */
+	__(movq %imm1,%imm0)
+	__(xorq %imm1,%imm1)
+	__(testq %imm0,%imm0)
+	__(js 5f)
+	__(shld %cl,%imm0,%imm1)
+	__(shl %cl,%imm0)
+	__(xorb %cl,%cl)
+	__(jmp C(makeu128))
+5:	__(subq $1,%imm1)
+	__(shld %cl,%imm0,%imm1)
+	__(shl %cl,%imm0)
+	__(xorb %cl,%cl)
+	__(jmp C(makes128))
+9:	
+	__(jump_builtin(_builtin_ash,2))
+_endsubp(builtin_ash)
