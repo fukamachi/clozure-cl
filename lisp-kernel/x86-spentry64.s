@@ -237,7 +237,7 @@ _spentry(builtin_eql)
 	__(cmpq %arg_y,%arg_z)
 	__(je 1f)
 	/* Not EQ.  Could only possibly be EQL if both are fulltag-misc
-	   and both have the same subtag
+	   and both have the same subtag */
 	__(extract_lisptag(%arg_y,%imm0))
 	__(extract_lisptag(%arg_z,%imm1))
 	__(cmpb $fulltag_misc,%imm0_b)
@@ -256,13 +256,6 @@ _spentry(builtin_eql)
 _endsubp(builtin_eql)
 
 _spentry(builtin_length)
-	__(extract_lisptag(%arg_z,%imm0_b))
-	__(cmpb $tag_list,%imm0_b)
-	__(jz 3f)
-	__(cmpb $tag_misc,%imm0_b)
-	__(jnz 9f)
-	__(extract_subtag(%arg_z,%imm0_b))
-	__(rcmpb(%imm0_b,$min_vector_subtag))
 	
 _endsubp(builtin_length)
 

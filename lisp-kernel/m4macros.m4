@@ -32,6 +32,7 @@ undefine([POWEROPENABI])
 undefine([rTOC])
 
 ifdef([DARWIN],[define([SYSstabs],[BSDstabs])
+		define([DarwinAssembler],[])
                 define([CNamesNeedUnderscores],[])
 	        define([LocalLabelPrefix],[L])
 	        define([StartTextLabel],[Ltext0])
@@ -39,6 +40,16 @@ ifdef([DARWIN],[define([SYSstabs],[BSDstabs])
 		define([POWEROPENABI],[])])
 
 ifdef([LINUX],[define([SYSstabs],[ELFstabs])
+	       define([HaveWeakSymbols],[])
+	       define([LocalLabelPrefix],[.L])
+	       define([StartTextLabel],[.Ltext0])
+	       define([EndTextLabel],[.Letext])
+               ifdef([PPC64],[
+               define([POWEROPENABI],[])
+               define([rTOC],[r2])], [
+	       define([EABI],[])])])
+
+ifdef([FREEBSD],[define([SYSstabs],[ELFstabs])
 	       define([HaveWeakSymbols],[])
 	       define([LocalLabelPrefix],[.L])
 	       define([StartTextLabel],[.Ltext0])

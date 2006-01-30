@@ -93,6 +93,12 @@ Boolean use_mach_exception_handling =
 #endif
 #endif
 
+#ifdef FREEBSD
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <dlfcn.h>
+#endif
+
 #include <ctype.h>
 #include <sys/select.h>
 #include "Threads.h"
@@ -312,18 +318,13 @@ unsigned unsigned_max(unsigned x, unsigned y)
   }
 }
 
-#ifdef DARWIN
-#ifdef PPC64
+#if WORD_SIZE == 64
 #define MAXIMUM_MAPPABLE_MEMORY (128L<<30L)
 #else
+#ifdef DARWIN
 #define MAXIMUM_MAPPABLE_MEMORY ((1U<<31)-2*heap_segment_size)
 #endif
-#endif
-
 #ifdef LINUX
-#ifdef PPC64
-#define MAXIMUM_MAPPABLE_MEMORY (128L<<30L)
-#else
 #define MAXIMUM_MAPPABLE_MEMORY (1U<<30)
 #endif
 #endif
@@ -1106,6 +1107,9 @@ terminate_lisp()
 #endif
 #ifdef LINUX
 #define min_os_version "2.2"
+#endif
+#ifdef FREEBSD
+#define min_os_version "6.0"
 #endif
 
 #ifdef DARWIN

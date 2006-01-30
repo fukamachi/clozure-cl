@@ -90,16 +90,14 @@ define([restore_node_regs],[
   to the base register $1.
 */
 
-ifdef([DARWIN],[
+ifdef([DarwinAssembler],[
 	.macro zero_dnodes
 	.if $2
 	movapd %fp0,$1($0)
 	zero_dnodes $0,$1+dnode_size,$2-dnode_size
 	.endif
 	.endmacro
-])
-
-ifdef([LINUX],[
+],[
 	.macro zero_dnodes base,disp,nbytes
 	.ifgt \nbytes
 	movapd %fp0,\disp(\base)

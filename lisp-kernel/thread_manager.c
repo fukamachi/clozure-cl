@@ -566,6 +566,9 @@ current_native_thread_id()
 #ifdef DARWIN
 	  mach_thread_self()
 #endif
+#ifdef FREEBSD
+	  pthread_self()
+#endif
 	  );
 }
 

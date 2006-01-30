@@ -4611,14 +4611,29 @@ nuke_all_pointers(LispObj base, LispObj limit)
   nuke_pointers_in_tcrs(get_tcr(false), base, limit);
 }
 
-#ifdef DARWIN
+#ifndef MREMAP_MAYMOVE
 #define MREMAP_MAYMOVE 1
+#endif
 
+#ifdef FREEBSD
+void *
+freebsd_mremap(void *old_address, 
+	       size_t old_size, 
+	       size_t new_size, 
+	       unsigned long flags)
+{
+  return old_address;
+}
+#define mremap freebsd_mremap
+
+#endif
+
+#ifdef DARWIN
 void *
 darwin_mremap(void *old_address, 
-              size_t old_size, 
-              size_t new_size, 
-              unsigned long flags)
+	      size_t old_size, 
+	      size_t new_size, 
+	      unsigned long flags)
 {
   void *end = (void *) ((char *)old_address+old_size);
 

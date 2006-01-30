@@ -66,6 +66,7 @@ LispObj start_lisp(TCR*, LispObj);
 #define PLATFORM_OS_LINUX 1
 #define PLATFORM_OS_SOLARIS 2
 #define PLATFORM_OS_DARWIN 3
+#define PLATFORM_OS_FREEBSD 4
 
 #ifdef LINUX
 #define PLATFORM_OS PLATFORM_OS_LINUX
@@ -73,6 +74,10 @@ LispObj start_lisp(TCR*, LispObj);
 
 #ifdef DARWIN
 #define PLATFORM_OS PLATFORM_OS_DARWIN
+#endif
+
+#ifdef FREEBSD
+#define PLATFORM_OS PLATFORM_OS_FREEBSD
 #endif
 
 #ifdef PPC

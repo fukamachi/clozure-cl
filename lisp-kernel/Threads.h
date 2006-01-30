@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <errno.h>
-#ifdef LINUX
+#if defined(LINUX) || defined(FREEBSD)
 #include <semaphore.h>
 #endif
 #ifdef DARWIN
@@ -40,7 +40,7 @@ Boolean threads_initialized;
 #define TCR_TO_TSD(tcr) ((void *)((natural)(tcr)+TCR_BIAS))
 #define TCR_FROM_TSD(tsd) ((TCR *)((natural)(tsd)-TCR_BIAS))
 
-#ifdef LINUX
+#if defined(LINUX) || defined(FREEBSD)
 typedef sem_t * SEMAPHORE;
 #define SEM_WAIT(s) sem_wait((SEMAPHORE)s)
 #define SEM_RAISE(s) sem_post((SEMAPHORE)s)
@@ -56,7 +56,7 @@ typedef semaphore_t SEMAPHORE;
 
 void sem_wait_forever(SEMAPHORE s);
 
-#ifdef LINUX
+#if defined(LINUX) || defined(FREEBSD)
 #define SEM_WAIT_FOREVER(s) sem_wait_forever((SEMAPHORE)s)
 #endif
 

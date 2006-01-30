@@ -21,7 +21,16 @@ typedef u_int8_t opcode, *pc;
 #define xpGPRvector(x) ((natural *)(&((x)->uc_mcontext.gregs)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
-#define xpPC(x) xpGPR(x,REG_RIP)
+#define xpPC(x) xpGPR(x,Iip)
+#endif
+#endif
+
+#ifdef FREEBSD
+#ifdef X8664
+#define xpGPRvector(x) ((natural *)(&((x)->uc_mcontext)))
+#define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
+#define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
+#define xpPC(x) xpGPR(x,Iip)
 #endif
 #endif
 
@@ -30,4 +39,7 @@ typedef u_int8_t opcode, *pc;
 #endif
 #ifdef LINUX
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGPWR
+#endif
+#ifdef FREEBSD
+#define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
 #endif

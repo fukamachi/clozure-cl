@@ -28,12 +28,33 @@
 #define Ifn         REG_R13
 #define Irbp        REG_RBP
 #define Iarg_z      REG_RSI
-#define Iimm1       REG_EDX
+#define Iimm1       REG_RDX
 #define Iimm0       REG_RAX
 #define Itemp1      REG_R9
 #define Isp         REG_RSP
 #define Iip         REG_RIP
-#define Iflags      REG_EFL
+#define Iflags      REG_RFL
+#endif
+
+#ifdef FREEBSD
+#define Itemp0      8
+#define Iarg_y      1
+#define Iarg_x      5
+#define Isave3      11
+#define Isave2      12
+#define Itemp2      4
+#define Isave1      14
+#define Isave0      15
+#define Ira0        10
+#define Ifn         13
+#define Irbp        9
+#define Iarg_z      2
+#define Iimm1       3
+#define Iimm0       7
+#define Itemp1      6
+#define Isp         23
+#define Iip         20
+#define Iflags      22
 #endif
 
 

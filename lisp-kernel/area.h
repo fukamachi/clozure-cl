@@ -133,6 +133,7 @@ typedef struct area_list {
 #define CS_OVERFLOW_FORCE_LIMIT ((natural)(-16))
 #endif
 
+#
 #ifdef PPC
 #ifdef LINUX
 #ifdef PPC64
@@ -154,8 +155,10 @@ typedef struct area_list {
 #ifdef LINUX
 #ifdef X8664
 #define IMAGE_BASE_ADDRESS 0x100000000L
-#else
 #endif
+#endif
+#ifdef FREEBSD
+#define IMAGE_BASE_ADDRESS 0x100000000L
 #endif
 #endif
 

@@ -45,7 +45,12 @@ typedef u_int32_t unsigned_of_pointer_size;
 typedef struct ucontext64 ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
 #else
+#ifdef LINUX
 typedef struct ucontext ExceptionInformation;
+#endif
+#ifdef FREEBSD
+typedef struct __ucontext ExceptionInformation;
+#endif
 #define UC_MCONTEXT(UC) UC->uc_mcontext
 #endif
 
