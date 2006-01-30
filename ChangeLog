@@ -1,3 +1,13 @@
+2006-01-29 20:38  gb
+
+	* lisp-kernel/: x86-spentry64.s, x86-constants64.s, x86-macros.s,
+	x86-uuo.s: May not even compile at the moment, but (a) my AMD64
+	laptop's disk is acting flaky and (b) a new AMD64 X2 dual-core box
+	has a weird Windows-centric motherboard and I'm having trouble
+	getting Linux running on it.
+	
+	Any questions ?
+
 2006-01-28 15:37  gb
 
 	* lisp-kernel/: x86-constants64.s, x86-macros.s, x86-spentry64.s:
