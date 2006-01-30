@@ -2022,6 +2022,11 @@ _spentry(tcallnfnvsp)
 	__(mtlr loc_pc)
        	__(jump_nfn())
 	
+/* Reference index arg_z of a misc-tagged object (arg_y). 
+   Note that this conses in some cases.  Return a properly-tagged 
+   lisp object in arg_z.  Do type and bounds-checking. 
+*/
+	
 _spentry(misc_ref)
 	__(trap_unless_fulltag_equal(arg_y,fulltag_misc,imm0))
 	__(trap_unless_lisptag_equal(arg_z,tag_fixnum,imm0))
@@ -2029,10 +2034,6 @@ _spentry(misc_ref)
 	__(trlge(arg_z,imm0))
 	__(extract_lowbyte(imm1,imm1))	/* imm1 = subtag */
 	
-/* Reference index arg_z of a misc-tagged object (arg_y). 
-   Note that this conses in some cases.  Return a properly-tagged 
-   lisp object in arg_z.  Do type and bounds-checking. 
-*/
 local_label(misc_ref_common):   
         __ifdef([PPC64])
 	 __(extract_fulltag(imm2,imm1))
