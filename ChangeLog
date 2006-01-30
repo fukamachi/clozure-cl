@@ -1,3 +1,12 @@
+2006-01-30 06:59  gb
+
+	* lisp-kernel/: x86-constants64.s, x86-macros.s, x86-spentry64.s:
+	More stuff.
+
+2006-01-30 06:59  gb
+
+	* lisp-kernel/ppc-spentry.s: Move a comment.
+
 2006-01-30 02:39  gb
 
 	* lisp-kernel/: lisptypes.h, m4macros.m4, pmcl-kernel.c,
