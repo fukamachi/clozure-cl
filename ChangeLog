@@ -1,3 +1,17 @@
+2006-01-30 02:39  gb
+
+	* lisp-kernel/: lisptypes.h, m4macros.m4, pmcl-kernel.c,
+	thread_manager.c, x86-constants64.h, x86-exceptions.h,
+	x86-macros.s, x86-spentry64.s, Threads.h, area.h, bits.h, gc.c,
+	lisp.h: Conditionalize for FreeBSD/x86-64.
+
+2006-01-30 02:39  gb
+
+	* lisp-kernel/freebsd8664/: Makefile, elf_x86_64.x: New files.
+	
+	FreeBSD make (and gmake) both want to rebuild all .s files, but
+	this otherwise seems to work.
+
 2006-01-29 20:38  gb
 
 	* lisp-kernel/: x86-spentry64.s, x86-constants64.s, x86-macros.s,
