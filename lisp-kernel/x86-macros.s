@@ -90,29 +90,42 @@ define([restore_node_regs],[
   to the base register $1.
 */
 
-define([zero_dnodes],[
-	ifelse(eval($3),"0",
-	[],
-	[
-	movapd %fp0,$2($1)
-	zero_dnodes($1,$2+16,$3-16)
-	]
-)])	
+ifdef([DARWIN],[
+	.macro zero_dnodes
+	.if $2
+	movapd %fp0,$1($0)
+	zero_dnodes $0,$1+dnode_size,$2-dnode_size
+	.endif
+	.endmacro
+])
+
+ifdef([LINUX],[
+	.macro zero_dnodes base,disp,nbytes
+	.ifgt \nbytes
+	movapd %fp0,\disp(\base)
+	zero_dnodes \base,\disp+dnode_size,\nbytes-dnode_size
+	.endif
+	.endm
+])	
+
 
 /* Allocate $1+dnode_size zeroed bytes on the tstack, using $2 as a temp
    reg. */
 define([TSP_Alloc_Fixed],[
+	define([TSP_Alloc_Size],[(($1+node_size)&~(dnode_size-1))+dnode_size])
 	movd %tsp,$2
-	sub $1+16,$2
-	movd $2,%new_tsp
-	zero_dnodes($2,0,eval(($1+16)>>4))
+	sub TSP_Alloc_Size,$2
+	movd $2,%next_tsp
+	zero_dnodes $2,0,TSP_Alloc_Size
 	movq %tsp,0($2)
-	movq %new_tsp,%tsp
+	movq %next_tsp,%tsp
+	undefine([TSP_Alloc_Size])
 ])
 
 define([Allocate_Catch_Frame],[
-	TSP_Alloc_Fixed(catch_frame.size+8,$1)
-	addq $16+fulltag_misc,$1
+	TSP_Alloc_Fixed(catch_frame.size,$1)
+	movq [$](catch_frame.element_count<<subtag_shift)|subtag_catch_frame,dnode_size($1)
+	addq [$]dnode_size+fulltag_misc,$1
 ])
 
 /* %arg_z = tag,  %xfn = pc, $1 = mvflag */	
@@ -125,8 +138,8 @@ define([Make_Catch],[
 	movq %imm0,catch_frame.link(%temp2)
 	movq [$]$1,catch_frame.mvflag(%temp2)
 	movq %rcontext:tcr.xframe,%imm0
-	movq %rsp,catch_frame.vsp(%temp2)
-	movq %rbp,catch_frame.rsp(%temp2)
+	movq %rsp,catch_frame.rsp(%temp2)
+	movq %rbp,catch_frame.rbp(%temp2)
 	movq %temp0,catch_frame.foreign_sp(%temp2)
 	movq %imm1,catch_frame.db_link(%temp2)
 	movq %save3,catch_frame._save3(%temp2)
@@ -203,7 +216,7 @@ define([vrefr],[
 ])	
 
 define([jump_fn],[
-	jmp *%fn
+	jmpq *%fn
 ])
 			
 define([jump_fname],[
@@ -223,6 +236,10 @@ define([_car],[
 	mov cons.car($1),$2
 ])	
 
+define([_cdr],[
+	mov cons.cdr($1),$2
+])	
+	
 define([tra],[
 	.p2align 3
 	ifelse($2,[],[
@@ -278,3 +295,40 @@ define([vector_length],[
         shr $num_subtag_bits-fixnumshift,$2
 ])
                 
+/* GAS/ATT comparison arg order drives me nuts */
+define([rcmpq],[
+	cmpq $2,$1
+])
+
+define([rcmpl],[
+	cmpl $2,$1
+])	
+
+define([rcmpw],[
+	cmpw $2,$1
+])	
+
+define([rcmpb],[
+	cmpb $2,$1
+])		
+
+
+define([condition_to_boolean],[
+	set$1 $2_b
+	andl [$]t_offset,$2_l
+	leaq nil_value($2),$3
+])
+	
+define([extract_lisptag],[
+	movb [$]tagmask,$2_b
+	andb $1_b,$2_b
+])
+								
+define([extract_fulltag],[
+	movb [$]fulltagmask,$2_b
+	andb $1_b,$2_b
+])
+
+define([extract_subtag],[
+	movb misc_subtag_offset($1),$2
+])		

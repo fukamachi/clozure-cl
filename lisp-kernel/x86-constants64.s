@@ -19,62 +19,137 @@
    of mmx or xmm registers to hold immediate values and
    do some unboxed arithmetic. */
 
+
+/*
+  Redefining these standard register names - with the same _l, _w, _b suffixes
+  used in lispy symbolic names - allows us to play Stupid M4 Tricks in macros
+*/
+			
+define([rax_l],[eax])
+define([rax_w],[ax])
+define([rax_b],[al])
+define([rbx_l],[ebx])
+define([rbx_w],[bx])
+define([rbx_b],[bl])
+define([rcx_l],[ecx])
+define([rcx_w],[cx])
+define([rdx_l],[edx])
+define([rdx_w],[dx])					
+define([rdx_b],[dl])							
+define([rsi_l],[esi])
+define([rsi_w],[si])				
+define([rsi_b],[sil])
+define([rdi_l],[edo])
+define([rdi_w],[di])				
+define([rdi_b],[dil])
+define([r8_l],[r8d])
+define([r8_w],[r8w])					
+define([r8_b],[r8b])							
+define([r9_l],[r9d])
+define([r9_w],[r9w])					
+define([r9_b],[r9b])							
+define([r10_l],[r10d])
+define([r10_w],[r10w])					
+define([r10_b],[r10b])							
+define([r10_l],[r11d])
+define([r11_w],[r11w])					
+define([r11_b],[r11b])							
+define([r12_l],[r12d])
+define([r12_w],[r12w])					
+define([r12_b],[r12b])							
+define([r13_l],[r13d])
+define([r13_w],[r13w])					
+define([r13_b],[r13b])							
+define([r14_l],[r14d])
+define([r14_w],[r14w])					
+define([r14_b],[r14b])							
+define([r15_l],[r15d])
+define([r15_w],[r15w])					
+define([r15_b],[r15b])							
+
 define([imm0],[rax]) 
 	define([imm0_l],[eax])
 	define([imm0_w],[ax])
 	define([imm0_b],[al])
+	define([Rimm0],[0])
+	
 define([temp0],[rbx])
 	define([temp0_l],[ebx])
 	define([temp0_w],[bx])
-	define([temp_b],[bl])
+	define([temp0_b],[bl])
+	define([Rtemp0],[3])
+	
 define([temp2],[rcx])
 	define([temp2_l],[ecx])
 	define([temp2_w],[cx])
 	define([temp2_b],[cl])
+	define([Rtemp2],[1])
+	
 define([imm1],[rdx])
 	define([imm1_l],[edx])
 	define([imm1_w],[dx])
 	define([imm1_b],[dl])
+	define([Rimm1],[2])
+	
 define([arg_z],[rsi])
 	define([arg_z_l],[esi])
 	define([arg_z_w],[si])
 	define([arg_z_b],[sil])
+	define([Rarg_z],[6])
+
 define([arg_y],[rdi])
 	define([arg_y_l],[edi])
 	define([arg_y_w],[di])
 	define([arg_y_b],[dil])
+	define([Rarg_y],[7])
+
 define([arg_x],[r8])
 	define([arg_x_l],[r8d])
 	define([arg_x_w],[r8w])
 	define([arg_x_b],[r8b])
+	define([Rarg_x],[8])
+
 define([temp1],[r9])
 	define([temp1_l],[r9d])
 	define([temp1_w],[r9w])
 	define([temp1_b],[r9b])
+	define([Rtemp1],[9])
+
 define([ra0],[r10])
 	define([ra0_l],[r10d])
 	define([ra0_w],[r10w])
-	define([ra0_x_b],[r10b])	
+	define([ra0_x_b],[r10b])
+	define([Rra0],[10])
+	
 define([save3],[r11])		
 	define([save3_l],[r11d])
 	define([save3_w],[r11w])
-	define([save3_b],[r11b])	
+	define([save3_b],[r11b])
+	define([Rsave3],[11])
+	
 define([save2],[r12])
 	define([save2_l],[r12d])
 	define([save2_w],[r12w])
-	define([save2_b],[r12b])	
+	define([save2_b],[r12b])
+	define([Rsave2],[12])
+	
 define([fn],[r13])		/* some addressing restrictions */
 	define([fn_l],[r13d])
 	define([fn_w],[r13w])
-	define([fn_b],[r13b])		
+	define([fn_b],[r13b])
+	define([Rfn],[13])
+	
 define([save1],[r14])
 	define([save1_l],[r14d])
 	define([save1_w],[r14w])
-	define([save1_b],[r14b])	
+	define([save1_b],[r14b])
+	define([Rsave1],[14])
+		
 define([save0],[r15])
 	define([save0_l],[r15d])
 	define([save0_w],[r15w])
-	define([save0_b],[r15b])	
+	define([save0_b],[r15b])
+	define([Rsave0],[15])	
 
 /* The TCR can be accessed relative to %fs */
 define([rcontext],[fs])
@@ -84,7 +159,7 @@ define([nargs],[temp2_w])
 define([nargs_q],[temp2])
 define([nargs_l],[temp2_l])	
 						
-define([ra1],[fn])	
+define([xfn],[temp1])	
 
 
 define([allocptr],[temp0])		
@@ -100,6 +175,7 @@ nlisptagbits = 3
 nfixnumtagbits = 3
 nlowtagbits = 2        
 num_subtag_bits = 8
+subtag_shift = num_subtag_bits	
 fixnumshift = 3
 fixnum_shift = 3
 fulltagmask = 15
@@ -300,7 +376,7 @@ no_thread_local_binding_marker = subtag_no_thread_local_binding
 	 _node(catch_tag)	/* #<unbound> -> unwind-protect, else catch */
 	 _node(link)		/* backpointer to previous catch frame */
 	 _node(mvflag)		/* 0 if single-valued catch, fixnum 1 otherwise */
-	 _node(vsp)		/* saved lisp sp */
+	 _node(rsp)		/* saved lisp sp */
 	 _node(rbp)		/* saved lisp rbp */
 	 _node(foreign_sp)      /* necessary ? */ 
 	 _node(db_link)		/* head of special-binding chain */
@@ -591,7 +667,7 @@ TCR_BIAS = -512
 /*
   Thread context record.
 */
-	_struct(tcr,-TCR_BIAS,512)
+	_struct(tcr,TCR_BIAS,512)
 	 _node(prev)		/* in doubly-linked list */
 	 _node(next)		/* in doubly-linked list */
          _node(single_float_convert)

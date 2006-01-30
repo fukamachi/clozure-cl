@@ -62,14 +62,30 @@ define([interrupt_now],[
 	xuuo(2)
 ])		
 
-/* the "6" below is the current encoding of arg_z (= rsi).
-   Signal an UNBOUND-VARIABLE error by claiming that arg_z
+define([uuo_error_reg_not_fixnum],[
+	int [$]0xf0|$1
+])	
+	
+define([uuo_error_reg_not_list],[
+	int [$]0xe0|$1
+])
+
+define([uuo_error_reg_not_tag],[
+	int [$]0xd0|$1
+	.byte $2
+])			
+
+define([uuo_error_reg_not_type],[
+	int [$]0xb0|$1
+	.byte $2
+])			
+		
+/*	
+   Signal an UNBOUND-VARIABLE error by claiming that the argument
    doesn't have the tag unbound_marker, which is otherwise
    a meaningless claim.
 */	
-define([arg_z_unbound],[
-	int [$]0xb0|6
-	.byte unbound_marker
+define([uuo_error_reg_unbound],[
+	uuo_error_reg_not_tag($1,unbound_marker)
 ])	
 
-									
