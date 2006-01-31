@@ -1447,7 +1447,7 @@
                                 (:signed-64-bit-vector
                                  (with-imm-target () (s64-reg :s64)
                                  (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
-                                   (! misc-ref-c-s64 0 src index-known-fixnum)
+                                   (! misc-ref-c-s64 s64-reg src index-known-fixnum)
                                    (with-imm-temps
                                        () (idx-reg)
                                      (if index-known-fixnum
