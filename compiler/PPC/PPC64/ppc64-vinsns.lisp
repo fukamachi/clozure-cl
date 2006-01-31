@@ -1006,7 +1006,6 @@
   (beq+ crf0 :good)
   (beq+ crf1 :bignum)
   :bad
-
   (uuo_interr arch::error-object-not-signed-byte-64 src)
   :bignum
   (ld tag ppc64::misc-header-offset src)
