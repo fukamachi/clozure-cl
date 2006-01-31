@@ -1,3 +1,17 @@
+2006-01-31 14:39  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: remove extra blank line.
+
+2006-01-31 14:38  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: UNBOX-S64: get error right.
+
+2006-01-31 14:37  gb
+
+	* compiler/PPC/ppc2.lisp: In PPC2-VREF, in the :SIGNED-BYTE-64 case
+	where the index is constant, load into the temporary S64-REG, not
+	RZERO!
+
 2006-01-30 19:48  gb
 
 	* lisp-kernel/x86-macros.s: If using "modern" GAS, quote
