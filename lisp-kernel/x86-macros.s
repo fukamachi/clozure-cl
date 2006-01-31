@@ -105,7 +105,7 @@ ifdef([DarwinAssembler],[
 	.macro zero_dnodes base,disp,nbytes
 	.ifgt \nbytes
 	movapd %fp0,\disp(\base)
-	zero_dnodes \base,\disp+dnode_size,\nbytes-dnode_size
+	zero_dnodes \base,"\disp+dnode_size","\nbytes-dnode_size"
 	.endif
 	.endm
 ])	
@@ -114,7 +114,7 @@ ifdef([DarwinAssembler],[
 /* Allocate $1+dnode_size zeroed bytes on the tstack, using $2 as a temp
    reg. */
 define([TSP_Alloc_Fixed],[
-	define([TSP_Alloc_Size],[(($1+node_size)&~(dnode_size-1))+dnode_size])
+	define([TSP_Alloc_Size],[((($1+node_size) & ~(dnode_size-1))+dnode_size)])
 	movd %tsp,$2
 	sub TSP_Alloc_Size,$2
 	movd $2,%next_tsp
