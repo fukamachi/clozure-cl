@@ -179,6 +179,7 @@ LocalLabelPrefix[]__func_name[999]:
 	ifelse(eval(SYSstabs),eval(ELFstabs),[
         .size __func_name,LocalLabelPrefix[]__func_name[999]-__func_name
 ])
+	undefine([__func_name])
 ])
 
 
