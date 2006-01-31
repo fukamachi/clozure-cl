@@ -1,3 +1,12 @@
+2006-01-30 19:48  gb
+
+	* lisp-kernel/x86-macros.s: If using "modern" GAS, quote
+	expressions in recursive macro calls.
+
+2006-01-30 19:47  gb
+
+	* lisp-kernel/m4macros.m4: __endfn undefines __func_name
+
 2006-01-30 06:59  gb
 
 	* lisp-kernel/: x86-constants64.s, x86-macros.s, x86-spentry64.s:
