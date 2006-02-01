@@ -119,10 +119,33 @@ define([TSP_Alloc_Fixed],[
 	sub TSP_Alloc_Size,$2
 	movd $2,%next_tsp
 	zero_dnodes $2,0,TSP_Alloc_Size
-	movq %tsp,0($2)
+	movq %tsp,($2)
 	movq %next_tsp,%tsp
 	undefine([TSP_Alloc_Size])
 ])
+
+/* $1 = size (dnode-aligned, including tsp overhead, $2 scratch.
+   Modifies both $1 and $2; on exit, $2 = new_tsp+tsp_overhead, $1 = old tsp */
+define([TSP_Alloc_Var],[
+	new_macro_labels()	
+	movd %tsp,$2
+	sub $1,$2
+	movd $2,%next_tsp
+	jmp macro_label(test)
+macro_label(loop):
+	movapd %fp0,0($2)
+macro_label(test):	
+	addq $dnode_size,$2
+	subq $dnode_size,$1
+	jne macro_label(loop)
+	movd %next_tsp,$2
+	movd %tsp,$1
+	movq %tsp,($2)
+	movq %next_tsp,%tsp
+	lea dnode_size($2),$2
+])
+	
+	
 
 define([Allocate_Catch_Frame],[
 	TSP_Alloc_Fixed(catch_frame.size,$1)
@@ -245,11 +268,11 @@ define([_cdr],[
 define([tra],[
 	.p2align 3
 	ifelse($2,[],[
-	.long $1-$2
-	],[
 	.long 0
+	],[
+	.long $1-$2
 	])
-$1:
+$1:	
 ])
 				
 define([do_funcall],[
@@ -334,3 +357,12 @@ define([extract_fulltag],[
 define([extract_subtag],[
 	movb misc_subtag_offset($1),$2
 ])		
+
+/*
+        dnode_align(src,delta,dest)
+*/
+        define([dnode_align],[
+        lea ($2+(dnode_size-1))($1),$3
+	andb $~(dnode_size-1),$3_b
+])
+	
