@@ -1,3 +1,20 @@
+2006-01-31 17:07  gb
+
+	* lisp-kernel/thread_manager.c: Tried a few (conditionalized)
+	things to make resume_tcr more reliable; currently, using the
+	tcr->resume semaphore seems more reliable than sigsuspend when
+	there are lots of active threads.
+
+2006-01-31 17:05  gb
+
+	* lisp-kernel/ppc-macros.s: Zero_TSP_Frame and Zero_TSP_Frame_nz:
+	don't zero the frame.type on PPC64.
+
+2006-01-31 17:04  gb
+
+	* lisp-kernel/lisptypes.h: Fix conditinal definition of
+	ExceptionInformation
+
 2006-01-31 14:39  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: remove extra blank line.
