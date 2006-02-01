@@ -275,9 +275,9 @@ local_label(_nthrowv_done):
         __(mr nargs,imm4)
         __(blr)
 
-/* This is a (slight) optimization.  When running an unwind-protect, */
-/* save the single value and the throw count in the tstack frame. */
-/* Note that this takes a single value in arg_z. */
+/* This is a (slight) optimization.  When running an unwind-protect,
+   save the single value and the throw count in the tstack frame.
+   Note that this takes a single value in arg_z. */
 _spentry(nthrow1value)
         __(li imm1,1)
 	__(mr imm4,imm0)
