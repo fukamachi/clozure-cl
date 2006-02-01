@@ -17,6 +17,10 @@
 
 #include "Threads.h"
 
+#define WAIT_FOR_RESUME_ACK 0
+#define RESUME_VIA_RESUME_SEMAPHORE 1
+#define SUSPEND_RESUME_VERBOSE 0
+
 typedef struct {
   TCR *tcr;
   void *created;
@@ -251,7 +255,15 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
     SEM_RAISE(tcr->suspend);
     sigdelset(&wait_for, thread_resume_signal);
 #if 1
+#if RESUME_VIA_RESUME_SEMAPHORE
+    SEM_WAIT_FOREVER(tcr->resume);
+#if SUSPEND_RESUME_VERBOSE
+    fprintf(stderr, "got  resume in 0x%x\n",tcr);
+#endif
+    tcr->suspend_context = NULL;
+#else
     sigsuspend(&wait_for);
+#endif
 #else
     do {
       sigsuspend(&wait_for);
@@ -259,6 +271,12 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
 #endif  
   } else {
     tcr->suspend_context = NULL;
+#if SUSEPEND_RESUME_VERBOSE
+    fprintf(stderr,"got  resume in in 0x%x\n",tcr);
+#endif
+#if WAIT_FOR_RESUME_ACK
+    SEM_RAISE(tcr->resume);
+#endif
   }
 #ifdef DARWIN
   DarwinSigReturn(context);
@@ -893,18 +911,43 @@ resume_tcr(TCR *tcr)
   if (suspend_count == 0) {
 #ifdef DARWIN
     if (tcr->flags & (1<<TCR_FLAG_BIT_ALT_SUSPEND)) {
-      tcr->flags &= ~(1<<TCR_FLAG_BIT_ALT_SUSPEND);
       mach_resume_tcr(tcr);
       return true;
     }
 #endif
+#if RESUME_VIA_RESUME_SEMAPHORE
+    SEM_RAISE(tcr->resume);
+#else
     if ((err = (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_resume_signal))) != 0) {
       Bug(NULL, "pthread_kill returned %d on thread #x%x", err, tcr->osid);
     }
+#endif
+#if SUSPEND_RESUME_VERBOSE
+    fprintf(stderr, "Sent resume to 0x%x\n", tcr);
+#endif
     return true;
   }
   return false;
 }
+
+void
+wait_for_resumption(TCR *tcr)
+{
+  if (tcr->suspend_count == 0) {
+#ifdef DARWIN
+    if (tcr->flags & (1<<TCR_FLAG_BIT_ALT_SUSPEND)) {
+      tcr->flags &= ~(1<<TCR_FLAG_BIT_ALT_SUSPEND);
+      return;
+  }
+#endif
+#if WAIT_FOR_RESUME_ACK
+    fprintf(stderr, "waiting for resume in 0x%x\n",tcr);
+    SEM_WAIT_FOREVER(tcr->resume);
+#endif
+  }
+}
+    
+
 
 Boolean
 lisp_resume_tcr(TCR *tcr)
@@ -914,6 +957,7 @@ lisp_resume_tcr(TCR *tcr)
   
   LOCK(lisp_global(TCR_LOCK),current);
   resumed = resume_tcr(tcr);
+  wait_for_resumption(tcr);
   UNLOCK(lisp_global(TCR_LOCK), current);
   return resumed;
 }
@@ -980,6 +1024,11 @@ resume_other_threads()
   for (other = current->next; other != current; other = other->next) {
     if ((other->osid != 0)) {
       resume_tcr(other);
+    }
+  }
+  for (other = current->next; other != current; other = other->next) {
+    if ((other->osid != 0)) {
+      wait_for_resumption(other);
     }
   }
   free_freed_tcrs();
