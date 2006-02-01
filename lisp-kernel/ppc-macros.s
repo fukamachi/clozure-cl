@@ -768,7 +768,7 @@ define([TSP_Alloc_Fixed_Boxed],[
 /* Handle the general case, where the frame might be empty */
 define([Zero_TSP_Frame],[
 	new_macro_labels()
-	mr $1,tsp
+	la $1,tsp_frame.size-8(tsp)
 	ldr($2,tsp_frame.backlink(tsp))
 	la $2,-8($2)
 	b macro_label(zero_tsp_test)
@@ -782,7 +782,7 @@ macro_label(zero_tsp_test):
 /* Save some branching when we know that the frame can't be empty.*/
 define([Zero_TSP_Frame_nz],[
 	new_macro_labels()
-	mr $1,tsp
+	la $1,tsp_frame.size-8(tsp)
 	ldr($2,tsp_frame.backlink(tsp))
 	la $2,-8($2)
 macro_label(zero_tsp_loop):
