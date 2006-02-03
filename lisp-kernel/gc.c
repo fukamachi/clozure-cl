@@ -4653,9 +4653,9 @@ darwin_mremap(void *old_address,
                               0);
     if (new_address !=  MAP_FAILED) {
       vm_copy(mach_task_self(),
-              old_address,
+              (vm_address_t)old_address,
               old_size,
-              new_address);
+              (vm_address_t)new_address);
       munmap(old_address, old_size);
     }
     return new_address;
