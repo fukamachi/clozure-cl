@@ -381,6 +381,15 @@ void get_altivec_registers(vector_buf);
 
 int altivec_available;
 
+#ifdef DARWIN
+#include <mach/mach.h>
+#include <mach/mach_error.h>
+#include <mach/machine/thread_state.h>
+#include <mach/machine/thread_status.h>
+
+pthread_mutex_t *mach_exception_lock;
+#endif
+
 /* Yet another way to look at a branch instruction ... */
 typedef union {
   struct {unsigned op:6, li:24, aa:1, lk:1;} b;
