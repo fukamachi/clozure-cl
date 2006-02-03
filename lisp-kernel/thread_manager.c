@@ -862,11 +862,14 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-#ifdef DARWIN_but_this_still_fails_sometimes
-      if (mach_suspend_tcr(tcr)) {
-	tcr->flags |= (1<<TCR_FLAG_BIT_ALT_SUSPEND);
-	return true;
-      }
+#ifdef DARWIN
+#if SUSPEND_RESUME_VERBOSE
+    fprintf(stderr,"Mach suspend to 0x%x\n", tcr);
+#endif
+    if (mach_suspend_tcr(tcr)) {
+      tcr->flags |= (1<<TCR_FLAG_BIT_ALT_SUSPEND);
+      return true;
+    }
 #endif
     if (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_suspend_signal) == 0) {
       SEM_WAIT_FOREVER(tcr->suspend);
@@ -898,7 +901,17 @@ lisp_suspend_tcr(TCR *tcr)
   TCR *current = get_tcr(true);
   
   LOCK(lisp_global(TCR_LOCK),current);
+#ifdef DARWIN
+  if (use_mach_exception_handling) {
+    pthread_mutex_lock(mach_exception_lock);
+  }
+#endif
   suspended = suspend_tcr(tcr);
+#ifdef DARWIN
+  if (use_mach_exception_handling) {
+    pthread_mutex_unlock(mach_exception_lock);
+  }
+#endif
   UNLOCK(lisp_global(TCR_LOCK),current);
   return suspended;
 }
@@ -910,6 +923,9 @@ resume_tcr(TCR *tcr)
   int suspend_count = atomic_decf(&(tcr->suspend_count)), err;
   if (suspend_count == 0) {
 #ifdef DARWIN
+#if SUSPEND_RESUME_VERBOSE
+    fprintf(stderr,"Mach resume to 0x%x\n", tcr);
+#endif
     if (tcr->flags & (1<<TCR_FLAG_BIT_ALT_SUSPEND)) {
       mach_resume_tcr(tcr);
       return true;
@@ -962,9 +978,6 @@ lisp_resume_tcr(TCR *tcr)
   return resumed;
 }
 
-#ifdef DARWIN
-lock_set_t mach_exception_lock_set;
-#endif
 
 TCR *freed_tcrs = NULL;
 
@@ -995,6 +1008,14 @@ suspend_other_threads()
 
   LOCK(lisp_global(TCR_LOCK), current);
   LOCK(lisp_global(AREA_LOCK), current);
+#ifdef DARWIN
+  if (use_mach_exception_handling) {
+#ifdef DEBUG_MACH_EXCEPTIONS
+    fprintf(stderr, "obtaining Mach exception lock in GC thread\n");
+#endif
+    pthread_mutex_lock(mach_exception_lock);
+  }
+#endif
   for (other = current->next; other != current; other = other->next) {
     if ((other->osid != 0)) {
       suspend_tcr(other);
@@ -1032,6 +1053,15 @@ resume_other_threads()
     }
   }
   free_freed_tcrs();
+#ifdef DARWIN
+  if (use_mach_exception_handling) {
+#ifdef DEBUG_MACH_EXCEPTIONS
+    fprintf(stderr, "releasing Mach exception lock in GC thread\n");
+#endif
+    pthread_mutex_unlock(mach_exception_lock);
+  }
+#endif
+
   UNLOCK(lisp_global(AREA_LOCK), current);
   UNLOCK(lisp_global(TCR_LOCK), current);
 }
