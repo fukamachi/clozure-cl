@@ -111,7 +111,7 @@ log2_page_size = 12;
   must have decremented allocptr.  Return the non-zero amount by which
   allocptr was decremented.
 */
-int
+signed_natural
 allocptr_displacement(ExceptionInformation *xp)
 {
   pc program_counter = xpPC(xp);
@@ -123,14 +123,14 @@ allocptr_displacement(ExceptionInformation *xp)
                     XO(major_opcode_X31,minor_opcode_SUBF, 0, 0) |
                     RT(allocptr) |
                     RB(allocptr))) {
-      return ((int) xpGPR(xp, RA_field(prev_instr)));
+      return ((signed_natural) xpGPR(xp, RA_field(prev_instr)));
     }
     if (match_instr(prev_instr,
                     OP_MASK | RT_MASK | RA_MASK,
                     OP(major_opcode_ADDI) | 
                     RT(allocptr) |
                     RA(allocptr))) {
-      return (int) -((short) prev_instr);
+      return (signed_natural) -((short) prev_instr);
     }
     Bug(xp, "Can't determine allocation displacement");
   }
@@ -1795,7 +1795,7 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
   }
 
   if (allocptr_tag != tag_fixnum) {
-    int disp = allocptr_displacement(xp);
+    signed_natural disp = allocptr_displacement(xp);
 
     if (disp) {
       /* We're "at" the alloc_trap.  If this is happening for the
@@ -2003,7 +2003,7 @@ exception_init()
 #define TCR_FROM_EXCEPTION_PORT(p) ((TCR *)((natural)p))
 #define TCR_TO_EXCEPTION_PORT(tcr) ((mach_port_t)((natural)(tcr)))
 
-lock_set_t mach_exception_lock_set;
+pthread_mutex_t _mach_exception_lock, *mach_exception_lock;
 
 
 #define LISP_EXCEPTIONS_HANDLED_MASK \
@@ -2075,7 +2075,7 @@ typedef struct {
   by the GC to suspend threads) until tcr->xframe is set up.
 
   The GC and the Mach server thread therefore contend for the lock
-  "mach_exception_lock_set[0]".  The Mach server thread holds the lock
+  "mach_exception_lock".  The Mach server thread holds the lock
   when copying exception information between the kernel and the
   user thread; the GC holds this lock during most of its execution
   (delaying exception processing until it can be done without
@@ -2094,10 +2094,6 @@ typedef struct {
 #define	C_LINKAGE_LEN		48
 
 #define TRUNC_DOWN(a,b,c)  (((((natural)a)-(b))/(c)) * (c))
-#include <mach/mach.h>
-#include <mach/mach_error.h>
-#include <mach/machine/thread_state.h>
-#include <mach/machine/thread_status.h>
 
 void
 fatal_mach_error(char *format, ...);
@@ -2106,17 +2102,17 @@ fatal_mach_error(char *format, ...);
 
 
 void
-restore_mach_thread_state(mach_port_t thread, ExceptionInformation *lss)
+restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcontext)
 {
   int i, j;
   kern_return_t kret;
 #ifdef PPC64
-  struct mcontext64 *mc = UC_MCONTEXT(lss);
+  struct mcontext64 *mc = UC_MCONTEXT(pseudosigcontext);
 #else
-  struct mcontext * mc = UC_MCONTEXT(lss);
+  struct mcontext * mc = UC_MCONTEXT(pseudosigcontext);
 #endif
 
-  /* Set the thread's FP state from the lss */
+  /* Set the thread's FP state from the pseudosigcontext */
   kret = thread_set_state(thread,
                           PPC_FLOAT_STATE,
                           (thread_state_t)&(mc->fs),
@@ -2154,15 +2150,22 @@ do_pseudo_sigreturn(mach_port_t thread, TCR *tcr)
 {
   ExceptionInformation *xp;
 
-  lock_acquire(mach_exception_lock_set, 0);
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr, "doing pseudo_sigreturn for 0x%x\n",tcr);
+#endif
   xp = tcr->pending_exception_context;
-  tcr->pending_exception_context = NULL;
-  tcr->valence = TCR_STATE_LISP;
-  restore_mach_thread_state(thread, xp);
-  raise_pending_interrupt(tcr);
-  lock_release(mach_exception_lock_set, 0);
+  if (xp) {
+    tcr->pending_exception_context = NULL;
+    tcr->valence = TCR_STATE_LISP;
+    restore_mach_thread_state(thread, xp);
+    raise_pending_interrupt(tcr);
+  } else {
+    Bug(NULL, "no xp here!\n");
+  }
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr, "did pseudo_sigreturn for 0x%x\n",tcr);
+#endif
   return KERN_SUCCESS;
-
 }  
 
 ExceptionInformation *
@@ -2177,7 +2180,7 @@ create_thread_context_frame(mach_port_t thread,
   mach_msg_type_number_t thread_state_count;
   kern_return_t result;
   int i,j;
-  ExceptionInformation *lss;
+  ExceptionInformation *pseudosigcontext;
 #ifdef PPC64
   struct mcontext64 *mc;
 #else
@@ -2206,8 +2209,8 @@ create_thread_context_frame(mach_port_t thread,
   stackp = ts.r1;
   backlink = stackp;
   stackp = TRUNC_DOWN(stackp, C_REDZONE_LEN, C_STK_ALIGN);
-  stackp -= sizeof(*lss);
-  lss = (ExceptionInformation *) ptr_from_lispobj(stackp);
+  stackp -= sizeof(*pseudosigcontext);
+  pseudosigcontext = (ExceptionInformation *) ptr_from_lispobj(stackp);
 
   stackp = TRUNC_DOWN(stackp, sizeof(*mc), C_STK_ALIGN);
 #ifdef PPC64
@@ -2239,14 +2242,14 @@ create_thread_context_frame(mach_port_t thread,
 		   &thread_state_count);
 
 
-  UC_MCONTEXT(lss) = mc;
+  UC_MCONTEXT(pseudosigcontext) = mc;
   stackp = TRUNC_DOWN(stackp, C_PARAMSAVE_LEN, C_STK_ALIGN);
   stackp -= C_LINKAGE_LEN;
   *(natural *)ptr_from_lispobj(stackp) = backlink;
   if (new_stack_top) {
     *new_stack_top = stackp;
   }
-  return lss;
+  return pseudosigcontext;
 }
 
 /*
@@ -2279,17 +2282,18 @@ setup_signal_frame(mach_port_t thread,
   ppc_thread_state_t ts;
 #endif
   mach_msg_type_number_t thread_state_count;
-  ExceptionInformation *lss;
+  ExceptionInformation *pseudosigcontext;
   int i, j;
   kern_return_t result;
   natural stackp;
 
-  lock_acquire(mach_exception_lock_set, 0);
-
-  lss = create_thread_context_frame(thread, &stackp);
-  lss->uc_onstack = 0;
-  lss->uc_sigmask = (sigset_t) 0;
-  tcr->pending_exception_context = lss;
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr,"Setting up exception handling for 0x%x\n", tcr);
+#endif
+  pseudosigcontext = create_thread_context_frame(thread, &stackp);
+  pseudosigcontext->uc_onstack = 0;
+  pseudosigcontext->uc_sigmask = (sigset_t) 0;
+  tcr->pending_exception_context = pseudosigcontext;
   tcr->valence = TCR_STATE_EXCEPTION_WAIT;
   
 
@@ -2300,16 +2304,16 @@ setup_signal_frame(mach_port_t thread,
   */
 
   ts.srr0 = (natural) handler_address;
-  ts.srr1 = (int) xpMSR(lss) & ~MSR_FE0_FE1_MASK;
+  ts.srr1 = (int) xpMSR(pseudosigcontext) & ~MSR_FE0_FE1_MASK;
   ts.r1 = stackp;
   ts.r3 = signum;
-  ts.r4 = (natural)lss;
+  ts.r4 = (natural)pseudosigcontext;
   ts.r5 = (natural)tcr;
   ts.lr = (natural)pseudo_sigreturn;
 
 
 #ifdef PPC64
-  ts.r13 = xpGPR(lss,13);
+  ts.r13 = xpGPR(pseudosigcontext,13);
   thread_set_state(thread,
                    PPC_THREAD_STATE64,
                    (thread_state_t)&ts,
@@ -2320,7 +2324,9 @@ setup_signal_frame(mach_port_t thread,
 		   (thread_state_t)&ts,
 		   MACHINE_THREAD_STATE_COUNT);
 #endif
-  lock_release(mach_exception_lock_set, 0);
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr,"Set up exception context for 0x%x at 0x%x\n", tcr, tcr->pending_exception_context);
+#endif
   return 0;
 }
 
@@ -2342,7 +2348,6 @@ thread_set_fp_exceptions_enabled(mach_port_t thread, Boolean enabled)
 #endif
   mach_msg_type_number_t thread_state_count;
 
-  lock_acquire(mach_exception_lock_set, 0);
 #ifdef PPC64
   thread_state_count = PPC_THREAD_STATE64_COUNT;
 #else
@@ -2401,7 +2406,6 @@ thread_set_fp_exceptions_enabled(mach_port_t thread, Boolean enabled)
 #endif
                    );
 
-  lock_release(mach_exception_lock_set, 0);
   return 0;
 }
 
@@ -2433,6 +2437,13 @@ catch_exception_raise(mach_port_t exception_port,
 {
   int signum = 0, code = *code_vector, code1;
   TCR *tcr = TCR_FROM_EXCEPTION_PORT(exception_port);
+  kern_return_t kret;
+
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr, "obtaining Mach exception lock in exception thread\n");
+#endif
+    
+  pthread_mutex_lock(mach_exception_lock);
 
 
   if ((exception == EXC_BAD_INSTRUCTION) &&
@@ -2441,49 +2452,103 @@ catch_exception_raise(mach_port_t exception_port,
        (code1 == (int)enable_fp_exceptions) ||
        (code1 == (int)disable_fp_exceptions))) {
     if (code1 == (int)pseudo_sigreturn) {
-      return do_pseudo_sigreturn(thread, tcr);
-    }
-    if (code1 == (int)enable_fp_exceptions) {
-      return thread_set_fp_exceptions_enabled(thread, true);
-    }
-    return thread_set_fp_exceptions_enabled(thread, false);
-  }
-  if (tcr->flags & (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION)) {
+      kret = do_pseudo_sigreturn(thread, tcr);
+    } else if (code1 == (int)enable_fp_exceptions) {
+      kret = thread_set_fp_exceptions_enabled(thread, true);
+    } else kret =  thread_set_fp_exceptions_enabled(thread, false);
+  } else if (tcr->flags & (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION)) {
     tcr->flags &= ~(1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
-    return 17;
-  }
-  switch (exception) {
-  case EXC_BAD_ACCESS:
-    signum = SIGSEGV;
-    break;
+    kret = 17;
+  } else {
+    switch (exception) {
+    case EXC_BAD_ACCESS:
+      signum = SIGSEGV;
+      break;
+      
+    case EXC_BAD_INSTRUCTION:
+      signum = SIGILL;
+      break;
+      
+    case EXC_SOFTWARE:
+      if (code == EXC_PPC_TRAP) {
+        signum = SIGTRAP;
+      }
+      break;
+      
+    case EXC_ARITHMETIC:
+      signum = SIGFPE;
+      break;
 
-  case EXC_BAD_INSTRUCTION:
-    signum = SIGILL;
-    break;
-
-  case EXC_SOFTWARE:
-    if (code == EXC_PPC_TRAP) {
-      signum = SIGTRAP;
+    default:
+      break;
     }
-    break;
-
-  case EXC_ARITHMETIC:
-    signum = SIGFPE;
-    break;
-
-  default:
-    break;
+    if (signum) {
+      kret = setup_signal_frame(thread,
+                                (void *)pseudo_signal_handler,
+                                signum,
+                                code,
+                                tcr);
+    } else {
+      kret = 17;
+    }
   }
-  if (signum) {
-    return setup_signal_frame(thread,
-			      (void *)pseudo_signal_handler,
-			      signum,
-                              code,
-			      tcr);
-  }
-  return 17;
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr, "releasing Mach exception lock in exception thread\n");
+#endif
+
+  pthread_mutex_unlock(mach_exception_lock);
+  return kret;
 }
 
+
+
+typedef struct {
+  mach_msg_header_t Head;
+  /* start of the kernel processed data */
+  mach_msg_body_t msgh_body;
+  mach_msg_port_descriptor_t thread;
+  mach_msg_port_descriptor_t task;
+  /* end of the kernel processed data */
+  NDR_record_t NDR;
+  exception_type_t exception;
+  mach_msg_type_number_t codeCnt;
+  integer_t code[2];
+  mach_msg_trailer_t trailer;
+} exceptionRequest;
+
+
+boolean_t
+openmcl_exc_server(mach_msg_header_t *in, mach_msg_header_t *out)
+{
+  static NDR_record_t _NDR = {0};
+  kern_return_t handled;
+  mig_reply_error_t *reply = (mig_reply_error_t *) out;
+  exceptionRequest *req = (exceptionRequest *) in;
+
+  reply->NDR = _NDR;
+
+  out->msgh_bits = in->msgh_bits & MACH_MSGH_BITS_REMOTE_MASK;
+  out->msgh_remote_port = in->msgh_remote_port;
+  out->msgh_size = sizeof(mach_msg_header_t)+(3 * sizeof(unsigned));
+  out->msgh_local_port = MACH_PORT_NULL;
+  out->msgh_id = in->msgh_id+100;
+
+  /* Could handle other exception flavors in the range 2401-2403 */
+
+
+  if (in->msgh_id != 2401) {
+    reply->RetCode = MIG_BAD_ID;
+    return FALSE;
+  }
+  handled = catch_exception_raise(req->Head.msgh_local_port,
+                                  req->thread.name,
+                                  req->task.name,
+                                  req->exception,
+                                  req->code,
+                                  req->codeCnt);
+  reply->RetCode = handled;
+  return TRUE;
+}
 
 /*
   The initial function for an exception-handling thread.
@@ -2495,10 +2560,11 @@ exception_handler_proc(void *arg)
   extern boolean_t exc_server();
   mach_port_t p = TCR_TO_EXCEPTION_PORT(arg);
 
-  mach_msg_server(exc_server, 2048, p, 0);
+  mach_msg_server(openmcl_exc_server, 2048, p, 0);
   /* Should never return. */
   abort();
 }
+
 
 
 mach_port_t
@@ -2507,10 +2573,8 @@ mach_exception_port_set()
   static mach_port_t __exception_port_set = MACH_PORT_NULL;
   kern_return_t kret;  
   if (__exception_port_set == MACH_PORT_NULL) {
-    lock_set_create(mach_task_self(), 
-		    &mach_exception_lock_set,
-		    1,
-		    SYNC_POLICY_FIFO);
+    mach_exception_lock = &_mach_exception_lock;
+    pthread_mutex_init(mach_exception_lock, NULL);
 
     kret = mach_port_allocate(mach_task_self(),
 			      MACH_PORT_RIGHT_PORT_SET,
@@ -2699,20 +2763,29 @@ mach_suspend_tcr(TCR *tcr)
 {
   mach_port_t mach_thread = (mach_port_t)((natural)( tcr->native_thread_id));
   kern_return_t status;
-  ExceptionInformation *lss;
-  Boolean result = false;
+  ExceptionInformation *pseudosigcontext;
+  Boolean result = false, aborted = false;
   
-  lock_acquire(mach_exception_lock_set, 0);
-  status = thread_suspend(mach_thread);
-  if (status == KERN_SUCCESS) {
-    /* thread_abort_safely(mach_thread); */
-    lss = create_thread_context_frame(mach_thread, NULL);
-    lss->uc_onstack = 0;
-    lss->uc_sigmask = (sigset_t) 0;
-    tcr->suspend_context = lss;
-    result = true;
-  }
-  lock_release(mach_exception_lock_set, 0);
+  do {
+    aborted = false;
+    status = thread_suspend(mach_thread);
+    if (status == KERN_SUCCESS) {
+      status = thread_abort_safely(mach_thread);
+      if (status == KERN_SUCCESS) {
+        aborted = true;
+      } else {
+        fprintf(stderr, "abort failed on tcr = 0x%x\n",tcr);
+        thread_resume(mach_thread);
+      }
+    } else {
+      return false;
+    }
+  } while (! aborted);
+  pseudosigcontext = create_thread_context_frame(mach_thread, NULL);
+  pseudosigcontext->uc_onstack = 0;
+  pseudosigcontext->uc_sigmask = (sigset_t) 0;
+  tcr->suspend_context = pseudosigcontext;
+  result = true;
   return result;
 }
 
@@ -2722,12 +2795,18 @@ mach_resume_tcr(TCR *tcr)
   ExceptionInformation *xp;
   mach_port_t mach_thread = (mach_port_t)((natural)(tcr->native_thread_id));
   
-  lock_acquire(mach_exception_lock_set, 0);
   xp = tcr->suspend_context;
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr, "resuming TCR 0x%x, pending_exception_context = 0x%x\n",
+          tcr, tcr->pending_exception_context);
+#endif
   tcr->suspend_context = NULL;
   restore_mach_thread_state(mach_thread, xp);
+#ifdef DEBUG_MACH_EXCEPTIONS
+  fprintf(stderr, "restored state in TCR 0x%x, pending_exception_context = 0x%x\n",
+          tcr, tcr->pending_exception_context);
+#endif
   thread_resume(mach_thread);
-  lock_release(mach_exception_lock_set,0);
 }
 
 void
