@@ -1,3 +1,44 @@
+2006-02-03 07:03  gb
+
+	* lisp-kernel/thread_manager.c: Mach exception lock is a
+	pthread_mutex_t *; lock it around suspend/resume.
+	
+	Enable Mach suspend/suspend resume code, on the assumption that it
+	(finally) works reliably.
+
+2006-02-03 07:02  gb
+
+	* lisp-kernel/ppc-exceptions.c: Mach exception lock is a
+	pthread_mutex_t *; don't lock it reentrantly.  Define a "demux"
+	routine for exception messages, though this probably wasn't
+	necessary.
+	
+	allocptr_displacement needs to be signed_natural, not just an int
+	(for ppc64.)
+	
+	Don't call the (fake) sigcontext a "linux sigcontext struct";
+	that's just confusing.	(Rename variables "lss" ->
+	"pseudosigcontext".)
+	
+	In mach_suspend_tcr(), use thread_abort_safely(), recognizing that
+	it can have transient failures (including exception messages.) Keep
+	trying until pending syscalls are aborted.
+	
+	Not all of this is really necessary; the old Mach lock_set either
+	wasn't getting created correctly, or Mach lock_sets just don't
+	work.	Need to ensure that thread_suspension uses the same lock as
+	the exception thread does.
+
+2006-02-03 06:53  gb
+
+	* lisp-kernel/ppc-exceptions.h: More Mach exception stuff here. 
+	Mach exception lock is a pthread_mutex_t *.
+
+2006-02-03 06:52  gb
+
+	* lisp-kernel/gc.c: Casts in vm_copy call.  (Check these on ppc64
+	?).
+
 2006-02-01 05:21  gb
 
 	* lisp-kernel/x86-macros.s: Get tra right; tsp
