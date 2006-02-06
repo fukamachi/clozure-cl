@@ -723,7 +723,7 @@ lisp_Debugger(ExceptionInformation *xp,
   debug_command_return state = debug_continue;
 
   if (threads_initialized) {
-    suspend_other_threads();
+    suspend_other_threads(false);
   }
 
   va_start(args,message);
@@ -747,12 +747,12 @@ lisp_Debugger(ExceptionInformation *xp,
   switch (state) {
   case debug_exit_success:
     if (threads_initialized) {
-      resume_other_threads();
+      resume_other_threads(false);
     }
     return 0;
   case debug_exit_fail:
     if (threads_initialized) {
-      resume_other_threads();
+      resume_other_threads(false);
     }
     return -1;
   case debug_kill:
