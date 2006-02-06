@@ -1,3 +1,25 @@
+2006-02-05 22:19  gb
+
+	* lisp-kernel/lisp-debug.c: suspend_other_threads() and
+	resume_other_threads() take a Boolean "for_gc" arg.   Pass false
+	here.
+
+2006-02-05 22:18  gb
+
+	* lisp-kernel/ppc-exceptions.c: suspend_other_threads() and
+	resume_other_threads() take a Boolean "for_gc" arg.   Pass true
+	here.
+
+2006-02-05 22:18  gb
+
+	* lisp-kernel/lisp-exceptions.h: suspend_other_threads() and
+	resume_other_threads() take a Boolean "for_gc" arg.
+
+2006-02-05 22:17  gb
+
+	* lisp-kernel/imports.s: provide lisp_suspend_other_threads() and
+	"lisp_resume_other_threads() to lisp.
+
 2006-02-03 07:03  gb
 
 	* lisp-kernel/thread_manager.c: Mach exception lock is a
