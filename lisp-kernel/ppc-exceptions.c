@@ -634,13 +634,13 @@ gc_like_from_xp(ExceptionInformation *xp,
   int result;
   signed_natural inhibit;
 
-  suspend_other_threads();
+  suspend_other_threads(true);
   inhibit = (signed_natural)(lisp_global(GC_INHIBIT_COUNT));
   if (inhibit != 0) {
     if (inhibit > 0) {
       lisp_global(GC_INHIBIT_COUNT) = (LispObj)(-inhibit);
     }
-    resume_other_threads();
+    resume_other_threads(true);
     return 0;
   }
 
@@ -674,7 +674,7 @@ gc_like_from_xp(ExceptionInformation *xp,
     other_tcr = other_tcr->next;
   } while (other_tcr != tcr);
 
-  resume_other_threads();
+  resume_other_threads(true);
 
   return result;
 
