@@ -1,3 +1,10 @@
+2006-02-05 22:20  gb
+
+	* lisp-kernel/thread_manager.c: suspend_other_threads() and
+	resume_other_threads() take a Boolean "for_gc" arg. 
+	lisp_suspend_other_threads() and lisp_resume_other_threads()
+	defined here, pass false to the underlying function.
+
 2006-02-05 22:19  gb
 
 	* lisp-kernel/lisp-debug.c: suspend_other_threads() and
