@@ -1001,7 +1001,7 @@ free_freed_tcrs ()
 }
 
 void
-suspend_other_threads()
+suspend_other_threads(Boolean for_gc)
 {
   TCR *current = get_tcr(true), *other, *next;
   int dead_tcr_count = 0;
@@ -1009,7 +1009,7 @@ suspend_other_threads()
   LOCK(lisp_global(TCR_LOCK), current);
   LOCK(lisp_global(AREA_LOCK), current);
 #ifdef DARWIN
-  if (use_mach_exception_handling) {
+  if (for_gc && use_mach_exception_handling) {
 #ifdef DEBUG_MACH_EXCEPTIONS
     fprintf(stderr, "obtaining Mach exception lock in GC thread\n");
 #endif
@@ -1039,7 +1039,13 @@ suspend_other_threads()
 }
 
 void
-resume_other_threads()
+lisp_suspend_other_threads()
+{
+  suspend_other_threads(false);
+}
+
+void
+resume_other_threads(Boolean for_gc)
 {
   TCR *current = get_tcr(true), *other;
   for (other = current->next; other != current; other = other->next) {
@@ -1054,7 +1060,7 @@ resume_other_threads()
   }
   free_freed_tcrs();
 #ifdef DARWIN
-  if (use_mach_exception_handling) {
+  if (for_gc && use_mach_exception_handling) {
 #ifdef DEBUG_MACH_EXCEPTIONS
     fprintf(stderr, "releasing Mach exception lock in GC thread\n");
 #endif
@@ -1065,6 +1071,13 @@ resume_other_threads()
   UNLOCK(lisp_global(AREA_LOCK), current);
   UNLOCK(lisp_global(TCR_LOCK), current);
 }
+
+void
+lisp_resume_other_threads()
+{
+  resume_other_threads(false);
+}
+
 
 /*
   Try to take an rwquentry off of the rwlock's freelist; failing that,
