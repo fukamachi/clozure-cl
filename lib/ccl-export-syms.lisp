@@ -364,6 +364,8 @@
      set-lisp-heap-gc-threshold
      gc-retain-pages
      gc-retaining-pages
+     gc-verbose
+     gc-verbose-p
      *trace-max-indent* 
      *trace-level* 
      *fasl-save-doc-strings* 
@@ -569,6 +571,7 @@
      xcompile-ccl
      xload-level-0
      rebuild-ccl
+     defglobal
      ) "CCL"
    )
   )
