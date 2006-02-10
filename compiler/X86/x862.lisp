@@ -1245,7 +1245,7 @@
     (if (target-arch-case
          
          (:x8664 t))
-      (! s32->integer node-dest s32-src)
+      (! box-fixnum node-dest s32-src)
       (let* ((arg_z ($ x8664::arg_z))
              (imm0 ($ x8664::imm0 :mode :s32)))
         (x862-copy-register seg imm0 s32-src)
@@ -1255,9 +1255,14 @@
 (defun x862-box-s64 (seg node-dest s64-src)
   (with-x86-local-vinsn-macros (seg)
     (if (target-arch-case
-         
          (:x8664 *x862-open-code-inline*))
-      (! s64->integer node-dest s64-src)
+      (let* ((no-overflow (backend-get-next-label)))
+        (! %set-z-flag-if-s64-fits-in-fixnum node-dest s64-src)
+        (! cbranch-true (aref *backend-labels* no-overflow) x86::x86-e-bits)
+        (! setup-bignum-alloc-for-s64-overflow s64-src)
+        (! %allocate-uvector node-dest)
+        (! set-bigits-after-fixnum-overflow node-dest)
+        (@ no-overflow))
       (let* ((arg_z ($ x8664::arg_z))
              (imm0 ($ x8664::imm0 :mode :s64)))
         (x862-copy-register seg imm0 s64-src)
@@ -1269,7 +1274,7 @@
     (if (target-arch-case
          
          (:x8664 t))
-      (! u32->integer node-dest u32-src)
+      (! box-fixnum node-dest u32-src)
       (let* ((arg_z ($ x8664::arg_z))
              (imm0 ($ x8664::imm0 :mode :u32)))
         (x862-copy-register seg imm0 u32-src)
@@ -1281,12 +1286,24 @@
     (if (target-arch-case
          
          (:x8664 *x862-open-code-inline*))
-      (! u64->integer node-dest u64-src)
+      (let* ((no-overflow (backend-get-next-label)))
+        (! %set-z-flag-if-u64-fits-in-fixnum node-dest u64-src)
+        (! cbranch-true (aref *backend-labels* no-overflow) x86::x86-e-bits)
+        (! setup-bignum-alloc-for-u64-overflow u64-src)
+        (! %allocate-uvector node-dest)
+        (! set-bigits-after-fixnum-overflow node-dest)
+        (@ no-overflow))
       (let* ((arg_z ($ x8664::arg_z))
              (imm0 ($ x8664::imm0 :mode :u64)))
         (x862-copy-register seg imm0 u64-src)
         (! call-subprim (subprim-name->offset '.SPmakeu64))
         (x862-copy-register seg node-dest arg_z)))))
+
+(defun x862-double->heap (seg dest src)
+  (with-x86-local-vinsn-macros (seg)
+    (! setup-double-float-allocation)
+    (! %allocate-uvector dest)
+    (! set-double-float-value dest src)))
 
 
 ;;; safe = T means assume "vector" is miscobj, do bounds check.
@@ -1302,8 +1319,8 @@
          (is-8-bit (member type-keyword (arch::target-8-bit-ivector-types arch)))
          (is-16-bit (member type-keyword (arch::target-16-bit-ivector-types arch)))
          (is-32-bit (member type-keyword (arch::target-32-bit-ivector-types arch)))
-         (is-64-bit (member type-keyword (arch::target-64-bit-ivector-types arch))))
-         
+         (is-64-bit (member type-keyword (arch::target-64-bit-ivector-types arch)))
+         (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector))))
     (if is-node
       (x862-misc-node-ref seg vreg xfer vector index safe)
       (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -1350,96 +1367,96 @@
                       (if is-32-bit
                         (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
                           (cond ((eq type-keyword :single-float-vector)
-                                 (! misc-ref-c-single-float 0 src index-known-fixnum)
-                                 (! single->node target 0))
+                                 (! misc-ref-c-single-float x8664::fp1 src index-known-fixnum)
+                                 (! single->node target x8664::fp1))
                                 (t
                                  (with-imm-temps () (temp)
-                                   (! misc-ref-c-u32 temp src index-known-fixnum)
-                                   (if (eq type-keyword :signed-32-bit-vector)
-                                     (x862-box-s32 seg target temp)
-                                     (x862-box-u32 seg target temp)))))
+                                   (if is-signed
+                                     (! misc-ref-c-s32 temp src index-known-fixnum)
+                                     (! misc-ref-c-u32 temp src index-known-fixnum))
+                                   (! box-fixnum target temp))))
                           (with-imm-temps
                               () (idx-reg)
                             (if index-known-fixnum
                               (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 2)))
                               (! scale-32bit-misc-index idx-reg unscaled-idx))
                             (cond ((eq type-keyword :single-float-vector)
-                                   (! misc-ref-single-float 0 src idx-reg)
-                                   (! single->node target 0))
+                                   (! misc-ref-single-float x8664::fp1 src idx-reg)
+                                   (! single->node target x8664::fp1))
                                   (t (with-imm-temps
                                          (idx-reg) (temp)
-                                       (! misc-ref-u32 temp src idx-reg)
-                                       (if (eq type-keyword :signed-32-bit-vector)
-                                         (x862-box-s32 seg target temp)
-                                         (x862-box-u32 seg target temp)))))))
+                                       (if is-signed
+                                         (! misc-ref-s32 temp src idx-reg)
+                                         (! misc-ref-u32 temp src idx-reg))
+                                       (! box-fixnum target temp))))))
                         (if is-8-bit
                           (with-imm-temps
                               () (temp)
                             (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-8-bit-constant-index arch)))
-                              (! misc-ref-c-u8 temp src index-known-fixnum)
+                              (if is-signed
+                                (! misc-ref-c-s8 temp src index-known-fixnum)
+                                (! misc-ref-c-u8 temp src index-known-fixnum))
                               (with-imm-temps
                                   () (idx-reg)
                                 (if index-known-fixnum
                                   (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) index-known-fixnum))
                                   (! scale-8bit-misc-index idx-reg unscaled-idx))
-                                (! misc-ref-u8 temp src idx-reg)))
-                            (if (eq type-keyword :unsigned-8-bit-vector)
-                              (! u8->fixnum target temp)
-                              (if (eq type-keyword :signed-8-bit-vector)
-                                (! s8->fixnum target temp)
-                                (! u8->char target temp))))
+                                (if is-signed
+                                  (! misc-ref-s8 temp src idx-reg)
+                                  (! misc-ref-u8 temp src idx-reg))))
+                            (if (eq type-keyword :simple-base-string)
+                              (! u8->char target temp)
+                              (! box-fixnum target temp)))
                           (if is-16-bit
                             (with-imm-temps
                                 () (temp)
                               (if (and index-known-fixnum
                                        (<= index-known-fixnum (arch::target-max-16-bit-constant-index arch)))
-                                (! misc-ref-c-u16 temp src index-known-fixnum)
+                                (if is-signed
+                                  (! misc-ref-c-s16 temp src index-known-fixnum)
+                                  (! misc-ref-c-u16 temp src index-known-fixnum))
                                 (with-imm-temps
                                     () (idx-reg)
                                   (if index-known-fixnum
                                     (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 1)))
                                     (! scale-16bit-misc-index idx-reg unscaled-idx))
-                                  (! misc-ref-u16 temp src idx-reg)))
-                              (if (eq type-keyword :unsigned-16-bit-vector)
-                                (! u16->fixnum target temp)
-                                (if (eq type-keyword :signed-16-bit-vector)
-                                  (! s16->fixnum target temp)
-                                  (! u8->char target temp))))
+                                  (if is-signed
+                                    (! misc-ref-s16 temp src idx-reg)
+                                    (! misc-ref-u16 temp src idx-reg))))
+                              (! box-fixnum target temp))
                             ;; Down to the dregs.
                             (if is-64-bit
                               (ecase type-keyword
                                 (:double-float-vector
                                  (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                                    (! misc-ref-c-double-float 0 src index-known-fixnum)
-                                   (with-imm-temps
-                                       () (idx-reg)
+                                   (progn
                                      (if index-known-fixnum
-                                       (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3)))
-                                       (! scale-64bit-misc-index idx-reg unscaled-idx))
-                                     (! misc-ref-double-float 0 src idx-reg)))
-                                 (! double->heap target 0))
+                                       (x862-absolute-natural seg unscaled-idx nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3))))
+                                     (! misc-ref-double-float x8664::fp1 src unscaled-idx)))
+                                 (x862-double->heap seg target x8664::fp1))
                                 (:unsigned-64-bit-vector
                                  (with-imm-target () (u64-reg :u64)
-                                 (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
-                                   (! misc-ref-c-u64 u64-reg src index-known-fixnum)
-                                   (with-imm-temps
-                                       (u64-reg) (idx-reg)
-                                     (if index-known-fixnum
-                                       (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3)))
-                                       (! scale-64bit-misc-index idx-reg unscaled-idx))
-                                     (! misc-ref-u64 u64-reg src idx-reg)))
-                                 (! u64->integer target u64-reg)))
+                                   (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
+                                     (! misc-ref-c-u64 u64-reg src index-known-fixnum)
+                                     (with-imm-temps
+                                         (u64-reg) (idx-reg)
+                                       (if index-known-fixnum
+                                         (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3)))
+                                         (! scale-64bit-misc-index idx-reg unscaled-idx))
+                                       (! misc-ref-u64 u64-reg src idx-reg)))
+                                   (x862-box-u64 seg target u64-reg)))
                                 (:signed-64-bit-vector
                                  (with-imm-target () (s64-reg :s64)
-                                 (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
-                                   (! misc-ref-c-s64 0 src index-known-fixnum)
-                                   (with-imm-temps
-                                       () (idx-reg)
-                                     (if index-known-fixnum
-                                       (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3)))
-                                       (! scale-64bit-misc-index idx-reg unscaled-idx))
-                                     (! misc-ref-s64 s64-reg src idx-reg)))
-                                 (! s64->integer target s64-reg))))
+                                   (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
+                                     (! misc-ref-c-s64 s64-reg src index-known-fixnum)
+                                     (with-imm-temps
+                                         () (idx-reg)
+                                       (if index-known-fixnum
+                                         (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3)))
+                                         (! scale-64bit-misc-index idx-reg unscaled-idx))
+                                       (! misc-ref-s64 s64-reg src idx-reg)))
+                                   (x862-box-s64 seg target s64-reg))))
                               (progn
                                 (unless is-1-bit
                                   (nx-error "~& unsupported vector type: ~s"
@@ -1447,14 +1464,13 @@
                                 (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-1-bit-constant-index arch)))
                                   (! misc-ref-c-bit-fixnum target src index-known-fixnum)
                                   (with-imm-temps
-                                      () (word-index bitnum dest)
+                                      () (word-index bitnum)
                                     (if index-known-fixnum
                                       (progn
-                                        (x862-lri seg word-index (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum -5)))
-                                        (x862-lri seg bitnum (logand index-known-fixnum #x1f)))
-                                      (! scale-1bit-misc-index word-index bitnum unscaled-idx))
-                                    (! misc-ref-u32 dest src word-index)
-                                    (! extract-variable-bit-fixnum target dest bitnum)))))))))
+                                        (x862-lri seg word-index (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum -6)))
+                                        (x862-lri seg bitnum (logand index-known-fixnum #x63)))
+                                      (! word-index-and-bitnum-from-index word-index bitnum unscaled-idx))
+                                    (! ref-bit-vector-fixnum target bitnum src word-index)))))))))
                     (^)))))))))))
 
 ;;; In this case, the target register is an fp reg and the vector is declared
@@ -2518,7 +2534,7 @@
                     (! temp-push-double-float areg)
                     (! temp-push-single-float areg))
                   (! temp-push-unboxed-word areg)))
-          (x862-open-undo $undostkblk)))
+          (setq *x862-cstack* (+ *x862-cstack* 16))))
       vinsn)))
 
 (defun x862-pop-register (seg areg)
@@ -2536,7 +2552,7 @@
                     (! temp-pop-double-float areg)
                     (! temp-pop-single-float areg))
                   (! temp-pop-unboxed-word areg)))
-          (x862-close-undo)))
+          (setq *x862-cstack* (- *x862-cstack* 16))))
       vinsn)))
 
 (defun x862-acc-reg-for (reg)
@@ -2699,7 +2715,7 @@
            (bpushed nil))
       (if (and aform (not aconst))
         (if atriv
-          (setq adest (x862-one-targeted-reg-form seg aform ($ areg)))
+          (setq adest (x862-one-untargeted-reg-form seg aform ($ areg)))
           (setq apushed (x862-push-register seg (x862-one-untargeted-reg-form seg aform (x862-acc-reg-for areg))))))
       (if (and bform (not bconst))
         (if btriv
@@ -3079,7 +3095,7 @@
               (target-arch-case
                
                (:x8664
-                (case dest-mode
+                (ecase dest-mode
                   (#.hard-reg-class-gpr-mode-node ; boxed result.
                    (case src-mode
                      (#.hard-reg-class-gpr-mode-node
@@ -3215,7 +3231,7 @@
                     (#.hard-reg-class-gpr-mode-node
                      (case src-mode
                        (#.hard-reg-class-fpr-mode-double
-                        (! double->heap dest src))
+                        (x862-double->heap seg dest src))
                        (#.hard-reg-class-fpr-mode-single
                         (! single->node dest src)))))
                   (if (and src-fpr dest-fpr)
@@ -3552,13 +3568,10 @@
 
 
 
-;;; If "value-first-p" is true and both "offset" and "val" need to be 
-;;; evaluated, evaluate "val" before evaluating "offset".
 (defun x862-%immediate-set-ptr (seg vreg xfer  ptr offset val)
   (with-x86-local-vinsn-macros (seg vreg xfer)
-    (let* ((intval (acode-absolute-ptr-p val))
+    (let* ((intval (acode-absolute-ptr-p val t))
            (offval (acode-fixnum-form-p offset))
-           (absptr (and offval (acode-absolute-ptr-p ptr)))
            (for-value (x862-for-value-p vreg)))
       (flet ((address-and-node-regs ()
                (if for-value
@@ -3570,109 +3583,55 @@
                          (! deref-macptr x8664::imm0 x8664::arg_z))
                        (values x8664::imm0 x8664::arg_z)))
                  (values (x862-macptr-arg-to-reg seg val ($ x8664::imm0 :mode :address)) nil))))
-        (if (and absptr offval)
-          (setq absptr (+ absptr offval) offval 0)
-          (setq absptr nil))
-        (and offval (%i> (integer-length offval) 31) (setq offval nil))
-        (and absptr (%i> (integer-length absptr) 31) (setq absptr nil))
-        (target-arch-case
-         (:x8664 (progn
-                   (and offval (logtest 3 offval) (setq offval nil))
-                   (and absptr (logtest 3 absptr) (setq absptr nil)))))
-        (if absptr
-          (multiple-value-bind (address node) (address-and-node-regs)
-            (! mem-set-c-absoulte-address address absptr)
-            (if for-value
-              (<- node)))
-          ;; No absolute ptr (which is presumably a rare case anyway.)
-          (if offval
-            ;; Easier: need one less register than in the general case.
-            (with-imm-target () (ptr-reg :address)
-              (x862-one-targeted-reg-form seg ptr ptr-reg)
-              (if intval
-                (with-imm-target (ptr-reg) (val-target :address)
-                  (x862-lri seg val-target intval)
-                  (! mem-set-c-address val-target ptr-reg offval)
-                  (if for-value
-                    (<- (set-regspec-mode val-target (gpr-mode-name-value :address)))))
-                (progn
-                  (! temp-push-unboxed-word ptr-reg)
-                  (x862-open-undo $undostkblk)
-                  (multiple-value-bind (address node) (address-and-node-regs)
-                    (with-imm-target (address) (ptr-reg :address)
-                      (! temp-pop-unboxed-word ptr-reg)
-                      (x862-close-undo)
-                      (! mem-set-c-address address ptr-reg offval)
-                      (if for-value
-                        (<- node)))))))
-            ;; No (16-bit) constant offset.  Might still have a 32-bit
-            ;; constant offset; might have a constant value.  Might
-            ;; not.  Might not.  Easiest to special-case the
-            ;; constant-value case first ...
-            (let* ((xptr-reg nil)
-                   (xoff-reg nil)
-                   (xval-reg nil)
-                   (node-arg_z nil)
-                   (constant-offset (acode-fixnum-form-p offset)))
-              (if intval
-                (if constant-offset
-                  (with-imm-target () (ptr-reg :address)
-                    (x862-one-targeted-reg-form seg ptr ptr-reg)
-                    (with-imm-target (ptr-reg) (off-reg :signed-natural)
-                      (x862-lri seg off-reg constant-offset)
-                      (with-imm-target (ptr-reg off-reg) (val-reg :address)
-                        (x862-lri seg val-reg intval)
-                        (setq xptr-reg ptr-reg
-                              xoff-reg off-reg
-                              xval-reg val-reg))))
-                  ;; Offset's non-constant.  Temp-push the pointer,
-                  ;; evaluate and unbox the offset, load the value,
-                  ;; pop the pointer.
-                  (progn
-                    (with-imm-target () (ptr-reg :address)
-                      (x862-one-targeted-reg-form seg ptr ptr-reg)
-                      (! temp-push-unboxed-word ptr-reg)
-                      (x862-open-undo $undostkblk))
-                    (with-imm-target () (off-reg :signed-natural)
-                      (! fixnum->signed-natural off-reg (x862-one-targeted-reg-form seg offset ($ x8664::arg_z)))
-                      (with-imm-target (off-reg) (val-reg :signed-natural)
-                        (x862-lri seg val-reg intval)
-                        (with-imm-target (off-reg val-reg) (ptr-reg :address)
-                          (! temp-pop-unboxed-word ptr-reg)
-                          (x862-close-undo)
-                          (setq xptr-reg ptr-reg
-                                xoff-reg off-reg
-                                xval-reg val-reg))))))
-                ;; No intval; maybe constant-offset.
-                (with-imm-target () (ptr-reg :address)
-                  (x862-one-targeted-reg-form seg ptr ptr-reg)
-                  (! temp-push-unboxed-word ptr-reg)
-                  (x862-open-undo $undostkblk)
-                  (progn
-                    (if (not constant-offset)
-                      (x862-vpush-register seg (x862-one-untargeted-reg-form seg offset x8664::arg_z)))
-                    (multiple-value-bind (address node) (address-and-node-regs)
-                      (with-imm-target (address) (off-reg :s32)
-                                       (if constant-offset
-                                         (x862-lri seg off-reg constant-offset)
-                                         (with-node-temps (x8664::arg_z) (temp)
-                                           (x862-vpop-register seg temp)
-                                           (! fixnum->signed-natural off-reg temp)))
-                                       (with-imm-target (x8664::imm0 off-reg) (ptr-reg :address)
-                                                        (! temp-pop-unboxed-word ptr-reg)
-                                                        (x862-close-undo)
-                            (setq xptr-reg ptr-reg
-                                  xoff-reg off-reg
-                                  xval-reg address
-                                  node-arg_z node)))))))
-              (! mem-set-address xval-reg xptr-reg xoff-reg)
-              (when for-value
-                (if node-arg_z
-                  (<- node-arg_z)
-                  (<- (set-regspec-mode 
-                       xval-reg
-                       (gpr-mode-name-value :address))))))))
-        (^)))))
+        (unless (typep offval '(signed-byte 32))
+          (setq offval nil))
+        (unless (typep intval '(signed-byte 32))
+          (setq intval nil))
+        (cond (intval
+               (cond (offval
+                      (with-imm-target () (ptr-reg :address)
+                        (let* ((ptr-reg (x862-one-untargeted-reg-form seg
+                                                                      ptr
+                                                                      ptr-reg)))
+                          (! mem-set-c-constant-doubleword intval ptr-reg offval))))
+                     (t
+                      (with-imm-target () (ptr-reg :address)
+                        (with-imm-target (ptr-reg) (offsetreg :signed-natural)
+                          (x862-two-targeted-reg-forms seg ptr ptr-reg offset x8664::arg_z)
+                          (! fixnum->signed-natural offsetreg x8664::arg_z)
+                          (! mem-set-constant-doubleword intval ptr-reg offsetreg)))))
+               (if for-value
+                 (with-imm-target () (val-reg :s64)
+                   (x862-lri seg val-reg intval)
+                   (<- (set-regspec-mode val-reg (gpr-mode-name-value :address))))))
+              (offval
+               ;; Still simpler than the general case
+               (with-imm-target () (ptr-reg :address)
+                 (x862-push-register seg
+                                     (x862-one-untargeted-reg-form seg ptr ptr-reg)))
+               (multiple-value-bind (address node)
+                   (address-and-node-regs)
+                 (with-imm-target (address) (ptr-reg :address)
+                   (x862-pop-register seg ptr-reg)
+                   (! mem-set-c-doubleword address ptr-reg offval))
+                 (if for-value
+                   (<- node))))
+              (t
+               (with-imm-target () (ptr-reg :address)
+                 (with-imm-target (ptr-reg) (offset-reg :address)
+                   (multiple-value-bind (ptr-reg offset-reg)
+                       (x862-two-untargeted-reg-forms seg ptr ptr-reg offset offset-reg)
+                     (! fixnum-add2 ptr-reg offset-reg)
+                     (x862-push-register seg ptr-reg))))
+               (multiple-value-bind (address node)
+                   (address-and-node-regs)
+                 (with-imm-target (address) (ptr-reg :address)
+                   (x862-pop-register seg ptr-reg)
+                   (! mem-set-indirect-doubleword address ptr-reg))
+                 (if for-value
+                   (<- node))))))
+      (^))))
+                     
   
 (defun x862-memory-store-displaced (seg valreg basereg displacement size)
   (with-x86-local-vinsn-macros (seg)
@@ -3920,6 +3879,34 @@
                 (eq op (%nx1-operator inherited-arg)))
         (%cadr form)))))
 
+(defun x862-ref-symbol-value (seg vreg xfer sym check-boundp)
+  (declare (ignorable check-boundp))
+  (setq check-boundp (not *x862-reckless*))
+  (with-x86-local-vinsn-macros (seg vreg xfer)
+    (when vreg
+        (if (eq sym '*interrupt-level*)
+          (ensuring-node-target (target vreg)
+            (! ref-interrupt-level target))
+          (if *x862-open-code-inline*
+            (ensuring-node-target (target vreg)
+              (with-node-target (target) src
+                (let* ((vcell (x862-symbol-value-cell sym))
+                       (reg (x862-register-constant-p vcell)))
+                  (if reg
+                    (setq src reg)
+                    (x862-store-immediate seg vcell src)))
+                (if check-boundp
+                  (! ref-symbol-value-inline target src)
+                  (! %ref-symbol-value-inline target src))))
+            (let* ((src ($ x8664::arg_z))
+                   (dest ($ x8664::arg_z)))
+              (x862-store-immediate seg (x862-symbol-value-cell sym) src)
+              (if check-boundp
+                (! ref-symbol-value dest src)
+                (! %ref-symbol-value dest src))
+              (<- dest)))))
+    (^)))
+#|
 (defun x862-ref-symbol-value (seg vreg xfer sym check-boundp)  
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (when vreg
@@ -3934,6 +3921,7 @@
             (! %ref-symbol-value dest src))
           (<- dest))))
     (^)))
+||#
 
 ;;; Should be less eager to box result
 (defun x862-extract-charcode (seg vreg xfer char safe)
@@ -3991,17 +3979,48 @@
       (^))))
 
 (defun x862-misc-node-set (seg vreg xfer miscobj index value safe)
-  (with-x86-local-vinsn-macros (seg vreg xfer)
-    (multiple-value-bind (src unscaled-idx val-reg)
-        (x862-three-targeted-reg-forms seg miscobj ($ x8664::arg_x) index ($ x8664::arg_y) value ($ x8664::arg_z))
-      (when safe
-        (if (typep safe 'fixnum)
-          (! trap-unless-typecode= src safe))
-        (! trap-unless-fixnum unscaled-idx)
-        (! check-misc-bound unscaled-idx src))
-      (! call-subprim-3 val-reg (subprim-name->offset '.SPgvset) src unscaled-idx val-reg)
-      (<- val-reg)
-      (^))))
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (let* ((memoize (x862-acode-needs-memoization value)))
+      (if memoize
+        (multiple-value-bind (src unscaled-idx val-reg)
+            (x862-three-targeted-reg-forms seg miscobj ($ x8664::arg_x) index ($ x8664::arg_y) value ($ x8664::arg_z))
+          (when safe
+            (if (typep safe 'fixnum)
+              (! trap-unless-typecode= src safe))
+            (! trap-unless-fixnum unscaled-idx)
+            (! check-misc-bound unscaled-idx src))
+          (! call-subprim-3 val-reg (subprim-name->offset '.SPgvset) src unscaled-idx val-reg)
+          (<- val-reg)
+          (^))
+        ;; no memoization needed
+        (let* ((index-known-fixnum (acode-fixnum-form-p index))
+               (arch (backend-target-arch *target-backend*))
+               (src )
+               (unscaled-idx )
+               (val-reg ))
+          (if (or safe (not index-known-fixnum))
+            (multiple-value-setq (src unscaled-idx val-reg)
+              (x862-three-untargeted-reg-forms seg miscobj x8664::arg_x index x8664::arg_y value x8664::arg_z))
+            (multiple-value-setq (src val-reg)
+              (x862-two-untargeted-reg-forms seg miscobj x8664::arg_y value x8664::arg_z)))
+          (when safe
+            (if (typep safe 'fixnum)
+              (! trap-unless-typecode= src safe))
+            (unless index-known-fixnum
+              (! trap-unless-fixnum unscaled-idx))
+            (! check-misc-bound unscaled-idx src))
+          (if (and index-known-fixnum (<= index-known-fixnum
+                                          (target-word-size-case
+                                           (32 (arch::target-max-32-bit-constant-index arch))
+                                           (64 (arch::target-max-64-bit-constant-index arch)))))
+            (! misc-set-c-node val-reg src index-known-fixnum)
+            (let* ((idx-reg x8664::imm0))
+              (if index-known-fixnum
+                (x862-absolute-natural seg idx-reg nil (ash index-known-fixnum *x862-target-node-shift*)))
+
+              (! misc-set-node val-reg src unscaled-idx)))
+          (<- val-reg)
+          (^))))))
 
 
 
@@ -6357,14 +6376,14 @@
            (x862-form seg nil xfer offset))
           (t
            (let* ((fixoffset (acode-fixnum-form-p offset)))
-             (if (typep fixoffset '(unsigned-byte 15))
+             (if (typep fixoffset '(signed-byte 32))
                (with-imm-target () (ptrreg :address)
                  (x862-form seg ptrreg nil ptr)
                  (if double-p
                    (! mem-ref-c-double-float fp-reg ptrreg fixoffset)
                    (! mem-ref-c-single-float fp-reg ptrreg fixoffset)))
                (with-imm-target () (ptrreg :address)
-                 (with-imm-target (ptrreg) (offsetreg :s32)
+                 (with-imm-target (ptrreg) (offsetreg :s64)
                    (x862-two-targeted-reg-forms seg
                                                 ptr ptrreg
                                                 offset ($ x8664::arg_z))
@@ -6450,9 +6469,9 @@
                                                    newval rnew)
                         (x862-pop-register seg ptr-reg)
                         (with-imm-target (ptr-reg) (offset-reg :s32)
-                          (with-imm-temps (ptr-reg offset-reg) ()
-                            (! fixnum->signed-natural offset-reg roffset)
-                            (x862-copy-register seg fp-reg rnew))
+                          (with-imm-temps (ptr-reg) ()
+                            (x862-copy-register seg fp-reg rnew)
+                            (! fixnum->signed-natural offset-reg roffset))
                         (if double-p
                           (! mem-set-double-float fp-reg ptr-reg offset-reg)
                           (! mem-set-single-float fp-reg ptr-reg offset-reg))))))
@@ -7262,7 +7281,7 @@
     (let* ((*x862-vstack* *x862-vstack*)
            (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
       (x862-open-undo $undostkblk)      ; tsp frame created by nthrow.
-      (! save-cleanup-context)
+      (! save-cleanup-context (aref *backend-labels* cleanup-label))
        ; the frame we just pushed
       (x862-form seg nil nil cleanup-form)
       (x862-close-undo)
