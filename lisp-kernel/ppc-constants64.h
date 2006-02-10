@@ -384,6 +384,8 @@ typedef struct doh_block {
 
 #define gc_retain_pages_bit fixnum_bitmask(0)
 #define gc_integrity_check_bit fixnum_bitmask(2)
+#define egc_verbose_bit fixnum_bitmask(3)
+#define gc_verbose_bit fixnum_bitmask(4)
 #define gc_allow_stack_overflows_bit fixnum_bitmask(5)
 #define gc_postgc_pending fixnum_bitmask(26)
 

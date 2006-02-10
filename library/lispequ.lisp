@@ -626,6 +626,8 @@
 (defconstant $gc-retain-pages-bit 0)
 (defconstant $gc-integrity-check-bit 2)
 (defconstant $gc-allow-stack-overflows-bit 5)
+(defconstant $egc-verbose-bit 3)
+(defconstant $gc-verbose-bit 4)
 (defconstant $gc-postgc-pending-bit 26)
 
 
