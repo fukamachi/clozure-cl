@@ -2754,7 +2754,7 @@
            (bpushed nil))
       (if (and aform (not aconst))
         (if atriv
-          (setq adest (ppc2-one-targeted-reg-form seg aform ($ areg)))
+          (setq adest (ppc2-one-untargeted-reg-form seg aform ($ areg)))
           (setq apushed (ppc2-push-register seg (ppc2-one-untargeted-reg-form seg aform (ppc2-acc-reg-for areg))))))
       (if (and bform (not bconst))
         (if btriv
@@ -4086,6 +4086,35 @@
                 (eq op (%nx1-operator inherited-arg)))
         (%cadr form)))))
 
+
+
+(defun ppc2-ref-symbol-value (seg vreg xfer sym check-boundp)  
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (when vreg
+        (if (eq sym '*interrupt-level*)
+          (ensuring-node-target (target vreg)
+            (! ref-interrupt-level target))
+          (if *ppc2-open-code-inline*
+            (ensuring-node-target (target vreg)
+              (with-node-target (target) src
+                (let* ((vcell (ppc2-symbol-value-cell sym))
+                       (reg (ppc2-register-constant-p vcell)))
+                  (if reg
+                    (setq src reg)
+                    (ppc2-store-immediate seg vcell src)))
+                (if check-boundp
+                  (! ref-symbol-value-inline target src)
+                  (! %ref-symbol-value-inline target src))))
+            (let* ((src ($ ppc::arg_z))
+                   (dest ($ ppc::arg_z)))
+              (ppc2-store-immediate seg (ppc2-symbol-value-cell sym) src)
+              (if check-boundp
+                (! ref-symbol-value dest src)
+                (! %ref-symbol-value dest src))
+              (<- dest)))))
+    (^)))
+
+#|
 (defun ppc2-ref-symbol-value (seg vreg xfer sym check-boundp)  
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (when vreg
@@ -4100,6 +4129,7 @@
             (! %ref-symbol-value dest src))
           (<- dest))))
     (^)))
+||#
 
 ;;; Should be less eager to box result
 (defun ppc2-extract-charcode (seg vreg xfer char safe)
@@ -4150,28 +4180,61 @@
         (! check-misc-bound unscaled-idx src))
       (when vreg
         (ensuring-node-target (target vreg)
-          (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
-            (progn
-              (! misc-ref-c-node target src index-known-fixnum))
+          (if (and index-known-fixnum (<= index-known-fixnum
+                                          (target-word-size-case
+                                           (32 (arch::target-max-32-bit-constant-index arch))
+                                           (64 (arch::target-max-64-bit-constant-index arch)))))
+                                            (! misc-ref-c-node target src index-known-fixnum)
+                                            (let* ((idx-reg ppc::imm0))
+                                              (if index-known-fixnum
+                                                (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum *ppc2-target-node-shift*)))
+                                                (! scale-node-misc-index idx-reg unscaled-idx))
+                                              (! misc-ref-node target src idx-reg)))))
+                   (^))))
+
+(defun ppc2-misc-node-set (seg vreg xfer miscobj index value safe)
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (let* ((memoize (ppc2-acode-needs-memoization value)))
+      (if memoize
+        (multiple-value-bind (src unscaled-idx val-reg)
+            (ppc2-three-targeted-reg-forms seg miscobj ($ ppc::arg_x) index ($ ppc::arg_y) value ($ ppc::arg_z))
+          (when safe
+            (if (typep safe 'fixnum)
+              (! trap-unless-typecode= src safe))
+            (! trap-unless-fixnum unscaled-idx)
+            (! check-misc-bound unscaled-idx src))
+          (! call-subprim-3 val-reg (subprim-name->offset '.SPgvset) src unscaled-idx val-reg)
+          (<- val-reg)
+          (^))
+        ;; no memoization needed
+        (let* ((index-known-fixnum (acode-fixnum-form-p index))
+               (arch (backend-target-arch *target-backend*))
+               (src )
+               (unscaled-idx )
+               (val-reg ))
+          (if (or safe (not index-known-fixnum))
+            (multiple-value-setq (src unscaled-idx val-reg)
+              (ppc2-three-untargeted-reg-forms seg miscobj ppc::arg_x index ppc::arg_y value ppc::arg_z))
+            (multiple-value-setq (src val-reg)
+              (ppc2-two-untargeted-reg-forms seg miscobj ppc::arg_y value ppc::arg_z)))
+          (when safe
+            (if (typep safe 'fixnum)
+              (! trap-unless-typecode= src safe))
+            (unless index-known-fixnum
+              (! trap-unless-fixnum unscaled-idx))
+            (! check-misc-bound unscaled-idx src))
+          (if (and index-known-fixnum (<= index-known-fixnum
+                                          (target-word-size-case
+                                           (32 (arch::target-max-32-bit-constant-index arch))
+                                           (64 (arch::target-max-64-bit-constant-index arch)))))
+            (! misc-set-c-node val-reg src index-known-fixnum)
             (let* ((idx-reg ppc::imm0))
               (if index-known-fixnum
                 (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum *ppc2-target-node-shift*)))
                 (! scale-node-misc-index idx-reg unscaled-idx))
-              (! misc-ref-node target src idx-reg)))))
-      (^))))
-
-(defun ppc2-misc-node-set (seg vreg xfer miscobj index value safe)
-  (with-ppc-local-vinsn-macros (seg vreg xfer)
-    (multiple-value-bind (src unscaled-idx val-reg)
-        (ppc2-three-targeted-reg-forms seg miscobj ($ ppc::arg_x) index ($ ppc::arg_y) value ($ ppc::arg_z))
-      (when safe
-        (if (typep safe 'fixnum)
-          (! trap-unless-typecode= src safe))
-        (! trap-unless-fixnum unscaled-idx)
-        (! check-misc-bound unscaled-idx src))
-      (! call-subprim-3 val-reg (subprim-name->offset '.SPgvset) src unscaled-idx val-reg)
-      (<- val-reg)
-      (^))))
+              (! misc-set-node val-reg src idx-reg)))
+          (<- val-reg)
+          (^))))))
 
 
 
@@ -5262,7 +5325,7 @@
   (ppc2-ref-symbol-value seg vreg xfer sym t))
 
 (defppc2 ppc2-bound-special-ref bound-special-ref (seg vreg xfer sym)
-  (ppc2-ref-symbol-value seg vreg xfer sym t))
+  (ppc2-ref-symbol-value seg vreg xfer sym nil))
 
 (defppc2 ppc2-%slot-ref %slot-ref (seg vreg xfer instance idx)
   (ensuring-node-target (target (or vreg ($ ppc::arg_z)))
