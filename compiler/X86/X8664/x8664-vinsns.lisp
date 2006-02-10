@@ -47,16 +47,58 @@
                                    (scaled-idx :imm)))
   (movq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
 
+(define-x8664-vinsn misc-ref-double-float  (((dest :double-float))
+                                            ((v :lisp)
+                                             (scaled-idx :imm)))
+  (movsd (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%xmm dest)))
+
 (define-x8664-vinsn misc-ref-node  (((dest :lisp))
                                     ((v :lisp)
                                      (scaled-idx :imm)))
   (movq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
+
+(define-x8664-vinsn misc-set-node (()
+				   ((val :lisp)
+				    (v :lisp)
+				    (unscaled-idx :imm))
+				   ())
+  (movq (:%q val) (:@ x8664::misc-data-offset (:%q  v) (:%q unscaled-idx))))
 
 (define-x8664-vinsn misc-ref-u8 (((dest :u8))
                                  ((v :lisp)
                                   (scaled-idx :s64)))
   (movzbq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
 
+(define-x8664-vinsn misc-ref-s8 (((dest :s8))
+                                 ((v :lisp)
+                                  (scaled-idx :s64)))
+  (movsbq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
+
+(define-x8664-vinsn misc-ref-u16 (((dest :u16))
+                                  ((v :lisp)
+                                   (scaled-idx :s64)))
+  (movzwl (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%l dest)))
+
+(define-x8664-vinsn misc-ref-u32 (((dest :u32))
+                                  ((v :lisp)
+                                   (scaled-idx :s64)))
+  (movl (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%l dest)))
+
+
+(define-x8664-vinsn misc-ref-single-float (((dest :single-float))
+                                           ((v :lisp)
+                                            (scaled-idx :s64)))
+  (movss(:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%xmm dest)))
+
+(define-x8664-vinsn misc-ref-s32 (((dest :s32))
+                                  ((v :lisp)
+                                   (scaled-idx :s64)))
+  (movslq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
+
+(define-x8664-vinsn misc-ref-s16 (((dest :s16))
+                                  ((v :lisp)
+                                   (scaled-idx :s64)))
+  (movswq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
 
 (define-x8664-vinsn misc-ref-s64  (((dest :s64))
                                   ((v :lisp)
@@ -78,11 +120,35 @@
   (movq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%q dest)))
 
 
+(define-x8664-vinsn misc-ref-c-u32  (((dest :u32))
+				     ((v :lisp)
+				      (idx :u32const)) ; sic
+				     ())
+  (movl (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%l dest)))
+
+(define-x8664-vinsn misc-ref-c-s32  (((dest :s32))
+				     ((v :lisp)
+				      (idx :s32const)) ; sic
+				     ())
+  (movslq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%q dest)))
+
+(define-x8664-vinsn misc-ref-c-single-float  (((dest :single-float))
+                                              ((v :lisp)
+                                               (idx :s32const)) ; sic
+                                              ())
+  (movss (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%xmm dest)))
+
 (define-x8664-vinsn misc-ref-c-u8  (((dest :u64))
 				     ((v :lisp)
 				      (idx :s32const)) ; sic
 				     ())
   (movzbq (:@ (:apply + x8664::misc-data-offset idx) (:%q v)) (:%q dest)))
+
+(define-x8664-vinsn misc-ref-c-s8  (((dest :s64))
+				     ((v :lisp)
+				      (idx :s32const)) ; sic
+				     ())
+  (movsbq (:@ (:apply + x8664::misc-data-offset idx) (:%q v)) (:%q dest)))
 
 (define-x8664-vinsn misc-set-u64 (()
                                   ((val :u64)
@@ -140,7 +206,10 @@
 
 (define-x8664-vinsn check-exact-nargs (()
                                        ((n :u16const)))
-  (cmpw (:$w (:apply ash n x8664::word-shift)) (:%w x8664::nargs))
+  ((:pred = n 0)
+   (testw (:%w x8664::nargs) (:%w x8664::nargs)))
+  ((:not (:pred = n 0))
+   (cmpw (:$w (:apply ash n x8664::word-shift)) (:%w x8664::nargs)))
   (jz.pt :ok)
   (uuo-error-wrong-number-of-args)
   :ok)
@@ -347,6 +416,30 @@
   (uuo-error-reg-not-tag (:%q object) (:$ub tagval))
   :ok)
 
+(define-x8664-vinsn trap-unless-double-float (()
+                                              ((object :lisp))
+                                              ((tag :u8)))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q object)) (:%w tag))
+  (cmpb (:$b x8664::subtag-double-float) (:%b tag))
+  (je.pt :ok)
+  (uuo-error-reg-not-tag (:%q object) (:$ub x8664::subtag-double-float))
+  :ok)
+
+(define-x8664-vinsn trap-unless-macptr (()
+                                        ((object :lisp))
+                                        ((tag :u8)))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q object)) (:%w tag))
+  (cmpb (:$b x8664::subtag-macptr) (:%b tag))
+  (je.pt :ok)
+  (uuo-error-reg-not-tag (:%q object) (:$ub x8664::subtag-macptr))
+  :ok)
+
 
 (define-x8664-vinsn check-misc-bound (()
 				      ((idx :imm)
@@ -539,13 +632,14 @@
                                    ((val :imm)))
   (negq (:% val)))
 
+;;; This handles the 1-bit overflow from addition/subtraction/unary negation
 (define-x8664-vinsn set-bigits-and-header-for-fixnum-overflow
     (()
      ((val :lisp)
       (no-overflow
        :label))
      ((header (:u64 #.x8664::imm0))
-      (scaled-size (:u64 #.x8664::imm0))))
+      (scaled-size (:u64 #.x8664::imm1))))
   (jno.pt no-overflow)
   (movq (:%q val) (:%q scaled-size))
   (sarq (:$ub x8664::fixnumshift) (:%q scaled-size))
@@ -555,10 +649,50 @@
   (movq (:$l x8664::two-digit-bignum-header) (:%q header))
   (movq (:$l (- 16 x8664::fulltag-misc)) (:%q scaled-size)))
 
+(define-x8664-vinsn %set-z-flag-if-s64-fits-in-fixnum (((dest :imm))
+                                                       ((src :s64))
+                                                       ((temp :s64)))
+  (movq (:%q src) (:%q temp))
+  (shlq (:$ub x8664::fixnumshift) (:%q temp))
+  (movq (:%q temp) (:%q dest))          ; tagged as a fixnum
+  (sarq (:$ub x8664::fixnumshift) (:%q temp))
+  (cmpq (:%q src) (:%q temp)))
+
+(define-x8664-vinsn %set-z-flag-if-u64-fits-in-fixnum (((dest :imm))
+                                                       ((src :s64))
+                                                       ((temp :s64)))
+  (movq (:%q src) (:%q temp))
+  (shlq (:$ub x8664::fixnumshift) (:%q temp))
+  (movq (:%q temp) (:%q dest))          ; tagged as a fixnum
+  (shrq (:$ub x8664::fixnumshift) (:%q temp))
+  (cmpq (:%q src) (:%q temp)))
+
+
+(define-x8664-vinsn setup-bignum-alloc-for-s64-overflow (()
+                                                         ((src :s64)))
+  (movd (:%q src) (:%mmx x8664::mm0))
+  (movl (:$l x8664::two-digit-bignum-header) (:%l x8664::imm0.l))
+  (movl (:$l (- 16 x8664::fulltag-misc)) (:%l x8664::imm1.l)))
+
+
+;;; If the sign bit is set in SRC, need to make a 3-digit bignum
+;;; that requires 32 bytes of aligned memory
+(define-x8664-vinsn setup-bignum-alloc-for-u64-overflow (()
+                                                         ((src :s64)))
+  (testq (:%q src) (:%q src))
+  (movd (:%q src) (:%mmx x8664::mm0))
+  (movl (:$l x8664::two-digit-bignum-header) (:%l x8664::imm0.l))
+  (movl (:$l (- 16 x8664::fulltag-misc)) (:%l x8664::imm1.l))
+  (jns :done)
+  (movl (:$l x8664::three-digit-bignum-header) (:%l x8664::imm0.l))
+  (movl (:$l (- 32 x8664::fulltag-misc)) (:%l x8664::imm1.l))
+  :done)
+  
+  
+
 (define-x8664-vinsn %allocate-uvector (((dest :lisp))
                                        ()
-                                       ((unboxed (:s64 #.x8664::imm1))
-                                        (header (:u64 #.x8664::imm0))
+                                       ((header (:u64 #.x8664::imm0))
                                         (freeptr (:lisp #.x8664::allocptr))))
   (subq (:%q x8664::imm1) (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.save-allocptr) (:%q freeptr))
@@ -577,7 +711,10 @@
   (movq (:%mmx x8664::mm0) (:@ x8664::misc-data-offset (:%q bignum))))
   
                                                        
-  
+(define-x8664-vinsn box-fixnum (((dest :imm))
+                                ((src :s8)))
+  (leaq (:@ (:%q src) x8664::fixnumone) (:%q dest)))
+
 (define-x8664-vinsn fix-fixnum-overflow (((val :lisp))
                                          ((val :lisp))
                                          ((unboxed (:s64 #.x8664::imm1))
@@ -1045,6 +1182,26 @@
   (:long (:^ :back))
   :back)
 
+(define-x8664-vinsn ref-symbol-value-inline (((dest :lisp))
+                                              ((src (:lisp (:ne dest))))
+                                              ((table :imm)
+                                               (idx :imm)))
+  (movq (:@ x8664::symbol.binding-index (:%q src)) (:%q idx))
+  (cmpq (:@ (:%seg x8664::rcontext) x8664::tcr.tlb-limit) (:%q idx))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.tlb-pointer) (:%q table))
+  (jae :symbol)
+  (movq (:@ (:%q table) (:%q idx)) (:%q dest))
+  (cmpb (:$b x8664::subtag-no-thread-local-binding) (:%b dest))
+  (jne :test)
+  :symbol
+  (movq (:@ x8664::symbol.vcell (:%q src)) (:%q dest))
+  :test
+  (cmpb (:$b x8664::unbound-marker) (:%b dest))
+  (jne.pt :done)
+  (uuo-error-reg-not-tag (:%q src) (:$ub x8664::unbound-marker))
+  :done)
+
+
 (define-x8664-vinsn (%ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
@@ -1054,6 +1211,21 @@
   (:long (:^ :back))
   :back)
 
+(define-x8664-vinsn %ref-symbol-value-inline (((dest :lisp))
+                                              ((src (:lisp (:ne dest))))
+                                              ((table :imm)
+                                               (idx :imm)))
+  (movq (:@ x8664::symbol.binding-index (:%q src)) (:%q idx))
+  (cmpq (:@ (:%seg x8664::rcontext) x8664::tcr.tlb-limit) (:%q idx))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.tlb-pointer) (:%q table))
+  (jae :symbol)
+  (movq (:@ (:%q table) (:%q idx)) (:%q dest))
+  (cmpb (:$b x8664::subtag-no-thread-local-binding) (:%b dest))
+  (jne :done)
+  :symbol
+  (movq (:@ x8664::symbol.vcell (:%q src)) (:%q dest))
+  :done)
+
 (define-x8664-vinsn ref-interrupt-level (((dest :imm))
                                          ()
                                          ((temp :u64)))
@@ -1061,9 +1233,119 @@
   (movq (:@ x8664::INTERRUPT-LEVEL-BINDING-INDEX (:%q temp)) (:%q dest)))
 
 (define-x8664-vinsn save-cleanup-context (()
-                                          ())
+                                          ((lab :label)))
+  (leaq (:@ (:apply - (:^ lab)) (:%q x8664::xfn)) (:%q x8664::fn))
+  (pushq (:%q x8664::ra0))
   )
 
 (define-x8664-vinsn restore-cleanup-context (()
                                           ())
+  (popq (:%q x8664::ra0))
   )
+
+(define-x8664-vinsn setup-double-float-allocation (()
+                                                   ())
+  (movl (:$l (arch::make-vheader x8664::double-float.element-count x8664::subtag-double-float)) (:%l x8664::imm0.l))
+  (movl (:$l (- x8664::double-float.size x8664::fulltag-misc)) (:%l x8664::imm0.l)))
+
+(define-x8664-vinsn set-double-float-value (()
+                                            ((node :lisp)
+                                             (val :double-float)))
+  (movsd (:%xmm val) (:@ x8664::double-float.value (:%q node))))
+
+(define-x8664-vinsn word-index-and-bitnum-from-index (((word-index :u64)
+                                                       (bitnum :u8))
+                                                      ((index :imm)))
+  (movq (:%q index) (:%q word-index))
+  (shrq (:$ub x8664::fixnumshift) (:%q word-index))
+  (movl (:$l 63) (:%l bitnum))
+  (andl (:%l word-index) (:%l bitnum))
+  (shrq (:$ub 6) (:%q word-index)))
+
+(define-x8664-vinsn ref-bit-vector-fixnum (((dest :imm)
+                                            (bitnum :u8))
+                                           ((bitnum :u8)
+                                            (bitvector :lisp)
+                                            (word-index :u64)))
+  (btq (:%q bitnum) (:@ x8664::misc-data-offset (:%q bitvector) (:%q word-index) 8))
+  (setb (:%b bitnum))
+  (andl (:$l x8664::fixnumone) (:%l bitnum))
+  (movl (:%l bitnum) (:%l dest)))
+                                            
+                                                      
+(define-x8664-vinsn misc-ref-c-bit-fixnum (((dest :imm))
+                                           ((src :lisp)
+                                            (idx :u64const))
+                                           ((temp :u8)))
+  (btq (:$ub (:apply logand 63 idx))
+       (:@ (:apply + x8664::misc-data-offset (:apply ash (:apply ash idx -6) x8664::word-shift)) (:%q src)))
+  (setb (:%b temp))
+  (andl (:$l x8664::fixnumone) (:%l temp))
+  (movl (:%l temp) (:%l dest)))
+
+(define-x8664-vinsn deref-macptr (((addr :address))
+				  ((src :lisp))
+				  ())
+  (movq (:@ x8664::macptr.address (:%q src)) (:%q addr)))
+
+(define-x8664-vinsn (temp-push-unboxed-word :push :word :csp)
+    (()
+     ((w :u64))
+     ((temp :u64)))
+  (subq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q temp))
+  (movq (:%q w) (:@ (:%q temp))))
+
+(define-x8664-vinsn (temp-pop-unboxed-word :pop :word :csp)
+    (((w :u64))
+     ())
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q w))
+  (movq (:@ (:%q w)) (:%q w))
+  (addq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
+
+(define-x8664-vinsn fixnum->signed-natural (((dest :s64))
+                                            ((src :imm)))
+  (movq (:%q src) (:%q dest))
+  (sarq (:$ub x8664::fixnumshift) (:%q dest)))
+
+(define-x8664-vinsn mem-set-double-float (()
+					  ((val :double-float)
+					   (src :address)
+					   (index :s64)))
+  (movsd (:%xmm val) (:@ (:%q src) (:%q  index))))
+
+(define-x8664-vinsn mem-set-single-float (()
+					  ((val :single-float)
+					   (src :address)
+					   (index :s64)))
+  (movss (:%xmm val) (:@ (:%q src) (:%q  index))))
+
+(define-x8664-vinsn mem-set-indirect-doubleword (()
+                                                 ((val :address)
+                                                  (dest :address)))
+  (movq (:%q val) (:@ (:%q dest))))
+
+(define-x8664-vinsn mem-set-c-doubleword (()
+                                          ((val :address)
+                                           (dest :address)
+                                           (offset :s32const)))
+  ((:pred = offset 0)
+   (movq (:%q val) (:@ (:%q dest))))
+  ((:not (:pred = offset 0))
+   (movq (:%q val) (:@ offset (:%q dest)))))
+
+(define-x8664-vinsn mem-set-c-constant-doubleword (()
+                                                   ((val :s32const)
+                                                    (dest :address)
+                                                    (offset :s32const)))
+  ((:pred = offset 0)
+   (movq (:$l val) (:@ (:%q dest))))
+  ((:not (:pred = offset 0))
+   (movq (:$l val) (:@ offset (:%q dest)))))
+
+
+(define-x8664-vinsn mem-set-constant-doubleword (()
+                                                   ((val :s32const)
+                                                    (dest :address)
+                                                    (offset :s64)))
+   (movq (:$l val) (:@ (:%q dest) (:%q offset))))
