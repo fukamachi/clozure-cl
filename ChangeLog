@@ -1,3 +1,27 @@
+2006-02-10 14:07  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: More stuff, especially for
+	vector reference.
+
+2006-02-10 14:06  gb
+
+	* compiler/X86/x862.lisp: Propagate some ppc backend fixes; get
+	vref working.
+
+2006-02-10 14:05  gb
+
+	* compiler/X86/x86-asm.lisp: setc is an alias for setb.
+
+2006-02-10 14:04  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: :SINGLE-FLOAT-VECTOR is a
+	32-bit ivector type. :SINGLE-FLOAT isn't.
+
+2006-02-10 14:03  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp:
+	:SINGLE-FLOAT-VECTOR is a 32-bit ivector type.
+
 2006-02-09 23:55  gb
 
 	* lib/compile-ccl.lisp: Add a :FULL option to REBUILD-CCL.
