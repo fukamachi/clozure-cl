@@ -442,14 +442,22 @@
     (:darwinppc64 "darwinppc64")
     (:linuxppc64 "linuxppc64")))
 
-(defun rebuild-ccl (&key kernel force reload exit)
+(defun rebuild-ccl (&key full clean kernel force reload exit)
+  (when full
+    (setq clean t kernel t reload t))
   (let* ((cd (current-directory)))
     (unwind-protect
          (progn
            (setf (current-directory) "ccl:")
+           (when clean
+             (dolist (f (directory
+                         (merge-pathnames
+                          (make-pathname :name :wild
+                                         :type (pathname-type *.fasl-pathname*))
+                          "ccl:**;")))
+               (delete-file f)))
            (when kernel
-             (format t "~&;Building lisp-kernel ...")
-             (when force
+             (when (or clean force)
                ;; Do a "make -k clean".
                (run-program "make"
                             (list "-k"
@@ -457,6 +465,7 @@
                                   (format nil "lisp-kernel/~a"
                                           (kernel-build-directory))
                                   "clean")))
+             (format t "~&;Building lisp-kernel ...")
              (with-output-to-string (s)
                (multiple-value-bind
                    (status exit-code)
