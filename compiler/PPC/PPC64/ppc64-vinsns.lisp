@@ -2672,10 +2672,44 @@
      ((sym (:lisp (:ne val)))))
   (bla .SPspecrefcheck))
 
+(define-ppc64-vinsn ref-symbol-value-inline (((dest :lisp))
+                                              ((src (:lisp (:ne dest))))
+                                              ((table :imm)
+                                               (idx :imm)))
+  (ld idx ppc64::symbol.binding-index src)
+  (ld table ppc64::tcr.tlb-limit ppc64::rcontext)
+  (cmpd idx table)
+  (ld table ppc64::tcr.tlb-pointer ppc64::rcontext)
+  (bge :symbol)
+  (ldx dest table idx)
+  (cmpdi dest ppc64::subtag-no-thread-local-binding)
+  (bne :done)
+  :symbol
+  (ld dest ppc64::symbol.vcell src)
+  :done
+  (tdeqi dest ppc64::unbound-marker))
+
 (define-ppc64-vinsn (%ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
   (bla .SPspecref))
+
+(define-ppc64-vinsn %ref-symbol-value-inline (((dest :lisp))
+                                              ((src (:lisp (:ne dest))))
+                                              ((table :imm)
+                                               (idx :imm)))
+  (ld idx ppc64::symbol.binding-index src)
+  (ld table ppc64::tcr.tlb-limit ppc64::rcontext)
+  (cmpd idx table)
+  (ld table ppc64::tcr.tlb-pointer ppc64::rcontext)
+  (bge :symbol)
+  (ldx dest table idx)
+  (cmpdi dest ppc64::subtag-no-thread-local-binding)
+  (bne :done)
+  :symbol
+  (ld dest ppc64::symbol.vcell src)
+  :done
+  )
 
 (define-ppc64-vinsn (setq-special :call :subprim-call)
     (()
@@ -3308,6 +3342,8 @@
                 (:apply %hard-regspec-value dest)
                 (:apply %hard-regspec-value src)))
    (mr dest src)))
+
+
 
 ;;; Subprim calls.  Done this way for the benefit of VINSN-OPTIMIZE.
 (defmacro define-ppc64-subprim-call-vinsn ((name &rest other-attrs) spno)

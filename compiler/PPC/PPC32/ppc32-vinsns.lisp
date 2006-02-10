@@ -266,11 +266,18 @@
 
 
 
+
 (define-ppc32-vinsn misc-ref-c-node (((dest :lisp))
                                      ((v :lisp)
                                       (idx :s16const))
                                      ())
   (lwz dest (:apply + ppc32::misc-data-offset (:apply ash idx 2)) v))
+
+(define-ppc32-vinsn misc-set-node (()
+                                  ((val :lisp)
+                                   (v :lisp)
+                                   (scaled-idx :u32)))
+  (stwx val v scaled-idx))
 
 ;;; This should only be used for initialization (when the value being
 ;;; stored is known to be older than the vector V.)
@@ -2724,10 +2731,44 @@
      ((sym (:lisp (:ne val)))))
   (bla .SPspecrefcheck))
 
+(define-ppc32-vinsn ref-symbol-value-inline (((dest :lisp))
+                                              ((src (:lisp (:ne dest))))
+                                              ((table :imm)
+                                               (idx :imm)))
+  (lwz idx ppc32::symbol.binding-index src)
+  (lwz table ppc32::tcr.tlb-limit ppc32::rcontext)
+  (cmpw idx table)
+  (lwz table ppc32::tcr.tlb-pointer ppc32::rcontext)
+  (bge :symbol)
+  (lwzx dest table idx)
+  (cmpwi dest ppc32::subtag-no-thread-local-binding)
+  (bne :done)
+  :symbol
+  (lwz dest ppc32::symbol.vcell src)
+  :done
+  (tdeqi dest ppc32::unbound-marker))
+
 (define-ppc32-vinsn (%ref-symbol-value :call :subprim-call)
     (((val :lisp))
      ((sym (:lisp (:ne val)))))
   (bla .SPspecref))
+
+(define-ppc32-vinsn %ref-symbol-value-inline (((dest :lisp))
+                                              ((src (:lisp (:ne dest))))
+                                              ((table :imm)
+                                               (idx :imm)))
+  (lwz idx ppc32::symbol.binding-index src)
+  (lwz table ppc32::tcr.tlb-limit ppc32::rcontext)
+  (cmpw idx table)
+  (lwz table ppc32::tcr.tlb-pointer ppc32::rcontext)
+  (bge :symbol)
+  (lwzx dest table idx)
+  (cmpwi dest ppc32::subtag-no-thread-local-binding)
+  (bne :done)
+  :symbol
+  (lwz dest ppc32::symbol.vcell src)
+  :done
+  )
 
 (define-ppc32-vinsn (setq-special :call :subprim-call)
     (()
