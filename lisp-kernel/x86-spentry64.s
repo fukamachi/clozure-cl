@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2005 Clozure Associates
+   Copyright (C) 2005-2006 Clozure Associates and contributors
    This file is part of OpenMCL.  
 
    OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
@@ -333,13 +333,316 @@ _spentry(mkcatchmv)
 _endsubp(mkcatchmv)
 
 _spentry(throw)
+	__(movq %rcontext:tcr.catch_top,%imm1)
+	__(xorl %imm0_l,%imm0_l)
+	__(movzwl %nargs,%nargs_l)
+	__(movq (%rsp,%nargs_q),%temp0)	/* temp0 = tag */
+	__(jmp local_label(_throw_test))
+local_label(_throw_loop):
+	__(cmpq %temp0,catch_frame.catch_tag(%imm1))
+	__(je local_label(_throw_found))
+	__(movq catch_frame.link(%imm1),%imm1)
+	__(addq $fixnum_one,%imm0)
+local_label(_throw_test):
+	__(testq %imm1,%imm1)
+	__(jne local_label(_throw_loop))
+	__(uuo_error_reg_not_tag(Rtemp0,subtag_catch_frame))
+	__(jmp _SPthrow)
+local_label(_throw_found):	
+	__(testb $fulltagmask,catch_frame.mvflag(%imm1))
+	__(jne local_label(_throw_multiple))
+	__(testw %nargs,%nargs)
+	__(movl $nil_value,%arg_z_l)
+	__(je local_label(_throw_one_value))
+	__(movq -node_size(%rsp,%nargs_q),%arg_z)
+	__(add %nargs_q,%rsp)
+local_label(_throw_one_value):
+	__(lea local_label(_threw_one_value)(%rip),%ra0)
+	__(jmp _SPnthrow1value)
+__(tra(local_label(_threw_one_value)))
+	__(movq %rcontext:tcr.catch_top,%temp0)
+	__(movq catch_frame.db_link(%temp0),%imm1)
+	__(cmpq %imm0,%imm1)
+	__(jz local_label(_threw_one_value_dont_unbind))
+	__(push %ra0)
+	__(lea local_label(_threw_one_value_back_from_unbind)(%rip),%ra0)
+	__(jmp _SPunbind_to)
+__(tra(local_label(_threw_one_value_back_from_unbind)))
+	__(pop %ra0)
+local_label(_threw_one_value_dont_unbind):
+	__(movq catch_frame.rbp(%temp0),%rbp)
+	__(movq catch_frame.rsp(%temp0),%rsp)
+	__(movq catch_frame.foreign_sp(%temp0),%imm0)
+	__(movq catch_frame.xframe(%temp0),%imm1)
+	__(movq %imm0,%rcontext:tcr.foreign_sp)
+	__(movq %imm1,%rcontext:tcr.xframe)
+	__(movq catch_frame.link(%temp0),%imm1)
+	__(movq catch_frame._save0(%temp0),%save0)
+	__(movq catch_frame._save1(%temp0),%save1)
+	__(movq catch_frame._save2(%temp0),%save2)
+	__(movq catch_frame._save3(%temp0),%save3)
+	__(movq %imm1,%rcontext:tcr.catch_top)
+	__(movq catch_frame.pc(%temp0),%ra0)
+	__(lea -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
+	__(movq (%imm1),%tsp)
+	__(movq %tsp,%next_tsp)
+	__(jmp *%ra0)
+local_label(_throw_multiple):
+	__(lea local_label(_threw_multiple)(%rip),%ra0)
+	__(jmp _SPnthrowvalues)
+__(tra(local_label(_threw_multiple)))
+	__(movq %rcontext:tcr.catch_top,%temp0)
+	__(movq catch_frame.db_link(%temp0),%imm0)
+			
+
+		
 _endsubp(throw)
 
+/* This takes N multiple values atop the vstack. */
 _spentry(nthrowvalues)
+	__(movb $1,%rcontext:tcr.unwinding)
+	__(movzwl %nargs,%nargs_l)
+local_label(_nthrowv_nextframe):
+	__(subq $fixnumone,%imm0)
+	__(js local_label(_nthrowv_done))
+	__(movd %imm0,%mm1)
+	__(movq %rcontext:tcr.catch_top,%temp0)
+	__(movq catch_frame.link(%temp0),%imm1)
+	__(movq catch_frame.db_link(%temp0),%imm0)
+	__(movq %imm1,%rcontext:tcr.catch_top)
+	__(cmpq %imm0,%rcontext:tcr.db_link)
+	__(jz local_label(_nthrowv_dont_unbind))
+	__(push %ra0)
+	__(leaq local_label(_nthrowv_back_from_unbind)(%rip),%ra0)
+	__(jmp _SPunbind_to)
+__(tra(local_label(_nthrowv_back_from_unbind)))
 
+	__(pop %ra0)
+local_label(_nthrowv_dont_unbind):
+	__(cmpb $unbound_marker,catch_frame.catch_tag(%temp0))
+	__(je local_label(_nthrowv_do_unwind))
+/* A catch frame.  If the last one, restore context from there. */
+	__(movd %mm1,%imm0)
+	__(testq %imm0,%imm0)	/* last catch frame ? */
+	__(jz local_label(_nthrowv_skip))
+	__(movq catch_frame.xframe(%temp0),%save0)
+	__(movq %save0,%rcontext:tcr.xframe)
+	__(leaq (%rsp,%nargs_q),%save1)
+	__(movq catch_frame.rsp(%temp0),%save2)
+	__(movq %nargs_q,%save0)
+	__(jmp local_label(_nthrowv_push_test))
+local_label(_nthrowv_push_loop):
+	__(subq $node_size,%save1)
+	__(subq $node_size,%save2)
+	__(movq (%save1),%temp1)
+	__(movq %temp1,(%save2))
+local_label(_nthrowv_push_test):
+	__(subq $node_size,%save0)
+	__(jns local_label(_nthrowv_push_loop))
+	__(movq %save2,%rsp)
+	__(movq catch_frame.rbp(%temp0),%rbp)
+	__(movq catch_frame._save3(%temp0),%save3)
+	__(movq catch_frame._save2(%temp0),%save2)
+	__(movq catch_frame._save1(%temp0),%save1)
+	__(movq catch_frame._save0(%temp0),%save0)
+	__(movq catch_frame.foreign_sp(%temp0),%imm1)
+	__(movq %imm1,%rcontext:tcr.foreign_sp)
+local_label(_nthrowv_skip):	
+	__(lea -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
+	__(movd %imm1,%tsp)
+	__(movd %imm1,%next_tsp)
+	__(movd %mm1,%imm0)
+	__(jmp local_label(_nthrowv_nextframe))
+local_label(_nthrowv_do_unwind):	
+/* This is harder.  Call the cleanup code with the multiple values and 
+    nargs, the throw count, and the caller's return address in a temp
+    stack frame. */
+	__(movq catch_frame.xframe(%temp0),%save0)
+	__(movq %save0,%rcontext:tcr.xframe)
+	__(leaq (%rsp,%nargs_q),%save1)
+	__(push catch_frame._save0(%temp0))
+	__(push catch_frame._save1(%temp0))
+	__(push catch_frame._save2(%temp0))
+	__(push catch_frame._save3(%temp0))
+	__(push catch_frame.pc(%temp0))
+	__(movq catch_frame.rbp(%temp0),%rbp)
+	__(movq catch_frame.rsp(%temp0),%temp1)
+	__(movq catch_frame.foreign_sp(%temp0),%imm0)
+	__(movq %imm0,%rcontext:tcr.foreign_sp)
+	/* Discard the catch frame, so we can build a temp frame */
+	__(lea -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
+	__(movd %imm1,%tsp)
+	__(movd %imm1,%next_tsp)
+	/* tsp overhead, nargs, throw count, ra0 */
+	__(dnode_align(%nargs_q,(tsp_frame.fixed_overhead+(3*node_size)),%imm0))
+	__(TSP_Alloc_Var(%imm0,%imm1))
+	__(movq %nargs_q,%temp0)
+	__(movq %nargs_q,(%imm1))
+	__(movq %ra0,node_size(%imm1))
+	__(movq %mm1,node_size*2(%imm1))
+	__(leaq node_size*3(%imm1),%imm1)
+	__(jmp local_label(_nthrowv_tpushtest))
+local_label(_nthrowv_tpushloop):
+	__(movq -node_size(%save0),%temp0)
+	__(subq $node_size,%save0)
+	__(movq %temp0,(%imm1))
+	__(addq $node_size,%imm1)
+local_label(_nthrowv_tpushtest):
+	__(subw $node_size,%nargs)
+	__(jns local_label(_nthrowv_tpushloop))
+	__(pop %xfn)
+	__(pop %save3)
+	__(pop %save2)
+	__(pop %save1)
+	__(pop %save0)
+	__(movq %temp1,%rsp)
+/* Ready to call cleanup code: set up tra, jmp to %xfn */
+	__(leaq local_label(_nthrowv_called_cleanup)(%rip),%ra0)
+	__(movb $0,%rcontext:tcr.unwinding)
+	__(jmp *%xfn)
+__(tra(local_label(_nthrowv_called_cleanup)))
+
+	__(movb $1,%rcontext:tcr.unwinding)
+	__(movd %tsp,%imm1)
+	__(movq tsp_frame.data_offset+(0*node_size)(%imm1),%nargs_q)
+	__(movq tsp_frame.data_offset+(1*node_size)(%imm1),%ra0)
+	__(movq tsp_frame.data_offset+(2*node_size)(%imm1),%mm1)
+	__(movq %nargs_q,%imm0)
+	__(leaq node_size*3(%imm1),%imm1)
+	__(jmp local_label(_nthrowv_tpoptest))
+local_label(_nthrowv_tpoploop):	
+	__(push (%imm1))
+	__(addq $node_size,%imm1)
+local_label(_nthrowv_tpoptest):	
+	__(subq $node_size,%imm0)
+	__(jns local_label(_nthrowv_tpoploop))
+	__(movd %tsp,%imm1)
+	__(movq (%imm1),%imm1)
+	__(movd %imm1,%tsp)
+	__(movd %imm1,%next_tsp)
+	__(movd %mm1,%temp0)
+	__(jmp local_label(_nthrowv_nextframe))
+local_label(_nthrowv_done):
+	__(movb $0,%rcontext:tcr.unwinding)
+	__(movq %rcontext:tcr.tlb_pointer,%imm0)
+	__(cmpq $0,INTERRUPT_LEVEL_BINDING_INDEX(%imm1))
+	__(js local_label(_nthrowv_return))
+	__(cmpq $0,%rcontext:tcr.interrupt_pending)
+	__(je local_label(_nthrowv_return))
+	__(interrupt_now())
+local_label(_nthrowv_return):	
+	__(jmp *%ra0)	
 _endsubp(nthrowvalues)
 
+/* This is a (slight) optimization.  When running an unwind-protect,
+   save the single value and the throw count in the tstack frame.
+   Note that this takes a single value in arg_z. */
 _spentry(nthrow1value)
+	__(movb $1,%rcontext:tcr.unwinding)
+	__(movzwl %nargs,%nargs_l)
+local_label(_nthrow1v_nextframe):
+	__(subq $fixnumone,%imm0)
+	__(js local_label(_nthrow1v_done))
+	__(movd %imm0,%mm1)
+	__(movq %rcontext:tcr.catch_top,%temp0)
+	__(movq catch_frame.link(%temp0),%imm1)
+	__(movq catch_frame.db_link(%temp0),%imm0)
+	__(movq %imm1,%rcontext:tcr.catch_top)
+	__(cmpq %imm0,%rcontext:tcr.db_link)
+	__(jz local_label(_nthrow1v_dont_unbind))
+	__(push %ra0)
+	__(leaq local_label(_nthrow1v_back_from_unbind)(%rip),%ra0)
+	__(jmp _SPunbind_to)
+__(tra(local_label(_nthrow1v_back_from_unbind)))
+
+	__(pop %ra0)
+local_label(_nthrow1v_dont_unbind):
+	__(cmpb $unbound_marker,catch_frame.catch_tag(%temp0))
+	__(je local_label(_nthrow1v_do_unwind))
+/* A catch frame.  If the last one, restore context from there. */
+	__(movd %mm1,%imm0)
+	__(testq %imm0,%imm0)	/* last catch frame ? */
+	__(jz local_label(_nthrow1v_skip))
+	__(movq catch_frame.xframe(%temp0),%save0)
+	__(movq %save0,%rcontext:tcr.xframe)
+	__(leaq (%rsp,%nargs_q),%save1)
+	__(movq catch_frame.rsp(%temp0),%save2)
+	__(movq %nargs_q,%save0)
+	__(jmp local_label(_nthrow1v_push_test))
+local_label(_nthrow1v_push_loop):
+	__(subq $node_size,%save1)
+	__(subq $node_size,%save2)
+	__(movq (%save1),%temp1)
+	__(movq %temp1,(%save2))
+local_label(_nthrow1v_push_test):
+	__(subq $node_size,%save0)
+	__(jns local_label(_nthrow1v_push_loop))
+	__(movq %save2,%rsp)
+	__(movq catch_frame.rbp(%temp0),%rbp)
+	__(movq catch_frame._save3(%temp0),%save3)
+	__(movq catch_frame._save2(%temp0),%save2)
+	__(movq catch_frame._save1(%temp0),%save1)
+	__(movq catch_frame._save0(%temp0),%save0)
+	__(movq catch_frame.foreign_sp(%temp0),%imm1)
+	__(movq %imm1,%rcontext:tcr.foreign_sp)
+local_label(_nthrow1v_skip):	
+	__(lea -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
+	__(movd %imm1,%tsp)
+	__(movd %imm1,%next_tsp)
+	__(movd %mm1,%imm0)
+	__(jmp local_label(_nthrow1v_nextframe))
+local_label(_nthrow1v_do_unwind):
+/* This is harder, but not as hard (not as much BLTing) as the
+   multiple-value case. */
+	__(movq catch_frame.xframe(%temp0),%save0)
+	__(movq %save0,%rcontext:tcr.xframe)
+	__(movq catch_frame._save0(%temp0),%save0)
+	__(movq catch_frame._save1(%temp0),%save1)
+	__(movq catch_frame._save2(%temp0),%save2)
+	__(movq catch_frame._save3(%temp0),%save3)
+	__(movq catch_frame.pc(%temp0),%xfn)
+	__(movq catch_frame.rbp(%temp0),%rbp)
+	__(movq catch_frame.rsp(%temp0),%rsp)
+	__(movq catch_frame.foreign_sp(%temp0),%imm0)
+	__(movq %imm0,%rcontext:tcr.foreign_sp)
+	/* Discard the catch frame, so we can build a temp frame */
+	__(lea -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
+	__(movd %imm1,%tsp)
+	__(movd %imm1,%next_tsp)
+	/* tsp overhead, throw count, ra0, arg_z */
+	__(dnode_align(%nargs_q,(tsp_frame.fixed_overhead+(3*node_size)),%imm0))
+	__(TSP_Alloc_Fixed((2*node_size),%imm1))
+	__(addq $tsp_frame.fixed_overhead,%imm1)
+	__(movq %ra0,(%imm1))
+	__(movq %mm1,node_size*1(%imm1))
+	__(movq %arg_z,node_size*2(%imm1))
+/* Ready to call cleanup code: set up tra, jmp to %xfn */
+	__(leaq local_label(_nthrow1v_called_cleanup)(%rip),%ra0)
+	__(movb $0,%rcontext:tcr.unwinding)
+	__(jmp *%xfn)
+__(tra(local_label(_nthrow1v_called_cleanup)))
+
+	__(movb $1,%rcontext:tcr.unwinding)
+	__(movd %tsp,%imm1)
+	__(movq tsp_frame.data_offset+(0*node_size)(%imm1),%ra0)
+	__(movq tsp_frame.data_offset+(1*node_size)(%imm1),%mm1)
+	__(movq tsp_frame.data_offset+(2+node_size)(%imm1),%arg_z)
+	__(movd %tsp,%imm1)
+	__(movq (%imm1),%imm1)
+	__(movd %imm1,%tsp)
+	__(movd %imm1,%next_tsp)
+	__(movd %mm1,%temp0)
+	__(jmp local_label(_nthrow1v_nextframe))
+local_label(_nthrow1v_done):
+	__(movb $0,%rcontext:tcr.unwinding)
+	__(movq %rcontext:tcr.tlb_pointer,%imm0)
+	__(cmpq $0,INTERRUPT_LEVEL_BINDING_INDEX(%imm1))
+	__(js local_label(_nthrow1v_return))
+	__(cmpq $0,%rcontext:tcr.interrupt_pending)
+	__(je local_label(_nthrow1v_return))
+	__(interrupt_now())
+local_label(_nthrow1v_return):	
+	__(jmp *%ra0)	
 _endsubp(nthrow1value)
 
 /* This never affects the symbol's vcell */
