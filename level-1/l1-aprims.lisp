@@ -952,6 +952,28 @@ it's trying to release them to improve VM paging performance."
   (logbitp $gc-retain-pages-bit *gc-event-status-bits*))  
 
 
+(defun gc-verbose (on-full-gc &optional (egc-too on-full-gc))
+  "If the first (required) argument is non-NIL, configures the GC to print
+informational messages on entry and exit to each full GC; if the first argument
+is NIL, suppresses those messages.  The second (optional) argument controls printing of messages on entry and exit to an ephemeral GC.  Returns values as per GC-VERBOSE-P."
+  (let* ((bits *gc-event-status-bits*))
+    (if on-full-gc
+      (bitsetf $gc-verbose-bit bits)
+      (bitclrf $gc-verbose-bit bits))
+    (if egc-too
+      (bitsetf $egc-verbose-bit bits)
+      (bitclrf $egc-verbose-bit bits))
+    (setq *gc-event-status-bits* bits)
+    (values on-full-gc egc-too)))
+
+
+(defun gc-verbose-p ()
+  "Returns two values: the first is true if the GC is configured to
+print messages on each full GC; the second is true if the GC is configured
+to print messages on each ephemeral GC."
+  (let* ((bits *gc-event-status-bits*))
+    (values (logbitp $gc-verbose-bit bits)
+            (logbitp $egc-verbose-bit bits))))
 
 (defun egc-active-p ()
   "Return T if the EGC was active at the time of the call, NIL otherwise.
