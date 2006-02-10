@@ -1218,13 +1218,15 @@ are no Forms, OR returns NIL."
          (locally (declare (optimize (speed 3) (safety 0)))
            (svref ,vtemp ,itemp)))))
 
-(defmacro %svset (v i new)
+(defmacro %svset (v i new &environment env)
   (let* ((vtemp (make-symbol "VECTOR"))
-           (itemp (make-symbol "INDEX")))
-      `(let* ((,vtemp ,v)
-              (,itemp ,i))
-         (locally (declare (optimize (speed 3) (safety 0)))
-           (setf (svref ,vtemp ,itemp) ,new)))))
+         (itemp (make-symbol "INDEX"))
+         (ntemp (make-symbol "NEW")))
+    `(let* ((,vtemp ,v)
+            (,itemp ,i)
+            (,ntemp ,new))
+      (locally (declare (optimize (speed 3) (safety 0)))
+        (setf (svref ,vtemp ,itemp) ,ntemp)))))
 
 
 (defmacro %schar (v i)
@@ -1237,11 +1239,13 @@ are no Forms, OR returns NIL."
 
 (defmacro %set-schar (v i new)
   (let* ((vtemp (make-symbol "STRING"))
-           (itemp (make-symbol "INDEX")))
+         (itemp (make-symbol "INDEX"))
+         (ntemp (make-symbol "NEW")))
       `(let* ((,vtemp ,v)
-              (,itemp ,i))
+              (,itemp ,i)
+              (,ntemp ,new))
          (locally (declare (optimize (speed 3) (safety 0)))
-           (setf (schar ,vtemp ,itemp) ,new)))))
+           (setf (schar ,vtemp ,itemp) ,ntemp)))))
 
 
 
