@@ -1475,19 +1475,21 @@ Or something. Right? ~s ~s" var varbits))
       (and (typep val '(unsigned-byte 32)) val))))
 
 
-;; Reference-count vcell, fcell refs.
+;;; Reference-count vcell, fcell refs.
 (defun nx1-note-vcell-ref (sym)
-  (let ((there (assq sym *nx1-vcells*)))
+  (let* ((there (assq sym *nx1-vcells*))
+         (count (expt 4 *nx-loop-nesting-level*)))
     (if there
-      (%rplacd there (%i+ (%cdr there) 1))
-      (push (cons sym 1) *nx1-vcells*)))
+      (%rplacd there (%i+ (%cdr there) count))
+      (push (cons sym count) *nx1-vcells*)))
   sym)
 
 (defun nx1-note-fcell-ref (sym)
-  (let ((there (assq sym *nx1-fcells*)))
+  (let* ((there (assq sym *nx1-fcells*))
+         (count (expt 4 *nx-loop-nesting-level*)))
     (if there
-      (%rplacd there (%i+ (%cdr there) 1))
-      (push (cons sym 1) *nx1-fcells*))
+      (%rplacd there (%i+ (%cdr there) count))
+      (push (cons sym count) *nx1-fcells*))
     sym))
 
 ; Note that "simple lexical refs" may not be; that's the whole problem ...
@@ -2092,6 +2094,8 @@ Or something. Right? ~s ~s" var varbits))
 
 
 (defun nx-binary-fixnum-op-p (form1 form2 env &optional ignore-result-type)
+  (setq form1 (nx-transform form1 env)
+        form2 (nx-transform form2 env))
   (and
    (target-word-size-case
     (32 (nx-form-typep form1 '(signed-byte 30) env))
