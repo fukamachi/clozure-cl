@@ -40,7 +40,7 @@
 /* area management */
 
 
-Boolean GCDebug = false;
+Boolean GCDebug = false, GCverbose = false;
 
 area *
 new_area(BytePtr lowaddr, BytePtr highaddr, area_code code)
@@ -377,7 +377,7 @@ check_all_areas()
 natural
 static_dnodes_for_area(area *a)
 {
-  if (a->older == NULL) {
+  if (a->low == tenured_area->low) {
     return tenured_area->static_dnodes;
   }
   return 0;
@@ -2996,9 +2996,6 @@ gc(TCR *tcr, signed_natural param)
     GCstack_limit = (natural)(tcr->cs_limit)+(natural)page_size;
   }
 
-  get_time(start);
-  lisp_global(IN_GC) = (1<<fixnumshift);
-
   GCephemeral_low = lisp_global(OLDEST_EPHEMERAL);
   if (GCephemeral_low) {
     GCn_ephemeral_dnodes=area_dnode(oldfree, GCephemeral_low);
@@ -3006,14 +3003,10 @@ gc(TCR *tcr, signed_natural param)
     GCn_ephemeral_dnodes = 0;
   }
   
-  GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
-
-  if (just_purified_p) {
-    just_purified_p = false;
+  if (GCn_ephemeral_dnodes) {
+    GCverbose = ((nrs_GC_EVENT_STATUS_BITS.vcell & egc_verbose_bit) != 0);
   } else {
-    if (GCDebug) {
-      check_all_areas();
-    }
+    GCverbose = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_verbose_bit) != 0);
   }
 
   if (GCephemeral_low) {
@@ -3036,6 +3029,29 @@ gc(TCR *tcr, signed_natural param)
     note = tenured_area;
   }
 
+  if (GCverbose) {
+    if (GCephemeral_low) {
+      fprintf(stderr,
+              "\n\n;;; Starting Ephemeral GC of generation %d\n",
+              (from == g2_area) ? 2 : (from == g1_area) ? 1 : 0); 
+    } else {
+      fprintf(stderr,"\n\n;;; Starting full GC\n");
+    }
+  }
+
+  get_time(start);
+  lisp_global(IN_GC) = (1<<fixnumshift);
+
+  
+  GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
+
+  if (just_purified_p) {
+    just_purified_p = false;
+  } else {
+    if (GCDebug) {
+      check_all_areas();
+    }
+  }
 
   if (from) {
     untenure_from_area(from);
@@ -3297,15 +3313,15 @@ gc(TCR *tcr, signed_natural param)
     lispsymbol * total_gc_microseconds = (lispsymbol *) &(nrs_TOTAL_GC_MICROSECONDS);
     lispsymbol * total_bytes_freed = (lispsymbol *) &(nrs_TOTAL_BYTES_FREED);
     LispObj val;
-    struct timeval *timeinfo;
+    struct timeval *timeinfo, elapsed;
 
     val = total_gc_microseconds->vcell;
     if ((fulltag_of(val) == fulltag_misc) &&
         (header_subtag(header_of(val)) == subtag_macptr)) {
-      timersub(&stop, &start, &stop);
+      timersub(&stop, &start, &elapsed);
       timeinfo = (struct timeval *) ptr_from_lispobj(((macptr *) ptr_from_lispobj(untag(val)))->address);
-      timeradd(timeinfo,  &stop, timeinfo);
-      timeradd(timeinfo+timeidx,  &stop, timeinfo+timeidx);
+      timeradd(timeinfo,  &elapsed, timeinfo);
+      timeradd(timeinfo+timeidx,  &elapsed, timeinfo+timeidx);
     }
 
     val = total_bytes_freed->vcell;
@@ -3313,6 +3329,19 @@ gc(TCR *tcr, signed_natural param)
         (header_subtag(header_of(val)) == subtag_macptr)) {
       long long justfreed = oldfree - a->active;
       *( (long long *) ptr_from_lispobj(((macptr *) ptr_from_lispobj(untag(val)))->address)) += justfreed;
+      if (GCverbose) {
+        if (justfreed <= heap_segment_size) {
+          justfreed = 0;
+        }
+        if (note == tenured_area) {
+          fprintf(stderr,";;; Finished full GC.  Freed %lld bytes in %d.%06d s\n\n", justfreed, elapsed.tv_sec, elapsed.tv_usec);
+        } else {
+          fprintf(stderr,";;; Finished Ephemeral GC of generation %d.  Freed %lld bytes in %d.%06d s\n\n", 
+                  (from == g2_area) ? 2 : (from == g1_area) ? 1 : 0,
+                  justfreed, 
+                  elapsed.tv_sec, elapsed.tv_usec);
+        }
+      }
     }
   }
 }
