@@ -1087,7 +1087,7 @@
                                                   :unsigned-16-bit-vector)
                           :32-bit-ivector-types '(:signed-32-bit-vector
                                                   :unsigned-32-bit-vector
-                                                  :single-float
+                                                  :single-float-vector
                                                   :double-float
                                                   :bignum)
                           :64-bit-ivector-types '(:double-float-vector
