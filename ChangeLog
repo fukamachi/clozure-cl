@@ -1,3 +1,59 @@
+2006-02-09 23:55  gb
+
+	* lib/compile-ccl.lisp: Add a :FULL option to REBUILD-CCL.
+
+2006-02-09 23:50  gb
+
+	* lisp-kernel/gc.c: Fix calculation of static_dnodes_for_area (was
+	unmapping the wrong memory when dynamic area shrunk.)
+	
+	Maybe be verbose about GC activity.
+
+2006-02-09 23:48  gb
+
+	* lisp-kernel/thread_manager.c: Disable mach_suspend_tcr again. 
+	Mach sucks.
+
+2006-02-09 23:47  gb
+
+	* library/lispequ.lisp, lisp-kernel/ppc-constants32.h,
+	lisp-kernel/ppc-constants64.h, lisp-kernel/x86-constants64.h:
+	Define constant bits for GC verbosity.
+
+2006-02-09 23:46  gb
+
+	* lib/macros.lisp: For thing that actually macroexpand %SVSET and
+	%SET-SCHAR, don't evaluate the new value inside the OPTIMIZE
+	declarations.  (COMPILE-FILE does this macroexpansion; COMPILE does
+	its own handling of these SETF inverses.)
+
+2006-02-09 23:44  gb
+
+	* lib/ccl-export-syms.lisp: Export GC-VERBOSE, GC-VERBOSE-P.
+
+2006-02-09 23:44  gb
+
+	* level-1/l1-aprims.lisp: Add GC-VERBOSE, GC-VERBOSE-P.
+
+2006-02-09 23:43  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	MISC-NODE-SET without EGC checks.  Open-code special reference.
+
+2006-02-09 23:42  gb
+
+	* compiler/PPC/ppc2.lisp: Avoid EGC write-barrier checks when
+	storing some types of things in node vectors.  Try to do special
+	variable lookup inline (helps a little).
+
+2006-02-09 23:40  gb
+
+	* compiler/nx0.lisp: vcell, fcell refs are loop-weighted.
+
+2006-02-09 23:38  gb
+
+	* lisp-kernel/x86-spentry64.s: Most of throw, nthrow.
+
 2006-02-05 22:20  gb
 
 	* lisp-kernel/thread_manager.c: suspend_other_threads() and
