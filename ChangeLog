@@ -1,3 +1,45 @@
+2006-02-11 03:34  gb
+
+	* lisp-kernel/x86-spentry64.s: _SPmakes64: more svelte, less buggy.
+
+2006-02-11 03:32  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-02-11 03:32  gb
+
+	* compiler/X86/: X8664/x8664-vinsns.lisp, x862.lisp: Lots-o-stuff:
+	most vector access & assignment, etc.  (Some cases need more
+	testing, since PPC code this is based on assumed more imm temp
+	registers and it's easy to run out when there are only 2 of them.)
+
+2006-02-11 03:30  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Cache the foreign SP in %mm5.
+
+2006-02-11 03:29  gb
+
+	* compiler/X86/x86-backend.lisp: Match use of dedicate shift-count
+	register (%cl) via :%SHIFT.
+	
+	It's 2006.  Why do processors have dedicated shift-count registers
+	?
+
+2006-02-11 03:28  gb
+
+	* compiler/PPC/ppc2.lisp: Don't call UVREF to access value of
+	single-float vector, since single-floats are immediate on 64-bit
+	platforms.
+
+2006-02-11 03:26  gb
+
+	* compiler/optimizers.lisp: CHAR-EQUAL.
+
+2006-02-11 03:26  gb
+
+	* compiler/nx0.lisp: ACODE-INTEGER-CONSTANT-P, which may have been
+	a bad idea.
+
 2006-02-10 14:07  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: More stuff, especially for
