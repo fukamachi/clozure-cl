@@ -1623,6 +1623,19 @@
            (eq ,code (char-code ,third)))))
       call)))
 
+(define-compiler-macro char-equal (&whole call ch &optional (other nil other-p) &rest others)
+  (if (null others)
+    (if other-p
+      `(eq (%char-code (char-upcase ,ch)) (%char-code (char-upcase ,other)))
+      `(progn (char-code ,ch) t))
+    (if (null (cdr others))
+      (let* ((third (car others))
+             (code (gensym)))
+        `(let* ((,code (%char-code (char-upcase ,ch))))
+          (and (eq ,code (setq ,code (%char-code (char-upcase ,other))))
+           (eq ,code (%char-code (char-upcase ,third))))))
+      call)))
+
 (define-compiler-macro char/= (&whole call ch &optional (other nil other-p) &rest others)
   (if (null others)
     (if other-p
