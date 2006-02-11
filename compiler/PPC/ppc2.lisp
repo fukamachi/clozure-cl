@@ -1827,7 +1827,7 @@
                            (if constval
                              (ppc2-lri seg temp
                                        (if (typep constval 'single-float)
-                                         (uvref constval 0)
+                                         (ppc2-single-float-bits constval)
                                          constval))
                              (cond ((eq type-keyword :single-float-vector)
                                     (when safe
