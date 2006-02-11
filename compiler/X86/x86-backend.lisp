@@ -48,7 +48,8 @@
         (:$w (x86::encode-operand-type :imm16))
         (:$l (x86::encode-operand-type :imm32s))
         (:$ul  (x86::encode-operand-type :imm32))
-        (:$q (x86::encode-operand-type :imm64))))))
+        (:$q (x86::encode-operand-type :imm64))
+        (:%shift (x86::encode-operand-type :shiftcount :reg8))))))
 
 (defun lookup-x86-opcode (form backend)
   (when (consp form)
@@ -220,7 +221,7 @@
                                     (simplify-memory-operand (cdr op))))
                              ((member (car op)
                                       '(:% :%q :%l :%w :%b :$ :$1 :$b :$ub :$w :$l
-                                        :$ul :$q :%mmx :%xmm))
+                                        :$ul :$q :%mmx :%xmm :%shift))
                               (simplify-simple-operand (cadr op)))
                              (t
                               (simplify-simple-operand op)))))
