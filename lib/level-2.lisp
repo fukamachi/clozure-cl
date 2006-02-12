@@ -332,10 +332,16 @@
   
   (%eval-redef %set-byte (p o &optional (new (prog1 o (setq o 0))))
                (%set-byte p o new))
+  (%eval-redef %set-unsigned-byte (p o &optional (new (prog1 o (setq o 0))))
+               (%set-unsigned-byte p o new))
   (%eval-redef %set-word (p o &optional (new (prog1 o (setq o 0))))
                (%set-word p o new))
+  (%eval-redef %set-unsigned-word (p o &optional (new (prog1 o (setq o 0))))
+               (%set-unsigned-word p o new))
   (%eval-redef %set-long (p o &optional (new (prog1 o (setq o 0))))
                (%set-long p o new))
+  (%eval-redef %set-unsigned-long (p o &optional (new (prog1 o (setq o 0))))
+               (%set-unsigned-long p o new))
   (%eval-redef %set-ptr (p o &optional (new (prog1 o (setq o 0))))
                (%set-ptr p o new))
 
