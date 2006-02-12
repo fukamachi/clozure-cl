@@ -1282,14 +1282,14 @@ are no Forms, OR returns NIL."
 
 
 (defsetf %get-byte %set-byte)
-(defsetf %get-unsigned-byte %set-byte)
+(defsetf %get-unsigned-byte %set-unsigned-byte)
 (defsetf %get-signed-byte %set-byte)
 (defsetf %get-word %set-word)
 (defsetf %get-signed-word %set-word)
-(defsetf %get-unsigned-word %set-word)
+(defsetf %get-unsigned-word %set-unsigned-word)
 (defsetf %get-long %set-long)
 (defsetf %get-signed-long %set-long)
-(defsetf %get-unsigned-long %set-long)
+(defsetf %get-unsigned-long %set-unsigned-long)
 (defsetf %get-full-long %set-long)
 (defsetf %get-point %set-long)
 (defsetf %get-ptr %set-ptr)
