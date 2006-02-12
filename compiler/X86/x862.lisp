@@ -1769,7 +1769,6 @@
                    (or (null vreg) (eql vreg-class hard-reg-class-fpr)))
             (x862-sf-vset seg vreg xfer vector index value safe)
             (if (target-arch-case
-                 
                  (:x8664 (and (eq type-keyword :unsigned-64-bit-vector)
                               (or (null vreg) (eql vreg-mode hard-reg-class-gpr-mode-u64)))))
               (x862-natural-vset seg vreg xfer vector index value safe)
@@ -1887,16 +1886,16 @@
                              (ecase type-keyword
                                (:double-float-vector
                                 (if safe
-                                  (! get-double? 0 val-reg)
-                                  (! get-double 0 val-reg))
+                                  (! get-double? x8664::fp1 val-reg)
+                                  (! get-double x8664::fp1 val-reg))
                                 (if (and index-known-fixnum 
                                          (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
-                                  (! misc-set-c-double-float 0 src index-known-fixnum)
+                                  (! misc-set-c-double-float x8664::fp1 src index-known-fixnum)
                                   (progn
                                     (setq idx-reg temp)
                                     (if index-known-fixnum
                                       (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-dfloat-offset arch) (ash index-known-fixnum 3))))
-                                    (! misc-set-double-float 0 src idx-reg))))
+                                    (! misc-set-double-float x8664::fp1 src idx-reg))))
                                (:signed-64-bit-vector
                                 (with-imm-target (temp) (s64 :s64)
                                   (! unbox-s64 s64 val-reg)
