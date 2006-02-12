@@ -26,7 +26,7 @@
   (multiple-value-bind (string offset)(array-data-and-offset string)
     (new-numtoken string (+ start offset)(- end start) (%validate-radix (or radix 10)))))
 
-(defun new-numtoken (string start len radix &optional no-rat)
+(defun new-numtoken (string start len radix &optional no-rat no-sign)
   (declare (fixnum start len radix))
   (if (eq 0 len)
     nil
@@ -39,7 +39,9 @@
           dot dec dgt)
       (declare (fixnum nstart end hic))
       (when (or (eq c (char-code #\+))(eq c (char-code #\-)))
-        (setq nstart (1+ nstart)))
+        (if no-sign
+          (return-from new-numtoken nil)
+          (setq nstart (1+ nstart))))
       (when (eq nstart end)(return-from new-numtoken nil)) ; just a sign
       (do ((i nstart (1+ i)))
           ((eq i end))
@@ -55,7 +57,7 @@
             (when (and (eq c (char-code #\/))(not dot)(not no-rat))
               (let ((top (new-numtoken string start (- i start) radix)))
                 (when top 
-                  (let ((bottom (new-numtoken string (+ start i 1) (- len i 1) radix t)))
+                  (let ((bottom (new-numtoken string (+ start i 1) (- len i 1) radix t t)))
                     (when bottom 
                       (return-from new-numtoken (/ top bottom)))))))
             (return-from new-numtoken nil))
