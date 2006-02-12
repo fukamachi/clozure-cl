@@ -94,9 +94,9 @@
         #+ppc32-target
         (and (>= typecode ppc32::min-numeric-subtag)
              (<= typecode ppc32::max-rational-subtag))
-        #+ppc64-target
-        (cond ((= typecode ppc64::subtag-bignum) t)
-              ((= typecode ppc64::subtag-ratio) t)))))
+        #+(or ppc64-target x8664-target)
+        (cond ((= typecode target::subtag-bignum) t)
+              ((= typecode target::subtag-ratio) t)))))
 
 (defun short-float-p (x)
   (= (the fixnum (typecode x)) target::subtag-single-float))
@@ -127,7 +127,15 @@
                        (ash 1 ppc64::subtag-single-float)
                        (ash 1 ppc64::subtag-double-float)
                        (ash 1 ppc64::subtag-bignum)
-                       (ash 1 ppc64::subtag-ratio))))))
+                       (ash 1 ppc64::subtag-ratio))))
+    #+x8664-target
+    (if (< typecode x8664::nbits-in-word)
+      (logbitp (the (integer 0 #.x8664::subtag-double-float) typecode)
+               (logior (ash 1 x8664::tag-fixnum)
+                       (ash 1 x8664::subtag-bignum)
+                       (ash 1 x8664::tag-single-float)
+                       (ash 1 x8664::subtag-double-float)
+                       (ash 1 x8664::subtag-ratio))))))
 
 (defun complexp (x)
   "Return true if OBJECT is a COMPLEX, and NIL otherwise."
@@ -149,7 +157,18 @@
                        (ash 1 ppc64::subtag-single-float)
                        (ash 1 ppc64::subtag-double-float)
                        (ash 1 ppc64::subtag-ratio)
-                       (ash 1 ppc64::subtag-complex))))))
+                       (ash 1 ppc64::subtag-complex))))
+    #+x8664-target
+    (if (< typecode x8664::nbits-in-word)
+      (logbitp (the (integer 0 #.x8664::subtag-double-float) typecode)
+               (logior (ash 1 x8664::tag-fixnum)
+                       (ash 1 x8664::subtag-bignum)
+                       (ash 1 x8664::tag-single-float)
+                       (ash 1 x8664::subtag-double-float)
+                       (ash 1 x8664::subtag-ratio)
+                       (ash 1 x8664::subtag-complex))))
+    
+    ))
 
 (defun arrayp (x)
   "Return true if OBJECT is an ARRAY, and NIL otherwise."
@@ -205,7 +224,13 @@
   #+ppc32-target
   (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask)) ppc32::fulltag-nodeheader)
   #+ppc64-target
-  (= (the fixnum (logand (the fixnum (typecode x)) ppc64::lowtagmask)) ppc64::lowtag-nodeheader))
+  (= (the fixnum (logand (the fixnum (typecode x)) ppc64::lowtagmask)) ppc64::lowtag-nodeheader)
+  #+x8664-target
+  (let* ((fulltag (logand (the fixnum (typecode x)) x8664::fulltagmask)))
+    (declare (fixnum fulltag))
+    (or (= fulltag x8664::fulltag-nodeheader-0)
+        (= fulltag x8664::fulltag-nodeheader-1)))
+  )
 
 
 (setf (type-predicate 'gvector) 'gvectorp)
@@ -215,13 +240,20 @@
     (= (the fixnum (logand (the fixnum (typecode x)) ppc32::fulltagmask))
        ppc32::fulltag-immheader)
   #+ppc64-target
-  (= (the fixnum (logand (the fixnum (typecode x)) ppc64::lowtagmask)) ppc64::lowtag-immheader))
+  (= (the fixnum (logand (the fixnum (typecode x)) ppc64::lowtagmask)) ppc64::lowtag-immheader)
+  #+x8664-target
+  (let* ((fulltag (logand (the fixnum (typecode x)) x8664::fulltagmask)))
+    (declare (fixnum fulltag))
+    (or (= fulltag x8664::fulltag-immheader-0)
+        (= fulltag x8664::fulltag-immheader-1)
+        (= fulltag x8664::fulltag-immheader-2)))
+  )
 
 (setf (type-predicate 'ivector) 'ivectorp)
 
 (defun miscobjp (x)
-  #+ppc32-target
-  (= (the fixnum (lisptag x)) ppc32::tag-misc)
+  #+(or ppc32-target x8664-target)
+  (= (the fixnum (lisptag x)) target::tag-misc)
   #+ppc64-target
   (= (the fixnum (fulltag x)) ppc64::fulltag-misc)
   )
@@ -354,6 +386,7 @@
                                  (return))))))))))))
 
 #+ppc32-target
+(progn
 (defparameter *nodeheader-types*
   #(bogus                               ; 0
     ratio                               ; 1
@@ -389,7 +422,7 @@
     bogus                               ; 31
     ))
 
-#+ppc32-target
+
 (defparameter *immheader-types*
   #(bignum                              ; 0
     short-float                         ; 1
@@ -426,10 +459,6 @@
     simple-bit-vector                   ; 31
     ))
 
-
-
-
-#+ppc32-target
 (defun %type-of (thing)
   (let* ((typecode (typecode thing)))
     (declare (fixnum typecode))
@@ -480,7 +509,10 @@
 			  type)
 		      type)))))))))))
 
+);#+ppc32-target
+
 #+ppc64-target
+(progn
 (defparameter *immheader-types*
   #(bogus
     bogus
@@ -547,7 +579,6 @@
     bogus
     bogus))
 
-#+ppc64-target
 (defparameter *nodeheader-types*
     #(function
       catch-frame
@@ -616,50 +647,55 @@
       )
   )
 
-#+ppc64-target
+
 (defun %type-of (thing)
-  (let* ((typecode (typecode thing)))
-    (declare (fixnum typecode))
-    (cond ((= typecode ppc64::tag-fixnum) 'fixnum)
-          ((= typecode ppc64::fulltag-cons) 'cons)
-          ((= typecode ppc64::subtag-character) 'character)
-          ((= typecode ppc64::subtag-single-float) 'short-float)
-          (t (let* ((lowtag (logand typecode ppc64::lowtagmask)))
-               (declare (fixnum lowtag))
-               (cond ((= lowtag ppc64::lowtag-immheader)
-                       (%svref *immheader-types* (ash typecode -2)))
-                      ((= lowtag ppc64::lowtag-nodeheader)
-                       (let* ((type (%svref *nodeheader-types*
-                                            (ash typecode -2))))
-                         (cond ((eq type 'function)
-                                (let ((bits (lfun-bits thing)))
-                                  (declare (fixnum bits))
-                                  (if (logbitp $lfbits-trampoline-bit bits)
-                                    (if (logbitp $lfbits-evaluated-bit bits)
-                                      'interpreted-lexical-closure
-                                      (let ((inner-fn (closure-function thing)))
-                                        (if (neq inner-fn thing)
-                                          (let ((inner-bits (lfun-bits inner-fn)))
-                                            (if (logbitp $lfbits-method-bit inner-bits)
-                                              'compiled-lexical-closure
-                                              (if (logbitp $lfbits-gfn-bit inner-bits)
-                                                'standard-generic-function ; not precisely - see class-of
-                                                (if (logbitp  $lfbits-cm-bit inner-bits)
-                                                  'combined-method
-                                                  'compiled-lexical-closure))))
-                                          'compiled-lexical-closure)))
-                                    (if (logbitp $lfbits-evaluated-bit bits)
-                                      (if (logbitp $lfbits-method-bit bits)
-                                        'interpreted-method-function
-                                        'interpreted-function)
-                                      (if (logbitp  $lfbits-method-bit bits)
-                                        'method-function          
-                                        'compiled-function)))))
-                               ((eq type 'lock)
-                                (or (uvref thing ppc64::lock.kind-cell)
-                                    type))
-                               (t type))))
-                      (t 'immediate)))))))
+  (if (null thing)
+    'null
+    (let* ((typecode (typecode thing)))
+      (declare (fixnum typecode))
+      (cond ((= typecode ppc64::tag-fixnum) 'fixnum)
+            ((= typecode ppc64::fulltag-cons) 'cons)
+            ((= typecode ppc64::subtag-character) 'character)
+            ((= typecode ppc64::subtag-single-float) 'short-float)
+            (t (let* ((lowtag (logand typecode ppc64::lowtagmask)))
+                 (declare (fixnum lowtag))
+                 (cond ((= lowtag ppc64::lowtag-immheader)
+                        (%svref *immheader-types* (ash typecode -2)))
+                       ((= lowtag ppc64::lowtag-nodeheader)
+                        (let* ((type (%svref *nodeheader-types*
+                                             (ash typecode -2))))
+                          (cond ((eq type 'function)
+                                 (let ((bits (lfun-bits thing)))
+                                   (declare (fixnum bits))
+                                   (if (logbitp $lfbits-trampoline-bit bits)
+                                     (if (logbitp $lfbits-evaluated-bit bits)
+                                       'interpreted-lexical-closure
+                                       (let ((inner-fn (closure-function thing)))
+                                         (if (neq inner-fn thing)
+                                           (let ((inner-bits (lfun-bits inner-fn)))
+                                             (if (logbitp $lfbits-method-bit inner-bits)
+                                               'compiled-lexical-closure
+                                               (if (logbitp $lfbits-gfn-bit inner-bits)
+                                                 'standard-generic-function ; not precisely - see class-of
+                                                 (if (logbitp  $lfbits-cm-bit inner-bits)
+                                                   'combined-method
+                                                   'compiled-lexical-closure))))
+                                           'compiled-lexical-closure)))
+                                     (if (logbitp $lfbits-evaluated-bit bits)
+                                       (if (logbitp $lfbits-method-bit bits)
+                                         'interpreted-method-function
+                                         'interpreted-function)
+                                       (if (logbitp  $lfbits-method-bit bits)
+                                         'method-function          
+                                         'compiled-function)))))
+                                ((eq type 'lock)
+                                 (or (uvref thing ppc64::lock.kind-cell)
+                                     type))
+                                (t type))))
+                       (t 'immediate))))))))
+);#+ppc64-target
+
+
 
 
 ;;; real machine specific huh
@@ -701,7 +737,12 @@
     (= (the fixnum (typecode thing)) ppc32::subtag-symbol)
     t)
   #+ppc64-target
-  (= (the fixnum (typecode thing)) ppc64::subtag-symbol))
+  (= (the fixnum (typecode thing)) ppc64::subtag-symbol)
+  #+x8664-target
+  (if thing
+    (= (the fixnum (lisptag thing)) x8664::tag-symbol)
+    t)
+  )
       
 (defun packagep (thing)
   (= (the fixnum (typecode thing)) target::subtag-package))
