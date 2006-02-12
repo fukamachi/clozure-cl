@@ -64,6 +64,14 @@
 				   ())
   (movq (:%q val) (:@ x8664::misc-data-offset (:%q  v) (:%q unscaled-idx))))
 
+
+(define-x8664-vinsn misc-set-double-float (()
+				   ((val :double-float)
+				    (v :lisp)
+				    (unscaled-idx :imm))
+				   ())
+  (movsd (:%xmm val) (:@ x8664::misc-data-offset (:%q  v) (:%q unscaled-idx))))
+
 (define-x8664-vinsn misc-ref-u8 (((dest :u8))
                                  ((v :lisp)
                                   (scaled-idx :s64)))
@@ -181,6 +189,12 @@
 				     (v :lisp)
 				     (idx :s32const)))
   (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
+
+(define-x8664-vinsn misc-set-c-double-float (()
+				    ((val :double-float)
+				     (v :lisp)
+				     (idx :s32const)))
+  (movsd (:%xmm val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
 
 (define-x8664-vinsn (call-known-symbol :call) (((result (:lisp x8664::arg_z)))
 					       ())
@@ -381,11 +395,8 @@
   :ok)
 
 (define-x8664-vinsn trap-unless-single-float (()
-                                              ((object :lisp))
-                                              ((tag :u8)))
-  (movb (:$b x8664::tagmask) (:%b tag))
-  (andb (:%b object) (:%b tag))
-  (cmpb (:$b x8664::tag-single-float) (:%b tag))
+                                              ((object :lisp)))
+  (cmpb (:$b x8664::tag-single-float) (:%b object))
   (je.pt :ok)
   (uuo-error-reg-not-tag (:%q object) (:$ub x8664::tag-single-float))
   :ok)
@@ -1043,6 +1054,23 @@
                                 ((source :lisp)))
   (movsd (:@  x8664::double-float.value (:%q source)) (:%xmm result)))
 
+;;; Extract a double-float value, typechecking in the process.
+;;; IWBNI we could simply call the "trap-unless-typecode=" vinsn here,
+;;; instead of replicating it ..
+
+(define-x8664-vinsn get-double? (((target :double-float))
+				 ((source :lisp))
+				 ((tag :u8)))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b source) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q source)) (:%w tag))
+  (cmpb (:$b x8664::subtag-double-float) (:%b tag))
+  (je.pt :ok)
+  (uuo-error-reg-not-tag (:%q source) (:$ub x8664::subtag-double-float))
+  :ok
+  (movsd (:@  x8664::double-float.value (:%q source)) (:%xmm target)))
+
 (define-x8664-vinsn single->node (((result :lisp))
                                   ((source :single-float)))
   (movss (:%xmm source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value))
@@ -1277,6 +1305,7 @@
 (define-x8664-subprim-call-vinsn (gvector) .SPgvector)
 
 (define-x8664-subprim-call-vinsn (getu64) .SPgetu64)
+(define-x8664-subprim-call-vinsn (funcall)  .SPfuncall)
 
 (define-x8664-vinsn init-closure (()
                                   ((closure :lisp)))
@@ -1853,3 +1882,147 @@
   (btcq (:$ub (:apply logand 63 idx))
         (:@ (:apply + x8664::misc-data-offset (:apply ash (:apply ash idx -6) x8664::word-shift)) (:%q src)))
   :done)
+
+
+(define-x8664-vinsn require-fixnum (()
+                                    ((object :lisp)))
+  :again
+  (testb (:$b x8664::fixnummask) (:%b object))
+  (je.pt :got-it)
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-fixnum))
+  (jmp :again)
+  :got-it)
+
+(define-x8664-vinsn require-integer (()
+                                     ((object :lisp))
+                                     ((tag :u8)))
+  :again
+  (movb (:$b x8664::fixnummask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (je.pt :got-it)
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (jne :bad)
+  (cmpb (:$b x8664::subtag-bignum) (:@ x8664::misc-subtag-offset (:%q object)))
+  (je :got-it)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-integer))
+  (jmp :again)
+  :got-it)
+
+(define-x8664-vinsn require-simple-vector (()
+                                           ((object :lisp))
+                                           ((tag :u8)))
+  :again
+  (movb (:$b x8664::fixnummask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (jne :bad)
+  (cmpb (:$b x8664::subtag-simple-vector) (:@ x8664::misc-subtag-offset (:%q object)))
+  (je :got-it)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-simple-vector))
+  (jmp :again)
+  :got-it)
+
+(define-x8664-vinsn require-simple-string (()
+                                           ((object :lisp))
+                                           ((tag :u8)))
+  :again
+  (movb (:$b x8664::fixnummask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (jne :bad)
+  (cmpb (:$b x8664::subtag-simple-base-string) (:@ x8664::misc-subtag-offset (:%q object)))
+  (je :got-it)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-simple-string))
+  (jmp :again)
+  :got-it)
+                                    
+(define-x8664-vinsn require-real (()
+                                    ((object :lisp))
+                                    ((tag :u8)
+                                     (mask :imm)))
+  (movl (:$l (ash (logior (ash 1 x8664::tag-fixnum)
+                          (ash 1 x8664::tag-single-float)
+                          (ash 1 x8664::subtag-double-float)
+                          (ash 1 x8664::subtag-bignum)
+                          (ash 1 x8664::subtag-ratio))
+                  x8664::fixnumshift))
+        (:%l mask))
+  :again
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q object)) (:%w tag))
+  (cmpb (:$b 64) (:%b tag))
+  (jae :bad)
+  (addb (:$b x8664::fixnumshift) (:%b tag))
+  (btq (:%q tag) (:%q mask))
+  (jb.pt :good)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-real))
+  (jmp :again)
+  :good)
+
+(define-x8664-vinsn require-number (()
+                                    ((object :lisp))
+                                    ((tag :u8)
+                                     (mask :imm)))
+  (movl (:$l (ash (logior (ash 1 x8664::tag-fixnum)
+                          (ash 1 x8664::tag-single-float)
+                          (ash 1 x8664::subtag-double-float)
+                          (ash 1 x8664::subtag-bignum)
+                          (ash 1 x8664::subtag-ratio)
+                          (ash 1 x8664::subtag-complex))
+                  x8664::fixnumshift))
+        (:%l mask))
+  :again
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q object)) (:%w tag))
+  (cmpb (:$b 64) (:%b tag))
+  (jae :bad)
+  (addb (:$b x8664::fixnumshift) (:%b tag))
+  (btq (:%q tag) (:%q mask))
+  (jb.pt :good)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-number))
+  (jmp :again)
+  :good)
+
+(define-x8664-vinsn require-list (()
+                                  ((object :lisp))
+                                  ((tag :u8)))
+  :again
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-list) (:%b tag))
+  (je :good)
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-list))
+  (jmp :again)
+  :good)
+
+(define-x8664-vinsn require-symbol (()
+                                    ((object :lisp))
+                                    ((tag :u8)))
+  :again
+  (cmpb (:$b x8664::fulltag-nil) (:%b object))
+  (je :good)
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::tag-symbol) (:%b tag))
+  (je :good)
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-symbol))
+  (jmp :again)
+  :good)
+
+(define-x8664-vinsn mask-base-char (((dest :u8))
+                                    ((src :lisp)))
+  (movzbl (:%b src) (:%l dest))) 
+
+(define-x8664-vinsn single-float-bits (((dest :u32))
+                                       ((src :lisp)))
+  (movq (:%q src) (:%q dest))
+  (shrq (:$ub 32) (:%q dest)))
