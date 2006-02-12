@@ -100,6 +100,8 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	_ends
 	
 	
-uuo2_alloc_cons_function = 0
-uuo2_alloc_variable_function = 1
 		
+define([TCR_STATE_FOREIGN],1)
+define([TCR_STATE_LISP],0)
+define([TCR_STATE_EXCEPTION_WAIT],2)
+define([TCR_STATE_EXCEPTION_RETURN],4)
