@@ -1523,7 +1523,8 @@
    (nx1-form offset)
    (nx1-form newval)))
                
-(defnx1 nx1-set-xxx ((%set-ptr) (%set-long)  (%set-word) (%set-byte)) 
+(defnx1 nx1-set-xxx ((%set-ptr) (%set-long)  (%set-word) (%set-byte)
+                     (%set-unsigned-long) (%set-unsigned-word) (%set-unsigned-byte))
         (ptr offset &optional (newval nil new-val-p) &aux (op *nx-sfname*))
   (unless new-val-p (setq newval offset offset 0))
   (make-acode
@@ -1531,7 +1532,10 @@
    (case op
      (%set-ptr 0)
      (%set-word 2)
+     (%set-unsigned-word (logior 32 2))
      (%set-byte 1)
+     (%set-unsigned-byte (logior 32 1))
+     (%set-unsigned-long (logior 32 4))
      (t 4))
    (make-acode (%nx1-operator %macptrptr%) (nx1-form ptr))
    (nx1-form offset)
