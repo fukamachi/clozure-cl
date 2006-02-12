@@ -165,6 +165,7 @@ define([xfn],[temp1])
 define([allocptr],[temp0])		
 define([tsp],[mm7])
 define([next_tsp],[mm6])
+define([foreign_sp],[mm5])	
 		
 define([fp0],[xmm0])		
 define([fp1],[xmm1])		
@@ -275,9 +276,8 @@ define_subtag(bit_vector,ivector_class_other_bit,15)
 define_subtag(macptr,ivector_class_64_bit,0)
 define_subtag(dead_macptr,ivector_class_64_bit,1)
 define_subtag(bignum,ivector_class_32_bit,0)
-define_subtag(code_vector,ivector_class_32_bit,1)
+define_subtag(double_float,ivector_class_32_bit,1)
 define_subtag(xcode_vector,ivector_class_32_bit,2)
-define_subtag(double_float,ivector_class_32_bit,3)
 
         
 /* Note the difference between (e.g) fulltag_function - which
