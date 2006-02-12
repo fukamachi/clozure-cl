@@ -855,7 +855,7 @@
   (bgt crf1 :no-got)
   (bne+ :got-it)
   :no-got
-  (uuo_intcerr arch::error-object-not-number object)
+  (uuo_intcerr arch::error-object-not-real object)
   (b :again)
   :got-it)
 
