@@ -284,9 +284,9 @@ define([do_funcall],[
 	/* %fname == %temp0 */
 	cmoveq symbol.fcell(%fname),%fn
 	cmovgq %temp0,%fn
-	jmp *fn
+	jmp *%fn
 	tra(macro_label(bad))
-        uuo_alloc_not_callable()
+        uuo_error_not_callable()
 ])
 
 define([getvheader],[
