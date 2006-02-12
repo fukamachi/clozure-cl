@@ -1,3 +1,81 @@
+2006-02-11 19:56  gb
+
+	* lisp-kernel/x86-subprims64.s: start_lisp, toplevel_loop.
+
+2006-02-11 19:55  gb
+
+	* lisp-kernel/x86-spentry64.s: funcall does so.
+
+2006-02-11 19:55  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s: Lose
+	code_vector subtag; renumber things so that subtag_double_float has
+	lower value.
+
+2006-02-11 19:54  gb
+
+	* lisp-kernel/ppc-subprims.s: Rewrite comment "clarifying" what
+	toplevel_loop does.
+
+2006-02-11 19:54  gb
+
+	* lisp-kernel/x86-constants.s: define TCR states.
+
+2006-02-11 19:53  gb
+
+	* lisp-kernel/x86-macros.s: fix do_funcall().
+
+2006-02-11 19:53  gb
+
+	* lisp-kernel/x86_print.c: Don't reference subtag_code_vector.
+
+2006-02-11 19:53  gb
+
+	* lisp-kernel/gc.c: Don't reference subtag_code_vector in
+	purify/etc on x8664.
+
+2006-02-11 19:52  gb
+
+	* lib/macros.lisp: Setf inverses for unsigned memory accessors.
+
+2006-02-11 19:51  gb
+
+	* lib/level-2.lisp: eval-redefs for unsigned memory setters.
+
+2006-02-11 19:51  gb
+
+	* level-0/l0-pred.lisp: Start to conditionalize for #+x8664-target.
+
+2006-02-11 19:51  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: REQUIRE-type primitives,
+	more stuff, bug fixes.
+
+2006-02-11 19:50  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: No code-vector.  Renumber
+	things, so that SUBTAG-DOUBLE-FLOAT has a smaller value.
+
+2006-02-11 19:50  gb
+
+	* compiler/X86/x862.lisp: Use fp1 (arbitrarily), not fp0 when
+	setting double-float vector elements.
+
+2006-02-11 19:49  gb
+
+	* compiler/X86/x86-disassemble.lisp: Tab out further when printing
+	instruction address.
+
+2006-02-11 19:48  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Fix error trap in
+	REQUIRE-REAL.
+
+2006-02-11 19:48  gb
+
+	* compiler/nx1.lisp: Memory-setting primitives come in signed and
+	unsigned flavors.
+
 2006-02-11 03:34  gb
 
 	* lisp-kernel/x86-spentry64.s: _SPmakes64: more svelte, less buggy.
