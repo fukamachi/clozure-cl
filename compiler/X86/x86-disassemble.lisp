@@ -2624,7 +2624,7 @@
             (format t " ~a" (unparse-x86-lap-operand op2 ds))))))
     (format t ")")
     (unless (zerop seq) ;(when (oddp seq)
-      (format t "~40t;[~d]" (- addr entry)))
+      (format t "~50t;[~d]" (- addr entry)))
     (format t "~%")
     (1+ seq)))
 
