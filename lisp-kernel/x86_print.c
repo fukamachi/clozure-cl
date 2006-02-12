@@ -193,9 +193,6 @@ vector_subtag_name(unsigned subtag)
   case subtag_package:
     return "PACKAGE";
     break;
-  case subtag_code_vector:
-    return "CODE-VECTOR";
-    break;
   default:
     return "";
     break;
