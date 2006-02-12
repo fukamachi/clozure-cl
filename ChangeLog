@@ -1,3 +1,8 @@
+2006-02-12 15:58  gb
+
+	* level-1/l1-numbers.lisp: NEW-NUMTOKEN: don't allow leading sign
+	on denominator when trying to parse a ratio.
+
 2006-02-11 19:56  gb
 
 	* lisp-kernel/x86-subprims64.s: start_lisp, toplevel_loop.
