@@ -369,9 +369,9 @@
 (define-subtag macptr ivector-class-64-bit 0)
 (define-subtag dead-macptr ivector-class-64-bit 1)
 (define-subtag bignum ivector-class-32-bit 0)
-(define-subtag code-vector ivector-class-32-bit 1)
+(define-subtag double-float ivector-class-32-bit 1)
 (define-subtag xcode-vector ivector-class-32-bit 2)
-(define-subtag double-float ivector-class-32-bit 3)
+
 
         
 ;;; Note the difference between (e.g) fulltag-function - which
@@ -780,7 +780,6 @@
     (:complex . ,subtag-complex  )
     (:symbol . ,subtag-symbol)
     (:function . ,subtag-function )
-    (:code-vector . ,subtag-code-vector)
     (:xcode-vector . ,subtag-xcode-vector)
     (:macptr . ,subtag-macptr )
     (:catch-frame . ,subtag-catch-frame)
