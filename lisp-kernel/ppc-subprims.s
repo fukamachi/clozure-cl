@@ -26,9 +26,11 @@
 /* This is called from a c-style context and calls a lisp function. */
 /* This does the moral equivalent of */
 /*   (loop 
-       (catch %toplevel-catch% 
-         (let* ((fn (symbol-value *toplevel-function*)))
-           (if fn (funcall fn) (return nil))))))) 
+	(let* ((fn (%function_on_top_of_lisp_stack)))
+	  (if fn
+            (catch %toplevel-catch%
+	       (funcall fn))
+            (return nil))))
 */
 
 _exportfn(toplevel_loop)
