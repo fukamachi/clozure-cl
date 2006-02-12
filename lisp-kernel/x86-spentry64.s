@@ -312,6 +312,7 @@ _spentry(jmpnfn)
 _endsubp(jmpnfn)
 
 _spentry(funcall)
+	__(do_funcall())
 _endsubp(funcall)
 
 _spentry(mkcatch1v)
