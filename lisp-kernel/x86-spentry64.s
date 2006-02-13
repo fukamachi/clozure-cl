@@ -37,17 +37,19 @@ define([jump_builtin],[
 	jump_fname()
 ])
 
-/* %arg_z has verflowed by one bit.  Make a bignum with 2 (32-bit) digits. */
-_startfn(C(fix_one_bit_overflow))
+/* %arg_z has overflowed by one bit.  Make a bignum with 2 (32-bit) digits. */
+_spentry(fix_overflow)
+C(fix_one_bit_overflow):	
 	__(movq $two_digit_bignum_header,%imm0)
 	__(Misc_Alloc_Fixed([],aligned_bignum_size(2)))
 	__(unbox_fixnum(%arg_z,%imm0))
+	__(movq $0xe000000000000000,%imm1)
 	__(mov %temp0,%arg_z)
-	__(xorq overflow_mask(%rip),%imm0)
+	__(xorq %imm1,%imm0)
 	__(movq %imm0,misc_data_offset(%arg_z))
 	__(jmp *%ra0)	
-overflow_mask: 	.quad 0xe000000000000000
-_endfn
+_endsubp(fix_overflow)
+
 	
 /* Make a lisp integer (fixnum or two-digit bignum) from the signed
    64-bit value in %imm0.  Shift left 3 bits - a bit at a time, via 
@@ -310,8 +312,6 @@ _exportfn(C(ret1valn))
 	__(jmpq *%ra0)
 _endfn
 	
-	.globl C(popj)
-C(popj):
 
 _spentry(nvalret)
 	.globl C(nvalret)			
@@ -1024,11 +1024,7 @@ _endsubp(keyword_args)
 _spentry(keyword_bind)
 _endsubp(keyword_bind)
 
-_spentry(poweropen_ffcall)
-_endsubp(poweropen_ffcall)
 
-_spentry(unused_0)
-_endsubp(unused_0)
 
 _spentry(ksignalerr)
 	__(movq $nrs.errdisp,%fname)
@@ -1078,8 +1074,6 @@ _spentry(stack_cons_rest_arg)
 	__(jmp _SPheap_cons_rest_arg)
 _endsubp(stack_cons_rest_arg)
 
-_spentry(poweropen_callbackX)
-_endsubp(poweropen_callbackX)
 
 /* Prepend all but the first three (2 words of code, inner fn) and last two */
 /* (function name, lfbits) elements of %fn to the "arglist". */
@@ -1134,7 +1128,7 @@ local_label(insert_loop):
         /* Here if nothing was pushed by the caller.  If we're
            going to push anything, we have to reserve a stack
            frame first. (We'll need to push something if the
-           sum of %nargs and %imm0 is greater than nargregs */
+           sum of %nargs and %imm0 is greater than nargregs) */
 local_label(no_insert): 
         __(lea (%nargs_q,%imm0),%imm1)
         __(cmpq $nargregs<<fixnumshift,%imm1)
@@ -1308,8 +1302,6 @@ _endsubp(stkgvector)
 _spentry(misc_alloc)
 _endsubp(misc_alloc)
 
-_spentry(poweropen_ffcallX)
-_endsubp(poweropen_ffcallX)
 
 
 _spentry(macro_bind)
@@ -1364,8 +1356,6 @@ _endsubp(save_values)
 _spentry(add_values)
 _endsubp(add_values)
 
-_spentry(poweropen_callback)
-_endsubp(poweropen_callback)
 
 _spentry(misc_alloc_init)
 _endsubp(misc_alloc_init)
@@ -1373,9 +1363,6 @@ _endsubp(misc_alloc_init)
 _spentry(stack_misc_alloc_init)
 _endsubp(stack_misc_alloc_init)
 
-
-_spentry(unused_1)
-_endsubp(unused_1)
 
 _spentry(callbuiltin)
 _endsubp(callbuiltin)
@@ -1392,93 +1379,166 @@ _endsubp(callbuiltin2)
 _spentry(callbuiltin3)
 _endsubp(callbuiltin3)
 
+	.globl C(popj)
 _spentry(popj)
+C(popj):
+	__(leave)
+	__(pop %ra0)
+	__(jmp *%ra0)
 _endsubp(popj)
 
 _spentry(restorefullcontext)
+	__(int $3)
 _endsubp(restorefullcontext)
 
 _spentry(savecontextvsp)
+	__(int $3)
 _endsubp(savecontextvsp)
 
 _spentry(savecontext0)
+	__(int $3)
 _endsubp(savecontext0)
 
 _spentry(restorecontext)
+	__(int $3)
 _endsubp(restorecontext)
 
 _spentry(lexpr_entry)
 _endsubp(lexpr_entry)
 
-_spentry(poweropen_syscall)
-_endsubp(poweropen_syscall)
-
 
 _spentry(breakpoint)
 _endsubp(breakpoint)
 
-_spentry(eabi_ff_call)
-_endsubp(eabi_ff_call)
-
-_spentry(eabi_callback)
-_endsubp(eabi_callback)
-
-_spentry(eabi_syscall)
-_endsubp(eabi_syscall)
 
 _spentry(getu64)
+	__(movq $~(target_most_positive_fixnum << fixnumshift),%imm0)
+	__(testq %arg_z,%imm0)
+	__(movq %arg_z,%imm0)
+	__(jne 1f)
+	__(sarq $fixnumshift,%imm0)
+	__(jmp *%ra0)
+1:	__(andb $tagmask,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(cmovew misc_subtag_offset(%arg_z),%imm0_w)
+	__(cmpb $subtag_bignum,%imm0_b)
+	__(jne 9f)
+	__(movq misc_header_offset(%arg_z),%imm0)
+	__(cmpq $three_digit_bignum_header,%imm0)
+	__(je 3f)
+	__(cmpq $two_digit_bignum_header,%imm0)
+	__(jne 9f)
+	__(movq misc_data_offset(%arg_z),%imm0)
+	__(testq %imm0,%imm0)
+	__(js 9f)
+	__(jmp *%ra0)
+3:	__(movq misc_data_offset(%arg_z),%imm0)
+	__(cmpl $0,misc_data_offset+8(%arg_z))
+	__(jne 9f)
+	__(jmp *%ra0)
+9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_u64))
 _endsubp(getu64)
 
 _spentry(gets64)
+	__(movq %arg_z,%imm0)
+	__(sarq $fixnumshift,%imm0)
+	__(testb $fixnummask,%arg_z_b)
+	__(je 8f)
+1:	__(movb %arg_z_b,%imm0_b)
+	__(andb $tagmask,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(cmovew misc_subtag_offset(%arg_z),%imm0_w)
+	__(cmpb $subtag_bignum,%imm0_b)
+	__(jne 9f)
+	__(movq misc_header_offset(%arg_z),%imm0)
+	__(cmpq $two_digit_bignum_header,%imm0)
+	__(movq misc_data_offset(%arg_z),%imm0)
+	__(jne 9f)
+8:	__(jmp *%ra0)
+9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_u64))
 _endsubp(gets64)
 
 _spentry(makeu64)
+	__(movq %imm0,%imm1)
+	__(shlq $fixnumshift+1,%imm1)
+	__(movq %imm1,%arg_z)	/* Tagged as a fixnum, 2x  */
+	__(shrq $fixnumshift+1,%imm1)
+	__(shrq %arg_z)
+	__(cmpq %imm0,%imm1)
+	__(je 9f)
+	__(testq %imm0,%imm0)
+	__(movd %imm0,%mm0)
+	__(js 3f)
+	/* Make a 2-digit bignum. */
+	__(movl $two_digit_bignum_header,%imm0_l)
+	__(movl $aligned_bignum_size(2),%imm1_l)
+	__(Misc_Alloc(%arg_z))
+	__(movq %mm0,misc_data_offset(%arg_z))
+	__(jmp *%ra0)
+3:	__(movl $three_digit_bignum_header,%imm0_l)
+	__(movl $aligned_bignum_size(3),%imm1_l)
+	__(Misc_Alloc(%arg_z))
+	__(movq %mm0,misc_data_offset(%arg_z))
+9:	__(jmp *%ra0)
 _endsubp(makeu64)
 
+/* on entry: arg_z = symbol.  On exit, arg_z = value (possibly
+	unbound_marker), arg_y = symbol */
 _spentry(specref)
+	__(movq symbol.binding_index(%arg_z),%imm0)
+	__(cmp %rcontext:tcr.tlb_limit,%imm0)
+	__(movq %rcontext:tcr.tlb_limit,%imm1)
+	__(movq %arg_z,%arg_z)
+	__(jae 7f)
+	__(movq (%imm1,%imm0),%arg_z)
+	__(cmpb $no_thread_local_binding_marker,%arg_z_b)
+	__(jne 8f)
+7:	__(movq symbol.vcell(%arg_y),%arg_z)
+8:	__(jmp *%ra0)		
 _endsubp(specref)
 
 _spentry(specset)
 _endsubp(specset)
 
 _spentry(specrefcheck)
+	__(movq symbol.binding_index(%arg_z),%imm0)
+	__(cmp %rcontext:tcr.tlb_limit,%imm0)
+	__(movq %rcontext:tcr.tlb_limit,%imm1)
+	__(movq %arg_z,%arg_z)
+	__(jae 7f)
+	__(movq (%imm1,%imm0),%arg_z)
+	__(cmpb $no_thread_local_binding_marker,%arg_z_b)
+	__(jne 8f)
+7:	__(movq symbol.vcell(%arg_y),%arg_z)
+8:	__(cmpb $unbound_marker,%arg_z_b)
+	__(jne,pt 9f)
+	__(uuo_error_reg_not_tag(Rarg_z,unbound_marker))
+9:	__(jmp *%ra0)		
 _endsubp(specrefcheck)
 
 _spentry(restoreintlevel)
 _endsubp(restoreintlevel)
 
 _spentry(makes32)
+	__(int $3)
 _endsubp(makes32)
 
 _spentry(makeu32)
+	__(int $3)
 _endsubp(makeu32)
 
 _spentry(gets32)
+	__(int $3)
 _endsubp(gets32)
 
 _spentry(getu32)
+	__(int $3)
 _endsubp(getu32)
 
-_spentry(fix_overflow)
-_endsubp(fix_overflow)
 
 _spentry(mvpasssym)
 _endsubp(mvpasssym)
 
-_spentry(unused_2)
-_endsubp(unused_2)
-
-_spentry(unused_3)
-_endsubp(unused_3)
-
-_spentry(unused_4)
-_endsubp(unused_4)
-
-_spentry(unused_5)
-_endsubp(unused_5)
-
-_spentry(unused_6)
-_endsubp(unused_6)
 
 _spentry(unbind)
 	__(movq %rcontext:tcr.db_link,%imm1)
@@ -1979,3 +2039,49 @@ _spentry(builtin_ash)
 9:	
 	__(jump_builtin(_builtin_ash,2))
 _endsubp(builtin_ash)
+
+_spentry(poweropen_callbackX)
+_endsubp(poweropen_callbackX)
+	
+_spentry(poweropen_ffcall)
+_endsubp(poweropen_ffcall)
+	
+_spentry(poweropen_ffcallX)
+_endsubp(poweropen_ffcallX)
+
+_spentry(poweropen_callback)
+_endsubp(poweropen_callback)
+	
+_spentry(poweropen_syscall)
+_endsubp(poweropen_syscall)
+
+_spentry(eabi_ff_call)
+_endsubp(eabi_ff_call)
+
+_spentry(eabi_callback)
+_endsubp(eabi_callback)
+
+_spentry(eabi_syscall)
+_endsubp(eabi_syscall)
+
+_spentry(unused_0)
+_endsubp(unused_0)
+
+_spentry(unused_1)
+_endsubp(unused_1)
+		
+_spentry(unused_2)
+_endsubp(unused_2)
+
+_spentry(unused_3)
+_endsubp(unused_3)
+
+_spentry(unused_4)
+_endsubp(unused_4)
+
+_spentry(unused_5)
+_endsubp(unused_5)
+
+_spentry(unused_6)
+_endsubp(unused_6)
+	
