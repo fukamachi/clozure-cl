@@ -666,16 +666,6 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 	_ends
 
 
-/* This is only referenced by c->lisp code that needs to save/restore C NVRs in a TSP frame. */
-	_struct(c_reg_save,0)
-	 _node(tsp_link)	/* backpointer */
-	 _node(tsp_mark)	/* frame type */
-	 _node(save_fpscr)	/* for Cs FPSCR */
-	 _field(save_gprs,19*node_size) /* r13-r31 */
-	 _dword(save_fp_zero)	/* for fp_zero */
-	 _dword(save_fps32conv)
-	_ends
-
 
 TCR_BIAS = -512
 		
@@ -735,7 +725,9 @@ TCR_BIAS = -512
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
 TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)	
 
-	
+target_most_positive_fixnum = 1152921504606846975
+target_most_negative_fixnum = -1152921504606846976
+
 
 lisp_globals_limit = 0x2000
         
