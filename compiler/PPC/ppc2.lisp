@@ -3432,7 +3432,6 @@
                  (if (nx-constant-form-p clear-form)
                    (progn 
                      (ppc2-one-targeted-reg-form seg (%cadr val) ($ ppc::arg_z))
-                     (ppc2-open-undo $undostkblk)
                      (if (nx-null clear-form)
                        (! make-stack-block)
                        (! make-stack-block0)))
@@ -3449,6 +3448,7 @@
                        (@ stack-block-0-label)
                        (! make-stack-block0)
                        (@ done-label)))))
+               (ppc2-open-undo $undostkblk)
                (setq val ($ ppc::arg_z)))
               ((eq op (%nx1-operator make-list))
                (ppc2-two-targeted-reg-forms seg (%cadr val) ($ ppc::arg_y) (%caddr val) ($ ppc::arg_z))
