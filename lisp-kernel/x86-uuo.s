@@ -78,7 +78,13 @@ define([uuo_error_reg_not_tag],[
 define([uuo_error_reg_not_type],[
 	int [$]0xb0|$1
 	.byte $2
-])			
+])
+
+define([uuo_error_reg_not_fixnum],[
+	int [$]0xf0|$1
+])	
+		
+	
 		
 /*	
    Signal an UNBOUND-VARIABLE error by claiming that the argument
