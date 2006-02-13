@@ -785,13 +785,15 @@
   (cmpq (:%q src) (:%q temp)))
 
 (define-x8664-vinsn %set-z-flag-if-u64-fits-in-fixnum (((dest :imm))
-                                                       ((src :s64))
-                                                       ((temp :s64)))
+                                                       ((src :u64))
+                                                       ((temp :u64)))
   (movq (:%q src) (:%q temp))
-  (shlq (:$ub x8664::fixnumshift) (:%q temp))
+  (shlq (:$ub (1+ x8664::fixnumshift)) (:%q temp))
   (movq (:%q temp) (:%q dest))          ; tagged as a fixnum
-  (shrq (:$ub x8664::fixnumshift) (:%q temp))
-  (cmpq (:%q src) (:%q temp)))
+  (shrq (:$ub (1+ x8664::fixnumshift)) (:%q temp))
+  (shrq (:%q dest))
+  (cmpq (:%q src) (:%q temp))
+  :done)
 
 
 (define-x8664-vinsn setup-bignum-alloc-for-s64-overflow (()
