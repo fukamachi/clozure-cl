@@ -1,3 +1,20 @@
+2006-02-12 21:42  gb
+
+	* lisp-kernel/x86-spentry64.s: Every day, more stuff.
+
+2006-02-12 21:41  gb
+
+	* lisp-kernel/x86-macros.s: Add a few things, work around $
+	conflation.
+
+2006-02-12 21:40  gb
+
+	* lisp-kernel/x86-uuo.s: add uuo_error_reg_not_fixnum.
+
+2006-02-12 21:39  gb
+
+	* lisp-kernel/x86-constants.s: define tstack_alloc_limit.
+
 2006-02-12 15:58  gb
 
 	* level-1/l1-numbers.lisp: NEW-NUMTOKEN: don't allow leading sign
