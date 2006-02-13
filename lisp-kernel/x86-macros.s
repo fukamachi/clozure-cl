@@ -193,18 +193,18 @@ define([Cons],[
 /* The instructions where tcr.save_allocptr is tagged are difficult
    to interrupt; the interrupting code has to recognize and possibly
    emulate the instructions in between */
-	sub $cons.size+fulltag_cons,%rcontext:tcr.save_allocptr
-	mov %rcontext:tcr.save_allocptr,%allocptr
-	cmp %allocptr,%rcontext:tcr.save_allocbase
+	subq $cons.size+fulltag_cons,%rcontext:tcr.save_allocptr
+	movq %rcontext:tcr.save_allocptr,%allocptr
+	cmpq %allocptr,%rcontext:tcr.save_allocbase
 	jg macro_label(no_trap)
 	uuo_alloc()
 macro_label(no_trap):	
 	andb $~fulltagmask,%rcontext:tcr.save_allocptr
 /* Easy to interrupt now that tcr.save_allocptr isn't tagged as a cons */ 
-	mov $2,cons.cdr(%allocptr)
-	mov $1,cons.car(%allocptr)
+	movq $2,cons.cdr(%allocptr)
+	movq $1,cons.car(%allocptr)
 	ifelse($3,[],[],[
-	 mov %allocptr,$1
+	 movq %allocptr,$1
 	])
 ])
 
@@ -213,7 +213,7 @@ macro_label(no_trap):
 
 define([Misc_Alloc],[
 	new_macro_labels()
-	subq $fulltag_misc,%imm1
+	subq [$]fulltag_misc,%imm1
 /* Here Be Monsters: we have to treat some/all of this instruction 
    sequence atomically, as soon as tcr.save_allocptr becomes tagged.
 */                
@@ -258,12 +258,22 @@ define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1)
 	
 
 define([_car],[
-	mov cons.car($1),$2
+	movq cons.car($1),$2
 ])	
 
-define([_cdr],[
-	mov cons.cdr($1),$2
+define([_rplaca],[
+	movq $2,cons.car($1)
 ])	
+		
+define([_cdr],[
+	movq cons.cdr($1),$2
+])
+
+define([_rplacd],[
+	movq $2,cons.cdr($1)
+])	
+		
+	
 	
 define([tra],[
 	.p2align 3
@@ -356,7 +366,14 @@ define([extract_fulltag],[
 
 define([extract_subtag],[
 	movb misc_subtag_offset($1),$2
-])		
+])
+
+define([extract_typecode],[
+	movb $tagmask,$2_b
+	andb $1_b,$2_b
+	cmpb $tag_misc,$2_b
+	cmovew misc_subtag_offset($1),$2_w
+])
 
 /*
         dnode_align(src,delta,dest)
@@ -366,3 +383,17 @@ define([extract_subtag],[
 	andb $~(dnode_size-1),$3_b
 ])
 	
+define([push_argregs],[
+	new_macro_labels()
+	testw %nargs,%nargs
+	jz macro_label(done)
+	cmpw [$]2*node_size,%nargs
+	je macro_label(yz)
+	jb macro_label(z)
+	push %arg_x
+macro_label(yz):
+	push %arg_y
+macro_label(z):
+	push %arg_z
+macro_label(done):
+])	
