@@ -105,3 +105,6 @@ define([TCR_STATE_FOREIGN],1)
 define([TCR_STATE_LISP],0)
 define([TCR_STATE_EXCEPTION_WAIT],2)
 define([TCR_STATE_EXCEPTION_RETURN],4)
+
+tstack_alloc_limit = 0xffff
+	
