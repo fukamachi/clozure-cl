@@ -1,3 +1,8 @@
+2006-02-13 14:32  gb
+
+	* lisp-kernel/gc.c: last change broke purify on ppc too, back out
+	of it
+
 2006-02-13 00:18  gb
 
 	* compiler/X86/x862.lisp: More stuff.
