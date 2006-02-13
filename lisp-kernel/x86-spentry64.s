@@ -148,6 +148,25 @@ _startfn(C(makeu128))
 	__(jmpq *%ra0)
 _endfn
 
+_spentry(misc_ref)
+	__(movb $tagmask,%imm0_b)
+	__(andb %arg_y_b,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(je,pt 0f)
+	__(uuo_error_reg_not_tag(Rarg_y,tag_misc))
+0:	__(testb $fixnummask,%arg_z_b)
+	__(je,pt 1f)
+	__(uuo_error_reg_not_fixnum(Rarg_z))
+1:	__(movq %arg_z,%imm0)
+	__(shlq $num_subtag_bits-fixnumshift,%imm0)
+	__(movb $-1,%imm0_b)
+	__(cmpq misc_header_offset(%arg_y),%imm0)
+	__(jb 2f)
+	/* This is a vector bounds trap, which is hard to encode */
+	.byte 0xcd,0xc8,0xf7
+2:	__(movb misc_subtag_offset(%arg_y),%imm1_b)
+_endsubp(misc_ref)
+	
 /* %imm1.b = subtag, %arg_y = uvector, %arg_z = index.
    Bounds/type-checking done in caller */	
 _startfn(C(misc_ref_common))
@@ -256,7 +275,28 @@ local_label(misc_ref_bit_vector):
 	__(movq %imm0,%arg_z)
 	__(jmp *%ra0)			
 _endfn(C(misc_ref_common))
-				
+
+/* like misc_ref, only the boxed subtag is in arg_x. 
+*/					
+_spentry(subtag_misc_ref)
+	__(movb $tagmask,%imm0_b)
+	__(andb %arg_y_b,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(je,pt 0f)
+	__(uuo_error_reg_not_tag(Rarg_y,tag_misc))
+0:	__(testb $fixnummask,%arg_z_b)
+	__(je,pt 1f)
+	__(uuo_error_reg_not_fixnum(Rarg_z))
+1:	__(movq %arg_z,%imm0)
+	__(shlq $num_subtag_bits-fixnumshift,%imm0)
+	__(subb $1,%imm0_b)
+	__(cmpq misc_header_offset(%arg_y),%imm0)
+	__(jb 2f)
+	/* This is a vector bounds trap, which is hard to encode */
+	.byte 0xcd,0xc8,0xf7
+2:	__(unbox_fixnum(%arg_x,%imm1))
+	__(jmp C(misc_ref_common))
+_endsubp(subtag_misc_ref)
 
 /* ret1valn returns "1 multiple value" when a called function does not */
 /* return multiple values.  Its presence on the stack (as a return address) */
@@ -306,9 +346,12 @@ C(nvalret):
 _endsubp(nvalret)
 	
 _spentry(jmpsym)
+	__(jump_fname())
 _endsubp(jmpsym)
 
 _spentry(jmpnfn)
+	__(movq %temp0,%fn)
+	__(jmp *%fn)
 _endsubp(jmpnfn)
 
 _spentry(funcall)
@@ -780,8 +823,6 @@ _endsubp(stkconslist_star)
 _spentry(mkstackv)
 _endsubp(mkstackv)
 
-_spentry(subtag_misc_ref)
-_endsubp(subtag_misc_ref)
 	
         .globl C(egc_write_barrier_start)
 C(egc_write_barrier_start):
@@ -854,24 +895,66 @@ C(egc_write_barrier_end):
 _endsubp(store_node_conditional)
 				
 _spentry(setqsym)
+	__(btq $sym_vbit_const,symbol.flags(%arg_y))
+	__(je _SPspecset)
+	__(movq %arg_y,%arg_z)
+	__(movq $XCONST,%arg_y)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
 _endsubp(setqsym)
 
 _spentry(progvsave)
+	__(int $3)
 _endsubp(progvsave)
 
 _spentry(stack_misc_alloc)
 _endsubp(stack_misc_alloc)
 
+/* subtype (boxed, of course) is pushed, followed by nargs bytes worth of 
+   initial-contents.  Note that this can be used to cons any type of initialized 
+   node-header'ed misc object (symbols, closures, ...) as well as vector-like 
+   objects. 
+   Note that we're guaranteed to win (or force GC, or run out of memory) 
+   because nargs < 32K. */	
 _spentry(gvector)
+	__(movzwl %nargs,%nargs_l)
+	__(movq (%rsp,%nargs_q),%imm0)	/* boxed subtype */
+	__(sarq $fixnumshift,%imm0)
+	__(movq %nargs_q,%imm1)
+	__(shlq $num_subtag_bits-word_shift,%imm1)
+	__(orq %imm1,%imm0)
+	__(dnode_align(%nargs_q,node_size,%imm1))
+	__(Misc_Alloc(%arg_z))
+	__(movq %nargs_q,%imm1)
+	__(jmp 2f)
+1:	__(movq %temp0,misc_data_offset(%arg_z,%imm1))
+2:	__(subq $node_size,%imm1)
+	__(pop %temp0)	/* Note the intentional fencepost:
+			   discard the subtype as well.*/
+	__(jge 1b)
+	__(jmp *%ra0)
 _endsubp(gvector)
 
 _spentry(mvpass)
+	__(int $3)
 _endsubp(mvpass)
 
 _spentry(fitvals)
+	__(int $3)
 _endsubp(fitvals)
 
+/* N pushed %nargs values. */
 _spentry(nthvalue)
+	__(movzwl %nargs,%nargs_l)
+	__(leaq (%rsp,%nargs_q),%imm0)
+	__(movq (%imm0),%imm1)	
+	__(movl $nil_value,%arg_z_l)
+	__(cmpq %imm1,%nargs_q)
+	__(jb 1f)
+	__(neg %imm1)
+	__(movq -node_size(%imm0,%imm1),%arg_z)
+1:	__(leaq node_size(%imm0),%rsp)
+	__(jmp *%ra0)	
 _endsubp(nthvalue)
 
 _spentry(values)
@@ -884,12 +967,52 @@ _spentry(opt_supplied_p)
 _endsubp(opt_supplied_p)
 
 _spentry(heap_rest_arg)
+	__(push_argregs())
+	__(movzwl %nargs,%nargs_l)
+	__(movl %nargs_l,%imm1_l)
+	__(testl %imm1_l,%imm1_l)
+	__(movl $nil_value,%arg_z_l)
+	__(jmp 2f)
+	.p2align 4
+1:	__(pop %temp1)
+	__(Cons(%temp1,%arg_z,%arg_z))
+	__(subl $node_size,%imm1_l)
+2:	__(jg 1b)
+	__(push %arg_z)
+	__(jmp *%ra0)		
 _endsubp(heap_rest_arg)
 
+/* %imm0 contains the number of fixed args ; make an &rest arg out of the others */
 _spentry(req_heap_rest_arg)
+	__(push_argregs())
+	__(movzwl %nargs,%nargs_l)
+	__(movl %nargs_l,%imm1_l)
+	__(subl %imm0_l,%imm1_l)
+	__(movl $nil_value,%arg_z_l)
+	__(jmp 2f)
+	.p2align 4
+1:	__(pop %temp1)
+	__(Cons(%temp1,%arg_z,%arg_z))
+	__(subl $node_size,%imm1_l)
+2:	__(jg 1b)
+	__(push %arg_z)
+	__(jmp *%ra0)		
 _endsubp(req_heap_rest_arg)
 
+/* %imm0 bytes of stuff has already been pushed	; make an &rest out of any others */
 _spentry(heap_cons_rest_arg)
+	__(movzwl %nargs,%nargs_l)
+	__(movl %nargs_l,%imm1_l)
+	__(subl %imm0_l,%imm1_l)
+	__(movl $nil_value,%arg_z_l)
+	__(jmp 2f)
+	.p2align 4
+1:	__(pop %temp1)
+	__(Cons(%temp1,%arg_z,%arg_z))
+	__(subl $node_size,%imm1_l)
+2:	__(jg 1b)
+	__(push %arg_z)
+	__(jmp *%ra0)		
 _endsubp(heap_cons_rest_arg)
 
 _spentry(simple_keywords)
@@ -908,15 +1031,51 @@ _spentry(unused_0)
 _endsubp(unused_0)
 
 _spentry(ksignalerr)
+	__(movq $nrs.errdisp,%fname)
+	__(jump_fname)	
 _endsubp(ksignalerr)
 
 _spentry(stack_rest_arg)
+	__(xorl %imm0_l,%imm0_l)
+	__(push_argregs())
+	__(jmp _SPstack_cons_rest_arg)
 _endsubp(stack_rest_arg)
 
 _spentry(req_stack_rest_arg)
+	__(push_argregs())
+	__(jmp _SPstack_cons_rest_arg)
 _endsubp(req_stack_rest_arg)
 
 _spentry(stack_cons_rest_arg)
+	__(movzwl %nargs,%nargs_l)
+	__(movl %nargs_l,%imm1_l)
+	__(subl %imm0_l,%imm1_l)
+	__(movl $nil_value,%arg_z_l)
+	__(je 2f)	/* empty list ; make an empty TSP frame */
+	__(cmpq $(tstack_alloc_limit-dnode_size)/2,%imm1)
+	__(ja 3f)	/* make empty frame, then heap-cons */
+	__(addq %imm1,%imm1)
+	__(dnode_align(%imm1,tsp_frame.fixed_overhead,%imm0))
+	__(TSP_Alloc_Var(%imm0,%temp0))
+	__(addq $tsp_frame.fixed_overhead+fulltag_cons,%temp0)
+1:	__(pop %arg_x)
+	__(_rplacd(%temp0,%arg_z))
+	__(_rplaca(%temp0,%arg_x))
+	__(movq %temp0,%arg_z)
+	__(addq $cons.size,%temp0)
+	__(subq $dnode_size,%imm1)
+	__(jne 1b)
+	__(push %arg_z)
+	__(jmp *%ra0)
+/* Length 0, make empty frame */	
+2:
+	__(TSP_Alloc_Fixed(0,%temp0))
+	__(push %arg_z)
+	__(jmp *%ra0)
+/* Too big to stack-cons, but make an empty frame before heap-consing */
+3:		
+	__(TSP_Alloc_Fixed(0,%temp0))
+	__(jmp _SPheap_cons_rest_arg)
 _endsubp(stack_cons_rest_arg)
 
 _spentry(poweropen_callbackX)
@@ -1066,8 +1225,6 @@ _endsubp(tcallnfnslide)
 _spentry(tcallnfnvsp)
 _endsubp(tcallnfnvsp)
 
-_spentry(misc_ref)
-_endsubp(misc_ref)
 
 _spentry(misc_set)
 _endsubp(misc_set)
@@ -1076,15 +1233,70 @@ _spentry(stkconsyz)
 _endsubp(stkconsyz)
 
 _spentry(stkvcell0)
+	__(int $3)
 _endsubp(stkvcell0)
 
 _spentry(stkvcellvsp)
+	__(int $3)
 _endsubp(stkvcellvsp)
 
+/* Make a "raw" area on the foreign stack, stack-cons a macptr to point to it, 
+   and return the macptr.  Size (in bytes, boxed) is in arg_z on entry; macptr
+   in arg_z on exit. */
 _spentry(makestackblock)
+	__(unbox_fixnum(%arg_z,%imm0))
+	__(dnode_align(%imm0,tsp_frame.fixed_overhead+macptr.size,%imm0))
+	__(cmpq $tstack_alloc_limit,%imm0)
+	__(jae 1f)
+	__(movd %foreign_sp,%arg_z)
+	__(subq %imm0,%arg_z)
+	__(movq %foreign_sp,(%arg_z))
+	__(movd %arg_z,%foreign_sp)
+	__(lea macptr.size+tsp_frame.fixed_overhead(%arg_z),%imm0)
+	__(movq $macptr_header,tsp_frame.fixed_overhead(%arg_z))
+	__(addq fulltag_misc+tsp_frame.fixed_overhead,%arg_z)
+	__(movq %imm0,macptr.address(%arg_z))
+	__(movss %fp0,macptr.domain(%arg_z))
+	__(movss %fp0,macptr.type(%arg_z))
+	__(jmp *%ra0)
+1:	__(movd %foreign_sp,%imm0)
+	__(subq $dnode_size,%imm0)
+	__(movq %foreign_sp,(%imm0))
+	__(movd %imm0,%foreign_sp)
+	__(set_nargs(1))
+	__(movq $nrs.new_gcable_ptr,%fname)
+	__(jump_fname())
 _endsubp(makestackblock)
 
 _spentry(makestackblock0)
+	__(unbox_fixnum(%arg_z,%imm0))
+	__(dnode_align(%imm0,tsp_frame.fixed_overhead+macptr.size,%imm0))
+	__(cmpq $tstack_alloc_limit,%imm0)
+	__(jae 9f)
+	__(movd %foreign_sp,%arg_z)
+	__(movq %arg_z,%imm1)
+	__(subq %imm0,%arg_z)
+	__(movq %foreign_sp,(%arg_z))
+	__(movd %arg_z,%foreign_sp)
+	__(lea macptr.size+tsp_frame.fixed_overhead(%arg_z),%imm0)
+	__(movq $macptr_header,tsp_frame.fixed_overhead(%arg_z))
+	__(addq fulltag_misc+tsp_frame.fixed_overhead,%arg_z)
+	__(movq %imm0,macptr.address(%arg_z))
+	__(movss %fp0,macptr.domain(%arg_z))
+	__(movss %fp0,macptr.type(%arg_z))
+	__(jmp 2f)
+1:	__(movapd %fp0,(%imm0))
+	__(addq $dnode_size,%imm0)
+2:	__(cmpq %imm0,%imm1)
+	__(jne 1b)		
+	__(jmp *%ra0)
+9:	__(movd %foreign_sp,%imm0)
+	__(subq $dnode_size,%imm0)
+	__(movq %foreign_sp,(%imm0))
+	__(movd %imm0,%foreign_sp)
+	__(set_nargs(1))
+	__(movq $nrs.new_gcable_ptr,%fname)
+	__(jump_fname())
 _endsubp(makestackblock0)
 
 _spentry(makestacklist)
@@ -1115,7 +1327,22 @@ _endsubp(recover_values)
 _spentry(vpopargregs)
 _endsubp(vpopargregs)
 
+/* If arg_z is an integer, return in imm0 something whose sign
+   is the same as arg_z's.  If not an integer, error. */
 _spentry(integer_sign)
+	__(testb $tagmask,%arg_z_b)
+	__(movq %arg_z,%imm0)
+	__(je 8f)
+	__(extract_typecode(%arg_z,%imm0))
+	__(cmpb $subtag_bignum,%imm0_b)
+	__(jne 9f)
+	__(getvheader(%arg_z,%imm0))
+	__(shr $num_subtag_bits,%imm0)
+	__(movl misc_data_offset-4(%arg_z,%imm0),%imm0_l)
+	__(setae %imm0_b)
+	__(andl $1,%imm0_l)
+8:	__(jmp *%ra0)
+9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_integer))
 _endsubp(integer_sign)
 
 _spentry(subtag_misc_set)
