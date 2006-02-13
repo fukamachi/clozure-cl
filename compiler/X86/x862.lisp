@@ -892,8 +892,8 @@
         (! check-exact-nargs nargs))
       (x862-argregs-entry seg rev-fixed-args))))
 
-;;; No more than three &optional args; all default to NIL and none have
-;;; supplied-p vars.  No &key/&rest.
+;;; No more &optional args than register args; all &optionals default
+;;; to NIL and none have supplied-p vars.  No &key/&rest.
 (defun x862-simple-opt-entry (seg rev-opt-args rev-req-args)
   (let* ((min (length rev-req-args))
          (nopt (length rev-opt-args))
@@ -904,6 +904,9 @@
         (when rev-req-args
           (! check-min-nargs min))
         (! check-max-nargs max))
+      (when (and (> max *x862-target-num-arg-regs*)
+                 (< min *x862-target-num-arg-regs*))
+        (! ensure-reserved-frame))
       (if (= nopt 1)
         (! default-1-arg min)
         (if (= nopt 2)
@@ -2805,7 +2808,7 @@
         (%rplaca arglist stkargs)))) 
   arglist)
 
-(defun acode-operator-supports-u8 (form)
+(defun x862-acode-operator-supports-u8 (form)
   (setq form (acode-unwrapped-form form))
   (when (acode-p form)
     (let* ((operator (acode-operator form)))
@@ -2849,7 +2852,7 @@
            (js32 (acode-s32-constant-p j))
            (is32 (acode-s32-constant-p i))
            (boolean (backend-crf-p vreg)))
-      (multiple-value-bind (u8-operator u8-operand) (if other-u8 (acode-operator-supports-u8 other-u8))
+      (multiple-value-bind (u8-operator u8-operand) (if other-u8 (x862-acode-operator-supports-u8 other-u8))
         (if u8-operator
           (x864-compare-u8 seg vreg xfer u8-operand u8 (if (and iu8 (not (eq cr-bit x86::x86-e-bits))) (logxor 1 cr-bit) cr-bit) true-p u8-operator)
           (if (and boolean (or js32 is32))
@@ -2899,38 +2902,56 @@
                 (x862-two-targeted-reg-forms seg i ireg j jreg)
                 (x862-compare-natural-registers seg vreg xfer ireg jreg cr-bit true-p)))))))
 
+
+(defun x862-cr-bit-for-logical-comparison (cr-bit true-p)
+  (declare (fixnum cr-bit))
+  (let* ((unsigned
+          (case cr-bit
+            (#.x86::x86-l-bits x86::x86-b-bits)
+            (#.x86::x86-le-bits x86::x86-be-bits )
+            (#.x86::x86-g-bits x86::x86-a-bits)
+            (#.x86::x86-ge-bits x86::x86-ae-bits)
+            (t cr-bit))))
+    (declare (fixnum unsigned))
+    (if true-p
+      unsigned
+      (logxor unsigned 1))))
+                 
 (defun x862-compare-natural-registers (seg vreg xfer ireg jreg cr-bit true-p)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (if vreg
-      (regspec-crf-gpr-case 
-       (vreg dest)
-       (progn
-         (! compare-logical dest ireg jreg)
-         (^ cr-bit true-p))
-       (with-imm-temps () ((b31-reg :natural))
-         (cond ((eq cr-bit x86::x86-e-bits)
-                (if true-p
-                  (! eq->bit31 b31-reg ireg jreg)
-                  (! ne->bit31 b31-reg ireg jreg)))
-               ((eq cr-bit x86::x86-l-bits)
-                (if true-p
-                  (! ltu->bit31 b31-reg ireg jreg)
-                  (! geu->bit31 b31-reg ireg jreg)))
-               ((eq cr-bit  x86::x86-g-bits)
-                (if true-p
-                  (! gtu->bit31 b31-reg ireg jreg)
-                  (! leu->bit31 b31-reg ireg jreg)))
-               (t (error "Bug")))
-         (ensuring-node-target (target dest)
-           (! lowbit->truth target b31-reg))
-         (^)))
+      (progn
+        (setq cr-bit (x862-cr-bit-for-logical-comparison cr-bit true-p))
+        (! compare ireg jreg)
+        (regspec-crf-gpr-case 
+         (vreg dest)
+         (^ cr-bit true-p)
+         (progn
+           (ensuring-node-target (target dest)
+             (! cr-bit->boolean target cr-bit)
+             (^)))))
       (^))))
 
 
 (defun x862-compare-registers (seg vreg xfer ireg jreg cr-bit true-p)
   (with-x86-local-vinsn-macros (seg vreg xfer)
+    (if vreg
+      (progn
+        (! compare ireg jreg)
+        (regspec-crf-gpr-case 
+         (vreg dest)
+         (^ cr-bit true-p)
+         (ensuring-node-target (target dest)
+           (if (not true-p)
+             (setq cr-bit (logxor 1 cr-bit)))
+           (! cr-bit->boolean target cr-bit)
+           (^))))
+      (^))))
+
+(defun x862-compare-register-to-nil (seg vreg xfer ireg cr-bit true-p)
+  (with-x86-local-vinsn-macros (seg vreg xfer)
     (when vreg
-      (! compare ireg jreg)
+      (! compare-to-nil ireg)
       (regspec-crf-gpr-case 
        (vreg dest)
        (^ cr-bit true-p)
@@ -2940,25 +2961,6 @@
          (! cr-bit->boolean target cr-bit)
          (^))))))
 
-(defun x862-compare-register-to-nil (seg vreg xfer ireg cr-bit true-p)
-  (with-x86-local-vinsn-macros (seg vreg xfer)
-    (if vreg
-      (regspec-crf-gpr-case 
-       (vreg dest)
-       (progn
-         (! compare-to-nil dest ireg)
-         (^ cr-bit true-p))
-       (with-imm-temps () ((b31-reg :natural))
-         (if (eql cr-bit x86::x86-e-bits)
-           (if true-p
-             (! eqnil->bit31 b31-reg ireg)
-             (! nenil->bit31 b31-reg ireg))
-           (error "Bug!"))
-         (ensuring-node-target (target dest)
-           (! lowbit->truth target b31-reg))
-         (^)))
-      (^))))
-
 ;;; Have to extract a bit out of the CR when a boolean result needed.
 (defun x862-compare-double-float-registers (seg vreg xfer ireg jreg cr-bit true-p)
   (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -2966,16 +2968,14 @@
       (regspec-crf-gpr-case 
        (vreg dest)
        (progn
-         (! double-float-compare dest ireg jreg)
+         (! double-float-compare ireg jreg)
          (^ cr-bit true-p))
-       (with-imm-temps () ((lowbit-reg :natural))
-         (with-crf-target () flags
-           (! double-float-compare flags ireg jreg)
-           (! crbit->bit31 lowbit-reg flags cr-bit))
-         (unless true-p
-           (! invert-lowbit lowbit-reg))
+       (progn
+         (! double-float-compare ireg jreg)
          (ensuring-node-target (target dest)
-           (! lowbit->truth target lowbit-reg))
+           (if (not true-p)
+             (setq cr-bit (logxor 1 cr-bit)))
+           (! cr-bit->boolean target cr-bit))
          (^)))
       (^))))
 
@@ -3056,7 +3056,7 @@
               (! set-eq-bit dest-crf)))
           (if (and dest-crf src-gpr)
             ;; "Copying" a GPR to a CR field means comparing it to rnil
-            (! compare-to-nil dest src)
+            (! compare-to-nil src)
             (if (and dest-gpr src-gpr)
               ;; This is the "GPR <- GPR" case.  There are
               ;; word-size dependencies, but there's also
@@ -3223,6 +3223,25 @@
   (dolist (var vars)
     (x862-seq-bind-var seg var (pop initforms))))
 
+(defun x862-target-is-imm-subtag (subtag)
+  (when subtag
+    (target-arch-case
+     (:x8664
+      (let* ((masked (logand subtag x8664::fulltagmask)))
+        (declare (fixnum masked))
+        (or (= masked x8664::fulltag-immheader-0)
+            (= masked x8664::fulltag-immheader-1)
+            (= masked x8664::fulltag-immheader-2)))))))
+
+(defun x862-target-is-node-subtag (subtag)
+  (when subtag
+    (target-arch-case
+     (:x8664
+      (let* ((masked (logand subtag x8664::fulltagmask)))
+        (declare (fixnum masked))
+        (or (= masked x8664::fulltag-nodeheader-0)
+            (= masked x8664::fulltag-nodeheader-1)))))))
+
 (defun x862-dynamic-extent-form (seg curstack val)
   (when (acode-p val)
     (with-x86-local-vinsn-macros (seg)
@@ -3262,30 +3281,30 @@
                  (x862-one-targeted-reg-form seg val address)
                  (with-node-temps () (node)
                    (! macptr->stack node address)
-                   (x862-open-undo $undostkblk)
+                   (x862-open-undo $undo-x86-c-frame)
                    (setq val node))))
               ((eq op (%nx1-operator %new-ptr))
                (let ((clear-form (caddr val)))
                  (if (nx-constant-form-p clear-form)
                    (progn 
                      (x862-one-targeted-reg-form seg (%cadr val) ($ x8664::arg_z))
-                     (x862-open-undo $undostkblk)
                      (if (nx-null clear-form)
                        (! make-stack-block)
                        (! make-stack-block0)))
                    (with-crf-target () crf
-                     (let ((stack-block-0-label (backend-get-next-label))
-                           (done-label (backend-get-next-label))
-                           (rval ($ x8664::arg_z))
-                           (rclear ($ x8664::arg_y)))
-                       (x862-two-targeted-reg-forms seg (%cadr val) rval clear-form rclear)
-                       (! compare-to-nil crf rclear)
-                       (! cbranch-false (aref *backend-labels* stack-block-0-label) crf x86::x86-e-bits)
-                       (! make-stack-block)
-                       (-> done-label)
-                       (@ stack-block-0-label)
-                       (! make-stack-block0)
-                       (@ done-label)))))
+                                    (let ((stack-block-0-label (backend-get-next-label))
+                                          (done-label (backend-get-next-label))
+                                          (rval ($ x8664::arg_z))
+                                          (rclear ($ x8664::arg_y)))
+                                      (x862-two-targeted-reg-forms seg (%cadr val) rval clear-form rclear)
+                                      (! compare-to-nil crf rclear)
+                                      (! cbranch-false (aref *backend-labels* stack-block-0-label) crf x86::x86-e-bits)
+                                      (! make-stack-block)
+                                      (-> done-label)
+                                      (@ stack-block-0-label)
+                                      (! make-stack-block0)
+                                      (@ done-label)))))
+               (x862-open-undo $undo-x86-c-frame)
                (setq val ($ x8664::arg_z)))
               ((eq op (%nx1-operator make-list))
                (x862-two-targeted-reg-forms seg (%cadr val) ($ x8664::arg_y) (%caddr val) ($ x8664::arg_z))
@@ -3311,15 +3330,21 @@
                (setq val (x862-make-closure seg (cadr val) t))) ; can't error
               ((eq op (%nx1-operator %make-uvector))
                (destructuring-bind (element-count subtag &optional (init 0 init-p)) (%cdr val)
-                 (if init-p
-                   (progn
-                     (x862-three-targeted-reg-forms seg element-count ($ x8664::arg_x) subtag ($ x8664::arg_y) init ($ x8664::arg_z))
-                     (! stack-misc-alloc-init))
-                   (progn
-                     (x862-two-targeted-reg-forms seg element-count ($ x8664::arg_y)  subtag ($ x8664::arg_z))
-                     (! stack-misc-alloc)))
-                 (x862-open-undo $undostkblk)
-                 (setq val ($ x8664::arg_z))))))))
+                 (let* ((fix-subtag (acode-fixnum-form-p subtag))
+                        (is-node (x862-target-is-node-subtag fix-subtag))
+                        (is-imm  (x862-target-is-imm-subtag fix-subtag)))
+                   (when (or is-node is-imm)
+                     (if init-p
+                       (progn
+                         (x862-three-targeted-reg-forms seg element-count ($ x8664::arg_x) subtag ($ x8664::arg_y) init ($ x8664::arg_z))
+                         (! stack-misc-alloc-init))
+                       (progn
+                         (x862-two-targeted-reg-forms seg element-count ($ x8664::arg_y)  subtag ($ x8664::arg_z))
+                         (! stack-misc-alloc)))
+                     (if is-node
+                       (x862-open-undo $undostkblk)
+                       (x862-open-undo $undo-x86-c-frame))
+                     (setq val ($ x8664::arg_z))))))))))
   val)
 
 (defun x862-addrspec-to-reg (seg addrspec reg)
@@ -4983,7 +5008,8 @@
                   (! check-min-nargs num-fixed))
                 (unless (or rest keys)
                   (! check-max-nargs (+ num-fixed num-opt)))
-                (! ensure-reserved-frame)
+                (unless (> num-fixed *x862-target-num-arg-regs*)
+                  (! ensure-reserved-frame))
                 ;; If there were &optional args, initialize their values
                 ;; to NIL.  All of the argregs get vpushed as a result of this.
                 (when opt
@@ -5055,9 +5081,7 @@
                        (nbytes-vpushed (* nwords-vpushed *x862-target-node-size*)))
                   (declare (fixnum nwords-vpushed nbytes-vpushed))
                   (unless (or lexprp keys) 
-                    (if *x862-open-code-inline*
-                      (! save-lisp-context-offset nbytes-vpushed)
-                      (! save-lisp-context-offset-ool nbytes-vpushed)))
+                    (! save-lisp-context-offset nbytes-vpushed))
                   (x862-set-vstack nbytes-vpushed)
                   (setq optsupvloc (- *x862-vstack* (* num-opt *x862-target-node-size*)))))))
           ;; Caller's context is saved; *x862-vstack* is valid.  Might
