@@ -1,3 +1,13 @@
+2006-02-14 03:20  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp: default
+	&optionals, unwind-protect: push %ra0 "manually".
+
+2006-02-14 03:17  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: New inline
+	REF-SYMBOL-VALUE: don't use a 64-bit trap on ppc32.
+
 2006-02-13 22:29  gb
 
 	* lisp-kernel/gc.c: Conditionalize references to subtag_code_vector
