@@ -263,7 +263,7 @@
           ((addrspec-vcell-p ea)     ; closed-over vcell
            (x862-copy-register seg x8664::arg_z valreg)
            (x862-stack-to-register seg ea x8664::arg_x)
-           (! clr-register x8664::arg_y)
+           (x862-lri seg x8664::arg_y 0)
            (! call-subprim-3 x8664::arg_z (subprim-name->offset '.SPgvset) x8664::arg_x x8664::arg_y x8664::arg_z))
           ((memory-spec-p ea)    ; vstack slot
            (x862-register-to-stack seg valreg ea))
@@ -2242,7 +2242,8 @@
                   ((%i> nargs *x862-target-num-arg-regs*)
                    (! tail-funcall-slide))
                   (t
-                   (! tail-funcall-vsp)))))))
+                   (! restore-full-lisp-context)
+                   (! tail-funcall)))))))
     nil))
 
 (defun x862-seq-fbind (seg vreg xfer vars afuncs body p2decls)
@@ -2287,7 +2288,7 @@
                        3                ; %closure-code%, afunc
                        2)))             ; name, lfun-bits
         (declare (list inherited-vars))
-        (let* ((cell 0))
+        (let* ((cell 2))
           (declare (fixnum cell))
           (if downward-p
             (progn
@@ -3399,14 +3400,18 @@
                     (x862-note-var-cell var reg)
                     (x862-note-top-cell var))
                   (when make-vcell
-                    (with-node-temps () (vcell closed)
+                    (with-node-target (x8664::allocptr) closed
+                      (with-node-target (x8664::allocptr closed) vcell
                         (x862-stack-to-register seg vloc closed)
                         (if closed-downward
                           (progn
                             (! make-tsp-vcell vcell closed)
                             (x862-open-undo $undostkblk))
-                          (! make-vcell vcell closed))
-                        (x862-register-to-stack seg vcell vloc))))))))))))
+                          (progn
+                            (! setup-vcell-allocation)
+                            (! %allocate-uvector vcell)
+                            (! %init-vcell vcell closed)))
+                        (x862-register-to-stack seg vcell vloc)))))))))))))
 
 
 
@@ -3428,14 +3433,18 @@
         (when (%ilogbitp $vbitpunted bits)
           (error "bind-var: var ~s was punted" var))
         (when make-vcell
-          (with-node-temps () (vcell closed)
-            (x862-stack-to-register seg vloc closed)
-            (if closed-downward
-              (progn
-                (! make-tsp-vcell vcell closed)
-                (x862-open-undo $undostkblk))
-              (! make-vcell vcell closed))
-            (x862-register-to-stack seg vcell vloc)))
+          (with-node-target (x8664::allocptr) closed
+            (with-node-target (x8664::allocptr closed) vcell
+              (x862-stack-to-register seg vloc closed)
+              (if closed-downward
+                (progn
+                  (! make-tsp-vcell vcell closed)
+                  (x862-open-undo $undostkblk))
+                (progn
+                  (! setup-vcell-allocation)
+                  (! %allocate-uvector vcell)
+                  (! %init-vcell vcell closed)))
+              (x862-register-to-stack seg vcell vloc))))
         (when lcell
           (setf (lcell-kind lcell) :node
                 (lcell-attributes lcell) bits
@@ -5332,19 +5341,17 @@
     (if (and fix1 fix2)
       (x862-use-operator (%nx1-operator fixnum) seg vreg xfer (logior fix1 fix2)))
     (let* ((fixval (or fix1 fix2))
-           (unboxed-fixval (if fixval (ash fixval *x862-target-fixnum-shift*)))
-           (high (if fixval (if (= unboxed-fixval (logand #xffff0000 unboxed-fixval)) (ash unboxed-fixval -16))))
-           (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
-           (otherform (if (or high low) (if fix1 form2 form1))))
+           (fiximm (if fixval (<= (integer-length fixval)
+                                  (- 32 *x862-target-fixnum-shift*))))
+           (otherform (when fiximm (if fix1 form2 form1))))
       (if otherform
-        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x8664::arg_z)))
-          (when vreg
-            (ensuring-node-target (target vreg) 
-              (if high
-                (! logior-high target other-reg high)
-                (! logior-low target other-reg low)))))
-        (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
-          (if vreg (ensuring-node-target (target vreg) (! %logior2 target r1 r2)))))   
+        (if (null vreg)
+          (x862-form seg nil xfer otherform)
+          (ensuring-node-target (target vreg)
+            (x862-one-targeted-reg-form seg otherform target)
+            (! %logior-c target target (ash fixval *x862-target-fixnum-shift*))))
+         (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
+            (if vreg (ensuring-node-target (target vreg) (! %logior2 target r1 r2)))))
       (^))))
 
 ;;; in a lot of (typical ?) cases, it might be possible to use a
@@ -5375,19 +5382,17 @@
     (if (and fix1 fix2)
       (x862-use-operator (%nx1-operator fixnum) seg vreg xfer (logxor fix1 fix2)))
     (let* ((fixval (or fix1 fix2))
-           (unboxed-fixval (if fixval (ash fixval *x862-target-fixnum-shift*)))
-           (high (if fixval (if (= unboxed-fixval (logand #xffff0000 unboxed-fixval)) (ash unboxed-fixval -16))))
-           (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
-           (otherform (if (or high low) (if fix1 form2 form1))))
+           (fiximm (if fixval (<= (integer-length fixval)
+                                  (- 32 *x862-target-fixnum-shift*))))
+           (otherform (when fiximm (if fix1 form2 form1))))
       (if otherform
-        (let* ((other-reg (x862-one-untargeted-reg-form seg otherform x8664::arg_z)))
-          (when vreg
-            (ensuring-node-target (target vreg) 
-              (if high
-                (! logxor-high target other-reg high)
-                (! logxor-low target other-reg low)))))
-        (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
-          (if vreg (ensuring-node-target (target vreg) (! %logxor2 vreg r1 r2)))))
+        (if (null vreg)
+          (x862-form seg nil xfer otherform)
+          (ensuring-node-target (target vreg)
+            (x862-one-targeted-reg-form seg otherform target)
+            (! %logxor-c target target (ash fixval *x862-target-fixnum-shift*))))
+         (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
+            (if vreg (ensuring-node-target (target vreg) (! %logxor2 target r1 r2)))))
       (^))))
 
 (defx862 x862-%ineg %ineg (seg vreg xfer n)
