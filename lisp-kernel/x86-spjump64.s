@@ -178,5 +178,7 @@ _endfn
         _spjump(bind_interrupt_level)
         _spjump(bind_interrupt_level_0)
         _spjump(progvrestore)
+	.org 0x1000
+	
         _endfile
 		
