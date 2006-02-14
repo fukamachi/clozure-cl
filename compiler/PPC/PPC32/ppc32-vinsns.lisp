@@ -2746,7 +2746,7 @@
   :symbol
   (lwz dest ppc32::symbol.vcell src)
   :done
-  (tdeqi dest ppc32::unbound-marker))
+  (tweqi dest ppc32::unbound-marker))
 
 (define-ppc32-vinsn (%ref-symbol-value :call :subprim-call)
     (((val :lisp))
