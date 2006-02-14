@@ -760,6 +760,24 @@
   ((:not (:and (:pred >= const -128) (:pred <= const 127)))
    (andq (:$l const) (:%q val))))
 
+(define-x8664-vinsn %logior-c (((dest t)
+                                (val t))
+                               ((val t)
+                                (const :s32const)))
+  ((:and (:pred >= const -128) (:pred <= const 127))
+   (orq (:$b const) (:%q val)))
+  ((:not (:and (:pred >= const -128) (:pred <= const 127)))
+   (orq (:$l const) (:%q val))))
+
+(define-x8664-vinsn %logxor-c (((dest t)
+                                (val t))
+                               ((val t)
+                                (const :s32const)))
+  ((:and (:pred >= const -128) (:pred <= const 127))
+   (xorq (:$b const) (:%q val)))
+  ((:not (:and (:pred >= const -128) (:pred <= const 127)))
+   (xorq (:$l const) (:%q val))))
+
 (define-x8664-vinsn character->fixnum (((dest :lisp))
 				       ((src :lisp))
 				       ())
@@ -1330,7 +1348,39 @@
 (define-x8664-subprim-call-vinsn (gvector) .SPgvector)
 
 (define-x8664-subprim-call-vinsn (getu64) .SPgetu64)
-(define-x8664-subprim-call-vinsn (funcall)  .SPfuncall)
+
+;;; Call something callable and obtain the single value that it
+;;; returns.
+(define-x8664-vinsn funcall (()
+                             ()
+                             ((tag :u8)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (movl (:$l #x6004) (:%l x8664::fn))
+  (movb (:%b x8664::temp0) (:%b tag))
+  (andb (:$b x8664::fulltagmask) (:%b tag))
+  (cmpb (:$b x8664::fulltag-symbol) (:%b tag))
+  (cmoveq (:@ x8664::symbol.fcell (:%q x8664::fname)) (:%q x8664::fn))
+  (cmovgq (:%q x8664::temp0) (:%q x8664::fn))
+  (jmp (:%q x8664::fn))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:%q x8664::ra0)) (:%q x8664::fn)))
+
+(define-x8664-vinsn tail-funcall (()
+                                  ()
+                                  ((tag :u8)))
+  (movq (:%q x8664::fn) (:%q x8664::xfn))
+  (movl (:$l (+ #x6000 x8664::tag-tra)) (:%l x8664::fn))
+  (movb (:%b x8664::temp0) (:%b tag))
+  (andb (:$b x8664::fulltagmask) (:%b tag))
+  (cmpb (:$b x8664::fulltag-symbol) (:%b tag))
+  (cmoveq (:@ x8664::symbol.fcell (:%q x8664::fname)) (:%q x8664::fn))
+  (cmovgq (:%q x8664::temp0) (:%q x8664::fn))
+  (jmp (:%q x8664::fn)))
+                             
+  
+(define-x8664-subprim-call-vinsn (funcall)  .SPfuncall t)
 
 (define-x8664-vinsn init-closure (()
                                   ((closure :lisp)))
@@ -1902,6 +1952,35 @@
   (andb (:$b (lognot x8664::fixnummask)) (:%b temp))
   (movq (:%q temp) (:%q dest)))
 
+(define-x8664-vinsn %ilsl (((dest :imm))
+			   ((count :imm)
+			    (src :imm))
+			   ((temp :s64)
+                            (shiftcount (:s64 #.x8664::rcx))))
+  (movq (:%q count) (:%q temp))
+  (sarq (:$ub x8664::fixnumshift) (:%q temp))
+  (xorl (:%l shiftcount) (:%l shiftcount))
+  (rcmpq (:%q temp) (:$l 63))
+  (cmovbw (:%w temp) (:%w shiftcount))
+  (movq (:%q src) (:%q temp))
+  (jae :shift-max)
+  (shlq (:%shift x8664::cl) (:%q temp))
+  (xorb (:%b x8664::cl) (:%b x8664::cl))
+  (jmp :done)
+  :shift-max
+  (xorq (:%q temp) (:%q temp))
+  :done
+  (movq (:%q temp) (:%q dest)))
+
+(define-x8664-vinsn %ilsl-c (((dest :imm))
+			     ((count :u8const)
+			      (src :imm)))
+  ((:not (:pred =
+                (:apply %hard-regspec-value src)
+                (:apply %hard-regspec-value dest)))
+   (movq (:%q src) (:%q dest)))
+  (shlq (:$ub count) (:%q dest)))
+
 ;;; This has to typecheck to ensure that the value is of type BIT.
 (define-x8664-vinsn set-variable-bit-to-variable-value (()
                                                         ((vec :lisp)
@@ -2124,3 +2203,90 @@
   (andq (:@ x8664::misc-header-offset (:%q src)) (:%q dest))
   (shrq (:$ub (- x8664::num-subtag-bits x8664::fixnumshift)) (:%q dest)))
 
+(define-x8664-vinsn %logior2 (((dest :imm))
+                              ((x :imm)
+                               (y :imm)))
+  ((:pred =
+          (:apply %hard-regspec-value x)
+          (:apply %hard-regspec-value dest))
+   (orq (:%q y) (:%q dest)))
+  ((:not (:pred =
+                (:apply %hard-regspec-value x)
+                (:apply %hard-regspec-value dest)))
+   ((:pred =
+           (:apply %hard-regspec-value y)
+           (:apply %hard-regspec-value dest))
+    (orq (:%q x) (:%q dest)))
+   ((:not (:pred =
+                 (:apply %hard-regspec-value y)
+                 (:apply %hard-regspec-value dest)))
+    (movq (:%q x) (:%q dest))
+    (orq (:%q y) (:%q dest)))))
+
+(define-x8664-vinsn %logand2 (((dest :imm))
+                              ((x :imm)
+                               (y :imm)))
+  ((:pred =
+          (:apply %hard-regspec-value x)
+          (:apply %hard-regspec-value dest))
+   (andq (:%q y) (:%q dest)))
+  ((:not (:pred =
+                (:apply %hard-regspec-value x)
+                (:apply %hard-regspec-value dest)))
+   ((:pred =
+           (:apply %hard-regspec-value y)
+           (:apply %hard-regspec-value dest))
+    (andq (:%q x) (:%q dest)))
+   ((:not (:pred =
+                 (:apply %hard-regspec-value y)
+                 (:apply %hard-regspec-value dest)))
+    (movq (:%q x) (:%q dest))
+    (andq (:%q y) (:%q dest)))))
+
+(define-x8664-vinsn %logxor2 (((dest :imm))
+                              ((x :imm)
+                               (y :imm)))
+  ((:pred =
+          (:apply %hard-regspec-value x)
+          (:apply %hard-regspec-value dest))
+   (xorq (:%q y) (:%q dest)))
+  ((:not (:pred =
+                (:apply %hard-regspec-value x)
+                (:apply %hard-regspec-value dest)))
+   ((:pred =
+           (:apply %hard-regspec-value y)
+           (:apply %hard-regspec-value dest))
+    (xorq (:%q x) (:%q dest)))
+   ((:not (:pred =
+                 (:apply %hard-regspec-value y)
+                 (:apply %hard-regspec-value dest)))
+    (movq (:%q x) (:%q dest))
+    (xorq (:%q y) (:%q dest)))))
+
+(define-x8664-subprim-call-vinsn (integer-sign) .SPinteger-sign)
+
+(define-x8664-vinsn vcell-ref (((dest :lisp))
+			       ((vcell :lisp)))
+  (movq (:@ x8664::misc-data-offset (:%q vcell)) (:%q dest)))
+
+(define-x8664-vinsn (call-subprim-3 :call :subprim-call) (((dest t))
+							  ((spno :s32const)
+							   (x t)
+							   (y t)
+							   (z t)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ spno))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn))))
+
+(define-x8664-vinsn setup-vcell-allocation (()
+                                            ())
+  (movl (:$l x8664::value-cell-header) (:%l x8664::imm0))
+  (movl (:$l x8664::value-cell.size) (:%l x8664::imm1)))
+
+(define-x8664-vinsn %init-vcell (()
+                                 ((vcell :lisp)
+                                  (closed :lisp)))
+  (movq (:%q closed) (:@ x8664::value-cell.value (:%q vcell))))
