@@ -223,6 +223,8 @@ tag_misc = 5		/* random uvector */
 tag_symbol = 6	        /* non-null symbol */
 tag_function = 7	/* function entry point */
 
+tag_single_float = tag_imm_0
+		
 fulltag_even_fixnum = 0
 fulltag_imm_0 = 1		/* subtag_single_float (ONLY) */
 fulltag_imm_1 = 2		/* subtag_character (mostly) */
