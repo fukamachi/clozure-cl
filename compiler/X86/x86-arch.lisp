@@ -53,7 +53,7 @@
     statically-linked                   ; true if the lisp kernel is statically linked
     bad-current-vs                      ; current value-stack area
     bad-current-ts                      ; current temp-stack area
-    bad-cs-overflow-limit               ; limit for control-stack overflow check
+    bad-funcall                         ; pseudo-target for funcall
     all-areas                           ; doubly-linked area list
     lexpr-return                        ; multiple-value lexpr return address
     lexpr-return1v                      ; single-value lexpr return address
