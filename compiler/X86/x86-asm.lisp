@@ -3302,7 +3302,7 @@
      #xcdc6 nil nil)
 
    (def-x8664-opcode uuo-error-vector-bounds ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
-     #xcdc8 #o300 #x48)
+     #xcdc8 #o300 0)
 
    
    (def-x8664-opcode uuo-error-reg-not-tag ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
