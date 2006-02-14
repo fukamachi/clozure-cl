@@ -1,3 +1,9 @@
+2006-02-13 22:29  gb
+
+	* lisp-kernel/gc.c: Conditionalize references to subtag_code_vector
+	in purify(),impurify(); code_vectors don't exist on X8664, and
+	purify()/impurify() will have to do something different there.
+
 2006-02-13 21:01  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: Closure & vcell stuff, some
