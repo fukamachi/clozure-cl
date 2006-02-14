@@ -47,7 +47,7 @@ extern LispObj lisp_nil;
 #define STATICALLY_LINKED (-25)        /* non-zero if -static */
 #define BAD_CURRENT_VS (-26)        /* area describing value-stack */
 #define BAD_CURRENT_TS (-27)        /* area describing temp-stack */
-#define BAD_CS_OVERFLOW_LIMIT (-28) /* value for control-stack overflow check */
+#define BAD_FUNCALL (-28)       /* funcall pseudo-target on x86 */
 #define ALL_AREAS (-29)         /* doubly-linked list of stack & heap areas */
 #define LEXPR_RETURN (-30)      /* magic &lexpr cleanup code */
 #define LEXPR_RETURN1V (-31)    /* single-value &lexpr cleanup code */

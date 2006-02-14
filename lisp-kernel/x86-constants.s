@@ -69,7 +69,7 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	 _node(lexpr_return1v) 		/* simpler when &lexpr called for single value. */
 	 _node(lexpr_return) 		/* magic &lexpr return code. */
 	 _node(all_areas) 		/* doubly-linked list of all memory areas */
-	 _node(BAD_cs_overflow_limit) 	/* limit for control-stack overflow check */
+	 _node(bad_funcall)	 	/* pseudo-funcall target for cmove */
 	 _node(BAD_current_ts) 		/* current temp-stack area */
 	 _node(BAD_current_vs) 		/* current value-stack area */
 	 _node(statically_linked)	/* non-zero if -static */
@@ -83,7 +83,7 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	 _node(refbits) 		/* EGC refbits */
 	 _node(gc_inhibit_count)
 	 _node(intflag) 		/* sigint pending */
-	 _node(BAD_block_tag_counter) 	/* counter for (immediate) block tag */
+	 _node(default_allocation_quantum)	/* for per-thread allocation */
 	 _node(deleted_static_pairs) 		
 	 _node(exception_lock)
 	 _node(area_lock)
