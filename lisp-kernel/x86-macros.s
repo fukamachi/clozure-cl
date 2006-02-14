@@ -287,7 +287,7 @@ $1:
 				
 define([do_funcall],[
 	new_macro_labels()
-	lea macro_label(bad)(%rip),%fn
+	ref_global(bad_funcall,%fn)
 	movb %temp0_b,%imm0_b
 	andb $fulltagmask,%imm0_b
 	cmpb $fulltag_symbol,%imm0_b
@@ -295,8 +295,6 @@ define([do_funcall],[
 	cmoveq symbol.fcell(%fname),%fn
 	cmovgq %temp0,%fn
 	jmp *%fn
-	tra(macro_label(bad))
-        uuo_error_not_callable()
 ])
 
 define([getvheader],[
