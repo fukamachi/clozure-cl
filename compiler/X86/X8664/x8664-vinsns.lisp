@@ -308,8 +308,19 @@
   (movq (:$l x8664::nil-value) (:%q x8664::arg_z))
   :done)
 
-
-  
+(define-x8664-vinsn default-optionals (()
+                                       ((n :u16const))
+                                       ((temp :u64)))
+  (rcmpw (:%w x8664::nargs) (:$w (:apply ash n x8664::word-shift)))
+  (movw (:%w x8664::nargs) (:%w temp))
+  (jae :done)
+  :loop
+  (addw (:$w x8664::fixnumone) (:%w temp))
+  (cmpw (:$w (:apply ash n x8664::word-shift)) (:%w temp))
+  (pushq (:$l x8664::nil-value))
+  (jne :loop)
+  :done)
+)  
 
 (define-x8664-vinsn save-lisp-context-no-stack-args (()
                                                      ())
@@ -972,7 +983,7 @@
   :no-reserve)
 
                                            
-(define-x8664-vinsn (vpush-argregs :push :node :vsp) (()
+(define-x8664-vinsn (push-argregs :push :node :vsp) (()
                                                       ())
   (testw (:%w x8664::nargs) (:%w x8664::nargs))
   (jz :done)
@@ -1455,13 +1466,9 @@
 (define-x8664-vinsn save-cleanup-context (()
                                           ((lab :label)))
   (leaq (:@ (:apply - (:^ lab)) (:%q x8664::xfn)) (:%q x8664::fn))
-  (pushq (:%q x8664::ra0))
   )
 
-(define-x8664-vinsn restore-cleanup-context (()
-                                          ())
-  (popq (:%q x8664::ra0))
-  )
+
 
 (define-x8664-vinsn setup-double-float-allocation (()
                                                    ())

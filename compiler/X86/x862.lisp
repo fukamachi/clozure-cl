@@ -5023,6 +5023,7 @@
                 ;; to NIL.  All of the argregs get vpushed as a result of this.
                 (when opt
                   (x862-reserve-vstack-lcells num-opt)
+                  (! push-argregs)
                   (! default-optionals (+ num-fixed num-opt)))
                 (when keys
                   (let* ((keyvect (%car (%cdr (%cdr (%cdr (%cdr keys))))))
@@ -7219,11 +7220,11 @@
            (*x862-top-vstack-lcell* *x862-top-vstack-lcell*))
       (x862-open-undo $undostkblk)      ; tsp frame created by nthrow.
       (! save-cleanup-context (aref *backend-labels* cleanup-label))
-       ; the frame we just pushed
+      (x862-vpush-register seg :x8664::ra0)
       (x862-form seg nil nil cleanup-form)
       (x862-close-undo)
-      (! restore-cleanup-context)
-      (! jump-return-pc)) ; blr
+      (x862-vpush-register seg :x8664::ra0)
+      (! jump-return-pc))
     (x862-open-undo)
     (@=  protform-label)
     (x862-dbind seg yreg '*interrupt-level*)
