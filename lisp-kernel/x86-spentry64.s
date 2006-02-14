@@ -37,6 +37,12 @@ define([jump_builtin],[
 	jump_fname()
 ])
 
+_spentry(bad_funcall)	
+	.globl C(bad_funcall)	
+__(tra(C(bad_funcall)))
+	__(uuo_error_not_callable)
+_endsubp(bad_funcall)
+	
 /* %arg_z has overflowed by one bit.  Make a bignum with 2 (32-bit) digits. */
 _spentry(fix_overflow)
 C(fix_one_bit_overflow):	
@@ -187,7 +193,7 @@ _startfn(C(misc_ref_common))
 	__(movl misc_data_offset(%arg_y),%imm0_l)
 	__(shl $fixnumshift,%imm0)
 	__(rcmpq(%arg_z,%imm0))
-	__(jl local_label(misc_ref_u64))
+	__(jb local_label(misc_ref_u64))
 local_label(misc_ref_node):
 	__(movq misc_data_offset(%arg_y,%arg_z),%arg_z)
 	__(jmp *%ra0)
@@ -291,7 +297,7 @@ _spentry(subtag_misc_ref)
 	__(uuo_error_reg_not_fixnum(Rarg_z))
 1:	__(movq %arg_z,%imm0)
 	__(shlq $num_subtag_bits-fixnumshift,%imm0)
-	__(subb $1,%imm0_b)
+	__(movb $255,%imm0_b)
 	__(cmpq misc_header_offset(%arg_y),%imm0)
 	__(jb 2f)
 	/* This is a vector bounds trap, which is hard to encode */
@@ -300,6 +306,236 @@ _spentry(subtag_misc_ref)
 	__(jmp C(misc_ref_common))
 _endsubp(subtag_misc_ref)
 
+_spentry(subtag_misc_set)
+	__(movb $tagmask,%imm0_b)
+	__(andb %arg_x_b,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(je,pt 0f)
+	__(uuo_error_reg_not_tag(Rarg_x,tag_misc))
+0:	__(testb $fixnummask,%arg_y_b)
+	__(je,pt 1f)
+	__(uuo_error_reg_not_fixnum(Rarg_y))
+1:	__(movq %arg_y,%imm0)
+	__(shlq $num_subtag_bits-fixnumshift,%imm0)
+	__(movb $255,%imm0_b)
+	__(cmpq misc_header_offset(%arg_x),%imm0)
+	__(jb 2f)
+	/* This is a vector bounds trap, which is hard to encode */
+	.byte 0x49,0xcd,0xc8,0xf8
+2:	__(unbox_fixnum(%temp0,%imm1))
+	__(jmp C(misc_set_common))
+_endsubp(subtag_misc_set)
+
+_spentry(misc_set)
+	__(movb $tagmask,%imm0_b)
+	__(andb %arg_x_b,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(je,pt 0f)
+	__(uuo_error_reg_not_tag(Rarg_x,tag_misc))
+0:	__(testb $fixnummask,%arg_y_b)
+	__(je,pt 1f)
+	__(uuo_error_reg_not_fixnum(Rarg_y))
+1:	__(movq %arg_y,%imm0)
+	__(shlq $num_subtag_bits-fixnumshift,%imm0)
+	__(movb $255,%imm0_b)
+	__(cmpq misc_header_offset(%arg_x),%imm0)
+	__(jb 2f)
+	/* This is a vector bounds trap, which is hard to encode */
+	.byte 0x49,0xcd,0xc8,0xf8
+2:	__(movb misc_subtag_offset(%arg_x),%imm1_b)
+	/*	__(jmp C(misc_set_common)) */
+_endsubp(misc_set)
+		
+_startfn(C(misc_set_common))
+	__(extract_fulltag(%imm1,%imm0))
+	__(cmpb $ivector_class_64_bit,%imm0_b)
+	__(je local_label(misc_set_64))
+	__(cmpb $ivector_class_32_bit,%imm0_b)
+	__(je local_label(misc_set_32))
+	__(cmpb $ivector_class_other_bit,%imm0_b)
+	__(je local_label(misc_set_other))
+	/* Node vector.  Functions are funny: the first  N words
+	   are treated as (UNSIGNED-BYTE 64), where N is the low
+	   32 bits of the first word. */
+	__(cmpb $subtag_function,%imm1_b)
+	__(jne _SPgvset)
+	__(movl misc_data_offset(%arg_x),%imm0_l)
+	__(shl $fixnumshift,%imm0)
+	__(rcmpq(%arg_y,%imm0))
+	__(jae _SPgvset)
+local_label(misc_set_u64):
+	__(movq $~(target_most_positive_fixnum << fixnumshift),%imm0)
+	__(testq %arg_z,%imm0)
+	__(movq %arg_z,%imm0)
+	__(jne 1f)
+	__(sarq $fixnumshift,%imm0)
+	__(jmp 9f)
+1:	__(andb $tagmask,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(cmovew misc_subtag_offset(%arg_z),%imm0_w)
+	__(cmpb $subtag_bignum,%imm0_b)
+	__(jne local_label(misc_set_bad))
+	__(movq misc_header_offset(%arg_z),%imm0)
+	__(cmpq $three_digit_bignum_header,%imm0)
+	__(je 3f)
+	__(cmpq $two_digit_bignum_header,%imm0)
+	__(jne local_label(misc_set_bad))
+	__(movq misc_data_offset(%arg_z),%imm0)
+	__(testq %imm0,%imm0)
+	__(js local_label(misc_set_bad))
+	__(jmp 9f)
+3:	__(movq misc_data_offset(%arg_z),%imm0)
+	__(cmpl $0,misc_data_offset+8(%arg_z))
+	__(jne local_label(misc_set_bad))
+9:	__(movq %imm0,misc_data_offset(%arg_x,%arg_y))
+	__(jmp *%ra0)	
+local_label(misc_set_s64):
+	__(movq %arg_z,%imm0)
+	__(sarq $fixnumshift,%imm0)
+	__(testb $fixnummask,%arg_z_b)
+	__(je 9f)
+1:	__(movb %arg_z_b,%imm0_b)
+	__(andb $tagmask,%imm0_b)
+	__(cmpb $tag_misc,%imm0_b)
+	__(cmovew misc_subtag_offset(%arg_z),%imm0_w)
+	__(cmpb $subtag_bignum,%imm0_b)
+	__(jne local_label(misc_set_bad))
+	__(movq misc_header_offset(%arg_z),%imm0)
+	__(cmpq $two_digit_bignum_header,%imm0)
+	__(movq misc_data_offset(%arg_z),%imm0)
+	__(jne local_label(misc_set_bad))
+9:	__(movq %imm0,misc_data_offset(%arg_x,%arg_y))
+	__(jmp *%ra0)	
+local_label(misc_set_bad):
+	__(movq %arg_z,%arg_y)
+	__(movq %arg_x,%arg_z)
+	__(movq $XNOTELT,%arg_x)
+	__(set_nargs(3))
+	__(jmp _SPksignalerr)
+local_label(misc_set_dfloat_vector):	
+	__(extract_lisptag(%arg_z,%imm0))
+	__(cmpb $tag_misc,%imm0_b)
+	__(jne local_label(misc_set_bad))
+	__(movb misc_subtag_offset(%arg_z),%imm0_b)
+	__(cmpb $subtag_double_float,%imm0_b)
+	__(jne local_label(misc_set_bad))
+	__(movq double_float.value(%arg_z),%imm0)
+	__(movq %imm0,misc_dfloat_offset(%arg_x,%arg_y))
+	__(jmp *%ra0)
+local_label(misc_set_64):	
+	__(cmpb $subtag_double_float_vector,%imm1_b)
+	__(je local_label(misc_set_dfloat_vector))
+	__(cmpb $subtag_s64_vector,%imm1_b)
+	__(je local_label(misc_set_s64))
+	__(jmp local_label(misc_set_u64))
+local_label(misc_set_s32):	
+	__(movq %arg_z,%imm0)
+	__(shlq $64-(32+fixnumshift),%imm0)
+	__(shrq $64-(32+fixnumshift),%imm0)
+	__(cmpq %imm0,%arg_z)
+	__(jne local_label(misc_set_bad))
+	__(testb $fixnummask,%arg_z_b)
+	__(jne local_label(misc_set_bad))
+	__(shr $fixnumshift,%imm0)
+	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+local_label(misc_set_single_float):	
+	__(cmpb $tag_single_float,%arg_z_b)
+	__(movq %arg_z,%imm0)
+	__(jne local_label(misc_set_bad))
+	__(shr $32,%imm0)
+	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+local_label(misc_set_32):
+	__(movq %arg_y,%imm1)
+	__(shrq %imm1)
+	__(cmpb $subtag_s32_vector,%imm0_b)
+	__(je local_label(misc_set_s32))
+	__(cmpb $subtag_single_float_vector,%imm0_b)
+	__(je local_label(misc_set_single_float))
+local_label(misc_set_u32):	
+	__(movq $~(0xffffffff<<fixnumshift),%imm0)
+	__(testq %imm0,%arg_z)
+	__(jne local_label(misc_set_bad))
+	__(unbox_fixnum(%arg_z,%imm0))
+	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+local_label(misc_set_other):
+	__(cmpb $subtag_bit_vector,%imm0_b)
+	__(jne local_label(misc_set_other_not_bit_vector))
+	__(testq $~fixnumone,%arg_z)
+	__(jne local_label(misc_set_bad))
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(movb $63,%imm0_b)
+	__(andb %imm1_b,%imm0_b)
+	__(shrq $6,%imm1)
+	__(testb %arg_z_b,%arg_z_b)
+	__(je local_label(misc_set_clr_bit))
+local_label(misc_set_set_bit):	
+	__(btsq %imm0,misc_data_offset(%arg_x,%imm1,8))
+	__(jmp *%ra0)
+local_label(misc_set_clr_bit):	
+	__(btcq %imm0,misc_data_offset(%arg_x,%imm1,8))
+	__(jmp *%ra0)
+local_label(misc_set_other_not_bit_vector):
+	__(cmpb $subtag_simple_base_string,%imm0_b)
+	__(jb local_label(misc_set_16))
+	__(je local_label(misc_set_char))
+	__(cmpb $subtag_s8_vector,%imm0_b)
+	__(je local_label(misc_set_s8))
+local_label(misc_set_u8):	
+	__(testq $~(0xff<<fixnumshift),%arg_z)
+	__(jne local_label(misc_set_bad))
+	__(movq %arg_y,%imm1)
+	__(shrq $3,%imm1)
+	__(unbox_fixnum(%arg_z,%imm0))
+	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+local_label(misc_set_s8):
+	__(movq %arg_z,%imm0)
+	__(shlq $64-(8+fixnumshift),%imm0)	
+	__(sarq $64-(8+fixnumshift),%imm0)
+	__(cmpq %arg_z,%temp0)
+	__(jne local_label(misc_set_bad))
+	__(testb $fixnummask,%arg_z_b)
+	__(jne local_label(misc_set_bad))
+	__(shrq $fixnumshift,%imm0)
+	__(movq %arg_y,%imm1)
+	__(shrq $3,%imm1)
+	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+local_label(misc_set_char):
+	__(cmpb $subtag_character,%arg_z_b)
+	__(movq %arg_z,%imm0)
+	__(jne local_label(misc_set_bad))
+	__(shrq $charcode_shift,%imm0)
+	__(movq %arg_y,%imm1)
+	__(shrq $3,%imm1)
+	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+local_label(misc_set_16):
+	__(movq %arg_y,%imm1)
+	__(shrq $2,%imm1)
+	__(cmpb $subtag_u16_vector,%imm0_b)
+	__(je local_label(misc_set_u16))
+local_label(misc_set_s16):	
+	__(shlq $64-(16+fixnumshift),%imm0)	
+	__(sarq $64-(16+fixnumshift),%imm0)
+	__(cmpq %arg_z,%temp0)
+	__(jne local_label(misc_set_bad))
+	__(testb $fixnummask,%arg_z_b)
+	__(jne local_label(misc_set_bad))
+	__(shrq $fixnumshift,%imm0)
+	__(movw %imm0_w,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+local_label(misc_set_u16):
+	__(testq $(0xffff<<fixnumshift),%arg_z)
+	__(jne local_label(misc_set_bad))
+	__(unbox_fixnum(%arg_z,%imm0))
+	__(movw %imm0_w,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)
+_endfn(C(misc_set_common))
+	
 /* ret1valn returns "1 multiple value" when a called function does not */
 /* return multiple values.  Its presence on the stack (as a return address) */
 /* identifies the stack frame to code which returns multiple values. */
@@ -849,12 +1085,16 @@ C(egc_write_barrier_start):
 	
 _spentry(rplaca)
         .globl C(egc_rplaca)
-C(egc_rplaca):          
+C(egc_rplaca):
+	__(_rplaca(%arg_y,%arg_z))
+	__(jmp *%ra0)
 _endsubp(rplaca)
 
 _spentry(rplacd)
         .globl C(egc_rplacd)
 C(egc_rplacd):          
+	__(_rplacd(%arg_y,%arg_z))
+	__(jmp *%ra0)
 _endsubp(rplacd)
 
 /*
@@ -864,6 +1104,8 @@ _endsubp(rplacd)
 _spentry(gvset)
         .globl C(egc_gvset)
 C(egc_gvset):
+	__(movq %arg_z,misc_data_offset(%arg_x,%arg_y))
+	__(jmp *%ra0)
 _endsubp(gvset)
 
 /* This is a special case of storing into a gvector: if we need to memoize the store,
@@ -873,6 +1115,8 @@ _endsubp(gvset)
 _spentry(set_hash_key)
         .globl C(egc_set_hash_key)
 C(egc_set_hash_key):  
+	__(movq %arg_z,misc_data_offset(%arg_x,%arg_y))
+	__(jmp *%ra0)
 _endsubp(set_hash_key)
 
 /*
@@ -889,9 +1133,22 @@ _endsubp(set_hash_key)
 
 _spentry(store_node_conditional)
         .globl C(egc_store_node_conditional)
-C(egc_store_node_conditional):  
+C(egc_store_node_conditional):
+	__(pop %temp0)
+	__(unbox_fixnum(%temp0,%imm1))
+0:	__(movq (%arg_x,%imm1),%temp0)
+	__(cmpq %arg_y,%temp0)
+	__(movq %temp0,%imm0)
+	__(jne 3f)
+	__(lock cmpxchgq %arg_y,(%arg_x,%imm1))
+	__(jne 0f)
        .globl C(egc_write_barrier_end)
 C(egc_write_barrier_end):
+	__(movl $t_value,%arg_z_l)
+	__(jmp *%ra0)
+3:	__(movl $nil_value,%arg_z_l)
+	__(jmp *%ra0)
+
 _endsubp(store_node_conditional)
 				
 _spentry(setqsym)
@@ -904,10 +1161,92 @@ _spentry(setqsym)
 _endsubp(setqsym)
 
 _spentry(progvsave)
-	__(int $3)
+	
 _endsubp(progvsave)
 
+/* Allocate node objects on the temp stack, immediate objects on the foreign
+   stack. (The caller has to know which stack to discard a frame from.)
+   %arg_y = boxed element-count, %arg_z = boxed subtype
+*/	
 _spentry(stack_misc_alloc)
+	__(movq $(((1<<56)-1)<<fixnumshift),%temp0)
+	__(testq %temp0,%arg_y)
+	__(jne local_label(stack_misc_alloc_not_u56))
+	__(unbox_fixnum(%arg_y,%imm0))
+	__(movq %arg_y,%temp0)
+	__(shl $num_subtag_bits-fixnumshift,%temp0)
+	__(orq %temp0,%imm0)		/* %imm0 now = header */
+	__(movb $fulltagmask,%imm1_b)
+	__(andb %imm0_b,%imm1_b)
+	__(cmpb $fulltag_nodeheader_0,%imm1_b)
+	__(je local_label(stack_misc_alloc_node))
+	__(cmpb $fulltag_nodeheader_0,%imm1_b)
+	__(je local_label(stack_misc_alloc_node))
+	__(cmpb $ivector_class_64_bit,%imm1_b)
+	__(jz local_label(stack_misc_alloc_64))
+	__(cmpb $ivector_class_32_bit,%imm1_b)
+	__(jz local_label(stack_misc_alloc_32))
+	__(unbox_fixnum(%arg_y,%imm1))
+	/* ivector_class_other_bit: 16, 8, or 1 ... */
+	__(cmpb $subtag_bit_vector,%imm0_b)
+	__(jne local_label(stack_misc_alloc_8))
+	__(addq $7,%imm1)
+	__(shrq $3,%imm1)
+	__(jmp local_label(stack_misc_alloc_alloc_ivector))
+local_label(stack_misc_alloc_8):	
+	__(cmpb $subtag_simple_base_string,%imm0_b)
+	__(jb local_label(stack_misc_alloc_16))
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(jmp local_label(stack_misc_alloc_alloc_ivector))
+local_label(stack_misc_alloc_16):	
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(shlq %imm1)
+	__(jmp local_label(stack_misc_alloc_alloc_ivector))
+local_label(stack_misc_alloc_32):
+	/* 32-bit ivector */
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(shlq $2,%imm1)
+	__(jmp local_label(stack_misc_alloc_alloc_ivector))
+local_label(stack_misc_alloc_64):
+	/* 64-bit ivector */	
+	__(movq %arg_y,%imm1)
+local_label(stack_misc_alloc_alloc_ivector):	
+	__(dnode_align(%imm1,tsp_frame.fixed_overhead+node_size,%imm1))
+	__(cmpq $tstack_alloc_limit,%imm1)
+	__(ja local_label(stack_misc_alloc_heap_alloc_ivector))
+	__(movd %foreign_sp,%temp0)
+	__(movq %temp0,%temp1)
+	__(sub %imm1,%temp0)
+0:	__(movapd %fp1,-dnode_size(%temp1))
+	__(subq $dnode_size,%temp1)
+	__(cmpq %temp1,%temp0)
+	__(jnz 0b)	
+	__(movq %foreign_sp,(%temp0))
+	__(movd %temp0,%foreign_sp)
+	__(movq %imm0,tsp_frame.fixed_overhead(%temp0))
+	__(leaq tsp_frame.fixed_overhead+fulltag_misc,%arg_z)
+	__(jmp *%ra0)
+local_label(stack_misc_alloc_heap_alloc_ivector):
+	__(movd %foreign_sp,%imm0)
+	__(subq $dnode_size,%imm0)
+	__(movq %foreign_sp,(%imm0))
+	__(movd %imm0,%foreign_sp)
+	__(jmp _SPmisc_alloc)	
+local_label(stack_misc_alloc_node):
+	__(movq %arg_y,%imm1)
+	__(dnode_align(%imm1,tsp_frame.fixed_overhead+node_size,%imm1))
+	__(cmpq $tstack_alloc_limit,%imm1)
+	__(ja local_label(stack_misc_alloc_heap_alloc_gvector))
+	__(TSP_Alloc_Var(%imm1,%temp0))
+	__(movq %imm0,tsp_frame.fixed_overhead(%temp0))
+	__(leaq tsp_frame.fixed_overhead+fulltag_misc,%arg_z)
+	__(jmp *%ra0)
+local_label(stack_misc_alloc_heap_alloc_gvector):	
+	__(TSP_Alloc_Fixed(0,%imm0))
+	__(jmp _SPmisc_alloc)	
+		
+local_label(stack_misc_alloc_not_u56):				
+	__(uuo_error_reg_not_type(Rarg_y,error_object_not_unsigned_byte_56))	
 _endsubp(stack_misc_alloc)
 
 /* subtype (boxed, of course) is pushed, followed by nargs bytes worth of 
@@ -966,6 +1305,9 @@ _endsubp(default_optional_args)
 _spentry(opt_supplied_p)
 _endsubp(opt_supplied_p)
 
+_spentry(lexpr_entry)
+_endsubp(lexpr_entry)
+	
 _spentry(heap_rest_arg)
 	__(push_argregs())
 	__(movzwl %nargs,%nargs_l)
@@ -1198,7 +1540,11 @@ _endsubp(tfuncallgen)
 _spentry(tfuncallslide)
 _endsubp(tfuncallslide)
 
+	/* No args were vpushed; recover saved context & do funcall */	
 _spentry(tfuncallvsp)
+	__(leave)
+	__(pop %ra0)
+	__(do_funcall())
 _endsubp(tfuncallvsp)
 
 _spentry(tcallsymgen)
@@ -1220,10 +1566,9 @@ _spentry(tcallnfnvsp)
 _endsubp(tcallnfnvsp)
 
 
-_spentry(misc_set)
-_endsubp(misc_set)
 
 _spentry(stkconsyz)
+	__(int $3)
 _endsubp(stkconsyz)
 
 _spentry(stkvcell0)
@@ -1300,6 +1645,53 @@ _spentry(stkgvector)
 _endsubp(stkgvector)
 
 _spentry(misc_alloc)
+	__(movq $(((1<<56)-1)<<fixnumshift),%temp0)
+	__(testq %temp0,%arg_y)
+	__(jne local_label(misc_alloc_not_u56))
+	__(unbox_fixnum(%arg_y,%imm0))
+	__(movq %arg_y,%temp0)
+	__(shl $num_subtag_bits-fixnumshift,%temp0)
+	__(orq %temp0,%imm0)		/* %imm0 now = header */
+	__(movb $fulltagmask,%imm1_b)
+	__(andb %imm0_b,%imm1_b)
+	__(cmpb $fulltag_nodeheader_0,%imm1_b)
+	__(je local_label(misc_alloc_64))
+	__(cmpb $fulltag_nodeheader_0,%imm1_b)
+	__(je local_label(misc_alloc_64))
+	__(cmpb $ivector_class_64_bit,%imm1_b)
+	__(jz local_label(misc_alloc_64))
+	__(cmpb $ivector_class_32_bit,%imm1_b)
+	__(jz local_label(misc_alloc_32))
+	__(unbox_fixnum(%arg_y,%imm1))
+	/* ivector_class_other_bit: 16, 8, or 1 ... */
+	__(cmpb $subtag_bit_vector,%imm0_b)
+	__(jne local_label(misc_alloc_8))
+	__(addq $7,%imm1)
+	__(shrq $3,%imm1)
+	__(jmp local_label(misc_alloc_alloc_vector))
+local_label(misc_alloc_8):	
+	__(cmpb $subtag_simple_base_string,%imm0_b)
+	__(jb local_label(misc_alloc_16))
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(jmp local_label(misc_alloc_alloc_vector))
+local_label(misc_alloc_16):	
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(shlq %imm1)
+	__(jmp local_label(misc_alloc_alloc_vector))
+local_label(misc_alloc_32):
+	/* 32-bit ivector */
+	__(unbox_fixnum(%arg_y,%imm1))
+	__(shlq $2,%imm1)
+	__(jmp local_label(misc_alloc_alloc_vector))
+local_label(misc_alloc_64):
+	/* 64-bit ivector or gvector */	
+	__(movq %arg_y,%imm1)
+local_label(misc_alloc_alloc_vector):	
+	__(dnode_align(%imm1,tsp_frame.fixed_overhead+node_size,%imm1))
+	__(Misc_Alloc(%arg_z))
+	__(jmp *%ra0)
+local_label(misc_alloc_not_u56):
+	__(uuo_error_reg_not_type(Rarg_y,error_object_not_unsigned_byte_56))
 _endsubp(misc_alloc)
 
 
@@ -1337,12 +1729,6 @@ _spentry(integer_sign)
 9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_integer))
 _endsubp(integer_sign)
 
-_spentry(subtag_misc_set)
-_endsubp(subtag_misc_set)
-
-_spentry(spread_lexprz)
-_endsubp(spread_lexprz)
-
 
 _spentry(reset)
 _endsubp(reset)
@@ -1358,26 +1744,42 @@ _endsubp(add_values)
 
 
 _spentry(misc_alloc_init)
+	__(push %ra0)
+	__(push %rbp)
+	__(movq %rsp,%rbp)
+	__(push %arg_z)
+	__(movq %arg_y,%arg_z)
+	__(movq %arg_x,%arg_y)
+	__(lea local_label(misc_alloc_init_back)(%rip),%ra0)
+	__(jmp _SPmisc_alloc)
+__(tra(local_label(misc_alloc_init_back)))
+	__(pop %arg_y)
+	__(leave)
+	__(pop %ra0)
+	__(movq $nrs.init_misc,%fname)
+	__(set_nargs(2))
+	__(jump_fname())	
 _endsubp(misc_alloc_init)
 
 _spentry(stack_misc_alloc_init)
+	__(push %ra0)
+	__(push %rbp)
+	__(movq %rsp,%rbp)
+	__(push %arg_z)
+	__(movq %arg_y,%arg_z)
+	__(movq %arg_x,%arg_y)
+	__(lea local_label(stack_misc_alloc_init_back)(%rip),%ra0)
+	__(jmp _SPstack_misc_alloc)
+__(tra(local_label(stack_misc_alloc_init_back)))
+	__(pop %arg_y)
+	__(leave)
+	__(pop %ra0)
+	__(movq $nrs.init_misc,%fname)
+	__(set_nargs(2))
+	__(jump_fname())	
 _endsubp(stack_misc_alloc_init)
 
 
-_spentry(callbuiltin)
-_endsubp(callbuiltin)
-
-_spentry(callbuiltin0)
-_endsubp(callbuiltin0)
-
-_spentry(callbuiltin1)
-_endsubp(callbuiltin1)
-
-_spentry(callbuiltin2)
-_endsubp(callbuiltin2)
-
-_spentry(callbuiltin3)
-_endsubp(callbuiltin3)
 
 	.globl C(popj)
 _spentry(popj)
@@ -1387,28 +1789,6 @@ C(popj):
 	__(jmp *%ra0)
 _endsubp(popj)
 
-_spentry(restorefullcontext)
-	__(int $3)
-_endsubp(restorefullcontext)
-
-_spentry(savecontextvsp)
-	__(int $3)
-_endsubp(savecontextvsp)
-
-_spentry(savecontext0)
-	__(int $3)
-_endsubp(savecontext0)
-
-_spentry(restorecontext)
-	__(int $3)
-_endsubp(restorecontext)
-
-_spentry(lexpr_entry)
-_endsubp(lexpr_entry)
-
-
-_spentry(breakpoint)
-_endsubp(breakpoint)
 
 
 _spentry(getu64)
@@ -1978,10 +2358,13 @@ _spentry(builtin_logxor)
 	__(jump_builtin(_builtin_logand,2))
 _endsubp(builtin_logxor)
 
-_spentry(builtin_aref1)
-_endsubp(builtin_aref1)
 
 _spentry(builtin_aset1)
+	__(extract_typecode(%arg_x,%imm0))
+	__(box_fixnum(%imm0,%temp0))
+	__(cmpb $min_vector_subtag,%imm0_b)
+	__(jae _SPsubtag_misc_set)
+	__(jump_builtin(_builtin_aset1,3))
 _endsubp(builtin_aset1)
 
 /* We have to be a little careful here	%cl has to be used for
@@ -2040,6 +2423,22 @@ _spentry(builtin_ash)
 	__(jump_builtin(_builtin_ash,2))
 _endsubp(builtin_ash)
 
+_spentry(builtin_aref1)
+	__(extract_typecode(%arg_y,%imm0))
+	__(cmpb $min_vector_subtag,%imm0_b)
+	__(box_fixnum(%imm0,%arg_x))
+	__(jae _SPsubtag_misc_ref)
+	__(jump_builtin(_builtin_aref1,2))
+_endsubp(builtin_aref1)
+	
+
+/* NYI, but should be :	*/
+	
+
+_spentry(spread_lexprz)
+_endsubp(spread_lexprz)
+
+/* FFI stuff, needs to be renamed and some flavor(s) implemented */		
 _spentry(poweropen_callbackX)
 _endsubp(poweropen_callbackX)
 	
@@ -2064,6 +2463,47 @@ _endsubp(eabi_callback)
 _spentry(eabi_syscall)
 _endsubp(eabi_syscall)
 
+/* Unused, and often not used on PPC either */	
+_spentry(callbuiltin)
+	__(int $3)
+_endsubp(callbuiltin)
+
+_spentry(callbuiltin0)
+	__(int $3)
+_endsubp(callbuiltin0)
+
+_spentry(callbuiltin1)
+	__(int $3)
+_endsubp(callbuiltin1)
+
+_spentry(callbuiltin2)
+	__(int $3)
+_endsubp(callbuiltin2)
+
+_spentry(callbuiltin3)
+	__(int $3)
+_endsubp(callbuiltin3)
+	
+_spentry(restorefullcontext)
+	__(int $3)
+_endsubp(restorefullcontext)
+
+_spentry(savecontextvsp)
+	__(int $3)
+_endsubp(savecontextvsp)
+
+_spentry(savecontext0)
+	__(int $3)
+_endsubp(savecontext0)
+
+_spentry(restorecontext)
+	__(int $3)
+_endsubp(restorecontext)
+
+
+_spentry(breakpoint)
+_endsubp(breakpoint)
+	
 _spentry(unused_0)
 _endsubp(unused_0)
 
