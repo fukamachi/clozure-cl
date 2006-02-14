@@ -112,6 +112,10 @@ bitvector global_mark_ref_bits = NULL;
 extern LispObj ret1valn;
 extern LispObj nvalret;
 extern LispObj popj;
+#ifdef X86
+extern LispObj bad_funcall;
+#endif
+
 LispObj text_start = 0;
 
 /* A pointer to some of the kernel's own data; also persistent. */
@@ -1330,6 +1334,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(LEXPR_RETURN) = (LispObj)&nvalret;
   lisp_global(LEXPR_RETURN1V) = (LispObj)&popj;
   lisp_global(ALL_AREAS) = ptr_to_lispobj(all_areas);
+#ifdef X86
+  lisp_global(BAD_FUNCALL) = ptr_to_lispobj(bad_funcall);
+#endif
   lisp_global(DEFAULT_ALLOCATION_QUANTUM) = log2_heap_segment_size << fixnumshift;
 
   exception_init();
