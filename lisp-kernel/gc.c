@@ -2901,9 +2901,11 @@ compact_dynamic_heap()
             imm_dnodes = ((elements+1)+1)>>1;
             break;
           case ivector_class_32_bit:
+#if 0
             if (tag == subtag_code_vector) {
               GCrelocated_code_vector = true;
             }
+#endif
             imm_dnodes = (((elements+2)+3)>>2);
             break;
           case ivector_class_other_bit:
@@ -3465,9 +3467,11 @@ purify_displaced_object(LispObj obj, area *dest, natural disp)
     physbytes = node_size + element_count;
     break;
 
+#ifndef X86
   case subtag_code_vector:
     physbytes = node_size + (element_count << 2);
     break;
+#endif
 
   default:
     Bug(NULL, "Can't purify object at 0x%08x", obj);
@@ -3511,6 +3515,7 @@ purify_object(LispObj obj, area *dest)
 void
 copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int what_to_copy)
 {
+#ifndef X86
   LispObj obj = *ref, header;
   natural tag = fulltag_of(obj), header_tag, header_subtag;
 
@@ -3532,6 +3537,7 @@ copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int 
       }
     }
   }
+#endif
 }
 
 void
