@@ -1,3 +1,49 @@
+2006-02-13 21:01  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Closure & vcell stuff, some
+	logical ops, tail funcall with no stack args.  Funcall inline.
+
+2006-02-13 20:58  gb
+
+	* compiler/X86/x862.lisp: Closure & vcell stuff, some logical ops,
+	tail funcall.
+
+2006-02-13 20:57  gb
+
+	* compiler/X86/x86-arch.lisp: Add bad-funcall kernel global for x86
+	funcall.
+
+2006-02-13 20:53  gb
+
+	* lisp-kernel/x86-spentry64.s: Lots-o-stuff (misc_set, etc.)
+
+2006-02-13 20:52  gb
+
+	* lisp-kernel/x86-spjump64.s: Pad jump table to page boundary, so
+	bad_funcall() has a known address.
+
+2006-02-13 20:51  gb
+
+	* lisp-kernel/x86-macros.s: new do_funcall().
+
+2006-02-13 20:51  gb
+
+	* lisp-kernel/x86-constants64.s: Define tag_single_float.
+
+2006-02-13 20:50  gb
+
+	* lisp-kernel/pmcl-kernel.c: Setup BAD_FUNCALL, for x86 funcall.
+
+2006-02-13 20:50  gb
+
+	* lisp-kernel/: lisp_globals.h, x86-constants.s: BAD_FUNCALL, for
+	x86 funcall.
+
+2006-02-13 20:49  gb
+
+	* compiler/X86/x86-asm.lisp: Don't generate REX prefix on
+	uuo_error_vector_bound unless we need one.
+
 2006-02-13 14:32  gb
 
 	* lisp-kernel/gc.c: last change broke purify on ppc too, back out
