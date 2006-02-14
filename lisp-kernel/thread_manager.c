@@ -862,7 +862,7 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-#ifdef DARWIN_but_this_is_tricky
+#ifdef DARWIN
 #if SUSPEND_RESUME_VERBOSE
     fprintf(stderr,"Mach suspend to 0x%x\n", tcr);
 #endif
