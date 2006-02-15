@@ -89,58 +89,33 @@
         (#_gettimeofday r (%null-ptr))
         r)))
 
+
+(defloadvar *internal-real-time-session-seconds* nil)
+
+
+(defun get-internal-real-time ()
+  "Return the real time in the internal time format. (See
+  INTERNAL-TIME-UNITS-PER-SECOND.) This is useful for finding elapsed time."
+  (rlet ((tv :timeval))
+    (#_gettimeofday tv (%null-ptr))
+    (let* ((micros (truncate (the fixnum (pref tv :timeval.tv_usec)) 1000))
+           (initial *internal-real-time-session-seconds*))
+      (if initial
+        (locally
+            (declare (type (unsigned-byte 32) initial))
+          (+ (* 1000 (the (unsigned-byte 32)
+                       (- (the (unsigned-byte 32) (pref tv :timeval.tv_sec))
+                          initial))) micros))
+        (progn
+          (setq *internal-real-time-session-seconds*
+                (pref tv :timeval.tv_sec))
+          micros)))))
+
 (defun get-tick-count ()
-  (rlet ((now :timeval)
-         (since :timeval))
-    (#_gettimeofday now (%null-ptr))
-    (%sub-timevals since now *lisp-start-timeval*)
-    (timeval->ticks since)))
-  
+  (values (floor (get-internal-real-time)
+                 (floor internal-time-units-per-second
+                        *ticks-per-second*))))
 
-; Allocate a tstack area with at least useable-bytes
-; Returns a fixnum encoding the address of an area structure.
-(defun allocate-tstack (useable-bytes)
-  (with-macptrs ((tstack (ff-call (%kernel-import target::kernel-import-allocate_tstack)
-                                      :unsigned-fullword (logand (+ useable-bytes 4095) -4096)
-                                      :address)))
-    (when (%null-ptr-p tstack)
-      (error "Can't allocate tstack"))
-    (%fixnum-from-macptr tstack)))
-
-
-
-; Allocate a vstack area with at least useable-bytes
-; Returns a fixnum encoding the address of an area structure.
-(defun allocate-vstack (useable-bytes)
-  (with-macptrs ((vstack (ff-call (%kernel-import target::kernel-import-allocate_vstack)
-                                      :unsigned-fullword (logand (+ useable-bytes 4095) -4096)
-                                      :address)))
-    (when (%null-ptr-p vstack)
-      (error "Can't allocate vstack"))
-    (%fixnum-from-macptr vstack)))
-
-
-
-; Create a new, empty control stack area
-; Returns a fixnum encoding the address of an area structure.
-(defun new-cstack-area ()
-  (with-macptrs ((cstack (ff-call (%kernel-import target::kernel-import-register_cstack)
-                                      :unsigned-fullword 0   ; address
-                                      :unsigned-fullword 0   ; size
-                                      :address)))
-    (when (%null-ptr-p cstack)
-      (error "Can't allocate cstack"))
-    (%fixnum-from-macptr cstack)))
-
-
-; Free the result of allocate-tstack, allocate-vstack, or register-cstack
-(defun free-stack-area (stack-area)
-  (with-macptrs ((area-ptr (%null-ptr)))
-    (%setf-macptr-to-object area-ptr stack-area)
-    (ff-call (%kernel-import target::kernel-import-condemn-area)
-                 :address area-ptr
-                 :void))
-  nil)
 
 
 
@@ -288,9 +263,15 @@
 
 
 
-(defparameter *default-control-stack-size* (ash 1 20))
-(defparameter *default-value-stack-size* (ash 1 20))
-(defparameter *default-temp-stack-size* (ash 1 19))
+(defparameter *default-control-stack-size*
+  #+32-bit-target (ash 1 20)
+  #+64-bit-target (ash 2 20))
+(defparameter *default-value-stack-size*
+  #+32-bit-target (ash 1 20)
+  #+64-bit-target (ash 2 20))
+(defparameter *default-temp-stack-size*
+  #+32-bit-target (ash 1 19)
+  #+64-bit-target (ash 2 19))
 
 
 (defmacro with-area-macptr ((var area) &body body)
@@ -398,17 +379,28 @@
   (unless (thread-exhausted-p thread)
     nil))
 
+(defun %tcr-interrupt (tcr)
+  (with-macptrs (tcrp)
+    (%setf-macptr-to-object tcrp tcr)
+    (ff-call
+     (%kernel-import target::kernel-import-raise-thread-interrupt)
+     :address tcrp
+     :signed-fullword)))
+
+
+     
+     
 
 (defun thread-interrupt (thread process function &rest args)
   (with-lock-grabbed ((lisp-thread.state-change-lock thread))
     (case (lisp-thread.state thread)
       (:run 
        (with-lock-grabbed ((lisp-thread.interrupt-lock thread))
-	 (let* ((pthread (lisp-thread-os-thread thread)))
-	   (when pthread
+         (let ((tcr (lisp-thread.tcr thread)))
+	   (when tcr
 	     (push (cons function args)
 		   (lisp-thread.interrupt-functions thread))
-	     (eql 0 (#_pthread_kill pthread (%get-kernel-global 'ppc::interrupt-signal)))))))
+	     (eql 0 (%tcr-interrupt tcr))))))
       (:reset
        ;; Preset the thread with a function that'll return to the :reset
        ;; state
