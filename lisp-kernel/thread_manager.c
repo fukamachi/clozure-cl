@@ -36,6 +36,13 @@ store_conditional(natural*, natural, natural);
 extern signed_natural
 atomic_swap(signed_natural*, signed_natural);
 
+
+int
+raise_thread_interrupt(TCR *target)
+{
+  return pthread_kill((pthread_t)target->osid, SIGNAL_FOR_PROCESS_INTERRUPT);
+}
+
 signed_natural
 atomic_incf_by(signed_natural *ptr, signed_natural by)
 {
