@@ -99,7 +99,7 @@
   $li                                   ; The LI field in an I form instruction.  The lower two bits are
                                         ;  forced to zero.  
   $lia                                  ; The LI field in an I form instruction when used as an absolute
-                                        ;  address.  
+                                        ;  address.
   $mb                                   ; The MB field in an M form instruction.  
   $me                                   ; The ME field in an M form instruction.  
   $mbe                                  ; The MB and ME fields in an M form instruction expressed a single
@@ -155,6 +155,8 @@
   $strm             ; the strm field in a vector data stream instruction
   $vsimm            ; a 5-bit signed immediate that goes in the vA field
   $vuimm            ; a 5-bit unsigned immediate that goes in the vA field
+  $ls               ; The LS field in an X (sync) form instruction
+
   )
 
 (defconstant $me6 $mb6)
@@ -273,6 +275,8 @@
    (ppc-op $strm 2 21 nil nil)
    (ppc-op $vsimm 5 16 nil nil $ppc-operand-signed)
    (ppc-op $vuimm 5 16 nil nil)
+   (ppc-op $ls 21 2 nil nil arch::operand-optional)
+
    ))
 
 
@@ -423,6 +427,9 @@
 ;; The mask for an X form comparison instruction with the L field
 ;; fixed.  
 (defconstant $xcmpl-mask (logior $xcmp-mask (ash 1 21)))
+
+(defmacro xsync (op xop l) `(x ,op ,xop (dpb ,l (byte 3 21) 0)))
+(defconstant $xsync-mask #xff9fffff)
 
 ;; An X form trap instruction with the TO field specified.  
 (defmacro xto (op xop to) `(x ,op ,xop (dpb ,to (byte 5 21) 0)))
@@ -1717,7 +1724,8 @@
 
    #.(ppc-opcode lswi (x 31 597) $x-mask ($ppc) $rt $ra $nb)
 
-   #.(ppc-opcode sync (x 31 598) #xffffffff ($ppc))
+   #.(ppc-opcode lwsync (xsync 31 598 1) #xffffffff ($ppc))
+   #.(ppc-opcode sync (x 31 598) $xsync-mask ($ppc))
 
    #.(ppc-opcode lfdx (x 31 599) $x-mask ($ppc) $frt $ra $rb)
    #.(ppc-opcode lfdux (x 31 631) $x-mask ($ppc) $frt $ras $rb)
