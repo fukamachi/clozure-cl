@@ -1,3 +1,35 @@
+2006-02-14 23:56  gb
+
+	* compiler/PPC/ppc-asm.lisp: Define LWSYNC.  Less sure how to tell
+	if it's available.
+
+2006-02-14 23:51  gb
+
+	* level-1/l1-lisp-threads.lisp: Define GET-INTERNAL-REAL-TIME here;
+	define GET-TICK-COUNT in terms of it (less likely to cons.)
+	
+	Define %TCR-INTERRUPT, so the lisp doesn't know how the guts of
+	PROCESS-INTERRUPT are implemented (and so the kernel does.)
+
+2006-02-14 23:49  gb
+
+	* lib/time.lisp: Define GET-INTERNAL-REAL-TIME earlier in the load
+	sequence.
+
+2006-02-14 23:48  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: Replace unused condemn-area kernel
+	global with raise-thread-interrupt.
+
+2006-02-14 23:47  gb
+
+	* lisp-kernel/imports.s: Export raise_thread_interrupt.
+
+2006-02-14 23:47  gb
+
+	* lisp-kernel/thread_manager.c: Define raise_thread_interrupt.
+
 2006-02-14 03:23  gb
 
 	* lisp-kernel/thread_manager.c: Try using Mach suspend/resume
