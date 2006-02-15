@@ -575,7 +575,7 @@
   allocate_tstack
   allocate_vstack
   register_cstack
-  condemn-area
+  raise-thread-interrupt
   metering-control
   restore-soft-stack-limit
   egc-control
