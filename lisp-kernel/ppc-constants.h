@@ -65,6 +65,8 @@
 #define TCR_FLAG_BIT_AWAITING_PRESET (fixnumshift+1)
 #define TCR_FLAG_BIT_ALT_SUSPEND (fixnumshift+2)
 #define TCR_FLAG_BIT_PROPAGATE_EXCEPTION (fixnumshift+3)
+#define TCR_FLAG_BIT_SUSPEND_ACK_PENDING (fixnumshift+4)
+#define TCR_FLAG_BIT_PENDING_EXCEPTION (fixnumshift+5)
 
 #define TCR_STATE_FOREIGN (1)
 #define TCR_STATE_LISP    (0)
