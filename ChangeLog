@@ -1,3 +1,20 @@
+2006-02-16 15:49  gb
+
+	* lisp-kernel/thread_manager.c: Wait for acknowledgement after
+	suspend_tcr.  Probably needs some testing, but this may be the
+	right approach.
+
+2006-02-16 15:48  gb
+
+	* lisp-kernel/ppc-exceptions.c: catch_exception_raise maintains
+	TCR_FLAG_BIT_PENDING_EXCEPTION.  (There's also some half-finished
+	Mach-based code here for doing interrupts via suspend/resume, but
+	it's probably a bad idea.)
+
+2006-02-16 15:45  gb
+
+	* lisp-kernel/ppc-constants.h: Define a few more tcr flags.
+
 2006-02-14 23:56  gb
 
 	* compiler/PPC/ppc-asm.lisp: Define LWSYNC.  Less sure how to tell
