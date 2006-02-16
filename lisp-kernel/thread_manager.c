@@ -40,6 +40,11 @@ atomic_swap(signed_natural*, signed_natural);
 int
 raise_thread_interrupt(TCR *target)
 {
+#ifdef DARWIN_not_yet
+  if (use_mach_exception_handling) {
+    return mach_raise_thread_interrupt(target);
+  }
+#endif
   return pthread_kill((pthread_t)target->osid, SIGNAL_FOR_PROCESS_INTERRUPT);
 }
 
@@ -869,7 +874,7 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-#ifdef DARWIN
+#ifdef DARWIN_nope
 #if SUSPEND_RESUME_VERBOSE
     fprintf(stderr,"Mach suspend to 0x%x\n", tcr);
 #endif
@@ -879,7 +884,7 @@ suspend_tcr(TCR *tcr)
     }
 #endif
     if (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_suspend_signal) == 0) {
-      SEM_WAIT_FOREVER(tcr->suspend);
+      tcr->flags |= (1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
     } else {
       /* A problem using pthread_kill.  On Darwin, this can happen
 	 if the thread has had its signal mask surgically removed
@@ -902,6 +907,62 @@ suspend_tcr(TCR *tcr)
 }
 
 Boolean
+tcr_suspend_ack(TCR *tcr)
+{
+  /* On Linux, it's safe to wait forever */
+#ifndef DARWIN
+  if (tcr->flags & (1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING)) {
+    SEM_WAIT_FOREVER(tcr->suspend);
+    tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+  }
+  return true;
+#else
+  /* if the ACK_PENDING flag is already clear, return true immediately
+     (in case the caller neglects to check for this */
+  if (!(tcr->flags & (1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING))) {
+    return true;
+  } else {
+    /* Safe to wait forever if Mach exception handling is disabled */
+    if (!use_mach_exception_handling) {
+      SEM_WAIT_FOREVER(tcr->suspend);
+      tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+      return true;
+    }
+    /* If there's an exception pending on this thread, release the
+       exception lock so that the thread can enter a runnable state.
+       It should be safe to wait forever for the semaphore once it's
+       runnable. */
+    if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_EXCEPTION)) {
+      pthread_mutex_unlock(mach_exception_lock);
+      SEM_WAIT_FOREVER(tcr->suspend);
+      pthread_mutex_lock(mach_exception_lock);
+      tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+      return true;
+    } else {
+      /* We don't know for sure whether or not there's an exception
+         pending on the thread.  Wait for as short a time as possible,
+         but try to give some CPU time to the target thread and/or the
+         exception thread.
+      */
+
+      mach_timespec_t q = {0,1};
+      kern_return_t kret;
+      
+      kret = semaphore_timedwait((SEMAPHORE)(natural)(tcr->suspend),q);
+      if (kret == KERN_SUCCESS) {
+        tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+        return true;
+      }
+      return false;
+    }
+  }
+#endif
+}
+
+      
+
+
+Boolean
 lisp_suspend_tcr(TCR *tcr)
 {
   Boolean suspended;
@@ -914,6 +975,9 @@ lisp_suspend_tcr(TCR *tcr)
   }
 #endif
   suspended = suspend_tcr(tcr);
+  if (suspended) {
+    while (!tcr_suspend_ack(tcr));
+  }
 #ifdef DARWIN
   if (use_mach_exception_handling) {
     pthread_mutex_unlock(mach_exception_lock);
@@ -1012,6 +1076,7 @@ suspend_other_threads(Boolean for_gc)
 {
   TCR *current = get_tcr(true), *other, *next;
   int dead_tcr_count = 0;
+  Boolean all_acked;
 
   LOCK(lisp_global(TCR_LOCK), current);
   LOCK(lisp_global(AREA_LOCK), current);
@@ -1033,6 +1098,20 @@ suspend_other_threads(Boolean for_gc)
       dead_tcr_count++;
     }
   }
+
+  do {
+    all_acked = true;
+    for (other = current->next; other != current; other = other->next) {
+      if ((other->osid != 0)) {
+        if (!tcr_suspend_ack(other)) {
+          all_acked = false;
+        }
+      }
+    }
+  } while(! all_acked);
+
+      
+
   /* All other threads are suspended; can safely delete dead tcrs now */
   if (dead_tcr_count) {
     for (other = current->next; other != current; other = next) {
