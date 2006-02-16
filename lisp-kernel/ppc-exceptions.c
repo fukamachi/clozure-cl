@@ -2442,7 +2442,8 @@ catch_exception_raise(mach_port_t exception_port,
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr, "obtaining Mach exception lock in exception thread\n");
 #endif
-    
+  tcr->flags |= (1<<TCR_FLAG_BIT_PENDING_EXCEPTION);
+
   pthread_mutex_lock(mach_exception_lock);
 
 
@@ -2496,6 +2497,7 @@ catch_exception_raise(mach_port_t exception_port,
   fprintf(stderr, "releasing Mach exception lock in exception thread\n");
 #endif
 
+  tcr->flags &= ~(1<<TCR_FLAG_BIT_PENDING_EXCEPTION);
   pthread_mutex_unlock(mach_exception_lock);
   return kret;
 }
@@ -2752,6 +2754,30 @@ darwin_exception_cleanup(TCR *tcr)
 }
 
 
+Boolean
+suspend_mach_thread(mach_port_t mach_thread)
+{
+  kern_return_t status;
+  Boolean aborted = false;
+  
+  do {
+    aborted = false;
+    status = thread_suspend(mach_thread);
+    if (status == KERN_SUCCESS) {
+      status = thread_abort_safely(mach_thread);
+      if (status == KERN_SUCCESS) {
+        aborted = true;
+      } else {
+        fprintf(stderr, "abort failed on thread = 0x%x\n",mach_thread);
+        thread_resume(mach_thread);
+      }
+    } else {
+      return false;
+    }
+  } while (! aborted);
+  return true;
+}
+
 /*
   Only do this if pthread_kill indicated that the pthread isn't
   listening to signals anymore, as can happen as soon as pthread_exit()
@@ -2762,30 +2788,16 @@ Boolean
 mach_suspend_tcr(TCR *tcr)
 {
   mach_port_t mach_thread = (mach_port_t)((natural)( tcr->native_thread_id));
-  kern_return_t status;
   ExceptionInformation *pseudosigcontext;
-  Boolean result = false, aborted = false;
+  Boolean result = false;
   
-  do {
-    aborted = false;
-    status = thread_suspend(mach_thread);
-    if (status == KERN_SUCCESS) {
-      status = thread_abort_safely(mach_thread);
-      if (status == KERN_SUCCESS) {
-        aborted = true;
-      } else {
-        fprintf(stderr, "abort failed on tcr = 0x%x\n",tcr);
-        thread_resume(mach_thread);
-      }
-    } else {
-      return false;
-    }
-  } while (! aborted);
-  pseudosigcontext = create_thread_context_frame(mach_thread, NULL);
-  pseudosigcontext->uc_onstack = 0;
-  pseudosigcontext->uc_sigmask = (sigset_t) 0;
-  tcr->suspend_context = pseudosigcontext;
-  result = true;
+  result = suspend_mach_thread(mach_thread);
+  if (result) {
+    pseudosigcontext = create_thread_context_frame(mach_thread, NULL);
+    pseudosigcontext->uc_onstack = 0;
+    pseudosigcontext->uc_sigmask = (sigset_t) 0;
+    tcr->suspend_context = pseudosigcontext;
+  }
   return result;
 }
 
@@ -2821,6 +2833,58 @@ fatal_mach_error(char *format, ...)
   va_end(args);
 
   Fatal("Mach error", s);
+}
+
+void
+pseudo_interrupt_handler(int signum, ExceptionInformation *context)
+{
+  interrupt_handler(signum, NULL, context);
+}
+
+int
+mach_raise_thread_interrupt(TCR *target)
+{
+  mach_port_t mach_thread = (mach_port_t)((natural)(target->native_thread_id));
+  kern_return_t kret;
+  Boolean result = false;
+  TCR *current = get_tcr(false);
+  thread_basic_info_data_t info; 
+  mach_msg_type_number_t info_count = THREAD_BASIC_INFO_COUNT;
+
+  LOCK(lisp_global(TCR_LOCK), current);
+  LOCK(lisp_global(AREA_LOCK), current);
+  pthread_mutex_lock(mach_exception_lock);
+
+  if (suspend_mach_thread(mach_thread)) {
+    if (thread_info(mach_thread,
+                    THREAD_BASIC_INFO,
+                    (thread_info_t)&info,
+                    &info_count) == KERN_SUCCESS) {
+      if (info.suspend_count == 1) {
+        if ((target->valence == TCR_STATE_LISP) &&
+            (!target->unwinding) &&
+            (TCR_INTERRUPT_LEVEL(target) >= 0)) {
+          kret = setup_signal_frame(mach_thread,
+                                    (void *)pseudo_interrupt_handler,
+                                    SIGNAL_FOR_PROCESS_INTERRUPT,
+                                    0,
+                                    target);
+          if (kret == KERN_SUCCESS) {
+            result = true;
+          }
+        }
+      }
+    }
+    if (! result) {
+      target->interrupt_pending = 1 << fixnumshift;
+    }
+    thread_resume(mach_thread);
+    
+  }
+  pthread_mutex_unlock(mach_exception_lock);
+  UNLOCK(lisp_global(AREA_LOCK), current);
+  UNLOCK(lisp_global(TCR_LOCK), current);
+  return 0;
 }
 
 #endif
