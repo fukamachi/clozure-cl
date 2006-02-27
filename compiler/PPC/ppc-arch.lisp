@@ -250,7 +250,7 @@
     heap-start                          ; start of lisp heap
     heap-end                            ; end of lisp heap
     statically-linked                   ; true if the lisp kernel is statically linked
-    bad-current-vs                      ; current value-stack area
+    stack-size                          ; value of --stack-size arg
     bad-current-ts                      ; current temp-stack area
     bad-cs-overflow-limit               ; limit for control-stack overflow check
     all-areas                           ; doubly-linked area list
