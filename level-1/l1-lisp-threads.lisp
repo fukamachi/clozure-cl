@@ -273,6 +273,14 @@
   #+32-bit-target (ash 1 19)
   #+64-bit-target (ash 2 19))
 
+(def-ccl-pointers stack-sizes ()
+  (let* ((size (%get-kernel-global 'stack-size))) ; set by --stack-size
+    (declare (fixnum size))
+    (when (> size 0)
+      (setq *default-control-stack-size* size
+            *default-value-stack-size* size
+            *default-temp-stack-size* (floor size 2)))))
+
 
 (defmacro with-area-macptr ((var area) &body body)
   `(with-macptrs (,var)
