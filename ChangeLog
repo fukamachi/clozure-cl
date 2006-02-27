@@ -1,3 +1,21 @@
+2006-02-26 21:58  gb
+
+	* lisp-kernel/pmcl-kernel.c: Split --stack-size and
+	--thread-stack-size args, to avoid rlimit problems (and because
+	they're really separate issues.)
+
+2006-02-26 21:23  gb
+
+	* lib/macros.lisp: Remove (most) support for tracing callbacks. 
+	(Having the functionality isn't a bad idea, but the way that it was
+	implemented made the code hard to read and maintain.  Maybe redo
+	this.)
+
+2006-02-26 21:21  gb
+
+	* lisp-kernel/pmcl-kernel.c: Can't reserve 512GB on LinuxPPC64; try
+	256GB instead.
+
 2006-02-26 20:59  gb
 
 	* level-1/version.lisp: Bump.
