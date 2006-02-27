@@ -56,17 +56,20 @@
     spec))
 
 
-(defun trace-tab (&aux (n (min *trace-level* *trace-max-indent*)))
+(defun trace-tab (direction &aux (n (min *trace-level* *trace-max-indent*)))
   (fresh-line *trace-output*)
-  (dotimes (i n)
+  (dotimes (i (1- n))
     (declare (fixnum i))
     (write-char (if (and *trace-bar-frequency* 
 			 (eq 0 (mod i *trace-bar-frequency*)))
-		  #\| #\Space) *trace-output*)))
+		  #\| #\Space) *trace-output*))
+  (if (eq direction :in)
+    (format t "~d> " (1- *trace-level*))
+    (format t "<~d " (1- *trace-level*))))
 
 (defun trace-before  (&rest args)
   (declare (dynamic-extent args))
-  (trace-tab)
+  (trace-tab :in)
   (let* ((*print-level* *trace-print-level*)
          (*print-length* *trace-print-length*)
          (*print-readably* nil))
@@ -80,13 +83,13 @@
          (*print-readably* nil))
     (if (eq n 1)
       (progn
-        (trace-tab)
+        (trace-tab :out)
         (format *trace-output* "~S returned ~S~%" sym (%car args)))
       (progn
-        (trace-tab)
+        (trace-tab :out)
         (format *trace-output* "~S returned ~S values :" sym n)
         (dolist (val args)
-          (trace-tab)
+          (trace-tab :out)
           (format *trace-output* "     ~S" val))))
     (force-output *trace-output*)))
 
