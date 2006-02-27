@@ -1304,6 +1304,10 @@
     ,@(if recover-fn
           `((leaq (:@ (:apply - (:^ :back)) (:%q x8664::ra0)) (:%q x8664::fn))))))
 
+(defmacro define-x8664-subprim-jump-vinsn ((name &rest other-attrs) spno)
+  `(define-x8664-vinsn (,name :jump :jumpLR ,@other-attrs) (() ())
+    (jmp (:@ ,spno))))
+
 (define-x8664-vinsn (nthrowvalues :call :subprim-call) (()
                                                         ((lab :label)))
   (leaq (:@ (:^ lab) (:%q x8664::fn)) (:%q x8664::ra0))
@@ -1845,11 +1849,11 @@
                                             (offset :s64)))
   (movb (:$b val) (:@ (:%q ptr) (:%q offset))))
 
-(define-ppc64-vinsn misc-set-c-u8  (((val :u8))
+(define-x8664-vinsn misc-set-c-u8  (((val :u8))
 				    ((v :lisp)
 				     (idx :u32const))
 				    ())
-  (stb val (:apply + ppc64::misc-data-offset idx) v))
+  (movb (:%b val) (:@ (:apply + x8664::misc-data-offset idx) (:%q v))))
 
 (define-x8664-vinsn misc-set-u8  (((val :u8))
 				  ((v :lisp)
@@ -2297,3 +2301,7 @@
                                  ((vcell :lisp)
                                   (closed :lisp)))
   (movq (:%q closed) (:@ x8664::value-cell.value (:%q vcell))))
+
+(define-x8664-subprim-call-vinsn (progvsave) .SPprogvsave)
+
+(define-x8664-subprim-jump-vinsn (progvrestore) .SPprogvrestore)
