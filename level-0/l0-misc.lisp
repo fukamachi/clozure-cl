@@ -280,7 +280,7 @@
                 static (k static)
                 0 0
                 static (k static))
-        (when hons-space-size
+        (when (and hons-space-size (not (zerop hons-space-size)))
           (format t "~&~,3f MB of static memory reserved for hash consing."
                   (/ hons-space-size (float (ash 1 20)))))
         (format t "~&~,3f MB reserved for heap expansion."
