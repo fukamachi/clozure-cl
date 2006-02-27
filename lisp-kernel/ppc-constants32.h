@@ -457,7 +457,7 @@ typedef struct tcr {
   ExceptionInformation *pending_exception_context;
   void *suspend;		/* suspension semaphore */
   void *resume;			/* resumption semaphore */
-  int flags;
+  natural flags;
   ExceptionInformation *gc_context;
   void *termination_semaphore;
   int unwinding;
