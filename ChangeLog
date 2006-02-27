@@ -1,3 +1,8 @@
+2006-02-27 14:14  gb
+
+	* compiler/PPC/ppc2.lisp: Hadn't saved the buffer; ppc2-%aset2
+	changes were incomplete.
+
 2006-02-26 23:30  gb
 
 	* lisp-kernel/pmcl-kernel.c: Suppress compiler warning.
