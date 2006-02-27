@@ -1,3 +1,64 @@
+OpenMCL 1.1-pre-060226
+
+- The --thread-stack-size (or -Z)  command-line argument changes the values
+  of the variables used to determine the sizes of the listener thread.
+  The values of these variables will persist accross SAVE-APPLICATION;
+  these values have no effect on the sizes of stacks in threads created
+  under explicit user control.
+
+- New functions:
+
+  (CCL:GC-VERBOSE on-full-gc &optional (on-egc on-full-gc))
+
+  Causes the GC to print (or stop printing ...) informational messages
+  on entry and exit.  The ON-FULL-GC argument controls whether or
+  not these messages are printed on ... a full GC, and the ON-EGC
+  argument (which defaults to the value of the ON-FULL-GC argument)
+  controls whether messages are printed on ephemeral GCs.
+
+  (CCL:GC-VERBOSE-P)
+
+  Returns two values (corresponding to the arguments of the last call
+  to CCL:GC-VERBOSE.)
+
+  (CCL:REBUILD-CCL &key :FULL :CLEAN :KERNEL :FORCE :RELOAD :EXIT 
+                         :RELOAD-ARGUMENTS)
+
+  Depending on the values of its arguments, recompiles lisp and/or
+  kernel sources and optionallly re-generates ("reloads") a heap
+  image.
+
+  Arguments:
+
+  clean   deletes FASL and .o files before performing other steps
+  kernel  rebuilds the lisp kernel
+  force   forces recompilation, even if binary is newer than source
+  reload  tries to rebuild a full heap image after other build steps
+  exit    quits after all other steps
+  full    equivalent to :CLEAN T :KERNEL T :RELOAD T
+  reload-arguments a list of strings, passed as additional arguments
+                   to the reload step.  E.g. '("--thread-stack-size" "128M").
+
+  Output from the :KERNEL and :RELOAD steps is ordinarily only displayed
+  if an error occurs.
+  
+
+- Changes
+
+  TRACE now prints an integer (corresponding to the level of indentation)
+  on each line of output.
+
+  Tracing callbacks is currently broken (it may be reimplemented; if so,
+  it'd be implemented somewhat differently ...)
+
+- Bugs
+
+  Several bugs involving interactions between the GC and (many) active
+  threads have been fixed; at least one such bug remains (the symptom
+  involves a recently allocated  array somehow getting trashed or GCed
+  incorrectly; the  cause has been under investigation for weeks but is 
+  still not known.)
+
 OpenMCL 1.1-pre-060125
 
 - FASL version changed; delete old FASL (.dfsl, .pfsl, .dfsl64, .pfsl64) files
