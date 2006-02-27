@@ -1103,8 +1103,8 @@ process_options(int argc, char *argv[])
 	  if (stack_size >= MIN_CSTACK_SIZE) {
 	   thread_stack_size = stack_size;
 	  }
-          if (thread_stack_size >= (1<<((WORD_SIZE-fixnumshift)-1))) {
-            thread_stack_size = (1<<((WORD_SIZE-fixnumshift)-1))-1;
+          if (thread_stack_size >= (1L<<((WORD_SIZE-fixnumshift)-1))) {
+            thread_stack_size = (1L<<((WORD_SIZE-fixnumshift)-1))-1;
           }
           
 	}
