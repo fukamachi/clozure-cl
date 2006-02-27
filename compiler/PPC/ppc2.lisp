@@ -7064,7 +7064,7 @@
       (t (error "Bug: shouldn't have tried to open-code %AREF2 call.")))))
 
 (defppc2 ppc2-%aset2 aset2 (seg vreg xfer typename arr i j new &optional dim0 dim1)
-  (let* ((fixtype (nx-lookup-target-uvector-subtag typename ))
+  (let* ((fixtype (nx-lookup-target-uvector-subtag (ppc2-immediate-operand typename)))
          (safe (unless *ppc2-reckless* fixtype))
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
