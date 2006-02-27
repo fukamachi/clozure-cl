@@ -682,16 +682,16 @@ minimum number of elements to add if it must be extended."
                    target::subtag-u16-vector)
 		  ((and (>= low 0) (<= high #xffffffff))
                    target::subtag-u32-vector)
-                  #+ppc64-target
+                  #+64-bit-target
                   ((and (>= low 0) (<= high (1- (ash 1 64))))
-                   ppc64::subtag-u64-vector)
+                   target::subtag-u64-vector)
 		  ((and (>= low -128) (<= high 127)) target::subtag-s8-vector)
 		  ((and (>= low -32768) (<= high 32767)) target::subtag-s16-vector)
 		  ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
 		   target::subtag-s32-vector)
-                  #+ppc64-target
+                  #+64-bit-target
                   ((and (>= low (ash -1 63)) (<= high (1- (ash 1 63))))
-                   ppc64::subtag-s64-vector)
+                   target::subtag-s64-vector)
 		  (t target::subtag-simple-vector))))
 	 (float
 	  (case (numeric-ctype-format ctype)
