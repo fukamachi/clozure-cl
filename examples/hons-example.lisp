@@ -54,17 +54,11 @@
             (hons-table-used ht)
             (hons-table-max ht))))
 
-
-;;; Since it may be prohibitively expensive to grow or rehash a
-;;; hons table in place, we just allocate a new one (or at least
-;;; try to) whenever the current one fills up.  We have to
-;;; search through all known hons tables when doing a lookup,
-;;; but allocate in the most recent (or "active") table, which
-;;; is in the CAR of *ALL-HONS-TABLES*.
+;;; The "active" HONS table is the CAR of this list.
 (defparameter *all-hons-tables* ()
   "A list of all hons tables, maintained in reverse order of creation (e.g., the CAR of this list is the most recently created.)")
 
-(defparameter *hons-table-max-full-ratio* (/ 4 5)
+(defparameter *hons-table-max-full-ratio* .85
   "Controls how full a hons table can get.")
 
 ;;; Try to allocate a new HONS table, which describes a newly
@@ -94,9 +88,17 @@
       ;; but there isn't currently an easy way to detect that.)
       (error "Couldn't increase hons space size by ~d pairs" size))))
 
+(defun hons-hash-string (s)
+  (let* ((h 0))
+    (declare (fixnum h))
+    (dotimes (i (length s) (logand h most-positive-fixnum))
+      (setq h (+ (the fixnum (* 4999 h)) (the fixnum (ccl::%scharcode s i)))))))
+
 ;;; Exactly what types of objects can go in the CAR or CDR of
 ;;; a HONS table is application dependent, but it's reasonable
 ;;; to insist that all CONSes are HONSes.
+
+
 (defun hash-pair-for-honsing (car cdr)
   ;; This often calls CCL::%%EQLHASH, which is (as one might
   ;; assume) a primitive used with EQL hash tables.  It tries
@@ -114,41 +116,44 @@
                 (fixnum (ccl::%%eqlhash thing))
                 ((or bignum single-float double-float)
                  (ccl::%%eqlhash thing))
-                (null (ccl::%%eqlhash thing))
-                (symbol (let* ((string (symbol-name thing)))
-                          (ccl::string-hash string 0 (length string))))
-                (string (ccl::string-hash thing 0 (length thing)))
+                (null target::nil-value)
+                (symbol (hons-hash-string (symbol-name thing)))
+                (simple-string (hons-hash-string thing))
                 ((complex rational) (ccl::%%eqlhash thing))))
             most-positive-fixnum)))
-    (or (let* ((honsp (openmcl-hons:honsp cdr)))
-          (if honsp (the fixnum (1+ (the fixnum honsp)))))
-        (the fixnum
-          (logxor (the fixnum (hash-for-honsing car))
-                  (the fixnum (hash-for-honsing cdr)))))))
+     (the fixnum
+       (+ (the fixnum (* 37 (the fixnum (hash-for-honsing car))))
+          (the fixnum (* 33 (the fixnum (hash-for-honsing cdr))))))))
+
+(defparameter *hons-probes* 0)
+(defparameter *hons-secondary-probes* 0)
+
 
 (defun hons-table-get (ht hash car cdr)
   "Tries to find a HONS with matching (EQL) CAR and CDR in the hash table HT.
 Returns a CONS if a match is found, a fixnum index otherwise."
   (declare (fixnum hash) (optimize (speed 3)))
+  (incf *hons-probes*)
   (do* ((size (hons-table-size ht))
         (start (hons-table-start-index ht))
         (end (+ start size))
-        (idx (+ start (the fixnum (ccl::fast-mod hash size))) (+ idx (ash size -2)))
+        (idx (+ start (the fixnum (ccl::fast-mod hash size))) (+ idx 1))
         (first-deleted-index nil))
        ()
     (declare (fixnum start end size idx))
     (if (>= idx end)
       (decf idx size))
-    (let* ((used (openmcl-hons:hons-index-used-p idx))
-           (hcar (openmcl-hons:hons-space-ref-car idx))
+    (let* ((hcar (openmcl-hons:hons-space-ref-car idx))
            (hcdr (openmcl-hons:hons-space-ref-cdr idx)))
-      (cond ((and used (eql hcar car) (eql hcdr cdr))
+      (cond ((and  (eql hcar car) (eql hcdr cdr))
              (return (openmcl-hons:hons-from-index idx)))
-            ((not used)
-             (if (eq car (openmcl-hons:hons-space-deleted-marker))
+            (t
+             (if (eq hcar (openmcl-hons:hons-space-deleted-marker))
                (unless first-deleted-index
                  (setq first-deleted-index idx))
-               (return (or first-deleted-index idx))))))))
+               (if (eq hcar (openmcl-hons:hons-space-free-marker))
+                 (return (or first-deleted-index idx))))))
+      (incf *hons-secondary-probes*))))
 
 
 ;;; These values are entirely arbitrary.
@@ -163,37 +168,19 @@ Returns a CONS if a match is found, a fixnum index otherwise."
 ;;; CDR, or create a new one.
 (defun hons (car cdr)
   (let* ((tables *all-hons-tables*)
-         (active-table (pop tables))
-         (h nil)
-         (active-idx nil)
-         (hash (hash-pair-for-honsing car cdr)))
+         (active-table (if tables
+                         (car tables)
+                         (make-hons-table *initial-hons-table-size*)))
+         (hash (hash-pair-for-honsing car cdr))
+         (h (hons-table-get active-table hash car cdr)))
     (declare (fixnum hash))
-    (if (not active-table)
-      (setq active-table
-            (make-hons-table *initial-hons-table-size*)))
-    (or (progn
-          (setq h (hons-table-get active-table hash car cdr))
-          (if (consp h)
-            h
-            (progn
-              (setq active-idx h)
-              nil)))
-        (let* ((cdr-is-hons (openmcl-hons:honsp cdr)))
-          (dolist (table tables)
-            (when (and cdr-is-hons
-                       (>= cdr-is-hons (hons-table-end-index table)))
-              (return))
-            (when (typep (setq h (hons-table-get table hash car cdr)) 'cons)
-              (return h))))
-        (when (< (hons-table-used active-table)
-                 (hons-table-max active-table))
-          (incf (hons-table-used active-table))
-          (openmcl-hons:hons-space-cons active-idx car cdr))
-        (progn
-          (let* ((new (make-hons-table *secondary-hons-table-size*))
-                 (new-idx (hons-table-get new hash car cdr)))
-            (incf (hons-table-used new))
-            (openmcl-hons:hons-space-cons new-idx car cdr))))))
+    (cond ((consp h) h)
+          ((< (hons-table-used active-table)
+              (hons-table-max active-table))
+           (incf (hons-table-used active-table))
+           (openmcl-hons:hons-space-cons h car cdr))
+          (t (error "Active hons table is full.")))))
+
 
 
 ;;; Some utilities.
