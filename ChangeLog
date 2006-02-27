@@ -1,3 +1,20 @@
+2006-02-26 22:51  gb
+
+	* release-notes.txt: Update.
+
+2006-02-26 22:51  gb
+
+	* level-1/: l1-application.lisp, l1-boot-lds.lisp,
+	l1-lisp-threads.lisp: Exercise more control over the stack sizes of
+	listener threads (especially the initial listener.)
+	
+	(The --thread-stack-size argument affects the size of the initial
+	listener's stacks only.)
+
+2006-02-26 22:49  gb
+
+	* lisp-kernel/pmcl-kernel.c: Fix the usage message.
+
 2006-02-26 21:58  gb
 
 	* lisp-kernel/pmcl-kernel.c: Split --stack-size and
