@@ -303,7 +303,7 @@ plbt_sp(LispObj currentSP)
     cs_area = tcr->cs_area;
     if ((((LispObj) ptr_to_lispobj(cs_area->low)) > currentSP) ||
         (((LispObj) ptr_to_lispobj(cs_area->high)) < currentSP)) {
-      Dprintf("\nStack pointer [#x%08X] in unknown area.", currentSP);
+      Dprintf("\nStack pointer [#x%lX] in unknown area.", currentSP);
     } else {
       fprintf(stderr, "current thread: tcr = 0x%lx,  psn = %ld, native thread ID = 0x%lx, interrupts %s\n", tcr, cs_area->owner >> fixnumshift, tcr->native_thread_id, ilevel);
       walk_stack_frames((lisp_frame *) ptr_from_lispobj(currentSP), (lisp_frame *) (cs_area->high));

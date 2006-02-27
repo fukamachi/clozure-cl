@@ -40,11 +40,12 @@ describe_symbol(LispObj sym)
 LispObj
 find_symbol_in_range(LispObj *start, LispObj *end, char *name)
 {
-  LispObj header;
+  LispObj header, tag;
   int n = strlen(name);
   char *s = name, *p;
   while (start < end) {
     header = *start;
+    tag = fulltag_of(header);
     if (header_subtag(header) == subtag_symbol) {
       LispObj 
         pname = deref(ptr_to_lispobj(start), 1),
@@ -57,9 +58,9 @@ find_symbol_in_range(LispObj *start, LispObj *end, char *name)
         }
       }
     }
-    if (nodeheader_tag_p(header)) {
+    if (nodeheader_tag_p(tag)) {
       start += (~1 & (2 + header_element_count(header)));
-    } else if (immheader_tag_p(header)) {
+    } else if (immheader_tag_p(tag)) {
       start = (LispObj *) skip_over_ivector((natural)start, header);
     } else {
       start += 2;
@@ -92,7 +93,7 @@ find_symbol(char *name)
 void 
 plsym(ExceptionInformation *xp, char *pname) 
 {
-  long	address = 0;
+  natural address = 0;
 
   address = find_symbol(pname);
   if (address == 0) {
