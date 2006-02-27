@@ -295,7 +295,7 @@ check_node(LispObj n)
 }
 
 void
-check_range(LispObj *start, LispObj *end)
+check_range(LispObj *start, LispObj *end, Boolean header_allowed)
 {
   LispObj node, *current = start, *prev;
   int tag;
@@ -306,8 +306,14 @@ check_range(LispObj *start, LispObj *end)
     node = *current++;
     tag = fulltag_of(node);
     if (immheader_tag_p(tag)) {
+      if (! header_allowed) {
+        Bug(NULL, "Header not expected at 0x%lx\n", prev);
+      }
       current = (LispObj *)skip_over_ivector((natural)prev, node);
     } else if (nodeheader_tag_p(tag)) {
+      if (! header_allowed) {
+        Bug(NULL, "Header not expected at 0x%lx\n", prev);
+      }
       elements = header_element_count(node) | 1;
       while (elements--) {
         check_node(*current++);
@@ -335,7 +341,7 @@ check_all_areas()
     case AREA_DYNAMIC:
     case AREA_STATIC:
     case AREA_MANAGED_STATIC:
-      check_range((LispObj *)a->low, (LispObj *)a->active);
+      check_range((LispObj *)a->low, (LispObj *)a->active, true);
       break;
 
     case AREA_VSTACK:
@@ -346,7 +352,7 @@ check_all_areas()
         if (((natural)low) & node_size) {
           check_node(*low++);
         }
-        check_range(low, high);
+        check_range(low, high, false);
       }
       break;
 
@@ -363,7 +369,7 @@ check_all_areas()
           next = ptr_from_lispobj(*current);
           end = ((next >= start) && (next < limit)) ? next : limit;
           if (current[1] == 0) {
-            check_range(current+2, end);
+            check_range(current+2, end, true);
           }
         }
       }
@@ -1574,6 +1580,9 @@ mark_vstack_area(area *a)
     *start = (LispObj *) a->active,
     *end = (LispObj *) a->high;
 
+#if 0
+  fprintf(stderr, "mark VSP range: 0x%lx:0x%lx\n", start, end);
+#endif
   if ((((natural)end) - ((natural)start)) & sizeof(natural)) {
     /* Odd number of words.  Mark the first (can't be a header) */
     mark_root(*start);
