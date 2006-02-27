@@ -45,7 +45,7 @@ extern LispObj lisp_nil;
 #define HEAP_START (-23)        /* start of lisp heap */
 #define HEAP_END (-24)          /* end of lisp heap */
 #define STATICALLY_LINKED (-25)        /* non-zero if -static */
-#define BAD_CURRENT_VS (-26)        /* area describing value-stack */
+#define STACK_SIZE (-26)        /* from the command line */
 #define BAD_CURRENT_TS (-27)        /* area describing temp-stack */
 #define BAD_FUNCALL (-28)       /* funcall pseudo-target on x86 */
 #define ALL_AREAS (-29)         /* doubly-linked list of stack & heap areas */
