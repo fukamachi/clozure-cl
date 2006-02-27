@@ -243,7 +243,22 @@ _exportfn(C(atomic_ior))
 	__(and r3,r4,r5)
 	__(blr)
 _endfn
-        
+
+/*
+        Logand the value in *r3 with the value in r4 (presumably a bitmask with exactly 1
+        bit set.)  Return the value now in *r3 (for some value of "now" */
+
+_exportfn(C(atomic_and))
+        __(sync)
+1:	__(lrarx(r5,0,r3))
+        __(and r6,r4,r5)
+	__(strcx(r6,0,r3))
+	__(bne- 1b)
+	__(isync)
+	__(mr r3,r6)
+	__(blr)
+_endfn
+                
 	
         __ifdef([DARWIN])
 _exportfn(C(enable_fp_exceptions))
