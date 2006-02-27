@@ -256,7 +256,10 @@ Default version returns OpenMCL version info."
 	 (startup-ccl (and *load-lisp-init-file* init-file))
 	 (listener-function)
 	 nil)
-     :close-streams nil))
+     :close-streams nil
+     :control-stack-size *initial-listener-default-control-stack-size*
+     :value-stack-size *initial-listener-default-value-stack-size*
+     :temp-stack-size *initial-listener-default-temp-stack-size*))
   (%set-toplevel #'(lambda ()
                      (with-standard-abort-handling nil 
                        (loop

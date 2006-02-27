@@ -69,8 +69,15 @@
                                   &key
                                   (initial-function #'listener-function)
                                   (close-streams t)
-                                  (class 'process))
-  (let ((p (make-process procname :class class)))
+                                  (class 'process)
+                                  (control-stack-size *default-control-stack-size*)
+                                  (value-stack-size *default-value-stack-size*)
+                                  (temp-stack-size *default-temp-stack-size*))
+  (let ((p (make-process procname
+                         :class class
+                         :stack-size control-stack-size
+                         :vstack-size value-stack-size
+                         :tstack-size temp-stack-size)))
     (process-preset p #'(lambda ()
                           (let ((*terminal-io*
 				 (make-echoing-two-way-stream
