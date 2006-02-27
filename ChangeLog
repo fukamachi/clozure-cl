@@ -1,3 +1,106 @@
+2006-02-26 20:59  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-02-26 20:37  gb
+
+	* lisp-kernel/: darwinppc/Makefile, darwinppc64/Makefile: Restore
+	COPT setting, clobbered on last (accidental) checkin.
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/lisp_globals.h: stack-size global
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/ppc-asmutils.s: atomic_and
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/pmcl-kernel.c: more mappable memory on 64-bit
+	platforms.  Set stack-size global from command line arg
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/gc.c: check_range() takes a headers_allowed arg (not
+	allowed on vsp).  Some debugging fprintfs.
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/: ppc-constants32.h, ppc-constants64.h: tcr flags are
+	natural
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/ppc-exceptions.c: fixes in pc_luser_xp. Defer
+	exceptions if we don't have the lock on Darwin
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/thread_manager.c: simpler suspend ack, other changes,
+	heavy, unreadable conditionalization
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/: plbt.c, plsym.c: bug fixes
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/ppc-spentry.s: change defs of C write-barrier exports
+
+2006-02-26 20:35  gb
+
+	* lisp-kernel/: darwinppc64/Makefile, darwinppc/Makefile,
+	Threads.h, bits.h: Prototype atomic_and(), atomic_ior() here.  Use
+	them to set/clear TCR flag bits.
+
+2006-02-26 20:34  gb
+
+	* lib/encapsulate.lisp: Print trace level in trace output.
+
+2006-02-26 20:34  gb
+
+	* lib/compile-ccl.lisp: Add :reload-arguments arg to REBUILD-CCL.
+
+2006-02-26 20:33  gb
+
+	* level-1/l1-lisp-threads.lisp: Adjust default stack sizes based on
+	--stack-size argument.
+
+2006-02-26 20:32  gb
+
+	* level-0/l0-misc.lisp: ROOM: don't report hons-space size if it's
+	0.
+
+2006-02-26 20:32  gb
+
+	* level-0/l0-array.lisp: Use #+64-bit-target instead of
+	#+ppc64-target in a few places.
+
+2006-02-26 20:31  gb
+
+	* examples/hons-example.lisp: Still needs work, but not quite so
+	brain-dead.
+
+2006-02-26 20:30  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: A few bug fixes.
+
+2006-02-26 20:30  gb
+
+	* compiler/X86/x862.lisp: Fix typos in unwind-protect; use the same
+	general scheme for PROGV.
+
+2006-02-26 20:29  gb
+
+	* compiler/PPC/ppc2.lisp: In PPC2-%ASET2, typename is quoted in
+	acode.
+
+2006-02-26 20:28  gb
+
+	* compiler/PPC/ppc-arch.lisp: Replace BAD-CURRENT-VS global with
+	STACK-SIZE.
+
 2006-02-16 15:49  gb
 
 	* lisp-kernel/thread_manager.c: Wait for acknowledgement after
@@ -454,7 +557,7 @@
 
 2006-02-01 05:19  gb
 
-	* lisp-kernel/ppc-spentry.s: Reformat yet another comment.
+	* lisp-kernel/ppc-spentry.s: comment format
 
 2006-02-01 04:45  gb
 
