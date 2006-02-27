@@ -442,7 +442,7 @@
     (:darwinppc64 "darwinppc64")
     (:linuxppc64 "linuxppc64")))
 
-(defun rebuild-ccl (&key full clean kernel force reload exit)
+(defun rebuild-ccl (&key full clean kernel force reload exit reload-arguments)
   (when full
     (setq clean t kernel t reload t))
   (let* ((cd (current-directory)))
@@ -491,7 +491,8 @@
                      (external-process-status
                       (run-program
                        (format nil "./~a" (standard-kernel-name))
-                       (list (standard-boot-image-name))
+                       (list* "--image-name" (standard-boot-image-name)
+                              reload-arguments)
                        :input cmd
                        :output output
                        :error output))
