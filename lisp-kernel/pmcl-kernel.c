@@ -122,8 +122,6 @@ LispObj text_start = 0;
 
 extern LispObj import_ptrs_base;
 
-/* Was --stack-size specified on command-line ? */
-Boolean stack_size_arg_specified = false;
 
 
 void
@@ -375,6 +373,9 @@ lisp_heap_gc_threshold = DEFAULT_LISP_HEAP_GC_THRESHOLD;
 
 natural 
 initial_stack_size = DEFAULT_INITIAL_STACK_SIZE;
+
+natural
+thread_stack_size = 0;
 
 
 /*
@@ -932,7 +933,8 @@ usage_exit(char *herald, int exit_status, char* other_args)
   fprintf(stderr, "\t-R, --heap-reserve <n>: reserve <n> (default: %ld)\n",
 	  reserved_area_size);
   fprintf(stderr, "\t\t bytes for heap expansion\n");
-  fprintf(stderr, "\t-S, --stack-size <n>: set default size of new thread's stacks based on <n>\n");
+  fprintf(stderr, "\t-S, --stack-size <n>: set  size of initial thread's stacks based on <n>\n");
+  fprintf(stderr, "\t-Z, --thread-stack-size <n>: set default size of new  thread's stacks based on <n>\n");
   fprintf(stderr, "\t-b, --batch: exit when EOF on *STANDARD-INPUT*\n");
   fprintf(stderr, "\t--no-sigtrap : obscure option for running under GDB\n");
   fprintf(stderr, "\t-I, --image-name <image-name>\n");
@@ -1073,8 +1075,38 @@ process_options(int argc, char *argv[])
 
 	  if (stack_size >= MIN_CSTACK_SIZE) {
 	    initial_stack_size = stack_size;
-            stack_size_arg_specified = true;
 	  }
+	}
+
+      } else if ((flag = (strncmp(arg, "-Z", 2) == 0)) ||
+		 (strcmp(arg, "--thread-stack-size") == 0)) {
+	natural stack_size;
+
+	if (flag && arg[2]) {
+	  val = arg+2;
+	  num_elide = 1;
+	} else {
+	  if ((i+1) < argc) {
+	    val = argv[i+1];
+	    num_elide = 2;
+	  } else {
+	    arg_error = 1;
+	  }
+	}
+
+	if (val) {
+	  stack_size = parse_numeric_option(val, 
+					    "-Z/--thread-stack-size", 
+					    thread_stack_size);
+	  
+
+	  if (stack_size >= MIN_CSTACK_SIZE) {
+	   thread_stack_size = stack_size;
+	  }
+          if (thread_stack_size >= (1<<((WORD_SIZE-fixnumshift)-1))) {
+            thread_stack_size = (1<<((WORD_SIZE-fixnumshift)-1))-1;
+          }
+          
 	}
 
       } else if (strcmp(arg, "--no-sigtrap") == 0) {
@@ -1349,9 +1381,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(BAD_FUNCALL) = ptr_to_lispobj(bad_funcall);
 #endif
   lisp_global(DEFAULT_ALLOCATION_QUANTUM) = log2_heap_segment_size << fixnumshift;
-  if (stack_size_arg_specified) {
-    lisp_global(STACK_SIZE) = initial_stack_size<<fixnumshift;
-  }
+  lisp_global(STACK_SIZE) = thread_stack_size<<fixnumshift;
 
 
   exception_init();
