@@ -1,4 +1,3 @@
-
 /*
    Copyright (C) 1994-2001 Digitool, Inc
    This file is part of OpenMCL.  
@@ -337,6 +336,10 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
   if (bytes_needed) {
     update_bytes_allocated(tcr,((BytePtr)(cur_allocptr-disp)));
     if (allocate_object(xp, bytes_needed, disp, tcr)) {
+#if 0
+      fprintf(stderr, "alloc_trap in 0x%lx, new allocptr = 0x%lx\n",
+              tcr, xpGPR(xp, allocptr));
+#endif
       adjust_exception_pc(xp,4);
       return 0;
     }
@@ -608,6 +611,10 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
     /* In ff-call.  No need to update cs_area */
     cur_allocptr = (void *) (tcr->save_allocptr);
     tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
+#if 0
+    fprintf(stderr, "TCR 0x%x in foreign code, vsp = 0x%lx, tsp = 0x%lx\n",
+            tcr, tcr->save_vsp, tcr->save_tsp);
+#endif
     update_area_active((area **)&tcr->vs_area, (BytePtr) tcr->save_vsp);
     update_area_active((area **)&tcr->ts_area, (BytePtr) tcr->save_tsp);
   }
@@ -690,12 +697,18 @@ gc_from_tcr(TCR *tcr, signed_natural param)
   BytePtr oldfree, newfree;
   BytePtr oldend, newend;
 
+#if 0
+  fprintf(stderr, "Start GC  in 0x%lx\n", tcr);
+#endif
   a = active_dynamic_area;
   oldend = a->high;
   oldfree = a->active;
   gc(tcr, param);
   newfree = a->active;
   newend = a->high;
+#if 0
+  fprintf(stderr, "End GC  in 0x%lx\n", tcr);
+#endif
   return ((oldfree-newfree)+(newend-oldend));
 }
 
@@ -1462,7 +1475,9 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where, siginfo_t *info
         TCR_INTERRUPT_LEVEL(tcr) = 0;
         tcr->interrupt_pending = 0;
       }
-      
+#if 0
+      fprintf(stderr, "About to do trap callback in 0x%x\n",tcr);
+#endif
       callback_for_trap(cmain, xp,  where, (natural) the_trap,  0, 0);
       adjust_exception_pc(xp, 4);
       return(noErr);
@@ -1574,6 +1589,9 @@ wait_for_exception_lock_in_handler(TCR *tcr,
 {
 
   LOCK(lisp_global(EXCEPTION_LOCK), tcr);
+#if 0
+  fprintf(stderr, "0x%x has exception lock\n", tcr);
+#endif
   xf->curr = context;
   xf->prev = tcr->xframe;
   tcr->xframe =  xf;
@@ -1588,6 +1606,9 @@ unlock_exception_lock_in_handler(TCR *tcr)
   tcr->xframe = tcr->xframe->prev;
   tcr->valence = TCR_STATE_EXCEPTION_RETURN;
   UNLOCK(lisp_global(EXCEPTION_LOCK),tcr);
+#if 0
+  fprintf(stderr, "0x%x released exception lock\n", tcr);
+#endif
 }
 
 /* 
@@ -1642,7 +1663,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
     char msg[512];
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
     if (lisp_Debugger(context, info, signum, msg)) {
-      (tcr->flags |= (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION));
+      SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     }
   }
 
@@ -1711,19 +1732,34 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
       ea = (LispObj*)(xpGPR(xp,arg_x) + xpGPR(xp,imm4));
       xpGPR(xp,arg_z) = t_value;
       need_store = false;
+#if 0
+      fprintf(stderr, "pc-luser: store-node-conditional in 0x%x\n",tcr);
+#endif
     } else if (program_counter >= egc_set_hash_key) {
       root = xpGPR(xp,arg_x);
-      ea = (LispObj *) (root+xpGPR(xp,arg_y)+fulltag_misc);
+      ea = (LispObj *) (root+xpGPR(xp,arg_y)+misc_data_offset);
       need_memoize_root = true;
+#if 0
+      fprintf(stderr, "pc-luser: set-hash-key in 0x%x\n",tcr);
+#endif
     } else if (program_counter >= egc_gvset) {
-      ea = (LispObj *) (xpGPR(xp,arg_x)+xpGPR(xp,arg_y)+fulltag_misc);
+      ea = (LispObj *) (xpGPR(xp,arg_x)+xpGPR(xp,arg_y)+misc_data_offset);
       val = xpGPR(xp,arg_z);
+#if 0
+      fprintf(stderr, "pc-luser: gvset in 0x%x\n",tcr);
+#endif
     } else if (program_counter >= egc_rplacd) {
       ea = (LispObj *) untag(xpGPR(xp,arg_y));
       val = xpGPR(xp,arg_z);
+#if 0
+      fprintf(stderr, "pc-luser: rplacd in 0x%x\n",tcr);
+#endif
     } else {                      /* egc_rplaca */
       ea =  ((LispObj *) untag(xpGPR(xp,arg_y)))+1;
       val = xpGPR(xp,arg_z);
+#if 0
+      fprintf(stderr, "pc-luser: rplaca in 0x%x\n",tcr);
+#endif
     }
     if (need_store) {
       *ea = val;
@@ -1746,6 +1782,9 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
 
   if (instr == MARK_TSP_FRAME_INSTRUCTION) {
     LispObj tsp_val = xpGPR(xp,tsp);
+#if 0
+      fprintf(stderr, "pc-luser: mark-tsp-frame in 0x%x\n",tcr);
+#endif
     
     ((LispObj *)ptr_from_lispobj(tsp_val))[1] = tsp_val;
     adjust_exception_pc(xp, 4);
@@ -1776,12 +1815,16 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
 	 (program_counter[-2] == CREATE_LISP_FRAME_INSTRUCTION) ||
 	 (program_counter[-3] == CREATE_LISP_FRAME_INSTRUCTION)))  {
 #ifdef PPC64
-      int disp = DS_field(instr) << 2;
+      int disp = DS_field(instr);
 #else      
       int disp = D_field(instr);
 #endif
-      
+
+
       if (disp < (4*node_size)) {
+#if 0
+        fprintf(stderr, "pc-luser: finish SP frame in 0x%x, disp = %d\n",tcr, disp);
+#endif
 	frame->savevsp = 0;
 	if (disp < (3*node_size)) {
 	  frame->savelr = 0;
@@ -1809,14 +1852,21 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
          arrange to execute it again after the interrupt.
       */
       if (tcr) {
+#if 0
+        fprintf(stderr, "tcr 0x%x is at alloc trap, disp = %ld\n", tcr, disp);
+#endif
         update_bytes_allocated(tcr, (void *) ptr_from_lispobj(cur_allocptr + disp));
         xpGPR(xp, allocbase) = VOID_ALLOCPTR;
         xpGPR(xp, allocptr) = VOID_ALLOCPTR - disp;
       } else {
+
         xpGPR(xp, allocptr) = cur_allocptr + disp;
         xpPC(xp) -=1;
       }
     } else {
+#if 0
+        fprintf(stderr, "tcr 0x%x is past alloc trap, finishing alloc\n", tcr);
+#endif
       /* If we're already past the alloc_trap, finish allocating
          the object. */
       if (allocptr_tag == fulltag_cons) {
@@ -1835,6 +1885,9 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
   if ((instr & INIT_CATCH_FRAME_MASK) == INIT_CATCH_FRAME_INSTRUCTION) {
     LispObj *frame = ptr_from_lispobj(untag(xpGPR(xp, nargs)));
     int idx = ((int)((short)(D_field(instr))+fulltag_misc))>>fixnumshift;
+#if 0
+        fprintf(stderr, "pc-luser: CATCH frame in 0x%x, idx = %d\n",tcr, idx);
+#endif
 
     for (;idx < sizeof(catch_frame)/sizeof(LispObj); idx++) {
       deref(frame,idx) = 0;
@@ -2442,63 +2495,76 @@ catch_exception_raise(mach_port_t exception_port,
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr, "obtaining Mach exception lock in exception thread\n");
 #endif
-  tcr->flags |= (1<<TCR_FLAG_BIT_PENDING_EXCEPTION);
 
-  pthread_mutex_lock(mach_exception_lock);
-
-
-  if ((exception == EXC_BAD_INSTRUCTION) &&
-      (code_vector[0] == EXC_PPC_UNIPL_INST) &&
-      (((code1 = code_vector[1]) == (int)pseudo_sigreturn) ||
-       (code1 == (int)enable_fp_exceptions) ||
-       (code1 == (int)disable_fp_exceptions))) {
-    if (code1 == (int)pseudo_sigreturn) {
-      kret = do_pseudo_sigreturn(thread, tcr);
-    } else if (code1 == (int)enable_fp_exceptions) {
-      kret = thread_set_fp_exceptions_enabled(thread, true);
-    } else kret =  thread_set_fp_exceptions_enabled(thread, false);
-  } else if (tcr->flags & (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION)) {
-    tcr->flags &= ~(1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
-    kret = 17;
-  } else {
-    switch (exception) {
-    case EXC_BAD_ACCESS:
-      signum = SIGSEGV;
-      break;
-      
-    case EXC_BAD_INSTRUCTION:
-      signum = SIGILL;
-      break;
-      
-    case EXC_SOFTWARE:
-      if (code == EXC_PPC_TRAP) {
-        signum = SIGTRAP;
-      }
-      break;
-      
-    case EXC_ARITHMETIC:
-      signum = SIGFPE;
-      break;
-
-    default:
-      break;
-    }
-    if (signum) {
-      kret = setup_signal_frame(thread,
-                                (void *)pseudo_signal_handler,
-                                signum,
-                                code,
-                                tcr);
-    } else {
+  if (pthread_mutex_trylock(mach_exception_lock) == 0) {
+    if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_EXCEPTION)) {
+      CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
+    } 
+    if ((exception == EXC_BAD_INSTRUCTION) &&
+        (code_vector[0] == EXC_PPC_UNIPL_INST) &&
+        (((code1 = code_vector[1]) == (int)pseudo_sigreturn) ||
+         (code1 == (int)enable_fp_exceptions) ||
+         (code1 == (int)disable_fp_exceptions))) {
+      if (code1 == (int)pseudo_sigreturn) {
+        kret = do_pseudo_sigreturn(thread, tcr);
+#if 0
+      fprintf(stderr, "Exception return in 0x%x\n",tcr);
+#endif
+        
+      } else if (code1 == (int)enable_fp_exceptions) {
+        kret = thread_set_fp_exceptions_enabled(thread, true);
+      } else kret =  thread_set_fp_exceptions_enabled(thread, false);
+    } else if (tcr->flags & (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION)) {
+      CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
       kret = 17;
-    }
-  }
-#ifdef DEBUG_MACH_EXCEPTIONS
-  fprintf(stderr, "releasing Mach exception lock in exception thread\n");
+    } else {
+      switch (exception) {
+      case EXC_BAD_ACCESS:
+        signum = SIGSEGV;
+        break;
+        
+      case EXC_BAD_INSTRUCTION:
+        signum = SIGILL;
+        break;
+      
+      case EXC_SOFTWARE:
+        if (code == EXC_PPC_TRAP) {
+          signum = SIGTRAP;
+        }
+        break;
+      
+      case EXC_ARITHMETIC:
+        signum = SIGFPE;
+        break;
+
+      default:
+        break;
+      }
+      if (signum) {
+        kret = setup_signal_frame(thread,
+                                  (void *)pseudo_signal_handler,
+                                  signum,
+                                  code,
+                                  tcr);
+#if 0
+      fprintf(stderr, "Setup pseudosignal handling in 0x%x\n",tcr);
 #endif
 
-  tcr->flags &= ~(1<<TCR_FLAG_BIT_PENDING_EXCEPTION);
-  pthread_mutex_unlock(mach_exception_lock);
+      } else {
+        kret = 17;
+      }
+    }
+#ifdef DEBUG_MACH_EXCEPTIONS
+    fprintf(stderr, "releasing Mach exception lock in exception thread\n");
+#endif
+    pthread_mutex_unlock(mach_exception_lock);
+  } else {
+    SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
+#if 0
+    fprintf(stderr, "deferring pending exception in 0x%x\n", tcr);
+#endif
+    kret = 0;
+  }
   return kret;
 }
 
