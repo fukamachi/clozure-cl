@@ -1,3 +1,7 @@
+2006-02-26 23:30  gb
+
+	* lisp-kernel/pmcl-kernel.c: Suppress compiler warning.
+
 2006-02-26 22:51  gb
 
 	* release-notes.txt: Update.
