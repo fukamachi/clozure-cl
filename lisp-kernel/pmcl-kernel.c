@@ -122,7 +122,8 @@ LispObj text_start = 0;
 
 extern LispObj import_ptrs_base;
 
-
+/* Was --stack-size specified on command-line ? */
+Boolean stack_size_arg_specified = false;
 
 
 void
@@ -323,7 +324,7 @@ unsigned unsigned_max(unsigned x, unsigned y)
 }
 
 #if WORD_SIZE == 64
-#define MAXIMUM_MAPPABLE_MEMORY (128L<<30L)
+#define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
 #else
 #ifdef DARWIN
 #define MAXIMUM_MAPPABLE_MEMORY ((1U<<31)-2*heap_segment_size)
@@ -358,7 +359,11 @@ int cache_block_size=32;
 #define G0_AREA_THRESHOLD (1<<20)
 #endif
 
+#if (WORD_SIZE == 32)
 #define DEFAULT_INITIAL_STACK_SIZE (1<<20)
+#else
+#define DEFAULT_INITIAL_STACK_SIZE (2<<20)
+#endif
 
 natural
 lisp_heap_gc_threshold = DEFAULT_LISP_HEAP_GC_THRESHOLD;
@@ -922,7 +927,7 @@ usage_exit(char *herald, int exit_status, char* other_args)
   fprintf(stderr, "\t-R, --heap-reserve <n>: reserve <n> (default: %ld)\n",
 	  reserved_area_size);
   fprintf(stderr, "\t\t bytes for heap expansion\n");
-  fprintf(stderr, "\t-S, --stack-size <n>: set size of initial stacks to <n> (default: %d)\n", initial_stack_size);
+  fprintf(stderr, "\t-S, --stack-size <n>: set default size of new thread's stacks based on <n>\n");
   fprintf(stderr, "\t-b, --batch: exit when EOF on *STANDARD-INPUT*\n");
   fprintf(stderr, "\t--no-sigtrap : obscure option for running under GDB\n");
   fprintf(stderr, "\t-I, --image-name <image-name>\n");
@@ -941,7 +946,7 @@ natural
 parse_numeric_option(char *arg, char *argname, natural default_val)
 {
   char *tail;
-  unsigned val = 0;
+  natural val = 0;
 
   val = strtoul(arg, &tail, 0);
   switch(*tail) {
@@ -1041,7 +1046,7 @@ process_options(int argc, char *argv[])
 
       } else if ((flag = (strncmp(arg, "-S", 2) == 0)) ||
 		 (strcmp(arg, "--stack-size") == 0)) {
-	unsigned stack_size;
+	natural stack_size;
 
 	if (flag && arg[2]) {
 	  val = arg+2;
@@ -1063,6 +1068,7 @@ process_options(int argc, char *argv[])
 
 	  if (stack_size >= MIN_CSTACK_SIZE) {
 	    initial_stack_size = stack_size;
+            stack_size_arg_specified = true;
 	  }
 	}
 
@@ -1338,6 +1344,10 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(BAD_FUNCALL) = ptr_to_lispobj(bad_funcall);
 #endif
   lisp_global(DEFAULT_ALLOCATION_QUANTUM) = log2_heap_segment_size << fixnumshift;
+  if (stack_size_arg_specified) {
+    lisp_global(STACK_SIZE) = initial_stack_size<<fixnumshift;
+  }
+
 
   exception_init();
 
