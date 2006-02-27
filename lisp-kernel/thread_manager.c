@@ -17,6 +17,12 @@
 
 #include "Threads.h"
 
+/*
+   If we suspend via signals - and if the "suspend" signal is maked
+   in the handler for that signal - then it's not possible to suspend
+   a thread that's still waiting to be resumed (which is what
+   WAIT_FOR_RESUME_ACK is all about.)
+*/
 #define WAIT_FOR_RESUME_ACK 0
 #define RESUME_VIA_RESUME_SEMAPHORE 1
 #define SUSPEND_RESUME_VERBOSE 0
@@ -286,10 +292,10 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
 #if SUSEPEND_RESUME_VERBOSE
     fprintf(stderr,"got  resume in in 0x%x\n",tcr);
 #endif
-#if WAIT_FOR_RESUME_ACK
-    SEM_RAISE(tcr->resume);
-#endif
   }
+#if WAIT_FOR_RESUME_ACK
+    SEM_RAISE(tcr->suspend);
+#endif
 #ifdef DARWIN
   DarwinSigReturn(context);
 #endif
@@ -719,7 +725,7 @@ lisp_thread_entry(void *param)
   tcr->vs_area->active -= node_size;
   *(--tcr->save_vsp) = lisp_nil;
   enable_fp_exceptions();
-  tcr->flags |= (1<<TCR_FLAG_BIT_AWAITING_PRESET);
+  SET_TCR_FLAG(tcr,TCR_FLAG_BIT_AWAITING_PRESET);
   SEM_RAISE(activation->created);
   do {
     SEM_RAISE(tcr->reset_completion);
@@ -848,17 +854,17 @@ get_tcr(Boolean create)
     
     /* Make one. */
     current = new_tcr(initial_stack_size, MIN_TSTACK_SIZE);
-    current->flags |= (1<<TCR_FLAG_BIT_FOREIGN);
+    SET_TCR_FLAG(current,TCR_FLAG_BIT_FOREIGN);
     register_thread_tcr(current);
 #ifdef DEBUG_TCR_CREATION
     fprintf(stderr, "\ncreating TCR for pthread 0x%x", pthread_self());
 #endif
-    current->vs_area->active -= 4;
+    current->vs_area->active -= node_size;
     *(--current->save_vsp) = lisp_nil;
     nbindwords = ((int (*)())ptr_from_lispobj(callback_ptr))(-1);
     for (i = 0; i < nbindwords; i++) {
       *(--current->save_vsp) = 0;
-      current->vs_area->active -= 4;
+      current->vs_area->active -= node_size;
     }
     current->shutdown_count = 1;
     ((void (*)())ptr_from_lispobj(callback_ptr))(0);
@@ -874,17 +880,17 @@ suspend_tcr(TCR *tcr)
 {
   int suspend_count = atomic_incf(&(tcr->suspend_count));
   if (suspend_count == 1) {
-#ifdef DARWIN_nope
 #if SUSPEND_RESUME_VERBOSE
-    fprintf(stderr,"Mach suspend to 0x%x\n", tcr);
+    fprintf(stderr,"Suspending 0x%x\n", tcr);
 #endif
+#ifdef DARWIN_nope
     if (mach_suspend_tcr(tcr)) {
-      tcr->flags |= (1<<TCR_FLAG_BIT_ALT_SUSPEND);
+      SET_TCR_FLAG(tcr,TCR_FLAG_BIT_ALT_SUSPEND);
       return true;
     }
 #endif
     if (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_suspend_signal) == 0) {
-      tcr->flags |= (1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+      SET_TCR_FLAG(tcr,TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
     } else {
       /* A problem using pthread_kill.  On Darwin, this can happen
 	 if the thread has had its signal mask surgically removed
@@ -894,7 +900,7 @@ suspend_tcr(TCR *tcr)
       */
 #ifdef DARWIN
       if (mach_suspend_tcr(tcr)) {
-	tcr->flags |= (1<<TCR_FLAG_BIT_ALT_SUSPEND);
+        SET_TCR_FLAG(tcr,TCR_FLAG_BIT_ALT_SUSPEND);
 	return true;
       }
 #endif
@@ -910,10 +916,15 @@ Boolean
 tcr_suspend_ack(TCR *tcr)
 {
   /* On Linux, it's safe to wait forever */
-#ifndef DARWIN
+  /*#ifndef DARWIN */
+#if 1
   if (tcr->flags & (1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING)) {
     SEM_WAIT_FOREVER(tcr->suspend);
     tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+#if SUSPEND_RESUME_VERBOSE
+    fprintf(stderr,"Suspend ack from 0x%x\n", tcr);
+#endif
+
   }
   return true;
 #else
@@ -925,7 +936,7 @@ tcr_suspend_ack(TCR *tcr)
     /* Safe to wait forever if Mach exception handling is disabled */
     if (!use_mach_exception_handling) {
       SEM_WAIT_FOREVER(tcr->suspend);
-      tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+      CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
       return true;
     }
     /* If there's an exception pending on this thread, release the
@@ -936,7 +947,7 @@ tcr_suspend_ack(TCR *tcr)
       pthread_mutex_unlock(mach_exception_lock);
       SEM_WAIT_FOREVER(tcr->suspend);
       pthread_mutex_lock(mach_exception_lock);
-      tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
+      CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
       return true;
     } else {
       /* We don't know for sure whether or not there's an exception
@@ -994,10 +1005,10 @@ resume_tcr(TCR *tcr)
   int suspend_count = atomic_decf(&(tcr->suspend_count)), err;
   if (suspend_count == 0) {
 #ifdef DARWIN
+    if (tcr->flags & (1<<TCR_FLAG_BIT_ALT_SUSPEND)) {
 #if SUSPEND_RESUME_VERBOSE
     fprintf(stderr,"Mach resume to 0x%x\n", tcr);
 #endif
-    if (tcr->flags & (1<<TCR_FLAG_BIT_ALT_SUSPEND)) {
       mach_resume_tcr(tcr);
       return true;
     }
@@ -1028,8 +1039,10 @@ wait_for_resumption(TCR *tcr)
   }
 #endif
 #if WAIT_FOR_RESUME_ACK
+#if SUSPEND_RESUME_VERBOSE
     fprintf(stderr, "waiting for resume in 0x%x\n",tcr);
-    SEM_WAIT_FOREVER(tcr->resume);
+#endif
+    SEM_WAIT_FOREVER(tcr->suspend);
 #endif
   }
 }
@@ -1082,8 +1095,8 @@ suspend_other_threads(Boolean for_gc)
   LOCK(lisp_global(AREA_LOCK), current);
 #ifdef DARWIN
   if (for_gc && use_mach_exception_handling) {
-#ifdef DEBUG_MACH_EXCEPTIONS
-    fprintf(stderr, "obtaining Mach exception lock in GC thread\n");
+#if SUSPEND_RESUME_VERBOSE
+    fprintf(stderr, "obtaining Mach exception lock in GC thread 0x%x\n", current);
 #endif
     pthread_mutex_lock(mach_exception_lock);
   }
@@ -1147,8 +1160,8 @@ resume_other_threads(Boolean for_gc)
   free_freed_tcrs();
 #ifdef DARWIN
   if (for_gc && use_mach_exception_handling) {
-#ifdef DEBUG_MACH_EXCEPTIONS
-    fprintf(stderr, "releasing Mach exception lock in GC thread\n");
+#if SUSPEND_RESUME_VERBOSE
+    fprintf(stderr, "releasing Mach exception lock in GC thread 0x%x\n", current);
 #endif
     pthread_mutex_unlock(mach_exception_lock);
   }
