@@ -453,6 +453,11 @@ _spentry(bind_self_boundp_check)
 
         .globl C(egc_write_barrier_start)
 C(egc_write_barrier_start):
+        __ifdef([PPC64])
+        .quad _SPrplaca
+        __else
+        .long _SPrplaca
+        __endif
 
 /*
    The function pc_luser_xp() - which is used to ensure that suspended threads
@@ -475,8 +480,6 @@ C(egc_write_barrier_start):
   We can unconditionally set the suspended thread's PC to its LR.
 */
 _spentry(rplaca)
-        .globl C(egc_rplaca)
-C(egc_rplaca):          
         __(cmplr(cr2,arg_z,arg_y))
         __(_rplaca(arg_y,arg_z))
         __(blelr cr2)
@@ -502,9 +505,15 @@ C(egc_rplaca):
         __(isync)
         __(blr)
 
-_spentry(rplacd)
         .globl C(egc_rplacd)
-C(egc_rplacd):          
+C(egc_rplacd):
+        __ifdef([PPC64])
+        .quad _SPrplacd
+        __else
+        .long _SPrplacd
+        __endif
+        
+_spentry(rplacd)
         __(cmplr(cr2,arg_z,arg_y))
 	__(_rplacd(arg_y,arg_z))
         __(blelr cr2)
@@ -534,9 +543,14 @@ C(egc_rplacd):
   Storing into a gvector can be handled the same way as storing into a CONS.
 */
 
-_spentry(gvset)
         .globl C(egc_gvset)
 C(egc_gvset):
+        __ifdef([PPC64])
+        .quad _SPgvset
+        __else
+        .long _SPgvset
+        __endif
+_spentry(gvset)
         __(cmplr(cr2,arg_z,arg_x))
         __(la imm0,misc_data_offset(arg_y))
         __(strx(arg_z,arg_x,imm0))
@@ -567,9 +581,14 @@ C(egc_gvset):
 /* This is a special case of storing into a gvector: if we need to memoize the store,
    record the address of the hash-table vector in the refmap, as well.
 */        
-_spentry(set_hash_key)
         .globl C(egc_set_hash_key)
-C(egc_set_hash_key):  
+C(egc_set_hash_key):
+        __ifdef([PPC64])
+        .quad _SPset_hash_key
+        __else
+        .long _SPset_hash_key
+        __endif
+_spentry(set_hash_key)
         __(cmplr(cr2,arg_z,arg_x))
         __(la imm0,misc_data_offset(arg_y))
         __(strx(arg_z,arg_x,imm0))
@@ -625,9 +644,14 @@ C(egc_set_hash_key):
      decide if/how to handle memoization.  The handler should set the PC to the LR, and
      set arg_z to T.
 */
-_spentry(store_node_conditional)
         .globl C(egc_store_node_conditional)
-C(egc_store_node_conditional):  
+C(egc_store_node_conditional):
+        __ifdef([PPC64])
+        .quad _SPstore_node_conditional
+        __else
+        .long _SPstore_node_conditional
+        __endif
+_spentry(store_node_conditional)
         __(crclr 2)              /* 2 = cr0_EQ */
         __(cmplr(cr2,arg_z,arg_x))
         __(vpop(temp0))
@@ -661,12 +685,18 @@ C(egc_store_node_conditional):
         __(strcx(rzero,0,imm0))
 /*        __(b 4f) */
 
-       .globl C(egc_write_barrier_end)
-C(egc_write_barrier_end):
 4:      __(li arg_z,nil_value)
         __(blr)
 5:      __(li arg_z,t_value)
         __(blr)
+
+       .globl C(egc_write_barrier_end)
+C(egc_write_barrier_end):
+        __ifdef([PPC64])
+        .quad 4b
+        __else
+        .long 4b
+        __endif        
         
 _spentry(conslist)
 	__(li arg_z,nil_value)
