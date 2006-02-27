@@ -56,7 +56,7 @@ set_bit(bitvector bits,natural bitnum)
 static inline int 
 atomic_set_bit(bitvector bits ,natural bitnum)
 {
-  extern int atomic_ior(bitvector, natural);
+  extern natural atomic_ior(bitvector, natural);
   natural
     windex = bitnum>>bitmap_shift,
     mask = (BIT0_MASK >> (bitnum & bitmap_shift_count_mask));

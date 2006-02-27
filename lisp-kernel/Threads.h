@@ -142,6 +142,16 @@ int rwlock_unlock(rwlock *, TCR *);
 Boolean
 extend_tcr_tlb(TCR *, ExceptionInformation *, unsigned, unsigned);
 
+natural 
+atomic_and(natural*, natural);
+
+natural 
+atomic_ior(natural*, natural);
+
+#define SET_TCR_FLAG(t,bit) atomic_ior(&(t->flags),(1L<<bit))
+#define CLR_TCR_FLAG(t,bit) atomic_and(&(t->flags),~(1L<<bit))
+
+
 /* Maybe later
 Boolean
 rwlock_try_rlock(rwlock *);
