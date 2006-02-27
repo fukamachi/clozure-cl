@@ -933,8 +933,8 @@ usage_exit(char *herald, int exit_status, char* other_args)
   fprintf(stderr, "\t-R, --heap-reserve <n>: reserve <n> (default: %ld)\n",
 	  reserved_area_size);
   fprintf(stderr, "\t\t bytes for heap expansion\n");
-  fprintf(stderr, "\t-S, --stack-size <n>: set  size of initial thread's stacks based on <n>\n");
-  fprintf(stderr, "\t-Z, --thread-stack-size <n>: set default size of new  thread's stacks based on <n>\n");
+  fprintf(stderr, "\t-S, --stack-size <n>: set  size of initial thread's control stack to <n>\n");
+  fprintf(stderr, "\t-Z, --thread-stack-size <n>: set default size of first (listener)  thread's stacks based on <n>\n");
   fprintf(stderr, "\t-b, --batch: exit when EOF on *STANDARD-INPUT*\n");
   fprintf(stderr, "\t--no-sigtrap : obscure option for running under GDB\n");
   fprintf(stderr, "\t-I, --image-name <image-name>\n");
