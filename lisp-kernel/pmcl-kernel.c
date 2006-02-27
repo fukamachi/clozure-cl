@@ -324,7 +324,12 @@ unsigned unsigned_max(unsigned x, unsigned y)
 }
 
 #if WORD_SIZE == 64
+#ifdef DARWIN
 #define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
+#endif
+#ifdef LINUX
+#define MAXIMUM_MAPPABLE_MEMORY (256L<<30L)
+#endif
 #else
 #ifdef DARWIN
 #define MAXIMUM_MAPPABLE_MEMORY ((1U<<31)-2*heap_segment_size)
