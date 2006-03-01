@@ -70,7 +70,7 @@
 (defconstant $fasl-noop 0)              ;<nada:zilch>.  
 (defconstant $fasl-s32-vector 1)        ;<count> Make a (SIMPLE-ARRAY (SIGNED-BYTE 32) <count>)
 (defconstant $fasl-code-vector 2)       ;<count> words of code
-;;;(defconstant $fasl-svar 3)              ;<expr> Make SVAR for special symbol
+(defconstant $fasl-clfun 3)             ;<size:count><codesize:count>code,size-codesize exprs
 (defconstant $fasl-lfuncall 4)          ;<lfun:expr> funcall the lfun.
 (defconstant $fasl-globals 5)           ;<expr> global symbols vector
 (defconstant $fasl-char 6)              ;<char:byte> Make a char
@@ -130,9 +130,9 @@
 (defconstant $fasl-vpkg-intern-special 60) ;<pkg:expr><vstring> Make a sym in pkg, ensure that it has a special binding index
 (defconstant $fasl-vmksym-special 61)      ;<vstring> Make an uninterned symbol, ensure special binding index
 
-; <string> means <size><size bytes>
-; <size> means either <n:byte> with n<#xFF, or <FF><n:word> with n<#xFFFF or
-;   <FFFF><n:long>
+;;; <string> means <size><size bytes>
+;;; <size> means either <n:byte> with n<#xFF, or <FF><n:word> with n<#xFFFF or
+;;;   <FFFF><n:long>
 
 (defconstant $fasl-end #xFF)    ;Stop reading.
 
