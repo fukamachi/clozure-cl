@@ -1321,7 +1321,7 @@
                   (incf target-offset length)))))
           constants-vector)))))
       
-(defun %define-x86-lap-function (name forms function-creator &optional (bits 0))
+(defun %define-x86-lap-function (name forms &optional (bits 0))
   (let* ((*x86-lap-labels* ())
          (*x86-lap-constants* ())
          (end-code-tag (gensym))
@@ -1347,7 +1347,9 @@
     (apply-relocs frag-list)
     (fill-for-alignment frag-list)
     ;;(show-frag-bytes frag-list)
-    (funcall function-creator name frag-list *x86-lap-constants* bits nil)))
+    (funcall #-x86-target #'cross-create-x86-function
+             #+x86-target #'create-x86-function
+             name frag-list *x86-lap-constants* bits nil)))
 
 
 (defmacro defx86lapfunction (&environment env name arglist &body body
@@ -1365,6 +1367,6 @@
        (eval-when (:load-toplevel)
          (%defun (nfunction ,name (lambda (&lap 0) (x86-lap-function ,name ,arglist ,@body))) ,doc))
        (eval-when (:execute)
-         (%define-x86-lap-function ',name '((let ,arglist ,@body)) #'cross-create-x86-function)))
+         (%define-x86-lap-function ',name '((let ,arglist ,@body)))))
      #+x86-target	; just shorthand for defun
      (%defun (nfunction ,name (lambda (&lap 0) (x86-lap-function ,name ,arglist ,@body))) ,doc)))
