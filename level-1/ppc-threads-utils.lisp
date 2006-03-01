@@ -47,18 +47,18 @@
                        (lfun-bits #'%fixnum-set)))))
 
 (let ((bits (lfun-bits #'(lambda (x y &optional z) (declare (ignore x y z))))))
-  (lfun-bits #'%fixnum-set-u32
+  (lfun-bits #'%fixnum-set-natural
              (dpb (ldb $lfbits-numreq bits)
                   $lfbits-numreq
                   (dpb (ldb $lfbits-numopt bits)
                        $lfbits-numopt
-                       (lfun-bits #'%fixnum-set-u32)))))
+                       (lfun-bits #'%fixnum-set-natural)))))
 
 (defun %fixnum-ref-macptr (fixnum &optional (offset 0))
   (%int-to-ptr (%fixnum-ref-natural fixnum offset)))
 
 (defun %fixnum-set-macptr (fixnum offset &optional (newval offset newval-p))
-  (%fixnum-set-u32 fixnum (if newval-p offset 0) (%ptr-to-int newval))
+  (%fixnum-set-natural fixnum (if newval-p offset 0) (%ptr-to-int newval))
   newval)
   
 				  
