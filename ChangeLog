@@ -1,3 +1,72 @@
+2006-02-28 19:46  gb
+
+	* compiler/X86/x862.lisp: Always build/ensure that a frame exists
+	before calling a subprim.  Handle &key, other/harder &optional
+	cases.
+	
+	Todo: &lexpr, %ilogbitp, ??
+
+2006-02-28 19:44  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: &optional defaulting and
+	supplied-p handling; keywords subprims.
+
+2006-02-28 19:43  gb
+
+	* level-1/l1-reader.lisp: Signal IMPOSSIBLE-NUMBER conditions if
+	parsing an potential number yields an ARITHMETIC-ERROR.
+
+2006-02-28 19:43  gb
+
+	* level-1/l1-error-system.lisp: Define IMPOSSIBLE-NUMBER as a
+	subtype of READER-ERROR.
+
+2006-02-28 19:42  gb
+
+	* lib/numbers.lisp: If we'd get overflow or underflow when creating
+	a float and the corresponding exception is enabled, generate the
+	appropriate condition rather than CERRORing unconditionally.
+
+2006-02-28 19:40  gb
+
+	* lib/macros.lisp: Use target-word-size-case in %ilogbitp.
+
+2006-02-28 19:37  gb
+
+	* lisp-kernel/x86-spentry64.s: stkconslist, stkconslist_star,
+	mkstackv, fix in heap_cons_rest_arg, simple_keywords, keyword_args,
+	keyword_bind, fix in stack_cons_rest_arg, spreadargz, tfuncallgen,
+	tfuncallslide,tfuncallvsp,tcallsymgen, tcallsymslide, tcallsymvsp,
+	tcallnfngen, tcallnfnslide, tcallnfnvsp.
+	
+	todo: ffcall, syscall, callback, lexprs.
+
+2006-02-28 19:33  gb
+
+	* lisp-kernel/x86-macros.s: compare_reg_to_nil, discard_temp_frame.
+
+2006-02-28 19:32  gb
+
+	* lisp-kernel/x86-constants64.s: function_header_offset,
+	function_data_offset
+
+2006-02-28 19:32  gb
+
+	* lisp-kernel/x86-constants64.h: TCR flags are a natural.
+
+2006-02-28 19:31  gb
+
+	* lisp-kernel/x86-constants64.h: TCR flags are unsigned.
+
+2006-02-28 19:31  gb
+
+	* lisp-kernel/x86-constants.h: TCR flags.
+
+2006-02-28 19:31  gb
+
+	* lisp-kernel/ppc-spentry.s: Fix comment (have never used temp0 for
+	closure data).
+
 2006-02-27 14:14  gb
 
 	* compiler/PPC/ppc2.lisp: Hadn't saved the buffer; ppc2-%aset2
