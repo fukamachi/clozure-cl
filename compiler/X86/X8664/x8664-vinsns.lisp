@@ -2381,3 +2381,49 @@
   (pushq (:%q temp1)))
 
 
+(define-x8664-vinsn set-c-flag-if-constant-logbitp (()
+                                                    ((bit :u8const)
+                                                     (int :imm)))
+  (btq (:$ub bit) (:%q int)))
+
+(define-x8664-vinsn set-c-flag-if-variable-logbitp (()
+                                                    ((bit :u8)
+                                                     (int :imm))
+                                                    ((temp :u8)))
+  (movq (:%q bit) (:%q temp))
+  (sarq (:$ub x8664::fixnumshift) (:%q temp))
+  (addq (:$b  x8664::fixnumshift) (:%q temp))
+  (btq (:%q temp) (:%q int)))
+
+(define-x8664-vinsn multiply-immediate (((dest :imm))
+                                        ((src :imm)
+                                         (const :s32const)))
+  ((:and (:pred >= const -128) (:pred <= const 127))
+   (imulq (:$b const) (:%q src) (:%q dest)))
+  ((:not (:and (:pred >= const -128) (:pred <= const 127)))
+   (imulq (:$l const) (:%q src) (:%q dest))))
+
+(define-x8664-vinsn multiply-fixnums (((dest :imm))
+                                      ((x :imm)
+                                       (y :imm)))
+  ((:pred =
+          (:apply %hard-regspec-value x)
+          (:apply %hard-regspec-value dest))
+   (imulq (:%q y) (:%q dest)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value x)
+                      (:apply %hard-regspec-value dest)))
+         (:pred =
+                (:apply %hard-regspec-value y)
+                (:apply %hard-regspec-value dest)))
+   (imulq (:%q x) (:%q dest)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value x)
+                      (:apply %hard-regspec-value dest)))
+         (:not (:pred =
+                      (:apply %hard-regspec-value y)
+                      (:apply %hard-regspec-value dest))))
+   (movq (:%q y) (:%q dest))
+   (imulq (:%q x) (:%q dest))))
+
+   

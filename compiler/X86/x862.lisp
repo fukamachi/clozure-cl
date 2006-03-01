@@ -5039,6 +5039,7 @@
                     (x862-lri seg x8664::temp0 (ash flags *x862-target-fixnum-shift*))
                     (unless (= nprev 0)
                       (x862-lri seg x8664::imm0 (ash nprev *x862-target-fixnum-shift*)))
+                    (x86-immediate-label keyvect)
                     (if (= 0 nprev)
                       (! simple-keywords)
                       (if (= 0 num-opt)
@@ -5687,37 +5688,25 @@
       (x862-form seg nil nil bitnum)
       (x862-form seg vreg xfer form))
     (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
+      (unless (eq cr-bit x86::x86-e-bits)
+        (bug "bad cr-bit"))
+      (setq cr-bit x86::x86-b-bits true-p (not true-p))
       (let* ((fixbit (acode-fixnum-form-p bitnum)))
         (if fixbit
           (let* ((reg (x862-one-untargeted-reg-form seg form x8664::arg_z))
-                 (x86-bit (- (1- *x862-target-bits-in-word*) (max (min (+ fixbit *x862-target-fixnum-shift*) (1- *x862-target-bits-in-word*)) *x862-target-fixnum-shift*))))
-            (with-imm-temps () (bitreg)
-              (! extract-constant-x86-bit bitreg reg x86-bit)
-              (regspec-crf-gpr-case 
-               (vreg dest)
-               (progn
-                 (! compare-signed-s16const dest bitreg 0)
-                 (^ cr-bit true-p))
-               (progn
-                 (if true-p
-                   (! invert-lowbit bitreg))
-                 (ensuring-node-target (target dest)
-                   (! lowbit->truth target bitreg))
-                 (^)))))
+                 (x86-bit (min (+ fixbit *x862-target-fixnum-shift*) (1- *x862-target-bits-in-word*))))
+            (! set-c-flag-if-constant-logbitp x86-bit reg))
           (multiple-value-bind (rbit rform) (x862-two-untargeted-reg-forms seg bitnum x8664::arg_y form x8664::arg_z)
-             (with-imm-temps () (bitreg)
-               (! extract-variable-non-insane-bit bitreg rform rbit)
-               (regspec-crf-gpr-case 
-               (vreg dest)
-               (progn
-                 (! compare-signed-s16const dest bitreg 0)
-                 (^ cr-bit true-p))
-               (progn
-                 (if true-p
-                   (! invert-lowbit bitreg))
-                 (ensuring-node-target (target dest)
-                   (! lowbit->truth target bitreg))
-                 (^))))))))))
+            (! set-c-flag-if-variable-logbitp rbit rform)))
+    (regspec-crf-gpr-case 
+     (vreg dest)
+     (^ cr-bit true-p)
+     (ensuring-node-target (target dest)
+       (if (not true-p)
+         (setq cr-bit (logxor 1 cr-bit)))
+       (! cr-bit->boolean target cr-bit)
+       (^)))))))
+
 
 (defx862 x862-uvref uvref (seg vreg xfer vector index)
   (x862-two-targeted-reg-forms seg vector ($ x8664::arg_y) index ($ x8664::arg_z))
@@ -6056,7 +6045,7 @@
       (x862-form seg nil xfer num2))  
     (let* ((fix1 (acode-fixnum-form-p num1))
            (fix2 (acode-fixnum-form-p num2))
-           (other (if (typep fix1 '(signed-byte 16)) num2 (if (typep fix2 '(signed-byte 16)) num1))))
+           (other (if (typep fix1 '(signed-byte 32)) num2 (if (typep fix2 '(signed-byte 32)) num1))))
       (if (and fix1 fix2)
         (x862-lri seg vreg (ash (* fix1 fix2) *x862-target-fixnum-shift*))
         (if other
