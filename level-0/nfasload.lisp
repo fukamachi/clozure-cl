@@ -278,6 +278,26 @@
       (%bad-fasl s))
     (%epushval s (svref (faslstate.faslevec s) idx))))
 
+#+x86-target
+;;; Read a "concatenated" lisp function, in which the machine code
+;;; and constants are both contained in the same underlying uvector.
+(deffaslop $fasl-clfun (s)
+  (let* ((size-in-elements (%fasl-read-count s))
+         (size-of-code (%fasl-read-count s))
+         (vector (%alloc-misc size-in-elements target::subtag-function))
+         (function (%function-vector-to-function vector)))
+    (declare (fixnum size-in-elements size-of-code))
+    (%epushval s function)
+    (%fasl-read-n-bytes s vector 0 (ash size-of-code target::word-shift))
+    (do* ((numconst (- size-in-elements size-of-code))
+          (i 0 (1+ i))
+          (constidx size-of-code (1+ constidx)))
+         ((= i numconst)
+          (setf (faslstate.faslval s) function))
+      (declare (fixnum i numconst constidx))
+      (setf (%svref vector constidx) (%fasl-expr s))))
+    
+    
 (deffaslop $fasl-lfuncall (s)
   (let* ((fun (%fasl-expr-preserve-epush s)))
     ;(break "fun = ~s" fun)
