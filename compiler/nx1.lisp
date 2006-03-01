@@ -1833,7 +1833,7 @@
 
 (defnx1 nx1-x86-lap-function (x86-lap-function) (name bindings &body body)
   (declare (ftype (function (t t t t)) %define-x86-lap-function))
-  (require "SPARC-LAP")
+  (require "X86-LAP")
   (setf (afunc-lfun *nx-current-function*) 
         (%define-x86-lap-function name `((let ,bindings ,@body))
 				    (dpb (length bindings) $lfbits-numreq 0))))
