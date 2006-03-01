@@ -1050,13 +1050,68 @@ _spentry(conslist_star)
 	__(jmp *%ra0)		
 _endsubp(conslist_star)
 
+/* We always have to create a tsp frame (even if nargs is 0), so the compiler 
+   doesn't get confused. */
 _spentry(stkconslist)
+	__(movzwl %nargs,%nargs_l)
+	__(movq %nargs_q,%imm1)
+	__(addq %imm1,%imm1)
+	__(movl $nil_value,%arg_z_l)
+	__(dnode_align(%imm1,tsp_frame.fixed_overhead,%imm1))
+	__(TSP_Alloc_Var(%imm1,%imm0))
+	__(testw %nargs,%nargs)
+	__(addq $fulltag_cons,%imm0)
+	__(jmp 2f)
+1:	__(pop %temp0)
+	__(_rplaca(%imm0,%temp0))
+	__(_rplacd(%imm0,%arg_z))
+	__(subw $node_size,%nargs)
+	__(movq %imm0,%arg_z)
+	__(addq $cons.size,%imm0)
+2:	__(jne 1b)
+	__(jmp *%ra0)
 _endsubp(stkconslist)
 
+/* do list*: last arg in arg_z, all others vpushed, 
+	nargs set to #args vpushed. */
 _spentry(stkconslist_star)
+	__(movzwl %nargs,%nargs_l)
+	__(movq %nargs_q,%imm1)
+	__(addq %imm1,%imm1)
+	__(dnode_align(%imm1,tsp_frame.fixed_overhead,%imm1))
+	__(TSP_Alloc_Var(%imm1,%imm0))
+	__(testw %nargs,%nargs)
+	__(addq $fulltag_cons,%imm0)
+	__(jmp 2f)
+1:	__(pop %temp0)
+	__(_rplaca(%imm0,%temp0))
+	__(_rplacd(%imm0,%arg_z))
+	__(subw $node_size,%nargs)
+	__(movq %imm0,%arg_z)
+	__(addq $cons.size,%imm0)
+2:	__(jne 1b)
+	__(jmp *%ra0)
 _endsubp(stkconslist_star)
 
+/* Make a stack-consed simple-vector out of the NARGS objects 
+	on top of the vstack; return it in arg_z. */
 _spentry(mkstackv)
+	__(movzwl %nargs,%nargs_l)
+	__(dnode_align(%nargs_q,tsp_frame.fixed_overhead+node_size,%imm1))
+	__(TSP_Alloc_Var(%imm1,%temp0))
+	__(movl %nargs_l,%imm0_l)
+	__(shlq $(num_subtag_bits-fixnumshift),%imm0)
+	__(movb $subtag_simple_vector,%imm0_b)
+	__(movq %imm0,(%temp0))
+	__(leaq misc_data_offset(%temp0),%arg_z)
+	__(testw %nargs,%nargs)
+	__(jmp 2f)
+1:	__(pop %temp0)
+	__(movq %temp0,-node_size(%imm1))
+	__(subw $node_size,%nargs)
+	__(leaq -node_size(%imm1),%imm1)
+2:	__(jne 1b)
+	__(jmp *%ra0)	
 _endsubp(mkstackv)
 
 	
@@ -1238,8 +1293,8 @@ local_label(stack_misc_alloc_node):
 	__(cmpq $tstack_alloc_limit,%imm1)
 	__(ja local_label(stack_misc_alloc_heap_alloc_gvector))
 	__(TSP_Alloc_Var(%imm1,%temp0))
-	__(movq %imm0,tsp_frame.fixed_overhead(%temp0))
-	__(leaq tsp_frame.fixed_overhead+fulltag_misc,%arg_z)
+	__(movq %imm0,(%temp0))
+	__(leaq fulltag_misc(%temp0),%arg_z)
 	__(jmp *%ra0)
 local_label(stack_misc_alloc_heap_alloc_gvector):	
 	__(TSP_Alloc_Fixed(0,%imm0))
@@ -1358,12 +1413,160 @@ _spentry(heap_cons_rest_arg)
 _endsubp(heap_cons_rest_arg)
 
 _spentry(simple_keywords)
+	__(xorl %imm0_l,%imm0_l)
+	__(push_argregs())
+	__(jmp _SPkeyword_bind)
 _endsubp(simple_keywords)
 
 _spentry(keyword_args)
+	__(push_argregs())
+	__(jmp _SPkeyword_bind)
 _endsubp(keyword_args)
 
+/* There are %nargs words of arguments on the stack; %imm0 contains the number
+   of non-keyword args pushed.  It's possible that we never actually got
+   any keyword args, which would make things much simpler. 
+
+   On entry, temp0 contains a fixnum with bits indicating whether 
+   &allow-other-keys and/or &rest was present in the lambda list.
+   Once we get here, we can use the arg registers.
+*/
+define([keyword_flags_aok_bit],[fixnumshift])
+define([keyword_flags_unknown_keys_bit],[fixnumshift+1])
+define([keyword_flags_rest_bit],[fixnumshift+2])
+	
 _spentry(keyword_bind)
+	__(movzwl %nargs,%imm1_l)
+	__(subq %imm0,%imm1)
+	__(jbe local_label(no_keyword_values))
+	__(btq $word_shift,%imm1)
+	__(jnc 2f)
+	__(movl $nil_value,%arg_z_l)
+	__(movq %imm1,%nargs_q)
+	__(testw %nargs,%nargs)
+	__(jmp 1f)
+0:	__(pop %arg_y)
+	__(Cons(%arg_y,%arg_z,%arg_z))
+	__(subw $node_size,%nargs)
+1:	__(jnz 0b)
+	__(movl $XBADKEYS,%arg_y_l)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
+	/* Now that we're sure that we have an even number of keywords and values
+	  (in %imm1), copy all pairs to the temp stack */
+	__(lea tsp_frame.fixed_overhead(%imm1),%arg_z)
+	__(TSP_Alloc_Var(%arg_z,%imm0))
+2:	__(subq $node_size,%arg_z)
+	__(pop (%arg_z))
+	__(cmpq %arg_z,%imm0)
+	__(jne 2b)
+	/* Get the keyword vector into arg_x, and its length into arg_y.
+	   Push arg_y pairs of NILs. */
+	__(movl function_data_offset(%fn),%imm0_l)
+	__(movq function_data_offset(%fn,%imm0,node_size),%arg_x)
+	__(vector_length(%arg_x,%arg_y))
+	__(movq %arg_y,%imm0)
+	__(jmp 4f)
+3:	__(push $nil_value)
+	__(push $nil_value)
+4:	__(subq $fixnumone,%arg_y)
+	__(jge 3b)
+	/* Push the %saveN registers, so that we can use them in this loop */
+	__(push %save3)
+	__(push %save2)
+	__(push %save1)
+	__(push %save0)
+	__(leaq 4*node_size(%rsp,%imm0,2),%save0)
+	/* %save0 points to the 0th value/supplied-p pair */
+	__(leaq (%arg_z,%imm1),%save1)
+	/* %save1 is the end of the provided keyword/value pairs (the old %tsp). */
+	__(movq %imm0,%save2)
+	/* %save2 is the length of the keyword vector */
+
+5:	__(movq (%arg_z),%save3)	/* %save3 is current keyword */
+	__(xorl %imm0_l,%imm0_l)
+6:	__(cmpq misc_data_offset(%arg_x,%imm0),%save3)
+	__(jne 7f)
+	/* Got a match; have we already seen this keyword ? */
+	__(cmpb $fulltag_nil,node_size(%save0,%imm0,2))
+	__(jne 9f)	/* already seen keyword, ignore this value */
+	__(movq node_size(%arg_z),%save3)
+	__(movq %save3,(%save0,%imm0,2))
+	__(movl $t_value,node_size(%save0,%imm0,2))
+	__(jmp 9f)
+7:	__(addq $node_size,%imm0)	
+	__(cmpq %imm0,%save2)
+	__(jne 6b)
+	/* Didn't match anything in the keyword vector. Is the keyword
+	   :allow-other-keys ? */
+	__(cmpq $nrs.kallowotherkeys,%save3)
+	__(jne 8f)
+	__(cmpb $fulltag_nil,node_size(%arg_z))
+	__(jne 9f)
+	__(btsq $keyword_flags_aok_bit,%temp0)
+	__(jmp 9f)
+8:	__(btsq $keyword_flags_unknown_keys_bit,%temp0)
+9:	__(addq $dnode_size,%arg_z)
+	__(cmpq %arg_z,%save1)
+	__(jne 5b)
+	__(pop %save0)
+	__(pop %save1)
+	__(pop %save2)
+	__(pop %save3)
+	/* If the function takes an &rest arg, or if we got an unrecognized
+	   keyword and don't allow that, copy the incoming keyword/value
+	   pairs from the temp stack back to the value stack */
+	__(btq $keyword_flags_rest_bit,%temp0)
+	__(jc 1f)
+	__(btq $keyword_flags_unknown_keys_bit,%temp0)
+	__(jnc 0f)
+	__(btq $keyword_flags_aok_bit,%temp0)
+	__(jnc 1f)
+	/* pop the temp frame */
+0:	__(discard_temp_frame(%imm1))
+	__(jmp *%ra0)
+	/* Copy the keyword/value pairs from the tsp back to sp, either because
+	   the function takes an &rest arg or because we need to signal an
+	   "unknown keywords" error */
+1:	__(movd %tsp,%arg_z)
+	__(mov (%arg_z),%arg_y)
+	__(jnp 3f)
+2:	__(push (%arg_z))
+	__(push node_size(%arg_z))
+3:	__(addq $dnode_size,%arg_z)
+	__(cmpq %arg_z,%arg_y)
+	__(jne 3b)
+	__(discard_temp_frame(%imm0))
+	__(btq $keyword_flags_unknown_keys_bit,%temp0)
+	__(jnc 0b)
+	__(btq $keyword_flags_aok_bit,%temp0)
+	__(jc 0b)
+	/* Signal an "unknown keywords" error */
+	__(movq %imm1,%nargs_q)
+	__(testw %nargs,%nargs)
+	__(jmp 5f)
+4:	__(pop %arg_y)
+	__(Cons(%arg_y,%arg_z,%arg_z))
+	__(subw $node_size,%nargs)
+5:	__(jnz 4b)
+	__(movl $XBADKEYS,%arg_y_l)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
+	
+/* No keyword values were provided.  Access the keyword vector (which is the 0th
+   constant in %fn), determine its length N, and push N	pairs of NILs.  N could
+   be 0 ... */
+local_label(no_keyword_values):		
+	__(movl function_data_offset(%fn),%imm0_l)
+	__(movq function_data_offset(%fn,%imm0,node_size),%arg_x)
+	__(movl $nil_value,%arg_z_l)
+	__(vector_length(%arg_x,%arg_y))
+	__(jmp 1f)
+0:	__(push %arg_z)
+	__(push %arg_z)
+1:	__(subq $fixnumone,%arg_y)
+	__(jge 0b)
+	__(jmp *%ra0)		
 _endsubp(keyword_bind)
 
 
@@ -1395,7 +1598,7 @@ _spentry(stack_cons_rest_arg)
 	__(addq %imm1,%imm1)
 	__(dnode_align(%imm1,tsp_frame.fixed_overhead,%imm0))
 	__(TSP_Alloc_Var(%imm0,%temp0))
-	__(addq $tsp_frame.fixed_overhead+fulltag_cons,%temp0)
+	__(addq $fulltag_cons,%temp0)
 1:	__(pop %arg_x)
 	__(_rplacd(%temp0,%arg_z))
 	__(_rplaca(%temp0,%arg_x))
@@ -1525,22 +1728,106 @@ local_label(set_arg_z):
 local_label(go):        
         __(movq misc_data_offset+(2*node_size)(%fn),%fn)
         __(jmp *%fn)                
-        
 _endsubp(call_closure)
 
 _spentry(getxlong)
 _endsubp(getxlong)
 
+/* Have to be a little careful here: the caller may or may not have pushed
+   an empty frame, and we may or may not have needed one.  We can't easily
+   tell whether or not a frame will be needed (if the caller didn't reserve
+   a frame, whether or not we need one depends on the length of the list
+   in arg_z.  So, if the caller didn't push a frame, we do so ; once everything's
+   been spread, we discard the reserved frame (regardless of who pushed it)
+   if all args fit in registers. */
 _spentry(spreadargz)
+	__(testw %nargs,%nargs)
+	__(jne 0f)
+	__(push $0)
+	__(push $0)
+0:	__(movq %arg_z,%arg_y)	/* save in case of error */
+	__(xorl %imm0_l,%imm0_l)
+1:	__(compare_reg_to_nil(%arg_z))
+	__(je 2f)
+	__(extract_fulltag(%arg_z,%imm1))
+	__(cmpb $fulltag_cons,%imm1_b)
+	__(jne 9f)
+	__(_car(%arg_x,%arg_z))
+	__(_cdr(%arg_z,%arg_z))
+	__(addl $node_size,%imm0_l)
+	__(compare_reg_to_nil(%arg_z))
+	__(push %arg_x)
+	__(jne 1b)
+2:	__(addw %imm0_w,%nargs)
+	__(jne 4f)
+3:	__(addq 2*node_size,%rsp)
+	__(jmp *%ra0)
+4:	__(cmpw $1*node_size,%nargs)
+	__(pop %arg_z)
+	__(je 3b)
+	__(cmpw $2*node_size,%nargs)
+	__(pop %arg_y)
+	__(je 3b)
+	__(cmpw $3*node_size,%nargs)
+	__(pop %arg_x)
+	__(je 3b)
+	__(jmp *%ra0)
+/* Discard everything that's been pushed already, complain */
+9:	__(lea 2*node_size(%rsp,%imm0),%rsp)
+	__(movq %arg_y,%arg_z)	/* recover original */
+	__(movq $XNOSPREAD,%arg_y)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
 _endsubp(spreadargz)
 
+/* Caller built it's own frame when it was entered.  If all outgoing args
+   are in registers, we can discard that frame; otherwise, we copy outgoing
+   relative to it and restore %rbp/%ra0 */
 _spentry(tfuncallgen)
+	__(cmpw $nargregs*node_size,%nargs)
+	__(jbe 9f)
+	__(movzwl %nargs,%nargs_l)
+	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(xorl %imm1_l,%imm1_l)
+	/* We can use %ra0 as a temporary here, since the real return address
+	   is on the stack */
+0:	__(movq -node_size(%imm0),%ra0)
+	__(movq %ra0,-node_size(%rbp,%imm1))
+	__(subq $node_size,%imm0)
+	__(subq $node_size,%imm1)
+	__(cmpq %imm0,%rsp)
+	__(jne 0b)
+	__(lea (%rbp,%imm1),%rsp)
+	__(movq 8(%rbp),%ra0)
+	__(movq 0(%rbp),%rbp)
+	__(do_funcall())
+/* All args in regs; exactly the same as the tfuncallvsp case */
+9:		
+	__(leave)
+	__(pop %ra0)
+	__(do_funcall())
 _endsubp(tfuncallgen)
 
+/* Some args were pushed; move them down in the frame */
 _spentry(tfuncallslide)
+	__(movzwl %nargs,%nargs_l)
+	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(xorl %imm1_l,%imm1_l)
+	/* We can use %ra0 as a temporary here, since the real return address
+	   is on the stack */
+0:	__(movq -node_size(%imm0),%ra0)
+	__(movq %ra0,-node_size(%rbp,%imm1))
+	__(subq $node_size,%imm0)
+	__(subq $node_size,%imm1)
+	__(cmpq %imm0,%rsp)
+	__(jne 0b)
+	__(lea (%rbp,%imm1),%rsp)
+	__(movq 8(%rbp),%ra0)
+	__(movq 0(%rbp),%rbp)
+	__(do_funcall())	
 _endsubp(tfuncallslide)
 
-	/* No args were vpushed; recover saved context & do funcall */	
+/* No args were pushed; recover saved context & do funcall */	
 _spentry(tfuncallvsp)
 	__(leave)
 	__(pop %ra0)
@@ -1548,24 +1835,106 @@ _spentry(tfuncallvsp)
 _endsubp(tfuncallvsp)
 
 _spentry(tcallsymgen)
+	__(cmpw $nargregs*node_size,%nargs)
+	__(jbe 9f)
+	__(movzwl %nargs,%nargs_l)
+	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(xorl %imm1_l,%imm1_l)
+	/* We can use %ra0 as a temporary here, since the real return address
+	   is on the stack */
+0:	__(movq -node_size(%imm0),%ra0)
+	__(movq %ra0,-node_size(%rbp,%imm1))
+	__(subq $node_size,%imm0)
+	__(subq $node_size,%imm1)
+	__(cmpq %imm0,%rsp)
+	__(jne 0b)
+	__(lea (%rbp,%imm1),%rsp)
+	__(movq 8(%rbp),%ra0)
+	__(movq 0(%rbp),%rbp)
+	__(jump_fname())
+/* All args in regs; exactly the same as the tcallsymvsp case */
+9:		
+	__(leave)
+	__(pop %ra0)
+	__(jump_fname())
 _endsubp(tcallsymgen)
 
 _spentry(tcallsymslide)
+	__(movzwl %nargs,%nargs_l)
+	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(xorl %imm1_l,%imm1_l)
+	/* We can use %ra0 as a temporary here, since the real return address
+	   is on the stack */
+0:	__(movq -node_size(%imm0),%ra0)
+	__(movq %ra0,-node_size(%rbp,%imm1))
+	__(subq $node_size,%imm0)
+	__(subq $node_size,%imm1)
+	__(cmpq %imm0,%rsp)
+	__(jne 0b)
+	__(lea (%rbp,%imm1),%rsp)
+	__(movq 8(%rbp),%ra0)
+	__(movq 0(%rbp),%rbp)
+	__(jump_fname())
 _endsubp(tcallsymslide)
 
 _spentry(tcallsymvsp)
+	__(leave)
+	__(pop %ra0)
+	__(jump_fname())
 _endsubp(tcallsymvsp)
 
 _spentry(tcallnfngen)
+	__(cmpw $nargregs*node_size,%nargs)
+	__(jbe 9f)
+	__(movzwl %nargs,%nargs_l)
+	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(xorl %imm1_l,%imm1_l)
+	/* We can use %ra0 as a temporary here, since the real return address
+	   is on the stack */
+0:	__(movq -node_size(%imm0),%ra0)
+	__(movq %ra0,-node_size(%rbp,%imm1))
+	__(subq $node_size,%imm0)
+	__(subq $node_size,%imm1)
+	__(cmpq %imm0,%rsp)
+	__(jne 0b)
+	__(movq %temp0,%fn)
+	__(lea (%rbp,%imm1),%rsp)
+	__(movq 8(%rbp),%ra0)
+	__(movq 0(%rbp),%rbp)
+	__(jmp *%fn)
+/* All args in regs; exactly the same as the tcallnfnvsp case */
+9:		
+	__(movq %temp0,%fn)
+	__(leave)
+	__(pop %ra0)
+	__(jmp *%fn)
 _endsubp(tcallnfngen)
 
 _spentry(tcallnfnslide)
+	__(movzwl %nargs,%nargs_l)
+	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(xorl %imm1_l,%imm1_l)
+	/* We can use %ra0 as a temporary here, since the real return address
+	   is on the stack */
+0:	__(movq -node_size(%imm0),%ra0)
+	__(movq %ra0,-node_size(%rbp,%imm1))
+	__(subq $node_size,%imm0)
+	__(subq $node_size,%imm1)
+	__(cmpq %imm0,%rsp)
+	__(jne 0b)
+	__(movq %temp0,%fn)
+	__(lea (%rbp,%imm1),%rsp)
+	__(movq 8(%rbp),%ra0)
+	__(movq 0(%rbp),%rbp)
+	__(jmp *%fn)
 _endsubp(tcallnfnslide)
 
 _spentry(tcallnfnvsp)
+	__(movq %temp0,%fn)
+	__(leave)
+	__(pop %ra0)
+	__(jmp *%fn)
 _endsubp(tcallnfnvsp)
-
-
 
 _spentry(stkconsyz)
 	__(int $3)
