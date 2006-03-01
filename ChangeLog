@@ -1,3 +1,48 @@
+2006-03-01 12:42  gb
+
+	* level-0/nfasload.lisp: One lousy missing #\)!  All this fuss over
+	one lousy missing #\) !
+
+2006-03-01 12:39  gb
+
+	* xdump/faslenv.lisp: Define $fasl-clfun.
+
+2006-03-01 12:38  gb
+
+	* level-1/ppc-threads-utils.lisp: Rename %FIXNUM-SET-U32 ->
+	%FIXNUM-SET-NATURAL.
+
+2006-03-01 12:37  gb
+
+	* level-0/X86/x86-def.lisp: Translate most of this, except for the
+	lexpr stuff.
+
+2006-03-01 12:37  gb
+
+	* level-0/PPC/ppc-def.lisp: Delete a few things that seem to be
+	totally unused.  Rename %FIXNUM-SET-U32 -> %FIXNUM-SET-NATURAL.
+
+2006-03-01 12:36  gb
+
+	* level-0/nfasload.lisp: $fasl-clfun.
+
+2006-03-01 12:33  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp: %ilogbitp,
+	inline multiplication.
+
+2006-03-01 12:32  gb
+
+	* compiler/X86/x86-lap.lisp: %define-x86-lap-function: "function
+	creator" isn't a parameter, so signature matches what the compiler
+	expects.
+
+2006-03-01 12:31  gb
+
+	* compiler/X86/x86-asm.lisp: Insert register operand correctly in
+	immeditate bt/btc/btr/bts.  Some imul variants (at least the
+	64/32/16-bit versions.)
+
 2006-03-01 12:19  gb
 
 	* compiler/nx1.lisp: Don't require SPARC-LAP in nx-x86-lap-function
