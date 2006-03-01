@@ -282,31 +282,42 @@
   (movq (:$l x8664::nil-value) (:%q x8664::arg_z))
   :done)
 
-#+fix
 (define-x8664-vinsn default-3-args (()
 				    ((min :u16const)))
   (rcmpw (:%w x8664::nargs ) (:$w (:apply ash (:apply + 2 min) x8664::word-shift)))
-  (jb :done)
-  (je :one)
-  ;; We got "min" args; arg_y & arg_z default to nil
-  ((:pred >= min 3)
-   (pushq (:%q x8664::arg_x)))   
-  ((:pred >= min 2)
-   (pushq (:%q x8664::arg_y)))
-  ((:pred >= min 1)
-   (movq (:%q x8664::arg_z) (:%q x8664::arg_x)))
-  (movq (:$l x8664::nil-value) (:%q x8664::arg_y))
-  (jmp :last)
-  :one
-  ;; We got min+1 args: arg_y was supplied, arg_z defaults to nil.
+  (ja :done)
+  (je :two)
+  (rcmpw (:%w x8664::nargs ) (:$w (:apply ash min x8664::word-shift)))
+  (je :none)
+  ;; The first (of three) &optional args was supplied.
   ((:pred >= min 2)
    (pushq (:%q x8664::arg_x)))
   ((:pred >= min 1)
-   (movq (:%q x8664::arg_y) (:%q x8664::arg_x)))
+   (pushq (:%q x8664::arg_y)))
+  (movq (:%q x8664::arg_z) (:%q x8664::arg_x))
+  (jmp :last-2)
+  :two
+  ;; The first two (of three) &optional args were supplied.
+  ((:pred >= min 1)
+   (pushq (:%q x8664::arg_x)))
+  (movq (:%q x8664::arg_y) (:%q x8664::arg_x))
   (movq (:%q x8664::arg_z) (:%q x8664::arg_y))
-  :last
-  (movq (:$l x8664::nil-value) (:%q x8664::arg_z))
+  (jmp :last-1)
+  ;; None of the three &optional args was provided.
+  :none
+  ((:pred >= min 3)
+   (pushq (:%q x8664::arg_x)))
+  ((:pred >= min 2)
+   (pushq (:%q x8664::arg_y)))
+  ((:pred >= min 1)
+   (pushq (:%q x8664::arg_z)))
+  (movl (:$l x8664::nil-value) (:%l x8664::arg_x))
+  :last-2
+  (movl (:$l x8664::nil-value) (:%l x8664::arg_y))
+  :last-1
+  (movl (:$l x8664::nil-value) (:%l x8664::arg_z))
   :done)
+
 
 (define-x8664-vinsn default-optionals (()
                                        ((n :u16const))
@@ -320,7 +331,7 @@
   (pushq (:$l x8664::nil-value))
   (jne :loop)
   :done)
-)  
+  
 
 (define-x8664-vinsn save-lisp-context-no-stack-args (()
                                                      ())
@@ -335,6 +346,22 @@
   (movq (:%q x8664::rbp) (:@ nbytes-pushed (:%q x8664::rsp)))
   (leaq (:@ nbytes-pushed (:%q x8664::rsp)) (:%q x8664::rbp))
   (movq (:% x8664::ra0) (:@ 8 (:%q x8664::rbp))))
+
+(define-x8664-vinsn save-lisp-context-variable-arg-count (()
+                                                          ()
+                                                          ((temp :u64)))
+  (movzwl (:%w x8664::nargs) (:%l temp))
+  (subq (:$b (* $numx8664argregs x8664::node-size)) (:%q temp))
+  (jle :push)
+  (movq (:%q x8664::rbp) (:@ (:%q x8664::rsp) (:%q temp)))
+  (leaq (:@ (:%q x8664::rsp) (:%q temp)) (:%q x8664::rbp))
+  (movq (:% x8664::ra0) (:@ 8 (:%q x8664::rbp)))
+  (jmp :done)
+  :push
+  (pushq (:%q x8664::ra0))
+  (pushq (:%q x8664::rbp))
+  (movq (:%q x8664::rsp) (:%q x8664::rbp))
+  :done)
 
 
 (define-x8664-vinsn (vpush-register :push :node :vsp)
@@ -2290,7 +2317,7 @@
   (:align 3)
   (:long (:^ :back))
   :back
-  (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn))))
+  (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn)))
 
 (define-x8664-vinsn setup-vcell-allocation (()
                                             ())
@@ -2305,3 +2332,52 @@
 (define-x8664-subprim-call-vinsn (progvsave) .SPprogvsave)
 
 (define-x8664-subprim-jump-vinsn (progvrestore) .SPprogvrestore)
+
+(define-x8664-subprim-call-vinsn (simple-keywords) .SPsimple-keywords)
+
+(define-x8664-subprim-call-vinsn (keyword-args) .SPkeyword-args)
+
+(define-x8664-subprim-call-vinsn (keyword-bind) .SPkeyword-bind)
+
+(define-x8664-vinsn scale-nargs (()
+				 ((nfixed :s16const)))
+  ((:pred > nfixed 0)
+   (addw (:$w (:apply - (:apply ash nfixed x8664::word-shift))) (:%w x8664::nargs))))
+
+(define-x8664-vinsn opt-supplied-p (()
+                                    ())
+  (xorl (:%l x8664::imm1) (:%l x8664::imm1))
+  (movl (:$l x8664::t-value) (:%l x8664::arg_y))
+  :loop
+  (rcmpw (:%w x8664::imm1) (:%w x8664::nargs))
+  (movl (:$l x8664::nil-value) (:%l x8664::arg_z))
+  (cmovlel (:%l x8664::arg_y) (:%l  x8664::arg_z))
+  (addl (:$b x8664::node-size) (:%l x8664::imm1))
+  (cmpl (:%l x8664::imm1) (:%l x8664::imm0))
+  (pushq (:%q x8664::arg_z))
+  (jne :loop))
+
+(define-x8664-vinsn one-opt-supplied-p (()
+                                        ()
+                                        ((temp :u64)))
+  (testw (:%w x8664::nargs) (:%w x8664::nargs))
+  (setne (:%b temp))
+  (andl (:$b x8664::t-offset) (:%l temp))
+  (addl (:$l x8664::nil-value) (:%l temp))
+  (pushq (:%q temp)))
+
+(define-x8664-vinsn two-opt-supplied-p (()
+                                        ()
+                                        ((temp0 :u64)
+                                         (temp1 :u64)))
+  (rcmpw (:%w x8664::nargs) (:$w x8664::node-size))
+  (setae (:%b temp0))
+  (seta (:%b temp1))
+  (andl (:$b x8664::t-offset) (:%l temp0))
+  (andl (:$b x8664::t-offset) (:%l temp1))
+  (addl (:$l x8664::nil-value) (:%l temp0))
+  (addl (:$l x8664::nil-value) (:%l temp1))
+  (pushq (:%q temp0))
+  (pushq (:%q temp1)))
+
+
