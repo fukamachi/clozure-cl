@@ -346,7 +346,17 @@
 (define-condition end-of-file (stream-error) ()
   (:report (lambda (c s)
              (format s "Unexpected end of file on ~s" (stream-error-stream c)))))
+(define-condition impossible-number (reader-error)
+  ((token :initarg :token :reader impossible-number-token)
+   (condition :initarg :condition :reader impossible-number-condition))
+  (:report (lambda (c s)
+             (format s "Condition of type ~s raised while trying to parse numeric token ~s on ~s"
+                     (type-of (impossible-number-condition c))
+                     (impossible-number-token c)
+                     (stream-error-stream c)))))
 
+
+    
 (define-condition simple-stream-error (stream-error simple-condition) () 
   (:report (lambda (c s) 
              (format s "Error on ~s : ~&~a" (stream-error-stream c) 
