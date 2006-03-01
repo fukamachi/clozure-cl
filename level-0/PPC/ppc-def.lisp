@@ -119,7 +119,7 @@
   (blr))
 
 #+ppc32-target
-(defppclapfunction %fixnum-set-u32 ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
+(defppclapfunction %fixnum-set-natural ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
   (cmpwi cr0 nargs '2)
   (check-nargs 2 3)
   (bne cr0 @3-args)
@@ -156,7 +156,7 @@
   (blr))
 
 #+ppc64-target
-(defppclapfunction %fixnum-set-u32 ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
+(defppclapfunction %fixnum-set-natural ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
   (cmpdi cr0 nargs '2)
   (check-nargs 2 3)
   (bne cr0 @3-args)
