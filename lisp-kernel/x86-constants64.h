@@ -435,7 +435,7 @@ typedef struct tcr {
   void* suspend;		/* suspension semaphore */
   void* resume;			/* resumption semaphore */
   u_int32_t flags_pad;
-  int32_t flags;
+  u_int32_t flags;
   ExceptionInformation* gc_context;
   void* termination_semaphore;
   signed_natural unwinding;
