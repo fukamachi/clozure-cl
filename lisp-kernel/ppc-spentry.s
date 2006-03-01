@@ -1269,7 +1269,7 @@ _spentry(keyword_args)
    If the number of arguments is greater than imm0, the difference must 
    be even. 
    Note that the caller hasn't yet saved its caller's context and that 
-   the temp registers used to pass closure_data (temp0) and next_method_context 
+   the temp registers used to pass next_method_context 
    (temp1) may still have "live" values in them, as does nfn (temp2). */
 
 define([keyword_flags],[imm2])
