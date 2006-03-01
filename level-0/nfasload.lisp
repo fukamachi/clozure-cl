@@ -295,7 +295,7 @@
          ((= i numconst)
           (setf (faslstate.faslval s) function))
       (declare (fixnum i numconst constidx))
-      (setf (%svref vector constidx) (%fasl-expr s))))
+      (setf (%svref vector constidx) (%fasl-expr s)))))
     
     
 (deffaslop $fasl-lfuncall (s)
