@@ -615,7 +615,10 @@
                             (handler-case
                                 (%token-to-number tb (%validate-radix *read-base*))
                               (arithmetic-error (c)
-                                (signal-reader-error stream "Impossible number.  Original error: ~S" c))))))
+                                (error 'impossible-number
+                                       :stream stream
+                                       :token (%string-from-token tb)
+                                       :condition c))))))
               (if (and num (not explicit-package))
                 num
                 (if (and (zerop len) (null escapes))
