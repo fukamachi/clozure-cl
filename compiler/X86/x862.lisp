@@ -5017,8 +5017,10 @@
                   (! check-min-nargs num-fixed))
                 (unless (or rest keys)
                   (! check-max-nargs (+ num-fixed num-opt)))
-                (unless (> num-fixed *x862-target-num-arg-regs*)
-                  (! ensure-reserved-frame))
+                (if (not (or rest keys lexprp))
+                  (unless (> num-fixed *x862-target-num-arg-regs*)
+                    (! ensure-reserved-frame))
+                  (! save-lisp-context-variable-arg-count))
                 ;; If there were &optional args, initialize their values
                 ;; to NIL.  All of the argregs get vpushed as a result of this.
                 (when opt
@@ -5034,9 +5036,7 @@
                     (declare (fixnum flags nkeys nprev))
                     (dotimes (i (the fixnum (+ nkeys nkeys)))
                       (x862-new-vstack-lcell :reserved *x862-target-lcell-size* 0 nil))
-                    (! ref-constant x8664::temp3 (x86-immediate-label keyvect))
-                    (x862-lri seg x8664::imm2 (ash flags *x862-target-fixnum-shift*))
-                    (x862-lri seg x8664::imm3 (ash nkeys *x862-target-fixnum-shift*))
+                    (x862-lri seg x8664::temp0 (ash flags *x862-target-fixnum-shift*))
                     (unless (= nprev 0)
                       (x862-lri seg x8664::imm0 (ash nprev *x862-target-fixnum-shift*)))
                     (if (= 0 nprev)
@@ -5076,13 +5076,17 @@
                   (x862-reserve-vstack-lcells num-opt)
                   (x862-lri seg x8664::imm0 (ash num-opt *x862-target-fixnum-shift*))
 
-                  ;; .SPopt-supplied-p wants nargs to contain the
+                  ;; ! opt-supplied-p wants nargs to contain the
                   ;; actual arg-count minus the number of "fixed"
                   ;; (required, inherited) args.
 
                   (unless (= 0 num-fixed)
                     (! scale-nargs num-fixed))
-                  (! opt-supplied-p))
+                  (cond ((= 1 num-opt)
+                         (! one-opt-supplied-p))
+                        ((= 2 num-opt)
+                         (! two-opt-supplied-p))
+                        (t (! opt-supplied-p))))
                 (let* ((nwords-vpushed (+ num-fixed 
                                           num-opt 
                                           (if hardopt num-opt 0) 
@@ -5090,7 +5094,7 @@
                                           (ash (length (%cadr keys)) 1)))
                        (nbytes-vpushed (* nwords-vpushed *x862-target-node-size*)))
                   (declare (fixnum nwords-vpushed nbytes-vpushed))
-                  (unless (or lexprp keys) 
+                  (unless (or rest lexprp keys) 
                     (! save-lisp-context-offset nbytes-vpushed))
                   (x862-set-vstack nbytes-vpushed)
                   (setq optsupvloc (- *x862-vstack* (* num-opt *x862-target-node-size*)))))))
