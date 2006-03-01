@@ -956,7 +956,7 @@
      #x0fc8 nil #x00)
 
    ;; bt
-   (def-x8664-opcode btq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-reg))
+   (def-x8664-opcode btq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-rm))
      #x0fba #o340 #x48)
    (def-x8664-opcode btq ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o040 #x48)
@@ -965,7 +965,7 @@
    (def-x8664-opcode btq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fa3 #o000 #x48)
 
-   (def-x8664-opcode btl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-reg))
+   (def-x8664-opcode btl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-rm))
      #x0fba #o340 #x00)
    (def-x8664-opcode btl ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o040 #x00)
@@ -974,7 +974,7 @@
    (def-x8664-opcode btl ((:reg32 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fa3 #o000 #x00)
 
-   (def-x8664-opcode btw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-reg))
+   (def-x8664-opcode btw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-rm))
      #x0fba #o340 #x00 #x66)
    (def-x8664-opcode btw ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o040 #x00 #x66)
@@ -984,7 +984,7 @@
      #x0fa3 #o000 #x00 #x66)
 
    ;; btc
-   (def-x8664-opcode btcq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-reg))
+   (def-x8664-opcode btcq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-rm))
      #x0fba #o370 #x48)
    (def-x8664-opcode btcq ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o070 #x48)
@@ -993,7 +993,7 @@
    (def-x8664-opcode btcq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fbb #o000 #x48)
 
-   (def-x8664-opcode btcl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-reg))
+   (def-x8664-opcode btcl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-rm))
      #x0fba #o370 #x00)
    (def-x8664-opcode btcl ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o070 #x00)
@@ -1002,7 +1002,7 @@
    (def-x8664-opcode btcl ((:reg32 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fbb #o000 #x00)
 
-   (def-x8664-opcode btcw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-reg))
+   (def-x8664-opcode btcw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-rm))
      #x0fba #o370 #x00 #x66)
    (def-x8664-opcode btcw ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o070 #x00 #x66)
@@ -1012,7 +1012,8 @@
      #x0fbb #o000 #x00 #x66)
 
    ;; btr
-   (def-x8664-opcode btrq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-reg)) #x0fba #o360 #x48)
+   (def-x8664-opcode btrq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-rm))
+     #x0fba #o360 #x48)
    (def-x8664-opcode btrq ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o060 #x48)
    (def-x8664-opcode btrq ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
@@ -1020,7 +1021,7 @@
    (def-x8664-opcode btrq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fb3 #o000 #x48)
 
-   (def-x8664-opcode btrl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-reg))
+   (def-x8664-opcode btrl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-rm))
      #x0fba #o360 #x00)
    (def-x8664-opcode btrl ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o060 #x00)
@@ -1029,7 +1030,7 @@
    (def-x8664-opcode btrl ((:reg32 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fb3 #o000 #x00)
 
-   (def-x8664-opcode btrw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-reg))
+   (def-x8664-opcode btrw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-rm))
      #x0fba #o360  #x00 #x66)
    (def-x8664-opcode btrw ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o060 #x00 #x66)
@@ -1039,7 +1040,7 @@
      #x0fb3 #o000 #x00 #x66)
 
    ;; bts
-   (def-x8664-opcode btsq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-reg))
+   (def-x8664-opcode btsq ((:imm8 :insert-imm8) (:reg64 :insert-modrm-rm))
      #x0fba #o350 #x48)
    (def-x8664-opcode btsq ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o050 #x48)
@@ -1048,7 +1049,7 @@
    (def-x8664-opcode btsq ((:reg64 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fab #o000 #x48)
 
-   (def-x8664-opcode btsl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-reg))
+   (def-x8664-opcode btsl ((:imm8 :insert-imm8) (:reg32 :insert-modrm-rm))
      #x0fba #o350 #x00)
    (def-x8664-opcode btsl ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o050 #x00)
@@ -1057,7 +1058,7 @@
    (def-x8664-opcode btsl ((:reg32 :insert-modrm-reg) (:anymem :insert-memory))
      #x0fab #o000 #x00)
 
-   (def-x8664-opcode btsw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-reg))
+   (def-x8664-opcode btsw ((:imm8 :insert-imm8) (:reg16 :insert-modrm-rm))
      #x0fba #o350  #x00 #x66)
    (def-x8664-opcode btsw ((:imm8 :insert-imm8) (:anymem :insert-memory))
      #x0fba #o050 #x00 #x66)
@@ -1580,19 +1581,59 @@
    (def-x8664-opcode imulq ((:anymem :insert-memory))
      #xf7 #o050 #x48)
 
+   (def-x8664-opcode imulq ((:imm8s :insert-imm8s) (:reg64 :insert-modrm-rm) (:reg64 :insert-modrm-reg))
+     #x6b #o300 #x48)
+   (def-x8664-opcode imulq ((:imm8s :insert-imm8s) (:anymem :insert-memory) (:reg64 :insert-modrm-reg))
+     #x6b #o000 #x48)
+   (def-x8664-opcode imulq ((:imm32s :insert-imm32s) (:reg64 :insert-modrm-rm) (:reg64 :insert-modrm-reg))
+     #x69 #o300 #x48)
+   (def-x8664-opcode imulq ((:imm32s :insert-imm32s) (:anymem :insert-memory) (:reg64 :insert-modrm-reg))
+     #x69 #o000 #x48)
+   (def-x8664-opcode imulq ((:reg64 :insert-modrm-rm) (:reg64 :insert-modrm-reg))
+     #x0faf #o300 #x48)
+   (def-x8664-opcode imulq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
+     #x0faf #o000 #x48)   
+
+   
    (def-x8664-opcode imull ((:reg32 :insert-modrm-rm))
      #xf7 #o350 #x00)
    (def-x8664-opcode imull ((:anymem :insert-memory))
      #xf7 #o050 #x00)
 
+   (def-x8664-opcode imull ((:imm8s :insert-imm8s) (:reg32 :insert-modrm-rm) (:reg32 :insert-modrm-reg))
+     #x6b #o300 #x00)
+   (def-x8664-opcode imull ((:imm8s :insert-imm8s) (:anymem :insert-memory) (:reg32 :insert-modrm-reg))
+     #x6b #o000 #x00)
+   (def-x8664-opcode imull ((:imm32s :insert-imm32s) (:reg32 :insert-modrm-rm) (:reg32 :insert-modrm-reg))
+     #x69 #o300 #x00)
+   (def-x8664-opcode imull ((:imm32s :insert-imm32s) (:anymem :insert-memory) (:reg32 :insert-modrm-reg))
+     #x69 #o000 #x00)
+   (def-x8664-opcode imull ((:reg32 :insert-modrm-rm) (:reg32 :insert-modrm-reg))
+     #x0faf #o300 #x00)
+   (def-x8664-opcode imull ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
+     #x0faf #o000 #x00)   
+   
    (def-x8664-opcode imulw ((:reg16 :insert-modrm-rm))
      #xf7 #o350 #x00 #x66)
    (def-x8664-opcode imulw ((:anymem :insert-memory))
      #xf7 #o050 #x00 #x66)
 
+   (def-x8664-opcode imulw ((:imm8s :insert-imm8s) (:reg16 :insert-modrm-rm) (:reg16 :insert-modrm-reg))
+     #x6b #o300 #x00 #x66)
+   (def-x8664-opcode imulw ((:imm8s :insert-imm8s) (:anymem :insert-memory) (:reg16 :insert-modrm-reg))
+     #x6b #o000 #x00 #x66)
+   (def-x8664-opcode imulw ((:imm32s :insert-imm32s) (:reg16 :insert-modrm-rm) (:reg16 :insert-modrm-reg))
+     #x69 #o300 #x00 #x66)
+   (def-x8664-opcode imulw ((:imm32s :insert-imm32s) (:anymem :insert-memory) (:reg16 :insert-modrm-reg))
+     #x69 #o000 #x00 #x66)
+   (def-x8664-opcode imulw ((:reg16 :insert-modrm-rm) (:reg16 :insert-modrm-reg))
+     #x0faf #o300 #x00 #x66)
+   (def-x8664-opcode imulw ((:anymem :insert-memory) (:reg16 :insert-modrm-reg))
+     #x0faf #o000 #x00 #x66)   
+
    (def-x8664-opcode imulb ((:reg8 :insert-modrm-rm))
      #xf6 #o350 #x00)
-   (def-x8664-opcode imull ((:anymem :insert-memory))
+   (def-x8664-opcode imulb ((:anymem :insert-memory))
      #xf6 #o050 #x00)
 
    ;; inc (but not the one-byte form) is available on x86-64.
