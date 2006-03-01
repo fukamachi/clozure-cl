@@ -1267,10 +1267,10 @@ are no Forms, OR returns NIL."
 (defmacro %i* (x y) `(the fixnum (* (the fixnum ,x) (the fixnum ,y))))
 
 (defmacro %ilogbitp (b i)
-  (target-arch-case
-   (:ppc32
+  (target-word-size-case
+   (32
     `(logbitp (the (integer 0 29) ,b) (the fixnum ,i)))
-   (:ppc64
+   (64
     `(logbitp (the (integer 0 60) ,b) (the fixnum ,i)))))
 
 ;;; Seq-Dispatch does an efficient type-dispatch on the given Sequence.
