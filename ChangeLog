@@ -1,3 +1,8 @@
+2006-03-01 12:19  gb
+
+	* compiler/nx1.lisp: Don't require SPARC-LAP in nx-x86-lap-function
+	...
+
 2006-02-28 19:46  gb
 
 	* compiler/X86/x862.lisp: Always build/ensure that a frame exists
