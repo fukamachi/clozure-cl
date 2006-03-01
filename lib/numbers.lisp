@@ -237,8 +237,14 @@
 (defun try-harder (sign integer power-of-10 short)
   (flet ((ovf (&optional under)
            (if under
-             (cerror "Use float 0 instead." "Exponent underflow.")
-             (cerror "Use largest value instead." "Exponent overflow."))
+             (if (get-fpu-mode :underflow)
+               (error 'floating-point-underflow
+                      :operation 'scale
+                      :operand (list sign integer power-of-10)))
+             (if (get-fpu-mode :underflow)
+               (error 'floating-point-overflow
+                      :operation 'scale
+                      :operand (list sign integer power-of-10))))
            (return-from try-harder
              (if under
                (if short
@@ -250,12 +256,12 @@
   (let* ((integer-length (integer-length integer)) new-int power-of-2)
     (if (minusp power-of-10)
       (progn 
-        ; avoid creating enormous integers with 5-to-e only to error later
+        ;; avoid creating enormous integers with 5-to-e only to error later
         (when (< power-of-10 -335)
           (let ((poo (+ (round integer-length 3.2) power-of-10)))
-            ; overestimate digits in integer
+            ;; overestimate digits in integer
             (when (< poo -335) (ovf t))
-            ; this case occurs if 600+ digits 
+            ;; this case occurs if 600+ digits 
             (when (> poo 335)(ovf))))
         (let* ((divisor (5-to-e (- power-of-10)))
                ;; make sure we will have enough bits in the quotient
@@ -311,12 +317,18 @@
           (when (zerop significand)
             (incf biased-exponent)))
         (cond ((and (zerop biased-exponent)
-                    (zerop significand))
-               (cerror "Use a zero result" "Complete loss of significance in floating point read"))
+                    (zerop significand)
+                    (get-fpu-mode :underflow))
+               (error 'floating-point-underflow
+                      :operation 'scale
+                      :operands (list sign integer power-of-2)))
               ((>= biased-exponent (if short *short-float-max-exponent* *double-float-max-exponent*))
                (cond 
                      (t
-                      (cerror "Use a floating infinity result" "Exponent overflow")
+                      (if (get-fpu-mode :overflow)
+                        (error 'floating-point-overflow
+                               :operation 'scale
+                               :operands (list sign integer power-of-2)))
                       (setf significand 0)                      
                       (setq biased-exponent (if short *short-float-max-exponent* *double-float-max-exponent*))))))
         (values
