@@ -351,6 +351,10 @@ define([condition_to_boolean],[
 	andl [$]t_offset,$2_l
 	leaq nil_value($2),$3
 ])
+
+define([compare_reg_to_nil],[
+	cmpb $fulltag_nil,$1_b
+])		
 	
 define([extract_lisptag],[
 	movb [$]tagmask,$2_b
@@ -399,4 +403,9 @@ macro_label(done):
 
 /* $1 = ndigits.  Assumes 4-byte digits */        
 define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
-	
+
+define([discard_temp_frame],[
+	movd %tsp,$1
+	movq ($1),%tsp
+	movq %tsp,%next_tsp
+])	
