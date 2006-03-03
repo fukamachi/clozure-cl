@@ -325,6 +325,9 @@ unsigned unsigned_max(unsigned x, unsigned y)
 #ifdef DARWIN
 #define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
 #endif
+#ifdef FREEBSD
+#define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
+#endif
 #ifdef LINUX
 #define MAXIMUM_MAPPABLE_MEMORY (256L<<30L)
 #endif
@@ -916,6 +919,9 @@ determine_executable_name(char *argv0)
   }
   return argv0;
 #endif
+#ifdef FREEBSD
+  return argv0;
+#endif
 }
 
 void
@@ -1250,7 +1256,7 @@ check_x86_cpu()
 
   if (eax >= 1) {
     eax = cpuid(1, &ebx, &ecx, &edx);
-    cache_block_size = (eax & 0xff00) >> 5;
+    cache_block_size = (ebx & 0xff00) >> 5;
     if ((X86_REQUIRED_FEATURES & edx) == X86_REQUIRED_FEATURES) {
       return true;
     }
