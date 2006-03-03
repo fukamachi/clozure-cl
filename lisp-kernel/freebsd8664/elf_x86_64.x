@@ -9,14 +9,8 @@ SEARCH_DIR("/lib"); SEARCH_DIR("/usr/lib");
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  PROVIDE (__executable_start = 0x4000); . = 0x4000 + SIZEOF_HEADERS;
-  .pad : { pad.o(.text) }
-  .subprims ALIGN(0x1000)    :  
-  {
-    x86-spjump64.o(.text)
-    x86-spentry64.o(.text)
-    x86-subprims64.o(.text)
-  }
+  PROVIDE (__executable_start = 0x400000); . = 0x400000 + SIZEOF_HEADERS;
+
   .interp         : { *(.interp) }
   .hash           : { *(.hash) }
   .dynsym         : { *(.dynsym) }
@@ -59,6 +53,12 @@ SECTIONS
     KEEP (*(.init))
   } =0x90909090
   .plt            : { *(.plt) }
+  .subprims 0x410000:
+  {
+    x86-spjump64.o(.text)
+    x86-spentry64.o(.text)
+    x86-subprims64.o(.text)
+  }
   .text           :
   {
     *(.text .stub .text.* .gnu.linkonce.t.*)
