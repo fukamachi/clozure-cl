@@ -512,7 +512,7 @@ void
 setup_tcr_extra_segment(TCR *tcr)
 {
 #ifdef FREEBSD
-  amd_set_gsbase(tcr);
+  amd64_set_gsbase(tcr);
 #endif
 #ifdef LINUX
   arch_prctl(ARCH_SET_GS, (natural)tcr);
