@@ -1561,9 +1561,19 @@
                (sort (directory wild-root) #'string< :key #'namestring)))
        (format t "~&;Wrote bootstrapping image: ~s" (truename *xload-image-file-name*))))))
 
+(defun Xcompile-directory (dir &optional force)
+  (target-xcompile-directory (backend-name *host-backend*) dir  force))
+
+(defun Xcompile-level-0 (&optional force)
+  (target-xcompile-level-0 (backend-name *host-backend*) force))
+
+(defun xload-level-0 (&optional (recompile t))
+  (target-xload-level-0 (backend-name *host-backend*) recompile))
+
 (defun cross-xload-level-0 (target &optional (recompile t))
   (with-cross-compilation-target (target)
     (let* ((*target-backend* (find-backend target)))
       (target-xload-level-0 target recompile))))
+
 
 (provide "XFASLOAD")
