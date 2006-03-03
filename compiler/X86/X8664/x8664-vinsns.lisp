@@ -1187,6 +1187,15 @@
   (movq (:@ (:%q base) (:%q offset)) (:%q  dest)))
 
 
+(define-x8664-vinsn lisp-word-ref-c (((dest t))
+				     ((base t)
+				      (offset :s32const)))
+  ((:pred = offset 0)
+   (movq (:@ (:%q base)) (:%q dest)))
+  ((:not (:pred = offset 0))
+   (movq (:@ offset (:%q base)) (:%q dest))))
+
+
 (define-x8664-vinsn start-mv-call (()
                                    ((label :label)))
   (leaq (:@ (:^ label) (:%q x8664::fn)) (:%q x8664::ra0))
@@ -1200,6 +1209,7 @@
 
 (define-x8664-vinsn pass-multiple-values-symbol (()
                                                  ())
+  (movq (:%q x8664::fn) (:%q x8664::xfn))
   (movq (:@ x8664::symbol.fcell (:% x8664::fname)) (:%q x8664::fn))
   (movq (:@ (+ x8664::nil-value (x8664::%kernel-global 'x86::ret1valaddr)))
         (:%q x8664::ra0))
@@ -1213,6 +1223,7 @@
   (movb (:%b x8664::temp0) (:%b tag))
   (andb (:$b x8664::fulltagmask) (:%b tag))
   (cmpb (:$b x8664::fulltag-symbol) (:%b tag))
+  (movq (:%q x8664::fn) (:%q x8664::xfn))
   (leaq (:@ (:^ :bad) (:%q x8664::fn)) (:%q x8664::fn))
   (cmoveq (:@ x8664::symbol.fcell (:%q x8664::fname)) (:%q x8664::fn))
   (cmovgq (:%q x8664::temp0) (:%q x8664::fn))
@@ -2427,3 +2438,76 @@
    (imulq (:%q x) (:%q dest))))
 
    
+(define-x8664-vinsn save-lexpr-argregs (()
+                                        ((min-fixed :u16const))
+                                        ((arg-temp :imm)))
+  ((:pred >= min-fixed $numx8664argregs)
+   (pushq (:%q x8664::arg_x))
+   (pushq (:%q x8664::arg_y))
+   (pushq (:%q x8664::arg_z)))
+  ((:pred = min-fixed 2)                ; at least 2 args
+   (cmpw (:$w (ash 2 x8664::word-shift)) (:%w x8664::nargs))
+   (je :yz2)                      ; skip arg_x if exactly 2
+   (pushq (:%q x8664::arg_x))
+   :yz2
+   (pushq (:%q x8664::arg_y))
+   (pushq (:%q x8664::arg_z)))
+  ((:pred = min-fixed 1)                ; at least one arg
+   (rcmpw (:%w x8664::nargs) (:$w  (ash 2 x8664::word-shift)))
+   (jl :z1)                       ; branch if exactly one
+   (je :yz1)                      ; branch if exactly two
+   (pushq (:%q x8664::arg_x))
+   :yz1
+   (pushq (:%q x8664::arg_y))
+   :z1
+   (pushq (:%q x8664::arg_z)))
+  ((:pred = min-fixed 0)
+   (testw (:%w x8664::nargs) (:%w x8664::nargs))
+   (je  :none)                     ; exactly zero
+   (rcmpw (:%w x8664::nargs) (:$w (ash 2 x8664::word-shift)))
+   (je :yz0)                      ; exactly two
+   (jl :z0)                       ; one
+                                        ; Three or more ...
+   (pushq (:%q x8664::arg_x))
+   :yz0
+   (pushq (:%q x8664::arg_y))
+   :z0
+   (pushq (:%q x8664::arg_z))
+   :none
+   )
+  (movzwl (:%w x8664::nargs) (:%l x8664::nargs))
+  ((:pred = min-fixed 0)
+   (pushq (:%q x8664::nargs)))
+  ((:not (:pred = min-fixed 0))
+   (leaq (:@ (:apply - (:apply ash min-fixed x8664::word-shift)) (:%q x8664::nargs))
+         (:%q arg-temp))
+   (pushq (:%q arg-temp)))
+  (movq (:%q x8664::rbp) (:@ x8664::node-size (:%q x8664::rsp) (:%q x8664::nargs)))
+  (leaq (:@ x8664::node-size (:%q x8664::rsp) (:%q x8664::nargs)) (:%q x8664::rbp))
+  (cmpq (:%q x8664::ra0) (:@ (+ x8664::nil-value (x8664::%kernel-global 'ret1valaddr))))
+  (movq (:%q x8664::ra0) (:@ x8664::lisp-frame.return-address (:%q x8664::rbp)))
+  (movq (:%q x8664::rsp) (:%q x8664::arg_z))
+  (je :single-value-return)
+  (pushq (:@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return))))
+  (pushq (:%q x8664::rbp))
+  (movq (:%q x8664::rsp) (:%q x8664::rbp))
+  (jmp :done)
+  :single-value-return
+  (movq (:@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return1v)))
+        (:%q x8664::ra0))
+  :done
+  ;; One more stack frame ? sure ...
+  (pushq (:%q x8664::ra0))
+  (pushq (:%q x8664::rbp))
+  (movq (:%q x8664::rsp) (:%q x8664::rbp)))
+
+(define-x8664-vinsn copy-lexpr-argument (()
+					 ((n :u16const))
+					 ((temp :imm)))
+  (movq (:@ (:%q x8664::arg_z)) (:%q temp))
+  (pushq (:@ (:apply ash n x8664::word-shift) (:%q x8664::arg_z) (:%q temp))))
+
+
+(define-x664-vinsn %current-tcr (((dest :lisp))
+                                 ())
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.linear-end) (:%q dest)))

@@ -762,14 +762,12 @@
       (progn
         (if (setq reg (x862-assign-register-var rest))
           (progn
-            (x862-load-lexpr-address seg reg)
+            (x862-copy-register seg reg x8664::arg_z)
             (x862-set-var-ea seg rest reg))
-          (with-imm-temps () ((nargs-cell :natural))
-            (x862-load-lexpr-address seg nargs-cell)
             (let* ((loc *x862-vstack*))
-              (x862-vpush-register seg nargs-cell :reserved)
+              (x862-vpush-register seg x8664::arg_z :reserved)
               (x862-note-top-cell rest)
-              (x862-bind-var seg rest loc *x862-top-vstack-lcell*)))))
+              (x862-bind-var seg rest loc *x862-top-vstack-lcell*))))
       (progn
         (if (setq reg (x862-assign-register-var rest))
           (x862-init-regvar seg rest reg (x862-vloc-ea vloc))
@@ -922,13 +920,10 @@
 (defun x862-lexpr-entry (seg num-fixed)
   (with-x86-local-vinsn-macros (seg)
     (! save-lexpr-argregs num-fixed)
+    ;; The "lexpr" (address of saved nargs register, basically
+    ;; is now in arg_z
     (dotimes (i num-fixed)
-      (! copy-lexpr-argument))
-    (! save-lisp-context-lexpr)))
-
-(defun x862-load-lexpr-address (seg dest)
-  (with-x86-local-vinsn-macros (seg)
-    (! load-vframe-address dest *x862-vstack*)))
+      (! copy-lexpr-argument (- num-fixed i)))))
 
 
 (defun x862-structured-initopt (seg lcells vloc context vars inits spvars)
@@ -5017,7 +5012,7 @@
                   (! check-min-nargs num-fixed))
                 (unless (or rest keys)
                   (! check-max-nargs (+ num-fixed num-opt)))
-                (if (not (or rest keys lexprp))
+                (if (not (or rest keys))
                   (unless (> num-fixed *x862-target-num-arg-regs*)
                     (! ensure-reserved-frame))
                   (! save-lisp-context-variable-arg-count))
@@ -5036,7 +5031,7 @@
                     (declare (fixnum flags nkeys nprev))
                     (dotimes (i (the fixnum (+ nkeys nkeys)))
                       (x862-new-vstack-lcell :reserved *x862-target-lcell-size* 0 nil))
-                    (x862-lri seg x8664::temp0 (ash flags *x862-target-fixnum-shift*))
+                    (x862-lri seg x8664::temp1 (ash flags *x862-target-fixnum-shift*))
                     (unless (= nprev 0)
                       (x862-lri seg x8664::imm0 (ash nprev *x862-target-fixnum-shift*)))
                     (x86-immediate-label keyvect)
