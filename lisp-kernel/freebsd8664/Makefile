@@ -55,9 +55,11 @@ OSLIBS = -lm -lpthread
 .c.o:
 	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) -m64 -o $@
 
+LINKSCRIPTFILE = ./elf_x86_64.x
+LINKSCRIPT =  -T $(LINKSCRIPTFILE)
 
-../../fx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
-	$(CC) -m64 $(CDEBUG)  -Wl,--export-dynamic  -o $@ -T ./elf_x86_64.x $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
+../../fx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(LINKSCRIPTFILE)
+	$(CC) -m64 $(CDEBUG)  -Wl,--export-dynamic  $(LINKSCRIPT)  -o $@  $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
 
 
 $(SPOBJ): $(SPINC)
