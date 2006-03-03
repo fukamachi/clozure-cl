@@ -127,13 +127,6 @@
 
   (setq *xload-default-backend* *ppc64-xload-backend*))
 
-(defun Xcompile-directory (dir &optional force)
-  (target-xcompile-directory (backend-name *host-backend*) dir  force))
 
-(defun Xcompile-level-0 (&optional force)
-  (target-xcompile-level-0 (backend-name *host-backend*) force))
-
-(defun xload-level-0 (&optional (recompile t))
-  (target-xload-level-0 (backend-name *host-backend*) recompile))
 
 
