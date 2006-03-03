@@ -499,6 +499,28 @@ allocate_tcr()
   }
 }
 
+#ifdef X8664
+#ifdef LINUX
+#include <asm/prctl.h>
+#include <sys/prctl.h>
+#endif
+#ifdef FREEBSD
+#include <machine/sysarch.h>
+#endif
+
+void
+setup_tcr_extra_segment(TCR *tcr)
+{
+#ifdef FREEBSD
+  amd_set_gsbase(tcr);
+#endif
+#ifdef LINUX
+  arch_prctl(ARCH_SET_GS, (natural)tcr);
+#endif
+  tcr->linear = tcr;
+}
+
+#endif
 
 
 
@@ -512,14 +534,17 @@ new_tcr(natural vstack_size, natural tstack_size)
     *allocate_vstack_holding_area_lock(unsigned),
     *allocate_tstack_holding_area_lock(unsigned);
   area *a;
+  int i;
 #ifdef HAVE_TLS
   TCR *tcr = &current_tcr;
+#ifdef X8664
+  setup_tcr_extra_segment(tcr);
+#endif
 #else
   TCR *tcr = allocate_tcr();
 #endif
-  int i;
 
-#if (word_size == 64)
+#if (WORD_SIZE == 64)
   tcr->single_float_convert.tag = subtag_single_float;
 #endif
   lisp_global(TCR_COUNT) += (1<<fixnumshift);
