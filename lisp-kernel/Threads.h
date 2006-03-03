@@ -91,7 +91,7 @@ void *new_semaphore(int);
 void destroy_semaphore(void**);
 void tsd_set(LispObj, void *);
 void *tsd_get(LispObj);
-TCR *new_tcr(unsigned, unsigned);
+TCR *new_tcr(natural, natural);
 TCR *initial_thread_tcr;
 
 #define DEFAULT_THREAD_STACK_SIZE ((size_t) -1)
