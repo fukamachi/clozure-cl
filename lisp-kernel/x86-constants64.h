@@ -398,7 +398,10 @@ typedef struct doh_block {
 typedef struct tcr {
   struct tcr* next;
   struct tcr* prev;
-  natural single_float_convert;
+  struct {
+    u_int32_t tag;
+    float f;
+  } single_float_convert;
   struct tcr* linear;
   void *linear_end;
   union {
