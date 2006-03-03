@@ -2508,6 +2508,6 @@
   (pushq (:@ (:apply ash n x8664::word-shift) (:%q x8664::arg_z) (:%q temp))))
 
 
-(define-x664-vinsn %current-tcr (((dest :lisp))
+(define-x8664-vinsn %current-tcr (((dest :lisp))
                                  ())
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.linear-end) (:%q dest)))
