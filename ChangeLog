@@ -1,3 +1,28 @@
+2006-03-03 01:15  gb
+
+	* lisp-kernel/thread_manager.c: Um,function name is
+	'amd64_set_gsbase'.
+
+2006-03-03 01:05  gb
+
+	* lisp-kernel/: freebsd8664/Makefile, linuxx8664/Makefile: Assert
+	that we have thread-local storage by passing -DHAVE_TLS.
+
+2006-03-03 01:04  gb
+
+	* lisp-kernel/thread_manager.c: new_tcr sets up extra segment
+	register if x8664 and HAVE_TLS.
+
+2006-03-03 01:03  gb
+
+	* lisp-kernel/x86-constants64.h: tcr.single_float_convert is a
+	struct; tag in most significant word.
+
+2006-03-03 01:03  gb
+
+	* lisp-kernel/x86-constants64.s: tcr bias is 0.  rcontext = %gs, at
+	least for Linux/FreeBSD.
+
 2006-03-02 23:16  gb
 
 	* compiler/arch.lisp: add big-endian field to target-arch.
