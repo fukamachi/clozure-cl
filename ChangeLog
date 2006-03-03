@@ -1,3 +1,68 @@
+2006-03-02 23:16  gb
+
+	* compiler/arch.lisp: add big-endian field to target-arch.
+
+2006-03-02 23:16  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp: Big
+	endian.
+
+2006-03-02 23:14  gb
+
+	* compiler/X86/: X8664/x8664-vinsns.lisp, x862.lisp: &lexpr stuff,
+	mostly.
+
+2006-03-02 23:14  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: We're not big-endian.
+
+2006-03-02 23:13  gb
+
+	* lib/macros.lisp: Comment formatting.
+
+2006-03-02 23:12  gb
+
+	* level-0/: l0-cfm-support.lisp, l0-hash.lisp, l0-init.lisp,
+	l0-io.lisp, l0-misc.lisp, l0-numbers.lisp, l0-pred.lisp,
+	l0-symbol.lisp, l0-utils.lisp, nfasload.lisp: Conditionalization
+	changes.
+
+2006-03-02 23:11  gb
+
+	* lisp-kernel/thread_manager.c: Change thread creation/activation,
+	so that new_tcr() call happens on the new thread.
+
+2006-03-02 22:51  gb
+
+	* lisp-kernel/Threads.h: Fix new_tcr() prototype.  Why did this
+	compile in FreeBSD/x86-64 ?
+
+2006-03-02 22:28  gb
+
+	* lisp-kernel/freebsd8664/Makefile: Depend on the linker script. 
+	Use some make variables to make changing/ ignoring that script
+	easier.
+
+2006-03-02 22:27  gb
+
+	* lisp-kernel/thread_manager.c: Conditionalize some for FreeBSD.
+
+2006-03-02 22:27  gb
+
+	* lisp-kernel/pmcl-kernel.c: FreeBSD can also map (at least) 512GB.
+	
+	Not sure how to get real name of executable in FreeBSd, so use
+	argv[0] for now.
+	
+	CPUID instruction returns cache block size in ebx, not eax.
+
+2006-03-02 22:25  gb
+
+	* lisp-kernel/freebsd8664/elf_x86_64.x: Output file wasn't
+	executable if subprims were mapped to low memory; map them to a
+	fixed address (0x410000).  Will need to change subprims base in
+	arch definition, and things (bad_funcall) that may depend on it.
+
 2006-03-02 19:19  gb
 
 	* lisp-kernel/x86-spentry64.s: Try to avoid use of %temp0 (which
