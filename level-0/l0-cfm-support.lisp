@@ -79,7 +79,7 @@
 (setq *rtld-next* (%incf-ptr (%null-ptr) -1)
       *rtld-default* (%int-to-ptr 0))
 
-#+linuxppc-target
+#+linux-target
 (progn
 ;;; I can't think of a reason to change this.
 (defvar *dlopen-flags* nil)
@@ -138,28 +138,28 @@
       ;;; and the offset of the #$DT_SONAME string in that string
       ;;; table.
       (loop
-	  (case #+ppc32-target (pref dynamic-entries :<E>lf32_<D>yn.d_tag)
-                #+ppc64-target (pref dynamic-entries :<E>lf64_<D>yn.d_tag)
+	  (case #+32-bit-target (pref dynamic-entries :<E>lf32_<D>yn.d_tag)
+                #+64-bit-target (pref dynamic-entries :<E>lf64_<D>yn.d_tag)
 	    (#. #$DT_NULL (return))
 	    (#. #$DT_SONAME
 		(setq soname-offset
-                      #+ppc32-target (pref dynamic-entries
+                      #+32-bit-target (pref dynamic-entries
                                            :<E>lf32_<D>yn.d_un.d_val)
-                      #+ppc64-target (pref dynamic-entries
+                      #+64-bit-target (pref dynamic-entries
                                            :<E>lf64_<D>yn.d_un.d_val)))
 	    (#. #$DT_STRTAB
 		(%setf-macptr dyn-strings
-                              #+ppc32-target
+                              #+32-bit-target
 			      (pref dynamic-entries
 				    :<E>lf32_<D>yn.d_un.d_ptr)
-                              #+ppc64-target
+                              #+64-bit-target
                               (pref dynamic-entries
 				    :<E>lf64_<D>yn.d_un.d_ptr))))
 	  (%setf-macptr dynamic-entries
 			(%inc-ptr dynamic-entries
-                                  #+ppc32-target
+                                  #+32-bit-target
 				  (record-length :<E>lf32_<D>yn)
-                                  #+ppc64-target
+                                  #+64-bit-target
                                   (record-length :<E>lf64_<D>yn))))
       (if (and soname-offset
 	       (not (%null-ptr-p dyn-strings)))
@@ -290,7 +290,7 @@ the operating system."
 )
 
 
-#+darwinppc-target
+#+darwin-target
 (progn
 
 (defun shared-library-with-header (header)
@@ -483,7 +483,7 @@ return a fixnum representation of that address, else return NIL."
       (shlib-containing-address p name))))
 )
 
-#+darwinppc-target
+#+darwin-target
 (progn
 (defvar *dyld-image-count*)
 (defvar *dyld-get-image-header*)
@@ -686,16 +686,16 @@ return that address encapsulated in a MACPTR, else returns NIL."
 
 
 (defun refresh-external-entrypoints ()
-  #+linuxppc-target
-  (setq *statically-linked* (not (eql 0 (%get-kernel-global 'ppc::statically-linked))))
+  #+linux-target
+  (setq *statically-linked* (not (eql 0 (%get-kernel-global 'statically-linked))))
   (%revive-macptr *rtld-next*)
   (%revive-macptr *rtld-default*)
-  #+linuxppc-target
+  #+linux-target
   (unless *statically-linked*
     (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
     (revive-shared-libraries)
     (%reopen-user-libraries))
-  #+darwinppc-target
+  #+darwin-target
   (progn
     (setup-lookup-calls)
     (reopen-user-libraries))

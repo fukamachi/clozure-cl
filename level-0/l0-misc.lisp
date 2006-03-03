@@ -78,26 +78,26 @@
       (do-consing-areas (area)
         (when (eql (%fixnum-ref area target::area.code) ppc::area-dynamic)
           (%setf-macptr-to-object p  area)
-          (incf res (- #+ppc32-target
+          (incf res (- #+32-bit-target
                        (%get-unsigned-long p target::area.high)
-                       #+ppc64-target
+                       #+64-bit-target
                        (%%get-unsigned-longlong p target::area.high)
-                       #+ppc32-target
+                       #+32-bit-target
                        (%get-unsigned-long p target::area.active)
-                       #+ppc64-target
+                       #+64-bit-target
                        (%%get-unsigned-longlong p target::area.active))))))
     res))
 
 (defun %reservedbytes ()
   (with-macptrs (p)
     (%setf-macptr-to-object p (%get-kernel-global 'ppc::all-areas))
-    (- #+ppc32-target
+    (- #+32-bit-target
        (%get-unsigned-long p target::area.high)
-       #+ppc64-target
+       #+64-bit-target
        (%%get-unsigned-longlong p target::area.high)
-       #+ppc32-target
+       #+32-bit-target
        (%get-unsigned-long p target::area.low)
-       #+ppc64-target
+       #+64-bit-target
        (%%get-unsigned-longlong p target::area.low))))
 
 (defun object-in-application-heap-p (address)
@@ -140,20 +140,20 @@
                       #.ppc::area-tstack))
 	  (%setf-macptr-to-object p area)
 	  (let ((active
-                 #+ppc32-target
-                  (%get-unsigned-long p ppc32::area.active)
-                  #+ppc64-target
-                  (%%get-unsigned-longlong p ppc64::area.active))
+                 #+32-bit-target
+                  (%get-unsigned-long p target::area.active)
+                  #+64-bit-target
+                  (%%get-unsigned-longlong p target::area.active))
 		(high
-                 #+ppc32-target
-                  (%get-unsigned-long p ppc32::area.high)
-                  #+ppc64-target
-                  (%%get-unsigned-longlong p ppc64::area.high))
+                 #+32-bit-target
+                  (%get-unsigned-long p target::area.high)
+                  #+64-bit-target
+                  (%%get-unsigned-longlong p target::area.high))
 		(low
-                 #+ppc32-target
-                 (%get-unsigned-long p ppc32::area.low)
-                 #+ppc64-target
-                 (%%get-unsigned-longlong p ppc64::area.low)))
+                 #+32-bit-target
+                 (%get-unsigned-long p target::area.low)
+                 #+64-bit-target
+                 (%%get-unsigned-longlong p target::area.low)))
 	    (incf used (- high active))
 	    (incf free (- active low))))))
     (values (+ free used) used free)))
@@ -188,20 +188,20 @@
 	     (with-macptrs (p)
 	       (%setf-macptr-to-object p area)
 	       (let* ((low
-                       #+ppc32-target
-                       (%get-unsigned-long p ppc32::area.low)
-                       #+ppc64-target
-                       (%%get-unsigned-longlong p ppc64::area.low))
+                       #+32-bit-target
+                       (%get-unsigned-long p target::area.low)
+                       #+64-bit-target
+                       (%%get-unsigned-longlong p target::area.low))
 		      (high
-                       #+ppc32-target
-                        (%get-unsigned-long p ppc32::area.high)
-                        #+ppc64-target
-                        (%%get-unsigned-longlong p ppc64::area.high))
+                       #+32-bit-target
+                        (%get-unsigned-long p target::area.high)
+                        #+64-bit-target
+                        (%%get-unsigned-longlong p target::area.high))
 		      (active
-                       #+ppc32-target
-                       (%get-unsigned-long p ppc32::area.active)
-                       #+ppc64-target
-                       (%%get-unsigned-longlong p ppc64::area.active))
+                       #+32-bit-target
+                       (%get-unsigned-long p target::area.active)
+                       #+64-bit-target
+                       (%%get-unsigned-longlong p target::area.active))
 		      (free (- active low))
 		      (used (- high active)))
 		 (loop
@@ -209,15 +209,15 @@
 		     (when (eql area 0) (return))
 		   (%setf-macptr-to-object p area)
 		   (let ((low
-                          #+ppc32-target
-                           (%get-unsigned-long p ppc32::area.low)
-                           #+ppc64-target
-                           (%%get-unsigned-longlong p ppc64::area.low))
+                          #+32-bit-target
+                           (%get-unsigned-long p target::area.low)
+                           #+64-bit-target
+                           (%%get-unsigned-longlong p target::area.low))
 			 (high
-                          #+ppc32-target
-                           (%get-unsigned-long p ppc32::area.high)
-                           #+ppc64-target
-                           (%%get-unsigned-longlong p ppc64::area.high)))
+                          #+32-bit-target
+                           (%get-unsigned-long p target::area.high)
+                           #+64-bit-target
+                           (%%get-unsigned-longlong p target::area.high)))
 		     (declare (fixnum low high))
 		     (incf used (- high low))))
 		 (values free used)))))
@@ -450,10 +450,10 @@
     (loop
       (without-interrupts
        (when (eql p owner)
-         (incf #+ppc32-target
-               (%get-unsigned-long lock ppc32::lockptr.count)
-               #+ppc64-target
-               (%%get-unsigned-longlong lock ppc64::lockptr.count))
+         (incf #+32-bit-target
+               (%get-unsigned-long lock target::lockptr.count)
+               #+64-bit-target
+               (%%get-unsigned-longlong lock target::lockptr.count))
          (when flag
            (if (consp flag)
              (rplaca flag t)
@@ -461,10 +461,10 @@
          (return t))
        (when (eql 1 (%atomic-incf-ptr lock))
          (setf (%get-ptr lock target::lockptr.owner) p
-               #+ppc32-target
-               (%get-unsigned-long lock ppc32::lockptr.count)
-               #+ppc64-target
-               (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
+               #+32-bit-target
+               (%get-unsigned-long lock target::lockptr.count)
+               #+64-bit-target
+               (%%get-unsigned-longlong lock target::lockptr.count) 1)
          (if flag
            (if (consp flag)
              (rplaca flag t)
@@ -482,18 +482,18 @@
         (report-bad-arg flag 'lock-acquisition)))
     (without-interrupts
      (cond ((eql p owner)
-            (incf #+ppc32-target
-                  (%get-unsigned-long lock ppc32::lockptr.count)
-                  #+ppc64-target
-                  (%%get-unsigned-longlong lock ppc64::lockptr.count))
+            (incf #+32-bit-target
+                  (%get-unsigned-long lock target::lockptr.count)
+                  #+64-bit-target
+                  (%%get-unsigned-longlong lock target::lockptr.count))
             (if flag (setf (lock-acquisition.status flag) t))
             t)
            ((eql 0 (%ptr-store-conditional lock 0 1))
             (setf (%get-ptr lock target::lockptr.owner) p
-                  #+ppc32-target
-                  (%get-unsigned-long lock ppc32::lockptr.count)
-                  #+ppc64-target
-                  (%%get-unsigned-longlong lock ppc64::lockptr.count) 1)
+                  #+32-bit-target
+                  (%get-unsigned-long lock target::lockptr.count)
+                  #+64-bit-target
+                  (%%get-unsigned-longlong lock target::lockptr.count) 1)
             (if flag (setf (lock-acquisition.status flag) t))
             t)
            (t nil)))))
@@ -508,10 +508,10 @@
       (error 'not-lock-owner :lock lock))
     (without-interrupts
      (when (eql 0 (decf (the fixnum
-                          #+ppc32-target
-                          (%get-unsigned-long lock ppc32::lockptr.count)
-                          #+ppc64-target
-                          (%%get-unsigned-longlong lock ppc64::lockptr.count))))
+                          #+32-bit-target
+                          (%get-unsigned-long lock target::lockptr.count)
+                          #+64-bit-target
+                          (%%get-unsigned-longlong lock target::lockptr.count))))
        (setf (%get-ptr lock target::lockptr.owner) (%null-ptr))
        (let* ((pending (1- (the fixnum (%atomic-swap-ptr lock 0)))))
          (declare (fixnum pending))

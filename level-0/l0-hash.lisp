@@ -203,11 +203,11 @@
         #+ppc32-target
         (and (>= typecode ppc32::min-numeric-subtag)
              (<= typecode ppc32::max-numeric-subtag))
-        #+ppc64-target
-        (or (= typecode ppc64::subtag-bignum)
-            (= typecode ppc64::subtag-double-float)
-            (= typecode ppc64::subtag-ratio)
-            (= typecode ppc64::subtag-complex)))))
+        #+64-bit-target
+        (or (= typecode target::subtag-bignum)
+            (= typecode target::subtag-double-float)
+            (= typecode target::subtag-ratio)
+            (= typecode target::subtag-complex)))))
 
 ;;; Don't rehash at all, unless some key is address-based (directly or
 ;;; indirectly.)
@@ -248,7 +248,6 @@
                           (logand (1- (ash 1 (- 8 3))) fixnum))))))
 
 
-#+(or ppc32-target ppc64-target)
 (defun rotate-hash-code (fixnum)
   (declare (fixnum fixnum))
   (let* ((low-3 (logand 7 fixnum))
@@ -259,11 +258,7 @@
     (the fixnum (+ low-3-in-high-3
                    (the fixnum (logxor low-3*64K but-low-3))))))
 
-#+(and nil ppc64-target)
-(defun rotate-hash-code (fixnum)
-  (declare (fixnum fixnum))
-  (logior (logand #xffff (the fixnum (ash fixnum -16)))
-          (ash (the fixnum (logand fixnum #xffff)) 16)))
+
 
 
 (defconstant $nhash-track-keys-mask
@@ -343,7 +338,7 @@
          (hash (if (and key (not id-p)) (%%eqlhash-internal key)))
          addressp)
     (cond ((null key) (mixup-hash-code 17))
-          #+ppc64-target
+          #+64-bit-target
           ((and (typep key 'single-float)
                 (zerop (the single-float key)))
            0)
@@ -1595,6 +1590,15 @@ before doing so.")
     (declare (fixnum tag))
     (or (= tag ppc64::tag-fixnum)
         (= (logand tag ppc64::lowtagmask) ppc64::lowtag-imm))))
+
+#+x8664-target
+(defun immediate-p (thing)
+  (let* ((tag (lisptag thing)))
+    (declare (type (unsigned-byte 3) tag))
+    (logbitp tag
+             (logior (ash 1 x8664::tag-fixnum)
+                     (ash 1 x8664::tag-imm-0)
+                     (ash 1 x8664::tag-imm-1)))))
 
 
 

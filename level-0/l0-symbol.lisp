@@ -183,8 +183,8 @@
 
 (defun symbol-name (sym)
   "Return SYMBOL's name as a string."
-  #+ppc32-target
-  (%svref (%symbol->symptr sym) ppc32::symbol.pname-cell)
+  #+(or ppc32-target x8664-target)
+  (%svref (%symbol->symptr sym) target::symbol.pname-cell)
   #+ppc64-target
   (if sym                               ;NIL's pname is implicit
     (%svref (%symbol->symptr sym) ppc64::symbol.pname-cell)

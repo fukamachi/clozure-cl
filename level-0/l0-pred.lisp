@@ -696,6 +696,10 @@
 );#+ppc64-target
 
 
+#+x8664-target
+(eval-when (:compile-toplevel)
+  (warn "Need %type-of support for x8664."))
+
 
 
 ;;; real machine specific huh

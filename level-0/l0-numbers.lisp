@@ -197,8 +197,8 @@
     (fixnum  (- (the fixnum x)))
     (double-float  (%double-float-negate! x (%make-dfloat)))
     (short-float
-     #+ppc32-target (%short-float-negate! x (%make-sfloat))
-     #+ppc64-target (%short-float-negate x))
+     #+32-bit-target (%short-float-negate! x (%make-sfloat))
+     #+64-bit-target (%short-float-negate x))
     (bignum (negate-bignum x))
     (ratio (%make-ratio (%negate (%numerator x)) (%denominator x)))
     (complex (%make-complex (%negate (%realpart X))(%negate (%imagpart X))) )))
@@ -441,7 +441,7 @@
       (if (= tem sfloat)
         0
         (if (< tem sfloat) -1 1)))
-    #+ppc64-target
+    #+64-bit-target
     (let* ((tem (%int-to-sfloat int)))
       (declare (single-float tem))
       (if (= tem sfloat)
@@ -1019,7 +1019,7 @@
            (let ((res (%unary-truncate (%short-float/-2! fnum ,divisor f2))))
              (values res 
                      (%short-float--2 fnum (%short-float*-2! (%short-float res f2) ,divisor f2)))))
-          #+ppc64-target
+          #+64-bit-target
          `(let* ((temp (%short-float ,number))
                  (res (%unary-truncate (/ (the short-float temp)
                                           (the short-float ,divisor)))))
@@ -1070,7 +1070,7 @@
                                     (%short-float--2
                                      number 
                                      (%short-float*-2! (%short-float res f2) divisor f2)))))
-                        #+ppc64-target
+                        #+64-bit-target
                         (let ((res (%unary-truncate
                                     (/ (the short-float number)
                                        (the short-float divisor)))))
@@ -1087,7 +1087,7 @@
                                     (%short-float--2 
                                      number 
                                      (%short-float*-2! (%short-float res f2) fdiv f2)))))
-                        #+ppc64-target
+                        #+64-bit-target
                         (let* ((fdiv (%short-float divisor))
                                (res (%unary-truncate
                                      (/ (the short-float number)
@@ -1142,7 +1142,7 @@
        `(ppc32::with-stack-short-floats ((fnum ,number)
                                       (f2))
          (%unary-truncate (%short-float/-2! fnum ,divisor f2)))
-       #+ppc64-target
+       #+64-bit-target
        `(let ((fnum (%short-float ,number)))
          (%unary-truncate (/ (the short-float fnum)
                            (the short-float ,divisor))))))
@@ -1202,7 +1202,7 @@
                                                  (f2))
                          (let ((res (%unary-truncate (%short-float/-2! number fdiv f2))))
                            RES))
-                       #+ppc64-target
+                       #+64-bit-target
                        (%unary-truncate (/ (the short-float number)
                                            (the short-float (%short-float divisor)))))
                       (short-float
@@ -1210,7 +1210,7 @@
                        (ppc32::with-stack-short-floats ((ddiv divisor)
                                                       (f2))
                          (%unary-truncate (%short-float/-2! number ddiv f2)))
-                       #+ppc64-target
+                       #+64-bit-target
                        (%unary-truncate (/ (the short-float number)
                                            (the short-float (%short-float divisor)))))
                       (double-float

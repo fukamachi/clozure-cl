@@ -19,8 +19,6 @@
 (eval-when (:compile-toplevel :execute)
 
 (require "FASLENV" "ccl:xdump;faslenv")
-#+ppc-target
-(require "PPC-LAPMACROS")
 
 
 
@@ -450,11 +448,11 @@
 (deffaslop $fasl-s32-vector (s)
   (fasl-read-ivector s target::subtag-s32-vector))
 
-#+ppc64-target
+#+64-bit-target
 (deffaslop $fasl-u64-vector (s)
   (fasl-read-ivector s ppc64::subtag-u64-vector))
 
-#+ppc64-target
+#+64-bit-target
 (deffaslop $fasl-u64-vector (s)
   (fasl-read-ivector s ppc64::subtag-s64-vector))
 
@@ -475,8 +473,8 @@
   (fasl-read-ivector s target::subtag-single-float-vector))
 
 (deffaslop $fasl-double-float-vector (s)
-  #+ppc64-target
-  (fasl-read-ivector s ppc64::subtag-double-float-vector)
+  #+64-bit-target
+  (fasl-read-ivector s target::subtag-double-float-vector)
   #+ppc32-target
   (let* ((element-count (%fasl-read-count s))
          (size-in-bytes (subtag-bytes ppc32::subtag-double-float-vector
@@ -611,8 +609,8 @@
         (if (>= (decf count posoffset ) 0)
           (progn
             (setf (faslstate.bufcount s) posoffset)
-            (incf #+ppc32-target (%get-long (faslstate.iobuffer s))
-                  #+ppc64-target (%%get-signed-longlong (faslstate.iobuffer s)
+            (incf #+32-bit-target (%get-long (faslstate.iobuffer s))
+                  #+64-bit-target (%%get-signed-longlong (faslstate.iobuffer s)
                                                         0)
                   count)
             (return-from %simple-fasl-set-file-pos nil)))))

@@ -82,17 +82,17 @@
        (or (= typecode ppc32::subtag-macptr)
            (and (>= typecode ppc32::min-numeric-subtag)
                 (<= typecode ppc32::max-numeric-subtag)))))
-  #+ppc64-target
+  #+64-bit-target
   (defmacro need-use-eql-macro (key)
     `(let* ((typecode (typecode ,key)))
        (declare (fixnum typecode))
-      (cond ((= typecode ppc64::tag-fixnum) t)
-            ((= typecode ppc64::subtag-single-float) t)
-            ((= typecode ppc64::subtag-bignum) t)
-            ((= typecode ppc64::subtag-double-float) t)
-            ((= typecode ppc64::subtag-ratio) t)
-            ((= typecode ppc64::subtag-complex) t)
-            ((= typecode ppc64::subtag-macptr) t))))
+      (cond ((= typecode target::tag-fixnum) t)
+            ((= typecode target::subtag-single-float) t)
+            ((= typecode target::subtag-bignum) t)
+            ((= typecode target::subtag-double-float) t)
+            ((= typecode target::subtag-ratio) t)
+            ((= typecode target::subtag-complex) t)
+            ((= typecode target::subtag-macptr) t))))
 
 )
 

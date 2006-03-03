@@ -22,9 +22,6 @@
 
 
 ;Features for #+/- conditionalization:
-; #+:CORAL = common to ccl and beanie
-; #+:COMMON-LISP = not MacLisp, not Scheme...
-; #+:CCL = this particular lisp implementation
 (defparameter *features*
   '(:common-lisp
     :openmcl
