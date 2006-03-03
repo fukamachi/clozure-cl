@@ -220,7 +220,8 @@
   (symbol-tag nil)
   (symbol-tag-is-subtag nil)
   (function-tag nil)
-  (function-tag-is-subtag nil))
+  (function-tag-is-subtag nil)
+  (big-endian t))
   
 
 
