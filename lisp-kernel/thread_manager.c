@@ -28,7 +28,7 @@
 #define SUSPEND_RESUME_VERBOSE 0
 
 typedef struct {
-  TCR *tcr;
+  TCR *tcr;  
   void *created;
 } thread_activation;
 
@@ -186,7 +186,7 @@ int
 wait_on_semaphore(SEMAPHORE s, int seconds, int millis)
 {
   int nanos = (millis % 1000) * 1000000;
-#ifdef LINUX
+#if defined(LINUX) || defined(FREEBSD)
   int status;
 
   struct timespec q;
@@ -349,12 +349,20 @@ os_get_stack_bounds(LispObj q,void **base, natural *size)
   pthread_attr_getstack(&attr, base, size);
   *(natural *)base += *size;
 #endif
+#ifdef FREEBSD
+  pthread_attr_t attr;
+
+  pthread_attr_get_np(&attr);
+  pthread_attr_getstackaddr(&attr,base);
+  pthread_attr_getstacksize(&attr,size);
+#endif
+
 }
 
 void *
 new_semaphore(int count)
 {
-#ifdef LINUX
+#if defined(LINUX) || defined(FREEBSD)
   sem_t *s = malloc(sizeof(sem_t));
   sem_init(s, 0, count);
   return s;
@@ -396,7 +404,7 @@ void
 destroy_semaphore(void **s)
 {
   if (*s) {
-#ifdef LINUX
+#if defined(LINUX) || defined(FREEBSD)
     sem_destroy((sem_t *)*s);
 #endif
 #ifdef DARWIN
@@ -497,7 +505,7 @@ allocate_tcr()
   Caller must hold the area_lock.
 */
 TCR *
-new_tcr(unsigned vstack_size, unsigned tstack_size)
+new_tcr(natural vstack_size, natural tstack_size)
 {
   extern area
     *allocate_vstack_holding_area_lock(unsigned),
@@ -510,7 +518,7 @@ new_tcr(unsigned vstack_size, unsigned tstack_size)
 #endif
   int i;
 
-#ifdef PPC64
+#if (word_size == 64)
   tcr->single_float_convert.tag = subtag_single_float;
 #endif
   lisp_global(TCR_COUNT) += (1<<fixnumshift);
