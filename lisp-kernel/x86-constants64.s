@@ -154,7 +154,7 @@ define([save0],[r15])
 /* The TCR can be accessed relative to %fs */
 define([rcontext],[fs])
 define([fname],[temp0])
-define([next_method_context],[temp1])
+define([next_method_context],[temp0])
 define([nargs],[temp2_w])
 define([nargs_q],[temp2])
 define([nargs_l],[temp2_l])	
