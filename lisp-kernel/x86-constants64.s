@@ -151,8 +151,8 @@ define([save0],[r15])
 	define([save0_b],[r15b])
 	define([Rsave0],[15])	
 
-/* The TCR can be accessed relative to %fs */
-define([rcontext],[fs])
+/* The TCR can be accessed relative to %gs */
+define([rcontext],[gs])
 define([fname],[temp0])
 define([next_method_context],[temp0])
 define([nargs],[temp2_w])
@@ -671,12 +671,12 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 
 
 
-TCR_BIAS = -512
+TCR_BIAS = 0
 		
 /*
   Thread context record.
 */
-	_struct(tcr,TCR_BIAS,512)
+	_struct(tcr,TCR_BIAS)
 	 _node(prev)		/* in doubly-linked list */
 	 _node(next)		/* in doubly-linked list */
          _node(single_float_convert)
