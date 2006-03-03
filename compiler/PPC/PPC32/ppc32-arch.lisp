@@ -798,6 +798,7 @@
                           :symbol-tag-is-subtag t
                           :function-tag subtag-function
                           :function-tag-is-subtag t
+                          :big-endian t
                           ))
                           
                           
