@@ -1427,7 +1427,7 @@ _endsubp(keyword_args)
    of non-keyword args pushed.  It's possible that we never actually got
    any keyword args, which would make things much simpler. 
 
-   On entry, temp0 contains a fixnum with bits indicating whether 
+   On entry, temp1 contains a fixnum with bits indicating whether 
    &allow-other-keys and/or &rest was present in the lambda list.
    Once we get here, we can use the arg registers.
 */
@@ -1503,9 +1503,9 @@ _spentry(keyword_bind)
 	__(jne 8f)
 	__(cmpb $fulltag_nil,node_size(%arg_z))
 	__(jne 9f)
-	__(btsq $keyword_flags_aok_bit,%temp0)
+	__(btsq $keyword_flags_aok_bit,%temp1)
 	__(jmp 9f)
-8:	__(btsq $keyword_flags_unknown_keys_bit,%temp0)
+8:	__(btsq $keyword_flags_unknown_keys_bit,%temp1)
 9:	__(addq $dnode_size,%arg_z)
 	__(cmpq %arg_z,%save1)
 	__(jne 5b)
@@ -1516,11 +1516,11 @@ _spentry(keyword_bind)
 	/* If the function takes an &rest arg, or if we got an unrecognized
 	   keyword and don't allow that, copy the incoming keyword/value
 	   pairs from the temp stack back to the value stack */
-	__(btq $keyword_flags_rest_bit,%temp0)
+	__(btq $keyword_flags_rest_bit,%temp1)
 	__(jc 1f)
-	__(btq $keyword_flags_unknown_keys_bit,%temp0)
+	__(btq $keyword_flags_unknown_keys_bit,%temp1)
 	__(jnc 0f)
-	__(btq $keyword_flags_aok_bit,%temp0)
+	__(btq $keyword_flags_aok_bit,%temp1)
 	__(jnc 1f)
 	/* pop the temp frame */
 0:	__(discard_temp_frame(%imm1))
@@ -1537,9 +1537,9 @@ _spentry(keyword_bind)
 	__(cmpq %arg_z,%arg_y)
 	__(jne 3b)
 	__(discard_temp_frame(%imm0))
-	__(btq $keyword_flags_unknown_keys_bit,%temp0)
+	__(btq $keyword_flags_unknown_keys_bit,%temp1)
 	__(jnc 0b)
-	__(btq $keyword_flags_aok_bit,%temp0)
+	__(btq $keyword_flags_aok_bit,%temp1)
 	__(jc 0b)
 	/* Signal an "unknown keywords" error */
 	__(movq %imm1,%nargs_q)
@@ -1597,25 +1597,27 @@ _spentry(stack_cons_rest_arg)
 	__(ja 3f)	/* make empty frame, then heap-cons */
 	__(addq %imm1,%imm1)
 	__(dnode_align(%imm1,tsp_frame.fixed_overhead,%imm0))
-	__(TSP_Alloc_Var(%imm0,%temp0))
-	__(addq $fulltag_cons,%temp0)
+	__(TSP_Alloc_Var(%imm0,%temp1))
+	__(addq $fulltag_cons,%temp1)
 1:	__(pop %arg_x)
-	__(_rplacd(%temp0,%arg_z))
-	__(_rplaca(%temp0,%arg_x))
-	__(movq %temp0,%arg_z)
-	__(addq $cons.size,%temp0)
+	__(_rplacd(%temp1,%arg_z))
+	__(_rplaca(%temp1,%arg_x))
+	__(movq %temp1,%arg_z)
+	__(addq $cons.size,%temp1)
 	__(subq $dnode_size,%imm1)
 	__(jne 1b)
 	__(push %arg_z)
 	__(jmp *%ra0)
+	
 /* Length 0, make empty frame */	
 2:
-	__(TSP_Alloc_Fixed(0,%temp0))
+	__(TSP_Alloc_Fixed(0,%temp1))
 	__(push %arg_z)
 	__(jmp *%ra0)
+	
 /* Too big to stack-cons, but make an empty frame before heap-consing */
 3:		
-	__(TSP_Alloc_Fixed(0,%temp0))
+	__(TSP_Alloc_Fixed(0,%temp1))
 	__(jmp _SPheap_cons_rest_arg)
 _endsubp(stack_cons_rest_arg)
 
@@ -1640,7 +1642,7 @@ local_label(push_nil_loop):
         __(sub $fixnumone,%imm1)
         __(jne local_label(push_nil_loop))
         /* Need to use arg regs as temporaries here.  */
-        __(movq %rsp,%temp0)
+        __(movq %rsp,%temp1)
         __(push %arg_z)
         __(push %arg_y)
         __(push %arg_x)
@@ -1649,8 +1651,8 @@ local_label(push_nil_loop):
 local_label(copy_already_loop): 
         __(movq (%arg_x),%arg_z)
         __(addq $fixnumone,%arg_x)
-        __(movq %arg_z,(%temp0))
-        __(addq $fixnumone,%temp0)
+        __(movq %arg_z,(%temp1))
+        __(addq $fixnumone,%temp1)
         __(subq $fixnumone,%arg_y)
         __(jne local_label(copy_already_loop))
 
@@ -1686,7 +1688,7 @@ local_label(no_insert_no_frame):
 	/* if exactly nargregs, vpush remaining inherited vars. */
         __(cmpw $nargregs<<fixnumshift,%nargs)
         __(movl $3<<fixnumshift,%imm1_l) /* skip code, new fn */
-        __(leaq 3<<fixnumshift(%imm0),%temp0)
+        __(leaq 3<<fixnumshift(%imm0),%temp1)
         __(jnz local_label(set_regs))
 local_label(vpush_remaining):  
         __(push misc_data_offset(%fn,%imm1))
@@ -1701,8 +1703,8 @@ local_label(set_regs):
         __(cmpw $fixnumone,%nargs)
         __(jle local_label(set_y_z))
 local_label(set_arg_x): 
-        __(subq $node_size,%temp0)
-        __(movq misc_data_offset(%fn,%temp0),%arg_x)
+        __(subq $node_size,%temp1)
+        __(movq misc_data_offset(%fn,%temp1),%arg_x)
         __(addw $fixnumone,%nargs)
         __(subq $fixnumone,%imm0)
         __(jne local_label(vpush_remaining))
@@ -1712,14 +1714,14 @@ local_label(set_y_z):
         __(jne local_label(set_arg_z))
 	/* Set arg_y, maybe arg_x, preceding args */
 local_label(set_arg_y): 
-        __(subq $node_size,%temp0)
+        __(subq $node_size,%temp1)
         __(movq misc_data_offset(%fn,%temp0),%arg_y)
         __(addw $fixnumone,%nargs)
         __(subq $fixnum_one,%imm0)
         __(jnz local_label(set_arg_x))
         __(jmp local_label(go))
 local_label(set_arg_z): 
-        __(subq $node_size,%temp0)
+        __(subq $node_size,%temp1)
         __(movq misc_data_offset(%fn,%temp0),%arg_z)
         __(addw $fixnumone,%nargs)
         __(subq $fixnum_one,%imm0)
@@ -1897,14 +1899,14 @@ _spentry(tcallnfngen)
 	__(subq $node_size,%imm1)
 	__(cmpq %imm0,%rsp)
 	__(jne 0b)
-	__(movq %temp0,%fn)
+	__(movq %temp1,%fn)
 	__(lea (%rbp,%imm1),%rsp)
-	__(movq 8(%rbp),%ra0)
-	__(movq 0(%rbp),%rbp)
+	__(movq lisp_frame.savera0(%rbp),%ra0)
+	__(movq lisp_frame.backlink(%rbp),%rbp)
 	__(jmp *%fn)
 /* All args in regs; exactly the same as the tcallnfnvsp case */
 9:		
-	__(movq %temp0,%fn)
+	__(movq %temp1,%fn)
 	__(leave)
 	__(pop %ra0)
 	__(jmp *%fn)
@@ -1922,31 +1924,20 @@ _spentry(tcallnfnslide)
 	__(subq $node_size,%imm1)
 	__(cmpq %imm0,%rsp)
 	__(jne 0b)
-	__(movq %temp0,%fn)
+	__(movq %temp1,%fn)
 	__(lea (%rbp,%imm1),%rsp)
-	__(movq 8(%rbp),%ra0)
-	__(movq 0(%rbp),%rbp)
+	__(movq lisp_frame.savera0(%rbp),%ra0)
+	__(movq lisp_frame.backlink(%rbp),%rbp)
 	__(jmp *%fn)
 _endsubp(tcallnfnslide)
 
 _spentry(tcallnfnvsp)
-	__(movq %temp0,%fn)
+	__(movq %temp1,%fn)
 	__(leave)
 	__(pop %ra0)
 	__(jmp *%fn)
 _endsubp(tcallnfnvsp)
 
-_spentry(stkconsyz)
-	__(int $3)
-_endsubp(stkconsyz)
-
-_spentry(stkvcell0)
-	__(int $3)
-_endsubp(stkvcell0)
-
-_spentry(stkvcellvsp)
-	__(int $3)
-_endsubp(stkvcellvsp)
 
 /* Make a "raw" area on the foreign stack, stack-cons a macptr to point to it, 
    and return the macptr.  Size (in bytes, boxed) is in arg_z on entry; macptr
@@ -2801,11 +2792,12 @@ _spentry(builtin_aref1)
 _endsubp(builtin_aref1)
 	
 
+_spentry(spread_lexprz)
+_endsubp(spread_lexprz)
+	
 /* NYI, but should be :	*/
 	
 
-_spentry(spread_lexprz)
-_endsubp(spread_lexprz)
 
 /* FFI stuff, needs to be renamed and some flavor(s) implemented */		
 _spentry(poweropen_callbackX)
@@ -2869,6 +2861,17 @@ _spentry(restorecontext)
 	__(int $3)
 _endsubp(restorecontext)
 
+_spentry(stkconsyz)
+	__(int $3)
+_endsubp(stkconsyz)
+
+_spentry(stkvcell0)
+	__(int $3)
+_endsubp(stkvcell0)
+
+_spentry(stkvcellvsp)
+	__(int $3)
+_endsubp(stkvcellvsp)
 
 _spentry(breakpoint)
 _endsubp(breakpoint)
