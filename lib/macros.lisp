@@ -2286,7 +2286,7 @@ the lock held."
 (defmacro %lexpr-ref (lexpr count i)
   `(%lisp-word-ref ,lexpr (%i- ,count ,i)))
 
-; args will be list if old style clos
+;;; args will be list if old style clos
 (defmacro apply-with-method-context (magic function args)
   (let ((m (gensym))
         (f (gensym))
