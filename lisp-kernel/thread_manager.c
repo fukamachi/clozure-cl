@@ -28,7 +28,8 @@
 #define SUSPEND_RESUME_VERBOSE 0
 
 typedef struct {
-  TCR *tcr;  
+  TCR *tcr;
+  natural vsize, tsize;
   void *created;
 } thread_activation;
 
@@ -526,10 +527,12 @@ new_tcr(natural vstack_size, natural tstack_size)
   tcr->resume = new_semaphore(0);
   tcr->reset_completion = new_semaphore(0);
   tcr->activate = new_semaphore(0);
+  LOCK(lisp_global(AREA_LOCK),tcr);
   a = allocate_vstack_holding_area_lock(vstack_size);
   tcr->vs_area = a;
   tcr->save_vsp = (LispObj *) a->active;  
   a = allocate_tstack_holding_area_lock(tstack_size);
+  UNLOCK(lisp_global(AREA_LOCK),tcr);
   tcr->ts_area = a;
   tcr->save_tsp = (LispObj *) a->active;
   tcr->valence = TCR_STATE_FOREIGN;
@@ -723,7 +726,7 @@ void *
 lisp_thread_entry(void *param)
 {
   thread_activation *activation = (thread_activation *)param;
-  TCR *tcr = activation->tcr;
+  TCR *tcr = new_tcr(activation->vsize, activation->vsize);
   sigset_t mask, old_mask;
 
   sigemptyset(&mask);
@@ -734,6 +737,7 @@ lisp_thread_entry(void *param)
   *(--tcr->save_vsp) = lisp_nil;
   enable_fp_exceptions();
   SET_TCR_FLAG(tcr,TCR_FLAG_BIT_AWAITING_PRESET);
+  activation->tcr = tcr;
   SEM_RAISE(activation->created);
   do {
     SEM_RAISE(tcr->reset_completion);
@@ -752,23 +756,18 @@ xNewThread(natural control_stack_size,
   thread_activation activation;
   TCR *current = get_tcr(false);
 
-  LOCK(lisp_global(AREA_LOCK),current);
-  activation.tcr = new_tcr(value_stack_size, temp_stack_size);
-  UNLOCK(lisp_global(AREA_LOCK),current);
-  if (activation.tcr) {
-    activation.created = new_semaphore(0);
-    if (create_system_thread(control_stack_size +(CSTACK_HARDPROT+CSTACK_SOFTPROT), 
-                             NULL, 
-                             lisp_thread_entry,
-                             (void *) &activation)) {
-      
-      SEM_WAIT_FOREVER(activation.created);	/* Wait until thread's entered its initial function */
-    } else {
-      activation.tcr->shutdown_count = 1;
-      shutdown_thread_tcr(TCR_TO_TSD(activation.tcr));
-    }
-    destroy_semaphore(&activation.created);
+  activation.tsize = temp_stack_size;
+  activation.vsize = value_stack_size;
+  activation.tcr = 0;
+  activation.created = new_semaphore(0);
+  if (create_system_thread(control_stack_size +(CSTACK_HARDPROT+CSTACK_SOFTPROT), 
+                           NULL, 
+                           lisp_thread_entry,
+                           (void *) &activation)) {
+    
+    SEM_WAIT_FOREVER(activation.created);	/* Wait until thread's entered its initial function */
   }
+  destroy_semaphore(&activation.created);  
   return TCR_TO_TSD(activation.tcr);
 }
 
