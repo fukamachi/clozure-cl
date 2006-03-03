@@ -1123,4 +1123,5 @@
                           :symbol-tag-is-subtag nil
                           :function-tag fulltag-function
                           :function-tag-is-subtag nil
+                          :big-endian nil
                           ))
