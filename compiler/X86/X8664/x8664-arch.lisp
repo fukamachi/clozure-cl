@@ -247,8 +247,8 @@
 (defx86reg foreign-sp mm5)
 
 
-;;; Using %fs to access the TCR may be Linux-specific.
-(defx86reg rcontext fs)
+;;; Using %gs to access the TCR may be Linux-specific.
+(defx86reg rcontext gs)
 
 ;;; NEXT-METHOD-CONTEXT is passed from gf-dispatch code to the method
 ;;; functions that it funcalls.  FNAME is only meaningful when calling
@@ -628,7 +628,7 @@
   why)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-(defconstant tcr-bias 512)
+(defconstant tcr-bias 0)
 )
 
 (define-storage-layout tcr (- tcr-bias)
