@@ -2213,10 +2213,16 @@
 
 (defun x86-dis-do-uuo (ds instruction intop sizeflag)
   (declare (type (unsigned-byte 8) intop))
-  (cond ((< intop #xb0)
+  (cond ((< intop #xa0)
          (setf (x86-di-mnemonic instruction) "int"
                (x86-di-op0 instruction)
                (x86::make-x86-immediate-operand :value (parse-x86-lap-expression intop))))
+        ((< intop #xb0)
+         (setf (x86-di-mnemonic instruction)
+               "uuo-error-udf"
+               (x86-di-op0 instruction)
+               (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))))
+         
         ((< intop #xc0)
          (setf (x86-di-mnemonic instruction)
                "uuo-error-reg-not-type"
@@ -2234,6 +2240,7 @@
                  (#xc4 "uuo-gc-trap")
                  (#xc5 "uuo-alloc")
                  (#xc6 "uuo-error-not-callable")
+                 (#xc7 "uuo-udf-call")
                  (t "unknown-UUO"))))
         ((< intop #xd0)
          (let* ((modrm-byte (x86-ds-peek-u8 ds)))

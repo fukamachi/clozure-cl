@@ -3323,6 +3323,9 @@
      #x0fae #o030 nil)
 
    ;; UUOs.  Expect lots more, some of which may take pseudo-operands.
+   (def-x8664-opcode uuo-error-udf ((:reg64 :insert-opcode-reg4))
+     #xcda0 nil 0)
+   
    (def-x8664-opcode uuo-error-reg-not-type ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdb0 nil 0)
    
@@ -3341,9 +3344,12 @@
      #xcdc5 nil nil)
    (def-x8664-opcode uuo-error-not-callable ()
      #xcdc6 nil nil)
+   (def-x8664-opcode uuo-error-udf-call ()
+     #xcdc7 nil nil)
 
    (def-x8664-opcode uuo-error-vector-bounds ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
      #xcdc8 #o300 0)
+
 
    
    (def-x8664-opcode uuo-error-reg-not-tag ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
