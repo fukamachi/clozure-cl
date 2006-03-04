@@ -135,6 +135,7 @@
     (x86-disassemble  "ccl:bin;x86-disassemble"  ("ccl:compiler;X86;x86-disassemble.lisp"))
     (xfasload         "ccl:xdump;xfasload"       ("ccl:xdump;xfasload.lisp"))
     (xppcfasload      "ccl:xdump;xppcfasload"    ("ccl:xdump;xppcfasload.lisp"))
+    (xx8664fasload    "ccl:xdump;xx8664-fasload"  ("ccl:xdump;xx8664-fasload.lisp"))
     (heap-image       "ccl:xdump;heap-image"     ("ccl:xdump;heap-image.lisp"))
     (xsym             "ccl:xdump;xsym"           ("ccl:xdump;xsym.lisp"))
     (number-macros "ccl:bin;number-macros"    ("ccl:lib;number-macros.lisp"))
