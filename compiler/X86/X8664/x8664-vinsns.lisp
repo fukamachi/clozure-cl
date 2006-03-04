@@ -114,12 +114,18 @@
   (movq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
 
 
+(define-x8664-vinsn misc-ref-c-node  (((dest :lisp))
+				     ((v :lisp)
+				      (idx :u32const)) ; sic
+				     ())
+  (movq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%q dest)))
 
 (define-x8664-vinsn misc-ref-c-u64  (((dest :u64))
 				     ((v :lisp)
 				      (idx :u32const)) ; sic
 				     ())
   (movq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%q dest)))
+
 
 (define-x8664-vinsn misc-ref-c-s64  (((dest :s64))
 				     ((v :lisp)
@@ -440,6 +446,16 @@
   (cmpb (:$b x8664::tag-list) (:%b tag))
   (je.pt :ok)
   (uuo-error-reg-not-list (:%q object))
+  :ok)
+
+(define-x8664-vinsn trap-unless-cons (()
+				      ((object :lisp))
+				      ((tag :u8)))
+  (movb (:$b x8664::fulltagmask) (:%b tag))
+  (andb (:%b object) (:%b tag))
+  (cmpb (:$b x8664::fulltag-cons) (:%b tag))
+  (je.pt :ok)
+  (uuo-error-reg-not-tag (:%q object) (:$ub x8664::fulltag-cons))
   :ok)
 
 (define-x8664-vinsn trap-unless-uvector (()
@@ -2511,3 +2527,110 @@
 (define-x8664-vinsn %current-tcr (((dest :lisp))
                                  ())
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.linear-end) (:%q dest)))
+
+(define-x8664-vinsn (setq-special :call :subprim-call)
+    (()
+     ((sym :lisp)
+      (val :lisp)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPspecset))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:%q x8664::ra0)) (:%q x8664::fn)))
+
+(define-x8664-vinsn set-z-flag-if-istruct-typep (()
+                                                 ((val :lisp)
+                                                  (type :lisp))
+                                                 ((tag :u8)
+                                                  (valtype :lisp)))
+  (xorl (:%l valtype) (:%l valtype))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b val) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (cmovew (:@ x8664::misc-subtag-offset (:%q val)) (:%w tag))
+  (cmpb (:%b x8664::subtag-istruct) (:%b tag))
+  (cmoveq (:@ x8664::misc-data-offset (:%q val)) (:%q valtype))
+  (cmpq (:%q valtype) (:%q type)))
+
+(define-x8664-subprim-call-vinsn (misc-ref) .SPmisc-ref)
+
+(define-x8664-subprim-call-vinsn (ksignalerr) .SPksignalerr)
+
+(define-x8664-subprim-call-vinsn (misc-alloc-init) .SPmisc-alloc-init)
+
+(define-x8664-subprim-call-vinsn (misc-alloc) .SPmisc-alloc)
+
+(define-x8664-subprim-call-vinsn (make-stack-gvector)  .SPstkgvector)
+
+(define-x8664-vinsn load-character-constant (((dest :lisp))
+                                             ((code :u8const))
+                                             ())
+  (movl (:$l (:apply logior (:apply ash code 8) x8664::subtag-character))
+        (:%l dest)))
+
+(define-x8664-vinsn %scharcode (((code :imm))
+				((str :lisp)
+				 (idx :imm))
+				((imm :u64)))
+  (movq (:%q idx) (:%q imm))
+  (sarq (:$ub x8664::fixnumshift) (:%q imm))
+  (movzbl (:@ x8664::misc-data-offset (:%q str) (:%q imm)) (:%l imm))
+  (leaq (:@ (:%q imm) 8) (:%q code)))
+
+(define-x8664-subprim-jump-vinsn (tail-call-sym-slide) .SPtcallsymslide)
+
+(define-x8664-vinsn character->code (((dest :u32))
+				     ((src :lisp)))
+  (movq (:%q src) (:%q dest))
+  (sarq (:$ub x8664::charcode-shift) (:%q  dest)))
+
+(define-x8664-vinsn adjust-vsp (()
+				((amount :s32const)))
+  ((:and (:pred >= amount -128) (:pred <= amount 127))
+   (addq (:$b amount) (:%q x8664::rsp)))
+  ((:not (:and (:pred >= amount -128) (:pred <= amount 127)))
+   (addq (:$l amount) (:%q x8664::rsp))))
+
+(define-x8664-vinsn (call-subprim-2 :call :subprim-call) (((dest t))
+							  ((spno :s32const)
+							   (y t)
+							   (z t)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ spno))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  (leaq (:@ (:apply - (:^ :back)) (:%q x8664::ra0)) (:%q x8664::fn)))
+
+(define-x8664-vinsn set-macptr-address (()
+					((addr :address)
+					 (src :lisp))
+					())
+  (movq (:%q addr) (:@ x8664::macptr.address (:%q src))))
+
+(define-x8664-vinsn %symbol->symptr (((dest :lisp))
+                                     ((src :lisp))
+                                     ((temp :lisp)
+                                      (tag :u8)))
+  (movl (:$l (+ x8664::nil-value x8664::nilsym-offset)) (:%l temp))
+  (cmpb (:$b x8664::fulltag-nil) (:%b src))
+  (cmovneq (:%q src) (:%q temp))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (andb (:%b temp) (:%b tag))
+  (cmpb (:$b x8664::tag-symbol) (:%b tag))
+  (jne.pt :ok)
+  (uuo-error-reg-not-tag (:%q src) (:$ub x8664::fulltag-symbol))
+  :ok
+  (leaq (:@ (- x8664::fulltag-misc x8664::fulltag-symbol) (:%q temp)) (:%q dest)))
+
+(define-x8664-vinsn symbol-function (((val :lisp))
+                                     ((sym (:lisp (:ne val))))
+                                     ((tag :u8)))
+  (movb (:$b x8664::tagmask) (:%b tag))
+  (movq (:@ x8664::symbol.fcell (:%q sym)) (:%q val))
+  (andb (:%b val) (:%b tag))
+  (cmpb (:$b x8664::tag-function) (:%b tag))
+  (je.pt :ok)
+  (uuo-error-udf (:%q sym))
+  :ok)
