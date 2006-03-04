@@ -30,15 +30,15 @@
 
 ;;; see %logcount (ppc-bignum.lisp)
 (defx86lapfunction %ilogcount ((number arg_z))
-  (let ((shift imm0)
+  (let ((rshift imm0)
         (temp imm1))
-    (unbox-fixnum number shift)
+    (unbox-fixnum number rshift)
     (xorq (% arg_z) (% arg_z))
-    (testq (% shift) (% shift))
+    (testq (% rshift) (% rshift))
     (jmp @test)
     @next
-    (lea (@ -1 (% shift)) (% temp))
-    (and (% temp) (% shift))            ; sets flags
+    (lea (@ -1 (% rshift)) (% temp))
+    (and (% temp) (% rshift))            ; sets flags
     (lea (@ '1 (% arg_z)) (% arg_z))    ; doesn't set flags
     @test
     (jne @next)
