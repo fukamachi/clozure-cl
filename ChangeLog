@@ -1,3 +1,31 @@
+2006-03-03 19:38  gb
+
+	* lib/number-macros.lisp: Will need a lot more work.
+
+2006-03-03 19:38  gb
+
+	* lib/systems.lisp: xx8664xfasload.
+
+2006-03-03 19:38  gb
+
+	* lib/compile-ccl.lisp: *x8664-xload-modules*.
+
+2006-03-03 19:37  gb
+
+	* level-0/X86/X8664/.cvsignore: ignore lx64fsl files.
+
+2006-03-03 19:37  gb
+
+	* level-0/X86/x86-def.lisp: extra close paren.
+
+2006-03-03 19:36  gb
+
+	* level-0/X86/x86-float.lisp: package prefix on MXCSR-CONTROL-BYTE.
+
+2006-03-03 19:36  gb
+
+	* level-0/X86/x86-numbers.lisp: Don't call local variable "shift".
+
 2006-03-03 19:11  gb
 
 	* level-0/: .cvsignore, X86/.cvsignore: Ignore lx64fsl files.
