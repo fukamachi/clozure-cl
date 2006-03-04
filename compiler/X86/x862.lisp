@@ -3275,7 +3275,7 @@
               ((eq op (%nx1-operator %consmacptr%))
                (with-imm-target () (address :address)
                  (x862-one-targeted-reg-form seg val address)
-                 (with-node-temps () (node)
+                 (with-node-target () node
                    (! macptr->stack node address)
                    (x862-open-undo $undo-x86-c-frame)
                    (setq val node))))
@@ -5426,9 +5426,15 @@
 (defx862 x862-istruct-typep istruct-typep (seg vreg xfer cc form type)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
     (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form x8664::arg_y type x8664::arg_z)
-      (with-imm-target  () (target :signed-natural)
-        (! istruct-typep target r1 r2)
-        (x862-test-reg-%izerop seg vreg xfer target cr-bit true-p 0)))))
+      (! set-z-flag-if-istruct-typep r1 r2)
+      (regspec-crf-gpr-case 
+       (vreg dest)
+       (^ cr-bit true-p)
+       (ensuring-node-target (target dest)
+         (if (not true-p)
+           (setq cr-bit (logxor 1 cr-bit)))
+         (! cr-bit->boolean target cr-bit)
+         (^))))))
 
 
 (pushnew (%nx1-operator lisptag) *x862-operator-supports-u8-target*)
@@ -7321,28 +7327,23 @@
          (fixnum-by (acode-fixnum-form-p by)))
     (if (and fixnum-by (eql 0 fixnum-by))
       (x862-form seg vreg xfer ptr)
-      (with-imm-target (vreg) (ptr-reg :address)
-        (x862-one-targeted-reg-form seg ptr ptr-reg)
+      (let* ((ptr-reg (with-imm-target () (ptr-reg :address)
+                        (x862-one-targeted-reg-form seg ptr ptr-reg))))
         (if fixnum-by
-          (with-imm-target (vreg ptr-reg) (result :address)
-            (let* ((high (ldb (byte 16 16) fixnum-by))
-                   (low (ldb (byte 16 0) fixnum-by)))
-              (declare (type (unsigned-byte 16) high low))
-              (if (logbitp 15 low) (incf high))
-              (! add-immediate result ptr-reg high low)
-              (<- result)))
-          (progn
-            (unless triv-by
-              (! temp-push-unboxed-word ptr-reg)
-              (x862-open-undo $undostkblk))
-            (with-imm-target (vreg ptr-reg) (by-reg :s32)
-              (x862-one-targeted-reg-form seg by by-reg)
+          (let* ((result ptr-reg))
+            (! add-constant result fixnum-by)
+            (<- result))
+            (progn
               (unless triv-by
-                (! temp-pop-unboxed-word ptr-reg)
-                (x862-close-undo))
-              (with-imm-target (vreg ptr-reg by-reg) (result :address)
-                (! fixnum-add result ptr-reg by-reg)
-                (<- result)))))
+                (x862-push-register seg ptr-reg))
+              (let* ((boxed-by (x862-one-targeted-reg-form seg by x8664::arg_z)))
+                (unless triv-by
+                  (x862-pop-register seg ptr-reg))
+                (with-imm-target (ptr-reg) (by-reg :signed-natural)
+                  (! fixnum->signed-natural by-reg boxed-by)
+                  (let* ((result ptr-reg))
+                    (! fixnum-add2 result by-reg)
+                    (<- result))))))
         (^)))))
 
 
@@ -7543,14 +7544,7 @@
     (x862-close-undo)
     (x862-poweropen-foreign-return seg vreg xfer resultspec)))
 
-;;; Outgoing C stack frame will look like:
-;;;  backptr
-;;;  NIL  ; marker to keep GC happy, make GDB unhappy.
-;;;  8 words of GPR arg vals - will be loaded & popped by subprim
-;;;  N words of "other" (overflow) arguments
-;;;  F words of single-float values, to be loaded into FPR before subprim call
-;;;  D aligned doublewords of double-float values, to be loaded into FPR before call.
-(defx862 x862-eabi-ff-call eabi-ff-call (seg vreg xfer address argspecs argvals resultspec &optional monitor)
+(defx862 x862-ff-call ff-call (seg vreg xfer address argspecs argvals resultspec &optional monitor)
   (declare (ignore monitor))
   (let* ((*x862-vstack* *x862-vstack*)
          (*x862-top-vstack-lcell* *x862-top-vstack-lcell*)
@@ -7599,7 +7593,7 @@
                             (+ (the fixnum (+ ndouble-floats ndouble-floats))
                                (the fixnum (logand (lognot 1) (the fixnum (1+ single-words))))))))
            
-        (! alloc-eabi-c-frame total-words))
+        (! alloc-c-frame total-words))
       (setq single-float-offset (+ other-offset nother-words))
       (setq double-float-offset
             (logand (lognot 1)
