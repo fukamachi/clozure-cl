@@ -182,6 +182,7 @@
     (andq (@ x8664::misc-header-offset (% ,vector)) (% ,dest))
     (shr ($ (- x8664::num-subtag-bits x8664::fixnumshift)) (% ,dest))))  
 
+
 (defx86lapmacro int-to-double (int temp double)
   `(progn
     (unbox-fixnum  ,int ,temp)
@@ -217,15 +218,7 @@
 (defx86lapmacro svset (vector index new)
   `(movq (% ,new) (@ (+ x8664::misc-data-offset (* ,index 8)) (% ,vector))))
 
-(defx86lapmacro int-to-double (int temp double)
-  `(progn
-    (unbox-fixnum (% ,int) (% ,temp))
-    (cvtsi2sdq (% ,temp) (% ,double))))
 
-(defx86lapmacro int-to-double (int temp double)
-  `(progn
-    (unbox-fixnum (% ,int) (% ,temp))
-    (cvtsi2ssq (% ,temp) (% ,double))))
 
 ;;; Frames, function entry and exit.
 
