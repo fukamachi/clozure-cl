@@ -91,7 +91,7 @@
 
 
 (defparameter *ppc-xload-modules* '(xppcfasload xfasload heap-image ))
-
+(defparameter *x8664-xload-modules* '(xx8664fasload xfasload heap-image ))
 
 
 ;;; Not too OS-specific.
