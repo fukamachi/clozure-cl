@@ -34,7 +34,7 @@
   (check-nargs 2)
   (unbox-fixnum offset imm0)
   (movq (% arg_z) (@ target::nil-value (% imm0)))
-  (single-value-return)))
+  (single-value-return))
 
 
 (defx86lapfunction %get-kernel-global-ptr-from-offset ((offset arg_y)
