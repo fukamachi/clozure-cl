@@ -1,3 +1,30 @@
+2006-03-03 19:11  gb
+
+	* level-0/: .cvsignore, X86/.cvsignore: Ignore lx64fsl files.
+
+2006-03-03 19:11  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: A few more things.
+
+2006-03-03 19:11  gb
+
+	* compiler/X86/x862.lisp: Conserve imm regs more in inc-ptr
+
+2006-03-03 19:10  gb
+
+	* compiler/X86/x86-lapmacros.lisp: Remove (duplicate, bad)
+	definitions of int-to-double.
+
+2006-03-03 19:09  gb
+
+	* compiler/X86/: x86-asm.lisp, x86-disassemble.lisp: A few more
+	UUOs.
+
+2006-03-03 19:09  gb
+
+	* compiler/nx1.lisp: Use (old, unused) ff-call operator to mark
+	x8664 ff-calls.
+
 2006-03-03 02:09  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: fix typo.
