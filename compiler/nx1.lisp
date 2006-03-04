@@ -1208,7 +1208,8 @@
     address-expression arg-specs-and-result-spec
     (ecase (backend-name *target-backend*)
       (:linuxppc32 (%nx1-operator eabi-ff-call))
-      ((:darwinppc32 :linuxppc64 :darwinppc64) (%nx1-operator poweropen-ff-call)))))
+      ((:darwinppc32 :linuxppc64 :darwinppc64) (%nx1-operator poweropen-ff-call))
+      ((:linuxx8664 :freebsdx8664) (%nx1-operator ff-call)))))
 
 (defnx1 nx1-syscall ((%syscall)) (idx &rest arg-specs-and-result-spec)
   (flet ((map-to-representation-types (list)
