@@ -205,7 +205,7 @@
 ;;; unmasked exceptions
 (defun %ffi-exception-status ()
   (logandc2 (%get-post-ffi-mxcsr)
-            (ldb mxcsr-control-byte (%get-mxcsr))))
+            (ldb x86::mxcsr-control-byte (%get-mxcsr))))
   
 
 ;;; See if the binary double-float operation OP set any enabled
