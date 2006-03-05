@@ -124,6 +124,9 @@
 (defvar *x862-register-annotation-types* nil)
 (defvar *x862-register-ea-annotations* nil)
 (defvar *x862-constant-alist* nil)
+(defvar *x862-double-float-constant-alist* nil)
+(defvar *x862-single-float-constant-alist* nil)
+
 
 (defparameter *x862-tail-call-aliases*
   ()
@@ -179,6 +182,19 @@
       (let* ((lab (aref *backend-labels* (backend-get-next-label))))
         (push (cons imm lab) *x862-constant-alist*)
         lab)))
+
+(defun x86-double-float-constant-label (imm)
+  (or (cdr (assoc imm *x862-double-float-constant-alist*))
+      (let* ((lab (aref *backend-labels* (backend-get-next-label))))
+        (push (cons imm lab) *x862-double-float-constant-alist*)
+        lab)))
+
+(defun x86-single-float-constant-label (imm)
+  (or (cdr (assoc imm *x862-single-float-constant-alist*))
+      (let* ((lab (aref *backend-labels* (backend-get-next-label))))
+        (push (cons imm lab) *x862-single-float-constant-alist*)
+        lab)))
+
 
 (defun x862-free-lcells ()
   (without-interrupts 
@@ -374,6 +390,8 @@
            (*x862-register-ea-annotations* (x862-make-stack 16))
            (*x862-register-restore-ea* nil)
            (*x862-constant-alist* nil)
+           (*x862-double-float-constant-alist* nil)
+           (*x862-single-float-constant-alist* nil)
            (*x862-vstack* 0)
            (*x862-cstack* 0)
            (*x862-target-num-arg-regs* (target-arch-case (:x8664  $numx8664argregs)))
@@ -458,6 +476,22 @@
                  (x86-lap-directive frag-list :byte 0)
 
                  (x862-expand-vinsns vinsns frag-list instruction)
+                 (when (or *x862-double-float-constant-alist*
+                           *x862-single-float-constant-alist*)
+                   (x86-lap-directive frag-list :align 3)
+                   (dolist (double-pair *x862-double-float-constant-alist*)
+                     (destructuring-bind (dfloat . lab) double-pair
+                       (setf (vinsn-label-info lab) (emit-x86-lap-label frag-list lab))
+                       (multiple-value-bind (high low)
+                           (x862-double-float-bits dfloat)
+                         (x86-lap-directive frag-list :long low)
+                         (x86-lap-directive frag-list :long high))))
+                   (dolist (single-pair *x862-single-float-constant-alist*)
+                     (destructuring-bind (sfloat . lab) single-pair
+                       (setf (vinsn-label-info lab) (emit-x86-lap-label frag-list lab))
+                       (let* ((val (single-float-bits sfloat)))
+                         (x86-lap-directive frag-list :long val)))))
+                 (x86-lap-directive frag-list :align 3)
                  (x86-lap-directive frag-list :align 3)
                  (emit-x86-lap-label frag-list end-code-tag)
                  (dolist (c (reverse *x862-constant-alist*))
@@ -1165,16 +1199,10 @@
             (! zero-double-float-register vreg)
             (! zero-single-float-register vreg))
           (if (typep form 'short-float)
-            (let* ((bits (x862-single-float-bits form)))
-              (with-imm-temps () ((bitsreg :u32))
-                (! lri bitsreg bits)
-                (! load-single-float-constant vreg bitsreg)))
-            (multiple-value-bind (high low) (x862-double-float-bits form)
-              (declare (integer high low))
-              (with-imm-temps () ((highreg :u32) (lowreg :u32))
-                (! lri highreg high)
-                (! lri lowreg low)
-                (! load-double-float-constant vreg highreg lowreg)))))
+            (let* ((lab (x86-single-float-constant-label form)))
+              (! load-single-float-constant vreg lab))
+            (let* ((lab (x86-double-float-constant-label form)))
+              (! load-double-float-constant vreg lab))))
         (if (and (typep form '(unsigned-byte 32))
                  (= (hard-regspec-class vreg) hard-reg-class-gpr)
                  (= (get-regspec-mode vreg)
@@ -2209,6 +2237,8 @@
               (progn
                 (if label-p
                   (unless a-reg (x862-store-immediate seg func destreg)))
+                (unless (or label-p a-reg) (x862-store-immediate seg func destreg))
+                
                 (cond ((or spread-p (null nargs))
                        (if symp
                          (! tail-call-sym-gen)
@@ -6183,10 +6213,12 @@
                     (lognot (1- (* 2 *x862-target-node-size*)))
                     (+ nbytes *x862-target-node-size*
                        (1- (* 2 *x862-target-node-size*)))) #x8000))
-        (with-imm-temps () (header)
+        (let* ((header x8664::imm0)
+               (physsize x8664::imm1))
           (x862-lri seg header (arch::make-vheader nelements subtag))
+          (x862-lri seg physsize nbytes)
           (ensuring-node-target (target vreg)
-            (! %alloc-misc-fixed target header nbytes)))
+            (! %allocate-uvector target)))
         (progn
           (if initval
             (progn
@@ -6255,41 +6287,42 @@
           (x862-compare-double-float-registers seg vreg xfer r1 r2 cr-bit true-p))))))
  
 (eval-when (:compile-toplevel :execute)
-  (defmacro defx862-df-op (fname opname vinsn)
+  (defmacro defx862-sf-op (fname opname vinsn)
     `(defx862 ,fname ,opname (seg vreg xfer f0 f1)
-       (if (null vreg)
-         (progn
-           (x862-form seg nil nil f0)
-           (x862-form seg vreg xfer f1))
-         (with-fp-target () (r1 :double-float)
-           (with-fp-target (r1) (r2 :double-float)
-             (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg f0 r1 f1 r2)
-               (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
-                 (! ,vinsn vreg r1 r2)
-                 (with-fp-target (r1 r2) (result :double-float)
-                   (! ,vinsn result r1 r2)
-                   (ensuring-node-target (target vreg)
-                     (<- result))))
-               (^)))))))
+      (if (null vreg)
+        (progn
+          (x862-form seg nil nil f0)
+          (x862-form seg vreg xfer f1))
+        (with-fp-target () (r1 :double-float)
+          (with-fp-target (r1) (r2 :double-float)
+            (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg f0 r1 f1 r2)
+              (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
+                (progn
+                  (! ,vinsn vreg r1 r2))
+                (with-fp-target (r1 r2) (result :double-float)
+                  (! ,vinsn result r1 r2)
+                  (ensuring-node-target (target vreg)
+                    (<- result))))
+              (^)))))))
   
   (defmacro defx862-sf-op (fname opname vinsn)
     `(defx862 ,fname ,opname (seg vreg xfer f0 f1)
-       (if (null vreg)
-         (progn
-           (x862-form seg nil nil f0)
-           (x862-form seg vreg xfer f1))
-         (with-fp-target () (r1 :single-float)
-           (with-fp-target (r1) (r2 :single-float)
-             (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg f0 r1 f1 r2)
-               (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
-                 (progn
-                   (! ,vinsn vreg r1 r2))
-                 (with-fp-target (r1 r2) (result :single-float)
-                   (! ,vinsn result r1 r2)
-                   (ensuring-node-target (target vreg)
-                     (<- result))))
-               (^)))))))
-)
+      (if (null vreg)
+        (progn
+          (x862-form seg nil nil f0)
+          (x862-form seg vreg xfer f1))
+        (with-fp-target () (r1 :single-float)
+          (with-fp-target (r1) (r2 :single-float)
+            (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg f0 r1 f1 r2)
+              (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
+                (progn
+                  (! ,vinsn vreg r1 r2))
+                (with-fp-target (r1 r2) (result :single-float)
+                  (! ,vinsn result r1 r2)
+                  (ensuring-node-target (target vreg)
+                    (<- result))))
+              (^)))))))
+  )
 
 (defx862-df-op x862-%double-float+-2 %double-float+-2 double-float+-2)
 (defx862-df-op x862-%double-float--2 %double-float--2 double-float--2)
