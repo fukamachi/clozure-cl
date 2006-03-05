@@ -1085,10 +1085,12 @@
   (movsd (:%xmm x) (:%xmm result))
   (subsd (:%xmm y) (:%xmm result)))
 
-(define-x8664-vinsn double-float*-2 (((result :double-float))
-				     ((result :double-float)
-				      (x :double-float)))
+(define-x8664-vinsn double-float*-2 (((result :single-float))
+				     ((x :single-float)
+                                      (y :single-float)))
+  (movsd (:%xmm y) (:%xmm result))
   (mulsd (:%xmm x) (:%xmm result)))
+
 
 (define-x8664-vinsn double-float/-2 (((result :double-float))
 				     ((x :double-float)
@@ -2634,3 +2636,36 @@
   (je.pt :ok)
   (uuo-error-udf (:%q sym))
   :ok)
+
+(define-x8664-subprim-jump-vinsn (tail-call-fn-slide) .SPtcallnfnslide)
+
+(define-x8664-vinsn load-double-float-constant (((dest :double-float))
+                                                ((lab :label)
+))
+  (movsd (:@ (:^ lab) (:%q x8664::fn)) (:%xmm dest)))
+
+(define-x8664-vinsn load-single-float-constant (((dest :single-float))
+                                                ((lab :label)
+))
+  (movss (:@ (:^ lab) (:%q x8664::fn)) (:%xmm dest)))
+
+(define-x8664-subprim-call-vinsn (misc-set) .SPmisc-set)
+
+(define-x8664-subprim-call-vinsn (slide-values) .SPmvslide)
+
+(define-x8664-subprim-call-vinsn (spread-list)  .SPspreadargz)
+
+;;; Even though it's implemented by calling a subprim, THROW is really
+;;; a JUMP (to a possibly unknown destination).  If the destination's
+;;; really known, it should probably be inlined (stack-cleanup, value
+;;; transfer & jump ...)
+(define-x8664-vinsn (throw :jump :jump-unknown) (()
+						 ())
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPthrow))
+  (:align 3)
+  (:long (:^ :back))
+  :back)
+
+
+
