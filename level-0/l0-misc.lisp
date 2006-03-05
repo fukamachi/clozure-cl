@@ -607,21 +607,6 @@
             (return lock))
           (%nanosleep 0 *ns-per-tick*)))))
 
-;;; Return with the the old interrupt level, with the lock held and
-;;; interrupts disabled, if we return at all.
-(defun write-lock-rwlock-disable-interrupts (lock)
-    (let* ((context (%current-tcr))
-           (old-interrupt-level (disable-lisp-interrupts)))
-      (if (eq (%svref lock target::lock.writer-cell) context)
-        (progn
-          (decf (%svref lock target::lock._value-cell))
-          old-interrupt-level)
-        (loop
-          (when (%store-immediate-conditional target::lock._value lock 0 -1)
-            (setf (%svref lock target::lock.writer-cell) context)
-            (return old-interrupt-level))
-          (ignoring-without-interrupts
-           (%nanosleep 0 *ns-per-tick*))))))
 
 (defun read-lock-rwlock (lock)
   (loop
