@@ -58,6 +58,8 @@
   (print-unreadable-object (b s :type t :identity t)
     (format s "~A" (backend-name b))))
 
+
+
 (defparameter *backend-node-regs* 0)
 (defparameter *backend-node-temps* 0)
 (defparameter *available-backend-node-temps* 0)
@@ -421,3 +423,15 @@
   (or 
    (cdr (assq k '((:eq . :ne) (:ne . :eq) (:le . :gt) (:lt . :ge) (:ge . :lt) (:gt . :le))))
    (error "Unknown condition: ~s" k)))
+
+(defun backend-arch-macroexpand (whole env)
+  (let* ((expander (arch::arch-macro-function
+                    (backend-target-arch-name *target-backend*)
+                    (car whole))))
+    (if expander
+      (funcall expander whole env)
+      (error "No arch-specific macro function for ~s in arch ~s"
+             (car whole) (backend-target-arch-name *target-backend*)))))
+
+(defmacro declare-arch-specific-macro (name)
+  `(setf (macro-function ',name) #'backend-arch-macroexpand))
