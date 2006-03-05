@@ -587,7 +587,7 @@
                ;(print (list new-big hi lo))
                (when (and (logbitp (- int-len 54) new-big)  ; round bit
                           (or (%ilogbitp 0 lo)    ; oddp
-                              ; or more bits below round
+                              ;; or more bits below round
                               (%i< (one-bignum-factor-of-two new-big) (- int-len 54))))
                  (if (eq lo #xfffffff)
                    (setq hi (1+ hi) lo 0)
