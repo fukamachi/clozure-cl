@@ -983,9 +983,20 @@
                                    (other :imm)))
   (addq (:%q other) (:%q dest)))
 
+(define-x8664-vinsn fixnum-sub2  (((dest :imm))
+                                  ((x :imm)
+                                   (y :imm))
+                                  ((temp :imm)))
+  (movq (:%q x) (:%q temp))
+  (subq (:%q y) (:%q temp))
+  (movq (:%q temp) (:%q dest)))
+
+
+
 (define-x8664-vinsn fixnum-add3 (((dest :imm))
                                  ((x :imm)
                                   (y :imm)))
+  
   ((:pred =
           (:apply %hard-regspec-value x)
           (:apply %hard-regspec-value dest))
@@ -2241,6 +2252,28 @@
   (jmp :again)
   :good)
 
+(define-x8664-vinsn require-character (()
+				((object :lisp)))
+  :again
+  (cmpb (:$b x8664::subtag-character) (:%b object))
+  (je.pt :ok)
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-character))
+  (jmp :again)
+  :ok)
+
+(define-x8664-vinsn require-u8 (()
+				((object :lisp))
+				((tag :u32)))
+  :again
+  (movq (:$l (lognot (ash #xff x8664::fixnumshift))) (:%q tag))
+  (andq (:% object) (:% tag))
+  (je.pt :ok)
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-unsigned-byte-8))
+  (jmp :again)
+  :ok)
+
+
+
 (define-x8664-vinsn mask-base-char (((dest :u8))
                                     ((src :lisp)))
   (movzbl (:%b src) (:%l dest))) 
@@ -2669,3 +2702,86 @@
 
 
 
+(define-x8664-vinsn unbox-base-char (((dest :u64))
+				     ((src :lisp)))
+  (movq (:%q src) (:%q dest))
+  (shrq (:$ub x8664::charcode-shift) (:%q dest))
+  (cmpb (:$b x8664::subtag-character) (:%b src))
+  (jne.pt ::got-it)
+  (uuo-error-reg-not-tag (:%q src) (:$ub x8664::subtag-character))
+  :got-it)
+
+(define-x8664-subprim-call-vinsn (save-values) .SPsave-values)
+
+(define-x8664-subprim-call-vinsn (recover-values)  .SPrecover-values)
+
+(define-x8664-subprim-call-vinsn (add-values) .SPadd-values)
+
+(define-x8664-subprim-call-vinsn (make-stack-block)  .SPmakestackblock)
+
+(define-x8664-subprim-call-vinsn (make-stack-block0)  .Spmakestackblock0)
+
+;;; "dest" is preallocated, presumably on a stack somewhere.
+(define-x8664-vinsn store-double (()
+				  ((dest :lisp)
+				   (source :double-float))
+				  ())
+  (movsd (:%xmm source) (:@  x8664::double-float.value (:%q dest))))
+
+(define-x8664-vinsn fixnum->char (((dest :lisp))
+				  ((src :imm))
+				  ())
+  (movq (:%q src) (:%q dest))
+  (shlq (:$ub (- x8664::charcode-shift x8664::fixnumshift)) (:%q dest))
+  (movb (:$b x8664::subtag-character) (:%b dest)))
+
+
+(define-x8664-vinsn sign-extend-halfword (((dest :imm))
+					  ((src :imm)))
+  (movq (:%q src ) (:%q dest))
+  (shlq (:$ub (- 48 x8664::fixnumshift)) (:%q dest))
+  (sarq (:$ub (- 48 x8664::fixnumshift)) (:%q dest)))
+
+(define-x8664-subprim-jump-vinsn (tail-funcall-gen) .SPtfuncallgen)
+
+(define-x8664-subprim-call-vinsn (gets64) .SPgets64)
+
+(define-x8664-subprim-call-vinsn (getu64) .SPgetu64)
+
+(define-x8664-vinsn %init-gvector (()
+                                   ((v :lisp)
+                                    (nbytes :u32const))
+                                   ((count :imm)))
+  (xorl (:%l count) (:%l count))
+  :loop
+  (popq (:@ x8664::misc-data-offset (:%q v) (:%q count)))
+  (addq (:$b x8664::node-size) (:%q count))
+  (cmpq (:$l nbytes) (:%q count))
+  (jne :loop))
+
+(define-x8664-subprim-jump-vinsn (tail-funcall-slide) .SPtfuncallslide)
+
+(define-x8664-vinsn nth-value (((result :lisp))
+                               ()
+                               ((imm0 :u64)
+                                (imm1 :u64)))
+  (movzwl (:%w x8664::nargs) (:%l x8664::nargs))
+  (leaq (:@ (:%q x8664::rsp) (:%q x8664::nargs)) (:%q imm0))
+  (movq (:@ (:%q imm0)) (:%q imm1))
+  (rcmpq (:%q imm1) (:%q x8664::nargs))
+  (movl (:$l x8664::nil-value) (:%l result))
+  (jae :done)
+  (negq (:%q imm1))
+  (movq (:@ x8664::node-size (:%q imm0) (:%q imm1)) (:%q result))
+  :done
+  (leaq (:@ x8664::node-size (:%q imm0)) (:%q x8664::rsp)))
+
+
+(define-x8664-subprim-call-vinsn (req-heap-rest-arg) .SPreq-heap-rest-arg)
+
+(define-x8664-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init)
+
+(define-x8664-vinsn fixnum->unsigned-natural (((dest :u64))
+                                              ((src :imm)))
+  (movq (:%q src) (:%q dest))
+  (shrq (:$ub x8664::fixnumshift) (:%q dest)))
