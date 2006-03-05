@@ -1290,7 +1290,7 @@
         (! set-bigits-after-fixnum-overflow node-dest)
         (@ no-overflow))
       (let* ((arg_z ($ x8664::arg_z))
-             (imm0 ($ x8664::imm0 :mode :s64)))
+             (imm0 (make-wired-lreg x8664::imm0 :mode (get-regspec-mode s64-src))))
         (x862-copy-register seg imm0 s64-src)
         (! call-subprim (subprim-name->offset '.SPmakes64))
         (x862-copy-register seg node-dest arg_z)))))
@@ -2317,7 +2317,7 @@
           (declare (fixnum cell))
           (if downward-p
             (progn
-              (! make-fixed-stack-vector
+              (! make-fixed-stack-gvector
                  dest
                  (ash (logandc2 (+ vsize 2) 1) (arch::target-word-shift arch))
                  (arch::make-vheader vsize (nx-lookup-target-uvector-subtag :function)))
@@ -3084,128 +3084,130 @@
             ;; "Copying" a GPR to a CR field means comparing it to rnil
             (! compare-to-nil src)
             (if (and dest-gpr src-gpr)
-              ;; This is the "GPR <- GPR" case.  There are
-              ;; word-size dependencies, but there's also
-              ;; lots of redundancy here.
-              (target-arch-case
-               
-               (:x8664
-                (ecase dest-mode
-                  (#.hard-reg-class-gpr-mode-node ; boxed result.
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (unless (eql  dest-gpr src-gpr)
-                        (! copy-gpr dest src)))
-                     (#.hard-reg-class-gpr-mode-u64
-                      (x862-box-u64 seg dest src))
-                     (#.hard-reg-class-gpr-mode-s64
-                      (x862-box-s64 seg dest src))
-                     (#.hard-reg-class-gpr-mode-u32
-                      (x862-box-u32 seg dest src))
-                     (#.hard-reg-class-gpr-mode-s32
-                      (x862-box-s32 seg dest src))
-                     (#.hard-reg-class-gpr-mode-u16
-                      (! box-fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-s16
-                      (! box-fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-u8
-                      (! box-fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-s8
-                      (! box-fixnum dest src))
-                     (#.hard-reg-class-gpr-mode-address
-                      (x862-macptr->heap seg dest src))))
-                  ((#.hard-reg-class-gpr-mode-u64
-                    #.hard-reg-class-gpr-mode-address)
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (let* ((src-type (get-node-regspec-type-modes src)))
-                        (declare (fixnum src-type))
-                        (case dest-mode
-                          (#.hard-reg-class-gpr-mode-u64
-                           (! unbox-u64 dest src))
-                          (#.hard-reg-class-gpr-mode-address
-                           (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
-                             (! trap-unless-macptr src))
-                           (! deref-macptr dest src)))))
-                     ((#.hard-reg-class-gpr-mode-u64
-                       #.hard-reg-class-gpr-mode-s64
-                       #.hard-reg-class-gpr-mode-address)
-                      (unless (eql  dest-gpr src-gpr)
-                        (! copy-gpr dest src)))
-                     ((#.hard-reg-class-gpr-mode-u16
-                       #.hard-reg-class-gpr-mode-s16)
-                      (! u16->u32 dest src))
-                     ((#.hard-reg-class-gpr-mode-u8
-                       #.hard-reg-class-gpr-mode-s8)
-                      (! u8->u32 dest src))))
-                  (#.hard-reg-class-gpr-mode-s32
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-s32 dest src))
-                     ((#.hard-reg-class-gpr-mode-u32
-                       #.hard-reg-class-gpr-mode-s32
-                       #.hard-reg-class-gpr-mode-address)
-                      (unless (eql  dest-gpr src-gpr)
-                        (! copy-gpr dest src)))
-                     (#.hard-reg-class-gpr-mode-u16
-                      (! u16->u32 dest src))                 
-                     (#.hard-reg-class-gpr-mode-s16
-                      (! s16->s32 dest src))
-                     (#.hard-reg-class-gpr-mode-u8
-                      (! u8->u32 dest src))
-                     (#.hard-reg-class-gpr-mode-s8
-                      (! s8->s32 dest src))))
-                  (#.hard-reg-class-gpr-mode-u32
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-u32 dest src))
-                     ((#.hard-reg-class-gpr-mode-u32
-                       #.hard-reg-class-gpr-mode-s32)
-                      (unless (eql  dest-gpr src-gpr)
-                        (! copy-gpr dest src)))
-                     (#.hard-reg-class-gpr-mode-u16
-                      (! u16->u32 dest src))                 
-                     (#.hard-reg-class-gpr-mode-s16
-                      (! s16->s32 dest src))
-                     (#.hard-reg-class-gpr-mode-u8
-                      (! u8->u32 dest src))
-                     (#.hard-reg-class-gpr-mode-s8
-                      (! s8->s32 dest src))))
-                  (#.hard-reg-class-gpr-mode-u16
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-u16 dest src))
-                     ((#.hard-reg-class-gpr-mode-u8
-                       #.hard-reg-class-gpr-mode-s8)
-                      (! u8->u32 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src)))))
-                  (#.hard-reg-class-gpr-mode-s16
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-s16 dest src))
-                     (#.hard-reg-class-gpr-mode-s8
-                      (! s8->s32 dest src))
-                     (#.hard-reg-class-gpr-mode-u8
-                      (! u8->u32 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src)))))
-                  (#.hard-reg-class-gpr-mode-u8
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-u8 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src)))))
-                  (#.hard-reg-class-gpr-mode-s8
-                   (case src-mode
-                     (#.hard-reg-class-gpr-mode-node
-                      (! unbox-s8 dest src))
-                     (t
-                      (unless (eql dest-gpr src-gpr)
-                        (! copy-gpr dest src))))))))
+              (if (eq src-mode dest-mode)
+                (unless (eq src-gpr dest-gpr)
+                  (! copy-gpr dest src))
+                ;; This is the "GPR <- GPR" case.  There are
+                ;; word-size dependencies, but there's also
+                ;; lots of redundancy here.
+                (target-arch-case
+                 (:x8664
+                  (ecase dest-mode
+                    (#.hard-reg-class-gpr-mode-node ; boxed result.
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u64
+                        (x862-box-u64 seg dest src))
+                       (#.hard-reg-class-gpr-mode-s64
+                        (x862-box-s64 seg dest src))
+                       (#.hard-reg-class-gpr-mode-u32
+                        (x862-box-u32 seg dest src))
+                       (#.hard-reg-class-gpr-mode-s32
+                        (x862-box-s32 seg dest src))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! box-fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! box-fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! box-fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! box-fixnum dest src))
+                       (#.hard-reg-class-gpr-mode-address
+                        (x862-macptr->heap seg dest src))))
+                    ((#.hard-reg-class-gpr-mode-u64
+                      #.hard-reg-class-gpr-mode-address)
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (let* ((src-type (get-node-regspec-type-modes src)))
+                          (declare (fixnum src-type))
+                          (case dest-mode
+                            (#.hard-reg-class-gpr-mode-u64
+                             (! unbox-u64 dest src))
+                            (#.hard-reg-class-gpr-mode-address
+                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                               (! trap-unless-macptr src))
+                             (! deref-macptr dest src)))))
+                       ((#.hard-reg-class-gpr-mode-u64
+                         #.hard-reg-class-gpr-mode-s64
+                         #.hard-reg-class-gpr-mode-address)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       ((#.hard-reg-class-gpr-mode-u16
+                         #.hard-reg-class-gpr-mode-s16)
+                        (! u16->u32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u8
+                         #.hard-reg-class-gpr-mode-s8)
+                        (! u8->u32 dest src))))
+                    (#.hard-reg-class-gpr-mode-s32
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u32
+                         #.hard-reg-class-gpr-mode-s32
+                         #.hard-reg-class-gpr-mode-address)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! u16->u32 dest src))                 
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! s16->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))))
+                    (#.hard-reg-class-gpr-mode-u32
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u32
+                         #.hard-reg-class-gpr-mode-s32)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       (#.hard-reg-class-gpr-mode-u16
+                        (! u16->u32 dest src))                 
+                       (#.hard-reg-class-gpr-mode-s16
+                        (! s16->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))))
+                    (#.hard-reg-class-gpr-mode-u16
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u16 dest src))
+                       ((#.hard-reg-class-gpr-mode-u8
+                         #.hard-reg-class-gpr-mode-s8)
+                        (! u8->u32 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-s16
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s16 dest src))
+                       (#.hard-reg-class-gpr-mode-s8
+                        (! s8->s32 dest src))
+                       (#.hard-reg-class-gpr-mode-u8
+                        (! u8->u32 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-u8
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-u8 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))
+                    (#.hard-reg-class-gpr-mode-s8
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s8 dest src))
+                       (t
+                        (unless (eql dest-gpr src-gpr)
+                          (! copy-gpr dest src)))))))))
               (if src-gpr
                 (if dest-fpr
                   (progn
@@ -4025,10 +4027,12 @@
                            (incf count)))))
              (header (arch::make-vheader n subtag)))
         (declare (fixnum n nntriv))
-        (cond ( (or *x862-open-code-inline* (> nntriv 3))
+        (cond ((or *x862-open-code-inline* (> nntriv 3))
                (x862-formlist seg initforms nil)
                (x862-lri seg x8664::imm0 header)
-               (! %x86-gvector vreg x8664::imm0 (ash n (arch::target-word-shift arch))))
+               (x862-lri seg x8664::imm1 (- (ash (logandc2 (+ n 2) 1) (arch::target-word-shift arch)) (target-arch-case  (:x8664 x8664::fulltag-misc))))
+               (unless (eql n 0)
+               (! %init-gvector vreg  (ash n (arch::target-word-shift arch)))))
               (t
                (let* ((pending ())
                       (vstack *x862-vstack*))
@@ -5995,8 +5999,6 @@
          (x862-form seg nil xfer form2))
         
         (t                              
-         ;; There isn't any "addi" that checks for overflow, which is
-         ;; why we didn't bother.
          (let* ((fix1 (acode-fixnum-form-p form1))
                 (fix2 (acode-fixnum-form-p form2))
                 (other (if (and fix1
@@ -6053,21 +6055,34 @@
            ((null vreg)
             (x862-form seg nil nil num1)
             (x862-form seg nil xfer num2))
-           (overflow
-            (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x8664::arg_y num2 x8664::arg_z)
-               (ensuring-node-target (target vreg)
-                 (if *x862-open-code-inline*
-                   (! fixnum-sub-overflow-inline target r1 r2)
-                   (progn
-                     (! fixnum-sub-overflow-ool r1 r2)
-                     (x862-copy-register seg target ($ x8664::arg_z)))))
-              (^)))
-           (t
-              (ensuring-node-target (target vreg)
-                (with-node-target (target) r1
-                  (x862-two-targeted-reg-forms seg num1 target num2 r1)
-                  (! fixnum-subtract-from target r1 target))
-                (^)))))))))
+           (t                              
+            (let* ((fix1 (acode-fixnum-form-p num1))
+                   (fix2 (acode-fixnum-form-p num2))
+                   (other (if (and fix2
+                                   (typep (ash fix2 *x862-target-fixnum-shift*)
+                                          '(signed-byte 32)))
+                            num1)))
+              (if (and fix1 fix2)
+                (x862-lri seg vreg (ash (- fix1 fix2) *x862-target-fixnum-shift*))
+                (if other
+                  (let* ((constant (ash fix2 *x862-target-fixnum-shift*)))
+                    (if overflow
+                      (ensuring-node-target (target vreg)
+                        (x862-one-targeted-reg-form seg other target)
+                        (unless (zerop constant)
+                          (! sub-constant target constant)
+                          (x862-check-fixnum-overflow seg target)))
+                      (ensuring-node-target (target vreg)
+                        (let* ((reg (x862-one-untargeted-reg-form seg other target)))
+                          (! sub-constant3 target reg constant)))))
+                    (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x8664::arg_y num2 x8664::arg_z)
+                      ;; This isn't guaranteed to set the overflow flag,
+                      ;; but may do so.
+                      (ensuring-node-target (target vreg)
+                        (! fixnum-sub2 target r1 r2)
+                        (if overflow
+                          (x862-check-fixnum-overflow seg target))))))))
+           (^)))))))
 
 (defx862 x862-%i* %i* (seg vreg xfer num1 num2)
   (if (null vreg)
