@@ -85,6 +85,10 @@
   (single-value-return))
 
 
+(eval-when (:compile-toplevel)
+  (warn "Fix WALK-STATIC-AREA for x86-64"))
+
+#+notyet
 (defx86lapfunction walk-static-area ((a arg_y) (f arg_z))
   (let ((fun save0)
         (obj save1)
@@ -172,7 +176,10 @@
 ;;; (or at least preserves the relative order of objects in the heap.)
 
 
-
+(eval-when (:compile-toplevel)
+  (warn "fix %WALK-DYNAMIC-AREA for x86-64"))
+  
+#+notyet
 (defx86lapfunction %walk-dynamic-area ((a arg_y) (f arg_z))
   (let ((fun save0)
         (obj save1)
@@ -270,36 +277,30 @@
 
 (defx86lapfunction class-of ((x arg_z))
   (check-nargs 1)
-  (extract-fulltag imm0 x)
-  (cmpri imm0 x8664::fulltag-misc)
-  (beq @misc)
-  (extract-lowbyte imm0 x)
-  (b @done)
-  @misc
-  (extract-subtag imm0 x)
-  @done
-  (slri imm0 imm0 x8664::word-shift)
-  (ldr temp1 '*class-table* nfn)
-  (addi imm0 imm0 x8664::misc-data-offset)
-  (ldr temp1 x8664::symbol.vcell temp1)
-  (ldrx temp0 temp1 imm0) ; get entry from table
-  (cmpri cr0 temp0 nil)
-  (beq @bad)
-  ;; functionp?
-  (extract-typecode imm1 temp0)
-  (cmpri imm1 x8664::subtag-function)
-  (bne @ret)  ; not function - return entry
-  ;; else jump to the fn
-  (mr nfn temp0)
-  (ldr temp0 x8664::misc-data-offset temp0)
-  (SET-NARGS 1)
-  (mtctr temp0)
-  (bctr)
+  (extract-fulltag x imm0)
+  (cmpb ($ x8664::fulltag-misc) (% imm0))
+  (movq (@ '*class-table (% fn)) (% temp1))
+  (cmovneq (% x) (% imm0))
+  (cmovew (@ x8664::misc-subtag-offset (% x)) (%w imm0))
+  (movzbl (%b imm0) (%l imm0))
+  (movq (@ x8664::symbol.vcell (% temp1)) (%  temp1))
+  (movq (@ x8664::misc-data-offset (% temp1) (% imm0) 8) (% temp0))
+  (cmpb ($ x8664::fulltag-nil) (%b temp0))
+  (je @bad)
+  (extract-fulltag temp0 imm0)
+  (cmpb ($ x8664::fulltag-function) (%b temp0))
+  (jne @ret)
+  (xchgq (% temp0)(% fn))
+  (set-nargs 1)
+  (jmp (% fn))
   @bad
-  (ldr fname 'no-class-error nfn)
-  (ba .spjmpsym)
+  (movq (@ 'no-class-error (% fn)) (% fname))
+  (set-nargs 1)
+  (movq (% fn) (% xfn))
+  (movq (@ x8664::symbol.fcell (% fname)) (% fn))
+  (jmp (% fn))
   @ret
-  (mr arg_z temp0)  ; return frob from table
+  (movq (% temp0) (% arg_z))  ; return frob from table
   (single-value-return))
 
 (defx86lapfunction full-gccount ()
@@ -314,7 +315,7 @@
   (check-nargs 0)
   (movq ($ arch::gc-trap-function-gc) (% imm0))
   (uuo-gc-trap)
-  (movq ($ nil) (% arg_z)
+  (movq ($ nil) (% arg_z))
   (single-value-return))
 
 
@@ -365,9 +366,9 @@ of free space to leave in the heap after full GC."
   (movq ($ arch::gc-trap-function-get-lisp-heap-threshold) (% imm0))
   (uuo-gc-trap)
   #+x8632-target
-  (jump-subprim .SPmakeu32)
+  (jmp-subprim .SPmakeu32)
   #+x8664-target
-  (jump-subprim .SPmakeu64))
+  (jmp-subprim .SPmakeu64))
 
 (defx86lapfunction set-lisp-heap-gc-threshold ((new arg_z))
   "Set the value of the kernel variable that specifies the amount of free
@@ -375,58 +376,48 @@ space to leave in the heap after full GC to new-value, which should be a
 non-negative fixnum. Returns the value of that kernel variable (which may
 be somewhat larger than what was specified)."
   (check-nargs 1)
-  (mflr loc-pc)
-  #+ppc32-target
-  (bla .SPgetu32)
-  #+ppc64-target
-  (bla .SPgetu64)
-  (mtlr loc-pc)
-  (mr imm1 imm0)
-  (li imm0 arch::gc-trap-function-set-lisp-heap-threshold)
-  (trlgei allocptr 0)
-  #+ppc32-target
-  (ba .SPmakeu32)
-  #+ppc64-target
-  (ba .SPmakeu64))
+  (save-simple-frame)
+  (call-subprim .SPgetu64)
+  (movq (% imm0) (% imm1))
+  (movq ($ arch::gc-trap-function-set-lisp-heap-threshold) (% imm0))
+  (uuo-gc-trap)
+  (restore-simple-frame)
+  (jmp-subprim .SPmakeu64))
 
 
 (defx86lapfunction use-lisp-heap-gc-threshold ()
-  "Try to grow or shrink lisp's heap space, so that the free space is(approximately) equal to the current heap threshold. Return NIL"
+  "Try to grow or shrink lisp's heap space, so that the free space is (approximately) equal to the current heap threshold. Return NIL"
   (check-nargs 0) 
-  (li imm0 arch::gc-trap-function-use-lisp-heap-threshold)
-  (trlgei allocptr 0)
-  (li arg_z nil)
+  (movq ($ arch::gc-trap-function-use-lisp-heap-threshold) (% imm0))
+  (uuo-gc-trap)
+  (movl ($ x8664::nil-value) (%l arg_z))
   (single-value-return))
 
-
-
-  
 
 
 ;;; offset is a fixnum, one of the x8664::kernel-import-xxx constants.
 ;;; Returns that kernel import, a fixnum.
 (defx86lapfunction %kernel-import ((offset arg_z))
-  (ref-global imm0 kernel-imports)
-  (unbox-fixnum imm1 arg_z)
-  (ldrx arg_z imm0 imm1)
+  (ref-global kernel-imports imm0)
+  (unbox-fixnum arg_z imm1)
+  (movq (@ (% imm0) (% imm1)) (% arg_z))
   (single-value-return))
 
 (defx86lapfunction %get-unboxed-ptr ((macptr arg_z))
-  (macptr-ptr imm0 arg_z)
-  (ldr arg_z 0 imm0)
+  (macptr-ptr arg_z imm0)
+  (movq (@ (% imm0)) (% arg_z))
   (single-value-return))
 
 
 (defx86lapfunction %revive-macptr ((p arg_z))
-  (li imm0 x8664::subtag-macptr)
-  (stb imm0 x8664::misc-subtag-offset p)
+  (movb ($ x8664::subtag-macptr) (@ x8664::misc-subtag-offset (% p)))
   (single-value-return))
 
 (defx86lapfunction %macptr-type ((p arg_z))
   (check-nargs 1)
   (trap-unless-typecode= p x8664::subtag-macptr)
-  (svref imm0 x8664::macptr.type-cell p)
-  (box-fixnum arg_z imm0)
+  (svref p x8664::macptr.type-cell imm0)
+  (box-fixnum imm0 arg_z)
   (single-value-return))
   
 (defx86lapfunction %macptr-domain ((p arg_z))
