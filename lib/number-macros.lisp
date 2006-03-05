@@ -17,24 +17,12 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
-  (require "PPC32-ARCH" )
-  (require "PPC-LAPMACROS")
   (require "LISPEQU")
   )
 
-(defmacro %make-sfloat ()
-  (target-arch-case
-   (:ppc32
-    `(%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float))
-   (:ppc64
-    (error "%MAKE-SFLOAT shouldn't be used in code targeting PPC64"))))
+(declare-arch-specific-macro %make-sfloat)
 
-(defmacro %make-dfloat ()
-  (target-arch-case
-   (:ppc32
-    `(%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float))
-   (:ppc64
-    `(%alloc-misc ppc64::double-float.element-count ppc64::subtag-double-float))))
+(declare-arch-specific-macro %make-dfloat)
 
 (defmacro require-null-or-double-float-sym (sym)
   (setq sym (require-type sym 'symbol))
@@ -42,25 +30,13 @@
      (setq ,sym (require-type ,sym 'double-float))))
 
 
-(defmacro %numerator (x)
-  (target-arch-case
-   (:ppc32 `(%svref ,x ppc32::ratio.numer-cell))
-   (:ppc64 `(%svref ,x ppc64::ratio.numer-cell))))
+(declare-arch-specific-macro %numerator)
 
-(defmacro %denominator (x)
-  (target-arch-case
-   (:ppc32 `(%svref ,x ppc32::ratio.denom-cell))
-   (:ppc64 `(%svref ,x ppc64::ratio.denom-cell))))
+(declare-arch-specific-macro %denominator)
 
-(defmacro %realpart (x)
-  (target-arch-case
-   (:ppc32 `(%svref ,x ppc32::complex.realpart-cell))
-   (:ppc64 `(%svref ,x ppc64::complex.realpart-cell))))
+(declare-arch-specific-macro %realpart)
 
-(defmacro %imagpart (x)
-  (target-arch-case
-   (:ppc32 `(%svref ,x ppc32::complex.imagpart-cell))
-   (:ppc64 `(%svref ,x ppc64::complex.imagpart-cell))))
+(declare-arch-specific-macro %imagpart)
 
 
 (defmacro with-stack-double-floats (specs &body body)
@@ -80,7 +56,7 @@
       ,@(inits)
       ,@body)))
 
-(setf (macro-function 'with-ppc-stack-double-floats) (macro-function 'with-stack-double-floats))
+
 
 
 
@@ -161,4 +137,4 @@
 
 (provide "NUMBER-MACROS")
 
-; end of number-macros.lisp
+;;; end of number-macros.lisp
