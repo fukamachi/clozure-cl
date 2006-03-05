@@ -174,7 +174,10 @@
 (defconstant operand-optional 27)
 (defconstant operand-fake 28)
 
-(defstruct (target-arch (:conc-name target-))
+(defvar *known-target-archs* ())
+
+(defstruct (target-arch (:conc-name target-)
+                        (:constructor %make-target-arch))
   (name nil)
   (lisp-node-size 0)
   (nil-value 0)
@@ -221,8 +224,40 @@
   (symbol-tag-is-subtag nil)
   (function-tag nil)
   (function-tag-is-subtag nil)
-  (big-endian t))
+  (big-endian t)
+  (target-macros (make-hash-table :test #'eq)))
   
+(defun make-target-arch (&rest keys)
+  (declare (dynamic-extent keys))
+  (let* ((arch (apply #'%make-target-arch keys))
+         (tail (member (target-name arch) *known-target-archs*
+                       :key #'target-name
+                       :test #'eq)))
+    (if tail
+      (rplaca tail arch)
+      (push arch *known-target-archs*))
+    arch))
+
+(defun find-target-arch (name)
+  (car (member name *known-target-archs*
+               :key #'target-name
+               :test #'eq)))
+
+(defun target-arch-macros (arch-name)
+  (let* ((arch (or (find-target-arch arch-name)
+                   (error "unknown arch: ~s" arch-name))))
+    (target-target-macros arch)))
+
+(defmacro defarchmacro (arch-name name arglist &body body &environment env)
+  (let* ((lambda-form (ccl::parse-macro-1 name arglist body env)))
+    `(progn
+      (setf (gethash ',name (target-arch-macros ',arch-name))
+       (ccl::nfunction ,name ,lambda-form))
+      ',name)))
+
+(defun arch-macro-function (arch-name name)
+  (gethash name (target-arch-macros arch-name)))
+    
 
 
 ;;; GC related operations
