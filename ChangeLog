@@ -1,3 +1,56 @@
+2006-03-04 19:13  gb
+
+	* lib/nfcomp.lisp: Some conditionalization.
+
+2006-03-04 19:12  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: More stuff.  Need to review
+	float arithmetic.
+
+2006-03-04 19:11  gb
+
+	* level-0/l0-float.lisp: Comment indentation.
+
+2006-03-04 19:11  gb
+
+	* level-0/X86/x86-utils.lisp: Fix a few typos; needs more work.
+
+2006-03-04 18:30  gb
+
+	* lib/foreign-types.lisp: Can use TARGET-WORD-SIZE-CASE instead of
+	TARGET-ARCH-CASE.
+
+2006-03-04 18:29  gb
+
+	* lib/macros.lisp: New arch-specific macros. (Still need to do
+	something about DEFCALLBACK and related functions.)
+
+2006-03-04 18:29  gb
+
+	* lib/number-macros.lisp: New arch-specific macros.
+
+2006-03-04 18:28  gb
+
+	* compiler/X86/x862.lisp: Keep unboxed float constants in the
+	function (as aligned words following "real" instructions and
+	preceding boxed constants.)
+
+2006-03-04 18:26  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: Remove some remaining uses of
+	TARGET-ARCH-CASE by using arch-specific macro implementations.
+
+2006-03-04 18:25  gb
+
+	* compiler/backend.lisp: Mechanism for arch-specific macros.
+
+2006-03-04 18:24  gb
+
+	* compiler/arch.lisp: New constructor, so that we can keep track of
+	defined target-archs.  Hash table in each arch structure, for
+	arch-dependent macros.
+
 2006-03-03 19:38  gb
 
 	* lib/number-macros.lisp: Will need a lot more work.
