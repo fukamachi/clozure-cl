@@ -130,9 +130,7 @@
               (listp (cdr name-or-offset-form))
               (symbolp (cadr name-or-offset-form))
               (null (cddr name-or-offset-form)))
-         (target-arch-case
-          (:ppc32 (ppc32::%kernel-global (cadr name-or-offset-form)))
-          (:ppc64 (ppc64::%kernel-global (cadr name-or-offset-form)))))
+         (%target-kernel-global (cadr name-or-offset-form)))
         ((fixnump name-or-offset-form)
          name-or-offset-form)
         (t `(%kernel-global-offset ,name-or-offset-form))))
@@ -141,21 +139,11 @@
 ; at compile time if possible. Probably should be done as a function
 ; and a compiler macro, but we can't define compiler macros yet,
 ; and I don't want to add it to "ccl:compiler;optimizers.lisp"
-(defmacro %get-kernel-global (name-or-offset)
-  (target-arch-case
-   (:ppc32
-    `(%fixnum-ref 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset))))
-   (:ppc64
-    `(%fixnum-ref 0 (+ ppc64::nil-value  ,(%kernel-global-offset-form name-or-offset))))))
+(declare-arch-specific-macro %get-kernel-global))
 
-(defmacro %get-kernel-global-ptr (name-or-offset dest)
-  (target-arch-case
-   (:ppc32
-    `(%setf-macptr ,dest
-      (%fixnum-ref-natural 0 (+ ppc32::nil-value  ,(%kernel-global-offset-form name-or-offset)))))
-   (:ppc64
-    `(%setf-macptr ,dest
-      (%fixnum-ref-natural 0 (+ ppc64::nil-value  ,(%kernel-global-offset-form name-or-offset)))))))
+(declare-arch-specific-macro %get-kernel-global-ptr)
+
+(declare-arch-specific-macro %target-kernel-global)
 
 (defmacro %set-kernel-global (name-or-offset new-value)
   `(%set-kernel-global-from-offset
