@@ -1502,9 +1502,9 @@ result-type-specifer is :VOID or NIL"
           :address
           #+darwinppc-target
 	  (let* ((bits (ensure-foreign-type-bits ftype)))
-	    (ceiling bits (target-arch-case
-                           (:ppc32 32)
-                           (:ppc64 64))))))
+	    (ceiling bits (target-word-size-case
+                           (32 32)
+                           (64 64))))))
        (error "can't determine representation keyword for ~s" f)))))
 
 (defun foreign-record-accessor-names (record-type &optional prefix)
