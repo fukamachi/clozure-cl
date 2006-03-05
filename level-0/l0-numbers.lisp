@@ -49,9 +49,9 @@
 
   (defmacro sfloat-rat (op x y &optional (destructive-op (cdr (assq op *sfloat-dops*))))
     (let* ((use-destructive-op
-            (target-arch-case
-             (:ppc32 destructive-op)
-             (:ppc64 nil))))
+            (target-word-size-case
+             (32 destructive-op)
+             (64 nil))))
       (if use-destructive-op
 	(let ((f2 (gensym)))
 	  `(let ((,f2 (%short-float ,y (%make-sfloat)))) 
@@ -60,9 +60,9 @@
 
   (defmacro rat-sfloat (op x y &optional (destructive-op (cdr (assq op *sfloat-dops*))))
     (let* ((use-destructive-op
-            (target-arch-case
-             (:ppc32 destructive-op)
-             (:ppc64 nil))))
+            (target-word-size-case
+             (32 destructive-op)
+             (64 nil))))
       (if use-destructive-op
         (let ((f1 (gensym)))
           `(let ((,f1 (%short-float ,x (%make-sfloat)))) 
@@ -178,7 +178,7 @@
   (defdestructive-df-op %double-float*-2 %double-float*-2! *)
   (defdestructive-df-op %double-float/-2 %double-float/-2! /))
 
-#-ppc64-target
+#-64-bit-target
 (macrolet ((defdestructive-sf-op (non-destructive-name destructive-name op)
              `(progn
                 (defun ,non-destructive-name (x y)
