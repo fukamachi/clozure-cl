@@ -111,6 +111,14 @@
       (uuo-error-reg-not-tag (% ,node) ($ ,tag))
       ,ok)))
 
+(defx86lapmacro trap-unless-fixnum (node)
+  (let* ((ok (gensym)))
+    `(progn
+      (testb ($ x8664::tagmask) (%b ,node))
+      (je.pt ,ok)
+      (uuo-error-reg-not-fixnum (% ,node))
+      ,ok)))
+
 ;;; On x8664, NIL has its own tag, so no other lisp object can
 ;;; have the same low byte as NIL.  (That probably won't be
 ;;; true on x8632.)
@@ -295,7 +303,7 @@
       (set-nargs ,nargs)
       (lea (@ (:^ ,return) (% fn)) (% ra0))
       (movq (@ x8664::symbol.fcell (% fname)) (% fn))
-      (jmp (* (% fn)))
+      (jmp (% fn))
       (:tra ,return)
       (recover-fn-from-ra0 ,return))))
 
@@ -313,3 +321,20 @@
     (set-nargs ,nargs)
     (jmp (% fn))))
 
+(defx86lapmacro push-argregs ()
+  (let* ((done (gensym))
+         (yz (gensym))
+         (z (gensym)))
+  `(progn
+    (testw (% nargs) (% nargs))
+    (je ,done)
+    (cmpw ($ '2) (% nargs))
+    (je ,yz)
+    (jb ,z)
+    (push (% arg_x))
+    ,yz
+    (push (% arg_y))
+    ,z
+    (push (% arg_z))
+    ,done)))
+    
