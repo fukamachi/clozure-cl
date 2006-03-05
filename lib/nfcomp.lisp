@@ -39,6 +39,8 @@
 (require "PPC32-ARCH")
 #+ppc64-target
 (require "PPC64-ARCH")
+#+x8664-target
+(require "X8664-ARCH")
 ) ;eval-when (:compile-toplevel :execute)
 
 ;File compiler options.  Not all of these need to be exported/documented, but
@@ -973,6 +975,9 @@ Will differ from *compiling-file* during an INCLUDE")
           #.ppc64::fulltag-imm-1
           #.ppc64::fulltag-imm-2
           #.ppc64::fulltag-imm-3))
+        #+x8664-target
+        ((#.x8664::fulltag-imm-0
+          #.x8664::fulltag-imm-1))
         (t
          (if
            #+ppc32-target
@@ -1236,10 +1241,10 @@ Will differ from *compiling-file* during an INCLUDE")
     (simple-vector (fasl-dump-gvector exp $fasl-t-vector))
     (ratio (fasl-dump-ratio exp))
     (complex (fasl-dump-complex exp))
-    #+(and ppc64-target (not cross-compiling))
+    #+(and 64-bit-target (not cross-compiling))
     ((simple-array (unsigned-byte 64) (*))
      (fasl-dump-64-bit-ivector exp $fasl-u64-vector))
-    #+(and ppc64-target (not cross-compiling))
+    #+(and 64-bit-target (not cross-compiling))
     ((simple-array (signed-byte 64) (*))
      (fasl-dump-64-bit-ivector exp $fasl-s64-vector))
     (vector (fasl-dump-gvector exp $fasl-vector-header))
