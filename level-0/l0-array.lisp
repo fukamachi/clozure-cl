@@ -102,6 +102,71 @@
      unused
      unused))
 
+#+x8664-target
+(progn
+(defconstant x8664::*immheader-0-array-types*
+  ;; ivector-class-other-bit
+  #(unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    (signed-byte 16)
+    (unsigned-byte 16)
+    character
+    (signed-byte 8)
+    (unsigned-byte 8)
+    bit
+    ))
+
+(defconstant x8664::*immheader-1-array-types*
+    ;; ivector-class-32-bit
+  #(
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    (signed-byte 32)
+    (unsigned-byte 32)
+    single-float))
+
+(defconstant x8664::*immheader-2-array-types*
+  ;; ivector-class-64-bit
+  #(
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    unused
+    (signed-byte 64)
+    (unsigned-byte 64)
+    double-float))
+    
+)
+
+
 (defun array-element-type (array)
   "Return the type of the elements of the array"
   (let* ((subtag (if (%array-is-header array)
@@ -110,11 +175,23 @@
     (declare (fixnum subtag))
     (if (= subtag target::subtag-simple-vector)
       t                                 ; only node CL array type
+      #+ppc-target
       (svref target::*immheader-array-types*
              #+ppc32-target
              (ash (the fixnum (- subtag ppc32::min-cl-ivector-subtag)) -3)
              #+ppc64-target
-             (ash (the fixnum (logand subtag #x7f)) (- ppc64::nlowtagbits))))))
+             (ash (the fixnum (logand subtag #x7f)) (- ppc64::nlowtagbits)))
+      #+x8664-target
+      (let* ((class (logand subtag x8664::fulltagmask))
+             (idx (ash subtag (- x8664::ntagbits))))
+        (declare (fixnum class idx))
+        (cond ((= class x8664::ivector-class-64-bit)
+               (%svref x8664::*immheader-2-array-types* idx))
+              ((= class x8664::ivector-class-32-bit)
+               (%svref x8664::*immheader-1-array-types* idx))
+              (t
+               (%svref x8664::*immheader-0-array-types* idx))))
+      )))
 
 
 
