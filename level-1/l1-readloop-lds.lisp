@@ -336,7 +336,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
                                     :format-control (or string "")
                                     :format-arguments args)))
              (cbreak-loop "Break" "Return from BREAK." c fp))))
-    (cond ((%i> (interrupt-level) -1)
+    (cond ((%i> *interrupt-level* -1)
            (do-break-loop))
           (*break-loop-when-uninterruptable*
            (format *error-output* "Break while interrupt-level less than zero; binding to 0 during break-loop.")
