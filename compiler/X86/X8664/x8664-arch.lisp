@@ -1125,3 +1125,58 @@
                           :function-tag-is-subtag nil
                           :big-endian nil
                           ))
+
+;;; arch macros
+(defmacro defx8664archmacro (name lambda-list &body body)
+  `(arch::defarchmacro :x8664 ,name ,lambda-list ,@body))
+
+(defx8664archmacro ccl::%make-sfloat ()
+  (error "~s shouldn't be used in code targeting :X8664" 'ccl::%make-sfloat))
+
+(defx8664archmacro ccl::%make-dfloat ()
+  `(ccl::%alloc-misc x8664::double-float.element-count x8664::subtag-double-float))
+
+(defx8664archmacro ccl::%numerator (x)
+  `(ccl::%svref ,x x8664::ratio.numer-cell))
+
+(defx8664archmacro ccl::%denominator (x)
+  `(ccl::%svref ,x x8664::ratio.denom-cell))
+
+(defx8664archmacro ccl::%realpart (x)
+  `(ccl::%svref ,x x8664::complex.realpart-cell))
+                    
+(defx8664archmacro ccl::%imagpart (x)
+  `(ccl::%svref ,x x8664::complex.imagpart-cell))
+
+;;;
+(defx8664archmacro ccl::%get-single-float-from-double-ptr (ptr offset)
+ `(ccl::%double-float->short-float (ccl::%get-double-float ,ptr ,offset)))
+
+(defx8664archmacro ccl::codevec-header-p (word)
+  (declare (ignore word))
+  (error "~s makes no sense on :X8664" 'ccl::codevec-header-p))
+
+;;;
+
+(defx8664archmacro ccl::immediate-p-macro (thing)
+  (let* ((tag (gensym)))
+    `(let* ((,tag (lisptag ,thing)))
+      (declare (type (unsigned-byte 3) ,tag))
+      (logbitp ,tag (logior (ash 1 x8664::tag-fixnum)
+                    (ash 1 x8664::tag-imm-0)
+                    (ash 1 x8664::tag-imm-1))))))
+
+(defx8664archmacro ccl::hashed-by-identity (thing)
+  (let* ((typecode (gensym)))
+    `(let* ((,typecode (typecode ,thing)))
+      (declare (fixnum ,typecode))
+      (and (<= ,typecode x8664::subtag-instance)
+       (logbitp (the (integer 0 #.x8664::subtag-instance) ,typecode)
+        (logior (ash 1 x8664::tag-fixnum)
+                (ash 1 x8664::tag-imm-0)
+                (ash 1 x8664::tag-imm-1)
+                (ash 1 x8664::fulltag-symbol)
+                (ash 1 x8664::subtag-instance)))))))
+
+
+(provide "X8664-ARCH")

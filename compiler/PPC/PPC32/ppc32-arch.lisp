@@ -800,6 +800,54 @@
                           :function-tag-is-subtag t
                           :big-endian t
                           ))
-                          
-                          
+
+;;; arch macros
+(defmacro defppc32archmacro (name lambda-list &body body)
+  `(arch::defarchmacro :ppc32 ,name ,lambda-list ,@body))
+
+(defppc32archmacro ccl::%make-sfloat ()
+  `(ccl::%alloc-misc ppc32::single-float.element-count ppc32::subtag-single-float))
+
+(defppc32archmacro ccl::%make-dfloat ()
+  `(ccl::%alloc-misc ppc32::double-float.element-count ppc32::subtag-double-float))
+
+(defppc32archmacro ccl::%numerator (x)
+  `(ccl::%svref ,x ppc32::ratio.numer-cell))
+
+(defppc32archmacro ccl::%denominator (x)
+  `(ccl::%svref ,x ppc32::ratio.denom-cell))
+
+(defppc32archmacro ccl::%realpart (x)
+  `(ccl::%svref ,x ppc32::complex.realpart-cell))
+                    
+(defppc32archmacro ccl::%imagpart (x)
+  `(ccl::%svref ,x ppc32::complex.imagpart-cell))
+
+;;;
+(defppc32archmacro ccl::%get-single-float-from-double-ptr (ptr offset)
+ `(ccl::%double-float->short-float (ccl::%get-double-float ,ptr ,offset)
+   (ccl::%alloc-misc 1 ppc32::subtag-single-float)))
+
+(defppc32archmacro ccl::codevec-header-p (word)
+  `(eql ppc32::subtag-code-vector
+    (logand ,word ppc32::subtag-mask)))
+
+(defppc32archmacro ccl::immediate-p-macro (thing)
+  (let* ((tag (gensym)))
+    `(let* ((,tag (ccl::lisptag ,thing)))
+      (declare (fixnum ,tag))
+      (or (= ,tag ppc32::tag-fixnum)
+       (= ,tag ppc32::tag-imm)))))
+
+(defppc32archmacro ccl::hashed-by-identity (thing)
+  (let* ((typecode (gensym)))
+    `(let* ((,typecode (typecode ,thing)))
+      (declare (fixnum ,typecode))
+      (or
+       (= ,typecode ppc32::tag-fixnum)
+       (= ,typecode ppc32::tag-imm)
+       (= ,typecode ppc32::subtag-symbol)
+       (= ,typecode ppc32::subtag-instance)))))
+
+
 (provide "PPC32-ARCH")

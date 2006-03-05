@@ -865,4 +865,52 @@
                           :big-endian t
                           ))
 
+;;; arch macros
+(defmacro defppc64archmacro (name lambda-list &body body)
+  `(arch::defarchmacro :ppc64 ,name ,lambda-list ,@body))
+
+(defppc64archmacro ccl::%make-sfloat ()
+  (error "~s shouldn't be used in code targeting :PPC64" 'ccl::%make-sfloat))
+
+(defppc64archmacro ccl::%make-dfloat ()
+  `(ccl::%alloc-misc ppc64::double-float.element-count ppc64::subtag-double-float))
+
+(defppc64archmacro ccl::%numerator (x)
+  `(ccl::%svref ,x ppc64::ratio.numer-cell))
+
+(defppc64archmacro ccl::%denominator (x)
+  `(ccl::%svref ,x ppc64::ratio.denom-cell))
+
+(defppc64archmacro ccl::%realpart (x)
+  `(ccl::%svref ,x ppc64::complex.realpart-cell))
+                    
+(defppc64archmacro ccl::%imagpart (x)
+  `(ccl::%svref ,x ppc64::complex.imagpart-cell))
+
+;;;
+(defppc64archmacro ccl::%get-single-float-from-double-ptr (ptr offset)
+ `(ccl::%double-float->short-float (ccl::%get-double-float ,ptr ,offset)))
+
+(defppc64archmacro ccl::codevec-header-p (word)
+  `(eql ,word #$"CODE"))
+
+;;;
+
+(defppc64archmacro ccl::immediate-p-macro (thing)
+  (let* ((tag (gensym)))
+    `(let* ((,tag (lisptag ,thing)))
+      (declare (fixnum ,tag))
+      (or (= ,tag ppc64::tag-fixnum)
+       (= (logand ,tag ppc64::lowtagmask) ppc64::lowtag-imm)))))
+
+(defppc64archmacro ccl::hashed-by-identity (thing)
+  (let* ((typecode (gensym)))
+    `(let* ((,typecode (typecode ,thing)))
+      (declare (fixnum ,typecode))
+      (or
+       (= ,typecode ppc64::tag-fixnum)
+       (= (logand ,typecode ppc64::lowtagmask) ppc64::lowtag-imm)
+       (= ,typecode ppc64::subtag-symbol)
+       (= ,typecode ppc64::subtag-instance)))))
+
 (provide "PPC64-ARCH")
