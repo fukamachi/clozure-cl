@@ -1924,7 +1924,7 @@ to replace that class with ~s" name old-class new-class)
 				:slots-vector #'false)
 
 
-(defparameter *class-table*
+(defglobal *class-table*
   (let* ((v (make-array 256 :initial-element nil)))
     ;; Make one loop through the vector, initializing fixnum & list
     ;; cells.  Set all immediates to *immediate-class*, then
