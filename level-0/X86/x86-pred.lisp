@@ -69,7 +69,7 @@
   (pushq (@ x8664::ratio.denom (% y)))
   (movq (@ x8664::ratio.numer (% x)) (% x))       ; aka complex.realpart
   (movq (@ x8664::ratio.numer (% y)) (% y))       ; aka complex.realpart
-  (lea (@ (^ @back) (% fn)) (% ra0))
+  (lea (@ (:^ @back) (% fn)) (% ra0))
   (jmp @top)
   (:tra @back)
   (recover-fn-from-ra0 @back)
@@ -140,7 +140,7 @@
   (stack-probe)
   (movq (% temp0) (% x))
   (movq (% temp1) (% y))
-  (lea (@ (^ @back) (% fn)) (% ra0))
+  (lea (@ (:^ @back) (% fn)) (% ra0))
   (jmp @top)
   (:tra @back)
   (recover-fn-from-ra0 @back)
