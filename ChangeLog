@@ -1,3 +1,82 @@
+2006-03-05 06:17  gb
+
+	* xdump/xx8664-fasload.lisp: Closer ...
+
+2006-03-05 06:17  gb
+
+	* xdump/hashenv.lisp: Arch macros for hashing macros.
+
+2006-03-05 06:16  gb
+
+	* level-1/l1-lisp-threads.lisp: Arch macros for kernel globals.
+
+2006-03-05 06:16  gb
+
+	* level-1/l1-readloop-lds.lisp: Check *interrupt-level* value, not
+	(interrupt-level).
+
+2006-03-05 06:15  gb
+
+	* level-1/l1-clos-boot.lisp: Make *class-table* a global.
+
+2006-03-05 06:15  gb
+
+	* level-0/X86/X8664/x8664-bignum.lisp: use temp2.b (= cl) for
+	variable shifts.
+
+2006-03-05 06:14  gb
+
+	* level-0/nfasload.lisp: No code-vectors on x8664.
+
+2006-03-05 06:14  gb
+
+	* level-0/l0-numbers.lisp: Conditionalization: 64-bit-target
+	implies no (need for) destructive single-float ops.
+
+2006-03-05 06:13  gb
+
+	* level-0/l0-misc.lisp: Remove some unused stuff.
+
+2006-03-05 06:13  gb
+
+	* level-0/l0-array.lisp: array-element-type for x8664.
+
+2006-03-05 06:12  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: More stuff.
+
+2006-03-05 06:12  gb
+
+	* compiler/X86/x862.lisp: (Mostly) try to fix fixnum subtraction.
+
+2006-03-05 06:11  gb
+
+	* compiler/X86/x86-lapmacros.lisp: TRAP-UNLESS-FIXNUM,
+	PUSH-ARGREGS, some syntax fixes.
+
+2006-03-05 06:10  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: More arch macros.
+
+2006-03-05 06:10  gb
+
+	* compiler/backend.lisp: DECLARE-ARCH-SPECIFIC-MACRO returns macro
+	name.
+
+2006-03-05 06:09  gb
+
+	* level-0/X86/x86-utils.lisp: Warn for things that don't work yet;
+	other things compile.
+
+2006-03-05 06:08  gb
+
+	* level-0/X86/: x86-misc.lisp, x86-float.lisp: Compiles.
+
+2006-03-05 06:08  gb
+
+	* level-0/X86/x86-pred.lisp: Fix typos/new syntax.
+
 2006-03-04 19:13  gb
 
 	* lib/nfcomp.lisp: Some conditionalization.
