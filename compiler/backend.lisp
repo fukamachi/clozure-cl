@@ -434,4 +434,6 @@
              (car whole) (backend-target-arch-name *target-backend*)))))
 
 (defmacro declare-arch-specific-macro (name)
-  `(setf (macro-function ',name) #'backend-arch-macroexpand))
+  `(progn
+    (setf (macro-function ',name) #'backend-arch-macroexpand)
+    ',name))
