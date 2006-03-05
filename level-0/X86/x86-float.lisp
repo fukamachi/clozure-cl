@@ -236,7 +236,7 @@
 
 (defun %df-check-exception-1 (operation op0 fp-status)
   (declare (fixnum fp-status))
-  (unless (zerop status)
+  (unless (zerop fp-status)
     (%set-mxcsr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -245,7 +245,7 @@
 
 (defun %sf-check-exception-1 (operation op0 fp-status)
   (declare (type (unsigned-byte 6) fp-status))
-  (unless (zerop status)
+  (unless (zerop fp-status)
     (%set-mxcsr-status 0)
     ;; Ensure that operands are heap-consed
     (%fp-error-from-status fp-status 
@@ -324,7 +324,7 @@
         (:underflow underflow)
         (:division-by-zero division-by-zero)
         (:invalid invalid)
-        (:inexact inxexact))
+        (:inexact inexact))
       `(:rounding-mode ,rounding-mode
         :overflow ,overflow
         :underflow ,underflow
@@ -431,7 +431,7 @@
 
 (defun double-float-from-bits (high low)
   (let* ((f (%make-dfloat)))
-    (setf (uvref f target::double-float.val-hig-cell) high
+    (setf (uvref f target::double-float.val-high-cell) high
           (uvref f target::double-float.val-low-cell) low)
     f))
 
