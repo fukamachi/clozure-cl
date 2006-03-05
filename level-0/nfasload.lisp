@@ -490,6 +490,7 @@
 
 
 
+#-x86-target
 (deffaslop $fasl-code-vector (s)
   (let* ((element-count (%fasl-read-count s))
          (size-in-bytes (* 4 element-count))
