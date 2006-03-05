@@ -69,40 +69,10 @@
 (defconstant $nhash-rehashing-bit 17)
 
 )
-   
-(defmacro immediate-p-macro (thing)	; boot weirdness
-  (let* ((tag (gensym)))
-    (target-arch-case
-     (:ppc32
-      `(let* ((,tag (lisptag ,thing)))
-        (declare (fixnum ,tag))
-        (or (= ,tag ppc32::tag-fixnum)
-         (= ,tag ppc32::tag-imm))))
-      (:ppc64
-      `(let* ((,tag (lisptag ,thing)))
-        (declare (fixnum ,tag))
-        (or (= ,tag ppc64::tag-fixnum)
-            (= (logand ,tag ppc64::lowtagmask) ppc64::lowtag-imm)))))))
 
-(defmacro hashed-by-identity (thing)
-  (let* ((typecode (gensym)))
-    (target-arch-case
-     (:ppc32
-      `(let* ((,typecode (typecode ,thing)))
-        (declare (fixnum ,typecode))
-        (or
-         (= ,typecode ppc32::tag-fixnum)
-         (= ,typecode ppc32::tag-imm)
-         (= ,typecode ppc32::subtag-symbol)
-         (= ,typecode ppc32::subtag-instance))))
-     (:ppc64
-      `(let* ((,typecode (typecode ,thing)))
-        (declare (fixnum ,typecode))
-        (or
-         (= ,typecode ppc64::tag-fixnum)
-         (= (logand ,typecode ppc64::lowtagmask) ppc64::lowtag-imm)
-         (= ,typecode ppc64::subtag-symbol)
-         (= ,typecode ppc64::subtag-instance)))))))
+(declare-arch-specific-macro immediate-p-macro)
+
+(declare-arch-specific-macro hashed-by-identity)
           
 	 
   
@@ -116,22 +86,7 @@
   hti.prev-iterator)
 
 
-;;; The rehash-lock is exclusive.  It must be held by any thread that
-;;; might want to rehash the hash table (after GC.)
-(defmacro with-rehash-lock ((hash) &body body)
-  (declare (ignorable hash))
-#+actually-use-rehash-lock  
-  `(with-lock-grabbed ((nhash.rehash-lock ,hash))
-    ,@body)
-#-actually-use-rehash-lock
-  `(progn
-    ,@body)
-  )
 
-;;; There can (in general) be multiple simultaneous readers (GETHASH, etc)
-;;; of a hash table; write access requires exlusivity.
 
-(defmacro with-hash-read-lock ((hash) &body body)
-  `(with-read-lock ((nhash.exclusion-lock ,hash))
-    ,@body))
+
 
