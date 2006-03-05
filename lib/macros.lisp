@@ -2311,14 +2311,7 @@ incrementally, just like Lisp functions are.
 defcallback returns the callback pointer, e.g., the value of name."
   (define-callback name arglist body env))
 
-(defmacro %get-single-float-from-double-ptr (ptr offset)
-  (target-arch-case
-   (:ppc32
-    `(%double-float->short-float (%get-double-float ,ptr ,offset)
-      (%alloc-misc 1 ppc32::subtag-single-float)))
-   (:ppc64
-    `(%double-float->short-float (%get-double-float ,ptr ,offset)))
-      ))
+(declare-arch-specific-macro %get-single-float-from-double-ptr)
 
 (defvar *trace-print-functions* nil)
 (defun %trace-print-arg (stream arg val type)
@@ -2812,13 +2805,7 @@ slot-entry. Both setf and setq can be used to set the value of the slot."
   `(%scan-for-instr ,mask ,opcode ,fn ,pc-index ,tries))
 
 
-(defmacro codevec-header-p (word)
-  (target-arch-case
-   (:ppc32
-    `(eql ppc32::subtag-code-vector
-      (logand ,word ppc32::subtag-mask)))
-   (:ppc64
-    `(eql ,word #$"CODE"))))
+(declare-arch-specific-macro codevec-header-p)
 
 (defmacro match-instr (instr mask bits-to-match)
   `(eql (logand ,instr ,mask) ,bits-to-match))
