@@ -913,4 +913,16 @@
        (= ,typecode ppc64::subtag-symbol)
        (= ,typecode ppc64::subtag-instance)))))
 
+;;;
+(defppc64archmacro ccl::%get-kernel-global (name-or-offset)
+  `(ccl::%fixnum-ref 0 (+ ppc64::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset))))
+
+(defppc64archmacro ccl::%get-kernel-global-ptr (name-or-offset dest)
+  `(ccl::%setf-macptr
+    ,dest
+    (ccl::%fixnum-ref-natural 0 (+ ppc64::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset)))))
+
+(defppc64archmacro ccl::%target-kernel-global (name)
+  `(ppc64::%kernel-global ,name))
+
 (provide "PPC64-ARCH")

@@ -1160,7 +1160,7 @@
 
 (defx8664archmacro ccl::immediate-p-macro (thing)
   (let* ((tag (gensym)))
-    `(let* ((,tag (lisptag ,thing)))
+    `(let* ((,tag (ccl::lisptag ,thing)))
       (declare (type (unsigned-byte 3) ,tag))
       (logbitp ,tag (logior (ash 1 x8664::tag-fixnum)
                     (ash 1 x8664::tag-imm-0)
@@ -1168,7 +1168,7 @@
 
 (defx8664archmacro ccl::hashed-by-identity (thing)
   (let* ((typecode (gensym)))
-    `(let* ((,typecode (typecode ,thing)))
+    `(let* ((,typecode (ccl::typecode ,thing)))
       (declare (fixnum ,typecode))
       (and (<= ,typecode x8664::subtag-instance)
        (logbitp (the (integer 0 #.x8664::subtag-instance) ,typecode)
@@ -1177,6 +1177,18 @@
                 (ash 1 x8664::tag-imm-1)
                 (ash 1 x8664::fulltag-symbol)
                 (ash 1 x8664::subtag-instance)))))))
+
+;;;
+(defx8664archmacro ccl::%get-kernel-global (name-or-offset)
+  `(ccl::%fixnum-ref 0 (+ x8664::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset))))
+
+(defx8664archmacro ccl::%get-kernel-global-ptr (name-or-offset dest)
+  `(ccl::%setf-macptr
+    ,dest
+    (ccl::%fixnum-ref-natural 0 (+ x8664::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset)))))
+
+(defx8664archmacro ccl::%target-kernel-global (name)
+  `(x8664::%kernel-global ,name))
 
 
 (provide "X8664-ARCH")

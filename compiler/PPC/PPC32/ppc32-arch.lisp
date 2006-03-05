@@ -849,5 +849,16 @@
        (= ,typecode ppc32::subtag-symbol)
        (= ,typecode ppc32::subtag-instance)))))
 
+;;;
+(defppc32archmacro ccl::%get-kernel-global (name-or-offset)
+  `(ccl::%fixnum-ref 0 (+ ppc32::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset))))
+
+(defppc32archmacro ccl::%get-kernel-global-ptr (name-or-offset dest)
+  `(ccl::%setf-macptr
+    ,dest
+    (ccl::%fixnum-ref-natural 0 (+ ppc32::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset)))))
+
+(defppc32archmacro ccl::%target-kernel-global (name)
+  `(ppc32::%kernel-global ,name))
 
 (provide "PPC32-ARCH")
