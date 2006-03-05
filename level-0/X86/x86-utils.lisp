@@ -22,8 +22,8 @@
   ;; %address-of anything else is the address of that thing as an integer.
   (testb ($ x8664::fixnummask) (%b arg))
   (je @done)
-  (movq (% arg) (% imm0)
-  (jump-subprim .SPmakeu64)
+  (movq (% arg) (% imm0))
+  (jmp-subprim .SPmakeu64)
   @done
   (single-value-return))
 
@@ -45,11 +45,11 @@
     ; update active pointer for tsp area.
     (movq (@ (% rcontext) x8664::tcr.ts-area) (% address))
     (movq (@ (% rcontext) x8664::tcr.save-tsp) (% temp))
-    (movq (% temp) (@ x8664::area.active (@ address)))
+    (movq (% temp) (@ x8664::area.active (% address)))
     
     ;; Update active pointer for vsp area.
     (movq (@ (% rcontext) x8664::tcr.vs-area) (% address))
-    (movq (@ rsp) (@ x8664::area.active (% address)))
+    (movq (% rsp) (@ x8664::area.active (% address)))
 
     (ref-global all-areas arg_z)
     (movq (@ x8664::area.succ (% arg_z)) (% arg_z))
@@ -75,14 +75,13 @@
   (single-value-return))
 
 (defx86lapfunction %object-in-heap-area-p ((object arg_y) (area arg_z))
-  (ldr imm0 x8664::area.low area)
-  (cmplr cr0 object imm0)
-  (ldr imm1 x8664::area.active area)
-  (cmplr cr1 object imm1)
-  (li arg_z nil)
-  (bltlr cr0)
-  (bgelr cr1)
-  (la arg_z x8664::t-offset arg_z)
+  (rcmp (% object) (@ x8664::area.low (% area)))
+  (setae (%b imm0))
+  (rcmp (% object) (@ x8664::area.low (% area)))
+  (setb (%b imm1))
+  (andb (% imm1.b) (% imm0.b))
+  (andl ($ x8664::t-offset) (%l imm0))
+  (lea (@ x8664::nil-value (% imm0)) (% arg_z))
   (single-value-return))
 
 
