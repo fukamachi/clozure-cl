@@ -124,6 +124,7 @@
     name-or-offset
     (target::%kernel-global name-or-offset)))
 
+
 (defun %kernel-global-offset-form (name-or-offset-form)
   (cond ((and (listp name-or-offset-form)
               (eq 'quote (car name-or-offset-form))
@@ -135,15 +136,7 @@
          name-or-offset-form)
         (t `(%kernel-global-offset ,name-or-offset-form))))
 
-; This behaves like a function, but looks up the kernel global
-; at compile time if possible. Probably should be done as a function
-; and a compiler macro, but we can't define compiler macros yet,
-; and I don't want to add it to "ccl:compiler;optimizers.lisp"
-(declare-arch-specific-macro %get-kernel-global))
 
-(declare-arch-specific-macro %get-kernel-global-ptr)
-
-(declare-arch-specific-macro %target-kernel-global)
 
 (defmacro %set-kernel-global (name-or-offset new-value)
   `(%set-kernel-global-from-offset
