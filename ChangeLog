@@ -1,3 +1,14 @@
+2006-03-06 02:59  gb
+
+	* xdump/xfasload.lisp: Remove many uses of TARGET-ARCH-CASE (thus
+	removing many uses of ppc/ppc32/ppc64 package symbols.)  Some uses
+	remain.
+
+2006-03-06 02:57  gb
+
+	* lib/macros.lisp: Define TARGET-ARCH-CASE in terms of CASE, not
+	ECASE.
+
 2006-03-05 19:12  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: typecode, lisptag are in ccl
