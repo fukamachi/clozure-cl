@@ -527,7 +527,7 @@
                      (declare (ignorable regsave-label regsave-reg regsave-addr))
                      (when debug-info
                        (x86-lap-directive frag-list :quad 0))
-                     (when (or fname debug-info)
+                     (when fname
                        (x86-lap-directive frag-list :quad 0))
                      (x86-lap-directive frag-list :quad 0)
                      (relax-frag-list frag-list)
@@ -2998,6 +2998,23 @@
          (^ cr-bit true-p))
        (progn
          (! double-float-compare ireg jreg)
+         (ensuring-node-target (target dest)
+           (if (not true-p)
+             (setq cr-bit (logxor 1 cr-bit)))
+           (! cr-bit->boolean target cr-bit))
+         (^)))
+      (^))))
+
+(defun x862-compare-single-float-registers (seg vreg xfer ireg jreg cr-bit true-p)
+  (with-x86-local-vinsn-macros (seg vreg xfer)
+    (if vreg
+      (regspec-crf-gpr-case 
+       (vreg dest)
+       (progn
+         (! single-float-compare ireg jreg)
+         (^ cr-bit true-p))
+       (progn
+         (! single-float-compare ireg jreg)
          (ensuring-node-target (target dest)
            (if (not true-p)
              (setq cr-bit (logxor 1 cr-bit)))
@@ -6299,10 +6316,10 @@
     (with-fp-target () (r1 :single-float)
       (with-fp-target (r1) (r2 :single-float)
         (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 r1 form2 r2)
-          (x862-compare-double-float-registers seg vreg xfer r1 r2 cr-bit true-p))))))
+          (x862-compare-single-float-registers seg vreg xfer r1 r2 cr-bit true-p))))))
  
 (eval-when (:compile-toplevel :execute)
-  (defmacro defx862-sf-op (fname opname vinsn)
+  (defmacro defx862-df-op (fname opname vinsn)
     `(defx862 ,fname ,opname (seg vreg xfer f0 f1)
       (if (null vreg)
         (progn
