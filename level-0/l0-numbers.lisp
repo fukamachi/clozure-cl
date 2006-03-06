@@ -368,7 +368,7 @@
               (bignum (not (bignum-plusp y)))
               (double-float (eq 1 (fixnum-dfloat-compare x y)))
               (short-float (eq 1 (fixnum-sfloat-compare x y)))
-              ; or (> (* x denom) num) ?
+              ;; or (> (* x denom) num) ?
               (ratio (> x (floor (%numerator y) (%denominator y))))))
     (double-float (number-case y
                     (double-float (> (the double-float x) (the double-float y)))
@@ -387,12 +387,12 @@
     (bignum (number-case y
               (fixnum (bignum-plusp x))
               (bignum (eq 1 (bignum-compare x y)))
-              ; or (> (* x demon) num)
+              ;; or (> (* x demon) num)
               (ratio (> x (floor (%numerator y) (%denominator y))))
               (double-float (eq 1 (bignum-dfloat-compare x y)))
               (short-float (eq 1 (bignum-sfloat-compare x y)))))
     (ratio (number-case y
-             ; or (> num (* y denom))
+             ;; or (> num (* y denom))
              (integer (> (ceiling (%numerator x) (%denominator x)) y))
              (ratio
               (> (* (%numerator (the ratio x))
