@@ -3323,7 +3323,7 @@ to be at least partially steppable."
   form)
 
 (defmacro target-arch-case (&rest clauses)
-  `(ecase (backend-target-arch-name *target-backend*)
+  `(case (backend-target-arch-name *target-backend*)
     ,@clauses))
 
 (defmacro target-os-case (&rest clauses)
