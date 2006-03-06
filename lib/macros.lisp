@@ -3346,6 +3346,15 @@ to be at least partially steppable."
    (32 `(%get-signed-long ,@body))
    (64 `(%%get-signed-longlong ,@body))))
 
+(declare-arch-specific-macro %target-kernel-global)
+
+;;; This behaves like a function, but looks up the kernel global
+;;; at compile time if possible. Probably should be done as a function
+;;; and a compiler macro, but we can't define compiler macros yet,
+;;; and I don't want to add it to "ccl:compiler;optimizers.lisp"
+(declare-arch-specific-macro %get-kernel-global)
+
+(declare-arch-specific-macro %get-kernel-global-ptr)
 
 
    
