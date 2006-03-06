@@ -1,3 +1,37 @@
+2006-03-05 19:12  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: typecode, lisptag are in ccl
+	package.
+
+2006-03-05 19:01  gb
+
+	* level-1/version.lisp: Bump; some of this is hard to bootstrap.
+
+2006-03-05 19:00  gb
+
+	* lib/macros.lisp: Move some %kernel-global nonsense here.
+
+2006-03-05 19:00  gb
+
+	* level-1/l1-lisp-threads.lisp: Define macros in ... macros.lisp,
+	of all places.
+
+2006-03-05 18:59  gb
+
+	* level-0/X86/x86-array.lisp: write some code in lisp
+	(temporarily), clean up some typos so that the file compiles.
+
+2006-03-05 18:58  gb
+
+	* compiler/: arch.lisp, PPC/PPC32/ppc32-arch.lisp,
+	PPC/PPC64/ppc64-arch.lisp, X86/X8664/x8664-arch.lisp: More
+	parameters (mostly for xloader) in target-arch struct.
+
+2006-03-05 18:52  gb
+
+	* xdump/xfasload.lisp: Get target parameters from
+	(backend-target-arch *target-backend*)).
+
 2006-03-05 06:17  gb
 
 	* xdump/xx8664-fasload.lisp: Closer ...
