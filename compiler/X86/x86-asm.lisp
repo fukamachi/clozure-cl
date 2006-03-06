@@ -4337,6 +4337,7 @@
   (setf (x86-instruction-imm instruction) operand))
 
 (defun insert-imm8-for-int (instruction operand)
+  (declare (ftype (function (t) t) ccl::early-x86-lap-expression-value))
   (let* ((expr (x86-immediate-operand-value operand))
          (value (ccl::early-x86-lap-expression-value expr)))
     (if (eql value 3)
