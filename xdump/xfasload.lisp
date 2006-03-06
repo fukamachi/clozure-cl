@@ -243,9 +243,9 @@
               (low (ldb (byte 32 0) new)))
          (if *xload-target-big-endian*
            (setf (u32-ref u32v byte-offset) high
-                 (u32-ref u32v (+ byte-offset 4) low))
+                 (u32-ref u32v (+ byte-offset 4)) low)
            (setf (u32-ref u32v byte-offset) low
-                 (u32-ref u32v (+ byte-offset 4) high)))
+                 (u32-ref u32v (+ byte-offset 4)) high))
          new))))
 
 
