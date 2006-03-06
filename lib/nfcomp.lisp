@@ -1345,11 +1345,38 @@ Will differ from *compiling-file* during an INCLUDE")
   (if (and (not (eq *fasl-backend* *host-backend*))
            (typep f 'function))
     (break "Dumping a native function constant ~s during cross-compilation." f))
-  (let* ((n (uvsize f)))
-    (fasl-out-opcode $fasl-function f)
-    (fasl-out-count n)
-    (dotimes (i n)
+  (if (and (= (typecode f) target::subtag-xfunction)
+           (= (typecode (uvref f 0)) target::subtag-u8-vector))
+    (fasl-xdump-clfun f)
+    (let* ((n (uvsize f)))
+      (fasl-out-opcode $fasl-function f)
+      (fasl-out-count n)
+      (dotimes (i n)
+        (fasl-dump-form (%svref f i))))))
+
+;;; Write a "concatenated function"; for now, assume that the target
+;;; is x8664 and the host is a PPC.
+(defun fasl-xdump-clfun (f)
+  (let* ((code (uvref f 0))
+         (code-size (dpb (uvref code 3)
+                         (byte 8 24)
+                         (dpb (uvref code 2)
+                              (byte 8 16)
+                              (dpb (uvref code 1)
+                                   (byte 8 8)
+                                   (uvref code 0)))))
+         (function-size (ash (uvsize code) -3)))
+    (assert (= (- function-size code-size) (1- (uvsize f))))
+    (fasl-out-count function-size)
+    (fasl-out-count code-size)
+    (fasl-out-ivect code 0 (ash code-size 3))
+    (do* ((i 1 (1+ i))
+          (n (uvsize f)))
+         ((= i n))
+      (declare (fixnum i n))
       (fasl-dump-form (%svref f i)))))
+    
+                         
 
 
 
