@@ -1135,13 +1135,13 @@
                        ;; empty, migrate any labels to the next frag.
                        (when (zerop (setf (fill-pointer (frag-code-buffer frag))
                                         (1- pos)))
-                         (do* ((labels (frag-labels frag))
-                               (next-labels (frag-labels next)))
+
+                         (do* ((labels (frag-labels frag)))
                               ((null labels))
                            (let* ((lab (pop labels)))
                              (setf (x86-lap-label-frag lab) next
                                    (x86-lap-label-offset lab) 0)
-                             (push lab next-labels)))
+                             (push lab (frag-labels next))))
                          (remove-dll-node frag))
                        (return nil)))))))
         (return))))
@@ -1160,8 +1160,9 @@
           (case (car fragtype)
             (:align
              (let* ((bits (cadr fragtype))
-                    (oldoff (relax-align was-address bits))
-                    (newoff (relax-align address bits)))
+                    (len (length (frag-code-buffer frag)))
+                    (oldoff (relax-align (+ was-address len) bits))
+                    (newoff (relax-align (+ address len) bits)))
                (setq growth (- newoff oldoff))))
             ;; If we discover - on any iteration - that a short
             ;; branch doesn't fit, we change the type (and the reloc)
@@ -1292,7 +1293,7 @@
     (let* ((last (1- (uvsize constants-vector))))
       (declare (fixnum last))
       (setf (uvref constants-vector last) bits)
-      (when (or name debug-info)
+      (when name
         (setf (uvref constants-vector (decf last)) name))
       (when debug-info
         (setf (uvref constants-vector (decf last)) debug-info))
