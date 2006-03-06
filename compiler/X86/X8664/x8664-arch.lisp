@@ -239,6 +239,7 @@
 (defx86reg fp12 xmm12)
 (defx86reg fp13 xmm13)
 (defx86reg fp14 xmm14)
+(defx86reg fpzero xmm15)
 (defx86reg fp15 xmm15)
 
 ;;; There are only 8 mmx registers, and they overlap the x87 FPU.
