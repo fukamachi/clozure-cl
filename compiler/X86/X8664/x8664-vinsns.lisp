@@ -1064,6 +1064,11 @@
 					  ((arg0 :double-float)
 					   (arg1 :double-float)))
   (comisd (:%xmm arg1) (:%xmm arg0)))
+
+(define-x8664-vinsn single-float-compare (()
+					  ((arg0 :single-float)
+					   (arg1 :single-float)))
+  (comiss (:%xmm arg1) (:%xmm arg0)))
               
 
 (define-x8664-vinsn double-float+-2 (((result :single-float))
@@ -1306,8 +1311,8 @@
   (movq (:%q tempa) (:%q tempb))
   (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q tempb))
   (movd (:%q tempb) (:%mmx x8664::next-tsp))
-  (movapd (:%xmm x8664::fp0) (:@ -32 (:%q tempa)))
-  (movapd (:%xmm x8664::fp0) (:@ -16 (:%q tempa)))
+  (movapd (:%xmm x8664::fpzero) (:@ -32 (:%q tempa)))
+  (movapd (:%xmm x8664::fpzero) (:@ -16 (:%q tempa)))
   (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
   (movq (:%q tempa) (:@ (:%q tempb)))
   (movq (:%q car) (:@ (+ x8664::dnode-size x8664::cons.car) (:%q tempb)))
@@ -1327,7 +1332,7 @@
    (subq (:$l (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
   (movd (:%q tempb) (:%mmx x8664::next-tsp))
   :loop
-  (movapd (:%xmm x8664::fp0) (:@ -16 (:%q tempa)))
+  (movapd (:%xmm x8664::fpzero) (:@ -16 (:%q tempa)))
   (subq (:$b 16) (:%q tempa))
   (cmpq (:%q tempa) (:%q tempb))
   (jnz :loop)
@@ -1358,7 +1363,10 @@
 (define-x8664-vinsn vstack-discard (()
 				    ((nwords :u32const)))
   ((:not (:pred = nwords 0))
-   (leaq (:@ (:apply ash nwords x8664::word-shift) (:%q x8664::rsp)) (:%q x8664::rsp))))
+   ((:pred < nwords 16)
+    (addq (:$b (:apply ash nwords x8664::word-shift)) (:%q x8664::rsp)))
+   ((:not (:pred < nwords 16))
+    (addq (:$l (:apply ash nwords x8664::word-shift)) (:%q x8664::rsp)))))
 
 
 (defmacro define-x8664-subprim-call-vinsn ((name &rest other-attrs) spno &optional (recover-fn nil))
@@ -2285,11 +2293,11 @@
 
 (define-x8664-vinsn zero-double-float-register (((dest :double-float))
                                                 ())
-  (movsd (:%xmm x8664::fp0) (:%xmm dest)))
+  (movsd (:%xmm x8664::fpzero) (:%xmm dest)))
 
 (define-x8664-vinsn zero-single-float-register (((dest :single-float))
                                                 ())
-  (movss (:%xmm x8664::fp0) (:%xmm dest)))
+  (movss (:%xmm x8664::fpzero) (:%xmm dest)))
 
 (define-x8664-subprim-call-vinsn (heap-rest-arg) .SPheap-rest-arg)
 (define-x8664-subprim-call-vinsn (stack-rest-arg) .SPstack-rest-arg)
