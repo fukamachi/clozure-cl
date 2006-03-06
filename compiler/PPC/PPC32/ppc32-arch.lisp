@@ -799,6 +799,13 @@
                           :function-tag subtag-function
                           :function-tag-is-subtag t
                           :big-endian t
+                          :misc-subtag-offset misc-subtag-offset
+                          :car-offset cons.car
+                          :cdr-offset cons.cdr
+                          :subtag-char subtag-character
+                          :charcode-shift charcode-shift
+                          :fulltagmask fulltagmask
+                          :fulltag-misc fulltag-misc
                           ))
 
 ;;; arch macros
@@ -841,7 +848,7 @@
 
 (defppc32archmacro ccl::hashed-by-identity (thing)
   (let* ((typecode (gensym)))
-    `(let* ((,typecode (typecode ,thing)))
+    `(let* ((,typecode (ccl::typecode ,thing)))
       (declare (fixnum ,typecode))
       (or
        (= ,typecode ppc32::tag-fixnum)

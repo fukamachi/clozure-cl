@@ -225,7 +225,18 @@
   (function-tag nil)
   (function-tag-is-subtag nil)
   (big-endian t)
-  (target-macros (make-hash-table :test #'eq)))
+  (target-macros (make-hash-table :test #'eq))
+  (misc-subtag-offset 0)
+  (car-offset 0)
+  (cdr-offset 0)
+  (subtag-char 0)
+  (charcode-shift 0)
+  (fulltagmask 0)
+  (fulltag-misc 0))
+  
+
+  
+  
   
 (defun make-target-arch (&rest keys)
   (declare (dynamic-extent keys))

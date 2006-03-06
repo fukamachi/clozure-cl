@@ -863,6 +863,13 @@
                           :function-tag subtag-function
                           :function-tag-is-subtag t
                           :big-endian t
+                          :misc-subtag-offset misc-subtag-offset
+                          :car-offset cons.car
+                          :cdr-offset cons.cdr
+                          :subtag-char subtag-character
+                          :charcode-shift charcode-shift
+                          :fulltagmask fulltagmask
+                          :fulltag-misc fulltag-misc
                           ))
 
 ;;; arch macros
