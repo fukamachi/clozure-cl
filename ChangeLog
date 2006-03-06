@@ -1,3 +1,7 @@
+2006-03-06 03:27  gb
+
+	* xdump/xfasload.lisp: Fix parens.
+
 2006-03-06 02:59  gb
 
 	* xdump/xfasload.lisp: Remove many uses of TARGET-ARCH-CASE (thus
