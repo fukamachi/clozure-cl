@@ -132,22 +132,13 @@
 
 
 
-
-
-
-
 (defun xload-target-consp (addr)
-  (target-arch-case
-   (:ppc32 (= ppc32::fulltag-cons (logand addr ppc32::fulltagmask)))
-   (:ppc64 (= ppc64::fulltag-cons (logand addr ppc64::fulltagmask)))))
+  (= *xload-target-fulltag-cons* (logand addr *xload-target-fulltagmask*)))
 
 
 (defun xload-target-listp (addr)
   (or (= addr *xload-target-nil*)
       (xload-target-consp addr)))
-
-
-
 
 
 (defun find-xload-backend (target)
@@ -160,51 +151,69 @@
     (push b *xload-backends*)))
 
 
-
 (defun make-xload-header (element-count subtag)
   (logior (ash element-count target::num-subtag-bits) subtag))
-
 
 
 (defparameter *xload-record-source-file-p* t)
 
 (defun xload-symbol-header ()
-  (target-arch-case
-   (:ppc32 (make-xload-header ppc32::symbol.element-count
-                              ppc32::subtag-symbol))
-   (:ppc64 (make-xload-header ppc64::symbol.element-count
-                              ppc64::subtag-symbol))))
+  (make-xload-header target::symbol.element-count (xload-target-subtype :symbol)))
 
 (defparameter *xload-fasl-dispatch-table* (make-array (length *fasl-dispatch-table*)
                                                      :initial-element #'%bad-fasl))
 
+(defun xload-swap-16 (16-bit-value)
+  (dpb (ldb (byte 8 0) 16-bit-value)
+       (byte 8 8)
+       (ldb (byte 8 8) 16-bit-value)))
 
+(defun xload-swap-32 (32-bit-value)
+  (dpb (xload-swap-16 (ldb (byte 16 0) 32-bit-value))
+       (byte 16 16)
+       (xload-swap-16 (ldb (byte 16 16) 32-bit-value))))
 
+(defun xload-swap-64 (64-bit-value)
+  (dpb (xload-swap-32 (ldb (byte 32 0) 64-bit-value))
+       (byte 32 32)
+       (xload-swap-32 (ldb (byte 32 32) 64-bit-value))))
+       
 (defun u32-ref (u32v byte-offset)
   (declare (type (simple-array (unsigned-byte 32) (*)) u32v)
            (fixnum byte-offset))
   (locally (declare (optimize (speed 3) (safety 0)))
-    (aref u32v (ash byte-offset -2))))
+    (let* ((val (aref u32v (ash byte-offset -2))))
+      (if (eq *xload-target-big-endian* *xload-host-big-endian*)
+        val
+        (xload-swap-32 val)))))
 
 (defun (setf u32-ref) (new u32v byte-offset)
   (declare (type (simple-array (unsigned-byte 32) (*)) u32v)
            (fixnum byte-offset))
   (locally (declare (optimize (speed 3) (safety 0)))
     (setf (aref u32v (ash byte-offset -2))
-          (logand new #xffffffff))))
+          (if (eq *xload-target-big-endian* *xload-host-big-endian*)
+            (logand new #xffffffff)
+            (xload-swap-32 new)))))
 
 (defun u16-ref (u16v byte-offset)
   (declare (type (simple-array (unsigned-byte 16) (*)) u16v)
            (fixnum byte-offset))
   (locally (declare (optimize (speed 3) (safety 0)))
-    (aref u16v (ash byte-offset -1))))
+    (let* ((val (aref u16v (ash byte-offset -1))))
+      (if (eq *xload-target-big-endian* *xload-host-big-endian*)
+        val
+        (xload-swap-16 val)))))
 
 (defun (setf u16-ref) (new u16v byte-offset)
   (declare (type (simple-array (unsigned-byte 16) (*)) u16v)
            (fixnum byte-offset))
   (locally (declare (optimize (speed 3) (safety 0)))
     (setf (aref u16v (ash byte-offset -1))
-          new)))
+          (if (eq *xload-target-big-endian* *xload-host-big-endian*)
+            new
+            (xload-swap-16 new)))
+    new))
 
 (defun u8-ref (u8v byte-offset)
   (declare (type (simple-array (unsigned-byte 8) (*)) u8v)
@@ -219,24 +228,31 @@
     (setf (aref u8v byte-offset) new)))
 
 (defun natural-ref (u32v byte-offset)
-  (target-arch-case
-   (:ppc32 (u32-ref u32v byte-offset))
-   (:ppc64 (dpb (u32-ref u32v byte-offset)
-                (byte 32 32)
-                (u32-ref u32v (+ byte-offset 4))))))
+  (target-word-size-case
+   (32 (u32-ref u32v byte-offset))
+   (64 (let* ((first (u32-ref u32v byte-offset))
+              (second (u32-ref u32v (+ byte-offset 4))))
+         (if *xload-target-big-endian*
+           (dpb first (byte 32 32) second)
+           (dpb second (byte 32 32) first))))))
 
 (defun (setf natural-ref) (new u32v byte-offset)
-  (target-arch-case
-   (:ppc32 (setf (u32-ref u32v byte-offset) new))
-   (:ppc64 (setf (u32-ref u32v byte-offset) (ldb (byte 32 32) new))
-           (setf (u32-ref u32v (+ byte-offset 4)) (ldb (byte 32 0) new))
-           new)))
+  (target-word-size-case
+   (32 (setf (u32-ref u32v byte-offset) new))
+   (64 (let* ((high (ldb (byte 32 32) new))
+              (low (ldb (byte 32 0) new)))
+         (if *xload-target-big-endian*
+           (setf (u32-ref u32v byte-offset) high
+                 (u32-ref u32v (+ byte-offset 4) low))
+           (setf (u32-ref u32v byte-offset) low
+                 (u32-ref u32v (+ byte-offset 4) high)))
+         new))))
 
 
 (defun xload-aligned-uvector-size (nbytes)
-  (target-arch-case
-   (:ppc32 (logand (lognot 7) (+ 4 7 nbytes )))
-   (:ppc64 (logand (lognot 15) (+ 15 8 nbytes)))))
+  (target-word-size-case
+   (32 (logand (lognot 7) (+ 4 7 nbytes )))
+   (64 (logand (lognot 15) (+ 15 8 nbytes)))))
 
 (defparameter *xload-spaces* nil)
 (defparameter *xload-image-file* nil)
@@ -268,13 +284,13 @@
     (push space *xload-spaces*)
     space))
 
-; Nilreg-relative symbols.
+;;; Nilreg-relative symbols.
 
 (defparameter %builtin-functions%
   #(+-2 --2 *-2 /-2 =-2 /=-2 >-2 >=-2 <-2 <=-2 eql length sequence-type
         assq memq logbitp logior-2 logand-2 ash 
         %negate logxor-2 %aref1 %aset1
-        ; add more
+        ;; add more
         )
   "Symbols naming fixed-arg, single-valued functions")
         
@@ -427,8 +443,7 @@
 (defun xload-alloc-doublewords (space tag nelements)
   (xload-alloc space tag (xload-aligned-uvector-size (ash nelements 3))))
 
-(defun xload-alloc-bits (space tag nelements)
-  (xload-alloc space tag (logand (lognot 7) (+ 7 4 (ash (+ 7 nelements) -3)))))
+
 
 
 (defun xload-make-cons (car cdr &optional (space *xload-dynamic-space*))
@@ -446,9 +461,9 @@
   (locally
       (declare (fixnum subtype len))
       (multiple-value-bind (cell-addr data offset)
-          (target-arch-case
-           (:ppc32 (xload-alloc-fullwords *xload-dynamic-space* *xload-target-fulltag-misc* len))
-           (:ppc64 (xload-alloc-doublewords *xload-dynamic-space* *xload-target-fulltag-misc* len)))
+          (target-word-size-case
+           (32 (xload-alloc-fullwords *xload-dynamic-space* *xload-target-fulltag-misc* len))
+           (64 (xload-alloc-doublewords *xload-dynamic-space* *xload-target-fulltag-misc* len)))
         (declare (fixnum offset))
         (setf (natural-ref data (+ offset *xload-target-misc-header-offset*)) (make-xload-header len subtag))
         cell-addr)))
@@ -476,14 +491,14 @@
 					(package-address *xload-target-nil*)
 					(space *xload-dynamic-space*))
   (let* ((sym
-          (target-arch-case
-           (:ppc32 (xload-alloc-fullwords space *xload-target-fulltag-misc* target::symbol.element-count))
-           (:ppc64 (xload-alloc-doublewords space *xload-target-fulltag-misc* target::symbol.element-count)))))
+          (target-word-size-case
+           (32 (xload-alloc-fullwords space *xload-target-fulltag-misc* target::symbol.element-count))
+           (64 (xload-alloc-doublewords space *xload-target-fulltag-misc* target::symbol.element-count)))))
     (setf (xload-%svref sym -1)  (xload-symbol-header))
     (setf (xload-%svref sym target::symbol.flags-cell) 0)
     ;; On PPC64, NIL's pname must be NIL.
     (setf (xload-%svref sym target::symbol.pname-cell)
-          (if (and (target-arch-case (:ppc64 t) (:ppc32 nil))
+          (if (and (target-arch-case (:ppc64 t) (otherwise nil))
                    (= sym *xload-target-nil*))
             *xload-target-nil*
             pname-address))
@@ -514,9 +529,9 @@
      
 
 (defun xload-dnode-align (nbytes)
-  (target-arch-case
-   (:ppc32 (logand (lognot 7) (+ nbytes 7 4)))
-   (:ppc64 (logand (lognot 15) (+ nbytes 15 8)))))
+  (target-word-size-case
+   (32 (logand (lognot 7) (+ nbytes 7 4)))
+   (64 (logand (lognot 15) (+ nbytes 15 8)))))
 
 (defun xload-subtag-bytes (subtag element-count)
   (funcall (arch::target-array-data-size-function
@@ -525,35 +540,43 @@
 
     
 (defun xload-make-dfloat (space high low)
-  (target-arch-case
-   (:ppc32
-    (multiple-value-bind (dfloat-addr v o) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::double-float.element-count)
-      (declare (fixnum o))
-      (setf (u32-ref v (the fixnum (+ o ppc32::double-float.header))) 
-            (make-xload-header ppc32::double-float.element-count ppc32::subtag-double-float))
-      (setf (u32-ref v (the fixnum (+ o ppc32::double-float.value))) high)
-      (setf (u32-ref v (the fixnum (+ o ppc32::double-float.val-low))) low)
-      dfloat-addr))
-   (:ppc64
-    (multiple-value-bind (dfloat-addr v o) (xload-alloc-fullwords space ppc64::fulltag-misc ppc64::double-float.element-count)
-      (declare (fixnum o))
-      (setf (natural-ref v (the fixnum (+ o ppc64::misc-header-offset))) 
-            (make-xload-header ppc64::double-float.element-count ppc64::subtag-double-float))
-      (setf (u32-ref v (the fixnum (+ o ppc64::double-float.value))) high)
-      (setf (u32-ref v (the fixnum (+ o ppc64::double-float.val-low))) low)
-      dfloat-addr))))
+  (let* ((double-float-tag (arch::target-double-float-tag
+                            (backend-target-arch *target-backend*))))
+    (target-word-size-case
+     (32
+      (multiple-value-bind (dfloat-addr v o) (xload-alloc-fullwords space *xload-target-fulltag-misc* 3)
+        (declare (fixnum o))
+        (setf (u32-ref v (the fixnum (+ o *xload-target-misc-header-offset*))) 
+              (make-xload-header 3 double-float-tag))
+        (setf (u32-ref v (the fixnum (+ o *xload-target-misc-data-offset* 4)))
+              (if *xload-target-big-endian* high low))
+        (setf (u32-ref v (the fixnum (+ o *xload-target-misc-data-offset* 8)))
+              (if *xload-target-big-endian* low high))
+        dfloat-addr))
+     (64
+      (multiple-value-bind (dfloat-addr v o) (xload-alloc-fullwords space *xload-target-fulltag-misc* 2)
+        (declare (fixnum o))
+        (setf (natural-ref v (the fixnum (+ o *xload-target-misc-header-offset*))) 
+              (make-xload-header 2 double-float-tag))
+        (setf (u32-ref v (the fixnum (+ o *xload-target-misc-data-offset*)))
+              (if *xload-target-big-endian* high low))
+        (setf (u32-ref v (the fixnum (+ o *xload-target-misc-data-offset* 4)))
+              (if *xload-target-big-endian* low high))
+        dfloat-addr)))))
 
 (defun xload-make-sfloat (space bits)
-  (target-arch-case
-   (:ppc32
-    (multiple-value-bind (sfloat-addr v o) (xload-alloc-fullwords space ppc32::fulltag-misc ppc32::single-float.element-count)
-      (declare (fixnum o))
-      (setf (u32-ref v (the fixnum (+ o ppc32::single-float.header))) 
-            (make-xload-header ppc32::single-float.element-count ppc32::subtag-single-float))
-      (setf (u32-ref v (the fixnum (+ o ppc32::single-float.value))) bits)
-      sfloat-addr))
-   (:ppc64
-    (logior (ash bits 32) ppc64::subtag-single-float))))
+  (let* ((single-float-tag (arch::target-single-float-tag
+                            (backend-target-arch *target-backend*))))
+    (target-word-size-case
+     (32
+      (multiple-value-bind (sfloat-addr v o) (xload-alloc-fullwords space *xload-target-fulltag-misc* 1)
+        (declare (fixnum o))
+        (setf (u32-ref v (the fixnum (+ o *xload-target-misc-header-offset*))) 
+              (make-xload-header 1 single-float-tag))
+        (setf (u32-ref v (the fixnum (+ o *xload-target-misc-data-offset*))) bits)
+        sfloat-addr))
+     (64
+      (logior (ash bits 32) single-float-tag)))))
         
 (defun xload-make-ivector (space subtag nelements)
   (unless (typep subtag 'fixnum)
@@ -567,35 +590,31 @@
 
 (defun xload-%svref (addr i)
   (declare (fixnum i))
-  (target-arch-case
-   (:ppc32
-    (if (= (the fixnum (logand addr ppc32::fulltagmask)) ppc32::fulltag-misc)
+  (if (= (the fixnum (logand addr *xload-target-fulltagmask*)) *xload-target-fulltag-misc*)
+    (target-word-size-case
+     (32
       (multiple-value-bind (v offset) (xload-lookup-address addr)
         (declare (fixnum offset))
-        (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2))))))))
-      (error "Not a vector: #x~x" addr)))
-   (:ppc64
-    (if (= (the fixnum (logand addr ppc64::fulltagmask)) ppc64::fulltag-misc)
+        (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2)))))))))
+     (64
       (multiple-value-bind (v offset) (xload-lookup-address addr)
         (declare (fixnum offset))
-        (natural-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 3))))))))
-      (error "Not a vector: #x~x" addr)))))
+        (natural-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 3))))))))))
+    (error "Not a vector: #x~x" addr)))   
 
 (defun (setf xload-%svref) (new addr i)
   (declare (fixnum i))
-  (target-arch-case
-   (:ppc32
-    (if (= (the fixnum (logand addr ppc32::fulltagmask)) ppc32::fulltag-misc)
+  (if (= (the fixnum (logand addr *xload-target-fulltagmask*)) *xload-target-fulltag-misc*)
+    (target-word-size-case
+     (32
       (multiple-value-bind (v offset) (xload-lookup-address addr)
         (declare (fixnum offset))
-        (setf (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2))))))) new))
-      (error "Not a vector: #x~x" addr)))
-   (:ppc64
-    (if (= (the fixnum (logand addr ppc64::fulltagmask)) ppc64::fulltag-misc)
+        (setf (u32-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 2))))))) new)))
+     (64
       (multiple-value-bind (v offset) (xload-lookup-address addr)
         (declare (fixnum offset))
-        (setf (natural-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 3))))))) new))
-      (error "Not a vector: #x~x" addr)))))
+        (setf (natural-ref v (the fixnum (+ offset (the fixnum (+ *xload-target-misc-data-offset* (the fixnum (ash i 3))))))) new))))
+    (error "Not a vector: #x~x" addr)))
 
 
 (defun xload-%fullword-ref (addr i)
@@ -897,7 +916,8 @@
     (target-arch-case
      (:ppc32
       (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
-      ;; Make NIL.  Note that NIL is sort of a misaligned cons (it straddles two doublewords.)
+      ;; Make NIL.  Note that NIL is sort of a misaligned cons (it
+      ;; straddles two doublewords.)
       (xload-make-cons *xload-target-nil* 0 *xload-static-space*)
       (xload-make-cons 0 *xload-target-nil* *xload-static-space*))
      (:ppc64
@@ -986,7 +1006,8 @@
 (xload-copy-faslop $fasl-vetab-alloc)
 (xload-copy-faslop $fasl-veref)
 
-; Should error if epush bit set, else push on *xload-cold-load-functions* or something.
+;;; Should error if epush bit set, else push on
+;;; *xload-cold-load-functions* or something.
 (defxloadfaslop $fasl-lfuncall (s)
   (let* ((fun (%fasl-expr-preserve-epush s)))
     (when (faslstate.faslepush s)
@@ -1229,13 +1250,13 @@
 
 
 ;;; We really can't compile 64-bit vectors on a 32-bit host.
-#+ppc64-target
+#+64-bit-target
 (defxloadfaslop $fasl-u64-vector (s)
-  (xfasl-read-ivector s ppc64::subtag-u64-vector))
+  (xfasl-read-ivector s (xload-target-subtype :unsigned-64-bit-vector)))
 
-#+ppc64-target
+#+64-bit-target
 (defxloadfaslop $fasl-u64-vector (s)
-  (xfasl-read-ivector s ppc64::subtag-s64-vector))
+  (xfasl-read-ivector s (xload-target-subtype :unsigned-64-bit-vector)))
 
 (defxloadfaslop $fasl-bit-vector (s)
   (xfasl-read-ivector s (xload-target-subtype :bit-vector)))
@@ -1248,7 +1269,7 @@
 
 (defxloadfaslop $fasl-double-float-vector (s)
   (target-arch-case
-   (:ppc64 (xfasl-read-ivector s ppc64::subtag-double-float-vector))
+   (:ppc64 (xfasl-read-ivector s (xload-target-subtype :double-float-vector)))
    (:ppc32
     (let* ((element-count (%fasl-read-count s)))
       (multiple-value-bind (vector v o)
