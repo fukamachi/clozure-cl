@@ -1,3 +1,39 @@
+2006-03-06 06:37  gb
+
+	* lib/nfcomp.lisp: Initial, crude support for cross-dumping
+	"concatenated" lisp functions.
+
+2006-03-06 06:36  gb
+
+	* level-0/l0-numbers.lisp: Fix comment indentation in a function
+	that the x8664 backend was choking on.
+
+2006-03-06 06:36  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: use fpzero when a zero is
+	needed,  not fp0.
+
+2006-03-06 06:35  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: xmm15 is fpzero (contains
+	0.0[de]0).  (xmm0 is used for ff-call.)
+
+2006-03-06 06:35  gb
+
+	* compiler/X86/x862.lisp: X862-COMPILE: don't reserve quad for null
+	function name, even if debug info is present.
+
+2006-03-06 06:34  gb
+
+	* compiler/X86/x86-lap.lisp: RELAX-FRAG-LIST: account for (possibly
+	non-zero) length of :ALIGN frags.  CROSS-CREATE-X86-FUNCTION: don't
+	emit function name if it's nil, even if debug-info is present.
+
+2006-03-06 06:30  gb
+
+	* compiler/X86/x86-asm.lisp: Add a declaration to suppress compiler
+	warning on forward reference.
+
 2006-03-06 03:27  gb
 
 	* xdump/xfasload.lisp: Fix parens.
