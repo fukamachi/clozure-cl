@@ -56,6 +56,9 @@
 (defparameter *xload-target-unbound-marker* nil)
 (defparameter *xload-target-subtag-char* nil)
 (defparameter *xload-target-charcode-shift* nil)
+(defparameter *xload-target-big-endian* t)
+(defparameter *xload-host-big-endian* t)
+
 
 (defvar *xload-backends* nil)
 (defvar *xload-default-backend*)
@@ -82,72 +85,50 @@
   compiler-target-name
   image-base-address
 )
+
 (defun setup-xload-target-parameters ()
-  (setq *xload-image-base-address*
-        (backend-xload-info-image-base-address
-         *xload-target-backend*))
-  (setq *xload-readonly-space-address* *xload-image-base-address*)
-  (setq *xload-dynamic-space-address*
-        (+ *xload-image-base-address*
-           *xload-purespace-reserve*))
-  (setq *xload-target-nil*
-          (target-arch-case
-           (:ppc32 ppc32::nil-value)
-           (:ppc64 ppc64::nil-value)))
-  (setq *xload-target-unbound-marker*
-        (target-arch-case
-         (:ppc32 ppc32::unbound-marker)
-         (:ppc64 ppc64::unbound-marker)))
-  (setq *xload-target-misc-header-offset*
-        (target-arch-case
-         (:ppc32 ppc32::misc-header-offset)
-         (:ppc64 ppc64::misc-header-offset)))
-  (setq *xload-target-misc-subtag-offset*
-        (target-arch-case
-         (:ppc32 ppc32::misc-subtag-offset)
-         (:ppc64 ppc64::misc-subtag-offset)))
-  (setq *xload-target-fixnumshift*
-        (target-arch-case
-         (:ppc32 ppc32::fixnumshift)
-         (:ppc64 ppc64::fixnumshift)))
-  (setq *xload-target-fulltag-cons*
-        (target-arch-case
-         (:ppc32 ppc32::fulltag-cons)
-         (:ppc64 ppc64::fulltag-cons)))
-  (setq *xload-target-car-offset*
-        (target-arch-case
-         (:ppc32 ppc32::cons.car)
-         (:ppc64 ppc64::cons.car)))
-  (setq *xload-target-cdr-offset*
-        (target-arch-case
-         (:ppc32 ppc32::cons.cdr)
-         (:ppc64 ppc64::cons.cdr)))
-  (setq *xload-target-cons-size*
-        (target-arch-case
-         (:ppc32 ppc32::cons.size)
-         (:ppc64 ppc64::cons.size)))
-  (setq *xload-target-fulltagmask*
-        (target-arch-case
-         (:ppc32 ppc32::fulltagmask)
-         (:ppc64 ppc64::fulltagmask)))
-  (setq *xload-target-misc-data-offset*
-        (target-arch-case
-         (:ppc32 ppc32::misc-data-offset)
-         (:ppc64 ppc64::misc-data-offset)))
-  (setq *xload-target-fulltag-misc*
-        (target-arch-case
-         (:ppc32 ppc32::fulltag-misc)
-         (:ppc64 ppc64::fulltag-misc)))
-  (setq *xload-target-subtag-char*
-        (target-arch-case
-         (:ppc32 ppc32::subtag-character)
-         (:ppc64 ppc64::subtag-character)))
-  (setq *xload-target-charcode-shift*
-        (target-arch-case
-         (:ppc32 ppc32::charcode-shift)
-         (:ppc64 ppc64::charcode-shift)))
-                 
-  )
+  (let* ((arch (backend-target-arch *target-backend*)))
+    (setq *xload-image-base-address*
+          (backend-xload-info-image-base-address
+           *xload-target-backend*))
+    (setq *xload-readonly-space-address* *xload-image-base-address*)
+    (setq *xload-dynamic-space-address*
+          (+ *xload-image-base-address*
+             *xload-purespace-reserve*))
+    (setq *xload-target-nil*
+          (arch::target-nil-value arch))
+    (setq *xload-target-unbound-marker*
+          (arch::target-unbound-marker-value arch))
+    (setq *xload-target-misc-header-offset*
+          (- (arch::target-misc-data-offset arch)
+             (arch::target-lisp-node-size arch)))
+    (setq *xload-target-misc-subtag-offset*
+          (arch::target-misc-subtag-offset arch))
+    (setq *xload-target-fixnumshift*
+          (arch::target-word-shift arch))
+    (setq *xload-target-fulltag-cons*
+          (arch::target-cons-tag arch))
+    (setq *xload-target-car-offset*
+          (arch::target-car-offset arch))
+    (setq *xload-target-cdr-offset*
+          (arch::target-cdr-offset arch))
+    (setq *xload-target-cons-size*
+          (* 2 (arch::target-lisp-node-size arch)))
+    (setq *xload-target-fulltagmask*
+          (arch::target-fulltagmask arch))
+    (setq *xload-target-misc-data-offset*
+          (arch::target-misc-data-offset arch))
+    (setq *xload-target-fulltag-misc*
+          (arch::target-fulltag-misc arch))
+    (setq *xload-target-subtag-char*
+          (arch::target-subtag-char arch))
+    (setq *xload-target-charcode-shift*
+          (arch::target-charcode-shift arch))
+    (setq *xload-target-big-endian*
+          (arch::target-big-endian arch))
+    (setq *xload-host-big-endian*
+          (arch::target-big-endian
+           (backend-target-arch *host-backend*)))))
 
 
 
