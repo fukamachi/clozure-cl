@@ -905,14 +905,14 @@
 
 (defppc64archmacro ccl::immediate-p-macro (thing)
   (let* ((tag (gensym)))
-    `(let* ((,tag (lisptag ,thing)))
+    `(let* ((,tag (ccl::lisptag ,thing)))
       (declare (fixnum ,tag))
       (or (= ,tag ppc64::tag-fixnum)
        (= (logand ,tag ppc64::lowtagmask) ppc64::lowtag-imm)))))
 
 (defppc64archmacro ccl::hashed-by-identity (thing)
   (let* ((typecode (gensym)))
-    `(let* ((,typecode (typecode ,thing)))
+    `(let* ((,typecode (ccl::typecode ,thing)))
       (declare (fixnum ,typecode))
       (or
        (= ,typecode ppc64::tag-fixnum)
