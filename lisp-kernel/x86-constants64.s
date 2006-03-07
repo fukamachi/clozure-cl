@@ -183,7 +183,9 @@ define([fp12],[xmm12])
 define([fp13],[xmm13])		
 define([fp14],[xmm14])		
 define([fp15],[xmm15])		
-
+define([fpzero],[fp15])
+	
+	
 nbits_in_word = 64
 nbits_in_byte = 8
 ntagbits = 4
@@ -682,6 +684,7 @@ TCR_BIAS = 0
          _node(single_float_convert)
 	 _node(linear)		/* our linear (non-segment-based) address. */
          _node(linear_end)      /* linear, + TCR_BIAS */
+	 _word(lisp_fpscr_low)
 	 _word(lisp_fpscr_high)	/* lisp thread's fp status word */
 	 _node(db_link)		/* special binding chain head */
 	 _node(catch_top)	/* top catch frame */
