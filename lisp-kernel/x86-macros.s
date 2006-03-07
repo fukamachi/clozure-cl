@@ -97,14 +97,14 @@ define([restore_node_regs],[
 ifdef([DarwinAssembler],[
 	.macro zero_dnodes
 	.if $2
-	movapd %fp0,$1($0)
+	movapd %fpzero,$1($0)
 	zero_dnodes $0,$1+dnode_size,$2-dnode_size
 	.endif
 	.endmacro
 ],[
 	.macro zero_dnodes base,disp,nbytes
 	.ifgt \nbytes
-	movapd %fp0,\disp(\base)
+	movapd %fpzero,\disp(\base)
 	zero_dnodes \base,"\disp+dnode_size","\nbytes-dnode_size"
 	.endif
 	.endm
@@ -133,7 +133,7 @@ define([TSP_Alloc_Var],[
 	movd $2,%next_tsp
 	jmp macro_label(test)
 macro_label(loop):
-	movapd %fp0,0($2)
+	movapd %fpzero,0($2)
 macro_label(test):	
 	addq $dnode_size,$2
 	subq $dnode_size,$1

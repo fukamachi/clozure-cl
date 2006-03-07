@@ -98,7 +98,7 @@ _exportfn(C(start_lisp))
 	__(clr %save1)
 	__(clr %save2)
 	__(clr %save3)
-	__(pxor %fp0,%fp0)	/* fp0 = 0.0[d0] */
+	__(pxor %fpzero,%fpzero)	/* fpzero = 0.0[d0] */
 	__(movq %rcontext:tcr.save_tsp,%tsp)
 	__(movq %tsp,%next_tsp)
 	/* Should set the MXCSR to something real here */
