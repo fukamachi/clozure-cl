@@ -1,3 +1,21 @@
+2006-03-07 06:49  gb
+
+	* lisp-kernel/x86-spentry64.s: Assume that fpzero (not fp0)
+	contains 0.0.
+	
+	Get a few more things working, or at least written.
+
+2006-03-07 06:48  gb
+
+	* lisp-kernel/: x86-macros.s, x86-subprims64.s: Assume that fpzero
+	(not fp0) contains 0.0.
+
+2006-03-07 06:48  gb
+
+	* lisp-kernel/x86-constants64.s: Define fpzero = xmm15.
+	
+	Pad the (misnamed) fpscr field in the TCR.
+
 2006-03-06 06:37  gb
 
 	* lib/nfcomp.lisp: Initial, crude support for cross-dumping
