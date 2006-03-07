@@ -1955,8 +1955,8 @@ _spentry(makestackblock)
 	__(movq $macptr_header,tsp_frame.fixed_overhead(%arg_z))
 	__(addq fulltag_misc+tsp_frame.fixed_overhead,%arg_z)
 	__(movq %imm0,macptr.address(%arg_z))
-	__(movss %fp0,macptr.domain(%arg_z))
-	__(movss %fp0,macptr.type(%arg_z))
+	__(movss %fpzero,macptr.domain(%arg_z))
+	__(movss %fpzero,macptr.type(%arg_z))
 	__(jmp *%ra0)
 1:	__(movd %foreign_sp,%imm0)
 	__(subq $dnode_size,%imm0)
@@ -1981,10 +1981,10 @@ _spentry(makestackblock0)
 	__(movq $macptr_header,tsp_frame.fixed_overhead(%arg_z))
 	__(addq fulltag_misc+tsp_frame.fixed_overhead,%arg_z)
 	__(movq %imm0,macptr.address(%arg_z))
-	__(movss %fp0,macptr.domain(%arg_z))
-	__(movss %fp0,macptr.type(%arg_z))
+	__(movss %fpzero,macptr.domain(%arg_z))
+	__(movss %fpzero,macptr.type(%arg_z))
 	__(jmp 2f)
-1:	__(movapd %fp0,(%imm0))
+1:	__(movapd %fpzero,(%imm0))
 	__(addq $dnode_size,%imm0)
 2:	__(cmpq %imm0,%imm1)
 	__(jne 1b)		
@@ -2065,8 +2065,6 @@ _endsubp(destructuring_bind)
 _spentry(destructuring_bind_inner)
 _endsubp(destructuring_bind_inner)
 
-_spentry(recover_values)
-_endsubp(recover_values)
 
 _spentry(vpopargregs)
 _endsubp(vpopargregs)
@@ -2089,18 +2087,76 @@ _spentry(integer_sign)
 9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_integer))
 _endsubp(integer_sign)
 
-
-_spentry(reset)
-_endsubp(reset)
-
+/* "slide" nargs worth of values up the stack.  IMM0 contains */
+/* the difference between the current RSP and the target. */
 _spentry(mvslide)
+	__(movzwl %nargs,%nargs_l)
+	__(movl %nargs_l,%imm1_l)
+	__(lea (%rsp,%nargs_q),%temp0)
+	__(testq %imm0,%imm0)
+	__(lea (%temp0,%imm0),%imm0)
+	__(je 2f)
+1:	
+	__(subq $node_size,%temp0)
+	__(movq (%temp0),%temp1)
+	__(subq $node_size,%imm0)
+	__(movq %temp1,(%imm0))
+	__(subq $node_size,%imm1)
+	__(jne 1b)
+2:	__(movq %imm0,%rsp)
+	__(jmp *%ra0)	
 _endsubp(mvslide)
 
 _spentry(save_values)
+	__(movd %tsp,%imm1)
+/* common exit: nargs = values in this set, imm1 = ptr to tsp before call to save_values */
+local_label(save_values_to_tsp):
+	__(movzwl %nargs,%nargs_l)
+	__(movd %tsp,%arg_x)
+	__(dnode_align(%nargs_q,tsp_frame.fixed_overhead+(2*node_size),%imm0)) /* count, link */
+	__(TSP_Alloc_Var(%imm0,%arg_z))
+	__(movd %tsp,%imm0)
+	__(movq %imm1,(%imm0))
+	__(movq %nargs_q,(%arg_z))
+	__(movq %arg_x,node_size(%arg_z))
+	__(leaq 2*node_size(%arg_z,%nargs_q),%arg_y)
+	__(leaq (%rsp,%nargs_q),%imm0)
+	__(cmpq %imm0,%rsp)
+	__(jmp 2f)
+1:	__(subq $node_size,%imm0)
+	__(movq (%imm0),%arg_z)
+	__(subq $node_size,%arg_y)
+	__(cmpq %imm0,%rsp)
+	__(movq %arg_z,(%arg_y))
+2:	__(jne 1b)
+	__(add %nargs_q,%rsp)
+	__(jmp *%ra0)			
 _endsubp(save_values)
 
+/* Add the multiple values that are on top of the vstack to the set
+   saved in the top tsp frame, popping them off of the vstack in the
+   process.  It is an error (a bad one) if the TSP contains something
+   other than a previously saved set of multiple-values.
+   Since adding to the TSP may cause a new TSP segment to be allocated,
+   each add_values call adds another linked element to the list of
+   values. This makes recover_values harder. */
 _spentry(add_values)
+	__(testw %nargs,%nargs)
+	__(movd %tsp,%imm1)
+	__(movq (%imm1),%imm1)
+	__(jne local_label(save_values_to_tsp))
+	__(jmp *%ra0)
 _endsubp(add_values)
+
+/* push the values in the value set atop the sp, incrementing nargs.
+   Discard the tsp frame; leave values atop the sp. */
+	
+_spentry(recover_values)
+_endsubp(recover_values)
+				
+_spentry(reset)
+_endsubp(reset)
+
 
 
 _spentry(misc_alloc_init)
