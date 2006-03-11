@@ -116,7 +116,7 @@ ifdef([DarwinAssembler],[
 define([TSP_Alloc_Fixed],[
 	define([TSP_Alloc_Size],[((($1+node_size) & ~(dnode_size-1))+dnode_size)])
 	movd %tsp,$2
-	sub TSP_Alloc_Size,$2
+	sub [$]TSP_Alloc_Size,$2
 	movd $2,%next_tsp
 	zero_dnodes $2,0,TSP_Alloc_Size
 	movq %tsp,($2)
@@ -173,6 +173,7 @@ define([Make_Catch],[
 	movq %save0,catch_frame._save0(%temp2)
 	movq %imm0,catch_frame.xframe(%temp2)
 	movq %xfn,catch_frame.pc(%temp2)
+	movq %temp2,%rcontext:tcr.catch_top
 ])	
 	
 	
@@ -195,7 +196,7 @@ define([Cons],[
    emulate the instructions in between */
 	subq $cons.size+fulltag_cons,%rcontext:tcr.save_allocptr
 	movq %rcontext:tcr.save_allocptr,%allocptr
-	cmpq %allocptr,%rcontext:tcr.save_allocbase
+	rcmpq(%allocptr,%rcontext:tcr.save_allocbase)
 	jg macro_label(no_trap)
 	uuo_alloc()
 macro_label(no_trap):	
@@ -219,7 +220,7 @@ define([Misc_Alloc],[
 */                
 	subq %imm1,%rcontext:tcr.save_allocptr
 	movq %rcontext:tcr.save_allocptr,%allocptr
-	cmpq %allocptr,%rcontext:tcr.save_allocbase
+	rcmpq(%allocptr,%rcontext:tcr.save_allocbase)
 	jg macro_label(no_trap)
 	uuo_alloc()
 macro_label(no_trap):	
@@ -232,7 +233,7 @@ macro_label(no_trap):
 ])
 	
 define([Misc_Alloc_Fixed],[
-	movq $2,%imm1
+	movq [$]$2,%imm1
 	Misc_Alloc($1)
 ])					
 
@@ -292,8 +293,10 @@ define([do_funcall],[
 	andb $fulltagmask,%imm0_b
 	cmpb $fulltag_symbol,%imm0_b
 	/* %fname == %temp0 */
-	cmoveq symbol.fcell(%fname),%fn
 	cmovgq %temp0,%fn
+	jl macro_label(go)
+	cmoveq symbol.fcell(%fname),%fn
+macro_label(go):		
 	jmp *%fn
 ])
 
@@ -348,6 +351,7 @@ define([rcmpb],[
 
 define([condition_to_boolean],[
 	set$1 $2_b
+	negb $2_b
 	andl [$]t_offset,$2_l
 	leaq nil_value($2),$3
 ])
@@ -371,10 +375,13 @@ define([extract_subtag],[
 ])
 
 define([extract_typecode],[
-	movb $tagmask,$2_b
-	andb $1_b,$2_b
+	new_macro_labels()
+	movb $1_b,$2_b
+	andb $tagmask,$2_b
 	cmpb $tag_misc,$2_b
-	cmovew misc_subtag_offset($1),$2_w
+	jne macro_label(done)
+	movb misc_subtag_offset($1),$2_b
+macro_label(done):	
 ])
 
 /*
