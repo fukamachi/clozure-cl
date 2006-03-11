@@ -58,6 +58,10 @@
 (defparameter *xload-target-charcode-shift* nil)
 (defparameter *xload-target-big-endian* t)
 (defparameter *xload-host-big-endian* t)
+(defparameter *xload-target-use-code-vectors* t
+  "When true, assume that the target represents functions as a node vector with an immediate vector (a CODE-VECTOR) in its 0th element.  When false, assume that the target mixes code and constants in a single object.")
+(defparameter *xload-target-fulltag-for-symbols* nil)
+(defparameter *xload-target-fulltag-for-functions* nil)
 
 
 (defvar *xload-backends* nil)
@@ -84,6 +88,8 @@
   subdirs
   compiler-target-name
   image-base-address
+  nil-relative-symbols
+  static-space-init-function
 )
 
 (defun setup-xload-target-parameters ()
@@ -128,7 +134,17 @@
           (arch::target-big-endian arch))
     (setq *xload-host-big-endian*
           (arch::target-big-endian
-           (backend-target-arch *host-backend*)))))
+           (backend-target-arch *host-backend*)))
+    (setq *xload-target-use-code-vectors*
+          (not (null (assoc :code-vector (arch::target-uvector-subtags arch)))))
+    (setq *xload-target-fulltag-for-symbols*
+          (if (arch::target-symbol-tag-is-subtag arch)
+            (arch::target-fulltag-misc arch)
+            (arch::target-symbol-tag arch)))
+    (setq *xload-target-fulltag-for-functions*
+          (if (arch::target-function-tag-is-subtag arch)
+            (arch::target-fulltag-misc arch)
+            (arch::target-function-tag arch)))))
 
 
 
@@ -294,14 +310,14 @@
         )
   "Symbols naming fixed-arg, single-valued functions")
         
-(defparameter *xload-nrs*
+(defun xload-nrs ()
   (mapcar
    #'(lambda (s)
        (or (assq s '((nil) (%pascal-functions%) (*all-metered-functions*)
 		      (*post-gc-hook*) (%handlers%) 
 		     (%finalization-alist%) (%closure-code%)))
 	   s))
-   ppc::*ppc-nilreg-relative-symbols*))
+   (backend-xload-info-nil-relative-symbols *xload-target-backend*)))
 
 
 
@@ -492,20 +508,22 @@
 					(space *xload-dynamic-space*))
   (let* ((sym
           (target-word-size-case
-           (32 (xload-alloc-fullwords space *xload-target-fulltag-misc* target::symbol.element-count))
-           (64 (xload-alloc-doublewords space *xload-target-fulltag-misc* target::symbol.element-count)))))
-    (setf (xload-%svref sym -1)  (xload-symbol-header))
-    (setf (xload-%svref sym target::symbol.flags-cell) 0)
+           (32 (xload-alloc-fullwords space *xload-target-fulltag-for-symbols* target::symbol.element-count))
+           (64 (xload-alloc-doublewords space *xload-target-fulltag-for-symbols* target::symbol.element-count))))
+         (sv (logior *xload-target-fulltag-misc*
+                     (logandc2 sym *xload-target-fulltagmask*))))
+    (setf (xload-%svref sv -1)  (xload-symbol-header))
+    (setf (xload-%svref sv target::symbol.flags-cell) 0)
     ;; On PPC64, NIL's pname must be NIL.
-    (setf (xload-%svref sym target::symbol.pname-cell)
+    (setf (xload-%svref sv target::symbol.pname-cell)
           (if (and (target-arch-case (:ppc64 t) (otherwise nil))
                    (= sym *xload-target-nil*))
             *xload-target-nil*
             pname-address))
-    (setf (xload-%svref sym target::symbol.vcell-cell) *xload-target-unbound-marker*)
-    (setf (xload-%svref sym target::symbol.package-predicate-cell) package-address)
-    (setf (xload-%svref sym target::symbol.fcell-cell) (%xload-unbound-function%))
-    (setf (xload-%svref sym target::symbol.plist-cell) *xload-target-nil*)
+    (setf (xload-%svref sv target::symbol.vcell-cell) *xload-target-unbound-marker*)
+    (setf (xload-%svref sv target::symbol.package-predicate-cell) package-address)
+    (setf (xload-%svref sv target::symbol.fcell-cell) (%xload-unbound-function%))
+    (setf (xload-%svref sv target::symbol.plist-cell) *xload-target-nil*)
     ;;(break "Made symbol at #x~x (#x~x)" cell-addr offset)
     sym))
 
@@ -664,12 +682,22 @@
     (error "Not a cons: #x~x" addr)))
 
 (defun xload-symbol-value (addr)
+  (unless (= *xload-target-fulltag-for-symbols*
+             (logand addr *xload-target-fulltagmask*))
+    (error "~& Not a symbol address: #x~x" addr))
+  (setq addr (logior *xload-target-fulltag-misc*
+                     (logandc2 addr *xload-target-fulltagmask*)))
   (if (= (xload-%svref addr -1) (xload-symbol-header))
     (xload-%svref addr target::symbol.vcell-cell)
     (error "Not a symbol: #x~x" addr)))
   
 
 (defun (setf xload-symbol-value) (new addr)
+  (unless (= *xload-target-fulltag-for-symbols*
+             (logand addr *xload-target-fulltagmask*))
+    (error "~& Not a symbol address: #x~x" addr))
+  (setq addr (logior *xload-target-fulltag-misc*
+                     (logandc2 addr *xload-target-fulltagmask*)))
   (if (= (xload-%svref addr -1) (xload-symbol-header))
     (setf (xload-%svref addr target::symbol.vcell-cell) new)
     (error "Not a symbol: #x~x" addr)))
@@ -682,11 +710,21 @@
     (setf (xload-symbol-value symaddr) val)))
 
 (defun xload-fset (addr def)
+  (unless (= *xload-target-fulltag-for-symbols*
+             (logand addr *xload-target-fulltagmask*))
+    (error "~& Not a symbol address: #x~x" addr))
+  (setq addr (logior *xload-target-fulltag-misc*
+                     (logandc2 addr *xload-target-fulltagmask*)))
   (if (= (xload-%svref addr -1) (xload-symbol-header))
     (setf (xload-%svref addr target::symbol.fcell-cell) def)
     (error "Not a symbol: #x~x" addr)))
 
 (defun (setf xload-symbol-plist) (new addr)
+  (unless (= *xload-target-fulltag-for-symbols*
+             (logand addr *xload-target-fulltagmask*))
+    (error "~& Not a symbol address: #x~x" addr))
+  (setq addr (logior *xload-target-fulltag-misc*
+                     (logandc2 addr *xload-target-fulltagmask*)))
   (let* ((plist (xload-%svref addr target::symbol.plist-cell)))
     (if (xload-target-consp plist)
       (let* ((str (xload-get-string (xload-%svref addr target::symbol.pname-cell))))
@@ -711,11 +749,13 @@
                                       (if home-package 
                                         (xload-package->addr home-package)
                                         *xload-target-nil*)
-                                      space)))
+                                      space))
+             (svaddr (logior *xload-target-fulltag-misc*
+                             (logandc2 addr *xload-target-fulltagmask*))))
         (xload-intern symbol)
         (let* ((bits (logandc2 (%symbol-bits symbol)
                                (ash 1 $sym_vbit_typeppred))))
-          (setf (xload-%svref addr target::symbol.flags-cell)
+          (setf (xload-%svref svaddr target::symbol.flags-cell)
                 (ash (if preserve-constantness
                        bits
                        (logand (lognot (ash 1 $sym_vbit_const)) bits))
@@ -913,28 +953,25 @@
           (make-hash-table :test #'eql))
          (*xload-next-special-binding-index*
           (length *xload-reserved-special-binding-index-symbols*)))
-    (target-arch-case
-     (:ppc32
-      (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
-      ;; Make NIL.  Note that NIL is sort of a misaligned cons (it
-      ;; straddles two doublewords.)
-      (xload-make-cons *xload-target-nil* 0 *xload-static-space*)
-      (xload-make-cons 0 *xload-target-nil* *xload-static-space*))
-     (:ppc64
-      (xload-make-ivector *xload-static-space* ppc64::subtag-u64-vector
-                          (1- (/ 4096 8)))))
+    (funcall (backend-xload-info-static-space-init-function
+              *xload-target-backend*))
     ;; Create %unbound-function% and the package objects in dynamic space,
     ;; then fill in the nilreg-relative symbols in static space.
     ;; Then start consing ..
-    ;; The undefined-function object is a 1-element simple-vector (not
-    ;; a function vector).  The code-vector in its 0th element should
-    ;; report the appropriate error.
-    (let* ((udf-object (xload-make-gvector :simple-vector 1)))
-      (setf (xload-%svref udf-object 0) (xload-save-code-vector
-					 (backend-xload-info-udf-code
-					  *xload-target-backend*))))
+    (if *xload-target-use-code-vectors*
+      ;; The undefined-function object is a 1-element simple-vector (not
+      ;; a function vector).  The code-vector in its 0th element should
+      ;; report the appropriate error.
+      (let* ((udf-object (xload-make-gvector :simple-vector 1)))
+        (setf (xload-%svref udf-object 0) (xload-save-code-vector
+                                           (backend-xload-info-udf-code
+                                            *xload-target-backend*))))
+      (let* ((udf-object (xload-make-gvector :simple-vector 1)))
+        (setf (xload-%svref udf-object 0) (backend-xload-info-udf-code
+                                           *xload-target-backend*))))
+      
     (setq *xload-aliased-package-addresses* (xload-assign-aliased-package-addresses *xload-package-alist*))
-    (dolist (pair *xload-nrs*)
+    (dolist (pair (xload-nrs))
       (let* ((val-p (consp pair))
 	     (val (if val-p (or (cdr pair) *xload-target-nil*)))
 	     (sym (if val-p (car pair) pair)))
@@ -949,13 +986,19 @@
     (xload-set '%unbound-function% (%xload-unbound-function%))
     (xload-set '*gc-event-status-bits* (xload-integer 0 #|(ash 1 $gc-integrity-check-bit)|#))
     (xload-set '%toplevel-catch% (xload-copy-symbol :toplevel))
-    (xload-set '%closure-code% (xload-save-code-vector
-				(backend-xload-info-closure-trampoline-code
-				 *xload-target-backend*)))
-    (xload-set '%macro-code% (xload-save-code-vector
-			      (funcall
-                               (backend-xload-info-macro-apply-code-function
-                                *xload-target-backend*))))
+    (if *xload-target-use-code-vectors*
+      (xload-set '%closure-code% (xload-save-code-vector
+                                  (backend-xload-info-closure-trampoline-code
+                                   *xload-target-backend*)))
+      (xload-set '%closure-code% *xload-target-nil*))
+    (let* ((macro-apply-code (funcall
+                              (backend-xload-info-macro-apply-code-function
+                               *xload-target-backend*))))
+
+      (xload-set '%macro-code%
+                 (if *xload-target-use-code-vectors*
+                   (xload-save-code-vector macro-apply-code)
+                   macro-apply-code)))
     (let* ((len (length %builtin-functions%))
            (v (xload-make-gvector :simple-vector len)))
       (dotimes (i len)
@@ -966,7 +1009,8 @@
     (xload-set '*xload-startup-file*
                (xload-save-string *xload-startup-file*))
     (let* ((toplevel (xload-symbol-value (xload-lookup-symbol '%toplevel-function%))))      
-      (when (= toplevel *xload-target-unbound-marker*)
+      (when (or (= toplevel *xload-target-unbound-marker*)
+                (= toplevel *xload-target-nil*))
 	(warn "~S not set in loading ~S ." '%toplevel-function pathnames)))
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))
           (xload-save-list (setq *xload-cold-load-functions*
@@ -1067,6 +1111,12 @@
     (%epushval s (xload-integer (%%get-signed-longlong n 0) 2))))
 
 (defun xload-set-binding-address (symbol-address idx)
+  (unless (= *xload-target-fulltag-for-symbols*
+             (logand symbol-address *xload-target-fulltagmask*))
+    (error "~& Not a symbol address: #x~x" symbol-address))
+  (setq symbol-address
+        (logior *xload-target-fulltag-misc*
+                (logandc2 symbol-address *xload-target-fulltagmask*)))
   (setf (xload-%svref symbol-address target::symbol.binding-index-cell)
         (ash idx *xload-target-fixnumshift*))
   (setf (gethash symbol-address *xload-special-binding-indices*) idx))
@@ -1343,16 +1393,18 @@
   (xfasl-read-gvector s (xload-target-subtype :istruct)))
 
 (defun xload-lfun-name (lf)
-  (let* ((header (xload-%svref lf -1)))
+  (let* ((lfv (logior *xload-target-fulltag-misc*
+                      (logandc2 lf *xload-target-fulltagmask*)))
+         (header (xload-%svref lfv -1)))
     (unless (= (type-keyword-code :function)
                (logand header (1- (ash 1 target::num-subtag-bits))))
-      (error "Not a function address: ~s" lf))
+      (error "Not a function address: ~x" lf))
     (let* ((n (ash header (- target::num-subtag-bits))))
       (if (> n 2)
-        (let* ((bits (ash (xload-%svref lf (1- n))
+        (let* ((bits (ash (xload-%svref lfv (1- n))
                           (- *xload-target-fixnumshift*))))
           (unless (logbitp $lfbits-noname-bit bits)
-            (xload-%svref lf (- n 2))))
+            (xload-%svref lfv (- n 2))))
         (error "Teeny, tiny, little function : ~s" lf)))))
 
 
@@ -1420,13 +1472,15 @@
       (xload-set-documentation sym 'variable doc))
     (xload-record-source-file sym 'variable)
     (setf (xload-symbol-value sym) val)
-    (setf (xload-%svref sym target::symbol.flags-cell)
-          (ash 
-           (logior (ash 1 $sym_vbit_special) 
-                   (ash 1 $sym_vbit_const) 
-                   (ash (xload-%svref sym target::symbol.flags-cell)
+    (let* ((sv (logior *xload-target-fulltag-misc*
+                       (logandc2 sym *xload-target-fulltagmask*))))
+      (setf (xload-%svref sv target::symbol.flags-cell)
+            (ash 
+             (logior (ash 1 $sym_vbit_special) 
+                     (ash 1 $sym_vbit_const) 
+                     (ash (xload-%svref sv target::symbol.flags-cell)
                         (- *xload-target-fixnumshift*)))
-           *xload-target-fixnumshift*))))
+             *xload-target-fixnumshift*)))))
 
 (defxloadfaslop $fasl-defparameter (s)
   (%cant-epush s)
@@ -1437,23 +1491,27 @@
       (xload-set-documentation sym 'variable doc))
     (xload-record-source-file sym 'variable)
     (setf (xload-symbol-value sym) val)
-    (setf (xload-%svref sym target::symbol.flags-cell)
-          (ash 
-           (logior (ash 1 $sym_vbit_special) 
-                   (ash (xload-%svref sym target::symbol.flags-cell)
-                        (- *xload-target-fixnumshift*)))
-           *xload-target-fixnumshift*))))
+    (let* ((sv (logior *xload-target-fulltag-misc*
+                       (logandc2 sym *xload-target-fulltagmask*))))
+      (setf (xload-%svref sv target::symbol.flags-cell)
+            (ash 
+             (logior (ash 1 $sym_vbit_special) 
+                     (ash (xload-%svref sv target::symbol.flags-cell)
+                          (- *xload-target-fixnumshift*)))
+             *xload-target-fixnumshift*)))))
 
 (defxloadfaslop $fasl-defvar (s)
   (%cant-epush s)
   (let* ((sym (%fasl-expr s)))
     (xload-record-source-file sym 'variable)
-    (setf (xload-%svref sym target::symbol.flags-cell)
-          (ash 
-           (logior (ash 1 $sym_vbit_special) 
-                   (ash (xload-%svref sym target::symbol.flags-cell)
-                         (- *xload-target-fixnumshift*)))
-           *xload-target-fixnumshift*))))
+    (let* ((sv (logior *xload-target-fulltag-misc*
+                       (logandc2 sym *xload-target-fulltagmask*))))
+      (setf (xload-%svref sv target::symbol.flags-cell)
+            (ash 
+             (logior (ash 1 $sym_vbit_special) 
+                     (ash (xload-%svref sv target::symbol.flags-cell)
+                          (- *xload-target-fixnumshift*)))
+             *xload-target-fixnumshift*)))))
 
 (defxloadfaslop $fasl-defvar-init (s)
   (%cant-epush s)
@@ -1466,12 +1524,14 @@
              (xload-symbol-value sym))
       (setf (xload-symbol-value sym) val))
     (xload-record-source-file sym 'variable)
-    (setf (xload-%svref sym target::symbol.flags-cell)
-          (ash 
-           (logior (ash 1 $sym_vbit_special) 
-                   (ash (xload-%svref sym target::symbol.flags-cell)
-                        (- *xload-target-fixnumshift*)))
-           *xload-target-fixnumshift*))))
+    (let* ((sv (logior *xload-target-fulltag-misc*
+                       (logandc2 sym *xload-target-fulltagmask*))))
+      (setf (xload-%svref sv target::symbol.flags-cell)
+            (ash 
+             (logior (ash 1 $sym_vbit_special) 
+                     (ash (xload-%svref sv target::symbol.flags-cell)
+                          (- *xload-target-fixnumshift*)))
+             *xload-target-fixnumshift*)))))
 
 
 (xload-copy-faslop $fasl-prog1)
@@ -1480,6 +1540,30 @@
   (%cant-epush s)
   (let* ((path (%fasl-expr s)))
     (setq *xload-loading-file-source-file* path)))
+
+(defxloadfaslop $fasl-clfun (s)
+  (let* ((size-in-elements (%fasl-read-count s))
+         (size-of-code (%fasl-read-count s)))
+    (declare (fixnum size-in-elements size-of-code))
+    (multiple-value-bind (vector v o)
+        (target-word-size-case
+         (32 (xload-alloc-fullwords *xload-dynamic-space* *xload-target-fulltag-misc* size-in-elements))
+         (64 (xload-alloc-doublewords *xload-dynamic-space* *xload-target-fulltag-misc* size-in-elements)))
+      (declare (fixnum o))
+      (setf (natural-ref v (+ o *xload-target-misc-header-offset*))
+            (make-xload-header size-in-elements (xload-target-subtype :function)))
+      (let* ((function (logior *xload-target-fulltag-for-functions*
+                               (logandc2 vector *xload-target-fulltagmask*))))
+        (%epushval s function)
+        (%fasl-read-n-bytes s v (+ o *xload-target-misc-data-offset*)
+                            (ash size-of-code *xload-target-fixnumshift*))
+        (do* ((numconst (- size-in-elements size-of-code))
+              (i 0 (1+ i))
+              (constidx size-of-code (1+ constidx)))
+             ((= i numconst)
+              (setf (faslstate.faslval s) function))
+          (declare (fixnum i numconst constidx))
+          (setf (xload-%svref vector constidx) (%fasl-expr s)))))))
 
 
 (defparameter *xcompile-features* nil)
@@ -1538,30 +1622,52 @@
     (in-development-mode
      (when recompile
        (target-Xcompile-level-0 target (eq recompile :force)))
-     (setup-xload-target-parameters)
-     (let* ((*load-verbose* t)
-	    (compiler-backend (find-backend
-			       (backend-xload-info-compiler-target-name
-				*xload-target-backend*)))
-	    (wild-fasls (concatenate 'simple-string
-				     "*."
-				     (pathname-type
-				      (backend-target-fasl-pathname
-				       compiler-backend))))
-	    (wild-root (merge-pathnames "ccl:level-0;" wild-fasls))
-	    (wild-subdirs
-             (mapcar #'(lambda (d)
-                         (merge-pathnames d wild-fasls))
-			  (backend-xload-info-subdirs *xload-target-backend*)))
-	    (*xload-image-file-name* (backend-xload-info-default-image-name *xload-target-backend*)))
-       (apply #'xfasload *xload-image-file-name*
-              (append
-               (apply #'append
-                      (mapcar #'(lambda (d)
-                                  (sort (directory d) #'string< :key #'namestring))
-                              wild-subdirs))
-               (sort (directory wild-root) #'string< :key #'namestring)))
-       (format t "~&;Wrote bootstrapping image: ~s" (truename *xload-image-file-name*))))))
+     (let* ((*xload-image-base-address* *xload-image-base-address*)
+            (*xload-readonly-space-address* *xload-readonly-space-address*)
+            (*xload-dynamic-space-address* *xload-dynamic-space-address*)
+            (*xload-target-nil* *xload-target-nil*)
+            (*xload-target-unbound-marker* *xload-target-unbound-marker*)
+            (*xload-target-misc-header-offset* *xload-target-misc-header-offset*)
+            (*xload-target-misc-subtag-offset* *xload-target-misc-subtag-offset*)
+            (*xload-target-fixnumshift* *xload-target-fixnumshift*)
+            (*xload-target-fulltag-cons* *xload-target-fulltag-cons*)
+            (*xload-target-car-offset* *xload-target-car-offset*)
+            (*xload-target-cdr-offset* *xload-target-cdr-offset*)
+            (*xload-target-cons-size* *xload-target-cons-size*)
+            (*xload-target-fulltagmask* *xload-target-fulltagmask*)
+            (*xload-target-misc-data-offset* *xload-target-misc-data-offset*)
+            (*xload-target-fulltag-misc* *xload-target-fulltag-misc*)
+            (*xload-target-subtag-char* *xload-target-subtag-char*)
+            (*xload-target-charcode-shift* *xload-target-charcode-shift*)
+            (*xload-target-big-endian* *xload-target-big-endian*)
+            (*xload-host-big-endian* *xload-host-big-endian*)
+            (*xload-target-use-code-vectors* *xload-target-use-code-vectors*)
+            (*xload-target-fulltag-for-symbols* *xload-target-fulltag-for-symbols*)
+            (*xload-target-fulltag-for-functions* *xload-target-fulltag-for-functions*))
+       (setup-xload-target-parameters)
+       (let* ((*load-verbose* t)
+              (compiler-backend (find-backend
+                                 (backend-xload-info-compiler-target-name
+                                  *xload-target-backend*)))
+              (wild-fasls (concatenate 'simple-string
+                                       "*."
+                                       (pathname-type
+                                        (backend-target-fasl-pathname
+                                         compiler-backend))))
+              (wild-root (merge-pathnames "ccl:level-0;" wild-fasls))
+              (wild-subdirs
+               (mapcar #'(lambda (d)
+                           (merge-pathnames d wild-fasls))
+                       (backend-xload-info-subdirs *xload-target-backend*)))
+              (*xload-image-file-name* (backend-xload-info-default-image-name *xload-target-backend*)))
+         (apply #'xfasload *xload-image-file-name*
+                (append
+                 (apply #'append
+                        (mapcar #'(lambda (d)
+                                    (sort (directory d) #'string< :key #'namestring))
+                                wild-subdirs))
+                 (sort (directory wild-root) #'string< :key #'namestring)))
+         (format t "~&;Wrote bootstrapping image: ~s" (truename *xload-image-file-name*)))))))
 
 (defun Xcompile-directory (dir &optional force)
   (target-xcompile-directory (backend-name *host-backend*) dir  force))
