@@ -42,7 +42,7 @@ typedef u_int32_t unsigned_of_pointer_size;
 
 
 #if defined(DARWIN)
-#if WORD_SIZE ==64
+#if WORD_SIZE == 64
 typedef struct ucontext64 ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
 #else
