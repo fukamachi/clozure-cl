@@ -1,11 +1,8 @@
 *CCL*
 *ccl*
 *x86cl*
-ppc-boot*
-*.pfsl
-*.p64fsl
-*.dfsl
-*.d64fsl
+*boot*
+*fsl
 .gdb*
 *.image
 README*
