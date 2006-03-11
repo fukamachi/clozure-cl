@@ -875,8 +875,12 @@ create_system_thread(size_t stack_size,
 TCR *
 get_tcr(Boolean create)
 {
+#ifdef HAVE_TLS
+  TCR *current = current_tcr.linear;
+#else
   void *tsd = (void *)tsd_get(lisp_global(TCR_KEY));
   TCR *current = (tsd == NULL) ? NULL : TCR_FROM_TSD(tsd);
+#endif
 
   if ((current == NULL) && create) {
     LispObj callback_macptr = nrs_FOREIGN_THREAD_CONTROL.vcell,
