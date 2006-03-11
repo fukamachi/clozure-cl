@@ -358,8 +358,9 @@
 
 (defun %get-cstring (pointer)
   (do* ((end 0 (1+ end)))
-       ((zerop (%get-byte pointer end))
-        (%str-from-ptr pointer end))))
+       ((zerop (the fixnum (%get-byte pointer end)))
+        (%str-from-ptr pointer end))
+    (declare (fixnum end))))
 
 ;;; This is mostly here so we can bootstrap shared libs without
 ;;; having to bootstrap #_strcmp.
@@ -552,11 +553,12 @@
   (%store-node-conditional target::cons.cdr cons-cell old new))
 
 ;;; Atomically push NEW onto the list in the I'th cell of uvector V.
+
 (defun atomic-push-uvector-cell (v i new)
   (let* ((cell (cons new nil))
          (offset (+ target::misc-data-offset (ash i target::word-shift))))
     (loop
-      (let* ((old (uvref v i)))
+      (let* ((old (%svref v i)))
         (rplacd cell old)
         (when (%store-node-conditional offset v old cell)
           (return cell))))))
@@ -590,10 +592,6 @@
     (if (zerop binding-address)
       (%atomic-incf-node by s target::symbol.vcell-cell)
       (%atomic-incf-node by binding-address (* 2 target::node-size)))))
-
-;;; Yield the CPU, via a platform-specific syscall.
-(defun yield ()
-  (%syscall target::yield-syscall :signed-fullword))
 
 (defun write-lock-rwlock (lock)
     (let* ((context (%current-tcr)))
