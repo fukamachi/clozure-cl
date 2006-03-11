@@ -400,7 +400,8 @@ be somewhat larger than what was specified)."
 (defx86lapfunction %kernel-import ((offset arg_z))
   (ref-global kernel-imports imm0)
   (unbox-fixnum arg_z imm1)
-  (movq (@ (% imm0) (% imm1)) (% arg_z))
+  (movq (@ (% imm0) (% imm1)) (% imm0))
+  (box-fixnum imm0 arg_z)
   (single-value-return))
 
 (defx86lapfunction %get-unboxed-ptr ((macptr arg_z))
