@@ -40,7 +40,7 @@
     @loop
     (unbox-fixnum rsrc-byte-offset imm0)
     (addq ($ '1) (% rsrc-byte-offset))
-    (addq (@ x8664::macptr.address) (% imm0))
+    (addq (@ x8664::macptr.address (% rsrc)) (% imm0))
     (movb (@ (% imm0)) (%b imm0))
     (unbox-fixnum dest-byte-offset imm1)
     (addq ($ '1) (% dest-byte-offset))
@@ -69,7 +69,7 @@
     (movb (@ x8664::misc-data-offset (% rsrc) (% imm0)) (%b imm0))
     (unbox-fixnum dest-byte-offset imm1)
     (addq ($ '1) (% dest-byte-offset))
-    (addq (@ x8664::macptr.address) (% imm1))
+    (addq (@ x8664::macptr.address (%q dest)) (% imm1))
     (movb (%b imm0) (@ (% imm1)))
     (subq ($ '1) (% nbytes))
     @test
@@ -299,6 +299,8 @@
 
 ;;; This needs to be done out-of-line, to handle EGC memoization.
 (defx86lapfunction %store-node-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
   (jmp-subprim .SPstore-node-conditional))
 
 (defx86lapfunction %store-immediate-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
