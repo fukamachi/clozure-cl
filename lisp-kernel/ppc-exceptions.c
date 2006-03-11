@@ -1322,7 +1322,8 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
   tcr->save_allocbase = (void *)ptr_from_lispobj(xpGPR(xp, allocbase));
   tcr->save_vsp = (LispObj*) ptr_from_lispobj(xpGPR(xp, vsp));
   tcr->save_tsp = (LispObj*) ptr_from_lispobj(xpGPR(xp, tsp));
-  
+
+  tcr->lisp_fpscr.words.l = 0xd0;
   enable_fp_exceptions();
 
 
