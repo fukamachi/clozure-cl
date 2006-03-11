@@ -27,10 +27,10 @@
 (defmacro define-syscall (name idx (&rest arg-specs) result-spec
 			       &key (min-args (length arg-specs)))
   `(locally
-    (declare (special #+linuxppc-target *linux-syscalls* #+darwinppc-target *darwin-syscalls*))
+    (declare (special #+linux-target *linux-syscalls* #+darwin-target *darwin-syscalls*))
     (setf (gethash ',name
-                    #+linuxppc-target *linux-syscalls*
-                    #+darwinppc-target *darwin-syscalls*)
+                    #+linux-target *linux-syscalls*
+                    #+darwin-target *darwin-syscalls*)
      (make-syscall :idx ,idx
       :arg-specs ',arg-specs
       :result-spec ',result-spec
@@ -38,8 +38,8 @@
     ',name))
 
 (defmacro syscall (name &rest args)
-  (let* ((info (or (gethash name #+linuxppc-target *linux-syscalls*
-                                 #+darwinppc-target *darwin-syscalls*)
+  (let* ((info (or (gethash name #+linux-target *linux-syscalls*
+                                 #+darwin-target *darwin-syscalls*)
 		   (error "Unknown system call: ~s" name)))
 	 (idx (syscall-idx info))
 	 (arg-specs (syscall-arg-specs info))

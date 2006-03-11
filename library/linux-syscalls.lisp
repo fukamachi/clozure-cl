@@ -17,7 +17,7 @@
 (in-package "CCL")
 
 (defpackage "LINUX-SYSCALLS" (:use)
-            #+linuxppc-target (:nicknames "SYSCALLS"))
+            #+linux-target (:nicknames "SYSCALLS"))
 
 (defvar *linux-syscalls* (make-hash-table :test #'eq))
 
