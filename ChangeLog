@@ -1,3 +1,55 @@
+2006-03-11 03:20  gb
+
+	* level-0/X86/x86-def.lisp: Extra paren; %NTH-IMMEDIATE and
+	function/lfun-vector stuff, CLOSURE-FUNCTION here until that can be
+	abstracted away sanely.
+
+2006-03-11 03:18  gb
+
+	* level-0/X86/x86-misc.lisp: %STORE-IMMEDIATE-CONDITIONAL needs to
+	discard the frame that the caller reserved.
+
+2006-03-11 03:17  gb
+
+	* level-0/X86/x86-clos.lisp: Comment out the PPC LAP (e.g.,
+	everything in the file, still).
+
+2006-03-11 03:15  gb
+
+	* level-0/PPC/ppc-def.lisp: CLOSURE-FUNCTION here.  (Abstract away
+	NTH-IMMEDIATE ?)
+
+2006-03-11 03:14  gb
+
+	* level-0/l0-misc.lisp: Indentation.
+
+2006-03-11 03:13  gb
+
+	* level-0/l0-def.lisp: Move CLOSURE-FUNCTION to arch-specific dir. 
+	Use LFUN-VECTOR, which should hopefully compile away on PPC but
+	needs to be there on X8664.
+
+2006-03-11 03:11  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Now that subprim addresses
+	are higher, there's another significant byte to deal with in the
+	subprim jump in %INIT-CLOSURE.
+	
+	Use a temporary - and a smaller instruction sequence - in
+	MISC-ELEMENT-COUNT-FIXNUM, so that src and dest can overlap.  (More
+	instructions, but fewer bytes.)
+
+2006-03-11 03:08  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp,
+	compiler/X86/X8664/x8664-arch.lisp, lib/macros.lisp: LFUN-VECTOR
+	and LFUN-VECTOR-LFUN are arch-specific macros.
+
+2006-03-11 03:07  gb
+
+	* lisp-kernel/x86-spentry64.s: Reformat a comment.
+
 2006-03-10 22:06  gb
 
 	* xdump/xx8664-fasload.lisp: Target-specific static-space (NIL
