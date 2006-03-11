@@ -19,6 +19,11 @@
 ;;; It's easier to keep this is LAP; we want to play around with its
 ;;; constants.
 
+(eval-when (:compile-toplevel)
+  (warn "Need slot lookup, other CLOS glue for x8664"))
+
+#+notyet
+(progn
 ;;; This just maps a SLOT-ID to a SLOT-DEFINITION or NIL.
 ;;; The map is a vector of (UNSIGNED-BYTE 8); this should
 ;;; be used when there are less than 255 slots in the class.
@@ -278,4 +283,6 @@
       (ldr temp0 target::misc-data-offset nfn)
       (mtctr temp0)
       (bctr)))))
+
+)
 
