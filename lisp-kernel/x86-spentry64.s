@@ -1165,8 +1165,10 @@ C(egc_gvset):
 	__(jmp *%ra0)
 _endsubp(gvset)
 
-/* This is a special case of storing into a gvector: if we need to memoize the store,
-   record the address of the hash-table vector in the refmap, as well.
+/* 
+	This is a special case of storing into a gvector: if we need to
+	 memoize the store, record the address of the hash-table vector
+	 in the refmap, as well.
 */        
 
 _spentry(set_hash_key)
