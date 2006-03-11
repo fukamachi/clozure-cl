@@ -81,6 +81,9 @@
 
 #+linux-target
 (progn
+
+(defvar *dladdr-entry*)
+  
 ;;; I can't think of a reason to change this.
 (defvar *dlopen-flags* nil)
 (setq *dlopen-flags* (logior #$RTLD_GLOBAL #$RTLD_NOW))
@@ -444,6 +447,7 @@ the operating system."
   "Try to resolve the address of the foreign symbol name. If successful,
 return a fixnum representation of that address, else return NIL."
   (with-cstrs ((n name))
+    #+ppc-target
     (with-macptrs (addr)      
       (%setf-macptr addr
 		    (ff-call (%kernel-import target::kernel-import-FindSymbol)
@@ -451,13 +455,17 @@ return a fixnum representation of that address, else return NIL."
 			     :address n
 			     :address))
       (unless (%null-ptr-p addr)	; No function can have address 0
-	(macptr->fixnum addr)))))
+	(macptr->fixnum addr)))
+    #+x8664-target
+    (ff-call (%kernel-import target::kernel-import-FindSymbol)
+             :address handle
+             :address n
+             :unsigned-doubleword)))
 
 (defvar *statically-linked* nil)
 
 #+linux-target
 (progn
-(defvar *dladdr-entry*)
 
 (defun %library-base-containing-address (address)
   (declare (ignore name))
