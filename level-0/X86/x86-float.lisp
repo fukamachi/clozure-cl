@@ -190,8 +190,8 @@
 
 ;;; Set the bits that mask/unmask exceptions and control rounding.
 ;;; Clear the bits which describe current exceptions.
-(defun %set-mxcsr-status (arg)
-  (%set-mxcsr (dpb arg x86::mxcsr-status-byte 0)))
+(defun %set-mxcsr-control (arg)
+  (%set-mxcsr (dpb arg x86::mxcsr-control-byte 0)))
 
 ;;; Return the MXCSR value in effect after the last ff-call.
 (defx86lapfunction %get-post-ffi-mxcsr ()
@@ -380,7 +380,7 @@
                       (if inexact 0 (ash 1 (ash 1 (- x86::mxcsr-pm-bit
                                                      x86::mxcsr-control-bit-shift)))))))
     (declare (type (unsigned-byte 8) new mask))
-    (%set-mscsr-control (logior (logand new mask)
+    (%set-mxcsr-control (logior (logand new mask)
                                 (logandc2 (%get-mxcsr-control) mask)))))
 
 
