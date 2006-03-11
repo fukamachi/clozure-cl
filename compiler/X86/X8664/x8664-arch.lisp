@@ -1197,5 +1197,10 @@
 (defx8664archmacro ccl::%target-kernel-global (name)
   `(x8664::%kernel-global ,name))
 
+(defx8664archmacro ccl::lfun-vector (fn)
+  `(ccl::%function-to-function-vector ,fn))
+
+(defx8664archmacro ccl::lfun-vector-lfun (lfv)
+  `(ccl::%function-vector-to-function ,lfv)
 
 (provide "X8664-ARCH")

@@ -868,4 +868,10 @@
 (defppc32archmacro ccl::%target-kernel-global (name)
   `(ppc32::%kernel-global ,name))
 
+(defppc32archmacro ccl::lfun-vector (fn)
+  fn)
+
+(defppc32archmacro ccl::lfun-vector-lfun (lfv)
+  lfv)
+
 (provide "PPC32-ARCH")

@@ -932,4 +932,10 @@
 (defppc64archmacro ccl::%target-kernel-global (name)
   `(ppc64::%kernel-global ,name))
 
+(defppc64archmacro ccl::lfun-vector (fn)
+  fn)
+
+(defppc64archmacro ccl::lfun-vector-lfun (lfv)
+  lfv)
+
 (provide "PPC64-ARCH")

@@ -2313,6 +2313,9 @@ defcallback returns the callback pointer, e.g., the value of name."
 
 (declare-arch-specific-macro %get-single-float-from-double-ptr)
 
+(declare-arch-specific-macro lfun-vector)
+(declare-arch-specific-macro lfun-vector-lfun)
+
 (defvar *trace-print-functions* nil)
 (defun %trace-print-arg (stream arg val type)
   (format stream " ")
