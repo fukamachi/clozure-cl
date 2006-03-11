@@ -262,11 +262,12 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
       switch(sect->code) {
       case AREA_STATIC:
 	nilreg_area = a;
+#ifdef PPC
 #ifdef PPC64
         image_nil = ptr_to_lispobj(a->low + (1024*4) + sizeof(lispsymbol) + fulltag_misc);
-#endif
-#ifdef PPC32
+#else
 	image_nil = (LispObj)(a->low + 8 + 8 + (1024*4) + fulltag_nil);
+#endif
 #endif
 #ifdef X8664
 	image_nil = (LispObj)(a->low) + (1024*4) + fulltag_nil;

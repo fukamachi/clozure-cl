@@ -71,9 +71,14 @@ extern LispObj lisp_nil;
 
 #define MIN_KERNEL_GLOBAL INITIAL_TCR
 
+#ifdef PPC
 #ifdef PPC64
 #define lisp_global(g) (((LispObj *) 0x2000)[(g)])
 #define nrs_symbol(s) (((lispsymbol *) 0x2000)[(s)])
+#else
+#define lisp_global(g) (((LispObj *) (nil_value-fulltag_nil))[(g)])
+#define nrs_symbol(s) (((lispsymbol *) (nil_value+(8-fulltag_nil)+8))[(s)])
+#endif
 #endif
 
 #ifdef X8664
@@ -81,10 +86,6 @@ extern LispObj lisp_nil;
 #define nrs_symbol(s) (((lispsymbol *) 0x2020)[(s)])
 #endif
 
-#ifdef PPC32
-#define lisp_global(g) (((LispObj *) (nil_value-fulltag_nil))[(g)])
-#define nrs_symbol(s) (((lispsymbol *) (nil_value+(8-fulltag_nil)+8))[(s)])
-#endif
 
 #define nrs_T 				(nrs_symbol(0))		/* t */
 #define nrs_NILSYM			(nrs_symbol(1))		/* nil */
