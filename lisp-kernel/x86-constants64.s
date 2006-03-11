@@ -165,7 +165,7 @@ define([xfn],[temp1])
 define([allocptr],[temp0])		
 define([tsp],[mm7])
 define([next_tsp],[mm6])
-define([foreign_sp],[mm5])	
+define([Rforeign_sp],[mm5])	
 		
 define([fp0],[xmm0])		
 define([fp1],[xmm1])		
@@ -493,7 +493,7 @@ no_thread_local_binding_marker = subtag_no_thread_local_binding
 symbol_extra = symbol.size-fulltag_symbol
 
 	
-	_struct(nrs,0x2000)
+	_struct(nrs,0x2020)
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(tsym)
 	 _struct_pad(symbol_extra)	/* t  */
