@@ -62,24 +62,34 @@
 
 (defun target-setup-image-header-sizes ()
   (setq *image-header-size* (* 4 16))
-  (setq *image-section-size* (* 4 (target-arch-case
-                                   (:ppc32 4)
-                                   (:ppc64 8)))))
+  (setq *image-section-size* (* 4 (target-word-size-case
+                                   (32 4)
+                                   (64 8)))))
 
-(defun image-write-fullword (w f)
-  (write-byte (ldb (byte 8 24) w) f)
-  (write-byte (ldb (byte 8 16) w) f)
-  (write-byte (ldb (byte 8 8) w) f)
-  (write-byte (ldb (byte 8 0) w) f))
+(defun image-write-fullword (w f &optional force-big-endian)
+  (cond ((or force-big-endian *xload-target-big-endian*)
+         (write-byte (ldb (byte 8 24) w) f)
+         (write-byte (ldb (byte 8 16) w) f)
+         (write-byte (ldb (byte 8 8) w) f)
+         (write-byte (ldb (byte 8 0) w) f))
+        (t
+         (write-byte (ldb (byte 8 0) w) f)
+         (write-byte (ldb (byte 8 8) w) f)
+         (write-byte (ldb (byte 8 16) w) f)
+         (write-byte (ldb (byte 8 24) w) f))))
 
 (defun image-write-doubleword (dw f)
-  (image-write-fullword (ldb (byte 32 32) dw) f)
-  (image-write-fullword (ldb (byte 32 0) dw) f))
+  (cond (*xload-target-big-endian*
+         (image-write-fullword (ldb (byte 32 32) dw) f)
+         (image-write-fullword (ldb (byte 32 0) dw) f))
+        (t
+         (image-write-fullword (ldb (byte 32 0) dw) f)
+         (image-write-fullword (ldb (byte 32 32) dw) f))))
 
 (defun image-write-natural (n f)
-  (target-arch-case
-   (:ppc32 (image-write-fullword n f))
-   (:ppc64 (image-write-doubleword n f))))
+  (target-word-size-case
+   (32 (image-write-fullword n f))
+   (64 (image-write-doubleword n f))))
 
 (defun image-align-output-position (f)
   (file-position f (logand (lognot 4095)
@@ -97,28 +107,28 @@
 		     :element-type '(unsigned-byte 8))
     (let* ((nsections (length spaces))
 	   (header-pos (- 4096 (+ *image-header-size*
-				(* nsections *image-section-size*)))))
+                                  (* nsections *image-section-size*)))))
       (file-position f header-pos)
       (image-write-fullword image-sig0 f)
       (image-write-fullword image-sig1 f)
       (image-write-fullword image-sig2 f)
       (image-write-fullword image-sig3 f)
       (image-write-fullword (get-universal-time) f)
-      (image-write-fullword (target-arch-case
-                             (:ppc32 *xload-image-base-address*)
-                             (:ppc64 0)) f)
-      (image-write-fullword (target-arch-case
-                             (:ppc32 image-base)
-                             (:ppc64 0)) f)
+      (image-write-fullword (target-word-size-case
+                             (32 *xload-image-base-address*)
+                             (64 0)) f)
+      (image-write-fullword (target-word-size-case
+                             (32 image-base)
+                             (64 0)) f)
       (image-write-fullword nsections f)
       (image-write-fullword abi-version f)
-      (target-arch-case
-       (:ppc32
+      (target-word-size-case
+       (32
         (dotimes (i 2) (image-write-fullword 0 f))
         
         (image-write-fullword (backend-target-platform *target-backend*) f)
         (dotimes (i 4) (image-write-fullword 0 f)))
-       (:ppc64
+       (64
         (image-write-fullword 0 f)
         (image-write-fullword 0 f)
         (image-write-fullword (backend-target-platform *target-backend*) f)
@@ -126,8 +136,8 @@
         (image-write-doubleword image-base f)))
       (dolist (sect spaces)
 	(image-write-natural (ash (xload-space-code sect)
-                                   *xload-target-fixnumshift*)
-			      f)
+                                  *xload-target-fixnumshift*)
+                             f)
 	(image-write-natural 0 f)
 	(let* ((size (xload-space-lowptr sect)))
 	  (image-write-natural size f)
