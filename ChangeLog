@@ -1,3 +1,252 @@
+2006-03-10 22:06  gb
+
+	* xdump/xx8664-fasload.lisp: Target-specific static-space (NIL
+	representation, mostly) init functions.
+	
+	Move image-base-address up a few terabytes.
+	
+	Undefined function and macro trampolines are vectors with an
+	executable fixnum in the 0th word.
+
+2006-03-10 22:05  gb
+
+	* xdump/xppcfasload.lisp: Target-specific static-space (NIL
+	representation, mostly) init functions.
+
+2006-03-10 22:04  gb
+
+	* xdump/xfasload.lisp: Lots of changes, to deal with
+	symbol/function tagging issues, x86 clfuns, etc.
+
+2006-03-10 22:03  gb
+
+	* xdump/heap-image.lisp: Endianness, word-size conditionalization
+	stuff.
+
+2006-03-10 22:02  gb
+
+	* lisp-kernel/linuxx8664/Makefile: C files depend on lisptypes.h.
+
+2006-03-10 22:01  gb
+
+	* lisp-kernel/linuxx8664/elf_x86_64.x: Don't try to link into low
+	memory (no real reason to.) Do try to put spjump at a
+	fixed/known/page-aligned address.
+
+2006-03-10 21:59  gb
+
+	* lisp-kernel/x86_print.c: Recognize some x8664 tags.
+
+2006-03-10 21:59  gb
+
+	* lisp-kernel/x86-subprims64.s: Use Rforeign_sp; get valence right
+	on exit.
+
+2006-03-10 21:58  gb
+
+	* lisp-kernel/x86-spjump64.s: Rename ffcall/syscall.
+
+2006-03-10 21:58  gb
+
+	* lisp-kernel/x86-spentry64.s: Lots of fixes/changes (including
+	ffcall/syscall).
+
+2006-03-10 21:56  gb
+
+	* lisp-kernel/x86-macros.s: TSP_Alloc_Size is an immediate operand
+	in TSP_Alloc_Fixed().
+	
+	Fix allocptr/allocbase comparison when consing.
+	
+	Misc_Alloc_Fixed: m4/gas $ conflation.
+
+2006-03-10 21:54  gb
+
+	* lisp-kernel/x86-exceptions.h: Extra parens around xpGPR
+	expansion.
+
+2006-03-10 21:54  gb
+
+	* lisp-kernel/x86-exceptions.c: Actually handle something
+	(uuo_alloc()), since we can't do much without it.
+
+2006-03-10 21:53  gb
+
+	* lisp-kernel/x86-constants64.s: Call the foreign sp register
+	Rforeign_sp, to avoid m4 lossage.
+	
+	nrs starts at #x2020, because NIL is between there and #x2000.
+
+2006-03-10 21:52  gb
+
+	* lisp-kernel/x86-constants64.h: Iallocptr for trap handler.
+	
+	tcr was missing foreign_sp definition.
+
+2006-03-10 21:51  gb
+
+	* lisp-kernel/thread_manager.c: get_tcr() change for HAVE_TLS case.
+
+2006-03-10 21:51  gb
+
+	* lisp-kernel/ppc-exceptions.c: Put a sane value in the FPSCR
+	before calling back to lisp on an exception.
+
+2006-03-10 21:50  gb
+
+	* lisp-kernel/pmcl-kernel.c: Use address of bad_funcall, not
+	"value".
+	
+	Disable EGC on x8664.
+
+2006-03-10 21:49  gb
+
+	* lisp-kernel/lisptypes.h: formatting change only.
+
+2006-03-10 21:49  gb
+
+	* lisp-kernel/lisp_globals.h: Layout of lisp-globals/nrs on x8664
+	not identical to ppc64 (NIL representation differs.)
+
+2006-03-10 21:48  gb
+
+	* lisp-kernel/lisp-debug.c: Lisp register stuff for x8664.
+
+2006-03-10 21:48  gb
+
+	* lisp-kernel/image.c: Fix some conditionalization.
+
+2006-03-10 21:47  gb
+
+	* lisp-kernel/area.h: Larger IMAGE-BASE-ADDRESS for X8664 Linux.
+
+2006-03-10 21:46  gb
+
+	* library/: linux-syscalls.lisp, syscall.lisp: Try to make things a
+	little more portable, but really need to keep things in the
+	target-ftd.  Soon.
+
+2006-03-10 21:45  gb
+
+	* level-0/l0-numbers.lisp: Don't reference
+	TARGET::LEAST-SIGNIFICANT-BIT in ASH; express limits in terms of
+	TARGET::NBITS-IN-WORD.
+
+2006-03-10 21:45  gb
+
+	* level-0/l0-misc.lisp: Add some fixnum decls to %GET-CSTRING, so
+	that single-stepping through it in GDB is faster.
+
+2006-03-10 21:44  gb
+
+	* level-0/l0-io.lisp: %YIELD here, so all level-0 syscalls are in
+	one file.
+
+2006-03-10 21:43  gb
+
+	* level-0/l0-cfm-support.lisp: We generally want foreign symbol
+	addresses to be boxed integers on X8664, and can't assume that
+	they're fixnum-aligned.
+
+2006-03-10 21:42  gb
+
+	* level-0/: l0-array.lisp, l0-init.lisp: Comment indentation.
+
+2006-03-10 21:41  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: Well, it's a start ...
+
+2006-03-10 21:41  gb
+
+	* level-0/X86/x86-utils.lisp: %KERNEL-IMPORT boxes what may not
+	have been a fixnum.
+
+2006-03-10 21:40  gb
+
+	* level-0/X86/x86-misc.lisp: Fix typo.
+	
+	STORE-NODE-CONDITIONAL pops stack arg, discards stack frame
+	reserved by caller before jumping into kernel.
+
+2006-03-10 21:39  gb
+
+	* level-0/X86/x86-float.lisp: Missing SET-MXCSR-CONTROL was hidden
+	in duplicate SET-MSCSR-STATUS.	May want to always set/get the
+	control and rounding modes.
+
+2006-03-10 21:37  gb
+
+	* level-0/X86/x86-def.lisp: Comment out the missing lexpr/apply
+	stuff, so that the rest of the file compiles.
+
+2006-03-10 21:36  gb
+
+	* level-0/X86/x86-array.lisp: %INIT-MISC wants/needs to be in LAP
+	because of write-barrier issues.
+
+2006-03-10 21:35  gb
+
+	* lib/x8664env.lisp: It's OK (in fact necessary) to use FP0 as a
+	temporary.  0.0 is in FPZERO.
+
+2006-03-10 21:34  gb
+
+	* lib/nfcomp.lisp: Spit out a fasl op while writing CLFUNs.
+
+2006-03-10 21:33  gb
+
+	* level-0/PPC/ppc-float.lisp: Don't CLEAR-FPU-EXCEPTIONS, at least
+	without knowing why.
+
+2006-03-10 21:32  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: SETcc sets the byte to 1 or
+	0, so we need to negate.
+	
+	Other bug fixes and additions.
+
+2006-03-10 21:31  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Fix a typo in
+	X8664-MISC-BYTE-SIZE.
+	
+	Move subprims base up to #x410000, to make it easier on the linker.
+
+2006-03-10 21:29  gb
+
+	* compiler/X86/x862.lisp: Lots-o-fixes; FFI stuff.  When generating
+	code involving a :REG8 operand, be careful to pass the 8-bit reg
+	entry to LAP.
+
+2006-03-10 21:27  gb
+
+	* compiler/X86/x86-lapmacros.lisp: X86 CMOV instructions reference
+	the source operand (possibly generating a memory fault) even if the
+	destination operand isn't written to.  Who knew ?
+
+2006-03-10 21:24  gb
+
+	* compiler/X86/x86-disassemble.lisp: Recognize newer UUOs.
+
+2006-03-10 21:24  gb
+
+	* compiler/X86/x86-lap.lisp: Use the #x80 bit in an instruction's
+	REX prefix to indicate when the prefix needs to be emitted (even if
+	the #x7 bits are clear).
+
+2006-03-10 21:23  gb
+
+	* compiler/X86/x86-asm.lisp: A few UUOs; try to ensure that we'll
+	generate (at least) a #x40 REX prefix if a new-style byte register
+	is used as an operand.	(e.g., we generally don't want to refer to
+	the traditional things like %dh, and do want to refer to the newer
+	things like %sil.)
+
+2006-03-10 21:20  gb
+
+	* compiler/X86/x86-arch.lisp: rename *X86-NILREG-RELATIVE-SYMBOLS*
+	-> *X86-NIL-RELATIVE-SYMBOLS*.
+
 2006-03-10 21:18  gb
 
 	* compiler/PPC/: ppc2.lisp, PPC32/ppc32-vinsns.lisp,
