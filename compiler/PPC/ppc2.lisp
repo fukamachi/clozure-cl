@@ -7705,7 +7705,7 @@
          (nfpr-args 0)
          (ngpr-args 0)
          (fp-loads ()))
-      (declare (fixnum  nshort-flaats ndouble-floats nfpr-args ngpr-args narg-words
+      (declare (fixnum  nshort-floats ndouble-floats nfpr-args ngpr-args narg-words
                         gpr-offset other-offset single-float-offset double-float-offset))
       (dolist (argspec argspecs)
         (case argspec
@@ -7747,9 +7747,10 @@
       (setq ngpr-args 0 nfpr-args 0)
       (ppc2-open-undo $undo-ppc-c-frame)
       (ppc2-vpush-register seg (ppc2-one-untargeted-reg-form seg address ppc::arg_z))
-      ; Evaluate each form into the C frame, according to the matching argspec.
-      ; Remember type and arg offset of any FP args, since FP regs will have to be loaded
-      ; later.
+      ;; Evaluate each form into the C frame, according to the
+      ;; matching argspec.
+      ;; Remember type and arg offset of any FP args, since FP regs
+      ;; will have to be loaded later.
       (do* ((specs argspecs (cdr specs))
             (vals argvals (cdr vals)))
            ((null specs))
@@ -8182,6 +8183,42 @@
     (ensuring-node-target (target vreg)
       (! %symbol->symptr target src))
     (^)))
+
+(defppc2 ppc2-%double-to-single %double-to-single (seg vreg xfer arg)
+  (if (null vreg)
+    (ppc2-form seg vreg xfer arg)
+    (if (and (= (hard-regspec-class vreg) hard-reg-class-fpr)
+             (= (get-regspec-mode vreg) hard-reg-class-fpr-mode-single))
+      (let* ((dreg (ppc2-one-untargeted-reg-form 
+                    seg arg
+                    (make-wired-lreg (hard-regspec-value vreg)
+                                     :class hard-reg-class-fpr
+                                     :mode hard-reg-class-fpr-mode-double))))
+        (! double-to-single vreg dreg)
+        (^))
+      (with-fp-target () (argreg :double-float)
+        (ppc2-one-targeted-reg-form seg arg argreg)
+        (with-fp-target ()  (sreg :single-float)
+          (! double-to-single sreg argreg)
+          (<- sreg)
+          (^))))))
+
+(defppc2 ppc2-%single-to-double %single-to-double (seg vreg xfer arg)
+  (if (null vreg)
+    (ppc2-form seg vreg xfer arg)
+    (if (and (= (hard-regspec-class vreg) hard-reg-class-fpr)
+             (= (get-regspec-mode vreg) hard-reg-class-fpr-mode-double))
+      (progn
+        (ppc2-one-untargeted-reg-form 
+         seg arg
+         (make-wired-lreg (hard-regspec-value vreg)
+                          :class hard-reg-class-fpr
+                          :mode hard-reg-class-fpr-mode-single))
+        (^))
+      (with-fp-target () (sreg :single-float)
+        (ppc2-one-targeted-reg-form seg arg sreg)
+        (<- (set-regspec-mode sreg hard-reg-class-fpr-mode-double))
+        (^)))))
 
 ;------
 

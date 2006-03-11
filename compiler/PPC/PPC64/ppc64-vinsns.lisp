@@ -2245,7 +2245,11 @@
   :do-trap
   (tdnei tag ppc64::subtag-double-float)
   (lfd target ppc64::double-float.value source))
-  
+
+(define-ppc64-vinsn double-to-single (((result :single-float))
+                                       ((arg :double-float)))
+  (frsp result arg))
+
 
 (define-ppc64-vinsn store-single (()
 				  ((dest :lisp)
