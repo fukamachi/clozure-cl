@@ -562,7 +562,7 @@ minimum number of elements to add if it must be extended."
             (%err-disp $XNDIMS a n)
             (if (< typecode target::min-array-subtag)
               (report-bad-arg a 'array)
-              ;  This typecode is Just Right ...
+              ;;  This typecode is Just Right ...
               (progn
                 (unless (= (the fixnum (%svref a target::arrayH.rank-cell)) n)
                   (%err-disp $XNDIMS a n))
