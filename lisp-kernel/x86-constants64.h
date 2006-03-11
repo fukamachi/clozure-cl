@@ -57,6 +57,8 @@
 #define Iflags      22
 #endif
 
+#define Iallocptr Itemp0
+
 
 #define nbits_in_word 64L
 #define log2_nbits_in_word 6L
@@ -412,6 +414,7 @@ typedef struct tcr {
   LispObj catch_top;		/* top catch frame */
   LispObj* save_vsp;  /* VSP when in foreign code */
   LispObj* save_tsp;  /* TSP when in foreign code */
+  LispObj* foreign_sp;
   struct area* cs_area; /* cstack area pointer */
   struct area* vs_area; /* vstack area pointer */
   struct area* ts_area; /* tstack area pointer */
