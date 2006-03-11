@@ -265,7 +265,7 @@
      (aset2 . #.(logior operator-acode-subforms-mask operator-single-valued-mask))
      (consp . #.(logior operator-cc-invertable-mask operator-assignment-free-mask operator-acode-subforms-mask operator-side-effect-free-mask operator-boolean-mask))
      (aset1 . #.(logior operator-acode-subforms-mask))
-     (embedded-call . 0)
+     (syscall . 0)
      (car . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (cdr . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (length . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
@@ -389,6 +389,8 @@
      (%slot-ref . 0)
      (%illegal-marker . #.operator-single-valued-mask)
      (%symbol->symptr . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
+     (%single-to-double  . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
+     (%double-to-single . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      )))
 
 (defmacro %nx1-operator (sym)
