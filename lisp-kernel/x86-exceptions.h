@@ -21,7 +21,7 @@ typedef u_int8_t opcode, *pc;
 #define xpGPRvector(x) ((natural *)(&((x)->uc_mcontext.gregs)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
-#define xpPC(x) xpGPR(x,Iip)
+#define xpPC(x) (xpGPR(x,Iip))
 #endif
 #endif
 
