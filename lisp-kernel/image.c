@@ -237,7 +237,7 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
     int i, nsections = h->nsections;
     openmcl_image_section_header sections[nsections], *sect=sections;
     LispObj bias = image_base - ACTUAL_IMAGE_BASE(h);
-#ifdef PPC64
+#if (WORD_SIZE== 64)
     signed_natural section_data_delta = 
       ((signed_natural)(h->section_data_offset_high) << 32L) | h->section_data_offset_low;
 #endif
@@ -246,7 +246,7 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
 	nsections * sizeof(openmcl_image_section_header)) {
       return 0;
     }
-#ifdef PPC64
+#if WORD_SIZE == 64
     lseek(fd, section_data_delta, SEEK_CUR);
 #endif
     for (i = 0; i < nsections; i++, sect++) {
@@ -264,8 +264,12 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
 	nilreg_area = a;
 #ifdef PPC64
         image_nil = ptr_to_lispobj(a->low + (1024*4) + sizeof(lispsymbol) + fulltag_misc);
-#else
+#endif
+#ifdef PPC32
 	image_nil = (LispObj)(a->low + 8 + 8 + (1024*4) + fulltag_nil);
+#endif
+#ifdef X8664
+	image_nil = (LispObj)(a->low) + (1024*4) + fulltag_nil;
 #endif
 	set_nil(image_nil);
 	if (bias) {
