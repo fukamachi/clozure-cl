@@ -169,14 +169,17 @@
                   (list eql-fn x l))))))))))
 
 (defun eql-iff-eq-p (thing env)
-  (if (quoted-form-p thing) (setq thing (%cadr thing))
-      (if (not (self-evaluating-p thing))
+  (if (quoted-form-p thing)
+    (setq thing (%cadr thing))
+    (if (not (self-evaluating-p thing))
         (return-from eql-iff-eq-p
                      (nx-form-typep thing
                                      '(or fixnum
+                                       #+64-bit-target single-float
                                        character symbol 
                                        (and (not number) (not macptr))) env))))
-  (or (fixnump thing) (and (not (numberp thing)) (not (macptrp thing)))))
+  (or (fixnump thing) #+64-bit-target (typep thing 'single-float)
+      (and (not (numberp thing)) (not (macptrp thing)))))
 
 (defun fold-constant-subforms (call env)
     (let* ((constants nil)
@@ -1699,6 +1702,25 @@
           (and (>= ,code (setq ,code (char-code ,other)))
            (>= ,code (the fixnum (char-code ,third))))))
       call)))
+
+(define-compiler-macro float (&whole call number &optional other &environment env)
+  (cond ((and (typep other 'single-float)
+              (nx-form-typep number 'double-float env))
+         `(the single-float (%double-to-single ,number)))
+        ((and (typep other 'double-float)
+              (nx-form-typep number 'single-float env))
+         `(the double-float (%single-to-double ,number)))
+        (t call)))
+
+(define-compiler-macro coerce (&whole call thing type)
+  (if (quoted-form-p type)
+    (setq type (cadr type)))
+  (if (ignore-errors (subtypep type 'single-float))
+    `(float ,thing 0.0f0)
+    (if (ignore-errors (subtypep type 'double-float))
+      `(float ,thing 0.0d0)
+      call)))
+                     
 
 (provide "OPTIMIZERS")
 
