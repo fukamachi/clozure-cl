@@ -594,16 +594,16 @@
       (%atomic-incf-node by binding-address (* 2 target::node-size)))))
 
 (defun write-lock-rwlock (lock)
-    (let* ((context (%current-tcr)))
-      (if (eq (%svref lock target::lock.writer-cell) context)
-        (progn
-          (decf (%svref lock target::lock._value-cell))
-          lock)
-        (loop
-          (when (%store-immediate-conditional target::lock._value lock 0 -1)
-            (setf (%svref lock target::lock.writer-cell) context)
-            (return lock))
-          (%nanosleep 0 *ns-per-tick*)))))
+  (let* ((context (%current-tcr)))
+    (if (eq (%svref lock target::lock.writer-cell) context)
+      (progn
+        (decf (%svref lock target::lock._value-cell))
+        lock)
+      (loop
+        (when (%store-immediate-conditional target::lock._value lock 0 -1)
+          (setf (%svref lock target::lock.writer-cell) context)
+          (return lock))
+        (%nanosleep 0 *ns-per-tick*)))))
 
 
 (defun read-lock-rwlock (lock)
