@@ -155,23 +155,10 @@
     (not (eq old unbound))))
 
 ;;; It's guaranteed that lfun-bits is a fixnum.  Might be a 30-bit fixnum ...
-(defun lfun-bits (function &optional new)
-  (unless (functionp function)
-    (setq function (require-type function 'function)))
-  (let* ((idx (1- (the fixnum (uvsize function))))
-         (old (%svref function idx)))
-    (declare (fixnum idx))
-    (if new
-      (setf (%svref function idx) new))
-    old))
 
 
-(defun closure-function (fun)
-  (while (and (functionp fun)  (not (compiled-function-p fun)))
-    (setq fun (%svref fun 1))
-    (when (vectorp fun)
-      (setq fun (svref fun 0))))
-  fun)
+
+
 
 (defun lfun-vector-name (fun &optional (new-name nil set-name-p))
   (let* ((bits (lfun-bits fun)))
@@ -183,11 +170,12 @@
 	(%gf-name fun))
       (let* ((has-name-cell (not (logbitp $lfbits-noname-bit bits))))
 	(if has-name-cell
-	  (let* ((name-idx (- (the fixnum (uvsize fun)) 2))
-		 (old-name (%svref fun name-idx)))
+	  (let* ((lfv (lfun-vector fun))
+                 (name-idx (- (the fixnum (uvsize lfv)) 2))
+		 (old-name (%svref lfv name-idx)))
 	    (declare (fixnum name-idx))
 	    (if (and set-name-p (not (eq old-name new-name)))
-	      (setf (%svref fun name-idx) new-name))
+	      (setf (%svref lfv name-idx) new-name))
 	    old-name))))))
 
 (defun lfun-name (fun &optional (new-name nil set-name-p))
@@ -202,6 +190,16 @@
           (lfun-vector-name fun new-name))))
     stored-name))
 
+(defun lfun-bits (function &optional new)
+  (unless (functionp function)
+    (setq function (require-type function 'function)))
+  (let* ((lfv (lfun-vector function))
+         (idx (1- (the fixnum (uvsize lfv))))
+         (old (%svref lfv idx)))
+    (declare (fixnum idx))
+    (if new
+      (setf (%svref lfv idx) new))
+    old))
     
 (defun %macro-have (symbol macro-function)
   (declare (special %macro-code%))      ; magically set by xloader.
