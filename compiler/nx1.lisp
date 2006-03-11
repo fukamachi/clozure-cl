@@ -1228,7 +1228,8 @@
            (ecase (backend-name *target-backend*)
              (:linuxppc32 (%nx1-operator eabi-syscall))
              ((:darwinppc32 :darwinppc64 :linuxppc64)
-              (%nx1-operator poweropen-syscall))))))
+              (%nx1-operator poweropen-syscall))
+             (:linuxx8664 (%nx1-operator syscall))))))
 
 (defun nx1-ff-call-internal (address-expression arg-specs-and-result-spec operator )
   (let* ((specs ())
@@ -1921,6 +1922,14 @@
               (nx1-form base)
               (nx1-form offset)))
 
+(defnx1 nx1-%single-to-double ((%single-to-double)) (arg)
+  (make-acode (%nx1-operator %single-to-double)
+              (nx1-form arg)))
+
+(defnx1 nx1-%double-to-single ((%double-to-single)) (arg)
+  (make-acode (%nx1-operator %double-to-single)
+              (nx1-form arg)))
+        
 (defnx1 nx1-ash (ash) (&whole call &environment env num amt)
   (let* ((unsigned-natural-type (target-word-size-case
                                  (32 '(unsigned-byte 32))
