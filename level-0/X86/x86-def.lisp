@@ -203,7 +203,11 @@
   (movq (% arg_z) (@ (% imm0) (% imm1)))
   (single-value-return))
 
+(eval-when (:compile-toplevel)
+  (warn "missing lexpr/apply stuff"))
 
+#+notyet
+(progn
 (defx86lapfunction %apply-lexpr-with-method-context ((magic arg_x)
                                                      (function arg_y)
                                                      (args arg_z))
@@ -281,5 +285,6 @@
   (vpop arg_x)
   (bctr))
 
+)
 
 ;;; end of x86-def.lisp
