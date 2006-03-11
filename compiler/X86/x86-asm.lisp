@@ -3156,6 +3156,8 @@
    (def-x8664-opcode movsd ((:regxmm :insert-xmm-reg) (:anymem :insert-memory))
      #x0f11 #o000 #x0 #xf2)
 
+   
+
    ;; movss
    (def-x8664-opcode movss ((:regxmm :insert-xmm-rm) (:regxmm :insert-xmm-reg))
      #x0f10 #o300 #x0 #xf3)
@@ -3350,7 +3352,11 @@
    (def-x8664-opcode uuo-error-vector-bounds ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
      #xcdc8 #o300 0)
 
+   (def-x8664-opcode uuo-error-call-macro-or-special-operator ()
+     #xcdc9 nil nil)
 
+   (def-x8664-opcode uuo-error-debug-trap ()
+     #xcdca nil nil)
    
    (def-x8664-opcode uuo-error-reg-not-tag ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdd0 nil 0)
@@ -4228,13 +4234,17 @@
 
 (defun insert-modrm-reg-entry (instruction entry)
   (let* ((reg-num (reg-entry-reg-num entry))
-         (need-rex.r (logtest +regrex+ (reg-entry-reg-flags entry))))
+         (flags (reg-entry-reg-flags entry))
+         (need-rex.r (logtest +regrex+ flags)))
     (setf (x86-instruction-modrm-byte instruction)
           (dpb reg-num (byte 3 3)
                (need-modrm-byte instruction)))
     (when need-rex.r
       (setf (x86-instruction-rex-prefix instruction)
-            (logior +rex-extx+ (need-rex-prefix instruction))))))
+            (logior +rex-extx+ (need-rex-prefix instruction))))
+    (when (logtest +regrex64+ flags)
+      (setf (x86-instruction-rex-prefix instruction)
+            (logior #x80 (need-rex-prefix instruction))))))
 
 
 
@@ -4258,13 +4268,17 @@
 
 (defun insert-opcode-reg-entry (instruction entry)
   (let* ((reg-num (reg-entry-reg-num entry))
-         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
+         (flags (reg-entry-reg-flags entry))
+         (need-rex.b (logtest +regrex+ flags)))
     (setf (x86-instruction-base-opcode instruction)
           (dpb reg-num (byte 3 0)
                (x86-instruction-base-opcode instruction)))
     (when need-rex.b
       (setf (x86-instruction-rex-prefix instruction)
-            (logior +rex-extz+ (need-rex-prefix instruction))))))
+            (logior +rex-extz+ (need-rex-prefix instruction))))
+    (when (logtest +regrex64+ flags)
+      (setf (x86-instruction-rex-prefix instruction)
+            (logior #x80 (need-rex-prefix instruction))))))
 
 (defun insert-opcode-reg (instruction operand)
   (insert-opcode-reg-entry instruction (x86-register-operand-entry operand)))
@@ -4293,12 +4307,16 @@
 
 (defun insert-modrm-rm-entry (instruction entry)
   (let* ((reg-num (reg-entry-reg-num entry))
-         (need-rex.b (logtest +regrex+ (reg-entry-reg-flags entry))))
+         (flags (reg-entry-reg-flags entry))
+         (need-rex.b (logtest +regrex+ flags)))
     (setf (x86-instruction-modrm-byte instruction)
           (dpb reg-num (byte 3 0) (need-modrm-byte instruction)))
     (when need-rex.b
       (setf (x86-instruction-rex-prefix instruction)
-            (logior +rex-extz+ (need-rex-prefix instruction))))))
+            (logior +rex-extz+ (need-rex-prefix instruction))))
+    (when (logtest +regrex64+ flags)
+      (setf (x86-instruction-rex-prefix instruction)
+            (logior #x80 (need-rex-prefix instruction))))))
 
 (defun insert-modrm-rm (instruction operand)
   (insert-modrm-rm-entry instruction (x86-register-operand-entry operand)))
