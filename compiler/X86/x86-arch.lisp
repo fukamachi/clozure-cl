@@ -78,7 +78,7 @@
 
 ;;; The order here matches "ccl:lisp-kernel;lisp_globals.h" and the nrs record
 ;;; in "ccl:lisp-kernel;constants.s".
-(defparameter *x86-nilreg-relative-symbols*
+(defparameter *x86-nil-relative-symbols*
   '(t
     nil
     ccl::%err-disp
@@ -113,6 +113,9 @@
     ccl::%finalization-alist%
     ccl::%foreign-thread-control
     ))
+
+;;; Old (and slightly confusing) name; NIL used to be in a register.
+(defparameter *x86-nilreg-relative-symbols* *x86-nil-relative-symbols*)
 
 (ccl::defenum (:prefix "AREA-")
   void                                  ; list header
