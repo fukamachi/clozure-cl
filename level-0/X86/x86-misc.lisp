@@ -34,8 +34,8 @@
   (let ((rsrc temp0)
         (rsrc-byte-offset temp1))
     (testq (% nbytes) (% nbytes))
-    (popq (% rsrc-byte-offset))                    ; boxed src-byte-offset
-    (popq (% rsrc))                    ; src macptr
+    (popq (% rsrc-byte-offset))         ; boxed src-byte-offset
+    (popq (% rsrc))                     ; src macptr
     (jmp @test)
     @loop
     (unbox-fixnum rsrc-byte-offset imm0)
@@ -305,6 +305,7 @@
 
 (defx86lapfunction %store-immediate-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
   (pop (% temp0))
+  (discard-reserved-frame)
   (unbox-fixnum temp0 imm1)
   @again
   (movq (@ (% object) (% imm1)) (% rax))
