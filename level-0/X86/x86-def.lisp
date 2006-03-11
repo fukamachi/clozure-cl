@@ -20,6 +20,22 @@
   (addb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (% arg_z.b))
   (single-value-return))
 
+(defx86lapfunction %function-to-function-vector  ((arg arg_z))
+  (subb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (% arg_z.b))
+  (single-value-return))
+
+(defx86lapfunction %function-code-words ((fn arg_z))
+  (movl (@ (- x8664::node-size x8664::fulltag-function) (% fn)) (% imm0.l))
+  (box-fixnum imm0 arg_z)
+  (single-value-return))
+
+(defx86lapfunction %nth-immediate ((fn arg_y) (n arg_z))
+  (movl (@ (- x8664::node-size x8664::fulltag-function) (% fn)) (% imm0.l))
+  (addq (% n) (% imm0))
+  (movq (@ (- x8664::node-size x8664::fulltag-function) (% fn) (% imm0))
+        (% arg_z))
+  (single-value-return))
+
 (defx86lapfunction %make-code-executable ((codev arg_z))
   (single-value-return))
 
@@ -75,7 +91,7 @@
   (cmpw ($ '2) (% nargs))
   (jne @3-args)
   (movq (% offset) (% fixnum))
-  (li offset 0)
+  (xorl (%l offset) (%l offset))
   @3-args
   (unbox-fixnum offset imm0)
   (movq (% new-value) (@ (% fixnum) (% imm0)))
@@ -169,7 +185,7 @@
 (defx86lapfunction %fixnum-address-of ((x arg_z))
   (check-nargs 1)
   (box-fixnum x arg_z)
-  (single-value-return)))
+  (single-value-return))
 
 (defx86lapfunction %save-standard-binding-list ((bindings arg_z))
   (movq (@ (% rcontext) x8664::tcr.vs-area) (% imm0))
@@ -286,5 +302,14 @@
   (bctr))
 
 )
+
+
+
+(defun closure-function (fun)
+  (while (and (functionp fun)  (not (compiled-function-p fun)))
+    (setq fun (%nth-immediate fun 0))
+    (when (vectorp fun)
+      (setq fun (svref fun 0))))
+  fun)
 
 ;;; end of x86-def.lisp
