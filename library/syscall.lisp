@@ -18,19 +18,31 @@
 
 (in-package "CCL")
 
+(defpackage "SYSCALLS" (:use))
+
 (defstruct syscall
   (idx 0 :type fixnum)
   (arg-specs () :type list)
   (result-spec nil :type symbol)
   (min-args 0 :type fixnum))
 
-(defmacro define-syscall (name idx (&rest arg-specs) result-spec
+(defvar *os-syscall-definitions* ())
+
+(defun platform-syscall-definitions (platform-os)
+  (or (getf *os-syscall-definitions* platform-os)
+      (setf (getf *os-syscall-definitions* platform-os)
+            (make-hash-table :test 'eq))))
+
+(defun backend-syscall-definitions (backend)
+  (platform-syscall-definitions (logand platform-os-mask
+                                        (backend-target-platform backend))))
+
+
+
+(defmacro define-syscall (platform name idx (&rest arg-specs) result-spec
 			       &key (min-args (length arg-specs)))
-  `(locally
-    (declare (special #+linux-target *linux-syscalls* #+darwin-target *darwin-syscalls*))
-    (setf (gethash ',name
-                    #+linux-target *linux-syscalls*
-                    #+darwin-target *darwin-syscalls*)
+  `(progn
+    (setf (gethash ',name (platform-syscall-definitions ,platform))
      (make-syscall :idx ,idx
       :arg-specs ',arg-specs
       :result-spec ',result-spec
@@ -38,8 +50,7 @@
     ',name))
 
 (defmacro syscall (name &rest args)
-  (let* ((info (or (gethash name #+linux-target *linux-syscalls*
-                                 #+darwin-target *darwin-syscalls*)
+  (let* ((info (or (gethash name (backend-syscall-definitions *target-backend*))
 		   (error "Unknown system call: ~s" name)))
 	 (idx (syscall-idx info))
 	 (arg-specs (syscall-arg-specs info))
