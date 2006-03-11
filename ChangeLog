@@ -1,3 +1,38 @@
+2006-03-10 21:18  gb
+
+	* compiler/PPC/: ppc2.lisp, PPC32/ppc32-vinsns.lisp,
+	PPC64/ppc64-vinsns.lisp: %SINGLE-TO-DOUBLE, %DOUBLE-TO-SINGLE, to
+	avoid consing in some simple cases.
+
+2006-03-10 21:17  gb
+
+	* compiler/PPC/ppc-arch.lisp: Rename *PPC-NILREG-RELATIVE-SYMBOLS*
+	-> *PPC-NIL-RELATIVE-SYMBOLS* (NIL hasn't been in a register in a
+	few years.)
+
+2006-03-10 21:15  gb
+
+	* compiler/optimizers.lisp: On 64-bit targets, SINGLE-FLOATs are
+	EQL iff EQ.
+	
+	Try to recognize a few ways of coercing SINGLE-FLOATs to
+	DOUBLE-FLOATs and vice versa, so that we have some chance of
+	avoiding consing in some cases.
+
+2006-03-10 21:13  gb
+
+	* compiler/nxenv.lisp: Add %SINGLE-TO-DOUBLE, %DOUBLE-TO-SINGLE. 
+	Replace unused EMBEDDED-CALL with SYSCALL.
+
+2006-03-10 21:12  gb
+
+	* compiler/nx1.lisp: Just use SYSCALL operator to mark x8664
+	syscalls.
+
+2006-03-10 21:12  gb
+
+	* .cvsignore: Change patterns.
+
 2006-03-07 06:49  gb
 
 	* lisp-kernel/x86-spentry64.s: Assume that fpzero (not fp0)
