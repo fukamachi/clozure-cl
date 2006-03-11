@@ -27,7 +27,7 @@
 
 
 
-;; rewrite in LAP someday.
+;; rewrite in LAP someday (soon).
 (defun %init-misc (val uvector)
   (dotimes (i (uvsize uvector) uvector)
     (setf (uvref uvector i) val)))
