@@ -867,8 +867,8 @@
 (defun x8664-misc-byte-count (subtag element-count)
   (declare (fixnum subtag))
   (if (logbitp (logand subtag fulltagmask)
-               (logior (ash 1 fulltag-immheader-0)
-                       (ash 1 fulltag-immheader-1)))
+               (logior (ash 1 fulltag-nodeheader-0)
+                       (ash 1 fulltag-nodeheader-1)))
     (ash element-count 3)
     (case (logand subtag fulltagmask)
       (#.ivector-class-64-bit (ash element-count 3))
@@ -880,16 +880,15 @@
            element-count
            (ash element-count 1)))))))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
 (defparameter *x8664-subprims-shift* 3)
-(defparameter *x8664-subprims-base* (ash 5 12) )
-)
+(defconstant x8664-subprims-base #x410000 )
+
 
 (declaim (special *x8664-subprims*))
 
 ;;; For now, nothing's nailed down and we don't say anything about
 ;;; registers clobbered.
-(let* ((origin *x8664-subprims-base*)
+(let* ((origin x8664-subprims-base)
        (step (ash 1 *x8664-subprims-shift*)))
   (flet ((define-x8664-subprim (name)
              (ccl::make-subprimitive-info :name (string name)
@@ -937,7 +936,7 @@
          (defx8664subprim .SPsimple-keywords)
          (defx8664subprim .SPkeyword-args)
          (defx8664subprim .SPkeyword-bind)
-         (defx8664subprim .SPpoweropen-ffcall)
+         (defx8664subprim .SPffcall)
          (defx8664subprim .SPunused-0)
          (defx8664subprim .SPksignalerr)
          (defx8664subprim .SPstack-rest-arg)
@@ -1108,7 +1107,7 @@
                                 ((long-float double-float) subtag-double-float)
                                 (ratio subtag-ratio)
                                 (complex subtag-complex)))
-                          :subprims-base x8664::*x8664-subprims-base*
+                          :subprims-base x8664-subprims-base
                           :subprims-shift x8664::*x8664-subprims-shift*
                           :subprims-table x8664::*x8664-subprims*
                           :primitive->subprims `(((0 . 23) . ,(ccl::%subprim-name->offset '.SPbuiltin-plus x8664::*x8664-subprims*)))
