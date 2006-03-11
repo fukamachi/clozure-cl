@@ -223,12 +223,6 @@ sprint_symbol(LispObj o)
     package = rawsym->package_predicate,
     pname_header = header_of(pname);
 
-#ifdef PPC64
-  if (o == lisp_nil) {
-    add_c_string("()");
-    return;
-  }
-#endif
   if (fulltag_of(package) == fulltag_cons) {
     package = car(package);
   }
@@ -440,15 +434,21 @@ sprint_lisp_object(LispObj o, int depth)
       }
       break;
    
-#ifndef X8664
     case fulltag_nil:
-#endif
     case fulltag_cons:
       sprint_list(o, depth);
       break;
      
     case fulltag_misc:
       sprint_vector(o, depth);
+      break;
+
+    case fulltag_symbol:
+      sprint_symbol(o);
+      break;
+
+    case fulltag_function:
+      sprint_function(o, depth);
       break;
     }
   }
