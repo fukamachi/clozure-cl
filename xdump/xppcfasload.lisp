@@ -74,6 +74,20 @@
                 (mapcar #'xload-ppc-lap-word code))))
 
 
+#+ppc32-target
+(defun ppc32-initialize-static-space ()
+  (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
+  ;; Make NIL.  Note that NIL is sort of a misaligned cons (it
+  ;; straddles two doublewords.)
+  (xload-make-cons *xload-target-nil* 0 *xload-static-space*)
+  (xload-make-cons 0 *xload-target-nil* *xload-static-space*))
+
+#+ppc64-target
+(defun ppc64-initialize-static-space ()
+  (xload-make-ivector *xload-static-space*
+                      (xload-target-subtype :unsigned-64-bit-vector) 
+                      (1- (/ 4096 8))))
+
 (defparameter *ppc32-xload-backend*
   (make-backend-xload-info
    :name #+darwinppc-target :darwinppc32 #+linuxppc-target :linuxppc32
@@ -93,6 +107,8 @@
    :image-base-address
    #+darwinppc-target #x04000000
    #+linuxppc-target #x31000000
+   :nil-relative-symbols ppc::*ppc-nil-relative-symbols*
+   :static-space-init-function 'ppc32-initialize-static-space
 ))
 
 (add-xload-backend *ppc32-xload-backend*)
@@ -113,7 +129,10 @@
    :compiler-target-name
    #+linuxppc-target :linuxppc64
    #+darwinppc-target :darwinppc64
-   :image-base-address #x100000000))
+   :image-base-address #x100000000
+   :nil-relative-symbols ppc::*ppc-nil-relative-symbols*
+   :static-space-init-function 'ppc64-initialize-static-space
+   ))
 
 (add-xload-backend *ppc64-xload-backend*)
 
