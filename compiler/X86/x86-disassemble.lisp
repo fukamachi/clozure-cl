@@ -2242,7 +2242,7 @@
                  (#xc6 "uuo-error-not-callable")
                  (#xc7 "uuo-udf-call")
                  (t "unknown-UUO"))))
-        ((< intop #xd0)
+        ((= intop #xc8)
          (let* ((modrm-byte (x86-ds-peek-u8 ds)))
            (declare (type (unsigned-byte 8) modrm-byte))
            (setf (x86-ds-mod ds) (ldb (byte 2 6) modrm-byte)
@@ -2252,10 +2252,13 @@
                  (op-g ds +v-mode+ sizeflag)
                  (x86-di-op1 instruction)
                  (op-e ds +v-mode+ sizeflag)
-                 (x86-di-mnemonic instruction)
-                 (case intop
-                   (#xc8 "uuo-error-vector-bounds")
-                   (t "unknown-UUO")))))
+                 (x86-di-mnemonic instruction) "uuo-error-vector-bounds")))
+        ((< intop #xd0)
+                  (setf (x86-di-mnemonic instruction)
+               (case intop
+                 (#xc9 "uuo-error-call-macro-or-special-operator")
+                 (#xca "uuo-error-debug-trap")
+                 (t "unknown-UUO"))))
         ((< intop #xe0)
          (setf (x86-di-mnemonic instruction)
                "uuo-error-reg-not-tag"
