@@ -31,25 +31,7 @@
       f)))
 
 (defparameter *x8664-macro-apply-code*
-  (xload-x8664-lap-code
-   '((movzwl (% nargs) (% imm0.l))
-     (subq ($ (ash $numx8664argregs x8664::word-shift)) (% imm0))
-     (jle @simple)
-     (movq (% rbp) (@ (% rsp) (% imm0)))
-     (leaq (@ (% rsp) (% imm0)) (% rbp))
-     (movq (% ra0) (@ 8 (% rbp)))
-     (jmp @did-frame)
-     @simple
-     (pushq (% ra0))
-     (pushq (% rbp))
-     (movq (% rsp) (% rbp))
-     @did-frame
-     (call-subprim .SPheap-rest-arg)
-     (pop (% arg_z))
-     (movq (% fname) (% arg_y))
-     (movq ($ '$xnotfun) (% arg_x))
-     (set-nargs 3)
-     (jmp-subprim .SPksignalerr))))
+  #xc9cd0000000000)
 
 
 (defun x8664-fixup-macro-apply-code ()
@@ -63,8 +45,16 @@
 
 ;;; For now, do this with a UUO so that the kernel can catch it.
 (defparameter *x8664-udf-code*
-  (xload-x8664-lap-code '((uuo-error-udf-call))))
+  #xc7cd0000000000)
 
+
+(defun x8664-initialize-static-space ()
+  (xload-make-ivector *xload-static-space*
+                      (xload-target-subtype :unsigned-64-bit-vector) 
+                      (1- (/ 4096 8)))
+  (xload-make-cons *xload-target-nil* 0 *xload-static-space*)
+  (xload-make-cons 0 *xload-target-nil* *xload-static-space*))
+                      
 
 (defparameter *x8664-linux-xload-backend*
   (make-backend-xload-info
@@ -76,7 +66,11 @@
    :default-startup-file-name "level-1.lx64fsl"
    :subdirs '("ccl:level-0;X86;X8664;" "ccl:level-0;X86;")
    :compiler-target-name :linuxx8664
-   :image-base-address #x100000000))
+   :image-base-address #x300000000000
+   :nil-relative-symbols x86::*x86-nil-relative-symbols*
+   :static-space-init-function 'x8664-initialize-static-space
+      
+))
 
 (add-xload-backend *x8664-linux-xload-backend*)
 
