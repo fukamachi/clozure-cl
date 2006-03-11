@@ -1518,7 +1518,9 @@
                                   ((closure :lisp)))
   (movb (:$b 2) (:@ x8664::misc-data-offset (:%q closure))) ; code word count
   (movb (:$b -1) (:@ (+ x8664::misc-data-offset 7) (:%q closure))) ; 1st byte of jmp
-  (movl (:$l (:apply logior #x2524 (:apply ash .SPcall-closure 16))) (:@ (+ x8664::misc-data-offset 8) (:%q closure)))) ; rest of jmp instruction, subprim address
+  (movl (:$l (:apply logior #x2524 (:apply ash .SPcall-closure 16))) (:@ (+ x8664::misc-data-offset 8) (:%q closure))) ; rest of jmp instruction, low two bytes of subprim address
+  (movb (:$b (:apply ash .SPcall-closure -16)) (:@ (+ x8664::misc-data-offset 12) (:%q closure))))
+
 
 (define-x8664-vinsn finalize-closure (((closure :lisp))
                                       ((closure :lisp)))
@@ -2344,9 +2346,11 @@
 (define-x8664-subprim-call-vinsn (stack-misc-alloc) .SPstack-misc-alloc)
 
 (define-x8664-vinsn misc-element-count-fixnum (((dest :imm))
-                                               ((src :lisp)))
-  (movq (:$l (lognot (1- (ash 1 x8664::num-subtag-bits)))) (:%q dest))
-  (andq (:@ x8664::misc-header-offset (:%q src)) (:%q dest))
+                                               ((src :lisp))
+                                               ((temp :u64)))
+  (movq (:@ x8664::misc-header-offset (:%q src)) (:%q temp))
+  (movb (:$b 0) (:%b temp))
+  (movq (:%q temp) (:%q dest))
   (shrq (:$ub (- x8664::num-subtag-bits x8664::fixnumshift)) (:%q dest)))
 
 (define-x8664-vinsn %logior2 (((dest :imm))
