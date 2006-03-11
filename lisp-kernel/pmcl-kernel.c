@@ -1384,7 +1384,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(LEXPR_RETURN1V) = (LispObj)&popj;
   lisp_global(ALL_AREAS) = ptr_to_lispobj(all_areas);
 #ifdef X86
-  lisp_global(BAD_FUNCALL) = ptr_to_lispobj(bad_funcall);
+  lisp_global(BAD_FUNCALL) = ptr_to_lispobj(&bad_funcall);
 #endif
   lisp_global(DEFAULT_ALLOCATION_QUANTUM) = log2_heap_segment_size << fixnumshift;
   lisp_global(STACK_SIZE) = thread_stack_size<<fixnumshift;
@@ -1462,8 +1462,8 @@ main(int argc, char *argv[], char *envp[], void *aux)
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;
   nrs_TOPLFUNC.vcell = lisp_nil;
   enable_fp_exceptions();
-  /* don't trust EGC on PPC64 yet */
-#if 1
+  /* don't trust EGC on x8664 yet */
+#ifndef X8664
   egc_control(true, NULL);
 #endif
   start_lisp(TCR_TO_TSD(tcr), 0);
