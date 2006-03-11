@@ -316,7 +316,7 @@
 
 #+ppc32-target
 (defppclapfunction %double-float->short-float ((src arg_y) (result arg_z))
-  (clear-fpu-exceptions)
+  ;(clear-fpu-exceptions)
   (get-double-float fp0 src)
   (frsp fp1 fp0)
   (put-single-float fp1 result)
@@ -324,7 +324,7 @@
 
 #+ppc64-target
 (defppclapfunction %double-float->short-float ((src arg_z))
-  (clear-fpu-exceptions)
+  ;(clear-fpu-exceptions)
   (get-double-float fp0 src)
   (frsp fp1 fp0)
   (put-single-float fp1 arg_z)
