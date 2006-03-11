@@ -82,7 +82,9 @@
   `(progn
     (extract-lisptag ,node ,dest)
     (rcmp (%b ,dest) ($ x8664::tag-misc))
-    (cmovew (@  x8664::misc-subtag-offset (% ,node)) (%w ,dest))))
+    (jne @done)
+    (movb (@  x8664::misc-subtag-offset (% ,node)) (%b ,dest))
+     @done))
 
 (defx86lapmacro trap-unless-typecode= (node tag &optional (immreg 'imm0))
   (let* ((ok (gensym)))
@@ -199,7 +201,7 @@
 (defx86lapmacro int-to-single (int temp single)
   `(progn
     (unbox-fixnum ,int ,temp)
-    (cvtsi2sdq (% ,temp) (% ,single))))
+    (cvtsi2ssq (% ,temp) (% ,single))))
 
 (defx86lapmacro ref-global (global reg)
   `(movq (@ (+ x8664::nil-value ,(x8664::%kernel-global global))) (% ,reg)))
