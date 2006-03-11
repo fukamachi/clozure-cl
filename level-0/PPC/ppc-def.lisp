@@ -1198,4 +1198,12 @@ result-type-keyword is :VOID or NIL"
   (bctr))
 
 
+
+(defun closure-function (fun)
+  (while (and (functionp fun)  (not (compiled-function-p fun)))
+    (setq fun (%svref fun 1))
+    (when (vectorp fun)
+      (setq fun (svref fun 0))))
+  fun)
+
 ;;; end of ppc-def.lisp
