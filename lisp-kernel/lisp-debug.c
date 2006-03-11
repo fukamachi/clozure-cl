@@ -88,13 +88,26 @@ readc()
   }
 }
 
+#ifdef X8664
+#ifdef LINUX
+char* Iregnames[] = {"r8","r9","r10","r11","r12","r13","r14","r15",
+		     "rdi","rsi","rbp", "rbx", "rdx", "rax", "rcx","rsp"};
+#endif
+#endif
+
 void
 show_lisp_register(ExceptionInformation *xp, char *label, int r)
 {
 
   LispObj val = xpGPR(xp, r);
 
+#ifdef PPC
   fprintf(stderr, "r%02d (%s) = %s\n", r, label, print_lisp_object(val));
+#endif
+#ifdef X86
+  fprintf(stderr, "%%%s (%s) = %s\n",Iregnames[r], label, print_lisp_object(val));
+#endif
+
 }
 
 
@@ -348,7 +361,20 @@ debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
     show_lisp_register(xp, "save7", save7);
   }
 #endif
+#ifdef X8664
 
+  show_lisp_register(xp, "save0", Isave0);
+  show_lisp_register(xp, "save1", Isave1);
+  show_lisp_register(xp, "save2", Isave2);
+  show_lisp_register(xp, "save3", Isave3);
+  show_lisp_register(xp, "fn", Ifn);
+  show_lisp_register(xp, "arg_z", Iarg_z);
+  show_lisp_register(xp, "arg_y", Iarg_y);
+  show_lisp_register(xp, "arg_x", Iarg_x);
+  show_lisp_register(xp, "temp0", Itemp0);
+  show_lisp_register(xp, "temp1", Itemp1);
+  show_lisp_register(xp, "temp2", Itemp2);
+#endif
   return debug_continue;
 }
 
