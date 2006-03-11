@@ -1608,10 +1608,10 @@
 	      (declare (fixnum length count))
 	      (cond ((and (plusp count)
 			  (> (+ length count)
-			     (- target::least-significant-bit target::fixnumshift)))                          
+			     (- (1- target::nbits-in-word) target::fixnumshift)))
 		     (with-small-bignum-buffers ((bi integer))
 		       (bignum-ashift-left bi count)))
-		    ((and (minusp count) (< count (- target::least-significant-bit)))
+		    ((and (minusp count) (< count (- (1- target::nbits-in-word))))
 		     (if (minusp integer) -1 0))
 		    (t (%iash (the fixnum integer) count)))))))
        (bignum
