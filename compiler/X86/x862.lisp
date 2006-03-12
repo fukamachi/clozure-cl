@@ -936,7 +936,7 @@
           (! check-min-nargs min))
         (! check-max-nargs max))
       (when (and (> max *x862-target-num-arg-regs*)
-                 (< min *x862-target-num-arg-regs*))
+                 (<= min *x862-target-num-arg-regs*))
         (! ensure-reserved-frame))
       (if (= nopt 1)
         (! default-1-arg min)
@@ -5073,7 +5073,7 @@
                 (if (not (or rest keys))
                   (if (<= (+ num-fixed num-opt) $numx8664argregs)
                     (! save-lisp-context-no-stack-args)
-)
+                    (! save-lisp-context-variable-arg-count))
                   (! save-lisp-context-variable-arg-count))
                 ;; If there were &optional args, initialize their values
                 ;; to NIL.  All of the argregs get vpushed as a result of this.
