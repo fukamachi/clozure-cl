@@ -60,11 +60,15 @@
 
 #ifdef X86
 #ifdef X8664
-#define nodeheader_tag_p(tag) ((1<<(tag)) & ((1<<fulltag_nodeheader_0) || \
-					     (1<<fulltag_nodeheader_1)))
-#define immheader_tag_p(tag) ((1<<(tag)) &  ((1<<fulltag_immheader_0) || \
-					     (1<<fulltag_immheader_1) || \
-					     (1<<fulltag_immheader_2)))
+#define NODEHEADER_MASK ((1<<(fulltag_nodeheader_0)) | \
+			 (1<<(fulltag_nodeheader_1)))
+#define nodeheader_tag_p(tag) ((1<<(tag)) &  NODEHEADER_MASK)
+
+#define IMMHEADER_MASK ((1<<fulltag_immheader_0) | \
+			(1UL<<fulltag_immheader_1) |			\
+			(1UL<<fulltag_immheader_2))
+
+#define immheader_tag_p(tag) ((1<<(tag)) & IMMHEADER_MASK)
 #endif
 #endif
 
