@@ -21,6 +21,4 @@ handle SIGILL pass nostop noprint
 handle SIGSEGV pass nostop noprint
 handle SIGBUS pass nostop noprint
 handle SIGFPE pass nostop noprint
-handle SIGUSR1 pass nostop noprint
-handle SIGUSR2 pass nostop noprint
 handle SIGEMT pass nostop noprint
