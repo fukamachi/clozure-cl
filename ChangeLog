@@ -1,3 +1,88 @@
+2006-03-11 23:54  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: Don't change handling of SIGUSR1
+	or SIGUSR2; I don't think that we use them under Linux.
+
+2006-03-11 23:52  gb
+
+	* lisp-kernel/x86-spentry64.s: builtin_eql was extracting lisptags
+	and comparing fulltags, and thus returning false when it shouldn't
+	have.
+	
+	nthrow1value was making too small of a TSP frame around the call to
+	the cleanup code, clobbering TSP links in some cases.  It was also
+	failing to pop catch frames.
+	
+	stkgvector was unimplented.
+	
+	_car order-of-arguments problems in (at least) spreadargz.
+
+2006-03-11 23:47  gb
+
+	* lisp-kernel/x86-subprims64.s: Push a 0 and make the initial lisp
+	%rbp point to it, to mark the end of the line.
+
+2006-03-11 23:47  gb
+
+	* lisp-kernel/xlbt.c: Sketchy kernel-debugger backtrace.
+
+2006-03-11 23:46  gb
+
+	* lisp-kernel/x86-constants64.h: A lisp_frame struct, for kernel
+	backtrace.
+
+2006-03-11 23:46  gb
+
+	* lisp-kernel/pmcl-kernel.c: Try (temporily) disabling Lisp's
+	SIGINT handler.   There seem to be problems using a keyboard
+	interrupt to awaken GDB on the version of x96-64 Linux I'm using. 
+	This didn't fix those problems completely, but we won't need to
+	handle SIGINT in the lisp until more code works.
+
+2006-03-11 23:43  gb
+
+	* lisp-kernel/macros.h: I may have parenthesized nodeheader_tag_p
+	and immheader_tag_p; several versions of  GCC generated code that
+	looked wrong, but since it's C it's hard to tell.   Splitting the
+	macros up (into "mask definition" and "mask testing" seems to
+	generate the right code (a bit test if optimization's cranked up.)
+
+2006-03-11 23:41  gb
+
+	* level-0/X86/x86-misc.lisp: Fix a few typos (fixnum vs unboxed
+	constants, etc.)
+	
+	%ATOMIC-DECF-PTR-IF-POSITIVE should return what we would have
+	(might have) stored in the word accessed by the pointer (in
+	particular, it should return a negative value if there are no other
+	threads waiting on a recursive lock.)
+
+2006-03-11 23:38  gb
+
+	* level-0/PPC/ppc-misc.lisp: Fix file name in comment.
+
+2006-03-11 23:38  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: ENSURE-RESERVED-FRAME: test
+	was backwards.
+
+2006-03-11 23:37  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Don't use FN as arg name in
+	LFUN-VECTOR, since x8664::fn is a constant (symbolic register
+	name.)
+	
+	Add missing close paren.
+
+2006-03-11 23:36  gb
+
+	* compiler/X86/x862.lisp: Ensure stack fencepost in simple
+	&optional arg case.
+	
+	Do the variable-arg-count case if complex &optional, no &rest/&key,
+	and some (possibly unsupplied) optionals may or may not have been
+	pushed by the caller.
+
 2006-03-11 04:11  gb
 
 	* lisp-kernel/: image.c, lisp_globals.h: Fix conditionalization: we
