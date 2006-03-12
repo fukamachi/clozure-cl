@@ -14,7 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-;;; level-0;ppc;ppc-misc.lisp
+;;; level-0;x86;x86-misc.lisp
 
 
 (in-package "CCL")
