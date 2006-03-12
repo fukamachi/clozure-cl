@@ -1040,7 +1040,7 @@
 (define-x8664-vinsn ensure-reserved-frame (()
                                            ())
   (rcmpw (:%w x8664::nargs) (:$w (* 3 x8664::node-size)))
-  (jbe :no-reserve)
+  (jae :no-reserve)
   (pushq (:$b 0))
   (pushq (:$b 0))
   :no-reserve)
