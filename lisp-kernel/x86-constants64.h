@@ -255,6 +255,12 @@ typedef struct special_binding {
   LispObj value;
 } special_binding;
 
+typedef struct lisp_frame {
+  struct lisp_frame *backlink;
+  LispObj tra;
+} lisp_frame;
+
+
 /* The GC (at least) needs to know what a
    package looks like, so that it can do GCTWA. */
 typedef struct package {
