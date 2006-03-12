@@ -198,8 +198,8 @@
 
 (defx86lapfunction %setf-macptr-to-object ((macptr arg_y) (object arg_z))
   (check-nargs 2)
-  (trap-unless-typecode= arg_y x8664::subtag-macptr)
-  (movq (% arg_z) (@ x8664::macptr.address (% arg_y)))
+  (trap-unless-typecode= macptr x8664::subtag-macptr)
+  (movq (% object) (@ x8664::macptr.address (% macptr)))
   (single-value-return))
 
 (defx86lapfunction %fixnum-from-macptr ((macptr arg_z))
@@ -358,7 +358,7 @@
   (lock)
   (cmpxchgq (% arg_z) (@ (+ x8664::nil-value (x8664::kernel-global gc-inhibit-count))))
   (jne @again)
-  (cmpq ($ -1) (% rax))
+  (cmpq ($ '-1) (% rax))
   (jne @done)
   ;; The GC tried to run while it was inhibited.  Unless something else
   ;; has just inhibited it, it should be possible to GC now.
@@ -391,7 +391,7 @@
   (jle @unlock-write)
   @unlock-read
   (movq (@ x8664::lock._value (% lock)) (% rax))
-  (lea (@ -1 (% imm0)) (% imm1))
+  (lea (@ '-1 (% imm0)) (% imm1))
   (lock)
   (cmpxchgq (% imm1) (@ x8664::lock._value (% lock)))
   (jne @unlock-read)
@@ -402,7 +402,10 @@
   (movq (@ x8664::lock.writer (% lock)) (% imm0))
   (cmpq (% imm0) (@ (% rcontext) x8664::tcr.linear))
   (jne @fail)
-  (addq ($ 1) (@ x8664::lock._value (% lock)))
+  (addq ($ '1) (@ x8664::lock._value (% lock)))
+  (jne @home)
+  (movss (% fpzero) (@ x8664::lock.writer (% lock)))
+  @home
   (single-value-return)
   @fail
   (movl ($ x8664::nil-value) (%l arg_z))
@@ -464,10 +467,8 @@
   (lock)
   (cmpxchgq (% imm1) (@ (% ptr)))
   (jnz @again)
-  (box-fixnum imm1 arg_z)
-  (single-value-return)
   @done
-  (xorl (%l arg_z) (%l arg_z))
+  (box-fixnum imm1 arg_z)
   (single-value-return))
 
 
