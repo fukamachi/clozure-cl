@@ -1,4 +1,4 @@
-; -*- Mode: Lisp; Package: CCL; -*-
+;;; -*- Mode: Lisp; Package: CCL; -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -626,4 +626,6 @@ be somewhat larger than what was specified)."
   (svset imm1 target::macptr.domain-cell p)
   (blr))
 
-; end
+
+
+;;; end
