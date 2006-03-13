@@ -27,18 +27,18 @@
 
 
 ;;; We MAY need a scheme for finding all of the areas in a lisp library.
-(defun %map-areas (function &optional (maxcode ppc::area-dynamic) (mincode ppc::area-readonly))
+(defun %map-areas (function &optional (maxcode area-dynamic) (mincode area-readonly))
   (declare (fixnum maxcode mincode))
   (do* ((a (%normalize-areas) (%lisp-word-ref a (ash target::area.succ (- target::fixnumshift))))
-        (code ppc::area-dynamic (%lisp-word-ref a (ash target::area.code (- target::fixnumshift))))
+        (code area-dynamic (%lisp-word-ref a (ash target::area.code (- target::fixnumshift))))
         (dynamic t nil))
-       ((= code ppc::area-void))
+       ((= code area-void))
     (declare (fixnum code))
     (if (and (<= code maxcode)
              (>= code mincode))
       (if dynamic 
         (walk-dynamic-area a function)
-        (unless (= code ppc::area-dynamic)        ; ignore egc areas, 'cause walk-dynamic-area sees them.
+        (unless (= code area-dynamic)        ; ignore egc areas, 'cause walk-dynamic-area sees them.
           (walk-static-area a function))))))
 
 
@@ -46,9 +46,11 @@
 ;;; (Well, there would be if there were really static lib areas.)
 
 (defun %map-lfuns (f)
-  (let* ((filter #'(lambda (obj) (when (functionp obj) (funcall f obj)))))
+  (let* ((filter #'(lambda (obj) (when (= (the fixnum (typecode obj))
+                                          target::subtag-function)
+                                   (funcall f (lfun-vector-lfun obj))))))
     (declare (dynamic-extent filter))
-    (%map-areas filter ppc::area-dynamic ppc::area-managed-static)))
+    (%map-areas filter area-dynamic area-managed-static)))
 
 
 (defun ensure-simple-string (s)
