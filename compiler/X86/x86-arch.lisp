@@ -117,22 +117,6 @@
 ;;; Old (and slightly confusing) name; NIL used to be in a register.
 (defparameter *x86-nilreg-relative-symbols* *x86-nil-relative-symbols*)
 
-(ccl::defenum (:prefix "AREA-")
-  void                                  ; list header
-  cstack                                ; a control stack
-  vstack                                ; a value stack
-  tstack                                ; (dynamic-extent) temp stack
-  readonly                              ; readonly section
-  managed-static                        ; growable static area
-  static                                ; static data in application
-  dynamic                               ; dynmaic (heap) data in application
-)
-
-;;; areas are sorted such that (in the "succ" direction) codes are >=.
-;;; If you think that you're looking for a stack (instead of a heap), look
-;;; in the "pred" direction from the all-areas header.
-(defconstant max-stack-area-code area-tstack)
-(defconstant min-heap-area-code area-readonly)
 
 ;;; mxcsr bits.  (Unlike the convention used on the PPC, bit 0 is the
 ;;; least significant bit of the containing byte/word.)
