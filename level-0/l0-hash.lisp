@@ -854,7 +854,7 @@ before doing so.")
                             old-size (nhash.rehash-size hash) (nhash.rehash-ratio hash))
         (unless (eql 0 (nhash.grow-threshold hash))       ; maybe it's done already - shouldnt happen                
           (return-from grow-hash-table ))
-        (progn ;without-interrupts  ; this ???
+        (progn
           (unwind-protect
             (let ((fwdnum (get-fwdnum))
                   (gc-count (gc-count))
@@ -881,7 +881,7 @@ before doing so.")
                        (setf (%svref vector new-vector-index) key)
                        (setf (%svref vector (the fixnum (1+ new-vector-index)))
                              (%svref old-vector (the fixnum (1+ vector-index))))))))
-              (without-interrupts  ; trying this ???
+              (progn
                (setf (nhash.vector.finalization-alist vector)
                      (nhash.vector.finalization-alist old-vector)
                      (nhash.vector.free-alist vector)
@@ -897,7 +897,7 @@ before doing so.")
                      (nhash.gc-count hash) gc-count
                      (nhash.grow-threshold hash) (- size (nhash.count hash)))
                (when (eq #'%am-growing (nhash.rehashF hash))
-                 ; if not changed to %maybe-rehash then contains no address based keys
+                 ;; if not changed to %maybe-rehash then contains no address based keys
                  (setf (nhash.rehashf hash) #'%no-rehash))
                (setq rehashF nil)       ; tell clean-up form we finished the loop
                (when (neq old-size (nhash.count hash))
@@ -906,8 +906,8 @@ before doing so.")
                (when (minusp (nhash.grow-threshold hash))
                  (cerror "nn" "negative grow-threshold ~S ~s ~s ~s" 
                          (nhash.grow-threshold hash) size total-size old-size))
-               ; If the old vector's in some static heap, zero it
-               ; so that less garbage is retained.
+               ;; If the old vector's in some static heap, zero it
+               ;; so that less garbage is retained.
 	       (%init-misc 0 old-vector)))            
             (when rehashF
               (setf (nhash.rehashF hash) rehashF
