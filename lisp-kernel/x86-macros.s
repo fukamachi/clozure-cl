@@ -134,15 +134,15 @@ define([TSP_Alloc_Var],[
 	jmp macro_label(test)
 macro_label(loop):
 	movapd %fpzero,0($2)
-macro_label(test):	
 	addq $dnode_size,$2
+macro_label(test):	
 	subq $dnode_size,$1
-	jne macro_label(loop)
+	jge macro_label(loop)
 	movd %next_tsp,$2
 	movd %tsp,$1
-	movq %tsp,($2)
+	movq $1,($2)
 	movq %next_tsp,%tsp
-	lea dnode_size($2),$2
+	addq $dnode_size,$2
 ])
 	
 	
