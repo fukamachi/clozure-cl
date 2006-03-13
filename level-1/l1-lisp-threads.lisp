@@ -808,17 +808,7 @@
            (return))
          ,@body))))
 
-(defmacro do-consing-areas ((area) &body body)
-  (let ((code (gensym)))
-  `(do-gc-areas (,area)
-     (let ((,code (%fixnum-ref ,area  ,(target-arch-case
-                                        (:ppc32 ppc32::area.code)
-                                        (:ppc64 ppc64::area.code)))))
-       (when (or (eql ,code ppc::area-readonly)
-                 (eql ,code ppc::area-managed-static)
-                 (eql ,code ppc::area-static)
-                 (eql ,code ppc::area-dynamic))
-         ,@body)))))
+
 
 
 
