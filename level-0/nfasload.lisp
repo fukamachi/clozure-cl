@@ -961,9 +961,10 @@
         (apply 'set-documentation f))
       ;; Can't bind any specials until this happens
       (let* ((max 0))
-        (%map-areas #'(lambda (s)
-                        (when (= (typecode s) target::subtag-symbol)
-                          (let* ((idx (symbol-binding-index s)))
+        (%map-areas #'(lambda (symptr)
+                        (when (= (typecode symptr) target::subtag-symbol)
+                          (let* ((s (%symptr->symbol symptr))
+				 (idx (symbol-binding-index s)))
                             (when (> idx 0)
                               (cold-load-binding-index s))
                             (when (> idx max)
