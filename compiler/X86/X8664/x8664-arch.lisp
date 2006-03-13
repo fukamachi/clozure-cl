@@ -1203,4 +1203,7 @@
 (defx8664archmacro ccl::lfun-vector-lfun (lfv)
   `(ccl::%function-vector-to-function ,lfv))
 
+(defx8664archmacro ccl::area-code ()
+  area.code)
+
 (provide "X8664-ARCH")

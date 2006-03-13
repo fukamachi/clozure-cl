@@ -938,4 +938,7 @@
 (defppc64archmacro ccl::lfun-vector-lfun (lfv)
   lfv)
 
+(defppc64archmacro ccl::area-code ()
+  area.code)
+
 (provide "PPC64-ARCH")

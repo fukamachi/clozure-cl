@@ -874,4 +874,7 @@
 (defppc32archmacro ccl::lfun-vector-lfun (lfv)
   lfv)
 
+(defppc32archmacro ccl::area-code ()
+  area.code)
+
 (provide "PPC32-ARCH")
