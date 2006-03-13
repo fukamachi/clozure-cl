@@ -5151,9 +5151,6 @@
                                           (ash (length (%cadr keys)) 1)))
                        (nbytes-vpushed (* nwords-vpushed *x862-target-node-size*)))
                   (declare (fixnum nwords-vpushed nbytes-vpushed))
-                  (unless (or rest lexprp keys (<= (+ num-fixed num-opt)
-                                                   $numx8664argregs))
-                    (! save-lisp-context-offset nbytes-vpushed))
                   (x862-set-vstack nbytes-vpushed)
                   (setq optsupvloc (- *x862-vstack* (* num-opt *x862-target-node-size*)))))))
           ;; Caller's context is saved; *x862-vstack* is valid.  Might
