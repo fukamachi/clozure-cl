@@ -1,3 +1,26 @@
+2006-03-13 02:33  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-03-13 02:24  gb
+
+	* xdump/xfasload.lisp: AREA constants now in CCL package.
+
+2006-03-13 02:23  gb
+
+	* lisp-kernel/x86-spentry64.s: ret1valn: no LEAVE here. 
+	nthrowvalues: fix several bugs.
+
+2006-03-13 02:22  gb
+
+	* lisp-kernel/x86-macros.s: TSP_Alloc_Var: zero the dnode at the
+	new tsp, as well.
+
+2006-03-13 02:21  gb
+
+	* library/lispequ.lisp: Define AREA constants here (in CCL
+	package.)
+
 2006-03-13 02:20  gb
 
 	* lib/macros.lisp: Move DO-CONSING-AREAS here.	AREA-CODE is an
