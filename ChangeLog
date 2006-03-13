@@ -1,3 +1,56 @@
+2006-03-13 02:20  gb
+
+	* lib/macros.lisp: Move DO-CONSING-AREAS here.	AREA-CODE is an
+	arch macro.
+
+2006-03-13 02:20  gb
+
+	* level-1/l1-lisp-threads.lisp: Move DO-CONSING-AREAS to
+	macros.lisp.
+
+2006-03-13 02:19  gb
+
+	* level-0/X86/x86-utils.lisp: Walk static, dynamic areas.
+
+2006-03-13 02:19  gb
+
+	* level-0/PPC/ppc-utils.lisp: Comments.
+
+2006-03-13 02:18  gb
+
+	* level-0/nfasload.lisp: %MAP-AREAS call might have to deal with
+	symbol/symbol-vector distinction.
+
+2006-03-13 02:18  gb
+
+	* level-0/l0-utils.lisp: AREA constants are in CCL package, not
+	PPC.  %MAP-LFUNS might have to deal with function/function-vector
+	distinction.
+
+2006-03-13 02:17  gb
+
+	* level-0/l0-misc.lisp: AREA constants are in CCL package, not PPC.
+
+2006-03-13 02:17  gb
+
+	* level-0/l0-hash.lisp: %GROW-HASH-TABLE is always called inside
+	WITHOUT-INTERRUPTS, so no need to do it again.
+
+2006-03-13 02:16  gb
+
+	* compiler/X86/x862.lisp: Push at most one stack frame on function
+	entry ...
+
+2006-03-13 02:14  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: AREA-CODE archmacro.
+
+2006-03-13 02:13  gb
+
+	* compiler/: PPC/ppc-arch.lisp, X86/x86-arch.lisp: AREA constants
+	moved to CCL package.
+
 2006-03-11 23:54  gb
 
 	* lisp-kernel/linuxx8664/.gdbinit: Don't change handling of SIGUSR1
