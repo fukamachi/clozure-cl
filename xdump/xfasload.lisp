@@ -940,9 +940,9 @@
   (let* ((*xload-symbols* (make-hash-table :test #'eq))
          (*xload-symbol-addresses* (make-hash-table :test #'eql))
          (*xload-spaces* nil)
-         (*xload-readonly-space* (init-xload-space *xload-readonly-space-address* *xload-readonly-space-size* ppc::area-readonly))
-         (*xload-dynamic-space* (init-xload-space *xload-dynamic-space-address* *xload-dynamic-space-size* ppc::area-dynamic))
-	 (*xload-static-space* (init-xload-space *xload-static-space-address* *xload-static-space-size* ppc::area-static))
+         (*xload-readonly-space* (init-xload-space *xload-readonly-space-address* *xload-readonly-space-size* area-readonly))
+         (*xload-dynamic-space* (init-xload-space *xload-dynamic-space-address* *xload-dynamic-space-size* area-dynamic))
+	 (*xload-static-space* (init-xload-space *xload-static-space-address* *xload-static-space-size* area-static))
 						 
          (*xload-package-alist* (xload-clone-packages %all-packages%))
          (*xload-cold-load-functions* nil)
