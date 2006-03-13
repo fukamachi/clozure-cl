@@ -76,7 +76,7 @@
   (let ((res 0))
     (with-macptrs (p)
       (do-consing-areas (area)
-        (when (eql (%fixnum-ref area target::area.code) ppc::area-dynamic)
+        (when (eql (%fixnum-ref area target::area.code) area-dynamic)
           (%setf-macptr-to-object p  area)
           (incf res (- #+32-bit-target
                        (%get-unsigned-long p target::area.high)
@@ -90,7 +90,7 @@
 
 (defun %reservedbytes ()
   (with-macptrs (p)
-    (%setf-macptr-to-object p (%get-kernel-global 'ppc::all-areas))
+    (%setf-macptr-to-object p (%get-kernel-global 'all-areas))
     (- #+32-bit-target
        (%get-unsigned-long p target::area.high)
        #+64-bit-target
@@ -117,9 +117,9 @@
                            target::fixnumshift))
 	       (code (%fixnum-ref area target::area.code)))
 	  (when (object-in-application-heap-p active)
-	    (if (eql code ppc::area-dynamic)
+	    (if (eql code area-dynamic)
 	      (incf dynamic bytes)
-	      (if (eql code ppc::area-managed-static)
+	      (if (eql code area-managed-static)
 		(incf library bytes)
 		(incf static bytes))))))
       (let* ((hons-size (ash (openmcl-hons:hons-space-size) target::dnode-shift)))
@@ -135,9 +135,9 @@
     (with-macptrs (p)
       (do-gc-areas (area)
 	(when (member (%fixnum-ref area target::area.code)
-		      '(#.ppc::area-vstack
-			#.ppc::area-cstack
-                      #.ppc::area-tstack))
+		      '(#.area-vstack
+			#.area-cstack
+                      #.area-tstack))
 	  (%setf-macptr-to-object p area)
 	  (let ((active
                  #+32-bit-target
