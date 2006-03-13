@@ -3359,5 +3359,15 @@ to be at least partially steppable."
 
 (declare-arch-specific-macro %get-kernel-global-ptr)
 
+(declare-arch-specific-macro area-code)
 
+(defmacro do-consing-areas ((area) &body body)
+  (let ((code (gensym)))
+  `(do-gc-areas (,area)
+     (let ((,code (%fixnum-ref ,area  (area-code))))
+       (when (or (eql ,code area-readonly)
+                 (eql ,code area-managed-static)
+                 (eql ,code area-static)
+                 (eql ,code area-dynamic))
+         ,@body)))))
    
