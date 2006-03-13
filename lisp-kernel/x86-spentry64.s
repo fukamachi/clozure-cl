@@ -540,15 +540,14 @@ _endfn(C(misc_set_common))
 /* return multiple values.  Its presence on the stack (as a return address) */
 /* identifies the stack frame to code which returns multiple values. */
 
-_exportfn(Fret1valn)
+_spentry(Fret1valn)
 	.globl C(ret1valn)
 __(tra(C(ret1valn)))
-	__(leaveq)
 	__(pop %ra0)
 	__(push %arg_z)
 	__(set_nargs(1))
 	__(jmpq *%ra0)
-_endfn(Fret1valn)
+_endsubp(Fret1valn)
 	
 
 _spentry(nvalret)
@@ -748,7 +747,7 @@ local_label(_nthrowv_do_unwind):
 	__(push catch_frame._save3(%temp0))
 	__(push catch_frame.pc(%temp0))
 	__(movq catch_frame.rbp(%temp0),%rbp)
-	__(movq catch_frame.rsp(%temp0),%temp1)
+	__(movq catch_frame.rsp(%temp0),%arg_x)
 	__(movq catch_frame.foreign_sp(%temp0),%imm0)
 	__(movq %imm0,%rcontext:tcr.foreign_sp)
 	/* Discard the catch frame, so we can build a temp frame */
@@ -758,15 +757,15 @@ local_label(_nthrowv_do_unwind):
 	/* tsp overhead, nargs, throw count, ra0 */
 	__(dnode_align(%nargs_q,(tsp_frame.fixed_overhead+(3*node_size)),%imm0))
 	__(TSP_Alloc_Var(%imm0,%imm1))
-	__(movq %nargs_q,%temp0)
+
 	__(movq %nargs_q,(%imm1))
 	__(movq %ra0,node_size(%imm1))
 	__(movq %mm1,node_size*2(%imm1))
 	__(leaq node_size*3(%imm1),%imm1)
 	__(jmp local_label(_nthrowv_tpushtest))
 local_label(_nthrowv_tpushloop):
-	__(movq -node_size(%save0),%temp0)
-	__(subq $node_size,%save0)
+	__(movq -node_size(%save1),%temp0)
+	__(subq $node_size,%save1)
 	__(movq %temp0,(%imm1))
 	__(addq $node_size,%imm1)
 local_label(_nthrowv_tpushtest):
@@ -777,7 +776,7 @@ local_label(_nthrowv_tpushtest):
 	__(pop %save2)
 	__(pop %save1)
 	__(pop %save0)
-	__(movq %temp1,%rsp)
+	__(movq %arg_x,%rsp)
 /* Ready to call cleanup code: set up tra, jmp to %xfn */
 	__(leaq local_label(_nthrowv_called_cleanup)(%rip),%ra0)
 	__(movb $0,%rcontext:tcr.unwinding)
@@ -790,7 +789,7 @@ __(tra(local_label(_nthrowv_called_cleanup)))
 	__(movq tsp_frame.data_offset+(1*node_size)(%imm1),%ra0)
 	__(movq tsp_frame.data_offset+(2*node_size)(%imm1),%mm1)
 	__(movq %nargs_q,%imm0)
-	__(leaq node_size*3(%imm1),%imm1)
+	__(addq $tsp_frame.fixed_overhead+(node_size*3),%imm1)
 	__(jmp local_label(_nthrowv_tpoptest))
 local_label(_nthrowv_tpoploop):	
 	__(push (%imm1))
