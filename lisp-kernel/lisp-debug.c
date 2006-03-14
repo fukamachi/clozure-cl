@@ -90,7 +90,7 @@ readc()
 
 #ifdef X8664
 #ifdef LINUX
-char* Iregnames[] = {"r8","r9","r10","r11","r12","r13","r14","r15",
+char* Iregnames[] = {"r8 ","r9 ","r10","r11","r12","r13","r14","r15",
 		     "rdi","rsi","rbp", "rbx", "rdx", "rax", "rcx","rsp"};
 #endif
 #endif
@@ -526,6 +526,16 @@ debug_show_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
   fprintf(stderr, "XER = 0x%08X  MSR = 0x%08X  DAR = 0x%08X  DSISR = 0x%08X\n",
 	  xpXER(xp), xpMSR(xp), xpDAR(xp), xpDSISR(xp));
 #endif
+#endif
+
+#ifdef X8664
+  for (a = 0, b = 8; a < 8; a++, b++) {
+    fprintf(stderr,"%s = 0x%016lX    %s = 0x%016lX\n",
+	    Iregnames[a], xpGPR(xp, a),
+	    Iregnames[b], xpGPR(xp, b));
+  }
+  fprintf(stderr, "rip - 0x%016lX    rflags = 0x%016lX\n",
+	  xpGPR(xp, Iip), xpGPR(xp, Iflags));
 #endif
   return debug_continue;
 }
