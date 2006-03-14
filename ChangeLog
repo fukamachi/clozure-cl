@@ -1,3 +1,104 @@
+2006-03-14 03:11  gb
+
+	* compiler/X86/x862.lisp: Remove a comment that described the
+	mid-1990s behavior of MacsBug.
+
+2006-03-14 03:10  gb
+
+	* compiler/X86/x86-lap.lisp: In X86-LAP-EQUATE-FORM, check for and
+	disallow bindings that match defined X86 register names.
+
+2006-03-14 03:09  gb
+
+	* compiler/X86/x86-disassemble.lisp: Some UUOs shouldn't terminate
+	a disassembly block.
+
+2006-03-14 03:09  gb
+
+	* library/syscall.lisp: Whoops.
+
+2006-03-14 03:01  gb
+
+	* lisp-kernel/x86-spentry64.s: Fixes in _SPcall_closure,
+	_SPstkgvector.
+
+2006-03-14 03:00  gb
+
+	* lisp-kernel/x86-exceptions.c: Handle uuo_debug_trap.
+
+2006-03-14 03:00  gb
+
+	* lisp-kernel/x86-constants64.h: Iflags is REG_EFL on Linux.
+
+2006-03-14 02:59  gb
+
+	* lisp-kernel/lisp-debug.c: Make (R)egisters command work on x8664.
+
+2006-03-14 02:59  gb
+
+	* library/syscall.lisp: BACKEND-SYSCALL-DEFINITIONS uses whatever
+	bits are in the backend's BACKEND-PLATFORM-SYSCALL-MASK.
+
+2006-03-14 02:57  gb
+
+	* library/x8664-linux-syscalls.lisp: New file. Woefully incomplete,
+	and may need word-size fixes.
+
+2006-03-14 02:57  gb
+
+	* library/ppc-linux-syscalls.lisp: Set the mask per the new (new)
+	scheme.
+
+2006-03-14 02:56  gb
+
+	* level-0/X86/x86-utils.lisp: Fix a few bugs in heap-walking code.
+
+2006-03-14 02:56  gb
+
+	* level-0/X86/x86-def.lisp: %NTH-IMMEDIATE needed to box;  both it
+	and %FUNCTION-CODE-WORDS needed to avoid naming parameters FN.
+
+2006-03-14 02:55  gb
+
+	* level-1/: l1-sockets.lisp, l1-streams.lisp, linux-files.lisp: Use
+	the right set of syscall definitions for Linux.
+
+2006-03-14 02:54  gb
+
+	* level-0/nfasload.lisp: Add a fixnum declaration.
+
+2006-03-14 02:54  gb
+
+	* level-0/l0-io.lisp: Include the right set of syscall defs for
+	Linux.
+
+2006-03-14 02:53  gb
+
+	* level-0/l0-symbol.lisp: Need to use %symptr->symbol for x86;
+	harmless on PPC.
+
+2006-03-14 02:53  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: SETUP-VCELL-ALLOCATION
+	needs to bias the size by fulltag-misc.
+
+2006-03-14 02:52  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: At least for Linux/X86/64,
+	need to look at os/cpu/word-size to deterine applicable syscall
+	defs.
+
+2006-03-14 02:51  gb
+
+	* compiler/PPC/: PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-backend.lisp: All PPC (32/64) backends can use syscall
+	defs for OS/CPU, regardless of word size.
+
+2006-03-14 02:50  gb
+
+	* compiler/backend.lisp: Add PLATFORM-SYSCALL-MASK to backend
+	struct.
+
 2006-03-14 02:09  gb
 
 	* library/: ppc-linux-syscalls.lisp, linux-syscalls.lisp: renamed
