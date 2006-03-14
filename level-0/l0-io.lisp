@@ -17,8 +17,10 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel)
-  #+linux-target
-  (require "LINUX-SYSCALLS")
+  #+linuxppc-target
+  (require "PPC-LINUX-SYSCALLS")
+  #+linuxx8664-target
+  (require "X8664-LINUX-SYSCALLS")
   #+darwin-target
   (require "DARWIN-SYSCALLS"))
 
