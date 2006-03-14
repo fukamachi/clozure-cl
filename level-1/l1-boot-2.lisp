@@ -25,10 +25,8 @@
 				  #+linuxppc-target "./l1-pfsls/"
 				  #+darwinppc-target "./l1-dfsls/"
 				  (string name)
-				  #+(and linuxppc-target ppc64-target) ".p64fsl"
-                                  #+(and linuxppc-target ppc32-target) ".pfsl"
-				  #+(and darwinppc-target ppc64-target) ".d64fsl"
-                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
+                                  (namestring (backend-target-fasl-pathname
+                                               *target-backend*)))))
 	       `(let* ((*loading-file-source-file* *loading-file-source-file*))
                  (%fasload ,namestring))))
 	   (bin-load (name)
@@ -37,10 +35,8 @@
 				  #+linuxppc-target "./binppc/"
 				  #+darwinppc-target "./bindarwin/"
 				  (string name)
-				  #+(and linuxppc-target ppc64-target) ".p64fsl"
-                                  #+(and linuxppc-target ppc32-target) ".pfsl"
-				  #+(and darwinppc-target ppc64-target) ".d64fsl"
-                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
+                                  (namestring (backend-target-fasl-pathname
+                                               *target-backend*)))))
                `(let* ((*loading-file-source-file* *loading-file-source-file*))
                  (%fasload ,namestring)))))
 
@@ -52,10 +48,12 @@
     (l1-load "l1-sockets")
     (setq *LEVEL-1-LOADED* t))
 
+#+ppc-target
 (defun altivec-available-p ()
   "Return non-NIL if AltiVec is available."
   (not (eql (%get-kernel-global 'ppc::altivec-present) 0)))
 
+#+ppc-target
 (defloadvar *altivec-available* (altivec-available-p)
   "This variable is intitialized each time an OpenMCL session starts based
 on information provided by the lisp kernel. Its value is true if AltiVec is
@@ -67,7 +65,7 @@ present and false otherwise. This variable shouldn't be set by user code.")
 (defglobal *auto-flush-streams-lock* (make-lock))
 
 
-(defloadvar *batch-flag* (not (eql (%get-kernel-global 'ppc::batch-flag) 0)))
+(defloadvar *batch-flag* (not (eql (%get-kernel-global 'batch-flag) 0)))
 (defloadvar *quiet-flag* nil)
 (defvar *terminal-input* ())
 (defvar *terminal-output* ())
@@ -177,7 +175,7 @@ present and false otherwise. This variable shouldn't be set by user code.")
       (bin-load-provide "FORMAT" "format")
       (bin-load-provide "STREAMS" "streams")
       (bin-load-provide "OPTIMIZERS" "optimizers")      
-      (bin-load-provide "DEFSTRUCT-MACROS" "defstruct-macros")        ;  ... but this file thinks it does.
+      (bin-load-provide "DEFSTRUCT-MACROS" "defstruct-macros")
       (bin-load-provide "DEFSTRUCT-LDS" "defstruct-lds")
       (bin-load-provide "NFCOMP" "nfcomp")
       (bin-load-provide "BACKQUOTE" "backquote")
@@ -213,16 +211,7 @@ present and false otherwise. This variable shouldn't be set by user code.")
       (require "HASH-CONS")
       (bin-load-provide "CCL-EXPORT-SYMS" "ccl-export-syms")
       (l1-load-provide "VERSION" "version")
-      (progn  ; Shouldn't need this at load time ...
-	(%fasload #+linuxppc-target
-                  (progn
-                    #+ppc32-target "./library/lispequ.pfsl"
-                    #+ppc64-target "./library/lispequ.p64fsl")
-                  #+darwinppc-target
-                  (progn
-                    #+ppc32-target  "./library/lispequ.dfsl"
-                    #+ppc64-target  "./library/lispequ.d64fsl"))
-	(provide "LISPEQU"))
+      (require "LISPEQU") ; Shouldn't need this at load time ...
       )
     (setq *%fasload-verbose* nil)
     )

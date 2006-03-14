@@ -24,10 +24,8 @@
 				  #+linuxppc-target "./l1-pfsls/"
 				  #+darwinppc-target "./l1-dfsls/"
 				  (string name)
-				  #+(and linuxppc-target ppc64-target) ".p64fsl"
-                                  #+(and linuxppc-target ppc32-target) ".pfsl"
-				  #+(and darwinppc-target ppc64-target) ".d64fsl"
-                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
+                                  (namestring (backend-target-fasl-pathname
+                                               *target-backend*)))))
 	       `(%fasload ,namestring)))
 	   (bin-load (name)
 	     (let* ((namestring
@@ -35,10 +33,8 @@
 				  #+linuxppc-target "./binppc/"
 				  #+darwinppc-target "./bindarwin/"
 				  (string name)
-				  #+(and linuxppc-target ppc64-target) ".p64fsl"
-                                  #+(and linuxppc-target ppc32-target) ".pfsl"
-				  #+(and darwinppc-target ppc64-target) ".d64fsl"
-                                  #+(and darwinppc-target ppc32-target) ".dfsl")))
+                                  (namestring (backend-target-fasl-pathname
+                                               *target-backend*)))))
 	       `(%fasload ,namestring))))
 
   (l1-load "l1-cl-package")
@@ -70,6 +66,7 @@
   (provide "DLL-NODE")
   (l1-load "l1-typesys")
   (l1-load "sysutils")
+  #+ppc-target
   (l1-load "ppc-threads-utils")
   (l1-load "l1-lisp-threads")
   (l1-load "l1-application")
@@ -81,6 +78,7 @@
   (l1-load "l1-error-system")
 
   (l1-load "l1-events")
+  #+ppc-target
   (l1-load "ppc-trap-support")
   (l1-load "l1-format")
   (l1-load "l1-sysio")
