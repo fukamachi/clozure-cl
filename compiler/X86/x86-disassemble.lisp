@@ -2213,69 +2213,71 @@
 
 (defun x86-dis-do-uuo (ds instruction intop sizeflag)
   (declare (type (unsigned-byte 8) intop))
-  (cond ((< intop #xa0)
-         (setf (x86-di-mnemonic instruction) "int"
-               (x86-di-op0 instruction)
-               (x86::make-x86-immediate-operand :value (parse-x86-lap-expression intop))))
-        ((< intop #xb0)
-         (setf (x86-di-mnemonic instruction)
-               "uuo-error-udf"
-               (x86-di-op0 instruction)
-               (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))))
+  (let* ((stop t))
+    (cond ((< intop #xa0)
+           (setf (x86-di-mnemonic instruction) "int"
+                 (x86-di-op0 instruction)
+                 (x86::make-x86-immediate-operand :value (parse-x86-lap-expression intop))))
+          ((< intop #xb0)
+           (setf (x86-di-mnemonic instruction)
+                 "uuo-error-udf"
+                 (x86-di-op0 instruction)
+                 (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))))
          
-        ((< intop #xc0)
-         (setf (x86-di-mnemonic instruction)
-               "uuo-error-reg-not-type"
-               (x86-di-op0 instruction)
-               (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))
-               (x86-di-op1 instruction)
-               (x86::make-x86-immediate-operand :value (parse-x86-lap-expression (x86-ds-next-u8 ds)))))
-        ((< intop #xc8)
-         (setf (x86-di-mnemonic instruction)
-               (case intop
-                 (#xc0 "uuo-error-two-few-args")
-                 (#xc1 "uuo-error-two-many-args")
-                 (#xc2 "uuo-error-wrong-number-of-args")
-                 (#xc3 "uuo-stack-overflow")
-                 (#xc4 "uuo-gc-trap")
-                 (#xc5 "uuo-alloc")
-                 (#xc6 "uuo-error-not-callable")
-                 (#xc7 "uuo-udf-call")
-                 (t "unknown-UUO"))))
-        ((= intop #xc8)
-         (let* ((modrm-byte (x86-ds-peek-u8 ds)))
-           (declare (type (unsigned-byte 8) modrm-byte))
-           (setf (x86-ds-mod ds) (ldb (byte 2 6) modrm-byte)
-                 (x86-ds-reg ds) (ldb (byte 3 3) modrm-byte)
-                 (x86-ds-rm ds) (ldb (byte 3 0) modrm-byte))
-           (setf (x86-di-op0 instruction)
-                 (op-g ds +v-mode+ sizeflag)
+          ((< intop #xc0)
+           (setf (x86-di-mnemonic instruction)
+                 "uuo-error-reg-not-type"
+                 (x86-di-op0 instruction)
+                 (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))
                  (x86-di-op1 instruction)
-                 (op-e ds +v-mode+ sizeflag)
-                 (x86-di-mnemonic instruction) "uuo-error-vector-bounds")))
-        ((< intop #xd0)
-                  (setf (x86-di-mnemonic instruction)
-               (case intop
-                 (#xc9 "uuo-error-call-macro-or-special-operator")
-                 (#xca "uuo-error-debug-trap")
-                 (t "unknown-UUO"))))
-        ((< intop #xe0)
-         (setf (x86-di-mnemonic instruction)
-               "uuo-error-reg-not-tag"
-               (x86-di-op0 instruction)
-               (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))
-               (x86-di-op1 instruction)
-               (x86::make-x86-immediate-operand :value (parse-x86-lap-expression (x86-ds-next-u8 ds)))))
-        ((< intop #xf0)
-         (setf (x86-di-mnemonic instruction)
-               "uuo-error-reg-not-list"
-               (x86-di-op0 instruction)
-               (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))))
-        (t
-         (setf (x86-di-mnemonic instruction)
-               "uuo-error-reg-not-fixnum"
-               (x86-di-op0 instruction)
-               (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))))))
+                 (x86::make-x86-immediate-operand :value (parse-x86-lap-expression (x86-ds-next-u8 ds)))))
+          ((< intop #xc8)
+           (setf (x86-di-mnemonic instruction)
+                 (case intop
+                   (#xc0 "uuo-error-two-few-args")
+                   (#xc1 "uuo-error-two-many-args")
+                   (#xc2 "uuo-error-wrong-number-of-args")
+                   (#xc3 "uuo-stack-overflow")
+                   (#xc4 "uuo-gc-trap")
+                   (#xc5 "uuo-alloc")
+                   (#xc6 "uuo-error-not-callable")
+                   (#xc7 "uuo-udf-call")
+                   (t "unknown-UUO"))))
+          ((= intop #xc8)
+           (let* ((modrm-byte (x86-ds-peek-u8 ds)))
+             (declare (type (unsigned-byte 8) modrm-byte))
+             (setf (x86-ds-mod ds) (ldb (byte 2 6) modrm-byte)
+                   (x86-ds-reg ds) (ldb (byte 3 3) modrm-byte)
+                   (x86-ds-rm ds) (ldb (byte 3 0) modrm-byte))
+             (setf (x86-di-op0 instruction)
+                   (op-g ds +v-mode+ sizeflag)
+                   (x86-di-op1 instruction)
+                   (op-e ds +v-mode+ sizeflag)
+                   (x86-di-mnemonic instruction) "uuo-error-vector-bounds")))
+          ((< intop #xd0)
+           (setf (x86-di-mnemonic instruction)
+                 (case intop
+                   (#xc9 "uuo-error-call-macro-or-special-operator")
+                   (#xca (setq stop nil) "uuo-error-debug-trap")
+                   (t "unknown-UUO"))))
+          ((< intop #xe0)
+           (setf (x86-di-mnemonic instruction)
+                 "uuo-error-reg-not-tag"
+                 (x86-di-op0 instruction)
+                 (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))
+                 (x86-di-op1 instruction)
+                 (x86::make-x86-immediate-operand :value (parse-x86-lap-expression (x86-ds-next-u8 ds)))))
+          ((< intop #xf0)
+           (setf (x86-di-mnemonic instruction)
+                 "uuo-error-reg-not-list"
+                 (x86-di-op0 instruction)
+                 (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%))))
+          (t
+           (setf (x86-di-mnemonic instruction)
+                 "uuo-error-reg-not-fixnum"
+                 (x86-di-op0 instruction)
+                 (x86-dis-make-reg-operand (lookup-x86-register (logand intop #xf) :%)))))
+    stop))
 
 
 
@@ -2430,8 +2432,8 @@
         (if (and (null (x86-dis-mnemonic dp))
                  (eql (x86-dis-bytemode1 dp) +uuocode+))
           (progn
-            (x86-dis-do-uuo ds instruction (x86-ds-next-u8 ds) sizeflag)
-            (setq stop t))
+            (setq stop
+                  (x86-dis-do-uuo ds instruction (x86-ds-next-u8 ds) sizeflag)))
           (progn
             (when (null (x86-dis-mnemonic dp))
               (let* ((bytemode1 (x86-dis-bytemode1 dp)))
