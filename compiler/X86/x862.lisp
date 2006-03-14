@@ -4045,8 +4045,9 @@
                (x862-formlist seg initforms nil)
                (x862-lri seg x8664::imm0 header)
                (x862-lri seg x8664::imm1 (- (ash (logandc2 (+ n 2) 1) (arch::target-word-shift arch)) (target-arch-case  (:x8664 x8664::fulltag-misc))))
+               (! %allocate-uvector vreg)
                (unless (eql n 0)
-               (! %init-gvector vreg  (ash n (arch::target-word-shift arch)))))
+                 (! %init-gvector vreg  (ash n (arch::target-word-shift arch)))))
               (t
                (let* ((pending ())
                       (vstack *x862-vstack*))
