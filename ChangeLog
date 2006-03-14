@@ -1,3 +1,7 @@
+2006-03-14 02:09  gb
+
+	* library/: ppc-linux-syscalls.lisp, linux-syscalls.lisp: renamed
+
 2006-03-13 02:33  gb
 
 	* level-1/version.lisp: Bump.
