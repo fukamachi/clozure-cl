@@ -2809,12 +2809,13 @@
                                    ((v :lisp)
                                     (nbytes :u32const))
                                    ((count :imm)))
-  (xorl (:%l count) (:%l count))
+  (movl (:$l nbytes) (:%l count))
+  (jmp :test)
   :loop
   (popq (:@ x8664::misc-data-offset (:%q v) (:%q count)))
-  (addq (:$b x8664::node-size) (:%q count))
-  (cmpq (:$l nbytes) (:%q count))
-  (jne :loop))
+  :test
+  (subq (:$b x8664::node-size) (:%q count))
+  (jge :loop))
 
 (define-x8664-subprim-jump-vinsn (tail-funcall-slide) .SPtfuncallslide)
 
