@@ -239,7 +239,8 @@
     ;; Index may have been assigned via xloader.  Update
     ;; reverse map
     (with-lock-grabbed (binding-index-lock)
-      (let* ((idx (%svref sym target::symbol.binding-index-cell)))
+      (let* ((idx (%svref (%symbol->symptr sym)
+                          target::symbol.binding-index-cell)))
         (declare (fixnum idx))
         (unless (zerop idx)
           (setf (gethash idx binding-index-reverse-map) sym))))))
