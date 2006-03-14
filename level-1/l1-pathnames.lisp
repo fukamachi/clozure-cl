@@ -96,7 +96,7 @@
 
 (defsetf logical-pathname-translations set-logical-pathname-translations)
 
-; doesnt check if already there - adds at front 
+;;; doesnt check if already there - adds at front 
 (defun add-logical-pathname-translation (host translation)
   (let ((trans (%str-assoc host  %logical-host-translations%)))
     (if (not trans)
@@ -660,21 +660,8 @@
         `(("**;*.*" ,(merge-pathnames "**/*.*" (user-homedir-pathname)))))
 
   (setf (logical-pathname-translations "ccl")
-        `(("l1;**;*.pfsl" "ccl:l1pf;*.pfsl")
-          ("l1;**;*.p64fsl" "ccl:l1pf;*.p64fsl")
-          ("l1;**;*.dfsl" "ccl:l1df;*.dfsl")
-          ("l1;**;*.d64fsl" "ccl:l1df;*.d64fsl")
-          ("l1;**;*.*" "ccl:level-1;**;*.*")
-          ("l1f;**;*.pfsl" "ccl:l1pf;**;*.pfsl")
-          ("l1f;**;*.p64fsl" "ccl:l1pf;**;*.p64fsl")
-          ("l1f;**;*.dfsl" "ccl:l1df;**;*.dfsl")
-          ("l1f;**;*.d64fsl" "ccl:l1df;**;*.d64fsl")
-          ("bin;**;*.pfsl" "ccl:binppc;**;*.pfsl")
-          ("bin;**;*.p64fsl" "ccl:binppc;**;*.p64fsl")
-          ("bin;**;*.dfsl" "ccl:bindarwin;**.*.dfsl")
-          ("bin;**;*.d64fsl" "ccl:bindarwin;**.*.d64fsl")
-          ("l1pf;**;*.*" "ccl:l1-pfsls;**;*.*")
-          ("l1df;**;*.*" "ccl:l1-dfsls;**;*.*")
+        `(("l1;**;*.*" "ccl:level-1;**;*.*")
+          ("l1f;**;*.*" "ccl:l1-fasls;**;*.*")
           ("ccl;*.*" ,(merge-pathnames "*.*" (ccl-directory)))
           ("**;*.*" ,(merge-pathnames "**/*.*" (ccl-directory))))))
 
