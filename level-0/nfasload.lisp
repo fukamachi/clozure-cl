@@ -962,7 +962,8 @@
       ;; Can't bind any specials until this happens
       (let* ((max 0))
         (%map-areas #'(lambda (symptr)
-                        (when (= (typecode symptr) target::subtag-symbol)
+                        (when (= (the fixnum (typecode symptr))
+                                 target::subtag-symbol)
                           (let* ((s (%symptr->symbol symptr))
 				 (idx (symbol-binding-index s)))
                             (when (> idx 0)
