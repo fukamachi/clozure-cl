@@ -19,8 +19,10 @@
 
 (eval-when (:compile-toplevel)
   #+linuxppc-target
-  (require "LINUX-SYSCALLS")
-  #+darwinppc-target
+  (require "PPC-LINUX-SYSCALLS")
+  #+linuxx8664-target
+  (require "X8664-LINUX-SYSCALLS")
+  #+darwin-target
   (require "DARWIN-SYSCALLS"))
 
 ;;;
