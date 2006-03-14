@@ -35,6 +35,7 @@
                 :lookup-macro #'false
                 :lap-opcodes x86::*x8664-opcode-templates*
                 :define-vinsn 'define-x86-vinsn
+                :platform-syscall-mask (logior platform-os-linux platform-cpu-x86 platform-word-size-64) 
 		:p2-dispatch *x862-specials*
 		:p2-vinsn-templates *x8664-vinsn-templates*
 		:p2-template-hash-name '*x8664-vinsn-templates*
