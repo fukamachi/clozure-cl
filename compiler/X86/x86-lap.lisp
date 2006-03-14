@@ -1090,6 +1090,9 @@
                                  (and name 
                                       (symbolp name)
                                       (not (constant-symbol-p name))
+                                      (or (not (gethash (string name)
+                                                        x86::*x86-registers*))
+                                          (error "Symbol ~s already names and x86 register" name))
                                       name)
                                  (error 
                                   "~S is not a bindable symbol name ." name))))
