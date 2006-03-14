@@ -183,6 +183,11 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	    return true;
 	  }
 	}
+	if (*program_counter == 0xca) {
+	  lisp_Debugger(context, info, debug_entry_dbg, "Lisp Breakpoint");
+	    xpPC(context) = (natural) (program_counter+1);
+	    return true;
+	}
       }
     }
   }
