@@ -1630,8 +1630,11 @@ _endsubp(stack_cons_rest_arg)
 /* (function name, lfbits) elements of %fn to the "arglist". */
 _spentry(call_closure)
         __(subq $fulltag_function-fulltag_misc,%fn)
-        __(header_length(%fn,%imm0))
+        __(vector_length(%fn,%imm0))
        	__(movzwl %nargs,%nargs_l)
+	/* two words of code for the prefix and the jump here.
+	   One word for lfun-bits, one word for inner function, one
+	   word for (null) function name */
         __(subq $5<<fixnumshift,%imm0)  /* imm0 = inherited arg count */
         __(cmpw $nargregs<<fixnumshift,%nargs)
         __(jna,pt local_label(no_insert))
@@ -1719,14 +1722,14 @@ local_label(set_y_z):
 	/* Set arg_y, maybe arg_x, preceding args */
 local_label(set_arg_y): 
         __(subq $node_size,%temp1)
-        __(movq misc_data_offset(%fn,%temp0),%arg_y)
+        __(movq misc_data_offset(%fn,%temp1),%arg_y)
         __(addw $fixnumone,%nargs)
         __(subq $fixnum_one,%imm0)
         __(jnz local_label(set_arg_x))
         __(jmp local_label(go))
 local_label(set_arg_z): 
         __(subq $node_size,%temp1)
-        __(movq misc_data_offset(%fn,%temp0),%arg_z)
+        __(movq misc_data_offset(%fn,%temp1),%arg_z)
         __(addw $fixnumone,%nargs)
         __(subq $fixnum_one,%imm0)
         __(jne local_label(set_arg_y))
@@ -2019,8 +2022,8 @@ _spentry(stkgvector)
 	__(orq %imm1,%imm0)	/* imm0 = header, %arg_y = unaligned size */
 	__(dnode_align(%arg_y,(tsp_frame.fixed_overhead+node_size),%imm1))
 	__(TSP_Alloc_Var(%imm1,%arg_z))
-	__(movq %imm0,tsp_frame.fixed_overhead(%arg_z))
-	__(addq $tsp_frame.fixed_overhead+fulltag_misc,%arg_z)
+	__(movq %imm0,(%arg_z))
+	__(addq $fulltag_misc,%arg_z)
 	__(lea -node_size(%nargs_q),%imm0)
 	__(jmp 2f)
 1:	__(pop misc_data_offset(%arg_z,%imm0))
