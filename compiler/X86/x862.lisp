@@ -7835,11 +7835,6 @@
   (x862-use-operator (%nx1-operator cons) seg vreg xfer car cdr))
 
 
-;;; Under MacsBug 5.3 (and some others ?), this'll do a low-level user
-;;; break.  If the debugger doesn't recognize the trap instruction,
-;;; you'll have to manually advance the PC past it.  "arg" winds up in the
-;;; arg_z register; whatever's in arg_z on return is returned by
-;;; the %debug-trap construct.
 
 (defx862 x862-%debug-trap %debug-trap (seg vreg xfer arg)
   (x862-one-targeted-reg-form seg arg ($ x8664::arg_z))
