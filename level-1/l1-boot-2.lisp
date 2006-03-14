@@ -22,8 +22,7 @@
 (macrolet ((l1-load (name)
 	     (let* ((namestring
 		     (concatenate 'simple-base-string
-				  #+linuxppc-target "./l1-pfsls/"
-				  #+darwinppc-target "./l1-dfsls/"
+                                  "./l1-fasls/"
 				  (string name)
                                   (namestring (backend-target-fasl-pathname
                                                *target-backend*)))))
@@ -32,8 +31,7 @@
 	   (bin-load (name)
 	     (let* ((namestring
 		     (concatenate 'simple-base-string
-				  #+linuxppc-target "./binppc/"
-				  #+darwinppc-target "./bindarwin/"
+                                  "./bin/"
 				  (string name)
                                   (namestring (backend-target-fasl-pathname
                                                *target-backend*)))))
