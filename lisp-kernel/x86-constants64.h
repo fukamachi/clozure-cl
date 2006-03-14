@@ -33,7 +33,7 @@
 #define Itemp1      REG_R9
 #define Isp         REG_RSP
 #define Iip         REG_RIP
-#define Iflags      REG_RFL
+#define Iflags      REG_EFL
 #endif
 
 #ifdef FREEBSD
