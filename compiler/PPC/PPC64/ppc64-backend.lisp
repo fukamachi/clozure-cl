@@ -35,6 +35,8 @@
 		:lookup-macro #'ppc::ppc-macro-function
 		:lap-opcodes ppc::*ppc-opcodes*
                 :define-vinsn 'define-ppc-vinsn
+                :platform-syscall-mask (logior platform-os-linux platform-cpu-ppc)                
+                
 		:p2-dispatch *ppc2-specials*
 		:p2-vinsn-templates *ppc64-vinsn-templates*
 		:p2-template-hash-name '*ppc64-vinsn-templates*
@@ -59,6 +61,8 @@
 		:lookup-macro #'ppc::ppc-macro-function
 		:lap-opcodes ppc::*ppc-opcodes*
                 :define-vinsn 'define-ppc-vinsn
+                :platform-syscall-mask (logior platform-os-darwin platform-cpu-ppc)                
+                
 		:p2-dispatch *ppc2-specials*
 		:p2-vinsn-templates *ppc64-vinsn-templates*
 		:p2-template-hash-name '*ppc64-vinsn-templates*
