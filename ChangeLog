@@ -1,3 +1,40 @@
+2006-03-14 14:08  gb
+
+	* binppc/.cvsignore, l1-pfsls/.cvsignore: remove
+
+2006-03-14 14:02  gb
+
+	* level-1/: l1-boot-2.lisp, level-1.lisp: Always use physical bin,
+	l1-fasls relative pathnames.
+
+2006-03-14 14:02  gb
+
+	* level-1/l1-pathnames.lisp: Simpler translations.
+
+2006-03-14 13:51  gb
+
+	* l1-dfsls/.cvsignore, bindarwin/.cvsignore: removed
+
+2006-03-14 13:31  gb
+
+	* bin/.cvsignore, l1-fasls/.cvsignore: new file.
+
+2006-03-14 13:24  gb
+
+	* level-1/: l1-boot-2.lisp, level-1.lisp: Step 1: don't hardwire
+	the target fasl pathname in a big #+ nest, get it from the target
+	backend.  (Hope that works with macrolet.)
+
+2006-03-14 13:22  gb
+
+	* lisp-kernel/x86-spentry64.s: _SPstack_misc_alloc fixes. 
+	_SPsyscall: just return negative return values, don't negate them.
+
+2006-03-14 13:20  gb
+
+	* library/x8664-linux-syscalls.lisp: Hide the incomplete
+	definitions.  This needs work; should use real foreign types.
+
 2006-03-14 13:19  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: %init-gvector: pop the last
