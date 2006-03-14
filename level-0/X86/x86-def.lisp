@@ -24,15 +24,15 @@
   (subb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (% arg_z.b))
   (single-value-return))
 
-(defx86lapfunction %function-code-words ((fn arg_z))
-  (movl (@ (- x8664::node-size x8664::fulltag-function) (% fn)) (% imm0.l))
+(defx86lapfunction %function-code-words ((fun arg_z))
+  (movl (@ (- x8664::node-size x8664::fulltag-function) (% fun)) (% imm0.l))
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
-(defx86lapfunction %nth-immediate ((fn arg_y) (n arg_z))
-  (movl (@ (- x8664::node-size x8664::fulltag-function) (% fn)) (% imm0.l))
-  (addq (% n) (% imm0))
-  (movq (@ (- x8664::node-size x8664::fulltag-function) (% fn) (% imm0))
+(defx86lapfunction %nth-immediate ((fun arg_y) (n arg_z))
+  (movl (@ (- x8664::node-size x8664::fulltag-function) (% fun)) (% imm0.l))
+  (lea (@ (% n) (% imm0) 8) (% imm0))
+  (movq (@ (- x8664::node-size x8664::fulltag-function) (% fun) (% imm0))
         (% arg_z))
   (single-value-return))
 
