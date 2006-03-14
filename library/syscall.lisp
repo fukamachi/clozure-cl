@@ -34,8 +34,7 @@
             (make-hash-table :test 'eq))))
 
 (defun backend-syscall-definitions (backend)
-  (platform-syscall-definitions (backend-platform-syscall-mask
-                                        (backend-target-platform backend))))
+  (platform-syscall-definitions (backend-platform-syscall-mask backend)))
 
 
 
