@@ -2434,7 +2434,7 @@
 (define-x8664-vinsn setup-vcell-allocation (()
                                             ())
   (movl (:$l x8664::value-cell-header) (:%l x8664::imm0))
-  (movl (:$l x8664::value-cell.size) (:%l x8664::imm1)))
+  (movl (:$l (- x8664::value-cell.size x8664::fulltag-misc)) (:%l x8664::imm1)))
 
 (define-x8664-vinsn %init-vcell (()
                                  ((vcell :lisp)
