@@ -33,11 +33,8 @@
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::stat 4 (:address :address) :signed-fullword)
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::fstat 5 (:unsigned-fullword :address) :signed-fullword )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::lstat 6 (:address :address) :signed-fullword)
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::poll 7 () )
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::lseek 8 (:unsigned-fullword :signed-fullword :unsigned-fullword) :signed-fullword )
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::mmap 9 () )
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::munmap 11 () )
 
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::lseek 8 (:unsigned-fullword :signed-fullword :unsigned-fullword) :signed-fullword )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::exit 60 (:signed-fullword) :void)
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::fork 57 () :signed-fullword)
 
@@ -237,5 +234,8 @@
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getpmsg 187	 () )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::putpmsg 188	 () )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::vfork 189 () )
+
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::mmap 9 () )
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::munmap 11 () )
 
 )
