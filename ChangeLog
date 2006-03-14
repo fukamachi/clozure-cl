@@ -1,3 +1,18 @@
+2006-03-14 13:19  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: %init-gvector: pop the last
+	element first.
+
+2006-03-14 13:19  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: :linuxx8664-target on
+	features, too.
+
+2006-03-14 13:18  gb
+
+	* compiler/X86/x862.lisp: x862-allocate-initialized-gvector: works
+	better if the gvector is actually allocated ...
+
 2006-03-14 03:11  gb
 
 	* compiler/X86/x862.lisp: Remove a comment that described the
