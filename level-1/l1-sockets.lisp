@@ -495,8 +495,8 @@ the socket is not connected."))
     (when (eq address-family :internet)
       (when nodelay
 	(int-setsockopt fd
-			#+linuxppc-target #$SOL_TCP
-			#+darwinppc-target #$IPPROTO_TCP
+			#+linux-target #$SOL_TCP
+			#+darwin-target #$IPPROTO_TCP
 			#$TCP_NODELAY 1))
       (when (or local-port local-host)
 	(let* ((proto (if (eq type :stream) "tcp" "udp"))
@@ -682,12 +682,12 @@ the socket is not connected."))
 	     ;; man accept(2). This is my best guess at what they mean...
 	     (if (and async (< res 0)
 		      (or (eql res (- #$ENETDOWN))
-			  (eql res (- #+linuxppc-target #$EPROTO
-				      #+darwinppc-target #$EPROTOTYPE))
+			  (eql res (- #+linux-target #$EPROTO
+				      #+darwin-target #$EPROTOTYPE))
 			  (eql res (- #$ENOPROTOOPT))
 			  (eql res (- #$EHOSTDOWN))
-			  (eql res (- #+linuxppc-target #$ENONET
-				      #+darwinppc-target #$ENETDOWN))
+			  (eql res (- #+linuxc-target #$ENONET
+				      #+darwin-target #$ENETDOWN))
 			  (eql res (- #$EHOSTUNREACH))
 			  (eql res (- #$EOPNOTSUPP))
 			  (eql res (- #$ENETUNREACH))))
