@@ -39,7 +39,7 @@
 
 (defparameter *compiler-modules*
       '(nx optimizers dll-node arch vreg vinsn 
-	reg subprims risc-lap backend))
+	reg subprims  backend))
 
 
 (defparameter *ppc-compiler-modules*
@@ -48,6 +48,7 @@
     ppc-arch
     ppcenv
     ppc-asm
+    risc-lap
     ppc-lap
     ppc-backend
 ))
@@ -155,7 +156,8 @@
 					     *host-backend*)))
   (append *other-lib-modules*
 	  (case target
-	    ((:ppc32 :ppc64) '(ppc-disassemble)))))
+	    ((:ppc32 :ppc64) '(ppc-disassemble))
+            (:x8664 '(x86-disassemble)))))
 	  
 
 (defun target-lib-modules (&optional (target
