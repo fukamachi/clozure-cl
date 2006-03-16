@@ -59,10 +59,8 @@
 ;ton of "foo.CL" files...
 (defparameter *.fasl-pathname*
   (%cons-pathname nil nil
-                  #+(and linuxppc-target ppc32-target) "pfsl"
-                  #+(and linuxppc-target ppc64-target) "p64fsl"
-                  #+(and darwinppc-target ppc32-target) "dfsl"
-                  #+(and darwinppc-target ppc64-target) "d64fsl"))
+                  #.(pathname-type
+                     (backend-target-fasl-pathname *target-backend*))))
 
 (defparameter *.lisp-pathname* (%cons-pathname nil nil "lisp"))
 
