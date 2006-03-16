@@ -857,13 +857,21 @@
        (= ,typecode ppc32::subtag-instance)))))
 
 ;;;
-(defppc32archmacro ccl::%get-kernel-global (name-or-offset)
-  `(ccl::%fixnum-ref 0 (+ ppc32::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset))))
+(defppc32archmacro ccl::%get-kernel-global (name)
+  `(ccl::%fixnum-ref 0 (+ ppc32::nil-value
+                        ,(%kernel-global
+                          (if (ccl::quoted-form-p name)
+                            (cadr name)
+                            name)))))
 
-(defppc32archmacro ccl::%get-kernel-global-ptr (name-or-offset dest)
+(defppc32archmacro ccl::%get-kernel-global-ptr (name dest)
   `(ccl::%setf-macptr
     ,dest
-    (ccl::%fixnum-ref-natural 0 (+ ppc32::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset)))))
+    (ccl::%fixnum-ref-natural 0 (+ ppc32::nil-value
+                                 ,(%kernel-global
+                                   (if (ccl::quoted-form-p name)
+                                     (cadr name)
+                                     name))))))
 
 (defppc32archmacro ccl::%target-kernel-global (name)
   `(ppc32::%kernel-global ,name))
@@ -876,5 +884,11 @@
 
 (defppc32archmacro ccl::area-code ()
   area.code)
+
+(defppc32archmacro ccl::nth-immediate (f i)
+  `(ccl::%svref ,f ,i))
+
+(defppc32archmacro ccl::set-nth-immediate (f i new)
+  `(setf (ccl::%svref ,f ,i) ,new))
 
 (provide "PPC32-ARCH")
