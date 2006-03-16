@@ -1186,13 +1186,21 @@
                 (ash 1 x8664::subtag-instance)))))))
 
 ;;;
-(defx8664archmacro ccl::%get-kernel-global (name-or-offset)
-  `(ccl::%fixnum-ref 0 (+ x8664::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset))))
+(defx8664archmacro ccl::%get-kernel-global (name)
+  `(ccl::%fixnum-ref 0 (+ x8664::nil-value
+                        ,(%kernel-global
+                         (if (ccl::quoted-form-p name)
+                           (cadr name)
+                           name)))))
 
-(defx8664archmacro ccl::%get-kernel-global-ptr (name-or-offset dest)
+(defx8664archmacro ccl::%get-kernel-global-ptr (name dest)
   `(ccl::%setf-macptr
     ,dest
-    (ccl::%fixnum-ref-natural 0 (+ x8664::nil-value  ,(ccl::%kernel-global-offset-form name-or-offset)))))
+    (ccl::%fixnum-ref-natural 0 (+ x8664::nil-value
+                                 ,(%kernel-global
+                                   (if (ccl::quoted-form-p name)
+                                     (cadr name)
+                                     name))))))
 
 (defx8664archmacro ccl::%target-kernel-global (name)
   `(x8664::%kernel-global ,name))
@@ -1205,5 +1213,11 @@
 
 (defx8664archmacro ccl::area-code ()
   area.code)
+
+(defx8664archmacro ccl::nth-immediate (f i)
+  `(ccl::%nth-immediate ,f (the fixnum (- (the fixnum ,i) 1))))
+
+(defx8664archmacro ccl::set-nth-immediate (f i new)
+  `(ccl::%set-nth-immediate ,f (the fixnum (- (the fixnum ,i) 1)) ,new))
 
 (provide "X8664-ARCH")
