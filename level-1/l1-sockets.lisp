@@ -686,7 +686,7 @@ the socket is not connected."))
 				      #+darwin-target #$EPROTOTYPE))
 			  (eql res (- #$ENOPROTOOPT))
 			  (eql res (- #$EHOSTDOWN))
-			  (eql res (- #+linuxc-target #$ENONET
+			  (eql res (- #+linux-target #$ENONET
 				      #+darwin-target #$ENETDOWN))
 			  (eql res (- #$EHOSTUNREACH))
 			  (eql res (- #$EOPNOTSUPP))
