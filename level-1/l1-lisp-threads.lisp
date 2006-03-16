@@ -126,15 +126,11 @@
 
 
 (defun %kernel-global-offset-form (name-or-offset-form)
-  (cond ((and (listp name-or-offset-form)
-              (eq 'quote (car name-or-offset-form))
-              (listp (cdr name-or-offset-form))
-              (symbolp (cadr name-or-offset-form))
-              (null (cddr name-or-offset-form)))
-         (%target-kernel-global (cadr name-or-offset-form)))
+  (cond ((quoted-form-p name-or-offset-form)
+         `(%target-kernel-global ,name-or-offset-form))
         ((fixnump name-or-offset-form)
          name-or-offset-form)
-        (t `(%kernel-global-offset ,name-or-offset-form))))
+        (t `(%target-kernel-global ',name-or-offset-form))))
 
 
 
