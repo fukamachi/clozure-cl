@@ -3361,6 +3361,12 @@ to be at least partially steppable."
 
 (declare-arch-specific-macro area-code)
 
+(declare-arch-specific-macro nth-immediate)
+
+(declare-arch-specific-macro set-nth-immediate)
+
+(defsetf nth-immediate set-nth-immediate)
+
 (defmacro do-consing-areas ((area) &body body)
   (let ((code (gensym)))
   `(do-gc-areas (,area)
