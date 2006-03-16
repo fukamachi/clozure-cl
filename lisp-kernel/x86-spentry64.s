@@ -1339,30 +1339,25 @@ _spentry(fitvals)
 	__(int $3)
 _endsubp(fitvals)
 
-/* N pushed %nargs values. */
+
 _spentry(nthvalue)
-	__(movzwl %nargs,%nargs_l)
-	__(leaq (%rsp,%nargs_q),%imm0)
-	__(movq (%imm0),%imm1)	
-	__(movl $nil_value,%arg_z_l)
-	__(cmpq %imm1,%nargs_q)
-	__(jb 1f)
-	__(neg %imm1)
-	__(movq -node_size(%imm0,%imm1),%arg_z)
-1:	__(leaq node_size(%imm0),%rsp)
-	__(jmp *%ra0)	
+	__(int $3)
 _endsubp(nthvalue)
 
 _spentry(values)
+	__(int $3)
 _endsubp(values)
 
 _spentry(default_optional_args)
+	__(int $3)
 _endsubp(default_optional_args)
 
 _spentry(opt_supplied_p)
+	__(int $3)
 _endsubp(opt_supplied_p)
 
 _spentry(lexpr_entry)
+	__(int $3)
 _endsubp(lexpr_entry)
 	
 _spentry(heap_rest_arg)
