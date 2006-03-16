@@ -42,7 +42,7 @@
 ;;; This should really be conditionalized on whether the seek system
 ;;; call supports 64-bit offsets or on whether one has to use some
 ;;; variant.
-#+linux-target
+#+(and ppc32-target linux-target)
 (defun fd-lseek (fd offset whence)
   (let* ((high (ldb (byte 32 32) offset))
 	 (low (ldb (byte 32 0) offset)))
@@ -59,7 +59,7 @@
 	      pos-low
 	      (dpb pos-high (byte 32 32) pos-low))))))))
 
-#-linux-target
+#-(and ppc32-target linux-target)
 (defun fd-lseek (fd offset whence)
   (syscall syscalls::lseek fd offset whence))
 
