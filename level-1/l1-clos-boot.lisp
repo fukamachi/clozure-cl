@@ -1700,13 +1700,13 @@ to replace that class with ~s" name old-class new-class)
   (setf (find-class 'simple-single-float-vector) (find-class 'simple-short-float-vector))
 )
 
-#+ppc64-target
+#+64-bit-target
 (progn
   (make-built-in-class 'doubleword-vector *vector-class*)
   (make-built-in-class 'simple-doubleword-vector (find-class 'doubleword-vector) (find-class 'simple-1d-array))
   (make-built-in-class 'unsigned-doubleword-vector *vector-class*)
   (make-built-in-class 'simple-unsigned-doubleword-vector (find-class 'unsigned-doubleword-vector) (find-class 'simple-1d-array))
-  ) ; #+ppc-64-target
+  ) ; #+64-bit-target
 
 (make-built-in-class 'long-vector *vector-class*)
 (make-built-in-class 'simple-long-vector (find-class 'long-vector) (find-class 'simple-1d-array))
@@ -1925,7 +1925,38 @@ to replace that class with ~s" name old-class new-class)
 
 
 (defglobal *class-table*
-  (let* ((v (make-array 256 :initial-element nil)))
+  (let* ((v (make-array 256 :initial-element nil))
+         (class-of-function-function
+          #'(lambda (thing)
+              (let ((bits (lfun-bits thing)))
+                (declare (fixnum bits))
+                (if (logbitp $lfbits-trampoline-bit bits)
+                  ;; closure
+		  (if (logbitp $lfbits-evaluated-bit bits)
+		    *interpreted-lexical-closure-class*
+		    (let ((inner-fn (closure-function thing)))
+		      (if (neq inner-fn thing)
+			(let ((inner-bits (lfun-bits inner-fn)))
+			  (if (logbitp $lfbits-method-bit inner-bits)
+			    *compiled-lexical-closure-class*
+			    (if (logbitp $lfbits-gfn-bit inner-bits)
+			      (%wrapper-class (gf.instance.class-wrapper thing))
+			      (if (logbitp $lfbits-cm-bit inner-bits)
+				*combined-method-class*
+				*compiled-lexical-closure-class*))))
+                        *compiled-lexical-closure-class*)))
+                  (if (logbitp $lfbits-evaluated-bit bits)
+                    (if (logbitp $lfbits-method-bit bits)
+                      *interpreted-method-function-class*
+                      *interpreted-function-class*)
+                    (if (logbitp  $lfbits-method-bit bits)
+                      *method-function-class* 
+                      (if (logbitp $lfbits-gfn-bit bits)
+			(%wrapper-class (instance.class-wrapper thing))
+                        (if (logbitp $lfbits-cm-bit bits)
+                          *combined-method-class*
+                          *compiled-function-class*)))))))))
+          
     ;; Make one loop through the vector, initializing fixnum & list
     ;; cells.  Set all immediates to *immediate-class*, then
     ;; special-case characters later.
@@ -1949,6 +1980,22 @@ to replace that class with ~s" name old-class new-class)
             (%svref v (+ slice ppc64::fulltag-imm-1)) *immediate-class*
             (%svref v (+ slice ppc64::fulltag-imm-2)) *immediate-class*
             (%svref v (+ slice ppc64::fulltag-imm-3)) *immediate-class*))
+    #+x8664-target
+    (do* ((slice 0 (+ 16 slice)))
+         ((= slice 256))
+      (declare (type (unsigned-byte 8) slice))
+      (setf (%svref v (+ slice x8664::fulltag-even-fixnum)) *fixnum-class*
+            (%svref v (+ slice x8664::fulltag-odd-fixnum))  *fixnum-class*
+            (%svref v (+ slice x8664::fulltag-cons)) *cons-class*
+            (%svref v (+ slice x8664::fulltag-imm-0)) *immediate-class*
+            (%svref v (+ slice x8664::fulltag-imm-1)) *immediate-class*
+            (%svref v (+ slice x8664::fulltag-nil)) *null-class*
+            (%svref v (+ slice x8664::fulltag-function)) class-of-function-function
+            (%svref v (+ slice x8664::fulltag-symbol))
+            #'(lambda (s)
+                (if (eq (symbol-package s) *keyword-package*)
+                          *keyword-class*
+                          *symbol-class*))))
     (macrolet ((map-subtag (subtag class-name)
                  `(setf (%svref v ,subtag) (find-class ',class-name))))
       ;; immheader types map to built-in classes.
@@ -1956,16 +2003,17 @@ to replace that class with ~s" name old-class new-class)
       (map-subtag target::subtag-double-float double-float)
       (map-subtag target::subtag-single-float short-float)
       (map-subtag target::subtag-dead-macptr ivector)
+      #-x8664-target
       (map-subtag target::subtag-code-vector code-vector)
       #+ppc32-target
       (map-subtag ppc32::subtag-creole-object creole-object)
       (map-subtag target::subtag-xcode-vector xcode-vector)
       (map-subtag target::subtag-xfunction xfunction)
       (map-subtag target::subtag-single-float-vector simple-short-float-vector)
-      #+ppc64-target
-      (map-subtag ppc64::subtag-u64-vector simple-unsigned-doubleword-vector)
-      #+ppc64-target
-      (map-subtag ppc64::subtag-s64-vector simple-doubleword-vector)
+      #+64-bit-target
+      (map-subtag target::subtag-u64-vector simple-unsigned-doubleword-vector)
+      #+64-bit-target
+      (map-subtag target::subtag-s64-vector simple-doubleword-vector)
       (map-subtag target::subtag-u32-vector simple-unsigned-long-vector)
       (map-subtag target::subtag-s32-vector simple-long-vector)
       (map-subtag target::subtag-u8-vector simple-unsigned-byte-vector)
@@ -2009,6 +2057,7 @@ to replace that class with ~s" name old-class new-class)
           #'(lambda (i) (or (find-class (%svref i 0) nil) *istruct-class*)))
     (setf (%svref v target::subtag-instance)
           #'%class-of-instance)
+    #-x8664-target
     (setf (%svref v target::subtag-symbol)
           #+ppc32-target
           #'(lambda (s) (if (eq (symbol-package s) *keyword-package*)
@@ -2022,47 +2071,23 @@ to replace that class with ~s" name old-class new-class)
                           *symbol-class*)
                 *null-class*)))
     (setf (%svref v target::subtag-function)
-          #'(lambda (thing)
-              (let ((bits (lfun-bits thing)))
-                (declare (fixnum bits))
-                (if (logbitp $lfbits-trampoline-bit bits)
-                  ;; closure
-		  (if (logbitp $lfbits-evaluated-bit bits)
-		    *interpreted-lexical-closure-class*
-		    (let ((inner-fn (closure-function thing)))
-		      (if (neq inner-fn thing)
-			(let ((inner-bits (lfun-bits inner-fn)))
-			  (if (logbitp $lfbits-method-bit inner-bits)
-			    *compiled-lexical-closure-class*
-			    (if (logbitp $lfbits-gfn-bit inner-bits)
-			      (%wrapper-class (gf.instance.class-wrapper thing))
-			      (if (logbitp $lfbits-cm-bit inner-bits)
-				*combined-method-class*
-				*compiled-lexical-closure-class*))))
-                        *compiled-lexical-closure-class*)))
-                  (if (logbitp $lfbits-evaluated-bit bits)
-                    (if (logbitp $lfbits-method-bit bits)
-                      *interpreted-method-function-class*
-                      *interpreted-function-class*)
-                    (if (logbitp  $lfbits-method-bit bits)
-                      *method-function-class* 
-                      (if (logbitp $lfbits-gfn-bit bits)
-			(%wrapper-class (instance.class-wrapper thing))
-                        (if (logbitp $lfbits-cm-bit bits)
-                          *combined-method-class*
-                          *compiled-function-class*))))))))
+          class-of-function-function)
     (setf (%svref v target::subtag-vectorH)
           #'(lambda (v)
               (let* ((subtype (%array-header-subtype v)))
                 (declare (fixnum subtype))
                 (if (eql subtype target::subtag-simple-vector)
                   *general-vector-class*
+                  #-x8664-target
                   (%svref *ivector-vector-classes*
                           #+ppc32-target
                           (ash (the fixnum (- subtype ppc32::min-cl-ivector-subtag))
                                (- ppc32::ntagbits))
                           #+ppc64-target
-                          (ash (the fixnum (logand subtype #x7f)) (- ppc64::nlowtagbits)))))))
+                          (ash (the fixnum (logand subtype #x7f)) (- ppc64::nlowtagbits)))
+                  #+x8664-target
+                  'fix-this
+                  ))))
     (setf (%svref v target::subtag-lock)
           #'(lambda (thing)
               (case (%svref thing target::lock.kind-cell)
