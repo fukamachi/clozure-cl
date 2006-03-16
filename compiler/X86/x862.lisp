@@ -2235,8 +2235,6 @@
                       (x862-call-symbol seg t)
                       (! jump-known-function)))))
               (progn
-                (if label-p
-                  (unless a-reg (x862-store-immediate seg func destreg)))
                 (unless (or label-p a-reg) (x862-store-immediate seg func destreg))
                 
                 (cond ((or spread-p (null nargs))
@@ -2329,9 +2327,9 @@
               (x862-lri seg x8664::imm1 (- (ash (logandc2 (+ vsize 2) 1) (arch::target-word-shift arch)) (target-arch-case  (:x8664 x8664::fulltag-misc))))
               (! %allocate-uvector dest)))
           (! init-closure x8664::arg_z)
-          (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::arg_x)
+          (x862-store-immediate seg (x862-afunc-lfun-ref afunc) x8664::ra0)
           (with-node-temps (x8664::arg_z) (t0 t1 t2 t3)
-            (do* ((func x8664::arg_x nil))
+            (do* ((func x8664::ra0 nil))
                  ((null inherited-vars))
               (let* ((t0r (or func (if inherited-vars (var-to-reg (pop inherited-vars) t0))))
                      (t1r (if inherited-vars (var-to-reg (pop inherited-vars) t1)))
@@ -2445,14 +2443,16 @@
 ;;; count, and we don't care about the integer's sign.
 
 (defun x862-unboxed-integer-arg-to-reg (seg form immreg &optional ffi-arg-type)
-  (let* ((mode (case ffi-arg-type
+  (let* ((mode (ecase ffi-arg-type
                  ((nil) :natural)
                  (:signed-byte :s8)
                  (:unsigned-byte :u8)
                  (:signed-halfword :s16)
                  (:unsigned-halfword :u16)
                  (:signed-fullword :s32)
-                 (:unsigned-fullword :u32)))
+                 (:unsigned-fullword :u32)
+                 (:unsigned-doubleword :u64)
+                 (:signed-doubleword :s64)))
          (modeval (gpr-mode-name-value mode)))
     (with-x86-local-vinsn-macros (seg)
       (let* ((value (x862-long-constant-p form)))
@@ -5403,7 +5403,7 @@
       (x862-use-operator (%nx1-operator fixnum) seg vreg xfer (logior fix1 fix2)))
     (let* ((fixval (or fix1 fix2))
            (fiximm (if fixval (<= (integer-length fixval)
-                                  (- 32 *x862-target-fixnum-shift*))))
+                                  (- 31 *x862-target-fixnum-shift*))))
            (otherform (when fiximm (if fix1 form2 form1))))
       (if otherform
         (if (null vreg)
@@ -5425,7 +5425,7 @@
       (x862-use-operator (%nx1-operator fixnum) seg vreg xfer (logand fix1 fix2)))
     (let* ((fixval (or fix1 fix2))
            (fiximm (if fixval (<= (integer-length fixval)
-                                  (- 32 *x862-target-fixnum-shift*))))
+                                  (- 31 *x862-target-fixnum-shift*))))
            (otherform (when fiximm (if fix1 form2 form1))))
       (if otherform
         (if (null vreg)
@@ -5444,7 +5444,7 @@
       (x862-use-operator (%nx1-operator fixnum) seg vreg xfer (logxor fix1 fix2)))
     (let* ((fixval (or fix1 fix2))
            (fiximm (if fixval (<= (integer-length fixval)
-                                  (- 32 *x862-target-fixnum-shift*))))
+                                  (- 31 *x862-target-fixnum-shift*))))
            (otherform (when fiximm (if fix1 form2 form1))))
       (if otherform
         (if (null vreg)
@@ -7514,114 +7514,7 @@
       (^)))
 
 
-;;; Caller has allocated poweropen stack frame.
-(defun x862-poweropen-foreign-args (seg argspecs argvals)
-  (with-x86-local-vinsn-macros (seg)
-    (let* ((fp-loads ())
-           (nextarg 0))
-    ;; Evaluate each form into the C frame, according to the matching
-    ;; argspec.  Remember type and arg offset of any FP args, since FP
-    ;; regs will have to be loaded later.
-    (do* ((specs argspecs (cdr specs))
-          (vals argvals (cdr vals)))
-         ((null specs))
-      (declare (list specs vals))
-      (let* ((valform (car vals))
-             (spec (car specs))
-             (longval (x862-long-constant-p valform))
-             (absptr (acode-absolute-ptr-p valform)))
-        (case spec
-          ((:signed-doubleword :unsigned-doubleword)
-           (x862-one-targeted-reg-form seg valform ($ x8664::arg_z))
-           (if (eq spec :signed-doubleword)
-             (! gets64)
-             (! getu64))
-           (! set-c-arg ($ x8664::imm0) nextarg)
-           (target-arch-case
-            
-            (:x8664)))
-          (:double-float
-           (let* ((df ($ x8664::fp1 :class :fpr :mode :double-float)))
-             (x862-one-targeted-reg-form seg valform df)
-             (! set-double-c-arg df nextarg)            
-             (push (cons :double-float nextarg) fp-loads)
-             (incf nextarg)))
-          (:single-float
-           (let* ((sf ($ x8664::fp1 :class :fpr :mode :single-float)))
-             (x862-one-targeted-reg-form seg valform sf)
-             (! set-single-c-arg sf nextarg)
-             (push (cons :single-float nextarg) fp-loads)))
-          (:address
-           (with-imm-target ()
-             (ptr :address)
-             (if absptr
-               (x862-lri seg ptr absptr)
-               (x862-one-targeted-reg-form seg valform ptr))
-             (! set-c-arg ptr nextarg)))
-          (t
-           (if (typep spec 'unsigned-byte)
-             (progn
-               (with-imm-target () (ptr :address)
-                 (x862-one-targeted-reg-form seg valform ptr)
-                 (with-imm-temps (ptr) (r)
-                   (dotimes (i spec)
-                     (target-arch-case
-                      
-                      (:x8664
-                       (! mem-ref-c-doubleword r ptr (ash i x8664::word-shift))))
-                     (! set-c-arg r nextarg)
-                     (incf nextarg))))
-               (decf nextarg))
-             (with-imm-target ()
-               (valreg :natural)
-               (if longval
-                 (x862-lri seg valreg longval)
-                 (x862-unboxed-integer-arg-to-reg seg valform valreg spec))
-               (! set-c-arg valreg nextarg)))))
-        (incf nextarg)))
-    (do* ((fpreg x8664::fp1 (1+ fpreg))
-          (reloads (nreverse fp-loads) (cdr reloads)))
-         ((or (null reloads) (= fpreg x8664::fp14)))
-      (declare (list reloads) (fixnum fpreg))
-      (let* ((reload (car reloads))
-             (size (car reload))
-             (from (cdr reload)))
-        (if (eq size :double-float)
-          (! reload-double-c-arg fpreg from)
-          (! reload-single-c-arg fpreg from)))))))
 
-(defun x862-poweropen-foreign-return (seg vreg xfer resultspec)
-  (with-x86-local-vinsn-macros (seg vreg xfer)
-    (when vreg
-      (cond ((eq resultspec :void) (<- nil))
-            ((eq resultspec :double-float)
-             (<- ($ x8664::fp1 :class :fpr :mode :double-float)))
-            ((eq resultspec :single-float)
-             (<- ($ x8664::fp1 :class :fpr :mode :single-float)))
-            ((eq resultspec :unsigned-doubleword)
-             (ensuring-node-target
-              (target vreg)
-              (! makeu64)
-              (<- ($ x8664::arg_z))))
-            ((eq resultspec :signed-doubleword)
-             (ensuring-node-target
-              (target vreg)
-              (! makes64)
-              (<- ($ x8664::arg_z))))
-            (t
-             (<- (make-wired-lreg x8664::imm0
-                                  :mode
-                                  (gpr-mode-name-value
-                                   (case resultspec
-                                     (:address :address)
-                                     (:signed-byte :s8)
-                                     (:unsigned-byte :u8)
-                                     (:signed-halfword :s16)
-                                     (:unsigned-halfword :u16)
-                                     (:signed-fullword :s32)
-                                     (t :u32))))))))
-
-    (^)))
 
 
 
