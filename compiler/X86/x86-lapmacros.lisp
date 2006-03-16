@@ -79,12 +79,13 @@
   ;;; In general, these things are only defined to affect the low
   ;;; byte of the destination register.  This can also affect
   ;;; the #xff00 byte.
-  `(progn
-    (extract-lisptag ,node ,dest)
-    (rcmp (%b ,dest) ($ x8664::tag-misc))
-    (jne @done)
-    (movb (@  x8664::misc-subtag-offset (% ,node)) (%b ,dest))
-     @done))
+  (let* ((done (gensym)))
+    `(progn
+      (extract-lisptag ,node ,dest)
+      (rcmp (%b ,dest) ($ x8664::tag-misc))
+      (jne ,done)
+      (movb (@  x8664::misc-subtag-offset (% ,node)) (%b ,dest))
+      ,done)))
 
 (defx86lapmacro trap-unless-typecode= (node tag &optional (immreg 'imm0))
   (let* ((ok (gensym)))
