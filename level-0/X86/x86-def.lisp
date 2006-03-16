@@ -36,6 +36,12 @@
         (% arg_z))
   (single-value-return))
 
+(defx86lapfunction %set-nth-immediate ((fun arg_x) (n arg_y) (new arg_z))
+  (movl (@ (- x8664::node-size x8664::fulltag-function) (% fun)) (% imm0.l))
+  (lea (@ (% n) (% imm0) 8) (% arg_y))
+  (subb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (%b arg_x))
+  (jmp-subprim .SPgvset))
+
 (defx86lapfunction %make-code-executable ((codev arg_z))
   (single-value-return))
 
