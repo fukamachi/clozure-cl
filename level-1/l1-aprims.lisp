@@ -1160,10 +1160,8 @@ of 32KBytes in earlier versions.)"
 
 
 
-(defpackage #+(and linuxppc-target ppc32-target) "LINUX32"
-            #+(and linuxppc-target ppc64-target) "LINUX64"
-            #+(and darwinppc-target ppc32-target) "DARWIN32"
-            #+(and darwinppc-target ppc64-target) "DARWIN64"
+(defpackage #.(ftd-interface-package-name
+               (backend-target-foreign-type-data *target-backend*))
   (:nicknames "OS")
   (:use "COMMON-LISP"))
 
