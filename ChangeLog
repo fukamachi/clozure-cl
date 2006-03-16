@@ -1,3 +1,167 @@
+2006-03-16 02:03  gb
+
+	* level-1/l1-sockets.lisp: Spell LINUX correctly.
+
+2006-03-16 02:00  gb
+
+	* lisp-kernel/x86-spentry64.s: We were inlining NTH-VALUE
+	incorrectly, but were always inlining it.
+	
+	Use debug traps to catch some cases that're NYI.
+
+2006-03-16 01:58  gb
+
+	* lisp-kernel/lisp-debug.c: X8664 register-printing changes.
+
+2006-03-16 01:58  gb
+
+	* library/parse-ffi.lisp: Treat VEC64/VEC128 like large integers,
+	for now.
+
+2006-03-16 01:57  gb
+
+	* library/lispequ.lisp: gf accessors use NTH-IMMEDIATE.
+
+2006-03-16 01:56  gb
+
+	* lib/numbers.lisp: Conditionaliz on target word size.
+
+2006-03-16 01:56  gb
+
+	* lib/nfcomp.lisp: Need to be aware of cases where host/target
+	endianness differ.
+	
+	Byte-swap 16/32-bit constant ivectors; note that other cases may
+	also need byte-swapping.
+
+2006-03-16 01:54  gb
+
+	* lib/macros.lisp: NTH-IMMEDIATE is arch-specific; so is
+	SET-NTH-IMMEDIATE, which is its SETF inverse.
+
+2006-03-16 01:53  gb
+
+	* lib/foreign-types.lisp: So far, Darwin's the only platform that
+	uses signed chars.  (For a good laugh, note that the PPC has an
+	unsigned "load byte" instruction, but it takes two instructions to
+	treat char as signed.  This is, of course, much less significant
+	than all of the other things that are wrong about Darwin ...)
+
+2006-03-16 01:51  gb
+
+	* lib/compile-ccl.lisp: RISC-LAP is PPC-specific (and maybe
+	specific to other RISC architectures).	X86-DISASSEMBLE should be
+	built for x8664.
+
+2006-03-16 01:49  gb
+
+	* lib/backtrace-lds.lisp: Some conditinalization.
+
+2006-03-16 01:48  gb
+
+	* tools/.cvsignore, library/.cvsignore: Ignore fasl extensions yet
+	to come.
+
+2006-03-16 01:46  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-03-16 01:46  gb
+
+	* level-1/l1-sockets.lisp: Some conditionalization; need more, and
+	need to handle wrong-endianness.
+
+2006-03-16 01:44  gb
+
+	* level-1/l1-lisp-threads.lisp: %KERNEL-GLOBAL-OFFSET-FORM:
+	probably should lose this.  It's a function, and therefore has some
+	trouble accessing the right (macroexpand-time) backend.
+
+2006-03-16 01:43  gb
+
+	* level-1/l1-files.lisp: Set *.FASL-PATHAME* via #.'ed reference to
+	target backend.
+
+2006-03-16 01:42  gb
+
+	* level-1/l1-clos-boot.lisp: Conditionalize a little.
+
+2006-03-16 01:42  gb
+
+	* level-1/l1-aprims.lisp: Use #. to set OS package name fron
+	backend/ftd.
+
+2006-03-16 01:41  gb
+
+	* level-0/X86/x86-symbol.lisp: %SYMPTR->SYMBOL is often called with
+	real (tagged) symbols; make it a nop in that case.
+
+2006-03-16 01:40  gb
+
+	* level-0/X86/x86-def.lisp: %SET-NTH-IMMEDIATE.
+
+2006-03-16 01:40  gb
+
+	* level-0/X86/x86-clos.lisp: Start some of this. Still need to
+	decide whether to use lexprs; better decide soon.
+
+2006-03-16 01:38  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: TRAP-UNLESS-CHARACTER. 
+	Float memory accessors/setters for the constant-offset case. 
+	NTH-VALUE was wrong; now simpler.  MAKE-TSP-VCELL.  Binding
+	subprims.
+	
+	Yet another FUNCALL scheme.
+
+2006-03-16 01:36  gb
+
+	* level-0/l0-symbol.lisp: MAKE-SYMBOL returns the symbol pointer. 
+	Maybe conditionalize this for X8664.
+
+2006-03-16 01:35  gb
+
+	* level-0/l0-io.lisp: Hopefully, the "split" 64-bit lseek is at
+	best LinuxPPC32-specific.
+
+2006-03-16 01:34  gb
+
+	* compiler/X86/x862.lisp: Use %ra0 for the inner function when
+	making a closure, to avoid conflicts with other temps.	No need to
+	reference memory on self-calls (and good reasons not to ...)
+	X862-UNBOXED-INTEGER-ARG-TO-REG handles 64-bit regs.
+
+2006-03-16 01:31  gb
+
+	* compiler/X86/x86-lapmacros.lisp: EXTRACT-TYPECODE: use a GENSYMed
+	label.
+
+2006-03-16 01:30  gb
+
+	* compiler/X86/x86-lap.lisp: New stuff for "pre-allocated"
+	constants.
+
+2006-03-16 01:29  gb
+
+	* compiler/X86/x86-arch.lisp: Didn't have the relatively recent
+	STACK-SIZE.
+
+2006-03-16 01:29  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Change the
+	%GET-KERNEL-GLOBAL[-PTR] archmacros, so that they'll work with
+	cross-compilation.  Fixnum offsets aren't supported; they weren't
+	used, this isn't public, and it wasn't well-defined anyway.
+	
+	Add %NTH-IMMEDIATE.
+
+2006-03-16 01:28  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp:
+	Change the %GET-KERNEL-GLOBAL[-PTR] archmacros, so that they'll
+	work with cross-compilation.  Fixnum offsets aren't supported; they
+	weren't used, this isn't public, and it wasn't well-defined anyway.
+
 2006-03-14 14:08  gb
 
 	* binppc/.cvsignore, l1-pfsls/.cvsignore: remove
