@@ -159,18 +159,18 @@
               catch (next-catch catch))))))
 
 (defparameter *saved-register-count*
-  #+sparc-target 6
+  #+x8664-target 4
   #+ppc-target 8)
 
 (defparameter *saved-register-count+1*
   (1+ *saved-register-count*))
 
 (defparameter *saved-register-names*
-  #+sparc-target #(save5 save4 save3 save2 save1 save0)
+  #+x8664-target #(save3 save2 save1 save0)
   #+ppc-target #(save7 save6 save5 save4 save3 save2 save1 save0))
 
 (defparameter *saved-register-numbers*
-  #+sparc-target #(wrong)
+  #+x8664-target #(wrong)
   #+ppc-target #(31 30 29 28 27 26 25 24))
 
 ;;; Don't do unbound checks in compiled code
