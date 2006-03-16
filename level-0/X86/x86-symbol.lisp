@@ -49,15 +49,17 @@
     (leaq (@ (- x8664::fulltag-misc x8664::fulltag-symbol) (% sym)) (% sym))
     (single-value-return)))
 
-
-;;; Traps unless symptr is a symbol-vector; returns NIL if symptr
-;;; is NILSYM's symbol-vector, else the underlying symbol
+;;; If symptr is either a real symbol or NIL, returns it.
+;;; Otherwise, traps unless symptr is a symbol-vector
+;;; and returns the underlying symbol
 (defx86lapfunction %symptr->symbol ((symptr arg_z))
+  (movw ($ (logior (ash 1 x8664::fulltag-nil) (ash 1 x8664::fulltag-symbol)))
+        (% imm0.w))
+  (btw (%w symptr) (% imm0.w))
+  (jb @done)
   (trap-unless-typecode= symptr x8664::subtag-symbol)
   (leaq (@ (- x8664::fulltag-symbol x8664::fulltag-misc) (% symptr)) (% arg_z))
-  (movl ($ nil) (% imm0.l))
-  (cmpq ($ (+ x8664::nil-value x8664::nilsym-offset)) (% arg_z))
-  (cmoveq (% imm0) (% arg_z))
+  @done
   (single-value-return))
 
 (defx86lapfunction %symptr-value ((symptr arg_z))
