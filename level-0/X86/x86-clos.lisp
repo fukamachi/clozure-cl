@@ -170,6 +170,8 @@
 (defx86lapfunction %large-set-slot-id-value ((instance arg_x)
                                              (slot-id arg_y)
                                              (new-value arg_z))
+  (movq (@ 'map (% fn)) (% temp1))
+  (vector-length (% temp1) (% temp0))
   (ldr temp1 'map nfn)
   (svref imm3 slot-id.index slot-id)
   (getvheader imm0 temp1)
@@ -221,6 +223,7 @@
       (mtctr temp0)
       (bctr)))))
 
+#+notyet
 (defx86lapfunction funcallable-trampoline ()
   (svref nfn gf.dcode nfn)
   (svref temp0 0 nfn)
@@ -228,6 +231,7 @@
   (bctr))
 
 
+#+notyet
 (defx86lapfunction unset-fin-trampoline ()
   (mflr loc-pc)
   (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
@@ -244,23 +248,26 @@
 
 ;;; is a winner - saves ~15%
 (defx86lapfunction gag-one-arg ((arg arg_z))
-  (check-nargs 1)  
-  (svref arg_y gf.dispatch-table nfn) ; mention dt first
+  (:constants (class-wrapper slots dispatch-table dcode hash))
+  (check-nargs 1)
+  (movq (@ 'dispatch-table (% fn)) (% arg_y))
   (set-nargs 2)
-  (svref nfn gf.dcode nfn)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+  (movq (% fn) (% xfn))               ; don't let %fn get GCed
+  (movq (@ 'dcode (% fn)) (% fn))
+  (jmp (% fn)))
+
 
 
 (defx86lapfunction gag-two-arg ((arg0 arg_y) (arg1 arg_z))
-  (check-nargs 2)  
-  (svref arg_x gf.dispatch-table nfn) ; mention dt first
+  (:constants (class-wrapper slots dispatch-table dcode hash))
+  (check-nargs 2)
+  (movq (@ 'dispatch-table (% fn)) (% arg_x))
   (set-nargs 3)
-  (svref nfn gf.dcode nfn)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+  (movq (% fn) (% xfn))               ; don't let %fn get GCed
+  (set-nargs 2)
+  (movq (% fn) (% xfn))               ; don't let %fn get GCed
+  (movq (@ 'dcode (% fn)) (% fn))
+  (jmp (% fn)))
 
 (defparameter *cm-proto*
   (nfunction
