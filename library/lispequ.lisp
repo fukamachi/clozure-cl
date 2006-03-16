@@ -1163,7 +1163,7 @@
   combined-method.bits			; lfun-bits
   )
 ;;; The structure of a generic-function object (funcallable instance).
-(def-accessors (generic-function) %svref
+(def-accessors (generic-function) nth-immediate
   gf.code-vector			; trampoline code-vector
   gf.instance.class-wrapper		; instance class-wrapper
   gf.slots				; slots vector
