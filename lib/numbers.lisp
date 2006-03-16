@@ -335,7 +335,7 @@
          (if short 
            (make-short-float-from-fixnums (ldb (byte 23 0) significand)
                                           biased-exponent
-                                          sign #-ppc64-target result)
+                                          sign #-64-bit-target result)
            (make-float-from-fixnums (ldb (byte 24 28) significand)
                                     (ldb (byte 28 0) significand)
                                     biased-exponent
