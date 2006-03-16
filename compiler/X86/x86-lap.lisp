@@ -377,6 +377,16 @@
     (+ (frag-address frag)
        (x86-lap-label-offset lab))))
 
+
+(defun ensure-x86-lap-constant-label (val)
+  (or (cdr (assoc val *x86-lap-constants*
+                  :test #'eq))
+      (let* ((label (make-x86-lap-label
+                     (gensym)))
+             (pair (cons val label)))
+        (push pair *x86-lap-constants*)
+        label)))
+
 (defun parse-x86-lap-expression (form)
   (if (typep form 'x86-lap-expression)
     form
@@ -385,13 +395,7 @@
         (let* ((val (cadr form)))
           (if (typep val 'fixnum)
             (setq form (ash val 3 #|x8664::fixnumshift|#))
-            (let* ((constant-label (or (cdr (assoc val *x86-lap-constants*
-                                                   :test #'eq))
-                                       (let* ((label (make-x86-lap-label
-                                                      (gensym)))
-                                              (pair (cons val label)))
-                                         (push pair *x86-lap-constants*)
-                                         label))))
+            (let* ((constant-label (ensure-x86-lap-constant-label val )))
               (setq form `(:^ ,(x86-lap-label-name constant-label)))))))
       (if (null form)
         (setq form (arch::target-nil-value (backend-target-arch *target-backend*)))
@@ -860,37 +864,40 @@
       (finish-frag-for-align frag-list 3)
       (x86-lap-directive frag-list :long `(- (:^ ,arg)))
       (emit-x86-lap-label frag-list arg))
-    (let* ((exp (parse-x86-lap-expression arg))
-           (constantp (constant-x86-lap-expression-p exp)))
-      (if constantp
-        (let* ((val (x86-lap-expression-value exp)))
-          (ecase directive
-            (:byte (frag-list-push-byte frag-list val))
-            (:short (frag-list-push-16 frag-list val))
-            (:long (frag-list-push-32 frag-list val))
-            (:quad (frag-list-push-64 frag-list val))
-            (:align (finish-frag-for-align frag-list val))))
-        (let* ((pos (frag-list-position frag-list))
-               (frag (frag-list-current frag-list))
-               (reloctype nil))
-          (ecase directive
-            (:byte (frag-list-push-byte frag-list 0)
-                   (setq reloctype :expr8))
-            (:short (frag-list-push-16 frag-list 0)
-                    (setq reloctype :expr16))
-            (:long (frag-list-push-32 frag-list 0)
-                   (setq reloctype :expr32))
-            (:quad (frag-list-push-64 frag-list 0)
-                   (setq reloctype :expr64))
-            (:align (error ":align expression ~s not constant" arg)))
-          (when reloctype
-            (push
-             (make-reloc :type reloctype
-                         :arg exp
-                         :pos pos
-                         :frag frag)
-             (frag-relocs frag)))))
-      nil)))
+    (if (eq directive :constants)
+      (dolist (constant arg)
+        (ensure-x86-lap-constant-label constant))
+      (let* ((exp (parse-x86-lap-expression arg))
+             (constantp (constant-x86-lap-expression-p exp)))
+        (if constantp
+          (let* ((val (x86-lap-expression-value exp)))
+            (ecase directive
+              (:byte (frag-list-push-byte frag-list val))
+              (:short (frag-list-push-16 frag-list val))
+              (:long (frag-list-push-32 frag-list val))
+              (:quad (frag-list-push-64 frag-list val))
+              (:align (finish-frag-for-align frag-list val))))
+          (let* ((pos (frag-list-position frag-list))
+                 (frag (frag-list-current frag-list))
+                 (reloctype nil))
+            (ecase directive
+              (:byte (frag-list-push-byte frag-list 0)
+                     (setq reloctype :expr8))
+              (:short (frag-list-push-16 frag-list 0)
+                      (setq reloctype :expr16))
+              (:long (frag-list-push-32 frag-list 0)
+                     (setq reloctype :expr32))
+              (:quad (frag-list-push-64 frag-list 0)
+                     (setq reloctype :expr64))
+              (:align (error ":align expression ~s not constant" arg)))
+            (when reloctype
+              (push
+               (make-reloc :type reloctype
+                           :arg exp
+                           :pos pos
+                           :frag frag)
+               (frag-relocs frag)))))
+        nil))))
                        
          
 
