@@ -167,6 +167,10 @@
   (movq ($ t) (% arg_z))
   (single-value-return))
 
+(defx86lapfunction %lisp-lowbyte-ref ((thing arg_z))
+  (box-fixnum thing arg_z)
+  (andl ($ '#xff) (%l arg_z))
+  (single-value-return))
 
 
       
