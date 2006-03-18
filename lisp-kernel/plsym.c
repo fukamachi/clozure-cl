@@ -21,7 +21,9 @@ describe_symbol(LispObj sym)
 {
   lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
   LispObj function = rawsym->fcell;
-
+#ifdef fulltag_symbol
+  sym += (fulltag_symbol-fulltag_misc);
+#endif
   Dprintf("Symbol %s at #x%08X", print_lisp_object(sym), sym);
   Dprintf("  value    : %s", print_lisp_object(rawsym->vcell));
   if (function != nrs_UDF.vcell) {
