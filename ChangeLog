@@ -1,3 +1,97 @@
+2006-03-17 23:38  gb
+
+	* xdump/xfasload.lisp: Special case references to NIL in package
+	htabs.
+	
+	Leave deleted markers behind for symbols that we haven't seen
+	references to; leave empty (0) words empty.
+
+2006-03-17 23:36  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: Add a few lisp debugging things.
+
+2006-03-17 23:36  gb
+
+	* lisp-kernel/xlbt.c: Recognize multiple-value returning frames and
+	find the real tra underneath ret1valn.
+
+2006-03-17 23:35  gb
+
+	* lisp-kernel/x86-spentry64.s: "gen" tcalls had the same bug as the
+	known-stack-args cases did several days ago.
+
+2006-03-17 23:34  gb
+
+	* lisp-kernel/x86-macros.s: New do_funcall().
+
+2006-03-17 23:33  gb
+
+	* lisp-kernel/x86-exceptions.c: When we field an alloc trap, make
+	sure that both the allocptr register and the save_allocptr slot in
+	the TCR are updated and consistent with each other.
+
+2006-03-17 23:32  gb
+
+	* lisp-kernel/x86-constants64.h: A lisp frame may have two return
+	addresses (one for the multiple-value mechanism and the real one.)
+
+2006-03-17 23:31  gb
+
+	* lisp-kernel/plsym.c: If there's such a thing as fulltag_symbol,
+	try to use it.
+
+2006-03-17 23:29  gb
+
+	* level-0/X86/x86-symbol.lisp: Symptr/symvector deconflation.
+
+2006-03-17 23:28  gb
+
+	* level-0/X86/x86-pred.lisp: Add %LISP-LOWBYTE-REF; could be
+	open-coded (and may once have been.)
+
+2006-03-17 23:27  gb
+
+	* level-0/nfasload.lisp: Some SYMPTR->SYMVECTOR usage.	Define
+	%FASL-READ-SIGNED-LONG;  use it in a few places.  Assume that
+	scalar integers are stored big-endian; construct native-endian
+	integers from them.
+
+2006-03-17 23:26  gb
+
+	* level-0/l0-symbol.lisp: Lots of SYMPTR->SYMVECTOR usage.
+
+2006-03-17 23:25  gb
+
+	* level-0/l0-pred.lisp: Do %TYPE-OF for x8664.
+
+2006-03-17 23:24  gb
+
+	* level-0/l0-def.lisp: Use SYMPTR->SYMVECTOR where necessary, so
+	that we can %SVREF around in symbols.
+	
+	A little light reorganization, to make it easier to add debugging
+	breakpoints for things like FUNCTION-NAME.
+
+2006-03-17 23:22  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Kinder, gentler
+	CHECK-MISC-BOUND.  (What was I thinking ?)
+	
+	More cleanup to FUNCALL and variants.
+	
+	MAKE-TSP-CONS: fix braindamage, use only one register.	(Need to
+	write down pc-luser-xp constraints for TSP allocation, but I think
+	that this meets the current artist's conception of them.)
+	
+	%SYMBOL->SYMPTR does what it does on other platforms (e.g., map NIL
+	to a proxy symbol and/or insist on a real symbol.) 
+	%SYMPTR->SYMVECTOR maps something tagged as a symbol to the
+	underlying uvector by playing with tag bits, and %SYMVECTOR->SYMPTR
+	does the inverse.
+	
+	There were two definitions of %SCHARCODE in the file; the later one
+	(that took effect) was completely wrong.
+
 2006-03-17 23:05  gb
 
 	* compiler/X86/X8664/x8664-arch.lisp: Add HONS fields to AREA
