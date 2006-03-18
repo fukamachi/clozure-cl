@@ -696,11 +696,160 @@
 );#+ppc64-target
 
 
+
 #+x8664-target
-(eval-when (:compile-toplevel)
-  (warn "Need %type-of support for x8664."))
+(progn
+(defparameter *nodeheader-0-types*
+  #(function-vector
+    symbol-vector
+    catch-frame
+    hash-vector
+    pool
+    population
+    package
+    slot-vector
+    lisp-thread                         ;8
+    vector-header
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    ))
+
+(defparameter *nodeheader-1-types*
+  #(ratio
+    complex
+    instance
+    struct
+    istruct
+    value-cell
+    xfunction
+    lock                                ;7
+    array-header
+    simple-vector
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    ))
+
+(defparameter *immheader-0-types*
+  #(bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    simple-signed-word-vector
+    simple-unsigned-word-vector
+    simple-base-string
+    simple-signed-byte-vector
+    simple-unsigned-byte-vector
+    bit-vector))
+
+(defparameter *immheader-1-types*
+  #(bignum
+    double-float
+    xcode-vector
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    simple-signed-long-vector
+    simple-unsigned-long-vector
+    single-float-vector))
+
+(defparameter *immheader-2-types*
+  #(macptr
+    dead-macptr
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    bogus
+    simple-signed-doubleword-vector
+    simple-unsigned-doubleword-vector
+    double-float-vector))
 
 
+(defparameter *x8664-fulltag-types* ())
+(setq *x8664-fulltag-types*
+  (let* ((fixnums #16(fixnum))
+         (tra #16(tagged-return-address)))
+    (vector fixnums
+            #(single-float immediate immediate immediate
+              immediate immediate immediate immediate
+              immediate immediate immediate immediate
+              immediate immediate immediate immediate)
+            #(base-char immediate immediate immediate
+              immediate immediate immediate immediate
+              immediate immediate immediate immediate
+              immediate immediate immediate immediate)
+            #16(list)
+            tra
+            *nodeheader-0-types*
+            *nodeheader-1-types*
+            *immheader-0-types*
+            fixnums
+            *immheader-1-types*
+            *immheader-2-types*
+            #16(null)
+            tra
+            #16(bogus)
+            #16(symbol))))
+  
+(defun %type-of (thing)
+  (let* ((fulltag (fulltag thing))
+         (high4 (ash (the fixnum (%lisp-lowbyte-ref thing)) (- x8664::ntagbits))))
+    (declare (fixnum fulltag high4))
+    (if (= fulltag x8664::fulltag-function)
+      (let ((bits (lfun-bits thing)))
+        (declare (fixnum bits))
+        (if (logbitp $lfbits-trampoline-bit bits)
+          (if (logbitp $lfbits-evaluated-bit bits)
+            'interpreted-lexical-closure
+            (let ((inner-fn (closure-function thing)))
+              (if (neq inner-fn thing)
+                (let ((inner-bits (lfun-bits inner-fn)))
+                  (if (logbitp $lfbits-method-bit inner-bits)
+                    'compiled-lexical-closure
+                    (if (logbitp $lfbits-gfn-bit inner-bits)
+                      'standard-generic-function ; not precisely - see class-of
+                      (if (logbitp  $lfbits-cm-bit inner-bits)
+                        'combined-method
+                        'compiled-lexical-closure))))
+                'compiled-lexical-closure)))
+          (if (logbitp $lfbits-evaluated-bit bits)
+            (if (logbitp $lfbits-method-bit bits)
+              'interpreted-method-function
+              'interpreted-function)
+            (if (logbitp  $lfbits-method-bit bits)
+              'method-function          
+              'compiled-function))))
+      (%svref (%svref *x8664-fulltag-types* fulltag) high4))))
+
+);#+x8664-target
+      
 
 ;;; real machine specific huh
 (defun consp (x)
