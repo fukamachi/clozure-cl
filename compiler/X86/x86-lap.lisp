@@ -862,7 +862,7 @@
   (if (eq directive :tra)
     (progn
       (finish-frag-for-align frag-list 3)
-      (x86-lap-directive frag-list :long `(- (:^ ,arg)))
+      (x86-lap-directive frag-list :long `(:^ ,arg))
       (emit-x86-lap-label frag-list arg))
     (if (eq directive :constants)
       (dolist (constant arg)
@@ -1002,7 +1002,7 @@
                (let* ((label-address (x86-lap-label-address label))
                       (branch-pos (+ address (1+ pos)))
                       (buffer (frag-code-buffer frag))
-                      (diff (- branch-pos label-address)))
+                      (diff (- label-address branch-pos)))
                  (unless (typep diff '(signed-byte 8))
                    (cond ((eq (car fragtype) :assumed-short-branch)
                           ;; replace the opcode byte
