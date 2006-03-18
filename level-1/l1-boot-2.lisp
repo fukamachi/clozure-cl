@@ -142,29 +142,40 @@ present and false otherwise. This variable shouldn't be set by user code.")
       
       (bin-load-provide "SUBPRIMS" "subprims")
       #+ppc32-target
-      (bin-load-provide "PPC32-ARCH" "ppc32-arch")
+      (bin-load-provide "PPC32-ARCH" "ppc32-arch") 
       #+ppc64-target
       (bin-load-provide "PPC64-ARCH" "ppc64-arch")
+      #+x8664-targt
+      (bin-load-provide "X8664-ARCH" "x8664-arch")
       (bin-load-provide "VREG" "vreg")
       
       #+ppc-target
       (bin-load-provide "PPC-ASM" "ppc-asm")
+      #+x86-target
+      (bin-load-provide "X86-ASM" "x86-asm")
       
       (bin-load-provide "VINSN" "vinsn")
       (bin-load-provide "REG" "reg")
       
       #+ppc-target
       (bin-load-provide "PPC-LAP" "ppc-lap")
-      
+      #+x86-target
+      (bin-load-provide "X86-LAP" "x86-lap")
       (bin-load-provide "BACKEND" "backend")
      
       #+ppc-target
       (provide "PPC2")                  ; Lie, load the module manually
+
+      #+x86-target
+      (provide "X862")
       
       (l1-load-provide "NX" "nx")
       
       #+ppc-target
       (bin-load "ppc2")
+
+      #+x86-target
+      (bin-load "x862")
       
       (bin-load-provide "LEVEL-2" "level-2")
       (bin-load-provide "MACROS" "macros")
@@ -187,6 +198,12 @@ present and false otherwise. This variable shouldn't be set by user code.")
       (progn
 	(bin-load-provide "PPC-DISASSEMBLE" "ppc-disassemble")
 	(bin-load-provide "PPC-LAPMACROS" "ppc-lapmacros"))
+
+      #+x86-target
+      (progn
+	(bin-load-provide "X86-DISASSEMBLE" "x86-disassemble")
+	(bin-load-provide "X86-LAPMACROS" "x86-lapmacros"))
+      
 
       (bin-load-provide "FOREIGN-TYPES" "foreign-types")
       (bin-load-provide "DB-IO" "db-io")
