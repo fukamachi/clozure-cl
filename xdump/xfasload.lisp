@@ -875,8 +875,16 @@
       (let* ((s (%svref htvec i)))
         (setf (xload-%svref xvec i)
               (if s
-                (if (symbolp s) (xload-lookup-symbol s) deleted-marker)
-                *xload-target-nil*))))
+                (if (symbolp s)
+                  (or (xload-lookup-symbol s) deleted-marker)
+                  0)
+                (if (= (logand *xload-target-nil* *xload-target-fulltagmask*)
+                       *xload-target-fulltag-for-symbols*)
+                  *xload-target-nil*
+                  (+ *xload-target-nil*
+                     (let* ((arch (backend-target-arch *target-backend*)))
+                       (+ (arch::target-t-offset arch)
+                          (ash 8 (arch::target-word-shift arch))))))))))
     (xload-make-cons  
      xvec 
      (xload-make-cons
