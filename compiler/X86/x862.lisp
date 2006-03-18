@@ -515,7 +515,7 @@
                      (setq bits (logior (ash 1 $lfbits-symmap-bit) bits))
                      (setq debug-info function-debugging-info)))
                    (unless (or fname lambda-form *x862-recorded-symbols*)
-                     (setq bits (logior (ash -1 $lfbits-noname-bit) bits))) 
+                     (setq bits (logior (ash 1 $lfbits-noname-bit) bits)))
                    (unless (afunc-parent afunc)
                      (x862-fixup-fwd-refs afunc))
                    (setf (afunc-all-vars afunc) nil)
@@ -2258,7 +2258,8 @@
           (if (not tail-p)
             (if (x862-mvpass-p xfer)
               (progn (! pass-multiple-values)
-                     (@= mvpass-label))
+                     (@= mvpass-label)
+                     (! recover-fn-from-ra0 (aref *backend-labels* mvpass-label)))
               (! funcall))                  
             (cond ((or (null nargs) spread-p)
                    (! tail-funcall-gen))
@@ -5230,7 +5231,7 @@
             (when methodp
               (setq bits (logior (ash 1 $lfbits-method-bit) bits))
               (when next-method-p
-                (setq bits (logior (%ilsl $lfbits-nextmeth-bit 1) bits))))) 
+                (setq bits (logior (%ilsl $lfbits-nextmeth-bit 1) bits)))))
           bits)))))
 
 
@@ -6107,8 +6108,8 @@
                       (ensuring-node-target (target vreg)
                         (! fixnum-sub2 target r1 r2)
                         (if overflow
-                          (x862-check-fixnum-overflow seg target))))))))
-           (^)))))))
+                          (x862-check-fixnum-overflow seg target)))))))
+            (^))))))))
 
 (defx862 x862-%i* %i* (seg vreg xfer num1 num2)
   (if (null vreg)
@@ -7661,65 +7662,6 @@
                                        (t :u32))))))))
       (^)))
 
-(defx862 x862-poweropen-ff-call poweropen-ff-call (seg vreg xfer address argspecs argvals resultspec &optional monitor-exception-ports)
-  (let* ((*x862-vstack* *x862-vstack*)
-         (*x862-top-vstack-lcell* *x862-top-vstack-lcell*)
-         (*x862-cstack* *x862-cstack*))
-    (declare (fixnum nextarg))
-    (! alloc-c-frame (the fixnum
-                       (+ (the fixnum (length argvals)) 
-                          (the fixnnum
-                            (let* ((n 0))
-                              (declare (fixnum n))
-                              (dolist (spec argspecs n)
-                                (if (typep spec 'unsigned-byte)
-                                  (incf n (the fixnum
-                                            (1- (the fixnum spec))))))))
-                          (the fixnum
-                            (count-if
-                             #'(lambda (x)
-                                 (member x
-                                         '(:double-float
-                                           :unsigned-doubleword
-                                           :signed-doubleword)))
-                             argspecs)))))
-    (x862-open-undo $undo-x86-c-frame)
-    (x862-vpush-register seg (x862-one-untargeted-reg-form seg address x8664::arg_z))
-    (x862-poweropen-foreign-args seg argspecs argvals)
-    (x862-vpop-register seg x8664::arg_z)
-    (if monitor-exception-ports
-      (! poweropen-ff-callX)
-      (! poweropen-ff-call))
-    (x862-close-undo)
-    (when vreg
-      (cond ((eq resultspec :void) (<- nil))
-            ((eq resultspec :double-float)
-             (<- (make-hard-fp-reg x8664::fp1 hard-reg-class-fpr-mode-double)))
-            ((eq resultspec :single-float)
-             (<- (make-hard-fp-reg x8664::fp1 hard-reg-class-fpr-mode-single)))
-            ((eq resultspec :unsigned-doubleword)
-             (ensuring-node-target
-              (target vreg)
-              (! makeu64)
-              (<- x8664::arg_z)))
-            ((eq resultspec :signed-doubleword)
-             (ensuring-node-target
-              (target vreg)
-              (! makes64)
-              (<- x8664::arg_z)))
-            (t
-             (<- (set-regspec-mode x8664::imm0 (gpr-mode-name-value
-                                              (case resultspec
-                                                (:address :address)
-                                                (:signed-byte :s8)
-                                                (:unsigned-byte :u8)
-                                                (:signed-halfword :s16)
-                                                (:unsigned-halfword :u16)
-                                                (:signed-fullword :s32)
-                                                (t :u32))))))))
-      (^)))
-
-
 
              
 (defx862 x862-%temp-list %temp-list (seg vreg xfer arglist)
@@ -8008,6 +7950,24 @@
           (! single-to-double dreg sreg)
           (<- dreg)
           (^))))))
+
+(defx862 x862-%symptr->symvector %symptr->symvector (seg vreg xfer arg)
+  (if (null vreg)
+    (x862-form seg vreg xfer arg)
+    (progn
+      (ensuring-node-target (target vreg)
+        (x862-one-targeted-reg-form seg arg target)
+        (! %symptr->symvector target))
+      (^))))
+
+(defx862 x862-%symvector->symptr %symvector->symptr (seg vreg xfer arg)
+  (if (null vreg)
+    (x862-form seg vreg xfer arg)
+    (progn
+      (ensuring-node-target (target vreg)
+        (x862-one-targeted-reg-form seg arg target)
+        (! %symvector->symptr target))
+      (^))))
 
 ;------
 
