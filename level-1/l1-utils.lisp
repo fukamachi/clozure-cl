@@ -56,6 +56,7 @@
 ; use some euphemism for that such as t or "{No file}"
 ; something is broken (probably) here calling assq with garbage
 
+
 (defun source-file-or-files (symbol type setf-p method)
   (let ((source-files-info (%source-files symbol))    
         assoc-pair files)
@@ -80,13 +81,15 @@
                            (return clst))))))
              (values source-files-info assoc-pair files)))))
 
-; warn if defining in no file iff previously defined in a file (i.e. dont
-; warn every time something gets redefined in the listener)
-; fix to not to bitch if file is anywhere in list
-; name is function-name or (method-name (class-names)) or ((setf method-name) (class-names))
-; store('method (method file  file) (method file file) ...)
-; if type is 'method we expect name to be an actual method
-; Remember to smash old methods with newer methods to avoid clutter - done
+
+;;; warn if defining in no file iff previously defined in a file
+;;; (i.e. dont warn every time something gets redefined in the
+;;; listener) fix to not to bitch if file is anywhere in list name is
+;;; function-name or (method-name (class-names)) or ((setf
+;;; method-name) (class-names)) store('method (method file file)
+;;; (method file file) ...)  if type is 'method we expect name to be
+;;; an actual method Remember to smash old methods with newer methods
+;;; to avoid clutter - done
 
 (defun physical-pathname-p (file)(declare (ignore file)) nil) ; redefined later
 
@@ -193,6 +196,7 @@
 	    ))))))
 
 (record-source-file 'record-source-file 'function)
+
 
 (defun inherit-from-p (ob parent)
   (memq (if (symbolp parent) (find-class parent nil) parent)
@@ -312,20 +316,20 @@
 
 (%fhave 'set-macro-function #'%macro-have)   ; redefined in sysutils.
 
-; Define special forms.
+;;; Define special forms.
 (dolist (sym '(block catch compiler-let eval-when
                flet function go if labels let let* macrolet
                multiple-value-call multiple-value-prog1
                progn progv quote return-from setq tagbody
                the throw unwind-protect locally load-time-value
 	       symbol-macrolet
-; These are implementation-specific special forms :
+               ;; These are implementation-specific special forms :
 	       nfunction
 	       ppc-lap-function fbind
                with-c-frame with-variable-c-frame))
   (%macro-have sym sym))
 
-  
+
 (defun %macro (named-fn &optional doc &aux arglist)
   ;; "doc" is either a string or a list of the form :
   ;; (doc-string-or-nil . (body-pos-or-nil . arglist-or-nil))
@@ -381,14 +385,16 @@
       (%function arg)
       (report-bad-arg arg 'function))))
 
-; takes arguments in arg_x, arg_y, arg_z, returns "multiple values" 
-; Test(-not) arguments are NOT validated beyond what is done
-; here.
-; if both :test and :test-not supplied, signal error.
-; if test provided as #'eq or 'eq, return first value 'eq.
-; if test defaulted, provided as 'eql, or provided as #'eql, return first value 'eql.
-; if test-not provided as 'eql or provided as #'eql, return second value 'eql.
-; if key provided as either 'identity or #'identity, return third value nil.
+;;; takes arguments in arg_x, arg_y, arg_z, returns "multiple values" 
+;;; Test(-not) arguments are NOT validated beyond what is done
+;;; here.
+;;; if both :test and :test-not supplied, signal error.
+;;; if test provided as #'eq or 'eq, return first value 'eq.
+;;; if test defaulted, provided as 'eql, or provided as #'eql, return
+;;; first value 'eql.
+;;; if test-not provided as 'eql or provided as #'eql, return second
+;;; value 'eql.
+;;; if key provided as either 'identity or #'identity, return third value nil.
 (defun %key-conflict (test-fn test-not-fn key)
   (let* ((eqfn #'eq)
          (eqlfn #'eql)
@@ -416,14 +422,14 @@
 
 ;;; Assoc.
 
-; (asseql item list) <=> (assoc item list :test #'eql :key #'identity)
+;;; (asseql item list) <=> (assoc item list :test #'eql :key #'identity)
 
 
 
-; (assoc-test item list test-fn) 
-;   <=> 
-;     (assoc item list :test test-fn :key #'identity)
-; test-fn may not be FUNCTIONP, so we coerce it here.
+;;; (assoc-test item list test-fn) 
+;;;   <=> 
+;;;     (assoc item list :test test-fn :key #'identity)
+;;; test-fn may not be FUNCTIONP, so we coerce it here.
 (defun assoc-test (item list test-fn)
   (dolist (pair list)
     (if pair
@@ -467,9 +473,9 @@
 
 ;;;; Member.
 
-; (member-test-not item list test-not-fn) 
-;   <=> 
-;     (member item list :test-not test-not-fn :key #'identity)
+;;; (member-test-not item list test-not-fn) 
+;;;   <=> 
+;;;     (member item list :test-not test-not-fn :key #'identity)
 (defun member-test-not (item list test-not-fn)
   (do* ((l list (cdr l)))
        ((endp l))
@@ -496,6 +502,7 @@
              ((null l))
           (unless (funcall test-not item (funcall key (car l)))
               (return l)))))))
+
 
 (defun adjoin (item list &key test test-not key)
   "Add ITEM to LIST unless it is already a member"
@@ -541,7 +548,7 @@
         (push elt res)))
     res))
 
-; Fix this someday.  Fix EQUALP, while you're at it ...
+;;; Fix this someday.  Fix EQUALP, while you're at it ...
 (defun similar-as-constants-p (x y)
   (or (eq x y)                          ; Redefinition of constants to themselves.
       (if (and (stringp x) (stringp y)) ;The most obvious case where equalp & s-a-c-p need to differ...
@@ -679,13 +686,6 @@ vector
           (push (cons var type) *nx-proclaimed-types*)))
       (warn "Invalid type declaration for ~S" var))))
 
-#| redefined from nfcomp
-(defun proclaim-ftype (type &rest names)
-  (declare (ignore type names))
-  ;remember to accept (setf name)'s when implement this.
-  nil)
-|#
-
 (defun proclaim-ftype (ftype &rest names)
   (declare (dynamic-extent names))
   (unless *nx-proclaimed-ftypes*
@@ -693,13 +693,17 @@ vector
   (dolist (name names)
     (setf (gethash (ensure-valid-function-name name) *nx-proclaimed-ftypes*) ftype)))
 
+
+
 (defun proclaimed-ftype (name)
   (when *nx-proclaimed-ftypes*
     (gethash (ensure-valid-function-name name) *nx-proclaimed-ftypes*)))
 
+
 (defun proclaim-special (&rest vars)
   (declare (dynamic-extent vars))
   (dolist (sym vars) (%proclaim-special sym)))
+
 
 (defun proclaim-notspecial (&rest vars)
   (declare (dynamic-extent vars))
@@ -707,7 +711,8 @@ vector
 
 (defun proclaim-inline (t-or-nil &rest names)
   (declare (dynamic-extent names))
-  ;This is just to make it more likely to detect forgetting about the first arg...
+  ;;This is just to make it more likely to detect forgetting about the
+  ;;first arg...
   (unless (or (eq nil t-or-nil) (eq t t-or-nil)) (report-bad-arg t-or-nil '(member t nil)))
   (dolist (name names)
     (setq name (ensure-valid-function-name name))
@@ -727,11 +732,13 @@ vector
 
 (defun proclaim-ignore (t-or-nil &rest syms)
   (declare (dynamic-extent syms))
-  ;This is just to make it more likely to detect forgetting about the first arg...
+  ;;This is just to make it more likely to detect forgetting about the
+  ;;first arg...
   (unless (or (eq nil t-or-nil) (eq t t-or-nil)) (report-bad-arg t-or-nil '(member t nil)))
   (dolist (sym syms)
     (setq *nx-proclaimed-ignore*
           (alist-adjoin sym t-or-nil *nx-proclaimed-ignore*))))
+
 
 (queue-fixup
  (when (listp *nx-proclaimed-inline*)
@@ -757,22 +764,11 @@ vector
     (null (gethash sym *nx-proclaimed-inline* t))))
 
 
-
 (defun self-evaluating-p (form)
-;   (or (numberp form)
-;       (characterp form)
-;       (null form)
-;       (eq form t)
-;       (keywordp form)
-;       (arrayp form) ; making the following redundant
-;       ;(stringp form)
-;       ;(bit-vector-p form)
-;       )
   (and (atom form)
        (or (not (non-nil-symbol-p form))
            (eq form t)
-           (keywordp form)))
-  )
+           (keywordp form))))
 
 (defun constantp (form &optional env)
   "True of any Lisp object that has a constant value: types that eval to
@@ -784,6 +780,7 @@ vector
 	    (symbolp form)
 	    (eq :constant (variable-information form env)))))
 
+
 (defun eval-constant (form)
   (if (quoted-form-p form) (%cadr form)
     (if (constant-symbol-p form) (symbol-value form)
@@ -793,6 +790,7 @@ vector
 ;;; avoid hanging onto beezillions of pathnames
 (defvar *last-back-translated-name* nil)
 (defvar *lfun-names*)
+
 
 (defvar %lambda-lists% (make-hash-table :test #'eq :weak t))
 (defparameter *save-arglist-info* t)
