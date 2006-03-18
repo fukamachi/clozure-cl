@@ -50,7 +50,7 @@
   (let* ((len (list-length plist)))
     (unless (and len (evenp len))
       (error "Bad plist: ~s" plist)))
-  (setf (%svref (%symbol->symptr sym) target::symbol.plist-cell) plist))
+  (setf (%svref (symptr->symvector (%symbol->symptr sym)) target::symbol.plist-cell) plist))
 
 
 (eval-when (:compile-toplevel :execute)
@@ -69,43 +69,43 @@
 
 (defun symbol-plist (sym)
   "Return SYMBOL's property list."
-  (%svref (%symbol->symptr sym) target::symbol.plist-cell))
+  (%svref (symptr->symvector (%symbol->symptr sym)) target::symbol.plist-cell))
 
 
 (defun get (sym key &optional default)
   "Look on the property list of SYMBOL for the specified INDICATOR. If this
   is found, return the associated value, else return DEFAULT."
   (let* ((tail (%pl-search
-                (%svref (%symbol->symptr sym) target::symbol.plist-cell) key)))
+                (%svref (symptr->symvector (%symbol->symptr sym)) target::symbol.plist-cell) key)))
     (if tail (%cadr tail) default)))
 
 (defun put (sym key value)
   (let* ((symptr (%symbol->symptr sym))
-         (plist (%svref symptr target::symbol.plist-cell))
+         (plist (%svref (symptr->symvector symptr) target::symbol.plist-cell))
          (tail (%pl-search plist key)))
     (if tail 
       (%rplaca (%cdr tail) value)
-      (setf (%svref symptr target::symbol.plist-cell) (cons key (cons value plist))))
+      (setf (%svref (symptr->symvector symptr) target::symbol.plist-cell) (cons key (cons value plist))))
     value))
 
 
 (defun get-type-predicate (name)
-  (let* ((symptr (%symbol->symptr name))
-         (pp (%svref symptr target::symbol.package-predicate-cell)))
+  (let* ((symvec (symptr->symvector (%symbol->symptr name)))
+         (pp (%svref symvec target::symbol.package-predicate-cell)))
     (if (consp pp)
       (%cdr pp))))
 
 
 (defun set-type-predicate (name function)
   (let* ((bits (%symbol-bits name))
-         (symptr (%symbol->symptr name))
-         (spp (%svref symptr target::symbol.package-predicate-cell)))
+         (symvec (symptr->symvector (%symbol->symptr name)))
+         (spp (%svref symvec target::symbol.package-predicate-cell)))
     (declare (fixnum bits))
     (if (logbitp $sym_vbit_typeppred bits)
       (%rplacd spp function)
       (progn
         (%symbol-bits name (the fixnum (bitset $sym_vbit_typeppred bits)))
-        (setf (%svref symptr target::symbol.package-predicate-cell) (cons spp function))))))
+        (setf (%svref symvec target::symbol.package-predicate-cell) (cons spp function))))))
 
 (defun symbol-value (sym)
   "Return SYMBOL's current bound value."
@@ -144,7 +144,7 @@
 
 (defun symbol-package (sym)
   "Return the package SYMBOL was interned in, or NIL if none."
-  (let* ((pp (%svref (%symbol->symptr sym) target::symbol.package-predicate-cell)))
+  (let* ((pp (%svref (symptr->symvector (%symbol->symptr sym)) target::symbol.package-predicate-cell)))
     (if (consp pp) (car pp) pp)))
 
 (defun boundp (sym)
@@ -153,7 +153,7 @@
 
 (defun make-symbol (name)
   "Make and return a new symbol with the NAME as its print name."
-  (%symptr->symbol
+  (symvector->symptr
    (%gvector target::subtag-symbol
              (ensure-simple-string name) ; pname
              (%unbound-marker)          ; value cell
@@ -165,9 +165,9 @@
 
 (defun %symbol-bits (sym &optional new)
   (let* ((p (%symbol->symptr sym))
-         (bits (%svref p target::symbol.flags-cell)))
+         (bits (%svref (symptr->symvector p) target::symbol.flags-cell)))
     (if new
-      (setf (%svref p target::symbol.flags-cell) new))
+      (setf (%svref (symptr->symvector p) target::symbol.flags-cell) new))
     bits))
 
 (defun %sym-value (name)
@@ -177,15 +177,15 @@
   (%set-symptr-value (%symbol->symptr name) val))
     
 (defun %sym-global-value (name)
-  (%svref (%symbol->symptr name) target::symbol.vcell-cell))
+  (%svref (symptr->symvector (%symbol->symptr name)) target::symbol.vcell-cell))
 
 (defun %set-sym-global-value (name val)
-  (setf (%svref (%symbol->symptr name) target::symbol.vcell-cell) val))
+  (setf (%svref (symptr->symvector (%symbol->symptr name)) target::symbol.vcell-cell) val))
 
 (defun symbol-name (sym)
   "Return SYMBOL's name as a string."
   #+(or ppc32-target x8664-target)
-  (%svref (%symbol->symptr sym) target::symbol.pname-cell)
+  (%svref (symptr->symvector (%symbol->symptr sym)) target::symbol.pname-cell)
   #+ppc64-target
   (if sym                               ;NIL's pname is implicit
     (%svref (%symbol->symptr sym) ppc64::symbol.pname-cell)
@@ -206,7 +206,7 @@
   (%symptr-binding-address (%symbol->symptr sym)))
 
 (defun symbol-binding-index (sym)
-  (%svref (%symbol->symptr sym) target::symbol.binding-index-cell))
+  (%svref (symptr->symvector (%symbol->symptr sym)) target::symbol.binding-index-cell))
 
 (defvar *interrupt-level* -1)
 
@@ -219,18 +219,18 @@
   (defun next-binding-index () (1+ next-binding-index))
   (defun ensure-binding-index (sym)
     (with-lock-grabbed (binding-index-lock)
-      (let* ((symptr (%symbol->symptr sym))
-             (idx (%svref symptr target::symbol.binding-index-cell))
+      (let* ((symvec (symptr->symvector (%symbol->symptr sym)))
+             (idx (%svref symvec target::symbol.binding-index-cell))
              (bits (%symbol-bits sym)))
         (declare (fixnum idx bits))
         (if (or (logbitp $sym_vbit_global bits)
                 (logbitp $sym_vbit_const bits))
           (unless (zerop idx)
             (remhash idx binding-index-reverse-map)
-            (setf (%svref symptr target::symbol.binding-index-cell) 0))
+            (setf (%svref symvec target::symbol.binding-index-cell) 0))
           (if (zerop idx)
             (let* ((new-idx (incf next-binding-index)))
-              (setf (%svref symptr target::symbol.binding-index-cell) new-idx)
+              (setf (%svref symvec target::symbol.binding-index-cell) new-idx)
               (setf (gethash new-idx binding-index-reverse-map) sym))))
         sym)))
   (defun binding-index-symbol (idx)
@@ -240,7 +240,7 @@
     ;; Index may have been assigned via xloader.  Update
     ;; reverse map
     (with-lock-grabbed (binding-index-lock)
-      (let* ((idx (%svref (%symbol->symptr sym)
+      (let* ((idx (%svref (symptr->symvector (%symbol->symptr sym))
                           target::symbol.binding-index-cell)))
         (declare (fixnum idx))
         (unless (zerop idx)
