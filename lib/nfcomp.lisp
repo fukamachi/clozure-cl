@@ -1423,22 +1423,27 @@ Will differ from *compiling-file* during an INCLUDE")
     (fasl-out-opcode $fasl-char char)
     (fasl-out-byte code)))
 
+;;; Always write big-endian.
 (defun fasl-dump-s16 (s16)
   (fasl-out-opcode $fasl-word-fixnum s16)
   (fasl-out-word s16))
 
+;;; Always write big-endian
 (defun fasl-dump-s32 (s32)
   (fasl-out-opcode $fasl-s32 s32)
   (fasl-out-word (ldb (byte 16 16) s32))
   (fasl-out-word (ldb (byte 16 0) s32)))
 
+;;; Always write big-endian
 (defun fasl-dump-s64 (s64)
   (fasl-out-opcode $fasl-s64 s64)
   (fasl-out-word (ldb (byte 16 48) s64))
   (fasl-out-word (ldb (byte 16 32) s64))
   (fasl-out-word (ldb (byte 16 16) s64))
   (fasl-out-word (ldb (byte 16 0) s64)))
- 
+
+
+
 (defun fasl-dump-dfloat (float)
   (fasl-out-opcode $fasl-dfloat float)
   (multiple-value-bind (high low) (double-float-bits float)
