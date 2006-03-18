@@ -7683,6 +7683,15 @@
     (ppc2-close-undo)
     (ppc2-poweropen-foreign-return seg vreg xfer resultspec)))
 
+(defun ppc2-identity (seg vreg xfer arg)
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (if (null vreg)
+      (ppc2-form seg vreg xfer arg)
+      (progn
+        (ensuring-node-target (target vreg)
+          (ppc2-one-targeted-reg-form seg arg target))
+      (^)))))
+
 ;;; Outgoing C stack frame will look like:
 ;;;  backptr
 ;;;  NIL  ; marker to keep GC happy, make GDB unhappy.
@@ -8219,6 +8228,12 @@
         (ppc2-one-targeted-reg-form seg arg sreg)
         (<- (set-regspec-mode sreg hard-reg-class-fpr-mode-double))
         (^)))))
+
+(defppc2 ppc2-%symptr->symvector %symptr->symvector (seg vreg xfer arg)
+  (ppc2-identity seg vreg xfer arg))
+
+(defppc2 ppc2-%symvector->symptr %symvector->symptr (seg vreg xfer arg)
+  (ppc2-identity seg vreg xfer arg))
 
 ;------
 

@@ -955,4 +955,11 @@
 (defppc64archmacro ccl::set-nth-immediate (f i new)
   `(setf (ccl::%svref ,f ,i) ,new))
 
+
+(defppc64archmacro ccl::symptr->symvector (s)
+  s)
+
+(defppc64archmacro ccl::symvector->symptr (s)
+  s)
+
 (provide "PPC64-ARCH")

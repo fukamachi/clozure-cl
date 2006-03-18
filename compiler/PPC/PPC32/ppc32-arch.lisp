@@ -891,4 +891,10 @@
 (defppc32archmacro ccl::set-nth-immediate (f i new)
   `(setf (ccl::%svref ,f ,i) ,new))
 
+(defppc32archmacro ccl::symptr->symvector (s)
+  s)
+
+(defppc32archmacro ccl::symvector->symptr (s)
+  s)
+
 (provide "PPC32-ARCH")
