@@ -1155,7 +1155,7 @@
 (defmacro %cons-slot-accessor-info (class accessor-or-slot-name &optional offset)
   `(vector ,class ,accessor-or-slot-name ,offset))
 
-(def-accessors (combined-method) %svref
+(def-accessors (combined-method) nth-immediate
   combined-method.code-vector		; trampoline code vector
   combined-method.thing			; arbitrary arg to dcode
   combined-method.dcode			; discriminator function
