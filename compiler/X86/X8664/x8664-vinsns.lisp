@@ -543,10 +543,10 @@
 				      ((idx :imm)
 				       (v :lisp))
 				      ((temp :u64)))
-  (movq (:%q idx) (:%q temp))
-  (shlq (:$ub (- x8664::num-subtag-bits x8664::fixnumshift)) (:%q temp))
-  (movb (:$b 255) (:%b temp))
-  (rcmpq (:%q temp) (:@ x8664::misc-header-offset (:%q v)))
+  (movq (:@ x8664::misc-header-offset (:%q v)) (:%q temp))
+  (shrq (:$ub x8664::num-subtag-bits) (:%q temp))
+  (shlq (:$ub x8664::word-shift) (:%q temp))
+  (rcmpq (:%q idx) (:%q temp))
   (jb.pt :ok)
   (uuo-error-vector-bounds (:%q idx) (:%q v))
   :ok)
@@ -1304,17 +1304,16 @@
   (andb (:$b x8664::fulltagmask) (:%b tag))
   (cmpb (:$b x8664::fulltag-symbol) (:%b tag))
   (movq (:%q x8664::fn) (:%q x8664::xfn))
+  (cmovgq (:%q x8664::temp0) (:%q x8664::fn))
   (jl :bad)
   (cmoveq (:@ x8664::symbol.fcell (:%q x8664::fname)) (:%q x8664::fn))
-  (cmovgq (:%q x8664::temp0) (:%q x8664::fn))
   (jmp (:%q x8664::fn))
-  (:align 3)
-  (:long (:^ :bad))
   :bad
+  (uuo-error-not-callable)
   ;; If we don't do this (and leave %fn as a TRA into itself), reporting
   ;; the error is likely a little harder.  Tough.
   ;; (leaq (@ (:apply - (:^ :bad)) (:%q x8664::rn)) (:%q x8664::fn))
-  (uuo-error-not-callable))
+)
 
 
 
@@ -1351,19 +1350,18 @@
 
 (define-x8664-vinsn make-tsp-cons (((dest :lisp))
 				   ((car :lisp) (cdr :lisp))
-				   ((tempa :imm)
-                                    (tempb :imm)))
-  (movd (:%mmx x8664::tsp) (:%q tempa))
-  (movq (:%q tempa) (:%q tempb))
-  (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q tempb))
-  (movd (:%q tempb) (:%mmx x8664::next-tsp))
-  (movapd (:%xmm x8664::fpzero) (:@ -32 (:%q tempa)))
-  (movapd (:%xmm x8664::fpzero) (:@ -16 (:%q tempa)))
+				   ((temp :imm)))
+  (movd (:%mmx x8664::tsp) (:%q temp))
+  (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q temp))
+  (movd (:%q temp) (:%mmx x8664::next-tsp))
+  (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
+  (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
+  (movq (:%mmx x8664::tsp) (:@ (:%q temp)))
   (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
-  (movq (:%q tempa) (:@ (:%q tempb)))
-  (movq (:%q car) (:@ (+ x8664::dnode-size x8664::cons.car) (:%q tempb)))
-  (movq (:%q cdr) (:@ (+ x8664::dnode-size x8664::cons.cdr) (:%q tempb)))
-  (leaq (:@ (+ x8664::dnode-size x8664::fulltag-cons) (:%q tempb)) (:%q dest)))
+  (leaq (:@ (+ x8664::dnode-size x8664::fulltag-cons) (:%q temp)) (:%q temp))
+  (movq (:%q car) (:@ x8664::cons.car (:%q temp)))
+  (movq (:%q cdr) (:@ x8664::cons.cdr (:%q temp)))
+  (movq (:%q temp) (:%q dest)))
 
 (define-x8664-vinsn make-fixed-stack-gvector (((dest :lisp))
                                               ((aligned-size :u32const)
@@ -2745,18 +2743,22 @@
 
 (define-x8664-vinsn %symbol->symptr (((dest :lisp))
                                      ((src :lisp))
-                                     ((temp :lisp)
-                                      (tag :u8)))
-  (movl (:$l (+ x8664::nil-value x8664::nilsym-offset)) (:%l temp))
+                                     ((tag :u8)))
+  (movl (:$l (+ x8664::nil-value x8664::nilsym-offset)) (:%l tag))
   (cmpb (:$b x8664::fulltag-nil) (:%b src))
-  (cmovneq (:%q src) (:%q temp))
-  (movb (:%b temp) (:%b tag))
+  (cmoveq (:%q tag) (:%q dest))
+  (movb (:%b src) (:%b tag))
+  (je :ok)
   (andb (:$b x8664::tagmask) (:%b tag))
   (cmpb (:$b x8664::tag-symbol) (:%b tag))
-  (je.pt :ok)
+  (je.pt :no-trap)
   (uuo-error-reg-not-tag (:%q src) (:$ub x8664::fulltag-symbol))
-  :ok
-  (leaq (:@ (- x8664::fulltag-misc x8664::fulltag-symbol) (:%q temp)) (:%q dest)))
+  :no-trap
+  ((:not (:pred =
+                (:apply %hard-regspec-value dest)
+                (:apply %hard-regspec-value src)))
+   (movq (:% src) (:% dest)))
+  :ok)
 
 (define-x8664-vinsn symbol-function (((val :lisp))
                                      ((sym (:lisp (:ne val))))
@@ -3044,14 +3046,7 @@
   (movb (:%b imm1) (:@ x8664::misc-data-offset (:%q str))))
 
 
-(define-x8664-vinsn %scharcode (((code :imm))
-				((str :lisp)
-				 (idx :imm))
-				((imm :u64)))
-  (movq (:%q idx) (:%q imm))
-  (shrq (:$ub x8664::word-shift) (:%q imm))
-  (movzbl (:@ x8664::misc-data-offset (:%q str)) (:%l imm))
-  (leaq (:@ (:%q imm) 8) (:%q code)))
+
 
 (define-x8664-vinsn pop-argument-registers (()
                                             ())
@@ -3066,5 +3061,14 @@
   :z
   (popq (:%q x8664::arg_x))
   :done)
+
+(define-x8664-vinsn %symptr->symvector (((target :lisp))
+                                        ((target :lisp)))
+  (subb (:$b (- x8664::fulltag-symbol x8664::fulltag-misc)) (:%b target)))
+
+(define-x8664-vinsn %symvector->symptr (((target :lisp))
+                                        ((target :lisp)))
+  (addb (:$b (- x8664::fulltag-symbol x8664::fulltag-misc)) (:%b target)))
+
 
 (define-x8664-subprim-call-vinsn (spread-lexpr)  .SPspread-lexpr-z)
