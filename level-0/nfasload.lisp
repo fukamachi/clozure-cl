@@ -98,6 +98,10 @@
 (defun %fasl-read-long (s)
   (logior (ash (%fasl-read-word s) 16) (%fasl-read-word s)))
 
+(defun %fasl-read-signed-long (s)
+  (logior (ash (%word-to-int (%fasl-read-word s)) 16)
+          (%fasl-read-word s)))
+
 
 (defun %fasl-read-count (s)
   (do* ((val 0)
@@ -316,18 +320,11 @@
            (the fixnum (%fasl-read-word s))) ))
 
 (deffaslop $fasl-s32 (s)
-  (%stack-block ((buf 4))
-    (setf (%get-unsigned-word buf 0) (%fasl-read-word s)
-          (%get-unsigned-word buf 2) (%fasl-read-word s))
-    (%epushval s (%get-signed-long buf))))
+  (%epushval s (%fasl-read-signed-long s)))
 
 (deffaslop $fasl-s64 (s)
-  (%stack-block ((buf 8))
-    (setf (%get-unsigned-word buf 0) (%fasl-read-word s)
-          (%get-unsigned-word buf 2) (%fasl-read-word s)
-          (%get-unsigned-word buf 4) (%fasl-read-word s)
-          (%get-unsigned-word buf 6) (%fasl-read-word s))
-    (%epushval s (%%get-signed-longlong buf 0))))
+  (%epushval s (logior (ash (%fasl-read-signed-long s) 32)
+                       (%fasl-read-long s))))
 
 (deffaslop $fasl-dfloat (s)
   ;; A double-float is a 3-element "misc" object.
@@ -890,11 +887,11 @@
 
 (defun %set-symbol-package (symbol package-or-nil)
   (declare (optimize (speed 3) (safety 0)))
-  (let* ((symptr (%symbol->symptr symbol))
-         (old-pp (%svref symptr target::symbol.package-predicate-cell)))
+  (let* ((symvec (symptr->symvector (%symbol->symptr symbol)))
+         (old-pp (%svref symvec target::symbol.package-predicate-cell)))
     (if (consp old-pp)
       (setf (car old-pp) package-or-nil)
-      (setf (%svref symptr target::symbol.package-predicate-cell) package-or-nil))))
+      (setf (%svref symvec target::symbol.package-predicate-cell) package-or-nil))))
 
 
 (let* ((force-export-packages (list *keyword-package*)))
@@ -907,14 +904,14 @@
 
 
 (defun %insert-symbol (symbol package internal-idx external-idx &optional force-export)
-  (let* ((symptr (%symbol->symptr symbol))
-         (package-predicate (%svref symptr target::symbol.package-predicate-cell))
+  (let* ((symvec (symptr->symvector (%symbol->symptr symbol)))
+         (package-predicate (%svref symvec target::symbol.package-predicate-cell))
          (keyword-package (eq package *keyword-package*)))
     ;; Set home package
     (if package-predicate
       (if (listp package-predicate)
         (unless (%car package-predicate) (%rplaca package-predicate package)))
-      (setf (%svref symptr target::symbol.package-predicate-cell) package))
+      (setf (%svref symvec target::symbol.package-predicate-cell) package))
     (if (or force-export (memq package (force-export-packages)))
       (progn
         (%htab-add-symbol symbol (pkg.etab package) external-idx)
@@ -961,10 +958,10 @@
         (apply 'set-documentation f))
       ;; Can't bind any specials until this happens
       (let* ((max 0))
-        (%map-areas #'(lambda (symptr)
-                        (when (= (the fixnum (typecode symptr))
+        (%map-areas #'(lambda (symvec)
+                        (when (= (the fixnum (typecode symvec))
                                  target::subtag-symbol)
-                          (let* ((s (%symptr->symbol symptr))
+                          (let* ((s (symvector->symptr symvec))
 				 (idx (symbol-binding-index s)))
                             (when (> idx 0)
                               (cold-load-binding-index s))
