@@ -104,13 +104,20 @@
                                     (set-documentation name 'function info))
                                   name))
 
-(defun %defun (named-fn &optional info &aux (name (function-name named-fn)))
-   (record-source-file name 'function)
-   (if (not (%defun-encapsulated-maybe name named-fn))
-     (fset name named-fn))
-   (set-function-info name info)
-   (when *fasload-print* (format t "~&~S~%" name))
-   name)
+(defun %defun (named-fn &optional info)
+  (unless (typep named-fn 'function)
+    (dbg named-fn))
+  (let* ((name (function-name named-fn)))
+    (unless (and name
+                 (or (symbolp name)
+                     (setf-function-name-p name)))
+      (dbg named-fn))
+  (record-source-file name 'function)
+  (if (not (%defun-encapsulated-maybe name named-fn))
+    (fset name named-fn))
+  (set-function-info name info)
+  (when *fasload-print* (format t "~&~S~%" name))
+  name))
 
 (defun validate-function-name (name)
   (if (symbolp name)
@@ -133,14 +140,14 @@
 
 (defun %fhave (name def)
   (let* ((fname (validate-function-name name)))
-    (setf (%svref (%symbol->symptr fname) target::symbol.fcell-cell) def)))
+    (setf (%svref (symptr->symvector (%symbol->symptr fname)) target::symbol.fcell-cell) def)))
 
 ;;; FBOUNDP is true of any symbol whose function-cell contains something other
 ;;; than %unbound-function%; we expect FBOUNDP to return that something.
 (defun fboundp (name)
   "Return true if name has a global function definition."
   (let* ((fname (validate-function-name name))
-         (def (%svref (%symbol->symptr fname) target::symbol.fcell-cell)))
+         (def (%svref (symptr->symvector (%symbol->symptr fname)) target::symbol.fcell-cell)))
     (unless (eq def %unbound-function%)
       def)))
 
@@ -148,10 +155,10 @@
 ;;; Who does ?
 
 (defun %unfhave (sym)
-  (let* ((symptr (%symbol->symptr sym))
-         (old (%svref symptr target::symbol.fcell-cell))
+  (let* ((symvec (symptr->symvector (%symbol->symptr sym)))
+         (old (%svref symvec target::symbol.fcell-cell))
          (unbound %unbound-function%))
-    (setf (%svref symptr target::symbol.fcell-cell) unbound)
+    (setf (%svref symvec target::symbol.fcell-cell) unbound)
     (not (eq old unbound))))
 
 ;;; It's guaranteed that lfun-bits is a fixnum.  Might be a 30-bit fixnum ...
@@ -165,9 +172,10 @@
     (declare (fixnum bits))
     (if (and (logbitp $lfbits-gfn-bit bits)
 	     (not (logbitp $lfbits-method-bit bits)))
-      (if set-name-p
-	(%gf-name fun new-name)
-	(%gf-name fun))
+      (progn
+        (if set-name-p
+          (%gf-name fun new-name)
+          (%gf-name fun)))
       (let* ((has-name-cell (not (logbitp $lfbits-noname-bit bits))))
 	(if has-name-cell
 	  (let* ((lfv (lfun-vector fun))
