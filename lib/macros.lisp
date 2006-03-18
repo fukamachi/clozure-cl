@@ -2316,6 +2316,9 @@ defcallback returns the callback pointer, e.g., the value of name."
 (declare-arch-specific-macro lfun-vector)
 (declare-arch-specific-macro lfun-vector-lfun)
 
+(declare-arch-specific-macro symptr->symvector)
+(declare-arch-specific-macro symvector->symptr)
+
 (defvar *trace-print-functions* nil)
 (defun %trace-print-arg (stream arg val type)
   (format stream " ")
