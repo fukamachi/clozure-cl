@@ -1791,7 +1791,7 @@ _spentry(tfuncallgen)
 	__(cmpw $nargregs*node_size,%nargs)
 	__(jbe 9f)
 	__(movzwl %nargs,%nargs_l)
-	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(lea -nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
 	/* We can use %ra0 as a temporary here, since the real return address
 	   is on the stack */
@@ -1842,7 +1842,7 @@ _spentry(tcallsymgen)
 	__(cmpw $nargregs*node_size,%nargs)
 	__(jbe 9f)
 	__(movzwl %nargs,%nargs_l)
-	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
+	__(lea -nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
 	/* We can use %ra0 as a temporary here, since the real return address
 	   is on the stack */
