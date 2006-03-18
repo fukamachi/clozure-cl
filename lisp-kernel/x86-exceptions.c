@@ -121,6 +121,7 @@ allocate_object(ExceptionInformation *xp,
   */
   if (new_heap_segment(xp, bytes_needed, false, tcr)) {
     xpGPR(xp, Iallocptr) -= disp_from_allocptr;
+    tcr->save_allocptr = (void *) (xpGPR(xp, Iallocptr));
     return true;
   }
   
@@ -136,6 +137,7 @@ allocate_object(ExceptionInformation *xp,
   /* Try again, growing the heap if necessary */
   if (new_heap_segment(xp, bytes_needed, true, tcr)) {
     xpGPR(xp, Iallocptr) -= disp_from_allocptr;
+    tcr->save_allocptr = (void *) (xpGPR(xp, Iallocptr));
     return true;
   }
   
