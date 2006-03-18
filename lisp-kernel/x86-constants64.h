@@ -258,6 +258,7 @@ typedef struct special_binding {
 typedef struct lisp_frame {
   struct lisp_frame *backlink;
   LispObj tra;
+  LispObj xtra;			/* if tra is nvalretn */
 } lisp_frame;
 
 
