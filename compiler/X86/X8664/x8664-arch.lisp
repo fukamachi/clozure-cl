@@ -406,6 +406,7 @@
 (defconstant cons-bias fulltag-cons)
 (defconstant t-offset (- t-value nil-value))
 
+
 (defconstant misc-header-offset (- fulltag-misc))
 (defconstant misc-data-offset (+ misc-header-offset node-size))
 (defconstant misc-subtag-offset misc-header-offset)
@@ -617,6 +618,8 @@
   refbits                               ; bitvector for intergenerational refernces
   threshold                             ; for egc
   gc-count                              ; generational gc count.
+  static-dnodes                         ; for honsing. etc
+  static-used                           ; bitvector
 )
 
 
@@ -1219,5 +1222,11 @@
 
 (defx8664archmacro ccl::set-nth-immediate (f i new)
   `(ccl::%set-nth-immediate ,f (the fixnum (- (the fixnum ,i) 1)) ,new))
+
+(defx8664archmacro ccl::symptr->symvector (s)
+  `(ccl::%symptr->symvector ,s))
+
+(defx8664archmacro ccl::symvector->symptr (s)
+  `(ccl::%symvector->symptr ,s))
 
 (provide "X8664-ARCH")
