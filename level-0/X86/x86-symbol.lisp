@@ -35,45 +35,53 @@
     (trap-unless-fulltag= arg_z x8664::fulltag-function)
     (single-value-return)))
 
-;;; Traps unless sym is NIL or some other symbol.
-;;; If it's NIL, map it to NILSYM's symbol-vector; if it's
-;;; a true symbol, map it to that symbol's symbol-vector.
-;;; (This is mostly done to perform typechecking and to
-;;; allow lisp code to use %SVREF, etc.)
+;;; Traps unless sym is NIL or some other symbol.  If NIL, return
+;;; nilsym
 (defx86lapfunction %symbol->symptr ((sym arg_z))
-  (let ((symaddr temp0))
-    (movq ($ (+ x8664::nil-value x8664::nilsym-offset)) (% symaddr))
+  (let ((tag imm0 ))
+    (movq ($ (+ x8664::nil-value x8664::nilsym-offset)) (% tag))
     (cmp-reg-to-nil sym)
-    (cmoveq (% symaddr) (% sym))
+    (cmoveq (% sym) (% tag))
+    (je :done)
     (trap-unless-fulltag= sym x8664::fulltag-symbol)
-    (leaq (@ (- x8664::fulltag-misc x8664::fulltag-symbol) (% sym)) (% sym))
+    :done
     (single-value-return)))
 
-;;; If symptr is either a real symbol or NIL, returns it.
-;;; Otherwise, traps unless symptr is a symbol-vector
-;;; and returns the underlying symbol
+;;; If symptr is NILSYM, return NIL; else typecheck and return symptr
 (defx86lapfunction %symptr->symbol ((symptr arg_z))
-  (movw ($ (logior (ash 1 x8664::fulltag-nil) (ash 1 x8664::fulltag-symbol)))
-        (% imm0.w))
+  (movw ($ (ash 1 x8664::fulltag-symbol)) (% imm0.w))
   (btw (%w symptr) (% imm0.w))
-  (jb @done)
-  (trap-unless-typecode= symptr x8664::subtag-symbol)
-  (leaq (@ (- x8664::fulltag-symbol x8664::fulltag-misc) (% symptr)) (% arg_z))
-  @done
+  (jb.pt @ok)
+  (uuo-error-reg-not-tag (% symptr) ($ x8664::fulltag-symbol))
+  @ok
+  (cmpq ($ (+ x8664::nil-value)) (% symptr))
+  (sete (% imm0.b))
+  (negb (% imm0.b))
+  (andl ($  x8664::nilsym-offset) (% imm0.l))
+  (subq (% imm0) (% symptr))
   (single-value-return))
 
+
+;;; Given something whose fulltag is FULLTAG-SYMBOL, return the
+;;; underlying uvector.  This function and its inverse would
+;;; be good candidates for inlining.
+(defx86lapfunction %symptr->symvector ((symptr arg_z))
+  (subb ($ (- x8664::fulltag-symbol x8664::fulltag-misc)) (% arg_z.b))
+  (single-value-return))
+
+(defx86lapfunction %symvector->symptr ((symbol-vector arg_z))
+  (addb ($ (- x8664::fulltag-symbol x8664::fulltag-misc)) (% arg_z.b))
+  (single-value-return))
+    
 (defx86lapfunction %symptr-value ((symptr arg_z))
-  (addq ($ (- x8664::fulltag-symbol x8664::fulltag-misc)) (% symptr))
   (jmp-subprim .SPspecref))
 
 (defx86lapfunction %set-symptr-value ((symptr arg_y) (val arg_z))
-  (addq ($ (- x8664::fulltag-symbol x8664::fulltag-misc)) (% symptr))
   (jmp-subprim .SPspecset))
 
-;;; This does inded get a "symptr" (symbol-vector) as argument.
-;;; It's supposed to return a "thing" and a "byte offset";
-;;; it doesn't really matter whether that thing is a symbol
-;;; or a symbol vector if there isn't a binding in the TCR.
+;;; This gets a tagged symbol as an argument.
+;;; If there's no thread-local binding, it should return
+;;; the underlying symbol vector as a first return value.
 (defx86lapfunction %symptr-binding-address ((symptr arg_z))
   (movq (@ x8664::symbol.binding-index (% symptr)) (% arg_y))
   (rcmp (% arg_y) (@ (% rcontext) x8664::tcr.tlb-limit))
@@ -88,6 +96,7 @@
   (lea (@ '2 (% rsp)) (% temp0))
   (jmp-subprim .SPvalues)
   @sym
+  (subb ($ (- x8664::fulltag-symbol x8664::fulltag-misc)) (% arg_z.b))
   (push (% arg_z))
   (pushq ($ '#.x8664::symptr.vcell))
   (set-nargs 2)
