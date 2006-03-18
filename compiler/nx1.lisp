@@ -1929,6 +1929,9 @@
 (defnx1 nx1-%double-to-single ((%double-to-single)) (arg)
   (make-acode (%nx1-operator %double-to-single)
               (nx1-form arg)))
+
+(defnx1 nx1-symvector ((%symptr->symvector) (%symvector->symptr)) (arg)
+  (make-acode (%nx1-default-operator) (nx1-form arg)))
         
 (defnx1 nx1-ash (ash) (&whole call &environment env num amt)
   (let* ((unsigned-natural-type (target-word-size-case
