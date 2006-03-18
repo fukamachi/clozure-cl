@@ -402,7 +402,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 
-
+#+ppc-target
 (defvar *gf-proto-code* (uvref *gf-proto* 0))
 
 ;;; The "early" version of %ALLOCATE-GF-INSTANCE.
@@ -774,14 +774,14 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (let ((method (%find-1st-arg-combined-method dt arg)))
     (funcall method arg)))
 
-; two args - specialized on first
+;;; two args - specialized on first
 (defun %%1st-two-arg-dcode (dt arg1 arg2)
   (let ((method (%find-1st-arg-combined-method dt arg1)))
     (funcall method arg1 arg2)))
 
 
 
-;  arg is dispatch-table and argnum is in the dispatch table
+;;;  arg is dispatch-table and argnum is in the dispatch table
 (defun %%nth-arg-dcode (dt args)
   ;(declare (dynamic-extent args))
   (if (listp args)
