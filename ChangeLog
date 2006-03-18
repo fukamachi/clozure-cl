@@ -1,3 +1,77 @@
+2006-03-17 23:05  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Add HONS fields to AREA
+	definition.
+	
+	SYMVECTOR->SYMPTR and its inverse don't do much, but it's not worth
+	spending a function call to do a little.
+
+2006-03-17 23:03  gb
+
+	* compiler/X86/x862.lisp: Don't sign-extend the $LFBITS-NONAME-BIT;
+	doing so had to do with 29-bit fixnums on an old 68K
+	implementation.
+	
+	Fix parenthesization in %i-, so that we branch in all cases that
+	need to.
+	
+	Implement %SYMPTR->SYMVECTOR and %SYMVECTOR->SYMPTR, which change
+	something tagged X8664::FULLTAG-SYMBOL into the underlying uvector
+	and back again.
+
+2006-03-17 22:59  gb
+
+	* compiler/X86/x86-lap.lisp: Change the sign of TRA displacements,
+	to match what the compiler expects and what some other things do.
+	
+	When checking to see if an ASSUMED-SHORT[-CONDITIONAL]-BRANCH can
+	use a 1-byte branch displacement, get the sign of that displacment
+	right.	(Doing it the wrong way was encoding a forward branch to a
+	label 128 bytes away in one byte, which made it a backward branch
+	128 bytes away ...)
+
+2006-03-17 22:55  gb
+
+	* library/lispequ.lisp: Use NTH-IMMEDIATE to access COMBINED-METHOD
+	slots.
+
+2006-03-17 22:54  gb
+
+	* lib/nfcomp.lisp: Comments clarify that scalar integers are always
+	dumped big-endian.  (They have to be read/written a byte at a time
+	anyway; there's no clear advantage in writing them in native
+	endianness.)
+
+2006-03-17 22:52  gb
+
+	* lib/macros.lisp: SYMPTR->SYMVECTOR and SYMVECTOR->SYMBOL are
+	arch-specfic (NOP on PPC, inlined tag-bits stuff on x8664.)
+
+2006-03-17 22:50  gb
+
+	* level-1/l1-dcode.lisp: Star to conditionalize, a little.
+
+2006-03-17 22:48  gb
+
+	* level-1/l1-boot-2.lisp: Conditionalize.
+
+2006-03-17 22:48  gb
+
+	* level-1/: l1-callbacks.lisp, l1-utils.lisp: Comment formatting.
+
+2006-03-17 22:45  gb
+
+	* compiler/PPC/: ppc2.lisp, PPC32/ppc32-arch.lisp,
+	PPC64/ppc64-arch.lisp: %SYMPTR->SYMVECTOR and %SYMVECTOR->SYMPTR
+	shold never be called on PPC, but implement them as idenity
+	operations, just in case.
+
+2006-03-17 22:44  gb
+
+	* compiler/: nx1.lisp, nxenv.lisp: Worth inlining
+	%SYMPTR->SYMVECTOR on x8664 (should never happen on PPC, but treat
+	it as identity function there.)
+
 2006-03-16 02:03  gb
 
 	* level-1/l1-sockets.lisp: Spell LINUX correctly.
