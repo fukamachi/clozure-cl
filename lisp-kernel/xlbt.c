@@ -29,6 +29,9 @@ print_lisp_frame(lisp_frame *frame)
   LispObj pc = frame->tra, fun;
   int delta = 0;
 
+  if (pc == lisp_global(RET1VALN)) {
+    pc = frame->xtra;
+  }
   if (tag_of(pc) == tag_tra) {
     fun = pc - (((unsigned *)pc)[-1]);
     if (fulltag_of(fun) == fulltag_function) {
@@ -47,6 +50,9 @@ lisp_frame_p(lisp_frame *f)
 
   if (f) {
     ra = f->tra;
+    if (ra == lisp_global(RET1VALN)) {
+      ra = f->xtra;
+    }
     if (tag_of(ra) == tag_tra) {
       offset = (((unsigned *)ra)[-1]);
       if (offset == 0) {
