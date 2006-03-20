@@ -1,3 +1,27 @@
+2006-03-19 20:20  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Add the xtra slot to
+	lisp-frame.  yield syscall, gf-code-size.
+
+2006-03-19 20:19  gb
+
+	* compiler/X86/x862.lisp: Fix some lexpr confusion, mv-call
+	recursive problems.
+
+2006-03-19 20:18  gb
+
+	* compiler/X86/x86-lapmacros.lisp: SAVE-FRAME-VARIABLE-ARG-COUNT,
+	CALL-SUBPRIM.
+
+2006-03-19 20:17  gb
+
+	* compiler/X86/x86-lap.lisp: Support :CODE-SIZE and :ORG
+	directives.  Change :CONSTANTS to :FIXED-CONSTANTS.
+
+2006-03-19 20:16  gb
+
+	* compiler/nx1.lisp: Can use MAKE-ARRAY rather than MAKE-SEQUENCE.
+
 2006-03-17 23:38  gb
 
 	* xdump/xfasload.lisp: Special case references to NIL in package
