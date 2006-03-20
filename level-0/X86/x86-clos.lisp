@@ -19,236 +19,192 @@
 ;;; It's easier to keep this is LAP; we want to play around with its
 ;;; constants.
 
-(eval-when (:compile-toplevel)
-  (warn "Need slot lookup, other CLOS glue for x8664"))
 
-#+notyet
-(progn
 ;;; This just maps a SLOT-ID to a SLOT-DEFINITION or NIL.
 ;;; The map is a vector of (UNSIGNED-BYTE 8); this should
-;;; be used when there are less than 255 slots in the class.
+;;; be used when there are fewer than 255 slots in the class.
 (defx86lapfunction %small-map-slot-id-lookup ((slot-id arg_z))
-  (ldr temp1 'map nfn)
-  (svref arg_x slot-id.index slot-id)
-  (getvheader imm0 temp1)
-  (header-length imm3 imm0)
-  (ldr temp0 'table nfn)
-  (cmplr arg_x imm3)
-  (srri imm0 arg_x target::word-shift)
-  (la imm0 target::misc-data-offset imm0)
-  (li imm1 target::misc-data-offset)
-  (bge @have-scaled-table-index)
-  (lbzx imm1 temp1 imm0)
-  (slri imm1 imm1 target::word-shift)
-  (la imm1 target::misc-data-offset imm1)
-  @have-scaled-table-index
-  (ldrx arg_z temp0 imm1)
-  (blr))
+  (movq (@ 'map (% fn)) (% temp1))
+  (svref slot-id slot-id.index arg_x)
+  (vector-length temp1 imm0)
+  (xorl (%l imm1) (%l imm1))
+  (rcmpq (% arg_x) (% imm0))
+  (movq (@ 'table (% fn)) (% temp0))
+  (ja @have-table-index)
+  (movq (% arg_x) (% imm1))
+  (shrq ($ x8664::word-shift) (% imm1))
+  (movzbl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
+  (shlq ($ x8664::word-shift) (% imm1))
+  @have-table-index
+  (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
+  (single-value-return))
 
 ;;; The same idea, only the map is a vector of (UNSIGNED-BYTE 32).
 (defx86lapfunction %large-map-slot-id-lookup ((slot-id arg_z))
-  (ldr temp1 'map nfn)
-  (svref arg_x slot-id.index slot-id)
-  (getvheader imm0 temp1)
-  (header-length imm3 imm0)
-  (ldr temp0 'table nfn)
-  (cmplr arg_x imm3)
-  #+ppc64-target
-  (progn
-    (srdi imm0 imm0 1)
-    (la imm0 target::misc-data-offset imm0))
-  #+pp32-target
-  (progn
-    (la imm0 target::misc-data-offset arg_x))
-  (li imm1 target::misc-data-offset)
-  (bge @have-scaled-table-index)
-  (lwzx imm1 temp1 imm0)
-  (slri imm1 imm1 target::word-shift)
-  (la imm1 target::misc-data-offset imm1)
-  @have-scaled-table-index
-  (ldrx arg_z temp0 imm1)
-  (blr))
+  (movq (@ 'map (% fn)) (% temp1))
+  (svref slot-id slot-id.index arg_x)
+  (vector-length temp1 imm0)
+  (xorl (%l imm1) (%l imm1))
+  (rcmpq (% arg_x) (% imm0))
+  (movq (@ 'table (% fn)) (% temp0))
+  (ja @have-table-index)
+  (movq (% arg_x) (% imm1))
+  (shrq ($ 1) (% imm1))
+  (movl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
+  @have-table-index
+  (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
+  (single-value-return))
+
 
 (defx86lapfunction %small-slot-id-value ((instance arg_y) (slot-id arg_z))
-  (ldr temp1 'map nfn)
-  (svref arg_x slot-id.index slot-id)
-  (getvheader imm0 temp1)
-  (ldr temp0 'table nfn)
-  (header-length imm3 imm0)
-  (cmplr arg_x imm3)
-  (srri imm0 arg_x target::word-shift)
-  (la imm0 target::misc-data-offset imm0)
-  (bge @missing)
-  (lbzx imm1 temp1 imm0)
-  (cmpri imm1 0)
-  (slri imm1 imm1 target::word-shift)
-  (la imm1 target::misc-data-offset imm1)
-  (beq @missing)
-  @have-scaled-table-index
-  (ldrx arg_z temp0 imm1)
-  (ldr arg_x 'class nfn)
-  (ldr nfn '%maybe-std-slot-value nfn)
-  (ldr temp0 target::misc-data-offset nfn)
+  (movq (@ 'map (% fn)) (% temp1))
+  (svref slot-id slot-id.index arg_x)
+  (vector-length temp1 imm0)
+  (xorl (%l imm1) (%l imm1))
+  (rcmpq (% arg_x) (% imm0))
+  (movq (@ 'table (% fn)) (% temp0))
+  (ja @missing)
+  (movq (% arg_x) (% imm1))
+  (shrq ($ x8664::word-shift) (% imm1))
+  (movzbl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
+  (testl (%l imm1) (%l imm1))
+  (je @missing)
+  (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
+  (movq (@ 'class (% fn)) (% arg_x))
+  (movq (@ '%maybe-std-stlo-value (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (mtctr temp0)
-  (bctr)
+  (jmp (% fn))
   @missing                              ; (%slot-id-ref-missing instance id)
-  (ldr nfn '%slot-id-ref-missing nfn)
+  (movq (@'%slot-id-ref-missing (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 2)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+  (jmp (% fn)))
 
 (defx86lapfunction %large-slot-id-value ((instance arg_y) (slot-id arg_z))
-  (ldr temp1 'map nfn)
-  (svref arg_x slot-id.index slot-id)
-  (getvheader imm0 temp1)
-  (ldr temp0 'table nfn)
-  (header-length imm3 imm0)
-  (cmplr arg_x imm3)
-  #+ppc64-target
-  (progn
-    (srdi imm0 arg_x 1)
-    (la imm0 target::misc-data-offset imm0))
-  #+ppc32-target
-  (progn
-    (la imm0 target::misc-data-offset arg_x))
-  (bge @missing)
-  (lwzx imm1 temp1 imm0)
-  (cmpri imm1 0)
-  (slri imm1 imm1 target::word-shift)
-  (la imm1 target::misc-data-offset imm1)
-  (beq @missing)
-  @have-scaled-table-index
-  (ldr arg_x 'class nfn)
-  (ldr nfn '%maybe-std-slot-value-using-class nfn)
-  (ldrx arg_z temp0 imm1)
-  (ldr temp0 target::misc-data-offset nfn)
+  (movq (@ 'map (% fn)) (% temp1))
+  (svref slot-id slot-id.index arg_x)
+  (vector-length temp1 imm0)
+  (xorl (%l imm1) (%l imm1))
+  (rcmpq (% arg_x) (% imm0))
+  (movq (@ 'table (% fn)) (% temp0))
+  (ja @missing)
+  (movq (% arg_x) (% imm1))
+  (shrq ($ 1) (% imm1))
+  (movl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
+  (testl (%l imm1) (%l imm1))
+  (je @missing)
+  (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
+  (movq (@ 'class (% fn)) (% arg_x))
+  (movq (@ '%maybe-std-stlo-value (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (mtctr temp0)
-  (bctr)
+  (jmp (% fn))
   @missing                              ; (%slot-id-ref-missing instance id)
-  (ldr nfn '%slot-id-ref-missing nfn)
+  (movq (@'%slot-id-ref-missing (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 2)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+  (jmp (% fn)))
+
   
 (defx86lapfunction %small-set-slot-id-value ((instance arg_x)
                                              (slot-id arg_y)
                                              (new-value arg_z))
-  (ldr temp1 'map nfn)
-  (svref imm3 slot-id.index slot-id)
-  (getvheader imm0 temp1)
-  (ldr temp0 'table nfn)
-  (header-length imm5 imm0)
-  (cmplr imm3 imm5)
-  (srri imm0 imm3 target::word-shift)
-  (la imm0 target::misc-data-offset imm0)
-  (bge @missing)
-  (lbzx imm1 temp1 imm0)
-  (cmpwi imm1 0)
-  (slri imm1 imm1 target::word-shift)
-  (la imm1 target::misc-data-offset imm1)
-  (beq @missing)
-  @have-scaled-table-index
-  (ldr temp1 'class nfn)
-  (ldrx arg_y temp0 imm1)
-  (ldr nfn '%maybe-std-setf-slot-value-using-class nfn)
+  (movq (@ 'map (% fn)) (% temp1))
+  (svref slot-id slot-id.index arg_x)
+  (vector-length temp1 imm0)
+  (xorl (%l imm1) (%l imm1))
+  (rcmpq (% arg_x) (% imm0))
+  (movq (@ 'table (% fn)) (% temp0))
+  (ja @missing)
+  (movq (% arg_x) (% imm1))
+  (shrq ($ x8664::word-shift) (% imm1))
+  (movzbl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
+  (testl (%l imm1) (%l imm1))
+  (je @missing)
+  (pushq ($ 0))                         ; reserve frame
+  (pushq ($ 0))
+  (pushq (@ 'class (% fn)))
+  (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_x))
+  (movq (@ '%maybe-std-stlo-value (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 4)
-  (ldr temp0 target::misc-data-offset nfn)
-  (vpush temp1)
-  (mtctr temp0)
-  (bctr)
+  (jmp (% fn))
   @missing                              ; (%slot-id-set-missing instance id new-value)
-  (ldr nfn '%slot-id-ref-missing nfn)
+  (movq (@'%slot-id-ref-missing (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+  (jmp (% fn)))
+
 
 (defx86lapfunction %large-set-slot-id-value ((instance arg_x)
                                              (slot-id arg_y)
                                              (new-value arg_z))
   (movq (@ 'map (% fn)) (% temp1))
-  (vector-length (% temp1) (% temp0))
-  (ldr temp1 'map nfn)
-  (svref imm3 slot-id.index slot-id)
-  (getvheader imm0 temp1)
-  (ldr temp0 'table nfn)
-  (header-length imm5 imm0)
-  (cmplw imm3 imm5)
-  #+ppc64-target (srdi imm3 imm3 1)
-  (la imm0 target::misc-data-offset imm3)
-  (bge @missing)
-  (lwzx imm1 temp1 imm0)
-  (cmpwi imm1 0)
-  (la imm1 target::misc-data-offset imm1)
-  (beq @missing)
-  @have-scaled-table-index
-  (ldr temp1 'class nfn)
-  (ldrx arg_y temp0 imm1)
-  (ldr nfn '%maybe-std-setf-slot-value-using-class nfn)
+  (svref slot-id slot-id.index arg_x)
+  (vector-length temp1 imm0)
+  (xorl (%l imm1) (%l imm1))
+  (rcmpq (% arg_x) (% imm0))
+  (movq (@ 'table (% fn)) (% temp0))
+  (ja @missing)
+  (movq (% arg_x) (% imm1))
+  (shrq ($ 1) (% imm1))
+  (movl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
+  (testl (%l imm1) (%l imm1))
+  (je @missing)
+  (pushq ($ 0))                         ; reserve frame
+  (pushq ($ 0))
+  (pushq (@ 'class (% fn)))
+  (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_x))
+  (movq (@ '%maybe-std-stlo-value (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 4)
-  (svref temp0 0 nfn)
-  (vpush temp1)
-  (mtctr temp0)
-  (bctr)
+  (jmp (% fn))
   @missing                              ; (%slot-id-set-missing instance id new-value)
-  (ldr nfn '%slot-id-ref-missing nfn)
+  (movq (@'%slot-id-ref-missing (% fn)) (% xfn))
+  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+  (jmp (% fn)))
 
+
+;;; All of the generic function trampoline functions have to be
+;;; exactly the same size (x8664::gf-code-size) in words.  The
+;;; largest of these - the general-case *GF-PROTO* - is currently
+;;; "really" a little under 15 words, so X8664::GF-CODE-SIZE is
+;;; just a little bigger than that.
 (defparameter *gf-proto*
   (nfunction
    gag
    (lambda (&lap &lexpr args)
-     (ppc-lap-function 
+     (x86-lap-function 
       gag 
       ()
-      (mflr loc-pc)
-      (vpush-argregs)
-      (vpush nargs)
-      (add imm0 vsp nargs)
-      (la imm0 (ash 1 target::word-shift) imm0)                  ; caller's vsp
-      (bla .SPlexpr-entry)
-      (mtlr loc-pc)                     ; return to kernel
-      (mr arg_z vsp)                    ; lexpr
-      (svref arg_y gf.dispatch-table nfn) ; dispatch table
+      (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
+      (:code-size x8664::gf-code-size)
+      (save-frame-variable-arg-count)
+      (push-argregs)
+      (movzwl (% nargs) (%l nargs))
+      (pushq (%q nargs))
+      (movq (% rsp) (% arg_z))
+      (ref-global ret1valaddr imm0)
+      (cmpq (% ra0) (% imm0))
+      (je @multiple)
+      (ref-global lexpr-return1v ra0)
+      (jmp @call)
+      @multiple
+      (pushq (@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return))))
+      (movq (% imm0) (% ra0))
+      @call
+      (movq (@ 'dispatch-table (% fn)) (% arg_y))
       (set-nargs 2)
-      (svref nfn gf.dcode nfn)		; dcode function
-      (ldr temp0 target::misc-data-offset nfn)
-      (mtctr temp0)
-      (bctr)))))
-
-#+notyet
-(defx86lapfunction funcallable-trampoline ()
-  (svref nfn gf.dcode nfn)
-  (svref temp0 0 nfn)
-  (mtctr temp0)
-  (bctr))
-
-
-#+notyet
-(defx86lapfunction unset-fin-trampoline ()
-  (mflr loc-pc)
-  (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
-  (vpop arg_z)                          ; whoops, didn't really want to
-  (bla .SPsavecontextvsp)
-  (ldr arg_x '"Funcallable instance ~S was called with args ~s, but has no FUNCALLABLE-INSTANCE-FUNCTION" fn)
-  (mr arg_y fn)
-  (set-nargs 3)
-  (ldr fname 'error fn)
-  (bla .SPrestorecontext)
-  (mtlr loc-pc)
-  (ba .SPjmpsym))
-
+      (movq (@ 'dcode (% fn)) (% xfn))  ; dcode function
+      (xchgq (% xfn) (% fn))
+      (jmp (% fn))))))
 
 ;;; is a winner - saves ~15%
 (defx86lapfunction gag-one-arg ((arg arg_z))
-  (:constants (class-wrapper slots dispatch-table dcode hash))
+  (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
+  (:code-size x8664::gf-code-size)
   (check-nargs 1)
   (movq (@ 'dispatch-table (% fn)) (% arg_y))
   (set-nargs 2)
@@ -256,10 +212,9 @@
   (movq (@ 'dcode (% fn)) (% fn))
   (jmp (% fn)))
 
-
-
 (defx86lapfunction gag-two-arg ((arg0 arg_y) (arg1 arg_z))
-  (:constants (class-wrapper slots dispatch-table dcode hash))
+  (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
+  (:code-size x8664::gf-code-size)
   (check-nargs 2)
   (movq (@ 'dispatch-table (% fn)) (% arg_x))
   (set-nargs 3)
@@ -269,27 +224,61 @@
   (movq (@ 'dcode (% fn)) (% fn))
   (jmp (% fn)))
 
+
+
+(defx86lapfunction funcallable-trampoline ()
+  (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
+  (:code-size x8664::gf-code-size)
+  (movq (@ 'dcode (% fn)) (% xfn))
+  (xchgq (% fn) (% xfn))
+  (jmp (% fn)))
+
+
+;;; This is in LAP so that it can reference itself in the error message.
+;;; (It needs to be cloned, so %fn will be unique to each copy.)
+;;; It can't work for this to reference any of its own constants.
+(defx86lapfunction unset-fin-trampoline ()
+  (:code-size x8664::gf-code-size)
+  (save-frame-variable-arg-count)
+  (call-subprim .SPheap-rest-arg nil)
+  (pop (% arg_z))
+  (movq ($ '#.$XNOFINFUNCTION) (% arg_x))
+  (movq (% fn) (% arg_y))
+  (leave)
+  (pop (% ra0))
+  (jmp-subprim .SPksignalerr))
+
+
+
+
 (defparameter *cm-proto*
   (nfunction
    gag
    (lambda (&lap &lexpr args)
-     (ppc-lap-function 
+     (x86-lap-function 
       gag 
       ()
-      (mflr loc-pc)
-      (vpush-argregs)
-      (vpush nargs)
-      (add imm0 vsp nargs)
-      (la imm0 target::node-size imm0)                  ; caller's vsp
-      (bla .SPlexpr-entry)
-      (mtlr loc-pc)                     ; return to kernel
-      (mr arg_z vsp)                    ; lexpr
-      (svref arg_y combined-method.thing nfn) ; thing
+      (:fixed-constants (thing dcode gf bits))
+      (save-frame-variable-arg-count)
+      (push-argregs)
+      (movzwl (% nargs) (%l nargs))
+      (pushq (%q nargs))
+      (movq (% rsp) (% arg_z))
+      (ref-global ret1valaddr imm0)
+      (cmpq (% ra0) (% imm0))
+      (je @multiple)
+      (ref-global lexpr-return1v ra0)
+      (jmp @call)
+      @multiple
+      (pushq (@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return))))
+      (movq (% imm0) (% ra0))
+      @call
+      (movq (@ 'thing (% fn)) (% arg_y))
+      (movq (@ 'dcode (% fn)) (% xfn))
       (set-nargs 2)
-      (svref nfn combined-method.dcode nfn) ; dcode function
-      (ldr temp0 target::misc-data-offset nfn)
-      (mtctr temp0)
-      (bctr)))))
+      (xchgq (% xfn) (% fn))
+      (jmp (% fn))))))
 
-)
+
+
 
