@@ -1,3 +1,7 @@
+2006-03-20 10:05  gwking
+
+	* lib/ccl-export-syms.lisp: Exporting getenv and setenv from CCL
+
 2006-03-19 20:30  gb
 
 	* lisp-kernel/x86-spentry64.s: Old-style destructuring, VALUES.
