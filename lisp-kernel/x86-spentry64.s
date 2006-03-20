@@ -20,6 +20,7 @@
 	
         .align 2
 define([_spentry],[ifdef([__func_name],[_endfn],[])
+	.p2align 3
 	_exportfn(_SP$1)
 	.line  __line__
 ])
@@ -1218,7 +1219,7 @@ _spentry(setqsym)
 _endsubp(setqsym)
 
 _spentry(progvsave)
-	
+	__(int $3)	
 _endsubp(progvsave)
 
 /* Allocate node objects on the temp stack, immediate objects on the foreign
@@ -1345,7 +1346,27 @@ _spentry(nthvalue)
 _endsubp(nthvalue)
 
 _spentry(values)
-	__(int $3)
+	__(ref_global(ret1val_addr,%imm1))
+	__(cmpq %imm1,%ra0)
+	__(movzwl %nargs,%nargs_l)
+	__(movl $nil_value,%arg_z_l)
+	__(je 0f)
+	__(testw %nargs,%nargs)
+	__(cmovneq -node_size(%rsp,%nargs_q),%arg_z)
+	__(movq %temp0,%rsp)
+	__(jmp *%ra0)
+0:	__(movq (%temp0),%ra0)
+	__(lea node_size(%temp0),%temp0)
+	__(lea (%rsp,%nargs_q),%imm0)
+	__(jmp 2f)
+1:	__(lea -node_size(%imm0),%imm0)
+	__(movq (%imm0),%temp1)
+	__(lea -node_size(%temp0),%temp0)
+	__(movq %temp1,(%temp0))
+2:	__(cmpq %imm0,%rsp)
+	__(jne 1b)
+	__(movq %temp0,%rsp)
+	__(jmp *%ra0)	
 _endsubp(values)
 
 _spentry(default_optional_args)
@@ -1777,7 +1798,7 @@ _spentry(spreadargz)
 	__(je 3b)
 	__(jmp *%ra0)
 /* Discard everything that's been pushed already, complain */
-9:	__(lea 2*node_size(%rsp,%imm0),%rsp)
+9:	__(lea (%rsp,%imm0),%rsp)
 	__(movq %arg_y,%arg_z)	/* recover original */
 	__(movq $XNOSPREAD,%arg_y)
 	__(set_nargs(2))
@@ -2076,15 +2097,222 @@ local_label(misc_alloc_not_u56):
 _endsubp(misc_alloc)
 
 
+_startfn(C(destbind1))
+	/* Save entry %rsp in case of error */
+	__(movd %rsp,%mm0)
+	/* Extract required arg count. */
+	__(movzbl %nargs_b,%imm0_l)
+	__(je local_label(opt))		/* skip if no required args */
+local_label(req_loop):	
+	__(compare_reg_to_nil(%arg_reg))
+	__(je local_label(toofew))
+	__(extract_lisptag(%arg_reg,%imm1))
+	__(cmpb $tag_list,%imm1_b)
+	__(jne local_label(badlist))
+	__(subb $1,%imm0_b)
+	__(pushq cons.car(%arg_reg))
+	__(_cdr(%arg_reg,%arg_reg))
+	__(jne local_label(req_loop))
+local_label(opt):	
+	__(movw %nargs,%imm0_w)
+	__(shrl $8,%imm0_l)
+	__(je local_label(rest_keys))
+	__(btl $initopt_bit,%nargs_l)
+	__(jc local_label(opt_supp))
+	/* 'simple' &optionals:	 no supplied-p, default to nil. */
+local_label(simple_opt_loop):
+	__(compare_reg_to_nil(%arg_reg))
+	__(je local_label(default_simple_opt))
+	__(extract_lisptag(%arg_reg,%imm1))
+	__(cmpb $tag_list,%imm1_b)
+	__(jne local_label(badlist))
+	__(subb $1,%imm0_b)
+	__(pushq cons.car(%arg_reg))
+	__(_cdr(%arg_reg,%arg_reg))
+	__(jne local_label(simple_opt_loop))
+	__(jmp local_label(rest_keys))
+local_label(default_simple_opt):
+	__(subb $1,%imm0_b)
+	__(pushq $nil_value)
+	__(jne local_label(default_simple_opt))
+	__(jmp local_label(rest_keys))
+local_label(opt_supp):
+	__(extract_lisptag(%arg_reg,%imm1))
+	__(compare_reg_to_nil(%arg_z))
+	__(je local_label(default_hard_opt))
+	__(cmpb $tag_list,%imm1_b)
+	__(jne local_label(badlist))
+	__(subb $1,%imm0_b)
+	__(pushq cons.car(%arg_reg))
+	__(_cdr(%arg_reg,%arg_reg))
+	__(push $t_value)
+	__(jne local_label(opt_supp))
+	__(jmp local_label(rest_keys))
+local_label(default_hard_opt):
+	__(subb $1,%imm0_b)
+	__(push $nil_value)
+	__(push $nil_value)
+	__(jne local_label(default_hard_opt))	
+local_label(rest_keys):	
+	__(btl $restp_bit,%nargs_l)
+	__(jc local_label(have_rest))
+	__(btl $keyp_bit,%nargs_l)
+	__(jc local_label(have_keys))
+	__(compare_reg_to_nil(%arg_reg))
+	__(jne local_label(toomany))
+	__(jmp *%ra0)
+local_label(have_rest):
+	__(pushq %arg_reg)
+	__(btl $keyp_bit,%nargs_l)
+	__(jc local_label(have_keys))
+	__(jmp *%ra0)		
+	/* Ensure that arg_reg contains a proper,even-length list.
+	   Insist that its length is <= 512 (as a cheap circularity check.) */
+local_label(have_keys):
+	__(movw $256,%imm0_w)
+	__(movq %arg_reg,%arg_y)
+local_label(count_keys_loop):	
+	__(compare_reg_to_nil(%arg_y))
+	__(je local_label(counted_keys))
+	__(subw $1,%imm0_w)
+	__(jl local_label(toomany))
+	__(extract_lisptag(%arg_y,%imm1))
+	__(cmpb $tag_list,%imm1_b)
+	__(jne local_label(badlist))
+	__(_cdr(%arg_y,%arg_y))
+	__(extract_fulltag(%arg_y,%imm1))
+	__(cmpb $fulltag_cons,%imm1_b)
+	__(jne local_label(badlist))
+	__(_cdr(%arg_y,%arg_y))
+	__(jmp local_label(count_keys_loop))
+local_label(counted_keys):		
+	/* 
+	  We've got a proper, even-length list of key/value pairs in
+	  arg_reg. For each keyword var in the lambda-list, push a pair
+	  of NILs on the vstack. 
+	*/
+	__(movl %nargs_l,%imm1_l)
+	__(shrl $16,%imm1_l)
+	__(movzbl %imm1_b,%imm0_l)
+	__(movq %rsp,%arg_y)
+	__(jmp local_label(push_pair_test))	
+local_label(push_pair_loop):
+	__(push $nil_value)
+	__(push $nil_value)
+local_label(push_pair_test):	
+	__(subb $1,%imm1_b)
+	__(jge local_label(push_pair_loop))
+	/* Push the %saveN registers, so that we can use them in this loop */
+	__(push %save0)
+	__(push %save1)
+	__(push %save2)
+	__(push %save3)
+	/* save0 points to the 0th value/supplied-p pair */
+	__(movq %arg_y,%save0)
+	/* save1 is the length of the keyword vector */
+	__(vector_length(%arg_x,%save1))
+	/* save2 is the current keyword */
+	/* save3 is the value of the current keyword */
+	__(xorl %imm0_l,%imm0_l)	/* count unknown keywords seen */
+local_label(match_keys_loop):
+	__(compare_reg_to_nil(%arg_reg))
+	__(je local_label(matched_keys))
+	__(_car(%arg_reg,%save2))
+	__(_cdr(%arg_reg,%arg_reg))
+	__(_car(%arg_reg,%save3))
+	__(_cdr(%arg_reg,%arg_reg))
+	__(xorl %arg_y_l,%arg_y_l)
+	__(jmp local_label(match_test))
+local_label(match_loop):
+	__(cmpq misc_data_offset(%arg_x,%arg_y),%save2)
+	__(je local_label(matched))
+	__(addq $node_size,%arg_y)
+local_label(match_test):
+	__(cmpq %arg_y,%save1)
+	__(jne local_label(match_loop))
+	/* No match.  Note unknown keyword, check for :allow-other-keys */
+	__(addl $1,%imm0_l)
+	__(cmpq $nrs.kallowotherkeys,%save2)
+	__(jne local_label(match_keys_loop))
+	__(subl $1,%imm0_l)
+	__(btsl $seen_aok_bit,%nargs_l)
+	__(jnc local_label(match_keys_loop))
+	/* First time we've seen :allow-other-keys.  Maybe set aok_bit. */
+	__(compare_reg_to_nil(%save3))
+	__(je local_label(match_keys_loop))
+	__(btsl $aok_bit,%nargs_l)
+	__(jmp local_label(match_keys_loop))
+	/* Got a match.  Worry about :allow-other-keys here, too. */
+local_label(matched):
+	__(negq %arg_y)
+	__(cmpb $fulltag_nil,-node_size*2(%save0,%arg_y,2))
+	__(jne local_label(match_keys_loop))
+	__(movq %save3,-node_size(%save0,%arg_y,2))
+	__(movl $t_value,-node_size*2(%save0,%arg_y,2))
+	__(cmpq $nrs.kallowotherkeys,%save2)
+	__(jne local_label(match_keys_loop))
+	__(btsl $seen_aok_bit,%nargs_l)
+	__(jnc local_label(match_keys_loop))
+	__(compare_reg_to_nil(%save3))
+	__(je local_label(match_keys_loop))
+	__(btsl $aok_bit,%nargs_l)
+	__(jmp local_label(match_keys_loop))
+local_label(matched_keys):		
+	__(pop %save3)
+	__(pop %save2)
+	__(pop %save1)
+	__(pop %save0)
+	__(testl %imm0_l,%imm0_l)
+	__(je local_label(keys_ok)) 
+	__(btl $aok_bit,%nargs_l)
+	__(jnc local_label(badkeys))
+local_label(keys_ok):	
+	__(jmp *%ra0)
+	/* Some unrecognized keywords.  Complain generically about */
+	/* invalid keywords. */
+local_label(badkeys):
+	__(movq $XBADKEYS,%arg_y)
+	__(jmp local_label(destructure_error))
+local_label(toomany):
+	__(movq $XCALLTOOMANY,%arg_y)
+	__(jmp local_label(destructure_error))
+local_label(toofew):
+	__(movq $XCALLTOOFEW,%arg_y)
+	__(jmp local_label(destructure_error))
+local_label(badlist):
+	__(movq $XCALLNOMATCH,%arg_y)
+	/* jmp local_label(destructure_error) */
+local_label(destructure_error):
+	__(movd %mm0,%rsp)		/* undo everything done to the stack */
+	__(movq %whole_reg,%arg_z)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
+_endfn(C(destbind1))	
 
 _spentry(macro_bind)
+	__(movq %arg_reg,%whole_reg)
+	__(extract_lisptag(%arg_reg,%imm0))
+	__(cmpb $tag_list,%imm0_b)
+	__(jne 1f)
+	__(_cdr(%arg_reg,%arg_reg))
+	__(jmp C(destbind1))
+1:	__(movq $XCALLNOMATCH,%arg_y)
+	__(movq %whole_reg,%arg_z)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
 _endsubp(macro_bind)
 
 _spentry(destructuring_bind)
+	__(movq %arg_reg,%whole_reg)
+	__(jmp C(destbind1))
 _endsubp(destructuring_bind)
 
 _spentry(destructuring_bind_inner)
+	__(movq %arg_z,%whole_reg)
+	__(jmp C(destbind1))
 _endsubp(destructuring_bind_inner)
+
+	
 
 
 _spentry(vpopargregs)
@@ -2173,6 +2401,7 @@ _endsubp(add_values)
    Discard the tsp frame; leave values atop the sp. */
 	
 _spentry(recover_values)
+	__(int $3)
 _endsubp(recover_values)
 				
 _spentry(reset)
