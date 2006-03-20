@@ -591,7 +591,8 @@
 
 (define-storage-layout lisp-frame 0
   backptr
-  return-address)
+  return-address
+  xtra)
 
 ;;; The kernel uses these (rather generically named) structures
 ;;; to keep track of various memory regions it (or the lisp) is
@@ -710,6 +711,12 @@
 (define-header symbol-header symbol.element-count subtag-symbol)
 (define-header value-cell-header value-cell.element-count subtag-value-cell)
 (define-header macptr-header macptr.element-count subtag-macptr)
+
+#+x86-target
+(defconstant yield-syscall
+  #+linux-target 24)
+
+(defconstant gf-code-size 16)
 
 (defun %kernel-global (sym)
   (let* ((pos (position sym x86::*x86-kernel-globals* :test #'string=)))
@@ -1228,5 +1235,6 @@
 
 (defx8664archmacro ccl::symvector->symptr (s)
   `(ccl::%symvector->symptr ,s))
+
 
 (provide "X8664-ARCH")
