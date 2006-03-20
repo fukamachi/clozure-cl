@@ -572,6 +572,9 @@
      xload-level-0
      rebuild-ccl
      defglobal
+
+     #:getenv
+     #:setenv
      ) "CCL"
    )
   )
