@@ -24,7 +24,7 @@
     (6 . "Undefined function: ~S .")
     (7 . "Can't take CAR of ~S.")
     (8 . "Can't coerce ~S to ~S")
-    (9 . "System version 6.04 or later, MacPlus ROMs or later required.")
+    (9 . "Funcallable instance ~S was called with args ~s, but has no FUNCALLABLE-INSTANCE-FUNCTION")
     (10 . "Out of memory.")
     (11 . "Default image file not found.")
     (12 . "No translation for ~S")
