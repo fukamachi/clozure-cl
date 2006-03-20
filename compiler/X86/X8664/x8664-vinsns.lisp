@@ -1303,10 +1303,11 @@
   (movb (:%b x8664::temp0) (:%b tag))
   (andb (:$b x8664::fulltagmask) (:%b tag))
   (cmpb (:$b x8664::fulltag-symbol) (:%b tag))
-  (movq (:%q x8664::fn) (:%q x8664::xfn))
   (cmovgq (:%q x8664::temp0) (:%q x8664::fn))
   (jl :bad)
   (cmoveq (:@ x8664::symbol.fcell (:%q x8664::fname)) (:%q x8664::fn))
+  (movq (:@ (+ x8664::nil-value (x8664::%kernel-global 'x86::ret1valaddr)))
+        (:%q x8664::ra0))
   (jmp (:%q x8664::fn))
   :bad
   (uuo-error-not-callable)
@@ -2583,8 +2584,7 @@
 
    
 (define-x8664-vinsn save-lexpr-argregs (()
-                                        ((min-fixed :u16const))
-                                        ((arg-temp :imm)))
+                                        ((min-fixed :u16const)))
   ((:pred >= min-fixed $numx8664argregs)
    (pushq (:%q x8664::arg_x))
    (pushq (:%q x8664::arg_y))
@@ -2620,30 +2620,46 @@
    :none
    )
   (movzwl (:%w x8664::nargs) (:%l x8664::nargs))
-  ((:pred = min-fixed 0)
-   (pushq (:%q x8664::nargs)))
   ((:not (:pred = min-fixed 0))
    (leaq (:@ (:apply - (:apply ash min-fixed x8664::word-shift)) (:%q x8664::nargs))
-         (:%q arg-temp))
-   (pushq (:%q arg-temp)))
-  (movq (:%q x8664::rbp) (:@ x8664::node-size (:%q x8664::rsp) (:%q x8664::nargs)))
-  (leaq (:@ x8664::node-size (:%q x8664::rsp) (:%q x8664::nargs)) (:%q x8664::rbp))
-  (cmpq (:%q x8664::ra0) (:@ (+ x8664::nil-value (x8664::%kernel-global 'ret1valaddr))))
-  (movq (:%q x8664::ra0) (:@ x8664::lisp-frame.return-address (:%q x8664::rbp)))
-  (movq (:%q x8664::rsp) (:%q x8664::arg_z))
-  (je :single-value-return)
-  (pushq (:@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return))))
-  (pushq (:%q x8664::rbp))
-  (movq (:%q x8664::rsp) (:%q x8664::rbp))
-  (jmp :done)
-  :single-value-return
-  (movq (:@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return1v)))
+         (:%q x8664::nargs)))
+  (pushq (:%q x8664::nargs))
+  (movq (:%q x8664::rsp) (:%q x8664::arg_z)))
+
+
+
+
+;;; The frame that was built (by SAVE-LISP-CONTEXT-VARIABLE-ARG-COUNT
+;;; and SAVE-LEXPR-ARGREGS) contains an unknown number of arguments
+;;; followed by the count of non-required arguments; the count is on
+;;; top of the stack and its address is in %arg_z.  We need to build a
+;;; frame so that the function can address its arguments (copies of
+;;; the required arguments and the lexpr) and locals; when the
+;;; function returns, it should one or more values (depending on how
+;;; it was called) and discard the hidden lexpr frame.  At this point,
+;;; %ra0 still contains the "real" return address. If it's not the
+;;; magic multiple-value address, we can make the function return to
+;;; something that does a single-value return (.SPpopj); otherwise, we
+;;; need to make it return multiple values to the real caller. (Unlike
+;;; the PPC, this case only involves creating one frame here, but that
+;;; frame has two return addresses.)
+(define-x8664-vinsn build-lexpr-frame (()
+                                       ()
+                                       ((temp :imm)))
+  (movq (:@ (+ x8664::nil-value (x8664::%kernel-global 'x86::ret1valaddr)))
+        (:%q temp))
+  (cmpq (:%q temp)
         (:%q x8664::ra0))
-  :done
-  ;; One more stack frame ? sure ...
-  (pushq (:%q x8664::ra0))
+  (je :multiple)
+  (pushq (:@ (+ x8664::nil-value (x8664::%kernel-global 'x86::lexpr-return1v))))
+  (jmp :finish)
+  :multiple
+  (pushq (:@ (+ x8664::nil-value (x8664::%kernel-global 'x86::lexpr-return))))
+  (pushq (:%q temp))
+  :finish
   (pushq (:%q x8664::rbp))
   (movq (:%q x8664::rsp) (:%q x8664::rbp)))
+
 
 (define-x8664-vinsn copy-lexpr-argument (()
 					 ((n :u16const))
@@ -3052,14 +3068,14 @@
                                             ())
   (testw (:%w x8664::nargs) (:%w x8664::nargs))
   (je :done)
-  (rcmpw (:%w x8664::nargs) (:%w (ash 2 x8664::word-shift)))
-  (jle :yz)
+  (rcmpw (:%w x8664::nargs) (:$w (ash 2 x8664::word-shift)))
+  (jb :z)
+  (je :yz) 
   (popq (:%q x8664::arg_x))
   :yz
-  (jne :z)
   (popq (:%q x8664::arg_y))
   :z
-  (popq (:%q x8664::arg_x))
+  (popq (:%q x8664::arg_z))
   :done)
 
 (define-x8664-vinsn %symptr->symvector (((target :lisp))
@@ -3072,3 +3088,27 @@
 
 
 (define-x8664-subprim-call-vinsn (spread-lexpr)  .SPspread-lexpr-z)
+
+(define-x8664-vinsn mem-ref-double-float (((dest :double-float))
+                                           ((src :address)
+                                            (index :s64)))
+  (movsd (:@ (:%q src) (:%q index)) (:%xmm dest)))
+
+(define-x8664-vinsn mem-ref-single-float (((dest :single-float))
+                                           ((src :address)
+                                            (index :s64)))
+  (movss (:@ (:%q src) (:%q index)) (:%xmm dest)))
+
+(define-x8664-vinsn zero-extend-nargs (()
+                                       ())
+  (movzwl (:%w x8664::nargs) (:%l x8664::nargs)))
+
+(define-x8664-vinsn load-adl (()
+			      ((n :u32const)))
+  (movl (:$l n) (:%l x8664::nargs)))
+
+(define-x8664-subprim-call-vinsn (macro-bind) .SPmacro-bind)
+
+(define-x8664-subprim-call-vinsn (destructuring-bind-inner) .SPdestructuring-bind-inner)
+
+(define-x8664-subprim-call-vinsn (destructuring-bind) .SPdestructuring-bind)
