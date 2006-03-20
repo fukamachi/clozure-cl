@@ -1703,7 +1703,7 @@
          (arglist nil)
          var-bound-vars
          vars vals vars* vals*)
-    ; If the lambda list contains &LEXPR, we can't do it.  Yet.
+    ;; If the lambda list contains &LEXPR, we can't do it.  Yet.
     (multiple-value-bind (ok req opttail resttail) (verify-lambda-list lambda-list)
       (declare (ignore req opttail))
       (when (and ok (eq (%car resttail) '&lexpr))
@@ -1759,7 +1759,7 @@
                                 (eq (%cadr keyword) :allow-other-keys))
                         (return (setq punt t)))))
                   (do* ((nkeys (length keyvect))
-                        (keyargs (make-sequence 'vector nkeys :initial-element nil))
+                        (keyargs (make-array  nkeys :initial-element nil))
                         (argl arglist (%cddr argl))
                         (n 0 (%i+ n 1))
                         idx arg hit)
