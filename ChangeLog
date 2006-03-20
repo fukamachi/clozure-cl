@@ -1,3 +1,70 @@
+2006-03-19 20:30  gb
+
+	* lisp-kernel/x86-spentry64.s: Old-style destructuring, VALUES.
+
+2006-03-19 20:29  gb
+
+	* lisp-kernel/x86-constants64.s: Define %nargs_b.
+
+2006-03-19 20:29  gb
+
+	* lisp-kernel/x86-constants.s: Define registers/bitfields used in
+	old-style destructuring subprims.
+
+2006-03-19 20:28  gb
+
+	* library/lispequ.lisp: $XNOFINFUNCTION.
+
+2006-03-19 20:27  gb
+
+	* lib/level-2.lisp: Conditionalize out bit, bitfield accessors
+	until they work ...
+
+2006-03-19 20:27  gb
+
+	* lib/backtrace-lds.lisp: Conditionalize
+	GET-REGISTER-VALUE/SET-REGISTER-VALUE catch frame access.
+
+2006-03-19 20:26  gb
+
+	* level-1/: l1-clos-boot.lisp, l1-clos.lisp, l1-dcode.lisp:
+	Conditionalize, mostly for whether the implementation has separate
+	code-vector and function objects or not. (ppc vs x86, for now.)
+
+2006-03-19 20:25  gb
+
+	* level-0/X86/x86-numbers.lisp: %FIXNUM-GCD.  Slower then the one
+	that counts bits, but doesn't need as many registers.
+
+2006-03-19 20:24  gb
+
+	* level-0/X86/x86-def.lisp: Do the lexpr/methd-context apply stuff.
+	 %X86-CLONE-FUNCTION, REPLACE-FUNCTION-CODE.
+	
+	Wouldn't hurt to do some typechecking in some of the lap code here.
+
+2006-03-19 20:22  gb
+
+	* level-0/X86/x86-clos.lisp: Yet.
+
+2006-03-19 20:22  gb
+
+	* level-0/PPC/ppc-def.lisp: REPLACE-FUNCTION-CODE abstraction.
+
+2006-03-19 20:22  gb
+
+	* level-0/PPC/ppc-clos.lisp: UNSET-FIN-TRAMPOLINE doesn't reference
+	constants.  (This could neve  have worked.)
+
+2006-03-19 20:21  gb
+
+	* level-0/l0-error.lisp: Replace error format string 9.
+
+2006-03-19 20:20  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: &lexpr fixes, old-style
+	destructuring.
+
 2006-03-19 20:20  gb
 
 	* compiler/X86/X8664/x8664-arch.lisp: Add the xtra slot to
