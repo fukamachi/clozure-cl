@@ -292,6 +292,9 @@
   (dolist (pkg %all-packages%)
     (iterate-over-present-symbols pkg function)))          
 
+#+x8664-target
+(eval-when (:compile-toplevel)
+  (warn "Fix eval-redef'ed get-bit/set-bit"))
 
 ;Eval definitions for things open-coded by the compiler.
 ;Don't use DEFUN since it should be illegal to DEFUN compiler special forms...
@@ -395,7 +398,9 @@
     )
   
   (%eval-redef listp (x))
+  #-x8664-target
   (%eval-redef %get-bit (ptr offset))
+  #-x8664-target
   (%eval-redef %set-bit (ptr offset val))
   (%eval-redef %get-double-float (ptr &optional (offset 0))
 	       (%get-double-float ptr offset))
@@ -420,6 +425,7 @@
 ;;; I'd guess that the majority of bitfields in the world whose width is
 ;;; greater than 1 have a width of two.  If that's true, this is probably
 ;;; faster than trying to be more clever about it would be.
+#-x8664-target
 (defun %get-bitfield (ptr start-bit width)
   (declare (fixnum start-bit width))
   (do* ((bit start-bit (1+ bit))
@@ -429,6 +435,7 @@
     (declare (fixnum val i bit))
     (setq val (logior (ash val 1) (%get-bit ptr bit)))))
 
+#-x8664-target
 (defun %set-bitfield (ptr start width val)
   (declare (fixnum val start width))
   (do* ((v val (ash v -1))
