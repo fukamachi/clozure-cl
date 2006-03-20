@@ -340,37 +340,74 @@
 		    (slot-id.index
 		     (standard-effective-slot-definition.slot-id slotd)))
 	      i))
-      (let* ((lookup-f (gvector :function
+      (let* ((lookup-f
+              #+ppc-target
+              (gvector :function
 				(%svref (if small
 					  #'%small-map-slot-id-lookup
 					  #'%large-map-slot-id-lookup) 0)
 				map
 				table
 				(dpb 1 $lfbits-numreq
+				     (ash -1 $lfbits-noname-bit)))
+              #+x86-target
+              (%x86-clone-function (if small
+					  #'%small-map-slot-id-lookup
+					  #'%large-map-slot-id-lookup)
+                                   map
+                                   table
+                                   (dpb 1 $lfbits-numreq
 				     (ash -1 $lfbits-noname-bit))))
 	     (class (%wrapper-class wrapper))
-	     (get-f (gvector :function
-			     (%svref (if small
-				       #'%small-slot-id-value
-				       #'%large-slot-id-value) 0)
-			     map
-			     table
-			     class
-			     #'%maybe-std-slot-value-using-class
-			     #'%slot-id-ref-missing
-			     (dpb 2 $lfbits-numreq
-				  (ash -1 $lfbits-noname-bit))))
-	     (set-f (gvector :function
-			     (%svref (if small
-				       #'%small-set-slot-id-value
-				       #'%large-set-slot-id-value) 0)
-			     map
-			     table
-			     class
-			     #'%maybe-std-setf-slot-value-using-class
-			     #'%slot-id-set-missing
-			     (dpb 3 $lfbits-numreq
-				  (ash -1 $lfbits-noname-bit)))))
+	     (get-f
+              #+ppc-target
+              (gvector :function
+                       (%svref (if small
+                                 #'%small-slot-id-value
+                                 #'%large-slot-id-value) 0)
+                       map
+                       table
+                       class
+                       #'%maybe-std-slot-value-using-class
+                       #'%slot-id-ref-missing
+                       (dpb 2 $lfbits-numreq
+                            (ash -1 $lfbits-noname-bit)))
+              #+x86-target
+              (%x86-clone-function (if small
+                                     #'%small-slot-id-value
+                                     #'%large-slot-id-value)
+                                   map
+                                   table
+                                   class
+                                   #'%maybe-std-slot-value-using-class
+                                   #'%slot-id-ref-missing
+                                   (dpb 2 $lfbits-numreq
+                                        (ash -1 $lfbits-noname-bit))))
+	     (set-f
+              #+ppc-target
+              (gvector :function
+                       (%svref (if small
+                                 #'%small-set-slot-id-value
+                                 #'%large-set-slot-id-value) 0)
+                       map
+                       table
+                       class
+                       #'%maybe-std-setf-slot-value-using-class
+                       #'%slot-id-set-missing
+                       (dpb 3 $lfbits-numreq
+                            (ash -1 $lfbits-noname-bit)))
+              #+x86-target
+              (%x86-clone-function
+               (if small
+                 #'%small-set-slot-id-value
+                 #'%large-set-slot-id-value)
+               map
+               table
+               class
+               #'%maybe-std-setf-slot-value-using-class
+               #'%slot-id-set-missing
+               (dpb 3 $lfbits-numreq
+                    (ash -1 $lfbits-noname-bit)))))
 	(setf (%wrapper-slot-id->slotd wrapper) lookup-f
 	      (%wrapper-slot-id-value wrapper) get-f
 	      (%wrapper-set-slot-id-value wrapper) set-f
@@ -1485,15 +1522,26 @@ governs whether DEFCLASS makes that distinction or not.")
 	 (len (length (%wrapper-instance-slots wrapper)))
 	 (dt (make-gf-dispatch-table))
 	 (slots (allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker)))
-	 (fn (gvector :function
-		      *unset-fin-code*
-                      wrapper
-		      slots
-                      dt
-                      #'false
-		      0
-		      (logior (ash 1 $lfbits-gfn-bit)
-                              (ash 1 $lfbits-aok-bit)))))
+	 (fn
+          #+ppc-target
+           (gvector :function
+                    *unset-fin-code*
+                    wrapper
+                    slots
+                    dt
+                    #'false
+                    0
+                    (logior (ash 1 $lfbits-gfn-bit)
+                            (ash 1 $lfbits-aok-bit)))
+           #+x86-target
+           (%x86-clone-function #'unset-fin-trampoline
+                                wrapper
+                                slots
+                                dt
+                                #'false
+                                0
+                                (logior (ash 1 $lfbits-gfn-bit)
+                                        (ash 1 $lfbits-aok-bit)))))
     (setf (gf.hash fn) (strip-tag-to-fixnum fn)
 	  (slot-vector.instance slots) fn
 	  (%gf-dispatch-table-gf dt) fn)
@@ -1568,8 +1616,8 @@ governs whether DEFCLASS makes that distinction or not.")
     (error "~S is not a funcallable instance" funcallable-instance))
   (unless (functionp function)
     (error "~S is not a function" function))
-  (setf (uvref funcallable-instance gf.code-vector) *fi-trampoline-code*)
-  (setf (uvref funcallable-instance gf.dcode) function))
+  (replace-function-code funcallable-instance #'funcallable-trampoline)
+  (setf (gf.dcode funcallable-instance) function))
 
 (defmethod reinitialize-instance ((slotd slot-definition) &key &allow-other-keys)
   (error "Can't reinitialize ~s" slotd))

@@ -1096,7 +1096,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
                   (setf (cdr encapsulated-dcode-cons) dcode))
                 (progn 
                   (setf (%gf-dcode gf) dcode)
-                  (setf (uvref gf 0)(uvref proto 0)))))))
+                  (replace-function-code gf proto))))))
         (values dcode multi-method-index)))))
 
 (defun inherits-from-standard-generic-function-p (class)
@@ -2238,22 +2238,39 @@ to replace that class with ~s" name old-class new-class)
 (defmethod create-reader-method-function ((class slots-class)
 					  (reader-method-class standard-reader-method)
 					  (dslotd direct-slot-definition))
+  #+ppc-target
   (gvector :function
            (uvref *reader-method-function-proto* 0)
            (ensure-slot-id (%slot-definition-name dslotd))
            'slot-id-value
            nil				;method-function name
-           (dpb 1 $lfbits-numreq (ash 1 $lfbits-method-bit))))
+           (dpb 1 $lfbits-numreq (ash 1 $lfbits-method-bit)))
+  #+x86-target
+  (%x86-clone-function
+   *reader-method-function-proto*
+   (ensure-slot-id (%slot-definition-name dslotd))
+   'slot-id-value
+   nil				;method-function name
+   (dpb 1 $lfbits-numreq (ash 1 $lfbits-method-bit))))
 
 (defmethod create-writer-method-function ((class slots-class)
 					  (writer-method-class standard-writer-method)
 					  (dslotd direct-slot-definition))
+  #+ppc-target
   (gvector :function
            (uvref *writer-method-function-proto* 0)
            (ensure-slot-id (%slot-definition-name dslotd))
            'set-slot-id-value
            nil
-           (dpb 2 $lfbits-numreq (ash 1 $lfbits-method-bit))))
+           (dpb 2 $lfbits-numreq (ash 1 $lfbits-method-bit)))
+  #+x86-target
+    (%x86-clone-function
+     *writer-method-function-proto*
+     (ensure-slot-id (%slot-definition-name dslotd))
+     'set-slot-id-value
+     nil
+     (dpb 2 $lfbits-numreq (ash 1 $lfbits-method-bit)))
+  )
 
 
 

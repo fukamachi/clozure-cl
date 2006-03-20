@@ -394,10 +394,11 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 )
 
 
+#+ppc-target
 (defvar *fi-trampoline-code* (uvref #'funcallable-trampoline 0))
 
 
-
+#+ppc-target
 (defvar *unset-fin-code* (uvref #'unset-fin-trampoline 0))
 
 
@@ -415,7 +416,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 							  *standard-generic-function-class*))))
 		 (dt (make-gf-dispatch-table))
 		 (slots (allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker)))
-		 (fn (gvector :function
+		 (fn #+ppc-target
+                   (gvector :function
 			      *gf-proto-code*
 			      wrapper
 			      slots
@@ -423,7 +425,16 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 			      #'%%0-arg-dcode
 			      0
 			      (%ilogior (%ilsl $lfbits-gfn-bit 1)
-					(%ilogand $lfbits-args-mask 0)))))
+					(%ilogand $lfbits-args-mask 0)))
+                   #+x86-target
+                   (%clone-x86-function *gf-proto*
+                                        wrapper
+                                        slots
+                                        dt
+                                        #'%%0-arg-dcode
+                                        0
+                                        (%ilogior (%ilsl $lfbits-gfn-bit 1)
+                                                  (%ilogand $lfbits-args-mask 0)))))
 	    (setf (gf.hash fn) (strip-tag-to-fixnum fn)
 		  (slot-vector.instance slots) fn
 		  (%gf-dispatch-table-gf dt) fn)
@@ -444,18 +455,26 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 
-
+#+ppc-target
 (defvar *cm-proto-code* (uvref *cm-proto* 0))
 
 (defun %cons-combined-method (gf thing dcode)
   ;; set bits and name = gf
+  #+ppc-target
   (gvector :function
            *cm-proto-code*
            thing
            dcode
            gf
            (%ilogior (%ilsl $lfbits-cm-bit 1)
-                            (%ilogand $lfbits-args-mask (lfun-bits gf)))))
+                            (%ilogand $lfbits-args-mask (lfun-bits gf))))
+  #+x86-target
+  (%clone-x86-function *cm-proto*
+                       thing
+                       dcode
+                       gf
+                       (%ilogior (%ilsl $lfbits-cm-bit 1)
+                                 (%ilogand $lfbits-args-mask (lfun-bits gf)))))
 
 (defun %gf-dispatch-table (gf)
   ;(require-type gf 'standard-generic-function)
