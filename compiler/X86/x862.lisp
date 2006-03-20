@@ -955,6 +955,7 @@
     (! save-lexpr-argregs num-fixed)
     ;; The "lexpr" (address of saved nargs register, basically
     ;; is now in arg_z
+    (! build-lexpr-frame)
     (dotimes (i num-fixed)
       (! copy-lexpr-argument (- num-fixed i)))))
 
@@ -4381,7 +4382,9 @@
         (let* ((mv-p (x862-mv-p xfer)))
           (if (null arglist)
             (x862-call-fn seg vreg xfer fn arglist nil)
-            (progn
+            (let* ((label (when recursive-p (backend-get-next-label))))
+              (when label
+                (! start-mv-call (aref *backend-labels* label)))
               (x862-vpush-register seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
               (x862-multiple-value-body seg (pop arglist))
               (when arglist
@@ -4393,8 +4396,9 @@
                 (x862-set-nargs seg 0)
                 (! recover-values)
                 (x862-close-undo))
+              (! zero-extend-nargs)
               (! lisp-word-ref x8664::temp0 x8664::rsp x8664::nargs)
-              (x862-invoke-fn seg x8664::temp0 nil nil xfer)))
+              (x862-invoke-fn seg x8664::temp0 nil nil xfer label)))
           (unless recursive-p
             (if mv-p
               (unless (eq xfer $backend-return)
@@ -4621,22 +4625,23 @@
            (numreq (length req))
            (vtotal numreq)
            (old-top *x862-top-vstack-lcell*)
-           (listreg ($ x8664::temp3))
+           (argreg ($ x8664::temp0))
+           (keyvectreg ($ x8664::arg_x))
            (doadlword (dpb nkeys (byte 8 16) (dpb numopt (byte 8 8) (dpb numreq (byte 8 0) 0 )))))
       (declare (fixnum numopt nkeys numreq vtotal doadlword))
       (when (or (> numreq 255) (> numopt 255) (> nkeys 255))
         (error "A lambda list can contain a maximum of 255 required, 255 optional, and 255 keywords args"))
       (if (fixnump listform)
-        (x862-store-ea seg listform listreg)
-        (x862-one-targeted-reg-form seg listform listreg))
+        (x862-store-ea seg listform argreg)
+        (x862-one-targeted-reg-form seg listform argreg))
       (when whole
-        (x862-vpush-register seg listreg :reserved))
+        (x862-vpush-register seg argreg :reserved))
       (when keys
         (setq doadlword (%ilogior2 (ash #x80000000 -6) doadlword))
         (incf  vtotal (%ilsl 1 nkeys))
         (if (%car keys)                 ; &allow-other-keys
           (setq doadlword (%ilogior doadlword (ash #x80000000 -5))))
-        (x862-store-immediate seg (%car (%cdr (%cdr (%cdr (%cdr keys))))) x8664::temp2))
+        (x862-store-immediate seg (%car (%cdr (%cdr (%cdr (%cdr keys))))) keyvectreg))
       (when opt
         (setq vtotal (%i+ vtotal numopt))
         (when (x862-hard-opt-p opt)
@@ -6040,7 +6045,9 @@
              (x862-lri seg vreg (ash (+ fix1 fix2) *x862-target-fixnum-shift*))
              (if other
                (let* ((constant (ash (or fix1 fix2) *x862-target-fixnum-shift*)))
-                 (if overflow
+                 (if (zerop constant)
+                   (x862-form seg vreg nil other)
+                   (if overflow
                    (ensuring-node-target (target vreg)
                      (x862-one-targeted-reg-form seg other target)
                      (unless (zerop constant)
@@ -6048,7 +6055,7 @@
                        (x862-check-fixnum-overflow seg target)))
                    (ensuring-node-target (target vreg)
                      (let* ((reg (x862-one-untargeted-reg-form seg other target)))
-                       (! add-constant3 target reg constant)))))
+                       (! add-constant3 target reg constant))))))
                (if (not overflow)
                  (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
                    ;; This isn't guaranteed to set the overflow flag,
