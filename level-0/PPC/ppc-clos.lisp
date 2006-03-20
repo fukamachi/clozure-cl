@@ -79,7 +79,6 @@
   (slri imm1 imm1 target::word-shift)
   (la imm1 target::misc-data-offset imm1)
   (beq @missing)
-  @have-scaled-table-index
   (ldrx arg_z temp0 imm1)
   (ldr arg_x 'class nfn)
   (ldr nfn '%maybe-std-slot-value nfn)
@@ -194,6 +193,7 @@
   (mtctr temp0)
   (bctr))
 
+#-dont-use-lexprs
 (defparameter *gf-proto*
   (nfunction
    gag
@@ -216,25 +216,73 @@
       (mtctr temp0)
       (bctr)))))
 
+#+dont-use-lexprs
+(defparameter *gf-proto*
+  (nfunction
+   gag
+   (lambda (&lap &rest args)
+     (ppc-lap-function
+      gag
+      ()
+      ;;(bkpt)
+      (mflr loc-pc)
+      (bla .SPstack-rest-arg)
+      (vpop arg_z)
+      (stru sp (- target::lisp-frame.size) sp)
+      (str fn target::lisp-frame.savefn sp)
+      (str loc-pc target::lisp-frame.savelr sp)
+      (str vsp target::lisp-frame.savevsp sp)
+      (mr fn nfn)
+      ;; If we were called for multiple values, call the dcode
+      ;; for multiple values.
+      (ref-global imm0 ret1valaddr)
+      (cmpr imm0 loc-pc)
+      (svref arg_y gf.dispatch-table fn) ; dispatch table
+      (set-nargs 2)
+      (svref nfn gf.dcode fn)		; dcode function
+      (beq @multiple)
+      (ldr temp0 target::misc-data-offset nfn)
+      (mtctr temp0)
+      (bctrl)
+      (ldr tsp 0 tsp)
+      (restore-full-lisp-context)
+      (blr)
+      @multiple
+      (bl @getback)
+      (mflr loc-pc)
+      (stru sp (- target::lisp-frame.size) sp)
+      (str fn target::lisp-frame.savefn sp)
+      (str loc-pc target::lisp-frame.savelr sp)
+      (str vsp target::lisp-frame.savevsp sp)
+      (mtlr imm0)
+      (li fn 0)
+      (ldr temp0 target::misc-data-offset nfn)
+      (mtctr temp0)
+      (bctr)
+      @getback
+      (blrl)
+      @back
+      (ldr tsp 0 tsp)
+      (ba .SPnvalret)))))
+      
+      
+
 (defppclapfunction funcallable-trampoline ()
   (svref nfn gf.dcode nfn)
   (svref temp0 0 nfn)
   (mtctr temp0)
   (bctr))
 
-
+;;; This can't reference any of the function's constants.
 (defppclapfunction unset-fin-trampoline ()
   (mflr loc-pc)
   (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
   (vpop arg_z)                          ; whoops, didn't really want to
-  (bla .SPsavecontextvsp)
-  (ldr arg_x '"Funcallable instance ~S was called with args ~s, but has no FUNCALLABLE-INSTANCE-FUNCTION" fn)
-  (mr arg_y fn)
+  (li arg_x '#.$XNOFINFUNCTION)
+  (mr arg_y nfn)
   (set-nargs 3)
-  (ldr fname 'error fn)
-  (bla .SPrestorecontext)
   (mtlr loc-pc)
-  (ba .SPjmpsym))
+  (ba .SPksignalerr))
 
 ;;; is a winner - saves ~15%
 (defppclapfunction gag-one-arg ((arg arg_z))
