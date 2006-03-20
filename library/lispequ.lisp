@@ -679,6 +679,7 @@
 (defconstant $err-fundefined 6)
 (defconstant $XNOCAR 7)
 (defconstant $xcoerce 8)
+(defconstant $xnofinfunction 9)
 (defconstant $xnomem 10)
 (defconstant $xnotranslation 12)
 (defconstant $XNOTFUN 13)
