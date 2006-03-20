@@ -187,54 +187,19 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 
 
 ;;; n1 and n2 must be positive (esp non zero)
-
-(eval-when (:compile-toplevel)
-  (warn "Fix %fixnum-gcd"))
-#+not-ready
-(defx86lapfunction %fixnum-gcd ((n1 arg_y)(n2 arg_z))
-  (let ((temp imm0)
-	(u imm1)
-	(v imm2)
-	(ut0 imm3)
-	(vt0 imm4))
-    (unbox-fixnum u n1)
-    (unbox-fixnum v n2)
-    (neg temp u)
-    (and temp temp u)
-    (cntlzd ut0 temp)
-    (subfic ut0 ut0 63)
-    (neg temp v)
-    (and temp temp v)
-    (cntlzd vt0 temp)
-    (subfic vt0 vt0 63)
-    (cmpw cr2 ut0 vt0)
-    (srd u u ut0)
-    (srd v v vt0)
-    (addi ut0 ut0 ppc64::fixnum-shift)
-    (addi vt0 vt0 ppc64::fixnum-shift)
-    @loop
-    (cmpd cr0 u v)
-    (sld arg_z u ut0)
-    (bgt cr0 @u>v)
-    (blt cr0 @u<v)
-    (blelr cr2)
-    (sld arg_z u vt0)
-    (single-value-return)
-    @u>v
-    (sub u u v)
-    @shiftu
-    (andi. temp u (ash 1 1))
-    (srdi u u 1)
-    (beq cr0 @shiftu)
-    (b @loop)
-    @u<v
-    (sub v v u)
-    @shiftv
-    (andi. temp v (ash 1 1))
-    (srdi v v 1)
-    (beq cr0 @shiftv)
-    (b @loop)))
-    
+;;; The algorithm used on the PPC may be faster.
+(defx86lapfunction %fixnum-gcd ((i arg_y)(j arg_z))
+  (jmp @test)
+  @loop
+  (jl @sub-i-from-j)
+  (subq (% j) (% i))
+  (jmp @test)
+  @sub-i-from-j
+  (sub (% j) (% i))
+  @test
+  (rcmpq (% i) (% j))
+  (jne @loop)
+  (jmp (% ra0)))
 
 
 
