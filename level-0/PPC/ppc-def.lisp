@@ -1178,7 +1178,7 @@ result-type-keyword is :VOID or NIL"
   (mr imm5 nargs)
   (cmpri cr0 nargs 0)
   (cmpri cr1 nargs '2)
-  (mr nfn arg_y)
+  (mr nfn method)
   (ldr temp0 target::misc-data-offset nfn)
   (mtctr temp0)
   (if (:cr2 :eq)
@@ -1198,6 +1198,13 @@ result-type-keyword is :VOID or NIL"
   (bctr))
 
 
+(defun replace-function-code (target-fn proto-fn)
+  (if (typep target-fn 'function)
+    (if (typep proto-fn 'function)
+      (setf (uvref target-fn 0)
+            (uvref proto-fn 0))
+      (report-bad-arg proto-fn 'function))
+    (report-bad-arg target-fn 'function)))
 
 (defun closure-function (fun)
   (while (and (functionp fun)  (not (compiled-function-p fun)))
