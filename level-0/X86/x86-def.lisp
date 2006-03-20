@@ -17,19 +17,23 @@
 (in-package "CCL")
 
 (defx86lapfunction %function-vector-to-function ((arg arg_z))
+  (trap-unless-fulltag= arg x8664::fulltag-function)
   (addb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (% arg_z.b))
   (single-value-return))
 
 (defx86lapfunction %function-to-function-vector  ((arg arg_z))
+  (trap-unless-fulltag= arg x8664::fulltag-function)
   (subb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (% arg_z.b))
   (single-value-return))
 
 (defx86lapfunction %function-code-words ((fun arg_z))
+  (trap-unless-fulltag= fun x8664::fulltag-function)
   (movl (@ (- x8664::node-size x8664::fulltag-function) (% fun)) (% imm0.l))
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
 (defx86lapfunction %nth-immediate ((fun arg_y) (n arg_z))
+  (trap-unless-fulltag= fun x8664::fulltag-function)
   (movl (@ (- x8664::node-size x8664::fulltag-function) (% fun)) (% imm0.l))
   (lea (@ (% n) (% imm0) 8) (% imm0))
   (movq (@ (- x8664::node-size x8664::fulltag-function) (% fun) (% imm0))
@@ -37,6 +41,7 @@
   (single-value-return))
 
 (defx86lapfunction %set-nth-immediate ((fun arg_x) (n arg_y) (new arg_z))
+  (trap-unless-fulltag= fun x8664::fulltag-function)
   (movl (@ (- x8664::node-size x8664::fulltag-function) (% fun)) (% imm0.l))
   (lea (@ (% n) (% imm0) 8) (% arg_y))
   (subb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (%b arg_x))
@@ -45,6 +50,38 @@
 (defx86lapfunction %make-code-executable ((codev arg_z))
   (single-value-return))
 
+;;; Make a new function, with PROTO's code and the specified immediates.
+;;; IMMEDIATES should contain lfun-bits as the last element.
+(defun %clone-x86-function (proto &rest immediates)
+  (declare (dynamic-extent immediates))
+  (let* ((protov (%function-to-function-vector proto))
+         (code-words (%function-code-words proto))
+         (numimms (length immediates))
+         (newv (allocate-typed-vector :function (the fixnum (+ code-words numimms)))))
+    (declare (fixnum code-words numimms))
+    (%copy-ivector-to-ivector protov 0 newv 0 (the fixnum (ash code-words target::word-shift)))
+    (do* ((k code-words (1+ k))
+          (imms immediates (cdr imms)))
+         ((null imms) (%function-vector-to-function newv))
+      (declare (fixnum k) (list imms))
+      (setf (%svref newv k) (car imms)))))
+
+(defun replace-function-code (target proto)
+  (let* ((target-words (%function-code-words target))
+         (proto-words (%function-code-words proto)))
+    (declare (fixnum target-words proto-words))
+    (if (= target-words proto-words)
+      (progn
+        (%copy-ivector-to-ivector (%function-to-function-vector proto)
+                                  0
+                                  (%function-to-function-vector target)
+                                  0
+                                  (the fixnum (ash target-words
+                                                   target::word-shift)))
+        target)
+      (error "Code size mismatch: target = ~s, proto = ~s"
+             target-words proto-words))))
+         
 
 (defx86lapfunction %get-kernel-global-from-offset ((offset arg_z))
   (check-nargs 1)
@@ -225,89 +262,145 @@
   (movq (% arg_z) (@ (% imm0) (% imm1)))
   (single-value-return))
 
-(eval-when (:compile-toplevel)
-  (warn "missing lexpr/apply stuff"))
-
-#+notyet
-(progn
 (defx86lapfunction %apply-lexpr-with-method-context ((magic arg_x)
                                                      (function arg_y)
                                                      (args arg_z))
   ;; Somebody's called (or tail-called) us.
   ;; Put magic arg in x8664::next-method-context (= x8664::temp0).
+  ;; Put function in x8664::xfn until we're ready to jump to it.
   ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;;   but preserves ppc::nfn/ppc::next-method-context.
-  ;; Jump to the function in ppc::nfn.
-  (mr x8664::next-method-context magic)
-  (mr ppc::nfn function)
+  ;;   but preserves x866::xfn/x8664::next-method-context.
+  ;; Jump to the function in x8664::xfn.
+  (movq (% magic) (% next-method-context))
+  (movq (% function) (% xfn))
   (set-nargs 0)
-  (mflr loc-pc)
-  (bla .SPspread-lexpr-z)
-  (mtlr loc-pc)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
-
+  (movq (@ (% args)) (% imm0))          ;lexpr-count
+  (movw (% imm0.w) (% nargs))
+  (subw ($ '3) (% imm0.w))
+  (jbe @reg-only)
+  ;; Some args will be pushed; reserve a frame
+  (pushq ($ 0))
+  (pushq ($ 0))
+  @pushloop
+  (pushq (@ (- x8664::node-size) (% imm1)))
+  (subq ($ x8664::node-size) (% imm1))
+  (subq ($ x8664::node-size) (% imm0))
+  (jne @pushloop)
+  @three
+  (movq (@ (* x8664::node-size 3) (% arg_z)) (% arg_x))
+  @two
+  (movq (@ (* x8664::node-size 2) (% arg_z)) (% arg_y))
+  @one
+  (movq (@ (* x8664::node-size 1) (% arg_z)) (% arg_z))
+  (jmp @go)
+  @reg-only
+  (testw (% nargs) (% nargs))
+  (je @go)
+  (rcmpw (% nargs) ($ '2))
+  (je @two)
+  (jb @one)
+  (jmp @three)
+  @go
+  (xchgq (% xfn) (% fn))
+  (jmp (% fn)))
 
 (defx86lapfunction %apply-with-method-context ((magic arg_x)
                                                (function arg_y)
                                                (args arg_z))
   ;; Somebody's called (or tail-called) us.
-  ;; Put magic arg in ppc::next-method-context (= ppc::temp1).
-  ;; Put function in ppc::nfn (= ppc::temp2).
+  ;; Put magic arg in x8664::next-method-context (= x8664::temp0).
+  ;; Put function in x8664::xfn (= x8664::temp1).
   ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
-  ;;   but preserves ppc::nfn/ppc::next-method-context.
-  ;; Jump to the function in ppc::nfn.
-  (mr ppc::next-method-context magic)
-  (mr ppc::nfn function)
+  ;;   but preserves x8664::xfn/x8664::next-method-context.
+  ;; Jump to the function in x8664::xfn.
+  ;; We need to inline the "spreadargz" operation, 'cause there's no
+  ;; good place to keep %ra0.
+  (movq (% magic) (% x8664::next-method-context))
+  (movq (% function) (% x8664::xfn))
+  (movq (% args) (% arg_y))             ; in case of error
   (set-nargs 0)
-  (mflr loc-pc)
-  (bla .SPspreadargZ)
-  (mtlr loc-pc)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (bctr))
+  (xorl (% imm0.l) (% imm0.l))
+  (push (% imm0))                       ; reserve frame (might discard
+  (push (% imm0))                       ; it if nothing is passed on stack.)
+  (cmp-reg-to-nil arg_z)
+  (je @done)
+  @loop
+  (extract-fulltag arg_z imm1)
+  (cmpb ($ x8664::fulltag-cons) (%b imm1))
+  (jne @bad)
+  (%car arg_z arg_x)
+  (%cdr arg_z arg_z)
+  (lea (@ x8664::node-size (% imm0)) (% imm0))
+  (cmp-reg-to-nil arg_z)
+  (push (% arg_x))
+  (jne @loop)
+  @done
+  (addw (% imm0.w) (% nargs))
+  (jne @pop)
+  @discard-and-go
+  (discard-reserved-frame)
+  (jmp @go)
+  @pop
+  (cmpw ($ '1) (% nargs))
+  (pop (% arg_z))
+  (je @discard-and-go)
+  (cmpw ($ '2) (% nargs))
+  (pop (% arg_y))
+  (je @discard-and-go)
+  (cmpw ($ '3) (% nargs))
+  (pop (% arg_x))
+  (je @discard-and-go)
+  @go
+  (xchgq (% xfn) (% fn))
+  (jmp (% fn))
+  @bad
+  (addq (% imm0) (% rsp))
+  (movq (% arg_y) (% arg_z))
+  (movq ($ (ash $XNOSPREAD x8664::fixnumshift)) (% arg_y))
+  (set-nargs 2)
+  (jmp-subprim .SPksignalerr))
 
 
+;;; The idea here is to call METHOD in the same stack frame in
+;;; which the lexpr was originally called.  The lexpr can't
+;;; have had any required arguments, %APPLY-LEXPR-TAIL-WISE
+;;; must have been tail-called, and the frame built on lexpr
+;;; entry must be in %rbp.
 (defx86lapfunction %apply-lexpr-tail-wise ((method arg_y) (args arg_z))
-  ;; This assumes
-  ;; a) that "args" is a lexpr made via the .SPlexpr-entry mechanism
-  ;; b) That the LR on entry to this function points to the lexpr-cleanup
-  ;;    code that .SPlexpr-entry set up
-  ;; c) That there weren't any required args to the lexpr, e.g. that
-  ;;    (%lexpr-ref args (%lexpr-count args) 0) was the first arg to the gf.
-  ;; The lexpr-cleanup code will be EQ to either (lisp-global ret1valaddr)
-  ;; or (lisp-global lexpr-return1v).  In the former case, discard a frame
-  ;; from the cstack (multiple-value tossing).  Restore FN and LR from
-  ;; the first frame that .SPlexpr-entry pushed, restore vsp from (+
-  ;; args node-size), pop the argregs, and jump to the function.
-  (mflr loc-pc)
-  (ref-global imm0 ret1valaddr)
-  (cmpr cr2 loc-pc imm0)
-  (ldr nargs 0 args)
-  (mr imm5 nargs)
-  (cmpri cr0 nargs 0)
-  (cmpri cr1 nargs '2)
-  (mr nfn arg_y)
-  (ldr temp0 target::misc-data-offset nfn)
-  (mtctr temp0)
-  (if (:cr2 :eq)
-    (la sp target::lisp-frame.size sp))
-  (ldr loc-pc target::lisp-frame.savelr sp)
-  (ldr fn target::lisp-frame.savefn sp)
-  (ldr imm0 target::lisp-frame.savevsp sp)
-  (sub vsp imm0 nargs)
-  (mtlr loc-pc)
-  (la sp target::lisp-frame.size sp)
-  (beqctr)
-  (vpop arg_z)
-  (bltctr cr1)
-  (vpop arg_y)
-  (beqctr cr1)
-  (vpop arg_x)
-  (bctr))
-
-)
+  (uuo-error-debug-trap)
+  (movq (% method) (% xfn))
+  (movq (% args) (% rsp))
+  (pop (%q nargs))
+  (movq (@ x8664::lisp-frame.return-address (% rbp)) (% ra0))
+  (movq (@ 0 (% rbp)) (% rbp))
+  (rcmpw (% nargs) ($ '3))
+  (jbe @pop-regs)
+  ;; More than 3 args; some must have been pushed by caller,
+  ;; so retain the reserved frame.
+  (pop (% arg_z))
+  (pop (% arg_y))
+  (pop (% arg_x))
+  (jmp @popped)
+  @pop-regs
+  (je @pop3)
+  (rcmpw (% nargs) ($ '1))
+  (jb @discard)
+  (ja @pop2)
+  (pop (% arg_z))
+  (jmp @discard)
+  @pop3
+  (pop (% arg_z))
+  (pop (% arg_y))
+  (pop (% arg_x))
+  (jmp @discard)
+  @pop2
+  (pop (% arg_z))
+  (pop (% arg_y))
+  @discard
+  (discard-reserved-frame)
+  @popped
+  (xchgq (% xfn) (% fn))
+  (jmp (% fn)))
 
 
 
