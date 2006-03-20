@@ -55,11 +55,12 @@
 (defvar *x86-lap-labels* ())
 (defvar *x86-lap-constants* ())
 (defparameter *x86-lap-entry-offset* 15)
+(defparameter *x86-lap-fixed-code-words* nil)
 (defvar *x86-lap-macros* (make-hash-table :test #'equalp))
 
 
 (defun x86-lap-macro-function (name)
-  (gethash (string name) #|(backend-lap-macros *ppc-backend*)|#
+  (gethash (string name) #|(backend-lap-macros *target-backend*)|#
            *x86-lap-macros*))
 
 (defun (setf x86-lap-macro-function) (def name)
@@ -247,6 +248,11 @@
 (defun finish-frag-for-align (frag-list p2align)
   (let* ((frag (frag-list-current frag-list)))
     (setf (frag-type frag) (list :align p2align))
+    (new-frag frag-list)))
+
+(defun finish-frag-for-org (frag-list org)
+  (let* ((frag (frag-list-current frag-list)))
+    (setf (frag-type frag) (list :org org))
     (new-frag frag-list)))
 
 (defun lookup-x86-register (regname designator)
@@ -864,7 +870,7 @@
       (finish-frag-for-align frag-list 3)
       (x86-lap-directive frag-list :long `(:^ ,arg))
       (emit-x86-lap-label frag-list arg))
-    (if (eq directive :constants)
+    (if (eq directive :fixed-constants)
       (dolist (constant arg)
         (ensure-x86-lap-constant-label constant))
       (let* ((exp (parse-x86-lap-expression arg))
@@ -872,11 +878,16 @@
         (if constantp
           (let* ((val (x86-lap-expression-value exp)))
             (ecase directive
+              (:code-size
+               (if *x86-lap-fixed-code-words*
+                 (error "Duplicate :CODE-SIZE directive")
+                 (setq *x86-lap-fixed-code-words* val)))
               (:byte (frag-list-push-byte frag-list val))
               (:short (frag-list-push-16 frag-list val))
               (:long (frag-list-push-32 frag-list val))
               (:quad (frag-list-push-64 frag-list val))
-              (:align (finish-frag-for-align frag-list val))))
+              (:align (finish-frag-for-align frag-list val))
+              (:org (finish-frag-for-org frag-list val))))
           (let* ((pos (frag-list-position frag-list))
                  (frag (frag-list-current frag-list))
                  (reloctype nil))
@@ -944,6 +955,9 @@
               (setf (frag-address frag) address)
               (incf address (length (frag-code-buffer frag)))
               (case (car (frag-type frag))
+                (:org
+                 ;; Do nothing, for now
+                 )
                 (:align
                  (incf address (relax-align address (cadr (frag-type frag)))))
                 ((:assumed-short-branch :assumed-short-conditional-branch)
@@ -984,6 +998,14 @@
                (address (incf (frag-address frag) stretch)))
           (setf (frag-relax-marker frag) (not (frag-relax-marker frag)))
           (case (car fragtype)
+            (:org
+             (let* ((target (cadr (frag-type frag)))
+                    (next-address (frag-address (frag-succ frag))))
+               (setq growth (- target next-address))
+               (if (< growth 0)
+                 (error "Code size exceeds :CODE-SIZE constraint ~s"
+                        (ash target -3))
+                 (decf growth stretch))))
             (:align
              (let* ((bits (cadr fragtype))
                     (len (length (frag-code-buffer frag)))
@@ -1154,6 +1176,7 @@
 (defun %define-x86-lap-function (name forms &optional (bits 0))
   (let* ((*x86-lap-labels* ())
          (*x86-lap-constants* ())
+         (*x86-lap-fixed-code-words* nil)
          (end-code-tag (gensym))
          (instruction (x86::make-x86-instruction))
          (frag-list (make-frag-list)))
@@ -1165,6 +1188,8 @@
     (dolist (f forms)
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
+    (when *x86-lap-fixed-code-words*
+      (x86-lap-directive frag-list :org (ash (1+ *x86-lap-fixed-code-words*) 3)))
     (emit-x86-lap-label frag-list end-code-tag)
     (dolist (c (reverse *x86-lap-constants*))
       (emit-x86-lap-label frag-list (x86-lap-label-name (cdr c)))
