@@ -14,6 +14,8 @@
    http://opensource.franz.com/preamble.html
 */
 
+
+        
 /* Indices in %builtin-functions% */
 _builtin_plus = 0	/* +-2 */
 _builtin_minus = 1	/* --2 */
@@ -46,6 +48,17 @@ ifdef([X8664],[
 	include(x86-constants32.s)
 ])						
 
+/* registers, as used in destrucuring-bind/macro-bind */
+
+define([whole_reg],[temp1])
+define([arg_reg],[temp0])
+define([keyvect_reg],[arg_x])
+define([initopt_bit],[24])
+define([keyp_bit],[25]) /*  note that keyp can be true even when 0 keys. */
+define([aok_bit],[26])
+define([restp_bit],[27])
+define([seen_aok_bit],[28])        
+        
 num_lisp_globals = 48		 /* MUST UPDATE THIS !!! */
 	
 	_struct(lisp_globals,lisp_globals_limit-(num_lisp_globals*node_size))
