@@ -241,6 +241,22 @@
     (pushq (% rbp))
     (movq (% rsp) (% rbp))))
 
+(defx86lapmacro save-frame-variable-arg-count ()
+  (let* ((push (gensym))
+         (done (gensym)))
+  `(progn
+    (movzwl (% nargs) (%l imm0))
+    (subq ($ (* $numx8664argregs x8664::node-size)) (% imm0))
+    (jle ,push)
+    (movq (% rbp) (@ (% rsp) (% imm0)))
+    (leaq (@ (% rsp) (% imm0)) (% rbp))
+    (movq (% ra0) (@ 8 (% rbp)))
+    (jmp ,done)
+    ,push
+    (save-simple-frame)
+    ,done)))
+
+
 (defx86lapmacro restore-simple-frame ()
   `(progn
     (leave)
@@ -271,13 +287,14 @@
 (defx86lapmacro jmp-subprim (name)
   `(jmp (@ ,(x86-subprim-offset name))))
 
-(defx86lapmacro call-subprim (name)
+(defx86lapmacro call-subprim (name &optional (recover-fn t))
   (let* ((label (gensym)))
     `(progn
       (leaq (@ (:^ ,label) (% fn)) (% ra0))
       (jmp-subprim ,name)
       (:tra ,label)
-      (recover-fn-from-ra0 ,label))))
+      ,@(if recover-fn
+            `((recover-fn-from-ra0 ,label))))))
      
 (defx86lapmacro %car (src dest)
   `(movq (@ x8664::cons.car (% ,src)) (% ,dest)))
