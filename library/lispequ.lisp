@@ -1128,7 +1128,7 @@
   `(%i- (uvsize ,dt) ,(+ 2 %gf-dispatch-table-first-data)))
 
 (defmacro %gf-dispatch-table-ref (table index)
-  `(svref ,table (%i+ ,index %gf-dispatch-table-first-data)))
+  `(%svref ,table (%i+ ,index %gf-dispatch-table-first-data)))
 
 (defmacro %cons-gf-dispatch-table (size)
   `(make-array (%i+ ,size ,(%i+ 2 %gf-dispatch-table-first-data))
