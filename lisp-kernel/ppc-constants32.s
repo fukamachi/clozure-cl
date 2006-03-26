@@ -216,7 +216,7 @@ max_non_array_imm_subtag = (19<<ntagbits)|fulltag_immheader
 
 	define_node_subtag(catch_frame,4)
 	define_node_subtag(function,5)
-	define_node_subtag(sgbuf,6)
+	define_node_subtag(lisp_thread,6)
 	define_node_subtag(symbol,7)
 	define_node_subtag(lock,8)
 	define_node_subtag(hash_vector,9)

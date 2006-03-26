@@ -185,7 +185,7 @@ typedef struct cons {
 #define subtag_pool NODE_SUBTAG(10)
 #define subtag_weak NODE_SUBTAG(11)
 #define subtag_package NODE_SUBTAG(12)
-#define subtag_mark NODE_SUBTAG(13)
+#define subtag_slot_vector NODE_SUBTAG(13)
 #define subtag_instance NODE_SUBTAG(14)
 #define subtag_struct NODE_SUBTAG(15)
 #define subtag_istruct NODE_SUBTAG(16)
