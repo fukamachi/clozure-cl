@@ -41,6 +41,7 @@
 ;;; Add the 32-bit "prev" digit and the 32-bit carry-in digit to that 64-bit
 ;;; result; return the halves as (VALUES high low).
 (defx86lapfunction %multiply-and-add4 ((x 0) (y arg_x) (prev arg_y) (carry-in arg_z))
+  (uuo-error-debug-trap)
   (let ((unboxed-x imm0)
         (unboxed-y imm1)
         (unboxed-prev imm0)
@@ -79,7 +80,7 @@
     (unbox-fixnum arg_x unboxed-x)
     (unbox-fixnum y unboxed-y)
     (mull (%l unboxed-y))
-    (shrq ($ 32) (% unboxed-y))
+    (shlq ($ 32) (% unboxed-y))
     (orq (% unboxed-x) (% unboxed-y))
     (unbox-fixnum carry-in unboxed-carry-in)
     (addq (% unboxed-carry-in) (% unboxed-y))
@@ -111,12 +112,12 @@
         (unboxed-divisor ebp)
         (unboxed-quo imm0)
         (unboxed-rem imm1))
-    (pushq (% rbp))
+    (movd (% rbp) (% mm0))
     (unbox-fixnum divisor rbp)
     (unbox-fixnum num-high unboxed-high)
     (unbox-fixnum num-low unboxed-low)
     (divl (% ebp))
-    (popq (% rbp))
+    (movd (% mm0) (% rbp))
     (box-fixnum unboxed-quo arg_y)
     (box-fixnum unboxed-rem arg_z)
     (movq (% rsp) (% temp0))
@@ -132,8 +133,8 @@
         (unboxed-y imm1)
         (unboxed-high imm1)
         (unboxed-low imm0))
-    (unbox-fixnum unboxed-x x)
-    (unbox-fixnum unboxed-y y)
+    (unbox-fixnum x unboxed-x)
+    (unbox-fixnum y unboxed-y)
     (mull (%l unboxed-y))
     (box-fixnum unboxed-high arg_y)
     (box-fixnum unboxed-low arg_z)
@@ -165,10 +166,11 @@
   @wasneg
   (bsrl (% imm0.l) (% imm0.l))
   (xorl ($ 31) (% imm0))
-  (box-fixnum arg_z imm0)
+  (box-fixnum imm0 arg_z)
   (single-value-return))
 
 (defx86lapfunction %signed-bignum-ref ((bignum arg_y) (index arg_z))
+  (uuo-error-debug-trap)
   (unbox-fixnum index imm0)
   (movslq (@ x8664::misc-data-offset (% bignum) (% imm0) 4) (% imm0))
   (box-fixnum imm0 arg_z)
@@ -215,10 +217,11 @@
 (defx86lapfunction %ashr ((digit arg_y) (count arg_z))
   (unbox-fixnum digit imm0)
   (unbox-fixnum count imm1)
+  (movslq (%l imm0) (% imm0))
   (xorq (% temp2) (% temp2))
   (movb (% imm1.b) (% temp2.b))
   (sarq (% temp2.b) (% imm0))
-  (movb ($ 0) (% temp1.b))  
+  (movb ($ 0) (% temp2.b))
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
@@ -228,7 +231,8 @@
   (xorq (% temp2) (% temp2))
   (movb (% imm1.b) (% temp2.b))
   (shll (% temp2.b) (%l imm0))
-  (movb ($ 0) (% temp1.b))  
+  (movb ($ 0) (% temp2.b))  
+  (movl (%l imm0) (%l imm0))            ;zero-extend
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
@@ -237,6 +241,7 @@
   (single-value-return))
 
 (defx86lapfunction fix-digit-logand ((fix arg_x) (big arg_y) (dest arg_z)) ; index 0
+  (uuo-error-debug-trap)
   (let ((w1 imm0)
         (w2 imm1))
     (movq (@ x8664::misc-data-offset (% big)) (% w2))
@@ -251,6 +256,7 @@
     (single-value-return)))
 
 (defx86lapfunction fix-digit-logandc2 ((fix arg_x) (big arg_y) (dest arg_z))
+  (uuo-error-debug-trap)
   (let ((w1 imm0)
         (w2 imm1))
     (movq (@ x8664::misc-data-offset (% big)) (% w2))
@@ -267,6 +273,7 @@
 
 
 (defx86lapfunction fix-digit-logandc1 ((fix arg_x) (big arg_y) (dest arg_z))
+  (uuo-error-debug-trap)
   (let ((w1 imm0)
         (w2 imm1))
     (movq (@ x8664::misc-data-offset (% big)) (% w2))
