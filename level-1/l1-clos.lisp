@@ -335,11 +335,18 @@
       (setf (svref table 0) nil)
       (dolist (slotd eslotds)
 	(incf i)
-	(setf (svref table i) slotd)
-	(setf (aref map
-		    (slot-id.index
-		     (standard-effective-slot-definition.slot-id slotd)))
-	      i))
+        (setf (svref table i) slotd)
+        (if small
+          (locally (declare (type (simple-array (unsigned-byte 8) (*)) map))
+            (setf (aref map
+                        (slot-id.index
+                         (standard-effective-slot-definition.slot-id slotd)))
+                  i))
+          (locally (declare (type (simple-array (unsigned-byte 32) (*)) map))
+            (setf (aref map
+                        (slot-id.index
+                         (standard-effective-slot-definition.slot-id slotd)))
+                  i))))
       (let* ((lookup-f
               #+ppc-target
               (gvector :function
@@ -349,15 +356,15 @@
 				map
 				table
 				(dpb 1 $lfbits-numreq
-				     (ash -1 $lfbits-noname-bit)))
+				     (ash 1 $lfbits-noname-bit)))
               #+x86-target
-              (%x86-clone-function (if small
+              (%clone-x86-function (if small
 					  #'%small-map-slot-id-lookup
 					  #'%large-map-slot-id-lookup)
                                    map
                                    table
                                    (dpb 1 $lfbits-numreq
-				     (ash -1 $lfbits-noname-bit))))
+				     (ash 1 $lfbits-noname-bit))))
 	     (class (%wrapper-class wrapper))
 	     (get-f
               #+ppc-target
@@ -373,7 +380,7 @@
                        (dpb 2 $lfbits-numreq
                             (ash -1 $lfbits-noname-bit)))
               #+x86-target
-              (%x86-clone-function (if small
+              (%clone-x86-function (if small
                                      #'%small-slot-id-value
                                      #'%large-slot-id-value)
                                    map
@@ -397,7 +404,7 @@
                        (dpb 3 $lfbits-numreq
                             (ash -1 $lfbits-noname-bit)))
               #+x86-target
-              (%x86-clone-function
+              (%clone-x86-function
                (if small
                  #'%small-set-slot-id-value
                  #'%large-set-slot-id-value)
@@ -488,7 +495,7 @@
 (defun forward-referenced-class-p (class)
   (typep class 'forward-referenced-class))
 
-; This uses the primary class information to sort a class'es slots
+;;; This uses the primary class information to sort a class'es slots
 (defun sort-effective-instance-slotds (slotds class cpl)
   (let (primary-slotds
         primary-slotds-class
@@ -719,6 +726,7 @@
                      `(:direct-slots ,supplied-slots))
                ,@initargs)))))
 
+
 ;;; This defines a new class.
 (defmethod ensure-class-using-class ((class null) name &rest keys &key &allow-other-keys)
   (multiple-value-bind (metaclass initargs)
@@ -919,12 +927,14 @@ governs whether DEFCLASS makes that distinction or not.")
 (%add-slot-writers 'standard-method '((function (setf method-function))
 				      (generic-function (setf method-generic-function))))
 
+
 (defmethod method-function ((m standard-method))
   (%method.function m))
 
 
 (%add-slot-readers 'standard-accessor-method
 		   '((slot-definition accessor-method-slot-definition)))
+
 
 (%ensure-class-preserving-wrapper
  'specializer
@@ -955,7 +965,6 @@ governs whether DEFCLASS makes that distinction or not.")
    (:name class-ctype :initform nil :initfunction ,#'false))
  :primary-p t)
 
-
 (%ensure-class-preserving-wrapper
  'forward-referenced-class
  :direct-superclasses '(class))
@@ -981,8 +990,8 @@ governs whether DEFCLASS makes that distinction or not.")
                  (:name alist :initform nil  :initfunction ,#'false))
  :primary-p t)
 
-; This class exists only so that standard-class & funcallable-standard-class
-; can inherit its slots.
+;;; This class exists only so that standard-class & funcallable-standard-class
+;;; can inherit its slots.
 (%ensure-class-preserving-wrapper
  'std-class
  :direct-superclasses '(slots-class)
@@ -1118,9 +1127,10 @@ governs whether DEFCLASS makes that distinction or not.")
 
 
 
-;; Fake method-combination
+;;; Fake method-combination
 (defclass method-combination (metaobject) 
   ((name :accessor method-combination-name :initarg :name)))
+
 
 
 
@@ -1136,7 +1146,7 @@ governs whether DEFCLASS makes that distinction or not.")
   (setq *standard-method-combination*
         (make-instance 'standard-method-combination :name 'standard)))
 
-; For %compile-time-defclass
+;;; For %compile-time-defclass
 (defclass compile-time-class (class) ())
 
 
@@ -1157,7 +1167,8 @@ governs whether DEFCLASS makes that distinction or not.")
   (declare (ignore slot-names))
   (labels ((obsolete (class)
              (dolist (sub (%class-direct-subclasses class)) (obsolete sub))
-             ;;Need to save old class info in wrapper for obsolete instance access...
+             ;;Need to save old class info in wrapper for obsolete
+             ;;instance access...
              (setf (%class.cpl class) nil)))
     (obsolete class)
     (when direct-superclasses-p
@@ -1177,7 +1188,7 @@ governs whether DEFCLASS makes that distinction or not.")
 
                                      
                                      
-; Called from DEFSTRUCT expansion.
+;;; Called from DEFSTRUCT expansion.
 (defun %define-structure-class (sd)
   (let* ((dslots ()))
     (dolist (ssd (cdr (sd-slots sd)) (setq dslots (nreverse dslots)))
@@ -1534,7 +1545,7 @@ governs whether DEFCLASS makes that distinction or not.")
                     (logior (ash 1 $lfbits-gfn-bit)
                             (ash 1 $lfbits-aok-bit)))
            #+x86-target
-           (%x86-clone-function #'unset-fin-trampoline
+           (%clone-x86-function #'unset-fin-trampoline
                                 wrapper
                                 slots
                                 dt
