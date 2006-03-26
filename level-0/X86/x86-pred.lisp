@@ -137,7 +137,6 @@
   (save-simple-frame)
   (pushq (@ x8664::cons.cdr (% x)))
   (pushq (@ x8664::cons.cdr (% y)))
-  (stack-probe)
   (movq (% temp0) (% x))
   (movq (% temp1) (% y))
   (lea (@ (:^ @back) (% fn)) (% ra0))
@@ -149,6 +148,8 @@
   (pop (% x))
   (restore-simple-frame)         
   (jnz @top)
+  (movl ($ nil) (% arg_z.l))
+  (single-value-return)
   @misc
   ;; Both objects are uvectors of some sort.  Try EQL; if that fails,
   ;; call HAIRY-EQUAL.
@@ -164,7 +165,7 @@
   (jump-symbol hairy-equal 2)
   @won-with-eql
   (restore-simple-frame)                ; discards pushed args
-  (movq ($ t) (% arg_z))
+  (movl ($ t) (% arg_z.l))
   (single-value-return))
 
 (defx86lapfunction %lisp-lowbyte-ref ((thing arg_z))
