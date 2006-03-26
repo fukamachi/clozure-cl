@@ -17,7 +17,7 @@
 
 
 
-; l1-clos-boot.lisp
+;;; l1-clos-boot.lisp
 
 
 (in-package "CCL")
@@ -203,7 +203,8 @@
                 (%istruct 'slot-id slot-name (prog1
                                                  next-slot-index
                                                (incf next-slot-index)))))))
-  (defun current-slot-index () next-slot-index)
+  (defun current-slot-index () (with-lock-grabbed (slot-id-lock)
+                                 next-slot-index))
   )
 
 
@@ -492,7 +493,7 @@
             (setq y (%cdr y)))))
        (setq y (%cdr y))))
     (when env-p
-      ; Trapped in a world it never made ... 
+      ;; Trapped in a world it never made ... 
       (when (setq y (memq '&environment x))
         (setq envtail (%cddr y)
               env (%cadr y))
@@ -555,11 +556,10 @@
              (t spec))
            spec)))
 
-
 (defglobal *class-wrapper-random-state* (make-random-state))
 
 (defun new-class-wrapper-hash-index ()
-  ; mustn't be 0
+  ;; mustn't be 0
   (the fixnum (1+ (the fixnum (random most-positive-fixnum *class-wrapper-random-state*)))))
 
 (defun %inner-method-function (method)
@@ -718,8 +718,10 @@
     (unless (memq *standard-method-class* (or (%class.cpl method-class)
                                               (%class.cpl (update-class  method-class t))))
       (%badarg method-class 'standard-method))
-;    (unless (member qualifiers '(() (:before) (:after) (:around)) :test #'equal)
-;      (report-bad-arg qualifiers))
+    #|
+    (unless (member qualifiers '(() (:before) (:after) (:around)) :test #'equal)
+    (report-bad-arg qualifiers))
+    ||#
     (setq specializers (mapcar #'(lambda (s)
                                    (or (and (consp s)
                                             (eq (%car s) 'eql)
@@ -859,7 +861,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
     (cerror "Replace the definition of ~S."
             "The method ~S is predefined in OpenMCL." method)))
 
-; Called by the expansion of generic-labels
+;;; Called by the expansion of generic-labels.  Which doesn't exist.
 (defun %add-methods (gf &rest methods)
   (declare (dynamic-extent methods))
   (dolist (m methods)
@@ -878,9 +880,9 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
 
 
 
-; CAR is an EQL hash table for objects whose identity is not used by EQL
-; (numbers and macptrs)
-; CDR is a weak EQ hash table for other objects.
+;;; CAR is an EQL hash table for objects whose identity is not used by EQL
+;;; (numbers and macptrs)
+;;; CDR is a weak EQ hash table for other objects.
 (defvar *eql-methods-hashes* (cons (make-hash-table :test 'eql)
                                    (make-hash-table :test 'eq :weak :key)))
 
@@ -954,7 +956,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
               (size (%gf-dispatch-table-size dt))
               (index 0))
          (clear-accessor-method-offsets (%gf-dispatch-table-gf dt) method)
-         (if (typep class 'eql-specializer)                   ; eql specializer
+         (if (typep class 'eql-specializer)
            (setq class (class-of (eql-specializer-object class))))
          (while (%i< index size)
            (let* ((wrapper (%gf-dispatch-table-ref dt index))
@@ -1106,7 +1108,8 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
 ;;;;;;;;;;; The type system needs to get wedged into CLOS fairly early ;;;;;;;
 
 
-; Could check for duplicates, but not really worth it.  They're all allocated here
+;;; Could check for duplicates, but not really worth it.  They're all
+;;; allocated here
 (defun new-type-class (name)
   (let* ((class (%istruct 
                  'type-class 
@@ -1215,7 +1218,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
     class))
 
 
-; bootstrapping definition. real one is in "sysutils.lisp"
+;;; bootstrapping definition. real one is in "sysutils.lisp"
 
 (defun built-in-type-p (name)
   (or (type-predicate name)
@@ -1291,7 +1294,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-; Initialized after built-in-class is made
+;;; Initialized after built-in-class is made
 (defvar *built-in-class-wrapper* nil)
 
 (defun make-class-ctype (class)
@@ -1370,7 +1373,7 @@ to replace that class with ~s" name old-class new-class)
 ;;; This will be filled in below.  Need it defined now as it goes in
 ;;; the instance.class-wrapper of all the classes that STANDARD-CLASS
 ;;; inherits from.
-(defvar *standard-class-wrapper* 
+(defglobal *standard-class-wrapper* 
   (%cons-wrapper 'standard-class))
 
 (defun make-standard-class (name &rest supers)
@@ -1421,7 +1424,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 (defun standard-object-p (thing)
- ; returns thing's class-wrapper or nil if it isn't a standard-object
+  ;; returns thing's class-wrapper or nil if it isn't a standard-object
   (if (standard-instance-p thing)
     (instance.class-wrapper thing)
     (if (typep thing 'macptr)
@@ -1429,8 +1432,8 @@ to replace that class with ~s" name old-class new-class)
 
 
 (defun std-class-p (class)
-  ; (typep class 'std-class)
-  ; but works at bootstrapping time as well
+  ;; (typep class 'std-class)
+  ;; but works at bootstrapping time as well
   (let ((wrapper (standard-object-p class)))
     (and wrapper
          (or (eq wrapper *standard-class-wrapper*)
@@ -1449,14 +1452,14 @@ to replace that class with ~s" name old-class new-class)
 (defun specializer-p (thing)
   (memq *specializer-class* (%inited-class-cpl (class-of thing))))
 
-(defvar *standard-object-class* (make-standard-class 'standard-object *t-class*))
+(defglobal *standard-object-class* (make-standard-class 'standard-object *t-class*))
 
-(defvar *metaobject-class* (make-standard-class 'metaobject *standard-object-class*))
+(defglobal *metaobject-class* (make-standard-class 'metaobject *standard-object-class*))
 
-(defvar *specializer-class* (make-standard-class 'specializer *metaobject-class*))
-(defvar *eql-specializer-class* (make-standard-class 'eql-specializer *specializer-class*))
+(defglobal *specializer-class* (make-standard-class 'specializer *metaobject-class*))
+(defglobal *eql-specializer-class* (make-standard-class 'eql-specializer *specializer-class*))
 
-(defvar *standard-method-combination*
+(defglobal *standard-method-combination*
   (make-instance-vector
    (%class.own-wrapper
     (make-standard-class
@@ -1470,97 +1473,97 @@ to replace that class with ~s" name old-class new-class)
 
 (setf (type-predicate 'eql-specializer) 'eql-specializer-p)
 
-; The *xxx-class-class* instances get slots near the end of this file.
-(defvar *class-class* (make-standard-class 'class *specializer-class*))
+;;; The *xxx-class-class* instances get slots near the end of this file.
+(defglobal *class-class* (make-standard-class 'class *specializer-class*))
 
-(defvar *slots-class* (make-standard-class 'slots-class *class-class*))
-(defvar *slots-class-wrapper* (%class.own-wrapper *slots-class*))
+(defglobal *slots-class* (make-standard-class 'slots-class *class-class*))
+(defglobal *slots-class-wrapper* (%class.own-wrapper *slots-class*))
 
-; an implementation class that exists so that
-; standard-class & funcallable-standard-class can have a common ancestor not
-; shared by anybody but their subclasses.
 
-(defvar *std-class-class* (make-standard-class 'std-class *slots-class*))
+;;; an implementation class that exists so that
+;;; standard-class & funcallable-standard-class can have a common ancestor not
+;;; shared by anybody but their subclasses.
 
-;The class of all objects whose metaclass is standard-class. Yow.
-(defvar *standard-class-class* (make-standard-class 'standard-class *std-class-class*))
-; Replace its wrapper and the circle is closed.
+(defglobal *std-class-class* (make-standard-class 'std-class *slots-class*))
+
+;;; The class of all objects whose metaclass is standard-class. Yow.
+(defglobal *standard-class-class* (make-standard-class 'standard-class *std-class-class*))
+;;; Replace its wrapper and the circle is closed.
 (setf (%class.own-wrapper *standard-class-class*) *standard-class-wrapper*
       (%wrapper-class *standard-class-wrapper*) *standard-class-class*
       (%wrapper-instance-slots *standard-class-wrapper*) (vector))
 
-(defvar *built-in-class-class* (make-standard-class 'built-in-class *class-class*))
+(defglobal *built-in-class-class* (make-standard-class 'built-in-class *class-class*))
 (setf *built-in-class-wrapper* (%class.own-wrapper *built-in-class-class*)
       (instance.class-wrapper *t-class*) *built-in-class-wrapper*)
 
-(defvar *structure-class-class* (make-standard-class 'structure-class *slots-class*))
-(defvar *structure-class-wrapper* (%class.own-wrapper *structure-class-class*))
-(defvar *structure-object-class* 
+(defglobal *structure-class-class* (make-standard-class 'structure-class *slots-class*))
+(defglobal *structure-class-wrapper* (%class.own-wrapper *structure-class-class*))
+(defglobal *structure-object-class* 
   (make-class 'structure-object *structure-class-wrapper* (list *t-class*)))
 
-(defvar *forward-referenced-class-class*
+(defglobal *forward-referenced-class-class*
   (make-standard-class 'forward-referenced-class *class-class*))
 
-(defvar *function-class* (make-built-in-class 'function))
+(defglobal *function-class* (make-built-in-class 'function))
 
-;Right now, all functions are compiled.
+;;;Right now, all functions are compiled.
 
 
-(defvar *compiled-function-class* *function-class*)
+(defglobal *compiled-function-class* *function-class*)
 (setf (find-class 'compiled-function) *compiled-function-class*)
 
-(defvar *interpreted-function-class*
-  (make-standard-class 'interpreted-function *function-class*))
-
-(defvar *compiled-lexical-closure-class* 
+(defglobal *compiled-lexical-closure-class* 
   (make-standard-class 'compiled-lexical-closure *function-class*))
 
-(defvar *interpreted-lexical-closure-class*
-  (make-standard-class 'interpreted-lexical-closure *interpreted-function-class*))
 
-(defvar *funcallable-standard-object-class*
+
+(defglobal *funcallable-standard-object-class*
   (make-standard-class 'funcallable-standard-object
                        *standard-object-class* *function-class*))
 
-(defvar *funcallable-standard-class-class*
+(defglobal *funcallable-standard-class-class*
   (make-standard-class 'funcallable-standard-class *std-class-class*))
 
-(defvar *generic-function-class*
+(defglobal *generic-function-class*
   (make-class 'generic-function
               (%class.own-wrapper *funcallable-standard-class-class*)
               (list *metaobject-class* *funcallable-standard-object-class*)))
-(defvar *standard-generic-function-class*
+(setq *generic-function-class-wrapper* (%class.own-wrapper *generic-function-class*))
+
+(defglobal *standard-generic-function-class*
   (make-class 'standard-generic-function
               (%class.own-wrapper *funcallable-standard-class-class*)
               (list *generic-function-class*)))
+(setq *standard-generic-function-class-wrapper*
+      (%class.own-wrapper *standard-generic-function-class*))
 
-; *standard-method-class* is upgraded to a real class below
-(defvar *method-class* (make-standard-class 'method *metaobject-class*))
-(defvar *standard-method-class* (make-standard-class 'standard-method *method-class*))
-(defvar *accessor-method-class* (make-standard-class 'standard-accessor-method *standard-method-class*))
-(defvar *standard-reader-method-class* (make-standard-class 'standard-reader-method *accessor-method-class*))
-(defvar *standard-writer-method-class* (make-standard-class 'standard-writer-method *accessor-method-class*))
-(defvar *method-function-class* (make-standard-class 'method-function *function-class*))
-(defvar *interpreted-method-function-class* 
-  (make-standard-class 'interpreted-method-function *method-function-class* *interpreted-function-class*))
+;;; *standard-method-class* is upgraded to a real class below
+(defglobal *method-class* (make-standard-class 'method *metaobject-class*))
+(defglobal *standard-method-class* (make-standard-class 'standard-method *method-class*))
+(defglobal *accessor-method-class* (make-standard-class 'standard-accessor-method *standard-method-class*))
+(defglobal *standard-reader-method-class* (make-standard-class 'standard-reader-method *accessor-method-class*))
+(defglobal *standard-writer-method-class* (make-standard-class 'standard-writer-method *accessor-method-class*))
+(defglobal *method-function-class* (make-standard-class 'method-function *function-class*))
 
-(defvar *combined-method-class* (make-standard-class 'combined-method *function-class*))
 
-(defvar *slot-definition-class* (make-standard-class 'slot-definition *metaobject-class*))
-(defvar direct-slot-definition-class (make-standard-class 'direct-slot-definition
+(defglobal *combined-method-class* (make-standard-class 'combined-method *function-class*))
+
+(defglobal *slot-definition-class* (make-standard-class 'slot-definition *metaobject-class*))
+(defglobal direct-slot-definition-class (make-standard-class 'direct-slot-definition
                                                            *slot-definition-class*))
-(defvar effective-slot-definition-class (make-standard-class 'effective-slot-definition
+(defglobal effective-slot-definition-class (make-standard-class 'effective-slot-definition
                                                               *slot-definition-class*))
-(defvar *standard-slot-definition-class* (make-standard-class 'standard-slot-definition
+(defglobal *standard-slot-definition-class* (make-standard-class 'standard-slot-definition
                                                               *slot-definition-class*))
-(defvar *standard-direct-slot-definition-class* (make-class
+(defglobal *standard-direct-slot-definition-class* (make-class
                                                  'standard-direct-slot-definition
                                                  *standard-class-wrapper*
                                                  (list
                                                   *standard-slot-definition-class*
                                                   direct-slot-definition-class)))
 
-(defvar *standard-effective-slot-definition-class* (make-class
+(defglobal *standard-effective-slot-definition-class* (make-class
                                                     'standard-effective-slot-definition
                                                     *standard-class-wrapper*
                                                     (list
@@ -1568,7 +1571,7 @@ to replace that class with ~s" name old-class new-class)
                                                      effective-slot-definition-class)
 ))
 
-(defvar *standard-effective-slot-definition-class-wrapper*
+(defglobal *standard-effective-slot-definition-class-wrapper*
   (%class.own-wrapper *standard-effective-slot-definition-class*))
 
 
@@ -1576,542 +1579,524 @@ to replace that class with ~s" name old-class new-class)
 (let ((*dont-find-class-optimize* t))
 
 ;; The built-in classes.
-(defvar *array-class* (make-built-in-class 'array))
-(defvar *character-class* (make-built-in-class 'character))
-(make-built-in-class 'number)
-(make-built-in-class 'sequence)
-(defvar *symbol-class* (make-built-in-class 'symbol))
-(defvar *immediate-class* (make-built-in-class 'immediate))   ; Random immediate
-;Random uvectors - these are NOT class of all things represented by a uvector
-;type. Just random uvectors which don't fit anywhere else.
-(make-built-in-class 'ivector)   ; unknown ivector
-(make-built-in-class 'gvector)   ; unknown gvector
-(defvar *istruct-class* (make-built-in-class 'internal-structure))   ; unknown istruct
+  (defglobal *array-class* (make-built-in-class 'array))
+  (defglobal *character-class* (make-built-in-class 'character))
+  (make-built-in-class 'number)
+  (make-built-in-class 'sequence)
+  (defglobal *symbol-class* (make-built-in-class 'symbol))
+  (defglobal *immediate-class* (make-built-in-class 'immediate)) ; Random immediate
+  ;; Random uvectors - these are NOT class of all things represented by a uvector
+  ;;type. Just random uvectors which don't fit anywhere else.
+  (make-built-in-class 'ivector)        ; unknown ivector
+  (make-built-in-class 'gvector)        ; unknown gvector
+  (defglobal *istruct-class* (make-built-in-class 'internal-structure)) ; unknown istruct
+  
+  (defglobal *slot-vector-class* (make-built-in-class 'slot-vector (find-class 'gvector)))
+  
+  (defglobal *macptr-class* (make-built-in-class 'macptr))
+  (defglobal *foreign-standard-object-class*
+    (make-standard-class 'foreign-standard-object
+                         *standard-object-class* *macptr-class*))
 
-(defvar *slot-vector-class* (make-built-in-class 'slot-vector (find-class 'gvector)))
-
-(defvar *macptr-class* (make-built-in-class 'macptr))
-(defvar *foreign-standard-object-class*
-  (make-standard-class 'foreign-standard-object
-		       *standard-object-class* *macptr-class*))
-
-(defvar *foreign-class-class*
-  (make-standard-class 'foreign-class *foreign-standard-object-class* *slots-class*))
-
-(make-built-in-class 'population)
-(make-built-in-class 'pool)
-(make-built-in-class 'package)
-(defvar *lock-class* (make-built-in-class 'lock))
-(defvar *recursive-lock-class* (make-built-in-class 'recursive-lock *lock-class*))
-(defvar *read-write-lock-class* (make-built-in-class 'read-write-lock *lock-class*))
-
-(make-built-in-class 'lock-acquisition *istruct-class*)
-(make-built-in-class 'semaphore-notification *istruct-class*)
-
-(make-built-in-class 'slot-id *istruct-class*)
-(make-built-in-class 'value-cell)
-(make-built-in-class 'restart *istruct-class*)
-(make-built-in-class 'hash-table *istruct-class*)
-(make-built-in-class 'lexical-environment *istruct-class*)
-(make-built-in-class 'compiler-policy *istruct-class*)
-(make-built-in-class 'readtable *istruct-class*)
-(make-built-in-class 'pathname *istruct-class*)
-(make-built-in-class 'random-state *istruct-class*)
-(make-built-in-class 'xp-structure *istruct-class*)
-(make-built-in-class 'lisp-thread)
-(make-built-in-class 'resource *istruct-class*)
-(make-built-in-class 'periodic-task *istruct-class*)
-(make-built-in-class 'semaphore *istruct-class*)
-
-(make-built-in-class 'type-class *istruct-class*)
-
-(defvar *ctype-class* (make-built-in-class 'ctype *istruct-class*))
-(make-built-in-class 'key-info *istruct-class*)
-(defvar *args-ctype* (make-built-in-class 'args-ctype *ctype-class*))
-(make-built-in-class 'values-ctype *args-ctype*)
-(make-built-in-class 'function-ctype *args-ctype*)
-(make-built-in-class 'constant-ctype *ctype-class*)
-(make-built-in-class 'named-ctype *ctype-class*)
-(make-built-in-class 'cons-ctype *ctype-class*)
-(make-built-in-class 'unknown-ctype (make-built-in-class 'hairy-ctype *ctype-class*))
-(make-built-in-class 'numeric-ctype *ctype-class*)
-(make-built-in-class 'array-ctype *ctype-class*)
-(make-built-in-class 'member-ctype *ctype-class*)
-(make-built-in-class 'union-ctype *ctype-class*)
-(make-built-in-class 'foreign-ctype *ctype-class*)
-(make-built-in-class 'class-ctype *ctype-class*)
-(make-built-in-class 'negation-ctype *ctype-class*)
-(make-built-in-class 'intersection-ctype *ctype-class*)
-
-
-(make-built-in-class 'complex (find-class 'number))
-(make-built-in-class 'real (find-class 'number))
-(defvar *float-class* (make-built-in-class 'float (find-class 'real)))
-(defvar *double-float-class* (make-built-in-class 'double-float (find-class 'float)))
-(defvar *single-float-class*  (make-built-in-class 'single-float (find-class 'float)))
-(setf (find-class 'short-float) *single-float-class*)
-(setf (find-class 'long-float) *double-float-class*)
-
-(make-built-in-class 'rational (find-class 'real))
-(make-built-in-class 'ratio (find-class 'rational))
-(make-built-in-class 'integer (find-class 'rational))
-(defvar *fixnum-class* (make-built-in-class 'fixnum (find-class 'integer)))
-(make-built-in-class 'bignum (find-class 'integer))
-
-(make-built-in-class 'bit *fixnum-class*)
-(make-built-in-class 'unsigned-byte (find-class 'integer))
-(make-built-In-class 'signed-byte (find-class 'integer))
-
-
-(make-built-in-class 'logical-pathname (find-class 'pathname))
-
-(defvar *base-char-class* (setf (find-class 'base-char) *character-class*))
-(defvar *standard-char-class* (make-built-in-class 'standard-char *base-char-class*))
-
-#+who-needs-extended-char
-(make-built-in-class 'extended-char *character-class*)
-
-(defvar *keyword-class* (make-built-in-class 'keyword *symbol-class*))
-
-(make-built-in-class 'list (find-class 'sequence))
-(defvar *cons-class* (make-built-in-class 'cons (find-class 'list)))
-(defvar *null-class* (make-built-in-class 'null *symbol-class* (find-class 'list)))
-
-(defvar *vector-class* (make-built-in-class 'vector *array-class* (find-class 'sequence)))
-(defvar *simple-array-class* (make-built-in-class 'simple-array *array-class*))
-(make-built-in-class 'simple-1d-array *vector-class* *simple-array-class*)
-
-;Maybe should do *float-array-class* etc?
-;Also, should straighten out the simple-n-dim-array mess...
-(make-built-in-class 'unsigned-byte-vector *vector-class*)
-(make-built-in-class 'simple-unsigned-byte-vector (find-class 'unsigned-byte-vector) (find-class 'simple-1d-array))
-(make-built-in-class 'unsigned-word-vector *vector-class*)
-(make-built-in-class 'simple-unsigned-word-vector (find-class 'unsigned-word-vector) (find-class 'simple-1d-array))
-
-
-(progn
-  (make-built-in-class 'double-float-vector *vector-class*)
-  (make-built-in-class 'short-float-vector *vector-class*)
-  (setf (find-class 'long-float-vector) (find-class 'double-float-vector))
-  (setf (find-class 'single-float-vector) (find-class 'short-float-vector))
-  (make-built-in-class 'simple-double-float-vector (find-class 'double-float-vector) (find-class 'simple-1d-array))
-  (make-built-in-class 'simple-short-float-vector (find-class 'short-float-vector) (find-class 'simple-1d-array))
-  (setf (find-class 'simple-long-float-vector) (find-class 'simple-double-float-vector))
-  (setf (find-class 'simple-single-float-vector) (find-class 'simple-short-float-vector))
-)
-
-#+64-bit-target
-(progn
-  (make-built-in-class 'doubleword-vector *vector-class*)
-  (make-built-in-class 'simple-doubleword-vector (find-class 'doubleword-vector) (find-class 'simple-1d-array))
-  (make-built-in-class 'unsigned-doubleword-vector *vector-class*)
-  (make-built-in-class 'simple-unsigned-doubleword-vector (find-class 'unsigned-doubleword-vector) (find-class 'simple-1d-array))
-  ) ; #+64-bit-target
-
-(make-built-in-class 'long-vector *vector-class*)
-(make-built-in-class 'simple-long-vector (find-class 'long-vector) (find-class 'simple-1d-array))
-(make-built-in-class 'unsigned-long-vector *vector-class*)
-(make-built-in-class 'simple-unsigned-long-vector (find-class 'unsigned-long-vector) (find-class 'simple-1d-array))
-(make-built-in-class 'byte-vector *vector-class*)
-(make-built-in-class 'simple-byte-vector (find-class 'byte-vector) (find-class 'simple-1d-array))
-(make-built-in-class 'bit-vector *vector-class*)
-(make-built-in-class 'simple-bit-vector (find-class 'bit-vector) (find-class 'simple-1d-array))
-(make-built-in-class 'word-vector *vector-class*)
-(make-built-in-class 'simple-word-vector (find-class 'word-vector) (find-class 'simple-1d-array))
-(make-built-in-class 'string *vector-class*)
-(make-built-in-class 'base-string (find-class 'string))
-(make-built-in-class 'simple-string (find-class 'string) (find-class 'simple-1d-array))
-(make-built-in-class 'simple-base-string (find-class 'base-string) (find-class 'simple-string))
-(make-built-in-class 'general-vector *vector-class*)
-(make-built-in-class 'simple-vector (find-class 'general-vector) (find-class 'simple-1d-array))
-
-
-
-
-
-
-
-
-
-
-(make-built-in-class 'hash-table-vector)
-(make-built-in-class 'catch-frame)
-(make-built-in-class 'code-vector)
-(make-built-in-class 'creole-object)
-
-(make-built-in-class 'xfunction)
-(make-built-in-class 'xcode-vector)
-
-(defun class-cell-find-class (class-cell errorp)
-  (unless (listp class-cell)
-    (setq class-cell (%kernel-restart $xwrongtype class-cell 'list)))
-  (locally (declare (type list class-cell))
-    (let ((class (cdr class-cell)))
-      (or class
-          (and 
-           (setq class (find-class (car class-cell) nil))
-           (when class 
-             (rplacd class-cell class)
-             class))
-          (if errorp (error "Class ~s not found." (car class-cell)) nil)))))
+  (defglobal *foreign-class-class*
+    (make-standard-class 'foreign-class *foreign-standard-object-class* *slots-class*))
+  
+  (make-built-in-class 'population)
+  (make-built-in-class 'pool)
+  (make-built-in-class 'package)
+  (defglobal *lock-class* (make-built-in-class 'lock))
+  (defglobal *recursive-lock-class* (make-built-in-class 'recursive-lock *lock-class*))
+  (defglobal *read-write-lock-class* (make-built-in-class 'read-write-lock *lock-class*))
+  
+  (make-built-in-class 'lock-acquisition *istruct-class*)
+  (make-built-in-class 'semaphore-notification *istruct-class*)
+  
+  (make-built-in-class 'slot-id *istruct-class*)
+  (make-built-in-class 'value-cell)
+  (make-built-in-class 'restart *istruct-class*)
+  (make-built-in-class 'hash-table *istruct-class*)
+  (make-built-in-class 'lexical-environment *istruct-class*)
+  (make-built-in-class 'compiler-policy *istruct-class*)
+  (make-built-in-class 'readtable *istruct-class*)
+  (make-built-in-class 'pathname *istruct-class*)
+  (make-built-in-class 'random-state *istruct-class*)
+  (make-built-in-class 'xp-structure *istruct-class*)
+  (make-built-in-class 'lisp-thread)
+  (make-built-in-class 'resource *istruct-class*)
+  (make-built-in-class 'periodic-task *istruct-class*)
+  (make-built-in-class 'semaphore *istruct-class*)
+  
+  (make-built-in-class 'type-class *istruct-class*)
+  
+  (defglobal *ctype-class* (make-built-in-class 'ctype *istruct-class*))
+  (make-built-in-class 'key-info *istruct-class*)
+  (defglobal *args-ctype* (make-built-in-class 'args-ctype *ctype-class*))
+  (make-built-in-class 'values-ctype *args-ctype*)
+  (make-built-in-class 'function-ctype *args-ctype*)
+  (make-built-in-class 'constant-ctype *ctype-class*)
+  (make-built-in-class 'named-ctype *ctype-class*)
+  (make-built-in-class 'cons-ctype *ctype-class*)
+  (make-built-in-class 'unknown-ctype (make-built-in-class 'hairy-ctype *ctype-class*))
+  (make-built-in-class 'numeric-ctype *ctype-class*)
+  (make-built-in-class 'array-ctype *ctype-class*)
+  (make-built-in-class 'member-ctype *ctype-class*)
+  (make-built-in-class 'union-ctype *ctype-class*)
+  (make-built-in-class 'foreign-ctype *ctype-class*)
+  (make-built-in-class 'class-ctype *ctype-class*)
+  (make-built-in-class 'negation-ctype *ctype-class*)
+  (make-built-in-class 'intersection-ctype *ctype-class*)
   
 
+  (make-built-in-class 'complex (find-class 'number))
+  (make-built-in-class 'real (find-class 'number))
+  (defglobal *float-class* (make-built-in-class 'float (find-class 'real)))
+  (defglobal *double-float-class* (make-built-in-class 'double-float (find-class 'float)))
+  (defglobal *single-float-class*  (make-built-in-class 'single-float (find-class 'float)))
+  (setf (find-class 'short-float) *single-float-class*)
+  (setf (find-class 'long-float) *double-float-class*)
+
+  (make-built-in-class 'rational (find-class 'real))
+  (make-built-in-class 'ratio (find-class 'rational))
+  (make-built-in-class 'integer (find-class 'rational))
+  (defglobal *fixnum-class* (make-built-in-class 'fixnum (find-class 'integer)))
+  (make-built-in-class 'bignum (find-class 'integer))
+  
+  (make-built-in-class 'bit *fixnum-class*)
+  (make-built-in-class 'unsigned-byte (find-class 'integer))
+  (make-built-In-class 'signed-byte (find-class 'integer))
+
+
+  (make-built-in-class 'logical-pathname (find-class 'pathname))
+  
+  (defglobal *base-char-class* (setf (find-class 'base-char) *character-class*))
+  (defglobal *standard-char-class* (make-built-in-class 'standard-char *base-char-class*))
+  
+  #+who-needs-extended-char
+  (make-built-in-class 'extended-char *character-class*)
+
+  (defglobal *keyword-class* (make-built-in-class 'keyword *symbol-class*))
+  
+  (make-built-in-class 'list (find-class 'sequence))
+  (defglobal *cons-class* (make-built-in-class 'cons (find-class 'list)))
+  (defglobal *null-class* (make-built-in-class 'null *symbol-class* (find-class 'list)))
+  
+  (defglobal *vector-class* (make-built-in-class 'vector *array-class* (find-class 'sequence)))
+  (defglobal *simple-array-class* (make-built-in-class 'simple-array *array-class*))
+  (make-built-in-class 'simple-1d-array *vector-class* *simple-array-class*)
+  
+  ;;Maybe should do *float-array-class* etc?
+  ;;Also, should straighten out the simple-n-dim-array mess...
+  (make-built-in-class 'unsigned-byte-vector *vector-class*)
+  (make-built-in-class 'simple-unsigned-byte-vector (find-class 'unsigned-byte-vector) (find-class 'simple-1d-array))
+  (make-built-in-class 'unsigned-word-vector *vector-class*)
+  (make-built-in-class 'simple-unsigned-word-vector (find-class 'unsigned-word-vector) (find-class 'simple-1d-array))
+  
+
+  (progn
+    (make-built-in-class 'double-float-vector *vector-class*)
+    (make-built-in-class 'short-float-vector *vector-class*)
+    (setf (find-class 'long-float-vector) (find-class 'double-float-vector))
+    (setf (find-class 'single-float-vector) (find-class 'short-float-vector))
+    (make-built-in-class 'simple-double-float-vector (find-class 'double-float-vector) (find-class 'simple-1d-array))
+    (make-built-in-class 'simple-short-float-vector (find-class 'short-float-vector) (find-class 'simple-1d-array))
+    (setf (find-class 'simple-long-float-vector) (find-class 'simple-double-float-vector))
+    (setf (find-class 'simple-single-float-vector) (find-class 'simple-short-float-vector))
+    )
+
+  #+64-bit-target
+  (progn
+    (make-built-in-class 'doubleword-vector *vector-class*)
+    (make-built-in-class 'simple-doubleword-vector (find-class 'doubleword-vector) (find-class 'simple-1d-array))
+    (make-built-in-class 'unsigned-doubleword-vector *vector-class*)
+    (make-built-in-class 'simple-unsigned-doubleword-vector (find-class 'unsigned-doubleword-vector) (find-class 'simple-1d-array))
+    )                                   ; #+64-bit-target
+
+  (make-built-in-class 'long-vector *vector-class*)
+  (make-built-in-class 'simple-long-vector (find-class 'long-vector) (find-class 'simple-1d-array))
+  (make-built-in-class 'unsigned-long-vector *vector-class*)
+  (make-built-in-class 'simple-unsigned-long-vector (find-class 'unsigned-long-vector) (find-class 'simple-1d-array))
+  (make-built-in-class 'byte-vector *vector-class*)
+  (make-built-in-class 'simple-byte-vector (find-class 'byte-vector) (find-class 'simple-1d-array))
+  (make-built-in-class 'bit-vector *vector-class*)
+  (make-built-in-class 'simple-bit-vector (find-class 'bit-vector) (find-class 'simple-1d-array))
+  (make-built-in-class 'word-vector *vector-class*)
+  (make-built-in-class 'simple-word-vector (find-class 'word-vector) (find-class 'simple-1d-array))
+  (make-built-in-class 'string *vector-class*)
+  (make-built-in-class 'base-string (find-class 'string))
+  (make-built-in-class 'simple-string (find-class 'string) (find-class 'simple-1d-array))
+  (make-built-in-class 'simple-base-string (find-class 'base-string) (find-class 'simple-string))
+  (make-built-in-class 'general-vector *vector-class*)
+  (make-built-in-class 'simple-vector (find-class 'general-vector) (find-class 'simple-1d-array))
+
+  (make-built-in-class 'hash-table-vector)
+  (make-built-in-class 'catch-frame)
+  (make-built-in-class 'code-vector)
+  #+ppc32-target
+  (make-built-in-class 'creole-object)
+
+  (make-built-in-class 'xfunction)
+  (make-built-in-class 'xcode-vector)
+
+  (defun class-cell-find-class (class-cell errorp)
+    (unless (listp class-cell)
+      (setq class-cell (%kernel-restart $xwrongtype class-cell 'list)))
+    (locally (declare (type list class-cell))
+      (let ((class (cdr class-cell)))
+        (or class
+            (and 
+             (setq class (find-class (car class-cell) nil))
+             (when class 
+               (rplacd class-cell class)
+               class))
+            (if errorp (error "Class ~s not found." (car class-cell)) nil)))))
+
+;;; (%wrapper-class (instance.class-wrapper frob))
 
 
 
-; (%wrapper-class (instance.class-wrapper frob))
+  (defglobal *general-vector-class* (find-class 'general-vector))
+
+  #+ppc32-target
+  (defparameter *ivector-vector-classes*
+    (vector (find-class 'short-float-vector)
+            (find-class 'unsigned-long-vector)
+            (find-class 'long-vector)
+            (find-class 'unsigned-byte-vector)
+            (find-class 'byte-vector)
+            (find-class 'base-string)
+            *t-class*
+            (find-class 'unsigned-word-vector)
+            (find-class 'word-vector)
+            (find-class 'double-float-vector)
+            (find-class 'bit-vector)))
+
+  #+ppc64-target
+  (defparameter *ivector-vector-classes*
+    (vector *t-class*
+            *t-class*
+            *t-class*
+            *t-class*
+            (find-class 'byte-vector)
+            (find-class 'word-vector)
+            (find-class 'long-vector)
+            (find-class 'doubleword-vector)
+            (find-class 'unsigned-byte-vector)
+            (find-class 'unsigned-word-vector)
+            (find-class 'unsigned-long-vector)
+            (find-class 'unsigned-doubleword-vector)
+            *t-class*
+            *t-class*
+            (find-class 'short-float-vector)
+            *t-class*
+            *t-class*
+            *t-class*
+            *t-class*
+            (find-class 'double-float-vector)
+            (find-class 'base-string)
+            *t-class*
+            *t-class*
+            *t-class*
+            *t-class*
+            *t-class*
+            *t-class*
+            *t-class*
+            *t-class*
+            (find-class 'bit-vector)
+            *t-class*
+            *t-class*))
 
 
+  (defun make-foreign-object-domain (&key index name recognize class-of classp
+                                          instance-class-wrapper
+                                          class-own-wrapper
+                                          slots-vector)
+    (%istruct 'foreign-object-domain index name recognize class-of classp
+              instance-class-wrapper class-own-wrapper slots-vector))
+  
+  (let* ((n-foreign-object-domains 0)
+         (foreign-object-domains (make-array 10))
+         (foreign-object-domain-lock (make-lock)))
+    (defun register-foreign-object-domain (name
+                                           &key
+                                           recognize
+                                           class-of
+                                           classp
+                                           instance-class-wrapper
+                                           class-own-wrapper
+                                           slots-vector)
+      (with-lock-grabbed (foreign-object-domain-lock)
+        (dotimes (i n-foreign-object-domains)
+          (let* ((already (svref foreign-object-domains i)))
+            (when (eq name (foreign-object-domain-name already))
+              (setf (foreign-object-domain-recognize already) recognize
+                    (foreign-object-domain-class-of already) class-of
+                    (foreign-object-domain-classp already) classp
+                    (foreign-object-domain-instance-class-wrapper already)
+                    instance-class-wrapper
+                    (foreign-object-domain-class-own-wrapper already)
+                    class-own-wrapper
+                    (foreign-object-domain-slots-vector already) slots-vector)
+              (return-from register-foreign-object-domain i))))
+        (let* ((i n-foreign-object-domains)
+               (new (make-foreign-object-domain :index i
+                                                :name name
+                                                :recognize recognize
+                                                :class-of class-of
+                                                :classp classp
+                                                :instance-class-wrapper
+                                                instance-class-wrapper
+                                                :class-own-wrapper
+                                                class-own-wrapper
+                                                :slots-vector
+                                                slots-vector)))
+          (incf n-foreign-object-domains)
+          (if (= i (length foreign-object-domains))
+            (setq foreign-object-domains (%extend-vector i foreign-object-domains (* i 2))))
+          (setf (svref foreign-object-domains i) new)
+          i)))
+    (defun foreign-class-of (p)
+      (funcall (foreign-object-domain-class-of (svref foreign-object-domains (%macptr-domain p))) p))
+    (defun foreign-classp (p)
+      (funcall (foreign-object-domain-classp (svref foreign-object-domains (%macptr-domain p))) p))
+    (defun foreign-instance-class-wrapper (p)
+      (funcall (foreign-object-domain-instance-class-wrapper (svref foreign-object-domains (%macptr-domain p))) p))
+    (defun foreign-class-own-wrapper (p)
+      (funcall (foreign-object-domain-class-own-wrapper (svref foreign-object-domains (%macptr-domain p))) p))
+    (defun foreign-slots-vector (p)
+      (funcall (foreign-object-domain-slots-vector (svref foreign-object-domains (%macptr-domain p))) p))
+    (defun classify-foreign-pointer (p)
+      (do* ((i (1- n-foreign-object-domains) (1- i)))
+           ((zerop i) (error "this can't happen"))
+        (when (funcall (foreign-object-domain-recognize (svref foreign-object-domains i)) p)
+          (%set-macptr-domain p i)
+          (return p)))))
 
-(defvar *general-vector-class* (find-class 'general-vector))
+  (defun constantly (x)
+    "Return a function that always returns VALUE."
+    #'(lambda (&rest ignore)
+        (declare (dynamic-extent ignore)
+                 (ignore ignore))
+        x))
 
-#+ppc32-target
-(defparameter *ivector-vector-classes*
-  (vector (find-class 'short-float-vector)
-          (find-class 'unsigned-long-vector)
-          (find-class 'long-vector)
-          (find-class 'unsigned-byte-vector)
-          (find-class 'byte-vector)
-          (find-class 'base-string)
-          *t-class*
-          (find-class 'unsigned-word-vector)
-          (find-class 'word-vector)
-          (find-class 'double-float-vector)
-          (find-class 'bit-vector)))
-
-#+ppc64-target
-(defparameter *ivector-vector-classes*
-  (vector *t-class*
-          *t-class*
-          *t-class*
-          *t-class*
-          (find-class 'byte-vector)
-          (find-class 'word-vector)
-          (find-class 'long-vector)
-          (find-class 'doubleword-vector)
-          (find-class 'unsigned-byte-vector)
-          (find-class 'unsigned-word-vector)
-          (find-class 'unsigned-long-vector)
-          (find-class 'unsigned-doubleword-vector)
-          *t-class*
-          *t-class*
-          (find-class 'short-float-vector)
-          *t-class*
-          *t-class*
-          *t-class*
-          *t-class*
-          (find-class 'double-float-vector)
-          (find-class 'base-string)
-          *t-class*
-          *t-class*
-          *t-class*
-          *t-class*
-          *t-class*
-          *t-class*
-          *t-class*
-          *t-class*
-          (find-class 'bit-vector)
-          *t-class*
-          *t-class*))
-
-
-(defun make-foreign-object-domain (&key index name recognize class-of classp
-					instance-class-wrapper
-					class-own-wrapper
-					slots-vector)
-  (%istruct 'foreign-object-domain index name recognize class-of classp
-	    instance-class-wrapper class-own-wrapper slots-vector))
-
-(let* ((n-foreign-object-domains 0)
-       (foreign-object-domains (make-array 10))
-       (foreign-object-domain-lock (make-lock)))
-  (defun register-foreign-object-domain (name
-					 &key
-					 recognize
-					 class-of
-					 classp
-					 instance-class-wrapper
-					 class-own-wrapper
-					 slots-vector)
-    (with-lock-grabbed (foreign-object-domain-lock)
-      (dotimes (i n-foreign-object-domains)
-	(let* ((already (svref foreign-object-domains i)))
-	  (when (eq name (foreign-object-domain-name already))
-	    (setf (foreign-object-domain-recognize already) recognize
-		  (foreign-object-domain-class-of already) class-of
-		  (foreign-object-domain-classp already) classp
-		  (foreign-object-domain-instance-class-wrapper already)
-		  instance-class-wrapper
-		  (foreign-object-domain-class-own-wrapper already)
-		  class-own-wrapper
-		  (foreign-object-domain-slots-vector already) slots-vector)
-	    (return-from register-foreign-object-domain i))))
-      (let* ((i n-foreign-object-domains)
-	     (new (make-foreign-object-domain :index i
-					      :name name
-					      :recognize recognize
-					      :class-of class-of
-					      :classp classp
-					      :instance-class-wrapper
-					      instance-class-wrapper
-					      :class-own-wrapper
-					      class-own-wrapper
-					      :slots-vector
-					      slots-vector)))
-	(incf n-foreign-object-domains)
-	(if (= i (length foreign-object-domains))
-	  (setq foreign-object-domains (%extend-vector i foreign-object-domains (* i 2))))
-	(setf (svref foreign-object-domains i) new)
-	i)))
-  (defun foreign-class-of (p)
-    (funcall (foreign-object-domain-class-of (svref foreign-object-domains (%macptr-domain p))) p))
-  (defun foreign-classp (p)
-    (funcall (foreign-object-domain-classp (svref foreign-object-domains (%macptr-domain p))) p))
-  (defun foreign-instance-class-wrapper (p)
-    (funcall (foreign-object-domain-instance-class-wrapper (svref foreign-object-domains (%macptr-domain p))) p))
-  (defun foreign-class-own-wrapper (p)
-    (funcall (foreign-object-domain-class-own-wrapper (svref foreign-object-domains (%macptr-domain p))) p))
-  (defun foreign-slots-vector (p)
-    (funcall (foreign-object-domain-slots-vector (svref foreign-object-domains (%macptr-domain p))) p))
-  (defun classify-foreign-pointer (p)
-    (do* ((i (1- n-foreign-object-domains) (1- i)))
-	 ((zerop i) (error "this can't happen"))
-      (when (funcall (foreign-object-domain-recognize (svref foreign-object-domains i)) p)
-	(%set-macptr-domain p i)
-	(return p)))))
-
-(defun constantly (x)
-  "Return a function that always returns VALUE."
-  #'(lambda (&rest ignore)
-      (declare (dynamic-extent ignore)
-               (ignore ignore))
-      x))
-
-(register-foreign-object-domain :unclassified
-				:recognize #'(lambda (p)
-					       (declare (ignore p))
-					       (error "Shouldn't happen"))
-				:class-of #'(lambda (p)
-					      (foreign-class-of
-					       (classify-foreign-pointer p)))
-				:classp #'(lambda (p)
-					    (foreign-classp
-					     (classify-foreign-pointer p)))
-				:instance-class-wrapper
-				#'(lambda (p)
-				    (foreign-instance-class-wrapper
-				     (classify-foreign-pointer p)))
-				:class-own-wrapper
-				#'(lambda (p)
-				    (foreign-class-own-wrapper 
-				     (classify-foreign-pointer p)))
-				:slots-vector
-				#'(lambda (p)
-				    (foreign-slots-vector
-				     (classify-foreign-pointer p))))
+  (register-foreign-object-domain :unclassified
+                                  :recognize #'(lambda (p)
+                                                 (declare (ignore p))
+                                                 (error "Shouldn't happen"))
+                                  :class-of #'(lambda (p)
+                                                (foreign-class-of
+                                                 (classify-foreign-pointer p)))
+                                  :classp #'(lambda (p)
+                                              (foreign-classp
+                                               (classify-foreign-pointer p)))
+                                  :instance-class-wrapper
+                                  #'(lambda (p)
+                                      (foreign-instance-class-wrapper
+                                       (classify-foreign-pointer p)))
+                                  :class-own-wrapper
+                                  #'(lambda (p)
+                                      (foreign-class-own-wrapper 
+                                       (classify-foreign-pointer p)))
+                                  :slots-vector
+                                  #'(lambda (p)
+                                      (foreign-slots-vector
+                                       (classify-foreign-pointer p))))
 
 ;;; "Raw" macptrs, that aren't recognized as "standard foreign objects"
 ;;; in some other domain, should always be recognized as such (and this
 ;;; pretty much has to be domain #1.)
 
-(register-foreign-object-domain :raw
-				:recognize #'true
-				:class-of (constantly *macptr-class*)
-				:classp #'false
-				:instance-class-wrapper
-				(constantly (%class.own-wrapper *macptr-class*))
-				:class-own-wrapper #'false
-				:slots-vector #'false)
+  (register-foreign-object-domain :raw
+                                  :recognize #'true
+                                  :class-of (constantly *macptr-class*)
+                                  :classp #'false
+                                  :instance-class-wrapper
+                                  (constantly (%class.own-wrapper *macptr-class*))
+                                  :class-own-wrapper #'false
+                                  :slots-vector #'false)
 
-
-(defglobal *class-table*
-  (let* ((v (make-array 256 :initial-element nil))
-         (class-of-function-function
-          #'(lambda (thing)
-              (let ((bits (lfun-bits thing)))
-                (declare (fixnum bits))
-                (if (logbitp $lfbits-trampoline-bit bits)
-                  ;; closure
-		  (if (logbitp $lfbits-evaluated-bit bits)
-		    *interpreted-lexical-closure-class*
-		    (let ((inner-fn (closure-function thing)))
-		      (if (neq inner-fn thing)
-			(let ((inner-bits (lfun-bits inner-fn)))
-			  (if (logbitp $lfbits-method-bit inner-bits)
-			    *compiled-lexical-closure-class*
-			    (if (logbitp $lfbits-gfn-bit inner-bits)
-			      (%wrapper-class (gf.instance.class-wrapper thing))
-			      (if (logbitp $lfbits-cm-bit inner-bits)
-				*combined-method-class*
-				*compiled-lexical-closure-class*))))
-                        *compiled-lexical-closure-class*)))
-                  (if (logbitp $lfbits-evaluated-bit bits)
-                    (if (logbitp $lfbits-method-bit bits)
-                      *interpreted-method-function-class*
-                      *interpreted-function-class*)
-                    (if (logbitp  $lfbits-method-bit bits)
-                      *method-function-class* 
-                      (if (logbitp $lfbits-gfn-bit bits)
-			(%wrapper-class (instance.class-wrapper thing))
-                        (if (logbitp $lfbits-cm-bit bits)
-                          *combined-method-class*
-                          *compiled-function-class*)))))))))
-          
-    ;; Make one loop through the vector, initializing fixnum & list
-    ;; cells.  Set all immediates to *immediate-class*, then
-    ;; special-case characters later.
-    #+ppc32-target
-    (do* ((slice 0 (+ 8 slice)))
-         ((= slice 256))
-      (declare (type (unsigned-byte 8) slice))
-      (setf (%svref v (+ slice ppc32::fulltag-even-fixnum)) *fixnum-class*
-            (%svref v (+ slice ppc32::fulltag-odd-fixnum))  *fixnum-class*
-            (%svref v (+ slice ppc32::fulltag-cons)) *cons-class*
-            (%svref v (+ slice ppc32::fulltag-nil)) *null-class*
-            (%svref v (+ slice ppc32::fulltag-imm)) *immediate-class*))
-    #+ppc64-target
-    (do* ((slice 0 (+ 16 slice)))
-         ((= slice 256))
-      (declare (type (unsigned-byte 8) slice))
-      (setf (%svref v (+ slice ppc64::fulltag-even-fixnum)) *fixnum-class*
-            (%svref v (+ slice ppc64::fulltag-odd-fixnum))  *fixnum-class*
-            (%svref v (+ slice ppc64::fulltag-cons)) *cons-class*
-            (%svref v (+ slice ppc64::fulltag-imm-0)) *immediate-class*
-            (%svref v (+ slice ppc64::fulltag-imm-1)) *immediate-class*
-            (%svref v (+ slice ppc64::fulltag-imm-2)) *immediate-class*
-            (%svref v (+ slice ppc64::fulltag-imm-3)) *immediate-class*))
-    #+x8664-target
-    (do* ((slice 0 (+ 16 slice)))
-         ((= slice 256))
-      (declare (type (unsigned-byte 8) slice))
-      (setf (%svref v (+ slice x8664::fulltag-even-fixnum)) *fixnum-class*
-            (%svref v (+ slice x8664::fulltag-odd-fixnum))  *fixnum-class*
-            (%svref v (+ slice x8664::fulltag-cons)) *cons-class*
-            (%svref v (+ slice x8664::fulltag-imm-0)) *immediate-class*
-            (%svref v (+ slice x8664::fulltag-imm-1)) *immediate-class*
-            (%svref v (+ slice x8664::fulltag-nil)) *null-class*
-            (%svref v (+ slice x8664::fulltag-function)) class-of-function-function
-            (%svref v (+ slice x8664::fulltag-symbol))
-            #'(lambda (s)
-                (if (eq (symbol-package s) *keyword-package*)
-                          *keyword-class*
-                          *symbol-class*))))
-    (macrolet ((map-subtag (subtag class-name)
-                 `(setf (%svref v ,subtag) (find-class ',class-name))))
-      ;; immheader types map to built-in classes.
-      (map-subtag target::subtag-bignum bignum)
-      (map-subtag target::subtag-double-float double-float)
-      (map-subtag target::subtag-single-float short-float)
-      (map-subtag target::subtag-dead-macptr ivector)
-      #-x8664-target
-      (map-subtag target::subtag-code-vector code-vector)
-      #+ppc32-target
-      (map-subtag ppc32::subtag-creole-object creole-object)
-      (map-subtag target::subtag-xcode-vector xcode-vector)
-      (map-subtag target::subtag-xfunction xfunction)
-      (map-subtag target::subtag-single-float-vector simple-short-float-vector)
-      #+64-bit-target
-      (map-subtag target::subtag-u64-vector simple-unsigned-doubleword-vector)
-      #+64-bit-target
-      (map-subtag target::subtag-s64-vector simple-doubleword-vector)
-      (map-subtag target::subtag-u32-vector simple-unsigned-long-vector)
-      (map-subtag target::subtag-s32-vector simple-long-vector)
-      (map-subtag target::subtag-u8-vector simple-unsigned-byte-vector)
-      (map-subtag target::subtag-s8-vector simple-byte-vector)
-      (map-subtag target::subtag-simple-base-string simple-base-string)
-      (map-subtag target::subtag-u16-vector simple-unsigned-word-vector)
-      (map-subtag target::subtag-s16-vector simple-word-vector)
-      (map-subtag target::subtag-double-float-vector simple-double-float-vector)
-      (map-subtag target::subtag-bit-vector simple-bit-vector)
-      ;; Some nodeheader types map to built-in-classes; others require
-      ;; further dispatching.
-      (map-subtag target::subtag-ratio ratio)
-      (map-subtag target::subtag-complex complex)
-      (map-subtag target::subtag-catch-frame catch-frame)
-      (map-subtag target::subtag-lisp-thread lisp-thread)
-      (map-subtag target::subtag-hash-vector hash-table-vector)
-      (map-subtag target::subtag-value-cell value-cell)
-      (map-subtag target::subtag-pool pool)
-      (map-subtag target::subtag-weak population)
-      (map-subtag target::subtag-package package)
-      (map-subtag target::subtag-simple-vector simple-vector)
-      (map-subtag target::subtag-slot-vector slot-vector))
-    (setf (%svref v target::subtag-arrayH)
-          #'(lambda (x)
-              (if (logbitp $arh_simple_bit
-                           (the fixnum (%svref x target::arrayH.flags-cell)))
-                *simple-array-class*
-                *array-class*)))
-    ;; These need to be special-cased:
-    (setf (%svref v target::subtag-macptr) #'foreign-class-of)
-    (setf (%svref v target::subtag-character)
-          #'(lambda (c) (let* ((code (%char-code c)))
-                          (if (or (eq c #\NewLine)
-                                  (and (>= code (char-code #\space))
-                                       (< code (char-code #\rubout))))
-                            *standard-char-class*
-                            *base-char-class*))))
-    (setf (%svref v target::subtag-struct)
-          #'(lambda (s) (%structure-class-of s))) ; need DEFSTRUCT
-    (setf (%svref v target::subtag-istruct)
-          #'(lambda (i) (or (find-class (%svref i 0) nil) *istruct-class*)))
-    (setf (%svref v target::subtag-instance)
-          #'%class-of-instance)
-    #-x8664-target
-    (setf (%svref v target::subtag-symbol)
+  (defglobal *class-table*
+      (let* ((v (make-array 256 :initial-element nil))
+             (class-of-function-function
+              #'(lambda (thing)
+                  (let ((bits (lfun-bits-known-function thing)))
+                    (declare (fixnum bits))
+                    (if (logbitp $lfbits-trampoline-bit bits)
+                      ;; closure
+                      (let ((inner-fn (closure-function thing)))
+                        (if (neq inner-fn thing)
+                          (let ((inner-bits (lfun-bits inner-fn)))
+                            (if (logbitp $lfbits-method-bit inner-bits)
+                              *compiled-lexical-closure-class*
+                              (if (logbitp $lfbits-gfn-bit inner-bits)
+                                (%wrapper-class (gf.instance.class-wrapper thing))
+                                (if (logbitp $lfbits-cm-bit inner-bits)
+                                  *combined-method-class*
+                                  *compiled-lexical-closure-class*))))
+                          *compiled-lexical-closure-class*))
+                      (if (logbitp  $lfbits-method-bit bits)
+                        *method-function-class* 
+                        (if (logbitp $lfbits-gfn-bit bits)
+                          (%wrapper-class (gf.instance.class-wrapper thing))
+                          (if (logbitp $lfbits-cm-bit bits)
+                            *combined-method-class*
+                            *compiled-function-class*))))))))
+        ;; Make one loop through the vector, initializing fixnum & list
+        ;; cells.  Set all immediates to *immediate-class*, then
+        ;; special-case characters later.
+        #+ppc32-target
+        (do* ((slice 0 (+ 8 slice)))
+             ((= slice 256))
+          (declare (type (unsigned-byte 8) slice))
+          (setf (%svref v (+ slice ppc32::fulltag-even-fixnum)) *fixnum-class*
+                (%svref v (+ slice ppc32::fulltag-odd-fixnum))  *fixnum-class*
+                (%svref v (+ slice ppc32::fulltag-cons)) *cons-class*
+                (%svref v (+ slice ppc32::fulltag-nil)) *null-class*
+                (%svref v (+ slice ppc32::fulltag-imm)) *immediate-class*))
+        #+ppc64-target
+        (do* ((slice 0 (+ 16 slice)))
+             ((= slice 256))
+          (declare (type (unsigned-byte 8) slice))
+          (setf (%svref v (+ slice ppc64::fulltag-even-fixnum)) *fixnum-class*
+                (%svref v (+ slice ppc64::fulltag-odd-fixnum))  *fixnum-class*
+                (%svref v (+ slice ppc64::fulltag-cons)) *cons-class*
+                (%svref v (+ slice ppc64::fulltag-imm-0)) *immediate-class*
+                (%svref v (+ slice ppc64::fulltag-imm-1)) *immediate-class*
+                (%svref v (+ slice ppc64::fulltag-imm-2)) *immediate-class*
+                (%svref v (+ slice ppc64::fulltag-imm-3)) *immediate-class*))
+        #+x8664-target
+        (do* ((slice 0 (+ 16 slice)))
+             ((= slice 256))
+          (declare (type (unsigned-byte 8) slice))
+          (setf (%svref v (+ slice x8664::fulltag-even-fixnum)) *fixnum-class*
+                (%svref v (+ slice x8664::fulltag-odd-fixnum))  *fixnum-class*
+                (%svref v (+ slice x8664::fulltag-cons)) *cons-class*
+                (%svref v (+ slice x8664::fulltag-imm-0)) *immediate-class*
+                (%svref v (+ slice x8664::fulltag-imm-1)) *immediate-class*
+                (%svref v (+ slice x8664::fulltag-nil)) *null-class*
+                (%svref v (+ slice x8664::fulltag-function)) class-of-function-function
+                (%svref v (+ slice x8664::fulltag-symbol))
+                #'(lambda (s)
+                    (if (eq (symbol-package s) *keyword-package*)
+                      *keyword-class*
+                      *symbol-class*))))
+        (macrolet ((map-subtag (subtag class-name)
+                     `(setf (%svref v ,subtag) (find-class ',class-name))))
+          ;; immheader types map to built-in classes.
+          (map-subtag target::subtag-bignum bignum)
+          (map-subtag target::subtag-double-float double-float)
+          (map-subtag target::subtag-single-float short-float)
+          (map-subtag target::subtag-dead-macptr ivector)
+          #-x8664-target
+          (map-subtag target::subtag-code-vector code-vector)
           #+ppc32-target
-          #'(lambda (s) (if (eq (symbol-package s) *keyword-package*)
-                          *keyword-class*
-                          *symbol-class*))
-          #+ppc64-target
-          #'(lambda (s)
-              (if s
-                (if (eq (symbol-package s) *keyword-package*)
-                          *keyword-class*
-                          *symbol-class*)
-                *null-class*)))
-    (setf (%svref v target::subtag-function)
-          class-of-function-function)
-    (setf (%svref v target::subtag-vectorH)
-          #'(lambda (v)
-              (let* ((subtype (%array-header-subtype v)))
-                (declare (fixnum subtype))
-                (if (eql subtype target::subtag-simple-vector)
-                  *general-vector-class*
-                  #-x8664-target
-                  (%svref *ivector-vector-classes*
-                          #+ppc32-target
-                          (ash (the fixnum (- subtype ppc32::min-cl-ivector-subtag))
-                               (- ppc32::ntagbits))
-                          #+ppc64-target
-                          (ash (the fixnum (logand subtype #x7f)) (- ppc64::nlowtagbits)))
-                  #+x8664-target
-                  'fix-this
-                  ))))
-    (setf (%svref v target::subtag-lock)
-          #'(lambda (thing)
-              (case (%svref thing target::lock.kind-cell)
-                (recursive-lock *recursive-lock-class*)
-                (read-write-lock *read-write-lock-class*)
-                (t *lock-class*))))
-    v))
+          (map-subtag ppc32::subtag-creole-object creole-object)
+          (map-subtag target::subtag-xcode-vector xcode-vector)
+          (map-subtag target::subtag-xfunction xfunction)
+          (map-subtag target::subtag-single-float-vector simple-short-float-vector)
+          #+64-bit-target
+          (map-subtag target::subtag-u64-vector simple-unsigned-doubleword-vector)
+          #+64-bit-target
+          (map-subtag target::subtag-s64-vector simple-doubleword-vector)
+          (map-subtag target::subtag-u32-vector simple-unsigned-long-vector)
+          (map-subtag target::subtag-s32-vector simple-long-vector)
+          (map-subtag target::subtag-u8-vector simple-unsigned-byte-vector)
+          (map-subtag target::subtag-s8-vector simple-byte-vector)
+          (map-subtag target::subtag-simple-base-string simple-base-string)
+          (map-subtag target::subtag-u16-vector simple-unsigned-word-vector)
+          (map-subtag target::subtag-s16-vector simple-word-vector)
+          (map-subtag target::subtag-double-float-vector simple-double-float-vector)
+          (map-subtag target::subtag-bit-vector simple-bit-vector)
+          ;; Some nodeheader types map to built-in-classes; others require
+          ;; further dispatching.
+          (map-subtag target::subtag-ratio ratio)
+          (map-subtag target::subtag-complex complex)
+          (map-subtag target::subtag-catch-frame catch-frame)
+          (map-subtag target::subtag-lisp-thread lisp-thread)
+          (map-subtag target::subtag-hash-vector hash-table-vector)
+          (map-subtag target::subtag-value-cell value-cell)
+          (map-subtag target::subtag-pool pool)
+          (map-subtag target::subtag-weak population)
+          (map-subtag target::subtag-package package)
+          (map-subtag target::subtag-simple-vector simple-vector)
+          (map-subtag target::subtag-slot-vector slot-vector))
+        (setf (%svref v target::subtag-arrayH)
+              #'(lambda (x)
+                  (if (logbitp $arh_simple_bit
+                               (the fixnum (%svref x target::arrayH.flags-cell)))
+                    *simple-array-class*
+                    *array-class*)))
+        ;; These need to be special-cased:
+        (setf (%svref v target::subtag-macptr) #'foreign-class-of)
+        (setf (%svref v target::subtag-character)
+              #'(lambda (c) (let* ((code (%char-code c)))
+                              (if (or (eq c #\NewLine)
+                                      (and (>= code (char-code #\space))
+                                           (< code (char-code #\rubout))))
+                                *standard-char-class*
+                                *base-char-class*))))
+        (setf (%svref v target::subtag-struct)
+              #'(lambda (s) (%structure-class-of s))) ; need DEFSTRUCT
+        (setf (%svref v target::subtag-istruct)
+              #'(lambda (i) (or (find-class (%svref i 0) nil) *istruct-class*)))
+        (setf (%svref v target::subtag-instance)
+              #'%class-of-instance)
+        #-x8664-target
+        (setf (%svref v target::subtag-symbol)
+              #+ppc32-target
+              #'(lambda (s) (if (eq (symbol-package s) *keyword-package*)
+                              *keyword-class*
+                              *symbol-class*))
+              #+ppc64-target
+              #'(lambda (s)
+                  (if s
+                    (if (eq (symbol-package s) *keyword-package*)
+                      *keyword-class*
+                      *symbol-class*)
+                    *null-class*)))
+        #-x8664-target
+        (setf (%svref v target::subtag-function)
+              class-of-function-function)
+        (setf (%svref v target::subtag-vectorH)
+              #'(lambda (v)
+                  (let* ((subtype (%array-header-subtype v)))
+                    (declare (fixnum subtype))
+                    (if (eql subtype target::subtag-simple-vector)
+                      *general-vector-class*
+                      #-x8664-target
+                      (%svref *ivector-vector-classes*
+                              #+ppc32-target
+                              (ash (the fixnum (- subtype ppc32::min-cl-ivector-subtag))
+                                   (- ppc32::ntagbits))
+                              #+ppc64-target
+                              (ash (the fixnum (logand subtype #x7f)) (- ppc64::nlowtagbits)))
+                      #+x8664-target
+                      'fix-this
+                      ))))
+        (setf (%svref v target::subtag-lock)
+              #'(lambda (thing)
+                  (case (%svref thing target::lock.kind-cell)
+                    (recursive-lock *recursive-lock-class*)
+                    (read-write-lock *read-write-lock-class*)
+                    (t *lock-class*))))
+        v))
 
 
 
 
 
-(defun no-class-error (x)
-  (error "Bug (probably): can't determine class of ~s" x))
+  (defun no-class-error (x)
+    (error "Bug (probably): can't determine class of ~s" x))
   
 
-  ; return frob from table
+                                        ; return frob from table
 
 
 
 
-) ; end let
+  )                                     ; end let
 
-; Can't use typep at bootstrapping time.
+
+;;; Can't use typep at bootstrapping time.
 (defun classp (x)
   (or (and (typep x 'macptr) (foreign-classp x))		; often faster
       (let ((wrapper (standard-object-p x)))
@@ -2139,6 +2124,7 @@ to replace that class with ~s" name old-class new-class)
   value)
   
 (defsetf %class-get %class-put)
+
 (defun %class-remprop (class indicator)
   (let* ((handle (cons nil (%class-alist class)))
          (last handle))
@@ -2165,7 +2151,7 @@ to replace that class with ~s" name old-class new-class)
       (%class-remprop class :primary-p)
       nil)))
 
-; Returns the first element of the CPL that is primary
+;;; Returns the first element of the CPL that is primary
 (defun %class-or-superclass-primary-p (class)
   (unless (class-has-a-forward-referenced-superclass-p class)
     (dolist (super (%inited-class-cpl class t))
@@ -2173,7 +2159,7 @@ to replace that class with ~s" name old-class new-class)
 	(return super)))))
 
 
-; Bootstrapping version of union
+;;; Bootstrapping version of union
 (unless (fboundp 'union)
 (defun union (l1 l2)
   (dolist (e l1)
@@ -2226,7 +2212,7 @@ to replace that class with ~s" name old-class new-class)
 	    (q (%method-qualifiers m))
 	    s)
 	(when (equal q method-qualifiers)
-	  (dolist (spec (canonicalize-specializers specializers)
+	  (dolist (spec specializers #|(canonicalize-specializers specializers)|#
 		   (if (null ss)
 		     (return-from find-method m)
 		     (err)))
@@ -2246,7 +2232,7 @@ to replace that class with ~s" name old-class new-class)
            nil				;method-function name
            (dpb 1 $lfbits-numreq (ash 1 $lfbits-method-bit)))
   #+x86-target
-  (%x86-clone-function
+  (%clone-x86-function
    *reader-method-function-proto*
    (ensure-slot-id (%slot-definition-name dslotd))
    'slot-id-value
@@ -2264,7 +2250,7 @@ to replace that class with ~s" name old-class new-class)
            nil
            (dpb 2 $lfbits-numreq (ash 1 $lfbits-method-bit)))
   #+x86-target
-    (%x86-clone-function
+    (%clone-x86-function
      *writer-method-function-proto*
      (ensure-slot-id (%slot-definition-name dslotd))
      'set-slot-id-value
@@ -2338,7 +2324,7 @@ to replace that class with ~s" name old-class new-class)
 
 (defmethod copy-instance ((instance standard-object))
   (let* ((new-slots (copy-uvector (instance.slots instance)))
-	 (copy (gvector :instance 0 (instance.class-wrapper instance) new-slots)))
+	 (copy (gvector :instance 0 (instance-class-wrapper instance) new-slots)))
     (setf (instance.hash copy) (strip-tag-to-fixnum copy)
 	  (slot-vector.instance new-slots) copy)))
 
@@ -2555,9 +2541,9 @@ to replace that class with ~s" name old-class new-class)
                     (%class-own-wrapper (class-of instance)))))
     (funcall (%wrapper-set-slot-id-value wrapper) instance slot-id value)))
 
-; returns nil if (apply gf args) wil cause an error because of the
-; non-existance of a method (or if GF is not a generic function or the name
-; of a generic function).
+;;; returns nil if (apply gf args) wil cause an error because of the
+;;; non-existance of a method (or if GF is not a generic function or the name
+;;; of a generic function).
 (defun method-exists-p (gf &rest args)
   (declare (dynamic-extent args))
   (when (symbolp gf)
@@ -2874,7 +2860,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-; A useful function
+;;; A useful function
 (defun class-make-instance-initargs (class)
   (setq class (require-type (if (symbolp class) (find-class class) class)
                             'std-class))
@@ -2891,7 +2877,7 @@ to replace that class with ~s" name old-class new-class)
 
                                    
 
-; This is part of the MOP
+;;; This is part of the MOP
 ;;; Maybe it was, at one point in the distant past ...
 (defmethod class-slot-initargs ((class slots-class))
   (apply #'append (mapcar #'(lambda (s)
@@ -2912,8 +2898,8 @@ to replace that class with ~s" name old-class new-class)
   instance)
 
 
-; If you ever reference one of these through anyone who might call update-obsolete-instance,
-; you will lose badly.
+;;; If you ever reference one of these through anyone who might call
+;;; update-obsolete-instance, you will lose badly.
 (defun %maybe-forwarded-instance (instance)
   (maybe-update-obsolete-instance instance)
   instance)
@@ -3002,7 +2988,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-; Clear all the valid initargs caches.
+;;; Clear all the valid initargs caches.
 (defun clear-valid-initargs-caches ()
   (map-classes #'(lambda (name class)
                    (declare (ignore name))
@@ -3038,7 +3024,7 @@ to replace that class with ~s" name old-class new-class)
                     %class.changed-initargs))))
 
 
-(defvar *initialization-function-lists*
+(defglobal *initialization-function-lists*
   (list (list #'initialize-instance #'allocate-instance #'shared-initialize)
         (list #'reinitialize-instance #'shared-initialize)
         (list #'update-instance-for-redefined-class #'shared-initialize)
@@ -3281,7 +3267,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-; Redefined in lib;method-combination.lisp
+;;; Redefined in lib;method-combination.lisp
 (defmethod find-method-combination ((gf standard-generic-function) type options)
   (unless (and (eq type 'standard) (null options))
     (error "non-standard method-combination not supported yet."))
@@ -3383,13 +3369,6 @@ to replace that class with ~s" name old-class new-class)
         (slot-makunbound object slot)
         (setf (slot-value object slot) value)))))
 
-#|
-(defmethod method-specializers ((method standard-method))
-  (%method-specializers method))
-
-(defmethod method-qualifiers ((method standard-method))
-  (%method-qualifiers method))
-|#
 
 (defun %recache-class-direct-methods ()
   (let ((*maintain-class-direct-methods* t))   ; in case we get an error
