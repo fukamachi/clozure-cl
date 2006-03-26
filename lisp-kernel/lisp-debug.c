@@ -366,19 +366,19 @@ debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
   show_lisp_register(xp, "arg_z", Iarg_z);
   show_lisp_register(xp, "arg_y", Iarg_y);
   show_lisp_register(xp, "arg_x", Iarg_x);
-  fprintf(stderr,"\n");
+  fprintf(stderr,"------\n");
   show_lisp_register(xp, "fn", Ifn);
   show_lisp_register(xp, "ra0", Ira0);
-  fprintf(stderr,"\n");
+  fprintf(stderr,"------\n");
   show_lisp_register(xp, "save0", Isave0);
   show_lisp_register(xp, "save1", Isave1);
   show_lisp_register(xp, "save2", Isave2);
   show_lisp_register(xp, "save3", Isave3);
+  fprintf(stderr,"------\n");
   show_lisp_register(xp, "temp0", Itemp0);
-  fprintf(stderr,"\n");
   show_lisp_register(xp, "temp1", Itemp1);
   show_lisp_register(xp, "temp2", Itemp2);
-  fprintf(stderr,"\n");
+  fprintf(stderr,"------\n");
   if (tag_of(xpGPR(xp,Itemp2)) == tag_fixnum) {
     fprintf(stderr,"%%cx (nargs) = %d (maybe)\n", unbox_fixnum(xpGPR(xp,Itemp2)&0xffff));
   }
