@@ -97,8 +97,7 @@
 
 ;;; Strip the tag bits to turn x into a fixnum
 (defx86lapfunction strip-tag-to-fixnum ((x arg_z))
-  (unbox-fixnum imm0 x)
-  (box-fixnum arg_z imm0)
+  (andb ($ (lognot x8664::fixnummask)) (%b x))
   (single-value-return))
 
 ;;; end of x86-hash.lisp
