@@ -1687,15 +1687,15 @@
   (let* ((bits (+ (integer-length number) 8))
          (half-words (ash (the fixnum (+ bits 15)) -4))
          (long-words (ash (+ half-words 1) -1))
-         (dividend (%alloc-misc long-words target::subtag-bignum 0))
+         (dividend (%alloc-misc long-words target::subtag-bignum))
          (16-bit-dividend dividend)
          (index 1))
-    (declare (fixnum long-words words words-2 index)
+    (declare (fixnum long-words words words-2 index bits)
              (dynamic-extent dividend)
              (type (simple-array (unsigned-byte 16) (*)) 16-bit-dividend)       ; lie
              (optimize (speed 3) (safety 0)))
     (loop
-      ; This had better inline due to the lie above, or it will error
+      ;; This had better inline due to the lie above, or it will error
       (setf (aref 16-bit-dividend index) (%next-random-seed state))
       (decf half-words)
       (when (<= half-words 0) (return))
