@@ -38,25 +38,41 @@
 
 
 
+(defloadvar *machine-version* nil)
+
 (defun machine-version ()
   "Return a string describing the version of the computer hardware we
 are running on, or NIL if we can't find any useful information."
-  #+darwinppc-target
-  (%stack-block ((mib 8))
-    (setf (%get-long mib 0) #$CTL_HW
-	  (%get-long mib 4) #$HW_MODEL)
-    (%stack-block ((res 256)
-		   (reslen 4))
-      (setf (%get-byte res 0) 0
-	    (%get-long reslen 0) 256)
-      (if (zerop (#_sysctl mib 2 res reslen (%null-ptr) 0))
-	(return-from machine-version (%get-cstring res)))))
-  #+linuxppc-target
-  (with-open-file (f "/proc/device-tree/model" :if-does-not-exist nil)
-    (when f
-      (let* ((s (read-line f nil nil)))
-	(when s (return-from machine-version s)))))
-  "Unknown")
+  (or *machine-version*
+      (setq *machine-version*
+            #+darwinppc-target
+            (block darwin-machine-version
+              (%stack-block ((mib 8))
+                (setf (%get-long mib 0) #$CTL_HW
+                      (%get-long mib 4) #$HW_MODEL)
+                (%stack-block ((res 256)
+                               (reslen target::node-size))
+                  (setf (%get-byte res 0) 0
+                        (%get-natural reslen 0) 256)
+                  (if (zerop (#_sysctl mib 2 res reslen (%null-ptr) 0))
+                    (return-from darwin-machine-version (%get-cstring res))))))
+            #+linux-target
+            (with-open-file (f "/proc/cpuinfo" :if-does-not-exist nil)
+              (when f
+                (flet ((cpu-info-match (target line)
+                         (if (string= target line
+                                      :end2 (length line))
+                           (let* ((colonpos (position #\: line)))
+                             (when colonpos
+                               (subseq line (1+ colonpos)))))))
+                  (do* ((line (read-line f nil nil)
+                              (read-line f nil nil))
+                        (target #+ppc-target "machine"
+                                #+x86-target "model name"))
+                       ((null line))
+                    (let* ((matched (cpu-info-match target line)))
+                      (when matched (return matched))))))))
+      "Unknown"))
 
 
 (defun software-type ()
