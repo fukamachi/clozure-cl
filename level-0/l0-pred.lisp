@@ -700,7 +700,7 @@
 #+x8664-target
 (progn
 (defparameter *nodeheader-0-types*
-  #(function-vector
+  #(bogus
     symbol-vector
     catch-frame
     hash-vector
@@ -708,9 +708,9 @@
     population
     package
     slot-vector
-    lisp-thread                         ;8
-    vector-header
-    bogus
+    lisp-thread
+    function-vector                                        ;8
+    array--header
     bogus
     bogus
     bogus
@@ -719,18 +719,18 @@
     ))
 
 (defparameter *nodeheader-1-types*
-  #(ratio
+  #(bogus
+    ratio
     complex
-    instance
     struct
     istruct
     value-cell
     xfunction
-    lock                                ;7
-    array-header
+    lock
+    instance
+    bogus
+    vector-header
     simple-vector
-    bogus
-    bogus
     bogus
     bogus
     bogus
@@ -819,34 +819,45 @@
             #16(symbol))))
   
 (defun %type-of (thing)
-  (let* ((fulltag (fulltag thing))
-         (high4 (ash (the fixnum (%lisp-lowbyte-ref thing)) (- x8664::ntagbits))))
-    (declare (fixnum fulltag high4))
-    (if (= fulltag x8664::fulltag-function)
-      (let ((bits (lfun-bits thing)))
-        (declare (fixnum bits))
-        (if (logbitp $lfbits-trampoline-bit bits)
-          (if (logbitp $lfbits-evaluated-bit bits)
-            'interpreted-lexical-closure
-            (let ((inner-fn (closure-function thing)))
-              (if (neq inner-fn thing)
-                (let ((inner-bits (lfun-bits inner-fn)))
-                  (if (logbitp $lfbits-method-bit inner-bits)
-                    'compiled-lexical-closure
-                    (if (logbitp $lfbits-gfn-bit inner-bits)
-                      'standard-generic-function ; not precisely - see class-of
-                      (if (logbitp  $lfbits-cm-bit inner-bits)
-                        'combined-method
-                        'compiled-lexical-closure))))
-                'compiled-lexical-closure)))
-          (if (logbitp $lfbits-evaluated-bit bits)
-            (if (logbitp $lfbits-method-bit bits)
-              'interpreted-method-function
-              'interpreted-function)
-            (if (logbitp  $lfbits-method-bit bits)
-              'method-function          
-              'compiled-function))))
-      (%svref (%svref *x8664-fulltag-types* fulltag) high4))))
+  (let* ((lisptag (lisptag thing))
+         (typecode (typecode thing))
+         (high4 (ash typecode (- x8664::ntagbits))))
+    (declare (type (mod 8) lisptag)
+             (type (mod 256) typecode))
+    (if (logbitp lisptag (logior (ash 1 x8664::fulltag-nodeheader-0)
+                                 (ash 1 x8664::fulltag-nodeheader-1)
+                                 (ash 1 x8664::fulltag-immheader-0)
+                                 (ash 1 x8664::fulltag-immheader-1)
+                                 (ash 1 x8664::fulltag-immheader-2)))
+      (%svref (%svref *x8664-fulltag-types* fulltag) high4)
+      (if (= lisp x8664::tag-function)
+        (let ((bits (lfun-bits thing)))
+          (declare (fixnum bits))
+          (if (logbitp $lfbits-trampoline-bit bits)
+            (if (logbitp $lfbits-evaluated-bit bits)
+              'interpreted-lexical-closure
+              (let ((inner-fn (closure-function thing)))
+                (if (neq inner-fn thing)
+                  (let ((inner-bits (lfun-bits inner-fn)))
+                    (if (logbitp $lfbits-method-bit inner-bits)
+                      'compiled-lexical-closure
+                      (if (logbitp $lfbits-gfn-bit inner-bits)
+                        'standard-generic-function ; not precisely - see class-of
+                        (if (logbitp  $lfbits-cm-bit inner-bits)
+                          'combined-method
+                          'compiled-lexical-closure))))
+                  'compiled-lexical-closure)))
+            (if (logbitp $lfbits-evaluated-bit bits)
+              (if (logbitp $lfbits-method-bit bits)
+                'interpreted-method-function
+                'interpreted-function)
+              (if (logbitp  $lfbits-method-bit bits)
+                'method-function          
+                'compiled-function))))
+        (%svref (%svref *x8664-fulltag-types* fulltag)
+                (the fixnum (ash (%lisp-lowbyte-ref thing)
+                                 (- x8664::ntagbits))))))))
+        
 
 );#+x8664-target
       
