@@ -962,4 +962,11 @@
 (defppc64archmacro ccl::symvector->symptr (s)
   s)
 
+(defppc64archmacro ccl::function-to-function-vector (f)
+  f)
+
+(defppc64archmacro ccl::function-vector-to-function (v)
+  v)
+
+
 (provide "PPC64-ARCH")

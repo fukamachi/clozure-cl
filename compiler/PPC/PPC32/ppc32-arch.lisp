@@ -897,4 +897,10 @@
 (defppc32archmacro ccl::symvector->symptr (s)
   s)
 
+(defppc32archmacro ccl::function-to-function-vector (f)
+  f)
+
+(defppc32archmacro ccl::function-vector-to-function (v)
+  v)
+
 (provide "PPC32-ARCH")
