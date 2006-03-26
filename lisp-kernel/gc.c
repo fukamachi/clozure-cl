@@ -4126,14 +4126,19 @@ impurify(TCR *tcr, signed_natural param)
 
   if (r) {
     area *a = active_dynamic_area;
-    BytePtr ro_base = r->low, ro_limit = r->active, oldfree = a->active;
+    BytePtr ro_base = r->low, ro_limit = r->active, oldfree = a->active,
+      oldhigh = a->high, newhigh; 
     unsigned n = ro_limit - ro_base;
     int delta = oldfree-ro_base;
     TCR *other_tcr;
 
     if (n) {
       lisp_global(IN_GC) = 1;
-      resize_dynamic_heap(oldfree, n);
+      newhigh = (BytePtr) (align_to_power_of_2(oldfree+n,
+                                               log2_heap_segment_size));
+      if (newhigh > oldhigh) {
+        grow_dynamic_area(newhigh-oldhigh);
+      }
       a->active += n;
       bcopy(ro_base, oldfree, n);
       munmap(ro_base, n);
