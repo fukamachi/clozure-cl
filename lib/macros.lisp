@@ -720,7 +720,7 @@
 
 (defmacro lfun-bits-known-function (f)
   (let* ((temp (gensym)))
-    `(let* ((,temp ,f))
+    `(let* ((,temp (function-to-function-vector ,f)))
       (%svref ,temp (the fixnum (1- (the fixnum (uvsize ,temp))))))))
 
 ; %Pascal-Functions% Entry
@@ -2318,6 +2318,9 @@ defcallback returns the callback pointer, e.g., the value of name."
 
 (declare-arch-specific-macro symptr->symvector)
 (declare-arch-specific-macro symvector->symptr)
+
+(declare-arch-specific-macro function-to-function-vector)
+(declare-arch-specific-macro function-vector-to-function)
 
 (defvar *trace-print-functions* nil)
 (defun %trace-print-arg (stream arg val type)
