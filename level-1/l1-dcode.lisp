@@ -157,9 +157,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (setf (%gf-dispatch-table-gf table) self)
       self)))
 
-;Bring the generic function to the smallest possible size by removing
-;any cached recomputable info.  Currently this means clearing out the
-;combined methods from the dispatch table.
+;;; Bring the generic function to the smallest possible size by removing
+;;; any cached recomputable info.  Currently this means clearing out the
+;;; combined methods from the dispatch table.
 
 (defun clear-gf-cache (gf)
   #-bccl (unless t (typep gf 'standard-generic-function) 
@@ -178,11 +178,11 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         (setf (%gf-dispatch-table gf) new)))))
 
 (defun grow-gf-dispatch-table (gf-or-cm wrapper table-entry &optional obsolete-wrappers-p)
-  ; Grow the table associated with gf and insert table-entry as the value for
-  ; wrapper.  Wrapper is a class-wrapper.  Assumes that it is not obsolete.
-  (let* ((dt (if (standard-generic-function-p gf-or-cm)
+  ;; Grow the table associated with gf and insert table-entry as the value for
+  ;; wrapper.  Wrapper is a class-wrapper.  Assumes that it is not obsolete.
+  (let* ((dt (if (generic-function-p gf-or-cm)
                (%gf-dispatch-table gf-or-cm)
-               (%combined-method-methods gf-or-cm)))  ; huh
+               (%combined-method-methods gf-or-cm)))
          (size (%gf-dispatch-table-size dt))
          (new-size (if obsolete-wrappers-p
                      size
@@ -190,10 +190,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
          new-dt)
     (if (> new-size *max-gf-dispatch-table-size*)
       (progn 
-        (when (not (fixnump (%gf-dispatch-table-mask dt)))(bug "906")) ; cant be right that its so big
         (setq new-dt (clear-gf-dispatch-table dt)
-                   *gf-dt-ovf-cnt* (%i+ *gf-dt-ovf-cnt* 1))
-        (when (not (fixnump (%gf-dispatch-table-mask new-dt)))(bug "903")))
+                   *gf-dt-ovf-cnt* (%i+ *gf-dt-ovf-cnt* 1)))
       (progn
         (setq new-dt (make-gf-dispatch-table new-size))
         (setf (%gf-dispatch-table-methods new-dt) (%gf-dispatch-table-methods dt)
@@ -215,7 +213,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
     (let ((index (find-gf-dispatch-table-index new-dt wrapper t)))
       (setf (%gf-dispatch-table-ref new-dt index) wrapper)
       (setf (%gf-dispatch-table-ref new-dt (%i+ index 1)) table-entry))
-    (if (standard-generic-function-p gf-or-cm)
+    (if (generic-function-p gf-or-cm)
       (setf (%gf-dispatch-table gf-or-cm) new-dt)
       (setf (%combined-method-methods gf-or-cm) new-dt))))
 
@@ -225,10 +223,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 
-; probably want to use alists vs. hash-tables initially
+;;; probably want to use alists vs. hash-tables initially
 
 
-; only used if error - well not really
+;;; only used if error - well not really
 (defun collect-lexpr-args (args first &optional last) 
   (if (listp args)
     (subseq args first (or last (length args)))
@@ -257,9 +255,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 (defmacro %standard-instance-p (i)
-  `(eq (typecode ,i) ,(target-arch-case
-                       (:ppc32 ppc32::subtag-instance)
-                       (:ppc64 ppc64::subtag-instance))))
+  `(eq (typecode ,i) ,(type-keyword-code :instance)))
 
 
 
@@ -279,6 +275,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
            (if (not (%standard-instance-p arg))
 	     (or (and (typep arg 'macptr)
 		      (foreign-instance-class-wrapper arg))
+                 (and (generic-function-p arg)
+                      (gf.instance.class-wrapper arg))
 		 (let* ((class (class-of arg)))
 		   (or (%class.own-wrapper class)
 		       (progn
@@ -299,20 +297,23 @@ congruent with lambda lists of existing methods." lambda-list gf)))
             (return (%gf-dispatch-table-ref dt  (the fixnum (1+ index))))
             (progn
               (when (null (%gf-dispatch-table-ref dt (the fixnum (1+ index))))
-                (if (or (neq table-wrapper (%unbound-marker-8))
+                (if (or (neq table-wrapper (%unbound-marker))
                         (eql 0 flag))
                   (without-interrupts   ; why?
                    (return (1st-arg-combined-method-trap (%gf-dispatch-table-gf dt) wrapper arg))) ; the only difference?
                   (setq flag 0 index -2)))
               (setq index (+ 2 index)))))))))
 
-; more PC - it it possible one needs to go round more than once? - seems unlikely
+;;; more PC - it it possible one needs to go round more than once? -
+;;; seems unlikely
 (defun %find-nth-arg-combined-method (dt arg args)  
   (declare (optimize (speed 3)(safety 0)))
   (flet ((get-wrapper (arg)
            (if (not (%standard-instance-p arg))
 	     (or (and (typep arg 'macptr)
 		      (foreign-instance-class-wrapper arg))
+                 (and (generic-function-p arg)
+                      (gf.instance.class-wrapper arg))
 		 (let* ((class (class-of arg)))
 		   (or (%class.own-wrapper class)
 		       (progn
@@ -333,7 +334,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
             (return (%gf-dispatch-table-ref dt (the fixnum (1+ index))))
             (progn
               (when (null (%gf-dispatch-table-ref dt (the fixnum (1+ index))))
-                (if (or (neq table-wrapper (%unbound-marker-8))
+                (if (or (neq table-wrapper (%unbound-marker))
                         (eql 0 flag))
                   (without-interrupts ; why?
                    (let ((gf (%gf-dispatch-table-gf dt)))
@@ -513,6 +514,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 	  (logand bits (logior (ash 1 $lfbits-gfn-bit)
 			       (ash 1 $lfbits-method-bit)))))))
 
+(defglobal *generic-function-class-wrapper* nil)
+(defglobal *standard-generic-function-class-wrapper* nil)
+
 (defun generic-function-p (thing)
   (and (typep thing 'function)
        (let ((bits (lfun-bits-known-function thing)))
@@ -520,10 +524,12 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 	 (eq (ash 1 $lfbits-gfn-bit)
 	     (logand bits (logior (ash 1 $lfbits-gfn-bit)
 				  (ash 1 $lfbits-method-bit)))))
-       (or (eq (%class.own-wrapper *generic-function-class*)
-	       (gf.instance.class-wrapper thing))
-	   (memq  *generic-function-class*
-		  (%inited-class-cpl (class-of thing))))))
+       (let* ((wrapper (gf.instance.class-wrapper thing)))
+         ;; In practice, many generic-functions are standard-generic-functions.
+         (or (eq *standard-generic-function-class-wrapper* wrapper)
+             (eq *generic-function-class-wrapper* wrapper)
+             (memq  *generic-function-class*
+		  (%inited-class-cpl (class-of thing)))))))
 
 
 (defun standard-generic-function-p (thing)
@@ -618,17 +624,17 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (let ((res (%cons-gf-dispatch-table size)))
     (setf (%gf-dispatch-table-mask res) (%i- (%ilsr 1 size) 1)
           (%gf-dispatch-table-argnum res) 0
-          (%gf-dispatch-table-ref res size) (%unbound-marker-8))
+          (%gf-dispatch-table-ref res size) (%unbound-marker))
     res))
 
-; I wanted this to be faster - I didn't
+;;; I wanted this to be faster - I didn't
 (defun clear-gf-dispatch-table (dt)
   (let ((i %gf-dispatch-table-first-data))
     (dotimes (j (%gf-dispatch-table-size dt))
       (declare (fixnum j))
-      (setf (%svref dt i) nil               ; svref is for debugging - nil not 0 is right
+      (setf (%svref dt i) nil 
             i (%i+ i 1)))
-    (setf (%svref dt i) (%unbound-marker-8))   ; paranoia...
+    (setf (%svref dt i) (%unbound-marker)) ; paranoia...
     (setf (svref dt (%i+ 1 i)) nil))
   dt)
 
@@ -641,11 +647,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   nil)
 
 
-
-;  Lap fever strikes again... is this still correct? - seems not - maybe ok now
+;;; Searches for an empty slot in dt at the hash-index for wrapper.
+;;; Returns nil if the table was full.
 (defun find-gf-dispatch-table-index (dt wrapper &optional skip-full-check?)
-  ;searches for an empty slot in dt at the hash-index for wrapper.
-  ;returns nil if the table was full.
   (let ((contains-obsolete-wrappers-p nil)
         (mask (%gf-dispatch-table-mask dt)))
     (declare (fixnum mask))
@@ -670,7 +674,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
           (setq index (%i+ index 2)))
         (when (> count max-count)
           (return-from find-gf-dispatch-table-index (values nil contains-obsolete-wrappers-p)))))
-    (let* ((index (ash (logand mask (%wrapper-hash-index wrapper)) 1)) ; * 2 ??
+    (let* ((index (ash (logand mask (%wrapper-hash-index wrapper)) 1))
            (flag nil)
            table-wrapper)      
       (values
@@ -680,7 +684,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                      (%gf-dispatch-table-ref dt (1+ index))
                      (neq 0 (%wrapper-hash-index table-wrapper)))
            (setq index (%i+ index 2)))
-         (if (eq (%unbound-marker-8) table-wrapper)
+         (if (eq (%unbound-marker) table-wrapper)
            (if flag
              (return nil)         ; table full
              (setq flag 1
@@ -696,8 +700,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (error "Generic-function dispatch bug!")))
 
   
-; This maximum is necessary because of the 32 bit arithmetic in
-; find-gf-dispatch-table-index.
+;;; This maximum is necessary because of the 32 bit arithmetic in
+;;; find-gf-dispatch-table-index.
 (defparameter *max-gf-dispatch-table-size* (expt 2 16))
 (defvar *gf-dt-ovf-cnt* 0)              ; overflow count
 
@@ -735,14 +739,12 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 (defun %%no-applicable-method (gf args)
-  ; do we really need this? - now we do
-  ;(declare (dynamic-extent args)) ; today caller does the &rest
   (if (listp args)
     (apply #'no-applicable-method gf args)
     (%apply-lexpr #'no-applicable-method gf args )))
 
-; if obsolete-wrappers-p is true, will rehash instead of grow.
-; It would be better to do the rehash in place, but I'm lazy today.
+;;; if obsolete-wrappers-p is true, will rehash instead of grow.
+;;; It would be better to do the rehash in place, but I'm lazy today.
 
 
 (defun arg-wrapper (arg)
@@ -752,8 +754,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;; generic-function dcode ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Simple case for generic-functions with no specializers
-;; Why anyone would want to do this I can't imagine.
+;;; Simple case for generic-functions with no specializers
+;;; Why anyone would want to do this I can't imagine.
 
 (defun %%0-arg-dcode (dispatch-table args) ; need to get gf from table
   (let ((method (or (%gf-dispatch-table-ref dispatch-table 1)
@@ -802,7 +804,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 ;;;  arg is dispatch-table and argnum is in the dispatch table
 (defun %%nth-arg-dcode (dt args)
-  ;(declare (dynamic-extent args))
   (if (listp args)
     (let* ((args-len (list-length args))
            (argnum (%gf-dispatch-table-argnum dt)))
@@ -816,10 +817,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (when (>= argnum args-len) (dcode-too-few-args args-len (%gf-dispatch-table-gf dt)))
       (let ((method (%find-nth-arg-combined-method dt (%lexpr-ref args args-len argnum) args)))
 	(%apply-lexpr-tail-wise method args)))))
-
-
-
-
 
 
 (defun 0-arg-combined-method-trap (gf)
@@ -902,11 +899,11 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 (defun puthash-combined-method (key value)
   (setf (gethash key *combined-methods*) value))
 
-;; Some statistics on the hash table above
+;;; Some statistics on the hash table above
 (defvar *returned-combined-methods* 0)
 (defvar *consed-combined-methods* 0)
 
-;; Assumes methods are already sorted if cpls is nil
+;;; Assumes methods are already sorted if cpls is nil
 (defun make-standard-combined-method (methods cpls gf &optional
                                               (ok-if-no-primaries (null methods)))
   (unless (null cpls)
@@ -920,10 +917,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       combined-method)))
 
 
-; Initialized below after the functions exist.
+;;; Initialized below after the functions exist.
 (defvar *clos-initialization-functions* nil)
 
-; Returns NIL if all keywords allowed, or a vector of the allowable ones.
+;;; Returns NIL if all keywords allowed, or a vector of the allowable ones.
 (defun compute-allowable-keywords-vector (gf methods)
   (setq gf (combined-method-gf gf))
   (unless (memq gf *clos-initialization-functions*)
@@ -950,7 +947,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                   (setq keys (adjoin-keys (lfun-keyvect f) keys))))))
           (apply #'vector keys))))))
 
-; The aux arg is used by keyword checking for %call-next-method-with-args - it is?
+
 (defun make-keyword-checking-combined-method (gf combined-method keyvect)
   (let* ((bits (inner-lfun-bits gf))
          (numreq (ldb $lfbits-numreq bits))
@@ -959,9 +956,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
      gf       
      (vector key-index keyvect combined-method)
      #'%%check-keywords)))
-; ok
 
-; #(keyvect key-index combined-method) in atemp1 - actually key-index keyvect today
 
 
 (defun odd-keys-error (varg l) 
@@ -1184,7 +1179,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                        (lfun-bits (%method.function method)))))
       (unless (null primaries)            ; return NIL if no applicable primary methods
         (when (and arounds (not (next-method-bit-p (car (last arounds)))))
-          ; Arounds don't call-next-method, can't get to befores, afters, or primaries
+          ;; Arounds don't call-next-method, can't get to befores,
+          ;; afters, or primaries
           (setq primaries arounds
                 arounds nil
                 befores nil
@@ -1205,7 +1201,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
             (nconc arounds method-list)))))))
 
 
-; ok 
 
 (defun %invalid-method-error (method format-string &rest format-args)
   (error "~s is an invalid method.~%~?" method format-string format-args))
@@ -1213,7 +1208,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 (defun %method-combination-error (format-string &rest args)
   (apply #'error format-string args))
 
-; ok
 
 
 (defun combined-method-gf (gf-or-cm)
@@ -1222,22 +1216,19 @@ congruent with lambda lists of existing methods." lambda-list gf)))
       (setq gf (lfun-name gf)))
     gf))
 
-(defun nth-arg-dcode-too-few-args (gf-or-cm)
-  (signal-program-error "Too few args to: ~s" (combined-method-gf gf-or-cm)))
 
 (defun nth-arg-combined-method-trap-0 (gf-or-cm table wrapper args)
   (let* ((argnum (%gf-dispatch-table-argnum table))
          (arg (nth argnum args)))
     (nth-arg-combined-method-trap gf-or-cm table argnum args arg wrapper)))
 
-; ok
 
 (defun nth-arg-combined-method-trap (gf-or-cm table argnum args &optional
                                               (arg (nth-or-gf-error 
                                                     argnum args gf-or-cm))
                                               (wrapper (arg-wrapper arg)))
-  ; Here when we can't find the method in the dispatch table.
-  ; Compute it and add it to the table.  This code will remain in Lisp.
+  ;; Here when we can't find the method in the dispatch table.
+  ;; Compute it and add it to the table.  This code will remain in Lisp.
   (multiple-value-bind (combined-method sub-dispatch?)
                        (compute-nth-arg-combined-method
                         gf-or-cm (%gf-dispatch-table-methods table) argnum args
@@ -1257,9 +1248,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
          args))
       combined-method)))
 
-;; Returns (values combined-method sub-dispatch?)
-;; If sub-dispatch? is true, need to compute a combined-method on the
-;; next arg.
+;;; Returns (values combined-method sub-dispatch?)
+;;; If sub-dispatch? is true, need to compute a combined-method on the
+;;; next arg.
 (defun compute-nth-arg-combined-method (gf methods argnum args &optional 
                                            (wrapper (arg-wrapper
                                                      (nth-or-gf-error
@@ -1270,7 +1261,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
          (standard-mc? (eq mc *standard-method-combination*))
          applicable-methods eql-methods specializers specializer sub-dispatch?)
     (dolist (method methods)
-      ;(require-type method 'standard-method)   ; for debugging.
+      ;;(require-type method 'standard-method)   ; for debugging.
       (setq specializers (nthcdr argnum (%method.specializers method))
             specializer (%car specializers))
       (when (if (typep specializer 'eql-specializer)
@@ -1331,8 +1322,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 
-;; This needs to be updated to use a linear search in a vector changing to
-;; a hash table when the number of entries crosses some threshold.
+;;; This needs to be updated to use a linear search in a vector changing to
+;;; a hash table when the number of entries crosses some threshold.
 (defun make-eql-combined-method (eql-methods methods cpls gf argnum sub-dispatch? &optional
                                              (method-combination *standard-method-combination*))
   (let ((eql-ms (copy-list eql-methods))
@@ -1409,11 +1400,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
            #'%%assoc-combined-method-dcode))
         default-method))))
 
-; ok
 
 
 
-(DEFun %%assq-combined-method-dcode (stuff args)
+(defun %%assq-combined-method-dcode (stuff args)
   ;; stuff is (argnum eql-method-list . default-method)
   ;(declare (dynamic-extent args))
   (if (listp args)
@@ -1457,10 +1447,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
           (%apply-lexpr (cddr stuff) args))))))
 
 
-; Assumes the two methods have the same number of specializers and that
-; each specializer of each method is in the corresponding element of cpls
-; (e.g. cpls is a list of the cpl's for the classes of args for which both
-; method1 & method2 are applicable.
+;;; Assumes the two methods have the same number of specializers and
+;;; that each specializer of each method is in the corresponding
+;;; element of cpls (e.g. cpls is a list of the cpl's for the classes
+;;; of args for which both method1 & method2 are applicable.
 (defun %method< (method1 method2 cpls)
   (let ((s1s (%method.specializers method1))
         (s2s (%method.specializers method2))
@@ -1595,8 +1585,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
     (declare (dynamic-extent magic)
              (dynamic-extent cell-2))    
     (if (listp car-meths)
-      (progn
-        (%%before-and-after-combined-method-dcode magic))
+      (%%before-and-after-combined-method-dcode magic)
       (progn       
         (if (not (cdr methods))
           (%rplaca (cdr magic) car-meths)
@@ -1824,8 +1813,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 
-;; This makes a consed version of the magic first arg to a method.
-;; Called when someone closes over the magic arg. (i.e. does (george #'call-next-method))
+;;; This makes a consed version of the magic first arg to a method.
+;;; Called when someone closes over the magic arg. (i.e. does (george
+;;; #'call-next-method))
 
 (defun %cons-magic-next-method-arg (magic)
   ; car is a cons as a flag that its already heap-consed! - else cnm-cm or nil
