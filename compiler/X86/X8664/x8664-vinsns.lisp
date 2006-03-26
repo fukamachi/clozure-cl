@@ -75,7 +75,7 @@
 (define-x8664-vinsn misc-ref-u8 (((dest :u8))
                                  ((v :lisp)
                                   (scaled-idx :s64)))
-  (movzbq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
+  (movzbl (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%l dest)))
 
 (define-x8664-vinsn misc-ref-s8 (((dest :s8))
                                  ((v :lisp)
@@ -156,7 +156,7 @@
 				     ((v :lisp)
 				      (idx :s32const)) ; sic
 				     ())
-  (movzbq (:@ (:apply + x8664::misc-data-offset idx) (:%q v)) (:%q dest)))
+  (movzbl (:@ (:apply + x8664::misc-data-offset idx) (:%q v)) (:%l dest)))
 
 (define-x8664-vinsn misc-ref-c-s8  (((dest :s64))
 				     ((v :lisp)
@@ -195,6 +195,13 @@
 				     (v :lisp)
 				     (idx :s32const)))
   (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
+
+(define-x8664-vinsn set-closure-forward-reference (()
+                                                   ((val :lisp)
+                                                    (closure :lisp)
+                                                    (idx :s32const)))
+  (movq (:%q val) (:@ (:apply + x8664::misc-function-offset (:apply ash idx x8664::word-shift)) (:%q closure))))
+
 
 (define-x8664-vinsn misc-set-c-double-float (()
 				    ((val :double-float)
@@ -369,16 +376,43 @@
   (movq (:%q x8664::rsp) (:%q x8664::rbp))
   :done)
 
+;;; We know that some args were pushed, but don't know how many were
+;;; passed.
+(define-x8664-vinsn save-lisp-context-in-frame (()
+                                                ()
+                                                ((temp :u64)))
+  (movzwl (:%w x8664::nargs) (:%l temp))
+  (subq (:$b (* $numx8664argregs x8664::node-size)) (:%q temp))
+  (movq (:%q x8664::rbp) (:@ (:%q x8664::rsp) (:%q temp)))
+  (leaq (:@ (:%q x8664::rsp) (:%q temp)) (:%q x8664::rbp))
+  (movq (:% x8664::ra0) (:@ 8 (:%q x8664::rbp))))
+
 
 (define-x8664-vinsn (vpush-register :push :node :vsp)
     (()
      ((reg :lisp)))
   (pushq (:% reg)))
 
+(define-x8664-vinsn (vpush-fixnum :push :node :vsp)
+    (()
+     ((const :s32const)))
+  ((:and  (:pred < const 128) (:pred > const 127))
+   (pushq (:$b const)))
+  ((:not (:and  (:pred < const 128) (:pred > const 127)))
+   (pushq (:$l const))))
+
+
+
 (define-x8664-vinsn vframe-load (((dest :lisp))
 				 ((frame-offset :u16const)
 				  (cur-vsp :u16const)))
   (movq (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp)) (:%q dest)))
+
+(define-x8664-vinsn (vframe-push :push :node :vsp)
+    (()
+     ((frame-offset :u16const)
+      (cur-vsp :u16const)))
+  (pushq (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp))))
 
 (define-x8664-vinsn vframe-store (()
 				 ((src :lisp)
@@ -407,6 +441,10 @@
 (define-x8664-vinsn ref-constant (((dest :lisp))
                                   ((lab :label)))
   (movq (:@ (:^ lab) (:%q x8664::fn)) (:%q dest)))
+
+(define-x8664-vinsn (vpush-constant :push :node :vsp) (()
+                                                       ((lab :label)))
+  (pushq (:@ (:^ lab) (:%q x8664::fn))))
 
   
 (define-x8664-vinsn (jump :jump)
@@ -557,10 +595,19 @@
 			  ((src :lisp)))
   (movq (:@ x8664::cons.cdr (:%q src)) (:%q dest)))
 
+(define-x8664-vinsn (%vpush-cdr :push :node :vsp)
+    (()
+     ((src :lisp)))
+  (pushq (:@ x8664::cons.cdr (:%q src))))
+
 (define-x8664-vinsn %car (((dest :lisp))
 			  ((src :lisp)))
   (movq (:@ x8664::cons.car (:%q src)) (:%q dest)))
 
+(define-x8664-vinsn (%vpush-car :push :node :vsp)
+    (()
+     ((src :lisp)))
+  (pushq (:@ x8664::cons.car (:%q src))))
 
 
 (define-x8664-vinsn u8->char (((dest :lisp))
@@ -652,11 +699,15 @@
 (define-x8664-vinsn compare-u8-constant (()
                                          ((val :u8)
                                           (const :u8const)))
+  #|
   ((:pred logbitp 7 const)
    (movzbl (:%b val) (:%l val))
    (rcmpw (:%w val) (:$w const)))
   ((:not (:pred logbitp 7 const))
-   (rcmpb (:%b val) (:$b const))))
+   (rcmpb (:%b val) (:$b const)))
+  ||#
+  (rcmpb (:%b val) (:$b const))
+  )
 
 
 (define-x8664-vinsn cons (((dest :lisp))
@@ -1042,12 +1093,16 @@
   (popq (:%q dest)))
 
 
-;;; If nothing's been pushed by the caller, we need to "reserve a stack frame"
-;;; here.
+;;; If nothing's been pushed by the caller, and we might push something
+;;; while defaulting &optional, we need to "reserve a stack frame"
+;;; here.  (It might work better to get rid of this, and build the
+;;; frame via SAVE-LISP-CONTEXT-VARIABLE-ARG-COUNT instead: if this
+;;; actually reserves space for the frame, it only does so so that
+;;; we can store %rbp and %ra0, which is kind of stupid.
 (define-x8664-vinsn ensure-reserved-frame (()
                                            ())
   (rcmpw (:%w x8664::nargs) (:$w (* 3 x8664::node-size)))
-  (jae :no-reserve)
+  (ja :no-reserve)
   (pushq (:$b 0))
   (pushq (:$b 0))
   :no-reserve)
@@ -1091,7 +1146,7 @@
    :done)
   ((:pred = max 1)
    (testw (:%w x8664::nargs) (:%w x8664::nargs))
-   (jne :done)
+   (je :done)
    (pushq (:%q x8664::arg_z))
    :done))
 
@@ -1245,6 +1300,7 @@
    (movw (:$w (:apply ash n x8664::fixnumshift)) (:%w imm)))
   (subw (:%w x8664::nargs) (:%w imm))
   (jae :push-more)
+  (movswq (:%w imm) (:%q imm))
   (subq (:%q imm) (:%q x8664::rsp))
   (jmp :done)
   :push-loop
@@ -1375,20 +1431,16 @@
    (subq (:$b (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
   ((:not (:and (:pred >= aligned-size -128) (:pred <= aligned-size 127)))
    (subq (:$l (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
-  (movd (:%q tempb) (:%mmx x8664::next-tsp))
+  (movd (:%q tempa) (:%mmx x8664::next-tsp))
   :loop
-  (movapd (:%xmm x8664::fpzero) (:@ -16 (:%q tempa)))
-  (subq (:$b 16) (:%q tempa))
+  (movapd (:%xmm x8664::fpzero) (:@ -16 (:%q tempb)))
+  (subq (:$b 16) (:%q tempb))
   (cmpq (:%q tempa) (:%q tempb))
   (jnz :loop)
-  ((:and (:pred >= aligned-size -128) (:pred <= aligned-size 127))
-   (addq (:$b (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
-  ((:not (:and (:pred >= aligned-size -128) (:pred <= aligned-size 127)))
-   (addq (:$l (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
-  (movd (:%q tempb) (:%mmx  x8664::tsp))
-  (movq (:%q tempa) (:@ (:%q tempb)))
-  (movl (:$l header) (:@ x8664::dnode-size (:%q tempb)))
-  (leaq (:@ (+ x8664::dnode-size x8664::misc-data-offset) (:%q tempb)) (:%q dest)))
+  (movq (:%mmx x8664::tsp) (:@ (:%q tempa)))
+  (movd (:%q tempa) (:%mmx x8664::tsp))
+  (movl (:$l header) (:@ x8664::dnode-size (:%q tempa)))
+  (leaq (:@ (+ x8664::dnode-size x8664::fulltag-misc) (:%q tempa)) (:%q dest)))
 
 
 (define-x8664-vinsn discard-temp-frame (()
@@ -2460,6 +2512,8 @@
 			       ((vcell :lisp)))
   (movq (:@ x8664::misc-data-offset (:%q vcell)) (:%q dest)))
 
+;;; The only current use of this - calling .SPgvset - doesn't need
+;;; to recover %fn from %ra0.
 (define-x8664-vinsn (call-subprim-3 :call :subprim-call) (((dest t))
 							  ((spno :s32const)
 							   (x t)
@@ -2469,8 +2523,7 @@
   (jmp (:@ spno))
   (:align 3)
   (:long (:^ :back))
-  :back
-  (leaq (:@ (:apply - (:^ :back)) (:% x8664::ra0)) (:%q x8664::fn)))
+  :back)
 
 (define-x8664-vinsn setup-vcell-allocation (()
                                             ())
@@ -2896,7 +2949,7 @@
 
 (define-x8664-subprim-call-vinsn (req-heap-rest-arg) .SPreq-heap-rest-arg)
 
-(define-x8664-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init)
+(define-x8664-subprim-call-vinsn (stack-misc-alloc-init)  .SPstack-misc-alloc-init t)
 
 (define-x8664-vinsn fixnum->unsigned-natural (((dest :u64))
                                               ((src :imm)))
@@ -2979,7 +3032,8 @@
   (subq (:$b (+ x8664::value-cell.size x8664::dnode-size)) (:%q temp))
   (movd (:%q temp) (:%mmx x8664::next-tsp))
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
-  (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
+  (movapd (:%xmm x8664::fpzero) (:@ x8664::dnode-size (:%q temp)))
+  (movq (:%mmx x8664::tsp) (:@ (:%q temp))) 
   (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
   (movq (:$l x8664::value-cell-header) (:@ x8664::dnode-size (:%q temp)))
   (movq (:%q closed) (:@ (+ x8664::dnode-size x8664::node-size) (:%q temp)))
@@ -3023,7 +3077,7 @@
 (define-x8664-vinsn  %slot-ref (((dest :lisp))
 				((instance (:lisp (:ne dest)))
 				 (index :lisp)))
-  (movq (:@ x8664::misc-data-offset (:%q instance)) (:%q dest))
+  (movq (:@ x8664::misc-data-offset (:%q instance) (:%q index)) (:%q dest))
   (cmpb (:$b x8664::slot-unbound-marker) (:%b dest))
   (jne.pt :ok)
   ;; Need something better/more recoverable here
@@ -3112,3 +3166,10 @@
 (define-x8664-subprim-call-vinsn (destructuring-bind-inner) .SPdestructuring-bind-inner)
 
 (define-x8664-subprim-call-vinsn (destructuring-bind) .SPdestructuring-bind)
+
+(define-x8664-vinsn symbol-ref (((dest :lisp))
+                                ((src :lisp)
+                                 (cellno :u32const)))
+  (movq (:@ (:apply + (- x8664::node-size x8664::fulltag-symbol)
+                    (:apply ash cellno 3))
+              (:%q src)) (:%q dest)))
