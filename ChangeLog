@@ -1,3 +1,115 @@
+2006-03-25 20:47  gb
+
+	* lisp-kernel/lisp-debug.c: Fix x8664 lisp register display.
+
+2006-03-25 20:42  gb
+
+	* lib/ccl-export-syms.lisp: Fix export of CCL::GETENV and
+	CCL::SETENV.
+
+2006-03-25 20:37  gb
+
+	* lisp-kernel/x86-spentry64.s: Dozens of bug fixes.
+	
+	Do uvref (not yet uvset) via jump table.
+
+2006-03-25 20:36  gb
+
+	* lisp-kernel/x86-macros.s: Do arithmetic correctly in Cons macro.
+	
+	Split up Misc_Alloc.
+
+2006-03-25 20:34  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s: Tag juggling.
+
+2006-03-25 20:34  gb
+
+	* lisp-kernel/ppc_print.c: Identify SLOT-VECTORs in kernel
+	debugger.
+
+2006-03-25 20:33  gb
+
+	* lisp-kernel/errors.s: Add some error numbers for uvref/uvset
+	failures that should never happen.
+
+2006-03-25 20:32  gb
+
+	* lisp-kernel/lisp-debug.c: Change x8664 lisp register display.
+
+2006-03-25 20:32  gb
+
+	* lisp-kernel/gc.c: IMPURIFY: maybe grow the dynamic area, but
+	don't shrink it.
+
+2006-03-25 20:31  gb
+
+	* lisp-kernel/plsym.c: Symbol address may be longer than 32 bits.
+
+2006-03-25 20:31  gb
+
+	* lisp-kernel/: ppc-constants32.h, ppc-constants32.s: sgbuf has
+	been lisp_thread for the past few years.
+
+2006-03-25 20:30  gb
+
+	* lisp-kernel/ppc-spentry.s: Do uvref/uvset via jump tables. 
+	(Fewer branches, more redundancy.)
+
+2006-03-25 20:29  gb
+
+	* lisp-kernel/x86_print.c: Identify SLOT-VECTORs.  Print TRAs.
+
+2006-03-25 20:28  gb
+
+	* lisp-kernel/xlbt.c: Skip over lexpr nonsense.
+
+2006-03-25 20:28  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: More GDB macros.
+
+2006-03-25 20:27  gb
+
+	* library/lispequ.lisp: %GF-DISPATCH-TABLE-REF uses %SVREF.
+
+2006-03-25 20:26  gb
+
+	* lib/misc.lisp: MACHINE-VERSION caches the result per-session;
+	looks in /proc/cpuinfo for something machine-dependent on Linux,
+	passes 64-bit stuff on DarwinPPC64.
+
+2006-03-25 20:25  gb
+
+	* lib/macros.lisp: LFUN-BITS-KNOWN-FUNCTIONS uses arch macros to
+	access function vector.
+
+2006-03-25 20:23  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-03-25 20:23  gb
+
+	* level-1/l1-io.lisp: No more interpreted functions.
+
+2006-03-25 20:23  gb
+
+	* level-1/l1-dcode.lisp: Mostly comment and formatting changes.
+
+2006-03-25 20:22  gb
+
+	* level-1/l1-clos.lisp: Fix typos in x86 function cloning;
+	comment/formatting changs.
+
+2006-03-25 20:21  gb
+
+	* level-1/l1-clos-boot.lisp: Lots of formatting changes; try to use
+	DEFGLOBAL, since special variable lookup is ~10 instructions or so.
+
+2006-03-25 20:20  gb
+
+	* level-1/l1-boot-1.lisp: HOST-PLATFORM, PLATFORM-DESCRIPTION:
+	generalize, a little.
+
 2006-03-25 20:19  gb
 
 	* level-1/l1-aprims.lisp: LFUN-KEYVECT access function vector, if
