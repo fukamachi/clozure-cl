@@ -1531,6 +1531,8 @@
 (define-compiler-macro complexp (n)
   `(eql (typecode ,n) ,(nx-lookup-target-uvector-subtag :complex)))
 
+(define-compiler-macro macptrp (n)
+  `(eql (typecode ,n) ,(nx-lookup-target-uvector-subtag :macptr)))
 
 (define-compiler-macro aref (&whole call a &rest subscripts &environment env)
   (let* ((ctype (if (nx-form-typep a 'array env)
