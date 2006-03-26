@@ -196,6 +196,9 @@ vector_subtag_name(unsigned subtag)
   case subtag_code_vector:
     return "CODE-VECTOR";
     break;
+  case subtag_slot_vector:
+    return "SLOT-VECTOR";
+    break;
   default:
     return "";
     break;
