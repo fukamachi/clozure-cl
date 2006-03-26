@@ -1,3 +1,106 @@
+2006-03-25 20:19  gb
+
+	* level-1/l1-aprims.lisp: LFUN-KEYVECT access function vector, if
+	that's not the function.  NREVERSE checks for NIL, mostly so I
+	wouldn't have to single-step through that case in GDB.
+
+2006-03-25 20:18  gb
+
+	* level-0/X86/X8664/x8664-bignum.lisp: Shift in the correct
+	direction, sign-extend (or don't) as apropriate, etc.  Still some
+	debug traps on things that haven't been called yet.
+
+2006-03-25 20:17  gb
+
+	* level-0/X86/x86-utils.lisp: CLASS-OF fixes.
+
+2006-03-25 20:17  gb
+
+	* level-0/X86/x86-pred.lisp: If the recursive list case of EQUAL
+	fails, fail; don't fall into the uvector case ...
+
+2006-03-25 20:16  gb
+
+	* level-0/X86/x86-numbers.lisp: Fenceposts in fixnum
+	integer-length.
+
+2006-03-25 20:15  gb
+
+	* level-0/X86/x86-hash.lisp: Strip-tag-to-fixnum without shifts.
+
+2006-03-25 20:15  gb
+
+	* level-0/X86/x86-def.lisp: Stuff here seems to work, so far ...
+
+2006-03-25 20:14  gb
+
+	* level-0/X86/x86-clos.lisp: debug traps on slot-lookup LAP
+	prototypes.
+
+2006-03-25 20:12  gb
+
+	* level-0/l0-pred.lisp: rearrange %type-of for tag changes.
+
+2006-03-25 20:12  gb
+
+	* level-0/l0-numbers.lisp: No need to specify an initial value 0
+	when stack-consing a bignum in %BIGNUM-RANDOM.	Add a fixnum decl
+	or two.
+
+2006-03-25 20:11  gb
+
+	* level-0/l0-hash.lisp: Symbol aren't (necessarily) uvectors. X86
+	breakpoints if we hash any symbols ...
+
+2006-03-25 20:09  gb
+
+	* level-0/l0-bignum64.lisp: Um, most of this is supposed to be
+	#+64-bit-target, not #+ppc64-target.
+
+2006-03-25 20:09  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp:
+	SET-CLOSURE-FORWARD-REFERENCE: functions aren't uvectors.
+	
+	Lots of other changes/fixes.
+
+2006-03-25 20:08  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Tag reorganization.
+	
+	MISC-SYMBOL-OFFSET, MISC-FUNCTION-OFFSET.
+	
+	FUNCTION-TO-FUNCTION-VECTOR, FUNCTION-VECTOR-TO-FUNCTION arch
+	macros have something to do here.
+
+2006-03-25 20:06  gb
+
+	* compiler/X86/x862.lisp: Some operators can push results directly.
+	
+	Lots of bug fixes.
+
+2006-03-25 20:05  gb
+
+	* compiler/X86/x86-asm.lisp: CMPB: accept signed/unsigned
+	immediate.
+
+2006-03-25 20:04  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp: Arch
+	macros for FUNCTION-TO-FUNCTION-VECTOR and
+	FUNCTION-VECTOR-TO-FUNCTION.
+	
+	(NOPs.)
+
+2006-03-25 20:03  gb
+
+	* compiler/optimizers.lisp: MACPTRP.
+
+2006-03-25 20:03  gb
+
+	* compiler/nx.lisp: COMPILE: don't check for INTERPRETED-FUNCTION,
+	unless/until we have them again (in some form.)
+
 2006-03-20 10:05  gwking
 
 	* lib/ccl-export-syms.lisp: Exporting getenv and setenv from CCL
