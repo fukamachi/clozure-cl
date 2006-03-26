@@ -339,9 +339,9 @@
   `(defconstant ,(ccl::form-symbol "SUBTAG-" name) (logior ,tag (ash ,value ntagbits))))
 
 
-(define-subtag arrayH fulltag-nodeheader-1 8)
-(define-subtag vectorH fulltag-nodeheader-0 9)
-(define-subtag simple-vector fulltag-nodeheader-1 9)
+(define-subtag arrayH fulltag-nodeheader-0 10)
+(define-subtag vectorH fulltag-nodeheader-1 10)
+(define-subtag simple-vector fulltag-nodeheader-1 11)
 (defconstant min-vector-subtag  subtag-vectorH)
 (defconstant min-array-subtag  subtag-arrayH)
 
@@ -367,11 +367,11 @@
 
 
 ;;; There's some room for expansion in non-array ivector space.
-(define-subtag macptr ivector-class-64-bit 0)
-(define-subtag dead-macptr ivector-class-64-bit 1)
-(define-subtag bignum ivector-class-32-bit 0)
-(define-subtag double-float ivector-class-32-bit 1)
-(define-subtag xcode-vector ivector-class-32-bit 2)
+(define-subtag macptr ivector-class-64-bit 1)
+(define-subtag dead-macptr ivector-class-64-bit 2)
+(define-subtag bignum ivector-class-32-bit 1)
+(define-subtag double-float ivector-class-32-bit 2)
+(define-subtag xcode-vector ivector-class-32-bit 3)
 
 
         
@@ -381,7 +381,7 @@
 ;;; in a function header looks like.  (Likewise for fulltag-symbol
 ;;; and subtag-symbol)
 
-(define-subtag function fulltag-nodeheader-0 0)
+;;; don't use nodheader/0, since that would conflict with tag-misc
 (define-subtag symbol fulltag-nodeheader-0 1)
 (define-subtag catch-frame fulltag-nodeheader-0 2)
 (define-subtag hash-vector fulltag-nodeheader-0 3)
@@ -390,15 +390,17 @@
 (define-subtag package fulltag-nodeheader-0 6)
 (define-subtag slot-vector fulltag-nodeheader-0 7)
 (define-subtag lisp-thread fulltag-nodeheader-0 8)
+(define-subtag function fulltag-nodeheader-0 9)
 
-(define-subtag ratio fulltag-nodeheader-1 0)
-(define-subtag complex fulltag-nodeheader-1 1)
-(define-subtag instance fulltag-nodeheader-1 2)
+(define-subtag ratio fulltag-nodeheader-1 1)
+(define-subtag complex fulltag-nodeheader-1 2)
 (define-subtag struct fulltag-nodeheader-1 3)
 (define-subtag istruct fulltag-nodeheader-1 4)
 (define-subtag value-cell fulltag-nodeheader-1 5)
 (define-subtag xfunction fulltag-nodeheader-1 6)
 (define-subtag lock fulltag-nodeheader-1 7)
+(define-subtag instance fulltag-nodeheader-1 8)
+
 	
 (defconstant nil-value (+ #x2000 fulltag-nil))
 (defconstant t-value (+ #x2020 fulltag-symbol))
@@ -411,7 +413,9 @@
 (defconstant misc-data-offset (+ misc-header-offset node-size))
 (defconstant misc-subtag-offset misc-header-offset)
 (defconstant misc-dfloat-offset misc-data-offset)
-
+(defconstant misc-symbol-offset (- node-size fulltag-symbol))
+(defconstant misc-function-offset (- node-size fulltag-function))
+  
 (define-subtag single-float fulltag-imm-0 0)
 
 (define-subtag character fulltag-imm-1 0)
@@ -1235,6 +1239,12 @@
 
 (defx8664archmacro ccl::symvector->symptr (s)
   `(ccl::%symvector->symptr ,s))
+
+(defx8664archmacro ccl::function-to-function-vector (f)
+  `(ccl::%function-to-function-vector ,f))
+
+(defx8664archmacro ccl::function-vector-to-function (v)
+  `(ccl::%function-vector-to-function ,v))
 
 
 (provide "X8664-ARCH")
