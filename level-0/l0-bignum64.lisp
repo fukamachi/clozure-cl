@@ -128,7 +128,7 @@
   )
 
 
-#+ppc64-target
+#+64-bit-target
 (progn
 
 ;;; Extract the length of the bignum.
