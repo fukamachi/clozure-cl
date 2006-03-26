@@ -194,7 +194,7 @@ define([Cons],[
 /* The instructions where tcr.save_allocptr is tagged are difficult
    to interrupt; the interrupting code has to recognize and possibly
    emulate the instructions in between */
-	subq $cons.size+fulltag_cons,%rcontext:tcr.save_allocptr
+	subq $cons.size-fulltag_cons,%rcontext:tcr.save_allocptr
 	movq %rcontext:tcr.save_allocptr,%allocptr
 	rcmpq(%allocptr,%rcontext:tcr.save_allocbase)
 	jg macro_label(no_trap)
@@ -205,7 +205,7 @@ macro_label(no_trap):
 	movq $2,cons.cdr(%allocptr)
 	movq $1,cons.car(%allocptr)
 	ifelse($3,[],[],[
-	 movq %allocptr,$1
+	 movq %allocptr,$3
 	])
 ])
 
@@ -213,11 +213,15 @@ macro_label(no_trap):
    to be in %imm1. We bash %imm1. */
 
 define([Misc_Alloc],[
-	new_macro_labels()
 	subq [$]fulltag_misc,%imm1
+	Misc_Alloc_Internal($1)
+])
+
+define([Misc_Alloc_Internal],[			
 /* Here Be Monsters: we have to treat some/all of this instruction 
    sequence atomically, as soon as tcr.save_allocptr becomes tagged.
 */                
+	new_macro_labels()
 	subq %imm1,%rcontext:tcr.save_allocptr
 	movq %rcontext:tcr.save_allocptr,%allocptr
 	rcmpq(%allocptr,%rcontext:tcr.save_allocbase)
@@ -233,8 +237,8 @@ macro_label(no_trap):
 ])
 	
 define([Misc_Alloc_Fixed],[
-	movq [$]$2,%imm1
-	Misc_Alloc($1)
+	movq [$]$2-fulltag_misc,%imm1
+	Misc_Alloc_Internal($1)
 ])					
 
 define([vrefr],[
