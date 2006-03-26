@@ -193,6 +193,9 @@ vector_subtag_name(unsigned subtag)
   case subtag_package:
     return "PACKAGE";
     break;
+  case subtag_slot_vector:
+    return "SLOT-VECTOR";
+    break;
   default:
     return "";
     break;
@@ -280,6 +283,23 @@ sprint_function(LispObj o, int depth)
   add_char('>');
 }
 
+void
+sprint_tra(LispObj o, int depth)
+{
+  unsigned disp = *(((unsigned *)o)-1);
+  LispObj f = o-disp;
+
+  if (fulltag_of(f) == fulltag_function) {
+    add_c_string("tagged return address: ");
+    sprint_function(f, depth);
+    add_c_string(" + ");
+    sprint_unsigned_decimal(disp);
+  } else {
+    add_c_string("(tra ?) : ");
+    sprint_unsigned_hex(o);
+  }
+}
+	       
 void
 sprint_gvector(LispObj o, int depth)
 {
@@ -449,6 +469,11 @@ sprint_lisp_object(LispObj o, int depth)
 
     case fulltag_function:
       sprint_function(o, depth);
+      break;
+
+    case fulltag_tra_0:
+    case fulltag_tra_1:
+      sprint_tra(o,depth);
       break;
     }
   }
