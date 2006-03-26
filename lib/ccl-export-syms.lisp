@@ -573,8 +573,8 @@
      rebuild-ccl
      defglobal
 
-     #:getenv
-     #:setenv
+     getenv
+     setenv
      ) "CCL"
    )
   )
