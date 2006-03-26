@@ -24,6 +24,7 @@
 ;;; The map is a vector of (UNSIGNED-BYTE 8); this should
 ;;; be used when there are fewer than 255 slots in the class.
 (defx86lapfunction %small-map-slot-id-lookup ((slot-id arg_z))
+  (uuo-error-debug-trap)
   (movq (@ 'map (% fn)) (% temp1))
   (svref slot-id slot-id.index arg_x)
   (vector-length temp1 imm0)
@@ -41,6 +42,7 @@
 
 ;;; The same idea, only the map is a vector of (UNSIGNED-BYTE 32).
 (defx86lapfunction %large-map-slot-id-lookup ((slot-id arg_z))
+  (uuo-error-debug-trap)
   (movq (@ 'map (% fn)) (% temp1))
   (svref slot-id slot-id.index arg_x)
   (vector-length temp1 imm0)
@@ -57,6 +59,7 @@
 
 
 (defx86lapfunction %small-slot-id-value ((instance arg_y) (slot-id arg_z))
+  (uuo-error-debug-trap)
   (movq (@ 'map (% fn)) (% temp1))
   (svref slot-id slot-id.index arg_x)
   (vector-length temp1 imm0)
@@ -71,7 +74,7 @@
   (je @missing)
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
   (movq (@ 'class (% fn)) (% arg_x))
-  (movq (@ '%maybe-std-stlo-value (% fn)) (% xfn))
+  (movq (@ '%maybe-std-std-value-using-class (% fn)) (% xfn))
   (xchgq (% xfn) (% fn))
   (set-nargs 3)
   (jmp (% fn))
@@ -82,6 +85,7 @@
   (jmp (% fn)))
 
 (defx86lapfunction %large-slot-id-value ((instance arg_y) (slot-id arg_z))
+  (uuo-error-debug-trap)
   (movq (@ 'map (% fn)) (% temp1))
   (svref slot-id slot-id.index arg_x)
   (vector-length temp1 imm0)
@@ -96,7 +100,7 @@
   (je @missing)
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
   (movq (@ 'class (% fn)) (% arg_x))
-  (movq (@ '%maybe-std-stlo-value (% fn)) (% xfn))
+  (movq (@ '%maybe-std-std-value-using-class (% fn)) (% xfn))
   (xchgq (% xfn) (% fn))
   (set-nargs 3)
   (jmp (% fn))
@@ -110,6 +114,7 @@
 (defx86lapfunction %small-set-slot-id-value ((instance arg_x)
                                              (slot-id arg_y)
                                              (new-value arg_z))
+  (uuo-error-debug-trap)
   (movq (@ 'map (% fn)) (% temp1))
   (svref slot-id slot-id.index arg_x)
   (vector-length temp1 imm0)
@@ -126,7 +131,7 @@
   (pushq ($ 0))
   (pushq (@ 'class (% fn)))
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_x))
-  (movq (@ '%maybe-std-stlo-value (% fn)) (% xfn))
+  (movq (@ '%maybe-std-std-value-using-class (% fn)) (% xfn))
   (xchgq (% xfn) (% fn))
   (set-nargs 4)
   (jmp (% fn))
@@ -140,6 +145,7 @@
 (defx86lapfunction %large-set-slot-id-value ((instance arg_x)
                                              (slot-id arg_y)
                                              (new-value arg_z))
+  (uuo-error-debug-trap)
   (movq (@ 'map (% fn)) (% temp1))
   (svref slot-id slot-id.index arg_x)
   (vector-length temp1 imm0)
