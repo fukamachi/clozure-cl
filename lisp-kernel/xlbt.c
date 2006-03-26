@@ -63,6 +63,9 @@ lisp_frame_p(lisp_frame *f)
 	  return true;
 	}
       }
+    } else if ((ra == lisp_global(LEXPR_RETURN)) ||
+	       (ra == lisp_global(LEXPR_RETURN1V))) {
+      return true;
     }
   }
   return false;
