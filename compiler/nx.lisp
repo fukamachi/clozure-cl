@@ -78,6 +78,7 @@
     (setq def (fboundp spec))
     (when (and (symbolp spec) (not (lfunp def)))
       (setq def (setq macro-p (macro-function spec)))))
+  #+have-interpreted-functions
   (when (typep def 'interpreted-function)
     (let ((lambda (function-lambda-expression def)))
       (when lambda (setq def lambda))))
