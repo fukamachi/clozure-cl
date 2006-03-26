@@ -744,13 +744,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
                     (%class.name (class-of method-function)))
       (call-next-method))))
 
-(defmethod print-object ((method-function interpreted-method-function) stream)
-  (let ((method (%method-function-method method-function)))
-    (if (typep method 'standard-method)
-      (print-method (%method-function-method method-function)
-                    stream
-                    (%class.name (class-of method-function)))
-      (call-next-method))))
+
 
 (defun print-method (method stream type-string)
   (print-unreadable-object (method stream)
@@ -1479,13 +1473,8 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
             (t
              (if gf-or-cm
                (write-internal stream (class-name (class-of lfun)) level nil)
-               ; we also have print-object methods for method-function and interpreted-method-function
-               (%write-string (cond ((typep lfun 'interpreted-method-function)
-                                     "Interpreted Method-function")
-                                    ((typep lfun 'method-function)
+               (%write-string (cond ((typep lfun 'method-function)
                                      "Compiled Method-function")
-                                    ((typep lfun 'interpreted-function)
-                                     "Interpreted-function")
                                     (t "Compiled-function"))
                             stream))
              (stream-write-char stream #\space)
