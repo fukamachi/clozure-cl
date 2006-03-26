@@ -72,6 +72,8 @@
   (testq (% imm0) (% imm0))
   (cmovsq (% imm1) (% imm0))
   (bsrq (% imm0) (% imm0))
+  (setne (% imm1.b))
+  (addb (% imm1.b) (% imm0.b))
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
@@ -171,8 +173,9 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 -Duncan
 
 |#
-; Use the two fixnums in state to generate a random fixnum >= 0 and < 65536
-; Scramble those fixnums up a bit.
+
+;;; Use the two fixnums in state to generate a random fixnum >= 0 and < 65536
+;;; Scramble those fixnums up a bit.
 
 (defun %next-random-seed (state)
   (let* ((seed (dpb (ldb (byte 16 13) (%svref state 1))
