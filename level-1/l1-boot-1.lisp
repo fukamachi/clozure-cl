@@ -32,23 +32,34 @@
 (defun lisp-implementation-type () "OpenMCL")
 
 
+(defparameter *platform-os-names*
+  `((,platform-os-vxworks . :vxwork)
+    (,platform-os-linux . :linux)
+    (,platform-os-solaris . :solaris)
+    (,platform-os-darwin . :darwin)))
+
+(defparameter *platform-cpu-names*
+  `((,platform-cpu-ppc . :ppc)
+    (,platform-cpu-sparc . :sparc)
+    (,platform-cpu-x86 . :x86)))
 
 (defun host-platform ()
-  (let* ((pf (%get-kernel-global 'ppc::host-platform)))
+  (let* ((pf (%get-kernel-global 'host-platform)))
     (values
-     (case (logand pf 63)
-       (0 :macos)
-       (1 :linux)
-       (2 :vxworks)
-       (3 :darwin)
-       (16 :solaris)
-       (t :unknown))
-     (logbitp 6 pf))))
+     (or (cdr (assoc (logand pf platform-os-mask)
+                     *platform-os-names*))
+         :unknown)
+     (if (logtest pf platform-word-size-mask)
+       64
+       32)
+     (or (cdr (assoc (logand pf platform-cpu-mask)
+                     *platform-cpu-names*))
+         :unknown))))
+
 
 (defun platform-description ()
-  (let* ((bits (if (nth-value 1 (host-platform)) 64 32))
-         (cpu #+ppc-target "PPC" #-ppc-target "???"))
-    (format nil "~a~a~d" (software-type) cpu bits)))
+  (multiple-value-bind (os bits cpu) (host-platform)
+    (format nil "~a~a~d" (string-capitalize os) cpu bits)))
 
 (defun lisp-implementation-version ()
   (%str-cat "Version " (format nil *openmcl-version* (platform-description))))
