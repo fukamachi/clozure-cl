@@ -321,10 +321,10 @@ terminate the list"
 (defun nreverse (seq)
   "Return a sequence of the same elements in reverse order; the argument
    is destroyed."
-  (seq-dispatch seq
-   (list-nreverse seq)
-   (vector-nreverse seq)))
-)
+  (when seq
+    (seq-dispatch seq
+                  (list-nreverse seq)
+                  (vector-nreverse seq)))))
 
 (defun nreconc (x y)
   "Return (NCONC (NREVERSE X) Y)."
@@ -858,7 +858,7 @@ terminate the list"
          (or (logbitp $lfbits-method-bit bits)
              (and (not (logbitp $lfbits-gfn-bit bits))
                   (not (logbitp $lfbits-cm-bit bits))))
-         (%svref lfun 1))))
+         (nth-immediate lfun 1))))
 
 
 
@@ -872,7 +872,7 @@ terminate the list"
   (let* ((bits (lfun-bits (setq fn (require-type fn 'function)))))
     (declare (fixnum bits))
     (if (logbitp $lfbits-trampoline-bit bits)
-      (function-lambda-expression (%svref fn 1))
+      (function-lambda-expression (nth-immediate fn 1))
       (values (uncompile-function fn)
               (logbitp $lfbits-nonnullenv-bit bits)
               (function-name fn)))))
