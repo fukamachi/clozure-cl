@@ -17,7 +17,7 @@
 (in-package "CCL")
 
 (defx86lapfunction %function-vector-to-function ((arg arg_z))
-  (trap-unless-fulltag= arg x8664::fulltag-function)
+  (trap-unless-typecode= arg x8664::subtag-function)
   (addb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (% arg_z.b))
   (single-value-return))
 
@@ -276,6 +276,7 @@
   (set-nargs 0)
   (movq (@ (% args)) (% imm0))          ;lexpr-count
   (movw (% imm0.w) (% nargs))
+  (leaq (@ x8664::node-size (% arg_z) (% imm0)) (% imm1))
   (subw ($ '3) (% imm0.w))
   (jbe @reg-only)
   ;; Some args will be pushed; reserve a frame
@@ -367,7 +368,6 @@
 ;;; must have been tail-called, and the frame built on lexpr
 ;;; entry must be in %rbp.
 (defx86lapfunction %apply-lexpr-tail-wise ((method arg_y) (args arg_z))
-  (uuo-error-debug-trap)
   (movq (% method) (% xfn))
   (movq (% args) (% rsp))
   (pop (%q nargs))
