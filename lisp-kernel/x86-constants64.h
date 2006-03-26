@@ -106,9 +106,9 @@
 #define fulltag_function 15L
 
 #define SUBTAG(tag,subtag) ((tag) | ((subtag) << ntagbits))
-#define subtag_arrayH SUBTAG(fulltag_nodeheader_1,8L)
-#define subtag_vectorH SUBTAG(fulltag_nodeheader_0,9L)
-#define subtag_simple_vector SUBTAG(fulltag_nodeheader_1,9L)
+#define subtag_arrayH SUBTAG(fulltag_nodeheader_0,10L)
+#define subtag_vectorH SUBTAG(fulltag_nodeheader_1,10L)
+#define subtag_simple_vector SUBTAG(fulltag_nodeheader_1,11L)
 #define min_vector_subtag subtag_vectorH	
 
 #define ivector_class_64_bit fulltag_immheader_2
@@ -133,8 +133,8 @@
 #define min_8_bit_ivector_subtag subtag_simple_base_string
 
 /* There's some room for expansion in non-array ivector space. */
-#define subtag_macptr SUBTAG(ivector_class_64_bit,0)
-#define subtag_dead_macptr SUBTAG(ivector_class_64_bit,1)
+#define subtag_macptr SUBTAG(ivector_class_64_bit,1)
+#define subtag_dead_macptr SUBTAG(ivector_class_64_bit,2)
 #define subtag_bignum SUBTAG(ivector_class_32_bit,0)
 #define subtag_double_float SUBTAG(ivector_class_32_bit,1)
 #define subtag_xcode_vector SUBTAG(ivector_class_32_bit,2)
@@ -146,7 +146,6 @@
    and subtag_symbol)
 */		
 
-#define subtag_function SUBTAG(fulltag_nodeheader_0,0)
 #define subtag_symbol SUBTAG(fulltag_nodeheader_0,1)
 #define subtag_catch_frame SUBTAG(fulltag_nodeheader_0,2)
 #define subtag_hash_vector SUBTAG(fulltag_nodeheader_0,3)
@@ -155,15 +154,16 @@
 #define subtag_package SUBTAG(fulltag_nodeheader_0,6)
 #define subtag_slot_vector SUBTAG(fulltag_nodeheader_0,7)
 #define subtag_lisp_thread SUBTAG(fulltag_nodeheader_0,8)
+#define subtag_function SUBTAG(fulltag_nodeheader_0,9)
 
-#define subtag_ratio SUBTAG(fulltag_nodeheader_1,0)
-#define subtag_complex SUBTAG(fulltag_nodeheader_1,1)
-#define subtag_instance SUBTAG(fulltag_nodeheader_1,2)
+#define subtag_ratio SUBTAG(fulltag_nodeheader_1,1)
+#define subtag_complex SUBTAG(fulltag_nodeheader_1,2)
 #define subtag_struct SUBTAG(fulltag_nodeheader_1,3)
 #define subtag_istruct SUBTAG(fulltag_nodeheader_1,4)
 #define subtag_value_cell SUBTAG(fulltag_nodeheader_1,5)
 #define subtag_xfunction SUBTAG(fulltag_nodeheader_1,6)
 #define subtag_lock SUBTAG(fulltag_nodeheader_1,7)
+#define subtag_instance SUBTAG(fulltag_nodeheader_1,8)
 
 
 

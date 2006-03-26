@@ -250,9 +250,9 @@ subtag_$1 = ($2 | ($3 << ntagbits))
 ])
 	
 
-define_subtag(arrayH,fulltag_nodeheader_1,8)
-define_subtag(vectorH,fulltag_nodeheader_0,9)
-define_subtag(simple_vector,fulltag_nodeheader_1,9)
+define_subtag(arrayH,fulltag_nodeheader_0,10)
+define_subtag(vectorH,fulltag_nodeheader_1,10)
+define_subtag(simple_vector,fulltag_nodeheader_1,11)
 min_vector_subtag = subtag_vectorH
 min_array_subtag = subtag_arrayH
         
@@ -278,11 +278,11 @@ define_subtag(bit_vector,ivector_class_other_bit,15)
 
 
 /* There's some room for expansion in non-array ivector space. */
-define_subtag(macptr,ivector_class_64_bit,0)
-define_subtag(dead_macptr,ivector_class_64_bit,1)
-define_subtag(bignum,ivector_class_32_bit,0)
-define_subtag(double_float,ivector_class_32_bit,1)
-define_subtag(xcode_vector,ivector_class_32_bit,2)
+define_subtag(macptr,ivector_class_64_bit,1)
+define_subtag(dead_macptr,ivector_class_64_bit,2)
+define_subtag(bignum,ivector_class_32_bit,1)
+define_subtag(double_float,ivector_class_32_bit,2)
+define_subtag(xcode_vector,ivector_class_32_bit,3)
 
         
 /* Note the difference between (e.g) fulltag_function - which
@@ -291,7 +291,7 @@ define_subtag(xcode_vector,ivector_class_32_bit,2)
    in a function header looks like.  (Likewise for fulltag_symbol
    and subtag_symbol)
 */		
-define_subtag(function,fulltag_nodeheader_0,0)
+
 define_subtag(symbol,fulltag_nodeheader_0,1)
 define_subtag(catch_frame,fulltag_nodeheader_0,2)
 define_subtag(hash_vector,fulltag_nodeheader_0,3)
@@ -300,15 +300,16 @@ define_subtag(weak,fulltag_nodeheader_0,5)
 define_subtag(package,fulltag_nodeheader_0,6)
 define_subtag(slot_vector,fulltag_nodeheader_0,7)
 define_subtag(lisp_thread,fulltag_nodeheader_0,8)
-
-define_subtag(ratio,fulltag_nodeheader_1,0)
-define_subtag(complex,fulltag_nodeheader_1,1)
-define_subtag(instance,fulltag_nodeheader_1,2)
+define_subtag(function,fulltag_nodeheader_0,9)
+	
+define_subtag(ratio,fulltag_nodeheader_1,1)
+define_subtag(complex,fulltag_nodeheader_1,2)
 define_subtag(struct,fulltag_nodeheader_1,3)
 define_subtag(istruct,fulltag_nodeheader_1,4)
 define_subtag(value_cell,fulltag_nodeheader_1,5)
 define_subtag(xfunction,fulltag_nodeheader_1,6)
 define_subtag(lock,fulltag_nodeheader_1,7)
+define_subtag(instance,fulltag_nodeheader_1,8)
 	
 			
 nil_value = (0x2000+fulltag_nil)
