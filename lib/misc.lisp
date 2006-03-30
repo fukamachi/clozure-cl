@@ -60,19 +60,22 @@ are running on, or NIL if we can't find any useful information."
             (with-open-file (f "/proc/cpuinfo" :if-does-not-exist nil)
               (when f
                 (flet ((cpu-info-match (target line)
-                         (if (string= target line
-                                      :end2 (length line))
+                         (let* ((targetlen (length target))
+                                (linelen (length line)))
+                           (if (and (> linelen targetlen)
+                                    (string= target line
+                                             :end2 targetlen))
                            (let* ((colonpos (position #\: line)))
                              (when colonpos
-                               (subseq line (1+ colonpos)))))))
+                               (string-trim " "
+                                            (subseq line (1+ colonpos)))))))))
                   (do* ((line (read-line f nil nil)
                               (read-line f nil nil))
                         (target #+ppc-target "machine"
                                 #+x86-target "model name"))
                        ((null line))
                     (let* ((matched (cpu-info-match target line)))
-                      (when matched (return matched))))))))
-      "Unknown"))
+                      (when matched (return matched))))))))))
 
 
 (defun software-type ()
@@ -637,3 +640,31 @@ are running on, or NIL if we can't find any useful information."
     (funcall *overwrite-dialog-hook* filename prompt)
     t))
 
+;;; Might want to have some other entry for, e.g., the inspector
+;;; and to let it get its hands on the list header returned by 
+;;; disassemble-ppc-function.  Maybe disassemble-ppc-function
+;;; should take care of "normalizing" the code-vector ?
+(defun disassemble (thing)
+  "Disassemble the compiled code associated with OBJECT, which can be a
+  function, a lambda expression, or a symbol with a function definition. If
+  it is not already compiled, the compiler is called to produce something to
+  disassemble."
+  (#+ppc-target ppc-xdisassemble
+   #+x8664-target x8664-xdisassemble
+   (require-type (function-for-disassembly thing) 'compiled-function)))
+
+(defun function-for-disassembly (thing)
+  (let* ((fun thing))
+    (when (typep fun 'standard-method) (setq fun (%method-function fun)))
+    (when (or (symbolp fun)
+              (and (consp fun) (neq (%car fun) 'lambda)))
+      (setq fun (fboundp thing))
+      (when (and (symbolp thing) (not (functionp fun)))
+        (setq fun (macro-function thing))))
+    (if (typep fun 'compiled-lexical-closure)
+        (setq fun (closure-function fun)))
+    (when (lambda-expression-p fun)
+      (setq fun (compile-named-function fun nil)))
+    fun))
+
+(%fhave 'df #'disassemble)
