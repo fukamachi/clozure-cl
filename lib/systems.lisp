@@ -57,34 +57,30 @@
                                                   "ccl:lib;fredenv.lisp"))
     (l1-events        "ccl:l1f;l1-events"        ("ccl:l1;l1-events.lisp"))
     (ppc-trap-support "ccl:l1f;ppc-trap-support" ("ccl:l1;ppc-trap-support.lisp"))
-    (l1-highlevel-events
-     "ccl:l1f;l1-highlevel-events"
-     ("ccl:l1;l1-highlevel-events.lisp"))
+    (x86-trap-support "ccl:l1f;x86-trap-support" ("ccl:l1;x86-trap-support.lisp"))
+
     (l1-format        "ccl:l1f;l1-format"        ("ccl:l1;l1-format.lisp"))
     (l1-readloop      "ccl:l1f;l1-readloop"      ("ccl:l1;l1-readloop.lisp"))
     (l1-readloop-lds  "ccl:l1f;l1-readloop-lds"  ("ccl:l1;l1-readloop-lds.lisp"))
     (l1-reader        "ccl:l1f;l1-reader"        ("ccl:l1;l1-reader.lisp"))
     (l1-error-system  "ccl:l1f;l1-error-system"  ("ccl:l1;l1-error-system.lisp"))
     (ppc-error-signal "ccl:l1f;ppc-error-signal" ("ccl:l1;ppc-error-signal.lisp"))
+    (x86-error-signal "ccl:l1f;x86-error-signal" ("ccl:l1;x86-error-signal.lisp"))    
     (l1-error-signal  "ccl:l1f;l1-error-signal"  ("ccl:l1;l1-error-signal.lisp"))
-    (appgen-defs      "ccl:lib;appgen-defs"      ("ccl:lib;appgen-defs.lisp"))
-    (l1-base-app      "ccl:l1f;l1-base-app"      ("ccl:l1;l1-base-app.lisp"
-                                                  "ccl:lib;appgen-defs.lisp"))
-    (l1-initmenus     "ccl:l1f;l1-initmenus"     ("ccl:l1;l1-initmenus.lisp"))
-    (l1-initmenus-lds "ccl:l1f;l1-initmenus-lds" ("ccl:l1;l1-initmenus-lds.lisp"))
     (l1-aprims        "ccl:l1f;l1-aprims"        ("ccl:l1;l1-aprims.lisp"))
     (l1-callbacks     "ccl:l1f;l1-callbacks"    ("ccl:l1;l1-callbacks.lisp"))
     (ppc-callback-support "ccl:l1f;ppc-callback-support" ("ccl:l1;ppc-callback-support.lisp"))
+    (x86-callback-support "ccl:l1f;x86-callback-support" ("ccl:l1;x86-callback-support.lisp"))    
     (l1-sysio         "ccl:l1f;l1-sysio"         ("ccl:l1;l1-sysio.lisp"))
     (l1-symhash       "ccl:l1f;l1-symhash"       ("ccl:l1;l1-symhash.lisp"))
     (l1-pathnames     "ccl:l1f;l1-pathnames"     ("ccl:l1;l1-pathnames.lisp"))
     (l1-lisp-threads  "ccl:l1f;l1-lisp-threads"  ("ccl:l1;l1-lisp-threads.lisp"))
     (l1-sockets       "ccl:l1f;l1-sockets"       ("ccl:l1;l1-sockets.lisp"))
     (ppc-threads-utils "ccl:l1f;ppc-threads-utils" ("ccl:l1;ppc-threads-utils.lisp"))
+    (x86-threads-utils "ccl:l1f;x86-threads-utils" ("ccl:l1;x86-threads-utils.lisp"))
     (l1-application   "ccl:l1f;l1-application"   ("ccl:l1;l1-application.lisp"))
     (l1-processes     "ccl:l1f;l1-processes"     ("ccl:l1;l1-processes.lisp"))
-    #+interfaces-2
-    (l1-traps         "ccl:l1f;l1-traps"         ("ccl:l1;l1-traps.lisp"))
+
     (l1-typesys       "ccl:l1f;l1-typesys"       ("ccl:l1;l1-typesys.lisp"))
     (sysutils         "ccl:l1f;sysutils"         ("ccl:l1;sysutils.lisp"))
     (nx               "ccl:l1f;nx"               ("ccl:compiler;nx.lisp"
