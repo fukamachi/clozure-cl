@@ -732,6 +732,29 @@ minimum number of elements to add if it must be extended."
     (declare (fixnum ivector-class element-bit-shift total-bits))
     (ash (the fixnum (+ 7 total-bits)) -3)))
 
+#+x8664-target
+(defun subtag-bytes (subtag element-count)
+  (declare (fixnum subtag element-count))
+  (unless (logbitp (the (mod 16) (logand subtag x8664::fulltagmask))
+                   (logior (ash 1 x8664::fulltag-immheader-0)
+                           (ash 1 x8664::fulltag-immheader-1)
+                           (ash 1 x8664::fulltag-immheader-2)))
+    (error "Not an ivector subtag: ~s" subtag))
+  (let* ((ivector-class (logand subtag x8664::fulltagmask))
+         (element-bit-shift
+          (if (= ivector-class x8664::ivector-class-32-bit)
+            5
+            (if (= ivector-class x8664::ivector-class-64-bit)
+                6
+                (if (= subtag x8664::subtag-bit-vector)
+                  0
+                  (if (>= subtag x8664::min-8-bit-ivector-subtag)
+                    3
+                    4)))))
+         (total-bits (ash element-count element-bit-shift)))
+    (declare (fixnum ivector-class element-bit-shift total-bits))
+    (ash (the fixnum (+ 7 total-bits)) -3)))
+
 (defun element-type-subtype (type)
   "Convert element type specifier to internal array subtype code"
   (ctype-subtype (specifier-type type)))
