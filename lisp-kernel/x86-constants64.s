@@ -686,8 +686,8 @@ TCR_BIAS = 0
          _node(single_float_convert)
 	 _node(linear)		/* our linear (non-segment-based) address. */
          _node(linear_end)      /* linear, + TCR_BIAS */
-	 _word(lisp_fpscr_low)
-	 _word(lisp_fpscr_high)	/* lisp thread's fp status word */
+	 _word(lisp_mxcsr_low)
+	 _word(lisp_mxcsr_high)	/* lisp thread's fp status word */
 	 _node(db_link)		/* special binding chain head */
 	 _node(catch_top)	/* top catch frame */
 	 _node(save_vsp)	/* VSP when in foreign code */
