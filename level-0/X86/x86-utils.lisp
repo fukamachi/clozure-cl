@@ -331,16 +331,19 @@
 
 (defx86lapfunction class-of ((x arg_z))
   (check-nargs 1)
+  (movw ($ (logior (ash 1 x8664::tag-list)
+                   (ash 1 x8664::tag-imm-1)))
+        (%w imm1))
+  (extract-lisptag x imm0)
+  (btw (% imm0.w) (% imm1.w))
+  (cmovbl (% arg_z.l) (% imm0.l))
   (movq (@ '*class-table* (% fn)) (% temp1))
-  (extract-fulltag x imm0)
-  (cmpb ($ x8664::fulltag-misc) (% imm0))
+  (cmpb ($ x8664::tag-misc) (% imm0.b))
+  (jne @have-tag)
+  (extract-subtag x imm0)
+  @have-tag
   (movq (@ x8664::symbol.vcell (% temp1)) (% temp1))
-  (je @misc)
-  (movzbl (%b x) (%l imm0))
-  (jmp @done)
-  @misc
-  (movzbl (@ x8664::misc-subtag-offset (% x)) (%l imm0))
-  @done
+  (movzbl (% imm0.b) (% imm0.l))
   (movq (@ x8664::misc-data-offset (% temp1) (% imm0) 8) (% temp0))
   (cmpb ($ x8664::fulltag-nil) (%b temp0))
   (je @bad)
@@ -497,6 +500,22 @@ be somewhat larger than what was specified)."
   (unbox-fixnum imm1 new)
   (trap-unless-typecode= p x8664::subtag-macptr)
   (svset imm1 x8664::macptr.domain-cell p)
+  (single-value-return))
+
+(defx86lapfunction true ()
+  (movzwl (% nargs) (%l nargs))
+  (subq ($ '3) (% nargs.q))
+  (leaq (@ '2 (% rsp) (% nargs.q)) (% imm0))
+  (cmovaq (% imm0) (% rsp))
+  (movl ($ x8664::t-value) (%l arg_z))
+  (single-value-return))
+
+(defx86lapfunction false ()
+  (movzwl (% nargs) (%l nargs))
+  (subq ($ '3) (% nargs.q))
+  (leaq (@ '2 (% rsp) (% nargs.q)) (% imm0))
+  (cmovaq (% imm0) (% rsp))
+  (movl ($ x8664::nil) (%l arg_z))
   (single-value-return))
 
 
