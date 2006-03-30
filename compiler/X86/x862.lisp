@@ -317,15 +317,32 @@
         (! call-known-symbol arg)
         (x862-do-lexical-setq seg nil ea result)))))
 
-(defun x862-reverse-cc (cc)
-  ;;                NE  NE  EQ  EQ   LE   GE   LT   GT   GE   LE   GT   LT    MI   PL   PL   MI
-  (%cdr (assq cc '((6 . 6) (7 . 7) (15 . 12) (13 . 14) (12 . 15) (14 . 13)  (11 . 10) (10 . 11)))))
+;;; If we change the order of operands in a binary comparison operation,
+;;; what should the operation change to ? (eg., (< X Y) means the same
+;;; thing as (> Y X)).
+(defparameter *x862-reversed-cr-bits*
+  (vector
+   nil                                  ;o ?
+   nil                                  ;no ?
+   x86::x86-a-bits                      ;b -> a
+   x86::x86-be-bits                     ;ae -> be
+   x86::x86-e-bits                      ;e->e
+   x86::x86-ne-bits                     ;ne->ne
+   x86::x86-ae-bits                     ;be->ae
+   x86::x86-b-bits                      ;a->b
+   nil                                  ;s ?
+   nil                                  ;ns ?
+   nil                                  ;pe ?
+   nil                                  ;po ?
+   x86::x86-g-bits                      ;l->g
+   x86::x86-le-bits                     ;ge->le
+   x86::x86-ge-bits                     ;le->ge
+   x86::x86-l-bits                      ;g->l
+   ))
 
-  ;;                NE  NE  EQ  EQ   LE   GE   LT   GT   GE   LE   GT   LT    MI   PL   PL   MI
-(defun x862-reverse-condition-keyword (k)
-  (cdr (assq k '((:ne . :ne) (:eq . :eq) (:le . :ge) (:lt . :gt) (:ge . :le) (:gt . :lt)))))
-
-
+(defun x862-reverse-cr-bit (cr-bit)
+  (or (svref *x862-reversed-cr-bits* cr-bit)
+      (error "Can't reverse CR bit ~d" cr-bit)))
 
 
 (defun acode-condition-to-x86-cr-bit (cond)
@@ -547,7 +564,8 @@
                      (apply-relocs frag-list)
                      (fill-for-alignment frag-list)
                      (setf (afunc-lfun afunc)
-                           (cross-create-x86-function
+                           (#+x86-target create-x86-function
+                            #-x86-target cross-create-x86-function
                             fname
                             frag-list
                             *x862-constant-alist*
@@ -1872,7 +1890,10 @@
                         (if (zerop constval)
                           (! set-constant-bit-to-zero src index-known-fixnum)
                           (! set-constant-bit-to-one src index-known-fixnum))
-                        (! set-constant-bit-to-variable-value src index-known-fixnum val-reg))
+                        (progn
+                          (if safe
+                            (! trap-unless-bit val-reg))
+                          (! set-constant-bit-to-variable-value src index-known-fixnum val-reg)))
                       (with-imm-temps () (word-index bit-number)
                         (if index-known-fixnum
                           (progn
@@ -1883,7 +1904,10 @@
                           (if (zerop constval)
                             (! set-variable-bit-to-zero src word-index bit-number)
                             (! set-variable-bit-to-one src word-index bit-number))
-                          (! set-variable-bit-to-variable-value src word-index bit-number val-reg))))
+                          (progn
+                            (if safe
+                              (! trap-unless-bit val-reg))
+                            (! set-variable-bit-to-variable-value src word-index bit-number val-reg)))))
                     (with-imm-temps  () (temp)
                       (cond (is-32-bit
                              (if constval
@@ -2554,12 +2578,7 @@
                        (eq (acode-operator form) (%nx1-operator immediate)) 
                        (setq reg (x862-register-constant-p (cadr form))))
                 reg
-                (if (and (acode-p form)
-                         (eq (acode-operator form) (%nx1-operator %current-tcr)))
-                  (target-arch-case
-                   
-                   (:x8664 ($ x8664::rcontext)))
-                  (x862-one-untargeted-lreg-form seg form suggested))))))
+                (x862-one-untargeted-lreg-form seg form suggested)))))
         (x862-one-untargeted-lreg-form seg form suggested)))))
              
 
@@ -2633,7 +2652,10 @@
             (unless same-reg
               (let* ((copy (if (eq (hard-regspec-class pushed-reg)
                                    hard-reg-class-fpr)
-                             (! copy-fpr popped-reg pushed-reg)
+                             (if (= (get-regspec-mode pushed-reg)
+                                    hard-reg-class-fpr-mode-double)
+                               (! copy-double-float popped-reg pushed-reg)
+                               (! copy-single-float popped-reg pushed-reg))
                              (! copy-gpr popped-reg pushed-reg))))
                 (remove-dll-node copy)
                 (if pushed-reg-is-set
@@ -2950,7 +2972,7 @@
                 (! compare-reg-to-zero reg)
                 (! compare-s32-constant reg (or js32 is32)))
               (unless (or js32 (eq cr-bit x86::x86-e-bits))
-                (setq cr-bit (logxor 1 cr-bit)))
+                (setq cr-bit (x862-reverse-cr-bit cr-bit)))
               (^ cr-bit true-p))
             (if (and (eq cr-bit x86::x86-e-bits) 
                      (or js32 is32))
@@ -3325,7 +3347,13 @@
                         (! single->node dest src)))))
                   (if (and src-fpr dest-fpr)
                     (unless (eql dest-fpr src-fpr)
-                      (! copy-fpr dest src))))))))))))
+                      (if (= src-mode hard-reg-class-fpr-mode-double)
+                        (if (= dest-mode hard-reg-class-fpr-mode-double)
+                          (! copy-double-float dest src)
+                          (! copy-double-to-single dest src))
+                        (if (= dest-mode hard-reg-class-fpr-mode-double)
+                          (! copy-single-to-double dest src)
+                          (! copy-single-float dest src))))))))))))))
   
 (defun x862-unreachable-store (&optional vreg)
   ;; I don't think that anything needs to be done here,
@@ -4824,6 +4852,12 @@
                                                        type)
                                             (x86::x86-reg8 operand)
                                             (svref register-table operand))))
+          (:insert-reg4-pseudo-rm-high
+           (x86::insert-reg4-pseudo-rm-high-entry instruction
+                                                  (svref register-table operand)))
+          (:insert-reg4-pseudo-rm-low
+           (x86::insert-reg4-pseudo-rm-low-entry instruction
+                                                  (svref register-table operand)))
           (:insert-cc
            (unless (typep operand 'x86-lap-expression)
              (setq operand (parse-x86-lap-expression operand)))
@@ -4918,7 +4952,7 @@
     (dolist (name (vinsn-template-local-labels template))
       (let* ((unique (cons name nil)))
         (push unique unique-labels)
-        (make-lap-label unique)))
+        (make-x86-lap-label unique)))
     (labels ((parse-operand-form (valform &optional for-pred)
                (cond ((typep valform 'keyword)
                       (or (assq valform unique-labels)
@@ -7072,6 +7106,7 @@
       (! nthrow1value tag-label-value))
     (x862-close-undo)
     (@= tag-label)
+    (! recover-fn-from-ra0  (aref *backend-labels* tag-label))
     (unless mv-pass (if vreg (<- x8664::arg_z)))
     (let* ((*x862-returning-values* mv-pass)) ; nlexit keeps values on stack
       (^))))
@@ -7733,9 +7768,9 @@
       (when vreg
         (cond ((eq resultspec :void) (<- nil))
               ((eq resultspec :double-float)
-               (<- ($  x8664::fp1 :class :fpr :mode :double-float)))
+               (<- ($  x8664::fp0 :class :fpr :mode :double-float)))
               ((eq resultspec :single-float)
-               (<- ($ x8664::fp1 :class :fpr :mode :single-float)))
+               (<- ($ x8664::fp0 :class :fpr :mode :single-float)))
               ((eq resultspec :unsigned-doubleword)
                (ensuring-node-target (target vreg)
                  (! makeu64)
