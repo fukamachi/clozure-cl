@@ -989,12 +989,20 @@ Will differ from *compiling-file* during an INCLUDE")
            (= (the fixnum (logand type-code ppc32::full-tag-mask)) ppc32::fulltag-immheader)
            #+ppc64-target
            (= (the fixnum (logand type-code ppc64::lowtagmask)) ppc64::lowtag-immheader)
+           #+x8664-target
+           (and (= (the fixnum (lisptag exp)) x8664::tag-misc)
+                (logbitp (the (unsigned-byte 16)
+                           (logand type-code x8664::fulltagmask))
+                         (logior (ash 1 x8664::fulltag-immheader-0)
+                                 (ash 1 x8664::fulltag-immheader-0)
+                                 (ash 1 x8664::fulltag-immheader-2))))
            (case type-code
              ((#.target::subtag-macptr #.target::subtag-dead-macptr) (fasl-unknown exp))
              (t (fasl-scan-ref exp)))
            (case type-code
              ((#.target::subtag-pool #.target::subtag-weak #.target::subtag-lock) (fasl-unknown exp))
-             (#.target::subtag-symbol (fasl-scan-ppc-symbol exp))
+             (#+ppc-target #.target::subtag-symbol
+              #+x86-target #.target::tag-symbol (fasl-scan-symbol exp))
              ((#.target::subtag-instance #.target::subtag-struct)
               (fasl-scan-user-form exp))
              (#.target::subtag-package (fasl-scan-ref exp))
@@ -1005,6 +1013,8 @@ Will differ from *compiling-file* during an INCLUDE")
                     (fasl-lock-hash-table exp))
                   (fasl-scan-user-form exp))
                 (fasl-scan-gvector exp)))
+             #+x86-target
+             (#.target::tag-function (fasl-scan-clfun exp))
              (t (fasl-scan-gvector exp)))))))))
               
 
@@ -1029,6 +1039,16 @@ Will differ from *compiling-file* during an INCLUDE")
   (dotimes (i (uvsize vec)) 
     (declare (fixnum i))
     (fasl-scan-form (%svref vec i))))
+
+#+x86-target
+(defun fasl-scan-clfun (f)
+  (let* ((fv (%function-to-function-vector f))
+         (size (uvsize fv))
+         (ncode-words (%function-code-words f)))
+    (fasl-scan-ref f)
+    (do* ((k ncode-words (1+ k)))
+         ((= k size))
+      (fasl-scan-form (uvref fv k)))))
 
 (defun funcall-lfun-p (form)
   (and (listp form)
@@ -1095,7 +1115,7 @@ Will differ from *compiling-file* during an INCLUDE")
         (when init-form
           (fasl-scan-form compiled-initform))))))
 
-(defun fasl-scan-ppc-symbol (form)
+(defun fasl-scan-symbol (form)
   (fasl-scan-ref form)
   (fasl-scan-form (symbol-package form)))
   
@@ -1365,6 +1385,7 @@ Will differ from *compiling-file* during an INCLUDE")
 ;;; If we're cross-compiling, we shouldn't reference any
 ;;; (host) functions as constants; try to detect that
 ;;; case.
+#-x86-target
 (defun fasl-dump-function (f)
   (if (and (not (eq *fasl-backend* *host-backend*))
            (typep f 'function))
@@ -1378,8 +1399,29 @@ Will differ from *compiling-file* during an INCLUDE")
       (dotimes (i n)
         (fasl-dump-form (%svref f i))))))
 
+#+x86-target
+(defun fasl-dump-function (f)
+  (if (and (not (eq *fasl-backend* *host-backend*))
+           (typep f 'function))
+    (break "Dumping a native function constant ~s during cross-compilation." f))
+  (let* ((code-size (%function-code-words f))
+         (function-vector (%function-to-function-vector f))
+         (function-size (uvsize function-vector)))
+    (fasl-out-opcode $fasl-clfun f)
+    (fasl-out-count function-size)
+    (fasl-out-count code-size)
+    (fasl-out-ivect function-vector 0 (ash code-size 3))
+    (do* ((k code-size (1+ k)))
+         ((= k function-size))
+      (declare (fixnum k))
+      (fasl-dump-form (uvref function-vector k)))))
+        
+
+  
+
 ;;; Write a "concatenated function"; for now, assume that the target
 ;;; is x8664 and the host is a PPC.
+#-x86-target
 (defun fasl-xdump-clfun (f)
   (let* ((code (uvref f 0))
          (code-size (dpb (uvref code 3)
