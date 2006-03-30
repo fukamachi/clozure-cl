@@ -1307,6 +1307,7 @@ to replace that class with ~s" name old-class new-class)
                           (%cons-wrapper class (new-class-wrapper-hash-index)))
                     (setf (%class.ctype class) (make-class-ctype class))
                     (setf (find-class 't) class)
+                    (setf (instance.hash class) 't)
                     class))
 
 (defun compute-cpl (class)
@@ -1383,6 +1384,7 @@ to replace that class with ~s" name old-class new-class)
   (let ((class (if (find-class name nil)
                  (error "Attempt to remake standard class ~s" name)
                  (%cons-standard-class name metaclass-wrapper))))
+    (setf (instance.hash class) name)
     (if (null supers)
       (setq supers (list *standard-class-class*))
       (do ((supers supers (cdr supers))
@@ -1659,6 +1661,9 @@ to replace that class with ~s" name old-class new-class)
   (make-built-in-class 'ratio (find-class 'rational))
   (make-built-in-class 'integer (find-class 'rational))
   (defglobal *fixnum-class* (make-built-in-class 'fixnum (find-class 'integer)))
+
+  #+x8664-target
+  (defglobal *tagged-return-address-class* (make-built-in-class 'tagged-return-addres))
   (make-built-in-class 'bignum (find-class 'integer))
   
   (make-built-in-class 'bit *fixnum-class*)
@@ -1972,13 +1977,9 @@ to replace that class with ~s" name old-class new-class)
                 (%svref v (+ slice x8664::fulltag-cons)) *cons-class*
                 (%svref v (+ slice x8664::fulltag-imm-0)) *immediate-class*
                 (%svref v (+ slice x8664::fulltag-imm-1)) *immediate-class*
-                (%svref v (+ slice x8664::fulltag-nil)) *null-class*
-                (%svref v (+ slice x8664::fulltag-function)) class-of-function-function
-                (%svref v (+ slice x8664::fulltag-symbol))
-                #'(lambda (s)
-                    (if (eq (symbol-package s) *keyword-package*)
-                      *keyword-class*
-                      *symbol-class*))))
+                (%svref v (+ slice x8664::fulltag-tra-0)) *tagged-return-address-class*
+                (%svref v (+ slice x8664::fulltag-tra-1)) *tagged-return-address-class*
+                (%svref v (+ slice x8664::fulltag-nil)) *null-class*))
         (macrolet ((map-subtag (subtag class-name)
                      `(setf (%svref v ,subtag) (find-class ',class-name))))
           ;; immheader types map to built-in classes.
@@ -2040,9 +2041,8 @@ to replace that class with ~s" name old-class new-class)
               #'(lambda (i) (or (find-class (%svref i 0) nil) *istruct-class*)))
         (setf (%svref v target::subtag-instance)
               #'%class-of-instance)
-        #-x8664-target
-        (setf (%svref v target::subtag-symbol)
-              #+ppc32-target
+        (setf (%svref v #+ppc-target target::subtag-symbol #+x86-target target::tag-symbol)
+              #-ppc64-target
               #'(lambda (s) (if (eq (symbol-package s) *keyword-package*)
                               *keyword-class*
                               *symbol-class*))
@@ -2053,8 +2053,9 @@ to replace that class with ~s" name old-class new-class)
                       *keyword-class*
                       *symbol-class*)
                     *null-class*)))
-        #-x8664-target
-        (setf (%svref v target::subtag-function)
+        (setf (%svref v
+                      #+ppc-target target::subtag-function
+                      #+x86-target target::tag-function) 
               class-of-function-function)
         (setf (%svref v target::subtag-vectorH)
               #'(lambda (v)
@@ -2428,7 +2429,9 @@ to replace that class with ~s" name old-class new-class)
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
-    (%set-std-slot-vector-value (instance-slots instance) slotd new)
+    ;; Safe to use instance.slots here, since the instance is
+    ;; of type SUBTAG-INSTANCE.
+    (%set-std-slot-vector-value (instance.slots instance) slotd new)
     (setf (slot-value-using-class class instance slotd) new)))
 
 (defmethod slot-value-using-class ((class funcallable-standard-class)
@@ -2676,15 +2679,25 @@ to replace that class with ~s" name old-class new-class)
                   (primary-class-slot-offset (class-of instance) slot-name))))))))
 
 (defun exchange-slot-vectors-and-wrappers (a b)
-  (let* ((temp-wrapper (instance.class-wrapper a))
-	 (orig-a-slots (instance.slots a))
-	 (orig-b-slots (instance.slots b)))
-    (setf (instance.class-wrapper a) (instance.class-wrapper b)
-	  (instance.class-wrapper b) temp-wrapper
-	  (instance.slots a) orig-b-slots
-	  (instance.slots b) orig-a-slots
-	  (slot-vector.instance orig-a-slots) b
-	  (slot-vector.instance orig-b-slots) a)))
+  (if (typep a 'generic-function)
+    (let* ((temp-wrapper (gf.instance.class-wrapper a))
+           (orig-a-slots (gf.slots a))
+           (orig-b-slots (gf.slots b)))
+      (setf (gf.instance.class-wrapper a) (gf.instance.class-wrapper b)
+            (gf.instance.class-wrapper b) temp-wrapper
+            (gf.slots a) orig-b-slots
+            (gf.slots b) orig-a-slots
+            (slot-vector.instance orig-a-slots) b
+            (slot-vector.instance orig-b-slots) a))    
+    (let* ((temp-wrapper (instance.class-wrapper a))
+           (orig-a-slots (instance.slots a))
+           (orig-b-slots (instance.slots b)))
+      (setf (instance.class-wrapper a) (instance.class-wrapper b)
+            (instance.class-wrapper b) temp-wrapper
+            (instance.slots a) orig-b-slots
+            (instance.slots b) orig-a-slots
+            (slot-vector.instance orig-a-slots) b
+            (slot-vector.instance orig-b-slots) a))))
 
 
 
