@@ -476,6 +476,16 @@
         (:pred > intval 2147483647))
    (movq (:$q (:apply logand #xffffffffffffffff intval)) (:%q dest))))
 
+
+(define-x8664-vinsn trap-unless-bit (()
+                                     ((value :lisp)))
+                                     
+  (testq (:$l (lognot x8664::fixnumone)) (:%q value))
+  (je.pt :ok)
+  (uuo-error-reg-not-type (:%q value) (:$ub arch::error-object-not-bit))
+  :ok
+  )
+
 (define-x8664-vinsn trap-unless-list (()
 				      ((object :lisp))
 				      ((tag :u8)))
@@ -1210,7 +1220,8 @@
 (define-x8664-vinsn double-float/-2 (((result :double-float))
 				     ((x :double-float)
 				      (y :double-float)))
-  (divsd (:%xmm x) (:%xmm result)))
+  (movsd (:%xmm x) (:%xmm result))
+  (divsd (:%xmm y) (:%xmm result)))
 
 (define-x8664-vinsn single-float+-2 (((result :single-float))
 				     ((x :single-float)
@@ -1285,6 +1296,23 @@
                                   ((source :single-float)))
   (movss (:%xmm source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert) (:%q result)))
+
+(define-x8664-vinsn copy-double-float (((dest :double-float))
+                                       ((src :double-float)))
+  (movsd (:%xmm src) (:%xmm dest)))
+
+(define-x8664-vinsn copy-single-float (((dest :single-float))
+                                       ((src :single-float)))
+  (movss (:%xmm src) (:%xmm dest)))
+
+
+(define-x8664-vinsn copy-single-to-double (((dest :double-float))
+                                           ((src :single-float)))
+  (cvtss2sd (:%xmm src) (:%xmm dest)))
+
+(define-x8664-vinsn copy-double-to-single (((dest :single-float))
+                                           ((src :double-float)))
+  (cvtsd2ss (:%xmm src) (:%xmm dest)))
 
 (define-x8664-vinsn u8->fixnum (((result :imm)) 
 				((val :u8)) 
@@ -1654,7 +1682,7 @@
 (define-x8664-vinsn setup-double-float-allocation (()
                                                    ())
   (movl (:$l (arch::make-vheader x8664::double-float.element-count x8664::subtag-double-float)) (:%l x8664::imm0.l))
-  (movl (:$l (- x8664::double-float.size x8664::fulltag-misc)) (:%l x8664::imm0.l)))
+  (movl (:$l (- x8664::double-float.size x8664::fulltag-misc)) (:%l x8664::imm1.l)))
 
 (define-x8664-vinsn set-double-float-value (()
                                             ((node :lisp)
@@ -2196,17 +2224,15 @@
    (movq (:%q src) (:%q dest)))
   (shlq (:$ub count) (:%q dest)))
 
-;;; This has to typecheck to ensure that the value is of type BIT.
+;;; In safe code, something else has ensured that the value is of type
+;;; BIT.
 (define-x8664-vinsn set-variable-bit-to-variable-value (()
                                                         ((vec :lisp)
                                                          (word-index :s64)
                                                          (bitnum :u8)
                                                          (value :lisp)))
-  (rcmpq (:%q value) (:$l x8664::fixnumone))
-  (je :set)
-  (jb :clr)
-  (uuo-error-reg-not-type (:%q value) (:$ub arch::error-object-not-bit))
-  :set
+  (testb (:%b value) (:%b value))
+  (je :clr)
   (btsq (:%q bitnum) (:@ x8664::misc-data-offset (:%q vec) (:%q word-index) 8))
   (jmp :done)
   :clr
@@ -2241,11 +2267,8 @@
                                                         ((src :lisp)
                                                          (idx :u64const)
                                                          (value :lisp)))
-  (rcmpq (:%q value) (:$l x8664::fixnumone))
-  (je :set)
-  (jb :clr)
-  (uuo-error-reg-not-type (:%q value) (:$ub arch::error-object-not-bit))
-  :set
+  (testb (:%b value) (:%b value))
+  (je :clr)
   (btsq (:$ub (:apply logand 63 idx))
         (:@ (:apply + x8664::misc-data-offset (:apply ash (:apply ash idx -6) x8664::word-shift)) (:%q src)))
   (jmp :done)
@@ -2557,7 +2580,7 @@
   :loop
   (rcmpw (:%w x8664::imm1) (:%w x8664::nargs))
   (movl (:$l x8664::nil-value) (:%l x8664::arg_z))
-  (cmovlel (:%l x8664::arg_y) (:%l  x8664::arg_z))
+  (cmovll (:%l x8664::arg_y) (:%l  x8664::arg_z))
   (addl (:$b x8664::node-size) (:%l x8664::imm1))
   (cmpl (:%l x8664::imm1) (:%l x8664::imm0))
   (pushq (:%q x8664::arg_z))
@@ -2877,7 +2900,7 @@
   (movq (:%q src) (:%q dest))
   (shrq (:$ub x8664::charcode-shift) (:%q dest))
   (cmpb (:$b x8664::subtag-character) (:%b src))
-  (jne.pt ::got-it)
+  (je.pt ::got-it)
   (uuo-error-reg-not-tag (:%q src) (:$ub x8664::subtag-character))
   :got-it)
 
@@ -3113,7 +3136,7 @@
   (movq (:%q idx) (:%q imm))
   (shrq (:$ub x8664::fixnumshift) (:%q imm1))
   (shrq (:$ub x8664::word-shift) (:%q imm))
-  (movb (:%b imm1) (:@ x8664::misc-data-offset (:%q str))))
+  (movb (:%b imm1) (:@ x8664::misc-data-offset (:%q str) (:%q imm))))
 
 
 
