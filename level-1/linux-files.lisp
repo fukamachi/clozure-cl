@@ -118,7 +118,7 @@ atomically decremented, or until a timeout expires."
   ;; Return N < 0, if error
   ;;        N < bufsize: success, string is of length n
   ;;        N > bufsize: buffer needs to be larger.
-  #+linuxppc-target
+  #+linux-target
   (syscall syscalls::getcwd buf bufsize)	; which is exactly what Linux does
   #+darwinppc-target
   (let* ((p (#_getcwd buf bufsize)))
@@ -214,7 +214,7 @@ given is that of a group to which the current user belongs."
        t
        (pref stat :stat.st_mode)
        (pref stat :stat.st_size)
-       #+linuxppc-target
+       #+linux-target
        (pref stat :stat.st_mtim.tv_sec)
        #+darwinppc-target
        (pref stat :stat.st_mtimespec.tv_sec)
@@ -227,7 +227,7 @@ given is that of a group to which the current user belongs."
 (defun %%stat (name stat)
   (with-cstrs ((cname name))
     (%stat-values
-     #+linuxppc-target
+     #+linux-target
      (#_ __xstat #$_STAT_VER_LINUX cname stat)
      #+darwinppc-target
      (syscall syscalls::stat cname stat)
@@ -235,7 +235,7 @@ given is that of a group to which the current user belongs."
 
 (defun %%fstat (fd stat)
   (%stat-values
-   #+linuxppc-target
+   #+linux-target
    (#_ __fxstat #$_STAT_VER_LINUX fd stat)
    #+darwinppc-target
    (syscall syscalls::fstat fd stat)
@@ -244,7 +244,7 @@ given is that of a group to which the current user belongs."
 (defun %%lstat (name stat)
   (with-cstrs ((cname name))
     (%stat-values
-     #+linuxppc-target
+     #+linux-target
      (#_ __lxstat #$_STAT_VER_LINUX cname stat)
      #+darwinppc-target
      (syscall syscalls::lstat cname stat)
@@ -285,19 +285,19 @@ given is that of a group to which the current user belongs."
 
 (defun %uts-string (result idx buf)
   (if (eql 0 result)
-    (%get-cstring (%inc-ptr buf (* #+linuxppc-target 65
-				   #+darwinppc-target 256 idx)))
+    (%get-cstring (%inc-ptr buf (* #+linux-target #$_UTSNAME_LENGTH
+				   #+darwinppc-target #$_SYS_NAMELEN idx)))
     "unknown"))
 
 
-#+linuxppc-target
+#+linux-target
 (defun %uname (idx)
-  (%stack-block ((buf (* 65 6)))  
+  (%stack-block ((buf (* #$_UTSNAME_LENGTH 6)))  
     (%uts-string (syscall syscalls::uname buf) idx buf)))
 
 #+darwinppc-target
 (defun %uname (idx)
-  (%stack-block ((buf (* 256 5)))
+  (%stack-block ((buf (* #$_SYS_NAMELEN 5)))
     (%uts-string (#_uname buf) idx buf)))
 
 (defun fd-dup (fd)
@@ -328,14 +328,14 @@ given is that of a group to which the current user belongs."
 ;;; function AFAIK, so the source should be somewhere ...
 
 (defun %realpath (namestring)
-  (%stack-block ((resultbuf 1024))
+  (%stack-block ((resultbuf #$PATH_MAX))
     (with-cstrs ((name namestring))
       (let* ((result (#_realpath name resultbuf)))
         (declare (dynamic-extent result))
         (unless (%null-ptr-p result)
           (%get-cstring result))))))
 
-; Return fully resolved pathname & file kind, or (values nil nil)
+;;; Return fully resolved pathname & file kind, or (values nil nil)
 
 (defun %probe-file-x (namestring)
   (let* ((realpath (%realpath namestring))
@@ -372,11 +372,6 @@ given is that of a group to which the current user belongs."
   #+(and darwinppc-target (not 64-bit-target))
   (rlet ((count :natural_t #$TASK_THREAD_TIMES_INFO_COUNT))
     (#_task_info (#_mach_task_self) #$TASK_THREAD_TIMES_INFO usage count)))
-    
-
-
-
-
 
 
 
@@ -466,7 +461,7 @@ of the shell itself."
       (%get-cstring p))))
 
 ;;; Kind of has something to do with files, and doesn't work in level-0.
-#+linuxppc-target
+#+linux-target
 (defun close-shared-library (lib &key (completely t))
   "If completely is T, set the reference count of library to 0. Otherwise,
 decrements it by 1. In either case, if the reference count becomes 0,
@@ -575,12 +570,12 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 
 
 
-#+linuxppc-target
+#+linux-target
 (defun pipe ()
   (%stack-block ((pipes 8))
     (let* ((status (syscall syscalls::pipe pipes)))
       (if (= 0 status)
-	(values (%get-long pipes 0) (%get-long pipes 4))
+	(values (%get-natural pipes 0) (%get-natural pipes 4))
 	(%errno-disp status)))))
 
 
@@ -1111,7 +1106,7 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
                                                    count))
                 (pref info :host_basic_info.max_cpus)
                 1))
-            #+linuxppc-target
+            #+linux-target
             (or
              (ignore-errors
                (with-open-file (p "/proc/cpuinfo")
