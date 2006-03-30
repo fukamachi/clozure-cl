@@ -480,7 +480,7 @@
     (%double-float-expt! b2 e2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-expt (b e)
   (declare (single-float b e))
   (let* ((result (#_powf b e)))
@@ -510,7 +510,7 @@
     (%double-float-sin! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-sin (n)
   (declare (single-float n))
   (let* ((result (#_sinf n)))
@@ -540,7 +540,7 @@
     (%double-float-cos! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-cos (n)
   (declare (single-float n))
   (let* ((result (#_cosf n)))
@@ -570,7 +570,7 @@
     (%double-float-acos! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-acos (n)
   (declare (single-float n))
   (let* ((result (#_acosf n)))
@@ -600,7 +600,7 @@
     (%double-float-asin! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-asin (n)
   (declare (single-float n))
   (let* ((result (#_asinf n)))
@@ -630,7 +630,7 @@
     (%double-float-cosh! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-cosh (n)
   (declare (single-float n))
   (let* ((result (#_coshf n)))
@@ -664,7 +664,7 @@
     (%double-float->short-float result2 result)))
 )
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-log (n)
   (let* ((result (#_logf n)))
     (%sf-check-exception-1 'log n (%ffi-exception-status))
@@ -693,7 +693,7 @@
     (%double-float-tan! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-tan (n)
   (declare (single-float n))
   (let* ((result (#_tanf n)))
@@ -724,7 +724,7 @@
     (%double-float-atan! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-atan (n)
   (declare (single-float n))
   (let* ((temp (#_atanf n)))
@@ -755,7 +755,7 @@
     (%double-float-atan2! x2 y2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-atan2 (x y)
   (declare (single-float x y))
   (let* ((result (#_atan2f x y)))
@@ -785,7 +785,7 @@
     (%double-float-exp! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-exp (n)
   (declare (single-float n))
   (let* ((result (#_expf n)))
@@ -815,7 +815,7 @@
     (%double-float-sinh! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-sinh (n)
   (declare (single-float n))
   (let* ((result (#_sinhf n)))
@@ -848,7 +848,7 @@
     (%double-float-tanh! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-tanh (n)
   (declare (single-float n))
   (let* ((result (#_tanhf n)))
@@ -879,7 +879,7 @@
     (%double-float-asinh! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-asinh (n)
   (declare (single-float n))
   (let* ((result (#_asinhf n)))
@@ -909,7 +909,7 @@
     (%double-float-acosh! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-acosh (n)
   (declare (single-float n))
   (let* ((result (#_acoshf n)))
@@ -939,7 +939,7 @@
     (%double-float-atanh! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-atanh (n)
   (declare (single-float n)) 
   (let* ((result (#_atanhf n)))
@@ -969,7 +969,7 @@
     (%double-float-sqrt! n2 result2)
     (%double-float->short-float result2 result)))
 
-#+ppc64-target
+#+64-bit-target
 (defun %single-float-sqrt (n)
   (declare (single-float n))
   (let* ((result (#_sqrtf n)))

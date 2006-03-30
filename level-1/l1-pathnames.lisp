@@ -618,7 +618,7 @@
       (native-to-directory-pathname dirpath)
       (let* ((rpath (merge-pathnames
 		     #+darwinppc-target "../Resources/ccl/"
-		     #+linuxppc-target "Resources/ccl/"
+		     #+linux-target "Resources/ccl/"
 		     (make-pathname
 		      :directory
 		      (pathname-directory (car *command-line-argument-list*))))))
