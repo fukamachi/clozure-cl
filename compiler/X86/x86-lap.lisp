@@ -16,7 +16,7 @@
 
 (in-package "CCL")
 
-(require "X86-ASM" "ccl:compiler;X86;x86-asm")
+(require "X86-ASM")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "DLL-NODE"))
@@ -1172,6 +1172,43 @@
                                             length)
                   (incf target-offset length)))))
           constants-vector)))))
+
+#+x86-target
+(defun create-x86-function (name frag-list constants bits debug-info)
+  (unless name (setq bits (logior bits (ash -1 $lfbits-noname-bit))))
+  (let* ((code-bytes (let* ((nbytes 0))
+                       (do-dll-nodes (frag frag-list nbytes)
+                         (incf nbytes (length (frag-code-buffer frag))))))
+         (code-words (ash code-bytes (- target::word-shift)))
+         (function-vector (allocate-typed-vector :function code-words)))
+    (declare (fixnum num-constants code-bytes code-words))
+    (let* ((target-offset 0))
+      (declare (fixnum target-offset))
+      (do-dll-nodes (frag frag-list)
+        (let* ((buffer (frag-code-buffer frag))
+               (length (length buffer)))
+          (declare (fixnum length))
+          (when buffer
+            (multiple-value-bind (data offset)
+                (array-data-and-offset buffer)
+              (%copy-ivector-to-ivector data
+                                        offset
+                                        function-vector
+                                        target-offset
+                                        length)
+              (incf target-offset length))))))
+    (let* ((last (1- (uvsize function-vector))))
+      (declare (fixnum last))
+      (setf (uvref function-vector last) bits)
+      (when name
+        (setf (uvref function-vector (decf last)) name))
+      (when debug-info
+        (setf (uvref function-vector (decf last)) debug-info))
+      (dolist (c constants)
+        (setf (uvref function-vector (decf last)) (car c)))
+      (%function-vector-to-function function-vector))))
+
+
       
 (defun %define-x86-lap-function (name forms &optional (bits 0))
   (let* ((*x86-lap-labels* ())
