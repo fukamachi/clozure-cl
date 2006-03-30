@@ -24,12 +24,16 @@ define clobber_breakpoint
   set *(short *)($pc-2)=0x9090
 end
 
-define z
+define arg_z
  l $rsi
 end
 
-define y
+define arg_y
  l $rdi
+end
+
+define arg_x
+ l $r8
 end
 
 define bx
