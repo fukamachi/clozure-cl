@@ -446,7 +446,8 @@
 )
 
 )
-;;; 386 operand encoding bytes:  see 386 book for details of this.
+
+
 (defstruct modrm-byte
   regmem ; codes register or memory operand
   reg ; codes register operand (or extended opcode)
@@ -559,7 +560,10 @@
     :insert-mmx-reg
     :insert-mmx-rm
     :insert-xmm-reg
-    :insert-xmm-rm))
+    :insert-xmm-rm
+    :insert-reg4-pseudo-rm-high
+    :insert-reg4-pseudo-rm-low
+    ))
 
 (defun parse-x86-opcode-operand-classes (types&classes)
   (ccl::collect ((classes))
@@ -3349,8 +3353,8 @@
    (def-x8664-opcode uuo-error-udf-call ()
      #xcdc7 nil nil)
 
-   (def-x8664-opcode uuo-error-vector-bounds ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
-     #xcdc8 #o300 0)
+   (def-x8664-opcode uuo-error-vector-bounds ((:reg64 :insert-reg4-pseudo-rm-high) (:reg64 :insert-reg4-pseudo-rm-low))
+     #xcdc8 0 nil)
 
    (def-x8664-opcode uuo-error-call-macro-or-special-operator ()
      #xcdc9 nil nil)
@@ -3427,7 +3431,9 @@
     insert-mmx-reg
     insert-mmx-rm
     insert-xmm-reg
-    insert-xmm-rm))
+    insert-xmm-rm
+    insert-reg4-pseudo-rm-high
+    insert-reg4-pseudo-rm-low))
 
 (defvar *x86-operand-insert-functions* ())
 
@@ -4298,6 +4304,34 @@
 
 (defun insert-opcode-reg4 (instruction operand)
   (insert-opcode-reg4-entry instruction (x86-register-operand-entry operand)))
+
+
+(defun insert-reg4-pseudo-rm-high-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry))
+         (xreg-num (logior reg-num
+                           (if (logtest +regrex+ (reg-entry-reg-flags entry))
+                             #x08
+                             #x00))))
+    (setf (x86-instruction-modrm-byte instruction)
+          (dpb xreg-num (byte 4 4)
+               (x86-instruction-modrm-byte instruction)))))
+
+(defun insert-reg4-pseudo-rm-high (instruction operand)
+  (insert-reg4-pseudo-rm-high-entry instruction (x86-register-operand-entry operand)))
+
+
+(defun insert-reg4-pseudo-rm-low-entry (instruction entry)
+  (let* ((reg-num (reg-entry-reg-num entry))
+         (xreg-num (logior reg-num
+                           (if (logtest +regrex+ (reg-entry-reg-flags entry))
+                             #x08
+                             #x00))))
+    (setf (x86-instruction-modrm-byte instruction)
+          (dpb xreg-num (byte 4 0)
+               (x86-instruction-modrm-byte instruction)))))
+
+(defun insert-reg4-pseudo-rm-low (instruction operand)
+  (insert-reg4-pseudo-rm-low-entry instruction (x86-register-operand-entry operand)))
 
 ;;; Insert a 3-bit register value derived from OPERAND in INSN's modrm.rm
 ;;; field.  If the register requires REX addressing, set the REX.B bit
