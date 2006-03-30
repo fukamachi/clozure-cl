@@ -731,7 +731,9 @@
 (defmethod ensure-class-using-class ((class null) name &rest keys &key &allow-other-keys)
   (multiple-value-bind (metaclass initargs)
       (ensure-class-metaclass-and-initargs class keys)
-    (let* ((class (apply #'make-instance metaclass :name name initargs)))      
+    (let* ((class (apply #'make-instance metaclass :name name initargs)))
+      (when (typep (instance.hash class) 'fixnum)
+        (setf (instance.hash class) name))
       (setf (find-class name) class))))
 
 (defmethod ensure-class-using-class ((class forward-referenced-class) name &rest keys &key &allow-other-keys)
@@ -1206,7 +1208,6 @@ governs whether DEFCLASS makes that distinction or not.")
 		  )))
 
 
-
 (defun standard-instance-access (instance location)
   (etypecase location
     (fixnum (%standard-instance-instance-location-access instance location))
@@ -1307,6 +1308,7 @@ governs whether DEFCLASS makes that distinction or not.")
 (defmethod initialize-instance :after ((slotd effective-slot-definition) &key name)
   (setf (standard-effective-slot-definition.slot-id slotd)
         (ensure-slot-id name)))
+
   
 (defmethod specializer-direct-generic-functions ((s specializer))
   (let* ((gfs ())
@@ -1393,8 +1395,9 @@ governs whether DEFCLASS makes that distinction or not.")
 
 (defmethod initialize-instance :before ((instance generic-function)
                                        &key &allow-other-keys)
-  (setf (gf.code-vector instance) *gf-proto-code*
-        (gf.dcode instance) #'%%0-arg-dcode))
+
+  (replace-function-code instance *gf-proto*)
+  (setf (gf.dcode instance) #'%%0-arg-dcode))
         
                                        
 
@@ -1481,6 +1484,7 @@ governs whether DEFCLASS makes that distinction or not.")
 (setf (fdefinition '%ensure-generic-function-using-class)
       #'ensure-generic-function-using-class)
 
+
 (defmethod shared-initialize :after ((gf generic-function) slot-names
 				     &key
 				     (documentation nil doc-p))
@@ -1488,6 +1492,9 @@ governs whether DEFCLASS makes that distinction or not.")
   (when doc-p
     (if documentation (check-type documentation string))
     (set-documentation gf t documentation)))
+
+
+
 
 (defmethod allocate-instance ((b built-in-class) &rest initargs)
   (declare (ignore initargs))
