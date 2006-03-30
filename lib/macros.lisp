@@ -3282,7 +3282,7 @@ element-type is numeric."
               (push var specvars)
               (push var restoreform)
               (push oldval restoreform)
-              (push `(,oldval (uvref ',var #.target::symbol.vcell-cell)) initforms)
+              (push `(,oldval (uvref (symptr->symvector ',var) #.target::symbol.vcell-cell)) initforms)
               (push `(,newval ,valueform) initforms)
               (push var psetform)
               (push newval psetform))))
