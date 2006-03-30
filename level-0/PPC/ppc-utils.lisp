@@ -626,6 +626,23 @@ be somewhat larger than what was specified)."
   (svset imm1 target::macptr.domain-cell p)
   (blr))
 
+(defppclapfunction true ()
+  (cmplr nargs '3)
+  (li arg_z t)
+  (blelr)
+  (subi imm0 nargs '3)
+  (add vsp vsp imm0)
+  (blr))
 
+(defppclapfunction false ()
+  (cmplr nargs '3)
+  (li arg_z nil)
+  (blelr)
+  (subi imm0 nargs '3)
+  (add vsp vsp imm0)
+  (blr))
+
+(lfun-bits #'true #.(encode-lambda-list '(&lap &rest ignore)))
+(lfun-bits #'false #.(encode-lambda-list '(&lap &rest ignore)))
 
 ;;; end
