@@ -14,8 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-;; l1-boot-3.lisp
-;; Third part of l1-boot
+;;; l1-boot-3.lisp
+;;; Third part of l1-boot
 
 (in-package "CCL")
 
@@ -30,7 +30,5 @@
 
 
 
+;;;end of l1-boot-3.lisp
 
-;(setq *loading-file-source-file* "ccl:l1;level-1.lisp") ;reset from last %fasload...
-
-;End of Level-1.lisp
