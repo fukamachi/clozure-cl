@@ -1024,7 +1024,7 @@
 (defun set-%double-float-exp (float exp)
   (let* ((highword (double-float-bits float)))
     (declare (fixnum highword))
-    (setf (uvref float 0)
+    (setf (uvref float target::double-float.val-high-cell)
           (dpb exp
                (byte IEEE-double-float-exponent-width
                      (- IEEE-double-float-exponent-offset 32))
