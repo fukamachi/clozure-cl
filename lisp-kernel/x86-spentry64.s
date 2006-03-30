@@ -177,284 +177,281 @@ _endsubp(misc_ref)
    Bounds/type-checking done in caller */	
 _startfn(C(misc_ref_common))
 	__(movzbl %imm1_b,%imm1_l)
-	__(jmp *C(misc_ref_jmp)(,%imm1,8))
+	__(jmp *local_label(misc_ref_jmp)(,%imm1,8))
 	.p2align 3
-	.globl C(misc_ref_jmp)
-C(misc_ref_jmp):	
+local_label(misc_ref_jmp):	
 	/* 00-0f */
-	.quad local_label(misc_ref_bad)	/* 00 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 01 imm_1 */
-	.quad local_label(misc_ref_bad) /* 02 imm_2 */
-	.quad local_label(misc_ref_bad) /* 03 cons */
-	.quad local_label(misc_ref_bad)	/* 04 tra_0 */
-	.quad local_label(misc_ref_bad) /* 05 nodeheader_0 */
-	.quad local_label(misc_ref_bad) /* 06 nodeheader_1 */
-	.quad local_label(misc_ref_bad) /* 07 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 08 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* 09 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* 0a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 0b nil */
-	.quad local_label(misc_ref_bad)	/* 0c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 0d misc */
-	.quad local_label(misc_ref_bad)	/* 0e symbol */
-	.quad local_label(misc_ref_bad)	/* 0f function */
-	.globl C(misc_ref_jmp16)
-C(misc_ref_jmp16):	
+	.quad local_label(misc_ref_invalid)	/* 00 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 01 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 02 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 03 cons */
+	.quad local_label(misc_ref_invalid)	/* 04 tra_0 */
+	.quad local_label(misc_ref_invalid) /* 05 nodeheader_0 */
+	.quad local_label(misc_ref_invalid) /* 06 nodeheader_1 */
+	.quad local_label(misc_ref_invalid) /* 07 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 08 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* 09 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* 0a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 0b nil */
+	.quad local_label(misc_ref_invalid)	/* 0c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 0d misc */
+	.quad local_label(misc_ref_invalid)	/* 0e symbol */
+	.quad local_label(misc_ref_invalid)	/* 0f function */
 	/* 10-1f */
-	.quad local_label(misc_ref_bad)	/* 10 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 11 imm_1 */
-	.quad local_label(misc_ref_bad) /* 12 imm_2 */
-	.quad local_label(misc_ref_bad) /* 13 cons */
-	.quad local_label(misc_ref_bad)	/* 14 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 10 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 11 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 12 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 13 cons */
+	.quad local_label(misc_ref_invalid)	/* 14 tra_0 */
 	.quad local_label(misc_ref_node) /* 15 symbol_vector */
 	.quad local_label(misc_ref_node) /* 16 ratio */
-	.quad local_label(misc_ref_bad) /* 17 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 18 odd_fixnum */
+	.quad local_label(misc_ref_invalid) /* 17 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 18 odd_fixnum */
 	.quad local_label(misc_ref_u32)	/* 19 bignum */
 	.quad local_label(misc_ref_u64) /* 1a macptr */
-	.quad local_label(misc_ref_bad) /* 1b nil */
-	.quad local_label(misc_ref_bad)	/* 1c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 1d misc */
-	.quad local_label(misc_ref_bad)	/* 1e symbol */
-	.quad local_label(misc_ref_bad)	/* 1f function */
+	.quad local_label(misc_ref_invalid) /* 1b nil */
+	.quad local_label(misc_ref_invalid)	/* 1c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 1d misc */
+	.quad local_label(misc_ref_invalid)	/* 1e symbol */
+	.quad local_label(misc_ref_invalid)	/* 1f function */
 	/* 20-2f */
-	.quad local_label(misc_ref_bad)	/* 20 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 21 imm_1 */
-	.quad local_label(misc_ref_bad) /* 22 imm_2 */
-	.quad local_label(misc_ref_bad) /* 23 cons */
-	.quad local_label(misc_ref_bad)	/* 24 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 20 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 21 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 22 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 23 cons */
+	.quad local_label(misc_ref_invalid)	/* 24 tra_0 */
 	.quad local_label(misc_ref_node) /* 25 catch_frame */
 	.quad local_label(misc_ref_node) /* 26 complex */
-	.quad local_label(misc_ref_bad) /* 27 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 28 odd_fixnum */
+	.quad local_label(misc_ref_invalid) /* 27 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 28 odd_fixnum */
 	.quad local_label(misc_ref_u32)	/* 29 double_float */
 	.quad local_label(misc_ref_u64)  /* 2a dead_macptr */
-	.quad local_label(misc_ref_bad) /* 2b nil */
-	.quad local_label(misc_ref_bad)	/* 2c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 2d misc */
-	.quad local_label(misc_ref_bad)	/* 2e symbol */
-	.quad local_label(misc_ref_bad)	/* 2f function */
+	.quad local_label(misc_ref_invalid) /* 2b nil */
+	.quad local_label(misc_ref_invalid)	/* 2c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 2d misc */
+	.quad local_label(misc_ref_invalid)	/* 2e symbol */
+	.quad local_label(misc_ref_invalid)	/* 2f function */
 	/* 30-3f */
-	.quad local_label(misc_ref_bad)	/* 30 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 31 imm_1 */
-	.quad local_label(misc_ref_bad) /* 32 imm_2 */
-	.quad local_label(misc_ref_bad) /* 33 cons */
-	.quad local_label(misc_ref_bad)	/* 34 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 30 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 31 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 32 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 33 cons */
+	.quad local_label(misc_ref_invalid)	/* 34 tra_0 */
 	.quad local_label(misc_ref_node) /* 35 hash_vector */
 	.quad local_label(misc_ref_node) /* 36 struct */
-	.quad local_label(misc_ref_bad) /* 37 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 38 odd_fixnum */
+	.quad local_label(misc_ref_invalid) /* 37 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 38 odd_fixnum */
 	.quad local_label(misc_ref_u32)	/* 39 xcode_vector */
-	.quad local_label(misc_ref_bad)  /* 3a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 3b nil */
-	.quad local_label(misc_ref_bad)	/* 3c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 3d misc */
-	.quad local_label(misc_ref_bad)	/* 3e symbol */
-	.quad local_label(misc_ref_bad)	/* 3f function */
+	.quad local_label(misc_ref_invalid)  /* 3a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 3b nil */
+	.quad local_label(misc_ref_invalid)	/* 3c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 3d misc */
+	.quad local_label(misc_ref_invalid)	/* 3e symbol */
+	.quad local_label(misc_ref_invalid)	/* 3f function */
 	/* 40-4f */
-	.quad local_label(misc_ref_bad)	/* 40 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 41 imm_1 */
-	.quad local_label(misc_ref_bad) /* 42 imm_2 */
-	.quad local_label(misc_ref_bad) /* 43 cons */
-	.quad local_label(misc_ref_bad)	/* 44 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 40 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 41 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 42 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 43 cons */
+	.quad local_label(misc_ref_invalid)	/* 44 tra_0 */
 	.quad local_label(misc_ref_node) /* 45 pool */
 	.quad local_label(misc_ref_node) /* 46 istruct */
-	.quad local_label(misc_ref_bad) /* 47 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 48 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* 49 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* 4a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 4b nil */
-	.quad local_label(misc_ref_bad)	/* 4c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 4d misc */
-	.quad local_label(misc_ref_bad)	/* 4e symbol */
-	.quad local_label(misc_ref_bad)	/* 4f function */
+	.quad local_label(misc_ref_invalid) /* 47 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 48 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* 49 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* 4a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 4b nil */
+	.quad local_label(misc_ref_invalid)	/* 4c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 4d misc */
+	.quad local_label(misc_ref_invalid)	/* 4e symbol */
+	.quad local_label(misc_ref_invalid)	/* 4f function */
 	/* 50-5f */
-	.quad local_label(misc_ref_bad)	/* 50 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 51 imm_1 */
-	.quad local_label(misc_ref_bad) /* 52 imm_2 */
-	.quad local_label(misc_ref_bad) /* 53 cons */
-	.quad local_label(misc_ref_bad)	/* 54 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 50 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 51 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 52 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 53 cons */
+	.quad local_label(misc_ref_invalid)	/* 54 tra_0 */
 	.quad local_label(misc_ref_node) /* 55 weak */
 	.quad local_label(misc_ref_node) /* 56 value_cell */
-	.quad local_label(misc_ref_bad) /* 57 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 58 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* 59 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* 5a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 5b nil */
-	.quad local_label(misc_ref_bad)	/* 5c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 5d misc */
-	.quad local_label(misc_ref_bad)	/* 5e symbol */
-	.quad local_label(misc_ref_bad)	/* 5f function */
+	.quad local_label(misc_ref_invalid) /* 57 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 58 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* 59 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* 5a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 5b nil */
+	.quad local_label(misc_ref_invalid)	/* 5c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 5d misc */
+	.quad local_label(misc_ref_invalid)	/* 5e symbol */
+	.quad local_label(misc_ref_invalid)	/* 5f function */
 	/* 60-6f */
-	.quad local_label(misc_ref_bad)	/* 60 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 61 imm_1 */
-	.quad local_label(misc_ref_bad) /* 62 imm_2 */
-	.quad local_label(misc_ref_bad) /* 63 cons */
-	.quad local_label(misc_ref_bad)	/* 64 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 60 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 61 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 62 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 63 cons */
+	.quad local_label(misc_ref_invalid)	/* 64 tra_0 */
 	.quad local_label(misc_ref_node) /* 65 package */
 	.quad local_label(misc_ref_node) /* 66 xfunction */
-	.quad local_label(misc_ref_bad) /* 67 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 68 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* 69 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* 6a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 6b nil */
-	.quad local_label(misc_ref_bad)	/* 6c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 6d misc */
-	.quad local_label(misc_ref_bad)	/* 6e symbol */
-	.quad local_label(misc_ref_bad)	/* 6f function */
+	.quad local_label(misc_ref_invalid) /* 67 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 68 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* 69 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* 6a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 6b nil */
+	.quad local_label(misc_ref_invalid)	/* 6c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 6d misc */
+	.quad local_label(misc_ref_invalid)	/* 6e symbol */
+	.quad local_label(misc_ref_invalid)	/* 6f function */
 	/* 70-7f */
-	.quad local_label(misc_ref_bad)	/* 70 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 71 imm_1 */
-	.quad local_label(misc_ref_bad) /* 72 imm_2 */
-	.quad local_label(misc_ref_bad) /* 73 cons */
-	.quad local_label(misc_ref_bad)	/* 74 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 70 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 71 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 72 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 73 cons */
+	.quad local_label(misc_ref_invalid)	/* 74 tra_0 */
 	.quad local_label(misc_ref_node) /* 75 slot_vector */
 	.quad local_label(misc_ref_node) /* 76 lock */
-	.quad local_label(misc_ref_bad) /* 77 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 78 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* 79 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* 7a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 7b nil */
-	.quad local_label(misc_ref_bad)	/* 7c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 7d misc */
-	.quad local_label(misc_ref_bad)	/* 7e symbol */
-	.quad local_label(misc_ref_bad)	/* 7f function */
+	.quad local_label(misc_ref_invalid) /* 77 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 78 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* 79 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* 7a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 7b nil */
+	.quad local_label(misc_ref_invalid)	/* 7c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 7d misc */
+	.quad local_label(misc_ref_invalid)	/* 7e symbol */
+	.quad local_label(misc_ref_invalid)	/* 7f function */
 	/* 80-8f */
-	.quad local_label(misc_ref_bad)	/* 80 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 81 imm_1 */
-	.quad local_label(misc_ref_bad) /* 82 imm_2 */
-	.quad local_label(misc_ref_bad) /* 83 cons */
-	.quad local_label(misc_ref_bad)	/* 84 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 80 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 81 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 82 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 83 cons */
+	.quad local_label(misc_ref_invalid)	/* 84 tra_0 */
 	.quad local_label(misc_ref_node) /* 85 lisp_thread */
 	.quad local_label(misc_ref_node) /* 86 instance */
-	.quad local_label(misc_ref_bad) /* 87 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 88 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* 89 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* 8a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 8b nil */
-	.quad local_label(misc_ref_bad)	/* 8c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 8d misc */
-	.quad local_label(misc_ref_bad)	/* 8e symbol */
-	.quad local_label(misc_ref_bad)	/* 8f function */
+	.quad local_label(misc_ref_invalid) /* 87 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 88 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* 89 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* 8a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 8b nil */
+	.quad local_label(misc_ref_invalid)	/* 8c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 8d misc */
+	.quad local_label(misc_ref_invalid)	/* 8e symbol */
+	.quad local_label(misc_ref_invalid)	/* 8f function */
 	/* 90-9f */
-	.quad local_label(misc_ref_bad)	/* 90 even_fixnum */
-	.quad local_label(misc_ref_bad) /* 91 imm_1 */
-	.quad local_label(misc_ref_bad) /* 92 imm_2 */
-	.quad local_label(misc_ref_bad) /* 93 cons */
-	.quad local_label(misc_ref_bad)	/* 94 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* 90 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* 91 imm_1 */
+	.quad local_label(misc_ref_invalid) /* 92 imm_2 */
+	.quad local_label(misc_ref_invalid) /* 93 cons */
+	.quad local_label(misc_ref_invalid)	/* 94 tra_0 */
 	.quad local_label(misc_ref_function) /* 95 function_vector */
-	.quad local_label(misc_ref_bad) /* 96 nodeheader_1 */
-	.quad local_label(misc_ref_bad) /* 97 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* 98 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* 99 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* 9a immheader_2 */
-	.quad local_label(misc_ref_bad) /* 9b nil */
-	.quad local_label(misc_ref_bad)	/* 9c tra_1 */
-	.quad local_label(misc_ref_bad)	/* 9d misc */
-	.quad local_label(misc_ref_bad)	/* 9e symbol */
-	.quad local_label(misc_ref_bad)	/* 9f function */
+	.quad local_label(misc_ref_invalid) /* 96 nodeheader_1 */
+	.quad local_label(misc_ref_invalid) /* 97 immheader_0 */
+	.quad local_label(misc_ref_invalid)	/* 98 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* 99 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* 9a immheader_2 */
+	.quad local_label(misc_ref_invalid) /* 9b nil */
+	.quad local_label(misc_ref_invalid)	/* 9c tra_1 */
+	.quad local_label(misc_ref_invalid)	/* 9d misc */
+	.quad local_label(misc_ref_invalid)	/* 9e symbol */
+	.quad local_label(misc_ref_invalid)	/* 9f function */
 	/* a0-af */
-	.quad local_label(misc_ref_bad)	/* a0 even_fixnum */
-	.quad local_label(misc_ref_bad) /* a1 imm_1 */
-	.quad local_label(misc_ref_bad) /* a2 imm_2 */
-	.quad local_label(misc_ref_bad) /* a3 cons */
-	.quad local_label(misc_ref_bad)	/* a4 tra_0 */
+	.quad local_label(misc_ref_invalid)	/* a0 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* a1 imm_1 */
+	.quad local_label(misc_ref_invalid) /* a2 imm_2 */
+	.quad local_label(misc_ref_invalid) /* a3 cons */
+	.quad local_label(misc_ref_invalid)	/* a4 tra_0 */
 	.quad local_label(misc_ref_node) /* a5 arrayH */
 	.quad local_label(misc_ref_node) /* a6 vectorH */
 	.quad local_label(misc_ref_s16)	/* a7 s16 */
-	.quad local_label(misc_ref_bad)	/* a8 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* a9 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* aa immheader_2 */
-	.quad local_label(misc_ref_bad) /* ab nil */
-	.quad local_label(misc_ref_bad)	/* ac tra_1 */
-	.quad local_label(misc_ref_bad)	/* ad misc */
-	.quad local_label(misc_ref_bad)	/* ae symbol */
-	.quad local_label(misc_ref_bad)	/* af function */
+	.quad local_label(misc_ref_invalid)	/* a8 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* a9 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* aa immheader_2 */
+	.quad local_label(misc_ref_invalid) /* ab nil */
+	.quad local_label(misc_ref_invalid)	/* ac tra_1 */
+	.quad local_label(misc_ref_invalid)	/* ad misc */
+	.quad local_label(misc_ref_invalid)	/* ae symbol */
+	.quad local_label(misc_ref_invalid)	/* af function */
 	/* b0-bf */
-	.quad local_label(misc_ref_bad)	/* b0 even_fixnum */
-	.quad local_label(misc_ref_bad) /* b1 imm_1 */
-	.quad local_label(misc_ref_bad) /* b2 imm_2 */
-	.quad local_label(misc_ref_bad) /* b3 cons */
-	.quad local_label(misc_ref_bad)	/* b4 tra_0 */
-	.quad local_label(misc_ref_bad) /* b5 nodeheader_0 */
+	.quad local_label(misc_ref_invalid)	/* b0 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* b1 imm_1 */
+	.quad local_label(misc_ref_invalid) /* b2 imm_2 */
+	.quad local_label(misc_ref_invalid) /* b3 cons */
+	.quad local_label(misc_ref_invalid)	/* b4 tra_0 */
+	.quad local_label(misc_ref_invalid) /* b5 nodeheader_0 */
 	.quad local_label(misc_ref_node) /* b6 simple_vector */
 	.quad local_label(misc_ref_u16) /* b7 immheader_0 */
-	.quad local_label(misc_ref_bad)	/* b8 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* b9 immheader_1 */
-	.quad local_label(misc_ref_bad) /* ba immheader_2 */
-	.quad local_label(misc_ref_bad) /* bb nil */
-	.quad local_label(misc_ref_bad)	/* bc tra_1 */
-	.quad local_label(misc_ref_bad)	/* bd misc */
-	.quad local_label(misc_ref_bad)	/* be symbol */
-	.quad local_label(misc_ref_bad)	/* bf function */
+	.quad local_label(misc_ref_invalid)	/* b8 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* b9 immheader_1 */
+	.quad local_label(misc_ref_invalid) /* ba immheader_2 */
+	.quad local_label(misc_ref_invalid) /* bb nil */
+	.quad local_label(misc_ref_invalid)	/* bc tra_1 */
+	.quad local_label(misc_ref_invalid)	/* bd misc */
+	.quad local_label(misc_ref_invalid)	/* be symbol */
+	.quad local_label(misc_ref_invalid)	/* bf function */
 	/* c0-cf */
-	.quad local_label(misc_ref_bad)	/* c0 even_fixnum */
-	.quad local_label(misc_ref_bad) /* c1 imm_1 */
-	.quad local_label(misc_ref_bad) /* c2 imm_2 */
-	.quad local_label(misc_ref_bad) /* c3 cons */
-	.quad local_label(misc_ref_bad)	/* c4 tra_0 */
-	.quad local_label(misc_ref_bad) /* c5 nodeheader_0 */
-	.quad local_label(misc_ref_bad) /* c6 nodeheader_1 */
+	.quad local_label(misc_ref_invalid)	/* c0 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* c1 imm_1 */
+	.quad local_label(misc_ref_invalid) /* c2 imm_2 */
+	.quad local_label(misc_ref_invalid) /* c3 cons */
+	.quad local_label(misc_ref_invalid)	/* c4 tra_0 */
+	.quad local_label(misc_ref_invalid) /* c5 nodeheader_0 */
+	.quad local_label(misc_ref_invalid) /* c6 nodeheader_1 */
 	.quad local_label(misc_ref_string) /* c7 simple_base_string */
-	.quad local_label(misc_ref_bad)	/* c8 odd_fixnum */
-	.quad local_label(misc_ref_bad)	/* c9 immheader_1 */
-	.quad local_label(misc_ref_bad)  /* ca immheader_2 */
-	.quad local_label(misc_ref_bad) /* cb nil */
-	.quad local_label(misc_ref_bad)	/* cc tra_1 */
-	.quad local_label(misc_ref_bad)	/* cd misc */
-	.quad local_label(misc_ref_bad)	/* ce symbol */
-	.quad local_label(misc_ref_bad)	/* cf function */
+	.quad local_label(misc_ref_invalid)	/* c8 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* c9 immheader_1 */
+	.quad local_label(misc_ref_invalid)  /* ca immheader_2 */
+	.quad local_label(misc_ref_invalid) /* cb nil */
+	.quad local_label(misc_ref_invalid)	/* cc tra_1 */
+	.quad local_label(misc_ref_invalid)	/* cd misc */
+	.quad local_label(misc_ref_invalid)	/* ce symbol */
+	.quad local_label(misc_ref_invalid)	/* cf function */
 	/* d0-df */
-	.quad local_label(misc_ref_bad)	/* d0 even_fixnum */
-	.quad local_label(misc_ref_bad) /* d1 imm_1 */
-	.quad local_label(misc_ref_bad) /* d2 imm_2 */
-	.quad local_label(misc_ref_bad) /* d3 cons */
-	.quad local_label(misc_ref_bad)	/* d4 tra_0 */
-	.quad local_label(misc_ref_bad) /* d5 nodeheader_0 */
-	.quad local_label(misc_ref_bad) /* d6 nodeheader_1 */
+	.quad local_label(misc_ref_invalid)	/* d0 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* d1 imm_1 */
+	.quad local_label(misc_ref_invalid) /* d2 imm_2 */
+	.quad local_label(misc_ref_invalid) /* d3 cons */
+	.quad local_label(misc_ref_invalid)	/* d4 tra_0 */
+	.quad local_label(misc_ref_invalid) /* d5 nodeheader_0 */
+	.quad local_label(misc_ref_invalid) /* d6 nodeheader_1 */
 	.quad local_label(misc_ref_s8)	/* d7 s8 */
-	.quad local_label(misc_ref_bad)	/* d8 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* d8 odd_fixnum */
 	.quad local_label(misc_ref_s32)	/* d9 s32 */
 	.quad local_label(misc_ref_s64)	/* da s64 */
-	.quad local_label(misc_ref_bad) /* db nil */
-	.quad local_label(misc_ref_bad)	/* dc tra_1 */
-	.quad local_label(misc_ref_bad)	/* dd misc */
-	.quad local_label(misc_ref_bad)	/* de symbol */
-	.quad local_label(misc_ref_bad)	/* df function */
+	.quad local_label(misc_ref_invalid) /* db nil */
+	.quad local_label(misc_ref_invalid)	/* dc tra_1 */
+	.quad local_label(misc_ref_invalid)	/* dd misc */
+	.quad local_label(misc_ref_invalid)	/* de symbol */
+	.quad local_label(misc_ref_invalid)	/* df function */
 	/* e0-ef */
-	.quad local_label(misc_ref_bad)	/* e0 even_fixnum */
-	.quad local_label(misc_ref_bad) /* e1 imm_1 */
-	.quad local_label(misc_ref_bad) /* e2 imm_2 */
-	.quad local_label(misc_ref_bad) /* e3 cons */
-	.quad local_label(misc_ref_bad)	/* e4 tra_0 */
-	.quad local_label(misc_ref_bad) /* e5 nodeheader_0 */
-	.quad local_label(misc_ref_bad) /* e6 nodeheader_1 */
+	.quad local_label(misc_ref_invalid)	/* e0 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* e1 imm_1 */
+	.quad local_label(misc_ref_invalid) /* e2 imm_2 */
+	.quad local_label(misc_ref_invalid) /* e3 cons */
+	.quad local_label(misc_ref_invalid)	/* e4 tra_0 */
+	.quad local_label(misc_ref_invalid) /* e5 nodeheader_0 */
+	.quad local_label(misc_ref_invalid) /* e6 nodeheader_1 */
 	.quad local_label(misc_ref_u8)	/* e7 u8 */
-	.quad local_label(misc_ref_bad)	/* e8 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* e8 odd_fixnum */
 	.quad local_label(misc_ref_u32)	/* e9 u32 */
 	.quad local_label(misc_ref_u64) /* ea u64 */
-	.quad local_label(misc_ref_bad) /* eb nil */
-	.quad local_label(misc_ref_bad)	/* ec tra_1 */
-	.quad local_label(misc_ref_bad)	/* ed misc */
-	.quad local_label(misc_ref_bad)	/* ee symbol */
-	.quad local_label(misc_ref_bad)	/* ef function */
+	.quad local_label(misc_ref_invalid) /* eb nil */
+	.quad local_label(misc_ref_invalid)	/* ec tra_1 */
+	.quad local_label(misc_ref_invalid)	/* ed misc */
+	.quad local_label(misc_ref_invalid)	/* ee symbol */
+	.quad local_label(misc_ref_invalid)	/* ef function */
 	/* f0-ff */
-	.quad local_label(misc_ref_bad)	/* f0 even_fixnum */
-	.quad local_label(misc_ref_bad) /* f1 imm_1 */
-	.quad local_label(misc_ref_bad) /* f2 imm_2 */
-	.quad local_label(misc_ref_bad) /* f3 cons */
-	.quad local_label(misc_ref_bad)	/* f4 tra_0 */
-	.quad local_label(misc_ref_bad) /* f5 nodeheader_0 */
-	.quad local_label(misc_ref_bad) /* f6 nodeheader_1 */
+	.quad local_label(misc_ref_invalid)	/* f0 even_fixnum */
+	.quad local_label(misc_ref_invalid) /* f1 imm_1 */
+	.quad local_label(misc_ref_invalid) /* f2 imm_2 */
+	.quad local_label(misc_ref_invalid) /* f3 cons */
+	.quad local_label(misc_ref_invalid)	/* f4 tra_0 */
+	.quad local_label(misc_ref_invalid) /* f5 nodeheader_0 */
+	.quad local_label(misc_ref_invalid) /* f6 nodeheader_1 */
 	.quad local_label(misc_ref_bit_vector) /* f7 bitvector */
-	.quad local_label(misc_ref_bad)	/* f8 odd_fixnum */
+	.quad local_label(misc_ref_invalid)	/* f8 odd_fixnum */
 	.quad local_label(misc_ref_single_float_vector) /* f9 single_float */
 	.quad local_label(misc_ref_double_float_vector) /* fa double_float */
-	.quad local_label(misc_ref_bad) /* fb nil */
-	.quad local_label(misc_ref_bad)	/* fc tra_1 */
-	.quad local_label(misc_ref_bad)	/* fd misc */
-	.quad local_label(misc_ref_bad)	/* fe symbol */
-	.quad local_label(misc_ref_bad)	/* ff function */
+	.quad local_label(misc_ref_invalid) /* fb nil */
+	.quad local_label(misc_ref_invalid)	/* fc tra_1 */
+	.quad local_label(misc_ref_invalid)	/* fd misc */
+	.quad local_label(misc_ref_invalid)	/* fe symbol */
+	.quad local_label(misc_ref_invalid)	/* ff function */
 	
 	
 	/* Node vector.  Functions are funny: the first  N words
@@ -542,8 +539,10 @@ local_label(misc_ref_bit_vector):
 	__(andl $fixnum_one,%imm0_l)
 	__(movq %imm0,%arg_z)
 	__(jmp *%ra0)
-local_label(misc_ref_bad):
-	__(uuo_error_reg_not_tag(Rarg_y,tag_misc))
+local_label(misc_ref_invalid):
+	__(movq $XBADVEC,%arg_x)
+	__(set_nargs(3))
+	__(jmp _SPksignalerr)
 _endfn(C(misc_ref_common))
 
 /* like misc_ref, only the boxed subtag is in arg_x. 
@@ -609,18 +608,287 @@ _spentry(misc_set)
 _endsubp(misc_set)
 		
 _startfn(C(misc_set_common))
-	__(extract_fulltag(%imm1,%imm0))
-	__(cmpb $ivector_class_64_bit,%imm0_b)
-	__(je local_label(misc_set_64))
-	__(cmpb $ivector_class_32_bit,%imm0_b)
-	__(je local_label(misc_set_32))
-	__(cmpb $ivector_class_other_bit,%imm0_b)
-	__(je local_label(misc_set_other))
-	/* Node vector.  Functions are funny: the first  N words
+	__(movzbl %imm1_b,%imm1_l)
+	__(jmp *local_label(misc_set_jmp)(,%imm1,8))
+	.p2align 3
+local_label(misc_set_jmp):		
+	/* 00-0f */
+	.quad local_label(misc_set_invalid)	/* 00 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 01 imm_1 */
+	.quad local_label(misc_set_invalid) /* 02 imm_2 */
+	.quad local_label(misc_set_invalid) /* 03 cons */
+	.quad local_label(misc_set_invalid)	/* 04 tra_0 */
+	.quad local_label(misc_set_invalid) /* 05 nodeheader_0 */
+	.quad local_label(misc_set_invalid) /* 06 nodeheader_1 */
+	.quad local_label(misc_set_invalid) /* 07 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 08 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* 09 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* 0a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 0b nil */
+	.quad local_label(misc_set_invalid)	/* 0c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 0d misc */
+	.quad local_label(misc_set_invalid)	/* 0e symbol */
+	.quad local_label(misc_set_invalid)	/* 0f function */
+	/* 10-1f */
+	.quad local_label(misc_set_invalid)	/* 10 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 11 imm_1 */
+	.quad local_label(misc_set_invalid) /* 12 imm_2 */
+	.quad local_label(misc_set_invalid) /* 13 cons */
+	.quad local_label(misc_set_invalid)	/* 14 tra_0 */
+	.quad _SPgvset /* 15 symbol_vector */
+	.quad _SPgvset /* 16 ratio */
+	.quad local_label(misc_set_invalid) /* 17 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 18 odd_fixnum */
+	.quad local_label(misc_set_u32)	/* 19 bignum */
+	.quad local_label(misc_set_u64) /* 1a macptr */
+	.quad local_label(misc_set_invalid) /* 1b nil */
+	.quad local_label(misc_set_invalid)	/* 1c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 1d misc */
+	.quad local_label(misc_set_invalid)	/* 1e symbol */
+	.quad local_label(misc_set_invalid)	/* 1f function */
+	/* 20-2f */
+	.quad local_label(misc_set_invalid)	/* 20 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 21 imm_1 */
+	.quad local_label(misc_set_invalid) /* 22 imm_2 */
+	.quad local_label(misc_set_invalid) /* 23 cons */
+	.quad local_label(misc_set_invalid)	/* 24 tra_0 */
+	.quad _SPgvset /* 25 catch_frame */
+	.quad _SPgvset /* 26 complex */
+	.quad local_label(misc_set_invalid) /* 27 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 28 odd_fixnum */
+	.quad local_label(misc_set_u32)	/* 29 double_float */
+	.quad local_label(misc_set_u64)  /* 2a dead_macptr */
+	.quad local_label(misc_set_invalid) /* 2b nil */
+	.quad local_label(misc_set_invalid)	/* 2c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 2d misc */
+	.quad local_label(misc_set_invalid)	/* 2e symbol */
+	.quad local_label(misc_set_invalid)	/* 2f function */
+	/* 30-3f */
+	.quad local_label(misc_set_invalid)	/* 30 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 31 imm_1 */
+	.quad local_label(misc_set_invalid) /* 32 imm_2 */
+	.quad local_label(misc_set_invalid) /* 33 cons */
+	.quad local_label(misc_set_invalid)	/* 34 tra_0 */
+	.quad _SPgvset /* 35 hash_vector */
+	.quad _SPgvset /* 36 struct */
+	.quad local_label(misc_set_invalid) /* 37 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 38 odd_fixnum */
+	.quad local_label(misc_set_u32)	/* 39 xcode_vector */
+	.quad local_label(misc_set_invalid)  /* 3a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 3b nil */
+	.quad local_label(misc_set_invalid)	/* 3c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 3d misc */
+	.quad local_label(misc_set_invalid)	/* 3e symbol */
+	.quad local_label(misc_set_invalid)	/* 3f function */
+	/* 40-4f */
+	.quad local_label(misc_set_invalid)	/* 40 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 41 imm_1 */
+	.quad local_label(misc_set_invalid) /* 42 imm_2 */
+	.quad local_label(misc_set_invalid) /* 43 cons */
+	.quad local_label(misc_set_invalid)	/* 44 tra_0 */
+	.quad _SPgvset /* 45 pool */
+	.quad _SPgvset /* 46 istruct */
+	.quad local_label(misc_set_invalid) /* 47 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 48 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* 49 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* 4a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 4b nil */
+	.quad local_label(misc_set_invalid)	/* 4c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 4d misc */
+	.quad local_label(misc_set_invalid)	/* 4e symbol */
+	.quad local_label(misc_set_invalid)	/* 4f function */
+	/* 50-5f */
+	.quad local_label(misc_set_invalid)	/* 50 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 51 imm_1 */
+	.quad local_label(misc_set_invalid) /* 52 imm_2 */
+	.quad local_label(misc_set_invalid) /* 53 cons */
+	.quad local_label(misc_set_invalid)	/* 54 tra_0 */
+	.quad _SPgvset /* 55 weak */
+	.quad _SPgvset /* 56 value_cell */
+	.quad local_label(misc_set_invalid) /* 57 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 58 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* 59 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* 5a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 5b nil */
+	.quad local_label(misc_set_invalid)	/* 5c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 5d misc */
+	.quad local_label(misc_set_invalid)	/* 5e symbol */
+	.quad local_label(misc_set_invalid)	/* 5f function */
+	/* 60-6f */
+	.quad local_label(misc_set_invalid)	/* 60 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 61 imm_1 */
+	.quad local_label(misc_set_invalid) /* 62 imm_2 */
+	.quad local_label(misc_set_invalid) /* 63 cons */
+	.quad local_label(misc_set_invalid)	/* 64 tra_0 */
+	.quad _SPgvset /* 65 package */
+	.quad _SPgvset /* 66 xfunction */
+	.quad local_label(misc_set_invalid) /* 67 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 68 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* 69 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* 6a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 6b nil */
+	.quad local_label(misc_set_invalid)	/* 6c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 6d misc */
+	.quad local_label(misc_set_invalid)	/* 6e symbol */
+	.quad local_label(misc_set_invalid)	/* 6f function */
+	/* 70-7f */
+	.quad local_label(misc_set_invalid)	/* 70 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 71 imm_1 */
+	.quad local_label(misc_set_invalid) /* 72 imm_2 */
+	.quad local_label(misc_set_invalid) /* 73 cons */
+	.quad local_label(misc_set_invalid)	/* 74 tra_0 */
+	.quad _SPgvset /* 75 slot_vector */
+	.quad _SPgvset /* 76 lock */
+	.quad local_label(misc_set_invalid) /* 77 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 78 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* 79 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* 7a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 7b nil */
+	.quad local_label(misc_set_invalid)	/* 7c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 7d misc */
+	.quad local_label(misc_set_invalid)	/* 7e symbol */
+	.quad local_label(misc_set_invalid)	/* 7f function */
+	/* 80-8f */
+	.quad local_label(misc_set_invalid)	/* 80 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 81 imm_1 */
+	.quad local_label(misc_set_invalid) /* 82 imm_2 */
+	.quad local_label(misc_set_invalid) /* 83 cons */
+	.quad local_label(misc_set_invalid)	/* 84 tra_0 */
+	.quad _SPgvset /* 85 lisp_thread */
+	.quad _SPgvset /* 86 instance */
+	.quad local_label(misc_set_invalid) /* 87 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 88 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* 89 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* 8a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 8b nil */
+	.quad local_label(misc_set_invalid)	/* 8c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 8d misc */
+	.quad local_label(misc_set_invalid)	/* 8e symbol */
+	.quad local_label(misc_set_invalid)	/* 8f function */
+	/* 90-9f */
+	.quad local_label(misc_set_invalid)	/* 90 even_fixnum */
+	.quad local_label(misc_set_invalid) /* 91 imm_1 */
+	.quad local_label(misc_set_invalid) /* 92 imm_2 */
+	.quad local_label(misc_set_invalid) /* 93 cons */
+	.quad local_label(misc_set_invalid)	/* 94 tra_0 */
+	.quad local_label(misc_set_function) /* 95 function_vector */
+	.quad local_label(misc_set_invalid) /* 96 nodeheader_1 */
+	.quad local_label(misc_set_invalid) /* 97 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* 98 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* 99 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* 9a immheader_2 */
+	.quad local_label(misc_set_invalid) /* 9b nil */
+	.quad local_label(misc_set_invalid)	/* 9c tra_1 */
+	.quad local_label(misc_set_invalid)	/* 9d misc */
+	.quad local_label(misc_set_invalid)	/* 9e symbol */
+	.quad local_label(misc_set_invalid)	/* 9f function */
+	/* a0-af */
+	.quad local_label(misc_set_invalid)	/* a0 even_fixnum */
+	.quad local_label(misc_set_invalid) /* a1 imm_1 */
+	.quad local_label(misc_set_invalid) /* a2 imm_2 */
+	.quad local_label(misc_set_invalid) /* a3 cons */
+	.quad local_label(misc_set_invalid)	/* a4 tra_0 */
+	.quad _SPgvset /* a5 arrayH */
+	.quad _SPgvset /* a6 vectorH */
+	.quad local_label(misc_set_s16)	/* a7 s16 */
+	.quad local_label(misc_set_invalid)	/* a8 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* a9 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* aa immheader_2 */
+	.quad local_label(misc_set_invalid) /* ab nil */
+	.quad local_label(misc_set_invalid)	/* ac tra_1 */
+	.quad local_label(misc_set_invalid)	/* ad misc */
+	.quad local_label(misc_set_invalid)	/* ae symbol */
+	.quad local_label(misc_set_invalid)	/* af function */
+	/* b0-bf */
+	.quad local_label(misc_set_invalid)	/* b0 even_fixnum */
+	.quad local_label(misc_set_invalid) /* b1 imm_1 */
+	.quad local_label(misc_set_invalid) /* b2 imm_2 */
+	.quad local_label(misc_set_invalid) /* b3 cons */
+	.quad local_label(misc_set_invalid)	/* b4 tra_0 */
+	.quad local_label(misc_set_invalid) /* b5 nodeheader_0 */
+	.quad _SPgvset /* b6 simple_vector */
+	.quad local_label(misc_set_u16) /* b7 immheader_0 */
+	.quad local_label(misc_set_invalid)	/* b8 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* b9 immheader_1 */
+	.quad local_label(misc_set_invalid) /* ba immheader_2 */
+	.quad local_label(misc_set_invalid) /* bb nil */
+	.quad local_label(misc_set_invalid)	/* bc tra_1 */
+	.quad local_label(misc_set_invalid)	/* bd misc */
+	.quad local_label(misc_set_invalid)	/* be symbol */
+	.quad local_label(misc_set_invalid)	/* bf function */
+	/* c0-cf */
+	.quad local_label(misc_set_invalid)	/* c0 even_fixnum */
+	.quad local_label(misc_set_invalid) /* c1 imm_1 */
+	.quad local_label(misc_set_invalid) /* c2 imm_2 */
+	.quad local_label(misc_set_invalid) /* c3 cons */
+	.quad local_label(misc_set_invalid)	/* c4 tra_0 */
+	.quad local_label(misc_set_invalid) /* c5 nodeheader_0 */
+	.quad local_label(misc_set_invalid) /* c6 nodeheader_1 */
+	.quad local_label(misc_set_string) /* c7 simple_base_string */
+	.quad local_label(misc_set_invalid)	/* c8 odd_fixnum */
+	.quad local_label(misc_set_invalid)	/* c9 immheader_1 */
+	.quad local_label(misc_set_invalid)  /* ca immheader_2 */
+	.quad local_label(misc_set_invalid) /* cb nil */
+	.quad local_label(misc_set_invalid)	/* cc tra_1 */
+	.quad local_label(misc_set_invalid)	/* cd misc */
+	.quad local_label(misc_set_invalid)	/* ce symbol */
+	.quad local_label(misc_set_invalid)	/* cf function */
+	/* d0-df */
+	.quad local_label(misc_set_invalid)	/* d0 even_fixnum */
+	.quad local_label(misc_set_invalid) /* d1 imm_1 */
+	.quad local_label(misc_set_invalid) /* d2 imm_2 */
+	.quad local_label(misc_set_invalid) /* d3 cons */
+	.quad local_label(misc_set_invalid)	/* d4 tra_0 */
+	.quad local_label(misc_set_invalid) /* d5 nodeheader_0 */
+	.quad local_label(misc_set_invalid) /* d6 nodeheader_1 */
+	.quad local_label(misc_set_s8)	/* d7 s8 */
+	.quad local_label(misc_set_invalid)	/* d8 odd_fixnum */
+	.quad local_label(misc_set_s32)	/* d9 s32 */
+	.quad local_label(misc_set_s64)	/* da s64 */
+	.quad local_label(misc_set_invalid) /* db nil */
+	.quad local_label(misc_set_invalid)	/* dc tra_1 */
+	.quad local_label(misc_set_invalid)	/* dd misc */
+	.quad local_label(misc_set_invalid)	/* de symbol */
+	.quad local_label(misc_set_invalid)	/* df function */
+	/* e0-ef */
+	.quad local_label(misc_set_invalid)	/* e0 even_fixnum */
+	.quad local_label(misc_set_invalid) /* e1 imm_1 */
+	.quad local_label(misc_set_invalid) /* e2 imm_2 */
+	.quad local_label(misc_set_invalid) /* e3 cons */
+	.quad local_label(misc_set_invalid)	/* e4 tra_0 */
+	.quad local_label(misc_set_invalid) /* e5 nodeheader_0 */
+	.quad local_label(misc_set_invalid) /* e6 nodeheader_1 */
+	.quad local_label(misc_set_u8)	/* e7 u8 */
+	.quad local_label(misc_set_invalid)	/* e8 odd_fixnum */
+	.quad local_label(misc_set_u32)	/* e9 u32 */
+	.quad local_label(misc_set_u64) /* ea u64 */
+	.quad local_label(misc_set_invalid) /* eb nil */
+	.quad local_label(misc_set_invalid)	/* ec tra_1 */
+	.quad local_label(misc_set_invalid)	/* ed misc */
+	.quad local_label(misc_set_invalid)	/* ee symbol */
+	.quad local_label(misc_set_invalid)	/* ef function */
+	/* f0-ff */
+	.quad local_label(misc_set_invalid)	/* f0 even_fixnum */
+	.quad local_label(misc_set_invalid) /* f1 imm_1 */
+	.quad local_label(misc_set_invalid) /* f2 imm_2 */
+	.quad local_label(misc_set_invalid) /* f3 cons */
+	.quad local_label(misc_set_invalid)	/* f4 tra_0 */
+	.quad local_label(misc_set_invalid) /* f5 nodeheader_0 */
+	.quad local_label(misc_set_invalid) /* f6 nodeheader_1 */
+	.quad local_label(misc_set_bit_vector) /* f7 bitvector */
+	.quad local_label(misc_set_invalid)	/* f8 odd_fixnum */
+	.quad local_label(misc_set_single_float_vector) /* f9 single_float */
+	.quad local_label(misc_set_double_float_vector) /* fa double_float */
+	.quad local_label(misc_set_invalid) /* fb nil */
+	.quad local_label(misc_set_invalid)	/* fc tra_1 */
+	.quad local_label(misc_set_invalid)	/* fd misc */
+	.quad local_label(misc_set_invalid)	/* fe symbol */
+	.quad local_label(misc_set_invalid)	/* ff function */
+
+local_label(misc_set_function):			
+	/* Functions are funny: the first  N words
 	   are treated as (UNSIGNED-BYTE 64), where N is the low
 	   32 bits of the first word. */
-	__(cmpb $subtag_function,%imm1_b)
-	__(jne _SPgvset)
 	__(movl misc_data_offset(%arg_x),%imm0_l)
 	__(shl $fixnumshift,%imm0)
 	__(rcmpq(%arg_y,%imm0))
@@ -676,7 +944,7 @@ local_label(misc_set_bad):
 	__(movq $XNOTELT,%arg_x)
 	__(set_nargs(3))
 	__(jmp _SPksignalerr)
-local_label(misc_set_dfloat_vector):	
+local_label(misc_set_double_float_vector):	
 	__(extract_lisptag(%arg_z,%imm0))
 	__(cmpb $tag_misc,%imm0_b)
 	__(jne local_label(misc_set_bad))
@@ -686,15 +954,11 @@ local_label(misc_set_dfloat_vector):
 	__(movq double_float.value(%arg_z),%imm0)
 	__(movq %imm0,misc_dfloat_offset(%arg_x,%arg_y))
 	__(jmp *%ra0)
-local_label(misc_set_64):	
-	__(cmpb $subtag_double_float_vector,%imm1_b)
-	__(je local_label(misc_set_dfloat_vector))
-	__(cmpb $subtag_s64_vector,%imm1_b)
-	__(je local_label(misc_set_s64))
-	__(jmp local_label(misc_set_u64))
 local_label(misc_set_s32):	
 	__(movq %arg_z,%imm0)
+	__(movq %arg_y,%imm0)
 	__(shlq $64-(32+fixnumshift),%imm0)
+	__(shrq $1,%imm1)
 	__(shrq $64-(32+fixnumshift),%imm0)
 	__(cmpq %imm0,%arg_z)
 	__(jne local_label(misc_set_bad))
@@ -703,35 +967,30 @@ local_label(misc_set_s32):
 	__(shr $fixnumshift,%imm0)
 	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
-local_label(misc_set_single_float):	
+local_label(misc_set_single_float_vector):
 	__(cmpb $tag_single_float,%arg_z_b)
 	__(movq %arg_z,%imm0)
+	__(movq %arg_y,%imm1)
 	__(jne local_label(misc_set_bad))
+	__(shrq $1,%imm1)
 	__(shr $32,%imm0)
 	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
-local_label(misc_set_32):
-	__(movq %arg_y,%imm1)
-	__(shrq %imm1)
-	__(cmpb $subtag_s32_vector,%imm0_b)
-	__(je local_label(misc_set_s32))
-	__(cmpb $subtag_single_float_vector,%imm0_b)
-	__(je local_label(misc_set_single_float))
-local_label(misc_set_u32):	
+local_label(misc_set_u32):
+	__(movq %arg_y,%imm1)	
 	__(movq $~(0xffffffff<<fixnumshift),%imm0)
+	__(shrq $1,%imm1)
 	__(testq %imm0,%arg_z)
 	__(jne local_label(misc_set_bad))
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
-local_label(misc_set_other):
-	__(cmpb $subtag_bit_vector,%imm0_b)
-	__(jne local_label(misc_set_other_not_bit_vector))
+local_label(misc_set_bit_vector):	
 	__(testq $~fixnumone,%arg_z)
 	__(jne local_label(misc_set_bad))
 	__(unbox_fixnum(%arg_y,%imm1))
-	__(movb $63,%imm0_b)
-	__(andb %imm1_b,%imm0_b)
+	__(movzbl %imm1_b,%imm0_l)
+	__(andb $63,%imm0_b)
 	__(shrq $6,%imm1)
 	__(testb %arg_z_b,%arg_z_b)
 	__(je local_label(misc_set_clr_bit))
@@ -741,52 +1000,43 @@ local_label(misc_set_set_bit):
 local_label(misc_set_clr_bit):	
 	__(btcq %imm0,misc_data_offset(%arg_x,%imm1,8))
 	__(jmp *%ra0)
-local_label(misc_set_other_not_bit_vector):
-	__(cmpb $subtag_u16_vector,%imm0_b)
-	__(jle local_label(misc_set_16))
-	__(cmpb $subtag_simple_base_string,%imm0_b)
-	__(je local_label(misc_set_char))
-	__(cmpb $subtag_s8_vector,%imm0_b)
-	__(je local_label(misc_set_s8))
 local_label(misc_set_u8):	
 	__(testq $~(0xff<<fixnumshift),%arg_z)
 	__(jne local_label(misc_set_bad))
 	__(movq %arg_y,%imm1)
-	__(shrq $3,%imm1)
 	__(unbox_fixnum(%arg_z,%imm0))
+	__(shrq $3,%imm1)
 	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
 local_label(misc_set_s8):
 	__(movq %arg_z,%imm0)
 	__(shlq $64-(8+fixnumshift),%imm0)	
 	__(sarq $64-(8+fixnumshift),%imm0)
-	__(cmpq %arg_z,%temp0)
+	__(cmpq %arg_z,%imm0)
 	__(jne local_label(misc_set_bad))
 	__(testb $fixnummask,%arg_z_b)
 	__(jne local_label(misc_set_bad))
-	__(shrq $fixnumshift,%imm0)
 	__(movq %arg_y,%imm1)
+	__(shrq $fixnumshift,%imm0)
 	__(shrq $3,%imm1)
 	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
-local_label(misc_set_char):
+local_label(misc_set_string):
 	__(cmpb $subtag_character,%arg_z_b)
 	__(movq %arg_z,%imm0)
 	__(jne local_label(misc_set_bad))
-	__(shrq $charcode_shift,%imm0)
 	__(movq %arg_y,%imm1)
+	__(shrq $charcode_shift,%imm0)
 	__(shrq $3,%imm1)
 	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
-local_label(misc_set_16):
-	__(movq %arg_y,%imm1)
-	__(shrq $2,%imm1)
-	__(cmpb $subtag_u16_vector,%imm0_b)
-	__(je local_label(misc_set_u16))
 local_label(misc_set_s16):	
+	__(movq %arg_z,%imm0)
+	__(movq %arg_y,%imm1)
 	__(shlq $64-(16+fixnumshift),%imm0)	
+	__(shrq $2,%imm1)
 	__(sarq $64-(16+fixnumshift),%imm0)
-	__(cmpq %arg_z,%temp0)
+	__(cmpq %arg_z,%imm0)
 	__(jne local_label(misc_set_bad))
 	__(testb $fixnummask,%arg_z_b)
 	__(jne local_label(misc_set_bad))
@@ -794,11 +1044,17 @@ local_label(misc_set_s16):
 	__(movw %imm0_w,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
 local_label(misc_set_u16):
+	__(movq %arg_y,%imm1)
 	__(testq $(0xffff<<fixnumshift),%arg_z)
 	__(jne local_label(misc_set_bad))
+	__(shrq $2,%imm1)
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(movw %imm0_w,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
+local_label(misc_set_invalid):
+	__(push $XSETBADVEC)
+	__(set_nargs(4))
+	__(jmp _SPksignalerr)
 _endfn(C(misc_set_common))
 	
 /* ret1valn returns "1 multiple value" when a called function does not */
@@ -879,6 +1135,7 @@ _spentry(mkcatchmv)
 _endsubp(mkcatchmv)
 
 _spentry(throw)
+	/*__(int $0xca) */
 	__(movq %rcontext:tcr.catch_top,%imm1)
 	__(xorl %imm0_l,%imm0_l)
 	__(movzwl %nargs,%nargs_l)
@@ -907,7 +1164,8 @@ local_label(_throw_one_value):
 	__(jmp _SPnthrow1value)
 __(tra(local_label(_threw_one_value)))
 	__(movq %rcontext:tcr.catch_top,%temp0)
-	__(movq catch_frame.db_link(%temp0),%imm1)
+	__(movq catch_frame.db_link(%temp0),%imm0)
+	__(movq %rcontext:tcr.db_link,%imm1)
 	__(cmpq %imm0,%imm1)
 	__(jz local_label(_threw_one_value_dont_unbind))
 	__(push %ra0)
@@ -939,7 +1197,8 @@ local_label(_throw_multiple):
 __(tra(local_label(_threw_multiple)))
 	__(movq %rcontext:tcr.catch_top,%temp0)
 	__(movq catch_frame.db_link(%temp0),%imm0)
-			
+	/* finish this ! */
+	__(int $0xca)			
 
 		
 _endsubp(throw)
@@ -1108,22 +1367,11 @@ local_label(_nthrow1v_dont_unbind):
 /* A catch frame.  If the last one, restore context from there. */
 	__(movd %mm1,%imm0)
 	__(testq %imm0,%imm0)	/* last catch frame ? */
-	__(jz local_label(_nthrow1v_skip))
+	__(jne local_label(_nthrow1v_skip))
 	__(movq catch_frame.xframe(%temp0),%save0)
 	__(movq %save0,%rcontext:tcr.xframe)
 	__(leaq (%rsp,%nargs_q),%save1)
-	__(movq catch_frame.rsp(%temp0),%save2)
-	__(movq %nargs_q,%save0)
-	__(jmp local_label(_nthrow1v_push_test))
-local_label(_nthrow1v_push_loop):
-	__(subq $node_size,%save1)
-	__(subq $node_size,%save2)
-	__(movq (%save1),%temp1)
-	__(movq %temp1,(%save2))
-local_label(_nthrow1v_push_test):
-	__(subq $node_size,%save0)
-	__(jns local_label(_nthrow1v_push_loop))
-	__(movq %save2,%rsp)
+	__(movq catch_frame.rsp(%temp0),%rsp)
 	__(movq catch_frame.rbp(%temp0),%rbp)
 	__(movq catch_frame._save3(%temp0),%save3)
 	__(movq catch_frame._save2(%temp0),%save2)
@@ -1369,11 +1617,11 @@ _spentry(mkstackv)
 	__(shlq $(num_subtag_bits-fixnumshift),%imm0)
 	__(movb $subtag_simple_vector,%imm0_b)
 	__(movq %imm0,(%temp0))
-	__(leaq misc_data_offset(%temp0),%arg_z)
+	__(leaq fulltag_misc(%temp0),%arg_z)
 	__(testw %nargs,%nargs)
+	__(leaq misc_data_offset(%arg_z,%nargs_q),%imm1)
 	__(jmp 2f)
-1:	__(pop %temp0)
-	__(movq %temp0,-node_size(%imm1))
+1:	__(pop -node_size(%imm1))
 	__(subw $node_size,%nargs)
 	__(leaq -node_size(%imm1),%imm1)
 2:	__(jne 1b)
@@ -2712,8 +2960,7 @@ local_label(walkloop):
 local_label(pushloop):
 	__(movq tsp_frame.data_offset(%arg_y),%imm0)	/* nargs in segment */
 	__(testq %imm0,%imm0)
-	__(leaq tsp_frame.data_offset+(2*node_size)(%arg_y),%temp0)
-	__(leaq (%temp0,%nargs_q),%temp0)
+	__(leaq tsp_frame.data_offset+(2*node_size)(%arg_y,%imm0),%temp0)
 	__(leaq (%nargs_q,%imm0),%nargs_q)
 	__(jmp 2f)
 1:	__(pushq -node_size(%temp0))
@@ -3365,7 +3612,7 @@ _spentry(builtin_aset1)
 	__(extract_typecode(%arg_x,%imm0))
 	__(box_fixnum(%imm0,%temp0))
 	__(cmpb $min_vector_subtag,%imm0_b)
-	__(jae _SPsubtag_misc_set)
+	__(ja _SPsubtag_misc_set)
 	__(jump_builtin(_builtin_aset1,3))
 _endsubp(builtin_aset1)
 
@@ -3427,7 +3674,7 @@ _spentry(builtin_aref1)
 	__(extract_typecode(%arg_y,%imm0))
 	__(cmpb $min_vector_subtag,%imm0_b)
 	__(box_fixnum(%imm0,%arg_x))
-	__(jae _SPsubtag_misc_ref)
+	__(ja _SPsubtag_misc_ref)
 	__(jump_builtin(_builtin_aref1,2))
 _endsubp(builtin_aref1)
 
@@ -3472,9 +3719,12 @@ _spentry(ffcall)
 	__(movq %tsp,%rcontext:tcr.save_tsp)
 	__(movq %rsp,%rcontext:tcr.save_vsp)
 	__(movd %Rforeign_sp,%rsp)
+	__(stmxcsr %rcontext:tcr.lisp_mxcsr_high)
 	__(movq $TCR_STATE_FOREIGN,%rcontext:tcr.valence)
 	__(emms)
 	__(movq (%rsp),%rbp)
+	__(movq $0x1f80,node_size(%rsp))
+	__(ldmxcsr node_size(%rsp))
 	__(addq $2*node_size,%rsp)
 	__(unbox_fixnum(%arg_z,%r11))
 	__(testb $fixnummask,%arg_z_b)
@@ -3508,6 +3758,7 @@ _spentry(ffcall)
 	__(pxor %fpzero,%fpzero)
 	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
+	__(ldmxcsr %rcontext:tcr.lisp_mxcsr_high)
 	__(pop %rbp)
 	__(pop %ra0)
 	__(pop %fn)
@@ -3551,7 +3802,7 @@ _spentry(syscall)
 	__(pop %rdi)
 	__(pop %rsi)
 	__(pop %rdx)
-	__(pop %rcx)
+	__(pop %r10)		/*  syscalls take 4th param in %r10, not %rcx */
 	__(pop %r8)
 	__(pop %r9)
 	__(syscall)
@@ -3590,8 +3841,39 @@ _spentry(syscall)
 	__(jmp *%ra0)
 _endsubp(syscall)		
 
+/* We need to reserve a frame here if (a) nothing else was already pushed and (b)
+   we push something (e.g., more than 3 args in the lexpr) */	
 _spentry(spread_lexprz)
-	__(int $3)
+	new_local_labels()
+	__(movq (%arg_z),%imm0)
+	__(cmpw $(nargregs<<fixnumshift),%imm0_w)
+	__(jbe 1f)
+	__(testw %nargs,%nargs)
+	__(jnz 1f)
+	__(push $0)
+	__(push $0)
+1:	__(addw %imm0_w,%nargs)
+	__(lea node_size(%arg_z,%imm0),%imm1)
+	__(subw $(nargregs<<fixnumshift),%imm0_w)
+	__(jbe 3f)
+2:	__(pushq -node_size(%imm1))
+	__(subq $node_size,%imm1)
+	__(subq $node_size,%imm0)
+	__(jne 2b)
+local_label(three):	
+	__(movq 3*node_size(%arg_z),%arg_x)
+local_label(two):	
+	__(movq 2*node_size(%arg_z),%arg_y)
+local_label(one):
+	__(movq 1*node_size(%arg_z),%arg_z)
+local_label(go):
+	__(jmp *%ra0)
+3:	__(testw %nargs,%nargs)
+	__(je local_label(go))	
+	__(cmpw $2<<fixnumshift,%nargs)
+	__(je local_label(two))
+	__(jb local_label(one))
+	__(jmp local_label(three))
 _endsubp(spread_lexprz)
 	
 /* NYI, but should be :	*/
@@ -3606,8 +3888,8 @@ _endsubp(poweropen_callbackX)
 _spentry(poweropen_ffcallX)
 _endsubp(poweropen_ffcallX)
 
-_spentry(poweropen_callback)
-_endsubp(poweropen_callback)
+_spentry(callback)
+_endsubp(callback)
 	
 _spentry(poweropen_syscall)
 _endsubp(poweropen_syscall)
