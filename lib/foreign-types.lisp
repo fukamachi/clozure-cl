@@ -59,18 +59,15 @@
 
 (defvar *host-ftd* (make-ftd
                     :interface-db-directory
-                    #+(and linuxppc-target ppc32-target) "ccl:headers;"
-                    #+(and linuxppc-target ppc64-target) "ccl:headers64;"
-                    #+(and darwinppc-target ppc32-target) "ccl:darwin-headers;"
-                    #+(and darwinppc-target ppc64-target) "ccl:darwin-headers64;"
+                    #.(ftd-interface-db-directory *target-ftd*)
+
                     :interface-package-name
-                    #+(and linuxppc-target ppc32-target) "LINUX32"
-                    #+(and linuxppc-target ppc64-target) "LINUX64"
-                    #+(and darwinppc-target ppc32-target) "DARWIN32"
-                    #+(and darwinppc-target ppc64-target) "DARWIN64"
+                    #.(ftd-interface-package-name *target-ftd*)
                     :attributes
-                    #+darwinppc-target '(:signed-char t :struct-by-value t :prepend-underscores t :bits-per-word #+ppc32-target 32 #+ppc64-target 64)
-                    #+linuxppc-target '(:bits-per-word #+ppc64-target 64 #+ppc32-target 32)))
+                    '(:bits-per-word #+64-bit-target 64 #+32-bit-target 32
+                      :signed-char #+darwinppc-target t #-darwinppc-target nil
+                      :struct-by-value #+darwinppc-target t #-darwinppc-target nil
+                      :prepend-underscores #+darwinppc-target t #-darwinppc-target nil)))
                     
 (defvar *target-ftd* *host-ftd*)
 (setf (backend-target-foreign-type-data *host-backend*)
