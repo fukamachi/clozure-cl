@@ -179,11 +179,17 @@
 ;;; It's always been the case that the function associated with a
 ;;; frame pointer is the caller of the function that "uses" that frame.
 (defx86lapfunction %cfp-lfun ((p arg_z))
+  (uuo-error-debug-trap)
+  (ref-global ret1valaddr imm0)
   (movq (@ x8664::lisp-frame.return-address (% p)) (% arg_y))
+  (cmpq (% imm0) (% arg_y))
+  (cmoveq (@ x8664::lisp-frame.xtra (% p)) (% arg_y))
   (extract-lisptag arg_y imm0)
   (cmpb ($ x8664::tag-tra) (%b imm0))
   (jne @no)
   (movl (@ -4 (% arg_y)) (%l imm0))
+  (testl (% imm0.l) (% imm0.l))
+  (je @no)
   (subq (% imm0) (% arg_y))
   (box-fixnum imm0 arg_z)
   (movq (% rsp) (% temp0))
