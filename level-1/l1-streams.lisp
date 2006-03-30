@@ -153,8 +153,8 @@
 
 (defun %make-heap-ivector (subtype size-in-bytes size-in-elts)
   (with-macptrs ((ptr (malloc (+ size-in-bytes
-                                 #+ppc32-target (+ 4 2 7) ; 4 for header, 2 for delta, 7 for round up
-                                 #+ppc64-target (+ 8 2 15) ; 8 for header, 2 for delta, 15 for round up
+                                 #+32-bit-target (+ 4 2 7) ; 4 for header, 2 for delta, 7 for round up
+                                 #+64-bit-target (+ 8 2 15) ; 8 for header, 2 for delta, 15 for round up
                                  ))))
     (let ((vect (fudge-heap-pointer ptr subtype size-in-elts))
           (p (%null-ptr)))
@@ -188,6 +188,11 @@
         #+ppc64-target
         (= (logand subtag ppc64::lowtagmask)
            ppc64::lowtag-immheader)
+        #+x8664-target
+        (logbitp (the (mod 16) (logand subtag x8664::fulltagmask))
+                 (logior (ash 1 x8664::fulltag-immheader-0)
+                         (ash 1 x8664::fulltag-immheader-1)
+                         (ash 1 x8664::fulltag-immheader-2)))
       (error "~s is not an ivector subtype." element-type))
     (let* ((size-in-octets (ccl::subtag-bytes subtag element-count)))
       (multiple-value-bind (pointer vector)
@@ -917,13 +922,15 @@
 ;;; in MCL; of course, calling the structure-class's constructor does
 ;;; much the same thing (but note that MCL only keeps track of the
 ;;; default, automatically generated constructor.)
+;;; (As fascinating as that may be, that has nothing to do with any
+;;; nearby code, though it may have once been relevant.)
 (defun make-ioblock-stream (class-name
 			    &rest initargs
 			    &key 
 			    &allow-other-keys)
   (declare (dynamic-extent initargs))
   (let* ((class (find-class class-name))
-	 (s   (apply #'make-instance class :allow-other-keys t initargs)))
+	 (s (apply #'make-instance class :allow-other-keys t initargs)))
     (apply #'init-stream-ioblock s initargs)
     s))
     
