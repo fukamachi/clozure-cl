@@ -22,6 +22,9 @@
 (in-package "X8664")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (require "X86-ARCH")
+  (require "X86-LAP")
+  
 (defparameter *x8664-symbolic-register-names*
   (make-hash-table :test #'equal)
   "For the disassembler, mostly")
@@ -164,6 +167,8 @@
 (defx86reg temp2 rcx)
 (defx86reg temp2.l ecx)
 (defx86reg nargs cx)
+(defx86reg nargs.l ecx)
+(defx86reg nargs.q rcx)
 (defx86reg temp2.w cx)
 (defx86reg temp2.b cl)
 (defx86reg shift cl)
@@ -506,14 +511,16 @@
   catch-tag                             ; #<unbound> -> unwind-protect, else catch
   link                                  ; tagged pointer to next older catch frame
   mvflag                                ; 0 if single-value, 1 if uwp or multiple-value
-  csp                                   ; pointer to control stack
+  rsp                                   ;
+  rbp
+  foreign-sp
   db-link                               ; value of dynamic-binding link on thread entry.
   save-save3                            ; saved nvrs
   save-save2
   save-save1
   save-save0
   xframe                                ; exception-frame link
-  tsp-segment                           ; mostly padding, for now.
+  pc                                    ; tra of catch exit/unwind cleanup
 )
 
 (define-fixedsized-object lock ()
@@ -994,7 +1001,7 @@
          (defx8664subprim .SPmvslide)
          (defx8664subprim .SPsave-values)
          (defx8664subprim .SPadd-values)
-         (defx8664subprim .SPpoweropen-callback)
+         (defx8664subprim .SPcallback)
          (defx8664subprim .SPmisc-alloc-init)
          (defx8664subprim .SPstack-misc-alloc-init)
          (defx8664subprim .SPset-hash-key)
