@@ -97,9 +97,9 @@
 
 
 
-; Allow bootstrapping: mostly, allow us to bootstrap the type system
-; by having DEFTYPE expanders defined on built-in classes (the user
-; shouldn't be allowed to do so, at least not easily.
+;;; Allow bootstrapping: mostly, allow us to bootstrap the type system
+;;; by having DEFTYPE expanders defined on built-in classes (the user
+;;; shouldn't be allowed to do so, at least not easily.
 
 ;(defvar *type-system-initialized* nil)
 
@@ -120,9 +120,9 @@
   (setf (gethash name *type-translators*) fn)
   name)
 
-;(defun %deftype-expander (name)
-;  (or (gethash name %deftype-expanders%)
-;      (and *compiling-file* (%cdr (assq name *compile-time-deftype-expanders*)))))
+;;;(defun %deftype-expander (name)
+;;;  (or (gethash name %deftype-expanders%)
+;;;      (and *compiling-file* (%cdr (assq name *compile-time-deftype-expanders*)))))
 (defun %deftype-expander (name)
   (gethash name %deftype-expanders%))
 
@@ -2818,8 +2818,8 @@
 (defparameter specialized-array-element-types
   '(nil bit (unsigned-byte 8) (signed-byte 8) (unsigned-byte 16)
     (signed-byte 16) (unsigned-byte 32) (signed-byte 32)
-    #+ppc64-target (unsigned-byte 64)
-    #+ppc64-target (signed-byte 64)
+    #+64-bit-target (unsigned-byte 64)
+    #+64-bit-target (signed-byte 64)
     character  short-float double-float))
 
 (defun specialize-array-type (type)
@@ -3877,11 +3877,11 @@
 (deftype simple-single-float-vector (&optional size)
   `(simple-array single-float (,size)))
 
-#+ppc64-target
+#+64-bit-target
 (deftype simple-doubleword-vector (&optional size)
   `(simple-array (signed-byte 64) (,size)))
 
-#+ppc64-target
+#+64-bit-target
 (deftype simple-unsigned-doubleword-vector (&optional size)
   `(simple-array (unsigned-byte 64) (,size)))
 
@@ -3988,9 +3988,9 @@
           byte-vector word-vector long-vector
           single-float-vector double-float-vector
           general-vector
-          #+ppc64-target
+          #+64-bit-target
           doubleword-vector
-          #+ppc64-targe
+          #+64-bit-target
           unsigned-doubleword-vector
           ;;   Simple 1-Dimensional Arrays
           simple-1d-array  simple-string simple-base-string simple-bit-vector
@@ -4003,9 +4003,9 @@
           simple-single-float-vector 
           simple-double-float-vector
           simple-vector
-          #+ppc64-target
+          #+64-bit-target
           simple-doubleword-vector
-          #+ppc64-target
+          #+64-bit-target
           simple-unsigned-doubleword-vector
           ;; Sequence types
           sequence list  cons null
