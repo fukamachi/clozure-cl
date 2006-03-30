@@ -155,7 +155,7 @@
   (mtctr temp0)
   (bctr)
   @missing                              ; (%slot-id-set-missing instance id new-value)
-  (ldr nfn '%slot-id-ref-missing nfn)
+  (ldr nfn '%slot-id-set-missing nfn)
   (set-nargs 3)
   (ldr temp0 target::misc-data-offset nfn)
   (mtctr temp0)
