@@ -863,14 +863,11 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 (defun compute-1st-arg-combined-method (gf arg &optional 
                                            (wrapper (arg-wrapper arg)))
-  (declare (resident))
-  ;#-bccl (setq gf (require-type gf 'standard-generic-function))  
   (let* ((methods (%gf-dispatch-table-methods (%gf-dispatch-table gf)))
          (cpl (%inited-class-cpl (%wrapper-class wrapper)))
          (method-combination (%gf-method-combination gf))
          applicable-methods eql-methods specializer)
     (dolist (method methods)
-      ;#-bccl (setq method (require-type method 'standard-method))   ; for debugging.
       (setq specializer (%car (%method.specializers method)))
       (if (typep specializer 'eql-specializer)
         (when (cpl-memq (%wrapper-class (arg-wrapper (eql-specializer-object specializer))) cpl)
@@ -1419,7 +1416,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
            (argnum (car stuff)))
       (when (>= argnum args-len)(signal-program-error "Too few args to ~s." (%method-gf (cddr stuff))))
       (let* ((arg (%lexpr-ref args args-len argnum))
-             (thing (assq arg (cadr stuff)))) ; are these things methods or method-functions? - fns    
+             (thing (assq arg (cadr stuff))))
         (if thing 
           (%apply-lexpr (cdr thing) args)
           (%apply-lexpr (cddr stuff) args))))))

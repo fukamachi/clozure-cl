@@ -451,7 +451,7 @@
       (unless (eq host :unspecific)
 	(multiple-value-setq (version end-pos) (pathname-version-sstr sstr start-pos end-pos)))
       (multiple-value-setq (type end-pos) (pathname-type-sstr sstr start-pos end-pos))
-      ; now everything else is the name
+      ;; now everything else is the name
       (unless (eq start-pos end-pos)
         (setq name (%std-name-component (%substr sstr start-pos end-pos))))
       (if (eq host :unspecific)
@@ -1199,13 +1199,13 @@ Each function receives a module name as a single argument; if the function knows
 
 (defun module-provide-search-path (module)
   ;; (format *debug-io* "trying module-provide-search-path~%")
-   (let* ((module-name (string module))
-          (pathname (find-module-pathnames module-name)))
-     (when pathname
-       (if (consp pathname)
-           (dolist (path pathname) (load path))
-         (load pathname))
-       (provide module))))
+  (let* ((module-name (string module))
+         (pathname (find-module-pathnames module-name)))
+    (when pathname
+      (if (consp pathname)
+        (dolist (path pathname) (load path))
+        (load pathname))
+      (provide module))))
 
 (defun require (module &optional pathname)
   "Loads a module, unless it already has been loaded. PATHNAMES, if supplied,
