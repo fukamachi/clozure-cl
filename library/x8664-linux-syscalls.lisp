@@ -65,7 +65,7 @@
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::umount 22 (:address) :signed-fullword )
 
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::setuid 23 (:unsigned-fullword) :signed-fullword )
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getuid 24 () :unsigned-fullword )
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getuid 102 () :unsigned-fullword )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::stime 25 (:address) :signed-fullword )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::ptrace 26 (:unsigned-fullword
 				  :unsigned-fullword
@@ -116,13 +116,13 @@
 
 
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::fsync 118 (:unsigned-fullword) :signed-fullword )
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::uname 122  (:address) :signed-fullword)
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::uname 63  (:address) :signed-fullword)
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::fchdir 133 (:unsigned-fullword) :signed-fullword )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::_llseek 140 (:unsigned-fullword :unsigned-fullword :unsigned-fullword :address :unsigned-fullword) :signed-fullword )
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64) 	syscalls::select 23 (:unsigned-fullword :address :address
                                                   :address :address)
                 :signed-fullword)
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getcwd 182 (:address :unsigned-fullword) :signed-fullword )
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getcwd 79 (:address :unsigned-fullword) :signed-fullword )
 
 
 
