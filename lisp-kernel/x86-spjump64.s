@@ -107,7 +107,7 @@ _endfn
         _spjump(mvslide)
         _spjump(save_values)
         _spjump(add_values)
-        _spjump(poweropen_callback)
+        _spjump(callback)
         _spjump(misc_alloc_init)
         _spjump(stack_misc_alloc_init)
         _spjump(set_hash_key)
