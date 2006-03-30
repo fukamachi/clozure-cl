@@ -554,7 +554,7 @@ terminate the list"
     bogus))  
 
   
-  ; given uvector subtype - what is the corresponding element-type
+  ;;; given uvector subtype - what is the corresponding element-type
   (defun element-subtype-type (subtype)
     (declare (fixnum subtype))
     (if  (= subtype ppc64::subtag-simple-vector)
@@ -562,6 +562,84 @@ terminate the list"
       (svref array-element-subtypes 
              (ash (- subtype 128) -2))))
   )
+
+#+x8664-target
+(progn
+
+  ;;; 1, 8, 16-bit element types
+  (defparameter *immheader-0-array-element-types*
+    #(bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      (signed-byte 16)
+      (unsigned-byte 16)
+      base-char
+      (signed-byte 8)
+      (unsigned-byte 8)
+      bit))
+
+  ;;; 32-bit element types
+  (defparameter *immheader-1-array-element-types*
+    #(bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      (signed-byte 32)
+      (unsigned-byte 32)
+      single-float))
+
+  ;;; 64-bit element types
+  (defparameter *immheader-2-array-element-types*
+    #(bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      bogus
+      (signed-byte 64)
+      (unsigned-byte 64)
+      double-float))  
+      
+  
+  (defun element-subtype-type (subtype)
+    (declare (type (unsigned-byte 8) subtype))
+    (if (= subtype x8664::subtag-simple-vector)
+      t
+      (let* ((class (ash subtype (- x8664::ntagbits)))
+             (tag (logand subtype x8664::fulltagmask)))
+        (declare (type (unsigned-byte 4) class tag))
+        (cond ((= tag x8664::fulltag-immheader-0)
+               (%svref *immheader-0-array-element-types* class))
+              ((= tag x8664::fulltag-immheader-1)
+               (%svref *immheader-1-array-element-types* class))
+              ((= tag x8664::fulltag-immheader-2)
+               (%svref *immheader-2-array-element-types* class))
+              (t 'bogus)))))
+  )
+
 
 ;;; %make-displaced-array assumes the following
 
