@@ -427,34 +427,4 @@
           (t (princ thing stream)))
     (princ thing stream)))
 
-; Might want to have some other entry for, e.g., the inspector
-; and to let it get its hands on the list header returned by 
-; disassemble-ppc-function.  Maybe disassemble-ppc-function
-; should take care of "normalizing" the code-vector ?
-#+ppc-target
-(defun disassemble (thing)
-  "Disassemble the compiled code associated with OBJECT, which can be a
-  function, a lambda expression, or a symbol with a function definition. If
-  it is not already compiled, the compiler is called to produce something to
-  disassemble."
-  (ppc-xdisassemble (require-type (function-for-disassembly thing) 'compiled-function)))
 
-(defun function-for-disassembly (thing)
-  (let* ((fun thing))
-    (when (typep fun 'standard-method) (setq fun (%method-function fun)))
-    (when (or (symbolp fun)
-              (and (consp fun) (neq (%car fun) 'lambda)))
-      (setq fun (fboundp thing))
-      (when (and (symbolp thing) (not (functionp fun)))
-        (setq fun (macro-function thing))))
-    (if (or (typep fun 'interpreted-function)
-            (typep fun 'interpreted-lexical-closure))
-      (setq fun (function-lambda-expression fun))
-      (if (typep fun 'compiled-lexical-closure)
-        (setq fun (closure-function fun))))
-    (when (lambda-expression-p fun)
-      (setq fun (compile-named-function fun nil)))
-    fun))
-
-#+ppc-target
-(%fhave 'df #'disassemble)
