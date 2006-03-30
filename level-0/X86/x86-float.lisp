@@ -157,7 +157,7 @@
 ;;; Return the MXCSR as a fixnum
 (defx86lapfunction %get-mxcsr ()
   (pushq ($ '0))
-  (ldmxcsr (@ 4 (% rsp)))
+  (stmxcsr (@ 4 (% rsp)))
   (pop (% arg_z))
   (shr ($ (- 32 x8664::fixnumshift)) (% arg_z))
   (single-value-return))
