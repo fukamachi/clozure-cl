@@ -54,10 +54,10 @@
   (jb.pt @ok)
   (uuo-error-reg-not-tag (% symptr) ($ x8664::fulltag-symbol))
   @ok
-  (cmpq ($ (+ x8664::nil-value)) (% symptr))
+  (cmpq ($ (+ x8664::nil-value x8664::nilsym-offset)) (% symptr))
   (sete (% imm0.b))
   (negb (% imm0.b))
-  (andl ($  x8664::nilsym-offset) (% imm0.l))
+  (andl ($ x8664::nilsym-offset) (% imm0.l))
   (subq (% imm0) (% symptr))
   (single-value-return))
 
