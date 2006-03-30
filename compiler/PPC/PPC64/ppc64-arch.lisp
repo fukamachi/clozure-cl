@@ -338,6 +338,8 @@
 
 (defconstant double-float.value misc-data-offset)
 (defconstant double-float.value-cell 0)
+(defconstant double-float.val-high double-float.value)
+(defconstant double-float.val-high-cell double-float.value-cell)
 (defconstant double-float.val-low (+ double-float.value 4))
 (defconstant double-float.val-low-cell 1)
 (defconstant double-float.element-count 2)
