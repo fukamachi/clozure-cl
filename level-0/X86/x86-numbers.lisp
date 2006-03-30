@@ -57,8 +57,9 @@
   (single-value-return)
   @left
   (movb (% imm1.b) (% cl))
-  (shl (% cl) (% arg_z))
+  (shl (% cl) (% number))
   (xorb (% cl) (% cl))
+  (movq (% number) (% arg_z))
   (single-value-return))
 
 (defparameter *double-float-zero* 0.0d0)
@@ -119,9 +120,9 @@
   (popq (% rbp))
   (movq (% rsp) (% temp0))
   (box-fixnum imm1 arg_y)
-  (pushq (% arg_y))
   (box-fixnum imm0 arg_z)
   (pushq (% arg_z))
+  (pushq (% arg_y))
   (set-nargs 2)
   (jmp-subprim .SPvalues))
 
