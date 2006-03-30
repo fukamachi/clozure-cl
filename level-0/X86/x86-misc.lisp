@@ -254,6 +254,11 @@
   (restore-simple-frame)
   (single-value-return))
 
+(defx86lapfunction interrupt-level ()
+  (movq (@ (% rcontext) x8664::tcr.tlb-pointer) (% imm1))
+  (movq (@ x8664::interrupt-level-binding-index (% imm1)) (% arg_z))
+  (single-value-return))
+
 (defx86lapfunction set-interrupt-level ((new arg_z))
   (movq (@ (% rcontext) x8664::tcr.tlb-pointer) (% imm1))
   (trap-unless-fixnum new)
@@ -633,7 +638,8 @@
   (macptr-ptr ptr imm1) ; address in macptr
   (lea (@ 17 (% imm1)) (% imm0))     ; 2 for delta + 15 for alignment
   (andb ($ -16) (%b  imm0))   ; Clear low four bits to align
-  (subq (% imm0) (% imm1))  ; imm1 = delta
+  (subq (% imm0) (% imm1))  ; imm1 = -delta
+  (negw (%w imm1))
   (movw (%w imm1) (@  -2 (% imm0)))     ; save delta halfword
   (unbox-fixnum subtype imm1)  ; subtype at low end of imm1
   (shlq ($ (- x8664::num-subtag-bits x8664::fixnum-shift)) (% len ))
@@ -644,7 +650,6 @@
 
 (defx86lapfunction %%make-disposable ((ptr arg_y) (vector arg_z))
   (check-nargs 2)
-
   (lea (@ (- x8664::fulltag-misc) (% vector)) (% imm0)) ; imm0 is addr = vect less tag
   (movzwq (@ -2 (% imm0)) (% imm1))     ; get delta
   (subq (% imm1) (% imm0))              ; vector addr (less tag)  - delta is orig addr
