@@ -88,6 +88,15 @@
 
 
 
+(defun catch-frame-sp (catch)
+  (uvref catch target::catch-frame.csp-cell))
+
+(defun bottom-of-stack-p (p context)
+  (and (fixnump p)
+       (locally (declare (fixnum p))
+	 (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+                (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
+	   (not (%ptr-in-area-p p cs-area))))))
 
 (defun lisp-frame-p (p context)
   (or (fake-stack-frame-p p)
