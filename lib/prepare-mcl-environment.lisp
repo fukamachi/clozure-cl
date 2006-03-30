@@ -21,7 +21,8 @@
 (in-package "CCL")
 
 (defun %reset-outermost-binding (symbol value)
-  (let* ((idx (%svref symbol target::symbol.binding-index-cell))
+  (let* ((symvector (symptr->symvector symbol))
+         (idx (%svref symvector target::symbol.binding-index-cell))
          (marker (%no-thread-local-binding-marker)))
     (if (> idx 0)
       (do-db-links (db var)
@@ -29,7 +30,7 @@
           (let* ((oldval (%fixnum-ref db (* 2 target::node-size))))
             (unless (eq oldval marker)
               (setf (%fixnum-ref db (* 2 target::node-size)) value))))))
-    (setf (uvref symbol target::symbol.vcell-cell) value)))
+    (setf (uvref symvector target::symbol.vcell-cell) value)))
 
 (defun freeze-current-definitions ()
   ;; Set the frozen bits so that redefine-kernel-function
