@@ -33,7 +33,7 @@
     l1-lisp-threads  l1-application l1-processes
     l1-typesys sysutils l1-error-system
     l1-error-signal version l1-callbacks
-    l1-sockets
+    l1-sockets linux-files
 
     ))
 
@@ -202,8 +202,12 @@
   (append *level-1-modules*
 	  (case target
 	    ((:linuxppc32 :darwinppc32 :linuxppc64 :darwinppc64)
-	     '(linux-files ppc-error-signal ppc-trap-support
-	       ppc-threads-utils ppc-callback-support)))))
+	     '(ppc-error-signal ppc-trap-support
+	       ppc-threads-utils ppc-callback-support))
+            ((:linuxx8664 :freebsd86664)
+             '(x86-error-signal x86-trap-support
+               x86-threads-utils x86-callback-support)))))
+
 		  
 
 
