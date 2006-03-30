@@ -41,7 +41,6 @@
 ;;; Add the 32-bit "prev" digit and the 32-bit carry-in digit to that 64-bit
 ;;; result; return the halves as (VALUES high low).
 (defx86lapfunction %multiply-and-add4 ((x 0) (y arg_x) (prev arg_y) (carry-in arg_z))
-  (uuo-error-debug-trap)
   (let ((unboxed-x imm0)
         (unboxed-y imm1)
         (unboxed-prev imm0)
@@ -241,7 +240,6 @@
   (single-value-return))
 
 (defx86lapfunction fix-digit-logand ((fix arg_x) (big arg_y) (dest arg_z)) ; index 0
-  (uuo-error-debug-trap)
   (let ((w1 imm0)
         (w2 imm1))
     (movq (@ x8664::misc-data-offset (% big)) (% w2))
