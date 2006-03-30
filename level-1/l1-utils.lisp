@@ -1145,8 +1145,6 @@ vector
 
 
 
-(defun true (&rest p) (declare (ignore p)) t)
-(defun false (&rest p) (declare (ignore p)) nil)
 
 (setf (symbol-function 'clear-type-cache) #'false)      ; bootstrapping
 
