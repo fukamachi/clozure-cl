@@ -1458,6 +1458,7 @@
   #|       0 1 2 3 4 5 6 7 8 9 a b c d e f        |#
 )))
 
+
 (defparameter *twobyte-has-modrm*
   (make-array 256 :element-type 'bit
               :initial-contents '(
@@ -2211,7 +2212,7 @@
   (setf (x86-di-mnemonic instruction) "x87-fpu-op")
   (x86-ds-skip ds))
 
-(defun x86-dis-do-uuo (ds instruction intop sizeflag)
+(defun x86-dis-do-uuo (ds instruction intop)
   (declare (type (unsigned-byte 8) intop))
   (let* ((stop t))
     (cond ((< intop #xa0)
@@ -2244,16 +2245,15 @@
                    (#xc7 "uuo-udf-call")
                    (t "unknown-UUO"))))
           ((= intop #xc8)
-           (let* ((modrm-byte (x86-ds-peek-u8 ds)))
-             (declare (type (unsigned-byte 8) modrm-byte))
-             (setf (x86-ds-mod ds) (ldb (byte 2 6) modrm-byte)
-                   (x86-ds-reg ds) (ldb (byte 3 3) modrm-byte)
-                   (x86-ds-rm ds) (ldb (byte 3 0) modrm-byte))
+           (let* ((pseudo-modrm-byte (x86-ds-next-u8 ds)))
+             (declare (type (unsigned-byte 8) pseudo-modrm-byte))
              (setf (x86-di-op0 instruction)
-                   (op-g ds +v-mode+ sizeflag)
-                   (x86-di-op1 instruction)
-                   (op-e ds +v-mode+ sizeflag)
-                   (x86-di-mnemonic instruction) "uuo-error-vector-bounds")))
+                 (x86-dis-make-reg-operand
+                  (lookup-x86-register (ldb (byte 4 4) pseudo-modrm-byte) :%))
+                 (x86-di-op1 instruction)
+                 (x86-dis-make-reg-operand
+                  (lookup-x86-register (ldb (byte 4 0) pseudo-modrm-byte) :%))
+                 (x86-di-mnemonic instruction) "uuo-error-vector-bounds")))
           ((< intop #xd0)
            (setf (x86-di-mnemonic instruction)
                  (case intop
@@ -2433,7 +2433,7 @@
                  (eql (x86-dis-bytemode1 dp) +uuocode+))
           (progn
             (setq stop
-                  (x86-dis-do-uuo ds instruction (x86-ds-next-u8 ds) sizeflag)))
+                  (x86-dis-do-uuo ds instruction (x86-ds-next-u8 ds))))
           (progn
             (when (null (x86-dis-mnemonic dp))
               (let* ((bytemode1 (x86-dis-bytemode1 dp)))
@@ -2665,7 +2665,26 @@
         (do-dll-nodes (instruction (x86-dis-block-instructions block))
           (setq seq (x86-print-disassembled-instruction ds instruction seq)))))))
 
-                       
+#+x8664-target
+(defun x8664-xdisassemble (function)
+  (let* ((fv (%function-to-function-vector function))
+         (function-size-in-words (uvsize fv))
+         (code-words (%function-code-words function))
+         (ncode-bytes (ash function-size-in-words x8664::word-shift))
+         (code-bytes (make-array ncode-bytes
+                                 :element-type '(unsigned-byte 8)))
+         (numimms (- function-size-in-words code-words))
+         (xfunction (%alloc-misc (the fixnum (1+ numimms)) target::subtag-xfunction)))
+    (declare (fixnum code-words ncode-bytes numimms))
+    (%copy-ivector-to-ivector fv 0 code-bytes 0 ncode-bytes)
+    (setf (uvref xfunction 0) code-bytes)
+    (do* ((k code-words (1+ k))
+          (j 1 (1+ j)))
+         ((= k function-size-in-words)
+          (x8664-disassemble-xfunction xfunction))
+      (declare (fixnum j k))
+      (setf (uvref xfunction j) (uvref fv k))))) 
+         
 
                                      
             
