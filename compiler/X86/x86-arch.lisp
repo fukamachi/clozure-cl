@@ -17,6 +17,8 @@
 (defpackage "X86"
   (:use "CL"))
 
+(require "ARCH")
+
 (in-package "X86")
 
 ;;; Kernel globals are allocated "below" nil.  This list (used to map
