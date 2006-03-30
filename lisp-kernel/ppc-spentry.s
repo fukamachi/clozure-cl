@@ -3983,7 +3983,7 @@ local_label(misc_set_bad):
 	 __(b _SPksignalerr)
 local_label(misc_set_invalid):  
          __(li temp0,XSETBADVEC)        
-         __(set_nargs(3))
+         __(set_nargs(4))
          __(vpush(temp0))
          __(b _SPksignalerr)        
         __else
@@ -4411,7 +4411,7 @@ local_label(misc_set_double_float_vector):
 	 __(blr)
 local_label(misc_set_invalid):  
          __(li temp0,XSETBADVEC)        
-         __(set_nargs(3))
+         __(set_nargs(4))
          __(vpush(temp0))
          __(b _SPksignalerr)                
         __endif
