@@ -1,3 +1,249 @@
+2006-03-30 03:20  gb
+
+	* level-1/l1-clos.lisp: Use REPLACE-FUNCTION-CODE another time or
+	two.
+	
+	Set class's INSTANCE.HASH slots to class name, to make classes
+	easier to identify in kernel debugger.	(Might not want to keept
+	this, but could set/clear a bit there.)
+
+2006-03-30 03:18  gb
+
+	* level-1/: l1-files.lisp, l1-dcode.lisp: Comments and formatting
+	changes only.
+
+2006-03-30 03:17  gb
+
+	* level-1/l1-lisp-threads.lisp: Start to move some stuff into
+	platform-dependent files.
+
+2006-03-30 03:16  gb
+
+	* level-1/: l1-pathnames.lisp, l1-numbers.lisp: Conditionalize.
+
+2006-03-30 03:16  gb
+
+	* level-1/l1-streams.lisp: 64-bit conditionalization, and x8664
+	stuff.
+
+2006-03-30 03:15  gb
+
+	* level-1/l1-typesys.lisp: 64-bit array type on all (both) 64-bit
+	platforms.
+
+2006-03-30 03:13  gb
+
+	* level-1/l1-utils.lisp: TRUE and FALSE now in LAP.
+
+2006-03-30 03:13  gb
+
+	* level-1/level-1.lisp: Load "new" x8664 files.
+
+2006-03-30 03:12  gb
+
+	* level-1/linux-files.lisp: Conditionalize some for x8664.
+
+2006-03-30 03:12  gb
+
+	* level-1/ppc-threads-utils.lisp: Some stuff moved here from
+	l1-lisp-threads.
+
+2006-03-30 03:11  gb
+
+	* lib/compile-ccl.lisp: X8664-related changes.
+
+2006-03-30 03:11  gb
+
+	* lib/foreign-types.lisp: Setup host-ftd based on compile-time
+	target.  Yow, recursion.
+
+2006-03-30 03:10  gb
+
+	* lib/macros.lisp: LET-GLOBALLY deals with symptr/symvector stuff.
+
+2006-03-30 03:10  gb
+
+	* lib/misc.lisp: Fix Linux MACHINE-INSTANCE.
+	
+	Move DISASSEMBLE and interface here.
+
+2006-03-30 03:09  gb
+
+	* lib/nfcomp.lisp: Conditionalize for x8664; dump native functions
+	via fasl-clfun.
+
+2006-03-30 03:08  gb
+
+	* lib/prepare-mcl-environment.lisp: Needed symptr/symvector stuff.
+
+2006-03-30 03:08  gb
+
+	* lib/systems.lisp: Add new x86 level-1 stuff; remove some truly
+	ancient MCLisms.
+
+2006-03-30 03:06  gb
+
+	* library/x8664-linux-syscalls.lisp: Some fixes and additions, but
+	still needs lots of work.
+
+2006-03-30 03:06  gb
+
+	* lisp-kernel/x86_print.c: If instance.hash of an instance isn't a
+	fixnum, treat it as a class name.  (Hard to otherwise recognize
+	classes from the kernel.)
+
+2006-03-30 03:04  gb
+
+	* lisp-kernel/x86-spjump64.s: rename poweropen_callback ->callback.
+
+2006-03-30 03:04  gb
+
+	* lisp-kernel/x86-spentry64.s: Lots of bug fixes.
+	
+	Multiple-value THROW still needs work, and CALLBACK still needs to
+	be written (both sides).
+
+2006-03-30 03:02  gb
+
+	* lisp-kernel/x86-constants64.s: No FPSCR here, but an MXCSR.
+
+2006-03-30 03:01  gb
+
+	* lisp-kernel/ppc-spentry.s: Error call in misc_set_invalid
+	involves 4 args.
+
+2006-03-30 03:00  gb
+
+	* lisp-kernel/pmcl-kernel.c: Larger GC defaults if 64-bit, not just
+	PPC64.
+	
+	Insist on Linux kernel 2.6 if x8664 linux.
+
+2006-03-30 02:59  gb
+
+	* lisp-kernel/plsym.c: Missing #\% in format string.
+
+2006-03-30 02:56  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: More stuff.
+
+2006-03-30 02:55  gb
+
+	* level-1/: x86-callback-support.lisp, x86-error-signal.lisp,
+	x86-threads-utils.lisp, x86-trap-support.lisp: Nee files.
+
+2006-03-30 02:54  gb
+
+	* level-0/X86/X8664/x8664-bignum.lisp: Remove debug traps from
+	things that're believed to be working.
+
+2006-03-30 02:54  gb
+
+	* level-0/X86/x86-utils.lisp: CLASS-OF changes/fixes.  Move
+	#'TRUE/#'FALSE here.
+
+2006-03-30 02:53  gb
+
+	* level-0/X86/x86-symbol.lisp: %SYMPTR->SYMBOL: check for nilsym,
+	not NIL.
+
+2006-03-30 02:52  gb
+
+	* level-0/X86/x86-numbers.lisp: %FIXNUM-TRUNCATE: return results in
+	the right order.
+	
+	%IASL: shift the right register.
+
+2006-03-30 02:51  gb
+
+	* level-0/X86/x86-misc.lisp: Fix %FUDGE-HEAP-POINTER; define
+	INTERRUPT-LEVEL.
+
+2006-03-30 02:51  gb
+
+	* level-0/X86/x86-float.lisp: %get-mxcsr stores the mxcsr in memory
+	so that we can load it into a fixnum.
+
+2006-03-30 02:50  gb
+
+	* level-0/X86/x86-def.lisp: %CFP-LFUN: try to recognize
+	multiple-value returning calls, return NIL if tra offset is 0.
+
+2006-03-30 02:49  gb
+
+	* level-0/X86/x86-clos.lisp: Remove debug traps; use registers
+	sanely in the SETF case.
+
+2006-03-30 02:48  gb
+
+	* level-0/PPC/ppc-utils.lisp: Implement TRUE and FALSE in LAP.
+
+2006-03-30 02:48  gb
+
+	* level-0/PPC/ppc-clos.lisp: Change the name of a constant that'll
+	get clobbered when this is cloned anyway.  (Is that clear ?)
+
+2006-03-30 02:47  gb
+
+	* level-0/l0-pred.lisp: %TYPE-OF fixes for x8664.
+	
+	We haven't had interpreted functions for a few years.
+
+2006-03-30 02:46  gb
+
+	* level-0/l0-float.lisp: %SET-DOUBLE-FLOAT-EXP: endianness, use
+	symbolic constant for high word.
+
+2006-03-30 02:45  gb
+
+	* level-0/l0-array.lisp: SUBTAG-BYTES for X8664.
+
+2006-03-30 02:45  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Lots of bug fixes.
+
+2006-03-30 02:44  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: REQUIRE what we need.
+	
+	Get CATCH-FRAME definition right.
+	
+	.SPpoweropen-callback -> .SPcallback.
+
+2006-03-30 02:43  gb
+
+	* compiler/X86/x862.lisp: Lots of changes and bugfixes.
+
+2006-03-30 02:42  gb
+
+	* compiler/X86/x86-lap.lisp: Avid path in REQUIRE; create native
+	functions.
+
+2006-03-30 02:42  gb
+
+	* compiler/X86/x86-disassemble.lisp: Run natively: provide
+	X8664-XDISASSEMBLE.
+
+2006-03-30 02:41  gb
+
+	* compiler/X86/x86-asm.lisp: Assemble things (uuos) with a "pseudo"
+	ModRM byte, which allows encoding two 4-bit x8664 registers in a
+	single byte.
+
+2006-03-30 02:40  gb
+
+	* compiler/X86/x86-arch.lisp: Need to explicitly (REQUIRE "ARCH").
+
+2006-03-30 02:39  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Define high and low 32-bit
+	parts of a DOUBLE-FLOAT.
+
+2006-03-30 02:39  gb
+
+	* compiler/PPC/ppc-disassemble.lisp: DISASSEMBLE and
+	FUNCTION-FOR-DISASSEMBLY moved elsewhere.
+
 2006-03-25 20:47  gb
 
 	* lisp-kernel/lisp-debug.c: Fix x8664 lisp register display.
