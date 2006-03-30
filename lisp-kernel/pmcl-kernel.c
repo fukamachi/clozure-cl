@@ -353,7 +353,7 @@ area *all_areas=NULL;
 int cache_block_size=32;
 
 
-#ifdef PPC64
+#if WORD_SIZE == 64
 #define DEFAULT_LISP_HEAP_GC_THRESHOLD (32<<20)
 #define G2_AREA_THRESHOLD (8<<20)
 #define G1_AREA_THRESHOLD (4<<20)
@@ -1159,7 +1159,12 @@ terminate_lisp()
 #endif
 #endif
 #ifdef LINUX
+#ifdef PPC
 #define min_os_version "2.2"
+#endif
+#ifdef X86
+#define min_os_version "2.6"
+#endif
 #endif
 #ifdef FREEBSD
 #define min_os_version "6.0"
