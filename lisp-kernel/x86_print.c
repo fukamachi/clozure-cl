@@ -339,6 +339,24 @@ sprint_gvector(LispObj o, int depth)
       add_char(')');
       break;
     }
+
+  case subtag_instance:
+    {
+      LispObj class_or_hash = deref(o,1);
+      
+      if (tag_of(class_or_hash) == tag_fixnum) {
+	sprint_random_vector(o, subtag, elements);
+      } else {
+	add_c_string("#<CLASS ");
+	sprint_lisp_object(class_or_hash, depth);
+	add_c_string(" @");
+	sprint_unsigned_hex(o);
+	add_c_string(">");
+      }
+      break;
+    }
+
+	
       
   default:
     sprint_random_vector(o, subtag, elements);
