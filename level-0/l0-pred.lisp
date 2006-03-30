@@ -484,26 +484,20 @@
 		    (let ((bits (lfun-bits thing)))
 		      (declare (fixnum bits))
 		      (if (logbitp $lfbits-trampoline-bit bits)
-			(if (logbitp $lfbits-evaluated-bit bits)
-			  'interpreted-lexical-closure
-			  (let ((inner-fn (closure-function thing)))
-			    (if (neq inner-fn thing)
-			      (let ((inner-bits (lfun-bits inner-fn)))
-				(if (logbitp $lfbits-method-bit inner-bits)
-				  'compiled-lexical-closure
-				  (if (logbitp $lfbits-gfn-bit inner-bits)
-				    'standard-generic-function ; not precisely - see class-of
-				    (if (logbitp  $lfbits-cm-bit inner-bits)
-				      'combined-method
-				      'compiled-lexical-closure))))
-			      'compiled-lexical-closure)))
-			(if (logbitp $lfbits-evaluated-bit bits)
-			  (if (logbitp $lfbits-method-bit bits)
-			    'interpreted-method-function
-			    'interpreted-function)
-			  (if (logbitp  $lfbits-method-bit bits)
-			    'method-function          
-			    'compiled-function))))
+			(let ((inner-fn (closure-function thing)))
+                          (if (neq inner-fn thing)
+                            (let ((inner-bits (lfun-bits inner-fn)))
+                              (if (logbitp $lfbits-method-bit inner-bits)
+                                'compiled-lexical-closure
+                                (if (logbitp $lfbits-gfn-bit inner-bits)
+                                  'standard-generic-function ; not precisely - see class-of
+                                  (if (logbitp  $lfbits-cm-bit inner-bits)
+                                    'combined-method
+                                    'compiled-lexical-closure))))
+                            'compiled-lexical-closure))
+                        (if (logbitp  $lfbits-method-bit bits)
+                          'method-function          
+                          'compiled-function)))
 		    (if (eq type 'lock)
 		      (or (uvref thing ppc32::lock.kind-cell)
 			  type)
@@ -668,9 +662,7 @@
                                  (let ((bits (lfun-bits thing)))
                                    (declare (fixnum bits))
                                    (if (logbitp $lfbits-trampoline-bit bits)
-                                     (if (logbitp $lfbits-evaluated-bit bits)
-                                       'interpreted-lexical-closure
-                                       (let ((inner-fn (closure-function thing)))
+                                     (let ((inner-fn (closure-function thing)))
                                          (if (neq inner-fn thing)
                                            (let ((inner-bits (lfun-bits inner-fn)))
                                              (if (logbitp $lfbits-method-bit inner-bits)
@@ -680,14 +672,10 @@
                                                  (if (logbitp  $lfbits-cm-bit inner-bits)
                                                    'combined-method
                                                    'compiled-lexical-closure))))
-                                           'compiled-lexical-closure)))
-                                     (if (logbitp $lfbits-evaluated-bit bits)
-                                       (if (logbitp $lfbits-method-bit bits)
-                                         'interpreted-method-function
-                                         'interpreted-function)
-                                       (if (logbitp  $lfbits-method-bit bits)
-                                         'method-function          
-                                         'compiled-function)))))
+                                           'compiled-lexical-closure))
+                                     (if (logbitp  $lfbits-method-bit bits)
+                                       'method-function          
+                                       'compiled-function))))
                                 ((eq type 'lock)
                                  (or (uvref thing ppc64::lock.kind-cell)
                                      type))
@@ -722,7 +710,7 @@
   #(bogus
     ratio
     complex
-    struct
+    structure
     istruct
     value-cell
     xfunction
@@ -792,71 +780,74 @@
     double-float-vector))
 
 
-(defparameter *x8664-fulltag-types* ())
-(setq *x8664-fulltag-types*
-  (let* ((fixnums #16(fixnum))
-         (tra #16(tagged-return-address)))
-    (vector fixnums
-            #(single-float immediate immediate immediate
-              immediate immediate immediate immediate
-              immediate immediate immediate immediate
-              immediate immediate immediate immediate)
-            #(base-char immediate immediate immediate
-              immediate immediate immediate immediate
-              immediate immediate immediate immediate
-              immediate immediate immediate immediate)
-            #16(list)
-            tra
-            *nodeheader-0-types*
-            *nodeheader-1-types*
-            *immheader-0-types*
-            fixnums
-            *immheader-1-types*
-            *immheader-2-types*
-            #16(null)
-            tra
-            #16(bogus)
-            #16(symbol))))
+(defparameter *x8664-%type-of-functions* nil)
+
+(let* ((fixnum (lambda (x) (declare (ignore x)) 'fixnum))
+       (tra (lambda (x) (declare (ignore x)) 'tagged-return-address))
+       (bogus (lambda (x) (declare (ignore x)) 'bogus)))
+  (setq *x8664-%type-of-functions*
+        (vector
+         fixnum                         ;0
+         (lambda (x) (declare (ignore x)) 'short-float) ;1
+         (lambda (x) (if (characterp x) 'character 'immediate)) ;2
+         (lambda (x) (declare (ignore x)) 'cons) ;3
+         tra                            ;4
+         bogus                          ;5
+         bogus                          ;6
+         bogus                          ;7
+         fixnum                         ;8
+         bogus                          ;9
+         bogus                          ;10
+         (lambda (x) (declare (ignore x)) 'null) ;11
+         tra                            ;12
+         (lambda (x) (let* ((typecode (typecode x)) 
+                            (low4 (logand typecode x8664::fulltagmask))
+                            (high4 (ash typecode (- x8664::ntagbits))))
+                       (declare (type (unsigned-byte 8) typecode)
+                                (type (unsigned-byte 4) low4 high4))
+                       (let* ((name
+                               (cond ((= low4 x8664::fulltag-immheader-0)
+                                      (%svref *immheader-0-types* high4))
+                                     ((= low4 x8664::fulltag-immheader-1)
+                                      (%svref *immheader-1-types* high4))
+                                     ((= low4 x8664::fulltag-immheader-2)
+                                      (%svref *immheader-2-types* high4))
+                                     ((= low4 x8664::fulltag-nodeheader-0)
+                                      (%svref *nodeheader-0-types* high4))
+                                     ((= low4 x8664::fulltag-nodeheader-1)
+                                      (%svref *nodeheader-1-types* high4))
+                                     (t 'bogus))))
+                         (or (and (eq name 'lock)
+                                  (uvref x x8664::lock.kind-cell))
+                             name)))) ;13
+         (lambda (x) (declare (ignore x)) 'symbol) ;14
+         (lambda (thing)
+           (let ((bits (lfun-bits thing)))
+             (declare (fixnum bits))
+             (if (logbitp $lfbits-trampoline-bit bits)
+               (let ((inner-fn (closure-function thing)))
+                 (if (neq inner-fn thing)
+                   (let ((inner-bits (lfun-bits inner-fn)))
+                     (if (logbitp $lfbits-method-bit inner-bits)
+                       'compiled-lexical-closure
+                       (if (logbitp $lfbits-gfn-bit inner-bits)
+                         'standard-generic-function ; not precisely - see class-of
+                         (if (logbitp  $lfbits-cm-bit inner-bits)
+                           'combined-method
+                           'compiled-lexical-closure))))
+                   'compiled-lexical-closure))
+               (if (logbitp  $lfbits-method-bit bits)
+                 'method-function          
+                 'compiled-function))))))) ;15
+                                      
+       
+
+
   
 (defun %type-of (thing)
-  (let* ((lisptag (lisptag thing))
-         (typecode (typecode thing))
-         (high4 (ash typecode (- x8664::ntagbits))))
-    (declare (type (mod 8) lisptag)
-             (type (mod 256) typecode))
-    (if (logbitp lisptag (logior (ash 1 x8664::fulltag-nodeheader-0)
-                                 (ash 1 x8664::fulltag-nodeheader-1)
-                                 (ash 1 x8664::fulltag-immheader-0)
-                                 (ash 1 x8664::fulltag-immheader-1)
-                                 (ash 1 x8664::fulltag-immheader-2)))
-      (%svref (%svref *x8664-fulltag-types* fulltag) high4)
-      (if (= lisp x8664::tag-function)
-        (let ((bits (lfun-bits thing)))
-          (declare (fixnum bits))
-          (if (logbitp $lfbits-trampoline-bit bits)
-            (if (logbitp $lfbits-evaluated-bit bits)
-              'interpreted-lexical-closure
-              (let ((inner-fn (closure-function thing)))
-                (if (neq inner-fn thing)
-                  (let ((inner-bits (lfun-bits inner-fn)))
-                    (if (logbitp $lfbits-method-bit inner-bits)
-                      'compiled-lexical-closure
-                      (if (logbitp $lfbits-gfn-bit inner-bits)
-                        'standard-generic-function ; not precisely - see class-of
-                        (if (logbitp  $lfbits-cm-bit inner-bits)
-                          'combined-method
-                          'compiled-lexical-closure))))
-                  'compiled-lexical-closure)))
-            (if (logbitp $lfbits-evaluated-bit bits)
-              (if (logbitp $lfbits-method-bit bits)
-                'interpreted-method-function
-                'interpreted-function)
-              (if (logbitp  $lfbits-method-bit bits)
-                'method-function          
-                'compiled-function))))
-        (%svref (%svref *x8664-fulltag-types* fulltag)
-                (the fixnum (ash (%lisp-lowbyte-ref thing)
-                                 (- x8664::ntagbits))))))))
+  (let* ((f (fulltag thing)))
+    (funcall (%svref *x8664-%type-of-functions* f) thing)))
+
         
 
 );#+x8664-target
