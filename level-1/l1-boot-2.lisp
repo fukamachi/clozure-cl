@@ -42,6 +42,8 @@
 (catch :toplevel
     #+ppc-target
     (l1-load "ppc-error-signal")
+    #+x86-target
+    (l1-load "x86-error-signal")
     (l1-load "l1-error-signal")
     (l1-load "l1-sockets")
     (setq *LEVEL-1-LOADED* t))
@@ -137,30 +139,24 @@ present and false otherwise. This variable shouldn't be set by user code.")
 		   (provide ,module))))
       (bin-load-provide "SORT" "sort")
       (bin-load-provide "NUMBERS" "numbers")
-      (bin-load-provide "HASH" "hash")
-      (bin-load-provide "DLL-NODE" "dll-node")
       
       (bin-load-provide "SUBPRIMS" "subprims")
       #+ppc32-target
       (bin-load-provide "PPC32-ARCH" "ppc32-arch") 
       #+ppc64-target
       (bin-load-provide "PPC64-ARCH" "ppc64-arch")
-      #+x8664-targt
+      #+x8664-target
       (bin-load-provide "X8664-ARCH" "x8664-arch")
       (bin-load-provide "VREG" "vreg")
       
       #+ppc-target
       (bin-load-provide "PPC-ASM" "ppc-asm")
-      #+x86-target
-      (bin-load-provide "X86-ASM" "x86-asm")
       
       (bin-load-provide "VINSN" "vinsn")
       (bin-load-provide "REG" "reg")
       
       #+ppc-target
       (bin-load-provide "PPC-LAP" "ppc-lap")
-      #+x86-target
-      (bin-load-provide "X86-LAP" "x86-lap")
       (bin-load-provide "BACKEND" "backend")
      
       #+ppc-target
