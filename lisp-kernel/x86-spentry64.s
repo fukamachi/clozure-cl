@@ -1135,7 +1135,6 @@ _spentry(mkcatchmv)
 _endsubp(mkcatchmv)
 
 _spentry(throw)
-	/*__(int $0xca) */
 	__(movq %rcontext:tcr.catch_top,%imm1)
 	__(xorl %imm0_l,%imm0_l)
 	__(movzwl %nargs,%nargs_l)
@@ -1168,18 +1167,21 @@ __(tra(local_label(_threw_one_value)))
 	__(movq %rcontext:tcr.db_link,%imm1)
 	__(cmpq %imm0,%imm1)
 	__(jz local_label(_threw_one_value_dont_unbind))
-	__(push %ra0)
-	__(lea local_label(_threw_one_value_back_from_unbind)(%rip),%ra0)
+	__(lea local_label(_threw_one_value_dont_unbind)(%rip),%ra0)
 	__(jmp _SPunbind_to)
-__(tra(local_label(_threw_one_value_back_from_unbind)))
-	__(pop %ra0)
-local_label(_threw_one_value_dont_unbind):
+__(tra(local_label(_threw_one_value_dont_unbind)))
 	__(movq catch_frame.rbp(%temp0),%rbp)
 	__(movq catch_frame.rsp(%temp0),%rsp)
-	__(movq catch_frame.foreign_sp(%temp0),%imm0)
+	__(movq catch_frame.foreign_sp(%temp0),%Rforeign_sp)
 	__(movq catch_frame.xframe(%temp0),%imm1)
-	__(movq %imm0,%rcontext:tcr.foreign_sp)
+	__(movq %Rforeign_sp,%rcontext:tcr.foreign_sp) 
 	__(movq %imm1,%rcontext:tcr.xframe)
+	
+
+
+
+
+
 	__(movq catch_frame.link(%temp0),%imm1)
 	__(movq catch_frame._save0(%temp0),%save0)
 	__(movq catch_frame._save1(%temp0),%save1)
@@ -1197,8 +1199,44 @@ local_label(_throw_multiple):
 __(tra(local_label(_threw_multiple)))
 	__(movq %rcontext:tcr.catch_top,%temp0)
 	__(movq catch_frame.db_link(%temp0),%imm0)
-	/* finish this ! */
-	__(int $0xca)			
+	__(movq %rcontext:tcr.db_link,%imm1)
+	__(cmpq %imm0,%imm1)
+	__(jne local_label(_threw_multiple_dont_unbind))
+	__(leaq local_label(_threw_multiple_dont_unbind)(%rip),%r10)
+	__(jmp _SPunbind_to)
+__(tra(local_label(_threw_multiple_dont_unbind)))
+	/* Copy multiple values from the current %rsp to the target %rsp */
+	__(lea (%rsp,%nargs_q),%imm0)
+	__(movq catch_frame.rsp(%temp0),%imm1)
+	__(jmp local_label(_threw_multiple_push_test))
+local_label(_threw_multiple_push_loop):
+	__(subq $node_size,%imm0)
+	__(subq $node_size,%imm1)
+	__(movq (%imm0),%arg_z)
+	__(movq %arg_z,(%imm1))
+local_label(_threw_multiple_push_test):		
+	__(cmpq %imm0,%rsp)
+	__(jne local_label(_threw_multiple_push_loop))
+	/* target %rsp is now in %imm1 */
+	__(movq catch_frame.rbp(%temp0),%rbp)
+	__(movq %imm1,%rsp)
+	__(movq catch_frame.foreign_sp(%temp0),%Rforeign_sp)
+	__(movq catch_frame.xframe(%temp0),%imm1)
+	__(movq %Rforeign_sp,%rcontext:tcr.foreign_sp)
+	__(movq %imm1,%rcontext:tcr.xframe)
+	__(movq catch_frame.link(%temp0),%imm1)		
+	__(movq catch_frame._save0(%temp0),%save0)
+	__(movq catch_frame._save1(%temp0),%save1)
+	__(movq catch_frame._save2(%temp0),%save2)
+	__(movq catch_frame._save3(%temp0),%save3)
+	__(movq %imm1,%rcontext:tcr.catch_top)
+	__(movq catch_frame.pc(%temp0),%ra0)
+	__(lea -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
+	__(movq (%imm1),%tsp)
+	__(movq %tsp,%next_tsp)
+	__(jmp *%ra0)
+
+
 
 		
 _endsubp(throw)
@@ -1731,7 +1769,80 @@ _spentry(setqsym)
 _endsubp(setqsym)
 
 _spentry(progvsave)
-	__(int $3)	
+	/* Error if arg_z isn't a proper list.  That's unlikely,
+	   but it's better to check now than to crash later.
+	*/
+	__(compare_reg_to_nil(%arg_z))
+	__(movq %arg_z,%arg_x)	/* fast */
+	__(movq %arg_z,%temp1)	/* slow */
+	__(je 9f)		/* Null list is proper */
+0:
+	__(extract_lisptag(%arg_x,%imm0))
+	__(cmpb $tag_list,%imm0_b)
+	__(jne 8f)
+	__(compare_reg_to_nil(%arg_x))
+	__(je 9f)
+	__(_cdr(%arg_x,%temp0))	/* (null (cdr fast)) ? */
+	__(compare_reg_to_nil(%temp0))
+	__(je 9f)
+	__(extract_lisptag(%temp0,%imm0))
+	__(cmpb $tag_list,%imm0_b)
+	__(jne 8f)
+	__(_cdr(%temp0,%arg_x))
+	__(_cdr(%temp1,%temp1))
+	__(cmpq %temp1,%arg_x)
+	__(jne 0b)
+
+8:	__(movq $XIMPROPERLIST,%arg_y)
+	__(set_nargs(2))
+	__(jmp _SPksignalerr)
+9:	/* Whew */	
+
+        /* Next, determine the length of arg_y.  We 
+	   know that it's a proper list. */
+	__(movq $-fixnumone,%imm0)
+	__(movq %arg_y,%arg_x)
+1:	__(compare_reg_to_nil(%arg_x))
+	__(_cdr(%arg_x,%arg_x))
+	__(leaq fixnumone(%imm0),%imm0)
+	__(jne 1b)
+	
+	/* imm0 is now (boxed) triplet count.
+	   Determine word count, add 1 (to align), and make room.
+	   if count is 0, make an empty tsp frame and exit */
+	__(testq %imm0,%imm0)
+	__(jne 2f)
+	__(TSP_Alloc_Fixed(2*node_size,%imm0))
+	__(jmp *%ra0)
+2:	__(movq %imm0,%imm1)
+	__(add %imm1,%imm1)
+	__(add %imm0,%imm1)
+	__(dnode_align(%imm1,tsp_frame.fixed_overhead+node_size,%imm1))
+	__(TSP_Alloc_Var(%imm1,%temp0))
+	__(movq %imm0,(%temp0))
+	__(movq %rcontext:tcr.db_link,%temp1)
+3:	__(movl $unbound_marker,%temp0_l)
+	__(compare_reg_to_nil(%arg_z))
+	__(cmovneq cons.car(%arg_z),%temp0)
+	__(cmovneq cons.cdr(%arg_z),%arg_z)
+	__(_car(%arg_y,%arg_x))
+	__(_cdr(%arg_y,%arg_y))
+	__(movq symbol.binding_index(%arg_x),%arg_x)
+	__(cmp %rcontext:tcr.tlb_limit,%arg_x)
+	__(jb,pt 4f)
+	__(tlb_too_small())
+4:	__(movq %rcontext:tcr.tlb_pointer,%imm0)
+	__(subq $binding.size,%imm1)
+	__(compare_reg_to_nil(%arg_y))
+	__(movq %arg_x,binding.sym(%imm1))
+	__(push (%imm0,%arg_x))
+	__(pop binding.val(%imm1))
+	__(movq %temp0,(%imm0,%arg_x))
+	__(movq %temp1,binding.link(%imm1))
+	__(movq %imm1,%temp1)
+	__(jne 3b)
+	__(movq %temp1,%rcontext:tcr.db_link)
+	__(jmp *%ra0)
 _endsubp(progvsave)
 
 /* Allocate node objects on the temp stack, immediate objects on the foreign
@@ -3287,6 +3398,12 @@ _endsubp(unbind_interrupt_level)
 
 	
 _spentry(progvrestore)
+	__(movd %tsp,%imm0)
+	__(movq tsp_frame.backlink(%imm0),%imm0) /* ignore .SPnthrowXXX values frame */
+	__(movq tsp_frame.data_offset(%imm0),%imm0)
+	__(shrq $fixnumshift,%imm0)
+	__(jne _SPunbind_n)
+	__(jmp *%ra0)
 _endsubp(progvrestore)
 	
 
