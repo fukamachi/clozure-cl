@@ -1,3 +1,38 @@
+2006-03-31 00:54  gb
+
+	* lisp-kernel/x86-spentry64.s: Progvsave, progvrestore seem to
+	work.
+	
+	Not sure about the tail end of the multiple-value case of THROW,
+	but at least it's there.
+
+2006-03-31 00:53  gb
+
+	* library/x8664-linux-syscalls.lisp: still need work, but more
+	stuff (including socket syscalls) are defined now.
+
+2006-03-31 00:52  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-03-31 00:52  gb
+
+	* level-1/l1-sockets.lisp: Conditionalize lots for x8664.
+
+2006-03-31 00:51  gb
+
+	* level-0/X86/x86-def.lisp: No debug trap in %CFP-LFUN.
+
+2006-03-31 00:50  gb
+
+	* level-0/l0-init.lisp: Simplify *FEATURES* init a little.  Try to
+	ensure that :linuxx8664-target is there if it should be.
+
+2006-03-31 00:46  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Define
+	MAX-8-BIT-IVECTOR-SUBTAG, too.
+
 2006-03-30 03:23  gb
 
 	* level-1/l1-aprims.lisp: ELEMENT-SUBTYPE-TYPE for x8664.
