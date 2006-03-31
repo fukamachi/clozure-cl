@@ -52,19 +52,17 @@
     #+linuxppc-target :linuxppc-target
     #+linuxppc-target :linuxppc-host
     #+linuxx86-target :linuxx86-target
+    #+linuxx8664-target :linuxx8664-target
+    #+linuxx8664-target :linuxx8664-host
     #+darwinppc-target :darwinppc-target
     #+darwinppc-target :darwinppc-host
     #+darwinppc-target :darwin
     #+darwinppc-target :darwin-target
     #+poweropen-target :poweropen-target
-    #+ppc64-target :64-bit-target
-    #+ppc64-target :64-bit-host
-    #+x8664-target :64-bit-target
-    #+x8664-target :64-bit-host
-    #+ppc32-target :32-bit-target
-    #+ppc32-target :32-bit-host
-    #+x8632-target :32-bit-target
-    #+x8632-target :32-bit-host
+    #+64-bit-target :64-bit-target
+    #+64-bit-target :64-bit-host
+    #+32-bit-target :32-bit-target
+    #+32-bit-target :32-bit-host
     #+ppc-target :big-endian-target
     #+ppc-target :big-endian-host
     #+x86-target :little-endian-target
