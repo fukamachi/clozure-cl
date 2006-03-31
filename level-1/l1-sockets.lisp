@@ -56,12 +56,36 @@
 ;;; it doesn't seem to make much sense to fight that to do ff-calls
 ;;; to a couple of identity functions.
 
-#+ppc-target
+#+big-endian-target
 (progn
   (defmacro HTONL (x) x)
   (defmacro HTONS (x) x)
   (defmacro NTOHL (x) x)
   (defmacro NTOHS (x) x))
+
+#+little-endian-target
+(progn
+  (declaim (inline %bswap32 %bswap16))
+  (defun %bswap32 (x)
+    (declare (type (unsigned-byte 32) x))
+    (dpb (ldb (byte 8 0) x)
+         (byte 8 24)
+         (dpb (ldb (byte 8 8) x)
+              (byte 8 16)
+              (dpb (ldb (byte 8 16) x)
+                   (byte 8 8)
+                   (ldb (byte 8 24) x)))))
+  (defun %bswap16 (x)
+    (declare (type (unsigned-byte 32) x))
+    (dpb (ldb (byte 8 0) x)
+         (byte 8 8)
+         (ldb (byte 8 8) x)))
+  (defmacro HTONL (x) `(%bswap32 ,x))
+  (defmacro HTONS (x) `(%bswap16 ,x))
+  (defmacro NTOHL (x) `(%bswap32 ,x))
+  (defmacro NTOHS (x) `(%bswap16 ,x)))
+
+
   
 
 ;;; On some (hypothetical) little-endian platform, we might want to
@@ -748,6 +772,8 @@ accept-connection on it again."))
                                 (<= subtype ppc32::max-8-bit-ivector-subtag))
             #+ppc64-target (= (the fixnum (logand subtype ppc64::fulltagmask))
                               ppc64::ivector-class-8-bit)
+            #+x8664-target (and (>= subtype x8664::min-8-bit-ivector-subtag)
+                                (<= subtype x8664::max-8-bit-ivector-subtag))
       (report-bad-arg buf `(or (array character)
 			       (array (unsigned-byte 8))
 			       (array (signed-byte 8))))))
@@ -920,7 +946,7 @@ unsigned IP address."
 	 (%get-cstring (pref hp :hostent.h_name))
 	 (values nil (pref *h-errno* :signed)))))))
 
-#+linuxppc-target
+#+linux-target
 (defun c_gethostbyaddr (addr)
   (rlet ((hostent :hostent)
 	 (hp (* (struct :hostent)))
@@ -950,7 +976,7 @@ unsigned IP address."
 	  (%get-ptr (pref hp :hostent.h_addr_list)))
 	 (values nil (pref *h-errno* :signed)))))))
 
-#+linuxppc-target
+#+linux-target
 (defun c_gethostbyname (name)
   (with-cstrs ((name (string name)))
     (rlet ((hostent :hostent)
@@ -1002,7 +1028,7 @@ unsigned IP address."
 	  (pref addr :in_addr.s_addr))))))
 
 (defun c_socket (domain type protocol)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::socket domain type protocol)
   #+linuxppc-target
   (progn
@@ -1049,8 +1075,9 @@ unsigned IP address."
       
 
 (defun c_bind (sockfd sockaddr addrlen)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (progn
+    #+darwinppc-target
     (setf (pref sockaddr :sockaddr_in.sin_len) addrlen)
     (syscall syscalls::bind sockfd sockaddr addrlen))
   #+linuxppc-target
@@ -1069,7 +1096,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 2 params))))
 
 (defun c_connect (sockfd addr len)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::connect sockfd addr len)
   #+linuxppc-target
   (progn
@@ -1087,7 +1114,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 3 params))))
 
 (defun c_listen (sockfd backlog)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::listen sockfd backlog)
   #+linuxppc-target
   (progn
@@ -1103,7 +1130,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 4 params))))
 
 (defun c_accept (sockfd addrp addrlenp)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::accept sockfd addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1121,7 +1148,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 5 params))))
 
 (defun c_getsockname (sockfd addrp addrlenp)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::getsockname sockfd addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1139,7 +1166,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 6 params))))
 
 (defun c_getpeername (sockfd addrp addrlenp)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::getpeername sockfd addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1157,7 +1184,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 7 params))))
 
 (defun c_socketpair (domain type protocol socketsptr)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::socketpair domain type protocol socketsptr)
   #+linuxppc-target
   (progn
@@ -1176,48 +1203,10 @@ unsigned IP address."
             (%get-ptr params 24) socketsptr)
       (syscall syscalls::socketcall 8 params))))
 
-(defun c_send (sockfd msgptr len flags)
-  #+darwinppc-target
-  (syscall syscalls::sendto sockfd msgptr len flags (%null-ptr) 0)
-  #+linuxppc-target
-  (progn
-    #+ppc32-target
-    (%stack-block ((params 16))
-      (setf (%get-long params 0) sockfd
-            (%get-ptr params  4) msgptr
-            (%get-long params 8) len
-            (%get-long params 12) flags)
-      (syscall syscalls::socketcall 9 params))
-    #+ppc64-target
-    (%stack-block ((params 32))
-      (setf (%%get-unsigned-longlong params 0) sockfd
-            (%get-ptr params  8) msgptr
-            (%%get-unsigned-longlong params 16) len
-            (%%get-unsigned-longlong params 24) flags)
-      (syscall syscalls::socketcall 9 params))))
 
-(defun c_recv (sockfd bufptr len flags)
-  #+darwinppc-target
-  (syscall syscalls::recvfrom sockfd bufptr len flags (%null-ptr) (%null-ptr))
-  #+linuxppc-target
-  (progn
-    #+ppc32-target
-    (%stack-block ((params 16))
-      (setf (%get-long params 0) sockfd
-            (%get-ptr params  4) bufptr
-            (%get-long params 8) len
-            (%get-long params 12) flags)
-      (syscall syscalls::socketcall 10 params))
-    #+ppc64-target
-    (%stack-block ((params 32))
-      (setf (%%get-unsigned-longlong params 0) sockfd
-            (%get-ptr params  8) bufptr
-            (%%get-unsigned-longlong params 16) len
-            (%%get-unsigned-longlong params 24) flags)
-      (syscall syscalls::socketcall 10 params))))
 
 (defun c_sendto (sockfd msgptr len flags addrp addrlen)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::sendto sockfd msgptr len flags addrp addrlen)
   #+linuxppc-target
   (progn
@@ -1241,7 +1230,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 11 params))))
 
 (defun c_recvfrom (sockfd bufptr len flags addrp addrlenp)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::recvfrom sockfd bufptr len flags addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1265,7 +1254,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 12 params))))
 
 (defun c_shutdown (sockfd how)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::shutdown sockfd how)
   #+linuxppc-target
   (progn
@@ -1281,7 +1270,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 13 params))))
 
 (defun c_setsockopt (sockfd level optname optvalp optlen)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::setsockopt sockfd level optname optvalp optlen)
   #+linuxppc-target
   (progn
@@ -1303,7 +1292,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 14 params))))
 
 (defun c_getsockopt (sockfd level optname optvalp optlenp)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::getsockopt sockfd level optname optvalp optlenp)
   #+linuxppc-target
   (progn
@@ -1325,7 +1314,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 15 params))))
 
 (defun c_sendmsg (sockfd msghdrp flags)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::sendmsg sockfd msghdrp flags)
   #+linuxppc-target
   (progn
@@ -1343,7 +1332,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 16 params))))
 
 (defun c_recvmsg (sockfd msghdrp flags)
-  #+darwinppc-target
+  #+(or darwinppc-target linuxx8664-target)
   (syscall syscalls::recvmsg sockfd msghdrp flags)
   #+linuxppc-target
   (progn
