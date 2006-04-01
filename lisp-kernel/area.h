@@ -98,7 +98,7 @@ void condemn_area(area *, TCR *);
 void condemn_area_holding_area_lock(area *);
 area *area_containing(BytePtr);
 area *stack_area_containing(BytePtr);
-area *heap_area_node_containing(BytePtr);
+area *heap_area_containing(BytePtr);
 void tenure_to_area(area *);
 void untenure_from_area(area *);
 
