@@ -265,13 +265,15 @@ allocate_lisp_stack_area(area_code stack_type,
   Also assumes ownership of the area_lock 
 */
 area*
-register_cstack_holding_area_lock(BytePtr bottom, unsigned size)
+register_cstack_holding_area_lock(BytePtr bottom, natural size)
 {
   BytePtr lowlimit = (BytePtr) (((((unsigned long)bottom)-size)+4095)&~4095);
   area *a = new_area((BytePtr) bottom-size, bottom, AREA_CSTACK);
-
   a->hardlimit = lowlimit+CSTACK_HARDPROT;
   a->softlimit = a->hardlimit+CSTACK_SOFTPROT;
+#ifdef USE_SIGALTSTACK
+  setup_sigaltstack(a);
+#endif
   add_area_holding_area_lock(a);
   return a;
 }
