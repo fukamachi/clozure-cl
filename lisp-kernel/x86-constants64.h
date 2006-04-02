@@ -59,6 +59,10 @@
 
 #define Iallocptr Itemp0
 
+#define Itsp 7
+#define Inext_tsp 6
+#define Iforeign_sp 5
+
 
 #define nbits_in_word 64L
 #define log2_nbits_in_word 6L
@@ -285,7 +289,7 @@ typedef struct catch_frame {
   LispObj mvflag;
   LispObj csp;
   LispObj db_link;
-  LispObj regs[8];
+  LispObj regs[4];
   LispObj xframe;
   LispObj tsp_segment;
 } catch_frame;
