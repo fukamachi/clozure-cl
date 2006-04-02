@@ -1,3 +1,38 @@
+2006-04-01 23:36  gb
+
+	* lisp-kernel/x86-exceptions.h: xpMMXreg, sigaltstack stuff.
+
+2006-04-01 23:35  gb
+
+	* lisp-kernel/x86-exceptions.c: take signals on an alternate signal
+	stack, run the handler on the foreign stack (this is all intended
+	to keep signal handlers from splatting sigcontexts all over the
+	tagged lisp stack.)
+
+2006-04-01 23:33  gb
+
+	* lisp-kernel/x86-constants64.h: mmx register indices.
+
+2006-04-01 23:33  gb
+
+	* lisp-kernel/x86-asmutils64.s: switch_to_foreign_stack().
+
+2006-04-01 23:32  gb
+
+	* lisp-kernel/thread_manager.c: register_cstack_holding_area_lock()
+	takes a natural stack size.
+
+2006-04-01 23:32  gb
+
+	* lisp-kernel/pmcl-kernel.c: register_cstack_holding_area_lock()
+	takes a natural stack size, sets up alternate signal stack if
+	USE_SIGALTSTACK.
+
+2006-04-01 23:31  gb
+
+	* lisp-kernel/lisp.h: USE_SIGALTSTACK if X8664.  (Might someday
+	depend on platform.)
+
 2006-03-31 23:15  gb
 
 	* lisp-kernel/linuxx8664/Makefile: gc.o -> x86-gc.o
