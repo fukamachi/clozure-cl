@@ -647,7 +647,7 @@ current_native_thread_id()
 void
 thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
 {
-  area *a, *register_cstack_holding_area_lock(BytePtr, unsigned);
+  area *a, *register_cstack_holding_area_lock(BytePtr, natural);
 
   tcr->osid = current_thread_osid();
   tcr->native_thread_id = current_native_thread_id();
