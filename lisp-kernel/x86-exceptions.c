@@ -212,6 +212,74 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
   }
 }
 
+LispObj *
+copy_fpregs(ExceptionInformation *xp, LispObj *current, fpregset_t *destptr)
+{
+  fpregset_t src = xp->uc_mcontext.fpregs, dest;
+  
+  if (src) {
+    dest = ((fpregset_t)current)-1;
+    *dest = *src;
+    *destptr = dest;
+    current = (LispObj *) dest;
+  }
+  return current;
+}
+
+LispObj *
+copy_siginfo(siginfo_t *info, LispObj *current)
+{
+  siginfo_t *dest = ((siginfo_t *)current) - 1;
+  *dest = *info;
+  return (LispObj *)dest;
+}
+
+LispObj *
+copy_ucontext(ExceptionInformation *context, LispObj *current, fpregset_t fp)
+{
+  ExceptionInformation *dest = ((ExceptionInformation *)current)-1;
+
+  *dest = *context;
+  /* Fix it up a little; where's the signal mask allocated, if indeed
+     it is "allocated" ? */
+  dest->uc_mcontext.fpregs = fp;
+  dest->uc_stack.ss_sp = 0;
+  dest->uc_stack.ss_size = 0;
+  dest->uc_stack.ss_flags = 0;
+  return (LispObj *)dest;
+}
+
+LispObj *
+find_foreign_rsp(ExceptionInformation *xp, area *foreign_area)
+{
+  LispObj rsp = xpGPR(xp, Isp);
+  if (((BytePtr)rsp < foreign_area->low) ||
+      ((BytePtr)rsp > foreign_area->high)) {
+    rsp = xpMMXreg(xp, Iforeign_sp);
+  }
+  return (LispObj *) ((rsp-128 & ~!5));
+}
+
+void
+altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
+{
+  TCR* tcr = get_tcr(true);
+  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area);
+  fpregset_t fpregs = NULL;
+  siginfo_t *info_copy = NULL;
+  ExceptionInformation *xp = NULL;
+
+  if (foreign_rsp) {
+    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
+    foreign_rsp = copy_siginfo(info, foreign_rsp);
+    info_copy = (siginfo_t *)foreign_rsp;
+    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
+    xp = (ExceptionInformation *)foreign_rsp;
+    *--foreign_rsp = (LispObj)__builtin_return_address(0);
+    switch_to_foreign_stack(foreign_rsp,signal_handler,signum,info_copy,xp);
+  }
+}
+
 void
 interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
@@ -254,6 +322,23 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 }
 
 void
+altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
+{
+  TCR *tcr = get_interrupt_tcr(false);
+  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area);
+  fpregset_t fpregs = NULL;
+
+  if (foreign_rsp) {
+    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
+    foreign_rsp = copy_siginfo(info, foreign_rsp);
+    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
+    *--foreign_rsp = (LispObj)__builtin_return_address(0);
+    switch_to_foreign_stack(foreign_rsp,interrupt_handler,signum,info,context);
+  }
+}
+
+
+void
 install_signal_handler(int signo, __sighandler_t handler)
 {
   struct sigaction sa;
@@ -262,6 +347,7 @@ install_signal_handler(int signo, __sighandler_t handler)
   sigfillset(&sa.sa_mask);
   sa.sa_flags = 
     SA_RESTART
+    | SA_ONSTACK
     | SA_SIGINFO;
 
   sigaction(signo, &sa, NULL);
@@ -272,15 +358,15 @@ void
 install_pmcl_exception_handlers()
 {
   
-  install_signal_handler(SIGILL, (__sighandler_t)signal_handler);
+  install_signal_handler(SIGILL, (__sighandler_t)altstack_signal_handler);
   
-  install_signal_handler(SIGBUS,  (__sighandler_t)signal_handler);
-  install_signal_handler(SIGSEGV, (__sighandler_t)signal_handler);
-  install_signal_handler(SIGFPE, (__sighandler_t)signal_handler);
+  install_signal_handler(SIGBUS,  (__sighandler_t)altstack_signal_handler);
+  install_signal_handler(SIGSEGV, (__sighandler_t)altstack_signal_handler);
+  install_signal_handler(SIGFPE, (__sighandler_t)altstack_signal_handler);
 
   
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
-			 (__sighandler_t)interrupt_handler);
+			 (__sighandler_t)altstack_interrupt_handler);
   signal(SIGPIPE, SIG_IGN);
 }
 
@@ -311,4 +397,16 @@ restore_soft_stack_limit(unsigned stkreg)
 void
 reset_lisp_process(ExceptionInformation *xp)
 {
+}
+
+void
+setup_sigaltstack(area *a)
+{
+  stack_t stack;
+  stack.ss_sp = a->low;
+  a->low += 8192;
+  stack.ss_size = 8192;
+  stack.ss_flags = 0;
+
+  sigaltstack(&stack, NULL);
 }
