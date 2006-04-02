@@ -22,6 +22,7 @@ typedef u_int8_t opcode, *pc;
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
 #define xpPC(x) (xpGPR(x,Iip))
+#define xpMMXreg(x,n)  *((natural *)&((x)->uc_mcontext.fpregs->_st[n]))
 #endif
 #endif
 
@@ -42,4 +43,9 @@ typedef u_int8_t opcode, *pc;
 #endif
 #ifdef FREEBSD
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
+#endif
+
+#ifdef USE_SIGALTSTACK
+void setup_sigaltstack(area *);
+void switch_to_foreign_stack(void*, ...);
 #endif
