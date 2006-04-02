@@ -98,3 +98,7 @@ LispObj start_lisp(TCR*, LispObj);
 
 #define PLATFORM (PLATFORM_OS|PLATFORM_CPU|PLATFORM_WORD_SIZE)
 
+#ifdef X8664
+#define USE_SIGALTSTACK
+#endif
+
