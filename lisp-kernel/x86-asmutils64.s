@@ -124,6 +124,18 @@ _exportfn(C(cpuid))
 	__(ret)
 _endfn
 
+/* switch_to_foreign_stack(new_sp, func, arg_0, arg_1, arg_2, arg_3) 
+   Not fully general, but should get us off of the signal stack */	
+_exportfn(C(switch_to_foreign_stack))
+	__(movq %rdi,%rsp)
+	__(movq %rsi,%rax)
+	__(movq %rdx,%rdi)
+	__(movq %rcx,%rsi)
+	__(movq %r8,%rdx)
+	__(movq %r9,%rcx)
+	__(jmp *%rax)
+_endfn
+		
 _exportfn(C(get_vector_registers))
 _endfn
 
