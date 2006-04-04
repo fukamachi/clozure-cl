@@ -56,7 +56,7 @@
               (uuo-error-too-few-args)
               ,sofar
               (rcmp (% nargs) ($ ',max))
-              (jb.pt  ,ok)
+              (jbe.pt  ,ok)
               (uuo-error-too-many-args)
               ,ok)))))))
 
