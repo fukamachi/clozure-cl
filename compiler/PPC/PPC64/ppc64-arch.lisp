@@ -951,6 +951,10 @@
 (defppc64archmacro ccl::area-code ()
   area.code)
 
+(defppc64archmacro ccl::area-succ ()
+  area.succ)
+
+
 (defppc64archmacro ccl::nth-immediate (f i)
   `(ccl::%svref ,f ,i))
 

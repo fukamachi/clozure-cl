@@ -1236,6 +1236,9 @@
 (defx8664archmacro ccl::area-code ()
   area.code)
 
+(defx8664archmacro ccl::area-succ ()
+  area.succ)
+
 (defx8664archmacro ccl::nth-immediate (f i)
   `(ccl::%nth-immediate ,f (the fixnum (- (the fixnum ,i) 1))))
 
