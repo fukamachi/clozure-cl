@@ -88,7 +88,7 @@
   "List of functions which never return multiple values and
    should never be tail-called.")
 
-#-bccl (defvar *cross-compiling* nil "bootstrapping")
+(defvar *cross-compiling* nil "bootstrapping")
 
 
 
