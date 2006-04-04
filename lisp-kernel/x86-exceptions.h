@@ -49,3 +49,9 @@ typedef u_int8_t opcode, *pc;
 void setup_sigaltstack(area *);
 void switch_to_foreign_stack(void*, ...);
 #endif
+
+#define INTN_OPCODE 0xcd
+
+#define UUO_GC_TRAP    0xc4
+#define UUO_ALLOC_TRAP 0xc5
+#define UUO_DEBUG_TRAP 0xca
