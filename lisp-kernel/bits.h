@@ -23,7 +23,7 @@
 
 typedef natural *bitvector;
 
-#ifdef PPC64
+#if WORD_SIZE == 64
 #define bitmap_shift 6
 #define BIT0_MASK 0x8000000000000000ULL
 #define ALL_ONES  0xffffffffffffffffULL
