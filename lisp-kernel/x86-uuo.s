@@ -84,14 +84,12 @@ define([uuo_error_reg_not_fixnum],[
 	int [$]0xf0|$1
 ])	
 		
-	
-		
-/*	
-   Signal an UNBOUND-VARIABLE error by claiming that the argument
-   doesn't have the tag unbound_marker, which is otherwise
-   a meaningless claim.
-*/	
 define([uuo_error_reg_unbound],[
-	uuo_error_reg_not_tag($1,unbound_marker)
+	int [$]0x90|$1
+])	
+
+define([uuo_error_vector_bounds],[
+	int [$]0xc8
+	.byte ($1<<4)|($2)
 ])	
 
