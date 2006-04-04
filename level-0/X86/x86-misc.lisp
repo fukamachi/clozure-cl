@@ -409,7 +409,7 @@
   (jne @fail)
   (addq ($ '1) (@ x8664::lock._value (% lock)))
   (jne @home)
-  (movss (% fpzero) (@ x8664::lock.writer (% lock)))
+  (movsd (% fpzero) (@ x8664::lock.writer (% lock)))
   @home
   (single-value-return)
   @fail
