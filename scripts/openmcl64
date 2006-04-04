@@ -29,7 +29,18 @@ if [ -z "$OPENMCL_KERNEL" ]; then
     OPENMCL_KERNEL=dppccl64
     ;;
     Linux)
-    OPENMCL_KERNEL=ppccl64
+    case `arch` in
+      ppc64)
+      OPENMCL_KERNEL=ppccl64
+      ;;
+      x86_64)
+      OPENMCL_KERNEL=lx86cl64
+      ;;
+      *)
+      echo "Can't determine machine architecture.  Fix this."
+      exit 1
+      ;;
+    esac
     ;;
     *)
     echo "Can't determine host OS.  Fix this."
