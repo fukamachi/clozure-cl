@@ -158,14 +158,13 @@ define([Make_Catch],[
 	Allocate_Catch_Frame(%temp2)
 	movq %rcontext:tcr.catch_top,%imm0
 	movq %rcontext:tcr.db_link,%imm1
-	movq %rcontext:tcr.foreign_sp,%temp0
 	movq %arg_z,catch_frame.catch_tag(%temp2)
 	movq %imm0,catch_frame.link(%temp2)
 	movq [$]$1,catch_frame.mvflag(%temp2)
 	movq %rcontext:tcr.xframe,%imm0
 	movq %rsp,catch_frame.rsp(%temp2)
 	movq %rbp,catch_frame.rbp(%temp2)
-	movq %temp0,catch_frame.foreign_sp(%temp2)
+	movq %Rforeign_sp,catch_frame.foreign_sp(%temp2)
 	movq %imm1,catch_frame.db_link(%temp2)
 	movq %save3,catch_frame._save3(%temp2)
 	movq %save2,catch_frame._save2(%temp2)
