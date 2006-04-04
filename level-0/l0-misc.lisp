@@ -78,14 +78,8 @@
       (do-consing-areas (area)
         (when (eql (%fixnum-ref area target::area.code) area-dynamic)
           (%setf-macptr-to-object p  area)
-          (incf res (- #+32-bit-target
-                       (%get-unsigned-long p target::area.high)
-                       #+64-bit-target
-                       (%%get-unsigned-longlong p target::area.high)
-                       #+32-bit-target
-                       (%get-unsigned-long p target::area.active)
-                       #+64-bit-target
-                       (%%get-unsigned-longlong p target::area.active))))))
+          (incf res (- (%get-natural p target::area.high)
+                       (%get-natural p target::area.active))))))
     res))
 
 (defun %reservedbytes ()
