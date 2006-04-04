@@ -461,7 +461,6 @@ void
 interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
   TCR *tcr = get_interrupt_tcr(false);
-#ifdef NOTYET
   if (tcr) {
     if (TCR_INTERRUPT_LEVEL(tcr) < 0) {
       tcr->interrupt_pending = 1 << fixnumshift;
@@ -488,14 +487,13 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	  pc_luser_xp(context, NULL);
 	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
-	  PMCL_exception_handler(signum, context, tcr, info);
+	  handle_exception(signum, info, context, tcr);
 	  unlock_exception_lock_in_handler(tcr);
 	  exit_signal_handler(tcr, old_valence);
 	}
       }
     }
   }
-#endif
 }
 
 void
