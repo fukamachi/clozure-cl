@@ -2954,6 +2954,9 @@ purify_areas(BytePtr low, BytePtr high, area *target, int what)
 int
 purify(TCR *tcr, signed_natural param)
 {
+#if 1
+  return 0;
+#else
   extern area *extend_readonly_area(unsigned);
   area 
     *a = active_dynamic_area,
@@ -3044,6 +3047,7 @@ purify(TCR *tcr, signed_natural param)
     return 0;
   }
   return -1;
+#endif
 }
 
 void
