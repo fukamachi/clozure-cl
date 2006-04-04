@@ -37,66 +37,59 @@ check_node(LispObj n)
   switch (tag) {
   case fulltag_even_fixnum:
   case fulltag_odd_fixnum:
-
-#ifdef PPC
-#ifdef PPC64
   case fulltag_imm_0:
   case fulltag_imm_1:
-  case fulltag_imm_2:
-  case fulltag_imm_3:
-#else
-  case fulltag_imm:
-#endif
-#endif
-
-#ifdef X86
-#ifdef X8664
-  case fulltag_imm_0:
-  case fulltag_imm_1:
-#else
-#endif
-#endif
     return;
 
-#ifndef PPC64
   case fulltag_nil:
     if (n != lisp_nil) {
       Bug(NULL,"Object tagged as nil, not nil : 0x%08x", n);
     }
     return;
-#endif
 
-#ifdef PPC
-#ifdef PPC64
-  case fulltag_nodeheader_0: 
-  case fulltag_nodeheader_1: 
-  case fulltag_nodeheader_2: 
-  case fulltag_nodeheader_3: 
-  case fulltag_immheader_0: 
-  case fulltag_immheader_1: 
-  case fulltag_immheader_2: 
-  case fulltag_immheader_3: 
-#else
-  case fulltag_nodeheader:
-  case fulltag_immheader:
-#endif
-#endif
 
-#ifdef X86
-#ifdef X8664
   case fulltag_nodeheader_0: 
   case fulltag_nodeheader_1: 
   case fulltag_immheader_0: 
   case fulltag_immheader_1: 
   case fulltag_immheader_2: 
-#else
-#endif
-#endif
     Bug(NULL, "Header not expected : 0x%lx", n);
     return;
 
+  case fulltag_tra_0:
+  case fulltag_tra_1:
+    a = heap_area_containing((BytePtr)ptr_from_lispobj(n));
+    if (a == NULL) {
+      a = active_dynamic_area;
+      if ((n > (ptr_to_lispobj(a->active))) &&
+          (n < (ptr_to_lispobj(a->high)))) {
+        Bug(NULL, "TRA points to heap free space: 0x%lx", n);
+      }
+      return;
+    }
+    /* tra points into the heap.  Check displacement, then
+       check the function it (should) identify.
+    */
+    {
+      int disp = ((int *)n)[-1];
+      LispObj m = n;
+
+      if (disp > 0) {
+        n = m - disp;
+      }
+      if ((disp <= 0) ||
+          (fulltag_of(n) != fulltag_function) ||
+          (heap_area_containing((BytePtr)ptr_from_lispobj(n)) != a)) {
+        Bug(NULL, "TRA at 0x%lx has bad displacement ~d\n", n, disp);
+      }
+    }
+    /* Otherwise, fall through and check the header on the function
+       that the tra references */
+
   case fulltag_misc:
   case fulltag_cons:
+  case fulltag_symbol:
+  case fulltag_function:
     a = heap_area_containing((BytePtr)ptr_from_lispobj(n));
     
     if (a == NULL) {
@@ -156,6 +149,11 @@ check_range(LispObj *start, LispObj *end, Boolean header_allowed)
         Bug(NULL, "Header not expected at 0x%lx\n", prev);
       }
       elements = header_element_count(node) | 1;
+      if (header_subtag(node) == subtag_function) {
+        int skip = *(int *)current;
+        current += skip;
+        elements -= skip;
+      }
       while (elements--) {
         check_node(*current++);
       }
@@ -209,9 +207,7 @@ check_all_areas()
              current = next) {
           next = ptr_from_lispobj(*current);
           end = ((next >= start) && (next < limit)) ? next : limit;
-          if (current[1] == 0) {
-            check_range(current+2, end, true);
-          }
+          check_range(current+2, end, true);
         }
       }
       break;
@@ -273,15 +269,11 @@ mark_root(LispObj n)
     rmark(c->cdr);
     return;
   }
-#ifdef X86
-#ifdef X8664
   if ((tag_n == fulltag_tra_0) ||
       (tag_n == fulltag_tra_1)) {
     n = n - (((int *)n)[-1]);
+    tag_n = fulltag_function;
   }
-#else
-#endif
-#endif
   {
     LispObj *base = (LispObj *) ptr_from_lispobj(untag(n));
     natural
@@ -290,46 +282,11 @@ mark_root(LispObj n)
       element_count = header_element_count(header),
       total_size_in_bytes,      /* including 4/8-byte header */
       suffix_dnodes;
-#ifdef X86
     natural prefix_nodes = 0;
-#endif
+
     tag_n = fulltag_of(header);
 
-#ifdef PPC
-#ifdef PPC64
-    if ((nodeheader_tag_p(tag_n)) ||
-        (tag_n == ivector_class_64_bit)) {
-      total_size_in_bytes = 8 + (element_count<<3);
-    } else if (tag_n == ivector_class_8_bit) {
-      total_size_in_bytes = 8 + element_count;
-    } else if (tag_n == ivector_class_32_bit) {
-      total_size_in_bytes = 8 + (element_count<<2);
-    } else {
-      /* ivector_class_other_bit contains 16-bit arrays & bitvector */
-      if (subtag == subtag_bit_vector) {
-        total_size_in_bytes = 8 + ((element_count+7)>>3);
-      } else {
-        total_size_in_bytes = 8 + (element_count<<1);
-      }
-    }
-#else
-    if ((tag_n == fulltag_nodeheader) ||
-        (subtag <= max_32_bit_ivector_subtag)) {
-      total_size_in_bytes = 4 + (element_count<<2);
-    } else if (subtag <= max_8_bit_ivector_subtag) {
-      total_size_in_bytes = 4 + element_count;
-    } else if (subtag <= max_16_bit_ivector_subtag) {
-      total_size_in_bytes = 4 + (element_count<<1);
-    } else if (subtag == subtag_double_float_vector) {
-      total_size_in_bytes = 8 + (element_count<<3);
-    } else {
-      total_size_in_bytes = 4 + ((element_count+7)>>3);
-    }
-#endif
-#endif
 
-#ifdef X86
-#ifdef X8664
     if ((nodeheader_tag_p(tag_n)) ||
         (tag_n == ivector_class_64_bit)) {
       total_size_in_bytes = 8 + (element_count<<3);
@@ -345,9 +302,6 @@ mark_root(LispObj n)
         total_size_in_bytes = 8 + (element_count<<1);
       }
     }
-#else
-#endif
-#endif
 
     suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift) -1;
 
@@ -384,16 +338,12 @@ mark_root(LispObj n)
         }
       }
 
-#ifdef X86
       if (subtag == subtag_function) {
 	prefix_nodes = (natural) ((int) deref(base,1));
       }
-#endif
       base += (1+element_count);
 
-#ifdef X86
       element_count -= prefix_nodes;
-#endif
 
       while(element_count--) {
         rmark(*--base);
@@ -436,106 +386,6 @@ mark_ephemeral_root(LispObj n)
   return false;                 /* Not a heap pointer or not ephemeral */
 }
   
-#ifdef PPC
-#ifdef PPC64
-/* Any register (srr0, the lr or ctr) or stack location that
-   we're calling this on should have its low 2 bits clear; it'll
-   be tagged as a "primary" object, but the pc/lr/ctr should
-   never point to a tagged object or contain a fixnum.
-   
-   If the "pc" appears to be pointing into a heap-allocated
-   code vector that's not yet marked, back up until we find
-   the code-vector's prefix (the 32-bit word containing the
-   value 'CODE' whic precedes the code-vector's first instruction)
-   and mark the entire code-vector.
-*/
-void
-mark_pc_root(LispObj xpc)
-{
-  if ((xpc & 3) != 0) {
-    Bug(NULL, "Bad PC locative!");
-  } else {
-    natural dnode = gc_area_dnode(xpc);
-    if ((dnode < GCndnodes_in_area) &&
-        !ref_bit(GCmarkbits,dnode)) {
-      LispObj
-        *headerP,
-        header;
-      opcode *program_counter;
-
-      for(program_counter=(opcode *)ptr_from_lispobj(xpc & ~4);
-          dnode < GCndnodes_in_area;
-          program_counter-=2, --dnode) {
-        if (*program_counter == PPC64_CODE_VECTOR_PREFIX) {
-          headerP = ((LispObj *)program_counter)-1;
-          header = *headerP;
-          set_n_bits(GCmarkbits, dnode, (2+header_element_count(header))>>1);
-          return;
-        }
-      }
-      /*
-        Expected to have found a header by now, but didn't.
-        That's a bug.
-        */
-      Bug(NULL, "code_vector header not found!");
-    }
-  }
-}
-#else /* PPC64 */
-/*
-  Some objects (saved LRs on the control stack, the LR, PC, and CTR
-  in exception frames) may be tagged as fixnums but are really
-  locatives into code_vectors.
-
-  If "pc" is not tagged as a fixnum, mark it as a "normal" root.
-  If "pc" doesn't point at an unmarked doubleword in the area
-  being GCed, return.
-  Else back up until the code_vector's header is found and mark
-  all doublewords in the code_vector.
-*/
-void
-mark_pc_root(LispObj pc)
-{
-  if (tag_of(pc) != tag_fixnum) {
-    mark_root(pc);
-  } else {
-    natural dnode = gc_area_dnode(pc);
-    if ((dnode < GCndnodes_in_area) &&
-        !ref_bit(GCmarkbits,dnode)) {
-      LispObj
-        *headerP,
-        header;
-
-      for(headerP = (LispObj*)ptr_from_lispobj(untag(pc));
-          dnode < GCndnodes_in_area;
-          headerP-=2, --dnode) {
-        header = *headerP;
-
-        if ((header & code_header_mask) == subtag_code_vector) {
-          set_n_bits(GCmarkbits, dnode, (2+header_element_count(header))>>1);
-          return;
-        }
-      }
-      /*
-        Expected to have found a header by now, but didn't.
-        That's a bug.
-        */
-      Bug(NULL, "code_vector header not found!");
-    }
-  }
-}
-#endif /* PPC64 */
-#endif /* PPC */
-
-#ifdef PPC
-#ifdef PPC64
-#define RMARK_PREV_ROOT fulltag_imm_3
-#define RMARK_PREV_CAR fulltag_misc
-#else
-#define RMARK_PREV_ROOT fulltag_imm
-#define RMARK_PREV_CAR fulltag_nil
-#endif
-#endif
 
 #ifdef X86
 #ifdef X8664
@@ -548,13 +398,6 @@ mark_pc_root(LispObj pc)
 natural
 GCstack_limit = 0;
 
-#ifdef X86
-#ifdef X8664
-#warning The recursive marker - especially the link-inverting DWS marker
-#warning may need lots of X8664 changes
-#else
-#endif
-#endif
 
 /*
   This wants to be in assembler even more than "mark_root" does.
@@ -566,10 +409,16 @@ rmark(LispObj n)
 {
   int tag_n = fulltag_of(n);
   bitvector markbits = GCmarkbits;
-  natural dnode, bits, *bitsp, mask;
+  natural dnode, bits, *bitsp, mask, original_n = n;
 
   if (!is_node_fulltag(tag_n)) {
     return;
+  }
+
+  if ((tag_n == fulltag_tra_0) ||
+      (tag_n == fulltag_tra_1)) {
+    n -= ((int *)n)[-1];
+    tag_n = fulltag_function;
   }
 
   dnode = gc_area_dnode(n);
@@ -593,43 +442,11 @@ rmark(LispObj n)
         subtag = header_subtag(header),
         element_count = header_element_count(header),
         total_size_in_bytes,
-        suffix_dnodes;
-      tag_n = fulltag_of(header);
-#ifdef PPC
-#ifdef PPC64
-      if ((nodeheader_tag_p(tag_n)) ||
-          (tag_n == ivector_class_64_bit)) {
-        total_size_in_bytes = 8 + (element_count<<3);
-      } else if (tag_n == ivector_class_8_bit) {
-        total_size_in_bytes = 8 + element_count;
-      } else if (tag_n == ivector_class_32_bit) {
-        total_size_in_bytes = 8 + (element_count<<2);
-      } else {
-        /* ivector_class_other_bit contains 16-bit arrays & bitvector */
-        if (subtag == subtag_bit_vector) {
-          total_size_in_bytes = 8 + ((element_count+7)>>3);
-        } else {
-          total_size_in_bytes = 8 + (element_count<<1);
-        }
-      }
-#else
-      if ((tag_n == fulltag_nodeheader) ||
-          (subtag <= max_32_bit_ivector_subtag)) {
-        total_size_in_bytes = 4 + (element_count<<2);
-      } else if (subtag <= max_8_bit_ivector_subtag) {
-        total_size_in_bytes = 4 + element_count;
-      } else if (subtag <= max_16_bit_ivector_subtag) {
-        total_size_in_bytes = 4 + (element_count<<1);
-      } else if (subtag == subtag_double_float_vector) {
-        total_size_in_bytes = 8 + (element_count<<3);
-      } else {
-        total_size_in_bytes = 4 + ((element_count+7)>>3);
-      }
-#endif
-#endif
+        suffix_dnodes,
+	nmark;
 
-#ifdef X86
-#ifdef X8664
+      tag_n = fulltag_of(header);
+
       if ((nodeheader_tag_p(tag_n)) ||
           (tag_n == ivector_class_64_bit)) {
         total_size_in_bytes = 8 + (element_count<<3);
@@ -645,9 +462,6 @@ rmark(LispObj n)
           total_size_in_bytes = 8 + (element_count<<1);
         }
       }
-#else
-#endif
-#endif
       suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
 
       if (suffix_dnodes) {
@@ -687,7 +501,14 @@ rmark(LispObj n)
         else
           element_count -= 1;
       }
-      while (element_count) {
+
+      nmark = element_count;
+
+      if (subtag == subtag_function) {
+	nmark -= (int)base[1];
+      }
+
+      while (nmark--) {
         rmark(deref(n,element_count));
         element_count--;
       }
@@ -699,6 +520,8 @@ rmark(LispObj n)
 
     }
   } else {
+    Bug(NULL, "DWS-marker");
+#if 0
     LispObj prev = undefined;
     LispObj this = n, next;
     /*
@@ -792,41 +615,7 @@ rmark(LispObj n)
 
       tag_n = fulltag_of(header);
 
-#ifdef PPC
-#ifdef PPC64
-      if ((nodeheader_tag_p(tag_n)) ||
-          (tag_n == ivector_class_64_bit)) {
-        total_size_in_bytes = 8 + (element_count<<3);
-      } else if (tag_n == ivector_class_8_bit) {
-        total_size_in_bytes = 8 + element_count;
-      } else if (tag_n == ivector_class_32_bit) {
-        total_size_in_bytes = 8 + (element_count<<2);
-      } else {
-        /* ivector_class_other_bit contains 16-bit arrays & bitvector */
-        if (subtag == subtag_bit_vector) {
-          total_size_in_bytes = 8 + ((element_count+7)>>3);
-        } else {
-          total_size_in_bytes = 8 + (element_count<<1);
-        }
-      }
-#else
-      if ((tag_n == fulltag_nodeheader) ||
-          (subtag <= max_32_bit_ivector_subtag)) {
-        total_size_in_bytes = 4 + (element_count<<2);
-      } else if (subtag <= max_8_bit_ivector_subtag) {
-        total_size_in_bytes = 4 + element_count;
-      } else if (subtag <= max_16_bit_ivector_subtag) {
-        total_size_in_bytes = 4 + (element_count<<1);
-      } else if (subtag == subtag_double_float_vector) {
-        total_size_in_bytes = 8 + (element_count<<3);
-      } else {
-        total_size_in_bytes = 4 + ((element_count+7)>>3);
-      }
-#endif
-#endif
 
-#ifdef X86
-#ifdef X8664
       if ((nodeheader_tag_p(tag_n)) ||
           (tag_n == ivector_class_64_bit)) {
         total_size_in_bytes = 8 + (element_count<<3);
@@ -842,9 +631,6 @@ rmark(LispObj n)
           total_size_in_bytes = 8 + (element_count<<1);
         }
       }
-#else
-#endif
-#endif
       suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
 
       if (suffix_dnodes) {
@@ -912,6 +698,7 @@ rmark(LispObj n)
       GCweakvll = this;
     }
     goto Climb;
+#endif
   }
 }
 
@@ -923,45 +710,8 @@ skip_over_ivector(natural start, LispObj header)
     subtag = header_subtag(header),
     nbytes;
 
-#ifdef PPC
-#ifdef PPC64
-  switch (fulltag_of(header)) {
-  case ivector_class_64_bit:
-    nbytes = element_count << 3;
-    break;
-  case ivector_class_32_bit:
-    nbytes = element_count << 2;
-    break;
-  case ivector_class_8_bit:
-    nbytes = element_count;
-    break;
-  case ivector_class_other_bit:
-  default:
-    if (subtag == subtag_bit_vector) {
-      nbytes = (element_count+7)>>3;
-    } else {
-      nbytes = element_count << 1;
-    }
-  }
-  return ptr_from_lispobj(start+(~15 & (nbytes + 8 + 15)));
-#else
-  if (subtag <= max_32_bit_ivector_subtag) {
-    nbytes = element_count << 2;
-  } else if (subtag <= max_8_bit_ivector_subtag) {
-    nbytes = element_count;
-  } else if (subtag <= max_16_bit_ivector_subtag) {
-    nbytes = element_count << 1;
-  } else if (subtag == subtag_double_float_vector) {
-    nbytes = 4 + (element_count << 3);
-  } else {
-    nbytes = (element_count+7) >> 3;
-  }
-  return ptr_from_lispobj(start+(~7 & (nbytes + 4 + 7)));
-#endif
-#endif
 
-#ifdef X86
-#ifdef X8664
+
   switch (fulltag_of(header)) {
   case ivector_class_64_bit:
     nbytes = element_count << 3;
@@ -980,9 +730,6 @@ skip_over_ivector(natural start, LispObj header)
     }
   }
   return ptr_from_lispobj(start+(~15 & (nbytes + 8 + 15)));
-#else
-#endif
-#endif
 
 }
 
@@ -1163,6 +910,9 @@ mark_simple_area_range(LispObj *start, LispObj *end)
         }
 
         base = start + element_count + 1;
+	if (subtag == subtag_function) {
+	  element_count -= (int)start[1];
+	}
         while(element_count--) {
           mark_root(*--base);
         }
@@ -1189,9 +939,7 @@ mark_tstack_area(area *a)
        current = next) {
     next = (LispObj *) ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
-    if (current[1] == 0) {
-      mark_simple_area_range(current+2, end);
-    }
+    mark_simple_area_range(current+2, end);
   }
 }
 
@@ -1222,42 +970,6 @@ mark_vstack_area(area *a)
   mark_simple_area_range(start, end);
 }
 
-#ifdef PPC
-/*
-  Mark lisp frames on the control stack.
-  Ignore emulator frames (odd backpointer) and C frames (size != 4).
-*/
-
-void
-mark_cstack_area(area *a)
-{
-  BytePtr
-    current,
-    next,
-    limit = a->high,
-    low = a->low;
-
-  for (current = a->active; (current >= low) && (current < limit); current = next) {
-    next = *((BytePtr *)current);
-#if 0
-    if (next < current) {
-      Bug(NULL, "Child stack frame older than parent");
-    }
-#endif
-    if (next == NULL) break;
-    if (((next - current) == sizeof(lisp_frame)) &&
-	(((((lisp_frame *)current)->savefn) == 0) ||
-	 (fulltag_of(((lisp_frame *)current)->savefn) == fulltag_misc))) {
-      /* mark fn, then saved lr */
-      mark_root(((lisp_frame *)current)->savefn);
-      mark_pc_root(((lisp_frame *)current)->savelr);
-    } else {
-      /* Clear low 2 bits of "next", just in case */
-      next = (BytePtr) (((natural)next) & ~3);
-    }
-  }
-}
-#endif
 
 void
 reapweakv(LispObj weakv)
@@ -1610,32 +1322,7 @@ mark_xp(ExceptionInformation *xp)
 {
   natural *regs = (natural *) xpGPRvector(xp);
 
-#ifdef PPC
-  int r;
-  /* registers >= fn should be tagged and marked as roots.
-     the PC, LR, loc_pc, and CTR should be treated as "pc_locatives".
 
-     In general, marking a locative is more expensive than marking
-     a node is, since it may be neccessary to back up and find the
-     containing object's header.  Since exception frames contain
-     many locatives, it'd be wise to mark them *after* marking the
-     stacks, nilreg-relative globals, etc.
-     */
-
-  for (r = fn; r < 32; r++) {
-    mark_root((regs[r]));
-  }
-
-
-
-  mark_pc_root((regs[loc_pc]));
-  mark_pc_root(ptr_to_lispobj(xpPC(xp)));
-  mark_pc_root(ptr_to_lispobj(xpLR(xp)));
-  mark_pc_root(ptr_to_lispobj(xpCTR(xp)));
-#endif /* PPC */
-
-#ifdef X86
-#ifdef X8664
   mark_root(regs[Iarg_z]);
   mark_root(regs[Iarg_y]);
   mark_root(regs[Iarg_x]);
@@ -1649,10 +1336,8 @@ mark_xp(ExceptionInformation *xp)
   mark_root(regs[Itemp1]);
   /* If the IP isn't pointing into a marked function,
      we're in big trouble.  Check for that here ? */
-#else
-#endif
-#endif
 }
+
 void
 mark_tcr_tlb(TCR *tcr)
 {
@@ -1861,6 +1546,8 @@ calculate_relocation()
           thesebits += thesebits;
         }
       }
+      /* We're counting bits in qnodes in the wrong order here, but
+	 that's OK.  I think ... */
       current += one_bits(*q++);
       current += one_bits(*q++);
       current += one_bits(*q++);
@@ -1871,7 +1558,8 @@ calculate_relocation()
   return first ? first : current;
 }
 
-#ifdef PPC64
+
+#if 0
 LispObj
 dnode_forwarding_address(natural dnode, int tag_n)
 {
@@ -1917,11 +1605,12 @@ dnode_forwarding_address(natural dnode, int tag_n)
   }
 }
 #else
+
+/* Quicker, dirtier */
 LispObj
 dnode_forwarding_address(natural dnode, int tag_n)
 {
-  natural pagelet, nbits;
-  unsigned short near_bits;
+  natural pagelet, nbits, marked;
   LispObj new;
 
   if (GCDebug) {
@@ -1930,74 +1619,26 @@ dnode_forwarding_address(natural dnode, int tag_n)
     }
   }
 
-  pagelet = dnode >> 5;
-  nbits = dnode & 0x1f;
-  near_bits = ((unsigned short *)GCdynamic_markbits)[dnode>>4];
-
-  if (nbits < 16) {
-    new = GCrelocptr[pagelet] + tag_n;;
-    /* Increment "new" by the count of 1 bits which precede the dnode */
-    if (near_bits == 0xffff) {
-      return (new + (nbits << 3));
-    } else {
-      near_bits &= (0xffff0000 >> nbits);
-      if (nbits > 7) {
-        new += one_bits(near_bits & 0xff);
-      }
-      return (new + (one_bits(near_bits >> 8))); 
-    }
-  } else {
-    new = GCrelocptr[pagelet+1] + tag_n;
-    nbits = 32-nbits;
-
-    if (near_bits == 0xffff) {
-      return (new - (nbits << 3));
-    } else {
-      near_bits &= (1<<nbits)-1;
-      if (nbits > 7) {
-        new -= one_bits(near_bits >> 8);
-      }
-      return (new -  one_bits(near_bits & 0xff));
+  pagelet = dnode >> bitmap_shift;
+  nbits = dnode & bitmap_shift_count_mask;
+  new = GCrelocptr[pagelet] + tag_n;;
+  if (nbits) {
+    marked = (GCdynamic_markbits[dnode>>bitmap_shift]) >> (64-nbits);
+    while (marked) {
+      new += one_bits((qnode)marked);
+      marked >>=16;
     }
   }
+  return new;
 }
 #endif
-
 
 LispObj
 locative_forwarding_address(LispObj obj)
 {
   int tag_n = fulltag_of(obj);
-  natural dnode;
+  natural dnode = gc_dynamic_area_dnode(obj);
 
-
-#ifdef PPC
-  /* Locatives can be tagged as conses, "fulltag_misc"
-     objects, or as fixnums.  Immediates, headers, and nil
-     shouldn't be "forwarded".  Nil never will be, but it
-     doesn't hurt to check ... */
-#ifdef PPC64
-  if ((tag_n & lowtag_mask) != lowtag_primary) {
-    return obj;
-  }
-#else
-  if ((1<<tag_n) & ((1<<fulltag_immheader) |
-                    (1<<fulltag_nodeheader) |
-                    (1<<fulltag_imm) |
-                    (1<<fulltag_nil))) {
-    return obj;
-  }
-#endif
-#endif
-
-#ifdef X86
-#ifdef X8664
-  /* If we're dealing with a saved RIP value, it can be tagged
-     arbitrarily.  */
-#else
-#endif
-#endif
-  dnode = gc_dynamic_area_dnode(obj);
 
   if ((dnode >= GCndynamic_dnodes_in_area) ||
       (obj < GCfirstunmarked)) {
@@ -2105,6 +1746,11 @@ forward_range(LispObj *range_start, LispObj *range_end)
         }
         *p++ = 0;
       } else {
+	if (header_subtag(node) == subtag_function) {
+	  int skip = (int)(p[1]);
+	  p += skip;
+	  nwords -= skip;
+	}
         p++;
         while(nwords--) {
           update_noderef(p);
@@ -2217,9 +1863,7 @@ forward_tstack_area(area *a)
        current = next) {
     next = ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
-    if (current[1] == 0) {
-      forward_range(current+2, end);
-    }
+    forward_range(current+2, end);
   }
 }
 
@@ -2238,55 +1882,12 @@ forward_vstack_area(area *a)
   forward_range(p, q);
 }
 
-#ifdef PPC
-void
-forward_cstack_area(area *a)
-{
-  BytePtr
-    current,
-    next,
-    limit = a->high,
-    low = a->low;
-
-  for (current = a->active; (current >= low) && (current < limit); current = next) {
-    next = *((BytePtr *)current);
-    if (next == NULL) break;
-    if (((next - current) == sizeof(lisp_frame)) &&
-	(((((lisp_frame *)current)->savefn) == 0) ||
-	 (fulltag_of(((lisp_frame *)current)->savefn) == fulltag_misc))) {
-      update_noderef(&((lisp_frame *) current)->savefn);
-      update_locref(&((lisp_frame *) current)->savelr);
-    }
-  }
-}
-
-#endif
 
 void
 forward_xp(ExceptionInformation *xp)
 {
   natural *regs = (natural *) xpGPRvector(xp);
 
-#ifdef PPC
-  int r;
-
-  /* registers >= fn should be tagged and forwarded as roots.
-     the PC, LR, loc_pc, and CTR should be treated as "locatives".
-     */
-
-  for (r = fn; r < 32; r++) {
-    update_noderef((LispObj*) (&(regs[r])));
-  }
-
-  update_locref((LispObj*) (&(regs[loc_pc])));
-
-  update_locref((LispObj*) (&(xpPC(xp))));
-  update_locref((LispObj*) (&(xpLR(xp))));
-  update_locref((LispObj*) (&(xpCTR(xp))));
-#endif
-
-#ifdef X86
-#ifdef X8664
   update_noderef(&(regs[Iarg_z]));
   update_noderef(&(regs[Iarg_y]));
   update_noderef(&(regs[Iarg_x]));
@@ -2299,9 +1900,6 @@ forward_xp(ExceptionInformation *xp)
   update_noderef(&(regs[Itemp0]));
   update_noderef(&(regs[Itemp1]));
   update_locref(&(regs[Iip]));
-#else
-#endif
-#endif
 }
 
 void
@@ -2448,44 +2046,61 @@ compact_dynamic_heap()
           elements = header_element_count(node);
           node_dnodes = (elements+2)>>1;
           dnode += node_dnodes;
-          if ((header_subtag(node) == subtag_hash_vector) &&
-              (((hash_table_vector_header *) (src-1))->flags & nhash_track_keys_mask)) {
-            hash_table_vector_header *hashp = (hash_table_vector_header *) dest;
-            int skip = (sizeof(hash_table_vector_header)/sizeof(LispObj))-1;
-          
-            *dest++ = node;
-            elements -= skip;
-            while(skip--) {
-              *dest++ = node_forwarding_address(*src++);
-            }
-            /* There should be an even number of (key/value) pairs in elements;
-               an extra alignment word follows. */
-            elements >>= 1;
-            while (elements--) {
-              if (hashp) {
-                node = *src++;
-                new = node_forwarding_address(node);
-                if (new != node) {
-                  hashp->flags |= nhash_key_moved_mask;
-                  hashp = NULL;
-                  *dest++ = new;
-                } else {
-                  *dest++ = node;
-                }
-              } else {
-                *dest++ = node_forwarding_address(*src++);
-              }
-              *dest++ = node_forwarding_address(*src++);
-            }
-            *dest++ = 0;
-            src++;
-          } else {
-            *dest++ = node;
-            *dest++ = node_forwarding_address(*src++);
-            while(--node_dnodes) {
-              *dest++ = node_forwarding_address(*src++);
-              *dest++ = node_forwarding_address(*src++);
-            }
+	  if (header_subtag(node) == subtag_function) {
+	    int skip = *((int *)src);
+
+	    *dest++ = node;
+	    elements -= skip;
+	    while(skip--) {
+	      *dest++ = *src++;
+	    }
+	    while(elements--) {
+	      *dest++ = node_forwarding_address(*src++);
+	    }
+	    if (((LispObj)src) & node_size) {
+	      src++;
+	      *dest++ = 0;
+	    }
+	  } else {
+	    if ((header_subtag(node) == subtag_hash_vector) &&
+		(((hash_table_vector_header *) (src-1))->flags & nhash_track_keys_mask)) {
+	      hash_table_vector_header *hashp = (hash_table_vector_header *) dest;
+	      int skip = (sizeof(hash_table_vector_header)/sizeof(LispObj))-1;
+	      
+	      *dest++ = node;
+	      elements -= skip;
+	      while(skip--) {
+		*dest++ = node_forwarding_address(*src++);
+	      }
+	      /* There should be an even number of (key/value) pairs in elements;
+		 an extra alignment word follows. */
+	      elements >>= 1;
+	      while (elements--) {
+		if (hashp) {
+		  node = *src++;
+		  new = node_forwarding_address(node);
+		  if (new != node) {
+		    hashp->flags |= nhash_key_moved_mask;
+		    hashp = NULL;
+		    *dest++ = new;
+		  } else {
+		    *dest++ = node;
+		  }
+		} else {
+		  *dest++ = node_forwarding_address(*src++);
+		}
+		*dest++ = node_forwarding_address(*src++);
+	      }
+	      *dest++ = 0;
+	      src++;
+	    } else {
+	      *dest++ = node;
+	      *dest++ = node_forwarding_address(*src++);
+	      while(--node_dnodes) {
+		*dest++ = node_forwarding_address(*src++);
+		*dest++ = node_forwarding_address(*src++);
+	      }
+	    }
           }
           set_bitidx_vars(markbits,dnode,bitsp,bits,bitidx);
         } else if (immheader_tag_p(tag)) {
@@ -2494,58 +2109,12 @@ compact_dynamic_heap()
           elements = header_element_count(node);
           tag = header_subtag(node);
 
-#ifdef PPC
-#ifdef PPC64
-          switch(fulltag_of(tag)) {
-          case ivector_class_64_bit:
-            imm_dnodes = ((elements+1)+1)>>1;
-            break;
-          case ivector_class_32_bit:
-            if (tag == subtag_code_vector) {
-              GCrelocated_code_vector = true;
-            }
-            imm_dnodes = (((elements+2)+3)>>2);
-            break;
-          case ivector_class_8_bit:
-            imm_dnodes = (((elements+8)+15)>>4);
-            break;
-          case ivector_class_other_bit:
-            if (tag == subtag_bit_vector) {
-              imm_dnodes = (((elements+64)+127)>>7);
-            } else {
-              imm_dnodes = (((elements+4)+7)>>3);
-            }
-          }
-#else
-          if (tag <= max_32_bit_ivector_subtag) {
-            if (tag == subtag_code_vector) {
-              GCrelocated_code_vector = true;
-            }
-            imm_dnodes = (((elements+1)+1)>>1);
-          } else if (tag <= max_8_bit_ivector_subtag) {
-            imm_dnodes = (((elements+4)+7)>>3);
-          } else if (tag <= max_16_bit_ivector_subtag) {
-            imm_dnodes = (((elements+2)+3)>>2);
-          } else if (tag == subtag_bit_vector) {
-            imm_dnodes = (((elements+32)+63)>>6);
-          } else {
-            imm_dnodes = elements+1;
-          }
-#endif
-#endif
 
-#ifdef X86
-#ifdef X8664
           switch(fulltag_of(tag)) {
           case ivector_class_64_bit:
             imm_dnodes = ((elements+1)+1)>>1;
             break;
           case ivector_class_32_bit:
-#if 0
-            if (tag == subtag_code_vector) {
-              GCrelocated_code_vector = true;
-            }
-#endif
             imm_dnodes = (((elements+2)+3)>>2);
             break;
           case ivector_class_other_bit:
@@ -2557,9 +2126,6 @@ compact_dynamic_heap()
               imm_dnodes = (((elements+4)+7)>>3);
             }
           }
-#else
-#endif
-#endif
           dnode += imm_dnodes;
           while (--imm_dnodes) {
             *dest++ = *src++;
@@ -2577,12 +2143,6 @@ compact_dynamic_heap()
   
     }
 
-    {
-      natural nbytes = (natural)ptr_to_lispobj(dest) - (natural)GCfirstunmarked;
-      if ((nbytes != 0) && GCrelocated_code_vector) {
-        xMakeDataExecutable((LogicalAddress)ptr_from_lispobj(GCfirstunmarked), nbytes);
-      }
-    }
   }
   return ptr_to_lispobj(dest);
 }
@@ -2684,8 +2244,11 @@ gc(TCR *tcr, signed_natural param)
   get_time(start);
   lisp_global(IN_GC) = (1<<fixnumshift);
 
-  
+#if 0  
   GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
+#else
+  GCDebug = true;
+#endif
 
   if (just_purified_p) {
     just_purified_p = false;
@@ -2750,12 +2313,6 @@ gc(TCR *tcr, signed_natural param)
         mark_vstack_area(next_area);
         break;
 
-      case AREA_CSTACK:
-#ifdef PPC
-        mark_cstack_area(next_area);
-#endif
-        break;
-
       case AREA_STATIC:
       case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
         /* In both of these cases, we -could- use the area's "markbits"
@@ -2801,7 +2358,7 @@ gc(TCR *tcr, signed_natural param)
 
     for (i = 0; i < n; i++) {
       sym = *raw++;
-      if (fulltag_of(sym) == fulltag_misc) {
+      if (fulltag_of(sym) == fulltag_symbol) {
         lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
         natural dnode = gc_area_dnode(sym);
           
@@ -2837,7 +2394,7 @@ gc(TCR *tcr, signed_natural param)
 
     for (i = 0; i < n; i++, raw++) {
       sym = *raw;
-      if (fulltag_of(sym) == fulltag_misc) {
+      if (fulltag_of(sym) == fulltag_symbol) {
         lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
         natural dnode = gc_area_dnode(sym);
 
@@ -2884,11 +2441,6 @@ gc(TCR *tcr, signed_natural param)
         forward_vstack_area(next_area);
         break;
 
-      case AREA_CSTACK:
-#ifdef PPC
-        forward_cstack_area(next_area);
-#endif
-        break;
 
       case AREA_STATIC:
       case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
@@ -3012,43 +2564,6 @@ unboxed_bytes_in_range(LispObj *start, LispObj *end)
       } else {
         subtag = header_subtag(header);
 
-#ifdef PPC
-#ifdef PPC64
-        switch(fulltag_of(header)) {
-        case ivector_class_64_bit:
-          bytes = 8 + (elements<<3);
-          break;
-        case ivector_class_32_bit:
-          bytes = 8 + (elements<<2);
-          break;
-        case ivector_class_8_bit:
-          bytes = 8 + elements;
-          break;
-        case ivector_class_other_bit:
-        default:
-          if (subtag == subtag_bit_vector) {
-            bytes = 8 + ((elements+7)>>3);
-          } else {
-            bytes = 8 + (elements<<1);
-          }
-        }
-#else
-        if (subtag <= max_32_bit_ivector_subtag) {
-          bytes = 4 + (elements<<2);
-        } else if (subtag <= max_8_bit_ivector_subtag) {
-          bytes = 4 + elements;
-        } else if (subtag <= max_16_bit_ivector_subtag) {
-          bytes = 4 + (elements<<1);
-        } else if (subtag == subtag_double_float_vector) {
-          bytes = 8 + (elements<<3);
-        } else {
-          bytes = 4 + ((elements+7)>>3);
-        }
-#endif
-#endif
-
-#ifdef X86
-#ifdef X8664
         switch(fulltag_of(header)) {
         case ivector_class_64_bit:
           bytes = 8 + (elements<<3);
@@ -3066,9 +2581,6 @@ unboxed_bytes_in_range(LispObj *start, LispObj *end)
             bytes = 8 + (elements<<1);
           }
         }
-#else
-#endif
-#endif
         bytes = (bytes+dnode_size-1) & ~(dnode_size-1);
         total += bytes;
         start += (bytes >> node_shift);
