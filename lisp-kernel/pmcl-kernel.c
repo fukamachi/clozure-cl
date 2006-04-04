@@ -331,7 +331,7 @@ unsigned unsigned_max(unsigned x, unsigned y)
 #define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
 #endif
 #ifdef LINUX
-#define MAXIMUM_MAPPABLE_MEMORY (256L<<30L)
+#define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
 #endif
 #else
 #ifdef DARWIN
