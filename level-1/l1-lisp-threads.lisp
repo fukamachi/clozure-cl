@@ -784,18 +784,7 @@
        (not (null (or (on-any-vstack x)
                       (on-any-tsp-stack x))))))
 
-(defmacro do-gc-areas ((area) &body body)
-  (let ((initial-area (gensym)))
-    `(let* ((,initial-area (%get-kernel-global 'all-areas))
-            (,area ,initial-area))
-       (declare (fixnum ,initial-area ,area))
-       (loop
-         (setq ,area (%fixnum-ref ,area ,(target-arch-case
-                                          (:ppc32 ppc32::area.succ)
-                                          (:ppc64 ppc64::area.succ))))
-         (when (eql ,area ,initial-area)
-           (return))
-         ,@body))))
+
 
 
 
