@@ -1,3 +1,89 @@
+2006-04-03 23:01  gb
+
+	* lisp-kernel/x86-gc.c: Make purify() a nop, for now.
+
+2006-04-03 22:43  gb
+
+	* scripts/openmcl64: Maybe (check for x8664 Linux is untested).
+
+2006-04-03 22:42  gb
+
+	* lisp-kernel/bits.h: Constants are word-size (not CPU-variant)
+	-specific.
+
+2006-04-03 22:42  gb
+
+	* lisp-kernel/pmcl-kernel.c: 512GB MAXIMUM_MAPPABLE_MEMORY on
+	x8664/Linux as well.
+
+2006-04-03 22:41  gb
+
+	* lisp-kernel/ppc-gc.c: Remove X86 conditionalization.	Maybe merge
+	x86-gc.c and ppc-gc.c back into a single file someday (or at least
+	put truly shared code there),but for now this is simpler.
+
+2006-04-03 22:38  gb
+
+	* lisp-kernel/x86-exceptions.c: A little more infrastructure, so
+	that we can actually call the GC.
+
+2006-04-03 22:37  gb
+
+	* lisp-kernel/x86-exceptions.h: Define UUO, trap opcodes.
+
+2006-04-03 22:36  gb
+
+	* lisp-kernel/x86-gc.c: It's ... alive.
+
+2006-04-03 22:36  gb
+
+	* lisp-kernel/x86-spentry64.s: Use new vector bounds traps. How
+	about boundp checks ?
+
+2006-04-03 22:35  gb
+
+	* lisp-kernel/x86-uuo.s: New uuo definitions.
+
+2006-04-03 22:35  gb
+
+	* lib/macros.lisp: DO-GC-AREAS,which is one of those macro things,
+	moved here. Uses archmacro AREA-SUCC (defined here) to avoid
+	TARGET-ARCH-CASE lossage.
+
+2006-04-03 22:34  gb
+
+	* level-1/l1-lisp-threads.lisp: DO-GC-AREAS,which is one of those
+	macro things, moved to macros.lisp.
+
+2006-04-03 22:33  gb
+
+	* level-0/X86/x86-misc.lisp: Zero out all of the write-lock's
+	writer slot, not just the low half.
+
+2006-04-03 22:32  gb
+
+	* level-0/PPC/ppc-utils.lisp: TRUE, FALSE : cmplr vs cmplri. 
+	Typical rookie PPC assembler mistake ...
+
+2006-04-03 22:31  gb
+
+	* level-0/l0-misc.lisp: %FREEBYTES looked like a job for
+	%GET-NATURAL.
+
+2006-04-03 22:31  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Use newfangled UUOs.
+
+2006-04-03 22:30  gb
+
+	* compiler/X86/x86-asm.lisp: Add UUO-ERROR-UNBOUND,
+	UUO-ERROR-SLOT-UNBOUND, UUO-ERROR-EEP-UNRESOLVED.
+
+2006-04-03 22:29  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: AREA-SUCC archmacro.
+
 2006-04-01 23:36  gb
 
 	* lisp-kernel/x86-exceptions.h: xpMMXreg, sigaltstack stuff.
