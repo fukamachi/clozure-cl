@@ -82,7 +82,7 @@ sprint_unsigned_decimal(natural n)
 void
 sprint_unsigned_hex(natural n)
 {
-#ifdef PPC64
+#if WORD_SIZE==64
   sprintf(numbuf, "#x%016lx", n);
 #else
   sprintf(numbuf, "#x%08lx", n);
