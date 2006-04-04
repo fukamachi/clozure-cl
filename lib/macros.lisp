@@ -2338,7 +2338,6 @@ defcallback returns the callback pointer, e.g., the value of name."
 (defun def-trace-print-function (type fn)
   (push (cons type fn) *trace-print-functions*))
 
-
 (defun define-callback (name args body env)
   (let* ((stack-word (gensym))
          (stack-ptr (gensym))
@@ -2534,6 +2533,7 @@ defcallback returns the callback pointer, e.g., the value of name."
              ,doc
              ,woi
 	     ,monitor))))))
+
 
 (defun defcallback-body (stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta #+poweropen-target fp-arg-ptr)
   (let* ((result (gensym))
