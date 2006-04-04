@@ -53,7 +53,9 @@
   (lap-macros nil)
   (target-arch nil)
   (define-vinsn nil)
-  (platform-syscall-mask 0))
+  (platform-syscall-mask 0)
+  (define-callback nil)
+  (defcallback-body nil))
 
 (defmethod print-object ((b backend) s)
   (print-unreadable-object (b s :type t :identity t)
