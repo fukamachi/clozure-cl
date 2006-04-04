@@ -3382,4 +3382,17 @@ to be at least partially steppable."
                  (eql ,code area-static)
                  (eql ,code area-dynamic))
          ,@body)))))
+
+(declare-arch-specific-macro area-succ)
+
+(defmacro do-gc-areas ((area) &body body)
+  (let ((initial-area (gensym)))
+    `(let* ((,initial-area (%get-kernel-global 'all-areas))
+            (,area ,initial-area))
+       (declare (fixnum ,initial-area ,area))
+       (loop
+         (setq ,area (%fixnum-ref ,area ,(area-succ)))
+         (when (eql ,area ,initial-area)
+           (return))
+         ,@body))))
    
