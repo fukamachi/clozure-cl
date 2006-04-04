@@ -1,3 +1,44 @@
+2006-04-04 16:10  gb
+
+	* lisp-kernel/pmcl-kernel.c: linuxppc64 can't mmap 512GB; try
+	256GB.
+
+2006-04-04 15:52  gb
+
+	* level-1/version.lisp: Bump. New images soon.
+
+2006-04-04 15:52  gb
+
+	* compiler/backend.lisp: Add slots for callback definition.
+
+2006-04-04 15:52  gb
+
+	* compiler/nx0.lisp: Remove a #-bccl.
+
+2006-04-04 15:26  gb
+
+	* lisp-kernel/x86_print.c: print_unsigned_hex: conditionalize on
+	word size.
+
+2006-04-04 15:26  gb
+
+	* lisp-kernel/x86-spentry64.s: First cut of _SPcallback.
+
+2006-04-04 15:26  gb
+
+	* lisp-kernel/x86-macros.s: Catch frames save foreign sp from
+	register, not from tcr slot.
+
+2006-04-04 15:25  gb
+
+	* lisp-kernel/x86-exceptions.c: Uncomment the body of
+	interrupt_handler.
+
+2006-04-04 15:18  gb
+
+	* compiler/lambda-list.lisp: %LFUN-INFO & friends: do
+	(FUNCTION-TO-FUNCTION-VECTOR).
+
 2006-04-04 15:18  gb
 
 	* compiler/X86/x86-lapmacros.lisp: check-nargs: bad comparison on
@@ -5,8 +46,7 @@
 
 2006-04-04 15:18  gb
 
-	* lib/macros.lisp, compiler/lambda-list.lisp: %LFUN-INFO & friends:
-	do (FUNCTION-TO-FUNCTION-VECTOR).
+	* lib/macros.lisp: spurious checkin; no real change
 
 2006-04-03 23:01  gb
 
