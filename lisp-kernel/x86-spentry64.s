@@ -168,8 +168,7 @@ _spentry(misc_ref)
 	__(movb $-1,%imm0_b)
 	__(cmpq misc_header_offset(%arg_y),%imm0)
 	__(jb 2f)
-	/* This is a vector bounds trap, which is hard to encode */
-	.byte 0xcd,0xc8,0xf7
+	__(uuo_error_vector_bounds(Rarg_z,Rarg_y))
 2:	__(movb misc_subtag_offset(%arg_y),%imm1_b)
 _endsubp(misc_ref)
 	
@@ -561,8 +560,7 @@ _spentry(subtag_misc_ref)
 	__(movb $255,%imm0_b)
 	__(cmpq misc_header_offset(%arg_y),%imm0)
 	__(jb 2f)
-	/* This is a vector bounds trap, which is hard to encode */
-	.byte 0xcd,0xc8,0xf7
+	__(uuo_error_vector_bounds(Rarg_z,Rarg_y))
 2:	__(unbox_fixnum(%arg_x,%imm1))
 	__(jmp C(misc_ref_common))
 _endsubp(subtag_misc_ref)
@@ -581,8 +579,7 @@ _spentry(subtag_misc_set)
 	__(movb $255,%imm0_b)
 	__(cmpq misc_header_offset(%arg_x),%imm0)
 	__(jb 2f)
-	/* This is a vector bounds trap, which is hard to encode */
-	.byte 0x49,0xcd,0xc8,0xf8
+	__(uuo_error_vector_bounds(Rarg_y,Rarg_x))
 2:	__(unbox_fixnum(%temp0,%imm1))
 	__(jmp C(misc_set_common))
 _endsubp(subtag_misc_set)
@@ -601,8 +598,7 @@ _spentry(misc_set)
 	__(movb $255,%imm0_b)
 	__(cmpq misc_header_offset(%arg_x),%imm0)
 	__(jb 2f)
-	/* This is a vector bounds trap, which is hard to encode */
-	.byte 0x49,0xcd,0xc8,0xf8
+	__(uuo_error_vector_bounds(Rarg_y,Rarg_x))
 2:	__(movb misc_subtag_offset(%arg_x),%imm1_b)
 	/*	__(jmp C(misc_set_common)) */
 _endsubp(misc_set)
