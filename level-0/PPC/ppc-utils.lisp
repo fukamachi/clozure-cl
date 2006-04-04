@@ -627,7 +627,7 @@ be somewhat larger than what was specified)."
   (blr))
 
 (defppclapfunction true ()
-  (cmplr nargs '3)
+  (cmplri nargs '3)
   (li arg_z t)
   (blelr)
   (subi imm0 nargs '3)
@@ -635,7 +635,7 @@ be somewhat larger than what was specified)."
   (blr))
 
 (defppclapfunction false ()
-  (cmplr nargs '3)
+  (cmplri nargs '3)
   (li arg_z nil)
   (blelr)
   (subi imm0 nargs '3)
