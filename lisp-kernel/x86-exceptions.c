@@ -39,22 +39,13 @@ int
 log2_page_size = 12;
 
 
-
-
-int
-gc_from_xp(ExceptionInformation *xp, signed_natural param)
-{
-  Bug(xp, "GC ?  Not yet ...");
-
-}
-
 void
 update_bytes_allocated(TCR* tcr, void *cur_allocptr)
 {
   BytePtr 
     last = (BytePtr) tcr->last_allocptr, 
     current = (BytePtr) cur_allocptr;
-  if (last && (cur_allocptr != ((void *)VOID_ALLOCPTR))) {
+  if (last && (tcr->save_allocbase != ((void *)VOID_ALLOCPTR))) {
     tcr->bytes_allocated += last-current;
   }
   tcr->last_allocptr = 0;
@@ -145,6 +136,98 @@ allocate_object(ExceptionInformation *xp,
 }
 
 Boolean
+handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
+{
+  LispObj 
+    selector = xpGPR(xp,Iimm0), 
+    arg = xpGPR(xp,Iimm1);
+  area *a = active_dynamic_area;
+  Boolean egc_was_enabled = (a->older != NULL);
+
+  switch (selector) {
+  case GC_TRAP_FUNCTION_EGC_CONTROL:
+    egc_control(arg != 0, a->active);
+    xpGPR(xp,Iarg_z) = lisp_nil + (egc_was_enabled ? t_offset : 0);
+    break;
+
+  case GC_TRAP_FUNCTION_CONFIGURE_EGC:
+    a->threshold = unbox_fixnum(xpGPR(xp, Iarg_x));
+    g1_area->threshold = unbox_fixnum(xpGPR(xp, Iarg_y));
+    g2_area->threshold = unbox_fixnum(xpGPR(xp, Iarg_z));
+    xpGPR(xp,Iarg_z) = lisp_nil+t_offset;
+    break;
+
+  case GC_TRAP_FUNCTION_SET_LISP_HEAP_THRESHOLD:
+    if (((signed_natural) arg) > 0) {
+      lisp_heap_gc_threshold = 
+        align_to_power_of_2((arg-1) +
+                            (heap_segment_size - 1),
+                            log2_heap_segment_size);
+    }
+    /* fall through */
+  case GC_TRAP_FUNCTION_GET_LISP_HEAP_THRESHOLD:
+    xpGPR(xp, Iimm0) = lisp_heap_gc_threshold;
+    break;
+
+  case GC_TRAP_FUNCTION_USE_LISP_HEAP_THRESHOLD:
+    /*  Try to put the current threshold in effect.  This may
+        need to disable/reenable the EGC. */
+    untenure_from_area(tenured_area);
+    resize_dynamic_heap(a->active,lisp_heap_gc_threshold);
+    if (egc_was_enabled) {
+      if ((a->high - a->active) >= a->threshold) {
+        tenure_to_area(tenured_area);
+      }
+    }
+    xpGPR(xp, Iimm0) = lisp_heap_gc_threshold;
+    break;
+
+  default:
+    update_bytes_allocated(tcr, (void *) ptr_from_lispobj(xpGPR(xp, Iallocptr)));
+
+    if (selector == GC_TRAP_FUNCTION_IMMEDIATE_GC) {
+      gc_from_xp(xp, 0L);
+      break;
+    }
+    
+    if (egc_was_enabled) {
+      egc_control(false, (BytePtr) a->active);
+    }
+    gc_from_xp(xp, 0L);
+    if (selector & GC_TRAP_FUNCTION_PURIFY) {
+      purify_from_xp(xp, 0L);
+      gc_from_xp(xp, 0L);
+    }
+    if (selector & GC_TRAP_FUNCTION_SAVE_APPLICATION) {
+      OSErr err;
+      extern OSErr save_application(unsigned);
+      area *vsarea = tcr->vs_area;
+	
+      nrs_TOPLFUNC.vcell = *((LispObj *)(vsarea->high)-1);
+      err = save_application(arg);
+      if (err == noErr) {
+	exit(0);
+      }
+      fatal_oserr(": save_application", err);
+    }
+    if (selector == GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE) {
+      LispObj aligned_arg = align_to_power_of_2(arg, log2_nbits_in_word);
+      signed_natural 
+	delta_dnodes = ((signed_natural) aligned_arg) - 
+	((signed_natural) tenured_area->static_dnodes);
+      change_hons_area_size_from_xp(xp, delta_dnodes*dnode_size);
+      xpGPR(xp, Iimm0) = tenured_area->static_dnodes;
+    }
+    if (egc_was_enabled) {
+      egc_control(true, NULL);
+    }
+    break;
+  }
+  return true;
+}
+
+  
+Boolean
 handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
 {
   natural cur_allocptr, bytes_needed;
@@ -177,23 +260,103 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
     if ((info->si_addr) == 0) {
       /* Something mapped to SIGSEGV that has nothing to do with
 	 a memory fault */
-      if (*program_counter == 0xcd) {	/* an int instruction */
+      if (*program_counter == INTN_OPCODE) {
 	program_counter++;
-	if (*program_counter == 0xc5) {
+	switch (*program_counter) {
+	case UUO_ALLOC_TRAP:
 	  if (handle_alloc_trap(context, tcr)) {
-	    xpPC(context) = (natural) (program_counter+1);
+	    xpPC(context) += 2;	/* we might have GCed. */
 	    return true;
 	  }
-	}
-	if (*program_counter == 0xca) {
-	  lisp_Debugger(context, info, debug_entry_dbg, "Lisp Breakpoint");
-	    xpPC(context) = (natural) (program_counter+1);
+	  break;
+	case UUO_GC_TRAP:
+	  if (handle_gc_trap(context, tcr)) {
+	    xpPC(context) += 2;
 	    return true;
+	  }
+	  break;
+	  
+	case UUO_DEBUG_TRAP:
+	  lisp_Debugger(context, info, debug_entry_dbg, "Lisp Breakpoint");
+	  xpPC(context) = (natural) (program_counter+1);
+	  return true;
+
 	}
       }
     }
   }
   return false;
+}
+
+
+/* 
+   Current thread has all signals masked.  Before unmasking them,
+   make it appear that the current thread has been suspended.
+   (This is to handle the case where another thread is trying
+   to GC before this thread is able to seize the exception lock.)
+*/
+int
+prepare_to_wait_for_exception_lock(TCR *tcr, ExceptionInformation *context)
+{
+  int old_valence = tcr->valence;
+
+  tcr->pending_exception_context = context;
+  tcr->valence = TCR_STATE_EXCEPTION_WAIT;
+
+  ALLOW_EXCEPTIONS(context);
+  return old_valence;
+}  
+
+void
+wait_for_exception_lock_in_handler(TCR *tcr, 
+				   ExceptionInformation *context,
+				   xframe_list *xf)
+{
+
+  LOCK(lisp_global(EXCEPTION_LOCK), tcr);
+#if 0
+  fprintf(stderr, "0x%x has exception lock\n", tcr);
+#endif
+  xf->curr = context;
+  xf->prev = tcr->xframe;
+  tcr->xframe =  xf;
+  tcr->pending_exception_context = NULL;
+  tcr->valence = TCR_STATE_FOREIGN; 
+}
+
+void
+unlock_exception_lock_in_handler(TCR *tcr)
+{
+  tcr->pending_exception_context = tcr->xframe->curr;
+  tcr->xframe = tcr->xframe->prev;
+  tcr->valence = TCR_STATE_EXCEPTION_RETURN;
+  UNLOCK(lisp_global(EXCEPTION_LOCK),tcr);
+#if 0
+  fprintf(stderr, "0x%x released exception lock\n", tcr);
+#endif
+}
+
+/* 
+   If an interrupt is pending on exception exit, try to ensure
+   that the thread sees it as soon as it's able to run.
+*/
+void
+raise_pending_interrupt(TCR *tcr)
+{
+  if (TCR_INTERRUPT_LEVEL(tcr) > 0) {
+    pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), SIGNAL_FOR_PROCESS_INTERRUPT);
+  }
+}
+
+void
+exit_signal_handler(TCR *tcr, int old_valence)
+{
+  sigset_t mask;
+  sigfillset(&mask);
+  
+  pthread_sigmask(SIG_SETMASK,&mask, NULL);
+  tcr->valence = old_valence;
+  tcr->pending_exception_context = NULL;
 }
 
 void
@@ -203,13 +366,27 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
   int old_valence;
   TCR* tcr = get_tcr(false);
 
+  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
+  wait_for_exception_lock_in_handler(tcr,context, &xframe_link);
+
+
   if (! handle_exception(signum, info, context, tcr)) {
     char msg[512];
+    sigset_t mask;
+
+    sigemptyset(&mask);
+    sigaddset(&mask,SIGINT);
+    pthread_sigmask(SIG_BLOCK, &mask, NULL);
+
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
+    
     if (lisp_Debugger(context, info, signum, msg)) {
       SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     }
   }
+  unlock_exception_lock_in_handler(tcr);
+  exit_signal_handler(tcr, old_valence);
+  /* raise_pending_interrupt(tcr); */
 }
 
 LispObj *
@@ -409,4 +586,156 @@ setup_sigaltstack(area *a)
   stack.ss_flags = 0;
 
   sigaltstack(&stack, NULL);
+}
+
+void
+pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
+{
+  if (fulltag_of((LispObj)(tcr->save_allocptr)) != 0) {
+    /* Not handled yet */
+    Bug(NULL, "Other thread suspended during memory allocation");
+  }
+}
+
+void
+normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
+{
+  void *cur_allocptr = (void *)(tcr->save_allocptr);
+  LispObj lisprsp, lisptsp;
+  area *a;
+
+  if (xp) {
+    if (is_other_tcr) {
+      pc_luser_xp(xp, tcr);
+    }
+    tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
+    a = tcr->vs_area;
+    lisprsp = xpGPR(xp, Isp);
+    if (((BytePtr)lisprsp >= a->low) &&
+	((BytePtr)lisprsp < a->high)) {
+      a->active = (BytePtr)lisprsp;
+    } else {
+      a->active = (BytePtr) tcr->save_vsp;
+    }
+    a = tcr->ts_area;
+    a->active = (BytePtr) xpMMXreg(xp, Itsp);
+  } else {
+    /* In ff-call; get area active pointers from tcr */
+    tcr->vs_area->active = (BytePtr) tcr->save_vsp;
+    tcr->ts_area->active = (BytePtr) tcr->save_tsp;
+  }
+  if (cur_allocptr) {
+    update_bytes_allocated(tcr, cur_allocptr);
+  }
+}
+
+
+/* Suspend and "normalize" other tcrs, then call a gc-like function
+   in that context.  Resume the other tcrs, then return what the
+   function returned */
+
+int
+gc_like_from_xp(ExceptionInformation *xp, 
+                int(*fun)(TCR *, signed_natural), 
+                signed_natural param)
+{
+  TCR *tcr = get_tcr(false), *other_tcr;
+  ExceptionInformation* other_xp;
+  int result;
+  signed_natural inhibit;
+
+  suspend_other_threads(true);
+  inhibit = (signed_natural)(lisp_global(GC_INHIBIT_COUNT));
+  if (inhibit != 0) {
+    if (inhibit > 0) {
+      lisp_global(GC_INHIBIT_COUNT) = (LispObj)(-inhibit);
+    }
+    resume_other_threads(true);
+    return 0;
+  }
+
+  xpGPR(xp, Iallocptr) = VOID_ALLOCPTR;
+
+  normalize_tcr(xp, tcr, false);
+
+
+  for (other_tcr = tcr->next; other_tcr != tcr; other_tcr = other_tcr->next) {
+    if (other_tcr->pending_exception_context) {
+      other_tcr->gc_context = other_tcr->pending_exception_context;
+    } else if (other_tcr->valence == TCR_STATE_LISP) {
+      other_tcr->gc_context = other_tcr->suspend_context;
+    } else {
+      /* no pending exception, didn't suspend in lisp state:
+	 must have executed a synchronous ff-call. 
+      */
+      other_tcr->gc_context = NULL;
+    }
+    normalize_tcr(other_tcr->gc_context, other_tcr, true);
+  }
+    
+
+
+  result = fun(tcr, param);
+
+  other_tcr = tcr;
+  do {
+    other_tcr->gc_context = NULL;
+    other_tcr = other_tcr->next;
+  } while (other_tcr != tcr);
+
+  resume_other_threads(true);
+
+  return result;
+
+}
+
+int
+change_hons_area_size_from_xp(ExceptionInformation *xp, signed_natural delta_in_bytes)
+{
+  return gc_like_from_xp(xp, change_hons_area_size, delta_in_bytes);
+}
+
+int
+purify_from_xp(ExceptionInformation *xp, signed_natural param)
+{
+  return gc_like_from_xp(xp, purify, param);
+}
+
+int
+impurify_from_xp(ExceptionInformation *xp, signed_natural param)
+{
+  return gc_like_from_xp(xp, impurify, param);
+}
+
+/* Returns #bytes freed by invoking GC */
+
+int
+gc_from_tcr(TCR *tcr, signed_natural param)
+{
+  area *a;
+  BytePtr oldfree, newfree;
+  BytePtr oldend, newend;
+
+#if 0
+  fprintf(stderr, "Start GC  in 0x%lx\n", tcr);
+#endif
+  a = active_dynamic_area;
+  oldend = a->high;
+  oldfree = a->active;
+  gc(tcr, param);
+  newfree = a->active;
+  newend = a->high;
+#if 0
+  fprintf(stderr, "End GC  in 0x%lx\n", tcr);
+#endif
+  return ((oldfree-newfree)+(newend-oldend));
+}
+
+int
+gc_from_xp(ExceptionInformation *xp, signed_natural param)
+{
+  int status = gc_like_from_xp(xp, gc_from_tcr, param);
+
+  freeGCptrs();
+  return status;
 }
