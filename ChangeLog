@@ -1,3 +1,13 @@
+2006-04-04 15:18  gb
+
+	* compiler/X86/x86-lapmacros.lisp: check-nargs: bad comparison on
+	max when both min and max.
+
+2006-04-04 15:18  gb
+
+	* lib/macros.lisp, compiler/lambda-list.lisp: %LFUN-INFO & friends:
+	do (FUNCTION-TO-FUNCTION-VECTOR).
+
 2006-04-03 23:01  gb
 
 	* lisp-kernel/x86-gc.c: Make purify() a nop, for now.
