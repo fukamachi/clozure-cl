@@ -20,7 +20,7 @@
 
 ;;; Compiler functions needed elsewhere
 
-; used-by: backtrace, fred-additions
+;;; used-by: backtrace, arglist
 (defun function-symbol-map (fn)
   (getf (%lfun-info fn) 'function-symbol-map))
 
@@ -29,11 +29,11 @@
        (let ((bits (lfun-bits fn)))
          (declare (fixnum bits))
          (and (logbitp $lfbits-symmap-bit bits)
-               (%i- (uvsize fn)
+               (%i- (uvsize (function-to-function-vector fn))
                               (if (logbitp $lfbits-noname-bit bits) 2 3))))))
 (defun %lfun-info (fn)
   (let* ((index (%lfun-info-index fn)))
-    (if index (%svref fn index))))
+    (if index (%svref (function-to-function-vector fn) index))))
 
 (defun uncompile-function (fn)
   (getf (%lfun-info fn) 'function-lambda-expression ))
@@ -41,17 +41,12 @@
 
 ;;; Lambda-list utilities
 
-; We should handle/encode (&allow-other-keys) w/o keywords - might tell the compiler
-; or user something.
-; We should think harder before writing bogus & misleading comments.
-; Tar is not a plaything.
-
 
 
 ;;; Lambda-list verification:
 
-; these things MUST be compiled.
-(eval-when (load)
+;;; these things MUST be compiled.
+(eval-when (:load-toplevel)
 
 (defvar *structured-lambda-list* nil)
 
@@ -80,4 +75,4 @@
 
 ) ; end of eval-when (load)
 
-; End of verify-lambda-list.lisp
+;;; End of verify-lambda-list.lisp
