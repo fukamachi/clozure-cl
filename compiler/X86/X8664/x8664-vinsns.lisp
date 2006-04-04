@@ -1638,7 +1638,7 @@
   :test
   (cmpb (:$b x8664::unbound-marker) (:%b dest))
   (jne.pt :done)
-  (uuo-error-reg-not-tag (:%q src) (:$ub x8664::unbound-marker))
+  (uuo-error-unbound (:%q src))
   :done)
 
 
@@ -3103,8 +3103,7 @@
   (movq (:@ x8664::misc-data-offset (:%q instance) (:%q index)) (:%q dest))
   (cmpb (:$b x8664::slot-unbound-marker) (:%b dest))
   (jne.pt :ok)
-  ;; Need something better/more recoverable here
-  (uuo-error-reg-not-type (:%q index) (:$ub x8664::slot-unbound-marker))
+  (uuo-error-slot-unbound (:%q instance) (:%q index))
   :ok)
 
 (define-x8664-vinsn eep.address (((dest t))
@@ -3113,7 +3112,7 @@
         (:%q dest))
   (cmpb (:$b x8664::fulltag-nil) (:%b dest))
   (jne :ok)
-  (uuo-error-reg-not-tag (:%q src) (:$ub x8664::fulltag-nil))
+  (uuo-error-eep-unresolved (:%q src))
   :ok)
 
 (define-x8664-subprim-call-vinsn (heap-cons-rest-arg) .SPheap-cons-rest-arg)
