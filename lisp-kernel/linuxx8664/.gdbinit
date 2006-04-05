@@ -63,4 +63,4 @@ handle SIGILL pass nostop noprint
 handle SIGSEGV pass nostop noprint
 handle SIGBUS pass nostop noprint
 handle SIGFPE pass nostop noprint
-handle SIGEMT pass nostop noprint
+handle SIGPWR pass nostop noprint
