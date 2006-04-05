@@ -17,11 +17,54 @@
 
 (in-package "CCL")
 
-;;; Most/all of the callbacks we'd get from the kernel will be in
-;;; response to UUOs, and most/all of them should come here.
+;;; The order in which GPRs appear in an exception context generally
+;;; has nothing to do with how they're encoded in instructions/uuos,
+;;; and is OS-dependent.
 
-;;;
-(defparameter xcmain nil)
+#+linuxx8664-target
+(progn
+  (defconstant gp-regs-offset (/ (+ (get-field-offset :ucontext.uc_mcontext)
+                                    (get-field-offset :mcontext_t.gregs))
+                                 8))
+  (defparameter *encoded-gpr-to-indexed-gpr*
+    #(13                                ;rax
+      14                                ;rcx
+      12                                ;rdx
+      11                                ;rbx
+      15                                ;rsp
+      10                                ;rbp
+      9                                 ;rsi
+      8                                 ;rdi
+      0                                 ;r8
+      1                                 ;r9
+      2                                 ;r10
+      3                                 ;r11
+      4                                 ;r12
+      5                                 ;r13
+      6                                 ;r14
+      7                                 ;r15
+      ))
+  (defun indexed-gpr-lisp (xp igpr)
+    (%get-object xp (+ gp-regs-offset (ash igpr x8664::word-shift))))
+  (defun (setf indexed-gpr-lisp) (new xp igpr)
+    (%set-object xp (+ gp-regs-offset (ash igpr x8664::word-shift)) new))
+  (defun encoded-gpr-lisp (xp gpr)
+    (indexed-gpr-lisp xp (aref *encoded-gpr-to-indexed-gpr* gpr)))
+  (defun (setf encoded-gpr-lisp) (new xp gpr)
+    (setf (indexed-gpr-lisp xp (aref *encoded-gpr-to-indexed-gpr* gpr)) new))
+  (defun indexed-gpr-integer (xp igpr)
+    (%get-signed-long-long xp (+ gp-regs-offset (ash igpr x8664::word-shift))))
+  (defun (setf indexed-gpr-integer) (new xp igpr)
+    (setf
+     (%get-signed-long-long xp (+ gp-regs-offset (ash igpr x8664::word-shift)))
+     new))
+  (defun encoded-gpr-integer (xp gpr)
+    (indexed-gpr-integer xp (aref *encoded-gpr-to-indexed-gpr* gpr)))
+  (defun (setf encoded-gpr-integer) (new xp gpr)
+    (setf (indexed-gpr-integer xp (aref *encoded-gpr-to-indexed-gpr* gpr)) new)))
+      
+      
+
 
 (defun handle-gc-hooks ()
   (let ((bits *gc-event-status-bits*))
@@ -32,3 +75,10 @@
                          bits))
            (let ((f *post-gc-hook*))
              (when (functionp f) (funcall f)))))))
+
+
+
+(defcallback xcmain ()
+  (cmain))
+
+
