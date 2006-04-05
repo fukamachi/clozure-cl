@@ -1,3 +1,42 @@
+2006-04-05 06:57  gb
+
+	* lisp-kernel/x86-spentry64.s: nthrow variants: set %Rforeign_sp,
+	not tcr slot.
+	
+	_SPcallback aligns the foreign stack the way that lisp expects.
+
+2006-04-05 06:56  gb
+
+	* lisp-kernel/x86-exceptions.c: Handle more stuff, including
+	interrupt callbacks.
+
+2006-04-05 06:55  gb
+
+	* library/x8664-linux-syscalls.lisp: GETUID was wrong.
+
+2006-04-05 06:55  gb
+
+	* level-1/x86-trap-support.lisp: VERY early callback for interrupt
+	handling.
+
+2006-04-05 06:54  gb
+
+	* level-1/l1-callbacks.lisp: Comment format
+
+2006-04-05 06:54  gb
+
+	* level-0/X86/x86-utils.lisp: Arg order in lap macros.
+
+2006-04-05 06:54  gb
+
+	* level-0/l0-pred.lisp: Get *IMMHEADER-2-TYPES* (or whatever it's
+	called) right.
+
+2006-04-05 06:53  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: DEFCALLBACK guts for
+	X8664.
+
 2006-04-05 05:20  gb
 
 	* lisp-kernel/x86-exceptions.c: Do some callbacks.  Let's see if
