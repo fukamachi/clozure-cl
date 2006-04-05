@@ -335,7 +335,7 @@ unsigned unsigned_max(unsigned x, unsigned y)
 #define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
 #endif
 #ifdef PPC
-#define MAXIMUM_MAPPABLE_MEMORY (256L<<30L)
+#define MAXIMUM_MAPPABLE_MEMORY (128L<<30L)
 #endif
 #endif
 #else
