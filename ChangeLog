@@ -1,3 +1,13 @@
+2006-04-04 18:51  gb
+
+	* lisp-kernel/pmcl-kernel.c: Wimp out, back to 128GB for
+	LinuxPPC64.
+
+2006-04-04 18:50  gb
+
+	* level-1/linux-files.lisp: Don't use %GET-NATURAL in Linux version
+	of PIPE, since file descriptors are always C ints.
+
 2006-04-04 18:03  gb
 
 	* compiler/PPC/PPC32/ppc32-backend.lisp,
