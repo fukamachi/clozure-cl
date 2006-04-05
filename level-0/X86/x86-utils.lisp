@@ -325,7 +325,7 @@
 
 
 (defx86lapfunction %class-of-instance ((i arg_z))
-  (svref arg_z instance.class-wrapper i)
+  (svref i instance.class-wrapper arg_z)
   (svref arg_z %wrapper-class arg_z)
   (single-value-return))
 
@@ -484,22 +484,22 @@ be somewhat larger than what was specified)."
 (defx86lapfunction %macptr-domain ((p arg_z))
   (check-nargs 1)
   (trap-unless-typecode= p x8664::subtag-macptr)
-  (svref imm0 x8664::macptr.domain-cell p)
-  (box-fixnum arg_z imm0)
+  (svref p x8664::macptr.domain-cell imm0)
+  (box-fixnum imm0 arg_z)
   (single-value-return))
 
 (defx86lapfunction %set-macptr-type ((p arg_y) (new arg_z))
   (check-nargs 2)
-  (unbox-fixnum imm1 new)
+  (unbox-fixnum new imm1)
   (trap-unless-typecode= p x8664::subtag-macptr)
-  (svset imm1 x8664::macptr.type-cell p)
+  (svset p x8664::macptr.type-cell imm1)
   (single-value-return))
 
 (defx86lapfunction %set-macptr-domain ((p arg_y) (new arg_z))
   (check-nargs 2)
-  (unbox-fixnum imm1 new)
+  (unbox-fixnum new imm1)
   (trap-unless-typecode= p x8664::subtag-macptr)
-  (svset imm1 x8664::macptr.domain-cell p)
+  (svset p x8664::macptr.domain-cell imm1)
   (single-value-return))
 
 (defx86lapfunction true ()
