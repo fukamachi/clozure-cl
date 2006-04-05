@@ -63,7 +63,7 @@
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::umount2 166 (:address) :signed-fullword )
 
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::setuid 105 (:unsigned-fullword) :signed-fullword )
-(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getuid 104 () :unsigned-fullword )
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getuid 102 () :unsigned-fullword )
 
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::ptrace 101 (:unsigned-fullword
 				  :unsigned-fullword
