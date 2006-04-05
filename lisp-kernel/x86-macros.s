@@ -419,3 +419,24 @@ define([discard_temp_frame],[
 	movq ($1),%tsp
 	movq %tsp,%next_tsp
 ])	
+
+define([check_pending_enabled_interrupt],[
+	btrq [$]63,%rcontext:tcr.interrupt_pending
+	jnc,pt $1
+	interrupt_now()
+])
+	
+/* $1 = scratch register, used to access tcr.tlb_pointer.  An interrupt
+   should be taken if interrupts are enabled and the most significant
+   bit of tcr.interrupt_pending is set.  If we take the interrupt, we
+   test and clear the pending bit.
+*/
+define([check_pending_interrupt],[
+	new_macro_labels()
+	movq %rcontext:tcr.tlb_pointer,$1
+	cmpq [$]0,INTERRUPT_LEVEL_BINDING_INDEX($1)
+	js,pt macro_label(done)
+	check_pending_enabled_interrupt(macro_label(done))
+macro_label(done):
+])
+			
