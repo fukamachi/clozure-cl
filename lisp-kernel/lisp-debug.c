@@ -542,7 +542,7 @@ debug_show_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 	    Iregnames[a], xpGPR(xp, a),
 	    Iregnames[b], xpGPR(xp, b));
   }
-  fprintf(stderr, "rip - 0x%016lX    rflags = 0x%016lX\n",
+  fprintf(stderr, "rip = 0x%016lX    rflags = 0x%016lX\n",
 	  xpGPR(xp, Iip), xpGPR(xp, Iflags));
 #endif
   return debug_continue;
