@@ -22,6 +22,120 @@
   (require "NXENV")
   (require "X8664ENV"))
 
+
+(defun define-x8664-callback (name args body env)
+  (let* ((stack-word (gensym))
+         (stack-ptr (gensym))
+         (gpr-arg-num 0)
+         (gpr-arg-offset -8)
+         (fpr-arg-num 0)
+         (fpr-arg-offset -56)
+         (memory-arg-offset 16)
+         (arg-names ())
+         (arg-types ())
+         (return-type :void)
+         (args args)
+         (woi nil)
+         (dynamic-extent-names ()))
+    (loop
+      (when (null args) (return))
+      (when (null (cdr args))
+        (setq return-type (car args))
+        (return))
+      (if (eq (car args) :without-interrupts)
+        (setq woi (cadr args) args (cddr args))
+        (if (eq (car args) :error-return)
+          (error ":error-return not yet supported on this target")
+          (progn
+            (push (foreign-type-to-representation-type (pop args)) arg-types)
+            (push (pop args) arg-names)))))
+    (setq arg-names (nreverse arg-names)
+          arg-types (nreverse arg-types))
+    (setq return-type (foreign-type-to-representation-type return-type))
+    (when (eq return-type :void)
+      (setq return-type nil))
+    (let* ((lets
+            (flet ((next-gpr ()
+                     (if (< (incf gpr-arg-num) 6)
+                       (prog1
+                           gpr-arg-offset
+                         (decf gpr-arg-offset 8))
+                       (prog1
+                           memory-arg-offset
+                         (incf memory-arg-offset 8))))
+                   (next-fpr ()
+                       (if (< (incf fpr-arg-num) 6)
+                         (prog1
+                             fpr-arg-offset
+                           (decf fpr-arg-offset -8))
+                         (prog1
+                             memory-arg-offset
+                           (incf memory-arg-offset 8)))))
+              (mapcar
+               #'(lambda (name type)
+                   (let* ((fp nil))
+                     (list name
+                           `(,
+                             (ecase type
+                               (:single-float (setq fp t) '%get-single-float)
+                               (:double-float (setq fp t) '%get-double-float)
+                               (:signed-doubleword  '%%get-signed-longlong)
+                               (:signed-fullword '%get-signed-long)
+                               (:signed-halfword '%get-signed-word)
+                               (:signed-byte '%get-signed-byte)
+                               (:unsigned-doubleword '%%get-unsigned-longlong)
+                               (:unsigned-fullword '%get-unsigned-long)
+                               (:unsigned-halfword '%get-unsigned-word)
+                               (:unsigned-byte '%get-unsigned-byte)
+                               (:address
+                                (push name dynamic-extent-names)
+                                '%get-ptr))
+                             ,stack-ptr
+                             ,(if fp (next-fpr) (next-gpr))))))
+	      arg-names arg-types))))
+      (multiple-value-bind (body decls doc) (parse-body body env t)
+        `(progn
+           (declaim (special ,name))
+           (define-callback-function
+             (nfunction ,name
+                        (lambda (,stack-word)
+                          (declare (ignorable ,stack-word))
+                            (with-macptrs (,@(and lets (list `(,stack-ptr))))
+                              ,(when lets
+                                 `(%setf-macptr-to-object ,stack-ptr ,stack-word))
+                              ,(defcallback-body  stack-ptr lets dynamic-extent-names
+                                                 decls `((block ,name ,@body)) return-type))))
+             ,doc
+             ,woi))))))
+
+(defun defcallback-body-x8664 (stack-ptr lets dynamic-extent-names decls body return-type)
+  (let* ((result (gensym))
+         (result-offset -8)
+         (body
+   	  `            (let ,lets
+              (declare (dynamic-extent ,@dynamic-extent-names))
+              ,@decls
+
+              (let ((,result (progn ,@body)))
+                (declare (ignorable ,result))
+                ,@(progn
+                   ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
+                   (when (eq return-type :single-float)
+                     (setq result `(float ,result 0.0d0)))
+                   nil)
+
+                ,(when return-type
+                       `(setf (,
+                               (case return-type
+                                 (:address '%get-ptr)
+                                 (:signed-doubleword '%%get-signed-longlong)
+                                 (:unsigned-doubleword '%%get-unsigned-longlong)
+                                 ((:double-float :single-float) '%get-double-float)
+                                 (t  '%%get-signed-longlong))
+                               ,stack-ptr ,result-offset) ,result))))))
+      body))
+
+
 (defvar *x8664-vinsn-templates* (make-hash-table :test #'eq))
 
 
@@ -53,6 +167,8 @@
 		:target-arch-name :x8664
 		:target-foreign-type-data nil
                 :target-arch x8664::*x8664-target-arch*
+                :define-callback 'define-x8664-callback
+                :defcallback-body 'defcallback-body-x8664
                 ))
 
 
@@ -77,7 +193,10 @@
 		:name :darwinx8664
 		:target-arch-name :x8664
 		:target-foreign-type-data nil
-                :target-arch x8664::*x8664-target-arch*))
+                :target-arch x8664::*x8664-target-arch*
+                :define-callback 'define-x8664-callback
+                :defcallback-body 'defcallback-body-x8664
+                ))
 
 #+(or linuxx86-target (not x86-target))
 (pushnew *linuxx8664-backend* *known-x8664-backends* :key #'backend-name)
