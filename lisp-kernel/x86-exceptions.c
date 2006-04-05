@@ -251,12 +251,53 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
   return false;
 }
 
+int
+callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
+                  natural arg1, natural arg2, natural arg3, natural arg4, natural arg5)
+{
+  sigset_t mask;
+  natural  callback_ptr, i;
+  int delta;
+
+
+
+  /* Put the active stack pointers where .SPcallback expects them */
+  tcr->save_vsp = (LispObj *) xpGPR(xp, Isp);
+  tcr->save_tsp = (LispObj *) xpMMXreg(xp, Itsp);
+
+
+
+  /* Call back.
+     Lisp will handle trampolining through some code that
+     will push lr/fn & pc/nfn stack frames for backtrace.
+  */
+  callback_ptr = ((macptr *)ptr_from_lispobj(untag(callback_macptr)))->address;
+  UNLOCK(lisp_global(EXCEPTION_LOCK), tcr);
+  delta = ((int (*)())callback_ptr) (xp, arg1, arg2, arg3, arg4, arg5);
+  LOCK(lisp_global(EXCEPTION_LOCK), tcr);
+  return delta;
+}
+
+void
+callback_for_interrupt(TCR *tcr, ExceptionInformation *xp)
+{
+  callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, 0, 0, 0, 0, 0);
+}
+
+
+Boolean
+handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
+{
+  return false;
+}
+
 Boolean
 handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
 {
   pc program_counter = (pc)xpPC(context);
 
-  if (signum == SIGSEGV) {
+  switch (signum) {
+  case SIGSEGV:
     if ((info->si_addr) == 0) {
       /* Something mapped to SIGSEGV that has nothing to do with
 	 a memory fault */
@@ -282,8 +323,36 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	  return true;
 
 	}
+      } else if ((program_counter[0] == XUUO_OPCODE_0) &&
+		 (program_counter[1] == XUUO_OPCODE_1)) {
+	switch (program_counter[2]) {
+	case XUUO_TLB_TOO_SMALL:
+	  return false;
+	  break;
+	  
+	case XUUO_INTERRUPT_NOW:
+	  callback_for_interrupt(tcr,context);
+	  xpPC(xp)+=3;
+	  return true;
+
+	default:
+	  return false;
+	}
+      } else {
+	return false;
       }
+
+    } else {
+      return handle_fault(tcr, context, info);
     }
+    break;
+
+  case SIGNAL_FOR_PROCESS_INTERRUPT:
+    callback_for_interrupt(tcr, context);
+    return true;
+    break;
+    
+    
   }
   return false;
 }
