@@ -762,9 +762,9 @@
     single-float-vector))
 
 (defparameter *immheader-2-types*
-  #(macptr
+  #(bogus
+    macptr
     dead-macptr
-    bogus
     bogus
     bogus
     bogus
