@@ -1,3 +1,14 @@
+2006-04-04 18:03  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp,
+	compiler/PPC/PPC64/ppc64-backend.lisp, lib/macros.lisp: callback
+	implementation moved to the backend.
+
+2006-04-04 18:02  gb
+
+	* lib/arglist.lisp: ARGLIST-FROM-MAP: get &rest name right when
+	&key is also present.
+
 2006-04-04 16:10  gb
 
 	* lisp-kernel/pmcl-kernel.c: linuxppc64 can't mmap 512GB; try
