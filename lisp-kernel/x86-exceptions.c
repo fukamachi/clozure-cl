@@ -463,7 +463,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
   TCR *tcr = get_interrupt_tcr(false);
   if (tcr) {
     if (TCR_INTERRUPT_LEVEL(tcr) < 0) {
-      tcr->interrupt_pending = 1 << fixnumshift;
+      tcr->interrupt_pending = (1L << (nbits_in_word - 1L));
     } else {
       LispObj cmain = nrs_CMAIN.vcell;
 
@@ -479,7 +479,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	*/
 	if ((tcr->valence != TCR_STATE_LISP) ||
             (tcr->unwinding != 0)) {
-	  TCR_INTERRUPT_LEVEL(tcr) = (1 << fixnumshift);
+	  tcr->interrupt_pending = (1L << (nbits_in_word - 1L));
 	} else {
 	  xframe_list xframe_link;
 	  int old_valence;
