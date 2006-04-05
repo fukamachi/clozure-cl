@@ -323,21 +323,6 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	  return true;
 
 	}
-      } else if ((program_counter[0] == XUUO_OPCODE_0) &&
-		 (program_counter[1] == XUUO_OPCODE_1)) {
-	switch (program_counter[2]) {
-	case XUUO_TLB_TOO_SMALL:
-	  return false;
-	  break;
-	  
-	case XUUO_INTERRUPT_NOW:
-	  callback_for_interrupt(tcr,context);
-	  xpPC(xp)+=3;
-	  return true;
-
-	default:
-	  return false;
-	}
       } else {
 	return false;
       }
@@ -351,10 +336,32 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
     callback_for_interrupt(tcr, context);
     return true;
     break;
+
+
+  case SIGILL:
+    if ((program_counter[0] == XUUO_OPCODE_0) &&
+	(program_counter[1] == XUUO_OPCODE_1)) {
+      switch (program_counter[2]) {
+      case XUUO_TLB_TOO_SMALL:
+	return false;
+	break;
+	
+      case XUUO_INTERRUPT_NOW:
+	callback_for_interrupt(tcr,context);
+	xpPC(context)+=3;
+	return true;
+	
+      default:
+	return false;
+      }
+    } else {
+      return false;
+    }
+    break;
     
-    
+  default:
+    return false;
   }
-  return false;
 }
 
 
