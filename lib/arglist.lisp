@@ -165,10 +165,12 @@
                     (push '&optional res)
                     (dotimes (x (the fixnum nopt))
                       (push (if (> idx 0) (elt map (decf idx)) (make-arg "OPT" x)) res)))
+
                   (when restp
                     (push '&rest res)
-                    (push (if (> idx 0) (elt map (decf idx)) 'the-rest) res))
-                  (when nkeys
+                    (when nkeys
+                      (when (> idx nkeys) (decf idx nkeys)))
+                    (push (if (> idx 0) (elt map (decf idx)) 'the-rest) res))                  (when nkeys
                     (push '&key res)
                     (let ((keyvect (lfun-keyvect lfun)))
                       (dotimes (i (length keyvect))
