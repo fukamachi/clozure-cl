@@ -1,3 +1,16 @@
+2006-04-04 21:47  gb
+
+	* lisp-kernel/x86-spentry64.s: callback changes.
+
+2006-04-04 21:47  gb
+
+	* lisp-kernel/lisp-debug.c: rip "=", not "-".
+
+2006-04-04 21:46  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: Ignore SIGPWR, until we know
+	better.
+
 2006-04-04 18:51  gb
 
 	* lisp-kernel/pmcl-kernel.c: Wimp out, back to 128GB for
