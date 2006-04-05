@@ -1,3 +1,27 @@
+2006-04-05 05:20  gb
+
+	* lisp-kernel/x86-exceptions.c: Do some callbacks.  Let's see if
+	they work yet.
+
+2006-04-05 05:19  gb
+
+	* lisp-kernel/x86-spentry64.s: Use interrupt-checking macros.  Fix
+	callback typos.
+
+2006-04-05 05:19  gb
+
+	* lisp-kernel/x86-macros.s: Check for interrupts, and do so when we
+	know that they've just become enabled.
+
+2006-04-05 05:17  gb
+
+	* lisp-kernel/x86-exceptions.c: Set high bit of tcr->interrupt
+	pending when there's ... a pending interrupt.
+
+2006-04-05 05:17  gb
+
+	* lisp-kernel/x86-exceptions.h: Define xuuo stuff.
+
 2006-04-04 21:47  gb
 
 	* lisp-kernel/x86-spentry64.s: callback changes.
