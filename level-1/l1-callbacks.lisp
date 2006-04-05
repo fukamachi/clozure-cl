@@ -43,7 +43,7 @@
   (unless (functionp lisp-function)
     (setq lisp-function (require-type lisp-function 'function)))
   (unless (and (symbolp (setq name (function-name lisp-function)))
-               ;Might as well err out now before do any _Newptr's...
+               ;;Might as well err out now before do any _Newptr's...
                (not (constant-symbol-p name)))
     (report-bad-arg name '(and symbol (not (satisfies constantp)))))
   (with-lock-grabbed (*callback-lock*)
