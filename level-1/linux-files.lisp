@@ -575,7 +575,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
   (%stack-block ((pipes 8))
     (let* ((status (syscall syscalls::pipe pipes)))
       (if (= 0 status)
-	(values (%get-natural pipes 0) (%get-natural pipes 4))
+	(values (%get-long pipes 0) (%get-long pipes 4))
 	(%errno-disp status)))))
 
 
@@ -849,47 +849,15 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
                     
             #'run-external-process proc in-fd out-fd error-fd)
            (wait-on-semaphore (external-process-signal proc))
-      )
+           )
 
-    (dolist (fd close-in-parent) (fd-close fd))
-    (unless (external-process-pid proc)
-      (dolist (fd close-on-error) (fd-close fd)))
-    (when (and wait (external-process-pid proc))
-      (wait-on-semaphore (external-process-completed proc))))
+      (dolist (fd close-in-parent) (fd-close fd))
+      (unless (external-process-pid proc)
+        (dolist (fd close-on-error) (fd-close fd)))
+      (when (and wait (external-process-pid proc))
+        (wait-on-semaphore (external-process-completed proc))))
     (and (external-process-pid proc) proc)))
 
-#|
-       WIFEXITED(status)
-              is non-zero if the child exited normally.
-
-       WEXITSTATUS(status)
-              evaluates to the least significant  eight  bits  of
-              the  return  code  of  the  child which terminated,
-              which may have been set as the argument to  a  call
-              to exit() or as the argument for a return statement
-              in the main program.  This macro can only be evalu­
-           ated if WIFEXITED returned non-zero.
-
-       WIFSIGNALED(status)
-              returns true if the child process exited because of
-              a signal which was not caught.
-
-       WTERMSIG(status)
-              returns the number of the signal  that  caused  the
-              child  process to terminate. This macro can only be
-              evaluated if WIFSIGNALED returned non-zero.
-
-       WIFSTOPPED(status)
-              returns true if the child process which caused  the
-              return  is currently stopped; this is only possible
-              if the call was done using WUNTRACED.
-
-       WSTOPSIG(status)
-              returns the number of the signal which  caused  the
-              child to stop.  This macro can only be evaluated if
-              WIFSTOPPED returned non-zero.
-
-|#
 
 (defmacro wtermsig (status)
   `(ldb (byte 7 0) ,status))
