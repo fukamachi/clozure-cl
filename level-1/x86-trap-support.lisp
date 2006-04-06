@@ -61,24 +61,53 @@
   (defun encoded-gpr-integer (xp gpr)
     (indexed-gpr-integer xp (aref *encoded-gpr-to-indexed-gpr* gpr)))
   (defun (setf encoded-gpr-integer) (new xp gpr)
-    (setf (indexed-gpr-integer xp (aref *encoded-gpr-to-indexed-gpr* gpr)) new)))
+    (setf (indexed-gpr-integer xp (aref *encoded-gpr-to-indexed-gpr* gpr)) new))
+  (defun indexed-gpr-macptr (xp igpr)
+    (%get-ptr xp (+ gp-regs-offset (ash igpr x8664::word-shift))))
+  (defun (setf indexed-gpr-macptr) (new xp igpr)
+    (setf (%get-ptr xp (+ gp-regs-offset (ash igpr x8664::word-shift))) new))
+  (defun indexed-gpr-macptr (xp igpr)
+    (%get-ptr xp (+ gp-regs-offset (ash igpr x8664::word-shift))))
+  (defun encoded-gpr-macptr (xp gpr)
+    (indexed-gpr-macptr xp (aref *encoded-gpr-to-indexed-gpr* gpr)))
+  (defun (setf encoded-gpr-macptr) (new xp gpr)
+    (setf (indexed-gpr-macptr xp (aref *encoded-gpr-to-indexed-gpr* gpr)) new))
+  )
       
-      
+(defun funcall-with-xp-stack-frames (xp trap-function thunk)
+  (cond ((null trap-function)
+         ;; Maybe inside a subprim from a lisp function
+         (let* ((fn (encoded-gpr-lisp xp x8664::fn))
+                (ra0 (encoded-gpr-lisp xp x8664::ra0)))
+           (if (eq fn (%return-address-function ra0))
+             (let* ((sp (encoded-gpr-lisp xp x8664::rsp))
+                    (rbp (encoded-gpr-lisp xp x8664::rbp))
+                    (frame (%cons-fake-stack-frame sp sp fn ra0 rbp xp *fake-stack-frames*))
+                    (*fake-stack-frames* frame))
+               (declare (dynamic-extent frame))
+               (funcall thunk frame))
+             (funcall thunk (encoded-gpr-lisp xp x8664::rsp)))))
+        ((eq trap-function (encoded-gpr-lisp xp x8664::fn))
+         (let* ((sp (encoded-gpr-lisp xp x8664::rsp))
+                (fn trap-function)
+                (ra0 (encoded-gpr-lisp xp x8664::ra0))
+                (rbp (encoded-gpr-lisp xp x8664::rbp))
+                (frame (%cons-fake-stack-frame sp sp fn ra0 rbp xp *fake-stack-frames*))
+                (*fake-stack-frames* frame))
+           (declare (dynamic-extent frame))
+           (funcall thunk frame)))
+        (t (funcall thunk (encoded-gpr-lisp xp x8664::rsp)))))      
 
 
-(defun handle-gc-hooks ()
-  (let ((bits *gc-event-status-bits*))
-    (declare (fixnum bits))
-    (cond ((logbitp $gc-postgc-pending-bit bits)
-           (setq *gc-event-status-bits*
-                 (logand (lognot (ash 1 $gc-postgc-pending-bit))
-                         bits))
-           (let ((f *post-gc-hook*))
-             (when (functionp f) (funcall f)))))))
 
 
 
-(defcallback xcmain ()
-  (cmain))
+
+
+(defcallback xcmain (:address xp :int function-index :int)
+  (let* ((fn (unless (eql 0 function-index)
+               (indexed-gpr-lisp xp function-index))))
+    (with-xp-stack-frames (xp fn)
+      (cmain))))
 
 
