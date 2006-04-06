@@ -732,8 +732,6 @@
   (multiple-value-bind (metaclass initargs)
       (ensure-class-metaclass-and-initargs class keys)
     (let* ((class (apply #'make-instance metaclass :name name initargs)))
-      (when (typep (instance.hash class) 'fixnum)
-        (setf (instance.hash class) name))
       (setf (find-class name) class))))
 
 (defmethod ensure-class-using-class ((class forward-referenced-class) name &rest keys &key &allow-other-keys)
