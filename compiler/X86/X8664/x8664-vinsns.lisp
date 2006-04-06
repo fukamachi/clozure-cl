@@ -3103,7 +3103,7 @@
   (movq (:@ x8664::misc-data-offset (:%q instance) (:%q index)) (:%q dest))
   (cmpb (:$b x8664::slot-unbound-marker) (:%b dest))
   (jne.pt :ok)
-  (uuo-error-slot-unbound (:%q instance) (:%q index))
+  (uuo-error-slot-unbound (:%q dest) (:%q instance) (:%q index))
   :ok)
 
 (define-x8664-vinsn eep.address (((dest t))
@@ -3112,7 +3112,7 @@
         (:%q dest))
   (cmpb (:$b x8664::fulltag-nil) (:%b dest))
   (jne :ok)
-  (uuo-error-eep-unresolved (:%q src))
+  (uuo-error-eep-unresolved (:%q src) (:%q dest))
   :ok)
 
 (define-x8664-subprim-call-vinsn (heap-cons-rest-arg) .SPheap-cons-rest-arg)
