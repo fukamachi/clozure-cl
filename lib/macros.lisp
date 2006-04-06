@@ -3169,3 +3169,5 @@ to be at least partially steppable."
            (return))
          ,@body))))
    
+(defsetf interrupt-level set-interrupt-level)
+
