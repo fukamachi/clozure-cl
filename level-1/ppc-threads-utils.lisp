@@ -66,8 +66,6 @@
 ;;;
 
 
-(defsetf interrupt-level set-interrupt-level)
-
 
     
     
