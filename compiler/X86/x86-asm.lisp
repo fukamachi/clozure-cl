@@ -3329,6 +3329,10 @@
      #x0fae #o030 nil)
 
    ;; UUOs.  Expect lots more, some of which may take pseudo-operands.
+   (def-x8664-opcode uuo-error-slot-unbound ((:reg64 :insert-opcode-reg4)
+                                             (:reg64 :insert-reg4-pseudo-rm-high)
+                                             (:reg64 :insert-reg4-pseudo-rm-low))
+     #xcd80 0 nil)
    (def-x8664-opcode uuo-error-unbound ((:reg64 :insert-opcode-reg4))
      #xcd90 nil 0)
 
@@ -3365,10 +3369,9 @@
    (def-x8664-opcode uuo-error-debug-trap ()
      #xcdca nil nil)
 
-   (def-x8664-opcode uuo-error-slot-unbound ((:reg64 :insert-reg4-pseudo-rm-high) (:reg64 :insert-reg4-pseudo-rm-low))
-     #xcdcb 0 nil)
 
-   (def-x8664-opcode uuo-error-eep-unresolved ((:reg64 :insert-reg4-pseudo-rm-low))
+   (def-x8664-opcode uuo-error-eep-unresolved ((:reg64 :insert-reg4-pseudo-rm-high)
+                                               (:reg64 :insert-reg4-pseudo-rm-low))
      #xcdcc 0 nil)
    
    (def-x8664-opcode uuo-error-reg-not-tag ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
