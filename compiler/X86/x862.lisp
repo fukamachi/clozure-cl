@@ -586,12 +586,15 @@
     (x862-fixup-fwd-refs f))
   (let ((fwd-refs (afunc-fwd-refs afunc)))
     (when fwd-refs
-      (let* ((v (afunc-lfun afunc))
+      (let* ((v (function-to-function-vector (afunc-lfun afunc)))
              (vlen (uvsize v)))
         (declare (fixnum vlen))
         (dolist (ref fwd-refs)
           (let* ((ref-fun (afunc-lfun ref)))
-            (do* ((i 1 (1+ i)))
+            (do* ((i #+x8664-target (%function-code-words
+                                     (%function-vector-to-function v))
+                     #-x8664-target 1
+                     (1+ i)))
                  ((= i vlen))
               (declare (fixnum i))
               (if (eq (%svref v i) ref)
@@ -7446,6 +7449,7 @@
     (! progvrestore)
     (x862-open-undo)
     (@= protform-label)
+    (x862-dbind seg yreg '*interrupt-level*)
     (x862-undo-body seg vreg xfer body old-stack)))
 
 (defx862 x862-%ptr-eql %ptr-eql (seg vreg xfer cc x y )
