@@ -818,15 +818,7 @@
                         (list the-trap xp fn (ash pc-index ppc64::fixnumshift))
                         frame-ptr)))))))))
 
-#+ppc-target
-(defun handle-gc-hooks ()
-  (let ((bits *gc-event-status-bits*))
-    (declare (fixnum bits))
-    (cond ((logbitp $gc-postgc-pending-bit bits)
-           (setq *gc-event-status-bits*
-                 (logand (lognot (ash 1 $gc-postgc-pending-bit))
-                         bits))
-           (let ((f *post-gc-hook*))
-             (when (functionp f) (funcall f)))))))
+
+
 
 
