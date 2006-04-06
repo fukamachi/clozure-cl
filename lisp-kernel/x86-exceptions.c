@@ -281,9 +281,47 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
 void
 callback_for_interrupt(TCR *tcr, ExceptionInformation *xp)
 {
-  callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, 0, 0, 0, 0, 0);
+
+  callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, Ifn, 0, 0, 0, 0);
 }
 
+Boolean
+handle_error(TCR *tcr, ExceptionInformation *xp)
+{
+  pc program_counter = (pc)xpPC(xp);
+  unsigned char op0 = program_counter[0], op1 = program_counter[1], op2 = program_counter[2];
+  LispObj rpc = (LispObj) program_counter, current_function, errdisp = nrs_ERRDISP.vcell;
+  int rfn = 0, skip;
+
+  if ((fulltag_of(errdisp) == fulltag_misc) &&
+      (header_subtag(header_of(errdisp)) == subtag_macptr)) {
+    LispObj current_function = xpGPR(xp, Ifn), elements;
+ 
+    if (fulltag_of(current_function) == fulltag_function) {
+      elements = header_element_count(header_of(current_function));
+      if ((rpc > current_function) &&
+          (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
+        rfn = Ifn;
+        rpc -= current_function;
+      } else {
+        current_function = xpGPR(xp, Itemp1); /* temp1 aka xfn */
+        if (fulltag_of(current_function) == fulltag_function) {
+          elements = header_element_count(header_of(current_function));
+          if ((rpc > current_function) &&
+              (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
+            rfn = Itemp1;
+            rpc -= current_function;
+          }
+        }
+      }
+    }
+    skip = callback_to_lisp(tcr, errdisp, xp, rfn, op0, op1, op2, 0);
+    xpPC(xp) += skip;
+    return true;
+  } else {
+    return false;
+  }
+}
 
 Boolean
 handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
@@ -323,7 +361,7 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	  return true;
           
         default:
-          return false;
+          return handle_error(tcr, context);
 	}
       } else {
 	return false;
