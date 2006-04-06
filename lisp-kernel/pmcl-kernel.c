@@ -1459,9 +1459,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
 
   lisp_global(EXCEPTION_LOCK) = ptr_to_lispobj(new_recursive_lock());
   enable_fp_exceptions();
-#ifndef X8664
   register_sigint_handler();
-#endif
 
 #ifdef PPC
   lisp_global(ALTIVEC_PRESENT) = altivec_present << fixnumshift;
