@@ -1,3 +1,23 @@
+2006-04-06 07:03  gb
+
+	* lisp-kernel/x86-exceptions.c: Call out to handle errors.
+
+2006-04-06 07:03  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: Ignore more signals.
+
+2006-04-06 06:44  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Use new UUOs for
+	slot-boundp checks, eep.address.
+
+2006-04-06 06:43  gb
+
+	* compiler/X86/x862.lisp: X862-FIXUP-FWD-REFS: don't assume that
+	functions are uvectors or that their constants start at index 1.
+	
+	PROGV: don't keep interrupts off in the body.
+
 2006-04-06 05:58  gb
 
 	* compiler/X86/x86-asm.lisp: RESOLVE-EEP uuo needs source and dest
