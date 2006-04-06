@@ -1,3 +1,72 @@
+2006-04-06 05:58  gb
+
+	* compiler/X86/x86-asm.lisp: RESOLVE-EEP uuo needs source and dest
+	registers to be recoverable.
+	
+	Use (int ($ #x8x)) for SLOT-UNBOUND, since it needs slot-vector,
+	index, and dest reg to be recoverable.
+	
+	Note that the use of this range of (int N) operands may lead to
+	confusion on platforms that use int #x80 for syscalls.	That (a)
+	doesn't apply to x8664, since SYSCALL is present and used on x8664
+	and (b) would only be a problem if the dest reg was %rax, which it
+	won't be.
+
+2006-04-06 05:53  gb
+
+	* lib/macros.lisp: DEFSETF for INTERRUPT-LEVEL here.
+
+2006-04-06 05:53  gb
+
+	* level-0/l0-init.lisp: Better (useful) X8664 *FEATURES*.
+
+2006-04-06 05:52  gb
+
+	* level-0/l0-hash.lisp: Remove some #+x86-target DBG traps.   Add a
+	few fixnum decls in and around DO-REHASH.
+
+2006-04-06 05:51  gb
+
+	* level-0/X86/x86-def.lisp: %RETURN-ADDRESS-FUNCTION: if argument
+	is a "real" tagged return address, return the associated function.
+
+2006-04-06 05:50  gb
+
+	* level-1/: x86-error-signal.lisp, x86-trap-support.lisp: Flesh
+	this out some.	The FAKE-STACK-FRAME stuff isn't quite the right
+	idea on X8664; may need to revise it.
+
+2006-04-06 05:49  gb
+
+	* level-1/ppc-trap-support.lisp: Remove HANDLE-GC-HOOKS.
+
+2006-04-06 05:49  gb
+
+	* level-1/ppc-threads-utils.lisp: DEFSETF for INTERRUPT-LEVEL moved
+	... anywhere but a platform-specific file.
+
+2006-04-06 05:48  gb
+
+	* level-1/l1-events.lisp: HANDLE-GC-HOOKS isn't really
+	platform-specific, so move it here.
+
+2006-04-06 05:47  gb
+
+	* level-1/: l1-clos-boot.lisp, l1-clos.lisp: Hashing code expects
+	instance.hash to be a fixnum, so violating that expectation (as was
+	done a few weeks ago for debugging) fouls things up royally.  This
+	may have led to instability on PPC as well.
+
+2006-04-06 05:44  gb
+
+	* lisp-kernel/x86-exceptions.c: Return false (for now) on unhandled
+	UUO.  (Need to merge code from another machine, which will try to
+	call out to lisp.)
+
+2006-04-06 05:43  gb
+
+	* lisp-kernel/pmcl-kernel.c: register_sigint_handler on x8664.
+
 2006-04-05 06:57  gb
 
 	* lisp-kernel/x86-spentry64.s: nthrow variants: set %Rforeign_sp,
