@@ -23,9 +23,8 @@
 
 #+linuxx8664-target
 (progn
-  (defconstant gp-regs-offset (/ (+ (get-field-offset :ucontext.uc_mcontext)
-                                    (get-field-offset :mcontext_t.gregs))
-                                 8))
+  (defconstant gp-regs-offset (+ (get-field-offset :ucontext.uc_mcontext)
+                                 (get-field-offset :mcontext_t.gregs)))
   (defparameter *encoded-gpr-to-indexed-gpr*
     #(13                                ;rax
       14                                ;rcx
@@ -80,23 +79,21 @@
          (let* ((fn (encoded-gpr-lisp xp x8664::fn))
                 (ra0 (encoded-gpr-lisp xp x8664::ra0)))
            (if (eq fn (%return-address-function ra0))
-             (let* ((sp (encoded-gpr-lisp xp x8664::rsp))
-                    (rbp (encoded-gpr-lisp xp x8664::rbp))
-                    (frame (%cons-fake-stack-frame sp sp fn ra0 rbp xp *fake-stack-frames*))
+             (let* ((rbp (encoded-gpr-lisp xp x8664::rbp))
+                    (frame (%cons-fake-stack-frame rbp rbp fn ra0 nil xp *fake-stack-frames*))
                     (*fake-stack-frames* frame))
                (declare (dynamic-extent frame))
                (funcall thunk frame))
-             (funcall thunk (encoded-gpr-lisp xp x8664::rsp)))))
+             (funcall thunk (encoded-gpr-lisp xp x8664::rbp)))))
         ((eq trap-function (encoded-gpr-lisp xp x8664::fn))
-         (let* ((sp (encoded-gpr-lisp xp x8664::rsp))
-                (fn trap-function)
+         (let* ((fn trap-function)
                 (ra0 (encoded-gpr-lisp xp x8664::ra0))
                 (rbp (encoded-gpr-lisp xp x8664::rbp))
-                (frame (%cons-fake-stack-frame sp sp fn ra0 rbp xp *fake-stack-frames*))
+                (frame (%cons-fake-stack-frame rbp rbp fn ra0 nil xp *fake-stack-frames*))
                 (*fake-stack-frames* frame))
            (declare (dynamic-extent frame))
            (funcall thunk frame)))
-        (t (funcall thunk (encoded-gpr-lisp xp x8664::rsp)))))      
+        (t (funcall thunk (encoded-gpr-lisp xp x8664::rbp)))))      
 
 
 
