@@ -653,7 +653,7 @@
   next					; in doubly-linked list
   single-float-convert                  ; faster to box/unbox through memory
   linear
-  linear-end
+  save-rbp                              ; lisp frame ptr for foreign code
   lisp-fpscr-high
   db-link				; special binding chain head 
   catch-top				; top catch frame 

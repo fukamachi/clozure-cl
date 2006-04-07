@@ -685,7 +685,7 @@ TCR_BIAS = 0
 	 _node(next)		/* in doubly-linked list */
          _node(single_float_convert)
 	 _node(linear)		/* our linear (non-segment-based) address. */
-         _node(linear_end)      /* linear, + TCR_BIAS */
+         _node(save_rbp)        /* lisp RBP when in foreign code */ 
 	 _word(lisp_mxcsr_low)
 	 _word(lisp_mxcsr_high)	/* lisp thread's fp status word */
 	 _node(db_link)		/* special binding chain head */

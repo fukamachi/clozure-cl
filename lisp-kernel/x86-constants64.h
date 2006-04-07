@@ -416,7 +416,7 @@ typedef struct tcr {
     float f;
   } single_float_convert;
   struct tcr* linear;
-  void *linear_end;
+  LispObj *save_rbp;            /* RBP when in foreign code */
   union {
     double d;
     struct {u_int32_t l, h;} words;
