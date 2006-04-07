@@ -1,3 +1,44 @@
+2006-04-06 21:27  gb
+
+	* lib/db-io.lisp: CDB-HASH-MASK happens to be =
+	PPC32::TARGET-MOST-POSITIVE-FIXNUM.
+
+2006-04-06 21:26  gb
+
+	* level-1/x86-trap-support.lisp: Bugs, not worth describing in
+	detail.
+
+2006-04-06 21:25  gb
+
+	* level-1/x86-error-signal.lisp: Bugs, not worth describing in
+	detail ...
+
+2006-04-06 21:24  gb
+
+	* level-1/l1-lisp-threads.lisp: Simplify CFP-LFUN.
+
+2006-04-06 21:23  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Fenceposts with the last
+	gpr/fpr args.
+
+2006-04-06 21:22  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: tcr->linear_end ->
+	tcr->save_rbp.
+
+2006-04-06 21:21  gb
+
+	* lisp-kernel/x86-spentry64.s: Maintain tcr->save_rbp on
+	ffcall/callback.
+
+2006-04-06 21:20  gb
+
+	* lisp-kernel/x86-exceptions.c: Setup tcr->save_rbp when doing a
+	callback.
+	
+	Pass rpc to %ERR-DISP, as it expects.
+
 2006-04-06 21:19  gb
 
 	* lisp-kernel/: x86-constants64.h, x86-constants64.s:
