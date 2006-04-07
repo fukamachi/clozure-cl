@@ -1,3 +1,24 @@
+2006-04-07 07:55  gb
+
+	* lib/describe.lisp: Formatting changes, mostly.
+
+2006-04-07 07:54  gb
+
+	* compiler/X86/x862.lisp: multiple-value-calls need to reserve an
+	outgoing stack frame when more than 3 args/ values are involved.
+
+2006-04-07 07:53  gb
+
+	* lisp-kernel/x86-spentry64.s, lisp-kernel/x86-spjump64.s,
+	compiler/X86/X8664/x8664-arch.lisp,
+	compiler/X86/X8664/x8664-vinsns.lisp: _SPrecover-values-for-mvcall
+	(reserves outgoing frame if necessary.)
+
+2006-04-07 07:52  gb
+
+	* level-1/ppc-trap-support.lisp: %CONS-FAKE-STACK-FRAME moved to
+	lispequ.
+
 2006-04-07 06:28  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: pop argument regs in the
