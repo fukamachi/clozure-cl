@@ -190,7 +190,10 @@
 (defx86lapfunction values ()
   (push-argregs)
   (movzwl (%w nargs) (%l nargs))
+  (rcmpw (% nargs) ($ '3))
   (lea (@ (% rsp) (%q nargs)) (% temp0))
+  (lea (@ '2 (% temp0)) (% temp1))
+  (cmovaq (% temp1) (% temp0))
   (jmp-subprim .SPvalues))
 
 ;;; It would be nice if (%setf-macptr macptr (ash (the fixnum value)
