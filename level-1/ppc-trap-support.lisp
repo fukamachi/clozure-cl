@@ -22,8 +22,7 @@
 (eval-when (:compile-toplevel :execute)
   (require "NUMBER-MACROS")
 
-  (defmacro %cons-fake-stack-frame (&optional sp next-sp fn lr vsp xp link)
-    `(%istruct 'fake-stack-frame ,sp ,next-sp ,fn ,lr ,vsp ,xp ,link))
+
   
   (defparameter *ppc-instruction-fields*
     `((:opcode . ,(byte 6 26))
