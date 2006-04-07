@@ -264,7 +264,7 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
   /* Put the active stack pointers where .SPcallback expects them */
   tcr->save_vsp = (LispObj *) xpGPR(xp, Isp);
   tcr->save_tsp = (LispObj *) xpMMXreg(xp, Itsp);
-
+  tcr->save_rbp = (LispObj *) xpGPR(xp, Irbp);
 
 
   /* Call back.
@@ -315,7 +315,7 @@ handle_error(TCR *tcr, ExceptionInformation *xp)
         }
       }
     }
-    skip = callback_to_lisp(tcr, errdisp, xp, rfn, op0, op1, op2, 0);
+    skip = callback_to_lisp(tcr, errdisp, xp, rfn, rpc, op0, op1, op2);
     xpPC(xp) += skip;
     return true;
   } else {
