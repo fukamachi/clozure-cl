@@ -3169,13 +3169,11 @@
   (testw (:%w x8664::nargs) (:%w x8664::nargs))
   (je :done)
   (rcmpw (:%w x8664::nargs) (:$w (ash 2 x8664::word-shift)))
-  (jb :z)
-  (je :yz) 
-  (popq (:%q x8664::arg_x))
-  :yz
-  (popq (:%q x8664::arg_y))
-  :z
   (popq (:%q x8664::arg_z))
+  (jb :done)
+  (popq (:%q x8664::arg_y))
+  (je :done)
+  (popq (:%q x8664::arg_x))
   :done)
 
 (define-x8664-vinsn %symptr->symvector (((target :lisp))
