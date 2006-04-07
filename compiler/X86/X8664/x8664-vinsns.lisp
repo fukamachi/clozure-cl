@@ -2932,6 +2932,8 @@
 
 (define-x8664-subprim-call-vinsn (recover-values)  .SPrecover-values)
 
+(define-x8664-subprim-call-vinsn (recover-values-for-mvcall) .SPrecover-values-for-mvcall)
+
 (define-x8664-subprim-call-vinsn (add-values) .SPadd-values)
 
 (define-x8664-subprim-call-vinsn (make-stack-block)  .SPmakestackblock)

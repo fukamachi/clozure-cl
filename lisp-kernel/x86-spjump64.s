@@ -52,7 +52,7 @@ _endfn
         _spjump(gvector)
         _spjump(nvalret)
         _spjump(mvpass)
-        _spjump(fitvals)
+        _spjump(recover_values_for_mvcall)
         _spjump(nthvalue)
         _spjump(values)
         _spjump(default_optional_args)

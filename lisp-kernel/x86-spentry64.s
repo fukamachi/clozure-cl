@@ -1933,9 +1933,6 @@ _spentry(mvpass)
 	__(int $3)
 _endsubp(mvpass)
 
-_spentry(fitvals)
-	__(int $3)
-_endsubp(fitvals)
 
 
 _spentry(nthvalue)
@@ -3059,7 +3056,54 @@ local_label(pushloop):
 	__(movq %tsp,%next_tsp)
 	__(jmp *%ra0)		
 _endsubp(recover_values)
-				
+
+/* Exactly like recover_values, but it's necessary to reserve an outgoing
+   frame if any values (which will be used as outgoing arguments) will
+   wind up on the stack.  We can assume that %nargs contains 0 (and
+   that no other arguments have been pushed) on entry. */
+                
+_spentry(recover_values_for_mvcall)
+	/* First, walk the segments reversing the pointer to previous
+	segment pointers Can tell the end because that previous
+	segment pointer is the prev tsp pointer */
+        __(xorl %nargs_l,%nargs_l)
+	__(movd %tsp,%temp1)
+	__(movq %temp1,%arg_x)	/* current segment */
+	__(movq %temp1,%arg_y)	/* last segment */
+	__(movq tsp_frame.backlink(%temp1),%arg_z)	/* previous tsp */
+local_label(walkloop_mvcall):
+	__(movq tsp_frame.fixed_overhead+node_size(%arg_x),%temp0)
+        __(addq tsp_frame.data_offset(%arg_x),%nargs_q)	
+	__(cmpq %temp0,%arg_z)	/* last segment ? */
+	__(movq %arg_y,tsp_frame.fixed_overhead+node_size(%arg_x))
+	__(movq %arg_x,%arg_y)	/* last segment <- current segment */
+	__(movq %temp0,%arg_x)	/* current segment <- next segment */
+	__(jne local_label(walkloop_mvcall))
+
+        __(cmpw $nargregs*node_size,%nargs)
+        __(jbe local_label(pushloop_mvcall))
+        __(push $0)
+        __(push $0)
+
+	/* the final segment pointer is now in %arg_y
+	   walk backwards, pushing values on the stack and incrementing %nargs */
+local_label(pushloop_mvcall):
+	__(movq tsp_frame.data_offset(%arg_y),%imm0)	/* nargs in segment */
+	__(testq %imm0,%imm0)
+	__(leaq tsp_frame.data_offset+(2*node_size)(%arg_y,%imm0),%temp0)
+	__(jmp 2f)
+1:	__(pushq -node_size(%temp0))
+	__(subq $node_size,%temp0)
+	__(subq $fixnum_one,%imm0)
+2:	__(jne 1b)
+	__(cmpq %arg_y,%temp1)
+	__(movq tsp_frame.data_offset+node_size(%arg_y),%arg_y)
+	__(jne local_label(pushloop_mvcall))
+	__(movq (%temp1),%tsp)
+	__(movq %tsp,%next_tsp)
+	__(jmp *%ra0)		
+_endsubp(recover_values_for_mvcall)
+        				
 _spentry(reset)
 	__(int $3)
 _endsubp(reset)

@@ -947,7 +947,7 @@
          (defx8664subprim .SPgvector)
          (defx8664subprim .SPnvalret)
          (defx8664subprim .SPmvpass)
-         (defx8664subprim .SPfitvals)
+         (defx8664subprim .SPrecover-values-for-mvcall)
          (defx8664subprim .SPnthvalue)
          (defx8664subprim .SPvalues)
          (defx8664subprim .SPdefault-optional-args)
