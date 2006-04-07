@@ -18,9 +18,8 @@
 (in-package "CCL")
 
 (defun xp-argument-list (xp)
-  (let ((nargs (ash (ldb (byte 16 0)
-                         (encoded-gpr-lisp xp x8664::nargs.q))
-                    (- x8664::fixnumshift)))
+  (let ((nargs (ldb (byte 16 0)
+                    (encoded-gpr-lisp xp x8664::nargs.q)))
         (arg-x (encoded-gpr-lisp xp x8664::arg_x))
         (arg-y (encoded-gpr-lisp xp x8664::arg_y))
         (arg-z (encoded-gpr-lisp xp x8664::arg_z)))
@@ -56,15 +55,16 @@
     (setf (indexed-gpr-lisp xp 16) f)))
   
 (defcallback %xerr-disp (:address xp
-                         :int fn-reg
-                         :int relative-pc
-                         :unsigned-byte op0
-                         :unsigned-byte op1
-                         :unsigned-byte op2
-                         :int)
+                                  :int fn-reg
+                                  :int relative-pc
+                                  :unsigned-byte op0
+                                  :unsigned-byte op1
+                                  :unsigned-byte op2
+                                  :int)
+  (declare (type (unsigned-byte 8) op0 op1 op2 fn-reg))
   (let* ((fn (unless (eql 0 fn-reg)
-               (indexed-gp-lisp xp x8664::fn))))
-    (with-xp-stack-frames (xp fn frame-pointer)
+               (indexed-gpr-lisp xp fn-reg))))
+    (with-xp-stack-frames (xp fn frame-ptr)
       (let* ((skip 2))
         (if (and (= op0 #xcd)
                  (>= op1 #x80))
@@ -74,7 +74,7 @@
                        (%slot-unbound-trap
                         (encoded-gpr-lisp xp (ldb (byte 4 4) op2))
                         (encoded-gpr-lisp xp (ldb (byte 4 0) op2))
-                        frame-pt)))
+                        frame-ptr)))
                 ((< op1 #xa0)
                  ;; #x9x - register X is a symbol.  It's unbound.
                  (%kernel-restart-internal $xvunbnd
@@ -82,7 +82,7 @@
                                             (encoded-gpr-lisp
                                              xp
                                              (ldb (byte 4 0) op1)))
-                                           frame-pointer))
+                                           frame-ptr))
                 ((< op1 #xb0)
                  (%err-disp-internal $xfunbnd (encoded-gpr-lisp
                                                xp
@@ -133,21 +133,21 @@
                                          :format-control
                                          "~S is not of type ~S, and can't be FUNCALLed or APPLYed")
                          nil frame-ptr))
-                ((= op #xc7)
+                ((= op1 #xc7)
                  (handle-udf-call xp frame-ptr)
                  (setq skip 0))
-                ((= op #xc8)
+                ((= op1 #xc8)
                  (setq skip 3)
                  (%error (%rsc-string $xarroob)
-                      (list (encoded-gpr-lisp xp (ldb (byte 4 4) op2))
-                            (encoded-gpr-lisp xp (ldb (byte 4 0) op2)))
-                      frame-ptr))
-                ((= op #xc9)
+                         (list (encoded-gpr-lisp xp (ldb (byte 4 4) op2))
+                               (encoded-gpr-lisp xp (ldb (byte 4 0) op2)))
+                         frame-ptr))
+                ((= op1 #xc9)
                  (%err-disp-internal $xnotfun
                                      (list (encoded-gpr-lisp xp x8664::temp0))
                                      frame-ptr))
                 ;; #xca = uuo-error-debug-trap
-                ((= op #xcc)
+                ((= op1 #xcc)
                  ;; external entry point or foreign variable
                  (setq skip 3)
                  (let* ((eep-or-fv (encoded-gpr-lisp xp (ldb (byte 4 4) op2))))
@@ -158,7 +158,7 @@
                             (eep.address eep-or-fv)))
                      (foreign-variable
                       (resolve-foreign-variable eep-or-fv)
-                      (setf (xp-gpr-lisp xp (ldb (byte 4 0) op2))
+                      (setf (encoded-gpr-lisp xp (ldb (byte 4 0) op2))
                             (fv.addr eep-or-fv))))))
                 ((< op1 #xe0)
                  (setq skip 3)
@@ -183,28 +183,28 @@
                                            (svref *immheader-2-types* high4))
                                           (t (list 'bogus op2))))))))
                    (%error (make-condition 'type-error
-                                        :datum (encoded-gpr-lisp
-                                                xp
-                                                (ldb (byte 4 0) op1))
-                                        :expected-type typename)
-                        nil
-                        frame-ptr)))
+                                           :datum (encoded-gpr-lisp
+                                                   xp
+                                                   (ldb (byte 4 0) op1))
+                                           :expected-type typename)
+                           nil
+                           frame-ptr)))
                 ((< op1 #xf0)
-                  (%error (make-condition 'type-error
-                                        :datum (encoded-gpr-lisp
-                                                xp
-                                                (ldb (byte 4 0) op1))
-                                        :expected-type 'list)
-                        nil
-                        frame-ptr))
+                 (%error (make-condition 'type-error
+                                         :datum (encoded-gpr-lisp
+                                                 xp
+                                                 (ldb (byte 4 0) op1))
+                                         :expected-type 'list)
+                         nil
+                         frame-ptr))
                 (t
                  (%error (make-condition 'type-error
-                                        :datum (encoded-gpr-lisp
-                                                xp
-                                                (ldb (byte 4 0) op1))
-                                        :expected-type 'fixnum)
-                        nil
-                        frame-ptr)))
+                                         :datum (encoded-gpr-lisp
+                                                 xp
+                                                 (ldb (byte 4 0) op1))
+                                         :expected-type 'fixnum)
+                         nil
+                         frame-ptr)))
           (%error "%Unknown trap: #x~x~%xp: ~s, fn: ~s, pc: #x~x"
                   (list (list op0 op1 op2) xp fn relative-pc)
                   frame-ptr))
