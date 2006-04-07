@@ -1735,6 +1735,20 @@
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
   (movq (:%q w) (:@ 8 (:%q x8664::ra0))))
 
+
+(define-x8664-vinsn (temp-push-node :push :word :tsp)
+        (()
+         ((w :lisp))
+         ((temp :imm)))
+  (movd (:%mmx x8664::tsp) (:%q temp))
+  (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q temp))
+  (movd (:%q temp) (:%mmx x8664::next-tsp))
+  (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
+  (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
+  (movq (:%mmx x8664::tsp) (:@ (:%q temp)))
+  (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
+  (movq (:%q w) (:@ x8664::dnode-size (:%q temp))))
+
 (define-x8664-vinsn (temp-push-double-float :push :word :csp)
     (()
      ((f :double-float)))
@@ -1760,6 +1774,16 @@
   (movq (:@ 8 (:%q x8664::ra0)) (:%q w))
   (addq (:$b 16) (:%q x8664::ra0))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
+
+
+(define-x8664-vinsn (temp-pop-node :pop :word :tsp)
+        (((w :lisp))
+         ()
+         ((temp :imm)))
+  (movd (:%mmx x8664::tsp) (:%q temp))
+  (movq (:@ x8664::dnode-size (:%q temp)) (:%q w))
+  (movq (:@ (:%q temp)) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp)))
 
 (define-x8664-vinsn (temp-pop-double-float :pop :word :csp)
     (((f :double-float))
