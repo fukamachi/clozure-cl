@@ -2278,8 +2278,9 @@
               (if symp
                 (! pass-multiple-values-symbol)
                 (! pass-multiple-values))
-              (@= mvpass-label)
-              (! recover-fn-from-ra0 (aref *backend-labels* mvpass-label)))
+              (when mvpass-label
+                (@= mvpass-label)
+                (! recover-fn-from-ra0 (aref *backend-labels* mvpass-label))))
             (progn 
               (if label-p
                 (progn
@@ -2329,8 +2330,9 @@
           (if (not tail-p)
             (if (x862-mvpass-p xfer)
               (progn (! pass-multiple-values)
-                     (@= mvpass-label)
-                     (! recover-fn-from-ra0 (aref *backend-labels* mvpass-label)))
+                     (when mvpass-label
+                       (@= mvpass-label)
+                       (! recover-fn-from-ra0 (aref *backend-labels* mvpass-label))))
               (! funcall))                  
             (cond ((or (null nargs) spread-p)
                    (! tail-funcall-gen))
@@ -3163,6 +3165,16 @@
       (! vpush-register src)
       (x862-new-vstack-lcell (or why :node) *x862-target-lcell-size* (or attr 0) info)
       (x862-adjust-vstack *x862-target-node-size*))))
+
+(defun x862-temp-push-node (seg reg)
+  (with-x86-local-vinsn-macros (seg)
+    (! temp-push-node reg)
+    (x862-open-undo $undostkblk)))
+
+(defun x862-temp-pop-node (seg reg)
+  (with-x86-local-vinsn-macros (seg)
+    (! temp-pop-node reg)
+    (x862-close-undo)))
 
 (defun x862-vpush-register-arg (seg src)
   (x862-vpush-register seg src :outgoing-argument))
@@ -4469,47 +4481,41 @@
     nil))
 
 
-
 (defun x862-mvcall (seg vreg xfer fn arglist &optional recursive-p)
-  (let* ((cstack *x862-cstack*)
-         (vstack *x862-vstack*))
-    (with-x86-local-vinsn-macros (seg vreg xfer)
-      (if (and (eq xfer $backend-return) (not (x862-tailcallok xfer)))
-        (progn
-          (x862-mvcall seg vreg $backend-mvpass fn arglist t)
-          (x862-set-vstack (%i+ (if arglist *x862-target-node-size* 0) vstack))
-          (setq *x862-cstack* cstack)
-          (let* ((*x862-returning-values* t)) (^)))
-        (let* ((mv-p (x862-mv-p xfer)))
-          (if (null arglist)
-            (x862-call-fn seg vreg xfer fn arglist nil)
-            (let* ((label (when recursive-p (backend-get-next-label))))
-              (when label
-                (! start-mv-call (aref *backend-labels* label)))
-              (x862-vpush-register seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
-              (x862-multiple-value-body seg (pop arglist))
-              (when arglist
-                (x862-open-undo $undostkblk)
-                (! save-values)
-                (dolist (form arglist)
-                  (x862-multiple-value-body seg form)
-                  (! add-values))
-                (x862-set-nargs seg 0)
-                (! recover-values)
-                (x862-close-undo))
-              (! zero-extend-nargs)
-              (! lisp-word-ref x8664::temp0 x8664::rsp x8664::nargs)
-              (x862-invoke-fn seg x8664::temp0 nil nil xfer label)))
-          (unless recursive-p
-            (if mv-p
-              (unless (eq xfer $backend-return)
-                (let* ((*x862-returning-values* t))
-                  (^)))
-              (progn 
-                (x862-adjust-vstack (- *x862-target-node-size*)) ; discard function
-                (! vstack-discard 1)
-                (<- x8664::arg_z)
-                (^)))))))))
+  (with-x86-local-vinsn-macros (seg vreg xfer)
+    (if (and (eq xfer $backend-return) (not (x862-tailcallok xfer)))
+      (progn
+        (x862-mvcall seg vreg $backend-mvpass fn arglist t)
+        (let* ((*x862-returning-values* t)) (^)))
+      (let* ((mv-p (x862-mv-p xfer)))
+        (if (null arglist)
+          (x862-call-fn seg vreg xfer fn arglist nil)
+          (let* ((label (when recursive-p (backend-get-next-label))))
+            (when label
+              (! start-mv-call (aref *backend-labels* label)))
+            (x862-temp-push-node seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
+            (x862-multiple-value-body seg (pop arglist))
+            (when arglist
+              (x862-open-undo $undostkblk)
+              (! save-values)
+              (dolist (form arglist)
+                (x862-multiple-value-body seg form)
+                (! add-values))
+              (x862-set-nargs seg 0)
+              (! recover-values)
+              (x862-close-undo))
+            (x862-temp-pop-node seg x8664::temp0)
+            (x862-invoke-fn seg x8664::temp0 nil nil xfer label)))
+        (unless recursive-p
+          (if mv-p
+            (unless (eq xfer $backend-return)
+              (let* ((*x862-returning-values* t))
+                (^)))
+            (progn 
+              (<- x8664::arg_z)
+              (^))))))))
+
+
 
 
 (defun x862-hard-opt-p (opts)
