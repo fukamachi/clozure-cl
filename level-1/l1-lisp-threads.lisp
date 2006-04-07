@@ -662,10 +662,8 @@
 ; @@@ this needs to load early so errors can work
 (defun cfp-lfun (p)
   (if (fake-stack-frame-p p)
-    (let ((fn (%fake-stack-frame.fn p))
-          (lr (%fake-stack-frame.lr p)))
-      (when (and (functionp fn) (fixnump lr))
-        (values fn (%fake-stack-frame.lr p))))
+    (values (%fake-stack-frame.fn p)
+            (%fake-stack-frame.lr p))
     (%cfp-lfun p)))
 
 (defun last-frame-ptr (&optional context)
