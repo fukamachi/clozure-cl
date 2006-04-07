@@ -1,3 +1,31 @@
+2006-04-07 03:59  gb
+
+	* compiler/X86/x862.lisp: Don't push the function on the "value"
+	stack when doing a MULTIPLE-VALUE-CALL, since its presence there
+	can interfere with multiple-value continuations.  (Can it be popped
+	before recovering multiple values ?  I didn't think of that, but I
+	suspect that that'd be simpler than what I did; check this.  Maybe
+	there is -or once was- an issue with _SPrecovervalues bashing a
+	register.)
+	
+	Pushing the function on the temp stack while collecting multiple
+	values avoids the issue (but it may be far better to simply vpop it
+	before the call to _SPrecovervalues.)
+	
+	Most of the issues related to X862-MVCALL calling itself
+	recursively have to do with cleaning the function off of the stack
+	in non tail-call cases.  Since the function's not there anymore,
+	the rationale for splitting this into a base and recursive case
+	isn't very strong.
+	
+	Changes in X862-MVCALL exposed bugs in X862-INVOKE-FN: we don't
+	want to emit or otherwise reference the mvpass label if it's null.
+
+2006-04-07 03:51  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: TEMP-PUSH-NODE,
+	TEMP-POP-NODE.
+
 2006-04-06 21:27  gb
 
 	* lib/db-io.lisp: CDB-HASH-MASK happens to be =
