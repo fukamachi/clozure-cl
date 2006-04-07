@@ -1,3 +1,12 @@
+2006-04-07 06:28  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: pop argument regs in the
+	right order.
+
+2006-04-07 06:27  gb
+
+	* level-0/X86/x86-misc.lisp: VALUES accounts for reserved frame.
+
 2006-04-07 03:59  gb
 
 	* compiler/X86/x862.lisp: Don't push the function on the "value"
