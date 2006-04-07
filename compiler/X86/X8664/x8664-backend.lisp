@@ -56,7 +56,7 @@
       (setq return-type nil))
     (let* ((lets
             (flet ((next-gpr ()
-                     (if (< (incf gpr-arg-num) 6)
+                     (if (<= (incf gpr-arg-num) 6)
                        (prog1
                            gpr-arg-offset
                          (decf gpr-arg-offset 8))
@@ -64,7 +64,7 @@
                            memory-arg-offset
                          (incf memory-arg-offset 8))))
                    (next-fpr ()
-                       (if (< (incf fpr-arg-num) 6)
+                       (if (<= (incf fpr-arg-num) 8)
                          (prog1
                              fpr-arg-offset
                            (decf fpr-arg-offset -8))
