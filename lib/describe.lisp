@@ -123,11 +123,11 @@
     (prin1-label i stream value label type)
     (end-of-label stream)))
   
-; Call function on the inspector object and its value, label, & type, for
-; each line in the selected range (default to the whole thing).
-; This can avoid (e.g.) doing NTH for each element of a list.
-; This is the generic-function which the inspector-window uses to
-; display a screenful.
+;;; Call function on the inspector object and its value, label, & type, for
+;;; each line in the selected range (default to the whole thing).
+;;; This can avoid (e.g.) doing NTH for each element of a list.
+;;; This is the generic-function which the inspector-window uses to
+;;; display a screenful.
 (defmethod map-lines ((i inspector) function &optional 
                       (start 0) 
                       end)
@@ -141,16 +141,16 @@
         (incf index)))))
 
 ;;;;;;;
-;;
-;; Dealing with unbound slots and bogus objects
-;;
+;;;
+;;; Dealing with unbound slots and bogus objects
+;;;
 (defclass unbound-marker () ())
 
 (defvar *unbound-marker* (make-instance 'unbound-marker))
 (defvar *slot-unbound-marker* (make-instance 'unbound-marker))
 
 (defmethod print-object ((x unbound-marker) stream)
-  (print-object (ccl::%unbound-marker-8) stream))
+  (print-object (ccl::%unbound-marker) stream))
 
 (defclass bogus-object-wrapper ()
   ((address :initarg :address)))
@@ -169,7 +169,7 @@
               (make-instance 'bogus-object-wrapper :address address)))))
 
 (defun eliminate-unbound (x)
-  (cond ((eq x (ccl::%unbound-marker-8))
+  (cond ((eq x (ccl::%unbound-marker))
          *unbound-marker*)
         ((eq x (ccl::%slot-unbound-marker))
          *slot-unbound-marker*)
@@ -179,7 +179,7 @@
 
 (defun restore-unbound (x)
   (if (eq x *unbound-marker*)
-    (ccl::%unbound-marker-8)
+    (ccl::%unbound-marker)
     (if (eq x *slot-unbound-marker*)
       (ccl::%slot-unbound-marker)
       x)))
@@ -195,10 +195,10 @@
 
 
 ;;;;;;;
-;;
-;; describe-object
-;; Eventually, this wants to reuse a global inspector rather than
-;; consing one.
+;;;
+;;; describe-object
+;;; Eventually, this wants to reuse a global inspector rather than
+;;; consing one.
 (defparameter *describe-pretty* t)
 
 (defmacro with-errorfree-printing (&body body)
@@ -230,11 +230,11 @@
           (map-lines inspector temp))))
   (values))
 
-;; usual-inspector
-;; Objects that know how to inspect themselves but don't need any
-;; special info other than the object can be a usual-inspector.
-;; This class exists mostly to save consing a class for every type
-;; of object in the world.
+;;; usual-inspector
+;;; Objects that know how to inspect themselves but don't need any
+;;; special info other than the object can be a usual-inspector.
+;;; This class exists mostly to save consing a class for every type
+;;; of object in the world.
 (defclass usual-inspector (inspector)
   ())
 
