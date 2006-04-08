@@ -1,5 +1,2 @@
-*.pfsl
-*.dfsl
-*.p64fsl
-*.d64fsl
+*.*fsl
 *~.*
