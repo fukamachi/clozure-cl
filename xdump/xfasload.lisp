@@ -1326,17 +1326,17 @@
   (xfasl-read-ivector s (xload-target-subtype :single-float-vector)))
 
 (defxloadfaslop $fasl-double-float-vector (s)
-  (target-arch-case
-   (:ppc64 (xfasl-read-ivector s (xload-target-subtype :double-float-vector)))
-   (:ppc32
+  (target-word-size-case
+   (64 (xfasl-read-ivector s (xload-target-subtype :double-float-vector)))
+   (32
     (let* ((element-count (%fasl-read-count s)))
       (multiple-value-bind (vector v o)
           (xload-make-ivector 
            *xload-readonly-space*
-           ppc32::subtag-double-float-vector
+           (xload-target-subtype :double-float-vector)
            element-count)
         (%epushval s vector)
-        (%fasl-read-n-bytes s v (+ o  ppc32::misc-dfloat-offset) (xload-subtag-bytes ppc32::subtag-double-float-vector  element-count))
+        (%fasl-read-n-bytes s v (+ o (arch::target-misc-dfloat-offset (backend-target-arch *target-backend*))) (xload-subtag-bytes (xload-target-subtype :double-float-vector)  element-count))
         vector)))))
 
 (defxloadfaslop $fasl-code-vector (s)
