@@ -744,10 +744,10 @@
     bit-vector))
 
 (defparameter *immheader-1-types*
-  #(bignum
+  #(bogus
+    bignum
     double-float
     xcode-vector
-    bogus
     bogus
     bogus
     bogus
