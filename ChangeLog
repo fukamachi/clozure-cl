@@ -1,3 +1,16 @@
+2006-04-07 22:46  gb
+
+	* compiler/nx.lisp: XCOMPILE-LAMBDA is #+ppc-target for now.
+
+2006-04-07 22:45  gb
+
+	* compiler/nx1.lisp: Provide an FTYPE declaration for
+	%DEFINE-PPC-LAP-FUNCTION.
+
+2006-04-07 22:25  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-04-07 22:19  gb
 
 	* compiler/PPC/ppc-asm.lisp, compiler/PPC/ppc-backend.lisp,
