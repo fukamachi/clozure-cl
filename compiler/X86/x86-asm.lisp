@@ -4375,6 +4375,11 @@
 (defun insert-mmx-rm (instruction operand)
   (insert-mmx-rm-entry instruction (x86-register-operand-entry operand)))
 
+(defun insert-imm64 (instruction operand)
+  (setf (x86-immediate-operand-type operand)
+        (encode-operand-type :imm64))
+  (setf (x86-instruction-imm instruction) operand))
+
 (defun insert-imm32s (instruction operand)
   (setf (x86-immediate-operand-type operand)
         (encode-operand-type :imm32s))
