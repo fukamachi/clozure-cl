@@ -1598,8 +1598,7 @@ to open."
 
 (defmacro defmethod (name &rest args &environment env)
   (multiple-value-bind (function-form specializers-form qualifiers lambda-list documentation specializers)
-                       (parse-defmethod name args env)
-    
+                       (parse-defmethod name args env)    
     `(progn
        (eval-when (:compile-toplevel)
          (note-function-info ',name nil ,env))
@@ -2583,12 +2582,14 @@ slot-entry. Both setf and setq can be used to set the value of the slot."
        (declare (dynamic-extent ,thunk))
        (funcall-with-error-reentry-detection ,thunk))))
 
+#+ppc-target
 (defmacro scan-for-instr (mask opcode fn pc-index &optional (tries *trap-lookup-tries*))
   `(%scan-for-instr ,mask ,opcode ,fn ,pc-index ,tries))
 
 
 (declare-arch-specific-macro codevec-header-p)
 
+#+ppc-target
 (defmacro match-instr (instr mask bits-to-match)
   `(eql (logand ,instr ,mask) ,bits-to-match))
 
