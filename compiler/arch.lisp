@@ -134,45 +134,6 @@
   storage-class-s64			; (signed-byte 64)
 )
 
-;; For assembly/disassembly, at least on RISC platforms.
-(defstruct opcode 
-  (name (error "Opcode name must be present") :type (or string symbol))
-  (opcode 0 :type (unsigned-byte 32))
-  (majorop 0 :type (unsigned-byte 6))
-  (mask #xffffffff :type (unsigned-byte 32))
-  (flags 0 :type (unsigned-byte 32))
-  (operands () :type list)
-  (min-args 0 :type (unsigned-byte 3))
-  (max-args 0 :type (unsigned-byte 3))
-  (op-high 0 :type (unsigned-byte 16))
-  (op-low 0 :type (unsigned-byte 16))
-  (mask-high #xffff :type (unsigned-byte 16))
-  (mask-low #xffff :type (unsigned-byte 16))
-  (vinsn-operands () :type list)
-  (min-vinsn-args 0 :type fixnum)
-  (max-vinsn-args 0 :type fixnum))
-
-(defmethod print-object ((p opcode) stream)
-  (declare (ignore depth))
-  (print-unreadable-object (p stream :type t) 
-    (format stream "~a" (string (opcode-name p)))))
-
-(defmethod make-load-form ((p opcode) &optional env)
-  (make-load-form-saving-slots p :environment env))
-
-(defstruct operand
-  (index 0 :type unsigned-byte)
-  (width 0 :type (mod 32))
-  (offset 0 :type (mod 32))
-  (insert-function nil :type (or null symbol function))
-  (extract-function 'nil :type (or symbol function))
-  (flags 0 :type fixnum))
-
-(defmethod make-load-form ((o operand) &optional env)
-  (make-load-form-saving-slots o :environment env))
-
-(defconstant operand-optional 27)
-(defconstant operand-fake 28)
 
 (defvar *known-target-archs* ())
 
