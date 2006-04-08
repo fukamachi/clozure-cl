@@ -155,9 +155,11 @@
       (setf (schar new i) (schar str i)))))
 
 (defun %fasl-dispatch (s op)
-  (declare (fixnum op))
+  (declare (fixnum op)) 
   (setf (faslstate.faslepush s) (logbitp $fasl-epush-bit op))
-  ;(format t "~& dispatch: op = ~d" (logand op (lognot (ash 1 $fasl-epush-bit))))
+  #+debug
+  (format t "~& dispatch: op = ~d at ~x" (logand op (lognot (ash 1 $fasl-epush-bit)))
+          (1- (%fasl-get-file-pos s)))
   (funcall (svref (faslstate.fasldispatch s) (logand op (lognot (ash 1 $fasl-epush-bit)))) 
            s))
 
