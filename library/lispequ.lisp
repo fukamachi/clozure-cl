@@ -228,6 +228,9 @@
   %fake-stack-frame.link        ; next in *fake-stack-frames* list
   )
 
+(defmacro %cons-fake-stack-frame (&optional sp next-sp fn lr vsp xp link)
+  `(%istruct 'fake-stack-frame ,sp ,next-sp ,fn ,lr ,vsp ,xp ,link))
+
 (def-accessors () svref
   bt.dialog
   bt.youngest
