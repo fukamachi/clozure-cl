@@ -1,3 +1,20 @@
+2006-04-07 22:19  gb
+
+	* compiler/PPC/ppc-asm.lisp, compiler/PPC/ppc-backend.lisp,
+	compiler/PPC/ppc-disassemble.lisp, compiler/PPC/ppc-lap.lisp,
+	lib/backtrace-lds.lisp: ARCH::OPCODE, ARCH::OPERAND moved to CCL
+	package.
+
+2006-04-07 22:18  gb
+
+	* compiler/risc-lap.lisp: OPCODE, OPERAND moved here and from
+	arch:: to ccl::.
+
+2006-04-07 22:17  gb
+
+	* compiler/arch.lisp: OPERAND, OPCODE belong elsewhere (in
+	RISC-LAP, for instance).  That's a different package, too.
+
 2006-04-07 20:46  gb
 
 	* library/lispequ.lisp: %CONS-FAKE-STACK-FRAME here.  Really.
