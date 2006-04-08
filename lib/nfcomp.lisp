@@ -424,18 +424,6 @@ Will differ from *compiling-file* during an INCLUDE")
         (fcomp-output-form $fasl-src env (namestring *compile-file-pathname*)))
       (fcomp-compile-toplevel-forms env))))
 
-#|
-;Gross me out...  Hope this isn't the final scheme!
-(defun fcomp-standard-source (name &aux (len (length name)) str slen)
-   (dolist (log.phys *logical-directory-alist*)
-       (setq str (cdr log.phys) slen (length str))
-       (when (and (%i<= slen len) (string-equal str name :end2 slen))
-         (return-from fcomp-standard-source
-                      (%str-cat (car log.phys)
-                                ";"
-                                (%substr name slen len)))))
-   name)
-|#
 
 
 (defun fcomp-form (form env processing-mode
@@ -937,17 +925,17 @@ Will differ from *compiling-file* during an INCLUDE")
             gsymbols
             *fasdump-global-offsets*)))
 
-;During scanning, *fasdump-hash* values are one of the following:
-;  nil - form hasn't been referenced yet.
-;   0 - form has been referenced exactly once
-;   T - form has been referenced more than once
-;  (load-form scanning-p referenced-p initform)
-;     form should be replaced by load-form
-;     scanning-p is true while we're scanning load-form
-;     referenced-p is nil if unreferenced,
-;                     T if referenced but not dumped yet,
-;                     0 if dumped already (fasl-dump-form uses this)
-;     initform is a compiled version of the user's initform
+;;; During scanning, *fasdump-hash* values are one of the following:
+;;;  nil - form hasn't been referenced yet.
+;;;   0 - form has been referenced exactly once
+;;;   T - form has been referenced more than once
+;;;  (load-form scanning-p referenced-p initform)
+;;;     form should be replaced by load-form
+;;;     scanning-p is true while we're scanning load-form
+;;;     referenced-p is nil if unreferenced,
+;;;                     T if referenced but not dumped yet,
+;;;                     0 if dumped already (fasl-dump-form uses this)
+;;;     initform is a compiled version of the user's initform
 (defun fasl-scan-form (form)
   (when form
     (let ((info (gethash form *fasdump-hash*)))
@@ -991,10 +979,9 @@ Will differ from *compiling-file* during an INCLUDE")
            (= (the fixnum (logand type-code ppc64::lowtagmask)) ppc64::lowtag-immheader)
            #+x8664-target
            (and (= (the fixnum (lisptag exp)) x8664::tag-misc)
-                (logbitp (the (unsigned-byte 16)
-                           (logand type-code x8664::fulltagmask))
+                (logbitp (the (unsigned-byte 16) (logand type-code x8664::fulltagmask))
                          (logior (ash 1 x8664::fulltag-immheader-0)
-                                 (ash 1 x8664::fulltag-immheader-0)
+                                 (ash 1 x8664::fulltag-immheader-1)
                                  (ash 1 x8664::fulltag-immheader-2))))
            (case type-code
              ((#.target::subtag-macptr #.target::subtag-dead-macptr) (fasl-unknown exp))
@@ -1002,7 +989,7 @@ Will differ from *compiling-file* during an INCLUDE")
            (case type-code
              ((#.target::subtag-pool #.target::subtag-weak #.target::subtag-lock) (fasl-unknown exp))
              (#+ppc-target #.target::subtag-symbol
-              #+x86-target #.target::tag-symbol (fasl-scan-symbol exp))
+                           #+x86-target #.target::tag-symbol (fasl-scan-symbol exp))
              ((#.target::subtag-instance #.target::subtag-struct)
               (fasl-scan-user-form exp))
              (#.target::subtag-package (fasl-scan-ref exp))
@@ -1543,7 +1530,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fasl-dump-symbol (sym)
   (let* ((pkg (symbol-package sym))
          (name (symbol-name sym))
-         (idx (let* ((i (%svref (%symbol->symptr sym) target::symbol.binding-index-cell)))
+         (idx (let* ((i (%svref (symptr->symvector (%symbol->symptr sym)) target::symbol.binding-index-cell)))
                 (declare (fixnum i))
                 (unless (zerop i) i))))
     (cond ((null pkg) 
