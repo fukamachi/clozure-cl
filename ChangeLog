@@ -1,3 +1,32 @@
+2006-04-08 04:46  gb
+
+	* compiler/X86/x862.lisp: X862-MVCALL needs to always save and
+	restore, even if there's only one values-producing form (that form
+	might produce more values than will fit in argument registers, and
+	we therefore have to reserve space for a stack frame.)
+
+2006-04-08 04:45  gb
+
+	* compiler/X86/x86-asm.lisp: Need to actually define INSERT-IMM64.
+
+2006-04-08 04:43  gb
+
+	* lib/macros.lisp: Scanning backwards for instructions depends on a
+	reasonable architecture.
+
+2006-04-08 04:43  gb
+
+	* lib/compile-ccl.lisp: TARGET-XLOAD-MODULES for x8664.
+
+2006-04-08 04:42  gb
+
+	* xdump/xfasload.lisp: Hide ppc32 double-float-vector stuff in
+	target arch.
+
+2006-04-08 04:41  gb
+
+	* xdump/.cvsignore: ignore *.*fsl
+
 2006-04-07 22:46  gb
 
 	* compiler/nx.lisp: XCOMPILE-LAMBDA is #+ppc-target for now.
