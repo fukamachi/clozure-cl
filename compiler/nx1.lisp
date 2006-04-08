@@ -1828,6 +1828,7 @@
 
 
 (defnx1 nx1-lap-function (ppc-lap-function) (name bindings &body body)
+  (declare (ftype (function (t t t)) %define-ppc-lap-function))
   (require "PPC-LAP" "ccl:compiler;ppc;ppc-lap")
   (setf (afunc-lfun *nx-current-function*) 
         (%define-ppc-lap-function name `((let ,bindings ,@body))
