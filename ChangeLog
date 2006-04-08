@@ -1,3 +1,30 @@
+2006-04-07 20:46  gb
+
+	* library/lispequ.lisp: %CONS-FAKE-STACK-FRAME here.  Really.
+
+2006-04-07 20:45  gb
+
+	* level-0/l0-pred.lisp: *IMMHEADER-1-TYPES* was wrong, too.  Should
+	I maybe look at the others, or just fix them as I stumble on them ?
+
+2006-04-07 20:44  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: jns->jne when checking for
+	a DOUBLE-FLOAT.
+
+2006-04-07 20:41  gb
+
+	* level-0/nfasload.lisp: Print file pos in FASL-DISPATCH debug
+	message.
+
+2006-04-07 20:40  gb
+
+	* lib/nfcomp.lisp: #+x8664: Check for fulltag-immheader-1, not
+	fulltag-immheader-0 twice in fasl-scan-dispatch
+	
+	FASL-DUMP-SYMBOL needs a SYMPTR->SYMVECTOR.  (Note that FASLOAD has
+	never handled uninterned symbols that need a binding index.)
+
 2006-04-07 07:55  gb
 
 	* lib/describe.lisp: Formatting changes, mostly.
