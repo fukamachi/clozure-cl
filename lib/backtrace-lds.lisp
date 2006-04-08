@@ -609,8 +609,8 @@
     (lap-label :label)
     (lap-instruction
      (let* ((opcode (lap-instruction-opcode instr))
-            (opcode-p (typep opcode 'arch::opcode))
-            (name (if opcode-p (arch::opcode-name opcode) opcode))
+            (opcode-p (typep opcode 'opcode))
+            (name (if opcode-p (opcode-name opcode) opcode))
             (pc (lap-instruction-address instr))
             (operands (lap-instruction-parsed-operands instr)))
        (cond ((equalp name "bla")
@@ -625,7 +625,7 @@
                   ((.SPnthrowvalues .SPnthrow1value)
                    (let* ((prev-instr (require-type (lap-instruction-pred instr)
                                                     'lap-instruction))
-                          (prev-name (arch::opcode-name (lap-instruction-opcode prev-instr)))
+                          (prev-name (opcode-name (lap-instruction-opcode prev-instr)))
                           (prev-operands (lap-instruction-parsed-operands prev-instr)))
                      ; Maybe we should recognize the other possible outputs of ppc2-lwi, but I
                      ; can't imagine we'll ever see them
@@ -657,7 +657,7 @@
              ; It would probably be faster to determine the branch address by adding the PC and the offset.
              ((equalp name "b")
               (values :branch (branch-label-address instr (car (last operands))) nil))
-             ((and opcode-p (eql (arch::opcode-majorop opcode) 16))
+             ((and opcode-p (eql (opcode-majorop opcode) 16))
               (values :branch (branch-label-address instr (car (last operands))) (+ pc 4)))
              (t :regular))))))
 

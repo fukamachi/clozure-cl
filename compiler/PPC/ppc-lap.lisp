@@ -100,10 +100,10 @@
 ;;; A conditional branch is "conditional" if bit 2 of the BO field is set.
 (defun ppc-lap-conditional-branch-p (insn)
   (let* ((opcode (lap-instruction-opcode insn)))
-    (if (= (the fixnum (arch::opcode-majorop opcode)) 16)    ; it's a BC instruction ...
-      (unless (logbitp 1 (the fixnum (arch::opcode-op-low opcode)))          ; not absolute
-        (let* ((bo-field (if (= #xf (ldb (byte 4 6) (the fixnum (arch::opcode-mask-high opcode))))
-                           (ldb (byte 5 5) (the fixnum (arch::opcode-op-high opcode)))
+    (if (= (the fixnum (opcode-majorop opcode)) 16)    ; it's a BC instruction ...
+      (unless (logbitp 1 (the fixnum (opcode-op-low opcode)))          ; not absolute
+        (let* ((bo-field (if (= #xf (ldb (byte 4 6) (the fixnum (opcode-mask-high opcode))))
+                           (ldb (byte 5 5) (the fixnum (opcode-op-high opcode)))
                            (svref (lap-instruction-parsed-operands insn) 0))))
           (declare (fixnum bo-field))
           (if (logbitp 2 bo-field)
@@ -128,22 +128,22 @@
         ; get explicit values for the BO and BI fields of the instruction.
         (let* ((original-opcode (lap-instruction-opcode insn))
                (vals (lap-instruction-parsed-operands insn))
-               (high (arch::opcode-op-high original-opcode))
-               (low (arch::opcode-op-low original-opcode))
+               (high (opcode-op-high original-opcode))
+               (low (opcode-op-low original-opcode))
                (link-p (logbitp 0 low))
                (new-label (make-lap-label (gensym)))
                (idx -1))
           (declare (fixnum high low))
           ; Assemble all operands but the last
-          (do* ((ops (arch::opcode-operands original-opcode) next)
+          (do* ((ops (opcode-operands original-opcode) next)
                 (next (cdr ops) (cdr next)))
                ((null next))
             (declare (list ops next))
             (let* ((operand (car ops))
-                   (val (if (logbitp arch::operand-fake (arch::operand-flags operand))
+                   (val (if (logbitp operand-fake (operand-flags operand))
                     0
                     (svref vals (incf idx))))
-                   (insert-function (arch::operand-insert-function operand)))
+                   (insert-function (operand-insert-function operand)))
               (setq high (if insert-function
                            (funcall insert-function high low val)
                            (ppc::insert-default operand high low val)))))
@@ -258,20 +258,20 @@
 (defun ppc-lap-generate-instruction (code-vector index insn)
   (let* ((op (lap-instruction-opcode insn))
          (vals (lap-instruction-parsed-operands insn))
-         (high (arch::opcode-op-high op))
-         (low (arch::opcode-op-low op))
+         (high (opcode-op-high op))
+         (low (opcode-op-low op))
          (idx -1))
-    (dolist (operand (arch::opcode-operands op))
-      (let* ((val (if (logbitp arch::operand-fake (arch::operand-flags operand))
+    (dolist (operand (opcode-operands op))
+      (let* ((val (if (logbitp operand-fake (operand-flags operand))
                     0
                     (svref vals (incf idx))))
-             (insert-function (arch::operand-insert-function operand)))
+             (insert-function (operand-insert-function operand)))
         (multiple-value-setq (high low)
           (if insert-function
             (funcall insert-function high low val)
             (ppc::insert-default operand high low val)))
         (if (null high)
-          (error "Invalid operand for ~s instruction: ~d" (arch::opcode-name op) val))))
+          (error "Invalid operand for ~s instruction: ~d" (opcode-name op) val))))
     (setf (lap-instruction-parsed-operands insn) nil)
     (free-lap-operand-vector vals)
     (locally (declare (type (simple-array (unsigned-byte 16) (*)) code-vector)
@@ -582,9 +582,9 @@
     ;;  we've got a wrong-number-of-args error.
     ;;  In case (b), there's at most one optional argument per instruction;
     ;;   provide 0 for the missing value.
-    (let* ((operands (arch::opcode-operands opcode))
-           (nmin (arch::opcode-min-args opcode))
-           (nmax (arch::opcode-max-args opcode))
+    (let* ((operands (opcode-operands opcode))
+           (nmin (opcode-min-args opcode))
+           (nmax (opcode-max-args opcode))
            (nhave (length opvals)))
       (declare (fixnum nmin nmax nhave))
       (if (= nhave nmax)
@@ -595,9 +595,9 @@
           (if (= nhave nmin)
             (let* ((newops ()))
               (dolist (op operands (ppc-emit-lap-instruction opcode (nreverse newops)))
-                (let* ((flags (arch::operand-flags op)))
-                  (unless (logbitp arch::operand-fake flags)
-                    (push (if (logbitp arch::operand-optional flags)
+                (let* ((flags (operand-flags op)))
+                  (unless (logbitp operand-fake flags)
+                    (push (if (logbitp operand-optional flags)
                             0
                             (pop opvals))
                           newops)))))
@@ -611,7 +611,7 @@
 ; you've got the order of some arguments wrong ...
 
 (defun ppc-parse-lap-operand (opvalx operand insn)
-  (let* ((flags (arch::operand-flags operand)))
+  (let* ((flags (operand-flags operand)))
     (declare (fixnum flags))
     (if (logbitp ppc::$ppc-operand-relative flags)
       (lap-note-label-reference opvalx insn)
@@ -640,14 +640,14 @@
 ;;; This whole two-pass scheme seems overly general, but if/when we
 ;;; ever do instruction scheduling it'll probably make it simpler.
 (defun ppc-emit-lap-instruction (opcode opvals)
-  (let* ((operands (arch::opcode-operands opcode))
+  (let* ((operands (opcode-operands opcode))
          (parsed-values (alloc-lap-operand-vector))
          (insn (make-lap-instruction opcode))
          (idx -1))
     (declare (fixnum idx))
     (dolist (op operands)
-      (let* ((flags (arch::operand-flags op))
-             (val (if (logbitp arch::operand-fake flags)
+      (let* ((flags (operand-flags op))
+             (val (if (logbitp operand-fake flags)
                     0
                     (ppc-parse-lap-operand (pop opvals) op insn))))
         (declare (fixnum flags))
