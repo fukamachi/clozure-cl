@@ -109,7 +109,8 @@
 (defun target-xload-modules (&optional (target
 					(backend-target-arch-name *host-backend*)))
   (case target
-    ((:ppc32 :ppc64) *ppc-xload-modules*)))
+    ((:ppc32 :ppc64) *ppc-xload-modules*)
+    (:x8664 *x8664-xload-modules*)))
 
 
 
