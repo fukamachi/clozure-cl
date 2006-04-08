@@ -111,6 +111,7 @@
   (setq *default-compiler-policy* 
         (if new-policy (require-type new-policy 'compiler-policy) (new-compiler-policy))))
 
+#+ppc-target
 (defun xcompile-lambda (target def)
   (let* ((*ppc2-debug-mask* (ash 1 ppc2-debug-vinsns-bit))
          (backend (find-backend target))
