@@ -564,7 +564,7 @@
   (movb (:%b object) (:%b tag))
   (andb (:$b x8664::tagmask) (:%b tag))
   (cmpb (:$b x8664::tag-misc) (:%b tag))
-  (jns :have-tag)
+  (jne :have-tag)
   (movb (:@ x8664::misc-subtag-offset (:%q object)) (:%b tag))
   :have-tag
   (cmpb (:$b x8664::subtag-double-float) (:%b tag))
