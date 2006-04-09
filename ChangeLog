@@ -1,3 +1,9 @@
+2006-04-09 02:32  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Using cmovCC intstead of
+	setCC for cr-bit->boolean is 1 instruction and 2 bytes shorter, all
+	other things being equal.
+
 2006-04-09 01:37  gb
 
 	* compiler/X86/x86-asm.lisp: reg/reg variants of bsfX, bsrX had
