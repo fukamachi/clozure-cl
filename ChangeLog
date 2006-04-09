@@ -1,3 +1,21 @@
+2006-04-08 21:25  gb
+
+	* lisp-kernel/x86-exceptions.c: Forget about blocking SIGINT in
+	current thread before entering kernel debugger.
+
+2006-04-08 21:21  gb
+
+	* lib/compile-ccl.lisp: early def of XLOAD-LEVEL-0: require
+	(TARGET-XLOAD-MODULES).
+
+2006-04-08 21:21  gb
+
+	* lisp-kernel/x86-spentry64.s: misc_set_s16: forgot a lognot.
+
+2006-04-08 21:20  gb
+
+	* level-0/nfasload.lisp: 64-bit vectors: target::, not ppc64::.
+
 2006-04-08 20:46  gb
 
 	* lib/foreign-types.lisp: Add missing paren ...
