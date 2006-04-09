@@ -191,14 +191,6 @@
 
 
 
-(defvar *error-reentry-count* 0)
-
-(defun funcall-with-error-reentry-detection (thunk)
-  (let* ((count *error-reentry-count*)
-         (*error-reentry-count* (1+ count)))
-    (cond ((eql count 0) (funcall thunk))
-          ((eql count 1) (error "Error reporting error"))
-          (t (bug "Error reporting error")))))
 
 
 
