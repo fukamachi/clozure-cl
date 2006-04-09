@@ -1495,13 +1495,13 @@ result-type-specifer is :VOID or NIL"
 		    (if (<= bits 64)
 		      :unsigned-doubleword)))))))
 	 ((or foreign-record-type foreign-array-type)
-          #+linuxppc-target
-          :address
-          #+darwinppc-target
-	  (let* ((bits (ensure-foreign-type-bits ftype)))
-	    (ceiling bits (target-word-size-case
-                           (32 32)
-                           (64 64))))))
+          (if (getf (ftd-attributes *target-ftd*)
+                  :struct-by-value)
+            (let* ((bits (ensure-foreign-type-bits ftype)))
+              (ceiling bits (target-word-size-case
+                             (32 32)
+                             (64 64))))
+          :address))
        (error "can't determine representation keyword for ~s" f)))))
 
 (defun foreign-record-accessor-names (record-type &optional prefix)
