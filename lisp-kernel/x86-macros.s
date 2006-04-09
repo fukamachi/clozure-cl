@@ -353,10 +353,9 @@ define([rcmpb],[
 
 
 define([condition_to_boolean],[
-	set$1 $2_b
-	negb $2_b
-	andl [$]t_offset,$2_l
-	leaq nil_value($2),$3
+        movl [$]t_value,$2_l
+        lea -t_offset($2),$3
+        cmov$1l $2_l,$3_l
 ])
 
 define([compare_reg_to_nil],[
@@ -364,13 +363,14 @@ define([compare_reg_to_nil],[
 ])		
 	
 define([extract_lisptag],[
-	movb [$]tagmask,$2_b
-	andb $1_b,$2_b
+	movb $1_b,$2_b
+	andb [$]tagmask,$2_b
 ])
+
 								
 define([extract_fulltag],[
-	movb [$]fulltagmask,$2_b
-	andb $1_b,$2_b
+	movb $1_b,$2_b
+	andb [$]fulltagmask,$2_b
 ])
 
 define([extract_subtag],[
