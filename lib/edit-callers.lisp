@@ -186,13 +186,21 @@
 
 
 
-; Calls function f with args (imm) on each immediate in lfv.
+;;; Calls function f with args (imm) on each immediate in lfv.
 
-(defun %map-lfimms (lfv f)
-  (let* ((n (- (uvsize lfv) 2)))
+(defun %map-lfimms (function-object f)
+  (let* ((lfv (function-to-function-vector function-object))
+         (n (- (uvsize lfv) 2)))
     (declare (fixnum n))
+    #+ppc-target
     (dotimes (i n)
-      (funcall f (%svref lfv (%i+ 1 i))))))
+      (funcall f (%svref lfv (%i+ 1 i))))
+    #+x86-target
+    (do* ((i (1- (the fixnum (%function-code-words function-object))) (1+ i)))
+         ((= i n))
+      (declare (fixnum i))
+      (funcall f (%svref lfv (%i+ 1 i))))
+    ))
          
     
 
