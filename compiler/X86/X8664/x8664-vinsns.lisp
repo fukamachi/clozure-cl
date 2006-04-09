@@ -2259,14 +2259,14 @@
   (btsq (:%q bitnum) (:@ x8664::misc-data-offset (:%q vec) (:%q word-index) 8))
   (jmp :done)
   :clr
-  (btcq (:%q bitnum) (:@ x8664::misc-data-offset (:%q vec) (:%q word-index) 8))
+  (btrq (:%q bitnum) (:@ x8664::misc-data-offset (:%q vec) (:%q word-index) 8))
   :done)
 
 (define-x8664-vinsn set-variable-bit-to-zero (()
                                               ((vec :lisp)
                                                (word-index :s64)
                                                (bitnum :u8)))
-  (btcq (:%q bitnum) (:@ x8664::misc-data-offset (:%q vec) (:%q word-index) 8)))
+  (btrq (:%q bitnum) (:@ x8664::misc-data-offset (:%q vec) (:%q word-index) 8)))
 
 (define-x8664-vinsn set-variable-bit-to-one (()
                                               ((vec :lisp)
@@ -2277,7 +2277,7 @@
 (define-x8664-vinsn set-constant-bit-to-zero (()
                                               ((src :lisp)
                                                (idx :u64const)))
-  (btcq (:$ub (:apply logand 63 idx))
+  (btrq (:$ub (:apply logand 63 idx))
         (:@ (:apply + x8664::misc-data-offset (:apply ash (:apply ash idx -6) x8664::word-shift)) (:%q src))))
 
 (define-x8664-vinsn set-constant-bit-to-one (()
@@ -2296,7 +2296,7 @@
         (:@ (:apply + x8664::misc-data-offset (:apply ash (:apply ash idx -6) x8664::word-shift)) (:%q src)))
   (jmp :done)
   :clr
-  (btcq (:$ub (:apply logand 63 idx))
+  (btrq (:$ub (:apply logand 63 idx))
         (:@ (:apply + x8664::misc-data-offset (:apply ash (:apply ash idx -6) x8664::word-shift)) (:%q src)))
   :done)
 

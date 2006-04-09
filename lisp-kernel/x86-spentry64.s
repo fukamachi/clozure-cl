@@ -994,7 +994,7 @@ local_label(misc_set_set_bit):
 	__(btsq %imm0,misc_data_offset(%arg_x,%imm1,8))
 	__(jmp *%ra0)
 local_label(misc_set_clr_bit):	
-	__(btcq %imm0,misc_data_offset(%arg_x,%imm1,8))
+	__(btrq %imm0,misc_data_offset(%arg_x,%imm1,8))
 	__(jmp *%ra0)
 local_label(misc_set_u8):	
 	__(testq $~(0xff<<fixnumshift),%arg_z)
