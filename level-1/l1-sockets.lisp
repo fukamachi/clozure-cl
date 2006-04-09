@@ -1011,10 +1011,15 @@ unsigned IP address."
       (%setf-macptr p (#_inet_ntoa addrp))
       (unless (%null-ptr-p p) (%get-cstring p)))))
 
-#+darwinppc-target
+;;; On both of these platforms, the argument is a (:struct :in_addr),
+;;; a single word that should be passed by value.  The FFI translator
+;;; seems to lose the :struct, so just using #_ doesn't work (that
+;;; sounds like a bug in the FFI translator.)
+#+(or darwinppc-target linuxx8664-target)
 (defun _inet_ntoa (addr)
   (with-macptrs ((p))
-    (%setf-macptr p (external-call "_inet_ntoa"
+    (%setf-macptr p (external-call #+darwinppc-target "_inet_ntoa"
+                                   #+linuxx8664-target "inet_ntoa"
 				   :unsigned-fullword addr
 				   :address))
     (unless (%null-ptr-p p) (%get-cstring p))))				   
