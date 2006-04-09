@@ -488,11 +488,6 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 
   if (! handle_exception(signum, info, context, tcr)) {
     char msg[512];
-    sigset_t mask;
-
-    sigemptyset(&mask);
-    sigaddset(&mask,SIGINT);
-    pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
     
