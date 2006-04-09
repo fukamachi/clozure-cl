@@ -644,18 +644,11 @@ current_native_thread_id()
 	  );
 }
 
-#ifdef X8664
-#warning Inflating stack size until DWS marker works
-#endif
 
 void
 thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
 {
   area *a, *register_cstack_holding_area_lock(BytePtr, natural);
-
-#ifdef X8664
-  stack_size *=3;
-#endif
 
   tcr->osid = current_thread_osid();
   tcr->native_thread_id = current_native_thread_id();
@@ -780,6 +773,11 @@ lisp_thread_entry(void *param)
   } while (tcr->flags & (1<<TCR_FLAG_BIT_AWAITING_PRESET));
 }
 
+#ifdef X8664
+#warning Inflating stack size until DWS marker works
+#endif
+
+
 void *
 xNewThread(natural control_stack_size,
 	   natural value_stack_size,
@@ -788,6 +786,10 @@ xNewThread(natural control_stack_size,
 {
   thread_activation activation;
   TCR *current = get_tcr(false);
+
+#ifdef X8664
+  control_stack_size *= 4;
+#endif
 
   activation.tsize = temp_stack_size;
   activation.vsize = value_stack_size;
