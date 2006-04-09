@@ -524,9 +524,9 @@
           (let ((size (%cadr byte))
                 (position (%caddr byte)))
             (if (and (nx-form-typep integer 'fixnum env) (fixnump position))
-              ; I'm not sure this is worth doing
+              ;; I'm not sure this is worth doing
               `(logand (byte-mask ,size) (ash ,integer ,(- position)))
-              ; this IS worth doing
+              ;; this IS worth doing
               `(load-byte ,size ,position ,integer))))
          (t call)))
 
