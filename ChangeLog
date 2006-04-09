@@ -1,3 +1,17 @@
+2006-04-09 01:37  gb
+
+	* compiler/X86/x86-asm.lisp: reg/reg variants of bsfX, bsrX had
+	operands backwards.
+
+2006-04-09 01:37  gb
+
+	* compiler/optimizers.lisp: Comment formatting.
+
+2006-04-09 01:29  gb
+
+	* level-0/X86/X8664/x8664-bignum.lisp: %BIGNUM-SIGN-DIGITS:
+	bsr/xorl != clz when (zerop n).
+
 2006-04-08 21:25  gb
 
 	* lisp-kernel/x86-exceptions.c: Forget about blocking SIGINT in
