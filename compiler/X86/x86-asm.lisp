@@ -921,33 +921,33 @@
      #x80 #o040 #x00)
 
    ;; bsf
-   (def-x8664-opcode bsfq ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
+   (def-x8664-opcode bsfq ((:reg64 :insert-modrm-rm) (:reg64 :insert-modrm-reg))
      #x0fbc #o300 #x48)
    (def-x8664-opcode bsfq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
      #x0fbc #o000 #x48)
 
-   (def-x8664-opcode bsfl ((:reg32 :insert-modrm-reg) (:reg32 :insert-modrm-rm))
+   (def-x8664-opcode bsfl ((:reg32 :insert-modrm-rm) (:reg32 :insert-modrm-reg))
      #x0fbc #o300 #x00)
    (def-x8664-opcode bsfl ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
      #x0fbc #o000 #x00)
 
-   (def-x8664-opcode bsfw ((:reg16 :insert-modrm-reg) (:reg16 :insert-modrm-rm))
+   (def-x8664-opcode bsfw ((:reg16 :insert-modrm-rm) (:reg16 :insert-modrm-reg))
      #x0fbc #o300 #x00 #x66)
    (def-x8664-opcode bsfw ((:anymem :insert-memory) (:reg16 :insert-modrm-reg))
      #x0fbc #o000 #x00 #x66)
 
    ;; bsr
-   (def-x8664-opcode bsrq ((:reg64 :insert-modrm-reg) (:reg64 :insert-modrm-rm))
+   (def-x8664-opcode bsrq ((:reg64 :insert-modrm-rm) (:reg64 :insert-modrm-reg))
      #x0fbd #o300 #x48)
    (def-x8664-opcode bsrq ((:anymem :insert-memory) (:reg64 :insert-modrm-reg))
      #x0fbd #o000 #x48)
 
-   (def-x8664-opcode bsrl ((:reg32 :insert-modrm-reg) (:reg32 :insert-modrm-rm))
+   (def-x8664-opcode bsrl ((:reg32 :insert-modrm-rm) (:reg32 :insert-modrm-reg))
      #x0fbd #o300 #x00)
    (def-x8664-opcode bsrl ((:anymem :insert-memory) (:reg32 :insert-modrm-reg))
      #x0fbd #o000 #x00)
 
-   (def-x8664-opcode bsrw ((:reg16 :insert-modrm-reg) (:reg16 :insert-modrm-rm))
+   (def-x8664-opcode bsrw ((:reg16 :insert-modrm-rm) (:reg16 :insert-modrm-reg))
      #x0fbd #o300 #x00 #x66)
    (def-x8664-opcode bsrw ((:anymem :insert-memory) (:reg16 :insert-modrm-reg))
      #x0fbd #o000 #x00 #x66)
