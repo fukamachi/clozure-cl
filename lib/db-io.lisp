@@ -586,30 +586,7 @@
         (extract-db-function value)))))
 
 
-(defun save-db-function (cdbm fname def)
-  (let* ((external-name (efd-entry-name def))
-         (args (efd-arg-specs def))
-         (result (efd-result-spec def))
-         (min-args (efd-min-args def))
-         (namelen (length external-name))
-         (enclen (1+ (length args)))
-         (buflen (+ 2 namelen enclen))
-         (encoding (make-string enclen)))
-    (declare (dynamic-extent encoding))
-    (when (encode-arguments args result encoding)
-      (%stack-block ((buf buflen))
-        (setf (%get-byte buf) min-args
-              (%get-byte buf 1) namelen)
-        (%copy-ivector-to-ptr external-name 0 buf 2 namelen)
-        (%copy-ivector-to-ptr encoding 0 buf (+ 2 namelen) enclen)
-        (rletZ ((contents :cdb-datum)
-		(key :cdb-datum))
-          (setf (pref contents :cdb-datum.data) buf
-                (pref contents :cdb-datum.size) buflen)
-          (with-cstrs ((keyname (string fname)))
-            (setf (pref key :cdb-datum.data) keyname
-                  (pref key :cdb-datum.size) (length (string fname)))
-	    (cdbm-put cdbm key contents)))))))
+
 
         
 (defun extract-db-constant-value (datum)
