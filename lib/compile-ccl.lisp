@@ -228,7 +228,7 @@
   (%fhave 'xload-level-0
           #'(lambda (&rest rest)
 	      (in-development-mode
-	       (require-modules *ppc-xload-modules*))
+	       (require-modules (target-xload-modules)))
               (apply 'xload-level-0 rest))))
 
 (defun find-module (module &optional (target (backend-name *host-backend*))  &aux data fasl sources)
