@@ -624,7 +624,6 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
         (t (typep float *read-default-float-format*))))
 
 
-#+ppc-target
 (defun print-a-nan (float stream)
   (if (infinity-p float)
       (output-float-infinity float stream)
