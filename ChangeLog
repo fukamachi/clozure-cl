@@ -1,3 +1,14 @@
+2006-04-09 03:52  gb
+
+	* lisp-kernel/x86-macros.s: Parens around negative displacement in
+	condition_to_boolean.  Not clear why this is necessary, but it
+	seems to be.
+
+2006-04-09 03:24  gb
+
+	* lisp-kernel/x86-macros.s: Use shorter sequence in
+	condition_to_boolean.
+
 2006-04-09 02:32  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: Using cmovCC intstead of
