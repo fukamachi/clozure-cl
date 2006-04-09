@@ -778,7 +778,7 @@
                                "Element type")
                              :static 'prin1-colon-line))
           ((eql  5 n)
-           (values  (uvref v ppc32::vectorH.flags-cell)
+           (values  (uvref v target::vectorH.flags-cell)
                    "Flags: "
                    :static
                    #'(lambda (i s v l type)
