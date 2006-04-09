@@ -155,6 +155,18 @@
   #+ppc64-target
   (ba .SPmakeu64))
 
+
+#+x8664-target
+(defx86lapfunction set-hons-space-size ((npairs arg_z))
+  (check-nargs 1)
+  (save-simple-frame)
+  (call-subprim .SPgetu64 nil)
+  (movq (% imm0) (% imm1))
+  (movq ($ arch::gc-trap-function-set-hons-area-size) (% imm0))
+  (uuo-gc-trap)
+  (restore-simple-frame)
+  (jmp-subprim .SPmakeu64))
+
 (defun openmcl-hons:hons-space-size ()
   "Returns the current size of the static hons area."
   (%fixnum-ref-natural (%get-kernel-global 'tenured-area)
@@ -186,6 +198,33 @@
   @no
   (li arg_z nil)
   (blr))
+
+#+x8664-target
+(defx86lapfunction openmcl-hons:honsp ((thing arg_z))
+  "If THING is a CONS cell allocated in the hons area, return an integer
+   which denotes that cell's index in hons space - an integer between
+   0 (inclusive) and the hons-space size (exclusive).  Otherwise, return
+   NIL."
+  (check-nargs 1)
+  (extract-fulltag thing imm1)
+  (ref-global tenured-area imm0)
+  (cmpb ($ target::fulltag-cons) (% imm1.b))
+  (movq (@ target::area.static-dnodes (% imm0)) (% imm1))
+  (movq (@ target::area.low (% imm0)) (% imm0))
+  (jne @no)
+  (shr ($ (1+ target::word-shift)) (% imm1))
+  (add (% imm0) (% imm1))
+  (rcmpq (% thing) (% imm0))
+  (jb @no)
+  (rcmpq (% thing) (% imm1))
+  (jae @no)
+  (subq ($ target::fulltag-cons) (% arg_z))
+  (subq (% imm0) (% arg_z))
+  (shr ($ 1) (% arg_z))
+  (single-value-return)
+  @no
+  (movq ($ nil) (% arg_z))
+  (single-value-return))
 
 #+ppc-target
 (defppclapfunction openmcl-hons:hons-from-index ((index arg_z))
@@ -219,6 +258,35 @@
   (load-constant fname error)
   (bla .SPjmpsym)
   (ba .SPpopj))
+
+#+x8664-target
+(defx86lapfunction openmcl-hons:hons-from-index ((index arg_z))
+  "If INDEX is a fixnum between 0 (inclusive) and the current hons space size
+   (exclusive), return a statically allocated CONS cell.  Otherwise, signal
+   an error."
+  (check-nargs 1)
+  (testb ($ x8664::fixnummask) (%b index))
+  (ref-global tenured-area temp0)
+  (jne @bad)
+  (unbox-fixnum index imm1)
+  (rcmpq (% imm1) (@ target::area.static-dnodes (% temp0)))
+  (jae @bad)
+  (shl ($ 1) (% index))
+  (movq (% index) (% imm0))
+  (addq (@ target::area.low) (% index))
+  (addq ($ target::fulltag-cons) (% arg_z))
+  (movq (@ target::area.static-used (% temp0)) (% temp0))
+  ;(set-bit-at-index temp0 imm0)
+  (single-value-return)
+  @bad
+  (save-simple-frame)
+  (load-constant openmcl-hons:invalid-hons-index arg_x)
+  (load-constant :index arg_y)
+  (call-symbol error 3)
+  (restore-simple-frame)
+  (single-value-return))
+
+
 
 #+ppc-target
 (defppclapfunction openmcl-hons:hons-index-used-p ((index arg_z))
@@ -287,6 +355,31 @@
   (bla .SPjmpsym)
   (ba .SPpopj))
 
+#+x8664-target
+(defx86lapfunction openmcl-hons:hons-space-ref-car ((index arg_z))
+  "If INDEX is in bounds (non-negative and less than the current hons-space size),
+   return the CAR of the pair at that index.  The return value could be any
+   lisp object, or (HONS-SPACE-DELETED-MARKER).
+   If INDEX is not in bounds, an error is signaled."
+  (check-nargs 1)
+  (testb ($ x8664::fixnummask) (%b index))
+  (ref-global tenured-area temp0)
+  (jne @bad)
+  (unbox-fixnum index imm1)
+  (rcmpq (% imm1) (@ target::area.static-dnodes (% temp0)))
+  (jae @bad)
+  (shlq ($ 1) (% index))
+  (addq (@ target::area.low (% temp0)) (% arg_z))
+  (movq (@ (+ target::cons.car target::fulltag-cons) (% arg_z)) (% arg_z))
+  (single-value-return)
+  @bad
+  (save-simple-frame)
+  (load-constant openmcl-hons:invalid-hons-index arg_x)
+  (load-constant :index arg_y)
+  (call-symbol error 3)
+  (restore-simple-frame)
+  (single-value-return))
+
 #+ppc-target
 (defppclapfunction openmcl-hons:hons-space-ref-cdr ((index arg_z))
   "If INDEX is in bounds (non-negative and less than the current hons-space size),
@@ -317,6 +410,33 @@
   (load-constant fname error)
   (bla .SPjmpsym)
   (ba .SPpopj))
+
+#+x8664-target
+(defx86lapfunction openmcl-hons:hons-space-ref-cdr ((index arg_z))
+  "If INDEX is in bounds (non-negative and less than the current hons-space size),
+   return the CDR of the pair at that index.  The return value could be any
+   lisp object, or (HONS-SPACE-DELETED-MARKER).
+   If INDEX is not in bounds, an error is signaled."
+  (check-nargs 1)
+  (testb ($ x8664::fixnummask) (%b index))
+  (ref-global tenured-area temp0)
+  (jne @bad)
+  (unbox-fixnum index imm1)
+  (rcmpq (% imm1) (@ target::area.static-dnodes (% temp0)))
+  (jae @bad)
+  (shlq ($ 1) (% index))
+  (addq (@ target::area.low (% temp0)) (% arg_z))
+  (movq (@ (+ target::cons.cdr target::fulltag-cons) (% arg_z)) (% arg_z))
+  (single-value-return)
+  @bad
+  (save-simple-frame)
+  (load-constant openmcl-hons:invalid-hons-index arg_x)
+  (load-constant :index arg_y)
+  (call-symbol error 3)
+  (restore-simple-frame)
+  (single-value-return))
+
+
 
 
 (defun openmcl-hons:hons-space-cons (index new-car new-cdr)
