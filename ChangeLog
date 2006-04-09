@@ -1,3 +1,30 @@
+2006-04-09 09:17  gb
+
+	* lisp-kernel/thread_manager.c: Inflate control stack size on
+	x8664, until DWS marker works (and do so correctly this time).
+
+2006-04-09 09:12  gb
+
+	* lisp-kernel/thread_manager.c: Inflate control stack size on
+	x8664, until DWS marker works.
+
+2006-04-09 09:09  gb
+
+	* level-0/l0-hash.lisp: Now that bitvectors work, remove
+	#+x86-target DBG trap.
+
+2006-04-09 08:57  gb
+
+	* level-0/l0-hash.lisp: Set/clear rehash bits via SBIT, not AREF. 
+	(Should be exactly the same code, but may not have been 15 years
+	ago or whenever this was written.)
+
+2006-04-09 08:56  gb
+
+	* lisp-kernel/x86-spentry64.s,
+	compiler/X86/X8664/x8664-vinsns.lisp: Clear bits in a bit vector
+	via btrX (Bit Test and Reset), not btcX (Bit Test and Complement.)
+
 2006-04-09 03:52  gb
 
 	* lisp-kernel/x86-macros.s: Parens around negative displacement in
