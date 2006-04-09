@@ -1501,7 +1501,7 @@ result-type-specifer is :VOID or NIL"
               (ceiling bits (target-word-size-case
                              (32 32)
                              (64 64))))
-          :address))
+          :address)))
        (error "can't determine representation keyword for ~s" f)))))
 
 (defun foreign-record-accessor-names (record-type &optional prefix)
