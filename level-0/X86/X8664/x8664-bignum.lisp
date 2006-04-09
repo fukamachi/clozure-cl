@@ -164,7 +164,9 @@
   (notl (% imm0.l))  
   @wasneg
   (bsrl (% imm0.l) (% imm0.l))
+  (sete (% imm1.b))
   (xorl ($ 31) (% imm0))
+  (addb (% imm1.b) (% imm0.b))
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
