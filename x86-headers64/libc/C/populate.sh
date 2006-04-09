@@ -2,7 +2,7 @@
 # Note that it may be necessary to patch <sys/procfs.h>, since
 # it (mis)uses features not supported by GCC 4.0.  See
 # <http://gcc.gnu.org/ml/gcc/2005-01/msg00509.html>
-CFLAGS=-m64;export CFLAGS
+CFLAGS="-m64 -D_GNU_SOURCE";export CFLAGS
 h-to-ffi.sh /usr/include/_G_config.h
 h-to-ffi.sh /usr/include/a.out.h
 h-to-ffi.sh /usr/include/aio.h
