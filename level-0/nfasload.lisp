@@ -449,11 +449,11 @@
 
 #+64-bit-target
 (deffaslop $fasl-u64-vector (s)
-  (fasl-read-ivector s ppc64::subtag-u64-vector))
+  (fasl-read-ivector s target::subtag-u64-vector))
 
 #+64-bit-target
 (deffaslop $fasl-u64-vector (s)
-  (fasl-read-ivector s ppc64::subtag-s64-vector))
+  (fasl-read-ivector s target::subtag-s64-vector))
 
 (deffaslop $fasl-bit-vector (s)
   (fasl-read-ivector s target::subtag-bit-vector))
