@@ -354,7 +354,7 @@ define([rcmpb],[
 
 define([condition_to_boolean],[
         movl [$]t_value,$2_l
-        lea -t_offset($2),$3
+        lea (-t_offset)($2),$3
         cmov$1l $2_l,$3_l
 ])
 
