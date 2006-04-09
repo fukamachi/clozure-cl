@@ -644,10 +644,18 @@ current_native_thread_id()
 	  );
 }
 
+#ifdef X8664
+#warning Inflating stack size until DWS marker works
+#endif
+
 void
 thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
 {
   area *a, *register_cstack_holding_area_lock(BytePtr, natural);
+
+#ifdef X8664
+  stack_size *=3;
+#endif
 
   tcr->osid = current_thread_osid();
   tcr->native_thread_id = current_native_thread_id();
