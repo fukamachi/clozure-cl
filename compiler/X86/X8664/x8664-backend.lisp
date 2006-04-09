@@ -238,7 +238,8 @@
                  :prepend-underscores t
                  :bits-per-word  64)
                #+(or linuxx86-target (not x86-target))
-               '(:bits-per-word  64))))
+               '(:bits-per-word  64
+                 :struct-by-value t))))
     (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)
     (setf (backend-target-foreign-type-data *x8664-backend*) ftd)))
