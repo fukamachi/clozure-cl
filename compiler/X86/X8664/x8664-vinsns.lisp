@@ -691,10 +691,9 @@
 (define-x8664-vinsn cr-bit->boolean (((dest :lisp))
                                      ((crbit :u8const))
                                      ((temp :u32)))
-  (setcc (:$ub crbit) (:%b temp))
-  (negb (:%b temp))
-  (andl (:$b x8664::t-offset) (:%l temp))
-  (leaq (:@ x8664::nil-value (:%q temp)) (:%q dest)))
+  (movl (:$l x8664::t-value) (:%l temp))
+  (leaq (:@ (- x8664::t-offset) (:%q temp)) (:%q dest))
+  (cmovccl (:$ub crbit) (:%l temp) (:%l dest)))
 
 
 
