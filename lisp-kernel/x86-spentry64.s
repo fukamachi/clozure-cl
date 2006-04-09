@@ -1041,7 +1041,7 @@ local_label(misc_set_s16):
 	__(jmp *%ra0)
 local_label(misc_set_u16):
 	__(movq %arg_y,%imm1)
-	__(testq $(0xffff<<fixnumshift),%arg_z)
+	__(testq $~(0xffff<<fixnumshift),%arg_z)
 	__(jne local_label(misc_set_bad))
 	__(shrq $2,%imm1)
 	__(unbox_fixnum(%arg_z,%imm0))
