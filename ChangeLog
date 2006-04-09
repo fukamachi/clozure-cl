@@ -1,3 +1,65 @@
+2006-04-08 20:46  gb
+
+	* lib/foreign-types.lisp: Add missing paren ...
+
+2006-04-08 20:45  gb
+
+	* lib/foreign-types.lisp: Recognize a :struct-by-value case.
+
+2006-04-08 20:44  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: X8664 ABI seems to pass
+	structs by value, sort of.
+
+2006-04-08 20:43  gb
+
+	* x86-headers64/libc/C/populate.sh: Add -D_GNU_SOURCE to CFLAGS.
+
+2006-04-08 20:42  gb
+
+	* library/hash-cons.lisp: Port some of this to x8664; need to add
+	code to maintain "used" bitmap.
+
+2006-04-08 20:42  gb
+
+	* lib/numbers.lisp: Conditionalize out the FP infinity stuff in the
+	short term.
+
+2006-04-08 20:41  gb
+
+	* lib/edit-callers.lisp: %MAP-LFIMMS: lfun-vector changes.  Should
+	someday fix this crap.
+
+2006-04-08 20:40  gb
+
+	* lib/describe.lisp: Conditionalize, a little.
+
+2006-04-08 20:40  gb
+
+	* lib/db-io.lisp: SAVE-DB-FUNCTION appears to be unused.
+
+2006-04-08 20:39  gb
+
+	* level-1/l1-io.lisp: PRINT-A-NAN not #+ppc-target.
+
+2006-04-08 20:39  gb
+
+	* level-1/l1-readloop-lds.lisp: Error reentry stuff here.
+
+2006-04-08 20:39  gb
+
+	* level-1/l1-sockets.lisp: Workaround ffi translator lossage in
+	_inet_ntoa (just as Darwin has for years; why not fix this ?)
+
+2006-04-08 20:38  gb
+
+	* level-1/ppc-trap-support.lisp: Error-reentry stuff to
+	l1-readloop-lds (nothing to do with PPC or traps ...)
+
+2006-04-08 20:37  gb
+
+	* .cvsignore: Ignore *CL*/*cl*, not necessarily *CCL*/*ccl*.
+
 2006-04-08 04:46  gb
 
 	* compiler/X86/x862.lisp: X862-MVCALL needs to always save and
