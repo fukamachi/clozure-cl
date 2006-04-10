@@ -551,8 +551,8 @@ debug_show_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 debug_command_return
 debug_show_fpu(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
-  double *dp, d;
-  int *np, n, i;
+  double *dp;
+  int *np, i;
 #ifdef PPC
   dp = xpFPRvector(xp);
   np = (int *) dp;
@@ -561,6 +561,24 @@ debug_show_fpu(ExceptionInformation *xp, siginfo_t *info, int arg)
     fprintf(stderr, "f%02d : 0x%08X%08X (%f)\n", i,  *np++, *np++, *dp++);
   }
   fprintf(stderr, "FPSCR = %08X\n", xpFPSCR(xp));
+#endif
+#ifdef X8664
+#ifdef LINUX
+  struct _libc_xmmreg * xmmp = &(xp->uc_mcontext.fpregs->_xmm[0]);
+  float *sp;
+
+  dp = (double *) sp;
+  np = (int *) sp;
+
+  for (i = 0; i < 16; i++, xmmp++) {
+    sp = (float *) xmmp;
+    dp = (double *) xmmp;
+    np = (int *) xmmp;
+    fprintf(stderr, "f%02d: 0x%08x (%f), 0x%08x%08x (%f)\n", i, *np, (double)(*sp), np[1], np[0], *dp);
+  }
+  fprintf(stderr, "mxcsr = 0x%08x\n",xp->uc_mcontext.fpregs->mxcsr);
+      
+#endif
 #endif
   return debug_continue;
 }
