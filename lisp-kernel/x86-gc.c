@@ -124,6 +124,12 @@ check_node(LispObj n)
   return;
 }
 
+void
+check_all_mark_bits(LispObj *nodepointer) 
+{
+}
+
+
 Boolean GCDebug = false, GCverbose = false;
 
 
@@ -265,6 +271,7 @@ mark_root(LispObj n)
 
   if (tag_n == fulltag_cons) {
     cons *c = (cons *) ptr_from_lispobj(untag(n));
+
     rmark(c->car);
     rmark(c->cdr);
     return;
@@ -273,6 +280,7 @@ mark_root(LispObj n)
       (tag_n == fulltag_tra_1)) {
     n = n - (((int *)n)[-1]);
     tag_n = fulltag_function;
+    dnode = gc_area_dnode(n);
   }
   {
     LispObj *base = (LispObj *) ptr_from_lispobj(untag(n));
@@ -418,7 +426,7 @@ rmark(LispObj n)
   if ((tag_n == fulltag_tra_0) ||
       (tag_n == fulltag_tra_1)) {
     n -= ((int *)n)[-1];
-    tag_n = fulltag_function;
+    tag_n = fulltag_function;    
   }
 
   dnode = gc_area_dnode(n);
