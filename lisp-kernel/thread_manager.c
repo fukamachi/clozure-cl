@@ -1114,8 +1114,10 @@ TCR *freed_tcrs = NULL;
 void
 enqueue_freed_tcr (TCR *tcr)
 {
+#ifndef HAVE_TLS
   tcr->next = freed_tcrs;
   freed_tcrs = tcr;
+#endif
 }
 
 void
@@ -1125,7 +1127,9 @@ free_freed_tcrs ()
 
   for (current = freed_tcrs; current; current = next) {
     next = current->next;
+#ifndef HAVE_TLS
     free(current);
+#endif
   }
   freed_tcrs = NULL;
 }
