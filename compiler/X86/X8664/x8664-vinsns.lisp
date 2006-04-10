@@ -1202,24 +1202,45 @@
    (movsd (:%xmm x) (:%xmm result))
    (addsd (:%xmm y) (:%xmm result))))
 
-
+;;; Caller guarantees (not (eq y result))
 (define-x8664-vinsn double-float--2 (((result :single-float))
 				     ((x :single-float)
 				      (y :single-float)))
-  (movsd (:%xmm x) (:%xmm result))
+  ((:not (:pred = (:apply %hard-regspec-value result)
+                (:apply %hard-regspec-value x)))
+   (movsd (:%xmm x) (:%xmm result)))
   (subsd (:%xmm y) (:%xmm result)))
 
 (define-x8664-vinsn double-float*-2 (((result :single-float))
 				     ((x :single-float)
                                       (y :single-float)))
-  (movsd (:%xmm y) (:%xmm result))
-  (mulsd (:%xmm x) (:%xmm result)))
+  ((:pred =
+          (:apply %hard-regspec-value result)
+          (:apply %hard-regspec-value x))
+   (mulsd (:%xmm y) (:%xmm result)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value x)))
+         (:pred =
+                (:apply %hard-regspec-value result)
+                (:apply %hard-regspec-value y)))
+   (mulsd (:%xmm x) (:%xmm result)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value x)))
+         (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value y))))
+   (movsd (:%xmm x) (:%xmm result))
+   (mulsd (:%xmm y) (:%xmm result))))
 
-
+;;; Caller guarantees (not (eq y result))
 (define-x8664-vinsn double-float/-2 (((result :double-float))
 				     ((x :double-float)
 				      (y :double-float)))
-  (movsd (:%xmm x) (:%xmm result))
+  ((:not (:pred = (:apply %hard-regspec-value result)
+                (:apply %hard-regspec-value x)))
+   (movsd (:%xmm x) (:%xmm result)))
   (divsd (:%xmm y) (:%xmm result)))
 
 (define-x8664-vinsn single-float+-2 (((result :single-float))
@@ -1245,22 +1266,45 @@
    (movss (:%xmm x) (:%xmm result))
    (addss (:%xmm y) (:%xmm result))))
 
+;;; Caller guarantees (not (eq y result))
 (define-x8664-vinsn single-float--2 (((result :single-float))
 				     ((x :single-float)
 				      (y :single-float)))
-  (movss (:%xmm x) (:%xmm result))
+  ((:not (:pred = (:apply %hard-regspec-value result)
+                (:apply %hard-regspec-value x)))
+   (movss (:%xmm x) (:%xmm result)))
   (subss (:%xmm y) (:%xmm result)))
 
 (define-x8664-vinsn single-float*-2 (((result :single-float))
 				     ((x :single-float)
                                       (y :single-float)))
-  (movss (:%xmm y) (:%xmm result))
-  (mulss (:%xmm x) (:%xmm result)))
+    ((:pred =
+          (:apply %hard-regspec-value result)
+          (:apply %hard-regspec-value x))
+   (mulss (:%xmm y) (:%xmm result)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value x)))
+         (:pred =
+                (:apply %hard-regspec-value result)
+                (:apply %hard-regspec-value y)))
+   (mulss (:%xmm x) (:%xmm result)))
+  ((:and (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value x)))
+         (:not (:pred =
+                      (:apply %hard-regspec-value result)
+                      (:apply %hard-regspec-value y))))
+   (movss (:%xmm x) (:%xmm result))
+   (mulss (:%xmm y) (:%xmm result))))
 
+;;; Caller guarantees (not (eq y result))
 (define-x8664-vinsn single-float/-2 (((result :single-float))
 				     ((x :single-float)
 				      (y :single-float)))
-  (movss (:%xmm x) (:%xmm result))
+  ((:not (:pred = (:apply %hard-regspec-value result)
+                (:apply %hard-regspec-value x)))
+   (movss (:%xmm x) (:%xmm result)))
   (divss (:%xmm y) (:%xmm result)))
 
 (define-x8664-vinsn get-single (((result :single-float))
