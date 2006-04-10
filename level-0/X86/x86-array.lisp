@@ -72,166 +72,163 @@
     (jmp-subprim  .SPvalues)))
 
 
-;;; If the bit-arrays are all simple-bit-vectorp, we can do the operations
-;;; 32 bits at a time.  (other case have to worry about alignment/displacement.)
-#+ppc32-target
-(defppclapfunction %simple-bit-boole ((op 0) (b1 arg_x) (b2 arg_y) (result arg_z))
-  (la imm0 4 vsp)
-  (save-lisp-context imm0)
-  (vector-size imm4 result imm4)
-  (srwi. imm3 imm4 5)
-  (clrlwi imm4 imm4 27)
-  (bl @get-dispatch)
-  (cmpwi cr1 imm4 0)
-  (mflr loc-pc)
-  (lwz temp0 op vsp)
-  (add loc-pc loc-pc temp0)
-  (add loc-pc loc-pc temp0)
-  (mtctr loc-pc)
-  (li imm0 ppc32::misc-data-offset)
-  (b @testw)
-  @nextw
-  (cmpwi cr0 imm3 1)
-  (subi imm3 imm3 1)
-  (lwzx imm1 b1 imm0)
-  (lwzx imm2 b2 imm0)
-  (bctrl)
-  (stwx imm1 result imm0)
-  (addi imm0 imm0 4)
-  @testw
-  (bne cr0 @nextw)
-  (beq cr1 @done)
-  ;; Not sure if we need to make this much fuss about the partial word
-  ;; in this simple case, but what the hell.
-  (lwzx imm1 b1 imm0)
-  (lwzx imm2 b2 imm0)
-  (bctrl)
-  (lwzx imm2 result imm0)
-  (slw imm2 imm2 imm4)
-  (srw imm2 imm2 imm4)
-  (subfic imm4 imm4 32)
-  (srw imm1 imm1 imm4)
-  (slw imm1 imm1 imm4)
-  (or imm1 imm1 imm2)
-  (stwx imm1 result imm0)
-  @done
-  (restore-full-lisp-context)
-  (blr)
 
-  @get-dispatch 
-  (blrl)
-  @disptach
-  (li imm1 0)                           ; boole-clr
-  (blr)
-  (li imm1 -1)                          ; boole-set
-  (blr)
-  (blr)                                 ; boole-1
-  (blr)                             
-  (mr imm1 imm2)                        ; boole-2
-  (blr)
-  (not imm1 imm1)                       ; boole-c1
-  (blr)
-  (not imm1 imm2)                       ; boole-c2
-  (blr)
-  (and imm1 imm1 imm2)                  ; boole-and
-  (blr)
-  (or imm1 imm1 imm2)                   ; boole-ior
-  (blr)
-  (xor imm1 imm1 imm2)                  ; boole-xor
-  (blr)
-  (eqv imm1 imm1 imm2)                  ; boole-eqv
-  (blr)
-  (nand imm1 imm1 imm2)                 ; boole-nand
-  (blr)
-  (nor imm1 imm1 imm2)                  ; boole-nor
-  (blr)
-  (andc imm1 imm2 imm1)                 ; boole-andc1
-  (blr)
-  (andc imm1 imm1 imm2)                 ; boole-andc2
-  (blr)
-  (orc imm1 imm2 imm1)                  ; boole-orc1
-  (blr)
-  (orc imm1 imm1 imm2)                  ; boole-orc2
-  (blr))
+(defx86lapfunction %boole-clr ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq ($ 0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
 
-#+ppc64-target
-(defppclapfunction %simple-bit-boole ((op 0) (b1 arg_x) (b2 arg_y) (result arg_z))
-  (la imm0 8 vsp)
-  (save-lisp-context imm0)
-  (vector-size imm4 result imm4)
-  (srdi. imm3 imm4 6)
-  (clrldi imm4 imm4 (- 64 6))
-  (bl @get-dispatch)
-  (cmpdi cr1 imm4 0)                    ; at most low 6 bits set in imm4
-  (mflr loc-pc)
-  (ld temp0 op vsp)
-  (add loc-pc loc-pc temp0)
-  (mtctr loc-pc)
-  (li imm0 ppc64::misc-data-offset)
-  (b @testd)
-  @nextd
-  (cmpdi cr0 imm3 1)
-  (subi imm3 imm3 1)
-  (ldx imm1 b1 imm0)
-  (ldx imm2 b2 imm0)
-  (bctrl)
-  (stdx imm1 result imm0)
-  (addi imm0 imm0 8)
-  @testd
-  (bne cr0 @nextd)
-  (beq cr1 @done)
-  ;; Not sure if we need to make this much fuss about the partial word
-  ;; in this simple case, but what the hell.
-  (ldx imm1 b1 imm0)
-  (ldx imm2 b2 imm0)
-  (bctrl)
-  (ldx imm2 result imm0)
-  (sld imm2 imm2 imm4)
-  (srd imm2 imm2 imm4)
-  (subfic imm4 imm4 64)
-  (srd imm1 imm1 imm4)
-  (sld imm1 imm1 imm4)
-  (or imm1 imm1 imm2)
-  (stdx imm1 result imm0)
-  @done
-  (restore-full-lisp-context)
-  (blr)
+(defx86lapfunction %boole-set ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq ($ -1) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
 
-  @get-dispatch 
-  (blrl)
-  @disptach
-  (li imm1 0)                           ; boole-clr
-  (blr)
-  (li imm1 -1)                          ; boole-set
-  (blr)
-  (blr)                                 ; boole-1
-  (blr)                             
-  (mr imm1 imm2)                        ; boole-2
-  (blr)
-  (not imm1 imm1)                       ; boole-c1
-  (blr)
-  (not imm1 imm2)                       ; boole-c2
-  (blr)
-  (and imm1 imm1 imm2)                  ; boole-and
-  (blr)
-  (or imm1 imm1 imm2)                   ; boole-ior
-  (blr)
-  (xor imm1 imm1 imm2)                  ; boole-xor
-  (blr)
-  (eqv imm1 imm1 imm2)                  ; boole-eqv
-  (blr)
-  (nand imm1 imm1 imm2)                 ; boole-nand
-  (blr)
-  (nor imm1 imm1 imm2)                  ; boole-nor
-  (blr)
-  (andc imm1 imm2 imm1)                 ; boole-andc1
-  (blr)
-  (andc imm1 imm1 imm2)                 ; boole-andc2
-  (blr)
-  (orc imm1 imm2 imm1)                  ; boole-orc1
-  (blr)
-  (orc imm1 imm1 imm2)                  ; boole-orc2
-  (blr))
+(defx86lapfunction %boole-1 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-2 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-c1 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-c2 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-and ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (andq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-ior ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (orq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-xor ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (xorq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-eqv ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (xorq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-nand ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (andq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-nor ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (orq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-andc1 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (andq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-andc2 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (andq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-orc1 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (orq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defx86lapfunction %boole-orc2 ((idx 0) (b0 arg_x) (b1 arg_y) (dest arg_z))
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (movq (@ x8664::misc-data-offset (% b1) (% temp0)) (% imm0))
+  (notq (% imm0))
+  (orq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
+  (movq (% imm0) (@ x8664::misc-data-offset (% dest) (% temp0)))
+  (single-value-return))
+
+(defparameter *simple-bit-boole-functions* ())
+
+(setq *simple-bit-boole-functions*
+      (vector
+       #'%boole-clr
+       #'%boole-set
+       #'%boole-1
+       #'%boole-2
+       #'%boole-c1
+       #'%boole-c2
+       #'%boole-and
+       #'%boole-ior
+       #'%boole-xor
+       #'%boole-eqv
+       #'%boole-nand
+       #'%boole-nor
+       #'%boole-andc1
+       #'%boole-andc2
+       #'%boole-orc1
+       #'%boole-orc2))
+
+(defun %simple-bit-boole (op b1 b2 result)
+  (let* ((f (svref *simple-bit-boole-functions* op)))
+    (dotimes (i (ash (the fixnum (+ (length result) 63)) -8) result)
+      (funcall f i b1 b2 result))))
+
+       
 
 
 
