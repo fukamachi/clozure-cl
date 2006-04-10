@@ -25,7 +25,7 @@
                  %single-float-asinh %single-float-tanh
                  %single-float-cosh %single-float-sinh)))
 
-#-x86-target
+
 (defconstant double-float-positive-infinity
   #.(let* ((division-by-zero (get-fpu-mode  :division-by-zero)))
       (declare (notinline /))
@@ -35,7 +35,6 @@
              (/ 0d0))
 	(ccl:set-fpu-mode :division-by-zero division-by-zero))))
 
-#-x86-target
 (defconstant double-float-negative-infinity
   #.(let* ((division-by-zero (get-fpu-mode  :division-by-zero)))
       (declare (notinline /))
