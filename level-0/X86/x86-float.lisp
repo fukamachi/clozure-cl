@@ -170,7 +170,7 @@
   (andl ($ x86::mxcsr-write-mask) (%l temp0))
   (shl ($ (- 32 x8664::fixnumshift)) (% temp0))
   (push (% temp0))
-  (stmxcsr (@ 4 (% rsp)))
+  (ldmxcsr (@ 4 (% rsp)))
   (add ($ '1) (% rsp))
   (single-value-return))
 
