@@ -26,13 +26,13 @@
 (defloadvar *heap-image-name*
     (let* ((p (%null-ptr)))
       (declare (dynamic-extent p))
-      (%get-cstring (%get-kernel-global-ptr 'ppc::image-name p))))
+      (%get-cstring (%get-kernel-global-ptr 'image-name p))))
 
 (defloadvar *command-line-argument-list*
   (let* ((argv (%null-ptr))
 	 (res ()))
     (declare (dynamic-extent argv))
-    (%get-kernel-global-ptr 'ppc::argv argv)
+    (%get-kernel-global-ptr 'argv argv)
     (do* ((i 0 (+ i target::node-size))
 	  (arg (%get-ptr argv i) (%get-ptr argv i)))
 	 ((%null-ptr-p arg) (nreverse res))
