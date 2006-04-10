@@ -256,7 +256,6 @@
     (single-value-return)))
 
 (defx86lapfunction fix-digit-logandc2 ((fix arg_x) (big arg_y) (dest arg_z))
-  (uuo-error-debug-trap)
   (let ((w1 imm0)
         (w2 imm1))
     (movq (@ x8664::misc-data-offset (% big)) (% w2))
@@ -273,7 +272,6 @@
 
 
 (defx86lapfunction fix-digit-logandc1 ((fix arg_x) (big arg_y) (dest arg_z))
-  (uuo-error-debug-trap)
   (let ((w1 imm0)
         (w2 imm1))
     (movq (@ x8664::misc-data-offset (% big)) (% w2))
