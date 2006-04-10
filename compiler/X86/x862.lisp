@@ -6688,41 +6688,27 @@
   (if (null vreg)
     (progn
       (x862-form seg nil nil ptr)
-      (x862-form seg nil ptr nil))
-    (let* ((offval (acode-fixnum-form-p offset))
-           (byte-index (if offval (ash offval -3)))
-           (bit-shift (if (and byte-index (< byte-index #x8000))
-                        (logand 31 (+ 25 (logand offval 7))))))
-      (if bit-shift
-        (with-imm-target ()
-          (src-reg :address)
-          (x862-one-targeted-reg-form seg ptr src-reg)
-          (if (node-reg-p vreg)
-            (! mem-ref-c-bit-fixnum vreg src-reg byte-index (logand 31 (+ bit-shift
-                                                                           *x862-target-fixnum-shift*)))
-            (with-imm-target ()           ;OK if src-reg & dest overlap
-              (dest :u8)
-              (! mem-ref-c-bit dest src-reg  byte-index bit-shift)
-              (<- dest))))
-        (let* ((triv-p (x862-trivial-p offset))
-               (offset-reg nil))
-          (with-imm-target ()
-            (src-reg :address)
+      (x862-form seg nil xfer offset))
+    (let* ((offval (acode-fixnum-form-p offset)))
+      (if (typep offval '(signed-byte 32)) ; or thereabouts
+        (with-imm-target () (src-reg :address)
             (x862-one-targeted-reg-form seg ptr src-reg)
-            (unless triv-p
-              (! temp-push-unboxed-word src-reg)
-              (x862-open-undo $undostkblk))
-            (setq offset-reg (x862-one-untargeted-reg-form seg offset x8664::arg_z))
-            (unless triv-p
-              (! temp-pop-unboxed-word src-reg)
-              (x862-close-undo))
-            (if (node-reg-p vreg)
-              (! mem-ref-bit-fixnum vreg src-reg offset-reg)
-              (with-imm-target ()
+          (if (node-reg-p vreg)
+            (! mem-ref-c-bit-fixnum vreg src-reg offval)
+            (with-imm-target ()           ;OK if src-reg & dest overlap
                 (dest :u8)
-                (! mem-ref-bit dest src-reg offset-reg)
-                (<- dest))))))))
-  (^))
+              (! mem-ref-c-bit dest src-reg offval)
+              (<- dest))))
+        (with-imm-target () (src-reg :address)
+          (x862-two-targeted-reg-forms seg ptr src-reg offset ($ x8664::arg_z))
+          (if (node-reg-p vreg)
+            (! mem-ref-bit-fixnum vreg src-reg ($ x8664::arg_z))
+            (with-imm-target ()           ;OK if src-reg & dest overlap
+                (dest :u8)
+              (! mem-ref-bit dest src-reg offset)
+              (<- dest)))))
+      (^))))
+
     
       
                                       
@@ -7500,48 +7486,34 @@
 
 (defx862 x862-set-bit %set-bit (seg vreg xfer ptr offset newval)
   (let* ((offval (acode-fixnum-form-p offset))
-         (byte-index (if offval (ash offval -3)))
-         (bit-index (if (and byte-index (< byte-index #x8000))
-                      (logand offval #x7)))
-         (triv-offset (x862-trivial-p offset))
-         (triv-val (x862-trivial-p newval)))
-    (with-imm-target ()
-      (src :address)
-      (x862-one-targeted-reg-form seg ptr src)
-      (if bit-index
-        (let* ((mask-start (logand 31 (+ bit-index 25)))
-               (mask-end (logand 31 (+ bit-index 23)))
-               (mask (ash #x80 (- bit-index)))
-               (constval (acode-fixnum-form-p newval)))
+         (constval (acode-fixnum-form-p newval)))
+      (if (typep offval '(signed-byte 32))
+        (with-imm-target () (src :address)
+          (x862-one-targeted-reg-form seg ptr src)
           (if constval
             (progn
               (if (eql constval 0)
-                (! mem-set-c-bit-0 src byte-index mask-start mask-end)
-                (! mem-set-c-bit-1 src byte-index mask))
+                (! mem-set-c-bit-0 src offval)
+                (! mem-set-c-bit-1 src offval))
               (when vreg
                 (x862-form seg vreg nil newval)))
-            (progn
-              (unless triv-val
-                (! temp-push-unboxed-word src)
-                (x862-open-undo $undostkblk))
-              (let* ((target (x862-one-untargeted-reg-form seg newval x8664::arg_z)))
-                (unless triv-val
-                  (! temp-pop-unboxed-word src)
-                  (x862-close-undo))
-                (! mem-set-c-bit src byte-index (+ 24 bit-index) target)
-                (<- target)))))
-        (progn
-          (unless (and triv-val triv-offset)
-            (! temp-push-unboxed-word src)
-            (x862-open-undo $undostkblk))
-          (multiple-value-bind (idx-reg val-reg)
-              (x862-two-untargeted-reg-forms seg offset x8664::arg_y newval x8664::arg_z)
-            (unless (and triv-val triv-offset)
-              (! temp-pop-unboxed-word src)
-              (x862-close-undo ))
-            (! mem-set-bit src idx-reg val-reg)
-            (<- val-reg)))))
-    (^)))
+            (with-imm-target () (src :address)
+              (x862-two-targeted-reg-forms seg ptr src newval ($ x8664::arg_z))
+              (! mem-set-c-bit-variable-value src offset ($ x8664::arg_z))
+              (< ($ x8664::arg_z)))))
+        (if constval
+          (with-imm-target () (src :address)
+            (x862-two-targeted-reg-forms seg ptr src offset ($ x8664::arg_z))
+            (if (eql constval 0)
+              (! mem-set-bit-0 src ($ x8664::arg_z))
+              (! mem-set-bit-1 src ($ x8664::arg_z)))
+            (when vreg
+              (x862-form seg vreg nil newval)))
+          (with-imm-target () (src :address)
+            (x862-three-targeted-reg-forms seg ptr src offset ($ x8664::arg_y) newval ($ x8664::arg_z))
+            (! mem-set-bit-variable-value src ($ x8664::arg_y) ($ x8664::arg_z))
+            (<- ($ x8664::arg_z)))))
+      (^)))
 
 (defx862 x862-%immediate-set-xxx %immediate-set-xxx (seg vreg xfer bits ptr offset val)
   (x862-%immediate-store seg vreg xfer bits ptr offset val))
