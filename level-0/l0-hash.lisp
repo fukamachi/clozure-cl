@@ -232,6 +232,18 @@
             (logand (lognot (ash 1 $nhash_key_moved_bit)) flags)))))
 
 
+;;; Tempting though it may be to remove this, a hash table loaded from
+;;; a fasl file likely needs to be rehashed, and the MAKE-LOAD-FORM
+;;; for hash tables needs to be able to call this or something similar.
+(defun %set-needs-rehashing (hash)
+  (setf (nhash.fixnum hash)   (the fixnum (1- (the fixnum (get-fwdnum))))
+        (nhash.gc-count hash) (the fixnum (1- (the fixnum (gc-count)))))
+  (let* ((vector (nhash.vector hash))
+         (flags (nhash.vector.flags vector)))
+    (declare (fixnum flags))
+    (when (logbitp $nhash_track_keys_bit flags)
+      (setf (nhash.vector.flags vector) (logior (ash 1 $nhash_key_moved_bit) flags)))))
+
 (defun mixup-hash-code (fixnum)
   (declare (fixnum fixnum))
   (the fixnum
