@@ -1,3 +1,42 @@
+2006-04-10 10:19  gb
+
+	* lisp-kernel/x86-spentry64.s: _SPcallback is now called with the
+	foreign SP properly obeying C alignment conventions.  In order to
+	get it aligned for lisp usage during the callback, an extra word
+	needs to be pushed before the backpointer to the old foreign RSP.
+
+2006-04-10 10:18  gb
+
+	* lisp-kernel/x86-exceptions.c: Ensure that the copied sigcontext
+	is 16-byte aligned, so that the foreign stack pointer is aligned
+	according to C conventions when we enter the signal handler on that
+	stack.
+
+2006-04-10 10:13  gb
+
+	* lib/numbers.lisp: Define FP infinities, since we're running with
+	FP exceptions masked. (We don't handle FP exceptions on X8664 yet,
+	but this was crashing due to ldmxcsr/stmxcsr confusion, not because
+	an unmasked FP exception was raised and unhandled.)
+
+2006-04-10 10:10  gb
+
+	* lib/level-2.lisp: Remove the WARN and the conditionalization
+	around bit/bitfield accessors on X8664.
+
+2006-04-10 10:09  gb
+
+	* level-0/X86/x86-float.lisp: Repeat after me: to load the mxcsr
+	from memory, we say "ldmxcsr".	We want to do such a load in order
+	to write new values into the mxcsr.  To store it in memory, we say
+	"stmxcsr".  We want to do such a store (and a subsequent load from
+	memory) in order to access the value of the mxcsr.  Simple, no ?
+
+2006-04-10 10:07  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp:
+	%GET-BIT/%SET-BIT.
+
 2006-04-10 08:29  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: Float
