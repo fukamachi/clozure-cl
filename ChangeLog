@@ -1,3 +1,20 @@
+2006-04-10 08:29  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Float
+	addition/multiplication: either arg can overlap result (and often
+	will).	Float subtraction/division: caller should ensure that
+	result and second arg are disjoint.
+
+2006-04-10 08:27  gb
+
+	* compiler/X86/x862.lisp: Float arithmetic is two-address; ensure
+	that result doesn't overlap second argument for non-commutative
+	operations.
+
+2006-04-10 08:26  gb
+
+	* lisp-kernel/lisp-debug.c: Show FPRs on LinuxX8664.
+
 2006-04-10 05:12  gb
 
 	* lisp-kernel/thread_manager.c: Don't free dead TCRs if we didn't
