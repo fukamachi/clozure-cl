@@ -1093,6 +1093,7 @@
       str)))
 
 
+;;; Allegedly deprecated.
 (defxloadfaslop $fasl-fixnum (s)
   (%epushval s (xload-integer
                 ;; This nonsense converts unsigned %fasl-read-long
@@ -1105,18 +1106,12 @@
   (%epushval s (xload-integer (%word-to-int (%fasl-read-word s)))))
 
 (defxloadfaslop $fasl-s32 (s)
-  (%stack-block ((n 4))
-    (setf (%get-unsigned-word n 0) (%fasl-read-word s)
-          (%get-unsigned-word n 2) (%fasl-read-word s))
-    (%epushval s (xload-integer (%get-signed-long n)))))
+  (%epushval s (xload-integer (%fasl-read-signed-long s))))
 
 (defxloadfaslop $fasl-s64 (s)
-  (%stack-block ((n 8))
-    (setf (%get-unsigned-word n 0) (%fasl-read-word s)
-          (%get-unsigned-word n 2) (%fasl-read-word s)
-          (%get-unsigned-word n 4) (%fasl-read-word s)
-          (%get-unsigned-word n 6) (%fasl-read-word s))
-    (%epushval s (xload-integer (%%get-signed-longlong n 0) 2))))
+  (%epushval s (xload-integer (logior (ash (%fasl-read-signed-long s) 32)
+                                      (%fasl-read-long s))
+                              2)))
 
 (defun xload-set-binding-address (symbol-address idx)
   (unless (= *xload-target-fulltag-for-symbols*
