@@ -526,6 +526,7 @@ LispObj *
 copy_ucontext(ExceptionInformation *context, LispObj *current, fpregset_t fp)
 {
   ExceptionInformation *dest = ((ExceptionInformation *)current)-1;
+  dest = (ExceptionInformation *) (((LispObj)dest) & ~15);
 
   *dest = *context;
   /* Fix it up a little; where's the signal mask allocated, if indeed
