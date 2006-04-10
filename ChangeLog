@@ -1,3 +1,42 @@
+2006-04-10 05:12  gb
+
+	* lisp-kernel/thread_manager.c: Don't free dead TCRs if we didn't
+	malloc them.
+
+2006-04-10 05:12  gb
+
+	* lib/compile-ccl.lisp: REBUILD-CCL paramaters for :LINUXX8664.
+
+2006-04-10 05:11  gb
+
+	* level-1/l1-pathnames.lisp: No need to reference PPC package, and
+	good reason not to.
+
+2006-04-10 04:39  gb
+
+	* xdump/xfasload.lisp: signed 32-bit, 64-bit integers in fasl files
+	are always big-endian.
+
+2006-04-10 04:38  gb
+
+	* lisp-kernel/x86-gc.c: mark_root(): if we're marking a function
+	reachable via a TRA, update the variable "dnode" so that the
+	correct bits get set.
+
+2006-04-10 04:37  gb
+
+	* level-0/X86/X8664/x8664-bignum.lisp: Remove some breakpoints.
+
+2006-04-10 04:37  gb
+
+	* level-0/X86/x86-array.lisp: %SIMPLE-BIT-BOOLE.  Could stand to be
+	a bit simpler.
+
+2006-04-10 04:36  gb
+
+	* level-0/l0-hash.lisp: Whoops: %SET-NEEDS-REHASHING is called from
+	the MAKE-LOAD-FORM method for hashtables.
+
 2006-04-09 09:17  gb
 
 	* lisp-kernel/thread_manager.c: Inflate control stack size on
