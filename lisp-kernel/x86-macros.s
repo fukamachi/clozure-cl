@@ -16,13 +16,15 @@
 
 /* Try to make macros follow GAS/ATT conventions, were source precedes
  destination. */
-		
+
+define([lisp_global],[lisp_globals.$1])
+                        		
 define([ref_global],[
-	mov lisp_globals.$1,$2
+	mov lisp_global($1),$2
 ])
 
 define([set_global],[
-	mov $1,lisp_globals.$2
+	mov $1,lisp_global($2)
 ])
 
 define([ref_nrs_value],[
