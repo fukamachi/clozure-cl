@@ -40,5 +40,13 @@
 
 #define INTERRUPT_LEVEL_BINDING_INDEX (1)
 
+/* FP exception mask bits */
+#define MXCSR_IM_BIT (7)        /* invalid masked when set*/
+#define MXCSR_DM_BIT (8)        /* denormals masked when set*/
+#define MXCSR_ZM_BIT (9)        /* divide-by-zero masked when set */
+#define MXCSR_OM_BIT (10)       /* overflow masked when set */
+#define MXCSR_UM_BIT (11)       /* underflow masked when set */
+#define MXCSR_PM_BIT (12)       /* precision masked when set */
+
 #endif /* __x86_constants__ */
 
