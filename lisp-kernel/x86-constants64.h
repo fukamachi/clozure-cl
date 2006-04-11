@@ -417,10 +417,8 @@ typedef struct tcr {
   } single_float_convert;
   struct tcr* linear;
   LispObj *save_rbp;            /* RBP when in foreign code */
-  union {
-    double d;
-    struct {u_int32_t l, h;} words;
-  } lisp_fpscr;			/* lisp thread's FP status word */
+  u_int32_t lisp_mxcsr;
+  u_int32_t foreign_mxcsr;
   special_binding* db_link;	/* special binding chain head */
   LispObj catch_top;		/* top catch frame */
   LispObj* save_vsp;  /* VSP when in foreign code */
