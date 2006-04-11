@@ -72,7 +72,45 @@
                   (return (values (x86::x86-opcode-template-ordinal template)
                                   (types))))))))))))
 
-                         
+
+(defun fixup-opcode-ordinals (vinsn-template opcode-templates)
+  (let* ((changed ()))
+    (dolist (vinsn-opcode (vinsn-template-opcode-alist vinsn-template))
+      (destructuring-bind (old-ordinal name &optional type0 type1 type2) vinsn-opcode
+        (let* ((opcode-templates (gethash name opcode-templates)))
+          (unless opcode-templates
+            (error "Unknown X86 instruction - ~a.  Odd, because it was once a known instruction." name))
+        (let* ((new-ordinal (dolist (template opcode-templates)
+                              (when (x86::match-template-types template type0 type1 type2)
+                                (return (x86::x86-opcode-template-ordinal template))))))
+          (unless new-ordinal
+            (error "No match for opcode ~s in ~s" vinsn-opcode vinsn-template))
+          (unless (eql old-ordinal new-ordinal)
+            (setf (car vinsn-template) new-ordinal)
+            (push (cons old-ordinal new-ordinal) changed))))))
+    (when changed
+      (format t "~& opcode ordinals changed in ~s: ~s" vinsn-template changed)
+      (flet ((update-instruction (i)
+               (when (consp i)
+                 (let* ((pair (assoc (car i) changed :test #'eq)))
+                   (when pair
+                     (setf (car i) (cdr pair)))))))
+        (labels ((fixup-form (form)
+                   (unless (atom form)
+                     (if (atom (car form))
+                       (update-instruction form)
+                       (dolist (f (cdr form))
+                         (fixup-form f))))))
+          (dolist (form (vinsn-template-body vinsn-template))
+            (fixup-form form)))))))
+
+(defun fixup-x86-vinsn-templates (template-hash opcode-templates)
+  (maphash #'(lambda (name vinsn-template)
+               (declare (ignore name))
+               (fixup-opcode-ordinals (cdr vinsn-template) opcode-templates))
+           template-hash))
+
+
 
 ;;; This defines a template.  All expressions in the body must be
 ;;; evaluable at macroexpansion time.
