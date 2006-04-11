@@ -330,6 +330,14 @@ handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 }
 
 Boolean
+handle_floating_point_exception(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
+{
+  return false;
+}
+
+
+
+Boolean
 handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
 {
   pc program_counter = (pc)xpPC(context);
@@ -399,6 +407,9 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
     }
     break;
     
+  case SIGFPE:
+    return handle_floating_point_exception(tcr, context, info);
+
   default:
     return false;
   }
