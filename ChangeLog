@@ -1,3 +1,93 @@
+2006-04-11 06:53  gb
+
+	* lisp-kernel/x86-exceptions.c: We'll need to handle FP exceptions
+	soon.
+
+2006-04-11 06:53  gb
+
+	* lib/numbers.lisp: Infinity constants conditionalized on/off
+	during MXCSR adventures.  On now.
+
+2006-04-11 06:52  gb
+
+	* lib/describe.lisp: Comment indentation.
+	
+	No such thing as an interpreted function; hasn't been for years.
+
+2006-04-11 06:51  gb
+
+	* level-1/x86-threads-utils.lisp: Fixup lfun bits of %FIXNUM-SET et
+	al.
+
+2006-04-11 06:51  gb
+
+	* level-1/version.lisp: Bumped yesterday.
+
+2006-04-11 06:50  gb
+
+	* level-1/l1-error-signal.lisp: Comments.
+
+2006-04-11 06:50  gb
+
+	* level-1/l1-clos-boot.lisp: CLASS-OF handles non-simple vectors,
+	at least.
+
+2006-04-11 06:50  gb
+
+	* level-0/X86/x86-float.lisp: MXCSR stuff.  Better, mostly because
+	a fixnum constant is boxed in %SET-MXCSR.
+
+2006-04-11 06:49  gb
+
+	* level-0/X86/x86-def.lisp: Get info about register usage.
+
+2006-04-11 06:49  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Natural arithmetic; start
+	work on 2d aref.  Fix MISC-SET-U64 (or some flavor thereof), which
+	though that it was dealing with a scaled index.
+
+2006-04-11 06:48  gb
+
+	* compiler/X86/x862.lisp: Natural arithmetic; start work on 2d
+	aref.
+
+2006-04-11 06:48  gb
+
+	* compiler/X86/x86-lap.lisp: FRAGs are freelisted.  Really need to
+	do something about FRAG-CODE-BUFFERs, and need to tone down
+	expression overkill.
+
+2006-04-11 06:46  gb
+
+	* compiler/X86/x86-backend.lisp: Vinsn template fixup mechanism,
+	for when opcode ordinals change.
+
+2006-04-11 06:46  gb
+
+	* compiler/X86/x86-asm.lisp: UUO-ERROR-STACK-OVERFLOW ->
+	UUO-ERROR-ARRAY-RANK.
+	
+	Vinsn template fixup mechanism, for when opcode ordinals change.
+
+2006-04-11 06:45  gb
+
+	* compiler/X86/x86-arch.lisp: Try to unscramble MXCSR bits/masks.
+
+2006-04-11 06:45  gb
+
+	* compiler/nx0.lisp: NX-U31-CONSTANT-P.
+
+2006-04-11 06:44  gb
+
+	* compiler/dll-node.lisp: WITH-DLL-NODE-FREELIST: syntax to allow
+	specialized list header initialization.
+
+2006-04-11 06:43  gb
+
+	* level-1/l1-error-system.lisp, compiler/arch.lisp: Type errors for
+	2d float arrays.
+
 2006-04-10 10:19  gb
 
 	* lisp-kernel/x86-spentry64.s: _SPcallback is now called with the
