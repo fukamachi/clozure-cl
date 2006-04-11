@@ -167,7 +167,7 @@
 ;;; so that only known control and status bits are written to.
 (defx86lapfunction %set-mxcsr ((val arg_z))
   (mov (% val) (% temp0))
-  (andl ($ x86::mxcsr-write-mask) (%l temp0))
+  (andl ($ '#.x86::mxcsr-write-mask) (%l temp0))
   (shl ($ (- 32 x8664::fixnumshift)) (% temp0))
   (push (% temp0))
   (ldmxcsr (@ 4 (% rsp)))
@@ -178,20 +178,23 @@
 ;;; Get the bits that contain exception masks and rounding mode.
 
 (defun %get-mxcsr-control ()
-  (ldb x86::mxcsr-control-and-rounding-byte (the fixnum (%get-mxcsr))))
+  (logand x86::mxcsr-control-and-rounding-mask (the fixnum (%get-mxcsr))))
 
 ;;; Get the bits that describe current exceptions.
 (defun %get-mxcsr-status ()
-  (ldb x86::mxcsr-status-byte (the fixnum (%get-mxcsr))))
+  (logand x86::mxcsr-status-mask (the fixnum (%get-mxcsr))))
 
 ;;; Set the bits that describe current exceptions, presumably to clear them.
 (defun %set-mxcsr-status (arg)
-  (%set-mxcsr (dpb arg x86::mxcsr-status-byte (%get-mxcsr))))
+  (%set-mxcsr
+   (logior (logand x86::mxcsr-status-mask arg)
+           (logandc2 (%get-mxcsr) x86::mxcsr-status-mask)))
+  arg)
 
 ;;; Set the bits that mask/unmask exceptions and control rounding.
 ;;; Clear the bits which describe current exceptions.
 (defun %set-mxcsr-control (arg)
-  (%set-mxcsr (dpb arg x86::mxcsr-control-byte 0)))
+  (%set-mxcsr (logand x86::mxcsr-control-and-rounding-mask arg)))
 
 ;;; Return the MXCSR value in effect after the last ff-call.
 (defx86lapfunction %get-post-ffi-mxcsr ()
@@ -204,8 +207,10 @@
 ;;; Return the status bits from the last ff-call that represent
 ;;; unmasked exceptions
 (defun %ffi-exception-status ()
-  (logandc2 (%get-post-ffi-mxcsr)
-            (ldb x86::mxcsr-control-byte (%get-mxcsr))))
+  (logior (%get-mxcsr-control)
+          (logand x86::mxcsr-status-mask (the fixnum (%get-post-ffi-mxcsr)))))
+
+
   
 
 ;;; See if the binary double-float operation OP set any enabled
@@ -300,23 +305,16 @@
 
 (defun get-fpu-mode (&optional (mode nil mode-p))
   (let* ((flags (%get-mxcsr-control)))
-    (declare (type (unsigned-byte 8) flags))
+    (declare (fixnum flags))
     (let* ((rounding-mode
-            (car (nth (logand (ash flags
-                                   (- x86::mxcsr-om-bit
-                                      x86::mxcsr-control-bit-shift))
-                              3)
+            (car (nth (+ (if (logbitp x86::mxcsr-rc0-bit flags) 1 0)
+                         (if (logbitp x86::mxcsr-rc1-bit flags) 2 0))
                       *rounding-mode-alist*)))
-           (overflow (not (logbitp (- x86::mxcsr-om-bit
-                                    x86::mxcsr-control-bit-shift) flags)))
-           (underflow (not (logbitp (- x86::mxcsr-um-bit
-                                     x86::mxcsr-control-bit-shift) flags)))
-           (division-by-zero (not (logbitp (- x86::mxcsr-zm-bit
-                                              x86::mxcsr-control-bit-shift) flags)))
-           (invalid (not (logbitp (- x86::mxcsr-im-bit
-                                   x86::mxcsr-control-bit-shift) flags)))
-           (inexact (not (logbitp (- x86::mxcsr-pm-bit
-                                   x86::mxcsr-control-bit-shift) flags))))
+           (overflow (not (logbitp x86::mxcsr-om-bit flags)))
+           (underflow (not (logbitp x86::mxcsr-um-bit flags)))
+           (division-by-zero (not (logbitp x86::mxcsr-zm-bit flags)))
+           (invalid (not (logbitp x86::mxcsr-im-bit flags)))
+           (inexact (not (logbitp x86::mxcsr-pm-bit flags))))
     (if mode-p
       (ecase mode
         (:rounding-mode rounding-mode)
@@ -339,49 +337,44 @@
                           (division-by-zero t zero-p)
                           (invalid t invalid-p)
                           (inexact t inexact-p))
-  (let* ((mask (logior (if rounding-p
-                         (ash #x03
-                              (- x86::mxcsr-om-bit
-                                 x86::mxcsr-control-bit-shift))
-                         #x00)
-                       (if invalid-p
-                         (ash 1 (- x86::mxcsr-im-bit
-                                   x86::mxcsr-control-bit-shift))
-                         #x00)
-                       (if overflow-p
-                         (ash 1 (- x86::mxcsr-om-bit
-                                   x86::mxcsr-control-bit-shift))
-                         #x00)
-                       (if underflow-p
-                         (ash 1 (- x86::mxcsr-um-bit
-                                   x86::mxcsr-control-bit-shift))
-                         #x00)
-                       (if zero-p
-                         (ash 1 (- x86::mxcsr-zm-bit
-                                   x86::mxcsr-control-bit-shift))
-                         #x00)
-                       (if inexact-p
-                         (ash 1 (- x86::mxcsr-pm-bit
-                                   x86::mxcsr-control-bit-shift))
-                         #x00)))
-         (new (logior (ash (or
-                            (cdr (assoc rounding-mode *rounding-mode-alist*))
-                            (error "Unknown rounding mode: ~s" rounding-mode))
-                           (- x86::mxcsr-om-bit
-                              x86::mxcsr-control-bit-shift))
-                      (if invalid 0 (ash 1 (- x86::mxcsr-im-bit
-                                              x86::mxcsr-control-bit-shift)))
-                      (if overflow 0 (ash 1 (- x86::mxcsr-om-bit
-                                               x86::mxcsr-control-bit-shift)))
-                      (if underflow 0 (ash 1 (- x86::mxcsr-um-bit
-                                                x86::mxcsr-control-bit-shift)))
-                      (if division-by-zero 0 (ash 1 (- x86::mxcsr-zm-bit
-                                                       x86::mxcsr-control-bit-shift)))
-                      (if inexact 0 (ash 1 (ash 1 (- x86::mxcsr-pm-bit
-                                                     x86::mxcsr-control-bit-shift)))))))
-    (declare (type (unsigned-byte 8) new mask))
-    (%set-mxcsr-control (logior (logand new mask)
-                                (logandc2 (%get-mxcsr-control) mask)))))
+  (let* ((current (%get-mxcsr-control))
+         (new current))
+    (declare (fixnum current new))
+    (when rounding-p
+      (let* ((rc-bits (or
+                       (cdr (assoc rounding-mode *rounding-mode-alist*))
+                       (error "Unknown rounding mode: ~s" rounding-mode))))
+        (declare (fixnum rc-bits))
+        (if (logbitp 0 rc-bits)
+          (bitsetf x86::mxcsr-rc0-bit new)
+          (bitclrf x86::mxcsr-rc0-bit new))
+        (if (logbitp 1 rc-bits)
+          (bitsetf x86::mxcsr-rc1-bit new)
+          (bitclrf x86::mxcsr-rc1-bit new))))
+    (when invalid-p
+      (if invalid
+        (bitclrf x86::mxcsr-im-bit new)
+        (bitsetf x86::mxcsr-im-bit new)))
+    (when overflow-p
+      (if overflow
+        (bitclrf x86::mxcsr-om-bit new)
+        (bitsetf x86::mxcsr-om-bit new)))
+    (when underflow-p
+      (if underflow
+        (bitclrf x86::mxcsr-um-bit new)
+        (bitsetf x86::mxcsr-um-bit new)))
+    (when zero-p
+      (if division-by-zero
+        (bitclrf x86::mxcsr-zm-bit new)
+        (bitsetf x86::mxcsr-zm-bit new)))
+    (when inexact-p
+      (if inexact
+        (bitclrf x86::mxcsr-pm-bit new)
+        (bitsetf x86::mxcsr-pm-bit new)))
+    (unless (= current new)
+      (%set-mxcsr-control new))
+    (%get-mxcsr)))
+
 
 
 ;;; Copy a single float pointed at by the macptr in single
