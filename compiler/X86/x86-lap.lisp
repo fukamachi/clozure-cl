@@ -37,7 +37,8 @@
     offset
     )
 
-  (defstruct (frag (:include ccl::dll-node))
+  (defstruct (frag (:include ccl::dll-node)
+                   (:constructor %make-frag))
     address
     last-address                        ; address may change during relax
     type                                ; nil, or (:TYPE &rest args)
@@ -47,6 +48,25 @@
     labels                              ; labels defined in this frag
     ))
 
+(def-standard-initial-binding *frag-freelist* (make-dll-node-freelist))
+
+(defparameter *recycle-frags* t)
+
+(defun make-frag ()
+  (let* ((frag (if *recycle-frags* (alloc-dll-node *frag-freelist*))))
+    (if frag
+      (let* ((buffer (frag-code-buffer frag)))
+        (when buffer
+          (setf (fill-pointer buffer) 0))
+        (setf (frag-address frag) nil
+              (frag-last-address frag) nil
+              (frag-type frag) nil
+              (frag-relocs frag) nil
+              (frag-relax-marker frag) nil
+              (frag-labels frag) nil)
+        frag)
+      (%make-frag))))
+  
 
 ;;; Intentionally very similar to RISC-LAP, but with some extensions
 ;;; to deal with alignment and with variable-length and/or span-
@@ -909,6 +929,19 @@
                            :frag frag)
                (frag-relocs frag)))))
         nil))))
+
+
+(defun x862-lap-process-regsave-info (frag-list regsave-label regsave-mask regsave-addr)
+  (when regsave-label
+    (let* ((label-diff (min (- (x86-lap-label-address regsave-label)
+                               *x86-lap-entry-offset*)
+                            255))
+           (first-frag (frag-list-succ frag-list))
+           (buffer (frag-code-buffer first-frag)))
+      (setf (aref buffer 4) label-diff
+            (aref buffer 5) regsave-addr
+            (aref buffer 6) regsave-mask))
+    t))
                        
          
 
@@ -1099,6 +1132,7 @@
           (unless (eql 0 pad)
             (setq buffer (or buffer (setf (frag-code-buffer frag)
                                           (make-array pad
+                                                      :adjustable t
                                                       :element-type '(unsigned-byte 8)
                                                       :fill-pointer 0))))
             (dotimes (i pad) (vector-push-extend #xcc buffer))))))))
@@ -1220,8 +1254,9 @@
     (make-x86-lap-label end-code-tag)
     (x86-lap-directive frag-list :long `(ash (+ (- (:^ ,end-code-tag ) 8)
                                               *x86-lap-entry-offset*) -3))
-    (x86-lap-directive frag-list :short 0)
-    (x86-lap-directive frag-list :byte 0)
+    (x86-lap-directive frag-list :byte 0) ;regsave pc
+    (x86-lap-directive frag-list :byte 0) ;regsave ea
+    (x86-lap-directive frag-list :byte 0) ;regsave mask
     (dolist (f forms)
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
