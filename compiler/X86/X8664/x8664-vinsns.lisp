@@ -1653,10 +1653,11 @@
 
 (define-x8664-vinsn init-closure (()
                                   ((closure :lisp)))
-  (movb (:$b 2) (:@ x8664::misc-data-offset (:%q closure))) ; code word count
+  (movb (:$b 3) (:@ x8664::misc-data-offset (:%q closure))) ; code word count
   (movb (:$b -1) (:@ (+ x8664::misc-data-offset 7) (:%q closure))) ; 1st byte of jmp
   (movl (:$l (:apply logior #x2524 (:apply ash .SPcall-closure 16))) (:@ (+ x8664::misc-data-offset 8) (:%q closure))) ; rest of jmp instruction, low two bytes of subprim address
-  (movb (:$b (:apply ash .SPcall-closure -16)) (:@ (+ x8664::misc-data-offset 12) (:%q closure))))
+  (movb (:$b (:apply ash .SPcall-closure -16)) (:@ (+ x8664::misc-data-offset 12) (:%q closure)))
+  (movb (:$b x8664::function-boundary-marker) (:@ (+ x8664::misc-data-offset 16)  (:%q closure))))
 
 
 (define-x8664-vinsn finalize-closure (((closure :lisp))
