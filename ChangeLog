@@ -1,3 +1,80 @@
+2006-04-11 16:29  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: ada	prints active dynamic (GC)
+	area.
+
+2006-04-11 16:29  gb
+
+	* lisp-kernel/x86-subprims64.s: Maintain the MXCSR on transitions
+	between lisp/foreign code.
+
+2006-04-11 16:29  gb
+
+	* lisp-kernel/x86-spentry64.s: Add write barrier stuff (may have
+	bit-order problems.)
+	
+	Maintain the MXCSR on transitions between lisp/foreign code.
+
+2006-04-11 16:28  gb
+
+	* lisp-kernel/x86-macros.s: Access globals in expressions.
+
+2006-04-11 16:27  gb
+
+	* lisp-kernel/x86-gc.c: Start to implement EGC for X8664; this'll
+	need some bootstrapping stuff (function boundary markers) for a few
+	reasons, as will DWS marker.
+
+2006-04-11 16:27  gb
+
+	* lisp-kernel/x86-exceptions.c: If we get an FP exception, report
+	the siginfo error code.
+
+2006-04-11 16:26  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s: Define MXCSR
+	fields in tcr.
+
+2006-04-11 16:25  gb
+
+	* lisp-kernel/x86-constants.h: Define MXCSR bits.
+
+2006-04-11 16:25  gb
+
+	* lisp-kernel/thread_manager.c: Setup the MXCSR somewhat sanely
+	when starting a lisp thread.  (It'll be saner when FP exceptions
+	are handled.)
+
+2006-04-11 16:24  gb
+
+	* level-1/x86-error-signal.lisp: Recognize what complaints about
+	non-uvectors are trying to tell us.
+
+2006-04-11 16:23  gb
+
+	* level-1/l1-io.lisp: PRINT-OBJECT method for TRAs, symbol/function
+	vectors.
+
+2006-04-11 16:23  gb
+
+	* level-1/l1-clos-boot.lisp: Spell TAGGED-RETURN-ADDRESS with more
+	Ses.  Define classes for function/symbol vectors.
+
+2006-04-11 16:22  gb
+
+	* level-0/X86/x86-def.lisp: %RETURN-ADDRESS-OFFSET.
+
+2006-04-11 16:21  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Closure initialization
+	needs to add a function boundary marker (but we can stop padding
+	each closure with a null function name slot.)
+
+2006-04-11 16:20  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Define
+	FUNCTION-BOUNDARY-MARKER, which should never exist in the wild.
+
 2006-04-11 16:19  gb
 
 	* compiler/X86/x862.lisp: Emit a function boundary marker between
