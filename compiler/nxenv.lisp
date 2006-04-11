@@ -15,7 +15,7 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
-; Compile-time environment for the compiler.
+;;; Compile-time environment for the compiler.
 
 
 (in-package "CCL")
@@ -26,6 +26,7 @@
 )
 
 #+ppc-target (require "PPCENV")
+#+x8664-target (require "X8664ENV")
 
 (defconstant $afunc-size 
   (def-accessors (afunc) %svref
@@ -457,11 +458,13 @@
 
 (defconstant $eaclosedbit 24)
 
-; condition codes :
-; These are 68K condition code values, but the frontend uses them and
-; both backends need to understand them.
-; They're really backend-specific; it wouldn't hurt to have the frontend
-; use a more "neutral" representation.
+#+what?
+(progn
+;;; condition codes :
+;;; These are 68K condition code values, but the frontend uses them and
+;;; both backends need to understand them.
+;;; They're really backend-specific; it wouldn't hurt to have the frontend
+;;; use a more "neutral" representation.
 (defconstant $ccT 0)
 (defconstant $ccEQ 7)
 (defconstant $ccNE 6)
@@ -472,7 +475,7 @@
 (defconstant $ccLT 13)
 (defconstant $ccGT 14)
 (defconstant $ccLE 15)
-
+)
 
 
 (defmacro %temp-push (value place &environment env)
