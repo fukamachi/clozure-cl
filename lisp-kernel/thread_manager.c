@@ -561,7 +561,12 @@ new_tcr(natural vstack_size, natural tstack_size)
   tcr->ts_area = a;
   tcr->save_tsp = (LispObj *) a->active;
   tcr->valence = TCR_STATE_FOREIGN;
+#ifdef PPC
   tcr->lisp_fpscr.words.l = 0xd0;
+#endif
+#ifdef X86
+  tcr->lisp_mxcsr = (1 << MXCSR_DM_BIT) | (1 << MXCSR_UM_BIT) | (1 << MXCSR_PM_BIT);
+#endif
   tcr->save_allocbase = tcr->save_allocptr = (void *) VOID_ALLOCPTR;
   tcr->tlb_limit = 2048<<fixnumshift;
   tcr->tlb_pointer = (LispObj *)malloc(tcr->tlb_limit);
