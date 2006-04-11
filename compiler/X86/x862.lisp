@@ -545,7 +545,7 @@
                          (let* ((val (single-float-bits sfloat)))
                            (x86-lap-directive frag-list :long val)))))
                    (x86-lap-directive frag-list :align 3)
-                   (x86-lap-directive frag-list :align 3)
+                   (x86-lap-directive frag-list :quad x8664::function-boundary-marker)
                    (emit-x86-lap-label frag-list end-code-tag)
                    (dolist (c (reverse *x862-constant-alist*))
                      (let* ((vinsn-label (cdr c)))
@@ -2414,10 +2414,10 @@
              (arch (backend-target-arch *target-backend*))
              (dest ($ x8664::arg_z))
              (vsize (+ (length inherited-vars) 
-                       3                ; %closure-code%, afunc
-                       2)))             ; name, lfun-bits
+                       4                ; %closure-code%, afunc
+                       1)))             ; lfun-bits
         (declare (list inherited-vars))
-        (let* ((cell 2))
+        (let* ((cell 3))
           (declare (fixnum cell))
           (if downward-p
             (progn
@@ -2442,10 +2442,8 @@
                      (t2r (if inherited-vars (var-to-reg (pop inherited-vars) t2)))
                      (t3r (if inherited-vars (var-to-reg (pop inherited-vars) t3))))
                 (setq cell (set-some-cells dest cell t0r t1r t2r t3r)))))
-          (x862-lri seg x8664::arg_y (ash (ash 1 $lfbits-trampoline-bit) *x862-target-fixnum-shift*))
-          (! load-nil x8664::arg_x)
-          (! misc-set-c-node x8664::arg_x dest cell)
-          (! misc-set-c-node x8664::arg_y dest (1+ cell)))
+          (x862-lri seg x8664::arg_y (ash (logior (ash 1 $lfbits-noname-bit) (ash 1 $lfbits-trampoline-bit)) *x862-target-fixnum-shift*))
+          (! misc-set-c-node x8664::arg_y dest cell))
         (! finalize-closure dest)
         dest))))
         
