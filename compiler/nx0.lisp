@@ -1488,6 +1488,14 @@ Or something. Right? ~s ~s" var varbits))
 		  (cadr form))))
       (and (typep val '(unsigned-byte 32)) val))))
 
+(defun nx-u31-constant-p (form)
+  (setq form (nx-untyped-form form))
+  (if (consp form)
+    (let* ((val (if (or (eq (acode-operator form) (%nx1-operator fixnum))
+			(eq (acode-operator form) (%nx1-operator immediate)))
+		  (cadr form))))
+      (and (typep val '(unsigned-byte 31)) val))))
+
 
 ;;; Reference-count vcell, fcell refs.
 (defun nx1-note-vcell-ref (sym)
