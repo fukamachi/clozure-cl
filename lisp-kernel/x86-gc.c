@@ -383,8 +383,7 @@ mark_ephemeral_root(LispObj n)
     return (header_subtag(n) == subtag_hash_vector);
   }
  
-  if ((tag_n == fulltag_cons) ||
-      (tag_n == fulltag_misc)) {
+  if (is_node_fulltag (tag_n)) {
     eph_dnode = area_dnode(n, GCephemeral_low);
     if (eph_dnode < GCn_ephemeral_dnodes) {
       mark_root(n);             /* May or may not mark it */
@@ -745,19 +744,20 @@ skip_over_ivector(natural start, LispObj header)
 void
 check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
 {
-  LispObj x1, *base = start;
+  LispObj x1, *base = start, *prev = start;
   int tag;
   natural ref_dnode, node_dnode;
   Boolean intergen_ref;
 
   while (start < end) {
     x1 = *start;
+    prev = start;
     tag = fulltag_of(x1);
     if (immheader_tag_p(tag)) {
       start = skip_over_ivector(ptr_to_lispobj(start), x1);
     } else {
       intergen_ref = false;
-      if ((tag == fulltag_misc) || (tag == fulltag_cons)) {        
+      if (is_node_fulltag(tag)) {        
         node_dnode = gc_area_dnode(x1);
         if (node_dnode < GCndnodes_in_area) {
           intergen_ref = true;
@@ -766,7 +766,7 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
       if (intergen_ref == false) {        
         x1 = start[1];
         tag = fulltag_of(x1);
-        if ((tag == fulltag_misc) || (tag == fulltag_cons)) {
+      if (is_node_fulltag(tag)) {        
           node_dnode = gc_area_dnode(x1);
           if (node_dnode < GCndnodes_in_area) {
             intergen_ref = true;
@@ -782,6 +782,9 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
       }
       start += 2;
     }
+  }
+  if (start > end) {
+    Bug(NULL, "Overran end of range!");
   }
 }
 
