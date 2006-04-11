@@ -435,6 +435,15 @@
 (defconstant illegal-marker subtag-illegal)
 (define-subtag no-thread-local-binding fulltag-imm-1 4)
 (defconstant no-thread-local-binding-marker subtag-no-thread-local-binding)
+;;; This has two functions: it tells the link-inverting marker where the
+;;; code ends and the constants start, and it ensures that the 0th constant
+;;; will never be in the same memozized dnode as some (unboxed) word of
+;;; machine code.  I'm not sure if there's a better way to do either of those
+;;; things.
+;;; Depending on how you look at it, we either lose 8 bytes per function, or gain
+;;; 7 bytes of otherwise unused space for debugging info.
+(define-subtag function-boundary-marker fulltag-imm-1 15)
+(defconstant function-boundary-marker subtag-function-boundary-marker)
 
 (defconstant max-64-bit-constant-index (ash (+ #x7fffffff x8664::misc-dfloat-offset) -3))
 (defconstant max-32-bit-constant-index (ash (+ #x7fffffff x8664::misc-data-offset) -2))
