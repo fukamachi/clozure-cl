@@ -26,6 +26,7 @@
                  %single-float-cosh %single-float-sinh)))
 
 
+
 (defconstant double-float-positive-infinity
   #.(let* ((division-by-zero (get-fpu-mode  :division-by-zero)))
       (declare (notinline /))
