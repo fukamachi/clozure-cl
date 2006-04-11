@@ -1808,6 +1808,63 @@ to replace that class with ~s" name old-class new-class)
             *t-class*
             *t-class*))
 
+  #+x8664-target
+  (progn
+    (defparameter *immheader-0-classes*
+      (vector *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              (find-class 'word-vector)
+              (find-class 'unsigned-word-vector)
+              (find-class 'base-string)
+              (find-class 'byte-vector)
+              (find-class 'unsigned-byte-vector)
+              (find-class 'bit-vector)))
+
+    (defparameter *immheader-1-classes*
+      (vector *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              (find-class 'long-vector)
+              (find-class 'unsigned-long-vector)
+              (find-class 'short-float-vector)))
+
+    (defparameter *immheader-2-classes*
+      (vector *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              *t-class*
+              (find-class 'doubleword-vector)
+              (find-class 'unsigned-doubleword-vector)
+              (find-class 'double-float-vector))))
+
+
 
   (defun make-foreign-object-domain (&key index name recognize class-of classp
                                           instance-class-wrapper
@@ -2069,7 +2126,16 @@ to replace that class with ~s" name old-class new-class)
                               #+ppc64-target
                               (ash (the fixnum (logand subtype #x7f)) (- ppc64::nlowtagbits)))
                       #+x8664-target
-                      'fix-this
+                      (let* ((class (logand x8664::fulltagmask subtype))
+                             (idx (ash subtype (- x8664::ntagbits))))
+                        (cond ((= class x8664::fulltag-immheader-0)
+                               (%svref *immheader-0-classes* idx))
+                              ((= class x8664::fulltag-immheader-0)
+                               (%svref *immheader-1-classes* idx))
+                              ((= class x8664::fulltag-immheader-2)
+                               (%svref *immheader-2-classes* idx))
+                              (t *t-class*)))
+                               
                       ))))
         (setf (%svref v target::subtag-lock)
               #'(lambda (thing)
