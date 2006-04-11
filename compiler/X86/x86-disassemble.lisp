@@ -16,6 +16,12 @@
 
 (in-package "CCL")
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (require "NXENV")
+  (require "DLL-NODE")
+  (require "X86-ASM")
+  (require "X86-LAP"))
+
 (defstruct (x86-disassembled-instruction (:include dll-node)
                                          (:conc-name x86-di-))
   address
