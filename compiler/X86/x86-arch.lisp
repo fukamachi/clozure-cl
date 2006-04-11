@@ -1,4 +1,4 @@
-;;;-*- Mode: Lisp; Package: (PPC32 :use CL) -*-
+;;;-*- Mode: Lisp; Package: (X86 :use CL) -*-
 ;;;
 ;;;   Copyright (C) 2005 Clozure Associates and contributors.
 ;;;   This file is part of OpenMCL.  
@@ -17,9 +17,9 @@
 (defpackage "X86"
   (:use "CL"))
 
-(require "ARCH")
-
 (in-package "X86")
+
+(require "ARCH")
 
 ;;; Kernel globals are allocated "below" nil.  This list (used to map
 ;;; symbolic names to rnil-relative offsets) must (of course) exactly
@@ -142,13 +142,34 @@
   fz                                    ;flush-to-zero (not-IEEE)
 )
 
-(defconstant mxcsr-status-byte (byte 6 0))
-(defconstant mxcsr-control-bit-shift 7)
-(defconstant mxcsr-control-byte (byte 6 mxcsr-control-bit-shift))
-(defconstant mxcsr-control-and-rounding-byte (byte 8 mxcsr-control-bit-shift))
+(defconstant mxcsr-status-mask
+  (logior (ash 1 mxcsr-ie-bit)
+          (ash 1 mxcsr-de-bit)
+          (ash 1 mxcsr-ze-bit)
+          (ash 1 mxcsr-oe-bit)
+          (ash 1 mxcsr-ue-bit)
+          (ash 1 mxcsr-pe-bit)))
 
-(defconstant mxcsr-write-mask (dpb -1 mxcsr-status-byte
-                                   (dpb -1 mxcsr-control-and-rounding-byte 0)))
+(defconstant mxcsr-control-and-rounding-mask
+  (logior (ash 1 mxcsr-im-bit)
+          (ash 1 mxcsr-dm-bit)
+          (ash 1 mxcsr-zm-bit)
+          (ash 1 mxcsr-om-bit)
+          (ash 1 mxcsr-um-bit)
+          (ash 1 mxcsr-pm-bit)
+          (ash 1 mxcsr-rc0-bit)
+          (ash 1 mxcsr-rc1-bit)))
+
+;;; There's a fairly hairy method of determining which MXCSR bits are
+;;; available on a given proccessor version.  In practice, the bits
+;;; that might not be supported are bits that select non-IEE754-compliant
+;;; behavior (DenormsAreZeros and FlushtoZerop), and we don't really
+;;; want to activate either of those things, anyway.
+
+(defconstant mxcsr-write-mask (lognot (logior (ash 1 mxcsr-daz-bit)
+                                              (ash 1 mxcsr-fz-bit))))
+
+
 
 ;;; Condition bitfields, used in jcc, cmovcc, setcc.
 (defconstant x86-o-bits #x0)
