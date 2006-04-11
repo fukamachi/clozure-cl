@@ -399,6 +399,29 @@
     (ensure-binding-index (car cell)))
   vcells)
 
+(defun x862-register-mask-byte (count)
+  (if (> count 0)
+    (logior
+     (ash 1 (- x8664::save0 8))
+     (if (> count 1)
+       (logior
+        (ash 1 (- x8664::save1 8))
+        (if (> count 2)
+          (logior
+           (ash 1 (- x8664::save2 8))
+           (if (> count 3)
+             (ash 1 (- x8664::save3 8))
+             0))
+          0))
+       0))
+    0))
+
+(defun x862-encode-register-save-ea (ea count)
+  (if (zerop count)
+    0 
+    (min (- (ash ea (- x8664::word-shift)) count) #xff)))
+
+
 (defun x862-compile (afunc &optional lambda-form *x862-record-symbols*)
   (progn
     (dolist (a  (afunc-inner-functions afunc))
@@ -443,7 +466,7 @@
            (*available-backend-imm-temps* (target-arch-case (:x8664 x8664-imm-regs)))
            (*backend-crf-temps* (target-arch-case (:x8664 x8664-cr-fields)))
            (*available-backend-crf-temps* (target-arch-case (:x8664 x8664-cr-fields)))
-          (*backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
+           (*backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
            (*available-backend-fp-temps* (target-arch-case (:x8664 x8664-temp-fp-regs)))
            (bits 0)
            (*logical-register-counter* -1)
@@ -493,57 +516,57 @@
                  (do-dll-nodes (v vinsns) (format t "~&~s" v))
                  (format t "~%~%"))
             
-            
-               (let* ((*x86-lap-labels* nil)
-                      (instruction (x86::make-x86-instruction))
-                      (frag-list (make-frag-list))
-                      (end-code-tag (gensym))
-                      debug-info)
-                 (make-x86-lap-label end-code-tag)
-                 (x86-lap-directive frag-list :long `(ash (+ (- (:^ ,end-code-tag ) 8)
-                                                           *x86-lap-entry-offset*) -3))
-                 (x86-lap-directive frag-list :short 0)
-                 (x86-lap-directive frag-list :byte 0)
+               (with-dll-node-freelist ((frag-list make-frag-list) *frag-freelist*)
+                 (let* ((*x86-lap-labels* nil)
+                        (instruction (x86::make-x86-instruction))
+                        (end-code-tag (gensym))
+                        debug-info)
+                   (make-x86-lap-label end-code-tag)
+                   (x86-lap-directive frag-list :long `(ash (+ (- (:^ ,end-code-tag ) 8)
+                                                             *x86-lap-entry-offset*) -3))
+                   (x86-lap-directive frag-list :byte 0) ;regsave PC 
+                   (x86-lap-directive frag-list :byte 0) ;regsave ea
+                   (x86-lap-directive frag-list :byte 0) ;regsave mask
 
-                 (x862-expand-vinsns vinsns frag-list instruction)
-                 (when (or *x862-double-float-constant-alist*
-                           *x862-single-float-constant-alist*)
+                   (x862-expand-vinsns vinsns frag-list instruction)
+                   (when (or *x862-double-float-constant-alist*
+                             *x862-single-float-constant-alist*)
+                     (x86-lap-directive frag-list :align 3)
+                     (dolist (double-pair *x862-double-float-constant-alist*)
+                       (destructuring-bind (dfloat . lab) double-pair
+                         (setf (vinsn-label-info lab) (emit-x86-lap-label frag-list lab))
+                         (multiple-value-bind (high low)
+                             (x862-double-float-bits dfloat)
+                           (x86-lap-directive frag-list :long low)
+                           (x86-lap-directive frag-list :long high))))
+                     (dolist (single-pair *x862-single-float-constant-alist*)
+                       (destructuring-bind (sfloat . lab) single-pair
+                         (setf (vinsn-label-info lab) (emit-x86-lap-label frag-list lab))
+                         (let* ((val (single-float-bits sfloat)))
+                           (x86-lap-directive frag-list :long val)))))
                    (x86-lap-directive frag-list :align 3)
-                   (dolist (double-pair *x862-double-float-constant-alist*)
-                     (destructuring-bind (dfloat . lab) double-pair
-                       (setf (vinsn-label-info lab) (emit-x86-lap-label frag-list lab))
-                       (multiple-value-bind (high low)
-                           (x862-double-float-bits dfloat)
-                         (x86-lap-directive frag-list :long low)
-                         (x86-lap-directive frag-list :long high))))
-                   (dolist (single-pair *x862-single-float-constant-alist*)
-                     (destructuring-bind (sfloat . lab) single-pair
-                       (setf (vinsn-label-info lab) (emit-x86-lap-label frag-list lab))
-                       (let* ((val (single-float-bits sfloat)))
-                         (x86-lap-directive frag-list :long val)))))
-                 (x86-lap-directive frag-list :align 3)
-                 (x86-lap-directive frag-list :align 3)
-                 (emit-x86-lap-label frag-list end-code-tag)
-                 (dolist (c (reverse *x862-constant-alist*))
-                   (let* ((vinsn-label (cdr c)))
-                     (or (vinsn-label-info vinsn-label)
-                                         (setf (vinsn-label-info vinsn-label)
-                                               (find-or-create-x86-lap-label
-                                                vinsn-label)))
-                     (emit-x86-lap-label frag-list vinsn-label)
-                     (x86-lap-directive frag-list :quad 0)))
+                   (x86-lap-directive frag-list :align 3)
+                   (emit-x86-lap-label frag-list end-code-tag)
+                   (dolist (c (reverse *x862-constant-alist*))
+                     (let* ((vinsn-label (cdr c)))
+                       (or (vinsn-label-info vinsn-label)
+                           (setf (vinsn-label-info vinsn-label)
+                                 (find-or-create-x86-lap-label
+                                  vinsn-label)))
+                       (emit-x86-lap-label frag-list vinsn-label)
+                       (x86-lap-directive frag-list :quad 0)))
                  
-                 (if (logbitp $fbitnonnullenv (the fixnum (afunc-bits afunc)))
-                   (setq bits (+ bits (ash 1 $lfbits-nonnullenv-bit))))
-                 (let* ((function-debugging-info (afunc-lfun-info afunc)))
-                   (when (or function-debugging-info lambda-form *x862-record-symbols*)
-                     (if lambda-form (setq function-debugging-info 
-                                           (list* 'function-lambda-expression lambda-form function-debugging-info)))
-                     (if *x862-record-symbols*
-                       (setq function-debugging-info (nconc (list 'function-symbol-map *x862-recorded-symbols*)
-                                                            function-debugging-info)))
-                     (setq bits (logior (ash 1 $lfbits-symmap-bit) bits))
-                     (setq debug-info function-debugging-info)))
+                   (if (logbitp $fbitnonnullenv (the fixnum (afunc-bits afunc)))
+                     (setq bits (+ bits (ash 1 $lfbits-nonnullenv-bit))))
+                   (let* ((function-debugging-info (afunc-lfun-info afunc)))
+                     (when (or function-debugging-info lambda-form *x862-record-symbols*)
+                       (if lambda-form (setq function-debugging-info 
+                                             (list* 'function-lambda-expression lambda-form function-debugging-info)))
+                       (if *x862-record-symbols*
+                         (setq function-debugging-info (nconc (list 'function-symbol-map *x862-recorded-symbols*)
+                                                              function-debugging-info)))
+                       (setq bits (logior (ash 1 $lfbits-symmap-bit) bits))
+                       (setq debug-info function-debugging-info)))
                    (unless (or fname lambda-form *x862-recorded-symbols*)
                      (setq bits (logior (ash 1 $lfbits-noname-bit) bits)))
                    (unless (afunc-parent afunc)
@@ -552,9 +575,11 @@
                    (setf (afunc-argsword afunc) bits)
                    (let* ((regsave-label (if (typep *x862-compiler-register-save-label* 'vinsn-note)
                                            (vinsn-label-info (vinsn-note-label *x862-compiler-register-save-label*))))
-                          (regsave-reg (if regsave-label (- 32 *x862-register-restore-count*)))
-                          (regsave-addr (if regsave-label (- *x862-register-restore-ea*))))
-                     (declare (ignorable regsave-label regsave-reg regsave-addr))
+                          (regsave-mask (if regsave-label (x862-register-mask-byte
+                                                           *x862-register-restore-count*)))
+                          (regsave-addr (if regsave-label (x862-encode-register-save-ea
+                                                           *x862-register-restore-ea*
+                                                           *x862-register-restore-count*))))
                      (when debug-info
                        (x86-lap-directive frag-list :quad 0))
                      (when fname
@@ -563,15 +588,18 @@
                      (relax-frag-list frag-list)
                      (apply-relocs frag-list)
                      (fill-for-alignment frag-list)
+                     (x862-lap-process-regsave-info frag-list regsave-label regsave-mask regsave-addr)
                      (setf (afunc-lfun afunc)
-                           (#+x86-target create-x86-function
-                            #-x86-target cross-create-x86-function
+                           (#+x86-target
+                            create-x86-function
+                            #-x86-target
+                            cross-create-x86-function
                             fname
                             frag-list
                             *x862-constant-alist*
                             bits
                             debug-info)))
-                   (x862-digest-symbols)))
+                   (x862-digest-symbols))))
           (backend-remove-labels))))
     afunc))
 
@@ -1682,7 +1710,11 @@
           (! check-arrayH-rank src 2)
           (! check-arrayH-flags src
              (dpb safe target::arrayH.flags-cell-subtag-byte
-                  (ash 1 $arh_simple_bit))))
+                  (ash 1 $arh_simple_bit))
+             (ecase typekeyword
+               (:double-float-vector arch::error-object-not-simple-array-double-float-2d)
+               (:singe-float-vector arch::error-object-not-simple-array-double-float-2d))
+             ))
         (unless i-known-fixnum
           (! trap-unless-fixnum unscaled-i))
         (unless j-known-fixnum
@@ -7818,18 +7850,18 @@
            (fix-y (acode-fixnum-form-p y)))
       (if (and fix-x fix-y)
         (x862-absolute-natural seg vreg xfer (+ fix-x fix-y))
-        (let* ((u15x (and (typep fix-x '(unsigned-byte 15)) fix-x))
-               (u15y (and (typep fix-y '(unsigned-byte 15)) fix-y)))
-          (if (not (or u15x u15y))
+        (let* ((u31x (and (typep fix-x '(unsigned-byte 31)) fix-x))
+               (u31y (and (typep fix-y '(unsigned-byte 31)) fix-y)))
+          (if (not (or u31x u31y))
             (with-imm-target () (xreg :natural)
               (with-imm-target (xreg) (yreg :natural)
                 (x862-two-targeted-reg-forms seg x xreg y yreg)
                 (! %natural+ xreg xreg yreg))
               (<- xreg))
-            (let* ((other (if u15x y x)))
+            (let* ((other (if u31x y x)))
               (with-imm-target () (other-reg :natural)
                 (x862-one-targeted-reg-form seg other other-reg)
-                (! %natural+-c other-reg other-reg (or u15x u15y))
+                (! %natural+-c other-reg other-reg (or u31x u31y))
                 (<- other-reg))))
           (^))))))
 
@@ -7842,8 +7874,8 @@
            (fix-y (acode-fixnum-form-p y)))
       (if (and fix-x fix-y)
         (x862-absolute-natural seg vreg xfer (- fix-x fix-y))
-        (let* ((u15y (and (typep fix-y '(unsigned-byte 15)) fix-y)))
-          (if (not u15y)
+        (let* ((u31y (and (typep fix-y '(unsigned-byte 31)) fix-y)))
+          (if (not u31y)
             (with-imm-target () (xreg :natural)
               (with-imm-target (xreg) (yreg :natural)
                 (x862-two-targeted-reg-forms seg x xreg y yreg)
@@ -7852,7 +7884,7 @@
             (progn
               (with-imm-target () (xreg :natural)
                 (x862-one-targeted-reg-form seg x xreg)
-                (! %natural--c xreg xreg u15y)
+                (! %natural--c xreg xreg u31y)
                 (<- xreg))))
           (^))))))
 
@@ -7865,21 +7897,19 @@
            (naturaly (nx-natural-constant-p y)))
       (if (and naturalx naturaly) 
         (x862-absolute-natural seg vreg xfer (logior naturalx naturaly))
-        (let* ((u32x (nx-u32-constant-p x))
-               (u32y (nx-u32-constant-p y))
-               (constant (or u32x u32y)))
+        (let* ((u31x (nx-u31-constant-p x))
+               (u31y (nx-u31-constant-p y))
+               (constant (or u31x u31y)))
           (if (not constant)
             (with-imm-target () (xreg :natural)
               (with-imm-target (xreg) (yreg :natural)
                 (x862-two-targeted-reg-forms seg x xreg y yreg)
                 (! %natural-logior xreg xreg yreg))
               (<- xreg))
-            (let* ((other (if u32x y x))
-                   (high (ldb (byte 16 16) constant))
-                   (low (ldb (byte 16 0) constant)))
+            (let* ((other (if u31x y x)))
               (with-imm-target () (other-reg :natural)
                 (x862-one-targeted-reg-form seg other other-reg)
-                (! %natural-logior-c other-reg other-reg high low)
+                (! %natural-logior-c other-reg other-reg constant)
                 (<- other-reg))))
           (^))))))
 
@@ -7901,12 +7931,10 @@
                 (x862-two-targeted-reg-forms seg x xreg y yreg)
                 (! %natural-logxor xreg xreg yreg))
               (<- xreg))
-            (let* ((other (if u32x y x))
-                   (high (ldb (byte 16 16) constant))
-                   (low (ldb (byte 16 0) constant)))
+            (let* ((other (if u32x y x)))
               (with-imm-target () (other-reg :natural)
                 (x862-one-targeted-reg-form seg other other-reg)
-                (! %natural-logxor-c other-reg other-reg high low)
+                (! %natural-logxor-c other-reg other-reg constant)
                 (<- other-reg))))
           (^))))))
 
@@ -8134,5 +8162,7 @@
                xlfun
                (unless symbolic-names (list nil))))
       xlfun)))
+
+
 
 
