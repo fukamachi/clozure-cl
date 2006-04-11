@@ -56,5 +56,57 @@
 (defun catch-frame-sp (catch)
   (uvref catch x8664::catch-frame.rbp-cell))
 
+;;; Sure would be nice to have &optional in defppclapfunction arglists
+;;; Sure would be nice not to do this at runtime.
+
+(let ((bits (lfun-bits #'(lambda (x &optional y) (declare (ignore x y))))))
+  (lfun-bits #'%fixnum-ref
+             (dpb (ldb $lfbits-numreq bits)
+                  $lfbits-numreq
+                  (dpb (ldb $lfbits-numopt bits)
+                       $lfbits-numopt
+                       (lfun-bits #'%fixnum-ref)))))
+
+(let ((bits (lfun-bits #'(lambda (x &optional y) (declare (ignore x y))))))
+  (lfun-bits #'%fixnum-ref-natural
+             (dpb (ldb $lfbits-numreq bits)
+                  $lfbits-numreq
+                  (dpb (ldb $lfbits-numopt bits)
+                       $lfbits-numopt
+                       (lfun-bits #'%fixnum-ref-natural)))))
 
 
+;;; Sure would be nice to have &optional in defppclapfunction arglists
+;;; Sure would be nice not to do this at runtime.
+
+(let ((bits (lfun-bits #'(lambda (x &optional y) (declare (ignore x y))))))
+  (lfun-bits #'%fixnum-ref
+             (dpb (ldb $lfbits-numreq bits)
+                  $lfbits-numreq
+                  (dpb (ldb $lfbits-numopt bits)
+                       $lfbits-numopt
+                       (lfun-bits #'%fixnum-ref)))))
+
+(let ((bits (lfun-bits #'(lambda (x &optional y) (declare (ignore x y))))))
+  (lfun-bits #'%fixnum-ref-natural
+             (dpb (ldb $lfbits-numreq bits)
+                  $lfbits-numreq
+                  (dpb (ldb $lfbits-numopt bits)
+                       $lfbits-numopt
+                       (lfun-bits #'%fixnum-ref-natural)))))
+
+(let ((bits (lfun-bits #'(lambda (x y &optional z) (declare (ignore x y z))))))
+  (lfun-bits #'%fixnum-set
+             (dpb (ldb $lfbits-numreq bits)
+                  $lfbits-numreq
+                  (dpb (ldb $lfbits-numopt bits)
+                       $lfbits-numopt
+                       (lfun-bits #'%fixnum-set)))))
+
+(let ((bits (lfun-bits #'(lambda (x y &optional z) (declare (ignore x y z))))))
+  (lfun-bits #'%fixnum-set-natural
+             (dpb (ldb $lfbits-numreq bits)
+                  $lfbits-numreq
+                  (dpb (ldb $lfbits-numopt bits)
+                       $lfbits-numopt
+                       (lfun-bits #'%fixnum-set-natural)))))
