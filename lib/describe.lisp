@@ -21,15 +21,15 @@
 
 (defvar ccl::@)
 
-; The basic inspector object.
-; Note that this knows nothing about windows.
-; It merely knows how to number the constituent parts of an object,
-; How to access a constituent, and how to print a constituent to a stream.
+;;; The basic inspector object.
+;;; Note that this knows nothing about windows.
+;;; It merely knows how to number the constituent parts of an object,
+;;; How to access a constituent, and how to print a constituent to a stream.
 (defclass inspector ()
   ((object :accessor inspector-object :initarg :object)
    (line-count :accessor inspector-line-count :initarg :line-count :initform nil)))
 
-; The usual way to cons up an inspector
+;;; The usual way to cons up an inspector
 (defmethod make-inspector (object)
   (multiple-value-bind (class alias) (inspector-class object)
     (make-instance class :object (or alias object))))
@@ -39,14 +39,14 @@
     (update-line-count i)))
 
 ;;;;;;;
-;;
-;; The protocol for an inspector.
-;; Change these to defgeneric's when it exists.
-;;
-;; Usually, you need to define methods only for
-;; inspector-class, compute-line-count, line-n, and (setf line-n)
+;;;
+;;; The protocol for an inspector.
+;;; Change these to defgeneric's when it exists.
+;;;
+;;; Usually, you need to define methods only for
+;;; inspector-class, compute-line-count, line-n, and (setf line-n)
 
-; Return the type of inspector for an object
+;;; Return the type of inspector for an object
 (defmethod inspector-class (object)
   (cond ((method-exists-p #'line-n object 0) 'usual-inspector)
         ((and (uvectorp object)
@@ -54,12 +54,12 @@
          'uvector-inspector)
         (t 'basic-inspector)))
 
-; Return three values: the value, label, and type of the nth line of the object
-; Valid types are:
-;  :NORMAL or NIL  - a normal constituent line: changeable
-;  :COLON          - a normal line with ": " between the label and the value
-;  :COMMENT        - a commentary line - Print only the label
-;  :STATIC         - a commentary line with an inspectable value: not changeable
+;;; Return three values: the value, label, and type of the nth line of the object
+;;; Valid types are:
+;;;  :NORMAL or NIL  - a normal constituent line: changeable
+;;;  :COLON          - a normal line with ": " between the label and the value
+;;;  :COMMENT        - a commentary line - Print only the label
+;;;  :STATIC         - a commentary line with an inspectable value: not changeable
 (defmethod line-n ((i inspector) n)
   (declare (ignore n)))
 
@@ -1146,8 +1146,6 @@
 (defmethod inspector-class ((f compiled-lexical-closure)) 'closure-inspector)
 
 (defmethod compute-line-count ((f function-inspector))
-  (when (typep (inspector-object f) 'ccl::interpreted-function)
-    (setf (disasm-p f) nil))
   (+ 1                                  ; the function
      1                                  ; name
      1                                  ; arglist
