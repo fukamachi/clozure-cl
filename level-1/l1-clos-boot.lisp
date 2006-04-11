@@ -1661,7 +1661,7 @@ to replace that class with ~s" name old-class new-class)
   (defglobal *fixnum-class* (make-built-in-class 'fixnum (find-class 'integer)))
 
   #+x8664-target
-  (defglobal *tagged-return-address-class* (make-built-in-class 'tagged-return-addres))
+  (defglobal *tagged-return-address-class* (make-built-in-class 'tagged-return-address))
   (make-built-in-class 'bignum (find-class 'integer))
   
   (make-built-in-class 'bit *fixnum-class*)
@@ -1705,6 +1705,11 @@ to replace that class with ~s" name old-class new-class)
     (setf (find-class 'simple-long-float-vector) (find-class 'simple-double-float-vector))
     (setf (find-class 'simple-single-float-vector) (find-class 'simple-short-float-vector))
     )
+
+  #+x8664-target
+  (progn
+    (make-built-in-class 'symbol-vector (find-class 'gvector))
+    (make-built-in-class 'function-vector (find-class 'gvector)))
 
   #+64-bit-target
   (progn
@@ -2074,7 +2079,9 @@ to replace that class with ~s" name old-class new-class)
           (map-subtag target::subtag-weak population)
           (map-subtag target::subtag-package package)
           (map-subtag target::subtag-simple-vector simple-vector)
-          (map-subtag target::subtag-slot-vector slot-vector))
+          (map-subtag target::subtag-slot-vector slot-vector)
+          #+x8664-target (map-subtag x8664::subtag-symbol symbol-vector)
+          #+x8664-target (map-subtag x8664::subtag-function function-vector))
         (setf (%svref v target::subtag-arrayH)
               #'(lambda (x)
                   (if (logbitp $arh_simple_bit
@@ -2108,6 +2115,7 @@ to replace that class with ~s" name old-class new-class)
                       *keyword-class*
                       *symbol-class*)
                     *null-class*)))
+        
         (setf (%svref v
                       #+ppc-target target::subtag-function
                       #+x86-target target::tag-function) 
