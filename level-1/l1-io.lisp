@@ -1581,6 +1581,28 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (format stream "for ~s/~d"
             (slot-id.name  slot-id)
             (slot-id.index  slot-id))))
+
+#+x8664-target
+(defmethod print-object ((tra tagged-return-address) stream)
+  (print-unreadable-object (tra stream :identity t :type t)
+    (let* ((f (%return-address-function tra))
+           (offset (if f (%return-address-offset tra))))
+      (when offset
+        (format stream "in function ")
+        (%lfun-name-string f stream)
+        (format stream " (+~d)" offset)))))
+
+#+x8664-target
+(defmethod print-object ((sv symbol-vector) stream)
+  (print-unreadable-object (sv stream :identity t :type t)
+    (format stream "for ~s" (%symptr->symbol (%symvector->symptr sv)))))
+
+#+x8664-target
+(defmethod print-object ((fv function-vector) stream)
+  (print-unreadable-object (fv stream :identity t :type t)
+    (format stream "for ")
+    (%lfun-name-string (%function-vector-to-function fv) stream)))
+  
             
 
 ;;; ======================================================================
