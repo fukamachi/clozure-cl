@@ -103,6 +103,8 @@
   unsigned-byte-64
   signed-byte-64
   unsigned-byte-56
+  simple-array-double-float-2d
+  simple-array-single-float-2d
   )
 
 
