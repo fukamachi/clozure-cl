@@ -167,6 +167,7 @@
                                ((= op2 x8664::tag-single-float) 'single-float)
                                ((= op2 x8664::subtag-character 'character))
                                ((= op2 x8664::fulltag-cons) 'cons)
+                               ((= op2 x8664::tag-misc) 'uvector)
                                ((= op2 x8664::fulltag-symbol) 'symbol)
                                ((= op2 x8664::fulltag-function) 'function)
                                (t (let* ((class (logand op2 x8664::fulltagmask))
