@@ -102,7 +102,8 @@ _exportfn(C(start_lisp))
 	__(pxor %fpzero,%fpzero)	/* fpzero = 0.0[d0] */
 	__(movq %rcontext:tcr.save_tsp,%tsp)
 	__(movq %tsp,%next_tsp)
-	/* Should set the MXCSR to something real here */
+        __(stmxcsr %rcontext:tcr.foreign_mxcsr)
+        __(ldmxcsr %rcontext:tcr.lisp_mxcsr)
 	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
 	__(call toplevel_loop)
 	__(movq $TCR_STATE_FOREIGN,%rcontext:tcr.valence)
@@ -114,6 +115,7 @@ _exportfn(C(start_lisp))
 	__(pop %r12)
 	__(pop %rbx)
 	__(movl $nil_value,%eax)
+        __(ldmxcsr %rcontext:tcr.foreign_mxcsr)
 	__(leave)
 	__(ret)
 _endfn
