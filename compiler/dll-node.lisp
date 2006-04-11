@@ -190,8 +190,12 @@
 
 (defmacro with-dll-node-freelist ((header-var freelist) &body body)
   (let* ((internal-header-name (gensym))
-         (internal-freelist-name (gensym)))
-    `(let* ((,internal-header-name (make-dll-header))
+         (internal-freelist-name (gensym))
+         (constructor-name 'make-dll-header))
+    (if (consp header-var)
+      (setq constructor-name (cadr header-var)
+            header-var (car header-var)))
+    `(let* ((,internal-header-name (,constructor-name))
             (,internal-freelist-name ,freelist))
        (unwind-protect
          (let* ((,header-var ,internal-header-name))
