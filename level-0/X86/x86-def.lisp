@@ -230,6 +230,19 @@
   (movl ($ x8664::nil-value) (% arg_z.l))
   (single-value-return))
 
+(defx86lapfunction %return-address-offset ((r arg_z))
+  (extract-lisptag r imm0)
+  (cmpb ($ x8664::tag-tra) (% imm0.b))
+  (jne @fail)
+  (movl (@ -4 (% r)) (% imm0.l))
+  (testl (% imm0.l) (% imm0.l))
+  (jle @fail)
+  (box-fixnum imm0 arg_z)
+  (single-value-return)
+  @fail
+  (movl ($ x8664::nil-value) (% arg_z.l))
+  (single-value-return))
+
 ;;; It's always been the case that the function associated with a
 ;;; frame pointer is the caller of the function that "uses" that frame.
 (defx86lapfunction %cfp-lfun ((p arg_z))
