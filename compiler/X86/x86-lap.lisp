@@ -1261,7 +1261,8 @@
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
     (when *x86-lap-fixed-code-words*
-      (x86-lap-directive frag-list :org (ash (1+ *x86-lap-fixed-code-words*) 3)))
+      (x86-lap-directive frag-list :org (ash *x86-lap-fixed-code-words* 3)))
+    (x86-lap-directive frag-list :quad x8664::function-boundary-marker)
     (emit-x86-lap-label frag-list end-code-tag)
     (dolist (c (reverse *x86-lap-constants*))
       (emit-x86-lap-label frag-list (x86-lap-label-name (cdr c)))
