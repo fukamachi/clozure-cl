@@ -1,3 +1,24 @@
+2006-04-11 16:19  gb
+
+	* compiler/X86/x862.lisp: Emit a function boundary marker between
+	code and constants. (For GC reasons.) Change closure initialization
+	to account for it.
+
+2006-04-11 16:18  gb
+
+	* compiler/X86/x86-lap.lisp: Emit a function boundary marker
+	between code and constants. (For GC reasons.)
+
+2006-04-11 16:17  gb
+
+	* compiler/X86/x86-disassemble.lisp: Require more stuff.
+
+2006-04-11 16:17  gb
+
+	* compiler/nxenv.lisp: Require X8664ENV on X8664.
+	
+	See if we can get by without 68K condition code ...
+
 2006-04-11 06:53  gb
 
 	* lisp-kernel/x86-exceptions.c: We'll need to handle FP exceptions
