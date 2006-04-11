@@ -47,6 +47,47 @@
   (subb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (%b arg_x))
   (jmp-subprim .SPgvset))
 
+
+;;; Returns 3 values: mask of registers used in the function, stack location
+;;; from which they'd be restored, relative PC at which they're saved. If
+;;; the mask is 0, the values NIL NIL NIL are returned. If either the stack
+;;; location or relative PC is #xff, both of those values will be returned
+;;; as NIL.
+(defx86lapfunction %function-register-usage ((f arg_z))
+  (check-nargs 1)
+  (trap-unless-fulltag= f x8664::fulltag-function)
+  (movzbl (@ -1 (% f)) (% imm0.l))
+  (shll ($ 8) (% imm0.l))
+  (box-fixnum imm0 arg_x)
+  (movq (% rsp) (% temp0))
+  (set-nargs 3)
+  (je @no-regs)
+  (movzbl (@ -2 (% f)) (% imm0.l))
+  (movzbl (@ -3 (% f)) (% imm1.l))
+  (cmpb ($ #xff) (% imm0.b))
+  (je @unencodable)
+  (cmpb ($ #xff) (% imm1.b))
+  (je @unencodable)
+  (box-fixnum imm0 arg_y)
+  (box-fixnum imm1 arg_z)
+  (push (% arg_x))
+  (push (% arg_y))
+  (push (% arg_z))
+  (jmp-subprim .SPvalues)
+  @unencodable
+  (push (% arg_x))
+  (pushq ($ nil))
+  (pushq ($ nil))
+  (jmp-subprim .SPvalues)
+  @no-regs
+  (pushq ($ nil))
+  (pushq ($ nil))
+  (pushq ($ nil))
+  (jmp-subprim .SPvalues))
+  
+
+        
+
 (defx86lapfunction %make-code-executable ((codev arg_z))
   (single-value-return))
 
