@@ -3348,8 +3348,9 @@
      #xcdc1 nil nil)
    (def-x8664-opcode uuo-error-wrong-number-of-args ()
      #xcdc2 nil nil)
-   (def-x8664-opcode uuo-stack-overflow ()
-     #xcdc3 nil nil)
+   (def-x8664-opcode uuo-error-array-rank ((:reg64 :insert-reg4-pseudo-rm-high)
+                                           (:reg64 :insert-reg4-pseudo-rm-low))
+     #xcdc3 0 nil)
 
    (def-x8664-opcode uuo-gc-trap ()
      #xcdc4 nil nil)
@@ -3373,6 +3374,7 @@
    (def-x8664-opcode uuo-error-eep-unresolved ((:reg64 :insert-reg4-pseudo-rm-high)
                                                (:reg64 :insert-reg4-pseudo-rm-low))
      #xcdcc 0 nil)
+
    
    (def-x8664-opcode uuo-error-reg-not-tag ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdd0 nil 0)
@@ -3412,6 +3414,11 @@
     (setup-templates-hash
      *x86-64-opcode-template-lists*
      *x8664-opcode-templates*)
+    #+x8664-target
+    (when (fboundp 'ccl::fixup-x86-vinsn-templates)
+      (ccl::fixup-x86-vinsn-templates
+       (ccl::backend-p2-vinsn-templates ccl::*target-backend*)
+       *x86-64-opcode-template-lists*))
     t))
 
 (defparameter *x86-opcode-template-lists* ())
@@ -3466,11 +3473,6 @@
   t)
 
 (setup-x86-assembler :x86-64)
-
-
-
-
-                          
 
 
 
