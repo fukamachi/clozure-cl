@@ -53,6 +53,9 @@ define lbt
  call plbt_sp($rbp)
 end
 
+define ada
+ p/x *(all_areas->succ)
+end
 
 break Bug
 
