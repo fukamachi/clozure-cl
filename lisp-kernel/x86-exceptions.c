@@ -332,6 +332,7 @@ handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 Boolean
 handle_floating_point_exception(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 {
+  fprintf(stderr, "FP exception = %d\n", info->si_code);
   return false;
 }
 
