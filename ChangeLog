@@ -1,3 +1,26 @@
+2006-04-11 21:40  gb
+
+	* lisp-kernel/pmcl-kernel.c: Only way to stress-test EGC is to turn
+	the damned thing on.  (A little painful with integrity checking
+	enabled, as it still is by default.)
+	
+	TODO:
+	
+	- sleep (me) - non-recursive (link-inverting) marker - pc-lusering
+	(pc_luser_xp()) - backtrace - ANSI CL tests - purify - 2d-aref - FP
+	exception handling - check UUO usage in kernel, disassembler,
+	exception handlers - stack overflow recovery
+
+2006-04-11 21:24  gb
+
+	* lisp-kernel/x86-gc.c: Skip over function code in
+	check_refmap_consistency.
+
+2006-04-11 21:23  gb
+
+	* lisp-kernel/x86-spentry64.s: Write barrier memoization sets bits
+	backwards.
+
 2006-04-11 19:11  gb
 
 	* compiler/X86/x862.lisp: Change LABELS for new closure format.
