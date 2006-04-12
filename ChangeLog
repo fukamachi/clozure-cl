@@ -1,3 +1,12 @@
+2006-04-11 19:11  gb
+
+	* compiler/X86/x862.lisp: Change LABELS for new closure format.
+
+2006-04-11 19:11  gb
+
+	* lisp-kernel/x86-spentry64.s: 3 words of code + inner function in
+	a closure, no lfname slot in closure.
+
 2006-04-11 16:29  gb
 
 	* lisp-kernel/linuxx8664/.gdbinit: ada	prints active dynamic (GC)
