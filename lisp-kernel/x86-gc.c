@@ -756,6 +756,12 @@ check_refmap_consistency(LispObj *start, LispObj *end, bitvector refbits)
     if (immheader_tag_p(tag)) {
       start = skip_over_ivector(ptr_to_lispobj(start), x1);
     } else {
+      if (header_subtag(x1) == subtag_function) {
+        int skip = (int) deref(start,1);
+        start += ((1+skip)&~1);
+        x1 = *start;
+        tag = fulltag_of(x1);
+      }
       intergen_ref = false;
       if (is_node_fulltag(tag)) {        
         node_dnode = gc_area_dnode(x1);
