@@ -1680,7 +1680,7 @@ C(egc_rplaca):
         __(movq %imm0,%imm1)
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
-/*        __(xorb $63,%imm0_b) */
+        __(xorb $63,%imm0_b)
         __(lock btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)
 _endsubp(rplaca)
@@ -1701,7 +1701,7 @@ C(egc_rplacd):
         __(movq %imm0,%imm1)
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
-/*        __(xorb $63,%imm0_b) */
+        __(xorb $63,%imm0_b)
         __(lock btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)
 _endsubp(rplacd)
@@ -1726,7 +1726,7 @@ C(egc_gvset):
         __(movq %imm0,%imm1)
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
-/*        __(xorb $63,%imm0_b) */
+        __(xorb $63,%imm0_b)
         __(lock btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)                
 _endsubp(gvset)
@@ -1753,7 +1753,7 @@ C(egc_set_hash_key):
         __(movq %imm0,%imm1)
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
-/*        __(xorb $63,%imm0_b) */
+        __(xorb $63,%imm0_b)
         __(lock btsq %imm0,(%temp0,%imm1,8))
         /* Now memoize the address of the hash vector */
         __(movq %arg_x,%imm0)
@@ -1762,7 +1762,7 @@ C(egc_set_hash_key):
         __(movq %imm0,%imm1)
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
-/*        __(xorb $63,%imm0_b) */
+        __(xorb $63,%imm0_b)
         __(lock btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)                
 _endsubp(set_hash_key)
@@ -1787,7 +1787,7 @@ C(egc_store_node_conditional):
         .globl C(egc_store_node_conditional_success_test)
 C(egc_store_node_conditional_success_test):
 	__(jne 0f)
-        __(lea (%temp0,%imm1),%imm0)
+        __(lea (%arg_x,%imm1),%imm0)
         __(subq lisp_global(heap_start),%imm0)
         __(shrq $dnode_shift,%imm0)
         __(cmpq lisp_global(oldspace_dnode_count),%imm0)
@@ -1796,7 +1796,7 @@ C(egc_store_node_conditional_success_test):
         __(movq %imm0,%imm1)
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
-/*        __(xorb $63,%imm0_b) */
+        __(xorb $63,%imm0_b)
         __(lock btsq %imm0,(%temp0,%imm1,8))
         .globl C(egc_write_barrier_end)
 C(egc_write_barrier_end):
