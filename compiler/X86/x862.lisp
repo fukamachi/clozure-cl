@@ -6946,7 +6946,7 @@
       (when (neq 0 (afunc-fn-refcount (setq func (pop funs))))
         (push v real-vars)
         (push func real-funcs)
-        (let* ((i 3)                    ; skip 2 words of code, inner function
+        (let* ((i 4)                    ; skip 3 words of code, inner function
                (our-var nil)
                (item nil))
           (declare (fixnum i))
