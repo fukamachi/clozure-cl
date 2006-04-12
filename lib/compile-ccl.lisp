@@ -157,8 +157,8 @@
 					     *host-backend*)))
   (append *other-lib-modules*
 	  (case target
-	    ((:ppc32 :ppc64) '(ppc-disassemble))
-            (:x8664 '(x86-disassemble)))))
+	    ((:ppc32 :ppc64) '(ppc-backtrace ppc-disassemble))
+            (:x8664 '(x86-backtrace x86-disassemble)))))
 	  
 
 (defun target-lib-modules (&optional (target

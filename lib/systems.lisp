@@ -155,6 +155,8 @@
     (describe         "ccl:bin;describe"         ("ccl:lib;describe.lisp")) 
     (mcl-compat       "ccl:bin;mcl-compat"       ("ccl:lib;mcl-compat.lisp"))
     (backtrace        "ccl:bin;backtrace"        ("ccl:lib;backtrace.lisp"))
+    (ppc-backtrace    "ccl:bin;ppc-backtrace"    ("ccl:lib;ppc-backtrace.lisp"))
+    (x86-backtrace    "ccl:bin;x86-backtrace"    ("ccl:lib;x86-backtrace.lisp"))
     (backtrace-lds    "ccl:bin;backtrace-lds"    ("ccl:lib;backtrace-lds.lisp"))
     (apropos          "ccl:bin;apropos"          ("ccl:lib;apropos.lisp"))
     (numbers          "ccl:bin;numbers"          ("ccl:lib;numbers.lisp"))
