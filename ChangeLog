@@ -1,3 +1,18 @@
+2006-04-12 14:50  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-04-12 14:46  gb
+
+	* lib/: compile-ccl.lisp, ppc-backtrace.lisp, systems.lisp,
+	x86-backtrace.lisp: new target backtrace stuff.
+
+2006-04-12 14:45  gb
+
+	* lib/backtrace.lisp: Start splitting things up, ideally into a
+	mostly abstract API and gory platform- dependent implementation
+	details.
+
 2006-04-11 21:40  gb
 
 	* lisp-kernel/pmcl-kernel.c: Only way to stress-test EGC is to turn
