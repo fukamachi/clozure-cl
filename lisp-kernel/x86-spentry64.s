@@ -2311,8 +2311,8 @@ _spentry(stack_cons_rest_arg)
 _endsubp(stack_cons_rest_arg)
 
 
-/* Prepend all but the first three (2 words of code, inner fn) and last two */
-/* (function name, lfbits) elements of %fn to the "arglist". */
+/* Prepend all but the first four (3 words of code, inner fn) and last */
+/* (lfbits) elements of %fn to the "arglist". */
 _spentry(call_closure)
         __(subq $fulltag_function-fulltag_misc,%fn)
         __(vector_length(%fn,%imm0))
@@ -2349,7 +2349,7 @@ local_label(copy_already_loop):
         __(jne local_label(copy_already_loop))
 	
 	/*	__(addq %imm0,%arg_x) */
-        __(movl $3<<fixnumshift,%imm1_l) /* skip code, new fn */
+        __(movl $4<<fixnumshift,%imm1_l) /* skip code, new fn */
 local_label(insert_loop):               
         __(movq misc_data_offset(%fn,%imm1),%arg_z)
         __(addq $node_size,%imm1)
@@ -2380,8 +2380,8 @@ local_label(no_insert_no_frame):
 	/* nargregs or fewer args were already vpushed. */
 	/* if exactly nargregs, vpush remaining inherited vars. */
         __(cmpw $nargregs<<fixnumshift,%nargs)
-        __(movl $3<<fixnumshift,%imm1_l) /* skip code, new fn */
-        __(leaq 3<<fixnumshift(%imm0),%temp1)
+        __(movl $4<<fixnumshift,%imm1_l) /* skip code, new fn */
+        __(leaq 4<<fixnumshift(%imm0),%temp1)
         __(jnz local_label(set_regs))
 local_label(vpush_remaining):  
         __(push misc_data_offset(%fn,%imm1))
@@ -2419,9 +2419,8 @@ local_label(set_arg_z):
         __(addw $fixnumone,%nargs)
         __(subq $fixnum_one,%imm0)
         __(jne local_label(set_arg_y))
-        
 local_label(go):        
-        __(movq misc_data_offset+(2*node_size)(%fn),%fn)
+        __(movq misc_data_offset+(3*node_size)(%fn),%fn)
         __(jmp *%fn)                
 _endsubp(call_closure)
 
