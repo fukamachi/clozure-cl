@@ -18,7 +18,7 @@
 (in-package "CCL")
 
 (defun xp-argument-list (xp)
-  (let ((nargs (ldb (byte 16 0)
+  (let ((nargs (ldb (byte (- 16 x8664::fixnumshift) 0)
                     (encoded-gpr-lisp xp x8664::nargs.q)))
         (arg-x (encoded-gpr-lisp xp x8664::arg_x))
         (arg-y (encoded-gpr-lisp xp x8664::arg_y))
