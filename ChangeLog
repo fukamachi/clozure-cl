@@ -1,3 +1,53 @@
+2006-04-13 06:45  gb
+
+	* lisp-kernel/x86-gc.c: mark_root: need to handle TRAs earlier.
+
+2006-04-13 06:44  gb
+
+	* lisp-kernel/pmcl-kernel.c: Set GC debug bits manually here on
+	x8664.
+
+2006-04-13 06:44  gb
+
+	* level-1/x86-error-signal.lisp: XP-ARGUMENT-LIST: only the low 13
+	bytes of %nargs_q contain arg count.
+
+2006-04-13 06:43  gb
+
+	* level-1/l1-error-system.lisp: No EVAL-PROGRAM-ERROR. Please.
+
+2006-04-13 06:43  gb
+
+	* level-1/l1-aprims.lisp: Trying to find what's (sometimes)
+	trashing a closure during QUIT; embed a #+x86-target breakpoint in
+	APPLY.
+
+2006-04-13 06:42  gb
+
+	* level-0/X86/x86-numbers.lisp: Bad typo in %FIXNUM-GCD.
+
+2006-04-13 06:41  gb
+
+	* compiler/X86/x862.lisp: Lap expression changes; recycle constant
+	operands.
+
+2006-04-13 06:41  gb
+
+	* compiler/X86/x86-lap.lisp: Freelist a lot of things; use
+	"vector-lists" instead of adjustable arrays, simplify handling of
+	constant expressions.  Still conses hysterically; need to find out
+	where and tone it down a bit, if possible.
+
+2006-04-13 06:39  gb
+
+	* compiler/X86/x86-disassemble.lisp: Maybe no lap immediate
+	operands; maybe no lap constant-expressions.
+
+2006-04-13 06:39  gb
+
+	* compiler/X86/x86-asm.lisp: Don't need
+	*lap-constant-0-expression*.
+
 2006-04-13 00:46  gb
 
 	* lisp-kernel/linuxx8664/Makefile: Kernel depends on Makefile,
