@@ -1,3 +1,19 @@
+2006-04-12 18:53  gb
+
+	* lisp-kernel/linuxx8664/elf_x86_64.x: Try to avoid use of
+	PROVIDE_HIDDEN, since some versions of GNU ld don't like it.  (Most
+	of this seems to have to do with C++ static constructors, which
+	aren't really relevant here.)
+
+2006-04-12 18:28  gb
+
+	* lisp-kernel/x86-spentry64.s: Use movd (not movq) when moving
+	between %Rforeign_sp and GPRs.
+
+2006-04-12 18:22  gb
+
+	* lisp-kernel/linuxx8664/Makefile: egc flag
+
 2006-04-12 18:08  gb
 
 	* lisp-kernel/x86-gc.c: Add current/prev (temporarily) to help find
