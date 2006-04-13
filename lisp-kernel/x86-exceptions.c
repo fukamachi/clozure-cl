@@ -710,12 +710,19 @@ setup_sigaltstack(area *a)
   sigaltstack(&stack, NULL);
 }
 
+extern unsigned char egc_write_barrier_start, egc_write_barrier_end;
 void
 pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
 {
+  pc program_counter = (pc)xpPC(xp);
+  
   if (fulltag_of((LispObj)(tcr->save_allocptr)) != 0) {
     /* Not handled yet */
     Bug(NULL, "Other thread suspended during memory allocation");
+  }
+  if ((program_counter >= &egc_write_barrier_start) &&
+      (program_counter < &egc_write_barrier_end)) {
+    Bug(NULL, "Other thread is in write barrier");
   }
 }
 
