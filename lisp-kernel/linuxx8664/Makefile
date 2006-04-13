@@ -55,8 +55,8 @@ all:	../../lx86cl64
 OSLIBS = -ldl -lm -lpthread
 
 
-../../lx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
-	$(CC) -m64 $(CDEBUG)  -Wl,--export-dynamic  -o $@ -T ./elf_x86_64.x $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
+../../lx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) Makefile  ./elf_x86_64.x
+	$(CC)  -m64 $(CDEBUG)  -Wl,--export-dynamic  -o $@ -T ./elf_x86_64.x $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
 
 
 $(SPOBJ): $(SPINC)
