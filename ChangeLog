@@ -1,3 +1,13 @@
+2006-04-13 00:46  gb
+
+	* lisp-kernel/linuxx8664/Makefile: Kernel depends on Makefile,
+	linker script.
+
+2006-04-13 00:45  gb
+
+	* lisp-kernel/linuxx8664/elf_x86_64.x: Use linker script from ld
+	2.16.1 (Thanks to James Bielman).
+
 2006-04-12 18:53  gb
 
 	* lisp-kernel/linuxx8664/elf_x86_64.x: Try to avoid use of
