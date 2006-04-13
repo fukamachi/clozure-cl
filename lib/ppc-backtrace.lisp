@@ -105,5 +105,73 @@
 (defun bit-reverse-8 (x)
   (aref *bit-reverse-8-table* x))
 
+(defun %frame-savefn (p)
+  (if (fake-stack-frame-p p)
+    (%fake-stack-frame.fn p)
+    (%%frame-savefn p)))
 
-    
+(defun %frame-savevsp (p)
+  (if (fake-stack-frame-p p)
+    (%fake-stack-frame.vsp p)
+    (%%frame-savevsp p)))
+
+(defun frame-vsp (frame)
+  (%frame-savevsp frame))
+
+;;; Return two values: the vsp of p and the vsp of p's "parent" frame.
+;;; The "parent" frame vsp might actually be the end of p's segment,
+;;; if the real "parent" frame vsp is in another segment.
+(defun vsp-limits (p context)
+  (let* ((vsp (%frame-savevsp p))
+         parent)
+    (when (eql vsp 0)
+      ; This frame is where the code continues after an unwind-protect cleanup form
+      (setq vsp (%frame-savevsp (child-frame p context))))
+    (flet ((grand-parent (frame)
+             (let ((parent (parent-frame frame context)))
+               (when (and parent (eq parent (%frame-backlink frame context)))
+                 (let ((grand-parent (parent-frame parent context)))
+                   (when (and grand-parent (eq grand-parent (%frame-backlink parent context)))
+                     grand-parent))))))
+      (declare (dynamic-extent #'grand-parent))
+      (let* ((frame p)
+             grand-parent)
+        (loop
+          (setq grand-parent (grand-parent frame))
+          (when (or (null grand-parent) (not (eql 0 (%frame-savevsp grand-parent))))
+            (return))
+          (setq frame grand-parent))
+        (setq parent (parent-frame frame context)))
+      (let* ((parent-vsp (if parent (%frame-savevsp parent) vsp))
+             (tcr (if context (bt.tcr context) (%current-tcr)))
+             (vsp-area (%fixnum-ref tcr target::tcr.vs-area)))
+        (if (eql 0 parent-vsp)
+          (values vsp vsp)              ; p is the kernel frame pushed by an unwind-protect cleanup form
+          (progn
+            (unless vsp-area
+              (error "~s is not a stack frame pointer for context ~s" p tcr))
+            (unless (%ptr-in-area-p parent-vsp vsp-area)
+              (setq parent-vsp (%fixnum-ref vsp-area target::area.high)))
+            (values vsp parent-vsp)))))))
+
+(defun register-number->saved-register-index (regno)
+  (- regno ppc::save7))
+
+(defun %find-register-argument-value (context cfp regval bad)
+  (let* ((last-catch (last-catch-since cfp context))
+         (index (register-number->saved-register-index regval)))
+    (or
+     (do* ((child (child-frame cfp context)
+                  (child-frame child context)))
+          ((null child))
+       (if (fake-stack-frame-p child)
+         (return (xp-gpr-lisp (%fake-stack-frame.xp child) regval))
+         (multiple-value-bind (lfun pc)
+             (cfp-lfun child)
+           (when lfun
+             (multiple-value-bind (mask where)
+                 (registers-used-by lfun pc)
+               (when (if mask (logbitp index mask))
+                 (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+                 (return (raw-frame-ref child context where bad))))))))
+     (get-register-value nil last-catch index)))
