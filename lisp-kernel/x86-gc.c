@@ -2009,7 +2009,7 @@ forward_and_resolve_static_references(area *a)
 LispObj
 compact_dynamic_heap()
 {
-  LispObj *src = ptr_from_lispobj(GCfirstunmarked), *dest = src, node, new;
+  LispObj *src = ptr_from_lispobj(GCfirstunmarked), *dest = src, node, new, *current,  *prev = NULL;
   natural 
     elements, 
     dnode = gc_area_dnode(GCfirstunmarked), 
@@ -2049,7 +2049,8 @@ compact_dynamic_heap()
           bitidx = nextbit;
           src += (diff+diff);
         }
-
+        prev = current;
+        current = src;
         if (GCDebug) {
           if (dest != ptr_from_lispobj(locative_forwarding_address(ptr_to_lispobj(src)))) {
             Bug(NULL, "Out of synch in heap compaction.  Forwarding from 0x%lx to 0x%lx,\n expected to go to 0x%lx\n", 
