@@ -4814,8 +4814,8 @@
 (defun x86-emit-instruction-from-vinsn (opcode-template
                                         form
                                         frag-list
-                                        instruction)
-  (declare (ignorable frag-list))
+                                        instruction
+                                        immediate-operand)
   #+debug
   (format t "~&~a" (cons (x86::x86-opcode-template-mnemonic opcode-template)
                          form))
@@ -4909,35 +4909,47 @@
           (:insert-extra
            )
           (:insert-imm8
-           (setf (x86::x86-instruction-imm instruction)
-                 (x86::make-x86-immediate-operand
-                  :type (x86::encode-operand-type :imm8)
-                  :value (parse-x86-lap-expression operand))))
+           (setf (x86::x86-immediate-operand-type immediate-operand)
+                 (x86::encode-operand-type :imm8)
+                 (x86::x86-immediate-operand-value immediate-operand)
+                 (parse-x86-lap-expression operand)
+                 (x86::x86-instruction-imm instruction)
+                 immediate-operand))
           (:insert-imm8s
-           (setf (x86::x86-instruction-imm instruction)
-                 (x86::make-x86-immediate-operand
-                  :type (x86::encode-operand-type :imm8s)
-                  :value (parse-x86-lap-expression operand))))
+           (setf (x86::x86-immediate-operand-type immediate-operand)
+                 (x86::encode-operand-type :imm8s)
+                 (x86::x86-immediate-operand-value immediate-operand)
+                 (parse-x86-lap-expression operand)
+                 (x86::x86-instruction-imm instruction)
+                 immediate-operand))
           (:insert-imm16
-           (setf (x86::x86-instruction-imm instruction)
-                 (x86::make-x86-immediate-operand
-                  :type (x86::encode-operand-type :imm16)
-                  :value (parse-x86-lap-expression operand))))
+           (setf (x86::x86-immediate-operand-type immediate-operand)
+                 (x86::encode-operand-type :imm16)
+                 (x86::x86-immediate-operand-value immediate-operand)
+                 (parse-x86-lap-expression operand)
+                 (x86::x86-instruction-imm instruction)
+                 immediate-operand))
           (:insert-imm32s
-           (setf (x86::x86-instruction-imm instruction)
-                 (x86::make-x86-immediate-operand
-                  :type (x86::encode-operand-type :imm32s)
-                  :value (parse-x86-lap-expression operand))))
+           (setf (x86::x86-immediate-operand-type immediate-operand)
+                 (x86::encode-operand-type :imm32s)
+                 (x86::x86-immediate-operand-value immediate-operand)
+                 (parse-x86-lap-expression operand)
+                 (x86::x86-instruction-imm instruction)
+                 immediate-operand))
           (:insert-imm32
-           (setf (x86::x86-instruction-imm instruction)
-                 (x86::make-x86-immediate-operand
-                  :type (x86::encode-operand-type :imm32)
-                  :value (parse-x86-lap-expression operand))))
+           (setf (x86::x86-immediate-operand-type immediate-operand)
+                 (x86::encode-operand-type :imm32)
+                 (x86::x86-immediate-operand-value immediate-operand)
+                 (parse-x86-lap-expression operand)
+                 (x86::x86-instruction-imm instruction)
+                 immediate-operand))
           (:insert-imm64
-           (setf (x86::x86-instruction-imm instruction)
-                 (x86::make-x86-immediate-operand
-                  :type (x86::encode-operand-type :imm64)
-                  :value (parse-x86-lap-expression operand))))
+           (setf (x86::x86-immediate-operand-type immediate-operand)
+                 (x86::encode-operand-type :imm64)
+                 (x86::x86-immediate-operand-value immediate-operand)
+                 (parse-x86-lap-expression operand)
+                 (x86::x86-instruction-imm instruction)
+                 immediate-operand))
           (:insert-mmx-reg
            (x86::insert-mmx-reg-entry instruction
                                       (svref register-table operand)))
@@ -4948,14 +4960,15 @@
           
     
 (defun x862-expand-vinsns (header frag-list instruction)
-  (do-dll-nodes (v header)
-    (if (%vinsn-label-p v)
-      (let* ((id (vinsn-label-id v)))
-        (if (typep id 'fixnum)
-          (when (or t (vinsn-label-refs v))
-            (setf (vinsn-label-info v) (emit-x86-lap-label frag-list v)))
-          (x862-expand-note frag-list id)))
-      (x862-expand-vinsn v frag-list instruction)))
+  (let* ((immediate-operand (x86::make-x86-immediate-operand)))
+    (do-dll-nodes (v header)
+      (if (%vinsn-label-p v)
+        (let* ((id (vinsn-label-id v)))
+          (if (typep id 'fixnum)
+            (when (or t (vinsn-label-refs v))
+              (setf (vinsn-label-info v) (emit-x86-lap-label frag-list v)))
+            (x862-expand-note frag-list id)))
+        (x862-expand-vinsn v frag-list instruction immediate-operand))))
   ;;; This doesn't have too much to do with anything else that's
   ;;; going on here, but it needs to happen before the lregs
   ;;; are freed.  There really shouldn't be such a thing as a
@@ -4976,7 +4989,7 @@
 ;;; For now, we replace lregs in the operand vector with their values
 ;;; on entry, but it might be reasonable to make PARSE-OPERAND-FORM
 ;;; deal with lregs ...
-(defun x862-expand-vinsn (vinsn frag-list instruction)
+(defun x862-expand-vinsn (vinsn frag-list instruction immediate-operand)
   (let* ((template (vinsn-template vinsn))
          (vp (vinsn-variable-parts vinsn))
          (nvp (vinsn-template-nvp template))
@@ -5025,7 +5038,8 @@
                           (:x8664 x86::*x8664-opcode-templates*)) (car f))
                   head
                   frag-list
-                  instruction)))
+                  instruction
+                  immediate-operand)))
              (eval-predicate (f)
                (case (car f)
                  (:pred (let* ((op-vals (cddr f))
@@ -5047,7 +5061,8 @@
                (destructuring-bind (directive arg) f
                  (setq arg (parse-operand-form arg))
                  (let* ((exp (parse-x86-lap-expression arg))
-                        (constantp (constant-x86-lap-expression-p exp)))
+                        (constantp (or (not (x86-lap-expression-p exp))
+                                       (constant-x86-lap-expression-p exp))))
                    (if constantp
                      (let* ((val (x86-lap-expression-value exp)))
                        (ecase directive
