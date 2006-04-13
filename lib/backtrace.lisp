@@ -211,9 +211,7 @@
                 (return value)
                 (return (list 'quote value))))))))))
 
-(defun register-number->saved-register-index (regno)
-  #+ppc-target (- regno ppc::save7)
-  #-ppc-target (NYI))
+
 
 (defun raw-frame-ref (cfp context index bad)
   (multiple-value-bind (vfp parent-vfp)
@@ -223,23 +221,7 @@
         bad)))
   
 (defun find-register-argument-value (context cfp regval bad)
-  (let* ((last-catch (last-catch-since cfp context))
-         (index (register-number->saved-register-index regval)))
-    (or
-     (do* ((child (child-frame cfp context)
-                  (child-frame child context)))
-          ((null child))
-       (if (fake-stack-frame-p child)
-         (return (xp-gpr-lisp (%fake-stack-frame.xp child) regval))
-         (multiple-value-bind (lfun pc)
-             (cfp-lfun child)
-           (when lfun
-             (multiple-value-bind (mask where)
-                 (registers-used-by lfun pc)
-               (when (if mask (logbitp index mask))
-                 (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
-                 (return (raw-frame-ref child context where bad))))))))
-     (get-register-value nil last-catch index))))
+  (%find-register-argument-value context cfp regval bad))
     
 
 (defun dbg-form (frame-number)

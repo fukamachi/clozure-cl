@@ -607,18 +607,7 @@
                   (< (the fixnum index1) (the fixnum index2)))))))
 
 
-(defun %frame-savefn (p)
-  (if (fake-stack-frame-p p)
-    (%fake-stack-frame.fn p)
-    (%%frame-savefn p)))
 
-(defun %frame-savevsp (p)
-  (if (fake-stack-frame-p p)
-    (%fake-stack-frame.vsp p)
-    (%%frame-savevsp p)))
-
-(defun frame-vsp (frame)
-  (%frame-savevsp frame))
 
 
 
@@ -804,6 +793,7 @@
     count))
 
 ;;; stack consed value cells are one of two forms:
+;;; Well, they were of two forms.  When they existed, that is.
 ;;;
 ;;; nil             ; n-4
 ;;; header          ; n = even address (multiple of 8)
@@ -824,41 +814,7 @@
           (and (< next-vsp parent-vsp)
                (%value-cell-header-at-p next-vsp))))))
 
-;;; Return two values: the vsp of p and the vsp of p's "parent" frame.
-;;; The "parent" frame vsp might actually be the end of p's segment,
-;;; if the real "parent" frame vsp is in another segment.
-(defun vsp-limits (p context)
-  (let* ((vsp (%frame-savevsp p))
-         parent)
-    (when (eql vsp 0)
-      ; This frame is where the code continues after an unwind-protect cleanup form
-      (setq vsp (%frame-savevsp (child-frame p context))))
-    (flet ((grand-parent (frame)
-             (let ((parent (parent-frame frame context)))
-               (when (and parent (eq parent (%frame-backlink frame context)))
-                 (let ((grand-parent (parent-frame parent context)))
-                   (when (and grand-parent (eq grand-parent (%frame-backlink parent context)))
-                     grand-parent))))))
-      (declare (dynamic-extent #'grand-parent))
-      (let* ((frame p)
-             grand-parent)
-        (loop
-          (setq grand-parent (grand-parent frame))
-          (when (or (null grand-parent) (not (eql 0 (%frame-savevsp grand-parent))))
-            (return))
-          (setq frame grand-parent))
-        (setq parent (parent-frame frame context)))
-      (let* ((parent-vsp (if parent (%frame-savevsp parent) vsp))
-             (tcr (if context (bt.tcr context) (%current-tcr)))
-             (vsp-area (%fixnum-ref tcr target::tcr.vs-area)))
-        (if (eql 0 parent-vsp)
-          (values vsp vsp)              ; p is the kernel frame pushed by an unwind-protect cleanup form
-          (progn
-            (unless vsp-area
-              (error "~s is not a stack frame pointer for context ~s" p tcr))
-            (unless (%ptr-in-area-p parent-vsp vsp-area)
-              (setq parent-vsp (%fixnum-ref vsp-area target::area.high)))
-            (values vsp parent-vsp)))))))
+
 
 (defun count-values-in-frame (p context &optional child)
   (declare (ignore child))
@@ -866,11 +822,10 @@
     (values
      (- parent-vsp 
         vsp
-        (* 2 (count-db-links-in-frame vsp parent-vsp context))
-        (* 3 (count-stack-consed-value-cells-in-frame vsp parent-vsp))))))
+        (* 2 (count-db-links-in-frame vsp parent-vsp context))))))
 
 (defun nth-value-in-frame-loc (sp n context lfun pc child-frame vsp parent-vsp)
-  (declare (ignore child-frame))        ; no ppc function info yet
+  (declare (ignore child-frame))
   (declare (fixnum sp))
   (setq n (require-type n 'fixnum))
   (unless (or (null vsp) (fixnump vsp))
@@ -896,7 +851,6 @@
                   last-db (previous-db-link last-db first-db)
                   phys-cell (+ phys-cell 2))
             (setq db-link-p nil))
-          (unless (in-stack-consed-value-cell-p arg-vsp vsp parent-vsp)
             (when (< (decf cnt) 0)
               (return
                (if db-link-p
@@ -904,7 +858,7 @@
                          :saved-special
                          (binding-index-symbol (%fixnum-ref (1+ arg-vsp))))
                  (multiple-value-bind (type name) (find-local-name phys-cell lfun pc)
-                   (values arg-vsp type name))))))
+                   (values arg-vsp type name)))))
           (incf phys-cell)
           (when (< (decf arg-vsp) vsp)
             (error "n out of range")))))))
@@ -943,7 +897,7 @@
     (if (= i n)
       (return p))))
 
-; True if the object is in one of the heap areas
+;;; True if the object is in one of the heap areas
 (defun %in-consing-area-p (x area)
   (declare (fixnum x))                  ; lie
   (let* ((low (%fixnum-ref area target::area.low))
