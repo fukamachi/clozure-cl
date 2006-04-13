@@ -21,6 +21,57 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "DLL-NODE"))
 
+(def-standard-initial-binding *x86-lap-label-freelist* (make-dll-node-freelist))
+
+(def-standard-initial-binding *x86-lap-frag-vector-freelist* (%cons-pool))
+
+(defun %allocate-vector-list-segment ()
+  (without-interrupts
+   (let* ((data (pool.data *x86-lap-frag-vector-freelist*)))
+     (if data
+       (progn
+         (when (null (list-length data))
+           (break "frag-vector freelist is circular"))
+         (setf (pool.data *x86-lap-frag-vector-freelist*) (cdr data))
+         (rplacd data nil))
+       (cons (make-array 24 :element-type '(unsigned-byte 8)) nil)))))
+
+(defun %free-vector-list-segment (segment)
+  (without-interrupts
+   (setf (pool.data *x86-lap-frag-vector-freelist*)
+         (nconc segment (pool.data *x86-lap-frag-vector-freelist*)))))
+
+(defun %vector-list-ref (vector-list index)
+  (do* ((i index (- i len))
+        (vl vector-list (cdr vl))
+        (v (car vl) (car vl))
+        (len (length v) (length v)))
+       ((null vl) (error "Index ~s is out of bounds for ~s" index vector-list))
+    (if (< i len)
+      (return (aref v i)))))
+
+(defun (setf %vector-list-ref) (new vector-list index)
+  (do* ((i index (- i len))
+        (vl vector-list (cdr vl))
+        (v (car vl) (car vl))
+        (len (length v) (length v)))
+       ((< i len) (setf (aref v i) new))
+    (when (null (cdr vl))
+      (setf (cdr vl) (%allocate-vector-list-segment)))))
+
+(defun %truncate-vector-list (vector-list newlen)
+  (do* ((vl vector-list (cdr vl))
+        (v (car vl) (car vl))
+        (len (length v) (length v))
+        (total len (+ total len)))
+       ((null (cdr vl)))
+    (when (> total newlen)
+      (%free-vector-list-segment (cdr vl))
+      (return (setf (cdr vl) nil)))))
+        
+  
+
+
 
 (eval-when (:execute :load-toplevel)
 
@@ -43,26 +94,95 @@
     last-address                        ; address may change during relax
     type                                ; nil, or (:TYPE &rest args)
     relocs                              ; relocations against this frag
-    relax-marker                        ; boolean, flipped during relax
-    code-buffer                         ; may be nil, or adjustable vector
+    (position 0)                        ; position in code-buffer
+    (code-buffer (%allocate-vector-list-segment))     ; a VECTOR-LIST
     labels                              ; labels defined in this frag
     ))
 
 (def-standard-initial-binding *frag-freelist* (make-dll-node-freelist))
 
-(defparameter *recycle-frags* t)
+
+(defun frag-push-byte (frag b)
+  (let* ((pos (frag-position frag)))
+    (setf (%vector-list-ref (frag-code-buffer frag) pos) b
+          (frag-position frag) (1+ pos))
+    b))
+
+(defun frag-ref (frag index)
+  (%vector-list-ref (frag-code-buffer frag) index))
+
+(defun (setf frag-ref) (new frag index)
+  (setf (%vector-list-ref (frag-code-buffer frag) index) new))
+
+(defun frag-length (frag)
+  (frag-position frag))
+
+(defun (setf frag-length) (new frag)
+  (%truncate-vector-list (frag-code-buffer frag) new)
+  (setf (frag-position frag) new))
+
+
+;;; Push 1, 2, 4, or 8 bytes onto the frag-list's current-frag's buffer.
+;;; (If pushing more than one byte, do so in little-endian order.)
+(defun frag-list-push-byte (frag-list b)
+  (frag-push-byte (frag-list-current frag-list) b))
+
+(defun frag-list-push-16 (frag-list w)
+  (let* ((frag (frag-list-current frag-list)))
+    (frag-push-byte frag (ldb (byte 8 0) w))
+    (frag-push-byte frag (ldb (byte 8 8) w))))
+
+(defun frag-list-push-32 (frag-list w)
+  (let* ((frag (frag-list-current frag-list)))
+    (frag-push-byte frag (ldb (byte 8 0) w))
+    (frag-push-byte frag (ldb (byte 8 8) w))
+    (frag-push-byte frag (ldb (byte 8 16) w))
+    (frag-push-byte frag (ldb (byte 8 24) w))
+    w))
+
+(defun frag-list-push-64 (frag-list w)
+  (let* ((frag (frag-list-current frag-list)))
+    (frag-push-byte frag (ldb (byte 8 0) w))
+    (frag-push-byte frag (ldb (byte 8 8) w))
+    (frag-push-byte frag (ldb (byte 8 16) w))
+    (frag-push-byte frag (ldb (byte 8 24) w))
+    (frag-push-byte frag (ldb (byte 8 32) w))
+    (frag-push-byte frag (ldb (byte 8 40) w))
+    (frag-push-byte frag (ldb (byte 8 48) w))
+    (frag-push-byte frag (ldb (byte 8 56) w))
+    w))
+
+;;; Returns the length of the current frag
+(defun frag-list-position (frag-list)
+  (frag-length (frag-list-current frag-list)))
+
+(defun frag-output-bytes (frag target target-offset)
+  (let* ((buffer (frag-code-buffer frag))
+         (n (frag-length frag))
+         (remain n))
+    (loop
+      (when (zerop remain) (return n))
+      (let* ((v (pop buffer))
+             (len (length v))
+             (nout (min remain len)))
+        (%copy-ivector-to-ivector v
+                                  0
+                                  target
+                                  target-offset
+                                  nout)
+        (incf target-offset nout)
+        (decf remain nout)))))
 
 (defun make-frag ()
-  (let* ((frag (if *recycle-frags* (alloc-dll-node *frag-freelist*))))
+  (let* ((frag (alloc-dll-node *frag-freelist*)))
     (if frag
       (let* ((buffer (frag-code-buffer frag)))
         (when buffer
-          (setf (fill-pointer buffer) 0))
+          (setf (frag-length frag) 0))
         (setf (frag-address frag) nil
               (frag-last-address frag) nil
               (frag-type frag) nil
               (frag-relocs frag) nil
-              (frag-relax-marker frag) nil
               (frag-labels frag) nil)
         frag)
       (%make-frag))))
@@ -111,8 +231,18 @@
 
 ;;; Labels
 
+(defun %make-x86-lap-label (name)
+  (let* ((lab (alloc-dll-node *x86-lap-label-freelist*)))
+    (if lab
+      (progn
+        (setf (x86-lap-label-frag lab) nil
+              (x86-lap-label-offset lab) nil
+              (x86-lap-label-name lab) name)
+        lab)
+      (%%make-x86-lap-label name))))
+  
 (defun make-x86-lap-label (name)
-  (let* ((lab (%%make-x86-lap-label name)))
+  (let* ((lab (%make-x86-lap-label name)))
     (if (typep *x86-lap-labels* 'hash-table)
       (setf (gethash name *x86-lap-labels*) lab)
       (progn
@@ -162,6 +292,7 @@
 
 
 
+
 (defstruct (frag-list (:include ccl::dll-header)))
 
 ;;; ccl::dll-header-last is unit-time
@@ -179,66 +310,6 @@
     (new-frag header)
     header))
 
-(defun frag-list-current-frag-size (frag-list)
-  (length (frag-code-buffer (frag-list-current frag-list))))
-
-
-;;; Push 1, 2, 4, or 8 bytes onto the frag-list's current-frag's buffer.
-;;; (If pushing more than one byte, do so in little-endian order.)
-(defun frag-list-push-byte (frag-list b)
-  (let* ((frag (frag-list-current frag-list))
-         (buf (or (frag-code-buffer frag)
-                  (setf (frag-code-buffer frag)
-                        (make-array 32 :element-type '(unsigned-byte 8)
-                                    :fill-pointer 0
-                                    :adjustable t)))))
-    (vector-push-extend b buf)
-    b))
-
-(defun frag-list-push-16 (frag-list w)
-  (let* ((frag (frag-list-current frag-list))
-         (buf (or (frag-code-buffer frag)
-                  (setf (frag-code-buffer frag)
-                        (make-array 32 :element-type '(unsigned-byte 8)
-                                    :fill-pointer 0
-                                    :adjustable t)))))
-    (vector-push-extend (ldb (byte 8 0) w) buf)
-    (vector-push-extend (ldb (byte 8 8) w) buf)
-    w))
-
-(defun frag-list-push-32 (frag-list w)
-  (let* ((frag (frag-list-current frag-list))
-         (buf (or (frag-code-buffer frag)
-                  (setf (frag-code-buffer frag)
-                        (make-array 32 :element-type '(unsigned-byte 8)
-                                    :fill-pointer 0
-                                    :adjustable t)))))
-    (vector-push-extend (ldb (byte 8 0) w) buf)
-    (vector-push-extend (ldb (byte 8 8) w) buf)
-    (vector-push-extend (ldb (byte 8 16) w) buf)
-    (vector-push-extend (ldb (byte 8 24) w) buf)
-    w))
-
-(defun frag-list-push-64 (frag-list w)
-  (let* ((frag (frag-list-current frag-list))
-         (buf (or (frag-code-buffer frag)
-                  (setf (frag-code-buffer frag)
-                        (make-array 32 :element-type '(unsigned-byte 8)
-                                    :fill-pointer 0
-                                    :adjustable t)))))
-    (vector-push-extend (ldb (byte 8 0) w) buf)
-    (vector-push-extend (ldb (byte 8 8) w) buf)
-    (vector-push-extend (ldb (byte 8 16) w) buf)
-    (vector-push-extend (ldb (byte 8 24) w) buf)
-    (vector-push-extend (ldb (byte 8 32) w) buf)
-    (vector-push-extend (ldb (byte 8 40) w) buf)
-    (vector-push-extend (ldb (byte 8 48) w) buf)
-    (vector-push-extend (ldb (byte 8 56) w) buf)
-    w))
-
-;;; Returns the length of the current frag
-(defun frag-list-position (frag-list)
-  (length (frag-code-buffer (frag-list-current frag-list))))
 
 
 ;;; Finish the current frag, marking it as containing a PC-relative
@@ -246,13 +317,13 @@
 ;;; one byte of displacement.
 (defun finish-frag-for-branch (frag-list opcode label)
   (let* ((frag (frag-list-current frag-list)))
-    (frag-list-push-byte frag-list opcode)
-    (let* ((pos (frag-list-position frag-list))
+    (frag-push-byte frag opcode)
+    (let* ((pos (frag-length frag))
            (reloc (make-reloc :type :branch8
                               :arg label
                               :pos pos)))
       (push reloc (frag-relocs frag))
-      (frag-list-push-byte frag-list 0)
+      (frag-push-byte frag 0)
       (setf (frag-type frag) (list (if (eql opcode #xeb)
                                      :assumed-short-branch
                                      :assumed-short-conditional-branch)
@@ -356,8 +427,7 @@
 (defstruct (constant-x86-lap-expression (:include x86-lap-expression))
   value)
 
-(setq x86::*lap-constant-0-expression*
-      (make-constant-x86-lap-expression :value 0))
+
 
 ;;; Also support 0, 1, 2, and many args, where at least one of those args
 ;;; is or contains a label reference.
@@ -378,8 +448,7 @@
 
 ;;; Looks like a job for DEFMETHOD.
 (defun x86-lap-expression-value (exp)
-  (etypecase exp
-    (constant-x86-lap-expression (constant-x86-lap-expression-value exp))
+  (typecase exp
     (label-x86-lap-expression (- (x86-lap-label-address (label-x86-lap-expression-label exp)) *x86-lap-entry-offset*))
     (unary-x86-lap-expression (funcall (unary-x86-lap-expression-operator exp)
                                        (x86-lap-expression-value (unary-x86-lap-expression-operand exp))))
@@ -387,19 +456,27 @@
                                         (x86-lap-expression-value (binary-x86-lap-expression-operand0 exp))
                                         (x86-lap-expression-value (binary-x86-lap-expression-operand1 exp))))
     (n-ary-x86-lap-expression (apply (n-ary-x86-lap-expression-operator exp)
-                                     (mapcar #'x86-lap-expression-value (n-ary-x86-lap-expression-operands exp))))))
+                                     (mapcar #'x86-lap-expression-value (n-ary-x86-lap-expression-operands exp))))
+    (constant-x86-lap-expression (constant-x86-lap-expression-value exp))
+    (t exp)))
 
 ;;; Expression might contain unresolved labels.  Return nil if so (even
 ;;; if everything -could- be resolved.)
 (defun early-x86-lap-expression-value (expression)
-  (etypecase expression
+  (typecase expression
     (constant-x86-lap-expression (constant-x86-lap-expression-value expression))
-    (x86-lap-expression nil)))
+    (x86-lap-expression nil)
+    (t expression)))
+
+(define-condition unreferenced-x86-lap-label (simple-program-error)
+  ((label-name :initarg :label-name))
+  (:report (lambda (c s)
+             (format s "Label ~s was referenced but not defined."
+                     (slot-value c 'label-name)))))
 
 (defun x86-lap-label-address (lab)
   (let* ((frag (or (x86-lap-label-frag lab)
-                   (error "Label ~s was referenced but not defined"
-                          (x86-lap-label-name lab)))))
+                   (error 'unreferenced-x886-lap-label :label-name (x86-lap-label-name lab)))))
     (+ (frag-address frag)
        (x86-lap-label-offset lab))))
 
@@ -452,7 +529,7 @@
                                     (cdr form))))))
             (if condition
               (error "~a signaled during assembly-time evaluation of form ~s" condition form)
-              (make-constant-x86-lap-expression :value value))))))))
+              value #|(make-constant-x86-lap-expression :value value)|#)))))))
 
 (defun parse-x86-register-operand (regname designator)
   (let* ((r (lookup-x86-register regname designator)))
@@ -536,7 +613,8 @@
           (if (and (null (cdr f))
                    (or disp base index))
             (let* ((exp (parse-x86-lap-expression head))
-                   (val (if (typep exp 'constant-x86-lap-expression)
+                   (val (if (or (typep exp 'constant-x86-lap-expression)
+                                (not (x86-lap-expression-p exp)))
                           (x86-lap-expression-value exp))))
               (case val
                 ((1 2 4 8)
@@ -894,7 +972,9 @@
       (dolist (constant arg)
         (ensure-x86-lap-constant-label constant))
       (let* ((exp (parse-x86-lap-expression arg))
-             (constantp (constant-x86-lap-expression-p exp)))
+             (constantp (or (constant-x86-lap-expression-p exp)
+                            (not (x86-lap-expression-p exp)))))
+               
         (if constantp
           (let* ((val (x86-lap-expression-value exp)))
             (ecase directive
@@ -936,11 +1016,10 @@
     (let* ((label-diff (min (- (x86-lap-label-address regsave-label)
                                *x86-lap-entry-offset*)
                             255))
-           (first-frag (frag-list-succ frag-list))
-           (buffer (frag-code-buffer first-frag)))
-      (setf (aref buffer 4) label-diff
-            (aref buffer 5) regsave-addr
-            (aref buffer 6) regsave-mask))
+           (first-frag (frag-list-succ frag-list)))
+      (setf (frag-ref first-frag 4) label-diff
+            (frag-ref first-frag 5) regsave-addr
+            (frag-ref first-frag 6) regsave-mask))
     t))
                        
          
@@ -986,7 +1065,7 @@
       (declare (fixnum address))
       (when (do-dll-nodes (frag frag-list t)
               (setf (frag-address frag) address)
-              (incf address (length (frag-code-buffer frag)))
+              (incf address (frag-length frag))
               (case (car (frag-type frag))
                 (:org
                  ;; Do nothing, for now
@@ -1006,7 +1085,7 @@
                        ;; Remove the (short) branch, and remove the frag
                        ;; if it becomes empty.  If the frag does become
                        ;; empty, migrate any labels to the next frag.
-                       (when (zerop (setf (fill-pointer (frag-code-buffer frag))
+                       (when (zerop (setf (frag-length frag)
                                         (1- pos)))
 
                          (do* ((labels (frag-labels frag)))
@@ -1029,7 +1108,6 @@
                (fragtype (frag-type frag))
                (was-address (frag-address frag))
                (address (incf (frag-address frag) stretch)))
-          (setf (frag-relax-marker frag) (not (frag-relax-marker frag)))
           (case (car fragtype)
             (:org
              (let* ((target (cadr (frag-type frag)))
@@ -1041,7 +1119,7 @@
                  (decf growth stretch))))
             (:align
              (let* ((bits (cadr fragtype))
-                    (len (length (frag-code-buffer frag)))
+                    (len (frag-length frag))
                     (oldoff (relax-align (+ was-address len) bits))
                     (newoff (relax-align (+ address len) bits)))
                (setq growth (- newoff oldoff))))
@@ -1056,16 +1134,15 @@
                (declare (fixnum pos))
                (let* ((label-address (x86-lap-label-address label))
                       (branch-pos (+ address (1+ pos)))
-                      (buffer (frag-code-buffer frag))
                       (diff (- label-address branch-pos)))
                  (unless (typep diff '(signed-byte 8))
                    (cond ((eq (car fragtype) :assumed-short-branch)
                           ;; replace the opcode byte
-                          (setf (aref buffer (the fixnum (1- pos)))
+                          (setf (frag-ref frag (the fixnum (1- pos)))
                                 x86::+jump-pc-relative+)
-                          (vector-push-extend 0 buffer)
-                          (vector-push-extend 0 buffer)
-                          (vector-push-extend 0 buffer)
+                          (frag-push-byte frag 0)
+                          (frag-push-byte frag 0)
+                          (frag-push-byte frag 0)
                           (setf (reloc-type reloc) :branch32)
                           (setf (car fragtype) :long-branch)
                           (setq growth 3))
@@ -1073,13 +1150,13 @@
                           ;; Conditional branch: must change
                           ;; 1-byte opcode to 2 bytes, add 4-byte
                           ;; displacement
-                          (let* ((old-opcode (aref buffer (1- pos))))
-                            (setf (aref buffer (1- pos)) #x0f
-                                  (aref buffer pos) (+ old-opcode #x10))
-                            (vector-push-extend 0 buffer)
-                            (vector-push-extend 0 buffer)
-                            (vector-push-extend 0 buffer)
-                            (vector-push-extend 0 buffer)
+                          (let* ((old-opcode (frag-ref frag (1- pos))))
+                            (setf (frag-ref frag (1- pos)) #x0f
+                                  (frag-ref frag pos) (+ old-opcode #x10))
+                            (frag-push-byte frag 0)
+                            (frag-push-byte frag 0)
+                            (frag-push-byte frag 0)
+                            (frag-push-byte frag 0)
                             (setf (reloc-type reloc) :branch32
                                   (reloc-pos reloc) (1+ pos))
                             (setf (car fragtype) :long-conditional-branch
@@ -1091,34 +1168,33 @@
       (unless stretched (return)))))
 
 (defun apply-relocs (frag-list)
-  (flet ((emit-byte (buffer pos b)
-           (setf (aref buffer pos) (logand b #xff))))
-    (flet ((emit-short (buffer pos s)
-             (setf (aref buffer pos) (ldb (byte 8 0) s)
-                   (aref buffer (1+ pos)) (ldb (byte 8 8) s))))
-      (flet ((emit-long (buffer pos l)
-               (emit-short buffer pos (ldb (byte 16 0) l))
-               (emit-short buffer (+ pos 2) (ldb (byte 16 16) l))))
-        (flet ((emit-quad (buffer pos q)
-                 (emit-long buffer pos (ldb (byte 32 0) q))
-                 (emit-long buffer (+ pos 4) (ldb (byte 32 32) q))))
+  (flet ((emit-byte (frag pos b)
+           (setf (frag-ref frag pos) (logand b #xff))))
+    (flet ((emit-short (frag pos s)
+             (setf (frag-ref frag pos) (ldb (byte 8 0) s)
+                   (frag-ref frag (1+ pos)) (ldb (byte 8 8) s))))
+      (flet ((emit-long (frag pos l)
+               (emit-short frag pos (ldb (byte 16 0) l))
+               (emit-short frag (+ pos 2) (ldb (byte 16 16) l))))
+        (flet ((emit-quad (frag pos q)
+                 (emit-long frag pos (ldb (byte 32 0) q))
+                 (emit-long frag (+ pos 4) (ldb (byte 32 32) q))))
           (do-dll-nodes (frag frag-list)
-            (let* ((buffer (frag-code-buffer frag))
-                   (address (frag-address frag)))
+            (let* ((address (frag-address frag)))
               (dolist (reloc (frag-relocs frag))
                 (let* ((pos (reloc-pos reloc))
                        (arg (reloc-arg reloc)))
                   (ecase (reloc-type reloc)
                     (:branch8 (let* ((target (x86-lap-label-address arg))
                                      (refpos (+ address (1+ pos))))
-                                (emit-byte buffer pos (- target refpos))))
+                                (emit-byte frag pos (- target refpos))))
                     (:branch32 (let* ((target (x86-lap-label-address arg))
                                      (refpos (+ address pos 4)))
-                                (emit-long buffer pos (- target refpos))))
-                    (:expr8 (emit-byte buffer pos  (x86-lap-expression-value arg)))
-                    (:expr16 (emit-short buffer pos (x86-lap-expression-value arg)))
-                    (:expr32 (emit-long buffer pos (x86-lap-expression-value arg)))
-                    (:expr64 (emit-quad buffer pos (x86-lap-expression-value  arg)))))))))))))
+                                (emit-long frag pos (- target refpos))))
+                    (:expr8 (emit-byte frag pos  (x86-lap-expression-value arg)))
+                    (:expr16 (emit-short frag pos (x86-lap-expression-value arg)))
+                    (:expr32 (emit-long frag pos (x86-lap-expression-value arg)))
+                    (:expr64 (emit-quad frag pos (x86-lap-expression-value arg)))))))))))))
                              
 
 (defun fill-for-alignment (frag-list)
@@ -1126,25 +1202,18 @@
     (let* ((next (ccl::dll-node-succ frag)))
       (unless (eq next frag-list)
         (let* ((addr (frag-address frag))
-               (buffer (frag-code-buffer frag))
                (nextaddr (frag-address next))
-               (pad (- nextaddr (+ addr (length buffer)))))
+               (pad (- nextaddr (+ addr (frag-length frag)))))
           (unless (eql 0 pad)
-            (setq buffer (or buffer (setf (frag-code-buffer frag)
-                                          (make-array pad
-                                                      :adjustable t
-                                                      :element-type '(unsigned-byte 8)
-                                                      :fill-pointer 0))))
-            (dotimes (i pad) (vector-push-extend #xcc buffer))))))))
+            (dotimes (i pad) (frag-push-byte frag #xcc))))))))
 
 (defun show-frag-bytes (frag-list)
   (ccl::do-dll-nodes (frag frag-list)
-    (let* ((buffer (frag-code-buffer frag)))
-      (format t "~& frag at #x~x" (frag-address frag))
-      (dotimes (i (length buffer))
-        (unless (logtest 15 i)
-          (format t "~&"))
-        (format t "~2,'0x " (aref buffer i))))))
+    (format t "~& frag at #x~x" (frag-address frag))
+    (dotimes (i (frag-length frag))
+      (unless (logtest 15 i)
+        (format t "~&"))
+      (format t "~2,'0x " (frag-ref frag i)))))
 
 (defun x86-lap-equate-form (eqlist fraglist instruction  body) 
   (let* ((symbols (mapcar #'(lambda (x)
@@ -1186,25 +1255,14 @@
         (setf (uvref constants-vector (decf last)) (car c)))
       (let* ((nbytes 0))
         (do-dll-nodes (frag frag-list)
-          (incf nbytes (length (frag-code-buffer frag))))
+          (incf nbytes (frag-length frag)))
         (let* ((code-vector (make-array nbytes
                                         :element-type '(unsigned-byte 8)))
                (target-offset 0))
           (declare (fixnum target-offset))
           (setf (uvref constants-vector 0) code-vector)
           (do-dll-nodes (frag frag-list)
-            (let* ((buffer (frag-code-buffer frag))
-                   (length (length buffer)))
-              (declare (fixnum length))
-              (when buffer
-                (multiple-value-bind (data offset)
-                    (array-data-and-offset buffer)
-                  (%copy-ivector-to-ivector data
-                                            offset
-                                            code-vector
-                                            target-offset
-                                            length)
-                  (incf target-offset length)))))
+            (incf target-offset (frag-output-bytes frag code-vector target-offset)))
           constants-vector)))))
 
 #+x86-target
@@ -1212,25 +1270,14 @@
   (unless name (setq bits (logior bits (ash -1 $lfbits-noname-bit))))
   (let* ((code-bytes (let* ((nbytes 0))
                        (do-dll-nodes (frag frag-list nbytes)
-                         (incf nbytes (length (frag-code-buffer frag))))))
+                         (incf nbytes (frag-length frag)))))
          (code-words (ash code-bytes (- target::word-shift)))
          (function-vector (allocate-typed-vector :function code-words)))
     (declare (fixnum num-constants code-bytes code-words))
     (let* ((target-offset 0))
       (declare (fixnum target-offset))
       (do-dll-nodes (frag frag-list)
-        (let* ((buffer (frag-code-buffer frag))
-               (length (length buffer)))
-          (declare (fixnum length))
-          (when buffer
-            (multiple-value-bind (data offset)
-                (array-data-and-offset buffer)
-              (%copy-ivector-to-ivector data
-                                        offset
-                                        function-vector
-                                        target-offset
-                                        length)
-              (incf target-offset length))))))
+        (incf target-offset (frag-output-bytes frag function-vector target-offset))))
     (let* ((last (1- (uvsize function-vector))))
       (declare (fixnum last))
       (setf (uvref function-vector last) bits)
