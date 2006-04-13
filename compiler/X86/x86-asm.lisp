@@ -621,7 +621,6 @@
         ((logtest type (x86::encode-operand-type :disp16 :disp32 :disp32S)) 2)
         (t 0)))
 
-(defvar *lap-constant-0-expression*)
 
 (defun insert-memory-operand-values (instruction
                                      explicit-seg
@@ -688,7 +687,7 @@
     (when (= (ldb modrm-rm-byte rm-byte) +escape-to-two-byte-addressing+)
       (setf (x86-instruction-sib-byte instruction) sib))
     (when (logtest memtype (encode-operand-type :disp))
-      (unless disp (setq disp *lap-constant-0-expression*))
+      (unless disp (setq disp 0))
       (setf (x86-instruction-disp instruction) disp
             (x86-instruction-extra instruction) memtype))
     (when (and explicit-seg
