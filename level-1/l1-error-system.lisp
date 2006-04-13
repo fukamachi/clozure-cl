@@ -222,13 +222,6 @@
              (simple-program-error-context c)
              (apply #'format nil (simple-condition-format-control c) (simple-condition-format-arguments c))))))
 
-(define-condition eval-program-error (simple-program-error)
-  nil ;((context :initarg :context :reader eval-program-error-context))
-  (:report
-   (lambda (c s)
-     (format s "While preprocessing ~a :~%~a" 
-             (simple-program-error-context c)
-             (apply #'format nil (simple-condition-format-control c) (simple-condition-format-arguments c))))))
 
 
 ;;; Miscellaneous error during compilation (caused by macroexpansion, transforms, compile-time evaluation, etc.)
