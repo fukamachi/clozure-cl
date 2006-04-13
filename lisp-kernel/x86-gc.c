@@ -259,6 +259,13 @@ mark_root(LispObj n)
     return;
   }
 
+  if ((tag_n == fulltag_tra_0) ||
+      (tag_n == fulltag_tra_1)) {
+    n = n - (((int *)n)[-1]);
+    tag_n = fulltag_function;
+  }
+
+
   dnode = gc_area_dnode(n);
   if (dnode >= GCndnodes_in_area) {
     return;
@@ -275,12 +282,6 @@ mark_root(LispObj n)
     rmark(c->car);
     rmark(c->cdr);
     return;
-  }
-  if ((tag_n == fulltag_tra_0) ||
-      (tag_n == fulltag_tra_1)) {
-    n = n - (((int *)n)[-1]);
-    tag_n = fulltag_function;
-    dnode = gc_area_dnode(n);
   }
   {
     LispObj *base = (LispObj *) ptr_from_lispobj(untag(n));
@@ -2262,11 +2263,7 @@ gc(TCR *tcr, signed_natural param)
   get_time(start);
   lisp_global(IN_GC) = (1<<fixnumshift);
 
-#if 0  
   GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
-#else
-  GCDebug = true;
-#endif
 
   if (just_purified_p) {
     just_purified_p = false;
