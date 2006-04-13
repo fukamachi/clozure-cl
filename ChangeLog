@@ -1,3 +1,18 @@
+2006-04-12 18:08  gb
+
+	* lisp-kernel/x86-gc.c: Add current/prev (temporarily) to help find
+	where we're losing here.
+
+2006-04-12 18:07  gb
+
+	* lisp-kernel/x86-exceptions.c: pc_luser_xp: notice if we're in the
+	write barrier code, crap out if so.
+
+2006-04-12 18:06  gb
+
+	* lisp-kernel/pmcl-kernel.c: Disable EGC if DISABLE_EGC is defined
+	(presumably in a Makefile).
+
 2006-04-12 14:50  gb
 
 	* level-1/version.lisp: Bump.
