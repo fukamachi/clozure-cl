@@ -199,7 +199,7 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
   (subq (% j) (% i))
   (jmp @test)
   @sub-i-from-j
-  (sub (% j) (% i))
+  (sub (% i) (% j))
   @test
   (rcmpq (% i) (% j))
   (jne @loop)
