@@ -2308,10 +2308,6 @@
                  (eq entry (if (x86-ds-mode-64 ds)
                              (x86::x86-reg64 10)
                              (x86::x86-reg32 7))))))
-           (is-constant-imm (thing)
-             (and (typep thing 'x86::x86-immediate-operand)
-                  (early-x86-lap-expression-value
-                   (x86::x86-immediate-operand-value thing))))
            (is-disp-only (thing)
              (and (typep thing 'x86::x86-memory-operand)
                   (null (x86::x86-memory-operand-base thing))
@@ -2355,8 +2351,7 @@
                                   x8664::*x8664-subprims*
                                   :key #'subprimitive-info-offset)))
                  (when info (setf (x86::x86-memory-operand-disp op0)
-                                  (make-constant-x86-lap-expression 
-                                   :value (subprimitive-info-name info))))))))
+                                  (subprimitive-info-name info)))))))
 
           )))
     instruction))
@@ -2519,6 +2514,10 @@
     (setf (x86-dis-block-end-address block) (x86-ds-code-pointer ds))
     (insert-x86-block block (x86-ds-blocks ds))))
 
+(defmethod unparse-x86-lap-expression ((exp t)
+                                       ds)
+  (declare (ignore ds))
+  exp)
 
 (defmethod unparse-x86-lap-expression ((exp constant-x86-lap-expression)
                                        ds)
@@ -2589,10 +2588,14 @@
                    (x86::x86-reg32 6)))
              (null index)
              (or (eql scale 0) (null scale))
-             (and (typep disp 'constant-x86-lap-expression)
-                  (>= (setq val (+ (x86-ds-entry-point ds)
-                                  (constant-x86-lap-expression-value disp)))
-                     (x86-ds-code-limit ds))))
+             (and (if (typep disp 'constant-x86-lap-expression)
+                    (+ (x86-ds-entry-point ds)
+                                  (constant-x86-lap-expression-value disp))
+                    (unless (typep disp 'x86-lap-expression)
+                      (setq val (if disp
+                                  (+ (x86-ds-entry-point ds)
+                                     disp)))))
+                  (>= val (x86-ds-code-limit ds))))
       (let* ((diff (- val (x86-ds-code-limit ds)))
              (constant (uvref (x86-ds-constants-vector ds)
                               (1+ (ash diff -3)))))
