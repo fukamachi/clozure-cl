@@ -77,6 +77,7 @@
    last argument, appended to the value of the last argument, which must be a
    list."
   (declare (dynamic-extent args))
+  #+x86-target (dbg)
   (cond ((null args)
 	 (apply function arg))
 	((null (cdr args))
