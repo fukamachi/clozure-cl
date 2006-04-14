@@ -164,7 +164,7 @@
            (maybe-future (+ (- future (mod future 100)) year)))
       (if (>= maybe-past past)
         (setq year maybe-past)
-        (setq year maybe future))))
+        (setq year maybe-future))))
            
   (let* ((days (+ (1- date)
 		  (aref *days-before-month* month)
