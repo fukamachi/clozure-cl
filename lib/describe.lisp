@@ -1853,11 +1853,11 @@
                     (cons n
                           (cons (elt ccl::*saved-register-names* j) name))
                     (if unresolved :static :normal)))))
-      (destructuring-bind (p lfun pc child &rest rest) frame-info
+      (destructuring-bind (p lfun pc &rest rest) frame-info
         (declare (ignore rest))
         (let ((offset (- n saved-register-count)))
           (multiple-value-bind (var type name)
-                               (ccl::nth-value-in-frame p offset (context (inspector-object i)) lfun pc child)
+                               (ccl::nth-value-in-frame p offset (context (inspector-object i)) lfun pc)
             (values var (cons n (cons type name)) :normal)))))))
 
 (defmethod (setf line-n) (value (i stack-frame-inspector) n)
