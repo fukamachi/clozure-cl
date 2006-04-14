@@ -1,3 +1,17 @@
+2006-04-14 09:02  gb
+
+	* lib/time.lisp: Jeez.	Save buffer, why dontcha.
+
+2006-04-14 08:21  gb
+
+	* lib/time.lisp: ENCODE-UNIVERSAL-TIME: treat year 0-99 as
+	shorthand for the nearest matching year.
+
+2006-04-14 08:20  gb
+
+	* lib/format.lisp: FORMAT-PRINT-NUMBER was printing commas even
+	when : was missing.
+
 2006-04-13 23:09  gb
 
 	* lib/ppc-backtrace.lisp: Eschew missing parens.
