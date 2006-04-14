@@ -240,9 +240,10 @@
                   (declare (ignore ncells))
                   (unless (or lexprp restp (> 0 nclosed) (> 0 nopt) keys allow-other-keys
                               optinit)
-                    (let* ((name (function-name function))
-                           (arglist (arglist-from-map function)))
-                      (when (and arglist name (symbolp name))
+                    (let* ((name (function-name function)))
+                      (multiple-value-bind (arglist win)
+                          (arglist-from-map function)
+                      (when (and win name (symbolp name))
                         (form name)
                         (dotimes (i nreq)
                           (let* ((val (argument-value nil cfp function pc (pop arglist))))
@@ -250,7 +251,7 @@
                               (setq val (%svref val target::value-cell.value-cell)))
                             (if (eq val (%unbound-marker))
                               (return-from %cfp-form nil))
-                            (form val)))))))
+                            (form val))))))))
                 (form)))))))))
 
 (defun function-args (lfun)
