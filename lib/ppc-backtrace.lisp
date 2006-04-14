@@ -174,4 +174,5 @@
                (when (if mask (logbitp index mask))
                  (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
                  (return (raw-frame-ref child context where bad))))))))
-     (get-register-value nil last-catch index)))
+     (get-register-value nil last-catch index))))
+
