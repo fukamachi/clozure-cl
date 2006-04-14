@@ -824,8 +824,7 @@
         vsp
         (* 2 (count-db-links-in-frame vsp parent-vsp context))))))
 
-(defun nth-value-in-frame-loc (sp n context lfun pc child-frame vsp parent-vsp)
-  (declare (ignore child-frame))
+(defun nth-value-in-frame-loc (sp n context lfun pc vsp parent-vsp)
   (declare (fixnum sp))
   (setq n (require-type n 'fixnum))
   (unless (or (null vsp) (fixnump vsp))
@@ -865,9 +864,9 @@
 
 
 
-(defun nth-value-in-frame (sp n context &optional lfun pc child-frame vsp parent-vsp)
+(defun nth-value-in-frame (sp n context &optional lfun pc vsp parent-vsp)
   (multiple-value-bind (loc type name)
-                       (nth-value-in-frame-loc sp n context lfun pc child-frame vsp parent-vsp)
+                       (nth-value-in-frame-loc sp n context lfun pc vsp parent-vsp)
     (let* ((val (%fixnum-ref loc)))
       (when (and (eq type :saved-special)
 		 (eq val (%no-thread-local-binding-marker))
@@ -875,9 +874,9 @@
 	(setq val (%sym-global-value name)))
       (values val  type name))))
 
-(defun set-nth-value-in-frame (sp n context new-value &optional child-frame vsp parent-vsp)
+(defun set-nth-value-in-frame (sp n context new-value &optional vsp parent-vsp)
   (multiple-value-bind (loc type name)
-      (nth-value-in-frame-loc sp n context nil nil child-frame vsp parent-vsp)
+      (nth-value-in-frame-loc sp n context nil nil vsp parent-vsp)
     (let* ((old-value (%fixnum-ref loc)))
       (if (and (eq type :saved-special)
 	       (eq old-value (%no-thread-local-binding-marker))
