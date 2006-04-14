@@ -82,9 +82,8 @@
                      (%method-function (car methods))))
               type :analysis))))
   (let ((ll (gethash sym %lambda-lists% *eof-value*))
-        (conser #'cons)
         (macrop (and (symbolp sym) (eq (macro-function sym) def))))
-    (flet ((strip (f) (if (stringp f) f (strip-bindings f include-bindings conser))))
+    (flet ((strip (f) (if (stringp f) f (strip-bindings f include-bindings))))
       (declare (dynamic-extent #'strip))
       (cond ((neq ll *eof-value*) (values (strip ll) :declaration))
             ((consp def)
@@ -96,29 +95,27 @@
              (values (strip (cadr ll)) (or type :definition)))
             ((lfunp def)
              (multiple-value-bind (arglist gotit) 
-                                  (unless macrop (arglist-from-map def conser))
+                                  (unless macrop (arglist-from-map def))
                (if gotit
                  (values arglist :analysis)
                  (cond  (macrop (values nil :unknown))
-                       (t (values (arglist-from-compiled-def def conser) :analysis))))))
+                       (t (values (arglist-from-compiled-def def) :analysis))))))
             (t (values nil nil))))))
 
             
 
-(defun strip-bindings (arglist include-bindings conser)
+(defun strip-bindings (arglist include-bindings)
   (if include-bindings
     arglist
-    (macrolet ((push (elt list)
-                 `(setq ,list (funcall conser ,elt ,list))))
-      (let ((res nil))
-        (do ((args arglist (%cdr args)))
-            ((not (consp args)) (nreconc res args))
-          (let ((arg (car args)))
-            (cond ((atom arg)
-                   (push arg res))
-                  ((atom (car arg))
-                   (push (car arg) res))
-                  (t (push (caar arg) res)))))))))
+    (let ((res nil))
+      (do ((args arglist (%cdr args)))
+          ((not (consp args)) (nreconc res args))
+        (let ((arg (car args)))
+          (cond ((atom arg)
+                 (push arg res))
+                ((atom (car arg))
+                 (push (car arg) res))
+                (t (push (caar arg) res))))))))
 
 (defun arglist-sym-and-def (sym &aux def)
   (cond ((functionp sym)
@@ -141,43 +138,43 @@
         (t (setq def (find-unencapsulated-definition (fboundp sym)))))
   (values sym (if (standard-generic-function-p def) def (closure-function def))))
 
-(defun arglist-from-map (lfun &optional (conser #'cons))
+(defun arglist-from-map (lfun)
   (multiple-value-bind (nreq nopt restp nkeys allow-other-keys
                              optinit lexprp
                              ncells nclosed)
-                       (function-args lfun)
-    (declare (ignore optinit ncells))
-    (macrolet ((push (elt list)
-                     `(setf ,list (funcall conser ,elt ,list))))
-      (when (not lexprp)
-        (let ((map (car (function-symbol-map lfun))))
-          (when map
-            (let ((total (+ nreq nopt (if restp 1 0) (or nkeys 0)))
-                  (idx (- (length map) nclosed))
-                  (res nil))
-              (if (%izerop total)
-                (values nil t)
-                (progn
-                  (dotimes (x nreq)
-                    (declare (fixnum x))
-                    (push (if (> idx 0) (elt map (decf idx)) (make-arg "ARG" x)) res))
-                  (when (neq nopt 0)
-                    (push '&optional res)
-                    (dotimes (x (the fixnum nopt))
-                      (push (if (> idx 0) (elt map (decf idx)) (make-arg "OPT" x)) res)))
+      (function-args lfun)
+    (declare (ignore optinit))
+    (if lexprp
+      (values nil nil)
+      (let ((map (car (function-symbol-map lfun))))
+        (if map
+          (let ((total (+ nreq nopt (if restp 1 0) (or nkeys 0)))
+                (idx (- (length map) nclosed))
+                (res nil))
+            (if (%izerop total)
+              (values nil t)
+              (progn
+                (dotimes (x nreq)
+                  (declare (fixnum x))
+                  (push (if (> idx 0) (elt map (decf idx)) (make-arg "ARG" x)) res))
+                (when (neq nopt 0)
+                  (push '&optional res)
+                  (dotimes (x (the fixnum nopt))
+                    (push (if (> idx 0) (elt map (decf idx)) (make-arg "OPT" x)) res)))
 
-                  (when restp
-                    (push '&rest res)
-                    (when nkeys
-                      (when (> idx nkeys) (decf idx nkeys)))
-                    (push (if (> idx 0) (elt map (decf idx)) 'the-rest) res))                  (when nkeys
-                    (push '&key res)
-                    (let ((keyvect (lfun-keyvect lfun)))
-                      (dotimes (i (length keyvect))
-                        (push (elt keyvect i) res))))
-                  (when allow-other-keys
-                    (push '&allow-other-keys res))))
-              (values (nreverse res) t))))))))
+                (when restp
+                  (push '&rest res)
+                  (when nkeys
+                    (when (> idx nkeys) (decf idx nkeys)))
+                  (push (if (> idx 0) (elt map (decf idx)) 'the-rest) res))                  (when nkeys
+                  (push '&key res)
+                  (let ((keyvect (lfun-keyvect lfun)))
+                    (dotimes (i (length keyvect))
+                      (push (elt keyvect i) res))))
+                (when allow-other-keys
+                  (push '&allow-other-keys res))))
+            (values (nreverse res) t))
+          (values nil (zerop ncells)))))))
 
 (defvar *req-arg-names*
   #(arg-0 arg-1 arg-2 arg-3 arg-4 arg-5 arg-6 arg-7 arg-8 arg-9))
@@ -193,44 +190,41 @@
          (svref *opt-arg-names* count))
         (t (intern (format nil "~a-~d" prefix count) :CCL))))
 
-(defun arglist-from-compiled-def (lfun &optional (conser #'cons) 
-                                       &aux (res nil) argnames)
+(defun arglist-from-compiled-def (lfun &aux (res nil) argnames)
   (multiple-value-bind (nreq nopt restp nkeys allow-other-keys
-                        optinit lexprp
-                        ncells nclosed)
-          (function-args lfun)
+                             optinit lexprp
+                             ncells nclosed)
+      (function-args lfun)
     (declare (ignore optinit ncells nclosed))
-    (macrolet ((push (elt list)
-                     `(setf ,list (funcall conser ,elt ,list))))
-      (flet ((push-various-args (prefix count)
-               (dotimes (i (the fixnum count))
-                 (push (make-arg prefix i) res))))
-        (declare (dynamic-extent #'push-various-args))
-	;; Treat &LEXPR like &REST.
-	(if lexprp (setq restp t lexprp nil))
-        (cond ((and (eq 0 (+ nreq nopt (or nkeys 0))) (not restp))
-               nil)
-              (t 
+    (flet ((push-various-args (prefix count)
+             (dotimes (i (the fixnum count))
+               (push (make-arg prefix i) res))))
+      (declare (dynamic-extent #'push-various-args))
+      ;; Treat &LEXPR like &REST.
+      (if lexprp (setq restp t lexprp nil))
+      (cond ((and (eq 0 (+ nreq nopt (or nkeys 0))) (not restp))
+             nil)
+            (t 
+             (if argnames
+               (setq res (reverse (butlast argnames (- (length argnames) nreq))))
+               (push-various-args "ARG" nreq))
+             (when (> nopt 0)
+               (push '&optional res)
                (if argnames
-                 (setq res (reverse (butlast argnames (- (length argnames) nreq))))
-                 (push-various-args "ARG" nreq))
-               (when (> nopt 0)
-                 (push '&optional res)
-                 (if argnames
-                   (setq res (append (reverse (subseq argnames nreq (+ nreq nopt))) res))
-                   (push-various-args "OPT" nopt)))
-               (when restp
-                 (push '&rest res)
-                 (if argnames
-                   (push (nth (+ nreq nopt) argnames) res)
-                   (push 'the-rest res)))
-               (when nkeys
-                 (push '&key res)
-                 (let ((keyvect (lfun-keyvect lfun)))
-                   (dotimes (i (length keyvect))
-                     (push (elt keyvect i) res))))
-               (when allow-other-keys
-                 (push '&allow-other-keys res))
-               (nreverse res)))))))
+                 (setq res (append (reverse (subseq argnames nreq (+ nreq nopt))) res))
+                 (push-various-args "OPT" nopt)))
+             (when restp
+               (push '&rest res)
+               (if argnames
+                 (push (nth (+ nreq nopt) argnames) res)
+                 (push 'the-rest res)))
+             (when nkeys
+               (push '&key res)
+               (let ((keyvect (lfun-keyvect lfun)))
+                 (dotimes (i (length keyvect))
+                   (push (elt keyvect i) res))))
+             (when allow-other-keys
+               (push '&allow-other-keys res))
+             (nreverse res))))))
 
 ; End of arglist.lisp
