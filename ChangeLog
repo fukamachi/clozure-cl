@@ -1,3 +1,42 @@
+2006-04-13 23:09  gb
+
+	* lib/ppc-backtrace.lisp: Eschew missing parens.
+
+2006-04-13 23:08  gb
+
+	* lib/describe.lisp: Change NTH-VALUE-IN-FRAME call.
+
+2006-04-13 23:08  gb
+
+	* lib/backtrace.lisp: DBG-FORM checks the second return value from
+	ARGLIST-FROM-MAP.
+
+2006-04-13 23:02  gb
+
+	* lib/arglist.lisp: Don't pass a "conser" function around (the idea
+	is leftover from 68K MCL).  ARGLIST-FROM-MAP tries to be consistent
+	about returning a second value; returns values NIL, T for functions
+	that take no args and don't have a symbol map.
+
+2006-04-13 22:53  gb
+
+	* level-1/l1-lisp-threads.lisp: Try to make args to
+	NTH-VALUE-IN-FRAME et al a little saner.
+
+2006-04-13 22:37  gb
+
+	* lib/numbers.lisp: Conditionalize on word size, not PPC processor
+	type.
+
+2006-04-13 22:36  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-04-13 22:35  gb
+
+	* level-1/l1-aprims.lisp: Remove the DBG trap from #'APPLY.  Still
+	trying to find the cause of the crash-on-quit bug.
+
 2006-04-13 07:30  gb
 
 	* lib/ppc-backtrace.lisp: Migrate some stuff here.
