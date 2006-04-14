@@ -686,10 +686,10 @@
     (/ (- (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
       (%double-float-sinh! x (%make-dfloat))
-      #+ppc32-target
+      #+32-bit-target
       (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-sinh! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
         (%single-float-sinh (%short-float x)))))
 
 
@@ -699,10 +699,10 @@
     (/ (+ (exp x) (exp (- x))) 2)
     (if (typep x 'double-float)
       (%double-float-cosh! x (%make-dfloat))
-      #+ppc32-target
+      #+32-bit-target
       (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-cosh! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-cosh (%short-float x)))))
 
 (defun tanh (x)
@@ -711,10 +711,10 @@
     (/ (sinh x) (cosh x))
     (if (typep x 'double-float)
       (%double-float-tanh! x (%make-dfloat))
-      #+ppc32-target
+      #+32-bit-target
       (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-tanh! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-tanh (%short-float x)))))
 
 (defun asinh (x)
@@ -723,10 +723,10 @@
     (log (+ x (sqrt (+ 1 (* x x)))))
     (if (typep x 'double-float)
       (%double-float-asinh! x (%make-dfloat))
-      #+ppc32-target
+      #+32-bit-target
       (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-asinh! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-asinh (%short-float x)))))
 
 (defun acosh (x)
@@ -734,10 +734,10 @@
   (if (and (realp x) (<= 1.0 x))
     (if (typep x 'double-float)
       (%double-float-acosh! x (%make-dfloat))
-      #+ppc32-target
+      #+32-bit-target
       (ppc32::with-stack-short-floats ((sx x))
 	(%single-float-acosh! sx (%make-sfloat)))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-acosh (%short-float x)))
     (* 2 (log (+ (sqrt (/ (1+ x) 2)) (sqrt (/ (1- x) 2)))))))
 
@@ -746,9 +746,9 @@
   (if (and (realp x) (<= -1.0 (setq x (float x)) 1.0))
     (if (typep x 'double-float)
       (%double-float-atanh! x (%make-dfloat))
-      #+ppc32-target
+      #+32-bit-target
       (%single-float-atanh! x (%make-sfloat))
-      #+ppc64-target
+      #+64-bit-target
       (%single-float-atanh x))
     (/ (log (/ (+ 1 x) (- 1 x))) 2)))
 
