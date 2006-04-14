@@ -67,6 +67,7 @@
                     (unless toobig (not (zerop (pref tm :tm.tm_isdst)))))))))))
 
 
+
 (defun decode-universal-time (universal-time &optional time-zone)
   "Converts a universal-time to decoded time format returning the following
    nine values: second, minute, hour, date, month, year, day of week (0 =
@@ -127,6 +128,9 @@
    (daylight savings times) or NIL (standard time), and timezone."
   (decode-universal-time (get-universal-time)))
 
+(defun current-year ()
+  (nth-value 5 (get-decoded-time)))
+
 (defun leap-years-before (year)
   (let ((years (- year 1901)))
     (+ (- (truncate years 4)
@@ -150,8 +154,18 @@
 	   (type (mod 24) hour)
 	   (type (integer 1 31) date)
 	   (type (integer 1 12) month)
-	   (type (or (integer 0 99) (integer 1900)) year)
+	   (type unsigned-byte year)
 	   (type (or null rational) time-zone))
+  (when (< year 100)
+    (let* ((this (current-year))
+           (past (- this 50))
+           (future (+ this 49))
+           (maybe-past (+ (- past (mod past 100)) year))
+           (maybe-future (+ (- future (mod future 100)) year)))
+      (if (>= maybe-past past)
+        (setq year maybe-past)
+        (setq year maybe future))))
+           
   (let* ((days (+ (1- date)
 		  (aref *days-before-month* month)
 		  (if (> month 2)
