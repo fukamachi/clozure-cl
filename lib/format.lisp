@@ -1531,6 +1531,7 @@
 (defun format-print-number (stream number radix print-commas-p print-sign-p parms)
   (declare (dynamic-extent parms))
   (declare (type t number) (type fixnum radix))
+  #+wrong
   (when (> (length parms) 2) (setq print-commas-p t)) ; print commas if char or interval provided
   (if (not (integerp number))
       (let ((*print-base* radix)
