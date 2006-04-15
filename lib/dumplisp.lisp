@@ -193,8 +193,8 @@
 
 (defun restore-lisp-pointers ()
   (%revive-system-locks)
-  (restore-pascal-functions)
   (refresh-external-entrypoints)
+  (restore-pascal-functions)
   (dolist (f (reverse *lisp-system-pointer-functions*))
     (funcall f))
   (let ((restore-lisp-fns *restore-lisp-functions*)
@@ -215,7 +215,8 @@
   nil)
 
 
-(defun  restore-pascal-functions ()
+(defun restore-pascal-functions ()
+  (reset-callback-storage)
   (when (simple-vector-p %pascal-functions%)
     (dotimes (i (length %pascal-functions%))
       (let ((pfe (%svref %pascal-functions% i)))
