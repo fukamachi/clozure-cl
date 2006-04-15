@@ -20,6 +20,11 @@
 
 (in-package "CCL")
 
+;;; Do nothing; it seems that we can safely be pretty casual about assuming
+;;; that malloc()ed memory is executable on PPC.
+(defun reset-callback-storage ())
+
+
 ;;; This is machine-dependent (it conses up a piece of "trampoline" code
 ;;; which calls a subprim in the lisp kernel.)
 #-(and linuxppc-target poweropen-target)
