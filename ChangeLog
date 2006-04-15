@@ -1,3 +1,19 @@
+2006-04-15 09:12  gb
+
+	* lib/dumplisp.lisp: Refresh external entry points before reviving
+	callbacks.  Reset callback storage before reviving callbacks.
+
+2006-04-15 09:10  gb
+
+	* level-1/x86-error-signal.lisp: Don't prefix the unknown trap
+	error message with a %.  (Where did that come from ?)
+
+2006-04-15 09:08  gb
+
+	* level-1/ppc-callback-support.lisp: Don't (knock wood) need to do
+	anything in RESET-CALLBACK-STORAGE for PPC, since malloc()ed memory
+	is executable.
+
 2006-04-14 09:02  gb
 
 	* lib/time.lisp: Jeez.	Save buffer, why dontcha.
