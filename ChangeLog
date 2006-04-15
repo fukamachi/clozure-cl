@@ -1,3 +1,8 @@
+2006-04-15 09:20  gb
+
+	* level-1/x86-callback-support.lisp: Ensure that callback
+	trampolines are allocated in executable memory.
+
 2006-04-15 09:12  gb
 
 	* lib/dumplisp.lisp: Refresh external entry points before reviving
