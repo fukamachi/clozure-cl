@@ -206,7 +206,7 @@
                                          :expected-type 'fixnum)
                          nil
                          frame-ptr)))
-          (%error "%Unknown trap: #x~x~%xp: ~s, fn: ~s, pc: #x~x"
+          (%error "Unknown trap: #x~x~%xp: ~s, fn: ~s, pc: #x~x"
                   (list (list op0 op1 op2) xp fn relative-pc)
                   frame-ptr))
         skip))))
