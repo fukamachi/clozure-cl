@@ -416,6 +416,9 @@ typedef union {
 register void *current_r2 __asm__("r2");
 #endif
 
+Boolean
+extend_tcr_tlb(TCR *, ExceptionInformation *, unsigned, unsigned);
+
 
 #ifdef PPC64
 #define codevec_hdr_p(value) ((value) == (('C'<<24)|('O'<<16)|('D'<<8)|'E'))
