@@ -1107,21 +1107,6 @@
      ())
   (popq (:%q dest)))
 
-
-;;; If nothing's been pushed by the caller, and we might push something
-;;; while defaulting &optional, we need to "reserve a stack frame"
-;;; here.  (It might work better to get rid of this, and build the
-;;; frame via SAVE-LISP-CONTEXT-VARIABLE-ARG-COUNT instead: if this
-;;; actually reserves space for the frame, it only does so so that
-;;; we can store %rbp and %ra0, which is kind of stupid.
-(define-x8664-vinsn ensure-reserved-frame (()
-                                           ())
-  (rcmpw (:%w x8664::nargs) (:$w (* 3 x8664::node-size)))
-  (ja :no-reserve)
-  (pushq (:$b 0))
-  (pushq (:$b 0))
-  :no-reserve)
-
                                            
 (define-x8664-vinsn (push-argregs :push :node :vsp) (()
                                                       ())
@@ -1453,8 +1438,8 @@
 
 (define-x8664-vinsn reserve-outgoing-frame (()
                                             ())
-  (pushq (:$b 0))
-  (pushq (:$b 0)))
+  (pushq (:$b x8664::reserved-frame-marker))
+  (pushq (:$b x8664::reserved-frame-marker)))
 
 
 (define-x8664-vinsn (call-known-function :call) (()
@@ -1656,7 +1641,8 @@
   (movb (:$b 3) (:@ x8664::misc-data-offset (:%q closure))) ; code word count
   (movb (:$b -1) (:@ (+ x8664::misc-data-offset 7) (:%q closure))) ; 1st byte of jmp
   (movl (:$l (:apply logior #x2524 (:apply ash .SPcall-closure 16))) (:@ (+ x8664::misc-data-offset 8) (:%q closure))) ; rest of jmp instruction, low two bytes of subprim address
-  (movb (:$b (:apply ash .SPcall-closure -16)) (:@ (+ x8664::misc-data-offset 12) (:%q closure)))
+  ((:not (:pred = 0 (:apply ash .SPcall-closure -16)))
+   (movb (:$b (:apply ash .SPcall-closure -16)) (:@ (+ x8664::misc-data-offset 12) (:%q closure))))
   (movb (:$b x8664::function-boundary-marker) (:@ (+ x8664::misc-data-offset 16)  (:%q closure))))
 
 
