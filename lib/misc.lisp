@@ -438,10 +438,10 @@ are running on, or NIL if we can't find any useful information."
                      :major-page-faults elapsed-major
                      :swaps elapsed-swaps)))))))
 
-;(rm:heading 2 "Other Environment Inquiries")
 
 
-; site names and machine-instance is in the init file.
+
+;;; site names and machine-instance is in the init file.
 
 (defun add-feature (symbol)
   "Not CL but should be."
@@ -449,16 +449,12 @@ are running on, or NIL if we can't find any useful information."
       (if (not (memq symbol *features*))
           (setq *features* (cons symbol *features*)))))
 
-; (dotimes (i 5000) (declare (fixnum i)) (add-feature 'junk))
+;;; (dotimes (i 5000) (declare (fixnum i)) (add-feature 'junk))
 
 
 
-; ed is a CL fn so it must get loaded before tools, but it
-; should be able to take advantage of tools if tools are loaded. - what tools?
 
-
-
-; Misc string functions
+;;; Misc string functions
 
 
 (defun string-left-trim (char-bag string &aux end)
@@ -508,7 +504,7 @@ are running on, or NIL if we can't find any useful information."
       (when (boundp symbol)
             (set new-symbol (symbol-value symbol)))
       (when (setq def (fboundp symbol))
-            ;Shouldn't err out on macros/special forms.
+            ;;;Shouldn't err out on macros/special forms.
             (%fhave new-symbol def))
       (set-symbol-plist new-symbol (copy-list (symbol-plist symbol))))
   new-symbol)
