@@ -128,7 +128,7 @@
                                                              (unless (= (%function-code-byte thunk i)
                                                                         (%function-code-byte random-closure i))
                                                                (dbg 0))))
-                                                         (dbg thunk)))))
+                                                         thunk))))
 
       (unless (eq cp ip)
 	(process-kill cp)))))
