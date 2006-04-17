@@ -568,8 +568,24 @@ some point in the near future, and then return to what it was doing."
   t)
 
 (defmethod process-exit-application ((process process) thunk)
+  #+x86-target
+  (let* ((x 0)
+         (random-closure #'(lambda () x)))
+    (do* ((i -7 (1+ i)))
+         ((= i 17))
+      (unless (= (%function-code-byte thunk i)
+                 (%function-code-byte random-closure i))
+        (dbg 1))))
   (when (eq process *initial-process*)
     (prepare-to-quit)
+    #+x86-target
+    (let* ((x 0)
+           (random-closure #'(lambda () x)))
+      (do* ((i -7 (1+ i)))
+         ((= i 17))
+      (unless (= (%function-code-byte thunk i)
+                 (%function-code-byte random-closure i))
+        (dbg 2))))  
     (%set-toplevel thunk)
     (toplevel)))
 
