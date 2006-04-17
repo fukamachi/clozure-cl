@@ -1220,6 +1220,22 @@ remap_spjump()
 #endif
 #endif
 
+#ifdef X8664
+void
+remap_spjump()
+{
+  extern opcode spjump_start;
+  pc new = mmap((pc) 0x5000,
+                0x1000,
+                PROT_READ | PROT_WRITE | PROT_EXEC,
+                MAP_PRIVATE | MAP_ANON | MAP_FIXED,
+                -1,
+                0),
+    old = &spjump_start;
+  bcopy(old, new, 0x1000);
+}
+#endif
+
 void
 check_os_version(char *progname)
 {
@@ -1296,10 +1312,8 @@ main(int argc, char *argv[], char *envp[], void *aux)
   real_executable_name = determine_executable_name(argv[0]);
   page_size = getpagesize();
 
-#ifdef DARWIN
-#ifdef PPC64
+#if (defined(DARWIN) && defined(PPC64)) || defined(X8664)
   remap_spjump();
-#endif
 #endif
 
 #ifdef PPC
