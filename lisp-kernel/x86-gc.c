@@ -25,6 +25,31 @@
 #include <string.h>
 #include <sys/time.h>
 
+#ifndef timeradd
+# define timeradd(a, b, result)						      \
+  do {									      \
+    (result)->tv_sec = (a)->tv_sec + (b)->tv_sec;			      \
+    (result)->tv_usec = (a)->tv_usec + (b)->tv_usec;			      \
+    if ((result)->tv_usec >= 1000000)					      \
+      {									      \
+	++(result)->tv_sec;						      \
+	(result)->tv_usec -= 1000000;					      \
+      }									      \
+  } while (0)
+#endif
+#ifndef timersub
+# define timersub(a, b, result)						      \
+  do {									      \
+    (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;			      \
+    (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;			      \
+    if ((result)->tv_usec < 0) {					      \
+      --(result)->tv_sec;						      \
+      (result)->tv_usec += 1000000;					      \
+    }									      \
+  } while (0)
+#endif
+
+
 /* Heap sanity checking. */
 
 void
@@ -3311,7 +3336,7 @@ impurify(TCR *tcr, signed_natural param)
       }
       a->active += n;
       bcopy(ro_base, oldfree, n);
-      munmap(ro_base, n);
+      munmap((void *)ro_base, n);
       a->ndnodes = area_dnode(a, a->active);
       pure_space_active = r->active = r->low;
       r->ndnodes = 0;
@@ -3834,7 +3859,7 @@ nuke_all_pointers(LispObj base, LispObj limit)
 #define MREMAP_MAYMOVE 1
 #endif
 
-#ifdef FREEBSD
+#if defined(FREEBSD) || defined(SOLARIS)
 void *
 freebsd_mremap(void *old_address, 
 	       size_t old_size, 
@@ -3903,12 +3928,12 @@ resize_used_bitvector(natural new_dnodes, bitvector *newbits)
   }
 
   if (old_used == NULL) {
-    new_used = mmap(NULL,
-                    new_page_aligned_size,
-                    PROT_READ|PROT_WRITE,
-                    MAP_PRIVATE | MAP_ANON,
-                    -1,
-                    0);
+    new_used = (bitvector)mmap(NULL,
+			       new_page_aligned_size,
+			       PROT_READ|PROT_WRITE,
+			       MAP_PRIVATE | MAP_ANON,
+			       -1,
+			       0);
     if (new_used == MAP_FAILED) {
       *newbits = NULL;
       return false;
@@ -3918,7 +3943,7 @@ resize_used_bitvector(natural new_dnodes, bitvector *newbits)
     }
   }
   if (new_page_aligned_size == 0) {
-    munmap(old_used, old_page_aligned_size);
+    munmap((void *)old_used, old_page_aligned_size);
     *newbits = NULL;
     return true;
   }
