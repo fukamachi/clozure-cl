@@ -1621,47 +1621,5 @@ rwlock_destroy(rwlock *rw)
   return 0;                     /* for now. */
 }
 
-/*
-  A binding subprim has just done "twlle limit_regno,idx_regno" and
-  the trap's been taken.  Extend the tcr's tlb so that the index will
-  be in bounds and the new limit will be on a page boundary, filling
-  in the new page(s) with 'no_thread_local_binding_marker'.  Update
-  the tcr fields and the registers in the xp and return true if this
-  all works, false otherwise.
-
-  Note that the tlb was allocated via malloc, so realloc can do some
-  of the hard work.
-*/
-Boolean
-extend_tcr_tlb(TCR *tcr, 
-               ExceptionInformation *xp, 
-               unsigned limit_regno,
-               unsigned idx_regno)
-{
-  unsigned
-    index = (unsigned) (xpGPR(xp,idx_regno)),
-    old_limit = tcr->tlb_limit,
-    new_limit = align_to_power_of_2(index+1,12),
-    new_bytes = new_limit-old_limit;
-  LispObj 
-    *old_tlb = tcr->tlb_pointer,
-    *new_tlb = realloc(old_tlb, new_limit),
-    *work;
-
-  if (new_tlb == NULL) {
-    return false;
-  }
-  
-  work = (LispObj *) ((BytePtr)new_tlb+old_limit);
-
-  while (new_bytes) {
-    *work++ = no_thread_local_binding_marker;
-    new_bytes -= sizeof(LispObj);
-  }
-  tcr->tlb_pointer = new_tlb;
-  tcr->tlb_limit = new_limit;
-  xpGPR(xp, limit_regno) = new_limit;
-  return true;
-}
 
 
