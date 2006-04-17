@@ -47,6 +47,12 @@
   (subb ($ (- x8664::fulltag-function x8664::fulltag-misc)) (%b arg_x))
   (jmp-subprim .SPgvset))
 
+(defx86lapfunction %function-code-byte ((fun arg_y) (pc arg_z))
+  (unbox-fixnum pc imm0)
+  (movzbl (@ (% fun) (% imm0)) (% imm0.l))
+  (box-fixnum imm0 arg_z)
+  (single-value-return))
+
 
 ;;; Returns 3 values: mask of registers used in the function, stack location
 ;;; from which they'd be restored, relative PC at which they're saved. If
