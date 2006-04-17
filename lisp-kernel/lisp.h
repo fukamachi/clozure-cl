@@ -80,6 +80,10 @@ LispObj start_lisp(TCR*, LispObj);
 #define PLATFORM_OS PLATFORM_OS_FREEBSD
 #endif
 
+#ifdef SOLARIS
+#define PLATFORM_OS PLATFORM_OS_SOLARIS
+#endif
+
 #ifdef PPC
 #define PLATFORM_CPU PLATFORM_CPU_PPC
 #endif
