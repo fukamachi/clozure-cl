@@ -93,7 +93,7 @@ Boolean use_mach_exception_handling =
 #endif
 #endif
 
-#ifdef FREEBSD
+#if defined(FREEBSD) || defined(SOLARIS)
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <dlfcn.h>
@@ -102,6 +102,10 @@ Boolean use_mach_exception_handling =
 #include <ctype.h>
 #include <sys/select.h>
 #include "Threads.h"
+
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE (0)
+#endif
 
 LispObj lisp_nil = (LispObj) 0;
 bitvector global_mark_ref_bits = NULL;
@@ -329,6 +333,9 @@ unsigned unsigned_max(unsigned x, unsigned y)
 #endif
 #ifdef FREEBSD
 #define MAXIMUM_MAPPABLE_MEMORY (512L<<30L)
+#endif
+#ifdef SOLARIS
+#define MAXIMUM_MAPPABLE_MEMORY (128L<<30L)
 #endif
 #ifdef LINUX
 #ifdef X8664
@@ -622,10 +629,13 @@ create_reserved_area(unsigned long totalsize)
 #ifdef DARWIN
   fixed_map_ok = address_unmapped_p(want,totalsize);
 #endif
+#ifdef SOLARIS
+  fixed_map_ok = true;
+#endif
   start = mmap((void *)want,
 	       totalsize + heap_segment_size,
 	       PROT_NONE,
-	       MAP_PRIVATE | MAP_ANON | (fixed_map_ok ? MAP_FIXED : 0),
+	       MAP_PRIVATE | MAP_ANON | (fixed_map_ok ? MAP_FIXED : 0, MAP_NORESERVE),
 	       -1,
 	       0);
   if (start == MAP_FAILED) {
@@ -636,7 +646,7 @@ create_reserved_area(unsigned long totalsize)
   if (start != want) {
     munmap(start, totalsize+heap_segment_size);
     start = (void *)((((unsigned long)start)+heap_segment_size-1) & ~(heap_segment_size-1));
-    if(mmap(start, totalsize, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) != start) {
+    if(mmap(start, totalsize, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED | MAP_NORESERVE, -1, 0) != start) {
       return NULL;
     }
   }
@@ -929,6 +939,20 @@ determine_executable_name(char *argv0)
 #ifdef FREEBSD
   return argv0;
 #endif
+#ifdef SOLARIS
+  char exepath[PATH_MAX], proc_path[PATH_MAX], *p;
+  int n;
+
+  snprintf(proc_path,PATH_MAX-1,"/proc/%d/path/a.out",getpid());
+
+  if ((n = readlink(proc_path, exepath, PATH_MAX)) > 0) {
+    p = malloc(n+1);
+    bcopy(exepath,p,n);
+    p[n]=0;
+    return p;
+  }
+  return argv0;
+#endif
 }
 
 void
@@ -1175,6 +1199,9 @@ terminate_lisp()
 #endif
 #ifdef FREEBSD
 #define min_os_version "6.0"
+#endif
+#ifdef SOLARIS
+#define min_os_version "5.10"
 #endif
 
 #ifdef DARWIN
