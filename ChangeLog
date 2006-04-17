@@ -1,3 +1,27 @@
+2006-04-17 16:34  gb
+
+	* lisp-kernel/x86-exceptions.c: pc_luser_xp always takes a tcr
+	argument, takes a new boolean to distinguish current tcr from
+	others.  (The current tcr is only lusered on an interrupt; others
+	are only lusered on GC entry.)
+
+2006-04-17 16:33  gb
+
+	* lisp-kernel/x86-exceptions.h: X86 prototype for pc_luser_xp moved
+	here.  (No deep reason not to share the new x86 signature on all
+	architectures.)
+
+2006-04-17 16:32  gb
+
+	* lisp-kernel/ppc-exceptions.h: PPC prototype for pc_luser_xp moved
+	here.  (No deep reason not to share the new x86 signature on all
+	architectures.)
+
+2006-04-17 16:31  gb
+
+	* lisp-kernel/lisp-exceptions.h: prototype for pc_luser_xp is
+	platform-dependent.
+
 2006-04-17 06:49  gb
 
 	* level-1/l1-readloop.lisp: In the closure created in QUIT, only do
