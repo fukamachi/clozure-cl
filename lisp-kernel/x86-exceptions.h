@@ -14,7 +14,7 @@
    http://opensource.franz.com/preamble.html
 */
 
-typedef u_int8_t opcode, *pc;
+typedef uint8_t opcode, *pc;
 
 #ifdef LINUX
 #ifdef X8664
@@ -35,6 +35,16 @@ typedef u_int8_t opcode, *pc;
 #endif
 #endif
 
+#ifdef SOLARIS
+#ifdef X8664
+#define xpGPRvector(x) ((x)->uc_mcontext.gregs)
+#define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
+#define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
+#define xpPC(x) xpGPR(x,Iip)
+#define xpMMXreg(x,n)  *((natural *)(&(x)->uc_mcontext.fpregs.fp_reg_set.fpchip_state.st[n]))
+#endif
+#endif
+
 #ifdef DARWIN
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
 #endif
@@ -42,6 +52,9 @@ typedef u_int8_t opcode, *pc;
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGPWR
 #endif
 #ifdef FREEBSD
+#define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
+#endif
+#ifdef SOLARIS
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
 #endif
 
