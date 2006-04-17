@@ -1,27 +1,27 @@
-//   Copyright (C) 2005 Clozure Associates
-//   This file is part of OpenMCL.  
+/*   Copyright (C) 2005 Clozure Associates */
+/*   This file is part of OpenMCL.   */
 
-//   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-//   License , known as the LLGPL and distributed with OpenMCL as the
-//   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-//   which is distributed with OpenMCL as the file "LGPL".  Where these
-//   conflict, the preamble takes precedence.  
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public */
+/*   License , known as the LLGPL and distributed with OpenMCL as the */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these */
+/*   conflict, the preamble takes precedence.   */
 
-//   OpenMCL is referenced in the preamble as the "LIBRARY."
+/*   OpenMCL is referenced in the preamble as the "LIBRARY." */
 
-//   The LLGPL is also available online at
-//   http://opensource.franz.com/preamble.html
-
-
-// Register usage.  This is certainly a little short of
-// immediate registers; we can maybe use the low bits
-// of mmx or xmm registers to hold immediate values and
-// do some unboxed arithmetic. 
+/*   The LLGPL is also available online at */
+/*   http://opensource.franz.com/preamble.html */
 
 
+/* Register usage.  This is certainly a little short of */
+/* immediate registers; we can maybe use the low bits */
+/* of mmx or xmm registers to hold immediate values and */
+/* do some unboxed arithmetic.  */
 
-// Redefining these standard register names - with the same _l, _w, _b suffixes
-//  used in lispy symbolic names - allows us to play Stupid M4 Tricks in macros
+
+
+/* Redefining these standard register names - with the same _l, _w, _b suffixes */
+/*  used in lispy symbolic names - allows us to play Stupid M4 Tricks in macros */
 			
 define([rax_l],[eax])
 define([rax_w],[ax])
@@ -131,7 +131,7 @@ define([save2],[r12])
 	define([save2_b],[r12b])
 	define([Rsave2],[12])
 	
-define([fn],[r13])		// some addressing restrictions 
+define([fn],[r13])		/* some addressing restrictions  */
 	define([fn_l],[r13d])
 	define([fn_w],[r13w])
 	define([fn_b],[r13b])
@@ -149,7 +149,7 @@ define([save0],[r15])
 	define([save0_b],[r15b])
 	define([Rsave0],[15])	
 
-// The TCR can be accessed relative to %gs 
+/* The TCR can be accessed relative to %gs  */
 define([rcontext],[gs])
 define([fname],[temp0])
 define([next_method_context],[temp0])
@@ -216,21 +216,21 @@ nsaveregs = 4
                 
 
 tag_fixnum = 0
-tag_imm_0 = 1		// subtag_single_float ONLY 
-tag_imm_1 = 2		// subtag_character, internal markers 
-tag_list = 3		// fulltag_cons or NIL 
-tag_tra = 4		// tagged return_address 
-tag_misc = 5		// random uvector 
-tag_symbol = 6	        // non-null symbol 
-tag_function = 7	// function entry point 
+tag_imm_0 = 1		/* subtag_single_float ONLY  */
+tag_imm_1 = 2		/* subtag_character, internal markers  */
+tag_list = 3		/* fulltag_cons or NIL  */
+tag_tra = 4		/* tagged return_address  */
+tag_misc = 5		/* random uvector  */
+tag_symbol = 6	        /* non-null symbol  */
+tag_function = 7	/* function entry point  */
 
 tag_single_float = tag_imm_0
 		
 fulltag_even_fixnum = 0
-fulltag_imm_0 = 1		// subtag_single_float (ONLY) 
-fulltag_imm_1 = 2		// subtag_character (mostly) 
+fulltag_imm_0 = 1		/* subtag_single_float (ONLY)  */
+fulltag_imm_1 = 2		/* subtag_character (mostly)  */
 fulltag_cons = 3
-fulltag_tra_0 = 4		// tagged return address 
+fulltag_tra_0 = 4		/* tagged return address  */
 fulltag_nodeheader_0 = 5
 fulltag_nodeheader_1 = 6
 fulltag_immheader_0 = 7	
@@ -275,7 +275,7 @@ define_subtag(u8_vector,ivector_class_other_bit,14)
 define_subtag(bit_vector,ivector_class_other_bit,15)
 
 
-// There's some room for expansion in non-array ivector space. 
+/* There's some room for expansion in non-array ivector space.  */
 define_subtag(macptr,ivector_class_64_bit,1)
 define_subtag(dead_macptr,ivector_class_64_bit,2)
 define_subtag(bignum,ivector_class_32_bit,1)
@@ -283,11 +283,11 @@ define_subtag(double_float,ivector_class_32_bit,2)
 define_subtag(xcode_vector,ivector_class_32_bit,3)
 
         
-// Note the difference between (e.g) fulltag_function - which
-// defines what the low 4 bytes of a function pointer look like -
-// and subtag_function - which describes what the subtag byte
-// in a function header looks like.  (Likewise for fulltag_symbol
-// and subtag_symbol)
+/* Note the difference between (e.g) fulltag_function - which */
+/* defines what the low 4 bytes of a function pointer look like - */
+/* and subtag_function - which describes what the subtag byte */
+/* in a function header looks like.  (Likewise for fulltag_symbol */
+/* and subtag_symbol) */
 		
 
 define_subtag(symbol,fulltag_nodeheader_0,1)
@@ -317,9 +317,9 @@ cons_bias = fulltag_cons
 define([t_offset],(t_value-nil_value))
 	
 misc_header_offset = -fulltag_misc
-misc_data_offset = misc_header_offset+node_size // first word of data  
-misc_subtag_offset = misc_header_offset       // low byte of header 
-misc_dfloat_offset = misc_data_offset		// double-floats are doubleword-aligned 
+misc_data_offset = misc_header_offset+node_size /* first word of data   */
+misc_subtag_offset = misc_header_offset       /* low byte of header  */
+misc_dfloat_offset = misc_data_offset		/* double-floats are doubleword-aligned  */
 function_header_offset = -fulltag_function
 function_data_offset = function_header_offset+node_size	
 
@@ -344,11 +344,11 @@ reserved_frame_marker = subtag_reserved_frame
 
 
 	
-// The objects themselves look something like this: 
+/* The objects themselves look something like this:  */
 	
-// Order of CAR and CDR doesn]t seem to matter much - there aren't 
-// too many tricks to be played with predecrement/preincrement addressing. 
-// Keep them in the confusing MCL 3.0 order, to avoid confusion. 
+/* Order of CAR and CDR doesn]t seem to matter much - there aren't  */
+/* too many tricks to be played with predecrement/preincrement addressing.  */
+/* Keep them in the confusing MCL 3.0 order, to avoid confusion.  */
 	_struct(cons,-cons_bias)
 	 _node(cdr)
 	 _node(car)
@@ -370,7 +370,7 @@ reserved_frame_marker = subtag_reserved_frame
          _node(type)
 	_endstructf
 	
-// Functions are of (conceptually) unlimited size.
+/* Functions are of (conceptually) unlimited size. */
 	
 	_struct(_function,-misc_bias)
 	 _node(header)
@@ -397,19 +397,19 @@ reserved_frame_marker = subtag_reserved_frame
 	_endstructf
 
 	_structf(catch_frame)
-	 _node(catch_tag)	// #<unbound> -> unwind-protect, else catch 
-	 _node(link)		// backpointer to previous catch frame 
-	 _node(mvflag)		// 0 if single-valued catch, fixnum 1 otherwise 
-	 _node(rsp)		// saved lisp sp 
-	 _node(rbp)		// saved lisp rbp 
-	 _node(foreign_sp)      // necessary ?  
-	 _node(db_link)		// head of special-binding chain 
+	 _node(catch_tag)	/* #<unbound> -> unwind-protect, else catch  */
+	 _node(link)		/* backpointer to previous catch frame  */
+	 _node(mvflag)		/* 0 if single-valued catch, fixnum 1 otherwise  */
+	 _node(rsp)		/* saved lisp sp  */
+	 _node(rbp)		/* saved lisp rbp  */
+	 _node(foreign_sp)      /* necessary ?   */
+	 _node(db_link)		/* head of special-binding chain  */
 	 _node(_save3)
 	 _node(_save2)
 	 _node(_save1)
 	 _node(_save0)
-	 _node(xframe)		// exception frame chain 
-	 _node(pc)		// TRA of catch exit or cleanup form 
+	 _node(xframe)		/* exception frame chain  */
+	 _node(pc)		/* TRA of catch exit or cleanup form  */
 	_endstructf
 
 
@@ -422,7 +422,7 @@ reserved_frame_marker = subtag_reserved_frame
 	_endstructf	
 	
         
-	_struct(c_frame,0)	// PowerOpen ABI C stack frame 
+	_struct(c_frame,0)	/* PowerOpen ABI C stack frame  */
 	 _node(backlink)
 	 _node(crsave)
 	 _node(savelr)
@@ -455,13 +455,13 @@ reserved_frame_marker = subtag_reserved_frame
 	 _struct_label(minsiz)
 	_ends
 
-	// For entry to variable-argument-list functions 
-	// (e.g., via callback) 
+	/* For entry to variable-argument-list functions  */
+	/* (e.g., via callback)  */
 	_struct(varargs_eabi_c_frame,0)
 	 _word(backlink)
 	 _word(savelr)
 	 _struct_label(va_list)
-	 _word(flags)		// gpr count byte, fpr count byte, padding 
+	 _word(flags)		/* gpr count byte, fpr count byte, padding  */
 	 _word(overflow_arg_area)
 	 _word(reg_save_area)
 	 _field(padding,4)
@@ -490,9 +490,9 @@ reserved_frame_marker = subtag_reserved_frame
         _ends
 
 
-// Nilreg-relative globals.  Talking the assembler into doing
-// something reasonable here
-// is surprisingly hard. 
+/* Nilreg-relative globals.  Talking the assembler into doing */
+/* something reasonable here */
+/* is surprisingly hard.  */
 
 symbol_extra = symbol.size-fulltag_symbol
 
@@ -500,136 +500,136 @@ symbol_extra = symbol.size-fulltag_symbol
 	_struct(nrs,0x2020)
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(tsym)
-	 _struct_pad(symbol_extra)	// t  
+	 _struct_pad(symbol_extra)	/* t   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(nil)
-	 _struct_pad(symbol_extra)	// nil  
+	 _struct_pad(symbol_extra)	/* nil   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(errdisp)
-	 _struct_pad(symbol_extra)	// %err-disp  
+	 _struct_pad(symbol_extra)	/* %err-disp   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(cmain)
-	 _struct_pad(symbol_extra)	// cmain  
+	 _struct_pad(symbol_extra)	/* cmain   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(eval)
-	 _struct_pad(symbol_extra)	// eval  
+	 _struct_pad(symbol_extra)	/* eval   */
  
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(appevalfn)
-	 _struct_pad(symbol_extra)	// apply-evaluated-function  
+	 _struct_pad(symbol_extra)	/* apply-evaluated-function   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(error)
-	 _struct_pad(symbol_extra)	// error  
+	 _struct_pad(symbol_extra)	/* error   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(defun)
-	 _struct_pad(symbol_extra)	// %defun  
+	 _struct_pad(symbol_extra)	/* %defun   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(defvar)
-	 _struct_pad(symbol_extra)	// %defvar  
+	 _struct_pad(symbol_extra)	/* %defvar   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(defconstant)
-	 _struct_pad(symbol_extra)	// %defconstant  
+	 _struct_pad(symbol_extra)	/* %defconstant   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(macrosym)
-	 _struct_pad(symbol_extra)	// %macro  
+	 _struct_pad(symbol_extra)	/* %macro   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(kernelrestart)
-	 _struct_pad(symbol_extra)	// %kernel-restart  
+	 _struct_pad(symbol_extra)	/* %kernel-restart   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(package)
-	 _struct_pad(symbol_extra)	// *package*  
+	 _struct_pad(symbol_extra)	/* *package*   */
 
 	 _struct_pad(fulltag_symbol)
-	 _struct_label(total_bytes_freed)		// *total-bytes-freed* 
+	 _struct_label(total_bytes_freed)		/* *total-bytes-freed*  */
 	 _struct_pad(symbol_extra)
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(kallowotherkeys)
-	 _struct_pad(symbol_extra)	// allow-other-keys  
+	 _struct_pad(symbol_extra)	/* allow-other-keys   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(toplcatch)
-	 _struct_pad(symbol_extra)	// %toplevel-catch%  
+	 _struct_pad(symbol_extra)	/* %toplevel-catch%   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(toplfunc)
-	 _struct_pad(symbol_extra)	// %toplevel-function%  
+	 _struct_pad(symbol_extra)	/* %toplevel-function%   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(callbacks)
-	 _struct_pad(symbol_extra)	// %pascal-functions%  
+	 _struct_pad(symbol_extra)	/* %pascal-functions%   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(allmeteredfuns)
-	 _struct_pad(symbol_extra)	// *all-metered-functions*  
+	 _struct_pad(symbol_extra)	/* *all-metered-functions*   */
 
 	 _struct_pad(fulltag_symbol)
-	 _struct_label(total_gc_microseconds)		// *total-gc-microseconds* 
+	 _struct_label(total_gc_microseconds)		/* *total-gc-microseconds*  */
 	 _struct_pad(symbol_extra)
 
 	 _struct_pad(fulltag_symbol)
-	 _struct_label(builtin_functions)		// %builtin-functions% 
+	 _struct_label(builtin_functions)		/* %builtin-functions%  */
 	 _struct_pad(symbol_extra)                
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(udf)
-	 _struct_pad(symbol_extra)	// %unbound-function%  
+	 _struct_pad(symbol_extra)	/* %unbound-function%   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(init_misc)
-	 _struct_pad(symbol_extra)	// %init-misc 
+	 _struct_pad(symbol_extra)	/* %init-misc  */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(macro_code)
-	 _struct_pad(symbol_extra)	// %macro-code% 
+	 _struct_pad(symbol_extra)	/* %macro-code%  */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(closure_code)
-	 _struct_pad(symbol_extra)      // %closure-code% 
+	 _struct_pad(symbol_extra)      /* %closure-code%  */
 
        	 _struct_pad(fulltag_symbol)
-	 _struct_label(new_gcable_ptr) // %new-gcable-ptr 
+	 _struct_label(new_gcable_ptr) /* %new-gcable-ptr  */
 	 _struct_pad(symbol_extra)
 	
        	 _struct_pad(fulltag_symbol)
 	 _struct_label(gc_event_status_bits)
-	 _struct_pad(symbol_extra)	// *gc-event-status-bits*  
+	 _struct_pad(symbol_extra)	/* *gc-event-status-bits*   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(post_gc_hook)
-	 _struct_pad(symbol_extra)	// *post-gc-hook*  
+	 _struct_pad(symbol_extra)	/* *post-gc-hook*   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(handlers)
-	 _struct_pad(symbol_extra)	// %handlers%  
+	 _struct_pad(symbol_extra)	/* %handlers%   */
 
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(all_packages)
-	 _struct_pad(symbol_extra)	// %all-packages%  
+	 _struct_pad(symbol_extra)	/* %all-packages%   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(keyword_package)
-	 _struct_pad(symbol_extra)	// *keyword-package*  
+	 _struct_pad(symbol_extra)	/* *keyword-package*   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(finalization_alist)
-	 _struct_pad(symbol_extra)	// %finalization-alist%  
+	 _struct_pad(symbol_extra)	/* %finalization-alist%   */
 
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(foreign_thread_control)
-	 _struct_pad(symbol_extra)	// %foreign-thread-control  
+	 _struct_pad(symbol_extra)	/* %foreign-thread-control   */
 
 	_ends
 
@@ -648,7 +648,7 @@ $1 = ($2<<num_subtag_bits)|$3])
 
 	include(errors.s)
 
-// Symbol bits that we care about
+/* Symbol bits that we care about */
 	
 sym_vbit_bound = (0+fixnum_shift)
 sym_vbit_bound_mask = (1<<sym_vbit_bound)
@@ -680,34 +680,34 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 
 TCR_BIAS = 0
 		
-//  Thread context record.
+/*  Thread context record. */
 
 	_struct(tcr,TCR_BIAS)
-	 _node(prev)		// in doubly-linked list 
-	 _node(next)		// in doubly-linked list 
+	 _node(prev)		/* in doubly-linked list  */
+	 _node(next)		/* in doubly-linked list  */
          _node(single_float_convert)
-	 _node(linear)		// our linear (non-segment-based) address. 
-         _node(save_rbp)        // lisp RBP when in foreign code  
+	 _node(linear)		/* our linear (non-segment-based) address.  */
+         _node(save_rbp)        /* lisp RBP when in foreign code   */
 	 _word(lisp_mxcsr)
 	 _word(foreign_mxcsr)	
-	 _node(db_link)		// special binding chain head 
-	 _node(catch_top)	// top catch frame 
-	 _node(save_vsp)	// VSP when in foreign code 
-	 _node(save_tsp)	// TSP when in foreign code 
-	 _node(foreign_sp)	// Saved foreign SP when in lisp code 
-	 _node(cs_area)		// cstack area pointer 
-	 _node(vs_area)		// vstack area pointer 
-	 _node(ts_area)		// tstack area pointer 
-	 _node(cs_limit)	// cstack overflow limit 
+	 _node(db_link)		/* special binding chain head  */
+	 _node(catch_top)	/* top catch frame  */
+	 _node(save_vsp)	/* VSP when in foreign code  */
+	 _node(save_tsp)	/* TSP when in foreign code  */
+	 _node(foreign_sp)	/* Saved foreign SP when in lisp code  */
+	 _node(cs_area)		/* cstack area pointer  */
+	 _node(vs_area)		/* vstack area pointer  */
+	 _node(ts_area)		/* tstack area pointer  */
+	 _node(cs_limit)	/* cstack overflow limit  */
 	 _word(bytes_consed_low)
 	 _word(bytes_consed_high)
 	 _node(log2_allocation_quantum)
 	 _node(interrupt_pending)
-	 _node(xframe)		// per-thread exception frame list 
-	 _node(errno_loc)	// per-thread  errno location 
-	 _node(ffi_exception)	// fpscr exception bits from ff-call 
-	 _node(osid)		// OS thread id 
-         _node(valence)		// odd when in foreign code 	
+	 _node(xframe)		/* per-thread exception frame list  */
+	 _node(errno_loc)	/* per-thread  errno location  */
+	 _node(ffi_exception)	/* fpscr exception bits from ff-call  */
+	 _node(osid)		/* OS thread id  */
+         _node(valence)		/* odd when in foreign code 	 */
 	 _node(foreign_exception_status)
 	 _node(native_thread_info)
 	 _node(native_thread_id)
@@ -719,15 +719,15 @@ TCR_BIAS = 0
          _node(suspend_count)
          _node(suspend_context)
 	 _node(pending_exception_context)
-	 _node(suspend)		// semaphore for suspension notify 
-	 _node(resume)		// sempahore for resumption notify 
+	 _node(suspend)		/* semaphore for suspension notify  */
+	 _node(resume)		/* sempahore for resumption notify  */
          _word(flags_pad)
 	 _word(flags)      
 	 _node(gc_context)
          _node(termination_semaphore)
          _node(unwinding)
          _node(tlb_limit)
-         _node(tlb_pointer)     // Consider using tcr+N as tlb_pointer 
+         _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer  */
 	 _node(shutdown_count)
 	_ends
 

@@ -1,16 +1,16 @@
-//   Copyright (C) 2005-2006 Clozure Associates and contributors
-//   This file is part of OpenMCL.  
-//
-//   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-//   License , known as the LLGPL and distributed with OpenMCL as the
-//   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-//   which is distributed with OpenMCL as the file "LGPL".  Where these
-//   conflict, the preamble takes precedence.  
-//
-//   OpenMCL is referenced in the preamble as the "LIBRARY."
-//
-//   The LLGPL is also available online at
-//   http://opensource.franz.com/preamble.html
+/*   Copyright (C) 2005-2006 Clozure Associates and contributors */
+/*   This file is part of OpenMCL.   */
+/* */
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public */
+/*   License , known as the LLGPL and distributed with OpenMCL as the */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these */
+/*   conflict, the preamble takes precedence.   */
+/* */
+/*   OpenMCL is referenced in the preamble as the "LIBRARY." */
+/* */
+/*   The LLGPL is also available online at */
+/*   http://opensource.franz.com/preamble.html */
 
 
 		
@@ -43,7 +43,7 @@ __(tra(C(bad_funcall)))
 	__(uuo_error_not_callable)
 _endsubp(bad_funcall)
 	
-// %arg_z has overflowed by one bit.  Make a bignum with 2 (32-bit) digits.
+/* %arg_z has overflowed by one bit.  Make a bignum with 2 (32-bit) digits. */
 	
 _spentry(fix_overflow)
 C(fix_one_bit_overflow):	
@@ -58,8 +58,8 @@ C(fix_one_bit_overflow):
 _endsubp(fix_overflow)
 
 	
-// Make a lisp integer (fixnum or two-digit bignum) from the signed
-// 64-bit value in %imm0. 
+/* Make a lisp integer (fixnum or two-digit bignum) from the signed */
+/* 64-bit value in %imm0.  */
 
 _spentry(makes64)
 	__(movq %imm0,%imm1)
@@ -76,30 +76,30 @@ _spentry(makes64)
 _endsubp(makes64)	
 				
 
-// %imm1:%imm0 constitute a signed integer, almost certainly a bignum.
-// Make a lisp integer out of those 128 bits .. 
+/* %imm1:%imm0 constitute a signed integer, almost certainly a bignum. */
+/* Make a lisp integer out of those 128 bits ..  */
 	
 _startfn(C(makes128))
 	
-//  We're likely to have to make a bignum out of the integer in %imm1 and
-//  %imm0. We'll need to use %imm0 and %imm1 to cons the bignum, and
-//  will need to do some arithmetic (determining significant bigits)
-//  on %imm0 and %imm1 in order to know how large that bignum needs to be.
-//  Cache %imm0 and %imm1 in %mm0 and %mm1. 
+/*  We're likely to have to make a bignum out of the integer in %imm1 and */
+/*  %imm0. We'll need to use %imm0 and %imm1 to cons the bignum, and */
+/*  will need to do some arithmetic (determining significant bigits) */
+/*  on %imm0 and %imm1 in order to know how large that bignum needs to be. */
+/*  Cache %imm0 and %imm1 in %mm0 and %mm1.  */
    
 	__(movd %imm0,%mm0)
 	__(movd %imm1,%mm1)
 	
-// If %imm1 is just a sign extension of %imm0, make a 64-bit signed integer. 
+/* If %imm1 is just a sign extension of %imm0, make a 64-bit signed integer.  */
 	
 	__(sarq $63,%imm0) 
 	__(cmpq %imm0,%imm1)
 	__(movd %mm0,%imm0)
 	__(je _SPmakes64)
 	
-// Otherwise, if the high 32 bits of %imm1 are a sign-extension of the
-// low 32 bits of %imm1, make a 3-digit bignum.  If the upper 32 bits
-// of %imm1 are significant, make a 4 digit bignum 
+/* Otherwise, if the high 32 bits of %imm1 are a sign-extension of the */
+/* low 32 bits of %imm1, make a 3-digit bignum.  If the upper 32 bits */
+/* of %imm1 are significant, make a 4 digit bignum  */
 	
 	__(movq %imm1,%imm0)
 	__(shlq $32,%imm0)
@@ -118,18 +118,18 @@ _startfn(C(makes128))
 	__(jmp *%ra0)
 _endfn
 
-// %imm1:%imm0 constitute an unsigned integer, almost certainly a bignum.
-// Make a lisp integer out of those 128 bits ..
+/* %imm1:%imm0 constitute an unsigned integer, almost certainly a bignum. */
+/* Make a lisp integer out of those 128 bits .. */
 	
 _startfn(C(makeu128))
 	
-// We're likely to have to make a bignum out of the integer in %imm1 and
-// %imm0. We'll need to use %imm0 and %imm1 to cons the bignum, and
-// will need to do some arithmetic (determining significant bigits)
-// on %imm0 and %imm1 in order to know how large that bignum needs to be.
-// Cache %imm0 and %imm1 in %mm0 and %mm1. 
+/* We're likely to have to make a bignum out of the integer in %imm1 and */
+/* %imm0. We'll need to use %imm0 and %imm1 to cons the bignum, and */
+/* will need to do some arithmetic (determining significant bigits) */
+/* on %imm0 and %imm1 in order to know how large that bignum needs to be. */
+/* Cache %imm0 and %imm1 in %mm0 and %mm1.  */
 
-// If the high word is 0, make an unsigned-byte 64 ... 	
+/* If the high word is 0, make an unsigned-byte 64 ... 	 */
 	
 	__(testq %imm1,%imm1)
 	__(jz _SPmakeu64)
@@ -137,15 +137,15 @@ _startfn(C(makeu128))
 	__(movd %imm0,%mm0)
 	__(movd %imm1,%mm1)
 
-	__(js 5f)		// Sign bit set in %imm1. Need 5 digits 
+	__(js 5f)		/* Sign bit set in %imm1. Need 5 digits  */
 	__(bsrq %imm1,%imm0)
 	__(rcmpb(%imm0_b,$31))
-	__(jae 4f)		// Some high bits in %imm1.  Need 4 digits 
+	__(jae 4f)		/* Some high bits in %imm1.  Need 4 digits  */
 	__(testl %imm1_l,%imm1_l)
 	__(movd %mm0,%imm0)
 	__(jz _SPmakeu64)
 	
-	// Need 3 digits 
+	/* Need 3 digits  */
 	
 	__(movq $three_digit_bignum_header,%imm0)
 	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(3)))
@@ -180,291 +180,291 @@ _spentry(misc_ref)
 2:	__(movb misc_subtag_offset(%arg_y),%imm1_b)
 _endsubp(misc_ref)
 	
-// %imm1.b = subtag, %arg_y = uvector, %arg_z = index.
-// Bounds/type-checking done in caller
+/* %imm1.b = subtag, %arg_y = uvector, %arg_z = index. */
+/* Bounds/type-checking done in caller */
 	
 _startfn(C(misc_ref_common))
 	__(movzbl %imm1_b,%imm1_l)
 	__(jmp *local_label(misc_ref_jmp)(,%imm1,8))
 	.p2align 3
 local_label(misc_ref_jmp):	
-	// 00-0f 
-	.quad local_label(misc_ref_invalid)	// 00 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 01 imm_1 
-	.quad local_label(misc_ref_invalid) // 02 imm_2 
-	.quad local_label(misc_ref_invalid) // 03 cons 
-	.quad local_label(misc_ref_invalid)	// 04 tra_0 
-	.quad local_label(misc_ref_invalid) // 05 nodeheader_0 
-	.quad local_label(misc_ref_invalid) // 06 nodeheader_1 
-	.quad local_label(misc_ref_invalid) // 07 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 08 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// 09 immheader_1 
-	.quad local_label(misc_ref_invalid)  // 0a immheader_2 
-	.quad local_label(misc_ref_invalid) // 0b nil 
-	.quad local_label(misc_ref_invalid)	// 0c tra_1 
-	.quad local_label(misc_ref_invalid)	// 0d misc 
-	.quad local_label(misc_ref_invalid)	// 0e symbol 
-	.quad local_label(misc_ref_invalid)	// 0f function 
-	// 10-1f 
-	.quad local_label(misc_ref_invalid)	// 10 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 11 imm_1 
-	.quad local_label(misc_ref_invalid) // 12 imm_2 
-	.quad local_label(misc_ref_invalid) // 13 cons 
-	.quad local_label(misc_ref_invalid)	// 14 tra_0 
-	.quad local_label(misc_ref_node) // 15 symbol_vector 
-	.quad local_label(misc_ref_node) // 16 ratio 
-	.quad local_label(misc_ref_invalid) // 17 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 18 odd_fixnum 
-	.quad local_label(misc_ref_u32)	// 19 bignum 
-	.quad local_label(misc_ref_u64) // 1a macptr 
-	.quad local_label(misc_ref_invalid) // 1b nil 
-	.quad local_label(misc_ref_invalid)	// 1c tra_1 
-	.quad local_label(misc_ref_invalid)	// 1d misc 
-	.quad local_label(misc_ref_invalid)	// 1e symbol 
-	.quad local_label(misc_ref_invalid)	// 1f function 
-	// 20-2f 
-	.quad local_label(misc_ref_invalid)	// 20 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 21 imm_1 
-	.quad local_label(misc_ref_invalid) // 22 imm_2 
-	.quad local_label(misc_ref_invalid) // 23 cons 
-	.quad local_label(misc_ref_invalid)	// 24 tra_0 
-	.quad local_label(misc_ref_node) // 25 catch_frame 
-	.quad local_label(misc_ref_node) // 26 complex 
-	.quad local_label(misc_ref_invalid) // 27 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 28 odd_fixnum 
-	.quad local_label(misc_ref_u32)	// 29 double_float 
-	.quad local_label(misc_ref_u64)  // 2a dead_macptr 
-	.quad local_label(misc_ref_invalid) // 2b nil 
-	.quad local_label(misc_ref_invalid)	// 2c tra_1 
-	.quad local_label(misc_ref_invalid)	// 2d misc 
-	.quad local_label(misc_ref_invalid)	// 2e symbol 
-	.quad local_label(misc_ref_invalid)	// 2f function 
-	// 30-3f 
-	.quad local_label(misc_ref_invalid)	// 30 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 31 imm_1 
-	.quad local_label(misc_ref_invalid) // 32 imm_2 
-	.quad local_label(misc_ref_invalid) // 33 cons 
-	.quad local_label(misc_ref_invalid)	// 34 tra_0 
-	.quad local_label(misc_ref_node) // 35 hash_vector 
-	.quad local_label(misc_ref_node) // 36 struct 
-	.quad local_label(misc_ref_invalid) // 37 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 38 odd_fixnum 
-	.quad local_label(misc_ref_u32)	// 39 xcode_vector 
-	.quad local_label(misc_ref_invalid)  // 3a immheader_2 
-	.quad local_label(misc_ref_invalid) // 3b nil 
-	.quad local_label(misc_ref_invalid)	// 3c tra_1 
-	.quad local_label(misc_ref_invalid)	// 3d misc 
-	.quad local_label(misc_ref_invalid)	// 3e symbol 
-	.quad local_label(misc_ref_invalid)	// 3f function 
-	// 40-4f 
-	.quad local_label(misc_ref_invalid)	// 40 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 41 imm_1 
-	.quad local_label(misc_ref_invalid) // 42 imm_2 
-	.quad local_label(misc_ref_invalid) // 43 cons 
-	.quad local_label(misc_ref_invalid)	// 44 tra_0 
-	.quad local_label(misc_ref_node) // 45 pool 
-	.quad local_label(misc_ref_node) // 46 istruct 
-	.quad local_label(misc_ref_invalid) // 47 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 48 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// 49 immheader_1 
-	.quad local_label(misc_ref_invalid)  // 4a immheader_2 
-	.quad local_label(misc_ref_invalid) // 4b nil 
-	.quad local_label(misc_ref_invalid)	// 4c tra_1 
-	.quad local_label(misc_ref_invalid)	// 4d misc 
-	.quad local_label(misc_ref_invalid)	// 4e symbol 
-	.quad local_label(misc_ref_invalid)	// 4f function 
-	// 50-5f 
-	.quad local_label(misc_ref_invalid)	// 50 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 51 imm_1 
-	.quad local_label(misc_ref_invalid) // 52 imm_2 
-	.quad local_label(misc_ref_invalid) // 53 cons 
-	.quad local_label(misc_ref_invalid)	// 54 tra_0 
-	.quad local_label(misc_ref_node) // 55 weak 
-	.quad local_label(misc_ref_node) // 56 value_cell 
-	.quad local_label(misc_ref_invalid) // 57 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 58 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// 59 immheader_1 
-	.quad local_label(misc_ref_invalid)  // 5a immheader_2 
-	.quad local_label(misc_ref_invalid) // 5b nil 
-	.quad local_label(misc_ref_invalid)	// 5c tra_1 
-	.quad local_label(misc_ref_invalid)	// 5d misc 
-	.quad local_label(misc_ref_invalid)	// 5e symbol 
-	.quad local_label(misc_ref_invalid)	// 5f function 
-	// 60-6f 
-	.quad local_label(misc_ref_invalid)	// 60 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 61 imm_1 
-	.quad local_label(misc_ref_invalid) // 62 imm_2 
-	.quad local_label(misc_ref_invalid) // 63 cons 
-	.quad local_label(misc_ref_invalid)	// 64 tra_0 
-	.quad local_label(misc_ref_node) // 65 package 
-	.quad local_label(misc_ref_node) // 66 xfunction 
-	.quad local_label(misc_ref_invalid) // 67 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 68 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// 69 immheader_1 
-	.quad local_label(misc_ref_invalid)  // 6a immheader_2 
-	.quad local_label(misc_ref_invalid) // 6b nil 
-	.quad local_label(misc_ref_invalid)	// 6c tra_1 
-	.quad local_label(misc_ref_invalid)	// 6d misc 
-	.quad local_label(misc_ref_invalid)	// 6e symbol 
-	.quad local_label(misc_ref_invalid)	// 6f function 
-	// 70-7f 
-	.quad local_label(misc_ref_invalid)	// 70 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 71 imm_1 
-	.quad local_label(misc_ref_invalid) // 72 imm_2 
-	.quad local_label(misc_ref_invalid) // 73 cons 
-	.quad local_label(misc_ref_invalid)	// 74 tra_0 
-	.quad local_label(misc_ref_node) // 75 slot_vector 
-	.quad local_label(misc_ref_node) // 76 lock 
-	.quad local_label(misc_ref_invalid) // 77 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 78 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// 79 immheader_1 
-	.quad local_label(misc_ref_invalid)  // 7a immheader_2 
-	.quad local_label(misc_ref_invalid) // 7b nil 
-	.quad local_label(misc_ref_invalid)	// 7c tra_1 
-	.quad local_label(misc_ref_invalid)	// 7d misc 
-	.quad local_label(misc_ref_invalid)	// 7e symbol 
-	.quad local_label(misc_ref_invalid)	// 7f function 
-	// 80-8f 
-	.quad local_label(misc_ref_invalid)	// 80 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 81 imm_1 
-	.quad local_label(misc_ref_invalid) // 82 imm_2 
-	.quad local_label(misc_ref_invalid) // 83 cons 
-	.quad local_label(misc_ref_invalid)	// 84 tra_0 
-	.quad local_label(misc_ref_node) // 85 lisp_thread 
-	.quad local_label(misc_ref_node) // 86 instance 
-	.quad local_label(misc_ref_invalid) // 87 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 88 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// 89 immheader_1 
-	.quad local_label(misc_ref_invalid)  // 8a immheader_2 
-	.quad local_label(misc_ref_invalid) // 8b nil 
-	.quad local_label(misc_ref_invalid)	// 8c tra_1 
-	.quad local_label(misc_ref_invalid)	// 8d misc 
-	.quad local_label(misc_ref_invalid)	// 8e symbol 
-	.quad local_label(misc_ref_invalid)	// 8f function 
-	// 90-9f 
-	.quad local_label(misc_ref_invalid)	// 90 even_fixnum 
-	.quad local_label(misc_ref_invalid) // 91 imm_1 
-	.quad local_label(misc_ref_invalid) // 92 imm_2 
-	.quad local_label(misc_ref_invalid) // 93 cons 
-	.quad local_label(misc_ref_invalid)	// 94 tra_0 
-	.quad local_label(misc_ref_function) // 95 function_vector 
-	.quad local_label(misc_ref_invalid) // 96 nodeheader_1 
-	.quad local_label(misc_ref_invalid) // 97 immheader_0 
-	.quad local_label(misc_ref_invalid)	// 98 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// 99 immheader_1 
-	.quad local_label(misc_ref_invalid)  // 9a immheader_2 
-	.quad local_label(misc_ref_invalid) // 9b nil 
-	.quad local_label(misc_ref_invalid)	// 9c tra_1 
-	.quad local_label(misc_ref_invalid)	// 9d misc 
-	.quad local_label(misc_ref_invalid)	// 9e symbol 
-	.quad local_label(misc_ref_invalid)	// 9f function 
-	// a0-af 
-	.quad local_label(misc_ref_invalid)	// a0 even_fixnum 
-	.quad local_label(misc_ref_invalid) // a1 imm_1 
-	.quad local_label(misc_ref_invalid) // a2 imm_2 
-	.quad local_label(misc_ref_invalid) // a3 cons 
-	.quad local_label(misc_ref_invalid)	// a4 tra_0 
-	.quad local_label(misc_ref_node) // a5 arrayH 
-	.quad local_label(misc_ref_node) // a6 vectorH 
-	.quad local_label(misc_ref_s16)	// a7 s16 
-	.quad local_label(misc_ref_invalid)	// a8 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// a9 immheader_1 
-	.quad local_label(misc_ref_invalid)  // aa immheader_2 
-	.quad local_label(misc_ref_invalid) // ab nil 
-	.quad local_label(misc_ref_invalid)	// ac tra_1 
-	.quad local_label(misc_ref_invalid)	// ad misc 
-	.quad local_label(misc_ref_invalid)	// ae symbol 
-	.quad local_label(misc_ref_invalid)	// af function 
-	// b0-bf 
-	.quad local_label(misc_ref_invalid)	// b0 even_fixnum 
-	.quad local_label(misc_ref_invalid) // b1 imm_1 
-	.quad local_label(misc_ref_invalid) // b2 imm_2 
-	.quad local_label(misc_ref_invalid) // b3 cons 
-	.quad local_label(misc_ref_invalid)	// b4 tra_0 
-	.quad local_label(misc_ref_invalid) // b5 nodeheader_0 
-	.quad local_label(misc_ref_node) // b6 simple_vector 
-	.quad local_label(misc_ref_u16) // b7 immheader_0 
-	.quad local_label(misc_ref_invalid)	// b8 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// b9 immheader_1 
-	.quad local_label(misc_ref_invalid) // ba immheader_2 
-	.quad local_label(misc_ref_invalid) // bb nil 
-	.quad local_label(misc_ref_invalid)	// bc tra_1 
-	.quad local_label(misc_ref_invalid)	// bd misc 
-	.quad local_label(misc_ref_invalid)	// be symbol 
-	.quad local_label(misc_ref_invalid)	// bf function 
-	// c0-cf 
-	.quad local_label(misc_ref_invalid)	// c0 even_fixnum 
-	.quad local_label(misc_ref_invalid) // c1 imm_1 
-	.quad local_label(misc_ref_invalid) // c2 imm_2 
-	.quad local_label(misc_ref_invalid) // c3 cons 
-	.quad local_label(misc_ref_invalid)	// c4 tra_0 
-	.quad local_label(misc_ref_invalid) // c5 nodeheader_0 
-	.quad local_label(misc_ref_invalid) // c6 nodeheader_1 
-	.quad local_label(misc_ref_string) // c7 simple_base_string 
-	.quad local_label(misc_ref_invalid)	// c8 odd_fixnum 
-	.quad local_label(misc_ref_invalid)	// c9 immheader_1 
-	.quad local_label(misc_ref_invalid)  // ca immheader_2 
-	.quad local_label(misc_ref_invalid) // cb nil 
-	.quad local_label(misc_ref_invalid)	// cc tra_1 
-	.quad local_label(misc_ref_invalid)	// cd misc 
-	.quad local_label(misc_ref_invalid)	// ce symbol 
-	.quad local_label(misc_ref_invalid)	// cf function 
-	// d0-df 
-	.quad local_label(misc_ref_invalid)	// d0 even_fixnum 
-	.quad local_label(misc_ref_invalid) // d1 imm_1 
-	.quad local_label(misc_ref_invalid) // d2 imm_2 
-	.quad local_label(misc_ref_invalid) // d3 cons 
-	.quad local_label(misc_ref_invalid)	// d4 tra_0 
-	.quad local_label(misc_ref_invalid) // d5 nodeheader_0 
-	.quad local_label(misc_ref_invalid) // d6 nodeheader_1 
-	.quad local_label(misc_ref_s8)	// d7 s8 
-	.quad local_label(misc_ref_invalid)	// d8 odd_fixnum 
-	.quad local_label(misc_ref_s32)	// d9 s32 
-	.quad local_label(misc_ref_s64)	// da s64 
-	.quad local_label(misc_ref_invalid) // db nil 
-	.quad local_label(misc_ref_invalid)	// dc tra_1 
-	.quad local_label(misc_ref_invalid)	// dd misc 
-	.quad local_label(misc_ref_invalid)	// de symbol 
-	.quad local_label(misc_ref_invalid)	// df function 
-	// e0-ef 
-	.quad local_label(misc_ref_invalid)	// e0 even_fixnum 
-	.quad local_label(misc_ref_invalid) // e1 imm_1 
-	.quad local_label(misc_ref_invalid) // e2 imm_2 
-	.quad local_label(misc_ref_invalid) // e3 cons 
-	.quad local_label(misc_ref_invalid)	// e4 tra_0 
-	.quad local_label(misc_ref_invalid) // e5 nodeheader_0 
-	.quad local_label(misc_ref_invalid) // e6 nodeheader_1 
-	.quad local_label(misc_ref_u8)	// e7 u8 
-	.quad local_label(misc_ref_invalid)	// e8 odd_fixnum 
-	.quad local_label(misc_ref_u32)	// e9 u32 
-	.quad local_label(misc_ref_u64) // ea u64 
-	.quad local_label(misc_ref_invalid) // eb nil 
-	.quad local_label(misc_ref_invalid)	// ec tra_1 
-	.quad local_label(misc_ref_invalid)	// ed misc 
-	.quad local_label(misc_ref_invalid)	// ee symbol 
-	.quad local_label(misc_ref_invalid)	// ef function 
-	// f0-ff 
-	.quad local_label(misc_ref_invalid)	// f0 even_fixnum 
-	.quad local_label(misc_ref_invalid) // f1 imm_1 
-	.quad local_label(misc_ref_invalid) // f2 imm_2 
-	.quad local_label(misc_ref_invalid) // f3 cons 
-	.quad local_label(misc_ref_invalid)	// f4 tra_0 
-	.quad local_label(misc_ref_invalid) // f5 nodeheader_0 
-	.quad local_label(misc_ref_invalid) // f6 nodeheader_1 
-	.quad local_label(misc_ref_bit_vector) // f7 bitvector 
-	.quad local_label(misc_ref_invalid)	// f8 odd_fixnum 
-	.quad local_label(misc_ref_single_float_vector) // f9 single_float 
-	.quad local_label(misc_ref_double_float_vector) // fa double_float 
-	.quad local_label(misc_ref_invalid) // fb nil 
-	.quad local_label(misc_ref_invalid)	// fc tra_1 
-	.quad local_label(misc_ref_invalid)	// fd misc 
-	.quad local_label(misc_ref_invalid)	// fe symbol 
-	.quad local_label(misc_ref_invalid)	// ff function 
+	/* 00-0f  */
+	.quad local_label(misc_ref_invalid)	/* 00 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 01 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 02 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 03 cons  */
+	.quad local_label(misc_ref_invalid)	/* 04 tra_0  */
+	.quad local_label(misc_ref_invalid) /* 05 nodeheader_0  */
+	.quad local_label(misc_ref_invalid) /* 06 nodeheader_1  */
+	.quad local_label(misc_ref_invalid) /* 07 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 08 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* 09 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* 0a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 0b nil  */
+	.quad local_label(misc_ref_invalid)	/* 0c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 0d misc  */
+	.quad local_label(misc_ref_invalid)	/* 0e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 0f function  */
+	/* 10-1f  */
+	.quad local_label(misc_ref_invalid)	/* 10 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 11 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 12 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 13 cons  */
+	.quad local_label(misc_ref_invalid)	/* 14 tra_0  */
+	.quad local_label(misc_ref_node) /* 15 symbol_vector  */
+	.quad local_label(misc_ref_node) /* 16 ratio  */
+	.quad local_label(misc_ref_invalid) /* 17 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 18 odd_fixnum  */
+	.quad local_label(misc_ref_u32)	/* 19 bignum  */
+	.quad local_label(misc_ref_u64) /* 1a macptr  */
+	.quad local_label(misc_ref_invalid) /* 1b nil  */
+	.quad local_label(misc_ref_invalid)	/* 1c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 1d misc  */
+	.quad local_label(misc_ref_invalid)	/* 1e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 1f function  */
+	/* 20-2f  */
+	.quad local_label(misc_ref_invalid)	/* 20 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 21 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 22 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 23 cons  */
+	.quad local_label(misc_ref_invalid)	/* 24 tra_0  */
+	.quad local_label(misc_ref_node) /* 25 catch_frame  */
+	.quad local_label(misc_ref_node) /* 26 complex  */
+	.quad local_label(misc_ref_invalid) /* 27 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 28 odd_fixnum  */
+	.quad local_label(misc_ref_u32)	/* 29 double_float  */
+	.quad local_label(misc_ref_u64)  /* 2a dead_macptr  */
+	.quad local_label(misc_ref_invalid) /* 2b nil  */
+	.quad local_label(misc_ref_invalid)	/* 2c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 2d misc  */
+	.quad local_label(misc_ref_invalid)	/* 2e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 2f function  */
+	/* 30-3f  */
+	.quad local_label(misc_ref_invalid)	/* 30 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 31 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 32 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 33 cons  */
+	.quad local_label(misc_ref_invalid)	/* 34 tra_0  */
+	.quad local_label(misc_ref_node) /* 35 hash_vector  */
+	.quad local_label(misc_ref_node) /* 36 struct  */
+	.quad local_label(misc_ref_invalid) /* 37 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 38 odd_fixnum  */
+	.quad local_label(misc_ref_u32)	/* 39 xcode_vector  */
+	.quad local_label(misc_ref_invalid)  /* 3a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 3b nil  */
+	.quad local_label(misc_ref_invalid)	/* 3c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 3d misc  */
+	.quad local_label(misc_ref_invalid)	/* 3e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 3f function  */
+	/* 40-4f  */
+	.quad local_label(misc_ref_invalid)	/* 40 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 41 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 42 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 43 cons  */
+	.quad local_label(misc_ref_invalid)	/* 44 tra_0  */
+	.quad local_label(misc_ref_node) /* 45 pool  */
+	.quad local_label(misc_ref_node) /* 46 istruct  */
+	.quad local_label(misc_ref_invalid) /* 47 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 48 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* 49 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* 4a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 4b nil  */
+	.quad local_label(misc_ref_invalid)	/* 4c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 4d misc  */
+	.quad local_label(misc_ref_invalid)	/* 4e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 4f function  */
+	/* 50-5f  */
+	.quad local_label(misc_ref_invalid)	/* 50 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 51 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 52 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 53 cons  */
+	.quad local_label(misc_ref_invalid)	/* 54 tra_0  */
+	.quad local_label(misc_ref_node) /* 55 weak  */
+	.quad local_label(misc_ref_node) /* 56 value_cell  */
+	.quad local_label(misc_ref_invalid) /* 57 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 58 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* 59 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* 5a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 5b nil  */
+	.quad local_label(misc_ref_invalid)	/* 5c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 5d misc  */
+	.quad local_label(misc_ref_invalid)	/* 5e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 5f function  */
+	/* 60-6f  */
+	.quad local_label(misc_ref_invalid)	/* 60 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 61 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 62 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 63 cons  */
+	.quad local_label(misc_ref_invalid)	/* 64 tra_0  */
+	.quad local_label(misc_ref_node) /* 65 package  */
+	.quad local_label(misc_ref_node) /* 66 xfunction  */
+	.quad local_label(misc_ref_invalid) /* 67 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 68 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* 69 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* 6a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 6b nil  */
+	.quad local_label(misc_ref_invalid)	/* 6c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 6d misc  */
+	.quad local_label(misc_ref_invalid)	/* 6e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 6f function  */
+	/* 70-7f  */
+	.quad local_label(misc_ref_invalid)	/* 70 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 71 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 72 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 73 cons  */
+	.quad local_label(misc_ref_invalid)	/* 74 tra_0  */
+	.quad local_label(misc_ref_node) /* 75 slot_vector  */
+	.quad local_label(misc_ref_node) /* 76 lock  */
+	.quad local_label(misc_ref_invalid) /* 77 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 78 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* 79 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* 7a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 7b nil  */
+	.quad local_label(misc_ref_invalid)	/* 7c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 7d misc  */
+	.quad local_label(misc_ref_invalid)	/* 7e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 7f function  */
+	/* 80-8f  */
+	.quad local_label(misc_ref_invalid)	/* 80 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 81 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 82 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 83 cons  */
+	.quad local_label(misc_ref_invalid)	/* 84 tra_0  */
+	.quad local_label(misc_ref_node) /* 85 lisp_thread  */
+	.quad local_label(misc_ref_node) /* 86 instance  */
+	.quad local_label(misc_ref_invalid) /* 87 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 88 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* 89 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* 8a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 8b nil  */
+	.quad local_label(misc_ref_invalid)	/* 8c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 8d misc  */
+	.quad local_label(misc_ref_invalid)	/* 8e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 8f function  */
+	/* 90-9f  */
+	.quad local_label(misc_ref_invalid)	/* 90 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* 91 imm_1  */
+	.quad local_label(misc_ref_invalid) /* 92 imm_2  */
+	.quad local_label(misc_ref_invalid) /* 93 cons  */
+	.quad local_label(misc_ref_invalid)	/* 94 tra_0  */
+	.quad local_label(misc_ref_function) /* 95 function_vector  */
+	.quad local_label(misc_ref_invalid) /* 96 nodeheader_1  */
+	.quad local_label(misc_ref_invalid) /* 97 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* 98 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* 99 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* 9a immheader_2  */
+	.quad local_label(misc_ref_invalid) /* 9b nil  */
+	.quad local_label(misc_ref_invalid)	/* 9c tra_1  */
+	.quad local_label(misc_ref_invalid)	/* 9d misc  */
+	.quad local_label(misc_ref_invalid)	/* 9e symbol  */
+	.quad local_label(misc_ref_invalid)	/* 9f function  */
+	/* a0-af  */
+	.quad local_label(misc_ref_invalid)	/* a0 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* a1 imm_1  */
+	.quad local_label(misc_ref_invalid) /* a2 imm_2  */
+	.quad local_label(misc_ref_invalid) /* a3 cons  */
+	.quad local_label(misc_ref_invalid)	/* a4 tra_0  */
+	.quad local_label(misc_ref_node) /* a5 arrayH  */
+	.quad local_label(misc_ref_node) /* a6 vectorH  */
+	.quad local_label(misc_ref_s16)	/* a7 s16  */
+	.quad local_label(misc_ref_invalid)	/* a8 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* a9 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* aa immheader_2  */
+	.quad local_label(misc_ref_invalid) /* ab nil  */
+	.quad local_label(misc_ref_invalid)	/* ac tra_1  */
+	.quad local_label(misc_ref_invalid)	/* ad misc  */
+	.quad local_label(misc_ref_invalid)	/* ae symbol  */
+	.quad local_label(misc_ref_invalid)	/* af function  */
+	/* b0-bf  */
+	.quad local_label(misc_ref_invalid)	/* b0 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* b1 imm_1  */
+	.quad local_label(misc_ref_invalid) /* b2 imm_2  */
+	.quad local_label(misc_ref_invalid) /* b3 cons  */
+	.quad local_label(misc_ref_invalid)	/* b4 tra_0  */
+	.quad local_label(misc_ref_invalid) /* b5 nodeheader_0  */
+	.quad local_label(misc_ref_node) /* b6 simple_vector  */
+	.quad local_label(misc_ref_u16) /* b7 immheader_0  */
+	.quad local_label(misc_ref_invalid)	/* b8 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* b9 immheader_1  */
+	.quad local_label(misc_ref_invalid) /* ba immheader_2  */
+	.quad local_label(misc_ref_invalid) /* bb nil  */
+	.quad local_label(misc_ref_invalid)	/* bc tra_1  */
+	.quad local_label(misc_ref_invalid)	/* bd misc  */
+	.quad local_label(misc_ref_invalid)	/* be symbol  */
+	.quad local_label(misc_ref_invalid)	/* bf function  */
+	/* c0-cf  */
+	.quad local_label(misc_ref_invalid)	/* c0 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* c1 imm_1  */
+	.quad local_label(misc_ref_invalid) /* c2 imm_2  */
+	.quad local_label(misc_ref_invalid) /* c3 cons  */
+	.quad local_label(misc_ref_invalid)	/* c4 tra_0  */
+	.quad local_label(misc_ref_invalid) /* c5 nodeheader_0  */
+	.quad local_label(misc_ref_invalid) /* c6 nodeheader_1  */
+	.quad local_label(misc_ref_string) /* c7 simple_base_string  */
+	.quad local_label(misc_ref_invalid)	/* c8 odd_fixnum  */
+	.quad local_label(misc_ref_invalid)	/* c9 immheader_1  */
+	.quad local_label(misc_ref_invalid)  /* ca immheader_2  */
+	.quad local_label(misc_ref_invalid) /* cb nil  */
+	.quad local_label(misc_ref_invalid)	/* cc tra_1  */
+	.quad local_label(misc_ref_invalid)	/* cd misc  */
+	.quad local_label(misc_ref_invalid)	/* ce symbol  */
+	.quad local_label(misc_ref_invalid)	/* cf function  */
+	/* d0-df  */
+	.quad local_label(misc_ref_invalid)	/* d0 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* d1 imm_1  */
+	.quad local_label(misc_ref_invalid) /* d2 imm_2  */
+	.quad local_label(misc_ref_invalid) /* d3 cons  */
+	.quad local_label(misc_ref_invalid)	/* d4 tra_0  */
+	.quad local_label(misc_ref_invalid) /* d5 nodeheader_0  */
+	.quad local_label(misc_ref_invalid) /* d6 nodeheader_1  */
+	.quad local_label(misc_ref_s8)	/* d7 s8  */
+	.quad local_label(misc_ref_invalid)	/* d8 odd_fixnum  */
+	.quad local_label(misc_ref_s32)	/* d9 s32  */
+	.quad local_label(misc_ref_s64)	/* da s64  */
+	.quad local_label(misc_ref_invalid) /* db nil  */
+	.quad local_label(misc_ref_invalid)	/* dc tra_1  */
+	.quad local_label(misc_ref_invalid)	/* dd misc  */
+	.quad local_label(misc_ref_invalid)	/* de symbol  */
+	.quad local_label(misc_ref_invalid)	/* df function  */
+	/* e0-ef  */
+	.quad local_label(misc_ref_invalid)	/* e0 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* e1 imm_1  */
+	.quad local_label(misc_ref_invalid) /* e2 imm_2  */
+	.quad local_label(misc_ref_invalid) /* e3 cons  */
+	.quad local_label(misc_ref_invalid)	/* e4 tra_0  */
+	.quad local_label(misc_ref_invalid) /* e5 nodeheader_0  */
+	.quad local_label(misc_ref_invalid) /* e6 nodeheader_1  */
+	.quad local_label(misc_ref_u8)	/* e7 u8  */
+	.quad local_label(misc_ref_invalid)	/* e8 odd_fixnum  */
+	.quad local_label(misc_ref_u32)	/* e9 u32  */
+	.quad local_label(misc_ref_u64) /* ea u64  */
+	.quad local_label(misc_ref_invalid) /* eb nil  */
+	.quad local_label(misc_ref_invalid)	/* ec tra_1  */
+	.quad local_label(misc_ref_invalid)	/* ed misc  */
+	.quad local_label(misc_ref_invalid)	/* ee symbol  */
+	.quad local_label(misc_ref_invalid)	/* ef function  */
+	/* f0-ff  */
+	.quad local_label(misc_ref_invalid)	/* f0 even_fixnum  */
+	.quad local_label(misc_ref_invalid) /* f1 imm_1  */
+	.quad local_label(misc_ref_invalid) /* f2 imm_2  */
+	.quad local_label(misc_ref_invalid) /* f3 cons  */
+	.quad local_label(misc_ref_invalid)	/* f4 tra_0  */
+	.quad local_label(misc_ref_invalid) /* f5 nodeheader_0  */
+	.quad local_label(misc_ref_invalid) /* f6 nodeheader_1  */
+	.quad local_label(misc_ref_bit_vector) /* f7 bitvector  */
+	.quad local_label(misc_ref_invalid)	/* f8 odd_fixnum  */
+	.quad local_label(misc_ref_single_float_vector) /* f9 single_float  */
+	.quad local_label(misc_ref_double_float_vector) /* fa double_float  */
+	.quad local_label(misc_ref_invalid) /* fb nil  */
+	.quad local_label(misc_ref_invalid)	/* fc tra_1  */
+	.quad local_label(misc_ref_invalid)	/* fd misc  */
+	.quad local_label(misc_ref_invalid)	/* fe symbol  */
+	.quad local_label(misc_ref_invalid)	/* ff function  */
 	
 	
-	// Node vector.  Functions are funny: the first  N words
-	// are treated as (UNSIGNED-BYTE 64), where N is the low
-	// 32 bits of the first word.
+	/* Node vector.  Functions are funny: the first  N words */
+	/* are treated as (UNSIGNED-BYTE 64), where N is the low */
+	/* 32 bits of the first word. */
 	
 local_label(misc_ref_function):		
 	__(movl misc_data_offset(%arg_y),%imm0_l)
@@ -554,7 +554,7 @@ local_label(misc_ref_invalid):
 	__(jmp _SPksignalerr)
 _endfn(C(misc_ref_common))
 
-// like misc_ref, only the boxed subtag is in arg_x. 
+/* like misc_ref, only the boxed subtag is in arg_x.  */
 					
 _spentry(subtag_misc_ref)
 	__(movb $tagmask,%imm0_b)
@@ -610,7 +610,7 @@ _spentry(misc_set)
 	__(jb 2f)
 	__(uuo_error_vector_bounds(Rarg_y,Rarg_x))
 2:	__(movb misc_subtag_offset(%arg_x),%imm1_b)
-	//	__(jmp C(misc_set_common)) 
+	/*	__(jmp C(misc_set_common))  */
 _endsubp(misc_set)
 		
 _startfn(C(misc_set_common))
@@ -618,283 +618,283 @@ _startfn(C(misc_set_common))
 	__(jmp *local_label(misc_set_jmp)(,%imm1,8))
 	.p2align 3
 local_label(misc_set_jmp):		
-	// 00-0f 
-	.quad local_label(misc_set_invalid)	// 00 even_fixnum 
-	.quad local_label(misc_set_invalid) // 01 imm_1 
-	.quad local_label(misc_set_invalid) // 02 imm_2 
-	.quad local_label(misc_set_invalid) // 03 cons 
-	.quad local_label(misc_set_invalid)	// 04 tra_0 
-	.quad local_label(misc_set_invalid) // 05 nodeheader_0 
-	.quad local_label(misc_set_invalid) // 06 nodeheader_1 
-	.quad local_label(misc_set_invalid) // 07 immheader_0 
-	.quad local_label(misc_set_invalid)	// 08 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// 09 immheader_1 
-	.quad local_label(misc_set_invalid)  // 0a immheader_2 
-	.quad local_label(misc_set_invalid) // 0b nil 
-	.quad local_label(misc_set_invalid)	// 0c tra_1 
-	.quad local_label(misc_set_invalid)	// 0d misc 
-	.quad local_label(misc_set_invalid)	// 0e symbol 
-	.quad local_label(misc_set_invalid)	// 0f function 
-	// 10-1f 
-	.quad local_label(misc_set_invalid)	// 10 even_fixnum 
-	.quad local_label(misc_set_invalid) // 11 imm_1 
-	.quad local_label(misc_set_invalid) // 12 imm_2 
-	.quad local_label(misc_set_invalid) // 13 cons 
-	.quad local_label(misc_set_invalid)	// 14 tra_0 
-	.quad _SPgvset // 15 symbol_vector 
-	.quad _SPgvset // 16 ratio 
-	.quad local_label(misc_set_invalid) // 17 immheader_0 
-	.quad local_label(misc_set_invalid)	// 18 odd_fixnum 
-	.quad local_label(misc_set_u32)	// 19 bignum 
-	.quad local_label(misc_set_u64) // 1a macptr 
-	.quad local_label(misc_set_invalid) // 1b nil 
-	.quad local_label(misc_set_invalid)	// 1c tra_1 
-	.quad local_label(misc_set_invalid)	// 1d misc 
-	.quad local_label(misc_set_invalid)	// 1e symbol 
-	.quad local_label(misc_set_invalid)	// 1f function 
-	// 20-2f 
-	.quad local_label(misc_set_invalid)	// 20 even_fixnum 
-	.quad local_label(misc_set_invalid) // 21 imm_1 
-	.quad local_label(misc_set_invalid) // 22 imm_2 
-	.quad local_label(misc_set_invalid) // 23 cons 
-	.quad local_label(misc_set_invalid)	// 24 tra_0 
-	.quad _SPgvset // 25 catch_frame 
-	.quad _SPgvset // 26 complex 
-	.quad local_label(misc_set_invalid) // 27 immheader_0 
-	.quad local_label(misc_set_invalid)	// 28 odd_fixnum 
-	.quad local_label(misc_set_u32)	// 29 double_float 
-	.quad local_label(misc_set_u64)  // 2a dead_macptr 
-	.quad local_label(misc_set_invalid) // 2b nil 
-	.quad local_label(misc_set_invalid)	// 2c tra_1 
-	.quad local_label(misc_set_invalid)	// 2d misc 
-	.quad local_label(misc_set_invalid)	// 2e symbol 
-	.quad local_label(misc_set_invalid)	// 2f function 
-	// 30-3f 
-	.quad local_label(misc_set_invalid)	// 30 even_fixnum 
-	.quad local_label(misc_set_invalid) // 31 imm_1 
-	.quad local_label(misc_set_invalid) // 32 imm_2 
-	.quad local_label(misc_set_invalid) // 33 cons 
-	.quad local_label(misc_set_invalid)	// 34 tra_0 
-	.quad _SPgvset // 35 hash_vector 
-	.quad _SPgvset // 36 struct 
-	.quad local_label(misc_set_invalid) // 37 immheader_0 
-	.quad local_label(misc_set_invalid)	// 38 odd_fixnum 
-	.quad local_label(misc_set_u32)	// 39 xcode_vector 
-	.quad local_label(misc_set_invalid)  // 3a immheader_2 
-	.quad local_label(misc_set_invalid) // 3b nil 
-	.quad local_label(misc_set_invalid)	// 3c tra_1 
-	.quad local_label(misc_set_invalid)	// 3d misc 
-	.quad local_label(misc_set_invalid)	// 3e symbol 
-	.quad local_label(misc_set_invalid)	// 3f function 
-	// 40-4f 
-	.quad local_label(misc_set_invalid)	// 40 even_fixnum 
-	.quad local_label(misc_set_invalid) // 41 imm_1 
-	.quad local_label(misc_set_invalid) // 42 imm_2 
-	.quad local_label(misc_set_invalid) // 43 cons 
-	.quad local_label(misc_set_invalid)	// 44 tra_0 
-	.quad _SPgvset // 45 pool 
-	.quad _SPgvset // 46 istruct 
-	.quad local_label(misc_set_invalid) // 47 immheader_0 
-	.quad local_label(misc_set_invalid)	// 48 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// 49 immheader_1 
-	.quad local_label(misc_set_invalid)  // 4a immheader_2 
-	.quad local_label(misc_set_invalid) // 4b nil 
-	.quad local_label(misc_set_invalid)	// 4c tra_1 
-	.quad local_label(misc_set_invalid)	// 4d misc 
-	.quad local_label(misc_set_invalid)	// 4e symbol 
-	.quad local_label(misc_set_invalid)	// 4f function 
-	// 50-5f 
-	.quad local_label(misc_set_invalid)	// 50 even_fixnum 
-	.quad local_label(misc_set_invalid) // 51 imm_1 
-	.quad local_label(misc_set_invalid) // 52 imm_2 
-	.quad local_label(misc_set_invalid) // 53 cons 
-	.quad local_label(misc_set_invalid)	// 54 tra_0 
-	.quad _SPgvset // 55 weak 
-	.quad _SPgvset // 56 value_cell 
-	.quad local_label(misc_set_invalid) // 57 immheader_0 
-	.quad local_label(misc_set_invalid)	// 58 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// 59 immheader_1 
-	.quad local_label(misc_set_invalid)  // 5a immheader_2 
-	.quad local_label(misc_set_invalid) // 5b nil 
-	.quad local_label(misc_set_invalid)	// 5c tra_1 
-	.quad local_label(misc_set_invalid)	// 5d misc 
-	.quad local_label(misc_set_invalid)	// 5e symbol 
-	.quad local_label(misc_set_invalid)	// 5f function 
-	// 60-6f 
-	.quad local_label(misc_set_invalid)	// 60 even_fixnum 
-	.quad local_label(misc_set_invalid) // 61 imm_1 
-	.quad local_label(misc_set_invalid) // 62 imm_2 
-	.quad local_label(misc_set_invalid) // 63 cons 
-	.quad local_label(misc_set_invalid)	// 64 tra_0 
-	.quad _SPgvset // 65 package 
-	.quad _SPgvset // 66 xfunction 
-	.quad local_label(misc_set_invalid) // 67 immheader_0 
-	.quad local_label(misc_set_invalid)	// 68 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// 69 immheader_1 
-	.quad local_label(misc_set_invalid)  // 6a immheader_2 
-	.quad local_label(misc_set_invalid) // 6b nil 
-	.quad local_label(misc_set_invalid)	// 6c tra_1 
-	.quad local_label(misc_set_invalid)	// 6d misc 
-	.quad local_label(misc_set_invalid)	// 6e symbol 
-	.quad local_label(misc_set_invalid)	// 6f function 
-	// 70-7f 
-	.quad local_label(misc_set_invalid)	// 70 even_fixnum 
-	.quad local_label(misc_set_invalid) // 71 imm_1 
-	.quad local_label(misc_set_invalid) // 72 imm_2 
-	.quad local_label(misc_set_invalid) // 73 cons 
-	.quad local_label(misc_set_invalid)	// 74 tra_0 
-	.quad _SPgvset // 75 slot_vector 
-	.quad _SPgvset // 76 lock 
-	.quad local_label(misc_set_invalid) // 77 immheader_0 
-	.quad local_label(misc_set_invalid)	// 78 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// 79 immheader_1 
-	.quad local_label(misc_set_invalid)  // 7a immheader_2 
-	.quad local_label(misc_set_invalid) // 7b nil 
-	.quad local_label(misc_set_invalid)	// 7c tra_1 
-	.quad local_label(misc_set_invalid)	// 7d misc 
-	.quad local_label(misc_set_invalid)	// 7e symbol 
-	.quad local_label(misc_set_invalid)	// 7f function 
-	// 80-8f 
-	.quad local_label(misc_set_invalid)	// 80 even_fixnum 
-	.quad local_label(misc_set_invalid) // 81 imm_1 
-	.quad local_label(misc_set_invalid) // 82 imm_2 
-	.quad local_label(misc_set_invalid) // 83 cons 
-	.quad local_label(misc_set_invalid)	// 84 tra_0 
-	.quad _SPgvset // 85 lisp_thread 
-	.quad _SPgvset // 86 instance 
-	.quad local_label(misc_set_invalid) // 87 immheader_0 
-	.quad local_label(misc_set_invalid)	// 88 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// 89 immheader_1 
-	.quad local_label(misc_set_invalid)  // 8a immheader_2 
-	.quad local_label(misc_set_invalid) // 8b nil 
-	.quad local_label(misc_set_invalid)	// 8c tra_1 
-	.quad local_label(misc_set_invalid)	// 8d misc 
-	.quad local_label(misc_set_invalid)	// 8e symbol 
-	.quad local_label(misc_set_invalid)	// 8f function 
-	// 90-9f 
-	.quad local_label(misc_set_invalid)	// 90 even_fixnum 
-	.quad local_label(misc_set_invalid) // 91 imm_1 
-	.quad local_label(misc_set_invalid) // 92 imm_2 
-	.quad local_label(misc_set_invalid) // 93 cons 
-	.quad local_label(misc_set_invalid)	// 94 tra_0 
-	.quad local_label(misc_set_function) // 95 function_vector 
-	.quad local_label(misc_set_invalid) // 96 nodeheader_1 
-	.quad local_label(misc_set_invalid) // 97 immheader_0 
-	.quad local_label(misc_set_invalid)	// 98 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// 99 immheader_1 
-	.quad local_label(misc_set_invalid)  // 9a immheader_2 
-	.quad local_label(misc_set_invalid) // 9b nil 
-	.quad local_label(misc_set_invalid)	// 9c tra_1 
-	.quad local_label(misc_set_invalid)	// 9d misc 
-	.quad local_label(misc_set_invalid)	// 9e symbol 
-	.quad local_label(misc_set_invalid)	// 9f function 
-	// a0-af 
-	.quad local_label(misc_set_invalid)	// a0 even_fixnum 
-	.quad local_label(misc_set_invalid) // a1 imm_1 
-	.quad local_label(misc_set_invalid) // a2 imm_2 
-	.quad local_label(misc_set_invalid) // a3 cons 
-	.quad local_label(misc_set_invalid)	// a4 tra_0 
-	.quad _SPgvset // a5 arrayH 
-	.quad _SPgvset // a6 vectorH 
-	.quad local_label(misc_set_s16)	// a7 s16 
-	.quad local_label(misc_set_invalid)	// a8 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// a9 immheader_1 
-	.quad local_label(misc_set_invalid)  // aa immheader_2 
-	.quad local_label(misc_set_invalid) // ab nil 
-	.quad local_label(misc_set_invalid)	// ac tra_1 
-	.quad local_label(misc_set_invalid)	// ad misc 
-	.quad local_label(misc_set_invalid)	// ae symbol 
-	.quad local_label(misc_set_invalid)	// af function 
-	// b0-bf 
-	.quad local_label(misc_set_invalid)	// b0 even_fixnum 
-	.quad local_label(misc_set_invalid) // b1 imm_1 
-	.quad local_label(misc_set_invalid) // b2 imm_2 
-	.quad local_label(misc_set_invalid) // b3 cons 
-	.quad local_label(misc_set_invalid)	// b4 tra_0 
-	.quad local_label(misc_set_invalid) // b5 nodeheader_0 
-	.quad _SPgvset // b6 simple_vector 
-	.quad local_label(misc_set_u16) // b7 immheader_0 
-	.quad local_label(misc_set_invalid)	// b8 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// b9 immheader_1 
-	.quad local_label(misc_set_invalid) // ba immheader_2 
-	.quad local_label(misc_set_invalid) // bb nil 
-	.quad local_label(misc_set_invalid)	// bc tra_1 
-	.quad local_label(misc_set_invalid)	// bd misc 
-	.quad local_label(misc_set_invalid)	// be symbol 
-	.quad local_label(misc_set_invalid)	// bf function 
-	// c0-cf 
-	.quad local_label(misc_set_invalid)	// c0 even_fixnum 
-	.quad local_label(misc_set_invalid) // c1 imm_1 
-	.quad local_label(misc_set_invalid) // c2 imm_2 
-	.quad local_label(misc_set_invalid) // c3 cons 
-	.quad local_label(misc_set_invalid)	// c4 tra_0 
-	.quad local_label(misc_set_invalid) // c5 nodeheader_0 
-	.quad local_label(misc_set_invalid) // c6 nodeheader_1 
-	.quad local_label(misc_set_string) // c7 simple_base_string 
-	.quad local_label(misc_set_invalid)	// c8 odd_fixnum 
-	.quad local_label(misc_set_invalid)	// c9 immheader_1 
-	.quad local_label(misc_set_invalid)  // ca immheader_2 
-	.quad local_label(misc_set_invalid) // cb nil 
-	.quad local_label(misc_set_invalid)	// cc tra_1 
-	.quad local_label(misc_set_invalid)	// cd misc 
-	.quad local_label(misc_set_invalid)	// ce symbol 
-	.quad local_label(misc_set_invalid)	// cf function 
-	// d0-df 
-	.quad local_label(misc_set_invalid)	// d0 even_fixnum 
-	.quad local_label(misc_set_invalid) // d1 imm_1 
-	.quad local_label(misc_set_invalid) // d2 imm_2 
-	.quad local_label(misc_set_invalid) // d3 cons 
-	.quad local_label(misc_set_invalid)	// d4 tra_0 
-	.quad local_label(misc_set_invalid) // d5 nodeheader_0 
-	.quad local_label(misc_set_invalid) // d6 nodeheader_1 
-	.quad local_label(misc_set_s8)	// d7 s8 
-	.quad local_label(misc_set_invalid)	// d8 odd_fixnum 
-	.quad local_label(misc_set_s32)	// d9 s32 
-	.quad local_label(misc_set_s64)	// da s64 
-	.quad local_label(misc_set_invalid) // db nil 
-	.quad local_label(misc_set_invalid)	// dc tra_1 
-	.quad local_label(misc_set_invalid)	// dd misc 
-	.quad local_label(misc_set_invalid)	// de symbol 
-	.quad local_label(misc_set_invalid)	// df function 
-	// e0-ef 
-	.quad local_label(misc_set_invalid)	// e0 even_fixnum 
-	.quad local_label(misc_set_invalid) // e1 imm_1 
-	.quad local_label(misc_set_invalid) // e2 imm_2 
-	.quad local_label(misc_set_invalid) // e3 cons 
-	.quad local_label(misc_set_invalid)	// e4 tra_0 
-	.quad local_label(misc_set_invalid) // e5 nodeheader_0 
-	.quad local_label(misc_set_invalid) // e6 nodeheader_1 
-	.quad local_label(misc_set_u8)	// e7 u8 
-	.quad local_label(misc_set_invalid)	// e8 odd_fixnum 
-	.quad local_label(misc_set_u32)	// e9 u32 
-	.quad local_label(misc_set_u64) // ea u64 
-	.quad local_label(misc_set_invalid) // eb nil 
-	.quad local_label(misc_set_invalid)	// ec tra_1 
-	.quad local_label(misc_set_invalid)	// ed misc 
-	.quad local_label(misc_set_invalid)	// ee symbol 
-	.quad local_label(misc_set_invalid)	// ef function 
-	// f0-ff 
-	.quad local_label(misc_set_invalid)	// f0 even_fixnum 
-	.quad local_label(misc_set_invalid) // f1 imm_1 
-	.quad local_label(misc_set_invalid) // f2 imm_2 
-	.quad local_label(misc_set_invalid) // f3 cons 
-	.quad local_label(misc_set_invalid)	// f4 tra_0 
-	.quad local_label(misc_set_invalid) // f5 nodeheader_0 
-	.quad local_label(misc_set_invalid) // f6 nodeheader_1 
-	.quad local_label(misc_set_bit_vector) // f7 bitvector 
-	.quad local_label(misc_set_invalid)	// f8 odd_fixnum 
-	.quad local_label(misc_set_single_float_vector) // f9 single_float 
-	.quad local_label(misc_set_double_float_vector) // fa double_float 
-	.quad local_label(misc_set_invalid) // fb nil 
-	.quad local_label(misc_set_invalid)	// fc tra_1 
-	.quad local_label(misc_set_invalid)	// fd misc 
-	.quad local_label(misc_set_invalid)	// fe symbol 
-	.quad local_label(misc_set_invalid)	// ff function 
+	/* 00-0f  */
+	.quad local_label(misc_set_invalid)	/* 00 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 01 imm_1  */
+	.quad local_label(misc_set_invalid) /* 02 imm_2  */
+	.quad local_label(misc_set_invalid) /* 03 cons  */
+	.quad local_label(misc_set_invalid)	/* 04 tra_0  */
+	.quad local_label(misc_set_invalid) /* 05 nodeheader_0  */
+	.quad local_label(misc_set_invalid) /* 06 nodeheader_1  */
+	.quad local_label(misc_set_invalid) /* 07 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 08 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* 09 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* 0a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 0b nil  */
+	.quad local_label(misc_set_invalid)	/* 0c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 0d misc  */
+	.quad local_label(misc_set_invalid)	/* 0e symbol  */
+	.quad local_label(misc_set_invalid)	/* 0f function  */
+	/* 10-1f  */
+	.quad local_label(misc_set_invalid)	/* 10 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 11 imm_1  */
+	.quad local_label(misc_set_invalid) /* 12 imm_2  */
+	.quad local_label(misc_set_invalid) /* 13 cons  */
+	.quad local_label(misc_set_invalid)	/* 14 tra_0  */
+	.quad _SPgvset /* 15 symbol_vector  */
+	.quad _SPgvset /* 16 ratio  */
+	.quad local_label(misc_set_invalid) /* 17 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 18 odd_fixnum  */
+	.quad local_label(misc_set_u32)	/* 19 bignum  */
+	.quad local_label(misc_set_u64) /* 1a macptr  */
+	.quad local_label(misc_set_invalid) /* 1b nil  */
+	.quad local_label(misc_set_invalid)	/* 1c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 1d misc  */
+	.quad local_label(misc_set_invalid)	/* 1e symbol  */
+	.quad local_label(misc_set_invalid)	/* 1f function  */
+	/* 20-2f  */
+	.quad local_label(misc_set_invalid)	/* 20 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 21 imm_1  */
+	.quad local_label(misc_set_invalid) /* 22 imm_2  */
+	.quad local_label(misc_set_invalid) /* 23 cons  */
+	.quad local_label(misc_set_invalid)	/* 24 tra_0  */
+	.quad _SPgvset /* 25 catch_frame  */
+	.quad _SPgvset /* 26 complex  */
+	.quad local_label(misc_set_invalid) /* 27 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 28 odd_fixnum  */
+	.quad local_label(misc_set_u32)	/* 29 double_float  */
+	.quad local_label(misc_set_u64)  /* 2a dead_macptr  */
+	.quad local_label(misc_set_invalid) /* 2b nil  */
+	.quad local_label(misc_set_invalid)	/* 2c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 2d misc  */
+	.quad local_label(misc_set_invalid)	/* 2e symbol  */
+	.quad local_label(misc_set_invalid)	/* 2f function  */
+	/* 30-3f  */
+	.quad local_label(misc_set_invalid)	/* 30 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 31 imm_1  */
+	.quad local_label(misc_set_invalid) /* 32 imm_2  */
+	.quad local_label(misc_set_invalid) /* 33 cons  */
+	.quad local_label(misc_set_invalid)	/* 34 tra_0  */
+	.quad _SPgvset /* 35 hash_vector  */
+	.quad _SPgvset /* 36 struct  */
+	.quad local_label(misc_set_invalid) /* 37 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 38 odd_fixnum  */
+	.quad local_label(misc_set_u32)	/* 39 xcode_vector  */
+	.quad local_label(misc_set_invalid)  /* 3a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 3b nil  */
+	.quad local_label(misc_set_invalid)	/* 3c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 3d misc  */
+	.quad local_label(misc_set_invalid)	/* 3e symbol  */
+	.quad local_label(misc_set_invalid)	/* 3f function  */
+	/* 40-4f  */
+	.quad local_label(misc_set_invalid)	/* 40 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 41 imm_1  */
+	.quad local_label(misc_set_invalid) /* 42 imm_2  */
+	.quad local_label(misc_set_invalid) /* 43 cons  */
+	.quad local_label(misc_set_invalid)	/* 44 tra_0  */
+	.quad _SPgvset /* 45 pool  */
+	.quad _SPgvset /* 46 istruct  */
+	.quad local_label(misc_set_invalid) /* 47 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 48 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* 49 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* 4a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 4b nil  */
+	.quad local_label(misc_set_invalid)	/* 4c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 4d misc  */
+	.quad local_label(misc_set_invalid)	/* 4e symbol  */
+	.quad local_label(misc_set_invalid)	/* 4f function  */
+	/* 50-5f  */
+	.quad local_label(misc_set_invalid)	/* 50 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 51 imm_1  */
+	.quad local_label(misc_set_invalid) /* 52 imm_2  */
+	.quad local_label(misc_set_invalid) /* 53 cons  */
+	.quad local_label(misc_set_invalid)	/* 54 tra_0  */
+	.quad _SPgvset /* 55 weak  */
+	.quad _SPgvset /* 56 value_cell  */
+	.quad local_label(misc_set_invalid) /* 57 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 58 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* 59 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* 5a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 5b nil  */
+	.quad local_label(misc_set_invalid)	/* 5c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 5d misc  */
+	.quad local_label(misc_set_invalid)	/* 5e symbol  */
+	.quad local_label(misc_set_invalid)	/* 5f function  */
+	/* 60-6f  */
+	.quad local_label(misc_set_invalid)	/* 60 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 61 imm_1  */
+	.quad local_label(misc_set_invalid) /* 62 imm_2  */
+	.quad local_label(misc_set_invalid) /* 63 cons  */
+	.quad local_label(misc_set_invalid)	/* 64 tra_0  */
+	.quad _SPgvset /* 65 package  */
+	.quad _SPgvset /* 66 xfunction  */
+	.quad local_label(misc_set_invalid) /* 67 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 68 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* 69 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* 6a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 6b nil  */
+	.quad local_label(misc_set_invalid)	/* 6c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 6d misc  */
+	.quad local_label(misc_set_invalid)	/* 6e symbol  */
+	.quad local_label(misc_set_invalid)	/* 6f function  */
+	/* 70-7f  */
+	.quad local_label(misc_set_invalid)	/* 70 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 71 imm_1  */
+	.quad local_label(misc_set_invalid) /* 72 imm_2  */
+	.quad local_label(misc_set_invalid) /* 73 cons  */
+	.quad local_label(misc_set_invalid)	/* 74 tra_0  */
+	.quad _SPgvset /* 75 slot_vector  */
+	.quad _SPgvset /* 76 lock  */
+	.quad local_label(misc_set_invalid) /* 77 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 78 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* 79 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* 7a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 7b nil  */
+	.quad local_label(misc_set_invalid)	/* 7c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 7d misc  */
+	.quad local_label(misc_set_invalid)	/* 7e symbol  */
+	.quad local_label(misc_set_invalid)	/* 7f function  */
+	/* 80-8f  */
+	.quad local_label(misc_set_invalid)	/* 80 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 81 imm_1  */
+	.quad local_label(misc_set_invalid) /* 82 imm_2  */
+	.quad local_label(misc_set_invalid) /* 83 cons  */
+	.quad local_label(misc_set_invalid)	/* 84 tra_0  */
+	.quad _SPgvset /* 85 lisp_thread  */
+	.quad _SPgvset /* 86 instance  */
+	.quad local_label(misc_set_invalid) /* 87 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 88 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* 89 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* 8a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 8b nil  */
+	.quad local_label(misc_set_invalid)	/* 8c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 8d misc  */
+	.quad local_label(misc_set_invalid)	/* 8e symbol  */
+	.quad local_label(misc_set_invalid)	/* 8f function  */
+	/* 90-9f  */
+	.quad local_label(misc_set_invalid)	/* 90 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* 91 imm_1  */
+	.quad local_label(misc_set_invalid) /* 92 imm_2  */
+	.quad local_label(misc_set_invalid) /* 93 cons  */
+	.quad local_label(misc_set_invalid)	/* 94 tra_0  */
+	.quad local_label(misc_set_function) /* 95 function_vector  */
+	.quad local_label(misc_set_invalid) /* 96 nodeheader_1  */
+	.quad local_label(misc_set_invalid) /* 97 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* 98 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* 99 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* 9a immheader_2  */
+	.quad local_label(misc_set_invalid) /* 9b nil  */
+	.quad local_label(misc_set_invalid)	/* 9c tra_1  */
+	.quad local_label(misc_set_invalid)	/* 9d misc  */
+	.quad local_label(misc_set_invalid)	/* 9e symbol  */
+	.quad local_label(misc_set_invalid)	/* 9f function  */
+	/* a0-af  */
+	.quad local_label(misc_set_invalid)	/* a0 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* a1 imm_1  */
+	.quad local_label(misc_set_invalid) /* a2 imm_2  */
+	.quad local_label(misc_set_invalid) /* a3 cons  */
+	.quad local_label(misc_set_invalid)	/* a4 tra_0  */
+	.quad _SPgvset /* a5 arrayH  */
+	.quad _SPgvset /* a6 vectorH  */
+	.quad local_label(misc_set_s16)	/* a7 s16  */
+	.quad local_label(misc_set_invalid)	/* a8 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* a9 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* aa immheader_2  */
+	.quad local_label(misc_set_invalid) /* ab nil  */
+	.quad local_label(misc_set_invalid)	/* ac tra_1  */
+	.quad local_label(misc_set_invalid)	/* ad misc  */
+	.quad local_label(misc_set_invalid)	/* ae symbol  */
+	.quad local_label(misc_set_invalid)	/* af function  */
+	/* b0-bf  */
+	.quad local_label(misc_set_invalid)	/* b0 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* b1 imm_1  */
+	.quad local_label(misc_set_invalid) /* b2 imm_2  */
+	.quad local_label(misc_set_invalid) /* b3 cons  */
+	.quad local_label(misc_set_invalid)	/* b4 tra_0  */
+	.quad local_label(misc_set_invalid) /* b5 nodeheader_0  */
+	.quad _SPgvset /* b6 simple_vector  */
+	.quad local_label(misc_set_u16) /* b7 immheader_0  */
+	.quad local_label(misc_set_invalid)	/* b8 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* b9 immheader_1  */
+	.quad local_label(misc_set_invalid) /* ba immheader_2  */
+	.quad local_label(misc_set_invalid) /* bb nil  */
+	.quad local_label(misc_set_invalid)	/* bc tra_1  */
+	.quad local_label(misc_set_invalid)	/* bd misc  */
+	.quad local_label(misc_set_invalid)	/* be symbol  */
+	.quad local_label(misc_set_invalid)	/* bf function  */
+	/* c0-cf  */
+	.quad local_label(misc_set_invalid)	/* c0 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* c1 imm_1  */
+	.quad local_label(misc_set_invalid) /* c2 imm_2  */
+	.quad local_label(misc_set_invalid) /* c3 cons  */
+	.quad local_label(misc_set_invalid)	/* c4 tra_0  */
+	.quad local_label(misc_set_invalid) /* c5 nodeheader_0  */
+	.quad local_label(misc_set_invalid) /* c6 nodeheader_1  */
+	.quad local_label(misc_set_string) /* c7 simple_base_string  */
+	.quad local_label(misc_set_invalid)	/* c8 odd_fixnum  */
+	.quad local_label(misc_set_invalid)	/* c9 immheader_1  */
+	.quad local_label(misc_set_invalid)  /* ca immheader_2  */
+	.quad local_label(misc_set_invalid) /* cb nil  */
+	.quad local_label(misc_set_invalid)	/* cc tra_1  */
+	.quad local_label(misc_set_invalid)	/* cd misc  */
+	.quad local_label(misc_set_invalid)	/* ce symbol  */
+	.quad local_label(misc_set_invalid)	/* cf function  */
+	/* d0-df  */
+	.quad local_label(misc_set_invalid)	/* d0 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* d1 imm_1  */
+	.quad local_label(misc_set_invalid) /* d2 imm_2  */
+	.quad local_label(misc_set_invalid) /* d3 cons  */
+	.quad local_label(misc_set_invalid)	/* d4 tra_0  */
+	.quad local_label(misc_set_invalid) /* d5 nodeheader_0  */
+	.quad local_label(misc_set_invalid) /* d6 nodeheader_1  */
+	.quad local_label(misc_set_s8)	/* d7 s8  */
+	.quad local_label(misc_set_invalid)	/* d8 odd_fixnum  */
+	.quad local_label(misc_set_s32)	/* d9 s32  */
+	.quad local_label(misc_set_s64)	/* da s64  */
+	.quad local_label(misc_set_invalid) /* db nil  */
+	.quad local_label(misc_set_invalid)	/* dc tra_1  */
+	.quad local_label(misc_set_invalid)	/* dd misc  */
+	.quad local_label(misc_set_invalid)	/* de symbol  */
+	.quad local_label(misc_set_invalid)	/* df function  */
+	/* e0-ef  */
+	.quad local_label(misc_set_invalid)	/* e0 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* e1 imm_1  */
+	.quad local_label(misc_set_invalid) /* e2 imm_2  */
+	.quad local_label(misc_set_invalid) /* e3 cons  */
+	.quad local_label(misc_set_invalid)	/* e4 tra_0  */
+	.quad local_label(misc_set_invalid) /* e5 nodeheader_0  */
+	.quad local_label(misc_set_invalid) /* e6 nodeheader_1  */
+	.quad local_label(misc_set_u8)	/* e7 u8  */
+	.quad local_label(misc_set_invalid)	/* e8 odd_fixnum  */
+	.quad local_label(misc_set_u32)	/* e9 u32  */
+	.quad local_label(misc_set_u64) /* ea u64  */
+	.quad local_label(misc_set_invalid) /* eb nil  */
+	.quad local_label(misc_set_invalid)	/* ec tra_1  */
+	.quad local_label(misc_set_invalid)	/* ed misc  */
+	.quad local_label(misc_set_invalid)	/* ee symbol  */
+	.quad local_label(misc_set_invalid)	/* ef function  */
+	/* f0-ff  */
+	.quad local_label(misc_set_invalid)	/* f0 even_fixnum  */
+	.quad local_label(misc_set_invalid) /* f1 imm_1  */
+	.quad local_label(misc_set_invalid) /* f2 imm_2  */
+	.quad local_label(misc_set_invalid) /* f3 cons  */
+	.quad local_label(misc_set_invalid)	/* f4 tra_0  */
+	.quad local_label(misc_set_invalid) /* f5 nodeheader_0  */
+	.quad local_label(misc_set_invalid) /* f6 nodeheader_1  */
+	.quad local_label(misc_set_bit_vector) /* f7 bitvector  */
+	.quad local_label(misc_set_invalid)	/* f8 odd_fixnum  */
+	.quad local_label(misc_set_single_float_vector) /* f9 single_float  */
+	.quad local_label(misc_set_double_float_vector) /* fa double_float  */
+	.quad local_label(misc_set_invalid) /* fb nil  */
+	.quad local_label(misc_set_invalid)	/* fc tra_1  */
+	.quad local_label(misc_set_invalid)	/* fd misc  */
+	.quad local_label(misc_set_invalid)	/* fe symbol  */
+	.quad local_label(misc_set_invalid)	/* ff function  */
 
 local_label(misc_set_function):			
-	// Functions are funny: the first  N words
-	// are treated as (UNSIGNED-BYTE 64), where N is the low
-	// 32 bits of the first word. 
+	/* Functions are funny: the first  N words */
+	/* are treated as (UNSIGNED-BYTE 64), where N is the low */
+	/* 32 bits of the first word.  */
 	__(movl misc_data_offset(%arg_x),%imm0_l)
 	__(shl $fixnumshift,%imm0)
 	__(rcmpq(%arg_y,%imm0))
@@ -1063,9 +1063,9 @@ local_label(misc_set_invalid):
 	__(jmp _SPksignalerr)
 _endfn(C(misc_set_common))
 	
-// ret1valn returns "1 multiple value" when a called function does not 
-// return multiple values.  Its presence on the stack (as a return address) 
-// identifies the stack frame to code which returns multiple values. 
+/* ret1valn returns "1 multiple value" when a called function does not  */
+/* return multiple values.  Its presence on the stack (as a return address)  */
+/* identifies the stack frame to code which returns multiple values.  */
 
 _spentry(Fret1valn)
 	.globl C(ret1valn)
@@ -1091,7 +1091,7 @@ C(nvalret):
 	__(popq %ra0)
 	__(jmp *%ra0)
 	
-// actually need to return values ; always need to copy 
+/* actually need to return values ; always need to copy  */
 1:	__(leaq 2*node_size(%rbp),%imm1)
 	__(movzwl %nargs,%nargs_l)
 	__(movq (%imm1),%ra0)
@@ -1144,7 +1144,7 @@ _spentry(throw)
 	__(movq %rcontext:tcr.catch_top,%imm1)
 	__(xorl %imm0_l,%imm0_l)
 	__(movzwl %nargs,%nargs_l)
-	__(movq (%rsp,%nargs_q),%temp0)	// temp0 = tag 
+	__(movq (%rsp,%nargs_q),%temp0)	/* temp0 = tag  */
 	__(jmp local_label(_throw_test))
 local_label(_throw_loop):
 	__(cmpq %temp0,catch_frame.catch_tag(%imm1))
@@ -1204,7 +1204,7 @@ __(tra(local_label(_threw_multiple)))
 	__(leaq local_label(_threw_multiple_dont_unbind)(%rip),%r10)
 	__(jmp _SPunbind_to)
 __(tra(local_label(_threw_multiple_dont_unbind)))
-	// Copy multiple values from the current %rsp to the target %rsp 
+	/* Copy multiple values from the current %rsp to the target %rsp  */
 	__(lea (%rsp,%nargs_q),%imm0)
 	__(movq catch_frame.rsp(%temp0),%imm1)
 	__(jmp local_label(_threw_multiple_push_test))
@@ -1216,7 +1216,7 @@ local_label(_threw_multiple_push_loop):
 local_label(_threw_multiple_push_test):		
 	__(cmpq %imm0,%rsp)
 	__(jne local_label(_threw_multiple_push_loop))
-	// target %rsp is now in %imm1 
+	/* target %rsp is now in %imm1  */
 	__(movq catch_frame.rbp(%temp0),%rbp)
 	__(movq %imm1,%rsp)
 	__(movq catch_frame.foreign_sp(%temp0),%Rforeign_sp)
@@ -1239,7 +1239,7 @@ local_label(_threw_multiple_push_test):
 		
 _endsubp(throw)
 
-// This takes N multiple values atop the vstack. 
+/* This takes N multiple values atop the vstack.  */
 _spentry(nthrowvalues)
 	__(movb $1,%rcontext:tcr.unwinding)
 	__(movzwl %nargs,%nargs_l)
@@ -1262,9 +1262,9 @@ __(tra(local_label(_nthrowv_back_from_unbind)))
 local_label(_nthrowv_dont_unbind):
 	__(cmpb $unbound_marker,catch_frame.catch_tag(%temp0))
 	__(je local_label(_nthrowv_do_unwind))
-// A catch frame.  If the last one, restore context from there. 
+/* A catch frame.  If the last one, restore context from there.  */
 	__(movd %mm1,%imm0)
-	__(testq %imm0,%imm0)	// last catch frame ? 
+	__(testq %imm0,%imm0)	/* last catch frame ?  */
 	__(jz local_label(_nthrowv_skip))
 	__(movq catch_frame.xframe(%temp0),%save0)
 	__(movq %save0,%rcontext:tcr.xframe)
@@ -1294,9 +1294,9 @@ local_label(_nthrowv_skip):
 	__(movd %mm1,%imm0)
 	__(jmp local_label(_nthrowv_nextframe))
 local_label(_nthrowv_do_unwind):	
-// This is harder.  Call the cleanup code with the multiple values and 
-// nargs, the throw count, and the caller's return address in a temp
-// stack frame. 
+/* This is harder.  Call the cleanup code with the multiple values and  */
+/* nargs, the throw count, and the caller's return address in a temp */
+/* stack frame.  */
 	__(movq catch_frame.xframe(%temp0),%save0)
 	__(movq %save0,%rcontext:tcr.xframe)
 	__(leaq (%rsp,%nargs_q),%save1)
@@ -1308,11 +1308,11 @@ local_label(_nthrowv_do_unwind):
 	__(movq catch_frame.rbp(%temp0),%rbp)
 	__(movq catch_frame.rsp(%temp0),%arg_x)
 	__(movq catch_frame.foreign_sp(%temp0),%Rforeign_sp)
-	// Discard the catch frame, so we can build a temp frame 
+	/* Discard the catch frame, so we can build a temp frame  */
 	__(movq -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
 	__(movd %imm1,%tsp)
 	__(movd %imm1,%next_tsp)
-	// tsp overhead, nargs, throw count, ra0 
+	/* tsp overhead, nargs, throw count, ra0  */
 	__(dnode_align(%nargs_q,(tsp_frame.fixed_overhead+(3*node_size)),%imm0))
 	__(TSP_Alloc_Var(%imm0,%imm1))
 
@@ -1335,7 +1335,7 @@ local_label(_nthrowv_tpushtest):
 	__(pop %save1)
 	__(pop %save0)
 	__(movq %arg_x,%rsp)
-// Ready to call cleanup code. set up tra, jmp to %xfn 
+/* Ready to call cleanup code. set up tra, jmp to %xfn  */
 	__(leaq local_label(_nthrowv_called_cleanup)(%rip),%ra0)
 	__(movb $0,%rcontext:tcr.unwinding)
 	__(jmp *%xfn)
@@ -1368,9 +1368,9 @@ local_label(_nthrowv_return):
 	__(jmp *%ra0)	
 _endsubp(nthrowvalues)
 
-// This is a (slight) optimization.  When running an unwind-protect,
-// save the single value and the throw count in the tstack frame.
-// Note that this takes a single value in arg_z.
+/* This is a (slight) optimization.  When running an unwind-protect, */
+/* save the single value and the throw count in the tstack frame. */
+/* Note that this takes a single value in arg_z. */
 	
 _spentry(nthrow1value)
 	__(movb $1,%rcontext:tcr.unwinding)
@@ -1394,9 +1394,9 @@ __(tra(local_label(_nthrow1v_back_from_unbind)))
 local_label(_nthrow1v_dont_unbind):
 	__(cmpb $unbound_marker,catch_frame.catch_tag(%temp0))
 	__(je local_label(_nthrow1v_do_unwind))
-// A catch frame.  If the last one, restore context from there. 
+/* A catch frame.  If the last one, restore context from there.  */
 	__(movd %mm1,%imm0)
-	__(testq %imm0,%imm0)	// last catch frame ? 
+	__(testq %imm0,%imm0)	/* last catch frame ?  */
 	__(jne local_label(_nthrow1v_skip))
 	__(movq catch_frame.xframe(%temp0),%save0)
 	__(movq %save0,%rcontext:tcr.xframe)
@@ -1416,8 +1416,8 @@ local_label(_nthrow1v_skip):
 	__(jmp local_label(_nthrow1v_nextframe))
 local_label(_nthrow1v_do_unwind):
 	
-// This is harder, but not as hard (not as much BLTing) as the
-// multiple-value case.
+/* This is harder, but not as hard (not as much BLTing) as the */
+/* multiple-value case. */
 	
 	__(movq catch_frame.xframe(%temp0),%save0)
 	__(movq %save0,%rcontext:tcr.xframe)
@@ -1429,7 +1429,7 @@ local_label(_nthrow1v_do_unwind):
 	__(movq catch_frame.rbp(%temp0),%rbp)
 	__(movq catch_frame.rsp(%temp0),%rsp)
 	__(movq catch_frame.foreign_sp(%temp0),%Rforeign_sp)
-	// Discard the catch frame, so we can build a temp frame 
+	/* Discard the catch frame, so we can build a temp frame  */
 	__(movq -(tsp_frame.fixed_overhead+fulltag_misc)(%temp0),%imm1)
 	__(movd %imm1,%tsp)
 	__(movd %imm1,%next_tsp)
@@ -1438,7 +1438,7 @@ local_label(_nthrow1v_do_unwind):
 	__(movq %ra0,(%imm1))
 	__(movq %mm1,node_size*1(%imm1))
 	__(movq %arg_z,node_size*2(%imm1))
-// Ready to call cleanup code. set up tra, jmp to %xfn 
+/* Ready to call cleanup code. set up tra, jmp to %xfn  */
 	__(leaq local_label(_nthrow1v_called_cleanup)(%rip),%ra0)
 	__(movb $0,%rcontext:tcr.unwinding)
 	__(jmp *%xfn)
@@ -1462,8 +1462,8 @@ local_label(_nthrow1v_return):
 	__(jmp *%ra0)	
 _endsubp(nthrow1value)
 
-// This never affects the symbol's vcell 
-// Non-null symbol in arg_y, new value in arg_z         
+/* This never affects the symbol's vcell  */
+/* Non-null symbol in arg_y, new value in arg_z          */
 	
 _spentry(bind)
 	__(movq symbol.binding_index(%arg_y),%temp0)
@@ -1487,7 +1487,7 @@ _spentry(bind)
 	__(jmp _SPksignalerr)	
 _endsubp(bind)
 
-// arg_z = symbol: bind it to its current value
+/* arg_z = symbol: bind it to its current value */
 	
 _spentry(bind_self)
 	__(movq symbol.binding_index(%arg_z),%temp0)
@@ -1582,8 +1582,8 @@ _spentry(conslist)
 	__(jmp *%ra0)		
 _endsubp(conslist)
 
-// do list*: last arg in arg_z, all others pushed, nargs set to #args pushed.
-// Cons, one cons cell at at time.  Maybe optimize this later.
+/* do list*: last arg in arg_z, all others pushed, nargs set to #args pushed. */
+/* Cons, one cons cell at at time.  Maybe optimize this later. */
 	
 _spentry(conslist_star)
 	__(testw %nargs,%nargs)
@@ -1595,8 +1595,8 @@ _spentry(conslist_star)
 	__(jmp *%ra0)		
 _endsubp(conslist_star)
 
-// We always have to create a tsp frame (even if nargs is 0), so the compiler 
-// doesn't get confused. 
+/* We always have to create a tsp frame (even if nargs is 0), so the compiler  */
+/* doesn't get confused.  */
 _spentry(stkconslist)
 	__(movzwl %nargs,%nargs_l)
 	__(movq %nargs_q,%imm1)
@@ -1617,8 +1617,8 @@ _spentry(stkconslist)
 	__(jmp *%ra0)
 _endsubp(stkconslist)
 
-// do list*: last arg in arg_z, all others vpushed, 
-//	nargs set to #args vpushed.
+/* do list*: last arg in arg_z, all others vpushed,  */
+/*	nargs set to #args vpushed. */
 	
 _spentry(stkconslist_star)
 	__(movzwl %nargs,%nargs_l)
@@ -1639,8 +1639,8 @@ _spentry(stkconslist_star)
 	__(jmp *%ra0)
 _endsubp(stkconslist_star)
 
-// Make a stack-consed simple-vector out of the NARGS objects 
-//	on top of the vstack; return it in arg_z.
+/* Make a stack-consed simple-vector out of the NARGS objects  */
+/*	on top of the vstack; return it in arg_z. */
 	
 _spentry(mkstackv)
 	__(movzwl %nargs,%nargs_l)
@@ -1664,25 +1664,25 @@ _endsubp(mkstackv)
 	
         .globl C(egc_write_barrier_start)
 C(egc_write_barrier_start):
-//
-// The function pc_luser_xp() - which is used to ensure that suspended threads
-// are suspended in a GC-safe way - has to treat these subprims (which implement
-// the EGC write-barrier) specially.  Specifically, a store that might introduce
-// an intergenerational reference (a young pointer stored in an old object) has
-// to "memoize" that reference by setting a bit in the global "refbits" bitmap.
-// This has to happen atomically, and has to happen atomically wrt GC.
+/* */
+/* The function pc_luser_xp() - which is used to ensure that suspended threads */
+/* are suspended in a GC-safe way - has to treat these subprims (which implement */
+/* the EGC write-barrier) specially.  Specifically, a store that might introduce */
+/* an intergenerational reference (a young pointer stored in an old object) has */
+/* to "memoize" that reference by setting a bit in the global "refbits" bitmap. */
+/* This has to happen atomically, and has to happen atomically wrt GC. */
 
-// Note that updating a word in a bitmap is itself not atomic, unless we use
-// interlocked loads and stores.
+/* Note that updating a word in a bitmap is itself not atomic, unless we use */
+/* interlocked loads and stores. */
 
 
 
-// For RPLACA and RPLACD, things are fairly simple: regardless of where we are
-// in the function, we can do the store (even if it's already been done) and
-// calculate whether or not we need to set the bit out-of-line.  (Actually
-// setting the bit needs to be done atomically, unless we're sure that other
-// threads are suspended.)
-// We can unconditionally set the suspended thread's RIP to its RA0.
+/* For RPLACA and RPLACD, things are fairly simple: regardless of where we are */
+/* in the function, we can do the store (even if it's already been done) and */
+/* calculate whether or not we need to set the bit out-of-line.  (Actually */
+/* setting the bit needs to be done atomically, unless we're sure that other */
+/* threads are suspended.) */
+/* We can unconditionally set the suspended thread's RIP to its RA0. */
 
 	
 _spentry(rplaca)
@@ -1727,7 +1727,7 @@ C(egc_rplacd):
         __(jmp *%ra0)
 _endsubp(rplacd)
 
-// Storing into a gvector can be handled the same way as storing into a CONS.
+/* Storing into a gvector can be handled the same way as storing into a CONS. */
 
 
 _spentry(gvset)
@@ -1751,9 +1751,9 @@ C(egc_gvset):
         __(jmp *%ra0)                
 _endsubp(gvset)
 
-// This is a special case of storing into a gvector: if we need to
-// memoize the store, record the address of the hash-table vector
-// in the refmap, as well.
+/* This is a special case of storing into a gvector: if we need to */
+/* memoize the store, record the address of the hash-table vector */
+/* in the refmap, as well. */
         
 
 _spentry(set_hash_key)
@@ -1774,7 +1774,7 @@ C(egc_set_hash_key):
         __(shrq $bitmap_shift,%imm1)
         __(xorb $63,%imm0_b)
         __(lock btsq %imm0,(%temp0,%imm1,8))
-        // Now memoize the address of the hash vector 
+        /* Now memoize the address of the hash vector  */
         __(movq %arg_x,%imm0)
         __(subq lisp_global(heap_start),%imm0)
         __(shrq $dnode_shift,%imm0)
@@ -1786,11 +1786,11 @@ C(egc_set_hash_key):
         __(jmp *%ra0)                
 _endsubp(set_hash_key)
 
-// This is a little trickier: if this is interrupted, we need to know
-// whether or not the STORE-CONDITIONAL (cmpxchgq) has won or not.  
-// If we're interrupted   before the PC has reached the "success_test" label, 
-// repeat (luser the PC back to .SPstore_node_conditional.)  If we're at that
-// label with the Z flag set, we won and (may) need to memoize.
+/* This is a little trickier: if this is interrupted, we need to know */
+/* whether or not the STORE-CONDITIONAL (cmpxchgq) has won or not.   */
+/* If we're interrupted   before the PC has reached the "success_test" label,  */
+/* repeat (luser the PC back to .SPstore_node_conditional.)  If we're at that */
+/* label with the Z flag set, we won and (may) need to memoize. */
 
 _spentry(store_node_conditional)
         .globl C(egc_store_node_conditional)
@@ -1833,20 +1833,20 @@ _spentry(setqsym)
 _endsubp(setqsym)
 
 _spentry(progvsave)
-	// Error if arg_z isn't a proper list.  That's unlikely,
-	// but it's better to check now than to crash later.
+	/* Error if arg_z isn't a proper list.  That's unlikely, */
+	/* but it's better to check now than to crash later. */
 	
 	__(compare_reg_to_nil(%arg_z))
-	__(movq %arg_z,%arg_x)	// fast 
-	__(movq %arg_z,%temp1)	// slow 
-	__(je 9f)		// Null list is proper 
+	__(movq %arg_z,%arg_x)	/* fast  */
+	__(movq %arg_z,%temp1)	/* slow  */
+	__(je 9f)		/* Null list is proper  */
 0:
 	__(extract_lisptag(%arg_x,%imm0))
 	__(cmpb $tag_list,%imm0_b)
 	__(jne 8f)
 	__(compare_reg_to_nil(%arg_x))
 	__(je 9f)
-	__(_cdr(%arg_x,%temp0))	// (null (cdr fast)) ? 
+	__(_cdr(%arg_x,%temp0))	/* (null (cdr fast)) ?  */
 	__(compare_reg_to_nil(%temp0))
 	__(je 9f)
 	__(extract_lisptag(%temp0,%imm0))
@@ -1860,10 +1860,10 @@ _spentry(progvsave)
 8:	__(movq $XIMPROPERLIST,%arg_y)
 	__(set_nargs(2))
 	__(jmp _SPksignalerr)
-9:	// Whew 	
+9:	/* Whew 	 */
 
-        // Next, determine the length of arg_y.  We 
-	// know that it's a proper list. 
+        /* Next, determine the length of arg_y.  We  */
+	/* know that it's a proper list.  */
 	__(movq $-fixnumone,%imm0)
 	__(movq %arg_y,%arg_x)
 1:	__(compare_reg_to_nil(%arg_x))
@@ -1871,9 +1871,9 @@ _spentry(progvsave)
 	__(leaq fixnumone(%imm0),%imm0)
 	__(jne 1b)
 	
-	// imm0 is now (boxed) triplet count.
-	// Determine word count, add 1 (to align), and make room.
-	//  if count is 0, make an empty tsp frame and exit 
+	/* imm0 is now (boxed) triplet count. */
+	/* Determine word count, add 1 (to align), and make room. */
+	/*  if count is 0, make an empty tsp frame and exit  */
 	__(testq %imm0,%imm0)
 	__(jne 2f)
 	__(TSP_Alloc_Fixed(2*node_size,%imm0))
@@ -1910,9 +1910,9 @@ _spentry(progvsave)
 	__(jmp *%ra0)
 _endsubp(progvsave)
 
-// Allocate node objects on the temp stack, immediate objects on the foreign
-// stack. (The caller has to know which stack to discard a frame from.)
-// %arg_y = boxed element-count, %arg_z = boxed subtype
+/* Allocate node objects on the temp stack, immediate objects on the foreign */
+/* stack. (The caller has to know which stack to discard a frame from.) */
+/* %arg_y = boxed element-count, %arg_z = boxed subtype */
 	
 _spentry(stack_misc_alloc)
 	__(movq $~(((1<<56)-1)<<fixnumshift),%temp0)
@@ -1921,7 +1921,7 @@ _spentry(stack_misc_alloc)
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(movq %arg_y,%temp0)
 	__(shl $num_subtag_bits-fixnumshift,%temp0)
-	__(orq %temp0,%imm0)		// %imm0 now = header 
+	__(orq %temp0,%imm0)		/* %imm0 now = header  */
 	__(movb $fulltagmask,%imm1_b)
 	__(andb %imm0_b,%imm1_b)
 	__(cmpb $fulltag_nodeheader_0,%imm1_b)
@@ -1933,7 +1933,7 @@ _spentry(stack_misc_alloc)
 	__(cmpb $ivector_class_32_bit,%imm1_b)
 	__(jz local_label(stack_misc_alloc_32))
 	__(unbox_fixnum(%arg_y,%imm1))
-	// ivector_class_other_bit: 16, 8, or 1 ... 
+	/* ivector_class_other_bit: 16, 8, or 1 ...  */
 	__(cmpb $subtag_bit_vector,%imm0_b)
 	__(jne local_label(stack_misc_alloc_8))
 	__(addq $7,%imm1)
@@ -1949,12 +1949,12 @@ local_label(stack_misc_alloc_16):
 	__(shlq %imm1)
 	__(jmp local_label(stack_misc_alloc_alloc_ivector))
 local_label(stack_misc_alloc_32):
-	// 32-bit ivector 
+	/* 32-bit ivector  */
 	__(unbox_fixnum(%arg_y,%imm1))
 	__(shlq $2,%imm1)
 	__(jmp local_label(stack_misc_alloc_alloc_ivector))
 local_label(stack_misc_alloc_64):
-	// 64-bit ivector 	
+	/* 64-bit ivector 	 */
 	__(movq %arg_y,%imm1)
 local_label(stack_misc_alloc_alloc_ivector):	
 	__(dnode_align(%imm1,tsp_frame.fixed_overhead+node_size,%imm1))
@@ -1995,13 +1995,13 @@ local_label(stack_misc_alloc_not_u56):
 	__(uuo_error_reg_not_type(Rarg_y,error_object_not_unsigned_byte_56))	
 _endsubp(stack_misc_alloc)
 
-// subtype (boxed, of course) is pushed, followed by nargs bytes worth of 
-// initial-contents.  Note that this can be used to cons any type of initialized 
-// node-header'ed misc object (symbols, closures, ...) as well as vector-like 
-// objects. 
+/* subtype (boxed, of course) is pushed, followed by nargs bytes worth of  */
+/* initial-contents.  Note that this can be used to cons any type of initialized  */
+/* node-header'ed misc object (symbols, closures, ...) as well as vector-like  */
+/* objects.  */
 _spentry(gvector)
 	__(movzwl %nargs,%nargs_l)
-	__(movq (%rsp,%nargs_q),%imm0)	// boxed subtype 
+	__(movq (%rsp,%nargs_q),%imm0)	/* boxed subtype  */
 	__(sarq $fixnumshift,%imm0)
 	__(movq %nargs_q,%imm1)
 	__(shlq $num_subtag_bits-word_shift,%imm1)
@@ -2012,8 +2012,8 @@ _spentry(gvector)
 	__(jmp 2f)
 1:	__(movq %temp0,misc_data_offset(%arg_z,%imm1))
 2:	__(subq $node_size,%imm1)
-	__(pop %temp0)	// Note the intentional fencepost:
-			// discard the subtype as well.
+	__(pop %temp0)	/* Note the intentional fencepost: */
+			/* discard the subtype as well. */
 	__(jge 1b)
 	__(jmp *%ra0)
 _endsubp(gvector)
@@ -2080,7 +2080,7 @@ _spentry(heap_rest_arg)
 	__(jmp *%ra0)		
 _endsubp(heap_rest_arg)
 
-// %imm0 contains the number of fixed args ; make an &rest arg out of the others 
+/* %imm0 contains the number of fixed args ; make an &rest arg out of the others  */
 _spentry(req_heap_rest_arg)
 	__(push_argregs())
 	__(movzwl %nargs,%nargs_l)
@@ -2097,8 +2097,8 @@ _spentry(req_heap_rest_arg)
 	__(jmp *%ra0)		
 _endsubp(req_heap_rest_arg)
 
-// %imm0 bytes of stuff has already been pushed	
-// make an &rest arg out of any others 
+/* %imm0 bytes of stuff has already been pushed	 */
+/* make an &rest arg out of any others  */
 _spentry(heap_cons_rest_arg)
 	__(movzwl %nargs,%nargs_l)
 	__(movl %nargs_l,%imm1_l)
@@ -2125,13 +2125,13 @@ _spentry(keyword_args)
 	__(jmp _SPkeyword_bind)
 _endsubp(keyword_args)
 
-// There are %nargs words of arguments on the stack; %imm0 contains the number
-// of non-keyword args pushed.  It's possible that we never actually got
-// any keyword args, which would make things much simpler. 
+/* There are %nargs words of arguments on the stack; %imm0 contains the number */
+/* of non-keyword args pushed.  It's possible that we never actually got */
+/* any keyword args, which would make things much simpler.  */
 
-// On entry, temp1 contains a fixnum with bits indicating whether 
-// &allow-other-keys and/or &rest was present in the lambda list.
-// Once we get here, we can use the arg registers.
+/* On entry, temp1 contains a fixnum with bits indicating whether  */
+/* &allow-other-keys and/or &rest was present in the lambda list. */
+/* Once we get here, we can use the arg registers. */
 
 define([keyword_flags_aok_bit],[fixnumshift])
 define([keyword_flags_unknown_keys_bit],[fixnumshift+1])
@@ -2154,8 +2154,8 @@ _spentry(keyword_bind)
 	__(movl $XBADKEYS,%arg_y_l)
 	__(set_nargs(2))
 	__(jmp _SPksignalerr)
-	// Now that we're sure that we have an even number of keywords and values
-	// (in %imm1), copy all pairs to the temp stack 
+	/* Now that we're sure that we have an even number of keywords and values */
+	/* (in %imm1), copy all pairs to the temp stack  */
 local_label(even):
 	__(lea tsp_frame.fixed_overhead(%imm1),%arg_z)
 	__(TSP_Alloc_Var(%arg_z,%imm0))
@@ -2163,8 +2163,8 @@ local_label(even):
 	__(pop (%arg_z))
 	__(cmpq %arg_z,%imm0)
 	__(jne 2b)
-	// Get the keyword vector into arg_x, and its length into arg_y.
-	// Push arg_y pairs of NILs. 
+	/* Get the keyword vector into arg_x, and its length into arg_y. */
+	/* Push arg_y pairs of NILs.  */
 	__(movl function_data_offset(%fn),%imm0_l)
 	__(movq function_data_offset(%fn,%imm0,node_size),%arg_x)
 	__(vector_length(%arg_x,%arg_y))
@@ -2174,26 +2174,26 @@ local_label(even):
 	__(push $nil_value)
 4:	__(subq $fixnumone,%arg_y)
 	__(jge 3b)
-	// Push the %saveN registers, so that we can use them in this loop 
+	/* Push the %saveN registers, so that we can use them in this loop  */
 	__(push %save3)
 	__(push %save2)
 	__(push %save1)
 	__(push %save0)
 	__(leaq 4*node_size(%rsp,%imm0,2),%save0)
-	// %save0 points to the 0th value/supplied-p pair 
+	/* %save0 points to the 0th value/supplied-p pair  */
 	__(leaq (%arg_z,%imm1),%save1)
-	// %save1 is the end of the provided keyword/value pairs (the old %tsp). 
+	/* %save1 is the end of the provided keyword/value pairs (the old %tsp).  */
 	__(movq %imm0,%save2)
-	// %save2 is the length of the keyword vector 
-5:	__(movq (%arg_z),%save3)	// %save3 is current keyword 
+	/* %save2 is the length of the keyword vector  */
+5:	__(movq (%arg_z),%save3)	/* %save3 is current keyword  */
 	__(xorl %imm0_l,%imm0_l)
 	__(jmp local_label(next_keyvect_entry))
 6:	__(cmpq misc_data_offset(%arg_x,%imm0),%save3)
 	__(jne 7f)
-	// Got a match; have we already seen this keyword ? 
+	/* Got a match; have we already seen this keyword ?  */
 	__(negq %imm0)
 	__(cmpb $fulltag_nil,-node_size*2(%save0,%imm0,2))
-	__(jne 9f)	// already seen keyword, ignore this value 
+	__(jne 9f)	/* already seen keyword, ignore this value  */
 	__(movq node_size(%arg_z),%save3)
 	__(movq %save3,-node_size(%save0,%imm0,2))
 	__(movl $t_value,-node_size*2(%save0,%imm0,2))
@@ -2202,8 +2202,8 @@ local_label(even):
 local_label(next_keyvect_entry):	
 	__(cmpq %imm0,%save2)
 	__(jne 6b)
-	// Didn't match anything in the keyword vector. Is the keyword
-	// :allow-other-keys ? 
+	/* Didn't match anything in the keyword vector. Is the keyword */
+	/* :allow-other-keys ?  */
 	__(cmpq $nrs.kallowotherkeys,%save3)
 	__(jne 8f)
 	__(cmpb $fulltag_nil,node_size(%arg_z))
@@ -2218,21 +2218,21 @@ local_label(next_keyvect_entry):
 	__(pop %save1)
 	__(pop %save2)
 	__(pop %save3)
-	// If the function takes an &rest arg, or if we got an unrecognized
-	// keyword and don't allow that, copy the incoming keyword/value
-	// pairs from the temp stack back to the value stack 
+	/* If the function takes an &rest arg, or if we got an unrecognized */
+	/* keyword and don't allow that, copy the incoming keyword/value */
+	/* pairs from the temp stack back to the value stack  */
 	__(btq $keyword_flags_rest_bit,%temp1)
 	__(jc 1f)
 	__(btq $keyword_flags_unknown_keys_bit,%temp1)
 	__(jnc 0f)
 	__(btq $keyword_flags_aok_bit,%temp1)
 	__(jnc 1f)
-	// pop the temp frame 
+	/* pop the temp frame  */
 0:	__(discard_temp_frame(%imm1))
 	__(jmp *%ra0)
-	// Copy the keyword/value pairs from the tsp back to sp, either because
-	// the function takes an &rest arg or because we need to signal an
-	// "unknown keywords" error 
+	/* Copy the keyword/value pairs from the tsp back to sp, either because */
+	/* the function takes an &rest arg or because we need to signal an */
+	/* "unknown keywords" error  */
 1:	__(movd %tsp,%arg_z)
 	__(mov (%arg_z),%arg_y)
 	__(jmp 3f)
@@ -2246,7 +2246,7 @@ local_label(next_keyvect_entry):
 	__(jnc,pt 9f)
 	__(btq $keyword_flags_aok_bit,%temp1)
 	__(jc,pt 9f)
-	// Signal an "unknown keywords" error 
+	/* Signal an "unknown keywords" error  */
 	__(movq %imm1,%nargs_q)
 	__(testw %nargs,%nargs)
 	__(jmp 5f)
@@ -2259,9 +2259,9 @@ local_label(next_keyvect_entry):
 	__(jmp _SPksignalerr)
 9:	__(jmp *%ra0)
 	
-// No keyword values were provided.  Access the keyword vector (which is the 0th
-//  constant in %fn), determine its length N, and push N	pairs of NILs. 
-// N could be 0 ...
+/* No keyword values were provided.  Access the keyword vector (which is the 0th */
+/*  constant in %fn), determine its length N, and push N	pairs of NILs.  */
+/* N could be 0 ... */
 	
 local_label(no_keyword_values):		
 	__(movl function_data_offset(%fn),%imm0_l)
@@ -2299,10 +2299,10 @@ _spentry(stack_cons_rest_arg)
 	__(movl %nargs_l,%imm1_l)
 	__(subl %imm0_l,%imm1_l)
 	__(movl $nil_value,%arg_z_l)
-	__(je 2f)	// empty list ; make an empty TSP frame 
+	__(je 2f)	/* empty list ; make an empty TSP frame  */
 	__(addq %imm1,%imm1)
 	__(cmpq $(tstack_alloc_limit-dnode_size),%imm1)
-	__(ja 3f)	// make empty frame, then heap-cons 
+	__(ja 3f)	/* make empty frame, then heap-cons  */
 	__(dnode_align(%imm1,tsp_frame.fixed_overhead,%imm0))
 	__(TSP_Alloc_Var(%imm0,%temp1))
 	__(addq $fulltag_cons,%temp1)
@@ -2316,14 +2316,14 @@ _spentry(stack_cons_rest_arg)
 	__(push %arg_z)
 	__(jmp *%ra0)
 	
-// Length 0, make empty frame
+/* Length 0, make empty frame */
 	
 2:
 	__(TSP_Alloc_Fixed(0,%temp1))
 	__(push %arg_z)
 	__(jmp *%ra0)
 	
-// Too big to stack-cons, but make an empty frame before heap-consing
+/* Too big to stack-cons, but make an empty frame before heap-consing */
 	
 3:		
 	__(TSP_Alloc_Fixed(0,%temp1))
@@ -2331,22 +2331,22 @@ _spentry(stack_cons_rest_arg)
 _endsubp(stack_cons_rest_arg)
 
 
-// Prepend all but the first four (3 words of code, inner fn) and last 
-// (lfbits) elements of %fn to the "arglist". 
+/* Prepend all but the first four (3 words of code, inner fn) and last  */
+/* (lfbits) elements of %fn to the "arglist".  */
 	
 _spentry(call_closure)
         __(subq $fulltag_function-fulltag_misc,%fn)
         __(vector_length(%fn,%imm0))
        	__(movzwl %nargs,%nargs_l)
 	
-        __(subq $5<<fixnumshift,%imm0)  // imm0 = inherited arg count 
+        __(subq $5<<fixnumshift,%imm0)  /* imm0 = inherited arg count  */
         __(cmpw $nargregs<<fixnumshift,%nargs)
         __(jna,pt local_label(no_insert))
 	
-// Some arguments have already been pushed.  Push imm0's worth 
-// of NILs, copy those arguments that have already been vpushed from 
-// the old TOS to the new, then insert all of the inerited args 
-// and go to the function.
+/* Some arguments have already been pushed.  Push imm0's worth  */
+/* of NILs, copy those arguments that have already been vpushed from  */
+/* the old TOS to the new, then insert all of the inerited args  */
+/* and go to the function. */
 	
         __(movq %imm0,%imm1)
 local_label(push_nil_loop):     
@@ -2354,7 +2354,7 @@ local_label(push_nil_loop):
         __(sub $fixnumone,%imm1)
         __(jne local_label(push_nil_loop))
 	
-// Need to use arg regs as temporaries here.  
+/* Need to use arg regs as temporaries here.   */
         __(movq %rsp,%temp1)
         __(push %arg_z)
         __(push %arg_y)
@@ -2369,7 +2369,7 @@ local_label(copy_already_loop):
         __(subq $fixnumone,%arg_y)
         __(jne local_label(copy_already_loop))
 	
-        __(movl $4<<fixnumshift,%imm1_l) // skip code, new fn 
+        __(movl $4<<fixnumshift,%imm1_l) /* skip code, new fn  */
 local_label(insert_loop):               
         __(movq misc_data_offset(%fn,%imm1),%arg_z)
         __(addq $node_size,%imm1)
@@ -2379,29 +2379,29 @@ local_label(insert_loop):
         __(subq $fixnum_one,%imm0)
         __(jne local_label(insert_loop))
 
-        // Recover the argument registers, pushed earlier 
+        /* Recover the argument registers, pushed earlier  */
         __(pop %arg_x)
         __(pop %arg_y)
         __(pop %arg_z)
         __(jmp local_label(go))
 
-// Here if nothing was pushed by the caller.  If we're
-// going to push anything, we have to reserve a stack
-// frame first. (We'll need to push something if the
-// sum of %nargs and %imm0 is greater than nargregs) 
+/* Here if nothing was pushed by the caller.  If we're */
+/* going to push anything, we have to reserve a stack */
+/* frame first. (We'll need to push something if the */
+/* sum of %nargs and %imm0 is greater than nargregs)  */
 	
 local_label(no_insert):
         __(lea (%nargs_q,%imm0),%imm1)
         __(cmpq $nargregs<<fixnumshift,%imm1)
         __(jna local_label(no_insert_no_frame))
-        // Reserve space for a stack frame 
+        /* Reserve space for a stack frame  */
         __(push $reserved_frame_marker)
         __(push $reserved_frame_marker)
 local_label(no_insert_no_frame):        
-	// nargregs or fewer args were already vpushed. 
-	// if exactly nargregs, vpush remaining inherited vars. 
+	/* nargregs or fewer args were already vpushed.  */
+	/* if exactly nargregs, vpush remaining inherited vars.  */
         __(cmpw $nargregs<<fixnumshift,%nargs)
-        __(movl $4<<fixnumshift,%imm1_l) // skip code, new fn 
+        __(movl $4<<fixnumshift,%imm1_l) /* skip code, new fn  */
         __(leaq 4<<fixnumshift(%imm0),%temp1)
         __(jnz local_label(set_regs))
 local_label(vpush_remaining):  
@@ -2412,8 +2412,8 @@ local_label(vpush_remaining):
         __(jnz local_label(vpush_remaining))
         __(jmp local_label(go))
 local_label(set_regs):
-	// if nargs was > 1 (and we know that it was < 3), it must have 
-	// been 2.  Set arg_x, then vpush the remaining args. 
+	/* if nargs was > 1 (and we know that it was < 3), it must have  */
+	/* been 2.  Set arg_x, then vpush the remaining args.  */
         __(cmpw $fixnumone,%nargs)
         __(jle local_label(set_y_z))
 local_label(set_arg_x): 
@@ -2423,10 +2423,10 @@ local_label(set_arg_x):
         __(subq $fixnumone,%imm0)
         __(jne local_label(vpush_remaining))
         __(jmp local_label(go))
-	// Maybe set arg_y or arg_z, preceding args 
+	/* Maybe set arg_y or arg_z, preceding args  */
 local_label(set_y_z):
         __(jne local_label(set_arg_z))
-	// Set arg_y, maybe arg_x, preceding args 
+	/* Set arg_y, maybe arg_x, preceding args  */
 local_label(set_arg_y): 
         __(subq $node_size,%temp1)
         __(movq misc_data_offset(%fn,%temp1),%arg_y)
@@ -2448,19 +2448,19 @@ _endsubp(call_closure)
 _spentry(getxlong)
 _endsubp(getxlong)
 
-// Have to be a little careful here: the caller may or may not have pushed
-//   an empty frame, and we may or may not have needed one.  We can't easily
-//   tell whether or not a frame will be needed (if the caller didn't reserve
-//   a frame, whether or not we need one depends on the length of the list
-//   in arg_z.  So, if the caller didn't push a frame, we do so ; once everything's
-//   been spread, we discard the reserved frame (regardless of who pushed it)
-//   if all args fit in registers. 
+/* Have to be a little careful here: the caller may or may not have pushed */
+/*   an empty frame, and we may or may not have needed one.  We can't easily */
+/*   tell whether or not a frame will be needed (if the caller didn't reserve */
+/*   a frame, whether or not we need one depends on the length of the list */
+/*   in arg_z.  So, if the caller didn't push a frame, we do so ; once everything's */
+/*   been spread, we discard the reserved frame (regardless of who pushed it) */
+/*   if all args fit in registers.  */
 _spentry(spreadargz)
 	__(testw %nargs,%nargs)
 	__(jne 0f)
 	__(push $reserved_frame_marker)
 	__(push $reserved_frame_marker)
-0:	__(movq %arg_z,%arg_y)	// save in case of error 
+0:	__(movq %arg_z,%arg_y)	/* save in case of error  */
 	__(xorl %imm0_l,%imm0_l)
 	__(compare_reg_to_nil(%arg_z))
 	__(je 2f)
@@ -2487,25 +2487,25 @@ _spentry(spreadargz)
 	__(pop %arg_x)
 	__(je 3b)
 	__(jmp *%ra0)
-// Discard everything that's been pushed already, complain 
+/* Discard everything that's been pushed already, complain  */
 9:	__(lea (%rsp,%imm0),%rsp)
-	__(movq %arg_y,%arg_z)	// recover original 
+	__(movq %arg_y,%arg_z)	/* recover original  */
 	__(movq $XNOSPREAD,%arg_y)
 	__(set_nargs(2))
 	__(jmp _SPksignalerr)
 _endsubp(spreadargz)
 
-// Caller built it's own frame when it was entered.  If all outgoing args
-// are in registers, we can discard that frame; otherwise, we copy outgoing
-// relative to it and restore %rbp/%ra0 
+/* Caller built it's own frame when it was entered.  If all outgoing args */
+/* are in registers, we can discard that frame; otherwise, we copy outgoing */
+/* relative to it and restore %rbp/%ra0  */
 _spentry(tfuncallgen)
 	__(cmpw $nargregs*node_size,%nargs)
 	__(jbe 9f)
 	__(movzwl %nargs,%nargs_l)
 	__(lea -nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
-	// We can use %ra0 as a temporary here, since the real return address
-	// is on the stack 
+	/* We can use %ra0 as a temporary here, since the real return address */
+	/* is on the stack  */
 0:	__(movq -node_size(%imm0),%ra0)
 	__(movq %ra0,-node_size(%rbp,%imm1))
 	__(subq $node_size,%imm0)
@@ -2516,20 +2516,20 @@ _spentry(tfuncallgen)
 	__(movq 8(%rbp),%ra0)
 	__(movq 0(%rbp),%rbp)
 	__(do_funcall())
-// All args in regs; exactly the same as the tfuncallvsp case 
+/* All args in regs; exactly the same as the tfuncallvsp case  */
 9:		
 	__(leave)
 	__(pop %ra0)
 	__(do_funcall())
 _endsubp(tfuncallgen)
 
-// Some args were pushed; move them down in the frame 
+/* Some args were pushed; move them down in the frame  */
 _spentry(tfuncallslide)
 	__(movzwl %nargs,%nargs_l)
 	__(lea -nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
-	// We can use %ra0 as a temporary here, since the real return address
-	// is on the stack 
+	/* We can use %ra0 as a temporary here, since the real return address */
+	/* is on the stack  */
 0:	__(movq -node_size(%imm0),%ra0)
 	__(movq %ra0,-node_size(%rbp,%imm1))
 	__(subq $node_size,%imm0)
@@ -2542,7 +2542,7 @@ _spentry(tfuncallslide)
 	__(do_funcall())	
 _endsubp(tfuncallslide)
 
-// No args were pushed; recover saved context & do funcall 	
+/* No args were pushed; recover saved context & do funcall 	 */
 _spentry(tfuncallvsp)
 	__(leave)
 	__(pop %ra0)
@@ -2555,8 +2555,8 @@ _spentry(tcallsymgen)
 	__(movzwl %nargs,%nargs_l)
 	__(lea -nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
-	// We can use %ra0 as a temporary here, since the real return address
-	// is on the stack 
+	/* We can use %ra0 as a temporary here, since the real return address */
+	/* is on the stack  */
 0:	__(movq -node_size(%imm0),%ra0)
 	__(movq %ra0,-node_size(%rbp,%imm1))
 	__(subq $node_size,%imm0)
@@ -2567,7 +2567,7 @@ _spentry(tcallsymgen)
 	__(movq 8(%rbp),%ra0)
 	__(movq 0(%rbp),%rbp)
 	__(jump_fname())
-// All args in regs; exactly the same as the tcallsymvsp case 
+/* All args in regs; exactly the same as the tcallsymvsp case  */
 9:		
 	__(leave)
 	__(pop %ra0)
@@ -2578,8 +2578,8 @@ _spentry(tcallsymslide)
 	__(movzwl %nargs,%nargs_l)
 	__(lea -nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
-	// We can use %ra0 as a temporary here, since the real return address
-	// is on the stack 
+	/* We can use %ra0 as a temporary here, since the real return address */
+	/* is on the stack  */
 0:	__(movq -node_size(%imm0),%ra0)
 	__(movq %ra0,-node_size(%rbp,%imm1))
 	__(subq $node_size,%imm0)
@@ -2604,8 +2604,8 @@ _spentry(tcallnfngen)
 	__(movzwl %nargs,%nargs_l)
 	__(lea nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
-	// We can use %ra0 as a temporary here, since the real return address
-	// is on the stack 
+	/* We can use %ra0 as a temporary here, since the real return address */
+	/* is on the stack  */
 0:	__(movq -node_size(%imm0),%ra0)
 	__(movq %ra0,-node_size(%rbp,%imm1))
 	__(subq $node_size,%imm0)
@@ -2617,7 +2617,7 @@ _spentry(tcallnfngen)
 	__(movq lisp_frame.savera0(%rbp),%ra0)
 	__(movq lisp_frame.backlink(%rbp),%rbp)
 	__(jmp *%fn)
-// All args in regs; exactly the same as the tcallnfnvsp case 
+/* All args in regs; exactly the same as the tcallnfnvsp case  */
 9:		
 	__(movq %temp0,%fn)
 	__(leave)
@@ -2629,8 +2629,8 @@ _spentry(tcallnfnslide)
 	__(movzwl %nargs,%nargs_l)
 	__(lea -nargregs*node_size(%rsp,%nargs_q),%imm0)
 	__(xorl %imm1_l,%imm1_l)
-	// We can use %ra0 as a temporary here, since the real return address
-	// is on the stack 
+	/* We can use %ra0 as a temporary here, since the real return address */
+	/* is on the stack  */
 0:	__(movq -node_size(%imm0),%ra0)
 	__(movq %ra0,-node_size(%rbp,%imm1))
 	__(subq $node_size,%imm0)
@@ -2652,9 +2652,9 @@ _spentry(tcallnfnvsp)
 _endsubp(tcallnfnvsp)
 
 
-// Make a "raw" area on the foreign stack, stack-cons a macptr to point to it, 
-//   and return the macptr.  Size (in bytes, boxed) is in arg_z on entry; macptr
-//   in arg_z on exit. 
+/* Make a "raw" area on the foreign stack, stack-cons a macptr to point to it,  */
+/*   and return the macptr.  Size (in bytes, boxed) is in arg_z on entry; macptr */
+/*   in arg_z on exit.  */
 _spentry(makestackblock)
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(dnode_align(%imm0,tsp_frame.fixed_overhead+macptr.size,%imm0))
@@ -2738,8 +2738,8 @@ _spentry(makestacklist)
 	__(jmp *%ra0)
 _endsubp(makestacklist)
 
-// subtype (boxed) vpushed before initial values. (Had better be a 
-// node header subtag.) Nargs set to count of things vpushed. 	
+/* subtype (boxed) vpushed before initial values. (Had better be a  */
+/* node header subtag.) Nargs set to count of things vpushed. 	 */
 _spentry(stkgvector)
 	__(movzwl %nargs,%nargs_l)
 	__(lea -fixnum_one(%nargs_q),%imm0)
@@ -2748,7 +2748,7 @@ _spentry(stkgvector)
 	__(shlq $num_subtag_bits-fixnumshift,%imm0)
 	__(movq (%arg_x), %imm1)
 	__(shrq $fixnumshift,%imm1)
-	__(orq %imm1,%imm0)	// imm0 = header, %arg_y = unaligned size 
+	__(orq %imm1,%imm0)	/* imm0 = header, %arg_y = unaligned size  */
 	__(dnode_align(%arg_y,(tsp_frame.fixed_overhead+node_size),%imm1))
 	__(TSP_Alloc_Var(%imm1,%arg_z))
 	__(movq %imm0,(%arg_z))
@@ -2769,7 +2769,7 @@ _spentry(misc_alloc)
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(movq %arg_y,%temp0)
 	__(shl $num_subtag_bits-fixnumshift,%temp0)
-	__(orq %temp0,%imm0)		// %imm0 now = header 
+	__(orq %temp0,%imm0)		/* %imm0 now = header  */
 	__(movb $fulltagmask,%imm1_b)
 	__(andb %imm0_b,%imm1_b)
 	__(cmpb $fulltag_nodeheader_0,%imm1_b)
@@ -2781,7 +2781,7 @@ _spentry(misc_alloc)
 	__(cmpb $ivector_class_32_bit,%imm1_b)
 	__(jz local_label(misc_alloc_32))
 	__(unbox_fixnum(%arg_y,%imm1))
-	// ivector_class_other_bit: 16, 8, or 1 ... 
+	/* ivector_class_other_bit: 16, 8, or 1 ...  */
 	__(cmpb $subtag_bit_vector,%imm0_b)
 	__(jne local_label(misc_alloc_8))
 	__(addq $7,%imm1)
@@ -2794,12 +2794,12 @@ local_label(misc_alloc_16):
 	__(shlq %imm1)
 	__(jmp local_label(misc_alloc_alloc_vector))
 local_label(misc_alloc_32):
-	// 32-bit ivector 
+	/* 32-bit ivector  */
 	__(unbox_fixnum(%arg_y,%imm1))
 	__(shlq $2,%imm1)
 	__(jmp local_label(misc_alloc_alloc_vector))
 local_label(misc_alloc_64):
-	// 64-bit ivector or gvector 	
+	/* 64-bit ivector or gvector 	 */
 	__(movq %arg_y,%imm1)
 local_label(misc_alloc_alloc_vector):	
 	__(dnode_align(%imm1,node_size,%imm1))
@@ -2811,11 +2811,11 @@ _endsubp(misc_alloc)
 
 
 _startfn(C(destbind1))
-	// Save entry %rsp in case of error 
+	/* Save entry %rsp in case of error  */
 	__(movd %rsp,%mm0)
-	// Extract required arg count. 
+	/* Extract required arg count.  */
 	__(movzbl %nargs_b,%imm0_l)
-	__(je local_label(opt))		// skip if no required args 
+	__(je local_label(opt))		/* skip if no required args  */
 local_label(req_loop):	
 	__(compare_reg_to_nil(%arg_reg))
 	__(je local_label(toofew))
@@ -2832,7 +2832,7 @@ local_label(opt):
 	__(je local_label(rest_keys))
 	__(btl $initopt_bit,%nargs_l)
 	__(jc local_label(opt_supp))
-	// 'simple' &optionals:	 no supplied-p, default to nil. 
+	/* 'simple' &optionals:	 no supplied-p, default to nil.  */
 local_label(simple_opt_loop):
 	__(compare_reg_to_nil(%arg_reg))
 	__(je local_label(default_simple_opt))
@@ -2879,8 +2879,8 @@ local_label(have_rest):
 	__(btl $keyp_bit,%nargs_l)
 	__(jc local_label(have_keys))
 	__(jmp *%ra0)		
-	// Ensure that arg_reg contains a proper,even-length list.
-	// Insist that its length is <= 512 (as a cheap circularity check.) 
+	/* Ensure that arg_reg contains a proper,even-length list. */
+	/* Insist that its length is <= 512 (as a cheap circularity check.)  */
 local_label(have_keys):
 	__(movw $256,%imm0_w)
 	__(movq %arg_reg,%arg_y)
@@ -2899,9 +2899,9 @@ local_label(count_keys_loop):
 	__(_cdr(%arg_y,%arg_y))
 	__(jmp local_label(count_keys_loop))
 local_label(counted_keys):		
-	// We've got a proper, even-length list of key/value pairs in
-	// arg_reg. For each keyword var in the lambda-list, push a pair
-	// of NILs on the vstack. 
+	/* We've got a proper, even-length list of key/value pairs in */
+	/* arg_reg. For each keyword var in the lambda-list, push a pair */
+	/* of NILs on the vstack.  */
 	
 	__(movl %nargs_l,%imm1_l)
 	__(shrl $16,%imm1_l)
@@ -2914,18 +2914,18 @@ local_label(push_pair_loop):
 local_label(push_pair_test):	
 	__(subb $1,%imm1_b)
 	__(jge local_label(push_pair_loop))
-	// Push the %saveN registers, so that we can use them in this loop 
+	/* Push the %saveN registers, so that we can use them in this loop  */
 	__(push %save0)
 	__(push %save1)
 	__(push %save2)
 	__(push %save3)
-	// save0 points to the 0th value/supplied-p pair 
+	/* save0 points to the 0th value/supplied-p pair  */
 	__(movq %arg_y,%save0)
-	// save1 is the length of the keyword vector 
+	/* save1 is the length of the keyword vector  */
 	__(vector_length(%arg_x,%save1))
-	// save2 is the current keyword 
-	// save3 is the value of the current keyword 
-	__(xorl %imm0_l,%imm0_l)	// count unknown keywords seen 
+	/* save2 is the current keyword  */
+	/* save3 is the value of the current keyword  */
+	__(xorl %imm0_l,%imm0_l)	/* count unknown keywords seen  */
 local_label(match_keys_loop):
 	__(compare_reg_to_nil(%arg_reg))
 	__(je local_label(matched_keys))
@@ -2942,19 +2942,19 @@ local_label(match_loop):
 local_label(match_test):
 	__(cmpq %arg_y,%save1)
 	__(jne local_label(match_loop))
-	// No match.  Note unknown keyword, check for :allow-other-keys 
+	/* No match.  Note unknown keyword, check for :allow-other-keys  */
 	__(addl $1,%imm0_l)
 	__(cmpq $nrs.kallowotherkeys,%save2)
 	__(jne local_label(match_keys_loop))
 	__(subl $1,%imm0_l)
 	__(btsl $seen_aok_bit,%nargs_l)
 	__(jnc local_label(match_keys_loop))
-	// First time we've seen :allow-other-keys.  Maybe set aok_bit. 
+	/* First time we've seen :allow-other-keys.  Maybe set aok_bit.  */
 	__(compare_reg_to_nil(%save3))
 	__(je local_label(match_keys_loop))
 	__(btsl $aok_bit,%nargs_l)
 	__(jmp local_label(match_keys_loop))
-	// Got a match.  Worry about :allow-other-keys here, too. 
+	/* Got a match.  Worry about :allow-other-keys here, too.  */
 local_label(matched):
 	__(negq %arg_y)
 	__(cmpb $fulltag_nil,-node_size*2(%save0,%arg_y,2))
@@ -2980,8 +2980,8 @@ local_label(matched_keys):
 	__(jnc local_label(badkeys))
 local_label(keys_ok):	
 	__(jmp *%ra0)
-	// Some unrecognized keywords.  Complain generically about 
-	// invalid keywords. 
+	/* Some unrecognized keywords.  Complain generically about  */
+	/* invalid keywords.  */
 local_label(badkeys):
 	__(movq $XBADKEYS,%arg_y)
 	__(jmp local_label(destructure_error))
@@ -2993,9 +2993,9 @@ local_label(toofew):
 	__(jmp local_label(destructure_error))
 local_label(badlist):
 	__(movq $XCALLNOMATCH,%arg_y)
-	// jmp local_label(destructure_error) 
+	/* jmp local_label(destructure_error)  */
 local_label(destructure_error):
-	__(movd %mm0,%rsp)		// undo everything done to the stack 
+	__(movd %mm0,%rsp)		/* undo everything done to the stack  */
 	__(movq %whole_reg,%arg_z)
 	__(set_nargs(2))
 	__(jmp _SPksignalerr)
@@ -3030,8 +3030,8 @@ _endsubp(destructuring_bind_inner)
 _spentry(vpopargregs)
 _endsubp(vpopargregs)
 
-// If arg_z is an integer, return in imm0 something whose sign
-// is the same as arg_z's.  If not an integer, error. 
+/* If arg_z is an integer, return in imm0 something whose sign */
+/* is the same as arg_z's.  If not an integer, error.  */
 _spentry(integer_sign)
 	__(testb $tagmask,%arg_z_b)
 	__(movq %arg_z,%imm0)
@@ -3048,8 +3048,8 @@ _spentry(integer_sign)
 9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_integer))
 _endsubp(integer_sign)
 
-// "slide" nargs worth of values up the stack.  IMM0 contains 
-// the difference between the current RSP and the target. 
+/* "slide" nargs worth of values up the stack.  IMM0 contains  */
+/* the difference between the current RSP and the target.  */
 _spentry(mvslide)
 	__(movzwl %nargs,%nargs_l)
 	__(movl %nargs_l,%imm1_l)
@@ -3070,11 +3070,11 @@ _endsubp(mvslide)
 
 _spentry(save_values)
 	__(movd %tsp,%imm1)
-// common exit: nargs = values in this set, imm1 = ptr to tsp before call to save_values 
+/* common exit: nargs = values in this set, imm1 = ptr to tsp before call to save_values  */
 local_label(save_values_to_tsp):
 	__(movzwl %nargs,%nargs_l)
 	__(movd %tsp,%arg_x)
-	__(dnode_align(%nargs_q,tsp_frame.fixed_overhead+(2*node_size),%imm0)) // count, link 
+	__(dnode_align(%nargs_q,tsp_frame.fixed_overhead+(2*node_size),%imm0)) /* count, link  */
 	__(TSP_Alloc_Var(%imm0,%arg_z))
 	__(movd %tsp,%imm0)
 	__(movq %imm1,(%imm0))
@@ -3094,13 +3094,13 @@ local_label(save_values_to_tsp):
 	__(jmp *%ra0)			
 _endsubp(save_values)
 
-// Add the multiple values that are on top of the vstack to the set
-// saved in the top tsp frame, popping them off of the vstack in the
-// process.  It is an error (a bad one) if the TSP contains something
-// other than a previously saved set of multiple-values.
-// Since adding to the TSP may cause a new TSP segment to be allocated,
-// each add_values call adds another linked element to the list of
-// values. This makes recover_values harder. 
+/* Add the multiple values that are on top of the vstack to the set */
+/* saved in the top tsp frame, popping them off of the vstack in the */
+/* process.  It is an error (a bad one) if the TSP contains something */
+/* other than a previously saved set of multiple-values. */
+/* Since adding to the TSP may cause a new TSP segment to be allocated, */
+/* each add_values call adds another linked element to the list of */
+/* values. This makes recover_values harder.  */
 _spentry(add_values)
 	__(testw %nargs,%nargs)
 	__(movd %tsp,%imm1)
@@ -3109,30 +3109,30 @@ _spentry(add_values)
 	__(jmp *%ra0)
 _endsubp(add_values)
 
-// push the values in the value set atop the sp, incrementing nargs.
-// Discard the tsp frame; leave values atop the sp. 
+/* push the values in the value set atop the sp, incrementing nargs. */
+/* Discard the tsp frame; leave values atop the sp.  */
 	
 _spentry(recover_values)
-	// First, walk the segments reversing the pointer to previous
-	// segment pointers Can tell the end because that previous
-	// segment pointer is the prev tsp pointer 
+	/* First, walk the segments reversing the pointer to previous */
+	/* segment pointers Can tell the end because that previous */
+	/* segment pointer is the prev tsp pointer  */
 	__(movd %tsp,%temp1)
-	__(movq %temp1,%arg_x)	// current segment 
-	__(movq %temp1,%arg_y)	// last segment 
-	__(movq tsp_frame.backlink(%temp1),%arg_z)	// previous tsp 
+	__(movq %temp1,%arg_x)	/* current segment  */
+	__(movq %temp1,%arg_y)	/* last segment  */
+	__(movq tsp_frame.backlink(%temp1),%arg_z)	/* previous tsp  */
 local_label(walkloop):
 	__(movq tsp_frame.fixed_overhead+node_size(%arg_x),%temp0)
-	__(cmpq %temp0,%arg_z)	// last segment ? 
+	__(cmpq %temp0,%arg_z)	/* last segment ?  */
 	__(movq %arg_y,tsp_frame.fixed_overhead+node_size(%arg_x))
-	__(movq %arg_x,%arg_y)	// last segment <- current segment 
-	__(movq %temp0,%arg_x)	// current segment <- next segment 
+	__(movq %arg_x,%arg_y)	/* last segment <- current segment  */
+	__(movq %temp0,%arg_x)	/* current segment <- next segment  */
 	__(jne local_label(walkloop))
 
 	__(movzwl %nargs,%nargs_l)
-	// the final segment pointer is now in %arg_y
-	// walk backwards, pushing values on the stack and incrementing %nargs 
+	/* the final segment pointer is now in %arg_y */
+	/* walk backwards, pushing values on the stack and incrementing %nargs  */
 local_label(pushloop):
-	__(movq tsp_frame.data_offset(%arg_y),%imm0)	// nargs in segment 
+	__(movq tsp_frame.data_offset(%arg_y),%imm0)	/* nargs in segment  */
 	__(testq %imm0,%imm0)
 	__(leaq tsp_frame.data_offset+(2*node_size)(%arg_y,%imm0),%temp0)
 	__(leaq (%nargs_q,%imm0),%nargs_q)
@@ -3149,27 +3149,27 @@ local_label(pushloop):
 	__(jmp *%ra0)		
 _endsubp(recover_values)
 
-// Exactly like recover_values, but it's necessary to reserve an outgoing
-// frame if any values (which will be used as outgoing arguments) will
-// wind up on the stack.  We can assume that %nargs contains 0 (and
-// that no other arguments have been pushed) on entry. 
+/* Exactly like recover_values, but it's necessary to reserve an outgoing */
+/* frame if any values (which will be used as outgoing arguments) will */
+/* wind up on the stack.  We can assume that %nargs contains 0 (and */
+/* that no other arguments have been pushed) on entry.  */
                 
 _spentry(recover_values_for_mvcall)
-	// First, walk the segments reversing the pointer to previous
-	// segment pointers Can tell the end because that previous
-	// segment pointer is the prev tsp pointer 
+	/* First, walk the segments reversing the pointer to previous */
+	/* segment pointers Can tell the end because that previous */
+	/* segment pointer is the prev tsp pointer  */
         __(xorl %nargs_l,%nargs_l)
 	__(movd %tsp,%temp1)
-	__(movq %temp1,%arg_x)	// current segment 
-	__(movq %temp1,%arg_y)	// last segment 
-	__(movq tsp_frame.backlink(%temp1),%arg_z)	// previous tsp 
+	__(movq %temp1,%arg_x)	/* current segment  */
+	__(movq %temp1,%arg_y)	/* last segment  */
+	__(movq tsp_frame.backlink(%temp1),%arg_z)	/* previous tsp  */
 local_label(walkloop_mvcall):
 	__(movq tsp_frame.fixed_overhead+node_size(%arg_x),%temp0)
         __(addq tsp_frame.data_offset(%arg_x),%nargs_q)	
-	__(cmpq %temp0,%arg_z)	// last segment ? 
+	__(cmpq %temp0,%arg_z)	/* last segment ?  */
 	__(movq %arg_y,tsp_frame.fixed_overhead+node_size(%arg_x))
-	__(movq %arg_x,%arg_y)	// last segment <- current segment 
-	__(movq %temp0,%arg_x)	// current segment <- next segment 
+	__(movq %arg_x,%arg_y)	/* last segment <- current segment  */
+	__(movq %temp0,%arg_x)	/* current segment <- next segment  */
 	__(jne local_label(walkloop_mvcall))
 
         __(cmpw $nargregs*node_size,%nargs)
@@ -3177,10 +3177,10 @@ local_label(walkloop_mvcall):
         __(push $reserved_frame_marker)
         __(push $reserved_frame_marker)
 
-	// the final segment pointer is now in %arg_y
-	// walk backwards, pushing values on the stack and incrementing %nargs 
+	/* the final segment pointer is now in %arg_y */
+	/* walk backwards, pushing values on the stack and incrementing %nargs  */
 local_label(pushloop_mvcall):
-	__(movq tsp_frame.data_offset(%arg_y),%imm0)	// nargs in segment 
+	__(movq tsp_frame.data_offset(%arg_y),%imm0)	/* nargs in segment  */
 	__(testq %imm0,%imm0)
 	__(leaq tsp_frame.data_offset+(2*node_size)(%arg_y,%imm0),%temp0)
 	__(jmp 2f)
@@ -3302,7 +3302,7 @@ _endsubp(gets64)
 _spentry(makeu64)
 	__(movq %imm0,%imm1)
 	__(shlq $fixnumshift+1,%imm1)
-	__(movq %imm1,%arg_z)	// Tagged as a fixnum, 2x  
+	__(movq %imm1,%arg_z)	/* Tagged as a fixnum, 2x   */
 	__(shrq $fixnumshift+1,%imm1)
 	__(shrq %arg_z)
 	__(cmpq %imm0,%imm1)
@@ -3310,7 +3310,7 @@ _spentry(makeu64)
 	__(testq %imm0,%imm0)
 	__(movd %imm0,%mm0)
 	__(js 3f)
-	// Make a 2-digit bignum. 
+	/* Make a 2-digit bignum.  */
 	__(movl $two_digit_bignum_header,%imm0_l)
 	__(movl $aligned_bignum_size(2),%imm1_l)
 	__(Misc_Alloc(%arg_z))
@@ -3323,8 +3323,8 @@ _spentry(makeu64)
 9:	__(jmp *%ra0)
 _endsubp(makeu64)
 
-// on entry: arg_z = symbol.  On exit, arg_z = value (possibly
-// unbound_marker), arg_y = symbol 
+/* on entry: arg_z = symbol.  On exit, arg_z = value (possibly */
+/* unbound_marker), arg_y = symbol  */
 _spentry(specref)
 	__(movq symbol.binding_index(%arg_z),%imm0)
 	__(cmp %rcontext:tcr.tlb_limit,%imm0)
@@ -3338,7 +3338,7 @@ _spentry(specref)
 8:	__(jmp *%ra0)		
 _endsubp(specref)
 
-// arg_y = special symbol, arg_z = new value.         
+/* arg_y = special symbol, arg_z = new value.          */
 _spentry(specset)
 	__(movq symbol.binding_index(%arg_y),%imm0)
 	__(cmp %rcontext:tcr.tlb_limit,%imm0)
@@ -3434,8 +3434,8 @@ _spentry(unbind_to)
 _endsubp(unbind_to)
 
 
-// Bind CCL::*INTERRUPT-LEVEL* to 0.  If its value had been negative, check 
-// for pending interrupts after doing so. 
+/* Bind CCL::*INTERRUPT-LEVEL* to 0.  If its value had been negative, check  */
+/* for pending interrupts after doing so.  */
 	
 _spentry(bind_interrupt_level_0)
 	__(movq %rcontext:tcr.tlb_pointer,%temp1)
@@ -3447,14 +3447,14 @@ _spentry(bind_interrupt_level_0)
 	__(movq %rsp,%rcontext:tcr.db_link)
 	__(js,pn 1f)
 0:	__(jmp *%ra0)
-	// Interrupt level was negative; interrupt may be pending 
+	/* Interrupt level was negative; interrupt may be pending  */
 1:	__(check_pending_enabled_interrupt(2f))
 2:	__(jmp *%ra0)
 _endsubp(bind_interrupt_level_0)
 	
 
-// Bind CCL::*INTERRUPT-LEVEL* to the fixnum -1.  (This has the effect
-// of disabling interrupts.) 
+/* Bind CCL::*INTERRUPT-LEVEL* to the fixnum -1.  (This has the effect */
+/* of disabling interrupts.)  */
 
 _spentry(bind_interrupt_level_m1)
 	__(movq %rcontext:tcr.tlb_pointer,%temp1)
@@ -3466,8 +3466,8 @@ _spentry(bind_interrupt_level_m1)
 	__(jmp *%ra0)
 _endsubp(bind_interrupt_level_m1)
 
-// Bind CCL::*INTERRUPT-LEVEL* to the value in arg_z.  If that value's 0,
-// do what _SPbind_interrupt_level_0 does 
+/* Bind CCL::*INTERRUPT-LEVEL* to the value in arg_z.  If that value's 0, */
+/* do what _SPbind_interrupt_level_0 does  */
 _spentry(bind_interrupt_level)
 	__(testq %arg_z,%arg_z)
 	__(movq %rcontext:tcr.tlb_pointer,%temp1)
@@ -3480,8 +3480,8 @@ _spentry(bind_interrupt_level)
 	__(jmp *%ra0)
 _endsubp(bind_interrupt_level)
 
-// Unbind CCL::*INTERRUPT-LEVEL*.  If the value changes from negative to
-// non-negative, check for pending interrupts.  
+/* Unbind CCL::*INTERRUPT-LEVEL*.  If the value changes from negative to */
+/* non-negative, check for pending interrupts.   */
 	
 _spentry(unbind_interrupt_level)
 	__(movq %rcontext:tcr.db_link,%imm1)
@@ -3503,7 +3503,7 @@ _endsubp(unbind_interrupt_level)
 	
 _spentry(progvrestore)
 	__(movd %tsp,%imm0)
-	__(movq tsp_frame.backlink(%imm0),%imm0) // ignore .SPnthrowXXX values frame 
+	__(movq tsp_frame.backlink(%imm0),%imm0) /* ignore .SPnthrowXXX values frame  */
 	__(movq tsp_frame.data_offset(%imm0),%imm0)
 	__(shrq $fixnumshift,%imm0)
 	__(jne _SPunbind_n)
@@ -3511,8 +3511,8 @@ _spentry(progvrestore)
 _endsubp(progvrestore)
 	
 
-// %arg_z <- %arg_y + %arg_z.  Do the fixnum case - including overflow -
-// inline.  Call out otherwise. 
+/* %arg_z <- %arg_y + %arg_z.  Do the fixnum case - including overflow - */
+/* inline.  Call out otherwise.  */
 _spentry(builtin_plus)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3525,8 +3525,8 @@ _spentry(builtin_plus)
 _endsubp(builtin_plus)
 	
 
-// %arg_z <- %arg_z - %arg_y.  Do the fixnum case - including overflow -
-//  inline.  Call out otherwise. 
+/* %arg_z <- %arg_z - %arg_y.  Do the fixnum case - including overflow - */
+/*  inline.  Call out otherwise.  */
 _spentry(builtin_minus)			
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3539,16 +3539,16 @@ _spentry(builtin_minus)
 1:	__(jump_builtin(_builtin_minus,2))
 _endsubp(builtin_minus)
 
-// %arg_z <- %arg_z * %arg_y.  Do the fixnum case - including overflow -
-// inline.  Call out otherwise. 
+/* %arg_z <- %arg_z * %arg_y.  Do the fixnum case - including overflow - */
+/* inline.  Call out otherwise.  */
 _spentry(builtin_times)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
 	__(testb $fixnummask,%imm0_b)
 	__(jne 2f)
 	__(unbox_fixnum(%arg_z,%imm0))
-	// 128-bit fixnum result in %imm1:%imm0. Overflow set if %imm1
-	// is significant 
+	/* 128-bit fixnum result in %imm1:%imm0. Overflow set if %imm1 */
+	/* is significant  */
 	__(imul %arg_y)
 	__(jo 1f)
 	__(mov %imm0,%arg_z)
@@ -3563,7 +3563,7 @@ _endsubp(builtin_times)
 _spentry(builtin_div)
 	__(jump_builtin(_builtin_div,2))
 
-// %arg_z <- (= %arg_y %arg_z).	
+/* %arg_z <- (= %arg_y %arg_z).	 */
 _spentry(builtin_eq)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3575,7 +3575,7 @@ _spentry(builtin_eq)
 1:	__(jump_builtin(_builtin_eq,2))
 _endsubp(builtin_eq)
 	
-// %arg_z <- (/= %arg_y %arg_z).	
+/* %arg_z <- (/= %arg_y %arg_z).	 */
 _spentry(builtin_ne)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3587,7 +3587,7 @@ _spentry(builtin_ne)
 1:	__(jump_builtin(_builtin_ne,2))
 _endsubp(builtin_ne)
 	
-// %arg_z <- (> %arg_y %arg_z).	
+/* %arg_z <- (> %arg_y %arg_z).	 */
 _spentry(builtin_gt)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3599,7 +3599,7 @@ _spentry(builtin_gt)
 1:	__(jump_builtin(_builtin_gt,2))
 _endsubp(builtin_gt)
 
-// %arg_z <- (>= %arg_y %arg_z).	
+/* %arg_z <- (>= %arg_y %arg_z).	 */
 _spentry(builtin_ge)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3611,7 +3611,7 @@ _spentry(builtin_ge)
 1:	__(jump_builtin(_builtin_ge,2))
 _endsubp(builtin_ge)
 	
-// %arg_z <- (< %arg_y %arg_z).	
+/* %arg_z <- (< %arg_y %arg_z).	 */
 _spentry(builtin_lt)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3623,7 +3623,7 @@ _spentry(builtin_lt)
 1:	__(jump_builtin(_builtin_lt,2))
 _endsubp(builtin_lt)
 
-// %arg_z <- (<= %arg_y %arg_z). 
+/* %arg_z <- (<= %arg_y %arg_z).  */
 _spentry(builtin_le)
 	__(movb %arg_z_b,%imm0_b)
 	__(orb %arg_y_b,%imm0_b)
@@ -3638,8 +3638,8 @@ _endsubp(builtin_le)
 _spentry(builtin_eql)
 	__(cmpq %arg_y,%arg_z)
 	__(je 1f)
-	// Not EQ.  Could only possibly be EQL if both are tag-misc
-	// and both have the same subtag 
+	/* Not EQ.  Could only possibly be EQL if both are tag-misc */
+	/* and both have the same subtag  */
 	__(extract_lisptag(%arg_y,%imm0))
 	__(extract_lisptag(%arg_z,%imm1))
 	__(cmpb $tag_misc,%imm0_b)
@@ -3667,17 +3667,17 @@ _spentry(builtin_length)
 	__(rcmpb(%imm0_b,$min_vector_subtag))
 	__(jb 8f)
 	__(je 1f)
-	// (simple-array * (*)) 
+	/* (simple-array * (*))  */
 	__(movq %arg_z,%arg_y)
 	__(vector_length(%arg_y,%arg_z))
 	__(jmp *%ra0)
-1:	// vector header 
+1:	/* vector header  */
 	__(movq vectorH.logsize(%arg_z),%arg_z)
 	__(jmp *%ra0)
-2:	// list.  Maybe null, maybe dotted or circular. 
+2:	/* list.  Maybe null, maybe dotted or circular.  */
 	__(movq $-fixnumone,%temp2)
-	__(movq %arg_z,%temp0)	// fast pointer 
-	__(movq %arg_z,%temp1)  // slow pointer 
+	__(movq %arg_z,%temp0)	/* fast pointer  */
+	__(movq %arg_z,%temp1)  /* slow pointer  */
 3:	__(extract_lisptag(%temp0,%imm0))	
 	__(compare_reg_to_nil(%temp0))
 	__(leaq fixnumone(%temp2),%temp2)
@@ -3837,10 +3837,10 @@ _spentry(builtin_aset1)
 	__(jump_builtin(_builtin_aset1,3))
 _endsubp(builtin_aset1)
 
-// We have to be a little careful here	%cl has to be used for
-//   the (unboxed) shift count in all variable-length shifts, and
-//   %temp2 = %rcx.  Zero all but the low 8 (or 6) bits of %rcx,
-//   so that the shift count doesn't confuse the GC.
+/* We have to be a little careful here	%cl has to be used for */
+/*   the (unboxed) shift count in all variable-length shifts, and */
+/*   %temp2 = %rcx.  Zero all but the low 8 (or 6) bits of %rcx, */
+/*   so that the shift count doesn't confuse the GC. */
 
 _spentry(builtin_ash)
 	__(movb %arg_y_b,%imm0_b)
@@ -3849,9 +3849,9 @@ _spentry(builtin_ash)
 	__(jne 9f)
 	__(unbox_fixnum(%arg_y,%imm1))
 	__(unbox_fixnum(%arg_z,%imm0))
-	// Z flag set if zero ASH shift count 
+	/* Z flag set if zero ASH shift count  */
 	__(jnz 1f)
-	__(movq %arg_y,%arg_z)	// shift by 0 
+	__(movq %arg_y,%arg_z)	/* shift by 0  */
 	__(jmp *%ra0)
 1:	__(jns 3f)
 	__(rcmpq(%imm0,$-63))
@@ -3859,23 +3859,23 @@ _spentry(builtin_ash)
 	__(sar $63,%imm1)
 	__(box_fixnum(%imm1,%arg_z))
 	__(jmp *%ra0)
-2:	// Right-shift by small fixnum 
+2:	/* Right-shift by small fixnum  */
 	__(negb %imm0_b)
 	__(movzbl %imm0_b,%ecx)
 	__(sar %cl,%imm1)
 	__(xorl %ecx,%ecx)
 	__(box_fixnum(%imm1,%arg_z))
 	__(jmp *%ra0)
-3:      // Left shift by fixnum. We cant shift by more than 63 bits, though
-	// shifting by 64 is actually easy. 
+3:      /* Left shift by fixnum. We cant shift by more than 63 bits, though */
+	/* shifting by 64 is actually easy.  */
 	__(rcmpq(%imm0,$64))
 	__(jg 9f)
 	__(jne 4f)
-	// left-shift by 64-bits exactly 
+	/* left-shift by 64-bits exactly  */
 	__(xorl %imm0_l,%imm0_l)
 	__(jmp C(makes128))
-4:	// left-shift by 1..63 bits.  Safe to move shift count to %rcx/%cl 
-	__(movzbl %imm0_b,%ecx)	 // zero-extending mov 
+4:	/* left-shift by 1..63 bits.  Safe to move shift count to %rcx/%cl  */
+	__(movzbl %imm0_b,%ecx)	 /* zero-extending mov  */
 	__(movq %imm1,%imm0)
 	__(sarq $63,%imm1)
 	__(js 5f)
@@ -3899,30 +3899,30 @@ _spentry(builtin_aref1)
 	__(jump_builtin(_builtin_aref1,2))
 _endsubp(builtin_aref1)
 
-// Arg_z is either a MACPTR containing the function address or a boxed fixnum.
-//   %imm0.b (aka %al) contains the number (0-7) of args passed in FP regs.
-//   On entry, the foreign stack contains a frame containing at least 8 words:
+/* Arg_z is either a MACPTR containing the function address or a boxed fixnum. */
+/*   %imm0.b (aka %al) contains the number (0-7) of args passed in FP regs. */
+/*   On entry, the foreign stack contains a frame containing at least 8 words: */
 
-//   * -> aligned on 16-byte boundary
-//  *backlink	<-	foreign %rsp		
-//   unused
-//   scalar arg 0		passed in %rdi
-//   scalar arg 1         passed in %rsi
-//   scalar arg 2		passed in %rdx
-//   scalar arg 3		passed in %rcx
-//   scalar arg 4		passed in %r8
-//   scalar arg 5		passed in %r9
-//  *address of first memory arg
-//   ...
-//   possible scratch space
-//  *previous %rsp value
+/*   * -> aligned on 16-byte boundary */
+/*  *backlink	<-	foreign %rsp		 */
+/*   unused */
+/*   scalar arg 0		passed in %rdi */
+/*   scalar arg 1         passed in %rsi */
+/*   scalar arg 2		passed in %rdx */
+/*   scalar arg 3		passed in %rcx */
+/*   scalar arg 4		passed in %r8 */
+/*   scalar arg 5		passed in %r9 */
+/*  *address of first memory arg */
+/*   ... */
+/*   possible scratch space */
+/*  *previous %rsp value */
 
-//   Any floating-point args will have been loaded into %xmm0-%xmm7 by the caller.
-//   When this returns, the foreign %rsp will contain its previous value, and
-//   the function result will be in %rax (and possibly %rdx) or %xmm0 (+ %xmm1).
+/*   Any floating-point args will have been loaded into %xmm0-%xmm7 by the caller. */
+/*   When this returns, the foreign %rsp will contain its previous value, and */
+/*   the function result will be in %rax (and possibly %rdx) or %xmm0 (+ %xmm1). */
 
 _spentry(ffcall)
-	// Save lisp registers 
+	/* Save lisp registers  */
 	__(push %temp0)
 	__(push %temp1)
 	__(push %temp2)
@@ -3998,7 +3998,7 @@ _spentry(ffcall)
 _endsubp(ffcall)
 
 _spentry(syscall)
-	// Save lisp registers 
+	/* Save lisp registers  */
 	__(push %temp0)
 	__(push %temp1)
 	__(push %temp2)
@@ -4024,7 +4024,7 @@ _spentry(syscall)
 	__(pop %rdi)
 	__(pop %rsi)
 	__(pop %rdx)
-	__(pop %r10)		//  syscalls take 4th param in %r10, not %rcx 
+	__(pop %r10)		/*  syscalls take 4th param in %r10, not %rcx  */
 	__(pop %r8)
 	__(pop %r9)
 	__(syscall)
@@ -4064,8 +4064,8 @@ _spentry(syscall)
 	__(jmp *%ra0)
 _endsubp(syscall)		
 
-// We need to reserve a frame here if (a) nothing else was already pushed and (b)
-//   we push something (e.g., more than 3 args in the lexpr) 	
+/* We need to reserve a frame here if (a) nothing else was already pushed and (b) */
+/*   we push something (e.g., more than 3 args in the lexpr) 	 */
 _spentry(spread_lexprz)
 	new_local_labels()
 	__(movq (%arg_z),%imm0)
@@ -4099,11 +4099,11 @@ local_label(go):
 	__(jmp local_label(three))
 _endsubp(spread_lexprz)
 	
-// NYI, but should be :	
+/* NYI, but should be :	 */
 	
 
 
-// FFI stuff, needs to be renamed and some flavor(s) implemented 		
+/* FFI stuff, needs to be renamed and some flavor(s) implemented 		 */
 _spentry(poweropen_callbackX)
 _endsubp(poweropen_callbackX)
 	
@@ -4111,20 +4111,20 @@ _endsubp(poweropen_callbackX)
 _spentry(poweropen_ffcallX)
 _endsubp(poweropen_ffcallX)
 
-// Callback index in %r11 	
+/* Callback index in %r11 	 */
 _spentry(callback)
 	__(push %rbp)
 	__(movq %rsp,%rbp)
-	// C scalar args 
-	__(push %rdi)	// -8(%rbp) 
+	/* C scalar args  */
+	__(push %rdi)	/* -8(%rbp)  */
 	__(push %rsi)
 	__(push %rdx)
 	__(push %rcx)
 	__(push %r8)
 	__(push %r9)
-	// FP arg regs 
+	/* FP arg regs  */
 	__(subq $8*8,%rsp)
-	__(movq %xmm0,7*8(%rsp))	// -56(%rbp) 
+	__(movq %xmm0,7*8(%rsp))	/* -56(%rbp)  */
 	__(movq %xmm1,6*8(%rsp))
 	__(movq %xmm2,5*8(%rsp))
 	__(movq %xmm3,4*8(%rsp))
@@ -4132,14 +4132,14 @@ _spentry(callback)
 	__(movq %xmm5,2*8(%rsp))
 	__(movq %xmm6,1*8(%rsp))
 	__(movq %xmm7,0*8(%rsp))
-	// C NVRs 
+	/* C NVRs  */
 	__(push %r12)
 	__(push %r13)
 	__(push %r14)
 	__(push %r15)
 	__(push %rbx)
 	__(push %rbp)
-	// TCR initialized for lisp ? 
+	/* TCR initialized for lisp ?  */
 	__(movq %fs:current_tcr@TPOFF+tcr.linear,%rax)
 	__(testq %rax,%rax)
 	__(jne 1f)
@@ -4148,10 +4148,10 @@ _spentry(callback)
 	__(movq $1,%rdi)
 	__(movq %r12,%r11)
 	__(call *%rax)
-1:	// Align foreign stack for lisp 
+1:	/* Align foreign stack for lisp  */
         __(subq $node_size,%rsp)
 	__(pushq %rcontext:tcr.foreign_sp)
-	// init lisp registers 
+	/* init lisp registers  */
 	__(movq %r11,%rax)
 	__(movq %rcontext:tcr.save_tsp,%tsp)
 	__(movq %tsp,%next_tsp)
@@ -4213,7 +4213,7 @@ _spentry(eabi_callback)
 _endsubp(eabi_callback)
 
 
-// Unused, and often not used on PPC either 	
+/* Unused, and often not used on PPC either */
 _spentry(callbuiltin)
 	__(int $3)
 _endsubp(callbuiltin)

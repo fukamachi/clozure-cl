@@ -14,7 +14,7 @@
    http://opensource.franz.com/preamble.html
 */
 
-typedef uint8_t opcode, *pc;
+typedef u8_t opcode, *pc;
 
 #ifdef LINUX
 #ifdef X8664

@@ -2926,6 +2926,7 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
   copy_ivector_reference(&(regs[Ifn]), low, high, to, what);
   copy_ivector_reference(&(regs[Itemp0]), low, high, to, what);
   copy_ivector_reference(&(regs[Itemp1]), low, high, to, what);
+  copy_ivector_reference(&(regs[Itemp2]), low, high, to, what);
   purify_locref(&(regs[Iip]), low, high, to, what);
 #else
 #endif

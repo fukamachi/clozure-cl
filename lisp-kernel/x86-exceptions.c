@@ -628,7 +628,7 @@ altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *cont
 
   if (foreign_rsp) {
 #ifdef LINUX
-    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs)
+    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
 #endif
     foreign_rsp = copy_siginfo(info, foreign_rsp);
     info_copy = (siginfo_t *)foreign_rsp;
