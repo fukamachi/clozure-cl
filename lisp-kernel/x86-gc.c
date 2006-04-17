@@ -259,8 +259,7 @@ mark_root(LispObj n)
     return;
   }
 
-  if ((tag_n == fulltag_tra_0) ||
-      (tag_n == fulltag_tra_1)) {
+  if (tag_of(n) == tag_tra) {
     n = n - (((int *)n)[-1]);
     tag_n = fulltag_function;
   }
@@ -349,6 +348,9 @@ mark_root(LispObj n)
 
       if (subtag == subtag_function) {
 	prefix_nodes = (natural) ((int) deref(base,1));
+        if (prefix_nodes > element_count) {
+          Bug(NULL, "Function 0x%lx trashed",n);
+        }
       }
       base += (1+element_count);
 
@@ -423,8 +425,7 @@ rmark(LispObj n)
     return;
   }
 
-  if ((tag_n == fulltag_tra_0) ||
-      (tag_n == fulltag_tra_1)) {
+  if (tag_of(n) == tag_tra) {
     n -= ((int *)n)[-1];
     tag_n = fulltag_function;    
   }
@@ -513,6 +514,9 @@ rmark(LispObj n)
       nmark = element_count;
 
       if (subtag == subtag_function) {
+        if ((int)base[1] >= nmark) {
+          Bug(NULL,"Bad function at 0x%lx",n);
+        }
 	nmark -= (int)base[1];
       }
 
@@ -1352,6 +1356,7 @@ mark_xp(ExceptionInformation *xp)
   mark_root(regs[Ifn]);
   mark_root(regs[Itemp0]);
   mark_root(regs[Itemp1]);
+  mark_root(regs[Itemp2]);
   /* If the IP isn't pointing into a marked function,
      we're in big trouble.  Check for that here ? */
 }
@@ -1917,6 +1922,7 @@ forward_xp(ExceptionInformation *xp)
   update_noderef(&(regs[Ifn]));
   update_noderef(&(regs[Itemp0]));
   update_noderef(&(regs[Itemp1]));
+  update_noderef(&(regs[Itemp2]));
   update_locref(&(regs[Iip]));
 }
 
@@ -2067,7 +2073,9 @@ compact_dynamic_heap()
           dnode += node_dnodes;
 	  if (header_subtag(node) == subtag_function) {
 	    int skip = *((int *)src);
-
+            if (skip >= elements) {
+              Bug(NULL,"Bad function code words near 0x%lx", src-1);
+            }
 	    *dest++ = node;
 	    elements -= skip;
 	    while(skip--) {
