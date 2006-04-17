@@ -20,7 +20,7 @@ AS = as
 M4 = m4
 ASFLAGS = --64
 M4FLAGS = -DLINUX -DX86 -DX8664
-CDEFINES = -DLINUX -D_REENTRANT -DX86 -DX8664 -D_GNU_SOURCE -DHAVE_TLS -DDISABLE_EGC
+CDEFINES = -DLINUX -D_REENTRANT -DX86 -DX8664 -D_GNU_SOURCE -DHAVE_TLS #-DDISABLE_EGC
 CDEBUG = -g
 COPT = #-O2
 
@@ -53,10 +53,11 @@ all:	../../lx86cl64
 
 
 OSLIBS = -ldl -lm -lpthread
+LINK_MAP = ./elf_x86_64.x
+USE_LINK_MAP = # -T ./elf_x86_64.x
 
-
-../../lx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) Makefile  ./elf_x86_64.x
-	$(CC)  -m64 $(CDEBUG)  -Wl,--export-dynamic  -o $@ -T ./elf_x86_64.x $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
+../../lx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) Makefile  $(LINK_MAP)
+	$(CC)  -m64 $(CDEBUG)  -Wl,--export-dynamic  -o $@ $(USE_LINK_MAP) $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
 
 
 $(SPOBJ): $(SPINC)
