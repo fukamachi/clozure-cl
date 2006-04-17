@@ -45,6 +45,7 @@ typedef u8_t opcode, *pc;
 #endif
 #endif
 
+
 #ifdef DARWIN
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
 #endif
@@ -74,4 +75,7 @@ void switch_to_foreign_stack(void*, ...);
 
 #define XUUO_TLB_TOO_SMALL 1
 #define XUUO_INTERRUPT_NOW 2
+
+void
+pc_luser_xp(ExceptionInformation*, TCR*, Boolean);
 
