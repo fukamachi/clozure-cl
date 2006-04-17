@@ -160,6 +160,9 @@ typedef struct area_list {
 #ifdef FREEBSD
 #define IMAGE_BASE_ADDRESS 0x100000000L
 #endif
+#ifdef SOLARIS
+#define IMAGE_BASE_ADDRESS 0x300000000000L
+#endif
 #endif
 
 #define PURESPACE_RESERVE 0x04000000 /* 64MB */
