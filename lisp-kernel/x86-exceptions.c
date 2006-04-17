@@ -514,7 +514,7 @@ void
 raise_pending_interrupt(TCR *tcr)
 {
   if (TCR_INTERRUPT_LEVEL(tcr) > 0) {
-    pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), SIGNAL_FOR_PROCESS_INTERRUPT);
+    pthread_kill((pthread_t)(tcr->osid), SIGNAL_FOR_PROCESS_INTERRUPT);
   }
 }
 
@@ -554,6 +554,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
   /* raise_pending_interrupt(tcr); */
 }
 
+#ifdef LINUX
 LispObj *
 copy_fpregs(ExceptionInformation *xp, LispObj *current, fpregset_t *destptr)
 {
@@ -567,6 +568,7 @@ copy_fpregs(ExceptionInformation *xp, LispObj *current, fpregset_t *destptr)
   }
   return current;
 }
+#endif
 
 LispObj *
 copy_siginfo(siginfo_t *info, LispObj *current)
@@ -576,8 +578,14 @@ copy_siginfo(siginfo_t *info, LispObj *current)
   return (LispObj *)dest;
 }
 
+#ifdef LINUX
+typedef fpregset_t copy_ucontext_last_arg_t;
+#else
+typedef void * copy_ucontext_last_arg_t;
+#endif
+
 LispObj *
-copy_ucontext(ExceptionInformation *context, LispObj *current, fpregset_t fp)
+copy_ucontext(ExceptionInformation *context, LispObj *current, copy_ucontext_last_arg_t fp)
 {
   ExceptionInformation *dest = ((ExceptionInformation *)current)-1;
   dest = (ExceptionInformation *) (((LispObj)dest) & ~15);
@@ -585,7 +593,9 @@ copy_ucontext(ExceptionInformation *context, LispObj *current, fpregset_t fp)
   *dest = *context;
   /* Fix it up a little; where's the signal mask allocated, if indeed
      it is "allocated" ? */
+#ifdef LINUX
   dest->uc_mcontext.fpregs = fp;
+#endif
   dest->uc_stack.ss_sp = 0;
   dest->uc_stack.ss_size = 0;
   dest->uc_stack.ss_flags = 0;
@@ -608,12 +618,18 @@ altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *cont
 {
   TCR* tcr = get_tcr(true);
   LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area);
+#ifdef LINUX
   fpregset_t fpregs = NULL;
+#else
+  void *fpregs = NULL;
+#endif
   siginfo_t *info_copy = NULL;
   ExceptionInformation *xp = NULL;
 
   if (foreign_rsp) {
-    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
+#ifdef LINUX
+    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs)
+#endif
     foreign_rsp = copy_siginfo(info, foreign_rsp);
     info_copy = (siginfo_t *)foreign_rsp;
     foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
@@ -667,10 +683,16 @@ altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *c
 {
   TCR *tcr = get_interrupt_tcr(false);
   LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area);
+#ifdef LINUX
   fpregset_t fpregs = NULL;
+#else
+  void *fpregs = NULL;
+#endif
 
   if (foreign_rsp) {
+#ifdef LINUX
     foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
+#endif
     foreign_rsp = copy_siginfo(info, foreign_rsp);
     foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
     *--foreign_rsp = (LispObj)__builtin_return_address(0);
