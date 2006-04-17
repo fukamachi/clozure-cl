@@ -29,15 +29,15 @@
 #endif
 
 #if WORD_SIZE == 64
-typedef u_int64_t LispObj;
-typedef u_int64_t natural;
+typedef uint64_t LispObj;
+typedef uint64_t natural;
 typedef int64_t signed_natural;
-typedef u_int64_t unsigned_of_pointer_size;
+typedef uint64_t unsigned_of_pointer_size;
 #else
-typedef u_int32_t LispObj;
-typedef u_int32_t natural;
+typedef uint32_t LispObj;
+typedef uint32_t natural;
 typedef int32_t signed_natural;
-typedef u_int32_t unsigned_of_pointer_size;
+typedef uint32_t unsigned_of_pointer_size;
 #endif
 
 
@@ -56,6 +56,9 @@ typedef struct ucontext ExceptionInformation;
 #ifdef FREEBSD
 typedef struct __ucontext ExceptionInformation;
 #endif
+#ifdef SOLARIS
+typedef struct ucontext ExceptionInformation;
+#endif
 #define UC_MCONTEXT(UC) UC->uc_mcontext
 #endif /* #ifdef DARWIN */
 
@@ -73,7 +76,7 @@ typedef unsigned int UInt32;
 #define true 1
 #define false 0
 
-#ifdef DARWIN
+#ifndef LINUX
 typedef void (*__sighandler_t)(int);
 #endif
 #endif /*__lisptypes__ */
