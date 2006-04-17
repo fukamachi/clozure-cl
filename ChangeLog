@@ -1,3 +1,67 @@
+2006-04-17 06:17  gb
+
+	* lisp-kernel/lisptypes.h: Don't know if there's such a thing as
+	truly portable type name.
+
+2006-04-17 06:16  gb
+
+	* lisp-kernel/: errors.s, lisp.s, m4macros.m4, x86-constants.s,
+	x86-constants64.h, x86-constants64.s, x86-exceptions.c,
+	x86-exceptions.h, x86-gc.c, x86-macros.s, x86-spentry64.s,
+	x86-spjump64.s, x86-uuo.s: Well, // style comments seem to only
+	work if they're at the start of a line in Linux GAS.  Try /* */
+	comments, but limit them to a single line.  (May ultimately be
+	better to use m4 dnl - carefully - and avoid end-of-line comments.)
+
+2006-04-17 05:28  gb
+
+	* lisp-kernel/: x86-macros.s, x86-spentry64.s, x86-spjump64.s,
+	x86-subprims64.s, x86-uuo.s: // comments.
+
+2006-04-17 05:28  gb
+
+	* lisp-kernel/x86-gc.c: timeradd, timersub.  Other Solaris
+	conditionalization.
+
+2006-04-17 05:27  gb
+
+	* lisp-kernel/x86-exceptions.h: Solaris-related changes (xp
+	accessors, etc.)
+
+2006-04-17 05:26  gb
+
+	* lisp-kernel/x86-exceptions.c: Solaris-related changes (mostly in
+	the sigstack trampoline stuff.)
+
+2006-04-17 05:25  gb
+
+	* lisp-kernel/x86-constants64.h: // comments, Solaris-friendly
+	integer types.
+
+2006-04-17 05:24  gb
+
+	* lisp-kernel/: x86-asmutils64.s, x86-constants.s,
+	x86-constants64.s: // comments.
+
+2006-04-17 05:23  gb
+
+	* lisp-kernel/pmcl-kernel.c: Some Solaris conditionalization. 
+	Solaris mmap() is ... unusual.
+
+2006-04-17 05:21  gb
+
+	* lisp-kernel/m4macros.m4: Use C++-style single-line comments,
+	since Solaris version of GAS doen't handle multi-line comments (/*
+	... */).  It -seems- that other assemblers do handle them
+	correctly; we'll see.
+	
+	Some Solaris conditionalization (ELFstabs, etc.)
+
+2006-04-17 05:20  gb
+
+	* lisp-kernel/lisptypes.h: Conditionalize for Solaris (type names).
+	 We'll see what this breaks.
+
 2006-04-17 05:19  gb
 
 	* lisp-kernel/lisp.h: PLATFORM_OS is PLATFORM_OS_SOLARIS when
