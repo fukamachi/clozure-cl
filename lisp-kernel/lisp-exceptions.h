@@ -105,8 +105,6 @@ zalloc(natural);
 void
 deallocate(Ptr);
 
-void 
-pc_luser_xp(ExceptionInformation *, TCR *);
 
 
 void
