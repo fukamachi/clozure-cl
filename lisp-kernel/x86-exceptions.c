@@ -666,7 +666,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	  xframe_list xframe_link;
 	  int old_valence;
 	  
-	  pc_luser_xp(context, NULL);
+	  pc_luser_xp(context, tcr, true);
 	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
 	  handle_exception(signum, info, context, tcr);
@@ -777,7 +777,7 @@ setup_sigaltstack(area *a)
 extern unsigned char egc_write_barrier_start, egc_write_barrier_end;
 
 void
-pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
+pc_luser_xp(ExceptionInformation *xp, TCR *tcr, Boolean is_current_tcr)
 {
   pc program_counter = (pc)xpPC(xp);
   
@@ -800,7 +800,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
 
   if (xp) {
     if (is_other_tcr) {
-      pc_luser_xp(xp, tcr);
+      pc_luser_xp(xp, tcr, false);
     }
     a = tcr->vs_area;
     lisprsp = xpGPR(xp, Isp);
