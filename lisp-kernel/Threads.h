@@ -139,8 +139,6 @@ int rwlock_wlock(rwlock *, TCR *, struct timespec *);
 int rwlock_try_wlock(rwlock *, TCR *);
 int rwlock_unlock(rwlock *, TCR *);
 
-Boolean
-extend_tcr_tlb(TCR *, ExceptionInformation *, unsigned, unsigned);
 
 natural 
 atomic_and(natural*, natural);
