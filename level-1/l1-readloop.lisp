@@ -116,10 +116,20 @@
       (process-interrupt ip
 			 #'(lambda ()
 			     (process-exit-application *current-process*
-				   #'(lambda ()
-                                       (fresh-line *stdout*)
-                                       (force-output *stdout*)
-				       (#_exit exit-status)))))
+                                                       (let* ((thunk #'(lambda ()
+                                                                         (fresh-line *stdout*)
+                                                                         (force-output *stdout*)
+                                                                         (#_exit exit-status))))
+                                                         #+x86-target
+                                                         (let* ((x 0)
+                                                                (random-closure #'(lambda () x)))
+                                                           (do* ((i -7 (1+ i)))
+                                                                ((= i 17))
+                                                             (unless (= (%function-code-byte thunk i)
+                                                                        (%function-code-byte random-closure i))
+                                                               (dbg 0))))
+                                                         (dbg thunk)))))
+
       (unless (eq cp ip)
 	(process-kill cp)))))
 
