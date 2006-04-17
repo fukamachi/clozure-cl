@@ -15,7 +15,7 @@
 */
 
 /* Define indices of the GPRs in the mcontext component of a ucontext */
-#ifdef LINUX 
+#if defined(LINUX) || defined(SOLARIS)
 #define Itemp0      REG_RBX
 #define Iarg_y      REG_RDI
 #define Iarg_x      REG_R8
@@ -33,7 +33,12 @@
 #define Itemp1      REG_R9
 #define Isp         REG_RSP
 #define Iip         REG_RIP
+#ifdef LINUX
 #define Iflags      REG_EFL
+#endif
+#ifdef SOLARIS
+#define Iflags      REG_RFL
+#endif
 #endif
 
 #ifdef FREEBSD
@@ -414,13 +419,13 @@ typedef struct tcr {
   struct tcr* next;
   struct tcr* prev;
   struct {
-    u_int32_t tag;
+    uint32_t tag;
     float f;
   } single_float_convert;
   struct tcr* linear;
   LispObj *save_rbp;            /* RBP when in foreign code */
-  u_int32_t lisp_mxcsr;
-  u_int32_t foreign_mxcsr;
+  uint32_t lisp_mxcsr;
+  uint32_t foreign_mxcsr;
   special_binding* db_link;	/* special binding chain head */
   LispObj catch_top;		/* top catch frame */
   LispObj* save_vsp;  /* VSP when in foreign code */
