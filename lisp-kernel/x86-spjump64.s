@@ -24,6 +24,8 @@ _exportfn(j_SP$1)
 _endfn
 ])
 	_beginfile
+         .globl C(spjump_start)
+C(spjump_start):
 
         _spjump(jmpsym)
         _spjump(jmpnfn)
@@ -178,6 +180,8 @@ _endfn
         _spjump(bind_interrupt_level)
         _spjump(bind_interrupt_level_0)
         _spjump(progvrestore)
+         .globl C(spjump_end)
+C(spjump_end):
 	.org 0x1000
 	
         _endfile
