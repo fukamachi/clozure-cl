@@ -1,3 +1,173 @@
+2006-04-17 05:19  gb
+
+	* lisp-kernel/lisp.h: PLATFORM_OS is PLATFORM_OS_SOLARIS when
+	SOLARIS is defined.
+
+2006-04-17 05:18  gb
+
+	* lisp-kernel/lisp-debug.c: Solaris conditionalization; print
+	registers in predictable order.
+
+2006-04-17 05:17  gb
+
+	* lisp-kernel/: errors.s, imports.s, lisp.s: Use C++-style
+	single-line comments, since Solaris version of GAS doen't handle
+	multi-line comments (/* ... */).  It -seems- that other assemblers
+	do handle them correctly; we'll see.
+
+2006-04-17 05:15  gb
+
+	* lisp-kernel/area.h: IMAGE_BASE_ADDRESS for SolarisX64.  Wrong.
+
+2006-04-17 05:15  gb
+
+	* lisp-kernel/Threads.h: Conditionalize for Solaris.
+	
+	TODO: drop Jaguar support, use POSIX (vice Mach) semaphores on all
+	platforms ?
+
+2006-04-17 05:01  gb
+
+	* lisp-kernel/solarisx64/Makefile: new file
+
+2006-04-17 04:56  gb
+
+	* lisp-kernel/linuxx8664/Makefile: Make it a little easier to
+	change the name/usage of the linker script.
+	
+	Stop using the linker script (since spjump is the only thing in the
+	kernel that has to be at a fixed address and we can copy it there.)
+	
+	Don't disable the EGC.
+
+2006-04-17 04:54  gb
+
+	* lisp-kernel/x86-spjump64.s: Define spjump_start as the origin of
+	the spjump table, exported for C (so that spjump can be mapped into
+	low memory.)
+
+2006-04-17 04:54  gb
+
+	* lisp-kernel/x86-spentry64.s: Use reserved_frame_marker.
+	
+	If the tlb's too small when trying to bind a special, push the
+	binding index of the symbol we're binding (for the benefit of the
+	handler.)
+
+2006-04-17 04:52  gb
+
+	* lisp-kernel/x86-gc.c: Check for cases where a function has more
+	code words than it has elements (can't happen, unless the
+	function's code-words word is garbage, which seems to happen when
+	closures get consed up in non-zeroed memory.)
+	
+	Make sure that we mark and forward Itemp2 (= %rcx = %temp2 =
+	%nargs.q), which sometimes contains something tagged and
+	non-immediate.
+
+2006-04-17 04:48  gb
+
+	* lisp-kernel/x86-exceptions.c: new_heap_segment() (slowly) checks
+	to ensure that everythings's zeroed.
+	
+	x8664 implementation of extend_tcr_tlb().
+	
+	on a gc trap, use tcr->save_allocptr (not the random value in %rbx)
+	in call to update_bytes_allocated().
+	
+	normalize_tcr() - alway set tcr->save_allocptr/tcr->save_allocbase
+	to VOID_ALLOCPTR (I -think- that this explains the crash-on-quit
+	bug, and possibly some other instabiliy.)
+	
+	handle_exception: keep trying to guess how to distinguish memory
+	faults from other sources of SIGSEGV.
+	
+	On debug traps, advance the PC past the UUO before entering the
+	debugger.
+	
+	Handle XUUO_TLB_TOO_SMALL.
+
+2006-04-17 04:42  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s:
+	reserved_frame_marker.
+
+2006-04-17 04:42  gb
+
+	* lisp-kernel/thread_manager.c: Remove implementation of
+	extend_tcr_tlb().
+
+2006-04-17 04:41  gb
+
+	* lisp-kernel/ppc-exceptions.h: Prototype for PPC version of
+	extend_tcr_tlb().
+
+2006-04-17 04:41  gb
+
+	* lisp-kernel/ppc-exceptions.c: PPC version of extend_tcr_tlb().
+
+2006-04-17 04:40  gb
+
+	* lisp-kernel/pmcl-kernel.c: Remap the spjump table on x8664, so
+	that we don't need to use a linker script.
+
+2006-04-17 04:40  gb
+
+	* lisp-kernel/Threads.h: extend-tcr-tlb: signature defined by
+	target xxx-exceptions.h now.
+
+2006-04-17 04:39  gb
+
+	* lib/misc.lisp: Some comment formatting/editing.
+
+2006-04-17 04:38  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-04-17 04:38  gb
+
+	* level-1/l1-readloop.lisp: Some debugging code in the code which
+	creates the final closure.  It seems that when it's bad, it's bad
+	on creation (here.)
+
+2006-04-17 04:37  gb
+
+	* level-1/l1-processes.lisp: Some debugging code in
+	PROCESS-EXIT-APPLICATION, to try to catch whatever's causing the
+	final closure to be trashed.
+	
+	I don't think that other threads were getting their allocptr's
+	nullified correctly by the GC/normalize_tcr(); with the current
+	debugging code in place, it seems like the closure is consed on top
+	of something other than free, thread-private heap memory (when it's
+	bad, it fails the first check here.  I'm not sure that the latest
+	round of GC/normalize-tcr() changes have fixed the problem, but I
+	haven't seen it in a while now, either.)
+
+2006-04-17 04:32  gb
+
+	* level-0/X86/x86-def.lisp: %FUNCTION-CODE-BYTE (for partial
+	disassembly, etc.).
+
+2006-04-17 04:31  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Use RESERVED-FRAME-MARKER
+	in RESERVE-OUTGOING-FRAME; don't use ENSURE-RESERVED-FRAME at all
+	(anymore.)
+	
+	Subprims are down in low memory again; make INIT-CLOSURE skip
+	setting the high byte of .SPcall-closure's address if it's zero.
+
+2006-04-17 04:28  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Define RESERVED-FRAME-MARKER,
+	which may help backtrace.
+
+2006-04-17 04:26  gb
+
+	* lib/: backtrace.lisp, ppc-backtrace.lisp: Split up RAW-FRAME-REF
+	(interface/implementation.)
+
 2006-04-15 09:20  gb
 
 	* level-1/x86-callback-support.lisp: Ensure that callback
