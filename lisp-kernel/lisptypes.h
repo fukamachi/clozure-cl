@@ -28,16 +28,37 @@
 #define WORD_SIZE 64
 #endif
 
-#if WORD_SIZE == 64
-typedef uint64_t LispObj;
-typedef uint64_t natural;
-typedef int64_t signed_natural;
-typedef uint64_t unsigned_of_pointer_size;
+#ifdef SOLARIS
+/* Solaris doesn't laugh and play like the other children */
+typedef int64_t s64_t;
+typedef uint64_t u64_t;
+typedef int32_t s32_t;
+typedef uint32_t u32_t;
+typedef int16_t s16_t;
+typedef uint16_t u16_t;
+typedef int8_t s8_t;
+typedef uint8_t u8_t;
 #else
-typedef uint32_t LispObj;
-typedef uint32_t natural;
-typedef int32_t signed_natural;
-typedef uint32_t unsigned_of_pointer_size;
+typedef int64_t s64_t;
+typedef u_int64_t u64_t;
+typedef int32_t s32_t;
+typedef u_int32_t u32_t;
+typedef int16_t s16_t;
+typedef u_int16_t u16_t;
+typedef int8_t s8_t;
+typedef u_int8_t u8_t;
+#endif
+
+#if WORD_SIZE == 64
+typedef u64_t LispObj;
+typedef u64_t natural;
+typedef s64_t signed_natural;
+typedef u64_t unsigned_of_pointer_size;
+#else
+typedef u32_t LispObj;
+typedef u32_t natural;
+typedef s32_t signed_natural;
+typedef u32_t unsigned_of_pointer_size;
 #endif
 
 
