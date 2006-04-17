@@ -1,18 +1,17 @@
-/*
-   Copyright (C) 2005 Clozure Associates
-   This file is part of OpenMCL.  
+//   Copyright (C) 2005 Clozure Associates
+//   This file is part of OpenMCL.  
 
-   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-   License , known as the LLGPL and distributed with OpenMCL as the
-   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-   which is distributed with OpenMCL as the file "LGPL".  Where these
-   conflict, the preamble takes precedence.  
+//   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+//   License , known as the LLGPL and distributed with OpenMCL as the
+//   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+//   which is distributed with OpenMCL as the file "LGPL".  Where these
+//   conflict, the preamble takes precedence.  
 
-   OpenMCL is referenced in the preamble as the "LIBRARY."
+//   OpenMCL is referenced in the preamble as the "LIBRARY."
 
-   The LLGPL is also available online at
-   http://opensource.franz.com/preamble.html
-*/
+//   The LLGPL is also available online at
+//   http://opensource.franz.com/preamble.html
+
 
 	
 
@@ -20,8 +19,8 @@
 
 	_beginfile
 
-/* Flush %rsi cache lines, starting at address in %rdi.  Each line is
-   assumed to be %rdx bytes wide. */
+// Flush %rsi cache lines, starting at address in %rdi.  Each line is
+//   assumed to be %rdx bytes wide.
 _exportfn(C(flush_cache_lines))
 	__(cmpq $0,%rsi)
 	__(jmp 2f)
@@ -55,7 +54,7 @@ _exportfn(C(noop))
 	__(retq)
 _endfn
 
-/* Do we need to set FP control modes in the x87 FPU ? Or just SSE2 ? */
+// Do we need to set FP control modes in the x87 FPU ? Or just SSE2 ? 
 _exportfn(C(set_fpscr))
 _endfn
 	
@@ -66,10 +65,9 @@ _exportfn(C(restore_fp_context))
 _endfn
 
 
-/*
-  Atomically store new value (%rdx) in *%rdi, if old value == %rsi.
-  Return actual old value.
-*/
+
+//  Atomically store new value (%rdx) in *%rdi, if old value == %rsi.
+//  Return actual old value.
 _exportfn(C(store_conditional))
 	__(mov %rsi,%rax)
 	__(lock cmpxchgq %rdx,(%rdi))
@@ -77,21 +75,18 @@ _exportfn(C(store_conditional))
 	__(ret)	
 _endfn
 
-/*
-	Atomically store new_value(%rsi) in *%rdi ;  return previous contents
-	of *%rdi.
-*/
+//	Atomically store new_value(%rsi) in *%rdi ;  return previous contents
+//	of *%rdi.
+
 _exportfn(C(atomic_swap))
 	__(lock xchg %rsi,(%rdi))
 	__(mov %rsi,%rax)
 	__(ret)
 _endfn
 
-/*
-        Logior the value in *%rdi with the value in %rsi (presumably a
-	bitmask with exactly 1 bit set.)  Return non-zero if any of
-	the bits in that bitmask were already set.
-*/        
+//        Logior the value in *%rdi with the value in %rsi (presumably a
+//	bitmask with exactly 1 bit set.)  Return non-zero if any of
+//	the bits in that bitmask were already set.
 _exportfn(C(atomic_ior))
 0:	__(movq (%rdi),	%rax)
 	__(movq %rax,%rcx)
@@ -106,26 +101,25 @@ _endfn
 
 
 
-/* int cpuid (int code, int *pebx, int *pecx, int *pedx) 
-	          %rdi,     %rsi,      %rdx,      %rcx    	    
-*/
+// int cpuid (int code, int *pebx, int *pecx, int *pedx) 
+//	          %rdi,     %rsi,      %rdx,      %rcx    	    
 _exportfn(C(cpuid))
-	__(pushq %rdx)		/* pecx */
-	__(pushq %rcx)		/* pedx */
-	__(pushq %rbx)		/* %rbx is non-volatile */
+	__(pushq %rdx)		// pecx
+	__(pushq %rcx)		// pedx
+	__(pushq %rbx)		// %rbx is non-volatile
 	__(movq %rdi,%rax)
 	__(cpuid)
 	__(movl %ebx,(%rsi))
 	__(popq %rbx)
-	__(popq %rsi)		 /* recover pedx */
+	__(popq %rsi)		 // recover pedx
 	__(movl %edx,(%rsi))
-	__(popq %rsi)		/* recover pecx */
+	__(popq %rsi)		// recover pecx
 	__(movl %ecx,(%rsi))
 	__(ret)
 _endfn
 
-/* switch_to_foreign_stack(new_sp, func, arg_0, arg_1, arg_2, arg_3) 
-   Not fully general, but should get us off of the signal stack */	
+// switch_to_foreign_stack(new_sp, func, arg_0, arg_1, arg_2, arg_3) 
+//   Not fully general, but should get us off of the signal stack */	
 _exportfn(C(switch_to_foreign_stack))
 	__(movq %rdi,%rsp)
 	__(movq %rsi,%rax)

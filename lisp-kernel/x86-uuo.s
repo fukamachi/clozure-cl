@@ -1,18 +1,17 @@
-/*
-   Copyright (C) 2005 Clozure Associates
-   This file is part of OpenMCL.  
+dnl
+dnl   Copyright (C) 2005 Clozure Associates
+dnl   This file is part of OpenMCL.  
+dnl
+dnl   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+dnl   License , known as the LLGPL and distributed with OpenMCL as the
+dnl   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+dnl   which is distributed with OpenMCL as the file "LGPL".  Where these
+dnl   conflict, the preamble takes precedence.  
 
-   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-   License , known as the LLGPL and distributed with OpenMCL as the
-   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-   which is distributed with OpenMCL as the file "LGPL".  Where these
-   conflict, the preamble takes precedence.  
+dnl   OpenMCL is referenced in the preamble as the "LIBRARY."
 
-   OpenMCL is referenced in the preamble as the "LIBRARY."
-
-   The LLGPL is also available online at
-   http://opensource.franz.com/preamble.html
-*/
+dnl   The LLGPL is also available online at
+dnl   http://opensource.franz.com/preamble.html
 
 
 define([uuo_error_too_few_args],[
@@ -36,10 +35,10 @@ define([uuo_error_gc_trap],[
 ])                        
         
                                         
-/* If we're allocating a CONS, the tcr's save_allocptr slot will be
-   tagged as a cons.  Otherwise, it'll be tagged as fulltag_misc,
-   and we have to look at the immediate registers to determine what's
-   being allocated. */
+dnl If we're allocating a CONS, the tcr's save_allocptr slot will be
+dnl tagged as a cons.  Otherwise, it'll be tagged as fulltag_misc,
+dnl and we have to look at the immediate registers to determine what's
+dnl being allocated.
 define([uuo_alloc],[
 	int [$]0xc5
 ])
