@@ -435,6 +435,9 @@
 (defconstant illegal-marker subtag-illegal)
 (define-subtag no-thread-local-binding fulltag-imm-1 4)
 (defconstant no-thread-local-binding-marker subtag-no-thread-local-binding)
+(define-subtag reserved-frame fulltag-imm-1 5)
+(defconstant reserved-frame-marker subtag-reserved-frame)
+
 ;;; This has two functions: it tells the link-inverting marker where the
 ;;; code ends and the constants start, and it ensures that the 0th constant
 ;;; will never be in the same memozized dnode as some (unboxed) word of
@@ -912,7 +915,7 @@
            (ash element-count 1)))))))
 
 (defparameter *x8664-subprims-shift* 3)
-(defconstant x8664-subprims-base #x410000 )
+(defconstant x8664-subprims-base #x5000)
 
 
 (declaim (special *x8664-subprims*))
