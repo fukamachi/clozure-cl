@@ -338,7 +338,9 @@ slot_unbound_marker = subtag_slot_unbound
 define_subtag(illegal,fulltag_imm_1,3)
 illegal_marker = subtag_illegal
 define_subtag(no_thread_local_binding,fulltag_imm_1,4)
-no_thread_local_binding_marker = subtag_no_thread_local_binding        
+no_thread_local_binding_marker = subtag_no_thread_local_binding
+define_subtag(reserved_frame,fulltag_imm_1,5)
+reserved_frame_marker = subtag_reserved_frame                
 
 	
 

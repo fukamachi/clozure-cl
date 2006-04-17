@@ -195,8 +195,10 @@
 #define subtag_illegal SUBTAG(fulltag_imm_1,3)
 #define illegal_marker subtag_illegal
 #define subtag_no_thread_local_binding SUBTAG(fulltag_imm_1,4)
-#define no_thread_local_binding_marker subtag_no_thread_local_binding        
-#define subtag_forward_marker SUBTAG(fulltag_imm_1,5)
+#define no_thread_local_binding_marker subtag_no_thread_local_binding
+#define subtag_reserved_frame  SUBTAG(fulltag_imm_1,5)
+#define reserved_frame_marker subtag_reserved_frame
+#define subtag_forward_marker SUBTAG(fulltag_imm_1,6)
 	
 
 /* The objects themselves look something like this: */
