@@ -62,7 +62,7 @@ extern
 debug_command_entry debug_command_entries[];
 
 
-#ifdef LINUX
+#if defined(LINUX) || defined(SOLARIS)
 #define fpurge __fpurge
 #endif
 
@@ -92,6 +92,10 @@ readc()
 #ifdef LINUX
 char* Iregnames[] = {"r8 ","r9 ","r10","r11","r12","r13","r14","r15",
 		     "rdi","rsi","rbp", "rbx", "rdx", "rax", "rcx","rsp"};
+#endif
+#ifdef SOLARIS
+char* Iregnames[] = {"r15 ","r14 ","r13","r12","r11","r10","r9","r8",
+		     "rdi","rsi","rbp", "rbx", "rdx", "rcx", "rcx","rsp"};
 #endif
 #endif
 
@@ -537,11 +541,14 @@ debug_show_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
 #endif
 
 #ifdef X8664
-  for (a = 0, b = 8; a < 8; a++, b++) {
-    fprintf(stderr,"%s = 0x%016lX    %s = 0x%016lX\n",
-	    Iregnames[a], xpGPR(xp, a),
-	    Iregnames[b], xpGPR(xp, b));
-  }
+  fprintf(stderr,"%rax = 0x%016lX    %r8  = 0x%016lX\n", xpGPR(xp,REG_RAX),xpGPR(xp,REG_R8));
+  fprintf(stderr,"%rcx = 0x%016lX    %r9  = 0x%016lX\n", xpGPR(xp,REG_RCX),xpGPR(xp,REG_R9));
+  fprintf(stderr,"%rdx = 0x%016lX    %r10 = 0x%016lX\n", xpGPR(xp,REG_RDX),xpGPR(xp,REG_R10));
+  fprintf(stderr,"%rbx = 0x%016lX    %r11 = 0x%016lX\n", xpGPR(xp,REG_RBX),xpGPR(xp,REG_R11));
+  fprintf(stderr,"%rsp = 0x%016lX    %r12 = 0x%016lX\n", xpGPR(xp,REG_RSP),xpGPR(xp,REG_R12));
+  fprintf(stderr,"%rbp = 0x%016lX    %r13 = 0x%016lX\n", xpGPR(xp,REG_RBP),xpGPR(xp,REG_R13));
+  fprintf(stderr,"%rsi = 0x%016lX    %r14 = 0x%016lX\n", xpGPR(xp,REG_RSI),xpGPR(xp,REG_R14));
+  fprintf(stderr,"%rdi = 0x%016lX    %r15 = 0x%016lX\n", xpGPR(xp,REG_RDI),xpGPR(xp,REG_R15));
   fprintf(stderr, "rip = 0x%016lX    rflags = 0x%016lX\n",
 	  xpGPR(xp, Iip), xpGPR(xp, Iflags));
 #endif
