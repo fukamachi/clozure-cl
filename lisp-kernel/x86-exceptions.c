@@ -52,12 +52,12 @@ update_bytes_allocated(TCR* tcr, void *cur_allocptr)
 }
 
 
-/*
-  This doesn't GC; it returns true if it made enough room, false
-  otherwise.
-  If "extend" is true, it can try to extend the dynamic area to
-  satisfy the request.
-*/
+
+//  This doesn't GC; it returns true if it made enough room, false
+//  otherwise.
+//  If "extend" is true, it can try to extend the dynamic area to
+//  satisfy the request.
+
 
 Boolean
 new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tcr)
@@ -89,6 +89,18 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
     zero_page(HeapHighWaterMark);
     HeapHighWaterMark+=page_size;
   }
+#if 1
+  {
+    LispObj *start = (LispObj *)(tcr->save_allocbase),
+      *end = (LispObj *)(tcr->save_allocptr);
+    while (start < end) {
+      if (*start) {
+        Bug(NULL, "Memory not zeroed!");
+      }
+      start++;
+    }
+  }
+#endif
   return true;
 }
 
@@ -183,7 +195,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
     break;
 
   default:
-    update_bytes_allocated(tcr, (void *) ptr_from_lispobj(xpGPR(xp, Iallocptr)));
+    update_bytes_allocated(tcr, (void *) tcr->save_allocptr);
 
     if (selector == GC_TRAP_FUNCTION_IMMEDIATE_GC) {
       gc_from_xp(xp, 0L);
@@ -336,6 +348,33 @@ handle_floating_point_exception(TCR *tcr, ExceptionInformation *xp, siginfo_t *i
   return false;
 }
 
+Boolean
+extend_tcr_tlb(TCR *tcr, ExceptionInformation *xp)
+{
+  LispObj index, old_limit = tcr->tlb_limit, new_limit, new_bytes;
+  LispObj *old_tlb = tcr->tlb_pointer, *new_tlb, *work, *tos;
+
+  tos = (LispObj*)(xpGPR(xp,Isp));
+  index = *tos++;
+  (xpGPR(xp,Isp))=(LispObj)tos;
+  
+  new_limit = align_to_power_of_2(index+1,12);
+  new_bytes = new_limit-old_limit;
+  new_tlb = realloc(old_tlb, new_limit);
+
+  if (new_tlb == NULL) {
+    return false;
+  }
+  work = (LispObj *) ((BytePtr)new_tlb+old_limit);
+
+  while (new_bytes) {
+    *work++ = no_thread_local_binding_marker;
+    new_bytes -= sizeof(LispObj);
+  }
+  tcr->tlb_pointer = new_tlb;
+  tcr->tlb_limit = new_limit;
+  return true;
+}
 
 
 Boolean
@@ -345,7 +384,7 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 
   switch (signum) {
   case SIGSEGV:
-    if ((info->si_addr) == 0) {
+    if (((info->si_code) &0x7f) == 0) {
       /* Something mapped to SIGSEGV that has nothing to do with
 	 a memory fault */
       if (*program_counter == INTN_OPCODE) {
@@ -365,8 +404,8 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	  break;
 	  
 	case UUO_DEBUG_TRAP:
-	  lisp_Debugger(context, info, debug_entry_dbg, "Lisp Breakpoint");
 	  xpPC(context) = (natural) (program_counter+1);
+	  lisp_Debugger(context, info, debug_entry_dbg, "Lisp Breakpoint");
 	  return true;
           
         default:
@@ -392,7 +431,10 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	(program_counter[1] == XUUO_OPCODE_1)) {
       switch (program_counter[2]) {
       case XUUO_TLB_TOO_SMALL:
-	return false;
+        if (extend_tcr_tlb(tcr,context)) {
+          xpPC(context)+=3;
+          return true;
+        }
 	break;
 	
       case XUUO_INTERRUPT_NOW:
@@ -711,6 +753,7 @@ setup_sigaltstack(area *a)
 }
 
 extern unsigned char egc_write_barrier_start, egc_write_barrier_end;
+
 void
 pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
 {
@@ -737,7 +780,6 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
     if (is_other_tcr) {
       pc_luser_xp(xp, tcr);
     }
-    tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
     a = tcr->vs_area;
     lisprsp = xpGPR(xp, Isp);
     if (((BytePtr)lisprsp >= a->low) &&
@@ -756,6 +798,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
   if (cur_allocptr) {
     update_bytes_allocated(tcr, cur_allocptr);
   }
+  tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
 }
 
 
@@ -783,7 +826,13 @@ gc_like_from_xp(ExceptionInformation *xp,
     return 0;
   }
 
-  xpGPR(xp, Iallocptr) = VOID_ALLOCPTR;
+  /* This is generally necessary if the current thread invoked the GC
+     via an alloc trap, and harmless if the GC was invoked via a GC
+     trap.  (It's necessary in the first case because the "allocptr"
+     register - %rbx - may be pointing into the middle of something
+     below tcr->save_allocbase, and we wouldn't want the GC to see
+     that bogus pointer.) */
+  xpGPR(xp, Iallocptr) = VOID_ALLOCPTR; 
 
   normalize_tcr(xp, tcr, false);
 
