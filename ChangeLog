@@ -1,3 +1,9 @@
+2006-04-17 06:49  gb
+
+	* level-1/l1-readloop.lisp: In the closure created in QUIT, only do
+	CCL::DBG if (a) we're on X86 and (b) the inner closure is bad
+	already.
+
 2006-04-17 06:17  gb
 
 	* lisp-kernel/lisptypes.h: Don't know if there's such a thing as
