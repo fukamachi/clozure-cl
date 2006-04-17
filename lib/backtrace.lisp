@@ -214,11 +214,7 @@
 
 
 (defun raw-frame-ref (cfp context index bad)
-  (multiple-value-bind (vfp parent-vfp)
-      (vsp-limits cfp context)
-      (if (< index (- parent-vfp vfp))
-        (%fixnum-ref (- parent-vfp 1 index))
-        bad)))
+  (%raw-frame-ref cfp context index bad))
   
 (defun find-register-argument-value (context cfp regval bad)
   (%find-register-argument-value context cfp regval bad))

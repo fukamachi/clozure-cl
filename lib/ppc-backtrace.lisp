@@ -176,3 +176,9 @@
                  (return (raw-frame-ref child context where bad))))))))
      (get-register-value nil last-catch index))))
 
+(defun %raw-frame-ref (cfp context index bad)
+  (multiple-value-bind (vfp parent-vfp)
+      (vsp-limits cfp context)
+      (if (< index (- parent-vfp vfp))
+        (%fixnum-ref (- parent-vfp 1 index))
+        bad)))
