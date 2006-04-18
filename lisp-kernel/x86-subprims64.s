@@ -1,16 +1,16 @@
-//   Copyright (C) 2005 Clozure Associates
-//   This file is part of OpenMCL.  
+###   Copyright (C) 2005 Clozure Associates
+###   This file is part of OpenMCL.  
 
-//   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-//   License , known as the LLGPL and distributed with OpenMCL as the
-//   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-//   which is distributed with OpenMCL as the file "LGPL".  Where these
-//   conflict, the preamble takes precedence.  
+###   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
+###   License , known as the LLGPL and distributed with OpenMCL as the
+###   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
+###   which is distributed with OpenMCL as the file "LGPL".  Where these
+###   conflict, the preamble takes precedence.  
 
-//   OpenMCL is referenced in the preamble as the "LIBRARY."
+###   OpenMCL is referenced in the preamble as the "LIBRARY."
 
-//   The LLGPL is also available online at
-//   http://opensource.franz.com/preamble.html
+###   The LLGPL is also available online at
+###   http://opensource.franz.com/preamble.html
 
 
 	include(lisp.s)
@@ -20,20 +20,20 @@
 	.globl _SPnthrow1value
 
 
-// This is called from a c-style context and calls a lisp function.
-// This does the moral equivalent of
-//   (loop 
-//	(let* ((fn (%function_on_top_of_lisp_stack)))
-//	  (if fn
-//            (catch %toplevel-catch%
-//	       (funcall fn))
-//            (return nil))))
+### This is called from a c-style context and calls a lisp function.
+### This does the moral equivalent of
+###   (loop 
+###	(let* ((fn (%function_on_top_of_lisp_stack)))
+###	  (if fn
+###            (catch %toplevel-catch%
+###	       (funcall fn))
+###            (return nil))))
 
 
 _exportfn(toplevel_loop)
 	__(push %rbp)
 	__(movq %rsp,%rbp)
-	// Switch to the lisp stack
+	## Switch to the lisp stack
 	__(movd %rsp,%Rforeign_sp)
 	__(movq %rsp,%rcontext:tcr.foreign_sp)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
@@ -64,16 +64,16 @@ local_label(back_to_c):
 	__(leave)
 	__(ret)
 
-// This is called from C code when a thread (including the initial thread)
-// starts execution.  (Historically, it also provided a primitive way of
-// "resettting" a thread in the event of catastrophic failure, but this
-// hasn't worked in a long time.)
-// For compatibility with PPC code, this is called with the first foreign
-// argument pointing to the thread's TCR and the second foreign argument
-//  being a Boolean which indicates whether the thread should try to
-// "reset" itself or start running lisp code.  Both of these arguments
-// are currently ignored (the TCR is maintained in a segment register and
-//  the reset/panic code doesn't work ...)
+### This is called from C code when a thread (including the initial thread)
+### starts execution.  (Historically, it also provided a primitive way of
+### "resettting" a thread in the event of catastrophic failure, but this
+### hasn't worked in a long time.)
+### For compatibility with PPC code, this is called with the first foreign
+### argument pointing to the thread's TCR and the second foreign argument
+###  being a Boolean which indicates whether the thread should try to
+### "reset" itself or start running lisp code.  Both of these arguments
+### are currently ignored (the TCR is maintained in a segment register and
+###  the reset/panic code doesn't work ...)
    
 _exportfn(C(start_lisp))
 	__(push %rbp)
@@ -83,8 +83,8 @@ _exportfn(C(start_lisp))
 	__(push %r13)
 	__(push %r14)
 	__(push %r15)
-	__(sub $8,%rsp)	// %rsp is now 16-byte aligned 
-	// Put harmless values in lisp node registers 
+	__(sub $8,%rsp)	# %rsp is now 16-byte aligned 
+	## Put harmless values in lisp node registers 
 	__(clr %arg_z)
 	__(clr %arg_y)
 	__(clr %arg_x)
@@ -97,7 +97,7 @@ _exportfn(C(start_lisp))
 	__(clr %save1)
 	__(clr %save2)
 	__(clr %save3)
-	__(pxor %fpzero,%fpzero)	// fpzero = 0.0[d0]
+	__(pxor %fpzero,%fpzero)	# fpzero = 0.0[d0]
 	__(movq %rcontext:tcr.save_tsp,%tsp)
 	__(movq %tsp,%next_tsp)
         __(stmxcsr %rcontext:tcr.foreign_mxcsr)
@@ -106,7 +106,7 @@ _exportfn(C(start_lisp))
 	__(call toplevel_loop)
 	__(movq $TCR_STATE_FOREIGN,%rcontext:tcr.valence)
 	__(emms)
-	__(addq $8,%rsp)	// discard alignment word
+	__(addq $8,%rsp)	# discard alignment word
 	__(pop %r15)
 	__(pop %r14)
 	__(pop %r13)
