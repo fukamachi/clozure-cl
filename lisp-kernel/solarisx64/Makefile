@@ -17,7 +17,11 @@
 VPATH = ..
 RM = /bin/rm
 AS = /usr/sfw/bin/gas
-M4 = /usr/sfw/bin/gm4
+# As of this writing, /usr/sfw/bin/gm4 is both more recent (1.4.2 vs 1.4)
+# and more buggy than /opt/sfw/bin/gm4, which is available on the 
+# "Solaris companion" disk.  Do you get the impression that the people
+# who put this stuff together aren't paying much attention ?
+M4 = /opt/sfw/bin/gm4
 CC = /usr/sfw/bin/gcc
 ASFLAGS = --64
 M4FLAGS = -DSOLARIS -DX86 -DX8664
