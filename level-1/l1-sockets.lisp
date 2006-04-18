@@ -321,7 +321,7 @@ make-socket."))
   (assert (and in-p out-p) () "Non-bidirectional tcp stream?")
   'tcp-stream)
 
-;; A FILE-SOCKET-STREAM is also honest. To goodness.
+;;; A FILE-SOCKET-STREAM is also honest. To goodness.
 (defclass file-socket-stream (stream-file-socket
                               fd-stream
                               buffered-binary-io-stream-mixin
