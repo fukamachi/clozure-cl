@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "VINSN")
   (require "X8664-BACKEND"))
@@ -2699,18 +2701,23 @@
 
 (define-x8664-vinsn multiply-fixnums (((dest :imm))
                                       ((x :imm)
-                                       (y :imm)))
+                                       (y :imm))
+                                      ((unboxed :s64)))
   ((:pred =
           (:apply %hard-regspec-value x)
           (:apply %hard-regspec-value dest))
-   (imulq (:%q y) (:%q dest)))
+   (movq (:%q y) (:%q unboxed))
+   (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
+   (imulq (:%q unboxed) (:%q dest)))
   ((:and (:not (:pred =
                       (:apply %hard-regspec-value x)
                       (:apply %hard-regspec-value dest)))
          (:pred =
                 (:apply %hard-regspec-value y)
                 (:apply %hard-regspec-value dest)))
-   (imulq (:%q x) (:%q dest)))
+   (movq (:%q x) (:%q unboxed))
+   (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
+   (imulq (:%q unboxed) (:%q dest)))
   ((:and (:not (:pred =
                       (:apply %hard-regspec-value x)
                       (:apply %hard-regspec-value dest)))
@@ -2718,7 +2725,9 @@
                       (:apply %hard-regspec-value y)
                       (:apply %hard-regspec-value dest))))
    (movq (:%q y) (:%q dest))
-   (imulq (:%q x) (:%q dest))))
+   (movq (:%q x) (:%q unboxed))
+   (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
+   (imulq (:%q unboxed) (:%q dest))))
 
    
 (define-x8664-vinsn save-lexpr-argregs (()
