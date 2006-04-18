@@ -27,7 +27,7 @@ define([_spentry],[ifdef([__func_name],[_endfn],[])
              
 define([_endsubp],[
 	_endfn(_SP$1)
-/* __line__ */
+#  __line__ 
 ])
 
 define([jump_builtin],[
