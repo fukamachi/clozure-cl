@@ -3754,20 +3754,6 @@
         (<- imm-reg)
         (x862-box-s32 seg vreg imm-reg)))))
 
-(defun x862-store-signed-halfword (seg vreg imm-reg)
-  (with-x86-local-vinsn-macros (seg vreg)
-    (when (x862-for-value-p vreg)
-      (if (logbitp vreg *backend-imm-temps*)
-        (<- imm-reg)
-        (! s16->fixnum vreg imm-reg)))))
-
-
-(defun x862-store-unsigned-halfword (seg vreg imm-reg)
-  (with-x86-local-vinsn-macros (seg vreg)
-    (when (x862-for-value-p vreg)
-      (if (logbitp vreg *backend-imm-temps*)
-        (<- imm-reg)
-        (! u16->fixnum vreg imm-reg)))))
 
 
 
@@ -3875,12 +3861,7 @@
                    (if signed
                      (! gets64)
                      (! getu64))
-                   (if (and (eq size 4)
-                            (target-arch-case
-                             
-                             (:x8664 nil)))
-                     (! getxlong)
-                     (! fixnum->signed-natural x8664::imm0 x8664::arg_z)))))
+                   (! fixnum->signed-natural x8664::imm0 x8664::arg_z))))
 
           (and offval (%i> (integer-length offval) 31) (setq offval nil))
           (and intval (%i> (integer-length intval) 31) (setq intval nil))
@@ -7967,34 +7948,19 @@
            (naturaly (nx-natural-constant-p y)))
       (if (and naturalx naturaly) 
         (x862-absolute-natural seg vreg xfer (logand naturalx naturaly))
-        (let* ((u32x (nx-u32-constant-p x))
-               (u32y (nx-u32-constant-p y))
-               (constant (or u32x u32y)))
+        (let* ((u31x (nx-u31-constant-p x))
+               (u31y (nx-u31-constant-p y))
+               (constant (or u31x u31y)))
           (if (not constant)
             (with-imm-target () (xreg :natural)
               (with-imm-target (xreg) (yreg :natural)
                 (x862-two-targeted-reg-forms seg x xreg y yreg)
                 (! %natural-logand xreg xreg yreg))
               (<- xreg))
-            (let* ((other (if u32x y x)))
+            (let* ((other (if u31x y x)))
               (with-imm-target () (other-reg :natural)
                 (x862-one-targeted-reg-form seg other other-reg)
-                (multiple-value-bind (start-bit stop-bit)
-                    (x862-mask-bits constant)
-                  (if start-bit
-                    (! %natural-logand-mask-c other-reg other-reg start-bit stop-bit)
-                    (let* ((high (ldb (byte 16 16) constant))
-                           (low (ldb (byte 16 0) constant)))
-                      (declare (type (unsigned-byte 16) high low))
-                      (unless (and (= high #xffff)
-                                   (= low high))
-                        (if (= low 0)
-                          (! %natural-logand-high-c other-reg other-reg high)
-                          (if (= high 0)
-                            (! %natural-logand-low-c other-reg other-reg low)
-                            (with-imm-target (other-reg) (const-reg :natural)
-                              (x862-absolute-natural seg const-reg nil constant)
-                              (! %natural-logand other-reg other-reg const-reg))))))))
+                (! %natural-logand-c other-reg other-reg constant)
                 (<- other-reg))))
           (^))))))
 
@@ -8064,18 +8030,14 @@
 
 (defx862 x862-with-c-frame with-c-frame (seg vreg xfer body &aux
                                              (old-stack (x862-encode-stack)))
-  (ecase (backend-name *target-backend*)
-    (:linuxx8632 (! alloc-eabi-c-frame 0))
-    ((:darwinx8632 :darwinx8664 :linuxx8664) (! alloc-c-frame 0)))
+  (! alloc-c-frame 0)
   (x862-open-undo $undo-x86-c-frame)
   (x862-undo-body seg vreg xfer body old-stack))
 
 (defx862 x862-with-variable-c-frame with-variable-c-frame (seg vreg xfer size body &aux
                                                                (old-stack (x862-encode-stack)))
   (let* ((reg (x862-one-untargeted-reg-form seg size x8664::arg_z)))
-    (ecase (backend-name *target-backend*)
-      (:linuxx8632 (! alloc-variable-eabi-c-frame reg))
-      ((:darwinx8632 :darwinx8664 :linuxx8664) (! alloc-variable-c-frame reg)))
+    (! alloc-variable-c-frame reg)
     (x862-open-undo $undo-x86-c-frame)
     (x862-undo-body seg vreg xfer body old-stack)))
 

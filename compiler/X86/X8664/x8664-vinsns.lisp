@@ -2875,6 +2875,9 @@
 
 (define-x8664-subprim-jump-vinsn (tail-call-sym-slide) .SPtcallsymslide)
 
+(define-x8664-subprim-jump-vinsn (tail-call-sym-vsp) .SPtcallsymvsp)
+
+
 (define-x8664-vinsn character->code (((dest :u32))
 				     ((src :lisp)))
   (movq (:%q src) (:%q dest))
@@ -3415,12 +3418,12 @@
   (btsq (:%q temp) (:@ (:%q src)))
   :done)
 
-(define-x8664-vinsn natural+  (((result :u64))
+(define-x8664-vinsn %natural+  (((result :u64))
                                ((result :u64)
                                 (other :u64)))
   (addq (:%q other) (:%q result)))
 
-(define-x8664-vinsn natural+-c (((result :u64))
+(define-x8664-vinsn %natural+-c (((result :u64))
                                 ((result :u64)
                                  (constant :s32const)))
   (addq (:$l constant) (:%q result)))
@@ -3435,32 +3438,32 @@
                                  (constant :s32const)))
   (subq (:$l constant) (:%q result)))
 
-(define-x8664-vinsn natural-logior (((result :u64))
+(define-x8664-vinsn %natural-logior (((result :u64))
                                     ((result :u64)
                                      (other :u64)))
   (orq (:%q other) (:%q result)))
 
-(define-x8664-vinsn natural-logior-c (((result :u64))
+(define-x8664-vinsn %natural-logior-c (((result :u64))
                                       ((result :u64)
                                        (constant :s32const)))
   (orq (:$l constant) (:%q result)))
 
-(define-x8664-vinsn natural-logand (((result :u64))
+(define-x8664-vinsn %natural-logand (((result :u64))
                                     ((result :u64)
                                      (other :u64)))
   (andq (:%q other) (:%q result)))
 
-(define-x8664-vinsn natural-logand-c (((result :u64))
+(define-x8664-vinsn %natural-logand-c (((result :u64))
                                       ((result :u64)
                                        (constant :s32const)))
   (andq (:$l constant) (:%q result)))
 
-(define-x8664-vinsn natural-logxor (((result :u64))
+(define-x8664-vinsn %natural-logxor (((result :u64))
                                     ((result :u64)
                                      (other :u64)))
   (xorq (:%q other) (:%q result)))
 
-(define-x8664-vinsn natural-logxor-c (((result :u64))
+(define-x8664-vinsn %natural-logxor-c (((result :u64))
                                       ((result :u64)
                                        (constant :s32const)))
   (xorq (:$l constant) (:%q result)))
@@ -3508,3 +3511,31 @@
   (uuo-error-reg-not-type (:%q header) (:$ub type-error))
   :ok)
 
+(define-x8664-vinsn misc-ref-c-u16  (((dest :u16))
+				     ((v :lisp)
+				      (idx :u32const))
+				     ())
+  (movzwl (:@ (:apply + x8664::misc-data-offset (:apply ash idx 1)) (:%q v)) (:%l dest)))
+
+(define-x8664-vinsn misc-set-single-float (()
+					   ((val :single-float)
+					    (v :lisp)
+					    (scaled-idx :u32)))
+  (movss (:%xmm val) (:@ x8664::misc-data-offset (:% v) (:% scaled-idx))))
+
+(define-x8664-vinsn u16->u32 (((dest :u32))
+			      ((src :u16)))
+  (movzwl (:%w src) (:%l dest)))
+
+(define-x8664-vinsn u8->u32 (((dest :u32))
+			     ((src :u8)))
+  (movzbl (:%b src) (:%l dest)))
+
+
+(define-x8664-vinsn s16->s32 (((dest :s32))
+			      ((src :s16)))
+  (movswl (:%w src) (:%l dest)))
+
+(define-x8664-vinsn s8->s32 (((dest :s32))
+			     ((src :s8)))
+  (movsbl (:%b src) (:%l dest)))
