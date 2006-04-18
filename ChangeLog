@@ -1,3 +1,38 @@
+2006-04-18 06:04  gb
+
+	* level-1/version.lisp: Daily bump.
+
+2006-04-18 05:59  gb
+
+	* level-1/l1-sockets.lisp: Comment indentation.
+
+2006-04-18 05:56  gb
+
+	* level-0/PPC/ppc-def.lisp: Move APPLY+ here.
+
+2006-04-18 05:55  gb
+
+	* lib/setf-runtime.lisp: Move APPLY+ (which is defined in LAP) to
+	ppc-def (that means that there will need to be an APPLY+ for
+	x8664).
+
+2006-04-18 05:38  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp: Try to get the
+	compiler and x8664-vinsn-templates to agree on vinsn-names and
+	implement some vinsns that had been missing.  (About 15 or so
+	undefined vinsns remain.)
+
+2006-04-18 05:37  gb
+
+	* compiler/X86/x86-backend.lisp: The mechanism that tries to fixup
+	opcode ordinals in vinsn templates (e.g., in case new instructions
+	are defined in the assembler) wasn't checking to see if vinsn
+	templates named in the hash table were defined.  (It was apparently
+	getting away with this because CONSP was broken.)  So, don't try to
+	fixup opcode ordinals in NIL, and optionally report templates
+	that're referenced but not defined.
+
 2006-04-18 04:38  gb
 
 	* compiler/X86/x862.lisp: CONSP was using the EXTRACT-FULLTAG vinsn
