@@ -468,7 +468,7 @@
     (x86-lap-expression nil)
     (t expression)))
 
-(define-condition unreferenced-x86-lap-label (simple-program-error)
+(define-condition undefined-x86-lap-label (simple-program-error)
   ((label-name :initarg :label-name))
   (:report (lambda (c s)
              (format s "Label ~s was referenced but not defined."
@@ -476,7 +476,7 @@
 
 (defun x86-lap-label-address (lab)
   (let* ((frag (or (x86-lap-label-frag lab)
-                   (error 'unreferenced-x886-lap-label :label-name (x86-lap-label-name lab)))))
+                   (error 'undefined-x86-lap-label :label-name (x86-lap-label-name lab)))))
     (+ (frag-address frag)
        (x86-lap-label-offset lab))))
 
