@@ -1,3 +1,7 @@
+2006-04-18 01:26  gb
+
+	* lisp-kernel/thread_manager.c: Some Solaris changes.
+
 2006-04-18 00:48  gb
 
 	* lisp-kernel/solarisx64/Makefile: The version of gm4 that Sun
