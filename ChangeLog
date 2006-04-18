@@ -1,3 +1,46 @@
+2006-04-18 00:11  gb
+
+	* lisp-kernel/x86-spentry64.s: x8664 linux as doesn't like typos,
+	but is otherwise fine with single-line /* */.
+
+2006-04-18 00:09  gb
+
+	* lisp-kernel/: errors.s, imports.s, lisp.s, m4macros.m4,
+	ppc-asmutils.s, ppc-constants.s, ppc-constants32.s,
+	ppc-constants64.s, ppc-macros.s, ppc-spentry.s, ppc-spjump.s,
+	ppc-subprims.s, ppc-uuo.s, x86-asmutils64.s, x86-constants.s,
+	x86-constants64.s, x86-macros.s, x86-spentry64.s, x86-spjump64.s,
+	x86-subprims64.s, x86-uuo.s, darwinppc/Makefile,
+	darwinppc64/Makefile: Whoops.  Darwin as doesn't like #.  I dont
+	like Darwin as, but we're back to single-line /* */, which is often
+	pretty ugly and not well-supported by Emacs.
+
+2006-04-17 23:23  gb
+
+	* lisp-kernel/: errors.s, imports.s, lisp.s, m4macros.m4,
+	ppc-asmutils.s, ppc-constants.s, ppc-constants32.s,
+	ppc-constants64.s, ppc-uuo.s, x86-asmutils64.s, x86-constants.s,
+	x86-constants64.s, x86-macros.s, x86-spjump64.s, x86-subprims64.s,
+	x86-uuo.s: Use #/newline for comment delimiters, which is supported
+	by Emacs and by all current GAS versions (but see ARM conventions.)
+	 No more jerking around with this, knock wood.
+
+2006-04-17 23:23  gb
+
+	* lisp-kernel/x86-spentry64.s: _SPspread_lexprz wasn't handling the
+	case where caller provided args before the lexpr, which is much
+	harder than the simple case.
+	
+	Use #/newline for comment delimiters, which is supported by Emacs
+	and by all current GAS versions (but see ARM conventions.)  No more
+	jerking around with this, knock wood.
+
+2006-04-17 23:20  gb
+
+	* level-0/X86/x86-numbers.lisp: %FIXNUM-GCD was horrible, espcially
+	when numbers differed greatly in magnitude.  Current (binary)
+	algorithm is usually OK.
+
 2006-04-17 23:17  gb
 
 	* compiler/X86/x86-lap.lisp: Condition name should be
