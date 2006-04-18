@@ -338,7 +338,7 @@ thread_signal_setup()
 void
 os_get_stack_bounds(LispObj q,void **base, natural *size)
 {
-  pthread_t p = (pthread_t)ptr_from_lispobj(q);
+  pthread_t p = (pthread_t)(q);
 #ifdef DARWIN
   *base = pthread_get_stackaddr_np(p);
   *size = pthread_get_stacksize_np(p);
@@ -646,6 +646,9 @@ current_native_thread_id()
 #ifdef FREEBSD
 	  pthread_self()
 #endif
+#ifdef SOLARIS
+	  pthread_self()
+#endif
 	  );
 }
 
@@ -831,7 +834,7 @@ xDisposeThread(TCR *tcr)
 {
   if (tcr != (TCR *)ptr_from_lispobj(lisp_global(INITIAL_TCR))) {
     if (active_tcr_p(tcr) && (tcr != get_tcr(false))) {
-      pthread_cancel((pthread_t)ptr_from_lispobj(tcr->osid));
+      pthread_cancel((pthread_t)(tcr->osid));
       return 0;
     }
   }
@@ -940,7 +943,7 @@ suspend_tcr(TCR *tcr)
       return true;
     }
 #endif
-    if (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_suspend_signal) == 0) {
+    if (pthread_kill((pthread_t)(tcr->osid), thread_suspend_signal) == 0) {
       SET_TCR_FLAG(tcr,TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
     } else {
       /* A problem using pthread_kill.  On Darwin, this can happen
@@ -1067,7 +1070,7 @@ resume_tcr(TCR *tcr)
 #if RESUME_VIA_RESUME_SEMAPHORE
     SEM_RAISE(tcr->resume);
 #else
-    if ((err = (pthread_kill((pthread_t)ptr_from_lispobj(tcr->osid), thread_resume_signal))) != 0) {
+    if ((err = (pthread_kill((pthread_t)(tcr->osid), thread_resume_signal))) != 0) {
       Bug(NULL, "pthread_kill returned %d on thread #x%x", err, tcr->osid);
     }
 #endif
