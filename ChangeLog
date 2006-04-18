@@ -1,3 +1,22 @@
+2006-04-18 00:48  gb
+
+	* lisp-kernel/solarisx64/Makefile: The version of gm4 that Sun
+	installs in /usr/sfw/bin is both newer and buggier than the version
+	available on the "Solaris Companion" disk, which gets installed in
+	/opt/sfw/bin.
+	
+	Ordinarily, I'd wonder why a "companion" disk offers to install
+	software that's bundled as part of the installation (especially old
+	versions of that software.)  Now I know.
+
+2006-04-18 00:45  gb
+
+	* lisp-kernel/x86-spentry64.s: # __line__ wasn't a comment.
+
+2006-04-18 00:45  gb
+
+	* lisp-kernel/m4macros.m4: Fix changecom.
+
 2006-04-18 00:11  gb
 
 	* lisp-kernel/x86-spentry64.s: x8664 linux as doesn't like typos,
