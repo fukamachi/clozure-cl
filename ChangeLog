@@ -1,3 +1,10 @@
+2006-04-17 23:17  gb
+
+	* compiler/X86/x86-lap.lisp: Condition name should be
+	UNDEFINED-X86-LAP-LABEL, since it's (a) referenced and (b) that's
+	not the problem.  Name wasn't spelled correctly in code that
+	signals the condition, anyway.
+
 2006-04-17 16:34  gb
 
 	* lisp-kernel/x86-exceptions.c: pc_luser_xp always takes a tcr
