@@ -1,3 +1,14 @@
+2006-04-18 04:38  gb
+
+	* compiler/X86/x862.lisp: CONSP was using the EXTRACT-FULLTAG vinsn
+	(which only sets the low 8 bits of its destination), then comparing
+	all 64-bits of the destination to a zero-extended 32-bit constant. 
+	(E.g., CONSP had little chance of being right all other things
+	being equal, but may have been right more than one in 2^56 times if
+	some random preceding instruction had zeroed the upper 56 bits.)
+	
+	(It's also shorter to do an 8-bit compare.)
+
 2006-04-18 03:11  gb
 
 	* level-0/X86/x86-hash.lisp: box-fixnum arg order in %DFLOAT-HASH.
