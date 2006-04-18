@@ -4109,7 +4109,7 @@ local_label(go):
         __(jmp *%ra0)        
 	/* vpush args from the lexpr until we have only */
 	/* three left, then assign them to arg_x, arg_y, */
-	/* and arg_z. */ */
+	/* and arg_z. */ 
 8:      __(cmpw $(4*node_size),%imm0_w)
         __(lea -1*node_size(%imm0),%imm0)
         __(push -node_size(%imm1))
