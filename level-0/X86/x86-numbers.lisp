@@ -191,19 +191,53 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 
 
 ;;; n1 and n2 must be positive (esp non zero)
-;;; The algorithm used on the PPC may be faster.
-(defx86lapfunction %fixnum-gcd ((i arg_y)(j arg_z))
-  (jmp @test)
-  @loop
-  (jl @sub-i-from-j)
-  (subq (% j) (% i))
-  (jmp @test)
-  @sub-i-from-j
-  (sub (% i) (% j))
-  @test
-  (rcmpq (% i) (% j))
-  (jne @loop)
-  (jmp (% ra0)))
+(defx86lapfunction %fixnum-gcd ((boxed-u arg_y) (boxed-v arg_z))
+  (let ((u imm0)
+        (v imm1)
+        (k temp2))
+    (xorl (% temp2.l) (% temp2.l))
+    (bsfq (% boxed-u) (% u))
+    (bsfq (% boxed-v) (% v))
+    (rcmp (% u) (% v))
+    (cmovlel (%l u) (%l k))
+    (cmovgl (%l v) (%l k))
+    (unbox-fixnum boxed-u u)
+    (unbox-fixnum boxed-v v)
+    (subb ($ x8664::fixnumshift) (%b k))
+    (jz @start)
+    (shrq (% cl) (% u))
+    (shrq (% cl) (% v))
+    @start
+    ;; At least one of u or v is odd at this point
+    @loop
+    ;; if u is even, shift it right one bit
+    (testb ($ 1) (%b u))
+    (jne @u-odd)
+    (shrq ($ 1) (% u))
+    (jmp @test)
+    @u-odd
+    ;; if v is even, shift it right one bit
+    (testb ($ 1) (%b v))
+    (jne @both-odd)
+    (shrq ($ 1) (% v))
+    (jmp @test-u)
+    @both-odd
+    (cmpq (% v) (% u))
+    (jb @v>u)
+    (subq (% v) (% u))
+    (shrq ($ 1) (% u))
+    (jmp @test)
+    @v>u
+    (subq (% u) (% v))
+    (shrq ($ 1) (% v))
+    @test-u
+    (testq (% u) (% u))
+    @test
+    (ja @loop)
+    (shlq (% cl) (% v))
+    (movb ($ 0) (% cl))
+    (box-fixnum v arg_z)
+    (single-value-return)))
 
 
 
