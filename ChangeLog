@@ -1,3 +1,13 @@
+2006-04-18 03:11  gb
+
+	* level-0/X86/x86-hash.lisp: box-fixnum arg order in %DFLOAT-HASH.
+
+2006-04-18 02:51  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Now that all assemblers are
+	happy (well, as happy as they're going to be ...), back to finding
+	bugs.  MULTIPLY-FIXNUMS has to unbox one arg (the source).
+
 2006-04-18 01:26  gb
 
 	* lisp-kernel/thread_manager.c: Some Solaris changes.
