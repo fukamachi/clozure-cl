@@ -1,6 +1,5 @@
 changequote([,])
-changecom([/* ],[
-])
+changecom([/* ],[*/])
 
 
 
