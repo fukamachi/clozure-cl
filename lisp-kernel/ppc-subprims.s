@@ -1,18 +1,16 @@
-/*
-   Copyright (C) 1994-2001 Digitool, Inc
-   This file is part of OpenMCL.  
+/*   Copyright (C) 1994-2001 Digitool, Inc */
+/*   This file is part of OpenMCL.  */
 
-   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-   License , known as the LLGPL and distributed with OpenMCL as the
-   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-   which is distributed with OpenMCL as the file "LGPL".  Where these
-   conflict, the preamble takes precedence.  
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public */
+/*   License , known as the LLGPL and distributed with OpenMCL as the */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these */
+/*   conflict, the preamble takes precedence.   */
 
-   OpenMCL is referenced in the preamble as the "LIBRARY."
+/*   OpenMCL is referenced in the preamble as the "LIBRARY." */
 
-   The LLGPL is also available online at
-   http://opensource.franz.com/preamble.html
-*/
+/*   The LLGPL is also available online at */
+/*   http://opensource.franz.com/preamble.html */
 
 
 
@@ -25,13 +23,12 @@
 
 /* This is called from a c-style context and calls a lisp function. */
 /* This does the moral equivalent of */
-/*   (loop 
-	(let* ((fn (%function_on_top_of_lisp_stack)))
-	  (if fn
-            (catch %toplevel-catch%
-	       (funcall fn))
-            (return nil))))
-*/
+/*   (loop  */
+/*	(let* ((fn (%function_on_top_of_lisp_stack))) */
+/*	  (if fn */
+/*           (catch %toplevel-catch% */
+/*	       (funcall fn)) */
+/*            (return nil)))) */
 
 _exportfn(toplevel_loop)
 	__(mflr imm0)

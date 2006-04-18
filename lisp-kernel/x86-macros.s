@@ -1,20 +1,20 @@
-###   Copyright (C) 2005 Clozure Associates 
-###   This file is part of OpenMCL.   
+/*   Copyright (C) 2005 Clozure Associates  */
+/*   This file is part of OpenMCL.    */
 
-###   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public 
-###   License , known as the LLGPL and distributed with OpenMCL as the 
-###   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, 
-###   which is distributed with OpenMCL as the file "LGPL".  Where these 
-###   conflict, the preamble takes precedence.   
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public  */
+/*   License , known as the LLGPL and distributed with OpenMCL as the  */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,  */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these  */
+/*   conflict, the preamble takes precedence.    */
 
-###   OpenMCL is referenced in the preamble as the "LIBRARY." 
+/*   OpenMCL is referenced in the preamble as the "LIBRARY."  */
 
-###   The LLGPL is also available online at 
-###   http://opensource.franz.com/preamble.html 
+/*   The LLGPL is also available online at  */
+/*   http://opensource.franz.com/preamble.html  */
 
 
-### Try to make macros follow GAS/ATT conventions, were source precedes 
-### destination. 
+/* Try to make macros follow GAS/ATT conventions, were source precedes  */
+/* destination.  */
 
 define([lisp_global],[lisp_globals.$1])
                         		
@@ -58,8 +58,8 @@ define([save_node_regs],[
 	push %fn
 ])
 
-### This needs to be done before we transition back to the lisp stack 
-### from the foreign stack.  
+/* This needs to be done before we transition back to the lisp stack  */
+/* from the foreign stack.   */
 		
 define([zero_node_regs],[
 	xor %fn,%fn
@@ -90,8 +90,8 @@ define([restore_node_regs],[
 	pop %arg_z
 ])	
 
-### Zero $3 bytes worth of dnodes, starting at offset $2 relative 
-### to the base register $1. 
+/* Zero $3 bytes worth of dnodes, starting at offset $2 relative  */
+/* to the base register $1.  */
 
 
 ifdef([DarwinAssembler],[
@@ -111,8 +111,8 @@ ifdef([DarwinAssembler],[
 ])	
 
 
-### Allocate $1+dnode_size zeroed bytes on the tstack, using $2 as a temp 
-### reg. 
+/* Allocate $1+dnode_size zeroed bytes on the tstack, using $2 as a temp  */
+/* reg.  */
 	
 define([TSP_Alloc_Fixed],[
 	define([TSP_Alloc_Size],[((($1+node_size) & ~(dnode_size-1))+dnode_size)])
@@ -125,8 +125,8 @@ define([TSP_Alloc_Fixed],[
 	undefine([TSP_Alloc_Size])
 ])
 
-### $1 = size (dnode-aligned, including tsp overhead, $2 scratch. 
-### Modifies both $1 and $2; on exit, $2 = new_tsp+tsp_overhead, $1 = old tsp 
+/* $1 = size (dnode-aligned, including tsp overhead, $2 scratch.  */
+/* Modifies both $1 and $2; on exit, $2 = new_tsp+tsp_overhead, $1 = old tsp  */
 	
 define([TSP_Alloc_Var],[
 	new_macro_labels()	
@@ -155,7 +155,7 @@ define([Allocate_Catch_Frame],[
 	addq [$]dnode_size+fulltag_misc,$1
 ])
 
-### %arg_z = tag,  %xfn = pc, $1 = mvflag 	 
+/* %arg_z = tag,  %xfn = pc, $1 = mvflag 	  */
 	
 define([Make_Catch],[
 	Allocate_Catch_Frame(%temp2)
@@ -179,23 +179,23 @@ define([Make_Catch],[
 ])	
 	
 	
-### Consing can get interrupted (either by PROCESS-INTERRUPT or by GC 
-### activity in some other thread; if it's interrupted, the interrupting 
-### process needs to be able to determine what's going on well enough 
-### to be able to either back out of the attempt or finish the job. 
-### That requires that we use easily recogninized instruction sequences 
-### and follow certain conventions when consing (either in the kernel 
-### or in compiled code.)  (One of those conventions involves using 
-### %allocptr = %temp0 as a freepointer; when consing, %temp0 can't 
-### contain a live value.) 
-### Making a CONS cell is a little simpler than making a uvector. 
+/* Consing can get interrupted (either by PROCESS-INTERRUPT or by GC  */
+/* activity in some other thread; if it's interrupted, the interrupting  */
+/* process needs to be able to determine what's going on well enough  */
+/* to be able to either back out of the attempt or finish the job.  */
+/* That requires that we use easily recogninized instruction sequences  */
+/* and follow certain conventions when consing (either in the kernel  */
+/* or in compiled code.)  (One of those conventions involves using  */
+/* %allocptr = %temp0 as a freepointer; when consing, %temp0 can't  */
+/* contain a live value.)  */
+/* Making a CONS cell is a little simpler than making a uvector.  */
 
-### $1=new_car,$2=new_cdr,$3=dest  
+/* $1=new_car,$2=new_cdr,$3=dest   */
 define([Cons],[
 	new_macro_labels()
-### The instructions where tcr.save_allocptr is tagged are difficult 
-### to interrupt; the interrupting code has to recognize and possibly 
-### emulate the instructions in between  
+/* The instructions where tcr.save_allocptr is tagged are difficult  */
+/* to interrupt; the interrupting code has to recognize and possibly  */
+/* emulate the instructions in between   */
 	subq $cons.size-fulltag_cons,%rcontext:tcr.save_allocptr
 	movq %rcontext:tcr.save_allocptr,%allocptr
 	rcmpq(%allocptr,%rcontext:tcr.save_allocbase)
@@ -203,7 +203,7 @@ define([Cons],[
 	uuo_alloc()
 macro_label(no_trap):	
 	andb $~fulltagmask,%rcontext:tcr.save_allocptr
-### Easy to interrupt now that tcr.save_allocptr isn't tagged as a cons   
+/* Easy to interrupt now that tcr.save_allocptr isn't tagged as a cons    */
 	movq $2,cons.cdr(%allocptr)
 	movq $1,cons.car(%allocptr)
 	ifelse($3,[],[],[
@@ -211,8 +211,8 @@ macro_label(no_trap):
 	])
 ])
 
-### The header has to be in %imm0, and the physical size in bytes has 
-###  to be in %imm1. We bash %imm1.  
+/* The header has to be in %imm0, and the physical size in bytes has  */
+/*  to be in %imm1. We bash %imm1.   */
 
 define([Misc_Alloc],[
 	subq [$]fulltag_misc,%imm1
@@ -220,8 +220,8 @@ define([Misc_Alloc],[
 ])
 
 define([Misc_Alloc_Internal],[			
-### Here Be Monsters: we have to treat some/all of this instruction  
-### sequence atomically, as soon as tcr.save_allocptr becomes tagged. 
+/* Here Be Monsters: we have to treat some/all of this instruction   */
+/* sequence atomically, as soon as tcr.save_allocptr becomes tagged.  */
                 
 	new_macro_labels()
 	subq %imm1,%rcontext:tcr.save_allocptr
@@ -232,7 +232,7 @@ define([Misc_Alloc_Internal],[
 macro_label(no_trap):	
 	movq %imm0,misc_header_offset(%allocptr)
 	andb $~fulltagmask,%rcontext:tcr.save_allocptr
-### Now that tcr.save_allocptr is untagged, it's easier to be interrupted  
+/* Now that tcr.save_allocptr is untagged, it's easier to be interrupted   */
 	ifelse($1,[],[],[
 	 mov %allocptr,$1
 	])
@@ -260,7 +260,7 @@ define([set_nargs],[
 	movw [$]$1<<fixnumshift,%nargs
 ])
 
-### $1 = ndigits.  Assumes 4-byte digits          
+/* $1 = ndigits.  Assumes 4-byte digits           */
 define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
 	
 
@@ -297,7 +297,7 @@ define([do_funcall],[
 	movb %temp0_b,%imm0_b
 	andb $fulltagmask,%imm0_b
 	cmpb $fulltag_symbol,%imm0_b
-	# %fname == %temp0  
+	/* %fname == %temp0   */
 	cmovgq %temp0,%fn
 	jl macro_label(bad)
 	cmoveq symbol.fcell(%fname),%fn
@@ -310,34 +310,34 @@ define([getvheader],[
         movq misc_header_offset($1),$2
 ])
 
-### "Size" is unboxed element-count.  $1 (header) and $2 (dest) should 
-###    both be immediate registers  
+/* "Size" is unboxed element-count.  $1 (header) and $2 (dest) should  */
+/*    both be immediate registers   */
 define([header_size],[
         movq $1,$2
         shr $num_subtag_bits,$2
 ])
 
-### $2 (length)" is fixnum element-count.  
+/* $2 (length) is fixnum element-count.   */
 define([header_length],[
         movq $~255,$2
         andq $1,$2
         shr $num_subtag_bits-fixnumshift,$2
 ])
 
-### $1 = vector, $2 = header, $3 = dest  
+/* $1 = vector, $2 = header, $3 = dest   */
 define([vector_size],[                                 
         getvheader($1,$2)
         header_size($2,$3)
 ])
 
-### $1 = vector, $2 = dest  
+/* $1 = vector, $2 = dest   */
 define([vector_length],[                                 
         movq $~255,$2
         andq misc_header_offset($1),$2
         shr $num_subtag_bits-fixnumshift,$2
 ])
                 
-### GAS/ATT comparison arg order drives me nuts  
+/* GAS/ATT comparison arg order drives me nuts   */
 define([rcmpq],[
 	cmpq $2,$1
 ])
@@ -390,7 +390,7 @@ define([extract_typecode],[
 macro_label(done):	
 ])
 
-### dnode_align(src,delta,dest) 
+/* dnode_align(src,delta,dest)  */
 
         define([dnode_align],[
         lea ($2+(dnode_size-1))($1),$3
@@ -413,7 +413,7 @@ macro_label(done):
 ])	
 
 
-### $1 = ndigits.  Assumes 4-byte digits          
+/* $1 = ndigits.  Assumes 4-byte digits           */
 define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
 
 define([discard_temp_frame],[
@@ -428,10 +428,10 @@ define([check_pending_enabled_interrupt],[
 	interrupt_now()
 ])
 	
-### $1 = scratch register, used to access tcr.tlb_pointer.  An interrupt 
-###   should be taken if interrupts are enabled and the most significant 
-###   bit of tcr.interrupt_pending is set.  If we take the interrupt, we 
-###   test and clear the pending bit. 
+/* $1 = scratch register, used to access tcr.tlb_pointer.  An interrupt  */
+/*   should be taken if interrupts are enabled and the most significant  */
+/*   bit of tcr.interrupt_pending is set.  If we take the interrupt, we  */
+/*   test and clear the pending bit.  */
 
 define([check_pending_interrupt],[
 	new_macro_labels()

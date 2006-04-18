@@ -1,23 +1,22 @@
-### 
-###   Copyright (C) 1994-2001 Digitool, Inc 
-###   This file is part of OpenMCL.   
-### 
-###   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public 
-###   License , known as the LLGPL and distributed with OpenMCL as the 
-###   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, 
-###   which is distributed with OpenMCL as the file "LGPL".  Where these 
-###   conflict, the preamble takes precedence.   
-### 
-###   OpenMCL is referenced in the preamble as the "LIBRARY." 
-### 
-###   The LLGPL is also available online at 
-###   http://opensource.franz.com/preamble.html 
+/*   Copyright (C) 1994-2001 Digitool, Inc */
+/*   This file is part of OpenMCL. */
+ 
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public */
+/*   License , known as the LLGPL and distributed with OpenMCL as the */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these */
+/*   conflict, the preamble takes precedence. */
+ 
+/*   OpenMCL is referenced in the preamble as the "LIBRARY." */
+ 
+/*   The LLGPL is also available online at */
+/*   http://opensource.franz.com/preamble.html */
 
 
 
 	
 
-error_reg_errnum = 0		# "real" (typically negative) error number is in RB  
+error_reg_errnum = 0		/* "real" (typically negative) error number is in RB */
 error_udf = 1
 error_udf_call = 2
 error_throw_tag_missing = 3
@@ -71,7 +70,7 @@ error_object_not_$1 = (error_type_error+$2)])
 	def_type_error(s64,36)
         def_type_error(unsigned_byte_56,37)
 	
-### These are the "old" error constants that %ERR-DISP understands
+/* These are the "old" error constants that %ERR-DISP understands */
 
 define([deferr],[
 $1 = $2<<fixnumshift])

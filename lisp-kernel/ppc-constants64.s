@@ -1,18 +1,17 @@
-### 
-###   Copyright (C) 2003-2005, Clozure Associates.
-###   Copyright (C) 1994-2001 Digitool, Inc
-###   This file is part of OpenMCL.  
-###
-###   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-###   License , known as the LLGPL and distributed with OpenMCL as the
-###   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-###   which is distributed with OpenMCL as the file "LGPL".  Where these
-###   conflict, the preamble takes precedence.  
-###
-###   OpenMCL is referenced in the preamble as the "LIBRARY."
-###
-###   The LLGPL is also available online at
-###   http://opensource.franz.com/preamble.html
+/*   Copyright (C) 2003-2005, Clozure Associates. */
+/*   Copyright (C) 1994-2001 Digitool, Inc */
+/*   This file is part of OpenMCL. */
+
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public */
+/*   License , known as the LLGPL and distributed with OpenMCL as the */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these */
+/*   conflict, the preamble takes precedence. */
+
+/*   OpenMCL is referenced in the preamble as the "LIBRARY." */
+
+/*   The LLGPL is also available online at */
+/*   http://opensource.franz.com/preamble.html */
 
 
 define([rcontext],[r2])
@@ -104,7 +103,7 @@ define_cl_array_subtag(s8_vector,ivector_class_8_bit,1)
 define_cl_array_subtag(u8_vector,ivector_class_8_bit,2)
 define_cl_array_subtag(simple_base_string,ivector_class_8_bit,5)
 
-### There's some room for expansion in non-array ivector space. 
+/* There's some room for expansion in non-array ivector space. */
 define_subtag(macptr,ivector_class_64_bit,1)
 define_subtag(dead_macptr,ivector_class_64_bit,2)
 define_subtag(code_vector,ivector_class_32_bit,0)
@@ -115,10 +114,10 @@ define_subtag(double_float,ivector_class_32_bit,3)
 
 
         
-### Size doesn't matter for non-CL-array gvectors; I can't think of a good
-### reason to classify them in any particular way.  Let's put funcallable
-### things in the first slice by themselves, though it's not clear that
-### that helps FUNCALL much.
+/* Size doesn't matter for non-CL-array gvectors; I can't think of a good */
+/* reason to classify them in any particular way.  Let's put funcallable */
+/* things in the first slice by themselves, though it's not clear that */
+/* that helps FUNCALL much. */
         
 gvector_funcallable = fulltag_nodeheader_0
 	
@@ -149,9 +148,9 @@ cons_bias = fulltag_cons
 define([t_offset],-symbol.size)
 	
 misc_header_offset = -fulltag_misc
-misc_data_offset = misc_header_offset+node_size # first word of data  
-misc_subtag_offset = misc_data_offset-1       # low byte of header 
-misc_dfloat_offset = misc_data_offset		# double-floats are doubleword-aligned 
+misc_data_offset = misc_header_offset+node_size /* first word of data */
+misc_subtag_offset = misc_data_offset-1       /* low byte of header */
+misc_dfloat_offset = misc_data_offset		/* double-floats are doubleword-aligned */
 
 define_subtag(single_float,fulltag_imm_0,0)
 
@@ -179,11 +178,11 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 
 
 	
-### The objects themselves look something like this: 
+/* The objects themselves look something like this: */
 	
-### Order of CAR and CDR doesn]t seem to matter much - there aren't 
-### too many tricks to be played with predecrement/preincrement addressing. 
-### Keep them in the confusing MCL 3.0 order, to avoid confusion. 
+/* Order of CAR and CDR doesn]t seem to matter much - there aren't */
+/* too many tricks to be played with predecrement/preincrement addressing. */
+/* Keep them in the confusing MCL 3.0 order, to avoid confusion. */
 	_struct(cons,-cons_bias)
 	 _node(cdr)
 	 _node(car)
@@ -205,7 +204,7 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
          _node(type)
 	_endstructf
 	
-### Functions are of (conceptually) unlimited size. 
+/* Functions are of (conceptually) unlimited size. */
 	_struct(_function,-misc_bias)
 	 _node(header)
 	 _node(codevector)
@@ -231,14 +230,14 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	_endstructf
 
 	_structf(catch_frame)
-	 _node(catch_tag)	# #<unbound> -> unwind-protect, else catch 
-	 _node(link)		# backpointer to previous catch frame 
-	 _node(mvflag)		# 0 if single-valued catch, fixnum 1 otherwise 
-	 _node(csp)		# pointer to lisp_frame on csp 
-	 _node(db_link)		# head of special-binding chain 
-	 _field(regs,8*node_size)	# save7-save0 
-	 _node(xframe)		# exception frame chain 
-	 _node(tsp_segment)	# maybe someday; padding for now 
+	 _node(catch_tag)	/* #<unbound> -> unwind-protect, else catch */
+	 _node(link)		/* backpointer to previous catch frame */
+	 _node(mvflag)		/* 0 if single-valued catch, fixnum 1 otherwise */
+	 _node(csp)		/* pointer to lisp_frame on csp */
+	 _node(db_link)		/* head of special-binding chain */
+	 _field(regs,8*node_size)	/* save7-save0 */
+	 _node(xframe)		/* exception frame chain */
+	 _node(tsp_segment)	/* maybe someday; padding for now */
 	_endstructf
 
 
@@ -251,7 +250,7 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	_endstructf	
 	
         
-	_struct(c_frame,0)	# PowerOpen ABI C stack frame 
+	_struct(c_frame,0)	/* PowerOpen ABI C stack frame */
 	 _node(backlink)
 	 _node(crsave)
 	 _node(savelr)
@@ -284,13 +283,13 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	 _struct_label(minsiz)
 	_ends
 
-        ## For entry to variable-argument-list functions
-	## (e.g., via callback) 
+        /* For entry to variable-argument-list functions */
+	/* (e.g., via callback) */
 	_struct(varargs_eabi_c_frame,0)
 	 _word(backlink)
 	 _word(savelr)
 	 _struct_label(va_list)
-	 _word(flags)		# gpr count byte, fpr count byte, padding 
+	 _word(flags)		/* gpr count byte, fpr count byte, padding */
 	 _word(overflow_arg_area)
 	 _word(reg_save_area)
 	 _field(padding,4)
@@ -321,8 +320,8 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
         _ends
 
 
-### Nilreg-relative globals.  Talking the assembler into doing something reasonable here 
-### is surprisingly hard. 
+/* Nilreg-relative globals.  Talking the assembler into doing something reasonable here */
+/* is surprisingly hard. */
 
 symbol_extra = symbol.size-fulltag_misc
 
@@ -330,136 +329,136 @@ symbol_extra = symbol.size-fulltag_misc
 	_struct(nrs,0x2000)
 	 _struct_pad(fulltag_misc)
 	 _struct_label(tsym)
-	 _struct_pad(symbol_extra)	# t  
+	 _struct_pad(symbol_extra)	/* t */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(nil)
-	 _struct_pad(symbol_extra)	# nil  
+	 _struct_pad(symbol_extra)	/* nil */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(errdisp)
-	 _struct_pad(symbol_extra)	# %err-disp  
+	 _struct_pad(symbol_extra)	/* %err-disp */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(cmain)
-	 _struct_pad(symbol_extra)	# cmain  
+	 _struct_pad(symbol_extra)	/* cmain */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(eval)
-	 _struct_pad(symbol_extra)	# eval  
+	 _struct_pad(symbol_extra)	/* eval */
  
 	 _struct_pad(fulltag_misc)
 	 _struct_label(appevalfn)
-	 _struct_pad(symbol_extra)	# apply-evaluated-function  
+	 _struct_pad(symbol_extra)	/* apply-evaluated-function */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(error)
-	 _struct_pad(symbol_extra)	# error  
+	 _struct_pad(symbol_extra)	/* error */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(defun)
-	 _struct_pad(symbol_extra)	# %defun  
+	 _struct_pad(symbol_extra)	/* %defun */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(defvar)
-	 _struct_pad(symbol_extra)	# %defvar  
+	 _struct_pad(symbol_extra)	/* %defvar */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(defconstant)
-	 _struct_pad(symbol_extra)	# %defconstant  
+	 _struct_pad(symbol_extra)	/* %defconstant */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(macrosym)
-	 _struct_pad(symbol_extra)	# %macro  
+	 _struct_pad(symbol_extra)	/* %macro */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(kernelrestart)
-	 _struct_pad(symbol_extra)	# %kernel-restart  
+	 _struct_pad(symbol_extra)	/* %kernel-restart */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(package)
-	 _struct_pad(symbol_extra)	# *package*  
+	 _struct_pad(symbol_extra)	/* *package* */
 
 	 _struct_pad(fulltag_misc)
-	 _struct_label(total_bytes_freed)		# *total-bytes-freed* 
+	 _struct_label(total_bytes_freed)		/* *total-bytes-freed* */
 	 _struct_pad(symbol_extra)
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(kallowotherkeys)
-	 _struct_pad(symbol_extra)	# allow-other-keys  
+	 _struct_pad(symbol_extra)	/* allow-other-keys */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(toplcatch)
-	 _struct_pad(symbol_extra)	# %toplevel-catch%  
+	 _struct_pad(symbol_extra)	/* %toplevel-catch% */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(toplfunc)
-	 _struct_pad(symbol_extra)	# %toplevel-function%  
+	 _struct_pad(symbol_extra)	/* %toplevel-function% */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(callbacks)
-	 _struct_pad(symbol_extra)	# %pascal-functions%  
+	 _struct_pad(symbol_extra)	/* %pascal-functions% */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(allmeteredfuns)
-	 _struct_pad(symbol_extra)	# *all-metered-functions*  
+	 _struct_pad(symbol_extra)	/* *all-metered-functions* */
 
 	 _struct_pad(fulltag_misc)
-	 _struct_label(total_gc_microseconds)		# *total-gc-microseconds* 
+	 _struct_label(total_gc_microseconds)		/* *total-gc-microseconds* */
 	 _struct_pad(symbol_extra)
 
 	 _struct_pad(fulltag_misc)
-	 _struct_label(builtin_functions)		# %builtin-functions% 
+	 _struct_label(builtin_functions)		/* %builtin-functions% */
 	 _struct_pad(symbol_extra)                
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(udf)
-	 _struct_pad(symbol_extra)	# %unbound-function%  
+	 _struct_pad(symbol_extra)	/* %unbound-function% */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(init_misc)
-	 _struct_pad(symbol_extra)	# %init-misc 
+	 _struct_pad(symbol_extra)	/* %init-misc */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(macro_code)
-	 _struct_pad(symbol_extra)	# %macro-code% 
+	 _struct_pad(symbol_extra)	/* %macro-code% */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(closure_code)
-	 _struct_pad(symbol_extra)      # %closure-code% 
+	 _struct_pad(symbol_extra)      /* %closure-code% */
 
        	 _struct_pad(fulltag_misc)
-	 _struct_label(new_gcable_ptr) # %new-gcable-ptr 
+	 _struct_label(new_gcable_ptr) /* %new-gcable-ptr */
 	 _struct_pad(symbol_extra)
 	
        	 _struct_pad(fulltag_misc)
 	 _struct_label(gc_event_status_bits)
-	 _struct_pad(symbol_extra)	# *gc-event-status-bits*  
+	 _struct_pad(symbol_extra)	/* *gc-event-status-bits* */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(post_gc_hook)
-	 _struct_pad(symbol_extra)	# *post-gc-hook*  
+	 _struct_pad(symbol_extra)	/* *post-gc-hook* */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(handlers)
-	 _struct_pad(symbol_extra)	# %handlers%  
+	 _struct_pad(symbol_extra)	/* %handlers% */
 
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(all_packages)
-	 _struct_pad(symbol_extra)	# %all-packages%  
+	 _struct_pad(symbol_extra)	/* %all-packages% */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(keyword_package)
-	 _struct_pad(symbol_extra)	# *keyword-package*  
+	 _struct_pad(symbol_extra)	/* *keyword-package* */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(finalization_alist)
-	 _struct_pad(symbol_extra)	# %finalization-alist%  
+	 _struct_pad(symbol_extra)	/* %finalization-alist% */
 
 	 _struct_pad(fulltag_misc)
 	 _struct_label(foreign_thread_control)
-	 _struct_pad(symbol_extra)	# %foreign-thread-control  
+	 _struct_pad(symbol_extra)	/* %foreign-thread-control */
 
 	_ends
 
@@ -478,7 +477,7 @@ $1 = ($2<<num_subtag_bits)|$3])
 
 	include(errors.s)
 
-### Symbol bits that we care about 
+/* Symbol bits that we care about */
 sym_vbit_bound = (0+fixnum_shift)
 sym_vbit_bound_mask = (1<<sym_vbit_bound)
 sym_vbit_const = (1+fixnum_shift)
@@ -506,44 +505,44 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 	_ends
 
 
-### This is only referenced by c->lisp code that needs to save/restore C NVRs in a TSP frame. 
+/* This is only referenced by c->lisp code that needs to save/restore C NVRs in a TSP frame. */
 	_struct(c_reg_save,0)
-	 _node(tsp_link)	# backpointer 
-	 _node(tsp_mark)	# frame type 
-	 _node(save_fpscr)	# for Cs FPSCR 
-	 _field(save_gprs,19*node_size) # r13-r31 
-	 _dword(save_fp_zero)	# for fp_zero 
+	 _node(tsp_link)	/* backpointer */
+	 _node(tsp_mark)	/* frame type */
+	 _node(save_fpscr)	/* for Cs FPSCR */
+	 _field(save_gprs,19*node_size) /* r13-r31 */
+	 _dword(save_fp_zero)	/* for fp_zero */
 	 _dword(save_fps32conv)
 	_ends
 
 
 TCR_BIAS = 0
 	
-###  Thread context record.
+/*  Thread context record. */
 
 	_struct(tcr,-TCR_BIAS)
-	 _node(prev)		# in doubly-linked list 
-	 _node(next)		# in doubly-linked list 
-         _node(single_float_convert) # xxxf0 
-	 _word(lisp_fpscr)	# lisp thread's fpscr (in low word) 
+	 _node(prev)		/* in doubly-linked list */
+	 _node(next)		/* in doubly-linked list */
+         _node(single_float_convert) /* xxxf0 */
+	 _word(lisp_fpscr)	/* lisp thread's fpscr (in low word) */
 	 _word(lisp_fpscr_low)
-	 _node(db_link)		# special binding chain head 
-	 _node(catch_top)	# top catch frame 
-	 _node(save_vsp)	# VSP when in foreign code 
-	 _node(save_tsp)	# TSP when in foreign code 
-	 _node(cs_area)		# cstack area pointer 
-	 _node(vs_area)		# vstack area pointer 
-	 _node(ts_area)		# tstack area pointer 
-	 _node(cs_limit)	# cstack overflow limit 
+	 _node(db_link)		/* special binding chain head */
+	 _node(catch_top)	/* top catch frame */
+	 _node(save_vsp)	/* VSP when in foreign code */
+	 _node(save_tsp)	/* TSP when in foreign code */
+	 _node(cs_area)		/* cstack area pointer */
+	 _node(vs_area)		/* vstack area pointer */
+	 _node(ts_area)		/* tstack area pointer */
+	 _node(cs_limit)	/* cstack overflow limit */
 	 _word(bytes_consed_high)
 	 _word(bytes_consed_low)
 	 _node(log2_allocation_quantum)
 	 _node(interrupt_pending)
-	 _node(xframe)		# per-thread exception frame list 
-	 _node(errno_loc)	# per-thread  errno location 
-	 _node(ffi_exception)	# fpscr exception bits from ff-call 
-	 _node(osid)		# OS thread id 
-         _node(valence)		# odd when in foreign code 	
+	 _node(xframe)		/* per-thread exception frame list */
+	 _node(errno_loc)	/* per-thread  errno location */
+	 _node(ffi_exception)	/* fpscr exception bits from ff-call */
+	 _node(osid)		/* OS thread id */
+         _node(valence)		/* odd when in foreign code */
 	 _node(foreign_exception_status)
 	 _node(native_thread_info)
 	 _node(native_thread_id)
@@ -555,15 +554,15 @@ TCR_BIAS = 0
          _node(suspend_count)
          _node(suspend_context)
 	 _node(pending_exception_context)
-	 _node(suspend)		# semaphore for suspension notify 
-	 _node(resume)		# sempahore for resumption notify 
+	 _node(suspend)		/* semaphore for suspension notify */
+	 _node(resume)		/* sempahore for resumption notify */
          _word(flags_pad)
 	 _word(flags)      
 	 _node(gc_context)
          _node(termination_semaphore)
          _node(unwinding)
          _node(tlb_limit)
-         _node(tlb_pointer)     # Consider using tcr+N as tlb_pointer 
+         _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer */
 	 _node(shutdown_count)
 	_ends
 

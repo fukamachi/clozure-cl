@@ -1,17 +1,16 @@
-### 
-###   Copyright (C) 1994-2001 Digitool, Inc
-###   This file is part of OpenMCL.  
-###
-###   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-###   License , known as the LLGPL and distributed with OpenMCL as the
-###   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-###   which is distributed with OpenMCL as the file "LGPL".  Where these
-###   conflict, the preamble takes precedence.  
-###
-###   OpenMCL is referenced in the preamble as the "LIBRARY."
-###
-###   The LLGPL is also available online at
-###   http://opensource.franz.com/preamble.html
+/*   Copyright (C) 1994-2001 Digitool, Inc */
+/*   This file is part of OpenMCL. */
+
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public */
+/*   License , known as the LLGPL and distributed with OpenMCL as the */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these */
+/*   conflict, the preamble takes precedence. */
+
+/*   OpenMCL is referenced in the preamble as the "LIBRARY." */
+
+/*   The LLGPL is also available online at */
+/*   http://opensource.franz.com/preamble.html */
 
 
 	
@@ -19,8 +18,8 @@
 	include(lisp.s)
 
 	_beginfile
-###  Zero R4 cache lines, starting at address in R3.  Each line is assumed to be
-### R5 bytes wide.
+/*  Zero R4 cache lines, starting at address in R3.  Each line is assumed to be */
+/* R5 bytes wide. */
 _exportfn(C(zero_cache_lines))
 	__(cmpri(cr0,r4,0))
 	__(mtctr r4)
@@ -32,8 +31,8 @@ _exportfn(C(zero_cache_lines))
 	__(blr)
 _endfn
 
-###  Flush R4 cache lines, starting at address in R3.  Each line is
-### assumed to be R5 bytes wide.
+/*  Flush R4 cache lines, starting at address in R3.  Each line is */
+/* assumed to be R5 bytes wide. */
 _exportfn(C(flush_cache_lines))
 	__(cmpri(cr0,r4,0))
 	__(mtctr r4)
@@ -43,7 +42,7 @@ _exportfn(C(flush_cache_lines))
 	__(dcbst 0,r3)
         __(add r3,r3,r5)
         __(bdnz 1b)
-	__(sync)                # wait until dcbst's get to memory 
+	__(sync)                /* wait until dcbst's get to memory */
         __(mr r3,r6)
         __(mtctr r4)
 2:      
@@ -53,9 +52,9 @@ _exportfn(C(flush_cache_lines))
         __(sync)
 	__(isync)
 	__(blr)
-### The strange reference to "exp" is supposed to force the kernel to
-### load libm, so lisp code can use it.   Under Darwin, the functionality
-### of libm is contained in libsystem, along with libc & everything else.
+/* The strange reference to "exp" is supposed to force the kernel to */
+/* load libm, so lisp code can use it.   Under Darwin, the functionality */
+/* of libm is contained in libsystem, along with libc & everything else. */
 
         __ifndef([DARWIN])
         .data
@@ -72,7 +71,7 @@ _exportfn(C(touch_page))
         __(str(r3,0(r3)))
         __(li r4,0)
         __(str(r4,0(r3)))
-        __(li r3,1) # can't assume that low 32 bits of r3 are non-zero 
+        __(li r3,1) /* can't assume that low 32 bits of r3 are non-zero */
         .globl C(touch_page_end)
 C(touch_page_end):
         __(blr)
@@ -105,11 +104,11 @@ _exportfn(C(set_fpscr))
 	__(blr)
 _endfn
 
-### The Linux kernel is constantly enabling and disabling the FPU and enabling
-### FPU exceptions.  We can't touch the FPU without turning off the FPSCR[FEX]
-### bit and we can't turn off the FPSCR[FEX] bit without touching the FPU.
-### Force a distinguished exception, and let the handler for that exception
-### zero the fpscr in its exception context.
+/* The Linux kernel is constantly enabling and disabling the FPU and enabling */
+/* FPU exceptions.  We can't touch the FPU without turning off the FPSCR[FEX] */
+/* bit and we can't turn off the FPSCR[FEX] bit without touching the FPU. */
+/* Force a distinguished exception, and let the handler for that exception */
+/* zero the fpscr in its exception context. */
 
 _exportfn(C(zero_fpscr))
 	__(uuo_zero_fpscr())
@@ -198,8 +197,8 @@ _endfn
 
 
 
-### Atomically store new value (r5) in *r3, if old value == expected.
-### Return actual old value.
+/* Atomically store new value (r5) in *r3, if old value == expected. */
+/* Return actual old value. */
 
 _exportfn(C(store_conditional))
         __(mr r6,r3)
@@ -215,8 +214,8 @@ _exportfn(C(store_conditional))
         __(blr)
 _endfn
 
-### Atomically store new_value(r4) in *r3 ;  return previous contents
-### of *r3.
+/* Atomically store new_value(r4) in *r3 ;  return previous contents */
+/* of *r3. */
 
 _exportfn(C(atomic_swap))
         __(sync)
@@ -228,8 +227,8 @@ _exportfn(C(atomic_swap))
 	__(blr)
 _endfn
 
-### Logior the value in *r3 with the value in r4 (presumably a bitmask with exactly 1
-### bit set.)  Return non-zero if any of the bits in that bitmask were already set.
+/* Logior the value in *r3 with the value in r4 (presumably a bitmask with exactly 1 */
+/* bit set.)  Return non-zero if any of the bits in that bitmask were already set. */
         
 _exportfn(C(atomic_ior))
         __(sync)
@@ -243,8 +242,8 @@ _exportfn(C(atomic_ior))
 _endfn
 
 
-### Logand the value in *r3 with the value in r4 (presumably a bitmask with exactly 1
-### bit set.)  Return the value now in *r3 (for some value of "now"
+/* Logand the value in *r3 with the value in r4 (presumably a bitmask with exactly 1 */
+/* bit set.)  Return the value now in *r3 (for some value of "now" */
 
 _exportfn(C(atomic_and))
         __(sync)
@@ -275,9 +274,9 @@ _exportfn(C(pseudo_sigreturn))
 _endfn
         __endif
 	
-### Copy all 32 Altivec registers (+ VSCR & VRSAVE) to the buffer
-### in r3.  If the buffer's non-NULL, it's aligned and big enough,
-### and Altivec is present.
+/* Copy all 32 Altivec registers (+ VSCR & VRSAVE) to the buffer */
+/* in r3.  If the buffer's non-NULL, it's aligned and big enough, */
+/* and Altivec is present. */
 
 _exportfn(C(put_vector_registers))
 	__(cmpri(r3,0))
@@ -429,15 +428,15 @@ _exportfn(C(get_vector_registers))
 	__(blr)
 _endfn
 
-### Some versions of Linux don't implement madvise().  That's
-### not catastrophic, but some versions of glibc will make a
-### big deal out of that at link time.  This is here to try
-### to fool those versions of glibc.
+/* Some versions of Linux don't implement madvise().  That's */
+/* not catastrophic, but some versions of glibc will make a */
+/* big deal out of that at link time.  This is here to try */
+/* to fool those versions of glibc. */
 
         __ifdef([LINUX])
 	.globl set_errno
 _exportfn(C(madvise))
-	__(li r0,205)	# _NR_madvise; see /usr/include/asm/unistd.h 
+	__(li r0,205)	/* _NR_madvise; see /usr/include/asm/unistd.h */
 	__(sc)
 	__(bnslr)
 	__(b set_errno)

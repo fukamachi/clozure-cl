@@ -1,22 +1,19 @@
-/*
-   Copyright (C) 1994-2001 Digitool, Inc
-   This file is part of OpenMCL.  
+/*   Copyright (C) 1994-2001 Digitool, Inc */
+/*   This file is part of OpenMCL.  */
 
-   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
-   License , known as the LLGPL and distributed with OpenMCL as the
-   file "LICENSE".  The LLGPL consists of a preamble and the LGPL,
-   which is distributed with OpenMCL as the file "LGPL".  Where these
-   conflict, the preamble takes precedence.  
+/*   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public */
+/*   License , known as the LLGPL and distributed with OpenMCL as the */
+/*   file "LICENSE".  The LLGPL consists of a preamble and the LGPL, */
+/*   which is distributed with OpenMCL as the file "LGPL".  Where these */
+/*   conflict, the preamble takes precedence.   */
 
-   OpenMCL is referenced in the preamble as the "LIBRARY."
+/*   OpenMCL is referenced in the preamble as the "LIBRARY." */
 
-   The LLGPL is also available online at
-   http://opensource.franz.com/preamble.html
-*/
+/*   The LLGPL is also available online at */
+/*   http://opensource.franz.com/preamble.html */
 
-/* The assembler has to do the arithmetic here:	 the expression
-   may not be evaluable by m4.
-*/
+/* The assembler has to do the arithmetic here:	 the expression */
+/*   may not be evaluable by m4. */
 define([lwi],[ifdef([DARWIN],[
 	.if ((($2) & 0xffff8000) == 0xffff8000)
 	 li $1,($2)
@@ -227,9 +224,7 @@ ifdef([PPC64],[
         ])
 ])
 
-/*
-        dnode_align(dest,src,delta)
-*/
+/* dnode_align(dest,src,delta) */
         define([dnode_align],[
         la $1,($3+(dnode_size-1))($2)
         clrrri($1,$1,dnode_align_bits)
@@ -629,24 +624,23 @@ define([clear_alloc_tag],[
 	clrrri(allocptr,allocptr,ntagbits)
 ])
 
-/* If the GC interrupts the current thread (after the trap), it needs
-   to ensure that the cons cell that's been "reserved" stays reserved
-   (e.g. the tagged allocptr has to be treated as a node.)  If that
-   reserved cons cell gets tenured, the car and cdr are of a generation
-   that's at least as old (so memoization isn't an issue.)
+/* If the GC interrupts the current thread (after the trap), it needs */
+/*   to ensure that the cons cell that's been "reserved" stays reserved */
+/*   (e.g. the tagged allocptr has to be treated as a node.)  If that */
+/*   reserved cons cell gets tenured, the car and cdr are of a generation */
+/*   that's at least as old (so memoization isn't an issue.) */
 
-   More generally, if the GC interrupts a thread when allocptr is
-   tagged as a cons:
+/*   More generally, if the GC interrupts a thread when allocptr is */
+/*   tagged as a cons: */
 
-    a) if the trap hasn't been taken (yet), the GC should force the
-       thread to resume in such a way that the trap will be taken ;
-       the segment allocator should worry about allocating the object.
+/*    a) if the trap hasn't been taken (yet), the GC should force the */
+/*       thread to resume in such a way that the trap will be taken ; */
+/*       the segment allocator should worry about allocating the object. */
 
-    b) If the trap has been taken, allocptr is treated as a node as
-       described above.  Allocbase is made to point to the base of the
-       cons cell, so that the thread's next allocation attempt will
-       invoke the segment allocator.
-*/
+/*    b) If the trap has been taken, allocptr is treated as a node as */
+/*       described above.  Allocbase is made to point to the base of the */
+/*       cons cell, so that the thread's next allocation attempt will */
+/*       invoke the segment allocator. */
 	
 define([Cons],[
 	la allocptr,(-cons.size+fulltag_cons)(allocptr)
@@ -657,30 +651,31 @@ define([Cons],[
 	clear_alloc_tag()
 ])
 
-/*
-  This is probably only used once or twice in the entire kernel, but
-  I wanted a place to describe the constraints on the mechanism.
 
-  Those constaints are (not surprisingly) similar to those which apply
-  to cons cells, except for the fact that the header (and any length
-  field that might describe large arrays) has to have been stored in
-  the object if the trap has succeeded on entry to the GC.  It follows
-  that storing the register containing the header must immediately
-  follow the allocation trap (and an auxiliary length register must
-  be stored immediately after the header.)  Successfully falling
-  through the trap must emulate any header initialization: it would
-  be a bad idea to have allocptr pointing to a zero header ...
-*/
+/* This is probably only used once or twice in the entire kernel, but */
+/* I wanted a place to describe the constraints on the mechanism. */
 
-/*
-  Parameters:	
+/* Those constaints are (not surprisingly) similar to those which apply */
+/* to cons cells, except for the fact that the header (and any length */
+/* field that might describe large arrays) has to have been stored in */
+/* the object if the trap has succeeded on entry to the GC.  It follows */
+/* that storing the register containing the header must immediately */
+/* follow the allocation trap (and an auxiliary length register must */
+/* be stored immediately after the header.)  Successfully falling */
+/* through the trap must emulate any header initialization: it would */
+/* be a bad idea to have allocptr pointing to a zero header ... */
 
-  $1 = dest reg
-  $2 = header.  (For now, assume that this always encodes length ;
-	that may change with "large vector" support.)
-  $3 = register containing size in bytes.  (We're going to subtract 
-	fulltag_misc from this; do it in the macro body, rather than force the		(1 ?) caller to do it.
-*/
+
+
+/* Parameters: */
+
+/* $1 = dest reg */
+/* $2 = header.  (For now, assume that this always encodes length ; */
+/* that may change with "large vector" support.) */
+/* $3 = register containing size in bytes.  (We're going to subtract */
+/* fulltag_misc from this; do it in the macro body, rather than force the
+/* (1 ?) caller to do it. */
+
 
 define([Misc_Alloc],[
 	la $3,-fulltag_misc($3)
@@ -691,9 +686,7 @@ define([Misc_Alloc],[
 	clear_alloc_tag()
 ])
 
-/*
-  Parameters $1, $2 as above; $3 = physical size constant.
-*/
+/*  Parameters $1, $2 as above; $3 = physical size constant. */
 define([Misc_Alloc_Fixed],[
 	la allocptr,(-$3)+fulltag_misc(allocptr)
         alloc_trap()
@@ -703,10 +696,9 @@ define([Misc_Alloc_Fixed],[
 ])
 
 
-/*
-  Zero $3 bytes worth of doublewords, starting at offset $2 relative
-  to the base register $1.
-*/
+/*  Zero $3 bytes worth of doublewords, starting at offset $2 relative */
+/* to the base register $1. */
+
 
 ifdef([DARWIN],[
 	.macro zero_doublewords
@@ -734,10 +726,9 @@ define([Set_TSP_Frame_Boxed],[
 	str(rzero,tsp_frame.type(tsp))
 ])
 		
-/*
-  A newly allocated TSP frame is always "raw" (has non-zero type, indicating
-  that it doesn't contain tagged data.
-*/
+/* A newly allocated TSP frame is always "raw" (has non-zero type, indicating */
+/* that it doesn't contain tagged data. */
+
 define([TSP_Alloc_Fixed_Unboxed],[
 	stru(tsp,-($1+tsp_frame.data_offset)(tsp))
 	Set_TSP_Frame_Unboxed()
@@ -756,14 +747,14 @@ define([TSP_Alloc_Fixed_Boxed],[
 
         
 	
-/*
-  This assumes that the backpointer points  to the first byte beyond
-  each frame.  If we allow segmented tstacks, that constraint might
-  complicate  their implementation.
-  We don't need to know the size of the frame (positive or negative,
-  with or without header).  $1 and $2 are temp registers, $3 is an
-  optional CR field.
-*/
+
+/* This assumes that the backpointer points  to the first byte beyond */
+/* each frame.  If we allow segmented tstacks, that constraint might */
+/* complicate  their implementation. */
+/* We don't need to know the size of the frame (positive or negative, */
+/* with or without header).  $1 and $2 are temp registers, $3 is an */
+/* optional CR field. */
+
 
 /* Handle the general case, where the frame might be empty */
 define([Zero_TSP_Frame],[
@@ -791,8 +782,8 @@ macro_label(zero_tsp_loop):
 	bne ifelse($3,[],[cr0],$3),macro_label(zero_tsp_loop)
 ])
 	
-/* $1 = 8-byte-aligned size, positive.  $2 (optiional) set
-   to negated size. */
+/* $1 = 8-byte-aligned size, positive.  $2 (optiional) set */
+/* to negated size. */
 define([TSP_Alloc_Var_Unboxed],[
 	neg ifelse($2,[],$1,$2),$1
 	strux(tsp,tsp,ifelse($2,[],$1,$2))
