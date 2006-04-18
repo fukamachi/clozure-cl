@@ -39,7 +39,7 @@
 
 (defx86lapfunction %dfloat-hash ((key arg_z))
   (movq (@ x8664::double-float.value (% key)) (% imm0))
-  (box-fixnum arg_z imm0)
+  (box-fixnum imm0 arg_z)
   (single-value-return))
 
 (defx86lapfunction %sfloat-hash ((key arg_z))
