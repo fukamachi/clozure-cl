@@ -72,7 +72,6 @@
                   (return (values (x86::x86-opcode-template-ordinal template)
                                   (types))))))))))))
 
-
 (defun fixup-opcode-ordinals (vinsn-template opcode-templates)
   (let* ((changed ()))
     (dolist (vinsn-opcode (vinsn-template-opcode-alist vinsn-template))
@@ -104,10 +103,14 @@
           (dolist (form (vinsn-template-body vinsn-template))
             (fixup-form form)))))))
 
+(defparameter *report-missing-vinsns* nil)
+
 (defun fixup-x86-vinsn-templates (template-hash opcode-templates)
   (maphash #'(lambda (name vinsn-template)
-               (declare (ignore name))
-               (fixup-opcode-ordinals (cdr vinsn-template) opcode-templates))
+               (if (not (cdr vinsn-template))
+                 (when *report-missing-vinsns*
+                   (warn "Reference to undefined vinsn ~s" name))
+                 (fixup-opcode-ordinals (cdr vinsn-template) opcode-templates)))
            template-hash))
 
 
