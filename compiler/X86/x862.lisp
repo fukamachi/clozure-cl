@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+6
 (eval-when (:compile-toplevel :execute)
   (require "NXENV")
   (require "X8664ENV"))
@@ -2959,7 +2961,7 @@
               (member operator *x862-operator-supports-push*)))
         form)))
 
-(defun x864-compare-u8 (seg vreg xfer form u8constant cr-bit true-p u8-operator)
+(defun x862-compare-u8 (seg vreg xfer form u8constant cr-bit true-p u8-operator)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (with-imm-target () (u8 :u8)
       (if (and (eql u8-operator (%nx1-operator lisptag))
@@ -2999,7 +3001,7 @@
            (boolean (backend-crf-p vreg)))
       (multiple-value-bind (u8-operator u8-operand) (if other-u8 (x862-acode-operator-supports-u8 other-u8))
         (if u8-operator
-          (x864-compare-u8 seg vreg xfer u8-operand u8 (if (and iu8 (not (eq cr-bit x86::x86-e-bits))) (logxor 1 cr-bit) cr-bit) true-p u8-operator)
+          (x862-compare-u8 seg vreg xfer u8-operand u8 (if (and iu8 (not (eq cr-bit x86::x86-e-bits))) (logxor 1 cr-bit) cr-bit) true-p u8-operator)
           (if (and boolean (or js32 is32))
             (let* ((reg (x862-one-untargeted-reg-form seg (if js32 i j) x8664::arg_z))
                    (constant (or js32 is32)))
@@ -5483,10 +5485,15 @@
     (let* ((tagreg x8664::imm0))
       (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
         (! extract-fulltag tagreg (x862-one-untargeted-reg-form seg form x8664::arg_z))
-        (x862-test-reg-%izerop seg vreg xfer tagreg cr-bit true-p
-                               (target-arch-case
-                                
-                                (:x8664 x8664::fulltag-cons)))))))
+        (! compare-u8-constant tagreg x8664::fulltag-cons)
+        (regspec-crf-gpr-case 
+         (vreg dest)
+         (^ cr-bit true-p)
+         (ensuring-node-target (target dest)
+           (if (not true-p)
+             (setq cr-bit (logxor 1 cr-bit)))
+           (! cr-bit->boolean target cr-bit)
+           (^)))))))
       
 (defx862 x862-cons cons (seg vreg xfer y z)
   (if (null vreg)
