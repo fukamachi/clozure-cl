@@ -57,13 +57,13 @@ tag_list = 1	/* Conses and NIL */
 tag_misc = 2	/* Heap-consed objects other than lists: vectors, symbols, functions, floats ... */
 tag_imm = 3	/* Immediate-objects: characters, UNBOUND, other markers. */
 
-/* */
-  And there are 8 FULLTAG values.  Note that NIL has its own FULLTAG (congruent mod 4 to tag-list),
-  that FULLTAG-MISC is > 4 (so that code-vector entry-points can be branched to, since the low
-  two bits of the PC are ignored) and that both FULLTAG-MISC and FULLTAG-IMM have header fulltags
-  that share the same TAG.
-  Things that walk memory (and the stack) have to be careful to look at the FULLTAG of each
-  object that they see.
+
+/*  And there are 8 FULLTAG values.  Note that NIL has its own FULLTAG (congruent mod 4 to tag-list), */
+/*  that FULLTAG-MISC is > 4 (so that code-vector entry-points can be branched to, since the low */
+/*  two bits of the PC are ignored) and that both FULLTAG-MISC and FULLTAG-IMM have header fulltags */
+/*  that share the same TAG. */
+/*  Things that walk memory (and the stack) have to be careful to look at the FULLTAG of each */
+/*  object that they see. */
 
 
 fulltag_even_fixnum = 0	/* I suppose EVENP/ODDP might care; nothing else does. */
@@ -168,9 +168,9 @@ max_numeric_subtag = subtag_complex
 
 
 /* CL array types.  There are more immediate types than node types; all CL array subtags must be > than */
- all non-CL-array subtags.  So we start by defining the immediate subtags in decreasing order, starting 
- with that subtag whose element size isn]t an integral number of bits and ending with those whose 
- element size - like all non-CL-array fulltag-immheader types - is 32 bits. 
+/* all non-CL-array subtags.  So we start by defining the immediate subtags in decreasing order, starting */
+/* with that subtag whose element size isn]t an integral number of bits and ending with those whose */
+/* element size - like all non-CL-array fulltag-immheader types - is 32 bits. */
 
 	define_imm_subtag(bit_vector,31)
 	define_imm_subtag(double_float_vector,30)
@@ -315,7 +315,7 @@ max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
 	_ends
 
 	/* For entry to variable-argument-list functions */
-	  (e.g., via callback) 
+/*	  (e.g., via callback) */
 	_struct(varargs_eabi_c_frame,0)
 	 _word(backlink)
 	 _word(savelr)
@@ -550,8 +550,7 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 TCR_BIAS = 0
 /* TCR_BIAS = 0x7000 */
         
-/* */
-  Thread context record.
+/*  Thread context record. */
 
 	_struct(tcr,-TCR_BIAS)
 	 _node(prev)		/* in doubly-linked list */
