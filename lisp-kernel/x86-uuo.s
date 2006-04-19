@@ -25,12 +25,14 @@ define([uuo_error_wrong_number_of_args],[
         int [$]0xc2
 ])
 
-define([uuo_error_stack_overflow],[
-        int [$]0xc3
-])
 
 define([uuo_error_gc_trap],[
         int [$]0xc4
+])                        
+
+
+define([uuo_error_debug_trap],[
+        int [$]0xca
 ])                        
         
                                         
