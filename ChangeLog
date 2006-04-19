@@ -1,3 +1,18 @@
+2006-04-19 00:35  gb
+
+	* lisp-kernel/x86-gc.c: Write a few paragraphs outlining how the
+	reversing-pointer marker should work.  (Perhaps it's a strong
+	argument for implementing "purify" soon.)
+
+2006-04-19 00:34  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s:
+	function-boundary-marker.
+
+2006-04-19 00:33  gb
+
+	* lisp-kernel/macros.h: Add node_aligned and indirect_node macros.
+
 2006-04-18 19:35  gb
 
 	* lisp-kernel/x86-spentry64.s: Comparison was backwards in
