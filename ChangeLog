@@ -1,3 +1,34 @@
+2006-04-18 19:35  gb
+
+	* lisp-kernel/x86-spentry64.s: Comparison was backwards in
+	multiple-value case of THROW: don't want to do unbind_to if tcr's
+	db-link matches target catch frame's.
+
+2006-04-18 19:33  gb
+
+	* lisp-kernel/x86-uuo.s: Add UUO-ERROR-DEBUG-TRAP, remove
+	UUO-ERROR-STACK-OVERFLOW.  Still need to get this completely in
+	synch with x86-asm.
+
+2006-04-18 19:33  gb
+
+	* level-1/l1-readloop-lds.lisp: Say more about the availability of
+	:R in break messages.
+	
+	Say more about :C in :R.
+
+2006-04-18 19:32  gb
+
+	* level-1/l1-readloop.lisp: Remove the #+x86-target debugging code
+	in QUIT's PROCESS-INTERRUPT call, since the closure- trashing bug
+	seems to have been fixed.
+
+2006-04-18 19:31  gb
+
+	* level-1/x86-error-signal.lisp: Recognize (uuo-error-not-tag %rn
+	x8664::subtag-catch-tag) as CANT-THROW-ERROR.  (Yes, this is a
+	horrible kludge, but it only happens once.)
+
 2006-04-18 19:19  gb
 
 	* level-1/l1-processes.lisp: Remove the #+x86-target debugging code
