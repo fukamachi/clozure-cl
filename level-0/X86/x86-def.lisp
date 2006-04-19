@@ -489,4 +489,28 @@
       (setq fun (svref fun 0))))
   fun)
 
+;;; For use by (setf (apply ...) ...)
+;;; (apply+ f butlast last) = (apply f (append butlast (list last)))
+#+ppc-target
+(defun apply+ (&lap function arg1 arg2 &rest other-args)
+  (x86-lap-function apply+ ()
+   (check-nargs 3 nil)
+   (vpush arg_x)
+   (mr temp0 arg_z)                     ; last
+   (mr arg_z arg_y)                     ; butlast
+   (subi nargs nargs '2)                ; remove count for butlast & last
+   (mflr loc-pc)
+   (bla .SPspreadargz)
+   (cmpri cr0 nargs '3)
+   (mtlr loc-pc)
+   (addi nargs nargs '1)                ; count for last
+   (blt cr0 @nopush)
+   (vpush arg_x)
+@nopush
+   (mr arg_x arg_y)
+   (mr arg_y arg_z)
+   (mr arg_z temp0)
+   (ldr temp0 'funcall nfn)
+   (ba .SPfuncall)))
+
 ;;; end of x86-def.lisp
