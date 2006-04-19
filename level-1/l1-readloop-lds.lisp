@@ -96,11 +96,13 @@ whose name or ID matches <p>, or to any process if <p> is null"
 (define-toplevel-command :break go () "continue" (continue))
 (define-toplevel-command :break q () "return to toplevel" (toplevel))
 (define-toplevel-command :break r () "list restarts"
+  (format t "~&   (:C <n>) can be used to invoke one of the following restarts in this break loop:")
   (let* ((r (apply #'vector (compute-restarts *break-condition*))))
     (dotimes (i (length r) (terpri))
-      (format t "~&~d. ~a" i (svref r i)))))
+      (format *debug-io* "~&~d. ~a" i (svref r i)))))
 
 ;;; From Marco Baringer 2003/03/18
+
 (define-toplevel-command :break set (n frame value) "Set <n>th item of frame <frame> to <value>"
   (let* ((frame-sp (nth-raw-frame frame *break-frame* nil)))
     (if frame-sp
@@ -479,10 +481,10 @@ whose name or ID matches <p>, or to any process if <p> is null"
           (let* ((*print-circle* *error-print-circle*)
 					;(*print-pretty* nil)
                  (*print-array* nil))
-            (format t "~&> Type :GO to continue, :POP to abort.")
+            (format t "~&> Type :GO to continue, :POP to abort, :R for a list of available restarts.")
             (format t "~&> If continued: ~A~%" continue))
-          (format t "~&> Type :POP to abort.~%"))
-        (format t "~&Type :? for other options.")
+          (format t "~&> Type :POP to abort, :R for a list of available restarts.~%"))
+        (format t "~&> Type :? for other options.")
         (terpri)
         (force-output)
 
