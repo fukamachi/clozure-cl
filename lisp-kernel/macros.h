@@ -28,6 +28,8 @@
 #define fulltag_of(o)  ((o) & fulltagmask)
 #define tag_of(o) ((o) & tagmask)
 #define untag(o) ((o) & ~fulltagmask)
+#define node_aligned(o) ((o) & ~tagmask)
+#define indirect_node(o) (*(LispObj *)(node_aligned(o)))
 
 #define deref(o,n) (*((LispObj*) (ptr_from_lispobj(untag((LispObj)o)))+(n)))
 #define header_of(o) deref(o,0)
