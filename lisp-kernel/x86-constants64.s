@@ -338,7 +338,8 @@ illegal_marker = subtag_illegal
 define_subtag(no_thread_local_binding,fulltag_imm_1,4)
 no_thread_local_binding_marker = subtag_no_thread_local_binding
 define_subtag(reserved_frame,fulltag_imm_1,5)
-reserved_frame_marker = subtag_reserved_frame                
+reserved_frame_marker = subtag_reserved_frame
+define_subtag(function_boundary_marker,fulltag_imm_1,15)                        
 
 	
 

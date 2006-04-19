@@ -204,7 +204,8 @@
 #define subtag_reserved_frame  SUBTAG(fulltag_imm_1,5)
 #define reserved_frame_marker subtag_reserved_frame
 #define subtag_forward_marker SUBTAG(fulltag_imm_1,6)
-	
+
+#define function_boundary_marker SUBTAG(fulltag_imm_1,15)	
 
 /* The objects themselves look something like this: */
 
