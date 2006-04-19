@@ -1,3 +1,13 @@
+2006-04-19 17:11  gb
+
+	* lisp-kernel/pmcl-kernel.c: (Very) different
+	MAXIMUM_MAPPABLE_MEMORY for Solaris.
+
+2006-04-19 17:10  gb
+
+	* lisp-kernel/area.h: (Very) different IMAGE_BASE_ADDRESS for
+	Solaris.
+
 2006-04-19 00:35  gb
 
 	* lisp-kernel/x86-gc.c: Write a few paragraphs outlining how the
