@@ -89,8 +89,8 @@
   (header-length imm0 temp0)
   (xorq (% imm1) (% imm1))
   @bignum-next
-  (movl (@ (% x) (% imm1)) (% imm0.l))
-  (cmpl (@ (% y) (% imm1)) (% imm0.l))
+  (movl (@ x8664::misc-data-offset (% x) (% imm1)) (% imm0.l))
+  (cmpl (@ x8664::misc-data-offset (% y) (% imm1)) (% imm0.l))
   (jne @lose)
   (sub ($ '1) (% temp0))
   (jnz @bignum-next)
