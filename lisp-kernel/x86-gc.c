@@ -557,7 +557,77 @@ rmark(LispObj n)
 
     }
   } else {
-    Bug(NULL, "DWS-marker");
+    Bug(NULL, "DWS marker NYI.");
+
+    /* This is all a bit more complicated than the PPC version:
+
+       - a symbol-vector can be referenced via either a FULLTAG-MISC
+       pointer or a FULLTAG-SYMBOL pointer.  When we've finished
+       marking the symbol-vector's elements, we need to know which tag
+       the object that pointed to the symbol-vector had originally.
+
+       - a function-vector can be referenced via either a FULLTAG-MISC
+       pointer or a FULLTAG-FUNCTION pointer.  That introduces pretty
+       much the same set of issues, but ...
+
+       - a function-vector can also be referenced via a TRA; the
+       offset from the TRA to the function header is arbitrary (though
+       we can probably put an upper bound on it, and it's certainly
+       not going to be more than 32 bits.)
+
+       - function-vectors contain a mixture of code and constants,
+       with a "boundary" word (that doesn't look like a valid
+       constant) in between them.  There are 56 unused bits in the
+       boundary word; the low 8 bits must be = to the constant
+       'function_boundary_marker'.  We can store the byte displacement
+       from the address of the object which references the function
+       (tagged fulltag_misc, fulltag_function, or tra) to the address
+       of the boundary marker when the function vector is first marked
+       and recover that offset when we've finished marking the
+       function vector.  (Note that the offset is signed; it's
+       probably simplest to keep it in the high 32 bits of the
+       boundary word.) 
+
+ So:
+
+       - while marking a CONS, the 'this' pointer as a 3-bit tag of
+       tag_list; the 4-bit fulltag indicates which cell is being
+       marked.
+
+       - while marking a gvector (other than a symbol-vector or
+       function-vector), the 'this' pointer is tagged tag_misc.
+       (Obviously, it alternates between fulltag_misc and
+       fulltag_nodeheader_0, arbitrarily.)  When we encounter the
+       gvector header when the 'this' pointer has been tagged as
+       fulltag_misc, we can restore 'this' to the header's address +
+       fulltag_misc and enter the 'climb' state.  (Note that this
+       value happens to be exactly what's in 'this' when the header's
+       encountered.)
+
+       - if we encounter a symbol-vector via the FULLTAG-MISC pointer
+       to the symbol (not very likely, but legal and possible), it's
+       treated exactly like the gvector case above.
+
+       - in the more likely case where a symbol-vector is referenced
+       via a FULLTAG-SYMBOL, we do the same loop as in the general
+       gvector case, backing up through the vector with 'this' tagged
+       as 'tag_symbol' (or fulltag_nodeheader_1); when we encounter
+       the symbol header, 'this' gets fulltag_symbol added to the
+       dnode-aligned address of the header, and we climb.
+
+       - if anything (fulltag_misc, fulltag_function, tra) references
+       an unmarked function function vector, we store the byte offfset
+       from the tagged reference to the address of the boundary word
+       in the high 32 bits of the boundary word, then we back up
+       through the function-vector's constants, with 'this' tagged
+       tag_function/ fulltag_immheader_0, until the (specially-tagged)
+       boundary word is encountered.  The displacement stored in the boundary
+       word is added to the aligned address of the  boundary word (restoring
+       the original 'this' pointer, and we climb.
+
+       Not that bad.
+    */
+       
 #if 0
     LispObj prev = undefined;
     LispObj this = n, next;
