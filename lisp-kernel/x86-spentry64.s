@@ -1200,7 +1200,7 @@ __(tra(local_label(_threw_multiple)))
 	__(movq catch_frame.db_link(%temp0),%imm0)
 	__(movq %rcontext:tcr.db_link,%imm1)
 	__(cmpq %imm0,%imm1)
-	__(jne local_label(_threw_multiple_dont_unbind))
+	__(je local_label(_threw_multiple_dont_unbind))
 	__(leaq local_label(_threw_multiple_dont_unbind)(%rip),%r10)
 	__(jmp _SPunbind_to)
 __(tra(local_label(_threw_multiple_dont_unbind)))
@@ -1233,10 +1233,6 @@ local_label(_threw_multiple_push_test):
 	__(movq (%imm1),%tsp)
 	__(movq %tsp,%next_tsp)
 	__(jmp *%ra0)
-
-
-
-		
 _endsubp(throw)
 
 /* This takes N multiple values atop the vstack.   */
