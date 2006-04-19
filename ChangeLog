@@ -1,3 +1,22 @@
+2006-04-18 19:19  gb
+
+	* level-1/l1-processes.lisp: Remove the #+x86-target debugging code
+	in PROCESS-EXIT-APPLICATION, since the closure- trashing bug seems
+	to have been fixed.
+
+2006-04-18 19:18  gb
+
+	* level-0/X86/x86-pred.lisp: EQL on bignums wasn't using
+	X8664::MISC-DATA-OFFSET, so it was comparing a few bytes beyond the
+	ends of its arguments and ignoring the first few bytes (as well as
+	doing misaligned memory references.)
+
+2006-04-18 19:16  gb
+
+	* level-0/X86/x86-def.lisp: Insert the PPC version of APPLY+ here. 
+	This'll require some thought, mostly because of the reserved-frame
+	issue(s).
+
 2006-04-18 06:21  gb
 
 	* lisp-kernel/ppc-constants32.s: Comment mishaps.  These wacky
