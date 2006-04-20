@@ -1,3 +1,8 @@
+2006-04-20 04:48  gb
+
+	* lisp-kernel/x86-gc.c: Get the link-inverting marker written;
+	force it to always be used, for now.
+
 2006-04-19 17:11  gb
 
 	* lisp-kernel/pmcl-kernel.c: (Very) different
