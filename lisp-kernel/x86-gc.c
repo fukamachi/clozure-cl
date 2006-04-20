@@ -424,8 +424,8 @@ mark_ephemeral_root(LispObj n)
 
 #ifdef X86
 #ifdef X8664
-#define RMARK_PREV_ROOT fulltag_immheader_0
-#define RMARK_PREV_CAR fulltag_immheader_1
+#define RMARK_PREV_ROOT fulltag_imm_1 /* fulltag of 'undefined' value */
+#define RMARK_PREV_CAR fulltag_nil /* fulltag_nil + node_size. Coincidence ? I think not. */
 #else
 #endif
 #endif
@@ -557,7 +557,6 @@ rmark(LispObj n)
 
     }
   } else {
-    Bug(NULL, "DWS marker NYI.");
 
     /* This is all a bit more complicated than the PPC version:
 
@@ -628,19 +627,8 @@ rmark(LispObj n)
        Not that bad.
     */
        
-#if 0
-    LispObj prev = undefined;
-    LispObj this = n, next;
-    /*
-      This is an FSM.  The basic states are:
-      (0) Just marked the cdr of a cons; mark the car next;
-      (1) Just marked the car of a cons; back up.
-      (2) Hit a gvector header.  Back up.
-      (3) Marked a gvector element; mark the preceding one.
-      (4) Backed all the way up to the object that got us here.
-      
-      This is all encoded in the fulltag of the "prev" pointer.
-    */
+    LispObj prev = undefined, this = n, next, *base;
+    natural header, subtag, element_count, total_size_in_bytes, suffix_dnodes, *boundary;
 
     if (tag_n == fulltag_cons) goto MarkCons;
     goto MarkVector;
@@ -654,8 +642,12 @@ rmark(LispObj n)
     this = prev;
     tag_n = fulltag_of(prev);
     switch(tag_n) {
-    case fulltag_odd_fixnum:
-    case fulltag_even_fixnum:
+    case tag_misc:
+    case fulltag_misc:
+    case tag_symbol:
+    case fulltag_symbol:
+    case tag_function:
+    case fulltag_function:
       goto ClimbVector;
 
     case RMARK_PREV_ROOT:
@@ -711,78 +703,92 @@ rmark(LispObj n)
     this = next;
 
   MarkVector:
-    {
-      LispObj *base = (LispObj *) ptr_from_lispobj(untag(this));
-      natural
-        header = *((natural *) base),
-        subtag = header_subtag(header),
-        element_count = header_element_count(header),
-        total_size_in_bytes,
-        suffix_dnodes;
+    if ((tag_n == fulltag_tra_0) ||
+        (tag_n == fulltag_tra_1)) {
+      int disp = ((int *)n)[-1];
 
-      tag_n = fulltag_of(header);
+      base = (LispObj *) (untag(n-disp));
+      header = *((natural *) base);
+      subtag = header_subtag(header);
+      boundary = base + (int)(base[1]);
+      (((int *)boundary)[1]) = (int)(this-((LispObj)boundary));
+      this = (LispObj)(base)+fulltag_function;
+      /* Need to set the initial markbit here */
+      dnode = gc_area_dnode(this);
+      set_bit(markbits,dnode);
+    } else {
+      base = (LispObj *) ptr_from_lispobj(untag(this));
+      header = *((natural *) base);
+      subtag = header_subtag(header);
+      if (subtag == subtag_function) {
+        boundary = base + (int)(base[1]);
+        (((int *)boundary)[1]) = (int)(this-((LispObj)boundary));
+      }
+    }
+    element_count = header_element_count(header);
+    tag_n = fulltag_of(header);
 
-
-      if ((nodeheader_tag_p(tag_n)) ||
-          (tag_n == ivector_class_64_bit)) {
-        total_size_in_bytes = 8 + (element_count<<3);
-      } else if (tag_n == ivector_class_32_bit) {
-        total_size_in_bytes = 8 + (element_count<<2);
+    if ((nodeheader_tag_p(tag_n)) ||
+        (tag_n == ivector_class_64_bit)) {
+      total_size_in_bytes = 8 + (element_count<<3);
+    } else if (tag_n == ivector_class_32_bit) {
+      total_size_in_bytes = 8 + (element_count<<2);
+    } else {
+      /* ivector_class_other_bit contains 16-bit arrays & bitvector */
+      if (subtag == subtag_bit_vector) {
+        total_size_in_bytes = 8 + ((element_count+7)>>3);
+      } else if (subtag >= min_8_bit_ivector_subtag) {
+        total_size_in_bytes = 8 + element_count;
       } else {
-        /* ivector_class_other_bit contains 16-bit arrays & bitvector */
-        if (subtag == subtag_bit_vector) {
-          total_size_in_bytes = 8 + ((element_count+7)>>3);
-	} else if (subtag >= min_8_bit_ivector_subtag) {
-	  total_size_in_bytes = 8 + element_count;
-        } else {
-          total_size_in_bytes = 8 + (element_count<<1);
-        }
+        total_size_in_bytes = 8 + (element_count<<1);
       }
-      suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
-
-      if (suffix_dnodes) {
-        set_n_bits(GCmarkbits, dnode+1, suffix_dnodes);
-      }
-
-      if (!nodeheader_tag_p(tag_n)) goto Climb;
-
-      if (subtag == subtag_hash_vector) {
-        /* Splice onto weakvll, then climb */
-        LispObj flags = ((hash_table_vector_header *) base)->flags;
-
-        if (flags & nhash_weak_mask) {
-          ((hash_table_vector_header *) base)->cache_key = undefined;
-          ((hash_table_vector_header *) base)->cache_value = lisp_nil;
-        }
-
-        deref(ptr_to_lispobj(base),1) = GCweakvll;
-        GCweakvll = this;
-        goto Climb;
+    }
+    suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
+    
+    if (suffix_dnodes) {
+      set_n_bits(GCmarkbits, dnode+1, suffix_dnodes);
+    }
+    
+    if (!nodeheader_tag_p(tag_n)) goto Climb;
+    
+    if (subtag == subtag_hash_vector) {
+      /* Splice onto weakvll, then climb */
+      LispObj flags = ((hash_table_vector_header *) base)->flags;
+      
+      if (flags & nhash_weak_mask) {
+        ((hash_table_vector_header *) base)->cache_key = undefined;
+        ((hash_table_vector_header *) base)->cache_value = lisp_nil;
       }
 
-      if (subtag == subtag_pool) {
-        deref(this, 1) = lisp_nil;
-      }
-
-      if (subtag == subtag_weak) {
-        natural weak_type = (natural) base[2];
-        if (weak_type >> population_termination_bit)
-          element_count -= 2;
-        else
-          element_count -= 1;
-      }
-
-      this = untag(this) + ((element_count+1) << node_shift);
-      goto MarkVectorLoop;
+      deref(ptr_to_lispobj(base),1) = GCweakvll;
+      GCweakvll = this;
+      goto Climb;
     }
 
+    if (subtag == subtag_pool) {
+      deref(this, 1) = lisp_nil;
+    }
+
+    if (subtag == subtag_weak) {
+      natural weak_type = (natural) base[2];
+      if (weak_type >> population_termination_bit)
+        element_count -= 2;
+      else
+        element_count -= 1;
+    }
+
+    this = (LispObj)(base) + (tag_of(this))  + ((element_count+1) << node_shift);
+    goto MarkVectorLoop;
+
   ClimbVector:
-    prev = *((LispObj *) ptr_from_lispobj(this));
-    *((LispObj *) ptr_from_lispobj(this)) = next;
+    prev = indirect_node(this);
+    indirect_node(this) = next;
 
   MarkVectorLoop:
     this -= node_size;
-    next = *((LispObj *) ptr_from_lispobj(this));
+    next = indirect_node(this);
+    if ((tag_of(this) == tag_function) &&
+        (header_subtag(next) == function_boundary_marker)) goto MarkFunctionDone;
     tag_n = fulltag_of(next);
     if (nodeheader_tag_p(tag_n)) goto MarkVectorDone;
     if (!is_node_fulltag(tag_n)) goto MarkVectorLoop;
@@ -791,21 +797,26 @@ rmark(LispObj n)
     set_bits_vars(markbits,dnode,bitsp,bits,mask);
     if (bits & mask) goto MarkVectorLoop;
     *bitsp = (bits | mask);
-    *(ptr_from_lispobj(this)) = prev;
+    indirect_node(this) = prev;
     if (tag_n == fulltag_cons) goto DescendCons;
     goto DescendVector;
 
   MarkVectorDone:
-    /* "next" is vector header; "this" is fixnum-aligned.
+    /* "next" is vector header; "this" tagged tag_misc or tag_symbol.
        If  header subtag = subtag_weak_header, put it on weakvll */
-    this += fulltag_misc;
+    this += node_size;          /* make it fulltag_misc/fulltag_symbol */
 
     if (header_subtag(next) == subtag_weak) {
       deref(this, 1) = GCweakvll;
       GCweakvll = this;
     }
     goto Climb;
-#endif
+
+  MarkFunctionDone:
+    boundary = (LispObj *)(node_aligned(this));
+    this = ((LispObj)boundary) + (((int *)boundary)[1]);
+    (((int *)boundary)[1]) = 0;
+    goto Climb;
   }
 }
 
@@ -2299,6 +2310,11 @@ Boolean just_purified_p = false;
 #define get_time(when) gettimeofday(&when, NULL)
 
 
+#define MARK_RECURSIVELY_USING_STACK 0
+#if !MARK_RECURSIVELY_USING_STACK
+#warning recursive marker disabled for testing; remember to re-enable it
+#endif
+
 void 
 gc(TCR *tcr, signed_natural param)
 {
@@ -2313,12 +2329,16 @@ gc(TCR *tcr, signed_natural param)
   BytePtr oldfree = a->active;
   TCR *other_tcr;
   natural static_dnodes;
-  
+
+#if MARK_RECURSIVELY_USING_STACK  
   if ((natural) (tcr->cs_limit) == CS_OVERFLOW_FORCE_LIMIT) {
     GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
   } else {
     GCstack_limit = (natural)(tcr->cs_limit)+(natural)page_size;
   }
+#else
+  GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
+#endif
 
   GCephemeral_low = lisp_global(OLDEST_EPHEMERAL);
   if (GCephemeral_low) {
