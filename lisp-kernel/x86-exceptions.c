@@ -89,18 +89,6 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
     zero_page(HeapHighWaterMark);
     HeapHighWaterMark+=page_size;
   }
-#if 1
-  {
-    LispObj *start = (LispObj *)(tcr->save_allocbase),
-      *end = (LispObj *)(tcr->save_allocptr);
-    while (start < end) {
-      if (*start) {
-        Bug(NULL, "Memory not zeroed!");
-      }
-      start++;
-    }
-  }
-#endif
   return true;
 }
 
@@ -665,11 +653,15 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	} else {
 	  xframe_list xframe_link;
 	  int old_valence;
+          signed_natural alloc_displacement = 0;
 	  
-	  pc_luser_xp(context, tcr, true);
+	  pc_luser_xp(context, tcr, &alloc_displacement);
 	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
 	  handle_exception(signum, info, context, tcr);
+          if (alloc_displacement) {
+            tcr->save_allocptr -= alloc_displacement;
+          }
 	  unlock_exception_lock_in_handler(tcr);
 	  exit_signal_handler(tcr, old_valence);
 	}
@@ -774,20 +766,195 @@ setup_sigaltstack(area *a)
   sigaltstack(&stack, NULL);
 }
 
-extern unsigned char egc_write_barrier_start, egc_write_barrier_end;
+extern opcode egc_write_barrier_start, egc_write_barrier_end,
+  egc_store_node_conditional_success_test,egc_store_node_conditional,
+  egc_set_hash_key, egc_gvset, egc_rplacd;
 
+/* We use (extremely) rigidly defined instruction sequences for consing,
+   mostly so that 'pc_luser_xp()' knows what to do if a thread is interrupted
+   while consing.
+
+   Note that we can usually identify which of these instructions is about
+   to be executed by a stopped thread without comparing all of the bytes
+   to those at the stopped program counter, but we generally need to
+   know the sizes of each of these instructions.
+*/
+
+opcode load_allocptr_reg_from_tcr_save_allocptr_instruction[] =
+  {0x65,0x48,0x8b,0x1c,0x25,0xd8,0x00,0x00,0x00};
+opcode compare_allocptr_reg_to_tcr_save_allocbase_instruction[] =
+  {0x65,0x48,0x3b,0x1c,0x25,0xe0,0x00,0x00,0x00};
+opcode branch_around_alloc_trap_instruction[] =
+  {0x7f,0x02};
+opcode alloc_trap_instruction[] =
+  {0xcd,0xc5};
+opcode clear_tcr_save_allocptr_tag_instruction[] =
+  {0x65,0x80,0x24,0x25,0xd8,0x00,0x00,0x00};
+opcode set_allocptr_header_instruction[] =
+  {0x48,0x89,0x43,0xf3};
+
+
+alloc_instruction_id
+recognize_alloc_instruction(pc program_counter)
+{
+  switch(program_counter[0]) {
+  case 0xcd: return ID_alloc_trap_instruction;
+  case 0x7f: return ID_branch_around_alloc_trap_instruction;
+  case 0x48: return ID_set_allocptr_header_instruction;
+  case 0x65: 
+    switch(program_counter[1]) {
+    case 0x80: return ID_clear_tcr_save_allocptr_tag_instruction;
+    case 0x48:
+      switch(program_counter[2]) {
+      case 0x3b: return ID_compare_allocptr_reg_to_tcr_save_allocbase_instruction;
+      case 0x8b: return ID_load_allocptr_reg_from_tcr_save_allocptr_instruction;
+      }
+    }
+  }
+  return ID_unrecognized_alloc_instruction;
+}
+      
+  
 void
-pc_luser_xp(ExceptionInformation *xp, TCR *tcr, Boolean is_current_tcr)
+pc_luser_xp(ExceptionInformation *xp, TCR *tcr, signed_natural *interrupt_displacement)
 {
   pc program_counter = (pc)xpPC(xp);
-  
-  if (fulltag_of((LispObj)(tcr->save_allocptr)) != 0) {
-    /* Not handled yet */
-    Bug(NULL, "Other thread suspended during memory allocation");
+  int allocptr_tag = fulltag_of((LispObj)(tcr->save_allocptr));
+
+  if (allocptr_tag != 0) {
+    alloc_instruction_id state = recognize_alloc_instruction(program_counter);
+    signed_natural 
+      disp = (allocptr_tag == fulltag_cons) ?
+      sizeof(cons) - fulltag_cons :
+      xpGPR(xp,Iimm1);
+    LispObj new_vector;
+
+    if ((state == ID_unrecognized_alloc_instruction) ||
+        ((state == ID_set_allocptr_header_instruction) &&
+         (allocptr_tag == fulltag_cons))) {
+      Bug(NULL, "Can't determine state of thread 0x%lx, interrupted during memory allocation", tcr);
+    }
+    switch(state) {
+    case ID_set_allocptr_header_instruction:
+      /* We were consing a vector and we won.  Set the header of the new vector
+         (in the allocptr register) to the header in %rax and skip over this
+         instruction, then fall into the next case. */
+      new_vector = xpGPR(xp,Iallocptr);
+      deref(new_vector,0) = xpGPR(xp,Iimm0);
+
+      xpPC(xp) += sizeof(set_allocptr_header_instruction);
+      /* Fall thru */
+    case ID_clear_tcr_save_allocptr_tag_instruction:
+      tcr->save_allocptr = (void *)(((LispObj)tcr->save_allocptr) & ~fulltagmask);
+      xpPC(xp) += sizeof(clear_tcr_save_allocptr_tag_instruction);
+      break;
+    case ID_alloc_trap_instruction:
+      /* If we're looking at another thread, we're pretty much committed to
+         taking the trap.  We don't want the allocptr register to be pointing
+         into the heap, so make it point to (- VOID_ALLOCPTR disp), where 'disp'
+         was determined above. 
+      */
+      if (interrupt_displacement == NULL) {
+        xpGPR(xp,Iallocptr) = VOID_ALLOCPTR - disp;
+      } else {
+        /* Back out, and tell the caller how to resume the allocation attempt */
+        *interrupt_displacement = disp;
+        xpPC(xp) -= (sizeof(branch_around_alloc_trap_instruction)+
+                     sizeof(compare_allocptr_reg_to_tcr_save_allocbase_instruction) +
+                     sizeof(load_allocptr_reg_from_tcr_save_allocptr_instruction));
+      }
+      break;
+    case ID_branch_around_alloc_trap_instruction:
+      /* If we'd take the branch - which is a 'jg" - around the alloc trap,
+         we might as well finish the allocation.  Otherwise, back out of the
+         attempt. */
+      {
+        int flags = (int)xpGPR(xp,Iflags);
+        
+        if ((!(flags & (1 << X86_ZERO_FLAG_BIT))) &&
+            ((flags & (1 << X86_SIGN_FLAG_BIT)) ==
+             (flags & (1 << X86_CARRY_FLAG_BIT)))) {
+          /* The branch (jg) would have been taken.  Emulate taking it. */
+          xpPC(xp) += (sizeof(branch_around_alloc_trap_instruction)+
+                       sizeof(alloc_trap_instruction));
+          if (allocptr_tag == fulltag_misc) {
+            /* Slap the header on the new uvector */
+            new_vector = xpGPR(xp,Iallocptr);
+            deref(new_vector,0) = xpGPR(xp,Iimm0);
+            xpPC(xp) += sizeof(set_allocptr_header_instruction);
+          }
+          tcr->save_allocptr = (void *)(((LispObj)tcr->save_allocptr) & ~fulltagmask);
+          xpPC(xp) += sizeof(clear_tcr_save_allocptr_tag_instruction);
+        } else {
+          /* Back up */
+          xpPC(xp) -= (sizeof(compare_allocptr_reg_to_tcr_save_allocbase_instruction) +
+                       sizeof(load_allocptr_reg_from_tcr_save_allocptr_instruction));
+          xpGPR(xp,Iallocptr) = VOID_ALLOCPTR;
+          tcr->save_allocptr = (void *)(VOID_ALLOCPTR-disp);
+        }
+      }
+      break;
+    case ID_compare_allocptr_reg_to_tcr_save_allocbase_instruction:
+      xpGPR(xp,Iallocptr) = VOID_ALLOCPTR;
+      xpPC(xp) -= sizeof(load_allocptr_reg_from_tcr_save_allocptr_instruction);
+      /* Fall through */
+    case ID_load_allocptr_reg_from_tcr_save_allocptr_instruction:
+      tcr->save_allocptr = (void *)(VOID_ALLOCPTR-disp);
+      break;
+    }
+    return;
   }
   if ((program_counter >= &egc_write_barrier_start) &&
       (program_counter < &egc_write_barrier_end)) {
-    Bug(NULL, "Other thread is in write barrier");
+    LispObj *ea = 0, val, root;
+    bitvector refbits = (bitvector)(lisp_global(REFBITS));
+    Boolean need_store = true, need_check_memo = true, need_memoize_root = false;
+
+    if (program_counter >= &egc_store_node_conditional) {
+      if ((program_counter < &egc_store_node_conditional_success_test) ||
+          ((program_counter == &egc_store_node_conditional_success_test) &&
+           !(xpGPR(xp, Iflags) & (1 << X86_ZERO_FLAG_BIT)))) {
+        /* Back up the PC, try again */
+        xpPC(xp) = (LispObj) &egc_store_node_conditional;
+        return;
+      }
+      /* The conditional store succeeded.  Set the refbit, return to ra0 */
+      val = xpGPR(xp,Iarg_z);
+      ea = (LispObj*)(xpGPR(xp,Iarg_x) + (unbox_fixnum((signed_natural)
+                                                       xpGPR(xp,Itemp0))));
+      xpGPR(xp,Iarg_z) = t_value;
+      need_store = false;
+    } else if (program_counter >= &egc_set_hash_key) {
+      root = xpGPR(xp,Iarg_x);
+      ea = (LispObj *) (root+xpGPR(xp,Iarg_y)+misc_data_offset);
+      val = xpGPR(xp,Iarg_z);
+      need_memoize_root = true;
+    } else if (program_counter >= &egc_gvset) {
+      ea = (LispObj *) (xpGPR(xp,Iarg_x)+xpGPR(xp,Iarg_y)+misc_data_offset);
+      val = xpGPR(xp,Iarg_z);
+    } else if (program_counter >= &egc_rplacd) {
+      ea = (LispObj *) untag(xpGPR(xp,Iarg_y));
+      val = xpGPR(xp,Iarg_z);
+    } else {                      /* egc_rplaca */
+      ea =  ((LispObj *) untag(xpGPR(xp,Iarg_y)))+1;
+      val = xpGPR(xp,Iarg_z);
+    }
+    if (need_store) {
+      *ea = val;
+    }
+    if (need_check_memo) {
+      natural  bitnumber = area_dnode(ea, lisp_global(HEAP_START));
+      if ((bitnumber < lisp_global(OLDSPACE_DNODE_COUNT)) &&
+          ((LispObj)ea < val)) {
+        atomic_set_bit(refbits, bitnumber);
+        if (need_memoize_root) {
+          bitnumber = area_dnode(root, lisp_global(HEAP_START));
+          atomic_set_bit(refbits, bitnumber);
+        }
+      }
+    }
+    xpPC(xp) = xpGPR(xp,Ira0);
+    return;
   }
 }
 
@@ -800,7 +967,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
 
   if (xp) {
     if (is_other_tcr) {
-      pc_luser_xp(xp, tcr, false);
+      pc_luser_xp(xp, tcr, NULL);
     }
     a = tcr->vs_area;
     lisprsp = xpGPR(xp, Isp);
@@ -820,7 +987,10 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
   if (cur_allocptr) {
     update_bytes_allocated(tcr, cur_allocptr);
   }
-  tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
+  tcr->save_allocbase = (void *)VOID_ALLOCPTR;
+  if (fulltag_of((LispObj)(tcr->save_allocptr)) == 0) {
+    tcr->save_allocptr = (void *)VOID_ALLOCPTR;
+  }
 }
 
 
