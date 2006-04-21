@@ -1,3 +1,12 @@
+2006-04-20 23:35  gb
+
+	* lisp-kernel/x86-spentry64.s: In the bignum case of
+	.SPinteger-sign, sign-extend the bignum's sign digit instead of ...
+	whatever the code was trying to do there.
+	
+	In the lexpr-has-two-values case of .SPspread-lexprz, load arg_y
+	and arg_z from the correct offsets within the lexpr.
+
 2006-04-20 04:48  gb
 
 	* lisp-kernel/x86-gc.c: Get the link-inverting marker written;
