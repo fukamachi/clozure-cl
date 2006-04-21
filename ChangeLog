@@ -1,3 +1,34 @@
+2006-04-21 02:50  gb
+
+	* lisp-kernel/x86-spentry64.s: Use only the value of the first
+	instance of :ALLOW-OTHER-KEYS to determine whether unknown keys are
+	allowed.
+
+2006-04-21 02:49  gb
+
+	* lisp-kernel/lisp-debug.c: Tweak things so that %rip and %flags
+	line up with GPRs.
+
+2006-04-21 02:48  gb
+
+	* lib/sequences.lisp: SIMPLE-1D-ARRAY-SUBSEQ: 64-bit vector case is
+	#+64-bit-target, not #+ppc64-target.
+
+2006-04-21 02:47  gb
+
+	* level-0/X86/x86-array.lisp: %SIMPLE-BIT-BOOLE: shift by the right
+	amount.
+
+2006-04-21 02:46  gb
+
+	* level-0/l0-array.lisp: %UVECTOR-REPLACE: 64-bit vectors aren't
+	unique to PPC64 (but do depend on #+64-bit-target).
+
+2006-04-21 02:46  gb
+
+	* compiler/X86/x862.lisp: The binding(s) of *INTERRUPT-LEVEL*
+	confuse PROGV; remove them, for now.
+
 2006-04-20 23:35  gb
 
 	* lisp-kernel/x86-spentry64.s: In the bignum case of
