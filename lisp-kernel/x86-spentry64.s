@@ -2132,6 +2132,7 @@ _endsubp(keyword_args)
 define([keyword_flags_aok_bit],[fixnumshift])
 define([keyword_flags_unknown_keys_bit],[fixnumshift+1])
 define([keyword_flags_rest_bit],[fixnumshift+2])
+define([keyword_flags_seen_aok_bit],[fixnumshift+3])        
 	
 _spentry(keyword_bind)
 	__(movzwl %nargs,%imm1_l)
@@ -2183,6 +2184,13 @@ local_label(even):
 	/* %save2 is the length of the keyword vector   */
 5:	__(movq (%arg_z),%save3)	/* %save3 is current keyword   */
 	__(xorl %imm0_l,%imm0_l)
+        __(cmpq $nrs.kallowotherkeys,%save3)
+        __(jne local_label(next_keyvect_entry))
+        __(btsq $keyword_flags_seen_aok_bit,%temp1)
+        __(jc local_label(next_keyvect_entry))
+        __(cmpb $fulltag_nil,node_size(%arg_z))
+	__(je local_label(next_keyvect_entry))
+	__(btsq $keyword_flags_aok_bit,%temp1)
 	__(jmp local_label(next_keyvect_entry))
 6:	__(cmpq misc_data_offset(%arg_x,%imm0),%save3)
 	__(jne 7f)
@@ -2201,11 +2209,7 @@ local_label(next_keyvect_entry):
 	/* Didn't match anything in the keyword vector. Is the keyword  */
 	/* :allow-other-keys ?   */
 	__(cmpq $nrs.kallowotherkeys,%save3)
-	__(jne 8f)
-	__(cmpb $fulltag_nil,node_size(%arg_z))
-	__(jne 9f)
-	__(btsq $keyword_flags_aok_bit,%temp1)
-	__(jmp 9f)
+	__(je 9f)               /* :allow-other-keys is never "unknown" */
 8:	__(btsq $keyword_flags_unknown_keys_bit,%temp1)
 9:	__(addq $dnode_size,%arg_z)
 	__(cmpq %arg_z,%save1)
@@ -2245,6 +2249,7 @@ local_label(next_keyvect_entry):
 	/* Signal an "unknown keywords" error   */
 	__(movq %imm1,%nargs_q)
 	__(testw %nargs,%nargs)
+        __(movl $nil_value,%arg_z_l)
 	__(jmp 5f)
 4:	__(pop %arg_y)
 	__(Cons(%arg_y,%arg_z,%arg_z))
