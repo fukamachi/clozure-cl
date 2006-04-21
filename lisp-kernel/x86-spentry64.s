@@ -3037,9 +3037,7 @@ _spentry(integer_sign)
 	__(jne 9f)
 	__(getvheader(%arg_z,%imm0))
 	__(shr $num_subtag_bits,%imm0)
-	__(movl misc_data_offset-4(%arg_z,%imm0),%imm0_l)
-	__(setae %imm0_b)
-	__(andl $1,%imm0_l)
+	__(movslq misc_data_offset-4(%arg_z,%imm0,4),%imm0)
 8:	__(jmp *%ra0)
 9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_integer))
 _endsubp(integer_sign)
@@ -4119,8 +4117,8 @@ local_label(go):
 	/* lexpr count is two: set arg_y, arg_z from the */
 	/* lexpr, maybe vpop arg_x */
 2:      __(cmpw $(2*node_size),%nargs)
-        __(movq -node_size*2(%imm1),%arg_y)
-        __(movq -node_size*3(%imm1),%arg_z)
+        __(movq -node_size*1(%imm1),%arg_y)
+        __(movq -node_size*2(%imm1),%arg_z)
         __(jne local_label(pop_arg_x))
         __(jmp *%ra0)
 	/* lexpr count is one: set arg_z from the lexpr, */
