@@ -7471,12 +7471,10 @@
 (defx862 x862-progv progv (seg vreg xfer symbols values body)
   (let* ((cleanup-label (backend-get-next-label))
          (protform-label (backend-get-next-label))
-         (old-stack (x862-encode-stack))
-         (yreg ($ x8664::arg_y)))
+         (old-stack (x862-encode-stack)))
     (x862-two-targeted-reg-forms seg symbols ($ x8664::arg_y) values ($ x8664::arg_z))
     (! progvsave)
-    (! ref-interrupt-level yreg)
-    (x862-dbind seg (make-acode (%nx1-operator fixnum) -1) '*interrupt-level*)
+    (x862-open-undo $undostkblk)
     (! mkunwind
        (aref *backend-labels* protform-label)
        (aref *backend-labels* cleanup-label))
@@ -7484,7 +7482,6 @@
     (! progvrestore)
     (x862-open-undo)
     (@= protform-label)
-    (x862-dbind seg yreg '*interrupt-level*)
     (x862-undo-body seg vreg xfer body old-stack)))
 
 (defx862 x862-%ptr-eql %ptr-eql (seg vreg xfer cc x y )
