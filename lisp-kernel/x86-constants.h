@@ -48,5 +48,15 @@
 #define MXCSR_UM_BIT (11)       /* underflow masked when set */
 #define MXCSR_PM_BIT (12)       /* precision masked when set */
 
+/* Bits in the xFLAGS register */
+#define X86_CARRY_FLAG_BIT (0)
+#define X86_PARITY_FLAG_BIT (2)
+#define X86_AUX_CARRY_FLAG_BIT (4)
+#define X86_ZERO_FLAG_BIT (6)
+#define X86_SIGN_FLAG_BIT (7)
+#define X86_DIRECTION_FLAG_BIT (10)
+#define X86_OVERFLOW_FLAG_BIT (11)
+
+
 #endif /* __x86_constants__ */
 
