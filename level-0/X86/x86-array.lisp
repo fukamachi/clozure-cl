@@ -225,7 +225,7 @@
 
 (defun %simple-bit-boole (op b1 b2 result)
   (let* ((f (svref *simple-bit-boole-functions* op)))
-    (dotimes (i (ash (the fixnum (+ (length result) 63)) -8) result)
+    (dotimes (i (ash (the fixnum (+ (length result) 63)) -6) result)
       (funcall f i b1 b2 result))))
 
        
