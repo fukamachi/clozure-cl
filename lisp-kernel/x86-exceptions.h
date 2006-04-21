@@ -77,5 +77,15 @@ void switch_to_foreign_stack(void*, ...);
 #define XUUO_INTERRUPT_NOW 2
 
 void
-pc_luser_xp(ExceptionInformation*, TCR*, Boolean);
+pc_luser_xp(ExceptionInformation*, TCR*, signed_natural*);
 
+
+typedef enum {
+  ID_unrecognized_alloc_instruction,
+  ID_load_allocptr_reg_from_tcr_save_allocptr_instruction,
+  ID_compare_allocptr_reg_to_tcr_save_allocbase_instruction,
+  ID_branch_around_alloc_trap_instruction,
+  ID_alloc_trap_instruction,
+  ID_set_allocptr_header_instruction,
+  ID_clear_tcr_save_allocptr_tag_instruction
+} alloc_instruction_id;
