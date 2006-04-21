@@ -1,3 +1,27 @@
+2006-04-21 10:12  gb
+
+	* lisp-kernel/x86-exceptions.c: implement pc_luser_xp; just has to
+	worry about consing, write-barrier stuff.
+
+2006-04-21 10:11  gb
+
+	* lisp-kernel/x86-constants.h: Define X86 flags register bits
+	(condition codes.)
+
+2006-04-21 10:11  gb
+
+	* lisp-kernel/x86-exceptions.h: change the signature of pc_luser_xp
+	(again.)
+	
+	Define enumeration constants for matching the instructions that can
+	occur during consing.
+
+2006-04-21 10:09  gb
+
+	* lisp-kernel/x86-spentry64.s: Preserve %temp0 in
+	store_node_conditional, in case pc_luser_xp() needs to complete the
+	memoization.
+
 2006-04-21 02:50  gb
 
 	* lisp-kernel/x86-spentry64.s: Use only the value of the first
