@@ -167,10 +167,10 @@
 				   (- ppc32::misc-dfloat-offset
 						     ppc32::misc-data-offset)
 				   (the fixnum (ash n 3))))
-	#+ppc64-target
-	((#.ppc64::subtag-double-float-vector
-	  #.ppc64::subtag-s64-vector
-	  #.ppc64::subtag-u64-vector)
+	#+64-bit-target
+	((#.target::subtag-double-float-vector
+	  #.target::subtag-s64-vector
+	  #.target::subtag-u64-vector)
 	 (%copy-ivector-to-ivector src
 				   (the fixnum (ash start 3))
 				   dest
