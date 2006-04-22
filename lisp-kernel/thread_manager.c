@@ -438,6 +438,9 @@ dequeue_tcr(TCR *tcr)
   prev->next = next;
   next->prev = prev;
   tcr->prev = tcr->next = NULL;
+#ifdef X8664
+  tcr->linear = NULL;
+#endif
 }
   
 void
@@ -624,6 +627,11 @@ shutdown_thread_tcr(void *arg)
     tcr->osid = 0;
     termination_semaphore = tcr->termination_semaphore;
     tcr->termination_semaphore = NULL;
+#ifdef HAVE_TLS
+    LOCK(lisp_global(TCR_LOCK),tcr);
+    dequeue_tcr(tcr);
+    UNLOCK(lisp_global(TCR_LOCK),tcr);
+#endif
     UNLOCK(lisp_global(AREA_LOCK),tcr);
     if (termination_semaphore) {
       SEM_RAISE(termination_semaphore);
@@ -781,10 +789,6 @@ lisp_thread_entry(void *param)
   } while (tcr->flags & (1<<TCR_FLAG_BIT_AWAITING_PRESET));
 }
 
-#ifdef X8664
-#warning Inflating stack size until DWS marker works
-#endif
-
 
 void *
 xNewThread(natural control_stack_size,
@@ -795,9 +799,6 @@ xNewThread(natural control_stack_size,
   thread_activation activation;
   TCR *current = get_tcr(false);
 
-#ifdef X8664
-  control_stack_size *= 4;
-#endif
 
   activation.tsize = temp_stack_size;
   activation.vsize = value_stack_size;
