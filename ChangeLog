@@ -1,3 +1,19 @@
+2006-04-22 03:30  gb
+
+	* lisp-kernel/thread_manager.c: If we're using thread-local-storage
+	(HAVE_TLS is defined), make shutdow_thread_tcr() dequeue the tcr, 
+	because (a) nothing else will and (b) the tcr will likely become
+	unmapped soon, and we don't want things that walk the tcr list to
+	segfault.
+
+2006-04-22 03:27  gb
+
+	* lisp-kernel/x86-exceptions.c: Something's clearly wrong in
+	find_foreign_rsp; call Bug() and exit() if the context has no
+	fpregs.  (That's a symptom, not the proble, but it's slightly
+	better to do this than to double fault, which is what seems to be
+	happening.)
+
 2006-04-21 10:12  gb
 
 	* lisp-kernel/x86-exceptions.c: implement pc_luser_xp; just has to
