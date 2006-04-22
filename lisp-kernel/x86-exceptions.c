@@ -594,8 +594,15 @@ LispObj *
 find_foreign_rsp(ExceptionInformation *xp, area *foreign_area)
 {
   LispObj rsp = xpGPR(xp, Isp);
+
   if (((BytePtr)rsp < foreign_area->low) ||
       ((BytePtr)rsp > foreign_area->high)) {
+#ifdef LINUX
+  if (xp->uc_mcontext.fpregs == NULL) {
+    Bug(NULL, "no FP regs in context\n");
+    exit(1);
+  }
+#endif
     rsp = xpMMXreg(xp, Iforeign_sp);
   }
   return (LispObj *) ((rsp-128 & ~!5));
