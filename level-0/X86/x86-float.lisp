@@ -68,7 +68,7 @@
 
 (defx86lapfunction %double-float-negate! ((src arg_y) (res arg_z))
   (get-double-float src fp1)
-  (movsd (% fp0) (% fp2))
+  (movsd (% fpzero) (% fp2))
   (subsd (% fp1) (% fp2))
   (put-double-float fp2 res)
   (single-value-return))
@@ -76,7 +76,7 @@
 
 (defx86lapfunction %short-float-negate ((src arg_z))
   (get-single-float src fp1)
-  (movss (% fp0) (% fp2))
+  (movss (% fpzero) (% fp2))
   (subss (% fp1) (% fp2))
   (put-single-float fp2 arg_z)
   (single-value-return))
@@ -399,7 +399,7 @@
   (movsd (@ (% imm0)) (% fp1))
   (cvtsd2ss (% fp1) (% fp1))
   (macptr-ptr single imm0)
-  (movss (% fp0) (@ (% imm0)))
+  (movss (% fp1) (@ (% imm0)))
   (single-value-return))
 
 
