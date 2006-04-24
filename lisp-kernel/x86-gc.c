@@ -2179,9 +2179,6 @@ compact_dynamic_heap()
           dnode += node_dnodes;
 	  if (header_subtag(node) == subtag_function) {
 	    int skip = *((int *)src);
-            if (skip >= elements) {
-              Bug(NULL,"Bad function code words near 0x%lx", src-1);
-            }
 	    *dest++ = node;
 	    elements -= skip;
 	    while(skip--) {
