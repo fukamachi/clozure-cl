@@ -3369,6 +3369,8 @@
    (def-x8664-opcode uuo-error-debug-trap ()
      #xcdca nil nil)
 
+   (def-x8664-opcode uuo-error-array-bounds ((:reg64 :insert-reg4-pseudo-rm-high) (:reg64 :insert-reg4-pseudo-rm-low))
+     #xcdcb 0 nil)
 
    (def-x8664-opcode uuo-error-eep-unresolved ((:reg64 :insert-reg4-pseudo-rm-high)
                                                (:reg64 :insert-reg4-pseudo-rm-low))
