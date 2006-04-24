@@ -77,6 +77,8 @@
 (defparameter *xload-readonly-space-size* (ash 1 18))
 (defparameter *xload-dynamic-space-address* nil)
 (defparameter *xload-dynamic-space-size* (ash 1 18))
+(defparameter *xload-managed-static-space-address* nil)
+(defparameter *xload-managed-static-space-size* 0)
 
 (defstruct backend-xload-info
   name
@@ -101,6 +103,7 @@
     (setq *xload-dynamic-space-address*
           (+ *xload-image-base-address*
              *xload-purespace-reserve*))
+    (setq *xload-managed-static-space-address* *xload-dynamic-space-address*)
     (setq *xload-target-nil*
           (arch::target-nil-value arch))
     (setq *xload-target-unbound-marker*
@@ -327,6 +330,7 @@
 (defparameter *xload-dynamic-space* nil)
 (defparameter *xload-readonly-space* nil)
 (defparameter *xload-static-space* nil)
+(defparameter *xload-managed-static-space* nil)
 (defparameter *xload-symbols* nil)
 (defparameter *xload-symbol-addresses* nil)
 (defparameter *xload-package-alist* nil)         ; maps real package to clone
@@ -951,6 +955,7 @@
          (*xload-readonly-space* (init-xload-space *xload-readonly-space-address* *xload-readonly-space-size* area-readonly))
          (*xload-dynamic-space* (init-xload-space *xload-dynamic-space-address* *xload-dynamic-space-size* area-dynamic))
 	 (*xload-static-space* (init-xload-space *xload-static-space-address* *xload-static-space-size* area-static))
+         (*xload-managed-static-space* (init-xload-space *xload-managed-static-space-address* *xload-managed-static-space-size* area-managed-static))
 						 
          (*xload-package-alist* (xload-clone-packages %all-packages%))
          (*xload-cold-load-functions* nil)
@@ -1045,7 +1050,8 @@
 		    heap-start
 		    (list *xload-readonly-space*
 			  *xload-static-space*
-			  *xload-dynamic-space*)))
+			  *xload-dynamic-space*
+                          *xload-managed-static-space*)))
 		    
 
 
