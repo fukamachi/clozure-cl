@@ -115,13 +115,13 @@
 
 (defnx1 nx1-with-c-frame with-c-frame (var &body body)
   (make-acode (%nx1-operator with-c-frame)
-              (nx1-form `(let* ((,var (%current-frame-ptr)))
+              (nx1-form `(let* ((,var (%foreign-stack-pointer)))
                           ,@body))))
 
 (defnx1 nx1-with-variable-c-frame with-variable-c-frame (size var &body body)
   (make-acode (%nx1-operator with-variable-c-frame)
               (nx1-form size)
-              (nx1-form `(let* ((,var (%current-frame-ptr)))
+              (nx1-form `(let* ((,var (%foreign-stack-pointer)))
                           ,@body))))
 
 
@@ -136,7 +136,7 @@
   (make-acode
    (%nx1-default-operator) (nx1-form arg)))
 
-(defnx1 nx1-nullaryop ((%current-tcr) (%interrupt-poll) (%current-frame-ptr)) ()
+(defnx1 nx1-nullaryop ((%current-tcr) (%interrupt-poll) (%foreign-stack-pointer) (%current-frame-ptr)) ()
   (make-acode (%nx1-default-operator)))
 
 (defnx1 nx1-fixnum-ref ((%fixnum-ref) (%fixnum-ref-natural)) (base &optional (offset 0))
