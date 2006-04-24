@@ -85,10 +85,10 @@
           (unless new-ordinal
             (error "No match for opcode ~s in ~s" vinsn-opcode vinsn-template))
           (unless (eql old-ordinal new-ordinal)
-            (setf (car vinsn-template) new-ordinal)
+            (setf (car vinsn-opcode) new-ordinal)
             (push (cons old-ordinal new-ordinal) changed))))))
     (when changed
-      (format t "~& opcode ordinals changed in ~s: ~s" vinsn-template changed)
+      ;;(format t "~& opcode ordinals changed in ~s: ~s" vinsn-template changed)
       (flet ((update-instruction (i)
                (when (consp i)
                  (let* ((pair (assoc (car i) changed :test #'eq)))
