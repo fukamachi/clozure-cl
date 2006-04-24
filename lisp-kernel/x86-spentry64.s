@@ -965,7 +965,7 @@ local_label(misc_set_s32):
 	__(movq %arg_y,%imm1)
 	__(shlq $64-(32+fixnumshift),%imm0)
 	__(shrq $1,%imm1)
-	__(shrq $64-(32+fixnumshift),%imm0)
+	__(sarq $64-(32+fixnumshift),%imm0)
 	__(cmpq %imm0,%arg_z)
 	__(jne local_label(misc_set_bad))
 	__(testb $fixnummask,%arg_z_b)
