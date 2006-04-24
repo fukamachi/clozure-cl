@@ -2414,6 +2414,10 @@ Boolean just_purified_p = false;
 
 #define get_time(when) gettimeofday(&when, NULL)
 
+#define MARK_RECURSIVELY_USING_STACK 1
+#if !MARK_RECURSIVELY_USING_STACK
+#warning recursive marker disabled for testing; remember to re-enable it
+#endif
 
 void 
 gc(TCR *tcr, signed_natural param)
@@ -2430,11 +2434,15 @@ gc(TCR *tcr, signed_natural param)
   TCR *other_tcr;
   natural static_dnodes;
   
+#if MARK_RECURSIVELY_USING_STACK
   if ((natural) (tcr->cs_limit) == CS_OVERFLOW_FORCE_LIMIT) {
     GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
   } else {
     GCstack_limit = (natural)(tcr->cs_limit)+(natural)page_size;
   }
+#else
+  GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
+#endif
 
   GCephemeral_low = lisp_global(OLDEST_EPHEMERAL);
   if (GCephemeral_low) {
