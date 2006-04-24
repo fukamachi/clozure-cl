@@ -281,8 +281,7 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
 void
 callback_for_interrupt(TCR *tcr, ExceptionInformation *xp)
 {
-
-  callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, Ifn, 0, 0, 0, 0);
+  callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, 0, Ifn, 0, 0, 0);
 }
 
 Boolean
@@ -332,8 +331,38 @@ handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 Boolean
 handle_floating_point_exception(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 {
-  fprintf(stderr, "FP exception = %d\n", info->si_code);
-  return false;
+  int code = info->si_code, rfn = 0, skip;
+  pc program_counter = (pc)xpPC(xp);
+  LispObj rpc = (LispObj) program_counter, current_function, cmain = nrs_CMAIN.vcell;
+
+  if ((fulltag_of(cmain) == fulltag_misc) &&
+      (header_subtag(header_of(cmain)) == subtag_macptr)) {
+        LispObj current_function = xpGPR(xp, Ifn), elements;
+ 
+    if (fulltag_of(current_function) == fulltag_function) {
+      elements = header_element_count(header_of(current_function));
+      if ((rpc > current_function) &&
+          (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
+        rfn = Ifn;
+        rpc -= current_function;
+      } else {
+        current_function = xpGPR(xp, Itemp1); /* temp1 aka xfn */
+        if (fulltag_of(current_function) == fulltag_function) {
+          elements = header_element_count(header_of(current_function));
+          if ((rpc > current_function) &&
+              (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
+            rfn = Itemp1;
+            rpc -= current_function;
+          }
+        }
+      }
+    }
+    skip = callback_to_lisp(tcr, cmain, xp, SIGFPE, rfn, rpc, code, 0);
+    xpPC(xp) += skip;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 Boolean
