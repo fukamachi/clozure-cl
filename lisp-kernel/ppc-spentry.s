@@ -448,14 +448,6 @@ _spentry(bind_self_boundp_check)
         __(b _SPksignalerr)
 
 
-        .globl C(egc_write_barrier_start)
-C(egc_write_barrier_start):
-        __ifdef([PPC64])
-        .quad _SPrplaca
-        __else
-        .long _SPrplaca
-        __endif
-
 /* The function pc_luser_xp() - which is used to ensure that suspended threads */
 /* are suspended in a GC-safe way - has to treat these subprims (which  */
 /* implement the EGC write-barrier) specially.  Specifically, a store that */
@@ -473,8 +465,10 @@ C(egc_write_barrier_start):
 /* setting the bit needs to be done atomically, unless we're sure that other */
 /* threads are suspended.) */
 /* We can unconditionally set the suspended thread's PC to its LR. */
-
+	
+        .globl C(egc_write_barrier_start)
 _spentry(rplaca)
+C(egc_write_barrier_start):
         __(cmplr(cr2,arg_z,arg_y))
         __(_rplaca(arg_y,arg_z))
         __(blelr cr2)
@@ -501,14 +495,8 @@ _spentry(rplaca)
         __(blr)
 
         .globl C(egc_rplacd)
-C(egc_rplacd):
-        __ifdef([PPC64])
-        .quad _SPrplacd
-        __else
-        .long _SPrplacd
-        __endif
-        
 _spentry(rplacd)
+C(egc_rplacd):
         __(cmplr(cr2,arg_z,arg_y))
 	__(_rplacd(arg_y,arg_z))
         __(blelr cr2)
@@ -537,13 +525,8 @@ _spentry(rplacd)
 /* Storing into a gvector can be handled the same way as storing into a CONS. */
 
         .globl C(egc_gvset)
-C(egc_gvset):
-        __ifdef([PPC64])
-        .quad _SPgvset
-        __else
-        .long _SPgvset
-        __endif
 _spentry(gvset)
+C(egc_gvset):
         __(cmplr(cr2,arg_z,arg_x))
         __(la imm0,misc_data_offset(arg_y))
         __(strx(arg_z,arg_x,imm0))
@@ -574,15 +557,9 @@ _spentry(gvset)
 /* This is a special case of storing into a gvector: if we need to memoize  */
 /* the store, record the address of the hash-table vector in the refmap,  */
 /* as well. */
-        
-        .globl C(egc_set_hash_key)
-C(egc_set_hash_key):
-        __ifdef([PPC64])
-        .quad _SPset_hash_key
-        __else
-        .long _SPset_hash_key
-        __endif
+        .globl C(egc_set_hash_key)        
 _spentry(set_hash_key)
+C(egc_set_hash_key):
         __(cmplr(cr2,arg_z,arg_x))
         __(la imm0,misc_data_offset(arg_y))
         __(strx(arg_z,arg_x,imm0))
@@ -640,13 +617,9 @@ _spentry(set_hash_key)
 /*      should set the PC to the LR, and set arg_z to T. */
 
         .globl C(egc_store_node_conditional)
-C(egc_store_node_conditional):
-        __ifdef([PPC64])
-        .quad _SPstore_node_conditional
-        __else
-        .long _SPstore_node_conditional
-        __endif
+        .globl C(egc_write_barrier_end)
 _spentry(store_node_conditional)
+C(egc_store_node_conditional):
         __(crclr 2)              /* 2 = cr0_EQ  */
         __(cmplr(cr2,arg_z,arg_x))
         __(vpop(temp0))
@@ -678,18 +651,12 @@ _spentry(store_node_conditional)
         __(b 5f)
 3:      __(li imm0,RESERVATION_DISCHARGE)
         __(strcx(rzero,0,imm0))
+C(egc_write_barrier_end):
 4:      __(li arg_z,nil_value)
         __(blr)
 5:      __(li arg_z,t_value)
         __(blr)
 
-       .globl C(egc_write_barrier_end)
-C(egc_write_barrier_end):
-        __ifdef([PPC64])
-        .quad 4b
-        __else
-        .long 4b
-        __endif        
         
 _spentry(conslist)
 	__(li arg_z,nil_value)
