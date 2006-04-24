@@ -453,7 +453,7 @@
     (:linuxppc64 "linuxppc64")
     (:linuxx8664 "linuxx8664")))
 
-(defun rebuild-ccl (&key full clean kernel force reload exit reload-arguments)
+(defun rebuild-ccl (&key full clean kernel force (reload t) exit reload-arguments)
   (when full
     (setq clean t kernel t reload t))
   (let* ((cd (current-directory)))
