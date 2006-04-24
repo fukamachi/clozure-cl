@@ -2307,8 +2307,8 @@ Boolean just_purified_p = false;
 #define get_time(when) gettimeofday(&when, NULL)
 
 
-#define MARK_RECURSIVELY_USING_STACK 0
-#if !MARK_RECURSIVELY_USING_STACK
+
+#ifdef FORCE_DWS_MARK
 #warning recursive marker disabled for testing; remember to re-enable it
 #endif
 
@@ -2327,7 +2327,7 @@ gc(TCR *tcr, signed_natural param)
   TCR *other_tcr;
   natural static_dnodes;
 
-#if MARK_RECURSIVELY_USING_STACK  
+#ifndef FORCE_DWS_MARK
   if ((natural) (tcr->cs_limit) == CS_OVERFLOW_FORCE_LIMIT) {
     GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
   } else {
