@@ -1,3 +1,20 @@
+2006-04-24 13:58  gb
+
+	* level-1/x86-error-signal.lisp: SETQ (not #'SET) in the
+	uuo-error-reg-not-type case.
+
+2006-04-24 13:57  gb
+
+	* level-0/X86/x86-float.lisp: Generally want to use FPZERO, not
+	FP0, for 0.0[d,f]0.  (One case wanted to use fp1, but that's
+	another story.)
+
+2006-04-24 13:55  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: REQUIRE-REAL,
+	REQUIRE-NUMBER: mask wont fit in 32 bits.  OTOH, doesn't need to be
+	boxed, either.
+
 2006-04-24 12:02  gb
 
 	* lisp-kernel/x86-spentry64.s: misc_set_s32: register botch. 
