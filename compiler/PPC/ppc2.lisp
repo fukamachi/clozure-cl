@@ -8157,6 +8157,12 @@
 				 (! %current-frame-ptr target)))
 	 (^))))
 
+(defppc2 ppc2-%foreign-stack-pointer %foreign-stack-pointer (seg vreg xfer)
+  (when vreg
+    (ensuring-node-target (target vreg)
+      (! %current-frame-ptr target)))
+  (^))
+
 (defppc2 ppc2-%current-tcr %current-tcr (seg vreg xfer)
   (when vreg
     (ensuring-node-target (target vreg)
