@@ -1,3 +1,36 @@
+2006-04-24 12:02  gb
+
+	* lisp-kernel/x86-spentry64.s: misc_set_s32: register botch. 
+	_SPtcallnfngen: several bugs, which were already fixed in similar
+	variants.
+
+2006-04-24 12:01  gb
+
+	* lisp-kernel/x86-gc.c: Use FORCE_DWS_MARK to force use of the
+	Deutch/Waite/Schorr marker.
+
+2006-04-24 12:00  gb
+
+	* lisp-kernel/pmcl-kernel.c: Only turn on GC debug bit if
+	GC_INTEGRITY_CHECKING is defined (e.g., in Makefile.)
+
+2006-04-24 11:59  gb
+
+	* level-1/linux-files.lisp: Remove debugging FORMAT call.
+
+2006-04-24 11:58  gb
+
+	* level-0/X86/x86-numbers.lisp: %ROUND-NEAREST-SHORT-FLOAT->FIXNUM:
+	argument is a SINGLE/SHORT-FLOAT, so don't access as a
+	DOUBLE-FLOAT.
+
+2006-04-24 11:58  gb
+
+	* level-0/X86/x86-float.lisp: %MAKE-FLOAT-FROM-FIXNUMS: mask the
+	high and low words of the mantissa, to ensure that no hidden bits
+	are set.  (Some such bits were set, causing many double-float
+	constansts - like MOST-POSITVE-DOUBLE-FLOAT - to be bogus NaNs).
+
 2006-04-24 02:21  gb
 
 	* lisp-kernel/image.c: Expect a MANAGED_STATIC section in the
