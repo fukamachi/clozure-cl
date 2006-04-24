@@ -50,6 +50,15 @@ relocate_area_contents(area *a, LispObj bias)
     fulltag = fulltag_of(w0);
     if (immheader_tag_p(fulltag)) {
       start = (LispObj *)skip_over_ivector((natural)start, w0);
+#ifdef X8664
+    } else if (header_subtag(w0) == subtag_function) {
+      int skip = (int) start[1];
+     
+      start += skip;
+      if (((LispObj)start) & node_size) {
+        --start;
+      }
+#endif
     } else {
       if ((w0 >= low) && (w0 < high) &&
 	  ((1<<fulltag) & RELOCATABLE_FULLTAG_MASK)) {
@@ -199,6 +208,7 @@ load_image_section(int fd, openmcl_image_section_header *sect)
       return;
     }
 
+
     a->static_dnodes = sect->static_dnodes;
     if (a->static_dnodes) {
       natural pages_size = (align_to_power_of_2((align_to_power_of_2(a->static_dnodes, 
@@ -218,6 +228,11 @@ load_image_section(int fd, openmcl_image_section_header *sect)
       a->static_used = addr;
       advance = pages_size;
     }
+    sect->area = a;
+    break;
+
+  case AREA_MANAGED_STATIC:
+    a = new_area(pure_space_limit, pure_space_limit, AREA_MANAGED_STATIC);
     sect->area = a;
     break;
 
@@ -277,7 +292,11 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
 	  relocate_area_contents(a, bias);
 	}
 	make_dynamic_heap_executable(a->low, a->active);
+        add_area_holding_area_lock(a);
+        break;
+        
       case AREA_READONLY:
+        readonly_area = a;
 	add_area_holding_area_lock(a);
 	break;
       }
@@ -285,6 +304,13 @@ load_openmcl_image(int fd, openmcl_image_file_header *h)
     for (i = 0, sect = sections; i < nsections; i++, sect++) {
       a = sect->area;
       switch(sect->code) {
+      case AREA_MANAGED_STATIC:
+        if (bias) {
+          relocate_area_contents(a, bias);
+        }
+        managed_static_area = a;
+        add_area_holding_area_lock(a);
+        break;
       case AREA_DYNAMIC:
 	lisp_global(HEAP_START) = ptr_to_lispobj(a->low);
 	lisp_global(HEAP_END) = ptr_to_lispobj(a->high);
@@ -369,7 +395,7 @@ write_file_and_section_headers(int fd,
     return errno;
   }
   if (write(fd, section_headers, sizeof(section_headers[0])*nsections)
-      != (sizeof(section_headers[0]) *nsections)) {
+      != (sizeof(section_headers[0])*nsections)) {
     return errno;
   }
   return 0;
@@ -380,9 +406,9 @@ OSErr
 save_application(unsigned fd)
 {
   openmcl_image_file_header fh;
-  openmcl_image_section_header sections[3];
+  openmcl_image_section_header sections[NUM_IMAGE_SECTIONS];
   openmcl_image_file_trailer trailer;
-  area *areas[3], *a;
+  area *areas[NUM_IMAGE_SECTIONS], *a;
   int i, err;
   off_t header_pos, eof_pos;
 #if WORD_SIZE == 64
@@ -390,15 +416,11 @@ save_application(unsigned fd)
   signed_natural section_data_delta;
 #endif
 
+  areas[0] = readonly_area;
+  areas[1] = nilreg_area; 
   areas[2] = active_dynamic_area;
-  for (a = active_dynamic_area->succ; a != all_areas; a = a->succ) {
-    if (a->code == AREA_STATIC) {
-      areas[1] = a;
-    } else if (a->code == AREA_READONLY) {
-      areas[0] = a;
-    }
-  }
-  for (i = 0; i < 3; i++) {
+  areas[3] = managed_static_area;
+  for (i = 0; i < NUM_IMAGE_SECTIONS; i++) {
     a = areas[i];
     sections[i].code = a->code;
     sections[i].area = NULL;
@@ -416,7 +438,7 @@ save_application(unsigned fd)
   fh.timestamp = time(NULL);
   CANONICAL_IMAGE_BASE(&fh) = IMAGE_BASE_ADDRESS;
   ACTUAL_IMAGE_BASE(&fh) = image_base;
-  fh.nsections = 3;
+  fh.nsections = NUM_IMAGE_SECTIONS;
   fh.abi_version=ABI_VERSION_CURRENT;
 #if WORD_SIZE == 64
   fh.section_data_offset_high = 0;
@@ -430,7 +452,7 @@ save_application(unsigned fd)
 #if WORD_SIZE == 64
   image_data_pos = seek_to_next_page(fd);
 #else
-  err = write_file_and_section_headers(fd, &fh, sections, 3, &header_pos);
+  err = write_file_and_section_headers(fd, &fh, sections, NUM_IMAGE_SECTIONS, &header_pos);
   if (err) {
     return err;
   }
@@ -458,7 +480,7 @@ save_application(unsigned fd)
     }
   }
 
-  for (i = 0; i < 3; i++) {
+  for (i = 0; i < NUM_IMAGE_SECTIONS; i++) {
     natural n, nstatic;
     a = areas[i];
     seek_to_next_page(fd);
@@ -497,7 +519,7 @@ save_application(unsigned fd)
                          image_data_pos);
   fh.section_data_offset_high = (int)(section_data_delta>>32L);
   fh.section_data_offset_low = (unsigned)section_data_delta;
-  err =  write_file_and_section_headers(fd, &fh, sections, 3, &header_pos);
+  err =  write_file_and_section_headers(fd, &fh, sections, NUM_IMAGE_SECTIONS, &header_pos);
   if (err) {
     return err;
   }  
