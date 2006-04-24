@@ -356,7 +356,7 @@
 				       ((array :lisp)
 					(i :imm)
 					(j :imm)
-					(dim1 :u32)))
+					(dim1 :u64)))
   (mulld dest i dim1)
   (add dest dest j))
 
@@ -371,7 +371,7 @@
   (add dest dest j)
   (la dest ppc64::misc-data-offset dest))
 
-(define-ppc64-vinsn 2d-dim1 (((dest :u32))
+(define-ppc64-vinsn 2d-dim1 (((dest :u64))
 			     ((header :lisp)))
   (ld dest (+ ppc64::misc-data-offset (* 8 (1+ ppc64::arrayH.dim0-cell))) header)
   (sradi dest dest ppc64::fixnumshift))
