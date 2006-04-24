@@ -3030,17 +3030,17 @@
 (defun x862-natural-compare (seg vreg xfer i j cr-bit true-p)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (let* ((jconstant (acode-fixnum-form-p j))
-           (ju16 (typep jconstant '(unsigned-byte 16)))
+           (ju31 (typep jconstant '(unsigned-byte 31)))
            (iconstant (acode-fixnum-form-p i))
-           (iu16 (typep iconstant '(unsigned-byte 16)))
+           (iu31 (typep iconstant '(unsigned-byte 31)))
            (boolean (backend-crf-p vreg)))
-      (if (and boolean (or ju16 iu16))
+      (if (and boolean (or ju31 iu31))
         (with-imm-target
             () (reg :natural)
-            (x862-one-targeted-reg-form seg (if ju16 i j) reg)
-            (! compare-unsigned-u16const vreg reg (if ju16 jconstant iconstant))
-            (unless (or ju16 (eq cr-bit x86::x86-e-bits)) 
-              (setq cr-bit (- 1 cr-bit)))
+            (x862-one-targeted-reg-form seg (if ju31 i j) reg)
+            (! compare-u31-constant reg (if ju31 jconstant iconstant))
+            (unless (or ju31 (eq cr-bit x86::x86-e-bits)) 
+                (setq cr-bit (x862-reverse-cr-bit cr-bit)))
             (^ cr-bit true-p))
         (with-imm-target ()
           (ireg :natural)
@@ -3240,7 +3240,7 @@
           (if dest-gpr
             (! load-nil dest-gpr)
             (if dest-crf
-              (! set-eq-bit dest-crf)))
+              (! set-eq-bit)))
           (if (and dest-crf src-gpr)
             ;; "Copying" a GPR to a CR field means comparing it to rnil
             (! compare-to-nil src)
@@ -3822,21 +3822,7 @@
       (^))))
                      
   
-(defun x862-memory-store-displaced (seg valreg basereg displacement size)
-  (with-x86-local-vinsn-macros (seg)
-    (case size
-      (8 (! mem-set-c-doubleword valreg basereg displacement))
-      (4 (! mem-set-c-fullword valreg basereg displacement))
-      (2 (! mem-set-c-halfword valreg basereg displacement))
-      (1 (! mem-set-c-byte valreg basereg displacement)))))
 
-(defun x862-memory-store-indexed (seg valreg basereg idxreg size)
-  (with-x86-local-vinsn-macros (seg)
-    (case size
-      (8 (! mem-set-doubleword valreg basereg idxreg))
-      (4 (! mem-set-fullword valreg basereg idxreg))
-      (2 (! mem-set-halfword valreg basereg idxreg))
-      (1 (! mem-set-byte valreg basereg idxreg)))))
       
 (defun x862-%immediate-store  (seg vreg xfer bits ptr offset val)
   (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -4082,11 +4068,14 @@
           (! trap-unless-fixnum unscaled-idx))
         (! check-misc-bound unscaled-idx src))
       (when vreg
+        (if (eq vreg :push)
+          (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
+            (! push-misc-ref-c-node  src index-known-fixnum)
+            (! push-misc-ref-node src unscaled-idx))
         (ensuring-node-target (target vreg)
-          (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-32-bit-constant-index arch)))
-            (progn
-              (! misc-ref-c-node target src index-known-fixnum))
-            (! misc-ref-node target src unscaled-idx))))
+          (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
+              (! misc-ref-c-node target src index-known-fixnum)
+            (! misc-ref-node target src unscaled-idx)))))
       (^))))
 
 (defun x862-misc-node-set (seg vreg xfer miscobj index value safe)
@@ -4448,8 +4437,7 @@
       (multiple-value-setq (target current-cstack current-vstack)
                            (x862-decode-stack (aref *x862-undo-stack* target-catch))))
     (if (%i< 0 (setq diff (%i- current-cstack target-cstack)))
-      (with-x86-local-vinsn-macros (seg)
-        (! adjust-sp diff)))
+      (error "Bug: adjust foreign stack ?"))
     (if (%i< 0 (setq diff (%i- current-vstack target-vstack)))
       (with-x86-local-vinsn-macros (seg)
         (! vstack-discard (ash diff (- *x862-target-fixnum-shift*)))))
@@ -4710,8 +4698,7 @@
                 (if (eq reason $undostkblk)
                   (incf numnlispareas))
                 (if (%i> cstack target-cstack)
-                  (with-x86-local-vinsn-macros (seg)
-                    (! adjust-sp (%i- cstack target-cstack))))
+                  (error "bug: adjust foreign stack ??"))
                 ;; else what's going on? $sp-stkcons, for one thing
                 (setq cstack target-cstack)))
             (popnlispareas)))
@@ -5433,10 +5420,12 @@
         (! %slot-ref temp v i)
         (<- temp))))
   (^))
-  
+
+(pushnew (%nx1-operator %svref) *x862-operator-supports-push*)
 (defx862 x862-%svref %svref (seg vreg xfer vector index)
   (x862-misc-node-ref seg vreg xfer vector index nil))
 
+(pushnew (%nx1-operator svref) *x862-operator-supports-push*)
 (defx862 x862-svref svref (seg vreg xfer vector index)
   (x862-misc-node-ref seg vreg xfer vector index (unless *x862-reckless* (nx-lookup-target-uvector-subtag :simple-vector))))
 
@@ -5631,6 +5620,7 @@
 (defx862 x862-characterp characterp (seg vreg xfer cc form)
   (x862-char-p seg vreg xfer cc form))
 
+(pushnew (%nx1-operator struct-ref) *x862-operator-supports-push*)
 (defx862 x862-struct-ref struct-ref (seg vreg xfer struct offset)
   (x862-misc-node-ref seg vreg xfer struct offset (nx-lookup-target-uvector-subtag :struct)))
 
@@ -6246,40 +6236,23 @@
       (x862-use-operator (%nx1-operator fixnum) seg vreg xfer (%i- v1 v2))
       (if (and v2 (neq v2 most-negative-fixnum))
         (x862-use-operator (%nx1-operator %i+) seg vreg xfer num1 (make-acode (%nx1-operator fixnum) (- v2)) overflow) 
-        (if (eq v2 0)
-          (x862-form seg vreg xfer num1)
           (cond
            ((null vreg)
             (x862-form seg nil nil num1)
             (x862-form seg nil xfer num2))
            (t                              
             (let* ((fix1 (acode-fixnum-form-p num1))
-                   (fix2 (acode-fixnum-form-p num2))
-                   (other (if (and fix2
-                                   (typep (ash fix2 *x862-target-fixnum-shift*)
-                                          '(signed-byte 32)))
-                            num1)))
-              (if (and fix1 fix2)
+                   (fix2 (acode-fixnum-form-p num2)))
+              (if (and fix1 fix2 (not overflow))
                 (x862-lri seg vreg (ash (- fix1 fix2) *x862-target-fixnum-shift*))
-                (if other
-                  (let* ((constant (ash fix2 *x862-target-fixnum-shift*)))
-                    (if overflow
-                      (ensuring-node-target (target vreg)
-                        (x862-one-targeted-reg-form seg other target)
-                        (unless (zerop constant)
-                          (! sub-constant target constant)
-                          (x862-check-fixnum-overflow seg target)))
-                      (ensuring-node-target (target vreg)
-                        (let* ((reg (x862-one-untargeted-reg-form seg other target)))
-                          (! sub-constant3 target reg constant)))))
-                    (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x8664::arg_y num2 x8664::arg_z)
+                (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg num1 x8664::arg_y num2 x8664::arg_z)
                       ;; This isn't guaranteed to set the overflow flag,
                       ;; but may do so.
                       (ensuring-node-target (target vreg)
                         (! fixnum-sub2 target r1 r2)
                         (if overflow
-                          (x862-check-fixnum-overflow seg target)))))))
-            (^))))))))
+                          (x862-check-fixnum-overflow seg target))))))
+            (^)))))))
 
 (defx862 x862-%i* %i* (seg vreg xfer num1 num2)
   (if (null vreg)
@@ -6695,7 +6668,7 @@
                       (and offval (logtest 3 offval) (setq offval nil))
                       (and absptr (logtest 3 absptr) (setq absptr nil)))))
            (if absptr
-             (! mem-ref-c-abolute-natural dest absptr)
+             (! mem-ref-c-absolute-natural dest absptr)
              (if offval
                (let* ((src (x862-macptr-arg-to-reg seg ptr ($ x8664::imm0 :mode :address))))
                  (! mem-ref-c-natural dest src offval))
@@ -6853,7 +6826,7 @@
                  (absptr
                   (case size
                     (8 (! mem-ref-c-absolute-doubleword dest absptr))
-                    (4 (! mem-ref-c-absoute-fullword dest absptr))
+                    (4 (! mem-ref-c-absolute-fullword dest absptr))
                     (2 (! mem-ref-c-absolute-u16 dest absptr))
                     (1 (! mem-ref-c-absolute-u8 dest absptr))))
                  (offval
@@ -7430,18 +7403,6 @@
     (<- node)
     (^)))
 
-(defx862 x862-%setf-short-float %setf-short-float (seg vreg xfer fnode fval)
-  (x862-vpush-register seg (x862-one-untargeted-reg-form seg fnode x8664::arg_z))
-  (let* ((target ($ x8664::fp1 :class :fpr :mode :single-float))
-         (freg ($ x8664::arg_z)))
-    (x862-one-targeted-reg-form seg fval target)
-    (x862-vpop-register seg freg)
-    (unless (or *x862-reckless* (x862-form-typep fnode 'short-float))
-      (! trap-unless-single-float freg))
-    (! store-single freg target)
-    (<- freg)
-    (^)))
-
     
 
 (defx862 x862-unwind-protect unwind-protect (seg vreg xfer protected-form cleanup-form)
@@ -8011,6 +7972,13 @@
 	   (ensuring-node-target (target vreg)
 				 (! %current-frame-ptr target)))
 	 (^))))
+
+(defx862 x862-%foreign-stack-pointer %foreign-stack-pointer (seg vreg xfer)
+   (when vreg
+     (ensuring-node-target (target vreg)
+				 (! %foreign-stack-pointer target)))
+   (^))
+
 
 (defx862 x862-%current-tcr %current-tcr (seg vreg xfer)
   (when vreg

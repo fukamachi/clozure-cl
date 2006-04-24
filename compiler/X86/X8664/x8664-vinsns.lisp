@@ -60,10 +60,21 @@
                                              (scaled-idx :imm)))
   (movsd (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%xmm dest)))
 
+(define-x8664-vinsn misc-ref-c-double-float  (((dest :double-float))
+                                              ((v :lisp)
+                                             (idx :s32const)))
+  (movsd (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%xmm dest)))
+
+
 (define-x8664-vinsn misc-ref-node  (((dest :lisp))
                                     ((v :lisp)
                                      (scaled-idx :imm)))
   (movq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx)) (:%q dest)))
+
+(define-x8664-vinsn (push-misc-ref-node :push :node :vsp)  (()
+                                                            ((v :lisp)
+                                                             (scaled-idx :imm)))
+  (pushq (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx))))
 
 (define-x8664-vinsn misc-set-node (()
 				   ((val :lisp)
@@ -127,6 +138,14 @@
 				      (idx :u32const)) ; sic
 				     ())
   (movq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v)) (:%q dest)))
+
+
+(define-x8664-vinsn (push-misc-ref-c-node :push :node :vsp)
+    (()
+     ((v :lisp)
+      (idx :u32const)) ; sic
+     ())
+  (pushq (:@ (:apply + x8664::misc-data-offset (:apply ash idx x8664::word-shift)) (:%q v))))
 
 (define-x8664-vinsn misc-ref-c-u64  (((dest :u64))
 				     ((v :lisp)
@@ -416,6 +435,12 @@
 				  (cur-vsp :u16const)))
   (movq (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp)) (:%q dest)))
 
+
+(define-x8664-vinsn lcell-load (((dest :lisp))
+				((cell :lcell)
+				 (top :lcell)))
+  (movq (:@ (:apply - (:apply + (:apply calc-lcell-offset cell) x8664::word-size-in-bytes)) (:%q x8664::rbp)) (:%q dest)))
+
 (define-x8664-vinsn (vframe-push :push :node :vsp)
     (()
      ((frame-offset :u16const)
@@ -428,6 +453,12 @@
 				  (cur-vsp :u16const)))
   (movq (:%q src) (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp))))
 
+(define-x8664-vinsn lcell-store (()
+				 ((src :lisp)
+				  (cell :lcell)
+				  (top :lcell)))
+  (movq (:%q src) (:@ (:apply - (:apply + (:apply calc-lcell-offset cell) x8664::word-size-in-bytes)) (:%q x8664::rbp))))
+        
 (define-x8664-vinsn (popj :lispcontext :pop :csp :lrRestore :jumpLR)
     (() 
      ())
@@ -708,9 +739,17 @@
 (define-x8664-vinsn compare-s32-constant (()
                                             ((val :imm)
                                              (const :s32const)))
-  ((:or  (:pred < const 128) (:pred > const 127))
+  ((:or  (:pred < const -128) (:pred > const 127))
    (rcmpq (:%q val) (:$l const)))
-  ((:not (:or  (:pred < const 128) (:pred > const 127)))
+  ((:not (:or  (:pred < const -128) (:pred > const 127)))
+   (rcmpq (:%q val) (:$b const))))
+
+(define-x8664-vinsn compare-u31-constant (()
+                                          ((val :u64)
+                                           (const :u32const)))
+  ((:pred > const 127)
+   (rcmpq (:%q val) (:$l const)))
+  ((:not (:pred > const 127))
    (rcmpq (:%q val) (:$b const))))
 
 (define-x8664-vinsn compare-u8-constant (()
@@ -3078,6 +3117,17 @@
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
 
+(define-x8664-vinsn alloc-variable-c-frame (()
+                                            ((nwords :imm))
+                                            ((size :s64)))
+  (leaq (:@ (* 9 x8664::node-size) (:%q nwords)) (:%q size))
+  (andb (:$b (lognot x8664::fulltagmask)) (:%b size))
+  
+  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  (subq (:%q size) (:%q x8664::ra0))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
+
 (define-x8664-vinsn set-c-arg (()
                                ((arg :u64)
                                 (offset :u32const)))
@@ -3200,6 +3250,11 @@
 (define-x8664-vinsn %current-frame-ptr (((dest :imm))
 					())
   (movq (:%q x8664::rbp) (:%q dest)))
+
+(define-x8664-vinsn %foreign-stack-pointer (((dest :imm))
+                                            ())
+  (movd (:%mmx x8664::foreign-sp) (:%q dest)))
+
 
 (define-x8664-vinsn %set-scharcode (()
 				    ((str :lisp)
@@ -3428,12 +3483,12 @@
                                  (constant :s32const)))
   (addq (:$l constant) (:%q result)))
 
-(define-x8664-vinsn natural-  (((result :u64))
+(define-x8664-vinsn %natural-  (((result :u64))
                                ((result :u64)
                                 (other :u64)))
   (subq (:%q other) (:%q result)))
 
-(define-x8664-vinsn natural--c (((result :u64))
+(define-x8664-vinsn %natural--c (((result :u64))
                                 ((result :u64)
                                  (constant :s32const)))
   (subq (:$l constant) (:%q result)))
@@ -3517,6 +3572,12 @@
 				     ())
   (movzwl (:@ (:apply + x8664::misc-data-offset (:apply ash idx 1)) (:%q v)) (:%l dest)))
 
+(define-x8664-vinsn misc-ref-c-s16  (((dest :s16))
+				     ((v :lisp)
+				      (idx :u32const))
+				     ())
+  (movswq (:@ (:apply + x8664::misc-data-offset (:apply ash idx 1)) (:%q v)) (:%q dest)))
+
 (define-x8664-vinsn misc-set-single-float (()
 					   ((val :single-float)
 					    (v :lisp)
@@ -3539,3 +3600,137 @@
 (define-x8664-vinsn s8->s32 (((dest :s32))
 			     ((src :s8)))
   (movsbl (:%b src) (:%l dest)))
+
+(define-x8664-subprim-jump-vinsn (tail-call-fn-gen) .SPtcallnfngen)
+
+(define-x8664-subprim-jump-vinsn (tail-call-fn-vsp) .SPtcallnfnvsp)
+
+(define-x8664-vinsn set-eq-bit (()
+                                ())
+  (testb (:%b x8664::arg_z) (:%b x8664::arg_z)))
+
+(define-x8664-vinsn %schar (((char :imm))
+			    ((str :lisp)
+			     (idx :imm))
+			    ((imm :u32)))
+  (movq (:%q idx) (:%q imm))
+  (shrq (:$ub x8664::fixnumshift) (:%q imm))
+  (movzbl (:@ x8664::misc-data-offset (:%q str) (:%q imm)) (:%l imm))
+  (shll (:$ub x8664::charcode-shift) (:%l imm))
+  (leaq (:@ x8664::subtag-character (:%q imm)) (:%q char)))
+
+
+(define-x8664-vinsn %set-schar (()
+				((str :lisp)
+				 (idx :imm)
+				 (char :imm))
+				((imm0 :u64)
+				 (imm1 :u64)))
+  (movq (:%q idx) (:%q imm0))
+  (movl (:%l char) (:%l imm1))
+  (shrq (:$ub x8664::fixnumshift) (:%q imm0))
+  (shrl (:$ub x8664::charcode-shift) (:%l imm1))
+  (movb (:%b imm1) (:@ x8664::misc-data-offset (:%q str) (:%q imm0))))
+
+
+(define-x8664-vinsn misc-set-c-single-float (((val :single-float))
+					     ((v :lisp)
+					      (idx :u32const)))
+  (movsd (:%xmm val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 2))(:%q v))))
+
+(define-x8664-vinsn array-data-vector-ref (((dest :lisp))
+					   ((header :lisp)))
+  (movq (:@ x8664::arrayH.data-vector (:%q header)) (:%q dest)))
+
+(define-x8664-subprim-call-vinsn (subtag-misc-ref) .SPsubtag-misc-ref)
+
+(define-x8664-subprim-call-vinsn (subtag-misc-set) .SPsubtag-misc-set)
+
+(define-x8664-vinsn mem-ref-c-absolute-u8 (((dest :u8))
+                                           ((addr :s32const)))
+  (movzbl (:@ addr) (:%l dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-s8 (((dest :s8))
+                                           ((addr :s32const)))
+  (movsbq (:@ addr) (:%q dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-u16 (((dest :u16))
+                                           ((addr :s32const)))
+  (movzwl (:@ addr) (:%l dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-s16 (((dest :s16))
+                                           ((addr :s32const)))
+  (movswq (:@ addr) (:%q dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-fullword (((dest :u32))
+                                                 ((addr :s32const)))
+  (movl (:@ addr) (:%l dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-signed-fullword (((dest :s32))
+                                                        ((addr :s32const)))
+  (movslq (:@ addr) (:%q dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-doubleword (((dest :s64))
+                                                   ((addr :s32const)))
+  (movq (:@ addr) (:%q dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-signed-doubleword (((dest :s64))
+                                                          ((addr :s32const)))
+  (movq (:@ addr) (:%q dest)))
+
+(define-x8664-vinsn mem-ref-c-absolute-natural (((dest :u64))
+                                                   ((addr :s32const)))
+  (movq (:@ addr) (:%q dest)))
+
+(define-x8664-vinsn event-poll (()
+                                ())
+  (btrq (:$ub 63) (:@ (:%seg x8664::rcontext) x8664::tcr.interrupt-pending))
+  (jae :no-interrupt)
+  (ud2a)
+  (:byte 2)
+  :no-interrupt)
+
+;;; Return dim1 (unboxed)
+(define-x8664-vinsn check-2d-bound (((dim :u64))
+				    ((i :imm)
+				     (j :imm)
+				     (header :lisp)))
+  (cmpq (:@ (+ x8664::misc-data-offset (* 8 x8664::arrayH.dim0-cell)) (:%q header))
+        (:%q i))
+  (jb :i-ok)
+  (uuo-error-array-bounds (:%q i) (:%q header))
+  :i-ok
+  (movq (:@ (+ x8664::misc-data-offset (* 8 (1+ x8664::arrayH.dim0-cell))) (:%q header))
+        (:%q dim))
+  (cmpq (:%q dim) (:%q j))
+  (jb :j-ok)
+  (uuo-error-array-bounds (:%q j) (:%q header))
+  :j-ok
+  (sarq (:$ub x8664::fixnumshift) (:%q dim)))
+
+(define-x8664-vinsn 2d-dim1 (((dest :u64))
+			     ((header :lisp)))
+  (movq (:@ (+ x8664::misc-data-offset (* 8 (1+ x8664::arrayH.dim0-cell))) (:%q header))
+        (:%q dest))
+  (sarq (:$ub x8664::fixnumshift) (:%q dest)))
+
+
+(define-x8664-vinsn 2d-unscaled-index (((dest :u64))
+				       ((array :lisp)
+					(i :imm)
+					(j :imm)
+					(dim1 :u64)))
+  ((:not (:pred =
+                (:apply %hard-regspec-value dim1)
+                (:apply %hard-regspec-value dest)))
+   (movq (:% dim1) (:% dest)))
+  (imulq (:%q i) (:%q dest))
+  (addq (:%q j) (:%q dest)))
+
+(queue-fixup
+ (fixup-x86-vinsn-templates
+  *x8664-vinsn-templates*
+  x86::*x86-64-opcode-template-lists*))
+
+(provide "X8664-VINSNS")
+
