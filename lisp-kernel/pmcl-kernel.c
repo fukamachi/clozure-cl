@@ -361,7 +361,9 @@ area
   *nilreg_area=NULL,
   *tenured_area=NULL, 
   *g2_area=NULL, 
-  *g1_area=NULL;
+  *g1_area=NULL,
+  *managed_static_area=NULL,
+  *readonly_area=NULL;
 
 area *all_areas=NULL;
 int cache_block_size=32;
