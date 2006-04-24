@@ -1517,7 +1517,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;
   nrs_TOPLFUNC.vcell = lisp_nil;
   enable_fp_exceptions();
-#ifdef X8664
+#ifdef GC_INTEGRITY_CHECKING
   (nrs_GC_EVENT_STATUS_BITS.vcell |= gc_integrity_check_bit);
 #endif
 #ifndef DISABLE_EGC
