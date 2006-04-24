@@ -38,9 +38,11 @@
   (sar ($ 63) (% imm1))
   (shl ($ 63) (% imm1))
   (pop (% imm0))                        ;hi
+  (andl ($ (ash (1- (ash 1 24)) x8664::fixnumshift)) (%l imm0))
   (shl ($ (- 28 x8664::fixnumshift)) (% imm0))
   (or (% imm0) (% imm1))
   (unbox-fixnum lo imm0)
+  (andl ($ (1- (ash 1 28))) (%l imm0))
   (or (% imm0) (% imm1))
   (mov (% exp) (% imm0))
   (shl ($ (- ieee-double-float-exponent-offset x8664::fixnumshift)) (% imm0))
