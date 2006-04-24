@@ -852,7 +852,6 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
             #'run-external-process proc in-fd out-fd error-fd)
            (wait-on-semaphore (external-process-signal proc))
            )
-      (format t "~& close-in-parent = ~s" close-in-parent)
       (dolist (fd close-in-parent) (fd-close fd))
       (unless (external-process-pid proc)
         (dolist (fd close-on-error) (fd-close fd)))
