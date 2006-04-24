@@ -1,3 +1,58 @@
+2006-04-24 02:14  gb
+
+	* lisp-kernel/image.h: Bump IMAGE_ABI_VERSION.	New managed_static
+	section makes NUM_IMAGE_SECTIONS 4.
+
+2006-04-24 02:13  gb
+
+	* lisp-kernel/area.h: Typo in the definition of
+	AREA_MANAGED_STATIC.
+
+2006-04-24 02:12  gb
+
+	* lisp-kernel/: pmcl-kernel.c, kernel-globals.h: Global pointers to
+	more areas.
+
+2006-04-24 02:12  gb
+
+	* lisp-kernel/ppc-exceptions.c: EGC write-barrier labels are the
+	addresses of instructions (not pointers thereto ...)
+
+2006-04-24 02:11  gb
+
+	* lisp-kernel/ppc-gc.c: Add conditionalization to force DWS marker
+	(mostly so that I could step through it to remember how it worked
+	...).
+
+2006-04-24 02:10  gb
+
+	* lisp-kernel/ppc-spentry.s: write-barrier exported symbols: remove
+	indirection.
+
+2006-04-24 02:09  gb
+
+	* lisp-kernel/x86-gc.c: Remove a sanity check.
+
+2006-04-24 02:09  gb
+
+	* xdump/xfasload.lisp: Create (empty) managed-static section
+	(mostly for x8664 PURIFY, but might be useful on PPC someday.)
+
+2006-04-24 02:08  gb
+
+	* xdump/heap-image.lisp: New image-abi-version, for managed-static
+	section.
+
+2006-04-24 02:07  gb
+
+	* level-1/linux-files.lisp: GET-DESCRIPTOR-FOR: try not to leak
+	fds, take CLOSE-ON-ERROR more seriously.
+
+2006-04-24 02:06  gb
+
+	* compiler/PPC/ppc2.lisp: (eq %FOREIGN-STACK-POINTER
+	%CURRENT-FRAME-PTR) on PPC32/64.
+
 2006-04-24 00:50  gb
 
 	* level-1/version.lisp: Bump.  Getting there ...
