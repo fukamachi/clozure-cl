@@ -633,7 +633,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 				       (t #$O_RDWR)))))
        (if (< fd 0)
 	 (signal-file-error fd "/dev/null"))
-       (values fd nil (cons fd close-in-parent) close-on-error)))
+       (values fd nil (cons fd close-in-parent) (cons fd close-on-error))))
     ((eql :stream)
      (multiple-value-bind (read-pipe write-pipe) (pipe)
        (case direction
@@ -657,15 +657,17 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 	  (report-bad-arg direction '(member :input :output))))))
     ((or pathname string)
      (with-open-stream (file (apply #'open object keys))
-       (values (fd-dup (ioblock-device (stream-ioblock file)))
-	       nil
-	       close-in-parent
-	       close-on-error)))
+       (let* ((fd (fd-dup (ioblock-device (stream-ioblock file)))))
+         (values fd
+                 nil
+                 (cons fd close-in-parent)
+                 (cons fd close-on-error)))))
     (fd-stream
-       (values (fd-dup (ioblock-device (stream-ioblock object)))
+     (let ((fd (fd-dup (ioblock-device (stream-ioblock object)))))
+       (values fd
 	       nil
-	       close-in-parent
-	       close-on-error))
+	       (cons fd close-in-parent)
+	       (cons fd close-on-error))))
     (stream
      (ecase direction
        (:input
@@ -675,20 +677,20 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 	      (%errno-disp fd))
 	    (#_unlink template)
 	    (loop
-		(multiple-value-bind (line no-newline)
-		    (read-line object nil nil)
-		  (unless line
-		    (return))
-		  (let* ((len (length line)))
-		    (%stack-block ((buf (1+ len)))
-		      (%copy-ivector-to-ptr line 0 buf 0 len)
-		      (fd-write fd buf len)
-		      (if no-newline
-			(return))
-		      (setf (%get-byte buf) (char-code #\newline))
-		      (fd-write fd buf 1)))))
+              (multiple-value-bind (line no-newline)
+                  (read-line object nil nil)
+                (unless line
+                  (return))
+                (let* ((len (length line)))
+                  (%stack-block ((buf (1+ len)))
+                    (%copy-ivector-to-ptr line 0 buf 0 len)
+                    (fd-write fd buf len)
+                    (if no-newline
+                      (return))
+                    (setf (%get-byte buf) (char-code #\newline))
+                    (fd-write fd buf 1)))))
 	    (fd-lseek fd 0 #$SEEK_SET)
-	    (values fd nil (cons fd close-in-parent) close-on-error))))
+	    (values fd nil (cons fd close-in-parent) (cons fd close-on-error)))))
        (:output
 	(multiple-value-bind (read-pipe write-pipe) (pipe)
           (setf (external-process-watched-fd proc) read-pipe
@@ -850,7 +852,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
             #'run-external-process proc in-fd out-fd error-fd)
            (wait-on-semaphore (external-process-signal proc))
            )
-
+      (format t "~& close-in-parent = ~s" close-in-parent)
       (dolist (fd close-in-parent) (fd-close fd))
       (unless (external-process-pid proc)
         (dolist (fd close-on-error) (fd-close fd)))
