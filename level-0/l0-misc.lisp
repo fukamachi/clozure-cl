@@ -445,10 +445,7 @@
     (loop
       (without-interrupts
        (when (eql p owner)
-         (incf #+32-bit-target
-               (%get-unsigned-long lock target::lockptr.count)
-               #+64-bit-target
-               (%%get-unsigned-longlong lock target::lockptr.count))
+         (incf (%get-natural lock target::lockptr.count))
          (when flag
            (if (consp flag)
              (rplaca flag t)
@@ -456,10 +453,7 @@
          (return t))
        (when (eql 1 (%atomic-incf-ptr lock))
          (setf (%get-ptr lock target::lockptr.owner) p
-               #+32-bit-target
-               (%get-unsigned-long lock target::lockptr.count)
-               #+64-bit-target
-               (%%get-unsigned-longlong lock target::lockptr.count) 1)
+               (%get-natural lock target::lockptr.count) 1)
          (if flag
            (if (consp flag)
              (rplaca flag t)
@@ -477,18 +471,12 @@
         (report-bad-arg flag 'lock-acquisition)))
     (without-interrupts
      (cond ((eql p owner)
-            (incf #+32-bit-target
-                  (%get-unsigned-long lock target::lockptr.count)
-                  #+64-bit-target
-                  (%%get-unsigned-longlong lock target::lockptr.count))
+            (incf (%get-natural lock target::lockptr.count))
             (if flag (setf (lock-acquisition.status flag) t))
             t)
            ((eql 0 (%ptr-store-conditional lock 0 1))
             (setf (%get-ptr lock target::lockptr.owner) p
-                  #+32-bit-target
-                  (%get-unsigned-long lock target::lockptr.count)
-                  #+64-bit-target
-                  (%%get-unsigned-longlong lock target::lockptr.count) 1)
+                  (%get-natural lock target::lockptr.count) 1)
             (if flag (setf (lock-acquisition.status flag) t))
             t)
            (t nil)))))
@@ -503,10 +491,7 @@
       (error 'not-lock-owner :lock lock))
     (without-interrupts
      (when (eql 0 (decf (the fixnum
-                          #+32-bit-target
-                          (%get-unsigned-long lock target::lockptr.count)
-                          #+64-bit-target
-                          (%%get-unsigned-longlong lock target::lockptr.count))))
+                          (%get-natural lock target::lockptr.count))))
        (setf (%get-ptr lock target::lockptr.owner) (%null-ptr))
        (let* ((pending (1- (the fixnum (%atomic-swap-ptr lock 0)))))
          (declare (fixnum pending))
@@ -527,16 +512,20 @@
  
   
 (defun %suspend-tcr (tcr)
-  (not (zerop (the fixnum 
-                (ff-call (%kernel-import target::kernel-import-suspend-tcr)
-                         :unsigned-fullword (ash tcr target::fixnumshift)
-                         :unsigned-fullword)))))
+  (with-macptrs (tcrp)
+    (%setf-macptr-to-object tcrp tcr)
+    (not (zerop (the fixnum 
+                  (ff-call (%kernel-import target::kernel-import-suspend-tcr)
+                           :address tcrp
+                           :unsigned-fullword))))))
 
 (defun %resume-tcr (tcr)
-  (not (zerop (the fixnum
-		(ff-call (%kernel-import target::kernel-import-resume-tcr)
-			 :unsigned-fullword (ash tcr target::fixnumshift)
-			 :unsigned-fullword)))))
+  (with-macptrs (tcrp)
+    (%setf-macptr-to-object tcrp tcr)
+    (not (zerop (the fixnum
+                  (ff-call (%kernel-import target::kernel-import-resume-tcr)
+                           :address tcrp
+                           :unsigned-fullword))))))
 
 
 
