@@ -394,6 +394,7 @@
      (%double-to-single . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (%symptr->symvector  . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (%symvector->symptr  . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
+     (%foreign-stack-pointer . 0)
      )))
 
 (defmacro %nx1-operator (sym)
