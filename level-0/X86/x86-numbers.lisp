@@ -104,7 +104,7 @@
 
 
 (defx86lapfunction %round-nearest-short-float->fixnum ((arg arg_z))
-  (get-double-float arg fp1)
+  (get-single-float arg fp1)
   (cvtss2si (% fp1) (% imm0))
   (box-fixnum imm0 arg_z)  
   (single-value-return))
