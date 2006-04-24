@@ -1699,7 +1699,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
   e) EGC write-barrier subprims.
 */
 
-extern pc
+extern opcode
   egc_write_barrier_start,
   egc_write_barrier_end, 
   egc_store_node_conditional, 
@@ -1717,14 +1717,14 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
   LispObj cur_allocptr = xpGPR(xp, allocptr);
   int allocptr_tag = fulltag_of(cur_allocptr);
   
-  if ((program_counter < egc_write_barrier_end) && 
-      (program_counter >= egc_write_barrier_start)) {
+  if ((program_counter < &egc_write_barrier_end) && 
+      (program_counter >= &egc_write_barrier_start)) {
     LispObj *ea = 0, val, root;
     bitvector refbits = (bitvector)(lisp_global(REFBITS));
     Boolean need_store = true, need_check_memo = true, need_memoize_root = false;
 
-    if (program_counter >= egc_store_node_conditional) {
-      if ((program_counter == egc_store_node_conditional) || ! (xpCCR(xp) & 0x20000000)) {
+    if (program_counter >= &egc_store_node_conditional) {
+      if ((program_counter == &egc_store_node_conditional) || ! (xpCCR(xp) & 0x20000000)) {
         /* The conditional store either hasn't been attempted yet, or
            has failed.  No need to adjust the PC, or do memoization. */
         return;
@@ -1733,34 +1733,19 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
       ea = (LispObj*)(xpGPR(xp,arg_x) + xpGPR(xp,imm4));
       xpGPR(xp,arg_z) = t_value;
       need_store = false;
-#if 0
-      fprintf(stderr, "pc-luser: store-node-conditional in 0x%x\n",tcr);
-#endif
-    } else if (program_counter >= egc_set_hash_key) {
+    } else if (program_counter >= &egc_set_hash_key) {
       root = xpGPR(xp,arg_x);
       ea = (LispObj *) (root+xpGPR(xp,arg_y)+misc_data_offset);
       need_memoize_root = true;
-#if 0
-      fprintf(stderr, "pc-luser: set-hash-key in 0x%x\n",tcr);
-#endif
-    } else if (program_counter >= egc_gvset) {
+    } else if (program_counter >= &egc_gvset) {
       ea = (LispObj *) (xpGPR(xp,arg_x)+xpGPR(xp,arg_y)+misc_data_offset);
       val = xpGPR(xp,arg_z);
-#if 0
-      fprintf(stderr, "pc-luser: gvset in 0x%x\n",tcr);
-#endif
-    } else if (program_counter >= egc_rplacd) {
+    } else if (program_counter >= &egc_rplacd) {
       ea = (LispObj *) untag(xpGPR(xp,arg_y));
       val = xpGPR(xp,arg_z);
-#if 0
-      fprintf(stderr, "pc-luser: rplacd in 0x%x\n",tcr);
-#endif
     } else {                      /* egc_rplaca */
       ea =  ((LispObj *) untag(xpGPR(xp,arg_y)))+1;
       val = xpGPR(xp,arg_z);
-#if 0
-      fprintf(stderr, "pc-luser: rplaca in 0x%x\n",tcr);
-#endif
     }
     if (need_store) {
       *ea = val;
@@ -1783,9 +1768,6 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
 
   if (instr == MARK_TSP_FRAME_INSTRUCTION) {
     LispObj tsp_val = xpGPR(xp,tsp);
-#if 0
-      fprintf(stderr, "pc-luser: mark-tsp-frame in 0x%x\n",tcr);
-#endif
     
     ((LispObj *)ptr_from_lispobj(tsp_val))[1] = tsp_val;
     adjust_exception_pc(xp, 4);
