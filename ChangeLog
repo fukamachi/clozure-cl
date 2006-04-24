@@ -1,3 +1,13 @@
+2006-04-24 02:21  gb
+
+	* lisp-kernel/image.c: Expect a MANAGED_STATIC section in the
+	image.
+	
+	(Don't expect it to have any contents yet; that'll require several
+	more changes.	This is all intended to support PURIFY on x8664,
+	where we'll want to ensure that any constant referenced by a
+	function in readonly/pure memory has a fixed, static address.)
+
 2006-04-24 02:14  gb
 
 	* lisp-kernel/image.h: Bump IMAGE_ABI_VERSION.	New managed_static
