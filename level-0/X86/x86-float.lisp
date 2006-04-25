@@ -67,18 +67,14 @@
 
 
 (defx86lapfunction %double-float-negate! ((src arg_y) (res arg_z))
-  (get-double-float src fp1)
-  (movsd (% fpzero) (% fp2))
-  (subsd (% fp1) (% fp2))
-  (put-double-float fp2 res)
+  (movq (@ x8664::double-float.value (% src)) (% imm0))
+  (btcq ($ 63) (% imm0))
+  (movq (% imm0) (@ x8664::double-float.value (% res)))
   (single-value-return))
 
 
 (defx86lapfunction %short-float-negate ((src arg_z))
-  (get-single-float src fp1)
-  (movss (% fpzero) (% fp2))
-  (subss (% fp1) (% fp2))
-  (put-single-float fp2 arg_z)
+  (btcq ($ 63) (% arg_z))
   (single-value-return))
 
 
