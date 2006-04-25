@@ -72,7 +72,7 @@
     (let ((immhash header))
       @loop
       (rolq ($ 13) (% immhash))
-      (addq (@ x8664::misc-data-offset (% key) (% offset)) (% immhash))
+      (addl (@ x8664::misc-data-offset (% key) (% offset)) (%l immhash))
       (addq ($ 4) (% offset))
       (subq ($ '1) (% ndigits))
       (jne  @loop)
