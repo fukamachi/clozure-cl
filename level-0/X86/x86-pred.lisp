@@ -92,6 +92,7 @@
   (movl (@ x8664::misc-data-offset (% x) (% imm1)) (% imm0.l))
   (cmpl (@ x8664::misc-data-offset (% y) (% imm1)) (% imm0.l))
   (jne @lose)
+  (addq ($ 4) (% imm1))
   (sub ($ '1) (% temp0))
   (jnz @bignum-next)
   (movq ($ t) (% arg_z))
