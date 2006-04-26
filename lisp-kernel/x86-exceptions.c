@@ -628,7 +628,7 @@ find_foreign_rsp(ExceptionInformation *xp, area *foreign_area)
       ((BytePtr)rsp > foreign_area->high)) {
 #ifdef LINUX
   if (xp->uc_mcontext.fpregs == NULL) {
-    Bug(NULL, "no FP regs in context\n");
+    Bug(xp, "no FP regs in context\n");
     exit(1);
   }
 #endif
