@@ -21,7 +21,8 @@
 
 
 (defx86lapfunction eql ((x arg_y) (y arg_z))
-  "Return T if OBJ1 and OBJ2 represent the same object, otherwise NIL."
+  "Return T if OBJ1 and OBJ2 represent either the same object or
+numbers with the same type and value."
   (check-nargs 2)
   @top
   @tail
