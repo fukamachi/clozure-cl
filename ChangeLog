@@ -1,3 +1,9 @@
+2006-04-26 00:56  gb
+
+	* level-0/X86/x86-pred.lisp: EQL on two bignums works much better
+	if it compares all corresponding digits, rather than repeatedly
+	comparing the 0th digits N times ...
+
 2006-04-25 17:38  gb
 
 	* lisp-kernel/x86-spentry64.s: _SPmvslide: skip the loop if nargs
