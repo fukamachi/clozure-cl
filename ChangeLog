@@ -1,3 +1,18 @@
+2006-04-26 14:18  gb
+
+	* compiler/nx0.lisp: Allow (SETF NAME) in DEFINE-COMPILER-MACRO.
+
+2006-04-26 14:17  gb
+
+	* lib/misc.lisp: Disassemble is supposed to signal an error (or "be
+	prepared" to do so) if its argument isn't a function designator, so
+	don't quietly call METHOD-FUNCTION for the user.
+
+2006-04-26 13:56  gb
+
+	* lib/encapsulate.lisp: Use REPLACE-FUNCTION-CODE (not (SETF (UVREF
+	...))) in ENCAPSULATE, REMOVE-ENCAPSULATION.
+
 2006-04-26 03:59  gb
 
 	* lisp-kernel/: x86-spentry64.s, x86-subprims64.s: zero out the
