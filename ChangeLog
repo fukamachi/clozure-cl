@@ -1,3 +1,38 @@
+2006-04-26 03:59  gb
+
+	* lisp-kernel/: x86-spentry64.s, x86-subprims64.s: zero out the
+	exception bits whenever mxcsr is stored in tcr.foreign_mxcsr, so no
+	exceptions will be pending when we start an ff-call (and the mxcsr
+	is loaded from that location.)
+	
+	tcr.ffi_exception will then contain non-zero exception bits iff the
+	most recent ff-call raised a (probably masked) FP exception.
+	
+	TODO: make this reentrant (PROCESS-INTERRUPT should preserve this.)
+
+2006-04-26 03:55  gb
+
+	* lisp-kernel/x86-constants.s: define mxcsr exception bits.
+
+2006-04-26 03:23  gb
+
+	* lisp-kernel/x86-constants64.s: Update comment on
+	tcr.ffi_exception.
+
+2006-04-26 03:22  gb
+
+	* lisp-kernel/x86-spentry64.s: Maintain tcr.ffi_exception on return
+	from ffcall.  (Should maybe clear exception bits on entry to
+	foreign state, so we're sure that any exception bits set in the
+	tcr.ffi_exception slot were caused by the most recent ff-call.)
+
+2006-04-26 03:20  gb
+
+	* level-0/X86/x86-float.lisp: Check MXCSR status bits from last
+	ffcall, compare them to unmasked exception bits in current MXCSR,
+	maybe raise FP exception.  (Note: compile this change and rebuild
+	image before making corresponding kernel change.)
+
 2006-04-26 02:31  gb
 
 	* lisp-kernel/x86-spentry64.s: .SPbuiltin-logxor was calling out to
