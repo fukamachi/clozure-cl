@@ -3826,7 +3826,7 @@ _spentry(builtin_logxor)
 	__(xorq %arg_y,%arg_z)
 	__(jmp *%ra0)
 1:		
-	__(jump_builtin(_builtin_logand,2))
+	__(jump_builtin(_builtin_logxor,2))
 _endsubp(builtin_logxor)
 
 
