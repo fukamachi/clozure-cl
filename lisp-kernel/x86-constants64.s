@@ -706,7 +706,7 @@ TCR_BIAS = 0
 	 _node(interrupt_pending)
 	 _node(xframe)		/* per-thread exception frame list   */
 	 _node(errno_loc)	/* per-thread  errno location   */
-	 _node(ffi_exception)	/* fpscr exception bits from ff-call   */
+	 _node(ffi_exception)	/* mxcsr exception bits from ff-call   */
 	 _node(osid)		/* OS thread id   */
          _node(valence)		/* odd when in foreign code 	  */
 	 _node(foreign_exception_status)
