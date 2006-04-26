@@ -1,3 +1,32 @@
+2006-04-26 02:01  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: %ILOGBITP treats "large"
+	bit numbers as tests of the sign bit.	(This is probably best
+	viewed as being "formally undefined", but it's not too expensive to
+	check for that.  The case where the bit number's negative is
+	definitely undefined; I think that it also gets treated as a test
+	of the sign bit.)
+
+2006-04-26 01:58  gb
+
+	* lisp-kernel/x86-spentry64.s: Logbitp calls out if bit number
+	negative.
+
+2006-04-26 01:32  gb
+
+	* lisp-kernel/x86-spentry64.s: If both args fixnums, handle bits >=
+	61.  (Should check here for negative bit .)
+
+2006-04-26 01:31  gb
+
+	* lisp-kernel/x86-exceptions.c: If we get the "no FP regs in
+	context" error - which typically indicates a fault during exception
+	processing - pass the context in to the kernel debugger.
+
+2006-04-26 01:30  gb
+
+	* level-0/X86/x86-pred.lisp: Change EQL doc string.
+
 2006-04-26 00:56  gb
 
 	* level-0/X86/x86-pred.lisp: EQL on two bignums works much better
