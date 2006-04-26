@@ -3775,6 +3775,7 @@ _spentry(builtin_logbitp)
 	__(jnz 1f)
 	__(unbox_fixnum(%arg_y,%imm0))
         __(movl $logbitp_max_bit-1+fixnumshift,%imm1_l)
+        __(js 1f)               /* bit number negative */
 	__(addb $fixnumshift,%imm0_b)
 	__(cmpq $logbitp_max_bit<<fixnumshift,%arg_y)
 	__(cmovael %imm1_l,%imm0_l)
