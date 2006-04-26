@@ -218,7 +218,7 @@
   (unless (zerop fp-status)
     (%set-mxcsr-status 0)
     ;; Ensure that operands are heap-consed
-    (%fp-error-from-status fp-status 
+    (%fp-error-from-status fp-status
 			   operation 
 			   (%copy-double-float op0 (%make-dfloat)) 
 			   (%copy-double-float op1 (%make-dfloat)))))
@@ -258,24 +258,29 @@
 			   #+64-bit-target op0)))
 
 
-(defun fp-condition-from-mxcsr (status-bits)
-  (declare (fixnum status-bits))
+(defun fp-condition-from-mxcsr (status-bits control-bits)
+  (declare (fixnum status-bits control-bits))
   (cond 
-   ((logbitp x86::mxcsr-ie-bit status-bits)
+   ((and (logbitp x86::mxcsr-ie-bit status-bits)
+         (not (logbitp x86::mxcsr-im-bit control-bits)))
     'floating-point-invalid-operation)
-   ((logbitp x86::mxcsr-oe-bit status-bits)
+   ((and (logbitp x86::mxcsr-oe-bit status-bits)
+         (not (logbitp x86::mxcsr-om-bit control-bits)))
     'floating-point-overflow)
-   ((logbitp x86::mxcsr-ue-bit status-bits)
+   ((and (logbitp x86::mxcsr-ue-bit status-bits)
+         (not (logbitp x86::mxcsr-um-bit control-bits)))
     'floating-point-underflow)
-   ((logbitp x86::mxcsr-ze-bit status-bits)
+   ((and (logbitp x86::mxcsr-ze-bit status-bits)
+         (not (logbitp x86::mxcsr-zm-bit control-bits)))
     'division-by-zero)
-   ((logbitp x86::mxcsr-pe-bit status-bits)
+   ((and (logbitp x86::mxcsr-pe-bit status-bits)
+         (not (logbitp x86::mxcsr-pm-bit control-bits)))
     'floating-point-inexact)))
 
 ;;; This assumes that one of {ie ze oe ue} is set.
 (defun %fp-error-from-status (status-bits  operation &rest operands)
   (declare (type (unsigned-byte 6) status-bits))
-  (let* ((condition-class (fp-condition-from-mxcsr status-bits)))
+  (let* ((condition-class (fp-condition-from-mxcsr status-bits (%get-mxcsr-control))))
     (if condition-class
       (error (make-instance condition-class
                :operation operation
