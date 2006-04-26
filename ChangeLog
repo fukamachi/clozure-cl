@@ -1,3 +1,8 @@
+2006-04-26 02:31  gb
+
+	* lisp-kernel/x86-spentry64.s: .SPbuiltin-logxor was calling out to
+	LOGAND-2, not to LOGXOR-2.  Sheesh.
+
 2006-04-26 02:01  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: %ILOGBITP treats "large"
