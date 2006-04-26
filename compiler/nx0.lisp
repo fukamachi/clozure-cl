@@ -191,25 +191,25 @@
 
 (defvar *compiler-macros* (make-hash-table :size 100 :test #'eq))
 
-; Just who was responsible for the "FUNCALL" nonsense ?
-; Whoever it is deserves a slow and painful death ...
+;;; Just who was responsible for the "FUNCALL" nonsense ?
+;;; Whoever it is deserves a slow and painful death ...
 
 (defmacro define-compiler-macro  (name arglist &body body &environment env)
   "Define a compiler-macro for NAME."
-  (unless (symbolp name) (report-bad-arg name 'symbol))
+  (setq name (validate-function-name name))
   (let ((body (parse-macro-1 name arglist body env)))
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        (setf (compiler-macro-function ',name)
              (nfunction (compiler-macro-function ,name) ,body))         
        ',name)))
 
-; This is silly (as may be the whole idea of actually -using- compiler-macros).
-; Compiler-macroexpand-1 will return a second value of  NIL if the value returned
-; by the expansion function is EQ to the original form.
-; This differs from the behavior of macroexpand-1, but users are not encouraged
-; to write macros which return their &whole args (as the DEFINE-COMPILER-MACRO
-; issue encourages them to do ...)
-; Cheer up! Neither of these things have to exist!
+;;; This is silly (as may be the whole idea of actually -using- compiler-macros).
+;;; Compiler-macroexpand-1 will return a second value of  NIL if the value returned
+;;; by the expansion function is EQ to the original form.
+;;; This differs from the behavior of macroexpand-1, but users are not encouraged
+;;; to write macros which return their &whole args (as the DEFINE-COMPILER-MACRO
+;;; issue encourages them to do ...)
+;;; Cheer up! Neither of these things have to exist!
 (defun compiler-macroexpand-1 (form &optional env)
   (let ((expander nil)
         (newdef nil))
