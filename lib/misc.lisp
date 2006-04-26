@@ -651,7 +651,10 @@ are running on, or NIL if we can't find any useful information."
 
 (defun function-for-disassembly (thing)
   (let* ((fun thing))
-    (when (typep fun 'standard-method) (setq fun (%method-function fun)))
+    ;; CLHS says that DISASSEMBLE should signal a type error if its
+    ;; argument isn't a function designator.  Hard to imagine any
+    ;; code depending on that ...
+    ;;(when (typep fun 'standard-method) (setq fun (%method-function fun)))
     (when (or (symbolp fun)
               (and (consp fun) (neq (%car fun) 'lambda)))
       (setq fun (fboundp thing))
