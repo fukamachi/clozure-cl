@@ -121,3 +121,13 @@ define([TCR_STATE_EXCEPTION_RETURN],4)
 
 tstack_alloc_limit = 0xffff
 	
+mxcsr_ie_bit = 0                /* invalid */
+mxcsr_de_bit = 1                /* denorm */        
+mxcsr_ze_bit = 2
+mxcsr_oe_bit = 3
+mxcsr_ue_bit = 4
+mxcsr_pe_bit = 5
+num_mxcsr_exception_bits = 6
+        
+mxcsr_all_exceptions = ((1<<num_mxcsr_exception_bits)-1)
+        
