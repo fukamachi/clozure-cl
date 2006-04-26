@@ -1,3 +1,24 @@
+2006-04-25 17:38  gb
+
+	* lisp-kernel/x86-spentry64.s: _SPmvslide: skip the loop if nargs
+	is 0, not if disp is 0.  ash: always make a signed integer out of
+	the result,  since arg is always signed.
+
+2006-04-25 17:37  gb
+
+	* level-0/X86/x86-float.lisp: Negate floats by fliping the sign
+	bit, so (for instance) (- 0.0d0) is -0.0d0.
+
+2006-04-25 17:36  gb
+
+	* level-0/X86/x86-hash.lisp: Hash bignums 32 bits (not 64!) at a
+	time.
+
+2006-04-25 17:35  gb
+
+	* compiler/X86/x862.lisp: %%INEG: need to ensure that source
+	operand is in target reg (2-address issue.)
+
 2006-04-24 16:42  gb
 
 	* lisp-kernel/x86-spentry64.s: How hard can misc_set_s32 be ? 
