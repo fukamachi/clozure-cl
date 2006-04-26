@@ -192,7 +192,7 @@
                           (setq old-encapsulation (car stuff))
                           (cdr stuff))
                         (cons old-def dcode)))
-                (setf (uvref old-def 0)(uvref *gf-proto* 0))  ; <<  gotta remember to fix it
+                (replace-function-code old-def *gf-proto*)  ; <<  gotta remember to fix it
                 (or old-encapsulation
                     (%cons-combined-method old-def gf-dcode #'%%call-encapsulated-gf)))
               old-def))                 ; make new symbol call old definition
@@ -242,7 +242,7 @@
                 (proto (cdr (assq orig-decode dcode-proto-alist)))
                 ) ; <<
            (setf (%gf-dcode def) orig-decode)
-           (setf (uvref def 0)(uvref (or proto *gf-proto*) 0)))
+           (replace-function-code def (or proto *gf-proto*)))
          (setf (car (%combined-method-methods (%gf-dcode def))) newdef))
        (typecase spec
          (symbol (%fhave spec newdef))
