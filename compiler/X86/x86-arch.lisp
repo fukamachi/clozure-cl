@@ -189,6 +189,14 @@
 (defconstant x86-le-bits #xe)
 (defconstant x86-g-bits #xf)
 
+;;; Bits in the xFLAGS register
+(defconstant x86-carry-flag-bit 0)
+(defconstant x86-parity-flag-bit 2)
+(defconstant x86-aux-carry-flag-bit 4)
+(defconstant x86-zero-flag-bit 6)
+(defconstant x86-sign-flag-bit 7)
+(defconstant x86-direction-flag-bit 10)
+(defconstant x86-overflow-flag-bit 11)
 
 
 (provide "X86-ARCH")
