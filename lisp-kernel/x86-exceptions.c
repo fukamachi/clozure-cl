@@ -251,6 +251,127 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
   return false;
 }
 
+
+void
+push_on_lisp_stack(ExceptionInformation *xp, LispObj value)
+{
+  LispObj *vsp = (LispObj *)xpGPR(xp,Isp);
+  *--vsp = value;
+  xpGPR(xp,Isp) = (LispObj)vsp;
+}
+
+
+/* Hard to know if or whether this is necessary in general.  For now,
+   do it when we get a "wrong number of arguments" trap.
+*/
+void
+finish_function_entry(ExceptionInformation *xp)
+{
+  natural nargs = (xpGPR(xp,Inargs)&0xffff)>> fixnumshift;
+  signed_natural disp = nargs-3;
+  LispObj *vsp =  (LispObj *) xpGPR(xp,Isp);
+   
+  
+  if (disp > 0) {               /* implies that nargs > 3 */
+    vsp[disp] = xpGPR(xp,Irbp);
+    vsp[disp+1] = xpGPR(xp,Ira0);
+    xpGPR(xp,Irbp) = (LispObj)(vsp+disp);
+    push_on_lisp_stack(xp,xpGPR(xp,Iarg_x));
+    push_on_lisp_stack(xp,xpGPR(xp,Iarg_y));
+    push_on_lisp_stack(xp,xpGPR(xp,Iarg_z));
+  } else {
+    push_on_lisp_stack(xp,xpGPR(xp,Ira0));
+    push_on_lisp_stack(xp,xpGPR(xp,Irbp));
+    xpGPR(xp,Irbp) = xpGPR(xp,Isp);
+    if (nargs == 3) {
+      push_on_lisp_stack(xp,xpGPR(xp,Iarg_x));
+    }
+    if (nargs >= 2) {
+      push_on_lisp_stack(xp,xpGPR(xp,Iarg_y));
+    }
+    if (nargs >= 1) {
+      push_on_lisp_stack(xp,xpGPR(xp,Iarg_z));
+    }
+  }
+}
+
+Boolean
+object_contains_pc(LispObj container, LispObj addr)
+{
+  if (fulltag_of(container) >= fulltag_misc) {
+    natural elements = header_element_count(header_of(container));
+    if ((addr >= container) &&
+        (addr < ((LispObj)&(deref(container,1+elements))))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+LispObj
+create_exception_callback_frame(ExceptionInformation *xp)
+{
+  LispObj containing_uvector = 0, 
+    relative_pc, 
+    nominal_function = lisp_nil, 
+    f, tra, tra_f = 0, abs_pc;
+
+  f = xpGPR(xp,Ifn);
+  tra = xpGPR(xp,Ira0);
+  if (tag_of(tra) == tag_tra) {
+    tra_f = tra - ((int *)tra)[-1];
+    if (fulltag_of(tra_f) != fulltag_function) {
+      tra_f = 0;
+    }
+  }
+
+  abs_pc = (LispObj)xpPC(xp);
+
+  if (fulltag_of(f) == fulltag_function) {
+    nominal_function = f;
+  } else {
+    if (tra_f) {
+      nominal_function = tra_f;
+    }
+  }
+  
+  f = xpGPR(xp,Ifn);
+  if (object_contains_pc(f, abs_pc)) {
+    containing_uvector = untag(f)+fulltag_misc;
+  } else {
+    f = xpGPR(xp,Ixfn);
+    if (object_contains_pc(f, abs_pc)) {
+      containing_uvector = untag(f)+fulltag_misc;
+    } else {
+      if (tra_f) {
+        f = tra_f;
+        if (object_contains_pc(f, abs_pc)) {
+          containing_uvector = untag(f)+fulltag_misc;
+          relative_pc = (abs_pc - f) << fixnumshift;
+        }
+      }
+    }
+  }
+  if (containing_uvector) {
+    relative_pc = (abs_pc - (LispObj)&(deref(containing_uvector,1))) << fixnumshift;
+  } else {
+    containing_uvector = lisp_nil;
+    relative_pc = abs_pc << fixnumshift;
+  }
+  
+  push_on_lisp_stack(xp,tra);
+  push_on_lisp_stack(xp,(LispObj)xp);
+  push_on_lisp_stack(xp,containing_uvector); 
+  push_on_lisp_stack(xp,relative_pc);
+  push_on_lisp_stack(xp,nominal_function);
+  push_on_lisp_stack(xp,0);
+  push_on_lisp_stack(xp,xpGPR(xp,Irbp));
+  xpGPR(xp,Irbp) = xpGPR(xp,Isp);
+  return xpGPR(xp,Isp);
+}
+
+
+  
 int
 callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
                   natural arg1, natural arg2, natural arg3, natural arg4, natural arg5)
@@ -259,17 +380,14 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
   natural  callback_ptr, i;
   int delta;
 
-
-
   /* Put the active stack pointers where .SPcallback expects them */
   tcr->save_vsp = (LispObj *) xpGPR(xp, Isp);
   tcr->save_tsp = (LispObj *) xpMMXreg(xp, Itsp);
   tcr->save_rbp = (LispObj *) xpGPR(xp, Irbp);
 
 
-  /* Call back.
-     Lisp will handle trampolining through some code that
-     will push lr/fn & pc/nfn stack frames for backtrace.
+  /* Call back.  The caller of this function may have modified stack/frame
+     pointers (and at least should have called prepare_for_callback()).
   */
   callback_ptr = ((macptr *)ptr_from_lispobj(untag(callback_macptr)))->address;
   UNLOCK(lisp_global(EXCEPTION_LOCK), tcr);
@@ -281,40 +399,34 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
 void
 callback_for_interrupt(TCR *tcr, ExceptionInformation *xp)
 {
-  callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, 0, Ifn, 0, 0, 0);
+  LispObj save_rbp = xpGPR(xp,Irbp),
+    save_vsp = xpGPR(xp,Isp),
+    xcf = create_exception_callback_frame(xp);
+  
+  callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, xcf, 0, 0, 0, 0);
+  xpGPR(xp,Irbp) = save_rbp;
+  xpGPR(xp,Isp) = save_vsp;
 }
 
 Boolean
 handle_error(TCR *tcr, ExceptionInformation *xp)
 {
   pc program_counter = (pc)xpPC(xp);
-  unsigned char op0 = program_counter[0], op1 = program_counter[1], op2 = program_counter[2];
-  LispObj rpc = (LispObj) program_counter, current_function, errdisp = nrs_ERRDISP.vcell;
-  int rfn = 0, skip;
+  unsigned char op0 = program_counter[0], op1 = program_counter[1];
+  LispObj rpc = (LispObj) program_counter, errdisp = nrs_ERRDISP.vcell,
+    save_rbp = xpGPR(xp,Irbp), save_vsp = xpGPR(xp,Isp), xcf;
+  int skip;
 
   if ((fulltag_of(errdisp) == fulltag_misc) &&
       (header_subtag(header_of(errdisp)) == subtag_macptr)) {
-    LispObj current_function = xpGPR(xp, Ifn), elements;
- 
-    if (fulltag_of(current_function) == fulltag_function) {
-      elements = header_element_count(header_of(current_function));
-      if ((rpc > current_function) &&
-          (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
-        rfn = Ifn;
-        rpc -= current_function;
-      } else {
-        current_function = xpGPR(xp, Itemp1); /* temp1 aka xfn */
-        if (fulltag_of(current_function) == fulltag_function) {
-          elements = header_element_count(header_of(current_function));
-          if ((rpc > current_function) &&
-              (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
-            rfn = Itemp1;
-            rpc -= current_function;
-          }
-        }
-      }
+
+    if ((op0 == 0xcd) && (op1 >= 0xc0) && (op1 <= 0xc2)) {
+      finish_function_entry(xp);
     }
-    skip = callback_to_lisp(tcr, errdisp, xp, rfn, rpc, op0, op1, op2);
+    xcf = create_exception_callback_frame(xp);
+    skip = callback_to_lisp(tcr, errdisp, xp, xcf, 0, 0, 0, 0);
+    xpGPR(xp,Irbp) = save_rbp;
+    xpGPR(xp,Isp) = save_vsp;
     xpPC(xp) += skip;
     return true;
   } else {
@@ -333,32 +445,16 @@ handle_floating_point_exception(TCR *tcr, ExceptionInformation *xp, siginfo_t *i
 {
   int code = info->si_code, rfn = 0, skip;
   pc program_counter = (pc)xpPC(xp);
-  LispObj rpc = (LispObj) program_counter, current_function, cmain = nrs_CMAIN.vcell;
+  LispObj rpc = (LispObj) program_counter, xcf, cmain = nrs_CMAIN.vcell,
+    save_rbp = xpGPR(xp,Irbp), save_vsp = xpGPR(xp,Isp);
 
   if ((fulltag_of(cmain) == fulltag_misc) &&
       (header_subtag(header_of(cmain)) == subtag_macptr)) {
-        LispObj current_function = xpGPR(xp, Ifn), elements;
- 
-    if (fulltag_of(current_function) == fulltag_function) {
-      elements = header_element_count(header_of(current_function));
-      if ((rpc > current_function) &&
-          (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
-        rfn = Ifn;
-        rpc -= current_function;
-      } else {
-        current_function = xpGPR(xp, Itemp1); /* temp1 aka xfn */
-        if (fulltag_of(current_function) == fulltag_function) {
-          elements = header_element_count(header_of(current_function));
-          if ((rpc > current_function) &&
-              (rpc < ((LispObj)&(deref(current_function,1+elements))))) {
-            rfn = Itemp1;
-            rpc -= current_function;
-          }
-        }
-      }
-    }
-    skip = callback_to_lisp(tcr, cmain, xp, SIGFPE, rfn, rpc, code, 0);
+    xcf = create_exception_callback_frame(xp);
+    skip = callback_to_lisp(tcr, cmain, xp, xcf, SIGFPE, code, 0, 0);
     xpPC(xp) += skip;
+    xpGPR(xp,Irbp) = save_rbp;
+    xpGPR(xp,Isp) = save_vsp;
     return true;
   } else {
     return false;
