@@ -618,6 +618,16 @@
   return-address
   xtra)
 
+(define-storage-layout xcf 0            ;"exception callback frame"
+  backptr
+  return-address                        ; always 0
+  nominal-function
+  relative-pc
+  containing-object
+  xp
+  ra0
+  )
+
 ;;; The kernel uses these (rather generically named) structures
 ;;; to keep track of various memory regions it (or the lisp) is
 ;;; interested in.
