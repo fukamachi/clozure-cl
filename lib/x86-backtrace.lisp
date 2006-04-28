@@ -31,4 +31,78 @@
       (%function-register-usage function)
     (if (null mask)
       (values nil nil)
-      (values mask (if (and at-pc rpc (> at-pc rpc)) stack-location)))))
+      (values (canonicalize-register-mask mask) (if (and at-pc rpc (> at-pc rpc)) stack-location)))))
+
+(defun canonicalize-register-mask (mask)
+  (dpb (ldb (byte 2 14) mask) (byte 2 2) (ldb (byte 2 11) mask)))
+
+(defun xcf-p (p)
+  (eql 0 (%fixnum-ref p x8664::lisp-frame.return-address)))
+
+(defun %current-xcf ()
+  (do* ((q (%get-frame-ptr) (%%frame-backlink q)))
+       ((zerop q))
+    (declare (fixnum q))
+    (when (xcf-p q) (return q))))
+
+(defun cfp-lfun (p)
+  (if (xcf-p p)
+    (%fixnum-ref p x8664::xcf.nominal-function)
+    (%cfp-lfun p)))
+
+;;; On PPC, some frames on the control stack are associated with catch
+;;; frames rather than with function calls.  The whole concept doesn't
+;;; really apply here (e.g., nothing we encounter while walking frame
+;;; pointer links belongs to a catch frame.)
+(defun catch-csp-p (p context)
+  (declare (ignore p context)))
+
+(defun %raw-frame-ref (frame context idx bad)
+  (declare (fixnum frame idx))
+  (let* ((base (parent-frame frame context))
+         (raw-size (- base frame)))
+    (declare (fixnum base raw-size))
+    (if (and (>= idx 0)
+             (< idx raw-size))
+      (%fixnum-ref (the fixnum (1- base))
+                   (the fixnum (ash (the fixnum (- idx)) target::word-shift)))
+      bad)))
+
+(defun %stack< (index1 index2 &optional context)
+  (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+         (vs-area (%fixnum-ref tcr target::tcr.vs-area)))
+    (and (%ptr-in-area-p index1 vs-area)
+         (%ptr-in-area-p index2 vs-area)
+         (< (the fixnum index1) (the fixnum index2)))))
+
+
+(defun %find-register-argument-value (context cfp regval bad)
+  (declare (ignore context cfp regval))
+  bad)
+
+#+soon
+(defun %find-register-argument-value (context cfp regval bad)
+  (let* ((last-catch (last-catch-since cofp context))
+         (index (register-number->saved-register-index regval)))
+    (or
+     (do* ((child (child-frame cfp context)
+                  (child-frame child context)))
+          ((null child))
+       (if (fake-stack-frame-p child)
+         (return (xp-gpr-lisp (%fake-stack-frame.xp child) regval))
+         (multiple-value-bind (lfun pc)
+             (cfp-lfun child)
+           (when lfun
+             (multiple-value-bind (mask where)
+                 (registers-used-by lfun pc)
+               (when (if mask (logbitp index mask))
+                 (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+                 (return (raw-frame-ref child context where bad))))))))
+     (get-register-value nil last-catch index))))
+
+;;; Used for printing only.
+(defun index->address (p)
+  (ldb (byte #+32-bit-target 32 #+64-bit-target 64 0)  (ash p target::fixnumshift)))
+
+(defun vsp-limits (frame context)
+  (values frame (parent-frame frame context)))
