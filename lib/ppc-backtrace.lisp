@@ -17,6 +17,47 @@
 
 (in-package "CCL")
 
+(def-accessors (fake-stack-frame) %svref
+  nil                           ; 'fake-stack-frame
+  %fake-stack-frame.sp          ; fixnum. The stack pointer where this frame "should" be
+  %fake-stack-frame.next-sp     ; Either sp or another fake-stack-frame
+  %fake-stack-frame.fn          ; The current function
+  %fake-stack-frame.lr          ; fixnum offset from fn (nil if fn is not functionp)
+  %fake-stack-frame.vsp         ; The value stack pointer
+  %fake-stack-frame.xp          ; Exception frame.
+  %fake-stack-frame.link        ; next in *fake-stack-frames* list
+  )
+
+;;; Linked list of fake stack frames.
+;;; %frame-backlink looks here
+(def-standard-initial-binding *fake-stack-frames* nil)
+  
+
+(defun fake-stack-frame-p (x)
+  (istruct-typep x 'fake-stack-frame))
+
+(defun cfp-lfun (p)
+  (if (fake-stack-frame-p p)
+    (values (%fake-stack-frame.fn p)
+            (%fake-stack-frame.lr p))
+    (%cfp-lfun p)))
+
+
+(defun %stack< (index1 index2 &optional context)
+  (cond ((fake-stack-frame-p index1)
+         (let ((sp1 (%fake-stack-frame.sp index1)))
+           (declare (fixnum sp1))
+           (if (fake-stack-frame-p index2)
+             (or (%stack< sp1 (%fake-stack-frame.sp index2) context)
+                 (eq index2 (%fake-stack-frame.next-sp index1)))
+             (%stack< sp1 (%i+ index2 1) context))))
+        ((fake-stack-frame-p index2)
+         (%stack< index1 (%fake-stack-frame.sp index2) context))
+        (t (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+                  (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
+             (and (%ptr-in-area-p index1 cs-area)
+                  (%ptr-in-area-p index2 cs-area)
+                  (< (the fixnum index1) (the fixnum index2)))))))
 
 ;;; Returns two values:
 ;;;  [nil, nil] if it can be reliably determined that function uses no registers at PC
@@ -154,11 +195,34 @@
               (setq parent-vsp (%fixnum-ref vsp-area target::area.high)))
             (values vsp parent-vsp)))))))
 
+
+(defun catch-csp-p (p context)
+  (let ((catch (if context
+                 (bt.top-catch context)
+                 (%catch-top (%current-tcr)))))
+    (loop
+      (when (null catch) (return nil))
+      (let ((sp (catch-frame-sp catch)))
+        (when (eql sp p)
+          (return t)))
+      (setq catch (next-catch catch)))))
+
+(defun last-catch-since (sp context)
+  (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+         (catch (%catch-top tcr))
+         (last-catch nil))
+    (loop
+      (unless catch (return last-catch))
+      (let ((csp (uvref catch target::catch-frame.csp-cell)))
+        (when (%stack< sp csp context) (return last-catch))
+        (setq last-catch catch
+              catch (next-catch catch))))))
+
 (defun register-number->saved-register-index (regno)
   (- regno ppc::save7))
 
 (defun %find-register-argument-value (context cfp regval bad)
-  (let* ((last-catch (last-catch-since cfp context))
+  (let* ((last-catch (last-catch-since cofp context))
          (index (register-number->saved-register-index regval)))
     (or
      (do* ((child (child-frame cfp context)
@@ -182,3 +246,10 @@
       (if (< index (- parent-vfp vfp))
         (%fixnum-ref (- parent-vfp 1 index))
         bad)))
+
+;;; Used for printing only.
+(defun index->address (p)
+  (when (fake-stack-frame-p p)
+    (setq p (%fake-stack-frame.sp p)))
+  (ldb (byte #+32-bit-target 32 #+64-bit-target 64 0)  (ash p target::fixnumshift)))
+
