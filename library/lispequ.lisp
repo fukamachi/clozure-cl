@@ -217,16 +217,7 @@
   (%unbound-marker))
 
 
-(def-accessors (fake-stack-frame) %svref
-  nil                           ; 'fake-stack-frame
-  %fake-stack-frame.sp          ; fixnum. The stack pointer where this frame "should" be
-  %fake-stack-frame.next-sp     ; Either sp or another fake-stack-frame
-  %fake-stack-frame.fn          ; The current function
-  %fake-stack-frame.lr          ; fixnum offset from fn (nil if fn is not functionp)
-  %fake-stack-frame.vsp         ; The value stack pointer
-  %fake-stack-frame.xp          ; Exception frame.
-  %fake-stack-frame.link        ; next in *fake-stack-frames* list
-  )
+
 
 (defmacro %cons-fake-stack-frame (&optional sp next-sp fn lr vsp xp link)
   `(%istruct 'fake-stack-frame ,sp ,next-sp ,fn ,lr ,vsp ,xp ,link))
