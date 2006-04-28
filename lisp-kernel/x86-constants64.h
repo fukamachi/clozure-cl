@@ -63,6 +63,8 @@
 #endif
 
 #define Iallocptr Itemp0
+#define Inargs Itemp2
+#define Ixfn Itemp1
 
 #define Itsp 7
 #define Inext_tsp 6
@@ -272,6 +274,21 @@ typedef struct lisp_frame {
   LispObj tra;
   LispObj xtra;			/* if tra is nvalretn */
 } lisp_frame;
+
+/* These are created on the lisp stack by the exception callback mechanism,
+   but nothing ever returns to them.  (At the very least, nothing -should-
+   try to return to them ...).
+*/
+typedef struct exception_callback_frame {
+  struct lisp_frame *backlink;
+  LispObj tra;                  /* ALWAYS 0 FOR AN XCF */
+  LispObj nominal_function;     /* the current function at the time of the exception */
+  LispObj relative_pc;          /* Boxed byte offset within actual
+                                   function or absolute address */
+  LispObj containing_uvector;   /* the uvector that contains the relative PC or NIL */
+  LispObj xp;                   /* exception context */
+  LispObj ra0;                  /* value of ra0 from context */
+} xcf;
 
 
 /* The GC (at least) needs to know what a
