@@ -472,7 +472,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
                                         (%current-tcr)
                                         condition
                                         (%current-frame-ptr)
-                                        *fake-stack-frames*
+                                        #+ppc-target *fake-stack-frames*
+                                        #+x86-target (%current-frame-ptr)
                                         (db-link)
                                         (1+ *break-level*)))
            (*backtrace-contexts* (cons context *backtrace-contexts*)))
