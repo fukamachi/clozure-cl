@@ -1,3 +1,12 @@
+2006-04-28 03:17  gb
+
+	* compiler/X86/x86-arch.lisp: x86 xFLAGS bits.
+
+2006-04-28 03:16  gb
+
+	* compiler/nx0.lisp: Allow (FUNCTION (SETF name)) in
+	IGNORE/IGNORABLE/DYNAMIC-EXTENT declarations.
+
 2006-04-26 14:18  gb
 
 	* compiler/nx0.lisp: Allow (SETF NAME) in DEFINE-COMPILER-MACRO.
