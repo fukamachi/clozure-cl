@@ -14,6 +14,8 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
 ;;; Comparisons make more sense if arg order is "dest, src", instead
 ;;; of the gas/ATT arg order.
 
@@ -30,7 +32,7 @@
 
 (defx86lapmacro check-nargs (min &optional (max min))
   (let* ((ok (gensym)))
-    (if (= max min)
+    (if (and max (= max min))
       `(progn
         (rcmp (% nargs) ($ ',min))
         (je.pt ,ok)
