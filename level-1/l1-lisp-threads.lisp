@@ -551,16 +551,6 @@
 ;;; Backtrace support
 ;;;
 
-;;; Linked list of fake stack frames.
-;;; %frame-backlink looks here
-(def-standard-initial-binding *fake-stack-frames* nil)
-  
-
-
-
-
-(defun fake-stack-frame-p (x)
-  (istruct-typep x 'fake-stack-frame))
 
 
 (defmacro do-db-links ((db-link &optional var value) &body body)
@@ -590,21 +580,7 @@
 (defun %get-frame-ptr ()
   (%current-frame-ptr))
 
-(defun %stack< (index1 index2 &optional context)
-  (cond ((fake-stack-frame-p index1)
-         (let ((sp1 (%fake-stack-frame.sp index1)))
-           (declare (fixnum sp1))
-           (if (fake-stack-frame-p index2)
-             (or (%stack< sp1 (%fake-stack-frame.sp index2) context)
-                 (eq index2 (%fake-stack-frame.next-sp index1)))
-             (%stack< sp1 (%i+ index2 1) context))))
-        ((fake-stack-frame-p index2)
-         (%stack< index1 (%fake-stack-frame.sp index2) context))
-        (t (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
-                  (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
-             (and (%ptr-in-area-p index1 cs-area)
-                  (%ptr-in-area-p index2 cs-area)
-                  (< (the fixnum index1) (the fixnum index2)))))))
+
 
 
 
@@ -616,16 +592,7 @@
     (unless (eql next-catch 0) next-catch)))
 
 
-(defun catch-csp-p (p context)
-  (let ((catch (if context
-                 (bt.top-catch context)
-                 (%catch-top (%current-tcr)))))
-    (loop
-      (when (null catch) (return nil))
-      (let ((sp (catch-frame-sp catch)))
-        (when (eql sp p)
-          (return t)))
-      (setq catch (next-catch catch)))))
+
 
 ; @@@ this needs to load early so errors can work
 (defun next-lisp-frame (p context)
@@ -648,12 +615,8 @@
       (setq p parent))))
 
 
-; @@@ this needs to load early so errors can work
-(defun cfp-lfun (p)
-  (if (fake-stack-frame-p p)
-    (values (%fake-stack-frame.fn p)
-            (%fake-stack-frame.lr p))
-    (%cfp-lfun p)))
+
+
 
 (defun last-frame-ptr (&optional context)
   (let* ((current (if context (bt.current context) (%current-frame-ptr)))
@@ -678,11 +641,7 @@
 
 
 
-; Used for printing only.
-(defun index->address (p)
-  (when (fake-stack-frame-p p)
-    (setq p (%fake-stack-frame.sp p)))
-  (ldb (byte #+32-bit-target 32 #+64-bit-target 64 0)  (ash p target::fixnumshift)))
+
 
 ; This returns the current head of the db-link chain.
 (defun db-link (&optional context)
