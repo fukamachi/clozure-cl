@@ -19,17 +19,8 @@
 
 
 (defun %frame-backlink (p &optional context)
-  (cond ((fake-stack-frame-p p)
-         (%fake-stack-frame.next-sp p))
-        ((fixnump p)
-         (let ((backlink (%%frame-backlink p))
-               (fake-frame
-                (if context (bt.fake-frames context) *fake-stack-frames*)))
-           (loop
-             (when (null fake-frame) (return backlink))
-             (when (eq backlink (%fake-stack-frame.sp fake-frame))
-               (return fake-frame))
-             (setq fake-frame (%fake-stack-frame.link fake-frame)))))
+  (declare (ignore context))
+  (cond ((fixnump p) (%%frame-backlink p))
         (t (error "~s is not a valid stack frame" p))))
 
 (defun bottom-of-stack-p (p context)
@@ -41,16 +32,12 @@
 
 
 (defun lisp-frame-p (p context)
-  (or (fake-stack-frame-p p)
-      (locally (declare (fixnum p))
-        (let ((next-frame (%frame-backlink p context)))
-          (when (fake-stack-frame-p next-frame)
-            (setq next-frame (%fake-stack-frame.sp next-frame)))
-          (locally (declare (fixnum next-frame))
-            (if (bottom-of-stack-p next-frame context)
-              (values nil t)
-              ;; For now, but maybe want to skip &lexpr frames.
-              t))))))
+  (declare (fixnum p))
+  (let ((next-frame (%frame-backlink p context)))
+    (declare (fixnum next-frame))
+    (if (bottom-of-stack-p next-frame context)
+        (values nil t)
+        (values t nil))))
 
 
 (defun catch-frame-sp (catch)
