@@ -40,6 +40,11 @@ print_lisp_frame(lisp_frame *frame)
       return;
     }
   }
+  if (pc == 0) {
+    fun = ((xcf *)frame)->nominal_function;
+    Dprintf("(#x%016lX) #x%016lX : %s + ??", frame, pc, print_lisp_object(fun));
+    return;
+  }
 }
 
 Boolean
@@ -66,6 +71,8 @@ lisp_frame_p(lisp_frame *f)
     } else if ((ra == lisp_global(LEXPR_RETURN)) ||
 	       (ra == lisp_global(LEXPR_RETURN1V))) {
       return true;
+    } else if (ra == 0) {
+      return true;
     }
   }
   return false;
@@ -81,7 +88,9 @@ walk_stack_frames(lisp_frame *start, lisp_frame *end)
     if (lisp_frame_p(start)) {
       print_lisp_frame(start);
     } else {
-      fprintf(stderr, "Bogus  frame %lx\n", start);
+      if (start->backlink) {
+        fprintf(stderr, "Bogus  frame %lx\n", start);
+      }
       return;
     }
     
