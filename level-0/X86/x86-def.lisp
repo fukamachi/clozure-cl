@@ -491,26 +491,54 @@
 
 ;;; For use by (setf (apply ...) ...)
 ;;; (apply+ f butlast last) = (apply f (append butlast (list last)))
-#+ppc-target
+
 (defun apply+ (&lap function arg1 arg2 &rest other-args)
   (x86-lap-function apply+ ()
    (check-nargs 3 nil)
-   (vpush arg_x)
-   (mr temp0 arg_z)                     ; last
-   (mr arg_z arg_y)                     ; butlast
-   (subi nargs nargs '2)                ; remove count for butlast & last
-   (mflr loc-pc)
-   (bla .SPspreadargz)
-   (cmpri cr0 nargs '3)
-   (mtlr loc-pc)
-   (addi nargs nargs '1)                ; count for last
-   (blt cr0 @nopush)
-   (vpush arg_x)
-@nopush
-   (mr arg_x arg_y)
-   (mr arg_y arg_z)
-   (mr arg_z temp0)
-   (ldr temp0 'funcall nfn)
-   (ba .SPfuncall)))
+   (cmpw ($ '3) (% nargs))
+   (ja @no-frame)
+   (pushq ($ x8664::reserved-frame-marker))
+   (pushq ($ x8664::reserved-frame-marker))
+@no-frame         
+   (push (% arg_x))
+   (movq (% arg_z) (% temp0))           ; last
+   (movq (% arg_y) (% arg_z))           ; butlast
+   (subw ($ '2) (% nargs))              ; remove count for butlast & last
+   ;; Do .SPspreadargz inline here
+   (xorl (%l imm0) (%l imm0))
+   (movq (% arg_z) (% arg_y))           ; save in case of error
+   (cmp-reg-to-nil arg_z)
+   (je @done)
+   @loop
+   (extract-fulltag arg_z imm1)
+   (cmpb ($ x8664::fulltag-cons) (%b imm1))
+   (jne @bad)
+   (%car arg_z arg_x)
+   (%cdr arg_z arg_z)
+   (addl ($ '1) (%l imm0))
+   (cmp-reg-to-nil arg_z)   
+   (push (% arg_x))
+   (jne @loop)
+   @done
+   ;; nargs was at least 1 when we started spreading, and can't have gotten
+   ;; any smaller. 
+   (addw (%w imm0) (% nargs))
+   (movq (% temp0) (% arg_z))
+   (pop (% arg_y))
+   (pop (% arg_x))
+   (addw ($ '1) (% nargs))
+   (cmpw ($ '3) (% nargs))
+   (jne @no-discard)
+   (discard-reserved-frame)
+   @no-discard
+   (load-constant funcall temp0)
+   (jmp-subprim .SPfuncall)
+   @bad                                 ; error spreading list.
+   (add (% imm0) (% rsp))               ; discard whatever's been pushed
+   (movq (% arg_y) (% arg_z))
+   (movl ($ '#.$XNOSPREAD) (%l arg_y))
+   (set-nargs 2)
+   (jmp-subprim .SPksignalerr) ))
+
 
 ;;; end of x86-def.lisp
