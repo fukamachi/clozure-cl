@@ -1,3 +1,91 @@
+2006-04-28 04:11  gb
+
+	* lisp-kernel/linuxx8664/.gdbinit: 'lregs' calls the kernel
+	debugger's register display code.
+
+2006-04-28 04:11  gb
+
+	* lisp-kernel/xlbt.c: Don't claim that the (legitimate) last frame
+	on the stack is bogus.
+
+2006-04-28 04:10  gb
+
+	* lisp-kernel/x86-exceptions.c: Create fake stack frames (sort of
+	...) when calling back for an exception.
+
+2006-04-28 03:36  gb
+
+	* lisp-kernel/x86-constants64.h: A few symbolic register names.
+	
+	xcf struct.
+
+2006-04-28 03:36  gb
+
+	* library/lispequ.lisp: FAKE-STACK-FRAME is #+ppc-target.
+
+2006-04-28 03:36  gb
+
+	* lib/x86-backtrace.lisp: Implemented some stuff.
+	
+	Backtrace (sort of) works on x8664 now; need to find register
+	values,  hide tagged return addresses, a few other things.
+
+2006-04-28 03:34  gb
+
+	* lib/ppc-backtrace.lisp: Stuff moved here from elsewhere.
+
+2006-04-28 03:34  gb
+
+	* lib/backtrace-lds.lisp: LAST-CATCH-SINCE moved elsewhere.
+
+2006-04-28 03:33  gb
+
+	* level-1/x86-trap-support.lisp: Flags register accessor.
+	
+	New exception callback scheme.
+
+2006-04-28 03:33  gb
+
+	* level-1/x86-threads-utils.lisp: The lowlevel system keeps
+	changing.
+
+2006-04-28 03:32  gb
+
+	* level-1/x86-error-signal.lisp: New exception callback stuff.
+
+2006-04-28 03:32  gb
+
+	* level-1/l1-readloop-lds.lisp: No fake stack frames on x86.
+
+2006-04-28 03:32  gb
+
+	* level-1/l1-lisp-threads.lisp: Move more stuff to arch-specific
+	files.
+
+2006-04-28 03:31  gb
+
+	* level-1/l1-events.lisp: No fake-stack-frames on x86, but we do
+	have exception callback frames ...
+
+2006-04-28 03:30  gb
+
+	* level-1/l1-error-system.lisp: Tweak :report method for
+	wrong-number-of-args errors.
+
+2006-04-28 03:30  gb
+
+	* level-0/X86/x86-def.lisp: Implement APPLY+.
+
+2006-04-28 03:29  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: eXception Callback Frame.
+
+2006-04-28 03:27  gb
+
+	* compiler/X86/x86-lapmacros.lisp: Add missing IN-PACKAGE.
+	
+	CHECK-NARGS: don't enforce upper bound if it's null.
+
 2006-04-28 03:17  gb
 
 	* compiler/X86/x86-arch.lisp: x86 xFLAGS bits.
