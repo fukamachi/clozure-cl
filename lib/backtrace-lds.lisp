@@ -19,13 +19,6 @@
 
 (in-package "CCL")
 
-(eval-when (eval compile #-bccl load)
-  (require 'streams))
-
-(eval-when (eval compile)
-  (require 'lispequ)
-  (require 'backquote)
-)
 
 
 ;;; Act as if VSTACK-INDEX points somewhere where DATA could go & put it there.
@@ -147,16 +140,7 @@
 ;;; nth-frame-info, set-nth-frame-info, & frame-lfun are in "inspector;new-backtrace"
 
 
-(defun last-catch-since (sp context)
-  (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
-         (catch (%catch-top tcr))
-         (last-catch nil))
-    (loop
-      (unless catch (return last-catch))
-      (let ((csp (uvref catch target::catch-frame.csp-cell)))
-        (when (%stack< sp csp context) (return last-catch))
-        (setq last-catch catch
-              catch (next-catch catch))))))
+
 
 (defparameter *saved-register-count*
   #+x8664-target 4
@@ -359,7 +343,7 @@
            (and frame (apply-in-frame frame fn arglist)))))
   (format t "Can't return to frame ~d ." n))
 
-; This method is shadowed by one for the backtrace window.
+;;; This method is shadowed by one for the backtrace window.
 (defmethod nth-frame (w target n context)
   (declare (ignore w))
   (and target (dotimes (i n target)
@@ -598,11 +582,11 @@
               next (dll-node-succ next)))
       tree)))
 
-; Returns 4 values:
-; 1) type: one of :regular, :label, :branch, :catch, :unwind-protect, :throw, :tsp-push, :tsp-pop
-; 2) branch target (or catch or unwind-protect cleanup)
-; 3) branch-fallthrough (or catch or unwind-protect body)
-; 4) Count for throw, tsp-push, tsp-pop
+;;; Returns 4 values:
+;;; 1) type: one of :regular, :label, :branch, :catch, :unwind-protect, :throw, :tsp-push, :tsp-pop
+;;; 2) branch target (or catch or unwind-protect cleanup)
+;;; 3) branch-fallthrough (or catch or unwind-protect body)
+;;; 4) Count for throw, tsp-push, tsp-pop
 #+ppc-target
 (defun categorize-instruction (instr)
   (etypecase instr
