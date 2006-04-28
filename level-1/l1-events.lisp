@@ -97,11 +97,15 @@
          (setq *periodic-task-mask* (logior-list *periodic-task-masks*)))))))
 
 
+
 (defun force-break-in-listener (p)
   (process-interrupt p
 		     #'(lambda ()
 			 (ignoring-without-interrupts 
-			  (%break-in-frame *fake-stack-frames* "interrupt signal")
+			  (%break-in-frame
+                           #+ppc-target *fake-stack-frames*
+                           #+x86-target (or (%current-xcf) (%get-frame-ptr))
+                           "interrupt signal")
 			  (clear-input *terminal-io*)))))
 
 
