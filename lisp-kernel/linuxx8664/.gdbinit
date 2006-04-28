@@ -57,6 +57,10 @@ define ada
  p/x *(all_areas->succ)
 end
 
+define lregs
+ call debug_lisp_registers($arg0,0,0)
+end
+
 break Bug
 
 display/i $pc
