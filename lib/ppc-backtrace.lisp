@@ -253,3 +253,14 @@
     (setq p (%fake-stack-frame.sp p)))
   (ldb (byte #+32-bit-target 32 #+64-bit-target 64 0)  (ash p target::fixnumshift)))
 
+
+(defun match-local-name (cellno info pc)
+  (when info
+    (let* ((syms (%car info))
+           (ptrs (%cdr info)))
+      (dotimes (i (length syms))
+        (let ((j (%i+ i (%i+ i i ))))
+          (and (eq (uvref ptrs j) (%ilogior (%ilsl (+ 6 target::word-shift) cellno) #o77))
+               (%i>= pc (uvref ptrs (%i+ j 1)))
+               (%i< pc (uvref ptrs (%i+ j 2)))
+               (return (aref syms i))))))))

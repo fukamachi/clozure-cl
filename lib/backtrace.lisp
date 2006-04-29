@@ -169,16 +169,7 @@
                              (if (and restp (zerop n))
                                "rest"
                                "opt-supplied-p")))))))))
-             (let* ((info (function-symbol-map lfun))
-                    (syms (%car info))
-                    (ptrs (%cdr info)))
-               (when info
-                 (dotimes (i (length syms))
-                   (let ((j (%i+ i (%i+ i i ))))
-                     (and (eq (uvref ptrs j) (%ilogior (%ilsl (+ 6 target::word-shift) cellno) #o77))
-                          (%i>= pc (uvref ptrs (%i+ j 1)))
-                          (%i< pc (uvref ptrs (%i+ j 2)))
-                          (return (aref syms i))))))))))))))
+             (match-local-name cellno (function-symbol-map lfun) pc))))))))
 
 (defun argument-value (context cfp lfun pc name)
   (declare (fixnum pc))

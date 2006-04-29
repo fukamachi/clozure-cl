@@ -105,4 +105,21 @@
   (ldb (byte #+32-bit-target 32 #+64-bit-target 64 0)  (ash p target::fixnumshift)))
 
 (defun vsp-limits (frame context)
-  (values frame (parent-frame frame context)))
+  (let* ((parent (parent-frame frame context)))
+    (if (xcf-p frame)
+      (values (+ frame (ash x8664::xcf.size (- x8664::word-shift)))
+              parent)
+      (let* ((tra (%fixnum-ref frame x8664::lisp-frame.return-address)))
+        (values (+ frame 2 (if (eq tra (%get-kernel-global ret1valaddr)) 1 0))
+                parent)))))
+
+(defun match-local-name (cellno info pc)
+  (when info
+    (let* ((syms (%car info))
+           (ptrs (%cdr info)))
+      (dotimes (i (length syms))
+        (let ((j (%i+ i (%i+ i i ))))
+          (and (eq (uvref ptrs j) (%ilogior (%ilsl (+ 6 target::word-shift) cellno) #o77))
+               (%i>= pc (uvref ptrs (%i+ j 1)))
+               (%i< pc (uvref ptrs (%i+ j 2)))
+               (return (aref syms i))))))))
