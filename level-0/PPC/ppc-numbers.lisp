@@ -224,7 +224,7 @@
     (mtxer rzero)
     (save-lisp-context)
     (set-nargs 3)
-    (load-constant arg_x 'truncate)
+    (load-constant arg_x truncate)
     (call-symbol divide-by-zero-error)
     @not-0
     @ok
@@ -254,7 +254,7 @@
     (mtxer rzero)
     (save-lisp-context)
     (set-nargs 3)
-    (load-constant arg_x 'truncate)
+    (load-constant arg_x truncate)
     (call-symbol divide-by-zero-error)
     @not-0
     @ok
