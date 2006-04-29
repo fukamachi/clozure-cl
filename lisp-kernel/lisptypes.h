@@ -97,7 +97,4 @@ typedef unsigned int UInt32;
 #define true 1
 #define false 0
 
-#ifndef LINUX
-typedef void (*__sighandler_t)(int);
-#endif
 #endif /*__lisptypes__ */
