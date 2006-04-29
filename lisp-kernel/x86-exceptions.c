@@ -434,9 +434,89 @@ handle_error(TCR *tcr, ExceptionInformation *xp)
   }
 }
 
+
+protection_handler
+* protection_handlers[] = {
+  do_spurious_wp_fault,
+  do_soft_stack_overflow,
+  do_soft_stack_overflow,
+  do_soft_stack_overflow,
+  do_hard_stack_overflow,    
+  do_hard_stack_overflow,
+  do_hard_stack_overflow,
+};
+
+
+/* Maybe this'll work someday.  We may have to do something to
+   make the thread look like it's not handling an exception */
+void
+reset_lisp_process(ExceptionInformation *xp)
+{
+}
+
+Boolean
+do_hard_stack_overflow(ExceptionInformation *xp, protected_area_ptr area, BytePtr addr)
+{
+  reset_lisp_process(xp);
+  return false;
+}
+
+
+Boolean
+do_spurious_wp_fault(ExceptionInformation *xp, protected_area_ptr area, BytePtr addr)
+{
+
+  return false;
+}
+
+Boolean
+do_soft_stack_overflow(ExceptionInformation *xp, protected_area_ptr prot_area, BytePtr addr)
+{
+  /* Trying to write into a guard page on the vstack or tstack.
+     Allocate a new stack segment, emulate stwu and stwux for the TSP, and
+     signal an error_stack_overflow condition.
+      */
+  lisp_protection_kind which = prot_area->why;
+  Boolean on_TSP = (which == kTSPsoftguard);
+  LispObj save_rbp = xpGPR(xp,Irbp), 
+    save_vsp = xpGPR(xp,Isp), 
+    xcf,
+    cmain = nrs_CMAIN.vcell;
+  area *a;
+  protected_area_ptr soft;
+  TCR *tcr = get_tcr(false);
+  int skip;
+
+  if ((fulltag_of(cmain) == fulltag_misc) &&
+      (header_subtag(header_of(cmain)) == subtag_macptr)) {
+    if (on_TSP) {
+      a = tcr->ts_area;
+    } else {
+      a = tcr->vs_area;
+    }
+    soft = a->softprot;
+    unprotect_area(soft);
+    xcf = create_exception_callback_frame(xp);
+    skip = callback_to_lisp(tcr, nrs_CMAIN.vcell, xp, xcf, SIGSEGV, on_TSP, 0, 0);
+    xpGPR(xp,Irbp) = save_rbp;
+    xpGPR(xp,Isp) = save_vsp;
+    xpPC(xp) += skip;
+    return true;
+  }
+  return false;
+}
+
 Boolean
 handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 {
+  BytePtr addr = (BytePtr) info->si_addr;
+  protected_area *a = find_protected_area(addr);
+  protection_handler *handler;
+
+  if (a) {
+    handler = protection_handlers[a->why];
+    return handler(xp, a, addr);
+  }
   return false;
 }
 
@@ -874,17 +954,40 @@ adjust_exception_pc(ExceptionInformation *xp, int delta)
   xpPC(xp) += delta;
 }
 
+/*
+  Lower (move toward 0) the "end" of the soft protected area associated
+  with a by a page, if we can.
+*/
+
 void
-restore_soft_stack_limit(unsigned stkreg)
+
+adjust_soft_protection_limit(area *a)
 {
+  char *proposed_new_soft_limit = a->softlimit - 4096;
+  protected_area_ptr p = a->softprot;
+  
+  if (proposed_new_soft_limit >= (p->start+16384)) {
+    p->end = proposed_new_soft_limit;
+    p->protsize = p->end-p->start;
+    a->softlimit = proposed_new_soft_limit;
+  }
+  protect_area(p);
 }
 
-/* Maybe this'll work someday.  We may have to do something to
-   make the thread look like it's not handling an exception */
 void
-reset_lisp_process(ExceptionInformation *xp)
+restore_soft_stack_limit(unsigned restore_tsp)
 {
+  TCR *tcr = get_tcr(false);
+  area *a;
+ 
+  if (restore_tsp) {
+    a = tcr->ts_area;
+  } else {
+    a = tcr->vs_area;
+  }
+  adjust_soft_protection_limit(a);
 }
+
 
 void
 setup_sigaltstack(area *a)
