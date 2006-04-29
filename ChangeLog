@@ -1,3 +1,46 @@
+2006-04-29 09:14  gb
+
+	* lisp-kernel/x86-exceptions.c: Write-protect handlers for stack
+	overflow (on value/temp stacks).
+
+2006-04-29 09:13  gb
+
+	* level-1/x86-trap-support.lisp: Handle stack overflow in cmain
+	callback.
+
+2006-04-29 09:10  gb
+
+	* lisp-kernel/freebsd8664/Makefile: x86-gc.o.
+	
+	No linker script.
+	
+	Use -lthr, which offers 1:1 threads.
+
+2006-04-29 09:09  gb
+
+	* lisp-kernel/lisptypes.h: Remove the __sighandler typedef.
+
+2006-04-29 09:01  gb
+
+	* lisp-kernel/x86-exceptions.h: xpMMXreg for FreeBSD.
+
+2006-04-29 09:00  gb
+
+	* lisp-kernel/x86-exceptions.c: Don't use __sighandler_t.  (See if
+	anything cares ...)
+
+2006-04-29 08:59  gb
+
+	* lisp-kernel/x86-constants64.h: FreeBSD register constants.
+
+2006-04-29 08:58  gb
+
+	* lisp-kernel/lisp-debug.c: FreeBSD regiser names.
+
+2006-04-29 08:58  gb
+
+	* lisp-kernel/area.h: Update IMAGE_BASE_ADDRESS for FreeBSD.
+
 2006-04-28 21:28  gb
 
 	* level-1/version.lisp: bump.
