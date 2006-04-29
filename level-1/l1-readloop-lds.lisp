@@ -109,6 +109,13 @@ whose name or ID matches <p>, or to any process if <p> is null"
         (toplevel-print (list (set-nth-value-in-frame frame-sp n nil value)))
         (format *debug-io* "No frame with number ~D~%" frame))))
 
+(define-toplevel-command :break nframes ()
+                         "print the number of stack frames accessible from this break loop"
+                         (do* ((p *break-frame* (parent-frame p nil))
+                               (i 0 (1+ i))
+                               (last (last-frame-ptr)))
+                              ((eql p last) (toplevel-print (list i)))))
+
 (define-toplevel-command :global ? () "help"
   (dolist (g *active-toplevel-commands*)
     (dolist (c (cdr g))
@@ -120,17 +127,21 @@ whose name or ID matches <p>, or to any process if <p> is null"
 	  (format t "~& ~S  ~8T~A" command doc))))))
 
 
-(define-toplevel-command :break b (&optional show-frame-contents) "backtrace"
+(define-toplevel-command :break b (&key start count show-frame-contents) "backtrace"
   (when *break-frame*
-    (print-call-history :detailed-p show-frame-contents
-                        :start-frame *break-frame*)))
+      (print-call-history :detailed-p show-frame-contents
+                          :origin *break-frame*
+                          :count count
+                          :start-frame-number (or start 0))))
 
 (define-toplevel-command :break c (n) "Choose restart <n>"
    (select-restart n))
 
 (define-toplevel-command :break f (n) "Show backtrace frame <n>"
-   (print-call-history :start-frame *break-frame*
-                       :detailed-p n))
+   (print-call-history :origin *break-frame*
+                       :start-frame-number n
+                       :count 1
+                       :detailed-p t))
 
 (define-toplevel-command :break v (n frame-number) "Return value <n> in frame <frame-number>"
   (let* ((frame-sp (nth-raw-frame frame-number *break-frame* nil)))
@@ -248,7 +259,11 @@ whose name or ID matches <p>, or to any process if <p> is null"
               (loop
                 (let* ((param (read in nil eof-value)))
                   (if (eq param eof-value)
-                    (return (cons keyword (params)))
+                    (return
+                      (let* ((params (params)))
+                        (if params
+                          (cons keyword params)
+                          keyword)))
                     (params param)))))))))))
 
 ;;; Read a form from the specified stream.
