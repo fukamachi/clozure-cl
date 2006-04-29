@@ -2564,7 +2564,10 @@
                                eof-value)
   (loop
     (let* ((*in-read-loop* nil) 
-           (form (read stream nil eof-value)))
+           (form
+            (if (eq (peek-char t stream nil nil) #\:)
+              (read-command-or-keyword stream eof-value)
+              (read stream nil eof-value))))
       (if (eq form eof-value)
         (return (values form nil t))
         (progn

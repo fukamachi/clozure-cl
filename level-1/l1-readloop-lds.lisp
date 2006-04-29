@@ -232,7 +232,24 @@ whose name or ID matches <p>, or to any process if <p> is null"
       (clear-input input-stream)
       (format output-stream "~%"))))
 
-
+;;; The first non-whitespace character available on INPUT-STREAM is a colon.
+;;; Try to interpret the line as a colon command (or possibly just a keyword.)
+(defun read-command-or-keyword (input-stream eof-value)
+  (let* ((line (read-line input-stream nil eof-value)))
+    (if (eq line eof-value)
+      eof-value
+      (let* ((in (make-string-input-stream line))
+             (keyword (read in nil eof-value)))
+        (if (eq keyword eof-value)
+          eof-value
+          (if (not (keywordp keyword))
+            keyword
+            (collect ((params))
+              (loop
+                (let* ((param (read in nil eof-value)))
+                  (if (eq param eof-value)
+                    (return (cons keyword (params)))
+                    (params param)))))))))))
 
 ;;; Read a form from the specified stream.
 (defun toplevel-read (&key (input-stream *standard-input*)
