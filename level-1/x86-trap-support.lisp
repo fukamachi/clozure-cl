@@ -142,5 +142,21 @@
                                        :operation operation
                                        :operands operands)
                        ()
-                       frame-ptr)))))))
+                       frame-ptr))))
+          ((= signal #$SIGSEGV)
+           ;; Stack overflow.
+           (let* ((on-tsp (not (eql 0 code))))
+           (unwind-protect
+                (%error
+                 (make-condition
+                  'stack-overflow-condition 
+                  :format-control "Stack overflow on ~a stack."
+                  :format-arguments (list
+                                     (if on-tsp "temp" "value"))
+                                     )
+                 nil frame-ptr)
+             (ff-call (%kernel-import target::kernel-import-restore-soft-stack-limit)
+                      :unsigned-fullword code
+                      :void))))))
+  0)
 
