@@ -826,7 +826,7 @@ altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *c
 
 
 void
-install_signal_handler(int signo, __sighandler_t handler)
+install_signal_handler(int signo, void * handler)
 {
   struct sigaction sa;
   
@@ -845,15 +845,15 @@ void
 install_pmcl_exception_handlers()
 {
   
-  install_signal_handler(SIGILL, (__sighandler_t)altstack_signal_handler);
+  install_signal_handler(SIGILL, altstack_signal_handler);
   
-  install_signal_handler(SIGBUS,  (__sighandler_t)altstack_signal_handler);
-  install_signal_handler(SIGSEGV, (__sighandler_t)altstack_signal_handler);
-  install_signal_handler(SIGFPE, (__sighandler_t)altstack_signal_handler);
+  install_signal_handler(SIGBUS, altstack_signal_handler);
+  install_signal_handler(SIGSEGV,altstack_signal_handler);
+  install_signal_handler(SIGFPE, altstack_signal_handler);
 
   
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
-			 (__sighandler_t)altstack_interrupt_handler);
+			 altstack_interrupt_handler);
   signal(SIGPIPE, SIG_IGN);
 }
 
