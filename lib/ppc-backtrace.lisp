@@ -222,7 +222,7 @@
   (- regno ppc::save7))
 
 (defun %find-register-argument-value (context cfp regval bad)
-  (let* ((last-catch (last-catch-since cofp context))
+  (let* ((last-catch (last-catch-since cfp context))
          (index (register-number->saved-register-index regval)))
     (or
      (do* ((child (child-frame cfp context)
