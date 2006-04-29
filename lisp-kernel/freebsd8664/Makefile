@@ -1,5 +1,5 @@
 #
-#   Copyright (C) 2005 Clozure Associates
+#   Copyright (C) 2005-2006 Clozure Associates
 #   This file is part of OpenMCL.  
 #
 #   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
@@ -30,7 +30,7 @@ COPT = #-O2
 SPOBJ = pad.o x86-spjump64.o x86-spentry64.o x86-subprims64.o
 ASMOBJ = x86-asmutils64.o imports.o
 
-COBJ  = pmcl-kernel.o gc.o bits.o  x86-exceptions.o \
+COBJ  = pmcl-kernel.o x86-gc.o bits.o  x86-exceptions.o \
 	image.o thread_manager.o lisp-debug.o memory.o
 
 DEBUGOBJ = lispdcmd.o plprint.o plsym.o xlbt.o x86_print.o
@@ -48,15 +48,15 @@ KSPOBJ = $(SPOBJ)
 all:	../../fx86cl64
 
 
-OSLIBS = -lm -lpthread
+OSLIBS = -lm -lthr
 
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS)  $(ASFLAGS) -o $@
 .c.o:
 	$(CC) -c $< $(CDEFINES) $(CDEBUG) $(COPT) -m64 -o $@
 
-LINKSCRIPTFILE = ./elf_x86_64.x
-LINKSCRIPT =  -T $(LINKSCRIPTFILE)
+LINKSCRIPTFILE = # ./elf_x86_64.x
+LINKSCRIPT =  # -T $(LINKSCRIPTFILE)
 
 ../../fx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(LINKSCRIPTFILE)
 	$(CC) -m64 $(CDEBUG)  -Wl,--export-dynamic  $(LINKSCRIPT)  -o $@  $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
