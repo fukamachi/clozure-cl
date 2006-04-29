@@ -14,8 +14,28 @@
    http://opensource.franz.com/preamble.html
 */
 
+#ifdef FREEBSD
+#define REG_RDI 1
+#define REG_RSI 2
+#define REG_RDX 3
+#define REG_RCX 4
+#define REG_R8 5
+#define REG_R9 6
+#define REG_RAX 7
+#define REG_RBX 8
+#define REG_RBP 9
+#define REG_R10 10
+#define REG_R11 11
+#define REG_R12 12
+#define REG_R13 13
+#define REG_R14 14
+#define REG_R15 15
+#define REG_RIP 20
+#define REG_RFL 22
+#define REG_RSP 23
+#endif
+
 /* Define indices of the GPRs in the mcontext component of a ucontext */
-#if defined(LINUX) || defined(SOLARIS)
 #define Itemp0      REG_RBX
 #define Iarg_y      REG_RDI
 #define Iarg_x      REG_R8
@@ -36,31 +56,12 @@
 #ifdef LINUX
 #define Iflags      REG_EFL
 #endif
-#ifdef SOLARIS
+
+#if defined(SOLARIS) || defined(FREEBSD)
 #define Iflags      REG_RFL
 #endif
-#endif
 
-#ifdef FREEBSD
-#define Itemp0      8
-#define Iarg_y      1
-#define Iarg_x      5
-#define Isave3      11
-#define Isave2      12
-#define Itemp2      4
-#define Isave1      14
-#define Isave0      15
-#define Ira0        10
-#define Ifn         13
-#define Irbp        9
-#define Iarg_z      2
-#define Iimm1       3
-#define Iimm0       7
-#define Itemp1      6
-#define Isp         23
-#define Iip         20
-#define Iflags      22
-#endif
+
 
 #define Iallocptr Itemp0
 #define Inargs Itemp2
