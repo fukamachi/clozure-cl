@@ -22,16 +22,18 @@ typedef u8_t opcode, *pc;
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
 #define xpPC(x) (xpGPR(x,Iip))
-#define xpMMXreg(x,n)  *((natural *)&((x)->uc_mcontext.fpregs->_st[n]))
+#define xpMMXreg(x,n)  *((natural *)(&((x)->uc_mcontext.fpregs->_st[n])))
 #endif
 #endif
 
 #ifdef FREEBSD
 #ifdef X8664
+#include <machine/fpu.h>
 #define xpGPRvector(x) ((natural *)(&((x)->uc_mcontext)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
 #define xpPC(x) xpGPR(x,Iip)
+#define xpMMXreg(x,n) *((natural *)(&(((struct savefpu *)(&(x)->uc_mcontext.mc_fpstate))->sv_fp[n])))
 #endif
 #endif
 
