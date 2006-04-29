@@ -1,3 +1,27 @@
+2006-04-28 21:28  gb
+
+	* level-1/version.lisp: bump.
+
+2006-04-28 21:27  gb
+
+	* lib/backtrace.lisp: changes to print-call-history (and "internal"
+	version).
+
+2006-04-28 21:24  gb
+
+	* lib/ppc-backtrace.lisp: Fix typo.
+
+2006-04-28 21:23  gb
+
+	* level-1/l1-readloop-lds.lisp: Add :NFRAMES break loop command.
+	
+	Change the command/keyword parser a little, so that :FOO is just
+	:FOO and not (:FOO).
+	
+	Change :B break loop command (and :F) to allow focusing on a range
+	of frames, and change PRINT-CALL-HISTORY to more easily support
+	that.
+
 2006-04-28 19:37  gb
 
 	* level-0/PPC/ppc-numbers.lisp: Remove a quote from a LAP
