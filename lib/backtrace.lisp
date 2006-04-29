@@ -31,17 +31,18 @@
 ;;; (because of stack consing) to actually return it.
                                
 (defun print-call-history (&key context
-                                (start-frame (%get-frame-ptr))
+                                (origin (%get-frame-ptr))
                                 (detailed-p t)
-                                (count most-positive-fixnum))
+                                (count most-positive-fixnum)
+                                (start-frame-number 0))
   (let* ((tcr (if context (bt.tcr context) (%current-tcr))))          
     (if (eq tcr (%current-tcr))
-      (%print-call-history-internal context start-frame detailed-p count)
+      (%print-call-history-internal context origin detailed-p (or count most-positive-fixnum) start-frame-number)
       (unwind-protect
            (progn
              (%suspend-tcr tcr )
-             (%print-call-history-internal context start-frame detailed-p
-                                           count))
+             (%print-call-history-internal context origin  detailed-p
+                                           count start-frame-number))
         (%resume-tcr tcr)))
     (values)))
 
@@ -89,17 +90,23 @@
     (call)))
 
 
-(defun %print-call-history-internal (context start-frame detailed-p
-                                             &optional (count most-positive-fixnum))
+(defun %print-call-history-internal (context origin detailed-p
+                                             &optional (count most-positive-fixnum) (skip-initial 0))
   (let ((*standard-output* *debug-io*)
-        (*print-circle* nil))
-    (do* ((p start-frame (parent-frame p context))
-          (frame-number 0 (1+ frame-number))
-          (q (last-frame-ptr context)))
+        (*print-circle* nil)
+        (p origin)
+        (q (last-frame-ptr context)))
+    (dotimes (i skip-initial)
+      (setq p (parent-frame p context))
+      (when (or (null p) (eq p q) (%stack< q p context))
+        (return (setq p nil))))
+    (do* ((frame-number (or skip-initial 0) (1+ frame-number))
+          (i 0 (1+ i))
+          (p p (parent-frame p context)))
          ((or (null p) (eq p q) (%stack< q p context)
-              (>= frame-number count))
+              (>= i count))
           (values))
-      (declare (fixnum frame-number frames-shown))
+      (declare (fixnum frame-number i))
       (when (or (not (catch-csp-p p context))
                 *backtrace-show-internal-frames*)
         (multiple-value-bind (lfun pc) (cfp-lfun p)
