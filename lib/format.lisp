@@ -2142,7 +2142,7 @@
    characters."
   (declare (dynamic-extent arguments))
   (with-terminal-input
-      (clear-input *terminal-io*)
+      (clear-input *query-io*)
       (loop
         (when format-string
           (fresh-line *query-io*)
@@ -2152,7 +2152,7 @@
         (when (peek-char #\NewLine *query-io* nil)
           (unread-char #\NewLine *query-io*)
           (read-char *query-io*))
-        (clear-input *terminal-io*)
+        (clear-input *query-io*)
 	(if (char-equal response #\y) (return t))
 	(if (char-equal response #\n) (return nil))
 	(format *query-io* "Please answer y or n."))))
