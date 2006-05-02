@@ -3495,25 +3495,20 @@ adjust_pointers_in_xp(ExceptionInformation *xp,
                       signed_natural delta) 
 {
   natural *regs = (natural *) xpGPRvector(xp);
-#ifdef PPC
-  int r;
-  for (r = fn; r < 32; r++) {
-    adjust_noderef((LispObj *) (&(regs[r])),
-                   base,
-                   limit,
-                   delta);
-  }
-  adjust_locref((LispObj*) (&(regs[loc_pc])), base, limit, delta);
-  adjust_locref((LispObj*) (&(xpPC(xp))), base, limit, delta);
-  adjust_locref((LispObj*) (&(xpLR(xp))), base, limit, delta);
-  adjust_locref((LispObj*) (&(xpCTR(xp))), base, limit, delta);
-#endif
 
-#ifdef X86
-#ifdef X8664
-#warning fix this
-#endif
-#endif
+  adjust_noderef((LispObj *) (&(regs[Iarg_z])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Iarg_y])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Iarg_x])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Isave3])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Isave2])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Isave1])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Isave0])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Ira0])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Ifn])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Itemp0])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Itemp1])),base,limit,delta);
+  adjust_noderef((LispObj *) (&(regs[Itemp2])),base,limit,delta);
+  adjust_locref((LispObj *) (&(xpPC(xp))),base,limit,delta);
 }
 
 void
@@ -3522,20 +3517,20 @@ nuke_pointers_in_xp(ExceptionInformation *xp,
                       LispObj limit) 
 {
   natural *regs = (natural *) xpGPRvector(xp);
-#ifdef PPC
-  int r;
-  for (r = fn; r < 32; r++) {
-    nuke_noderef((LispObj *) (&(regs[r])),
-                   base,
-                   limit);
-  }
-#endif
 
-#ifdef X86
-#ifdef X8664
-#warning fix this
-#endif
-#endif
+  nuke_noderef((LispObj *) (&(regs[Iarg_z])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Iarg_y])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Iarg_x])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Isave3])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Isave2])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Isave1])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Isave0])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Ira0])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Ifn])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Itemp0])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Itemp1])),base,limit);
+  nuke_noderef((LispObj *) (&(regs[Itemp2])),base,limit);
+
 }
 
 void
@@ -3562,6 +3557,10 @@ adjust_pointers_in_range(LispObj *range_start,
           ((((hash_table_vector_header *)p)->flags) & nhash_track_keys_mask)) {
         hashp = (hash_table_vector_header *) p;
         hashp->flags |= nhash_key_moved_mask;
+      } else if (header_subtag(node) == subtag_function) {
+        int skip = (int)(p[1]);
+        p += skip;
+        nwords -= skip;
       }
       p++;
       while (nwords--) {
@@ -3596,6 +3595,11 @@ nuke_pointers_in_range(LispObj *range_start,
     } else if (nodeheader_tag_p(tag_n)) {
       nwords = header_element_count(node);
       nwords += (1 - (nwords&1));
+      if (header_subtag(node) == subtag_function) {
+        int skip = (int)(p[1]);
+        p += skip;
+        nwords -= skip;
+      }
       p++;
       while (nwords--) {
         nuke_noderef(p, base, limit);
@@ -3629,9 +3633,7 @@ adjust_pointers_in_tstack_area(area *a,
        current = next) {
     next = ptr_from_lispobj(*current);
     end = ((next >= start) && (next < area_limit)) ? next : area_limit;
-    if (current[1] == 0) {
-      adjust_pointers_in_range(current+2, end, base, limit, delta);
-    }
+    adjust_pointers_in_range(current+2, end, base, limit, delta);
   }
 }
 
@@ -4089,8 +4091,6 @@ grow_hons_area(signed_natural delta_in_bytes)
         *p++ = undefined;
       }
       tenured_area->static_dnodes += delta_in_dnodes;
-      xMakeDataExecutable(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift),
-                          ada->active-(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift)));
           
     }
     return 0;
