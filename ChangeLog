@@ -1,3 +1,23 @@
+2006-05-02 10:27  gb
+
+	* level-1/l1-streams.lisp: Don't definea STREAM-CLEAR-INPUT method
+	for STRING-INPUT-STREAMs; it's not clear what such a method should
+	do (and fairly clear that it shouldn't do what the previous
+	definition was doing.)
+
+2006-05-02 10:26  gb
+
+	* lib/format.lisp: clear input from *query-io*, not from
+	*terminal-io* in YES-OR-NO-P, Y-OR-N-P
+
+2006-05-02 10:26  gb
+
+	* library/hash-cons.lisp: x8664 lap
+
+2006-05-02 10:26  gb
+
+	* lisp-kernel/x86-gc.c: hons area stuff
+
 2006-04-29 09:14  gb
 
 	* lisp-kernel/x86-exceptions.c: Write-protect handlers for stack
