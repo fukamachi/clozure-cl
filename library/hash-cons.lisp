@@ -273,10 +273,15 @@
   (jae @bad)
   (shl ($ 1) (% index))
   (movq (% index) (% imm0))
-  (addq (@ target::area.low) (% index))
+  (addq (@ target::area.low (% temp0)) (% index))
   (addq ($ target::fulltag-cons) (% arg_z))
   (movq (@ target::area.static-used (% temp0)) (% temp0))
-  ;(set-bit-at-index temp0 imm0)
+  (movq (% imm1) (% imm0))
+  (andl ($ 63) (% imm0))
+  (xorb ($ 63) (%b imm0))
+  (shrq ($ 6) (% imm1))
+  (lock)
+  (btsq (% imm0) (@ (% temp0) (% imm1) 8))
   (single-value-return)
   @bad
   (save-simple-frame)
@@ -306,10 +311,7 @@
   (ldr imm2 target::area.static-used imm0)
   (ldr imm0 target::area.low imm0)
   (bge cr2 @bad)
-  (add arg_z index index)
-  (add arg_z imm0 arg_z)
-  (la arg_z target::fulltag-cons arg_z)
-  (sub imm0 arg_z imm0)
+  (add imm0 index index)
   (test-bit-at-index imm2 imm0)
   (li arg_z nil)
   (beqlr)
@@ -323,6 +325,37 @@
   (load-constant fname error)
   (bla .SPjmpsym)
   (ba .SPpopj))
+
+#+x8664-target
+(defx86lapfunction openmcl-hons:hons-index-used-p ((index arg_z))
+  "If INDEX is a fixnum between 0 (inclusive) and the current hons space size
+   (exclusive), return a boolean indicating whether the pair is used.
+   Otherwise, signal an error."
+  (check-nargs 1)
+  (testb ($ x8664::fixnummask) (%b index))
+  (ref-global tenured-area temp0)
+  (jne @bad)
+  (unbox-fixnum index imm1)
+  (rcmpq (% imm1) (@ target::area.static-dnodes (% temp0)))
+  (jae @bad)
+  (movq (@ target::area.static-used (% temp0)) (% temp0))
+  (movq (% imm1) (% imm0))
+  (andl ($ 63) (% imm0))
+  (xorb ($ 63) (%b imm0))
+  (shrq ($ 6) (% imm1))
+  (btq (% imm0) (@ (% temp0) (% imm1) 8))
+  (movl ($ x8664::t-value) (%l imm0))
+  (leaq (@ (- x8664::t-offset) (% imm0)) (% arg_z))
+  (cmovbl (%l imm0) (%l arg_z))
+  (single-value-return)
+  @bad
+  (save-simple-frame)
+  (load-constant openmcl-hons:invalid-hons-index arg_x)
+  (load-constant :index arg_y)
+  (call-symbol error 3)
+  (restore-simple-frame)
+  (single-value-return))
+
 
 #+ppc-target
 (defppclapfunction openmcl-hons:hons-space-ref-car ((index arg_z))
