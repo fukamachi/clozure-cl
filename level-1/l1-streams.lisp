@@ -1716,10 +1716,7 @@
     (declare (fixnum idx end))
     (< idx end)))
 
-(defmethod stream-clear-input ((s string-input-stream))
-  (setf (string-input-stream-index s)
-	(string-input-stream-start s))
-  nil)
+
 
 (defmethod stream-position ((s string-input-stream) &optional newpos)
   (let* ((start (string-input-stream-start s))
