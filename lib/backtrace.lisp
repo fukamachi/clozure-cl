@@ -301,9 +301,6 @@
 			  (logbitp $lfbits-restv-bit lfbits))
 		(+ raw-req raw-opt))
 	      (- nargs raw-inh)))))
-		 
-	 
-	   
 
 
 
@@ -316,7 +313,22 @@
 (defun safe-cell-value (val)
   val)
 
-    
+(defun closure-closed-over-values (closure)
+  (when (typep closure 'compiled-lexical-closure)
+    (let* ((inner (closure-function closure))
+           (nclosed (nth-value 8 (function-args inner)))
+           (names (car (function-symbol-map inner))))
+      (collect ((cells))
+        (do* ((i (1- (length names)) (1- i))
+              (idx 2 (1+ idx)))
+             ((= i nclosed) (cells))
+          (let* ((name (svref names i))
+                 (imm (nth-immediate closure idx)))
+            (cells (list name (if (closed-over-value-p imm)
+                                (closed-over-value imm)
+                                imm)))))))))
+
+      
 
 
 
