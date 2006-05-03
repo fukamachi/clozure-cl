@@ -1,3 +1,20 @@
+2006-05-03 13:26  gb
+
+	* lisp-kernel/x86-exceptions.c: In find_foreign_rsp(), mask with
+	~15, not ~!5.  (This was causing segfaults on return from
+	interrupts sometimes.)
+
+2006-05-03 13:24  gb
+
+	* lib/backtrace.lisp: CLOSURE-CLOSED-OVER-VALUES, which is needed
+	by SWANK/SLIME.
+
+2006-05-03 13:23  gb
+
+	* lib/backtrace-lds.lisp: FRAME-SUPPLIED-ARGS, hopefully in a form
+	that'll work on all platforms.	(Note that FRAME-SUPPLIED-ARGS
+	seems to get many things wrong.)
+
 2006-05-03 11:37  gb
 
 	* level-1/version.lisp: You mist have yesterday's version.
