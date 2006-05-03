@@ -1,3 +1,33 @@
+2006-05-03 11:37  gb
+
+	* level-1/version.lisp: You mist have yesterday's version.
+
+2006-05-03 11:37  gb
+
+	* level-0/X86/x86-def.lisp: Implement #'%FF-CALL.  Not too much
+	LAP.
+
+2006-05-03 11:36  gb
+
+	* level-0/l0-init.lisp: Put :X86-64 and :AMD64 on *FEATURES* if
+	#+x8664-target.
+
+2006-05-03 11:36  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Bad typo in UNBOX-S64, and
+	it can just check for a 2-digit bignum header if it has something
+	of tag TAG-MISC.
+
+2006-05-03 11:34  gb
+
+	* compiler/X86/x862.lisp: X862-COPY-REGISTER: handle :S64
+	destinations.
+
+2006-05-03 11:33  gb
+
+	* compiler/X86/x86-disassemble.lisp: Recognize
+	uuo-error-eep-unresolved.
+
 2006-05-02 18:07  gb
 
 	* level-1/version.lisp: Bump.
