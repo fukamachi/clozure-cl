@@ -1,3 +1,13 @@
+2006-05-02 18:07  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-05-02 18:07  gb
+
+	* lib/: backtrace-lds.lisp, describe.lisp: Comment out stuff that's
+	(mostly ?) unused and currently PPC-specific, if it works at all
+	...
+
 2006-05-02 10:27  gb
 
 	* level-1/l1-streams.lisp: Don't definea STREAM-CLEAR-INPUT method
