@@ -1,4 +1,4 @@
-; -*- Mode:Lisp; Package:INSPECTOR -*-
+;;; -*- Mode:Lisp; Package:INSPECTOR -*-
 ;;;
 ;;;   Copyright (C) 1994-2001 Digitool, Inc
 ;;;   This file is part of OpenMCL.  
@@ -1224,7 +1224,7 @@
 
 (defun compute-disassembly-lines (f &optional (function (inspector-object f)))
   (if (functionp function)
-    (let* ((info (and (disasm-p f) (list-to-vector (ccl::disassemble-list function))))
+    (let* ((info (and (disasm-p f) #+ppc-target (list-to-vector (ccl::disassemble-list function))))
            (length (length info))
            (last-pc (if info (car (svref info (1- length))) 0)))
       (if (listp last-pc) (setq last-pc (cadr last-pc)))
@@ -1293,6 +1293,7 @@
         (format stream "~vd" (+ (pc-width f) (if pc-mark 1 0)) pc))
       (write-char (if label-p #\= #\ ) stream))))
 
+#+ppc-target
 (defmethod prin1-value ((f function-inspector) stream value &optional label type)
   (if (atom label)                      ; not a disassembly line
     (unless (eq (if (consp type) (car type) type) :comment)
@@ -1391,7 +1392,7 @@
           (t (set-disassembly-line-n
               i n new-value (method-function (inspector-object i)))))))
 
-; funtion-inspector never does prin1-comment.
+;;; funtion-inspector never does prin1-comment.
 (defmethod prin1-normal-line ((i method-inspector) stream value &optional
                               label type colon-p)
   (declare (ignore colon-p))
@@ -1514,6 +1515,8 @@
 
 
 
+#+ppc-target
+(progn
 ;;;;;;;
 ;;
 ;; an ERROR-FRAME stores the stack addresses that the backtrace window displays
@@ -1706,7 +1709,7 @@
 ;; The inspector for error-frame objects
 ;;
 
-; True to show more info about backtrace frames
+;;; True to show more info about backtrace frames
 (defvar *show-backtrace-frame-addresses* nil)
 
 (defclass stack-inspector (inspector)
@@ -1788,8 +1791,8 @@
     (declare (ignore p))
     (make-instance (inspector-class lfun) :object lfun :pc pc)))
 
-;; inspecting a single stack frame
-;; The inspector-object is expected to be an error-frame
+;;; inspecting a single stack frame
+;;; The inspector-object is expected to be an error-frame
 (defclass stack-frame-inspector (inspector)
   ((frame-number :initarg :frame-number :initform nil :reader frame-number)
    (frame-info :accessor frame-info)
@@ -1917,7 +1920,7 @@
     (setf (slot-value i 'frame-number) frame-number)
     (setf (inspector-line-count i) nil)
     frame-number))
-
+)
 
 
 ;;; Inspector

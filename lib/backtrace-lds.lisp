@@ -20,7 +20,18 @@
 (in-package "CCL")
 
 
+(defparameter *saved-register-count*
+  #+x8664-target 4
+  #+ppc-target 8)
 
+(defparameter *saved-register-names*
+  #+x8664-target #(save3 save2 save1 save0)
+  #+ppc-target #(save7 save6 save5 save4 save3 save2 save1 save0))
+
+;;; I'm skeptical about a lot of this stuff on the PPC, but if anything it's
+;;; pretty PPC-specific
+#+ppc-target
+(progn
 ;;; Act as if VSTACK-INDEX points somewhere where DATA could go & put it there.
 (defun set-lisp-data (vstack-index data)
   (let* ((old (%access-lisp-data vstack-index)))
@@ -142,16 +153,12 @@
 
 
 
-(defparameter *saved-register-count*
-  #+x8664-target 4
-  #+ppc-target 8)
+
 
 (defparameter *saved-register-count+1*
   (1+ *saved-register-count*))
 
-(defparameter *saved-register-names*
-  #+x8664-target #(save3 save2 save1 save0)
-  #+ppc-target #(save7 save6 save5 save4 save3 save2 save1 save0))
+
 
 (defparameter *saved-register-numbers*
   #+x8664-target #(wrong)
@@ -664,7 +671,7 @@
       (setq next (dll-node-succ next)))))
 
 )  ; end of #+ppc-target progn
-
+) ; end of another #+ppc-target progn
 #|
 (setq *save-local-symbols* t)
 
@@ -690,9 +697,9 @@
 
 (set-test 1 'a)
 
-|#
+||#
 
 
-(provide 'backtrace)
+(provide 'backtrace-lds)
 
 ; End of backtrace-lds.lisp
