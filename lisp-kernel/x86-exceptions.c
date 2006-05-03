@@ -810,7 +810,7 @@ find_foreign_rsp(ExceptionInformation *xp, area *foreign_area)
 #endif
     rsp = xpMMXreg(xp, Iforeign_sp);
   }
-  return (LispObj *) ((rsp-128 & ~!5));
+  return (LispObj *) ((rsp-128 & ~15));
 }
 
 void
