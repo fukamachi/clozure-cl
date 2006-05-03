@@ -887,7 +887,7 @@
 
 (define-x8664-vinsn unbox-s64 (((dest :s64))
                                ((src :lisp)))
-  (movq (:$q src) (:%q dest))
+  (movq (:%q src) (:%q dest))
   (sarq (:$ub x8664::fixnumshift) (:%q dest))
   ;; Was it a fixnum ?
   (testb (:$b x8664::fixnummask) (:%b src))
@@ -896,13 +896,8 @@
   (movb (:%b src) (:%b dest))
   (andb (:$b x8664::tagmask) (:%b dest))
   (cmpb (:$b x8664::tag-misc) (:%b dest))
-  (jne :have-tag)
-  (movb (:@ x8664::misc-subtag-offset (:%q src)) (:%b dest))
-  :have-tag
-  (cmpb (:$b x8664::subtag-bignum) (:%b dest))
   (jne :bad)
-  (movq (:@ x8664::misc-header-offset (:%q src)) (:%q dest))
-  (cmpq (:$l x8664::two-digit-bignum-header) (:%q dest))
+  (cmpq (:$l x8664::two-digit-bignum-header) (:@ x8664::misc-header-offset (:%q src)))
   (movq (:@ x8664::misc-data-offset (:%q src)) (:%q dest))
   (je :done)
   :bad
