@@ -3235,7 +3235,6 @@
              (src-mode (if src (get-regspec-mode src)))
              (dest-mode (get-regspec-mode dest))
              (dest-crf (backend-ea-physical-reg dest hard-reg-class-crf)))
-
         (if (null src)
           (if dest-gpr
             (! load-nil dest-gpr)
@@ -3301,6 +3300,21 @@
                        ((#.hard-reg-class-gpr-mode-u8
                          #.hard-reg-class-gpr-mode-s8)
                         (! u8->u32 dest src))))
+                    (#.hard-reg-class-gpr-mode-s64
+                     (case src-mode
+                       (#.hard-reg-class-gpr-mode-node
+                        (! unbox-s64 dest src))
+                       ((#.hard-reg-class-gpr-mode-u64
+                         #.hard-reg-class-gpr-mode-s64
+                         #.hard-reg-class-gpr-mode-address)
+                        (unless (eql  dest-gpr src-gpr)
+                          (! copy-gpr dest src)))
+                       ((#.hard-reg-class-gpr-mode-u16
+                         #.hard-reg-class-gpr-mode-s16)
+                        (! s16->s32 dest src))
+                       ((#.hard-reg-class-gpr-mode-u8
+                         #.hard-reg-class-gpr-mode-s8)
+                        (! s8->s32 dest src))))
                     (#.hard-reg-class-gpr-mode-s32
                      (case src-mode
                        (#.hard-reg-class-gpr-mode-node
