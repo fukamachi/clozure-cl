@@ -540,5 +540,127 @@
    (set-nargs 2)
    (jmp-subprim .SPksignalerr) ))
 
+;;; This needs to:
+;;; (a) load FP arg regs from the FP-REGS argument
+;;; (b) call the .SPffcall subprimitive, which will discard the foreign stack frame
+;;;     allocated by WITH-VARIABLE-C-FRAME in %FF-CALL
+;;; (c) re-establish the same foreign stack frame and store the result regs
+;;;     (%rax/%xmm0) there
+(defx86lapfunction %do-ff-call ((frame arg_x) (fp-regs arg_y) (entry arg_z))
+  (save-simple-frame)
+  (macptr-ptr fp-regs temp0)
+  (movq (@ (% temp0)) (% fp0))
+  (movq (@ 8 (% temp0)) (% fp1))
+  (movq (@ 16 (% temp0)) (% fp2))
+  (movq (@ 24 (% temp0)) (% fp3))
+  (movq (@ 32 (% temp0)) (% fp4))
+  (movq (@ 40 (% temp0)) (% fp5))
+  (movq (@ 48 (% temp0)) (% fp6))
+  (movq (@ 56 (% temp0)) (% fp7))
+  (call-subprim .SPffcall)
+  (movq (% foreign-sp) (@ (% frame)))
+  (movd (% frame) (% foreign-sp))
+  (movq (% rax) (@ 8 (% frame)))
+  (movq (% fp0) (@ 16 (% frame)))
+  (movl ($ nil) (%l arg_z))
+  (restore-simple-frame)
+  (single-value-return))
+  
+
+(defun %ff-call (entry &rest specs-and-vals)
+  (declare (dynamic-extent specs-and-vals))
+  (let* ((len (length specs-and-vals))
+         (total-words 0))
+    (declare (fixnum len total-words))
+    (let* ((result-spec (or (car (last specs-and-vals)) :void))
+           (nargs (ash (the fixnum (1- len)) -1)))
+      (declare (fixnum nargs))
+      (ecase result-spec
+        ((:address :unsigned-doubleword :signed-doubleword
+                   :single-float :double-float
+                   :signed-fullword :unsigned-fullword
+                   :signed-halfword :unsigned-halfword
+                   :signed-byte :unsigned-byte
+                   :void)
+         (do* ((i 0 (1+ i))
+               (specs specs-and-vals (cddr specs))
+               (spec (car specs) (car specs)))
+              ((= i nargs))
+           (declare (fixnum i))
+           (case spec
+             ((:address :unsigned-doubleword :signed-doubleword
+                        :single-float :double-float
+                        :signed-fullword :unsigned-fullword
+                        :signed-halfword :unsigned-halfword
+                        :signed-byte :unsigned-byte)
+              (incf total-words))
+             (t (if (typep spec 'unsigned-byte)
+                  (incf total-words spec)
+                  (error "unknown arg spec ~s" spec)))))
+         ;; It's necessary to ensure that the C frame is the youngest thing on
+         ;; the foreign stack here.
+         (%stack-block ((fp-args (* 8 8)))
+           (with-macptrs ((argptr))
+             (with-variable-c-frame
+                 total-words frame
+                 (%setf-macptr-to-object argptr frame)
+                 (let* ((offset 16)
+                        (n-fp-args 0))
+                   (declare (fixnum offset n-fp-args))
+                   (do* ((i 0 (1+ i))
+                         (specs specs-and-vals (cddr specs))
+                         (spec (car specs) (car specs))
+                         (val (cadr specs) (cadr specs)))
+                        ((= i nargs))
+                     (declare (fixnum i))
+                     (case spec
+                       (:address (setf (%get-ptr argptr offset) val)
+                                 (incf offset 8))
+                       ((:signed-doubleword :signed-fullword :signed-halfword
+                                            :signed-byte)
+                          
+                        (setf (%%get-signed-longlong argptr offset) val)
+                        (incf offset 8))
+                       ((:unsigned-doubleword :unsigned-fullword :unsigned-halfword
+                                              :unsigned-byte)
+                        (setf (%%get-unsigned-longlong argptr offset) val)
+                        (incf offset 8))
+                       (:double-float
+                        (cond ((< n-fp-args 8)
+                               (setf (%get-double-float fp-args (* n-fp-args 8)) val)
+                               (incf n-fp-args))
+                              (t
+                               (setf (%get-double-float argptr offset) val)
+                               (incf offset 8))))
+                       (:single-float
+                        (cond ((< n-fp-args 8)
+                               (setf (%get-single-float fp-args (* n-fp-args 8))
+                                     val)
+                               (incf n-fp-args))
+                              (t 
+                               (setf (%get-single-float argptr offset) val)
+                               (incf offset 8))))
+                       (t
+                        (let* ((p 0))
+                          (declare (fixnum p))
+                          (dotimes (i (the fixnum spec))
+                            (setf (%get-ptr argptr offset) (%get-ptr val p))
+                            (incf p 8)
+                            (incf offset 8)))))))
+                 (%do-ff-call frame fp-args entry)
+                 (ecase result-spec
+                   (:void nil)
+                   (:address (%get-ptr argptr 8))
+                   (:unsigned-byte (%get-unsigned-byte argptr 8))
+                   (:signed-byte (%get-signed-byte argptr 8))
+                   (:unsigned-halfword (%get-unsigned-word argptr 8))
+                   (:signed-halfword (%get-signed-word argptr 8))
+                   (:unsigned-fullword (%get-unsigned-long argptr 8))
+                   (:signed-fullword (%get-signed-long argptr 8))
+                   (:unsigned-doubleword (%get-natural argptr 8))
+                   (:signed-doubleword (%get-signed-natural argptr 8))
+                   (:single-float (%get-single-float argptr 16))
+                   (:double-float (%get-double-float argptr 16)))))))))))
+                                 
 
 ;;; end of x86-def.lisp
