@@ -2271,23 +2271,35 @@
                   (lookup-x86-register (ldb (byte 4 0) pseudo-modrm-byte) :%))
                  (x86-di-mnemonic instruction) "uuo-error-vector-bounds")))
           ((< intop #xd0)
-           (if (= intop #xcb)
-             (let* ((pseudo-modrm-byte (x86-ds-next-u8 ds)))
-               (setf (x86-di-mnemonic instruction)
-                     "uuo-error-array-bounds"
-                     (x86-di-op0 instruction)
-                     (x86-dis-make-reg-operand
-                      (lookup-x86-register (ldb (byte 4 4)
-                                                pseudo-modrm-byte) :%))
-                     (x86-di-op1 instruction)
-                     (x86-dis-make-reg-operand
-                      (lookup-x86-register (ldb (byte 4 0)
-                                                pseudo-modrm-byte) :%))))
-           (setf (x86-di-mnemonic instruction)
-                 (case intop
-                   (#xc9 "uuo-error-call-macro-or-special-operator")
-                   (#xca (setq stop nil) "uuo-error-debug-trap")
-                   (t "unknown-UUO")))))
+           (cond ((= intop #xcb)
+                  (let* ((pseudo-modrm-byte (x86-ds-next-u8 ds)))
+                    (setf (x86-di-mnemonic instruction)
+                          "uuo-error-array-bounds"
+                          (x86-di-op0 instruction)
+                          (x86-dis-make-reg-operand
+                           (lookup-x86-register (ldb (byte 4 4)
+                                                     pseudo-modrm-byte) :%))
+                          (x86-di-op1 instruction)
+                          (x86-dis-make-reg-operand
+                           (lookup-x86-register (ldb (byte 4 0)
+                                                     pseudo-modrm-byte) :%)))))
+                 ((= intop #xcc)
+                  (let* ((pseudo-modrm-byte (x86-ds-next-u8 ds)))
+                    (setf (x86-di-mnemonic instruction)
+                          "uuo-error-eep-unresolved"
+                          (x86-di-op0 instruction)
+                          (x86-dis-make-reg-operand
+                           (lookup-x86-register (ldb (byte 4 4)
+                                                     pseudo-modrm-byte) :%))
+                          (x86-di-op1 instruction)
+                          (x86-dis-make-reg-operand
+                           (lookup-x86-register (ldb (byte 4 0)
+                                                     pseudo-modrm-byte) :%)))))
+                 (t (setf (x86-di-mnemonic instruction)
+                          (case intop
+                            (#xc9 "uuo-error-call-macro-or-special-operator")
+                            (#xca (setq stop nil) "uuo-error-debug-trap")
+                            (t "unknown-UUO"))))))
           ((< intop #xe0)
            (setf (x86-di-mnemonic instruction)
                  "uuo-error-reg-not-tag"
