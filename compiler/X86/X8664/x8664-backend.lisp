@@ -100,7 +100,7 @@
              (nfunction ,name
                         (lambda (,stack-word)
                           (declare (ignorable ,stack-word))
-                            (with-macptrs (,@(and lets (list `(,stack-ptr))))
+                            (with-macptrs (,stack-ptr)
                               ,(when lets
                                  `(%setf-macptr-to-object ,stack-ptr ,stack-word))
                               ,(defcallback-body  stack-ptr lets dynamic-extent-names
@@ -112,25 +112,21 @@
   (let* ((result (gensym))
          (result-offset -8)
          (body
-   	  `            (let ,lets
+   	  `(let ,lets
               (declare (dynamic-extent ,@dynamic-extent-names))
+              (declare (ignorable ,stack-ptr))
               ,@decls
 
               (let ((,result (progn ,@body)))
                 (declare (ignorable ,result))
-                ,@(progn
-                   ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
-                   (when (eq return-type :single-float)
-                     (setq result `(float ,result 0.0d0)))
-                   nil)
-
                 ,(when return-type
                        `(setf (,
                                (case return-type
                                  (:address '%get-ptr)
                                  (:signed-doubleword '%%get-signed-longlong)
                                  (:unsigned-doubleword '%%get-unsigned-longlong)
-                                 ((:double-float :single-float) '%get-double-float)
+                                 (:double-float '%get-double-float)
+                                 (:single-float '%get-single-float)
                                  (t  '%%get-signed-longlong))
                                ,stack-ptr ,result-offset) ,result))))))
       body))
