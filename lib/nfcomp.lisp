@@ -1167,11 +1167,11 @@ Will differ from *compiling-file* during an INCLUDE")
           (fasl-out-byte (car op))
           (dolist (arg (cdr op)) (fasl-dump-form arg)))))))
 
-;During dumping, *fasdump-hash* values are one of the following:
-;   nil - form has no load form, is referenced at most once.
-;   fixnum - form has already been dumped, fixnum is the etab index.
-;   T - form hasn't been dumped yet, is referenced more than once.
-;  (load-form . nil) - form should be replaced by load-form.
+;;;During dumping, *fasdump-hash* values are one of the following:
+;;;   nil - form has no load form, is referenced at most once.
+;;;   fixnum - form has already been dumped, fixnum is the etab index.
+;;;   T - form hasn't been dumped yet, is referenced more than once.
+;;;  (load-form . nil) - form should be replaced by load-form.
 (defun fasl-dump-form (form)
   (let ((info (gethash form *fasdump-hash*)))
     (cond ((fixnump info)
