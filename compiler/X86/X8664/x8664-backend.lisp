@@ -101,8 +101,7 @@
                         (lambda (,stack-word)
                           (declare (ignorable ,stack-word))
                             (with-macptrs (,stack-ptr)
-                              ,(when lets
-                                 `(%setf-macptr-to-object ,stack-ptr ,stack-word))
+                              (%setf-macptr-to-object ,stack-ptr ,stack-word)
                               ,(defcallback-body  stack-ptr lets dynamic-extent-names
                                                  decls `((block ,name ,@body)) return-type))))
              ,doc
@@ -114,7 +113,6 @@
          (body
    	  `(let ,lets
               (declare (dynamic-extent ,@dynamic-extent-names))
-              (declare (ignorable ,stack-ptr))
               ,@decls
 
               (let ((,result (progn ,@body)))
