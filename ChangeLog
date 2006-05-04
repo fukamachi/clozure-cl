@@ -1,3 +1,10 @@
+2006-05-03 18:16  gb
+
+	* compiler/X86/x862.lisp, level-0/X86/x86-def.lisp: In an %FF-CALL
+	that might involve a variable-length arglist (at this level,
+	always), set %rax to the number (0-8) of FP arguments passed in xmm
+	registers.
+
 2006-05-03 13:26  gb
 
 	* lisp-kernel/x86-exceptions.c: In find_foreign_rsp(), mask with
