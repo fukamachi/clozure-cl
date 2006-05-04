@@ -1,3 +1,19 @@
+2006-05-03 18:52  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Clean	up x8664 callbacks
+	a little.  Don't coerce single float results to double; bind
+	stack-ptr variable even if no args (might be a return value form
+	that references it.) Failure to do the latter was creating a weird
+	free variable reference that wasn't handled by the fasloader.
+
+2006-05-03 18:50  gb
+
+	* level-0/nfasload.lisp: $fasl-vmksym-special wasn't implemented.
+
+2006-05-03 18:49  gb
+
+	* lib/nfcomp.lisp: Indent a comment.
+
 2006-05-03 18:16  gb
 
 	* compiler/X86/x862.lisp, level-0/X86/x86-def.lisp: In an %FF-CALL
