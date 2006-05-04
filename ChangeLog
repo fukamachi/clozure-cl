@@ -1,3 +1,9 @@
+2006-05-04 11:12  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: More callback issues:
+	since we're using the same stack pointer to return values as we are
+	to find arguments, don't try to "optimize" its initialization.
+
 2006-05-03 18:52  gb
 
 	* compiler/X86/X8664/x8664-backend.lisp: Clean	up x8664 callbacks
