@@ -349,6 +349,9 @@
 (deffaslop $fasl-vmksym (s)
   (%fasl-vmake-symbol s))
 
+(deffaslop $fasl-vmksym-special (s)
+  (%fasl-vmake-symbol s t))
+
 (deffaslop $fasl-vintern (s)
   (%fasl-vintern s *package*))
 
