@@ -546,9 +546,13 @@
 ;;;     allocated by WITH-VARIABLE-C-FRAME in %FF-CALL
 ;;; (c) re-establish the same foreign stack frame and store the result regs
 ;;;     (%rax/%xmm0) there
-(defx86lapfunction %do-ff-call ((frame arg_x) (fp-regs arg_y) (entry arg_z))
-  (save-simple-frame)
+(defx86lapfunction %do-ff-call ((nfp 0) (frame arg_x) (fp-regs arg_y) (entry arg_z))
+  (popq (% rax))
+  (movq (% rbp) (@ @ (% rsp)))
+  (movq (% rsp) (% rbp))
+  (movq (% ra0) (@ 8 (% rbp)))
   (macptr-ptr fp-regs temp0)
+  (sarq ($ x8664::fixnumshift) (% rax))
   (movq (@ (% temp0)) (% fp0))
   (movq (@ 8 (% temp0)) (% fp1))
   (movq (@ 16 (% temp0)) (% fp2))
@@ -573,8 +577,9 @@
          (total-words 0))
     (declare (fixnum len total-words))
     (let* ((result-spec (or (car (last specs-and-vals)) :void))
-           (nargs (ash (the fixnum (1- len)) -1)))
-      (declare (fixnum nargs))
+           (nargs (ash (the fixnum (1- len)) -1))
+           (n-fp-args 0))
+      (declare (fixnum nargs n-fp-args))
       (ecase result-spec
         ((:address :unsigned-doubleword :signed-doubleword
                    :single-float :double-float
@@ -604,9 +609,8 @@
              (with-variable-c-frame
                  total-words frame
                  (%setf-macptr-to-object argptr frame)
-                 (let* ((offset 16)
-                        (n-fp-args 0))
-                   (declare (fixnum offset n-fp-args))
+                 (let* ((offset 16))
+                   (declare (fixnum offset))
                    (do* ((i 0 (1+ i))
                          (specs specs-and-vals (cddr specs))
                          (spec (car specs) (car specs))
@@ -647,7 +651,7 @@
                             (setf (%get-ptr argptr offset) (%get-ptr val p))
                             (incf p 8)
                             (incf offset 8)))))))
-                 (%do-ff-call frame fp-args entry)
+                 (%do-ff-call (min n-fp-args 8) frame fp-args entry)
                  (ecase result-spec
                    (:void nil)
                    (:address (%get-ptr argptr 8))

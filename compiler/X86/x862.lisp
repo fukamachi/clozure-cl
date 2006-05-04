@@ -7760,6 +7760,7 @@
             (! reload-single-c-arg ($ fpreg :class :fpr :mode :single-float) from))))
       (unless simple-foreign-args
         (x862-vpop-register seg ($ x8664::arg_z)))
+      (x862-lri seg x8664::rax (min 8 nfpr-args))
       (! ff-call) 
       (x862-close-undo)
       (when vreg
