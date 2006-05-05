@@ -358,8 +358,8 @@
   (subw ($ '3) (% imm0.w))
   (jbe @reg-only)
   ;; Some args will be pushed; reserve a frame
-  (pushq ($ 0))
-  (pushq ($ 0))
+  (pushq ($ x8664::reserved-frame-marker))
+  (pushq ($ x8664::reserved-frame-marker))
   @pushloop
   (pushq (@ (- x8664::node-size) (% imm1)))
   (subq ($ x8664::node-size) (% imm1))
