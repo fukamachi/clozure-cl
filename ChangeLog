@@ -1,3 +1,30 @@
+2006-05-05 01:37  gb
+
+	* level-1/version.lisp: Bump du jour.
+
+2006-05-05 01:36  gb
+
+	* level-0/X86/x86-def.lisp: %FF-CALL: maintain the distinction
+	between the first 6 words of the outgoing frame (from which GPRs
+	will be loaded) and other words (which stay on the stack); after
+	the first 8 FP args, floats have to be passed on the stack, even if
+	there's still room in the first 6 words of the outgoing frame.
+	
+	Need to understand the struct-by-value rules better: can a struct
+	be passed partly in registers and partly on the stack ? RTFM (or,
+	in this case, TF ABI spec.)
+
+2006-05-05 01:31  gb
+
+	* compiler/X86/x862.lisp: In X862-FF-CALL:  - the general integer
+	case should store relative to "other-offset" (rather than   
+	"gpr-offset") when more than 6 (not 8) GPR args have been passed.  
+	- both the single and double-float cases were incrementing
+	"other-offset"	   twice when more than 8 FP args were involved. 
+	This had the effect of	   storing floats into every other word and
+	writing beyond the bounds of	 the outgoing stack frame, possibly
+	overwriting return addresses on the	foreign stack.
+
 2006-05-04 23:12  gb
 
 	* level-1/l1-streams.lisp: James Bielman's fix to
