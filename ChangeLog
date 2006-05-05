@@ -1,3 +1,22 @@
+2006-05-04 18:30  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: When binding FP args,
+	decrement FPR-ARG-OFFSET by 8, not -8.
+	
+	(This could cause values outside of the stack frame to be read, but
+	I still haven't found what's writing beyond the frame bounds.)
+
+2006-05-04 18:27  gb
+
+	* lib/x86-backtrace.lisp: If its argument is an exception callback
+	frame, %CFP-LFUN tries to determine the relative PC associated with
+	the frame's nominal function and return that as a second value
+	(just as it does for a real frame.)
+	
+	I think that this should work a high percentage of the time, but
+	callers should generally be prepared to deal with a NULL second
+	return value from %CFP-LFUN.
+
 2006-05-04 11:12  gb
 
 	* compiler/X86/X8664/x8664-backend.lisp: More callback issues:
