@@ -2560,15 +2560,17 @@
 (defmethod read-toplevel-form ((stream input-stream)
                                eof-value)
   (loop
-    (let* ((*in-read-loop* nil) 
+    (let* ((*in-read-loop* nil)
+           (first-char (peek-char t stream nil eof-value))
            (form
-            (if (eq (peek-char t stream nil nil) #\:)
-              (read-command-or-keyword stream eof-value)
-              (read stream nil eof-value))))
+            (cond ((eq first-char #\:)
+                   (read-command-or-keyword stream eof-value))
+                  ((eq first-char eof-value) eof-value)
+                  (t (read stream nil eof-value)))))
       (if (eq form eof-value)
         (return (values form nil t))
         (progn
-           (let ((ch))                 ;Trim whitespace
+          (let ((ch))                   ;Trim whitespace
             (while (and (listen stream)
                         (setq ch (read-char stream nil nil))
                         (whitespacep cH))
