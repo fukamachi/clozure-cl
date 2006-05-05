@@ -1,3 +1,16 @@
+2006-05-05 13:24  gb
+
+	* lisp-kernel/x86-spentry64.s: Preserve NEXT-METHOD-CONTEXT when
+	heap-consing an &REST arg.  (%allocptr and %next-method-context are
+	the same register, so &rest clobbbers %next-method-context.)
+	
+	Could make separate entry points, so that this is only done when
+	%next-method-context needs to be preserved ...
+
+2006-05-05 13:21  gb
+
+	* level-0/X86/x86-def.lisp: Use RESERVED-FRAME-MARKER.
+
 2006-05-05 02:23  gb
 
 	* freebsd-headers64/libc/C/populate.sh: New file.  Needs some work.
