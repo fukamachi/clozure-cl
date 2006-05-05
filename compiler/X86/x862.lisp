@@ -1,4 +1,4 @@
-;;;-*-Mode: LISP; Package: CCL -*-
+;;-*-Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 2005, Clozure Associates
 ;;;   This file is part of OpenMCL.  
@@ -7710,7 +7710,6 @@
                       (push (cons :double-float double-float-offset) fp-loads)
                       (incf double-float-offset))
                      (t
-                      (setq other-offset (1+ other-offset))
                       (! set-double-c-arg df other-offset)
                       (incf other-offset)))))
             (:single-float
@@ -7723,7 +7722,6 @@
                       (push (cons :single-float single-float-offset) fp-loads)
                       (incf single-float-offset))
                      (t
-                      (setq other-offset (the fixnum (1+ other-offset)))
                       (! set-single-c-arg sf other-offset)
                       (incf other-offset)))))            
             (:address
@@ -7742,7 +7740,7 @@
              (with-imm-target () (valreg :natural)
                 (let* ((reg (x862-unboxed-integer-arg-to-reg seg valform valreg spec)))
                   (incf ngpr-args)
-                  (cond ((<= ngpr-args 8)
+                  (cond ((<= ngpr-args 6)
                          (! set-c-arg reg gpr-offset)
                          (incf gpr-offset))
                         (t
