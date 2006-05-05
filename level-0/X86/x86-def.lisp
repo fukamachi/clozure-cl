@@ -609,48 +609,65 @@
              (with-variable-c-frame
                  total-words frame
                  (%setf-macptr-to-object argptr frame)
-                 (let* ((offset 16))
-                   (declare (fixnum offset))
+                 (let* ((gpr-offset 16)
+                        (other-offset (+ gpr-offset (* 6 8))))
+                   (declare (fixnum gpr-offset other-offset))
                    (do* ((i 0 (1+ i))
+                         (ngpr-args 0)
                          (specs specs-and-vals (cddr specs))
                          (spec (car specs) (car specs))
                          (val (cadr specs) (cadr specs)))
                         ((= i nargs))
                      (declare (fixnum i))
                      (case spec
-                       (:address (setf (%get-ptr argptr offset) val)
-                                 (incf offset 8))
+                       (:address
+                        (incf ngpr-args)
+                        (cond ((<= ngpr-args 6)
+                               (setf (%get-ptr argptr gpr-offset) val)
+                               (incf gpr-offset 8))
+                              (t
+                               (setf (%get-ptr argptr other-offset) val)
+                               (incf other-offset 8))))
                        ((:signed-doubleword :signed-fullword :signed-halfword
                                             :signed-byte)
-                          
-                        (setf (%%get-signed-longlong argptr offset) val)
-                        (incf offset 8))
+                        (incf ngpr-args)
+                        (cond ((<= ngpr-args 6)
+                               (setf (%%get-signed-longlong argptr gpr-offset) val)
+                               (incf gpr-offset 8))
+                              (t
+                               (setf (%%get-signed-longlong argptr other-offset) val)
+                               (incf other-offset 8))))
                        ((:unsigned-doubleword :unsigned-fullword :unsigned-halfword
                                               :unsigned-byte)
-                        (setf (%%get-unsigned-longlong argptr offset) val)
-                        (incf offset 8))
+                        (incf ngpr-args)
+                        (cond ((<= ngpr-args 6)
+                               (setf (%%get-unsigned-longlong argptr gpr-offset) val)
+                               (incf gpr-offset 8))
+                              (t
+                               (setf (%%get-unsigned-longlong argptr other-offset) val)
+                               (incf other-offset 8))))
                        (:double-float
                         (cond ((< n-fp-args 8)
                                (setf (%get-double-float fp-args (* n-fp-args 8)) val)
                                (incf n-fp-args))
                               (t
-                               (setf (%get-double-float argptr offset) val)
-                               (incf offset 8))))
+                               (setf (%get-double-float argptr other-offset) val)
+                               (incf other-offset 8))))
                        (:single-float
                         (cond ((< n-fp-args 8)
                                (setf (%get-single-float fp-args (* n-fp-args 8))
                                      val)
                                (incf n-fp-args))
                               (t 
-                               (setf (%get-single-float argptr offset) val)
-                               (incf offset 8))))
+                               (setf (%get-single-float argptr other-offset) val)
+                               (incf other-offset 8))))
                        (t
                         (let* ((p 0))
                           (declare (fixnum p))
                           (dotimes (i (the fixnum spec))
-                            (setf (%get-ptr argptr offset) (%get-ptr val p))
+                            (setf (%get-ptr argptr other-offset) (%get-ptr val p))
                             (incf p 8)
-                            (incf offset 8)))))))
+                            (incf other-offset 8)))))))
                  (%do-ff-call (min n-fp-args 8) frame fp-args entry)
                  (ecase result-spec
                    (:void nil)
