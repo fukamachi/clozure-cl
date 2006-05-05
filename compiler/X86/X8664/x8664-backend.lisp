@@ -67,7 +67,7 @@
                        (if (<= (incf fpr-arg-num) 8)
                          (prog1
                              fpr-arg-offset
-                           (decf fpr-arg-offset -8))
+                           (decf fpr-arg-offset 8))
                          (prog1
                              memory-arg-offset
                            (incf memory-arg-offset 8)))))
