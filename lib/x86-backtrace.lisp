@@ -45,9 +45,24 @@
     (declare (fixnum q))
     (when (xcf-p q) (return q))))
 
+;;; Try to determine the program counter value, relative to an xcf's nominal function.
+(defun pc-from-xcf (xcf)
+  (let* ((nominal-function (%fixnum-ref xcf x8664::xcf.nominal-function))
+         (containing-object (%fixnum-ref xcf x8664::xcf.containing-object)))
+    (when (typep nominal-function 'function)
+      (if (eq containing-object (function-to-function-vector nominal-function))
+        (- (+ (%fixnum-ref xcf x8664::xcf.relative-pc) 2)
+           x8664::fulltag-function)
+        (let* ((tra (%fixnum-ref xcf x8664::xcf.ra0)))
+          (if (and (= (lisptag tra) x8664::tag-tra)
+                   (eq nominal-function (%return-address-function tra)))
+            (%return-address-offset tra)))))))
+            
 (defun cfp-lfun (p)
   (if (xcf-p p)
-    (%fixnum-ref p x8664::xcf.nominal-function)
+    (values
+     (%fixnum-ref p x8664::xcf.nominal-function)
+     (pc-from-xcf p))
     (%cfp-lfun p)))
 
 ;;; On PPC, some frames on the control stack are associated with catch
