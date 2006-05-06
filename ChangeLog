@@ -1,3 +1,22 @@
+2006-05-06 02:09  gb
+
+	* lisp-kernel/thread_manager.c: Let's see: if thread X holds local
+	A and tries to obtain lock B, and thread Y holds lock B and tries
+	to obtain lock A, what is that a classic case of ?
+	
+	Try to avoid that classic deadlock case in shutdown_thread_tcr()
+	when HAVE_TLS is in effect.  suspend_other_threads wants to hold
+	two locks at the same time, and that's always a bit dangerous; it
+	might be safer to merge TCR_LOCK and AREA_LOCK into a single lock
+	that must be owned in order to manipulate either the tcr or area
+	queues.
+
+2006-05-06 02:04  gb
+
+	* level-1/linux-files.lisp: Make (%REALPATH "") behave like
+	%REALPATH of the current directory namestring, as it does by
+	default on some platforms (but not Linux.)
+
 2006-05-05 20:08  gb
 
 	* compiler/X86/x862.lisp: x862-ff-call: really implement the
