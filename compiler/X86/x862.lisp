@@ -7643,10 +7643,6 @@
       (^)))
 
 
-
-
-
-
 (defx862 x862-ff-call ff-call (seg vreg xfer address argspecs argvals resultspec &optional monitor)
   (declare (ignore monitor))
   (let* ((*x862-vstack* *x862-vstack*)
@@ -7679,8 +7675,8 @@
              (if (> ngpr-args 6)
                (incf nother-words)))))
       (let* ((total-words (+ nother-words nsingle-floats ndouble-floats)))
-        (when (zerop total-words)
-          (setq simple-foreign-args nil))
+        (when (null argspecs)
+          (setq simple-foreign-args t))
         (! alloc-c-frame (ash (+ 8 (logandc2 (1+ total-words) 1))
                               *x862-target-fixnum-shift*)))
       (x862-open-undo $undo-x86-c-frame)
@@ -7756,7 +7752,8 @@
           (if (eq size :double-float)
             (! reload-double-c-arg ($ fpreg :class :fpr :mode :double-float) from)
             (! reload-single-c-arg ($ fpreg :class :fpr :mode :single-float) from))))
-      (unless simple-foreign-args
+      (if simple-foreign-args
+        (x862-one-targeted-reg-form seg address x8664::arg_z)
         (x862-vpop-register seg ($ x8664::arg_z)))
       (x862-lri seg x8664::rax (min 8 nfpr-args))
       (! ff-call) 
@@ -7768,13 +7765,17 @@
               ((eq resultspec :single-float)
                (<- ($ x8664::fp0 :class :fpr :mode :single-float)))
               ((eq resultspec :unsigned-doubleword)
-               (ensuring-node-target (target vreg)
-                 (! makeu64)
-                 (<- ($ x8664::arg_z))))
+               (if (node-reg-p vreg)
+                 (progn
+                   (! makeu64)
+                   (<- ($ x8664::arg_z)))
+                 (<- ($  x8664::rax :class :gpr :mode :u64))))
               ((eq resultspec :signed-doubleword)
-               (ensuring-node-target (target vreg)
-                 (! makes64)
-                 (<- ($ x8664::arg_z))))
+               (if (node-reg-p vreg)
+                 (progn
+                   (! makes64)
+                   (<- ($ x8664::arg_z)))
+                 (<- ($  x8664::rax :class :gpr :mode :s64))))
               (t
                (<- (make-wired-lreg x8664::imm0
                                     :mode
