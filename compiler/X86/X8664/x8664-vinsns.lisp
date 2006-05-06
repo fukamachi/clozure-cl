@@ -3515,8 +3515,8 @@
   (xorq (:%q other) (:%q result)))
 
 (define-x8664-vinsn %natural-logxor-c (((result :u64))
-                                      ((result :u64)
-                                       (constant :s32const)))
+                                       ((result :u64)
+                                        (constant :s32const)))
   (xorq (:$l constant) (:%q result)))
 
 (define-x8664-vinsn natural-shift-left (((dest :u64))
