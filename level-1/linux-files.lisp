@@ -328,6 +328,8 @@ given is that of a group to which the current user belongs."
 ;;; function AFAIK, so the source should be somewhere ...
 
 (defun %realpath (namestring)
+  (when (zerop (length namestring))
+    (setq namestring (current-directory-name)))
   (%stack-block ((resultbuf #$PATH_MAX))
     (with-cstrs ((name namestring))
       (let* ((result (#_realpath name resultbuf)))
