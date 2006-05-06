@@ -627,12 +627,12 @@ shutdown_thread_tcr(void *arg)
     tcr->osid = 0;
     termination_semaphore = tcr->termination_semaphore;
     tcr->termination_semaphore = NULL;
+    UNLOCK(lisp_global(AREA_LOCK),tcr);
 #ifdef HAVE_TLS
     LOCK(lisp_global(TCR_LOCK),tcr);
     dequeue_tcr(tcr);
     UNLOCK(lisp_global(TCR_LOCK),tcr);
 #endif
-    UNLOCK(lisp_global(AREA_LOCK),tcr);
     if (termination_semaphore) {
       SEM_RAISE(termination_semaphore);
     }
