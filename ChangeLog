@@ -1,3 +1,17 @@
+2006-05-06 15:27  gb
+
+	* compiler/nx1.lisp: Ash left by constant: prefer the fixnum case
+	to the "natural" case.
+
+2006-05-06 15:26  gb
+
+	* compiler/X86/x862.lisp: Pass the right number of args to
+	NATURAL-SHIFT-LEFT and NATURAL-SHIFT-RIGHT.
+
+2006-05-06 15:26  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Indentation.
+
 2006-05-06 02:09  gb
 
 	* lisp-kernel/thread_manager.c: Let's see: if thread X holds local
