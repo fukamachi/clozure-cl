@@ -7939,14 +7939,14 @@
 (defx862 x862-natural-shift-right natural-shift-right (seg vreg xfer num amt)
   (with-imm-target () (dest :natural)
     (x862-one-targeted-reg-form seg num dest)
-    (! natural-shift-right dest dest (acode-fixnum-form-p amt))
+    (! natural-shift-right dest (acode-fixnum-form-p amt))
     (<- dest)
     (^)))
 
 (defx862 x862-natural-shift-left natural-shift-left (seg vreg xfer num amt)
   (with-imm-target () (dest :natural)
     (x862-one-targeted-reg-form seg num dest)
-    (! natural-shift-left dest dest (acode-fixnum-form-p amt))
+    (! natural-shift-left dest  (acode-fixnum-form-p amt))
     (<- dest)
     (^)))
 
