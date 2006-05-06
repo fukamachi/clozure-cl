@@ -1,3 +1,15 @@
+2006-05-05 20:08  gb
+
+	* compiler/X86/x862.lisp: x862-ff-call: really implement the
+	simple-foreign-args stuff.  Box u64/s64, or don't ... but don't do
+	the el-bizarro <- with a (temp) node target.
+
+2006-05-05 20:06  gb
+
+	* lib/x86-backtrace.lisp: Get PC-FROM-XCF right (it needs to be
+	relative to the tagged entrypoint, not to the start of the
+	underlying function-vector.)
+
 2006-05-05 13:24  gb
 
 	* lisp-kernel/x86-spentry64.s: Preserve NEXT-METHOD-CONTEXT when
