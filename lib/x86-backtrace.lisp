@@ -91,20 +91,38 @@
          (< (the fixnum index1) (the fixnum index2)))))
 
 
-(defun %find-register-argument-value (context cfp regval bad)
-  (declare (ignore context cfp regval))
-  bad)
 
-#+soon
+
+(defun register-number->saved-register-index (regnum)
+  (ecase regnum
+    (#.x8664::save3 0)
+    (#.x8664::save2 1)
+    (#.x8664::save1 2)
+    (#.x8664::save0 3)))
+
+
+(defun get-register-value (address last-catch index)
+  (if address
+    (%fixnum-ref address)
+    (uvref last-catch (+ index target::catch-frame.save-save3-cell))))
+
+;;; Inverse of get-register-value
+
+(defun set-register-value (value address last-catch index)
+  (if address
+    (%fixnum-set address value)
+    (setf (uvref last-catch (+ index target::catch-frame.save-save3-cell))
+          value)))
+
 (defun %find-register-argument-value (context cfp regval bad)
-  (let* ((last-catch (last-catch-since cofp context))
+  (let* ((last-catch (last-catch-since cfp context))
          (index (register-number->saved-register-index regval)))
     (or
      (do* ((child (child-frame cfp context)
                   (child-frame child context)))
           ((null child))
-       (if (fake-stack-frame-p child)
-         (return (xp-gpr-lisp (%fake-stack-frame.xp child) regval))
+       (if (xcf-p child)
+         (return (encoded-gpr-lisp (%fixnum-ref child x8664::xcf.xp) regval))
          (multiple-value-bind (lfun pc)
              (cfp-lfun child)
            (when lfun
@@ -127,6 +145,17 @@
       (let* ((tra (%fixnum-ref frame x8664::lisp-frame.return-address)))
         (values (+ frame 2 (if (eq tra (%get-kernel-global ret1valaddr)) 1 0))
                 parent)))))
+
+(defun last-catch-since (fp context)
+  (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
+         (catch (%catch-top tcr))
+         (last-catch nil))
+    (loop
+      (unless catch (return last-catch))
+      (let ((catch-fp (uvref catch target::catch-frame.rbp-cell)))
+        (when (%stack< fp catch-fp context) (return last-catch))
+        (setq last-catch catch
+              catch (next-catch catch))))))
 
 (defun match-local-name (cellno info pc)
   (when info
