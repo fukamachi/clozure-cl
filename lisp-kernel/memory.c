@@ -315,9 +315,9 @@ add_area_holding_area_lock(area *new_area)
 void
 add_area(area *new_area, TCR *tcr)
 {
-  LOCK(lisp_global(AREA_LOCK),tcr);
+  LOCK(lisp_global(TCR_AREA_LOCK),tcr);
   add_area_holding_area_lock(new_area);
-  LOCK(lisp_global(AREA_LOCK),tcr);
+  LOCK(lisp_global(TCR_AREA_LOCK),tcr);
 }  
 
 /*
@@ -591,9 +591,9 @@ condemn_area_holding_area_lock(area *a)
 void
 condemn_area(area *a, TCR *tcr)
 {
-  LOCK(lisp_global(AREA_LOCK),tcr);
+  LOCK(lisp_global(TCR_AREA_LOCK),tcr);
   condemn_area_holding_area_lock(a);
-  LOCK(lisp_global(AREA_LOCK),tcr);
+  LOCK(lisp_global(TCR_AREA_LOCK),tcr);
 }
 
 
@@ -610,7 +610,7 @@ condemn_area_chain(area *a, TCR *tcr)
 {
   area *older;
 
-  LOCK(lisp_global(AREA_LOCK),tcr);
+  LOCK(lisp_global(TCR_AREA_LOCK),tcr);
 
   for (; a->younger; a = a->younger) ;
   for (;a;) {
@@ -618,6 +618,6 @@ condemn_area_chain(area *a, TCR *tcr)
     condemn_area_holding_area_lock(a);
     a = older;
   }
-  UNLOCK(lisp_global(AREA_LOCK),tcr);
+  UNLOCK(lisp_global(TCR_AREA_LOCK),tcr);
 }
 

@@ -448,14 +448,14 @@ enqueue_tcr(TCR *new)
 {
   TCR *head, *tail;
   
-  LOCK(lisp_global(TCR_LOCK),new);
+  LOCK(lisp_global(TCR_AREA_LOCK),new);
   head = (TCR *)ptr_from_lispobj(lisp_global(INITIAL_TCR));
   tail = head->prev;
   tail->next = new;
   head->prev = new;
   new->prev = tail;
   new->next = head;
-  UNLOCK(lisp_global(TCR_LOCK),new);
+  UNLOCK(lisp_global(TCR_AREA_LOCK),new);
 }
 
 TCR *
@@ -555,12 +555,12 @@ new_tcr(natural vstack_size, natural tstack_size)
   tcr->resume = new_semaphore(0);
   tcr->reset_completion = new_semaphore(0);
   tcr->activate = new_semaphore(0);
-  LOCK(lisp_global(AREA_LOCK),tcr);
+  LOCK(lisp_global(TCR_AREA_LOCK),tcr);
   a = allocate_vstack_holding_area_lock(vstack_size);
   tcr->vs_area = a;
   tcr->save_vsp = (LispObj *) a->active;  
   a = allocate_tstack_holding_area_lock(tstack_size);
-  UNLOCK(lisp_global(AREA_LOCK),tcr);
+  UNLOCK(lisp_global(TCR_AREA_LOCK),tcr);
   tcr->ts_area = a;
   tcr->save_tsp = (LispObj *) a->active;
   tcr->valence = TCR_STATE_FOREIGN;
@@ -601,7 +601,7 @@ shutdown_thread_tcr(void *arg)
 #ifdef DARWIN
     darwin_exception_cleanup(tcr);
 #endif
-    LOCK(lisp_global(AREA_LOCK),tcr);
+    LOCK(lisp_global(TCR_AREA_LOCK),tcr);
     vs = tcr->vs_area;
     tcr->vs_area = NULL;
     ts = tcr->ts_area;
@@ -627,12 +627,10 @@ shutdown_thread_tcr(void *arg)
     tcr->osid = 0;
     termination_semaphore = tcr->termination_semaphore;
     tcr->termination_semaphore = NULL;
-    UNLOCK(lisp_global(AREA_LOCK),tcr);
 #ifdef HAVE_TLS
-    LOCK(lisp_global(TCR_LOCK),tcr);
     dequeue_tcr(tcr);
-    UNLOCK(lisp_global(TCR_LOCK),tcr);
 #endif
+    UNLOCK(lisp_global(TCR_AREA_LOCK),tcr);
     if (termination_semaphore) {
       SEM_RAISE(termination_semaphore);
     }
@@ -668,9 +666,9 @@ thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
 
   tcr->osid = current_thread_osid();
   tcr->native_thread_id = current_native_thread_id();
-  LOCK(lisp_global(AREA_LOCK),tcr);
+  LOCK(lisp_global(TCR_AREA_LOCK),tcr);
   a = register_cstack_holding_area_lock((BytePtr)stack_base, stack_size);
-  UNLOCK(lisp_global(AREA_LOCK),tcr);
+  UNLOCK(lisp_global(TCR_AREA_LOCK),tcr);
   tcr->cs_area = a;
   if (!(tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN))) {
     tcr->cs_limit = (LispObj)ptr_to_lispobj(a->softlimit);
@@ -1034,7 +1032,7 @@ lisp_suspend_tcr(TCR *tcr)
   Boolean suspended;
   TCR *current = get_tcr(true);
   
-  LOCK(lisp_global(TCR_LOCK),current);
+  LOCK(lisp_global(TCR_AREA_LOCK),current);
 #ifdef DARWIN
   if (use_mach_exception_handling) {
     pthread_mutex_lock(mach_exception_lock);
@@ -1049,7 +1047,7 @@ lisp_suspend_tcr(TCR *tcr)
     pthread_mutex_unlock(mach_exception_lock);
   }
 #endif
-  UNLOCK(lisp_global(TCR_LOCK),current);
+  UNLOCK(lisp_global(TCR_AREA_LOCK),current);
   return suspended;
 }
 	 
@@ -1110,10 +1108,10 @@ lisp_resume_tcr(TCR *tcr)
   Boolean resumed;
   TCR *current = get_tcr(true);
   
-  LOCK(lisp_global(TCR_LOCK),current);
+  LOCK(lisp_global(TCR_AREA_LOCK),current);
   resumed = resume_tcr(tcr);
   wait_for_resumption(tcr);
-  UNLOCK(lisp_global(TCR_LOCK), current);
+  UNLOCK(lisp_global(TCR_AREA_LOCK), current);
   return resumed;
 }
 
@@ -1150,8 +1148,7 @@ suspend_other_threads(Boolean for_gc)
   int dead_tcr_count = 0;
   Boolean all_acked;
 
-  LOCK(lisp_global(TCR_LOCK), current);
-  LOCK(lisp_global(AREA_LOCK), current);
+  LOCK(lisp_global(TCR_AREA_LOCK), current);
 #ifdef DARWIN
   if (for_gc && use_mach_exception_handling) {
 #if SUSPEND_RESUME_VERBOSE
@@ -1226,8 +1223,7 @@ resume_other_threads(Boolean for_gc)
   }
 #endif
 
-  UNLOCK(lisp_global(AREA_LOCK), current);
-  UNLOCK(lisp_global(TCR_LOCK), current);
+  UNLOCK(lisp_global(TCR_AREA_LOCK), current);
 }
 
 void

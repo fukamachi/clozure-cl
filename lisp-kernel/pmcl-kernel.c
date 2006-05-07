@@ -1405,7 +1405,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
 #endif
 
   main_thread_pid = getpid();
-  area_lock = (void *)new_recursive_lock();
+  tcr_area_lock = (void *)new_recursive_lock();
 
   program_name = argv[0];
   if ((argc == 2) && (*argv[1] != '-')) {
@@ -1431,7 +1431,7 @@ main(int argc, char *argv[], char *envp[], void *aux)
   gc_init();
 
   set_nil(load_image(image_name));
-  lisp_global(AREA_LOCK) = ptr_to_lispobj(area_lock);
+  lisp_global(TCR_AREA_LOCK) = ptr_to_lispobj(tcr_area_lock);
 
   lisp_global(SUBPRIMS_BASE) = (LispObj)(5<<10);
   lisp_global(RET1VALN) = (LispObj)&ret1valn;
@@ -1511,7 +1511,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
   lisp_global(STATICALLY_LINKED) = 1 << fixnumshift;
 #endif
   tcr->prev = tcr->next = tcr;
-  lisp_global(TCR_LOCK) = ptr_to_lispobj(new_recursive_lock());
   lisp_global(INTERRUPT_SIGNAL) = (LispObj) box_fixnum(SIGNAL_FOR_PROCESS_INTERRUPT);
   tcr->vs_area->active -= node_size;
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;

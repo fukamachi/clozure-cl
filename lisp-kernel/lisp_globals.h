@@ -24,13 +24,13 @@ extern LispObj lisp_nil;
 #define TCR_COUNT (-2)		/* next tcr's tcr_id */
 #define INTERRUPT_SIGNAL  (-3)  /* signal to use for PROCESS-INTERRUPT */
 #define KERNEL_IMPORTS (-4)	/* some things we need to have imported for us. */
-#define TCR_LOCK (-5)		/* lock on the TCR queue */
+#define badTCR_LOCK (-5)        /* (obsolete) lock on the TCR queue */
 #define SAVETOC (-6)	        /* Saved TOC register, for some platforms */
 #define SAVER13 (-7)		/* Saved (global) r13, on some platforms */
 #define SUBPRIMS_BASE (-8)	/* where the dynamic subprims wound up */
 #define RET1VALN (-9)		/* magic multiple-values return address */
 #define TCR_KEY (-10)     	/* tsd key for per-thread tcr */
-#define AREA_LOCK (-11)       /* all_areas lock */
+#define TCR_AREA_LOCK (-11)       /* all_areas/tcr queue lock */
 #define EXCEPTION_LOCK (-12)	/* serialize exception handling */
 #define DELETED_STATIC_PAIRS (-13) /* for hash-consing */
 #define DEFAULT_ALLOCATION_QUANTUM (-14)

@@ -102,8 +102,8 @@ area *heap_area_containing(BytePtr);
 void tenure_to_area(area *);
 void untenure_from_area(area *);
 
-/* serialize add_area/remove_area */
-void *area_lock;
+/* serialize add_area/remove_area, and also the tcr queue */
+void *tcr_area_lock;
 
 #define reserved_area ((area *)(all_areas))
 #define active_dynamic_area ((area *)(reserved_area->succ))
