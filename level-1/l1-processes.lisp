@@ -314,7 +314,6 @@ a given process."
          (tcr (process-tcr process))
          (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
      (declare (type cons initial-form))
-     (setf (%fixnum-ref cs-area target::area.owner) (process-serial-number process))     
      (thread-preset
       thread
       #'(lambda (process initial-form)
