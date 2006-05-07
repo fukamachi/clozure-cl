@@ -326,22 +326,7 @@
 
 
 
-(defun get-register-value (address last-catch index)
-  (if address
-    (%fixnum-ref address)
-    (uvref last-catch (+ index
-                         #+ppc-target target::catch-frame.save-save7-cell
-                         #+x86-target target::catch-frame.save-save3-cell))))
 
-; Inverse of get-register-value
-
-(defun set-register-value (value address last-catch index)
-  (if address
-    (%fixnum-set address value)
-    (setf (uvref last-catch (+ index
-                               #+ppc-target target::catch-frame.save-save7-cell
-                               #+x86-target target::catch-frame.save-save3-cell
-                               )) value)))
 
 (defun return-from-nth-frame (n &rest values)
   (apply-in-nth-frame n #'values values))
