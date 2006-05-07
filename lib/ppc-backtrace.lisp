@@ -264,3 +264,16 @@
                (%i>= pc (uvref ptrs (%i+ j 1)))
                (%i< pc (uvref ptrs (%i+ j 2)))
                (return (aref syms i))))))))
+
+(defun get-register-value (address last-catch index)
+  (if address
+    (%fixnum-ref address)
+    (uvref last-catch (+ index target::catch-frame.save-save7-cell))))
+
+;;; Inverse of get-register-value
+
+(defun set-register-value (value address last-catch index)
+  (if address
+    (%fixnum-set address value)
+    (setf (uvref last-catch (+ index target::catch-frame.save-save7-cell))
+          value)))
