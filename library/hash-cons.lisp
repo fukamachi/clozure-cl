@@ -92,7 +92,7 @@
 ;;;         (cdr x) <new-cdr>)
 ;;;   x)
 ;;;
-;;; (OPENMCL-HONS:HONS-SPACE-INDEX-USED-P <index>)
+;;; (OPENMCL-HONS:HONS-INDEX-USED-P <index>)
 ;;; If <index> is a valid index, returns a Lisp boolean indicating
 ;;; whether or not
 ;;; (a) OPENMCL-HONS:HONS-FROM-INDEX has been called on it
