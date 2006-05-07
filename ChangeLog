@@ -1,3 +1,11 @@
+2006-05-07 16:50  gb
+
+	* lib/describe.lisp: INSPECTOR objects haven't had FORWARDED-P
+	slots in a long time (they probably haven't -needed- them in even
+	longer; I think that this had to do with the old partial MOP.)
+	Don't define the slot for FUNCTION-INSPECTOR, and don't call the
+	accessor in STANDARD-OBJECT-SETF-LINE-N.
+
 2006-05-07 04:39  gb
 
 	* x86-headers64/gtk2/: .cvsignore, C/.cvsignore, C/populate.sh: New
