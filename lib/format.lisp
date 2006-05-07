@@ -2168,7 +2168,7 @@
           (fresh-line *query-io*)
           (apply 'format *query-io* format-string arguments))
         (princ " (yes or no)  " *query-io*)
-        (format t "~A" #\Bell)
+        (format *query-io* "~A" #\Bell)
         (setq response (read-line *query-io*))
         (clear-input *query-io*)
 	(when response
