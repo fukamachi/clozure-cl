@@ -1,3 +1,54 @@
+2006-05-07 04:39  gb
+
+	* x86-headers64/gtk2/: .cvsignore, C/.cvsignore, C/populate.sh: New
+	file.
+
+2006-05-07 04:34  gb
+
+	* lisp-kernel/: area.h, lisp_globals.h, memory.c, pmcl-kernel.c,
+	thread_manager.c: Combine the AREA_LOCK and TCR_LOCK into a single
+	lock (TCR_AREA_LOCK).  (This makes it a little harder to deadlock
+	if code that wants both locks isn't careful to try to obtain them
+	in some canonical order.)
+
+2006-05-07 04:29  gb
+
+	* lib/x86-backtrace.lisp: Finally find those pesky registers.
+
+2006-05-07 04:29  gb
+
+	* level-1/x86-threads-utils.lisp: Stub BOGUS-THING-P moves here.
+
+2006-05-07 04:28  gb
+
+	* level-0/l0-cfm-support.lisp: FOREIGN-SYMBOL-ENTRY: return NIL if
+	xFindSymbol/dlsym returns 0 on x8664.
+
+2006-05-07 04:27  gb
+
+	* compiler/X86/: x86-lapmacros.lisp, X8664/x8664-vinsns.lisp: Use
+	PSRLQ/PSLLQ for single-float boxing/unboxing.  (A few months ago,
+	I'd mistakenly decided that it was faster to go through memory than
+	to use these instructions.  It seems to actually be substantially
+	slower, as one would expect.)
+
+2006-05-07 04:25  gb
+
+	* compiler/X86/x86-asm.lisp: Add support for
+	PSRLQ/PSRLDQ/PSLLQ/PSLLDQ (sse2 shifts.)
+
+2006-05-07 04:21  gb
+
+	* library/hash-cons.lisp: Fix doc in comments.
+
+2006-05-07 04:21  gb
+
+	* lib/ppc-backtrace.lisp: GET/SET-REGISTER-VALUE.
+
+2006-05-07 04:20  gb
+
+	* lib/format.lisp: YES-OR-NO-P: bell goes to *QUERY-IO*.
+
 2006-05-07 04:19  gb
 
 	* lib/backtrace-lds.lisp: Move GET/SET-REGISTER-VALUE to
