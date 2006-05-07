@@ -139,19 +139,19 @@
 (defx86lapmacro box-fixnum (src dest)
   `(lea (@ (% ,src) 8) (% ,dest)))
 
-;;; stores the 32-bit value in low 32 bits of xmm reg dest.
-;;; It seems to be faster to go through memory than it would
-;;; be to use MOVD and PSRLQ.
+
 (defx86lapmacro get-single-float (node dest)
   `(progn
-    (movq (% ,node) (@ (% rcontext) x8664::tcr.single-float-convert))
-    (movss (@ (% rcontext) x8664::tcr.single-float-convert.value) (% ,dest))))
+    (movd (% ,node) (% ,dest))
+    (psrlq ($ 32) (% ,dest))))
 
 
+;;; Note that this modifies the src argument.
 (defx86lapmacro put-single-float (src node)
   `(progn
-    (movss (% ,src) (@ (% rcontext) x8664::tcr.single-float-convert.value))
-    (movq (@ (% rcontext) x8664::tcr.single-float-convert) (% ,node))))
+    (psllq ($ 32) (% ,src))
+    (movd (% ,src) (% ,node))
+    (movb ($ x8664::tag-single-float) (%b ,node))))
 
 (defx86lapmacro get-double-float (src fpreg)
   `(movsd (@ x8664::double-float.value (% ,src)) (% ,fpreg)))

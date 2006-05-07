@@ -1336,8 +1336,8 @@
 
 (define-x8664-vinsn get-single (((result :single-float))
                                 ((source :lisp)))
-  (movq (:%q source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert))
-  (movss (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value) (:%xmm result)))
+  (movd (:%q source) (:%xmm result))
+  (psrlq (:$ub 32) (:%xmm result)))
 
 (define-x8664-vinsn get-double (((result :double-float))
                                 ((source :lisp)))
@@ -1362,10 +1362,12 @@
   :ok
   (movsd (:@  x8664::double-float.value (:%q source)) (:%xmm target)))
 
-(define-x8664-vinsn single->node (((result :lisp))
+(define-x8664-vinsn single->node (((result :lisp)
+                                   (source :single-float))
                                   ((source :single-float)))
-  (movss (:%xmm source) (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert.value))
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.single-float-convert) (:%q result)))
+  (psllq (:$ub 32) (:%xmm source))
+  (movd (:%xmm source) (:%q result))
+  (movb (:$b x8664::tag-single-float) (:%b result)))
 
 (define-x8664-vinsn copy-double-float (((dest :double-float))
                                        ((src :double-float)))
