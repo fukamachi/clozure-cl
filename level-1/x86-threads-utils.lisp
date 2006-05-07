@@ -97,3 +97,11 @@
                   (dpb (ldb $lfbits-numopt bits)
                        $lfbits-numopt
                        (lfun-bits #'%fixnum-set-natural)))))
+
+
+
+
+#+x86-target
+(defun bogus-thing-p (x)
+  (declare (ignorable x))
+  )
