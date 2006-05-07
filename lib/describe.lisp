@@ -554,8 +554,7 @@
 (defun standard-object-setf-line-n (value i n)
   (let* ((instance (inspector-object i))
          (class (class-of instance))
-         (forwarded-p (forwarded-p i))
-         (instance-start (if forwarded-p 3 2)))
+         (instance-start 2))
     (if (< n instance-start)
       (cond
        ((eql n 0) (change-class instance value)
@@ -1311,8 +1310,7 @@
 ;; (They're also inside the dispatch-table which is the first immediate in the disassembly).
 (defclass gf-inspector (function-inspector)
   ((method-count :accessor method-count)
-   (slot-count :accessor slot-count :initform 0)
-   (forwarded-p :accessor forwarded-p :initform nil)))
+   (slot-count :accessor slot-count :initform 0)))
 
 (defmethod inspector-class ((f standard-generic-function))
   (if (functionp f) 
