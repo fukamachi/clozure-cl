@@ -457,10 +457,11 @@ return a fixnum representation of that address, else return NIL."
       (unless (%null-ptr-p addr)	; No function can have address 0
 	(macptr->fixnum addr)))
     #+x8664-target
-    (ff-call (%kernel-import target::kernel-import-FindSymbol)
-             :address handle
-             :address n
-             :unsigned-doubleword)))
+    (let* ((addr (ff-call (%kernel-import target::kernel-import-FindSymbol)
+                          :address handle
+                          :address n
+                          :unsigned-doubleword)))
+      (unless (eql 0 addr) addr))))
 
 (defvar *statically-linked* nil)
 
