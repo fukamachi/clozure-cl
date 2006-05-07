@@ -1,3 +1,23 @@
+2006-05-07 04:19  gb
+
+	* lib/backtrace-lds.lisp: Move GET/SET-REGISTER-VALUE to
+	TARGET-backtrace.lisp.
+
+2006-05-07 04:18  gb
+
+	* level-1/l1-lisp-threads.lisp: Move (implementation-dependent)
+	BOGUS-THING-P to TARGET-thread-utils.lisp.
+
+2006-05-07 04:17  gb
+
+	* level-1/ppc-threads-utils.lisp: Move (implementation-dependent)
+	BOGUS-THING-P support here.
+
+2006-05-07 04:16  gb
+
+	* level-1/l1-processes.lisp: Don't set "owner" field of tcr.cs_area
+	to psn.
+
 2006-05-06 15:27  gb
 
 	* compiler/nx1.lisp: Ash left by constant: prefer the fixnum case
