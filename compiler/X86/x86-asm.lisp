@@ -3301,11 +3301,17 @@
      #x0ff3 #o300 #x0 #x66)
    (def-x8664-opcode psllq ((:anymem :insert-memory) (:regxmm :insert-modrm-reg))
      #x0ff3 #o000 #x0 #x66)
+   (def-x8664-opcode psllq ((:imm8 :insert-imm8) (:regxmm :insert-xmm-rm))
+     #x0f73 #o360 #o0 #x66)
 
    ;; psllw
    
    ;; pslld
 
+   ;; pslldq
+   (def-x8664-opcode pslldq ((:imm8 :insert-imm8) (:regxmm :insert-xmm-rm))
+     #x0f73 #o370 #x0 #x66)
+   
    ;; psrlq 
    (def-x8664-opcode psrlq ((:regmmx :insert-mmx-rm) (:regmmx :insert-mmx-reg))
      #x0fd3 #o300 #x0)
@@ -3315,8 +3321,14 @@
      #x0fd3 #o300 #x0 #x66)
    (def-x8664-opcode psrlq ((:anymem :insert-memory) (:regxmm :insert-modrm-reg))
      #x0fd3 #o000 #x0 #x66)
+   (def-x8664-opcode psrlq ((:imm8 :insert-imm8) (:regxmm :insert-xmm-rm))
+     #x0f73 #o320 #o0 #x66)
 
    ;; psrld
+
+   ;; psrldq
+   (def-x8664-opcode psrldq ((:imm8 :insert-imm8) (:regxmm :insert-xmm-rm))
+     #x0f73 #o330 #x0 #x66)
    
    ;; psrlw
    
