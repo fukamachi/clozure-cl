@@ -84,9 +84,10 @@
                                            (ldb (byte 4 0) op1)))
                                          frame-ptr))
               ((< op1 #xb0)
-               (%err-disp-internal $xfunbnd (encoded-gpr-lisp
-                                             xp
-                                             (ldb (byte 4 0) op1))
+               (%err-disp-internal $xfunbnd
+                                   (list (encoded-gpr-lisp
+                                          xp
+                                          (ldb (byte 4 0) op1)))
                                    frame-ptr))
               ((< op1 #xc0)
                (setq skip 3)
