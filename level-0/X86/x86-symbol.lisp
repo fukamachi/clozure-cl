@@ -31,8 +31,13 @@
     (cmp-reg-to-nil sym)
     (cmovneq (% sym) (% symaddr))
     (trap-unless-fulltag= symaddr x8664::fulltag-symbol)
+    (movq (% sym) (% arg_y))
     (movq (@ x8664::symbol.fcell (% symaddr)) (% arg_z))
-    (trap-unless-fulltag= arg_z x8664::fulltag-function)
+    (extract-fulltag arg_z imm0)
+    (cmpb ($ x8664::fulltag-function) (%b imm0))
+    (je.pt @ok)
+    (uuo-error-udf (% arg_y))
+    @ok
     (single-value-return)))
 
 ;;; Traps unless sym is NIL or some other symbol.  If NIL, return
