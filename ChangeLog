@@ -1,3 +1,24 @@
+2006-05-08 03:26  gb
+
+	* lisp-kernel/x86-spentry64.s: .SPstkconslist_star: ensure that
+	flags are set to the result of decrementing %nargs at the end of
+	the loop.
+
+2006-05-08 03:25  gb
+
+	* level-1/x86-error-signal.lisp: uuo-error-udf: %err-disp-internal
+	wants a list of condition args, not a single arg.
+
+2006-05-08 03:24  gb
+
+	* level-1/l1-processes.lisp: %PROCESS-PRESET-INTERNAL doesn't need
+	CS-AREA.
+
+2006-05-08 03:23  gb
+
+	* level-0/X86/x86-symbol.lisp: %FUNCTION: signal error via
+	uuo_error_udf, not as a type error.
+
 2006-05-07 16:50  gb
 
 	* lib/describe.lisp: INSPECTOR objects haven't had FORWARDED-P
