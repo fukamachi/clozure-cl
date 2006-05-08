@@ -311,8 +311,7 @@ a given process."
 (defun %process-preset-internal (process)
    (let* ((initial-form (process-initial-form process))
          (thread (process-thread process))
-         (tcr (process-tcr process))
-         (cs-area (%fixnum-ref tcr target::tcr.cs-area)))
+         (tcr (process-tcr process)))
      (declare (type cons initial-form))
      (thread-preset
       thread
