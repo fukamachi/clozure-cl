@@ -1,3 +1,48 @@
+2006-05-09 02:42  gb
+
+	* lisp-kernel/: gc.h, ppc-gc.c: Back out of the extra Boolean arg
+	to mark_simple_area_range().
+
+2006-05-09 02:33  gb
+
+	* compiler/PPC/: PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-backend.lisp: Endianness is also target-specific.
+
+2006-05-09 02:25  gb
+
+	* lisp-kernel/thread_manager.c: Thread stack areas are "owned by"
+	the containing TCR, to make low-level debugging a bit easier.
+
+2006-05-09 02:25  gb
+
+	* lisp-kernel/ppc-gc.c: Mostly some added consistency/sanity checks
+	and debugging printfs.
+
+2006-05-09 02:24  gb
+
+	* lisp-kernel/ppc-exceptions.h: Note that pc_luser_xp() needs an
+	extra (signed_natural *) arg, for allocptr displacement.
+
+2006-05-09 02:23  gb
+
+	* lisp-kernel/ppc-exceptions.c: Lots of #ifdef DEBUG fprintfs.
+	
+	Change the way that pc_luser_xp() and normalize_tcr() handle alloc
+	regs/ saved TCR fields.  The general idea is that the after they
+	run, all threads have tcr->save_allocptr/tcr_save_allocbase set to
+	VOID_ALLOCPTR; if the thread was interrupted in lisp code, the
+	allocbase register will be set to VOID_ALLOCPTR and allocptr will
+	be set to either VOID_ALLOCPTR or to VOID_ALLOCPTR-disp.
+	
+	On an interrupt, the caller needs to pass in a signed_natural * to
+	pick up the allocptr displacement (if consing was interrupted at
+	the alloc trap); the interrupt handler uses this value to fix up
+	alloptr when it returns if consing was interrupted.
+	
+	This is all pretty clearly right, but something still goes wrong
+	under some combination of high thread stress, frequent allocation,
+	and blocking ff-calls.
+
 2006-05-09 02:17  gb
 
 	* lisp-kernel/plbt.c: No psn currently available.
