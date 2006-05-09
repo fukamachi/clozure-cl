@@ -983,7 +983,7 @@ mark_memoized_area(area *a, natural num_memo_dnodes)
 
 
 void
-mark_simple_area_range(LispObj *start, LispObj *end, Boolean header_allowed)
+mark_simple_area_range(LispObj *start, LispObj *end)
 {
   LispObj x1, *base;
   int tag;
@@ -992,9 +992,6 @@ mark_simple_area_range(LispObj *start, LispObj *end, Boolean header_allowed)
     x1 = *start;
     tag = fulltag_of(x1);
     if (immheader_tag_p(tag)) {
-      if (! header_allowed) {
-        Bug(NULL, "Header unexpected\n");
-      }
       start = (LispObj *)ptr_from_lispobj(skip_over_ivector(ptr_to_lispobj(start), x1));
     } else if (!nodeheader_tag_p(tag)) {
       ++start;
@@ -1004,9 +1001,6 @@ mark_simple_area_range(LispObj *start, LispObj *end, Boolean header_allowed)
       int subtag = header_subtag(x1);
       natural element_count = header_element_count(x1);
       natural size = (element_count+1 + 1) & ~1;
-      if (! header_allowed) {
-        Bug(NULL, "Header unexpected\n");
-      }
 
       if (subtag == subtag_hash_vector) {
         LispObj flags = ((hash_table_vector_header *) start)->flags;
@@ -1062,7 +1056,7 @@ mark_tstack_area(area *a)
     next = (LispObj *) ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
     if (current[1] == 0) {
-      mark_simple_area_range(current+2, end, true);
+      mark_simple_area_range(current+2, end);
     }
   }
 }
@@ -1091,7 +1085,7 @@ mark_vstack_area(area *a)
     mark_root(*start);
     ++start;
   }
-  mark_simple_area_range(start, end, false);
+  mark_simple_area_range(start, end);
 }
 
 #ifdef PPC
@@ -2584,7 +2578,7 @@ gc(TCR *tcr, signed_natural param)
            ignore that map and process the entire area.
            */
         if (next_area->younger == NULL) {
-          mark_simple_area_range((LispObj *) next_area->low, (LispObj *) next_area->active, true);
+          mark_simple_area_range((LispObj *) next_area->low, (LispObj *) next_area->active);
         }
         break;
 

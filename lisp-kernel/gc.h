@@ -67,7 +67,7 @@ void mark_locative_root(LispObj);
 void rmark(LispObj);
 void postGCfree(void *);
 LispObj *skip_over_ivector(LispObj, LispObj);
-void mark_simple_area_range(LispObj *,LispObj *,Boolean);
+void mark_simple_area_range(LispObj *,LispObj *);
 LispObj calculate_relocation();
 LispObj locative_forwarding_address(LispObj);
 LispObj node_forwarding_address(LispObj);
