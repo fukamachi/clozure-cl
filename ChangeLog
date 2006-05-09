@@ -1,3 +1,42 @@
+2006-05-09 02:17  gb
+
+	* lisp-kernel/plbt.c: No psn currently available.
+
+2006-05-09 02:16  gb
+
+	* lisp-kernel/lisp-debug.c: Bug() passes xp to lisp_Debugger(),
+	where it may come in handy ...
+
+2006-05-09 02:16  gb
+
+	* lisp-kernel/gc.h: mark_simple_area_range() takes an added Boolean
+	arg.
+
+2006-05-09 02:13  gb
+
+	* lisp-kernel/area.h: area struct's owner is a (TCR *).
+
+2006-05-09 02:12  gb
+
+	* level-1/l1-error-system.lisp: $xfunbnd was used after all. 
+	Restore it.
+
+2006-05-09 02:12  gb
+
+	* level-0/l0-error.lisp, library/lispequ.lisp,
+	lisp-kernel/errors.s: $xfunbnd was used after all.  Restore it, and
+	recycle $XNOCDR.
+
+2006-05-09 02:11  gb
+
+	* compiler/PPC/PPC64/ppc64-backend.lisp: :64-bit-target is ...
+	target-specific.
+
+2006-05-09 02:11  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: :32-bit-target is ...
+	target-specific.
+
 2006-05-09 00:40  gb
 
 	* level-1/l1-lisp-threads.lisp: Foreign thread callback stuff moved
