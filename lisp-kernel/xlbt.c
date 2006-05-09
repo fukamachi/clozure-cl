@@ -135,7 +135,7 @@ plbt_sp(LispObj currentRBP)
         (((LispObj) ptr_to_lispobj(vs_area->high)) < currentRBP)) {
       Dprintf("\nFramepointer [#x%lX] in unknown area.", currentRBP);
     } else {
-      fprintf(stderr, "current thread: tcr = 0x%lx,  psn = %ld, native thread ID = 0x%lx, interrupts %s\n", tcr, cs_area->owner >> fixnumshift, tcr->native_thread_id, ilevel);
+      fprintf(stderr, "current thread: tcr = 0x%lx, native thread ID = 0x%lx, interrupts %s\n", tcr, tcr->native_thread_id, ilevel);
       walk_stack_frames((lisp_frame *) ptr_from_lispobj(currentRBP), (lisp_frame *) (vs_area->high));
       /*      walk_other_areas();*/
     }
