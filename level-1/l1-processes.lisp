@@ -310,8 +310,7 @@ a given process."
 
 (defun %process-preset-internal (process)
    (let* ((initial-form (process-initial-form process))
-         (thread (process-thread process))
-         (tcr (process-tcr process)))
+         (thread (process-thread process)))
      (declare (type cons initial-form))
      (thread-preset
       thread
