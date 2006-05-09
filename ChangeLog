@@ -1,3 +1,27 @@
+2006-05-08 22:58  gb
+
+	* lisp-kernel/ppc-spentry.s: misc_ref/misc_set jump tables on PPC64
+	handle array and vector headers.
+
+2006-05-08 22:57  gb
+
+	* library/lispequ.lisp: Synch errors $xbadvec, $xsetbadvec (neither
+	of which should ever happen) with the kernel.
+
+2006-05-08 22:56  gb
+
+	* level-1/l1-processes.lisp: %PROCESS-PRESET-INTERNAL doesn't need
+	the TCR either.
+
+2006-05-08 22:55  gb
+
+	* level-1/l1-error-system.lisp: $XFUNBND is no more.
+
+2006-05-08 22:55  gb
+
+	* level-0/l0-error.lisp: Define the format strings for $xbadvec,
+	$xsetbadvec.
+
 2006-05-08 03:26  gb
 
 	* lisp-kernel/x86-spentry64.s: .SPstkconslist_star: ensure that
