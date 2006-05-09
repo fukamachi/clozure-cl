@@ -17,12 +17,12 @@
 
 (defparameter *error-format-strings* 
   '((1 . "Unbound variable: ~S .")
-    (2 . "Can't take CDR of ~S.")
+    (2 . "Invalid reference to ~s at index ~s.")
     (3 . "Too many arguments.")
     (4 . "Too few arguments.")
     (5 . "Argument ~S is not of the required type.")
-    (6 . "Invalid reference to ~s at index ~s.")
-    (6 . "Invalid assignment to ~s at index ~s, value ~s.")
+    (6 . "Undefined function: ~S .")
+    (7 . "Invalid assignnnt of ~s at index ~s, to ~s.")
     (8 . "Can't coerce ~S to ~S")
     (9 . "Funcallable instance ~S was called with args ~s, but has no FUNCALLABLE-INSTANCE-FUNCTION")
     (10 . "Out of memory.")

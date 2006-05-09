@@ -664,15 +664,15 @@
 ;;; Error string constants.  As accurate as constants.i ...
 
 (defconstant $XVUNBND 1)
-(defconstant $XNOCDR 2)
+;(defconstant $XNOCDR 2)
+(defconstant $xbadvec 6)
 (defconstant $XTMINPS 3)
 (defconstant $XNEINPS 4)
 (defconstant $XWRNGINP 5)
 (defconstant $err-bad-input 5)
-;;(defconstant $XFUNBND 6)
+(defconstant $XFUNBND 6)
 ;;(defconstant $err-fundefined 6)
 ;;(defconstant $XNOCAR 7)
-(defconstant $xbadvec 6)
 (defconstant $xsetbadvec 7)
 (defconstant $xcoerce 8)
 (defconstant $xnofinfunction 9)

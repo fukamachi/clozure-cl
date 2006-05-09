@@ -77,11 +77,11 @@ $1 = $2<<fixnumshift])
 
 
 	deferr(XVUNBND,1)
-	deferr(XNOCDR,2)
+	deferr(XBADVEC,2)
 	deferr(XTMINPS,3)
 	deferr(XNEINPS,4)
 	deferr(XWRNGINP,5)
-	deferr(XBADVEC,6)
+	deferr(XFUNBND,6)
 	deferr(XSETBADVEC,7)
 	deferr(XCOERCE,8)
 	deferr(XWRONGSYS,9)
