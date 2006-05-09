@@ -558,10 +558,12 @@ new_tcr(natural vstack_size, natural tstack_size)
   LOCK(lisp_global(TCR_AREA_LOCK),tcr);
   a = allocate_vstack_holding_area_lock(vstack_size);
   tcr->vs_area = a;
+  a->owner = tcr;
   tcr->save_vsp = (LispObj *) a->active;  
   a = allocate_tstack_holding_area_lock(tstack_size);
   UNLOCK(lisp_global(TCR_AREA_LOCK),tcr);
   tcr->ts_area = a;
+  a->owner = tcr;
   tcr->save_tsp = (LispObj *) a->active;
   tcr->valence = TCR_STATE_FOREIGN;
 #ifdef PPC
@@ -670,6 +672,7 @@ thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
   a = register_cstack_holding_area_lock((BytePtr)stack_base, stack_size);
   UNLOCK(lisp_global(TCR_AREA_LOCK),tcr);
   tcr->cs_area = a;
+  a->owner = tcr;
   if (!(tcr->flags & (1<<TCR_FLAG_BIT_FOREIGN))) {
     tcr->cs_limit = (LispObj)ptr_to_lispobj(a->softlimit);
   }
