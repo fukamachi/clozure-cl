@@ -284,7 +284,7 @@ walk_other_areas()
 
   while (tcr != start) {
     a = tcr->cs_area;
-    Dprintf("\n\n TCR = 0x%lx, cstack area #x%lx, psn = %ld, native thread ID = 0x%lx, interrupts %s", tcr, a, a->owner >> fixnumshift, tcr->native_thread_id, ilevel);
+    Dprintf("\n\n TCR = 0x%lx, cstack area #x%lx,  native thread ID = 0x%lx, interrupts %s", tcr, a,  tcr->native_thread_id, ilevel);
     walk_stack_frames((lisp_frame *) (a->active), (lisp_frame *) (a->high));
     tcr = tcr->next;
   }
@@ -305,7 +305,7 @@ plbt_sp(LispObj currentSP)
         (((LispObj) ptr_to_lispobj(cs_area->high)) < currentSP)) {
       Dprintf("\nStack pointer [#x%lX] in unknown area.", currentSP);
     } else {
-      fprintf(stderr, "current thread: tcr = 0x%lx,  psn = %ld, native thread ID = 0x%lx, interrupts %s\n", tcr, cs_area->owner >> fixnumshift, tcr->native_thread_id, ilevel);
+      fprintf(stderr, "current thread: tcr = 0x%lx, native thread ID = 0x%lx, interrupts %s\n", tcr, tcr->native_thread_id, ilevel);
       walk_stack_frames((lisp_frame *) ptr_from_lispobj(currentSP), (lisp_frame *) (cs_area->high));
       walk_other_areas();
     }
