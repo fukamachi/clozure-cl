@@ -922,7 +922,6 @@
         (cons $xwrongtype 'type-error) ; this one needs 2 args
         (cons $xdivzro 'division-by-zero)
         (cons $xflovfl 'floating-point-overflow)
-        (cons $xfunbnd 'undefined-function)
 	(cons $xbadkeys 'simple-program-error)
         (cons $xnotfun 'call-special-operator-or-macro)
         (cons $xaccessnth 'sequence-index-type-error)
