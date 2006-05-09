@@ -249,6 +249,10 @@ allocate_object(ExceptionInformation *xp,
   */
   if (new_heap_segment(xp, bytes_needed, false, tcr)) {
     xpGPR(xp, allocptr) += disp_from_allocptr;
+#ifdef DEBUG
+    fprintf(stderr, "New heap segment for #x%x, no GC: #x%x/#x%x, vsp = #x%x\n",
+            tcr,xpGPR(xp,allocbase),tcr->last_allocptr, xpGPR(xp,vsp));
+#endif
     return true;
   }
   
@@ -264,6 +268,10 @@ allocate_object(ExceptionInformation *xp,
   /* Try again, growing the heap if necessary */
   if (new_heap_segment(xp, bytes_needed, true, tcr)) {
     xpGPR(xp, allocptr) += disp_from_allocptr;
+#ifdef DEBUG
+    fprintf(stderr, "New heap segment for #x%x after GC: #x%x/#x%x\n",
+            tcr,xpGPR(xp,allocbase),tcr->last_allocptr);
+#endif
     return true;
   }
   
@@ -598,7 +606,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
 
   if (xp) {
     if (is_other_tcr) {
-      pc_luser_xp(xp, tcr);
+      pc_luser_xp(xp, tcr, NULL);
       freeptr = xpGPR(xp, allocptr);
       if (fulltag_of(freeptr) == 0){
 	cur_allocptr = (void *) ptr_from_lispobj(freeptr);
@@ -607,17 +615,37 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
     update_area_active((area **)&tcr->cs_area, (BytePtr) ptr_from_lispobj(xpGPR(xp, sp)));
     update_area_active((area **)&tcr->vs_area, (BytePtr) ptr_from_lispobj(xpGPR(xp, vsp)));
     update_area_active((area **)&tcr->ts_area, (BytePtr) ptr_from_lispobj(xpGPR(xp, tsp)));
+#ifdef DEBUG
+    fprintf(stderr, "TCR 0x%x in lisp code, vsp = 0x%lx, tsp = 0x%lx\n",
+            tcr, xpGPR(xp, vsp), xpGPR(xp, tsp));
+    fprintf(stderr, "TCR 0x%x, allocbase/allocptr were 0x%x/0x%x at #x%x\n",
+            tcr,
+            xpGPR(xp, allocbase),
+            xpGPR(xp, allocptr),
+            xpPC(xp));
+    fprintf(stderr, "TCR 0x%x, exception context = 0x%x\n",
+            tcr,
+            tcr->pending_exception_context);
+#endif
   } else {
     /* In ff-call.  No need to update cs_area */
     cur_allocptr = (void *) (tcr->save_allocptr);
-    tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
-#if 0
+#ifdef DEBUG
     fprintf(stderr, "TCR 0x%x in foreign code, vsp = 0x%lx, tsp = 0x%lx\n",
             tcr, tcr->save_vsp, tcr->save_tsp);
+    fprintf(stderr, "TCR 0x%x, save_allocbase/save_allocptr were 0x%x/0x%x at #x%x\n",
+            tcr,
+            tcr->save_allocbase,
+            tcr->save_allocptr,
+            xpPC(xp));
+
 #endif
     update_area_active((area **)&tcr->vs_area, (BytePtr) tcr->save_vsp);
     update_area_active((area **)&tcr->ts_area, (BytePtr) tcr->save_tsp);
   }
+
+
+  tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
   if (cur_allocptr) {
     update_bytes_allocated(tcr, cur_allocptr);
     if (freeptr) {
@@ -697,7 +725,7 @@ gc_from_tcr(TCR *tcr, signed_natural param)
   BytePtr oldfree, newfree;
   BytePtr oldend, newend;
 
-#if 0
+#ifdef DEBUG
   fprintf(stderr, "Start GC  in 0x%lx\n", tcr);
 #endif
   a = active_dynamic_area;
@@ -1708,8 +1736,11 @@ extern opcode
   egc_rplaca,
   egc_rplacd;
 
+
+extern opcode ffcall_return_window, ffcall_return_window_end;
+
 void
-pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
+pc_luser_xp(ExceptionInformation *xp, TCR *tcr, signed_natural *alloc_disp)
 {
   pc program_counter = xpPC(xp);
   opcode instr = *program_counter;
@@ -1717,6 +1748,8 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
   LispObj cur_allocptr = xpGPR(xp, allocptr);
   int allocptr_tag = fulltag_of(cur_allocptr);
   
+
+
   if ((program_counter < &egc_write_barrier_end) && 
       (program_counter >= &egc_write_barrier_start)) {
     LispObj *ea = 0, val, root;
@@ -1824,43 +1857,67 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr)
     signed_natural disp = allocptr_displacement(xp);
 
     if (disp) {
-      /* We're "at" the alloc_trap.  If this is happening for the
-         GC's benefit (the GC has just suspended the thread that
-         owns xp), set allocbase to VOID_ALLOCPTR and pretend that
-         allocptr was just decremented (by disp) from there; leave
-         the PC pointing to the alloc_trap.  If this is happening
-         in response to a PROCESS-INTERRUPT request, we can't have
-         entered the trap handler yet: back out of the previous
-         instruction (which subtracted "disp" from allocptr) and
-         arrange to execute it again after the interrupt.
+      /* Being architecturally "at" the alloc trap doesn't tell
+         us much (in particular, it doesn't tell us whether
+         or not the thread has committed to taking the trap
+         and is waiting for the exception lock (or waiting
+         for the Mach exception thread to tell it how bad
+         things are) or is about to execute a conditional
+         trap.
+         Regardless of which case applies, we want the
+         other thread to take (or finish taking) the
+         trap, and we don't want it to consider its
+         current allocptr to be valid.
+         The difference between this case (suspend other
+         thread for GC) and the previous case (suspend
+         current thread for interrupt) is solely a
+         matter of what happens after we leave this
+         function: some non-current thread will stay
+         suspended until the GC finishes, then take
+         (or start processing) the alloc trap.   The
+         current thread will go off and do PROCESS-INTERRUPT
+         or something, and may return from the interrupt
+         and need to finish the allocation that got interrupted.
       */
-      if (tcr) {
-#if 0
-        fprintf(stderr, "tcr 0x%x is at alloc trap, disp = %ld\n", tcr, disp);
-#endif
+
+      if (alloc_disp) {
+        *alloc_disp = disp;
+        xpGPR(xp,allocptr) += disp;
+        /* Leave the PC at the alloc trap.  When the interrupt
+           handler returns, it'll decrement allocptr by disp
+           and the trap may or may not be taken.
+        */
+      } else {
         update_bytes_allocated(tcr, (void *) ptr_from_lispobj(cur_allocptr + disp));
         xpGPR(xp, allocbase) = VOID_ALLOCPTR;
         xpGPR(xp, allocptr) = VOID_ALLOCPTR - disp;
-      } else {
-
-        xpGPR(xp, allocptr) = cur_allocptr + disp;
-        xpPC(xp) -=1;
       }
     } else {
-#if 0
-        fprintf(stderr, "tcr 0x%x is past alloc trap, finishing alloc\n", tcr);
+#ifdef DEBUG
+      fprintf(stderr, "tcr 0x%x is past alloc trap, finishing alloc at 0x%x\n", tcr, xpGPR(xp,allocptr));
 #endif
       /* If we're already past the alloc_trap, finish allocating
          the object. */
       if (allocptr_tag == fulltag_cons) {
         finish_allocating_cons(xp);
+#ifdef DEBUG
+          fprintf(stderr, "finish allocating cons in TCR = #x%x\n",
+                  tcr);
+#endif
       } else {
         if (allocptr_tag == fulltag_misc) {
+#ifdef DEBUG
+          fprintf(stderr, "finish allocating uvector in TCR = #x%x\n",
+                  tcr);
+#endif
           finish_allocating_uvector(xp);
         } else {
           Bug(xp, "what's being allocated here ?");
         }
       }
+      /* Whatever we finished allocating, reset allocptr/allocbase to
+         VOID_ALLOCPTR */
+      xpGPR(xp,allocptr) = xpGPR(xp,allocbase) = VOID_ALLOCPTR;
     }
     return;
   }
@@ -1919,11 +1976,15 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	} else {
 	  xframe_list xframe_link;
 	  int old_valence;
+          signed_natural disp=0;
 	  
-	  pc_luser_xp(context, NULL);
+	  pc_luser_xp(context, tcr, &disp);
 	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
 	  PMCL_exception_handler(signum, context, tcr, info);
+          if (disp) {
+            xpGPR(context,allocptr) -= disp;
+          }
 	  unlock_exception_lock_in_handler(tcr);
 	  exit_signal_handler(tcr, old_valence);
 	}
@@ -1961,7 +2022,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 
 
 void
-install_signal_handler(int signo, __sighandler_t handler)
+install_signal_handler(int signo, void *handler)
 {
   struct sigaction sa;
   
@@ -1996,17 +2057,17 @@ install_pmcl_exception_handlers()
     ;
   if (install_signal_handlers_for_exceptions) {
     extern int no_sigtrap;
-    install_signal_handler(SIGILL, (__sighandler_t)signal_handler);
+    install_signal_handler(SIGILL, (void *)signal_handler);
     if (no_sigtrap != 1) {
-      install_signal_handler(SIGTRAP, (__sighandler_t)signal_handler);
+      install_signal_handler(SIGTRAP, (void *)signal_handler);
     }
-    install_signal_handler(SIGBUS,  (__sighandler_t)signal_handler);
-    install_signal_handler(SIGSEGV, (__sighandler_t)signal_handler);
-    install_signal_handler(SIGFPE, (__sighandler_t)signal_handler);
+    install_signal_handler(SIGBUS,  (void *)signal_handler);
+    install_signal_handler(SIGSEGV, (void *)signal_handler);
+    install_signal_handler(SIGFPE, (void *)signal_handler);
   }
   
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
-			 (__sighandler_t)interrupt_handler);
+			 (void *)interrupt_handler);
   signal(SIGPIPE, SIG_IGN);
 }
 
@@ -2942,8 +3003,7 @@ mach_raise_thread_interrupt(TCR *target)
   thread_basic_info_data_t info; 
   mach_msg_type_number_t info_count = THREAD_BASIC_INFO_COUNT;
 
-  LOCK(lisp_global(TCR_LOCK), current);
-  LOCK(lisp_global(AREA_LOCK), current);
+  LOCK(lisp_global(TCR_AREA_LOCK), current);
   pthread_mutex_lock(mach_exception_lock);
 
   if (suspend_mach_thread(mach_thread)) {
@@ -2973,8 +3033,7 @@ mach_raise_thread_interrupt(TCR *target)
     
   }
   pthread_mutex_unlock(mach_exception_lock);
-  UNLOCK(lisp_global(AREA_LOCK), current);
-  UNLOCK(lisp_global(TCR_LOCK), current);
+  UNLOCK(lisp_global(TCR_AREA_LOCK), current);
   return 0;
 }
 
