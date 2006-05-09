@@ -1,3 +1,18 @@
+2006-05-09 00:40  gb
+
+	* level-1/l1-lisp-threads.lisp: Foreign thread callback stuff moved
+	here.
+
+2006-05-09 00:39  gb
+
+	* level-1/x86-threads-utils.lisp: Support for BOGUS-THING-P on
+	x8664.
+
+2006-05-09 00:39  gb
+
+	* level-1/ppc-threads-utils.lisp: Move foreign-thread callback
+	stuff up to l1-lisp-threads.lisp.
+
 2006-05-08 22:58  gb
 
 	* lisp-kernel/ppc-spentry.s: misc_ref/misc_set jump tables on PPC64
