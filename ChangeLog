@@ -1,3 +1,7 @@
+2006-05-09 11:48  gb
+
+	* lisp-kernel/xlbt.c: No psn in cs_area.
+
 2006-05-09 02:42  gb
 
 	* lisp-kernel/: gc.h, ppc-gc.c: Back out of the extra Boolean arg
