@@ -63,8 +63,7 @@ typedef struct area {
 				 system allocated it for us. */
   protected_area* softprot;     /* "soft" protected_area */
   protected_area* hardprot;     /* "hard" protected_area */
-  natural owner;               /* position in external_containers
-                                  linked list */
+  TCR * owner;                  /* TCR that the area belongs to, if a stack */
   natural*  refbits;            /* intergenerational references.  May
                                                or may not be the same
                                                as markbits */
