@@ -700,8 +700,13 @@
 (defun %on-tsp-stack (tcr object)
   (%ptr-in-area-p object (%fixnum-ref tcr target::tcr.ts-area)))
 
+(defun %on-csp-stack (tcr object)
+  (%ptr-in-area-p object (%fixnum-ref tcr target::tcr.cs-area)))
+
 (defparameter *aux-tsp-ranges* ())
 (defparameter *aux-vsp-ranges* ())
+(defparameter *aux-csp-ranges* ())
+
 (defun object-in-range-p (object range)
   (declare (fixnum object))
   (when range
@@ -723,6 +728,10 @@
 (defun on-any-vstack (idx)
   (or (%ptr-to-vstack-p (%current-tcr) idx)
       (object-in-some-range idx *aux-vsp-ranges*)))
+
+(defun on-any-csp-stack (object)
+  (or (%on-csp-stack (%current-tcr) object)
+      (object-in-some-range object *aux-csp-ranges*)))
 
 ;;; This MUST return either T or NIL.
 (defun temporary-cons-p (x)
@@ -1029,3 +1038,92 @@ no longer being used."
 (queue-fixup
  (add-gc-hook 'do-automatic-termination :post-gc))
 
+;;; A callback to handle foreign thread preparation, initialization,
+;;; and termination.
+;;; "preparation" involves telling the kernel to reserve space for
+;;; some initial thread-specific special bindings.  The kernel
+;;; needs to reserve this space on the foreign thread's vstack;
+;;; it needs us to tell it how much space to reserve (enough
+;;; for bindings of *current-thread*, *current-process*, and
+;;; the default initial bindings of *PACKAGE*, etc.)
+;;;
+;;; "initialization" involves making those special bindings in
+;;; the vstack space reserved by the kernel, and setting the
+;;; values of *current-thread* and *current-process* to newly
+;;; created values.
+;;;
+;;; "termination" involves removing the current thread and
+;;; current process from the global thread/process lists.
+;;; "preparation" and "initialization" happen when the foreign
+;;; thread first tries to call lisp code.  "termination" happens
+;;; via the pthread thread-local-storage cleanup mechanism.
+(defcallback %foreign-thread-control (:without-interrupts t :int param :int)
+  (declare (fixnum param))
+  (cond ((< param 0) (%foreign-thread-prepare))
+	((= param 0) (%foreign-thread-initialize) 0)
+	(t (%foreign-thread-terminate) 0)))
+
+
+
+(defun %foreign-thread-prepare ()
+  (let* ((initial-bindings (standard-initial-bindings)))
+    (%save-standard-binding-list initial-bindings)
+    (* 3 (+ 2 (length initial-bindings)))))
+
+
+(defun %foreign-thread-initialize ()
+  ;; Recover the initial-bindings alist.
+  (let* ((bsp (%saved-bindings-address))
+	 (initial-bindings (%fixnum-ref bsp )))
+    (declare (fixnum bsp))
+    ;; Um, this is a little more complicated now that we use
+    ;; thread-local shallow binding
+    (flet ((save-binding (new-value sym prev)
+             (let* ((idx (%svref sym target::symbol.binding-index-cell))
+                    (byte-idx (ash idx target::fixnum-shift))
+                    (binding-vector (%fixnum-ref (%current-tcr) target::tcr.tlb-pointer))
+                    (old-value (%fixnum-ref  binding-vector byte-idx)))
+	     (setf (%fixnum-ref binding-vector byte-idx) new-value
+                   (%fixnum-ref bsp (ash -1 target::word-shift)) old-value
+		   (%fixnum-ref bsp (ash -2 target::word-shift)) idx
+		   (%fixnum-ref bsp (ash -3 target::word-shift)) prev
+		   bsp (- bsp 3)))))
+      (save-binding nil '*current-lisp-thread* 0)
+      (save-binding nil '*current-process* bsp)
+      (dolist (pair initial-bindings)
+	(save-binding (funcall (cdr pair)) (car pair) bsp))
+      ;; These may (or may not) be the most recent special bindings.
+      ;; If they are, just set the current tcr's db-link to point
+      ;; to BSP; if not, "append" them to the end of the current
+      ;; linked list.
+      (let* ((current-db-link (%fixnum-ref (%current-tcr) target::tcr.db-link)))
+        (declare (fixnum current-db-link))
+        (if (zerop current-db-link)
+          (setf (%fixnum-ref (%current-tcr) target::tcr.db-link) bsp)
+          (do* ((binding current-db-link)
+                (next (%fixnum-ref binding 0)
+                      (%fixnum-ref binding 0)))
+               ()
+            (if (zerop next)
+              (return (setf (%fixnum-ref binding 0) bsp))
+              (setq binding next)))))
+      ;; Ensure that pending unwind-protects (for WITHOUT-INTERRUPTS
+      ;; on the callback) don't try to unwind the binding stack beyond
+      ;; where it was just set.
+      (do* ((catch (%fixnum-ref (%current-tcr) target::tcr.catch-top)
+                   (%fixnum-ref catch target::catch-frame.link)))
+           ((zerop catch))
+        (declare (fixnum catch))
+        (when (eql 0 (%fixnum-ref catch target::catch-frame.db-link))
+          (setf (%fixnum-ref catch target::catch-frame.db-link) bsp)))))
+  (let* ((thread (new-lisp-thread-from-tcr (%current-tcr) "foreign")))
+    (setq *current-lisp-thread* thread
+	  *current-process*
+	  (make-process "foreign" :thread thread))
+    (setf (%process-whostate *current-process*) "Foreign thread callback")))
+    
+;;; Remove the foreign thread's lisp-thread and lisp process from
+;;; the global lists.
+(defun %foreign-thread-terminate ()
+  (let* ((proc *current-process*))
+    (when proc (remove-from-all-processes proc))))
