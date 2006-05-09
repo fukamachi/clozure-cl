@@ -100,8 +100,70 @@
 
 
 
+(defun valid-subtag-p (subtag)
+  (declare (fixnum subtag))
+  (let* ((tagval (logand x8664::fulltagmask subtag))
+         (high4 (ash subtag (- x8664::ntagbits))))
+    (declare (fixnum tagval high4))
+    (not (eq 'bogus
+             (case tagval
+               (#.x8664::fulltag-immheader-0
+                (%svref *immheader-0-types* high4))
+               (#.x8664::fulltag-immheader-1
+                (%svref *immheader-1-types* high4))
+               (#.x8664::fulltag-immheader-2
+                (%svref *immheader-2-types* high4))
+               (#.x8664::fulltag-nodeheader-0
+                (%svref *nodeheader-0-types* high4))
+               (#.x8664::fulltag-nodeheader-1
+                (%svref *nodeheader-1-types* high4))
+               (t 'bogus))))))
 
-#+x86-target
+(defun valid-header-p (thing)
+  (let* ((fulltag (fulltag thing)))
+    (declare (fixnum fulltag))
+    (case fulltag
+      ((#.x8664::fulltag-even-fixnum
+        #.x8664::fulltag-odd-fixnum
+        #.x8664::fulltag-imm-0
+        #.x8664::fulltag-imm-1)
+       t)
+      (#.x8664::fulltag-function
+       (= x8664::subtag-function (typecode (%function-to-function-vector thing))))
+      (#.x8664::fulltag-symbol
+       (= x8664::subtag-symbol (typecode (%symptr->symvector thing))))
+      (#.x8664::fulltag-misc
+       (valid-subtag-p (typecode thing)))
+      ((#.x8664::fulltag-tra-0
+        #.x8664::fulltag-tra-1)
+       (let* ((disp (%return-address-offset thing)))
+         (or (eql 0 disp)
+             (let* ((f (%return-address-function thing)))
+               (and (typep f 'function) (valid-header-p f))))))
+      (#.x8664::fulltag-cons t)
+      (#.x8664::fulltag-nil (null thing))
+      (t nil))))
+             
+      
+                                     
+               
+
+
 (defun bogus-thing-p (x)
-  (declare (ignorable x))
-  )
+  (when x
+    (or (not (valid-header-p x))
+        (let* ((tag (lisptag x)))
+          (unless (or (eql tag x8664::tag-fixnum)
+                      (eql tag x8664::tag-imm-0)
+                      (eql tag x8664::tag-imm-1)
+                      (in-any-consing-area-p x)
+                      (temporary-cons-p x)
+                      (and (or (typep x 'function)
+                               (typep x 'gvector))
+                           (on-any-tsp-stack x))
+                      (and (eql tag x8664::tag-tra)
+                           (eql 0 (%return-address-offset x)))
+                      (and (typep x 'ivector)
+                           (on-any-csp-stack x)))
+            t)))))
+
