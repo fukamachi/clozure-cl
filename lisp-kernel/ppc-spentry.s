@@ -2177,11 +2177,11 @@ local_label(misc_ref_jmp):
          .quad local_label(misc_ref_invalid) /* 84 cons  */
          .quad local_label(misc_ref_invalid) /* 85 imm_1  */
          .quad local_label(misc_ref_invalid) /* 86 immheader_1  */
-         .quad local_label(misc_ref_invalid) /* 87 nodeheader_1  */
+         .quad local_label(misc_ref_node)    /* 87 arrayH  */ 
          .quad local_label(misc_ref_invalid) /* 88 odd_fixnum  */
          .quad local_label(misc_ref_invalid) /* 89 imm_2  */
          .quad local_label(misc_ref_invalid) /* 8a immheader_2  */
-         .quad local_label(misc_ref_invalid) /* 8b nodeheader_2  */
+         .quad local_label(misc_ref_node)    /* 8b vectorH  */
          .quad local_label(misc_ref_invalid) /* 8c misc  */
          .quad local_label(misc_ref_invalid) /* 8d imm3  */
          .quad local_label(misc_ref_invalid) /* 8e immheader_3  */
@@ -3652,11 +3652,11 @@ local_label(misc_set_jmp):
          .quad local_label(misc_set_invalid) /* 84 cons  */
          .quad local_label(misc_set_invalid) /* 85 imm_1  */
          .quad local_label(misc_set_invalid) /* 86 immheader_1  */
-         .quad local_label(misc_set_invalid) /* 87 nodeheader_1  */
+         .quad _SPgvset /* 87 arrayH  */
          .quad local_label(misc_set_invalid) /* 88 odd_fixnum  */
          .quad local_label(misc_set_invalid) /* 89 imm_2  */
          .quad local_label(misc_set_invalid) /* 8a immheader_2  */
-         .quad local_label(misc_set_invalid) /* 8b nodeheader_2  */
+         .quad _SPgvset /* 8b vectorH  */
          .quad local_label(misc_set_invalid) /* 8c misc  */
          .quad local_label(misc_set_invalid) /* 8d imm3  */
          .quad local_label(misc_set_invalid) /* 8e immheader_3  */
@@ -5595,9 +5595,13 @@ _spentry(eabi_ff_call)
         __(li allocptr,-dnode_size)
         __(li allocbase,-dnode_size)
 	__(str(imm2,tcr.valence(rcontext)))	
+        .globl C(ffcall_return_window)
+C(ffcall_return_window):                
 	__(vpop_saveregs())
 	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
 	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+        .globl C(ffcall_return_window_end)
+C(ffcall_return_window_end):                
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(mtlr loc_pc)
 	__(ldr(fn,lisp_frame.savefn(sp)))
