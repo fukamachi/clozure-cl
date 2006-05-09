@@ -420,7 +420,7 @@ Boolean
 extend_tcr_tlb(TCR *, ExceptionInformation *, unsigned, unsigned);
 
 void 
-pc_luser_xp(ExceptionInformation *, TCR *);
+pc_luser_xp(ExceptionInformation *, TCR *, signed_natural *);
 
 
 #ifdef PPC64
