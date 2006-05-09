@@ -843,7 +843,7 @@ Bug(ExceptionInformation *xp, const char *format, ...)
   va_start(args, format);
   vsnprintf(s, sizeof(s),format, args);
   va_end(args);
-  lisp_Debugger(NULL, NULL, debug_entry_bug, s);
+  lisp_Debugger(xp, NULL, debug_entry_bug, s);
 
 }
 void
