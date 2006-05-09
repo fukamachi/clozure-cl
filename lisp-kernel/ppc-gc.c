@@ -983,7 +983,7 @@ mark_memoized_area(area *a, natural num_memo_dnodes)
 
 
 void
-mark_simple_area_range(LispObj *start, LispObj *end)
+mark_simple_area_range(LispObj *start, LispObj *end, Boolean header_allowed)
 {
   LispObj x1, *base;
   int tag;
@@ -992,6 +992,9 @@ mark_simple_area_range(LispObj *start, LispObj *end)
     x1 = *start;
     tag = fulltag_of(x1);
     if (immheader_tag_p(tag)) {
+      if (! header_allowed) {
+        Bug(NULL, "Header unexpected\n");
+      }
       start = (LispObj *)ptr_from_lispobj(skip_over_ivector(ptr_to_lispobj(start), x1));
     } else if (!nodeheader_tag_p(tag)) {
       ++start;
@@ -1001,6 +1004,9 @@ mark_simple_area_range(LispObj *start, LispObj *end)
       int subtag = header_subtag(x1);
       natural element_count = header_element_count(x1);
       natural size = (element_count+1 + 1) & ~1;
+      if (! header_allowed) {
+        Bug(NULL, "Header unexpected\n");
+      }
 
       if (subtag == subtag_hash_vector) {
         LispObj flags = ((hash_table_vector_header *) start)->flags;
@@ -1056,7 +1062,7 @@ mark_tstack_area(area *a)
     next = (LispObj *) ptr_from_lispobj(*current);
     end = ((next >= start) && (next < limit)) ? next : limit;
     if (current[1] == 0) {
-      mark_simple_area_range(current+2, end);
+      mark_simple_area_range(current+2, end, true);
     }
   }
 }
@@ -1080,12 +1086,12 @@ mark_vstack_area(area *a)
 #if 0
   fprintf(stderr, "mark VSP range: 0x%lx:0x%lx\n", start, end);
 #endif
-  if ((((natural)end) - ((natural)start)) & sizeof(natural)) {
+  if (((natural)start) & (sizeof(natural))) {
     /* Odd number of words.  Mark the first (can't be a header) */
     mark_root(*start);
     ++start;
   }
-  mark_simple_area_range(start, end);
+  mark_simple_area_range(start, end, false);
 }
 
 #ifdef PPC
@@ -2072,6 +2078,9 @@ forward_vstack_area(area *a)
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
+#ifdef DEBUG
+  fprintf(stderr,"Forward range 0x%x/0x%x (owner 0x%x)\n",p,q,a->owner);
+#endif
   if (((natural)p) & sizeof(natural)) {
     update_noderef(p);
     p++;
@@ -2157,6 +2166,9 @@ forward_tcr_xframes(TCR *tcr)
     forward_xp(xp);
   }
   for (xframes = tcr->xframe; xframes; xframes = xframes->prev) {
+    if (xframes->curr == xp) {
+      Bug(NULL, "forward xframe twice ???");
+    }
     forward_xp(xframes->curr);
   }
 }
@@ -2507,6 +2519,9 @@ gc(TCR *tcr, signed_natural param)
   static_dnodes = static_dnodes_for_area(a);
   GCmarkbits = a->markbits;
   GCarealow = ptr_to_lispobj(a->low);
+#ifdef DEBUG
+  fprintf(stderr, "GC: low = #x%x, high = #x%x\n",a->low,oldfree);
+#endif
   GCareadynamiclow = GCarealow+(static_dnodes << dnode_shift);
   GCndnodes_in_area = gc_area_dnode(oldfree);
   GCndynamic_dnodes_in_area = GCndnodes_in_area-static_dnodes;
@@ -2569,7 +2584,7 @@ gc(TCR *tcr, signed_natural param)
            ignore that map and process the entire area.
            */
         if (next_area->younger == NULL) {
-          mark_simple_area_range((LispObj *) next_area->low, (LispObj *) next_area->active);
+          mark_simple_area_range((LispObj *) next_area->low, (LispObj *) next_area->active, true);
         }
         break;
 
@@ -2717,6 +2732,10 @@ gc(TCR *tcr, signed_natural param)
   }
   
   a->active = (BytePtr) ptr_from_lispobj(compact_dynamic_heap());
+#ifdef DEBUG
+  fprintf(stderr, "GC done, new active ptr = #x%x\n",a->active);
+#endif
+
   if (to) {
     tenure_to_area(to);
   }
@@ -2792,6 +2811,13 @@ gc(TCR *tcr, signed_natural param)
       }
     }
   }
+#ifdef DEBUG
+  fprintf(stderr, "Finished GC of %s\n", 
+          (note == tenured_area) ?
+          "tenured area" : 
+          ((from == g2_area) ? "generation 2" : 
+           ((from == g1_area) ? "generation 1" : "generation 0")));
+#endif
 }
 
       
