@@ -1,3 +1,16 @@
+2006-05-09 21:01  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: UNBOX-BASE-CHAR just checks
+	that the lowbyte is SUBTAG-CHARACTER; it used to rotate things
+	around to check the high bits of the char code, but all chars have
+	been base-chars for several years now ...
+	
+	UNBOX-CHARACTER was unused.
+	
+	(This is the first step of what may be several bootstrapping steps
+	to change PPC32::CHARCODE-SHIFT from 16 to 8, so that we have 24
+	easily-accessed char-code bits on PPC32.)
+
 2006-05-09 11:48  gb
 
 	* lisp-kernel/xlbt.c: No psn in cs_area.
