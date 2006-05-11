@@ -117,7 +117,8 @@
          (backend (find-backend target))
          (*target-ftd* (if backend
                          (backend-target-foreign-type-data backend)
-                         *target-ftd*)))
+                         *target-ftd*))
+         (*target-backend* (or backend *target-backend*)))
     (multiple-value-bind (xlfun warnings)
         (compile-named-function def nil
                                 nil
