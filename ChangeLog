@@ -1,3 +1,17 @@
+2006-05-10 20:20  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp,
+	compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp,
+	lisp-kernel/ppc-constants32.h, lisp-kernel/ppc-constants32.s:
+	Change CHARCODE-SHIFT constant on PPC32, so that the (currently
+	8-bit) character code is stored in the #x0000xx00 byte of a
+	CHARACTER, rather than in the #x00xx0000 byte,	This is hard to
+	bootstrap natively (which is why I was trying to make ppc64->ppc32
+	cross-compilation work.)
+	
+	Change related macros/visnsns as well.
+
 2006-05-10 19:00  gb
 
 	* xdump/xppcfasload.lisp: Reintroduce a TARGET-ARCH-CASE, but I
