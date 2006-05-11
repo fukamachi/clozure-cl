@@ -78,6 +78,10 @@
   ;;; Open the file specified by PATHNAME for output and return a
   ;;; small integer "file id" (fid).
   (defun fid-open-output (pathname)
+    (let ((dir (make-pathname :type nil :name nil :defaults pathname)))
+      (unless (probe-file dir)
+	(error "The directory ~S does not exist, cannot open/create ~S"
+	       dir pathname)))
     (let* ((id (fd-open (cdb-native-namestring pathname)
 			(logior #$O_WRONLY #$O_CREAT #$O_TRUNC))))
       (if (< id 0)
