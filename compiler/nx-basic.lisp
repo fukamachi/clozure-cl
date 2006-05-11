@@ -220,6 +220,15 @@
       (setq env (if (eq envtype 'lexical-environment) (lexenv.parent-env env))))
     (values vartype boundp decls)))
 
+(defun nx-target-type (typespec)
+  ;; Could do a lot more here
+  (if (or (eq *host-backend* *target-backend*)
+          (not (eq typespec 'fixnum)))
+    typespec
+    (target-word-size-case
+     (32 '(signed-byte 30))
+     (64 '(signed-byte 61)))))
+
 ; Type declarations affect all references.
 (defun nx-declared-type (sym &optional (env *nx-lexical-environment*))
   (loop
@@ -227,7 +236,7 @@
     (dolist (decl (lexenv.vdecls env))
       (if (and (eq (car decl) sym)
                (eq (cadr decl) 'type))
-               (return-from nx-declared-type (cddr decl))))
+               (return-from nx-declared-type (nx-target-type (cddr decl)))))
     (let ((vars (lexenv.variables env)))
       (when (and (consp vars) 
                  (dolist (var vars) 
