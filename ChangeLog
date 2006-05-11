@@ -1,3 +1,30 @@
+2006-05-11 05:14  gb
+
+	* level-1/version.lisp, lisp-kernel/image.h, xdump/heap-image.lisp:
+	Bump lisp-implementation-version, image-abi-version.
+
+2006-05-11 05:04  gb
+
+	* xdump/faslenv.lisp: Bump (min) fasl version.
+
+2006-05-11 04:52  gb
+
+	* lib/nfcomp.lisp: Bump (current) FASL version.
+
+2006-05-11 04:52  gb
+
+	* level-1/l1-files.lisp: FASL-FILE-P looks for inital #xFF00
+	(big-endian) instead of just #xff, to avoid UTF-16 BOM confusion.
+
+2006-05-11 04:35  gb
+
+	* xdump/faslenv.lisp: Bump (max) fasl version.
+
+2006-05-11 04:32  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Little-endianness is a
+	target-specific feature.
+
 2006-05-11 03:35  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp,
