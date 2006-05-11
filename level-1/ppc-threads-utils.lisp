@@ -170,6 +170,7 @@
 #+ppc32-target
 (defun bogus-thing-p (x)
   (when x
+    #+cross-compiling (return-from bogus-thing-p nil)
     (or (not (valid-header-p x))
         (let ((tag (lisptag x)))
           (unless (or (eql tag ppc32::tag-fixnum)
