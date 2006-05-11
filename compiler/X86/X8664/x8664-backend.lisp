@@ -151,7 +151,8 @@
 		:target-specific-features
 		'(:x8664 :x86-target :linux-target :linuxx86-target :x8664-target
                   :linuxx8664-target
-                  :little-endian-target)
+                  :little-endian-target
+                  :64-bit-target)
 		:target-fasl-pathname (make-pathname :type "lx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-linux
@@ -178,7 +179,8 @@
 		:p2-compile 'x862-compile
 		:target-specific-features
 		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
-                  :little-endian-target)
+                  :little-endian-target
+                  :64-bit-target)
 		:target-fasl-pathname (make-pathname :type "d64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-darwin
