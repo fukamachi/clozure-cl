@@ -23,6 +23,7 @@
                (not (typep form typespec))
                (progn (nx1-whine :type call) t)))
     (setq typespec t))
+  (setq typespec (nx-target-type typespec))
   (let* ((*nx-form-type* typespec)
          (transformed (nx-transform form env)))
     (if (and (consp transformed)
