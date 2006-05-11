@@ -1,3 +1,19 @@
+2006-05-11 03:35  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp, level-0/l0-array.lisp,
+	level-0/l0-pred.lisp, level-0/PPC/ppc-array.lisp,
+	level-1/l1-aprims.lisp, level-1/l1-clos-boot.lisp,
+	lisp-kernel/ppc-constants32.h, lisp-kernel/ppc-constants32.s,
+	lisp-kernel/ppc-spentry.s, xdump/xppcfasload.lisp: Juggle PPC32
+	typecodes around: get rid of the (unused) old 16-bit string; add an
+	(as yet unused) UCS-4 string type.
+	
+	These changes generally involve cross-compilation (or some very
+	tricky bootstrapping that I didn't attempt)  FASL versions and
+	kernel ABI versions will need to change, and new binaries will be
+	made available soon.
+
 2006-05-10 20:20  gb
 
 	* compiler/PPC/ppc-lapmacros.lisp,
