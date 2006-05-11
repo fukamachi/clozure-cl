@@ -1,3 +1,10 @@
+2006-05-11 08:11  gwking
+
+	* lib/db-io.lisp: Added a check that the directory exists to
+	fid-open-output in order to make it clearer what is wrong when one
+	is unable to rebuild interface files because they are trying to do
+	so in a place without FFI files to read!
+
 2006-05-11 05:14  gb
 
 	* level-1/version.lisp, lisp-kernel/image.h, xdump/heap-image.lisp:
