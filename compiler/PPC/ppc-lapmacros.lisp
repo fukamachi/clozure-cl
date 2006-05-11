@@ -535,8 +535,8 @@
     (let ((label (gensym)))
       (target-arch-case
        (:ppc32 `(progn
-                 (rlwinm ,dest ,src 8 16 31)
-                 (cmpwi ,crf ,dest (ash ppc32::subtag-character 8))
+                 (clrlwi ,dest ,src (- ppc32::nbits-in-word ppc32::charcode-shift))
+                 (cmpwi ,crf ,dest ppc32::subtag-character)
                  (srwi ,dest ,src ppc32::charcode-shift)
                  (beq+ ,crf ,label)
                  (uuo_interr arch::error-object-not-base-char ,src)
@@ -552,10 +552,6 @@
 
 
 
-(defppclapmacro box-character (dest src)
-  `(progn
-     (li ,dest ppc32::subtag-character)
-     (rlwimi ,dest ,src 16 0 15)))
 
 (defppclapmacro ref-global (reg sym)
   (target-arch-case

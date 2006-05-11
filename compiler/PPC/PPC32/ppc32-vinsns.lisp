@@ -2292,10 +2292,7 @@
   (lfs target ppc32::single-float.value source))
 
 ;;; ... of characters ...
-(define-ppc32-vinsn charcode->u16 (((dest :u16))
-                                   ((src :imm))
-                                   ())
-  (srwi dest src ppc32::charcode-shift))
+
 
 (define-ppc32-vinsn character->fixnum (((dest :lisp))
                                        ((src :lisp))
@@ -2303,32 +2300,24 @@
   (rlwinm dest
           src
           (- ppc32::nbits-in-word (- ppc32::charcode-shift ppc32::fixnumshift))
-          (- ppc32::nbits-in-word (+ ppc32::charcode-shift ppc32::fixnumshift)) 
+          (- ppc32::nbits-in-word (+ ppc32::ncharcodebits ppc32::fixnumshift)) 
           (- ppc32::least-significant-bit ppc32::fixnumshift)))
 
 (define-ppc32-vinsn character->code (((dest :u32))
                                      ((src :lisp)))
-  (rlwinm dest src ppc32::charcode-shift ppc32::charcode-shift ppc32::least-significant-bit))
+  (srwi dest src ppc32::charcode-shift))
 
-(define-ppc32-vinsn charcode->fixnum (((dest :lisp))
-                                      ((src :imm))
-                                      ())
-  (rlwinm dest 
-          src 
-          (+ ppc32::charcode-shift ppc32::fixnumshift)  
-          (- ppc32::nbits-in-word (+ ppc32::charcode-shift ppc32::fixnumshift))  
-          (- ppc32::least-significant-bit ppc32::fixnumshift)))
 
 (define-ppc32-vinsn fixnum->char (((dest :lisp))
                                   ((src :imm))
                                   ())
-  (rlwinm dest src (- ppc32::charcode-shift ppc32::fixnumshift) 8 (1- ppc32::charcode-shift))
+  (slwi dest src (- ppc32::charcode-shift ppc32::fixnumshift))
   (addi dest dest ppc32::subtag-character))
 
 (define-ppc32-vinsn u8->char (((dest :lisp))
                               ((src :u8))
                               ())
-  (rlwinm dest src ppc32::charcode-shift 8 (1- ppc32::charcode-shift))
+  (slwi dest src ppc32::charcode-shift)
   (addi dest dest ppc32::subtag-character))
 
 ;; ... Macptrs ...
@@ -2700,7 +2689,7 @@
 ;;; should be EXACTLY = to subtag-base-char
 (define-ppc32-vinsn mask-base-char (((dest :u32))
                                     ((src :imm)))
-  (rlwinm dest src 0 (1+ (- ppc32::least-significant-bit ppc32::charcode-shift)) (1- (- ppc32::nbits-in-word (+ ppc32::charcode-shift 8)))))
+  (clrlwi dest src (- ppc32::nbits-in-word ppc32::charcode-shift)))
 
 ;;; Set dest (of type :s32!) to 0 iff VAL is an istruct of type TYPE
 (define-ppc32-vinsn istruct-typep (((dest :s32))
@@ -3215,7 +3204,7 @@
   (srwi imm idx ppc32::fixnumshift)
   (addi imm imm ppc32::misc-data-offset)
   (lbzx imm str imm)
-  (rlwinm imm imm ppc32::charcode-shift 8 (1- ppc32::charcode-shift))
+  (slwi imm imm ppc32::charcode-shift)
   (addi char imm ppc32::subtag-character))
 
 (define-ppc32-vinsn %set-schar (()
@@ -3336,8 +3325,7 @@
 
 (define-ppc32-vinsn load-character-constant (((dest :lisp))
                                              ((code :u8const)))
-  (lis dest code)
-  (ori dest dest ppc32::subtag-character))
+  (ori dest ppc::rzero (:apply logior (:apply ash code ppc32::charcode-shift) ppc32::subtag-character)))
 
 (define-ppc32-vinsn %symbol->symptr (((dest :lisp))
                                      ((src :lisp))

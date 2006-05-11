@@ -75,7 +75,7 @@
 (defconstant fixnummask (1- (ash 1 nfixnumtagbits)))
 (defconstant fixnum-mask fixnummask)
 (defconstant subtag-mask (1- (ash 1 num-subtag-bits)))
-(defconstant ncharcodebits 16)
+(defconstant ncharcodebits 24)          ; only the low 8 bits are used, currently
 (defconstant charcode-shift (- nbits-in-word ncharcodebits))
 (defconstant word-shift 2)
 (defconstant word-size-in-bytes 4)
