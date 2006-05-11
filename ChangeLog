@@ -1,3 +1,37 @@
+2006-05-10 19:00  gb
+
+	* xdump/xppcfasload.lisp: Reintroduce a TARGET-ARCH-CASE, but I
+	think that this is just hard to do right the way that it's being
+	done.
+
+2006-05-10 18:59  gb
+
+	* level-1/ppc-threads-utils.lisp: BOGUS-THING-P is hard to do right
+	when cross-compiling (because word-size differences aren't handled
+	correctly by macros.)  Until the macros are fixed, don't even try
+	...
+
+2006-05-10 18:58  gb
+
+	* level-1/l1-clos-boot.lisp: In NEW-CLASS-WRAPPER-HASH-INDEX, user
+	target::target-most-positive-fixnum (not the host's
+	MOST-POSITIVE-FIXNUM).
+
+2006-05-10 18:57  gb
+
+	* compiler/: nx0.lisp, nx1.lisp: Use NX-TARGET-TYPE in at least a
+	few places.
+
+2006-05-10 18:56  gb
+
+	* compiler/nx.lisp: XCOMPILE-LAMBDA binds *TARGET-BACKEND*.
+
+2006-05-10 18:55  gb
+
+	* compiler/nx-basic.lisp: NX-TARGET-TYPE: there may be other
+	differences between host and target types, but try to turn
+	references to FIXNUM to the appropriate target-specific type.
+
 2006-05-09 21:01  gb
 
 	* compiler/PPC/PPC32/ppc32-vinsns.lisp: UNBOX-BASE-CHAR just checks
