@@ -499,10 +499,11 @@ terminate the list"
     #(single-float 
       (unsigned-byte 32)
       (signed-byte 32)
+      fixnum
+      base-char                         ;ucs4
       (unsigned-byte 8)
       (signed-byte 8)
       base-char
-      *unused*
       (unsigned-byte 16)
       (signed-byte 16)
       double-float

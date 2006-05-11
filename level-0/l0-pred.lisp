@@ -407,10 +407,10 @@
     internal-structure                  ; 16
     value-cell                          ; 17
     xfunction                           ; 18
-    bogus                               ; 19
-    array-header                        ; 20
-    vector-header                       ; 21
-    simple-vector                       ; 22
+    array-header                        ; 19
+    vector-header                       ; 20
+    simple-vector                       ; 21
+    bogus                               ; 22
     bogus                               ; 23
     bogus                               ; 24
     bogus                               ; 25
@@ -431,7 +431,7 @@
     dead-macptr                         ; 4
     code-vector                         ; 5
     creole-object                       ; 6
-    ;; 8-20 are unused
+    ;; 8-19 are unused
     xcode-vector                        ; 7
     bogus                               ; 8
     bogus                               ; 9
@@ -445,14 +445,14 @@
     bogus                               ; 17
     bogus                               ; 18
     bogus                               ; 19
-    bogus                               ; 20
-    simple-short-float-vector           ; 21
-    simple-unsigned-long-vector         ; 22
-    simple-signed-long-vector           ; 23
-    simple-unsigned-byte-vector         ; 24
-    simple-signed-byte-vector           ; 25
-    simple-base-string                  ; 26
-    bogus                               ; 27
+    simple-short-float-vector           ; 20
+    simple-unsigned-long-vector         ; 21
+    simple-signed-long-vector           ; 22
+    simple-fixnum-vector                ; 24
+    new-simple-string                   ; 24
+    simple-unsigned-byte-vector         ; 25
+    simple-signed-byte-vector           ; 26
+    simple-base-string                  ; 27
     simple-unsigned-word-vector         ; 28
     simple-signed-word-vector           ; 29
     simple-double-float-vector          ; 30

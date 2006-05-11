@@ -58,10 +58,11 @@
   '#(short-float
      (unsigned-byte 32)
      (signed-byte 32)
+     fixnum
+     character
      (unsigned-byte 8)
      (signed-byte 8)
      character
-     unused
      (unsigned-byte 16)
      (signed-byte 16)
      double-float

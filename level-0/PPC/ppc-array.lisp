@@ -137,7 +137,6 @@
   (la imm3 1 imm3)
   (srwi imm3 imm3 1)
   (beq cr3 @s16)                        ; ppc32::max-16-bit-ivector-subtag
-  (bne cr0 @char16)
   (extract-unsigned-byte-bits. imm0 val 16)
   (unbox-fixnum imm0 val)
   (beq+ cr0 @set-16)
@@ -148,12 +147,6 @@
   (cmpw cr0 imm0 val)
   (unbox-fixnum imm0 val)
   (bne- cr7 @bad)
-  (beq+ cr0 @set-16)
-  (b @bad)
-  @char16
-  (clrlwi imm0 val 24)
-  (cmpwi cr0 imm0 ppc32::subtag-character)
-  (srwi imm0 val ppc32::charcode-shift)
   (beq+ cr0 @set-16)
   (b @bad)
   @8

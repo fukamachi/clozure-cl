@@ -77,7 +77,6 @@
                 (mapcar #'xload-ppc-lap-word code))))
 
 
-#+ppc32-target
 (defun ppc32-initialize-static-space ()
   (xload-make-word-ivector ppc32::subtag-u32-vector 1027 *xload-static-space*)
   ;; Make NIL.  Note that NIL is sort of a misaligned cons (it
@@ -85,7 +84,6 @@
   (xload-make-cons *xload-target-nil* 0 *xload-static-space*)
   (xload-make-cons 0 *xload-target-nil* *xload-static-space*))
 
-#+ppc64-target
 (defun ppc64-initialize-static-space ()
   (xload-make-ivector *xload-static-space*
                       (xload-target-subtype :unsigned-64-bit-vector) 

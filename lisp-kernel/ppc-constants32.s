@@ -176,28 +176,25 @@ max_numeric_subtag = subtag_complex
 	define_imm_subtag(double_float_vector,30)
 	define_imm_subtag(s16_vector,29)
 	define_imm_subtag(u16_vector,28)
-	define_imm_subtag(simple_general_string,27)
-min_16_bit_ivector_subtag = subtag_simple_general_string
+min_16_bit_ivector_subtag = subtag_u16_vector
 max_16_bit_ivector_subtag = subtag_s16_vector
-max_string_subtag = subtag_simple_general_string
-
-	define_imm_subtag(simple_base_string,26)
-	define_imm_subtag(s8_vector,25)
-	define_imm_subtag(u8_vector,24)
+	define_imm_subtag(simple_base_string,27)
+	define_imm_subtag(s8_vector,26)
+	define_imm_subtag(u8_vector,25)
 min_8_bit_ivector_subtag = subtag_u8_vector
 max_8_bit_ivector_subtag = subtag_simple_base_string
-min_string_subtag = subtag_simple_base_string
-
-	define_imm_subtag(s32_vector,23)
-	define_imm_subtag(u32_vector,22)
-	define_imm_subtag(single_float_vector,21)
-max_32_bit_ivector_subtag = subtag_s32_vector
+        define_imm_subtag(new_string,24)
+        define_imm_subtag(fixnum_vector,23)
+	define_imm_subtag(s32_vector,22)
+	define_imm_subtag(u32_vector,21)
+	define_imm_subtag(single_float_vector,20)
+max_32_bit_ivector_subtag = subtag_new_string
 min_cl_ivector_subtag = subtag_single_float_vector
 
 
-	define_node_subtag(vectorH,21)
-	define_node_subtag(arrayH,20)
-	define_node_subtag(simple_vector,22)
+	define_node_subtag(vectorH,20)
+	define_node_subtag(arrayH,19)
+	define_node_subtag(simple_vector,21)
 min_vector_subtag = subtag_vectorH
 min_array_subtag = subtag_arrayH
 
@@ -211,7 +208,7 @@ min_non_numeric_imm_subtag = subtag_macptr
 	define_imm_subtag(code_vector,5)
 	define_imm_subtag(creole,6)
 
-max_non_array_imm_subtag = (19<<ntagbits)|fulltag_immheader
+max_non_array_imm_subtag = (18<<ntagbits)|fulltag_immheader
 
 	define_node_subtag(catch_frame,4)
 	define_node_subtag(function,5)
@@ -228,7 +225,7 @@ max_non_array_imm_subtag = (19<<ntagbits)|fulltag_immheader
 	define_node_subtag(istruct,16)
 	define_node_subtag(value_cell,17)
         define_node_subtag(xfunction,18)
-max_non_array_node_subtag = (19<<ntagbits)|fulltag_immheader
+max_non_array_node_subtag = (18<<ntagbits)|fulltag_immheader
 	
 /* The objects themselves look something like this: */
 	_structf(ratio)

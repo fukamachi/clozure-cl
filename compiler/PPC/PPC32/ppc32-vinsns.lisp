@@ -771,9 +771,7 @@
   (bne crf :no-got)
   (lbz tag ppc32::misc-subtag-offset object)
   (cmpwi crf tag ppc32::subtag-simple-base-string)
-  (cmpwi crf2 tag ppc32::subtag-simple-general-string)
   (beq+ crf :got-it)
-  (beq+ crf2 :got-it)
   :no-got
   (uuo_intcerr arch::error-object-not-simple-string object)
   (b :again)

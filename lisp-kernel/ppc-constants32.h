@@ -139,28 +139,27 @@ typedef struct cons {
 #define subtag_double_float_vector IMM_SUBTAG(30)
 #define subtag_s16_vector IMM_SUBTAG(29)
 #define subtag_u16_vector IMM_SUBTAG(28)
-#define subtag_simple_general_string IMM_SUBTAG(27)
-#define min_16_bit_ivector_subtag subtag_simple_general_string
+#define min_16_bit_ivector_subtag subtag_u16_vector
 #define max_16_bit_ivector_subtag subtag_s16_vector
-#define max_string_subtag subtag_simple_general_string
 
-#define subtag_simple_base_string IMM_SUBTAG(26)
-#define subtag_s8_vector IMM_SUBTAG(25)
-#define subtag_u8_vector IMM_SUBTAG(24)
+#define subtag_simple_base_string IMM_SUBTAG(27)
+#define subtag_s8_vector IMM_SUBTAG(26)
+#define subtag_u8_vector IMM_SUBTAG(25)
 #define min_8_bit_ivector_subtag subtag_u8_vector
 #define max_8_bit_ivector_subtag subtag_simple_base_string
-#define min_string_subtag subtag_simple_base_string
 
-#define subtag_s32_vector IMM_SUBTAG(23)
-#define subtag_u32_vector IMM_SUBTAG(22)
-#define subtag_single_float_vector IMM_SUBTAG(21)
-#define max_32_bit_ivector_subtag subtag_s32_vector
+#define subtag_new_string IMM_SUBTAG(24)
+#define subtag_fixnum_vector IMM_SUBTAG(23)
+#define subtag_s32_vector IMM_SUBTAG(22)
+#define subtag_u32_vector IMM_SUBTAG(21)
+#define subtag_single_float_vector IMM_SUBTAG(20)
+#define max_32_bit_ivector_subtag subtag_new_string
 #define min_cl_ivector_subtag subtag_single_float_vector
 
 
-#define subtag_vectorH NODE_SUBTAG(21)
-#define subtag_arrayH NODE_SUBTAG(20)
-#define subtag_simple_vector NODE_SUBTAG(22)	/*  Only one such subtag) */
+#define subtag_vectorH NODE_SUBTAG(20)
+#define subtag_arrayH NODE_SUBTAG(19)
+#define subtag_simple_vector NODE_SUBTAG(21)	/*  Only one such subtag) */
 #define min_vector_subtag subtag_vectorH
 #define min_array_subtag subtag_arrayH
 
