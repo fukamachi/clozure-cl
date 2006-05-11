@@ -1181,9 +1181,10 @@ a host-structure or string."
           (with-open-file (f pathname
                              :direction :input
                              :element-type '(unsigned-byte 8))
-            ;; Assume that (potential) FASL files start with #xFF,
+            ;; Assume that (potential) FASL files start with #xFF00 (big-endian),
             ;; and that source files don't.
-            (eql (read-byte f nil nil) #xff))))))
+            (and (eql (read-byte f nil nil) #xff)
+                 (eql (read-byte f nil nil) #x00)))))))
 
 (defun provide (module)
   "Adds a new module name to *MODULES* indicating that it has been loaded.
