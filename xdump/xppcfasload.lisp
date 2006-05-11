@@ -30,7 +30,10 @@
                          `(lambda (&lap 0)
                            (ppc-lap-function () ((?? 0))
                             ,instruction-form)))
-                  0) #+ppc32-target 0 #+ppc64-target 1))
+                  0)
+         (target-arch-case
+          (:ppc32 0)
+          (:ppc64 1))))
 
 (defparameter *ppc-macro-apply-code*
   (let* ((code '((mflr loc-pc)
