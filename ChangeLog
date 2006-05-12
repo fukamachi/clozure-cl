@@ -1,3 +1,27 @@
+2006-05-11 18:42  gb
+
+	* level-1/l1-application.lisp: Stop processing command-line
+	arguments when "--" is encountered; anything after that "--" is
+	retained in CCL:*UNPROCESSED-COMMAND-LINE-ARGUMENTS*.
+
+2006-05-11 18:42  gb
+
+	* lib/ccl-export-syms.lisp: Export command-line stuff
+
+2006-05-11 18:40  gb
+
+	* level-1/l1-processes.lisp: Lennart Staflin's fix to PRINT-OBJECT
+	method for LOCKs.
+
+2006-05-11 18:39  gb
+
+	* level-1/l1-files.lisp: In %DIFECTORY-LIST-NAMESTRING: all strings
+	are base-strings (and always have been in OpenMCL.)
+
+2006-05-11 18:37  gb
+
+	* level-1/l1-sockets.lisp: CCL:BASE-CHARACTER -> CL:BASE-CHAR.
+
 2006-05-11 08:11  gwking
 
 	* lib/db-io.lisp: Added a check that the directory exists to
