@@ -105,7 +105,11 @@
      untyi
      compiled-lexical-closure		; the type name
      lsh
-     
+
+     ;; Arguments, image name, etc.
+     *command-line-argument-list*
+     *unprocessd-command-line-arguments*
+     *heap-image-name*
 
 					; The MOP
      accessor-method-slot-definition
