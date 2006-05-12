@@ -303,7 +303,7 @@
   (if (null list)
     ""
     (let ((len (if (eq (car list) (if logical-p :relative :absolute)) 1 0))
-          (type 'base-character)
+
           result)
       (declare (fixnum len)(optimize (speed 3)(safety 0)))
       (dolist (s (%cdr list))
@@ -313,13 +313,9 @@
           (:up (setq len (+ len 3)))
           (t ;This assumes that special chars in dir components are escaped,
 	     ;otherwise would have to pre-scan for escapes here.
-	   (setq len (+ len 1 (length s)))
-	   (when (extended-string-p s) (setq type 'extended-character)))))
+	   (setq len (+ len 1 (length s))))))
       (setq result
-	    ;; Avoid an out-of-line make-string call during bootstrapping
-	    (if (eq type 'base-character)
-	      (make-string len :element-type 'base-character)
-	      (make-string len :element-type type)))
+	    (make-string len))
       (let ((i 0)
             (sep (if logical-p #\; #\/)))
         (declare (fixnum i))
