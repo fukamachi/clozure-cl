@@ -389,7 +389,7 @@ a given process."
     (let* ((val (uvref s target::lock._value-cell))
 	   (name (uvref s target::lock.name-cell)))
       (when name
-	(format t "~s " name))
+	(format stream "~s " name))
       (if (typep val 'macptr)
         (format stream "[ptr @ #x~x]"
                 (%ptr-to-int val))))))
