@@ -830,7 +830,7 @@ a packet to arrive. Returns four values:
 	  (setq vec (make-array ret-size
 				:element-type
 				(ecase (socket-format socket)
-				  ((:text) 'base-character)
+				  ((:text) 'base-char)
 				  ((:binary :bivalent) '(unsigned-byte 8))))
 		vec-offset 0))
 	(%copy-ptr-to-ivector bufptr 0 vec vec-offset ret-size))
