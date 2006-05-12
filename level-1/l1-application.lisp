@@ -65,15 +65,18 @@
 	     :address other-args
 	     :void)))
 
-;;; Returns three values: error-flag, options-alist, non-option-arguments
+(defloadvar *unprocessed-command-line-arguments* ())
+
+;;; Returns four values: error-flag, options-alist, non-option-arguments, unprocessed arguments
 (defmethod parse-application-arguments ((a application))
   (let* ((cla (slot-value a 'command-line-arguments))
 	 (vals (cdr *command-line-argument-list*))
 	 (options ())
-	 (non-options ()))
+	 (non-options ())
+         (rest-arg nil))
     (do* ()
 	 ((null vals)
-	  (values nil (nreverse options) (nreverse non-options)))
+	  (values nil (nreverse options) (nreverse non-options) rest-arg))
       (let* ((val (pop vals))
 	     (val-len (length val))
 	     (short-p nil)
@@ -91,7 +94,11 @@
 	(if (null option)
 	  (if (and (>= val-len 1)
 		   (eql (schar val 0) #\-))
-	    (return (values :unknown-option val nil))
+            (if (and (= val-len 2)
+                     (eql (schar val 1) #\-))
+              (setq rest-arg vals
+                    vals nil)
+              (return (values :unknown-option val nil nil)))
 	    (push val non-options))	;non-option argument
 	  ;; We recognized the option.  Is it a duplicate of
 	  ;; something already seen?
@@ -146,8 +153,9 @@
 ;;; an example method to base a specialization on
 (defmethod toplevel-function ((a application) init-file)
   (declare (ignore init-file))
-  (multiple-value-bind (error-flag options args)
+  (multiple-value-bind (error-flag options args rest-arg)
       (parse-application-arguments a)
+    (setq *unprocessed-command-line-arguments* rest-arg)
     (process-application-arguments a error-flag options args)))
 
 (defmethod application-version-string ((a application))
