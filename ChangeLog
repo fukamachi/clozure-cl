@@ -1,3 +1,7 @@
+2006-05-12 20:40  gwking
+
+	* examples/addressbook.lisp: added examples/addressbook.lisp
+
 2006-05-11 18:42  gb
 
 	* level-1/l1-application.lisp: Stop processing command-line
