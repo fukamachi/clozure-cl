@@ -543,7 +543,7 @@
       (if (and (nx-form-typep num1 'short-float env)
                (nx-form-typep num2 'short-float env))
         (nx1-form `(%short-float*-2 ,num1 ,num2))
-        (nx1-treat-as-call whole)))))
+        (make-acode (%nx1-operator mul2) (nx1-form num1 env) (nx1-form num2 env))))))
 
 (defnx1 nx1-%negate ((%negate)) (&whole whole num &environment env)
   (if (nx-form-typep num 'fixnum env)
@@ -575,8 +575,10 @@
 	(if (nx-binary-natural-op-p num0 num1 env nil)
 	  (make-acode (%nx1-operator %natural-)
 		      (nx1-form num0)
-		      (nx1-form num1))		 
-	  (nx1-treat-as-call whole))))))
+		      (nx1-form num1))
+          (make-acode (%nx1-operator sub2)
+                      (nx1-form num0)
+                      (nx1-form num1)))))))
       
 (defnx1 nx1-/-2 ((/-2)) (num0 num1 &environment env)
   (if (and (nx-form-typep num0 'double-float env)
@@ -793,7 +795,7 @@
 		    (nx1-form (if (typep dim1 'fixnum) dim1))))
 	(nx1-treat-as-call whole))))
 
-(defun nx1-1d-vset (arr newval dim0 env &optional uvset-p)
+(defun nx1-1d-vset (arr newval dim0 env)
   (let* ((simple-vector-p (nx-form-typep arr 'simple-vector env))
          (string-p (unless simple-vector-p 
                      (if (nx-form-typep arr 'string env)
@@ -815,7 +817,6 @@
              (let* ((op (cond (simple-1d-array-p (%nx1-operator uvset))
                               (string-p (%nx1-operator %set-sbchar))
                               (simple-vector-p (if (nx-inhibit-safety-checking env) (%nx1-operator %svset) (%nx1-operator svset)))
-			      (uvset-p (%nx1-operator uvset))
                               (t (%nx1-operator aset1)))))
                (if op
                    (make-acode

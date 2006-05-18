@@ -401,12 +401,7 @@ function to the indicated name is true.")
   (if (acode-p form)
     (let* ((op (acode-operator form))
            (opval-p (or (eq op (%nx1-operator fixnum)) (eq op (%nx1-operator immediate))))
-           (optype (and trust-decls
-                        (if (eq op (%nx1-operator typed-form)) 
-                          (nx-target-type (%cadr form))
-                          (if (eq op (%nx1-operator lexical-reference))
-                            (var-inittype (%cadr form))
-                            (nx-target-type (cdr (assq op *nx-operator-result-types*))))))))
+           (optype (acode-form-type form trust-decls)))
       (values
        (if optype 
          (subtypep optype type)
@@ -414,6 +409,12 @@ function to the indicated name is true.")
 
 (defun nx-acode-form-type (form env)
   (acode-form-type form (nx-trust-declarations env)))
+
+(defparameter *numeric-acode-ops*
+  (list (%nx1-operator add2)
+        (%nx1-operator sub2)
+        (%nx1-operator mul2)))
+
 
 (defun acode-form-type (form trust-decls)
   (if (acode-p form)
@@ -425,7 +426,25 @@ function to the indicated name is true.")
           (and trust-decls
                (if (eq op (%nx1-operator typed-form))
                  (%cadr form)
-                 (cdr (assq op *nx-operator-result-types*)))))))))
+                 (if (eq op (%nx1-operator lexical-reference))
+                   (let* ((var (cadr form))
+                           (punted (logbitp $vbitpunted (nx-var-bits var))))
+                     (if punted
+                       (var-inittype var)))
+                   (if (eq op (%nx1-operator %aref1))
+                     (let* ((atype (acode-form-type (cadr form) t))
+                            (actype (if atype (specifier-type atype))))
+                       (if actype
+                         (type-specifier (array-ctype-specialized-element-type
+                                          actype))))
+                     (if (member op *numeric-acode-ops*)
+                       (if (every #'(lambda (x) (acode-form-typep x 'float t))
+                                  (cdr form))
+                         (if (some #'(lambda (x) (acode-form-typep x 'doublefloat t))
+                                   (cdr form))
+                           'double-float
+                           'single-float))
+                       (cdr (assq op *nx-operator-result-types*))))))))))))
 
 (defun acode-punted-var-p (var)
   (let ((bits (nx-var-bits var)))
@@ -2050,6 +2069,15 @@ Or something. Right? ~s ~s" var varbits))
                            (grovel-numeric-form form env))
                       (and (memq (car form) *logical-ops*)
                            (grovel-logical-form form env))
+                      ;; Sort of the right idea, but this should be done
+                      ;; in a more general way.
+                      (when (or (eq (car form) 'aref)
+                                (eq (car form) 'uvref))
+                        (let* ((atype (nx-form-type (cadr form) env))
+                               (a-ctype (specifier-type atype)))
+                          (when (array-ctype-p a-ctype)
+                            (type-specifier (array-ctype-specialized-element-type
+                                             a-ctype)))))
                       t))))
             t))
         t))))
@@ -2065,45 +2093,20 @@ Or something. Right? ~s ~s" var varbits))
              (or (not not-complex)
                  (neq (numeric-ctype-complexp ctype) :complex))))))
 
-
-; doesn't do ranges so good 
-; this is an adhoc piece of junk that deals with the following cases
-; 1) if numeric op of known fixnums and result is known fixnum, just do it for any number args
-; 2) if numeric op and any arg is known double-float, result is double-float
-;      unless any arg is complex or not known numeric
-; dealing specially with / - only know result if something known double-float
-; then there's e.g. progn whose last form is known type......
-
 (defun grovel-numeric-form (form env)
-  (when (nx-trust-declarations env)
-    (let ((op (car form))
-          type)
-      (dolist (arg (cdr form))
-        (let ((it (nx-form-type arg env)))
-          (if (or (eq it 'complex)(not (numeric-type-p it t)))
-            (return (setq type nil))
-            (if (or (eq it 'double-float)(eq type 'double-float))
-              (setq type 'double-float)
-              (if type
-                (if (subtypep it type)
-                  (setq type type)
-                  (if (subtypep type it)
-                    (setq type it)
-                    (return (setq type nil))))
-                (setq type it))))))
-      (when type 
-        (if (memq op '(/ /-2))
-          (if (eq type 'double-float) type nil)
-          ;  + of fixnum and fixnum not always fixnum
-          (if (subtypep type 'fixnum)
-            (if (and (memq op '(+ - +-2 --2))
-                     (subtypep type '(signed-byte 28))(< (length form) 5)) ; or 29? - but form not always binary
-              'fixnum
-              (if (eq *nx-form-type* 'fixnum) (nx-target-type 'fixnum) 'integer))
-            (if (memq type '(integer double-float)) type)))))))
+  (let* ((op (car form))
+         (args (cdr form)))
+    (if (every #'(lambda (x) (nx-form-typep x 'float env)) args)
+      (if (some #'(lambda (x) (nx-form-typep x 'double-float env)) args)
+        'double-float
+        'single-float)
+      (if (every #'(lambda (x) (nx-form-typep x 'integer env)) args)
+        (if (or (eq op '/) (eq op '/-2))
+          t
+          'integer)))))
 
-; now e.g. logxor of 3 known fixnums is inline as is (logior a (logxor b c))
-; and (the fixnum (+ a (logxor b c)))
+;; now e.g. logxor of 3 known fixnums is inline as is (logior a (logxor b c))
+;; and (the fixnum (+ a (logxor b c)))
 
 (defun grovel-logical-form (form env)
   (when (nx-trust-declarations env)
