@@ -1834,6 +1834,8 @@
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
   (movsd (:%xmm f) (:@ 8 (:%q x8664::ra0))))
 
+
+
 (define-x8664-vinsn (temp-push-single-float :push :word :csp)
     (()
      ((f :single-float)))
@@ -1842,6 +1844,18 @@
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
   (movss (:%xmm f) (:@ 8 (:%q x8664::ra0))))
+
+(define-x8664-vinsn (vpush-single-float :push :word :vsp)
+    (()
+     ((f :single-float)))
+  (pushq (:$b x8664::tag-single-float))
+  (movss (:%xmm f) (:@ (:%q x8664::rsp))))
+
+(define-x8664-vinsn (vpop-single-float :pop :word :vsp)
+    (()
+     ((f :single-float)))
+  (movss (:@ (:%q x8664::rsp)) (:%xmm f))
+  (addq (:$b x8664::node-size) (:%q x8664::rsp)))
 
 (define-x8664-vinsn (temp-pop-unboxed-word :pop :word :csp)
     (((w :u64))
