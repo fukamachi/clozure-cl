@@ -2621,38 +2621,44 @@
 
 (defun x862-push-register (seg areg)
   (let* ((a-float (= (hard-regspec-class areg) hard-reg-class-fpr))
-         (a-double (if a-float (= (get-regspec-mode areg) hard-reg-class-fpr-mode-double)))
+         (a-single (if a-float (= (get-regspec-mode areg) hard-reg-class-fpr-mode-single)))
          (a-node (unless a-float (= (get-regspec-mode areg) hard-reg-class-gpr-mode-node)))
          vinsn)
     (with-x86-local-vinsn-macros (seg)
       (if a-node
         (setq vinsn (x862-vpush-register seg areg :node-temp))
-        (progn
-          (setq vinsn
-                (if a-float
-                  (if a-double
+        (if a-single
+          (progn
+            (setq vinsn (! vpush-single-float areg))
+            (x862-new-vstack-lcell :single-float *x862-target-lcell-size* 0 nil)
+            (x862-adjust-vstack *x862-target-node-size*))
+          (progn
+            (setq vinsn
+                  (if a-float
                     (! temp-push-double-float areg)
-                    (! temp-push-single-float areg))
-                  (! temp-push-unboxed-word areg)))
-          (setq *x862-cstack* (+ *x862-cstack* 16))))
+                    (! temp-push-unboxed-word areg)))
+            (setq *x862-cstack* (+ *x862-cstack* 16)))))
       vinsn)))
 
 (defun x862-pop-register (seg areg)
   (let* ((a-float (= (hard-regspec-class areg) hard-reg-class-fpr))
-         (a-double (if a-float (= (get-regspec-mode areg) hard-reg-class-fpr-mode-double)))
+         (a-single (if a-float (= (get-regspec-mode areg) hard-reg-class-fpr-mode-single)))
          (a-node (unless a-float (= (get-regspec-mode areg) hard-reg-class-gpr-mode-node)))
          vinsn)
     (with-x86-local-vinsn-macros (seg)
       (if a-node
         (setq vinsn (x862-vpop-register seg areg))
-        (progn
-          (setq vinsn
-                (if a-float
-                  (if a-double
+        (if a-single
+          (progn
+            (setq vinsn (! vpop-single-float areg))
+            (setq *x862-top-vstack-lcell* (lcell-parent *x862-top-vstack-lcell*))
+            (x862-adjust-vstack (- *x862-target-node-size*)))
+          (progn
+            (setq vinsn
+                  (if a-float
                     (! temp-pop-double-float areg)
-                    (! temp-pop-single-float areg))
-                  (! temp-pop-unboxed-word areg)))
-          (setq *x862-cstack* (- *x862-cstack* 16))))
+                    (! temp-pop-unboxed-word areg)))
+            (setq *x862-cstack* (- *x862-cstack* 16)))))
       vinsn)))
 
 (defun x862-acc-reg-for (reg)
@@ -2670,15 +2676,14 @@
 
 ;;; The compiler often generates superfluous pushes & pops.  Try to
 ;;; eliminate them.
-;;; It's easier to elide pushes and pops to the TSP.
 (defun x862-elide-pushes (seg push-vinsn pop-vinsn)
   (with-x86-local-vinsn-macros (seg)
     (let* ((pushed-reg (svref (vinsn-variable-parts push-vinsn) 0))
            (popped-reg (svref (vinsn-variable-parts pop-vinsn) 0))
            (same-reg (eq (hard-regspec-value pushed-reg)
                          (hard-regspec-value popped-reg)))
-           (tsp-p (vinsn-attribute-p push-vinsn :tsp)))
-      (when (and tsp-p t)                       ; vsp case is harder.
+           (csp-p (vinsn-attribute-p push-vinsn :csp)))
+      (when csp-p                       ; vsp case is harder.
         (let* ((pushed-reg-is-set (vinsn-sequence-sets-reg-p
                                    push-vinsn pop-vinsn pushed-reg))
                (popped-reg-is-set (if same-reg
@@ -3286,7 +3291,8 @@
                             (#.hard-reg-class-gpr-mode-u64
                              (! unbox-u64 dest src))
                             (#.hard-reg-class-gpr-mode-address
-                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                             (unless (or (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                                         *x862-reckless*)
                                (! trap-unless-macptr src))
                              (! deref-macptr dest src)))))
                        ((#.hard-reg-class-gpr-mode-u64
@@ -3390,13 +3396,15 @@
                       (#.hard-reg-class-gpr-mode-node
                        (case dest-mode
                          (#.hard-reg-class-fpr-mode-double
-                          ;; if we knew the source was double, we set a  bit in the dest reg spec (weird huh)
-                          (unless (logbitp hard-reg-class-fpr-type-double 
+                          ;; if we knew the source was double, we set
+                          ;; a bit in the dest reg spec (weird huh)
+                          (unless (or (logbitp hard-reg-class-fpr-type-double 
                                            (get-node-regspec-type-modes dest))
+                                      *x862-reckless*)
                             (! trap-unless-double-float src))
                           (! get-double dest src))
                          (#.hard-reg-class-fpr-mode-single
-                          (! trap-unless-single-float src)
+                          (unless *x862-reckless* (! trap-unless-single-float src))
                           (! get-single dest src)))))))
                 (if dest-gpr
                   (case dest-mode
@@ -6169,7 +6177,61 @@
   (x862-unary-builtin seg vreg xfer '%negate form))
 
 (defx862 x862-add2 add2 (seg vreg xfer form1 form2)
-  (x862-binary-builtin seg vreg xfer '+-2 form1 form2))
+  (if (and (x862-form-typep form1 'double-float)
+           (x862-form-typep form2 'double-float))
+    (x862-use-operator (%nx1-operator %double-float+-2)
+                       seg
+                       vreg
+                       xfer
+                       form1
+                       form2)
+    (if (and (x862-form-typep form1 'single-float)
+             (x862-form-typep form2 'single-float))
+      (x862-use-operator (%nx1-operator %short-float+-2)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2)
+      (x862-binary-builtin seg vreg xfer '+-2 form1 form2))))
+
+(defx862 x862-sub2 sub2 (seg vreg xfer form1 form2)
+  (if (and (x862-form-typep form1 'double-float)
+           (x862-form-typep form2 'double-float))
+    (x862-use-operator (%nx1-operator %double-float--2)
+                       seg
+                       vreg
+                       xfer
+                       form1
+                       form2)
+    (if (and (x862-form-typep form1 'single-float)
+             (x862-form-typep form2 'single-float))
+      (x862-use-operator (%nx1-operator %short-float--2)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2)
+      (x862-binary-builtin seg vreg xfer '--2 form1 form2))))
+
+(defx862 x862-mul2 mul2 (seg vreg xfer form1 form2)
+  (if (and (x862-form-typep form1 'double-float)
+           (x862-form-typep form2 'double-float))
+    (x862-use-operator (%nx1-operator %double-float*-2)
+                       seg
+                       vreg
+                       xfer
+                       form1
+                       form2)
+    (if (and (x862-form-typep form1 'single-float)
+             (x862-form-typep form2 'single-float))
+      (x862-use-operator (%nx1-operator %short-float*-2)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2)
+      (x862-binary-builtin seg vreg xfer '*-2 form1 form2))))
 
 (defx862 x862-logbitp logbitp (seg vreg xfer bitnum int)
   (x862-binary-builtin seg vreg xfer 'logbitp bitnum int))
@@ -6187,10 +6249,28 @@
   (x862-binary-builtin seg vreg xfer '/-2 form1 form2))
 
 (defx862 x862-%aref1 %aref1 (seg vreg xfer v i)
-  (x862-binary-builtin seg vreg xfer '%aref1 v i))
+  (let* ((vtype (acode-form-type v t))
+         (atype (if vtype (specifier-type vtype)))
+         (keyword (if atype
+                    (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        atype))))
+    (if keyword
+      (x862-vref  seg vreg xfer keyword v i (not *x862-reckless*))
+      (x862-binary-builtin seg vreg xfer '%aref1 v i))))
 
 (defx862 x862-%aset1 aset1 (seg vreg xfer v i n)
-  (x862-ternary-builtin seg vreg xfer '%aset1 v i n))
+  (let* ((vtype (acode-form-type v t))
+         (atype (if vtype (specifier-type vtype)))
+         (keyword (if atype
+                    (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        atype))))
+    (if keyword
+      (x862-vset seg vreg xfer keyword v i n (not *x862-reckless*))
+      (x862-ternary-builtin seg vreg xfer '%aset1 v i n))))
 
 (defx862 x862-%i+ %i+ (seg vreg xfer form1 form2 &optional overflow)
   (cond ((null vreg) 
