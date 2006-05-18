@@ -277,22 +277,16 @@
          (not (logbitp x86::mxcsr-pm-bit control-bits)))
     'floating-point-inexact)))
 
-;;; This assumes that one of {ie ze oe ue} is set.
-(defun %fp-error-from-status (status-bits  operation &rest operands)
+(defun %fp-error-from-status (status-bits  operation op0 &optional op1)
   (declare (type (unsigned-byte 6) status-bits))
   (let* ((condition-class (fp-condition-from-mxcsr status-bits (%get-mxcsr-control))))
     (if condition-class
-      (error (make-instance condition-class
-               :operation operation
-               :operands operands)))))
+      (let* ((operands (if op1 (list op0 op1) (list op0))))
+        (error (make-instance condition-class
+                              :operation operation
+                              :operands operands))))))
 
-(defun fp-minor-opcode-operation (minor-opcode)
-  (case minor-opcode
-    (25 '*)
-    (18 '/)
-    (20 '-)
-    (21 '+)
-    (t 'unknown)))
+
 
 ;;; Don't we already have about 20 versions of this ?
 (defx86lapfunction %double-float-from-macptr! ((ptr arg_x) (byte-offset arg_y) (dest arg_z))
