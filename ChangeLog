@@ -1,3 +1,42 @@
+2006-05-17 23:12  gb
+
+	* compiler/PPC/ppc2.lisp: "late" acode-type stuff (add2/sub2/mul2)
+	for PPC, too.
+
+2006-05-17 22:53  gb
+
+	* level-0/X86/x86-float.lisp: %FP-ERROR-FROM-STATUS: don't cons an
+	&REST arg.  Should do a quicker test (logandc2 and a shift) to see
+	if any unmasked exceptions were raised before even calling this ...
+
+2006-05-17 22:51  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: If we have to spill
+	SINGLE-FLOAT registers, spill them (boxed) on the vstack.
+
+2006-05-17 22:50  gb
+
+	* compiler/X86/x862.lisp: Work harder to find acode types in some
+	cases.
+
+2006-05-17 22:50  gb
+
+	* compiler/X86/x86-disassemble.lisp: Handle (new-style) byte
+	registers in OP-REG.
+	
+	Don't want to use RET very often if at all, but disassembler should
+	treat as as a :JUMP.
+
+2006-05-17 22:48  gb
+
+	* compiler/nxenv.lisp: MUL2, DIV2.
+
+2006-05-17 22:48  gb
+
+	* compiler/: nx0.lisp, nx1.lisp: A little of that there
+	type-inferencing (or, more accurately, paying a little more
+	attention here and there.)
+
 2006-05-12 20:40  gwking
 
 	* examples/addressbook.lisp: added examples/addressbook.lisp
