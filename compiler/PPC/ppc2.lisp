@@ -6059,7 +6059,62 @@
   (ppc2-unary-builtin seg vreg xfer '%negate form))
 
 (defppc2 ppc2-add2 add2 (seg vreg xfer form1 form2)
-  (ppc2-binary-builtin seg vreg xfer '+-2 form1 form2))
+  (if (and (ppc2-form-typep form1 'double-float)
+           (ppc2-form-typep form2 'double-float))
+    (ppc2-use-operator (%nx1-operator %double-float+-2)
+                       seg
+                       vreg
+                       xfer
+                       form1
+                       form2)
+    (if (and (ppc2-form-typep form1 'single-float)
+             (ppc2-form-typep form2 'single-float))
+      (ppc2-use-operator (%nx1-operator %short-float+-2)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2)
+  (ppc2-binary-builtin seg vreg xfer '+-2 form1 form2))))
+
+(defppc2 ppc2-sub2 sub2 (seg vreg xfer form1 form2)
+  (if (and (ppc2-form-typep form1 'double-float)
+           (ppc2-form-typep form2 'double-float))
+    (ppc2-use-operator (%nx1-operator %double-float--2)
+                       seg
+                       vreg
+                       xfer
+                       form1
+                       form2)
+    (if (and (ppc2-form-typep form1 'single-float)
+             (ppc2-form-typep form2 'single-float))
+      (ppc2-use-operator (%nx1-operator %short-float--2)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2)
+  (ppc2-binary-builtin seg vreg xfer '--2 form1 form2))))
+
+(defppc2 ppc2-mul2 mul2 (seg vreg xfer form1 form2)
+  (if (and (ppc2-form-typep form1 'double-float)
+           (ppc2-form-typep form2 'double-float))
+    (ppc2-use-operator (%nx1-operator %double-float*-2)
+                       seg
+                       vreg
+                       xfer
+                       form1
+                       form2)
+    (if (and (ppc2-form-typep form1 'single-float)
+             (ppc2-form-typep form2 'single-float))
+      (ppc2-use-operator (%nx1-operator %short-float*-2)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2)
+  (ppc2-binary-builtin seg vreg xfer '*-2 form1 form2))))
+
 
 (defppc2 ppc2-logbitp logbitp (seg vreg xfer bitnum int)
   (ppc2-binary-builtin seg vreg xfer 'logbitp bitnum int))
