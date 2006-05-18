@@ -1,3 +1,11 @@
+2006-05-18 14:47  gb
+
+	* lisp-kernel/ppc-spentry.s: When unwinding the stack (hopefully,
+	in all places that do so ...), update tcr.xframe from
+	catch_frame.xframe on all execution paths (in particular, do so
+	before SP is restored from the catch_frame, since a tcr.xframe
+	"beyond" SP is clearly bogus.)
+
 2006-05-18 02:34  gb
 
 	* level-1/version.lisp: Bump.
