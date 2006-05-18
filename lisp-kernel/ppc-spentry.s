@@ -138,14 +138,14 @@ local_label(_throw_mvloop):
 	__(bgt local_label(_throw_mvloop))
 local_label(_throw_pushed_values):
 	__(mr vsp,imm1)
+	__(ldr(imm1,catch_frame.xframe(imm3)))
+	__(str(imm1,tcr.xframe(rcontext)))
 	__(ldr(sp,catch_frame.csp(imm3)))
 	__(ldr(fn,lisp_frame.savefn(sp)))
 	__(ldr(loc_pc,lisp_frame.savelr(sp)))
 	__(discard_lisp_frame())
 	__(mtlr loc_pc)
         __(restore_catch_nvrs(imm3))
-	__(ldr(imm1,catch_frame.xframe(imm3)))
-	__(str(imm1,tcr.xframe(rcontext)))
 	__(ldr(imm3,catch_frame.link(imm3)))
 	__(str(imm3,tcr.catch_top(rcontext)))
 	__(unlink(tsp))
@@ -173,6 +173,8 @@ local_label(_nthrowv_nextframe):
 	__(str(imm3,tcr.catch_top(rcontext)))
 	__(ldr(temp1,catch_frame.catch_tag(temp0)))
 	__(cmpri(cr7,temp1,unbound_marker))		/* unwind-protect ?  */
+	__(ldr(first_nvr,catch_frame.xframe(temp0)))
+	__(str(first_nvr,tcr.xframe(rcontext)))
 	__(ldr(sp,catch_frame.csp(temp0)))
 	__(beq cr0,local_label(_nthrowv_dont_unbind))
 	__(mflr loc_pc)
@@ -182,8 +184,6 @@ local_label(_nthrowv_dont_unbind):
 	__(beq cr7,local_label(_nthrowv_do_unwind))
 /* A catch frame.  If the last one, restore context from there.  */
 	__(bne cr1,local_label(_nthrowv_skip))
-	__(ldr(first_nvr,catch_frame.xframe(temp0)))
-	__(str(first_nvr,tcr.xframe(rcontext)))
 	__(ldr(imm0,lisp_frame.savevsp(sp)))
 	__(str(rzero,lisp_frame.savevsp(sp)))	/* marker for stack overflow code  */
 	__(add imm1,vsp,nargs)
@@ -291,8 +291,10 @@ local_label(_nthrow1v_nextframe):
 	__(ldr(imm0,catch_frame.db_link(temp0)))
 	__(cmpr(cr0,imm0,imm1))
 	__(str(imm3,tcr.catch_top(rcontext)))
+        __(ldr(imm3,catch_frame.xframe(temp0)))
 	__(ldr(temp1,catch_frame.catch_tag(temp0)))
 	__(cmpri(cr7,temp1,unbound_marker))		/* unwind-protect ?  */
+        __(str(imm3,tcr.xframe(rcontext)))
 	__(ldr(sp,catch_frame.csp(temp0)))
 	__(beq cr0,local_label(_nthrow1v_dont_unbind))
 	 __(mflr loc_pc)
@@ -303,8 +305,6 @@ local_label(_nthrow1v_dont_unbind):
         /* A catch frame.  If the last one, restore context from there.  */
 	__(bne cr1,local_label(_nthrow1v_skip))
 	__(ldr(vsp,lisp_frame.savevsp(sp)))
-	__(ldr(first_nvr,catch_frame.xframe(temp0)))
-	__(str(first_nvr,tcr.xframe(rcontext)))
         __(restore_catch_nvrs(temp0))
 local_label(_nthrow1v_skip):
 	__(la tsp,-(tsp_frame.fixed_overhead+fulltag_misc)(temp0))
@@ -317,8 +317,6 @@ local_label(_nthrow1v_do_unwind):
         /* Save our caller's LR and FN in the csp frame created by the unwind-  */
         /* protect.  (Clever, eh ?)  */
 
-	__(ldr(first_nvr,catch_frame.xframe(temp0)))
-	__(str(first_nvr,tcr.xframe(rcontext)))
         __(restore_catch_nvrs(temp0))
 	__(la tsp,-(tsp_frame.fixed_overhead+fulltag_misc)(temp0))
 	__(unlink(tsp))
