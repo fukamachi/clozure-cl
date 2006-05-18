@@ -527,7 +527,7 @@
                                        nil)))
                             (x86::x86-reg64 (+ add (- code +rax-reg+))))
                            ((and (>= code +eax-reg+)
-                                   (<= code +edi-reg+))
+                                 (<= code +edi-reg+))
                             (used-rex ds +rex-mode64+)
                             (used-prefix ds +prefix-data+)
                             (if (logtest (x86-ds-rex ds) +rex-mode64+)
@@ -535,7 +535,10 @@
                               (if (logtest sizeflag +dflag+)
                                 (x86::x86-reg32 (+ add (- code +eax-reg+)))
                                 (x86::x86-reg16 (+ add (- code +eax-reg+))))))
-                           (t (error "Disassembly error")))))
+                           ((and (>= code +al-reg+)
+                                 (<= code +bh-reg+))
+                            (x86::x86-reg8 (+ add (- code +al-reg+))))
+                           (t (error "Disassembly error: code = ~s" code)))))
              (x86-dis-make-reg-operand r))))))
 
 ;;; Like OP-REG, but doesn't deal with extended 64-bit registers.
@@ -1076,8 +1079,8 @@
    ;; #xc0
    (make-x86-dis nil nil +use-groups+ nil 3)
    (make-x86-dis nil nil +use-groups+ nil 4)
-   (make-x86-dis "retT" 'op-i +w-mode+)
-   (make-x86-dis "retT")
+   (make-x86-dis '("retT" . :jump) 'op-i +w-mode+)
+   (make-x86-dis '("retT" . :jump))
    (make-x86-dis '(("lesS" . "(bad)")) 'op-g +v-mode+ 'op-m +f-mode+)
    (make-x86-dis "ldsS" 'op-g +v-mode+ 'op-m +f-mode+)
    (make-x86-dis "movA" 'op-e +b-mode+ 'op-i +b-mode+)
