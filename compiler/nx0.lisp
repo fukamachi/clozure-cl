@@ -404,8 +404,8 @@ function to the indicated name is true.")
            (optype (acode-form-type form trust-decls)))
       (values
        (if optype 
-         (subtypep optype type)
-         (if opval-p (typep (%cadr form) type)))))))
+         (subtypep optype (nx-target-type type))
+         (if opval-p (typep (%cadr form) (nx-target-type type))))))))
 
 (defun nx-acode-form-type (form env)
   (acode-form-type form (nx-trust-declarations env)))
@@ -417,34 +417,35 @@ function to the indicated name is true.")
 
 
 (defun acode-form-type (form trust-decls)
-  (if (acode-p form)
-    (let* ((op (acode-operator form)))
-      (if (eq op (%nx1-operator fixnum))
-        'fixnum
-        (if (eq op (%nx1-operator immediate))
-          (type-of (%cadr form))
-          (and trust-decls
-               (if (eq op (%nx1-operator typed-form))
-                 (%cadr form)
-                 (if (eq op (%nx1-operator lexical-reference))
-                   (let* ((var (cadr form))
+  (nx-target-type 
+   (if (acode-p form)
+     (let* ((op (acode-operator form)))
+       (if (eq op (%nx1-operator fixnum))
+         'fixnum
+         (if (eq op (%nx1-operator immediate))
+           (type-of (%cadr form))
+           (and trust-decls
+                (if (eq op (%nx1-operator typed-form))
+                  (%cadr form)
+                  (if (eq op (%nx1-operator lexical-reference))
+                    (let* ((var (cadr form))
                            (punted (logbitp $vbitpunted (nx-var-bits var))))
-                     (if punted
-                       (var-inittype var)))
-                   (if (eq op (%nx1-operator %aref1))
-                     (let* ((atype (acode-form-type (cadr form) t))
-                            (actype (if atype (specifier-type atype))))
-                       (if actype
-                         (type-specifier (array-ctype-specialized-element-type
-                                          actype))))
-                     (if (member op *numeric-acode-ops*)
-                       (if (every #'(lambda (x) (acode-form-typep x 'float t))
-                                  (cdr form))
-                         (if (some #'(lambda (x) (acode-form-typep x 'doublefloat t))
+                      (if punted
+                        (var-inittype var)))
+                    (if (eq op (%nx1-operator %aref1))
+                      (let* ((atype (acode-form-type (cadr form) t))
+                             (actype (if atype (specifier-type atype))))
+                        (if actype
+                          (type-specifier (array-ctype-specialized-element-type
+                                           actype))))
+                      (if (member op *numeric-acode-ops*)
+                        (if (every #'(lambda (x) (acode-form-typep x 'float t))
                                    (cdr form))
-                           'double-float
-                           'single-float))
-                       (cdr (assq op *nx-operator-result-types*))))))))))))
+                          (if (some #'(lambda (x) (acode-form-typep x 'double-float t))
+                                    (cdr form))
+                            'double-float
+                            'single-float))
+                        (cdr (assq op *nx-operator-result-types*)))))))))))))
 
 (defun acode-punted-var-p (var)
   (let ((bits (nx-var-bits var)))
