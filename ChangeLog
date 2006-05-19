@@ -1,3 +1,15 @@
+2006-05-19 15:07  gb
+
+	* level-1/linux-files.lisp: RUN-PROGRAM: waiting for the child's
+	completion semaphore (when :WAIT is true) happens inside an
+	UNWIND-PROTECT cleanup and therefore needs to explicitly allow
+	interrupts.
+
+2006-05-19 15:06  gb
+
+	* level-0/l0-aprims.lisp: Add SEMAPHOREP, make it a type-predicate
+	for SEMAPHORE.
+
 2006-05-19 12:23  gwking
 
 	* lib/misc.lisp: Added help and redisplay to select-item-from-list.
