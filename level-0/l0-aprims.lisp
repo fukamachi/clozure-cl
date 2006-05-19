@@ -143,6 +143,10 @@ synchronization between threads."
   "Create and return a semaphore, which can be used for synchronization
 between threads."
   (%istruct 'semaphore (%make-semaphore-ptr)))
-  
+
+(defun semaphorep (x)
+  (%istruct-typep x 'semaphore))
+
+(setf (type-predicate 'semaphore) 'semaphorep)
 
 ; end
