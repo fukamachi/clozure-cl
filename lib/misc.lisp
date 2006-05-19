@@ -584,25 +584,31 @@ are running on, or NIL if we can't find any useful information."
 (defun select-item-from-list (list &key (window-title "Select one of the following")
 				   (table-print-function #'prin1)
 				   &allow-other-keys)
-  (with-terminal-input
+  (block get-answer
+    (with-terminal-input
       (format *query-io* "~a:~%" window-title)
-    (do* ((l list (cdr l))
-	  (i 0 (1+ i))
-	  (item (car l) (car l)))
-	 ((null l))
-      (declare (fixnum i))
-      (format *query-io* "~&~d: " i)
-      (funcall table-print-function item *query-io*)
       (loop
-	  (fresh-line *query-io*)
-	  (let* ((string (get-string-from-user "Selection:"))
-		 (value (ignore-errors
-			  (let* ((*package* *keyword-package*))
-			    (read-from-string string nil)))))
-	    (cond ((eq value :q) (throw :cancel t))
-		  ((and (typep value 'unsigned-byte)
-			(< value (length list)))
-		   (return (nth value list)))))))))
+	 (catch :redisplay
+	   (do* ((l list (cdr l))
+		 (i 0 (1+ i))
+		 (item (car l) (car l)))
+		((null l))
+	     (declare (fixnum i))
+	     (format *query-io* "~&  ~d: " i)
+	     (funcall table-print-function item *query-io*))
+	   (loop
+	      (fresh-line *query-io*)
+	      (let* ((string (get-string-from-user "Selection [number,q,r,?]:"))
+		     (value (ignore-errors
+			      (let* ((*package* *keyword-package*))
+				(read-from-string string nil)))))
+		(cond ((eq value :q) (throw :cancel t))
+		      ((eq value :r) (throw :redisplay t))
+		      ((eq value :?) 
+		       (format *query-io* "~%Enter the number of the selection, ~%  r to redisplay, ~%  q to cancel or ~%  ? to show this message again."))
+		      ((and (typep value 'unsigned-byte)
+			    (< value (length list)))
+		       (return-from get-answer (list (nth value list))))))))))))
 
 ;;; There should ideally be some way to override the UI (such as
 ;;; it is ...) here.
