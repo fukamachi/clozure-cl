@@ -6,3 +6,4 @@
 *.image
 README*
 *~.*
+*\.?fsl
