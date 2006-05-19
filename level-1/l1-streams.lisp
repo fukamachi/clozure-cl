@@ -17,7 +17,7 @@
 
 (in-package "CCL")
 
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :execute)
   #+linuxppc-target
   (require "PPC-LINUX-SYSCALLS")
   #+linuxx8664-target
