@@ -1153,15 +1153,19 @@
                         (not-set-in-formlist (car subforms))
                         (not-set-in-formlist (cadr subforms))))))))))
 
-(defun x862-check-fixnum-overflow (seg target)
+(defun x862-check-fixnum-overflow (seg target &optional labelno)
   (with-x86-local-vinsn-macros (seg)
     (if *x862-open-code-inline*
       (let* ((no-overflow (backend-get-next-label)))
-        (! set-bigits-and-header-for-fixnum-overflow target (aref *backend-labels* no-overflow))
+        (! set-bigits-and-header-for-fixnum-overflow target (aref *backend-labels* (or labelno no-overflow)))
         (! %allocate-uvector target)
         (! set-bigits-after-fixnum-overflow target)
+        (when labelno
+          (-> labelno))
         (@ no-overflow))
-      (! fix-fixnum-overflow-ool target))))
+        (if labelno
+          (! fix-fixnum-overflow-ool-and-branch target (aref *backend-labels* labelno))
+          (! fix-fixnum-overflow-ool target)))))
 
 (defun x862-nil (seg vreg xfer)
   (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -6176,6 +6180,32 @@
 (defx862 x862-minus1 minus1 (seg vreg xfer form)
   (x862-unary-builtin seg vreg xfer '%negate form))
 
+;;; Return T if form is declare to be something that couldn't be a fixnum.
+(defun x862-explicit-non-fixnum-type-p (form)
+  (or (x862-form-typep form 'float)
+      (x862-form-typep form 'complex)
+      (x862-form-typep form 'ratio)
+      (x862-form-typep form 'bignum)))
+
+(defun x862-inline-add2 (seg vreg xfer form1 form2)
+  (with-x86-local-vinsn-macros (seg vreg xfer)
+    (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z))
+    (let* ((out-of-line (backend-get-next-label))
+           (done (backend-get-next-label)))
+      (ensuring-node-target (target vreg)
+        (if (acode-fixnum-form-p form1)
+          (! branch-unless-arg-fixnum ($ x8664::arg_z) (aref *backend-labels* out-of-line))
+          (if (acode-fixnum-form-p form2)
+            (! branch-unless-arg-fixnum ($ x8664::arg_y) (aref *backend-labels* out-of-line))  
+            (! branch-unless-both-args-fixnums ($ x8664::arg_y) ($ x8664::arg_z) (aref *backend-labels* out-of-line))))
+        (! fixnum-add2 ($ x8664::arg_z) ($ x8664::arg_y))
+        (x862-check-fixnum-overflow seg ($ x8664::arg_z) done)
+        (@ out-of-line)
+        (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPbuiltin-plus) ($ x8664::arg_y) ($ x8664::arg_z))
+        (@ done)
+        (x862-copy-register seg target ($ x8664::arg_z))
+        (^)))))
+           
 (defx862 x862-add2 add2 (seg vreg xfer form1 form2)
   (if (and (x862-form-typep form1 'double-float)
            (x862-form-typep form2 'double-float))
@@ -6193,7 +6223,19 @@
                          xfer
                          form1
                          form2)
-      (x862-binary-builtin seg vreg xfer '+-2 form1 form2))))
+      (if (and (x862-form-typep form1 'fixnum)
+               (x862-form-typep form2 'fixnum))
+        (x862-use-operator (%nx1-operator %i+)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2
+                         t)
+        (if (or (x862-explicit-non-fixnum-type-p form1)
+                (x862-explicit-non-fixnum-type-p form2))
+          (x862-binary-builtin seg vreg xfer '+-2 form1 form2)
+          (x862-inline-add2 seg vreg xfer form1 form2))))))
 
 (defx862 x862-sub2 sub2 (seg vreg xfer form1 form2)
   (if (and (x862-form-typep form1 'double-float)
@@ -6212,7 +6254,16 @@
                          xfer
                          form1
                          form2)
-      (x862-binary-builtin seg vreg xfer '--2 form1 form2))))
+      (if (and (x862-form-typep form1 'fixnum)
+               (x862-form-typep form2 'fixnum))
+      (x862-use-operator (%nx1-operator %i-)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2
+                         t)
+        (x862-binary-builtin seg vreg xfer '--2 form1 form2)))))
 
 (defx862 x862-mul2 mul2 (seg vreg xfer form1 form2)
   (if (and (x862-form-typep form1 'double-float)
