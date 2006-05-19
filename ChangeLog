@@ -1,3 +1,40 @@
+2006-05-19 12:00  gwking
+
+	* .cvsignore: The *fsl wasn't cutting it for me..., take two
+
+2006-05-19 11:57  gwking
+
+	* .cvsignore: The *fsl wasn't cutting it for me...
+
+2006-05-19 11:50  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-05-19 11:49  gb
+
+	* level-1/l1-streams.lisp: Change the EVAL-WHEN that requires
+	syscall definitions so that it can be moused on.
+
+2006-05-19 11:48  gb
+
+	* compiler/X86/X8664/: x8664-arch.lisp, x8664-vinsns.lisp:
+	.SPeabi-syscall -> .SPsyscall.
+
+2006-05-19 11:45  gb
+
+	* compiler/X86/x862.lisp: Inline ADD2, unless we know that at least
+	one arg couldn't be a fixnum.  (Should do the same for SUB2.) This
+	does indeed burn cache lines, but going out of line isn't cheap
+	either.  (100 million iterations of (+ x (+ y z)) - where X Y and Z
+	are in fact fixnums and no overflow is involved - seems to be about
+	2X faster when inlined this way.  Not sure if that'll be the case
+	on PPC.)
+
+2006-05-19 11:40  gb
+
+	* compiler/nx0.lisp: Use NX-TARGET-TYPE in some of the acode-type
+	stuff.
+
 2006-05-18 14:47  gb
 
 	* lisp-kernel/ppc-spentry.s: When unwinding the stack (hopefully,
