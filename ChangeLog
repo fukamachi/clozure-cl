@@ -1,3 +1,9 @@
+2006-05-19 12:23  gwking
+
+	* lib/misc.lisp: Added help and redisplay to select-item-from-list.
+	Also changed it so that it displays all items before trying to get
+	an answer.
+
 2006-05-19 12:00  gwking
 
 	* .cvsignore: The *fsl wasn't cutting it for me..., take two
