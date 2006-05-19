@@ -858,7 +858,8 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
       (unless (external-process-pid proc)
         (dolist (fd close-on-error) (fd-close fd)))
       (when (and wait (external-process-pid proc))
-        (wait-on-semaphore (external-process-completed proc))))
+        (with-interrupts-enabled
+            (wait-on-semaphore (external-process-completed proc)))))
     (and (external-process-pid proc) proc)))
 
 
