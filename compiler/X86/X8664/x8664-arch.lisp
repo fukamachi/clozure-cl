@@ -1067,7 +1067,7 @@
          (defx8664subprim .SPbreakpoint)
          (defx8664subprim .SPeabi-ff-call)
          (defx8664subprim .SPeabi-callback)
-         (defx8664subprim .SPeabi-syscall)
+         (defx8664subprim .SPsyscall)
          (defx8664subprim .SPgetu64)
          (defx8664subprim .SPgets64)
          (defx8664subprim .SPmakeu64)

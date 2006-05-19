@@ -256,7 +256,10 @@
 
 (define-x8664-vinsn set-nargs (()
 			       ((n :s16const)))
-  (movw (:$w (:apply ash n x8664::word-shift)) (:%w x8664::nargs )))
+  ((:pred = n 0)
+   (xorw (:%w x8664::nargs ) (:%w x8664::nargs )))
+  ((:not (:pred = n 0))
+   (movw (:$w (:apply ash n x8664::word-shift)) (:%w x8664::nargs ))))
 
 (define-x8664-vinsn check-exact-nargs (()
                                        ((n :u16const)))
@@ -1073,6 +1076,26 @@
    (movq (:%q x8664::arg_z) (:%q val)))
   :done)
 
+(define-x8664-vinsn fix-fixnum-overflow-ool-and-branch (((val :lisp))
+                                                        ((val :lisp)
+                                                         (lab :label))
+                                                        ((unboxed (:s64 #.x8664::imm1))
+                                                         (header (:u64 #.x8664::imm0))))
+  (jno.pt lab)
+  ((:not (:pred = x8664::arg_z
+                (:apply %hard-regspec-value val)))
+   (movq (:%q val) (:%q x8664::arg_z)))
+  (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
+  (jmp (:@ .SPfix-overflow))
+  (:align 3)
+  (:long (:^ :back))
+  :back
+  ;; We don't lose FN while consing the bignum.
+  ((:not (:pred = x8664::arg_z
+                (:apply %hard-regspec-value val)))
+   (movq (:%q x8664::arg_z) (:%q val)))
+  (jmp lab))
+
 (define-x8664-vinsn add-constant (((dest :imm))
                                   ((dest :imm)
                                    (const :s32const)))
@@ -1849,12 +1872,12 @@
     (()
      ((f :single-float)))
   (pushq (:$b x8664::tag-single-float))
-  (movss (:%xmm f) (:@ (:%q x8664::rsp))))
+  (movss (:%xmm f) (:@ 4 (:%q x8664::rsp))))
 
 (define-x8664-vinsn (vpop-single-float :pop :word :vsp)
     (()
      ((f :single-float)))
-  (movss (:@ (:%q x8664::rsp)) (:%xmm f))
+  (movss (:@ 4 (:%q x8664::rsp)) (:%xmm f))
   (addq (:$b x8664::node-size) (:%q x8664::rsp)))
 
 (define-x8664-vinsn (temp-pop-unboxed-word :pop :word :csp)
@@ -3170,7 +3193,7 @@
 
 (define-x8664-subprim-call-vinsn (ff-call)  .SPffcall)
 
-(define-x8664-subprim-call-vinsn (syscall)  .SPeabi-syscall)
+(define-x8664-subprim-call-vinsn (syscall)  .SPsyscall)
 
 (define-x8664-subprim-call-vinsn (setqsym) .SPsetqsym)
 
@@ -3738,6 +3761,22 @@
    (movq (:% dim1) (:% dest)))
   (imulq (:%q i) (:%q dest))
   (addq (:%q j) (:%q dest)))
+
+(define-x8664-vinsn branch-unless-both-args-fixnums (()
+                                                     ((a :lisp)
+                                                      (b :lisp)
+                                                      (dest :label))
+                                                     ((tag :u8)))
+  (movb (:%b a) (:%b tag))
+  (orb (:%b b) (:%b tag))
+  (testb (:$b x8664::fixnummask) (:%b tag))
+  (jne dest))
+
+(define-x8664-vinsn branch-unless-arg-fixnum (()
+                                              ((a :lisp)
+                                               (dest :label)))
+  (testb (:$b x8664::fixnummask) (:%b a))
+  (jne dest))
 
 (queue-fixup
  (fixup-x86-vinsn-templates
