@@ -1444,7 +1444,7 @@
          (is-16-bit (member type-keyword (arch::target-16-bit-ivector-types arch)))
          (is-32-bit (member type-keyword (arch::target-32-bit-ivector-types arch)))
          (is-64-bit (member type-keyword (arch::target-64-bit-ivector-types arch)))
-         (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector))))
+         (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :fixnum-vector))))
     (if is-node
       (x862-misc-node-ref seg vreg xfer vector index safe)
       (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -1470,6 +1470,7 @@
                       (and (= vreg-mode hard-reg-class-gpr-mode-u64)
                            is-64-bit
                            (not (or (eq type-keyword :signed-64-bit-vector)
+                                    (eq type-keyword :fixnum-vector)
                                     (eq type-keyword :double-float-vector))))))
                       
                   (x862-natural-vref seg vreg xfer vector index safe)
@@ -1568,7 +1569,7 @@
                                          (x862-absolute-natural seg unscaled-idx nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3))))
                                        (! misc-ref-u64 u64-reg src unscaled-idx)))
                                    (x862-box-u64 seg target u64-reg)))
-                                (:signed-64-bit-vector
+                                ((:signed-64-bit-vector :fixnum-vector)
                                  (with-imm-target () (s64-reg :s64)
                                    (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                                      (! misc-ref-c-s64 s64-reg src index-known-fixnum)
@@ -1576,7 +1577,9 @@
                                        (if index-known-fixnum
                                          (x862-absolute-natural seg unscaled-idx nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3))))
                                        (! misc-ref-s64 s64-reg src unscaled-idx)))
-                                   (x862-box-s64 seg target s64-reg))))
+                                   (if (eq type-keyword :fixnum-vector)
+                                     (! box-fixnum target s64-reg)
+                                     (x862-box-s64 seg target s64-reg)))))
                               (progn
                                 (unless is-1-bit
                                   (nx-error "~& unsupported vector type: ~s"
@@ -2026,20 +2029,29 @@
                                          (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                                   (! misc-set-c-double-float x8664::fp1 src index-known-fixnum)
                                   (progn
-                                    (setq idx-reg temp)
                                     (if index-known-fixnum
-                                      (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-dfloat-offset arch) (ash index-known-fixnum 3))))
+                                      (progn
+                                        (setq idx-reg temp)
+                                        (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-dfloat-offset arch) (ash index-known-fixnum 3))))
+                                      (setq idx-reg unscaled-idx))
                                     (! misc-set-double-float x8664::fp1 src idx-reg))))
-                               (:signed-64-bit-vector
+                               ((:signed-64-bit-vector :fixnum-vector)
                                 (with-imm-target (temp) (s64 :s64)
-                                  (! unbox-s64 s64 val-reg)
+                                  (if (eq type-keyword :fixnum-vector)
+                                    (progn
+                                      (when safe
+                                        (! trap-unless-fixnum val-reg)
+                                        (! fixnum->signed-natural s64 val-reg)))
+                                    (! unbox-s64 s64 val-reg))
                                   (if (and index-known-fixnum 
                                            (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                                     (! misc-set-c-s64 s64 src index-known-fixnum)
                                     (progn
-                                      (setq idx-reg temp)
                                       (if index-known-fixnum
-                                        (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-dfloat-offset arch) (ash index-known-fixnum 3))))
+                                        (progn
+                                          (setq idx-reg temp)
+                                          (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-dfloat-offset arch) (ash index-known-fixnum 3))))
+                                        (setq idx-reg unscaled-idx))
                                       (! misc-set-s64 s64 src idx-reg)))))
                                (:unsigned-64-bit-vector
                                 (with-imm-target (temp) (u64 :u64)
@@ -2048,9 +2060,12 @@
                                            (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                                     (! misc-set-c-u64 u64 src index-known-fixnum)
                                     (progn
-                                      (setq idx-reg temp)
                                       (if index-known-fixnum
+                                        (progn
+                                          (setq idx-reg temp)
+                                          
                                         (x862-absolute-natural seg idx-reg nil (+ (arch::target-misc-dfloat-offset arch) (ash index-known-fixnum 3))))
+                                        (setq idx-reg unscaled-idx))
                                       (! misc-set-u64 u64 src idx-reg)))))
                                ))
                             (t
