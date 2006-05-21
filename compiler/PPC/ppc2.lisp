@@ -1339,11 +1339,13 @@
                       (and (= vreg-mode hard-reg-class-gpr-mode-u32)
                            is-32-bit
                            (not (or (eq type-keyword :signed-32-bit-vector)
+                                    (eq type-keyword :fixnum-vector)
                                     (eq type-keyword :single-float-vector)))))
                      (:ppc64
                       (and (= vreg-mode hard-reg-class-gpr-mode-u64)
                            is-64-bit
                            (not (or (eq type-keyword :signed-64-bit-vector)
+                                    (eq type-keyword :fixnum-vector)
                                     (eq type-keyword :double-float-vector))))))
                       
                   (ppc2-natural-vref seg vreg xfer vector index safe)
@@ -1370,9 +1372,13 @@
                                 (t
                                  (with-imm-temps () (temp)
                                    (! misc-ref-c-u32 temp src index-known-fixnum)
-                                   (if (eq type-keyword :signed-32-bit-vector)
-                                     (ppc2-box-s32 seg target temp)
-                                     (ppc2-box-u32 seg target temp)))))
+                                   (case type-keyword
+                                     (:signed-32-bit-vector
+                                      (ppc2-box-s32 seg target temp))
+                                     (:fixnum-vector
+                                      (! box-fixnum target temp))
+                                     (t
+                                      (ppc2-box-u32 seg target temp))))))
                           (with-imm-temps
                               () (idx-reg)
                             (if index-known-fixnum
@@ -1384,9 +1390,13 @@
                                   (t (with-imm-temps
                                          (idx-reg) (temp)
                                        (! misc-ref-u32 temp src idx-reg)
-                                       (if (eq type-keyword :signed-32-bit-vector)
-                                         (ppc2-box-s32 seg target temp)
-                                         (ppc2-box-u32 seg target temp)))))))
+                                       (case type-keyword
+                                         (:signed-32-bit-vector
+                                          (ppc2-box-s32 seg target temp))
+                                         (:fixnum-vector
+                                          (! box-fixnum target temp))
+                                         (t
+                                          (ppc2-box-u32 seg target temp))))))))
                         (if is-8-bit
                           (with-imm-temps
                               () (temp)
@@ -1444,7 +1454,7 @@
                                        (! scale-64bit-misc-index idx-reg unscaled-idx))
                                      (! misc-ref-u64 u64-reg src idx-reg)))
                                  (! u64->integer target u64-reg)))
-                                (:signed-64-bit-vector
+                                ((:signed-64-bit-vector :fixnum-vector)
                                  (with-imm-target () (s64-reg :s64)
                                  (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                                    (! misc-ref-c-s64 s64-reg src index-known-fixnum)
@@ -1454,7 +1464,9 @@
                                        (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3)))
                                        (! scale-64bit-misc-index idx-reg unscaled-idx))
                                      (! misc-ref-s64 s64-reg src idx-reg)))
-                                 (! s64->integer target s64-reg))))
+                                 (if (eq type-keyword :fixnum-vector)
+                                   (! box-fixnum target s64-reg)
+                                   (! s64->integer target s64-reg)))))
                               (progn
                                 (unless is-1-bit
                                   (nx-error "~& unsupported vector type: ~s"
@@ -1835,6 +1847,10 @@
                                     (! single-float-bits temp val-reg))
                                    ((eq type-keyword :signed-32-bit-vector)
                                     (! unbox-s32 temp val-reg))
+                                   ((eq type-keyword :fixnum-vector)
+                                    (when safe
+                                      (! trap-unless-fixnum val-reg))
+                                    (! fixnum->signed-natural temp val-reg))
                                    (t
                                     (! unbox-u32 temp val-reg))))
                            (if (and index-known-fixnum 
@@ -1901,9 +1917,14 @@
                                     (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-dfloat-offset arch) (ash index-known-fixnum 3)))
                                     (! scale-64bit-misc-index idx-reg unscaled-idx))
                                   (! misc-set-double-float 0 src idx-reg))))
-                              (:signed-64-bit-vector
+                              ((:signed-64-bit-vector :fixnum-vector)
                                (with-imm-target (temp) (s64 :s64)
-                                 (! unbox-s64 s64 val-reg)
+                                 (if (eq type-keyword :fixnum-vector)
+                                   (progn
+                                     (when safe
+                                       (! trap-unless-fixnum val-reg))
+                                     (! fixnum->signed-natural s64 val-reg))
+                                   (! unbox-s64 s64 val-reg))
                                  (if (and index-known-fixnum 
                                           (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                                    (! misc-set-c-s64 s64 src index-known-fixnum)
@@ -3160,7 +3181,8 @@
                             (#.hard-reg-class-gpr-mode-u32
                              (! unbox-u32 dest src))
                             (#.hard-reg-class-gpr-mode-address
-                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                             (unless (or (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                                         *ppc2-reckless*)
                                (! trap-unless-macptr src))
                              (! deref-macptr dest src)))))
                        ((#.hard-reg-class-gpr-mode-u32
@@ -3261,7 +3283,8 @@
                             (#.hard-reg-class-gpr-mode-u64
                              (! unbox-u64 dest src))
                             (#.hard-reg-class-gpr-mode-address
-                             (unless (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                             (unless (or (logbitp #.hard-reg-class-gpr-mode-address src-type)
+                                         *ppc2-reckless*)
                                (! trap-unless-macptr src))
                              (! deref-macptr dest src)))))
                        ((#.hard-reg-class-gpr-mode-u64
@@ -3351,12 +3374,14 @@
                        (case dest-mode
                          (#.hard-reg-class-fpr-mode-double
                           ;; if we knew the source was double, we set a  bit in the dest reg spec (weird huh)
-                          (unless (logbitp hard-reg-class-fpr-type-double 
+                          (unless (or (logbitp hard-reg-class-fpr-type-double 
                                            (get-node-regspec-type-modes dest))
+                                      *ppc2-reckless*)
                             (! trap-unless-double-float src))
                           (! get-double dest src))
                          (#.hard-reg-class-fpr-mode-single
-                          (! trap-unless-single-float src)
+                          (unless *ppc2-reckless*
+                            (! trap-unless-single-float src))
                           (! get-single dest src)))))))
                 (if dest-gpr
                   (case dest-mode
@@ -6058,6 +6083,35 @@
 (defppc2 ppc2-minus1 minus1 (seg vreg xfer form)
   (ppc2-unary-builtin seg vreg xfer '%negate form))
 
+(defun ppc2-inline-add2 (seg vreg xfer form1 form2)
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (ppc2-two-targeted-reg-forms seg form1 ($ ppc::arg_y) form2 ($ ppc::arg_z))
+    (let* ((out-of-line (backend-get-next-label))
+           (done (backend-get-next-label)))
+      (ensuring-node-target (target vreg)
+        (if (acode-fixnum-form-p form1)
+          (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line))
+          (if (acode-fixnum-form-p form2)
+            (! branch-unless-arg-fixnum ($ ppc::arg_y) (aref *backend-labels* out-of-line))  
+            (! branch-unless-both-args-fixnums ($ ppc::arg_y) ($ ppc::arg_z) (aref *backend-labels* out-of-line))))
+        (if *ppc2-open-code-inline*
+          (! fixnum-add-overflow-inline-skip ($ ppc::arg_z) ($ ppc::arg_y) ($ ppc::arg_z) (aref *backend-labels* done))
+          (progn
+            (! fixnum-add-overflow-ool ($ ppc::arg_y) ($ ppc::arg_z))
+            (-> done)))
+        (@ out-of-line)
+        (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPbuiltin-plus) ($ ppc::arg_y) ($ ppc::arg_z))
+        (@ done)
+        (ppc2-copy-register seg target ($ ppc::arg_z))
+        (^)))))
+
+;;; Return T if form is declare to be something that couldn't be a fixnum.
+(defun ppc2-explicit-non-fixnum-type-p (form)
+  (or (ppc2-form-typep form 'float)
+      (ppc2-form-typep form 'complex)
+      (ppc2-form-typep form 'ratio)
+      (ppc2-form-typep form 'bignum)))
+
 (defppc2 ppc2-add2 add2 (seg vreg xfer form1 form2)
   (if (and (ppc2-form-typep form1 'double-float)
            (ppc2-form-typep form2 'double-float))
@@ -6075,7 +6129,19 @@
                          xfer
                          form1
                          form2)
-  (ppc2-binary-builtin seg vreg xfer '+-2 form1 form2))))
+      (if (and (ppc2-form-typep form1 'fixnum)
+               (ppc2-form-typep form2 'fixnum))
+        (ppc2-use-operator (%nx1-operator %i+)
+                           seg
+                           vreg
+                           xfer
+                           form1
+                           form2
+                           t)
+        (if (or (ppc2-explicit-non-fixnum-type-p form1)
+                (ppc2-explicit-non-fixnum-type-p form2))
+          (ppc2-binary-builtin seg vreg xfer '+-2 form1 form2)
+          (ppc2-inline-add2 seg vreg xfer form1 form2))))))
 
 (defppc2 ppc2-sub2 sub2 (seg vreg xfer form1 form2)
   (if (and (ppc2-form-typep form1 'double-float)
@@ -6094,7 +6160,16 @@
                          xfer
                          form1
                          form2)
-  (ppc2-binary-builtin seg vreg xfer '--2 form1 form2))))
+      (if (and (ppc2-form-typep form1 'fixnum)
+               (ppc2-form-typep form2 'fixnum))
+        (ppc2-use-operator (%nx1-operator %i-)
+                           seg
+                           vreg
+                           xfer
+                           form1
+                           form2
+                           t)
+        (ppc2-binary-builtin seg vreg xfer '--2 form1 form2)))))
 
 (defppc2 ppc2-mul2 mul2 (seg vreg xfer form1 form2)
   (if (and (ppc2-form-typep form1 'double-float)
@@ -8295,6 +8370,27 @@
 
 (defppc2 ppc2-%symvector->symptr %symvector->symptr (seg vreg xfer arg)
   (ppc2-identity seg vreg xfer arg))
+
+(defppc2 ppc2-%fixnum-to-double %fixnum-to-double (seg vreg xfer arg)
+  (with-fp-target () (dreg :double-float)
+    (let* ((r (ppc2-one-untargeted-reg-form seg arg ppc::arg_z)))
+      (unless (or (acode-fixnum-form-p arg)
+                  *ppc2-reckless*)
+        (! trap-unless-fixnum r))
+      (! fixnum->fpr dreg r)
+      (<- dreg)
+      (^))))
+
+(defppc2 ppc2-%fixnum-to-single %fixnum-to-single (seg vreg xfer arg)
+  (with-fp-target () (dreg :double-float)
+    (let* ((r (ppc2-one-untargeted-reg-form seg arg ppc::arg_z)))
+      (unless (or (acode-fixnum-form-p arg)
+                  *ppc2-reckless*)
+        (! trap-unless-fixnum r))
+      (! fixnum->fpr dreg r)
+      (<- (set-regspec-mode dreg hard-reg-class-fpr-mode-single))
+      (^))))
+        
 
 ;------
 
