@@ -1,3 +1,20 @@
+2006-05-21 07:34  gb
+
+	* compiler/X86/x862.lisp: Long-standing X862-COPY-REGISTER bug.
+
+2006-05-21 07:32  gb
+
+	* compiler/PPC/ppc2.lisp: Implement (late) div2; use (simple)
+	numeric-contagion stuff for arithmetic ops.
+
+2006-05-21 07:31  gb
+
+	* compiler/nx1.lisp: Use div2 for /-2.
+
+2006-05-21 07:31  gb
+
+	* compiler/nx0.lisp: Binop numeric contagion.
+
 2006-05-21 06:49  gb
 
 	* compiler/nx0.lisp: ACODE-REAL-CONSTANT-P.
