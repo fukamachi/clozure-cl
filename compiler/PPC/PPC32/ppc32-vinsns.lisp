@@ -1046,14 +1046,11 @@
 (define-ppc32-vinsn fixnum->fpr (((dest :double-float))
                                  ((src :lisp))
                                  ((imm :s32)))
-  (stwu ppc::tsp -16 ppc::tsp)
-  (stw ppc::tsp 4 ppc::tsp)
-  (stfd ppc::fp-s32conv 8 ppc::tsp)
+  (stfd ppc::fp-s32conv -8 ppc::sp)
   (srawi imm src ppc32::fixnumshift)
   (xoris imm imm #x8000)
-  (stw imm 12 ppc::tsp)
-  (lfd dest 8 ppc::tsp)
-  (lwz ppc::tsp 0 ppc::tsp)
+  (stw imm -4 ppc::sp)
+  (lfd dest -8 ppc::sp)
   (fsub dest dest ppc::fp-s32conv))
 
 
@@ -2613,6 +2610,27 @@
   (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
   (stw unboxed ppc32::misc-data-offset dest)
   :done)
+
+(define-ppc32-vinsn fixnum-add-overflow-inline-skip (((dest :lisp))
+                                                ((x :imm)
+                                                 (y :imm)
+                                                 (target :label))
+                                                ((cr0 (:crf 0))
+                                                 (unboxed :s32)
+                                                 (header :u32)))
+  (addo. dest x y)
+  (bns+ cr0 target)
+  (mtxer ppc::rzero)
+  (srawi unboxed dest ppc32::fixnumshift)
+  (li header ppc32::one-digit-bignum-header)
+  (xoris unboxed unboxed (logand #xffff (ash #xffff (- 32 16 ppc32::fixnumshift))))
+  (la ppc::allocptr (- ppc32::fulltag-misc 8) ppc::allocptr)
+  (twllt ppc::allocptr ppc::allocbase)
+  (stw header ppc32::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrwi ppc::allocptr ppc::allocptr ppc32::ntagbits)
+  (stw unboxed ppc32::misc-data-offset dest)
+  (b target))
   
 
   
@@ -3542,6 +3560,25 @@
 
 (define-ppc32-subprim-call-vinsn (unbind-interrupt-level) .SPunbind-interrupt-level)
 
+
+
+(define-ppc32-vinsn branch-unless-arg-fixnum (()
+                                              ((arg :lisp)
+                                               (lab :label))
+                                              ((cr0 (:crf 0))
+                                               (tag :u8)))
+  (clrlwi. tag arg (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (bne cr0 lab))
+
+(define-ppc32-vinsn branch-unless-both-args-fixnums (()
+                                              ((arg0 :lisp)
+                                               (arg1 :lisp)
+                                               (lab :label))
+                                              ((cr0 (:crf 0))
+                                               (tag :u8)))
+  (clrlwi tag arg0 (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (rlwimi. tag arg1 ppc32::nlisptagbits 28 29)
+  (bne cr0 lab))
 
 ;;; In case ppc32::*ppc-opcodes* was changed since this file was compiled.
 (queue-fixup

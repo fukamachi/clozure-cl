@@ -2576,6 +2576,28 @@
   (clrrdi ppc::allocptr ppc::allocptr ppc64::ntagbits)
   (std unboxed ppc64::misc-data-offset dest)
   :done)
+
+(define-ppc64-vinsn fixnum-add-overflow-inline-skip (((dest :lisp))
+                                                     ((x :imm)
+                                                      (y :imm)
+                                                      (done :label))
+                                                     ((cr0 (:crf 0))
+                                                      (unboxed :s64)
+                                                      (header :u64)))
+  (addo. dest x y)
+  (bns+ cr0 done)
+  (mtxer ppc::rzero)
+  (sradi unboxed dest ppc64::fixnumshift)
+  (li header ppc64::two-digit-bignum-header)
+  (rotldi unboxed unboxed 32)
+  (xoris unboxed unboxed (logand #xffff (ash #xffff (- 32 16 ppc64::fixnumshift))))
+  (la ppc::allocptr (- ppc64::fulltag-misc 16) ppc::allocptr)
+  (tdlt ppc::allocptr ppc::allocbase)
+  (std header ppc64::misc-header-offset ppc::allocptr)
+  (mr dest ppc::allocptr)
+  (clrrdi ppc::allocptr ppc::allocptr ppc64::ntagbits)
+  (std unboxed ppc64::misc-data-offset dest)
+  (b done))
   
 
   
@@ -3544,6 +3566,34 @@
 
 (define-ppc64-subprim-call-vinsn (unbind-interrupt-level) .SPunbind-interrupt-level)
 
+(define-ppc64-vinsn fixnum->fpr (((f :double-float))
+                                          ((fixnum :imm))
+                                          ((imm :s64)))
+  (srawi imm fixnum ppc64::fixnumshift)
+  (std imm -8 ppc::sp)
+  (lfd f -8 ppc::sp)
+  (fcfid f f))
+
+(define-ppc64-vinsn branch-unless-arg-fixnum (()
+                                              ((arg :lisp)
+                                               (lab :label))
+                                              ((cr0 (:crf 0))
+                                               (tag :u8)))
+  (clrldi. tag arg (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (bne cr0 lab))
+
+(define-ppc64-vinsn branch-unless-both-args-fixnums (()
+                                              ((arg0 :lisp)
+                                               (arg1 :lisp)
+                                               (lab :label))
+                                              ((cr0 (:crf 0))
+                                               (tag :u8)))
+  (clrldi tag arg0 (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (rldimi. tag arg1 ppc64::nlisptagbits 58)
+  (bne cr0 lab))
+  
+                                              
+                                           
 
 ;;; In case ppc64::*ppc-opcodes* was changed since this file was compiled.
 (queue-fixup
