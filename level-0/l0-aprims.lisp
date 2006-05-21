@@ -145,7 +145,7 @@ between threads."
   (%istruct 'semaphore (%make-semaphore-ptr)))
 
 (defun semaphorep (x)
-  (%istruct-typep x 'semaphore))
+  (istruct-typep x 'semaphore))
 
 (setf (type-predicate 'semaphore) 'semaphorep)
 
