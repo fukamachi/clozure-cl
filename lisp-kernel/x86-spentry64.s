@@ -403,7 +403,7 @@ local_label(misc_ref_jmp):
 	.quad local_label(misc_ref_string) /* c7 simple_base_string   */
 	.quad local_label(misc_ref_invalid) /* c8 odd_fixnum   */
 	.quad local_label(misc_ref_invalid) /* c9 immheader_1   */
-	.quad local_label(misc_ref_invalid) /* ca immheader_2   */
+	.quad local_label(misc_ref_fixnum_vector) /* ca fixnum_vector   */
 	.quad local_label(misc_ref_invalid) /* cb nil   */
 	.quad local_label(misc_ref_invalid) /* cc tra_1   */
 	.quad local_label(misc_ref_invalid) /* cd misc   */
@@ -483,6 +483,10 @@ local_label(misc_ref_double_float_vector):
 	__(Misc_Alloc_Fixed(%arg_z,double_float.size))
 	__(movsd %fp1,double_float.value(%arg_z))
 	__(jmp *%ra0)
+local_label(misc_ref_fixnum_vector):	
+	__(movq misc_data_offset(%arg_y,%arg_z),%imm0)
+        __(box_fixnum(%imm0,%arg_z))
+        __(jmp *%ra0)
 local_label(misc_ref_s64):	
 	__(movq misc_data_offset(%arg_y,%arg_z),%imm0)
 	__(jmp _SPmakes64)
@@ -833,7 +837,7 @@ local_label(misc_set_jmp):
 	.quad local_label(misc_set_string) /* c7 simple_base_string   */
 	.quad local_label(misc_set_invalid)	/* c8 odd_fixnum   */
 	.quad local_label(misc_set_invalid)	/* c9 immheader_1   */
-	.quad local_label(misc_set_invalid)  /* ca immheader_2   */
+	.quad local_label(misc_set_fixnum_vector)  /* ca fixnum_vector   */
 	.quad local_label(misc_set_invalid) /* cb nil   */
 	.quad local_label(misc_set_invalid)	/* cc tra_1   */
 	.quad local_label(misc_set_invalid)	/* cd misc   */
@@ -925,6 +929,13 @@ local_label(misc_set_u64):
 	__(cmpl $0,misc_data_offset+8(%arg_z))
 	__(jne local_label(misc_set_bad))
 9:	__(movq %imm0,misc_data_offset(%arg_x,%arg_y))
+	__(jmp *%ra0)
+local_label(misc_set_fixnum_vector):
+	__(movq %arg_z,%imm0)
+	__(sarq $fixnumshift,%imm0)
+	__(testb $fixnummask,%arg_z_b)
+	__(jne local_label(misc_set_bad))
+	__(movq %imm0,misc_data_offset(%arg_x,%arg_y))
 	__(jmp *%ra0)	
 local_label(misc_set_s64):
 	__(movq %arg_z,%imm0)
