@@ -555,7 +555,7 @@
     bogus
     bogus
     simple-short-float-vector
-    bogus
+    simple-fixnum-vector
     bogus
     bogus
     bogus
