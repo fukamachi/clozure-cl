@@ -1,3 +1,7 @@
+2006-05-21 00:22  gb
+
+	* level-0/l0-aprims.lisp: Spell istruct-typep correctly.
+
 2006-05-20 18:13  gb
 
 	* compiler/X86/x862.lisp: Do some self-tail calls (fixed args, no
