@@ -587,7 +587,7 @@
     (if (and (nx-form-typep num0 'short-float env)
              (nx-form-typep num1 'short-float env))
       (nx1-form `(%short-float/-2 ,num0 ,num1))
-      (make-acode (%nx1-operator %quo2) (nx1-form num0) (nx1-form num1)))))
+      (make-acode (%nx1-operator div2) (nx1-form num0) (nx1-form num1)))))
 
 
 
