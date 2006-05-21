@@ -489,6 +489,15 @@ function to the indicated name is true.")
            (typep int `(unsigned-byte ,bits)))
          int)))
 
+(defun acode-real-constant-p (x)
+  (or (acode-fixnum-form-p x)
+      (progn
+        (setq x (acode-unwrapped-form x))
+        (if (acode-p x)
+          (if (and (eq (acode-operator x) (%nx1-operator immediate))
+                   (typep (cadr x) 'real))
+            (cadr x))))))
+
 (defun nx-lookup-target-uvector-subtag (name)
   (or (cdr (assoc name (arch::target-uvector-subtags (backend-target-arch *target-backend*))))
       (nx-error "Type ~s not supported on target ~s"
