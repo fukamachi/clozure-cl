@@ -132,7 +132,6 @@
 (defvar *x862-double-float-constant-alist* nil)
 (defvar *x862-single-float-constant-alist* nil)
 
-
 (defparameter *x862-tail-call-aliases*
   ()
   #| '((%call-next-method . (%tail-call-next-method . 1))) |#
@@ -160,6 +159,8 @@
 
 (defvar *x862-entry-label* nil)
 (defvar *x862-tail-label* nil)
+(defvar *x862-tail-vsp* nil)
+(defvar *x862-tail-nargs* nil)
 (defvar *x862-tail-allow* t)
 (defvar *x862-reckless* nil)
 (defvar *x862-trust-declarations* nil)
@@ -483,6 +484,8 @@
            (*x862-undo-because* (x862-make-stack 64))
            (*x862-entry-label* nil)
            (*x862-tail-label* nil)
+           (*x862-tail-vsp* nil)
+           (*x862-tail-nargs* nil)
            (*x862-inhibit-register-allocation* nil)
            (*x862-tail-allow* t)
            (*x862-reckless* nil)
@@ -2273,7 +2276,9 @@
                        (eq (acode-operator f-op) (%nx1-operator simple-function))))
            (expression-p (or (typep fn 'lreg) (and (fixnump fn) (not label-p))))
            (callable (or symp lfunp label-p))
-           (destreg (if symp ($ x8664::fname) (unless label-p ($ x8664::temp0)))))
+           (destreg (if symp ($ x8664::fname) (unless label-p ($ x8664::temp0))))
+           (alternate-tail-call
+            (and tail-p label-p *x862-tail-label* (eql nargs *x862-tail-nargs*) (not spread-p))))
       (when expression-p
         ;;Have to do this before spread args, since might be vsp-relative.
         (if nargs
@@ -2282,7 +2287,7 @@
       (if (or symp lfunp)
         (setq func (if symp
                      (x862-symbol-entry-locative func)
-                       (x862-afunc-lfun-ref func))
+                     (x862-afunc-lfun-ref func))
               a-reg (x862-register-constant-p func)))
       (when tail-p
         #-no-compiler-bugs
@@ -2290,18 +2295,19 @@
         (when a-reg
           (x862-copy-register seg destreg a-reg))
         (unless spread-p
-          (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count* (and nargs (<= nargs *x862-target-num-arg-regs*)))))
-       (if spread-p
-         (progn
-           (x862-set-nargs seg (%i- nargs 1))
-          ; .SPspread-lexpr-z & .SPspreadargz preserve temp1
-           (if (eq spread-p 0)
-             (! spread-lexpr)
-             (! spread-list))
-           (when (and tail-p *x862-register-restore-count*)
-             (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count* nil)))
+          (unless alternate-tail-call
+            (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count* (and nargs (<= nargs *x862-target-num-arg-regs*))))))
+      (if spread-p
+        (progn
+          (x862-set-nargs seg (%i- nargs 1))
+                                        ; .SPspread-lexpr-z & .SPspreadargz preserve temp1
+          (if (eq spread-p 0)
+            (! spread-lexpr)
+            (! spread-list))
+          (when (and tail-p *x862-register-restore-count*)
+            (x862-restore-nvrs seg *x862-register-restore-ea* *x862-register-restore-count* nil)))
         (if nargs
-          (x862-set-nargs seg nargs) 
+          (unless alternate-tail-call (x862-set-nargs seg nargs))
           (! pop-argument-registers)))
       (if callable
         (if (not tail-p)
@@ -2330,35 +2336,39 @@
                   (if symp
                     (x862-call-symbol seg nil)
                     (! call-known-function))))))
-          (progn
-            (x862-unwind-stack seg xfer 0 0 #x7fffff)
-            (if (and (not spread-p) nargs (%i<= nargs *x862-target-num-arg-regs*))
-              (progn
-                (unless (or label-p a-reg) (x862-store-immediate seg func destreg))
-                (x862-restore-full-lisp-context seg)
-                (if label-p
-                  (! jump (aref *backend-labels* 1))
-                  (progn
-                    (if symp
-                      (x862-call-symbol seg t)
-                      (! jump-known-function)))))
-              (progn
-                (unless (or label-p a-reg) (x862-store-immediate seg func destreg))
-                (when label-p
-                  (x862-copy-register seg x8664::temp0 x8664::fn))
+          (if alternate-tail-call
+            (progn
+              (x862-unwind-stack seg xfer 0 0 *x862-tail-vsp*)
+              (! jump (aref *backend-labels* *x862-tail-label*)))
+            (progn
+              (x862-unwind-stack seg xfer 0 0 #x7fffff)
+              (if (and (not spread-p) nargs (%i<= nargs *x862-target-num-arg-regs*))
+                (progn
+                  (unless (or label-p a-reg) (x862-store-immediate seg func destreg))
+                  (x862-restore-full-lisp-context seg)
+                  (if label-p
+                    (! jump (aref *backend-labels* 1))
+                    (progn
+                      (if symp
+                        (x862-call-symbol seg t)
+                        (! jump-known-function)))))
+                (progn
+                  (unless (or label-p a-reg) (x862-store-immediate seg func destreg))
+                  (when label-p
+                    (x862-copy-register seg x8664::temp0 x8664::fn))
 
-                (cond ((or spread-p (null nargs))
-                       (if symp
-                         (! tail-call-sym-gen)
-                         (! tail-call-fn-gen)))
-                      ((%i> nargs *x862-target-num-arg-regs*)
-                       (if symp
-                         (! tail-call-sym-slide)
-                         (! tail-call-fn-slide)))
-                      (t
-                       (if symp
-                         (! tail-call-sym-vsp)
-                         (! tail-call-fn-vsp))))))))
+                  (cond ((or spread-p (null nargs))
+                         (if symp
+                           (! tail-call-sym-gen)
+                           (! tail-call-fn-gen)))
+                        ((%i> nargs *x862-target-num-arg-regs*)
+                         (if symp
+                           (! tail-call-sym-slide)
+                           (! tail-call-fn-slide)))
+                        (t
+                         (if symp
+                           (! tail-call-sym-vsp)
+                           (! tail-call-fn-vsp)))))))))
         ;; The general (funcall) case: we don't know (at compile-time)
         ;; for sure whether we've got a symbol or a (local, constant)
         ;; function.
@@ -5324,6 +5334,11 @@
                 (declare (cons constant))
                 (rplacd constant reg)
                 (! ref-constant reg (x86-immediate-label (car constant))))))
+          (when (and (not (or opt rest keys))
+                     (<= max-args $numx8664argregs))
+            (setq *x862-tail-vsp* *x862-vstack*
+                  *x862-tail-nargs* max-args)
+            (@ (setq *x862-tail-label* (backend-get-next-label))))
           (when method-var
             (x862-seq-bind-var seg method-var x8664::next-method-context))
           ;; If any arguments are still in arg_x, arg_y, arg_z, that's
@@ -5345,13 +5360,6 @@
                     (x862-copy-register seg reg arg-reg-num)
                     (setf (var-ea var) reg))))))
           (setq *x862-entry-vsp-saved-p* t)
-#|
-          (when stack-consed-rest
-            (if rest-ignored-p
-              (if nil (x862-jsrA5 $sp-popnlisparea))
-              (progn
-                (x862-open-undo $undostkblk))))
-|#
           (when stack-consed-rest
             (x862-open-undo $undostkblk))
           (setq *x862-entry-vstack* *x862-vstack*)
