@@ -3425,10 +3425,8 @@
                       (#.hard-reg-class-gpr-mode-node
                        (case dest-mode
                          (#.hard-reg-class-fpr-mode-double
-                          ;; if we knew the source was double, we set
-                          ;; a bit in the dest reg spec (weird huh)
                           (unless (or (logbitp hard-reg-class-fpr-type-double 
-                                           (get-node-regspec-type-modes dest))
+                                           (get-node-regspec-type-modes src))
                                       *x862-reckless*)
                             (! trap-unless-double-float src))
                           (! get-double dest src))
