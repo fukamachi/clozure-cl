@@ -1,3 +1,12 @@
+2006-05-21 06:49  gb
+
+	* compiler/nx0.lisp: ACODE-REAL-CONSTANT-P.
+
+2006-05-21 06:49  gb
+
+	* compiler/PPC/ppc2.lisp: Weird case in ppc2-copy-register wasn't
+	weird, just wrong.
+
 2006-05-21 06:17  gb
 
 	* level-0/l0-pred.lisp: PPC64: %typep recognizes
