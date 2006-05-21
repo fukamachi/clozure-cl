@@ -397,6 +397,8 @@
      (%foreign-stack-pointer . 0)
      (mul2 . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (div2 . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
+     (%fixnum-to-single  . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
+     (%fixnum-to-double .  #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      )))
 
 (defmacro %nx1-operator (sym)

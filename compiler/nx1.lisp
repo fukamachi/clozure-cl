@@ -1933,6 +1933,14 @@
   (make-acode (%nx1-operator %double-to-single)
               (nx1-form arg)))
 
+(defnx1 nx1-%fixnum-to-double ((%fixnum-to-double)) (arg)
+  (make-acode (%nx1-operator %fixnum-to-double)
+              (nx1-form arg)))
+
+(defnx1 nx1-%fixnum-to-double ((%fixnum-to-single)) (arg)
+  (make-acode (%nx1-operator %fixnum-to-single)
+              (nx1-form arg)))
+
 (defnx1 nx1-symvector ((%symptr->symvector) (%symvector->symptr)) (arg)
   (make-acode (%nx1-default-operator) (nx1-form arg)))
         
