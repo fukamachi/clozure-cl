@@ -1,3 +1,28 @@
+2006-05-21 04:35  gb
+
+	* level-0/l0-array.lisp, level-0/l0-pred.lisp,
+	level-1/l1-aprims.lisp, level-1/l1-clos-boot.lisp: Integrate
+	specialized FIXNUM array-element-type into type system, CLOS.
+	(Knock wood.)
+
+2006-05-21 04:34  gb
+
+	* lisp-kernel/x86-spentry64.s: Support for (out-of-line)
+	fixnum-vector access (.SPmisc_ref, .SPmisc_set).
+
+2006-05-21 04:33  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp,
+	lisp-kernel/x86-constants64.h, lisp-kernel/x86-constants64.s: New
+	subtag for :fixnum-vector.
+
+2006-05-21 04:32  gb
+
+	* compiler/X86/x862.lisp: 64-bit vset wasn't handling non-constant
+	indices correctly.
+	
+	64-bit vset, vref: handle :FIXNUM-VECTOR.
+
 2006-05-21 00:22  gb
 
 	* level-0/l0-aprims.lisp: Spell istruct-typep correctly.
