@@ -664,6 +664,7 @@
     (:signed-16-bit-vector . ,subtag-s16-vector )
     (:unsigned-16-bit-vector . ,subtag-u16-vector )
     (:signed-32-bit-vector . ,subtag-s32-vector )
+    (:fixnum-vector . ,subtag-fixnum-vector)
     (:unsigned-32-bit-vector . ,subtag-u32-vector )
     (:single-float-vector . ,subtag-single-float-vector)
     (:double-float-vector . ,subtag-double-float-vector )
@@ -700,6 +701,9 @@
                       ((and (>= low 0) (<= high #xffffffff) :unsigned-32-bit-vector))
                       ((and (>= low -128) (<= high 127)) :signed-8-bit-vector)
                       ((and (>= low -32768) (<= high 32767) :signed-16-bit-vector))
+                      ((and (>= low target-most-negative-fixnum)
+                            (<= high target-most-positive-fixnum))
+                       :fixnum-vector)
                       ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
                        :signed-32-bit-vector)
                       (t :simple-vector))))
@@ -763,6 +767,7 @@
                           :32-bit-ivector-types '(:signed-32-bit-vector
                                                   :unsigned-32-bit-vector
                                                   :single-float-vector
+                                                  :fixnum-vector
                                                   :single-float
                                                   :double-float
                                                   :bignum)

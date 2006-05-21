@@ -92,6 +92,7 @@ ivector_class_8_bit = fulltag_immheader_0
 
 define_cl_array_subtag(s64_vector,ivector_class_64_bit,1)
 define_cl_array_subtag(u64_vector,ivector_class_64_bit,2)
+define_cl_array_subtag(fixnum_vector,ivector_class_64_bit,3)        
 define_cl_array_subtag(double_float_vector,ivector_class_64_bit,4)
 define_cl_array_subtag(s32_vector,ivector_class_32_bit,1)
 define_cl_array_subtag(u32_vector,ivector_class_32_bit,2)

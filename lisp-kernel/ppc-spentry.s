@@ -2233,7 +2233,7 @@ local_label(misc_ref_jmp):
          .quad local_label(misc_ref_invalid) /* bb nodeheader_2  */
          .quad local_label(misc_ref_invalid) /* bc misc  */
          .quad local_label(misc_ref_invalid) /* bd imm3  */
-         .quad local_label(misc_ref_invalid) /* be immheader_3  */
+         .quad local_label(misc_ref_fixnum_vector) /* be fixnum_vector  */
          .quad local_label(misc_ref_invalid) /* bf nodeheader_3  */
         /* c0-cf  */
          .quad local_label(misc_ref_invalid) /* c0 even_fixnum  */
@@ -2320,6 +2320,11 @@ local_label(misc_ref_s64):
          __(la imm0,misc_data_offset(arg_z))
          __(ldx imm0,arg_y,imm0)
          __(b _SPmakes64)
+local_label(misc_ref_fixnum_vector):    
+         __(la imm0,misc_data_offset(arg_z))
+         __(ldx imm0,arg_y,imm0)
+         __(box_fixnum(arg_z,imm0))
+         __(blr)
 local_label(misc_ref_u64):      
          __(la imm0,misc_data_offset(arg_z))
          __(ldx imm0,arg_y,imm0)
@@ -3719,7 +3724,7 @@ local_label(misc_set_jmp):
          .quad local_label(misc_set_invalid) /* bb nodeheader_2  */
          .quad local_label(misc_set_invalid) /* bc misc  */
          .quad local_label(misc_set_invalid) /* bd imm3  */
-         .quad local_label(misc_set_invalid) /* be immheader_3  */
+         .quad local_label(misc_set_fixnum_vector) /* be fixnum_vector  */
          .quad local_label(misc_set_invalid) /* bf nodeheader_3  */
         /* c0-cf  */
          .quad local_label(misc_set_invalid) /* c0 even_fixnum  */
@@ -3923,6 +3928,14 @@ local_label(misc_set_double_float_vector):
          __(cmpdi imm0,subtag_double_float)
          __(bne local_label(misc_set_bad))
          __(ld imm0,misc_dfloat_offset(arg_z))
+         __(stdx imm0,arg_x,imm4)
+         __(blr)
+local_label(misc_set_fixnum_vector):
+         __(extract_lisptag(imm2,arg_z))
+         __(unbox_fixnum(imm0,arg_z))
+         __(cmpdi cr2,imm2,tag_fixnum)
+         __(la imm4,misc_data_offset(arg_y))
+         __(bne cr2,local_label(misc_set_bad))
          __(stdx imm0,arg_x,imm4)
          __(blr)
 local_label(misc_set_s64):

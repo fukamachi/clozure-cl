@@ -211,6 +211,7 @@
 
 (define-cl-array-subtag s64-vector ivector-class-64-bit 1)
 (define-cl-array-subtag u64-vector ivector-class-64-bit 2)
+(define-cl-array-subtag fixnum-vector ivector-class-64-bit 3)
 (define-cl-array-subtag double-float-vector ivector-class-64-bit 4)
 (define-cl-array-subtag s32-vector ivector-class-32-bit 1)
 (define-cl-array-subtag u32-vector ivector-class-32-bit 2)
@@ -719,6 +720,7 @@
     (:unsigned-16-bit-vector . ,subtag-u16-vector )
     (:signed-32-bit-vector . ,subtag-s32-vector )
     (:unsigned-32-bit-vector . ,subtag-u32-vector )
+    (:fixnum-vector . ,subtag-fixnum-vector)
     (:signed-64-bit-vector . ,subtag-s64-vector)
     (:unsigned-64-bit-vector . ,subtag-u64-vector)    
     (:single-float-vector . ,subtag-single-float-vector)
@@ -766,6 +768,9 @@
                        :signed-16-bit-vector)
                       ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
                        :signed-32-bit-vector)
+                      ((and (>= low target-most-negative-fixnum)
+                            (<= high target-most-positive-fixnum))
+                       :fixnum-vector)
                       ((and (>= low (ash -1 63)) (<= high (1- (ash 1 63))))
                        :signed-64-bit-vector)
                       (t :simple-vector))))
@@ -833,7 +838,8 @@
                                                   :bignum)
                           :64-bit-ivector-types '(:double-float-vector
                                                   :unsigned-64-bit-vector
-                                                  :signed-64-bit-vector)
+                                                  :signed-64-bit-vector
+                                                  :fixnum-vector)
                           :array-type-name-from-ctype-function
                           #'ppc64-array-type-name-from-ctype
                           :package-name "PPC64"
