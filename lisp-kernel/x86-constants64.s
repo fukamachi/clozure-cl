@@ -259,6 +259,7 @@ ivector_class_64_bit = fulltag_immheader_2
 ivector_class_32_bit = fulltag_immheader_1
 ivector_class_other_bit = fulltag_immheader_0
 
+define_subtag(fixnum_vector,ivector_class_64_bit,12)
 define_subtag(s64_vector,ivector_class_64_bit,13)
 define_subtag(u64_vector,ivector_class_64_bit,14)
 define_subtag(double_float_vector,ivector_class_64_bit,15)

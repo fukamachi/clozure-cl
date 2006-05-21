@@ -128,6 +128,7 @@
 #define ivector_class_other_bit fulltag_immheader_0
 
 
+#define subtag_fixnum_vector SUBTAG(ivector_class_64_bit,12L)
 #define subtag_s64_vector SUBTAG(ivector_class_64_bit,13L)
 #define subtag_u64_vector SUBTAG(ivector_class_64_bit,14L)
 #define subtag_double_float_vector SUBTAG(ivector_class_64_bit,15L)

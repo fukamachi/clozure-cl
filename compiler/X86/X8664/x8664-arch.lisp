@@ -354,6 +354,7 @@
 (defconstant ivector-class-32-bit  fulltag-immheader-1)
 (defconstant ivector-class-other-bit  fulltag-immheader-0)
 
+(define-subtag fixnum-vector ivector-class-64-bit 12)
 (define-subtag s64-vector ivector-class-64-bit 13)
 (define-subtag u64-vector ivector-class-64-bit 14)
 (define-subtag double-float-vector ivector-class-64-bit 15)
@@ -847,6 +848,7 @@
     (:signed-32-bit-vector . ,subtag-s32-vector )
     (:unsigned-32-bit-vector . ,subtag-u32-vector )
     (:signed-64-bit-vector . ,subtag-s64-vector)
+    (:fixnum-vector . ,subtag-fixnum-vector)
     (:unsigned-64-bit-vector . ,subtag-u64-vector)    
     (:single-float-vector . ,subtag-single-float-vector)
     (:double-float-vector . ,subtag-double-float-vector )
@@ -893,6 +895,9 @@
                        :signed-16-bit-vector)
                       ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
                        :signed-32-bit-vector)
+                      ((and (>= low target-most-negative-fixnum)
+                            (<= high target-most-positive-fixnum))
+                       :fixnum-vector)
                       ((and (>= low (ash -1 63)) (<= high (1- (ash 1 63))))
                        :signed-64-bit-vector)
                       (t :simple-vector))))
@@ -1116,7 +1121,7 @@
                           :max-8-bit-constant-index max-8-bit-constant-index
                           :max-1-bit-constant-index max-1-bit-constant-index
                           :word-shift 3
-                          :code-vector-prefix '(#$"CODE")
+                          :code-vector-prefix nil
                           :gvector-types '(:ratio :complex :symbol :function
                                            :catch-frame :structure :istruct
                                            :pool :population :hash-vector
@@ -1136,7 +1141,8 @@
                                                   :bignum)
                           :64-bit-ivector-types '(:double-float-vector
                                                   :unsigned-64-bit-vector
-                                                  :signed-64-bit-vector)
+                                                  :signed-64-bit-vector
+                                                  :fixnum-vector)
                           :array-type-name-from-ctype-function
                           #'x8664-array-type-name-from-ctype
                           :package-name "X8664"
