@@ -1693,7 +1693,9 @@ to replace that class with ~s" name old-class new-class)
   (make-built-in-class 'simple-unsigned-byte-vector (find-class 'unsigned-byte-vector) (find-class 'simple-1d-array))
   (make-built-in-class 'unsigned-word-vector *vector-class*)
   (make-built-in-class 'simple-unsigned-word-vector (find-class 'unsigned-word-vector) (find-class 'simple-1d-array))
-  
+  (make-built-in-class 'fixnum-vector *vector-class*)
+  (make-built-in-class 'simple-fixnum-vector (find-class 'fixnum-vector) (find-class 'simple-1d-array))
+
 
   (progn
     (make-built-in-class 'double-float-vector *vector-class*)
@@ -1769,7 +1771,7 @@ to replace that class with ~s" name old-class new-class)
     (vector (find-class 'short-float-vector)
             (find-class 'unsigned-long-vector)
             (find-class 'long-vector)
-            *t-class*                   ;(find-class 'fixnum-vector)
+            (find-class 'fixnum-vector)
             *t-class*                   ;(find-class 'new-base-string)
             (find-class 'unsigned-byte-vector)
             (find-class 'byte-vector)
@@ -1796,7 +1798,7 @@ to replace that class with ~s" name old-class new-class)
             *t-class*
             *t-class*
             (find-class 'short-float-vector)
-            *t-class*
+            (find-class 'fixnum-vector)
             *t-class*
             *t-class*
             *t-class*
@@ -1865,7 +1867,7 @@ to replace that class with ~s" name old-class new-class)
               *t-class*
               *t-class*
               *t-class*
-              *t-class*
+              (find-class 'fixnum-vector)
               (find-class 'doubleword-vector)
               (find-class 'unsigned-doubleword-vector)
               (find-class 'double-float-vector))))
@@ -2059,6 +2061,7 @@ to replace that class with ~s" name old-class new-class)
           (map-subtag target::subtag-u64-vector simple-unsigned-doubleword-vector)
           #+64-bit-target
           (map-subtag target::subtag-s64-vector simple-doubleword-vector)
+          (map-subtag target::subtag-fixnum-vector simple-fixnum-vector)
           (map-subtag target::subtag-u32-vector simple-unsigned-long-vector)
           (map-subtag target::subtag-s32-vector simple-long-vector)
           (map-subtag target::subtag-u8-vector simple-unsigned-byte-vector)

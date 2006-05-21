@@ -160,7 +160,7 @@
     unused
     unused
     unused
-    unused
+    fixnum
     (signed-byte 64)
     (unsigned-byte 64)
     double-float))
@@ -788,8 +788,16 @@ minimum number of elements to add if it must be extended."
                    target::subtag-u64-vector)
 		  ((and (>= low -128) (<= high 127)) target::subtag-s8-vector)
 		  ((and (>= low -32768) (<= high 32767)) target::subtag-s16-vector)
+                  #+32-bit-target
+                  ((and (>= low target::target-most-negative-fixnum)
+                        (<= high target::target-most-positive-fixnum))
+                   target::subtag-fixnum-vector)
 		  ((and (>= low (ash -1 31)) (<= high (1- (ash 1 31))))
 		   target::subtag-s32-vector)
+                  #+64-bit-target
+                  ((and (>= low target::target-most-negative-fixnum)
+                        (<= high target::target-most-positive-fixnum))
+                   target::subtag-fixnum-vector)                  
                   #+64-bit-target
                   ((and (>= low (ash -1 63)) (<= high (1- (ash 1 63))))
                    target::subtag-s64-vector)

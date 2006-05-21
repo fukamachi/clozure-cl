@@ -536,7 +536,7 @@ terminate the list"
     bogus
     bogus
     single-float
-    bogus
+    fixnum
     bogus
     bogus
     bogus
@@ -619,7 +619,7 @@ terminate the list"
       bogus
       bogus
       bogus
-      bogus
+      fixnum
       (signed-byte 64)
       (unsigned-byte 64)
       double-float))  

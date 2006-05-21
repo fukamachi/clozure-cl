@@ -774,7 +774,7 @@
     bogus
     bogus
     bogus
-    bogus
+    simple-fixnum-vector
     simple-signed-doubleword-vector
     simple-unsigned-doubleword-vector
     double-float-vector))
