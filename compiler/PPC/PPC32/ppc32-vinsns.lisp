@@ -2951,13 +2951,13 @@
 (define-ppc32-vinsn save-lisp-context-vsp (()
                                            ()
                                            ((imm :u32)))
+  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
   (stwu ppc::sp (- ppc32::lisp-frame.size) ppc::sp)
   (stw ppc::fn ppc32::lisp-frame.savefn ppc::sp)
   (stw ppc::loc-pc ppc32::lisp-frame.savelr ppc::sp)
   (stw ppc::vsp ppc32::lisp-frame.savevsp ppc::sp)
   (mr ppc::fn ppc::nfn)
   ;; Do a stack-probe ...
-  (lwz imm ppc32::tcr.cs-limit ppc32::rcontext)
   (twllt ppc::sp imm))
 
 ;;; Do the same thing via a subprim call.
@@ -3074,6 +3074,8 @@
   (lwz ppc::fn ppc32::lisp-frame.savefn ppc::sp)
   (mtlr ppc::loc-pc)
   (la ppc::sp ppc32::lisp-frame.size ppc::sp))
+
+
 
 (define-ppc32-vinsn (restore-full-lisp-context-ool :lispcontext :pop :csp :lrRestore)
     (()
