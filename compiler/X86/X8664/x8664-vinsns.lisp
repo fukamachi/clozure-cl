@@ -3778,6 +3778,21 @@
   (testb (:$b x8664::fixnummask) (:%b a))
   (jne dest))
 
+(define-x8664-vinsn fixnum->single-float (((f :single-float))
+                                          ((arg :lisp))
+                                          ((unboxed :s64)))
+  (movq (:%q arg) (:%q unboxed))
+  (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
+  (cvtsi2ssq (:%q unboxed) (:%xmm f)))
+
+(define-x8664-vinsn fixnum->double-float (((f :double-float))
+                                          ((arg :lisp))
+                                          ((unboxed :s64)))
+  (movq (:%q arg) (:%q unboxed))
+  (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
+  (cvtsi2sdq (:%q unboxed) (:%xmm f)))
+
+
 (queue-fixup
  (fixup-x86-vinsn-templates
   *x8664-vinsn-templates*
