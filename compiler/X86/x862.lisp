@@ -1,4 +1,4 @@
-;;-*-Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 2005, Clozure Associates
 ;;;   This file is part of OpenMCL.  
