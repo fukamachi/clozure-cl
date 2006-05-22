@@ -154,6 +154,8 @@
 
 (defvar *ppc2-entry-label* nil)
 (defvar *ppc2-tail-label* nil)
+(defvar *ppc2-tail-vsp* nil)
+(defvar *ppc2-tail-nargs* nil)
 (defvar *ppc2-tail-allow* t)
 (defvar *ppc2-reckless* nil)
 (defvar *ppc2-trust-declarations* nil)
@@ -413,6 +415,8 @@
            (*backend-immediates* (ppc2-make-stack 64  target::subtag-simple-vector))
            (*ppc2-entry-label* nil)
            (*ppc2-tail-label* nil)
+           (*ppc2-tail-vsp* nil)
+           (*ppc2-tail-nargs* nil)
            (*ppc2-inhibit-register-allocation* nil)
            (*ppc2-tail-allow* t)
            (*ppc2-reckless* nil)
@@ -2222,15 +2226,18 @@
                        (eq (acode-operator f-op) (%nx1-operator simple-function))))
            (expression-p (or (typep fn 'lreg) (and (fixnump fn) (not label-p))))
            (callable (or symp lfunp label-p))
-           (destreg (if symp ($ ppc::fname) (if lfunp ($ ppc::nfn) (unless label-p ($ ppc::temp0))))))
+           (destreg (if symp ($ ppc::fname) (if lfunp ($ ppc::nfn) (unless label-p ($ ppc::temp0)))))
+           (alternate-tail-call
+            (and tail-p label-p *ppc2-tail-label* (eql nargs *ppc2-tail-nargs*) (not spread-p)))
+           )
       (when expression-p
-        ;Have to do this before spread args, since might be vsp-relative.
+                                        ;Have to do this before spread args, since might be vsp-relative.
         (if nargs
           (ppc2-do-lexical-reference seg destreg fn)
           (ppc2-copy-register seg destreg fn)))
       (if (or symp lfunp)
         (setq func (if symp (ppc2-symbol-entry-locative func)
-                       (ppc2-afunc-lfun-ref func))
+                     (ppc2-afunc-lfun-ref func))
               a-reg (ppc2-register-constant-p func)))
       (when tail-p
         #-no-compiler-bugs
@@ -2238,24 +2245,25 @@
         (when a-reg
           (ppc2-copy-register seg destreg a-reg))
         (unless spread-p
-          (if nargs
-            (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count*)
-            (when *ppc2-register-restore-count*
-              (with-imm-temps () (vsp0)
-                (! fixnum-add vsp0 ppc::vsp ppc::nargs)
-                (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count* vsp0))))))
-       (if spread-p
-         (progn
-           (ppc2-set-nargs seg (%i- nargs 1))
-           (when (and tail-p *ppc2-register-restore-count*)
-             (! copy-gpr ppc::temp1 ppc::vsp))          ; .SPspread-lexpr-z & .SPspreadargz preserve temp1
-           (if (eq spread-p 0)
-             (! spread-lexpr)
-             (! spread-list))
-           (when (and tail-p *ppc2-register-restore-count*)
-             (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count* ppc::temp1)))
+          (unless alternate-tail-call
+            (if nargs
+              (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count*)
+              (when *ppc2-register-restore-count*
+                (with-imm-temps () (vsp0)
+                  (! fixnum-add vsp0 ppc::vsp ppc::nargs)
+                  (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count* vsp0)))))))
+      (if spread-p
+        (progn
+          (ppc2-set-nargs seg (%i- nargs 1))
+          (when (and tail-p *ppc2-register-restore-count*)
+            (! copy-gpr ppc::temp1 ppc::vsp)) ; .SPspread-lexpr-z & .SPspreadargz preserve temp1
+          (if (eq spread-p 0)
+            (! spread-lexpr)
+            (! spread-list))
+          (when (and tail-p *ppc2-register-restore-count*)
+            (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count* ppc::temp1)))
         (if nargs
-          (ppc2-set-nargs seg nargs) 
+          (unless alternate-tail-call (ppc2-set-nargs seg nargs))
           (! pop-argument-registers)))
       (if callable
         (if (not tail-p)
@@ -2281,36 +2289,40 @@
                   (if symp
                     (ppc2-call-symbol seg nil)
                     (! call-known-function))))))
-          (progn
-            (ppc2-unwind-stack seg xfer 0 0 #x7fffff)
-            (if (and (not spread-p) nargs (%i<= nargs $numppcargregs))
-              (progn
-                (if label-p
-                  (ppc2-copy-register seg ppc::nfn ppc::fn))
-                (unless (or label-p a-reg) (ppc2-store-immediate seg func destreg))
-                (ppc2-restore-full-lisp-context seg)
-                (if label-p
-                  (! jump (aref *backend-labels* 1))
-                  (progn
-                    (if symp
-                      (ppc2-call-symbol seg t)
-                      (! jump-known-function)))))
-              (progn
-                (if label-p
-                  (ppc2-copy-register seg ppc::nfn ppc::fn)
-                  (unless a-reg (ppc2-store-immediate seg func destreg)))
-                (cond ((or spread-p (null nargs))
-                       (if symp
-                         (! tail-call-sym-gen)
-                         (! tail-call-fn-gen)))
-                      ((%i> nargs $numppcargregs)
-                       (if symp
-                         (! tail-call-sym-slide)
-                         (! tail-call-fn-slide)))
-                      (t
-                       (if symp
-                         (! tail-call-sym-vsp)
-                         (! tail-call-fn-vsp))))))))
+          (if alternate-tail-call
+            (progn
+              (ppc2-unwind-stack seg xfer 0 0 *ppc2-tail-vsp*)
+              (! jump (aref *backend-labels* *ppc2-tail-label*)))
+            (progn
+              (ppc2-unwind-stack seg xfer 0 0 #x7fffff)
+              (if (and (not spread-p) nargs (%i<= nargs $numppcargregs))
+                (progn
+                  (if label-p
+                    (ppc2-copy-register seg ppc::nfn ppc::fn))
+                  (unless (or label-p a-reg) (ppc2-store-immediate seg func destreg))
+                  (ppc2-restore-full-lisp-context seg)
+                  (if label-p
+                    (! jump (aref *backend-labels* 1))
+                    (progn
+                      (if symp
+                        (ppc2-call-symbol seg t)
+                        (! jump-known-function)))))
+                (progn
+                  (if label-p
+                    (ppc2-copy-register seg ppc::nfn ppc::fn)
+                    (unless a-reg (ppc2-store-immediate seg func destreg)))
+                  (cond ((or spread-p (null nargs))
+                         (if symp
+                           (! tail-call-sym-gen)
+                           (! tail-call-fn-gen)))
+                        ((%i> nargs $numppcargregs)
+                         (if symp
+                           (! tail-call-sym-slide)
+                           (! tail-call-fn-slide)))
+                        (t
+                         (if symp
+                           (! tail-call-sym-vsp)
+                           (! tail-call-fn-vsp)))))))))
         ;; The general (funcall) case: we don't know (at compile-time)
         ;; for sure whether we've got a symbol or a (local, constant)
         ;; function.
@@ -5241,6 +5253,11 @@
                 (declare (cons constant))
                 (rplacd constant reg)
                 (! ref-constant reg (backend-immediate-index (car constant))))))
+          (when (and (not (or opt rest keys))
+                     (<= num-fixed $numppcargregs))
+            (setq *ppc2-tail-vsp* *ppc2-vstack*
+                  *ppc2-tail-nargs* num-fixed)
+            (@ (setq *ppc2-tail-label* (backend-get-next-label))))
           (when method-var
             (ppc2-seq-bind-var seg method-var ppc::next-method-context))
           ;; If any arguments are still in arg_x, arg_y, arg_z, that's
