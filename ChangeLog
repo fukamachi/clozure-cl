@@ -1,3 +1,37 @@
+2006-05-22 03:53  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-05-22 03:32  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: fixnum->float vinsns.
+
+2006-05-22 03:31  gb
+
+	* compiler/X86/x862.lisp: Numeric contagion on binops,
+	fixnum->float.
+
+2006-05-22 03:29  gb
+
+	* compiler/PPC/ppc2.lisp: Do stupid self-tail-call tricks on PPC as
+	well.
+
+2006-05-22 03:28  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Load tcr.cs-limit a little
+	earlier when creating a stack frame inline.  Doesn't seem to affect
+	latency much.
+
+2006-05-22 03:27  gb
+
+	* compiler/X86/x862.lisp: Comment formatting on the first line of
+	the file.
+
+2006-05-22 03:26  gb
+
+	* compiler/nx0.lisp: Check argument counts on self-calls.  (AFAIK,
+	this hasn't been done for at least 20 years in MCL/OpenMCL ...)
+
 2006-05-21 07:34  gb
 
 	* compiler/X86/x862.lisp: Long-standing X862-COPY-REGISTER bug.
