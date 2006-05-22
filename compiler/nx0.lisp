@@ -1790,9 +1790,10 @@ Or something. Right? ~s ~s" var varbits))
                (max (if (logtest (logior (ash 1 $lfbits-rest-bit) (ash 1 $lfbits-restv-bit) (ash 1 $lfbits-keys-bit)) bits)
                       nil
                       (+ required (ldb $lfbits-numopt bits)))))
-          ;; If the (apparent) number of args in the call doesn't match the definition, complain.
-          ;; If "spread-p" is true, we can only be sure of the case when more than the required number of
-          ;; args have been supplied.
+          ;; If the (apparent) number of args in the call doesn't
+          ;; match the definition, complain.  If "spread-p" is true,
+          ;; we can only be sure of the case when more than the
+          ;; required number of args have been supplied.
           (if (or (and (not spread-p) (< minargs required))
                   (and max (or (> minargs max)) (if maxargs (> maxargs max)))
                   (nx1-find-bogus-keywords arglist spread-p bits keyvect))
@@ -1816,8 +1817,8 @@ Or something. Right? ~s ~s" var varbits))
               (unless (position (nx-unquote keyword) keyvect)
                 (return t)))))))))
 
-;  we can save some space by going through subprims to call
-; "builtin" functions for us.
+;;; we can save some space by going through subprims to call "builtin"
+;;; functions for us.
 (defun nx1-builtin-function-offset (name)
    (arch::builtin-function-name-offset name))
 
@@ -1843,7 +1844,12 @@ Or something. Right? ~s ~s" var varbits))
   (let ((args-in-regs (if spread-p 1 (backend-num-arg-regs *target-backend*))))
     (if (nx-self-call-p sym global-only)
       ; Should check for downward functions here as well.
-      (make-acode (%nx1-operator self-call) (nx1-arglist args args-in-regs) spread-p)
+      (multiple-value-bind (deftype required max minargs maxargs)
+                           (nx1-check-call-args *nx-current-function* args spread-p)
+        (when deftype
+          (nx1-whine (if (eq deftype :lexical-mismatch) :environment-mismatch deftype)
+                     sym required max minargs maxargs))
+        (make-acode (%nx1-operator self-call) (nx1-arglist args args-in-regs) spread-p))
       (multiple-value-bind (lambda-form containing-env token) (nx-inline-expansion sym *nx-lexical-environment* global-only)
         (or (nx1-expand-inline-call lambda-form containing-env token args spread-p)
             (multiple-value-bind (info afunc) (if (and  (symbolp sym) (not global-only)) (nx-lexical-finfo sym))
