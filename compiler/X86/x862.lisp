@@ -6228,82 +6228,109 @@
         (^)))))
            
 (defx862 x862-add2 add2 (seg vreg xfer form1 form2)
-  (if (and (x862-form-typep form1 'double-float)
-           (x862-form-typep form2 'double-float))
-    (x862-use-operator (%nx1-operator %double-float+-2)
-                       seg
-                       vreg
-                       xfer
-                       form1
-                       form2)
-    (if (and (x862-form-typep form1 'single-float)
-             (x862-form-typep form2 'single-float))
-      (x862-use-operator (%nx1-operator %short-float+-2)
+  (multiple-value-bind (form1 form2)
+      (nx-binop-numeric-contagion form1 form2 *x862-trust-declarations*)
+    (if (and (x862-form-typep form1 'double-float)
+             (x862-form-typep form2 'double-float))
+      (x862-use-operator (%nx1-operator %double-float+-2)
                          seg
                          vreg
                          xfer
                          form1
                          form2)
-      (if (and (x862-form-typep form1 'fixnum)
-               (x862-form-typep form2 'fixnum))
-        (x862-use-operator (%nx1-operator %i+)
-                         seg
-                         vreg
-                         xfer
-                         form1
-                         form2
-                         t)
-        (if (or (x862-explicit-non-fixnum-type-p form1)
-                (x862-explicit-non-fixnum-type-p form2))
-          (x862-binary-builtin seg vreg xfer '+-2 form1 form2)
-          (x862-inline-add2 seg vreg xfer form1 form2))))))
+      (if (and (x862-form-typep form1 'single-float)
+               (x862-form-typep form2 'single-float))
+        (x862-use-operator (%nx1-operator %short-float+-2)
+                           seg
+                           vreg
+                           xfer
+                           form1
+                           form2)
+        (if (and (x862-form-typep form1 'fixnum)
+                 (x862-form-typep form2 'fixnum))
+          (x862-use-operator (%nx1-operator %i+)
+                             seg
+                             vreg
+                             xfer
+                             form1
+                             form2
+                             t)
+          (if (or (x862-explicit-non-fixnum-type-p form1)
+                  (x862-explicit-non-fixnum-type-p form2))
+            (x862-binary-builtin seg vreg xfer '+-2 form1 form2)
+            (x862-inline-add2 seg vreg xfer form1 form2)))))))
 
 (defx862 x862-sub2 sub2 (seg vreg xfer form1 form2)
-  (if (and (x862-form-typep form1 'double-float)
-           (x862-form-typep form2 'double-float))
-    (x862-use-operator (%nx1-operator %double-float--2)
-                       seg
-                       vreg
-                       xfer
-                       form1
-                       form2)
-    (if (and (x862-form-typep form1 'single-float)
-             (x862-form-typep form2 'single-float))
-      (x862-use-operator (%nx1-operator %short-float--2)
+  (multiple-value-bind (form1 form2)
+      (nx-binop-numeric-contagion form1 form2 *x862-trust-declarations*)
+    (if (and (x862-form-typep form1 'double-float)
+             (x862-form-typep form2 'double-float))
+      (x862-use-operator (%nx1-operator %double-float--2)
                          seg
                          vreg
                          xfer
                          form1
                          form2)
-      (if (and (x862-form-typep form1 'fixnum)
-               (x862-form-typep form2 'fixnum))
-      (x862-use-operator (%nx1-operator %i-)
-                         seg
-                         vreg
-                         xfer
-                         form1
-                         form2
-                         t)
-        (x862-binary-builtin seg vreg xfer '--2 form1 form2)))))
+      (if (and (x862-form-typep form1 'single-float)
+               (x862-form-typep form2 'single-float))
+        (x862-use-operator (%nx1-operator %short-float--2)
+                           seg
+                           vreg
+                           xfer
+                           form1
+                           form2)
+        (if (and (x862-form-typep form1 'fixnum)
+                 (x862-form-typep form2 'fixnum))
+          (x862-use-operator (%nx1-operator %i-)
+                             seg
+                             vreg
+                             xfer
+                             form1
+                             form2
+                             t)
+          (x862-binary-builtin seg vreg xfer '--2 form1 form2))))))
 
 (defx862 x862-mul2 mul2 (seg vreg xfer form1 form2)
-  (if (and (x862-form-typep form1 'double-float)
-           (x862-form-typep form2 'double-float))
-    (x862-use-operator (%nx1-operator %double-float*-2)
-                       seg
-                       vreg
-                       xfer
-                       form1
-                       form2)
-    (if (and (x862-form-typep form1 'single-float)
-             (x862-form-typep form2 'single-float))
-      (x862-use-operator (%nx1-operator %short-float*-2)
+  (multiple-value-bind (form1 form2)
+      (nx-binop-numeric-contagion form1 form2 *x862-trust-declarations*)
+    (if (and (x862-form-typep form1 'double-float)
+             (x862-form-typep form2 'double-float))
+      (x862-use-operator (%nx1-operator %double-float*-2)
                          seg
                          vreg
                          xfer
                          form1
                          form2)
-      (x862-binary-builtin seg vreg xfer '*-2 form1 form2))))
+      (if (and (x862-form-typep form1 'single-float)
+               (x862-form-typep form2 'single-float))
+        (x862-use-operator (%nx1-operator %short-float*-2)
+                           seg
+                           vreg
+                           xfer
+                           form1
+                           form2)
+        (x862-binary-builtin seg vreg xfer '*-2 form1 form2)))))
+
+(defx862 x862-div2 div2 (seg vreg xfer form1 form2)
+  (multiple-value-bind (form1 form2)
+      (nx-binop-numeric-contagion form1 form2 *x862-trust-declarations*)
+    (if (and (x862-form-typep form1 'double-float)
+             (x862-form-typep form2 'double-float))
+      (x862-use-operator (%nx1-operator %double-float/-2)
+                         seg
+                         vreg
+                         xfer
+                         form1
+                         form2)
+      (if (and (x862-form-typep form1 'single-float)
+               (x862-form-typep form2 'single-float))
+        (x862-use-operator (%nx1-operator %short-float/-2)
+                           seg
+                           vreg
+                           xfer
+                           form1
+                           form2)
+        (x862-binary-builtin seg vreg xfer '/-2 form1 form2)))))
 
 (defx862 x862-logbitp logbitp (seg vreg xfer bitnum int)
   (x862-binary-builtin seg vreg xfer 'logbitp bitnum int))
@@ -8232,6 +8259,26 @@
       (ensuring-node-target (target vreg)
         (x862-one-targeted-reg-form seg arg target)
         (! %symvector->symptr target))
+      (^))))
+
+(defx862 x862-%fixnum-to-single %fixnum-to-single (seg vreg xfer arg)
+  (with-fp-target () (sreg :single-float)
+    (let* ((r (x862-one-untargeted-reg-form seg arg x8664::arg_z)))
+      (unless (or (acode-fixnum-form-p arg)
+                  *x862-reckless*)
+        (! trap-unless-fixnum r))
+      (! fixnum->single-float sreg r)
+      (<- sreg)
+      (^))))
+
+(defx862 ppc2-%fixnum-to-double %fixnum-to-double (seg vreg xfer arg)
+  (with-fp-target () (dreg :double-float)
+    (let* ((r (x862-one-untargeted-reg-form seg arg x8664::arg_z)))
+      (unless (or (acode-fixnum-form-p arg)
+                  *x862-reckless*)
+        (! trap-unless-fixnum r))
+      (! fixnum->double-float dreg r)
+      (<- dreg)
       (^))))
 
 ;------
