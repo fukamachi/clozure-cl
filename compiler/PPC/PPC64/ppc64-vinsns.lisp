@@ -1943,7 +1943,7 @@
 (define-ppc64-vinsn set-single-c-arg (()
 				      ((argval :single-float)
 				       (argnum :u16const)))
-  (stfs argval (:apply + ppc64::c-frame.param0 (:apply ash argnum ppc64::word-shift)) ppc::sp))
+  (stfs argval (:apply + ppc64::c-frame.param0 4 (:apply ash argnum ppc64::word-shift)) ppc::sp))
 
 (define-ppc64-vinsn set-double-c-arg (()
 				      ((argval :double-float)
@@ -1952,7 +1952,7 @@
 
 (define-ppc64-vinsn reload-single-c-arg (((argval :single-float))
 					 ((argnum :u16const)))
-  (lfs argval (:apply + ppc64::c-frame.param0 (:apply ash argnum ppc64::word-shift)) ppc::sp))
+  (lfs argval (:apply + ppc64::c-frame.param0 4 (:apply ash argnum ppc64::word-shift)) ppc::sp))
 
 (define-ppc64-vinsn reload-double-c-arg (((argval :double-float))
 					 ((argnum :u16const)))
@@ -2927,11 +2927,8 @@
 (define-ppc64-vinsn load-single-float-constant
     (((dest :single-float))
      ((src t)))
-  (stdu ppc::tsp -32 ppc::tsp)
-  (std ppc::tsp 8 ppc::tsp)
-  (std src 16 ppc::tsp)
-  (lfs dest 20 ppc::tsp)
-  (la ppc::tsp 32 ppc::tsp))
+  (stw src -4 ppc::sp)
+  (lfs dest -4 ppc::sp))
 
 (define-ppc64-vinsn load-indexed-node (((node :lisp))
 				       ((base :lisp)
