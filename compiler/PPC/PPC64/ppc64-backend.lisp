@@ -77,9 +77,12 @@
 				  (ecase type
 				    (:single-float
                                      (if (< (incf fp-arg-num) 14)
-                                       (setq use-fp-args t))
-
-                                     '%get-single-float-from-double-ptr)
+                                       (progn
+                                         (setq use-fp-args t)
+                                         '%get-single-float-from-double-ptr)
+                                       (progn
+                                         (setq bias 4)
+                                         '%get-single-float)))
 				    (:double-float
                                      (setq delta 8)
                                      (if (< (incf fp-arg-num) 14)
