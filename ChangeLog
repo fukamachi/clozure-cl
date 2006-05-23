@@ -1,3 +1,40 @@
+2006-05-22 22:59  gb
+
+	* darwin-headers/addressbook/: C/populate.sh, .cvsignore,
+	C/.cvsignore: New file.
+
+2006-05-22 22:57  gb
+
+	* level-1/l1-processes.lisp: PROCESS-SUSPEND: don't allow current
+	thread to suspend itself.
+
+2006-05-22 22:57  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: Use the SP red zone to load
+	SINGLE-FLOAT constants.
+	
+	SINGLE-FLOAT foreign args are stored in the low 32 bits of each
+	64-bit arg word, regardless of whether they're also passed in
+	f1-f13 as well.
+
+2006-05-22 22:55  gb
+
+	* compiler/PPC/PPC64/ppc64-backend.lisp: Callback fixes:
+	SINGLE-FLOATs passed in memory are passed in the low 32 bits of the
+	64-bit word.
+
+2006-05-22 22:54  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Use the red zone (on SP)
+	for LOAD-SINGLE-FLOAT-CONSTANT, LOAD-DOUBLE-FLOAT-CONSTANT.
+
+2006-05-22 22:53  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: "poweropen ABI" (Darwin)
+	callback fixes: SINGLE-FLOATs passed in memory are passed as ...
+	SINGLE-FLOATs, so don't use %GET-SINGLE-FLOAT-FROM-DOUBLE-PTR to
+	access them.
+
 2006-05-22 03:53  gb
 
 	* level-1/version.lisp: Bump.
