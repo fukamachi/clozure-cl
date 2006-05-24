@@ -5254,7 +5254,8 @@
                 (rplacd constant reg)
                 (! ref-constant reg (backend-immediate-index (car constant))))))
           (when (and (not (or opt rest keys))
-                     (<= num-fixed $numppcargregs))
+                     (<= num-fixed $numppcargregs)
+                     (not (some #'null arg-regs)))
             (setq *ppc2-tail-vsp* *ppc2-vstack*
                   *ppc2-tail-nargs* num-fixed)
             (@ (setq *ppc2-tail-label* (backend-get-next-label))))

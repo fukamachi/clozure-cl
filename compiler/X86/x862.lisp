@@ -5348,7 +5348,8 @@
                 (rplacd constant reg)
                 (! ref-constant reg (x86-immediate-label (car constant))))))
           (when (and (not (or opt rest keys))
-                     (<= max-args $numx8664argregs))
+                     (<= max-args $numx8664argregs)
+                     (not (some #'null arg-regs)))
             (setq *x862-tail-vsp* *x862-vstack*
                   *x862-tail-nargs* max-args)
             (@ (setq *x862-tail-label* (backend-get-next-label))))
