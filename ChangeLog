@@ -1,3 +1,16 @@
+2006-05-28 17:01  gb
+
+	* lisp-kernel/ppc-exceptions.c: If we handle a
+	SIGNAL_FOR_PROCESS_INTERRUPT trap, clear tcr->interrupt_pending.
+	
+	Back out of the hack that tried to work around a Darwin bug (FP
+	exception flags were cleared in the MSR after a thread had been
+	interrupted via pthread_kill()), since the fix seems not to be
+	GC-safe.
+	
+	Add some debugging code to print when the exception lock is
+	acquired/released.
+
 2006-05-28 01:10  gb
 
 	* level-1/solaris-files.lisp: long gone
