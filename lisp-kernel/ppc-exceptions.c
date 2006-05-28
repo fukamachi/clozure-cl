@@ -1180,6 +1180,7 @@ PMCL_exception_handler(int xnum,
       status = handle_trap(xp, instruction, program_counter, info);
     }
   } else if (xnum == SIGNAL_FOR_PROCESS_INTERRUPT) {
+    tcr->interrupt_pending = 0;
     callback_for_trap(nrs_CMAIN.vcell, xp, 0, TRI_instruction(TO_GT,nargs,0),0, 0);
     status = 0;
   }
@@ -1360,9 +1361,15 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
      will push lr/fn & pc/nfn stack frames for backtrace.
   */
   callback_ptr = ((macptr *)ptr_from_lispobj(untag(callback_macptr)))->address;
+#ifdef DEBUG
+  fprintf(stderr, "0x%x releasing exception lock for callback\n", tcr);
+#endif
   UNLOCK(lisp_global(EXCEPTION_LOCK), tcr);
   ((void (*)())callback_ptr) (xp, arg1, arg2, arg3, arg4, arg5);
   LOCK(lisp_global(EXCEPTION_LOCK), tcr);
+#ifdef DEBUG
+  fprintf(stderr, "0x%x acquired exception lock after callback\n", tcr);
+#endif
 
 
 
@@ -1618,7 +1625,7 @@ wait_for_exception_lock_in_handler(TCR *tcr,
 {
 
   LOCK(lisp_global(EXCEPTION_LOCK), tcr);
-#if 0
+#ifdef DEBUG
   fprintf(stderr, "0x%x has exception lock\n", tcr);
 #endif
   xf->curr = context;
@@ -1634,10 +1641,10 @@ unlock_exception_lock_in_handler(TCR *tcr)
   tcr->pending_exception_context = tcr->xframe->curr;
   tcr->xframe = tcr->xframe->prev;
   tcr->valence = TCR_STATE_EXCEPTION_RETURN;
-  UNLOCK(lisp_global(EXCEPTION_LOCK),tcr);
-#if 0
-  fprintf(stderr, "0x%x released exception lock\n", tcr);
+#ifdef DEBUG
+  fprintf(stderr, "0x%x releasing exception lock\n", tcr);
 #endif
+  UNLOCK(lisp_global(EXCEPTION_LOCK),tcr);
 }
 
 /* 
@@ -1981,17 +1988,24 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	  pc_luser_xp(context, tcr, &disp);
 	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
+#ifdef DEBUG
+          fprintf(stderr, "[0x%x acquired exception lock for interrupt]\n",tcr);
+#endif
 	  PMCL_exception_handler(signum, context, tcr, info);
           if (disp) {
             xpGPR(context,allocptr) -= disp;
           }
 	  unlock_exception_lock_in_handler(tcr);
+#ifdef DEBUG
+          fprintf(stderr, "[0x%x released exception lock for interrupt]\n",tcr);
+#endif
 	  exit_signal_handler(tcr, old_valence);
 	}
       }
     }
   }
 #ifdef DARWIN
+#if 0
   /* 
      No, I'm not proud of this.
      We have to use DarwinSigReturn to work around an OSX G5 bug.
@@ -2004,8 +2018,9 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 
      I'm so ashamed.
   */
+#endif
   { 
-    
+#if 0    
     lisp_frame *cur_frame = ((lisp_frame *)xpGPR(context,sp)),
       *new_frame = cur_frame-1;
     xpGPR(context,sp) = (LispObj)new_frame;
@@ -2014,6 +2029,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
     new_frame->savefn=0;
     new_frame->savelr = (LispObj)xpPC(context);
     xpPC(context) = (pc)enable_fp_exceptions;
+#endif
     DarwinSigReturn(context);
   }
 #endif
