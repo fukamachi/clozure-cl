@@ -118,9 +118,6 @@ atomically decremented, or until a timeout expires."
   ;; Return N < 0, if error
   ;;        N < bufsize: success, string is of length n
   ;;        N > bufsize: buffer needs to be larger.
-  #+linux-target
-  (syscall syscalls::getcwd buf bufsize)	; which is exactly what Linux does
-  #+darwinppc-target
   (let* ((p (#_getcwd buf bufsize)))
     (declare (dynamic-extent p))
     (if (%null-ptr-p p)
