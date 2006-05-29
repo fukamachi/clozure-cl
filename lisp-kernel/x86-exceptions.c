@@ -614,6 +614,7 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
     break;
 
   case SIGNAL_FOR_PROCESS_INTERRUPT:
+    tcr->interrupt_pending = 0;
     callback_for_interrupt(tcr, context);
     return true;
     break;
