@@ -1,3 +1,14 @@
+2006-05-29 14:03  gb
+
+	* level-1/linux-files.lisp: In %OS-GETCWD: don't trust
+	syscall-based getcwd (it doesn't work as it once did/is documented
+	to on linuxx8664); use the library function on all platforms.
+
+2006-05-29 14:02  gb
+
+	* lisp-kernel/x86-exceptions.c: Clear interrupt_pending flag before
+	processing interrupt.
+
 2006-05-28 17:01  gb
 
 	* lisp-kernel/ppc-exceptions.c: If we handle a
