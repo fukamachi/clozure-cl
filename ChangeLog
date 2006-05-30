@@ -1,3 +1,31 @@
+2006-05-30 17:12  gb
+
+	* level-1/version.lisp: bump again.
+
+2006-05-30 16:31  gb
+
+	* lisp-kernel/x86-spentry64.s: When unwinding the stack, try to
+	ensure that tcr.xframe is updated from the catch frame (a) in all
+	execution paths and (b) before RSP is updated.
+
+2006-05-30 16:30  gb
+
+	* level-0/l0-array.lisp, lib/sequences.lisp: Handle (simple) fixnum
+	vectors.
+
+2006-05-30 16:29  gb
+
+	* level-1/l1-typesys.lisp: Add a DEFTYPE for fixnum vectors.
+
+2006-05-30 16:29  gb
+
+	* release-notes.txt: Update some more ...
+
+2006-05-30 16:23  gb
+
+	* lib/ccl-export-syms.lisp: There are two 'e's in UNPROCESSED.
+	Apparently.
+
 2006-05-30 16:15  gb
 
 	* release-notes.txt: updated
