@@ -1,3 +1,46 @@
+2006-05-30 01:58  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-05-30 01:48  gb
+
+	* lisp-kernel/x86-exceptions.c: altstack_interrupt_handler: having
+	made copies of the signal context and siginfo on the foreign stack,
+	don't pass the originals to interrupt_handler().
+	
+	(altstack_interrupt_handler() looks suspiciously like
+	altstack_signal_handler(), which probably had the same bug a few
+	months ago ...)
+	
+	Since the alternate signal stack (as we use it) isn't reentrant,
+	the next signal (perhaps a suspend signal) overwrote the context. 
+	Which is one reason to have made a copy in the first place ...
+
+2006-05-30 01:43  gb
+
+	* level-1/l1-lisp-threads.lisp: In THREAD-ENABLE, use the new
+	%TIMED-WAIT-ON-SEMAPHORE-PTR; regardless of whether or not a
+	timeout is a good idea here, make sure that the timeout isn't
+	fooled by #$EINTR.
+
+2006-05-30 01:39  gb
+
+	* level-1/linux-files.lisp: Rename the old
+	%TIMED-WAIT-ON-SEMAPHORE-PTR to %PROCESS-WAIT-ON-SEMAPHORE-PTR,
+	since it basically waits indefinitely.
+	
+	Split out the functionality in TIMED-WAIT-ON-SEMAPHORE into a new
+	%TIMED-WAIT-ON-SEMAPHORE-PTR function, so that it's possible to do
+	a "timed wait" that handles interruptions, etc. when the caller
+	just has a "raw" (native) semaphore.
+	
+	Change callers, endure warnings.  New binaries soon.
+
+2006-05-30 01:36  gb
+
+	* level-0/l0-misc.lisp: When waiting for a lock, use the new
+	%PROCESS-WAIT-ON-SEMAPHORE-PTR.
+
 2006-05-29 22:34  gb
 
 	* lisp-kernel/x86-exceptions.c: The
