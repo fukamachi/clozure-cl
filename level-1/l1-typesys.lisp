@@ -3877,6 +3877,9 @@
 (deftype simple-single-float-vector (&optional size)
   `(simple-array single-float (,size)))
 
+(deftype simple-fixnum-vector (&optional size)
+  `(simple-array fixnum (,size)))
+
 #+64-bit-target
 (deftype simple-doubleword-vector (&optional size)
   `(simple-array (signed-byte 64) (,size)))
