@@ -21,6 +21,9 @@ OpenMCL 1.1-pre-060530
 
   * the kernel build directory is "ccl/lisp-kernel/linuxx8664"
 
+  * the "openmcl64" shell script can be used to invoke the
+    lisp, as on 64-bit PPC platforms.
+
 Other changes tend to be a little more modest:
 
 - there is now a specialized FIXNUM array element type on all platforms.
@@ -31,7 +34,7 @@ Other changes tend to be a little more modest:
   there are no associated EGC write-barrier issues.)
 
 - "colon" commands entered into the REPL/break loops don't need to
-  be parenthesised if the command and all operands are on the same
+  be parenthesized if the command and all operands are on the same
   line. E.g.
 
 1> :f 0
@@ -53,7 +56,18 @@ Other changes tend to be a little more modest:
   :detailed-p	; boolean: whether or not to show frame detail
 
 - a new break-loop command :NFRAMES returns the number of stack frames
-  accessible to backtrace.
+  accessible to backtrace.  (Both this change and the previous
+  are intended to help deal with deep recursion/stack overflow cases.)
+
+- any command-line arguments that follow a "--" pseudo-argument
+  are not processed by the lisp startup code and are stored
+  (as a list of strings) in CCL:*UNPROCESSED-COMMAND-LINE-ARGUMENTS*.
+  E.g.:
+
+shell> openmcl -- -foo 17
+[...]
+? ccl:*UNPROCESSED-COMMAND-LINE-ARGUMENTS*
+=> ("-foo" "17")
 
 OpenMCL 1.1-pre-060226
 
