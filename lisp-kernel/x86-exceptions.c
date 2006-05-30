@@ -893,15 +893,19 @@ altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *c
 #else
   void *fpregs = NULL;
 #endif
+  siginfo_t *info_copy = NULL;
+  ExceptionInformation *xp = NULL;
 
   if (foreign_rsp) {
 #ifdef LINUX
     foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
 #endif
     foreign_rsp = copy_siginfo(info, foreign_rsp);
+    info_copy = (siginfo_t *)foreign_rsp;
     foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
+    xp = (ExceptionInformation *)foreign_rsp;
     *--foreign_rsp = (LispObj)__builtin_return_address(0);
-    switch_to_foreign_stack(foreign_rsp,interrupt_handler,signum,info,context);
+    switch_to_foreign_stack(foreign_rsp,interrupt_handler,signum,info_copy,xp);
   }
 }
 
