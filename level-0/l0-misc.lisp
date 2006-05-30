@@ -459,7 +459,7 @@
              (rplaca flag t)
              (setf (lock-acquisition.status flag) t)))
          (return t)))
-      (%timed-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
+      (%process-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
 
 (defun %try-recursive-lock (lock &optional flag)
   (with-macptrs ((p)
