@@ -150,7 +150,8 @@
 				   (the fixnum (+ n n))))
 	((#.target::subtag-s32-vector
 	  #.target::subtag-u32-vector
-	  #.target::subtag-single-float-vector)
+	  #.target::subtag-single-float-vector
+          #+32-bit-target #.target::subtag-fixnum-vector)
 	 (%copy-ivector-to-ivector src
 				   (the fixnum (ash start 2))
 				   dest
@@ -170,7 +171,8 @@
 	#+64-bit-target
 	((#.target::subtag-double-float-vector
 	  #.target::subtag-s64-vector
-	  #.target::subtag-u64-vector)
+	  #.target::subtag-u64-vector
+          #.target::subtag-fixnum-vector)
 	 (%copy-ivector-to-ivector src
 				   (the fixnum (ash start 3))
 				   dest

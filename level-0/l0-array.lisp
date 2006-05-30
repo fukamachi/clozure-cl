@@ -424,7 +424,8 @@
                                (the fixnum (* n 2))))
     ((#.target::subtag-s32-vector
       #.target::subtag-u32-vector
-      #.target::subtag-single-float-vector)
+      #.target::subtag-single-float-vector
+      #+32-bit-target #.target::subag-fixnum-vector)
      (%copy-ivector-to-ivector source
                                (the fixnum (* source-start 4))
                                target
@@ -432,7 +433,8 @@
                                (the fixnum (* n 4))))
     ((#.target::subtag-double-float-vector
       #+64-bit-target #.target::subtag-s64-vector
-      #+64-bit-target #.target::subtag-u64-vector)
+      #+64-bit-target #.target::subtag-u64-vector
+      #+64-bit-target #.target::subtag-fixnum-vector)
      (%copy-ivector-to-ivector source
                                (the fixnum
                                  (+ (the fixnum (- target::misc-dfloat-offset
