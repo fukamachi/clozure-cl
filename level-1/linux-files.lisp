@@ -69,19 +69,18 @@
      (when flag (setf (semaphore-notification.status flag) result))
      (values result status))))
 
-(defun %timed-wait-on-semaphore-ptr (s seconds milliseconds &optional
+(defun %process-wait-on-semaphore-ptr (s seconds milliseconds &optional
                                        (whostate "semaphore wait") flag)
   (process-wait whostate #'%wait-on-semaphore-ptr s seconds milliseconds flag))
   
 (defun wait-on-semaphore (s &optional flag (whostate "semaphore wait"))
   "Wait until the given semaphore has a positive count which can be
 atomically decremented."
-  (%timed-wait-on-semaphore-ptr (semaphore-value s) 1 0 whostate flag)
+  (%process-wait-on-semaphore-ptr (semaphore-value s) 1 0 whostate flag)
   t)
 
-(defun timed-wait-on-semaphore (s duration &optional notification)
-  "Wait until the given semaphore has a postive count which can be
-atomically decremented, or until a timeout expires."
+
+(defun %timed-wait-on-semaphore-ptr (semptr duration notification)
   (multiple-value-bind (secs millis) (milliseconds duration)
     (let* ((now (get-internal-real-time))
            (stop (+ now
@@ -90,7 +89,7 @@ atomically decremented, or until a timeout expires."
       (loop
         (multiple-value-bind (success err)
             (progn
-              (%wait-on-semaphore-ptr (semaphore-value s) secs millis notification))
+              (%wait-on-semaphore-ptr semptr secs millis notification))
           (when success
             (return t))
           (when (or (not (eql err #$EINTR))
@@ -102,6 +101,11 @@ atomically decremented, or until a timeout expires."
                   (floor diff 1000)
                 (setq secs remaining-seconds
                       millis remaining-millis)))))))))
+
+(defun timed-wait-on-semaphore (s duration &optional notification)
+  "Wait until the given semaphore has a postive count which can be
+atomically decremented, or until a timeout expires."
+  (%timed-wait-on-semaphore-ptr (semaphore-value s) duration notification))
 
 
 (defun %signal-semaphore-ptr (p)
