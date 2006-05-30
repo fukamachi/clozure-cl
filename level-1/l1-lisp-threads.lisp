@@ -426,15 +426,14 @@
 
 (defun thread-enable (thread activation-semaphore allocation-quantum &optional (timeout most-positive-fixnum))
   (let* ((tcr (or (lisp-thread.tcr thread) (new-tcr-for-thread thread))))
-    (multiple-value-bind (seconds nanos) (nanoseconds timeout)
-      (with-macptrs (s)
-	(%setf-macptr-to-object s (%fixnum-ref tcr target::tcr.reset-completion))
-	(when (%wait-on-semaphore-ptr s seconds nanos)
-	  (%set-tcr-toplevel-function
-	   tcr
-	   (lisp-thread.startup-function thread))
-	  (%activate-tcr tcr activation-semaphore allocation-quantum)
-	  thread)))))
+    (with-macptrs (s)
+      (%setf-macptr-to-object s (%fixnum-ref tcr target::tcr.reset-completion))
+      (when (%timed-wait-on-semaphore-ptr s timeout nil)
+        (%set-tcr-toplevel-function
+         tcr
+         (lisp-thread.startup-function thread))
+        (%activate-tcr tcr activation-semaphore allocation-quantum)
+        thread))))
 			      
 
 (defun cleanup-thread-tcr (thread tcr)
