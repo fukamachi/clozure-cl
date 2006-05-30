@@ -1,3 +1,9 @@
+2006-05-29 22:34  gb
+
+	* lisp-kernel/x86-exceptions.c: The
+	clear_tcr_save_allocptr_tag_instruction opcode array was one byte
+	too small ...
+
 2006-05-29 14:03  gb
 
 	* level-1/linux-files.lisp: In %OS-GETCWD: don't trust
