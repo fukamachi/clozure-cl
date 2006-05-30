@@ -108,7 +108,7 @@
 
      ;; Arguments, image name, etc.
      *command-line-argument-list*
-     *unprocessd-command-line-arguments*
+     *unprocessed-command-line-arguments*
      *heap-image-name*
 
 					; The MOP
