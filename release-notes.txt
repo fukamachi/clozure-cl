@@ -1,3 +1,60 @@
+OpenMCL 1.1-pre-060530
+
+- These release notes have gotten woefully out of date.
+
+- OpenMCL now runs on x86-64 (AMD64, Intel EM64T) systems under Linux.
+  It announces itself as an alpha release in the Welcome banner; it should
+  in fact be very nearly feature-complete (but possibly still buggy.)
+  There's a chicken-and-egg issue in that it needs more testing before
+  it can be formally released and some people may be waiting for a more
+  stable version.
+
+  The build process and most user-visible things should behave the same
+  way as on PPC; using REBUILD-CCL (described below) is generally the
+  simplest way to rebuild from sources.  A few (intentional) differences:
+ 
+  * the lisp kernel is named "lx86cl64", the default heap image is
+    named "LX86CL64" (e.g., the kernel name, case-inverted) and the
+    bootstrapping image is conventionally named "x86-boot64".
+
+  * FASL files have the extension "lx64fsl"
+
+  * the kernel build directory is "ccl/lisp-kernel/linuxx8664"
+
+Other changes tend to be a little more modest:
+
+- there is now a specialized FIXNUM array element type on all platforms.
+  (distinct from T or (SIGNED-BYTE <machine-word-size>)).  Access to
+  such vectors is a little cheaper than the SIGNED-BYTE case (since
+  elements are known to be fixnums) and a little easier on the GC
+  than the T case (the GC can avoid looking at their contents and
+  there are no associated EGC write-barrier issues.)
+
+- "colon" commands entered into the REPL/break loops don't need to
+  be parenthesised if the command and all operands are on the same
+  line. E.g.
+
+1> :f 0
+
+  and
+
+1> (:f 0)
+
+  are equivalent (and have the effect of examining the raw contents of
+  the 0th stack frame)
+
+- the syntax of the :B (backtrace) break-loop has changed; rather
+  than taking an optional argument which specifies whether or not
+  frame details should be shown, it now accepts keyword arguments
+  for specifying:
+   
+  :start	; unsigned integer: the index of the first frame to show
+  :count	; unsigned integer: the maximum number of frames to show
+  :detailed-p	; boolean: whether or not to show frame detail
+
+- a new break-loop command :NFRAMES returns the number of stack frames
+  accessible to backtrace.
+
 OpenMCL 1.1-pre-060226
 
 - The --thread-stack-size (or -Z)  command-line argument changes the values
