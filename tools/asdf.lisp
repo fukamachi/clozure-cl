@@ -359,6 +359,14 @@ and NIL NAME and TYPE components"
 	  (if (and file (probe-file file))
 	      (return file)))))))
 
+(defun make-temporary-package ()
+  (flet ((try (counter)
+           (ignore-errors
+                   (make-package (format nil "ASDF~D" counter)
+                                 :use '(:cl :asdf)))))
+    (do* ((counter 0 (+ counter 1))
+          (package (try counter) (try counter)))
+         (package package))))
 
 (defun find-system (name &optional (error-p t))
   (let* ((name (coerce-name name))
@@ -367,15 +375,18 @@ and NIL NAME and TYPE components"
     (when (and on-disk
 	       (or (not in-memory)
 		   (< (car in-memory) (file-write-date on-disk))))
-      (let ((*package* (make-package (gensym #.(package-name *package*))
-				     :use '(:cl :asdf))))
-	(format *verbose-out*
-		"~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
-		;; FIXME: This wants to be (ENOUGH-NAMESTRING
-		;; ON-DISK), but CMUCL barfs on that.
+      (let ((package (make-temporary-package)))
+        (unwind-protect
+             (let ((*package* package))
+               (format 
+                *verbose-out*
+                "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
+                ;; FIXME: This wants to be (ENOUGH-NAMESTRING
+                ;; ON-DISK), but CMUCL barfs on that.
 		on-disk
 		*package*)
-	(load on-disk)))
+               (load on-disk))
+          (delete-package package))))
     (let ((in-memory (gethash name *defined-systems*)))
       (if in-memory
 	  (progn (if on-disk (setf (car in-memory) (file-write-date on-disk)))
@@ -429,17 +440,20 @@ system."))
 (defmethod source-file-type ((c static-file) (s module)) nil)
 
 (defmethod component-relative-pathname ((component source-file))
-  (let* ((*default-pathname-defaults* (component-parent-pathname component))
-	 (name-type
-	  (make-pathname
-	   :name (component-name component)
-	   :type (source-file-type component
-				   (component-system component)))))
-    (if (slot-value component 'relative-pathname)
-	(merge-pathnames
-	 (slot-value component 'relative-pathname)
-	 name-type)
-	name-type)))
+  (let ((relative-pathname (slot-value component 'relative-pathname)))
+    (if relative-pathname
+        (merge-pathnames 
+         relative-pathname
+         (make-pathname 
+          :type (source-file-type component (component-system component))))
+        (let* ((*default-pathname-defaults* 
+                (component-parent-pathname component))
+               (name-type
+                (make-pathname
+                 :name (component-name component)
+                 :type (source-file-type component
+                                         (component-system component)))))
+          name-type))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; operations
@@ -569,26 +583,40 @@ system."))
 (defmethod input-files ((operation operation) (c module)) nil)
 
 (defmethod operation-done-p ((o operation) (c component))
-  (let ((out-files (output-files o c))
-	(in-files (input-files o c)))
-    (cond ((and (not in-files) (not out-files))
-	   ;; arbitrary decision: an operation that uses nothing to
-	   ;; produce nothing probably isn't doing much 
-	   t)
-	  ((not out-files) 
-	   (let ((op-done
-		  (gethash (type-of o)
-			   (component-operation-times c))))
-	     (and op-done
-		  (>= op-done
-		      (or (apply #'max
-				 (mapcar #'file-write-date in-files)) 0)))))
-	  ((not in-files) nil)
-	  (t
-	   (and
-	    (every #'probe-file out-files)
-	    (> (apply #'min (mapcar #'file-write-date out-files))
-	       (apply #'max (mapcar #'file-write-date in-files)) ))))))
+  (flet ((fwd-or-return-t (file)
+           ;; if FILE-WRITE-DATE returns NIL, it's possible that the
+           ;; user or some other agent has deleted an input file.  If
+           ;; that's the case, well, that's not good, but as long as
+           ;; the operation is otherwise considered to be done we
+           ;; could continue and survive.
+           (let ((date (file-write-date file)))
+             (cond
+               (date)
+               (t 
+                (warn "~@<Missing FILE-WRITE-DATE for ~S: treating ~
+                       operation ~S on component ~S as done.~@:>" 
+                      file o c)
+                (return-from operation-done-p t))))))
+    (let ((out-files (output-files o c))
+          (in-files (input-files o c)))
+      (cond ((and (not in-files) (not out-files))
+             ;; arbitrary decision: an operation that uses nothing to
+             ;; produce nothing probably isn't doing much 
+             t)
+            ((not out-files) 
+             (let ((op-done
+                    (gethash (type-of o)
+                             (component-operation-times c))))
+               (and op-done
+                    (>= op-done
+                        (apply #'max
+                               (mapcar #'fwd-or-return-t in-files))))))
+            ((not in-files) nil)
+            (t
+             (and
+              (every #'probe-file out-files)
+              (> (apply #'min (mapcar #'file-write-date out-files))
+                 (apply #'max (mapcar #'fwd-or-return-t in-files)))))))))
 
 ;;; So you look at this code and think "why isn't it a bunch of
 ;;; methods".  And the answer is, because standard method combination
@@ -800,37 +828,38 @@ system."))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
 
-(defun operate (operation-class system &rest args)
+(defun operate (operation-class system &rest args &key (verbose t) version 
+                                &allow-other-keys)
   (let* ((op (apply #'make-instance operation-class
-		    :original-initargs args args))
-	 (*verbose-out*
-	  (if (getf args :verbose t)
-	      *trace-output*
-	      (make-broadcast-stream)))
-	 (system (if (typep system 'component) system (find-system system)))
-	 (steps (traverse op system)))
-    (with-compilation-unit ()
-      (loop for (op . component) in steps do
-	    (loop
-	     (restart-case 
-		 (progn (perform op component)
-			(return))
-	       (retry ()
-		 :report
-		 (lambda (s)
-		   (format s "~@<Retry performing ~S on ~S.~@:>"
-			   op component)))
-	       (accept ()
-		 :report
-		 (lambda (s)
-		   (format s
-			   "~@<Continue, treating ~S on ~S as ~
-                            having been successful.~@:>"
-			   op component))
-		 (setf (gethash (type-of op)
-				(component-operation-times component))
-		       (get-universal-time))
-		 (return))))))))
+		    :original-initargs args
+		    args))
+	 (*verbose-out* (if verbose *trace-output* (make-broadcast-stream)))
+	 (system (if (typep system 'component) system (find-system system))))
+    (unless (version-satisfies system version)
+      (error 'missing-component :requires system :version version))
+    (let ((steps (traverse op system)))
+      (with-compilation-unit ()
+	(loop for (op . component) in steps do
+	     (loop
+		(restart-case 
+		    (progn (perform op component)
+			   (return))
+		  (retry ()
+		    :report
+		    (lambda (s)
+		      (format s "~@<Retry performing ~S on ~S.~@:>"
+			      op component)))
+		  (accept ()
+		    :report
+		    (lambda (s)
+		      (format s
+			      "~@<Continue, treating ~S on ~S as ~
+                               having been successful.~@:>"
+			      op component))
+		    (setf (gethash (type-of op)
+				   (component-operation-times component))
+			  (get-universal-time))
+		    (return)))))))))
 
 (defun oos (&rest args)
   "Alias of OPERATE function"
@@ -930,10 +959,11 @@ Returns the new tree (which probably shares structure with the old one)"
 	      ;; remove-keys form.  important to keep them in sync
 	      components pathname default-component-class
 	      perform explain output-files operation-done-p
+	      weakly-depends-on
 	      depends-on serial in-order-to
 	      ;; list ends
 	      &allow-other-keys) options
-    (check-component-input type name depends-on components in-order-to)
+    (check-component-input type name weakly-depends-on depends-on components in-order-to)
 
     (when (and parent
 	     (find-component parent name)
@@ -946,14 +976,17 @@ Returns the new tree (which probably shares structure with the old one)"
     (let* ((other-args (remove-keys
 			'(components pathname default-component-class
 			  perform explain output-files operation-done-p
+			  weakly-depends-on
 			  depends-on serial in-order-to)
 			rest))
 	   (ret
 	    (or (find-component parent name)
 		(make-instance (class-for-type parent type)))))
+      (when weakly-depends-on
+	(setf depends-on (append depends-on (remove-if (complement #'find-system) weakly-depends-on))))
       (when (boundp '*serial-depends-on*)
 	(setf depends-on
-	      (concatenate 'list *serial-depends-on* depends-on)))
+	      (concatenate 'list *serial-depends-on* depends-on)))      
       (apply #'reinitialize-instance
 	     ret
 	     :name (coerce-name name)
@@ -974,8 +1007,7 @@ Returns the new tree (which probably shares structure with the old one)"
 		      do (push (component-name c) *serial-depends-on*))))
 
 	;; check for duplicate names
-        #+check-for-global-duplicates
-	(let ((name-hash (make-hash-table :test #'equalp)))
+	(let ((name-hash (make-hash-table :test #'equal)))
 	  (loop for c in (module-components ret)
 		do
 		(if (gethash (component-name c)
@@ -1010,11 +1042,15 @@ Returns the new tree (which probably shares structure with the old one)"
 		  (component-inline-methods ret))))
       ret)))
 
-(defun check-component-input (type name depends-on components in-order-to)
+(defun check-component-input (type name weakly-depends-on depends-on components in-order-to)
   "A partial test of the values of a component."
+  (when weakly-depends-on (warn "We got one! XXXXX"))
   (unless (listp depends-on)
     (sysdef-error-component ":depends-on must be a list."
 			    type name depends-on))
+  (unless (listp weakly-depends-on)
+    (sysdef-error-component ":weakly-depends-on must be a list."
+			    type name weakly-depends-on))
   (unless (listp components)
     (sysdef-error-component ":components must be NIL or a list of components."
 			    type name components))
@@ -1041,14 +1077,15 @@ Returns the new tree (which probably shares structure with the old one)"
 (defun run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
-output to *verbose-out*.  Returns the shell's exit code."
+output to *VERBOSE-OUT*.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
     (format *verbose-out* "; $ ~A~%" command)
     #+sbcl
-    (sb-impl::process-exit-code
+    (sb-ext:process-exit-code
      (sb-ext:run-program  
-      "/bin/sh"
+      #+win32 "sh" #-win32 "/bin/sh"
       (list  "-c" command)
+      #+win32 #+win32 :search t
       :input nil :output *verbose-out*))
     
     #+(or cmu scl)
@@ -1108,10 +1145,17 @@ output to *verbose-out*.  Returns the shell's exit code."
 	  (asdf:operate 'asdf:load-op name)
 	  t))))
 
-  (pushnew
-   '(merge-pathnames "systems/"
-     (truename (sb-ext:posix-getenv "SBCL_HOME")))
-   *central-registry*)
+  (defun contrib-sysdef-search (system)
+    (let* ((name (coerce-name system))
+           (home (truename (sb-ext:posix-getenv "SBCL_HOME")))
+           (contrib (merge-pathnames
+                     (make-pathname :directory `(:relative ,name)
+                                    :name name
+                                    :type "asd"
+                                    :case :local
+                                    :version :newest)
+                     home)))
+      (probe-file contrib)))
   
   (pushnew
    '(merge-pathnames "site-systems/"
@@ -1123,19 +1167,7 @@ output to *verbose-out*.  Returns the shell's exit code."
      (user-homedir-pathname))
    *central-registry*)
   
-  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*))
-
-#+openmcl
-(when (boundp 'ccl::*module-provider-functions*)  ;; openmcl 0.14.1 and newer
-  (defun module-provide-asdf (module)
-    (handler-bind ((style-warning #'muffle-warning))
-                  (let* ((*verbose-out* (make-broadcast-stream))
-                         (system (asdf:find-system module nil)))
-                    (when system
-                      (asdf:operate 'asdf:load-op module)
-                      t))))
-
-  (pushnew 'module-provide-asdf ccl::*module-provider-functions*))
-
+  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*)
+  (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
 
 (provide 'asdf)
