@@ -1,3 +1,8 @@
+2006-05-30 19:27  gwking
+
+	* tools/asdf.lisp: Updated asdf to the current CVS head (revision
+	1.98)
+
 2006-05-30 17:12  gb
 
 	* level-1/version.lisp: bump again.
