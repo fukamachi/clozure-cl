@@ -1,3 +1,9 @@
+2006-06-01 13:13  gb
+
+	* lib/x86-backtrace.lisp: In %FIND-REGISTER-ARGUMENT-VALUE, pass a
+	pointer to ENCODED-GPR-LISP if we have to get the register value
+	from an exception frame.
+
 2006-05-30 19:27  gwking
 
 	* tools/asdf.lisp: Updated asdf to the current CVS head (revision
