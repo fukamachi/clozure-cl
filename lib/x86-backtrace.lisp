@@ -122,7 +122,9 @@
                   (child-frame child context)))
           ((null child))
        (if (xcf-p child)
-         (return (encoded-gpr-lisp (%fixnum-ref child x8664::xcf.xp) regval))
+         (with-macptrs (xp)
+           (%setf-macptr-to-object xp (%fixnum-ref child x8664::xcf.xp))
+           (return (encoded-gpr-lisp xp regval)))
          (multiple-value-bind (lfun pc)
              (cfp-lfun child)
            (when lfun
