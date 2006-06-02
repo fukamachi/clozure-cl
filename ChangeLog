@@ -1,3 +1,41 @@
+2006-06-01 20:20  gb
+
+	* level-0/l0-array.lisp: There's a T in subtag.
+
+2006-06-01 20:17  gb
+
+	* compiler/X86/x862.lisp: X862-MVCALL wasn't handling things like:
+	
+	(multiple-value-bind (...)   (multiple-value-call #'foo ...))
+	
+	correctly.
+
+2006-06-01 20:16  gb
+
+	* compiler/nx0.lisp: Defvars for global optimization quantities
+	moved to level-0.
+
+2006-06-01 20:15  gb
+
+	* level-1/l1-files.lisp: Bind the variables which hold global
+	compiler optimization quantities, since people persist in doing
+	things like:
+	
+	(declaim (optimize
+	<something-that-they-probably-think-has-local-effects>))
+	
+	without bothering to use EVAL-WHEN or otherwise thinking very
+	clearly.
+	
+	Note that this means that anyone who wanted such a declamation to
+	have persistent global effects is now SOL.  Blame whoever wrote
+	(for instance) clx/glx.lisp.
+
+2006-06-01 20:11  gb
+
+	* level-0/l0-init.lisp: Move *nx-speed*, etc here, so that they can
+	be referenced early in the cold load.
+
 2006-06-01 13:13  gb
 
 	* lib/x86-backtrace.lisp: In %FIND-REGISTER-ARGUMENT-VALUE, pass a
