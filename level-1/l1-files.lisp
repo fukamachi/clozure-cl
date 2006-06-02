@@ -1072,7 +1072,12 @@ a host-structure or string."
   (let ((*load-pathname* file-name)
         (*load-truename* file-name)
         (source-file file-name)
-        constructed-source-file)
+        constructed-source-file
+        (*nx-speed* *nx-speed*)
+        (*nx-space* *nx-space*)
+        (*nx-safety* *nx-safety*)
+        (*nx-debug* *nx-debug*)
+        (*nx-cspeed* *nx-cspeed*))
     (declare (special *load-pathname* *load-truename*))
     (when (typep file-name 'string-input-stream)
       (when verbose
