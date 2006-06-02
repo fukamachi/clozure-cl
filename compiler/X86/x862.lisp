@@ -4540,7 +4540,7 @@
       (let* ((mv-p (x862-mv-p xfer)))
         (if (null arglist)
           (x862-call-fn seg vreg xfer fn arglist nil)
-          (let* ((label (when recursive-p (backend-get-next-label))))
+          (let* ((label (when (or recursive-p (x862-mvpass-p xfer)) (backend-get-next-label))))
             (when label
               (! start-mv-call (aref *backend-labels* label)))
             (x862-temp-push-node seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
