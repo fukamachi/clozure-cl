@@ -113,4 +113,10 @@
 
 (defparameter *loading-file-source-file* nil)
 
+(defvar *nx-speed* 1)
+(defvar *nx-space* 1)
+(defvar *nx-safety* 1)
+(defvar *nx-cspeed* 1)
+(defvar *nx-debug* 1)
+
 ;;; end
