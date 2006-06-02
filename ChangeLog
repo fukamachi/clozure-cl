@@ -1,3 +1,8 @@
+2006-06-02 03:48  gb
+
+	* lib/encapsulate.lisp: Don't print trace indent/outdent stuff to
+	*terminal-io*; do print it to *trace-output*.
+
 2006-06-01 20:20  gb
 
 	* level-0/l0-array.lisp: There's a T in subtag.
