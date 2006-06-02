@@ -173,11 +173,6 @@
   (or (find-optimize-quantity 'compilation-speed env)
       *nx-cspeed*))
 
-(defvar *nx-speed* 1)
-(defvar *nx-space* 1)
-(defvar *nx-safety* 1)
-(defvar *nx-cspeed* 1)
-(defvar *nx-debug* 1)
 (defvar *nx-ignore-if-unused* ())
 (defvar *nx-new-p2decls* ())
 (defvar *nx-inlined-self* t)
