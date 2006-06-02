@@ -64,8 +64,8 @@
 			 (eq 0 (mod i *trace-bar-frequency*)))
 		  #\| #\Space) *trace-output*))
   (if (eq direction :in)
-    (format t "~d> " (1- *trace-level*))
-    (format t "<~d " (1- *trace-level*))))
+    (format *trace-output* "~d> " (1- *trace-level*))
+    (format *trace-output* "<~d " (1- *trace-level*))))
 
 (defun trace-before  (&rest args)
   (declare (dynamic-extent args))
