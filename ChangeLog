@@ -1,3 +1,9 @@
+2006-06-03 03:11  gb
+
+	* lisp-kernel/x86-spentry64.s: In _SPnthrowvalues: don't skip the
+	last catch frame, do skip others (test was backwards.  As it
+	probably had been in the single-value case at one point.)
+
 2006-06-02 03:48  gb
 
 	* lib/encapsulate.lisp: Don't print trace indent/outdent stuff to
