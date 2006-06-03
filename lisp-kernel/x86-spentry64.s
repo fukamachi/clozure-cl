@@ -1272,7 +1272,7 @@ local_label(_nthrowv_dont_unbind):
 /* A catch frame.  If the last one, restore context from there.   */
 	__(movd %mm1,%imm0)
 	__(testq %imm0,%imm0)	/* last catch frame ?   */
-	__(jz local_label(_nthrowv_skip))
+	__(jne local_label(_nthrowv_skip))
 	__(movq catch_frame.xframe(%temp0),%save0)
 	__(movq %save0,%rcontext:tcr.xframe)
 	__(leaq (%rsp,%nargs_q),%save1)
