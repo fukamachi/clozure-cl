@@ -115,7 +115,7 @@ The minimum version supported by this interface is ~d.~d."
 
 (defun get-readonly-area-bounds ()
   (ccl::do-gc-areas (a)
-    (when (eql(ccl::%fixnum-ref a target::area.code) ppc::area-readonly)
+    (when (eql(ccl::%fixnum-ref a target::area.code) ccl::area-readonly)
       (return
         (values (ash (ccl::%fixnum-ref a target::area.low) target::fixnumshift)
                 (ash (ccl::%fixnum-ref a target::area.active) target::fixnumshift))))))
