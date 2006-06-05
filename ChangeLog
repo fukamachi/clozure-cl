@@ -1,3 +1,7 @@
+2006-06-05 12:43  gb
+
+	* library/chud-metering.lisp: area-readonly is in ccl:: now.
+
 2006-06-03 03:11  gb
 
 	* lisp-kernel/x86-spentry64.s: In _SPnthrowvalues: don't skip the
