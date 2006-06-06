@@ -1,3 +1,15 @@
+2006-06-06 04:25  gb
+
+	* lib/ppc-metering.lisp: no hope
+
+2006-06-06 04:22  gb
+
+	* lib/x86-backtrace.lisp: %find-register-argument-value: Current
+	frame (cfp argument) could be an exception callback frame (xcf-p
+	may be true of it), in which case the saved register value is in
+	the xcf.xp context.  (Basically, this means look at the first frame
+	if it's an xcf, otherwise skip it and start with the child.)
+
 2006-06-06 01:48  gb
 
 	* compiler/X86/x86-lapmacros.lisp,
