@@ -118,21 +118,24 @@
   (let* ((last-catch (last-catch-since cfp context))
          (index (register-number->saved-register-index regval)))
     (or
-     (do* ((child (child-frame cfp context)
-                  (child-frame child context)))
-          ((null child))
-       (if (xcf-p child)
+     (do* ((frame cfp (child-frame frame context))
+           (first t))
+          ((null frame))
+       (if (xcf-p frame)
          (with-macptrs (xp)
-           (%setf-macptr-to-object xp (%fixnum-ref child x8664::xcf.xp))
+           (%setf-macptr-to-object xp (%fixnum-ref frame x8664::xcf.xp))
            (return (encoded-gpr-lisp xp regval)))
-         (multiple-value-bind (lfun pc)
-             (cfp-lfun child)
-           (when lfun
-             (multiple-value-bind (mask where)
-                 (registers-used-by lfun pc)
-               (when (if mask (logbitp index mask))
-                 (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
-                 (return (raw-frame-ref child context where bad))))))))
+         (progn
+           (unless first
+             (multiple-value-bind (lfun pc)
+                 (cfp-lfun frame)
+               (when lfun
+                 (multiple-value-bind (mask where)
+                     (registers-used-by lfun pc)
+                   (when (if mask (logbitp index mask))
+                     (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+                     (return (raw-frame-ref frame context where bad)))))))
+           (setq first nil))))
      (get-register-value nil last-catch index))))
 
 ;;; Used for printing only.
