@@ -40,7 +40,7 @@ define([unbox_fixnum],[
 ])
 
 define([box_fixnum],[
-	leaq (,$1,1<<fixnumshift),$2
+        imulq [$]fixnumone,$1,$2
 ])	
 
 define([save_node_regs],[

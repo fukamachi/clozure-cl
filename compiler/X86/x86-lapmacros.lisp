@@ -137,7 +137,7 @@
     (sar ($ x8664::fixnumshift) (% ,dest))))
 
 (defx86lapmacro box-fixnum (src dest)
-  `(lea (@ (% ,src) 8) (% ,dest)))
+  `(imulq ($ x8664::fixnumone) (% ,src) (% ,dest)))
 
 
 (defx86lapmacro get-single-float (node dest)

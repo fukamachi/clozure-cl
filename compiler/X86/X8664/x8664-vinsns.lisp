@@ -665,7 +665,7 @@
 (define-x8664-vinsn u8->char (((dest :lisp))
 			      ((src :u8))
 			      ())
-  (leaq (:@ (:%q src) x8664::fixnumone) (:%q dest))
+  (imulq (:$b x8664::fixnumone) (:%q src)(:%q dest))
   (shlq (:$ub (- x8664::charcode-shift x8664::fixnum-shift)) (:%q dest))
   (movb (:$b x8664::subtag-character) (:%b dest)))
 
@@ -1054,7 +1054,7 @@
                                                        
 (define-x8664-vinsn box-fixnum (((dest :imm))
                                 ((src :s8)))
-  (leaq (:@ (:%q src) x8664::fixnumone) (:%q dest)))
+  (imulq (:$b x8664::fixnumone) (:%q src)(:%q dest)))
 
 
 (define-x8664-vinsn fix-fixnum-overflow-ool (((val :lisp))
