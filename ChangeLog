@@ -1,3 +1,9 @@
+2006-06-05 23:56  gb
+
+	* lisp-kernel/thread_manager.c: I don't think that
+	suspend_resume_handler wants to have suspend signals unmasked, does
+	it ?
+
 2006-06-05 12:43  gb
 
 	* library/chud-metering.lisp: area-readonly is in ccl:: now.
