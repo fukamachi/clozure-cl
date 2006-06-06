@@ -314,7 +314,9 @@ thread_signal_setup()
   thread_suspend_signal = SIG_SUSPEND_THREAD;
   thread_resume_signal = SIG_RESUME_THREAD;
   sigfillset(&action.sa_mask);
+#ifdef WHY_ON_EARTH
   sigdelset(&action.sa_mask,thread_suspend_signal);
+#endif
   action.sa_flags = 
     SA_RESTART 
     | SA_SIGINFO 
