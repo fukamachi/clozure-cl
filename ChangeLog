@@ -1,3 +1,10 @@
+2006-06-06 01:48  gb
+
+	* compiler/X86/x86-lapmacros.lisp,
+	compiler/X86/X8664/x8664-vinsns.lisp, lisp-kernel/x86-macros.s:
+	Using imul to box fixnums is smaller and seems to be faster than
+	using lea with a scale factor.
+
 2006-06-05 23:56  gb
 
 	* lisp-kernel/thread_manager.c: I don't think that
