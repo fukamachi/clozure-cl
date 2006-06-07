@@ -118,10 +118,11 @@ define([TSP_Alloc_Fixed],[
 	define([TSP_Alloc_Size],[((($1+node_size) & ~(dnode_size-1))+dnode_size)])
 	movd %tsp,$2
 	sub [$]TSP_Alloc_Size,$2
-	movd $2,%next_tsp
+	movd $2,%Rnext_tsp
+        movq %Rnext_tsp,%rcontext:tcr.next_tsp
 	zero_dnodes $2,0,TSP_Alloc_Size
 	movq %tsp,($2)
-	movq %next_tsp,%tsp
+	movq %Rnext_tsp,%tsp
         movq %tsp,%rcontext:tcr.save_tsp
 	undefine([TSP_Alloc_Size])
 ])
@@ -133,7 +134,8 @@ define([TSP_Alloc_Var],[
 	new_macro_labels()	
 	movd %tsp,$2
 	sub $1,$2
-	movd $2,%next_tsp
+	movd $2,%Rnext_tsp
+        movq %Rnext_tsp,%rcontext:tcr.next_tsp
 	jmp macro_label(test)
 macro_label(loop):
 	movapd %fpzero,0($2)
@@ -141,10 +143,10 @@ macro_label(loop):
 macro_label(test):	
 	subq $dnode_size,$1
 	jge macro_label(loop)
-	movd %next_tsp,$2
+	movd %Rnext_tsp,$2
 	movd %tsp,$1
 	movq $1,($2)
-	movq %next_tsp,%tsp
+	movq %Rnext_tsp,%tsp
         movq %tsp,%rcontext:tcr.save_tsp
 	addq $dnode_size,$2
 ])
@@ -169,14 +171,14 @@ define([Make_Catch],[
 	movq %rcontext:tcr.xframe,%imm0
 	movq %rsp,catch_frame.rsp(%temp2)
 	movq %rbp,catch_frame.rbp(%temp2)
-        movq %rcontext:tcr.foreign_sp,%Rforeign_sp
-	movq %Rforeign_sp,catch_frame.foreign_sp(%temp2)
+        movq %rcontext:tcr.foreign_sp,%mm5
 	movq %imm1,catch_frame.db_link(%temp2)
 	movq %save3,catch_frame._save3(%temp2)
 	movq %save2,catch_frame._save2(%temp2)
 	movq %save1,catch_frame._save1(%temp2)
 	movq %save0,catch_frame._save0(%temp2)
 	movq %imm0,catch_frame.xframe(%temp2)
+	movq %mm5,catch_frame.foreign_sp(%temp2)
 	movq %xfn,catch_frame.pc(%temp2)
 	movq %temp2,%rcontext:tcr.catch_top
 ])	
@@ -422,7 +424,8 @@ define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1)
 define([discard_temp_frame],[
 	movd %tsp,$1
 	movq ($1),%tsp
-	movq %tsp,%next_tsp
+	movq %tsp,%Rnext_tsp
+        movq %Rnext_tsp,%rcontext:tcr.next_tsp
         movq %tsp,%rcontext:tcr.save_tsp
 ])	
 
