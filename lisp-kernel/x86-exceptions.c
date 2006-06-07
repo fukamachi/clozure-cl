@@ -797,19 +797,13 @@ copy_ucontext(ExceptionInformation *context, LispObj *current, copy_ucontext_las
 }
 
 LispObj *
-find_foreign_rsp(ExceptionInformation *xp, area *foreign_area)
+find_foreign_rsp(ExceptionInformation *xp, area *foreign_area, TCR *tcr)
 {
   LispObj rsp = xpGPR(xp, Isp);
 
   if (((BytePtr)rsp < foreign_area->low) ||
       ((BytePtr)rsp > foreign_area->high)) {
-#ifdef LINUX
-  if (xp->uc_mcontext.fpregs == NULL) {
-    Bug(xp, "no FP regs in context\n");
-    exit(1);
-  }
-#endif
-    rsp = xpMMXreg(xp, Iforeign_sp);
+    rsp = (LispObj)(tcr->foreign_sp);
   }
   return (LispObj *) ((rsp-128 & ~15));
 }
@@ -818,7 +812,7 @@ void
 altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 {
   TCR* tcr = get_tcr(true);
-  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area);
+  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area, tcr);
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
@@ -887,7 +881,7 @@ void
 altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
   TCR *tcr = get_interrupt_tcr(false);
-  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area);
+  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area, tcr);
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
