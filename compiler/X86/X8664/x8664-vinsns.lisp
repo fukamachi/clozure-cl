@@ -1532,6 +1532,12 @@
 				   ((car :lisp) (cdr :lisp))
 				   ((temp :imm)))
   (movd (:%mmx x8664::tsp) (:%q temp))
+  ; -----
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----
   (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q temp))
   (movd (:%q temp) (:%mmx x8664::next-tsp))
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
@@ -1550,6 +1556,12 @@
                                               ((tempa :imm)
                                                (tempb :imm)))
   (movd (:%mmx x8664::tsp) (:%q tempa))
+  ; -----
+  (cmpq (:%q tempa) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (movq (:%q tempa) (:%q tempb))
   ((:and (:pred >= (:apply + aligned-size x8664::dnode-size) -128)
          (:pred <= (:apply + aligned-size x8664::dnode-size) 127))
@@ -1574,6 +1586,12 @@
 					()
                                         ((temp :imm)))
   (movd (:%mmx x8664::tsp) (:%q temp))
+  ; -----
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (movq (:@ (:%q temp)) (:%mmx x8664::tsp))
   (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
   (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp)))
@@ -1582,6 +1600,12 @@
                                      ()
                                      ((temp :imm)))
   (movd (:%mmx x8664::foreign-sp) (:%q temp))
+  ; -----
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (movq (:@ (:%q temp)) (:%mmx x8664::foreign-sp))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
   )
@@ -1834,6 +1858,12 @@
     (()
      ((w :u64)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (subq (:$b 16) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
@@ -1846,6 +1876,12 @@
          ((w :lisp))
          ((temp :imm)))
   (movd (:%mmx x8664::tsp) (:%q temp))
+  ; -----
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q temp))
   (movd (:%q temp) (:%mmx x8664::next-tsp))
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
@@ -1859,23 +1895,18 @@
     (()
      ((f :double-float)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (subq (:$b 16) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))  
   (movsd (:%xmm f) (:@ 8 (:%q x8664::ra0))))
 
-
-
-(define-x8664-vinsn (temp-push-single-float :push :word :csp)
-    (()
-     ((f :single-float)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  (subq (:$b 16) (:%q x8664::ra0))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))  
-  (movss (:%xmm f) (:@ 8 (:%q x8664::ra0))))
 
 (define-x8664-vinsn (vpush-single-float :push :word :vsp)
     (()
@@ -1893,6 +1924,12 @@
     (((w :u64))
      ())
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (movq (:@ 8 (:%q x8664::ra0)) (:%q w))
   (addq (:$b 16) (:%q x8664::ra0))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
@@ -1905,6 +1942,12 @@
          ()
          ((temp :imm)))
   (movd (:%mmx x8664::tsp) (:%q temp))
+  ; -----
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (movq (:@ x8664::dnode-size (:%q temp)) (:%q w))
   (movq (:@ (:%q temp)) (:%mmx x8664::tsp))
   (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))  
@@ -1914,24 +1957,29 @@
     (((f :double-float))
      ())
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (movsd (:@ 8 (:%q x8664::ra0)) (:%xmm f))
   (addq (:$b 16) (:%q x8664::ra0))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
 )
 
-(define-x8664-vinsn (temp-pop-single-float :pop :word :csp)
-    (((f :single-float))
-     ())
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  (movss (:@ 8 (:%q x8664::ra0)) (:%xmm f))
-  (addq (:$b 16) (:%q x8664::ra0))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
+
 
 (define-x8664-vinsn macptr->stack (((dest :lisp))
                                    ((ptr :address)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----      
   (subq (:$b (+ 16 x8664::macptr.size)) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ 0 (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
@@ -3161,6 +3209,12 @@
 (define-x8664-vinsn alloc-c-frame (()
                                    ((nbytes :u32const)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----      
   ((:pred < nbytes 128)
    (subq (:$b nbytes) (:%q x8664::ra0)))
   ((:not (:pred < nbytes 128))
@@ -3177,6 +3231,12 @@
   (andb (:$b (lognot x8664::fulltagmask)) (:%b size))
   
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (subq (:%q size) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
@@ -3187,28 +3247,58 @@
                                ((arg :u64)
                                 (offset :u32const)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (movq (:%q arg) (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0))))
 
 (define-x8664-vinsn set-single-c-arg (()
                                       ((arg :single-float)
                                        (offset :u32const)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (movss (:%xmm arg) (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0))))
 
 (define-x8664-vinsn reload-single-c-arg (((arg :single-float))
                                          ((offset :u32const)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (movss (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0)) (:%xmm arg)))
 
 (define-x8664-vinsn set-double-c-arg (()
                                       ((arg :double-float)
                                        (offset :u32const)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (movsd (:%xmm arg) (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0))))
 
 (define-x8664-vinsn reload-double-c-arg (((arg :double-float))
                                          ((offset :u32const)))
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
+  ; -----
+  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
   (movsd (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0)) (:%xmm arg)))
 
 (define-x8664-subprim-call-vinsn (ff-call)  .SPffcall)
@@ -3233,6 +3323,12 @@
 				    ((closed :lisp))
 				    ((temp :imm)))
   (movd (:%mmx x8664::tsp) (:%q temp))
+  ; -----
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----  
   (subq (:$b (+ x8664::value-cell.size x8664::dnode-size)) (:%q temp))
   (movd (:%q temp) (:%mmx x8664::next-tsp))
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
@@ -3309,7 +3405,14 @@
 
 (define-x8664-vinsn %foreign-stack-pointer (((dest :imm))
                                             ())
-  (movd (:%mmx x8664::foreign-sp) (:%q dest)))
+  (movd (:%mmx x8664::foreign-sp) (:%q dest))
+  ; -----
+  (cmpq (:%q dest) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (je :checked)
+  (uuo-error-debug-trap)
+  :checked
+  ; -----    
+  )
 
 
 (define-x8664-vinsn %set-scharcode (()
