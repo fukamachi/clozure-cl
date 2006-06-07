@@ -1,3 +1,33 @@
+2006-06-07 15:29  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: No more %Rforeign_sp.  Keep
+	tcr.next_tsp in sync with %next_tsp Check to ensure that
+	%tsp,tcr.save_tsp,and tcr.next_tsp all have the same value when
+	allocating on the temp stack.  (This will soon change, so that %tsp
+	and %next_tsp will not be canonical and the tcr fields are, then
+	will change so that %tsp and %next_tsp will cease to exist.)
+
+2006-06-07 15:25  gb
+
+	* lisp-kernel/x86-subprims64.s: No more %Rforeign_sp.
+
+2006-06-07 15:25  gb
+
+	* lisp-kernel/: x86-macros.s, x86-spentry64.s: Keep tcr.next_tsp in
+	sync with %Rnext_tsp.  No more %Rforeign_sp, but we can use %mm5 as
+	a temporary.
+
+2006-06-07 15:23  gb
+
+	* lisp-kernel/x86-exceptions.c: Find the foreign RSP from the TCR;
+	don't need FP regs for this.  (They're sometimes invalid and
+	sometimes missing, which is the point of recent changes.)
+
+2006-06-07 15:21  gb
+
+	* lisp-kernel/x86-constants64.s: No foreign_sp.  Rename %next_tsp
+	to %Rnext_tsp to avoid potential m4 lossage.
+
 2006-06-07 15:20  gb
 
 	* lisp-kernel/x86-constants64.h: No Iforeign_sp.
