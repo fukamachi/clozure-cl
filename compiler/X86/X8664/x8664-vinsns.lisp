@@ -1534,12 +1534,16 @@
   (movd (:%mmx x8664::tsp) (:%q temp))
   ; -----
   (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (jne :bad)
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))
   (je :checked)
+  :bad
   (uuo-error-debug-trap)
   :checked
   ; -----
   (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q temp))
   (movd (:%q temp) (:%mmx x8664::next-tsp))
+  (movq (:%mmx x8664::next-tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
   (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
   (movq (:%mmx x8664::tsp) (:@ (:%q temp)))
@@ -1558,7 +1562,10 @@
   (movd (:%mmx x8664::tsp) (:%q tempa))
   ; -----
   (cmpq (:%q tempa) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (jne :bad)
+  (cmpq (:%q tempa) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))
   (je :checked)
+  :bad
   (uuo-error-debug-trap)
   :checked
   ; -----  
@@ -1570,6 +1577,7 @@
                (:pred <= (:apply + aligned-size x8664::dnode-size) 127)))
    (subq (:$l (:apply + aligned-size x8664::dnode-size)) (:%q tempa)))
   (movd (:%q tempa) (:%mmx x8664::next-tsp))
+  (movq (:%mmx x8664::next-tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))  
   :loop
   (movapd (:%xmm x8664::fpzero) (:@ -16 (:%q tempb)))
   (subq (:$b 16) (:%q tempb))
@@ -1588,21 +1596,24 @@
   (movd (:%mmx x8664::tsp) (:%q temp))
   ; -----
   (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (jne :bad)
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))
   (je :checked)
+  :bad
   (uuo-error-debug-trap)
   :checked
   ; -----  
   (movq (:@ (:%q temp)) (:%mmx x8664::tsp))
   (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
-  (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp)))
+  (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp))
+  (movq (:%mmx x8664::next-tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp)))
 
 (define-x8664-vinsn discard-c-frame (()
                                      ()
                                      ((temp :imm)))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q temp))
-  (movq (:@ (:%q temp)) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  )
+  (movq (:@ (:%q temp)) (:%q temp))
+  (movq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
 
   
 (define-x8664-vinsn vstack-discard (()
@@ -1851,11 +1862,10 @@
 (define-x8664-vinsn (temp-push-unboxed-word :push :word :csp)
     (()
      ((w :u64)))
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))  
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::mm5))  
   (subq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))  
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ;*****
+  (movq (:%mmx x8664::mm5) (:@ (:%q x8664::ra0)))
   (movq (:%q w) (:@ 8 (:%q x8664::ra0))))
 
 
@@ -1866,12 +1876,16 @@
   (movd (:%mmx x8664::tsp) (:%q temp))
   ; -----
   (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (jne :bad)
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))
   (je :checked)
+  :bad
   (uuo-error-debug-trap)
   :checked
   ; -----  
   (subq (:$b (+ x8664::cons.size x8664::dnode-size)) (:%q temp))
   (movd (:%q temp) (:%mmx x8664::next-tsp))
+  (movq (:%mmx x8664::next-tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))  
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
   (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
   (movq (:%mmx x8664::tsp) (:@ (:%q temp)))
@@ -1882,11 +1896,10 @@
 (define-x8664-vinsn (temp-push-double-float :push :word :csp)
     (()
      ((f :double-float)))
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))  
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::mm5))  
   (subq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))  
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ;*****
+  (movq (:%mmx x8664::mm5) (:@ (:%q x8664::ra0)))
   (movsd (:%xmm f) (:@ 8 (:%q x8664::ra0))))
 
 
@@ -1907,9 +1920,7 @@
      ())
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:@ 8 (:%q x8664::ra0)) (:%q w))
-  (addq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp)) ;*****
-)
+  (addq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
 
 
 (define-x8664-vinsn (temp-pop-node :pop :word :tsp)
@@ -1919,33 +1930,34 @@
   (movd (:%mmx x8664::tsp) (:%q temp))
   ; -----
   (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (jne :bad)
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))
   (je :checked)
+  :bad
   (uuo-error-debug-trap)
   :checked
   ; -----  
   (movq (:@ x8664::dnode-size (:%q temp)) (:%q w))
   (movq (:@ (:%q temp)) (:%mmx x8664::tsp))
   (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))  
-  (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp)))
+  (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp))
+  (movq (:%mmx x8664::next-tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp)))
 
 (define-x8664-vinsn (temp-pop-double-float :pop :word :csp)
     (((f :double-float))
      ())
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movsd (:@ 8 (:%q x8664::ra0)) (:%xmm f))
-  (addq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp)) ;*****
-)
+  (addq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
 
 
 
 (define-x8664-vinsn macptr->stack (((dest :lisp))
                                    ((ptr :address)))
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::mm5))
   (subq (:$b (+ 16 x8664::macptr.size)) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ; *****
+  (movq (:%mmx x8664::mm5) (:@ (:%q x8664::ra0)))
   (leaq (:@ (+ 16 x8664::fulltag-misc) (:%q  x8664::ra0)) (:%q dest))
   (movq (:$l x8664::macptr-header) (:@ x8664::macptr.header (:%q dest)))
   (movq (:%q ptr) (:@ x8664::macptr.address (:%q dest)))
@@ -3170,15 +3182,13 @@
 
 (define-x8664-vinsn alloc-c-frame (()
                                    ((nbytes :u32const)))
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::mm5))
   ((:pred < nbytes 128)
    (subq (:$b nbytes) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
   ((:not (:pred < nbytes 128))
    (subq (:$l nbytes) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ; *****
-)
+  (movq (:%mmx x8664::mm5) (:@ (:%q x8664::ra0))))
 
 (define-x8664-vinsn alloc-variable-c-frame (()
                                             ((nwords :imm))
@@ -3186,12 +3196,10 @@
   (leaq (:@ (* 9 x8664::node-size) (:%q nwords)) (:%q size))
   (andb (:$b (lognot x8664::fulltagmask)) (:%b size))
 
-  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::mm5))
   (subq (:%q size) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
   (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ; *****
-)
+  (movq (:%mmx x8664::mm5) (:@ (:%q x8664::ra0))))
 
 (define-x8664-vinsn set-c-arg (()
                                ((arg :u64)
@@ -3245,12 +3253,16 @@
   (movd (:%mmx x8664::tsp) (:%q temp))
   ; -----
   (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
+  (jne :bad)
+  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))
   (je :checked)
+  :bad
   (uuo-error-debug-trap)
   :checked
   ; -----  
   (subq (:$b (+ x8664::value-cell.size x8664::dnode-size)) (:%q temp))
   (movd (:%q temp) (:%mmx x8664::next-tsp))
+  (movq (:%mmx x8664::next-tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.next-tsp))  
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
   (movapd (:%xmm x8664::fpzero) (:@ x8664::dnode-size (:%q temp)))
   (movq (:%mmx x8664::tsp) (:@ (:%q temp))) 
