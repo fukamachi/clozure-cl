@@ -715,6 +715,7 @@
   tlb-limit
   tlb-pointer
   shutdown-count
+  next-tsp
 )
 
 (defconstant tcr.single-float-convert.value (+ 4 tcr.single-float-convert))
