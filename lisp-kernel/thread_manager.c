@@ -567,6 +567,9 @@ new_tcr(natural vstack_size, natural tstack_size)
   tcr->ts_area = a;
   a->owner = tcr;
   tcr->save_tsp = (LispObj *) a->active;
+#ifdef X86
+  tcr->next_tsp = tcr->save_tsp;
+#endif
   tcr->valence = TCR_STATE_FOREIGN;
 #ifdef PPC
   tcr->lisp_fpscr.words.l = 0xd0;
