@@ -1,3 +1,15 @@
+2006-06-07 04:52  gb
+
+	* lisp-kernel/x86-macros.s: When making a catch/unwind-protect
+	frame, get the foreign SP out of the TCR.
+
+2006-06-07 04:52  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp,
+	lisp-kernel/x86-spentry64.s: More bootstrapping: continue to
+	maintain the foreign sp in both the TCR and the MMX register, but
+	consider the TCR version to be canonical.
+
 2006-06-07 02:46  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: More bootstrapping: if the
