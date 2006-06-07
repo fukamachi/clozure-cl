@@ -1,3 +1,25 @@
+2006-06-07 15:20  gb
+
+	* lisp-kernel/x86-constants64.h: No Iforeign_sp.
+
+2006-06-07 15:20  gb
+
+	* lisp-kernel/thread_manager.c: Initialize tcr->next_tsp on X86.
+
+2006-06-07 15:19  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-06-07 15:19  gb
+
+	* level-0/X86/x86-def.lisp: Get foreign-sp from the TCR.
+
+2006-06-07 15:18  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: More bootstrapping: no more
+	foreign-sp register (though some code still uses %mm5 as a
+	temporary, the "canonical" foreign SP is maintained in the TCR.)
+
 2006-06-07 04:52  gb
 
 	* lisp-kernel/x86-macros.s: When making a catch/unwind-protect
