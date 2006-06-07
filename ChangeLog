@@ -1,3 +1,9 @@
+2006-06-07 02:46  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: More bootstrapping: if the
+	%tsp MMX register doesn't match the value in the tcr, trap. 
+	Likewise for %foreign-sp.
+
 2006-06-07 01:29  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp, lisp-kernel/x86-macros.s,
