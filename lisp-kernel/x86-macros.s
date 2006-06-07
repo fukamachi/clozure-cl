@@ -122,6 +122,7 @@ define([TSP_Alloc_Fixed],[
 	zero_dnodes $2,0,TSP_Alloc_Size
 	movq %tsp,($2)
 	movq %next_tsp,%tsp
+        movq %tsp,%rcontext:tcr.save_tsp
 	undefine([TSP_Alloc_Size])
 ])
 
@@ -144,6 +145,7 @@ macro_label(test):
 	movd %tsp,$1
 	movq $1,($2)
 	movq %next_tsp,%tsp
+        movq %tsp,%rcontext:tcr.save_tsp
 	addq $dnode_size,$2
 ])
 	
@@ -420,6 +422,7 @@ define([discard_temp_frame],[
 	movd %tsp,$1
 	movq ($1),%tsp
 	movq %tsp,%next_tsp
+        movq %tsp,%rcontext:tcr.save_tsp
 ])	
 
 define([check_pending_enabled_interrupt],[

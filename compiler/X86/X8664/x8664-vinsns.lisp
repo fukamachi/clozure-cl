@@ -1538,6 +1538,7 @@
   (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
   (movq (:%mmx x8664::tsp) (:@ (:%q temp)))
   (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
   (leaq (:@ (+ x8664::dnode-size x8664::fulltag-cons) (:%q temp)) (:%q temp))
   (movq (:%q car) (:@ x8664::cons.car (:%q temp)))
   (movq (:%q cdr) (:@ x8664::cons.cdr (:%q temp)))
@@ -1564,6 +1565,7 @@
   (jnz :loop)
   (movq (:%mmx x8664::tsp) (:@ (:%q tempa)))
   (movd (:%q tempa) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
   (movl (:$l header) (:@ x8664::dnode-size (:%q tempa)))
   (leaq (:@ (+ x8664::dnode-size x8664::fulltag-misc) (:%q tempa)) (:%q dest)))
 
@@ -1573,13 +1575,16 @@
                                         ((temp :imm)))
   (movd (:%mmx x8664::tsp) (:%q temp))
   (movq (:@ (:%q temp)) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
   (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp)))
 
 (define-x8664-vinsn discard-c-frame (()
                                      ()
                                      ((temp :imm)))
   (movd (:%mmx x8664::foreign-sp) (:%q temp))
-  (movq (:@ (:%q temp)) (:%mmx x8664::foreign-sp)))
+  (movq (:@ (:%q temp)) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  )
 
   
 (define-x8664-vinsn vstack-discard (()
@@ -1832,6 +1837,7 @@
   (subq (:$b 16) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))  
   (movq (:%q w) (:@ 8 (:%q x8664::ra0))))
 
 
@@ -1846,6 +1852,7 @@
   (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
   (movq (:%mmx x8664::tsp) (:@ (:%q temp)))
   (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))
   (movq (:%q w) (:@ x8664::dnode-size (:%q temp))))
 
 (define-x8664-vinsn (temp-push-double-float :push :word :csp)
@@ -1855,6 +1862,7 @@
   (subq (:$b 16) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))  
   (movsd (:%xmm f) (:@ 8 (:%q x8664::ra0))))
 
 
@@ -1866,6 +1874,7 @@
   (subq (:$b 16) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))  
   (movss (:%xmm f) (:@ 8 (:%q x8664::ra0))))
 
 (define-x8664-vinsn (vpush-single-float :push :word :vsp)
@@ -1886,7 +1895,9 @@
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
   (movq (:@ 8 (:%q x8664::ra0)) (:%q w))
   (addq (:$b 16) (:%q x8664::ra0))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+)
 
 
 (define-x8664-vinsn (temp-pop-node :pop :word :tsp)
@@ -1896,6 +1907,7 @@
   (movd (:%mmx x8664::tsp) (:%q temp))
   (movq (:@ x8664::dnode-size (:%q temp)) (:%q w))
   (movq (:@ (:%q temp)) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))  
   (movq (:%mmx x8664::tsp) (:%mmx x8664::next-tsp)))
 
 (define-x8664-vinsn (temp-pop-double-float :pop :word :csp)
@@ -1904,7 +1916,9 @@
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
   (movsd (:@ 8 (:%q x8664::ra0)) (:%xmm f))
   (addq (:$b 16) (:%q x8664::ra0))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+)
 
 (define-x8664-vinsn (temp-pop-single-float :pop :word :csp)
     (((f :single-float))
@@ -1912,7 +1926,8 @@
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
   (movss (:@ 8 (:%q x8664::ra0)) (:%xmm f))
   (addq (:$b 16) (:%q x8664::ra0))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
 
 (define-x8664-vinsn macptr->stack (((dest :lisp))
                                    ((ptr :address)))
@@ -1920,6 +1935,7 @@
   (subq (:$b (+ 16 x8664::macptr.size)) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ 0 (:%q x8664::ra0)))
   (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
   (leaq (:@ (+ 16 x8664::fulltag-misc) (:%q  x8664::ra0)) (:%q dest))
   (movq (:$l x8664::macptr-header) (:@ x8664::macptr.header (:%q dest)))
   (movq (:%q ptr) (:@ x8664::macptr.address (:%q dest)))
@@ -3150,7 +3166,9 @@
   ((:not (:pred < nbytes 128))
    (subq (:$l nbytes) (:%q x8664::ra0)))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+)
 
 (define-x8664-vinsn alloc-variable-c-frame (()
                                             ((nwords :imm))
@@ -3161,7 +3179,9 @@
   (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
   (subq (:%q size) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+)
 
 (define-x8664-vinsn set-c-arg (()
                                ((arg :u64)
@@ -3219,6 +3239,7 @@
   (movapd (:%xmm x8664::fpzero) (:@ x8664::dnode-size (:%q temp)))
   (movq (:%mmx x8664::tsp) (:@ (:%q temp))) 
   (movq (:%mmx x8664::next-tsp) (:%mmx x8664::tsp))
+  (movq (:%mmx x8664::tsp) (:@ (:%seg x8664::rcontext) x8664::tcr.save-tsp))  
   (movq (:$l x8664::value-cell-header) (:@ x8664::dnode-size (:%q temp)))
   (movq (:%q closed) (:@ (+ x8664::dnode-size x8664::node-size) (:%q temp)))
   (leaq (:@ (+ x8664::dnode-size x8664::fulltag-misc) (:%q temp)) (:%q dest)))
