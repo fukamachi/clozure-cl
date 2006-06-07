@@ -163,8 +163,7 @@ define([xfn],[temp1])
 
 define([allocptr],[temp0])		
 define([tsp],[mm7])
-define([next_tsp],[mm6])
-define([Rforeign_sp],[mm5])	
+define([Rnext_tsp],[mm6])
 		
 define([fp0],[xmm0])		
 define([fp1],[xmm1])		
