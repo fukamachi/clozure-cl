@@ -483,6 +483,7 @@ typedef struct tcr {
   natural tlb_limit;
   LispObj* tlb_pointer;
   natural shutdown_count;
+  LispObj* next_tsp;
 } TCR;
 
 #define t_offset (t_value-nil_value)
