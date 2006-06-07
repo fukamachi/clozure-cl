@@ -169,6 +169,7 @@ define([Make_Catch],[
 	movq %rcontext:tcr.xframe,%imm0
 	movq %rsp,catch_frame.rsp(%temp2)
 	movq %rbp,catch_frame.rbp(%temp2)
+        movq %rcontext:tcr.foreign_sp,%Rforeign_sp
 	movq %Rforeign_sp,catch_frame.foreign_sp(%temp2)
 	movq %imm1,catch_frame.db_link(%temp2)
 	movq %save3,catch_frame._save3(%temp2)
