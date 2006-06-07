@@ -1,3 +1,30 @@
+2006-06-07 01:29  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp, lisp-kernel/x86-macros.s,
+	lisp-kernel/x86-spentry64.s: Try to keep tcr.save_tsp in synch with
+	%tsp, and likewise for %Rforeign_sp/tcr.foreign_sp.
+	
+	(The idea is to keep the temp/foreign stack pointers in the tcr and
+	only use the MMX registers as temporaries, since it seems that
+	handlers for asynchronous signals can't count on the MMX register
+	values in the signal context being correct.  This seems to either
+	be a Linux kernel bug or ill-considered if it's intentional
+	behavior, but it seems better to work around it this way.)
+	
+	This is just an early step in bootstrapping that change; it's being
+	checked into CVS so that it doesn't get lost (and so that I can
+	recover to this point if/when I hose things on a later step.)
+
+2006-06-07 01:24  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Add a next-tsp slot to the
+	tcr.
+
+2006-06-07 01:22  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s: Add a
+	next_tsp slot to the tcr.
+
 2006-06-06 04:25  gb
 
 	* lib/ppc-metering.lisp: no hope
