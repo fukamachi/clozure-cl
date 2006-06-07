@@ -69,7 +69,6 @@
 
 #define Itsp 7
 #define Inext_tsp 6
-#define Iforeign_sp 5
 
 
 #define nbits_in_word 64L
