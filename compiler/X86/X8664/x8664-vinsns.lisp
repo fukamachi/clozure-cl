@@ -1599,13 +1599,7 @@
 (define-x8664-vinsn discard-c-frame (()
                                      ()
                                      ((temp :imm)))
-  (movd (:%mmx x8664::foreign-sp) (:%q temp))
-  ; -----
-  (cmpq (:%q temp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----  
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q temp))
   (movq (:@ (:%q temp)) (:%mmx x8664::foreign-sp))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
   )
@@ -1857,17 +1851,11 @@
 (define-x8664-vinsn (temp-push-unboxed-word :push :word :csp)
     (()
      ((w :u64)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----  
-  (subq (:$b 16) (:%q x8664::ra0))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))  
+  (subq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))  
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))  
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ;*****
   (movq (:%q w) (:@ 8 (:%q x8664::ra0))))
 
 
@@ -1894,17 +1882,11 @@
 (define-x8664-vinsn (temp-push-double-float :push :word :csp)
     (()
      ((f :double-float)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----  
-  (subq (:$b 16) (:%q x8664::ra0))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))  
+  (subq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))  
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))  
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ;*****
   (movsd (:%xmm f) (:@ 8 (:%q x8664::ra0))))
 
 
@@ -1923,17 +1905,10 @@
 (define-x8664-vinsn (temp-pop-unboxed-word :pop :word :csp)
     (((w :u64))
      ())
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:@ 8 (:%q x8664::ra0)) (:%q w))
-  (addq (:$b 16) (:%q x8664::ra0))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (addq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp)) ;*****
 )
 
 
@@ -1956,34 +1931,21 @@
 (define-x8664-vinsn (temp-pop-double-float :pop :word :csp)
     (((f :double-float))
      ())
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movsd (:@ 8 (:%q x8664::ra0)) (:%xmm f))
-  (addq (:$b 16) (:%q x8664::ra0))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (addq (:$b 16) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp)) ;*****
 )
 
 
 
 (define-x8664-vinsn macptr->stack (((dest :lisp))
                                    ((ptr :address)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----      
-  (subq (:$b (+ 16 x8664::macptr.size)) (:%q x8664::ra0))
-  (movq (:%mmx x8664::foreign-sp) (:@ 0 (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))
+  (subq (:$b (+ 16 x8664::macptr.size)) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
+  (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ; *****
   (leaq (:@ (+ 16 x8664::fulltag-misc) (:%q  x8664::ra0)) (:%q dest))
   (movq (:$l x8664::macptr-header) (:@ x8664::macptr.header (:%q dest)))
   (movq (:%q ptr) (:@ x8664::macptr.address (:%q dest)))
@@ -3208,20 +3170,14 @@
 
 (define-x8664-vinsn alloc-c-frame (()
                                    ((nbytes :u32const)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----      
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))
   ((:pred < nbytes 128)
-   (subq (:$b nbytes) (:%q x8664::ra0)))
+   (subq (:$b nbytes) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
   ((:not (:pred < nbytes 128))
-   (subq (:$l nbytes) (:%q x8664::ra0)))
+   (subq (:$l nbytes) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp)))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ; *****
 )
 
 (define-x8664-vinsn alloc-variable-c-frame (()
@@ -3229,76 +3185,40 @@
                                             ((size :s64)))
   (leaq (:@ (* 9 x8664::node-size) (:%q nwords)) (:%q size))
   (andb (:$b (lognot x8664::fulltagmask)) (:%b size))
-  
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
-  (subq (:%q size) (:%q x8664::ra0))
+
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::foreign-sp))
+  (subq (:%q size) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:%mmx x8664::foreign-sp) (:@ (:%q x8664::ra0)))
-  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp))
-  (movq (:%mmx x8664::foreign-sp) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
+  (movd (:%q x8664::ra0) (:%mmx x8664::foreign-sp)) ; *****
 )
 
 (define-x8664-vinsn set-c-arg (()
                                ((arg :u64)
                                 (offset :u32const)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:%q arg) (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0))))
 
 (define-x8664-vinsn set-single-c-arg (()
                                       ((arg :single-float)
                                        (offset :u32const)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movss (:%xmm arg) (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0))))
 
 (define-x8664-vinsn reload-single-c-arg (((arg :single-float))
                                          ((offset :u32const)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movss (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0)) (:%xmm arg)))
 
 (define-x8664-vinsn set-double-c-arg (()
                                       ((arg :double-float)
                                        (offset :u32const)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movsd (:%xmm arg) (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0))))
 
 (define-x8664-vinsn reload-double-c-arg (((arg :double-float))
                                          ((offset :u32const)))
-  (movd (:%mmx x8664::foreign-sp) (:%q x8664::ra0))
-  ; -----
-  (cmpq (:%q x8664::ra0) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movsd (:@ (:apply + 16 (:apply ash offset 3)) (:%q x8664::ra0)) (:%xmm arg)))
 
 (define-x8664-subprim-call-vinsn (ff-call)  .SPffcall)
@@ -3405,14 +3325,7 @@
 
 (define-x8664-vinsn %foreign-stack-pointer (((dest :imm))
                                             ())
-  (movd (:%mmx x8664::foreign-sp) (:%q dest))
-  ; -----
-  (cmpq (:%q dest) (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp))
-  (je :checked)
-  (uuo-error-debug-trap)
-  :checked
-  ; -----    
-  )
+  (movq (:@ (:%seg x8664::rcontext) x8664::tcr.foreign-sp) (:%q dest)))
 
 
 (define-x8664-vinsn %set-scharcode (()
