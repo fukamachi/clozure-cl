@@ -1,3 +1,7 @@
+2006-06-08 05:01  gb
+
+	* release-notes.txt: Update a bit.
+
 2006-06-08 03:56  gb
 
 	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump
