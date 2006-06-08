@@ -1,3 +1,47 @@
+2006-06-08 03:18  gb
+
+	* level-1/version.lisp: Bump; give x86-64 port the benefit of the
+	doubt and claim that it's a beta.
+
+2006-06-08 03:18  gb
+
+	* lisp-kernel/darwinppc64/Makefile: Enable -O2.
+
+2006-06-08 03:17  gb
+
+	* lisp-kernel/darwinppc/Makefile: Some commented-out debugging
+	options; enable -O2.
+
+2006-06-08 02:55  gb
+
+	* lisp-kernel/x86-exceptions.c: thread_signal_setup() moved here.
+	Handle suspend (and maybe someday resume, again) signals on the
+	altstack, since we don't really want a signal context in the middle
+	of the tagged lisp stack ...
+
+2006-06-08 02:52  gb
+
+	* lisp-kernel/thread_manager.c: thread_signal_setup() moved to
+	PLATFORM-exceptions.c; some constants/prototypes moved to
+	Threads.h.
+
+2006-06-08 02:51  gb
+
+	* lisp-kernel/ppc-exceptions.c: suspend_resume_handler() installed
+	via install_signal_handler(); thread_signal_setup() moved here, to
+	do that installation.
+
+2006-06-08 02:50  gb
+
+	* lisp-kernel/pmcl-kernel.c: Don't enable_fp_exceptions() twice.
+	
+	Don't call (or define) prepare_for_the_worst(), which is kind of
+	too bad ...
+
+2006-06-08 02:49  gb
+
+	* lisp-kernel/Threads.h: suspend/resume constants, prototypes.
+
 2006-06-08 01:11  gb
 
 	* level-1/l1-files.lisp: Back out of ill-advised changed to %LOAD;
