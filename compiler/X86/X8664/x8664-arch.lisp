@@ -248,8 +248,7 @@
 (defx86reg fp15 xmm15)
 
 ;;; There are only 8 mmx registers, and they overlap the x87 FPU.
-(defx86reg tsp mm7)
-(defx86reg next-tsp mm6)
+(defx86reg stack-temp mm7)
 
 ;;; Using %gs to access the TCR may be Linux-specific.
 (defx86reg rcontext gs)
