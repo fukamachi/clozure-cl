@@ -935,6 +935,44 @@ install_pmcl_exception_handlers()
   signal(SIGPIPE, SIG_IGN);
 }
 
+
+void
+altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
+{
+  TCR* tcr = get_tcr(true);
+  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area, tcr);
+#ifdef LINUX
+  fpregset_t fpregs = NULL;
+#else
+  void *fpregs = NULL;
+#endif
+  siginfo_t *info_copy = NULL;
+  ExceptionInformation *xp = NULL;
+
+  if (foreign_rsp) {
+#ifdef LINUX
+    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
+#endif
+    foreign_rsp = copy_siginfo(info, foreign_rsp);
+    info_copy = (siginfo_t *)foreign_rsp;
+    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
+    xp = (ExceptionInformation *)foreign_rsp;
+    *--foreign_rsp = (LispObj)__builtin_return_address(0);
+    switch_to_foreign_stack(foreign_rsp,suspend_resume_handler,signum,info_copy,xp);
+  }
+}
+
+void
+thread_signal_setup()
+{
+  thread_suspend_signal = SIG_SUSPEND_THREAD;
+  thread_resume_signal = SIG_RESUME_THREAD;
+
+  install_signal_handler(thread_suspend_signal, (void *)altstack_suspend_resume_handler);
+  install_signal_handler(thread_resume_signal, (void *)altstack_suspend_resume_handler);
+}
+
+
 void
 enable_fp_exceptions()
 {
