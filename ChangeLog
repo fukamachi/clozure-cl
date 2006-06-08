@@ -1,3 +1,24 @@
+2006-06-08 03:56  gb
+
+	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump
+	image-abi-version.
+
+2006-06-08 03:46  gb
+
+	* xdump/faslenv.lisp: Bump (min) fasl version.
+
+2006-06-08 03:35  gb
+
+	* lib/nfcomp.lisp: Bump (current) fasl-version.
+
+2006-06-08 03:28  gb
+
+	* lisp-kernel/linuxx8664/Makefile: -O2.
+
+2006-06-08 03:26  gb
+
+	* xdump/faslenv.lisp: Bump (max) fasl version.
+
 2006-06-08 03:18  gb
 
 	* level-1/version.lisp: Bump; give x86-64 port the benefit of the
