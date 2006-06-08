@@ -838,12 +838,6 @@ initial_stack_bottom()
   
 Ptr fatal_spare_ptr = NULL;
 
-void
-prepare_for_the_worst()
-{
-  /* I guess that CouldDialog is no more */
-  /* CouldDialog(666); */
-}
 
 void
 Fatal(StringPtr param0, StringPtr param1)
@@ -1423,7 +1417,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
     }
   }
 
-  prepare_for_the_worst();
 
   if (!create_reserved_area(reserved_area_size)) {
     exit(-1);
@@ -1515,7 +1508,6 @@ main(int argc, char *argv[], char *envp[], void *aux)
   tcr->vs_area->active -= node_size;
   *(--tcr->save_vsp) = nrs_TOPLFUNC.vcell;
   nrs_TOPLFUNC.vcell = lisp_nil;
-  enable_fp_exceptions();
 #ifdef GC_INTEGRITY_CHECKING
   (nrs_GC_EVENT_STATUS_BITS.vcell |= gc_integrity_check_bit);
 #endif
