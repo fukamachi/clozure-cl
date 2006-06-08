@@ -1,3 +1,48 @@
+2006-06-07 21:45  gb
+
+	* lisp-kernel/x86-subprims64.s: No nore %tsp/%Rnext_tsp.
+
+2006-06-07 21:38  gb
+
+	* lisp-kernel/x86-spentry64.s: Don't maintain current/next tsp in
+	MMX regs.  Do maintain them in TCR.
+
+2006-06-07 21:37  gb
+
+	* lisp-kernel/x86-macros.s: Don't maintain %tsp when stack-consing;
+	update (decrement) tcr.next_tsp atomically, use %stack_temp as a
+	temporary (old tsp), finish frame by storing into tcr.save_tsp.
+
+2006-06-07 21:34  gb
+
+	* lisp-kernel/x86-exceptions.c: tsp is in the TCR now.
+
+2006-06-07 21:33  gb
+
+	* lisp-kernel/x86-constants64.s: No more %tsp, %Rnext_tsp.  Define
+	%stack_temp.
+
+2006-06-07 21:32  gb
+
+	* lisp-kernel/x86-constants64.h: No more Itsp, Inext_tsp.
+
+2006-06-07 21:30  gb
+
+	* level-0/X86/x86-def.lisp: %CURRENT-TSP: the tsp is in the TCR
+	now.
+
+2006-06-07 21:30  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Don't try to maintain %tsp
+	(since it no longer exists ...).  Use %stack-temp in some cases.
+
+2006-06-07 21:29  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: No more %tsp or %next-tsp. 
+	%stack-temp is a symbolic name for an MMX register that can be used
+	for (e.g.) linking frames on the temp/foreign stacks (or for any
+	other purpose ...)
+
 2006-06-07 15:29  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: No more %Rforeign_sp.  Keep
