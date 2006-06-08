@@ -1,3 +1,38 @@
+OpenMCL 1.1-pre-060608
+- The FASL version changed, as did the version number which pairs
+  the lisp kernel with heap images.  Images saved with older kernels
+  can't be loaded on this one; the images/kernels in the 060608
+  snapshot tarballs should match.
+
+  Most of the ABI changes that caused these version changes were
+  x86-64 specific; some auxiliary stack pointers that had been
+  kept in MMX registers are now kept in per-thread memory. (Signal/
+  exception handlers generally need to be able to access these
+  stack pointers, but at least some versions of the Linux kernel
+  don't reliably pass correct values of the MMX registers in the
+  signal contexts passed to signal handlers.  Moral: some kinds
+  of stack-allocation and foreign-function operations may (or may not)
+  be a few cycles slower, but OpenMCL should be a bit less prone
+  to fatal segfault exceptions.)
+
+  Other than that, most changes since the 060530 snapshots are
+  bugfixes (see the ChangeLog for details).  The x86-64 port has been
+  exercised fairly heavily (if somewhat narrowly) and its welcome
+  banner now claims that it's a beta release.  I think that that's
+  probably fair, and hope that anyone who may have been reluctant to
+  test an alpha release will agree and be less reluctant.
+
+- There's still much more to be done, but some preliminary 1.1 documentation
+  is now online at:
+
+<http://newsite.openmcl.clozure.com/Doc>
+
+  Note that some relative links on "newsite" may be invalid, but the
+  internal links in the Doc directory should work.
+
+  As noted above, it still needs a lot of work; feedback, criticism,
+  and help would all be appreciated.
+
 OpenMCL 1.1-pre-060530
 
 - These release notes have gotten woefully out of date.
