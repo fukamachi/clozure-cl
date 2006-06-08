@@ -213,7 +213,7 @@
 
 (defx86lapfunction %current-tsp ()
   (check-nargs 0)
-  (movd (% tsp) (% arg_z))
+  (movq (@ (% rcontext) x8664::tcr.save-tsp) (% arg_z))
   (single-value-return))
 
 
