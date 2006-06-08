@@ -116,14 +116,12 @@ ifdef([DarwinAssembler],[
 	
 define([TSP_Alloc_Fixed],[
 	define([TSP_Alloc_Size],[((($1+node_size) & ~(dnode_size-1))+dnode_size)])
-	movd %tsp,$2
-	sub [$]TSP_Alloc_Size,$2
-	movd $2,%Rnext_tsp
-        movq %Rnext_tsp,%rcontext:tcr.next_tsp
+	subq [$]TSP_Alloc_Size,%rcontext:tcr.next_tsp
+        movq %rcontext:tcr.save_tsp,%stack_temp
+        movq %rcontext:tcr.next_tsp,$2
 	zero_dnodes $2,0,TSP_Alloc_Size
-	movq %tsp,($2)
-	movq %Rnext_tsp,%tsp
-        movq %tsp,%rcontext:tcr.save_tsp
+	movq %stack_temp,($2)
+        movq $2,%rcontext:tcr.save_tsp
 	undefine([TSP_Alloc_Size])
 ])
 
@@ -131,11 +129,10 @@ define([TSP_Alloc_Fixed],[
 /* Modifies both $1 and $2; on exit, $2 = new_tsp+tsp_overhead, $1 = old tsp  */
 	
 define([TSP_Alloc_Var],[
-	new_macro_labels()	
-	movd %tsp,$2
-	sub $1,$2
-	movd $2,%Rnext_tsp
-        movq %Rnext_tsp,%rcontext:tcr.next_tsp
+	new_macro_labels()
+        subq $1,%rcontext:tcr.next_tsp
+        movq %rcontext:tcr.save_tsp,%stack_temp
+        movq %rcontext:tcr.next_tsp,$2
 	jmp macro_label(test)
 macro_label(loop):
 	movapd %fpzero,0($2)
@@ -143,11 +140,10 @@ macro_label(loop):
 macro_label(test):	
 	subq $dnode_size,$1
 	jge macro_label(loop)
-	movd %Rnext_tsp,$2
-	movd %tsp,$1
+        movq %rcontext:tcr.next_tsp,$2
+	movd %stack_temp,$1
 	movq $1,($2)
-	movq %Rnext_tsp,%tsp
-        movq %tsp,%rcontext:tcr.save_tsp
+        movq $2,%rcontext:tcr.save_tsp
 	addq $dnode_size,$2
 ])
 	
@@ -171,14 +167,14 @@ define([Make_Catch],[
 	movq %rcontext:tcr.xframe,%imm0
 	movq %rsp,catch_frame.rsp(%temp2)
 	movq %rbp,catch_frame.rbp(%temp2)
-        movq %rcontext:tcr.foreign_sp,%mm5
+        movq %rcontext:tcr.foreign_sp,%stack_temp
 	movq %imm1,catch_frame.db_link(%temp2)
 	movq %save3,catch_frame._save3(%temp2)
 	movq %save2,catch_frame._save2(%temp2)
 	movq %save1,catch_frame._save1(%temp2)
 	movq %save0,catch_frame._save0(%temp2)
 	movq %imm0,catch_frame.xframe(%temp2)
-	movq %mm5,catch_frame.foreign_sp(%temp2)
+	movq %stack_temp,catch_frame.foreign_sp(%temp2)
 	movq %xfn,catch_frame.pc(%temp2)
 	movq %temp2,%rcontext:tcr.catch_top
 ])	
@@ -422,11 +418,11 @@ macro_label(done):
 define([aligned_bignum_size],[((~(dnode_size-1)&(node_size+(dnode_size-1)+(4*$1))))])
 
 define([discard_temp_frame],[
-	movd %tsp,$1
-	movq ($1),%tsp
-	movq %tsp,%Rnext_tsp
-        movq %Rnext_tsp,%rcontext:tcr.next_tsp
-        movq %tsp,%rcontext:tcr.save_tsp
+	movq %rcontext:tcr.save_tsp,$1
+	movq ($1),$1
+        movq $1,%rcontext:tcr.save_tsp
+        movq $1,%rcontext:tcr.next_tsp
+
 ])	
 
 define([check_pending_enabled_interrupt],[
