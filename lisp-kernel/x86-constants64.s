@@ -162,8 +162,8 @@ define([xfn],[temp1])
 
 
 define([allocptr],[temp0])		
-define([tsp],[mm7])
-define([Rnext_tsp],[mm6])
+define([stack_temp],[mm7])
+
 		
 define([fp0],[xmm0])		
 define([fp1],[xmm1])		
