@@ -235,16 +235,9 @@ current_thread_osid()
   return (LispObj)ptr_to_lispobj(pthread_self());
 }
 
-#ifdef SIGRTMIN
-#define SIG_SUSPEND_THREAD (SIGRTMIN+6)
-#define SIG_RESUME_THREAD (SIG_SUSPEND_THREAD+1)
-#else
-#define SIG_SUSPEND_THREAD SIGUSR1
-#define SIG_RESUME_THREAD SIGUSR2
-#endif
 
 
-int thread_suspend_signal, thread_resume_signal;
+int thread_suspend_signal = 0, thread_resume_signal = 0;
 
 
 
@@ -260,8 +253,7 @@ get_interrupt_tcr(Boolean create)
   return get_tcr(create);
 }
   
-  
-void
+  void
 suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context)
 {
   TCR *tcr = get_interrupt_tcr(false);
@@ -302,34 +294,6 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
 #endif
 }
 
-void
-thread_signal_setup()
-{
-  struct sigaction action;
-  sigset_t mask, old_mask;
-  
-  sigemptyset(&mask);
-  pthread_sigmask(SIG_SETMASK, &mask, &old_mask);
-
-  thread_suspend_signal = SIG_SUSPEND_THREAD;
-  thread_resume_signal = SIG_RESUME_THREAD;
-  sigfillset(&action.sa_mask);
-#ifdef WHY_ON_EARTH
-  sigdelset(&action.sa_mask,thread_suspend_signal);
-#endif
-  action.sa_flags = 
-    SA_RESTART 
-    | SA_SIGINFO 
-#ifdef DARWIN
-#ifdef PPC64
-    | SA_64REGSET
-#endif
-#endif
-    ;
-  action.sa_sigaction = (void *) suspend_resume_handler;
-  sigaction(thread_suspend_signal, &action, NULL);
-  sigaction(thread_resume_signal, &action, NULL);
-}
   
 
 /*
@@ -570,6 +534,7 @@ new_tcr(natural vstack_size, natural tstack_size)
 #ifdef X86
   tcr->next_tsp = tcr->save_tsp;
 #endif
+
   tcr->valence = TCR_STATE_FOREIGN;
 #ifdef PPC
   tcr->lisp_fpscr.words.l = 0xd0;
