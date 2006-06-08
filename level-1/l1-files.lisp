@@ -1073,11 +1073,16 @@ a host-structure or string."
         (*load-truename* file-name)
         (source-file file-name)
         constructed-source-file
+        ;; Don't bind these: let OPTIMIZE proclamations/declamations
+        ;; persist, unless debugging.
+        #|
         (*nx-speed* *nx-speed*)
         (*nx-space* *nx-space*)
         (*nx-safety* *nx-safety*)
         (*nx-debug* *nx-debug*)
-        (*nx-cspeed* *nx-cspeed*))
+        (*nx-cspeed* *nx-cspeed*)
+        |#
+        )
     (declare (special *load-pathname* *load-truename*))
     (when (typep file-name 'string-input-stream)
       (when verbose
