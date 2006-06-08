@@ -67,9 +67,6 @@
 #define Inargs Itemp2
 #define Ixfn Itemp1
 
-#define Itsp 7
-#define Inext_tsp 6
-
 
 #define nbits_in_word 64L
 #define log2_nbits_in_word 6L
