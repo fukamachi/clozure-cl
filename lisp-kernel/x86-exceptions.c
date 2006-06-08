@@ -382,7 +382,6 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
 
   /* Put the active stack pointers where .SPcallback expects them */
   tcr->save_vsp = (LispObj *) xpGPR(xp, Isp);
-  tcr->save_tsp = (LispObj *) xpMMXreg(xp, Itsp);
   tcr->save_rbp = (LispObj *) xpGPR(xp, Irbp);
 
 
@@ -1212,7 +1211,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
       a->active = (BytePtr) tcr->save_vsp;
     }
     a = tcr->ts_area;
-    a->active = (BytePtr) xpMMXreg(xp, Itsp);
+    a->active = (BytePtr) tcr->save_tsp;
   } else {
     /* In ff-call; get area active pointers from tcr */
     tcr->vs_area->active = (BytePtr) tcr->save_vsp;
