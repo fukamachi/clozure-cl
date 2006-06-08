@@ -2087,6 +2087,17 @@ install_pmcl_exception_handlers()
   signal(SIGPIPE, SIG_IGN);
 }
 
+void
+thread_signal_setup()
+{
+  thread_suspend_signal = SIG_SUSPEND_THREAD;
+  thread_resume_signal = SIG_RESUME_THREAD;
+
+  install_signal_handler(thread_suspend_signal, (void *) suspend_resume_handler);
+  install_signal_handler(thread_resume_signal,  (void *) suspend_resume_handler);
+}
+
+
 
 void
 unprotect_all_areas()
