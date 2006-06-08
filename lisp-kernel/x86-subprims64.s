@@ -97,8 +97,6 @@ _exportfn(C(start_lisp))
 	__(clr %save2)
 	__(clr %save3)
 	__(pxor %fpzero,%fpzero)	/* fpzero = 0.0[d0] */
-	__(movq %rcontext:tcr.save_tsp,%tsp)
-	__(movq %tsp,%Rnext_tsp)
         __(stmxcsr %rcontext:tcr.foreign_mxcsr)
         __(andb $~mxcsr_all_exceptions,%rcontext:tcr.foreign_mxcsr)
         __(ldmxcsr %rcontext:tcr.lisp_mxcsr)
