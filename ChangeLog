@@ -1,3 +1,8 @@
+2006-06-10 13:05  gb
+
+	* level-1/ppc-trap-support.lisp: Fix LinuxPPC64 versions of
+	XP-FPSCR-INFO and XP-DOUBLE-FLOAT.
+
 2006-06-08 05:01  gb
 
 	* release-notes.txt: Update a bit.
