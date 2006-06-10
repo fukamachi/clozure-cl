@@ -147,7 +147,9 @@
                    args)))))))
     
 (defun xp-fpscr-info (xp)
-  (let* ((fpscr #+linuxppc-target (%get-unsigned-long (pref xp :ucontext.uc_mcontext.regs) (ash #$PT_FPSCR 2))
+  (let* ((fpscr #+(and linuxppc-target 32-bit-target) (%get-unsigned-long (pref xp :ucontext.uc_mcontext.regs) (ash #$PT_FPSCR 2))
+                #+(and linuxppc-target 64-bit-target)
+                (%get-unsigned-long (pref xp :ucontext.uc_mcontext.fp_regs) (ash 65 2))
 		#+(and darwinppc-target ppc32-target)
                 (pref xp :ucontext.uc_mcontext.fs.fpscr)
                 #+(and darwinppc-target ppc64-target)
@@ -156,7 +158,11 @@
 
 #+linuxppc-target
 (defun xp-double-float (xp fpr)
-  (%get-double-float (pref xp :ucontext.uc_mcontext.regs) (+ (ash #$PT_FPR0 2)  (ash fpr 3))))
+  #+32-bit-target
+  (%get-double-float (pref xp :ucontext.uc_mcontext.regs) (+ (ash #$PT_FPR0 2)  (ash fpr 3)))
+  #+64-bit-target
+  (%get-double-float (pref xp :ucontext.uc_mcontext.fp_regs) (ash fpr 3))
+  )
 
 #+darwinppc-target
 (defun xp-double-float (xp fpr)
