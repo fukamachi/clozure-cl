@@ -2505,9 +2505,10 @@ to replace that class with ~s" name old-class new-class)
 	   (eq *standard-effective-slot-definition-class-wrapper*
 	       (instance.class-wrapper slotd))
 	   (eq *standard-class-wrapper* (instance.class-wrapper class)))
-    ;; Safe to use instance.slots here, since the instance is
-    ;; of type SUBTAG-INSTANCE.
-    (%set-std-slot-vector-value (instance.slots instance) slotd new)
+    ;; Not safe to use instance.slots here, since the instance is not
+    ;; definitely of type SUBTAG-INSTANCE.  (Anyway, INSTANCE-SLOTS
+    ;; should be inlined here.
+    (%set-std-slot-vector-value (instance-slots instance) slotd new)
     (setf (slot-value-using-class class instance slotd) new)))
 
 (defmethod slot-value-using-class ((class funcallable-standard-class)
