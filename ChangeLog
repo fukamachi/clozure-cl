@@ -1,3 +1,20 @@
+2006-06-10 19:25  gb
+
+	* level-1/l1-clos-boot.lisp: Arrgh.  In
+	%MAYBE-STD-SETF-SLOT-VALUE-USING-CLASS, we know nothing about the
+	type of the instance, so don't use INSTANCE.SLOTS (instead, let
+	INSTANCE-SLOTS do a TYPECASE; it's inlined at this point.)
+	
+	This was keeping non-standard instances - like ObjC classes and
+	metaclasses - from having some of their slots initialized
+	correctly.
+
+2006-06-10 19:22  gb
+
+	* examples/objc-clos.lisp: PRINT-OBJECT methods for objc-class,
+	objc-metaclass: don't die if the class is unnamed (makes it easier
+	to print classes for debugging during initialization.)
+
 2006-06-10 13:05  gb
 
 	* level-1/ppc-trap-support.lisp: Fix LinuxPPC64 versions of
