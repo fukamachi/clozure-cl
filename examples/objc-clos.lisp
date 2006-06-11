@@ -269,14 +269,18 @@ p))))
     (format stream "~s ~:[~;[MetaClass] ~]~s (#x~x)" 
 	    'objc:objc-class 
 	    (objc-metaclass-p c) 
-	    (class-name c) 
+	    (if (slot-boundp c 'name)
+              (class-name c)
+              "<unnamed>")
 	    (%ptr-to-int c))))
 
 (defmethod print-object ((c objc:objc-metaclass) stream)
   (print-unreadable-object (c stream)
     (format stream "~s ~s (#x~x)" 
 	    'objc:objc-metaclass 
-	    (class-name c) 
+	    (if (slot-boundp c 'name)
+              (class-name c)
+              "<unnamed>") 
 	    (%ptr-to-int c))))
 
 (defmethod print-object ((o objc:objc-object) stream)
