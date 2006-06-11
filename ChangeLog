@@ -1,3 +1,13 @@
+2006-06-10 23:52  gb
+
+	* lib/arglist.lisp: %ARGLIST-INTERNAL: if generic-function, return
+	its GENERIC-FUNCTION-LAMBDA-LIST.
+
+2006-06-10 23:51  gb
+
+	* level-1/l1-clos.lisp: Give reader/writer method args more
+	descriptive names. (Barely more descriptive ...)
+
 2006-06-10 19:25  gb
 
 	* level-1/l1-clos-boot.lisp: Arrgh.  In
