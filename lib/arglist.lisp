@@ -74,14 +74,9 @@
 (defun %arglist-internal (sym include-bindings 
                               &aux def type)
   (multiple-value-setq (sym def) (arglist-sym-and-def sym))
-  (when (standard-generic-function-p def)
-    (let ((methods (%gf-methods def)))
-      (if methods
-        (setq def (closure-function
-                   (find-unencapsulated-definition
-                     (%method-function (car methods))))
-              type :analysis))))
-  (let ((ll (gethash sym %lambda-lists% *eof-value*))
+  (if (generic-function-p def)
+    (values (generic-function-lambda-list def) :declaration)
+    (let ((ll (gethash sym %lambda-lists% *eof-value*))
         (macrop (and (symbolp sym) (eq (macro-function sym) def))))
     (flet ((strip (f) (if (stringp f) f (strip-bindings f include-bindings))))
       (declare (dynamic-extent #'strip))
@@ -100,7 +95,7 @@
                  (values arglist :analysis)
                  (cond  (macrop (values nil :unknown))
                        (t (values (arglist-from-compiled-def def) :analysis))))))
-            (t (values nil nil))))))
+            (t (values nil nil)))))))
 
             
 
