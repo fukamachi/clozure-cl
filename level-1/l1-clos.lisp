@@ -861,7 +861,7 @@ governs whether DEFCLASS makes that distinction or not.")
   (let* ((initargs
 	  `(:qualifiers nil
 	    :specializers ,(list class)
-	    :lambda-list (x)
+	    :lambda-list (instance)
 	    :name ,(function-name gf)
 	    :slot-definition ,dslotd))
 	 (reader-method-class
@@ -895,7 +895,7 @@ governs whether DEFCLASS makes that distinction or not.")
   (let* ((initargs
 	  `(:qualifiers nil
 	    :specializers ,(list *t-class* class)
-	    :lambda-list (y x)
+	    :lambda-list (new-value instance)
 	    :name ,(function-name gf)
 	    :slot-definition ,dslotd))
 	 (method-class (apply #'writer-method-class class dslotd initargs))
