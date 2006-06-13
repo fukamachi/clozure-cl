@@ -225,19 +225,22 @@
   (let* ((last-catch (last-catch-since cfp context))
          (index (register-number->saved-register-index regval)))
     (or
-     (do* ((child (child-frame cfp context)
-                  (child-frame child context)))
-          ((null child))
-       (if (fake-stack-frame-p child)
-         (return (xp-gpr-lisp (%fake-stack-frame.xp child) regval))
-         (multiple-value-bind (lfun pc)
-             (cfp-lfun child)
-           (when lfun
-             (multiple-value-bind (mask where)
-                 (registers-used-by lfun pc)
-               (when (if mask (logbitp index mask))
-                 (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
-                 (return (raw-frame-ref child context where bad))))))))
+     (do* ((frame cfp
+                  (child-frame frame context))
+           (first t))
+          ((null frame))
+       (if (fake-stack-frame-p frame)
+         (return (xp-gpr-lisp (%fake-stack-frame.xp frame) regval))
+         (if first
+           (setq first nil)
+           (multiple-value-bind (lfun pc)
+                 (cfp-lfun frame)
+               (when lfun
+                 (multiple-value-bind (mask where)
+                     (registers-used-by lfun pc)
+                   (when (if mask (logbitp index mask))
+                     (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+                 (return (raw-frame-ref frame context where bad)))))))))
      (get-register-value nil last-catch index))))
 
 (defun %raw-frame-ref (cfp context index bad)
