@@ -1,3 +1,9 @@
+2006-06-12 20:24  gb
+
+	* lib/ppc-backtrace.lisp: PPC version of
+	%find-register-argument-value had the same sort of fencepost as the
+	x86-64 version had a few days ago.
+
 2006-06-10 23:52  gb
 
 	* lib/arglist.lisp: %ARGLIST-INTERNAL: if generic-function, return
