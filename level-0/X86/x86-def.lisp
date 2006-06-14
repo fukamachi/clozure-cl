@@ -540,6 +540,9 @@
    (set-nargs 2)
    (jmp-subprim .SPksignalerr) ))
 
+(lfun-bits #'apply+ (logior $lfbits-rest-bit
+                            (dpb 3 $lfbits-numreq 0)))
+
 ;;; This needs to:
 ;;; (a) load FP arg regs from the FP-REGS argument
 ;;; (b) call the .SPffcall subprimitive, which will discard the foreign stack frame

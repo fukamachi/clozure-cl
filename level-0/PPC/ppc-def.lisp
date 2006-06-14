@@ -1238,4 +1238,7 @@ result-type-keyword is :VOID or NIL"
    (ldr temp0 'funcall nfn)
    (ba .SPfuncall)))
 
+(lfun-bits #'apply+ (logior $lfbits-rest-bit
+                            (dpb 3 $lfbits-numreq 0)))
+
 ;;; end of ppc-def.lisp
