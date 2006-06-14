@@ -1,3 +1,8 @@
+2006-06-14 15:42  gb
+
+	* level-0/: PPC/ppc-def.lisp, X86/x86-def.lisp: Fix #+APPLY+
+	lfun-bits.
+
 2006-06-12 20:24  gb
 
 	* lib/ppc-backtrace.lisp: PPC version of
