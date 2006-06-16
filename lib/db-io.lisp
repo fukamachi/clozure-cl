@@ -798,6 +798,8 @@
 
 ;;; For backward compatibility: the implementation really shouldn't define
 ;;; #?.  Nuke this in a future release.
+;;; Now, for instance.
+#+no
 (set-dispatch-macro-character #\# #\? (get-dispatch-macro-character #\# #\&))
               
 
