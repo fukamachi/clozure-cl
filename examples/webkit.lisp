@@ -4,8 +4,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "COCOA")
-  (use-interface-dir :webkit)
-  (update-objc-method-info)
+  (augment-objc-interfaces :webkit)
   )
 
 ;;; Create web browser objects, via the OSX WebKit.
@@ -22,19 +21,8 @@
 	  webkit-loaded nil))
   (defun check-for-webkit ()
     (if checked-for-webkit
-	webkit-loaded
-	(with-autorelease-pool
-	 (let* ((bundle
-		 (send
-		  (@class "NSBundle")
-		  :bundle-with-path
-		  #@"/System/Library/Frameworks/WebKit.framework")))
-	   (setq checked-for-webkit t
-		 webkit-loaded (unless (%null-ptr-p bundle)
-				 (send (the ns:ns-bundle bundle) 'load)))
-	   ;; Process class, method decls
-	   (map-objc-classes)
-	   webkit-loaded)))))
+      webkit-loaded
+      (load-objc-extension-framework "WebKit"))))
 
 (defun require-webkit () 
   (or (check-for-webkit)
