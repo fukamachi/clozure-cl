@@ -11,17 +11,22 @@
   (let* ((class-count 0))
     (declare (fixnum class-count))
     (defun reset-objc-class-count () (setq class-count 0))
-    (defun map-objc-classes ()
+    (defun map-objc-classes (&optional (lookup-in-database-p t))
       (let* ((n (#_objc_getClassList (%null-ptr) 0)))
 	(declare (fixnum n))
-	(if (> n class-count)
-	  (%stack-block ((buffer (the fixnum (ash n ppc32::word-shift))))
+	(when (> n class-count)
+	  (%stack-block ((buffer (the fixnum (ash n target::word-shift))))
 	    (#_objc_getClassList buffer n)
-	  (do* ((i class-count (1+ i)))
-	       ((= i n (setq class-count i)))
-	    (declare (fixnum i))
-	    (install-foreign-objc-class
-	     (%get-ptr buffer (the fixnum  (ash i ppc32::word-shift))))))))))
+            ;; We don't know that the first class-count classes are
+            ;; necessarily ones that we've seen before, so we should
+            ;; look at everything.  INSTALL-FOREIGN-OBJC-CLASS won't
+            ;; do much if the ObjC class is already known to CLOS.
+            (do* ((i 0 (1+ i)))
+                 ((= i n (setq class-count n)))
+              (declare (fixnum i))
+              (install-foreign-objc-class
+               (%get-ptr buffer (the fixnum  (ash i target::word-shift)))
+               lookup-in-database-p)))))))
   (reset-objc-class-count)
   (map-objc-classes)
 )
@@ -41,6 +46,7 @@
 
 #+gnu-objc
 (progn
+  ;; Er, um ... this needs lots-o-work.a
   (let* ((objc-class-count 0))
     (defun reset-objc-class-count () (setq objc-class-count 0))
     (defun note-all-library-methods (method-function)
@@ -55,68 +61,7 @@
 (defun retain-obcj-object (x)
   (objc-message-send x "retain"))
 
-#+apple-objc
-(progn
-;;; NSException-handling stuff.
-;;; First, we have to jump through some hoops so that #_longjmp can
-;;; jump through some hoops (a jmp_buf) and wind up throwing to a
-;;; lisp catch tag.
 
-;;; These constants (offsets in the jmp_buf structure) come from
-;;; the _setjmp.h header file in the Darwin LibC source.
-
-(defconstant JMP-lr #x54 "link register (return address) offset in jmp_buf")
-#|(defconstant JMP-ctr #x5c "count register jmp_buf offset")|#
-(defconstant JMP-sp 0 "stack pointer offset in jmp_buf")
-(defconstant JMP-r13 8 "offset of r13 (which we clobber) in jmp_buf")
-(defconstant JMP-r14 12 "offset of r14 (which we also clobber) in jmp_buf")
-
-;;; A malloc'ed pointer to two words of machine code.  The first
-;;; instruction (rather obviously) copies r13 to r4.  A C function
-;;; passes its second argument in r4, but since r4 isn't saved in a
-;;; jmp_buf, we have to do this copy.  The second instruction just
-;;; jumps to the address in the count register, which is where we
-;;; really wanted to go in the first place.
-
-(macrolet ((ppc-lap-word (instruction-form)
-             (uvref (uvref (compile nil
-                                    `(lambda (&lap 0)
-                                      (ppc-lap-function () ((?? 0))
-                                       ,instruction-form)))
-                           0) 0)))
-  (defloadvar *setjmp-catch-lr-code*
-      (let* ((p (malloc 12)))
-        (setf (%get-unsigned-long p 0) (ppc-lap-word (mtctr 14))
-              (%get-unsigned-long p 4) (ppc-lap-word (mr 4 13))
-              (%get-unsigned-long p 8) (ppc-lap-word (bctr)))
-        ;;; Force this code out of the data cache and into memory, so
-        ;;; that it'll get loaded into the icache.
-        (ff-call (%kernel-import #.target::kernel-import-makedataexecutable) 
-                 :address p 
-                 :unsigned-fullword 12
-                 :void)
-        p)))
-
-;;; Catch frames are allocated on a stack, so it's OK to pass their
-;;; addresses around to foreign code.
-(defcallback throw-to-catch-frame (:signed-fullword value
-                                   :address frame
-                                   :void)
-  (throw (%get-object frame target::catch-frame.catch-tag) value))
-
-;;; Initialize a jmp_buf so that when it's #_longjmp-ed to, it'll
-;;; wind up calling THROW-TO-CATCH-FRAME with the specified catch
-;;; frame as its second argument.  The C frame used here is just
-;; an empty C stack frame from which the callback will be called.
-
-(defun %associate-jmp-buf-with-catch-frame (jmp-buf catch-frame c-frame)
-  (%set-object jmp-buf JMP-sp c-frame)
-  (%set-object jmp-buf JMP-r13 catch-frame)
-  (setf (%get-ptr jmp-buf JMP-lr) *setjmp-catch-lr-code*
-        (%get-ptr jmp-buf JMP-r14) throw-to-catch-frame)
-  t)
-
-)
 
 (defvar *condition-id-map* (make-id-map) "Map lisp conditions to small integers")
 
@@ -286,6 +231,82 @@ NSObjects describe themselves in more detail than others."
        (let* ((p *listener-autorelease-pool*))
 	 (setq *listener-autorelease-pool* nil)
 	 (release-autorelease-pool p))))))
+
+;;; Use the interfaces for an add-on ObjC framework.  We need to
+;;; tell the bridge to reconsider what it knows about the type
+;;; signatures of ObjC messages, since the new headers may define
+;;; a method whose type signature differs from the message's existing
+;;; methods.  (This probably doesn't happen too often, but it's
+;;; possible that some SENDs that have already been compiled would
+;;; need to be recompiled with that augmented method type info, e.g.,
+;;; because ambiguity was introduced.)
+
+(defun augment-objc-interfaces (dirname)
+  (use-interface-dir dirname)
+  (update-objc-method-info))
+
+;;; A list of "standard" locations which are known to contain
+;;; framework bundles.  We should look in ~/Library/Frameworks/" first,
+;;; if it exists.
+(defparameter *standard-framework-directories*
+  (list #p"/Library/Frameworks/"
+        #p"/System/Library/Frameworks/"))
+
+
+
+;;; This has to run during application (re-)initializtion, so it
+;;; uses lower-level bridge features.
+(defun %reload-objc-framework (path)
+  (when (probe-file path)
+    (let* ((namestring (native-translated-namestring path)))
+      (with-cstrs ((cnamestring namestring))
+        (with-nsstr (nsnamestring cnamestring (length namestring))
+          (with-autorelease-pool
+              (let* ((bundle (send (@class "NSBundle")
+                                   :bundle-with-path nsnamestring)))
+                (unless (%null-ptr-p bundle)
+                  (coerce-from-bool
+                   (objc-message-send bundle "load" :<BOOL>))))))))))
+
+
+(defun load-objc-extension-framework (name)
+  (let* ((dirs *standard-framework-directories*)
+         (home-frameworks (make-pathname :defaults nil
+                                         :directory
+                                         (append (pathname-directory
+                                                  (user-homedir-pathname))
+                                                 '("Library" "Frameworks"))))
+         (fname (list (format nil "~a.framework" name))))
+    (when (probe-file home-frameworks)
+      (pushnew home-frameworks dirs :test #'equalp))
+    (dolist (d dirs)
+      (let* ((path (probe-file (make-pathname :defaults nil
+                                              :directory (append (pathname-directory d)
+                                                                 fname)))))
+        (when path
+          (let* ((namestring (native-translated-namestring path)))
+            (with-cstrs ((cnamestring namestring))
+              (with-nsstr (nsnamestring cnamestring (length namestring))
+                (with-autorelease-pool
+                    (let* ((bundle (send (find-class 'ns:ns-bundle)
+                                         :bundle-with-path nsnamestring))
+                           (winning (unless (%null-ptr-p bundle)
+                                      (or t
+                                          (send (the ns:ns-bundle bundle) 'load)))))
+                      (when winning
+                        (let* ((libpath (send bundle 'executable-path)))
+                          (unless (%null-ptr-p libpath)
+                            (open-shared-library (lisp-string-from-nsstring
+                                                  libpath))))
+                        (send (the ns:ns-bundle bundle) 'load)
+                        (pushnew path *extension-framework-paths*
+                                 :test #'equalp)
+                        (map-objc-classes))
+                      (return winning)))))))))))
+
+                      
+                                  
+                                         
 
 
 (provide "OBJC-SUPPORT")
