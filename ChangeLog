@@ -1,3 +1,43 @@
+2006-06-16 03:50  gb
+
+	* examples/objc-support.lisp: Re-compute static NSString info after
+	opening an extension framework.
+
+2006-06-16 03:45  gb
+
+	* examples/webkit.lisp: Use new functions for augmenting
+	interfaces, loading framework.
+
+2006-06-16 03:43  gb
+
+	* examples/objc-runtime.lisp: Juggle things around so that add-on
+	framework bundles get loaded on appication re-launch.
+	
+	REVIVE-OBJC-CLASSES tells MAP-OBJC-CLASSES not to hit the database,
+	since (a) it may not be there, or may not be where we can find it
+	yet and (b) it's probably more reasonable to do that than it would
+	be to teach CLOS about classes that're "discovered" when the
+	appication's launched on a newer OS release than it was saved on.
+
+2006-06-16 03:39  gb
+
+	* examples/cocoa-application.lisp: Touch tha application bundle
+	before saving an image into it.  That -may- convincve
+	LaunchServices to do the right thing.
+
+2006-06-16 03:38  gb
+
+	* examples/objc-support.lisp: Reload any addon/framework bundles
+	that had been loaded before the image was saved when starting a
+	bundled application.
+	
+	Juggle things around, so that that works (need to be able to use
+	low-level bridge features early.)
+
+2006-06-16 03:36  gb
+
+	* lib/db-io.lisp: Disable the #? reader macro.
+
 2006-06-14 15:42  gb
 
 	* level-0/: PPC/ppc-def.lisp, X86/x86-def.lisp: Fix #+APPLY+
