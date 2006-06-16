@@ -85,16 +85,21 @@
 ;;; the loading of your init file (via an :INIT-FILE nil arg to
 ;;; the call to SAVE-APPLICATION, below.)
 
+;;; As things are distributed, the file "dppccl" in the application
+;;; bundle is just a placeholder.  LaunchServices may have already
+;;; decided that the application isn't really executable and may
+;;; have cached that fact; touching the bundle directory
+;;; here is an attempt to force LaunchServices to discard that
+;;; cached information.
+
+(touch "ccl:openmcl.app;")
+
 (save-application "ccl:OpenMCL.app;Contents;MacOS;dppccl"
                   :prepend-kernel t
 		  :application-class 'cocoa-application)
 
-;;; The "CCL" logical host won't have its translations set correctly
-;;; (fixing this is left as an exercise), so REQUIRE and other things
-;;; that depend on those logical pathname translations won't work right.
 ;;; If things go wrong, you might see some debugging information via
 ;;; the OSX console (/Applications/Utilities/Console.app.)  Standard
 ;;; and error output for the initial lisp process will be directed
 ;;; there.
 
-  
