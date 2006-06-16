@@ -443,9 +443,94 @@
 (defparameter *appkit-library-version-number* (get-appkit-version))
 (defparameter *foundation-library-version-number* (get-foundation-version))
 
+(defparameter *extension-framework-paths* ())
+
+;;; An instance of NSConstantString (which is a subclass of NSString)
+;;; consists of a pointer to the NSConstantString class (which the
+;;; global "_NSConstantStringClassReference" conveniently refers to), a
+;;; pointer to an array of 8-bit characters (doesn't have to be #\Nul
+;;; terminated, but doesn't hurt) and the length of that string (not
+;;; counting any #\Nul.)
+;;; The global reference to the "NSConstantString" class allows us to
+;;; make instances of NSConstantString, ala the @"foo" construct in
+;;; ObjC.  Sure it's ugly, but it seems to be exactly what the ObjC
+;;; compiler does.
+
+
+(defloadvar *NSConstantString-class*
+   #+apple-objc
+  (foreign-symbol-address "__NSConstantStringClassReference")
+  #+gnu-objc
+  (with-cstrs ((name "NSConstantString"))
+      (#_objc_lookup_class name)))
+
+
 (def-ccl-pointers cfstring-sections ()
   (reset-cfstring-sections)
   (find-cfstring-sections))
+
+#+apple-objc
+(progn
+;;; NSException-handling stuff.
+;;; First, we have to jump through some hoops so that #_longjmp can
+;;; jump through some hoops (a jmp_buf) and wind up throwing to a
+;;; lisp catch tag.
+
+;;; These constants (offsets in the jmp_buf structure) come from
+;;; the _setjmp.h header file in the Darwin LibC source.
+
+(defconstant JMP-lr #x54 "link register (return address) offset in jmp_buf")
+#|(defconstant JMP-ctr #x5c "count register jmp_buf offset")|#
+(defconstant JMP-sp 0 "stack pointer offset in jmp_buf")
+(defconstant JMP-r13 8 "offset of r13 (which we clobber) in jmp_buf")
+(defconstant JMP-r14 12 "offset of r14 (which we also clobber) in jmp_buf")
+
+;;; A malloc'ed pointer to two words of machine code.  The first
+;;; instruction (rather obviously) copies r13 to r4.  A C function
+;;; passes its second argument in r4, but since r4 isn't saved in a
+;;; jmp_buf, we have to do this copy.  The second instruction just
+;;; jumps to the address in the count register, which is where we
+;;; really wanted to go in the first place.
+
+(macrolet ((ppc-lap-word (instruction-form)
+             (uvref (uvref (compile nil
+                                    `(lambda (&lap 0)
+                                      (ppc-lap-function () ((?? 0))
+                                       ,instruction-form)))
+                           0) 0)))
+  (defloadvar *setjmp-catch-lr-code*
+      (let* ((p (malloc 12)))
+        (setf (%get-unsigned-long p 0) (ppc-lap-word (mtctr 14))
+              (%get-unsigned-long p 4) (ppc-lap-word (mr 4 13))
+              (%get-unsigned-long p 8) (ppc-lap-word (bctr)))
+        ;;; Force this code out of the data cache and into memory, so
+        ;;; that it'll get loaded into the icache.
+        (ff-call (%kernel-import #.target::kernel-import-makedataexecutable) 
+                 :address p 
+                 :unsigned-fullword 12
+                 :void)
+        p)))
+
+;;; Catch frames are allocated on a stack, so it's OK to pass their
+;;; addresses around to foreign code.
+(defcallback throw-to-catch-frame (:signed-fullword value
+                                   :address frame
+                                   :void)
+  (throw (%get-object frame target::catch-frame.catch-tag) value))
+
+;;; Initialize a jmp_buf so that when it's #_longjmp-ed to, it'll
+;;; wind up calling THROW-TO-CATCH-FRAME with the specified catch
+;;; frame as its second argument.  The C frame used here is just
+;; an empty C stack frame from which the callback will be called.
+
+(defun %associate-jmp-buf-with-catch-frame (jmp-buf catch-frame c-frame)
+  (%set-object jmp-buf JMP-sp c-frame)
+  (%set-object jmp-buf JMP-r13 catch-frame)
+  (setf (%get-ptr jmp-buf JMP-lr) *setjmp-catch-lr-code*
+        (%get-ptr jmp-buf JMP-r14) throw-to-catch-frame)
+  t)
+
+)
 
 ;;; When starting up an image that's had ObjC classes in it, all of
 ;;; those canonical classes (and metaclasses) will have had their type
@@ -460,6 +545,13 @@
 ;;; will retain the same ID.
 
 (defun revive-objc-classes ()
+  ;; We need to do some things so that we can use (@class ...)
+  ;; and (@selector ...) early.
+  (invalidate-objc-class-descriptors)
+  (clear-objc-selectors)
+  ;; Ensure that any addon frameworks are loaded.
+  (dolist (path *extension-framework-paths*)
+    (%reload-objc-framework path))
   ;; Make a first pass over the class and metaclass tables;
   ;; resolving those foreign classes that existed in the old
   ;; image and still exist in the new.
@@ -517,7 +609,20 @@
     ;; Register any class that's not found in the class map
     ;; as a "private" ObjC class.
     (reset-objc-class-count)
-    (map-objc-classes)
+    ;; Iterate over all classes in the runtime.  Those that
+    ;; aren't already registered will get identified as
+    ;; "private" (undeclared) ObjC classes.
+    ;; Note that this means that if an application bundle
+    ;; was saved on (for instance) Panther and Tiger interfaces
+    ;; were used, and then the application is run on Tiger, any
+    ;; Tiger-specific classes will not be magically integrated
+    ;; into CLOS in the running application.
+    ;; A development envronment might want to provide such a
+    ;; mechanism; it would need access to Panther class
+    ;; declarations, and - in the general case - a standalone
+    ;; application doesn't necessarily have access to the
+    ;; interface database.
+    (map-objc-classes nil)
     ))
 
 (pushnew #'revive-objc-classes *lisp-system-pointer-functions*
@@ -536,11 +641,11 @@
        (find-named-objc-superclass (pref class :objc_class.super_class)
                                    string)))))
 
-(defun install-foreign-objc-class (class)
+(defun install-foreign-objc-class (class &optional (use-db t))
   (let* ((id (objc-class-id class)))
     (unless id
       (let* ((name (%get-cstring (pref class :objc_class.name)))
-             (decl (get-objc-class-decl name)))
+             (decl (get-objc-class-decl name use-db)))
         (if (null decl)
           (or (%get-private-objc-class class)
               (%register-private-objc-class class name))
@@ -616,24 +721,6 @@
                 (setf (find-class class-name) class)))))))))
 				
 
-;;; An instance of NSConstantString (which is a subclass of NSString)
-;;; consists of a pointer to the NSConstantString class (which the
-;;; global "_NSConstantStringClassReference" conveniently refers to), a
-;;; pointer to an array of 8-bit characters (doesn't have to be #\Nul
-;;; terminated, but doesn't hurt) and the length of that string (not
-;;; counting any #\Nul.)
-;;; The global reference to the "NSConstantString" class allows us to
-;;; make instances of NSConstantString, ala the @"foo" construct in
-;;; ObjC.  Sure it's ugly, but it seems to be exactly what the ObjC
-;;; compiler does.
-
-
-(defloadvar *NSConstantString-class*
-   #+apple-objc
-  (foreign-symbol-address "__NSConstantStringClassReference")
-  #+gnu-objc
-  (with-cstrs ((name "NSConstantString"))
-      (#_objc_lookup_class name)))
 
 ;;; Execute the body with the variable NSSTR bound to a
 ;;; stack-allocated NSConstantString instance (made from
@@ -672,11 +759,12 @@ argument lisp string."
 ;;; Class declarations
 (defparameter *objc-class-declarations* (make-hash-table :test #'equal))
 
-(defun get-objc-class-decl (class-name)
+(defun get-objc-class-decl (class-name &optional (use-db t))
   (or (gethash class-name *objc-class-declarations*)
-      (let* ((decl (%find-objc-class-info class-name)))
-        (when decl
-          (setf (gethash class-name *objc-class-declarations*) decl)))))
+      (and use-db
+           (let* ((decl (%find-objc-class-info class-name)))
+             (when decl
+               (setf (gethash class-name *objc-class-declarations*) decl))))))
 
 (defun %ensure-class-declaration (name super-name)
   (unless (get-objc-class-decl name)
@@ -767,7 +855,7 @@ argument lisp string."
   name
   classptr)
 
-(def-ccl-pointers invalidate-objc-class-descriptors ()
+(defun invalidate-objc-class-descriptors ()
   (maphash #'(lambda (name descriptor)
 	       (declare (ignore name))
 	       (setf (objc-class-descriptor-classptr descriptor) nil))
@@ -840,7 +928,7 @@ argument lisp string."
       (setf (objc-selector-%sel selector)
 	    (get-selector-for (objc-selector-name selector) error-p))))
 
-(def-ccl-pointers objc-selectors ()
+(defun clear-objc-selectors ()
   (maphash #'(lambda (name sel)
 	       (declare (ignore name))
 	       (setf (objc-selector-%sel sel) nil))
@@ -1800,7 +1888,7 @@ argument lisp string."
                (with-c-frame ,cframe
                  (%associate-jmp-buf-with-catch-frame
                   ,nshandler
-                  (%fixnum-ref (%current-tcr) ppc32::tcr.catch-top)
+                  (%fixnum-ref (%current-tcr) target::tcr.catch-top)
                   ,cframe)
                  (progn
                    ,@body))))
