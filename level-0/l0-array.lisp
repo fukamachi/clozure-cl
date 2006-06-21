@@ -85,7 +85,7 @@
      unused
      unused
      short-float
-     unused
+     fixnum
      unused
      unused
      unused
