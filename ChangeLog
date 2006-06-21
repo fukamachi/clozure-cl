@@ -1,3 +1,35 @@
+2006-06-21 15:15  gb
+
+	* lisp-kernel/: ppc-constants64.h, ppc-constants64.s,
+	ppc-spentry.s: Define new string subtags; handle them in ppc64
+	misc_ref/misc_set.
+
+2006-06-21 15:14  gb
+
+	* level-0/PPC/ppc-array.lisp: Fix %INIT-MISC (both ppc2 and ppc64
+	versions) to handle FIXNUM vectors, new UCS4 strings.
+
+2006-06-21 15:14  gb
+
+	* level-0/l0-array.lisp: Fix %INIT-MISC (bot ppc2 and ppc64
+	versions) to handle FIXNUM vectors, new UCS4 strings.
+
+2006-06-21 15:12  gb
+
+	* darwin-headers/: carbon/C/populate.sh, cocoa/C/populate.sh,
+	gl/C/populate.sh, libc/C/populate.sh, quicktime/C/populate.sh,
+	webkit/C/populate.sh: Use 10.4u headers from XCode SDK.
+
+2006-06-21 15:11  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Add SUBTAG-NEW-STRING.
+
+2006-06-21 15:11  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: MAX-32-BIT-IVECTOR-SUBTAG
+	wasn't updated with the introduction of fixnum vectors, (unused)
+	UCS4 "new"strings.
+
 2006-06-16 03:50  gb
 
 	* examples/objc-support.lisp: Re-compute static NSString info after
