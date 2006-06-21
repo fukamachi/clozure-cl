@@ -33,7 +33,7 @@
   (assert (and (< ppc32::max-32-bit-ivector-subtag
                   ppc32::max-8-bit-ivector-subtag
                   ppc32::max-16-bit-ivector-subtag)
-               (eql ppc32::max-32-bit-ivector-subtag ppc32::subtag-s32-vector)
+               (eql ppc32::max-32-bit-ivector-subtag ppc32::subtag-new-string)
                (eql ppc32::max-16-bit-ivector-subtag ppc32::subtag-s16-vector)
                (eql ppc32::max-8-bit-ivector-subtag ppc32::subtag-simple-base-string))))
 
@@ -94,15 +94,29 @@
   (bne cr0 @dfloat-loop)
   (blr)
   @32
+  (cmpwi cr4 imm2 ppc32::subtag-s32-vector)
   (cmpwi cr0 imm2 ppc32::subtag-single-float-vector)
   (cmpwi cr2 imm0 ppc32::subtag-bignum)
-  (beq cr1 @s32)                     ; ppc32::max-32-bit-ivector-subtag
+  (cmpwi cr3 imm2 ppc32::subtag-fixnum-vector)
+  (beq cr1 @new-string)
+  (beq cr4 @s32)                     ; ppc32::max-32-bit-ivector-subtag
+  (beq cr3 @fixnum)
   (bne cr0 @u32)
   ;@sfloat
   (cmpwi cr0 imm0 ppc32::subtag-single-float)
   (bne- cr0 @bad)
   (lwz imm0 ppc32::single-float.value val)
   (b @set-32)
+  @fixnum
+  (unbox-fixnum imm0 val)
+  (beq+ cr7 @set-32)
+  (b @bad)
+  @new-string
+  (clrlwi imm0 val 24)
+  (cmpwi imm0 ppc32::subtag-character)
+  (srwi imm0 val ppc32::charcode-shift)
+  (beq @set-32)
+  (b @bad)
   @s32
   (unbox-fixnum imm0 val)
   (beq+ cr7 @set-32)
@@ -232,12 +246,14 @@
   (set-nargs 3)
   (call-symbol %err-disp)
   @64
+  (cmpdi cr3 imm2 ppc64::subtag-fixnum-vector)
   (cmpdi cr1 imm2 ppc64::subtag-double-float-vector)
   (cmpdi cr2 imm2 ppc64::subtag-s64-vector)
+  (beq cr3 @fixnum)
   (beq cr1 @dfloat)
   (beq cr2 @u64)
   ;; s64
-  (unbox-fixnum imm0 arg_z)
+  (unbox-fixnum imm0 val)
   (beq cr7 @set-64)                     ; all fixnums are (SIGNED-BYTE 64)
   (bne cr3 @bad)                        ; as are 2-digit bignums
   (getvheader imm1 val)
@@ -246,7 +262,11 @@
   (rotldi imm0 imm0 32)
   (beq @set-64)
   (b @bad)
-  ;; u64 if fixnum and positive, 2-digit bignum and positive, or
+@fixnum
+  (unbox-fixnum imm0 val)
+  (beq cr7 @set-64)                     ; all fixnums are (SIGNED-BYTE 64)
+  (b  @bad)                        ; as are 2-digit bignums
+   ;; u64 if fixnum and positive, 2-digit bignum and positive, or
   ;; 3-digit bignum with most-significant digit 0.
   @u64
   (cmpdi cr2 val 0)
@@ -276,6 +296,7 @@
   (ld imm0 ppc64::double-float.value val)
   (b @set-64)
   @32
+  (cmpdi cr3 imm2 ppc64::subtag-new-string)
   (cmpdi cr2 imm2 ppc64::subtag-s32-vector)
   (cmpdi cr0 imm2 ppc64::subtag-single-float-vector)
   (beq cr2 @s32)
