@@ -187,7 +187,7 @@
 (define-imm-subtag s32-vector 22)
 (define-imm-subtag u32-vector 21)
 (define-imm-subtag single-float-vector 20)
-(defconstant max-32-bit-ivector-subtag subtag-s32-vector)
+(defconstant max-32-bit-ivector-subtag subtag-new-string)
 (defconstant min-cl-ivector-subtag subtag-single-float-vector)
 
 (define-node-subtag vectorH 20)
