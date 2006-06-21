@@ -2263,7 +2263,7 @@ local_label(misc_ref_jmp):
          .quad local_label(misc_ref_invalid) /* d7 nodeheader_1  */
          .quad local_label(misc_ref_invalid) /* d8 odd_fixnum  */
          .quad local_label(misc_ref_invalid) /* d9 imm_2  */
-         .quad local_label(misc_ref_invalid) /* da immheader_2  */
+         .quad local_label(misc_ref_new_string) /* da new_string  */
          .quad local_label(misc_ref_invalid) /* db nodeheader_2  */
          .quad local_label(misc_ref_invalid) /* dc misc  */
          .quad local_label(misc_ref_invalid) /* dd imm3  */
@@ -2329,6 +2329,13 @@ local_label(misc_ref_u64):
          __(la imm0,misc_data_offset(arg_z))
          __(ldx imm0,arg_y,imm0)
          __(b _SPmakeu64)
+local_label(misc_ref_new_string):        
+         __(srdi imm0,arg_z,1)
+         __(la imm0,misc_data_offset(imm0))
+         __(lwzx imm0,arg_y,imm0)
+         __(slwi imm0,imm0,charcode_shift)
+         __(ori arg_z,imm0,subtag_character)
+         __(blr)
 local_label(misc_ref_s32):                     
          __(srdi imm0,arg_z,1)
          __(la imm0,misc_data_offset(imm0))
@@ -3754,7 +3761,7 @@ local_label(misc_set_jmp):
          .quad local_label(misc_set_invalid) /* d7 nodeheader_1  */
          .quad local_label(misc_set_invalid) /* d8 odd_fixnum  */
          .quad local_label(misc_set_invalid) /* d9 imm_2  */
-         .quad local_label(misc_set_invalid) /* da immheader_2  */
+         .quad local_label(misc_set_new_string) /* da new_string  */
          .quad local_label(misc_set_invalid) /* db nodeheader_2  */
          .quad local_label(misc_set_invalid) /* dc misc  */
          .quad local_label(misc_set_invalid) /* dd imm3  */
@@ -3861,6 +3868,15 @@ local_label(misc_set_u32):
          __(srdi imm4,arg_y,1)
 	 __(la imm4,misc_data_offset(imm4))
          __(unbox_fixnum(imm0,arg_z))
+         __(bne local_label(misc_set_bad))
+         __(stwx imm0,arg_x,imm4)
+         __(blr)
+local_label(misc_set_new_string):
+         __(extract_lowbyte(imm0,arg_z))
+         __(srdi imm4,arg_y,1)
+         __(cmpdi imm0,subtag_character)
+	 __(la imm4,misc_data_offset(imm4))
+         __(srwi imm0,arg_z,charcode_shift)
          __(bne local_label(misc_set_bad))
          __(stwx imm0,arg_x,imm4)
          __(blr)

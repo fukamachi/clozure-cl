@@ -86,6 +86,7 @@
 #define subtag_s32_vector CL_ARRAY_SUBTAG(ivector_class_32_bit,1)
 #define subtag_u32_vector CL_ARRAY_SUBTAG(ivector_class_32_bit,2)
 #define subtag_single_float_vector CL_ARRAY_SUBTAG(ivector_class_32_bit,3)
+#define subtag_new_string CL_ARRAY_SUBTAG(ivector_class_32_bit,5)
 #define subtag_s16_vector CL_ARRAY_SUBTAG(ivector_class_other_bit,1)
 #define subtag_u16_vector CL_ARRAY_SUBTAG(ivector_class_other_bit,2)
 #define subtag_bit_vector CL_ARRAY_SUBTAG(ivector_class_other_bit,7)
