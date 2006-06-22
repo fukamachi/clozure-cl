@@ -18,7 +18,7 @@
 ;;; It seems that it does on some platforms and not on others;
 ;;; explicitly open what we require here.
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  #+linuxppc-target
+  #+linux-target
   (dolist (lib '("libGL.so" "libGLU.so" "libglut.so"))
     (open-shared-library lib))
   #+darwinppc-target
