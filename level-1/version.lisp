@@ -19,7 +19,7 @@
 (defparameter *openmcl-major-version* 1)
 (defparameter *openmcl-minor-version* 1)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "pre-060608")
+(defparameter *openmcl-suffix* "pre-060622")
 (defparameter *openmcl-dev-level*
   #+x8664-target "Beta" #-x8664-target nil)
 
