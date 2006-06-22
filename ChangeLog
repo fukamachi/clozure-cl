@@ -1,3 +1,24 @@
+2006-06-22 13:39  gb
+
+	* x86-headers64/gnome2/C/.cvsignore: new
+
+2006-06-22 13:36  gb
+
+	* x86-headers64/: gl/C/.cvsignore, gnome2/C/populate.sh: new
+
+2006-06-22 13:33  gb
+
+	* x86-headers64/: gl/.cvsignore, gl/C/populate.sh,
+	gnome2/.cvsignore: new
+
+2006-06-22 13:30  gb
+
+	* examples/opengl-ffi.lisp: #+linuxppc-target -> #+linux-target.
+
+2006-06-22 13:28  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-06-21 15:15  gb
 
 	* lisp-kernel/: ppc-constants64.h, ppc-constants64.s,
