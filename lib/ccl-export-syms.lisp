@@ -29,6 +29,7 @@
      *restore-lisp-functions*
      *lisp-cleanup-functions*
      *lisp-startup-functions*
+     defloadvar
      *break-on-warnings*
 					; misc
      record-source-file
