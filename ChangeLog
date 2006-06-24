@@ -1,3 +1,12 @@
+2006-06-23 19:52  gb
+
+	* darwin-headers/: gl/C/.cvsignore, libc/C/.cvsignore,
+	quicktime/C/.cvsignore: Ignore Developer subdirectory.	c
+
+2006-06-23 19:28  gb
+
+	* release-notes.txt: Update some.
+
 2006-06-23 19:11  gb
 
 	* examples/gtk2-clock.lisp: New file.
