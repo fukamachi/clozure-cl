@@ -1,3 +1,22 @@
+OpenMCL 1.1-pre-060623
+- Mostly bug fixes (a CLOS bug that prevented the ObjC bridge from 
+  working, FIXNUM arrays weren't quite finished on PPC)
+
+- Use Tiger inferfaces (from XCode 10.4u SDK) on DarwinPPC32
+
+- Add gl, gtk2, gnome2 interfaces for x86-64.  Add a tiny
+  "gtk2-clock" example, tweak the opengl-ffi (GLUT) example
+  so that it works on x86-64.
+
+- Some changes to the ObjC bridge to support loading additional
+  frameworks; update the WebKit example to use these new features.
+
+- Still an outstanding issue where things like MAKE-OBJC-INSTANCE
+  need access to the interfaces at runtime (and can crash if they
+  aren't available.) 
+
+- Build snapshots for LinuxPPC{32,64}.
+
 OpenMCL 1.1-pre-060608
 - The FASL version changed, as did the version number which pairs
   the lisp kernel with heap images.  Images saved with older kernels
