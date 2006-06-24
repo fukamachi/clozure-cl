@@ -1,3 +1,15 @@
+2006-06-23 19:11  gb
+
+	* examples/gtk2-clock.lisp: New file.
+
+2006-06-23 18:56  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-06-23 18:52  gb
+
+	* lib/ccl-export-syms.lisp: Export DEFLOADVAR.
+
 2006-06-22 13:39  gb
 
 	* x86-headers64/gnome2/C/.cvsignore: new
