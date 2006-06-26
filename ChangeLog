@@ -1,3 +1,12 @@
+2006-06-25 20:32  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: FreeBSD x8664 backend;
+	change initialiation of x8664 foreign-type stuff.
+
+2006-06-25 20:31  gb
+
+	* compiler/backend.lisp: PLATFORM-OS-FREEBSD.
+
 2006-06-23 19:52  gb
 
 	* darwin-headers/: gl/C/.cvsignore, libc/C/.cvsignore,
