@@ -1166,9 +1166,9 @@
         (when labelno
           (-> labelno))
         (@ no-overflow))
-        (if labelno
-          (! fix-fixnum-overflow-ool-and-branch target (aref *backend-labels* labelno))
-          (! fix-fixnum-overflow-ool target)))))
+      (if labelno
+        (! fix-fixnum-overflow-ool-and-branch target (aref *backend-labels* labelno))
+        (! fix-fixnum-overflow-ool target)))))
 
 (defun x862-nil (seg vreg xfer)
   (with-x86-local-vinsn-macros (seg vreg xfer)
