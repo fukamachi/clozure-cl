@@ -181,12 +181,39 @@
 		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
                   :little-endian-target
                   :64-bit-target)
-		:target-fasl-pathname (make-pathname :type "d64fsl")
+		:target-fasl-pathname (make-pathname :type "dx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-darwin
                                          platform-word-size-64)
 		:target-os :darwinx86
 		:name :darwinx8664
+		:target-arch-name :x8664
+		:target-foreign-type-data nil
+                :target-arch x8664::*x8664-target-arch*
+                :define-callback 'define-x8664-callback
+                :defcallback-body 'defcallback-body-x8664
+                ))
+
+#+freebsdx86-target
+(defvar *freebsdx8664-backend*
+  (make-backend :lookup-opcode 'lookup-x86-opcode
+		:lookup-macro #'false
+                :lap-opcodes x86::*x8664-opcode-templates*
+                :define-vinsn 'define-x86-vinsn
+		:p2-dispatch *x862-specials*
+		:p2-vinsn-templates *x8664-vinsn-templates*
+		:p2-template-hash-name '*x8664-vinsn-templates*
+		:p2-compile 'x862-compile
+		:target-specific-features
+		'(:x8664 :x86-target :freebsd-target :freebsdx86-target :x8664-target
+                  :little-endian-target
+                  :64-bit-target)
+		:target-fasl-pathname (make-pathname :type "fx64fsl")
+		:target-platform (logior platform-cpu-x86
+                                         platform-os-freebsd
+                                         platform-word-size-64)
+		:target-os :freebsdx86
+		:name :freebsdx8664
 		:target-arch-name :x8664
 		:target-foreign-type-data nil
                 :target-arch x8664::*x8664-target-arch*
@@ -200,6 +227,9 @@
 
 #+darwinx86-target
 (pushnew *darwinx8664-backend* *known-x8664-backends* :key #'backend-name)
+
+#+freebsdx86-target
+(pushnew *freebsdx8664-backend* *known-x8664-backends* :key #'backend-name)
 
 (defvar *x8664-backend* (car *known-x8664-backends*))
 
@@ -218,27 +248,34 @@
 #+x8664-target
 (setq *host-backend* *x8664-backend* *target-backend* *x8664-backend*)
 
-#-x8664-target
-(unless (backend-target-foreign-type-data *x8664-backend*)
-  (let* ((ftd (make-ftd
-               :interface-db-directory
-               #+darwinx86-target "ccl:darwin-x86-headers64;"
-               #+(or linuxx86-target (not x86-target)) "ccl:x86-headers64;"
-               :interface-package-name
-               #+darwinx86-target "X86-DARWIN64"
-               #+(or linuxx86-target (not x86-target)) "X86-LINUX64"
-               :attributes
-               #+darwinx86-target
-               '(:signed-char t
-                 :struct-by-value t
-                 :prepend-underscores t
-                 :bits-per-word  64)
-               #+(or linuxx86-target (not x86-target))
-               '(:bits-per-word  64
-                 :struct-by-value t))))
-    (install-standard-foreign-types ftd)
+(defun setup-x8664-ftd (backend)
+  (or (backend-target-foreign-type-data backend)
+      (let* ((name (backend-name backend))
+             (ftd
+              (case name
+                (:linuxx8664
+                 (make-ftd :interface-db-directory "ccl:x86-headers64;"
+                          :interface-package-name "X86-LINUX64"
+                          :attributes '(:bits-per-word  64
+                                        :struct-by-value t)))
+                (:darwinx8664
+                  (make-ftd :interface-db-directory "ccl:darwin-x86-headers64;"
+                          :interface-package-name "X86-DARWIN64"
+                          :attributes '(:bits-per-word  64
+                                        :signed-char t
+                                        :struct-by-value t
+                                        :prepend-underscore t)))
+                 (:freebsdx8664
+                  (make-ftd :interface-db-directory "ccl:freebsd-headers64;"
+                            :interface-package-name "X86-FREEBSD64"
+                            :attributes '(:bits-per-word  64
+                                          :struct-by-value t))))))
+        (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)
-    (setf (backend-target-foreign-type-data *x8664-backend*) ftd)))
+    (setf (backend-target-foreign-type-data backend) ftd))))
+
+#-x8664-target
+(setup-x8664-ftd *x8664-backend*)
 
 (pushnew *x8664-backend* *known-backends* :key #'backend-name)
 
