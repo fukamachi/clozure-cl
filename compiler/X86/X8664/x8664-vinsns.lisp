@@ -982,7 +982,7 @@
   (jno.pt no-overflow)
   (movq (:%q val) (:%q scaled-size))
   (sarq (:$ub x8664::fixnumshift) (:%q scaled-size))
-  (movq (:$q #xffff000000000000) (:%q header))
+  (movq (:$q #xe000000000000000) (:%q header))
   (xorq (:%q header) (:%q scaled-size))
   (movd (:%q scaled-size) (:%mmx x8664::mm0))
   (movq (:$l x8664::two-digit-bignum-header) (:%q header))
