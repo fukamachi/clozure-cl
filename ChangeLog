@@ -1,3 +1,14 @@
+2006-06-26 16:38  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp:
+	SET-BIGITS-AND-HEADER-FOR-FIXNUM-OVERFLOW: need to change the
+	(wrong) sign of the top 3 (fixnumshift) bits only.  Where did the
+	constant #xffff000000000000 come from ?
+
+2006-06-26 16:35  gb
+
+	* compiler/X86/x862.lisp: Fix some indentation.
+
 2006-06-25 20:32  gb
 
 	* compiler/X86/X8664/x8664-backend.lisp: FreeBSD x8664 backend;
