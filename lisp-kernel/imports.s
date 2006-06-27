@@ -51,7 +51,7 @@ import_ptrs_start:
 	defimport(allocate_vstack_holding_area_lock)
 	defimport(register_cstack_holding_area_lock)
 	defimport(raise_thread_interrupt)
-	defimport(lisp_bug)
+	defimport(get_r_debug)
 	defimport(restore_soft_stack_limit)
 	defimport(lisp_egc_control)
 	defimport(lisp_bug)
