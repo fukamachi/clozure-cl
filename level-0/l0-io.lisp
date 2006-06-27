@@ -22,7 +22,10 @@
   #+linuxx8664-target
   (require "X8664-LINUX-SYSCALLS")
   #+darwin-target
-  (require "DARWIN-SYSCALLS"))
+  (require "DARWIN-SYSCALLS")
+  #+freebsd-target
+  (require "X8664-FREEBSD-SYSCALLS")
+  )
 
 
 ; write nbytes bytes from buffer buf to file-descriptor fd.
@@ -61,6 +64,9 @@
 
 #-(and ppc32-target linux-target)
 (defun fd-lseek (fd offset whence)
+  #+freebsd-target
+  (syscall syscalls::lseek fd 0 offset whence)
+  #-freebsd-target
   (syscall syscalls::lseek fd offset whence))
 
 (defun fd-close (fd)
