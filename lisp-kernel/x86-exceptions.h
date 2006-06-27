@@ -91,3 +91,16 @@ typedef enum {
   ID_set_allocptr_header_instruction,
   ID_clear_tcr_save_allocptr_tag_instruction
 } alloc_instruction_id;
+
+#ifdef LINUX
+#define SIGNUM_FOR_INTN_TRAP SIGSEGV
+#define IS_MAYBE_INT_TRAP(info,xp) ((info->si_code) &0x7f) == 0)
+#define SIGRETURN(context)
+#endif
+
+#ifdef FREEBSD
+extern void freebsd_sigreturn(ExceptionInformation *);
+#define SIGNUM_FOR_INTN_TRAP SIGBUS
+#define IS_MAYBE_INT_TRAP(info,xp) (xp->uc_mcontext.mc_trapno == T_PROTFLT)
+#define SIGRETURN(context) freebsd_sigreturn(context)
+#endif
