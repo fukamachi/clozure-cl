@@ -1604,7 +1604,7 @@ result-type-specifer is :VOID or NIL"
     (def-foreign-type signed-short (signed 16))
     (def-foreign-type signed-int (signed 32))
     (def-foreign-type signed-doubleword (signed 64))
-    (def-foreign-type char #+linux-target (unsigned 8)
+    (def-foreign-type char #-darwin-target (unsigned 8)
                       #+darwin-target (signed 8))
     (def-foreign-type unsigned-char (unsigned 8))
     (def-foreign-type unsigned-byte (unsigned 8))
