@@ -22,7 +22,10 @@
   #+linuxx8664-target
   (require "X8664-LINUX-SYSCALLS")
   #+darwin-target
-  (require "DARWIN-SYSCALLS"))
+  (require "DARWIN-SYSCALLS")
+  #+(and freebsd-target x8664-target)
+  (require "X8664-FREEBSD-SYSCALLS")
+  )
 
 
 (defun nanoseconds (n)
@@ -185,6 +188,7 @@ OS environment."
 	(%get-cstring env-ptr))))
   )
 
+#-freebsd-target
 (defun setenv (key value &optional (overwrite t))
   "Set the value of the environment variable named by name, in the OS
 environment. If there is no such environment variable, create it."
@@ -217,7 +221,7 @@ given is that of a group to which the current user belongs."
        (pref stat :stat.st_size)
        #+linux-target
        (pref stat :stat.st_mtim.tv_sec)
-       #+darwinppc-target
+       #-linux-target
        (pref stat :stat.st_mtimespec.tv_sec)
        (pref stat :stat.st_ino)
        (pref stat :stat.st_uid)
@@ -230,7 +234,7 @@ given is that of a group to which the current user belongs."
     (%stat-values
      #+linux-target
      (#_ __xstat #$_STAT_VER_LINUX cname stat)
-     #+darwinppc-target
+     #-linux-target
      (syscall syscalls::stat cname stat)
      stat)))
 
@@ -238,7 +242,7 @@ given is that of a group to which the current user belongs."
   (%stat-values
    #+linux-target
    (#_ __fxstat #$_STAT_VER_LINUX fd stat)
-   #+darwinppc-target
+   #+(or darwinppc-target freebsd-target)
    (syscall syscalls::fstat fd stat)
    stat))
 
@@ -247,7 +251,7 @@ given is that of a group to which the current user belongs."
     (%stat-values
      #+linux-target
      (#_ __lxstat #$_STAT_VER_LINUX cname stat)
-     #+darwinppc-target
+     #-linux-target
      (syscall syscalls::lstat cname stat)
      stat)))
 
@@ -287,7 +291,8 @@ given is that of a group to which the current user belongs."
 (defun %uts-string (result idx buf)
   (if (eql 0 result)
     (%get-cstring (%inc-ptr buf (* #+linux-target #$_UTSNAME_LENGTH
-				   #+darwinppc-target #$_SYS_NAMELEN idx)))
+				   #+darwinppc-target #$_SYS_NAMELEN
+                                   #+freebsd-target #$SYS_NMLN idx)))
     "unknown"))
 
 
@@ -300,6 +305,11 @@ given is that of a group to which the current user belongs."
 (defun %uname (idx)
   (%stack-block ((buf (* #$_SYS_NAMELEN 5)))
     (%uts-string (#_uname buf) idx buf)))
+
+#+freebsd-target
+(defun %uname (idx)
+  (%stack-block ((buf (* #$SYS_NMLN 5)))
+    (%uts-string (#___xuname #$SYS_NMLN buf) idx buf)))
 
 (defun fd-dup (fd)
   (syscall syscalls::dup fd))
@@ -433,10 +443,16 @@ given is that of a group to which the current user belongs."
   "Look up and return the defined home directory of the user identified
 by uid. This value comes from the OS user database, not from the $HOME
 environment variable. Returns NIL if there is no user with the ID uid."
-  (with-macptrs ((pw (#_getpwuid userid)))
-    (unless (%null-ptr-p pw)
-      (without-interrupts
-       (%get-cstring (pref pw :passwd.pw_dir))))))
+  (rlet ((pwd :passwd)
+         (result :address))
+    (do* ((buflen 512 (* 2 buflen)))
+         ()
+      (%stack-block ((buf buflen))
+        (let* ((err (#_getpwuid_r userid pwd buf buflen result)))
+          (if (eql 0 err)
+            (return (%get-cstring (pref pwd :passwd.pw_dir)))
+            (unless (eql err #$ERANGE)
+              (return nil))))))))
 
 (defun %delete-file (name)
   (with-cstrs ((n name))
@@ -1095,4 +1111,16 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
                                        :end2 matchlen)
                               (whitespacep (schar line matchlen)))
                          (incf ncpu)))))))
-             1))))
+             1)
+            #+freebsd-target
+            (%stack-block ((ret (record-length :uint))
+                           (mib (* (record-length :uint))))
+              (setf (%get-unsigned-long mib 0)
+                    #$CTL_HW
+                    (%get-unsigned-long mib (record-length :uint))
+                    #$HW_NCPU)
+              (rlet ((oldsize :uint (record-length :uint)))
+                (if (eql 0 (#_sysctl mib 2 ret oldsize (%null-ptr) 0))
+                  (pref ret :uint)
+                  1)))
+            )))

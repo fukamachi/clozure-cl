@@ -23,7 +23,9 @@
   #+linuxx8664-target
   (require "X8664-LINUX-SYSCALLS")
   #+darwin-target
-  (require "DARWIN-SYSCALLS"))
+  (require "DARWIN-SYSCALLS")
+  #+freebsdx8664-target
+  (require "X8664-FREEBSD-SYSCALLS"))
 
 ;;;
 
