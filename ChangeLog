@@ -1,3 +1,119 @@
+2006-06-27 05:05  gb
+
+	* lisp-kernel/: freebsdx8664/Makefile, freebsd8664/Makefile,
+	freebsd8664/elf_x86_64.x: directory rename
+
+2006-06-27 04:59  gb
+
+	* xdump/xx8664-fasload.lisp: FreeBSD xload-backend.
+
+2006-06-27 04:47  gb
+
+	* lisp-kernel/x86-exceptions.h: Some macros for FreeBSD changes.
+
+2006-06-27 04:46  gb
+
+	* lisp-kernel/x86-exceptions.c: FreeBSD changes (at least enough to
+	recognize UUOs, which generate SIGBUS vice SIGSEGV.)
+
+2006-06-27 04:45  gb
+
+	* lisp-kernel/x86-asmutils64.s: Define freebsd_sigreturn.
+	
+	TODO (maybe): copy the sigtramp code when evacuating the altstack.
+
+2006-06-27 04:44  gb
+
+	* lisp-kernel/thread_manager.c: FreeBSD sigreturn from
+	suspend_resume_handler.
+
+2006-06-27 04:44  gb
+
+	* lisp-kernel/pmcl-kernel.c: Some FreeBSD conditionalization;
+	get_r_debug() for ELF platforms.  (Needs testing under Linux.)
+
+2006-06-27 04:43  gb
+
+	* lisp-kernel/imports.s: Don't import metering-control; do import
+	get_r_debug().
+
+2006-06-27 04:42  gb
+
+	* library/x8664-freebsd-syscalls.lisp: New file.  Should check
+	word-size stuff (here and in other versions.)
+
+2006-06-27 04:42  gb
+
+	* lib/misc.lisp: Find MACHINE-VERSION string via #_sysctl on
+	FreeBSD.
+
+2006-06-27 04:39  gb
+
+	* lib/foreign-types.lisp: Signed char nonsense (should use target
+	ftd, not reader macros here.)
+
+2006-06-27 04:38  gb
+
+	* lib/compile-ccl.lisp: Some FreeBSD support.
+
+2006-06-27 04:36  gb
+
+	* level-1/: l1-sockets.lisp, l1-streams.lisp, linux-files.lisp:
+	Some FreeBSD changes/conditionalization. Maybe not enough.
+
+2006-06-27 04:35  gb
+
+	* level-1/l1-boot-1.lisp: Recognize FREEBSD platform-os-name.
+
+2006-06-27 04:34  gb
+
+	* level-0/X86/: .cvsignore, X8664/.cvsignore: Ignore *fsl.
+
+2006-06-27 04:34  gb
+
+	* level-0/l0-io.lisp: FreeBSD syscalls.
+
+2006-06-27 04:33  gb
+
+	* level-0/l0-init.lisp: Some FreeBSD features.
+
+2006-06-27 04:33  gb
+
+	* level-0/l0-cfm-support.lisp: Lots of FreeBSD conditionalization,
+	changes.
+	
+	MAY HAVE BROKEN LINUX PORTS; need to recompile on those platforms
+	and test.
+	
+	Now depends on an imported lisp-kernel function on ELF platforms
+	(Linux/FreeBSD), and therefore depends on recent kernel changes.
+
+2006-06-27 04:30  gb
+
+	* level-0/.cvsignore: Ignore *fsl.
+
+2006-06-27 04:29  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Fix platform-syscall-mask
+	in freebsd backend.
+
+2006-06-27 04:27  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Don't import
+	metering-control; do import get-r-debug (for Elf shared libraries.)
+	
+	A yield-syscall constant for FreeBSD. (This is all a bad idea ...)
+
+2006-06-27 04:26  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp:
+	Don't import metering-control; do import get-r-debug (for Elf
+	shared libraries.)
+
+2006-06-27 04:26  gb
+
+	* compiler/nx1.lisp: Use the non-eabi syscall on freebsd as well.
+
 2006-06-26 16:38  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp:
