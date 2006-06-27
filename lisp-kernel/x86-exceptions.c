@@ -575,10 +575,13 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
   pc program_counter = (pc)xpPC(context);
 
   switch (signum) {
-  case SIGSEGV:
-    if (((info->si_code) &0x7f) == 0) {
-      /* Something mapped to SIGSEGV that has nothing to do with
-	 a memory fault */
+  case SIGNUM_FOR_INTN_TRAP:
+    if (IS_MAYBE_INT_TRAP(info,context)) {
+      /* Something mapped to SIGSEGV/SIGBUS that has nothing to do with
+	 a memory fault.  On x86, an "int n" instruction that's
+         not otherwise implemented causes a "protecton fault".  Of
+         course that has nothing to do with accessing protected
+         memory; of course, most Unices act as if it did.*/
       if (*program_counter == INTN_OPCODE) {
 	program_counter++;
 	switch (*program_counter) {
@@ -745,6 +748,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
   unlock_exception_lock_in_handler(tcr);
   exit_signal_handler(tcr, old_valence);
   /* raise_pending_interrupt(tcr); */
+  SIGRETURN(context);
 }
 
 #ifdef LINUX
@@ -874,6 +878,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
       }
     }
   }
+  SIGRETURN(context);
 }
 
 void
