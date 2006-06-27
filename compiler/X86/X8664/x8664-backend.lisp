@@ -219,6 +219,7 @@
                 :target-arch x8664::*x8664-target-arch*
                 :define-callback 'define-x8664-callback
                 :defcallback-body 'defcallback-body-x8664
+                :platform-syscall-mask (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)                
                 ))
 
 #+(or linuxx86-target (not x86-target))
