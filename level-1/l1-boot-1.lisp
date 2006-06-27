@@ -36,7 +36,8 @@
   `((,platform-os-vxworks . :vxwork)
     (,platform-os-linux . :linux)
     (,platform-os-solaris . :solaris)
-    (,platform-os-darwin . :darwin)))
+    (,platform-os-darwin . :darwin)
+    (,platform-os-freebsd . :freebsd)))
 
 (defparameter *platform-cpu-names*
   `((,platform-cpu-ppc . :ppc)
