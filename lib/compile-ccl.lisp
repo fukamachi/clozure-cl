@@ -455,7 +455,7 @@
     (:darwinppc64 "darwinppc64")
     (:linuxppc64 "linuxppc64")
     (:linuxx8664 "linuxx8664")
-    (:freebsdx8664 "freebsd8664")))
+    (:freebsdx8664 "freebsdx8664")))
 
 (defun rebuild-ccl (&key full clean kernel force (reload t) exit reload-arguments)
   (when full
