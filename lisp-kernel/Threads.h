@@ -31,6 +31,9 @@
 #include <mach/semaphore.h>
 #endif
 #include <limits.h>
+#ifdef FREEBSD
+#include <pthread_np.h>
+#endif
 
 #include "lisp.h"
 #include "lisp_globals.h"
