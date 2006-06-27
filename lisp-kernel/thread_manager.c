@@ -314,7 +314,7 @@ os_get_stack_bounds(LispObj q,void **base, natural *size)
 #endif
 #ifdef LINUX
   pthread_attr_t attr;
-  
+
   pthread_getattr_np(p,&attr);
   pthread_attr_getstack(&attr, base, size);
   *(natural *)base += *size;
@@ -322,7 +322,8 @@ os_get_stack_bounds(LispObj q,void **base, natural *size)
 #ifdef FREEBSD
   pthread_attr_t attr;
 
-  pthread_attr_get_np(&attr);
+  pthread_attr_init(&attr);  
+  pthread_attr_get_np(p, &attr);
   pthread_attr_getstackaddr(&attr,base);
   pthread_attr_getstacksize(&attr,size);
 #endif
@@ -678,8 +679,8 @@ thread_init_tcr(TCR *tcr, void *stack_base, natural stack_size)
 void
 register_thread_tcr(TCR *tcr)
 {
-  void *stack_base;
-  natural stack_size;
+  void *stack_base = NULL;
+  natural stack_size = 0;
 
   os_get_stack_bounds(current_thread_osid(),&stack_base, &stack_size);
   thread_init_tcr(tcr, stack_base, stack_size);
